@@ -169,7 +169,362 @@ const ARENAS = {
       { x: 0,   y: 0,   w: 10,  h: 460 },
       { x: 890, y: 0,   w: 10,  h: 460 },
     ],
-  }
+  },
+  // ----------------------------------------------------------------
+  // NEW ARENAS
+  // ----------------------------------------------------------------
+  cave: {
+    sky:         ['#0a0608', '#1a0e10'],
+    groundColor: '#2a1a10',
+    platColor:   '#3a2518',
+    platEdge:    '#5a3a28',
+    hasLava:     false,
+    deathY:      640,
+    platforms: [
+      { x: -60, y: 480, w: 1020, h: 40 },          // ground
+      { x: -60, y:   0, w: 1020, h: 20, isCeiling: true }, // low ceiling
+      { x: 340, y: 210, w: 220, h: 18 },             // centre mid
+      { x: 100, y: 285, w: 150, h: 18 },             // left mid
+      { x: 650, y: 285, w: 150, h: 18 },             // right mid
+      { x:  30, y: 155, w: 110, h: 16 },             // far-left high
+      { x: 760, y: 155, w: 110, h: 16 },             // far-right high
+    ]
+  },
+  mirror: {
+    sky:         ['#050a15', '#0a1530'],
+    groundColor: '#0d1a2a',
+    platColor:   '#1a2a3a',
+    platEdge:    '#2a4a6a',
+    hasLava:     false,
+    deathY:      640,
+    platforms: [
+      { x: -60,  y: 480, w: 1020, h: 40 },
+      { x: 355,  y: 175, w: 190, h: 15, ox: 355, oscX: 60, oscSpeed: 0.011, oscPhase: 0.0 },
+      { x: 145,  y: 258, w: 160, h: 15, ox: 145, oscX: 40, oscSpeed: 0.015, oscPhase: 1.2 },
+      { x: 595,  y: 258, w: 160, h: 15, ox: 595, oscX: 40, oscSpeed: 0.015, oscPhase: 2.4 },
+      { x:  25,  y: 165, w: 105, h: 15, ox:  25, oscX: 25, oscSpeed: 0.018, oscPhase: 0.7 },
+      { x: 770,  y: 165, w: 105, h: 15, ox: 770, oscX: 25, oscSpeed: 0.018, oscPhase: 1.9 },
+    ]
+  },
+  underwater: {
+    // NOTE: isSlowMovement flag — processInput in smc-loop.js should multiply
+    // movement speed by 0.72 when currentArena.isSlowMovement is true.
+    sky:            ['#01102a', '#012040'],
+    groundColor:    '#003366',
+    platColor:      '#004488',
+    platEdge:       '#0066bb',
+    hasLava:        false,
+    deathY:         640,
+    isSlowMovement: true,
+    platforms: [
+      { x: -60, y: 480, w: 1020, h: 40 },
+      { x: 355, y: 185, w: 190, h: 15 },
+      { x: 145, y: 268, w: 155, h: 15 },
+      { x: 600, y: 268, w: 155, h: 15 },
+      { x:  25, y: 175, w: 110, h: 15 },
+      { x: 765, y: 175, w: 110, h: 15 },
+    ]
+  },
+  volcano: {
+    sky:            ['#1a0500', '#3d1000'],
+    groundColor:    '#5a1800',
+    platColor:      '#6b2b0a',
+    platEdge:       '#8b3a0f',
+    hasLava:        true,
+    isHeavyGravity: true,
+    lavaY:          442,
+    deathY:         580,
+    platforms: [
+      { x: 360, y: 118, w: 180, h: 18 },
+      { x: 178, y: 208, w: 140, h: 18 },
+      { x: 582, y: 208, w: 140, h: 18 },
+      { x:  45, y: 300, w: 165, h: 18 },
+      { x: 690, y: 300, w: 165, h: 18 },
+      { x: 328, y: 285, w: 244, h: 18 },
+    ]
+  },
+  colosseum: {
+    sky:         ['#7a6030', '#c8a050'],
+    groundColor: '#b89060',
+    platColor:   '#c8a070',
+    platEdge:    '#8a6040',
+    hasLava:     false,
+    deathY:      640,
+    platforms: [
+      { x: -60, y: 480, w: 1020, h: 40 },
+      { x: 355, y: 195, w: 190, h: 20 },
+      { x: 155, y: 278, w: 155, h: 20 },
+      { x: 590, y: 278, w: 155, h: 20 },
+      { x:  28, y: 165, w: 108, h: 18 },
+      { x: 764, y: 165, w: 108, h: 18 },
+    ]
+  },
+  cyberpunk: {
+    sky:         ['#000510', '#020818'],
+    groundColor: '#0a0a1a',
+    platColor:   '#0d1530',
+    platEdge:    '#00eeff',
+    hasLava:     false,
+    deathY:      640,
+    platforms: [
+      { x: -60, y: 480, w: 1020, h: 40 },
+      { x: 355, y: 195, w: 190, h: 14 },
+      { x: 150, y: 275, w: 155, h: 14 },
+      { x: 595, y: 275, w: 155, h: 14 },
+      { x:  25, y: 165, w: 110, h: 14 },
+      { x: 765, y: 165, w: 110, h: 14 },
+    ]
+  },
+  haunted: {
+    sky:         ['#050408', '#100818'],
+    groundColor: '#1a1020',
+    platColor:   '#251528',
+    platEdge:    '#4a2860',
+    hasLava:     false,
+    deathY:      640,
+    platforms: [
+      { x: -60, y: 480, w: 1020, h: 40 },
+      { x: 345, y: 185, w: 210, h: 18 },
+      { x: 130, y: 268, w: 155, h: 18 },
+      { x: 615, y: 268, w: 155, h: 18 },
+      { x:  18, y: 158, w: 112, h: 16 },
+      { x: 770, y: 158, w: 112, h: 16 },
+    ]
+  },
+  clouds: {
+    sky:          ['#87ceeb', '#e0f0ff'],
+    groundColor:  '#ffffff',
+    platColor:    '#f0f8ff',
+    platEdge:     '#aaccff',
+    hasLava:      false,
+    deathY:       640,
+    isLowGravity: true,
+    platforms: [
+      { x: -60, y: 480, w: 1020, h: 40 },
+      { x: 355, y: 175, w: 190, h: 22 },
+      { x: 145, y: 258, w: 165, h: 22 },
+      { x: 590, y: 258, w: 165, h: 22 },
+      { x:  22, y: 165, w: 108, h: 20 },
+      { x: 770, y: 165, w: 108, h: 20 },
+    ]
+  },
+  neonGrid: {
+    sky:         ['#000000', '#000a00'],
+    groundColor: '#001a00',
+    platColor:   '#002200',
+    platEdge:    '#00ff44',
+    hasLava:     false,
+    deathY:      640,
+    platforms: [
+      { x: -60, y: 480, w: 1020, h: 40 },
+      { x: 355, y: 195, w: 190, h: 14 },
+      { x: 150, y: 275, w: 155, h: 14 },
+      { x: 595, y: 275, w: 155, h: 14 },
+      { x:  25, y: 165, w: 110, h: 14 },
+      { x: 765, y: 165, w: 110, h: 14 },
+    ]
+  },
+  mushroom: {
+    sky:         ['#220033', '#550066'],
+    groundColor: '#3a1055',
+    platColor:   '#5a2288',
+    platEdge:    '#aa44ee',
+    hasLava:     false,
+    deathY:      640,
+    platforms: [
+      { x: -60, y: 480, w: 1020, h: 40 },
+      // NOTE: isBouncy platforms — smc-loop.js checkPlatform should apply
+      // upward velocity bounce (vy = -abs(vy)*1.4) when landing on isBouncy platforms.
+      { x: 355, y: 190, w: 190, h: 22, isBouncy: true },
+      { x: 140, y: 270, w: 160, h: 22, isBouncy: true },
+      { x: 600, y: 270, w: 160, h: 22, isBouncy: true },
+      { x:  20, y: 160, w: 112, h: 20, isBouncy: true },
+      { x: 768, y: 160, w: 112, h: 20, isBouncy: true },
+    ]
+  },
+
+  // ─── ONLINE-ONLY LARGE ARENAS ────────────────────────────────────────────
+  megacity: {
+    name: 'Mega City', isOnlineOnly: true, isLargeMap: true,
+    sky: ['#0a0a1a','#1a0a2e','#0d1a3a'],
+    groundColor: '#1a1a2e', platColor: '#2d2d5e', platEdge: '#4a4a9e',
+    deathY: 700,
+    platforms: [
+      { x:0,    y:560, w:2600, h:40, isFloor:true },
+      // Lower tier
+      { x:80,   y:450, w:220,  h:18 },
+      { x:420,  y:430, w:180,  h:18 },
+      { x:720,  y:460, w:200,  h:18 },
+      { x:1050, y:440, w:190,  h:18 },
+      { x:1340, y:420, w:200,  h:18 },
+      { x:1640, y:450, w:180,  h:18 },
+      { x:1950, y:430, w:200,  h:18 },
+      { x:2250, y:460, w:190,  h:18 },
+      // Mid tier
+      { x:200,  y:340, w:180,  h:18 },
+      { x:520,  y:310, w:200,  h:18 },
+      { x:850,  y:350, w:180,  h:18 },
+      { x:1150, y:320, w:200,  h:18 },
+      { x:1450, y:300, w:180,  h:18 },
+      { x:1750, y:340, w:200,  h:18 },
+      { x:2080, y:310, w:180,  h:18 },
+      { x:2380, y:350, w:180,  h:18 },
+      // Upper tier
+      { x:350,  y:210, w:180,  h:18 },
+      { x:680,  y:180, w:200,  h:18 },
+      { x:1000, y:220, w:180,  h:18 },
+      { x:1300, y:190, w:200,  h:18 },
+      { x:1620, y:210, w:180,  h:18 },
+      { x:1920, y:180, w:200,  h:18 },
+      { x:2250, y:220, w:180,  h:18 },
+      // Top tier
+      { x:500,  y:100, w:200,  h:18 },
+      { x:900,  y:80,  w:180,  h:18 },
+      { x:1280, y:100, w:200,  h:18 },
+      { x:1700, y:80,  w:180,  h:18 },
+      { x:2100, y:100, w:200,  h:18 },
+    ]
+  },
+  warpzone: {
+    name: 'Warp Zone', isOnlineOnly: true, isLargeMap: true,
+    sky: ['#0d0024','#1a0038','#00001a'],
+    groundColor: '#0a001f', platColor: '#2a0055', platEdge: '#8800ff',
+    deathY: 620, isLowGravity: true,
+    platforms: [
+      { x:0,   y:510, w:1800, h:40, isFloor:true },
+      { x:50,  y:430, w:180,  h:18 },
+      { x:300, y:380, w:160,  h:18 },
+      { x:580, y:340, w:180,  h:18 },
+      { x:850, y:300, w:200,  h:18 },
+      { x:1100,y:350, w:160,  h:18 },
+      { x:1380,y:400, w:180,  h:18 },
+      { x:1600,y:330, w:180,  h:18 },
+      { x:150, y:280, w:160,  h:18 },
+      { x:450, y:240, w:180,  h:18 },
+      { x:720, y:200, w:160,  h:18 },
+      { x:1000,y:220, w:180,  h:18 },
+      { x:1280,y:180, w:160,  h:18 },
+      { x:600, y:120, w:200,  h:18 },
+      { x:900, y:80,  w:160,  h:18 },
+      { x:350, y:80,  w:140,  h:18 },
+      { x:1200,y:100, w:160,  h:18 },
+    ]
+  },
+  colosseum10: {
+    name: 'Grand Colosseum', isOnlineOnly: true, isLargeMap: true,
+    sky: ['#1a0800','#2d1000','#3d1a00'],
+    groundColor: '#2d1800', platColor: '#5c3010', platEdge: '#8c5020',
+    deathY: 620,
+    platforms: [
+      { x:0,    y:510, w:1800, h:40, isFloor:true },
+      { x:100,  y:420, w:220,  h:22 },
+      { x:450,  y:380, w:200,  h:22 },
+      { x:800,  y:420, w:200,  h:22 },
+      { x:1150, y:380, w:220,  h:22 },
+      { x:1500, y:420, w:200,  h:22 },
+      { x:250,  y:300, w:180,  h:20 },
+      { x:600,  y:270, w:200,  h:20 },
+      { x:900,  y:310, w:180,  h:20 },
+      { x:1200, y:270, w:200,  h:20 },
+      { x:1450, y:300, w:180,  h:20 },
+      { x:400,  y:190, w:160,  h:18 },
+      { x:700,  y:160, w:200,  h:18 },
+      { x:1000, y:190, w:160,  h:18 },
+      { x:1300, y:160, w:180,  h:18 },
+      { x:800,  y:80,  w:200,  h:18 },
+    ]
+  },
+
+  // ── Story-only arenas (not shown in arena picker) ─────────────────────────
+
+  // Home-world realistic arenas — flat ground, no floating platforms
+  homeYard: {
+    name: 'Backyard', isStoryOnly: true, earthPhysics: true,
+    sky: ['#87CEEB','#b8dff5','#d0eeff'],
+    groundColor: '#4a8030', platColor: '#4a8030', platEdge: '#3a6020',
+    hasLava: false, deathY: 640,
+    platforms: [
+      { x: -60, y: 480, w: 1020, h: 160 },  // lawn — tall fill eliminates void below
+    ]
+  },
+  homeAlley: {
+    name: 'City Alley', isStoryOnly: true, earthPhysics: true,
+    sky: ['#2a3a4a','#3a4a5a','#4a5a6a'],
+    groundColor: '#2a2a2a', platColor: '#383838', platEdge: '#222222',
+    hasLava: false, deathY: 640,
+    platforms: [
+      { x: -60, y: 480, w: 1020, h: 160 },  // asphalt — tall fill eliminates void below
+    ]
+  },
+
+  suburb: {
+    name: 'Suburbs', isStoryOnly: true, earthPhysics: true,
+    sky: ['#87CEEB','#b8e4f5'],
+    groundColor: '#5a8a3a', platColor: '#5a8a3a', platEdge: '#3a6020',
+    hasLava: false, deathY: 640,
+    platforms: [
+      { x: -60, y: 480, w: 1020, h: 160 },  // lawn — tall fill eliminates void below
+    ]
+  },
+  rural: {
+    name: 'Rural Fields', isStoryOnly: true, earthPhysics: true,
+    sky: ['#f5c842','#f0a020','#c87010'],
+    groundColor: '#7a5c30', platColor: '#7a5c30', platEdge: '#5c4010',
+    hasLava: false, deathY: 640,
+    platforms: [
+      { x: -60, y: 480, w: 1020, h: 160 },  // dirt — tall fill eliminates void below
+    ]
+  },
+  portalEdge: {
+    name: 'Portal Threshold', isStoryOnly: true,
+    sky: ['#0a0020','#1a0040','#300060'],
+    groundColor: '#150030', platColor: '#2a0060', platEdge: '#8800cc',
+    hasLava: false, deathY: 640,
+    platforms: [
+      { x: -60, y: 480, w: 1020, h: 40 },
+      { x: 100, y: 380, w: 140, h: 18 },
+      { x: 320, y: 320, w: 120, h: 18 },
+      { x: 480, y: 260, w: 160, h: 18 },
+      { x: 680, y: 320, w: 130, h: 18 },
+      { x: 790, y: 390, w: 100, h: 18 },
+      { x: 200, y: 220, w: 120, h: 16 },
+      { x: 560, y: 190, w: 110, h: 16 },
+    ]
+  },
+  realmEntry: {
+    name: 'The New Realm', isStoryOnly: true,
+    sky: ['#000820','#001840','#003060'],
+    groundColor: '#001030', platColor: '#003060', platEdge: '#0088ff',
+    hasLava: false, deathY: 640, isLowGravity: true,
+    platforms: [
+      { x: -60, y: 480, w: 1020, h: 40 },
+      { x:  80, y: 400, w: 140, h: 18 },
+      { x: 280, y: 340, w: 120, h: 18 },
+      { x: 440, y: 270, w: 150, h: 18 },
+      { x: 640, y: 310, w: 130, h: 18 },
+      { x: 770, y: 390, w: 110, h: 18 },
+      { x: 170, y: 220, w: 130, h: 16 },
+      { x: 500, y: 185, w: 120, h: 16 },
+      { x: 350, y: 130, w: 100, h: 16 },
+    ]
+  },
+  bossSanctum: {
+    name: 'Sanctum of the Ruler', isStoryOnly: true,
+    sky: ['#100005','#200010','#350020'],
+    groundColor: '#1a0010', platColor: '#3a0028', platEdge: '#cc0066',
+    hasLava: false, deathY: 640,
+    platforms: [
+      { x: -60, y: 480, w: 1020, h: 40 },
+      { x:  60, y: 380, w: 160, h: 22 },
+      { x: 290, y: 320, w: 140, h: 20 },
+      { x: 480, y: 255, w: 170, h: 20 },
+      { x: 690, y: 320, w: 140, h: 20 },
+      { x: 820, y: 390, w: 120, h: 18 },
+      { x: 180, y: 235, w: 130, h: 18 },
+      { x: 590, y: 200, w: 130, h: 18 },
+      { x: 380, y: 150, w: 140, h: 18 },
+    ]
+  },
 };
 
 // ============================================================
@@ -183,7 +538,7 @@ for (const key of Object.keys(ARENAS)) {
 }
 
 function randomizeArenaLayout(key) {
-  if (key === 'creator' || key === 'soccer') return; // never randomize boss/soccer arenas
+  if (key === 'creator' || key === 'soccer' || key === 'cave') return; // never randomize boss/soccer/cave (ceiling constraint)
   const base  = ARENA_BASE_PLATFORMS[key];
   if (!base) return;
   const arena = ARENAS[key];
@@ -218,6 +573,26 @@ const MAP_PERK_DEFS = {
   },
   lava: {
     eruptionCooldown: 480
+  },
+  cave: {
+    stalactites:       [],
+    stalactiteCooldown: 0
+  },
+  volcano: {
+    geysers:       [],
+    geyserCooldown: 0
+  },
+  haunted: {
+    ghosts:       [],
+    ghostCooldown: 0
+  },
+  cyberpunk: {
+    zapTimer:  0,
+    zapActive: false,
+    zapLine:   0
+  },
+  neonGrid: {
+    boostPads: [{ x: 180, y: 478 }, { x: 540, y: 478 }, { x: 750, y: 478 }]
   }
 };
 
@@ -238,17 +613,6 @@ function initMapPerks(key) {
     mapPerkState.crates       = [];
     mapPerkState.crateCooldown = 300; // first crate after 5s
   }
-  if (key === 'grass') {
-    // Mark raised platforms as bouncy/floating (skip the ground floor at index 0)
-    const grassPlatforms = ARENAS.grass.platforms;
-    for (let i = 1; i < grassPlatforms.length; i++) {
-      const pl = grassPlatforms[i];
-      pl.isBouncy    = true;
-      pl.naturalY    = pl.y;
-      pl.sinkOffset  = 0;
-      pl.floatPhase  = Math.random() * Math.PI * 2;
-    }
-  }
   if (key === 'city') {
     mapPerkState.carCooldown = MAP_PERK_DEFS.city.carCooldown;
     mapPerkState.cars        = [];
@@ -256,6 +620,28 @@ function initMapPerks(key) {
   if (key === 'lava') {
     mapPerkState.eruptCooldown = MAP_PERK_DEFS.lava.eruptionCooldown;
     mapPerkState.eruptions     = [];
+  }
+  if (key === 'cave') {
+    mapPerkState.stalactites       = [];
+    mapPerkState.stalactiteCooldown = 480; // first drop after ~8s
+  }
+  if (key === 'volcano') {
+    mapPerkState.geysers       = [];
+    mapPerkState.geyserCooldown = 420;
+  }
+  if (key === 'haunted') {
+    mapPerkState.ghosts       = [];
+    mapPerkState.ghostCooldown = 600;
+  }
+  if (key === 'cyberpunk') {
+    mapPerkState.zapTimer  = 900; // first zap after 15s
+    mapPerkState.zapActive = false;
+    mapPerkState.zapLine   = GAME_W / 2;
+  }
+  if (key === 'underwater') {
+    mapPerkState.bubbles = Array.from({ length: 18 }, (_, i) => ({
+      x: 30 + i * 50, y: 480 + Math.random() * 40, speed: 0.6 + Math.random() * 0.8
+    }));
   }
 }
 
@@ -308,15 +694,6 @@ function spawnYetiNow() {
 function updateMapPerks() {
   if (!currentArena || !gameRunning) return;
 
-  // ---- GRASS: Bouncy floating platforms ----
-  if (currentArenaKey === 'grass') {
-    for (const pl of currentArena.platforms) {
-      if (!pl.isBouncy) continue;
-      pl.sinkOffset = pl.sinkOffset * 0.94; // recover
-      const floatY = Math.sin(frameCount * 0.018 + pl.floatPhase) * 4;
-      pl.y = pl.naturalY + floatY + pl.sinkOffset;
-    }
-  }
 
   // ---- RUINS: Artifact pickups ----
   if (currentArenaKey === 'ruins') {
@@ -453,12 +830,20 @@ function updateMapPerks() {
         mapPerkState.cars.splice(ci, 1); continue;
       }
       // Damage players in path
+      let _carExploded = false;
       for (const p of players) {
         if (p.health <= 0 || p.invincible > 0) continue;
         if (Math.abs(p.cx() - car.x) < 40 && Math.abs((p.y + p.h) - car.y) < 60) {
+          if (p.isTrueForm) {
+            spawnParticles(car.x, car.y - 20, '#ff8800', 16);
+            spawnParticles(car.x, car.y - 20, '#ffff00', 8);
+            if (settings.screenShake) screenShake = Math.max(screenShake, 14);
+            car._exploded = true; _carExploded = true; break;
+          }
           dealDamage(players.find(q => q.isBoss) || players[1], p, 18, 16);
         }
       }
+      if (_carExploded) { mapPerkState.cars.splice(ci, 1); continue; }
     }
   }
 
@@ -556,17 +941,25 @@ function updateMapPerks() {
       // Remove when off-screen
       if (car.x > GAME_W + 120 || car.x < -120) { mapPerkState.cityCars.splice(ci, 1); continue; }
       // Damage players
+      let _cityCarExploded = false;
       for (const p of players) {
         if (p.health <= 0 || p.invincible > 0 || p.isBoss) continue;
         const carCX = car.x + car.w / 2;
         const carCY = car.y - car.h / 2;
         if (Math.abs(p.cx() - carCX) < car.w / 2 + p.w / 2 &&
             Math.abs((p.y + p.h / 2) - carCY) < car.h / 2 + p.h / 2) {
+          if (p.isTrueForm) {
+            spawnParticles(carCX, carCY, '#ff8800', 16);
+            spawnParticles(carCX, carCY, '#ffff00', 8);
+            if (settings.screenShake) screenShake = Math.max(screenShake, 14);
+            _cityCarExploded = true; break;
+          }
           dealDamage(null, p, 20, 28);
           spawnParticles(p.cx(), p.cy(), '#ffcc00', 12);
           if (settings.screenShake) screenShake = Math.max(screenShake, 12);
         }
       }
+      if (_cityCarExploded) { mapPerkState.cityCars.splice(ci, 1); continue; }
     }
   }
 
@@ -611,6 +1004,139 @@ function updateMapPerks() {
           _p.color = 'rgba(200,230,255,0.7)'; _p.size = 2 + Math.random() * 2;
           _p.life = 50; _p.maxLife = 50;
           particles.push(_p);
+        }
+      }
+    }
+  }
+
+  // ---- CAVE: Falling stalactites ----
+  if (currentArenaKey === 'cave') {
+    if (!mapPerkState.stalactites)        mapPerkState.stalactites        = [];
+    if (mapPerkState.stalactiteCooldown === undefined) mapPerkState.stalactiteCooldown = 480;
+    mapPerkState.stalactiteCooldown--;
+    if (mapPerkState.stalactiteCooldown <= 0 && mapPerkState.stalactites.length < 5) {
+      const sx = 60 + Math.random() * (GAME_W - 120);
+      mapPerkState.stalactites.push({ x: sx, y: 20, vy: 0, fallen: false, warnTimer: 90 });
+      mapPerkState.stalactiteCooldown = 360 + Math.floor(Math.random() * 300);
+    }
+    for (let si = mapPerkState.stalactites.length - 1; si >= 0; si--) {
+      const st = mapPerkState.stalactites[si];
+      if (st.warnTimer > 0) { st.warnTimer--; continue; }
+      st.vy += 0.6;
+      st.y  += st.vy;
+      if (st.y > GAME_H + 20) { mapPerkState.stalactites.splice(si, 1); continue; }
+      for (const p of players) {
+        if (p.health <= 0 || p.invincible > 0 || p.isBoss) continue;
+        if (Math.abs(p.cx() - st.x) < 18 && Math.abs((p.y + p.h / 2) - st.y) < 30) {
+          dealDamage(null, p, 22, 14);
+          spawnParticles(st.x, st.y, '#8a5a3a', 10);
+          if (settings.screenShake) screenShake = Math.max(screenShake, 8);
+          mapPerkState.stalactites.splice(si, 1);
+          break;
+        }
+      }
+    }
+  }
+
+  // ---- VOLCANO: Lava geysers ----
+  if (currentArenaKey === 'volcano') {
+    if (!mapPerkState.geysers)        mapPerkState.geysers        = [];
+    if (mapPerkState.geyserCooldown === undefined) mapPerkState.geyserCooldown = 420;
+    mapPerkState.geyserCooldown--;
+    if (mapPerkState.geyserCooldown <= 0 && mapPerkState.geysers.length < 4) {
+      const gx = 80 + Math.random() * (GAME_W - 160);
+      mapPerkState.geysers.push({ x: gx, timer: 200 });
+      mapPerkState.geyserCooldown = 300 + Math.floor(Math.random() * 300);
+    }
+    for (let gi = mapPerkState.geysers.length - 1; gi >= 0; gi--) {
+      const gy = mapPerkState.geysers[gi];
+      gy.timer--;
+      if (gy.timer <= 0) { mapPerkState.geysers.splice(gi, 1); continue; }
+      if (gy.timer % 4 === 0 && settings.particles && particles.length < MAX_PARTICLES) {
+        const upA = -Math.PI / 2 + (Math.random() - 0.5) * 0.6;
+        const _p = _getParticle();
+        _p.x = gy.x; _p.y = currentArena.lavaY || 442;
+        _p.vx = Math.cos(upA) * 4; _p.vy = Math.sin(upA) * (9 + Math.random() * 9);
+        _p.color = Math.random() < 0.5 ? '#ff5500' : '#ff9900';
+        _p.size = 4 + Math.random() * 5; _p.life = 35 + Math.random() * 20; _p.maxLife = 55;
+        particles.push(_p);
+      }
+      for (const p of players) {
+        if (p.isBoss || p.health <= 0 || p.invincible > 0) continue;
+        if (Math.abs(p.cx() - gy.x) < 90 && p.y + p.h > (currentArena.lavaY || 442) - 280) {
+          if (gy.timer % 10 === 0) dealDamage(null, p, Math.ceil(p.maxHealth * 0.04), 7);
+        }
+      }
+    }
+  }
+
+  // ---- HAUNTED: Drifting ghost NPCs ----
+  if (currentArenaKey === 'haunted') {
+    if (!mapPerkState.ghosts)        mapPerkState.ghosts        = [];
+    if (mapPerkState.ghostCooldown === undefined) mapPerkState.ghostCooldown = 600;
+    mapPerkState.ghostCooldown--;
+    if (mapPerkState.ghostCooldown <= 0 && mapPerkState.ghosts.length < 3) {
+      const fromLeft = Math.random() < 0.5;
+      mapPerkState.ghosts.push({
+        x: fromLeft ? -40 : GAME_W + 40,
+        y: 100 + Math.random() * 300,
+        vx: fromLeft ? 1.4 : -1.4,
+        timer: 480
+      });
+      mapPerkState.ghostCooldown = 480 + Math.floor(Math.random() * 480);
+    }
+    for (let ghi = mapPerkState.ghosts.length - 1; ghi >= 0; ghi--) {
+      const gh = mapPerkState.ghosts[ghi];
+      gh.x += gh.vx;
+      gh.timer--;
+      if (gh.timer <= 0 || gh.x < -80 || gh.x > GAME_W + 80) {
+        mapPerkState.ghosts.splice(ghi, 1); continue;
+      }
+      for (const p of players) {
+        if (p.health <= 0 || p.invincible > 0 || p.isBoss) continue;
+        if (Math.hypot(p.cx() - gh.x, p.cy() - gh.y) < 30) {
+          dealDamage(null, p, 8, 5);
+          spawnParticles(gh.x, gh.y, '#aa88ff', 8);
+          mapPerkState.ghosts.splice(ghi, 1);
+          break;
+        }
+      }
+    }
+  }
+
+  // ---- NEON GRID: Speed boost pads on floor ----
+  if (currentArenaKey === 'neonGrid') {
+    const pads = (mapPerkState.boostPads) || [];
+    for (const pad of pads) {
+      for (const p of players) {
+        if (p.health <= 0 || p.isBoss) continue;
+        if (p.onGround && Math.abs(p.cx() - pad.x) < 30) {
+          p._speedBuff = Math.max(p._speedBuff || 0, 18); // 0.3s burst
+          if (frameCount % 30 === 0) spawnParticles(pad.x, pad.y, '#00ff88', 5);
+        }
+      }
+    }
+  }
+
+  // ---- CYBERPUNK: Periodic floor zap ----
+  if (currentArenaKey === 'cyberpunk') {
+    if (mapPerkState.zapTimer === undefined) mapPerkState.zapTimer = 900;
+    if (mapPerkState.zapActive === undefined) mapPerkState.zapActive = false;
+    mapPerkState.zapTimer--;
+    if (!mapPerkState.zapActive && mapPerkState.zapTimer <= 0) {
+      mapPerkState.zapActive = true;
+      mapPerkState.zapLine   = 60 + Math.random() * (GAME_W - 120);
+      mapPerkState.zapTimer  = 120; // zap lasts 2s
+      if (settings.dmgNumbers) damageTexts.push(new DamageText(GAME_W / 2, 80, 'ZAP!', '#00eeff'));
+    } else if (mapPerkState.zapActive && mapPerkState.zapTimer <= 0) {
+      mapPerkState.zapActive = false;
+      mapPerkState.zapTimer  = 600 + Math.floor(Math.random() * 600);
+    }
+    if (mapPerkState.zapActive) {
+      for (const p of players) {
+        if (p.health <= 0 || p.invincible > 0 || p.isBoss) continue;
+        if (Math.abs(p.cx() - mapPerkState.zapLine) < 40 && p.onGround) {
+          if (frameCount % 12 === 0) dealDamage(null, p, 10, 6);
         }
       }
     }
@@ -863,13 +1389,13 @@ const WEAPONS = {
   hammer: {
     // THE CRUSHER: Slow, punishing, massive knockback. Forces commitment.
     // Identity: Every hit sends enemies flying. One good read = huge reward.
-    name: 'Hammer',  damage: 32, range: 58, cooldown: 54, endlag: 18,
-    kb: 28,          abilityCooldown: 205, type: 'melee', color: '#888888',
+    name: 'Hammer',  damage: 22, range: 58, cooldown: 62, endlag: 22,
+    kb: 20,          abilityCooldown: 230, type: 'melee', color: '#888888',
     abilityName: 'Ground Slam',
     ability(user, target) {
-      screenShake = Math.max(screenShake, 32);
+      screenShake = Math.max(screenShake, 24);
       spawnRing(user.cx(), user.y + user.h);
-      if (dist(user, target) < 145) dealDamage(user, target, 42, 30);
+      if (dist(user, target) < 145) dealDamage(user, target, 28, 22);
     }
   },
   gun: {
@@ -879,6 +1405,7 @@ const WEAPONS = {
     damageFunc: () => Math.floor(Math.random() * 4) + 6,
     superRateBonus: 2.8,
     splashRange: 38, splashDmgPct: 0.30,
+    clipSize: 6, reloadFrames: 90,
     kb: 7,           abilityCooldown: 140, type: 'ranged', color: '#666666',
     abilityName: 'Rapid Fire',
     ability(user, _target) {
@@ -893,25 +1420,25 @@ const WEAPONS = {
   axe: {
     // THE SPINNER: Mid-range AoE brawler. Covers angles, not pure damage.
     // Identity: Spin Attack is a defensive escape AND offensive tool. Trades raw dmg for coverage.
-    name: 'Axe',     damage: 17, range: 68, cooldown: 48, endlag: 14,
-    splashRange: 70, splashDmgPct: 0.38,
-    kb: 12,          abilityCooldown: 165, type: 'melee', color: '#cc4422',
+    name: 'Axe',     damage: 13, range: 68, cooldown: 52, endlag: 16,
+    splashRange: 70, splashDmgPct: 0.30,
+    kb: 10,          abilityCooldown: 180, type: 'melee', color: '#cc4422',
     abilityName: 'Spin Attack',
     ability(user, target) {
       user.spinning = 30;
-      if (dist(user, target) < 110) dealDamage(user, target, 22, 14);
+      if (dist(user, target) < 110) dealDamage(user, target, 16, 11);
     }
   },
   spear: {
     // THE POKER: Longest melee reach. Safe, consistent, spacing-dependent.
     // Identity: Never lets enemies get close. Low KB keeps spacing tight for follow-ups.
-    name: 'Spear',   damage: 20, range: 115, cooldown: 40, endlag: 10,
-    kb: 8,           abilityCooldown: 150, type: 'melee', color: '#8888ff',
+    name: 'Spear',   damage: 15, range: 115, cooldown: 44, endlag: 12,
+    kb: 7,           abilityCooldown: 165, type: 'melee', color: '#8888ff',
     abilityName: 'Lunge',
     ability(user, target) {
-      user.vx = user.facing * 16;
+      user.vx = user.facing * 14;
       user.vy = -5;
-      if (dist(user, target) < 150) dealDamage(user, target, 26, 12);
+      if (dist(user, target) < 150) dealDamage(user, target, 18, 10);
     }
   },
   bow: {
@@ -919,6 +1446,7 @@ const WEAPONS = {
     // Identity: Huge range, powerful arrow, but slow fire rate demands good aim.
     name: 'Bow',  damage: 0, range: 700, cooldown: 52, endlag: 4,
     damageFunc: () => Math.floor(14 + Math.random() * 8),
+    clipSize: 3, reloadFrames: 120,
     kb: 14,       abilityCooldown: 185, type: 'ranged', color: '#aad47a',
     requiresClass: 'archer',
     abilityName: 'Triple Shot',
@@ -943,9 +1471,9 @@ const WEAPONS = {
     abilityName: 'Shield Bash',
     ability(user, target) {
       if (dist(user, target) < 105) {
-        target.vx  = user.facing * 32;
-        target.stunTimer = Math.max(target.stunTimer || 0, 22);
-        dealDamage(user, target, 14, 28);
+        target.vx  = user.facing * 26;
+        target.stunTimer = Math.max(target.stunTimer || 0, 12);
+        dealDamage(user, target, 12, 22);
         spawnParticles(target.cx(), target.cy(), '#88aaff', 10);
       }
     }
@@ -953,21 +1481,21 @@ const WEAPONS = {
   scythe: {
     // THE SUSTAINER: Wide sweep with lifesteal. Weaker 1v1, stronger vs groups.
     // Identity: Fights multiple targets simultaneously. Healing rewards multi-hit risks.
-    name: 'Scythe', damage: 16, range: 100, cooldown: 40, endlag: 11,
-    splashRange: 60, splashDmgPct: 0.45,
-    kb: 10,          abilityCooldown: 180, type: 'melee', color: '#aa44aa',
+    name: 'Scythe', damage: 12, range: 100, cooldown: 44, endlag: 13,
+    splashRange: 60, splashDmgPct: 0.35,
+    kb: 8,           abilityCooldown: 195, type: 'melee', color: '#aa44aa',
     abilityName: 'Reaping Sweep',
     ability(user, _target) {
       let healed = 0;
       for (const p of players) {
         if (p === user || p.health <= 0) continue;
-        if (dist(user, p) < 125) { dealDamage(user, p, 14, 8); healed++; }
+        if (dist(user, p) < 125) { dealDamage(user, p, 10, 7); healed++; }
       }
       for (const d of trainingDummies) {
-        if (d.health > 0 && dist(user, d) < 125) { dealDamage(user, d, 14, 8); healed++; }
+        if (d.health > 0 && dist(user, d) < 125) { dealDamage(user, d, 10, 7); healed++; }
       }
       if (healed > 0) {
-        user.health = Math.min(user.maxHealth, user.health + healed * 4);
+        user.health = Math.min(user.maxHealth, user.health + healed * 3);
         spawnParticles(user.cx(), user.cy(), '#aa44aa', 12);
       }
     }
@@ -975,15 +1503,15 @@ const WEAPONS = {
   fryingpan: {
     // THE STUNNER: Slow but delivers punishing stun windows. Reads = reward.
     // Identity: Land the slow swing → stun window → follow-up combo. High risk, high reward.
-    name: 'Frying Pan', damage: 26, range: 60, cooldown: 50, endlag: 16,
-    kb: 16,              abilityCooldown: 185, type: 'melee', color: '#ccaa44',
+    name: 'Frying Pan', damage: 18, range: 60, cooldown: 58, endlag: 20,
+    kb: 12,              abilityCooldown: 220, type: 'melee', color: '#ccaa44',
     abilityName: 'Pan Slam',
     ability(user, target) {
       if (dist(user, target) < 105) {
-        dealDamage(user, target, 34, 20);
-        target.stunTimer = Math.max(target.stunTimer || 0, 35); // 0.58s stun
+        dealDamage(user, target, 22, 16);
+        target.stunTimer = Math.max(target.stunTimer || 0, 18); // reduced from 35 — brief stun, not a chain lock
         spawnParticles(target.cx(), target.cy(), '#ffdd66', 12);
-        screenShake = Math.max(screenShake, 16);
+        screenShake = Math.max(screenShake, 12);
       }
     }
   },
@@ -1028,6 +1556,7 @@ const WEAPONS = {
     name: 'Pea Shooter', damage: 0, range: 700, cooldown: 9, endlag: 1,
     damageFunc: () => 3 + Math.floor(Math.random() * 3), // 3-5 per shot
     bulletSpeed: 15, bulletColor: '#44cc44',
+    clipSize: 15, reloadFrames: 75,
     kb: 3,               abilityCooldown: 120, type: 'ranged', color: '#44cc44',
     abilityName: 'Pea Storm',
     ability(user, _target) {
@@ -1051,6 +1580,7 @@ const WEAPONS = {
     name: 'Slingshot', damage: 0, range: 650, cooldown: 50, endlag: 5,
     damageFunc: () => 15 + Math.floor(Math.random() * 7), // 15-21 per shot
     bulletSpeed: 10, bulletColor: '#ff9933', bulletVy: -1.5,
+    clipSize: 4, reloadFrames: 110,
     kb: 14,            abilityCooldown: 190, type: 'ranged', color: '#cc8833',
     abilityName: 'Power Stone',
     ability(user, target) {
@@ -1073,6 +1603,7 @@ const WEAPONS = {
     name: 'Paper Airplane', damage: 0, range: 800, cooldown: 35, endlag: 2,
     damageFunc: () => 8 + Math.floor(Math.random() * 5), // 8-12 per shot
     bulletSpeed: 7, bulletColor: '#aaccff', bulletVy: -0.5,
+    clipSize: 5, reloadFrames: 80,
     kb: 6,                  abilityCooldown: 160, type: 'ranged', color: '#ddeeff',
     abilityName: 'Paper Barrage',
     ability(user, _target) {
@@ -1118,10 +1649,41 @@ const WEAPONS = {
     kb: 24, abilityCooldown: 75, type: 'melee', color: '#8844ff',
     contactDmgMult: 0.5, abilityName: 'Uppercut',
     ability(_user, _tgt) { /* fully overridden by Megaknight class */ }
+  },
+
+  // ── ENEMY-ONLY WEAPONS (never available in player weapon picker) ─────────
+  voidblade: {
+    enemyOnly: true,
+    name: 'Void Blade', damage: 14, range: 58, cooldown: 26, endlag: 9,
+    kb: 10, abilityCooldown: 140, type: 'melee', color: '#9933ff',
+    abilityName: 'Void Slash',
+    ability(user, target) {
+      if (!target || target.health <= 0) return;
+      // Lunge forward + rapid slashes
+      user.vx = user.facing * 14;
+      if (dist(user, target) < 80) dealDamage(user, target, 10, 8);
+      if (dist(user, target) < 80) dealDamage(user, target, 10, 8);
+      spawnParticles(user.cx(), user.cy(), '#9933ff', 8);
+      spawnParticles(user.cx(), user.cy(), '#cc66ff', 5);
+    }
+  },
+
+  shockrifle: {
+    enemyOnly: true,
+    name: 'Shock Rifle', damage: 8, range: 600, cooldown: 36, endlag: 10,
+    kb: 6, abilityCooldown: 180, type: 'ranged', color: '#00ddff',
+    abilityName: 'Chain Lightning',
+    ability(user, _target) {
+      // Rapid triple burst — fire 3 projectiles in quick sequence
+      spawnBullet(user, 22, '#00eeff', 11);
+      spawnBullet(user, 20, '#00ccdd', 11);
+      spawnBullet(user, 18, '#0099bb', 11);
+      spawnParticles(user.cx(), user.cy(), '#00ddff', 6);
+    }
   }
 };
 
-const WEAPON_KEYS = Object.keys(WEAPONS).filter(k => k !== 'gauntlet' && k !== 'mkgauntlet');
+const WEAPON_KEYS = Object.keys(WEAPONS).filter(k => k !== 'gauntlet' && k !== 'mkgauntlet' && !WEAPONS[k].enemyOnly);
 
 // ============================================================
 // CHARACTER CLASSES

@@ -67,13 +67,13 @@ body {
   position: relative;
   z-index: 10;
   display: grid;
-  grid-template-columns: 220px 1fr 220px;
-  grid-template-rows: auto;
-  align-items: start;
-  padding: 20px;
-  gap: 16px;
-  min-height: 100vh;
-  overflow-y: auto;
+  grid-template-columns: 210px 1fr 210px;
+  grid-template-rows: 1fr;
+  align-items: stretch;
+  padding: 14px;
+  gap: 12px;
+  height: 100vh;
+  overflow: hidden;
   animation: fadeIn 0.4s ease;
   background: radial-gradient(ellipse at 50% 30%, rgba(7,7,15,0.05) 0%, rgba(7,7,15,0.30) 100%);
 }
@@ -84,9 +84,9 @@ body {
    MENU SIDE COLUMNS (Player cards)
    ============================================================ */
 .menu-side {
-  position: sticky;
-  top: 20px;
-  height: calc(100vh - 40px);
+  position: relative;
+  top: 0;
+  height: 100%;
   display: flex;
   flex-direction: column;
   background: rgba(8, 12, 30, 0.92);
@@ -94,6 +94,7 @@ body {
   border-radius: 14px;
   padding: 8px;
   backdrop-filter: blur(4px);
+  overflow: hidden;
 }
 
 .menu-side.right {
@@ -116,17 +117,25 @@ body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 22px;
-  padding-bottom: 40px;
+  gap: 10px;
+  padding: 6px 4px 16px 4px;
+  height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(100,80,200,0.4) transparent;
 }
+.menu-center::-webkit-scrollbar { width: 4px; }
+.menu-center::-webkit-scrollbar-track { background: transparent; }
+.menu-center::-webkit-scrollbar-thumb { background: rgba(100,80,200,0.4); border-radius: 4px; }
 
 /* ============================================================
    TITLE
    ============================================================ */
 .game-title {
-  font-size: 4.4rem;
+  font-size: 3rem;
   font-weight: 900;
-  letter-spacing: 6px;
+  letter-spacing: 5px;
   text-transform: uppercase;
   background: linear-gradient(135deg, #ff5500 0%, #ff8800 50%, #ffcc00 100%);
   -webkit-background-clip: text;
@@ -147,20 +156,20 @@ body {
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
-  font-size: 0.85rem;
+  font-size: 0.75rem;
   font-weight: 700;
   letter-spacing: 4px;
   text-transform: uppercase;
-  margin-top: -14px;
+  margin-top: -10px;
 }
 
 /* Section label */
 .section-label {
-  font-size: 0.7rem;
+  font-size: 0.65rem;
   letter-spacing: 3px;
   text-transform: uppercase;
   color: rgba(180,200,255,0.75);
-  margin-bottom: 8px;
+  margin-bottom: 4px;
 }
 
 /* ============================================================
@@ -168,14 +177,14 @@ body {
    ============================================================ */
 .mode-cards {
   display: flex;
-  gap: 14px;
+  gap: 8px;
   justify-content: center;
   flex-wrap: wrap;
 }
 
 .mode-card {
-  width: 148px;
-  padding: 20px 12px 16px;
+  width: 118px;
+  padding: 12px 10px 10px;
   border: 2px solid rgba(255,255,255,0.14);
   border-radius: var(--radius);
   background: rgba(10,18,45,0.88);
@@ -223,9 +232,9 @@ body {
 }
 .mode-card[data-mode="boss2p"].active { border-color: #ff88ff; background: #200028; box-shadow: 0 0 22px rgba(255,136,255,0.35); }
 
-.mode-icon { font-size: 2.1rem; margin-bottom: 8px; }
-.mode-name { font-weight: 800; font-size: 1rem; letter-spacing: 1px; margin-bottom: 4px; }
-.mode-desc { font-size: 0.72rem; color: var(--muted); }
+.mode-icon { font-size: 1.6rem; margin-bottom: 5px; }
+.mode-name { font-weight: 800; font-size: 0.88rem; letter-spacing: 1px; margin-bottom: 3px; }
+.mode-desc { font-size: 0.66rem; color: var(--muted); }
 
 /* ============================================================
    ARENA CARDS
@@ -254,6 +263,51 @@ body {
 .arena-card:hover { border-color: rgba(255,200,100,0.55); background: rgba(255,140,0,0.22); color: #ffdd88; }
 .arena-card.active { border-color: var(--gold); color: var(--gold); background: rgba(255,160,0,0.20); box-shadow: 0 0 14px rgba(255,180,0,0.45); }
 
+/* ── Arena & Lives dropdowns ─────────────────────────────── */
+#arenaSelect, #livesSelect {
+  flex: 1;
+  background: rgba(8, 10, 28, 0.88);
+  color: #c8d8ff;
+  border: 1.5px solid rgba(100, 140, 255, 0.35);
+  border-radius: 8px;
+  padding: 7px 12px;
+  font-size: 0.83rem;
+  font-family: inherit;
+  outline: none;
+  cursor: pointer;
+  transition: border-color 0.18s, box-shadow 0.18s;
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%238899cc' stroke-width='1.8' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  padding-right: 28px;
+}
+#arenaSelect:hover, #livesSelect:hover {
+  border-color: rgba(160, 200, 255, 0.6);
+  box-shadow: 0 0 10px rgba(100, 160, 255, 0.2);
+}
+#arenaSelect:focus, #livesSelect:focus {
+  border-color: rgba(200, 160, 255, 0.7);
+  box-shadow: 0 0 14px rgba(160, 100, 255, 0.25);
+}
+#arenaSelect option, #livesSelect option {
+  background: #0d0f22;
+  color: #c8d8ff;
+}
+#arenaSelect optgroup {
+  color: #667799;
+  font-style: normal;
+  font-size: 0.75rem;
+}
+#arenaGimmickHint {
+  font-size: 0.70rem;
+  color: #7788aa;
+  margin-top: 4px;
+  min-height: 14px;
+  letter-spacing: 0.3px;
+}
+
 /* ============================================================
    PLAYER CONFIG
    ============================================================ */
@@ -274,10 +328,10 @@ body {
   background: var(--bg2);
   border: 1.5px solid var(--border);
   border-radius: var(--radius);
-  padding: 18px 16px;
+  padding: 12px 12px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
   transition: border-color 0.2s ease;
 }
 
@@ -319,13 +373,17 @@ body {
 .config-body {
   display: none;
   flex-direction: column;
-  gap: 10px;
-  margin-top: 8px;
+  gap: 7px;
+  margin-top: 4px;
   overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(100,80,200,0.3) transparent;
 }
 
-.menu-side {
+.menu-side .player-config {
   overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(100,80,200,0.3) transparent;
 }
 
 .player-config.expanded .config-body {
@@ -345,8 +403,8 @@ body {
 .player-config .config-row {
   background: #2a0d0d;
   border-radius: 6px;
-  padding: 5px 7px;
-  margin: 0 -3px;
+  padding: 4px 6px;
+  margin: 0 -2px;
 }
 
 #p2Config .config-row {
@@ -496,8 +554,8 @@ input[type="color"] {
 }
 
 .btn-start {
-  padding: 14px 48px;
-  font-size: 1.05rem;
+  padding: 11px 44px;
+  font-size: 0.95rem;
   letter-spacing: 3px;
   background: linear-gradient(135deg, #00bb44, #00ee66);
   border: none;
@@ -542,13 +600,13 @@ input[type="color"] {
   background: var(--bg2);
   border: 1.5px solid var(--border);
   border-radius: var(--radius);
-  padding: 14px 22px;
+  padding: 10px 16px;
   width: 100%;
 }
 
 .settings-grid {
   display: flex;
-  gap: 18px;
+  gap: 12px;
   flex-wrap: wrap;
   justify-content: center;
 }
@@ -572,11 +630,11 @@ input[type="color"] {
 
 .controls-info {
   color: var(--text);
-  font-size: 0.82rem;
-  line-height: 2.1;
+  font-size: 0.74rem;
+  line-height: 1.7;
   border: 1px solid var(--border);
   border-radius: 10px;
-  padding: 14px 22px;
+  padding: 8px 16px;
   background: var(--bg2);
   max-width: 680px;
   width: 100%;
@@ -653,6 +711,17 @@ input[type="color"] {
   height: 100vh;
   background: #000;
   z-index: 0;
+  transform-origin: center center;
+  transition: transform 0.9s cubic-bezier(0.22, 1, 0.36, 1),
+              filter 0.9s ease;
+}
+#gameCanvas.view-3d {
+  transform: perspective(900px) rotateX(14deg) scale(0.92);
+  filter: drop-shadow(0 60px 40px rgba(0,0,0,0.8));
+}
+#gameCanvas.view-3d-tf {
+  transform: perspective(700px) rotateX(22deg) rotateZ(-2deg) scale(0.88);
+  filter: drop-shadow(0 80px 60px rgba(120,0,255,0.6)) brightness(0.92);
 }
 
 /* ============================================================
@@ -818,6 +887,27 @@ input[type="color"] {
   min-width: 160px;
 }
 
+/* HUD menu button */
+#hudMenuBtn {
+  pointer-events: auto;
+  background: rgba(255,255,255,0.07);
+  border: 1px solid rgba(255,255,255,0.18);
+  color: rgba(255,255,255,0.65);
+  font-family: inherit;
+  font-size: 11px;
+  padding: 2px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  margin-bottom: 3px;
+  transition: background 0.15s, color 0.15s;
+  letter-spacing: 0.04em;
+}
+#hudMenuBtn:hover {
+  background: rgba(255,80,80,0.22);
+  color: #fff;
+  border-color: rgba(255,100,100,0.5);
+}
+
 /* Skin swatches */
 .skin-swatch {
   width: 18px; height: 18px;
@@ -934,10 +1024,17 @@ input[type="color"] {
   #menu {
     grid-template-columns: 1fr;
     grid-template-rows: auto;
+    height: auto;
+    overflow-y: auto;
+  }
+  .menu-center {
+    height: auto;
+    overflow-y: visible;
   }
   .menu-side {
     position: static;
     height: auto;
+    overflow: visible;
   }
   .game-title { font-size: 2.2rem; }
   #hud { flex-direction: column; align-items: stretch; }
@@ -1191,3 +1288,89 @@ input[type="color"] {
 @media (max-width: 480px) {
   .mc-btn { width: 48px; height: 48px; }
 }
+
+/* ─── STORY MODE v2 — Chapters, Ability Store, Tokens ────────────────────── */
+.story-tab {
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 7px;
+  color: #aab;
+  font-size: 0.72rem;
+  padding: 4px 10px;
+  cursor: pointer;
+  transition: all 0.15s;
+  font-family: inherit;
+}
+.story-tab.active {
+  background: rgba(255,200,100,0.18);
+  border-color: rgba(255,200,100,0.45);
+  color: #ffcc88;
+}
+.story-tab:hover:not(.active) {
+  background: rgba(255,255,255,0.10);
+  color: #dde;
+}
+
+/* Journey chapter cards */
+.story-journey-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 9px 12px;
+  border-radius: 8px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  margin-bottom: 5px;
+  font-size: 0.78rem;
+  color: #aab;
+  transition: all 0.15s;
+}
+.story-journey-card.current {
+  background: rgba(255,150,0,0.12);
+  border-color: rgba(255,170,50,0.35);
+  color: #ffdd99;
+}
+.story-journey-card.done {
+  background: rgba(0,180,80,0.07);
+  border-color: rgba(0,200,100,0.25);
+  color: #88ffbb;
+}
+.story-journey-card.locked { opacity: 0.35; }
+.story-journey-card:hover:not(.locked) { background: rgba(255,200,100,0.12); cursor: pointer; }
+.sjc-icon { font-size: 1.1rem; flex-shrink: 0; margin-top: 1px; }
+.sjc-body { flex: 1; min-width: 0; }
+.sjc-title { font-weight: 600; color: #dde4ff; margin-bottom: 2px; }
+.sjc-world { font-size: 0.65rem; color: #667; }
+.sjc-reward { font-size: 0.65rem; color: #ffd700; margin-top: 3px; }
+
+/* Ability cards in store */
+.story-ability-card2 {
+  padding: 9px 10px;
+  border-radius: 8px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.10);
+  font-size: 0.72rem;
+  color: #aab;
+  transition: all 0.18s;
+}
+.story-ability-card2.sa-buyable {
+  border-color: rgba(255,215,0,0.40);
+  background: rgba(255,215,0,0.06);
+}
+.story-ability-card2.sa-buyable:hover {
+  background: rgba(255,215,0,0.14);
+  transform: translateY(-2px);
+  cursor: pointer;
+}
+.story-ability-card2.sa-owned {
+  border-color: rgba(0,200,100,0.35);
+  background: rgba(0,180,80,0.06);
+  color: #88ffbb;
+}
+.story-ability-card2.sa-locked { opacity: 0.45; }
+.sa-icon2 { font-size: 1.4rem; margin-bottom: 4px; }
+.sa-name2 { font-weight: bold; color: #dde4ff; margin-bottom: 3px; font-size: 0.76rem; }
+.sa-desc2 { font-size: 0.67rem; color: #889; line-height: 1.4; margin-bottom: 5px; }
+.sa-cost2 { font-size: 0.68rem; color: #ffd700; }
+.sa-cost2.sa-owned-label { color: #66ee99; }
+.sa-cost2.sa-locked-label { color: #558; }

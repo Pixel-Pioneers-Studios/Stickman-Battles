@@ -552,28 +552,44 @@ function drawMinigameHUD() {
 }
 
 function confirmResetProgress() {
-  localStorage.removeItem('smc_bossBeaten');
-  localStorage.removeItem('smc_letters');
-  localStorage.removeItem('smc_trueform');
-  localStorage.removeItem('smc_tutorialDone');
-  localStorage.removeItem('smc_achievements');  // also wipe all achievements
+  // Wipe every smc_ key from localStorage — nothing survives
+  const keysToRemove = Object.keys(localStorage).filter(k => k.startsWith('smc_'));
+  keysToRemove.forEach(k => localStorage.removeItem(k));
+
+  // Reset all in-memory state
   bossBeaten          = false;
   collectedLetterIds  = new Set();
   unlockedTrueBoss    = false;
-  earnedAchievements  = new Set();  // clear in-memory achievement set too
+  unlockedMegaknight  = false;
+  earnedAchievements  = new Set();
+  if (typeof _story2 !== 'undefined' && typeof _defaultStory2Progress === 'function') {
+    // eslint-disable-next-line no-global-assign
+    _story2 = _defaultStory2Progress();
+  }
+  if (typeof _storyProgress !== 'undefined' && typeof _defaultProgress === 'function') {
+    _storyProgress = _defaultProgress();
+  }
+  _activeStory2Chapter = null;
+
   const card = document.getElementById('modeTrueForm');
   if (card) card.style.display = 'none';
   syncCodeInput();
   document.getElementById('resetConfirmRow').style.display = 'none';
   // Flash confirmation
   const msg = document.createElement('div');
-  msg.textContent = 'Progress reset! Starting tutorial...';
-  msg.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(0,0,0,0.9);color:#ff4444;padding:16px 28px;border-radius:8px;font-size:1.1rem;font-weight:bold;z-index:9999;pointer-events:none';
+  msg.textContent = 'Progress reset! Starting story from the beginning...';
+  msg.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(0,0,0,0.9);color:#ffaa44;padding:16px 28px;border-radius:8px;font-size:1.1rem;font-weight:bold;z-index:9999;pointer-events:none';
   document.body.appendChild(msg);
   setTimeout(() => {
     msg.remove();
-    selectMode('tutorial');
-    startGame();
+    selectMode('story');
+    setTimeout(() => {
+      if (typeof _showPrologue === 'function') {
+        _showPrologue(() => { if (typeof _beginChapter2 === 'function') _beginChapter2(0); });
+      } else if (typeof _beginChapter2 === 'function') {
+        _beginChapter2(0);
+      }
+    }, 200);
   }, 1500);
 }
 

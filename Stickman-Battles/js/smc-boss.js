@@ -98,6 +98,10 @@ class Boss extends Fighter {
     if (this.postSpecialPause > 0) this.postSpecialPause--;
     const canAct = this.postSpecialPause <= 0;
 
+    if (this.target && !activeCinematic && typeof this._dominanceMoment === 'function') {
+      this._dominanceMoment(this.target);
+    }
+
     // In 2P boss mode, always target the nearest alive human player
     if (gameMode === 'boss' && bossPlayerCount === 2) {
       let nearDist = Infinity, nearP = null;
@@ -485,6 +489,80 @@ class Boss extends Fighter {
 
     return false;
   }
+
+  _dominanceMoment(target) {
+    if (!target || target.health <= 0) return;
+    if ((this._dominanceCd || 0) > 0) { this._dominanceCd--; return; }
+    if (this._inDominance) return;
+
+    const hpPct = this.health / this.maxHealth;
+    const atPhase2 = hpPct < 0.67 && !this._dom2Fired;
+    const atPhase3 = hpPct < 0.33 && !this._dom3Fired;
+    const playerClose = Math.abs(target.cx() - this.cx()) < 130 && target.attackTimer > 0;
+
+    if (!atPhase2 && !atPhase3 && !playerClose) return;
+    if (atPhase2) this._dom2Fired = true;
+    if (atPhase3) this._dom3Fired = true;
+
+    this._inDominance = true;
+    this._dominanceCd = 1200;
+
+    const _self = this;
+    if (typeof directorSchedule === 'function') {
+      directorSchedule([
+        {
+          id: 'dom_freeze', delay: 0,
+          condition: () => gameRunning,
+          action: () => {
+            _self.vx = 0; _self.vy = 0;
+            if (typeof slowMotion !== 'undefined') slowMotion = 0.32;
+            if (typeof hitStopFrames !== 'undefined') hitStopFrames = 6;
+            if (typeof showBossDialogue === 'function') showBossDialogue(_self._domLine(), 110);
+            if (typeof setCameraDrama === 'function') setCameraDrama('focus', 85, _self, 1.28);
+            if (typeof SoundManager !== 'undefined' && SoundManager.phaseUp) SoundManager.phaseUp();
+          }
+        },
+        {
+          id: 'dom_teleport', delay: 50,
+          condition: () => gameRunning && target.health > 0,
+          action: () => {
+            if (typeof slowMotion !== 'undefined') slowMotion = 1.0;
+            const _behindX = target.cx() + target.facing * -80;
+            _self.x = Math.max(20, Math.min(GAME_W - _self.w - 20, _behindX - _self.w / 2));
+            if (typeof spawnParticles === 'function') spawnParticles(_self.cx(), _self.cy(), '#cc44ff', 18);
+            _self.facing = target.cx() < _self.cx() ? -1 : 1;
+          }
+        },
+        {
+          id: 'dom_strike', delay: 8,
+          condition: () => gameRunning && target.health > 0,
+          action: () => {
+            if (typeof setCameraDrama === 'function') setCameraDrama('impact', 22);
+            _self.attack(target);
+            if (typeof screenShakeIntensity !== 'undefined') screenShakeIntensity = 9;
+          }
+        },
+        {
+          id: 'dom_end', delay: 45,
+          condition: () => true,
+          action: () => { _self._inDominance = false; }
+        }
+      ]);
+    } else {
+      // Fallback if director not available
+      setTimeout(() => { this._inDominance = false; }, 2000);
+    }
+  }
+
+  _domLine() {
+    const lines = [
+      '"Did you think I wasn\'t watching?"',
+      '"This is where it ends."',
+      '"You\'ve barely scratched me."',
+      '"Enough of this."',
+    ];
+    return lines[Math.floor(Math.random() * lines.length)];
+  }
 }
 
 // ============================================================
@@ -702,6 +780,9 @@ class TrueForm extends Fighter {
     this._cloneCd      = 48;  // Shadow Clones — 12s
     this._chainCd      = 36;  // Chain Slam    — 9s
     this.postSpecialPause = 0;
+    // Cosmic visual state
+    this._floatT    = Math.random() * Math.PI * 2; // random phase so float doesn't start at apex
+    this._trailPts  = []; // [{x, y, a}] — fading ghost silhouette trail
     this._lastPhase    = 1;
     this._maxLives     = 1;
     // Dodge mechanic
@@ -727,6 +808,28 @@ class TrueForm extends Fighter {
     this._pendingGravityCrush = null;  // { timer }
     this._prevHealth       = 5000; // for stagger accumulation tracking
     this._cinematicFired   = new Set(); // HP-threshold mid-fight cinematics already triggered
+    // Dimensional attack cooldowns (AI ticks)
+    this._phaseShiftCd  = 30;  // Phase Shift     — 7.5s
+    this._realityTearCd = 44;  // Reality Tear    — 11s
+    this._calcStrikeCd  = 22;  // Calculated Strike — 5.5s
+    // Chaining + pressure system
+    this._pendingChainMove    = null; // { move, delay } — queued follow-up attack
+    this._prevTargetVxArr     = [];   // rolling history of target vx for unpredictability detection
+    this._aggressionBurstTimer = 0;  // AI ticks remaining in hyper-aggressive burst
+    this._comboFinisherCd     = 0;   // cooldown preventing back-to-back mini finishers
+    // Desperation + new high-impact moves
+    this._desperationMode     = false; // activates at <20% HP
+    this._realityOverrideCd   = 0;    // Reality Override — boss rewrites game state
+    this._collapseStrikeCd    = 0;    // Collapse Strike  — slowmo + devastating hit
+    this._grabCinCd           = 60;   // Grab Cinematic   — short scripted grab+throw
+    this._dimensionCd         = 0;   // Dimension Shift  — toggle 2D/3D perspective
+    this._pendingCollapseStrike = null; // { timer, target }
+    // ── Cosmic attack cooldowns (AI ticks) ────────────────────
+    this._gammaBeamCd    = 30;  // Gamma Ray Beam    — 7.5s
+    this._neutronStarCd  = 40;  // Neutron Star      — 10s
+    this._galaxySweepCd  = 35;  // Galaxy Sweep      — 8.75s
+    this._multiverseCd   = 44;  // Multiverse Fracture — 11s
+    this._supernovaCd    = 999; // Supernova — triggers once at low HP only
   }
 
   getPhase() {
@@ -795,6 +898,15 @@ class TrueForm extends Fighter {
       this._comboDamage = 0;
     }
 
+    // ── Desperation mode activates at <20% HP ────────────────
+    if (!this._desperationMode && this.health / this.maxHealth < 0.20) {
+      this._desperationMode = true;
+      showBossDialogue(randChoice(['You forced this.', '...Fine.', 'No more holding back.', 'ENOUGH.']), 260);
+      screenShake = Math.max(screenShake, 28);
+      spawnParticles(this.cx(), this.cy(), '#ffffff', 30);
+      spawnParticles(this.cx(), this.cy(), '#000000', 20);
+    }
+
     // Tick all special cooldowns
     if (this._gravityCd > 0) this._gravityCd--;
     if (this._warpCd    > 0) this._warpCd--;
@@ -812,6 +924,46 @@ class TrueForm extends Fighter {
     if (this._shockwaveCd     > 0) this._shockwaveCd--;
     if (this._teleportComboCd > 0) this._teleportComboCd--;
     if (this._gravityCrushCd  > 0) this._gravityCrushCd--;
+    if (this._phaseShiftCd  > 0) this._phaseShiftCd--;
+    if (this._realityTearCd > 0) this._realityTearCd--;
+    if (this._calcStrikeCd  > 0) this._calcStrikeCd--;
+    if (this._realityOverrideCd > 0) this._realityOverrideCd--;
+    if (this._collapseStrikeCd  > 0) this._collapseStrikeCd--;
+    if (this._grabCinCd         > 0) this._grabCinCd--;
+    if (this._dimensionCd       > 0) this._dimensionCd--;
+    if (this._gammaBeamCd    > 0) this._gammaBeamCd--;
+    if (this._neutronStarCd  > 0) this._neutronStarCd--;
+    if (this._galaxySweepCd  > 0) this._galaxySweepCd--;
+    if (this._multiverseCd   > 0) this._multiverseCd--;
+    if (this._supernovaCd    > 0) this._supernovaCd--;
+    // ── Desperation: extra cooldown burn ─────────────────────
+    if (this._desperationMode) {
+      if (this._slashCd      > 0) this._slashCd--;
+      if (this._graspCd      > 0) this._graspCd--;
+      if (this._chainCd      > 0) this._chainCd--;
+      if (this._phaseShiftCd > 0) this._phaseShiftCd--;
+    }
+    // ── Pressure system: idle player → faster cooldowns ──────
+    if (this._stillTimer > 10) {
+      if (this._slashCd      > 0) this._slashCd--;
+      if (this._calcStrikeCd > 0) this._calcStrikeCd--;
+      if (this._phaseShiftCd > 0) this._phaseShiftCd--;
+      if (this._shockwaveCd  > 0) this._shockwaveCd--;
+    }
+    // ── Aggression burst tick ─────────────────────────────────
+    if (this._aggressionBurstTimer > 0) this._aggressionBurstTimer--;
+    // ── Combo finisher cooldown ───────────────────────────────
+    if (this._comboFinisherCd > 0) this._comboFinisherCd--;
+    // ── Execute pending chain move ────────────────────────────
+    if (this._pendingChainMove) {
+      this._pendingChainMove.delay--;
+      if (this._pendingChainMove.delay <= 0) {
+        const cm = this._pendingChainMove;
+        this._pendingChainMove = null;
+        const freshTarget = players.find(p => !p.isBoss && p.health > 0);
+        if (freshTarget) { this._doSpecial(cm.move, freshTarget); return; }
+      }
+    }
 
     // Floor-removal countdown
     if (tfFloorRemoved) {
@@ -838,6 +990,9 @@ class TrueForm extends Fighter {
     const playerMoved = Math.abs(t.cx() - this._lastTargetX) > 8;
     this._stillTimer  = playerMoved ? 0 : this._stillTimer + 1;
     this._lastTargetX = t.cx();
+    // Rolling vx history for calcStrike accuracy tier
+    this._prevTargetVxArr.push(t.vx);
+    if (this._prevTargetVxArr.length > 10) this._prevTargetVxArr.shift();
 
     const dx_  = t.cx() - this.cx();
     const playerFleeing = (dx_ < 0 && t.vx < -1) || (dx_ > 0 && t.vx > 1);
@@ -848,8 +1003,11 @@ class TrueForm extends Fighter {
     // --- Aggression timer + smart weighted special trigger ---
     // Higher special frequency than before; aggression timer forces action if idle ≥ 12 ticks (3s)
     this._idleTicks++;
-    const specialFreq  = phase === 3 ? 0.12 : phase === 2 ? 0.065 : 0.035;
-    const forceSpecial = this._idleTicks >= 12;
+    const burstActive  = this._aggressionBurstTimer > 0;
+    const specialFreq  = burstActive
+      ? (phase === 3 ? 0.22 : phase === 2 ? 0.14 : 0.09)
+      : (phase === 3 ? 0.12 : phase === 2 ? 0.065 : 0.035);
+    const forceSpecial = this._idleTicks >= (this._desperationMode ? 7 : 12);
     if (forceSpecial || Math.random() < specialFreq) {
       const move = this._selectWeightedSpecial(phase, t);
       if (move) {
@@ -858,7 +1016,14 @@ class TrueForm extends Fighter {
         return;
       }
       // Nothing available yet — at least reset idle so we don't spam every tick
-      if (forceSpecial) this._idleTicks = 8;
+      if (forceSpecial) {
+        this._idleTicks = 8;
+        // Trigger aggression burst if player has been standing still
+        if (this._stillTimer > 15 && this._aggressionBurstTimer <= 0) {
+          this._aggressionBurstTimer = 5;
+          showBossDialogue(randChoice(['You think standing still will save you?', 'Come on.', 'Move.', 'I see you.']), 120);
+        }
+      }
     }
 
     // --- Movement: chase to melee range ---
@@ -936,6 +1101,10 @@ class TrueForm extends Fighter {
     if (this._sizeCd      <= 0) w.size      = 0.07;
     if (this._invertCd    <= 0) w.invert    = 0.07;
     if (this._warpCd      <= 0) w.warp      = 0.04;
+    // ── Dimensional attacks (all phases) ────────────────────
+    if (this._phaseShiftCd  <= 0 && !tfPhaseShift)  w.phaseShift  = 0.11;
+    if (this._calcStrikeCd  <= 0 && !tfCalcStrike)  w.calcStrike  = 0.11;
+    if (this._realityTearCd <= 0 && !tfRealityTear) w.realityTear = 0.10;
 
     // ── Phase 2+ attacks ─────────────────────────────────────
     if (phase >= 2) {
@@ -1010,6 +1179,46 @@ class TrueForm extends Fighter {
       if (w.grasp) w.grasp = (w.grasp || 0) * 1.8;
       if (w.chain) w.chain = (w.chain || 0) * 1.8;
     }
+    // Dimensional attack situational boosts
+    if (this._stillTimer > 6 && w.calcStrike)  w.calcStrike  *= 2.4; // standing still = easy to predict
+    if (farDist  && w.realityTear) w.realityTear *= 2.0; // far away = tear pulls them in
+    if (closeDist && w.phaseShift) w.phaseShift  *= 1.8; // close = phase shift to reposition
+    // ── Phase 3 / desperation exclusive attacks ───────────────
+    if ((phase === 3 || this._desperationMode) && this._realityOverrideCd <= 0 && !tfRealityOverride) {
+      w.realityOverride = 0.16;
+    }
+    if ((phase === 3 || this._desperationMode) && this._collapseStrikeCd <= 0) {
+      w.collapseStrike = 0.13;
+    }
+    if (phase >= 2 && this._grabCinCd <= 0 && !activeCinematic) {
+      w.grabCinematic = 0.07;
+    }
+    // Dimension Shift — available from phase 2 onward, moderate weight
+    if (phase >= 2 && this._dimensionCd <= 0) {
+      w.dimension = 0.09;
+    }
+    // ── Cosmic attacks ────────────────────────────────────────
+    if (this._gammaBeamCd   <= 0 && !tfGammaBeam)   w.gammaBeam    = 0.12;
+    if (this._neutronStarCd <= 0 && !tfNeutronStar)  w.neutronStar  = 0.10;
+    if (this._galaxySweepCd <= 0 && !tfGalaxySweep)  w.galaxySweep  = 0.10;
+    if (this._multiverseCd  <= 0 && !tfMultiverse)   w.multiverseFracture = 0.09;
+    if (this._supernovaCd   <= 0 && !tfSupernova && this.health / this.maxHealth < 0.25) {
+      w.supernova = 0.28; // heavy weight when unlocked — dramatic payoff
+    }
+    // Situational boosts for cosmic attacks
+    if (farDist  && w.gammaBeam)   w.gammaBeam    *= 2.2; // beam crosses full map
+    if (playerAir && w.neutronStar) w.neutronStar  *= 1.8; // gravity hurts airborne players more
+    if (medDist  && w.galaxySweep) w.galaxySweep  *= 1.6;
+    if (this._stillTimer > 6 && w.multiverseFracture) w.multiverseFracture *= 2.0;
+    // Desperation: boost all finishing moves
+    if (this._desperationMode) {
+      if (w.grasp)           w.grasp           *= 1.5;
+      if (w.chain)           w.chain           *= 1.6;
+      if (w.realityOverride) w.realityOverride *= 2.0;
+      if (w.collapseStrike)  w.collapseStrike  *= 1.8;
+      if (w.calcStrike)      w.calcStrike      *= 1.4;
+      if (w.supernova)       w.supernova       *= 1.5;
+    }
 
     // ── Anti-repeat ───────────────────────────────────────────
     delete w[this._lastSpecial];
@@ -1036,6 +1245,8 @@ class TrueForm extends Fighter {
     // Phase-based cooldown multiplier — phase 3 recharges ~45% faster
     const phase  = this.getPhase();
     const cdMult = phase === 3 ? 0.55 : phase === 2 ? 0.75 : 1.0;
+    // Burst mode: halve post-special pause so attacks chain faster
+    const _burstActive = this._aggressionBurstTimer > 0;
     switch (move) {
       // ── NEW: Void Grasp ─────────────────────────────────────
       case 'grasp': {
@@ -1154,7 +1365,7 @@ class TrueForm extends Fighter {
         spawnParticles(this.cx(), this.cy(), '#ffffff', 22);
         break;
       case 'warp': {
-        const warpPool = Object.keys(ARENAS).filter(k => !['creator','void','soccer','tutorial'].includes(k));
+        const warpPool = Object.keys(ARENAS).filter(k => !['creator','void','soccer'].includes(k));
         const newKey   = warpPool[Math.floor(Math.random() * warpPool.length)];
         tfWarpArena(newKey);
         this._warpCd = Math.ceil(80 * cdMult);
@@ -1254,18 +1465,300 @@ class TrueForm extends Fighter {
         showBossDialogue(randChoice(['IMPACT!', 'The world shakes.', 'SHOCKWAVE!', 'Feel it trembling.']), 140);
         break;
       }
+
+      // ── PHASE SHIFT ─────────────────────────────────────────
+      // Boss goes semi-transparent, spawns 3 position echoes.
+      // After a delay one echo is real — boss snaps there and attacks.
+      case 'phaseShift': {
+        this._phaseShiftCd = Math.ceil(38 * cdMult);
+        this.postSpecialPause = 8;
+        this.invincible = 70;
+        const realIdx = Math.floor(Math.random() * 3);
+        const spread  = 180;
+        const echoes  = [0, 1, 2].map(i => ({
+          x: clamp(this.cx() + (i - 1) * spread + (Math.random() - 0.5) * 80, 60, GAME_W - 60),
+          y: this.y + (Math.random() - 0.5) * 60,
+          // Fake echoes drift slightly to confuse the player; real echo stays put
+          driftVx: i !== realIdx ? (Math.random() - 0.5) * 1.4 : 0,
+          driftVy: i !== realIdx ? (Math.random() - 0.5) * 0.6 : 0,
+        }));
+        tfPhaseShift = { timer: 0, maxTimer: 70, echoes, realIdx, revealed: false, bossRef: this };
+        screenShake  = Math.max(screenShake, 10);
+        // Chain: calcStrike immediately after reappearing
+        if (!this._pendingChainMove) this._pendingChainMove = { move: 'calcStrike', delay: 80 };
+        showBossDialogue(randChoice(['You cannot hit what you cannot see.', 'Which one is real?', 'Choose wisely.']), 160);
+        break;
+      }
+
+      // ── REALITY TEAR ────────────────────────────────────────
+      // A crack opens in space between boss and player.
+      // It pulls the player toward it, then snaps shut cleanly — no residue.
+      case 'realityTear': {
+        this._realityTearCd = Math.ceil(44 * cdMult);
+        this.postSpecialPause = 7;
+        const midX = (this.cx() + target.cx()) / 2;
+        const midY = (this.cy() + target.cy()) / 2;
+        tfRealityTear = { x: midX, y: midY, timer: 0, maxTimer: 90, phase: 'warn',
+                          bossRef: this, targetRef: target };
+        bossWarnings.push({ type: 'circle', x: midX, y: midY, r: 60,
+          color: '#cc00ff', timer: 20, maxTimer: 20, label: 'REALITY TEAR!' });
+        screenShake = Math.max(screenShake, 8);
+        showBossDialogue(randChoice(['Space itself obeys me.', 'Tear.', 'The fabric yields.']), 150);
+        break;
+      }
+
+      // ── CALCULATED STRIKE ────────────────────────────────────
+      // Shows a math thought bubble (boss "calculating"), then teleports
+      // to the player's predicted future position and strikes.
+      case 'calcStrike': {
+        this._calcStrikeCd = Math.ceil(28 * cdMult);
+        this.postSpecialPause = 6;
+        const MATH_EXPRESSIONS = ['F = ma', 'Δx / Δt', '∫v dx', 'lim(t→0)', 'p = mv', '∇²φ = 0', 'E = mc²'];
+        const bubbleText = MATH_EXPRESSIONS[Math.floor(Math.random() * MATH_EXPRESSIONS.length)];
+        // ── Accuracy tier based on recent player movement ──────────
+        const vxHist = this._prevTargetVxArr;
+        let vxVar = 0;
+        if (vxHist.length >= 4) {
+          const _mean = vxHist.reduce((s, v) => s + v, 0) / vxHist.length;
+          vxVar = vxHist.reduce((s, v) => s + (v - _mean) ** 2, 0) / vxHist.length;
+        }
+        const _isStill      = this._stillTimer > 5;       // standing still → guaranteed hit
+        const _isPredictable = vxVar < 3 && !_isStill;    // consistent direction → high accuracy
+        const _isErratic    = vxVar >= 8;                  // random movement → lower accuracy
+        const _noiseRadius  = _isStill ? 0 : _isPredictable ? 22 : _isErratic ? 85 : 42;
+        const predictX = clamp(target.cx() + target.vx * 45 + (Math.random() - 0.5) * _noiseRadius * 2, 40, GAME_W - 40);
+        const predictY = clamp(target.cy() + target.vy * 20 + (Math.random() - 0.5) * _noiseRadius * 0.5, 40, GAME_H - 40);
+        // ── 5D ghost paths: show 3 possible futures, boss picks one ─
+        tfGhostPaths = {
+          timer: 0, maxTimer: 40,
+          paths: [
+            { // player continues current direction
+              pts: [{ x: target.cx(), y: target.cy() },
+                    { x: clamp(target.cx() + target.vx * 65, 30, GAME_W - 30),
+                      y: clamp(target.cy() + target.vy * 30, 30, GAME_H - 30) }],
+              selected: false, alpha: 0.30,
+            },
+            { // player reverses
+              pts: [{ x: target.cx(), y: target.cy() },
+                    { x: clamp(target.cx() - target.vx * 30, 30, GAME_W - 30),
+                      y: target.cy() }],
+              selected: false, alpha: 0.22,
+            },
+            { // boss's chosen prediction (accurate)
+              pts: [{ x: target.cx(), y: target.cy() },
+                    { x: predictX, y: predictY }],
+              selected: true, alpha: 0.85,
+            },
+          ],
+        };
+        // Varied delay: still player = faster strike; erratic = slower (harder to time)
+        const strikeDelay = _isStill ? 35 : _isErratic ? 52 : 42;
+        tfMathBubble = { text: bubbleText, timer: 0, maxTimer: 38, x: this.cx(), y: this.y - 18 };
+        tfCalcStrike = { timer: 0, maxTimer: Math.max(strikeDelay + 14, 55), predictX, predictY,
+                         fired: false, strikeDelay, targetRef: target };
+        showBossDialogue(_isStill ? 'Too easy.' : _isErratic ? 'Chaos... still calculable.' : 'Calculating...', 140);
+        break;
+      }
+
+      // ── REALITY OVERRIDE — boss rewrites game state ──────────────
+      // Briefly freezes game, teleports player close, executes attack chain.
+      // Player can dodge with jump/shield during the 20-frame execute window.
+      case 'realityOverride': {
+        this._realityOverrideCd = Math.ceil(65 * cdMult);
+        this.postSpecialPause   = 12;
+        hitStopFrames = Math.max(hitStopFrames, 14);
+        showBossDialogue(randChoice(['I decide what happens next.', 'Override.', 'This is my arena.', 'Checkmate.']), 210);
+        screenShake = Math.max(screenShake, 22);
+        spawnParticles(this.cx(), this.cy(), '#000000', 28);
+        spawnParticles(this.cx(), this.cy(), '#ffffff', 14);
+        tfRealityOverride = { timer: 0, maxTimer: 70, bossRef: this, targetRef: target, phase: 'freeze',
+                              attacksFired: 0 };
+        break;
+      }
+
+      // ── COLLAPSE STRIKE — slowmo + devastating teleport hit ─────
+      case 'collapseStrike': {
+        this._collapseStrikeCd = Math.ceil(55 * cdMult);
+        this.postSpecialPause  = 8;
+        showBossDialogue('COLLAPSE.', 160);
+        slowMotion   = 0.08;
+        hitSlowTimer = 25;
+        screenShake  = Math.max(screenShake, 14);
+        spawnParticles(this.cx(), this.cy(), '#000000', 22);
+        spawnParticles(this.cx(), this.cy(), '#ffffff', 10);
+        // Crosshair telegraph at target's current position
+        bossWarnings.push({ type: 'cross', x: target.cx(), y: target.cy(),
+          r: 22, color: '#ffffff', timer: 22, maxTimer: 22, label: 'COLLAPSE!' });
+        // Schedule the actual strike after 22 frames (during slowmo)
+        this._pendingCollapseStrike = { timer: 22, target };
+        break;
+      }
+
+      // ── GRAB CINEMATIC — short scripted grab + throw ─────────────
+      case 'grabCinematic': {
+        this._grabCinCd       = Math.ceil(80 * cdMult);
+        this.postSpecialPause = 10;
+        showBossDialogue(randChoice(['You cannot run.', 'Come here.', 'GOTCHA.', 'Stay.']), 170);
+        startCinematic(_makeTFGrabCinematic(this, target));
+        break;
+      }
+
+      // ── GAMMA RAY BEAM ─────────────────────────────────────────────────
+      // 42-frame telegraph (thin glowing line across full arena), then 40-frame beam.
+      // Beam fires at a fixed Y; player must jump above or duck below.
+      case 'gammaBeam': {
+        this._gammaBeamCd = Math.ceil(40 * cdMult);
+        this.postSpecialPause = 14;
+        // charge phase first — tracks player Y live, then locks
+        tfGammaBeam = {
+          phase: 'charge', timer: 0, maxTimer: 28,
+          trackY: clamp(target.y + target.h * 0.45, 120, 440),
+          y: 0, hit: new Set(),
+          chargeX: this.cx(), chargeY: this.cy() + this.h * 0.45,
+        };
+        screenShake = Math.max(screenShake, 6);
+        showBossDialogue(randChoice(['Charging...', 'GAMMA BURST.', 'Feel the radiation.', 'Nowhere to hide.']), 240);
+        break;
+      }
+
+      // ── NEUTRON STAR ───────────────────────────────────────────────────
+      // Pull phase (5s): gravity increased, jump height halved.
+      // Slam phase: boss rises off-screen, warns with shadow, crashes down as AoE.
+      case 'neutronStar': {
+        this._neutronStarCd = Math.ceil(52 * cdMult);
+        this.postSpecialPause = 16;
+        tfNeutronStar = {
+          phase: 'charge', timer: 0, maxTimer: 22, // charge first
+          bossRef: this, startX: this.cx(),
+        };
+        screenShake = Math.max(screenShake, 10);
+        spawnParticles(this.cx(), this.cy(), '#ffaa00', 16);
+        showBossDialogue(randChoice(['Dense as a dying star.', 'NEUTRON STAR.', 'Gravity bends to me.', 'Feel the pull.']), 220);
+        break;
+      }
+
+      // ── GALAXY SWEEP ───────────────────────────────────────────────────
+      // Two rotating danger arms sweep the arena for 3s. Player must stay in gaps.
+      case 'galaxySweep': {
+        this._galaxySweepCd = Math.ceil(44 * cdMult);
+        this.postSpecialPause = 14;
+        tfGalaxySweep = {
+          angle: 0, speed: 0.008, // starts slow, accelerates
+          timer: 0, maxTimer: 260,
+          hit: new Set(),
+          cx: GAME_W / 2, cy: GAME_H / 2 - 30,
+          phase: 'charge', chargeTimer: 0, chargeMax: 24,
+        };
+        screenShake = Math.max(screenShake, 10);
+        spawnParticles(GAME_W / 2, GAME_H / 2 - 30, '#440066', 20);
+        showBossDialogue(randChoice(['The galaxy sweeps clean.', 'SPIRAL.', 'Nowhere in this universe.', 'Rotation.']), 200);
+        break;
+      }
+
+      // ── MULTIVERSE FRACTURE ────────────────────────────────────────────
+      // True timeline-echo system:
+      //   show    (0-70):   3 live player clones appear at spatial offsets, boss ghosts mirror
+      //   select  (70-110): boss highlights ONE clone as the "real" timeline, locks its X
+      //   collapse(110-140): all other timelines shatter with particles
+      //   strike  (140-190): boss fires at the locked X — player must have dodged away
+      case 'multiverseFracture': {
+        this._multiverseCd = Math.ceil(50 * cdMult);
+        this.postSpecialPause = 16;
+
+        // 3 clone offsets (left / center / right). Player's REAL body is always at 0.
+        // Boss will select one of these offsets as the "target" — strikes that absolute X.
+        const CLONE_OFFSETS = [-200, 0, 200];          // spatial X offsets from player
+        const realIdx = Math.floor(Math.random() * CLONE_OFFSETS.length);
+
+        // Boss ghost mirrors: symmetric reflections so boss also looks "duplicated"
+        const bossGhosts = [
+          { offsetX: -(this.cx() - GAME_W * 0.25) },   // left mirror
+          { offsetX:  (GAME_W * 0.75 - this.cx()) },   // right mirror
+        ];
+
+        tfMultiverse = {
+          phase: 'show', timer: 0, maxTimer: 190,
+          bossRef: this, targetRef: target,
+          cloneOffsets: CLONE_OFFSETS,
+          realIdx,             // which offset the boss will target
+          strikeX: 0,          // locked absolute X (set at start of 'select')
+          strikeY: 0,          // locked absolute Y
+          bossGhosts,
+          shards: [],          // lightweight shard particles spawned on collapse
+          hit: false,
+        };
+
+        screenShake = Math.max(screenShake, 14);
+        slowMotion   = 0.55;
+        hitSlowTimer = 30;
+        spawnParticles(target.cx(), target.cy(), '#00ccff', 18);
+        spawnParticles(target.cx(), target.cy(), '#ffffff',  8);
+        showBossDialogue(
+          randChoice(['I see all timelines.', 'FRACTURE.', 'Which version of you survives?', 'Multiverse.']), 260
+        );
+        break;
+      }
+
+      // ── SUPERNOVA (rare — triggers once at <25% HP) ────────────────────
+      // buildup → implosion → active shockwave (r=0→340)
+      // Safe zone: stay within 45px of boss (inside the core)
+      case 'supernova': {
+        this._supernovaCd = 9999; // one-time use per fight
+        this.postSpecialPause = 22;
+        slowMotion   = 0.14;
+        hitSlowTimer = 55;
+        tfSupernova = {
+          phase: 'buildup', timer: 0, maxTimer: 70,
+          bossRef: this, hit: new Set(), r: 0,
+        };
+        bossWarnings.push({ type: 'circle', x: this.cx(), y: this.cy(),
+          r: 340, color: '#ffdd00', timer: 65, maxTimer: 65, label: '⚠ SUPERNOVA — STAY CLOSE!' });
+        screenShake = Math.max(screenShake, 20);
+        spawnParticles(this.cx(), this.cy(), '#ffff88', 30);
+        spawnParticles(this.cx(), this.cy(), '#ffffff', 16);
+        showBossDialogue('SUPERNOVA.', 360);
+        break;
+      }
+
+      // ── DIMENSION SHIFT — toggle game between 2D and 3D perspective ──
+      case 'dimension': {
+        this._dimensionCd = Math.ceil(90 * cdMult);
+        this.postSpecialPause = 8;
+        tfDimensionIs3D = !tfDimensionIs3D;
+        set3DView(tfDimensionIs3D ? 'tf' : false);
+        screenShake = Math.max(screenShake, 28);
+        hitStopFrames = Math.max(hitStopFrames, 6);
+        spawnParticles(GAME_W / 2, GAME_H / 2, '#cc88ff', 30);
+        spawnParticles(GAME_W / 2, GAME_H / 2, '#ffffff', 18);
+        spawnParticles(GAME_W / 2, GAME_H / 2, '#000000', 12);
+        bossWarnings.push({ type: 'circle', x: GAME_W / 2, y: GAME_H / 2,
+          r: 300, color: '#aa00ff', timer: 35, maxTimer: 35,
+          label: tfDimensionIs3D ? 'DIMENSION SHIFT — 3D!' : 'DIMENSION SHIFT — 2D!' });
+        showBossDialogue(
+          tfDimensionIs3D ? randChoice(['Three dimensions now.', 'Depth has no meaning.', 'Welcome to my plane.'])
+                          : randChoice(['Back to flatness.', 'You prefer this?', 'Too much for you?']),
+          240
+        );
+        break;
+      }
     }
+    // Burst mode: halve post-special pause so specials chain faster
+    if (_burstActive) this.postSpecialPause = Math.max(1, Math.floor(this.postSpecialPause * 0.5));
   }
 
   draw() {
     if (this.backstageHiding) return;
     if (this.health <= 0 && this.ragdollTimer <= 0) return;
-    ctx.save();
 
-    // Invincibility blink
-    if (this.invincible > 0 && Math.floor(this.invincible / 5) % 2 === 1) {
-      ctx.globalAlpha = 0.35;
-    }
+    // ── Cosmic animation state ──────────────────────────────────────────────────
+    this._floatT += 0.038;
+    const floatOff = Math.sin(this._floatT) * 3.5; // -3.5 → +3.5 px vertical float
+
+    // Glow color cycles: deep purple (#5500ff) ↔ electric blue (#0088ff)
+    const gc       = (Math.sin(this._floatT * 0.42) + 1) * 0.5; // 0→1
+    const glowR    = Math.round(gc * 80);
+    const glowB    = Math.round(220 + gc * 35);
+    const glowColor = `rgb(${glowR},0,${glowB})`;
 
     const cx = this.cx();
     const ty = this.y;
@@ -1273,7 +1766,96 @@ class TrueForm extends Fighter {
     const s  = this.state;
     const t  = this.animTimer;
 
-    // Visual size scale
+    // Visual center of body (used for aura / orbit / trail anchoring)
+    const bx = cx;
+    const by = ty + this.h * 0.5 + floatOff;
+
+    // ── Energy trail ───────────────────────────────────────────────────────────
+    // Push a ghost silhouette anchor point when moving
+    if (s === 'walking' || s === 'jumping' || s === 'falling') {
+      this._trailPts.push({ x: bx, y: by, a: 0.42 });
+      if (this._trailPts.length > 10) this._trailPts.shift();
+    }
+    // Draw and fade existing trail points
+    for (let i = this._trailPts.length - 1; i >= 0; i--) {
+      const tp = this._trailPts[i];
+      tp.a -= 0.047;
+      if (tp.a <= 0) { this._trailPts.splice(i, 1); continue; }
+      ctx.save();
+      ctx.globalAlpha = tp.a;
+      ctx.shadowColor = glowColor;
+      ctx.shadowBlur  = 6;
+      ctx.strokeStyle = glowColor;
+      ctx.lineWidth   = 1.5;
+      ctx.lineCap     = 'round';
+      // Ghost head
+      ctx.beginPath();
+      ctx.arc(tp.x, tp.y - 14, 5.5, 0, Math.PI * 2);
+      ctx.stroke();
+      // Ghost body
+      ctx.beginPath();
+      ctx.moveTo(tp.x, tp.y - 8);
+      ctx.lineTo(tp.x, tp.y + 10);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    // ── Aura field ─────────────────────────────────────────────────────────────
+    ctx.save();
+    const aR     = 38 + Math.sin(this._floatT * 1.15) * 5; // pulsing outer radius
+    const aGrad  = ctx.createRadialGradient(bx, by, 5, bx, by, aR);
+    aGrad.addColorStop(0,    'rgba(0,0,0,0)');
+    aGrad.addColorStop(0.55, `rgba(${glowR},0,${glowB},0.06)`);
+    aGrad.addColorStop(1,    `rgba(${glowR},0,${glowB},0.20)`);
+    ctx.beginPath();
+    ctx.ellipse(bx, by, aR, aR * 0.70, 0, 0, Math.PI * 2);
+    ctx.fillStyle = aGrad;
+    ctx.fill();
+    // Bright edge ring
+    ctx.globalAlpha = 0.30 + Math.sin(this._floatT * 2.2) * 0.12;
+    ctx.strokeStyle = glowColor;
+    ctx.lineWidth   = 1;
+    ctx.shadowColor = glowColor;
+    ctx.shadowBlur  = 14;
+    ctx.beginPath();
+    ctx.ellipse(bx, by, aR, aR * 0.70, 0, 0, Math.PI * 2);
+    ctx.stroke();
+    // Inner bright ring (tighter, faster pulse, opposite phase)
+    ctx.globalAlpha = 0.18 + Math.sin(this._floatT * 2.2 + Math.PI) * 0.10;
+    const aRi = aR * 0.55;
+    ctx.beginPath();
+    ctx.ellipse(bx, by, aRi, aRi * 0.70, 0, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+
+    // ── Orbiting particles ─────────────────────────────────────────────────────
+    // 6 particles — computed purely from floatT, no array allocation each frame
+    ctx.save();
+    const orbitR = 28 + Math.sin(this._floatT * 0.62) * 4;
+    for (let i = 0; i < 6; i++) {
+      const ang  = this._floatT * 0.80 + (i / 6) * Math.PI * 2;
+      const px   = bx + Math.cos(ang) * orbitR;
+      const py   = by + Math.sin(ang) * orbitR * 0.52; // flattened ellipse orbit
+      const ps   = 1.7 + Math.sin(this._floatT * 1.9 + i * 1.1) * 0.6;
+      ctx.globalAlpha = 0.5 + Math.sin(this._floatT * 1.3 + i) * 0.28;
+      ctx.shadowColor = (i % 2 === 0) ? '#ffffff' : glowColor;
+      ctx.shadowBlur  = 7;
+      ctx.fillStyle   = (i % 2 === 0) ? '#ffffff' : glowColor;
+      ctx.beginPath();
+      ctx.arc(px, py, ps, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+
+    // ── Body ───────────────────────────────────────────────────────────────────
+    ctx.save();
+
+    // Invincibility blink
+    if (this.invincible > 0 && Math.floor(this.invincible / 5) % 2 === 1) {
+      ctx.globalAlpha = 0.35;
+    }
+
+    // Size-manipulation scale (set by tfSizeTargets special)
     if (this.tfDrawScale && this.tfDrawScale !== 1) {
       const pivX = cx; const pivY = ty + this.h;
       ctx.translate(pivX, pivY);
@@ -1281,11 +1863,16 @@ class TrueForm extends Fighter {
       ctx.translate(-pivX, -pivY);
     }
 
+    // Ragdoll rotation
     if (this.ragdollTimer > 0) {
-      ctx.translate(cx, ty + this.h * 0.45);
+      ctx.translate(cx, ty + this.h * 0.45 + floatOff);
       ctx.rotate(this.ragdollAngle);
-      ctx.translate(-cx, -(ty + this.h * 0.45));
+      ctx.translate(-cx, -(ty + this.h * 0.45 + floatOff));
     }
+
+    // Apply float offset — all body drawing uses ty/cx which are hitbox coords;
+    // the translate shifts the visual up/down without moving the hitbox
+    ctx.translate(0, floatOff);
 
     const headR     = 9;
     const headCY    = ty + headR + 1;
@@ -1295,9 +1882,12 @@ class TrueForm extends Fighter {
     const armLen    = 20;
     const legLen    = 22;
 
-    // White outline glow
-    ctx.shadowColor = '#ffffff';
-    ctx.shadowBlur  = 8;
+    // Pulsing glow intensity — slightly brighter on beat
+    const glowIntensity = 9 + Math.sin(this._floatT * 2.5) * 3;
+
+    // White outline with cycling shadow color
+    ctx.shadowColor = glowColor;
+    ctx.shadowBlur  = glowIntensity;
     ctx.strokeStyle = '#ffffff';
     ctx.lineWidth   = 2.5;
     ctx.lineCap     = 'round';
@@ -1310,13 +1900,23 @@ class TrueForm extends Fighter {
     ctx.fill();
     ctx.stroke();
 
-    // White eyes (slit / dots)
+    // Eyes — white dots with glow; second ghost-eye for depth
     ctx.shadowBlur = 0;
     ctx.fillStyle  = '#ffffff';
     ctx.beginPath();
     ctx.arc(cx + f * 3.5, headCY - 1.5, 1.8, 0, Math.PI * 2);
     ctx.fill();
-    ctx.shadowBlur = 8;
+    // Subtle colored iris ring
+    ctx.shadowColor = glowColor;
+    ctx.shadowBlur  = 5;
+    ctx.strokeStyle = glowColor;
+    ctx.lineWidth   = 0.8;
+    ctx.beginPath();
+    ctx.arc(cx + f * 3.5, headCY - 1.5, 2.8, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.shadowBlur  = glowIntensity;
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth   = 2.5;
 
     // BODY
     ctx.beginPath();
@@ -1324,7 +1924,7 @@ class TrueForm extends Fighter {
     ctx.lineTo(cx, hipY);
     ctx.stroke();
 
-    // ARM ANGLES — punch vs kick
+    // ARMS — same logic as before
     const atkP = this.attackDuration > 0 ? 1 - this.attackTimer / this.attackDuration : 0;
     let rAng, lAng;
     if (s === 'ragdoll') {
@@ -1338,7 +1938,6 @@ class TrueForm extends Fighter {
         if (f > 0) { rAng = lerp(-0.15, 0.05, atkP); lAng = lerp(Math.PI * 0.8, Math.PI * 0.62, atkP); }
         else       { rAng = lerp(Math.PI + 0.15, Math.PI - 0.05, atkP); lAng = lerp(Math.PI * 0.2, Math.PI * 0.38, atkP); }
       } else {
-        // Kick: arms rise slightly, legs extend
         rAng = f > 0 ? -0.55 : Math.PI + 0.55;
         lAng = f > 0 ?  Math.PI * 0.65 : Math.PI * 0.35;
       }
@@ -1398,10 +1997,11 @@ class TrueForm extends Fighter {
 
     ctx.restore();
 
-    // HP bar above head
+    // ── HP bar ─────────────────────────────────────────────────────────────────
     ctx.save();
     const barW = 64, barH = 5;
-    const barX = cx - barW / 2, barY = this.y - 16;
+    const barX = cx - barW / 2;
+    const barY = this.y - 16 + floatOff; // bar floats with body
     ctx.fillStyle = 'rgba(0,0,0,0.8)';
     ctx.fillRect(barX - 1, barY - 1, barW + 2, barH + 2);
     const hpPct = this.health / this.maxHealth;
@@ -1429,27 +2029,63 @@ function spawnTFBlackHoles() {
 
 function updateTFBlackHoles() {
   if (!tfBlackHoles.length) return;
+  const tf = players.find(p => p.isTrueForm);
   for (let i = tfBlackHoles.length - 1; i >= 0; i--) {
     const bh = tfBlackHoles[i];
     bh.timer--;
-    if (bh.timer <= 0) { tfBlackHoles.splice(i, 1); continue; }
 
-    // Pull all non-boss players toward the black hole
+    if (bh.timer <= 0) {
+      // Implosion on expiry — outward KB burst
+      screenShake = Math.max(screenShake, 16);
+      spawnParticles(bh.x, bh.y, '#ffffff', 18);
+      spawnParticles(bh.x, bh.y, '#440066', 12);
+      for (const p of players) {
+        if (p.isTrueForm || p.health <= 0) continue;
+        const dx = p.cx() - bh.x;
+        const dy = (p.y + p.h / 2) - bh.y;
+        const d  = Math.hypot(dx, dy);
+        if (d < 140 && d > 0.5) {
+          // Push outward violently
+          p.vx += (dx / d) * 12;
+          p.vy += (dy / d) * 8;
+        }
+      }
+      tfBlackHoles.splice(i, 1);
+      // After ALL black holes expire, chain into gamma beam (phase 2+ only)
+      if (tfBlackHoles.length === 0 && tf && !tfGammaBeam && tf._chainCd <= 0 && tf.getPhase && tf.getPhase() >= 2) {
+        const chainTgt = players.find(p => !p.isTrueForm && p.health > 0);
+        if (chainTgt) {
+          tf._chainCd = 36;
+          setTimeout(() => {
+            if (!gameRunning || !tf) return;
+            tf._doSpecial('gammaBeam', chainTgt);
+          }, 500);
+        }
+      }
+      continue;
+    }
+
+    // Pull ramps: stronger at start of life (when bh is young = timer near maxTimer)
+    const age = 1 - bh.timer / bh.maxTimer; // 0 = just spawned, 1 = about to expire
+    // Pull is strongest mid-life; final 10% slows as implosion approaches
+    const pullMult = age < 0.5 ? 0.5 + age * 1.4 : 1.2 - (age - 0.5) * 0.6;
+
     for (const p of players) {
-      if (p.isBoss || p.health <= 0) continue;
+      if (p.isTrueForm || p.health <= 0) continue;
       const dx = bh.x - p.cx();
       const dy = bh.y - (p.y + p.h / 2);
       const d  = Math.hypot(dx, dy);
-      if (d < 160 && d > 0.5) {
-        const pull = 0.55 * (1 - d / 160);
+      if (d < 180 && d > 0.5) {
+        const pull = 0.65 * (1 - d / 180) * pullMult;
         p.vx += (dx / d) * pull;
-        p.vy += (dy / d) * pull;
+        p.vy += (dy / d) * pull * 0.75;
       }
-      // Deal damage if very close
+      // Event horizon damage
       if (d < bh.r + 8 && p.invincible <= 0) {
-        dealDamage(players.find(q => q.isTrueForm) || players[1], p, 35, 0);
+        dealDamage(tf || players[1], p, 36, 0);
         spawnParticles(p.cx(), p.cy(), '#000000', 10);
-        spawnParticles(p.cx(), p.cy(), '#ffffff', 6);
+        spawnParticles(p.cx(), p.cy(), '#aa00ff',  6);
+        hitStopFrames = Math.max(hitStopFrames, 8);
       }
     }
   }
@@ -1457,6 +2093,7 @@ function updateTFBlackHoles() {
 
 function drawTFBlackHoles() {
   for (const bh of tfBlackHoles) {
+    if (!isFinite(bh.x) || !isFinite(bh.y) || !isFinite(bh.r) || bh.r <= 0) continue;
     ctx.save();
     const alpha = bh.timer < 60 ? bh.timer / 60 : 1;
     bh.spin = (bh.spin || 0) + 0.025;
@@ -1491,6 +2128,23 @@ function drawTFBlackHoles() {
     ctx.strokeStyle = `rgba(255,180,60,${0.75 * alpha})`;
     ctx.lineWidth = 3;
     ctx.beginPath(); ctx.arc(bh.x, bh.y, bh.r * 1.08, 0, Math.PI * 2); ctx.stroke();
+    ctx.restore();
+
+    // Gravitational distortion ripples — expanding rings at varying alpha
+    const age = bh.maxTimer > 0 ? 1 - bh.timer / bh.maxTimer : 0;
+    ctx.save();
+    ctx.strokeStyle = `rgba(140,0,255,${0.14 * alpha})`;
+    ctx.lineWidth = 1;
+    for (let ri = 0; ri < 3; ri++) {
+      const rr = bh.r * 1.5 + ri * 28 + Math.sin(bh.spin * 2 + ri * 1.2) * 8;
+      ctx.beginPath(); ctx.arc(bh.x, bh.y, rr, 0, Math.PI * 2); ctx.stroke();
+    }
+    // Pulsing outer gravity field (intensifies as black hole ages)
+    ctx.strokeStyle = `rgba(100,0,200,${(0.05 + age * 0.12) * alpha})`;
+    ctx.lineWidth = 2 + age * 3;
+    ctx.setLineDash([6, 10]);
+    ctx.beginPath(); ctx.arc(bh.x, bh.y, bh.r * 2.8 + Math.sin(bh.spin * 3) * 12, 0, Math.PI * 2); ctx.stroke();
+    ctx.setLineDash([]);
     ctx.restore();
 
     // Black hole core (perfectly dark)
@@ -2925,6 +3579,36 @@ function updateTFPendingAttacks() {
     }
   }
 
+  // ── Pending Collapse Strike ────────────────────────────────
+  if (tf._pendingCollapseStrike) {
+    tf._pendingCollapseStrike.timer--;
+    if (tf._pendingCollapseStrike.timer <= 0) {
+      const csTgt = tf._pendingCollapseStrike.target;
+      // Teleport boss behind target
+      if (csTgt && csTgt.health > 0) {
+        const csDir = (csTgt.facing || 1);
+        tf.x  = clamp(csTgt.cx() - csDir * 55 - tf.w / 2, 20, GAME_W - tf.w - 20);
+        tf.y  = clamp(csTgt.y, 20, GAME_H - tf.h - 20);
+        tf.vx = 0; tf.vy = 0;
+        // Restore slowmo
+        if (hitSlowTimer <= 0) slowMotion = 1.0;
+        screenShake = Math.max(screenShake, 26);
+        spawnParticles(tf.cx(), tf.cy(), '#ffffff', 28);
+        spawnParticles(tf.cx(), tf.cy(), '#aaddff', 18);
+        spawnParticles(tf.cx(), tf.cy(), '#000000', 14);
+        // Heavy strike — 55 damage + strong knockback
+        const oldDmg = tf.weapon.damage;
+        const oldKb  = tf.weapon.kb;
+        tf.weapon.damage = 55;
+        tf.weapon.kb     = 16;
+        if (tf.cooldown <= 0) tf.attack(csTgt);
+        tf.weapon.damage = oldDmg;
+        tf.weapon.kb     = oldKb;
+      }
+      tf._pendingCollapseStrike = null;
+    }
+  }
+
   // ── Pending Shockwave (ground) ─────────────────────────────
   if (tf._pendingShockwave) {
     tf._pendingShockwave.timer--;
@@ -2966,6 +3650,17 @@ function drawBossWarnings() {
     ctx.strokeStyle = `rgba(255,30,0,${pulse})`;
     ctx.lineWidth   = 8;
     ctx.strokeRect(4, 4, GAME_W - 8, GAME_H - 8);
+  }
+  // TrueForm desperation aura — dark void border when active
+  const tfDesp = players.find(p => p.isTrueForm && p._desperationMode);
+  if (tfDesp) {
+    const pulse2 = 0.10 + Math.abs(Math.sin(frameCount * 0.09)) * 0.12;
+    ctx.strokeStyle = `rgba(0,0,0,${pulse2 + 0.4})`;
+    ctx.lineWidth   = 10;
+    ctx.strokeRect(5, 5, GAME_W - 10, GAME_H - 10);
+    ctx.strokeStyle = `rgba(160,0,255,${pulse2})`;
+    ctx.lineWidth   = 4;
+    ctx.strokeRect(5, 5, GAME_W - 10, GAME_H - 10);
   }
 
   // ── Safe zones ─────────────────────────────────────────────
@@ -3063,6 +3758,1387 @@ function resetBossWarnings() {
   cinScreenFlash       = null;
 }
 
+// ── PHASE SHIFT update + draw ────────────────────────────────────────────
+function updateTFPhaseShift() {
+  if (!tfPhaseShift) return;
+  const ps = tfPhaseShift;
+  ps.timer++;
+
+  // Apply drift to fake echo positions each frame (real echo stays still)
+  for (let i = 0; i < ps.echoes.length; i++) {
+    if (i === ps.realIdx) continue;
+    const e = ps.echoes[i];
+    if (e.driftVx !== undefined) {
+      e.x = clamp(e.x + e.driftVx, 60, GAME_W - 60);
+      e.y = clamp(e.y + e.driftVy, 60, GAME_H - 60);
+      // Slow down drift over time
+      e.driftVx *= 0.97;
+      e.driftVy *= 0.97;
+    }
+  }
+
+  // At the reveal frame, snap boss to the real echo position and attack
+  if (!ps.revealed && ps.timer === 45) {
+    ps.revealed = true;
+    const tf = players.find(p => p.isTrueForm);
+    if (tf) {
+      const echo = ps.echoes[ps.realIdx];
+      tf.x   = echo.x - tf.w / 2;
+      tf.y   = echo.y - tf.h / 2;
+      tf.vx  = 0;
+      tf.vy  = 0;
+      screenShake = Math.max(screenShake, 16);
+      spawnParticles(tf.cx(), tf.cy(), '#ffffff', 18);
+      spawnParticles(tf.cx(), tf.cy(), '#9900ff', 14);
+      // Immediately attack the nearest player
+      const target = players.find(p => !p.isBoss && p.health > 0);
+      if (target && tf.cooldown <= 0) tf.attack(target);
+    }
+  }
+
+  if (ps.timer >= ps.maxTimer) tfPhaseShift = null;
+}
+
+function drawTFPhaseShift() {
+  if (!tfPhaseShift) return;
+  const ps = tfPhaseShift;
+  const progress = ps.timer / ps.maxTimer;
+  const tf = players.find(p => p.isTrueForm);
+
+  // Draw echoes (false positions)
+  for (let i = 0; i < ps.echoes.length; i++) {
+    const e = ps.echoes[i];
+    const isReal = i === ps.realIdx;
+    // Fade echoes out after reveal; fake ones vanish faster
+    let alpha;
+    if (!ps.revealed) {
+      alpha = Math.min(1, ps.timer / 12) * (isReal ? 0.55 : 0.40);
+    } else {
+      alpha = isReal ? 0 : Math.max(0, 1 - (ps.timer - 45) / 12) * 0.35;
+    }
+    if (alpha <= 0.01) continue;
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    // Draw a simple silhouette at echo position
+    ctx.fillStyle    = '#000000';
+    ctx.strokeStyle  = '#aa00ff';
+    ctx.lineWidth    = 2;
+    const ew = 18, eh = 50;
+    ctx.beginPath();
+    ctx.rect(e.x - ew / 2, e.y - eh / 2, ew, eh);
+    ctx.fill(); ctx.stroke();
+    // Small '?' label on fakes
+    if (!isReal && !ps.revealed) {
+      ctx.globalAlpha = alpha * 0.8;
+      ctx.fillStyle   = '#cc88ff';
+      ctx.font        = 'bold 11px monospace';
+      ctx.textAlign   = 'center';
+      ctx.fillText('?', e.x, e.y - eh / 2 - 6);
+    }
+    ctx.restore();
+  }
+
+  // Make the real boss semi-transparent while shifting
+  if (tf && !ps.revealed) {
+    // The boss draw() call handles normal rendering; we just overlay a ghosting effect
+    ctx.save();
+    ctx.globalAlpha = 0.25 + Math.sin(ps.timer * 0.4) * 0.1;
+    ctx.strokeStyle = '#9900ff';
+    ctx.lineWidth   = 1.5;
+    ctx.setLineDash([4, 4]);
+    ctx.beginPath();
+    ctx.rect(tf.x, tf.y, tf.w, tf.h);
+    ctx.stroke();
+    ctx.restore();
+  }
+}
+
+// ── REALITY TEAR update + draw ────────────────────────────────────────────
+function updateTFRealityTear() {
+  if (!tfRealityTear) return;
+  const rt = tfRealityTear;
+  rt.timer++;
+
+  // Phase transitions
+  if (rt.phase === 'warn'   && rt.timer >= 20) rt.phase = 'active';
+  if (rt.phase === 'active' && rt.timer >= 70) {
+    rt.phase = 'close';
+    // Chain follow-up: boss teleports behind player and combo-attacks
+    if (rt.bossRef && !rt._followUpFired) {
+      rt._followUpFired = true;
+      const tf  = rt.bossRef;
+      const tgt = (rt.targetRef && rt.targetRef.health > 0)
+        ? rt.targetRef
+        : players.find(p => !p.isBoss && p.health > 0);
+      if (tf && tgt) {
+        // Teleport behind the pulled player
+        const behindDir = tgt.facing || (tgt.cx() > GAME_W / 2 ? 1 : -1);
+        const behindX   = clamp(tgt.cx() - behindDir * 55, 30, GAME_W - tf.w - 30);
+        tf.x  = behindX;
+        tf.y  = clamp(tgt.y, 20, GAME_H - tf.h - 20);
+        tf.vx = 0; tf.vy = 0;
+        tf.invincible = Math.max(tf.invincible || 0, 12);
+        screenShake   = Math.max(screenShake, 12);
+        spawnParticles(tf.cx(), tf.cy(), '#cc00ff', 14);
+        spawnParticles(tf.cx(), tf.cy(), '#ffffff', 8);
+        // Immediate combo: two quick hits
+        if (tf.cooldown <= 0) tf.attack(tgt);
+        if (typeof tf._pendingChainMove !== 'undefined' && !tf._pendingChainMove) {
+          tf._pendingChainMove = { move: 'slash', delay: 12 };
+        }
+      }
+    }
+  }
+  if (rt.phase === 'close'  && rt.timer >= rt.maxTimer) { tfRealityTear = null; return; }
+
+  // Active phase: pull all non-boss players toward the tear
+  if (rt.phase === 'active') {
+    const pullStr = 1.8;
+    for (const p of players) {
+      if (p.isBoss || p.health <= 0) continue;
+      const dx = rt.x - p.cx();
+      const dy = rt.y - p.cy();
+      const dd = Math.hypot(dx, dy);
+      if (dd < 320 && dd > 1) {
+        const force = pullStr * (1 - dd / 320);
+        p.vx += (dx / dd) * force;
+        p.vy += (dy / dd) * force * 0.7;
+      }
+    }
+  }
+}
+
+function drawTFRealityTear() {
+  if (!tfRealityTear) return;
+  const rt = tfRealityTear;
+  const progress = rt.timer / rt.maxTimer;
+
+  let alpha;
+  if (rt.phase === 'warn')   alpha = Math.min(1, rt.timer / 20);
+  else if (rt.phase === 'active') alpha = 1.0;
+  else alpha = Math.max(0, 1 - (rt.timer - 70) / 20);
+  if (alpha <= 0) return;
+
+  const height = rt.phase === 'warn'
+    ? 40 * (rt.timer / 20)
+    : rt.phase === 'active'
+      ? 40 + 60 * Math.min(1, (rt.timer - 20) / 15)
+      : 100 * alpha;
+
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.translate(rt.x, rt.y);
+
+  // Outer glow
+  const grd = ctx.createRadialGradient(0, 0, 2, 0, 0, 70);
+  grd.addColorStop(0,   'rgba(180,0,255,0.35)');
+  grd.addColorStop(1,   'rgba(80,0,180,0)');
+  ctx.fillStyle = grd;
+  ctx.beginPath(); ctx.ellipse(0, 0, 70, height * 0.6, 0, 0, Math.PI * 2); ctx.fill();
+
+  // The crack itself — jagged vertical line
+  ctx.strokeStyle  = '#ffffff';
+  ctx.lineWidth    = 2.5;
+  ctx.shadowColor  = '#cc00ff';
+  ctx.shadowBlur   = 12;
+  ctx.beginPath();
+  const segs = 8;
+  ctx.moveTo(0, -height / 2);
+  for (let i = 1; i <= segs; i++) {
+    const fy = -height / 2 + (height / segs) * i;
+    const jag = rt.phase === 'active' ? (Math.random() - 0.5) * 14 : (Math.random() - 0.5) * 6;
+    ctx.lineTo(jag, fy);
+  }
+  ctx.stroke();
+
+  // Inner black void core
+  ctx.fillStyle   = '#000000';
+  ctx.shadowBlur  = 0;
+  ctx.beginPath(); ctx.ellipse(0, 0, 6, height * 0.45, 0, 0, Math.PI * 2); ctx.fill();
+
+  ctx.restore();
+}
+
+// ── MATH BUBBLE + CALCULATED STRIKE update + draw ─────────────────────────
+function updateTFCalcStrike() {
+  if (tfMathBubble) {
+    tfMathBubble.timer++;
+    if (tfMathBubble.timer >= tfMathBubble.maxTimer) tfMathBubble = null;
+  }
+  // Tick ghost paths
+  if (tfGhostPaths) {
+    tfGhostPaths.timer++;
+    if (tfGhostPaths.timer >= tfGhostPaths.maxTimer) tfGhostPaths = null;
+  }
+  if (!tfCalcStrike) return;
+  const cs = tfCalcStrike;
+  cs.timer++;
+
+  // Strike at variable delay (strikeDelay set per-accuracy-tier at spawn time)
+  const strikeFrame = cs.strikeDelay || 42;
+  if (!cs.fired && cs.timer >= strikeFrame) {
+    cs.fired = true;
+    tfGhostPaths = null; // clear path visualization on strike
+    const tf = players.find(p => p.isTrueForm);
+    if (tf) {
+      tf.x  = clamp(cs.predictX - tf.w / 2, 20, GAME_W - tf.w - 20);
+      tf.y  = clamp(cs.predictY - tf.h / 2, 20, GAME_H - tf.h - 20);
+      tf.vx = 0; tf.vy = 0;
+      screenShake = Math.max(screenShake, 14);
+      spawnParticles(tf.cx(), tf.cy(), '#ffffff', 16);
+      spawnParticles(tf.cx(), tf.cy(), '#aaddff', 10);
+      const target = players.find(p => !p.isBoss && p.health > 0);
+      if (target && tf.cooldown <= 0) tf.attack(target);
+    }
+  }
+  // 10 frames after strike: second hit if boss is close enough (chain follow-up)
+  if (cs.fired && !cs.chainFired && cs.timer >= strikeFrame + 10) {
+    cs.chainFired = true;
+    const tf     = players.find(p => p.isTrueForm);
+    const target = players.find(p => !p.isBoss && p.health > 0);
+    if (tf && target && dist(tf, target) < 85 && tf.cooldown <= 0) {
+      tf.attack(target);
+    }
+  }
+  if (cs.timer >= cs.maxTimer) tfCalcStrike = null;
+}
+
+function drawTFCalcStrike() {
+  // Draw 5D ghost paths while calculating (before strike fires)
+  if (tfGhostPaths) {
+    const gp = tfGhostPaths;
+    const gFade = gp.timer < 8 ? gp.timer / 8 : gp.timer > gp.maxTimer - 8 ? (gp.maxTimer - gp.timer) / 8 : 1.0;
+    if (gFade > 0.01) {
+      for (const path of gp.paths) {
+        if (path.pts.length < 2) continue;
+        ctx.save();
+        ctx.globalAlpha = path.alpha * gFade;
+        ctx.strokeStyle  = path.selected ? '#aaddff' : '#6633aa';
+        ctx.lineWidth    = path.selected ? 2.0 : 1.0;
+        ctx.setLineDash(path.selected ? [] : [4, 5]);
+        ctx.shadowColor  = path.selected ? '#aaddff' : 'transparent';
+        ctx.shadowBlur   = path.selected ? 8 : 0;
+        ctx.beginPath();
+        ctx.moveTo(path.pts[0].x, path.pts[0].y);
+        ctx.lineTo(path.pts[1].x, path.pts[1].y);
+        ctx.stroke();
+        // Arrow head on selected path
+        if (path.selected) {
+          const dx = path.pts[1].x - path.pts[0].x;
+          const dy = path.pts[1].y - path.pts[0].y;
+          const len = Math.hypot(dx, dy) || 1;
+          const angle = Math.atan2(dy, dx);
+          ctx.beginPath();
+          ctx.moveTo(path.pts[1].x, path.pts[1].y);
+          ctx.lineTo(path.pts[1].x - 10 * Math.cos(angle - 0.45), path.pts[1].y - 10 * Math.sin(angle - 0.45));
+          ctx.lineTo(path.pts[1].x - 10 * Math.cos(angle + 0.45), path.pts[1].y - 10 * Math.sin(angle + 0.45));
+          ctx.closePath();
+          ctx.fillStyle = '#aaddff';
+          ctx.fill();
+        }
+        ctx.restore();
+      }
+    }
+  }
+  // Brief crosshair flash at strike landing point (right after teleport fires)
+  if (tfCalcStrike && tfCalcStrike.fired) {
+    const cs = tfCalcStrike;
+    const strikeFrame = cs.strikeDelay || 42;
+    const postFire = cs.timer - strikeFrame;
+    if (postFire < 12) {
+      const flashAlpha = 1 - postFire / 12;
+      ctx.save();
+      ctx.globalAlpha  = flashAlpha * 0.8;
+      ctx.strokeStyle  = '#aaddff';
+      ctx.lineWidth    = 2;
+      ctx.shadowColor  = '#ffffff';
+      ctx.shadowBlur   = 10;
+      const cx_ = cs.predictX, cy_ = cs.predictY;
+      const sz  = 14;
+      ctx.beginPath();
+      ctx.moveTo(cx_ - sz, cy_); ctx.lineTo(cx_ + sz, cy_);
+      ctx.moveTo(cx_, cy_ - sz); ctx.lineTo(cx_, cy_ + sz);
+      ctx.stroke();
+      ctx.restore();
+    }
+  }
+}
+
+function drawTFMathBubble() {
+  if (!tfMathBubble) return;
+  const mb   = tfMathBubble;
+  const fade = mb.timer < 8
+    ? mb.timer / 8
+    : mb.timer > mb.maxTimer - 10
+      ? (mb.maxTimer - mb.timer) / 10
+      : 1.0;
+  if (fade <= 0) return;
+
+  ctx.save();
+  ctx.globalAlpha = fade;
+  const bx = mb.x;
+  const by = mb.y - 28;
+  const pad = 8;
+  ctx.font = 'bold 13px monospace';
+  const tw  = ctx.measureText(mb.text).width;
+  const bw  = tw + pad * 2;
+  const bh  = 22;
+
+  // Bubble background
+  ctx.fillStyle   = 'rgba(240,240,255,0.92)';
+  ctx.strokeStyle = '#9900cc';
+  ctx.lineWidth   = 1.5;
+  ctx.beginPath();
+  ctx.roundRect(bx - bw / 2, by - bh / 2, bw, bh, 5);
+  ctx.fill(); ctx.stroke();
+
+  // Tail
+  ctx.fillStyle = 'rgba(240,240,255,0.92)';
+  ctx.beginPath();
+  ctx.moveTo(bx - 5, by + bh / 2);
+  ctx.lineTo(bx + 5, by + bh / 2);
+  ctx.lineTo(bx,     by + bh / 2 + 8);
+  ctx.closePath(); ctx.fill(); ctx.stroke();
+
+  // Text
+  ctx.fillStyle   = '#220044';
+  ctx.textAlign   = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(mb.text, bx, by);
+
+  ctx.restore();
+}
+
+// ── REALITY OVERRIDE update + draw ───────────────────────────────────────────
+function updateTFRealityOverride() {
+  if (!tfRealityOverride) return;
+  const ro = tfRealityOverride;
+  ro.timer++;
+
+  // Phase: freeze (0-16f) — hitstop visual, player pulled toward boss
+  if (ro.phase === 'freeze' && ro.timer === 16) {
+    ro.phase = 'execute';
+    const tf  = ro.bossRef;
+    const tgt = (ro.targetRef && ro.targetRef.health > 0)
+      ? ro.targetRef : players.find(p => !p.isBoss && p.health > 0);
+    if (tf && tgt) {
+      // Teleport player to 75px in front of boss
+      const pullDir = tf.facing || 1;
+      tgt.x  = clamp(tf.cx() + pullDir * 75 - tgt.w / 2, 20, GAME_W - tgt.w - 20);
+      tgt.y  = tf.y;
+      tgt.vx = 0; tgt.vy = 0;
+      screenShake = Math.max(screenShake, 20);
+      spawnParticles(tgt.cx(), tgt.cy(), '#ffffff', 20);
+    }
+  }
+
+  // Phase: execute (16-60f) — boss attacks every 14 frames; player can still dodge
+  if (ro.phase === 'execute') {
+    const tf  = ro.bossRef;
+    const tgt = (ro.targetRef && ro.targetRef.health > 0)
+      ? ro.targetRef : players.find(p => !p.isBoss && p.health > 0);
+    if (tf && tgt && ro.timer >= 16 && (ro.timer - 16) % 14 === 0 && ro.attacksFired < 3) {
+      ro.attacksFired++;
+      if (tf.cooldown <= 0) tf.attack(tgt);
+    }
+  }
+
+  if (ro.timer >= ro.maxTimer) tfRealityOverride = null;
+}
+
+function drawTFRealityOverride() {
+  if (!tfRealityOverride) return;
+  const ro = tfRealityOverride;
+
+  // Freeze phase: dark overlay + white vignette border
+  if (ro.phase === 'freeze') {
+    const p = Math.min(1, ro.timer / 16);
+    ctx.save();
+    ctx.fillStyle = `rgba(0,0,0,${0.55 * p})`;
+    ctx.fillRect(0, 0, GAME_W, GAME_H);
+    ctx.strokeStyle = `rgba(255,255,255,${0.7 * p})`;
+    ctx.lineWidth = 6;
+    ctx.strokeRect(3, 3, GAME_W - 6, GAME_H - 6);
+    // "OVERRIDE" text
+    ctx.globalAlpha = p;
+    ctx.fillStyle   = '#ffffff';
+    ctx.font        = 'bold 22px monospace';
+    ctx.textAlign   = 'center';
+    ctx.fillText('— OVERRIDE —', GAME_W / 2, GAME_H / 2);
+    ctx.restore();
+  }
+
+  // Execute phase: subtle dark tint that fades out
+  if (ro.phase === 'execute') {
+    const fadeP = 1 - Math.min(1, (ro.timer - 16) / 44);
+    if (fadeP > 0.01) {
+      ctx.save();
+      ctx.fillStyle = `rgba(0,0,0,${0.30 * fadeP})`;
+      ctx.fillRect(0, 0, GAME_W, GAME_H);
+      ctx.restore();
+    }
+  }
+}
+
+// ── GRAB CINEMATIC ────────────────────────────────────────────────────────────
+function _makeTFGrabCinematic(tf, target) {
+  let _phase1Done = false, _phase2Done = false, _phase3Done = false;
+  return {
+    durationFrames: 90,
+    update(t) {
+      // 0-0.25s: slowmo + zoom to both
+      if (t < 0.5) {
+        slowMotion = Math.max(0.15, 1 - t * 2.5);
+        cinematicCamOverride = true;
+        if (tf && target) {
+          cinematicFocusX  = (tf.cx() + target.cx()) * 0.5;
+          cinematicFocusY  = (tf.cy() + target.cy()) * 0.5;
+          cinematicZoomTarget = Math.min(1.6, 1 + t * 1.2);
+        }
+      }
+      // 0.25s: boss teleports adjacent + grab lock
+      if (t >= 0.25 && !_phase1Done) {
+        _phase1Done = true;
+        if (tf && target && target.health > 0) {
+          const gDir = target.cx() > tf.cx() ? 1 : -1;
+          tf.x = clamp(target.cx() - gDir * 28 - tf.w / 2, 20, GAME_W - tf.w - 20);
+          tf.y = target.y;
+          tf.vx = 0; tf.vy = 0;
+          target.vx = 0; target.vy = 0;
+          target.stunTimer = 55; // player is grabbed — brief stun
+          screenShake = Math.max(screenShake, 18);
+          spawnParticles(tf.cx(), tf.cy(), '#000000', 22);
+          spawnParticles(tf.cx(), tf.cy(), '#ffffff', 10);
+        }
+      }
+      // 0.5-0.9s: lift player upward
+      if (t >= 0.5 && t < 0.9 && target && target.health > 0 && target.stunTimer > 0) {
+        target.vy = -6;
+        target.x  = clamp(tf.cx() + 10 - target.w / 2, 20, GAME_W - target.w - 20);
+      }
+      // 0.9s: throw — release with strong horizontal velocity
+      if (t >= 0.9 && !_phase2Done) {
+        _phase2Done = true;
+        if (target && target.health > 0) {
+          const throwDir = tf.facing || 1;
+          target.vx = throwDir * 22;
+          target.vy = -10;
+          target.stunTimer = 0;
+          screenShake = Math.max(screenShake, 24);
+          spawnParticles(target.cx(), target.cy(), '#ffffff', 18);
+          dealDamage(tf, target, 28, 14);
+        }
+      }
+      // 1.2s: restore camera + slowmo
+      if (t >= 1.2 && !_phase3Done) {
+        _phase3Done = true;
+        cinematicCamOverride = false;
+        slowMotion = 1.0;
+      }
+    },
+    draw() {},
+    done: false,
+  };
+}
+
+// ── GAMMA RAY BEAM ─────────────────────────────────────────────────────────────
+function updateTFGammaBeam() {
+  if (!tfGammaBeam) return;
+  const gb = tfGammaBeam;
+  gb.timer++;
+  const boss = players.find(p => p.isTrueForm);
+
+  if (gb.phase === 'charge') {
+    // Continuously track player Y during charge window (locks at end)
+    const tgt = players.find(p => !p.isBoss && !p.isTrueForm && p.health > 0);
+    if (tgt) gb.trackY = clamp(tgt.y + tgt.h * 0.45, 120, 440);
+    if (gb.timer >= gb.maxTimer) {
+      gb.y = gb.trackY || GAME_H / 2;
+      gb.phase = 'telegraph';
+      gb.timer = 0; gb.maxTimer = 34;
+      bossWarnings.push({ type: 'circle', x: GAME_W / 2, y: gb.y, r: 14,
+        color: '#ffff00', timer: 32, maxTimer: 32, label: 'GAMMA BEAM — JUMP!' });
+      screenShake = Math.max(screenShake, 16);
+    }
+
+  } else if (gb.phase === 'telegraph') {
+    if (gb.timer >= gb.maxTimer) {
+      gb.phase = 'active';
+      gb.timer = 0; gb.maxTimer = 45;
+      hitStopFrames = Math.max(hitStopFrames, 10);
+      screenShake   = Math.max(screenShake, 26);
+    }
+
+  } else if (gb.phase === 'active') {
+    for (const p of players) {
+      if (p.isBoss || p.isTrueForm || p.health <= 0) continue;
+      const py = p.y + p.h * 0.5;
+      if (Math.abs(py - gb.y) < 24 && p.invincible <= 0 && !gb.hit.has(p)) {
+        gb.hit.add(p);
+        dealDamage(boss || players[1], p, 24, 14);
+        spawnParticles(p.cx(), p.cy(), '#ffff00', 14);
+        spawnParticles(p.cx(), p.cy(), '#ffffff',  8);
+        hitStopFrames = Math.max(hitStopFrames, 7); // per-hit hitstop
+        p.invincible = Math.max(p.invincible, 20);
+      }
+    }
+    if (gb.timer >= gb.maxTimer) {
+      // Chain: 30% chance to immediately follow with neutron star
+      if (boss && Math.random() < 0.30 && boss._chainCd <= 0) {
+        const chainTgt = players.find(p => !p.isBoss && !p.isTrueForm && p.health > 0);
+        if (chainTgt && !tfNeutronStar) {
+          boss._chainCd = 36;
+          setTimeout(() => {
+            if (!gameRunning || !boss) return;
+            boss._doSpecial('neutronStar', chainTgt);
+          }, 700);
+        }
+      }
+      tfGammaBeam = null;
+    }
+  }
+}
+
+function drawTFGammaBeam() {
+  if (!tfGammaBeam) return;
+  const gb = tfGammaBeam;
+  ctx.save();
+
+  if (gb.phase === 'charge') {
+    const prog = gb.timer / gb.maxTimer;
+    const trackY = gb.trackY || GAME_H / 2;
+    // Screen dim — subtle, grows
+    ctx.globalAlpha = prog * 0.20;
+    ctx.fillStyle = '#000000';
+    ctx.fillRect(0, 0, GAME_W, GAME_H);
+    // Tracking hairline follows player Y
+    ctx.globalAlpha = 0.12 + prog * 0.38;
+    ctx.strokeStyle = '#ffff88';
+    ctx.lineWidth = 1 + prog * 2;
+    ctx.shadowColor = '#ffff00';
+    ctx.shadowBlur  = 6 + prog * 14;
+    ctx.setLineDash([4, 9]);
+    ctx.beginPath(); ctx.moveTo(0, trackY); ctx.lineTo(GAME_W, trackY); ctx.stroke();
+    ctx.setLineDash([]);
+    // Boss charge orb
+    const orbR = 8 + prog * 20;
+    ctx.globalAlpha = 0.28 + prog * 0.55;
+    const orbGrad = ctx.createRadialGradient(gb.chargeX, gb.chargeY, 0, gb.chargeX, gb.chargeY, orbR);
+    orbGrad.addColorStop(0,   `rgba(255,255,200,${0.9})`);
+    orbGrad.addColorStop(0.5, `rgba(255,220,0,${0.65})`);
+    orbGrad.addColorStop(1,   'rgba(255,200,0,0)');
+    ctx.fillStyle = orbGrad;
+    ctx.shadowColor = '#ffff44'; ctx.shadowBlur = 20;
+    ctx.beginPath(); ctx.arc(gb.chargeX, gb.chargeY, orbR, 0, Math.PI * 2); ctx.fill();
+
+  } else if (gb.phase === 'telegraph') {
+    const prog = gb.timer / gb.maxTimer;
+    // Heavier screen dim — danger is near
+    ctx.globalAlpha = 0.24 + prog * 0.10;
+    ctx.fillStyle = '#000000';
+    ctx.fillRect(0, 0, GAME_W, GAME_H);
+    // Locked beam — flashing
+    const blink = Math.floor(gb.timer / 4) % 2 === 0;
+    ctx.globalAlpha = blink ? 0.92 : 0.52;
+    ctx.strokeStyle = '#ffff22';
+    ctx.lineWidth   = 3 + prog * 5;
+    ctx.shadowColor = '#ffff00';
+    ctx.shadowBlur  = 18 + prog * 20;
+    ctx.beginPath(); ctx.moveTo(0, gb.y); ctx.lineTo(GAME_W, gb.y); ctx.stroke();
+    // Pulsing edge arrows
+    ctx.globalAlpha = 0.85;
+    ctx.fillStyle = '#ffff44';
+    ctx.font = `bold ${12 + Math.floor(prog * 4)}px monospace`;
+    ctx.fillText('▶ ▶ ▶', 8, gb.y - 6);
+    ctx.fillText('◀ ◀ ◀', GAME_W - 72, gb.y - 6);
+
+  } else if (gb.phase === 'active') {
+    const fade = 1 - gb.timer / gb.maxTimer;
+    // Full-screen white flash on fire
+    if (gb.timer <= 4) {
+      ctx.globalAlpha = (0.85 - gb.timer * 0.18);
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, GAME_W, GAME_H);
+    }
+    // Core beam — solid white bar
+    ctx.globalAlpha = 0.96 * fade;
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, gb.y - 14, GAME_W, 28);
+    // Wide glow envelope
+    const grad = ctx.createLinearGradient(0, gb.y - 45, 0, gb.y + 45);
+    grad.addColorStop(0,   'rgba(255,255,0,0)');
+    grad.addColorStop(0.30, `rgba(255,220,0,${0.55 * fade})`);
+    grad.addColorStop(0.50, `rgba(255,255,255,${0.95 * fade})`);
+    grad.addColorStop(0.70, `rgba(255,220,0,${0.55 * fade})`);
+    grad.addColorStop(1,   'rgba(255,255,0,0)');
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, gb.y - 45, GAME_W, 90);
+    // Periodic flare pops along beam
+    if (gb.timer % 7 === 0) {
+      ctx.globalAlpha = fade * 0.65;
+      ctx.fillStyle = '#ffffaa';
+      ctx.shadowColor = '#ffff00'; ctx.shadowBlur = 18;
+      ctx.beginPath();
+      ctx.arc(30 + Math.random() * (GAME_W - 60), gb.y, 10 + Math.random() * 14, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+  ctx.restore();
+}
+
+// ── NEUTRON STAR ───────────────────────────────────────────────────────────────
+function updateTFNeutronStar() {
+  if (!tfNeutronStar) return;
+  const ns = tfNeutronStar;
+  ns.timer++;
+  const boss = ns.bossRef;
+
+  if (ns.phase === 'charge') {
+    // Charge animation before pull activates
+    if (ns.timer % 6 === 0) spawnParticles(
+      boss.cx() + (Math.random() - 0.5) * 120,
+      boss.cy() + (Math.random() - 0.5) * 100,
+      Math.random() < 0.5 ? '#ffaa00' : '#ffffff', 2
+    );
+    if (ns.timer >= ns.maxTimer) {
+      ns.phase = 'pull';
+      ns.timer = 0; ns.maxTimer = 240;
+      bossWarnings.push({ type: 'circle', x: boss.cx(), y: boss.cy(), r: 220,
+        color: '#ffaa00', timer: 50, maxTimer: 50, label: 'NEUTRON STAR!' });
+      screenShake = Math.max(screenShake, 18);
+    }
+
+  } else if (ns.phase === 'pull') {
+    // Gravity pull — force ramps up over duration (most intense at end)
+    const pullIntensity = 0.4 + (ns.timer / ns.maxTimer) * 1.2; // 0.4 → 1.6
+    if (ns.timer % 6 === 0) spawnParticles(
+      boss.cx() + (Math.random() - 0.5) * 260,
+      boss.cy() + (Math.random() - 0.5) * 220,
+      '#ffaa00', 3
+    );
+    // Apply gravitational pull to players (heavier near end)
+    for (const p of players) {
+      if (p.isTrueForm || p.health <= 0 || p.invincible > 0) continue;
+      const dx = boss.cx() - p.cx();
+      const dy = boss.cy() - (p.y + p.h / 2);
+      const d  = Math.hypot(dx, dy);
+      if (d > 10) {
+        p.vx += (dx / d) * pullIntensity * 0.30;
+        p.vy += (dy / d) * pullIntensity * 0.18;
+      }
+    }
+    if (ns.timer >= ns.maxTimer) {
+      // Transition: implosion visual then launch
+      ns.phase = 'implosion';
+      ns.timer = 0; ns.maxTimer = 28;
+      slowMotion   = 0.20;
+      hitSlowTimer = 35;
+      spawnParticles(boss.cx(), boss.cy(), '#ffaa00', 20);
+      spawnParticles(boss.cx(), boss.cy(), '#ffffff', 12);
+    }
+
+  } else if (ns.phase === 'implosion') {
+    // Brief pause — massive pull spike — then launch
+    for (const p of players) {
+      if (p.isTrueForm || p.health <= 0) continue;
+      const dx = boss.cx() - p.cx();
+      const dy = boss.cy() - (p.y + p.h / 2);
+      const d  = Math.hypot(dx, dy);
+      if (d > 8) { p.vx += (dx / d) * 3.5; p.vy += (dy / d) * 2.0; }
+    }
+    if (ns.timer >= ns.maxTimer) {
+      ns.phase = 'warn';
+      ns.timer = 0; ns.maxTimer = 52;
+      boss.vy = -55; boss.invincible = 130;
+      bossWarnings.push({ type: 'circle', x: boss.cx(), y: 470, r: 95,
+        color: '#ffaa00', timer: 52, maxTimer: 52, label: 'SLAM!' });
+      slowMotion = 1.0; // snap back
+      showBossDialogue('IMPACT.', 140);
+      screenShake = Math.max(screenShake, 20);
+    }
+
+  } else if (ns.phase === 'warn') {
+    if (ns.timer >= ns.maxTimer) {
+      ns.phase = 'slam'; ns.timer = 0; ns.maxTimer = 1;
+      if (boss) {
+        boss.x  = clamp(ns.startX - boss.w / 2, 40, GAME_W - boss.w - 40);
+        boss.y  = -90;
+        boss.vy = 42; boss.vx = 0;
+      }
+    }
+
+  } else if (ns.phase === 'slam') {
+    if (boss && boss.onGround) {
+      screenShake = Math.max(screenShake, 36);
+      hitStopFrames = Math.max(hitStopFrames, 12);
+      spawnParticles(boss.cx(), boss.y + boss.h, '#ffaa00', 35);
+      spawnParticles(boss.cx(), boss.y + boss.h, '#ffffff', 20);
+      spawnParticles(boss.cx(), boss.y + boss.h, '#ff4400', 12);
+      for (const p of players) {
+        if (p.isTrueForm || p.health <= 0) continue;
+        const dd = Math.abs(p.cx() - boss.cx());
+        if (dd < 140) {
+          dealDamage(boss, p, 32, 24);
+          p.vy = -16;
+          spawnParticles(p.cx(), p.cy(), '#ffaa00', 10);
+        }
+      }
+      tfNeutronStar = null;
+    } else if (ns.timer > 130) {
+      tfNeutronStar = null; // safety timeout
+    }
+  }
+}
+
+function drawTFNeutronStar() {
+  if (!tfNeutronStar) return;
+  const ns = tfNeutronStar;
+  ctx.save();
+
+  if (ns.phase === 'charge') {
+    const prog = ns.timer / ns.maxTimer;
+    const pulseR = 30 + prog * 40;
+    const aura = ctx.createRadialGradient(ns.bossRef.cx(), ns.bossRef.cy(), 0, ns.bossRef.cx(), ns.bossRef.cy(), pulseR);
+    aura.addColorStop(0,   `rgba(255,220,80,${prog * 0.8})`);
+    aura.addColorStop(0.6, `rgba(255,120,0,${prog * 0.4})`);
+    aura.addColorStop(1,   'rgba(255,80,0,0)');
+    ctx.fillStyle = aura;
+    ctx.beginPath(); ctx.arc(ns.bossRef.cx(), ns.bossRef.cy(), pulseR, 0, Math.PI * 2); ctx.fill();
+
+  } else if (ns.phase === 'pull') {
+    const prog = ns.timer / ns.maxTimer;
+    const pulseR = 55 + Math.sin(ns.timer * 0.14) * 20 + prog * 40;
+    const auraA = 0.15 + prog * 0.18;
+    const aura = ctx.createRadialGradient(ns.bossRef.cx(), ns.bossRef.cy(), 10, ns.bossRef.cx(), ns.bossRef.cy(), pulseR);
+    aura.addColorStop(0,   `rgba(255,200,0,${auraA * 2.5})`);
+    aura.addColorStop(0.5, `rgba(255,100,0,${auraA * 1.4})`);
+    aura.addColorStop(1,   'rgba(255,80,0,0)');
+    ctx.fillStyle = aura;
+    ctx.beginPath(); ctx.arc(ns.bossRef.cx(), ns.bossRef.cy(), pulseR, 0, Math.PI * 2); ctx.fill();
+    // Concentric gravity rings — grow in opacity as pull ramps
+    ctx.globalAlpha = (0.08 + prog * 0.14);
+    ctx.strokeStyle = '#ffaa00'; ctx.lineWidth = 1.2;
+    for (let rr = 55; rr <= 230; rr += 58) {
+      ctx.beginPath(); ctx.arc(ns.bossRef.cx(), ns.bossRef.cy(), rr + Math.sin(ns.timer * 0.08 + rr * 0.02) * 6, 0, Math.PI * 2); ctx.stroke();
+    }
+    // Directional pull streaks toward boss
+    if (ns.timer % 5 === 0) {
+      ctx.globalAlpha = 0.18 + prog * 0.18;
+      ctx.strokeStyle = '#ffcc44'; ctx.lineWidth = 1;
+      const ang = Math.random() * Math.PI * 2;
+      const dist = 140 + Math.random() * 120;
+      ctx.beginPath();
+      ctx.moveTo(ns.bossRef.cx() + Math.cos(ang) * dist, ns.bossRef.cy() + Math.sin(ang) * dist);
+      ctx.lineTo(ns.bossRef.cx() + Math.cos(ang) * 18, ns.bossRef.cy() + Math.sin(ang) * 18);
+      ctx.stroke();
+    }
+
+  } else if (ns.phase === 'implosion') {
+    const prog = ns.timer / ns.maxTimer;
+    // Everything flashes inward — bright burst of light
+    ctx.globalAlpha = prog * 0.70;
+    ctx.fillStyle = '#ffcc44';
+    ctx.beginPath(); ctx.arc(ns.bossRef.cx(), ns.bossRef.cy(), 10 + (1 - prog) * 80, 0, Math.PI * 2); ctx.fill();
+    ctx.globalAlpha = (1 - prog) * 0.35;
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, GAME_W, GAME_H);
+
+  } else if (ns.phase === 'warn') {
+    const prog = ns.timer / ns.maxTimer;
+    const shR  = 12 + prog * 88;
+    ctx.globalAlpha = 0.35 + prog * 0.45;
+    ctx.fillStyle = '#ff8800';
+    ctx.shadowColor = '#ffaa00'; ctx.shadowBlur = 18;
+    ctx.beginPath(); ctx.ellipse(ns.startX, 480, shR, shR * 0.22, 0, 0, Math.PI * 2); ctx.fill();
+    // Rings converging on shadow
+    ctx.globalAlpha = prog * 0.40;
+    ctx.strokeStyle = '#ffcc00'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.ellipse(ns.startX, 480, shR * 1.5, shR * 0.36, 0, 0, Math.PI * 2); ctx.stroke();
+  }
+  ctx.restore();
+}
+
+// ── GALAXY SWEEP ───────────────────────────────────────────────────────────────
+function updateTFGalaxySweep() {
+  if (!tfGalaxySweep) return;
+  const gs = tfGalaxySweep;
+  gs.timer++;
+  const boss = players.find(p => p.isTrueForm);
+
+  if (gs.phase === 'charge') {
+    gs.chargeTimer++;
+    if (gs.chargeTimer >= gs.chargeMax) {
+      gs.phase = 'active';
+      bossWarnings.push({ type: 'circle', x: GAME_W / 2, y: GAME_H / 2 - 30,
+        r: 280, color: '#8800ff', timer: 38, maxTimer: 38, label: 'GALAXY SWEEP!' });
+      screenShake = Math.max(screenShake, 14);
+      spawnParticles(GAME_W / 2, GAME_H / 2 - 30, '#cc66ff', 22);
+    }
+    return;
+  }
+
+  // Arm speed accelerates over duration: slow → fast
+  const sweepProg = gs.timer / gs.maxTimer;
+  gs.speed = 0.008 + sweepProg * 0.048; // 0.008 → 0.056 rad/frame
+  gs.angle += gs.speed;
+
+  const ARM_HALF = 0.42 + sweepProg * 0.06; // arms widen slightly at speed
+  const ARM_LEN  = 290;
+  const armAngles = [gs.angle, gs.angle + Math.PI];
+
+  for (const p of players) {
+    if (p.isTrueForm || p.health <= 0) continue;
+    const dx = p.cx() - gs.cx;
+    const dy = p.cy() - gs.cy;
+    const d  = Math.hypot(dx, dy);
+    if (d > ARM_LEN) continue;
+    const playerAngle = Math.atan2(dy, dx);
+    for (const armA of armAngles) {
+      let diff = playerAngle - armA;
+      while (diff >  Math.PI) diff -= Math.PI * 2;
+      while (diff < -Math.PI) diff += Math.PI * 2;
+      const hitKey = `${p.playerNum || p.name}_${Math.floor(gs.timer / 9)}`;
+      if (Math.abs(diff) < ARM_HALF && p.invincible <= 0 && !gs.hit.has(hitKey)) {
+        gs.hit.add(hitKey);
+        const dmg = 12 + Math.floor(sweepProg * 8); // scales 12→20 as arms speed up
+        dealDamage(boss || players[1], p, dmg, 12 + Math.floor(sweepProg * 6));
+        spawnParticles(p.cx(), p.cy(), '#8800ff', 10);
+        spawnParticles(p.cx(), p.cy(), '#cc44ff',  5);
+        hitStopFrames = Math.max(hitStopFrames, 5);
+        p.invincible = Math.max(p.invincible, 14);
+      }
+    }
+  }
+  if (gs.timer >= gs.maxTimer) {
+    screenShake = Math.max(screenShake, 10);
+    tfGalaxySweep = null;
+  }
+}
+
+function drawTFGalaxySweep() {
+  if (!tfGalaxySweep) return;
+  const gs = tfGalaxySweep;
+  ctx.save();
+
+  if (gs.phase === 'charge') {
+    const prog = gs.chargeTimer / gs.chargeMax;
+    // Center swirl growing
+    const cr = 12 + prog * 28;
+    ctx.globalAlpha = prog * 0.65;
+    const cGrad = ctx.createRadialGradient(gs.cx, gs.cy, 0, gs.cx, gs.cy, cr);
+    cGrad.addColorStop(0,   `rgba(255,255,255,${prog})`);
+    cGrad.addColorStop(0.5, `rgba(180,0,255,${prog * 0.7})`);
+    cGrad.addColorStop(1,   'rgba(100,0,180,0)');
+    ctx.fillStyle = cGrad;
+    ctx.shadowColor = '#aa00ff'; ctx.shadowBlur = 20;
+    ctx.beginPath(); ctx.arc(gs.cx, gs.cy, cr, 0, Math.PI * 2); ctx.fill();
+    ctx.restore(); return;
+  }
+
+  const sweepProg = gs.timer / gs.maxTimer;
+  const fade = gs.timer < 15 ? gs.timer / 15 : gs.timer > gs.maxTimer - 18 ? (gs.maxTimer - gs.timer) / 18 : 1;
+  const ARM_HALF_RAD = 0.42 + sweepProg * 0.06;
+  const ARM_LEN = 290;
+  const armAngles = [gs.angle, gs.angle + Math.PI];
+  const armColors = [['#6600cc', '#dd44ff'], ['#330066', '#aa22ee']];
+
+  for (let ai = 0; ai < armAngles.length; ai++) {
+    const a = armAngles[ai];
+    const [fillCol, edgeCol] = armColors[ai];
+    // Arm wedge — brighter as speed increases
+    ctx.globalAlpha = (0.30 + sweepProg * 0.22) * fade;
+    ctx.fillStyle = fillCol;
+    ctx.shadowColor = edgeCol; ctx.shadowBlur = 8 + sweepProg * 14;
+    ctx.beginPath();
+    ctx.moveTo(gs.cx, gs.cy);
+    ctx.arc(gs.cx, gs.cy, ARM_LEN, a - ARM_HALF_RAD, a + ARM_HALF_RAD);
+    ctx.closePath(); ctx.fill();
+    // Leading edge — sharp bright line
+    ctx.globalAlpha = (0.75 + sweepProg * 0.20) * fade;
+    ctx.strokeStyle = edgeCol;
+    ctx.lineWidth = 2.5 + sweepProg * 2;
+    ctx.shadowBlur = 16 + sweepProg * 18;
+    ctx.beginPath();
+    ctx.moveTo(gs.cx, gs.cy);
+    ctx.lineTo(gs.cx + Math.cos(a) * ARM_LEN, gs.cy + Math.sin(a) * ARM_LEN);
+    ctx.stroke();
+    // Trailing particles at arm tip
+    if (gs.timer % 5 === 0) {
+      ctx.globalAlpha = 0.55 * fade;
+      ctx.fillStyle = edgeCol;
+      ctx.beginPath();
+      const tipX = gs.cx + Math.cos(a) * (ARM_LEN * 0.8);
+      const tipY = gs.cy + Math.sin(a) * (ARM_LEN * 0.8);
+      ctx.arc(tipX, tipY, 4 + sweepProg * 4, 0, Math.PI * 2); ctx.fill();
+    }
+  }
+  // Center — pulsing star, gets hotter as arms accelerate
+  ctx.globalAlpha = (0.55 + sweepProg * 0.30) * fade;
+  ctx.fillStyle = '#ffffff';
+  ctx.shadowColor = '#cc44ff';
+  ctx.shadowBlur  = 22 + sweepProg * 22;
+  const starR = 10 + sweepProg * 8;
+  ctx.beginPath(); ctx.arc(gs.cx, gs.cy, starR, 0, Math.PI * 2); ctx.fill();
+  // Outer distortion ring
+  ctx.globalAlpha = (0.10 + sweepProg * 0.15) * fade;
+  ctx.strokeStyle = '#8800ff'; ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.arc(gs.cx, gs.cy, ARM_LEN, 0, Math.PI * 2); ctx.stroke();
+  ctx.restore();
+}
+
+// ── MULTIVERSE FRACTURE ────────────────────────────────────────────────────────
+// True timeline-echo system.
+// Clones are purely visual — they track the real player's live position + a fixed X offset,
+// so they mirror all movement identically without running extra physics.
+
+function updateTFMultiverse() {
+  if (!tfMultiverse) return;
+  const mv = tfMultiverse;
+  mv.timer++;
+  const boss = mv.bossRef;
+  const target = mv.targetRef;
+
+  // ── show (0-70): slow-motion, clones appear ──────────────────────────────
+  if (mv.phase === 'show' && mv.timer >= 70) {
+    mv.phase = 'select';
+    // Lock the strike position to where the real clone IS right now (absolute arena X)
+    if (target) {
+      mv.strikeX = clamp(target.cx() + mv.cloneOffsets[mv.realIdx], 30, GAME_W - 30);
+      mv.strikeY = target.cy();
+    }
+    // Boss warning at the locked position
+    bossWarnings.push({
+      type: 'cross', x: mv.strikeX, y: mv.strikeY,
+      r: 30, color: '#ff0044', timer: 40, maxTimer: 40, label: 'THIS TIMELINE!',
+    });
+    screenShake = Math.max(screenShake, 14);
+    spawnParticles(mv.strikeX, mv.strikeY, '#ff0044', 14);
+    spawnParticles(mv.strikeX, mv.strikeY, '#ffffff',  8);
+    // Sound cue: reuse phaseUp
+    if (typeof SoundManager !== 'undefined') SoundManager.phaseUp();
+  }
+
+  // ── select (70-115): warning shown, player has time to dodge ─────────────
+  if (mv.phase === 'select' && mv.timer >= 115) {
+    mv.phase = 'collapse';
+    slowMotion   = 1.0; // snap back — urgency
+    // Spawn shard particles for each non-real clone
+    if (target) {
+      for (let i = 0; i < mv.cloneOffsets.length; i++) {
+        if (i === mv.realIdx) continue;
+        const cx = clamp(target.cx() + mv.cloneOffsets[i], 30, GAME_W - 30);
+        const cy = target.cy();
+        // Shard burst: lightweight objects stored in mv.shards
+        for (let s = 0; s < 10; s++) {
+          const ang = (s / 10) * Math.PI * 2;
+          mv.shards.push({
+            x: cx, y: cy,
+            vx: Math.cos(ang) * (2 + Math.random() * 5),
+            vy: Math.sin(ang) * (2 + Math.random() * 5) - 2,
+            life: 22, maxLife: 22,
+            col: ['#00ccff', '#44ffaa', '#aa44ff'][i % 3],
+          });
+        }
+        spawnParticles(cx, cy, '#00ccff', 8);
+        spawnParticles(cx, cy, '#ffffff', 5);
+      }
+      // Boss ghosts also shatter
+      spawnParticles(boss ? (GAME_W - boss.cx()) : GAME_W * 0.25, boss ? boss.cy() : 220, '#cc44ff', 10);
+    }
+    screenShake = Math.max(screenShake, 18);
+    hitStopFrames = Math.max(hitStopFrames, 8);
+  }
+
+  // ── collapse (115-148): shards fly, selected clone glows ─────────────────
+  // Tick shard particles
+  for (let s = mv.shards.length - 1; s >= 0; s--) {
+    const sh = mv.shards[s];
+    sh.x += sh.vx; sh.y += sh.vy; sh.vy += 0.3; // gravity
+    sh.life--;
+    if (sh.life <= 0) { mv.shards.splice(s, 1); }
+  }
+
+  if (mv.phase === 'collapse' && mv.timer >= 148) {
+    mv.phase = 'strike';
+    // Screen flash
+    hitStopFrames = Math.max(hitStopFrames, 10);
+    screenShake   = Math.max(screenShake, 24);
+    spawnParticles(mv.strikeX, mv.strikeY, '#ff0044', 24);
+    spawnParticles(mv.strikeX, mv.strikeY, '#00ccff', 16);
+    spawnParticles(mv.strikeX, mv.strikeY, '#ffffff', 12);
+    // Damage: player must have dodged away from mv.strikeX
+    if (boss && target && target.health > 0) {
+      const distFromStrike = Math.abs(target.cx() - mv.strikeX);
+      if (distFromStrike < 68 && !mv.hit) {
+        mv.hit = true;
+        dealDamage(boss, target, 32, 22);
+        spawnParticles(target.cx(), target.cy(), '#00ccff', 16);
+        spawnParticles(target.cx(), target.cy(), '#ffffff',  8);
+        hitStopFrames = Math.max(hitStopFrames, 8);
+        screenShake   = Math.max(screenShake, 20);
+      }
+    }
+  }
+
+  if (mv.timer >= mv.maxTimer) { mv.shards.length = 0; tfMultiverse = null; }
+}
+
+// ── helper: draw a lightweight stickman silhouette ──────────────────────────
+function _drawTimelineStickman(x, y, facing, strokeCol, lw, shadowB, alpha) {
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.strokeStyle = strokeCol;
+  ctx.fillStyle   = strokeCol;
+  ctx.lineWidth   = lw;
+  ctx.lineCap     = 'round';
+  ctx.shadowColor = strokeCol;
+  ctx.shadowBlur  = shadowB;
+  const headR = 9, neckY = y + headR * 2 + 1, shoulderY = neckY + 4, hipY = shoulderY + 24;
+  // Head
+  ctx.beginPath(); ctx.arc(x, y + headR, headR, 0, Math.PI * 2); ctx.stroke();
+  // Body
+  ctx.beginPath(); ctx.moveTo(x, neckY); ctx.lineTo(x, hipY); ctx.stroke();
+  // Arms
+  ctx.beginPath(); ctx.moveTo(x - 14, shoulderY + 4); ctx.lineTo(x + 14, shoulderY + 4); ctx.stroke();
+  // Legs
+  ctx.beginPath(); ctx.moveTo(x, hipY); ctx.lineTo(x + facing * 10, hipY + 22); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(x, hipY); ctx.lineTo(x - facing * 10, hipY + 22); ctx.stroke();
+  ctx.restore();
+}
+
+function drawTFMultiverse() {
+  if (!tfMultiverse) return;
+  const mv = tfMultiverse;
+  const target = mv.targetRef;
+  const boss   = mv.bossRef;
+  ctx.save();
+
+  const showProg    = Math.min(1, mv.timer / 24); // fade-in during first 24 frames
+  const isCollapsed = mv.phase === 'collapse' || mv.phase === 'strike';
+  const isStrike    = mv.phase === 'strike';
+
+  // ── Otherworldly screen tint during show / select ──────────────────────────
+  if (!isCollapsed) {
+    const tintA = showProg * 0.16;
+    ctx.globalAlpha = tintA;
+    ctx.fillStyle = '#001122';
+    ctx.fillRect(0, 0, GAME_W, GAME_H);
+    ctx.globalAlpha = 1;
+  }
+
+  // ── Boss ghost mirrors ──────────────────────────────────────────────────────
+  if (boss && !isCollapsed) {
+    for (const bg of mv.bossGhosts) {
+      const ghostX = clamp(boss.cx() + bg.offsetX, 40, GAME_W - 40);
+      const ghostY = boss.cy();
+      // Semi-transparent boss silhouette (just a dark figure with purple tint)
+      ctx.save();
+      ctx.globalAlpha = showProg * 0.28;
+      ctx.strokeStyle = '#cc44ff'; ctx.fillStyle = '#330055';
+      ctx.lineWidth = 2.5; ctx.lineCap = 'round';
+      ctx.shadowColor = '#aa00ff'; ctx.shadowBlur = 14;
+      const bH = boss.h || 50, bW = boss.w || 18;
+      // Head
+      ctx.beginPath(); ctx.arc(ghostX, ghostY + 9, 9, 0, Math.PI * 2); ctx.stroke();
+      // Body
+      ctx.beginPath(); ctx.moveTo(ghostX, ghostY + 18); ctx.lineTo(ghostX, ghostY + bH * 0.8); ctx.stroke();
+      // Arms
+      ctx.beginPath(); ctx.moveTo(ghostX - 14, ghostY + 22); ctx.lineTo(ghostX + 14, ghostY + 22); ctx.stroke();
+      // Legs
+      ctx.beginPath(); ctx.moveTo(ghostX, ghostY + bH * 0.8); ctx.lineTo(ghostX - 10, ghostY + bH); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(ghostX, ghostY + bH * 0.8); ctx.lineTo(ghostX + 10, ghostY + bH); ctx.stroke();
+      ctx.restore();
+    }
+  }
+
+  // ── Player clones ──────────────────────────────────────────────────────────
+  if (target) {
+    const f = target.facing || 1;
+    // Root position: all clones mirror real player's Y and movement in real-time.
+    // X = player.cx() + offset — so they track the player as they move.
+    // Lag offsets: clone 0 = current, clone 1 = 8 frames ago, clone 2 = 16 frames ago
+    const _lagSteps = [0, 8, 16];
+    const _clonePos = mv.cloneOffsets.map((offset, i) => {
+      const _hist = _tfCloneHistory[Math.max(0, _tfCloneHistory.length - 1 - (_lagSteps[i] || 0))];
+      return _hist
+        ? { x: _hist.x + offset, y: _hist.y, facing: _hist.facing }
+        : { x: target.cx() + offset, y: target.cy(), facing: target.facing };
+    });
+    for (let i = 0; i < mv.cloneOffsets.length; i++) {
+      const isReal = i === mv.realIdx;
+      const rawX   = _clonePos[i].x;
+      const cloneX = clamp(rawX, 30, GAME_W - 30);
+      const cloneY = (_clonePos[i].y || target.y) + target.h * 0.25; // stickman reference Y
+
+      // After collapse: only the selected clone remains visible
+      if (isCollapsed && !isReal) continue;
+      // After strike: hide everything
+      if (isStrike) continue;
+
+      // Alpha: clones are dim; real candidate brightens during select
+      let cloneAlpha;
+      if (isReal) {
+        cloneAlpha = showProg * (mv.phase === 'select' || mv.phase === 'collapse' ? 0.90 : 0.50);
+      } else {
+        cloneAlpha = showProg * 0.28;
+      }
+
+      // Visual differentiation
+      const cloneColors = ['#00ccff', '#44ffaa', '#aa44ff'];
+      const col = isReal && mv.phase !== 'show' ? '#ff2244' : cloneColors[i % 3];
+      const lw  = isReal && mv.phase !== 'show' ? 2.2 : 1.5;
+      const shB = isReal && mv.phase !== 'show' ? 22 : 6;
+
+      _drawTimelineStickman(cloneX, cloneY, f, col, lw, shB, cloneAlpha);
+
+      // Timeline label (only during show phase, non-real clones)
+      if (!isReal && mv.phase === 'show') {
+        ctx.save();
+        ctx.globalAlpha = showProg * 0.50;
+        ctx.fillStyle = col; ctx.font = '9px monospace'; ctx.textAlign = 'center';
+        ctx.shadowColor = col; ctx.shadowBlur = 5;
+        ctx.fillText(`T-${i + 1}`, cloneX, cloneY - 42);
+        ctx.restore();
+      }
+
+      // Selection highlight ring on real clone during 'select'
+      if (isReal && mv.phase === 'select') {
+        const pulseProg = (mv.timer - 70) / 45;
+        const pulseR = 22 + Math.sin(mv.timer * 0.35) * 5;
+        ctx.save();
+        ctx.globalAlpha = 0.50 + pulseProg * 0.35;
+        ctx.strokeStyle = '#ff0044'; ctx.lineWidth = 2;
+        ctx.shadowColor = '#ff0044'; ctx.shadowBlur = 18;
+        ctx.beginPath(); ctx.arc(cloneX, cloneY + 15, pulseR, 0, Math.PI * 2); ctx.stroke();
+        // Crosshair
+        ctx.globalAlpha = 0.70 + pulseProg * 0.20;
+        ctx.beginPath(); ctx.moveTo(cloneX - 26, cloneY + 15); ctx.lineTo(cloneX + 26, cloneY + 15); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(cloneX, cloneY - 14); ctx.lineTo(cloneX, cloneY + 44); ctx.stroke();
+        ctx.restore();
+      }
+
+      // Collapse: selected clone gets a bright shockwave ring
+      if (isReal && mv.phase === 'collapse') {
+        const cProg = (mv.timer - 115) / 33;
+        ctx.save();
+        ctx.globalAlpha = (1 - cProg) * 0.70;
+        ctx.strokeStyle = '#ff2244'; ctx.lineWidth = 3;
+        ctx.shadowColor = '#ff0044'; ctx.shadowBlur = 22;
+        ctx.beginPath(); ctx.arc(cloneX, cloneY + 15, 24 + cProg * 40, 0, Math.PI * 2); ctx.stroke();
+        ctx.restore();
+      }
+    }
+
+    // ── Strike marker: locked X beam column ──────────────────────────────────
+    if (mv.phase === 'strike') {
+      const sf = mv.timer - 148;
+      const fade = Math.max(0, 1 - sf / 42);
+      ctx.save();
+      // Vertical impact column
+      const iGrad = ctx.createLinearGradient(mv.strikeX - 22, 0, mv.strikeX + 22, 0);
+      iGrad.addColorStop(0,   'rgba(255,0,68,0)');
+      iGrad.addColorStop(0.4, `rgba(255,0,68,${0.55 * fade})`);
+      iGrad.addColorStop(0.5, `rgba(255,255,255,${0.80 * fade})`);
+      iGrad.addColorStop(0.6, `rgba(255,0,68,${0.55 * fade})`);
+      iGrad.addColorStop(1,   'rgba(255,0,68,0)');
+      ctx.globalAlpha = 1;
+      ctx.fillStyle = iGrad;
+      ctx.fillRect(mv.strikeX - 22, 0, 44, GAME_H);
+      // Full flash on first 5 frames
+      if (sf <= 5) {
+        ctx.globalAlpha = 0.70 - sf * 0.12;
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, GAME_W, GAME_H);
+      }
+      ctx.restore();
+    }
+  }
+
+  // ── Shard particles ────────────────────────────────────────────────────────
+  for (const sh of mv.shards) {
+    const sf = sh.life / sh.maxLife;
+    ctx.save();
+    ctx.globalAlpha = sf * 0.80;
+    ctx.fillStyle = sh.col;
+    ctx.shadowColor = sh.col; ctx.shadowBlur = 8;
+    const sz = 2 + sf * 3;
+    ctx.fillRect(sh.x - sz / 2, sh.y - sz / 2, sz, sz);
+    ctx.restore();
+  }
+
+  // ── Dodge hint text ────────────────────────────────────────────────────────
+  if (mv.phase === 'select') {
+    const ht = (mv.timer - 70) / 45;
+    ctx.save();
+    ctx.globalAlpha = Math.min(ht * 1.5, 0.85);
+    ctx.fillStyle = '#ffdd44';
+    ctx.font = 'bold 11px monospace';
+    ctx.textAlign = 'center';
+    ctx.shadowColor = '#ff8800'; ctx.shadowBlur = 10;
+    ctx.fillText('← DODGE AWAY →', mv.strikeX, (mv.targetRef ? mv.targetRef.y - 28 : 80));
+    ctx.restore();
+  }
+
+  ctx.restore();
+}
+
+// ── SUPERNOVA ─────────────────────────────────────────────────────────────────
+function updateTFSupernova() {
+  if (!tfSupernova) return;
+  const sn = tfSupernova;
+  sn.timer++;
+  const boss = sn.bossRef;
+
+  if (sn.phase === 'buildup') {
+    // Particles converge on boss from all directions
+    if (sn.timer % 3 === 0) {
+      const ang = Math.random() * Math.PI * 2;
+      const dist = 180 + Math.random() * 220;
+      spawnParticles(
+        boss.cx() + Math.cos(ang) * dist,
+        boss.cy() + Math.sin(ang) * dist,
+        Math.random() < 0.5 ? '#ffff88' : '#ff8800', 3
+      );
+    }
+    if (sn.timer >= sn.maxTimer) {
+      sn.phase = 'implosion';
+      sn.timer = 0; sn.maxTimer = 36;
+      // Heavy pull + deeper slow-mo during implosion
+      slowMotion   = 0.08;
+      hitSlowTimer = 50;
+      screenShake  = Math.max(screenShake, 24);
+    }
+
+  } else if (sn.phase === 'implosion') {
+    // Everything gets sucked toward boss center — massive pull spike
+    for (const p of players) {
+      if (p.isTrueForm || p.health <= 0) continue;
+      const dx = boss.cx() - p.cx();
+      const dy = boss.cy() - (p.y + p.h / 2);
+      const d  = Math.hypot(dx, dy);
+      if (d > 6) { p.vx += (dx / d) * 4.5; p.vy += (dy / d) * 3.0; }
+    }
+    if (sn.timer >= sn.maxTimer) {
+      sn.phase = 'active';
+      sn.timer = 0; sn.maxTimer = 60;
+      slowMotion   = 1.0; // snap to normal on detonation
+      screenShake  = Math.max(screenShake, 44);
+      hitStopFrames = Math.max(hitStopFrames, 14);
+      spawnParticles(boss.cx(), boss.cy(), '#ffffff', 40);
+      spawnParticles(boss.cx(), boss.cy(), '#ffff88', 25);
+      spawnParticles(boss.cx(), boss.cy(), '#ff8800', 20);
+    }
+
+  } else if (sn.phase === 'active') {
+    sn.r = (sn.timer / sn.maxTimer) * 350;
+    for (const p of players) {
+      if (p.isTrueForm || p.health <= 0) continue;
+      const dd = Math.hypot(p.cx() - boss.cx(), p.cy() - boss.cy());
+      const inWave = dd >= 32 && dd <= sn.r + 26 && dd >= sn.r - 44;
+      const hitKey = `${p.playerNum || p.name}_${Math.floor(sn.timer / 7)}`;
+      if (inWave && p.invincible <= 0 && !sn.hit.has(hitKey)) {
+        sn.hit.add(hitKey);
+        dealDamage(boss, p, 36, 24);
+        p.vy = -12;
+        spawnParticles(p.cx(), p.cy(), '#ffff88', 14);
+        hitStopFrames = Math.max(hitStopFrames, 8);
+        p.invincible = Math.max(p.invincible, 22);
+      }
+    }
+    if (sn.timer >= sn.maxTimer) tfSupernova = null;
+  }
+}
+
+function drawTFSupernova() {
+  if (!tfSupernova) return;
+  const sn = tfSupernova;
+  const boss = sn.bossRef;
+  ctx.save();
+
+  if (sn.phase === 'buildup') {
+    const prog = sn.timer / sn.maxTimer;
+    // Screen darkens — anticipation
+    ctx.globalAlpha = prog * 0.28;
+    ctx.fillStyle = '#000000';
+    ctx.fillRect(0, 0, GAME_W, GAME_H);
+    // Growing radiant halo
+    const haloR = 18 + prog * 90;
+    const halo = ctx.createRadialGradient(boss.cx(), boss.cy(), 0, boss.cx(), boss.cy(), haloR);
+    halo.addColorStop(0,   `rgba(255,255,255,${prog * 0.88})`);
+    halo.addColorStop(0.4, `rgba(255,220,80,${prog * 0.55})`);
+    halo.addColorStop(1,   'rgba(255,120,0,0)');
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = halo;
+    ctx.shadowColor = '#ffff44'; ctx.shadowBlur = 28;
+    ctx.beginPath(); ctx.arc(boss.cx(), boss.cy(), haloR, 0, Math.PI * 2); ctx.fill();
+    // Converging streaks
+    ctx.globalAlpha = prog * 0.20;
+    ctx.strokeStyle = '#ffcc44'; ctx.lineWidth = 1;
+    for (let si = 0; si < 8; si++) {
+      const ang = (si / 8) * Math.PI * 2 + sn.timer * 0.04;
+      const len = 80 + prog * 100;
+      ctx.beginPath();
+      ctx.moveTo(boss.cx() + Math.cos(ang) * (haloR + len), boss.cy() + Math.sin(ang) * (haloR + len));
+      ctx.lineTo(boss.cx() + Math.cos(ang) * haloR * 1.1, boss.cy() + Math.sin(ang) * haloR * 1.1);
+      ctx.stroke();
+    }
+
+  } else if (sn.phase === 'implosion') {
+    const prog = sn.timer / sn.maxTimer;
+    // Screen goes almost dark
+    ctx.globalAlpha = 0.35 + prog * 0.40;
+    ctx.fillStyle = '#000000';
+    ctx.fillRect(0, 0, GAME_W, GAME_H);
+    // Collapsing sphere
+    const colR = (1 - prog) * 120 + 10;
+    const colGrad = ctx.createRadialGradient(boss.cx(), boss.cy(), 0, boss.cx(), boss.cy(), colR);
+    colGrad.addColorStop(0,   `rgba(255,255,255,${0.9 + prog * 0.1})`);
+    colGrad.addColorStop(0.4, `rgba(255,200,50,${0.7})`);
+    colGrad.addColorStop(1,   'rgba(255,60,0,0)');
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = colGrad;
+    ctx.shadowColor = '#ffffff'; ctx.shadowBlur = 40;
+    ctx.beginPath(); ctx.arc(boss.cx(), boss.cy(), colR, 0, Math.PI * 2); ctx.fill();
+
+  } else if (sn.phase === 'active') {
+    const prog = sn.timer / sn.maxTimer;
+    const r = sn.r;
+    // White screen flash on detonation
+    if (sn.timer <= 5) {
+      ctx.globalAlpha = 0.88 - sn.timer * 0.14;
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, GAME_W, GAME_H);
+    }
+    if (r > 0) {
+      const ringFade = Math.max(0, 0.90 - prog * 0.75);
+      // Outer shockwave ring
+      ctx.globalAlpha = ringFade;
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth   = 20 - prog * 14;
+      ctx.shadowColor = '#ffff88'; ctx.shadowBlur = 35;
+      ctx.beginPath(); ctx.arc(boss.cx(), boss.cy(), r, 0, Math.PI * 2); ctx.stroke();
+      // Inner orange ring
+      ctx.strokeStyle = '#ff8800'; ctx.lineWidth = 7;
+      ctx.shadowBlur  = 14;
+      ctx.beginPath(); ctx.arc(boss.cx(), boss.cy(), Math.max(1, r - 24), 0, Math.PI * 2); ctx.stroke();
+      // Second trailing ring
+      if (r > 40) {
+        ctx.globalAlpha = ringFade * 0.50;
+        ctx.strokeStyle = '#ffcc44'; ctx.lineWidth = 4;
+        ctx.beginPath(); ctx.arc(boss.cx(), boss.cy(), Math.max(1, r - 50), 0, Math.PI * 2); ctx.stroke();
+      }
+      // Safe zone indicator — green ring around boss core
+      ctx.globalAlpha = ringFade * 0.55;
+      ctx.strokeStyle = '#44ff88'; ctx.lineWidth = 2;
+      ctx.setLineDash([4, 4]);
+      ctx.beginPath(); ctx.arc(boss.cx(), boss.cy(), 45, 0, Math.PI * 2); ctx.stroke();
+      ctx.setLineDash([]);
+    }
+  }
+  ctx.restore();
+}
+
 function resetTFState() {
   tfGravityInverted  = false;
   tfGravityTimer     = 0;
@@ -3077,6 +5153,24 @@ function resetTFState() {
   tfChainSlam        = null;
   tfGraspSlam        = null;
   tfShockwaves       = [];
+  tfPhaseShift       = null;
+  tfRealityTear      = null;
+  tfMathBubble       = null;
+  tfCalcStrike       = null;
+  tfGhostPaths       = null;
+  tfRealityOverride  = null;
+  tfGammaBeam        = null;
+  tfNeutronStar      = null;
+  tfGalaxySweep      = null;
+  if (tfMultiverse) { tfMultiverse.shards && (tfMultiverse.shards.length = 0); tfMultiverse = null; }
+  tfSupernova        = null;
+  // Restore slow-motion if any attack left it in a reduced state
+  if (slowMotion < 1.0) { slowMotion = 1.0; hitSlowTimer = 0; }
+  // Reset dimension shift — always restore 2D on fight end
+  if (tfDimensionIs3D) {
+    tfDimensionIs3D = false;
+    set3DView(settings.view3D ? 'settings' : false);
+  }
   // Reset telegraph / warning system
   resetBossWarnings();
   // Restore void arena floor
@@ -3084,5 +5178,15 @@ function resetTFState() {
     const floorPl = ARENAS.void.platforms.find(p => p.isFloor);
     if (floorPl) floorPl.isFloorDisabled = false;
   }
+}
+
+// ── 3D View helper ────────────────────────────────────────────────────────────
+// mode: false = 2D, 'tf' = TrueForm dramatic 3D, 'settings' = gentle persistent 3D
+function set3DView(mode) {
+  const c = document.getElementById('gameCanvas');
+  if (!c) return;
+  c.classList.remove('view-3d', 'view-3d-tf');
+  if (mode === 'tf')  c.classList.add('view-3d-tf');
+  else if (mode)      c.classList.add('view-3d');
 }
 

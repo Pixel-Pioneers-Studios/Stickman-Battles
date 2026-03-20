@@ -165,6 +165,48 @@ const CinCam = {
     if (!a || !b) return;
     this.setFocus((a.cx() + b.cx()) * 0.5, (a.cy() + b.cy()) * 0.5, zoom);
   },
+
+  // ── Finisher-friendly aliases ──────────────────────────────────────────
+  // These match the CinCam API used by weapon/class finishers.
+
+  // Set zoom only (keep current focus position)
+  zoomTo(zoom) {
+    cinematicCamOverride = true;
+    cinematicZoomTarget = zoom;
+  },
+
+  // Focus on midpoint of two entities (optionally with zoom)
+  focusMidpoint(a, b, zoom) {
+    if (!a || !b) return;
+    this.setFocus((a.cx() + b.cx()) * 0.5, (a.cy() + b.cy()) * 0.5, zoom);
+  },
+
+  // Focus on a single entity center
+  focusOn(entity, zoom) {
+    if (!entity) return;
+    this.setFocus(entity.cx(), entity.cy(), zoom);
+  },
+
+  // Focus on an explicit world-space point
+  focusPoint(x, y, zoom) {
+    this.setFocus(x, y, zoom);
+  },
+
+  // Trigger screen shake (intensity in pixels)
+  shake(intensity) {
+    if (settings.screenShake) screenShake = Math.max(screenShake, intensity);
+  },
+
+  // Set slow-motion scale (1.0 = normal, 0.07 = near-freeze)
+  slowMo(scale) {
+    slowMotion = scale;
+  },
+
+  // Restore camera to normal gameplay control
+  restore() {
+    cinematicCamOverride = false;
+    slowMotion = 1.0;
+  },
 };
 
 
@@ -231,6 +273,34 @@ function _cinSampleCam(kf, t) {
 // step.fx: { screenShake, flash:{color,alpha,dur}, particles:{x,y,color,count},
 //            shockwave:{x,y,color,...}, groundCrack:{x,y,color,count} }
 //
+// ── Finisher timeline helpers ─────────────────────────────────────────────
+// Used by smc-finishers.js weapon/class finishers.
+
+function _makeTimeline(events) {
+  // events: [{frame, fn}, ...]  sorted ascending by frame
+  return events.slice().sort((a, b) => a.frame - b.frame);
+}
+
+function _tickTimeline(timeline, frame) {
+  for (const ev of timeline) {
+    if (ev.frame === frame) ev.fn();
+  }
+}
+
+function _makeFinisherSentinel() {
+  // Minimal activeCinematic stub that blocks processInput/AI during finisher.
+  return {
+    _isFinisherSentinel: true,
+    durationFrames: 9999,
+    tick() {},
+    update() {},
+    draw() {},
+    done: false,
+  };
+}
+
+// ── cinScript ─────────────────────────────────────────────────────────────
+
 function cinScript(def) {
   const stepsFired = new Array((def.steps || []).length).fill(false);
 

@@ -426,6 +426,7 @@ function _consoleExec(raw) {
       'debug [on|off]        — toggle debug overlay',
       'slow [on|off]         — toggle slow motion (0.25×)',
       'unlock trueform|megaknight — unlock secret content',
+      'unlockall              — unlock everything',
       'eval <js>             — evaluate raw JavaScript (advanced)',
     ];
     cmds.forEach(c => _consolePrint(c, '#88bbff'));
@@ -604,6 +605,15 @@ function _consoleExec(raw) {
       slowMotion = timeScale;
       _consoleOk('Slow motion: ' + (timeScale < 1 ? 'ON (0.25×)' : 'OFF'));
     }
+    return;
+  }
+
+  // ---- UNLOCKALL ----
+  if (cmd === 'UNLOCKALL') {
+    if (typeof _cheatUnlockAll === 'function') {
+      _cheatUnlockAll();
+      _consoleOk('Everything unlocked!');
+    } else { _consoleErr('_cheatUnlockAll not found.'); }
     return;
   }
 

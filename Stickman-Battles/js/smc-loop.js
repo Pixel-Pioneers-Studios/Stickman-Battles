@@ -1,6 +1,33 @@
 'use strict';
 
 // ============================================================
+function setCameraDrama(state, frames, target, zoom) {
+  camDramaState  = state  || 'normal';
+  camDramaTimer  = frames || 60;
+  camDramaTarget = target || null;
+  camDramaZoom   = zoom   || 1.0;
+}
+
+function _updateCameraDrama() {
+  if (camDramaTimer > 0) {
+    camDramaTimer--;
+    if (camDramaTimer === 0) { camDramaState = 'normal'; camDramaTarget = null; }
+  }
+  if (camDramaState === 'normal' || cinematicCamOverride) return;
+  if (camDramaState === 'focus' && camDramaTarget) {
+    camZoomTarget = Math.min(camZoomTarget * camDramaZoom, 1.55);
+    camXTarget = camXTarget + (camDramaTarget.cx() - camXTarget) * 0.10;
+    camYTarget = camYTarget + (camDramaTarget.cy() - camYTarget) * 0.10;
+  }
+  if (camDramaState === 'impact') {
+    camZoomTarget = Math.max(camZoomTarget * 0.84, 0.46);
+  }
+  if (camDramaState === 'wideshot') {
+    camZoomTarget = Math.max(0.44, camZoomTarget * 0.91);
+  }
+}
+
+// ============================================================
 function updateCamera() {
   const activePlayers = [...players, ...trainingDummies, ...minions].filter(p => p.health > 0 && !p.backstageHiding);
 
@@ -8,58 +35,77 @@ function updateCamera() {
   let targetX    = GAME_W / 2;
   let targetY    = GAME_H / 2;
 
-  if (activePlayers.length > 0) {
-    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
-    for (const p of activePlayers) {
-      minX = Math.min(minX, p.x);
-      maxX = Math.max(maxX, p.x + (p.w || 0));
-      minY = Math.min(minY, p.y);
-      maxY = Math.max(maxY, p.y + (p.h || 0));
+  // Online free camera: track only local player (skip bounding-box and cinematic logic)
+  if (gameMode === 'online' && typeof localPlayerSlot !== 'undefined' && players[localPlayerSlot]) {
+    const lp = players[localPlayerSlot];
+    const PAD = 180;
+    const bbMinX = lp.cx() - PAD;
+    const bbMaxX = lp.cx() + PAD;
+    const bbMinY = lp.y  - PAD;
+    const bbMaxY = lp.y + lp.h + PAD;
+    const bbW = bbMaxX - bbMinX;
+    const bbH = bbMaxY - bbMinY;
+    const zoomX = GAME_W / bbW;
+    const zoomY = GAME_H / bbH;
+    camZoomTarget = Math.max(0.5, Math.min(1.4, Math.min(zoomX, zoomY)));
+    camXTarget = (bbMinX + bbMaxX) / 2;
+    camYTarget = (bbMinY + bbMaxY) / 2;
+  } else {
+    if (activePlayers.length > 0) {
+      let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+      for (const p of activePlayers) {
+        minX = Math.min(minX, p.x);
+        maxX = Math.max(maxX, p.x + (p.w || 0));
+        minY = Math.min(minY, p.y);
+        maxY = Math.max(maxY, p.y + (p.h || 0));
+      }
+      // Zoom out when any player is in the edge zone (100px from boundary) OR outside the map.
+      // Expand the bounding box to the boundary edge so the camera accounts for that occupied space.
+      const EDGE_ZONE = 100;
+      let effMinX = minX, effMaxX = maxX, effMinY = minY, effMaxY = maxY;
+      if (minX < EDGE_ZONE)           effMinX = Math.min(minX, 0);
+      if (maxX > GAME_W - EDGE_ZONE)  effMaxX = Math.max(maxX, GAME_W);
+      if (minY < EDGE_ZONE)           effMinY = Math.min(minY, 0);
+      if (maxY > GAME_H - EDGE_ZONE)  effMaxY = Math.max(maxY, GAME_H);
+
+      const anyOut = effMinX < 0 || effMaxX > GAME_W || effMinY < 0 || effMaxY > GAME_H;
+      if (anyOut) {
+        const PAD   = 80;
+        const zoomX = GAME_W / ((effMaxX - effMinX) + PAD);
+        const zoomY = GAME_H / ((effMaxY - effMinY) + PAD);
+        targetZoom  = Math.max(Math.min(zoomX, zoomY), 0.62);
+        targetX     = (effMinX + effMaxX) / 2;
+        targetY     = (effMinY + effMaxY) / 2;
+      }
     }
-    // Zoom out when any player is in the edge zone (100px from boundary) OR outside the map.
-    // Expand the bounding box to the boundary edge so the camera accounts for that occupied space.
-    const EDGE_ZONE = 100;
-    let effMinX = minX, effMaxX = maxX, effMinY = minY, effMaxY = maxY;
-    if (minX < EDGE_ZONE)           effMinX = Math.min(minX, 0);
-    if (maxX > GAME_W - EDGE_ZONE)  effMaxX = Math.max(maxX, GAME_W);
-    if (minY < EDGE_ZONE)           effMinY = Math.min(minY, 0);
-    if (maxY > GAME_H - EDGE_ZONE)  effMaxY = Math.max(maxY, GAME_H);
 
-    const anyOut = effMinX < 0 || effMaxX > GAME_W || effMinY < 0 || effMaxY > GAME_H;
-    if (anyOut) {
-      const PAD   = 80;
-      const zoomX = GAME_W / ((effMaxX - effMinX) + PAD);
-      const zoomY = GAME_H / ((effMaxY - effMinY) + PAD);
-      targetZoom  = Math.max(Math.min(zoomX, zoomY), 0.62);
-      targetX     = (effMinX + effMaxX) / 2;
-      targetY     = (effMinY + effMaxY) / 2;
+    // Brief zoom-in after a heavy hit (purely cinematic)
+    if (camHitZoomTimer > 0) {
+      camHitZoomTimer--;
+      const hitZoom = 1.0 + 0.22 * (camHitZoomTimer / 15);
+      targetZoom    = Math.max(targetZoom, hitZoom);
+    }
+
+    // Dynamic combat camera: subtle zoom-in when boss is actively attacking
+    if (!cinematicCamOverride && gameRunning) {
+      const attackingBoss = players.find(p => p.isBoss && p.attackTimer > 0 && p.health > 0);
+      if (attackingBoss) {
+        targetZoom = Math.max(targetZoom, 1.08);
+        // Bias camera position slightly toward the boss during their attack
+        targetX = targetX * 0.6 + attackingBoss.cx() * 0.4;
+        targetY = targetY * 0.6 + attackingBoss.cy() * 0.4;
+      }
+    }
+
+    camZoomTarget = targetZoom;
+    const dx = targetX - camXTarget, dy = targetY - camYTarget;
+    if (Math.hypot(dx, dy) > CAMERA_DEAD_ZONE) {
+      camXTarget = targetX;
+      camYTarget = targetY;
     }
   }
 
-  // Brief zoom-in after a heavy hit (purely cinematic)
-  if (camHitZoomTimer > 0) {
-    camHitZoomTimer--;
-    const hitZoom = 1.0 + 0.22 * (camHitZoomTimer / 15);
-    targetZoom    = Math.max(targetZoom, hitZoom);
-  }
-
-  // Dynamic combat camera: subtle zoom-in when boss is actively attacking
-  if (!cinematicCamOverride && gameRunning) {
-    const attackingBoss = players.find(p => p.isBoss && p.attackTimer > 0 && p.health > 0);
-    if (attackingBoss) {
-      targetZoom = Math.max(targetZoom, 1.08);
-      // Bias camera position slightly toward the boss during their attack
-      targetX = targetX * 0.6 + attackingBoss.cx() * 0.4;
-      targetY = targetY * 0.6 + attackingBoss.cy() * 0.4;
-    }
-  }
-
-  camZoomTarget = targetZoom;
-  const dx = targetX - camXTarget, dy = targetY - camYTarget;
-  if (Math.hypot(dx, dy) > CAMERA_DEAD_ZONE) {
-    camXTarget = targetX;
-    camYTarget = targetY;
-  }
+  _updateCameraDrama();
   camZoomCur += (camZoomTarget - camZoomCur) * CAMERA_LERP_ZOOM;
   camXCur    += (camXTarget    - camXCur)    * CAMERA_LERP_POS;
   camYCur    += (camYTarget    - camYCur)    * CAMERA_LERP_POS;
@@ -68,15 +114,39 @@ function updateCamera() {
 // ============================================================
 // GAME LOOP
 // ============================================================
-function gameLoop() {
+let _lastFrameTime = 0;
+const _FRAME_MIN_MS = 1000 / 62; // cap at ~62fps to prevent double-speed on 120Hz displays
+
+function gameLoop(timestamp) {
   if (!gameRunning) return;
-  if (paused) { requestAnimationFrame(gameLoop); return; }
+  // Frame rate cap: skip this frame if called too soon after the last one
+  if (timestamp - _lastFrameTime < _FRAME_MIN_MS) {
+    requestAnimationFrame(gameLoop);
+    return;
+  }
+  _lastFrameTime = timestamp;
+  if (paused || gameLoading) { requestAnimationFrame(gameLoop); return; }
   // Hitstop: freeze gameplay for a few frames on strong hits
   if (hitStopFrames > 0) {
     hitStopFrames--;
     screenShake *= 0.9; // decay-based shake
     requestAnimationFrame(gameLoop);
     return;
+  }
+  // Story cinematic freeze: halt physics without blocking rendering
+  if (storyFreezeTimer > 0) {
+    storyFreezeTimer--;
+    // Still render (draw call happens later), but skip physics by falling through
+    // to draw-only path — achieved by setting hitStopFrames for 1 frame
+    hitStopFrames = 1;
+    requestAnimationFrame(gameLoop);
+    return;
+  }
+  // Decay hit-slow-motion burst back to normal
+  if (hitSlowTimer > 0) {
+    hitSlowTimer--;
+    // Don't restore slowMotion during a finisher — finisher manages it
+    if (hitSlowTimer <= 0 && slowMotion < 0.9 && !activeFinisher) slowMotion = 1.0;
   }
   // Tick active cinematic (before input and physics)
   updateCinematic();
@@ -104,6 +174,15 @@ function gameLoop() {
         remoteP.facing    = rs.facing;
         remoteP.lives     = rs.lives;
         remoteP.curses    = rs.curses || [];
+        // Sync weapon — apply the full weapon object so drawing and hit logic use correct stats
+        if (rs.weaponKey && rs.weaponKey !== remoteP.weaponKey && WEAPONS[rs.weaponKey]) {
+          remoteP.weaponKey = rs.weaponKey;
+          remoteP.weapon    = WEAPONS[rs.weaponKey];
+        }
+        if (rs.color) remoteP.color = rs.color;
+        if (rs.name)  remoteP.name  = rs.name;
+        if (rs.hat)   remoteP.hat   = rs.hat;
+        if (rs.cape)  remoteP.cape  = rs.cape;
       }
     }
   }
@@ -329,8 +408,8 @@ function gameLoop() {
   minions.forEach(m => { if (m.health > 0) m.draw(); });
   minions = minions.filter(m => m.health > 0);
 
-  // Training dummies / bots (also needed in tutorial mode for the tutorial dummy)
-  if (trainingMode || tutorialMode) {
+  // Training dummies / bots
+  if (trainingMode) {
     trainingDummies.forEach(d => { if (d.isDummy || d.health > 0 || d.invincible > 0) d.update(); });
     trainingDummies.forEach(d => { if (d.isDummy || d.health > 0 || d.invincible > 0) d.draw(); });
     // Remove dead bots (lives=0), keep dummies (they auto-heal)
@@ -359,6 +438,11 @@ function gameLoop() {
     updateTFGraspSlam();
     updateTFShockwaves();
     updateTFPendingAttacks();
+    updateTFGammaBeam();
+    updateTFNeutronStar();
+    updateTFGalaxySweep();
+    updateTFMultiverse();
+    updateTFSupernova();
     // Gravity timer: auto-restore after 10 seconds
     if (tfGravityInverted && tfGravityTimer > 0) {
       tfGravityTimer--;
@@ -379,17 +463,33 @@ function gameLoop() {
 
   // Players
   players.forEach(p => { if (p.health > 0 || p.invincible > 0) p.update(); });
+  // Finisher: override positions/state AFTER physics, BEFORE draw
+  if (typeof updateFinisher === 'function') updateFinisher();
   players.forEach(p => { if (p.health > 0 || p.invincible > 0) p.draw(); });
   drawSpartanRageEffects();
   drawClassEffects();
   drawCurseAuras();
   updateAndDrawLightningBolts();
   if (gameMode === 'trueform') {
+    updateTFPhaseShift();
+    updateTFRealityTear();
+    updateTFCalcStrike();
+    updateTFRealityOverride();
     drawTFBlackHoles();
     drawTFGravityWells();
     drawTFMeteorCrash();
     drawTFClones();
     drawTFShockwaves();
+    drawTFPhaseShift();
+    drawTFRealityTear();
+    drawTFCalcStrike();
+    drawTFMathBubble();
+    drawTFRealityOverride();
+    drawTFGammaBeam();
+    drawTFNeutronStar();
+    drawTFGalaxySweep();
+    drawTFMultiverse();
+    drawTFSupernova();
     drawBossWarnings();
   }
   drawPhaseTransitionRings();
@@ -492,9 +592,15 @@ function gameLoop() {
 
   checkDeaths();
   updateHUD();
+  if (storyModeActive && typeof storyTickFightScript  === 'function') storyTickFightScript();
+  if (storyModeActive && typeof storyCheckEvents      === 'function') storyCheckEvents();
 
-  // Tutorial overlay (drawn in stable game space after shake reset)
-  if (tutorialMode) { updateTutorial(); drawTutorial(); }
+  // TrueForm: record player position history for multiverse lag-echo
+  if (gameMode === 'trueform' && players[0] && players[0].health > 0) {
+    _tfCloneHistory.push({ x: players[0].cx(), y: players[0].cy(), facing: players[0].facing });
+    if (_tfCloneHistory.length > 24) _tfCloneHistory.shift();
+  }
+
   // Minigame HUD overlay
   if (gameMode === 'minigames') drawMinigameHUD();
   // New chaos modifier notification
@@ -513,7 +619,13 @@ function gameLoop() {
   // Achievement popups (drawn over everything, in screen space)
   ctx.setTransform(1, 0, 0, 1, 0, 0); // reset transform for screen-space draw
   drawCinematicOverlay();
+  // Story world distortion (chapters 7+, drawn before HUD so HUD stays readable)
+  if (storyModeActive && typeof drawStoryWorldDistortion === 'function') {
+    drawStoryWorldDistortion(ctx, canvas.width, canvas.height);
+  }
   drawAchievementPopups();
+  if (storyModeActive && typeof drawStorySubtitle === 'function') drawStorySubtitle();
+  if (typeof drawFinisher === 'function') drawFinisher(ctx); // finisher overlay (topmost)
   drawEdgeIndicators(finalScX, finalScY, camCX, camCY);
   // Restore the stable game transform after (remaining draws use it already)
   ctx.setTransform(finalScX, 0, 0, finalScY, canvas.width/2 - camCX*finalScX, canvas.height/2 - camCY*finalScY);
@@ -612,7 +724,6 @@ document.addEventListener('keydown', e => {
       setTimeout(() => notif2.remove(), 3000);
     }
   }
-  if (e.key === 'Tab' && tutorialMode) { e.preventDefault(); advanceTutorialStep(); return; }
   if (SCROLL_BLOCK.has(e.key)) e.preventDefault();
   if (keysDown.has(e.key)) return; // already tracked — let held-frame counter run
   keysDown.add(e.key);
@@ -643,6 +754,7 @@ const SHIELD_CD     = 900; // 30-second cooldown at 60 fps
 
 function processInput() {
   if (!gameRunning || paused) return;
+  if (gameLoading) return; // freeze input while loading screen is visible
   if (activeCinematic) return; // freeze player controls during boss cinematics
 
   // Update key-held counters
@@ -654,7 +766,9 @@ function processInput() {
 
     const hasCurseSlow = p.curses && p.curses.some(c => c.type === 'curse_slow');
     const _chaosSpeed = gameMode === 'minigames' && currentChaosModifiers.has('speedy') ? 1.4 : 1.0;
-    const spd  = 5.2 * (p.classSpeedMult || 1.0) * (p._speedBuff > 0 ? 1.35 : 1.0) * (hasCurseSlow ? 0.6 : 1.0) * _chaosSpeed;
+    const _underwaterSlow = currentArena && currentArena.isSlowMovement ? 0.72 : 1.0;
+    const _earthSlow      = currentArena && currentArena.earthPhysics   ? 0.70 : 1.0;
+    const spd  = 5.2 * (p.classSpeedMult || 1.0) * (p._speedBuff > 0 ? 1.35 : 1.0) * (hasCurseSlow ? 0.6 : 1.0) * _chaosSpeed * _underwaterSlow * _earthSlow;
     const wHeld = keyHeldFrames[p.controls.jump]  || 0;
 
 
@@ -666,9 +780,11 @@ function processInput() {
     const movingRight = keysDown.has(_rightKey);
     if (movingLeft) {
       p.vx = -spd;
+      p.facing = -1; // face direction of last key pressed
     }
     if (movingRight) {
       p.vx =  spd;
+      p.facing = 1;  // face direction of last key pressed
     }
     // Decay acceleration ramp when no direction key held
 
@@ -686,7 +802,7 @@ function processInput() {
         spawnParticles(p.cx(), p.y + p.h, '#ffffff', 5);
         if (p.charClass === 'megaknight') spawnParticles(p.cx(), p.y + p.h, '#8844ff', 5);
         SoundManager.jump();
-      } else if (p.canDoubleJump) {
+      } else if (p.canDoubleJump && !p._storyNoDoubleJump) {
         // Double jump in air
         p.vy = dblPower;
         p.canDoubleJump = false;
@@ -695,6 +811,9 @@ function processInput() {
         SoundManager.jump();
       }
     }
+    // --- Dodge roll (double-tap ← or →, story-unlocked) ---
+    if (typeof storyHandleDodgeInput === 'function') storyHandleDodgeInput(p);
+
     // --- S / ArrowDown = boost shield (30-second cooldown) ---
     const sHeld = keysDown.has(p.controls.shield);
     if (sHeld && p.shieldCooldown === 0) {
@@ -716,6 +835,65 @@ function processInput() {
       if (!sHeld) p.shielding = false;
     }
   });
+}
+
+// ============================================================
+// CHEAT: UNLOCK ALL
+// ============================================================
+function _cheatUnlockAll() {
+  // Boss
+  bossBeaten = true;
+  localStorage.setItem('smc_bossBeaten', '1');
+  const bossCard = document.getElementById('modeBoss');
+  if (bossCard) bossCard.style.display = '';
+
+  // True Form
+  unlockedTrueBoss = true;
+  localStorage.setItem('smc_trueform', '1');
+  localStorage.setItem('smc_letters', JSON.stringify([0,1,2,3,4,5,6,7]));
+  collectedLetterIds = new Set([0,1,2,3,4,5,6,7]);
+  syncCodeInput && syncCodeInput();
+  const tfCard = document.getElementById('modeTrueForm');
+  if (tfCard) tfCard.style.display = '';
+
+  // Megaknight
+  unlockedMegaknight = true;
+  localStorage.setItem('smc_megaknight', '1');
+  ['p1Class','p2Class'].forEach(id => {
+    const sel = document.getElementById(id);
+    if (sel && !sel.querySelector('option[value="megaknight"]')) {
+      const opt = document.createElement('option'); opt.value = 'megaknight'; opt.textContent = 'Class: Megaknight ★'; sel.appendChild(opt);
+    }
+  });
+
+  // All achievements
+  if (typeof ACHIEVEMENTS !== 'undefined') {
+    ACHIEVEMENTS.forEach(a => {
+      if (typeof unlockAchievement === 'function') unlockAchievement(a.id);
+    });
+  }
+
+  // Story: mark all chapters beaten + max tokens
+  if (typeof _story2 !== 'undefined' && typeof STORY_CHAPTERS2 !== 'undefined') {
+    STORY_CHAPTERS2.forEach(ch => {
+      if (!_story2.defeated.includes(ch.id)) _story2.defeated.push(ch.id);
+    });
+    _story2.chapter = STORY_CHAPTERS2.length;
+    _story2.tokens  = (_story2.tokens || 0) + 9999;
+    _story2.storyComplete = true;
+    if (typeof _saveStory2 === 'function') _saveStory2();
+    if (typeof _updateStoryCloseBtn === 'function') _updateStoryCloseBtn();
+    // Reveal story online card if present
+    const soCard = document.getElementById('modeStoryOnline');
+    if (soCard) soCard.style.display = '';
+  }
+
+  // Notify
+  const notif = document.createElement('div');
+  notif.textContent = '★ EVERYTHING UNLOCKED ★';
+  notif.style.cssText = 'position:fixed;top:20%;left:50%;transform:translateX(-50%);background:linear-gradient(135deg,rgba(160,0,255,0.95),rgba(255,150,0,0.95));color:#fff;padding:16px 40px;border-radius:12px;font-size:1.25rem;font-weight:900;letter-spacing:3px;z-index:9999;pointer-events:none;text-align:center;box-shadow:0 0 50px #ff8800,0 0 20px #cc00ff;';
+  document.body.appendChild(notif);
+  setTimeout(() => notif.remove(), 3500);
 }
 
 // ============================================================
@@ -793,9 +971,12 @@ function applyCode(val) {
       if (boss) boss.health = 1;
       ok('Boss is nearly dead!');
     } else { err('Enter KILLBOSS while in-game.'); }
+  } else if (code === 'UNLOCKALL') {
+    _cheatUnlockAll();
+    ok('Everything unlocked!');
   } else if (code === 'HELP' || code === 'CODES') {
     if (msgEl) {
-      msgEl.textContent = 'TRUEFORM · CLASSMEGAKNIGHT · GODMODE · FULLHEAL · SUPERJUMP · KILLBOSS · MAP:<arena> · WEAPON:<key> · CLASS:<key>';
+      msgEl.textContent = 'TRUEFORM · CLASSMEGAKNIGHT · UNLOCKALL · GODMODE · FULLHEAL · SUPERJUMP · KILLBOSS · MAP:<arena> · WEAPON:<key> · CLASS:<key>';
       msgEl.style.color = '#aabbff'; msgEl.style.fontSize = '0.7rem';
     }
   } else {

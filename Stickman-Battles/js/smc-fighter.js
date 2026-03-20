@@ -6,7 +6,7 @@
 class Fighter {
   constructor(x, y, color, weaponKey, controls, isAI, aiDifficulty) {
     this.x = x; this.y = y;
-    this.w = 22; this.h = 60;
+    this.w = 28; this.h = 66;
     this.vx = 0; this.vy = 0;
     this.color       = color;
     this.weaponKey   = weaponKey;
@@ -84,6 +84,8 @@ class Fighter {
     this._pendingAction    = null;  // { action: string, timer: int } — queued decision pending reaction delay
     this._actionLockFrames = 0;     // frames bot is committed to current action (no re-evaluation)
     this.inputBuffer       = [];    // queued inputs: 'attack'|'jump'|'ability' (drained once per frame)
+    this._ammo        = this.weapon && this.weapon.clipSize ? this.weapon.clipSize : 0;
+    this._reloadTimer = 0;  // countdown to reload complete; 0 = ready
     this.spawnX      = x;
     this.spawnY      = y;
     this.name        = '';
@@ -94,8 +96,8 @@ class Fighter {
   cy() { return this.y + this.h / 2; }
 
   respawn() {
-    // Re-randomize spawn position on each respawn (safe arenas only)
-    if (currentArena && !['creator','void','soccer','lava'].includes(currentArenaKey)) {
+    // Always re-pick a safe platform — this handles moving/disappearing boss floor
+    if (currentArena && typeof pickSafeSpawn === 'function') {
       const sideHint = this.playerNum === 2 ? 'right' : 'left';
       const newSpawn = pickSafeSpawn(sideHint);
       if (newSpawn) { this.spawnX = newSpawn.x; this.spawnY = newSpawn.y; }
@@ -122,6 +124,8 @@ class Fighter {
     this._powerBuff      = 0;
     this.classPerkUsed    = false;
     this.spartanRageTimer = 0;
+    this._ammo        = this.weapon && this.weapon.clipSize ? this.weapon.clipSize : 0;
+    this._reloadTimer = 0;
     this.invincible = 100;
     // Megaknight spawn animation: fall from sky
     if (this.charClass === 'megaknight') {
@@ -163,6 +167,14 @@ class Fighter {
     if (this.boostCooldown > 0)        this.boostCooldown--;
     if (this.shieldCooldown > 0)       this.shieldCooldown--;
     if (this.contactDamageCooldown > 0) this.contactDamageCooldown--;
+    // Reload ticker — refill clip when timer expires
+    if (this._reloadTimer > 0) {
+      this._reloadTimer--;
+      if (this._reloadTimer === 0 && this.weapon && this.weapon.clipSize) {
+        this._ammo = this.weapon.clipSize;
+        if (!this.isAI) SoundManager.pickup && SoundManager.pickup();
+      }
+    }
     if (this.superFlashTimer > 0)      this.superFlashTimer--;
     if (this.spartanRageTimer > 0) this.spartanRageTimer--;
     this.animTimer++;
@@ -272,7 +284,7 @@ class Fighter {
 
       // ── Standard game physics ──
       const _chaosMoon = gameMode === 'minigames' && currentChaosModifiers.has('moon');
-      const arenaGravity = _chaosMoon ? 0.18 : (currentArena.isLowGravity ? 0.28 : (currentArena.isHeavyGravity ? 0.95 : 0.65));
+      const arenaGravity = _chaosMoon ? 0.18 : (currentArena.isLowGravity ? 0.28 : (currentArena.isHeavyGravity ? 0.95 : (currentArena.earthPhysics ? 0.88 : 0.65)));
       const gravDir = (gameMode === 'trueform' && tfGravityInverted && !this.isBoss) ? -1 : 1;
       const _sm = slowMotion; // cinematic slow-motion time scale
       this.vy += arenaGravity * gravDir * _sm;
@@ -290,8 +302,8 @@ class Fighter {
         this.y = 0; this.vy = Math.abs(this.vy) * 0.4;
       }
       // Invisible ceiling — prevent players from flying off the top of the screen
-      // Space arena gets a higher ceiling (more room to jump); all others use standard
-      if (!this.isBoss) {
+      // Earth arenas have high gravity so no ceiling needed; space gets very high ceiling
+      if (!this.isBoss && !(currentArena && currentArena.earthPhysics)) {
         const ceilY = (currentArena && currentArena.isLowGravity) ? -160 :  // space/low-grav: very generous
                       -120;                                                    // standard ceiling
         if (this.y < ceilY) {
@@ -319,8 +331,8 @@ class Fighter {
     if (this.coyoteFrames > 0 && !this.onGround) this.coyoteFrames--;
     this._prevOnGround = this.onGround;
 
-    // Horizontal clamp — boss arena has hard walls; other arenas allow slight off-screen
-    if (currentArena.isBossArena) {
+    // Horizontal clamp — boss/earth arenas have hard walls; others allow slight off-screen
+    if (currentArena.isBossArena || (currentArena.earthPhysics)) {
       if (this.x < 0) {
         this.x = 0; this.vx = Math.abs(this.vx) * 0.25;
       }
@@ -360,9 +372,11 @@ class Fighter {
 
     this.updateState();
 
-    // Auto-face target
-    if (this.target) this.facing = this.target.cx() > this.cx() ? 1 : -1;
-    else if (Math.abs(this.vx) > 0.5) this.facing = this.vx > 0 ? 1 : -1;
+    // Auto-face: AI only — human players face from last key press (set in processInput)
+    if (this.isAI) {
+      if (this.target) this.facing = this.target.cx() > this.cx() ? 1 : -1;
+      else if (Math.abs(this.vx) > 0.5) this.facing = this.vx > 0 ? 1 : -1;
+    }
 
     // godmode visual: keep HP bar full for clarity
     if (this.godmode) this.health = this.maxHealth;
@@ -509,9 +523,13 @@ class Fighter {
         if (overLeft  >= 0 && overLeft  < 4) this.x = pl.x - this.w + 1;
         if (overRight >= 0 && overRight < 4) this.x = pl.x + pl.w - 1;
       }
-      // Bouncy platform sink on landing
+      // Bouncy platform — launch player upward
       if (pl.isBouncy && landVy > 1) {
         pl.sinkOffset = (pl.sinkOffset || 0) + Math.min(landVy * 0.5, 22);
+        this.vy = -Math.max(18, landVy * 1.1); // bounce up with at least 18 force
+        this.canDoubleJump = true;              // refill double jump on bounce
+        this.onGround = false;
+        spawnParticles(this.cx(), pl.y, '#ff88ff', 10);
       }
       // Landing squash animation trigger
       if (!this.isBoss && landVy > 5) this.squashTimer = 4;
@@ -647,7 +665,7 @@ class Fighter {
 
     // MEGAKNIGHT: Gauntlet Smash — AoE slam in front, launches enemies outward
     if (this.charClass === 'megaknight') {
-      this.cooldown     = this.weapon.cooldown;
+      this.cooldown     = this.attackCooldownMult ? Math.max(1, Math.ceil(this.weapon.cooldown * this.attackCooldownMult)) : this.weapon.cooldown;
       this.attackTimer  = this.attackDuration;
       this.superChargeRate = 2;
       this.weaponHit    = false;
@@ -679,6 +697,18 @@ class Fighter {
         if (!this.isAI) SoundManager.swing();
       }
     } else {
+      // Ranged: check ammo clip
+      if (this.weapon.clipSize) {
+        if (this._reloadTimer > 0) return; // currently reloading — can't shoot
+        if (this._ammo <= 0) {
+          // Out of ammo — start reload
+          this._reloadTimer = this.weapon.reloadFrames;
+          return;
+        }
+        this._ammo--;
+        // Auto-trigger reload when last round is fired
+        if (this._ammo === 0) this._reloadTimer = this.weapon.reloadFrames;
+      }
       if (!this.isAI) SoundManager.shoot();
       const bSpd = this.weapon.bulletSpeed || 13;
       const bClr = this.weapon.bulletColor || '#ffdd00';
@@ -688,18 +718,19 @@ class Fighter {
         this.cx() + this.facing * 12, this.y + 22,
         this.facing * bSpd, bVy, this, dmg, bClr
       ));
-      // Gunner class: fire a second bullet
+      // Gunner class: fire a second bullet (costs no extra ammo — it's the same shot)
       if (this.charClass === 'gunner') {
         const dmg2 = this.weapon.damageFunc ? this.weapon.damageFunc() : this.weapon.damage;
         projectiles.push(new Projectile(this.cx() + this.facing * 12, this.y + 28, this.facing * bSpd * 0.92, bVy - 0.8, this, dmg2, bClr));
       }
     }
-    this.cooldown    = this.weapon.cooldown;
+    this.cooldown    = this.attackCooldownMult ? Math.max(1, Math.ceil(this.weapon.cooldown * this.attackCooldownMult)) : this.weapon.cooldown;
     this.attackTimer = this.attackDuration;
   }
 
   ability(target) {
     if (this.backstageHiding) return;
+    if (this._storyNoAbility) return; // story progression — ability not yet unlocked
     if (this.state === 'dead' || this.state === 'stunned' || this.state === 'ragdoll') return;
     if (this.abilityCooldown > 0 || this.health <= 0 || this.stunTimer > 0 || this.ragdollTimer > 0) return;
     if (!this.isBoss && this.attackEndlag > 0) return; // can't ability during swing recovery
@@ -736,6 +767,7 @@ class Fighter {
   useSuper(target) {
     if (this.state === 'dead' || this.stunTimer > 0 || this.ragdollTimer > 0) return;
     if (!this.superReady) return;
+    if (this._storyNoSuper) return; // story progression — super not yet unlocked
     this.activateSuper(target);
   }
 
@@ -786,10 +818,10 @@ class Fighter {
         if (_superTarget && dist(this, _superTarget) < 210) dealDamage(this, _superTarget, 60, 30);
       },
       hammer: () => {
-        screenShake = Math.max(screenShake, 48);
+        screenShake = Math.max(screenShake, 36);
         spawnRing(this.cx(), this.y + this.h);
         spawnRing(this.cx(), this.y + this.h);
-        if (_superTarget && dist(this, _superTarget) < 230) dealDamage(this, _superTarget, 58, 38);
+        if (_superTarget && dist(this, _superTarget) < 230) dealDamage(this, _superTarget, 38, 28);
       },
       gun: () => {
         for (let i = 0; i < 14; i++) {
@@ -807,6 +839,143 @@ class Fighter {
         this.vx = this.facing * 22;
         this.vy = -10;
         if (_superTarget && dist(this, _superTarget) < 230) dealDamage(this, _superTarget, 50, 24);
+      },
+      // ── Bow: Arrow Rain — 8 spread arrows arc outward ───────────────────────
+      bow: () => {
+        for (let i = 0; i < 8; i++) {
+          setTimeout(() => {
+            if (!gameRunning || this.health <= 0) return;
+            const angle = -0.48 + (i / 7) * 0.96;
+            const spd   = 16;
+            const dmg   = 24 + Math.floor(Math.random() * 10);
+            projectiles.push(new Projectile(
+              this.cx() + this.facing * 14, this.y + 20,
+              this.facing * spd * Math.cos(angle), spd * Math.sin(angle) - 5,
+              this, dmg, '#ffee44'
+            ));
+          }, i * 55);
+        }
+        spawnParticles(this.cx(), this.cy(), '#ffee44', 16);
+      },
+      // ── Shield: Fortress Charge — massive dash + KB + stun all nearby ───────
+      shield: () => {
+        this.vx = this.facing * 30;
+        screenShake = Math.max(screenShake, 36);
+        const _sAll = [...players, ...trainingDummies];
+        for (const f of _sAll) {
+          if (f === this || f.health <= 0) continue;
+          if (dist(this, f) < 190) {
+            dealDamage(this, f, 32, 40);
+            f.vx        = this.facing * 22;
+            f.stunTimer = Math.max(f.stunTimer || 0, 14);
+          }
+        }
+        spawnParticles(this.cx(), this.cy(), '#88aaff', 30);
+        spawnRing(this.cx(), this.cy());
+      },
+      // ── Scythe: Soul Reap — huge AoE spin, heals 12 HP per target hit ───────
+      scythe: () => {
+        this.spinning = 90;
+        screenShake   = Math.max(screenShake, 22);
+        let healed    = 0;
+        const _scAll  = [...players, ...trainingDummies];
+        for (const f of _scAll) {
+          if (f === this || f.health <= 0) continue;
+          if (dist(this, f) < 210) { dealDamage(this, f, 32, 16); healed++; }
+        }
+        if (healed > 0) {
+          this.health = Math.min(this.maxHealth, this.health + healed * 12);
+          spawnParticles(this.cx(), this.cy(), '#cc44cc', 28);
+          spawnRing(this.cx(), this.cy());
+        }
+      },
+      // ── Frying Pan: Grand Slam — 62 dmg + 1.5 s stun ────────────────────────
+      fryingpan: () => {
+        if (_superTarget && dist(this, _superTarget) < 140) {
+          dealDamage(this, _superTarget, 40, 20);
+          _superTarget.stunTimer = Math.max(_superTarget.stunTimer || 0, 28); // reduced from 90 — no more infinite stun chains
+          spawnParticles(_superTarget.cx(), _superTarget.cy(), '#ffdd44', 24);
+          spawnParticles(_superTarget.cx(), _superTarget.cy(), '#ffffff', 12);
+          screenShake = Math.max(screenShake, 32);
+          spawnRing(_superTarget.cx(), _superTarget.cy());
+        }
+      },
+      // ── Broomstick: Storm Sweep — spin + extreme edge-push on all nearby ─────
+      broomstick: () => {
+        this.spinning = 90;
+        screenShake   = Math.max(screenShake, 28);
+        const _bAll   = [...players, ...trainingDummies];
+        for (const f of _bAll) {
+          if (f === this || f.health <= 0) continue;
+          if (dist(this, f) < 250) {
+            const dir = f.cx() > this.cx() ? 1 : -1;
+            dealDamage(this, f, 38, 16);
+            f.vx = dir * 36;
+            spawnParticles(f.cx(), f.cy(), '#cc9966', 10);
+          }
+        }
+        spawnRing(this.cx(), this.cy());
+      },
+      // ── Boxing Gloves: Knockout Flurry — 8-hit rapid combo ──────────────────
+      boxinggloves: () => {
+        let count = 0;
+        const doHit = () => {
+          if (!gameRunning || this.health <= 0) return;
+          if (_superTarget && dist(this, _superTarget) < 110) {
+            dealDamage(this, _superTarget, 16, 6);
+            spawnParticles(_superTarget.cx(), _superTarget.cy(), '#ff4444', 5);
+          }
+          count++;
+          if (count < 8) setTimeout(doHit, 70);
+        };
+        doHit();
+      },
+      // ── Pea Shooter: Pea Cannon — slow massive explosive pea ────────────────
+      peashooter: () => {
+        const _pProj = new Projectile(
+          this.cx() + this.facing * 14, this.y + 22,
+          this.facing * 7, -2,
+          this, 55, '#00ff44'
+        );
+        _pProj.splashRange = 95;
+        _pProj.dmg         = 55;
+        projectiles.push(_pProj);
+        spawnParticles(this.cx(), this.cy(), '#44ff44', 18);
+        screenShake = Math.max(screenShake, 14);
+      },
+      // ── Slingshot: Megastone — giant aimed boulder with massive splash ────────
+      slingshot: () => {
+        const _sdx = _superTarget ? (_superTarget.cx() - this.cx()) : this.facing * 300;
+        const _sdy = _superTarget ? (_superTarget.cy() - this.cy()) : 0;
+        const _slen = Math.hypot(_sdx, _sdy) || 1;
+        const _slProj = new Projectile(
+          this.cx() + this.facing * 14, this.y + 22,
+          (_sdx / _slen) * 13, (_sdy / _slen) * 13 - 2,
+          this, 68, '#ff6600'
+        );
+        _slProj.splashRange = 100;
+        _slProj.dmg         = 68;
+        projectiles.push(_slProj);
+        spawnParticles(this.cx(), this.cy(), '#ff9933', 20);
+        screenShake = Math.max(screenShake, 18);
+      },
+      // ── Paper Airplane: Paper Flock — 12 planes radiate in all directions ────
+      paperairplane: () => {
+        for (let i = 0; i < 12; i++) {
+          setTimeout(() => {
+            if (!gameRunning || this.health <= 0) return;
+            const angle = (i / 12) * Math.PI * 2;
+            const spd   = 9 + Math.random() * 4;
+            const dmg   = 18 + Math.floor(Math.random() * 8);
+            projectiles.push(new Projectile(
+              this.cx(), this.cy(),
+              Math.cos(angle) * spd, Math.sin(angle) * spd,
+              this, dmg, '#aaccff'
+            ));
+          }, i * 40);
+        }
+        spawnParticles(this.cx(), this.cy(), '#aaccff', 22);
+        screenShake = Math.max(screenShake, 16);
       },
       gauntlet: () => {
         screenShake = Math.max(screenShake, 60);
@@ -876,47 +1045,61 @@ class Fighter {
     const tHpPct   = t ? t.health / t.maxHealth : 1;
 
 
-    // Difficulty: easy = cautious, hard = aggressive
-    const hazardW  = this.aiDiff === 'easy' ? 1.55 : this.aiDiff === 'medium' ? 1.00 : 0.58;
-    const aggrW    = this.aiDiff === 'easy' ? 0.70 : this.aiDiff === 'medium' ? 1.10 : 1.55;
+    // Difficulty: easy = cautious, expert = relentless
+    const hazardW  = this.aiDiff === 'easy' ? 1.10 : this.aiDiff === 'medium' ? 0.80 : this.aiDiff === 'hard' ? 0.50 : 0.30;
+    const _baseAggrW = this.aiDiff === 'easy' ? 0.90 : this.aiDiff === 'medium' ? 1.25 : this.aiDiff === 'hard' ? 1.65 : 2.20;
+    // Aggression ramps over match time — +0..45% over 90 seconds of no kill
+    const _matchSecs   = (typeof frameCount !== 'undefined' ? frameCount : 0) / 60;
+    const _noKillYet   = !players.some(p => p !== this && p.health < (p.maxHealth || 100) * 0.5);
+    const _timeRamp    = _noKillYet ? Math.min(0.45, _matchSecs / 90 * 0.45) : 0;
+    const aggrW        = _baseAggrW + _timeRamp;
 
     const s = {};
 
-    // Fix 5: clamp danger so heatmap influences movement but never fully disables attacks
-    const clampedHeat = Math.min(selfHeat, 0.50);
+    // Clamp heat so hazard avoidance never fully disables attacks
+    const clampedHeat = Math.min(selfHeat, 0.40);
 
-    // AVOID_HAZARD: proportional to heatmap value at self + low-HP fear bonus
-    s.avoid_hazard = clampedHeat * hazardW * (1 + (1 - hpPct) * 0.45);
+    // AVOID_HAZARD: only fires when genuinely standing in danger
+    s.avoid_hazard = clampedHeat > 0.30 ? clampedHeat * hazardW * (1 + (1 - hpPct) * 0.3) : 0;
 
-    // RECOVER: high when falling with no platform below — trigger early at 50% of arena height
+    // RECOVER: steer to platform when falling
     s.recover = (!this.onGround && this.vy > 1 && this.y > GAME_H * 0.50) ? 0.96 : 0;
 
-    // RETREAT: low HP + enemy is close and healthy
-    s.retreat = (hpPct < 0.35 && d < 320)
-      ? (1 - hpPct) * 0.90 * hazardW * (1 - dNorm * 0.35)
+    // RETREAT: only when critically low HP (< 20%) and healthy enemy very close
+    s.retreat = (hpPct < 0.20 && d < 220)
+      ? (1 - hpPct) * 0.55 * hazardW
       : 0;
 
-    // Fix 2: use <= 0 instead of === 0 for cooldown checks
-    // Fix 4: widen attack detection to 90% of weapon reach beyond base range
-    const attackRange = this.weapon.range * 0.9 + 25;
+    // ATTACK: wide detection, always wins over chase when in range + cooldown ready
+    const attackRange = this.weapon.range * 1.1 + 30;
     const inRangeExt  = t ? d < attackRange : false;
-    s.attack = (inRangeExt && this.cooldown <= 0)
-      ? (0.60 + (1 - dNorm) * 0.22 + (1 - tHpPct) * 0.12) * aggrW
+    // Base attack score is very high when in range — always beats chase
+    s.attack = inRangeExt
+      ? (1.10 + (1 - dNorm) * 0.30 + (1 - tHpPct) * 0.20) * aggrW
       : 0;
 
-    // USE_ABILITY: available + close enough (fix 2: <= 0)
-    s.use_ability = (this.abilityCooldown <= 0 && d < 280)
-      ? (0.68 + (1 - tHpPct) * 0.14) * aggrW
+    // USE_ABILITY: available + reasonable distance
+    s.use_ability = (this.abilityCooldown <= 0 && d < 320)
+      ? (0.80 + (1 - tHpPct) * 0.18) * aggrW
       : 0;
 
-    // USE_SUPER: very high priority when ready and self not in severe danger
-    s.use_super = (this.superReady && clampedHeat < 0.50) ? 0.90 * aggrW : 0;
+    // USE_SUPER: very high priority when ready
+    s.use_super = (this.superReady && clampedHeat < 0.40) ? 1.10 * aggrW : 0;
 
-    // CHASE: baseline — close the gap (always has a positive score so bot never idles)
-    s.chase = (0.38 + dNorm * 0.20) * aggrW;
+    // CHASE: strong baseline — always positive so bot never idles
+    s.chase = (0.55 + dNorm * 0.25) * aggrW;
+
+    // FINISH_THEM: enemy near death — ignore hazards, close in relentlessly
+    if (tHpPct < 0.25 && d < 420) {
+      const _urgency    = (1 - tHpPct) * 1.8 * aggrW;
+      s.attack          = Math.max(s.attack || 0,   _urgency);
+      s.chase           = Math.max(s.chase  || 0,   _urgency * 0.8);
+      s.retreat         = 0;
+      s.avoid_hazard    = Math.max(0, (s.avoid_hazard || 0) - 0.5);
+    }
 
     // ---- TACTICAL POSITIONING MODIFIERS ----
-    const tacticW = this.aiDiff === 'hard' ? 1.0 : this.aiDiff === 'medium' ? 0.55 : 0.18;
+    const tacticW = this.aiDiff === 'expert' ? 1.4 : this.aiDiff === 'hard' ? 1.0 : this.aiDiff === 'medium' ? 0.55 : 0.18;
     if (tacticW > 0 && currentArena) {
       // Corner avoidance: boost reposition when bot is near edge
       const edgeDist = Math.min(this.cx(), GAME_W - this.cx()) / (GAME_W * 0.18);
@@ -1049,7 +1232,7 @@ class Fighter {
     }
 
     if (!hasPlatBelow) {
-      const spd = this.aiDiff === 'easy' ? 2.6 : this.aiDiff === 'medium' ? 4.2 : 5.8;
+      const spd = this.aiDiff === 'easy' ? 3.4 : this.aiDiff === 'medium' ? 4.4 : this.aiDiff === 'hard' ? 5.0 : 5.6;
 
       // Steer toward the nearest platform immediately
       let nearX = GAME_W / 2, nearDist = Infinity;
@@ -1080,9 +1263,9 @@ class Fighter {
       ? 'chase'
       : Object.keys(scores).reduce((a, b) => scores[a] >= scores[b] ? a : b);
 
-    // Reaction delay system: bot queues decisions and commits after a human-like delay
-    const reactFrames  = this.aiDiff === 'easy' ? 15 : this.aiDiff === 'medium' ? 11 : 7;
-    const lockFrames   = this.aiDiff === 'easy' ? 24 : this.aiDiff === 'medium' ? 18 : 12;
+    // Reaction delay (in AI ticks). Kept short so bots feel responsive.
+    const reactFrames  = this.aiDiff === 'easy' ? 3 : this.aiDiff === 'medium' ? 2 : 1;
+    const lockFrames   = this.aiDiff === 'easy' ? 3 : this.aiDiff === 'medium' ? 2 : 1;
 
     if (this._stateChangeCd > 0) this._stateChangeCd--;
     if (this._actionLockFrames > 0) this._actionLockFrames--;
@@ -1109,10 +1292,12 @@ class Fighter {
     const dx         = t ? t.cx() - this.cx() : 0;
     const dir        = dx > 0 ? 1 : -1;
     const d          = Math.abs(dx);
-    let   spd        = this.aiDiff === 'easy' ? 2.6 : this.aiDiff === 'medium' ? 4.2 : 5.8;
-    let   atkFreq    = this.aiDiff === 'easy' ? 0.04 : this.aiDiff === 'medium' ? 0.16 : 0.28;
-    let   abiFreq    = this.aiDiff === 'easy' ? 0.004 : this.aiDiff === 'medium' ? 0.022 : 0.04;
-    let   missChance = this.aiDiff === 'easy' ? 0.15 : this.aiDiff === 'medium' ? 0.08 : 0.03;
+    let   spd        = this.aiDiff === 'easy' ? 3.0 : this.aiDiff === 'medium' ? 4.4 : this.aiDiff === 'hard' ? 5.2 : 5.8;
+    // atkFreq is per-AI-tick probability. Previously 0.04/0.16/0.28 = attacks every 6s/1.6s/0.9s.
+    // New values guarantee attacks within 1–3 ticks of entering range.
+    let   atkFreq    = this.aiDiff === 'easy' ? 0.55 : this.aiDiff === 'medium' ? 0.75 : this.aiDiff === 'hard' ? 0.90 : 1.00;
+    let   abiFreq    = this.aiDiff === 'easy' ? 0.10 : this.aiDiff === 'medium' ? 0.20 : this.aiDiff === 'hard' ? 0.32 : 0.50;
+    let   missChance = this.aiDiff === 'easy' ? 0.18 : this.aiDiff === 'medium' ? 0.08 : this.aiDiff === 'hard' ? 0.03 : 0.00;
     // Personality execution tweaks
     if (this.personality === 'aggressive') { spd *= 1.20; atkFreq *= 1.45; missChance *= 0.60; }
     if (this.personality === 'defensive')  { spd *= 0.85; atkFreq *= 0.65; }
@@ -1123,9 +1308,9 @@ class Fighter {
     const fwd      = this.raycastForward(dir);
     const pathSafe = fwd.heat < 0.55 && !fwd.cliff;
 
-    // Screen-edge guard
-    const nearLeftEdge  = this.x < 100 && !this.isBoss;
-    const nearRightEdge = this.x + this.w > GAME_W - 100 && !this.isBoss;
+    // Screen-edge guard (50px — reduced from 120px to avoid huge dead zones)
+    const nearLeftEdge  = this.x < 50 && !this.isBoss;
+    const nearRightEdge = this.x + this.w > GAME_W - 50 && !this.isBoss;
     const towardEdge    = (nearLeftEdge && dir < 0) || (nearRightEdge && dir > 0);
 
     switch (best) {
@@ -1142,8 +1327,9 @@ class Fighter {
         } else {
           this.vx = 0; // can't run — jump up instead
         }
-        // Jump if heat is high enough
-        if (selfHeat > 0.65 && this.onGround) {
+        // Jump if heat is high enough — only if not at an edge
+        const fleeAhead = heatL < heatR ? -1 : 1;
+        if (selfHeat > 0.65 && this.onGround && !this.isEdgeDanger(fleeAhead)) {
           this.vy = -20;
         } else if (selfHeat > 0.50 && this.canDoubleJump && this.vy > 0) {
           this.vy = -16; this.canDoubleJump = false;
@@ -1195,17 +1381,24 @@ class Fighter {
           this.vx = dir * spd;
         break;
 
-      // ---- ATTACK: hold position and swing ----
+      // ---- ATTACK: press the target, always fire when cooldown ready ----
       case 'attack':
-        this.vx *= 0.72;
-        // Occasional missed swing (human-like imperfection)
+        // Slide in slightly so melee hits land — don't just stand still
+        if (d > this.weapon.range * 0.6 && !towardEdge) {
+          this.vx = dir * spd * 0.5;
+        } else {
+          this.vx *= 0.80;
+        }
+        // Miss chance simulates human imperfection on easy
         if (Math.random() < missChance) this.facing = -this.facing;
-        // Fix 2: use <= 0 for cooldown checks
-        if (this.cooldown <= 0 && Math.random() < atkFreq) this.attack(t);
+        // Always attack when cooldown is ready — no probability gate for hard/expert
+        if (this.cooldown <= 0) {
+          if (Math.random() < atkFreq) this.attack(t);
+        }
         if (this.abilityCooldown <= 0 && Math.random() < abiFreq) this.ability(t);
-        if (this.superReady && Math.random() < 0.12) this.useSuper(t);
-        // Small hop to reach target on a slightly higher level
-        if (this.onGround && t && t.y + t.h < this.y - 30 && !fwd.cliff && Math.random() < 0.02)
+        if (this.superReady && Math.random() < 0.25) this.useSuper(t);
+        // Hop to reach target on a higher platform
+        if (this.onGround && t && t.y + t.h < this.y - 30 && !fwd.cliff && Math.random() < 0.05)
           this.vy = -16;
         break;
 
@@ -1226,24 +1419,41 @@ class Fighter {
       // ---- CHASE: close the distance (default) ----
       case 'chase':
       default:
-        if (pathSafe && !towardEdge) {
-          this.vx = dir * spd;
-        } else if (fwd.cliff || towardEdge) {
-          // Blocked by edge or cliff — stop, try jumping to a platform above
+        if (towardEdge) {
+          // Near a wall and player is beyond it — stop and optionally jump up
           this.vx = 0;
-          if (this.onGround && this.platformAbove() && Math.random() < 0.05) this.vy = -18;
+          if (this.onGround && this.platformAbove() && Math.random() < 0.08) this.vy = -18;
+        } else if (fwd.cliff && currentArena.hasLava) {
+          // About to walk off a lava platform — jump instead of walking off
+          this.vx = 0;
+          if (this.onGround && Math.random() < 0.15) this.vy = -18;
+        } else {
+          // Always move toward target — heat doesn't block movement, only slow it
+          this.vx = dir * (pathSafe ? spd : spd * 0.7);
         }
         // Jump to target on higher platform
-        if (this.onGround && t && t.y + t.h < this.y - 50 && !fwd.cliff && Math.random() < 0.04 &&
+        if (this.onGround && t && t.y + t.h < this.y - 50 && !fwd.cliff && Math.random() < 0.06 &&
             (!currentArena.hasLava || this.platformAbove()))
           this.vy = -18;
-        // Jump toward airborne target (not if near screen edge)
-        if (this.onGround && t && !t.onGround && Math.random() < 0.05 && !fwd.cliff && !towardEdge)
+        // Jump toward airborne target
+        if (this.onGround && t && !t.onGround && Math.random() < 0.06 && !fwd.cliff && !towardEdge)
           this.vy = -18;
+        // Jump up toward target if they're on a higher platform
+        if (t && this.onGround) {
+          const _vGap = this.cy() - t.cy(); // positive = target is above
+          const _lDist = Math.abs(t.cx() - this.cx());
+          if (_vGap > 80 && _lDist < 280) {
+            const _jProb = this.aiDiff === 'easy' ? 0.04 : this.aiDiff === 'medium' ? 0.10 : this.aiDiff === 'hard' ? 0.20 : 0.30;
+            if (Math.random() < _jProb) {
+              this.vy = -17;
+              this.vx = dir * spd * 1.1;
+            }
+          }
+        }
         // Trickster: random erratic jumps and direction fakes
         if (this.personality === 'trickster' && this.onGround && !towardEdge) {
-          if (Math.random() < 0.025) { this.vy = -18; }                        // random jump
-          if (Math.random() < 0.012) { this.vx = -this.vx; this.facing *= -1; } // fake-out reverse
+          if (Math.random() < 0.025) { this.vy = -18; }
+          if (Math.random() < 0.012) { this.vx = -this.vx; this.facing *= -1; }
         }
         break;
     }
@@ -1294,16 +1504,18 @@ class Fighter {
   // with no safe ground beneath within the next 40px.
   isEdgeDanger(dir) {
     if (!this.onGround) return false;
-    const lookX = dir > 0 ? this.x + this.w + 55 : this.x - 55;
+    // On flat Earth arenas the ground is always there — never an edge danger
+    if (currentArena && currentArena.earthPhysics) return false;
+    const lookX = dir > 0 ? this.x + this.w + 40 : this.x - 40;
     const footY = this.y + this.h;
     for (const pl of currentArena.platforms) {
       if (pl.isFloorDisabled) continue;
       if (lookX > pl.x && lookX < pl.x + pl.w &&
           footY <= pl.y + 22 && footY >= pl.y - 8) return false; // ground ahead
     }
-    // On lava map stepping off any platform is immediately fatal — always dangerous
+    // Lava maps: stepping off a platform is immediately fatal
     if (currentArena.hasLava) return true;
-    // Normal maps: only flag as dangerous close to the kill boundary
+    // Normal maps: only flag as dangerous near the kill boundary
     return this.y + this.h < GAME_H + 40;
   }
 
@@ -1394,8 +1606,18 @@ class Fighter {
       this._lastXForStuck = this.x;
     }
 
+    // Combo follow-through: maintain forward pressure after landing a hit
+    if (this._comboPressTimer > 0) {
+      this._comboPressTimer--;
+      if (this.target) {
+        const _cDir = this.target.cx() > this.cx() ? 1 : -1;
+        const _cSpd = this.aiDiff === 'expert' ? 5.8 : 5.2;
+        this.vx = _cDir * _cSpd;
+      }
+    }
+
     // ---- RANDOM NUDGE: prevents long idle stretches ----
-    if (!this.isBoss && frameCount % 120 === 0 && Math.abs(this.vx) < 0.5 && this.target) {
+    if (!this.isBoss && frameCount % 45 === 0 && Math.abs(this.vx) < 0.5 && this.target) {
       const spd0 = this.aiDiff === 'easy' ? 2.6 : this.aiDiff === 'medium' ? 4.2 : 5.8;
       this._wanderDir   = (Math.random() < 0.5 ? -1 : 1);
       this._wanderTimer = 20;
@@ -1406,6 +1628,10 @@ class Fighter {
     if (this.isAI && this.state === 'attacking') {
       if (this.weaponHit) {
         this.aiNoHitTimer = 0;
+        // Press forward after landing a hit (combo follow-through for hard/expert)
+        if (!this._comboPressTimer && (this.aiDiff === 'hard' || this.aiDiff === 'expert')) {
+          this._comboPressTimer = 16;
+        }
       } else {
         this.aiNoHitTimer++;
         if (this.aiNoHitTimer > 60) {
@@ -1421,13 +1647,19 @@ class Fighter {
     // ---- WANDER STATE: move in random direction briefly ----
     if (this._wanderTimer > 0) {
       this._wanderTimer--;
-      const spd0 = this.aiDiff === 'easy' ? 2.6 : this.aiDiff === 'medium' ? 4.2 : 5.8;
+      const spd0 = this.aiDiff === 'easy' ? 3.0 : this.aiDiff === 'medium' ? 4.4 : 5.2;
       if (!this.isEdgeDanger(this._wanderDir)) {
         this.vx = this._wanderDir * spd0 * 1.2;
       } else {
-        this._wanderDir = -this._wanderDir; // flip if edge
+        this._wanderDir = -this._wanderDir;
       }
       if (this.onGround && Math.random() < 0.04) this.vy = -18;
+      // Still attack if target walks into range during wander
+      const _wt = this.target;
+      if (_wt && _wt.health > 0 && this.cooldown <= 0) {
+        const _wd = Math.abs(_wt.cx() - this.cx());
+        if (_wd < this.weapon.range * 1.1 + 20) this.attack(_wt);
+      }
       return;
     }
 
@@ -1487,7 +1719,7 @@ class Fighter {
     const d  = Math.abs(dx);
     const dir = dx > 0 ? 1 : -1;
 
-    const spd = this.aiDiff === 'easy' ? 2.6 : this.aiDiff === 'medium' ? 4.2 : 5.8;
+    const spd = this.aiDiff === 'easy' ? 3.4 : this.aiDiff === 'medium' ? 4.4 : this.aiDiff === 'hard' ? 5.0 : 5.6;
 
     // ---- RUINS: prioritize artifacts unless player is very close ----
     if (currentArenaKey === 'ruins' && mapItems && mapItems.length > 0 && !this.isBoss) {
@@ -1549,17 +1781,32 @@ class Fighter {
     }
 
     // ---- DANGER: map screen edges (avoid falling off) ----
-    const nearLeftEdge  = this.x < 100 && !this.isBoss;
-    const nearRightEdge = this.x + this.w > GAME_W - 100 && !this.isBoss;
+    // Reduced margin: 50px (was 120px — caused huge dead zones where bots froze)
+    const nearLeftEdge  = this.x < 50 && !this.isBoss;
+    const nearRightEdge = this.x + this.w > GAME_W - 50 && !this.isBoss;
     if (this.onGround) {
-      if (nearLeftEdge  && dir < 0) { this.vx = 0; if (Math.random() < 0.25) this.vy = -18; return; }
-      if (nearRightEdge && dir > 0) { this.vx = 0; if (Math.random() < 0.25) this.vy = -18; return; }
+      if (nearLeftEdge  && dir < 0) { this.vx = 0; }
+      if (nearRightEdge && dir > 0) { this.vx = 0; }
     }
-    // In-air edge danger: brake horizontal velocity when flying toward screen edge
     if (!this.onGround && !this.isBoss) {
-      if (nearLeftEdge  && this.vx < 0) this.vx *= 0.6;
-      if (nearRightEdge && this.vx > 0) this.vx *= 0.6;
+      if (nearLeftEdge  && this.vx < 0) this.vx = 0;
+      if (nearRightEdge && this.vx > 0) this.vx = 0;
     }
+
+    // ---- IMMEDIATE ATTACK OVERRIDE ----
+    // If in range and cooldown ready, always attack — bypass the utility state machine.
+    // This guarantees bots never idle in melee range with a loaded weapon.
+    if (t && t.health > 0 && this.cooldown <= 0) {
+      const atkRange = this.weapon.range * 1.1 + 20;
+      if (d < atkRange) {
+        this.attack(t);
+      }
+    }
+    const _abiFreqNow = this.aiDiff === 'easy' ? 0.10 : this.aiDiff === 'medium' ? 0.20 : this.aiDiff === 'hard' ? 0.35 : 0.55;
+    if (t && this.abilityCooldown <= 0 && d < 280 && Math.random() < _abiFreqNow) {
+      this.ability(t);
+    }
+    if (this.superReady && Math.random() < 0.22) { this.useSuper(t); }
 
     // Emergency super: if critically low health and super is ready, fire immediately
     if (this.health < 40 && this.superReady) { this.useSuper(t); }
@@ -1573,7 +1820,7 @@ class Fighter {
         this._absoluteIdleTimer = 0;
       } else {
         this._absoluteIdleTimer++;
-        if (this._absoluteIdleTimer > 8) { // 8 AI ticks × 15 frames = ~120 frames = ~2s
+        if (this._absoluteIdleTimer > 2) { // 2 AI ticks × 15 frames = ~30 frames = ~0.5s
           this._absoluteIdleTimer = 0;
           // Force move directly toward target — but don't step off an edge
           const forceDx = t.cx() - this.cx();
@@ -1670,12 +1917,18 @@ class Fighter {
     }
 
     const headR     = 9;
-    const headCY    = ty + headR + 1 + animOffY;
+    // Head bob when walking: slight downward dip on each step
+    const headBob   = (s === 'walking') ? Math.abs(Math.sin(t * 0.24)) * 1.8 : 0;
+    const headCY    = ty + headR + 1 + animOffY + headBob;
     const neckY     = headCY + headR + 1;
     const shoulderY = neckY + 4;
     const hipY      = shoulderY + 24;
+    // Body lean forward when walking/running
+    const hipX      = cx + (s === 'walking' ? f * 1.8 : 0);
     const armLen    = 20;
     const legLen    = 22;
+    // Inline helper: 2-segment limb joint via midpoint offset
+    const _lj = (ax, ay, bx, by, ox, oy) => [(ax+bx)*0.5 + ox, (ay+by)*0.5 + oy];
 
     ctx.strokeStyle = this.color;
     ctx.lineWidth   = 2.5;
@@ -1712,12 +1965,12 @@ class Fighter {
     // ACCESSORIES (hat, cape)
     drawAccessory(this, cx, headCY, shoulderY, hipY, f, headR);
 
-    // BODY
+    // BODY (leans forward when walking)
     ctx.strokeStyle = this.color;
     ctx.lineWidth   = 2.5;
     ctx.beginPath();
     ctx.moveTo(cx, neckY);
-    ctx.lineTo(cx, hipY);
+    ctx.lineTo(hipX, hipY);
     ctx.stroke();
 
     // ARM ANGLES
@@ -1759,10 +2012,14 @@ class Fighter {
     const lEx = cx + Math.cos(lAng) * armLen;
     const lEy = shoulderY + Math.sin(lAng) * armLen;
 
+    // 2-segment arms: elbows bend outward (in facing direction) and slightly up
+    const elbowOut = f * 5;
+    const [rElbX, rElbY] = _lj(cx, shoulderY, rEx, rEy, elbowOut, -3);
+    const [lElbX, lElbY] = _lj(cx, shoulderY, lEx, lEy, elbowOut, -3);
     ctx.strokeStyle = this.color;
     ctx.lineWidth   = 2.5;
-    ctx.beginPath(); ctx.moveTo(cx, shoulderY); ctx.lineTo(rEx, rEy); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(cx, shoulderY); ctx.lineTo(lEx, lEy); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(cx, shoulderY); ctx.lineTo(rElbX, rElbY); ctx.lineTo(rEx, rEy); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(cx, shoulderY); ctx.lineTo(lElbX, lElbY); ctx.lineTo(lEx, lEy); ctx.stroke();
 
     // WEAPON in right hand (boss draws gauntlet on both hands for visual flair)
     const weapScale = this.isBoss ? 1.0 : 1.5;
@@ -1786,8 +2043,14 @@ class Fighter {
       lLeg = Math.PI * 0.5 - sw;
     } else { rLeg = Math.PI*0.62; lLeg = Math.PI*0.38; }
 
-    ctx.beginPath(); ctx.moveTo(cx, hipY); ctx.lineTo(cx + Math.cos(rLeg)*legLen, hipY + Math.sin(rLeg)*legLen); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(cx, hipY); ctx.lineTo(cx + Math.cos(lLeg)*legLen, hipY + Math.sin(lLeg)*legLen); ctx.stroke();
+    // 2-segment legs: knees bend forward (in facing direction)
+    const rFootX = hipX + Math.cos(rLeg)*legLen, rFootY = hipY + Math.sin(rLeg)*legLen;
+    const lFootX = hipX + Math.cos(lLeg)*legLen, lFootY = hipY + Math.sin(lLeg)*legLen;
+    const kneeOut = f * 5;
+    const [rKneeX, rKneeY] = _lj(hipX, hipY, rFootX, rFootY, kneeOut, 0);
+    const [lKneeX, lKneeY] = _lj(hipX, hipY, lFootX, lFootY, kneeOut, 0);
+    ctx.beginPath(); ctx.moveTo(hipX, hipY); ctx.lineTo(rKneeX, rKneeY); ctx.lineTo(rFootX, rFootY); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(hipX, hipY); ctx.lineTo(lKneeX, lKneeY); ctx.lineTo(lFootX, lFootY); ctx.stroke();
 
     // SHIELD bubble
     if (this.shielding) {
@@ -1798,6 +2061,48 @@ class Fighter {
       ctx.stroke();
       ctx.fillStyle   = 'rgba(100,210,255,0.14)';
       ctx.fill();
+    }
+
+    // ARMOR visuals (enemy story armor pieces)
+    if (this.armorPieces && this.armorPieces.length > 0) {
+      ctx.save();
+      const armorCol  = '#9ab8e8';
+      const armorEdge = '#cde0ff';
+      ctx.strokeStyle = armorEdge;
+      ctx.fillStyle   = armorCol;
+      ctx.lineWidth   = 1.5;
+      // Helmet
+      if (this.armorPieces.includes('helmet')) {
+        ctx.beginPath();
+        ctx.arc(cx, headCY, headR + 3, Math.PI, 0);
+        ctx.lineTo(cx + headR + 3, headCY + 4);
+        ctx.lineTo(cx - headR - 3, headCY + 4);
+        ctx.closePath();
+        ctx.fillStyle = armorCol; ctx.fill();
+        ctx.strokeStyle = armorEdge; ctx.stroke();
+        // visor slit
+        ctx.strokeStyle = '#7090c0'; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(cx - 5, headCY); ctx.lineTo(cx + 5, headCY); ctx.stroke();
+      }
+      // Chestplate
+      if (this.armorPieces.includes('chestplate')) {
+        ctx.fillStyle = armorCol; ctx.strokeStyle = armorEdge; ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.roundRect(cx - 8, neckY + 2, 16, 18, 2);
+        ctx.fill(); ctx.stroke();
+        // center line
+        ctx.strokeStyle = '#7090c0'; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(cx, neckY + 4); ctx.lineTo(cx, neckY + 18); ctx.stroke();
+      }
+      // Leggings
+      if (this.armorPieces.includes('leggings')) {
+        ctx.fillStyle = armorCol; ctx.strokeStyle = armorEdge; ctx.lineWidth = 1.5;
+        // left leg plate
+        ctx.beginPath(); ctx.roundRect(hipX - 8, hipY, 7, 12, 2); ctx.fill(); ctx.stroke();
+        // right leg plate
+        ctx.beginPath(); ctx.roundRect(hipX + 1, hipY, 7, 12, 2); ctx.fill(); ctx.stroke();
+      }
+      ctx.restore();
     }
 
     // Stun stars orbiting head
@@ -2108,6 +2413,87 @@ class Fighter {
       ctx.fill();
       ctx.globalAlpha = 1;
       ctx.restore();
+
+    } else if (k === 'voidblade') {
+      // Dark jagged blade with purple void energy
+      ctx.save();
+      ctx.shadowColor = '#9933ff'; ctx.shadowBlur = 16;
+      // Blade body — dark purple
+      ctx.fillStyle = '#440088';
+      ctx.beginPath();
+      ctx.moveTo(0, -3); ctx.lineTo(26, -1); ctx.lineTo(30, 1);
+      ctx.lineTo(26, 3); ctx.lineTo(0, 2); ctx.closePath();
+      ctx.fill();
+      // Void cracks on blade
+      ctx.strokeStyle = '#bb44ff'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(5, 0); ctx.lineTo(12, -2); ctx.lineTo(18, 1); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(16, 0); ctx.lineTo(24, -1); ctx.stroke();
+      // Edge glow
+      ctx.strokeStyle = '#9933ff'; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.moveTo(0, -3); ctx.lineTo(30, 0); ctx.lineTo(0, 2); ctx.stroke();
+      ctx.restore();
+
+    } else if (k === 'shockrifle') {
+      // Sci-fi electric rifle — cyan + dark
+      ctx.save();
+      ctx.shadowColor = '#00ddff'; ctx.shadowBlur = 14;
+      // Barrel
+      ctx.fillStyle = '#113344';
+      ctx.beginPath(); ctx.roundRect(0, -3, 28, 6, 2); ctx.fill();
+      // Energy coils
+      ctx.strokeStyle = '#00aacc'; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.moveTo(4, -3); ctx.lineTo(4, 3); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(10, -3); ctx.lineTo(10, 3); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(16, -3); ctx.lineTo(16, 3); ctx.stroke();
+      // Muzzle glow
+      ctx.fillStyle = '#00eeff';
+      ctx.beginPath(); ctx.arc(28, 0, 3, 0, Math.PI * 2); ctx.fill();
+      // Grip
+      ctx.fillStyle = '#224455';
+      ctx.beginPath(); ctx.roundRect(-3, 0, 6, 10, 2); ctx.fill();
+      ctx.restore();
+    }
+
+    // ── Ammo indicator (ranged weapons with clipSize) ─────────────────────────
+    if (this.weapon && this.weapon.clipSize && this.state !== 'dead' && this.state !== 'ragdoll') {
+      const clip  = this.weapon.clipSize;
+      const ammo  = this._ammo;
+      const dotR  = 3.5;
+      const gap   = dotR * 2.6;
+      const totalW = (clip - 1) * gap;
+      const startX = this.cx() - totalW / 2;
+      const dotY   = this.y - 14;
+      if (this._reloadTimer > 0) {
+        // Reloading: show a spinning arc progress bar
+        const progress = 1 - this._reloadTimer / this.weapon.reloadFrames;
+        ctx.save();
+        ctx.strokeStyle = 'rgba(255,255,255,0.25)';
+        ctx.lineWidth   = 2.5;
+        ctx.beginPath();
+        ctx.arc(this.cx(), dotY, totalW / 2 + dotR + 2, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.strokeStyle = '#ffdd44';
+        ctx.lineWidth   = 2.5;
+        ctx.beginPath();
+        ctx.arc(this.cx(), dotY, totalW / 2 + dotR + 2, -Math.PI / 2, -Math.PI / 2 + progress * Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
+      } else {
+        // Show bullet dots: filled = loaded, hollow = spent
+        for (let i = 0; i < clip; i++) {
+          const dx = startX + i * gap;
+          ctx.beginPath();
+          ctx.arc(dx, dotY, dotR, 0, Math.PI * 2);
+          if (i < ammo) {
+            ctx.fillStyle = '#ffdd44';
+            ctx.fill();
+          } else {
+            ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+            ctx.lineWidth   = 1;
+            ctx.stroke();
+          }
+        }
+      }
     }
 
     ctx.restore();

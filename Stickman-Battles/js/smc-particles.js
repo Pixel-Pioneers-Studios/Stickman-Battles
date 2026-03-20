@@ -38,6 +38,11 @@ function dealDamage(attacker, target, dmg, kbForce, stunMult = 1.0, isSplash = f
   // Paladin passive: 15% damage reduction on incoming hits
   if (target && target.charClass === 'paladin')
     actualDmg = Math.max(1, Math.floor(actualDmg * 0.85));
+  // Armor: each piece reduces incoming damage by 10% (max 30% for full set)
+  if (target && target.armorPieces && target.armorPieces.length > 0) {
+    const armorMult = 1 - Math.min(3, target.armorPieces.length) * 0.10;
+    actualDmg = Math.max(1, Math.floor(actualDmg * armorMult));
+  }
   // Kratos: target being hit builds rage stacks
   if (target && target.charClass === 'kratos') {
     target.rageStacks = Math.min(30, (target.rageStacks || 0) + 1);
@@ -73,9 +78,17 @@ function dealDamage(attacker, target, dmg, kbForce, stunMult = 1.0, isSplash = f
     spawnParticles(target.cx(), target.cy(), '#88ddff', 6);
   } else {
     target.hurtTimer = 8;
-    // Hitstop: strong hits feel punchy
-    if (actualDmg >= 18 && !target.isBoss) hitStopFrames = Math.min(5, Math.floor(actualDmg / 12));
-    else if (actualDmg >= 30 && target.isBoss) hitStopFrames = Math.min(3, Math.floor(actualDmg / 25));
+    // Hitstop: strong hits feel punchy (scaled by damage, max 8 frames)
+    if (actualDmg >= 18 && !target.isBoss) hitStopFrames = Math.min(8, Math.floor(actualDmg / 9));
+    else if (actualDmg >= 30 && target.isBoss) hitStopFrames = Math.min(4, Math.floor(actualDmg / 22));
+    if (typeof setCameraDrama === 'function' && actualDmg > 22) {
+      setCameraDrama('impact', 18);
+    }
+    // Brief slow-motion on very heavy hits (≥30 dmg to non-boss)
+    if (actualDmg >= 30 && !target.isBoss && slowMotion >= 0.9) {
+      slowMotion      = 0.32;
+      hitSlowTimer    = 14; // frames until slowMo restored (handled in gameLoop)
+    }
     // Brief camera zoom-in on heavy hits
     if (actualDmg >= 18) camHitZoomTimer = 15;
   }
@@ -100,7 +113,11 @@ function dealDamage(attacker, target, dmg, kbForce, stunMult = 1.0, isSplash = f
     NetworkManager.sendHit(actualDmg, actualKb, actualKb > 0 ? (target.cx() > attacker.cx() ? 1 : -1) : 0);
   }
   target.health    = Math.max(0, target.health - actualDmg);
-  target.invincible = 16;
+  // Finisher intercept: if this is a killing blow, try to trigger a finisher animation
+  if (target.health <= 0 && attacker && typeof triggerFinisher === 'function') {
+    triggerFinisher(attacker, target); // sets health=1 + invincible=9999 internally if it fires
+  }
+  target.invincible = target.invincible > 16 ? target.invincible : 16; // preserve finisher lock
   // True Form combo damage tracking
   if (attacker && attacker.isTrueForm && !target.isBoss) {
     attacker._comboDamage = (attacker._comboDamage || 0) + actualDmg;

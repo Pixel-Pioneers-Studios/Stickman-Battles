@@ -1,274 +1,23 @@
 'use strict';
 
-
-// ============================================================
-// ============================================================
-// TUTORIAL MODE
-// ============================================================
-const TUTORIAL_STEPS = [
-  {
-    id: 'move',
-    title: 'Step 1 — Move',
-    keys: 'A / D',
-    desc: ['Walk left and right to move around.', 'Use A (left) and D (right), or arrow keys.'],
-    check: (f) => f.moved,
-  },
-  {
-    id: 'jump',
-    title: 'Step 2 — Jump',
-    keys: 'W',
-    desc: ['Press W (or ↑) to jump!'],
-    check: (f) => f.jumped,
-  },
-  {
-    id: 'djump',
-    title: 'Step 3 — Double Jump',
-    keys: 'W + W',
-    desc: ['Jump first, then press W again', 'while airborne for a second jump!'],
-    check: (f) => f.dblJumped,
-  },
-  {
-    id: 'shield',
-    title: 'Step 4 — Shield',
-    keys: 'S  (hold)',
-    desc: ['Hold S (or ↓) to raise your shield.', 'Blocks incoming attacks. 30-second cooldown.'],
-    check: (f) => f.shielded,
-  },
-  {
-    id: 'attack',
-    title: 'Step 5 — Attack',
-    keys: 'Space',
-    desc: ['Press Space (or Enter) to attack!', 'A training dummy appeared — go hit it!'],
-    check: (f) => f.hitDummy,
-    onEnter: () => {
-      const existing = trainingDummies.find(d => d.health > 0);
-      const dummy = existing || new Dummy(640, 300);
-      if (!existing) { dummy.playerNum = 2; dummy.name = 'DUMMY'; trainingDummies.push(dummy); }
-      if (players[0]) { players[0].target = dummy; dummy.target = players[0]; }
-    },
-  },
-  {
-    id: 'ability',
-    title: 'Step 6 — Weapon Ability',
-    keys: 'Q',
-    desc: ['Every weapon has a special ability.', 'Press Q (or .) to activate yours on the dummy!'],
-    check: (f) => f.abilityUsed,
-    onEnter: () => {
-      // Ensure dummy still exists and player has a target
-      if (players[0] && (!trainingDummies.length || trainingDummies.every(d => d.health <= 0))) {
-        const dummy = new Dummy(640, 300);
-        dummy.playerNum = 2; dummy.name = 'DUMMY';
-        trainingDummies.push(dummy);
-      }
-      if (players[0] && trainingDummies[0]) {
-        players[0].target = trainingDummies[0];
-        trainingDummies[0].target = players[0];
-      }
-    },
-  },
-  {
-    id: 'super',
-    title: 'Step 7 — Super Move',
-    keys: 'E',
-    desc: ['Your super meter is fully charged!', 'Press E (or /) to unleash your super move!'],
-    check: (f) => f.superUsed,
-    onEnter: () => {
-      const p = players[0];
-      if (p) { p.superMeter = 100; p.superReady = true; p.superFlashTimer = 90; }
-    },
-  },
-  {
-    id: 'weapons',
-    title: 'Weapons',
-    keys: '',
-    desc: ['Each weapon has unique attacks, abilities,', 'and supers. Sword, Hammer, Gun, Axe, Spear,', 'Bow, Shield, and Scythe are all available!'],
-    check: null,
-    autoAdvance: 320,
-  },
-  {
-    id: 'classes',
-    title: 'Classes',
-    keys: '',
-    desc: ['Classes give passive bonuses and a perk at', 'low HP. Archer forces Bow, Paladin forces Shield.', 'Berserker, Kratos, Ninja — each plays differently!'],
-    check: null,
-    autoAdvance: 320,
-  },
-  {
-    id: 'class_ability',
-    title: 'Class Perks',
-    keys: '',
-    desc: ['At low HP, your class activates a special perk.', 'Ninja vanishes, Berserker enters Blood Frenzy,', 'Archer backsteps — use your perk wisely!'],
-    check: null,
-    autoAdvance: 320,
-  },
-  {
-    id: 'modes',
-    title: 'Game Modes',
-    keys: '',
-    desc: ['1v1: Fight a friend or AI bot.', 'Boss Fight: Challenge the Creator.', 'Training: Practice freely with dummies.'],
-    check: null,
-    autoAdvance: 280,
-  },
-  {
-    id: 'lore',
-    title: 'A Word of Warning...',
-    keys: '',
-    desc: ['The one who trained you... is the Boss.', 'He built this arena. He knows every move.', 'Defeat him if you dare.'],
-    check: null,
-    autoAdvance: 360,
-  },
-  {
-    id: 'done',
-    title: "You're Ready!",
-    keys: '',
-    desc: ['You know the basics — good luck!', 'Head to Training to practice further,', 'or jump straight into a match!'],
-    check: null,
-    autoAdvance: 200,
-  },
-];
-
-function advanceTutorialStep() {
-  tutorialStep++;
-  tutorialStepTimer = 0;
-  tutStepComplete   = false;
-  const next = TUTORIAL_STEPS[tutorialStep];
-  if (next && next.onEnter) next.onEnter();
-  if (tutorialStep >= TUTORIAL_STEPS.length) {
-    tutorialMode = false;
-    if (typeof markTutorialDone === 'function') markTutorialDone();
-    backToMenu();
-  }
-}
-
-function updateTutorial() {
-  if (!tutorialMode || !gameRunning) return;
-  const p = players[0];
-  if (!p) return;
-  const step = TUTORIAL_STEPS[tutorialStep];
-  if (!step) return;
-
-  tutorialStepTimer++;
-
-  // Per-step flag detection (only set flags during the relevant step)
-  if (step.id === 'move'    && !tutorialFlags.moved      && Math.abs(p.vx) > 1.5) tutorialFlags.moved = true;
-  if (step.id === 'jump'    && !tutorialFlags.jumped     && !p.onGround && tutPrevOnGround && p.vy < 0) tutorialFlags.jumped = true;
-  if (step.id === 'djump'   && !tutorialFlags.dblJumped  && !p.canDoubleJump && tutPrevCanDblJump && !p.onGround) tutorialFlags.dblJumped = true;
-  if (step.id === 'dash'    && !tutorialFlags.dashed     && !p.onGround && (p.vy < -19 || Math.abs(p.vx) > 14)) tutorialFlags.dashed = true;
-  if (step.id === 'shield'  && !tutorialFlags.shielded   && p.shielding) tutorialFlags.shielded = true;
-  if (step.id === 'attack'  && !tutorialFlags.hitDummy   && trainingDummies.some(d => d.health < d.maxHealth)) tutorialFlags.hitDummy = true;
-  if (step.id === 'ability' && !tutorialFlags.abilityUsed && abilityFlashTimer > 0 && abilityFlashPlayer === p) tutorialFlags.abilityUsed = true;
-  if (step.id === 'super'   && !tutorialFlags.superUsed  && p.superActive) tutorialFlags.superUsed = true;
-
-  tutPrevOnGround   = p.onGround;
-  tutPrevCanDblJump = p.canDoubleJump;
-
-  // Mark step complete (once) and reset timer for the advance delay
-  if (!tutStepComplete && step.check && step.check(tutorialFlags)) {
-    tutStepComplete   = true;
-    tutorialStepTimer = 0;
-  }
-
-  const shouldAdvance =
-    (tutStepComplete && tutorialStepTimer >= 50) ||
-    (step.autoAdvance && tutorialStepTimer >= step.autoAdvance);
-
-  if (shouldAdvance) advanceTutorialStep();
-}
-
-function drawTutorial() {
-  if (!tutorialMode) return;
-  const step = TUTORIAL_STEPS[tutorialStep];
-  if (!step) return;
-
-  ctx.save();
-
-  // Push panel below the HTML HUD bar (≈88 game-units keeps it below HUD)
-  const PX = 12, PY = 88;
-  const PW = GAME_W - 24;
-  const keyH = step.keys ? 20 : 0;
-  const PH   = 24 + keyH + step.desc.length * 16 + 18;
-
-  // Panel background
-  ctx.globalAlpha = 0.92;
-  ctx.fillStyle   = '#07071a';
-  ctx.fillRect(PX, PY, PW, PH);
-  ctx.globalAlpha = 0.75;
-  ctx.strokeStyle = tutStepComplete ? '#44ff88' : '#7733bb';
-  ctx.lineWidth   = 1.5;
-  ctx.strokeRect(PX, PY, PW, PH);
-  ctx.globalAlpha = 1;
-
-  // Progress dots (top-right)
-  const total   = TUTORIAL_STEPS.length;
-  const dotGap  = 13;
-  const dotsW   = total * dotGap;
-  const dotSX   = PX + PW - dotsW - 8;
-  const dotCY   = PY + 10;
-  for (let i = 0; i < total; i++) {
-    ctx.beginPath();
-    const r = (i === tutorialStep) ? 4 : 2.5;
-    ctx.arc(dotSX + i * dotGap, dotCY, r, 0, Math.PI * 2);
-    ctx.fillStyle = i < tutorialStep
-      ? '#7733bb'
-      : (i === tutorialStep ? (tutStepComplete ? '#44ff88' : '#ffffff') : '#252540');
-    ctx.fill();
-  }
-
-  // Title
-  ctx.fillStyle = tutStepComplete ? '#44ff88' : '#ffffff';
-  ctx.font      = 'bold 14px Arial';
-  ctx.textAlign = 'left';
-  ctx.fillText(step.title, PX + 14, PY + 17);
-
-  // Key badge
-  let descOffsetY = PY + 26;
-  if (step.keys) {
-    const bx = PX + 14, by = descOffsetY;
-    const bw = step.keys.length * 7.5 + 14, bh = 16;
-    ctx.fillStyle   = '#1a0933';
-    ctx.fillRect(bx, by, bw, bh);
-    ctx.strokeStyle = '#6633aa';
-    ctx.lineWidth   = 1;
-    ctx.strokeRect(bx, by, bw, bh);
-    ctx.fillStyle = '#ffcc44';
-    ctx.font      = 'bold 11px monospace';
-    ctx.fillText(step.keys, bx + 7, by + 11);
-    descOffsetY = by + bh + 6;
-  }
-
-  // Description lines
-  ctx.fillStyle = '#b0b0cc';
-  ctx.font      = '12px Arial';
-  step.desc.forEach((line, i) => ctx.fillText(line, PX + 14, descOffsetY + i * 16 + 11));
-
-  // Footer
-  ctx.textAlign = 'right';
-  if (tutStepComplete) {
-    ctx.fillStyle = '#44ff88';
-    ctx.font      = 'bold 12px Arial';
-    ctx.fillText('Done! Advancing...', PX + PW - 10, PY + PH - 5);
-  } else if (step.autoAdvance) {
-    // progress bar
-    const prog = Math.min(tutorialStepTimer / step.autoAdvance, 1);
-    ctx.fillStyle = '#1a1a33';
-    ctx.fillRect(PX + 14, PY + PH - 7, PW - 28, 4);
-    ctx.fillStyle = '#7733bb';
-    ctx.fillRect(PX + 14, PY + PH - 7, (PW - 28) * prog, 4);
-  } else {
-    ctx.fillStyle = '#444466';
-    ctx.font      = '10px Arial';
-    ctx.fillText('Tab — skip step', PX + PW - 10, PY + PH - 5);
-  }
-
-  ctx.restore();
-}
-
 // ============================================================
 // MENU UI HANDLERS
 // ============================================================
 function selectMode(mode) {
   // 'bot' is no longer a separate mode — merge into '2p' with bot toggles
   if (mode === 'bot') mode = '2p';
+  // 'story' opens the story modal instead of changing menu layout
+  if (mode === 'story') {
+    if (typeof openStoryMenu === 'function') openStoryMenu();
+    return;
+  }
+  // 'storyonline' — story online mode (unlocked on story completion)
+  if (mode === 'storyonline') {
+    // Story Online: behaves like online mode but marks storyonline context
+    mode = 'online';
+    const soCard = document.getElementById('modeStoryOnline');
+    if (soCard) soCard.classList.add('active');
+  }
   gameMode = mode;
   document.querySelectorAll('.mode-card').forEach(c => c.classList.remove('active'));
   const modeCard = document.querySelector(`[data-mode="${mode}"]`);
@@ -277,7 +26,6 @@ function selectMode(mode) {
   const isTrueForm   = mode === 'trueform';
   const isBoss2p     = isBoss && bossPlayerCount === 2;
   const isTraining   = mode === 'training';
-  const isTutorial   = mode === 'tutorial';
   const isMinigames  = mode === 'minigames';
   const isOnline     = mode === 'online';
   // Only update onlineMode when not already connected (prevents clearing it when host/guest switch game modes)
@@ -293,27 +41,26 @@ function selectMode(mode) {
   const mgPanel = document.getElementById('minigamePanel');
   if (mgPanel) mgPanel.style.display = isMinigames ? 'block' : 'none';
   // P2 panel title/hint
-  document.getElementById('p2Title').textContent = isTrueForm ? 'TRUE FORM' : (isBoss && !isBoss2p) ? 'CREATOR' : (isBoss2p ? 'Player 2' : ((isTraining || isTutorial) ? 'TRAINING' : (p2IsBot ? 'BOT' : 'Player 2')));
-  document.getElementById('p2Hint').textContent  = isTrueForm ? 'Secret Final Boss' : (isBoss && !isBoss2p) ? 'Boss — AI Controlled' : (isBoss2p ? '← → ↑ · Enter · . · /' : ((isTraining || isTutorial) ? 'Practice mode' : (p2IsBot ? 'AI Controlled' : '← → ↑ · Enter · . · / · ↓')));
+  document.getElementById('p2Title').textContent = isTrueForm ? 'TRUE FORM' : (isBoss && !isBoss2p) ? 'CREATOR' : (isBoss2p ? 'Player 2' : (isTraining ? 'TRAINING' : (p2IsBot ? 'BOT' : 'Player 2')));
+  document.getElementById('p2Hint').textContent  = isTrueForm ? 'Secret Final Boss' : (isBoss && !isBoss2p) ? 'Boss — AI Controlled' : (isBoss2p ? '← → ↑ · Enter · . · /' : (isTraining ? 'Practice mode' : (p2IsBot ? 'AI Controlled' : '← → ↑ · Enter · . · / · ↓')));
   document.getElementById('p1DifficultyRow').style.display = p1IsBot ? 'flex' : 'none';
   document.getElementById('p2DifficultyRow').style.display = p2IsBot ? 'flex' : 'none';
-  // Hide P2 config rows in boss 1P, training, tutorial, trueform
-  const hideP2 = (isBoss && !isBoss2p) || isTraining || isTutorial || isTrueForm;
+  // Hide P2 config rows in boss 1P, training, trueform
+  const hideP2 = (isBoss && !isBoss2p) || isTraining || isTrueForm;
   document.getElementById('p2ColorRow').style.display     = hideP2 ? 'none' : 'flex';
   document.getElementById('p2WeaponRow').style.display    = hideP2 ? 'none' : 'flex';
   document.getElementById('p2ClassRow').style.display     = hideP2 ? 'none' : 'flex';
-  // Hide P1 bot toggle in tutorial, minigames, trueform — but allow it in boss modes
   const p1BotToggle = document.getElementById('p1BotToggle');
-  if (p1BotToggle) p1BotToggle.style.display = (isTutorial || isMinigames || isTrueForm) ? 'none' : '';
+  if (p1BotToggle) p1BotToggle.style.display = (isMinigames || isTrueForm) ? 'none' : '';
   const p2BotToggleEl = document.getElementById('p2BotToggle');
   if (p2BotToggleEl) p2BotToggleEl.style.display = (isBoss2p) ? '' : (isBoss || isTrueForm) ? 'none' : '';
-  // Training panel visibility (not in tutorial)
   const trainingPanel = document.getElementById('trainingPanel');
   if (trainingPanel) trainingPanel.style.display = isTraining ? 'block' : 'none';
-  // Boss/training/tutorial/minigames/trueform/online: hide arena picker and ∞ infinite
-  document.getElementById('arenaSection').style.display   = (isBoss || isTraining || isTutorial || isMinigames || isTrueForm || isOnline) ? 'none' : '';
-  document.getElementById('infiniteOption').style.display = (isBoss || isTraining || isTutorial || isMinigames || isTrueForm || isOnline) ? 'none' : '';
-  if ((isBoss || isTraining || isTutorial || isMinigames || isTrueForm || isOnline) && infiniteMode) {
+  // Boss/training/minigames/trueform/online: hide arena picker and ∞ infinite
+  document.getElementById('arenaSection').style.display   = (isBoss || isTraining || isMinigames || isTrueForm || isOnline) ? 'none' : '';
+  const _infOpt = document.getElementById('infiniteOption');
+  if (_infOpt) _infOpt.disabled = !!(isBoss || isTraining || isMinigames || isTrueForm || isOnline);
+  if ((isBoss || isTraining || isMinigames || isTrueForm || isOnline) && infiniteMode) {
     infiniteMode = false;
     selectLives(3);
   }
@@ -443,10 +190,33 @@ function classSel_wasLocked(el, val) {
   el.dataset.wasLocked = val ? 'true' : 'false';
 }
 
+const _ARENA_GIMMICKS = {
+  grass:      '',
+  city:       '🚗 Cars race across the rooftop floor',
+  space:      '🌌 Low gravity — big air time',
+  lava:       '🔥 Heavy gravity · lava floor burns',
+  forest:     '🐾 A forest beast roams · passive healing',
+  ice:        '❄️ Icy friction · a yeti stalks the tundra',
+  ruins:      '📦 Artifact pickups scattered around',
+  cave:       '🦇 Stalactites fall from the ceiling',
+  volcano:    '🌋 Lava geysers erupt from the floor · heavy gravity',
+  underwater: '🌊 Slow movement · water currents shift',
+  colosseum:  '⚔️ Stone pillars · crowd cheers on big hits',
+  clouds:     '☁️ Low gravity · cloud platforms slowly shrink',
+  mushroom:   '🍄 Bouncy platforms launch you skyward',
+  haunted:    '👻 Ghosts drift across and deal damage',
+  cyberpunk:  '⚡ Electric floor hazard periodically zaps',
+  neonGrid:   '💾 Speed boost pads on the floor',
+  mirror:     '🪞 Platforms drift and reality warps',
+  random:     '🎲 A random arena is chosen each match',
+};
+
 function selectArena(name) {
   selectedArena = name;
-  document.querySelectorAll('.arena-card[data-arena]').forEach(c => c.classList.remove('active'));
-  document.querySelector(`[data-arena="${name}"]`).classList.add('active');
+  const sel = document.getElementById('arenaSelect');
+  if (sel) sel.value = name;
+  const hint = document.getElementById('arenaGimmickHint');
+  if (hint) hint.textContent = _ARENA_GIMMICKS[name] || '';
 }
 
 function switchArena(newKey) {
@@ -472,9 +242,9 @@ function switchArena(newKey) {
 
 function selectLives(n) {
   infiniteMode = (n === 0);
-  chosenLives  = infiniteMode ? 3 : n; // placeholder when infinite
-  document.querySelectorAll('.arena-card[data-lives]').forEach(c => c.classList.remove('active'));
-  document.querySelector(`[data-lives="${n}"]`).classList.add('active');
+  chosenLives  = infiniteMode ? 3 : n;
+  const sel = document.getElementById('livesSelect');
+  if (sel) sel.value = String(n);
 }
 
 function toggleSettings() {
@@ -504,6 +274,17 @@ function updateSettings() {
   if (ragdollEl) {
     settings.ragdollEnabled = ragdollEl.checked;
     localStorage.setItem('smc_ragdoll', settings.ragdollEnabled ? '1' : '0');
+  }
+  const finishersEl = document.getElementById('settingFinishers');
+  if (finishersEl) settings.finishers = finishersEl.checked;
+  const view3DEl = document.getElementById('setting3DView');
+  if (view3DEl) {
+    settings.view3D = view3DEl.checked;
+    localStorage.setItem('smc_view3D', settings.view3D ? '1' : '0');
+    // Only apply persistent 3D when not in a TF-driven dimension shift
+    if (!tfDimensionIs3D && typeof set3DView === 'function') {
+      set3DView(settings.view3D ? 'settings' : false);
+    }
   }
 }
 
@@ -662,21 +443,23 @@ function _getLoadingInfo() {
   const mgNames = { survival: 'SURVIVAL', koth: 'KING OF THE HILL', chaos: 'CHAOS MATCH', soccer: 'SOCCER' };
   switch (gameMode) {
     case 'boss':
-      return { title: 'BOSS FIGHT',  subtitle: 'FACE THE CREATOR',    image: '../Boss-Page.png' };
+      return { title: 'BOSS FIGHT',  subtitle: 'FACE THE CREATOR',    image: 'images/Boss-Page.png' };
     case 'trueform':
-      return { title: 'TRUE FORM',   subtitle: 'BEYOND YOUR LIMITS',  image: '../Boss-Page.png' };
+      return { title: 'TRUE FORM',   subtitle: 'BEYOND YOUR LIMITS',  image: 'images/True-Form.png' };
+    case 'story':
+      return { title: 'STORY MODE',  subtitle: 'YOUR JOURNEY BEGINS', image: 'images/Boss-Page.png' };
     case 'minigames':
-      return { title: mgNames[minigameType] || 'MINIGAME', subtitle: 'GET READY', image: '../Game-Page.png' };
+      return { title: mgNames[minigameType] || 'MINIGAME', subtitle: 'GET READY', image: 'images/Game-Page.png' };
     case 'training':
-      return { title: 'TRAINING',    subtitle: 'SHARPEN YOUR SKILLS', image: '../Game-Page.png' };
-    case 'tutorial':
-      return { title: 'TUTORIAL',    subtitle: 'LEARN THE BASICS',    image: '../Game-Page.png' };
+      return { title: 'TRAINING',    subtitle: 'SHARPEN YOUR SKILLS', image: 'images/Game-Page.png' };
     default:
-      return { title: 'BATTLE',      subtitle: 'STICKMAN BATTLES',    image: '../Game-Page.png' };
+      return { title: 'BATTLE',      subtitle: 'STICKMAN BATTLES',    image: 'images/Game-Page.png' };
   }
 }
 
 function startGame() {
+  // Story mode: reset per-fight event state when launching from story
+  if (storyModeActive && typeof _onStoryFightStart === 'function') _onStoryFightStart();
   const fadeOv = document.getElementById('fadeOverlay');
   const loadOv = document.getElementById('loadOverlay');
 
@@ -689,9 +472,6 @@ function startGame() {
     if (titleEl) titleEl.textContent = info.title;
     if (subEl)   subEl.textContent   = info.subtitle;
     if (imgEl) {
-      imgEl.style.display = 'none';
-      imgEl.onerror = () => { imgEl.style.display = 'none'; };
-      imgEl.onload  = () => { imgEl.style.display = 'block'; };
       imgEl.src = info.image;
     }
     loadOv.style.display = 'flex';
@@ -699,42 +479,79 @@ function startGame() {
     if (bar) { bar.style.width = '0%'; requestAnimationFrame(() => { bar.style.transition = 'width 0.75s ease'; bar.style.width = '100%'; }); }
   }
   if (fadeOv) fadeOv.style.opacity = '1';
+  gameLoading = true; // freeze input/physics until game is fully started
 
   // Hold the loading screen for 800ms so the player can see it
   setTimeout(() => {
     _startGameCore();
     if (loadOv) setTimeout(() => { loadOv.style.display = 'none'; }, 200);
     if (fadeOv) setTimeout(() => { fadeOv.style.opacity = '0'; }, 300);
+    // Unfreeze only after overlays are fully gone (~350ms fade) so bots can't act while loading screen is visible
+    setTimeout(() => { gameLoading = false; }, 480);
   }, 800);
 }
 
 // Pick a safe spawn position on a platform in the preferred half of the arena.
-// Returns {x, y} or null if the arena handles spawns specially.
-function pickSafeSpawn(sideHint) {
+// avoidX: if set, the result will be at least MIN_SPAWN_SEP pixels away horizontally.
+// Returns {x, y} or null if no arena is loaded.
+const MIN_SPAWN_SEP = 220; // minimum horizontal distance between two spawns
+function pickSafeSpawn(sideHint, avoidX) {
   if (!currentArena) return null;
-  const skip = ['creator','void','soccer','lava'];
-  if (skip.includes(currentArenaKey)) return null;
-  const raised = currentArena.platforms.filter(pl => !pl.isFloor && !pl.isFloorDisabled && pl.w > 60);
-  const floor  = currentArena.platforms.find(pl => pl.isFloor && !pl.isFloorDisabled);
-  if (!raised.length) {
-    if (!floor) return null;
-    const fx = floor.x + (sideHint === 'right' ? floor.w * 0.65 : floor.w * 0.25);
-    return { x: fx, y: floor.y - 60 };
-  }
-  const preferred = sideHint === 'any' ? raised
-    : raised.filter(pl => sideHint === 'right' ? (pl.x + pl.w > GAME_W / 2) : (pl.x < GAME_W / 2));
-  const pool = preferred.length ? preferred : raised;
-  const pl   = pool[Math.floor(Math.random() * pool.length)];
+  if (['void','soccer'].includes(currentArenaKey)) return null;
 
-  // Keep spawn at least 100px from game-world edges so it doesn't immediately
-  // trigger the camera edge-zone zoom-out on respawn.
+  const platforms = currentArena.platforms;
+
+  // For boss/creator arena: the floor can be disabled by hazard events.
+  // Prefer non-floor platforms that are solid. Fall back to floor if available.
+  // Use current pl.x (live, after random-lerp) so spawn lands on the actual platform.
+  const safe = platforms.filter(pl => !pl.isFloorDisabled && pl.w > 50);
+  const raised = safe.filter(pl => !pl.isFloor);
+  const floor  = safe.find(pl => pl.isFloor);
+
+  let pool;
+  if (raised.length) {
+    // Prefer raised platforms on the requested side when possible
+    const preferred = sideHint === 'any' ? raised
+      : raised.filter(pl => sideHint === 'right' ? (pl.x + pl.w / 2 > GAME_W / 2) : (pl.x + pl.w / 2 < GAME_W / 2));
+    pool = preferred.length ? preferred : raised;
+  } else if (floor) {
+    // Only the floor is available — place on appropriate side, far from avoidX
+    const fx = floor.x + (sideHint === 'right' ? floor.w * 0.65 : floor.w * 0.25);
+    let rx = Math.max(100, Math.min(GAME_W - 100, fx));
+    // If too close to avoidX, push to the opposite quarter of the floor
+    if (avoidX !== undefined && Math.abs(rx - avoidX) < MIN_SPAWN_SEP) {
+      rx = avoidX < GAME_W / 2
+        ? Math.max(avoidX + MIN_SPAWN_SEP, GAME_W * 0.65)
+        : Math.min(avoidX - MIN_SPAWN_SEP, GAME_W * 0.35);
+      rx = Math.max(100, Math.min(GAME_W - 100, rx));
+    }
+    return { x: rx, y: floor.y - 1 };
+  } else {
+    return null; // no safe surface at all
+  }
+
+  // If avoidX is set, prefer platforms that are far enough away; fall back to any platform
+  let chosenPool = pool;
+  if (avoidX !== undefined) {
+    const farPool = pool.filter(pl => Math.abs(pl.x + pl.w / 2 - avoidX) >= MIN_SPAWN_SEP);
+    if (farPool.length) chosenPool = farPool;
+  }
+  const pl = chosenPool[Math.floor(Math.random() * chosenPool.length)];
+
+  // Keep spawn at least 100px from game-world edges.
   const SPAWN_EDGE_MARGIN = 100;
   const safeLeft  = Math.max(pl.x + 14, SPAWN_EDGE_MARGIN);
   const safeRight = Math.min(pl.x + pl.w - 14, GAME_W - SPAWN_EDGE_MARGIN);
-  const rx = safeLeft < safeRight
+  let rx = safeLeft < safeRight
     ? safeLeft + Math.random() * (safeRight - safeLeft)
-    : pl.x + pl.w / 2; // platform too close to edge — fall back to its center
-  return { x: rx, y: pl.y - 60 };
+    : pl.x + pl.w / 2;
+  // Final nudge: if still too close to avoidX, clamp to the far end of this platform
+  if (avoidX !== undefined && Math.abs(rx - avoidX) < MIN_SPAWN_SEP) {
+    rx = avoidX < GAME_W / 2
+      ? Math.min(safeRight, avoidX + MIN_SPAWN_SEP)
+      : Math.max(safeLeft,  avoidX - MIN_SPAWN_SEP);
+  }
+  return { x: rx, y: pl.y - 1 };
 }
 
 function _startGameCore() {
@@ -743,6 +560,8 @@ function _startGameCore() {
   document.getElementById('pauseOverlay').style.display     = 'none';
   canvas.style.display = 'block';
   document.getElementById('hud').style.display = 'flex';
+  // Apply persistent 3D view setting at game start (TF fight may override this later)
+  if (typeof set3DView === 'function') set3DView(settings.view3D ? 'settings' : false);
   // Show chat widget if online
   const chatEl = document.getElementById('onlineChat');
   if (chatEl) chatEl.style.display = onlineMode ? 'flex' : 'none';
@@ -751,25 +570,14 @@ function _startGameCore() {
   const isBossMode      = gameMode === 'boss';
   const isTrueFormMode  = gameMode === 'trueform';
   const isTrainingMode  = gameMode === 'training';
-  const isTutorialMode  = gameMode === 'tutorial';
   const isMinigamesMode = gameMode === 'minigames';
   trainingMode = isTrainingMode;
-  tutorialMode = isTutorialMode;
-  if (isTutorialMode) {
-    tutorialStep      = 0;
-    tutorialStepTimer = 0;
-    tutorialFlags     = {};
-    tutPrevOnGround   = false;
-    tutPrevCanDblJump = false;
-    tutStepComplete   = false;
-  }
+  tutorialMode = false; // tutorial mode removed
   if (isBossMode) {
     currentArenaKey = 'creator';
   } else if (isTrueFormMode) {
     currentArenaKey = 'void';
     resetTFState();
-  } else if (isTutorialMode) {
-    currentArenaKey = 'grass';
   } else if (isMinigamesMode) {
     if (minigameType === 'soccer') {
       currentArenaKey = 'soccer';
@@ -779,8 +587,14 @@ function _startGameCore() {
       currentArenaKey = randChoice(arenaPool);
     }
   } else {
-    const arenaPool = Object.keys(ARENAS).filter(k => !['creator','void','soccer'].includes(k));
-    currentArenaKey = selectedArena === 'random' ? randChoice(arenaPool) : selectedArena;
+    const arenaPool = Object.keys(ARENAS).filter(k => !['creator','void','soccer'].includes(k) && !ARENAS[k].isStoryOnly);
+    // If a story-only arena was somehow selected outside story mode, fall back to random
+    const isStoryOnlyArena = ARENAS[selectedArena] && ARENAS[selectedArena].isStoryOnly;
+    if (isStoryOnlyArena && !storyModeActive) {
+      currentArenaKey = randChoice(arenaPool);
+    } else {
+      currentArenaKey = selectedArena === 'random' ? randChoice(arenaPool) : selectedArena;
+    }
   }
   isRandomMapMode = (selectedArena === 'random');
   // Lava/void: no randomization
@@ -850,6 +664,12 @@ function _startGameCore() {
   screenShake     = 0;
   frameCount      = 0;
   paused          = false;
+  // Reset timing globals — prevent stale slow-motion / hitstop from previous game
+  slowMotion      = 1.0;
+  hitStopFrames   = 0;
+  hitSlowTimer    = 0;
+  storyFreezeTimer = 0;
+  if (typeof _lastFrameTime !== 'undefined') _lastFrameTime = 0;
   if (typeof resetDirector === 'function') resetDirector();
 
   // Reset camera zoom
@@ -874,12 +694,27 @@ function _startGameCore() {
   // Player 1  (W/A/D move+boost · S=shield · Space=attack · Q=ability)
   const p1 = new Fighter(160, 300, c1, w1, { left:'a', right:'d', jump:'w', attack:' ', shield:'s', ability:'q', super:'e' }, p1IsBot, p1Diff);
   p1.playerNum = 1; p1.name = p1IsBot ? 'BOT1' : 'P1'; p1.lives = chosenLives;
-  { const _sp = pickSafeSpawn('left') || { x: 160, y: 300 };
-    p1.spawnX = _sp.x; p1.spawnY = _sp.y; p1.x = _sp.x; p1.y = _sp.y; }
+  const _p1SpawnPos = pickSafeSpawn('left') || { x: 160, y: 300 };
+  p1.spawnX = _p1SpawnPos.x; p1.spawnY = _p1SpawnPos.y; p1.x = _p1SpawnPos.x; p1.y = _p1SpawnPos.y;
   p1.hat  = document.getElementById('p1Hat')?.value  || 'none';
   p1.cape = document.getElementById('p1Cape')?.value || 'none';
   if (p1Skin !== 'default' && SKIN_COLORS[p1Skin]) p1.color = SKIN_COLORS[p1Skin];
-  applyClass(p1, getClassChoice('p1Class'));
+  // Story mode: if class is locked for this chapter, ignore player's class selection
+  const _storyClassLocked = storyModeActive && storyPlayerOverride && storyPlayerOverride.noClass;
+  applyClass(p1, _storyClassLocked ? 'none' : getClassChoice('p1Class'));
+  // Story mode: apply per-level player restrictions (weak human → powerful fighter progression)
+  if (storyModeActive && storyPlayerOverride) {
+    const _sc = storyPlayerOverride;
+    if (_sc.speedMult !== undefined) p1.classSpeedMult = _sc.speedMult;
+    if (_sc.dmgMult   !== undefined) p1.dmgMult        = _sc.dmgMult;
+    if (_sc.weapon && typeof WEAPONS !== 'undefined' && WEAPONS[_sc.weapon]) {
+      p1.weapon = WEAPONS[_sc.weapon]; p1.weaponKey = _sc.weapon;
+    }
+    p1._storyNoAbility    = !!_sc.noAbility;
+    p1._storyNoSuper      = !!_sc.noSuper;
+    p1._storyNoDoubleJump = !!_sc.noDoubleJump;
+    p1._storyNoDodge      = !!_sc.noDodge;
+  }
   // Megaknight spawn fall
   if (p1.charClass === 'megaknight') { p1.y = -120; p1.vy = 2; p1._spawnFalling = true; p1.invincible = 200; }
 
@@ -908,7 +743,7 @@ function _startGameCore() {
       const c2b  = document.getElementById('p2Color').value;
       const p2h  = new Fighter(720, 300, c2b, w2b, { left:'ArrowLeft', right:'ArrowRight', jump:'ArrowUp', attack:'Enter', shield:'ArrowDown', ability:'.', super:'/' }, p2IsBot, diff);
       p2h.playerNum = 2; p2h.name = p2IsBot ? 'BOT' : 'P2'; p2h.lives = chosenLives;
-      { const _sp2 = pickSafeSpawn('right') || { x: 720, y: 300 };
+      { const _sp2 = pickSafeSpawn('right', _p1SpawnPos.x) || { x: 720, y: 300 };
         p2h.spawnX = _sp2.x; p2h.spawnY = _sp2.y; p2h.x = _sp2.x; p2h.y = _sp2.y; }
       p2h.hat  = document.getElementById('p2Hat')?.value  || 'none';
       p2h.cape = document.getElementById('p2Cape')?.value || 'none';
@@ -940,7 +775,7 @@ function _startGameCore() {
       // 2P training: both fighters present, shared dummy
       p2 = new Fighter(720, 300, c2, w2, { left:'ArrowLeft', right:'ArrowRight', jump:'ArrowUp', attack:'Enter', shield:'ArrowDown', ability:'.', super:'/' }, p2IsBot, diff);
       p2.playerNum = 2; p2.name = p2IsBot ? 'BOT' : 'P2'; p2.lives = 999;
-      { const _sp2 = pickSafeSpawn('right') || { x: 720, y: 300 };
+      { const _sp2 = pickSafeSpawn('right', _p1SpawnPos.x) || { x: 720, y: 300 };
         p2.spawnX = _sp2.x; p2.spawnY = _sp2.y; p2.x = _sp2.x; p2.y = _sp2.y; }
       applyClass(p2, getClassChoice('p2Class'));
       if (p2.charClass === 'megaknight') { p2.y = -120; p2.vy = 2; p2._spawnFalling = true; p2.invincible = 200; }
@@ -958,14 +793,6 @@ function _startGameCore() {
       players = [p1];
       p1.target = starterDummy; starterDummy.target = p1;
     }
-  } else if (isTutorialMode) {
-    // Tutorial: P1 + a dummy (target for attack steps)
-    const tutDummy = new Dummy(640, 300);
-    tutDummy.playerNum = 2; tutDummy.name = 'DUMMY';
-    trainingDummies.push(tutDummy);
-    players = [p1];
-    p1.target = tutDummy; tutDummy.target = p1;
-    p1.isAI   = false; // always human-controlled in tutorial
   } else if (isMinigamesMode) {
     // Minigames: P1 always human; survival/koth both support optional P2
     p1.isAI = false;
@@ -975,7 +802,7 @@ function _startGameCore() {
         { left:'ArrowLeft', right:'ArrowRight', jump:'ArrowUp', attack:'Enter',
           shield:'ArrowDown', ability:'.', super:'/' }, p2IsBot, p2Diff);
       p2mg.playerNum = 2; p2mg.name = p2IsBot ? 'BOT' : 'P2'; p2mg.lives = 99;
-      { const _sp2 = pickSafeSpawn('right') || { x: 720, y: 300 };
+      { const _sp2 = pickSafeSpawn('right', _p1SpawnPos.x) || { x: 720, y: 300 };
         p2mg.spawnX = _sp2.x; p2mg.spawnY = _sp2.y; p2mg.x = _sp2.x; p2mg.y = _sp2.y; }
       p2mg.hat  = document.getElementById('p2Hat')?.value  || 'none';
       p2mg.cape = document.getElementById('p2Cape')?.value || 'none';
@@ -1001,15 +828,52 @@ function _startGameCore() {
   } else {
     p2 = new Fighter(720, 300, c2, w2, { left:'ArrowLeft', right:'ArrowRight', jump:'ArrowUp', attack:'Enter', shield:'ArrowDown', ability:'.', super:'/' }, isBot, diff);
     p2.playerNum = 2; p2.name = p2IsBot ? 'BOT' : 'P2'; p2.lives = chosenLives;
-    { const _sp2 = pickSafeSpawn('right') || { x: 720, y: 300 };
+    { const _sp2 = pickSafeSpawn('right', _p1SpawnPos.x) || { x: 720, y: 300 };
       p2.spawnX = _sp2.x; p2.spawnY = _sp2.y; p2.x = _sp2.x; p2.y = _sp2.y; }
     p2.hat  = document.getElementById('p2Hat')?.value  || 'none';
     p2.cape = document.getElementById('p2Cape')?.value || 'none';
     if (p2Skin !== 'default' && SKIN_COLORS[p2Skin]) p2.color = SKIN_COLORS[p2Skin];
     applyClass(p2, getClassChoice('p2Class'));
     if (p2.charClass === 'megaknight') { p2.y = -120; p2.vy = 2; p2._spawnFalling = true; p2.invincible = 200; }
+    // Story mode: apply enemy damage and cooldown scaling so fights feel fair at each chapter
+    if (storyModeActive && typeof STORY_ENEMY_CONFIGS !== 'undefined') {
+      const _ec = STORY_ENEMY_CONFIGS[storyCurrentLevel];
+      if (_ec) {
+        if (_ec.enemyDmgMult   !== undefined) p2.dmgMult            = _ec.enemyDmgMult;
+        if (_ec.enemyAtkCdMult !== undefined) p2.attackCooldownMult = _ec.enemyAtkCdMult;
+      }
+    }
+    // Story armor: apply to p2
+    if (storyModeActive && storyEnemyArmor && storyEnemyArmor.length > 0) {
+      p2.armorPieces = [...storyEnemyArmor];
+    }
     players = [p1, p2];
     p1.target = p2; p2.target = p1;
+
+    // Story two-enemies: spawn a third fighter on p2's side
+    if (storyModeActive && storyTwoEnemies && storySecondEnemyDef) {
+      const _sed = storySecondEnemyDef;
+      const _sp3 = pickSafeSpawn('right', p1.x) || { x: 600, y: 300 };
+      const _p3w = _sed.weaponKey || w2;
+      const _p3c = _sed.color || '#cc5500';
+      const _p3d = _sed.aiDiff || diff;
+      const p3 = new Fighter(_sp3.x, _sp3.y, _p3c, _p3w,
+        { left:'ArrowLeft', right:'ArrowRight', jump:'ArrowUp', attack:'Enter', shield:'ArrowDown', ability:'.', super:'/' },
+        true, _p3d);
+      p3.playerNum = 3; p3.name = 'BOT2'; p3.lives = chosenLives;
+      p3.spawnX = _sp3.x; p3.spawnY = _sp3.y;
+      if (_sed.classKey) applyClass(p3, _sed.classKey);
+      if (storyModeActive && typeof STORY_ENEMY_CONFIGS !== 'undefined') {
+        const _ec2 = STORY_ENEMY_CONFIGS[storyCurrentLevel];
+        if (_ec2) {
+          if (_ec2.enemyDmgMult   !== undefined) p3.dmgMult            = _ec2.enemyDmgMult;
+          if (_ec2.enemyAtkCdMult !== undefined) p3.attackCooldownMult = _ec2.enemyAtkCdMult;
+        }
+      }
+      players.push(p3);
+      // All bots target the player
+      p2.target = p1; p3.target = p1;
+    }
   }
 
   // Assign bot personalities — each AI fighter gets a random personality
@@ -1109,15 +973,31 @@ syncCodeInput();
   const slider = document.querySelector('input[oninput*="setSfxVolume"]');
   if (slider) slider.value = vol;
 })();
+if (localStorage.getItem('smc_bossBeaten')) {
+  const bossCard = document.getElementById('modeBoss');
+  if (bossCard) bossCard.style.display = '';
+}
 if (localStorage.getItem('smc_trueform')) {
   const card = document.getElementById('modeTrueForm');
   if (card) card.style.display = '';
+  // Show 3D View setting (unlocked by defeating True Form)
+  const row3D = document.getElementById('setting3DRow');
+  if (row3D) row3D.style.display = '';
+  // Restore 3D checkbox and apply persistent setting
+  const el3D = document.getElementById('setting3DView');
+  if (el3D) {
+    el3D.checked = settings.view3D;
+    if (settings.view3D && typeof set3DView === 'function') set3DView('settings');
+  }
 }
 // Restore ragdoll setting checkbox
 (function() {
   const el = document.getElementById('settingRagdoll');
   if (el) el.checked = settings.ragdollEnabled;
 })();
+// Init arena & lives dropdowns to their default selected values
+selectArena(selectedArena);
+selectLives(chosenLives);
 // Init public room browser hidden by default (private is default)
 (function() {
   const browser = document.getElementById('publicRoomBrowser');
@@ -1125,26 +1005,25 @@ if (localStorage.getItem('smc_trueform')) {
   // Also auto-refresh room list when Online mode is opened
 })();
 
-// First-time visit: auto-launch tutorial after a brief delay
-if (!localStorage.getItem('smc_tutorialDone')) {
-  // Mark done immediately so a reload doesn't re-trigger if the user skips
-  localStorage.setItem('smc_tutorialDone', '1');
-  setTimeout(() => {
-    try {
-      selectMode('tutorial');
-      startGame();
-    } catch(e) {
-      // If tutorial fails to start, restore menu so user isn't stuck
-      document.getElementById('menu').style.display = 'grid';
-      selectMode('2p');
+// First-time visit (or chapter 0 not yet beaten): open Story Mode and force Chapter 1
+(function() {
+  try {
+    const s2 = JSON.parse(localStorage.getItem('smc_story2') || '{}');
+    const ch0Beaten = Array.isArray(s2.defeated) && s2.defeated.includes(0);
+    if (!ch0Beaten) {
+      setTimeout(() => {
+        selectMode('story');
+        setTimeout(() => {
+          if (typeof _showPrologue === 'function') {
+            _showPrologue(() => { if (typeof _beginChapter2 === 'function') _beginChapter2(0); });
+          } else if (typeof _beginChapter2 === 'function') {
+            _beginChapter2(0);
+          }
+        }, 300);
+      }, 500);
     }
-  }, 800);
-}
-
-// Mark tutorial as done when it completes (called from advanceTutorialStep when steps exhausted)
-function markTutorialDone() {
-  localStorage.setItem('smc_tutorialDone', '1');
-}
+  } catch(e) {}
+})();
 
 // ============================================================
 // EDGE PLAYER INDICATORS

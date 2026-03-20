@@ -30,6 +30,9 @@ function resetDirector() {
   director._timeSinceHit       = 0;
   director._playerMinHp        = 1;
   director._lastMinHpLow       = 0;
+  director._queue   = [];
+  director._running = [];
+  director._worldState = 'normal';
 }
 
 // Called from dealDamage in smc-particles.js
@@ -100,6 +103,7 @@ function _directorCameraPunch(strength) {
 // Core per-frame update (called from gameLoop with dt ≈ 1/60)
 function updateDirector(deltaSeconds) {
   if (!gameRunning || !currentArena) return;
+  _tickDirectorSequences(deltaSeconds);
   const dt = deltaSeconds || 0;
 
   // ── Intensity decay ───────────────────────────────────────
@@ -190,4 +194,48 @@ function updateDirector(deltaSeconds) {
       director.lastMusicState = 'normal';
     }
   }
+}
+
+// ── Event sequence queue ──────────────────────────────────────────────────────
+director._queue      = [];
+director._running    = [];
+director._worldState = 'normal'; // 'normal' | 'tension' | 'boss' | 'cinematic'
+
+function _tickDirectorSequences(dt) {
+  const frameDt = (dt || 0) * 60;
+  while (director._queue.length) director._running.push(director._queue.shift());
+
+  const toRemove = [];
+  for (const step of director._running) {
+    if (step._fired) { toRemove.push(step); continue; }
+    if ((step._delayTimer || 0) > 0) { step._delayTimer -= frameDt; continue; }
+    if (step.condition && !step.condition()) continue;
+    step._fired = true;
+    try { step.action(); } catch(e) { console.warn('[Director seq]', step.id, e); }
+    if (step._next) {
+      step._next._delayTimer = step._next.delay || 0;
+      step._next._fired = false;
+      director._queue.push(step._next);
+    }
+    toRemove.push(step);
+  }
+  for (const s of toRemove) {
+    const i = director._running.indexOf(s);
+    if (i >= 0) director._running.splice(i, 1);
+  }
+}
+
+function directorSchedule(steps) {
+  if (!steps || !steps.length) return;
+  for (let i = 0; i < steps.length - 1; i++) steps[i]._next = steps[i + 1];
+  steps[steps.length - 1]._next = null;
+  const first = steps[0];
+  first._delayTimer = first.delay || 0;
+  first._fired = false;
+  director._queue.push(first);
+}
+
+function directorOnce(id, condition, action) {
+  if (director._running.some(s => s.id === id)) return;
+  director._running.push({ id, condition, action, _next: null, _fired: false, _delayTimer: 0 });
 }
