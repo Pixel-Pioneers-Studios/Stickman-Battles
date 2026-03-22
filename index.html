@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Stickman Battles</title>
-  <link rel="stylesheet" href="Stickman-Battles/SMC.css">
+  <link rel="stylesheet" href="SMB.css">
 </head>
 <body>
 
@@ -22,7 +22,6 @@
         <span class="expand-arrow">▾</span>
       </div>
       <div class="config-body">
-        <p class="controls-hint">WASD move · Space attack · Q ability · E super · S shield</p>
         <div class="config-row">
           <label>Color</label>
           <input type="color" id="p1Color" value="#00d4ff">
@@ -146,6 +145,11 @@
           <div class="mode-desc" style="color:#aa8866">A world unraveling</div>
         </div>
         <div class="mode-card" id="modeOnline" data-mode="online" onclick="selectMode('online')">🌐 Online</div>
+        <div class="mode-card" onclick="openDesigner()" style="border-color:rgba(100,200,255,0.25);">
+          <div class="mode-icon">🛠</div>
+          <div class="mode-name" style="color:#88ccff;">Creator</div>
+          <div class="mode-desc">Map &amp; Weapon Studio</div>
+        </div>
         <div class="mode-card" id="modeStoryOnline" data-mode="storyonline" onclick="selectMode('storyonline')" style="display:none;">
           <div class="mode-name" style="color:#ffdd88">🌐⚔️ Story Online</div>
           <div class="mode-desc" style="color:#aa9944">Cross-world multiplayer</div>
@@ -412,9 +416,9 @@
     <button class="btn btn-start" onclick="startGame()">START GAME</button>
 
     <div class="controls-info">
-      <div><strong>P1:</strong> <strong>A/D</strong> move · <strong>W</strong> jump · <strong>double-tap A/D</strong> dash · <strong>hold W</strong> super-jump · <strong>S</strong> shield · <strong>Space</strong> attack · <strong>Q</strong> ability · <strong>E</strong> super</div>
-      <div><strong>P2:</strong> <strong>←/→</strong> move · <strong>↑</strong> jump · <strong>double-tap ←/→</strong> dash · <strong>hold ↑</strong> super-jump · <strong>↓</strong> shield · <strong>Enter</strong> attack · <strong>.</strong> ability · <strong>/</strong> super</div>
-      <div><strong>Esc</strong> = pause &nbsp;|&nbsp; Double-tap jump for double jump &nbsp;|&nbsp; Shield has 30 s cooldown</div>
+      <div><strong>P1:</strong> <strong>A/D</strong> move · <strong>W</strong> jump · <strong>W</strong> again in air = double jump · <strong>S</strong> shield · <strong>Space</strong> attack · <strong>Q</strong> ability · <strong>E</strong> super</div>
+      <div><strong>P2:</strong> <strong>←/→</strong> move · <strong>↑</strong> jump · <strong>↑</strong> again in air = double jump · <strong>↓</strong> shield · <strong>Enter</strong> attack · <strong>.</strong> ability · <strong>/</strong> super</div>
+      <div><strong>Esc</strong> = pause &nbsp;|&nbsp; Shield has a cooldown after use</div>
     </div>
     <!-- Fullscreen button -->
     <div style="display:flex;justify-content:center;margin-top:8px;">
@@ -454,7 +458,6 @@
         <span class="expand-arrow">▾</span>
       </div>
       <div class="config-body">
-        <p class="controls-hint" id="p2Hint">← → ↑ · Enter · . · /</p>
         <div class="config-row" id="p2ColorRow">
           <label>Color</label>
           <input type="color" id="p2Color" value="#ff4455">
@@ -676,6 +679,7 @@
     <button class="btn training-btn" onclick="trainingCmd('giveSuper')" title="Give Super">Super</button>
     <button class="btn training-btn" onclick="trainingCmd('clearEnemies')" title="Clear enemies">Clear</button>
     <div style="width:1px; background:rgba(255,255,255,0.18); align-self:stretch; margin:0 2px;"></div>
+    <button class="btn training-btn" onclick="trainingDesignerOpen?closeTrainingDesigner():openTrainingDesigner()" title="Live Map Editor (F4)" style="font-size:0.75rem; padding:4px 9px;">🛠 Map</button>
     <button class="btn training-btn" onclick="toggleTrainingPanel()" title="All commands" style="font-size:1rem; padding:4px 9px; letter-spacing:0;">⚙</button>
   </div>
 </div>
@@ -755,12 +759,6 @@
 <div id="chaosModIcons" style="display:none; position:fixed; bottom:8px; left:50%; transform:translateX(-50%); flex-wrap:wrap; gap:6px; pointer-events:auto; z-index:100; justify-content:center;"></div>
 <div id="chaosModTooltip" style="display:none; position:fixed; background:rgba(0,0,0,0.9); color:#fff; padding:6px 10px; border-radius:6px; font-size:12px; pointer-events:none; z-index:200; white-space:nowrap;"></div>
 
-<!-- Training in-game spawn buttons -->
-<div id="trainingControls" style="display:none; position:fixed; bottom:10px; right:10px; z-index:100; flex-direction:column; gap:4px;">
-  <button class="btn" onclick="spawnTrainingYeti()" style="font-size:11px;padding:4px 10px;">Spawn Yeti</button>
-  <button class="btn" onclick="spawnTrainingDummy()" style="font-size:11px;padding:4px 10px;">Spawn Dummy</button>
-  <button class="btn" onclick="toggleMapCreator()" style="font-size:11px;padding:4px 10px;">Map Creator</button>
-</div>
 
 <!-- Map Creator panel -->
 <div id="mapCreatorPanel" style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); background:#1a1a2e; border:2px solid #6644ff; border-radius:12px; padding:20px; z-index:500; min-width:400px; max-height:90vh; overflow-y:auto; color:#fff; font-family:Arial,sans-serif;">
@@ -853,46 +851,56 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
   <!-- PeerJS — serverless WebRTC peer-to-peer multiplayer -->
   <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+  <!-- Error boundary — must be FIRST so it catches all other module errors -->
+  <script src="./js/smb-errorboundary.js"></script>
   <!-- Global state, canvas setup -->
-  <script src="Stickman-Battles/./js/smc-globals.js"></script>
+  <script src="./js/smb-globals.js"></script>
   <!-- Sound system -->
-  <script src="Stickman-Battles/./js/smc-audio.js"></script>
+  <script src="./js/smb-audio.js"></script>
   <!-- Game Director: pacing, intensity, dynamic events -->
-  <script src="Stickman-Battles/./js/smc-director.js"></script>
+  <script src="./js/smb-director.js"></script>
   <!-- Achievement system -->
-  <script src="Stickman-Battles/./js/smc-achievements.js"></script>
+  <script src="./js/smb-achievements.js"></script>
   <!-- Arena, weapon, class data -->
-  <script src="Stickman-Battles/./js/smc-data.js"></script>
+  <script src="./js/smb-data.js"></script>
   <!-- Utilities, particles, physics, ragdoll -->
-  <script src="Stickman-Battles/./js/smc-particles.js"></script>
+  <script src="./js/smb-particles.js"></script>
   <!-- Cinematic scripting system v2: cinScript, CinCam, CinFX, ground cracks -->
-  <script src="Stickman-Battles/./js/smc-cinematics.js"></script>
+  <script src="./js/smb-cinematics.js"></script>
   <!-- Finisher system — killing-blow cinematic animations -->
-  <script src="Stickman-Battles/./js/smc-finishers.js"></script>
+  <script src="./js/smb-finishers.js"></script>
   <!-- Fighter base class -->
-  <script src="Stickman-Battles/./js/smc-fighter.js"></script>
+  <script src="./js/smb-fighter.js"></script>
   <!-- Enemy NPCs, training mode -->
-  <script src="Stickman-Battles/./js/smc-enemies.js"></script>
+  <script src="./js/smb-enemies.js"></script>
   <!-- Boss and True Form -->
-  <script src="Stickman-Battles/./js/smc-boss.js"></script>
+  <script src="./js/smb-boss.js"></script>
   <!-- Drawing, game state, HUD, visual effects -->
-  <script src="Stickman-Battles/./js/smc-drawing.js"></script>
+  <script src="./js/smb-drawing.js"></script>
   <!-- Minigame systems -->
-  <script src="Stickman-Battles/./js/smc-minigames.js"></script>
+  <script src="./js/smb-minigames.js"></script>
+  <!-- True-Form QTE system -->
+  <script src="./js/smb-qte.js"></script>
+  <!-- Impact cinematic system: playCinematicAttack, CINEMATIC_PRESETS, updateCinematicSystem -->
+  <script src="./js/smb-cinematic.js"></script>
   <!-- Camera, main game loop, input -->
-  <script src="Stickman-Battles/./js/smc-loop.js"></script>
+  <script src="./js/smb-loop.js"></script>
   <!-- Menu UI, startGame, tutorial -->
-  <script src="Stickman-Battles/./js/smc-menu.js"></script>
+  <script src="./js/smb-menu.js"></script>
   <!-- Network / online multiplayer -->
-  <script src="Stickman-Battles/./js/smc-network.js"></script>
+  <script src="./js/smb-network.js"></script>
   <!-- True Matter.js ragdoll system (optional, enabled via settings) -->
-  <script src="Stickman-Battles/./js/smc-ragdoll.js"></script>
+  <script src="./js/smb-ragdoll.js"></script>
   <!-- Developer debug toolkit (loaded last so all systems exist) -->
-  <script src="Stickman-Battles/./js/smc-debug.js"></script>
+  <script src="./js/smb-debug.js"></script>
   <!-- Save / Export / Import system -->
-  <script src="Stickman-Battles/./js/smc-save.js"></script>
+  <script src="./js/smb-save.js"></script>
+  <!-- Attack Test Sandbox — dev tool (type "atk help" in the game console) -->
+  <script src="./js/smb-attacktest.js"></script>
   <!-- Story Mode system -->
-  <script src="Stickman-Battles/./js/smc-story.js"></script>
+  <script src="./js/smb-story.js"></script>
+  <!-- Map & Weapon Designer (standalone tool) -->
+  <script src="./js/smb-designer.js"></script>
 
   <!-- YouTube IFrame API for background music (HTTP/HTTPS only — skipped on file://) -->
   <div id="ytBossPlayer"    style="position:fixed;width:1px;height:1px;opacity:0;pointer-events:none;left:-9999px;top:-9999px;"></div>
@@ -921,7 +929,7 @@
       // Patch openGameConsole to set flex display
       document.addEventListener('DOMContentLoaded', function() {
         const _origOpen = window.openGameConsole;
-        // Will be overridden after smc-debug.js loads; display fix applied there
+        // Will be overridden after smb-debug.js loads; display fix applied there
       });
     })();
   </script>
@@ -1142,7 +1150,7 @@
     });
   }
 
-  // Expose so smc-menu.js can call them after startGame / backToMenu
+  // Expose so smb-menu.js can call them after startGame / backToMenu
   window.showMobileControls = showMobileControls;
   window.hideMobileControls = hideMobileControls;
 
