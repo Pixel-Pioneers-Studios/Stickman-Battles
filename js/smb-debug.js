@@ -77,28 +77,29 @@ function renderDebugOverlay(ctx) {
   const f1 = showHitboxes       ? '[ON]' : '[off]';
   const f2 = showCollisionBoxes ? '[ON]' : '[off]';
   const f3 = showPhysicsInfo    ? '[ON]' : '[off]';
+  const _dbgTop = 72; // below the HUD top bar (~65-70px)
   ctx.fillStyle = 'rgba(0,0,0,0.78)';
-  ctx.fillRect(4, 4, 230, 110);
+  ctx.fillRect(4, _dbgTop, 230, 110);
   ctx.strokeStyle = '#0f0';
   ctx.lineWidth   = 1;
-  ctx.strokeRect(4, 4, 230, 110);
+  ctx.strokeRect(4, _dbgTop, 230, 110);
 
   ctx.font      = '11px monospace';
   ctx.fillStyle = '#0f0';
   ctx.textAlign = 'left';
-  ctx.fillText(`SMC ${typeof GAME_VERSION !== 'undefined' ? GAME_VERSION : ''}  FPS: ${_dbgFpsCurrent}  ts:${timeScale.toFixed(2)}`, 10, 20);
-  ctx.fillText(`Players: ${players.length}  Minions: ${minions.length}  Bots: ${[...players,...trainingDummies].filter(p=>p.isAI).length}`, 10, 34);
-  ctx.fillText(`Proj: ${projectiles.length}  Particles: ${particles.length}  Frame: ${frameCount}`, 10, 48);
-  ctx.fillText(`Arena: ${currentArenaKey}  Mode: ${gameMode}`, 10, 62);
-  ctx.fillText(`Beams: ${bossBeams.length}  Floor: ${bossFloorState}`, 10, 76);
+  ctx.fillText(`SMC ${typeof GAME_VERSION !== 'undefined' ? GAME_VERSION : ''}  FPS: ${_dbgFpsCurrent}  ts:${timeScale.toFixed(2)}`, 10, _dbgTop + 16);
+  ctx.fillText(`Players: ${players.length}  Minions: ${minions.length}  Bots: ${[...players,...trainingDummies].filter(p=>p.isAI).length}`, 10, _dbgTop + 30);
+  ctx.fillText(`Proj: ${projectiles.length}  Particles: ${particles.length}  Frame: ${frameCount}`, 10, _dbgTop + 44);
+  ctx.fillText(`Arena: ${currentArenaKey}  Mode: ${gameMode}`, 10, _dbgTop + 58);
+  ctx.fillText(`Beams: ${bossBeams.length}  Floor: ${bossFloorState}`, 10, _dbgTop + 72);
   ctx.fillStyle = showHitboxes       ? '#00ff88' : '#668866';
-  ctx.fillText(`F1 Hitboxes ${f1}`, 10, 90);
+  ctx.fillText(`F1 Hitboxes ${f1}`, 10, _dbgTop + 86);
   ctx.fillStyle = showCollisionBoxes ? '#00ccff' : '#446688';
-  ctx.fillText(`F2 Collision ${f2}`, 90, 90);
+  ctx.fillText(`F2 Collision ${f2}`, 90, _dbgTop + 86);
   ctx.fillStyle = showPhysicsInfo    ? '#ffcc00' : '#887744';
-  ctx.fillText(`F3 Physics ${f3}`, 175, 90);
+  ctx.fillText(`F3 Physics ${f3}`, 175, _dbgTop + 86);
   ctx.fillStyle = '#aaa';
-  ctx.fillText(`type "debugmode" for menu`, 10, 106);
+  ctx.fillText(`type "debugmode" for menu`, 10, _dbgTop + 102);
 
   // Per-player state labels (screen-space)
   if (typeof canvas !== 'undefined' && currentArena) {
@@ -301,6 +302,16 @@ function openDebugMenu() {
 
 // ---- Key hooks (F1/F2/F3 + secret buffer) ----
 document.addEventListener('keydown', e => {
+  // Console input: allow Enter (submit) and Escape (close) to pass through, block everything else
+  const _ae = document.activeElement;
+  const _consoleInputFocused = _ae && _ae.id === 'gameConsoleInput';
+  if (_consoleInputFocused) {
+    if (e.key === 'Enter') { e.preventDefault(); gameConsoleRun(); }
+    else if (e.key === 'Escape') { closeGameConsole(); }
+    return; // never let game keys fire while console is focused
+  }
+  // Don't intercept keys when any other text input is focused (chat, room code, etc.)
+  if (_ae && (_ae.tagName === 'INPUT' || _ae.tagName === 'TEXTAREA' || _ae.isContentEditable)) return;
   // F1: toggle hitboxes (fighter body + weapon tip)
   if (e.key === 'F1') { e.preventDefault(); showHitboxes = !showHitboxes; if (!debugMode) debugMode = true; return; }
   // F2: toggle collision boxes (platforms + hazard lines)
@@ -315,14 +326,10 @@ document.addEventListener('keydown', e => {
     else openTrainingDesigner();
     return;
   }
-  // Escape closes game console if open
+  // Escape closes game console if open (when console input is NOT focused)
   if (e.key === 'Escape' && _consoleOpen) { closeGameConsole(); return; }
-  // Enter runs console command if console input is focused
-  if (e.key === 'Enter' && _consoleOpen && document.activeElement && document.activeElement.id === 'gameConsoleInput') {
-    e.preventDefault(); gameConsoleRun(); return;
-  }
   // Track "debugmode" secret buffer
-  if (e.key.length === 1) {
+  if (e.key && e.key.length === 1) {
     _debugKeyBuf = (_debugKeyBuf + e.key.toLowerCase()).slice(-12);
     if (_debugKeyBuf.endsWith('debugmode')) {
       _debugKeyBuf = '';
@@ -406,7 +413,18 @@ function gameConsoleRun() {
   _consoleHistory.push(raw);
   _consoleHistIdx = -1;
   _consolePrint('> ' + raw, '#ffffff');
-  _consoleExec(raw);
+  // Prefix a command with "--local " to skip broadcast and run only on this client
+  const isLocal = raw.startsWith('--local ');
+  const execRaw = isLocal ? raw.slice('--local '.length).trim() : raw;
+  // Online: broadcast command to all peers so it runs on every client
+  if (!isLocal && typeof onlineMode !== 'undefined' && onlineMode &&
+      typeof NetworkManager !== 'undefined' && NetworkManager.connected) {
+    NetworkManager.sendGameEvent('consoleCmd', { cmd: execRaw });
+    _consolePrint('[broadcast to all players]', '#55aaff');
+  } else if (isLocal) {
+    _consolePrint('[local only — not broadcast]', '#ffaa44');
+  }
+  _consoleExec(execRaw);
 }
 
 function _consoleExec(raw) {
@@ -436,6 +454,9 @@ function _consoleExec(raw) {
       'unlock trueform|megaknight — unlock secret content',
       'unlockall              — unlock everything',
       'eval <js>             — evaluate raw JavaScript (advanced)',
+      'maps analyze          — print analysis of all maps to console',
+      'maps analyze raw      — print raw analysis array to console',
+      'map analyze <key>     — print analysis of one map (e.g. map analyze lava)',
     ];
     cmds.forEach(c => _consolePrint(c, '#88bbff'));
     return;
@@ -575,13 +596,17 @@ function _consoleExec(raw) {
     if (typeof players === 'undefined') { _consoleErr('No game running.'); return; }
     const who = sub || 'p1';
     const on  = parts[2] ? parts[2].toLowerCase() !== 'off' : true;
-    const p   = who === 'p2' || who === '2' ? players[1] : players[0];
-    if (p) {
-      // Godmode: set invincible to a huge number each frame via flag
-      p._godmode = on;
+    const targets = (who === 'all' || who === 'everyone')
+      ? players
+      : [who === 'p2' || who === '2' ? players[1] : players[0]];
+    targets.forEach(p => {
+      if (!p) return;
+      p.godmode    = on;
+      p._godmode   = on;
       if (on) p.invincible = 999999;
-      _consoleOk('Godmode ' + (on ? 'ON' : 'OFF') + ' for ' + who);
-    }
+      else    p.invincible = 0;
+    });
+    _consoleOk('Godmode ' + (on ? 'ON' : 'OFF') + ' for ' + who);
     return;
   }
 
@@ -658,6 +683,65 @@ function _consoleExec(raw) {
       _consoleOk(String(result));
     } catch(err) {
       _consoleErr(err.message);
+    }
+    return;
+  }
+
+  // True Form adaptive AI debug commands
+  if (cmd === 'tf adapt' || cmd === 'tf adaptation') { if (typeof showAdaptationLevel === 'function') showAdaptationLevel(); return; }
+  if (cmd === 'tf profile') { if (typeof showPlayerProfile === 'function') showPlayerProfile(); return; }
+  if (parts[0] === 'tf' && parts[1] === 'force' && parts[2]) {
+    if (typeof forceAdaptationLevel === 'function') { forceAdaptationLevel(parseFloat(parts[2])); return; }
+  }
+  if (typeof handleChaosConsoleCmd === 'function' && handleChaosConsoleCmd(raw)) return;
+
+  // ---- PATHFINDING DEBUG ----
+  if (cmd === 'PF' || cmd === 'PATHFINDING') {
+    if (sub === 'graph') {
+      window._pfShowGraph = !window._pfShowGraph;
+      _consoleOk('Platform graph viz: ' + (window._pfShowGraph ? 'ON' : 'OFF'));
+    } else if (sub === 'paths') {
+      window._pfShowPaths = !window._pfShowPaths;
+      _consoleOk('Bot path viz: ' + (window._pfShowPaths ? 'ON' : 'OFF'));
+    } else if (sub === 'arcs') {
+      window._pfShowArcs = !window._pfShowArcs;
+      _consoleOk('Projected landing arcs: ' + (window._pfShowArcs ? 'ON' : 'OFF'));
+    } else if (sub === 'dj' || sub === 'doublejump') {
+      window._pfShowDJ = !window._pfShowDJ;
+      _consoleOk('Double-jump edge highlight: ' + (window._pfShowDJ ? 'ON' : 'OFF'));
+    } else if (sub === 'log') {
+      if (typeof logUnsafeEdgeAttempts === 'function') logUnsafeEdgeAttempts();
+      _consoleOk('Unsafe edge log printed to console.');
+    } else if (sub === 'reset') {
+      if (typeof players !== 'undefined')
+        players.filter(p => p.isAI).forEach(p => { if (typeof forceRecalculatePath === 'function') forceRecalculatePath(p); });
+      _consoleOk('All bot paths reset.');
+    } else if (sub === 'rebuild') {
+      if (typeof buildGraphForCurrentArena === 'function') { buildGraphForCurrentArena(); _consoleOk('Graph rebuilt.'); }
+    } else {
+      _consoleOk('pf graph | pf paths | pf arcs | pf dj | pf log | pf reset | pf rebuild');
+    }
+    return;
+  }
+
+  // ---- MAP ANALYZE ----
+  if (cmd === 'MAPS ANALYZE') {
+    analyzeAllMaps().forEach(r => { console.log(formatMapAnalysis(r)); });
+    _consoleOk('Map analysis printed to browser console.');
+    return;
+  }
+  if (cmd === 'MAPS ANALYZE RAW') {
+    console.log(analyzeAllMaps());
+    _consoleOk('Raw map analysis array printed to browser console.');
+    return;
+  }
+  if (cmd.startsWith('MAP ANALYZE ')) {
+    const key = parts[2];
+    if (ARENAS[key]) {
+      console.log(formatMapAnalysis({ key, ...analyzeMap(ARENAS[key]) }));
+      _consoleOk('Analysis for "' + key + '" printed to browser console.');
+    } else {
+      _consoleErr('Map not found: ' + key);
     }
     return;
   }

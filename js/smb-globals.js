@@ -21,6 +21,40 @@ resizeCanvas();
 window.addEventListener('resize', resizeCanvas);
 
 // ============================================================
+// CHANGELOG
+// ============================================================
+const CHANGELOG = [
+  {
+    version: '1.0.0',
+    title: 'FULL RELEASE — FRACTURE CAMPAIGN',
+    date: '2026-03-24',
+    flavor: 'Reality patch applied. All dimensional rifts sealed.',
+    isLatest: true,
+    changes: [
+      { cat: 'Story',    text: 'Added full Story Mode — 80 chapters across 6 Acts' },
+      { cat: 'Story',    text: 'Added Act / Arc navigation system with chapter select' },
+      { cat: 'Story',    text: 'Implemented exploration chapters and cutscene dialogues' },
+      { cat: 'Story',    text: 'Added major narrative twist: the fragment is the Creator\'s conscience' },
+      { cat: 'Story',    text: 'Introduced the Void Mind as a post-campaign threat' },
+      { cat: 'Cinematic',text: 'Redesigned True Form ending into a 10-phase meta-breaking cinematic' },
+      { cat: 'Cinematic',text: 'Added interactive Code Realm with 5 corruptible nodes' },
+      { cat: 'Cinematic',text: 'Added 3-hit Kratos-style QTE finisher sequence' },
+      { cat: 'Cinematic',text: 'Added dimension-panel launch sequence across 7 realities' },
+      { cat: 'Cinematic',text: 'True Form ending now triggers at 10% HP threshold' },
+      { cat: 'AI',       text: 'Improved True Form adaptive AI — 6 attack tiers, player profiling' },
+      { cat: 'AI',       text: 'Added dedicated Adaptive AI game mode' },
+      { cat: 'Combat',   text: 'Added finisher system (killcam killing blows)' },
+      { cat: 'Combat',   text: 'Balanced ranged weapons — reduced bullet spam window' },
+      { cat: 'Combat',   text: 'Added QTE phases at 75/50/25/10% True Form HP' },
+      { cat: 'UI',       text: 'Added Experimental 3D Mode setting with dimension-break visuals' },
+      { cat: 'UI',       text: 'Added Replay Cinematic button on True Form end screen' },
+      { cat: 'Network',  text: 'Improved multiplayer state sync and disconnect handling' },
+      { cat: 'System',   text: 'Modularised codebase into 20+ named JS modules' },
+    ],
+  },
+];
+
+// ============================================================
 // GLOBAL STATE
 // ============================================================
 let gameMode        = '2p';
@@ -76,7 +110,7 @@ let camDramaZoom   = 1.0;
 // SETTINGS & FRAME STATE
 // ============================================================
 // User-configurable settings (toggled from menu)
-const settings = { particles: true, screenShake: true, dmgNumbers: true, landingDust: true, bossAura: true, botPortal: true, phaseFlash: true, ragdollEnabled: (localStorage.getItem('smc_ragdoll') === '1'), finishers: true, view3D: (localStorage.getItem('smc_view3D') === '1') };
+const settings = { particles: true, screenShake: true, dmgNumbers: true, landingDust: true, bossAura: true, botPortal: true, phaseFlash: true, ragdollEnabled: (localStorage.getItem('smc_ragdoll') === '1'), finishers: true, view3D: (localStorage.getItem('smc_view3D') === '1'), experimental3D: (localStorage.getItem('smc_experimental3D') === '1') };
 
 // Active finisher state — set by triggerFinisher(), cleared when animation completes or on backToMenu
 let activeFinisher = null;
@@ -101,7 +135,12 @@ let bgBuildings = [];
 let unlockedTrueBoss   = !!localStorage.getItem('smc_trueform');
 let tfGravityInverted  = false;
 let tfGravityTimer     = 0;    // countdown (frames); 0 = gravity normal
-let tfControlsInverted = false;
+let tfControlsInverted    = false;
+let tfControlsInvertTimer = 0;   // countdown (frames); controls auto-restore when 0
+// Mirror arena gimmick
+let mirrorFlipTimer     = 0;    // counts up; flips controls at interval
+let mirrorFlipped       = false; // current inversion state
+let mirrorFlipWarning   = 0;    // warning flash timer (counts down)
 let tfFloorRemoved     = false;
 let tfFloorTimer       = 0;    // countdown (frames) until floor returns
 let tfBlackHoles       = [];   // { x, y, r, timer, maxTimer }
@@ -113,6 +152,7 @@ let tfChainSlam        = null; // { stage:0-3, timer, target }
 let tfGraspSlam        = null; // { timer }
 let tfShockwaves       = [];   // { x, y, r, maxR, timer, maxTimer, boss, hit:Set }
 let tfDimensionIs3D    = false; // true while TrueForm has shifted the game to 3D perspective
+let tfEndingScene      = null;  // TrueForm ending cinematic state machine (smb-trueform-ending.js)
 
 // ── Boss telegraph / warning system ──────────────────────────────────────────
 // Visual warning indicators shown before attacks land (give player time to dodge)
@@ -181,7 +221,7 @@ let _publicRoomCheckTimer = 0;
 // ============================================================
 // VERSION
 // ============================================================
-const GAME_VERSION = 'v2.4.2';
+const GAME_VERSION = '1.0.0';  // bump this when releasing; must match CHANGELOG[0].version
 
 // DEBUG / DEVELOPER STATE
 // ============================================================
@@ -204,6 +244,8 @@ let storyFightScriptIdx = 0;     // next unplayed entry index
 let storyEnemyArmor     = [];    // ['helmet','chestplate','leggings'] — armor pieces on enemy this chapter
 let storyTwoEnemies     = false; // true = spawn a second enemy bot in this chapter
 let storySecondEnemyDef = null;  // { weaponKey, classKey, aiDiff, color } for the second enemy
+let storyOpponentName   = null;  // display name of the story chapter opponent (shown in HUD)
+let storyAbilityState   = {};    // per-fight state for unlocked story abilities (medkit used, last stand triggered, etc.)
 
 // ============================================================
 // ENTITY & VISUAL STATE

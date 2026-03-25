@@ -33,11 +33,14 @@ function generateBgElements() {
 // ============================================================
 function drawBackground() {
   const a = currentArena;
+  // Fill the entire world width so no void shows through on wide/panning maps
+  const _bgX = a.mapLeft  !== undefined ? a.mapLeft  - 200 : -200;
+  const _bgW = a.worldWidth ? a.worldWidth + 400 : GAME_W + 400;
   const g = ctx.createLinearGradient(0, 0, 0, GAME_H);
   g.addColorStop(0, a.sky[0]);
-  g.addColorStop(1, a.sky[1]);
+  g.addColorStop(1, a.sky[a.sky.length - 1]);
   ctx.fillStyle = g;
-  ctx.fillRect(0, 0, GAME_W, GAME_H);
+  ctx.fillRect(_bgX, 0, _bgW, GAME_H);
 
   if (currentArenaKey === 'space')      drawStars();
   if (currentArenaKey === 'grass')      drawClouds();
@@ -73,6 +76,103 @@ function drawBackground() {
   // Exploration: tile the style-appropriate background across world width
   if (currentArena && currentArena.isExploreArena) {
     _drawExploreBgTiles(currentArena.exploreStyle);
+  }
+
+  // Boundary portals: visible warp rifts at map edges for large story maps
+  if (currentArena && currentArena.boundaryPortals) {
+    _drawBoundaryPortals(currentArena);
+  }
+}
+
+function _drawBoundaryPortals(arena) {
+  const t = (frameCount || 0) * 0.04;
+  const portalH = 420;
+  const portalW = 30;
+  const groundY = 480; // top of floor
+
+  // Portal color adapts to arena theme
+  const skyBase = arena.sky ? arena.sky[0] : '#000';
+  // Use complementary glow: dark arenas get cyan/purple, bright arenas get deep blue/magenta
+  const isDark = parseInt(skyBase.replace('#',''), 16) < 0x404040;
+  const innerCol  = isDark ? 'rgba(80,220,255,0.9)'  : 'rgba(160,0,255,0.9)';
+  const outerCol  = isDark ? 'rgba(0,150,220,0.0)'   : 'rgba(100,0,180,0.0)';
+  const coreCol   = isDark ? 'rgba(180,240,255,1)'   : 'rgba(230,180,255,1)';
+  const runeCol   = isDark ? 'rgba(100,200,255,0.7)' : 'rgba(200,100,255,0.7)';
+
+  const edges = [
+    { x: arena.mapLeft + 10 },
+    { x: arena.mapRight - 10 },
+  ];
+
+  for (const edge of edges) {
+    const cx = edge.x;
+    const topY = groundY - portalH;
+
+    ctx.save();
+
+    // Outer glow halo
+    const halo = ctx.createRadialGradient(cx, topY + portalH * 0.5, 0, cx, topY + portalH * 0.5, portalW * 2.5);
+    halo.addColorStop(0, innerCol.replace('0.9)', '0.25)'));
+    halo.addColorStop(1, outerCol);
+    ctx.fillStyle = halo;
+    ctx.fillRect(cx - portalW * 2.5, topY, portalW * 5, portalH);
+
+    // Portal column glow
+    const grad = ctx.createLinearGradient(cx - portalW, 0, cx + portalW, 0);
+    grad.addColorStop(0,   outerCol);
+    grad.addColorStop(0.3, innerCol);
+    grad.addColorStop(0.5, coreCol);
+    grad.addColorStop(0.7, innerCol);
+    grad.addColorStop(1,   outerCol);
+    ctx.fillStyle = grad;
+    ctx.fillRect(cx - portalW, topY, portalW * 2, portalH);
+
+    // Animated scan lines / energy ripples
+    ctx.save();
+    ctx.rect(cx - portalW, topY, portalW * 2, portalH);
+    ctx.clip();
+    for (let i = 0; i < 6; i++) {
+      const ry = topY + ((t * 80 + i * (portalH / 6)) % portalH);
+      const rg = ctx.createLinearGradient(0, ry - 10, 0, ry + 10);
+      rg.addColorStop(0, 'rgba(255,255,255,0)');
+      rg.addColorStop(0.5, 'rgba(255,255,255,0.25)');
+      rg.addColorStop(1, 'rgba(255,255,255,0)');
+      ctx.fillStyle = rg;
+      ctx.fillRect(cx - portalW, ry - 10, portalW * 2, 20);
+    }
+    ctx.restore();
+
+    // Rune symbols — 3 static glyphs on the column
+    ctx.fillStyle = runeCol;
+    ctx.font = `bold ${Math.round(portalW * 0.9)}px monospace`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    const glyphs = ['⌬', '◈', '⌬'];
+    for (let g = 0; g < glyphs.length; g++) {
+      const gy = topY + portalH * (0.25 + g * 0.25);
+      const pulse = 0.6 + 0.4 * Math.sin(t * 2 + g * 1.2);
+      ctx.globalAlpha = pulse;
+      ctx.fillText(glyphs[g], cx, gy);
+    }
+    ctx.globalAlpha = 1;
+
+    // "BOUNDARY" label above portal
+    ctx.font = `bold 9px monospace`;
+    ctx.fillStyle = coreCol;
+    ctx.globalAlpha = 0.6 + 0.4 * Math.sin(t * 1.5);
+    ctx.fillText('RIFT', cx, topY - 12);
+    ctx.globalAlpha = 1;
+
+    // Top cap glow
+    const capGrad = ctx.createRadialGradient(cx, topY, 0, cx, topY, portalW * 1.8);
+    capGrad.addColorStop(0, coreCol);
+    capGrad.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = capGrad;
+    ctx.beginPath();
+    ctx.ellipse(cx, topY, portalW * 1.8, portalW * 0.9, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.restore();
   }
 }
 
@@ -620,28 +720,86 @@ function drawPlatforms() {
 function drawStoryVoidFog() {
   if (!storyModeActive || !currentArena) return;
 
-  // Find the arena floor — use the lowest non-disabled platform, fallback to deathY - 160
-  let fogStartY = currentArena.deathY - 160;
+  // Find floor top: prefer isFloor-tagged platform, fall back to lowest platform
+  let floorTopY = currentArena.deathY - 60;
   if (currentArena.platforms) {
-    for (const pl of currentArena.platforms) {
-      if (!pl.isFloorDisabled) fogStartY = Math.min(fogStartY, pl.y);
+    const floorPl = currentArena.platforms.find(pl => pl.isFloor && !pl.isFloorDisabled);
+    if (floorPl) {
+      floorTopY = floorPl.y;
+    } else {
+      for (const pl of currentArena.platforms) {
+        if (!pl.isFloorDisabled) floorTopY = Math.max(floorTopY, pl.y);
+      }
     }
   }
 
-  const fogEndY   = currentArena.deathY + 20; // slightly past deathY so wall is invisible
+  const fogStartY = floorTopY;
+  const fogEndY   = currentArena.deathY + 80;
   const fogHeight = fogEndY - fogStartY;
   if (fogHeight <= 0) return;
 
-  // Gradient: fully transparent at fogStartY → opaque dark at fogEndY
+  // Cover full world width — no void peeks through on wide maps
+  const fogX = currentArena.mapLeft !== undefined ? currentArena.mapLeft - 200 : -200;
+  const fogW  = (currentArena.worldWidth ? currentArena.worldWidth + 400 : GAME_W + 400);
+
   const grad = ctx.createLinearGradient(0, fogStartY, 0, fogEndY);
   grad.addColorStop(0,    'rgba(0,0,0,0)');
-  grad.addColorStop(0.18, 'rgba(0,0,0,0.05)');
-  grad.addColorStop(0.42, 'rgba(0,0,0,0.28)');
-  grad.addColorStop(0.70, 'rgba(0,0,0,0.62)');
-  grad.addColorStop(1.0,  'rgba(0,0,0,0.97)');
+  grad.addColorStop(0.08, 'rgba(0,0,0,0.18)');
+  grad.addColorStop(0.30, 'rgba(0,0,0,0.60)');
+  grad.addColorStop(0.55, 'rgba(0,0,0,0.90)');
+  grad.addColorStop(1.0,  'rgba(0,0,0,1.0)');
 
   ctx.fillStyle = grad;
-  ctx.fillRect(0, fogStartY, GAME_W, fogHeight);
+  ctx.fillRect(fogX, fogStartY, fogW, fogHeight);
+}
+
+// ── Story boundary proximity warning (edge vignette, world-space) ────────
+function drawStoryBoundaryWarning() {
+  if (!storyModeActive || !currentArena || gameMode === 'exploration') return;
+  const worldW = currentArena.worldWidth || GAME_W;
+  // Check if any non-boss player is close to the soft boundary zone
+  let leftIntensity = 0, rightIntensity = 0;
+  for (const p of players) {
+    if (!p || p.isBoss || p.health <= 0) continue;
+    const distL = p.x;
+    const distR = GAME_W - (p.x + p.w);
+    if (distL < 140) leftIntensity  = Math.max(leftIntensity,  1 - distL / 140);
+    if (distR < 140) rightIntensity = Math.max(rightIntensity, 1 - distR / 140);
+  }
+  if (leftIntensity <= 0 && rightIntensity <= 0) return;
+  ctx.save();
+  // Left warning gradient
+  if (leftIntensity > 0) {
+    const gl = ctx.createLinearGradient(0, 0, 120, 0);
+    gl.addColorStop(0,   `rgba(80,0,180,${(leftIntensity * 0.55).toFixed(2)})`);
+    gl.addColorStop(0.6, `rgba(80,0,180,${(leftIntensity * 0.18).toFixed(2)})`);
+    gl.addColorStop(1.0, 'rgba(80,0,180,0)');
+    ctx.fillStyle = gl;
+    ctx.fillRect(0, 0, 120, GAME_H);
+    // Glitch lines
+    ctx.strokeStyle = `rgba(180,100,255,${(leftIntensity * 0.6).toFixed(2)})`;
+    ctx.lineWidth = 1;
+    for (let i = 0; i < 4; i++) {
+      const gy = Math.floor(Math.random() * GAME_H);
+      ctx.beginPath(); ctx.moveTo(0, gy); ctx.lineTo(30 + Math.random() * 50, gy); ctx.stroke();
+    }
+  }
+  // Right warning gradient
+  if (rightIntensity > 0) {
+    const gr = ctx.createLinearGradient(GAME_W, 0, GAME_W - 120, 0);
+    gr.addColorStop(0,   `rgba(80,0,180,${(rightIntensity * 0.55).toFixed(2)})`);
+    gr.addColorStop(0.6, `rgba(80,0,180,${(rightIntensity * 0.18).toFixed(2)})`);
+    gr.addColorStop(1.0, 'rgba(80,0,180,0)');
+    ctx.fillStyle = gr;
+    ctx.fillRect(GAME_W - 120, 0, 120, GAME_H);
+    ctx.strokeStyle = `rgba(180,100,255,${(rightIntensity * 0.6).toFixed(2)})`;
+    ctx.lineWidth = 1;
+    for (let i = 0; i < 4; i++) {
+      const gy = Math.floor(Math.random() * GAME_H);
+      ctx.beginPath(); ctx.moveTo(GAME_W, gy); ctx.lineTo(GAME_W - 30 - Math.random() * 50, gy); ctx.stroke();
+    }
+  }
+  ctx.restore();
 }
 
 // ── Ability unlock toast (story mode) ────────────────────────────────────
@@ -655,7 +813,7 @@ function drawAbilityUnlockToast() {
   ctx.save();
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   const cx = canvas.width / 2;
-  const cy = canvas.height * 0.18 - rise;
+  const cy = canvas.height * 0.22 - rise; // keep below HUD top bar
 
   ctx.globalAlpha = alpha * 0.88;
   ctx.fillStyle   = 'rgba(0,0,0,0.75)';
@@ -694,7 +852,7 @@ function drawExploreHUD() {
   const cw = canvas.width, ch = canvas.height;
   const barW = 280, barH = 14;
   const barX = cw / 2 - barW / 2;
-  const barY = 18;
+  const barY = _hudBottom() + 10; // sit just below the DOM HUD bar
 
   const progress = Math.min(1, Math.max(0, p1.x / exploreGoalX));
 
@@ -780,8 +938,43 @@ function drawExploreGoalObject() {
 // ============================================================
 function checkDeaths() {
   for (const p of players) {
+    if (p.isRemote) continue; // remote player deaths are managed on their own machine
     if (p.health <= 0 && p.invincible === 0) {
+      // Notify AdaptiveAI of its death so it can adapt immediately
+      if (p.isAdaptive && typeof p.onDeath === 'function') p.onDeath();
+
+      // Chaos mode: infinite respawn with kill tracking
+      if (typeof chaosMode !== 'undefined' && chaosMode && !p.isBoss) {
+        addKillFeed(p);
+        if (typeof chaosModeRecordKill === 'function') chaosModeRecordKill(p);
+        spawnParticles(p.cx(), p.cy(), p.color, 20);
+        if (!p.ragdollTimer) { p.ragdollTimer = 45; p.ragdollSpin = (Math.random() - 0.5) * 0.25; }
+        if (typeof VerletRagdoll !== 'undefined') {
+          const vr = new VerletRagdoll(p);
+          if (currentArena) {
+            const floor = currentArena.platforms.find(pl => pl.isFloor && !pl.isFloorDisabled);
+            if (floor) vr.floorY = floor.y;
+          }
+          verletRagdolls.push(vr);
+        }
+        if (p._rd) PlayerRagdoll.collapse(p);
+        p.invincible = 999;
+        respawnCountdowns.push({ color: p.color, x: p.spawnX, y: p.spawnY - 80, framesLeft: 66 });
+        setTimeout(() => { if (gameRunning) p.respawn(); }, 1100);
+        continue;
+      }
+
       // Boss defeat: trigger cinematic scene instead of normal death
+      // True Form ending fires at 10% HP threshold (not on actual death)
+      if (p.isBoss && p.isTrueForm && !tfEndingScene && !bossDeathScene && !p._tfEndingPrimed
+          && p.health > 0 && p.health <= p.maxHealth * 0.10) {
+        p._tfEndingPrimed = true;
+        p.invincible = 999999;
+        startTFEnding(p);
+        continue;
+      }
+      if (p.isBoss && p.isTrueForm && !tfEndingScene && !bossDeathScene) { startTFEnding(p); continue; }
+      if (p.isBoss && p.isTrueForm && (tfEndingScene || bossDeathScene)) { continue; }
       if (p.isBoss && !bossDeathScene) { startBossDeathScene(p); continue; }
       if (p.isBoss && bossDeathScene)  { continue; } // handled by death scene
       SoundManager.death();
@@ -806,10 +999,11 @@ function checkDeaths() {
         setTimeout(() => {
           if (!gameRunning) return;
           if (isRandomMapMode && gameMode !== 'boss' && gameMode !== 'trueform') {
-            const arenaPool = Object.keys(ARENAS).filter(k => !['creator','void','soccer'].includes(k));
-            switchArena(randChoice(arenaPool));
+            const arenaPool = ARENA_KEYS_ORDERED.filter(k => ARENAS[k] && !ARENAS[k].isStoryOnly);
+            switchArenaWithTransition(randChoice(arenaPool), () => p.respawn());
+          } else {
+            p.respawn();
           }
-          p.respawn();
         }, 1100);
       } else if (infiniteMode && !p.isBoss) {
         // Infinite mode: award win to opponent, always respawn
@@ -832,10 +1026,11 @@ function checkDeaths() {
         setTimeout(() => {
           if (!gameRunning) return;
           if (isRandomMapMode && gameMode !== 'boss' && gameMode !== 'trueform') {
-            const arenaPool = Object.keys(ARENAS).filter(k => !['creator','void','soccer'].includes(k));
-            switchArena(randChoice(arenaPool));
+            const arenaPool = ARENA_KEYS_ORDERED.filter(k => ARENAS[k] && !ARENAS[k].isStoryOnly);
+            switchArenaWithTransition(randChoice(arenaPool), () => p.respawn());
+          } else {
+            p.respawn();
           }
-          p.respawn();
         }, 1100);
       } else if (p.lives > 0) {
         p.lives--;
@@ -861,11 +1056,12 @@ function checkDeaths() {
           respawnCountdowns.push({ color: p.color, x: p.spawnX, y: p.spawnY - 80, framesLeft: 66 });
           setTimeout(() => {
             if (!gameRunning) return;
-            if (isRandomMapMode) {
-              const arenaPool = Object.keys(ARENAS).filter(k => !['creator','void','soccer'].includes(k));
-              switchArena(randChoice(arenaPool));
+            if (isRandomMapMode && gameMode !== 'boss' && gameMode !== 'trueform') {
+              const arenaPool = ARENA_KEYS_ORDERED.filter(k => ARENAS[k] && !ARENAS[k].isStoryOnly);
+              switchArenaWithTransition(randChoice(arenaPool), () => p.respawn());
+            } else {
+              p.respawn();
             }
-            p.respawn();
           }, 1100);
         } else {
           // Check if boss fake-death should trigger (boss < 33% HP, once per game)
@@ -900,7 +1096,7 @@ function checkDeaths() {
               _firstDeathPlayer = p;
             }
             if (gameMode === 'trueform') {
-              showBossDialogue('You never stood a chance.', 220);
+              showBossDialogue('That was always how this ended.', 220);
               setTimeout(endGame, 1400);
             } else {
               setTimeout(endGame, 900);
@@ -982,6 +1178,12 @@ function endGame() {
     // Boss slayer
     if (isBossModeEnd && gameMode === 'boss') unlockAchievement('boss_slayer');
     if (isBossModeEnd && gameMode === 'trueform') unlockAchievement('true_form');
+    // SOVEREIGN (Adaptive AI) beaten — unlock the mode card
+    if (gameMode === 'adaptive' && !localStorage.getItem('smc_sovereignBeaten')) {
+      localStorage.setItem('smc_sovereignBeaten', '1');
+      const _adCard = document.getElementById('modeAdaptive');
+      if (_adCard) _adCard.style.display = '';
+    }
     // KotH win
     if (gameMode === 'minigames' && minigameType === 'koth') unlockAchievement('koth_win');
     // PvP achievements: require both players dealt ≥40 damage (real fight condition)
@@ -1022,6 +1224,11 @@ function endGame() {
   }
   document.getElementById('statsDisplay').innerHTML = statsHtml;
   document.getElementById('gameOverOverlay').style.display = 'flex';
+  // Show Replay Cinematic button if TF ending has been seen and this was a TF fight
+  const _replayRow = document.getElementById('replayCinematicRow');
+  if (_replayRow) {
+    _replayRow.style.display = (gameMode === 'trueform' && localStorage.getItem('smc_tfEndingSeen') === '1') ? '' : 'none';
+  }
 
   // Story mode: detect win and show level-complete screen
   if (storyModeActive && typeof storyOnMatchEnd === 'function') {
@@ -1116,6 +1323,23 @@ function checkSecretLetterCollect(p) {
     spawnParticles(pos.x, pos.y, '#cc00ee', 18);
     syncCodeInput();
     if (collectedLetterIds.size === 8) unlockTrueForm();
+  }
+}
+
+function replayTFEnding() {
+  // Restart TF ending cinematic from the game-over screen (only works if a TF boss is present)
+  document.getElementById('gameOverOverlay').style.display = 'none';
+  if (typeof startTFEnding === 'function' && players) {
+    const boss = players.find(p => p.isTrueForm);
+    if (boss) {
+      boss._tfEndingPrimed = false;
+      boss.invincible      = 0;
+      boss.health          = Math.floor(boss.maxHealth * 0.05);
+      boss.backstageHiding = false;
+      tfEndingScene        = null;
+      gameRunning          = true;
+      requestAnimationFrame(gameLoop);
+    }
   }
 }
 
@@ -1662,9 +1886,9 @@ function drawCurseAuras() {
 function drawSpartanRageEffects() {
   let anyRage = false;
   for (const p of players) {
-    if (p.spartanRageTimer <= 0) continue;
+    if (!(p.spartanRageTimer > 0)) continue;
     anyRage = true;
-    const pct = p.spartanRageTimer / 300;
+    const pct = Math.min(1, p.spartanRageTimer / 300);
     const pcx = p.cx(), pcy = p.cy();
     ctx.save();
     // Radial aura
@@ -1867,7 +2091,7 @@ function startBossDeathScene(boss) {
     _p.size = 2 + Math.random() * 8; _p.life = 80 + Math.random() * 100; _p.maxLife = 180;
     particles.push(_p);
   }
-  const deathLine = boss.isTrueForm ? '...you cannot kill what has no form.' : 'N-no... this is not over...';
+  const deathLine = boss.isTrueForm ? '...form is a choice. I\'ll make another.' : 'This changes nothing.';
   showBossDialogue(deathLine, 360);
 }
 
@@ -2024,7 +2248,7 @@ function triggerFakeDeath(player) {
     // Force-interrupt any current dialogue after 1.2s
     setTimeout(() => {
       if (gameRunning) {
-        bossDialogue = { text: "We aren't finished yet..", timer: 320 };
+        bossDialogue = { text: "You thought that was the end.", timer: 320 };
       }
     }, 1200);
   }
@@ -2131,6 +2355,14 @@ function drawFakeDeathScene() {
 // ============================================================
 // STORY SUBTITLE — in-fight narrative captions
 // ============================================================
+// Returns the bottom edge of the DOM HUD bar in canvas pixels.
+// Canvas fills 100vw × 100vh and canvas.width = window.innerWidth, so
+// getBoundingClientRect() CSS-pixel values map 1:1 to canvas coordinates.
+function _hudBottom() {
+  const el = document.getElementById('hud');
+  return el ? el.getBoundingClientRect().bottom : 0;
+}
+
 function drawStorySubtitle() {
   if (!storyFightSubtitle || storyFightSubtitle.timer <= 0) return;
   storyFightSubtitle.timer--;
@@ -2147,6 +2379,7 @@ function drawStorySubtitle() {
   const fontSize  = Math.round(cw * 0.022);
   const labelSize = Math.round(cw * 0.014);
   ctx.save();
+  ctx.setTransform(1, 0, 0, 1, 0, 0); // guarantee screen-space regardless of caller transform state
   ctx.font = `${isGuide ? 'bold' : 'italic'} ${fontSize}px "Segoe UI", Arial, sans-serif`;
   ctx.textAlign = 'center';
   const textW = ctx.measureText(text).width;
@@ -2219,6 +2452,54 @@ function drawStorySubtitle() {
   ctx.restore();
 
   if (storyFightSubtitle.timer <= 0) storyFightSubtitle = null;
+}
+
+// ── Story opponent name HUD — small banner at top-right during story fights ───
+function drawStoryOpponentHUD() {
+  if (!storyModeActive || !storyOpponentName || gameMode === 'exploration') return;
+  const p2 = players && players[1];
+  if (!p2 || p2.health <= 0) return;
+
+  const cw = canvas.width;
+  ctx.save();
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+
+  const fontSize = Math.round(cw * 0.018);
+  const label    = storyOpponentName;
+  ctx.font = `bold ${fontSize}px "Segoe UI", Arial, sans-serif`;
+  ctx.textAlign    = 'right';
+  ctx.textBaseline = 'middle';
+  const tw  = ctx.measureText(label).width;
+  // py must sit below the DOM HUD bar (which has an opaque background covering ~120–130px).
+  // _hudBottom() reads the actual rendered height so this stays correct if HUD ever resizes.
+  const px  = cw - 16, py = _hudBottom() + fontSize + 6;
+  const padX = 10, padH = fontSize + 10;
+
+  // Background pill
+  ctx.globalAlpha = 0.78;
+  ctx.fillStyle = 'rgba(10,5,25,0.85)';
+  ctx.beginPath();
+  const bx = px - tw - padX * 2, bw = tw + padX * 2, bh = padH;
+  ctx.roundRect(bx, py - bh / 2, bw, bh, bh / 2);
+  ctx.fill();
+
+  // HP fraction bar under name
+  const hpFrac = Math.max(0, p2.health / p2.maxHealth);
+  const barH   = 3;
+  ctx.globalAlpha = 0.55;
+  ctx.fillStyle = 'rgba(255,255,255,0.15)';
+  ctx.fillRect(bx, py + bh / 2 - barH, bw, barH);
+  ctx.globalAlpha = 0.85;
+  const hpColor = hpFrac > 0.5 ? '#44cc66' : hpFrac > 0.25 ? '#ffaa22' : '#ee3333';
+  ctx.fillStyle = hpColor;
+  ctx.fillRect(bx, py + bh / 2 - barH, bw * hpFrac, barH);
+
+  // Name text
+  ctx.globalAlpha = 0.95;
+  ctx.fillStyle = '#dde4ff';
+  ctx.shadowColor = '#6688ff'; ctx.shadowBlur = 6;
+  ctx.fillText(label, px - padX, py + 1);
+  ctx.restore();
 }
 
 // ============================================================
@@ -2321,6 +2602,68 @@ function drawMirrorArena() {
     ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
   }
   ctx.globalAlpha = 1;
+  ctx.restore();
+}
+
+// ── Mirror arena gimmick: invert controls every 20s ───────────────────────────
+const MIRROR_FLIP_INTERVAL = 1200; // 20 seconds at 60fps
+const MIRROR_WARN_FRAMES   = 90;   // 1.5s warning before flip
+
+function updateMirrorGimmick() {
+  if (!gameRunning || currentArenaKey !== 'mirror') {
+    // Reset when leaving mirror arena
+    if (mirrorFlipped) { mirrorFlipped = false; mirrorFlipTimer = 0; mirrorFlipWarning = 0; }
+    return;
+  }
+  mirrorFlipTimer++;
+  if (mirrorFlipWarning > 0) mirrorFlipWarning--;
+
+  // Warn players before the flip
+  if (mirrorFlipTimer === MIRROR_FLIP_INTERVAL - MIRROR_WARN_FRAMES) {
+    mirrorFlipWarning = MIRROR_WARN_FRAMES;
+    showBossDialogue(mirrorFlipped ? '⟳ Reality restoring…' : '↔ Mirror flipping…', MIRROR_WARN_FRAMES + 20);
+  }
+
+  if (mirrorFlipTimer >= MIRROR_FLIP_INTERVAL) {
+    mirrorFlipped = !mirrorFlipped;
+    mirrorFlipTimer = 0;
+    screenShake = mirrorFlipped ? 22 : 14;
+    CinFX && CinFX.flash(mirrorFlipped ? '#88ccff' : '#ccaaff', 0.45, 12);
+    // All fighters: instantly swap their facing/vx as visual "pop"
+    if (Array.isArray(players)) {
+      for (const p of players) { if (p && p.health > 0) { p.vx = -p.vx * 0.5; } }
+    }
+  }
+}
+
+// Draw mirror warning overlay (screen-space)
+function drawMirrorGimmickOverlay() {
+  if (currentArenaKey !== 'mirror') return;
+  if (mirrorFlipWarning <= 0 && !mirrorFlipped) return;
+
+  ctx.save();
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  const cw = canvas.width, ch = canvas.height;
+
+  // Warning pulse when about to flip
+  if (mirrorFlipWarning > 0) {
+    const alpha = (mirrorFlipWarning / MIRROR_WARN_FRAMES) * 0.22 * (0.5 + 0.5 * Math.sin(mirrorFlipWarning * 0.3));
+    ctx.fillStyle = `rgba(136,204,255,${alpha.toFixed(3)})`;
+    ctx.fillRect(0, 0, cw, ch);
+  }
+
+  // Persistent "MIRRORED" indicator when controls are inverted
+  if (mirrorFlipped) {
+    ctx.globalAlpha = 0.7;
+    ctx.font = `bold ${Math.round(ch * 0.022)}px sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#aaddff';
+    ctx.shadowColor = '#88ccff';
+    ctx.shadowBlur  = 10;
+    ctx.fillText('↔ CONTROLS MIRRORED', cw / 2, _hudBottom() + Math.round(ch * 0.04) + 12);
+    ctx.shadowBlur = 0;
+  }
+
   ctx.restore();
 }
 

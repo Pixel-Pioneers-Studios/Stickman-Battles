@@ -142,6 +142,38 @@ function _finVignette(ctx, alpha) {
 // CinCam, _makeTimeline, _tickTimeline, _makeFinisherSentinel
 // are all defined in smc-cinematics.js (loaded before this file).
 
+// ── Per-character dialogue pools ─────────────────────────────
+const _FIN_DIALOGUE = {
+  trueform: [
+    'I will uncode you.',
+    'You are an error.',
+    'Removed.',
+    'You never existed.',
+    'End of instance.',
+  ],
+  creator: [
+    'I wrote you. I can delete you.',
+    'Back to nothing.',
+    'I designed your defeat.',
+    'You had no say in this.',
+    'This was never a fair fight.',
+  ],
+  yeti: [
+    'CRUSH.',
+    'BREAK.',
+    'NOTHING.',
+    'FALL.',
+    'GONE.',
+  ],
+  beast: [
+    "You don't belong here.",
+    'The wild takes you.',
+    'This is my domain.',
+    'Nature always wins.',
+    'Prey.',
+  ],
+};
+
 // ============================================================
 // BOSS FINISHER 1: VOID SLAM
 // Theme: raw power — boss grabs player, lifts, slams
@@ -168,6 +200,7 @@ const FIN_VOID_SLAM = {
     // Shockwave
     data.shockR = 0;
     data.shockAlpha = 0;
+    data.dialogue = _FIN_DIALOGUE.trueform[Math.floor(Math.random() * _FIN_DIALOGUE.trueform.length)];
 
     data.timeline = _makeTimeline([
       // Frame 0: freeze, zoom in, slow-mo
@@ -333,7 +366,7 @@ const FIN_VOID_SLAM = {
     }
 
     _finTitle(ctx, 'VOID SLAM', t, 'rgba(160,40,255,1)');
-    if (timer > 50 && timer < 130) _finSubtitle(ctx, '"The void takes you."', t);
+    if (timer > 50 && timer < 130) _finSubtitle(ctx, `"${data.dialogue}"`, t);
   }
 };
 
@@ -357,6 +390,7 @@ const FIN_REALITY_BREAK = {
     data.launchY = data.ty0 - 80;
     data.flickerAlpha = 0;
     data.whiteAlpha   = 0;
+    data.dialogue = _FIN_DIALOGUE.trueform[Math.floor(Math.random() * _FIN_DIALOGUE.trueform.length)];
 
     data.timeline = _makeTimeline([
       { frame: 0, fn() {
@@ -518,7 +552,7 @@ const FIN_REALITY_BREAK = {
     }
 
     _finTitle(ctx, 'REALITY BREAK', t, 'rgba(0,220,180,1)');
-    if (timer > 40 && timer < 120) _finSubtitle(ctx, '"Your reality... is mine to rewrite."', t);
+    if (timer > 40 && timer < 120) _finSubtitle(ctx, `"${data.dialogue}"`, t);
   }
 };
 
@@ -542,6 +576,7 @@ const FIN_SKY_EXECUTION = {
     data.bossAppearedAbove = false;
     data.bossAboveX = data.tx0 + data.dir * 5;
     data.bossAboveY = data.peakY - 60;
+    data.dialogue = _FIN_DIALOGUE.creator[Math.floor(Math.random() * _FIN_DIALOGUE.creator.length)];
 
     data.timeline = _makeTimeline([
       { frame: 0, fn() {
@@ -710,7 +745,7 @@ const FIN_SKY_EXECUTION = {
     }
 
     _finTitle(ctx, 'SKY EXECUTION', t, 'rgba(255,120,0,1)');
-    if (timer > 55 && timer < 140) _finSubtitle(ctx, '"There is no escape."', t);
+    if (timer > 55 && timer < 140) _finSubtitle(ctx, `"${data.dialogue}"`, t);
   }
 };
 
@@ -728,6 +763,7 @@ const FIN_DARKNESS_FALLS = {
     data.dir = att.x < tgt.x ? 1 : -1;
     data.bars = 0; data.shockR = 0; data.shockAlpha = 0;
     data.bossSnapX = data.tx0 - data.dir*30;
+    data.dialogue = _FIN_DIALOGUE.creator[Math.floor(Math.random() * _FIN_DIALOGUE.creator.length)];
 
     data.timeline = _makeTimeline([
       { frame: 0, fn() {
@@ -811,6 +847,7 @@ const FIN_DARKNESS_FALLS = {
       ctx.restore();
     }
     if (timer>=68&&timer<=76) _finFlash(ctx,(76-timer)/8*0.82,200,40,40);
+    if (timer>28&&timer<115) _finSubtitle(ctx,`"${data.dialogue}"`,t);
     _finTitle(ctx,'DARKNESS FALLS',t,'rgba(200,0,50,1)');
   }
 };
@@ -911,6 +948,718 @@ const FIN_HEROS_TRIUMPH = {
       ctx.restore();
     }
     _finTitle(ctx,"HERO'S TRIUMPH",t,'rgba(255,210,40,1)');
+  }
+};
+
+// ============================================================
+// TRUE FORM FINISHER 3: ERASURE
+// Theme: target glitches out of existence — cold, inevitable
+// ============================================================
+const FIN_TF_ERASURE = {
+  name: 'ERASURE',
+  accentColor: 'rgba(180,180,255,1)',
+  duration: 150,
+  setup(att, tgt, data) {
+    data.ax0=att.x; data.ay0=att.y; data.tx0=tgt.x; data.ty0=tgt.y;
+    data.dir=att.x<tgt.x?1:-1; data.bars=0; data.glitch=0; data.eraseAlpha=0;
+    data.dialogue=_FIN_DIALOGUE.trueform[Math.floor(Math.random()*_FIN_DIALOGUE.trueform.length)];
+    data.tl=_makeTimeline([
+      {frame:0, fn(){CinCam.slowMo(0.2);CinCam.zoomTo(1.3);CinCam.focusMidpoint(att,tgt);}},
+      {frame:10, fn(){data.bars=1;}},
+      {frame:18, fn(){data.glitch=1.5;CinCam.shake(8);}},
+      {frame:30, fn(){data.glitch=0.5;CinCam.focusOn(tgt);CinCam.zoomTo(1.6);}},
+      {frame:60, fn(){data.glitch=2.5;CinCam.shake(14);spawnParticles(tgt.cx(),tgt.cy(),'#aaaaff',20);}},
+      {frame:80, fn(){data.eraseAlpha=1;data.glitch=4;CinCam.shake(22);spawnParticles(tgt.cx(),tgt.cy(),'#ffffff',25);}},
+      {frame:100, fn(){CinCam.slowMo(1.0);data.glitch=0;}},
+      {frame:130, fn(){CinCam.restore();}},
+      {frame:140, fn(){data.bars=0;}},
+    ]);
+  },
+  update(att, tgt, timer, data) {
+    _tickTimeline(data.tl, timer);
+    if(timer<10) data.bars=timer/10;
+    if(timer>140) data.bars=Math.max(0,(150-timer)/10);
+    if(data.eraseAlpha>0) data.eraseAlpha=Math.max(0,data.eraseAlpha-0.012);
+    if(timer<=80){ att.x=data.ax0;att.y=data.ay0;tgt.x=data.tx0;tgt.y=data.ty0; }
+    else if(timer<=100){
+      tgt.x=data.tx0+(Math.random()-0.5)*12*data.glitch;
+      tgt.y=data.ty0+(Math.random()-0.5)*8*data.glitch;
+    } else {
+      const p=Math.min(1,(timer-100)/40);
+      tgt.x=data.tx0+data.dir*_finEaseOut(p)*120;
+      tgt.y=data.ty0-_finEaseOut(p)*30;
+      att.x=data.ax0;att.y=data.ay0;
+    }
+    att.vx=0;att.vy=0;tgt.vx=0;tgt.vy=0;
+  },
+  draw(ctx, att, tgt, t, timer, data) {
+    const {scX,scY,ox,oy}=_finGameTransform();
+    _finBars(ctx,data.bars); _finVignette(ctx,Math.min(0.6,t*2.5));
+    if(timer<100){
+      const a=Math.min(1,timer/25);
+      ctx.save();ctx.setTransform(scX,0,0,scY,ox,oy);
+      const grd=ctx.createRadialGradient(att.cx(),att.cy(),6,att.cx(),att.cy(),70);
+      grd.addColorStop(0,`rgba(160,160,255,${a*0.3})`);
+      grd.addColorStop(1,'rgba(160,160,255,0)');
+      ctx.shadowColor='#aaaaff';ctx.shadowBlur=36*a;
+      ctx.fillStyle=grd;ctx.beginPath();ctx.arc(att.cx(),att.cy(),70,0,Math.PI*2);ctx.fill();
+      ctx.restore();
+    }
+    if(data.glitch>0){
+      ctx.save();ctx.setTransform(1,0,0,1,0,0);
+      const gi=Math.min(1,data.glitch/3);
+      const tx=tgt.x*scX+ox; const ty=tgt.y*scY+oy;
+      for(let i=0;i<5;i++){
+        const gy=ty+Math.random()*(tgt.h*scY);
+        ctx.fillStyle=`rgba(180,180,255,${gi*0.22})`;
+        ctx.fillRect(tx+(Math.random()-0.5)*20*gi,gy,tgt.w*scX,2+Math.random()*4);
+      }
+      ctx.restore();
+    }
+    if(data.eraseAlpha>0) _finFlash(ctx,data.eraseAlpha*0.7,180,180,255);
+    if(timer>35&&timer<125) _finSubtitle(ctx,`"${data.dialogue}"`,t);
+    _finTitle(ctx,'ERASURE',t,'rgba(180,180,255,1)');
+  }
+};
+
+// ============================================================
+// TRUE FORM FINISHER 4: PHASE SHIFT
+// Theme: reality phases — target blinks out, reappears broken
+// ============================================================
+const FIN_TF_PHASE_SHIFT = {
+  name: 'PHASE SHIFT',
+  accentColor: 'rgba(80,60,200,1)',
+  duration: 155,
+  setup(att, tgt, data) {
+    data.ax0=att.x; data.ay0=att.y; data.tx0=tgt.x; data.ty0=tgt.y;
+    data.dir=att.x<tgt.x?1:-1; data.bars=0; data.shockR=0; data.shockAlpha=0;
+    data.phaseX=tgt.x+( att.x<tgt.x?180:-180); data.phaseY=tgt.y;
+    data.dialogue=_FIN_DIALOGUE.trueform[Math.floor(Math.random()*_FIN_DIALOGUE.trueform.length)];
+    data.tl=_makeTimeline([
+      {frame:0, fn(){CinCam.slowMo(0.3);CinCam.zoomTo(1.25);CinCam.focusMidpoint(att,tgt);}},
+      {frame:12, fn(){data.bars=1;}},
+      {frame:20, fn(){CinCam.focusOn(att);CinCam.slowMo(0.15);}},
+      {frame:55, fn(){CinCam.focusMidpoint(att,tgt);CinCam.shake(16);spawnParticles(tgt.cx(),tgt.cy(),'#6644ff',22);}},
+      {frame:70, fn(){CinCam.slowMo(1.0);CinCam.zoomTo(0.95);}},
+      {frame:80, fn(){
+        data.shockR=1;data.shockAlpha=1;CinCam.shake(38);
+        spawnParticles(data.phaseX,data.phaseY,'#6644ff',45);
+        spawnParticles(data.phaseX,data.phaseY,'#ffffff',18);
+        CinCam.focusPoint(data.phaseX,data.phaseY);CinCam.zoomTo(1.3);
+      }},
+      {frame:125, fn(){CinCam.restore();}},
+      {frame:140, fn(){data.bars=0;}},
+    ]);
+  },
+  update(att, tgt, timer, data) {
+    _tickTimeline(data.tl, timer);
+    if(timer<12) data.bars=timer/12;
+    if(timer>140) data.bars=Math.max(0,(155-timer)/15);
+    if(data.shockR>0){data.shockR+=12;data.shockAlpha=Math.max(0,data.shockAlpha-0.033);}
+    if(timer<=55){ att.x=data.ax0;att.y=data.ay0;tgt.x=data.tx0;tgt.y=data.ty0; }
+    else if(timer<=70){
+      const p=(timer-55)/15;
+      tgt.x=_finLerp(data.tx0,data.phaseX,_finEaseIn(p));
+      tgt.y=_finLerp(data.ty0,data.phaseY,p);
+    } else {
+      tgt.x=data.phaseX;tgt.y=data.phaseY;
+      att.x=data.ax0;att.y=data.ay0;
+    }
+    att.vx=0;att.vy=0;tgt.vx=0;tgt.vy=0;
+  },
+  draw(ctx, att, tgt, t, timer, data) {
+    const {scX,scY,ox,oy}=_finGameTransform();
+    _finBars(ctx,data.bars); _finVignette(ctx,0.5);
+    if(timer<80){
+      const a=Math.min(1,timer/30);
+      ctx.save();ctx.setTransform(scX,0,0,scY,ox,oy);
+      const grd=ctx.createRadialGradient(att.cx(),att.cy(),6,att.cx(),att.cy(),75);
+      grd.addColorStop(0,`rgba(80,60,200,${a*0.35})`);
+      grd.addColorStop(1,'rgba(80,60,200,0)');
+      ctx.shadowColor='#6644ff';ctx.shadowBlur=44*a;
+      ctx.fillStyle=grd;ctx.beginPath();ctx.arc(att.cx(),att.cy(),75,0,Math.PI*2);ctx.fill();
+      ctx.restore();
+    }
+    if(timer>=55&&timer<80){
+      const a=Math.min(1,(timer-55)/10);
+      ctx.save();ctx.setTransform(scX,0,0,scY,ox,oy);
+      for(let i=0;i<3;i++){
+        ctx.strokeStyle=`rgba(100,80,220,${a*(0.6-i*0.15)})`;
+        ctx.lineWidth=3+i;ctx.shadowColor='#6644ff';ctx.shadowBlur=14;
+        ctx.beginPath();ctx.arc(tgt.cx(),tgt.cy(),20+i*16+Math.sin(timer*0.4+i)*8,0,Math.PI*2);ctx.stroke();
+      }
+      ctx.restore();
+    }
+    if(data.shockR>0&&data.shockAlpha>0){
+      ctx.save();ctx.setTransform(scX,0,0,scY,ox,oy);
+      ctx.strokeStyle=`rgba(100,80,255,${data.shockAlpha})`;ctx.lineWidth=6;
+      ctx.shadowColor='#6644ff';ctx.shadowBlur=32;
+      ctx.beginPath();ctx.arc(data.phaseX,data.phaseY,data.shockR,0,Math.PI*2);ctx.stroke();
+      _finImpactLines(ctx,data.phaseX,data.phaseY,14,data.shockR*0.55,'#8866ff',3);
+      ctx.restore();
+    }
+    if(timer>=70&&timer<=78) _finFlash(ctx,(78-timer)/8*0.75,80,60,220);
+    if(timer>30&&timer<130) _finSubtitle(ctx,`"${data.dialogue}"`,t);
+    _finTitle(ctx,'PHASE SHIFT',t,'rgba(80,60,200,1)');
+  }
+};
+
+// ============================================================
+// CREATOR FINISHER 3: CODE DELETION
+// Theme: precise, surgical — player falls through deleted floor
+// ============================================================
+const FIN_CR_CODE_DELETION = {
+  name: 'CODE DELETION',
+  accentColor: 'rgba(0,200,100,1)',
+  duration: 140,
+  setup(att, tgt, data) {
+    data.ax0=att.x; data.ay0=att.y; data.tx0=tgt.x; data.ty0=tgt.y;
+    data.dir=att.x<tgt.x?1:-1; data.bars=0; data.codeAlpha=0;
+    data.fallY=data.ty0+280;
+    data.dialogue=_FIN_DIALOGUE.creator[Math.floor(Math.random()*_FIN_DIALOGUE.creator.length)];
+    data.tl=_makeTimeline([
+      {frame:0, fn(){CinCam.slowMo(0.3);CinCam.zoomTo(1.2);CinCam.focusMidpoint(att,tgt);}},
+      {frame:10, fn(){data.bars=1;}},
+      {frame:25, fn(){
+        att.x=data.tx0-data.dir*30;att.y=data.ay0;
+        att.vx=0;att.vy=0;CinCam.shake(12);
+        spawnParticles(tgt.cx(),tgt.cy(),'#00cc66',18);
+      }},
+      {frame:45, fn(){data.codeAlpha=1;CinCam.slowMo(0.1);CinCam.zoomTo(1.5);CinCam.focusMidpoint(att,tgt);CinCam.shake(8);}},
+      {frame:68, fn(){CinCam.slowMo(1.0);CinCam.focusOn(tgt);}},
+      {frame:115, fn(){CinCam.shake(38);spawnParticles(tgt.cx(),data.fallY,'#00cc66',40);spawnParticles(tgt.cx(),data.fallY,'#ffffff',15);CinCam.zoomTo(1.3);}},
+      {frame:125, fn(){CinCam.restore();}},
+      {frame:132, fn(){data.bars=0;}},
+    ]);
+  },
+  update(att, tgt, timer, data) {
+    _tickTimeline(data.tl, timer);
+    if(timer<10) data.bars=timer/10;
+    if(timer>132) data.bars=Math.max(0,(140-timer)/8);
+    if(data.codeAlpha>0) data.codeAlpha=Math.max(0,data.codeAlpha-0.016);
+    if(timer<=25){att.x=data.ax0;att.y=data.ay0;tgt.x=data.tx0;tgt.y=data.ty0;}
+    else if(timer<=68){tgt.x=data.tx0;tgt.y=data.ty0;att.x=data.tx0-data.dir*30;}
+    else if(timer<=115){
+      const p=(timer-68)/47;
+      tgt.y=_finLerp(data.ty0,data.fallY,_finEaseIn(p));
+      tgt.x=data.tx0;att.x=data.tx0-data.dir*30;att.y=data.ay0;
+    } else {
+      tgt.x=data.tx0;tgt.y=data.fallY;
+      att.x=data.tx0-data.dir*30;att.y=data.ay0;
+    }
+    att.vx=0;att.vy=0;tgt.vx=0;tgt.vy=0;
+  },
+  draw(ctx, att, tgt, t, timer, data) {
+    const {scX,scY,ox,oy}=_finGameTransform();
+    _finBars(ctx,data.bars);
+    ctx.save();ctx.setTransform(1,0,0,1,0,0);
+    ctx.fillStyle=`rgba(0,0,0,${Math.min(0.45,t*1.6)})`;
+    ctx.fillRect(0,0,canvas.width,canvas.height);
+    ctx.restore();
+    if(timer<70){
+      const a=Math.min(1,timer/22);
+      ctx.save();ctx.setTransform(scX,0,0,scY,ox,oy);
+      ctx.shadowColor='#00cc66';ctx.shadowBlur=38*a;
+      const grd=ctx.createRadialGradient(att.cx(),att.cy(),6,att.cx(),att.cy(),65);
+      grd.addColorStop(0,`rgba(0,180,80,${a*0.3})`);
+      grd.addColorStop(1,'rgba(0,180,80,0)');
+      ctx.fillStyle=grd;ctx.beginPath();ctx.arc(att.cx(),att.cy(),65,0,Math.PI*2);ctx.fill();
+      ctx.restore();
+    }
+    if(data.codeAlpha>0){
+      ctx.save();ctx.setTransform(1,0,0,1,0,0);
+      ctx.font=`${Math.floor(9*canvas.width/GAME_W)}px monospace`;
+      ctx.fillStyle=`rgba(0,200,80,${data.codeAlpha*0.5})`;
+      for(let i=0;i<20;i++){
+        ctx.fillText(Math.random()<0.5?'0':'1',Math.random()*canvas.width,Math.random()*canvas.height);
+      }
+      ctx.restore();
+    }
+    if(timer>=68&&timer<=76) _finFlash(ctx,(76-timer)/8*0.72,0,200,100);
+    if(timer>30&&timer<125) _finSubtitle(ctx,`"${data.dialogue}"`,t);
+    _finTitle(ctx,'CODE DELETION',t,'rgba(0,200,100,1)');
+  }
+};
+
+// ============================================================
+// YETI FINISHER 1: AVALANCHE CRUSH
+// Theme: charge in, grab, lift, smash into ground — heavy, primal
+// ============================================================
+const FIN_YETI_AVALANCHE = {
+  name: 'AVALANCHE CRUSH',
+  accentColor: 'rgba(120,200,255,1)',
+  duration: 140,
+  setup(att, tgt, data) {
+    data.ax0=att.x; data.ay0=att.y; data.tx0=tgt.x; data.ty0=tgt.y;
+    data.dir=att.x<tgt.x?1:-1; data.bars=0; data.shockR=0; data.shockAlpha=0;
+    data.bossSnapX=data.tx0-data.dir*30;
+    data.dialogue=_FIN_DIALOGUE.yeti[Math.floor(Math.random()*_FIN_DIALOGUE.yeti.length)];
+    data.tl=_makeTimeline([
+      {frame:0, fn(){CinCam.slowMo(0.35);CinCam.zoomTo(1.2);CinCam.focusMidpoint(att,tgt);}},
+      {frame:10, fn(){data.bars=1;}},
+      {frame:20, fn(){att.x=data.bossSnapX;att.y=data.ay0;att.vx=0;att.vy=0;CinCam.shake(18);spawnParticles(att.cx(),att.cy(),'#aaeeff',20);}},
+      {frame:45, fn(){CinCam.slowMo(0.1);CinCam.zoomTo(1.5);CinCam.focusMidpoint(att,tgt);CinCam.shake(10);}},
+      {frame:68, fn(){
+        data.shockR=1;data.shockAlpha=1;CinCam.slowMo(1.0);CinCam.shake(55);
+        spawnParticles(tgt.cx(),tgt.y+tgt.h,'#aaeeff',60);spawnParticles(tgt.cx(),tgt.y+tgt.h,'#ffffff',25);
+        CinCam.focusPoint(tgt.cx(),tgt.y+tgt.h);CinCam.zoomTo(1.35);
+      }},
+      {frame:110, fn(){CinCam.restore();}},
+      {frame:130, fn(){data.bars=0;}},
+    ]);
+  },
+  update(att, tgt, timer, data) {
+    _tickTimeline(data.tl, timer);
+    if(timer<10) data.bars=timer/10;
+    if(timer>130) data.bars=Math.max(0,(140-timer)/10);
+    if(data.shockR>0){data.shockR+=11;data.shockAlpha=Math.max(0,data.shockAlpha-0.034);}
+    if(timer<=20){att.x=data.ax0;att.y=data.ay0;tgt.x=data.tx0;tgt.y=data.ty0;}
+    else if(timer<=45){
+      const p=(timer-20)/25;
+      att.x=_finLerp(data.ax0,data.bossSnapX,_finEaseOut(p));
+      tgt.x=data.tx0;tgt.y=data.ty0;att.y=data.ay0;
+    } else if(timer<=68){
+      const p=(timer-45)/23;
+      tgt.y=_finLerp(data.ty0,data.ty0-70,_finEaseOut(p));
+      tgt.x=data.tx0;att.x=data.bossSnapX;att.y=data.ay0;
+    } else {
+      const p=Math.min(1,(timer-68)/40);
+      tgt.y=_finLerp(data.ty0-70,data.ty0+tgt.h*0.3,_finEaseIn(p));
+      tgt.x=data.tx0;att.x=data.bossSnapX;att.y=data.ay0;
+    }
+    att.vx=0;att.vy=0;tgt.vx=0;tgt.vy=0;
+  },
+  draw(ctx, att, tgt, t, timer, data) {
+    const {scX,scY,ox,oy}=_finGameTransform();
+    _finBars(ctx,data.bars); _finVignette(ctx,Math.min(0.5,t*2.2));
+    if(timer<70){
+      const a=Math.min(1,timer/25);
+      ctx.save();ctx.setTransform(scX,0,0,scY,ox,oy);
+      const grd=ctx.createRadialGradient(att.cx(),att.cy(),8,att.cx(),att.cy(),90);
+      grd.addColorStop(0,`rgba(100,200,255,${a*0.28})`);
+      grd.addColorStop(1,'rgba(100,200,255,0)');
+      ctx.shadowColor='#88ddff';ctx.shadowBlur=40*a;
+      ctx.fillStyle=grd;ctx.beginPath();ctx.arc(att.cx(),att.cy(),90,0,Math.PI*2);ctx.fill();
+      ctx.restore();
+    }
+    if(data.shockR>0&&data.shockAlpha>0){
+      ctx.save();ctx.setTransform(scX,0,0,scY,ox,oy);
+      ctx.strokeStyle=`rgba(120,200,255,${data.shockAlpha})`;ctx.lineWidth=7;
+      ctx.shadowColor='#88ddff';ctx.shadowBlur=35;
+      ctx.beginPath();ctx.arc(tgt.cx(),data.ty0+tgt.h,data.shockR,0,Math.PI*2);ctx.stroke();
+      _finImpactLines(ctx,tgt.cx(),data.ty0+tgt.h,16,data.shockR*0.5,'#aaeeff',4);
+      ctx.restore();
+    }
+    if(timer>=68&&timer<=76) _finFlash(ctx,(76-timer)/8*0.82,120,200,255);
+    if(timer>25&&timer<120) _finSubtitle(ctx,`"${data.dialogue}"`,t);
+    _finTitle(ctx,'AVALANCHE CRUSH',t,'rgba(120,200,255,1)');
+  }
+};
+
+// ============================================================
+// YETI FINISHER 2: POLAR SLAM
+// Theme: spin target overhead like a club + smash — brutal rotation
+// ============================================================
+const FIN_YETI_POLAR_SLAM = {
+  name: 'POLAR SLAM',
+  accentColor: 'rgba(80,170,255,1)',
+  duration: 135,
+  setup(att, tgt, data) {
+    data.ax0=att.x; data.ay0=att.y; data.tx0=tgt.x; data.ty0=tgt.y;
+    data.dir=att.x<tgt.x?1:-1; data.bars=0; data.shockR=0; data.shockAlpha=0;
+    data.spinAngle=0; data.orbitR=55;
+    data.slamX=att.x+( att.x<tgt.x?50:-50); data.slamY=data.ty0;
+    data.dialogue=_FIN_DIALOGUE.yeti[Math.floor(Math.random()*_FIN_DIALOGUE.yeti.length)];
+    data.tl=_makeTimeline([
+      {frame:0, fn(){CinCam.slowMo(0.3);CinCam.zoomTo(1.25);CinCam.focusMidpoint(att,tgt);}},
+      {frame:10, fn(){data.bars=1;}},
+      {frame:18, fn(){CinCam.shake(14);spawnParticles(att.cx(),att.cy(),'#88ccff',16);}},
+      {frame:55, fn(){CinCam.slowMo(0.08);CinCam.zoomTo(1.55);CinCam.focusMidpoint(att,tgt);}},
+      {frame:72, fn(){
+        data.shockR=1;data.shockAlpha=1;CinCam.slowMo(1.0);CinCam.shake(60);
+        spawnParticles(data.slamX,data.slamY,'#88ccff',55);spawnParticles(data.slamX,data.slamY,'#ffffff',20);
+        CinCam.focusPoint(data.slamX,data.slamY);CinCam.zoomTo(1.4);
+      }},
+      {frame:110, fn(){CinCam.restore();}},
+      {frame:125, fn(){data.bars=0;}},
+    ]);
+  },
+  update(att, tgt, timer, data) {
+    _tickTimeline(data.tl, timer);
+    if(timer<10) data.bars=timer/10;
+    if(timer>125) data.bars=Math.max(0,(135-timer)/10);
+    data.spinAngle+=timer<72?0.35:0;
+    if(data.shockR>0){data.shockR+=13;data.shockAlpha=Math.max(0,data.shockAlpha-0.036);}
+    if(timer<=18){att.x=data.ax0;att.y=data.ay0;tgt.x=data.tx0;tgt.y=data.ty0;}
+    else if(timer<=72){
+      att.x=data.ax0;att.y=data.ay0;
+      tgt.x=att.cx()+Math.cos(data.spinAngle)*data.orbitR-tgt.w/2;
+      tgt.y=att.cy()+Math.sin(data.spinAngle)*data.orbitR*0.5-tgt.h/2;
+    } else {
+      const p=Math.min(1,(timer-72)/38);
+      tgt.x=_finLerp(data.tx0,data.slamX-tgt.w/2,_finEaseIn(p));
+      tgt.y=_finLerp(data.ty0,data.slamY,_finEaseIn(p));
+      att.x=data.ax0;att.y=data.ay0;
+    }
+    att.vx=0;att.vy=0;tgt.vx=0;tgt.vy=0;
+  },
+  draw(ctx, att, tgt, t, timer, data) {
+    const {scX,scY,ox,oy}=_finGameTransform();
+    _finBars(ctx,data.bars); _finVignette(ctx,0.48);
+    if(timer<74){
+      const a=Math.min(1,timer/20);
+      ctx.save();ctx.setTransform(scX,0,0,scY,ox,oy);
+      ctx.shadowColor='#88ccff';ctx.shadowBlur=45*a;
+      const grd=ctx.createRadialGradient(att.cx(),att.cy(),8,att.cx(),att.cy(),95);
+      grd.addColorStop(0,`rgba(80,170,255,${a*0.3})`);
+      grd.addColorStop(1,'rgba(80,170,255,0)');
+      ctx.fillStyle=grd;ctx.beginPath();ctx.arc(att.cx(),att.cy(),95,0,Math.PI*2);ctx.fill();
+      if(timer>18){
+        ctx.strokeStyle='rgba(120,200,255,0.5)';ctx.lineWidth=2;ctx.shadowBlur=14;
+        ctx.beginPath();ctx.arc(att.cx(),att.cy(),data.orbitR,0,Math.PI*2);ctx.stroke();
+      }
+      ctx.restore();
+    }
+    if(data.shockR>0&&data.shockAlpha>0){
+      ctx.save();ctx.setTransform(scX,0,0,scY,ox,oy);
+      ctx.strokeStyle=`rgba(80,170,255,${data.shockAlpha})`;ctx.lineWidth=8;
+      ctx.shadowColor='#88ccff';ctx.shadowBlur=38;
+      ctx.beginPath();ctx.arc(data.slamX,data.slamY,data.shockR,0,Math.PI*2);ctx.stroke();
+      _finImpactLines(ctx,data.slamX,data.slamY+10,14,data.shockR*0.55,'#aaddff',5);
+      ctx.restore();
+    }
+    if(timer>=72&&timer<=80) _finFlash(ctx,(80-timer)/8*0.88,80,170,255);
+    if(timer>20&&timer<118) _finSubtitle(ctx,`"${data.dialogue}"`,t);
+    _finTitle(ctx,'POLAR SLAM',t,'rgba(80,170,255,1)');
+  }
+};
+
+// ============================================================
+// YETI FINISHER 3: ICE BURIAL
+// Theme: freeze target solid then shatter — cold, pitiless
+// ============================================================
+const FIN_YETI_ICE_BURIAL = {
+  name: 'ICE BURIAL',
+  accentColor: 'rgba(180,240,255,1)',
+  duration: 138,
+  setup(att, tgt, data) {
+    data.ax0=att.x; data.ay0=att.y; data.tx0=tgt.x; data.ty0=tgt.y;
+    data.dir=att.x<tgt.x?1:-1; data.bars=0; data.freezeAlpha=0; data.shockR=0; data.shockAlpha=0;
+    data.dialogue=_FIN_DIALOGUE.yeti[Math.floor(Math.random()*_FIN_DIALOGUE.yeti.length)];
+    data.tl=_makeTimeline([
+      {frame:0, fn(){CinCam.slowMo(0.28);CinCam.zoomTo(1.3);CinCam.focusMidpoint(att,tgt);}},
+      {frame:12, fn(){data.bars=1;}},
+      {frame:25, fn(){CinCam.focusOn(tgt);CinCam.slowMo(0.12);}},
+      {frame:55, fn(){data.freezeAlpha=1;CinCam.shake(20);spawnParticles(tgt.cx(),tgt.cy(),'#ccf0ff',28);}},
+      {frame:72, fn(){
+        data.shockR=1;data.shockAlpha=1;CinCam.slowMo(1.0);CinCam.shake(44);
+        spawnParticles(tgt.cx(),tgt.cy(),'#ccf0ff',45);spawnParticles(tgt.cx(),tgt.cy(),'#ffffff',18);
+        CinCam.zoomTo(1.4);CinCam.focusOn(tgt);
+      }},
+      {frame:115, fn(){CinCam.restore();}},
+      {frame:128, fn(){data.bars=0;}},
+    ]);
+  },
+  update(att, tgt, timer, data) {
+    _tickTimeline(data.tl, timer);
+    if(timer<12) data.bars=timer/12;
+    if(timer>128) data.bars=Math.max(0,(138-timer)/10);
+    if(data.freezeAlpha>0) data.freezeAlpha=Math.max(0,data.freezeAlpha-0.013);
+    if(data.shockR>0){data.shockR+=10;data.shockAlpha=Math.max(0,data.shockAlpha-0.032);}
+    att.x=data.ax0;att.y=data.ay0;
+    if(timer<=55){tgt.x=data.tx0;tgt.y=data.ty0;}
+    else if(timer<=72){
+      tgt.x=data.tx0+(Math.random()-0.5)*5;
+      tgt.y=data.ty0+(Math.random()-0.5)*4;
+    } else {
+      const p=Math.min(1,(timer-72)/35);
+      tgt.x=data.tx0;tgt.y=data.ty0+_finEaseIn(p)*75;
+    }
+    att.vx=0;att.vy=0;tgt.vx=0;tgt.vy=0;
+  },
+  draw(ctx, att, tgt, t, timer, data) {
+    const {scX,scY,ox,oy}=_finGameTransform();
+    _finBars(ctx,data.bars); _finVignette(ctx,0.46);
+    ctx.save();ctx.setTransform(scX,0,0,scY,ox,oy);
+    const a=Math.min(1,timer/30);
+    ctx.shadowColor='#ccf0ff';ctx.shadowBlur=32*a;
+    const grd=ctx.createRadialGradient(att.cx(),att.cy(),8,att.cx(),att.cy(),85);
+    grd.addColorStop(0,`rgba(160,230,255,${a*0.25})`);
+    grd.addColorStop(1,'rgba(160,230,255,0)');
+    ctx.fillStyle=grd;ctx.beginPath();ctx.arc(att.cx(),att.cy(),85,0,Math.PI*2);ctx.fill();
+    if(timer>55){
+      const fa=Math.min(1,(timer-55)/12);
+      for(let i=0;i<6;i++){
+        const ang=i/6*Math.PI*2; const r=20+i*8;
+        ctx.strokeStyle=`rgba(180,240,255,${fa*(0.7-i*0.08)})`;ctx.lineWidth=2;
+        ctx.beginPath();
+        ctx.moveTo(tgt.cx()+Math.cos(ang)*8,tgt.cy()+Math.sin(ang)*8);
+        ctx.lineTo(tgt.cx()+Math.cos(ang)*r,tgt.cy()+Math.sin(ang)*r);
+        ctx.stroke();
+      }
+    }
+    ctx.restore();
+    if(data.freezeAlpha>0) _finFlash(ctx,data.freezeAlpha*0.5,180,240,255);
+    if(data.shockR>0&&data.shockAlpha>0){
+      ctx.save();ctx.setTransform(scX,0,0,scY,ox,oy);
+      ctx.strokeStyle=`rgba(180,240,255,${data.shockAlpha})`;ctx.lineWidth=6;
+      ctx.shadowColor='#ccf0ff';ctx.shadowBlur=28;
+      ctx.beginPath();ctx.arc(tgt.cx(),data.ty0+tgt.h,data.shockR,0,Math.PI*2);ctx.stroke();
+      ctx.restore();
+    }
+    if(timer>=72&&timer<=80) _finFlash(ctx,(80-timer)/8*0.78,180,240,255);
+    if(timer>28&&timer<118) _finSubtitle(ctx,`"${data.dialogue}"`,t);
+    _finTitle(ctx,'ICE BURIAL',t,'rgba(180,240,255,1)');
+  }
+};
+
+// ============================================================
+// FOREST BEAST FINISHER 1: FERAL TACKLE
+// Theme: explosive full-sprint charge-tackle — wild, unstoppable
+// ============================================================
+const FIN_BEAST_FERAL_TACKLE = {
+  name: 'FERAL TACKLE',
+  accentColor: 'rgba(80,200,60,1)',
+  duration: 130,
+  setup(att, tgt, data) {
+    data.ax0=att.x; data.ay0=att.y; data.tx0=tgt.x; data.ty0=tgt.y;
+    data.dir=att.x<tgt.x?1:-1; data.bars=0; data.shockR=0; data.shockAlpha=0;
+    data.chargeX=data.tx0+data.dir*180; data.chargeY=data.ty0-15;
+    data.dialogue=_FIN_DIALOGUE.beast[Math.floor(Math.random()*_FIN_DIALOGUE.beast.length)];
+    data.tl=_makeTimeline([
+      {frame:0, fn(){CinCam.slowMo(0.35);CinCam.zoomTo(1.15);CinCam.focusMidpoint(att,tgt);}},
+      {frame:10, fn(){data.bars=1;}},
+      {frame:18, fn(){CinCam.focusOn(att);spawnParticles(att.cx(),att.cy(),'#44cc22',18);}},
+      {frame:38, fn(){CinCam.slowMo(0.08);CinCam.zoomTo(1.55);CinCam.focusMidpoint(att,tgt);CinCam.shake(12);}},
+      {frame:52, fn(){
+        CinCam.slowMo(1.0);CinCam.shake(50);data.shockR=1;data.shockAlpha=1;
+        spawnParticles(tgt.cx(),tgt.cy(),'#44cc22',55);spawnParticles(tgt.cx(),tgt.cy(),'#ffffff',20);
+        spawnParticles(tgt.cx(),tgt.cy(),'#88ff44',22);CinCam.zoomTo(1.0);
+      }},
+      {frame:60, fn(){CinCam.focusOn(tgt);CinCam.zoomTo(1.3);}},
+      {frame:105, fn(){CinCam.restore();}},
+      {frame:120, fn(){data.bars=0;}},
+    ]);
+  },
+  update(att, tgt, timer, data) {
+    _tickTimeline(data.tl, timer);
+    if(timer<10) data.bars=timer/10;
+    if(timer>120) data.bars=Math.max(0,(130-timer)/10);
+    if(data.shockR>0){data.shockR+=13;data.shockAlpha=Math.max(0,data.shockAlpha-0.036);}
+    if(timer<=38){att.x=data.ax0;att.y=data.ay0;tgt.x=data.tx0;tgt.y=data.ty0;}
+    else if(timer<=52){
+      const p=(timer-38)/14;
+      att.x=_finLerp(data.ax0,data.tx0-data.dir*10,_finEaseIn(p));
+      att.y=data.ay0;tgt.x=data.tx0;tgt.y=data.ty0;
+    } else {
+      att.x=data.tx0-data.dir*10;att.y=data.ay0;
+      const p=Math.min(1,(timer-52)/48);
+      tgt.x=_finLerp(data.tx0,data.chargeX,_finEaseOut(p));
+      tgt.y=_finLerp(data.ty0,data.chargeY,p<0.5?_finEaseOut(p*2)*(-0.3):_finEaseIn((p-0.5)*2)*0.4-0.3+0.7);
+    }
+    att.vx=0;att.vy=0;tgt.vx=0;tgt.vy=0;
+  },
+  draw(ctx, att, tgt, t, timer, data) {
+    const {scX,scY,ox,oy}=_finGameTransform();
+    _finBars(ctx,data.bars); _finVignette(ctx,0.42);
+    if(timer<54){
+      const a=Math.min(1,timer/22);
+      ctx.save();ctx.setTransform(scX,0,0,scY,ox,oy);
+      const grd=ctx.createRadialGradient(att.cx(),att.cy(),8,att.cx(),att.cy(),80);
+      grd.addColorStop(0,`rgba(60,200,30,${a*0.3})`);
+      grd.addColorStop(1,'rgba(60,200,30,0)');
+      ctx.shadowColor='#44cc22';ctx.shadowBlur=38*a;
+      ctx.fillStyle=grd;ctx.beginPath();ctx.arc(att.cx(),att.cy(),80,0,Math.PI*2);ctx.fill();
+      ctx.restore();
+    }
+    if(timer>=38&&timer<52){
+      ctx.save();ctx.setTransform(scX,0,0,scY,ox,oy);
+      const pa=(timer-38)/14;
+      for(let i=0;i<5;i++){
+        ctx.strokeStyle=`rgba(80,220,40,${pa*(0.6-i*0.1)})`;ctx.lineWidth=3;
+        ctx.beginPath();ctx.moveTo(att.cx()-data.dir*(i*12+5),att.cy()+(i-2)*8);
+        ctx.lineTo(att.cx()-data.dir*(i*12+25),att.cy()+(i-2)*8);ctx.stroke();
+      }
+      ctx.restore();
+    }
+    if(data.shockR>0&&data.shockAlpha>0){
+      ctx.save();ctx.setTransform(scX,0,0,scY,ox,oy);
+      ctx.strokeStyle=`rgba(80,200,60,${data.shockAlpha})`;ctx.lineWidth=6;
+      ctx.shadowColor='#44cc22';ctx.shadowBlur=32;
+      ctx.beginPath();ctx.arc(tgt.cx(),tgt.cy(),data.shockR,0,Math.PI*2);ctx.stroke();
+      _finImpactLines(ctx,tgt.cx(),tgt.cy(),12,data.shockR*0.6,'#88ff44',4);
+      ctx.restore();
+    }
+    if(timer>=52&&timer<=60) _finFlash(ctx,(60-timer)/8*0.72,60,200,40);
+    if(timer>22&&timer<112) _finSubtitle(ctx,`"${data.dialogue}"`,t);
+    _finTitle(ctx,'FERAL TACKLE',t,'rgba(80,200,60,1)');
+  }
+};
+
+// ============================================================
+// FOREST BEAST FINISHER 2: NATURE DEVOUR
+// Theme: vine-whip + drag into the earth — wild nature power
+// ============================================================
+const FIN_BEAST_NATURE_DEVOUR = {
+  name: 'NATURE DEVOUR',
+  accentColor: 'rgba(40,160,40,1)',
+  duration: 145,
+  setup(att, tgt, data) {
+    data.ax0=att.x; data.ay0=att.y; data.tx0=tgt.x; data.ty0=tgt.y;
+    data.dir=att.x<tgt.x?1:-1; data.bars=0; data.shockR=0; data.shockAlpha=0;
+    data.vineAlpha=0; data.slamY=data.ty0+200;
+    data.dialogue=_FIN_DIALOGUE.beast[Math.floor(Math.random()*_FIN_DIALOGUE.beast.length)];
+    data.tl=_makeTimeline([
+      {frame:0, fn(){CinCam.slowMo(0.3);CinCam.zoomTo(1.2);CinCam.focusMidpoint(att,tgt);}},
+      {frame:10, fn(){data.bars=1;}},
+      {frame:22, fn(){data.vineAlpha=1;CinCam.shake(10);spawnParticles(tgt.cx(),tgt.cy(),'#22aa22',18);}},
+      {frame:50, fn(){CinCam.slowMo(0.1);CinCam.zoomTo(1.5);CinCam.focusMidpoint(att,tgt);CinCam.shake(14);}},
+      {frame:72, fn(){
+        CinCam.slowMo(1.0);CinCam.shake(50);data.shockR=1;data.shockAlpha=1;
+        spawnParticles(tgt.cx(),data.slamY,'#22aa22',55);spawnParticles(tgt.cx(),data.slamY,'#ffffff',18);
+        CinCam.focusPoint(tgt.cx(),data.slamY);CinCam.zoomTo(1.35);
+      }},
+      {frame:115, fn(){CinCam.restore();}},
+      {frame:133, fn(){data.bars=0;}},
+    ]);
+  },
+  update(att, tgt, timer, data) {
+    _tickTimeline(data.tl, timer);
+    if(timer<10) data.bars=timer/10;
+    if(timer>133) data.bars=Math.max(0,(145-timer)/12);
+    if(data.vineAlpha>0) data.vineAlpha=Math.max(0,data.vineAlpha-0.012);
+    if(data.shockR>0){data.shockR+=12;data.shockAlpha=Math.max(0,data.shockAlpha-0.033);}
+    att.x=data.ax0;att.y=data.ay0;
+    if(timer<=22){tgt.x=data.tx0;tgt.y=data.ty0;}
+    else if(timer<=50){
+      tgt.x=data.tx0+(Math.random()-0.5)*6;
+      tgt.y=data.ty0+(Math.random()-0.5)*5;
+    } else if(timer<=72){
+      const p=(timer-50)/22;
+      tgt.y=_finLerp(data.ty0,data.slamY,_finEaseIn(p));tgt.x=data.tx0;
+    } else {
+      tgt.x=data.tx0;tgt.y=data.slamY;
+    }
+    att.vx=0;att.vy=0;tgt.vx=0;tgt.vy=0;
+  },
+  draw(ctx, att, tgt, t, timer, data) {
+    const {scX,scY,ox,oy}=_finGameTransform();
+    _finBars(ctx,data.bars); _finVignette(ctx,0.44);
+    const a=Math.min(1,timer/25);
+    ctx.save();ctx.setTransform(scX,0,0,scY,ox,oy);
+    ctx.shadowColor='#22aa22';ctx.shadowBlur=35*a;
+    const grd=ctx.createRadialGradient(att.cx(),att.cy(),8,att.cx(),att.cy(),75);
+    grd.addColorStop(0,`rgba(30,160,30,${a*0.32})`);
+    grd.addColorStop(1,'rgba(30,160,30,0)');
+    ctx.fillStyle=grd;ctx.beginPath();ctx.arc(att.cx(),att.cy(),75,0,Math.PI*2);ctx.fill();
+    if(timer>22&&timer<72){
+      const va=Math.min(1,(timer-22)/12);
+      for(let i=0;i<4;i++){
+        const ang=i*Math.PI*0.5+timer*0.06;
+        ctx.strokeStyle=`rgba(30,180,30,${va*(0.55-i*0.08)})`;ctx.lineWidth=2+i*0.5;ctx.shadowBlur=10;
+        ctx.beginPath();
+        ctx.moveTo(att.cx(),att.cy());
+        ctx.bezierCurveTo(
+          att.cx()+Math.cos(ang)*35,att.cy()+Math.sin(ang)*25,
+          tgt.cx()+Math.cos(ang+1)*20,tgt.cy()+Math.sin(ang+1)*20,
+          tgt.cx(),tgt.cy()
+        );
+        ctx.stroke();
+      }
+    }
+    ctx.restore();
+    if(data.shockR>0&&data.shockAlpha>0){
+      ctx.save();ctx.setTransform(scX,0,0,scY,ox,oy);
+      ctx.strokeStyle=`rgba(40,160,40,${data.shockAlpha})`;ctx.lineWidth=6;
+      ctx.shadowColor='#22aa22';ctx.shadowBlur=28;
+      ctx.beginPath();ctx.arc(tgt.cx(),data.slamY,data.shockR,0,Math.PI*2);ctx.stroke();
+      _finImpactLines(ctx,tgt.cx(),data.slamY,14,data.shockR*0.55,'#44cc44',3);
+      ctx.restore();
+    }
+    if(data.vineAlpha>0) _finFlash(ctx,data.vineAlpha*0.35,30,160,30);
+    if(timer>=72&&timer<=80) _finFlash(ctx,(80-timer)/8*0.82,40,160,40);
+    if(timer>28&&timer<125) _finSubtitle(ctx,`"${data.dialogue}"`,t);
+    _finTitle(ctx,'NATURE DEVOUR',t,'rgba(40,160,40,1)');
+  }
+};
+
+// ============================================================
+// FOREST BEAST FINISHER 3: SAVAGE LAUNCH
+// Theme: grab + spin + hurl across the entire arena
+// ============================================================
+const FIN_BEAST_SAVAGE_LAUNCH = {
+  name: 'SAVAGE LAUNCH',
+  accentColor: 'rgba(160,230,60,1)',
+  duration: 150,
+  setup(att, tgt, data) {
+    data.ax0=att.x; data.ay0=att.y; data.tx0=tgt.x; data.ty0=tgt.y;
+    data.dir=att.x<tgt.x?1:-1; data.bars=0; data.shockR=0; data.shockAlpha=0;
+    data.spinAngle=0; data.orbitR=50;
+    data.landX=data.tx0+data.dir*280; data.landY=data.ty0;
+    data.dialogue=_FIN_DIALOGUE.beast[Math.floor(Math.random()*_FIN_DIALOGUE.beast.length)];
+    data.tl=_makeTimeline([
+      {frame:0, fn(){CinCam.slowMo(0.35);CinCam.zoomTo(1.15);CinCam.focusMidpoint(att,tgt);}},
+      {frame:10, fn(){data.bars=1;}},
+      {frame:20, fn(){CinCam.shake(14);spawnParticles(att.cx(),att.cy(),'#88dd22',16);}},
+      {frame:55, fn(){CinCam.slowMo(0.08);CinCam.zoomTo(1.5);CinCam.focusMidpoint(att,tgt);}},
+      {frame:70, fn(){CinCam.slowMo(1.0);CinCam.zoomTo(0.9);}},
+      {frame:75, fn(){CinCam.focusOn(tgt);}},
+      {frame:118, fn(){
+        data.shockR=1;data.shockAlpha=1;CinCam.shake(52);
+        spawnParticles(data.landX,data.landY,'#88dd22',55);spawnParticles(data.landX,data.landY,'#ffffff',20);
+        CinCam.focusPoint(data.landX,data.landY);CinCam.zoomTo(1.3);
+      }},
+      {frame:138, fn(){CinCam.restore();}},
+      {frame:142, fn(){data.bars=0;}},
+    ]);
+  },
+  update(att, tgt, timer, data) {
+    _tickTimeline(data.tl, timer);
+    if(timer<10) data.bars=timer/10;
+    if(timer>142) data.bars=Math.max(0,(150-timer)/8);
+    data.spinAngle+=timer<70?0.32:0;
+    if(data.shockR>0){data.shockR+=12;data.shockAlpha=Math.max(0,data.shockAlpha-0.032);}
+    if(timer<=20){att.x=data.ax0;att.y=data.ay0;tgt.x=data.tx0;tgt.y=data.ty0;}
+    else if(timer<=70){
+      att.x=data.ax0;att.y=data.ay0;
+      tgt.x=att.cx()+Math.cos(data.spinAngle)*data.orbitR-tgt.w/2;
+      tgt.y=att.cy()+Math.sin(data.spinAngle)*data.orbitR*0.4-tgt.h/2;
+    } else {
+      att.x=data.ax0;att.y=data.ay0;
+      const p=Math.min(1,(timer-70)/48);
+      tgt.x=_finLerp(data.tx0,data.landX,_finEaseIn(p));
+      tgt.y=_finLerp(data.ty0,data.landY,p<0.5?_finEaseOut(p*2)*(-0.35):_finEaseIn((p-0.5)*2)*0.5-0.35+0.85);
+    }
+    att.vx=0;att.vy=0;tgt.vx=0;tgt.vy=0;
+  },
+  draw(ctx, att, tgt, t, timer, data) {
+    const {scX,scY,ox,oy}=_finGameTransform();
+    _finBars(ctx,data.bars); _finVignette(ctx,0.45);
+    if(timer<72){
+      const a=Math.min(1,timer/22);
+      ctx.save();ctx.setTransform(scX,0,0,scY,ox,oy);
+      const grd=ctx.createRadialGradient(att.cx(),att.cy(),8,att.cx(),att.cy(),88);
+      grd.addColorStop(0,`rgba(100,200,30,${a*0.3})`);
+      grd.addColorStop(1,'rgba(100,200,30,0)');
+      ctx.shadowColor='#88dd22';ctx.shadowBlur=42*a;
+      ctx.fillStyle=grd;ctx.beginPath();ctx.arc(att.cx(),att.cy(),88,0,Math.PI*2);ctx.fill();
+      if(timer>20){
+        ctx.strokeStyle='rgba(120,230,40,0.45)';ctx.lineWidth=2;
+        ctx.beginPath();ctx.arc(att.cx(),att.cy(),data.orbitR,0,Math.PI*2);ctx.stroke();
+      }
+      ctx.restore();
+    }
+    if(data.shockR>0&&data.shockAlpha>0){
+      ctx.save();ctx.setTransform(scX,0,0,scY,ox,oy);
+      ctx.strokeStyle=`rgba(140,210,50,${data.shockAlpha})`;ctx.lineWidth=7;
+      ctx.shadowColor='#88dd22';ctx.shadowBlur=34;
+      ctx.beginPath();ctx.arc(data.landX,data.landY,data.shockR,0,Math.PI*2);ctx.stroke();
+      _finImpactLines(ctx,data.landX,data.landY,16,data.shockR*0.5,'#aaff44',4);
+      ctx.restore();
+    }
+    if(timer>=70&&timer<=78) _finFlash(ctx,(78-timer)/8*0.68,100,200,40);
+    if(timer>25&&timer<130) _finSubtitle(ctx,`"${data.dialogue}"`,t);
+    _finTitle(ctx,'SAVAGE LAUNCH',t,'rgba(160,230,60,1)');
   }
 };
 
@@ -1530,8 +2279,13 @@ function _pickFinisher(attacker) {
   }
 }
 
-// ── Boss finisher pool ───────────────────────────────────────
-const _BOSS_KILL_POOL = [FIN_VOID_SLAM, FIN_REALITY_BREAK, FIN_SKY_EXECUTION, FIN_DARKNESS_FALLS];
+// ── Per-character boss finisher pools ────────────────────────
+const _TF_KILL_POOL      = [FIN_VOID_SLAM, FIN_REALITY_BREAK, FIN_TF_ERASURE, FIN_TF_PHASE_SHIFT];
+const _CREATOR_KILL_POOL = [FIN_SKY_EXECUTION, FIN_DARKNESS_FALLS, FIN_CR_CODE_DELETION];
+const _YETI_KILL_POOL    = [FIN_YETI_AVALANCHE, FIN_YETI_POLAR_SLAM, FIN_YETI_ICE_BURIAL];
+const _BEAST_KILL_POOL   = [FIN_BEAST_FERAL_TACKLE, FIN_BEAST_NATURE_DEVOUR, FIN_BEAST_SAVAGE_LAUNCH];
+// Legacy fallback
+const _BOSS_KILL_POOL    = [FIN_VOID_SLAM, FIN_REALITY_BREAK, FIN_SKY_EXECUTION, FIN_DARKNESS_FALLS];
 
 // ============================================================
 // TRIGGER
@@ -1546,8 +2300,13 @@ function triggerFinisher(attacker, target) {
   let def = null;
 
   if (attacker.isBoss && !target.isBoss) {
-    // Boss kills player — pick randomly from pool
-    def = _BOSS_KILL_POOL[Math.floor(Math.random() * _BOSS_KILL_POOL.length)];
+    // Boss kills player — pick from character-specific pool
+    let _pool;
+    if (attacker.isTrueForm)           _pool = _TF_KILL_POOL;
+    else if (attacker.isYeti)          _pool = _YETI_KILL_POOL;
+    else if (attacker.isBeast)         _pool = _BEAST_KILL_POOL;
+    else                               _pool = _CREATOR_KILL_POOL;
+    def = _pool[Math.floor(Math.random() * _pool.length)];
   } else if (target.isBoss && !attacker.isBoss) {
     // Player kills boss
     def = FIN_HEROS_TRIUMPH;

@@ -6,7 +6,7 @@
 class Fighter {
   constructor(x, y, color, weaponKey, controls, isAI, aiDifficulty) {
     this.x = x; this.y = y;
-    this.w = 34; this.h = 78;
+    this.w = 34; this.h = 84;
     this.vx = 0; this.vy = 0;
     this.color       = color;
     this.weaponKey   = weaponKey;
@@ -44,7 +44,7 @@ class Fighter {
     this.superFlashTimer = 0;    // countdown for "SUPER!" text above player
     this.stamina         = 100;  // 0-100 stamina; drains on attack, regens over time
     this.maxStamina      = 100;
-    this.superChargeRate = 0.5;  // halved from default — boss overrides to 3
+    this.superChargeRate = 1.0;  // base rate; boss overrides higher
     this.charClass      = 'none';
     this.classSpeedMult = 1.0;
     this.rageStacks     = 0;
@@ -72,6 +72,12 @@ class Fighter {
     this.aiReact     = 0;
     this.squashTimer   = 0;  // frames of landing squash animation
     this.aiNoHitTimer  = 0;  // frames bot has been attacking without landing a hit
+    // ---- NO-IDLE SYSTEM ----
+    this.intent          = 'pressure'; // 'pressure'|'reposition'|'bait'|'retreat'
+    this._intentTimer    = 0;          // AI ticks until next intent re-evaluation
+    this._inactiveTime   = 0;          // AI ticks since last meaningful action
+    this._microRandTimer = 0;          // countdown to next micro-randomization pulse
+    this._playerIdleTmr  = 0;         // AI ticks the target has been idle
     this._megaJumping    = false;
     this._megaJumpLanded = false;
     this._megaSmashing   = false;
@@ -92,6 +98,16 @@ class Fighter {
     this.spawnY      = y;
     this.name        = '';
     this.playerNum   = 1;
+    // ── Anti-kite system ─────────────────────────────────────────────────────
+    this._kiteTimer     = 0;   // frames of continuous high-speed movement
+    this._kiteSpeedMult = 1.0; // applied in processInput; decays toward 0.70 over 8s
+    // ── Ranged weapon state ───────────────────────────────────────────────────
+    this._rangedBurstTimer = 0; // frames since last ranged attack (resets on pause)
+    this._rangedMovePenalty = 0; // frames of post-burst speed debuff remaining
+    // ── Bot ranged AI state ───────────────────────────────────────────────────
+    this._rangedStrafeDir   = 1;   // current strafe direction
+    this._rangedStrafeTimer = 0;   // frames until next strafe direction flip
+    this._rangedAimPause    = 0;   // frames spent aiming (standing still for accuracy)
   }
 
   cx() { return this.x + this.w / 2; }
@@ -161,7 +177,7 @@ class Fighter {
     if (_prevAtkTimer === 1 && this.attackTimer === 0 && !this.isBoss) {
       let endlag = this.weapon.endlag || 0;
       // Whiff punish: extra recovery if swing missed
-      if (!this.weaponHit) endlag = Math.round(endlag * 1.6);
+      if (!this.weaponHit) endlag = Math.round(endlag * 2.4); // whiff is heavily punishable
       // Low stamina: sluggish recovery (up to +40% at 0 stamina)
       const staminaRatio = this.stamina / (this.maxStamina || 100);
       if (staminaRatio < 0.4) endlag = Math.round(endlag * (1 + 0.4 * (1 - staminaRatio / 0.4)));
@@ -173,6 +189,42 @@ class Fighter {
     if (this.attackEndlag > 0) { this.attackEndlag--; this.vx *= 0.72; } // slow during recovery
     // Stamina regen
     if (!this.isBoss) this.stamina = Math.min(this.maxStamina, this.stamina + 0.35);
+
+    // ── Anti-kite timer (human players — 1v1, minigames, story; not boss/TF) ───
+    if (!this.isAI && !this.isBoss) {
+      const _kiteMode   = gameMode === '2p' || gameMode === 'minigames' || storyModeActive;
+      const _movingFast = Math.abs(this.vx) > 3.8;
+      const _inCombat   = this.hurtTimer > 0 || this.attackTimer > 0 || this.attackEndlag > 0;
+      const _nearEnemy  = this.target && Math.abs(this.target.cx() - this.cx()) < 140;
+      // Increment while actively running away from combat; decay 3× faster when not kiting
+      if (!_kiteMode || !_movingFast || _inCombat || _nearEnemy) {
+        this._kiteTimer = Math.max(0, this._kiteTimer - 3);
+      } else {
+        this._kiteTimer++;
+      }
+      // Grace: full speed for 90f (~1.5s), then linear decay to 0.65 floor by 450f (~7.5s)
+      if (this._kiteTimer <= 90) {
+        this._kiteSpeedMult = 1.0;
+      } else if (this._kiteTimer <= 450) {
+        this._kiteSpeedMult = 1.0 - 0.35 * ((this._kiteTimer - 90) / 360);
+      } else {
+        this._kiteSpeedMult = 0.65;
+      }
+    }
+    // ── Ranged burst tracking ─────────────────────────────────────────────────
+    if (!this.isBoss && this.weapon && this.weapon.type === 'ranged') {
+      if (this.attackTimer > 0) {
+        this._rangedBurstTimer++;
+        // After ~3s of continuous fire, apply post-burst debuff
+        if (this._rangedBurstTimer >= 180 && this._rangedMovePenalty <= 0) {
+          this._rangedMovePenalty = 40; // 0.67s recovery debuff
+          this._rangedBurstTimer  = 0;
+        }
+      } else {
+        this._rangedBurstTimer = Math.max(0, this._rangedBurstTimer - 1);
+      }
+    }
+    if (this._rangedMovePenalty > 0) this._rangedMovePenalty--;
     if (this.hurtTimer > 0)       this.hurtTimer--;
     if (this.stunTimer > 0)       this.stunTimer--;
     if (this.ragdollTimer > 0)    this.ragdollTimer--;
@@ -214,11 +266,23 @@ class Fighter {
     // Lean torso into movement direction
     if (Math.abs(this.vx) > 0.5) PlayerRagdoll.applyMovement(this);
 
-    // ---- WEAPON TIP HITBOX (melee only) — hits ALL targets in range ----
+    // ---- WEAPON ARC HITBOX (melee only) — sweeps multiple points along swing arc ----
     if (this.attackTimer > 0 && this.weapon.type === 'melee') {
-      const tip = this.getWeaponTipPos();
-      if (tip) {
-        const hitPad = this.isAI ? 16 : 10;
+      // Build a set of hit-check points: tip + mid-arc + close-arc for wide coverage
+      const hitPoints = this._getMeleeArcPoints();
+      if (hitPoints.length > 0) {
+        const hitPad = 18; // generous horizontal pad so edge clips still register
+
+        // Helper: is any hit point inside the target's box?
+        const arcHits = (tx, ty, tw, th, extraPad) => {
+          const ep = extraPad || 0;
+          for (const pt of hitPoints) {
+            if (pt.x > tx - hitPad - ep && pt.x < tx + tw + hitPad + ep &&
+                pt.y > ty - 10 - ep    && pt.y < ty + th + 16 + ep) return true;
+          }
+          return false;
+        };
+
         // All players in range (multi-target — not locked to primary target)
         for (const tgt of players) {
           if (tgt === this || !tgt || tgt.health <= 0) continue;
@@ -227,9 +291,7 @@ class Fighter {
           if (!_survFFM && gameMode === 'boss' && !this.isBoss && !tgt.isBoss) continue;
           // Block friendly fire in minigames ONLY for survival team mode
           if (gameMode === 'minigames' && minigameType === 'survival' && !_survFFM && !this.isBoss && !tgt.isBoss && !tgt.isAI && !this.isAI) continue;
-          if (!this.swingHitTargets.has(tgt) &&
-              tip.x > tgt.x - hitPad && tip.x < tgt.x + tgt.w + hitPad &&
-              tip.y > tgt.y - 8      && tip.y < tgt.y + tgt.h + 8) {
+          if (!this.swingHitTargets.has(tgt) && arcHits(tgt.x, tgt.y, tgt.w, tgt.h, 0)) {
             dealDamage(this, tgt, this.weapon.damage, this.weapon.kb);
             this.swingHitTargets.add(tgt);
             this.weaponHit = true;
@@ -238,9 +300,7 @@ class Fighter {
         // All minions in range (multi-hit — no break)
         if (!this.isMinion && !(this instanceof Boss)) {
           for (const mn of minions) {
-            if (!this.swingHitTargets.has(mn) && mn.health > 0 &&
-                tip.x > mn.x - 12 && tip.x < mn.x + mn.w + 12 &&
-                tip.y > mn.y      && tip.y < mn.y + mn.h) {
+            if (!this.swingHitTargets.has(mn) && mn.health > 0 && arcHits(mn.x, mn.y, mn.w, mn.h, 4)) {
               dealDamage(this, mn, this.weapon.damage, this.weapon.kb);
               this.swingHitTargets.add(mn);
               this.weaponHit = true;
@@ -250,15 +310,14 @@ class Fighter {
         // All training dummies in range (multi-hit — no break)
         if (!this.isDummy) {
           for (const dum of trainingDummies) {
-            if (!this.swingHitTargets.has(dum) && dum.health > 0 &&
-                tip.x > dum.x - 8 && tip.x < dum.x + dum.w + 8 &&
-                tip.y > dum.y     && tip.y < dum.y + dum.h) {
+            if (!this.swingHitTargets.has(dum) && dum.health > 0 && arcHits(dum.x, dum.y, dum.w, dum.h, 0)) {
               dealDamage(this, dum, this.weapon.damage, this.weapon.kb);
               this.swingHitTargets.add(dum);
               this.weaponHit = true;
             }
           }
         }
+        const tip = hitPoints[hitPoints.length - 1]; // use outermost point for platform sparks
         // Weapon bounces off platform surfaces → sparks + recoil
         if (!this.weaponHit) {
           for (const pl of currentArena.platforms) {
@@ -296,6 +355,22 @@ class Fighter {
     if (this.isAI && this.target && !activeCinematic && aiTick % AI_TICK_INTERVAL === 0) this.updateAI();
 
       // ── Standard game physics ──
+      // godmode cheat: free flight for human player
+      if (this.godmode && !this.isAI && !this.isBoss) {
+        this.health = this.maxHealth;
+        this.invincible = 9999;
+        const fUp   = this.controls && keysDown.has(this.controls.jump);
+        const fDown = this.controls && keysDown.has(this.controls.shield);
+        this.vy = fUp ? -9 : (fDown ? 9 : this.vy * 0.7);
+        this.onGround = true;
+        this.x += this.vx * slowMotion;
+        this.y += this.vy * slowMotion;
+        this.vx *= 0.72;
+        this.vx = clamp(this.vx, -13, 13);
+        this.y = clamp(this.y, -200, GAME_H + 100);
+        this._prevOnGround = true;
+        return;
+      }
       // Training designer: godmode + free flight for human player
       if (trainingDesignerOpen && !this.isAI && !this.isBoss) {
         this.health = this.maxHealth;
@@ -332,14 +407,15 @@ class Fighter {
         this.y = 0; this.vy = Math.abs(this.vy) * 0.4;
       }
       // No ceiling — camera zooms out to follow players upward
-      // Story mode: invisible horizontal walls — keep players in playable bounds
-      // Story mode: invisible horizontal walls — keep players in playable bounds
-      if (storyModeActive && !this.isBoss) {
-        if (this.x < 0) { this.x = 0; this.vx = Math.abs(this.vx) * 0.3; }
-        // Right wall disabled in exploration mode (world extends beyond GAME_W)
-        if (gameMode !== 'exploration' && this.x > GAME_W - this.w) {
-          this.x = GAME_W - this.w; this.vx = -Math.abs(this.vx) * 0.3;
-        }
+      // Story/story-only arenas: soft boundary — flag for portal teleport instead of hard wall
+      const _storyWalls = storyModeActive || (currentArena && currentArena.isStoryOnly);
+      if (_storyWalls && !this.isBoss && gameMode !== 'exploration') {
+        // Instead of hard wall, mark fighter for boundary teleport (handled by storyUpdateBoundaries)
+        const softLeft  = currentArena && currentArena.mapLeft  !== undefined ? currentArena.mapLeft  - 500 : -60;
+        const softRight = currentArena && currentArena.mapRight !== undefined ? currentArena.mapRight - this.w + 500 : GAME_W - this.w + 60;
+        if (this.x < softLeft)   { this._storyBoundaryBreached = 'left';  }
+        else if (this.x > softRight) { this._storyBoundaryBreached = 'right'; }
+        else { this._storyBoundaryBreached = null; }
       }
       for (const pl of currentArena.platforms) this.checkPlatform(pl);
       this._voidSafetyFrame(); // Per-frame void/lava safety — bypasses AI tick delay
@@ -396,13 +472,15 @@ class Fighter {
     } else {
       this.lavaBurnTimer = 0;
     }
-    // Story mode: invisible bottom wall — clamp player above deathY instead of killing
-    if (storyModeActive && !this.isBoss && this.y + this.h > dyY - 10) {
-      this.y  = dyY - 10 - this.h;
-      this.vy = Math.min(this.vy, -4); // small upward bounce
+    // Story mode: soft bottom boundary — flag for portal catch instead of hard clamp
+    if (storyModeActive && !this.isBoss && this.y + this.h > dyY - 20) {
+      this._storyBottomBreached = true;
+    } else if (storyModeActive) {
+      this._storyBottomBreached = false;
     }
     // Hard death (fell off screen or health ran out from lava)
-    if (this.y > dyY && this.health > 0) {
+    // Remote players: skip — their death is handled on their own machine
+    if (!this.isRemote && this.y > dyY && this.health > 0) {
       if (this.isBoss) bossTeleport(this, true);
       else if (!this.godmode) this.health = 0;
     }
@@ -570,6 +648,8 @@ class Fighter {
       }
       // Landing squash animation trigger
       if (!this.isBoss && landVy > 5) this.squashTimer = 4;
+      // Clear pending double-jump intent on landing
+      if (this.isAI) this._pfDoubleJumpPending = false;
       // Landing dust — harder landing = more particles
       if (settings.landingDust && landVy > 4) {
         spawnParticles(this.cx(), pl.y, 'rgba(200,200,200,0.9)', Math.min(14, Math.floor(landVy * 1.2)));
@@ -694,6 +774,28 @@ class Fighter {
     };
   }
 
+  // Returns 3 points along the weapon swing arc for broad hitbox coverage.
+  // Includes the inner arm, mid-arc, and tip — so enemies right next to the
+  // attacker or slightly misaligned still get hit.
+  _getMeleeArcPoints() {
+    if (this.attackTimer <= 0) return [];
+    const cx        = this.cx();
+    const shoulderY = this.y + 29;
+    const armLen    = 24;
+    const atkP      = 1 - this.attackTimer / this.attackDuration;
+    const ang = this.facing > 0
+      ? lerp(-0.45, 1.1,          atkP)
+      : lerp(Math.PI + 0.45, Math.PI - 1.1, atkP);
+    const tipLens = { sword: 30, hammer: 34, axe: 26, spear: 44, gauntlet: 28 };
+    const wLen    = (tipLens[this.weaponKey] || 26) + 10; // +10 extra reach vs original
+    const fullReach = armLen + wLen;
+    // Sample inner (50%), mid (75%), and tip (100%) along the weapon
+    return [0.50, 0.75, 1.0].map(frac => ({
+      x: cx        + Math.cos(ang) * fullReach * frac,
+      y: shoulderY + Math.sin(ang) * fullReach * frac,
+    }));
+  }
+
   // ---- ATTACK ----
   attack(target) {
     if (this.backstageHiding) return;
@@ -736,6 +838,11 @@ class Fighter {
         if (!this.isAI) SoundManager.swing();
       }
     } else {
+      // Ranged: close-range disadvantage — add extra cooldown when enemy is point-blank (<70px)
+      if (!this.isBoss && target && dist(this, target) < 70) {
+        const _pbPenalty = Math.round((this.weapon.cooldown || 30) * 0.35);
+        this.cooldown = Math.max(this.cooldown, _pbPenalty); // stacks with normal cooldown
+      }
       // Ranged: check ammo clip
       if (this.weapon.clipSize) {
         if (this._reloadTimer > 0) return; // currently reloading — can't shoot
@@ -765,14 +872,19 @@ class Fighter {
           _bvy = (_ady / _alen) * bSpd;
         }
       }
+      // Movement-based spread (same logic as spawnBullet)
+      const _atkSpd    = Math.abs(this.vx);
+      const _atkRapid  = this.weapon.cooldown <= 20;
+      const _atkSpread = _atkSpd > 0.8 ? (_atkSpd / 5.2) * (_atkRapid ? 1.6 : 1.0) * 0.55 : 0;
+      const _atkVyOff  = _atkSpread > 0 ? (Math.random() - 0.5) * _atkSpread : 0;
       projectiles.push(new Projectile(
         this.cx() + this.facing * 12, this.y + 22,
-        _bvx, _bvy, this, dmg, bClr
+        _bvx, _bvy + _atkVyOff, this, dmg, bClr
       ));
       // Gunner class: fire a second bullet (costs no extra ammo — it's the same shot)
       if (this.charClass === 'gunner') {
         const dmg2 = this.weapon.damageFunc ? this.weapon.damageFunc() : this.weapon.damage;
-        projectiles.push(new Projectile(this.cx() + this.facing * 12, this.y + 28, this.facing * bSpd * 0.92, bVy - 0.8, this, dmg2, bClr));
+        projectiles.push(new Projectile(this.cx() + this.facing * 12, this.y + 28, this.facing * bSpd * 0.92, bVy - 0.8 + _atkVyOff, this, dmg2, bClr));
       }
     }
     this.cooldown    = this.attackCooldownMult ? Math.max(1, Math.ceil(this.weapon.cooldown * this.attackCooldownMult)) : this.weapon.cooldown;
@@ -1434,17 +1546,23 @@ class Fighter {
 
       // ---- ATTACK: press the target, always fire when cooldown ready ----
       case 'attack':
-        // Slide in slightly so melee hits land — don't just stand still
-        if (d > this.weapon.range * 0.6 && !towardEdge) {
-          this.vx = dir * spd * 0.5;
+        if (this.weapon && this.weapon.type === 'ranged') {
+          // Ranged attack case is handled above in the ranged AI block;
+          // utility AI reaching here means keep optimal distance, already handled.
+          this.facing = dir;
+          if (this.cooldown <= 0 && Math.random() < atkFreq) this.attack(t);
         } else {
-          this.vx *= 0.80;
-        }
-        // Miss chance simulates human imperfection on easy
-        if (Math.random() < missChance) this.facing = -this.facing;
-        // Always attack when cooldown is ready — no probability gate for hard/expert
-        if (this.cooldown <= 0) {
-          if (Math.random() < atkFreq) this.attack(t);
+          // Melee: slide in slightly so hits land — don't just stand still
+          if (d > this.weapon.range * 0.6 && !towardEdge) {
+            this.vx = dir * spd * 0.5;
+          } else {
+            this.vx *= 0.80;
+          }
+          // Miss chance simulates human imperfection on easy
+          if (Math.random() < missChance) this.facing = -this.facing;
+          if (this.cooldown <= 0) {
+            if (Math.random() < atkFreq) this.attack(t);
+          }
         }
         if (this.abilityCooldown <= 0 && Math.random() < abiFreq) this.ability(t);
         if (this.superReady && Math.random() < 0.25) this.useSuper(t);
@@ -1467,46 +1585,126 @@ class Fighter {
         break;
       }
 
-      // ---- CHASE: close the distance (default) ----
+      // ---- CHASE: close the distance using platform pathfinding ----
       case 'chase':
-      default:
-        if (towardEdge) {
-          // Near a wall and player is beyond it — stop and optionally jump up
-          this.vx = 0;
-          if (this.onGround && this.platformAbove() && Math.random() < 0.08) this.vy = -18;
-        } else if (fwd.cliff && currentArena.hasLava) {
-          // About to walk off a lava platform — jump instead of walking off
-          this.vx = 0;
-          if (this.onGround && Math.random() < 0.15) this.vy = -18;
-        } else {
-          // Always move toward target — heat doesn't block movement, only slow it
-          this.vx = dir * (pathSafe ? spd : spd * 0.7);
+      default: {
+        // ── 0. Airborne arc correction (highest priority) ──────────
+        // pfAirborneCorrect predicts landing via full arc simulation.
+        // Only fires when falling (vy > 0); upward arcs are intentional.
+        if (!this.onGround && !this.isBoss &&
+            typeof pfAirborneCorrect === 'function' && pfAirborneCorrect(this, spd)) {
+          // Correction applied — skip all other movement this tick
+          break;
         }
-        // Jump to target on higher platform
-        if (this.onGround && t && t.y + t.h < this.y - 50 && !fwd.cliff && Math.random() < 0.06 &&
-            (!currentArena.hasLava || this.platformAbove()))
-          this.vy = -18;
-        // Jump toward airborne target
-        if (this.onGround && t && !t.onGround && Math.random() < 0.06 && !fwd.cliff && !towardEdge)
-          this.vy = -18;
-        // Jump up toward target if they're on a higher platform
-        if (t && this.onGround) {
-          const _vGap = this.cy() - t.cy(); // positive = target is above
-          const _lDist = Math.abs(t.cx() - this.cx());
-          if (_vGap > 80 && _lDist < 280) {
-            const _jProb = this.aiDiff === 'easy' ? 0.04 : this.aiDiff === 'medium' ? 0.10 : this.aiDiff === 'hard' ? 0.20 : 0.30;
-            if (Math.random() < _jProb) {
-              this.vy = -17;
-              this.vx = dir * spd * 1.1;
+
+        // ── 1. Stuck detection & kick ──────────────────────────────
+        if (typeof pfCheckStuck === 'function' && !this.isBoss && pfCheckStuck(this)) {
+          forceRecalculatePath(this);
+          const kickDir = this.isEdgeDanger(dir) ? -dir : dir;
+          if (this.onGround && !this.isEdgeDanger(kickDir)) this.vy = -18;
+          this.vx = kickDir * spd * 1.4;
+          break;
+        }
+
+        // ── 2. Pathfinding waypoint ────────────────────────────────
+        const wp = (typeof pfGetNextWaypoint === 'function' && !this.isBoss)
+          ? pfGetNextWaypoint(this, t.cx(), t.y + t.h * 0.5)
+          : null;
+
+        if (wp) {
+          const wpDir = wp.x > this.cx() ? 1 : -1;
+
+          // ── jump: single jump verified by arc simulation ──────────
+          if (wp.action === 'jump') {
+            this.vx = wpDir * spd * 1.05;
+            if (this.onGround) {
+              this.vy = -20;
+            }
+            // If airborne and predicted landing is bad, pfAirborneCorrect handles it above
+
+          // ── doubleJump: fire ground jump, then double near apex ───
+          } else if (wp.action === 'doubleJump') {
+            this.vx = wpDir * spd * 1.1;
+            if (this.onGround) {
+              this.vy = -20;
+              this._pfDoubleJumpPending = true;
+            } else if (this._pfDoubleJumpPending && this.canDoubleJump && this.vy >= -2) {
+              // Near apex of first jump — fire double jump proactively
+              this.vy = -17; this.canDoubleJump = false;
+              this._pfDoubleJumpPending = false;
+            }
+
+          // ── drop: verify at runtime then walk off ─────────────────
+          } else if (wp.action === 'drop') {
+            const dropSafe = typeof pfDropSafe === 'function'
+              ? pfDropSafe(this, wpDir) : !currentArena.hasLava;
+            if (dropSafe) {
+              this.vx = wpDir * spd;
+            } else {
+              // Destination is no longer safe — reroute
+              if (typeof _pfLogUnsafe === 'function') _pfLogUnsafe(this, 'drop', 'runtime-unsafe');
+              forceRecalculatePath(this);
+              this.vx = 0;
+            }
+
+          // ── walk: edge-aware aggressive positioning ───────────────
+          } else {
+            const voidFwd  = typeof pfVoidAhead === 'function' && pfVoidAhead(this, wpDir);
+            const voidBack = typeof pfVoidAhead === 'function' && pfVoidAhead(this, -wpDir);
+
+            if (voidFwd && !voidBack) {
+              // Void ahead, safe behind:
+              // If player is toward the void, maintain light pressure (keep player on the edge).
+              // If player is away, hold position.
+              this.vx = (dir === wpDir) ? wpDir * spd * 0.38 : 0;
+            } else if (voidFwd && voidBack) {
+              // Void both ways (narrow platform) — hold center, don't move
+              this.vx = 0;
+            } else {
+              this.vx = wpDir * (pathSafe ? spd : spd * 0.75);
+            }
+
+            // Hop to clear terrain or reach airborne targets
+            if (this.onGround && t && t.y + t.h < this.y - 50 && !voidFwd && Math.random() < 0.08)
+              this.vy = -18;
+          }
+
+        } else {
+          // ── 3. Heuristic fallback (no graph / no path found) ──────
+          const voidFwd = !storyModeActive && typeof pfVoidAhead === 'function' && pfVoidAhead(this, dir);
+          if (towardEdge || voidFwd) {
+            this.vx = 0;
+            if (this.onGround && this.platformAbove() && Math.random() < 0.08) this.vy = -18;
+          } else if (fwd.cliff && currentArena.hasLava) {
+            this.vx = 0;
+            if (this.onGround && Math.random() < 0.15) this.vy = -18;
+          } else {
+            this.vx = dir * (pathSafe ? spd : spd * 0.7);
+          }
+          if (this.onGround && t && t.y + t.h < this.y - 50 && !fwd.cliff && !voidFwd &&
+              Math.random() < 0.06 && (!currentArena.hasLava || this.platformAbove()))
+            this.vy = -18;
+          if (this.onGround && t && !t.onGround && !voidFwd && Math.random() < 0.06 && !fwd.cliff)
+            this.vy = -18;
+          if (t && this.onGround && !voidFwd) {
+            const _vGap  = this.cy() - t.cy();
+            const _lDist = Math.abs(t.cx() - this.cx());
+            if (_vGap > 80 && _lDist < 280) {
+              const _jProb = this.aiDiff === 'easy' ? 0.04 : this.aiDiff === 'medium' ? 0.10 :
+                             this.aiDiff === 'hard' ? 0.20 : 0.30;
+              if (Math.random() < _jProb) { this.vy = -17; this.vx = dir * spd * 1.1; }
             }
           }
         }
-        // Trickster: random erratic jumps and direction fakes
-        if (this.personality === 'trickster' && this.onGround && !towardEdge) {
-          if (Math.random() < 0.025) { this.vy = -18; }
-          if (Math.random() < 0.012) { this.vx = -this.vx; this.facing *= -1; }
+
+        // Trickster: erratic jumps/fakes, but never toward a void
+        if (this.personality === 'trickster' && this.onGround) {
+          const noVoid = !this.isEdgeDanger(dir);
+          if (noVoid && Math.random() < 0.025) { this.vy = -18; }
+          if (noVoid && Math.random() < 0.012) { this.vx = -this.vx; this.facing *= -1; }
         }
         break;
+      }
     }
 
     // Input buffer: queue an attack when opponent steps into range (executes on drain, not immediately)
@@ -1554,20 +1752,28 @@ class Fighter {
   // Returns true if moving in 'dir' (±1) would walk the AI off a platform
   // with no safe ground beneath within the next 40px.
   isEdgeDanger(dir) {
-    if (!this.onGround) return false;
-    // On flat Earth arenas the ground is always there — never an edge danger
+    // Story mode: portals handle out-of-bounds; never block movement
+    if (storyModeActive) return false;
     if (currentArena && currentArena.earthPhysics) return false;
-    const lookX = dir > 0 ? this.x + this.w + 40 : this.x - 40;
-    const footY = this.y + this.h;
-    for (const pl of currentArena.platforms) {
-      if (pl.isFloorDisabled) continue;
-      if (lookX > pl.x && lookX < pl.x + pl.w &&
-          footY <= pl.y + 22 && footY >= pl.y - 8) return false; // ground ahead
+
+    // ── Grounded check: look ahead at foot level ──────────────
+    if (this.onGround) {
+      const lookX = dir > 0 ? this.x + this.w + 44 : this.x - 44;
+      const footY = this.y + this.h;
+      for (const pl of currentArena.platforms) {
+        if (pl.isFloorDisabled) continue;
+        if (lookX > pl.x && lookX < pl.x + pl.w &&
+            footY <= pl.y + 22 && footY >= pl.y - 8) return false;
+      }
+      if (currentArena.hasLava) return true;
+      return this.y + this.h < GAME_H + 40;
     }
-    // Lava maps: stepping off a platform is immediately fatal
-    if (currentArena.hasLava) return true;
-    // Normal maps: only flag as dangerous near the kill boundary
-    return this.y + this.h < GAME_H + 40;
+
+    // ── Airborne check: would continuing in 'dir' lead to a void? ──
+    if (!this.isBoss && typeof pfVoidAhead === 'function') {
+      return pfVoidAhead(this, dir);
+    }
+    return false;
   }
 
   // Finds any reachable platform above (for jumping pathing).
@@ -1577,6 +1783,26 @@ class Fighter {
           pl.x < this.cx() + 130 && pl.x + pl.w > this.cx() - 130) return pl;
     }
     return null;
+  }
+
+  // ---- INTENT UPDATE: choose a high-level behavioral goal every ~0.6-1.2s ----
+  _updateIntent(t, d) {
+    if (this._intentTimer > 0) { this._intentTimer--; return; }
+    this._intentTimer = 35 + Math.floor(Math.random() * 35); // 35-70 AI ticks
+
+    const hpPct  = this.health / this.maxHealth;
+    const tHpPct = t ? (t.health / t.maxHealth) : 1;
+
+    if (hpPct < 0.28 && d > 180) {
+      this.intent = 'retreat';
+    } else if (hpPct < 0.50 && tHpPct > 0.65 && d < 320) {
+      this.intent = Math.random() < 0.45 ? 'bait' : 'reposition';
+    } else if (d > 360) {
+      this.intent = 'pressure'; // always close the gap when far
+    } else {
+      const r = Math.random();
+      this.intent = r < 0.60 ? 'pressure' : r < 0.80 ? 'reposition' : 'bait';
+    }
   }
 
   updateAI() {
@@ -1725,12 +1951,21 @@ class Fighter {
       const enemyInZone = players.some(p => p !== this && !p.isBoss && p.health > 0 &&
                                             p.cx() > zoneLeft && p.cx() < zoneRight && p.onGround);
       if (!selfInZone) {
-        // Rush the zone: move directly toward kothZoneX, no hesitation
-        const kdir = kothZoneX > this.cx() ? 1 : -1;
-        this.vx = kdir * kothSpd * 1.1;
-        // Jump onto the zone if it's above current position or there's a platform in the way
-        if (this.onGround && Math.random() < 0.05) this.vy = -18;
-        else if (this.canDoubleJump && this.vy > 1 && Math.random() < 0.08) { this.vy = -14; this.canDoubleJump = false; }
+        // Use pathfinding to reach the zone center
+        const kothWp = (typeof pfGetNextWaypoint === 'function')
+          ? pfGetNextWaypoint(this, kothZoneX, GAME_H - 80)
+          : null;
+        if (kothWp) {
+          const kdir2 = kothWp.x > this.cx() ? 1 : -1;
+          this.vx = kdir2 * kothSpd * 1.1;
+          if (kothWp.action === 'jump' && this.onGround) { this.vy = -19; }
+          else if (kothWp.action === 'jump' && this.canDoubleJump && this.vy > 0) { this.vy = -16; this.canDoubleJump = false; }
+        } else {
+          const kdir = kothZoneX > this.cx() ? 1 : -1;
+          this.vx = kdir * kothSpd * 1.1;
+          if (this.onGround && Math.random() < 0.05) this.vy = -18;
+          else if (this.canDoubleJump && this.vy > 1 && Math.random() < 0.08) { this.vy = -14; this.canDoubleJump = false; }
+        }
         return; // never leave zone logic — skip all other AI this frame
       }
       // Inside zone: attack any enemy also in zone, otherwise hold ground
@@ -1752,6 +1987,55 @@ class Fighter {
       return; // KotH bots never leave the zone
     }
 
+    // ---- Exploration guard: defend the relic position ----
+    if (this.isExploreGuard && typeof exploreGoalX !== 'undefined') {
+      const guardX  = this._guardX || exploreGoalX;
+      const guardSpd = this.aiDiff === 'expert' ? 6.5 : this.aiDiff === 'hard' ? 5.5 : 4.5;
+      const atkFreq  = this.aiDiff === 'expert' ? 0.35 : this.aiDiff === 'hard' ? 0.25 : 0.16;
+      const t2 = this.target || players.find(p => !p.isBoss && p.health > 0);
+      const playerNear = t2 && Math.abs(t2.cx() - guardX) < 300; // player within guard radius
+      const selfNearPost = Math.abs(this.cx() - guardX) < 120;
+
+      if (playerNear && t2) {
+        // Player is near the relic — intercept and attack aggressively
+        const dd2 = Math.abs(t2.cx() - this.cx());
+        if (dd2 < this.weapon.range + 30) {
+          this.vx *= 0.7;
+          if (Math.random() < atkFreq)      this.attack(t2);
+          if (Math.random() < atkFreq * 0.4) this.ability(t2);
+          if (this.superReady && Math.random() < 0.18) this.useSuper(t2);
+          // Shove the player away from the relic with extra knockback intent
+          if (dd2 < 40 && Math.random() < 0.12) {
+            const pushDir = t2.cx() > guardX ? 1 : -1; // push away from relic
+            t2.vx += pushDir * 8;
+          }
+        } else {
+          this.vx = (t2.cx() > this.cx() ? 1 : -1) * guardSpd * 1.2;
+          if (this.onGround && Math.random() < 0.06) this.vy = -18;
+        }
+      } else if (!selfNearPost) {
+        // Return to post — use pathfinding
+        const guardWp = (typeof pfGetNextWaypoint === 'function')
+          ? pfGetNextWaypoint(this, guardX, GAME_H - 80)
+          : null;
+        if (guardWp) {
+          const dir2 = guardWp.x > this.cx() ? 1 : -1;
+          this.vx = dir2 * guardSpd * 0.85;
+          if (guardWp.action === 'jump' && this.onGround) this.vy = -18;
+          else if (guardWp.action === 'jump' && this.canDoubleJump && this.vy > 0) { this.vy = -15; this.canDoubleJump = false; }
+        } else {
+          const dir2 = guardX > this.cx() ? 1 : -1;
+          this.vx = dir2 * guardSpd * 0.8;
+          if (this.onGround && Math.random() < 0.04) this.vy = -16;
+        }
+      } else {
+        // Idle at post — small patrol drift
+        const centerDiff = guardX - this.cx();
+        this.vx = Math.abs(centerDiff) > 30 ? Math.sign(centerDiff) * guardSpd * 0.3 : 0;
+      }
+      return;
+    }
+
     // Chaos mode: all entities attack nearest other entity
     if (trainingChaosMode && trainingMode) {
       const allEntities = [...players, ...trainingDummies, ...minions];
@@ -1771,6 +2055,13 @@ class Fighter {
     const dir = dx > 0 ? 1 : -1;
 
     const spd = this.aiDiff === 'easy' ? 3.4 : this.aiDiff === 'medium' ? 4.4 : this.aiDiff === 'hard' ? 5.0 : 5.6;
+
+    // ---- NO-IDLE: intent update + player idle detection ----
+    if (!this.isBoss) {
+      this._updateIntent(t, d);
+      const _tMoving = Math.abs(t.vx) > 0.5 || !t.onGround || t.state === 'attacking';
+      this._playerIdleTmr = _tMoving ? 0 : this._playerIdleTmr + 1;
+    }
 
     // ---- RUINS: prioritize artifacts unless player is very close ----
     if (currentArenaKey === 'ruins' && mapItems && mapItems.length > 0 && !this.isBoss) {
@@ -1832,9 +2123,10 @@ class Fighter {
     }
 
     // ---- DANGER: map screen edges (avoid falling off) ----
-    // Reduced margin: 50px (was 120px — caused huge dead zones where bots froze)
-    const nearLeftEdge  = this.x < 50 && !this.isBoss;
-    const nearRightEdge = this.x + this.w > GAME_W - 50 && !this.isBoss;
+    // Story mode uses wider margin so bots never drift near soft boundary
+    const _edgeMargin = (storyModeActive && gameMode !== 'exploration') ? 110 : 50;
+    const nearLeftEdge  = this.x < _edgeMargin && !this.isBoss;
+    const nearRightEdge = this.x + this.w > GAME_W - _edgeMargin && !this.isBoss;
     if (this.onGround) {
       if (nearLeftEdge  && dir < 0) { this.vx = 0; }
       if (nearRightEdge && dir > 0) { this.vx = 0; }
@@ -1844,9 +2136,75 @@ class Fighter {
       if (nearRightEdge && this.vx > 0) this.vx = 0;
     }
 
-    // ---- IMMEDIATE ATTACK OVERRIDE ----
+    // ---- RANGED WEAPON AI: kite / strafe / aim behavior ----
+    // Phases based on HP: low-HP kites far, dominant HP pushes close.
+    if (this.weapon && this.weapon.type === 'ranged' && t && t.health > 0) {
+      // HP-based phase switching
+      const _hpPct       = this.health / this.maxHealth;
+      const _advRatio    = t.health > 0 ? this.health / t.health : 2;
+      const _isLowHp     = _hpPct < 0.28;               // kite mode: stay far
+      const _isDominating = _advRatio > 1.60 && _hpPct > 0.50; // push in for the kill
+      const _optMin   = _isDominating ? 90  : 160; // min preferred distance
+      const _optMax   = _isLowHp     ? 340 : 240; // max preferred distance (was 360)
+      const _closeRange = 80; // panic distance — back away NOW
+
+      // Tick strafe timer — flip direction more often when dominant
+      this._rangedStrafeTimer = (this._rangedStrafeTimer || 0) - 1;
+      if (this._rangedStrafeTimer <= 0) {
+        this._rangedStrafeDir   = Math.random() < 0.5 ? 1 : -1;
+        this._rangedStrafeTimer = _isDominating
+          ? 10 + Math.floor(Math.random() * 15)  // fast repositioning when dominant
+          : 18 + Math.floor(Math.random() * 22); // normal 0.3-0.67s
+      }
+
+      // Aim pause: slow-strafe instead of full stop so bot is never standing still
+      if (this._rangedAimPause > 0) {
+        this._rangedAimPause--;
+        const _aimStrf = this.isEdgeDanger(this._rangedStrafeDir) ? -this._rangedStrafeDir : this._rangedStrafeDir;
+        this.vx = _aimStrf * spd * 0.22; // very slow walk while aiming — not a statue
+        this.facing = dir;
+        if (this.cooldown <= 0) this.attack(t);
+        if (this.abilityCooldown <= 0 && Math.random() < 0.18) this.ability(t);
+        return;
+      }
+      // Schedule aim pause every 1.5-3s (skip when dominant — keep pushing)
+      if (!_isDominating && Math.random() < 0.012) this._rangedAimPause = 8 + Math.floor(Math.random() * 12);
+
+      if (d < _closeRange) {
+        // PANIC: enemy too close — back away and don't shoot (point-blank penalty)
+        const escapeDir = -dir;
+        if (!this.isEdgeDanger(escapeDir)) {
+          this.vx = escapeDir * spd * 1.6;
+        } else if (!this.isEdgeDanger(dir)) {
+          this.vx = dir * spd * 1.2; // edge behind, try to pass through
+        }
+        if (this.onGround && Math.random() < 0.30) this.vy = -18; // jump away
+      } else if (d > _optMax) {
+        // PRESSURE: chase into range, shoot opportunistically
+        if (!this.isEdgeDanger(dir)) this.vx = dir * spd * (_isDominating ? 1.05 : 0.85);
+        if (d < this.weapon.range * 1.1 + 20 && this.cooldown <= 0) this.attack(t);
+      } else {
+        // OPTIMAL RANGE: strafe continuously — never stand still
+        const strafeDir = this.isEdgeDanger(this._rangedStrafeDir) ? -this._rangedStrafeDir : this._rangedStrafeDir;
+        if (d < _optMin && !this.isEdgeDanger(-dir)) {
+          // Too close — back off
+          this.vx = -dir * spd * 0.75;
+        } else {
+          // Dominant bots strafe faster to close in; low-HP bots strafe to maintain distance
+          this.vx = strafeDir * spd * (_isDominating ? 0.80 : _isLowHp ? 0.68 : 0.62);
+        }
+        this.facing = dir;
+        if (this.cooldown <= 0 && Math.random() < (this.aiDiff === 'easy' ? 0.55 : this.aiDiff === 'medium' ? 0.75 : 0.90)) {
+          this.attack(t);
+        }
+        if (this.abilityCooldown <= 0 && Math.random() < 0.15) this.ability(t);
+      }
+      if (this.superReady && Math.random() < 0.22) this.useSuper(t);
+      return;
+    }
+
+    // ---- IMMEDIATE ATTACK OVERRIDE (melee only) ----
     // If in range and cooldown ready, always attack — bypass the utility state machine.
-    // This guarantees bots never idle in melee range with a loaded weapon.
     if (t && t.health > 0 && this.cooldown <= 0) {
       const atkRange = this.weapon.range * 1.1 + 20;
       if (d < atkRange) {
@@ -1862,26 +2220,73 @@ class Fighter {
     // Emergency super: if critically low health and super is ready, fire immediately
     if (this.health < 40 && this.superReady) { this.useSuper(t); }
 
-    // ---- HARD FREEZE FAILSAFE: force chase if bot hasn't moved in 1.5s ----
-    // Guards against edge cases where all state-machine branches return without moving.
+    // ---- NO-IDLE SYSTEM: inactivity enforcement + micro-randomization + intent movement ----
     if (!this.isBoss) {
-      this._absoluteIdleTimer = (this._absoluteIdleTimer || 0);
       const isMoving = Math.abs(this.vx) > 0.8 || !this.onGround;
-      if (isMoving) {
-        this._absoluteIdleTimer = 0;
+      const isActing = this.state === 'attacking' || this.shielding;
+      if (isMoving || isActing) {
+        this._inactiveTime = 0;
       } else {
-        this._absoluteIdleTimer++;
-        if (this._absoluteIdleTimer > 2) { // 2 AI ticks × 15 frames = ~30 frames = ~0.5s
-          this._absoluteIdleTimer = 0;
-          // Force move directly toward target — but don't step off an edge
-          const forceDx = t.cx() - this.cx();
-          const forceDir = Math.sign(forceDx);
-          if (!this.isEdgeDanger(forceDir)) {
-            this.vx = forceDir * spd * 1.2;
+        this._inactiveTime++;
+      }
+
+      // Force engagement: if idle too long, immediately close and attack
+      if (this._inactiveTime > 2) { // 2 AI ticks ~30 frames = ~0.5s
+        this._inactiveTime = 0;
+        if (typeof debugMode !== 'undefined' && debugMode) {
+          console.warn('[AI no-idle]', { intent: this.intent, d, playerIdle: this._playerIdleTmr });
+        }
+        const forceDir = Math.sign(t.cx() - this.cx());
+        if (!this.isEdgeDanger(forceDir)) this.vx = forceDir * spd * 1.3;
+        if (this.onGround && (this.platformAbove() || Math.random() < 0.35)) this.vy = -17;
+        if (this.cooldown <= 0 && d < this.weapon.range * 1.5 + 35) this.attack(t);
+        return;
+      }
+
+      // Player is idle → increase aggression: attack more freely and close faster
+      if (this._playerIdleTmr > 60) { // target idle for ~1s at AI tick rate
+        if (this.cooldown <= 0 && d < this.weapon.range * 1.4 + 40) this.attack(t);
+        if (!this.isEdgeDanger(dir) && Math.abs(this.vx) < spd * 0.6) this.vx = dir * spd * 0.9;
+      }
+
+      // Micro-randomization pulse every 0.5–1.5s: keeps AI feeling alive even in calm stretches
+      this._microRandTimer--;
+      if (this._microRandTimer <= 0) {
+        this._microRandTimer = 30 + Math.floor(Math.random() * 60); // 30-90 AI ticks
+        const roll = Math.random();
+        if (roll < 0.30 && this.cooldown <= 0 && d < this.weapon.range * 1.5 + 45) {
+          this.attack(t);                                              // 30% sudden attack
+        } else if (roll < 0.50 && this.onGround && !this.isEdgeDanger(dir)) {
+          this.vy = -17;                                              // 20% random jump
+        } else if (roll < 0.70 && !this.isEdgeDanger(dir)) {
+          this._wanderDir   = Math.random() < 0.70 ? dir : -dir;    // 20% reposition burst
+          this._wanderTimer = 12 + Math.floor(Math.random() * 14);
+        }
+        // remaining 30%: no-op (natural pause keeps rhythm varied)
+      }
+
+      // Intent-based passive movement: always drift toward the current goal
+      // Only kicks in when the bot is nearly stationary (utility AI will override if needed)
+      if (Math.abs(this.vx) < 0.6) {
+        switch (this.intent) {
+          case 'pressure':
+            if (!this.isEdgeDanger(dir)) this.vx = dir * spd * 0.65;
+            break;
+          case 'bait': {
+            const baitGap = this.weapon.range + 50;
+            if (d > baitGap + 30 && !this.isEdgeDanger(dir))  this.vx = dir  * spd * 0.50;
+            if (d < baitGap - 30 && !this.isEdgeDanger(-dir)) this.vx = -dir * spd * 0.45;
+            break;
           }
-          // Only jump if there's a platform above (avoid jumping into void)
-          if (this.onGround && this.platformAbove()) this.vy = -17;
-          return; // skip utility AI this tick
+          case 'retreat':
+            if (!this.isEdgeDanger(-dir)) this.vx = -dir * spd * 0.55;
+            break;
+          case 'reposition': {
+            const toCenter = GAME_W / 2 - this.cx();
+            const rDir2 = Math.sign(toCenter);
+            if (Math.abs(toCenter) > 40 && !this.isEdgeDanger(rDir2)) this.vx = rDir2 * spd * 0.55;
+            break;
+          }
         }
       }
     }
@@ -2531,27 +2936,32 @@ class Fighter {
     }
 
     // ── Ammo indicator (ranged weapons with clipSize) ─────────────────────────
+    // Always drawn just above the fighter's head, capped to 32px max spread.
     if (this.weapon && this.weapon.clipSize && this.state !== 'dead' && this.state !== 'ragdoll') {
       const clip  = this.weapon.clipSize;
       const ammo  = this._ammo;
-      const dotR  = 3.5;
+      // Scale dot size down for large clips so the bar never exceeds 32px wide
+      const maxW  = 32;
+      const dotR  = Math.min(3.5, maxW / (clip * 2.6));
       const gap   = dotR * 2.6;
       const totalW = (clip - 1) * gap;
       const startX = this.cx() - totalW / 2;
-      const dotY   = this.y - 28;
+      // Fixed position: just above the fighter's head, independent of clip width
+      const dotY   = this.y - 12;
       if (this._reloadTimer > 0) {
-        // Reloading: show a spinning arc progress bar
+        // Reloading: compact arc ring centred on the fighter
         const progress = 1 - this._reloadTimer / this.weapon.reloadFrames;
+        const arcR = Math.min(10, totalW / 2 + dotR + 2);
         ctx.save();
         ctx.strokeStyle = 'rgba(255,255,255,0.25)';
-        ctx.lineWidth   = 4;
+        ctx.lineWidth   = 3;
         ctx.beginPath();
-        ctx.arc(this.cx(), dotY, totalW / 2 + dotR + 2, 0, Math.PI * 2);
+        ctx.arc(this.cx(), dotY, arcR, 0, Math.PI * 2);
         ctx.stroke();
         ctx.strokeStyle = '#ffdd44';
-        ctx.lineWidth   = 4;
+        ctx.lineWidth   = 3;
         ctx.beginPath();
-        ctx.arc(this.cx(), dotY, totalW / 2 + dotR + 2, -Math.PI / 2, -Math.PI / 2 + progress * Math.PI * 2);
+        ctx.arc(this.cx(), dotY, arcR, -Math.PI / 2, -Math.PI / 2 + progress * Math.PI * 2);
         ctx.stroke();
         ctx.restore();
       } else {

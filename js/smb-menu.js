@@ -23,11 +23,16 @@ function selectMode(mode) {
   const modeCard = document.querySelector(`[data-mode="${mode}"]`);
   if (modeCard) modeCard.classList.add('active');
   const isBoss       = mode === 'boss';
+  // When connected online, only 2p is supported — redirect all other modes back to online
+  if (NetworkManager.connected && mode !== 'online' && mode !== '2p') {
+    mode = 'online';
+  }
   const isTrueForm   = mode === 'trueform';
   const isBoss2p     = isBoss && bossPlayerCount === 2;
   const isTraining   = mode === 'training';
   const isMinigames  = mode === 'minigames';
   const isOnline     = mode === 'online';
+  const isAdaptive   = mode === 'adaptive';
   // Only update onlineMode when not already connected (prevents clearing it when host/guest switch game modes)
   if (!NetworkManager.connected) onlineMode = isOnline;
   // Show/hide boss player count toggle
@@ -41,29 +46,41 @@ function selectMode(mode) {
   const mgPanel = document.getElementById('minigamePanel');
   if (mgPanel) mgPanel.style.display = isMinigames ? 'block' : 'none';
   // P2 panel title/hint
-  document.getElementById('p2Title').textContent = isTrueForm ? 'TRUE FORM' : (isBoss && !isBoss2p) ? 'CREATOR' : (isBoss2p ? 'Player 2' : (isTraining ? 'TRAINING' : (p2IsBot ? 'BOT' : 'Player 2')));
+  document.getElementById('p2Title').textContent = isTrueForm ? 'TRUE FORM' : isAdaptive ? 'NEURAL AI' : (isBoss && !isBoss2p) ? 'CREATOR' : (isBoss2p ? 'Player 2' : (isTraining ? 'TRAINING' : (p2IsBot ? 'BOT' : 'Player 2')));
   const _p2Hint = document.getElementById('p2Hint');
-  if (_p2Hint) _p2Hint.textContent = isTrueForm ? 'Secret Final Boss' : (isBoss && !isBoss2p) ? 'Boss — AI Controlled' : (isBoss2p ? '← → ↑ · Enter · . · /' : (isTraining ? 'Practice mode' : (p2IsBot ? 'AI Controlled' : '← → ↑ · Enter · . · / · ↓')));
+  if (_p2Hint) _p2Hint.textContent = isTrueForm ? 'Secret Final Boss' : isAdaptive ? 'Learns your playstyle' : (isBoss && !isBoss2p) ? 'Boss — AI Controlled' : (isBoss2p ? '← → ↑ · Enter · . · /' : (isTraining ? 'Practice mode' : (p2IsBot ? 'AI Controlled' : '← → ↑ · Enter · . · / · ↓')));
   document.getElementById('p1DifficultyRow').style.display = p1IsBot ? 'flex' : 'none';
   document.getElementById('p2DifficultyRow').style.display = p2IsBot ? 'flex' : 'none';
-  // Hide P2 config rows in boss 1P, training, trueform
-  const hideP2 = (isBoss && !isBoss2p) || isTraining || isTrueForm;
+  // Hide P2 config rows in boss 1P, training, trueform, adaptive
+  const hideP2 = (isBoss && !isBoss2p) || isTraining || isTrueForm || isAdaptive;
   document.getElementById('p2ColorRow').style.display     = hideP2 ? 'none' : 'flex';
   document.getElementById('p2WeaponRow').style.display    = hideP2 ? 'none' : 'flex';
   document.getElementById('p2ClassRow').style.display     = hideP2 ? 'none' : 'flex';
   const p1BotToggle = document.getElementById('p1BotToggle');
-  if (p1BotToggle) p1BotToggle.style.display = (isMinigames || isTrueForm) ? 'none' : '';
+  if (p1BotToggle) p1BotToggle.style.display = (isMinigames || isTrueForm || isAdaptive) ? 'none' : '';
   const p2BotToggleEl = document.getElementById('p2BotToggle');
-  if (p2BotToggleEl) p2BotToggleEl.style.display = (isBoss2p) ? '' : (isBoss || isTrueForm) ? 'none' : '';
+  if (p2BotToggleEl) p2BotToggleEl.style.display = (isBoss2p) ? '' : (isBoss || isTrueForm || isAdaptive) ? 'none' : '';
   const trainingPanel = document.getElementById('trainingPanel');
   if (trainingPanel) trainingPanel.style.display = isTraining ? 'block' : 'none';
-  // Boss/training/minigames/trueform/online: hide arena picker and ∞ infinite
+  // Boss/training/minigames/trueform/online/adaptive: hide ∞ infinite; adaptive still shows arena picker
   document.getElementById('arenaSection').style.display   = (isBoss || isTraining || isMinigames || isTrueForm || isOnline) ? 'none' : '';
   const _infOpt = document.getElementById('infiniteOption');
-  if (_infOpt) _infOpt.disabled = !!(isBoss || isTraining || isMinigames || isTrueForm || isOnline);
-  if ((isBoss || isTraining || isMinigames || isTrueForm || isOnline) && infiniteMode) {
+  if (_infOpt) _infOpt.disabled = !!(isBoss || isTraining || isMinigames || isTrueForm || isOnline || isAdaptive);
+  if ((isBoss || isTraining || isMinigames || isTrueForm || isOnline || isAdaptive) && infiniteMode) {
     infiniteMode = false;
     selectLives(3);
+  }
+  // Chaos mode toggle: only available in minigames and online
+  const chaosModeRow = document.getElementById('chaosModeRow');
+  if (chaosModeRow) {
+    const showChaos = isMinigames || isOnline;
+    chaosModeRow.style.display = showChaos ? 'flex' : 'none';
+    // If switching away from a chaos-compatible mode, turn chaos off
+    if (!showChaos && typeof chaosMode !== 'undefined' && chaosMode) {
+      chaosMode = false;
+      const btn = document.getElementById('chaosModeBtn');
+      if (btn) { btn.textContent = '⚡ Chaos Mode: OFF'; btn.style.borderColor = 'rgba(160,60,255,0.4)'; btn.style.color = '#cc88ff'; btn.style.boxShadow = ''; }
+    }
   }
   // Custom weapons only allowed in 1v1 and training — hide options in other modes
   const _allowCustomWeapons = mode === '2p' || mode === 'training';
@@ -220,23 +237,72 @@ function selectArena(name) {
   if (hint) hint.textContent = _ARENA_GIMMICKS[name] || '';
 }
 
+// Called between random-mode fights: fades to black, switches arena + rerolls weapons/classes, fades back
+function switchArenaWithTransition(newArenaKey, callback) {
+  const fade = document.getElementById('fadeOverlay');
+  if (fade) { fade.style.transition = 'opacity 0.28s'; fade.style.opacity = '1'; }
+  setTimeout(() => {
+    if (!gameRunning) { // guard: game may have ended between outer and inner timeouts
+      if (fade) { fade.style.transition = 'opacity 0.38s'; fade.style.opacity = '0'; }
+      return;
+    }
+    if (typeof switchArena === 'function') switchArena(newArenaKey);
+    // Reroll weapons + classes for each non-boss player when those slots are set to random
+    players.forEach(p => {
+      if (p.isBoss) return;
+      const isP1 = p === players[0];
+      const wSel = isP1 ? 'p1Weapon' : 'p2Weapon';
+      const cSel = isP1 ? 'p1Class'  : 'p2Class';
+      const wVal = document.getElementById(wSel)?.value;
+      const cVal = document.getElementById(cSel)?.value;
+      if (wVal !== 'random' && cVal !== 'random') return; // only reroll if random is chosen
+      const resolved = resolveWeaponAndClass(wSel, cSel);
+      if (resolved.weaponKey && typeof WEAPONS !== 'undefined' && WEAPONS[resolved.weaponKey]) {
+        p.weaponKey = resolved.weaponKey;
+        p.weapon    = WEAPONS[resolved.weaponKey];
+        p._ammo     = p.weapon.clipSize || 0;
+        p._reloadTimer = 0;
+      }
+      if (typeof applyClass === 'function') applyClass(p, resolved.classKey);
+    });
+    if (typeof callback === 'function') callback();
+    setTimeout(() => {
+      if (fade) { fade.style.transition = 'opacity 0.38s'; fade.style.opacity = '0'; }
+    }, 80);
+  }, 300);
+}
+
 function switchArena(newKey) {
   if (!gameRunning) return;
   const OFFMAP = ['creator', 'void', 'soccer'];
-  if (OFFMAP.includes(newKey)) return;
+  if (OFFMAP.includes(newKey) || ARENAS[newKey]?.isStoryOnly || ARENAS[newKey]?.isExploreArena) return;
   currentArenaKey = newKey;
   if (currentArenaKey !== 'lava') randomizeArenaLayout(currentArenaKey);
   currentArena = ARENAS[currentArenaKey];
   initMapPerks(currentArenaKey);
   generateBgElements();
-  // Reposition all players to safe spawn positions
-  const SPAWN_XS = [160, 720, 450];
+  // Clear arena-specific NPCs — they belong to their home arena
+  if (typeof forestBeast !== 'undefined') { forestBeast = null; forestBeastCooldown = 600; }
+  if (typeof yeti       !== 'undefined') { yeti        = null; yetiCooldown        = 600; }
+  // Assign safe spawn positions for ALL players on the new map.
+  // Alive players are repositioned immediately.
+  // Dead players only get spawnX/spawnY updated so their pending respawn()
+  // call lands on the correct map instead of stale coordinates from the old arena.
+  const _sides = ['left', 'right', 'any'];
+  let lastX;
   players.forEach((p, i) => {
-    if (p.isBoss || p.health <= 0) return;
-    p.x = SPAWN_XS[i] || 300;
-    p.y = 200;
-    p.vx = 0; p.vy = 0;
-    p.invincible = Math.max(p.invincible, 90);
+    if (p.isBoss) return;
+    const sp = pickSafeSpawn(_sides[i] || 'any', lastX) || { x: [160, 720, 450][i] || 300, y: 200 };
+    // Always update the cached spawn coordinates for the new arena
+    p.spawnX = sp.x;
+    p.spawnY = sp.y;
+    if (p.health > 0) {
+      // Only physically move alive players
+      p.x = sp.x; p.y = sp.y - p.h;
+      p.vx = 0; p.vy = 0;
+      p.invincible = Math.max(p.invincible, 90);
+    }
+    lastX = sp.x;
   });
   trainingDummies.forEach(d => { d.x = 640; d.y = 200; d.vx = 0; d.vy = 0; });
 }
@@ -287,11 +353,93 @@ function updateSettings() {
       set3DView(settings.view3D ? 'settings' : false);
     }
   }
+  const exp3DEl = document.getElementById('settingExp3D');
+  if (exp3DEl) {
+    settings.experimental3D = exp3DEl.checked;
+    localStorage.setItem('smc_experimental3D', settings.experimental3D ? '1' : '0');
+  }
 }
 
 function toggleAdvanced() {
   const panel = document.getElementById('advancedPanel');
   if (panel) panel.style.display = panel.style.display === 'block' ? 'none' : 'block';
+}
+
+// ── Changelog ─────────────────────────────────────────────────────────────────
+const _CLG_CAT_COLORS = {
+  Story:     '#88ccff',
+  Cinematic: '#cc88ff',
+  AI:        '#ff9966',
+  Combat:    '#ff6688',
+  UI:        '#88ffcc',
+  Network:   '#ffcc66',
+  System:    '#aaaacc',
+};
+
+function showChangelogModal() {
+  const modal   = document.getElementById('changelogModal');
+  const content = document.getElementById('changelogContent');
+  const verHead = document.getElementById('changelogVersionHeader');
+  if (!modal || !content) return;
+
+  if (verHead) verHead.textContent = 'v' + GAME_VERSION;
+
+  let html = '';
+  for (const entry of CHANGELOG) {
+    const isLatest = entry.isLatest;
+    html += `
+      <div style="margin-bottom:28px;border:1px solid rgba(${isLatest?'80,120,255':'40,60,120'},0.35);border-radius:10px;overflow:hidden;">
+        <!-- Header row -->
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 16px;background:rgba(${isLatest?'30,50,120':'15,20,50'},0.55);cursor:pointer;"
+             onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'':'none'">
+          <div style="display:flex;align-items:center;gap:10px;">
+            ${isLatest ? '<span style="background:linear-gradient(90deg,#4488ff,#8844ff);color:#fff;font-size:0.6rem;padding:2px 8px;border-radius:4px;letter-spacing:2px;font-weight:700;">NEW</span>' : ''}
+            <span style="color:${isLatest?'#aaccff':'#7788aa'};font-size:1.0rem;font-weight:700;letter-spacing:1px;">v${entry.version}</span>
+            <span style="color:${isLatest?'#ddeeff':'#8899bb'};font-size:0.9rem;">${entry.title}</span>
+          </div>
+          <span style="color:#334466;font-size:0.72rem;letter-spacing:1px;">${entry.date} &nbsp;▾</span>
+        </div>
+        <!-- Body -->
+        <div style="padding:12px 16px 14px;background:rgba(5,8,25,0.6);">
+          <div style="font-size:0.68rem;color:#334466;letter-spacing:2px;margin-bottom:10px;font-style:italic;">"${entry.flavor}"</div>
+          <div style="display:flex;flex-direction:column;gap:5px;">
+    `;
+    // Group by category
+    const grouped = {};
+    for (const ch of entry.changes) {
+      if (!grouped[ch.cat]) grouped[ch.cat] = [];
+      grouped[ch.cat].push(ch.text);
+    }
+    for (const [cat, items] of Object.entries(grouped)) {
+      const col = _CLG_CAT_COLORS[cat] || '#aaaacc';
+      html += `<div style="margin-bottom:4px;">
+        <span style="font-size:0.62rem;color:${col};letter-spacing:2px;opacity:0.8;text-transform:uppercase;font-weight:700;">[${cat}]</span>
+        <ul style="margin:3px 0 0 0;padding-left:18px;list-style:none;">`;
+      for (const item of items) {
+        html += `<li style="color:#8899bb;font-size:0.78rem;line-height:1.65;position:relative;">
+          <span style="position:absolute;left:-14px;color:${col};opacity:0.6;">›</span>${item}
+        </li>`;
+      }
+      html += `</ul></div>`;
+    }
+    html += `</div></div></div>`;
+  }
+
+  content.innerHTML = html;
+  modal.style.display = 'block';
+}
+
+function closeChangelogModal() {
+  const modal = document.getElementById('changelogModal');
+  if (modal) modal.style.display = 'none';
+}
+
+// ── Populate version labels in menu on page load ─────────────────────────────
+function _initVersionLabels() {
+  const badge    = document.getElementById('homeVersionBadge');
+  const settings = document.getElementById('settingsVersionLabel');
+  if (badge)    badge.textContent    = 'v' + GAME_VERSION;
+  if (settings) settings.textContent = 'v' + GAME_VERSION;
 }
 
 function toggleStatsLog() {
@@ -313,17 +461,37 @@ function toggleStatsLog() {
 
   // Weapons (all, including new)
   html += '<h3 style="color:#ffd700;margin:16px 0 6px">Weapons</h3><table style="width:100%;border-collapse:collapse;font-size:12px">';
-  html += '<tr style="background:rgba(255,215,0,0.12)"><th>Name</th><th>Type</th><th>Damage</th><th>Range</th><th>Cooldown</th><th>KB</th><th>Ability</th></tr>';
+  html += '<tr style="background:rgba(255,215,0,0.12)"><th>Name</th><th>Type</th><th>Damage</th><th>Range</th><th>CD</th><th>Endlag</th><th>KB</th><th>Ability</th></tr>';
   for (const [key, w] of Object.entries(WEAPONS)) {
-    const dmg = w.damageFunc ? (key === 'gun' ? '5-8' : key === 'bow' ? '12-20' : key === 'peashooter' ? '2-3' : key === 'slingshot' ? '12-17' : key === 'paperairplane' ? '6-9' : 'random') : w.damage;
-    html += `<tr style="border-bottom:1px solid rgba(255,255,255,0.08)"><td>${w.name || key}</td><td style="color:#aaa">${w.type}</td><td>${dmg}</td><td>${w.range}px</td><td>${w.cooldown}f</td><td>${w.kb}</td><td style="font-size:11px;color:#ccc">${w.abilityName || '—'}</td></tr>`;
+    if (w.enemyOnly) continue;
+    const dmg = w.damageFunc ? (key === 'gun' ? '5-8' : key === 'bow' ? '12-20' : key === 'peashooter' ? '2-3' : key === 'slingshot' ? '10-14' : key === 'paperairplane' ? '8-12' : 'random') : w.damage;
+    const endlagNote = w.endlag ? `${w.endlag}f (whiff: ${Math.round(w.endlag*2.4)}f)` : '—';
+    html += `<tr style="border-bottom:1px solid rgba(255,255,255,0.08)"><td>${w.name || key}</td><td style="color:#aaa">${w.type}</td><td>${dmg}</td><td>${w.range}px</td><td>${w.cooldown}f</td><td style="color:#ff9944">${endlagNote}</td><td>${w.kb}</td><td style="font-size:11px;color:#ccc">${w.abilityName || '—'}</td></tr>`;
   }
   html += '</table>';
 
   // Arenas
   html += '<h3 style="color:#aaffaa;margin:16px 0 6px">Arenas &amp; Map Gimmicks</h3><table style="width:100%;border-collapse:collapse;font-size:12px">';
   html += '<tr style="background:rgba(100,255,100,0.10)"><th>Arena</th><th>Gravity</th><th>Gimmick</th><th>Platforms</th></tr>';
-  const arenaGimmicks = { grass: 'Floating bouncy platforms', lava: 'Lava floor (high gravity)', space: 'Low gravity + Meteors', city: 'Cars deal damage + Neon', forest: 'Forest Beast (1% chance), Raged (10%)', ice: 'Blizzard gusts + Yeti (0.5%)', ruins: 'Artifact pickups + Curses', creator: 'Boss floor hazards + Moving platforms' };
+  const arenaGimmicks = {
+    grass: 'Bouncy platforms, random bouncy platform each game',
+    lava: 'Lava floor (high gravity); touching lava = instant kill',
+    space: 'Low gravity (0.22); random meteor strikes from sky',
+    city: 'Moving cars that deal damage; neon lighting',
+    forest: 'Forest Beast NPC (1%/sec), Raged variant (1-in-10); beware aggro range',
+    ice: 'Blizzard gusts push fighters; Yeti NPC (rare); icy sliding friction',
+    ruins: 'Artifact pickups grant power-ups; curses inflict random debuffs',
+    creator: 'Boss fight arena; moving platforms; floor hazard cycles (lava/void)',
+    cave: 'Dark cave ceiling; stalactites fall as hazards',
+    mirror: 'Controls inverted every 20s; your reflection fights back',
+    underwater: 'Reduced gravity + horizontal drag (swimming physics)',
+    volcano: 'Periodic eruptions launch lava rocks; heavy gravity',
+    colosseum: 'Large 4-tier arena; crowd cheers boost super meter gain',
+    cyberpunk: 'Neon boost pads; periodic EMP disables cooldowns briefly',
+    haunted: 'Fog of war; ghost enemies phase through platforms',
+    neonGrid: 'Speed boost pads; wall-run segments on side walls',
+    mushroom: 'Bouncy mushroom platforms; poison spores slow movement',
+  };
   for (const [key, ar] of Object.entries(ARENAS)) {
     const grav = ar.isLowGravity ? 'Low (0.22)' : ar.isHeavyGravity ? 'Heavy (0.85)' : 'Normal (0.55)';
     html += `<tr style="border-bottom:1px solid rgba(255,255,255,0.08)"><td style="color:#aaffaa">${key}</td><td>${grav}</td><td style="font-size:11px;color:#ccc">${arenaGimmicks[key] || '—'}</td><td>${ar.platforms.length}</td></tr>`;
@@ -338,7 +506,9 @@ function toggleStatsLog() {
     ['Raged Beast', '180', 'Forest arena (1 in 10 beast spawns)', '+dmg, +kb, +speed, red aura'],
     ['Yeti', '450', 'Ice arena (0.5% chance/frame)', 'Roar stun, Ice spikes, Ice breath'],
     ['Boss (Creator)', '3000 (True: 4500)', 'Creator arena', 'Beams, Spikes, Floor hazards, Minions, Teleport'],
+    ['True Form', '5000', 'Void arena (unlock secret letters)', 'Gravity flip, control invert, black holes, size shift, portal, floor removal'],
     ['Boss Minion', '50', 'Spawned by Boss Phase 2+', 'Hard AI, 50% damage output'],
+    ['SOVEREIGN (Neural)', 'Same as hard bot', 'Adaptive AI mode (unlock via story)', 'Reads player patterns, dodge-punish, baits attacks, learns in real-time'],
     ['Dummy', '∞ (auto-heal)', 'Training mode', 'Stands still — for practice'],
   ];
   for (const [name, hp, loc, moves] of entities) {
@@ -350,11 +520,14 @@ function toggleStatsLog() {
   html += '<h3 style="color:#cc00ee;margin:16px 0 6px">Boss Stats</h3><table style="width:100%;border-collapse:collapse;font-size:12px">';
   html += '<tr style="background:rgba(200,0,238,0.12)"><th>Stat</th><th>Value</th></tr>';
   const bossStats = [
-    ['HP', '3000 (True Form: 4500)'], ['Phase 1', '> 2000 HP'], ['Phase 2', '1000–2000 HP'],
-    ['Phase 3', '< 1000 HP'], ['KB Resist', '0.5x'], ['KB Bonus', '1.5x (True: 2.5x)'],
-    ['Attack CD Mult', '0.5x (True: 0.28x)'], ['Beam CD P2', '560f'], ['Beam CD P3', '400f/280f (P3)'],
-    ['Spike Damage', '20 (launch vy=-24)'], ['Beam Damage', '12/frame in 24px'], ['Floor Hazard', '15s active, 5s warning'],
-    ['Fake Death', 'Triggers at 33% HP, one per game'], ['Backstage Hide', 'Invincible + 60f attack block on exit'],
+    ['Boss HP', '3000'], ['Phase 1', '> 2000 HP — basic attacks + floor hazard'],
+    ['Phase 2', '1000–2000 HP — beams, minions'], ['Phase 3', '< 1000 HP — everything, faster'],
+    ['KB Resist', '0.5x'], ['KB Bonus', '1.5x'],
+    ['Attack CD Mult', '0.5x'], ['Beam CD P2', '560f'], ['Beam CD P3', '400f / 280f (desperation)'],
+    ['Spike Damage', '20 (vy=-24)'], ['Beam Damage', '12/frame in 24px radius'], ['Floor Hazard', '15s active, 5s warning cycle'],
+    ['Fake Death', 'Triggers once at 33% HP'], ['Stagger', '120+ dmg in 3s → 2.5s stun'],
+    ['True Form HP', '5000'], ['TF Speed', '4.2 (1.3× normal)'], ['TF KB Resist', '0.90'],
+    ['TF Phases', 'QTE at 75/50/25/10% HP; ends with full cinematic'], ['Adaptation', 'Learns player over time (5 tiers)'],
   ];
   for (const [k, v] of bossStats) {
     html += `<tr style="border-bottom:1px solid rgba(255,255,255,0.08)"><td>${k}</td><td>${v}</td></tr>`;
@@ -567,11 +740,14 @@ function pickSafeSpawn(sideHint, avoidX) {
   if (['void','soccer'].includes(currentArenaKey)) return null;
 
   const platforms = currentArena.platforms;
+  const lavaY = currentArena.hasLava ? (currentArena.lavaY || 442) : Infinity;
 
   // For boss/creator arena: the floor can be disabled by hazard events.
   // Prefer non-floor platforms that are solid. Fall back to floor if available.
   // Use current pl.x (live, after random-lerp) so spawn lands on the actual platform.
-  const safe = platforms.filter(pl => !pl.isFloorDisabled && pl.w > 50);
+  // Also exclude platforms at or below the lava line (would place spawns in lava).
+  // lavaY - 90: keep spawns well above lava so players don't immediately burn on respawn
+  const safe = platforms.filter(pl => !pl.isFloorDisabled && pl.w > 50 && pl.y < lavaY - 90);
   const raised = safe.filter(pl => !pl.isFloor);
   const floor  = safe.find(pl => pl.isFloor);
 
@@ -639,6 +815,7 @@ function _startGameCore() {
   const isTrainingMode  = gameMode === 'training';
   const isMinigamesMode = gameMode === 'minigames';
   const isExploreMode   = gameMode === 'exploration';
+  const isAdaptiveMode  = gameMode === 'adaptive';
   trainingMode = isTrainingMode;
   tutorialMode = false; // tutorial mode removed
   if (isBossMode) {
@@ -652,12 +829,13 @@ function _startGameCore() {
     if (minigameType === 'soccer') {
       currentArenaKey = 'soccer';
     } else {
-      // Pick a random non-boss arena for minigames
-      const arenaPool = Object.keys(ARENAS).filter(k => !['creator','void','soccer'].includes(k));
+      // Pick a random arena from the standard PvP selection
+      const arenaPool = ARENA_KEYS_ORDERED.filter(k => ARENAS[k] && !ARENAS[k].isStoryOnly);
       currentArenaKey = randChoice(arenaPool);
     }
   } else {
-    const arenaPool = Object.keys(ARENAS).filter(k => !['creator','void','soccer'].includes(k) && !ARENAS[k].isStoryOnly);
+    // Only standard PvP arenas (ARENA_KEYS_ORDERED) available for random pick
+    const arenaPool = ARENA_KEYS_ORDERED.filter(k => ARENAS[k] && !ARENAS[k].isStoryOnly);
     // If a story-only arena was somehow selected outside story mode, fall back to random
     const isStoryOnlyArena = ARENAS[selectedArena] && ARENAS[selectedArena].isStoryOnly;
     if (isStoryOnlyArena && !storyModeActive) {
@@ -670,6 +848,7 @@ function _startGameCore() {
   // Lava/void: no randomization
   if (currentArenaKey !== 'creator' && currentArenaKey !== 'lava' && currentArenaKey !== 'void' && currentArenaKey !== 'soccer' && !isExploreMode) randomizeArenaLayout(currentArenaKey);
   currentArena = ARENAS[currentArenaKey];
+  if (typeof buildGraphForCurrentArena === 'function') buildGraphForCurrentArena();
   initMapPerks(currentArenaKey);
 
   // Online host: broadcast authoritative game state to guest BEFORE creating fighters
@@ -837,6 +1016,23 @@ function _startGameCore() {
       p1.target = p2;
       p2.target = p1;
     }
+  } else if (isAdaptiveMode) {
+    // Adaptive AI: P1 vs the learning AdaptiveAI opponent
+    p1.isAI  = false;
+    p1.lives = chosenLives;
+    // Pick a weapon for the AI — random from a balanced set
+    const _aiWeapons = ['sword','axe','spear','hammer','scythe','katana'];
+    const _aiWeapon  = _aiWeapons[Math.floor(Math.random() * _aiWeapons.length)];
+    const ai = new AdaptiveAI(720, 300, '#9955ee', _aiWeapon);
+    ai.playerNum = 2;
+    ai.lives     = chosenLives;
+    const _aiSpawn = pickSafeSpawn('right', _p1SpawnPos.x) || { x: 720, y: 300 };
+    ai.spawnX = _aiSpawn.x; ai.spawnY = _aiSpawn.y;
+    ai.x = _aiSpawn.x;      ai.y = _aiSpawn.y;
+    p2 = ai;
+    players = [p1, ai];
+    p1.target = ai;
+    ai.target = p1;
   } else if (isTrueFormMode) {
     // True Form: solo — P1 vs True Form boss, void arena, no 2P
     p1.isAI = false;
@@ -872,12 +1068,13 @@ function _startGameCore() {
   } else if (isMinigamesMode) {
     // Minigames: P1 always human; survival/koth both support optional P2
     p1.isAI = false;
-    p1.lives = 10; // infinite — managed by mode
+    p1.lives = (minigameType === 'survival') ? 1 : 10; // survival: 1 life; others: managed by mode
     if (minigameType === 'koth' || minigameType === 'chaos' || minigameType === 'soccer' || (minigameType === 'survival' && !p2IsNone)) {
       const p2mg = new Fighter(720, 300, c2, w2,
         { left:'ArrowLeft', right:'ArrowRight', jump:'ArrowUp', attack:'Enter',
           shield:'ArrowDown', ability:'.', super:'/' }, p2IsBot, p2Diff);
-      p2mg.playerNum = 2; p2mg.name = p2IsBot ? 'BOT' : 'P2'; p2mg.lives = 99;
+      p2mg.playerNum = 2; p2mg.name = p2IsBot ? 'BOT' : 'P2';
+      p2mg.lives = (minigameType === 'survival') ? 1 : 99;
       { const _sp2 = pickSafeSpawn('right', _p1SpawnPos.x) || { x: 720, y: 300 };
         p2mg.spawnX = _sp2.x; p2mg.spawnY = _sp2.y; p2mg.x = _sp2.x; p2mg.y = _sp2.y; }
       p2mg.hat  = document.getElementById('p2Hat')?.value  || 'none';
@@ -900,7 +1097,7 @@ function _startGameCore() {
     // Exploration: P1 only — enemies are dynamically spawned as minions
     players = [p1];
     p1.target = null;
-    trainingMode = true; // enables infinite respawn on death
+    // Do NOT set trainingMode — exploration uses its own lives system
   } else if (p2IsNone) {
     // Solo / None mode — only P1 exists, infinite lives, no opponent
     p1.lives = 9999;
@@ -928,6 +1125,8 @@ function _startGameCore() {
     if (storyModeActive && storyEnemyArmor && storyEnemyArmor.length > 0) {
       p2.armorPieces = [...storyEnemyArmor];
     }
+    // Story opponent name
+    if (storyModeActive && storyOpponentName) p2.name = storyOpponentName;
     players = [p1, p2];
     p1.target = p2; p2.target = p1;
 
@@ -965,19 +1164,25 @@ function _startGameCore() {
     }
   }
 
-  // Online mode: mark the remote player and reset network state
+  // Online mode: mark which player is remote so gameLoop applies network state
   if (onlineMode && NetworkManager.connected) {
-    const localIdx  = onlineLocalSlot - 1;  // 0 or 1
-    const remoteIdx = 1 - localIdx;
-    players[localIdx].isRemote  = false;
-    players[remoteIdx].isRemote = true;
-    players[remoteIdx].isAI     = false; // remote is not AI
-    // Give local player P1 controls regardless of slot
-    players[localIdx].controls = {
-      left: 'a', right: 'd', jump: 'w', attack: ' ',
-      shield: 's', ability: 'q', super: 'e',
-    };
-    players[remoteIdx].controls = {}; // remote has no local controls
+    // onlineLocalSlot: 0 = host (plays as P1/index 0), 1 = guest (plays as P2/index 1)
+    const localIdx  = onlineLocalSlot;      // 0 for host, 1 for guest
+    const remoteIdx = 1 - localIdx;        // the other slot
+    if (players[localIdx]) {
+      players[localIdx].isRemote = false;
+      // Host always uses P1 keys; guest always uses P1 keys on their machine too
+      players[localIdx].controls = {
+        left: 'a', right: 'd', jump: 'w', attack: ' ',
+        shield: 's', ability: 'q', super: 'e',
+      };
+      players[localIdx].isAI = false;
+    }
+    if (players[remoteIdx]) {
+      players[remoteIdx].isRemote  = true;
+      players[remoteIdx].isAI      = false; // network drives this player, not AI
+      players[remoteIdx].controls  = {};    // no local keyboard input
+    }
   }
 
   // Lava arena: override spawn positions to ensure players land on solid platforms
@@ -1007,6 +1212,11 @@ function _startGameCore() {
   _achStats.superCount = 0; _achStats.matchStartTime = Date.now();
   _firstDeathFrame  = -1;
   _firstDeathPlayer = null;
+  // Chaos mode: initialize after players are set up
+  if (typeof chaosMode !== 'undefined' && chaosMode && typeof initChaosMode === 'function') {
+    initChaosMode();
+  }
+
   gameRunning = true;
   // Start appropriate background music
   if (gameMode === 'boss' || gameMode === 'trueform') {
@@ -1019,6 +1229,21 @@ function _startGameCore() {
     ? ErrorBoundary.wrapLoop(gameLoop)
     : gameLoop;
   requestAnimationFrame(_safeLoop);
+}
+
+// ============================================================
+// CHAOS MODE TOGGLE
+// ============================================================
+function toggleChaosMode() {
+  if (typeof chaosMode === 'undefined') return;
+  chaosMode = !chaosMode;
+  const btn = document.getElementById('chaosModeBtn');
+  if (btn) {
+    btn.textContent = '⚡ Chaos Mode: ' + (chaosMode ? 'ON' : 'OFF');
+    btn.style.borderColor = chaosMode ? 'rgba(220,80,255,0.8)' : 'rgba(160,60,255,0.4)';
+    btn.style.color       = chaosMode ? '#ff88ff' : '#cc88ff';
+    btn.style.boxShadow   = chaosMode ? '0 0 12px rgba(200,60,255,0.5)' : '';
+  }
 }
 
 // ============================================================
@@ -1049,6 +1274,10 @@ resizeGame();
 menuLoopRunning = true;
 requestAnimationFrame(menuBgLoop);
 
+// Sync version labels from GAME_VERSION constant so they never drift
+(function() { const el = document.getElementById('gameVersionLabel'); if (el && typeof GAME_VERSION !== 'undefined') el.textContent = GAME_VERSION; })();
+_initVersionLabels();
+
 // Restore secret letter state from localStorage on page load
 syncCodeInput();
 // Sync sound UI with saved state
@@ -1062,6 +1291,11 @@ syncCodeInput();
 if (localStorage.getItem('smc_bossBeaten')) {
   const bossCard = document.getElementById('modeBoss');
   if (bossCard) bossCard.style.display = '';
+}
+// Unlock Adaptive AI (SOVEREIGN) mode card after beating it in story
+if (localStorage.getItem('smc_sovereignBeaten')) {
+  const _adCard = document.getElementById('modeAdaptive');
+  if (_adCard) _adCard.style.display = '';
 }
 if (localStorage.getItem('smc_trueform')) {
   const card = document.getElementById('modeTrueForm');
@@ -1081,8 +1315,8 @@ if (localStorage.getItem('smc_trueform')) {
   const el = document.getElementById('settingRagdoll');
   if (el) el.checked = settings.ragdollEnabled;
 })();
-// Init arena & lives dropdowns to their default selected values
-selectArena(selectedArena);
+// Init arena & lives dropdowns — default to random on first load
+selectArena('random');
 selectLives(chosenLives);
 // Init public room browser hidden by default (private is default)
 (function() {

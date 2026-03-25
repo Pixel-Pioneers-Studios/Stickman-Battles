@@ -59,6 +59,7 @@ class Boss extends Fighter {
     this._pendingGravPulse  = null; // { timer }
     this._prevHealth        = 3000; // for stagger accumulation tracking
     this._cinematicFired    = new Set(); // HP-threshold mid-fight cinematics already triggered
+    this._backstoryPlayed   = false; // backstory cinematic fires once per match
   }
 
   getPhase() {
@@ -91,6 +92,15 @@ class Boss extends Fighter {
   // Override AI: phase-based, more aggressive, respects shield cooldown
   updateAI() {
     if (activeCinematic) return; // freeze during cinematic moments
+
+    // ── Backstory cinematic — fires once at the very start of a boss match ──
+    if (!this._backstoryPlayed && typeof startBossBackstoryCinematic === 'function') {
+      this._backstoryPlayed = true;
+      this.postSpecialPause = Math.max(this.postSpecialPause, 40);
+      startBossBackstoryCinematic();
+      return;
+    }
+
     if (this.aiReact > 0) { this.aiReact--; return; }
     if (this.ragdollTimer > 0 || this.stunTimer > 0) return;
     if (bossStaggerTimer > 0) return; // stunned — vulnerability window
@@ -335,7 +345,7 @@ class Boss extends Fighter {
         }
         this.spikeCooldown = 24; // in AI ticks
         this.postSpecialPause = 4;
-        showBossDialogue(randChoice(['Rise!', 'The ground betrays you!', 'Watch your feet!', 'From below!']));
+        showBossDialogue(randChoice(['The floor has opinions.', 'Watch what\'s beneath you.', 'Everything rises at my word.', 'Below.']));
       }
     }
 
@@ -352,7 +362,7 @@ class Boss extends Fighter {
         spawnParticles(spawnX, spawnY, '#bb00ee', 24);
         if (settings.screenShake) screenShake = Math.max(screenShake, 12);
         this.minionCooldown = phase === 3 ? 20 : 36; // in AI ticks
-        showBossDialogue(randChoice(['Deal with my guests!', 'MINIONS, arise!', 'Handle this!', 'You\'ll need backup...']));
+        showBossDialogue(randChoice(['I have associates.', 'Let them practice on you.', 'You wanted a crowd? Here.', 'Handle these first.']));
       }
     }
 
@@ -369,22 +379,22 @@ class Boss extends Fighter {
         }
         this.beamCooldown = phase === 3 ? 16 : 28; // in AI ticks
         this.postSpecialPause = 4;
-        showBossDialogue(randChoice(['Nowhere to hide!', 'Feel the void!', 'Dodge THIS!', 'From below!', 'The light will take you!']));
+        showBossDialogue(randChoice(['The arena remembers where you stood.', 'Light doesn\'t miss.', 'I\'m everywhere you aren\'t.', 'This is what \'nowhere\' looks like.']));
       }
     }
 
     // HP-threshold monologue (fires once per threshold crossing) — scaled for 3000 HP
     const hpLines = [
-      { hp: 2999, text: 'I have taught you everything you know, but not everything I know — bring it on!' },
-      { hp: 2600, text: 'Ha. You tickle.' },
-      { hp: 2200, text: 'Interesting... you\'re persistent.' },
-      { hp: 2000, text: 'Phase two begins. This is where it gets real.' },
-      { hp: 1600, text: 'I\'m just warming up.' },
-      { hp: 1200, text: 'Fine. No more holding back!' },
-      { hp: 1000, text: 'PHASE THREE. Feel my full power!' },
-      { hp: 600,  text: 'You\'re stronger than I thought...' },
-      { hp: 300,  text: 'Impossible... HOW?!' },
-      { hp: 100,  text: 'I... WILL NOT... FALL HERE!' },
+      { hp: 2999, text: 'Good. You showed up.' },
+      { hp: 2600, text: 'That was yours. Enjoy it.' },
+      { hp: 2200, text: 'You\'re still here. Interesting.' },
+      { hp: 2000, text: 'I was holding back. Not anymore.' },
+      { hp: 1600, text: 'You\'re earning this.' },
+      { hp: 1200, text: 'Every world has a limit. You\'re approaching mine.' },
+      { hp: 1000, text: 'I built this place. I decide when it ends.' },
+      { hp: 600,  text: 'I miscalculated. That won\'t happen again.' },
+      { hp: 300,  text: 'You\'ve gone further than anyone. That means nothing.' },
+      { hp: 100,  text: 'Still standing. So am I.' },
     ];
     for (const { hp, text } of hpLines) {
       if (this.health <= hp && !this.phaseDialogueFired.has(hp)) {
@@ -419,7 +429,7 @@ class Boss extends Fighter {
           color: '#ff6600', timer: 45, maxTimer: 45 });
       }
       this._pendingGroundSlam = { timer: 45, x: slamX, y: slamY };
-      showBossDialogue(randChoice(['SHATTER!', 'The ground breaks!', 'SLAM!', 'Feel the impact!']), 150);
+      showBossDialogue(randChoice(['Down.', 'Stay there.', 'The floor agrees with me.', 'SHATTER.']), 150);
       if (typeof directorAddIntensity === 'function') directorAddIntensity(0.15);
       return true;
     }
@@ -434,7 +444,7 @@ class Boss extends Fighter {
       bossWarnings.push({ type: 'circle', x: this.cx(), y: this.cy(), r: 60,
         color: '#cc66ff', timer: 40, maxTimer: 40 });
       this._pendingGravPulse = { timer: 40, edge: false };
-      showBossDialogue(randChoice(['Come closer.', 'You cannot run.', 'GRAVITY PULSE!', 'The void calls.']), 180);
+      showBossDialogue(randChoice(['Come.', 'Distance is an illusion.', 'The void obeys me.', 'You were never free.']), 180);
       if (typeof directorAddIntensity === 'function') directorAddIntensity(0.14);
       return true;
     }
@@ -461,7 +471,7 @@ class Boss extends Fighter {
         bossMetSafeZones.push({ x: sx, y: 380, r: 70, timer: 240 + 110, maxTimer: 240 + 110 });
       }
       screenShake = Math.max(screenShake, 14);
-      showBossDialogue(randChoice(['METEOR STORM!', 'Nowhere is safe.', 'Rain of destruction!', 'JUDGMENT FALLS!']), 220);
+      showBossDialogue(randChoice(['Every corner belongs to me.', 'Let it rain.', 'I own the sky too.', 'Nowhere safe. I checked.']), 220);
       if (typeof directorAddIntensity === 'function') directorAddIntensity(0.20);
       return true;
     }
@@ -470,7 +480,7 @@ class Boss extends Fighter {
     if (playerStill && phase >= 2 && this.teleportCooldown <= 0 && !this.backstageHiding) {
       bossTeleport(this);
       this.teleportCooldown = phase === 3 ? 20 : 40;
-      showBossDialogue('Too easy a target.', 160);
+      showBossDialogue('Standing still is a choice. A bad one.', 160);
       return true;
     }
 
@@ -482,7 +492,7 @@ class Boss extends Fighter {
       this._pendingGravPulse = { timer: 40, edge: true };
       spawnParticles(this.cx(), this.cy(), '#9900cc', 20);
       screenShake = Math.max(screenShake, 14);
-      showBossDialogue('You cannot hide at the edges.', 180);
+      showBossDialogue('The edges are mine too.', 180);
       if (typeof directorAddIntensity === 'function') directorAddIntensity(0.12);
       return true;
     }
@@ -556,10 +566,10 @@ class Boss extends Fighter {
 
   _domLine() {
     const lines = [
-      '"Did you think I wasn\'t watching?"',
-      '"This is where it ends."',
-      '"You\'ve barely scratched me."',
-      '"Enough of this."',
+      'I was always behind you.',
+      'You never had the initiative.',
+      'Amusing.',
+      'I let you get that far.',
     ];
     return lines[Math.floor(Math.random() * lines.length)];
   }
@@ -694,7 +704,7 @@ function bossTeleport(boss, isForced = false) {
       boss.invincible      = 60;
       boss.postTeleportCrit = 120;        // 2s crit window
       boss.postPortalAttackBlock = 60;    // boss can't attack for 1s after portal exit
-      showBossDialogue(randChoice(['Now you see me...', 'Try to follow me!', 'Blink!', 'You\'re too slow!']));
+      showBossDialogue(randChoice(['Behind you.', 'You were looking in the wrong place.', 'I was never there.', 'Try to keep up.']));
       // Close entry portal
       setTimeout(() => {
         for (const bp of backstagePortals) { if (bp.type === 'entry' && bp.phase === 'open') bp.phase = 'closing'; }
@@ -724,7 +734,7 @@ function bossTeleport(boss, isForced = false) {
       boss.backstageHiding = false;
       boss.invincible = 60;
       boss.forcedTeleportFlash = 20;
-      showBossDialogue('You really thought I would go down that easily?', 300);
+      showBossDialogue('Did you think that was enough?', 300);
     }, 1100);
   }
 }
@@ -831,6 +841,45 @@ class TrueForm extends Fighter {
     this._galaxySweepCd  = 24;  // Galaxy Sweep      — 6s    (was 35)
     this._multiverseCd   = 32;  // Multiverse Fracture — 8s  (was 44)
     this._supernovaCd    = 999; // Supernova — triggers once at low HP only
+
+    // ── Adaptive AI: real-time player pattern recognition ──────────────────
+    this.adaptationLevel  = 0;      // 0–100: depth of player understanding
+    this._adaptProfileTick = 0;     // AI-tick counter for profile updates (every 8 ticks = 2s)
+    this._adaptBehaviorCd  = 12;    // AI-tick countdown to next behavior recalculation
+
+    // Raw per-cycle event counters
+    this._rawAtks    = 0;
+    this._rawJumps   = 0;
+    this._rawDodges  = 0;
+    this._rawBlocks  = 0;
+    this._distSamples = [];
+
+    // Smoothed player profile (updated every 2s, range 0–1 unless noted)
+    this._profile = {
+      attackFrequency:    0,     // attacks per 2s window
+      jumpFrequency:      0,
+      dodgeFrequency:     0,
+      blockFrequency:     0,
+      distancePreference: 200,   // px — preferred engagement gap
+      repetitionScore:    0,     // 0=unpredictable, 1=very predictable
+    };
+
+    // Previous target state for delta detection
+    this._prevTState = { attacking: false, onGround: true, shielding: false, vx: 0 };
+
+    // Adaptive behavior multipliers (recalculated every _adaptBehaviorCd ticks)
+    this._adaptDodge   = 0.32;  // dodge chance
+    this._adaptAtkFreq = 0.16;  // melee attack frequency
+    this._adaptSpacing = 55;    // preferred combat distance (px)
+    this._adaptReact   = 3;     // reaction delay (AI ticks)
+
+    // Adaptation milestone dialogue tracking
+    this._adaptDialogueFired = new Set();
+
+    // Visual evolution state (driven by adaptationLevel)
+    this._adaptOrbitMult = 1.0;  // orbit speed multiplier; increases with adaptation
+    this._adaptGlowBoost = 0;    // extra nebula brightness (0–1)
+    this._adaptFlicker   = 0;    // high-adaptation instability (0–1)
   }
 
   getPhase() {
@@ -913,7 +962,7 @@ class TrueForm extends Fighter {
     // ── Desperation mode activates at <20% HP ────────────────
     if (!this._desperationMode && this.health / this.maxHealth < 0.20) {
       this._desperationMode = true;
-      showBossDialogue(randChoice(['You forced this.', '...Fine.', 'No more holding back.', 'ENOUGH.']), 260);
+      showBossDialogue(randChoice(['You wanted this.', 'Last warning. You passed it.', 'There is no ceiling above me.', 'Fine. All of it.']), 260);
       screenShake = Math.max(screenShake, 28);
       spawnParticles(this.cx(), this.cy(), '#ffffff', 30);
       spawnParticles(this.cx(), this.cy(), '#000000', 20);
@@ -983,12 +1032,18 @@ class TrueForm extends Fighter {
         tfFloorRemoved = false;
         const floorPl = currentArena.platforms.find(p => p.isFloor);
         if (floorPl) floorPl.isFloorDisabled = false;
-        showBossDialogue('Ground restored.', 150);
+        showBossDialogue('I gave it back. Enjoy it while it lasts.', 150);
       }
     }
 
     const t = this.target;
     if (!t || t.health <= 0) return;
+
+    // ── Adaptive AI: track player profile every tick ──────────────────────
+    this._trackPlayerProfile(t);
+    // Recalculate behavior parameters every _adaptBehaviorCd ticks
+    if (this._adaptBehaviorCd > 0) { this._adaptBehaviorCd--; }
+    else { this._adaptBehaviorCd = 12; this._adaptBehavior(); }
 
     const dx  = t.cx() - this.cx();
     const d   = Math.abs(dx);
@@ -1015,11 +1070,14 @@ class TrueForm extends Fighter {
     // Force special every 7/5/4 idle ticks vs Creator's longer interval
     this._idleTicks++;
     const burstActive  = this._aggressionBurstTimer > 0;
-    // Elevated base frequencies — TrueForm overwhelms constantly
+    // Adaptive special frequency: grows with adaptationLevel (range 0→+0.12 bonus)
+    const _alBonus = (this.adaptationLevel / 100) * 0.12;
     const specialFreq  = burstActive
-      ? (phase === 3 ? 0.35 : phase === 2 ? 0.24 : 0.16)
-      : (phase === 3 ? 0.18 : phase === 2 ? 0.11 : 0.060);
-    const forceSpecial = this._idleTicks >= (this._desperationMode ? 4 : phase === 3 ? 6 : 8);
+      ? (phase === 3 ? 0.35 : phase === 2 ? 0.24 : 0.16) + _alBonus
+      : (phase === 3 ? 0.18 : phase === 2 ? 0.11 : 0.060) + _alBonus * 0.6;
+    // Force-special idle threshold shrinks with adaptation (max patience at 0→min at 100)
+    const _idleThreshold = Math.max(4, (this._desperationMode ? 4 : phase === 3 ? 6 : 8) - Math.round((this.adaptationLevel / 100) * 3));
+    const forceSpecial = this._idleTicks >= _idleThreshold;
     if (forceSpecial || Math.random() < specialFreq) {
       const move = this._selectWeightedSpecial(phase, t);
       if (move) {
@@ -1041,7 +1099,7 @@ class TrueForm extends Fighter {
         // If still no special available, trigger bare aggression burst + direct melee
         if (this._stillTimer > 10 && this._aggressionBurstTimer <= 0) {
           this._aggressionBurstTimer = 6;
-          showBossDialogue(randChoice(['You think standing still will save you?', 'Come on.', 'Move.', 'I see you.', 'Pathetic.']), 120);
+          showBossDialogue(randChoice(['Stillness won\'t protect you.', 'I see you.', 'Move. I\'m getting bored.', 'You\'re not hiding. You\'re waiting to lose.']), 120);
         }
         // Force a melee combo burst when idle too long
         if (d < 100 && this.cooldown <= 0) {
@@ -1082,7 +1140,7 @@ class TrueForm extends Fighter {
     } else {
       const attacker = players.find(p => !p.isBoss && p.attackTimer > 0 && dist(this, p) < 85);
       if (attacker) {
-        const dodgeChance = phase === 3 ? 0.68 : phase === 2 ? 0.50 : 0.32;
+        const dodgeChance = Math.min(0.80, this._adaptDodge * (phase === 3 ? 2.0 : phase === 2 ? 1.5 : 1.0));
         if (Math.random() < dodgeChance) {
           const awayDir = this.cx() > attacker.cx() ? 1 : -1;
           this.vx = awayDir * spd * 4.2;
@@ -1100,17 +1158,18 @@ class TrueForm extends Fighter {
       }
     }
 
-    // --- Attack: TrueForm hits faster and strings more blows ─────────────
-    const atkFreq = phase === 3 ? 0.38 : phase === 2 ? 0.26 : 0.16;
-    if (d < 72 && Math.random() < atkFreq && this.cooldown <= 0) {
+    // --- Attack: frequency driven by adaptive behavior multiplier ────────
+    const atkFreq = Math.min(0.44, this._adaptAtkFreq * (phase === 3 ? 2.2 : phase === 2 ? 1.5 : 1.0));
+    if (d < this._adaptSpacing + 20 && Math.random() < atkFreq && this.cooldown <= 0) {
       this.attack(t);
     }
     // Second hit of a combo when very close (area control)
-    if (d < 48 && Math.random() < (phase === 3 ? 0.22 : phase === 2 ? 0.14 : 0.08) && this.cooldown <= 0) {
+    const atkFreq2 = Math.min(0.28, (this._adaptAtkFreq * 0.6) * (phase === 3 ? 2.0 : phase === 2 ? 1.4 : 0.9));
+    if (d < 48 && Math.random() < atkFreq2 && this.cooldown <= 0) {
       this.attack(t);
     }
-    // Phase 3: bonus area-denial hit even at medium range
-    if (phase === 3 && d < 95 && Math.random() < 0.10 && this.cooldown <= 0) {
+    // High adaptation bonus: pressure hit at medium range
+    if (this.adaptationLevel >= 50 && d < 95 && Math.random() < 0.08 + (this.adaptationLevel / 100) * 0.08 && this.cooldown <= 0) {
       this.attack(t);
     }
   }
@@ -1122,37 +1181,67 @@ class TrueForm extends Fighter {
     const hpPct      = target.health / target.maxHealth;
     const w          = {};
 
-    // ── Phase 1+ attacks ──────────────────────────────────────
-    if (this._slashCd     <= 0) w.slash     = 0.20;
-    if (this._meteorCd    <= 0) w.meteor    = 0.16;
-    if (this._portalCd    <= 0) w.portal    = 0.12;
-    if (this._holeCd      <= 0) w.holes     = 0.09;
-    if (this._shockwaveCd <= 0) w.shockwave = 0.14;
-    if (this._sizeCd      <= 0) w.size      = 0.07;
-    if (this._invertCd    <= 0) w.invert    = 0.07;
-    if (this._warpCd      <= 0) w.warp      = 0.04;
-    // ── Dimensional attacks (all phases) ────────────────────
-    if (this._phaseShiftCd  <= 0 && !tfPhaseShift)  w.phaseShift  = 0.11;
-    if (this._calcStrikeCd  <= 0 && !tfCalcStrike)  w.calcStrike  = 0.11;
-    if (this._realityTearCd <= 0 && !tfRealityTear) w.realityTear = 0.10;
+    const al = this.adaptationLevel;
 
-    // ── Phase 2+ attacks ─────────────────────────────────────
-    if (phase >= 2) {
-      if (this._wellCd    <= 0) w.well    = 0.14;
-      if (this._cloneCd   <= 0) w.clones  = 0.14;
-      if (this._gravityCd <= 0) w.gravity = 0.09;
-      if (this._floorCd   <= 0 && !tfFloorRemoved) w.floor = 0.09;
+    // ── TIER 0 — Always available ─────────────────────────────────────────
+    if (this._slashCd  <= 0) w.slash  = 0.20;
+    if (this._meteorCd <= 0) w.meteor = 0.16;
+    if (this._portalCd <= 0) w.portal = 0.12;
+    if (this._holeCd   <= 0) w.holes  = 0.09;
+    if (this._warpCd   <= 0) w.warp   = 0.04;
+
+    // ── TIER 1 — Unlocks at AL 25 ────────────────────────────────────────
+    if (al >= 25) {
+      if (this._shockwaveCd <= 0) w.shockwave = 0.14;
+      if (this._sizeCd      <= 0) w.size      = 0.07;
+      if (this._invertCd    <= 0) w.invert    = 0.07;
+      if (this._phaseShiftCd <= 0 && !tfPhaseShift) w.phaseShift = 0.11;
     }
 
-    // ── Phase 3+ attacks ─────────────────────────────────────
-    if (phase >= 3) {
-      if (this._graspCd         <= 0) w.grasp         = 0.22;
-      if (this._chainCd         <= 0) w.chain         = 0.18;
-      if (this._teleportComboCd <= 0) w.teleportCombo = 0.20;
-      if (this._gravityCrushCd  <= 0) w.gravityCrush  = 0.16;
+    // ── TIER 2 — Unlocks at AL 40 (or HP phase 2 as fallback) ────────────
+    const _tier2 = al >= 40 || phase >= 2;
+    if (_tier2) {
+      if (this._wellCd        <= 0)               w.well        = al >= 40 ? 0.14 : 0.08;
+      if (this._calcStrikeCd  <= 0 && !tfCalcStrike)  w.calcStrike  = al >= 40 ? 0.11 : 0.06;
+      if (this._realityTearCd <= 0 && !tfRealityTear) w.realityTear = al >= 40 ? 0.10 : 0.05;
+      if (this._floorCd       <= 0 && !tfFloorRemoved) w.floor = al >= 40 ? 0.09 : 0.05;
     }
-    // Phase 2+ gravity crush (weaker version)
-    if (phase === 2 && this._gravityCrushCd <= 0) w.gravityCrush = 0.08;
+    if (al >= 40 && this._gammaBeamCd <= 0 && !tfGammaBeam) w.gammaBeam = 0.12;
+
+    // ── TIER 3 — Unlocks at AL 60 (or HP phase 2/3 as fallback) ─────────
+    const _tier3early = al >= 60;
+    if (_tier3early || phase >= 2) {
+      if (this._cloneCd   <= 0) w.clones  = _tier3early ? 0.14 : 0.07;
+      if (this._gravityCd <= 0) w.gravity = _tier3early ? 0.09 : 0.05;
+    }
+    if (_tier3early || phase >= 3) {
+      if (this._graspCd <= 0) w.grasp = _tier3early ? 0.22 : 0.12;
+      if (this._chainCd <= 0) w.chain = _tier3early ? 0.18 : 0.10;
+      if (this._neutronStarCd <= 0 && !tfNeutronStar) w.neutronStar = _tier3early ? 0.10 : 0.05;
+    }
+
+    // ── TIER 4 — Unlocks at AL 75 (or HP phase 3 as fallback) ────────────
+    const _tier4 = al >= 75;
+    if (_tier4 || phase >= 3) {
+      if (this._teleportComboCd <= 0) w.teleportCombo = _tier4 ? 0.20 : 0.10;
+      if (this._gravityCrushCd  <= 0) w.gravityCrush  = _tier4 ? 0.16 : 0.08;
+      if (this._galaxySweepCd   <= 0 && !tfGalaxySweep)  w.galaxySweep        = _tier4 ? 0.10 : 0.05;
+      if (this._multiverseCd    <= 0 && !tfMultiverse)   w.multiverseFracture = _tier4 ? 0.09 : 0.04;
+    }
+    if (phase === 2 && !_tier4 && this._gravityCrushCd <= 0) w.gravityCrush = 0.05;
+    if (_tier4) {
+      if ((phase >= 3 || this._desperationMode) && this._realityOverrideCd <= 0 && !tfRealityOverride) w.realityOverride = 0.16;
+      if ((phase >= 3 || this._desperationMode) && this._collapseStrikeCd  <= 0) w.collapseStrike  = 0.13;
+      if (phase >= 2 && this._grabCinCd <= 0 && !activeCinematic) w.grabCinematic = 0.07;
+      if (phase >= 2 && this._dimensionCd <= 0) w.dimension = 0.09;
+    }
+
+    // ── TIER 5 — Unlocks at AL 90 ────────────────────────────────────────
+    if (al >= 90 && this._supernovaCd <= 0 && !tfSupernova && this.health / this.maxHealth < 0.25) {
+      w.supernova = 0.28;
+    } else if (al < 90 && this._supernovaCd <= 0 && !tfSupernova && this.health / this.maxHealth < 0.18) {
+      w.supernova = 0.12; // fallback at very low HP even without full adaptation
+    }
 
     // ── Distance zone modifiers ───────────────────────────────
     const closeDist = d < 100;
@@ -1213,28 +1302,7 @@ class TrueForm extends Fighter {
     if (this._stillTimer > 6 && w.calcStrike)  w.calcStrike  *= 2.4; // standing still = easy to predict
     if (farDist  && w.realityTear) w.realityTear *= 2.0; // far away = tear pulls them in
     if (closeDist && w.phaseShift) w.phaseShift  *= 1.8; // close = phase shift to reposition
-    // ── Phase 3 / desperation exclusive attacks ───────────────
-    if ((phase === 3 || this._desperationMode) && this._realityOverrideCd <= 0 && !tfRealityOverride) {
-      w.realityOverride = 0.16;
-    }
-    if ((phase === 3 || this._desperationMode) && this._collapseStrikeCd <= 0) {
-      w.collapseStrike = 0.13;
-    }
-    if (phase >= 2 && this._grabCinCd <= 0 && !activeCinematic) {
-      w.grabCinematic = 0.07;
-    }
-    // Dimension Shift — available from phase 2 onward, moderate weight
-    if (phase >= 2 && this._dimensionCd <= 0) {
-      w.dimension = 0.09;
-    }
-    // ── Cosmic attacks ────────────────────────────────────────
-    if (this._gammaBeamCd   <= 0 && !tfGammaBeam)   w.gammaBeam    = 0.12;
-    if (this._neutronStarCd <= 0 && !tfNeutronStar)  w.neutronStar  = 0.10;
-    if (this._galaxySweepCd <= 0 && !tfGalaxySweep)  w.galaxySweep  = 0.10;
-    if (this._multiverseCd  <= 0 && !tfMultiverse)   w.multiverseFracture = 0.09;
-    if (this._supernovaCd   <= 0 && !tfSupernova && this.health / this.maxHealth < 0.25) {
-      w.supernova = 0.28; // heavy weight when unlocked — dramatic payoff
-    }
+    // (Phase 3 / desperation / cosmic attacks are now gated via tier system above)
     // Situational boosts for cosmic attacks
     if (farDist  && w.gammaBeam)   w.gammaBeam    *= 2.2; // beam crosses full map
     if (playerAir && w.neutronStar) w.neutronStar  *= 1.8; // gravity hurts airborne players more
@@ -1248,6 +1316,28 @@ class TrueForm extends Fighter {
       if (w.collapseStrike)  w.collapseStrike  *= 1.8;
       if (w.calcStrike)      w.calcStrike      *= 1.4;
       if (w.supernova)       w.supernova       *= 1.5;
+    }
+
+    // ── Adaptive profile-driven boosts ───────────────────────
+    // Jump-heavy player → anti-air priority
+    if (this._profile.jumpFrequency > 0.8) {
+      if (w.meteor)  w.meteor  = (w.meteor  || 0) * (1 + this._profile.jumpFrequency * 0.8);
+      if (w.well)    w.well    = (w.well    || 0) * (1 + this._profile.jumpFrequency * 0.6);
+    }
+    // Aggressive player → prioritize evasion + counter
+    if (this._profile.attackFrequency > 1.2) {
+      if (w.phaseShift) w.phaseShift = (w.phaseShift || 0) * 1.8;
+      if (w.portal)     w.portal     = (w.portal     || 0) * 1.5;
+    }
+    // Defensive/block-heavy player → break through
+    if (this._profile.blockFrequency > 0.6) {
+      if (w.grasp)  w.grasp  = (w.grasp  || 0) * 1.8;
+      if (w.meteor) w.meteor = (w.meteor || 0) * 1.4;
+    }
+    // Predictable player → prediction-based attacks
+    if (this._profile.repetitionScore > 0.5 && al >= 40) {
+      if (w.calcStrike) w.calcStrike = (w.calcStrike || 0) * (1 + this._profile.repetitionScore * 2.0);
+      if (w.slash)      w.slash      = (w.slash      || 0) * (1 + this._profile.repetitionScore * 1.2);
     }
 
     // ── Anti-repeat ───────────────────────────────────────────
@@ -1282,7 +1372,7 @@ class TrueForm extends Fighter {
       case 'grasp': {
         this._graspCd = Math.ceil(50 * cdMult);
         this.postSpecialPause = 6;
-        showBossDialogue('You cannot escape.', 180);
+        showBossDialogue('Gravity is not on your side.', 180);
         screenShake = Math.max(screenShake, 22);
         spawnParticles(this.cx(), this.cy(), '#440044', 22);
         spawnParticles(this.cx(), this.cy(), '#ffffff',  8);
@@ -1319,7 +1409,7 @@ class TrueForm extends Fighter {
           r: 80, color: '#ff0044', timer: 30, maxTimer: 30, label: 'SLASH ZONE' });
         // Store pending slash; execute teleport+damage after telegraph
         this._pendingSlash = { timer: 30, target, behindOff };
-        showBossDialogue('Too slow.', 100);
+        showBossDialogue('I was already there.', 100);
         break;
       }
       // ── NEW: Gravity Well ───────────────────────────────────
@@ -1335,7 +1425,7 @@ class TrueForm extends Fighter {
         screenShake = Math.max(screenShake, 16);
         spawnParticles(wellX, wellY, '#440044', 28);
         spawnParticles(wellX, wellY, '#8800ff', 14);
-        showBossDialogue('The void pulls.', 180);
+        showBossDialogue('Everything falls toward me eventually.', 180);
         break;
       }
       // ── NEW: Meteor Crash ───────────────────────────────────
@@ -1353,7 +1443,7 @@ class TrueForm extends Fighter {
         };
         spawnParticles(this.cx(), this.cy(), '#000000', 22);
         spawnParticles(this.cx(), this.cy(), '#ffffff', 10);
-        showBossDialogue('JUDGMENT.', 220);
+        showBossDialogue('Look up.', 220);
         break;
       }
       // ── NEW: Shadow Clone Barrage ───────────────────────────
@@ -1376,7 +1466,7 @@ class TrueForm extends Fighter {
           });
           spawnParticles(cx, target.y || 300, '#333333', 16);
         }
-        showBossDialogue('Which one is real?', 220);
+        showBossDialogue('Choose carefully. Only one of me is the problem.', 220);
         break;
       }
       // ── NEW: Chain Slam Combo ───────────────────────────────
@@ -1384,7 +1474,7 @@ class TrueForm extends Fighter {
         this._chainCd = Math.ceil(42 * cdMult);
         this.postSpecialPause = 9;
         screenShake = Math.max(screenShake, 18);
-        showBossDialogue('CHAIN.', 160);
+        showBossDialogue('Don\'t stop. Neither will I.', 160);
         tfChainSlam = { stage: 0, timer: 0, target };
         break;
       }
@@ -1392,7 +1482,7 @@ class TrueForm extends Fighter {
         tfGravityInverted = !tfGravityInverted;
         tfGravityTimer    = tfGravityInverted ? 600 : 0; // 10s limit when inverted
         this._gravityCd = Math.ceil(48 * cdMult);
-        showBossDialogue(tfGravityInverted ? 'Down is up now.' : 'Gravity returns.', 180);
+        showBossDialogue(tfGravityInverted ? 'Up is a direction. So is down. I decide which.' : 'The world is right-side up again. For now.', 180);
         spawnParticles(this.cx(), this.cy(), '#ffffff', 22);
         break;
       case 'warp': {
@@ -1400,13 +1490,13 @@ class TrueForm extends Fighter {
         const newKey   = warpPool[Math.floor(Math.random() * warpPool.length)];
         tfWarpArena(newKey);
         this._warpCd = Math.ceil(80 * cdMult);
-        showBossDialogue('A new stage.', 150);
+        showBossDialogue('Let\'s try a different room.', 150);
         break;
       }
       case 'holes':
         spawnTFBlackHoles();
         this._holeCd = Math.ceil(36 * cdMult);
-        showBossDialogue('Consume.', 110);
+        showBossDialogue('The void is hungry.', 110);
         break;
       case 'floor': {
         tfFloorRemoved = true;
@@ -1414,15 +1504,17 @@ class TrueForm extends Fighter {
         this._floorCd  = Math.ceil(120 * cdMult);
         const floorPl = currentArena.platforms.find(p => p.isFloor);
         if (floorPl) floorPl.isFloorDisabled = true;
-        showBossDialogue('There is no ground to stand on.', 240);
+        showBossDialogue('The floor was a courtesy. Withdrawn.', 240);
         spawnParticles(GAME_W / 2, 465, '#000000', 30);
         spawnParticles(GAME_W / 2, 465, '#ffffff', 15);
         break;
       }
       case 'invert':
-        tfControlsInverted = !tfControlsInverted;
+        // Apply a timed 10s inversion instead of a permanent toggle
+        tfControlsInverted    = true;
+        tfControlsInvertTimer = 600; // 10 seconds at 60fps
         this._invertCd = Math.ceil(36 * cdMult);
-        showBossDialogue(tfControlsInverted ? 'Your body refuses you.' : 'Control returns.', 180);
+        showBossDialogue('Your instincts work for me now.', 180);
         spawnParticles(this.cx(), this.cy(), '#aaaaaa', 16);
         break;
       case 'size': {
@@ -1435,7 +1527,7 @@ class TrueForm extends Fighter {
           tfSetSize(this, clamp(0.5 + Math.random() * 0.9, 0.4, 1.5));
         }
         this._sizeCd = Math.ceil(32 * cdMult);
-        showBossDialogue('Size means nothing here.', 180);
+        showBossDialogue('Scale is just another variable.', 180);
         break;
       }
       case 'portal':
@@ -1446,7 +1538,7 @@ class TrueForm extends Fighter {
       case 'teleportCombo': {
         this._teleportComboCd = Math.ceil(48 * cdMult);
         this.postSpecialPause = 8;
-        showBossDialogue(randChoice(['Nowhere to run.', 'You cannot track me.', 'EVERYWHERE AT ONCE.']), 200);
+        showBossDialogue(randChoice(['I\'m everywhere. Choose one to dodge.', 'You can\'t track what owns the space.', 'Pick a direction. Wrong answer guaranteed.']), 200);
         screenShake = Math.max(screenShake, 18);
         spawnParticles(this.cx(), this.cy(), '#000000', 18);
         spawnParticles(this.cx(), this.cy(), '#ffffff', 10);
@@ -1463,7 +1555,7 @@ class TrueForm extends Fighter {
       case 'gravityCrush': {
         this._gravityCrushCd = Math.ceil(60 * cdMult);
         this.postSpecialPause = 10;
-        showBossDialogue(randChoice(['CONVERGE.', 'Nowhere to go.', 'All roads lead to me.']), 220);
+        showBossDialogue(randChoice(['Everything collapses inward.', 'All roads end here.', 'The center holds. You don\'t.']), 220);
         screenShake = Math.max(screenShake, 22);
         spawnParticles(GAME_W / 2, GAME_H / 2, '#440044', 30);
         spawnParticles(GAME_W / 2, GAME_H / 2, '#ffffff', 15);
@@ -1493,7 +1585,7 @@ class TrueForm extends Fighter {
             boss: this, hit: new Set(), pendingLanding: true,
           });
         }
-        showBossDialogue(randChoice(['IMPACT!', 'The world shakes.', 'SHOCKWAVE!', 'Feel it trembling.']), 140);
+        showBossDialogue(randChoice(['The world agrees with me.', 'Feel that? Everything does.', 'Ground-level reminder.', 'Even the arena bows.']), 140);
         break;
       }
 
@@ -1517,7 +1609,7 @@ class TrueForm extends Fighter {
         screenShake  = Math.max(screenShake, 10);
         // Chain: calcStrike immediately after reappearing
         if (!this._pendingChainMove) this._pendingChainMove = { move: 'calcStrike', delay: 80 };
-        showBossDialogue(randChoice(['You cannot hit what you cannot see.', 'Which one is real?', 'Choose wisely.']), 160);
+        showBossDialogue(randChoice(['Perception is a luxury.', 'Pick one. One of them will hurt you.', 'Reality is negotiable.']), 160);
         break;
       }
 
@@ -1534,7 +1626,7 @@ class TrueForm extends Fighter {
         bossWarnings.push({ type: 'circle', x: midX, y: midY, r: 60,
           color: '#cc00ff', timer: 20, maxTimer: 20, label: 'REALITY TEAR!' });
         screenShake = Math.max(screenShake, 8);
-        showBossDialogue(randChoice(['Space itself obeys me.', 'Tear.', 'The fabric yields.']), 150);
+        showBossDialogue(randChoice(['Space has seams. I pull them.', 'The fabric has always been mine.', 'I wrote the rules of distance.']), 150);
         break;
       }
 
@@ -1544,7 +1636,14 @@ class TrueForm extends Fighter {
       case 'calcStrike': {
         this._calcStrikeCd = Math.ceil(28 * cdMult);
         this.postSpecialPause = 6;
-        const MATH_EXPRESSIONS = ['F = ma', 'Δx / Δt', '∫v dx', 'lim(t→0)', 'p = mv', '∇²φ = 0', 'E = mc²'];
+        const MATH_EXPRESSIONS = [
+          'T_μν = (8πG/c⁴)G_μν', 'ψ(x,t) = Ae^{i(kx−ωt)}',
+          '∇×B − ∂E/∂t = μ₀J', 'S = ∫L dt → δS=0',
+          'Ĥ|ψ⟩ = iℏ ∂|ψ⟩/∂t', '∂²φ/∂t² = c²∇²φ',
+          'R_μν − ½Rg_μν + Λg_μν = 8πT_μν',
+          'Z = Tr[e^{−βĤ}]', '⟨x|p⟩ = e^{ipx/ℏ}/√(2πℏ)',
+          'dS ≥ 0, ΔS = k_B ln Ω',
+        ];
         const bubbleText = MATH_EXPRESSIONS[Math.floor(Math.random() * MATH_EXPRESSIONS.length)];
         // ── Accuracy tier based on recent player movement ──────────
         const vxHist = this._prevTargetVxArr;
@@ -1587,7 +1686,7 @@ class TrueForm extends Fighter {
         tfMathBubble = { text: bubbleText, timer: 0, maxTimer: 38, x: this.cx(), y: this.y - 18 };
         tfCalcStrike = { timer: 0, maxTimer: Math.max(strikeDelay + 14, 55), predictX, predictY,
                          fired: false, strikeDelay, targetRef: target };
-        showBossDialogue(_isStill ? 'Too easy.' : _isErratic ? 'Chaos... still calculable.' : 'Calculating...', 140);
+        showBossDialogue(_isStill ? 'Predictable.' : _isErratic ? 'Chaos is just a pattern I haven\'t named yet.' : 'I know where you\'re going.', 140);
         break;
       }
 
@@ -1598,7 +1697,7 @@ class TrueForm extends Fighter {
         this._realityOverrideCd = Math.ceil(65 * cdMult);
         this.postSpecialPause   = 12;
         hitStopFrames = Math.max(hitStopFrames, 14);
-        showBossDialogue(randChoice(['I decide what happens next.', 'Override.', 'This is my arena.', 'Checkmate.']), 210);
+        showBossDialogue(randChoice(['I wrote this moment.', 'This world listens to me.', 'The script says you lose here.', 'Nothing happens without my permission.']), 210);
         screenShake = Math.max(screenShake, 22);
         spawnParticles(this.cx(), this.cy(), '#000000', 28);
         spawnParticles(this.cx(), this.cy(), '#ffffff', 14);
@@ -1611,7 +1710,7 @@ class TrueForm extends Fighter {
       case 'collapseStrike': {
         this._collapseStrikeCd = Math.ceil(55 * cdMult);
         this.postSpecialPause  = 8;
-        showBossDialogue('COLLAPSE.', 160);
+        showBossDialogue('Time to end this sentence.', 160);
         slowMotion   = 0.08;
         hitSlowTimer = 25;
         screenShake  = Math.max(screenShake, 14);
@@ -1629,7 +1728,7 @@ class TrueForm extends Fighter {
       case 'grabCinematic': {
         this._grabCinCd       = Math.ceil(80 * cdMult);
         this.postSpecialPause = 10;
-        showBossDialogue(randChoice(['You cannot run.', 'Come here.', 'GOTCHA.', 'Stay.']), 170);
+        showBossDialogue(randChoice(['You\'re not going anywhere.', 'Running is exhausting. Stop.', 'I prefer you close.', 'There you are.']), 170);
         startCinematic(_makeTFGrabCinematic(this, target));
         break;
       }
@@ -1648,7 +1747,7 @@ class TrueForm extends Fighter {
           chargeX: this.cx(), chargeY: this.cy() + this.h * 0.45,
         };
         screenShake = Math.max(screenShake, 6);
-        showBossDialogue(randChoice(['Charging...', 'GAMMA BURST.', 'Feel the radiation.', 'Nowhere to hide.']), 240);
+        showBossDialogue(randChoice(['Don\'t move. Too late — don\'t move.', 'Light travels at my pace now.', 'Burning is a kind word for this.', 'The beam doesn\'t ask.']), 240);
         break;
       }
 
@@ -1664,7 +1763,7 @@ class TrueForm extends Fighter {
         };
         screenShake = Math.max(screenShake, 10);
         spawnParticles(this.cx(), this.cy(), '#ffaa00', 16);
-        showBossDialogue(randChoice(['Dense as a dying star.', 'NEUTRON STAR.', 'Gravity bends to me.', 'Feel the pull.']), 220);
+        showBossDialogue(randChoice(['Gravity bends. You follow.', 'A dying star still commands everything near it.', 'Weight is just another word for power.', 'Pull.']), 220);
         if (typeof playCinematicAttack === 'function' && cinematicsEnabled) {
           const _nsTarget = typeof players !== 'undefined' ? players.find(p => !p.isBoss && p.health > 0) : null;
           playCinematicAttack({
@@ -1691,7 +1790,7 @@ class TrueForm extends Fighter {
         };
         screenShake = Math.max(screenShake, 10);
         spawnParticles(GAME_W / 2, GAME_H / 2 - 30, '#440066', 20);
-        showBossDialogue(randChoice(['The galaxy sweeps clean.', 'SPIRAL.', 'Nowhere in this universe.', 'Rotation.']), 200);
+        showBossDialogue(randChoice(['The universe rotates around me. Not a metaphor.', 'Everything spirals back to me.', 'I built this galaxy. It cleans on command.', 'Spin.']), 200);
         if (typeof playCinematicAttack === 'function' && cinematicsEnabled) {
           const _gsTarget = typeof players !== 'undefined' ? players.find(p => !p.isBoss && p.health > 0) : null;
           playCinematicAttack({
@@ -1743,7 +1842,7 @@ class TrueForm extends Fighter {
         spawnParticles(target.cx(), target.cy(), '#00ccff', 18);
         spawnParticles(target.cx(), target.cy(), '#ffffff',  8);
         showBossDialogue(
-          randChoice(['I see all timelines.', 'FRACTURE.', 'Which version of you survives?', 'Multiverse.']), 260
+          randChoice(['Every version of you loses.', 'I\'ve seen all the timelines. None of them end well for you.', 'Pick a reality. They\'re all wrong.', 'Every path leads here.']), 260
         );
         break;
       }
@@ -1765,7 +1864,7 @@ class TrueForm extends Fighter {
         screenShake = Math.max(screenShake, 20);
         spawnParticles(this.cx(), this.cy(), '#ffff88', 30);
         spawnParticles(this.cx(), this.cy(), '#ffffff', 16);
-        showBossDialogue('SUPERNOVA.', 360);
+        showBossDialogue('Stars die like this. So do you.', 360);
         break;
       }
 
@@ -1784,8 +1883,8 @@ class TrueForm extends Fighter {
           r: 300, color: '#aa00ff', timer: 35, maxTimer: 35,
           label: tfDimensionIs3D ? 'DIMENSION SHIFT — 3D!' : 'DIMENSION SHIFT — 2D!' });
         showBossDialogue(
-          tfDimensionIs3D ? randChoice(['Three dimensions now.', 'Depth has no meaning.', 'Welcome to my plane.'])
-                          : randChoice(['Back to flatness.', 'You prefer this?', 'Too much for you?']),
+          tfDimensionIs3D ? randChoice(['Depth is a privilege I granted.', 'Three dimensions. Still not enough to escape.', 'My world. My geometry.'])
+                          : randChoice(['Back to simple. You need it.', 'I can take depth away whenever I want.', 'Flatness suits you.']),
           240
         );
         break;
@@ -1793,271 +1892,751 @@ class TrueForm extends Fighter {
     }
     // Burst mode: halve post-special pause so specials chain faster
     if (_burstActive) this.postSpecialPause = Math.max(1, Math.floor(this.postSpecialPause * 0.5));
+
+    // Adaptation boost: successfully landing a special reads the player → small AL gain
+    this.adaptationLevel = Math.min(100, this.adaptationLevel + 0.6);
+  }
+
+  // ── Player pattern tracking — called every AI tick ────────────────────────
+  _trackPlayerProfile(t) {
+    this._adaptProfileTick++;
+    const prev = this._prevTState;
+
+    // Detect new attack (rising edge)
+    if (t.attackTimer > 0 && !prev.attacking) this._rawAtks++;
+    // Detect jump (rising edge off ground)
+    if (!t.onGround && prev.onGround) this._rawJumps++;
+    // Detect shield activation
+    if (t.shielding && !prev.shielding) this._rawBlocks++;
+    // Detect dodge (rapid direction change while moving)
+    if (Math.abs(t.vx) > 3 && Math.sign(t.vx) !== Math.sign(prev.vx || 0)) this._rawDodges++;
+
+    // Rolling distance sample
+    const d = Math.hypot(t.cx() - this.cx(), t.cy() - this.cy());
+    this._distSamples.push(d);
+    if (this._distSamples.length > 30) this._distSamples.shift();
+
+    // Save state for next tick
+    this._prevTState = { attacking: t.attackTimer > 0, onGround: t.onGround, shielding: t.shielding, vx: t.vx };
+
+    // Every 8 AI ticks (~2 seconds) — commit profile snapshot and grow adaptationLevel
+    if (this._adaptProfileTick >= 8) {
+      this._adaptProfileTick = 0;
+      const R = 0.3; // smoothing factor
+      this._profile.attackFrequency  = lerp(this._profile.attackFrequency,  this._rawAtks   / 8, R);
+      this._profile.jumpFrequency    = lerp(this._profile.jumpFrequency,    this._rawJumps  / 8, R);
+      this._profile.dodgeFrequency   = lerp(this._profile.dodgeFrequency,   this._rawDodges / 8, R);
+      this._profile.blockFrequency   = lerp(this._profile.blockFrequency,   this._rawBlocks / 8, R);
+      this._rawAtks = this._rawJumps = this._rawDodges = this._rawBlocks = 0;
+
+      if (this._distSamples.length > 0) {
+        const avgDist = this._distSamples.reduce((a, b) => a + b, 0) / this._distSamples.length;
+        this._profile.distancePreference = lerp(this._profile.distancePreference, avgDist, 0.25);
+      }
+
+      // Repetition score: low vx variance = predictable player
+      if (this._prevTargetVxArr.length >= 6) {
+        const avg = this._prevTargetVxArr.reduce((a, b) => a + b, 0) / this._prevTargetVxArr.length;
+        const variance = this._prevTargetVxArr.reduce((s, v) => s + (v - avg) ** 2, 0) / this._prevTargetVxArr.length;
+        this._profile.repetitionScore = lerp(this._profile.repetitionScore, Math.max(0, 1 - variance / 30), 0.2);
+      }
+
+      // Base adaptation growth: 1.5 per cycle = ~67 cycles (~134s) to reach 100
+      this.adaptationLevel = Math.min(100, this.adaptationLevel + 1.5);
+      // Bonus growth when player is highly predictable
+      if (this._profile.repetitionScore > 0.6) this.adaptationLevel = Math.min(100, this.adaptationLevel + 0.8);
+
+      // Update visual evolution state
+      const al = this.adaptationLevel;
+      this._adaptOrbitMult = 1.0 + (al / 100) * 1.4;
+      this._adaptGlowBoost = al / 100;
+      this._adaptFlicker   = Math.max(0, (al - 68) / 32);
+
+      this._checkAdaptDialogue();
+    }
+  }
+
+  // ── Behavior recalculation — called every _adaptBehaviorCd AI ticks ───────
+  _adaptBehavior() {
+    const p  = this._profile;
+    const al = this.adaptationLevel;
+    const R  = 0.10; // max change per recalculation (gradual drift)
+
+    // High attack frequency → dodge and counter more
+    if (p.attackFrequency > 1.2) {
+      this._adaptDodge = Math.min(0.75, this._adaptDodge + R * 0.35);
+    }
+    // Block-heavy player → get more aggressive, close the gap
+    if (p.blockFrequency > 0.7 || p.distancePreference > 230) {
+      this._adaptAtkFreq = Math.min(0.44, this._adaptAtkFreq + R * 0.18);
+      this._adaptSpacing = Math.max(32, this._adaptSpacing - R * 4);
+    }
+    // Passive/stand-off player → apply pressure
+    if (p.attackFrequency < 0.3 && p.dodgeFrequency < 0.3) {
+      this._adaptAtkFreq = Math.min(0.44, this._adaptAtkFreq + R * 0.12);
+      this._adaptSpacing = Math.max(32, this._adaptSpacing - R * 8);
+    }
+    // Jump-heavy player → reduce preferred distance (gets under them)
+    if (p.jumpFrequency > 1.0) {
+      this._adaptSpacing = Math.max(32, this._adaptSpacing - R * 6);
+    }
+
+    // Predictable player → faster reactions (reads them)
+    const reactTarget = Math.max(0, Math.round(3 - p.repetitionScore * 2.8));
+    this._adaptReact = Math.round(lerp(this._adaptReact, reactTarget, 0.2));
+
+    // Flat adaptation-level bonuses (slow continuous drift upward)
+    const alT = al / 100;
+    this._adaptAtkFreq = Math.min(0.44, this._adaptAtkFreq + alT * 0.0025);
+    this._adaptDodge   = Math.min(0.75, this._adaptDodge   + alT * 0.0018);
+  }
+
+  // ── Adaptation milestone dialogue ─────────────────────────────────────────
+  _checkAdaptDialogue() {
+    const al = this.adaptationLevel;
+    const milestones = [
+      [20,  'I\'m starting to understand you.'],
+      [40,  'A pattern. You have one.'],
+      [60,  'You\'re readable now.'],
+      [80,  'I\'m a step ahead. Maybe two.'],
+      [95,  'There\'s nothing left to learn from you.'],
+    ];
+    for (const [threshold, text] of milestones) {
+      if (al >= threshold && !this._adaptDialogueFired.has(threshold)) {
+        this._adaptDialogueFired.add(threshold);
+        showBossDialogue(text, 240);
+        if (al >= 60) screenShake = Math.max(screenShake, 14);
+        spawnParticles(this.cx(), this.cy(), al >= 80 ? '#ffffff' : '#8800ff', 20);
+        return; // only one milestone per cycle
+      }
+    }
   }
 
   draw() {
     if (this.backstageHiding) return;
     if (this.health <= 0 && this.ragdollTimer <= 0) return;
 
-    // ── Cosmic animation state ──────────────────────────────────────────────────
-    this._floatT += 0.038;
-    const floatOff = Math.sin(this._floatT) * 3.5; // -3.5 → +3.5 px vertical float
+    // ════════════════════════════════════════════════════════════════════════
+    // TRUE FORM — FRAGMENTED COSMIC ENTITY RENDERER
+    // ════════════════════════════════════════════════════════════════════════
+    // Architecture: 7 draw layers, each independent:
+    //   L0  Outer void nebula (far background glow)
+    //   L1  Reality-tear trails (motion distortion)
+    //   L2  Orbiting fragment ring  (3 rings, counter-rotating)
+    //   L3  Body segments — DETACHED: legs, torso, arms, head (all floating)
+    //   L4  Core singularity (bright anchor point)
+    //   L5  Inner eye + void pupils
+    //   L6  HP bar
+    //
+    // To tweak intensity: adjust _TF_AURA_SCALE, _TF_ORBIT_SCALE, _TF_DRIFT
+    // ════════════════════════════════════════════════════════════════════════
 
-    // Glow color cycles: deep purple (#5500ff) ↔ electric blue (#0088ff)
-    const gc       = (Math.sin(this._floatT * 0.42) + 1) * 0.5; // 0→1
-    const glowR    = Math.round(gc * 80);
-    const glowB    = Math.round(220 + gc * 35);
-    const glowColor = `rgb(${glowR},0,${glowB})`;
+    // Adaptation-driven visual evolution
+    const _alT = (this.adaptationLevel || 0) / 100;
+    const _TF_AURA_SCALE  = 1.0 + _alT * 0.45;   // aura swells as boss adapts
+    const _TF_ORBIT_SCALE = this._adaptOrbitMult || 1.0; // orbit speeds up
+    const _TF_DRIFT       = 1.0 + _alT * 0.6;    // segment drift increases
 
-    const cx = this.cx();
-    const ty = this.y;
-    const f  = this.facing;
-    const s  = this.state;
-    const t  = this.animTimer;
+    // ── Global time & phase ─────────────────────────────────────────────────
+    this._floatT += 0.042;
+    const T  = this._floatT;
+    const hpPct  = this.health / this.maxHealth;
+    const phase  = this.getPhase ? this.getPhase() : 1;
+    // Rage factor 0→1: increases with phase, maxes at phase 3
+    const rage   = Math.min(1, (3 - hpPct * 3) / 2);  // 0 at full HP, 1 at 33% HP
 
-    // Visual center of body (used for aura / orbit / trail anchoring)
-    const bx = cx;
-    const by = ty + this.h * 0.5 + floatOff;
+    // Core anchor — hitbox center, floats vertically
+    const cx   = this.cx();
+    const coreY = this.y + this.h * 0.5 + Math.sin(T * 0.9) * (4 + rage * 6);
 
-    // ── Energy trail ───────────────────────────────────────────────────────────
-    // Push a ghost silhouette anchor point when moving
-    if (s === 'walking' || s === 'jumping' || s === 'falling') {
-      this._trailPts.push({ x: bx, y: by, a: 0.42 });
-      if (this._trailPts.length > 10) this._trailPts.shift();
+    // ── Color palette ────────────────────────────────────────────────────────
+    // Low rage + low AL: deep void purple.  High rage: blinding white-blue.
+    // High adaptation adds an orange-red accent (heated, dangerous).
+    const _adaptHeat = (this._adaptGlowBoost || 0);
+    const cR  = Math.round(80  + rage * 175 + _adaptHeat * 60);   // 80 → 315 (clamped)
+    const cG  = Math.round(0   + rage * 80  + _adaptHeat * 20);   // 0  → 100
+    const cB  = Math.round(255 - rage * 55  - _adaptHeat * 60);   // 255 → 140
+    const cRc = Math.min(255, cR);
+    const glowColor  = `rgb(${cRc},${cG},${Math.max(0, cB)})`;
+    const glowColor2 = `rgb(${Math.round(cRc*0.5)},0,${Math.max(0, cB)})`; // darker variant for trails
+    const WHITE = '#ffffff';
+
+    // Invincibility blink — whole entity flickers
+    const blinkAlpha = (this.invincible > 0 && Math.floor(this.invincible / 4) % 2 === 1) ? 0.25 : 1.0;
+
+    // Scale pivot (tfDrawScale from size-manipulation special)
+    const tfs = (this.tfDrawScale && this.tfDrawScale !== 1) ? this.tfDrawScale : 1;
+
+    // Attack progress 0→1 (used to stretch limbs during attacks)
+    const atkP = (this.attackDuration > 0 && this.state === 'attacking')
+      ? 1 - this.attackTimer / this.attackDuration : 0;
+    const isAttacking = this.state === 'attacking';
+    const f = this.facing;
+
+    // ── Per-segment drift offsets (each body part floats independently) ─────
+    // These give the detached-fragment feel without extra state.
+    // Formula: sin(T * speed + phase_offset) * amplitude
+    const dHead  = { x: Math.sin(T * 1.1 + 0.3) * 2.5 * _TF_DRIFT,  y: Math.sin(T * 0.7 + 1.0) * 3.5 * _TF_DRIFT };
+    const dTorso = { x: Math.sin(T * 0.5 + 2.1) * 1.5 * _TF_DRIFT,  y: Math.sin(T * 0.8 + 0.5) * 2.0 * _TF_DRIFT };
+    const dArmR  = { x: Math.sin(T * 1.3 + 0.8) * 3.0 * _TF_DRIFT,  y: Math.sin(T * 1.0 + 2.3) * 3.5 * _TF_DRIFT };
+    const dArmL  = { x: Math.sin(T * 1.2 + 1.6) * 3.0 * _TF_DRIFT,  y: Math.sin(T * 0.9 + 0.1) * 3.5 * _TF_DRIFT };
+    const dLegR  = { x: Math.sin(T * 0.8 + 3.1) * 2.5 * _TF_DRIFT,  y: Math.sin(T * 1.1 + 1.4) * 2.5 * _TF_DRIFT };
+    const dLegL  = { x: Math.sin(T * 0.9 + 0.4) * 2.5 * _TF_DRIFT,  y: Math.sin(T * 0.8 + 2.7) * 2.5 * _TF_DRIFT };
+    // During attacks: arms snap violently toward attack direction
+    const atkStretch = isAttacking ? (1 + atkP * 1.6) : 1;
+
+    // Segment position anchors (in game coords, relative to core)
+    // DETACHED: there are gaps between each part — they never connect.
+    const seg = {
+      // Head floats 28px above core, gap of ~6px from torso top
+      headX:    cx    + dHead.x  * tfs,
+      headY:    coreY - 28 * tfs + dHead.y  * tfs,
+      headR:    10    * tfs + Math.sin(T * 2.1) * 1.2,
+
+      // Torso: small rectangular mass centered on core, ±4px gap from head/hip
+      torsoX:   cx    + dTorso.x * tfs,
+      torsoTop: coreY - 14 * tfs + dTorso.y * tfs,
+      torsoBot: coreY +  8 * tfs + dTorso.y * tfs,
+
+      // Arms: attached to torso shoulder level but FLOATING away from it
+      // (gap between arm root and torso edge)
+      armRootY: coreY - 8 * tfs,
+
+      // Legs: float below hip with 4px gap
+      hipY:     coreY + 12 * tfs,
+    };
+
+    // ── Ragdoll override: spin all segments together ─────────────────────────
+    let ragRot = 0;
+    if (this.ragdollTimer > 0) {
+      ragRot = this.ragdollAngle * (this.ragdollTimer / 45);
     }
-    // Draw and fade existing trail points
+
+    // ════════════════════════════════════════════════════════════════════════
+    // L0 — OUTER VOID NEBULA
+    // ════════════════════════════════════════════════════════════════════════
+    ctx.save();
+    ctx.globalAlpha = blinkAlpha * (0.22 + rage * 0.25);
+    if (tfs !== 1) { ctx.translate(cx, coreY); ctx.scale(tfs, tfs); ctx.translate(-cx, -coreY); }
+
+    // Three overlapping radial gradients for depth — each a different size/speed
+    const _nebula = (ox, oy, r, alpha, T_mul) => {
+      const pulse = 1 + Math.sin(T * T_mul) * 0.12;
+      const g = ctx.createRadialGradient(cx + ox, coreY + oy, r * 0.1, cx + ox, coreY + oy, r * pulse * _TF_AURA_SCALE);
+      g.addColorStop(0,   `rgba(${cRc},${cG},${Math.max(0,cB)},${alpha * 0.55})`);
+      g.addColorStop(0.4, `rgba(${cRc},${cG},${Math.max(0,cB)},${alpha * 0.18})`);
+      g.addColorStop(1,   'rgba(0,0,0,0)');
+      ctx.fillStyle = g;
+      ctx.beginPath(); ctx.arc(cx + ox, coreY + oy, r * pulse * _TF_AURA_SCALE, 0, Math.PI * 2); ctx.fill();
+    };
+    _nebula(0,  0,  90, 0.9, 0.8);   // main outer nebula
+    _nebula(-8, -5, 60, 0.7, 1.1);   // offset inner bloom
+    _nebula(6,  4,  45, 0.6, 1.4);   // tight inner core glow
+    // Extra void ring at rage≥0.5 — white-hot inner burn
+    if (rage > 0.5) {
+      const r2 = (rage - 0.5) * 2;
+      _nebula(0, 0, 30, r2 * 0.8, 2.1);
+    }
+    ctx.restore();
+
+    // ════════════════════════════════════════════════════════════════════════
+    // L1 — REALITY TEAR TRAILS
+    // ════════════════════════════════════════════════════════════════════════
+    // Push trail when moving; draw as jagged void-tears not smooth ghosts
+    if (this.state === 'walking' || this.state === 'jumping' || this.state === 'falling') {
+      this._trailPts.push({ x: cx, y: coreY, a: 0.55 + rage * 0.2 });
+      if (this._trailPts.length > 14) this._trailPts.shift();
+    }
+    ctx.save();
     for (let i = this._trailPts.length - 1; i >= 0; i--) {
       const tp = this._trailPts[i];
-      tp.a -= 0.047;
+      tp.a -= 0.038;
       if (tp.a <= 0) { this._trailPts.splice(i, 1); continue; }
-      ctx.save();
-      ctx.globalAlpha = tp.a;
-      ctx.shadowColor = glowColor;
-      ctx.shadowBlur  = 6;
-      ctx.strokeStyle = glowColor;
-      ctx.lineWidth   = 1.5;
+      const age = 1 - tp.a / 0.75; // 0=fresh → 1=old
+      ctx.globalAlpha = tp.a * blinkAlpha;
+      ctx.shadowColor = glowColor2;
+      ctx.shadowBlur  = 8;
+      ctx.strokeStyle = glowColor2;
+      ctx.lineWidth   = 1.2 + (1 - age) * 1.5;
       ctx.lineCap     = 'round';
-      // Ghost head
+      // Jagged void-tear shape (4-point zigzag)
+      const jitter = (1 - age) * 5;
       ctx.beginPath();
-      ctx.arc(tp.x, tp.y - 14, 5.5, 0, Math.PI * 2);
+      ctx.moveTo(tp.x - 4 + Math.sin(tp.a * 17) * jitter, tp.y - 22 * tfs);
+      ctx.lineTo(tp.x + 2 + Math.sin(tp.a * 11) * jitter, tp.y - 10 * tfs);
+      ctx.lineTo(tp.x - 3 + Math.sin(tp.a *  7) * jitter, tp.y + 2  * tfs);
+      ctx.lineTo(tp.x + 4 + Math.sin(tp.a * 13) * jitter, tp.y + 14 * tfs);
       ctx.stroke();
-      // Ghost body
-      ctx.beginPath();
-      ctx.moveTo(tp.x, tp.y - 8);
-      ctx.lineTo(tp.x, tp.y + 10);
-      ctx.stroke();
-      ctx.restore();
     }
-
-    // ── Aura field ─────────────────────────────────────────────────────────────
-    ctx.save();
-    const aR     = 38 + Math.sin(this._floatT * 1.15) * 5; // pulsing outer radius
-    const aGrad  = ctx.createRadialGradient(bx, by, 5, bx, by, aR);
-    aGrad.addColorStop(0,    'rgba(0,0,0,0)');
-    aGrad.addColorStop(0.55, `rgba(${glowR},0,${glowB},0.06)`);
-    aGrad.addColorStop(1,    `rgba(${glowR},0,${glowB},0.20)`);
-    ctx.beginPath();
-    ctx.ellipse(bx, by, aR, aR * 0.70, 0, 0, Math.PI * 2);
-    ctx.fillStyle = aGrad;
-    ctx.fill();
-    // Bright edge ring
-    ctx.globalAlpha = 0.30 + Math.sin(this._floatT * 2.2) * 0.12;
-    ctx.strokeStyle = glowColor;
-    ctx.lineWidth   = 1;
-    ctx.shadowColor = glowColor;
-    ctx.shadowBlur  = 14;
-    ctx.beginPath();
-    ctx.ellipse(bx, by, aR, aR * 0.70, 0, 0, Math.PI * 2);
-    ctx.stroke();
-    // Inner bright ring (tighter, faster pulse, opposite phase)
-    ctx.globalAlpha = 0.18 + Math.sin(this._floatT * 2.2 + Math.PI) * 0.10;
-    const aRi = aR * 0.55;
-    ctx.beginPath();
-    ctx.ellipse(bx, by, aRi, aRi * 0.70, 0, 0, Math.PI * 2);
-    ctx.stroke();
     ctx.restore();
 
-    // ── Orbiting particles ─────────────────────────────────────────────────────
-    // 6 particles — computed purely from floatT, no array allocation each frame
+    // ════════════════════════════════════════════════════════════════════════
+    // L2 — ORBITING FRAGMENT RINGS
+    // ════════════════════════════════════════════════════════════════════════
+    // Ring A: 8 small shards, close orbit, co-rotating
+    // Ring B: 5 larger crystal fragments, mid orbit, counter-rotating
+    // Ring C: 3 massive chunks, wide orbit, very slow (only at rage > 0.4)
     ctx.save();
-    const orbitR = 28 + Math.sin(this._floatT * 0.62) * 4;
-    for (let i = 0; i < 6; i++) {
-      const ang  = this._floatT * 0.80 + (i / 6) * Math.PI * 2;
-      const px   = bx + Math.cos(ang) * orbitR;
-      const py   = by + Math.sin(ang) * orbitR * 0.52; // flattened ellipse orbit
-      const ps   = 1.7 + Math.sin(this._floatT * 1.9 + i * 1.1) * 0.6;
-      ctx.globalAlpha = 0.5 + Math.sin(this._floatT * 1.3 + i) * 0.28;
-      ctx.shadowColor = (i % 2 === 0) ? '#ffffff' : glowColor;
-      ctx.shadowBlur  = 7;
-      ctx.fillStyle   = (i % 2 === 0) ? '#ffffff' : glowColor;
+    ctx.globalAlpha = blinkAlpha;
+    if (tfs !== 1) { ctx.translate(cx, coreY); ctx.scale(tfs, tfs); ctx.translate(-cx, -coreY); }
+
+    const _drawShard = (px, py, size, angle, col, blur) => {
+      ctx.save();
+      ctx.translate(px, py);
+      ctx.rotate(angle);
+      ctx.shadowColor = col;
+      ctx.shadowBlur  = blur;
+      // Diamond shard shape
+      ctx.fillStyle = col;
       ctx.beginPath();
-      ctx.arc(px, py, ps, 0, Math.PI * 2);
+      ctx.moveTo(0, -size);
+      ctx.lineTo(size * 0.5, 0);
+      ctx.lineTo(0,  size * 0.6);
+      ctx.lineTo(-size * 0.5, 0);
+      ctx.closePath();
       ctx.fill();
+      ctx.restore();
+    };
+
+    // Ring A — tight fast orbit (radius 26)
+    const rA = (26 + Math.sin(T * 0.7) * 4) * _TF_ORBIT_SCALE;
+    for (let i = 0; i < 8; i++) {
+      const ang  = T * 1.4 + (i / 8) * Math.PI * 2;
+      const px   = cx    + Math.cos(ang) * rA;
+      const py   = coreY + Math.sin(ang) * rA * 0.45;
+      const sz   = 2.2 + Math.sin(T * 2 + i * 0.78) * 0.8;
+      const alpha = 0.55 + Math.sin(T * 1.8 + i) * 0.3;
+      ctx.globalAlpha = alpha * blinkAlpha;
+      _drawShard(px, py, sz, ang * 2, i % 2 === 0 ? WHITE : glowColor, 6);
+    }
+
+    // Ring B — counter-rotating (radius 44)
+    const rB = (44 + Math.sin(T * 0.5) * 6) * _TF_ORBIT_SCALE;
+    for (let i = 0; i < 5; i++) {
+      const ang  = -T * 0.85 + (i / 5) * Math.PI * 2;
+      const px   = cx    + Math.cos(ang) * rB;
+      const py   = coreY + Math.sin(ang) * rB * 0.38;
+      const sz   = 3.8 + Math.sin(T * 1.2 + i * 1.3) * 1.2;
+      const alpha = 0.4 + Math.sin(T * 0.9 + i * 1.5) * 0.25;
+      ctx.globalAlpha = alpha * blinkAlpha;
+      _drawShard(px, py, sz, ang * 1.5, glowColor, 10);
+    }
+
+    // Ring C — slow massive chunks at high rage (radius 64)
+    if (rage > 0.35) {
+      const rC  = (64 + Math.sin(T * 0.3) * 8) * _TF_ORBIT_SCALE;
+      const cnt = 3 + Math.floor(rage * 2); // 3→5 chunks
+      for (let i = 0; i < cnt; i++) {
+        const ang   = T * 0.45 + (i / cnt) * Math.PI * 2;
+        const px    = cx    + Math.cos(ang) * rC;
+        const py    = coreY + Math.sin(ang) * rC * 0.32;
+        const sz    = 5 + rage * 4 + Math.sin(T * 0.8 + i) * 1.5;
+        const alpha = (rage - 0.35) * 1.5 * (0.5 + Math.sin(T * 0.6 + i) * 0.3);
+        ctx.globalAlpha = Math.min(0.85, alpha) * blinkAlpha;
+        ctx.shadowColor = WHITE;
+        ctx.shadowBlur  = 14;
+        _drawShard(px, py, sz, ang + T * 0.4, WHITE, 14);
+      }
     }
     ctx.restore();
 
-    // ── Body ───────────────────────────────────────────────────────────────────
+    // ════════════════════════════════════════════════════════════════════════
+    // L3 — DETACHED BODY SEGMENTS
+    // ════════════════════════════════════════════════════════════════════════
     ctx.save();
+    ctx.globalAlpha = blinkAlpha;
+    if (tfs !== 1) { ctx.translate(cx, coreY); ctx.scale(tfs, tfs); ctx.translate(-cx, -coreY); }
+    if (ragRot !== 0) { ctx.translate(cx, coreY); ctx.rotate(ragRot); ctx.translate(-cx, -coreY); }
 
-    // Invincibility blink
-    if (this.invincible > 0 && Math.floor(this.invincible / 5) % 2 === 1) {
-      ctx.globalAlpha = 0.35;
-    }
-
-    // Size-manipulation scale (set by tfSizeTargets special)
-    if (this.tfDrawScale && this.tfDrawScale !== 1) {
-      const pivX = cx; const pivY = ty + this.h;
-      ctx.translate(pivX, pivY);
-      ctx.scale(this.tfDrawScale, this.tfDrawScale);
-      ctx.translate(-pivX, -pivY);
-    }
-
-    // Ragdoll rotation
-    if (this.ragdollTimer > 0) {
-      ctx.translate(cx, ty + this.h * 0.45 + floatOff);
-      ctx.rotate(this.ragdollAngle);
-      ctx.translate(-cx, -(ty + this.h * 0.45 + floatOff));
-    }
-
-    // Apply float offset — all body drawing uses ty/cx which are hitbox coords;
-    // the translate shifts the visual up/down without moving the hitbox
-    ctx.translate(0, floatOff);
-
-    const headR     = 9;
-    const headCY    = ty + headR + 1;
-    const neckY     = headCY + headR + 1;
-    const shoulderY = neckY + 4;
-    const hipY      = shoulderY + 24;
-    const armLen    = 20;
-    const legLen    = 22;
-
-    // Pulsing glow intensity — slightly brighter on beat
-    const glowIntensity = 9 + Math.sin(this._floatT * 2.5) * 3;
-
-    // White outline with cycling shadow color
+    const segGlow = 11 + Math.sin(T * 2.8) * 4 + rage * 8;  // increases with rage
     ctx.shadowColor = glowColor;
-    ctx.shadowBlur  = glowIntensity;
-    ctx.strokeStyle = '#ffffff';
-    ctx.lineWidth   = 2.5;
+    ctx.shadowBlur  = segGlow;
+    ctx.strokeStyle = WHITE;
+    ctx.fillStyle   = '#000000';
+    ctx.lineWidth   = 2.4;
     ctx.lineCap     = 'round';
     ctx.lineJoin    = 'round';
 
-    // HEAD — solid black, white outline
+    // ── ARM geometry ─────────────────────────────────────────────────────────
+    // Base angles from state, then stretched/distorted during attacks
+    let rAng, lAng;
+    if (this.state === 'ragdoll') {
+      const fl = Math.sin(this.animTimer * 0.38) * 1.4;
+      rAng = ragRot * 1.2 + fl;
+      lAng = ragRot * 1.2 + Math.PI - fl;
+    } else if (this.state === 'stunned') {
+      rAng = Math.PI * 0.8; lAng = Math.PI * 0.2;
+    } else if (isAttacking) {
+      if (this._attackMode === 'punch') {
+        if (f > 0) { rAng = lerp(-0.2, 0.1, atkP);  lAng = lerp(Math.PI * 0.75, Math.PI * 0.6, atkP); }
+        else       { rAng = lerp(Math.PI + 0.2, Math.PI - 0.1, atkP); lAng = lerp(Math.PI * 0.25, Math.PI * 0.4, atkP); }
+      } else { // kick — arms thrown wide
+        rAng = f > 0 ? -0.65 : Math.PI + 0.65;
+        lAng = f > 0 ?  Math.PI * 0.7  : Math.PI * 0.3;
+      }
+    } else if (this.state === 'walking') {
+      const sw = Math.sin(this.animTimer * 0.24) * 0.55;
+      rAng = Math.PI * 0.58 + sw; lAng = Math.PI * 0.42 - sw;
+    } else if (this.state === 'jumping' || this.state === 'falling') {
+      rAng = -0.28; lAng = Math.PI + 0.28;
+    } else {
+      rAng = Math.PI * 0.6; lAng = Math.PI * 0.4;
+    }
+    // Arm length stretches during attacks (cosmic elastic effect)
+    const armBase = 22;
+    const armLen  = isAttacking ? armBase * (1 + atkP * 0.85) : armBase;
+
+    // Arms DETACHED: origin is floating arm-root (not directly connected to torso)
+    const armRX = cx    + dArmR.x;
+    const armRY = seg.armRootY + dArmR.y + (isAttacking && f > 0 ? atkP * -4 : 0);
+    const armLX = cx    + dArmL.x;
+    const armLY = seg.armRootY + dArmL.y + (isAttacking && f < 0 ? atkP * -4 : 0);
+
+    const rEx = armRX + Math.cos(rAng) * armLen * atkStretch;
+    const rEy = armRY + Math.sin(rAng) * armLen;
+    const lEx = armLX + Math.cos(lAng) * armLen * atkStretch;
+    const lEy = armLY + Math.sin(lAng) * armLen;
+
+    // Draw arm segments as disconnected jagged lines (not straight strokes)
+    const _drawDetachedLimb = (x1, y1, x2, y2, stretch) => {
+      // Mid-point drift for organic feel
+      const mx  = (x1 + x2) * 0.5 + Math.sin(T * 1.7 + x1 * 0.01) * 3 * stretch;
+      const my  = (y1 + y2) * 0.5 + Math.cos(T * 1.3 + y1 * 0.01) * 2 * stretch;
+      ctx.beginPath();
+      ctx.moveTo(x1, y1);
+      ctx.quadraticCurveTo(mx, my, x2, y2);
+      ctx.stroke();
+      // GAP: draw a small void circle at each segment root to emphasize disconnection
+      ctx.save();
+      ctx.globalAlpha *= 0.7;
+      ctx.shadowBlur = 0;
+      ctx.fillStyle = '#000000';
+      ctx.beginPath(); ctx.arc(x1, y1, 3.5, 0, Math.PI * 2); ctx.fill();
+      ctx.restore();
+    };
+
+    _drawDetachedLimb(armRX, armRY, rEx, rEy, isAttacking ? 1.8 : 1);
+    _drawDetachedLimb(armLX, armLY, lEx, lEy, isAttacking ? 1.8 : 1);
+
+    // Fist/energy burst at punch impact
+    if (isAttacking && this._attackMode === 'punch' && atkP > 0.45) {
+      const impactX = f > 0 ? rEx : lEx;
+      const impactY = f > 0 ? rEy : lEy;
+      ctx.save();
+      ctx.globalAlpha = atkP * blinkAlpha;
+      ctx.shadowColor = WHITE;
+      ctx.shadowBlur  = 18 + atkP * 20;
+      // Expanding impact ring
+      ctx.strokeStyle = glowColor;
+      ctx.lineWidth   = 2;
+      ctx.beginPath(); ctx.arc(impactX, impactY, 6 + atkP * 10, 0, Math.PI * 2); ctx.stroke();
+      ctx.fillStyle = WHITE;
+      ctx.beginPath(); ctx.arc(impactX, impactY, 5.5, 0, Math.PI * 2); ctx.fill();
+      ctx.restore();
+    }
+
+    // ── LEG geometry ─────────────────────────────────────────────────────────
+    let rLeg, lLeg;
+    if (this.state === 'ragdoll') {
+      const lf = Math.sin(this.animTimer * 0.35) * 1.1 + ragRot * 0.8;
+      rLeg = Math.PI * 0.5 + lf; lLeg = Math.PI * 0.5 - lf + 0.4;
+    } else if (isAttacking && this._attackMode === 'kick') {
+      rLeg = f > 0 ? lerp(Math.PI * 0.52, Math.PI * 0.08, atkP) : lerp(Math.PI * 0.48, Math.PI * 0.92, atkP);
+      lLeg = Math.PI * 0.52;
+    } else if (this.state === 'walking') {
+      const sw = Math.sin(this.animTimer * 0.24) * 0.6;
+      rLeg = Math.PI * 0.5 + sw; lLeg = Math.PI * 0.5 - sw;
+    } else if (this.state === 'jumping') {
+      rLeg = Math.PI * 0.32; lLeg = Math.PI * 0.68;
+    } else {
+      rLeg = Math.PI * 0.55; lLeg = Math.PI * 0.45;
+    }
+    const legBase = 24;
+    const legLen  = isAttacking && this._attackMode === 'kick' ? legBase * (1 + atkP * 0.7) : legBase;
+
+    const legRX = cx    + dLegR.x;
+    const legRY = seg.hipY + dLegR.y;
+    const legLX = cx    + dLegL.x;
+    const legLY = seg.hipY + dLegL.y;
+
+    const rLx = legRX + Math.cos(rLeg) * legLen;
+    const rLy = legRY + Math.sin(rLeg) * legLen;
+    const lLx = legLX + Math.cos(lLeg) * legLen;
+    const lLy = legLY + Math.sin(lLeg) * legLen;
+
+    _drawDetachedLimb(legRX, legRY, rLx, rLy, 1);
+    _drawDetachedLimb(legLX, legLY, lLx, lLy, 1);
+
+    // Kick foot energy burst
+    if (isAttacking && this._attackMode === 'kick' && atkP > 0.45) {
+      const kx = f > 0 ? rLx : lLx;
+      const ky = f > 0 ? rLy : lLy;
+      ctx.save();
+      ctx.globalAlpha = atkP * blinkAlpha;
+      ctx.shadowColor = glowColor;
+      ctx.shadowBlur  = 16 + atkP * 18;
+      ctx.strokeStyle = WHITE;
+      ctx.lineWidth   = 2;
+      ctx.beginPath(); ctx.arc(kx, ky, 5 + atkP * 8, 0, Math.PI * 2); ctx.stroke();
+      ctx.restore();
+    }
+
+    // ── TORSO — elongated parallelogram, slightly rotated ───────────────────
+    const torsoW = 8 + Math.sin(T * 1.8) * 1.5;
+    const torsoH = seg.torsoBot - seg.torsoTop;
+    const torsoTilt = Math.sin(T * 0.6) * 0.08 * (isAttacking ? 2 : 1);
+    ctx.save();
+    ctx.translate(seg.torsoX, seg.torsoTop + torsoH * 0.5 + dTorso.y);
+    ctx.rotate(torsoTilt + ragRot);
     ctx.beginPath();
-    ctx.arc(cx, headCY, headR, 0, Math.PI * 2);
+    ctx.rect(-torsoW, -torsoH * 0.5, torsoW * 2, torsoH);
     ctx.fillStyle = '#000000';
     ctx.fill();
-    ctx.stroke();
-
-    // Eyes — white dots with glow; second ghost-eye for depth
-    ctx.shadowBlur = 0;
-    ctx.fillStyle  = '#ffffff';
-    ctx.beginPath();
-    ctx.arc(cx + f * 3.5, headCY - 1.5, 1.8, 0, Math.PI * 2);
-    ctx.fill();
-    // Subtle colored iris ring
+    ctx.strokeStyle = WHITE;
     ctx.shadowColor = glowColor;
-    ctx.shadowBlur  = 5;
+    ctx.shadowBlur  = segGlow;
+    ctx.stroke();
+    ctx.restore();
+
+    // ── HEAD — floating above, slightly larger, with void-crack eye sockets ─
+    const headX = seg.headX;
+    const headY = seg.headY;
+    const headR = seg.headR;
+    // Head rotates slightly, adds inhuman feel
+    const headTilt = Math.sin(T * 0.9 + 1.2) * 0.12;
+    ctx.save();
+    ctx.translate(headX, headY);
+    ctx.rotate(headTilt + ragRot);
+    ctx.beginPath();
+    ctx.arc(0, 0, headR, 0, Math.PI * 2);
+    ctx.fillStyle = '#000000';
+    ctx.fill();
+    ctx.strokeStyle = WHITE;
+    ctx.shadowColor = glowColor;
+    ctx.shadowBlur  = segGlow * 1.2;
+    ctx.stroke();
+    // Void crack — thin diagonal slash through head
+    ctx.globalAlpha = 0.35 + rage * 0.4;
     ctx.strokeStyle = glowColor;
     ctx.lineWidth   = 0.8;
+    ctx.shadowBlur  = 3;
     ctx.beginPath();
-    ctx.arc(cx + f * 3.5, headCY - 1.5, 2.8, 0, Math.PI * 2);
+    ctx.moveTo(-headR * 0.6, -headR * 0.4);
+    ctx.lineTo( headR * 0.4,  headR * 0.6);
     ctx.stroke();
-    ctx.shadowBlur  = glowIntensity;
-    ctx.strokeStyle = '#ffffff';
-    ctx.lineWidth   = 2.5;
-
-    // BODY
-    ctx.beginPath();
-    ctx.moveTo(cx, neckY);
-    ctx.lineTo(cx, hipY);
-    ctx.stroke();
-
-    // ARMS — same logic as before
-    const atkP = this.attackDuration > 0 ? 1 - this.attackTimer / this.attackDuration : 0;
-    let rAng, lAng;
-    if (s === 'ragdoll') {
-      const fl = Math.sin(t * 0.38) * 1.4;
-      rAng = this.ragdollAngle * 1.2 + fl;
-      lAng = this.ragdollAngle * 1.2 + Math.PI - fl;
-    } else if (s === 'stunned') {
-      rAng = Math.PI * 0.75; lAng = Math.PI * 0.25;
-    } else if (s === 'attacking') {
-      if (this._attackMode === 'punch') {
-        if (f > 0) { rAng = lerp(-0.15, 0.05, atkP); lAng = lerp(Math.PI * 0.8, Math.PI * 0.62, atkP); }
-        else       { rAng = lerp(Math.PI + 0.15, Math.PI - 0.05, atkP); lAng = lerp(Math.PI * 0.2, Math.PI * 0.38, atkP); }
-      } else {
-        rAng = f > 0 ? -0.55 : Math.PI + 0.55;
-        lAng = f > 0 ?  Math.PI * 0.65 : Math.PI * 0.35;
-      }
-    } else if (s === 'walking') {
-      const sw = Math.sin(t * 0.24) * 0.52;
-      rAng = Math.PI * 0.58 + sw; lAng = Math.PI * 0.42 - sw;
-    } else if (s === 'jumping' || s === 'falling') {
-      rAng = -0.25; lAng = Math.PI + 0.25;
-    } else {
-      rAng = Math.PI * 0.58; lAng = Math.PI * 0.42;
-    }
-
-    const rEx = cx + Math.cos(rAng) * armLen;
-    const rEy = shoulderY + Math.sin(rAng) * armLen;
-    const lEx = cx + Math.cos(lAng) * armLen;
-    const lEy = shoulderY + Math.sin(lAng) * armLen;
-    ctx.beginPath(); ctx.moveTo(cx, shoulderY); ctx.lineTo(rEx, rEy); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(cx, shoulderY); ctx.lineTo(lEx, lEy); ctx.stroke();
-
-    // Fist indicator at punch impact
-    if (s === 'attacking' && this._attackMode === 'punch' && atkP > 0.5) {
-      ctx.beginPath();
-      ctx.arc(rEx, rEy, 5.5, 0, Math.PI * 2);
-      ctx.fillStyle = '#000000'; ctx.fill(); ctx.stroke();
-    }
-
-    // LEGS
-    let rLeg, lLeg;
-    if (s === 'ragdoll') {
-      const lf = Math.sin(t * 0.35) * 1.1 + this.ragdollAngle * 0.8;
-      rLeg = Math.PI * 0.5 + lf; lLeg = Math.PI * 0.5 - lf + 0.4;
-    } else if (s === 'attacking' && this._attackMode === 'kick') {
-      rLeg = f > 0 ? lerp(Math.PI * 0.52, Math.PI * 0.12, atkP) : lerp(Math.PI * 0.48, Math.PI * 0.88, atkP);
-      lLeg = Math.PI * 0.52;
-    } else if (s === 'walking') {
-      const sw = Math.sin(t * 0.24) * 0.55;
-      rLeg = Math.PI * 0.5 + sw; lLeg = Math.PI * 0.5 - sw;
-    } else if (s === 'jumping') {
-      rLeg = Math.PI * 0.35; lLeg = Math.PI * 0.65;
-    } else {
-      rLeg = Math.PI * 0.54; lLeg = Math.PI * 0.46;
-    }
-
-    const rLx = cx + Math.cos(rLeg) * legLen;
-    const rLy = hipY + Math.sin(rLeg) * legLen;
-    const lLx = cx + Math.cos(lLeg) * legLen;
-    const lLy = hipY + Math.sin(lLeg) * legLen;
-    ctx.beginPath(); ctx.moveTo(cx, hipY); ctx.lineTo(rLx, rLy); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(cx, hipY); ctx.lineTo(lLx, lLy); ctx.stroke();
-
-    // Kick foot indicator
-    if (s === 'attacking' && this._attackMode === 'kick' && atkP > 0.5) {
-      ctx.beginPath();
-      ctx.arc(rLx, rLy, 5.5, 0, Math.PI * 2);
-      ctx.fillStyle = '#000000'; ctx.fill(); ctx.stroke();
-    }
-
     ctx.restore();
-
-    // ── HP bar ─────────────────────────────────────────────────────────────────
+    // GAP marker below head (void space between head and torso)
     ctx.save();
-    const barW = 64, barH = 5;
-    const barX = cx - barW / 2;
-    const barY = this.y - 16 + floatOff; // bar floats with body
-    ctx.fillStyle = 'rgba(0,0,0,0.8)';
-    ctx.fillRect(barX - 1, barY - 1, barW + 2, barH + 2);
-    const hpPct = this.health / this.maxHealth;
-    ctx.fillStyle = hpPct > 0.5 ? '#ffffff' : hpPct > 0.25 ? '#aaaaaa' : '#666666';
-    ctx.fillRect(barX, barY, barW * hpPct, barH);
+    ctx.globalAlpha = 0.5;
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = '#000000';
+    ctx.beginPath(); ctx.arc(seg.headX, (seg.headY + seg.torsoTop + dTorso.y) * 0.5, 2.5, 0, Math.PI * 2); ctx.fill();
     ctx.restore();
+
+    ctx.restore(); // end L3
+
+    // ════════════════════════════════════════════════════════════════════════
+    // L4 — CORE SINGULARITY (the actual anchor of the entity)
+    // ════════════════════════════════════════════════════════════════════════
+    ctx.save();
+    ctx.globalAlpha = blinkAlpha;
+    if (tfs !== 1) { ctx.translate(cx, coreY); ctx.scale(tfs, tfs); ctx.translate(-cx, -coreY); }
+
+    // Pulsing singularity at the chest level — the "soul" of True Form
+    const coreR = (5 + Math.sin(T * 3.1) * 2 + rage * 5) * tfs;
+    const coreGrad = ctx.createRadialGradient(cx, coreY, 0, cx, coreY, coreR * 3.5);
+    coreGrad.addColorStop(0,   WHITE);
+    coreGrad.addColorStop(0.2, glowColor);
+    coreGrad.addColorStop(0.6, `rgba(${cR},${cG},${cB},0.4)`);
+    coreGrad.addColorStop(1,   'rgba(0,0,0,0)');
+
+    ctx.shadowColor = WHITE;
+    ctx.shadowBlur  = 22 + rage * 18;
+    ctx.fillStyle   = coreGrad;
+    ctx.beginPath(); ctx.arc(cx, coreY, coreR * 3.5, 0, Math.PI * 2); ctx.fill();
+
+    // Solid bright core center
+    ctx.shadowBlur  = 30 + rage * 20;
+    ctx.fillStyle   = WHITE;
+    ctx.beginPath(); ctx.arc(cx, coreY, coreR, 0, Math.PI * 2); ctx.fill();
+
+    // Rotating cross-flare (4 spikes from core, common cosmic motif)
+    ctx.globalAlpha = blinkAlpha * (0.5 + rage * 0.4);
+    ctx.strokeStyle = WHITE;
+    ctx.shadowColor = WHITE;
+    ctx.shadowBlur  = 12;
+    ctx.lineWidth   = 1.2;
+    const flareAng = T * 0.7;
+    for (let f2 = 0; f2 < 4; f2++) {
+      const fa  = flareAng + f2 * Math.PI * 0.5;
+      const fl2 = (12 + rage * 14 + Math.sin(T * 2.2 + f2) * 3) * tfs;
+      ctx.beginPath();
+      ctx.moveTo(cx, coreY);
+      ctx.lineTo(cx + Math.cos(fa) * fl2, coreY + Math.sin(fa) * fl2 * 0.55);
+      ctx.stroke();
+    }
+    ctx.restore();
+
+    // ════════════════════════════════════════════════════════════════════════
+    // L5 — VOID EYES (drawn on head in screen-relative space)
+    // ════════════════════════════════════════════════════════════════════════
+    ctx.save();
+    ctx.globalAlpha = blinkAlpha;
+
+    const eyeX   = seg.headX + (this.facing > 0 ? 4 : -4) * tfs;
+    const eyeBaseY = seg.headY - 1.5 * tfs;
+
+    // Outer eye glow ring
+    ctx.shadowColor = glowColor;
+    ctx.shadowBlur  = 10 + rage * 12;
+    ctx.strokeStyle = glowColor;
+    ctx.lineWidth   = 0.9;
+    ctx.beginPath(); ctx.arc(eyeX, eyeBaseY, 3.5 * tfs, 0, Math.PI * 2); ctx.stroke();
+
+    // Inner void pupil — blinking effect: occasionally goes fully black
+    const blinkCycle = Math.sin(T * 0.35); // slow blink
+    const pupilAlpha = blinkCycle > 0.85 ? Math.max(0, 1 - (blinkCycle - 0.85) * 20) : 1; // fast blink
+    ctx.globalAlpha = blinkAlpha * pupilAlpha;
+    ctx.shadowColor = WHITE;
+    ctx.shadowBlur  = 8;
+    ctx.fillStyle   = WHITE;
+    ctx.beginPath(); ctx.arc(eyeX, eyeBaseY, 2.2 * tfs, 0, Math.PI * 2); ctx.fill();
+
+    // Second ghost eye (unsettling — offset slightly behind)
+    ctx.globalAlpha = blinkAlpha * 0.25 * (1 - pupilAlpha + 0.3);
+    ctx.fillStyle   = glowColor;
+    ctx.beginPath(); ctx.arc(eyeX - this.facing * 2 * tfs, eyeBaseY + 1 * tfs, 1.8 * tfs, 0, Math.PI * 2); ctx.fill();
+
+    ctx.restore();
+
+    // ════════════════════════════════════════════════════════════════════════
+    // L6 — HP BAR (floating above head)
+    // ════════════════════════════════════════════════════════════════════════
+    ctx.save();
+    const barW  = 70, barH = 5;
+    const barX  = cx - barW / 2;
+    const barY  = this.y - 22 + Math.sin(T * 0.9) * 3; // floats with boss
+    ctx.fillStyle = 'rgba(0,0,0,0.85)';
+    ctx.fillRect(barX - 1, barY - 1, barW + 2, barH + 2);
+    // HP color: white → purple → near-dead flicker
+    const hpCol = hpPct > 0.6 ? '#ffffff'
+                : hpPct > 0.3 ? glowColor
+                : `rgba(${cRc},${cG},${Math.max(0,cB)},${0.6 + Math.sin(T * 8) * 0.4})`;
+    ctx.fillStyle = hpCol;
+    ctx.shadowColor = hpCol;
+    ctx.shadowBlur  = 6;
+    ctx.fillRect(barX, barY, barW * hpPct, barH);
+
+    // ── ADAPTATION METER (below HP bar) ──────────────────────────────────
+    const al = this.adaptationLevel || 0;
+    if (al > 0) {
+      const aBarY = barY + barH + 3;
+      ctx.fillStyle = 'rgba(0,0,0,0.7)';
+      ctx.fillRect(barX - 1, aBarY - 1, barW + 2, 4);
+      // Color: blue → purple → orange → white
+      const aR = Math.round(al < 50 ? 40 + al * 1.2  : 100 + (al - 50) * 3.1);
+      const aG = Math.round(al < 75 ? 0   : (al - 75) * 2.4);
+      const aB = Math.round(al < 60 ? 255 : Math.max(0, 255 - (al - 60) * 4.5));
+      ctx.fillStyle   = `rgb(${Math.min(255,aR)},${Math.min(255,aG)},${Math.min(255,aB)})`;
+      ctx.shadowColor = ctx.fillStyle;
+      ctx.shadowBlur  = 5 + al * 0.05;
+      ctx.fillRect(barX, aBarY, barW * (al / 100), 3);
+
+      // Tier label above HP bar
+      const tierLabel = al >= 90 ? '◈ PERFECTED'
+                      : al >= 75 ? '◈ MASTERED'
+                      : al >= 60 ? '◈ EVOLVED'
+                      : al >= 40 ? '◈ ADAPTING'
+                      : al >= 20 ? '◈ LEARNING'
+                      : null;
+      if (tierLabel) {
+        ctx.globalAlpha = 0.65 + Math.sin(T * 3.0) * 0.20;
+        ctx.font        = `bold ${al >= 60 ? 7 : 6}px monospace`;
+        ctx.textAlign   = 'center';
+        ctx.fillStyle   = `rgb(${Math.min(255,aR)},${Math.min(255,aG)},${Math.min(255,aB)})`;
+        ctx.shadowBlur  = 8;
+        ctx.fillText(tierLabel, cx, barY - 6);
+        ctx.globalAlpha = 1;
+      }
+    }
+    ctx.restore();
+
+    // ── HIGH-ADAPTATION INSTABILITY OVERLAY ──────────────────────────────
+    // At AL >= 70: subtle reality-crack scan-lines flicker over the entity
+    if (_alT >= 0.70) {
+      const flickerIntensity = ((_alT - 0.70) / 0.30) * (0.18 + Math.sin(T * 14) * 0.10);
+      if (flickerIntensity > 0) {
+        ctx.save();
+        ctx.globalAlpha = flickerIntensity * blinkAlpha;
+        ctx.strokeStyle = glowColor;
+        ctx.lineWidth   = 0.8;
+        ctx.shadowColor = glowColor;
+        ctx.shadowBlur  = 4;
+        // Horizontal scan-line cracks across the entity bounding box
+        const bx = cx - 20 * tfs, bw = 40 * tfs;
+        const by = coreY - 34 * tfs, bh = 68 * tfs;
+        const lineCount = Math.floor(3 + _alT * 4);
+        for (let li = 0; li < lineCount; li++) {
+          const lFrac = (li + 0.5 + Math.sin(T * 2.3 + li * 1.7) * 0.4) / lineCount;
+          const ly = by + bh * lFrac;
+          const lOffset = Math.sin(T * 4.1 + li * 2.3) * 6;
+          ctx.beginPath();
+          ctx.moveTo(bx + lOffset,      ly);
+          ctx.lineTo(bx + bw + lOffset, ly);
+          ctx.stroke();
+        }
+        ctx.restore();
+      }
+    }
   }
+}
+
+// ============================================================
+// TRUE FORM ADAPTIVE AI — DEBUG API
+// Use via the game console (F1 → open console)
+// ============================================================
+function showAdaptationLevel() {
+  const tf = players && players.find(p => p.isTrueForm);
+  if (!tf) { console.warn('[TF-Adapt] No active TrueForm.'); return; }
+  const al = tf.adaptationLevel.toFixed(1);
+  const tier = al >= 90 ? 'PERFECTED' : al >= 75 ? 'MASTERED' : al >= 60 ? 'EVOLVED'
+             : al >= 40 ? 'ADAPTING'  : al >= 20 ? 'LEARNING' : 'OBSERVING';
+  console.log(`[TF-Adapt] Level: ${al}/100  Tier: ${tier}`);
+  if (typeof showBossDialogue === 'function') showBossDialogue(`Adapt: ${al}% — ${tier}`, 180);
+}
+
+function showPlayerProfile() {
+  const tf = players && players.find(p => p.isTrueForm);
+  if (!tf) { console.warn('[TF-Adapt] No active TrueForm.'); return; }
+  const p = tf._profile;
+  console.log(
+    '[TF-Adapt] Player Profile:\n' +
+    `  Attack freq   : ${(p.attackFrequency  * 100).toFixed(0)}%\n` +
+    `  Jump freq     : ${(p.jumpFrequency    * 100).toFixed(0)}%\n` +
+    `  Dodge freq    : ${(p.dodgeFrequency   * 100).toFixed(0)}%\n` +
+    `  Block freq    : ${(p.blockFrequency   * 100).toFixed(0)}%\n` +
+    `  Pref. distance: ${p.distancePreference.toFixed(0)}px\n` +
+    `  Repetition    : ${(p.repetitionScore  * 100).toFixed(0)}% predictable`
+  );
+  console.log(
+    '[TF-Adapt] Behavior Multipliers:\n' +
+    `  Dodge chance : ${(tf._adaptDodge * 100).toFixed(0)}%\n` +
+    `  Atk frequency: ${(tf._adaptAtkFreq * 100).toFixed(0)}%\n` +
+    `  Spacing      : ${tf._adaptSpacing.toFixed(0)}px\n` +
+    `  Reaction lag : ${tf._adaptReact} ticks`
+  );
+}
+
+function forceAdaptationLevel(value) {
+  const tf = players && players.find(p => p.isTrueForm);
+  if (!tf) { console.warn('[TF-Adapt] No active TrueForm.'); return; }
+  tf.adaptationLevel = Math.max(0, Math.min(100, Number(value) || 0));
+  // Force visual state update immediately
+  tf._adaptOrbitMult = 1.0 + (tf.adaptationLevel / 100) * 1.4;
+  tf._adaptGlowBoost = tf.adaptationLevel / 100;
+  tf._adaptFlicker   = Math.max(0, (tf.adaptationLevel - 68) / 32);
+  console.log(`[TF-Adapt] Forced adaptation level to ${tf.adaptationLevel.toFixed(1)}`);
+  if (typeof showBossDialogue === 'function') showBossDialogue(`Forced: ${tf.adaptationLevel.toFixed(0)}%`, 150);
 }
 
 // ---- True Form helper functions ----
@@ -2333,7 +2912,7 @@ function _makeBossPhase2Cinematic(boss) {
       // 1.05 s: dialogue
       if (t >= 1.05 && !this._roarFired) {
         this._roarFired = true;
-        showBossDialogue('Phase two begins. This is where it gets REAL.', 220);
+        showBossDialogue('I was being patient. That ends now.', 220);
       }
     },
     onEnd() { slowMotion = 1.0; cinematicCamOverride = false; }
@@ -2380,7 +2959,7 @@ function _makeBossPhase3Cinematic(boss) {
       }
       if (t >= 1.2 && !this._roarFired) {
         this._roarFired = true;
-        showBossDialogue('PHASE THREE. FEEL MY FULL POWER!', 250);
+        showBossDialogue('Now you see why I built this world.', 250);
       }
     },
     onEnd() { slowMotion = 1.0; cinematicCamOverride = false; }
@@ -2425,7 +3004,7 @@ function _makeTFPhase2Cinematic(tf) {
       }
       if (t >= 1.1 && !this._roarFired) {
         this._roarFired = true;
-        showBossDialogue('You surprised me... now feel TRUE despair.', 250);
+        showBossDialogue('You surprised me. That almost never happens.', 250);
       }
     },
     onEnd() { slowMotion = 1.0; cinematicCamOverride = false; }
@@ -2471,7 +3050,7 @@ function _makeTFPhase3Cinematic(tf) {
       }
       if (t >= 1.5 && !this._roarFired) {
         this._roarFired = true;
-        showBossDialogue('FULL RELEASE. THE END IS NOW.', 280);
+        showBossDialogue('No more fractions. All of it.', 280);
       }
     },
     onEnd() { slowMotion = 1.0; cinematicCamOverride = false; }
@@ -2644,11 +3223,11 @@ function _DELETED_makeBossWarning75Cinematic(boss) {
       }
       if (t >= 0.9 && !this._line1Fired) {
         this._line1Fired = true;
-        showBossDialogue('You fight... in a world I created.', 200);
+        showBossDialogue('This world obeys me. So does this fight.', 200);
       }
       if (t >= 1.8 && !this._line2Fired) {
         this._line2Fired = true;
-        showBossDialogue('And I can break it.', 200);
+        showBossDialogue('And I designed it breakable.', 200);
       }
     },
     onEnd() { slowMotion = 1.0; cinematicCamOverride = false; }
@@ -2966,7 +3545,7 @@ function _DELETED_makeTFDesp15Cinematic(tf) {
           tfFloorTimer   = 600; // 10 s
           const floorPl  = currentArena && currentArena.platforms.find(p => p.isFloor);
           if (floorPl) floorPl.isFloorDisabled = true;
-          showBossDialogue('The ground is GONE!', 160);
+          showBossDialogue('The floor was never yours to keep.', 160);
         }
         // Spawn black holes at both sides
         tfBlackHoles.push({ x: 120, y: 260, r: 110, timer: 480, maxTimer: 480, strength: 5 });
@@ -3177,7 +3756,7 @@ function updateTFClones() {
         if (cl.isReal) {
           dealDamage(tf || players[players.length - 1], p, 25, 12);
           spawnParticles(cx, cl.y + cl.h * 0.5, '#ffffff', 18);
-          showBossDialogue('You found me.', 120);
+          showBossDialogue('Sharp. That\'ll cost you.', 120);
         } else {
           spawnParticles(cx, cl.y + cl.h * 0.5, '#444444', 14);
         }
@@ -3396,7 +3975,7 @@ function updateBossPendingAttacks() {
     bossStaggerDmg   = 0;
     bossStaggerDecay = 0;
     screenShake = Math.max(screenShake, 25);
-    showBossDialogue(randChoice(['...impossible...', '*staggers*', 'You... hit hard.', 'Ngh!']), 120);
+    showBossDialogue(randChoice(['...that landed.', 'Hm.', 'You hit harder than you look.', '...fine.']), 120);
     spawnParticles(boss.cx(), boss.cy(), '#ffffff', 22);
     if (typeof directorAddIntensity === 'function') directorAddIntensity(0.4);
   }
@@ -3404,7 +3983,7 @@ function updateBossPendingAttacks() {
     bossStaggerTimer--;
     boss.vx *= 0.85; // slow boss during stagger
     if (bossStaggerTimer === 0) {
-      showBossDialogue(randChoice(['...that was nothing.', 'My turn.', 'Enough playing.']), 120);
+      showBossDialogue(randChoice(['That cost you nothing. My turn costs more.', 'I allowed that.', 'Done being generous.']), 120);
     }
   }
 
@@ -3413,7 +3992,7 @@ function updateBossPendingAttacks() {
     bossDesperationMode  = true;
     bossDesperationFlash = 90;
     screenShake = Math.max(screenShake, 30);
-    showBossDialogue('YOU...WILL...DIE.', 300);
+    showBossDialogue('You want to see what\'s left? Here it is.', 300);
     spawnParticles(boss.cx(), boss.cy(), '#ff0000', 40);
     spawnParticles(boss.cx(), boss.cy(), '#cc00ee', 30);
     if (typeof directorAddIntensity === 'function') directorAddIntensity(0.8);
@@ -3479,6 +4058,12 @@ function updateTFPendingAttacks() {
 
   if (!tf || tf.health <= 0) return;
 
+  // ── Tick bossWarnings (so telegraph circles disappear) ────
+  for (let i = bossWarnings.length - 1; i >= 0; i--) {
+    bossWarnings[i].timer--;
+    if (bossWarnings[i].timer <= 0) bossWarnings.splice(i, 1);
+  }
+
   // ── Stagger ────────────────────────────────────────────────
   const dmgThisFrame = (tf._prevHealth || tf.health) - tf.health;
   if (dmgThisFrame > 0) {
@@ -3495,7 +4080,7 @@ function updateTFPendingAttacks() {
     bossStaggerDmg   = 0;
     bossStaggerDecay = 0;
     screenShake = Math.max(screenShake, 25);
-    showBossDialogue(randChoice(['...you dare?', '*staggers*', 'Impressive... for a mortal.']), 120);
+    showBossDialogue(randChoice(['...noted.', 'You hit like you mean it.', 'That was unexpected. I respect it.']), 120);
     spawnParticles(tf.cx(), tf.cy(), '#ffffff', 22);
     if (typeof directorAddIntensity === 'function') directorAddIntensity(0.4);
   }
@@ -3503,7 +4088,7 @@ function updateTFPendingAttacks() {
     bossStaggerTimer--;
     tf.vx *= 0.85;
     if (bossStaggerTimer === 0) {
-      showBossDialogue(randChoice(['Playtime is over.', 'I will not fall.', 'Your doom approaches.']), 120);
+      showBossDialogue(randChoice(['That was the last one you get free.', 'I don\'t fall.', 'We\'re past the warm-up.']), 120);
     }
   }
 
@@ -3512,7 +4097,7 @@ function updateTFPendingAttacks() {
     bossDesperationMode  = true;
     bossDesperationFlash = 90;
     screenShake = Math.max(screenShake, 30);
-    showBossDialogue('I AM BEYOND YOUR COMPREHENSION.', 300);
+    showBossDialogue('You\'ve earned the last of me. I hope it was worth asking for.', 300);
     spawnParticles(tf.cx(), tf.cy(), '#ffffff', 50);
     spawnParticles(tf.cx(), tf.cy(), '#000000', 30);
     if (typeof directorAddIntensity === 'function') directorAddIntensity(0.8);
@@ -4035,6 +4620,16 @@ function updateTFCalcStrike() {
     cs.fired = true;
     tfGhostPaths = null; // clear path visualization on strike
     const tf = players.find(p => p.isTrueForm);
+    // Use live player position at fire time (not stale prediction) — multiversal beings don't miss
+    if (cs.targetRef && cs.targetRef.health > 0) {
+      const liveTarget = cs.targetRef;
+      // Small noise only for erratic players; zero noise for still/predictable
+      const vxHist2 = tf && tf._prevTargetVxArr ? tf._prevTargetVxArr : [];
+      const vxVar2  = vxHist2.length > 1 ? Math.max(...vxHist2) - Math.min(...vxHist2) : 0;
+      const noiseR  = vxVar2 >= 8 ? 18 : 0; // even erratic players get very small noise now
+      cs.predictX = clamp(liveTarget.cx() + (Math.random() - 0.5) * noiseR, 40, GAME_W - 40);
+      cs.predictY = clamp(liveTarget.cy() + (Math.random() - 0.5) * noiseR * 0.5, 40, GAME_H - 40);
+    }
     if (tf) {
       tf.x  = clamp(cs.predictX - tf.w / 2, 20, GAME_W - tf.w - 20);
       tf.y  = clamp(cs.predictY - tf.h / 2, 20, GAME_H - tf.h - 20);
@@ -5234,7 +5829,9 @@ function drawTFSupernova() {
 function resetTFState() {
   tfGravityInverted  = false;
   tfGravityTimer     = 0;
-  tfControlsInverted = false;
+  tfControlsInverted    = false;
+  tfControlsInvertTimer = 0;
+  mirrorFlipped      = false; mirrorFlipTimer = 0; mirrorFlipWarning = 0;
   tfFloorRemoved     = false;
   tfFloorTimer       = 0;
   tfBlackHoles       = [];

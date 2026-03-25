@@ -241,20 +241,29 @@ function gameLoop(timestamp) {
     const remoteP = players.find(p =>  p.isRemote);
     NetworkManager.tick(localP);
     if (remoteP) {
-      const rs = NetworkManager.getRemoteState();
+      const rs = NetworkManager.getRemoteStateLegacy();
       if (rs) {
         remoteP.x         = rs.x;
         remoteP.y         = rs.y;
-        remoteP.vx        = rs.vx;
-        remoteP.vy        = rs.vy;
-        remoteP.health    = rs.health;
-        remoteP.maxHealth = rs.maxHealth;
-        remoteP.state     = rs.state;
-        remoteP.facing    = rs.facing;
-        remoteP.lives     = rs.lives;
-        remoteP.curses    = rs.curses || [];
-        // Sync weapon — apply the full weapon object so drawing and hit logic use correct stats
-        if (rs.weaponKey && rs.weaponKey !== remoteP.weaponKey && WEAPONS[rs.weaponKey]) {
+        remoteP.vx        = rs.vx        || 0;
+        remoteP.vy        = rs.vy        || 0;
+        remoteP.health    = rs.health    != null ? rs.health    : remoteP.health;
+        remoteP.maxHealth = rs.maxHealth != null ? rs.maxHealth : (remoteP.maxHealth || 100);
+        remoteP.state     = rs.state     || 'idle';
+        remoteP.onGround  = rs.state === 'idle' || rs.state === 'walking' || rs.state === 'attacking';
+        remoteP.facing    = rs.facing    || remoteP.facing;
+        remoteP.lives     = rs.lives     != null ? rs.lives     : remoteP.lives;
+        remoteP.curses     = rs.curses    || [];
+        remoteP.shielding  = rs.shield    || false;
+        // Sync attack animation so weapon swing is visible on opponent's screen
+        remoteP.attackTimer    = rs.attackTimer    != null ? rs.attackTimer    : remoteP.attackTimer;
+        remoteP.attackDuration = rs.attackDuration != null ? rs.attackDuration : (remoteP.attackDuration || 12);
+        remoteP.hurtTimer      = rs.hurtTimer      != null ? rs.hurtTimer      : 0;
+        remoteP.stunTimer      = rs.stunTimer2     != null ? rs.stunTimer2     : 0;
+        // Sync invincible from owning machine — prevents permanent transparency/unhittable
+        remoteP.invincible = rs.invincible != null ? rs.invincible : 0;
+        // Sync weapon — always apply to prevent stale local-UI weapon showing
+        if (rs.weaponKey && WEAPONS[rs.weaponKey]) {
           remoteP.weaponKey = rs.weaponKey;
           remoteP.weapon    = WEAPONS[rs.weaponKey];
         }
@@ -303,8 +312,8 @@ function gameLoop(timestamp) {
         bossFloorType  = Math.random() < 0.5 ? 'lava' : 'void';
         bossFloorTimer = 300; // 5-second warning
         showBossDialogue(bossFloorType === 'lava'
-          ? randChoice(['The floor... will burn!', 'Enjoy the heat!', 'Stand still... I dare you.'])
-          : randChoice(['The void... opens below!', 'Nowhere to stand!', 'Fall into darkness!']), 220);
+          ? randChoice(['The floor has a new purpose.', 'Heat is a matter of perspective.', 'I\'d move if I were you. I\'m not.'])
+          : randChoice(['The ground is a luxury.', 'Space beneath your feet — gone.', 'Let\'s see how well you float.']), 220);
       } else if (bossFloorState === 'warning') {
         bossFloorState = 'hazard';
         bossFloorTimer = 900; // 15-second hazard
@@ -483,6 +492,7 @@ function gameLoop(timestamp) {
     bossSpikes = bossSpikes.filter(sp => !sp.done);
     drawBossSpikes();
     if (bossDeathScene) updateBossDeathScene();
+    if (tfEndingScene)  updateTFEnding();
     // Telegraph system: pending attacks, stagger, desperation, warnings draw
     updateBossPendingAttacks();
     drawBossWarnings();
@@ -556,8 +566,16 @@ function gameLoop(timestamp) {
       tfGravityTimer--;
       if (tfGravityTimer <= 0) {
         tfGravityInverted = false;
-        showBossDialogue('Gravity returns.', 150);
+        showBossDialogue('I restored gravity. You\'re welcome.', 150);
         spawnParticles(GAME_W / 2, GAME_H / 2, '#ffffff', 16);
+      }
+    }
+    if (tfControlsInverted && tfControlsInvertTimer > 0) {
+      tfControlsInvertTimer--;
+      if (tfControlsInvertTimer <= 0) {
+        tfControlsInverted = false;
+        showBossDialogue('Your body is yours again. Briefly.', 150);
+        spawnParticles(GAME_W / 2, GAME_H / 2, '#aaaaaa', 12);
       }
     }
   }
@@ -569,11 +587,15 @@ function gameLoop(timestamp) {
   // Draw Verlet death ragdolls (behind living players)
   verletRagdolls.forEach(vr => vr.draw());
 
-  // Players
-  players.forEach(p => { if (p.health > 0 || p.invincible > 0) p.update(); });
+  // Players — skip physics update for remote (network-driven) players
+  players.forEach(p => { if ((p.health > 0 || p.invincible > 0) && !p.isRemote) p.update(); });
+  // Chaos system: per-frame update (events, drops, effects, multi-kill, announcer)
+  if (typeof chaosMode !== 'undefined' && chaosMode && typeof updateChaosSystem === 'function') updateChaosSystem();
   // Finisher: override positions/state AFTER physics, BEFORE draw
   if (typeof updateFinisher === 'function') updateFinisher();
   players.forEach(p => { if (p.health > 0 || p.invincible > 0) p.draw(); });
+  // Chaos system: world-space draw (item drops, effect badges, platform effects)
+  if (typeof chaosMode !== 'undefined' && chaosMode && typeof drawChaosWorldSpace === 'function') drawChaosWorldSpace();
   drawSpartanRageEffects();
   drawClassEffects();
   drawCurseAuras();
@@ -620,7 +642,30 @@ function gameLoop(timestamp) {
 
   drawSecretLetters();
   if (bossDeathScene) drawBossDeathScene();
+  if (tfEndingScene)  drawTFEnding();
   updateMapPerks();
+  updateMirrorGimmick();
+  drawMirrorGimmickOverlay();
+  // Controls-inverted status indicator
+  if (tfControlsInverted && tfControlsInvertTimer > 0) {
+    ctx.save();
+    ctx.setTransform(1,0,0,1,0,0);
+    const _cw = canvas.width, _ch = canvas.height;
+    const _alpha = Math.min(1, tfControlsInvertTimer / 30) * 0.18;
+    ctx.fillStyle = `rgba(180,0,255,${_alpha})`;
+    ctx.fillRect(0, 0, _cw, _ch);
+    const _secs = Math.ceil(tfControlsInvertTimer / 60);
+    ctx.font = `bold ${Math.round(_cw * 0.028)}px monospace`;
+    ctx.textAlign = 'center';
+    ctx.globalAlpha = Math.min(1, tfControlsInvertTimer / 30);
+    ctx.fillStyle = '#cc44ff';
+    ctx.shadowColor = '#ff00ff';
+    ctx.shadowBlur = 18;
+    ctx.fillText(`CONTROLS INVERTED  ${_secs}s`, _cw / 2, _ch * 0.12);
+    ctx.shadowBlur = 0;
+    ctx.globalAlpha = 1;
+    ctx.restore();
+  }
   updateFakeDeathScene();
   drawFakeDeathScene();
 
@@ -701,8 +746,9 @@ function gameLoop(timestamp) {
 
   checkDeaths();
   updateHUD();
-  if (storyModeActive && typeof storyTickFightScript  === 'function') storyTickFightScript();
-  if (storyModeActive && typeof storyCheckEvents      === 'function') storyCheckEvents();
+  if (storyModeActive && typeof storyTickFightScript    === 'function') storyTickFightScript();
+  if (storyModeActive && typeof storyCheckEvents        === 'function') storyCheckEvents();
+  if (storyModeActive && typeof storyUpdateBoundaries   === 'function') storyUpdateBoundaries();
   if (exploreActive && typeof updateExploration === 'function') updateExploration();
   if (gameMode === 'trueform' && typeof updateQTE === 'function') updateQTE();
 
@@ -728,15 +774,28 @@ function gameLoop(timestamp) {
     ctx.restore();
   }
   if (exploreActive && typeof drawExploreGoalObject === 'function') drawExploreGoalObject();
-  // Story mode: void fog (drawn in game-world space, over entities/particles but before HUD)
+  // Story mode: void fog + boundary warning (drawn in game-world space)
   if (storyModeActive) drawStoryVoidFog();
+  if (storyModeActive && typeof drawStoryBoundaryWarning === 'function') drawStoryBoundaryWarning();
   // Achievement popups (drawn over everything, in screen space)
   ctx.setTransform(1, 0, 0, 1, 0, 0); // reset transform for screen-space draw
   if (typeof drawCinematicImpactEffects === 'function') drawCinematicImpactEffects();
   drawCinematicOverlay();
   // Story world distortion intentionally disabled (purple scanlines removed per user request)
   drawAchievementPopups();
-  if (storyModeActive && typeof drawStorySubtitle === 'function') drawStorySubtitle();
+  // Chaos system: screen-space draw (score HUD, event badge, announcer, spectator label)
+  if (typeof chaosMode !== 'undefined' && chaosMode && typeof drawChaosOverlay === 'function') drawChaosOverlay();
+  if (gameMode === 'adaptive' && typeof drawAdaptiveAIDebug === 'function') drawAdaptiveAIDebug();
+  // Pathfinding debug overlays (toggled via `pf *` console commands, drawn in world-space)
+  if (window._pfShowGraph && typeof visualizePlatformGraph  === 'function') visualizePlatformGraph();
+  if (window._pfShowDJ    && typeof highlightDoubleJumpEdges === 'function') highlightDoubleJumpEdges();
+  if (typeof players !== 'undefined') {
+    const _pfBots = players.filter(p => p.isAI && !p.isBoss);
+    if (window._pfShowPaths && typeof showBotPath           === 'function') _pfBots.forEach(showBotPath);
+    if (window._pfShowArcs  && typeof showProjectedLanding  === 'function') _pfBots.forEach(showProjectedLanding);
+  }
+  if (storyModeActive && typeof drawStorySubtitle        === 'function') drawStorySubtitle();
+  if (storyModeActive && typeof drawStoryOpponentHUD     === 'function') drawStoryOpponentHUD();
   if (gameMode === 'exploration') drawExploreHUD();
   if (abilityUnlockToast && abilityUnlockToast.timer > 0) drawAbilityUnlockToast();
   if (gameMode === 'trueform' && typeof drawQTE === 'function') drawQTE(ctx, canvas.width, canvas.height);
@@ -786,14 +845,22 @@ function gameLoop(timestamp) {
 const keysDown      = new Set();
 const keyHeldFrames = {};   // key → frames held continuously
 
-const SCROLL_BLOCK = new Set([' ', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 's', 'S', '/']);
+const SCROLL_BLOCK = new Set([' ', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 's', '/']);
+
+// Normalize a key string so that caps-lock and shift don't break single-letter
+// bindings. Only single alphabetic characters are lowercased; everything else
+// (Arrow*, Enter, ' ', '.', '/', etc.) is returned unchanged.
+function _normKey(k) {
+  return (k.length === 1 && k >= 'A' && k <= 'Z') ? k.toLowerCase() : k;
+}
 
 document.addEventListener('keydown', e => {
-  // Don't intercept keys when typing in chat or the game console input
-  const chatFocused    = document.activeElement && document.activeElement.id === 'chatInput';
-  const consoleFocused = document.activeElement && document.activeElement.id === 'gameConsoleInput';
-  if (consoleFocused) return; // let console input receive all keystrokes unmodified
-  if (!chatFocused && (e.key === 'Escape' || e.key === 'p' || e.key === 'P')) { pauseGame(); return; }
+  // Don't intercept keys when typing in any text input (chat, console, etc.)
+  const ae = document.activeElement;
+  const inputFocused = ae && (ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA' || ae.isContentEditable);
+  if (inputFocused) return; // let the input receive all keystrokes unmodified
+  if (tfEndingScene && tfEndingScene.skippable && tfEndingScene.phase === 'powers') { trySkipTFEnding(); return; }
+  if (e.key === 'Escape' || e.key === 'p' || e.key === 'P') { pauseGame(); return; }
   // Cheat code: type TRUEFORM anywhere in menu to unlock True Form
   // GAMECONSOLE works any time (menu or in-game)
   if (e.key && e.key.length === 1) {
@@ -844,9 +911,10 @@ document.addEventListener('keydown', e => {
       setTimeout(() => notif2.remove(), 3000);
     }
   }
-  if (SCROLL_BLOCK.has(e.key)) e.preventDefault();
-  if (keysDown.has(e.key)) return; // already tracked — let held-frame counter run
-  keysDown.add(e.key);
+  const _nk = _normKey(e.key);
+  if (SCROLL_BLOCK.has(_nk)) e.preventDefault();
+  if (keysDown.has(_nk)) return; // already tracked — let held-frame counter run
+  keysDown.add(_nk);
 
   if (!gameRunning || paused) return;
 
@@ -854,9 +922,9 @@ document.addEventListener('keydown', e => {
     if (p.isAI || p.health <= 0) return;
     const other         = players[i === 0 ? 1 : 0];
     const incapacitated = p.ragdollTimer > 0 || p.stunTimer > 0;
-    if (!incapacitated && e.key === p.controls.attack)  { e.preventDefault(); p.attack(other); }
-    if (!incapacitated && e.key === p.controls.ability) { e.preventDefault(); p.ability(other); }
-    if (!incapacitated && p.controls.super && e.key === p.controls.super) {
+    if (!incapacitated && _nk === p.controls.attack)  { e.preventDefault(); p.attack(other); }
+    if (!incapacitated && _nk === p.controls.ability) { e.preventDefault(); p.ability(other); }
+    if (!incapacitated && p.controls.super && _nk === p.controls.super) {
       e.preventDefault();
       checkSecretLetterCollect(p);
       p.useSuper(other);
@@ -865,12 +933,24 @@ document.addEventListener('keydown', e => {
 });
 
 document.addEventListener('keyup', e => {
-  keysDown.delete(e.key);
-  delete keyHeldFrames[e.key];
+  const _nk = _normKey(e.key);
+  keysDown.delete(_nk);
+  delete keyHeldFrames[_nk];
+});
+
+// When the tab loses focus, clear all held keys so players can't exploit
+// held-key persistence (floating, invincibility timer freeze, etc.)
+function _clearAllKeys() {
+  keysDown.clear();
+  for (const k in keyHeldFrames) delete keyHeldFrames[k];
+}
+window.addEventListener('blur', _clearAllKeys);
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) _clearAllKeys();
 });
 
 const SHIELD_MAX    = 140;  // max frames shield stays up (~2.3 s)
-const SHIELD_CD     = 900; // 30-second cooldown at 60 fps
+const SHIELD_CD     = 450; // 7.5-second cooldown at 60 fps
 
 function processInput() {
   if (!gameRunning || paused) return;
@@ -888,14 +968,20 @@ function processInput() {
     const _chaosSpeed = gameMode === 'minigames' && currentChaosModifiers.has('speedy') ? 1.4 : 1.0;
     const _underwaterSlow = currentArena && currentArena.isSlowMovement ? 0.72 : 1.0;
     const _earthSlow      = currentArena && currentArena.earthPhysics   ? 0.70 : 1.0;
-    const spd  = 5.2 * (p.classSpeedMult || 1.0) * (p._speedBuff > 0 ? 1.35 : 1.0) * (hasCurseSlow ? 0.6 : 1.0) * _chaosSpeed * _underwaterSlow * _earthSlow;
+    // Anti-kite decay (0.70-1.0), shooting penalty (0.85 while firing ranged / 0.78 post-burst)
+    const _kiteMult    = (p._kiteSpeedMult != null) ? p._kiteSpeedMult : 1.0;
+    const _isRanged    = p.weapon && p.weapon.type === 'ranged';
+    const _shootingMult = _isRanged && p.attackTimer > 0   ? 0.85
+                        : _isRanged && p._rangedMovePenalty > 0 ? 0.78 : 1.0;
+    const spd  = 5.2 * (p.classSpeedMult || 1.0) * (p._speedBuff > 0 ? 1.35 : 1.0) * (hasCurseSlow ? 0.6 : 1.0) * _chaosSpeed * _underwaterSlow * _earthSlow * _kiteMult * _shootingMult;
     const wHeld = keyHeldFrames[p.controls.jump]  || 0;
 
 
     // --- Regular movement ---
     // True Form: inverted controls for human players only
-    const _leftKey  = (gameMode === 'trueform' && tfControlsInverted && !p.isAI) ? p.controls.right : p.controls.left;
-    const _rightKey = (gameMode === 'trueform' && tfControlsInverted && !p.isAI) ? p.controls.left  : p.controls.right;
+    const _ctrlInv  = (!p.isAI) && ((gameMode === 'trueform' && tfControlsInverted) || (currentArenaKey === 'mirror' && mirrorFlipped));
+    const _leftKey  = _ctrlInv ? p.controls.right : p.controls.left;
+    const _rightKey = _ctrlInv ? p.controls.left  : p.controls.right;
     const movingLeft  = keysDown.has(_leftKey);
     const movingRight = keysDown.has(_rightKey);
     if (movingLeft) {
@@ -1068,8 +1154,8 @@ function applyCode(val) {
   } else if (code === 'GODMODE') {
     if (gameRunning) {
       const p = players.find(pl => !pl.isAI && !pl.isBoss);
-      if (p) { p.invincible = 99999; p.health = p.maxHealth; }
-      ok('GOD MODE — you cannot be hurt!');
+      if (p) { p.invincible = 99999; p.health = p.maxHealth; p.godmode = true; }
+      ok('GOD MODE — invincible + flight (jump=up, shield=down)!');
     } else { err('Enter GODMODE while in-game.'); }
   } else if (code === 'FULLHEAL') {
     if (gameRunning) {

@@ -38,10 +38,20 @@ function dealDamage(attacker, target, dmg, kbForce, stunMult = 1.0, isSplash = f
   // Paladin passive: 15% damage reduction on incoming hits
   if (target && target.charClass === 'paladin')
     actualDmg = Math.max(1, Math.floor(actualDmg * 0.85));
-  // Armor: each piece reduces incoming damage by 10% (max 30% for full set)
+  // Armor: per-piece type damage reduction (helmet=12%, chestplate=15%, leggings=8%)
   if (target && target.armorPieces && target.armorPieces.length > 0) {
-    const armorMult = 1 - Math.min(3, target.armorPieces.length) * 0.10;
-    actualDmg = Math.max(1, Math.floor(actualDmg * armorMult));
+    let armorReduction = 0;
+    if (target.armorPieces.includes('helmet'))     armorReduction += 0.12;
+    if (target.armorPieces.includes('chestplate')) armorReduction += 0.15;
+    if (target.armorPieces.includes('leggings'))   armorReduction += 0.08;
+    armorReduction = Math.min(0.40, armorReduction);
+    actualDmg = Math.max(1, Math.floor(actualDmg * (1 - armorReduction)));
+  }
+  // Mirror Fracture ability: reflect 25% damage back to attacker while shielding
+  if (target && target.isShielding && target.story2Abilities && target.story2Abilities.has('reflect2') && attacker && attacker !== target) {
+    const reflectDmg = Math.max(1, Math.floor(actualDmg * 0.25));
+    attacker.health = Math.max(0, attacker.health - reflectDmg);
+    spawnParticles(attacker.cx(), attacker.cy(), '#00aaff', 6);
   }
   // Kratos: target being hit builds rage stacks
   if (target && target.charClass === 'kratos') {
@@ -342,16 +352,26 @@ function _achCheckBeastDead() { unlockAchievement('beast_tamer'); }
 function spawnBullet(user, speed, color, overrideDmg = null) {
   SoundManager.shoot();
   const dmg = overrideDmg !== null ? overrideDmg : (user.weapon.damageFunc ? user.weapon.damageFunc() : user.weapon.damage);
+
+  // Movement-based accuracy: faster movement = more vertical spread.
+  // At full run speed (5.2) normal weapons get ±0.9 vy spread (~54px at 60f range).
+  // Rapid-fire weapons get 2.8× (±1.4 vy) — rewards burst-control close range.
+  const _ownerSpd = Math.abs(user.vx);
+  const _isRapid  = user.weapon && user.weapon.cooldown <= 20; // rapid-fire threshold
+  const _spread   = _ownerSpd > 0.8 ? (_ownerSpd / 5.2) * (_isRapid ? 2.8 : 1.8) : 0;
+  const _vy       = _spread > 0 ? (Math.random() - 0.5) * _spread : 0;
+
   projectiles.push(new Projectile(
     user.cx() + user.facing * 12, user.y + 22,
-    user.facing * speed, 0, user, dmg, color
+    user.facing * speed, _vy, user, dmg, color
   ));
   // Gunner class: fire a second bullet at slight angle
   if (user.charClass === 'gunner') {
     const dmg2 = user.weapon.damageFunc ? user.weapon.damageFunc() : user.weapon.damage;
+    const _vy2 = _vy + (Math.random() - 0.5) * 0.3;
     projectiles.push(new Projectile(
       user.cx() + user.facing * 12, user.y + 26,
-      user.facing * speed * 0.92, -0.8, user, dmg2, color
+      user.facing * speed * 0.92, -0.8 + _vy2, user, dmg2, color
     ));
   }
 }
@@ -373,6 +393,8 @@ class Projectile {
     this.x += this.vx;
     this.y += this.vy;
     this.vy += 0.08;
+    // Track distance for damage falloff (applied on hit below)
+    this._distTraveled = (this._distTraveled || 0) + Math.abs(this.vx);
     if (--this.life <= 0) { this.active = false; return; }
     // platform collision
     for (const pl of currentArena.platforms) {
@@ -390,8 +412,11 @@ class Projectile {
       if (!_survFF && gameMode === 'boss' && !this.owner.isBoss && !p.isBoss) continue;
       if (!_survFF && gameMode === 'minigames' && !this.owner.isBoss && !p.isBoss && !p.isAI) continue;
       if (this.x > p.x && this.x < p.x+p.w && this.y > p.y && this.y < p.y+p.h) {
-        dealDamage(this.owner, p, this.damage, 7);
-        handleSplash(this.owner, p, this.damage, this.x, this.y);
+        // Distance falloff: full damage ≤200px, ramps down to 60% at ≥600px
+        const _falloff = Math.max(0.60, 1.0 - Math.max(0, (this._distTraveled - 200) / 1000));
+        const _hitDmg  = Math.max(1, Math.round(this.damage * _falloff));
+        dealDamage(this.owner, p, _hitDmg, 7);
+        handleSplash(this.owner, p, _hitDmg, this.x, this.y);
         this.active = false;
         spawnParticles(this.x, this.y, this.color, 6);
         return;
@@ -402,8 +427,10 @@ class Projectile {
       for (const mn of minions) {
         if (mn.health <= 0) continue;
         if (this.x > mn.x && this.x < mn.x+mn.w && this.y > mn.y && this.y < mn.y+mn.h) {
-          dealDamage(this.owner, mn, this.damage, 9);
-          handleSplash(this.owner, mn, this.damage, this.x, this.y);
+          const _mFalloff = Math.max(0.60, 1.0 - Math.max(0, ((this._distTraveled || 0) - 200) / 1000));
+          const _mHitDmg  = Math.max(1, Math.round(this.damage * _mFalloff));
+          dealDamage(this.owner, mn, _mHitDmg, 9);
+          handleSplash(this.owner, mn, _mHitDmg, this.x, this.y);
           this.active = false;
           spawnParticles(this.x, this.y, this.color, 6);
           return;

@@ -89,8 +89,8 @@ const NetworkManager = (() => {
       conn.on('close', () => {
         _connections = _connections.filter(c => c !== conn);
         _slotCount = Math.max(1, _slotCount - 1);
-        showToast('Player ' + (guestSlot + 1) + ' left');
         _setStatus('Players: ' + _slotCount + '/' + _maxPlayers);
+        _handleOpponentLeft(guestSlot);
       });
     });
   }
@@ -167,6 +167,20 @@ const NetworkManager = (() => {
     }
   }
 
+  function _handleOpponentLeft(slotWhoLeft) {
+    showToast('Opponent disconnected — you win!');
+    _setStatus('Opponent left');
+    if (typeof gameRunning !== 'undefined' && gameRunning &&
+        typeof players !== 'undefined' && players.length >= 2 &&
+        typeof endGame === 'function') {
+      // Kill the remote player so endGame() resolves the correct winner
+      const leaver = players[slotWhoLeft !== undefined ? slotWhoLeft : (1 - _localSlot)];
+      if (leaver) { leaver.health = 0; leaver.lives = 0; }
+      // Small delay so the death registers visually before the overlay
+      setTimeout(() => { if (typeof gameRunning !== 'undefined' && gameRunning) endGame(); }, 600);
+    }
+  }
+
   function _handleGameEvent(msg) {
     if (msg.event === 'chat') {
       _appendChatMsg(msg.sender || 'P?', msg.text || '');
@@ -178,6 +192,23 @@ const NetworkManager = (() => {
       _onlineGameMode = msg.data && msg.data.mode ? msg.data.mode : (msg.mode || '2p');
       gameMode = _onlineGameMode;
       if (typeof selectMode === 'function') selectMode(gameMode);
+    } else if (msg.event === 'startGame') {
+      // Guest receives host's start signal — sync settings then launch
+      if (!_isHost) {
+        if (msg.arena  && typeof selectArena === 'function') selectArena(msg.arena);
+        if (msg.mode   && typeof selectMode  === 'function') { gameMode = msg.mode; selectMode(msg.mode); }
+        if (msg.lives  && typeof chosenLives !== 'undefined') chosenLives = msg.lives;
+        if (typeof startGame === 'function') startGame();
+      }
+    } else if (msg.event === 'playerLeft') {
+      _handleOpponentLeft(msg.slot !== undefined ? msg.slot : undefined);
+    } else if (msg.event === 'consoleCmd') {
+      // Remote console command — execute locally (sender already ran it on their end)
+      if (msg.cmd && typeof _consoleExec === 'function') {
+        _consoleExec(msg.cmd);
+      }
+    } else if (typeof handleChaosNetworkEvent === 'function' && handleChaosNetworkEvent(msg)) {
+      // handled by chaos system
     }
   }
 
@@ -217,6 +248,8 @@ const NetworkManager = (() => {
       if (modeRow) modeRow.style.display = 'flex';
       const chatEl = document.getElementById('onlineChat');
       if (chatEl) chatEl.style.display = 'flex';
+      const startBtn = document.getElementById('onlineStartBtn');
+      if (startBtn) startBtn.style.display = 'inline-block';
     } catch (err) {
       if (err.type === 'unavailable-id') {
         // Room exists — join as GUEST
@@ -237,8 +270,11 @@ const NetworkManager = (() => {
             localPlayerSlot = msg.slot;
             onlineLocalSlot = msg.slot;
             _maxPlayers = msg.maxPlayers || _maxPlayers;
-            _setStatus('Joined as P' + (_localSlot + 1) + ' \u2022 Waiting...');
-            showToast('You are Player ' + (_localSlot + 1));
+            _setStatus('Joined as P' + (_localSlot + 1) + ' \u2022 Waiting for host to start...');
+            showToast('You are Player ' + (_localSlot + 1) + ' — wait for host to start');
+            // Hide the Connect button, show a waiting indicator
+            const startBtn = document.getElementById('onlineStartBtn');
+            if (startBtn) startBtn.style.display = 'none'; // guests never see Start
             const chatEl = document.getElementById('onlineChat');
             if (chatEl) chatEl.style.display = 'flex';
           } else if (msg.type === 'playerState') {
@@ -256,11 +292,8 @@ const NetworkManager = (() => {
         });
         conn.on('close', () => {
           _connected = false;
-          showToast('Disconnected from host');
           _setStatus('Disconnected');
-          if (typeof gameRunning !== 'undefined' && gameRunning && typeof endGame === 'function') {
-            endGame();
-          }
+          _handleOpponentLeft(0); // host is always slot 0
         });
         conn.on('error', e => showToast('Connection error: ' + e));
       } else {
@@ -280,6 +313,10 @@ const NetworkManager = (() => {
     onlineMode = false;
     _setStatus('Disconnected');
     _unAdvertisePublicRoom();
+    const startBtn = document.getElementById('onlineStartBtn');
+    if (startBtn) startBtn.style.display = 'none';
+    const modeRow = document.getElementById('onlineGameModeRow');
+    if (modeRow) modeRow.style.display = 'none';
   }
 
   function sendState() {
@@ -288,10 +325,13 @@ const NetworkManager = (() => {
     if (!p) return;
     const state = {
       x: p.x, y: p.y, vx: p.vx, vy: p.vy,
-      hp: p.health, facing: p.facing,
-      anim: p.attackTimer > 0 ? 'attack' : p.onGround ? 'idle' : 'air',
-      weapon: p.weaponKey, charClass: p.charClass || 'none',
+      health: p.health, maxHealth: p.maxHealth, facing: p.facing,
+      state: p.attackTimer > 0 ? 'attacking' : p.onGround ? 'idle' : 'jumping',
+      attackTimer: p.attackTimer || 0, attackDuration: p.attackDuration || 12,
+      hurtTimer: p.hurtTimer || 0, stunTimer2: p.stunTimer || 0,
+      weaponKey: p.weaponKey, charClass: p.charClass || 'none',
       shield: p.shielding, stunTimer: p.stunTimer > 0,
+      invincible: p.invincible || 0,
       color: p.color, lives: p.lives,
       hat: p.hat || 'none', cape: p.cape || 'none',
       name: p.name || ('P' + (_localSlot + 1)),
@@ -497,4 +537,26 @@ function selectOnlineArena(arenaKey) {
 
 function showToast(msg, duration) {
   NetworkManager.showToast(msg, duration);
+}
+
+// Host-only: broadcast start signal to all guests then launch locally
+function networkStartGame() {
+  if (!NetworkManager.isHost()) {
+    NetworkManager.showToast('Only the host can start the game');
+    return;
+  }
+  if (!NetworkManager.connected) {
+    NetworkManager.showToast('Not connected — click Connect first');
+    return;
+  }
+  // Broadcast current arena + mode so guests match
+  NetworkManager.sendGameEvent('startGame', {
+    arena: typeof selectedArena !== 'undefined' ? selectedArena : 'random',
+    mode:  typeof gameMode    !== 'undefined' ? gameMode    : '2p',
+    lives: typeof chosenLives !== 'undefined' ? chosenLives : 3,
+  });
+  // Small delay so the network message reaches guests before host starts
+  setTimeout(() => {
+    if (typeof startGame === 'function') startGame();
+  }, 120);
 }

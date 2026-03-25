@@ -434,140 +434,273 @@ const ARENAS = {
     name: 'Warp Zone', isOnlineOnly: true, isLargeMap: true,
     sky: ['#0d0024','#1a0038','#00001a'],
     groundColor: '#0a001f', platColor: '#2a0055', platEdge: '#8800ff',
-    deathY: 620, isLowGravity: true,
+    deathY: 700, isLowGravity: true,
+    worldWidth: 3600,
+    mapLeft: -900, mapRight: 2700,
     platforms: [
-      { x:0,   y:510, w:1800, h:40, isFloor:true },
-      { x:50,  y:430, w:180,  h:18 },
-      { x:300, y:380, w:160,  h:18 },
-      { x:580, y:340, w:180,  h:18 },
-      { x:850, y:300, w:200,  h:18 },
-      { x:1100,y:350, w:160,  h:18 },
-      { x:1380,y:400, w:180,  h:18 },
-      { x:1600,y:330, w:180,  h:18 },
-      { x:150, y:280, w:160,  h:18 },
-      { x:450, y:240, w:180,  h:18 },
-      { x:720, y:200, w:160,  h:18 },
-      { x:1000,y:220, w:180,  h:18 },
-      { x:1280,y:180, w:160,  h:18 },
-      { x:600, y:120, w:200,  h:18 },
-      { x:900, y:80,  w:160,  h:18 },
-      { x:350, y:80,  w:140,  h:18 },
-      { x:1200,y:100, w:160,  h:18 },
+      { x:-900, y:560, w:3600, h:40, isFloor:true },
+      // Lower tier — spread across -800..2600
+      { x:-820, y:450, w:200, h:18 },
+      { x:-460, y:430, w:180, h:18 },
+      { x:-120, y:460, w:200, h:18 },
+      { x: 230, y:440, w:180, h:18 },
+      { x: 570, y:430, w:200, h:18 },
+      { x: 900, y:450, w:180, h:18 },
+      { x:1230, y:440, w:200, h:18 },
+      { x:1560, y:430, w:180, h:18 },
+      { x:1890, y:450, w:200, h:18 },
+      { x:2220, y:440, w:180, h:18 },
+      { x:2540, y:460, w:200, h:18 },
+      // Mid tier
+      { x:-700, y:340, w:180, h:18 },
+      { x:-370, y:310, w:200, h:18 },
+      { x: -40, y:350, w:180, h:18 },
+      { x: 310, y:320, w:200, h:18 },
+      { x: 650, y:340, w:180, h:18 },
+      { x: 980, y:310, w:200, h:18 },
+      { x:1310, y:350, w:180, h:18 },
+      { x:1640, y:320, w:200, h:18 },
+      { x:1970, y:340, w:180, h:18 },
+      { x:2300, y:310, w:200, h:18 },
+      { x:2590, y:350, w:180, h:18 },
+      // Upper tier
+      { x:-590, y:210, w:180, h:18 },
+      { x:-250, y:190, w:200, h:18 },
+      { x:  90, y:220, w:180, h:18 },
+      { x: 430, y:190, w:200, h:18 },
+      { x: 770, y:210, w:180, h:18 },
+      { x:1100, y:180, w:200, h:18 },
+      { x:1430, y:210, w:180, h:18 },
+      { x:1760, y:190, w:200, h:18 },
+      { x:2090, y:220, w:180, h:18 },
+      { x:2410, y:190, w:200, h:18 },
+      // Top tier
+      { x:-470, y:100, w:200, h:18 },
+      { x: -90, y: 80, w:180, h:18 },
+      { x: 270, y:100, w:200, h:18 },
+      { x: 650, y: 80, w:180, h:18 },
+      { x:1030, y:100, w:200, h:18 },
+      { x:1410, y: 80, w:180, h:18 },
+      { x:1790, y:100, w:200, h:18 },
+      { x:2170, y: 80, w:180, h:18 },
+      { x:2510, y:100, w:200, h:18 },
     ]
   },
   colosseum10: {
     name: 'Grand Colosseum', isOnlineOnly: true, isLargeMap: true,
     sky: ['#1a0800','#2d1000','#3d1a00'],
     groundColor: '#2d1800', platColor: '#5c3010', platEdge: '#8c5020',
-    deathY: 620,
+    deathY: 700,
+    worldWidth: 3600,
+    mapLeft: -900, mapRight: 2700,
     platforms: [
-      { x:0,    y:510, w:1800, h:40, isFloor:true },
-      { x:100,  y:420, w:220,  h:22 },
-      { x:450,  y:380, w:200,  h:22 },
-      { x:800,  y:420, w:200,  h:22 },
-      { x:1150, y:380, w:220,  h:22 },
-      { x:1500, y:420, w:200,  h:22 },
-      { x:250,  y:300, w:180,  h:20 },
-      { x:600,  y:270, w:200,  h:20 },
-      { x:900,  y:310, w:180,  h:20 },
-      { x:1200, y:270, w:200,  h:20 },
-      { x:1450, y:300, w:180,  h:20 },
-      { x:400,  y:190, w:160,  h:18 },
-      { x:700,  y:160, w:200,  h:18 },
-      { x:1000, y:190, w:160,  h:18 },
-      { x:1300, y:160, w:180,  h:18 },
-      { x:800,  y:80,  w:200,  h:18 },
+      { x:-900, y:560, w:3600, h:40, isFloor:true },
+      // Lower tier — spread across -800..2600
+      { x:-830, y:450, w:220, h:22 },
+      { x:-470, y:430, w:200, h:22 },
+      { x:-110, y:450, w:220, h:22 },
+      { x: 250, y:430, w:200, h:22 },
+      { x: 590, y:450, w:220, h:22 },
+      { x: 920, y:430, w:200, h:22 },
+      { x:1250, y:450, w:220, h:22 },
+      { x:1580, y:430, w:200, h:22 },
+      { x:1900, y:450, w:220, h:22 },
+      { x:2230, y:430, w:200, h:22 },
+      { x:2550, y:450, w:200, h:22 },
+      // Mid tier
+      { x:-710, y:340, w:180, h:20 },
+      { x:-360, y:310, w:200, h:20 },
+      { x: -20, y:340, w:180, h:20 },
+      { x: 330, y:310, w:200, h:20 },
+      { x: 670, y:340, w:180, h:20 },
+      { x:1000, y:310, w:200, h:20 },
+      { x:1320, y:340, w:180, h:20 },
+      { x:1650, y:310, w:200, h:20 },
+      { x:1980, y:340, w:180, h:20 },
+      { x:2310, y:310, w:200, h:20 },
+      { x:2600, y:340, w:180, h:20 },
+      // Upper tier
+      { x:-570, y:210, w:180, h:18 },
+      { x:-230, y:190, w:200, h:18 },
+      { x: 110, y:210, w:180, h:18 },
+      { x: 450, y:190, w:200, h:18 },
+      { x: 790, y:210, w:180, h:18 },
+      { x:1120, y:190, w:200, h:18 },
+      { x:1450, y:210, w:180, h:18 },
+      { x:1780, y:190, w:200, h:18 },
+      { x:2110, y:210, w:180, h:18 },
+      { x:2430, y:190, w:200, h:18 },
+      // Top tier
+      { x:-450, y:100, w:200, h:18 },
+      { x: -70, y: 80, w:180, h:18 },
+      { x: 290, y:100, w:200, h:18 },
+      { x: 670, y: 80, w:180, h:18 },
+      { x:1050, y:100, w:200, h:18 },
+      { x:1430, y: 80, w:180, h:18 },
+      { x:1810, y:100, w:200, h:18 },
+      { x:2190, y: 80, w:180, h:18 },
+      { x:2520, y:100, w:200, h:18 },
     ]
   },
 
   // ── Story-only arenas (not shown in arena picker) ─────────────────────────
+  // All story arenas are 2200px wide so the player can explore before the fight.
+  // isFloor:true marks the ground platform for void-fog and spawn logic.
 
-  // Home-world realistic arenas — flat ground, no floating platforms
   homeYard: {
-    name: 'Backyard', isStoryOnly: true, earthPhysics: true,
+    // Standard-width map (GAME_W=900). No worldWidth — camera doesn't scroll.
+    // mapLeft/mapRight match the floor edges so no invisible walls exist.
+    // Platform layout: 8 intentional platforms representing a house front yard.
+    // pickSafeSpawn('left') → porch step or left fence; pickSafeSpawn('right') → right fence or path.
+    // Both spawns naturally land in front of the house, separated by the center gap.
+    name: 'Home Yard', isStoryOnly: true, earthPhysics: true,
+    mapLeft: 0, mapRight: 900,
     sky: ['#87CEEB','#b8dff5','#d0eeff'],
-    groundColor: '#4a8030', platColor: '#4a8030', platEdge: '#3a6020',
-    hasLava: false, deathY: 640,
+    groundColor: '#4a8030', platColor: '#6a9a40', platEdge: '#3a6020',
+    hasLava: false, deathY: 560,
     platforms: [
-      { x: -60, y: 480, w: 1020, h: 160 },  // lawn — tall fill eliminates void below
-    ]
+      // Ground — full-width grass, flush with map edges
+      { x: 0,   y: 460, w: 900, h: 120, isFloor: true },
+    ],
   },
   homeAlley: {
     name: 'City Alley', isStoryOnly: true, earthPhysics: true,
-    sky: ['#2a3a4a','#3a4a5a','#4a5a6a'],
-    groundColor: '#2a2a2a', platColor: '#383838', platEdge: '#222222',
+    worldWidth: 6000, mapLeft: -50, mapRight: 5850, boundaryPortals: true,
+    sky: ['#1a2030','#2a3040','#3a4050'],
+    groundColor: '#222222', platColor: '#303030', platEdge: '#181818',
     hasLava: false, deathY: 640,
     platforms: [
-      { x: -60, y: 480, w: 1020, h: 160 },  // asphalt — tall fill eliminates void below
+      { x: -200, y: 480, w: 6400, h: 200, isFloor: true },
     ]
   },
-
   suburb: {
     name: 'Suburbs', isStoryOnly: true, earthPhysics: true,
-    sky: ['#87CEEB','#b8e4f5'],
-    groundColor: '#5a8a3a', platColor: '#5a8a3a', platEdge: '#3a6020',
+    worldWidth: 6000, mapLeft: -50, mapRight: 5850, boundaryPortals: true,
+    sky: ['#87CEEB','#aad8f0','#c8ecff'],
+    groundColor: '#5a8a3a', platColor: '#6a9a4a', platEdge: '#3a6020',
     hasLava: false, deathY: 640,
     platforms: [
-      { x: -60, y: 480, w: 1020, h: 160 },  // lawn — tall fill eliminates void below
+      { x: -200, y: 480, w: 6400, h: 200, isFloor: true },
     ]
   },
   rural: {
     name: 'Rural Fields', isStoryOnly: true, earthPhysics: true,
-    sky: ['#f5c842','#f0a020','#c87010'],
-    groundColor: '#7a5c30', platColor: '#7a5c30', platEdge: '#5c4010',
+    worldWidth: 6000, mapLeft: -50, mapRight: 5850, boundaryPortals: true,
+    sky: ['#e8a020','#f0b830','#f5c842'],
+    groundColor: '#7a5c30', platColor: '#8a6c40', platEdge: '#5c4010',
     hasLava: false, deathY: 640,
     platforms: [
-      { x: -60, y: 480, w: 1020, h: 160 },  // dirt — tall fill eliminates void below
+      { x: -200, y: 480, w: 6400, h: 200, isFloor: true },
     ]
   },
   portalEdge: {
     name: 'Portal Threshold', isStoryOnly: true,
-    sky: ['#0a0020','#1a0040','#300060'],
-    groundColor: '#150030', platColor: '#2a0060', platEdge: '#8800cc',
+    worldWidth: 6000, mapLeft: -50, mapRight: 5850, boundaryPortals: true,
+    sky: ['#050010','#100030','#1a0050'],
+    groundColor: '#100020', platColor: '#200050', platEdge: '#6600aa',
     hasLava: false, deathY: 640,
     platforms: [
-      { x: -60, y: 480, w: 1020, h: 40 },
-      { x: 100, y: 380, w: 140, h: 18 },
-      { x: 320, y: 320, w: 120, h: 18 },
-      { x: 480, y: 260, w: 160, h: 18 },
-      { x: 680, y: 320, w: 130, h: 18 },
-      { x: 790, y: 390, w: 100, h: 18 },
-      { x: 200, y: 220, w: 120, h: 16 },
-      { x: 560, y: 190, w: 110, h: 16 },
+      { x: -200, y: 480, w: 6400, h: 200, isFloor: true },
+      { x:  100, y: 390, w: 140, h: 18 }, { x:  290, y: 340, w: 130, h: 18 },
+      { x:  470, y: 280, w: 150, h: 18 }, { x:  660, y: 330, w: 130, h: 18 },
+      { x:  840, y: 395, w: 120, h: 18 }, { x: 1010, y: 340, w: 140, h: 18 },
+      { x: 1200, y: 280, w: 130, h: 18 }, { x: 1380, y: 330, w: 140, h: 18 },
+      { x: 1560, y: 390, w: 120, h: 18 }, { x: 1740, y: 340, w: 140, h: 18 },
+      { x: 1920, y: 390, w: 130, h: 18 }, { x: 2110, y: 330, w: 140, h: 18 },
+      { x: 2300, y: 275, w: 150, h: 18 }, { x: 2490, y: 340, w: 130, h: 18 },
+      { x: 2680, y: 395, w: 120, h: 18 }, { x: 2870, y: 340, w: 140, h: 18 },
+      { x: 3060, y: 280, w: 130, h: 18 }, { x: 3250, y: 340, w: 140, h: 18 },
+      { x: 3440, y: 395, w: 120, h: 18 }, { x: 3630, y: 340, w: 140, h: 18 },
+      { x: 3820, y: 280, w: 130, h: 18 }, { x: 4010, y: 340, w: 140, h: 18 },
+      { x: 4200, y: 395, w: 120, h: 18 }, { x: 4390, y: 340, w: 140, h: 18 },
+      { x: 4580, y: 280, w: 130, h: 18 }, { x: 4770, y: 340, w: 140, h: 18 },
+      { x: 4960, y: 395, w: 120, h: 18 }, { x: 5150, y: 340, w: 140, h: 18 },
+      { x: 5340, y: 280, w: 130, h: 18 }, { x: 5530, y: 340, w: 140, h: 18 },
+      { x:  200, y: 240, w: 120, h: 16 }, { x:  560, y: 210, w: 110, h: 16 },
+      { x:  940, y: 220, w: 120, h: 16 }, { x: 1300, y: 205, w: 110, h: 16 },
+      { x: 1650, y: 215, w: 120, h: 16 }, { x: 2020, y: 205, w: 110, h: 16 },
+      { x: 2410, y: 215, w: 120, h: 16 }, { x: 2800, y: 205, w: 110, h: 16 },
+      { x: 3170, y: 215, w: 120, h: 16 }, { x: 3560, y: 205, w: 110, h: 16 },
+      { x: 3930, y: 215, w: 120, h: 16 }, { x: 4310, y: 205, w: 110, h: 16 },
+      { x: 4690, y: 215, w: 120, h: 16 }, { x: 5070, y: 205, w: 110, h: 16 },
+      { x: 5450, y: 215, w: 120, h: 16 },
+      { x:  370, y: 165, w: 100, h: 16 }, { x:  750, y: 155, w: 100, h: 16 },
+      { x: 1120, y: 160, w: 100, h: 16 }, { x: 1480, y: 155, w: 100, h: 16 },
+      { x: 1820, y: 165, w: 100, h: 16 }, { x: 2220, y: 155, w: 100, h: 16 },
+      { x: 2610, y: 160, w: 100, h: 16 }, { x: 2990, y: 155, w: 100, h: 16 },
     ]
   },
   realmEntry: {
     name: 'The New Realm', isStoryOnly: true,
-    sky: ['#000820','#001840','#003060'],
-    groundColor: '#001030', platColor: '#003060', platEdge: '#0088ff',
+    worldWidth: 6000, mapLeft: -50, mapRight: 5850, boundaryPortals: true,
+    sky: ['#000515','#000e2a','#001845'],
+    groundColor: '#000a20', platColor: '#002050', platEdge: '#0066cc',
     hasLava: false, deathY: 640, isLowGravity: true,
     platforms: [
-      { x: -60, y: 480, w: 1020, h: 40 },
-      { x:  80, y: 400, w: 140, h: 18 },
-      { x: 280, y: 340, w: 120, h: 18 },
-      { x: 440, y: 270, w: 150, h: 18 },
-      { x: 640, y: 310, w: 130, h: 18 },
-      { x: 770, y: 390, w: 110, h: 18 },
-      { x: 170, y: 220, w: 130, h: 16 },
-      { x: 500, y: 185, w: 120, h: 16 },
-      { x: 350, y: 130, w: 100, h: 16 },
+      { x: -200, y: 480, w: 6400, h: 200, isFloor: true },
+      { x:   80, y: 405, w: 140, h: 18 }, { x:  270, y: 355, w: 130, h: 18 },
+      { x:  450, y: 295, w: 150, h: 18 }, { x:  640, y: 325, w: 130, h: 18 },
+      { x:  820, y: 400, w: 120, h: 18 }, { x: 1000, y: 350, w: 140, h: 18 },
+      { x: 1180, y: 295, w: 130, h: 18 }, { x: 1360, y: 335, w: 140, h: 18 },
+      { x: 1540, y: 400, w: 120, h: 18 }, { x: 1720, y: 350, w: 140, h: 18 },
+      { x: 1900, y: 400, w: 130, h: 18 }, { x: 2090, y: 345, w: 140, h: 18 },
+      { x: 2280, y: 295, w: 130, h: 18 }, { x: 2470, y: 340, w: 140, h: 18 },
+      { x: 2660, y: 400, w: 120, h: 18 }, { x: 2850, y: 350, w: 140, h: 18 },
+      { x: 3040, y: 295, w: 130, h: 18 }, { x: 3230, y: 340, w: 140, h: 18 },
+      { x: 3420, y: 400, w: 120, h: 18 }, { x: 3610, y: 350, w: 140, h: 18 },
+      { x: 3800, y: 295, w: 130, h: 18 }, { x: 3990, y: 340, w: 140, h: 18 },
+      { x: 4180, y: 400, w: 120, h: 18 }, { x: 4370, y: 350, w: 140, h: 18 },
+      { x: 4560, y: 295, w: 130, h: 18 }, { x: 4750, y: 340, w: 140, h: 18 },
+      { x: 4940, y: 400, w: 120, h: 18 }, { x: 5130, y: 350, w: 140, h: 18 },
+      { x: 5320, y: 295, w: 130, h: 18 }, { x: 5510, y: 345, w: 140, h: 18 },
+      { x:  170, y: 245, w: 130, h: 16 }, { x:  540, y: 215, w: 120, h: 16 },
+      { x:  910, y: 225, w: 130, h: 16 }, { x: 1270, y: 210, w: 120, h: 16 },
+      { x: 1620, y: 220, w: 120, h: 16 }, { x: 2000, y: 210, w: 120, h: 16 },
+      { x: 2390, y: 220, w: 130, h: 16 }, { x: 2770, y: 210, w: 120, h: 16 },
+      { x: 3150, y: 220, w: 130, h: 16 }, { x: 3530, y: 210, w: 120, h: 16 },
+      { x: 3910, y: 220, w: 130, h: 16 }, { x: 4290, y: 210, w: 120, h: 16 },
+      { x: 4670, y: 220, w: 130, h: 16 }, { x: 5050, y: 210, w: 120, h: 16 },
+      { x: 5430, y: 220, w: 130, h: 16 },
+      { x:  350, y: 160, w: 110, h: 16 }, { x:  720, y: 150, w: 100, h: 16 },
+      { x: 1090, y: 155, w: 110, h: 16 }, { x: 1450, y: 148, w: 100, h: 16 },
+      { x: 1800, y: 160, w: 110, h: 16 }, { x: 2200, y: 150, w: 100, h: 16 },
     ]
   },
   bossSanctum: {
     name: 'Sanctum of the Ruler', isStoryOnly: true,
-    sky: ['#100005','#200010','#350020'],
-    groundColor: '#1a0010', platColor: '#3a0028', platEdge: '#cc0066',
+    worldWidth: 6000, mapLeft: -50, mapRight: 5850, boundaryPortals: true,
+    sky: ['#080002','#120006','#200010'],
+    groundColor: '#100008', platColor: '#2a0018', platEdge: '#aa0044',
     hasLava: false, deathY: 640,
     platforms: [
-      { x: -60, y: 480, w: 1020, h: 40 },
-      { x:  60, y: 380, w: 160, h: 22 },
-      { x: 290, y: 320, w: 140, h: 20 },
-      { x: 480, y: 255, w: 170, h: 20 },
-      { x: 690, y: 320, w: 140, h: 20 },
-      { x: 820, y: 390, w: 120, h: 18 },
-      { x: 180, y: 235, w: 130, h: 18 },
-      { x: 590, y: 200, w: 130, h: 18 },
-      { x: 380, y: 150, w: 140, h: 18 },
+      { x: -200, y: 480, w: 6400, h: 200, isFloor: true },
+      { x:   60, y: 390, w: 160, h: 22 }, { x:  270, y: 335, w: 145, h: 20 },
+      { x:  460, y: 270, w: 165, h: 20 }, { x:  660, y: 330, w: 145, h: 20 },
+      { x:  850, y: 395, w: 130, h: 18 }, { x: 1030, y: 340, w: 155, h: 20 },
+      { x: 1220, y: 275, w: 145, h: 20 }, { x: 1410, y: 335, w: 155, h: 20 },
+      { x: 1600, y: 395, w: 135, h: 18 }, { x: 1780, y: 345, w: 150, h: 20 },
+      { x: 1960, y: 390, w: 130, h: 18 }, { x: 2160, y: 340, w: 155, h: 20 },
+      { x: 2350, y: 275, w: 145, h: 20 }, { x: 2550, y: 335, w: 155, h: 20 },
+      { x: 2740, y: 395, w: 135, h: 18 }, { x: 2930, y: 345, w: 150, h: 20 },
+      { x: 3120, y: 270, w: 165, h: 20 }, { x: 3320, y: 330, w: 145, h: 20 },
+      { x: 3510, y: 395, w: 130, h: 18 }, { x: 3700, y: 340, w: 155, h: 20 },
+      { x: 3890, y: 275, w: 145, h: 20 }, { x: 4090, y: 335, w: 155, h: 20 },
+      { x: 4280, y: 395, w: 135, h: 18 }, { x: 4470, y: 345, w: 150, h: 20 },
+      { x: 4660, y: 270, w: 165, h: 20 }, { x: 4860, y: 330, w: 145, h: 20 },
+      { x: 5050, y: 395, w: 130, h: 18 }, { x: 5240, y: 340, w: 155, h: 20 },
+      { x: 5430, y: 275, w: 145, h: 20 }, { x: 5630, y: 335, w: 155, h: 20 },
+      { x:  160, y: 250, w: 135, h: 18 }, { x:  550, y: 215, w: 130, h: 18 },
+      { x:  940, y: 225, w: 140, h: 18 }, { x: 1310, y: 210, w: 130, h: 18 },
+      { x: 1680, y: 220, w: 135, h: 18 }, { x: 2070, y: 210, w: 130, h: 18 },
+      { x: 2460, y: 220, w: 140, h: 18 }, { x: 2840, y: 210, w: 130, h: 18 },
+      { x: 3230, y: 220, w: 135, h: 18 }, { x: 3620, y: 210, w: 130, h: 18 },
+      { x: 4010, y: 220, w: 140, h: 18 }, { x: 4390, y: 210, w: 130, h: 18 },
+      { x: 4780, y: 220, w: 135, h: 18 }, { x: 5160, y: 210, w: 130, h: 18 },
+      { x: 5550, y: 220, w: 135, h: 18 },
+      { x:  360, y: 160, w: 145, h: 18 }, { x:  740, y: 148, w: 140, h: 18 },
+      { x: 1120, y: 155, w: 145, h: 18 }, { x: 1490, y: 148, w: 135, h: 18 },
+      { x: 1850, y: 158, w: 140, h: 18 }, { x: 2260, y: 148, w: 140, h: 18 },
+      { x: 2650, y: 158, w: 145, h: 18 }, { x: 3040, y: 148, w: 140, h: 18 },
     ]
   },
 };
@@ -587,12 +720,15 @@ function randomizeArenaLayout(key) {
   const base  = ARENA_BASE_PLATFORMS[key];
   if (!base) return;
   const arena = ARENAS[key];
+  // Determine the actual x bounds of the arena (wide arenas use worldWidth, not GAME_W)
+  const _xMin = arena.mapLeft  !== undefined ? arena.mapLeft  : 10;
+  const _xMax = arena.mapRight !== undefined ? arena.mapRight : GAME_W - 10;
   arena.platforms = base.map((p, idx) => {
     if (idx === 0) return { ...p }; // always keep ground platform fixed
-    // Randomize within ±70px x, ±45px y (except ground)
+    // Randomize within ±70px x, ±45px y, clamped to actual arena bounds
     return {
       ...p,
-      x: Math.max(10, Math.min(GAME_W - p.w - 10, p.x + (Math.random() - 0.5) * 140)),
+      x: Math.max(_xMin, Math.min(_xMax - p.w, p.x + (Math.random() - 0.5) * 140)),
       y: Math.max(55, Math.min(420, p.y + (Math.random() - 0.5) * 90))
     };
   });
@@ -1423,7 +1559,7 @@ const WEAPONS = {
   sword: {
     // THE ALL-ROUNDER: Fast, mobile, reliable. Jack of all trades.
     // Identity: Dash Slash chases and punishes. Great neutral game.
-    name: 'Sword',   damage: 16, range: 74, cooldown: 30, endlag: 7,
+    name: 'Sword',   damage: 16, range: 90, cooldown: 30, endlag: 7,
     kb: 10,          abilityCooldown: 150, type: 'melee', color: '#cccccc',
     abilityName: 'Dash Slash',
     ability(user, target) {
@@ -1434,7 +1570,7 @@ const WEAPONS = {
   hammer: {
     // THE CRUSHER: Slow, punishing, massive knockback. Forces commitment.
     // Identity: Every hit sends enemies flying. One good read = huge reward.
-    name: 'Hammer',  damage: 22, range: 58, cooldown: 62, endlag: 22,
+    name: 'Hammer',  damage: 22, range: 80, cooldown: 62, endlag: 22,
     kb: 20,          abilityCooldown: 230, type: 'melee', color: '#888888',
     abilityName: 'Ground Slam',
     ability(user, target) {
@@ -1446,7 +1582,7 @@ const WEAPONS = {
   gun: {
     // THE HARASSER: Reliable ranged poke. Rewards keeping distance.
     // Identity: Steady chip damage + burst fire ability. Control space.
-    name: 'Gun',     damage: 7, range: 600, cooldown: 42, endlag: 3,
+    name: 'Gun',     damage: 7, range: 600, cooldown: 42, endlag: 8,
     damageFunc: () => Math.floor(Math.random() * 3) + 5,
     superRateBonus: 2.8,
     splashRange: 38, splashDmgPct: 0.30,
@@ -1465,7 +1601,7 @@ const WEAPONS = {
   axe: {
     // THE SPINNER: Mid-range AoE brawler. Covers angles, not pure damage.
     // Identity: Spin Attack is a defensive escape AND offensive tool. Trades raw dmg for coverage.
-    name: 'Axe',     damage: 13, range: 68, cooldown: 52, endlag: 16,
+    name: 'Axe',     damage: 13, range: 88, cooldown: 52, endlag: 16,
     splashRange: 70, splashDmgPct: 0.30,
     kb: 10,          abilityCooldown: 180, type: 'melee', color: '#cc4422',
     abilityName: 'Spin Attack',
@@ -1477,7 +1613,7 @@ const WEAPONS = {
   spear: {
     // THE POKER: Longest melee reach. Safe, consistent, spacing-dependent.
     // Identity: Never lets enemies get close. Low KB keeps spacing tight for follow-ups.
-    name: 'Spear',   damage: 15, range: 115, cooldown: 44, endlag: 12,
+    name: 'Spear',   damage: 15, range: 140, cooldown: 44, endlag: 12,
     kb: 7,           abilityCooldown: 165, type: 'melee', color: '#8888ff',
     abilityName: 'Lunge',
     ability(user, target) {
@@ -1578,7 +1714,7 @@ const WEAPONS = {
   boxinggloves: {
     // THE BRAWLER: Fastest attack speed in the game. Wins by relentless pressure.
     // Identity: Lowest range, must stay face-to-face. Rapid Combo is the identity skill.
-    name: 'Boxing Gloves', damage: 9, range: 50, cooldown: 14, endlag: 2,
+    name: 'Boxing Gloves', damage: 9, range: 50, cooldown: 20, endlag: 10,
     kb: 4,                 abilityCooldown: 110, type: 'melee', color: '#ee3333',
     abilityName: 'Rapid Combo',
     ability(user, target) {
@@ -1598,7 +1734,7 @@ const WEAPONS = {
   peashooter: {
     // THE HARASSER: Fastest fire rate. Chip damage and interrupts enemy combos.
     // Identity: Each shot is weak but relentless. Storm ability dumps huge lead.
-    name: 'Pea Shooter', damage: 0, range: 700, cooldown: 13, endlag: 1,
+    name: 'Pea Shooter', damage: 0, range: 700, cooldown: 18, endlag: 5,
     damageFunc: () => 2 + Math.floor(Math.random() * 2), // 2-3 per shot
     bulletSpeed: 15, bulletColor: '#44cc44',
     clipSize: 15, reloadFrames: 75,
@@ -1645,7 +1781,7 @@ const WEAPONS = {
   paperairplane: {
     // THE TRICKSTER: Unpredictable arc confuses and disrupts. Unique flight path.
     // Identity: Angles and curves opponents can't predict. Barrage forces dodging.
-    name: 'Paper Airplane', damage: 0, range: 800, cooldown: 35, endlag: 2,
+    name: 'Paper Airplane', damage: 0, range: 800, cooldown: 35, endlag: 8,
     damageFunc: () => 8 + Math.floor(Math.random() * 5), // 8-12 per shot
     bulletSpeed: 7, bulletColor: '#aaccff', bulletVy: -0.5,
     clipSize: 5, reloadFrames: 80,

@@ -338,10 +338,10 @@ function _startQTE(phaseId, bossRef, playerRef) {
   // Dialogue
   const dialogues = [
     '',
-    '"Did you feel that? The world just... blinked."',
-    '"You\'re seeing yourself from a thousand timelines. Which one wins?"',
-    '"I am erasing you from every reality simultaneously."',
-    '"This is the end of every version of you."',
+    '"The world noticed you. So did I."',
+    '"Every version of you is here. None of them are ready."',
+    '"I\'m removing you from every frame of existence. Not personal."',
+    '"All of it ends here. Every thread."',
   ];
   if (typeof showBossDialogue === 'function') showBossDialogue(dialogues[phaseId] || '', 180);
 }
@@ -573,10 +573,10 @@ function _resetQTERound() {
     }
     if (typeof showBossDialogue === 'function') {
       const taunts = [
-        '"Did that hurt? Good."',
-        '"You can\'t stop what\'s already happened."',
-        '"You are already erased."',
-        '"Try harder. I want to savour this."',
+        '"Slow."',
+        '"That was already written."',
+        '"You\'re not here anymore. You just don\'t know it."',
+        '"You\'re more interesting when you resist."',
       ];
       showBossDialogue(taunts[s.totalAttempts % taunts.length], 120);
     }
@@ -691,10 +691,10 @@ function _beginOutroSuccess() {
   // Dialogue
   const successLines = [
     '',
-    '"How... did you do that?"',
-    '"Impossible. You are not supposed to win."',
-    '"You cannot survive the erasure of reality itself—"',
-    '"No. NO. THIS ISN\'T HOW IT ENDS—"',
+    '"...you broke the sequence."',
+    '"That wasn\'t in any timeline I modeled."',
+    '"You survived the gap between realities. Remarkable."',
+    '"...I see. You\'re something else entirely."',
   ];
   if (typeof showBossDialogue === 'function') {
     showBossDialogue(successLines[s.phase] || '', 200);
@@ -722,7 +722,7 @@ function _phaseSuccessExtras(s) {
       // Mild gravity glitch clears
       if (typeof tfGravityInverted !== 'undefined' && tfGravityInverted) {
         tfGravityInverted = false;
-        if (typeof showBossDialogue === 'function') showBossDialogue('"My grip slips."', 100);
+        if (typeof showBossDialogue === 'function') showBossDialogue('"You broke the pull. Noted."', 100);
       }
       break;
     case 2:

@@ -147,7 +147,7 @@ function updateChaosModIcons() {
   const bar = document.getElementById('chaosModIcons');
   const tip = document.getElementById('chaosModTooltip');
   if (!bar) return;
-  if (minigameType !== 'chaos' || !gameRunning) { bar.style.display = 'none'; return; }
+  if (minigameType !== 'chaos' || !gameRunning || gameMode !== 'minigames') { bar.style.display = 'none'; return; }
   bar.style.display = 'flex';
   bar.innerHTML = '';
   for (const id of currentChaosModifiers) {
@@ -345,7 +345,7 @@ function updateSoccerBall() {
   const spd = Math.hypot(ball.vx, ball.vy);
   if (spd > maxSpd) { ball.vx = ball.vx / spd * maxSpd; ball.vy = ball.vy / spd * maxSpd; }
 
-  // Player body collision — push ball away
+  // Player body collision — push ball away (biased toward player facing direction)
   for (const p of players) {
     if (!p || p.health <= 0) continue;
     const bCX = ball.x + ball.w / 2;
@@ -357,12 +357,19 @@ function updateSoccerBall() {
     if (dist2 < minDist && dist2 > 0.1) {
       const nx = overlapX / dist2;
       const ny = overlapY / dist2;
-      const relVx = ball.vx - p.vx;
-      const relVy = ball.vy - p.vy;
-      const dot    = relVx * -nx + relVy * -ny;
-      const impulse = Math.max(dot + 2.0, 1.0);
-      ball.vx += -nx * impulse;
-      ball.vy += -ny * impulse * 0.75;
+      // Blend 60% facing direction + 40% physics normal for predictability
+      const facingX = p.facing || 1;
+      const blendX  = nx * 0.4 + facingX * 0.6;
+      const blendY  = ny * 0.4 - 0.15; // slight upward bias
+      const blendLen = Math.hypot(blendX, blendY) || 1;
+      const bx2 = blendX / blendLen, by2 = blendY / blendLen;
+      const relVx  = ball.vx - p.vx;
+      const relVy  = ball.vy - p.vy;
+      const dot    = relVx * -bx2 + relVy * -by2;
+      const pSpd   = Math.hypot(p.vx, p.vy);
+      const impulse = Math.max(dot + 2.0 + pSpd * 0.4, 1.2);
+      ball.vx += bx2 * impulse;
+      ball.vy += by2 * impulse * 0.75;
       const pen = minDist - dist2;
       ball.x -= nx * pen * 0.55;
       ball.y -= ny * pen * 0.55;
@@ -370,7 +377,7 @@ function updateSoccerBall() {
     }
   }
 
-  // Weapon tip collision — attack gives extra kick
+  // Weapon tip collision — attack gives directional kick biased by player facing
   for (const p of players) {
     if (!p || p.attackTimer <= 0) continue;
     const tip = p._weaponTip;
@@ -378,11 +385,16 @@ function updateSoccerBall() {
     const bx = ball.x + ball.w / 2, by = ball.y + ball.h / 2;
     const td  = Math.hypot(tip.x - bx, tip.y - by);
     if (td < ball.w / 2 + 10) {
-      const nx = (bx - tip.x) / (td || 1);
-      const ny = (by - tip.y) / (td || 1);
-      const forceMult = 1 + (p.weapon?.damage || 10) / 15;
-      ball.vx += nx * 5.5 * forceMult;
-      ball.vy += ny * 4.5 * forceMult - 1.5;
+      const physNx = (bx - tip.x) / (td || 1);
+      const physNy = (by - tip.y) / (td || 1);
+      const facingX = p.facing || 1;
+      // 70% facing, 30% physics normal; always kick upward a bit
+      const kickX = physNx * 0.3 + facingX * 0.7;
+      const kickY = physNy * 0.3 - 0.35;
+      const kickLen = Math.hypot(kickX, kickY) || 1;
+      const forceMult = (1 + (p.weapon?.damage || 10) / 15) * (1 + Math.hypot(p.vx, p.vy) * 0.08);
+      ball.vx = (kickX / kickLen) * 6.5 * forceMult;
+      ball.vy = (kickY / kickLen) * 5.5 * forceMult;
       ball.lastTouched = p;
     }
   }
@@ -560,44 +572,14 @@ function drawMinigameHUD() {
 }
 
 function confirmResetProgress() {
-  // Wipe every smc_ key from localStorage — nothing survives
-  const keysToRemove = Object.keys(localStorage).filter(k => k.startsWith('smc_'));
-  keysToRemove.forEach(k => localStorage.removeItem(k));
+  // Wipe ALL localStorage keys — both smc_ prefixed and the consolidated save blob
+  localStorage.clear();
 
-  // Reset all in-memory state
-  bossBeaten          = false;
-  collectedLetterIds  = new Set();
-  unlockedTrueBoss    = false;
-  unlockedMegaknight  = false;
-  earnedAchievements  = new Set();
-  if (typeof _story2 !== 'undefined' && typeof _defaultStory2Progress === 'function') {
-    // eslint-disable-next-line no-global-assign
-    _story2 = _defaultStory2Progress();
-  }
-  if (typeof _storyProgress !== 'undefined' && typeof _defaultProgress === 'function') {
-    _storyProgress = _defaultProgress();
-  }
-  _activeStory2Chapter = null;
-
-  const card = document.getElementById('modeTrueForm');
-  if (card) card.style.display = 'none';
-  syncCodeInput();
-  document.getElementById('resetConfirmRow').style.display = 'none';
-  // Flash confirmation
+  // Flash confirmation then reload the page so all in-memory state resets too
   const msg = document.createElement('div');
-  msg.textContent = 'Progress reset! Starting story from the beginning...';
-  msg.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(0,0,0,0.9);color:#ffaa44;padding:16px 28px;border-radius:8px;font-size:1.1rem;font-weight:bold;z-index:9999;pointer-events:none';
+  msg.textContent = 'All progress wiped. Reloading...';
+  msg.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(0,0,0,0.95);color:#ffaa44;padding:16px 28px;border-radius:8px;font-size:1.1rem;font-weight:bold;z-index:9999;pointer-events:none';
   document.body.appendChild(msg);
-  setTimeout(() => {
-    msg.remove();
-    selectMode('story');
-    setTimeout(() => {
-      if (typeof _showPrologue === 'function') {
-        _showPrologue(() => { if (typeof _beginChapter2 === 'function') _beginChapter2(0); });
-      } else if (typeof _beginChapter2 === 'function') {
-        _beginChapter2(0);
-      }
-    }, 200);
-  }, 1500);
+  setTimeout(() => { location.reload(); }, 1200);
 }
 
