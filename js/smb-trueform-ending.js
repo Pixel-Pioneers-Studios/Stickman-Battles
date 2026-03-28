@@ -73,10 +73,10 @@ let _tfeZeroPops = [];
 // ── Code nodes for coderealm ──────────────────────────────────────────────────
 function _tfeCreateNodes() {
   const positions = [
-    { x: GAME_W * 0.15, y: GAME_H * 0.4 },
-    { x: GAME_W * 0.35, y: GAME_H * 0.22 },
+    { x: GAME_W * 0.15, y: GAME_H * 0.4  },
+    { x: GAME_W * 0.35, y: GAME_H * 0.35 },  // was 0.22 — lowered to be reachable with double jump
     { x: GAME_W * 0.5,  y: GAME_H * 0.55 },
-    { x: GAME_W * 0.65, y: GAME_H * 0.25 },
+    { x: GAME_W * 0.65, y: GAME_H * 0.35 },  // was 0.25 — lowered to be reachable with double jump
     { x: GAME_W * 0.82, y: GAME_H * 0.42 },
   ];
   const labels = ['while(1){}', 'x/0', 'NULL→*', '∞-∞', 'goto VOID'];
@@ -188,8 +188,9 @@ function startTFEnding(boss) {
     codeNodes:   _tfeCreateNodes(),
     crHeroX:     GAME_W / 2,
     crHeroY:     GAME_H * 0.55,
-    crHeroVY:    0,
-    crOnGround:  false,
+    crHeroVY:       0,
+    crOnGround:     false,
+    crCanDoubleJump: false,
     nodesCorrupted: 0,
     crFlashTimer:   0,
 
@@ -363,8 +364,9 @@ function updateTFEnding() {
       sc.hero.backstageHiding = true;
       sc.crHeroX  = GAME_W / 2;
       sc.crHeroY  = GAME_H * 0.52;
-      sc.crHeroVY = 0;
-      sc.crOnGround = false;
+      sc.crHeroVY      = 0;
+      sc.crOnGround    = false;
+      sc.crCanDoubleJump = false;
       sc.nodesCorrupted = 0;
       _tfeInitRain();
       _tfeCamFocus(GAME_W / 2, GAME_H / 2, 1.0);
@@ -383,20 +385,32 @@ function updateTFEnding() {
       sc.crHeroY  += sc.crHeroVY;
       if (sc.crHeroY >= crFloor) {
         sc.crHeroY = crFloor;
-        sc.crHeroVY = 0;
+        sc.crHeroVY   = 0;
         sc.crOnGround = true;
+        sc.crCanDoubleJump = false;
       }
     }
 
-    // Hero horizontal movement via controls
+    // Hero horizontal movement + jump (with double-jump) via controls
     const ctrl = sc.hero.controls;
     if (ctrl) {
       const spd = 3.5;
       if (keysDown.has(ctrl.left))  sc.crHeroX -= spd;
       if (keysDown.has(ctrl.right)) sc.crHeroX += spd;
-      if (keysDown.has(ctrl.jump) && sc.crOnGround) {
-        sc.crHeroVY = -9;
-        sc.crOnGround = false;
+      const _jumpJust = keysDown.has(ctrl.jump) && !sc._crJumpWas;
+      sc._crJumpWas = keysDown.has(ctrl.jump);
+      if (_jumpJust) {
+        if (sc.crOnGround) {
+          sc.crHeroVY    = -9;
+          sc.crOnGround  = false;
+          sc.crCanDoubleJump = true;
+          spawnParticles(sc.crHeroX, crFloor, '#00ff41', 5);
+        } else if (sc.crCanDoubleJump) {
+          sc.crHeroVY    = -9;
+          sc.crCanDoubleJump = false;
+          spawnParticles(sc.crHeroX, sc.crHeroY, '#00ff41', 8);
+          spawnParticles(sc.crHeroX, sc.crHeroY, '#ffffff', 4);
+        }
       }
       sc.crHeroX = Math.max(12, Math.min(GAME_W - 12, sc.crHeroX));
     }

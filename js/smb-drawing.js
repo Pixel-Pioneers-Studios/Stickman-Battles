@@ -33,14 +33,27 @@ function generateBgElements() {
 // ============================================================
 function drawBackground() {
   const a = currentArena;
-  // Fill the entire world width so no void shows through on wide/panning maps
-  const _bgX = a.mapLeft  !== undefined ? a.mapLeft  - 200 : -200;
-  const _bgW = a.worldWidth ? a.worldWidth + 400 : GAME_W + 400;
+  // Fill the entire world width (+ generous overdraw) so no void shows through on wide/panning maps
+  // The extra 3000px on each axis covers extreme zoom-out where the visible world exceeds GAME_H
+  const _bgX = a.mapLeft  !== undefined ? a.mapLeft  - 3000 : -3000;
+  const _bgW = a.worldWidth ? a.worldWidth + 6000 : GAME_W + 6000;
+  const _bgH = GAME_H + 3000; // extend well below floor to cover zoom-out void
+  // Solid base fill first (gradient fallback for bottom overflow area)
+  ctx.fillStyle = a.sky[a.sky.length - 1];
+  ctx.fillRect(_bgX, 0, _bgW, _bgH);
+  // Gradient layer over the visible game area
   const g = ctx.createLinearGradient(0, 0, 0, GAME_H);
   g.addColorStop(0, a.sky[0]);
   g.addColorStop(1, a.sky[a.sky.length - 1]);
   ctx.fillStyle = g;
   ctx.fillRect(_bgX, 0, _bgW, GAME_H);
+  // Ground color fill below floor level — prevents raw canvas showing through on zoomed-out large maps
+  if (a.groundColor) {
+    const floorPl = a.platforms && a.platforms.find(pl => pl.isFloor);
+    const groundTop = floorPl ? floorPl.y : GAME_H - 60;
+    ctx.fillStyle = a.groundColor;
+    ctx.fillRect(_bgX, groundTop, _bgW, _bgH - groundTop);
+  }
 
   if (currentArenaKey === 'space')      drawStars();
   if (currentArenaKey === 'grass')      drawClouds();
@@ -876,6 +889,11 @@ function drawExploreHUD() {
   ctx.textAlign = 'left';
   ctx.textBaseline = 'top';
   ctx.fillText(`FIND: ${exploreGoalName}`, barX, barY + barH + 4);
+  if (storyPhaseIndicator) {
+    ctx.fillStyle = '#9fd4ff';
+    ctx.textAlign = 'right';
+    ctx.fillText(`PHASE ${storyPhaseIndicator.index}/${storyPhaseIndicator.total}  ${storyPhaseIndicator.label}`, barX + barW, barY + barH + 4);
+  }
 
   // Distance hint (arrow on right side of screen when goal is ahead)
   if (!exploreGoalFound && p1.x < exploreGoalX - 150) {
@@ -895,9 +913,54 @@ function drawExploreHUD() {
   ctx.restore();
 }
 
+function drawStoryPhaseHUD() {
+  if (!storyModeActive || !storyPhaseIndicator) return;
+  ctx.save();
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  const w = 210;
+  const h = 36;
+  const x = canvas.width - w - 18;
+  const y = _hudBottom() + 12;
+  ctx.fillStyle = 'rgba(6,10,20,0.78)';
+  ctx.strokeStyle = 'rgba(120,190,255,0.30)';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.roundRect(x, y, w, h, 10);
+  ctx.fill();
+  ctx.stroke();
+  ctx.fillStyle = '#8cc8ff';
+  ctx.font = 'bold 10px Arial';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'top';
+  ctx.fillText(`PHASE ${storyPhaseIndicator.index} / ${storyPhaseIndicator.total}`, x + 12, y + 7);
+  ctx.fillStyle = '#ffffff';
+  ctx.font = 'bold 11px Arial';
+  ctx.fillText(storyPhaseIndicator.label || 'Engage', x + 12, y + 19);
+  ctx.restore();
+}
+
 // Draw goal object in WORLD space (called from gameLoop before HUD reset)
 function drawExploreGoalObject() {
-  if (!exploreActive || exploreGoalFound) return;
+  if (!exploreActive) return;
+  for (const portal of (exploreSidePortals || [])) {
+    if (!portal || !portal.active || portal.entered) continue;
+    const pulseP = Math.sin(frameCount * 0.1) * 0.35 + 0.65;
+    ctx.save();
+    ctx.shadowColor = portal.type === 'distorted_rift' ? '#ff55ff' : '#44ccff';
+    ctx.shadowBlur = 18 + pulseP * 10;
+    ctx.globalAlpha = pulseP;
+    ctx.strokeStyle = portal.type === 'distorted_rift' ? '#ff88ff' : '#88ddff';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(portal.x, portal.y, 20 + pulseP * 8, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.font = 'bold 10px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#ffffff';
+    ctx.fillText(portal.type === 'distorted_rift' ? 'DISTORTED RIFT' : 'SIDE PORTAL', portal.x, portal.y - 32);
+    ctx.restore();
+  }
+  if (exploreGoalFound) return;
   const gx = exploreGoalX + 12;
   const gy = 380;
   const pulse = Math.sin(frameCount * 0.08) * 0.4 + 0.6;
@@ -998,7 +1061,7 @@ function checkDeaths() {
         respawnCountdowns.push({ color: p.color, x: p.spawnX, y: p.spawnY - 80, framesLeft: 66 });
         setTimeout(() => {
           if (!gameRunning) return;
-          if (isRandomMapMode && gameMode !== 'boss' && gameMode !== 'trueform') {
+          if (completeRandomizer && gameMode !== 'boss' && gameMode !== 'trueform') {
             const arenaPool = ARENA_KEYS_ORDERED.filter(k => ARENAS[k] && !ARENAS[k].isStoryOnly);
             switchArenaWithTransition(randChoice(arenaPool), () => p.respawn());
           } else {
@@ -1025,7 +1088,7 @@ function checkDeaths() {
         respawnCountdowns.push({ color: p.color, x: p.spawnX, y: p.spawnY - 80, framesLeft: 66 });
         setTimeout(() => {
           if (!gameRunning) return;
-          if (isRandomMapMode && gameMode !== 'boss' && gameMode !== 'trueform') {
+          if (completeRandomizer && gameMode !== 'boss' && gameMode !== 'trueform') {
             const arenaPool = ARENA_KEYS_ORDERED.filter(k => ARENAS[k] && !ARENAS[k].isStoryOnly);
             switchArenaWithTransition(randChoice(arenaPool), () => p.respawn());
           } else {
@@ -1056,7 +1119,7 @@ function checkDeaths() {
           respawnCountdowns.push({ color: p.color, x: p.spawnX, y: p.spawnY - 80, framesLeft: 66 });
           setTimeout(() => {
             if (!gameRunning) return;
-            if (isRandomMapMode && gameMode !== 'boss' && gameMode !== 'trueform') {
+            if (completeRandomizer && gameMode !== 'boss' && gameMode !== 'trueform') {
               const arenaPool = ARENA_KEYS_ORDERED.filter(k => ARENAS[k] && !ARENAS[k].isStoryOnly);
               switchArenaWithTransition(randChoice(arenaPool), () => p.respawn());
             } else {
@@ -1178,11 +1241,11 @@ function endGame() {
     // Boss slayer
     if (isBossModeEnd && gameMode === 'boss') unlockAchievement('boss_slayer');
     if (isBossModeEnd && gameMode === 'trueform') unlockAchievement('true_form');
-    // SOVEREIGN (Adaptive AI) beaten — unlock the mode card
+    // SOVEREIGN beaten — unlock the SOVEREIGN mode card
     if (gameMode === 'adaptive' && !localStorage.getItem('smc_sovereignBeaten')) {
       localStorage.setItem('smc_sovereignBeaten', '1');
-      const _adCard = document.getElementById('modeAdaptive');
-      if (_adCard) _adCard.style.display = '';
+      const _s2Card = document.getElementById('modeSovereign');
+      if (_s2Card) _s2Card.style.display = '';
     }
     // KotH win
     if (gameMode === 'minigames' && minigameType === 'koth') unlockAchievement('koth_win');
@@ -1353,8 +1416,11 @@ function backToMenu() {
   trainingChaosMode = false;
   trainingPlayerOnly = true;
   tutorialMode = false;
-  // After trueform, reset mode to 1v1 so P2 config is fully visible
-  if (gameMode === 'trueform') gameMode = '2p';
+  // After boss fights, reset mode to 1v1 so player config is fully visible again
+  if (gameMode === 'trueform' || gameMode === 'boss') gameMode = '2p';
+  if (typeof _setBossFightLivesLock === 'function') _setBossFightLivesLock(false);
+  completeRandomizer = false;
+  isRandomMapMode    = false;
   clearChaosModifiers();
   resetTFState();
   canvas.style.display = 'block'; // keep visible as animated menu background
@@ -1447,7 +1513,7 @@ function updateHUD() {
     }
     if (cdEl) {
       // Show how much of the Q cooldown has recovered (full = ready)
-      const maxCd = p.weapon.abilityCooldown;
+      const maxCd = p.weapon && p.weapon.abilityCooldown;
       const cdPct = maxCd > 0
         ? Math.max(0, 100 - (p.abilityCooldown / maxCd) * 100)
         : 100;
@@ -1464,7 +1530,12 @@ function updateHUD() {
         : 'linear-gradient(90deg, #44ddff, #ffffff)';
     }
     const wEl = document.getElementById(`p${n}WeaponHud`);
-    if (wEl) wEl.textContent = p.weapon.name;
+    if (wEl) {
+      const hasAmmo = p.weapon && p.weapon.clipSize;
+      wEl.textContent = p.weapon
+        ? (hasAmmo ? `${p.weapon.name}  ${p._ammo}/${p.weapon.clipSize}` : p.weapon.name)
+        : '';
+    }
   }
 
   // Boss HP bar (shown in 2P boss mode below HUD center)
@@ -1481,6 +1552,65 @@ function updateHUD() {
       bossBarEl.style.display = 'none';
     }
   }
+}
+
+function _entityOverlayLabel(ent) {
+  if (ent.name && ent.name.trim()) return ent.name;
+  if (ent.isBoss) return 'BOSS';
+  if (ent.isDummy) return 'DUMMY';
+  if (ent.playerNum) return `P${ent.playerNum}`;
+  if (ent.isAI) return 'BOT';
+  return 'ENTITY';
+}
+
+function drawEntityOverlays(scX, scY, camX, camY) {
+  const all = [...players, ...minions, ...trainingDummies].filter(ent => ent && (ent.health > 0 || ent.invincible > 0));
+  if (!all.length) return;
+
+  const hudFloor = _hudBottom() + 18;
+  ctx.save();
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+
+  for (const ent of all) {
+    if (ent.backstageHiding) continue;
+    const sx = canvas.width / 2 + (ent.cx() - camX) * scX;
+    const syRaw = canvas.height / 2 + ((ent.y - 22) - camY) * scY;
+    const sy = Math.max(hudFloor, syRaw);
+    if (sx < -80 || sx > canvas.width + 80 || sy > canvas.height + 80) continue;
+
+    const barW = Math.max(36, Math.min(82, ent.w * scX * 1.35));
+    const barH = 7;
+    const pct = Math.max(0, Math.min(1, ent.health / Math.max(1, ent.maxHealth)));
+    const label = _entityOverlayLabel(ent);
+    const labelY = sy - 11;
+    const ammoY = sy + 12;
+
+    ctx.font = 'bold 11px Arial';
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = 'rgba(0,0,0,0.85)';
+    ctx.strokeText(label, sx, labelY);
+    ctx.fillStyle = ent.color || '#ffffff';
+    ctx.fillText(label, sx, labelY);
+
+    ctx.fillStyle = 'rgba(0,0,0,0.72)';
+    ctx.fillRect(sx - barW / 2 - 1, sy - barH / 2 - 1, barW + 2, barH + 2);
+    ctx.fillStyle = 'rgba(255,255,255,0.18)';
+    ctx.fillRect(sx - barW / 2, sy - barH / 2, barW, barH);
+    ctx.fillStyle = pct > 0.6 ? '#44dd66' : pct > 0.3 ? '#ffcc33' : '#ff5533';
+    ctx.fillRect(sx - barW / 2, sy - barH / 2, barW * pct, barH);
+
+    if (ent.weapon && ent.weapon.clipSize) {
+      ctx.font = 'bold 10px Arial';
+      ctx.strokeStyle = 'rgba(0,0,0,0.80)';
+      ctx.strokeText(`${ent._ammo}/${ent.weapon.clipSize}`, sx, ammoY);
+      ctx.fillStyle = ent._ammo <= 0 ? '#ff6666' : '#ddeeff';
+      ctx.fillText(`${ent._ammo}/${ent.weapon.clipSize}`, sx, ammoY);
+    }
+  }
+
+  ctx.restore();
 }
 
 // ============================================================
@@ -1550,7 +1680,7 @@ function showBossDialogue(text, dur = 220) {
   bossDialogue.timer = dur;
 }
 
-function drawBossDialogue() {
+function drawBossDialogue(scX, scY, camX, camY) {
   if (bossDialogue.timer <= 0) return;
   const boss = players.find(p => p.isBoss);
   if (!boss || boss.health <= 0) return;
@@ -1558,46 +1688,75 @@ function drawBossDialogue() {
 
   const alpha = Math.min(1, bossDialogue.timer < 45 ? bossDialogue.timer / 45 : 1);
   const text  = bossDialogue.text;
-  const bx    = boss.cx();
-  const by    = boss.y - 18;
+  const hasCamera = typeof scX === 'number' && typeof scY === 'number' && typeof camX === 'number' && typeof camY === 'number';
+  const bx = hasCamera ? (canvas.width / 2 + (boss.cx() - camX) * scX) : boss.cx();
+  const byWorld = boss.y - 18;
+  const by = hasCamera ? (canvas.height / 2 + (byWorld - camY) * scY) : byWorld;
+
+  const _zoom  = (typeof camZoomCur === 'number' && camZoomCur > 0) ? camZoomCur : 1;
+  const _scale = Math.min(2.0, Math.max(0.7, 1 / _zoom));
+  const _fs    = Math.round(16 * _scale);
+  const padX   = Math.round(16 * _scale);
+  const padY   = Math.round(12 * _scale);
+  const maxTextW = Math.min(canvas.width * 0.70, 520 * _scale);
 
   ctx.save();
   ctx.globalAlpha = alpha;
-  ctx.font        = 'bold 13px Arial';
+  ctx.font        = `bold ${_fs}px Arial`;
   ctx.textAlign   = 'center';
-  const tw  = ctx.measureText(text).width;
-  const pad = 11;
-  const bw  = tw + pad * 2;
-  const bh  = 28;
-  const rx  = bx - bw / 2;
-  const ry  = by - bh;
+  ctx.textBaseline = 'middle';
+  const words = String(text || '').split(/\s+/).filter(Boolean);
+  const lines = [];
+  let curLine = '';
+  for (const word of words) {
+    const next = curLine ? `${curLine} ${word}` : word;
+    if (ctx.measureText(next).width <= maxTextW || !curLine) curLine = next;
+    else {
+      lines.push(curLine);
+      curLine = word;
+    }
+  }
+  if (curLine) lines.push(curLine);
+  if (!lines.length) lines.push('');
+  const textW = lines.reduce((m, line) => Math.max(m, ctx.measureText(line).width), 0);
+  const lineH = Math.round(_fs * 1.15);
+  const bw  = textW + padX * 2;
+  const bh  = lines.length * lineH + padY * 2;
+  const rx  = clamp(bx - bw / 2, 14, canvas.width - bw - 14);
+  const bubbleCx = rx + bw / 2;
+  const ry  = Math.max(_hudBottom() + 12, by - bh - Math.round(6 * _scale));
 
-  // Bubble background
   ctx.fillStyle   = 'rgba(18,0,32,0.90)';
-  ctx.strokeStyle = '#cc00ee';
-  ctx.lineWidth   = 1.8;
+  ctx.strokeStyle = '#d65bff';
+  ctx.lineWidth   = 2.2;
+  ctx.shadowColor = 'rgba(160,20,240,0.42)';
+  ctx.shadowBlur  = 14;
   ctx.beginPath();
-  ctx.roundRect(rx, ry, bw, bh, 7);
+  ctx.roundRect(rx, ry, bw, bh, Math.round(10 * _scale));
   ctx.fill();
   ctx.stroke();
 
-  // Tail pointer
+  const _tp = Math.round(10 * _scale);
+  const tailCx = clamp(bx, rx + 18, rx + bw - 18);
+  const tailTop = ry + bh - 1;
   ctx.beginPath();
-  ctx.moveTo(bx - 8, by);
-  ctx.lineTo(bx,     by + 12);
-  ctx.lineTo(bx + 8, by);
+  ctx.moveTo(tailCx - _tp, tailTop);
+  ctx.lineTo(tailCx,       Math.max(tailTop + _tp * 1.55, by + _tp * 0.65));
+  ctx.lineTo(tailCx + _tp, tailTop);
   ctx.closePath();
   ctx.fillStyle = 'rgba(18,0,32,0.90)';
   ctx.fill();
-  ctx.strokeStyle = '#cc00ee';
-  ctx.lineWidth = 1.8;
+  ctx.strokeStyle = '#d65bff';
+  ctx.lineWidth = 2.2;
   ctx.stroke();
 
-  // Text
-  ctx.fillStyle   = '#f0aaff';
+  ctx.fillStyle   = '#f8d7ff';
   ctx.shadowColor = '#aa00ee';
-  ctx.shadowBlur  = 8;
-  ctx.fillText(text, bx, ry + bh - 9);
+  ctx.shadowBlur  = 10;
+  for (let i = 0; i < lines.length; i++) {
+    const ty = ry + padY + lineH * (i + 0.5);
+    ctx.fillText(lines[i], bubbleCx, ty);
+  }
   ctx.restore();
 }
 

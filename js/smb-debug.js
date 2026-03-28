@@ -30,13 +30,17 @@ function runSanityChecks() {
   const all = [...players, ...minions, ...trainingDummies];
   for (const p of all) {
     if (p.health <= 0) continue;
-    if (isNaN(p.x) || isNaN(p.y)) {
-      console.warn('[DBG] NaN position on', p.name || 'fighter', p);
-      p.x = GAME_W / 2; p.y = 200;
+    if (isNaN(p.x) || isNaN(p.y) || !isFinite(p.x) || !isFinite(p.y)) {
+      console.warn('[DBG] Bad position on', p.name || 'fighter', { x: p.x, y: p.y });
+      p.x = GAME_W / 2; p.y = 200; p.vx = 0; p.vy = 0;
     }
-    if (isNaN(p.health)) {
-      console.warn('[DBG] NaN health on', p.name || 'fighter');
-      p.health = p.maxHealth;
+    if (isNaN(p.vx) || isNaN(p.vy) || !isFinite(p.vx) || !isFinite(p.vy)) {
+      console.warn('[DBG] NaN/Inf velocity on', p.name || 'fighter', { vx: p.vx, vy: p.vy });
+      p.vx = 0; p.vy = 0;
+    }
+    if (isNaN(p.health) || p.health < 0) {
+      console.warn('[DBG] Invalid health on', p.name || 'fighter', p.health);
+      p.health = isNaN(p.health) ? (p.maxHealth || 100) : 0;
     }
     // Bot stuck detection
     if (p.isAI && !p.isBoss) {
@@ -743,6 +747,16 @@ function _consoleExec(raw) {
     } else {
       _consoleErr('Map not found: ' + key);
     }
+    return;
+  }
+
+  // ── SOVEREIGN Ω console commands ──────────────────────────────────────
+  if (cmd === 'sov stats' || cmd === 'sovereign stats') { if (typeof showSovereignStats === 'function') showSovereignStats(!adaptiveAIDebug); return; }
+  if (cmd === 'sov predict' || cmd === 'sovereign predict') { if (typeof showSovereignPredictions === 'function') showSovereignPredictions(); return; }
+  if (cmd === 'sov reset' || cmd === 'sovereign reset') { if (typeof resetSovereignMK2 === 'function') resetSovereignMK2(); return; }
+  if (cmd.startsWith('sov limiter') || cmd.startsWith('sovereign limiter')) {
+    const ai = players && players.find(p => p.isSovereignMK2);
+    if (ai) { ai._limiterBroken = !ai._limiterBroken; ok(`Limiter break: ${ai._limiterBroken ? 'ON' : 'OFF'}`); }
     return;
   }
 

@@ -47,10 +47,12 @@ const QTE_PHASES = {
     windowFrames: 60,        // frames per prompt
     mirrored: false,
     simultaneous: false,     // prompts appear one at a time
-    failDamage: 0.06,        // fraction of player maxHealth per failed prompt
+    failDamage: 0.06,        // fraction of player maxHealth per failed round
     successBonus: 180,       // bonus damage dealt to boss on full success
     bgIntensity: 0.25,
     hpThreshold: 0.75,       // triggers when boss drops below this fraction
+    maxAttempts: 4,          // after this many full failures, end QTE with heavy damage
+    penaltyDamage: 0.35,     // fraction of maxHealth dealt when attempt limit reached
   },
 
   // ---------- Phase 2: Multiversal Overload ----------
@@ -70,6 +72,8 @@ const QTE_PHASES = {
     successBonus: 280,
     bgIntensity: 0.55,
     hpThreshold: 0.50,
+    maxAttempts: 3,
+    penaltyDamage: 0.40,
   },
 
   // ---------- Phase 3: Cosmic Erasure ----------
@@ -88,6 +92,8 @@ const QTE_PHASES = {
     successBonus: 450,
     bgIntensity: 0.85,
     hpThreshold: 0.25,
+    maxAttempts: 2,
+    penaltyDamage: 0.55,     // devastating — near-kill
   },
 
   // ---------- Phase 4: True-Form Collapse ----------
@@ -108,8 +114,99 @@ const QTE_PHASES = {
     bgIntensity: 1.0,
     hpThreshold: 0.10,
     plotArmor: 2,            // auto-complete last step after this many failures
+    maxAttempts: 3,
+    penaltyDamage: 0.60,     // 60% HP — life-threatening
   },
 };
+
+function _qteClamp(v, min, max) {
+  return Math.max(min, Math.min(max, v));
+}
+
+function _qteAnchorPoint(s) {
+  const cw = canvas.width;
+  const ch = canvas.height;
+  const p  = s && s.playerRef;
+  let x = cw * 0.5;
+  let y = ch * 0.46;
+
+  if (p) {
+    const gScX = cw / Math.max(1, GAME_W);
+    const gScY = ch / Math.max(1, GAME_H);
+    const px = (p.x + p.w * 0.5) * gScX;
+    const py = (p.y + p.h * 0.40) * gScY;
+    x = cw * 0.5 + (px - cw * 0.5) * 0.30;
+    y = ch * 0.46 + (py - ch * 0.46) * 0.18;
+  }
+
+  return {
+    x: _qteClamp(x, 150, cw - 150),
+    y: _qteClamp(y, 120, ch - 170),
+  };
+}
+
+function _qteReachProfile(s) {
+  const phase = s && s.def ? s.def.id : 1;
+  if (phase === 4) return { radius: 145, top: 110, bottomPad: 165, margin: 92 };
+  if (phase === 3) return { radius: 175, top: 96, bottomPad: 150, margin: 88 };
+  if (phase === 2) return { radius: 150, top: 110, bottomPad: 165, margin: 95 };
+  return { radius: 125, top: 120, bottomPad: 175, margin: 100 };
+}
+
+function _qtePromptReachable(prompt, s) {
+  const cw = canvas.width;
+  const ch = canvas.height;
+  const anchor = _qteAnchorPoint(s);
+  const reach  = _qteReachProfile(s);
+  const dx = prompt.x - anchor.x;
+  const dy = prompt.y - anchor.y;
+  return (
+    prompt.x >= reach.margin &&
+    prompt.x <= cw - reach.margin &&
+    prompt.y >= reach.top &&
+    prompt.y <= ch - reach.bottomPad &&
+    Math.hypot(dx, dy) <= reach.radius
+  );
+}
+
+function _qteEnsureReachable(prompt, slot, total, s) {
+  const cw = canvas.width;
+  const ch = canvas.height;
+  const anchor = _qteAnchorPoint(s);
+  const reach  = _qteReachProfile(s);
+
+  prompt.x = _qteClamp(prompt.x, reach.margin, cw - reach.margin);
+  prompt.y = _qteClamp(prompt.y, reach.top, ch - reach.bottomPad);
+
+  let dx = prompt.x - anchor.x;
+  let dy = prompt.y - anchor.y;
+  const dist = Math.hypot(dx, dy);
+  if (dist > reach.radius) {
+    const pull = reach.radius / Math.max(1, dist);
+    prompt.x = anchor.x + dx * pull;
+    prompt.y = anchor.y + dy * pull;
+  }
+
+  const minGap = total > 1 ? 84 : 0;
+  if (minGap > 0 && s && Array.isArray(s.prompts)) {
+    for (const other of s.prompts) {
+      if (!other || other === prompt) continue;
+      const odx = prompt.x - other.x;
+      const ody = prompt.y - other.y;
+      const od  = Math.hypot(odx, ody);
+      if (od > 0 && od < minGap) {
+        const push = (minGap - od) / od;
+        prompt.x += odx * push * 0.5;
+        prompt.y += ody * push * 0.5;
+      }
+    }
+    prompt.x = _qteClamp(prompt.x, reach.margin, cw - reach.margin);
+    prompt.y = _qteClamp(prompt.y, reach.top, ch - reach.bottomPad);
+  }
+
+  prompt._slot = slot;
+  prompt._total = total;
+}
 
 // ── QTE State Object ─────────────────────────────────────────────────────────
 let QTE_STATE = null; // null when no QTE active
@@ -422,6 +519,13 @@ function _tickQTEPrompts() {
     if (prompt.hit || prompt.missed) continue;
     allResolved = false;
     prompt.timer++;
+    if (!_qtePromptReachable(prompt, s)) {
+      prompt._badPosFrames = (prompt._badPosFrames || 0) + 1;
+      _qteEnsureReachable(prompt, prompt._slot || 0, prompt._total || 1, s);
+      prompt.timer = Math.max(0, prompt.timer - 4);
+    } else {
+      prompt._badPosFrames = 0;
+    }
 
     // Pulse radius on the bubble
     prompt.pulseT = (prompt.pulseT || 0) + 0.18;
@@ -524,30 +628,31 @@ function _advancePrompts() {
 function _assignPromptPosition(prompt, slot, total, s) {
   const cw = canvas.width;
   const ch = canvas.height;
-  const margin = 80;
+  const anchor = _qteAnchorPoint(s);
 
   if (s.def.id === 3) {
-    // Phase 3: fully random positions (cosmic erasure chaos)
-    prompt.x = margin + Math.random() * (cw - margin * 2);
-    prompt.y = margin + Math.random() * (ch - margin * 2);
+    // Phase 3: chaotic, but still inside a player-reachable pocket.
+    prompt.x = anchor.x + (Math.random() - 0.5) * 300;
+    prompt.y = anchor.y + (Math.random() - 0.5) * 220;
   } else if (s.def.id === 4) {
-    // Phase 4: arc formation around centre
-    const angle = -Math.PI / 2 + (slot / Math.max(total - 1, 1)) * Math.PI * 1.5;
-    const r     = 150 + slot * 20;
-    prompt.x    = cw / 2 + Math.cos(angle) * r;
-    prompt.y    = ch / 2 + Math.sin(angle) * r;
+    // Phase 4: collapse arc close enough to read and react to.
+    const angle = -Math.PI / 2 + (slot / Math.max(total - 1, 1)) * Math.PI * 1.2;
+    const r     = 90 + slot * 10;
+    prompt.x    = anchor.x + Math.cos(angle) * r;
+    prompt.y    = anchor.y + Math.sin(angle) * (r * 0.82);
   } else if (total > 1) {
-    // Phase 2: mirror split left/right/centre
-    const offsets = [-200, 0, 200];
-    prompt.x = cw / 2 + (offsets[slot] || 0);
-    prompt.y = ch * 0.45 + (slot % 2 === 0 ? -30 : 30);
+    // Phase 2: spread around player anchor, not the raw screen edges.
+    const offsets = [-120, 0, 120];
+    prompt.x = anchor.x + (offsets[slot] || 0);
+    prompt.y = anchor.y + (slot % 2 === 0 ? -28 : 28);
   } else {
-    // Single prompt: centre-ish with slight offset
-    prompt.x = cw / 2 + (Math.random() - 0.5) * 120;
-    prompt.y = ch * 0.42 + (Math.random() - 0.5) * 60;
+    // Single prompt: near the player focus point.
+    prompt.x = anchor.x + (Math.random() - 0.5) * 96;
+    prompt.y = anchor.y + (Math.random() - 0.5) * 56;
   }
-  prompt.timer  = 0;
-  prompt._wasDown = keysDown.has(prompt.key); // don't count keys held before prompt appears
+  _qteEnsureReachable(prompt, slot, total, s);
+  prompt.timer    = 0;
+  prompt._wasDown = false; // always reset so any press — held OR new — registers immediately
 }
 
 // ── Round failure/reset ───────────────────────────────────────────────────────
@@ -649,6 +754,15 @@ function _onPromptHit(prompt, s) {
 function _onPromptFail(prompt) {
   _spawnQTEBurst(prompt.x, prompt.y, 12, '#ff2244');
   screenShake = Math.max(screenShake, 10);
+  // Simultaneous phases: deal damage per missed prompt (sequential phases handle this in _resetQTERound)
+  if (QTE_STATE && QTE_STATE.def.simultaneous) {
+    const p1 = QTE_STATE.playerRef;
+    if (p1 && p1.health > 0) {
+      const dmg = Math.round(p1.maxHealth * QTE_STATE.def.failDamage * 0.5); // half-weight per prompt
+      p1.health = Math.max(1, p1.health - dmg);
+      if (typeof spawnParticles === 'function') spawnParticles(p1.cx(), p1.cy(), '#ff0044', 10);
+    }
+  }
 }
 
 // ── Outro success ─────────────────────────────────────────────────────────────
@@ -776,18 +890,43 @@ function _endQTE(success) {
   _qteCloneAlpha  = 0;
   _qteShakeExtra  = 0;
 
-  // If failure outro just ended, re-enter prompts (retry the phase)
+  // If failure outro just ended, either retry or end with heavy penalty
   if (!success) {
-    // Re-trigger: the phase has already been added to _qteFiredPhases,
-    // but we want to retry — temporarily remove it so _checkQTETriggers
-    // won't re-fire it immediately; instead we restart the active QTE.
-    const tf = QTE_STATE.bossRef;
-    const p1 = QTE_STATE.playerRef;
+    const def = QTE_STATE.def;
+    const p1  = QTE_STATE.playerRef;
+
+    // Check attempt limit — if reached, deal the penalty and exit for real
+    if (def.maxAttempts && QTE_STATE.totalAttempts >= def.maxAttempts) {
+      if (p1 && p1.health > 0) {
+        const penaltyDmg = Math.round(p1.maxHealth * (def.penaltyDamage || 0.40));
+        // Phase 4: outright kill (the boss wins this exchange)
+        if (def.id === 4) {
+          p1.health = 0;
+        } else {
+          p1.health = Math.max(1, p1.health - penaltyDmg);
+        }
+        if (typeof spawnParticles === 'function') spawnParticles(p1.cx(), p1.cy(), '#ff0000', 30);
+        screenShake = Math.max(screenShake || 0, 30);
+        _qteFlashColor = '#ff0000';
+        _qteFlashAlpha = 0.85;
+      }
+      if (typeof showBossDialogue === 'function') {
+        const endLines = [
+          '"That\'s all you had."',
+          '"Every version of you failed."',
+          '"Existence disagreed with you."',
+          '"You ran out of timelines."',
+        ];
+        showBossDialogue(endLines[(def.id - 1) % endLines.length], 200);
+      }
+      QTE_STATE = null;
+      return;
+    }
+
+    // Attempts remain — rebuild and retry with escalated chaos
     QTE_STATE.stage        = 'prompts';
     QTE_STATE.outroTimer   = 0;
     QTE_STATE.failedThisRound = false;
-    // Rebuild prompt queue with escalated chaos
-    const def   = QTE_STATE.def;
     const count = def.promptCount[0] + Math.floor(Math.random() * (def.promptCount[1] - def.promptCount[0] + 1));
     QTE_STATE.promptQueue  = _buildPromptQueue(count, def);
     QTE_STATE.promptIdx    = 0;

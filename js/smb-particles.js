@@ -8,10 +8,18 @@ function lerp(a, b, t)   { return a + (b - a) * t; }
 function clamp(v, mn, mx){ return Math.max(mn, Math.min(mx, v)); }
 function dist(a, b)      { return Math.hypot(a.cx() - b.cx(), (a.y + a.h/2) - (b.y + b.h/2)); }
 
-function dealDamage(attacker, target, dmg, kbForce, stunMult = 1.0, isSplash = false) {
+function areAlliedEntities(a, b) {
+  if (!a || !b || a === b) return false;
+  if (a._teamId !== undefined && b._teamId !== undefined) return a._teamId === b._teamId;
+  if (a.storyFaction && b.storyFaction) return a.storyFaction === b.storyFaction;
+  return false;
+}
+
+function dealDamage(attacker, target, dmg, kbForce, stunMult = 1.0, isSplash = false, hitInvincibleFrames = 16) {
   if (activeCinematic) return; // no damage during cinematic pauses
   if (!target || target.invincible > 0 || target.health <= 0) return;
   if (target.godmode) return; // godmode: no hitbox — all damage blocked
+  if (attacker && areAlliedEntities(attacker, target)) return;
   let actualDmg = (attacker && attacker.dmgMult !== undefined) ? Math.max(1, Math.round(dmg * attacker.dmgMult)) : dmg;
   // Kratos rage bonus
   if (attacker && attacker.charClass === 'kratos' && attacker.rageStacks > 0) {
@@ -38,6 +46,8 @@ function dealDamage(attacker, target, dmg, kbForce, stunMult = 1.0, isSplash = f
   // Paladin passive: 15% damage reduction on incoming hits
   if (target && target.charClass === 'paladin')
     actualDmg = Math.max(1, Math.floor(actualDmg * 0.85));
+  if (target && typeof target.damageReductionMult === 'number')
+    actualDmg = Math.max(1, Math.floor(actualDmg * clamp(target.damageReductionMult, 0.05, 1)));
   // Armor: per-piece type damage reduction (helmet=12%, chestplate=15%, leggings=8%)
   if (target && target.armorPieces && target.armorPieces.length > 0) {
     let armorReduction = 0;
@@ -120,6 +130,11 @@ function dealDamage(attacker, target, dmg, kbForce, stunMult = 1.0, isSplash = f
     }
     // Camera zoom-in on heavy/cosmic hits
     if (actualDmg >= 18) camHitZoomTimer = _isCosmicHit ? 22 : 15;
+    // Red vignette flash when a human player takes a heavy hit
+    if (!target.isAI && !target.isBoss && actualDmg >= 15) {
+      hitVignetteTimer = _isCosmicHit ? 28 : 18;
+      hitVignetteColor = actualDmg >= 35 ? 'rgba(220,30,0,' : 'rgba(200,50,0,';
+    }
     // Silence moment before cosmic hits registered (brief volume dip)
     if (_isCosmicHit && actualDmg >= 28 && typeof SoundManager !== 'undefined') {
       SoundManager._cosmicSilenceTimer = 8; // handled in SoundManager or gameLoop
@@ -150,10 +165,14 @@ function dealDamage(attacker, target, dmg, kbForce, stunMult = 1.0, isSplash = f
   if (target.health <= 0 && attacker && typeof triggerFinisher === 'function') {
     triggerFinisher(attacker, target); // sets health=1 + invincible=9999 internally if it fires
   }
-  target.invincible = target.invincible > 16 ? target.invincible : 16; // preserve finisher lock
+  target.invincible = target.invincible > hitInvincibleFrames ? target.invincible : hitInvincibleFrames; // preserve finisher lock
   // True Form combo damage tracking
   if (attacker && attacker.isTrueForm && !target.isBoss) {
     attacker._comboDamage = (attacker._comboDamage || 0) + actualDmg;
+  }
+  if (attacker && !attacker.isAI && attacker.weapon && attacker.weapon.type === 'ranged' && target && target.isTrueForm) {
+    target._antiRangedStats = target._antiRangedStats || { projectiles: 0, rangedDamage: 0, farTicks: 0 };
+    target._antiRangedStats.rangedDamage = Math.min(999, (target._antiRangedStats.rangedDamage || 0) + actualDmg);
   }
   const dir        = attacker ? (target.cx() > attacker.cx() ? 1 : -1) : 1;
   if (!target.godmode) {
@@ -162,7 +181,11 @@ function dealDamage(attacker, target, dmg, kbForce, stunMult = 1.0, isSplash = f
     if (currentArena && currentArena.isLowGravity)  target.vy = -actualKb * 0.25;
     if (currentArena && currentArena.isHeavyGravity) target.vy = -actualKb * 0.75;
   }
-  if (settings.screenShake) screenShake = Math.max(screenShake, target.shielding ? 3 : 9);
+  if (settings.screenShake) {
+    // Scale shake with actual damage: light hits barely move, heavy hits punch hard
+    const _shakeBase = target.shielding ? 2 : Math.min(18, 4 + Math.floor(actualDmg / 5));
+    screenShake = Math.max(screenShake, _shakeBase);
+  }
   // Sound feedback
   if (target.shielding) SoundManager.clang();
   else if (actualDmg >= 30) SoundManager.heavyHit();
@@ -209,6 +232,10 @@ function dealDamage(attacker, target, dmg, kbForce, stunMult = 1.0, isSplash = f
   }
   if (!target.shielding) {
     spawnParticles(target.cx(), target.cy(), target.color, 12);
+    if (actualDmg >= 22) {
+      spawnParticles(target.cx(), target.cy(), '#ffffff', 10);
+      spawnParticles(target.cx(), target.cy(), actualDmg >= 34 ? '#ff8844' : '#ffee88', actualDmg >= 34 ? 14 : 8);
+    }
     // Chance-based stun / ragdoll (not guaranteed; boss is harder to ragdoll)
     const ragdollChance = target.kbResist ? 0.30 * target.kbResist : 0.30;
     const MAX_STUN = 90; // cap at 1.5s
@@ -255,6 +282,7 @@ function handleSplash(attacker, hitTarget, originalDmg, splashX, splashY) {
   const all  = [...players, ...minions, ...trainingDummies];
   for (const t of all) {
     if (t === hitTarget || t === attacker || t.health <= 0 || t.invincible > 0) continue;
+    if (areAlliedEntities(attacker, t)) continue;
     if (Math.hypot(t.cx() - sx, (t.y + t.h / 2) - sy) < w.splashRange) {
       dealDamage(attacker, t, sdmg, skb, 1.0, true);
       if (settings.particles) spawnParticles(t.cx(), t.cy(), w.color || '#ffaa44', 6);
@@ -351,28 +379,41 @@ function _achCheckBeastDead() { unlockAchievement('beast_tamer'); }
 
 function spawnBullet(user, speed, color, overrideDmg = null) {
   SoundManager.shoot();
-  const dmg = overrideDmg !== null ? overrideDmg : (user.weapon.damageFunc ? user.weapon.damageFunc() : user.weapon.damage);
+  const _nearest = [user.target, ...players, ...minions, ...trainingDummies].filter(Boolean).find(t => t !== user && t.health > 0) || null;
+  const _distToT = _nearest ? Math.abs(_nearest.cx() - user.cx()) : 999;
+  const _pointBlankT = !user.isBoss ? Math.max(0, 1 - clamp((_distToT - 48) / 72, 0, 1)) : 0;
+  const _baseDmg = overrideDmg !== null ? overrideDmg : (user.weapon.damageFunc ? user.weapon.damageFunc() : user.weapon.damage);
+  const dmg = Math.max(1, Math.round(_baseDmg * (1 - _pointBlankT * 0.34)));
 
   // Movement-based accuracy: faster movement = more vertical spread.
   // At full run speed (5.2) normal weapons get ±0.9 vy spread (~54px at 60f range).
   // Rapid-fire weapons get 2.8× (±1.4 vy) — rewards burst-control close range.
   const _ownerSpd = Math.abs(user.vx);
   const _isRapid  = user.weapon && user.weapon.cooldown <= 20; // rapid-fire threshold
-  const _spread   = _ownerSpd > 0.8 ? (_ownerSpd / 5.2) * (_isRapid ? 2.8 : 1.8) : 0;
+  const _shotHeat = Math.min(8, user._rangedShotHeat || 0);
+  const _spread   = (_ownerSpd > 0.8 ? (_ownerSpd / 5.2) * (_isRapid ? 3.1 : 2.0) : 0)
+                  + _shotHeat * (_isRapid ? 0.30 : 0.20)
+                  + _pointBlankT * (_isRapid ? 1.35 : 0.92);
   const _vy       = _spread > 0 ? (Math.random() - 0.5) * _spread : 0;
 
-  projectiles.push(new Projectile(
+  const _proj = new Projectile(
     user.cx() + user.facing * 12, user.y + 22,
     user.facing * speed, _vy, user, dmg, color
-  ));
+  );
+  _proj._closeRangePenalty = _pointBlankT;
+  _proj._warmupFrames = _isRapid ? 3 : 2;
+  projectiles.push(_proj);
   // Gunner class: fire a second bullet at slight angle
   if (user.charClass === 'gunner') {
-    const dmg2 = user.weapon.damageFunc ? user.weapon.damageFunc() : user.weapon.damage;
+    const dmg2 = Math.max(1, Math.round((user.weapon.damageFunc ? user.weapon.damageFunc() : user.weapon.damage) * (1 - _pointBlankT * 0.34)));
     const _vy2 = _vy + (Math.random() - 0.5) * 0.3;
-    projectiles.push(new Projectile(
+    const _proj2 = new Projectile(
       user.cx() + user.facing * 12, user.y + 26,
       user.facing * speed * 0.92, -0.8 + _vy2, user, dmg2, color
-    ));
+    );
+    _proj2._closeRangePenalty = _pointBlankT;
+    _proj2._warmupFrames = _isRapid ? 3 : 2;
+    projectiles.push(_proj2);
   }
 }
 
@@ -388,8 +429,56 @@ class Projectile {
     this.color  = color;
     this.life   = 90;
     this.active = true;
+    this._warmupFrames = 0;
+    const tf = typeof getTrueFormAntiRangedBoss === 'function' ? getTrueFormAntiRangedBoss() : (players && players.find(p => p.isTrueForm && p.health > 0));
+    if (tf && owner && !owner.isAI && owner.weapon && owner.weapon.type === 'ranged') {
+      tf._antiRangedStats = tf._antiRangedStats || { projectiles: 0, rangedDamage: 0, farTicks: 0 };
+      tf._antiRangedStats.projectiles = Math.min(999, (tf._antiRangedStats.projectiles || 0) + 1);
+    }
   }
   update() {
+    if (this._warmupFrames > 0) {
+      this._warmupFrames--;
+      this.x += this.vx * 0.45;
+      this.y += this.vy * 0.45;
+      this.vy += 0.04;
+      if (--this.life <= 0) { this.active = false; }
+      return;
+    }
+    const tfAnti = typeof getTrueFormAntiRangedBoss === 'function' ? getTrueFormAntiRangedBoss() : null;
+    if (tfAnti && this.owner && !this.owner.isBoss && this.owner.weapon && this.owner.weapon.type === 'ranged') {
+      const dx = tfAnti.cx() - this.x;
+      const dy = tfAnti.cy() - this.y;
+      const dd = Math.hypot(dx, dy) || 1;
+      const fieldR = (tfAnti._antiRangedFieldR || 220) * 1.18;
+      if (dd < fieldR) {
+        const reflectTarget = this.owner && this.owner.health > 0 ? this.owner : players.find(p => !p.isBoss && p.health > 0);
+        const reflectChance = dd < fieldR * 0.45 ? 0.32 : 0.14;
+        if (!this._tfReflected && reflectTarget && Math.random() < reflectChance) {
+          this._tfReflected = true;
+          this.owner = tfAnti;
+          const rdx = reflectTarget.cx() - this.x;
+          const rdy = reflectTarget.cy() - this.y;
+          const rd = Math.hypot(rdx, rdy) || 1;
+          const speed = Math.max(9, Math.hypot(this.vx, this.vy) * 1.35);
+          this.vx = (rdx / rd) * speed;
+          this.vy = (rdy / rd) * speed * 0.35 - 0.3;
+          this.damage = Math.max(1, Math.round(this.damage * 1.15));
+          this.color = '#ffffff';
+          spawnParticles(this.x, this.y, '#ffffff', 6);
+          screenShake = Math.max(screenShake, 5);
+        } else {
+          const pull = 0.42 + (1 - dd / fieldR) * 0.58;
+          this.vx = this.vx * 0.92 + (dx / dd) * pull;
+          this.vy = this.vy * 0.94 + (dy / dd) * pull * 0.28;
+          if (dd < fieldR * 0.34 && !this._tfReflected) {
+            this.active = false;
+            spawnParticles(this.x, this.y, '#8844ff', 5);
+            return;
+          }
+        }
+      }
+    }
     this.x += this.vx;
     this.y += this.vy;
     this.vy += 0.08;
@@ -407,6 +496,34 @@ class Projectile {
     // player collision
     for (const p of players) {
       if (p === this.owner || p.health <= 0) continue;
+      if (areAlliedEntities(this.owner, p)) continue;
+      if (p !== this.owner && p.isAI && !p.isBoss && (!p.weapon || p.weapon.type !== 'ranged')) {
+        const _aiProjD = Math.hypot(this.x - p.cx(), this.y - p.cy());
+        const _towardAI = Math.sign(this.vx || 0) === Math.sign(p.cx() - this.x);
+        if (_towardAI && _aiProjD < 72 && (p.attackTimer > 0 || Math.abs(p.vx) > 3.4) && Math.random() < 0.18) {
+          p.invincible = Math.max(p.invincible || 0, 6);
+          p.vx += Math.sign(this.vx || 1) * 2.2;
+          spawnParticles(p.cx(), p.cy(), '#ddeeff', 4);
+          this.active = false;
+          return;
+        }
+      }
+      if (p.isBoss && this.owner && this.owner.weapon && this.owner.weapon.type === 'ranged') {
+        const _bossD = Math.hypot(this.x - p.cx(), this.y - p.cy());
+        const _deflectChance = p.isTrueForm ? 0.42 : 0.22;
+        if (_bossD < 88 && (p.shielding || p.attackTimer > 0 || Math.random() < _deflectChance) && !(p._projDeflectCd > 0)) {
+          p._projDeflectCd = 16;
+          this.owner = p;
+          this.vx = (this.x < p.cx() ? -1 : 1) * Math.max(8, Math.abs(this.vx) * 1.05);
+          this.vy = -Math.abs(this.vy) * 0.35 - 0.5;
+          this.x  = p.cx() + Math.sign(this.vx) * 18;
+          this.y  = p.cy() - 8;
+          this.color = '#ffffff';
+          spawnParticles(this.x, this.y, '#ffffff', 8);
+          screenShake = Math.max(screenShake, 6);
+          return;
+        }
+      }
       // Block friendly fire unless survival competitive mode explicitly enables it
       const _survFF = gameMode === 'minigames' && minigameType === 'survival' && survivalFriendlyFire;
       if (!_survFF && gameMode === 'boss' && !this.owner.isBoss && !p.isBoss) continue;
@@ -414,8 +531,8 @@ class Projectile {
       if (this.x > p.x && this.x < p.x+p.w && this.y > p.y && this.y < p.y+p.h) {
         // Distance falloff: full damage ≤200px, ramps down to 60% at ≥600px
         const _falloff = Math.max(0.60, 1.0 - Math.max(0, (this._distTraveled - 200) / 1000));
-        const _hitDmg  = Math.max(1, Math.round(this.damage * _falloff));
-        dealDamage(this.owner, p, _hitDmg, 7);
+        const _hitDmg  = Math.max(1, Math.round(this.damage * _falloff * (1 - (this._closeRangePenalty || 0) * 0.18)));
+        dealDamage(this.owner, p, _hitDmg, 7, 1.0, false, 0);
         handleSplash(this.owner, p, _hitDmg, this.x, this.y);
         this.active = false;
         spawnParticles(this.x, this.y, this.color, 6);
@@ -426,10 +543,11 @@ class Projectile {
     if (!this.owner.isMinion && !(this.owner instanceof Boss)) {
       for (const mn of minions) {
         if (mn.health <= 0) continue;
+        if (areAlliedEntities(this.owner, mn)) continue;
         if (this.x > mn.x && this.x < mn.x+mn.w && this.y > mn.y && this.y < mn.y+mn.h) {
           const _mFalloff = Math.max(0.60, 1.0 - Math.max(0, ((this._distTraveled || 0) - 200) / 1000));
-          const _mHitDmg  = Math.max(1, Math.round(this.damage * _mFalloff));
-          dealDamage(this.owner, mn, _mHitDmg, 9);
+          const _mHitDmg  = Math.max(1, Math.round(this.damage * _mFalloff * (1 - (this._closeRangePenalty || 0) * 0.18)));
+          dealDamage(this.owner, mn, _mHitDmg, 9, 1.0, false, 0);
           handleSplash(this.owner, mn, _mHitDmg, this.x, this.y);
           this.active = false;
           spawnParticles(this.x, this.y, this.color, 6);
@@ -442,7 +560,7 @@ class Projectile {
       for (const dum of trainingDummies) {
         if (dum.health <= 0) continue;
         if (this.x > dum.x && this.x < dum.x+dum.w && this.y > dum.y && this.y < dum.y+dum.h) {
-          dealDamage(this.owner, dum, this.damage, 9);
+          dealDamage(this.owner, dum, this.damage, 9, 1.0, false, 0);
           handleSplash(this.owner, dum, this.damage, this.x, this.y);
           this.active = false;
           spawnParticles(this.x, this.y, this.color, 6);
@@ -482,14 +600,30 @@ class DamageText {
   update() { this.y -= 1.1; this.x += this.vx; this.life--; }
   draw() {
     const a = Math.min(1, this.life / 20);
+    // Font size scales more aggressively with damage for better readability
+    const fs = this.amount >= 40 ? 24
+             : this.amount >= 25 ? 20
+             : this.amount >= 12 ? 16
+             : 13;
+    // Color-code by damage tier: low=white, medium=yellow, high=orange, massive=red
+    const col = this.amount >= 40 ? '#ff4422'
+              : this.amount >= 25 ? '#ff9900'
+              : this.amount >= 12 ? '#ffee44'
+              : this.color;
     ctx.save();
     ctx.globalAlpha   = a;
     ctx.textAlign     = 'center';
-    ctx.font          = `bold ${13 + Math.min(8, Math.floor(this.amount / 10))}px Arial`;
-    ctx.strokeStyle   = 'rgba(0,0,0,0.85)';
-    ctx.lineWidth     = 3;
+    ctx.font          = `bold ${fs}px Arial`;
+    // Stronger outline improves readability on all backgrounds
+    ctx.strokeStyle   = 'rgba(0,0,0,0.95)';
+    ctx.lineWidth     = fs >= 20 ? 4 : 3;
     ctx.strokeText('-' + this.amount, this.x, this.y);
-    ctx.fillStyle     = this.color;
+    ctx.fillStyle     = col;
+    // Glow on heavy hits
+    if (this.amount >= 25) {
+      ctx.shadowColor = col;
+      ctx.shadowBlur  = 6;
+    }
     ctx.fillText('-'  + this.amount, this.x, this.y);
     ctx.restore();
   }

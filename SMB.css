@@ -117,8 +117,8 @@ body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 10px;
-  padding: 6px 4px 16px 4px;
+  gap: 6px;
+  padding: 4px 4px 10px 4px;
   height: 100%;
   overflow-y: auto;
   overflow-x: hidden;
@@ -133,7 +133,7 @@ body {
    TITLE
    ============================================================ */
 .game-title {
-  font-size: 3rem;
+  font-size: 2.5rem;
   font-weight: 900;
   letter-spacing: 5px;
   text-transform: uppercase;
@@ -156,11 +156,12 @@ body {
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
-  font-size: 0.75rem;
+  font-size: 0.72rem;
   font-weight: 700;
   letter-spacing: 4px;
   text-transform: uppercase;
-  margin-top: -10px;
+  margin-top: -8px;
+  margin-bottom: 0;
 }
 
 /* Section label */
@@ -169,7 +170,8 @@ body {
   letter-spacing: 3px;
   text-transform: uppercase;
   color: rgba(180,200,255,0.75);
-  margin-bottom: 4px;
+  margin-bottom: 2px;
+  margin-top: 0;
 }
 
 /* ============================================================
@@ -183,7 +185,7 @@ body {
 
 .mode-card {
   width: auto;
-  padding: 12px 10px 10px;
+  padding: 9px 10px 8px;
   border: 2px solid rgba(255,255,255,0.14);
   border-radius: var(--radius);
   background: rgba(10,18,45,0.88);
@@ -197,6 +199,12 @@ body {
   background: var(--bg3);
   transform: translateY(-3px);
   box-shadow: 0 6px 24px rgba(0,0,0,0.4);
+}
+.mode-card.active,
+.arena-card.active,
+.story-tab.active,
+.skin-swatch.active {
+  box-shadow: 0 0 0 1px rgba(255,255,255,0.10), 0 0 18px rgba(90,170,255,0.28), 0 8px 28px rgba(0,0,0,0.32);
 }
 .mode-card[data-mode="2p"]:hover    { border-color: rgba(0,212,255,0.45); }
 .mode-card[data-mode="bot"]:hover   { border-color: rgba(255,136,0,0.45); }

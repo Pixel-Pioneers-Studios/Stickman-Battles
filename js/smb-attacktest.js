@@ -756,8 +756,8 @@ const ATK_REGISTRY = {
       label: 'portal_teleport',
       desc:  'Teleport the player through a void portal',
       fn(ctx, target) {
-        if (typeof tfPortalTeleport === 'function' && target) {
-          tfPortalTeleport(ctx, target);
+        if (typeof executeTrueFormAttack === 'function') {
+          executeTrueFormAttack(ctx, 'portal', target, 'atk-gui');
         } else if (target) {
           target.x = clamp(GAME_W - target.x - target.w, 20, GAME_W - target.w - 20);
           spawnParticles(target.cx(), target.cy(), '#8800ff', 18);
@@ -767,87 +767,87 @@ const ATK_REGISTRY = {
     {
       label: 'void_grasp',
       desc:  'Pull player in then slam (Void Grasp)',
-      fn(ctx, target) { if (ctx._doSpecial) { ctx._graspCd=0; ctx.target=target; ctx._doSpecial('grasp', target); } }
+      fn(ctx, target) { if (typeof executeTrueFormAttack === 'function') { ctx._graspCd=0; executeTrueFormAttack(ctx, 'grasp', target, 'atk-gui'); } }
     },
     {
       label: 'reality_slash',
       desc:  'Telegraph + teleport strike (Reality Slash)',
-      fn(ctx, target) { if (ctx._doSpecial && target) { ctx._slashCd=0; ctx.target=target; ctx._doSpecial('slash', target); } }
+      fn(ctx, target) { if (typeof executeTrueFormAttack === 'function') { ctx._slashCd=0; executeTrueFormAttack(ctx, 'slash', target, 'atk-gui'); } }
     },
     {
       label: 'gravity_well',
       desc:  'Persistent gravity pull zone',
-      fn(ctx, target) { if (ctx._doSpecial) { ctx._wellCd=0; ctx.target=target; ctx._doSpecial('well', target); } }
+      fn(ctx, target) { if (typeof executeTrueFormAttack === 'function') { ctx._wellCd=0; executeTrueFormAttack(ctx, 'well', target, 'atk-gui'); } }
     },
     {
       label: 'meteor_crash',
       desc:  'Rising leap then crash down on target',
-      fn(ctx, target) { if (ctx._doSpecial && target) { ctx._meteorCd=0; ctx.target=target; ctx._doSpecial('meteor', target); } }
+      fn(ctx, target) { if (typeof executeTrueFormAttack === 'function') { ctx._meteorCd=0; executeTrueFormAttack(ctx, 'meteor', target, 'atk-gui'); } }
     },
     {
       label: 'shadow_clones',
       desc:  '3 clones — one is real (Shadow Clones)',
-      fn(ctx, target) { if (ctx._doSpecial) { ctx._cloneCd=0; ctx.target=target; ctx._doSpecial('clones', target); } }
+      fn(ctx, target) { if (typeof executeTrueFormAttack === 'function') { ctx._cloneCd=0; executeTrueFormAttack(ctx, 'clones', target, 'atk-gui'); } }
     },
     {
       label: 'chain_slam',
       desc:  'Multi-stage slam combo (Chain Slam)',
-      fn(ctx, target) { if (ctx._doSpecial && target) { ctx._chainCd=0; ctx.target=target; ctx._doSpecial('chain', target); } }
+      fn(ctx, target) { if (typeof executeTrueFormAttack === 'function') { ctx._chainCd=0; executeTrueFormAttack(ctx, 'chain', target, 'atk-gui'); } }
     },
     {
       label: 'shockwave',
       desc:  'Ground shockwave with telegraph ring',
-      fn(ctx, target) { if (ctx._doSpecial) { ctx._shockwaveCd=0; ctx.target=target; ctx._doSpecial('shockwave', target); } }
+      fn(ctx, target) { if (typeof executeTrueFormAttack === 'function') { ctx._shockwaveCd=0; executeTrueFormAttack(ctx, 'shockwave', target, 'atk-gui'); } }
     },
     {
       label: 'phase_shift',
       desc:  '3 decoy echoes, one is real (Phase Shift)',
-      fn(ctx, target) { if (ctx._doSpecial) { ctx._phaseShiftCd=0; ctx.target=target; ctx._doSpecial('phaseShift', target); } }
+      fn(ctx, target) { if (typeof executeTrueFormAttack === 'function') { ctx._phaseShiftCd=0; executeTrueFormAttack(ctx, 'phaseShift', target, 'atk-gui'); } }
     },
     {
       label: 'teleport_combo',
       desc:  '3× rapid teleport-strikes',
-      fn(ctx, target) { if (ctx._doSpecial && target) { ctx._teleportComboCd=0; ctx.target=target; ctx._doSpecial('teleportCombo', target); } }
+      fn(ctx, target) { if (typeof executeTrueFormAttack === 'function') { ctx._teleportComboCd=0; executeTrueFormAttack(ctx, 'teleportCombo', target, 'atk-gui'); } }
     },
     {
       label: 'gravity_crush',
       desc:  'Suck players to center then explode outward',
-      fn(ctx, target) { if (ctx._doSpecial) { ctx._gravityCrushCd=0; ctx.target=target; ctx._doSpecial('gravityCrush', target); } }
+      fn(ctx, target) { if (typeof executeTrueFormAttack === 'function') { ctx._gravityCrushCd=0; executeTrueFormAttack(ctx, 'gravityCrush', target, 'atk-gui'); } }
     },
     {
       label: 'gamma_beam',
       desc:  'Horizontal screen-crossing beam',
-      fn(ctx, target) { if (ctx._doSpecial) { ctx._gammaBeamCd=0; ctx.target=target; ctx._doSpecial('gammaBeam', target); } }
+      fn(ctx, target) { if (typeof executeTrueFormAttack === 'function') { ctx._gammaBeamCd=0; executeTrueFormAttack(ctx, 'gammaBeam', target, 'atk-gui'); } }
     },
     {
       label: 'neutron_star',
       desc:  'Massive gravity sphere (Neutron Star)',
-      fn(ctx, target) { if (ctx._doSpecial) { ctx._neutronStarCd=0; ctx.target=target; ctx._doSpecial('neutronStar', target); } }
+      fn(ctx, target) { if (typeof executeTrueFormAttack === 'function') { ctx._neutronStarCd=0; executeTrueFormAttack(ctx, 'neutronStar', target, 'atk-gui'); } }
     },
     {
       label: 'galaxy_sweep',
       desc:  'Wide debris wave (Galaxy Sweep)',
-      fn(ctx, target) { if (ctx._doSpecial) { ctx._galaxySweepCd=0; ctx.target=target; ctx._doSpecial('galaxySweep', target); } }
+      fn(ctx, target) { if (typeof executeTrueFormAttack === 'function') { ctx._galaxySweepCd=0; executeTrueFormAttack(ctx, 'galaxySweep', target, 'atk-gui'); } }
     },
     {
       label: 'multiverse_fracture',
       desc:  'Shatter arena into segments',
-      fn(ctx, target) { if (ctx._doSpecial) { ctx._multiverseCd=0; ctx.target=target; ctx._doSpecial('multiverseFracture', target); } }
+      fn(ctx, target) { if (typeof executeTrueFormAttack === 'function') { ctx._multiverseCd=0; executeTrueFormAttack(ctx, 'multiverseFracture', target, 'atk-gui'); } }
     },
     {
       label: 'supernova',
       desc:  'Ultimate screen-clearing explosion',
-      fn(ctx, target) { if (ctx._doSpecial) { ctx._supernovaCd=0; ctx.target=target; ctx._doSpecial('supernova', target); } }
+      fn(ctx, target) { if (typeof executeTrueFormAttack === 'function') { ctx._supernovaCd=0; executeTrueFormAttack(ctx, 'supernova', target, 'atk-gui'); } }
     },
     {
       label: 'collapse_strike',
       desc:  'Slow-motion devastating blow',
-      fn(ctx, target) { if (ctx._doSpecial && target) { ctx._collapseStrikeCd=0; ctx.target=target; ctx._doSpecial('collapseStrike', target); } }
+      fn(ctx, target) { if (typeof executeTrueFormAttack === 'function') { ctx._collapseStrikeCd=0; executeTrueFormAttack(ctx, 'collapseStrike', target, 'atk-gui'); } }
     },
     {
       label: 'reality_override',
       desc:  'Boss temporarily rewrites game state',
-      fn(ctx, target) { if (ctx._doSpecial) { ctx._realityOverrideCd=0; ctx.target=target; ctx._doSpecial('realityOverride', target); } }
+      fn(ctx, target) { if (typeof executeTrueFormAttack === 'function') { ctx._realityOverrideCd=0; executeTrueFormAttack(ctx, 'realityOverride', target, 'atk-gui'); } }
     },
   ],
 

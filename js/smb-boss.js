@@ -312,15 +312,7 @@ class Boss extends Fighter {
       if (canAct && this.cooldown <= 0 && d < this.weapon.range * 2) this.attack(t);
     }
 
-    // Teleport (phase 2+) — NOT blocked by postSpecialPause
-    if (phase >= 2) {
-      if (this.teleportCooldown > 0) {
-        this.teleportCooldown--;
-      } else {
-        if (!this.backstageHiding) bossTeleport(this);
-        this.teleportCooldown = phase === 3 ? 28 : 60; // 28 ticks=7s, 60 ticks=15s
-      }
-    }
+    if (this.teleportCooldown > 0) this.teleportCooldown--;
 
     // Ability more often when target is close
     if (canAct && t && dist(this, t) < 150 && Math.random() < 0.09) this.ability(t);
@@ -477,9 +469,9 @@ class Boss extends Fighter {
     }
 
     // ── Situational: player standing still → teleport behind ─
-    if (playerStill && phase >= 2 && this.teleportCooldown <= 0 && !this.backstageHiding) {
+    if (playerStill && phase >= 2 && this.teleportCooldown <= 0 && !this.backstageHiding && d > 110) {
       bossTeleport(this);
-      this.teleportCooldown = phase === 3 ? 20 : 40;
+      this.teleportCooldown = phase === 3 ? 26 : 46;
       showBossDialogue('Standing still is a choice. A bad one.', 160);
       return true;
     }
@@ -658,25 +650,26 @@ function drawBackstagePortals() {
 // BOSS TELEPORT
 // ============================================================
 function bossTeleport(boss, isForced = false) {
-  if (!currentArena) return;
-  const validPlatforms = currentArena.platforms.filter(pl => !pl.isFloor && !pl.isFloorDisabled);
-  let target = validPlatforms.length > 0 ? randChoice(validPlatforms)
-    : currentArena.platforms.find(pl => !pl.isFloorDisabled);
-
-  let destX, destY;
-  if (target) {
-    destX = clamp(target.x + target.w / 2 - boss.w / 2, 0, GAME_W - boss.w);
-    destY = target.y - boss.h - 2;
-  } else {
-    destX = GAME_W / 2 - boss.w / 2;
-    destY = 200;
-  }
+  if (!currentArena || !boss) return;
+  if (!isForced && boss.teleportCooldown > 0) return;
+  const fallbackX = currentArena.worldWidth ? (currentArena.mapLeft || GAME_W * 0.5) : GAME_W * 0.5;
+  const safePos = _bossFindSafeArenaPosition(
+    boss,
+    fallbackX,
+    boss ? boss.y : 200,
+    { preferRaised: true, sideBias: Math.random() < 0.5 ? -1 : 1 }
+  );
+  if (!safePos) return;
+  const destX = safePos.x;
+  const destY = safePos.y;
 
   const oldX = boss.cx();
   const oldY = boss.cy();
 
   if (!isForced) {
     // === BACKSTAGE PORTAL TELEPORT (3-second animation) ===
+    bossWarnings.push({ type: 'circle', x: oldX, y: oldY, r: 48, color: '#aa55ff', timer: 24, maxTimer: 24, label: 'GLITCH' });
+    bossWarnings.push({ type: 'circle', x: destX + boss.w / 2, y: destY + boss.h / 2, r: 56, color: '#ff66aa', timer: 34, maxTimer: 34, label: 'ARRIVAL' });
     openBackstagePortal(oldX, oldY, 'entry');
     boss.backstageHiding = true;
     boss.invincible      = 9999;
@@ -717,6 +710,7 @@ function bossTeleport(boss, isForced = false) {
 
   } else {
     // Forced teleport: use portal animation (same as voluntary but faster — 1s total)
+    bossWarnings.push({ type: 'circle', x: oldX, y: oldY, r: 42, color: '#aa55ff', timer: 16, maxTimer: 16, label: 'SHIFT' });
     openBackstagePortal(oldX, oldY, 'entry');
     boss.backstageHiding = true;
     boss.invincible      = 9999;
@@ -737,6 +731,173 @@ function bossTeleport(boss, isForced = false) {
       showBossDialogue('Did you think that was enough?', 300);
     }, 1100);
   }
+}
+
+function _bossArenaBounds() {
+  if (!currentArena || !Array.isArray(currentArena.platforms) || !currentArena.platforms.length) {
+    return { left: 20, right: GAME_W - 20, floorY: GAME_H - 30 };
+  }
+  const xs = currentArena.platforms.map(pl => pl.x);
+  const xr = currentArena.platforms.map(pl => pl.x + pl.w);
+  const ys = currentArena.platforms.map(pl => pl.y);
+  return {
+    left: Math.min(...xs),
+    right: Math.max(...xr),
+    floorY: Math.max(...ys),
+  };
+}
+
+function _bossHazardFloorY() {
+  if (!currentArena) return Infinity;
+  if (currentArena.hasLava) return currentArena.lavaY || 442;
+  if (currentArenaKey === 'void' && typeof bossFloorState !== 'undefined' && bossFloorState === 'hazard') return 470;
+  return Infinity;
+}
+
+function _bossTeleportSpotSafe(actor, x, y) {
+  if (!actor || !currentArena || !Array.isArray(currentArena.platforms)) return false;
+  if (!Number.isFinite(x) || !Number.isFinite(y)) return false;
+
+  const bounds  = _bossArenaBounds();
+  const left    = x;
+  const right   = x + actor.w;
+  const top     = y;
+  const bottom  = y + actor.h;
+  const hazardY = _bossHazardFloorY();
+
+  if (left < bounds.left + 10 || right > bounds.right - 10) return false;
+  if (bottom >= hazardY - 10) return false;
+
+  let support = null;
+  for (const pl of currentArena.platforms) {
+    if (!pl || pl.isFloorDisabled) continue;
+    const overlapX = Math.min(right, pl.x + pl.w) - Math.max(left, pl.x);
+    if (overlapX < Math.min(actor.w * 0.45, 14)) continue;
+    if (Math.abs(bottom - pl.y) <= 8 && (!support || pl.y < support.y)) support = pl;
+    const bodyIntersect =
+      right > pl.x + 4 &&
+      left < pl.x + pl.w - 4 &&
+      bottom > pl.y + 3 &&
+      top < pl.y + pl.h - 2;
+    if (bodyIntersect) return false;
+  }
+  return !!support;
+}
+
+function _bossFindSafeArenaPosition(actor, desiredCenterX, preferredY, opts = {}) {
+  if (!actor || !currentArena || !Array.isArray(currentArena.platforms)) return null;
+
+  const bounds = _bossArenaBounds();
+  const preferRaised = !!opts.preferRaised;
+  const hazardY = _bossHazardFloorY();
+  const platforms = currentArena.platforms.filter(pl =>
+    pl &&
+    !pl.isFloorDisabled &&
+    pl.w > actor.w + 16 &&
+    pl.y < hazardY - 22
+  );
+  if (!platforms.length) return null;
+
+  const preferred = preferRaised ? platforms.filter(pl => !pl.isFloor) : platforms.slice();
+  const usable = preferred.length ? preferred : platforms;
+  const desiredX = Number.isFinite(desiredCenterX) ? desiredCenterX : actor.cx();
+  const samples = usable
+    .slice()
+    .sort((a, b) => Math.abs((a.x + a.w / 2) - desiredX) - Math.abs((b.x + b.w / 2) - desiredX));
+
+  for (const pl of samples) {
+    const left = Math.max(bounds.left + 10, pl.x + 8);
+    const right = Math.min(bounds.right - actor.w - 10, pl.x + pl.w - actor.w - 8);
+    if (!(left <= right)) continue;
+
+    const centerBias = clamp(desiredX - actor.w / 2, left, right);
+    const sideBias = opts.sideBias === 1 ? right : opts.sideBias === -1 ? left : (left + right) * 0.5;
+    const positions = [centerBias, sideBias, left, right, clamp((left + right) * 0.5, left, right)];
+    for (const posX of positions) {
+      const posY = pl.y - actor.h - 2;
+      if (_bossTeleportSpotSafe(actor, posX, posY)) return { x: posX, y: posY, platform: pl };
+    }
+  }
+
+  const fallbackFloor = platforms
+    .slice()
+    .sort((a, b) => Math.abs(a.y - preferredY) - Math.abs(b.y - preferredY))[0];
+  if (!fallbackFloor) return null;
+  const fx = clamp(desiredX - actor.w / 2, fallbackFloor.x + 8, fallbackFloor.x + fallbackFloor.w - actor.w - 8);
+  const fy = fallbackFloor.y - actor.h - 2;
+  return _bossTeleportSpotSafe(actor, fx, fy) ? { x: fx, y: fy, platform: fallbackFloor } : null;
+}
+
+function _bossTeleportActor(actor, desiredCenterX, preferredY, opts = {}) {
+  const safePos = _bossFindSafeArenaPosition(actor, desiredCenterX, preferredY, opts);
+  if (!safePos) return null;
+  actor.x = safePos.x;
+  actor.y = safePos.y;
+  actor.vx = 0;
+  actor.vy = 0;
+  return safePos;
+}
+
+const TF_ATTACK_REGISTRY = {
+  grasp:              { requiresTarget: false, cooldownKey: '_graspCd' },
+  slash:              { requiresTarget: true,  cooldownKey: '_slashCd' },
+  well:               { requiresTarget: false, cooldownKey: '_wellCd' },
+  meteor:             { requiresTarget: true,  cooldownKey: '_meteorCd' },
+  clones:             { requiresTarget: false, cooldownKey: '_cloneCd' },
+  chain:              { requiresTarget: true,  cooldownKey: '_chainCd' },
+  gravity:            { requiresTarget: false, cooldownKey: '_gravityCd' },
+  warp:               { requiresTarget: false, cooldownKey: '_warpCd' },
+  holes:              { requiresTarget: false, cooldownKey: '_holeCd' },
+  floor:              { requiresTarget: false, cooldownKey: '_floorCd' },
+  invert:             { requiresTarget: false, cooldownKey: '_invertCd' },
+  size:               { requiresTarget: false, cooldownKey: '_sizeCd' },
+  portal:             { requiresTarget: true,  cooldownKey: '_portalCd' },
+  teleportCombo:      { requiresTarget: true,  cooldownKey: '_teleportComboCd' },
+  gravityCrush:       { requiresTarget: false, cooldownKey: '_gravityCrushCd' },
+  shockwave:          { requiresTarget: false, cooldownKey: '_shockwaveCd' },
+  phaseShift:         { requiresTarget: false, cooldownKey: '_phaseShiftCd' },
+  realityTear:        { requiresTarget: true,  cooldownKey: '_realityTearCd' },
+  calcStrike:         { requiresTarget: true,  cooldownKey: '_calcStrikeCd' },
+  realityOverride:    { requiresTarget: true,  cooldownKey: '_realityOverrideCd' },
+  collapseStrike:     { requiresTarget: true,  cooldownKey: '_collapseStrikeCd' },
+  grabCinematic:      { requiresTarget: true,  cooldownKey: '_grabCinCd' },
+  gammaBeam:          { requiresTarget: false, cooldownKey: '_gammaBeamCd' },
+  neutronStar:        { requiresTarget: false, cooldownKey: '_neutronStarCd' },
+  galaxySweep:        { requiresTarget: false, cooldownKey: '_galaxySweepCd' },
+  multiverseFracture: { requiresTarget: true,  cooldownKey: '_multiverseCd' },
+  supernova:          { requiresTarget: false, cooldownKey: '_supernovaCd' },
+  dimension:          { requiresTarget: false, cooldownKey: '_dimensionCd' },
+};
+
+function executeTrueFormAttack(ctx, move, target, source = 'runtime') {
+  const entry = TF_ATTACK_REGISTRY[move];
+  if (!ctx || typeof ctx._doSpecial !== 'function') {
+    console.warn(`[TrueFormAttack:${source}] missing boss context for "${move}"`);
+    return false;
+  }
+  if (!entry) {
+    console.warn(`[TrueFormAttack:${source}] missing attack registry entry for "${move}"`);
+    if (target && ctx.cooldown <= 0) ctx.attack(target);
+    return false;
+  }
+  const liveTarget = target && target.health > 0
+    ? target
+    : ctx.target && ctx.target.health > 0 ? ctx.target : players.find(p => !p.isBoss && p.health > 0);
+  if (entry.requiresTarget && !liveTarget) {
+    console.warn(`[TrueFormAttack:${source}] attack "${move}" requires a valid target`);
+    return false;
+  }
+  ctx.target = liveTarget || ctx.target;
+  const ok = ctx._doSpecial(move, liveTarget || target);
+  if (!ok) {
+    console.warn(`[TrueFormAttack:${source}] "${move}" deferred for retry`);
+    tfAttackRetryQueue.push({ ctx, move, targetRef: liveTarget || target || null, source, framesLeft: 1, attempts: 0 });
+  }
+  return ok;
+}
+
+function getTrueFormAntiRangedBoss() {
+  return players && players.find(p => p.isTrueForm && p.health > 0 && p._antiRangedTimer > 0) || null;
 }
 
 // ============================================================
@@ -880,12 +1041,75 @@ class TrueForm extends Fighter {
     this._adaptOrbitMult = 1.0;  // orbit speed multiplier; increases with adaptation
     this._adaptGlowBoost = 0;    // extra nebula brightness (0–1)
     this._adaptFlicker   = 0;    // high-adaptation instability (0–1)
+    this._tfAttackState  = { name: null, phase: 'idle', timer: 0, locked: false };
+    this._antiRangedStats = { projectiles: 0, rangedDamage: 0, farTicks: 0 };
+    this._antiRangedTimer = 0;
+    this._antiRangedCooldown = 0;
+    this._antiRangedDashCd = 0;
+    this._antiRangedPulse = 0;
+    this._antiRangedFieldR = 220;
   }
 
   getPhase() {
     if (this.health > 3500) return 1;  // >70% HP
     if (this.health > 1500) return 2;  // 30–70% HP
     return 3;                           // <30% HP
+  }
+
+  _startAttackState(name, startFrames = 0, locked = false) {
+    this._tfAttackState = { name, phase: 'start', timer: startFrames, locked };
+  }
+
+  _setAttackPhase(phase, frames = 0, locked = false) {
+    if (!this._tfAttackState.name) return;
+    this._tfAttackState.phase = phase;
+    this._tfAttackState.timer = frames;
+    this._tfAttackState.locked = locked;
+  }
+
+  _finishAttackState(name = null) {
+    if (name && this._tfAttackState.name && this._tfAttackState.name !== name) return;
+    this._tfAttackState = { name: null, phase: 'idle', timer: 0, locked: false };
+  }
+
+  _startAntiRangedPhase(reason) {
+    if (this._antiRangedTimer > 0 || this._antiRangedCooldown > 0) return false;
+    this._antiRangedTimer = 360 + Math.floor(Math.random() * 241);
+    this._antiRangedCooldown = this._antiRangedTimer + 420;
+    this._antiRangedDashCd = 68;
+    this._antiRangedPulse = 80;
+    this._antiRangedFieldR = 220 + Math.min(45, this.adaptationLevel * 0.2);
+    this._antiRangedStats.projectiles = 0;
+    this._antiRangedStats.rangedDamage = 0;
+    this._antiRangedStats.farTicks = 0;
+    slowMotion = 0.18;
+    hitSlowTimer = Math.max(hitSlowTimer, 18);
+    screenShake = Math.max(screenShake, 22);
+    if (typeof setCameraDrama === 'function') setCameraDrama('focus', 54, this, 1.22);
+    if (typeof cinScreenFlash !== 'undefined') {
+      cinScreenFlash = { color: '#8844ff', alpha: 0.34, timer: 12, maxTimer: 12 };
+    }
+    showBossDialogue('Running won’t save you.', 200);
+    spawnParticles(this.cx(), this.cy(), '#ffffff', 24);
+    spawnParticles(this.cx(), this.cy(), '#8844ff', 20);
+    spawnParticles(this.cx(), this.cy(), '#000000', 16);
+    return true;
+  }
+
+  _trackRangedAbuse(target, d) {
+    if (!target || target.health <= 0) return;
+    if (target.weapon && target.weapon.type === 'ranged' && d > 250) {
+      this._antiRangedStats.farTicks = Math.min(999, this._antiRangedStats.farTicks + 1);
+    } else {
+      this._antiRangedStats.farTicks = Math.max(0, this._antiRangedStats.farTicks - 2);
+    }
+    const abuseScore =
+      this._antiRangedStats.projectiles * 0.85 +
+      this._antiRangedStats.rangedDamage * 0.32 +
+      this._antiRangedStats.farTicks * 1.2;
+    if (this._antiRangedCooldown <= 0 && abuseScore >= 42) {
+      this._startAntiRangedPhase('abuse');
+    }
   }
 
   attack(target) {
@@ -1021,7 +1245,11 @@ class TrueForm extends Fighter {
         const cm = this._pendingChainMove;
         this._pendingChainMove = null;
         const freshTarget = players.find(p => !p.isBoss && p.health > 0);
-        if (freshTarget) { this._doSpecial(cm.move, freshTarget); return; }
+        if (freshTarget) {
+          const fired = this._doSpecial(cm.move, freshTarget);
+          if (!fired) tfAttackRetryQueue.push({ ctx: this, move: cm.move, targetRef: freshTarget, source: 'chain', framesLeft: 1, attempts: 0 });
+          return;
+        }
       }
     }
 
@@ -1048,6 +1276,7 @@ class TrueForm extends Fighter {
     const dx  = t.cx() - this.cx();
     const d   = Math.abs(dx);
     const dir = dx > 0 ? 1 : -1;
+    this._trackRangedAbuse(t, d);
     const spd = phase === 3 ? this._tfSpeed * 1.25 : phase === 2 ? this._tfSpeed * 1.12 : this._tfSpeed;
 
     this.facing = dir;
@@ -1114,10 +1343,35 @@ class TrueForm extends Fighter {
     }
 
     // Phase 3: shorter minimum engagement distance (gets in your face)
-    const minDist = phase === 3 ? 40 : 55;
-    const backDist = phase === 3 ? 22 : 30;
-    if (d > minDist) {
-      this.vx = dir * spd;
+    const _vsRanged = !!(t.weapon && t.weapon.type === 'ranged');
+    const _kiteRun  = _vsRanged && Math.sign(t.vx || 0) === Math.sign(t.cx() - this.cx()) && Math.abs(t.vx || 0) > 1.6;
+    const antiRangeActive = this._antiRangedTimer > 0;
+    const minDist = antiRangeActive ? 18 : (_vsRanged ? (phase === 3 ? 28 : 42) : (phase === 3 ? 40 : 55));
+    const backDist = antiRangeActive ? 0 : (phase === 3 ? 22 : 30);
+    if (antiRangeActive) {
+      if (d > minDist) this.vx = dir * spd * (_vsRanged ? (_kiteRun ? 1.72 : 1.50) : 1.34);
+      else this.vx *= 0.94;
+      if (this._antiRangedDashCd <= 0 && d > 150) {
+        this._antiRangedDashCd = 78;
+        const useTeleportCloser = d > 240 && !this._tfAttackState.locked && Math.random() < 0.35;
+        if (useTeleportCloser) {
+          const closer = _bossTeleportActor(this, t.cx() - dir * 34, t.y, { preferRaised: true, sideBias: -dir });
+          if (closer) {
+            screenShake = Math.max(screenShake, 10);
+            spawnParticles(this.cx(), this.cy(), '#8844ff', 10);
+            spawnParticles(this.cx(), this.cy(), '#ffffff', 6);
+            this._setAttackPhase('active', 4, true);
+            if (this.cooldown <= 0 && d < 180) this.attack(t);
+          } else {
+            this.vx = dir * spd * 2.05;
+          }
+        } else {
+          this.vx = dir * spd * 2.25;
+          if (this.onGround && d > 210) this.vy = -15;
+        }
+      }
+    } else if (d > minDist) {
+      this.vx = dir * spd * (_vsRanged ? (_kiteRun ? 1.28 : 1.14) : 1.0);
     } else if (d < backDist) {
       this.vx = -dir * spd * 0.45;
     }
@@ -1159,17 +1413,17 @@ class TrueForm extends Fighter {
     }
 
     // --- Attack: frequency driven by adaptive behavior multiplier ────────
-    const atkFreq = Math.min(0.44, this._adaptAtkFreq * (phase === 3 ? 2.2 : phase === 2 ? 1.5 : 1.0));
+    const atkFreq = Math.min(antiRangeActive ? 0.62 : 0.44, this._adaptAtkFreq * (antiRangeActive ? 2.8 : (phase === 3 ? 2.2 : phase === 2 ? 1.5 : 1.0)));
     if (d < this._adaptSpacing + 20 && Math.random() < atkFreq && this.cooldown <= 0) {
       this.attack(t);
     }
     // Second hit of a combo when very close (area control)
-    const atkFreq2 = Math.min(0.28, (this._adaptAtkFreq * 0.6) * (phase === 3 ? 2.0 : phase === 2 ? 1.4 : 0.9));
+    const atkFreq2 = Math.min(antiRangeActive ? 0.38 : 0.28, (this._adaptAtkFreq * 0.6) * (antiRangeActive ? 2.4 : (phase === 3 ? 2.0 : phase === 2 ? 1.4 : 0.9)));
     if (d < 48 && Math.random() < atkFreq2 && this.cooldown <= 0) {
       this.attack(t);
     }
     // High adaptation bonus: pressure hit at medium range
-    if (this.adaptationLevel >= 50 && d < 95 && Math.random() < 0.08 + (this.adaptationLevel / 100) * 0.08 && this.cooldown <= 0) {
+    if (this.adaptationLevel >= 50 && d < (antiRangeActive ? 125 : 95) && Math.random() < (antiRangeActive ? 0.22 : 0.08) + (this.adaptationLevel / 100) * 0.08 && this.cooldown <= 0) {
       this.attack(t);
     }
   }
@@ -1178,6 +1432,8 @@ class TrueForm extends Fighter {
     const d          = dist(this, target);
     const playerEdge = target.x < 130 || target.x + target.w > GAME_W - 130;
     const playerAir  = !target.onGround;
+    const playerRanged = !!(target.weapon && target.weapon.type === 'ranged');
+    const playerKiting = playerRanged && Math.sign(target.vx || 0) === Math.sign(target.cx() - this.cx()) && Math.abs(target.vx || 0) > 1.6;
     const hpPct      = target.health / target.maxHealth;
     const w          = {};
 
@@ -1276,6 +1532,30 @@ class TrueForm extends Fighter {
       if (w.meteor) w.meteor = (w.meteor || 0) * 3.0;
       if (w.slash)  w.slash  = (w.slash  || 0) * 2.5;
     }
+    if (playerRanged) {
+      if (w.portal)        w.portal        = (w.portal        || 0) * 2.8;
+      if (w.slash)         w.slash         = (w.slash         || 0) * 1.9;
+      if (w.grasp)         w.grasp         = (w.grasp         || 0) * 1.8;
+      if (w.teleportCombo) w.teleportCombo = (w.teleportCombo || 0) * 2.1;
+      if (w.phaseShift)    w.phaseShift    = (w.phaseShift    || 0) * 1.6;
+      if (w.gammaBeam)     w.gammaBeam     = (w.gammaBeam     || 0) * 1.4;
+    }
+    if (playerKiting) {
+      if (w.portal)        w.portal        = (w.portal        || 0) * 3.2;
+      if (w.teleportCombo) w.teleportCombo = (w.teleportCombo || 0) * 2.6;
+      if (w.gravityCrush)  w.gravityCrush  = (w.gravityCrush  || 0) * 1.8;
+      if (w.calcStrike)    w.calcStrike    = (w.calcStrike    || 0) * 1.8;
+    }
+    if (this._antiRangedTimer > 0) {
+      if (w.portal)             w.portal             = (w.portal             || 0) * 1.45;
+      if (w.slash)              w.slash              = (w.slash              || 0) * 1.35;
+      if (w.gravityCrush)       w.gravityCrush       = (w.gravityCrush       || 0) * 1.35;
+      if (w.phaseShift)         w.phaseShift         = (w.phaseShift         || 0) * 1.15;
+      if (w.calcStrike)         w.calcStrike         = (w.calcStrike         || 0) * 1.55;
+      delete w.gammaBeam;
+      delete w.teleportCombo;
+      delete w.warp;
+    }
     // Player near arena edge → pull with gravity well / crush
     if (playerEdge) {
       if (w.well)          w.well          = (w.well          || 0) * 2.2;
@@ -1353,6 +1633,24 @@ class TrueForm extends Fighter {
   }
 
   _doSpecial(move, target) {
+    const entry = TF_ATTACK_REGISTRY[move];
+    if (!entry) {
+      console.warn(`[TrueFormAttack:runtime] unregistered attack "${move}"`);
+      if (target && this.cooldown <= 0) this.attack(target);
+      return false;
+    }
+    if (entry.requiresTarget && (!target || target.health <= 0)) {
+      console.warn(`[TrueFormAttack:runtime] attack "${move}" missing target`);
+      return false;
+    }
+    if (this._tfAttackState.name && this._tfAttackState.phase === 'recovery' && this._tfAttackState.timer > 0) {
+      return false;
+    }
+    if (this._tfAttackState.locked && this._tfAttackState.name && this._tfAttackState.name !== move) {
+      return false;
+    }
+    const isDeferredMove = ['slash', 'portal', 'teleportCombo', 'gravityCrush', 'shockwave', 'phaseShift', 'realityTear', 'calcStrike', 'realityOverride', 'collapseStrike', 'multiverseFracture', 'grabCinematic', 'gammaBeam', 'neutronStar', 'galaxySweep', 'meteor'].includes(move);
+    this._startAttackState(move, isDeferredMove ? 10 : 0, isDeferredMove);
     this.postSpecialPause = 4;
     this._comboCount  = 0;
     this._comboDamage = 0;
@@ -1486,11 +1784,10 @@ class TrueForm extends Fighter {
         spawnParticles(this.cx(), this.cy(), '#ffffff', 22);
         break;
       case 'warp': {
-        const warpPool = Object.keys(ARENAS).filter(k => !['creator','void','soccer'].includes(k) && !ARENAS[k].isStoryOnly);
-        const newKey   = warpPool[Math.floor(Math.random() * warpPool.length)];
-        tfWarpArena(newKey);
+        _bossTeleportActor(this, (this.target ? this.target.cx() : this.cx()) + (Math.random() < 0.5 ? -140 : 140), this.y, { preferRaised: true });
         this._warpCd = Math.ceil(80 * cdMult);
-        showBossDialogue('Let\'s try a different room.', 150);
+        this._setAttackPhase('recovery', 18, false);
+        showBossDialogue('Same arena. Different angle.', 150);
         break;
       }
       case 'holes':
@@ -1645,48 +1942,33 @@ class TrueForm extends Fighter {
           'dS ≥ 0, ΔS = k_B ln Ω',
         ];
         const bubbleText = MATH_EXPRESSIONS[Math.floor(Math.random() * MATH_EXPRESSIONS.length)];
-        // ── Accuracy tier based on recent player movement ──────────
-        const vxHist = this._prevTargetVxArr;
-        let vxVar = 0;
-        if (vxHist.length >= 4) {
-          const _mean = vxHist.reduce((s, v) => s + v, 0) / vxHist.length;
-          vxVar = vxHist.reduce((s, v) => s + (v - _mean) ** 2, 0) / vxHist.length;
-        }
-        const _isStill      = this._stillTimer > 5;       // standing still → guaranteed hit
-        const _isPredictable = vxVar < 3 && !_isStill;    // consistent direction → high accuracy
-        const _isErratic    = vxVar >= 8;                  // random movement → lower accuracy
-        const _noiseRadius  = _isStill ? 0 : _isPredictable ? 22 : _isErratic ? 85 : 42;
-        const predictX = clamp(target.cx() + target.vx * 45 + (Math.random() - 0.5) * _noiseRadius * 2, 40, GAME_W - 40);
-        const predictY = clamp(target.cy() + target.vy * 20 + (Math.random() - 0.5) * _noiseRadius * 0.5, 40, GAME_H - 40);
-        // ── 5D ghost paths: show 3 possible futures, boss picks one ─
+        const predictX = clamp(target.cx(), 40, GAME_W - 40);
+        const predictY = clamp(target.cy(), 40, GAME_H - 40);
         tfGhostPaths = {
           timer: 0, maxTimer: 40,
           paths: [
-            { // player continues current direction
+            {
               pts: [{ x: target.cx(), y: target.cy() },
-                    { x: clamp(target.cx() + target.vx * 65, 30, GAME_W - 30),
-                      y: clamp(target.cy() + target.vy * 30, 30, GAME_H - 30) }],
-              selected: false, alpha: 0.30,
-            },
-            { // player reverses
-              pts: [{ x: target.cx(), y: target.cy() },
-                    { x: clamp(target.cx() - target.vx * 30, 30, GAME_W - 30),
-                      y: target.cy() }],
+                    { x: clamp(target.cx() + 120, 30, GAME_W - 30), y: target.cy() - 12 }],
               selected: false, alpha: 0.22,
             },
-            { // boss's chosen prediction (accurate)
+            {
+              pts: [{ x: target.cx(), y: target.cy() },
+                    { x: clamp(target.cx() - 120, 30, GAME_W - 30), y: target.cy() + 12 }],
+              selected: false, alpha: 0.22,
+            },
+            {
               pts: [{ x: target.cx(), y: target.cy() },
                     { x: predictX, y: predictY }],
               selected: true, alpha: 0.85,
             },
           ],
         };
-        // Varied delay: still player = faster strike; erratic = slower (harder to time)
-        const strikeDelay = _isStill ? 35 : _isErratic ? 52 : 42;
+        const strikeDelay = 38;
         tfMathBubble = { text: bubbleText, timer: 0, maxTimer: 38, x: this.cx(), y: this.y - 18 };
         tfCalcStrike = { timer: 0, maxTimer: Math.max(strikeDelay + 14, 55), predictX, predictY,
                          fired: false, strikeDelay, targetRef: target };
-        showBossDialogue(_isStill ? 'Predictable.' : _isErratic ? 'Chaos is just a pattern I haven\'t named yet.' : 'I know where you\'re going.', 140);
+        showBossDialogue('I know where you end up.', 140);
         break;
       }
 
@@ -1828,12 +2110,14 @@ class TrueForm extends Fighter {
           phase: 'show', timer: 0, maxTimer: 190,
           bossRef: this, targetRef: target,
           cloneOffsets: CLONE_OFFSETS,
+          clonePlans: ['advance', 'retreat', 'jump'],
           realIdx,             // which offset the boss will target
           strikeX: 0,          // locked absolute X (set at start of 'select')
           strikeY: 0,          // locked absolute Y
           bossGhosts,
           shards: [],          // lightweight shard particles spawned on collapse
           hit: false,
+          focusAlpha: 0,
         };
 
         screenShake = Math.max(screenShake, 14);
@@ -1895,6 +2179,10 @@ class TrueForm extends Fighter {
 
     // Adaptation boost: successfully landing a special reads the player → small AL gain
     this.adaptationLevel = Math.min(100, this.adaptationLevel + 0.6);
+    if (!isDeferredMove && this._tfAttackState.name === move) {
+      this._setAttackPhase('recovery', Math.max(10, this.postSpecialPause * 10), false);
+    }
+    return true;
   }
 
   // ── Player pattern tracking — called every AI tick ────────────────────────
@@ -2808,19 +3096,29 @@ function tfWarpArena(key) {
 
 function tfPortalTeleport(tf, target) {
   if (!target || !tf) return;
-  const destX = clamp(target.x + target.w / 2 - tf.w / 2, 10, GAME_W - tf.w - 10);
-  const destY = target.y - tf.h - 4;
+  const safePos = _bossFindSafeArenaPosition(tf, target.cx() + (target.facing || 1) * 48, target.y, {
+    preferRaised: true,
+    sideBias: target.facing || 1,
+  });
+  if (!safePos) {
+    tf._finishAttackState && tf._finishAttackState('portal');
+    return;
+  }
   // Black portal flash
   spawnParticles(tf.cx(), tf.cy(), '#000000', 20);
   spawnParticles(tf.cx(), tf.cy(), '#ffffff', 10);
   setTimeout(() => {
     if (!gameRunning) return;
-    tf.x  = destX;
-    tf.y  = destY;
-    tf.vx = 0; tf.vy = 0;
+    const landed = _bossTeleportActor(tf, safePos.x + tf.w / 2, safePos.y, { preferRaised: true, sideBias: target.facing || 1 });
+    if (!landed) {
+      tf._finishAttackState && tf._finishAttackState('portal');
+      return;
+    }
+    tf.facing = target.cx() > tf.cx() ? 1 : -1;
     spawnParticles(tf.cx(), tf.cy(), '#000000', 20);
     spawnParticles(tf.cx(), tf.cy(), '#ffffff', 10);
     if (settings.screenShake) screenShake = Math.max(screenShake, 12);
+    tf._setAttackPhase && tf._setAttackPhase('recovery', 16, false);
   }, 350);
 }
 
@@ -3216,7 +3514,7 @@ function _DELETED_makeBossWarning75Cinematic(boss) {
           // Trigger arena hazard warning early
           if (typeof bossFloorState !== 'undefined' && bossFloorState === 'normal') {
             bossFloorState = 'warning';
-            bossFloorTimer = 300;
+            bossFloorTimer = BOSS_FLOOR_WARNING_FRAMES;
             bossFloorType  = Math.random() < 0.5 ? 'lava' : 'void';
           }
         }
@@ -4056,7 +4354,52 @@ function updateTFPendingAttacks() {
   if (!gameRunning) return;
   const tf = players.find(p => p.isTrueForm);
 
+  for (let i = tfAttackRetryQueue.length - 1; i >= 0; i--) {
+    const job = tfAttackRetryQueue[i];
+    job.framesLeft--;
+    if (job.framesLeft > 0) continue;
+    const target = job.targetRef && job.targetRef.health > 0 ? job.targetRef : players.find(p => !p.isBoss && p.health > 0);
+    const ok = job.ctx && typeof job.ctx._doSpecial === 'function' ? job.ctx._doSpecial(job.move, target) : false;
+    if (ok || job.attempts >= 2) {
+      if (!ok) console.warn(`[TrueFormAttack:${job.source}] retry failed for "${job.move}"`);
+      tfAttackRetryQueue.splice(i, 1);
+    } else {
+      job.attempts++;
+      job.framesLeft = 1;
+    }
+  }
+
   if (!tf || tf.health <= 0) return;
+  if (tf._antiRangedCooldown > 0) tf._antiRangedCooldown--;
+  if (tf._antiRangedDashCd > 0) tf._antiRangedDashCd--;
+  if (tf._antiRangedPulse > 0) tf._antiRangedPulse--;
+  if (tf._antiRangedTimer > 0) {
+    tf._antiRangedTimer--;
+    const pullRadius = tf._antiRangedFieldR + 55;
+    for (const p of players) {
+      if (p.isBoss || p.health <= 0) continue;
+      const dx = tf.cx() - p.cx();
+      const dy = tf.cy() - p.cy();
+      const dd = Math.hypot(dx, dy) || 1;
+      if (dd < pullRadius) {
+        const movingAway = Math.sign(p.vx || 0) === -Math.sign(dx) && Math.abs(p.vx || 0) > 1.1;
+        const pull = (movingAway ? 1.10 : 0.62) * (1 - dd / pullRadius);
+        p.vx += (dx / dd) * pull;
+        p.vy += (dy / dd) * pull * 0.22;
+      }
+    }
+    if (tf._antiRangedTimer <= 0) {
+      tf._antiRangedStats.projectiles = 0;
+      tf._antiRangedStats.rangedDamage = 0;
+      tf._antiRangedStats.farTicks = 0;
+    }
+  }
+  if (tf._tfAttackState && tf._tfAttackState.timer > 0) {
+    tf._tfAttackState.timer--;
+    if (tf._tfAttackState.timer <= 0 && tf._tfAttackState.phase === 'recovery') {
+      tf._finishAttackState();
+    }
+  }
 
   // ── Tick bossWarnings (so telegraph circles disappear) ────
   for (let i = bossWarnings.length - 1; i >= 0; i--) {
@@ -4109,10 +4452,14 @@ function updateTFPendingAttacks() {
     if (tf._pendingSlash.timer <= 0) {
       const tgt = tf._pendingSlash.target;
       const behindOff = tf._pendingSlash.behindOff;
-      const tpX = clamp(tgt.cx() + behindOff - tf.w / 2, 20, GAME_W - tf.w - 20);
-      tf.x = tpX;
-      tf.y = clamp(tgt.y, 20, 440);
+      const landed = _bossTeleportActor(tf, tgt.cx() + behindOff, tgt.y, { preferRaised: true, sideBias: Math.sign(behindOff) || 1 });
+      if (!landed) {
+        tf._pendingSlash = null;
+        tf._finishAttackState('slash');
+        return;
+      }
       tf.facing = (tgt.cx() > tf.cx() ? 1 : -1);
+      tf._setAttackPhase('active', 4, true);
       spawnParticles(tf.cx(), tf.cy(), '#ffffff', 20);
       spawnParticles(tf.cx(), tf.cy(), '#000000', 12);
       screenShake = Math.max(screenShake, 12);
@@ -4126,6 +4473,7 @@ function updateTFPendingAttacks() {
         }
       }
       tf._pendingSlash = null;
+      tf._setAttackPhase('recovery', 12, false);
     }
   }
 
@@ -4139,10 +4487,15 @@ function updateTFPendingAttacks() {
         // Teleport to alternating sides of the player
         const side   = tc.hits % 2 === 0 ? 1 : -1;
         const offset = side * (45 + Math.random() * 25);
-        const tpX    = clamp(tgt.cx() + offset - tf.w / 2, 18, GAME_W - tf.w - 18);
-        tf.x = tpX;
-        tf.y = clamp(tgt.y, 10, 440);
+        const landed = _bossTeleportActor(tf, tgt.cx() + offset, tgt.y, { preferRaised: true, sideBias: side });
+        if (!landed) {
+          tc.hits = 0;
+          tf._pendingTeleportCombo = null;
+          tf._finishAttackState('teleportCombo');
+          return;
+        }
         tf.facing = tgt.cx() > tf.cx() ? 1 : -1;
+        tf._setAttackPhase('active', 4, true);
         // Portal burst at new position
         spawnParticles(tf.cx(), tf.cy(), '#000000', 18);
         spawnParticles(tf.cx(), tf.cy(), '#ffffff', 10);
@@ -4157,6 +4510,7 @@ function updateTFPendingAttacks() {
         tc.timer = tc.gap;
       } else {
         tf._pendingTeleportCombo = null;
+        tf._setAttackPhase('recovery', 14, false);
         // Final shockwave at landing position
         if (typeof tfShockwaves !== 'undefined') {
           tfShockwaves.push({
@@ -4227,9 +4581,13 @@ function updateTFPendingAttacks() {
       // Teleport boss behind target
       if (csTgt && csTgt.health > 0) {
         const csDir = (csTgt.facing || 1);
-        tf.x  = clamp(csTgt.cx() - csDir * 55 - tf.w / 2, 20, GAME_W - tf.w - 20);
-        tf.y  = clamp(csTgt.y, 20, GAME_H - tf.h - 20);
-        tf.vx = 0; tf.vy = 0;
+        const landed = _bossTeleportActor(tf, csTgt.cx() - csDir * 55, csTgt.y, { preferRaised: true, sideBias: -csDir });
+        if (!landed) {
+          tf._pendingCollapseStrike = null;
+          tf._finishAttackState('collapseStrike');
+          return;
+        }
+        tf._setAttackPhase('active', 5, true);
         // Restore slowmo
         if (hitSlowTimer <= 0) slowMotion = 1.0;
         screenShake = Math.max(screenShake, 26);
@@ -4246,6 +4604,7 @@ function updateTFPendingAttacks() {
         tf.weapon.kb     = oldKb;
       }
       tf._pendingCollapseStrike = null;
+      tf._setAttackPhase('recovery', 18, false);
     }
   }
 
@@ -4301,6 +4660,26 @@ function drawBossWarnings() {
     ctx.strokeStyle = `rgba(160,0,255,${pulse2})`;
     ctx.lineWidth   = 4;
     ctx.strokeRect(5, 5, GAME_W - 10, GAME_H - 10);
+  }
+  const tfAnti = getTrueFormAntiRangedBoss();
+  if (tfAnti) {
+    const antiPulse = 0.18 + Math.abs(Math.sin(frameCount * 0.11)) * 0.16;
+    const antiR = tfAnti._antiRangedFieldR || 220;
+    ctx.save();
+    ctx.strokeStyle = `rgba(136,68,255,${antiPulse})`;
+    ctx.lineWidth = 3;
+    ctx.shadowColor = '#8844ff';
+    ctx.shadowBlur = 14;
+    ctx.beginPath();
+    ctx.arc(tfAnti.cx(), tfAnti.cy(), antiR, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.strokeStyle = `rgba(255,255,255,${antiPulse * 0.8})`;
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([8, 10]);
+    ctx.beginPath();
+    ctx.arc(tfAnti.cx(), tfAnti.cy(), antiR + 18 + Math.sin(frameCount * 0.15) * 6, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
   }
 
   // ── Safe zones ─────────────────────────────────────────────
@@ -4423,10 +4802,13 @@ function updateTFPhaseShift() {
     const tf = players.find(p => p.isTrueForm);
     if (tf) {
       const echo = ps.echoes[ps.realIdx];
-      tf.x   = echo.x - tf.w / 2;
-      tf.y   = echo.y - tf.h / 2;
-      tf.vx  = 0;
-      tf.vy  = 0;
+      const landed = _bossTeleportActor(tf, echo.x, echo.y, { preferRaised: true });
+      if (!landed) {
+        tfPhaseShift = null;
+        tf._finishAttackState && tf._finishAttackState('phaseShift');
+        return;
+      }
+      tf._setAttackPhase && tf._setAttackPhase('active', 4, true);
       screenShake = Math.max(screenShake, 16);
       spawnParticles(tf.cx(), tf.cy(), '#ffffff', 18);
       spawnParticles(tf.cx(), tf.cy(), '#9900ff', 14);
@@ -4436,7 +4818,10 @@ function updateTFPhaseShift() {
     }
   }
 
-  if (ps.timer >= ps.maxTimer) tfPhaseShift = null;
+  if (ps.timer >= ps.maxTimer) {
+    if (ps.bossRef && ps.bossRef._setAttackPhase) ps.bossRef._setAttackPhase('recovery', 12, false);
+    tfPhaseShift = null;
+  }
 }
 
 function drawTFPhaseShift() {
@@ -4459,21 +4844,19 @@ function drawTFPhaseShift() {
     if (alpha <= 0.01) continue;
     ctx.save();
     ctx.globalAlpha = alpha;
-    // Draw a simple silhouette at echo position
-    ctx.fillStyle    = '#000000';
-    ctx.strokeStyle  = '#aa00ff';
-    ctx.lineWidth    = 2;
-    const ew = 18, eh = 50;
+    _drawTimelineStickman(e.x, e.y - 18, isReal ? 1 : -1, isReal ? '#ff88ff' : '#aa66ff', isReal ? 2.6 : 2.0, isReal ? 20 : 10, alpha);
+    ctx.strokeStyle  = isReal ? '#ffffff' : '#aa00ff';
+    ctx.lineWidth    = isReal ? 2 : 1.3;
     ctx.beginPath();
-    ctx.rect(e.x - ew / 2, e.y - eh / 2, ew, eh);
-    ctx.fill(); ctx.stroke();
+    ctx.arc(e.x, e.y + 12, isReal ? 24 : 18, 0, Math.PI * 2);
+    ctx.stroke();
     // Small '?' label on fakes
     if (!isReal && !ps.revealed) {
       ctx.globalAlpha = alpha * 0.8;
       ctx.fillStyle   = '#cc88ff';
       ctx.font        = 'bold 11px monospace';
       ctx.textAlign   = 'center';
-      ctx.fillText('?', e.x, e.y - eh / 2 - 6);
+      ctx.fillText('?', e.x, e.y - 28);
     }
     ctx.restore();
   }
@@ -4486,9 +4869,7 @@ function drawTFPhaseShift() {
     ctx.strokeStyle = '#9900ff';
     ctx.lineWidth   = 1.5;
     ctx.setLineDash([4, 4]);
-    ctx.beginPath();
-    ctx.rect(tf.x, tf.y, tf.w, tf.h);
-    ctx.stroke();
+    _drawTimelineStickman(tf.cx(), tf.y - 5, tf.facing || 1, '#9900ff', 1.8, 10, 0.45);
     ctx.restore();
   }
 }
@@ -4513,10 +4894,12 @@ function updateTFRealityTear() {
       if (tf && tgt) {
         // Teleport behind the pulled player
         const behindDir = tgt.facing || (tgt.cx() > GAME_W / 2 ? 1 : -1);
-        const behindX   = clamp(tgt.cx() - behindDir * 55, 30, GAME_W - tf.w - 30);
-        tf.x  = behindX;
-        tf.y  = clamp(tgt.y, 20, GAME_H - tf.h - 20);
-        tf.vx = 0; tf.vy = 0;
+        const landed = _bossTeleportActor(tf, tgt.cx() - behindDir * 55, tgt.y, { preferRaised: true, sideBias: -behindDir });
+        if (!landed) {
+          tf._finishAttackState && tf._finishAttackState('realityTear');
+          return;
+        }
+        tf._setAttackPhase && tf._setAttackPhase('active', 4, true);
         tf.invincible = Math.max(tf.invincible || 0, 12);
         screenShake   = Math.max(screenShake, 12);
         spawnParticles(tf.cx(), tf.cy(), '#cc00ff', 14);
@@ -4529,7 +4912,11 @@ function updateTFRealityTear() {
       }
     }
   }
-  if (rt.phase === 'close'  && rt.timer >= rt.maxTimer) { tfRealityTear = null; return; }
+  if (rt.phase === 'close'  && rt.timer >= rt.maxTimer) {
+    if (rt.bossRef && rt.bossRef._setAttackPhase) rt.bossRef._setAttackPhase('recovery', 12, false);
+    tfRealityTear = null;
+    return;
+  }
 
   // Active phase: pull all non-boss players toward the tear
   if (rt.phase === 'active') {
@@ -4614,43 +5001,48 @@ function updateTFCalcStrike() {
   const cs = tfCalcStrike;
   cs.timer++;
 
-  // Strike at variable delay (strikeDelay set per-accuracy-tier at spawn time)
   const strikeFrame = cs.strikeDelay || 42;
   if (!cs.fired && cs.timer >= strikeFrame) {
     cs.fired = true;
     tfGhostPaths = null; // clear path visualization on strike
     const tf = players.find(p => p.isTrueForm);
-    // Use live player position at fire time (not stale prediction) — multiversal beings don't miss
-    if (cs.targetRef && cs.targetRef.health > 0) {
-      const liveTarget = cs.targetRef;
-      // Small noise only for erratic players; zero noise for still/predictable
-      const vxHist2 = tf && tf._prevTargetVxArr ? tf._prevTargetVxArr : [];
-      const vxVar2  = vxHist2.length > 1 ? Math.max(...vxHist2) - Math.min(...vxHist2) : 0;
-      const noiseR  = vxVar2 >= 8 ? 18 : 0; // even erratic players get very small noise now
-      cs.predictX = clamp(liveTarget.cx() + (Math.random() - 0.5) * noiseR, 40, GAME_W - 40);
-      cs.predictY = clamp(liveTarget.cy() + (Math.random() - 0.5) * noiseR * 0.5, 40, GAME_H - 40);
-    }
+    const target = cs.targetRef && cs.targetRef.health > 0 ? cs.targetRef : players.find(p => !p.isBoss && p.health > 0);
     if (tf) {
-      tf.x  = clamp(cs.predictX - tf.w / 2, 20, GAME_W - tf.w - 20);
-      tf.y  = clamp(cs.predictY - tf.h / 2, 20, GAME_H - tf.h - 20);
-      tf.vx = 0; tf.vy = 0;
+      const desiredX = target ? target.cx() - tf.w / 2 : cs.predictX;
+      const desiredY = target ? target.y : cs.predictY;
+      const landed = _bossTeleportActor(tf, desiredX, desiredY, { preferRaised: true, sideBias: tf.facing || 1 });
+      if (!landed) {
+        tfCalcStrike = null;
+        tf._finishAttackState && tf._finishAttackState('calcStrike');
+        return;
+      }
+      tf._setAttackPhase && tf._setAttackPhase('active', 4, true);
+      tf.facing = target ? (target.cx() > tf.cx() ? 1 : -1) : tf.facing;
       screenShake = Math.max(screenShake, 14);
       spawnParticles(tf.cx(), tf.cy(), '#ffffff', 16);
       spawnParticles(tf.cx(), tf.cy(), '#aaddff', 10);
-      const target = players.find(p => !p.isBoss && p.health > 0);
-      if (target && tf.cooldown <= 0) tf.attack(target);
+      if (target) {
+        if (target.shielding) {
+          target.shieldCooldown = Math.max(target.shieldCooldown || 0, typeof SHIELD_CD !== 'undefined' ? Math.round(SHIELD_CD * 0.55) : 180);
+          target.hurtTimer = Math.max(target.hurtTimer || 0, 10);
+          target.vx += tf.facing * 7;
+          screenShake = Math.max(screenShake, 8);
+          spawnParticles(target.cx(), target.cy(), '#88ccff', 12);
+        } else {
+          target.invincible = 0;
+          dealDamage(tf, target, 34, 16, 1.2, false, 0);
+          target.stunTimer = Math.max(target.stunTimer || 0, 14);
+          target.vx += tf.facing * 10;
+          target.vy = Math.min(target.vy, -10);
+        }
+      }
     }
   }
-  // 10 frames after strike: second hit if boss is close enough (chain follow-up)
-  if (cs.fired && !cs.chainFired && cs.timer >= strikeFrame + 10) {
-    cs.chainFired = true;
-    const tf     = players.find(p => p.isTrueForm);
-    const target = players.find(p => !p.isBoss && p.health > 0);
-    if (tf && target && dist(tf, target) < 85 && tf.cooldown <= 0) {
-      tf.attack(target);
-    }
+  if (cs.timer >= cs.maxTimer) {
+    const tf = players.find(p => p.isTrueForm);
+    if (tf && tf._setAttackPhase) tf._setAttackPhase('recovery', 12, false);
+    tfCalcStrike = null;
   }
-  if (cs.timer >= cs.maxTimer) tfCalcStrike = null;
 }
 
 function drawTFCalcStrike() {
@@ -5385,15 +5777,34 @@ function updateTFMultiverse() {
   mv.timer++;
   const boss = mv.bossRef;
   const target = mv.targetRef;
+  const arenaBounds = _bossArenaBounds();
+  const _clonePose = idx => {
+    const offset = mv.cloneOffsets[idx] || 0;
+    const plan = mv.clonePlans ? mv.clonePlans[idx] : 'advance';
+    const hist = _tfCloneHistory[Math.max(0, _tfCloneHistory.length - 1 - idx * 4)];
+    const baseX = hist ? hist.x : (target ? target.cx() : GAME_W / 2);
+    const baseY = hist ? hist.y : (target ? target.cy() : GAME_H / 2);
+    const facing = hist ? hist.facing : (target ? target.facing : 1);
+    const tNorm = Math.min(1, mv.timer / 70);
+    let dx = 0, dy = 0;
+    if (plan === 'advance') dx = 34 * tNorm;
+    else if (plan === 'retreat') dx = -28 * tNorm;
+    else if (plan === 'jump') dy = -48 * Math.sin(tNorm * Math.PI);
+    else if (plan === 'dash') dx = 52 * Math.sin(tNorm * Math.PI * 0.5);
+    return {
+      x: clamp(baseX + offset + dx, arenaBounds.left + 30, arenaBounds.right - 30),
+      y: clamp(baseY + dy, 60, GAME_H - 50),
+      facing,
+      plan,
+    };
+  };
 
   // ── show (0-70): slow-motion, clones appear ──────────────────────────────
   if (mv.phase === 'show' && mv.timer >= 70) {
     mv.phase = 'select';
-    // Lock the strike position to where the real clone IS right now (absolute arena X)
-    if (target) {
-      mv.strikeX = clamp(target.cx() + mv.cloneOffsets[mv.realIdx], 30, GAME_W - 30);
-      mv.strikeY = target.cy();
-    }
+    const realPose = _clonePose(mv.realIdx);
+    mv.strikeX = realPose.x;
+    mv.strikeY = realPose.y;
     // Boss warning at the locked position
     bossWarnings.push({
       type: 'cross', x: mv.strikeX, y: mv.strikeY,
@@ -5414,8 +5825,9 @@ function updateTFMultiverse() {
     if (target) {
       for (let i = 0; i < mv.cloneOffsets.length; i++) {
         if (i === mv.realIdx) continue;
-        const cx = clamp(target.cx() + mv.cloneOffsets[i], 30, GAME_W - 30);
-        const cy = target.cy();
+        const fakePose = _clonePose(i);
+        const cx = fakePose.x;
+        const cy = fakePose.y;
         // Shard burst: lightweight objects stored in mv.shards
         for (let s = 0; s < 10; s++) {
           const ang = (s / 10) * Math.PI * 2;
@@ -5468,7 +5880,11 @@ function updateTFMultiverse() {
     }
   }
 
-  if (mv.timer >= mv.maxTimer) { mv.shards.length = 0; tfMultiverse = null; }
+  if (mv.timer >= mv.maxTimer) {
+    mv.shards.length = 0;
+    if (mv.bossRef && mv.bossRef._setAttackPhase) mv.bossRef._setAttackPhase('recovery', 18, false);
+    tfMultiverse = null;
+  }
 }
 
 // ── helper: draw a lightweight stickman silhouette ──────────────────────────
@@ -5494,11 +5910,34 @@ function _drawTimelineStickman(x, y, facing, strokeCol, lw, shadowB, alpha) {
   ctx.restore();
 }
 
+function _drawTimelineBossClone(boss, x, y, alpha, strokeCol = '#cc44ff') {
+  if (!boss) return;
+  const facing = boss.facing || 1;
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.strokeStyle = strokeCol;
+  ctx.lineWidth = 2.6;
+  ctx.lineCap = 'round';
+  ctx.shadowColor = strokeCol;
+  ctx.shadowBlur = 16;
+  const topY = y - boss.h * 0.55;
+  _drawTimelineStickman(x, topY, facing, strokeCol, 2.4, 14, alpha * 0.92);
+  ctx.beginPath();
+  ctx.arc(x, topY + 9, 13, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(x - 18, topY + 26);
+  ctx.lineTo(x + 18, topY + 26);
+  ctx.stroke();
+  ctx.restore();
+}
+
 function drawTFMultiverse() {
   if (!tfMultiverse) return;
   const mv = tfMultiverse;
   const target = mv.targetRef;
   const boss   = mv.bossRef;
+  const arenaBounds = _bossArenaBounds();
   ctx.save();
 
   const showProg    = Math.min(1, mv.timer / 24); // fade-in during first 24 frames
@@ -5517,46 +5956,34 @@ function drawTFMultiverse() {
   // ── Boss ghost mirrors ──────────────────────────────────────────────────────
   if (boss && !isCollapsed) {
     for (const bg of mv.bossGhosts) {
-      const ghostX = clamp(boss.cx() + bg.offsetX, 40, GAME_W - 40);
+      const ghostX = clamp(boss.cx() + bg.offsetX, arenaBounds.left + 40, arenaBounds.right - 40);
       const ghostY = boss.cy();
-      // Semi-transparent boss silhouette (just a dark figure with purple tint)
-      ctx.save();
-      ctx.globalAlpha = showProg * 0.28;
-      ctx.strokeStyle = '#cc44ff'; ctx.fillStyle = '#330055';
-      ctx.lineWidth = 2.5; ctx.lineCap = 'round';
-      ctx.shadowColor = '#aa00ff'; ctx.shadowBlur = 14;
-      const bH = boss.h || 50, bW = boss.w || 18;
-      // Head
-      ctx.beginPath(); ctx.arc(ghostX, ghostY + 9, 9, 0, Math.PI * 2); ctx.stroke();
-      // Body
-      ctx.beginPath(); ctx.moveTo(ghostX, ghostY + 18); ctx.lineTo(ghostX, ghostY + bH * 0.8); ctx.stroke();
-      // Arms
-      ctx.beginPath(); ctx.moveTo(ghostX - 14, ghostY + 22); ctx.lineTo(ghostX + 14, ghostY + 22); ctx.stroke();
-      // Legs
-      ctx.beginPath(); ctx.moveTo(ghostX, ghostY + bH * 0.8); ctx.lineTo(ghostX - 10, ghostY + bH); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(ghostX, ghostY + bH * 0.8); ctx.lineTo(ghostX + 10, ghostY + bH); ctx.stroke();
-      ctx.restore();
+      _drawTimelineBossClone(boss, ghostX, ghostY, showProg * 0.34);
     }
   }
 
   // ── Player clones ──────────────────────────────────────────────────────────
   if (target) {
-    const f = target.facing || 1;
-    // Root position: all clones mirror real player's Y and movement in real-time.
-    // X = player.cx() + offset — so they track the player as they move.
-    // Lag offsets: clone 0 = current, clone 1 = 8 frames ago, clone 2 = 16 frames ago
-    const _lagSteps = [0, 8, 16];
     const _clonePos = mv.cloneOffsets.map((offset, i) => {
-      const _hist = _tfCloneHistory[Math.max(0, _tfCloneHistory.length - 1 - (_lagSteps[i] || 0))];
-      return _hist
-        ? { x: _hist.x + offset, y: _hist.y, facing: _hist.facing }
-        : { x: target.cx() + offset, y: target.cy(), facing: target.facing };
+      const plan = mv.clonePlans ? mv.clonePlans[i] : 'advance';
+      const hist = _tfCloneHistory[Math.max(0, _tfCloneHistory.length - 1 - i * 4)];
+      const baseX = hist ? hist.x : target.cx();
+      const baseY = hist ? hist.y : target.cy();
+      const facing = hist ? hist.facing : target.facing;
+      const tNorm = Math.min(1, mv.timer / 70);
+      let dx = 0, dy = 0;
+      if (plan === 'advance') dx = 34 * tNorm;
+      else if (plan === 'retreat') dx = -28 * tNorm;
+      else if (plan === 'jump') dy = -48 * Math.sin(tNorm * Math.PI);
+      else if (plan === 'dash') dx = 52 * Math.sin(tNorm * Math.PI * 0.5);
+      return { x: baseX + offset + dx, y: baseY + dy, facing, plan };
     });
     for (let i = 0; i < mv.cloneOffsets.length; i++) {
       const isReal = i === mv.realIdx;
       const rawX   = _clonePos[i].x;
-      const cloneX = clamp(rawX, 30, GAME_W - 30);
+      const cloneX = clamp(rawX, arenaBounds.left + 30, arenaBounds.right - 30);
       const cloneY = (_clonePos[i].y || target.y) + target.h * 0.25; // stickman reference Y
+      const f = _clonePos[i].facing || target.facing || 1;
 
       // After collapse: only the selected clone remains visible
       if (isCollapsed && !isReal) continue;
@@ -5578,6 +6005,18 @@ function drawTFMultiverse() {
       const shB = isReal && mv.phase !== 'show' ? 22 : 6;
 
       _drawTimelineStickman(cloneX, cloneY, f, col, lw, shB, cloneAlpha);
+
+      ctx.save();
+      ctx.globalAlpha = Math.min(0.75, cloneAlpha * 0.85);
+      ctx.fillStyle = isReal ? '#ffd5dd' : '#ccf3ff';
+      ctx.font = 'bold 9px monospace';
+      ctx.textAlign = 'center';
+      const label = _clonePos[i].plan === 'advance' ? 'PUSH'
+        : _clonePos[i].plan === 'retreat' ? 'FADE'
+        : _clonePos[i].plan === 'jump' ? 'RISE'
+        : 'SHIFT';
+      ctx.fillText(label, cloneX, cloneY - 42);
+      ctx.restore();
 
       // Timeline label (only during show phase, non-real clones)
       if (!isReal && mv.phase === 'show') {
@@ -5603,6 +6042,20 @@ function drawTFMultiverse() {
         ctx.beginPath(); ctx.moveTo(cloneX - 26, cloneY + 15); ctx.lineTo(cloneX + 26, cloneY + 15); ctx.stroke();
         ctx.beginPath(); ctx.moveTo(cloneX, cloneY - 14); ctx.lineTo(cloneX, cloneY + 44); ctx.stroke();
         ctx.restore();
+
+        if (boss) {
+          ctx.save();
+          ctx.globalAlpha = 0.42 + Math.sin(mv.timer * 0.3) * 0.08;
+          ctx.strokeStyle = '#ff6688';
+          ctx.lineWidth = 2.2;
+          ctx.shadowColor = '#ff3355';
+          ctx.shadowBlur = 18;
+          ctx.beginPath();
+          ctx.moveTo(boss.cx(), boss.cy() - 10);
+          ctx.lineTo(cloneX, cloneY + 4);
+          ctx.stroke();
+          ctx.restore();
+        }
       }
 
       // Collapse: selected clone gets a bright shockwave ring
@@ -5663,7 +6116,7 @@ function drawTFMultiverse() {
     ctx.font = 'bold 11px monospace';
     ctx.textAlign = 'center';
     ctx.shadowColor = '#ff8800'; ctx.shadowBlur = 10;
-    ctx.fillText('← DODGE AWAY →', mv.strikeX, (mv.targetRef ? mv.targetRef.y - 28 : 80));
+    ctx.fillText('READ THE REAL TIMELINE', mv.strikeX, (mv.targetRef ? mv.targetRef.y - 28 : 80));
     ctx.restore();
   }
 
@@ -5854,6 +6307,7 @@ function resetTFState() {
   tfGalaxySweep      = null;
   if (tfMultiverse) { tfMultiverse.shards && (tfMultiverse.shards.length = 0); tfMultiverse = null; }
   tfSupernova        = null;
+  tfAttackRetryQueue = [];
   // Restore slow-motion if any attack left it in a reduced state
   if (slowMotion < 1.0) { slowMotion = 1.0; hitSlowTimer = 0; }
   // Reset dimension shift — always restore 2D on fight end
@@ -5880,4 +6334,3 @@ function set3DView(mode) {
   if (mode === 'tf')  c.classList.add('view-3d-tf');
   else if (mode)      c.classList.add('view-3d');
 }
-

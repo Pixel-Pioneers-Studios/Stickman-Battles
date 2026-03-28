@@ -1,20 +1,6 @@
 // smc-story.js — Story Mode: origin intro, character progression, narrative
 'use strict';
 
-// ── Player config per level ───────────────────────────────────────────────────
-const STORY_PLAYER_CONFIGS = {
-  1: { weapon:'sword', speedMult:0.62, dmgMult:0.50, noAbility:true,  noSuper:true,  noDoubleJump:true  },
-  2: { weapon:null,    speedMult:0.72, dmgMult:0.65, noAbility:true,  noSuper:true,  noDoubleJump:false },
-  3: { weapon:null,    speedMult:0.82, dmgMult:0.78, noAbility:false, noSuper:true,  noDoubleJump:false },
-  4: { weapon:null,    speedMult:0.90, dmgMult:0.88, noAbility:false, noSuper:false, noDoubleJump:false },
-  5: { weapon:null,    speedMult:1.00, dmgMult:1.00, noAbility:false, noSuper:false, noDoubleJump:false },
-  6: { weapon:null,    speedMult:1.00, dmgMult:1.00, noAbility:false, noSuper:false, noDoubleJump:false },
-  7: { weapon:null,    speedMult:1.00, dmgMult:1.00, noAbility:false, noSuper:false, noDoubleJump:false },
-  8: { weapon:null,    speedMult:1.00, dmgMult:1.00, noAbility:false, noSuper:false, noDoubleJump:false },
-  9: { weapon:null,    speedMult:1.00, dmgMult:1.00, noAbility:false, noSuper:false, noDoubleJump:false },
-  10: { weapon:null,   speedMult:1.00, dmgMult:1.00, noAbility:false, noSuper:false, noDoubleJump:false },
-};
-
 // ── Enemy scaling per level ────────────────────────────────────────────────────
 // enemyDmgMult:   multiplier on all damage the enemy deals (1.0 = normal)
 // enemyAtkCdMult: multiplier on attack cooldown (>1 = slower attacks, 1 = normal)
@@ -38,237 +24,6 @@ const STORY_UNLOCKS = {
   3: { icon: '✦',  name: 'Super Meter',   desc: 'Power you did not know you had is building.\nLet it charge. Let it release.' },
   4: { icon: '🔥', name: 'Full Power',     desc: 'You are no longer the person who fell through the portal.\nYou are a fighter.' },
 };
-
-// ── Level definitions ─────────────────────────────────────────────────────────
-const STORY_LEVELS = [
-  {
-    num: 1,
-    chapter: 'Prologue',
-    title: 'The Pull',
-    preText: [
-      'You don\'t know how you got here.',
-      'One moment you were home.',
-      'The next — a light, a pull, and then...',
-      '...',
-      'This place.',
-      'The fighter across from you has been training their whole life.',
-      'You have never held a sword.',
-      'But you have no choice.',
-    ],
-    arena: 'grass',
-    mode: '2p',
-    enemyWeapon: 'sword',
-    enemyDiff: 'easy',
-    lives: 3,
-    reward: null,
-    rewardText: null,
-    unlockText: '⬆ Double jump unlocked.',
-    unlockDetail: 'Your body adapted. Survival instinct.',
-  },
-  {
-    num: 2,
-    chapter: 'Chapter 1',
-    title: 'A World Not Yours',
-    preText: [
-      'The city is full of them.',
-      'Fighters who have trained for years.',
-      '"You survived once," someone says.',
-      '"Let\'s see if that was skill... or luck."',
-    ],
-    arena: 'city',
-    mode: '2p',
-    enemyWeapon: 'axe',
-    enemyDiff: 'easy',
-    lives: 3,
-    reward: 'hammer',
-    rewardText: '⚒ Hammer unlocked!',
-    unlockText: '⚡ Weapon ability unlocked.',
-    unlockDetail: 'You found the rhythm. The move is yours now.',
-  },
-  {
-    num: 3,
-    chapter: 'Chapter 2',
-    title: 'The Hunt',
-    preText: [
-      'Something has been tracking you.',
-      'Deep in the forest.',
-      '"Stop running," it says from the dark.',
-      '"You can\'t outrun what\'s inside you."',
-      'You turn around.',
-    ],
-    arena: 'forest',
-    mode: '2p',
-    enemyWeapon: 'hammer',
-    enemyDiff: 'medium',
-    lives: 3,
-    reward: 'spear',
-    rewardText: '🗡 Spear unlocked!',
-    unlockText: '✦ Super meter unlocked.',
-    unlockDetail: 'Power is building. Let it charge.',
-  },
-  {
-    num: 4,
-    chapter: 'Chapter 3',
-    title: 'Trial by Fire',
-    preText: [
-      'The ground cracks.',
-      'Lava rises from below.',
-      '"We have been watching you," says a voice from the heat.',
-      '"You are learning too fast."',
-      '"That makes you dangerous."',
-      'Good.',
-    ],
-    arena: 'lava',
-    mode: '2p',
-    enemyWeapon: 'spear',
-    enemyDiff: 'medium',
-    lives: 3,
-    reward: 'axe',
-    rewardText: '🪓 Axe unlocked!',
-    unlockText: '🔥 Full power unlocked.',
-    unlockDetail: 'You are no longer the person who fell through the portal.',
-  },
-  {
-    num: 5,
-    chapter: 'Chapter 4',
-    title: 'Zero Gravity',
-    preText: [
-      'Up. Down. None of it applies here.',
-      'You\'ve changed.',
-      'Your movements have a certainty they didn\'t before.',
-      '"There\'s no going back," something whispers.',
-      '...',
-      'You already knew.',
-    ],
-    arena: 'space',
-    mode: '2p',
-    enemyWeapon: 'gun',
-    enemyDiff: 'medium',
-    lives: 3,
-    reward: 'gun',
-    rewardText: '🔫 Gun unlocked!',
-    unlockText: null,
-    unlockDetail: null,
-  },
-  {
-    num: 6,
-    chapter: 'Chapter 5',
-    title: 'Frozen Fury',
-    preText: [
-      'Ice holds everything still.',
-      'Everything except the thing that lives here.',
-      '"How much more can you take?"',
-      'Two threats. One arena.',
-      'Only one survivor.',
-    ],
-    arena: 'ice',
-    mode: '2p',
-    enemyWeapon: 'axe',
-    enemyDiff: 'hard',
-    lives: 3,
-    reward: 'scythe',
-    rewardText: '⚔ Scythe unlocked!',
-    unlockText: null,
-    unlockDetail: null,
-  },
-  {
-    num: 7,
-    chapter: 'Chapter 6',
-    title: 'Ruins of the Real',
-    preText: [
-      'The world is breaking apart.',
-      'You can see it now — the seams.',
-      'The cracks between what is and what should be.',
-      '"You were not meant to reach this point."',
-      '"This world was not made for you."',
-      '...',
-      'Then why does it feel like home?',
-    ],
-    arena: 'ruins',
-    mode: '2p',
-    enemyWeapon: 'hammer',
-    enemyDiff: 'hard',
-    lives: 3,
-    reward: null,
-    rewardText: null,
-    unlockText: null,
-    unlockDetail: null,
-  },
-  {
-    num: 8,
-    chapter: 'Chapter 7',
-    title: 'SOVEREIGN',
-    preText: [
-      'Before the Creator — there was the test.',
-      'It built a fighter.',
-      'Not of flesh. Not of will.',
-      'Of pure pattern recognition.',
-      '"You have defeated every opponent."',
-      '"But none of them were watching you."',
-      '"I was."',
-      '"Every dodge. Every combo. Every mistake."',
-      '"I know what you will do before you do it."',
-      'Its name is SOVEREIGN.',
-      'Defeat it... if the concept means anything to you.',
-    ],
-    arena: 'warpzone',
-    mode: 'adaptive',
-    enemyDiff: null,
-    lives: 5,
-    reward: null,
-    rewardText: null,
-    unlockText: '⚠ The path forward is now open.',
-    unlockDetail: 'SOVEREIGN has been overcome. The Creator awaits.',
-  },
-  {
-    num: 9,
-    chapter: 'Chapter 8',
-    title: 'Face the Creator',
-    preText: [
-      '...',
-      'You have reached the source.',
-      'The one who built this world.',
-      'The one who made you.',
-      '"I designed every arena you\'ve fought in."',
-      '"Every fighter you\'ve faced — I made them."',
-      '"I gave you the sword."',
-      '"And now I will take everything back."',
-    ],
-    arena: 'creator',
-    mode: 'boss',
-    enemyDiff: null,
-    lives: 10,
-    reward: 'bossBeaten',
-    rewardText: '👁 Creator defeated.',
-    unlockText: '🔍 The veil is thinning. Letters are hidden in the arenas...',
-    unlockDetail: 'Find all 8 to unlock the True Form.',
-  },
-  {
-    num: 10,
-    chapter: 'Final Chapter',
-    title: 'True Form',
-    preText: [
-      'You found all eight letters.',
-      'The code is complete.',
-      'The veil tears open.',
-      '"I am the system."',
-      '"I am the rules."',
-      '"There is no winning here."',
-      '...',
-      'Prove it wrong.',
-    ],
-    arena: 'void',
-    mode: 'trueform',
-    enemyDiff: null,
-    lives: 3,
-    reward: 'trueform',
-    rewardText: '✦ True Form defeated. You are complete.',
-    unlockText: null,
-    unlockDetail: null,
-    requiresBossBeaten: true,
-    requiresAllLetters: true,
-  },
-];
 
 // ── In-fight narrative scripts — timed subtitles during combat ────────────────
 const STORY_FIGHT_SCRIPTS = {
@@ -305,53 +60,6 @@ const STORY_FIGHT_SCRIPTS = {
     { frame: 600, text: 'Keep going.', color: '#ffffff' },
   ],
 };
-
-// ── Persistent story progress ─────────────────────────────────────────────────
-const _STORY_KEY = 'smc_story';
-
-function _defaultProgress() {
-  return {
-    version:         3,
-    highestReached:  1,
-    completedLevels: [],
-    unlockedWeapons: ['sword'],
-    seenDialogue:    [],
-    seenIntro:       false,
-  };
-}
-
-let _storyProgress = (function _init() {
-  try {
-    const raw = localStorage.getItem(_STORY_KEY);
-    if (!raw) return _defaultProgress();
-    const p = JSON.parse(raw);
-    if (!p || !p.completedLevels) return _defaultProgress();
-    if (!('seenIntro' in p)) p.seenIntro = false; // migrate old saves
-    return p;
-  } catch(e) { return _defaultProgress(); }
-})();
-
-function _saveProgress() {
-  try { localStorage.setItem(_STORY_KEY, JSON.stringify(_storyProgress)); } catch(e) {}
-  if (typeof saveGame === 'function') saveGame();
-}
-
-// ── Level unlock logic ────────────────────────────────────────────────────────
-function storyIsLevelUnlocked(num) {
-  if (num <= 1) return true;
-  const lvl = STORY_LEVELS.find(l => l.num === num);
-  if (!lvl) return false;
-  if (lvl.requiresBossBeaten && !localStorage.getItem('smc_bossBeaten')) return false;
-  if (lvl.requiresAllLetters) {
-    const letters = JSON.parse(localStorage.getItem('smc_letters') || '[]');
-    if (letters.length < 8) return false;
-  }
-  return _storyProgress.completedLevels.includes(num - 1) || _storyProgress.highestReached >= num;
-}
-
-function storyIsLevelComplete(num) {
-  return _storyProgress.completedLevels.includes(num);
-}
 
 // ── Story menu ────────────────────────────────────────────────────────────────
 function openStoryMenu() {
@@ -452,7 +160,9 @@ function _renderChapterList() {
 
   // ── Render each act ───────────────────────────────────────────────────────
   STORY_ACT_STRUCTURE.forEach((act, ai) => {
-    const isFullRender = ai >= fullRenderMin && ai <= fullRenderMax;
+    const inAutoRange   = ai >= fullRenderMin && ai <= fullRenderMax;
+    const manualExpanded = !!_story2.actExpanded[ai];
+    const isFullRender  = inAutoRange || manualExpanded;
 
     // Count act completion
     let actDone = 0, actTotal = 0;
@@ -464,24 +174,37 @@ function _renderChapterList() {
     }
     const actComplete = actDone === actTotal;
 
-    // Act header
+    // Act header — always clickable to expand/collapse when outside auto range
     const actHeader = document.createElement('div');
+    const chevronRot = (!inAutoRange && !manualExpanded) ? '0deg' : '90deg';
     actHeader.style.cssText = [
       'display:flex', 'align-items:center', 'gap:8px',
       'padding:8px 10px 6px',
       `border-top:1px solid ${act.color}44`,
       'margin-top:6px',
+      !inAutoRange ? 'cursor:pointer' : '',
     ].join(';');
     actHeader.innerHTML =
+      (!inAutoRange
+        ? `<span style="font-size:0.65rem;color:#667;transition:transform 0.18s;display:inline-block;transform:rotate(${chevronRot});">▶</span>`
+        : '') +
       `<span style="font-size:0.68rem;letter-spacing:1.5px;text-transform:uppercase;color:${act.color};font-weight:700;flex:1;">${act.label}</span>` +
       `<span style="font-size:0.6rem;color:${actComplete ? '#66ee99' : '#556'};">${actDone}/${actTotal}</span>`;
+
+    if (!inAutoRange) {
+      actHeader.addEventListener('click', () => {
+        _story2.actExpanded[ai] = !_story2.actExpanded[ai];
+        _saveStory2();
+        openStoryMenu(); // re-render
+      });
+    }
     list.appendChild(actHeader);
 
     if (!isFullRender) {
-      // Compact summary row for far-off acts
+      // Compact hint — click the header above to expand
       const summary = document.createElement('div');
-      summary.style.cssText = 'padding:3px 12px 8px;font-size:0.61rem;color:#445;';
-      summary.textContent = actComplete ? '✓ Completed' : actDone > 0 ? `${actDone}/${actTotal} chapters done` : 'Locked';
+      summary.style.cssText = 'padding:2px 12px 7px;font-size:0.60rem;color:#445;';
+      summary.textContent = actComplete ? '✓ Completed — click to expand' : actDone > 0 ? `${actDone}/${actTotal} done — click to expand` : 'Locked — click to expand';
       list.appendChild(summary);
       return;
     }
@@ -585,605 +308,6 @@ function _renderChapterList() {
   });
 }
 
-// ── Canvas drawing helpers ────────────────────────────────────────────────────
-// Draw a stickman at (x, gy) where gy is the feet/ground level
-function _sm(ctx, x, gy, sz, col, opts) {
-  opts = opts || {};
-  ctx.save();
-  ctx.strokeStyle = col; ctx.fillStyle = col;
-  ctx.lineWidth   = Math.max(2, sz * 0.09); ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-  // head
-  ctx.beginPath(); ctx.arc(x, gy - sz * 1.76, sz * 0.27, 0, Math.PI * 2); ctx.fill();
-  // body
-  ctx.beginPath(); ctx.moveTo(x, gy - sz*1.49); ctx.lineTo(x, gy - sz*0.66); ctx.stroke();
-  // arms
-  const al = opts.al || [-sz*0.62, -sz*1.10]; // [dx, dy] from body centre
-  const ar = opts.ar || [ sz*0.62, -sz*1.10];
-  ctx.beginPath(); ctx.moveTo(x, gy-sz*1.22); ctx.lineTo(x+al[0], gy+al[1]); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(x, gy-sz*1.22); ctx.lineTo(x+ar[0], gy+ar[1]); ctx.stroke();
-  // legs
-  const ll = opts.ll || [-sz*0.44, 0];
-  const lr = opts.lr || [ sz*0.44, 0];
-  ctx.beginPath(); ctx.moveTo(x, gy-sz*0.66); ctx.lineTo(x+ll[0], gy+ll[1]); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(x, gy-sz*0.66); ctx.lineTo(x+lr[0], gy+lr[1]); ctx.stroke();
-  ctx.restore();
-}
-
-// Rounded rect helper
-function _rr(ctx, x, y, w, h, r) {
-  ctx.beginPath();
-  ctx.moveTo(x+r, y);
-  ctx.lineTo(x+w-r, y); ctx.arcTo(x+w, y, x+w, y+r, r);
-  ctx.lineTo(x+w, y+h-r); ctx.arcTo(x+w, y+h, x+w-r, y+h, r);
-  ctx.lineTo(x+r, y+h); ctx.arcTo(x, y+h, x, y+h-r, r);
-  ctx.lineTo(x, y+r); ctx.arcTo(x, y, x+r, y, r);
-  ctx.closePath();
-}
-
-// ── Origin-story intro scene drawing functions ────────────────────────────────
-function _sc0_normalWorld(ctx, w, h) {
-  // Sunny day exterior: house, tree, person with briefcase
-  const gY = h * 0.68;
-  // Sky
-  const sky = ctx.createLinearGradient(0,0,0,gY);
-  sky.addColorStop(0, '#5ba3c9'); sky.addColorStop(1, '#c8e8f7');
-  ctx.fillStyle = sky; ctx.fillRect(0,0,w,gY);
-  // Ground
-  ctx.fillStyle = '#4a8c3a'; ctx.fillRect(0,gY,w,h-gY);
-  ctx.fillStyle = '#3d7a2e'; ctx.fillRect(0,gY,w,5);
-  // Sun
-  ctx.fillStyle = '#ffe066'; ctx.strokeStyle='#ffd700'; ctx.lineWidth=2;
-  ctx.beginPath(); ctx.arc(w*0.82, h*0.14, 26, 0, Math.PI*2); ctx.fill(); ctx.stroke();
-  // House body
-  ctx.fillStyle = '#d4c4a0'; ctx.strokeStyle='#b8a882'; ctx.lineWidth=2;
-  _rr(ctx, w*0.38, gY-90, 100, 90, 3); ctx.fill(); ctx.stroke();
-  // Roof
-  ctx.fillStyle='#9b3c2a'; ctx.strokeStyle='#7d2e1e'; ctx.lineWidth=2;
-  ctx.beginPath(); ctx.moveTo(w*0.36,gY-90); ctx.lineTo(w*0.49,gY-138); ctx.lineTo(w*0.62,gY-90); ctx.closePath(); ctx.fill(); ctx.stroke();
-  // Door
-  ctx.fillStyle='#8b5e3c'; _rr(ctx, w*0.47, gY-42, 22, 42, 2); ctx.fill();
-  // Window
-  ctx.fillStyle='#aee4f8'; ctx.strokeStyle='#8cc'; ctx.lineWidth=1.5;
-  _rr(ctx, w*0.40, gY-72, 22, 18, 2); ctx.fill(); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(w*0.51,gY-72); ctx.lineTo(w*0.51,gY-54); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(w*0.40,gY-63); ctx.lineTo(w*0.62,gY-63); ctx.stroke();
-  // Tree
-  ctx.fillStyle='#2d6e1a';
-  ctx.beginPath(); ctx.arc(w*0.25,gY-65,35,0,Math.PI*2); ctx.fill();
-  ctx.beginPath(); ctx.arc(w*0.21,gY-48,26,0,Math.PI*2); ctx.fill();
-  ctx.beginPath(); ctx.arc(w*0.30,gY-50,22,0,Math.PI*2); ctx.fill();
-  ctx.fillStyle='#5c3a1a'; ctx.fillRect(w*0.235, gY-20, 10, 22);
-  // Person with briefcase
-  _sm(ctx, w*0.72, gY, 28, '#334', {
-    ar: [20, -4],  // arm holding briefcase down-right
-    al: [-16, -18],
-  });
-  // Briefcase
-  ctx.fillStyle='#7a5c3a'; ctx.strokeStyle='#5a3c1a'; ctx.lineWidth=1.5;
-  _rr(ctx, w*0.72+16, gY-14, 16, 12, 2); ctx.fill(); ctx.stroke();
-  // Path
-  ctx.fillStyle='rgba(200,180,140,0.4)';
-  ctx.beginPath(); ctx.ellipse(w*0.5, gY+2, 120, 10, 0, 0, Math.PI*2); ctx.fill();
-}
-
-function _sc1_home(ctx, w, h) {
-  // Indoor night — desk, computer glow, figure seated
-  ctx.fillStyle='#0d0d1a'; ctx.fillRect(0,0,w,h);
-  // Wall texture lines
-  ctx.strokeStyle='rgba(255,255,255,0.04)'; ctx.lineWidth=1;
-  for(let i=0;i<h;i+=18){ ctx.beginPath(); ctx.moveTo(0,i); ctx.lineTo(w,i); ctx.stroke(); }
-  // Floor
-  ctx.fillStyle='#1a1228'; ctx.fillRect(0,h*0.75,w,h*0.25);
-  ctx.strokeStyle='rgba(255,255,255,0.06)'; ctx.lineWidth=1;
-  ctx.beginPath(); ctx.moveTo(0,h*0.75); ctx.lineTo(w,h*0.75); ctx.stroke();
-  // Desk
-  ctx.fillStyle='#4a3320'; ctx.strokeStyle='#5c4030'; ctx.lineWidth=2;
-  _rr(ctx, w*0.25, h*0.56, w*0.5, 12, 2); ctx.fill(); ctx.stroke();
-  ctx.fillRect(w*0.28, h*0.56+12, 8, h*0.19);
-  ctx.fillRect(w*0.25+w*0.5-12, h*0.56+12, 8, h*0.19);
-  // Monitor
-  ctx.fillStyle='#1e1e2e'; ctx.strokeStyle='#336'; ctx.lineWidth=2;
-  _rr(ctx, w*0.36, h*0.30, 100, 66, 4); ctx.fill(); ctx.stroke();
-  // Screen glow
-  const sg = ctx.createRadialGradient(w*0.36+50, h*0.30+33, 2, w*0.36+50, h*0.30+33, 70);
-  sg.addColorStop(0,'rgba(80,140,255,0.35)'); sg.addColorStop(1,'rgba(0,0,0,0)');
-  ctx.fillStyle=sg; ctx.fillRect(w*0.20, h*0.10, 180, 200);
-  // Screen content (fake code lines)
-  ctx.fillStyle='rgba(100,200,100,0.7)'; ctx.font='6px monospace';
-  ['> run daily.exe','status: OK','---','▊'].forEach((ln,i)=>{
-    ctx.fillText(ln, w*0.36+8, h*0.30+14+i*12);
-  });
-  // Clock on wall
-  ctx.strokeStyle='#334'; ctx.lineWidth=1.5;
-  ctx.beginPath(); ctx.arc(w*0.85, h*0.22, 18, 0, Math.PI*2); ctx.stroke();
-  ctx.fillStyle='#223'; ctx.fill();
-  ctx.strokeStyle='#aaa'; ctx.lineWidth=1.5;
-  ctx.beginPath(); ctx.moveTo(w*0.85,h*0.22); ctx.lineTo(w*0.85,h*0.22-12); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(w*0.85,h*0.22); ctx.lineTo(w*0.85+8,h*0.22); ctx.stroke();
-  // Seated figure
-  const floorY = h * 0.75;
-  _sm(ctx, w*0.45, h*0.57, 24, '#aaccdd', {
-    al: [-18, -8], ar: [18, -8],
-    ll: [-10, 16], lr: [10, 16],
-  });
-}
-
-function _sc2_glitch(ctx, w, h) {
-  // Same room but reality cracking — purple tears in the air
-  _sc1_home(ctx, w, h);
-  // Diagonal reality cracks
-  const cracks = [
-    [[w*0.6,h*0.1],[w*0.55,h*0.3],[w*0.62,h*0.45]],
-    [[w*0.7,h*0.25],[w*0.78,h*0.4],[w*0.72,h*0.55],[w*0.8,h*0.65]],
-    [[w*0.5,h*0.05],[w*0.48,h*0.2]],
-  ];
-  cracks.forEach(pts => {
-    // Glow
-    ctx.save(); ctx.shadowColor='#cc44ff'; ctx.shadowBlur=12;
-    ctx.strokeStyle='rgba(180,80,255,0.9)'; ctx.lineWidth=2;
-    ctx.beginPath(); ctx.moveTo(pts[0][0],pts[0][1]);
-    pts.slice(1).forEach(p=>ctx.lineTo(p[0],p[1]));
-    ctx.stroke();
-    ctx.shadowBlur=0;
-    // White core
-    ctx.strokeStyle='rgba(255,200,255,0.95)'; ctx.lineWidth=0.8;
-    ctx.beginPath(); ctx.moveTo(pts[0][0],pts[0][1]);
-    pts.slice(1).forEach(p=>ctx.lineTo(p[0],p[1]));
-    ctx.stroke();
-    ctx.restore();
-  });
-  // Glitch offset bands
-  for(let i=0;i<4;i++){
-    const y=h*(0.2+i*0.15), bh=Math.random()*8+3;
-    ctx.save();
-    ctx.globalAlpha=0.25;
-    ctx.drawImage(ctx.canvas, 0, y, w, bh, (Math.random()-0.5)*12, y, w, bh);
-    ctx.restore();
-  }
-  // Figure reacting — arms up in surprise
-  _sm(ctx, w*0.45, h*0.57, 24, '#ffddaa', {
-    al: [-22, -28], ar: [22, -28],  // arms raised
-    ll: [-10, 16],  lr: [10, 16],
-  });
-}
-
-function _sc3_portal(ctx, w, h) {
-  // Dark room, massive swirling portal dominates right side
-  ctx.fillStyle='#050510'; ctx.fillRect(0,0,w,h);
-  // Ambient purple glow on right
-  const bg = ctx.createRadialGradient(w*0.72, h*0.5, 10, w*0.72, h*0.5, w*0.55);
-  bg.addColorStop(0,'rgba(120,0,200,0.35)'); bg.addColorStop(1,'rgba(0,0,0,0)');
-  ctx.fillStyle=bg; ctx.fillRect(0,0,w,h);
-  // Floor line
-  ctx.strokeStyle='rgba(255,255,255,0.08)'; ctx.lineWidth=1;
-  ctx.beginPath(); ctx.moveTo(0,h*0.75); ctx.lineTo(w,h*0.75); ctx.stroke();
-  // Portal outer rings
-  [60,48,36].forEach((r,i)=>{
-    const alpha=0.18+i*0.12;
-    ctx.strokeStyle=`rgba(${160-i*20},${40+i*20},255,${alpha})`;
-    ctx.lineWidth=3-i*0.5;
-    ctx.beginPath(); ctx.arc(w*0.72,h*0.46,r+i*2,0,Math.PI*2); ctx.stroke();
-  });
-  // Portal core
-  const pc=ctx.createRadialGradient(w*0.72,h*0.46,0,w*0.72,h*0.46,48);
-  pc.addColorStop(0,'rgba(200,150,255,0.95)');
-  pc.addColorStop(0.4,'rgba(100,0,220,0.8)');
-  pc.addColorStop(1,'rgba(30,0,80,0)');
-  ctx.fillStyle=pc;
-  ctx.beginPath(); ctx.arc(w*0.72,h*0.46,48,0,Math.PI*2); ctx.fill();
-  // Swirl lines
-  ctx.save(); ctx.strokeStyle='rgba(200,150,255,0.4)'; ctx.lineWidth=1;
-  for(let a=0;a<Math.PI*2;a+=Math.PI/6){
-    ctx.beginPath();
-    ctx.arc(w*0.72,h*0.46,48,a,a+Math.PI*0.4);
-    ctx.stroke();
-  }
-  ctx.restore();
-  // Ground cracks leading to portal
-  ctx.strokeStyle='rgba(150,50,255,0.6)'; ctx.lineWidth=1.5;
-  [[w*0.55,h*0.75,w*0.65,h*0.7],[w*0.5,h*0.75,w*0.58,h*0.72],[w*0.52,h*0.76,w*0.6,h*0.8]].forEach(([x1,y1,x2,y2])=>{
-    ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
-  });
-  // Figure reaching toward portal
-  const gy = h*0.75;
-  _sm(ctx, w*0.32, gy, 26, '#ccddff', {
-    ar: [28, -22],  // right arm reaching toward portal
-    al: [-12, -12],
-    ll: [-10, 0], lr: [14, 0],
-  });
-}
-
-function _sc4_pulled(ctx, w, h) {
-  // Figure being stretched/sucked into portal — motion lines
-  ctx.fillStyle='#020208'; ctx.fillRect(0,0,w,h);
-  // Portal on right (smaller version)
-  const pc=ctx.createRadialGradient(w*0.85,h*0.5,5,w*0.85,h*0.5,80);
-  pc.addColorStop(0,'rgba(220,180,255,1)');
-  pc.addColorStop(0.3,'rgba(100,0,220,0.7)');
-  pc.addColorStop(1,'rgba(0,0,0,0)');
-  ctx.fillStyle=pc; ctx.beginPath(); ctx.arc(w*0.85,h*0.5,80,0,Math.PI*2); ctx.fill();
-  // Motion lines (figure being pulled rightward)
-  ctx.strokeStyle='rgba(200,150,255,0.3)'; ctx.lineWidth=1;
-  for(let i=0;i<14;i++){
-    const y=h*(0.25+i*0.038);
-    const len=60+Math.random()*100;
-    ctx.beginPath(); ctx.moveTo(w*0.25+Math.random()*60, y); ctx.lineTo(w*0.25+len, y); ctx.stroke();
-  }
-  // Figure horizontally stretched toward portal
-  const cx=w*0.55, cy=h*0.5;
-  ctx.strokeStyle='#ccaaff'; ctx.fillStyle='#ccaaff'; ctx.lineWidth=2; ctx.lineCap='round';
-  // stretched body
-  ctx.beginPath(); ctx.moveTo(cx-20, cy); ctx.lineTo(cx+26, cy); ctx.stroke();
-  // head (oval, stretched)
-  ctx.beginPath(); ctx.ellipse(cx-28, cy, 10, 8, 0, 0, Math.PI*2); ctx.fill();
-  // limbs flailing
-  ctx.beginPath();
-  ctx.moveTo(cx, cy); ctx.lineTo(cx-14, cy-20);
-  ctx.moveTo(cx, cy); ctx.lineTo(cx-8, cy+22);
-  ctx.moveTo(cx+10, cy); ctx.lineTo(cx+20, cy-14);
-  ctx.moveTo(cx+10, cy); ctx.lineTo(cx+24, cy+16);
-  ctx.stroke();
-}
-
-function _sc5_void(ctx, w, h) {
-  // Pure black void — small figure falling through stars
-  ctx.fillStyle='#000'; ctx.fillRect(0,0,w,h);
-  // Stars
-  ctx.fillStyle='#fff';
-  for(let i=0;i<80;i++){
-    const x=Math.abs(Math.sin(i*1.7)*w*0.95), y=Math.abs(Math.cos(i*2.3+1)*h*0.95);
-    const r=Math.abs(Math.sin(i*3.1))*1.5+0.3;
-    ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.fill();
-  }
-  // Distant colored particles
-  ['rgba(100,50,200,0.3)','rgba(50,100,180,0.25)','rgba(150,80,255,0.2)'].forEach((c,i)=>{
-    ctx.fillStyle=c;
-    ctx.beginPath(); ctx.arc(w*(0.2+i*0.3), h*(0.3+i*0.2), 40+i*15, 0, Math.PI*2); ctx.fill();
-  });
-  // Small tumbling figure
-  ctx.save();
-  ctx.translate(w*0.5, h*0.45);
-  ctx.rotate(0.6);
-  _sm(ctx, 0, 0, 18, 'rgba(200,200,255,0.7)', {
-    al: [-14, -20], ar: [18, -12],
-    ll: [-16, 8],   lr: [12, 14],
-  });
-  ctx.restore();
-}
-
-function _sc6_landing(ctx, w, h) {
-  // New world — dark dramatic landscape, figure crash-landing
-  const gY = h * 0.70;
-  // Dark sky
-  const sky=ctx.createLinearGradient(0,0,0,gY);
-  sky.addColorStop(0,'#0a0010'); sky.addColorStop(0.6,'#1a0030'); sky.addColorStop(1,'#300050');
-  ctx.fillStyle=sky; ctx.fillRect(0,0,w,gY);
-  // Moons
-  ctx.fillStyle='rgba(200,160,255,0.5)'; ctx.beginPath(); ctx.arc(w*0.8,h*0.12,16,0,Math.PI*2); ctx.fill();
-  ctx.fillStyle='rgba(0,0,40,0.7)'; ctx.beginPath(); ctx.arc(w*0.83,h*0.10,14,0,Math.PI*2); ctx.fill();
-  // Ground
-  ctx.fillStyle='#1a0a28'; ctx.fillRect(0,gY,w,h-gY);
-  // Ground texture
-  ctx.strokeStyle='rgba(100,50,180,0.3)'; ctx.lineWidth=1;
-  for(let x=0;x<w;x+=18){ ctx.beginPath(); ctx.moveTo(x,gY); ctx.lineTo(x+6,h); ctx.stroke(); }
-  // Rocky silhouettes background
-  ctx.fillStyle='rgba(60,20,100,0.5)';
-  [[w*0.05,gY,50,60],[w*0.7,gY,70,50],[w*0.85,gY,45,70],[w*0.12,gY,30,40]].forEach(([x,y,wx,wy])=>{
-    ctx.beginPath(); ctx.moveTo(x,y); ctx.lineTo(x+wx/2,y-wy); ctx.lineTo(x+wx,y); ctx.fill();
-  });
-  // Impact crater (figure just landed)
-  ctx.strokeStyle='rgba(150,80,255,0.5)'; ctx.lineWidth=1.5;
-  ctx.beginPath(); ctx.ellipse(w*0.5, gY+4, 28, 8, 0, 0, Math.PI*2); ctx.stroke();
-  // Impact dust particles
-  ctx.fillStyle='rgba(150,80,255,0.25)';
-  for(let i=0;i<8;i++){
-    const a=(i/8)*Math.PI*2, d=22+i*4;
-    ctx.beginPath(); ctx.arc(w*0.5+Math.cos(a)*d, gY-6+Math.sin(a)*6, 3, 0, Math.PI*2); ctx.fill();
-  }
-  // Figure on hands and knees (just landed)
-  const gy=gY;
-  _sm(ctx, w*0.5, gy, 24, '#bbaadd', {
-    al: [-20, 4],  ar: [20, 4],    // hands on ground
-    ll: [-8, -16], lr: [8, -16],   // knees up behind
-  });
-}
-
-function _sc7_surrounded(ctx, w, h) {
-  // Multiple fighter silhouettes circling the player
-  _sc6_landing(ctx, w, h);  // same dark world base
-  const gY = h * 0.70;
-  // Draw 6 enemy silhouettes in fighting stances around the edges
-  const enemies = [
-    { x:w*0.12, col:'rgba(60,40,80,0.85)', sz:30, opts:{ ar:[18,-22], ll:[-8,0], lr:[12,0] } },
-    { x:w*0.24, col:'rgba(50,30,70,0.80)', sz:26, opts:{ al:[-20,-14], ll:[-10,0], lr:[8,0] } },
-    { x:w*0.76, col:'rgba(60,40,80,0.85)', sz:30, opts:{ al:[-18,-22], ll:[-12,0], lr:[8,0] } },
-    { x:w*0.88, col:'rgba(50,30,70,0.80)', sz:28, opts:{ ar:[20,-14], ll:[-8,0], lr:[10,0] } },
-    { x:w*0.38, col:'rgba(70,50,90,0.75)', sz:24, opts:{} },
-    { x:w*0.65, col:'rgba(70,50,90,0.75)', sz:25, opts:{} },
-  ];
-  enemies.forEach(e => _sm(ctx, e.x, gY, e.sz, e.col, e.opts));
-  // Player figure in centre — confused/scared (arms up slightly)
-  _sm(ctx, w*0.5, gY, 22, '#ddeeff', {
-    al: [-14, -18], ar: [14, -18],  // arms slightly raised/defensive
-  });
-  // Glowing eyes on the shadows
-  ctx.fillStyle='rgba(200,80,80,0.7)';
-  enemies.slice(0,4).forEach(e=>{
-    ctx.beginPath(); ctx.arc(e.x-3, gY-e.sz*1.76+2, 2, 0, Math.PI*2); ctx.fill();
-    ctx.beginPath(); ctx.arc(e.x+3, gY-e.sz*1.76+2, 2, 0, Math.PI*2); ctx.fill();
-  });
-}
-
-function _sc8_choice(ctx, w, h) {
-  // Player picks up a sword; one enemy silhouette looms ahead
-  const gY = h*0.70;
-  _sc6_landing(ctx, w, h);
-  // Enemy silhouette far end — large, imposing
-  _sm(ctx, w*0.78, gY, 36, 'rgba(80,20,120,0.9)', {
-    al: [-16,-28], ar: [0, 0],   // one arm raised with weapon
-    ll: [-10,0],   lr: [14,0],
-  });
-  // Sword lying on ground
-  ctx.save();
-  ctx.strokeStyle='rgba(200,200,255,0.8)'; ctx.lineWidth=3; ctx.lineCap='round';
-  ctx.shadowColor='rgba(150,180,255,0.6)'; ctx.shadowBlur=8;
-  ctx.beginPath();
-  ctx.moveTo(w*0.38, gY-2); ctx.lineTo(w*0.54, gY-18);
-  ctx.stroke();
-  // Guard
-  ctx.lineWidth=5;
-  ctx.beginPath();
-  ctx.moveTo(w*0.42, gY-6); ctx.lineTo(w*0.38+10, gY-14);
-  ctx.stroke();
-  ctx.restore();
-  // Player figure — bending down to pick up the sword
-  _sm(ctx, w*0.42, gY, 24, '#ddeeff', {
-    al: [14, 10],   // right arm reaching down to sword
-    ar: [-14, -16],
-    ll: [-14, 0],   lr: [4, 0],
-  });
-}
-
-// ── Intro panel definitions ───────────────────────────────────────────────────
-const _INTRO_PANELS = [
-  { draw: _sc0_normalWorld, caption: 'You lived a quiet life.',       sub: 'Job. Home. Routine.', delay: 600 },
-  { draw: _sc1_home,        caption: 'Work. Come home. Repeat.',      sub: 'Nothing unusual. Nothing remarkable.', delay: 500 },
-  { draw: _sc2_glitch,      caption: 'Then one day, the air tore.',   sub: '', delay: 400 },
-  { draw: _sc3_portal,      caption: 'A portal.',                     sub: 'You had heard about these things.\nBut seeing one was different.', delay: 350 },
-  { draw: _sc4_pulled,      caption: 'It didn\'t care what you wanted.', sub: '', delay: 300 },
-  { draw: _sc5_void,        caption: '...',                           sub: '', delay: 300 },
-  { draw: _sc6_landing,     caption: 'When you woke up, you weren\'t alone.', sub: '', delay: 400 },
-  { draw: _sc7_surrounded,  caption: 'Experienced fighters. Everywhere.', sub: '"You don\'t belong here."', delay: 350 },
-  { draw: _sc8_choice,      caption: 'You had never held a sword before.', sub: 'But you were already here.', delay: 300 },
-];
-
-// ── Typewriter effect ─────────────────────────────────────────────────────────
-function _typewriter(el, text, msPerChar, onDone) {
-  el.textContent = '';
-  let i = 0;
-  const tick = () => {
-    if (i <= text.length) {
-      el.textContent = text.slice(0, i++);
-      setTimeout(tick, msPerChar);
-    } else if (onDone) { onDone(); }
-  };
-  tick();
-}
-
-// ── Origin story intro cutscene ───────────────────────────────────────────────
-let _introPanel = 0;
-let _introReady = false; // next button enabled after type-out finishes
-
-function _showStoryIntroCutscene(onDone) {
-  const overlay  = document.getElementById('storyIntroOverlay');
-  const cvs      = document.getElementById('storyIntroCanvas');
-  const capMain  = document.getElementById('storyIntroCaptionMain');
-  const capSub   = document.getElementById('storyIntroCaptionSub');
-  const dots     = document.getElementById('storyIntroDots');
-  const nextBtn  = document.getElementById('storyIntroNextBtn');
-  if (!overlay || !cvs) { onDone(); return; }
-
-  const ctx2 = cvs.getContext('2d');
-  _introPanel = 0;
-  _introReady = false;
-  overlay.style.display = 'flex';
-  nextBtn.disabled = true;
-  nextBtn.style.opacity = '0.35';
-
-  function showPanel(idx) {
-    if (idx >= _INTRO_PANELS.length) {
-      overlay.style.display = 'none';
-      onDone();
-      return;
-    }
-    const p = _INTRO_PANELS[idx];
-    _introReady = false;
-    nextBtn.disabled = true;
-    nextBtn.style.opacity = '0.35';
-    nextBtn.textContent   = idx === _INTRO_PANELS.length - 1 ? 'Begin →' : 'Continue →';
-
-    // Draw dot progress
-    dots.textContent = Array.from({length:_INTRO_PANELS.length}, (_,i) => i===idx ? '●' : '·').join(' ');
-
-    // Fade scene in
-    cvs.style.opacity = '0';
-    cvs.style.transition = 'opacity 0.4s';
-    p.draw(ctx2, cvs.width, cvs.height);
-    requestAnimationFrame(() => requestAnimationFrame(() => { cvs.style.opacity = '1'; }));
-
-    // Type caption
-    capSub.textContent = '';
-    _typewriter(capMain, p.caption, 38, () => {
-      if (p.sub) {
-        setTimeout(() => {
-          _typewriter(capSub, p.sub, 32, () => {
-            _introReady = true;
-            nextBtn.disabled = false;
-            nextBtn.style.opacity = '1';
-          });
-        }, p.delay);
-      } else {
-        setTimeout(() => {
-          _introReady = true;
-          nextBtn.disabled = false;
-          nextBtn.style.opacity = '1';
-        }, p.delay);
-      }
-    });
-  }
-
-  nextBtn.onclick = () => {
-    if (!_introReady) return;
-    _introPanel++;
-    showPanel(_introPanel);
-  };
-
-  showPanel(0);
-}
-
-// ── Pre-battle dialogue ───────────────────────────────────────────────────────
-function _showStoryDialogue(lvl, onFight) {
-  const panel = document.getElementById('storyDialoguePanel');
-  if (!panel) { onFight(); return; }
-
-  document.getElementById('storyDialogueChapter').textContent = lvl.chapter;
-  document.getElementById('storyDialogueTitle').textContent   = lvl.title;
-
-  const bodyEl = document.getElementById('storyDialogueBody');
-  bodyEl.innerHTML = '';
-
-  const fightBtn = document.getElementById('storyDialogueFightBtn');
-  fightBtn.style.opacity = '0';
-  fightBtn.style.pointerEvents = 'none';
-
-  // Build paragraph elements — hidden until typewriter reveals them
-  const pEls = lvl.preText.map((line, i) => {
-    const p  = document.createElement('p');
-    p.style.cssText = [
-      'margin:0 0 10px',
-      'font-size:' + (i === 0 ? '1.05rem' : '0.88rem'),
-      'color:' + (line.startsWith('"') ? '#aad4ff' : line === '...' ? '#445' : '#dde4ff'),
-      'font-style:' + (line.startsWith('"') ? 'italic' : 'normal'),
-      'min-height:1.2em',
-    ].join(';');
-    bodyEl.appendChild(p);
-    return p;
-  });
-
-  // Cascade typewriter through each line
-  let lineIdx = 0;
-  function nextLine() {
-    if (lineIdx >= pEls.length) {
-      // All lines done — show fight button
-      setTimeout(() => {
-        fightBtn.style.opacity = '1';
-        fightBtn.style.pointerEvents = '';
-        fightBtn.style.transition = 'opacity 0.4s';
-      }, 300);
-      return;
-    }
-    const line = lvl.preText[lineIdx];
-    const el   = pEls[lineIdx];
-    lineIdx++;
-    const mspc = line === '...' ? 180 : line.startsWith('"') ? 28 : 22;
-    _typewriter(el, line, mspc, () => setTimeout(nextLine, line === '...' ? 600 : 120));
-  }
-
-  // Restrictions hint at the bottom
-  const cfg = STORY_PLAYER_CONFIGS[lvl.num];
-  if (cfg && (cfg.noAbility || cfg.noSuper || cfg.noDoubleJump || (cfg.dmgMult && cfg.dmgMult < 0.9))) {
-    const restrictions = [];
-    if (cfg.noDoubleJump) restrictions.push('no double jump');
-    if (cfg.noAbility)    restrictions.push('ability locked');
-    if (cfg.noSuper)      restrictions.push('super locked');
-    if (cfg.dmgMult < 0.9) restrictions.push(`${Math.round(cfg.dmgMult*100)}% damage`);
-    if (cfg.speedMult < 1.0) restrictions.push(`${Math.round(cfg.speedMult*100)}% speed`);
-    const hint = document.createElement('div');
-    hint.style.cssText = 'margin-top:16px;padding:8px 12px;background:rgba(255,80,30,0.07);border:1px solid rgba(255,80,30,0.18);border-radius:7px;font-size:0.66rem;color:#cc8866;';
-    hint.innerHTML = `<span style="opacity:0.5;">Current state:</span> ${restrictions.join(' · ')}`;
-    bodyEl.appendChild(hint);
-  }
-
-  fightBtn.textContent =
-    lvl.mode === 'boss'     ? '⚔ Face the Creator'  :
-    lvl.mode === 'trueform' ? '✦ Face True Form'    :
-    lvl.mode === 'adaptive' ? '⚡ Face SOVEREIGN'   : 'Fight →';
-  fightBtn.onclick = () => { panel.style.display = 'none'; onFight(); };
-
-  panel.style.display = 'flex';
-  setTimeout(nextLine, 200); // short delay before first line types
-
-  if (!_storyProgress.seenDialogue.includes(lvl.num)) {
-    _storyProgress.seenDialogue.push(lvl.num);
-    _saveProgress();
-  }
-}
-
-// ── Level launch ──────────────────────────────────────────────────────────────
-function startStoryLevel(num) {
-  const lvl = STORY_LEVELS.find(l => l.num === num);
-  if (!lvl) return;
-
-  // Play origin story cutscene the very first time on level 1
-  if (num === 1 && !_storyProgress.seenIntro) {
-    _storyProgress.seenIntro = true;
-    _saveProgress();
-    closeStoryMenu();
-    _showStoryIntroCutscene(() => {
-      _showStoryDialogue(lvl, () => _launchLevel(lvl));
-    });
-    return;
-  }
-
-  _showStoryDialogue(lvl, () => {
-    closeStoryMenu();
-    _launchLevel(lvl);
-  });
-}
-
-function _launchLevel(lvl) {
-  storyModeActive   = true;
-  storyCurrentLevel = lvl.num;
-
-  // Set in-fight narrative script for this level
-  storyFightScript    = (STORY_FIGHT_SCRIPTS[lvl.num] || []).slice();
-  storyFightScriptIdx = 0;
-  storyFightSubtitle  = null;
-
-  // Apply player progression config
-  const cfg = STORY_PLAYER_CONFIGS[lvl.num];
-  storyPlayerOverride = cfg ? Object.assign({}, cfg) : null;
-
-  if (lvl.mode === 'boss') {
-    selectMode('boss');
-    if (typeof setBossPlayers === 'function') setBossPlayers(1);
-  } else if (lvl.mode === 'trueform') {
-    selectMode('trueform');
-  } else if (lvl.mode === 'adaptive') {
-    selectMode('adaptive');
-    if (typeof selectLives === 'function') selectLives(lvl.lives || 5);
-    infiniteMode = false;
-  } else {
-    selectMode('2p');
-    p2IsBot = true;
-    const botBtn   = document.getElementById('p2BotToggle');
-    if (botBtn) botBtn.textContent = 'Bot';
-    const p2WepSel = document.getElementById('p2Weapon');
-    if (p2WepSel && lvl.enemyWeapon) p2WepSel.value = lvl.enemyWeapon;
-    const p2DiffRow = document.getElementById('p2DifficultyRow');
-    const p2DiffSel = document.getElementById('p2Difficulty');
-    if (p2DiffSel && lvl.enemyDiff) {
-      p2DiffSel.value = lvl.enemyDiff;
-      if (p2DiffRow) p2DiffRow.style.display = 'flex';
-    }
-    if (typeof selectLives === 'function') selectLives(lvl.lives || 3);
-    infiniteMode = false;
-  }
-
-  selectedArena = lvl.arena;
-  startGame();
-}
-
 // ── In-fight script ticker — call every game frame ───────────────────────────
 function storyTickFightScript() {
   if (!gameRunning || !storyModeActive) return;
@@ -1196,137 +320,13 @@ function storyTickFightScript() {
   }
 }
 
-// ── Unlock ceremony ───────────────────────────────────────────────────────────
-function _showUnlockCeremony(lvl, onDone) {
-  const unlock = STORY_UNLOCKS[lvl.num];
-  if (!unlock) { onDone(); return; }
-
-  const overlay = document.getElementById('storyUnlockOverlay');
-  if (!overlay) { onDone(); return; }
-
-  document.getElementById('storyUnlockIcon').textContent  = unlock.icon;
-  document.getElementById('storyUnlockName').textContent  = unlock.name;
-  document.getElementById('storyUnlockDesc').textContent  = unlock.desc;
-
-  overlay.style.display = 'flex';
-
-  // Trigger CSS transitions
-  requestAnimationFrame(() => requestAnimationFrame(() => {
-    ['storyUnlockIcon','storyUnlockLabel','storyUnlockName','storyUnlockDesc'].forEach(id => {
-      const el = document.getElementById(id);
-      if (el) el.style.opacity = '1';
-    });
-  }));
-
-  setTimeout(() => {
-    // Fade out
-    overlay.style.transition = 'opacity 0.6s';
-    overlay.style.opacity = '0';
-    setTimeout(() => {
-      overlay.style.display = 'none';
-      overlay.style.opacity = '1';
-      overlay.style.transition = '';
-      // Reset element opacities for next time
-      ['storyUnlockIcon','storyUnlockLabel','storyUnlockName','storyUnlockDesc'].forEach(id => {
-        const el = document.getElementById(id);
-        if (el) { el.style.opacity = '0'; el.style.transition = 'none'; }
-      });
-      requestAnimationFrame(() => {
-        ['storyUnlockIcon','storyUnlockLabel','storyUnlockName','storyUnlockDesc'].forEach(id => {
-          const el = document.getElementById(id);
-          if (el) el.style.transition = '';
-        });
-        onDone();
-      });
-    }, 650);
-  }, 2400);
-}
-
-// ── Level complete (called from endGame) ──────────────────────────────────────
+// ── Level complete (called from endGame) ─────────────────────────────────────
 function storyOnMatchEnd(playerWon) {
   if (!storyModeActive) return;
-  // Check if this is a Story v2 chapter fight — if so, delegate to v2 handler
-  // (story2OnMatchEnd is defined later in this file; check at call time)
-  if (typeof story2OnMatchEnd === 'function' && typeof _activeStory2Chapter !== 'undefined' && _activeStory2Chapter) {
-    story2OnMatchEnd(playerWon);
-    return;
-  }
-  // Clear in-fight subtitle
   storyFightSubtitle = null;
-  const lvl = STORY_LEVELS.find(l => l.num === storyCurrentLevel);
-  if (!lvl) return;
-
-  if (playerWon) {
-    if (!_storyProgress.completedLevels.includes(lvl.num)) {
-      _storyProgress.completedLevels.push(lvl.num);
-    }
-    if (lvl.num + 1 > _storyProgress.highestReached) {
-      _storyProgress.highestReached = lvl.num + 1;
-    }
-    const wKey = lvl.reward;
-    if (wKey && wKey !== 'bossBeaten' && wKey !== 'trueform') {
-      if (!_storyProgress.unlockedWeapons.includes(wKey)) {
-        _storyProgress.unlockedWeapons.push(wKey);
-      }
-    }
-    _saveProgress();
-
-    // Show unlock ceremony first (if any), then level complete
-    const hasUnlock = !!STORY_UNLOCKS[lvl.num];
-    if (hasUnlock) {
-      setTimeout(() => {
-        _showUnlockCeremony(lvl, () => _showLevelComplete(lvl));
-      }, 500);
-    } else {
-      _showLevelComplete(lvl);
-    }
+  if (typeof story2OnMatchEnd === 'function' && _activeStory2Chapter) {
+    story2OnMatchEnd(playerWon);
   }
-}
-
-function _showLevelComplete(lvl) {
-  const overlay = document.getElementById('storyCompleteOverlay');
-  if (!overlay) return;
-
-  document.getElementById('storyCompleteCh').textContent    = lvl.chapter + ' Complete!';
-  document.getElementById('storyCompleteTitle').textContent = lvl.title;
-
-  const rewardEl = document.getElementById('storyCompleteReward');
-  let rewardHtml = '';
-  if (lvl.rewardText) rewardHtml += `<div style="margin-bottom:${lvl.unlockText?'8px':'0'}">${lvl.rewardText}</div>`;
-  if (lvl.unlockText) {
-    rewardHtml += `<div style="color:#aad4ff;font-size:0.78rem;">${lvl.unlockText}</div>`;
-    if (lvl.unlockDetail) rewardHtml += `<div style="color:#667;font-size:0.68rem;margin-top:3px;">${lvl.unlockDetail}</div>`;
-  }
-  if (rewardHtml) { rewardEl.innerHTML = rewardHtml; rewardEl.style.display = 'block'; }
-  else { rewardEl.style.display = 'none'; }
-
-  const nextLvl = STORY_LEVELS.find(l => l.num === lvl.num + 1);
-  const nextBtn = document.getElementById('storyCompleteNextBtn');
-  if (nextBtn) {
-    if (nextLvl && storyIsLevelUnlocked(nextLvl.num)) {
-      nextBtn.style.display = '';
-      nextBtn.textContent   = 'Next: ' + nextLvl.title + ' →';
-      nextBtn.onclick = () => {
-        overlay.style.display = 'none';
-        document.getElementById('gameOverOverlay').style.display = 'none';
-        startStoryLevel(nextLvl.num);
-      };
-    } else {
-      nextBtn.style.display = 'none';
-    }
-  }
-
-  const menuBtn = document.getElementById('storyCompleteMenuBtn');
-  if (menuBtn) {
-    menuBtn.onclick = () => {
-      overlay.style.display = 'none';
-      storyModeActive = false;
-      backToMenu();
-      setTimeout(openStoryMenu, 280);
-    };
-  }
-
-  overlay.style.display = 'flex';
 }
 
 // ── Back to menu ──────────────────────────────────────────────────────────────
@@ -1336,19 +336,240 @@ function storyOnBackToMenu() {
   storyPlayerOverride = null;
   storyFightSubtitle  = null;
   storyFightScript    = [];
+  storyPhaseIndicator = null;
+  storyGauntletState  = null;
+  storyPendingPhaseConfig = null;
+  storyCameraLock = null;
+  exploreSidePortals = [];
+  exploreArenaLock = null;
   setTimeout(openStoryMenu, 300);
 }
 
-// ── Save integration ──────────────────────────────────────────────────────────
+function getDifficultyMultiplier(chapterId) {
+  return 1 + (chapterId * 0.08);
+}
+
+function _storyPerformanceBonus() {
+  const run = _story2 && _story2.runState;
+  if (!run) return 0;
+  let bonus = 0;
+  if ((run.healthPct || 1) > 0.72) bonus += 0.06;
+  if ((run.noDeathChain || 0) >= 2) bonus += 0.04;
+  return bonus;
+}
+
+function _storyDifficultyForChapter(chapterId, elite = false) {
+  const mult = getDifficultyMultiplier(chapterId) + _storyPerformanceBonus();
+  return elite ? mult * 1.18 : mult;
+}
+
+function _storyPhaseName(type) {
+  if (type === 'traversal') return 'Traversal';
+  if (type === 'arena_lock') return 'Arena Lock';
+  if (type === 'hazard_phase') return 'Hazard Surge';
+  if (type === 'elite_wave') return 'Elite Wave';
+  if (type === 'mini_boss') return 'Mini Boss';
+  return 'Phase';
+}
+
+function _storyCloneEnemyDef(base, extra = {}) {
+  const src = base || {};
+  return {
+    name: src.name || src.opponentName || 'Enemy',
+    weaponKey: src.weaponKey || 'sword',
+    classKey: src.classKey || 'warrior',
+    aiDiff: src.aiDiff || 'medium',
+    color: src.color || src.opponentColor || '#778899',
+    armor: src.armor ? [...src.armor] : [],
+    health: src.health,
+    isElite: !!src.isElite,
+    ...extra,
+  };
+}
+
+function _storyBuildPhases(ch) {
+  if (Array.isArray(ch.phases) && ch.phases.length >= 3) return ch.phases;
+
+  const diffTier = ch.id >= 45 ? 'expert' : ch.id >= 25 ? 'hard' : ch.id >= 10 ? 'medium' : 'easy';
+  const eliteAI  = ch.id >= 40 ? 'expert' : 'hard';
+  const baseEnemy = _storyCloneEnemyDef(ch, {
+    name: ch.opponentName || ch.title,
+    weaponKey: ch.weaponKey || 'sword',
+    classKey: ch.classKey || 'warrior',
+    aiDiff: ch.aiDiff || diffTier,
+    color: ch.opponentColor || '#778899',
+    armor: ch.armor || [],
+  });
+  const supportEnemy = _storyCloneEnemyDef(baseEnemy, {
+    name: `${baseEnemy.name} Support`,
+    weaponKey: ch.id >= 14 ? 'spear' : 'sword',
+    classKey: ch.id >= 18 ? 'assassin' : 'warrior',
+    aiDiff: diffTier,
+    color: '#667788',
+  });
+  const eliteEnemy = _storyCloneEnemyDef(baseEnemy, {
+    name: `${baseEnemy.name} Elite`,
+    weaponKey: ch.id >= 12 ? (ch.weaponKey || 'axe') : 'sword',
+    classKey: ch.id >= 15 ? 'warrior' : 'none',
+    aiDiff: eliteAI,
+    color: '#b36b3f',
+    armor: [...new Set([...(baseEnemy.armor || []), 'helmet'])],
+    isElite: true,
+  });
+
+  if (ch.type === 'exploration') {
+    const worldLen = Math.max(5600, ch.worldLength || 5600);
+    ch.phases = [
+      {
+        type: 'traversal',
+        label: ch.objectName || 'Advance',
+        worldLength: Math.floor(worldLen * 0.72),
+        objectName: `${ch.objectName || 'Forward Route'} Relay`,
+        spawnEnemies: (ch.spawnEnemies || []).slice(0, Math.max(4, Math.ceil((ch.spawnEnemies || []).length * 0.45))),
+      },
+      {
+        type: 'arena_lock',
+        label: 'Hold The Route',
+        arena: ch.arena || 'homeAlley',
+        opponents: [supportEnemy, _storyCloneEnemyDef(supportEnemy, { name: 'Lockdown Guard', weaponKey: 'hammer', classKey: 'tank', color: '#556677' })],
+        playerLives: ch.playerLives || 3,
+      },
+      {
+        type: ch.id >= 12 ? 'hazard_phase' : 'elite_wave',
+        label: ch.id >= 12 ? 'Instability Surge' : 'Pressure Spike',
+        arena: ch.id >= 10 ? 'lava' : (ch.arena || 'homeAlley'),
+        opponents: [eliteEnemy, supportEnemy],
+        playerLives: ch.playerLives || 3,
+      },
+      {
+        type: 'mini_boss',
+        label: ch.opponentName || 'Final Guard',
+        arena: ch.arena || 'homeAlley',
+        opponents: [_storyCloneEnemyDef(ch.opponentName ? baseEnemy : eliteEnemy, {
+          name: ch.opponentName || 'Route Breaker',
+          weaponKey: ch.weaponKey || eliteEnemy.weaponKey || 'hammer',
+          classKey: ch.classKey || eliteEnemy.classKey || 'warrior',
+          aiDiff: ch.aiDiff || eliteAI,
+          color: ch.opponentColor || '#775588',
+          isElite: true,
+          armor: [...new Set([...(ch.armor || []), 'helmet'])],
+        })],
+        finalChapter: true,
+        playerLives: ch.playerLives || 3,
+      },
+    ];
+  } else {
+    ch.phases = [
+      {
+        type: 'arena_lock',
+        label: 'Opening Clash',
+        arena: ch.arena || 'homeAlley',
+        opponents: [supportEnemy],
+        playerLives: Math.max(2, ch.playerLives || 3),
+      },
+      {
+        type: ch.id >= 9 ? 'hazard_phase' : 'elite_wave',
+        label: ch.id >= 9 ? 'Field Distortion' : 'Pressure Wave',
+        arena: ch.id >= 10 ? 'lava' : (ch.arena || 'homeAlley'),
+        opponents: ch.id >= 8 ? [eliteEnemy, supportEnemy] : [eliteEnemy],
+        playerLives: Math.max(2, ch.playerLives || 3),
+      },
+      {
+        type: 'mini_boss',
+        label: ch.opponentName || 'Final Duel',
+        arena: ch.arena || 'homeAlley',
+        finalChapter: true,
+        playerLives: ch.playerLives || 3,
+      },
+    ];
+    if (ch.id >= 16) {
+      ch.phases.splice(1, 0, {
+        type: 'elite_wave',
+        label: 'Elite Intercept',
+        arena: ch.arena || 'space',
+        opponents: [eliteEnemy, _storyCloneEnemyDef(eliteEnemy, { name: 'Fracture Elite', weaponKey: 'spear', classKey: 'ninja', color: '#8855cc', isElite: true })],
+        playerLives: Math.max(2, ch.playerLives || 3),
+      });
+    }
+  }
+  return ch.phases;
+}
+
+function _storyGetCurrentPhase() {
+  return storyGauntletState && storyGauntletState.phases
+    ? storyGauntletState.phases[storyGauntletState.index] || null
+    : null;
+}
+
+function _storyUpdatePhaseIndicator() {
+  const phase = _storyGetCurrentPhase();
+  if (!storyGauntletState || !phase) {
+    storyPhaseIndicator = null;
+    return;
+  }
+  storyPhaseIndicator = {
+    index: storyGauntletState.index + 1,
+    total: storyGauntletState.phases.length,
+    label: phase.label || _storyPhaseName(phase.type),
+    type: phase.type,
+  };
+}
+
+function _storyGetCarryHealthPct() {
+  const run = _story2 && _story2.runState;
+  return run && typeof run.healthPct === 'number' ? clamp(run.healthPct, 0.18, 1.0) : 1;
+}
+
+function _storySetCarryHealthPct(pct) {
+  if (!_story2.runState) _story2.runState = { healthPct: 1, noDeathChain: 0 };
+  _story2.runState.healthPct = clamp(pct, 0.18, 1.0);
+}
+
+function _storyBuildShopItems() {
+  const up = _story2.metaUpgrades || { damage: 0, survivability: 0, healUses: 0 };
+  return [
+    {
+      key: 'chapter_heal',
+      icon: '💉',
+      name: 'Field Treatment',
+      desc: 'Restore 35% chapter health carryover before the next chapter. Cannot heal above 90%.',
+      tokenCost: 18 + up.healUses * 10,
+      canBuy: () => _storyGetCarryHealthPct() < 0.9,
+      buy() {
+        _storySetCarryHealthPct(Math.min(0.9, _storyGetCarryHealthPct() + 0.35));
+        up.healUses++;
+      },
+    },
+    {
+      key: 'meta_damage',
+      icon: '⚔️',
+      name: 'Damage Upgrade',
+      desc: 'Permanent +8% story damage. Cost scales each rank.',
+      tokenCost: 28 + up.damage * 20,
+      canBuy: () => up.damage < 6,
+      buy() { up.damage++; },
+    },
+    {
+      key: 'meta_survivability',
+      icon: '🛡️',
+      name: 'Survivability Upgrade',
+      desc: 'Permanent +10 max HP and minor damage reduction in Story Mode.',
+      tokenCost: 30 + up.survivability * 22,
+      canBuy: () => up.survivability < 6,
+      buy() { up.survivability++; },
+    },
+  ];
+}
+
+// ── Save integration ─────────────────────────────────────────────────────────
 function getStoryDataForSave() {
-  return JSON.parse(JSON.stringify(_storyProgress));
+  return typeof _story2 !== 'undefined' ? JSON.parse(JSON.stringify(_story2)) : null;
 }
 
 function restoreStoryDataFromSave(data) {
-  if (!data || !data.completedLevels) return;
-  _storyProgress = data;
-  if (!('seenIntro' in _storyProgress)) _storyProgress.seenIntro = false;
-  _saveProgress();
+  if (!data || !data.defeated) return;
+  Object.assign(_story2, data);
+  _saveStory2();
 }
 
 // ============================================================
@@ -1367,8 +588,11 @@ function _defaultStory2Progress() {
     unlockedAbilities: [],      // ability keys bought from store
     defeated:          [],      // chapter indices completed
     storyComplete:     false,
+    runState:          { healthPct: 1, noDeathChain: 0 },
+    metaUpgrades:      { damage: 0, survivability: 0, healUses: 0 },
     // v3 hierarchy fields — added by migration for old saves
     arcCollapsed:      {},      // { arcId: bool } — user-toggled arc collapse state
+    actExpanded:       {},      // { actIndex: bool } — user forced an out-of-range act open
   };
 }
 
@@ -1380,6 +604,9 @@ let _story2 = (function() {
     if (!p || !Array.isArray(p.defeated)) return _defaultStory2Progress();
     // Migration: ensure v3 fields exist on old saves
     if (!p.arcCollapsed || typeof p.arcCollapsed !== 'object') p.arcCollapsed = {};
+    if (!p.actExpanded  || typeof p.actExpanded  !== 'object') p.actExpanded  = {};
+    if (!p.runState || typeof p.runState !== 'object') p.runState = { healthPct: 1, noDeathChain: 0 };
+    if (!p.metaUpgrades || typeof p.metaUpgrades !== 'object') p.metaUpgrades = { damage: 0, survivability: 0, healUses: 0 };
     return p;
   } catch(e) { return _defaultStory2Progress(); }
 })();
@@ -1648,8 +875,9 @@ function _showStory2RetryScreen(ch) {
     retryDiv.style.cssText = 'margin-top:16px;text-align:center;';
 
     retryDiv.innerHTML = `
-      <div style="font-size:0.72rem;letter-spacing:1px;color:#667;text-transform:uppercase;margin-bottom:4px;">Chapter</div>
+      <div style="font-size:0.72rem;letter-spacing:1px;color:#667;text-transform:uppercase;margin-bottom:4px;">${storyPhaseIndicator ? 'Phase Failed' : 'Chapter'}</div>
       <div style="font-size:1.05rem;font-weight:700;color:#dde4ff;margin-bottom:10px;">${ch.title}</div>
+      ${storyPhaseIndicator ? `<div style="font-size:0.74rem;color:#8cc8ff;margin-bottom:10px;">PHASE ${storyPhaseIndicator.index}/${storyPhaseIndicator.total} — ${storyPhaseIndicator.label}</div>` : ''}
       ${affordable.length > 0 ? `
         <div style="font-size:0.74rem;color:#ffcc66;margin-bottom:10px;">
           💡 ${affordable.length} upgrade${affordable.length > 1 ? 's' : ''} affordable (${_story2.tokens} 🪙)
@@ -1657,7 +885,7 @@ function _showStory2RetryScreen(ch) {
       ` : ''}
       <div style="display:flex;flex-direction:column;gap:7px;max-width:240px;margin:0 auto;">
         <button id="_retryChapterBtn" style="padding:10px 0;background:linear-gradient(135deg,#1a5acc,#2277ee);border:none;border-radius:9px;color:#fff;font-weight:700;font-size:0.88rem;cursor:pointer;width:100%;">
-          ↺ Retry Chapter
+          ↺ Retry ${storyPhaseIndicator ? 'Phase' : 'Chapter'}
         </button>
         ${affordable.length > 0 ? `
           <button id="_retryStoreBtn" style="padding:10px 0;background:linear-gradient(135deg,#6622aa,#9933cc);border:none;border-radius:9px;color:#fff;font-weight:700;font-size:0.88rem;cursor:pointer;width:100%;">
@@ -2521,7 +1749,7 @@ const STORY_CHAPTERS2 = [
       '',
       'A long silence.',
       '',
-      '"Okay," you said.',
+      '"Death can have me when it earns me," you said.',
       '"Let\'s go."',
     ],
     preText: null,
@@ -4292,7 +3520,52 @@ const STORY_CHAPTERS2 = [
   },
 
   {
-    id: 76, title: 'The Creator\'s Gate',
+    id: 76, title: 'SOVEREIGN',
+    world: '⚡ Creator\'s Proving Ground',
+    narrative: [
+      'The gate demanded a proof.',
+      '',
+      'Not of power. Of pattern.',
+      '',
+      'The Creator had left a guardian — a construct built from pure observation.',
+      'It had watched every fighter that ever approached the gate.',
+      'Every dodge. Every mistake. Every habit.',
+      '',
+      '"\"It knows what you will do before you do it,\" Veran said.',
+      '"\"It\'s been watching you since the beginning.\"",',
+      '',
+      '"\"Then I\'ll have to surprise it.\"",',
+      '',
+      '"\"That\'s the problem.\"",',
+      '"\"It\'s already accounted for that.\"",',
+      '',
+      'The construct stepped forward.',
+      'It had no face. Only readiness.',
+    ],
+    preText: [
+      'Before the Creator — there was the test.',
+      '"\"Every dodge. Every combo. Every mistake.\"',
+      '"\"I was watching.\"',
+      'Its name is SOVEREIGN.',
+      'Defeat it — if the concept means anything to you.',
+    ],
+    isSovereignFight: true,
+    arena: 'warpzone',
+    playerLives: 5,
+    tokenReward: 150,
+    fightScript: [
+      { frame: 60,  text: '\"You\'ve been profiled.\"',           color: '#cc44ff', timer: 180 },
+      { frame: 300, text: '\"I see the pattern forming.\"',        color: '#cc44ff', timer: 180 },
+      { frame: 600, text: '\"Predictable. Adjust or fall.\"',      color: '#dd66ff', timer: 200 },
+      { frame: 900, text: '\"You\'re running out of surprises.\"', color: '#ff44aa', timer: 200 },
+    ],
+    postText: 'The construct stilled. The gate accepted the proof. Somewhere behind it, the Creator was waiting — but now it knew you could be surprised.',
+    unlockText: '⚠ The path forward is now open.',
+    unlockDetail: 'SOVEREIGN has been overcome. The Creator awaits.',
+  },
+
+  {
+    id: 77, title: 'The Creator\'s Gate',
     world: '⚛️ Multiversal Core — Creator\'s Domain',
     narrative: [
       'The rift was open.',
@@ -4327,7 +3600,7 @@ const STORY_CHAPTERS2 = [
   // ══════════════════════════════════════════════════════════════════
 
   {
-    id: 77, title: 'What Remains',
+    id: 78, title: 'What Remains',
     world: '🕳️ The Void Between',
     isEpilogue: false,
     narrative: [
@@ -4360,7 +3633,7 @@ const STORY_CHAPTERS2 = [
   },
 
   {
-    id: 78, title: 'True Form',
+    id: 79, title: 'True Form',
     world: '🕳️ The Void — Final Confrontation',
     narrative: [
       'The True Form arrived without announcement.',
@@ -4403,7 +3676,7 @@ const STORY_CHAPTERS2 = [
   // ═══════════════ EPILOGUE ═══════════════
 
   {
-    id: 79, title: 'After',
+    id: 80, title: 'After',
     world: '🌆 Home — Epilogue',
     isEpilogue: true,
     narrative: [
@@ -4432,6 +3705,116 @@ const STORY_CHAPTERS2 = [
     postText: 'STORY COMPLETE. You held the rift open with your own fragment. You are the reason seventeen dimensions are still standing. Story Online is now unlocked.',
   },
 ];
+
+function _storyExploreStyleForWorld(world) {
+  const tag = String(world || '').toLowerCase();
+  if (tag.includes('forest') || tag.includes('green')) return 'forest';
+  if (tag.includes('void') || tag.includes('rift')) return 'void';
+  if (tag.includes('space') || tag.includes('fracture')) return 'space';
+  if (tag.includes('lava') || tag.includes('industrial')) return 'lava';
+  return 'city';
+}
+
+function _storyPassiveChapterVariant(ch) {
+  const cycle = ['exploration', 'objective', 'parkour'];
+  return cycle[ch.id % cycle.length];
+}
+
+function _storyPassiveChapterObjective(ch, variant) {
+  const world = String(ch.world || '').toLowerCase();
+  if (variant === 'parkour') {
+    if (world.includes('rooftop') || world.includes('sky')) return 'Rooftop Route';
+    if (world.includes('fracture') || world.includes('space')) return 'Phase Path';
+    return 'Traversal Route';
+  }
+  if (variant === 'objective') {
+    if (world.includes('relay') || world.includes('signal')) return 'Signal Node';
+    if (world.includes('void') || world.includes('rift')) return 'Anchor Fragment';
+    return 'Control Point';
+  }
+  if (world.includes('forest')) return 'Hidden Trail';
+  if (world.includes('fracture') || world.includes('space')) return 'Fracture Trail';
+  return 'Forward Route';
+}
+
+function _storyPassiveEnemyDefs(ch, variant) {
+  const id = ch.id;
+  const tier = id >= 60 ? 'expert' : id >= 35 ? 'hard' : id >= 12 ? 'medium' : 'easy';
+  const style = _storyExploreStyleForWorld(ch.world);
+  const baseColor = style === 'forest' ? '#58784f' : style === 'space' ? '#6b5ca8' : style === 'lava' ? '#9b4e2d' : style === 'void' ? '#55516d' : '#556677';
+  const walker = { wx: 660, name: 'Scout', weaponKey: id >= 18 ? 'spear' : 'sword', classKey: 'none', aiDiff: tier, color: baseColor };
+  const hunter = { wx: 1300, name: 'Hunter', weaponKey: id >= 25 ? 'axe' : 'sword', classKey: id >= 20 ? 'warrior' : 'none', aiDiff: tier, color: baseColor };
+  const guardA = { wx: 2500, name: 'Sentinel', weaponKey: id >= 45 ? 'hammer' : 'sword', classKey: id >= 30 ? 'tank' : 'warrior', aiDiff: tier, color: baseColor, isGuard: true, health: 110 + Math.min(70, id * 2) };
+  const guardB = { wx: 2580, name: 'Warden', weaponKey: id >= 48 ? 'spear' : 'axe', classKey: id >= 28 ? 'assassin' : 'warrior', aiDiff: id >= 55 ? 'expert' : 'hard', color: baseColor, isGuard: true, health: 95 + Math.min(60, id * 2) };
+  if (variant === 'parkour') {
+    walker.wx = 900;
+    hunter.wx = 1850;
+    return [walker, hunter];
+  }
+  if (variant === 'objective') {
+    return [walker, hunter, guardA, guardB];
+  }
+  return [walker, hunter, { wx: 2050, name: 'Pursuer', weaponKey: id >= 22 ? 'axe' : 'sword', classKey: 'warrior', aiDiff: tier, color: baseColor }];
+}
+
+function _promotePassiveStoryChapters() {
+  for (const ch of STORY_CHAPTERS2) {
+    if (!ch || !ch.noFight || ch.isEpilogue) continue;
+
+    const variant = _storyPassiveChapterVariant(ch);
+    const objective = _storyPassiveChapterObjective(ch, variant);
+    const worldLen = variant === 'parkour'
+      ? 5600 + (ch.id % 4) * 340
+      : variant === 'objective'
+        ? 5200 + (ch.id % 5) * 320
+        : 4800 + (ch.id % 6) * 280;
+
+    ch.noFight = false;
+    ch.type = 'exploration';
+    ch.exploreMode = variant;
+    ch.style = _storyExploreStyleForWorld(ch.world);
+    ch.worldLength = ch.worldLength || worldLen;
+    ch.objectX = ch.objectX || (ch.worldLength - (variant === 'objective' ? 620 : 520));
+    ch.objectName = ch.objectName || objective;
+    ch.spawnEnemies = ch.spawnEnemies || _storyPassiveEnemyDefs(ch, variant);
+    ch.playerLives = ch.playerLives || 3;
+    ch.tokenReward = Math.max(ch.tokenReward || 0, 16 + Math.floor(ch.id * 0.35));
+    ch.preText = ch.preText || (
+      variant === 'parkour'
+        ? `Keep moving. Clear the route and reach the ${objective}.`
+        : variant === 'objective'
+          ? `Push through resistance and secure the ${objective}.`
+          : `Advance through the area and find the ${objective}.`
+    );
+    ch.fightScript = ch.fightScript || [
+      {
+        frame: 50,
+        text: variant === 'parkour'
+          ? 'Route unstable. Stay high, keep speed, and don\'t get pinned.'
+          : variant === 'objective'
+            ? `Hold pressure, break the defenders, and take the ${objective}.`
+            : `Stay alert. This section is live now — move toward the ${objective}.`,
+        color: variant === 'parkour' ? '#44ccff' : variant === 'objective' ? '#ffcc44' : '#aaccff',
+        timer: 260,
+      },
+      {
+        frame: variant === 'parkour' ? 500 : 620,
+        text: variant === 'parkour'
+          ? 'Keep momentum. Hesitation is what gets you knocked off the route.'
+          : variant === 'objective'
+            ? `You are not done when you arrive. Hold the ${objective} under pressure.`
+            : 'This section is built to grind you down. Keep moving anyway.',
+        color: variant === 'parkour' ? '#9be7ff' : variant === 'objective' ? '#ffe58a' : '#d3e6ff',
+        timer: 250,
+      },
+    ];
+  }
+}
+
+_promotePassiveStoryChapters();
+for (const _ch of STORY_CHAPTERS2) {
+  if (_ch && !_ch.isEpilogue) _storyBuildPhases(_ch);
+}
 
 // ── Ability definitions for the store ────────────────────────────────────────
 // Blueprints are dropped as loot from specific chapter victories.
@@ -4561,14 +3944,14 @@ const STORY_ACT_STRUCTURE = [
     id: 'act4', label: 'Act V — Into the Architecture', color: '#dd3344',
     arcs: [
       { id: 'arc4-0', label: 'The Creator\'s Threshold', chapterRange: [62, 69] },
-      { id: 'arc4-1', label: 'The Final Architecture',   chapterRange: [70, 76] },
+      { id: 'arc4-1', label: 'The Final Architecture',   chapterRange: [70, 77] },
     ],
   },
   {
     id: 'act5', label: 'Act VI — True Form', color: '#cc44ff',
     arcs: [
-      { id: 'arc5-0', label: 'Into the Void',       chapterRange: [77, 77] },
-      { id: 'arc5-1', label: 'Final Confrontation', chapterRange: [78, 79] },
+      { id: 'arc5-0', label: 'Into the Void',       chapterRange: [78, 78] },
+      { id: 'arc5-1', label: 'Final Confrontation', chapterRange: [79, 80] },
     ],
   },
 ];
@@ -4642,6 +4025,20 @@ function _renderStoryStore2() {
   grid.innerHTML = '';
   _story2TokenDisplay();
 
+  for (const item of _storyBuildShopItems()) {
+    const canBuy = _story2.tokens >= item.tokenCost && item.canBuy();
+    const card = document.createElement('div');
+    card.className = 'story-ability-card2' + (canBuy ? ' sa-buyable' : ' sa-locked');
+    card.innerHTML = `<div class="sa-icon2">${item.icon}</div>
+      <div class="sa-name2">${item.name}</div>
+      <div class="sa-desc2">${item.desc}</div>
+      <span class="sa-cost2">${item.tokenCost} 🪙</span>`;
+    if (canBuy) {
+      card.onclick = () => _buyStoryShopItem(item);
+    }
+    grid.appendChild(card);
+  }
+
   for (const [key, ab] of Object.entries(STORY_ABILITIES2)) {
     const owned  = _story2.unlockedAbilities.includes(key);
     const hasBP  = !ab.requiresBlueprint || _story2.blueprints.includes(key);
@@ -4666,6 +4063,16 @@ function _renderStoryStore2() {
     }
     grid.appendChild(card);
   }
+}
+
+function _buyStoryShopItem(item) {
+  if (!item || _story2.tokens < item.tokenCost || !item.canBuy()) return;
+  _story2.tokens -= item.tokenCost;
+  item.buy();
+  _saveStory2();
+  _renderStoryStore2();
+  _story2TokenDisplay();
+  if (typeof showToast === 'function') showToast(`✅ Purchased: ${item.name}`);
 }
 
 function _buyAbility2(key, ab) {
@@ -4776,12 +4183,111 @@ function _showPrologue(onDone) {
 let _narrativeActive = false; // guard against re-entrant narrative calls
 const _seenNarrativeIds = new Set(); // chapters whose narrative was already shown this session
 
+function _startStoryGauntlet(ch) {
+  if (!ch) return;
+  const phases = _storyBuildPhases(ch);
+  storyGauntletState = {
+    chapterId: ch.id,
+    phases,
+    index: 0,
+    carryHealthPct: _storyGetCarryHealthPct(),
+    sideRewards: [],
+  };
+  _storyUpdatePhaseIndicator();
+  _launchStoryGauntletPhase(ch);
+}
+
+function _storyPhaseLaunchConfig(ch, phase) {
+  const phaseType = phase.type;
+  const traversalLike = phaseType === 'traversal';
+  if (traversalLike) {
+    const traversalChapter = {
+      ...ch,
+      type: 'exploration',
+      noFight: false,
+      preText: `${phase.label || 'Advance'} — ${_storyPhaseName(phase.type)}`,
+      worldLength: phase.worldLength || Math.max(5200, Math.floor((ch.worldLength || 4600) * 0.75)),
+      objectName: phase.objectName || ch.objectName || 'Forward Route',
+      spawnEnemies: phase.spawnEnemies || ch.spawnEnemies || [],
+      playerLives: phase.playerLives || ch.playerLives || 3,
+      fightScript: [...(ch.fightScript || [])],
+    };
+    return { mode: 'exploration', chapter: traversalChapter };
+  }
+
+  const launch = {
+    ...ch,
+    type: 'fight',
+    noFight: false,
+    preText: `${phase.label || _storyPhaseName(phaseType)}`,
+    playerLives: phase.playerLives || ch.playerLives || 3,
+    arena: phase.arena || ch.arena,
+    isBossFight: false,
+    isTrueFormFight: false,
+    isSovereignFight: false,
+    twoEnemies: Array.isArray(phase.opponents) && phase.opponents.length > 1,
+    secondEnemy: Array.isArray(phase.opponents) && phase.opponents.length > 1 ? phase.opponents[1] : null,
+  };
+  if (Array.isArray(phase.opponents) && phase.opponents[0]) {
+    const lead = phase.opponents[0];
+    launch.opponentName = lead.name || ch.opponentName || 'Enemy';
+    launch.weaponKey = lead.weaponKey || ch.weaponKey || 'sword';
+    launch.classKey = lead.classKey || ch.classKey || 'warrior';
+    launch.aiDiff = lead.aiDiff || ch.aiDiff || 'medium';
+    launch.opponentColor = lead.color || ch.opponentColor || '#778899';
+    launch.armor = lead.armor || [];
+  }
+  if (phase.finalChapter) {
+    launch.isBossFight = !!ch.isBossFight;
+    launch.isTrueFormFight = !!ch.isTrueFormFight;
+    launch.isSovereignFight = !!ch.isSovereignFight;
+    if (!launch.opponentName && ch.opponentName) launch.opponentName = ch.opponentName;
+    if (!launch.weaponKey && ch.weaponKey) launch.weaponKey = ch.weaponKey;
+    if (!launch.classKey && ch.classKey) launch.classKey = ch.classKey;
+  }
+  return { mode: 'chapter', chapter: launch };
+}
+
+function _launchStoryGauntletPhase(ch) {
+  const phase = _storyGetCurrentPhase();
+  if (!phase) return;
+  _storyUpdatePhaseIndicator();
+  storyPendingPhaseConfig = phase;
+  const cfg = _storyPhaseLaunchConfig(ch, phase);
+  if (cfg.mode === 'exploration') _launchExplorationChapter(cfg.chapter);
+  else _launchChapter2Fight(cfg.chapter);
+}
+
+function _advanceStoryGauntletPhase(ch) {
+  if (!storyGauntletState) return false;
+  storyGauntletState.index++;
+  if (storyGauntletState.index >= storyGauntletState.phases.length) {
+    storyPendingPhaseConfig = null;
+    storyPhaseIndicator = null;
+    return false;
+  }
+  _storyUpdatePhaseIndicator();
+  setTimeout(() => {
+    const go = document.getElementById('gameOverOverlay');
+    if (go) go.style.display = 'none';
+    const pauseOv = document.getElementById('pauseOverlay');
+    if (pauseOv) pauseOv.style.display = 'none';
+    storyModeActive = true;
+    _launchStoryGauntletPhase(ch);
+  }, 420);
+  return true;
+}
+
 function _beginChapter2(idx) {
   if (_narrativeActive) return; // already showing a narrative — ignore duplicate click
   const ch = STORY_CHAPTERS2[idx];
   if (!ch) return;
   _activeStory2Chapter = ch;
 
+  if (ch.noFight && !ch.isEpilogue) {
+    _showStory2Narrative(ch.narrative, () => _startStoryGauntlet(ch));
+    return;
+  }
   if (ch.noFight) {
     _showStory2Narrative(ch.narrative, () => _completeChapter2(ch));
     return;
@@ -4798,7 +4304,7 @@ function _beginChapter2(idx) {
   const allLines = [...(ch.narrative || [])];
   if (ch.preText) allLines.push(ch.preText);
   _showStory2Narrative(allLines, () => {
-    _showPreFightStoreNag(ch, () => _launchChapter2Fight(ch));
+    _showPreFightStoreNag(ch, () => _startStoryGauntlet(ch));
   });
 }
 
@@ -4870,6 +4376,7 @@ function _launchChapter2Fight(ch) {
 }
 
 function _launchChapter2FightImmediate(ch) {
+  const _phase = storyPendingPhaseConfig;
   // Close the story modal directly — bypass the ch0-lock guard (fight launch is always valid)
   const _storyModal = document.getElementById('storyModal');
   if (_storyModal) _storyModal.style.display = 'none';
@@ -4881,6 +4388,10 @@ function _launchChapter2FightImmediate(ch) {
   } else if (ch.isBossFight) {
     gameMode = 'boss';
     if (typeof selectMode === 'function') selectMode('boss');
+  } else if (ch.isSovereignFight) {
+    gameMode = 'adaptive';
+    p2IsBot  = true;
+    if (typeof selectMode === 'function') selectMode('adaptive');
   } else {
     gameMode = '2p';
     p2IsBot  = true;
@@ -4888,22 +4399,23 @@ function _launchChapter2FightImmediate(ch) {
   }
 
   // Set arena
-  if (ch.arena) {
-    selectedArena = ch.arena;
+  if ((_phase && _phase.arena) || ch.arena) {
+    selectedArena = (_phase && _phase.arena) || ch.arena;
     const arSelect = document.getElementById('arenaSelect');
-    if (arSelect) arSelect.value = ch.arena;
+    if (arSelect) arSelect.value = selectedArena;
   }
 
   // ── Ranged-weapon restriction ─────────────────────────────────────────────
-  // Chapters the player has already beaten allow ranged weapons (replay).
-  // On first run, ranged weapons are forbidden for EVERYONE (player and all bots).
+  // Early story forbids ranged weapons so progression stays grounded and difficulty is consistent.
+  // Later chapters/replays can use ranged loadouts normally.
   const _chBeaten = Array.isArray(_story2.defeated) && _story2.defeated.includes(ch.id);
   const _RANGED_FALLBACK = 'sword'; // melee substitute when ranged is stripped
   const _isRanged = key => typeof WEAPONS !== 'undefined' && WEAPONS[key] && WEAPONS[key].type === 'ranged';
-  const _safeWeapon = key => !_isRanged(key) ? key : _RANGED_FALLBACK; // ranged always blocked in story
+  const _rangedUnlocked = _chBeaten || ch.id >= 10;
+  const _safeWeapon = key => (_rangedUnlocked || !_isRanged(key)) ? key : _RANGED_FALLBACK;
 
   // Set P2 weapon/class to chapter opponent
-  const _notBossOrTF = !ch.isBossFight && !ch.isTrueFormFight;
+  const _notBossOrTF = !ch.isBossFight && !ch.isTrueFormFight && !ch.isSovereignFight;
   if (_notBossOrTF && ch.weaponKey) {
     const p2w = document.getElementById('p2Weapon');
     if (p2w) p2w.value = _safeWeapon(ch.weaponKey);
@@ -4931,16 +4443,32 @@ function _launchChapter2FightImmediate(ch) {
       if (reqs.includes('super')      && _ov.noSuper)      return false;
       return true;
     });
+    if (_phase && !_phase.finalChapter) {
+      storyFightScript.unshift({
+        frame: 20,
+        text: `${_storyPhaseName(_phase.type)} — ${_phase.label || 'Engage and clear the arena.'}`,
+        color: _phase.type === 'hazard_phase' ? '#ff8844' : _phase.type === 'elite_wave' ? '#ffcc66' : '#aaccff',
+        timer: 220,
+      });
+    }
     storyFightScriptIdx = 0;
     storyFightSubtitle  = null;
   } else {
     storyFightScript    = [];
     storyFightScriptIdx = 0;
     storyFightSubtitle  = null;
+    if (_phase && !_phase.finalChapter) {
+      storyFightSubtitle = {
+        text: `${_storyPhaseName(_phase.type)} — ${_phase.label || 'Clear the phase.'}`,
+        timer: 220,
+        maxTimer: 220,
+        color: _phase.type === 'hazard_phase' ? '#ff8844' : '#aaccff'
+      };
+    }
   }
 
   // Apply per-chapter player lives
-  if (typeof selectLives === 'function') selectLives(ch.playerLives || 3);
+  if (typeof selectLives === 'function') selectLives((_phase && _phase.playerLives) || ch.playerLives || 3);
   infiniteMode = false;
 
   // ── Ability progression: gate unlocks by chapter id OR by story events ───
@@ -5165,11 +4693,27 @@ function story2OnMatchEnd(playerWon) {
     }
   }
   if (!playerWon) {
+    if (_story2.runState) _story2.runState.noDeathChain = 0;
     _showStory2RetryScreen(ch);
     return true; // handled — don't complete chapter
   }
 
+  const p1 = players && players.find(p => !p.isBoss && !p.isAI);
+  if (p1 && p1.maxHealth > 0) {
+    _storySetCarryHealthPct(p1.health / p1.maxHealth);
+  }
+
+  if (storyGauntletState && _advanceStoryGauntletPhase(ch)) {
+    if (!_story2.runState) _story2.runState = { healthPct: 1, noDeathChain: 0 };
+    _story2.runState.noDeathChain = (_story2.runState.noDeathChain || 0) + 1;
+    _saveStory2();
+    return true;
+  }
+
   // Award tokens + blueprint
+  storyGauntletState = null;
+  storyPendingPhaseConfig = null;
+  storyPhaseIndicator = null;
   _story2.tokens += ch.tokenReward;
   if (ch.blueprintDrop && !_story2.blueprints.includes(ch.blueprintDrop)) {
     _story2.blueprints.push(ch.blueprintDrop);
@@ -5185,6 +4729,17 @@ function story2OnMatchEnd(playerWon) {
   }
   if (!_story2.defeated.includes(ch.id)) _story2.defeated.push(ch.id);
   _story2.chapter = Math.max(_story2.chapter, ch.id + 1);
+  if (!_story2.runState) _story2.runState = { healthPct: 1, noDeathChain: 0 };
+  _story2.runState.noDeathChain = (_story2.runState.noDeathChain || 0) + 1;
+
+  // Sovereign chapter win — unlock Neural AI and Sovereign Ω modes
+  if (ch.isSovereignFight && !localStorage.getItem('smc_sovereignBeaten')) {
+    localStorage.setItem('smc_sovereignBeaten', '1');
+    const adCard  = document.getElementById('modeAdaptive');
+    const sovCard = document.getElementById('modeSovereign');
+    if (adCard)  adCard.style.display  = '';
+    if (sovCard) sovCard.style.display = '';
+  }
 
   // Check story completion (trigger on last non-epilogue chapter win)
   const _lastFightId = STORY_CHAPTERS2.filter(c => !c.noFight && !c.isEpilogue).reduce((m,c)=>Math.max(m,c.id),-1);
@@ -5200,6 +4755,9 @@ function story2OnMatchEnd(playerWon) {
 
 function _completeChapter2(ch) {
   // Called for no-fight chapters (epilogue)
+  storyGauntletState = null;
+  storyPendingPhaseConfig = null;
+  storyPhaseIndicator = null;
   if (!_story2.defeated.includes(ch.id)) _story2.defeated.push(ch.id);
   _story2.tokens += ch.tokenReward;
   _story2.chapter = Math.max(_story2.chapter, ch.id + 1);
@@ -5242,6 +4800,10 @@ function _showStory2Victory(ch) {
     }
     if (ch.isEpilogue || _story2.storyComplete) {
       html += `<div style="color:#ffaaff;font-size:0.76rem;margin-top:5px;font-style:italic;">🌐⚔️ Story Online mode unlocked!</div>`;
+    }
+    if (ch.isSovereignFight && localStorage.getItem('smc_sovereignBeaten')) {
+      html += `<div style="color:#cc44ff;font-size:0.82rem;margin-top:8px;font-weight:800;letter-spacing:1px;text-shadow:0 0 10px #cc44ff;">⚡ NEURAL AI MODES UNLOCKED</div>`;
+      html += `<div style="color:#aa88dd;font-size:0.72rem;margin-top:2px;font-style:italic;">Challenge SOVEREIGN &amp; SOVEREIGN Ω from the main menu.</div>`;
     }
     rewardEl.innerHTML = html;
   }
@@ -5302,6 +4864,9 @@ function storyVictoryBackToMenu() {
   if (overlay) overlay.style.display = 'none';
   _activeStory2Chapter = null;
   storyModeActive = false;
+  storyGauntletState = null;
+  storyPendingPhaseConfig = null;
+  storyPhaseIndicator = null;
   storyEnemyArmor = []; storyTwoEnemies = false; storySecondEnemyDef = null;
   if (typeof backToMenu === 'function') backToMenu();
   setTimeout(openStoryMenu, 300);
@@ -5804,6 +5369,38 @@ function resetStoryEventState() {
 // safe platform with a flash effect so it feels like a "reality enforcement" system.
 function storyUpdateBoundaries() {
   if (!storyModeActive || !gameRunning || !currentArena || gameMode === 'exploration') return;
+  // portalEdge: center portal (decorative in drawing, functional here) — teleport to far side of map
+  if (currentArenaKey === 'portalEdge') {
+    const cpx = GAME_W / 2, cpy = 260;
+    for (const p of players) {
+      if (!p || p.isBoss || p.health <= 0 || p._centerPortalCd > 0) continue;
+      if (Math.abs(p.cx() - cpx) < 70 && Math.abs(p.cy() - cpy) < 130) {
+        // Teleport to a safe platform away from center, on the opposite half of the world
+        const halfW = (currentArena.mapRight || GAME_W) / 2;
+        const pls = (currentArena.platforms || []).filter(pl =>
+          !pl.isFloorDisabled && !pl.isFloor && pl.w > 40 &&
+          (p.cx() < cpx ? pl.x + pl.w / 2 > halfW : pl.x + pl.w / 2 < halfW)
+        );
+        let dest = pls.length ? pls[Math.floor(Math.random() * pls.length)] : null;
+        if (dest) {
+          p.x = dest.x + dest.w / 2 - p.w / 2;
+          p.y = dest.y - p.h - 2;
+        } else {
+          p.x = p.cx() < cpx ? cpx + 200 : cpx - 200;
+          p.y = 350;
+        }
+        p.vx = 0; p.vy = 0;
+        p._centerPortalCd = 90; // 1.5s cooldown to prevent re-trigger
+        p.hurtTimer = Math.max(p.hurtTimer || 0, 30);
+        if (settings.particles) {
+          spawnParticles(p.cx(), p.cy(), '#aa44ff', 18);
+          spawnParticles(p.cx(), p.cy(), '#ffffff', 8);
+        }
+        if (settings.screenShake) screenShake = Math.max(screenShake, 5);
+      }
+      if (p._centerPortalCd > 0) p._centerPortalCd--;
+    }
+  }
   for (const p of players) {
     if (!p || p.isBoss || p.health <= 0) continue;
     const breachedH = p._storyBoundaryBreached; // 'left' | 'right' | null
@@ -5813,17 +5410,34 @@ function storyUpdateBoundaries() {
     const pls = currentArena.platforms
       ? currentArena.platforms.filter(pl => !pl.isFloorDisabled && pl.w > 40)
       : [];
-    // Pick the platform closest to horizontal center that has room
+    // For worldWidth arenas, pick platforms near the current camera view
+    const viewCX = (typeof camX === 'number' ? camX : 0) + GAME_W / 2;
+    const viewHalf = GAME_W * 0.8;
+    const nearby = pls.filter(pl => !pl.isFloor && Math.abs(pl.x + pl.w / 2 - viewCX) < viewHalf);
+    const usable = nearby.length ? nearby : pls.filter(pl => !pl.isFloor);
+    // Prefer platforms with overhead clearance (no platform within 100px above)
+    const clear = usable.filter(pl => {
+      const spawnX = pl.x + pl.w / 2;
+      return !pls.some(o => o !== pl && !o.isFloor &&
+        o.y + o.h > pl.y - 100 && o.y + o.h < pl.y && o.x < spawnX + 20 && o.x + o.w > spawnX - 20);
+    });
+    const pool = clear.length ? clear : (usable.length ? usable : pls);
+    // Pick closest to camera center
     let best = null;
     let bestScore = Infinity;
-    for (const pl of pls) {
+    for (const pl of pool) {
       const cx = pl.x + pl.w / 2;
-      const score = Math.abs(cx - GAME_W / 2) + (pl.isFloor ? 400 : 0); // prefer elevated platforms
+      const score = Math.abs(cx - viewCX) + (pl.isFloor ? 400 : 0);
       if (score < bestScore) { bestScore = score; best = pl; }
     }
-    if (!best) {
-      // Fallback: just center the player
-      p.x  = GAME_W / 2 - p.w / 2;
+    const safePos = typeof pickSafeSpawnNear === 'function'
+      ? pickSafeSpawnNear(viewCX, breachedH === 'right' ? 'left' : breachedH === 'left' ? 'right' : 'any')
+      : null;
+    if (safePos) {
+      p.x  = safePos.x - p.w / 2;
+      p.y  = safePos.y - p.h;
+    } else if (!best) {
+      p.x  = viewCX - p.w / 2;
       p.y  = 200;
     } else {
       p.x  = best.x + best.w / 2 - p.w / 2;
@@ -5863,7 +5477,17 @@ function _onStoryFightStart() {
     const p1 = players && players[0];
     if (p1 && !p1.isAI) {
       p1._story2BaseDmg = p1.dmgMult || 1;
+      const meta = _story2.metaUpgrades || { damage: 0, survivability: 0, healUses: 0 };
+      p1.maxHealth += meta.survivability * 10;
+      p1.health = Math.min(p1.maxHealth, Math.max(1, Math.round(p1.maxHealth * _storyGetCarryHealthPct())));
+      p1.dmgMult = (p1.dmgMult || 1) * (1 + meta.damage * 0.08);
+      p1.damageReductionMult = Math.max(0.70, (p1.damageReductionMult || 1) - meta.survivability * 0.025);
       _applyStory2Abilities(p1);
+    }
+    for (const enemy of players.filter(p => p && p !== p1 && (p.isAI || p.isBoss))) {
+      _storyScaleEnemyUnit(enemy, _activeStory2Chapter ? _activeStory2Chapter.id : 1, {
+        elite: !!(storyPendingPhaseConfig && (storyPendingPhaseConfig.type === 'elite_wave' || storyPendingPhaseConfig.type === 'mini_boss'))
+      });
     }
   }, 80);
 }
@@ -6032,37 +5656,134 @@ function _doDodge(p, dir) {
 // EXPLORATION CHAPTER SYSTEM
 // ============================================================
 
-function _exploreGenPlatforms(worldLen, seed) {
+function _exploreGenPlatforms(worldLen, seed, ch) {
   // Deterministic seeded pseudo-random (LCG)
   let s = (seed * 1234567 + 89101) | 0;
   const rng = () => { s = (s * 1664525 + 1013904223) & 0xffffffff; return (s >>> 0) / 0xffffffff; };
 
   const plats = [];
+  const mode = ch && ch.exploreMode ? ch.exploreMode : 'exploration';
 
   // ── Solid floor (no gaps — players should never fall into the void) ──────
   plats.push({ x: 0, y: 440, w: worldLen, h: 80, isFloor: true });
 
-  // ── Mid-level platforms ───────────────────────────────────────────────────
-  for (let wx = 250; wx < worldLen - 500; wx += 240 + Math.floor(rng() * 200)) {
-    plats.push({
-      x: wx + Math.floor(rng() * 80),
-      y: 290 + Math.floor((rng() - 0.5) * 80),
-      w: 100 + Math.floor(rng() * 80),
-      h: 18,
-    });
-  }
+  if (mode === 'parkour') {
+    for (let wx = 220; wx < worldLen - 420; wx += 170 + Math.floor(rng() * 85)) {
+      plats.push({
+        x: wx + Math.floor(rng() * 45),
+        y: 330 - Math.floor(rng() * 155),
+        w: 95 + Math.floor(rng() * 55),
+        h: 16,
+      });
+      if (rng() < 0.55) {
+        plats.push({
+          x: wx + 65 + Math.floor(rng() * 40),
+          y: 210 - Math.floor(rng() * 90),
+          w: 72 + Math.floor(rng() * 44),
+          h: 14,
+        });
+      }
+    }
+  } else {
+    // ── Mid-level platforms ─────────────────────────────────────────────────
+    for (let wx = 250; wx < worldLen - 500; wx += 240 + Math.floor(rng() * 200)) {
+      plats.push({
+        x: wx + Math.floor(rng() * 80),
+        y: 290 + Math.floor((rng() - 0.5) * 80),
+        w: 100 + Math.floor(rng() * 80),
+        h: 18,
+      });
+    }
 
-  // ── High platforms ────────────────────────────────────────────────────────
-  for (let wx = 500; wx < worldLen - 700; wx += 380 + Math.floor(rng() * 280)) {
-    plats.push({
-      x: wx + Math.floor(rng() * 120),
-      y: 170 + Math.floor((rng() - 0.5) * 70),
-      w: 85 + Math.floor(rng() * 70),
-      h: 15,
-    });
+    // ── High platforms ──────────────────────────────────────────────────────
+    for (let wx = 500; wx < worldLen - 700; wx += 380 + Math.floor(rng() * 280)) {
+      plats.push({
+        x: wx + Math.floor(rng() * 120),
+        y: 170 + Math.floor((rng() - 0.5) * 70),
+        w: 85 + Math.floor(rng() * 70),
+        h: 15,
+      });
+    }
+
+    if (mode === 'objective') {
+      const goalBase = worldLen - 620;
+      plats.push({ x: goalBase, y: 320, w: 180, h: 18 });
+      plats.push({ x: goalBase + 70, y: 235, w: 140, h: 16 });
+      plats.push({ x: goalBase + 200, y: 285, w: 110, h: 16 });
+    }
   }
 
   return plats;
+}
+
+function _storyScaleEnemyUnit(unit, chapterId, opts = {}) {
+  if (!unit) return unit;
+  const elite = !!opts.elite;
+  const mult = _storyDifficultyForChapter(chapterId, elite);
+  unit.maxHealth = Math.round((unit.maxHealth || unit.health || 100) * mult * (elite ? 1.5 : 1));
+  unit.health = unit.maxHealth;
+  unit.dmgMult = (unit.dmgMult || 1) * (0.9 + mult * 0.22);
+  unit.attackCooldownMult = Math.max(0.58, (unit.attackCooldownMult || 1) * (elite ? 0.72 : 0.86));
+  unit.aiReact = elite ? 0 : unit.aiReact;
+  unit._storyElite = elite;
+  unit._storyPredict = 0.10 + Math.min(0.18, chapterId * 0.0035) + (elite ? 0.12 : 0);
+  unit._storyDodgeChance = elite ? 0.14 : 0.05;
+  return unit;
+}
+
+function _storyPhaseExploreCap(chId) {
+  if (chId < 10) return 2;
+  if (chId < 22) return 3;
+  if (chId < 35) return 4;
+  if (chId < 50) return 5;
+  return 6;
+}
+
+function _storyBuildSidePortal(ch) {
+  if (!ch || ch.id < 6 || Math.random() < 0.45) return null;
+  const type = ch.id >= 22 && Math.random() < 0.35 ? 'distorted_rift'
+    : Math.random() < 0.5 ? 'elite_gauntlet' : 'survival';
+  return {
+    x: Math.floor((ch.worldLength || 5200) * (0.35 + Math.random() * 0.35)),
+    y: 260,
+    type,
+    reward: type === 'distorted_rift' ? 55 + ch.id * 3 : 32 + ch.id * 2,
+    active: true,
+    entered: false,
+  };
+}
+
+function _storyEnterSidePortal(portal, p1, ch) {
+  if (!portal || portal.entered || !p1) return;
+  portal.entered = true;
+  portal.active = false;
+  portal.challengeActive = true;
+  const isBossRift = portal.type === 'distorted_rift';
+  const eliteA = _storyCloneEnemyDef(ch, {
+    name: isBossRift ? 'Distorted Veran Echo' : 'Rift Elite',
+    weaponKey: isBossRift ? 'spear' : 'axe',
+    classKey: isBossRift ? 'warrior' : 'berserker',
+    aiDiff: ch.id >= 25 ? 'expert' : 'hard',
+    color: isBossRift ? '#8844ff' : '#aa6633',
+    isElite: true,
+  });
+  const eliteB = _storyCloneEnemyDef(eliteA, {
+    name: isBossRift ? 'Fracture Warden' : 'Elite Reinforcement',
+    weaponKey: 'hammer',
+    classKey: 'tank',
+    color: '#665577',
+    isElite: true,
+  });
+  storyFightSubtitle = {
+    text: isBossRift
+      ? 'Distorted Rift opened. Clear the weakened boss echo for a rare reward.'
+      : 'Side portal entered. Survive the encounter for bonus coins.',
+    timer: 220,
+    maxTimer: 220,
+    color: isBossRift ? '#ff88ff' : '#88ffcc'
+  };
+  _exploreSpawnEnemy({ ...eliteA, wx: p1.x + 140, health: isBossRift ? 220 : 150, isElite: true, isSidePortalEnemy: true }, p1);
+  if (!isBossRift) _exploreSpawnEnemy({ ...eliteB, wx: p1.x + 220, health: 160, isElite: true, isSidePortalEnemy: true }, p1);
 }
 
 function _launchExplorationChapter(ch) {
@@ -6071,7 +5792,7 @@ function _launchExplorationChapter(ch) {
 
   const worldLen = ch.worldLength || 9000;
   const goalX    = ch.objectX    || (worldLen - 350);
-  const plats    = _exploreGenPlatforms(worldLen, ch.id);
+  const plats    = _exploreGenPlatforms(worldLen, ch.id, ch);
 
   // Inject exploration arena into ARENAS under temp key
   const arenaKey = '__explore__';
@@ -6098,6 +5819,12 @@ function _launchExplorationChapter(ch) {
   exploreGoalX     = goalX;
   exploreGoalName  = ch.objectName || 'Exit';
   exploreGoalFound = false;
+  exploreCheckpoints = [];
+  exploreCheckpointIdx = -1;
+  const checkpointCount = ch.worldLength >= 5200 ? 2 : 1;
+  for (let i = 1; i <= checkpointCount; i++) {
+    exploreCheckpoints.push({ x: Math.floor((worldLen * i) / (checkpointCount + 1)), hit: false });
+  }
   // Strip ranged weapons from exploration enemies if this chapter hasn't been beaten yet
   const _expBeaten = Array.isArray(_story2.defeated) && _story2.defeated.includes(ch.id);
   exploreSpawnQ = (ch.spawnEnemies || []).map(e => {
@@ -6105,7 +5832,13 @@ function _launchExplorationChapter(ch) {
     const isRng = typeof WEAPONS !== 'undefined' && WEAPONS[e.weaponKey] && WEAPONS[e.weaponKey].type === 'ranged';
     return isRng ? Object.assign({}, e, { weaponKey: 'sword' }) : e;
   });
-  exploreEnemyCap  = 2;
+  exploreEnemyCap  = _storyPhaseExploreCap(ch.id);
+  exploreCombatQuiet = 0;
+  exploreAmbushTimer = 0;
+  exploreArenaLock = null;
+  exploreSidePortals = [];
+  const sidePortal = _storyBuildSidePortal(ch);
+  if (sidePortal) exploreSidePortals.push(sidePortal);
 
   // Game config
   selectedArena = arenaKey;
@@ -6142,6 +5875,9 @@ function _launchExplorationChapter(ch) {
   storyFightScript    = ch.fightScript  || [];
   storyFightScriptIdx = 0;
   storyFightSubtitle  = null;
+  if (ch.preText) {
+    storyFightSubtitle = { text: ch.preText, timer: 220, maxTimer: 220, color: '#dde8ff' };
+  }
   storyEnemyArmor     = [];
   storyTwoEnemies     = false;
   storySecondEnemyDef = null;
@@ -6156,6 +5892,26 @@ function _launchExplorationChapter(ch) {
 function updateExploration() {
   if (!exploreActive || !players[0] || !gameRunning) return;
   const p1 = players[0];
+  const activeEnemyCount = minions.filter(m => m.health > 0).length;
+  const inCombat = activeEnemyCount > 0 || !!players.find(p => p !== p1 && p.health > 0 && p.isAI);
+  exploreCombatQuiet = inCombat ? 0 : (exploreCombatQuiet + 1);
+  exploreAmbushTimer++;
+  if (exploreArenaLock) {
+    p1.x = clamp(p1.x, exploreArenaLock.left, exploreArenaLock.right - p1.w);
+    if (currentArena) {
+      currentArena.mapLeft = exploreArenaLock.left;
+      currentArena.mapRight = exploreArenaLock.right;
+    }
+    const lockAlive = minions.some(m => m.health > 0 && m.isArenaLockEnemy);
+    if (!lockAlive) {
+      if (currentArena) {
+        currentArena.mapLeft = exploreArenaLock.prevLeft;
+        currentArena.mapRight = exploreArenaLock.prevRight;
+      }
+      storyFightSubtitle = { text: `${exploreArenaLock.label || 'Arena lock'} cleared. Move.`, timer: 150, maxTimer: 150, color: '#88ffcc' };
+      exploreArenaLock = null;
+    }
+  }
 
   // Far boundary: player wandered far beyond the world — reset the chapter
   const _farLimit = exploreWorldLen + 2500;
@@ -6167,7 +5923,7 @@ function updateExploration() {
   }
 
   // Goal reached?
-  if (!exploreGoalFound && p1.x + p1.w >= exploreGoalX && p1.health > 0) {
+  if (!exploreArenaLock && !exploreGoalFound && p1.x + p1.w >= exploreGoalX && p1.health > 0) {
     exploreGoalFound = true;
     SoundManager.superActivate();
     spawnParticles(exploreGoalX + 20, 380, '#ffffaa', 40);
@@ -6176,9 +5932,100 @@ function updateExploration() {
     // Complete chapter after a short delay
     setTimeout(() => {
       if (!gameRunning) return;
-      // Mark chapter complete (same path as endGame -> story advance)
+      if (storyGauntletState && _advanceStoryGauntletPhase(_activeStory2Chapter)) return;
       endGame();
     }, 2200);
+  }
+
+  for (let i = 0; i < exploreCheckpoints.length; i++) {
+    const cp = exploreCheckpoints[i];
+    if (cp.hit || p1.cx() < cp.x || exploreArenaLock) continue;
+    cp.hit = true;
+    exploreCheckpointIdx = i;
+    const safeSpawn = typeof pickSafeSpawnNear === 'function' ? pickSafeSpawnNear(cp.x, 'any') : null;
+    if (safeSpawn) {
+      p1.spawnX = safeSpawn.x;
+      p1.spawnY = safeSpawn.y;
+    }
+    storyFightSubtitle = {
+      text: `Checkpoint secured ${i + 1}/${exploreCheckpoints.length}`,
+      timer: 170,
+      maxTimer: 170,
+      color: '#7dffcc'
+    };
+    spawnParticles(cp.x, p1.cy(), '#7dffcc', 14);
+    if ((_activeStory2Chapter && _activeStory2Chapter.id >= 8) || (storyGauntletState && storyGauntletState.index > 0)) {
+      if (!exploreArenaLock && currentArena) {
+        exploreArenaLock = {
+          left: Math.max(0, cp.x - 240),
+          right: Math.min(exploreWorldLen, cp.x + 320),
+          prevLeft: currentArena.mapLeft,
+          prevRight: currentArena.mapRight,
+          label: 'Checkpoint Arena',
+        };
+        storyFightSubtitle = { text: 'Arena lock engaged. Clear the wave.', timer: 180, maxTimer: 180, color: '#ffcc66' };
+      }
+      _exploreSpawnEnemy({ wx: cp.x + 80, name: 'Checkpoint Hunter', weaponKey: 'spear', classKey: 'warrior', aiDiff: 'hard', color: '#886644', isElite: true, health: 150, isArenaLockEnemy: true }, p1);
+      if ((_activeStory2Chapter && _activeStory2Chapter.id >= 18) || exploreEnemyCap >= 4) {
+        _exploreSpawnEnemy({ wx: cp.x + 150, name: 'Checkpoint Warden', weaponKey: 'hammer', classKey: 'tank', aiDiff: 'hard', color: '#556677', isElite: true, health: 170, isArenaLockEnemy: true }, p1);
+      }
+    }
+  }
+
+  for (const portal of exploreSidePortals) {
+    if (!portal.active || portal.entered) continue;
+    if (Math.abs(p1.cx() - portal.x) < 34 && Math.abs(p1.cy() - portal.y) < 120) {
+      _storyEnterSidePortal(portal, p1, _activeStory2Chapter);
+    }
+  }
+  for (const portal of exploreSidePortals) {
+    if (!portal || !portal.challengeActive) continue;
+    const livePortalEnemy = minions.some(m => m.health > 0 && m.isSidePortalEnemy);
+    if (!livePortalEnemy) {
+      portal.challengeActive = false;
+      _story2.tokens += portal.reward;
+      if (portal.type === 'distorted_rift') {
+        if (!_story2.metaUpgrades) _story2.metaUpgrades = { damage: 0, survivability: 0, healUses: 0 };
+        _story2.metaUpgrades.damage = Math.min(6, _story2.metaUpgrades.damage + 1);
+      }
+      _saveStory2();
+      storyFightSubtitle = {
+        text: portal.type === 'distorted_rift'
+          ? `Distorted Rift conquered — +${portal.reward} 🪙 and +1 damage rank.`
+          : `Side portal cleared — +${portal.reward} 🪙`,
+        timer: 220,
+        maxTimer: 220,
+        color: portal.type === 'distorted_rift' ? '#ff88ff' : '#88ffcc'
+      };
+    }
+  }
+
+  if (exploreCombatQuiet > 260 && activeEnemyCount < exploreEnemyCap) {
+    const spawnAhead = p1.x + GAME_W * 0.92;
+    _exploreSpawnEnemy({
+      wx: spawnAhead,
+      name: 'Pressure Stalker',
+      weaponKey: _activeStory2Chapter && _activeStory2Chapter.id >= 18 ? 'spear' : 'sword',
+      classKey: _activeStory2Chapter && _activeStory2Chapter.id >= 20 ? 'assassin' : 'warrior',
+      aiDiff: _activeStory2Chapter && _activeStory2Chapter.id >= 24 ? 'hard' : 'medium',
+      color: '#665544'
+    }, p1);
+    exploreCombatQuiet = 120;
+  }
+
+  if (exploreAmbushTimer > 360 && Math.abs(p1.vx) < 1.1 && !inCombat && activeEnemyCount < exploreEnemyCap) {
+    _exploreSpawnEnemy({
+      wx: p1.x + 120,
+      name: 'Ambush Elite',
+      weaponKey: 'axe',
+      classKey: 'berserker',
+      aiDiff: _activeStory2Chapter && _activeStory2Chapter.id >= 25 ? 'expert' : 'hard',
+      color: '#994444',
+      isElite: true,
+      health: 165
+    }, p1);
+    exploreAmbushTimer = 0;
+    storyFightSubtitle = { text: 'Passive too long. An elite found you.', timer: 170, maxTimer: 170, color: '#ff7766' };
   }
 
   // Spawn enemies from queue as player advances
@@ -6204,7 +6051,10 @@ function _exploreSpawnEnemy(def, p1) {
   const isGuard = !!def.isGuard;
   // Guards spawn directly at their post (near the relic), not offset from player
   const spawnX = isGuard ? def.wx : Math.max(p1.x + GAME_W * 0.7, def.wx);
-  const m = new Minion(spawnX, 300, def.color || '#888888', def.weaponKey || 'sword', true, def.aiDiff || 'medium');
+  const safeSpawn = typeof pickSafeSpawnNear === 'function'
+    ? pickSafeSpawnNear(spawnX, isGuard ? 'any' : 'right', p1 ? p1.x : undefined)
+    : null;
+  const m = new Minion(safeSpawn ? safeSpawn.x : spawnX, safeSpawn ? safeSpawn.y - 60 : 300, def.color || '#888888', def.weaponKey || 'sword', true, def.aiDiff || 'medium');
   m.name     = def.name || 'Enemy';
   m.lives    = 1;
   m.health   = isGuard ? (def.health || 120) : 80;
@@ -6214,13 +6064,20 @@ function _exploreSpawnEnemy(def, p1) {
     m.isExploreGuard = true;
     m._guardX = def.wx; // the x position they guard
   }
+  if (def.isArenaLockEnemy) m.isArenaLockEnemy = true;
+  if (def.isSidePortalEnemy) m.isSidePortalEnemy = true;
   if (def.classKey && def.classKey !== 'none' && typeof applyClass === 'function') {
     applyClass(m, def.classKey);
   }
+  _storyScaleEnemyUnit(m, _activeStory2Chapter ? _activeStory2Chapter.id : 1, { elite: !!def.isElite });
   if (def.armor && typeof storyApplyArmor === 'function') {
     storyApplyArmor(m, def.armor);
   }
+  m.storyFaction = 'enemy';
+  m._teamId = 2;
   m.target = p1;
+  p1.storyFaction = 'player';
+  p1._teamId = 1;
   p1.target = m; // P1 targets most recently spawned
   minions.push(m);
 }

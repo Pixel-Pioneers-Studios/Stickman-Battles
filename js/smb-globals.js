@@ -25,11 +25,47 @@ window.addEventListener('resize', resizeCanvas);
 // ============================================================
 const CHANGELOG = [
   {
+    version: '2.4.4',
+    title: 'STORY GAUNTLET OVERHAUL',
+    date: '2026-03-27',
+    flavor: 'Story Mode now fights back like a real progression gauntlet instead of a quick sprint.',
+    isLatest: true,
+    changes: [
+      { cat: 'Story',    text: 'Story chapters now auto-build into 3–5 phase gauntlets with traversal, arena locks, elite waves, hazards, and mini-boss finishes' },
+      { cat: 'Story',    text: 'Exploration pacing was expanded with stronger enemy pressure, checkpoint bursts, ambush punish, side portals, and optional Distorted Rift encounters' },
+      { cat: 'Story',    text: 'Chapter difficulty now scales from chapter progression plus player performance, including stronger elite variants and denser encounter caps' },
+      { cat: 'Economy',  text: 'Tokens now power a real between-chapter shop with healing, permanent damage upgrades, and survivability upgrades' },
+      { cat: 'UI',       text: 'Story HUD now shows the current gauntlet phase clearly during both combat and traversal sections' },
+      { cat: 'Balance',  text: 'Story carryover health and progression upgrades make long-form runs matter instead of resetting into isolated demo fights' },
+    ],
+  },
+  {
+    version: '2.0.0',
+    title: 'THE ARCHITECT UPDATE',
+    date: '2026-03-25',
+    flavor: 'The Code Realm has been fixed. SOVEREIGN awaits challengers.',
+    isLatest: false,
+    changes: [
+      { cat: 'Fix',      text: 'True Form Code Realm: added double-jump so all 5 nodes are reachable' },
+      { cat: 'Fix',      text: 'True Form Code Realm: lowered unreachable high nodes to proper jump height' },
+      { cat: 'Fix',      text: 'QTE: movement keys (WASD/arrows) now register correctly mid-QTE' },
+      { cat: 'Fix',      text: 'QTE: phases now end after max attempts with penalty damage instead of looping forever' },
+      { cat: 'Fix',      text: 'Large maps: camera now clamps to world bounds and no longer drifts off-edge' },
+      { cat: 'Fix',      text: 'Large maps: both players no longer spawn at the same position' },
+      { cat: 'Fix',      text: 'Boss dialogue bubble now scales correctly when camera is zoomed out' },
+      { cat: 'Fix',      text: 'Background void no longer visible when zooming out on any map' },
+      { cat: 'Balance',  text: 'Reduced large map platforms from 40+ to ~27 with better spread and landmark bridges' },
+      { cat: 'AI',       text: 'Beating SOVEREIGN in Story Mode now unlocks Neural AI as a standalone gamemode' },
+      { cat: 'Polish',   text: 'Damage numbers: color-coded by severity with glow on heavy hits' },
+      { cat: 'Polish',   text: 'Screen shake now scales with hit damage; no longer jitters at near-zero values' },
+      { cat: 'Polish',   text: 'Red vignette overlay when player takes heavy damage' },
+    ],
+  },
+  {
     version: '1.0.0',
     title: 'FULL RELEASE — FRACTURE CAMPAIGN',
     date: '2026-03-24',
     flavor: 'Reality patch applied. All dimensional rifts sealed.',
-    isLatest: true,
     changes: [
       { cat: 'Story',    text: 'Added full Story Mode — 80 chapters across 6 Acts' },
       { cat: 'Story',    text: 'Added Act / Arc navigation system with chapter select' },
@@ -52,6 +88,47 @@ const CHANGELOG = [
       { cat: 'System',   text: 'Modularised codebase into 20+ named JS modules' },
     ],
   },
+  {
+    version: '0.9.0',
+    title: 'CHAOS & CREATION',
+    date: '2026-02-10',
+    flavor: 'New modes, new maps, new mayhem.',
+    changes: [
+      { cat: 'Mode',     text: 'Added Map Creator / Designer tool (standalone, launch from main menu)' },
+      { cat: 'Mode',     text: 'Added Chaos Multiplayer — 12 chaos events, item drops, kill streaks' },
+      { cat: 'Mode',     text: 'Added Survival, King of the Hill, and Soccer minigames' },
+      { cat: 'Mode',     text: 'Added Adaptive AI standalone mode (SOVEREIGN)' },
+      { cat: 'Maps',     text: 'Added Megacity, Warpzone, and Colosseum large-scale arenas' },
+      { cat: 'Combat',   text: 'Added 8 weapon classes with unique supers and abilities' },
+      { cat: 'Combat',   text: 'Added character class system (Berserker, Ninja, Tank, etc.)' },
+      { cat: 'Combat',   text: 'Added combo limiter to prevent infinite lock-out combos' },
+    ],
+  },
+  {
+    version: '0.5.0',
+    title: 'TRUE FORM AWAKENS',
+    date: '2025-11-15',
+    flavor: 'Something stirs beneath the surface.',
+    changes: [
+      { cat: 'Boss',     text: 'Added True Form — adaptive boss with player pattern recognition' },
+      { cat: 'Boss',     text: 'Added secret letter hunt system unlocking True Form mode' },
+      { cat: 'Boss',     text: 'Added Boss fight mode (The Creator, phase AI, beams, minion spawns)' },
+      { cat: 'Combat',   text: 'Added shield, ability, and super systems' },
+      { cat: 'UI',       text: 'Full UI redesign — glass-morphism, mode cards, player config panels' },
+      { cat: 'Network',  text: 'Added online multiplayer via PeerJS WebRTC + Socket.io relay' },
+    ],
+  },
+  {
+    version: '0.1.0',
+    title: 'INITIAL RELEASE',
+    date: '2025-08-01',
+    flavor: 'Two stickmen. One arena. Fight.',
+    changes: [
+      { cat: 'Core',     text: '2-player local PvP on a single canvas' },
+      { cat: 'Core',     text: 'Basic weapons: sword, hammer, spear, gun' },
+      { cat: 'Core',     text: 'Basic arenas: grass, city, lava, space' },
+    ],
+  },
 ];
 
 // ============================================================
@@ -59,7 +136,8 @@ const CHANGELOG = [
 // ============================================================
 let gameMode        = '2p';
 let selectedArena   = 'grass';
-let isRandomMapMode = false;
+let isRandomMapMode    = false;
+let completeRandomizer = false; // Complete Randomizer mode: reroll arena+weapon+class on every death
 let chosenLives     = 3;
 let gameRunning     = false;
 let gameLoading     = false; // true while loading screen is visible — freezes input/physics
@@ -87,12 +165,18 @@ let particles          = [];
 let damageTexts        = [];
 let respawnCountdowns  = [];  // { color, x, y, framesLeft }
 let screenShake     = 0;
+const BOSS_FIGHT_LIVES = 10;
+const BOSS_FLOOR_WARNING_FRAMES = 180; // 3 seconds at 60 FPS
+let bossFightLivesLock = false;
+let bossFightLivesPrev = null;
 
 // Dynamic camera zoom — lerped each frame
 let camZoomTarget = 1, camZoomCur = 1;
 let hitStopFrames  = 0; // frames to freeze game for hit impact feel
 let hitSlowTimer   = 0; // frames remaining on post-hit slow-motion burst
-let camHitZoomTimer = 0; // frames of zoom-in after a heavy hit
+let camHitZoomTimer  = 0; // frames of zoom-in after a heavy hit
+let hitVignetteTimer = 0; // frames of red vignette overlay when player takes heavy damage
+let hitVignetteColor = 'rgba(220,30,0,';  // color prefix for vignette fill
 // Camera dead zone: don't update target until center moves beyond this (reduces jitter)
 const CAMERA_DEAD_ZONE = 18;
 const CAMERA_LERP_ZOOM = 0.07;
@@ -221,7 +305,7 @@ let _publicRoomCheckTimer = 0;
 // ============================================================
 // VERSION
 // ============================================================
-const GAME_VERSION = '1.0.0';  // bump this when releasing; must match CHANGELOG[0].version
+const GAME_VERSION = '2.4.4';  // bump this when releasing; must match CHANGELOG[0].version
 
 // DEBUG / DEVELOPER STATE
 // ============================================================
@@ -246,6 +330,11 @@ let storyTwoEnemies     = false; // true = spawn a second enemy bot in this chap
 let storySecondEnemyDef = null;  // { weaponKey, classKey, aiDiff, color } for the second enemy
 let storyOpponentName   = null;  // display name of the story chapter opponent (shown in HUD)
 let storyAbilityState   = {};    // per-fight state for unlocked story abilities (medkit used, last stand triggered, etc.)
+let storyPhaseIndicator = null;  // { index, total, label, type }
+let storyGauntletState  = null;  // active chapter phase runtime
+let storyPendingPhaseConfig = null; // temporary launch override for next story phase
+let storyCameraLock     = null;  // { left, right, reason }
+let storyPressureState  = { dodgeFatigue: 0, dodgeTimer: 0 };
 
 // ============================================================
 // ENTITY & VISUAL STATE
@@ -292,6 +381,7 @@ let tfNeutronStar   = null;  // { phase:'pull'|'warn'|'slam', timer, bossRef, st
 let tfGalaxySweep   = null;  // { angle, speed, timer, maxTimer, hit:Set }
 let tfMultiverse    = null;  // { timer, maxTimer, echoes:[{x,y,selected}], targetIdx, phase, bossRef, targetRef }
 let tfSupernova     = null;  // { timer, maxTimer, phase:'buildup'|'active', bossRef, hit:Set, r }
+let tfAttackRetryQueue = []; // [{ ctx, move, targetRef, source, framesLeft, attempts }]
 
 // ── Story event / cinematic system ────────────────────────────────────────────
 let storyEventFired    = {};   // { [eventName]: true } — dedup per fight
@@ -310,7 +400,12 @@ let exploreGoalName  = '';      // display name of the goal object
 let exploreGoalFound = false;   // true when player reaches the goal
 let exploreSpawnQ    = [];      // [{wx, def}] enemies to spawn as player passes wx
 let exploreEnemyCap  = 2;       // max concurrent exploration enemies alive at once
+let exploreCheckpoints = [];    // [{ x, hit }]
+let exploreCheckpointIdx = -1;
+let exploreSidePortals = [];    // [{ x, y, type, reward, active, entered }]
+let exploreAmbushTimer = 0;
+let exploreCombatQuiet = 0;
+let exploreArenaLock = null;    // { left, right, enemies:[], cleared, label }
 
 // ── TrueForm clone position history (ring buffer for multiverse lag effect) ──
 let _tfCloneHistory = [];   // [{ x, cy, facing }, ...] — last 24 frames
-

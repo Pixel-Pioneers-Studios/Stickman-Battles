@@ -133,11 +133,14 @@ function updateCamera() {
       targetZoom = combatZoom;
     } else {
       // ── Mode 1 — Gameplay: always fit all players in frame ───
-      const PAD     = 140;
-      const zoomX   = GAME_W / ((maxX - minX) + PAD);
-      const zoomY   = GAME_H / ((maxY - minY) + PAD);
-      const minZoom = (currentArena && currentArena.worldWidth)
-        ? Math.max(0.18, GAME_W / (currentArena.worldWidth + 200))
+      // Use a larger PAD on wide maps so players don't crowd the screen edges
+      const isWideMap = !!(currentArena && currentArena.worldWidth);
+      const PAD       = isWideMap ? 220 : 140;
+      const zoomX     = GAME_W / ((maxX - minX) + PAD);
+      const zoomY     = GAME_H / ((maxY - minY) + PAD);
+      // On wide maps keep a zoom floor of 0.30 so players never become tiny specks
+      const minZoom   = isWideMap
+        ? Math.max(0.30, GAME_W / (currentArena.worldWidth + 200))
         : 0.42;
       targetZoom = Math.min(1.18, Math.max(minZoom, Math.min(zoomX, zoomY)));
 
@@ -179,6 +182,29 @@ function updateCamera() {
   camZoomCur += (camZoomTarget - camZoomCur) * lerp.zoom;
   camXCur    += (camXTarget    - camXCur)    * lerp.pos;
   camYCur    += (camYTarget    - camYCur)    * lerp.pos;
+
+  // ── Clamp camera to world bounds so we never show empty space past map edges ──
+  if (currentArena && !cinematicCamOverride) {
+    // Half-viewport in world units at current zoom
+    const hvw = GAME_W / (2 * camZoomCur);  // half viewport width  (world units)
+    const hvh = GAME_H / (2 * camZoomCur);  // half viewport height (world units)
+
+    const wLeft  = currentArena.mapLeft  !== undefined ? currentArena.mapLeft  : 0;
+    const wRight = currentArena.mapRight !== undefined ? currentArena.mapRight : (currentArena.worldWidth || GAME_W);
+
+    // Only clamp if the world is wider than the viewport (otherwise centering is fine)
+    if (wRight - wLeft > GAME_W / camZoomCur) {
+      camXCur = Math.max(wLeft  + hvw, Math.min(wRight - hvw, camXCur));
+    }
+
+    // Vertical: clamp so floor is always visible (don't pan above top or below floor+margin)
+    const floorPl = currentArena.platforms && currentArena.platforms.find(p => p.isFloor);
+    const wBottom = floorPl ? floorPl.y + 80 : GAME_H;
+    const wTop    = 0;
+    if (wBottom - wTop > GAME_H / camZoomCur) {
+      camYCur = Math.max(wTop + hvh, Math.min(wBottom - hvh, camYCur));
+    }
+  }
 }
 
 // ============================================================
@@ -278,7 +304,7 @@ function gameLoop(timestamp) {
   processInput(); // updateInput
 
   // ---------- Phase: updateBossArena (platforms, floor hazard) ----------
-  if (currentArena.isBossArena) {
+  if (currentArena && currentArena.isBossArena) {
     // Animate moving platforms — random-lerp targets for unpredictable movement
     // Boss arena: 2x speed (shorter timer range, faster lerp)
     const bossPlSpeed = currentArenaKey === 'creator' ? 2 : 1;
@@ -310,7 +336,7 @@ function gameLoop(timestamp) {
       if (bossFloorState === 'normal') {
         bossFloorState = 'warning';
         bossFloorType  = Math.random() < 0.5 ? 'lava' : 'void';
-        bossFloorTimer = 300; // 5-second warning
+        bossFloorTimer = BOSS_FLOOR_WARNING_FRAMES; // 3-second warning
         showBossDialogue(bossFloorType === 'lava'
           ? randChoice(['The floor has a new purpose.', 'Heat is a matter of perspective.', 'I\'d move if I were you. I\'m not.'])
           : randChoice(['The ground is a luxury.', 'Space beneath your feet — gone.', 'Let\'s see how well you float.']), 220);
@@ -420,8 +446,10 @@ function gameLoop(timestamp) {
 
   const _cinOX = typeof _cinCamOffX !== 'undefined' ? _cinCamOffX : 0;
   const _cinOY = typeof _cinCamOffY !== 'undefined' ? _cinCamOffY : 0;
-  const sx = (Math.random() - 0.5) * screenShake + (canvas.width  / 2 - camCX * finalScX) + _cinOX;
-  const sy = (Math.random() - 0.5) * screenShake + (canvas.height / 2 - camCY * finalScY) + _cinOY;
+  // Only apply screen shake above a threshold to prevent micro-jitter at near-zero values
+  const _shakeAmt = screenShake > 1.0 ? screenShake : 0;
+  const sx = (Math.random() - 0.5) * _shakeAmt + (canvas.width  / 2 - camCX * finalScX) + _cinOX;
+  const sy = (Math.random() - 0.5) * _shakeAmt + (canvas.height / 2 - camCY * finalScY) + _cinOY;
   ctx.setTransform(finalScX, 0, 0, finalScY, sx, sy);
 
   // ---------- Phase: render (world, entities, particles, HUD) ----------
@@ -434,7 +462,7 @@ function gameLoop(timestamp) {
 
   // Boss beams — update logic + draw (also in training mode when boss is present, or when an admin kit is equipped)
   const _anyAdminKit = typeof players !== 'undefined' && players.some(p => p._adminKit);
-  const hasBossActive = currentArena.isBossArena || (trainingMode && trainingDummies.some(d => d.isBoss)) || _anyAdminKit;
+  const hasBossActive = (currentArena && currentArena.isBossArena) || (trainingMode && trainingDummies.some(d => d.isBoss)) || _anyAdminKit;
   if (hasBossActive) {
     for (const b of bossBeams) {
       if (b.phase === 'warning') {
@@ -587,6 +615,13 @@ function gameLoop(timestamp) {
   // Draw Verlet death ragdolls (behind living players)
   verletRagdolls.forEach(vr => vr.draw());
 
+  // Safety: clamp any Infinity/NaN velocities before physics update (avoids teleport bugs)
+  for (const p of players) {
+    if (!isFinite(p.vx)) p.vx = 0;
+    if (!isFinite(p.vy)) p.vy = 0;
+    if (!isFinite(p.x))  { p.x = GAME_W / 2; p.vx = 0; }
+    if (!isFinite(p.y))  { p.y = 200;         p.vy = 0; }
+  }
   // Players — skip physics update for remote (network-driven) players
   players.forEach(p => { if ((p.health > 0 || p.invincible > 0) && !p.isRemote) p.update(); });
   // Chaos system: per-frame update (events, drops, effects, multi-kill, announcer)
@@ -713,9 +748,6 @@ function gameLoop(timestamp) {
   }
   respawnCountdowns = respawnCountdowns.filter(cd => cd.framesLeft > 0);
 
-  // Boss speech bubble (drawn last so it's above everything)
-  if (currentArena.isBossArena || window.FORCE_ATTACK_MODE) drawBossDialogue();
-
   // Boss phase 3: subtle red screen tint
   if (currentArena && currentArena.isBossArena && settings.bossAura) {
     const bossChar = players.find(p => p.isBoss);
@@ -779,6 +811,18 @@ function gameLoop(timestamp) {
   if (storyModeActive && typeof drawStoryBoundaryWarning === 'function') drawStoryBoundaryWarning();
   // Achievement popups (drawn over everything, in screen space)
   ctx.setTransform(1, 0, 0, 1, 0, 0); // reset transform for screen-space draw
+
+  // Hit vignette: red edge flash when player takes heavy damage
+  if (hitVignetteTimer > 0) {
+    hitVignetteTimer--;
+    const _va = (hitVignetteTimer / 28) * 0.38;
+    const _vg = ctx.createRadialGradient(canvas.width/2, canvas.height/2, canvas.height*0.3, canvas.width/2, canvas.height/2, canvas.height*0.9);
+    _vg.addColorStop(0, hitVignetteColor + '0)');
+    _vg.addColorStop(1, hitVignetteColor + _va.toFixed(3) + ')');
+    ctx.fillStyle = _vg;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+  }
+
   if (typeof drawCinematicImpactEffects === 'function') drawCinematicImpactEffects();
   drawCinematicOverlay();
   // Story world distortion intentionally disabled (purple scanlines removed per user request)
@@ -786,6 +830,7 @@ function gameLoop(timestamp) {
   // Chaos system: screen-space draw (score HUD, event badge, announcer, spectator label)
   if (typeof chaosMode !== 'undefined' && chaosMode && typeof drawChaosOverlay === 'function') drawChaosOverlay();
   if (gameMode === 'adaptive' && typeof drawAdaptiveAIDebug === 'function') drawAdaptiveAIDebug();
+  if (typeof drawEntityOverlays === 'function') drawEntityOverlays(finalScX, finalScY, camCX, camCY);
   // Pathfinding debug overlays (toggled via `pf *` console commands, drawn in world-space)
   if (window._pfShowGraph && typeof visualizePlatformGraph  === 'function') visualizePlatformGraph();
   if (window._pfShowDJ    && typeof highlightDoubleJumpEdges === 'function') highlightDoubleJumpEdges();
@@ -796,6 +841,8 @@ function gameLoop(timestamp) {
   }
   if (storyModeActive && typeof drawStorySubtitle        === 'function') drawStorySubtitle();
   if (storyModeActive && typeof drawStoryOpponentHUD     === 'function') drawStoryOpponentHUD();
+  if (storyModeActive && typeof drawStoryPhaseHUD        === 'function') drawStoryPhaseHUD();
+  if ((currentArena.isBossArena || window.FORCE_ATTACK_MODE) && typeof drawBossDialogue === 'function') drawBossDialogue(finalScX, finalScY, camCX, camCY);
   if (gameMode === 'exploration') drawExploreHUD();
   if (abilityUnlockToast && abilityUnlockToast.timer > 0) drawAbilityUnlockToast();
   if (gameMode === 'trueform' && typeof drawQTE === 'function') drawQTE(ctx, canvas.width, canvas.height);
@@ -821,9 +868,6 @@ function gameLoop(timestamp) {
     ctx.fillText(winsP2, GAME_W / 2 + 48, 96);
     ctx.restore();
   }
-
-  // Matter.js ragdoll step (when enabled in settings)
-  if (typeof ragdollStep === 'function') ragdollStep();
 
   // Debug overlay (drawn last, in screen-space)
   if (debugMode) {
@@ -971,9 +1015,16 @@ function processInput() {
     // Anti-kite decay (0.70-1.0), shooting penalty (0.85 while firing ranged / 0.78 post-burst)
     const _kiteMult    = (p._kiteSpeedMult != null) ? p._kiteSpeedMult : 1.0;
     const _isRanged    = p.weapon && p.weapon.type === 'ranged';
-    const _shootingMult = _isRanged && p.attackTimer > 0   ? 0.85
-                        : _isRanged && p._rangedMovePenalty > 0 ? 0.78 : 1.0;
-    const spd  = 5.2 * (p.classSpeedMult || 1.0) * (p._speedBuff > 0 ? 1.35 : 1.0) * (hasCurseSlow ? 0.6 : 1.0) * _chaosSpeed * _underwaterSlow * _earthSlow * _kiteMult * _shootingMult;
+    const _tfAntiBoss  = typeof getTrueFormAntiRangedBoss === 'function' ? getTrueFormAntiRangedBoss() : null;
+    const _rangeLockMult = _tfAntiBoss && !p.isBoss
+      ? (Math.abs(p.cx() - _tfAntiBoss.cx()) > (_tfAntiBoss._antiRangedFieldR || 220)
+          ? (_isRanged ? 0.58 : 0.72)
+          : 1.0)
+      : 1.0;
+    const _shootingMult = _isRanged && p.attackTimer > 0   ? 0.78
+                        : _isRanged && p._rangedMovePenalty > 0 ? 0.70 : 1.0;
+    const _commitMult  = _isRanged && p._rangedCommitTimer > 0 ? 0.64 : 1.0;
+    const spd  = 5.2 * (p.classSpeedMult || 1.0) * (p._speedBuff > 0 ? 1.35 : 1.0) * (hasCurseSlow ? 0.6 : 1.0) * _chaosSpeed * _underwaterSlow * _earthSlow * _kiteMult * _shootingMult * _commitMult * _rangeLockMult;
     const wHeld = keyHeldFrames[p.controls.jump]  || 0;
 
 
@@ -1019,7 +1070,7 @@ function processInput() {
     }
     // --- S / ArrowDown = boost shield (30-second cooldown) ---
     const sHeld = keysDown.has(p.controls.shield);
-    if (sHeld && p.shieldCooldown === 0) {
+    if (sHeld && p.shieldCooldown === 0 && !(p.weapon && p.weapon.type === 'ranged' && p._rangedCommitTimer > 0)) {
       p.shielding       = true;
       p.shieldHoldTimer = (p.shieldHoldTimer || 0) + 1;
       if (p.shieldHoldTimer >= SHIELD_MAX) {

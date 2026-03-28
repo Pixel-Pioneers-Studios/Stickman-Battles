@@ -313,6 +313,7 @@ class AdaptiveAI extends Fighter {
     const dx  = t.cx() - this.cx();
     const d   = Math.abs(dx);
     const dir = Math.sign(dx);
+    const atkRange = this.weapon.range * 1.1 + 20;
 
     // ─── Danger: boss beams ──────────────────────────────────
     if (typeof bossBeams !== 'undefined' && bossBeams && bossBeams.length) {
@@ -451,8 +452,6 @@ class AdaptiveAI extends Fighter {
     }
 
     // ─── PHASE 4: MOVEMENT — always pressure, never retreat ──
-    const atkRange = this.weapon.range * 1.1 + 20;
-
     if (d > atkRange + 15 || finishMode) {
       // Outside attack range OR finishing: ALWAYS close the gap — no hesitation
       if (nearLeft  && dir < 0) { /* edge guard — do nothing */ }

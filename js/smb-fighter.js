@@ -78,6 +78,7 @@ class Fighter {
     this._inactiveTime   = 0;          // AI ticks since last meaningful action
     this._microRandTimer = 0;          // countdown to next micro-randomization pulse
     this._playerIdleTmr  = 0;         // AI ticks the target has been idle
+    this.storyFaction    = null;       // 'enemy' for story opponent bots; used to prevent ally targeting
     this._megaJumping    = false;
     this._megaJumpLanded = false;
     this._megaSmashing   = false;
@@ -104,6 +105,11 @@ class Fighter {
     // ── Ranged weapon state ───────────────────────────────────────────────────
     this._rangedBurstTimer = 0; // frames since last ranged attack (resets on pause)
     this._rangedMovePenalty = 0; // frames of post-burst speed debuff remaining
+    this._rangedCommitTimer = 0; // short post-shot commitment window
+    this._rangedShotHeat    = 0; // repeated-fire recoil / inaccuracy scaler
+    this._recentRangedUse   = 0; // AI / boss response signal
+    this._reloadInterrupted = false;
+    this._rangedRecoilKick  = 0; // visual / movement recoil after firing
     // ── Bot ranged AI state ───────────────────────────────────────────────────
     this._rangedStrafeDir   = 1;   // current strafe direction
     this._rangedStrafeTimer = 0;   // frames until next strafe direction flip
@@ -112,6 +118,20 @@ class Fighter {
 
   cx() { return this.x + this.w / 2; }
   cy() { return this.y + this.h / 2; }
+
+  _isInvalidAITarget(candidate) {
+    return !candidate || candidate === this || candidate.health <= 0 ||
+      (typeof areAlliedEntities === 'function' && areAlliedEntities(this, candidate));
+  }
+
+  _acquireAITarget() {
+    const pool = [...players, ...trainingDummies, ...minions];
+    const living = pool.filter(q => !this._isInvalidAITarget(q));
+    this.target = living.length
+      ? living.reduce((a, b) => Math.hypot(b.cx() - this.cx(), b.cy() - this.cy()) < Math.hypot(a.cx() - this.cx(), a.cy() - this.cy()) ? b : a)
+      : null;
+    return this.target;
+  }
 
   respawn() {
     // Always re-pick a safe platform — this handles moving/disappearing boss floor
@@ -144,6 +164,11 @@ class Fighter {
     this.spartanRageTimer = 0;
     this._ammo        = this.weapon && this.weapon.clipSize ? this.weapon.clipSize : 0;
     this._reloadTimer = 0;
+    this._rangedCommitTimer = 0;
+    this._rangedShotHeat = 0;
+    this._recentRangedUse = 0;
+    this._reloadInterrupted = false;
+    this._rangedRecoilKick = 0;
     this.invincible = 100;
     // Megaknight spawn animation: fall from sky
     if (this.charClass === 'megaknight') {
@@ -151,6 +176,27 @@ class Fighter {
       this.vy = 2;
       this._spawnFalling = true;
       this.invincible = 200;
+    }
+    if (this.isAI) {
+      this.target = null;
+      this.aiState = 'chase';
+      this.intent = 'pressure';
+      this.aiReact = 0;
+      this._pendingAction = null;
+      this._actionLockFrames = 0;
+      this._stateChangeCd = 0;
+      this._inactiveTime = 0;
+      this._intentTimer = 0;
+      this._wanderTimer = 0;
+      this._comboPressTimer = 0;
+      this.aiNoHitTimer = 0;
+      this.inputBuffer.length = 0;
+      this._acquireAITarget();
+    }
+    for (const ai of [...players, ...minions]) {
+      if (ai && ai.isAI && typeof ai._isInvalidAITarget === 'function' && ai._isInvalidAITarget(ai.target)) {
+        ai._acquireAITarget();
+      }
     }
     spawnParticles(this.cx(), this.cy(), this.color, 22);
     // Online: notify remote that we respawned
@@ -222,24 +268,35 @@ class Fighter {
         }
       } else {
         this._rangedBurstTimer = Math.max(0, this._rangedBurstTimer - 1);
+        this._rangedShotHeat   = Math.max(0, this._rangedShotHeat - 0.16);
       }
     }
     if (this._rangedMovePenalty > 0) this._rangedMovePenalty--;
+    if (this._rangedCommitTimer > 0) this._rangedCommitTimer--;
+    if (this._rangedRecoilKick > 0) this._rangedRecoilKick--;
+    if (this._recentRangedUse > 0) this._recentRangedUse--;
     if (this.hurtTimer > 0)       this.hurtTimer--;
     if (this.stunTimer > 0)       this.stunTimer--;
     if (this.ragdollTimer > 0)    this.ragdollTimer--;
     if (this.spinning > 0)        this.spinning--;
     if (this.boostCooldown > 0)        this.boostCooldown--;
     if (this.shieldCooldown > 0)       this.shieldCooldown--;
+    if (this._projDeflectCd > 0)       this._projDeflectCd--;
     if (this.contactDamageCooldown > 0) this.contactDamageCooldown--;
     // Reload ticker — refill clip when timer expires
     if (this._reloadTimer > 0) {
+      if (this.hurtTimer > 0 && !this._reloadInterrupted) {
+        this._reloadTimer = this.weapon && this.weapon.reloadFrames ? Math.round(this.weapon.reloadFrames * 1.18) : this._reloadTimer;
+        this._reloadInterrupted = true;
+      }
       this._reloadTimer--;
       if (this._reloadTimer === 0 && this.weapon && this.weapon.clipSize) {
         this._ammo = this.weapon.clipSize;
+        this._reloadInterrupted = false;
         if (!this.isAI) SoundManager.pickup && SoundManager.pickup();
       }
     }
+    if (this.hurtTimer <= 0) this._reloadInterrupted = false;
     if (this.superFlashTimer > 0)      this.superFlashTimer--;
     if (this.spartanRageTimer > 0) this.spartanRageTimer--;
     this.animTimer++;
@@ -410,9 +467,10 @@ class Fighter {
       // Story/story-only arenas: soft boundary — flag for portal teleport instead of hard wall
       const _storyWalls = storyModeActive || (currentArena && currentArena.isStoryOnly);
       if (_storyWalls && !this.isBoss && gameMode !== 'exploration') {
-        // Instead of hard wall, mark fighter for boundary teleport (handled by storyUpdateBoundaries)
-        const softLeft  = currentArena && currentArena.mapLeft  !== undefined ? currentArena.mapLeft  - 500 : -60;
-        const softRight = currentArena && currentArena.mapRight !== undefined ? currentArena.mapRight - this.w + 500 : GAME_W - this.w + 60;
+        // Mark fighter for portal teleport when they step into the boundary portal visual
+        // Portal visuals are drawn at mapLeft+10 and mapRight-10; trigger fires as player enters them
+        const softLeft  = currentArena && currentArena.mapLeft  !== undefined ? currentArena.mapLeft  + 30 : -60;
+        const softRight = currentArena && currentArena.mapRight !== undefined ? currentArena.mapRight - this.w - 30 : GAME_W - this.w + 60;
         if (this.x < softLeft)   { this._storyBoundaryBreached = 'left';  }
         else if (this.x > softRight) { this._storyBoundaryBreached = 'right'; }
         else { this._storyBoundaryBreached = null; }
@@ -444,8 +502,12 @@ class Fighter {
     } else if (currentArena.worldWidth) {
       const mapLeft  = currentArena.mapLeft  !== undefined ? currentArena.mapLeft  : -(currentArena.worldWidth - GAME_W) / 2;
       const mapRight = currentArena.mapRight !== undefined ? currentArena.mapRight : (currentArena.worldWidth + GAME_W) / 2;
-      if (this.x < mapLeft)               { this.x = mapLeft;               this.vx =  Math.abs(this.vx) * 0.25; }
-      if (this.x + this.w > mapRight)     { this.x = mapRight - this.w;     this.vx = -Math.abs(this.vx) * 0.25; }
+      // Story arenas with boundary portals use portal teleports instead of hard walls
+      const _usePortals = storyModeActive && currentArena.boundaryPortals;
+      if (!_usePortals) {
+        if (this.x < mapLeft)               { this.x = mapLeft;               this.vx =  Math.abs(this.vx) * 0.25; }
+        if (this.x + this.w > mapRight)     { this.x = mapRight - this.w;     this.vx = -Math.abs(this.vx) * 0.25; }
+      }
     }
     // No clamp on standard arenas — players can drift slightly off edges; deathY handles falling
 
@@ -838,8 +900,10 @@ class Fighter {
         if (!this.isAI) SoundManager.swing();
       }
     } else {
+      const _distToTarget = target ? dist(this, target) : 999;
+      const _pointBlankT  = !this.isBoss ? Math.max(0, 1 - clamp((_distToTarget - 48) / 72, 0, 1)) : 0;
       // Ranged: close-range disadvantage — add extra cooldown when enemy is point-blank (<70px)
-      if (!this.isBoss && target && dist(this, target) < 70) {
+      if (!this.isBoss && _distToTarget < 70) {
         const _pbPenalty = Math.round((this.weapon.cooldown || 30) * 0.35);
         this.cooldown = Math.max(this.cooldown, _pbPenalty); // stacks with normal cooldown
       }
@@ -848,18 +912,24 @@ class Fighter {
         if (this._reloadTimer > 0) return; // currently reloading — can't shoot
         if (this._ammo <= 0) {
           // Out of ammo — start reload
-          this._reloadTimer = this.weapon.reloadFrames;
+          this._reloadTimer = Math.round(this.weapon.reloadFrames * 1.18);
+          this._reloadInterrupted = false;
           return;
         }
         this._ammo--;
         // Auto-trigger reload when last round is fired
-        if (this._ammo === 0) this._reloadTimer = this.weapon.reloadFrames;
+        if (this._ammo === 0) {
+          this._reloadTimer = Math.round(this.weapon.reloadFrames * 1.18);
+          this._reloadInterrupted = false;
+        }
       }
       if (!this.isAI) SoundManager.shoot();
       const bSpd = this.weapon.bulletSpeed || 13;
       const bClr = this.weapon.bulletColor || '#ffdd00';
       const bVy  = this.weapon.bulletVy  || 0;
-      const dmg  = this.weapon.damageFunc ? this.weapon.damageFunc() : this.weapon.damage;
+      const _baseDmg = this.weapon.damageFunc ? this.weapon.damageFunc() : this.weapon.damage;
+      const _closeDmgMult = 1 - _pointBlankT * 0.34;
+      const dmg  = Math.max(1, Math.round(_baseDmg * _closeDmgMult));
       // Slingshot: auto-aim regular shot at nearest enemy (arc adjusted to lead target)
       let _bvx = this.facing * bSpd, _bvy = bVy;
       if (this.weaponKey === 'slingshot') {
@@ -875,17 +945,36 @@ class Fighter {
       // Movement-based spread (same logic as spawnBullet)
       const _atkSpd    = Math.abs(this.vx);
       const _atkRapid  = this.weapon.cooldown <= 20;
-      const _atkSpread = _atkSpd > 0.8 ? (_atkSpd / 5.2) * (_atkRapid ? 1.6 : 1.0) * 0.55 : 0;
+      const _recoilHeat = Math.min(8, this._rangedShotHeat + 1);
+      const _atkSpread = (_atkSpd > 0.8 ? (_atkSpd / 5.2) * (_atkRapid ? 2.0 : 1.25) * 0.70 : 0)
+                       + _recoilHeat * (_atkRapid ? 0.28 : 0.18)
+                       + _pointBlankT * (_atkRapid ? 1.45 : 0.95);
       const _atkVyOff  = _atkSpread > 0 ? (Math.random() - 0.5) * _atkSpread : 0;
-      projectiles.push(new Projectile(
+      const _proj = new Projectile(
         this.cx() + this.facing * 12, this.y + 22,
         _bvx, _bvy + _atkVyOff, this, dmg, bClr
-      ));
+      );
+      _proj._closeRangePenalty = _pointBlankT;
+      _proj._warmupFrames = _atkRapid ? 3 : 2;
+      projectiles.push(_proj);
       // Gunner class: fire a second bullet (costs no extra ammo — it's the same shot)
       if (this.charClass === 'gunner') {
-        const dmg2 = this.weapon.damageFunc ? this.weapon.damageFunc() : this.weapon.damage;
-        projectiles.push(new Projectile(this.cx() + this.facing * 12, this.y + 28, this.facing * bSpd * 0.92, bVy - 0.8 + _atkVyOff, this, dmg2, bClr));
+        const dmg2 = Math.max(1, Math.round((this.weapon.damageFunc ? this.weapon.damageFunc() : this.weapon.damage) * _closeDmgMult));
+        const _proj2 = new Projectile(this.cx() + this.facing * 12, this.y + 28, this.facing * bSpd * 0.92, bVy - 0.8 + _atkVyOff, this, dmg2, bClr);
+        _proj2._closeRangePenalty = _pointBlankT;
+        _proj2._warmupFrames = _atkRapid ? 3 : 2;
+        projectiles.push(_proj2);
       }
+      const _commitFrames = Math.max(10, Math.min(18, Math.round((this.weapon.cooldown || 30) * 0.42)));
+      const _recoilPush = 0.6 + _recoilHeat * (_atkRapid ? 0.11 : 0.08);
+      this.attackEndlag = Math.max(this.attackEndlag || 0, _commitFrames);
+      this._rangedCommitTimer = Math.max(this._rangedCommitTimer, _commitFrames);
+      this._rangedMovePenalty = Math.max(this._rangedMovePenalty, Math.round(_commitFrames * 1.55));
+      this._rangedShotHeat = Math.min(8, this._rangedShotHeat + (_atkRapid ? 1.75 : 1.15) + _pointBlankT * 0.9);
+      this._recentRangedUse = Math.min(180, this._recentRangedUse + 28);
+      this._rangedRecoilKick = Math.max(this._rangedRecoilKick, _commitFrames);
+      this.vx *= _atkRapid ? 0.58 : 0.68;
+      this.vx -= this.facing * _recoilPush;
     }
     this.cooldown    = this.attackCooldownMult ? Math.max(1, Math.ceil(this.weapon.cooldown * this.attackCooldownMult)) : this.weapon.cooldown;
     this.attackTimer = this.attackDuration;
@@ -1229,8 +1318,8 @@ class Fighter {
     s.recover = (!this.onGround && this.vy > 1 && this.y > GAME_H * 0.50) ? 0.96 : 0;
 
     // RETREAT: only when critically low HP (< 20%) and healthy enemy very close
-    s.retreat = (hpPct < 0.20 && d < 220)
-      ? (1 - hpPct) * 0.55 * hazardW
+    s.retreat = (hpPct < 0.12 && d < 160)
+      ? (1 - hpPct) * 0.28 * hazardW
       : 0;
 
     // ATTACK: wide detection, always wins over chase when in range + cooldown ready
@@ -1251,6 +1340,18 @@ class Fighter {
 
     // CHASE: strong baseline — always positive so bot never idles
     s.chase = (0.55 + dNorm * 0.25) * aggrW;
+
+    // Ranged target pressure: punish kiting / repeated gunplay by closing faster.
+    if (t && t.weapon && t.weapon.type === 'ranged') {
+      const _rangedRetreat = Math.sign(t.vx || 0) === Math.sign(t.cx() - this.cx()) && Math.abs(t.vx || 0) > 1.6;
+      const _rangedSpam    = (t._recentRangedUse || 0) > 45;
+      if (_rangedRetreat || _rangedSpam) {
+        s.chase        = Math.min(1.45, s.chase + 0.28 * aggrW);
+        s.attack       = Math.min(1.60, (s.attack || 0) + (d < attackRange * 1.35 ? 0.18 : 0));
+        s.reposition   = Math.min(1.0, (s.reposition || 0) + 0.20);
+        s.retreat      = Math.max(0, (s.retreat || 0) * 0.35);
+      }
+    }
 
     // FINISH_THEM: enemy near death — ignore hazards, close in relentlessly
     if (tHpPct < 0.25 && d < 420) {
@@ -1319,7 +1420,7 @@ class Fighter {
 
         case 'defensive':
           // Back off when hurt; fight mainly when enemy comes to them
-          s.retreat      = Math.min(1.4, (s.retreat      || 0) * 1.60);
+          s.retreat      = Math.min(1.1, (s.retreat      || 0) * 1.15);
           s.avoid_hazard = Math.min(1.4, (s.avoid_hazard || 0) * 1.45);
           s.reposition   = Math.min(1.2, (s.reposition   || 0) + 0.18);
           s.attack       = Math.max(0,   (s.attack || 0)       * 0.65);
@@ -1347,7 +1448,7 @@ class Fighter {
             s.use_ability = Math.min(1.6, (s.use_ability || 0) * 1.50);
             // Prefer keeping distance — boost reposition when enemy gets close
             if (d < 200) {
-              s.retreat    = Math.min(1.4, (s.retreat    || 0) + 0.55);
+              s.retreat    = Math.min(0.95, (s.retreat    || 0) + 0.20);
               s.reposition = Math.min(1.2, (s.reposition || 0) + 0.35);
               s.attack     = Math.max(0,   (s.attack     || 0) * 0.60);
             }
@@ -1505,7 +1606,7 @@ class Fighter {
         const retDir  = -dir;
         const retEdge = this.isEdgeDanger(retDir);
         if (!retEdge && !towardEdge) {
-          this.vx = retDir * spd;
+          this.vx = retDir * spd * 0.55;
         } else {
           // Cornered — fight back rather than stepping off edge
           if (this.cooldown <= 0 && Math.random() < atkFreq) this.attack(t);
@@ -1554,7 +1655,7 @@ class Fighter {
         } else {
           // Melee: slide in slightly so hits land — don't just stand still
           if (d > this.weapon.range * 0.6 && !towardEdge) {
-            this.vx = dir * spd * 0.5;
+            this.vx = dir * spd * 0.85;
           } else {
             this.vx *= 0.80;
           }
@@ -1661,7 +1762,7 @@ class Fighter {
               // Void both ways (narrow platform) — hold center, don't move
               this.vx = 0;
             } else {
-              this.vx = wpDir * (pathSafe ? spd : spd * 0.75);
+              this.vx = wpDir * (pathSafe ? spd * 1.12 : spd * 0.88);
             }
 
             // Hop to clear terrain or reach airborne targets
@@ -1679,7 +1780,7 @@ class Fighter {
             this.vx = 0;
             if (this.onGround && Math.random() < 0.15) this.vy = -18;
           } else {
-            this.vx = dir * (pathSafe ? spd : spd * 0.7);
+            this.vx = dir * (pathSafe ? spd * 1.10 : spd * 0.86);
           }
           if (this.onGround && t && t.y + t.h < this.y - 50 && !fwd.cliff && !voidFwd &&
               Math.random() < 0.06 && (!currentArena.hasLava || this.platformAbove()))
@@ -1793,9 +1894,9 @@ class Fighter {
     const hpPct  = this.health / this.maxHealth;
     const tHpPct = t ? (t.health / t.maxHealth) : 1;
 
-    if (hpPct < 0.28 && d > 180) {
+    if (hpPct < 0.14 && d > 220) {
       this.intent = 'retreat';
-    } else if (hpPct < 0.50 && tHpPct > 0.65 && d < 320) {
+    } else if (hpPct < 0.35 && tHpPct > 0.75 && d < 260) {
       this.intent = Math.random() < 0.45 ? 'bait' : 'reposition';
     } else if (d > 360) {
       this.intent = 'pressure'; // always close the gap when far
@@ -1810,12 +1911,7 @@ class Fighter {
     if (this.ragdollTimer > 0 || this.stunTimer > 0) return;
 
     // ---- TARGET VALIDATION: reassign if current target is dead/invalid ----
-    if (!this.target || this.target.health <= 0) {
-      const living = [...players, ...trainingDummies].filter(q => q !== this && q.health > 0 && !q.isBoss === !this.isBoss || (!q.isBoss && !this.isBoss));
-      this.target = living.length
-        ? living.reduce((a, b) => Math.hypot(b.cx()-this.cx(),b.cy()-this.cy()) < Math.hypot(a.cx()-this.cx(),a.cy()-this.cy()) ? b : a)
-        : null;
-    }
+    if (this._isInvalidAITarget(this.target)) this._acquireAITarget();
 
     // ---- DANGER AVOIDANCE: boss beams ----
     if (bossBeams && bossBeams.length > 0 && !this.isBoss) {
@@ -2142,11 +2238,13 @@ class Fighter {
       // HP-based phase switching
       const _hpPct       = this.health / this.maxHealth;
       const _advRatio    = t.health > 0 ? this.health / t.health : 2;
+      const _targetIsRanged = !!(t.weapon && t.weapon.type === 'ranged');
+      const _targetRetreating = _targetIsRanged && Math.sign(t.vx || 0) === Math.sign(t.cx() - this.cx()) && Math.abs(t.vx || 0) > 1.8;
       const _isLowHp     = _hpPct < 0.28;               // kite mode: stay far
       const _isDominating = _advRatio > 1.60 && _hpPct > 0.50; // push in for the kill
-      const _optMin   = _isDominating ? 90  : 160; // min preferred distance
-      const _optMax   = _isLowHp     ? 340 : 240; // max preferred distance (was 360)
-      const _closeRange = 80; // panic distance — back away NOW
+      const _optMin   = _targetIsRanged ? 95 : (_isDominating ? 90  : 160);
+      const _optMax   = _targetIsRanged ? (_targetRetreating ? 150 : 175) : (_isLowHp ? 280 : (_isDominating ? 180 : 220));
+      const _closeRange = _targetIsRanged ? 110 : 80; // panic distance — back away NOW
 
       // Tick strafe timer — flip direction more often when dominant
       this._rangedStrafeTimer = (this._rangedStrafeTimer || 0) - 1;
@@ -2170,7 +2268,7 @@ class Fighter {
       // Schedule aim pause every 1.5-3s (skip when dominant — keep pushing)
       if (!_isDominating && Math.random() < 0.012) this._rangedAimPause = 8 + Math.floor(Math.random() * 12);
 
-      if (d < _closeRange) {
+      if (d < _closeRange && _isLowHp) {
         // PANIC: enemy too close — back away and don't shoot (point-blank penalty)
         const escapeDir = -dir;
         if (!this.isEdgeDanger(escapeDir)) {
@@ -2181,17 +2279,18 @@ class Fighter {
         if (this.onGround && Math.random() < 0.30) this.vy = -18; // jump away
       } else if (d > _optMax) {
         // PRESSURE: chase into range, shoot opportunistically
-        if (!this.isEdgeDanger(dir)) this.vx = dir * spd * (_isDominating ? 1.05 : 0.85);
+        if (!this.isEdgeDanger(dir)) this.vx = dir * spd * (_targetIsRanged ? 1.30 : (_isDominating ? 1.20 : 1.00));
         if (d < this.weapon.range * 1.1 + 20 && this.cooldown <= 0) this.attack(t);
       } else {
         // OPTIMAL RANGE: strafe continuously — never stand still
         const strafeDir = this.isEdgeDanger(this._rangedStrafeDir) ? -this._rangedStrafeDir : this._rangedStrafeDir;
-        if (d < _optMin && !this.isEdgeDanger(-dir)) {
+        if (d < _optMin && _isLowHp && !this.isEdgeDanger(-dir)) {
           // Too close — back off
           this.vx = -dir * spd * 0.75;
         } else {
           // Dominant bots strafe faster to close in; low-HP bots strafe to maintain distance
-          this.vx = strafeDir * spd * (_isDominating ? 0.80 : _isLowHp ? 0.68 : 0.62);
+          this.vx = strafeDir * spd * (_isDominating ? 0.95 : _isLowHp ? 0.68 : 0.78);
+          if (!this.isEdgeDanger(dir) && d > this.weapon.range * 0.55) this.vx += dir * spd * (_targetIsRanged ? 0.58 : (_isLowHp ? 0.22 : 0.42));
         }
         this.facing = dir;
         if (this.cooldown <= 0 && Math.random() < (this.aiDiff === 'easy' ? 0.55 : this.aiDiff === 'medium' ? 0.75 : 0.90)) {
@@ -2237,7 +2336,7 @@ class Fighter {
           console.warn('[AI no-idle]', { intent: this.intent, d, playerIdle: this._playerIdleTmr });
         }
         const forceDir = Math.sign(t.cx() - this.cx());
-        if (!this.isEdgeDanger(forceDir)) this.vx = forceDir * spd * 1.3;
+        if (!this.isEdgeDanger(forceDir)) this.vx = forceDir * spd * 1.5;
         if (this.onGround && (this.platformAbove() || Math.random() < 0.35)) this.vy = -17;
         if (this.cooldown <= 0 && d < this.weapon.range * 1.5 + 35) this.attack(t);
         return;
@@ -2270,7 +2369,7 @@ class Fighter {
       if (Math.abs(this.vx) < 0.6) {
         switch (this.intent) {
           case 'pressure':
-            if (!this.isEdgeDanger(dir)) this.vx = dir * spd * 0.65;
+            if (!this.isEdgeDanger(dir)) this.vx = dir * spd * 0.90;
             break;
           case 'bait': {
             const baitGap = this.weapon.range + 50;
@@ -2279,7 +2378,7 @@ class Fighter {
             break;
           }
           case 'retreat':
-            if (!this.isEdgeDanger(-dir)) this.vx = -dir * spd * 0.55;
+            if (!this.isEdgeDanger(-dir)) this.vx = -dir * spd * 0.30;
             break;
           case 'reposition': {
             const toCenter = GAME_W / 2 - this.cx();

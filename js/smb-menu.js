@@ -6,6 +6,10 @@
 function selectMode(mode) {
   // 'bot' is no longer a separate mode — merge into '2p' with bot toggles
   if (mode === 'bot') mode = '2p';
+  if (mode === 'completerandom') {
+    mode = '2p';
+    completeRandomizer = true;
+  }
   // 'story' opens the story modal instead of changing menu layout
   if (mode === 'story') {
     if (typeof openStoryMenu === 'function') openStoryMenu();
@@ -32,12 +36,20 @@ function selectMode(mode) {
   const isTraining   = mode === 'training';
   const isMinigames  = mode === 'minigames';
   const isOnline     = mode === 'online';
-  const isAdaptive   = mode === 'adaptive';
+  const isAdaptive        = mode === 'adaptive' || mode === 'sovereign';
+  const isCompleteRandom  = mode === '2p' && completeRandomizer;
   // Only update onlineMode when not already connected (prevents clearing it when host/guest switch game modes)
   if (!NetworkManager.connected) onlineMode = isOnline;
   // Show/hide boss player count toggle
   const bpt = document.getElementById('bossPlayerToggle');
   if (bpt) bpt.style.display = isBoss ? 'flex' : 'none';
+  const crRow = document.getElementById('completeRandomRow');
+  if (crRow) crRow.style.display = mode === '2p' ? 'flex' : 'none';
+  const crBtn = document.getElementById('completeRandomBtn');
+  if (crBtn) {
+    crBtn.textContent = `🎲 Complete Random: ${isCompleteRandom ? 'ON' : 'OFF'}`;
+    crBtn.classList.toggle('active', isCompleteRandom);
+  }
   // Show/hide online connection panel
   const onlinePanel = document.getElementById('onlinePanel');
   if (onlinePanel) onlinePanel.style.display = isOnline ? 'flex' : 'none';
@@ -63,7 +75,7 @@ function selectMode(mode) {
   const trainingPanel = document.getElementById('trainingPanel');
   if (trainingPanel) trainingPanel.style.display = isTraining ? 'block' : 'none';
   // Boss/training/minigames/trueform/online/adaptive: hide ∞ infinite; adaptive still shows arena picker
-  document.getElementById('arenaSection').style.display   = (isBoss || isTraining || isMinigames || isTrueForm || isOnline) ? 'none' : '';
+  document.getElementById('arenaSection').style.display   = (isBoss || isTraining || isMinigames || isTrueForm || isOnline || isCompleteRandom) ? 'none' : '';
   const _infOpt = document.getElementById('infiniteOption');
   if (_infOpt) _infOpt.disabled = !!(isBoss || isTraining || isMinigames || isTrueForm || isOnline || isAdaptive);
   if ((isBoss || isTraining || isMinigames || isTrueForm || isOnline || isAdaptive) && infiniteMode) {
@@ -95,6 +107,13 @@ function selectMode(mode) {
       sel.value = 'sword';
     }
   }
+}
+
+function toggleCompleteRandom(forceValue) {
+  const nextValue = typeof forceValue === 'boolean' ? forceValue : !completeRandomizer;
+  completeRandomizer = nextValue;
+  if (gameMode !== '2p') gameMode = '2p';
+  selectMode('2p');
 }
 
 const SKIN_COLORS = {
@@ -247,7 +266,9 @@ function switchArenaWithTransition(newArenaKey, callback) {
       return;
     }
     if (typeof switchArena === 'function') switchArena(newArenaKey);
-    // Reroll weapons + classes for each non-boss player when those slots are set to random
+    // Reroll weapons + classes for each non-boss player:
+    //   - always when completeRandomizer is active
+    //   - otherwise only when the dropdown is set to 'random'
     players.forEach(p => {
       if (p.isBoss) return;
       const isP1 = p === players[0];
@@ -255,8 +276,10 @@ function switchArenaWithTransition(newArenaKey, callback) {
       const cSel = isP1 ? 'p1Class'  : 'p2Class';
       const wVal = document.getElementById(wSel)?.value;
       const cVal = document.getElementById(cSel)?.value;
-      if (wVal !== 'random' && cVal !== 'random') return; // only reroll if random is chosen
-      const resolved = resolveWeaponAndClass(wSel, cSel);
+      if (!completeRandomizer && wVal !== 'random' && cVal !== 'random') return;
+      const resolved = completeRandomizer
+        ? resolveWeaponAndClassValues('random', 'random')
+        : resolveWeaponAndClass(wSel, cSel);
       if (resolved.weaponKey && typeof WEAPONS !== 'undefined' && WEAPONS[resolved.weaponKey]) {
         p.weaponKey = resolved.weaponKey;
         p.weapon    = WEAPONS[resolved.weaponKey];
@@ -281,9 +304,10 @@ function switchArena(newKey) {
   currentArena = ARENAS[currentArenaKey];
   initMapPerks(currentArenaKey);
   generateBgElements();
-  // Clear arena-specific NPCs — they belong to their home arena
+  // Clear arena-specific NPCs and items — they belong to their home arena
   if (typeof forestBeast !== 'undefined') { forestBeast = null; forestBeastCooldown = 600; }
-  if (typeof yeti       !== 'undefined') { yeti        = null; yetiCooldown        = 600; }
+  if (typeof yeti        !== 'undefined') { yeti        = null; yetiCooldown        = 600; }
+  if (typeof mapItems    !== 'undefined') mapItems = [];
   // Assign safe spawn positions for ALL players on the new map.
   // Alive players are repositioned immediately.
   // Dead players only get spawnX/spawnY updated so their pending respawn()
@@ -308,10 +332,45 @@ function switchArena(newKey) {
 }
 
 function selectLives(n) {
+  if (bossFightLivesLock) {
+    chosenLives = BOSS_FIGHT_LIVES;
+    const sel = document.getElementById('livesSelect');
+    if (sel) sel.value = String(BOSS_FIGHT_LIVES);
+    return;
+  }
   infiniteMode = (n === 0);
   chosenLives  = infiniteMode ? 3 : n;
   const sel = document.getElementById('livesSelect');
   if (sel) sel.value = String(n);
+}
+
+function _setBossFightLivesLock(active) {
+  const enable = !!active;
+  if (enable) {
+    if (!bossFightLivesLock) bossFightLivesPrev = chosenLives;
+    bossFightLivesLock = true;
+    infiniteMode = false;
+    chosenLives = BOSS_FIGHT_LIVES;
+    const sel = document.getElementById('livesSelect');
+    if (sel) sel.value = String(BOSS_FIGHT_LIVES);
+    return;
+  }
+  if (!bossFightLivesLock) return;
+  bossFightLivesLock = false;
+  infiniteMode = false;
+  chosenLives = bossFightLivesPrev != null ? bossFightLivesPrev : 3;
+  bossFightLivesPrev = null;
+  const sel = document.getElementById('livesSelect');
+  if (sel) sel.value = String(chosenLives);
+}
+
+function _applyBossFightLivesLockToPlayers() {
+  if (!bossFightLivesLock || !Array.isArray(players)) return;
+  for (const p of players) {
+    if (!p || p.isBoss || p.isDummy) continue;
+    p.lives = BOSS_FIGHT_LIVES;
+    p._maxLives = BOSS_FIGHT_LIVES;
+  }
 }
 
 function toggleSettings() {
@@ -337,11 +396,6 @@ function updateSettings() {
   if (bossAuraEl)   settings.bossAura   = bossAuraEl.checked;
   if (botPortalEl)  settings.botPortal  = botPortalEl.checked;
   if (phaseFlashEl) settings.phaseFlash = phaseFlashEl.checked;
-  const ragdollEl = document.getElementById('settingRagdoll');
-  if (ragdollEl) {
-    settings.ragdollEnabled = ragdollEl.checked;
-    localStorage.setItem('smc_ragdoll', settings.ragdollEnabled ? '1' : '0');
-  }
   const finishersEl = document.getElementById('settingFinishers');
   if (finishersEl) settings.finishers = finishersEl.checked;
   const view3DEl = document.getElementById('setting3DView');
@@ -628,6 +682,37 @@ function resolveWeaponAndClass(weaponSelectId, classSelectId) {
   return { weaponKey, classKey };
 }
 
+// Resolve weapon+class from raw values (not element IDs) — used by completeRandomizer
+function resolveWeaponAndClassValues(wVal, cVal) {
+  const wPool = randomWeaponPool ? [...randomWeaponPool] : WEAPON_KEYS;
+  const cPool = randomClassPool  ? [...randomClassPool]  : ['none', 'thor', 'kratos', 'ninja', 'gunner', 'archer', 'paladin'];
+  const wcMap = _buildWeaponClassMap();
+  let weaponKey, classKey;
+  if (wVal === 'random' && cVal === 'random') {
+    if (Math.random() < 0.5) {
+      weaponKey = wPool[Math.floor(Math.random() * wPool.length)] || 'sword';
+      classKey  = wcMap[weaponKey] || 'none';
+    } else {
+      const eligible = cPool.filter(c => c !== 'none');
+      if (!eligible.length) { weaponKey = wPool[Math.floor(Math.random() * wPool.length)] || 'sword'; classKey = 'none'; }
+      else {
+        classKey  = eligible[Math.floor(Math.random() * eligible.length)];
+        const locked = (typeof CLASSES !== 'undefined' && CLASSES[classKey]?.weapon) || null;
+        weaponKey = locked || (wPool[Math.floor(Math.random() * wPool.length)] || 'sword');
+      }
+    }
+  } else if (wVal === 'random') {
+    weaponKey = wPool[Math.floor(Math.random() * wPool.length)] || 'sword';
+    classKey  = cVal;
+  } else if (cVal === 'random') {
+    weaponKey = wVal;
+    classKey  = cPool[Math.floor(Math.random() * cPool.length)] || 'none';
+  } else {
+    weaponKey = wVal; classKey = cVal;
+  }
+  return { weaponKey, classKey };
+}
+
 // Legacy single-value helpers (used by code paths that resolve independently)
 function getWeaponChoice(id) {
   const v = document.getElementById(id)?.value || 'sword';
@@ -735,6 +820,71 @@ function startGame() {
 // avoidX: if set, the result will be at least MIN_SPAWN_SEP pixels away horizontally.
 // Returns {x, y} or null if no arena is loaded.
 const MIN_SPAWN_SEP = 220; // minimum horizontal distance between two spawns
+function _arenaSpawnBounds() {
+  if (!currentArena || !Array.isArray(currentArena.platforms) || !currentArena.platforms.length) {
+    return { left: 20, right: GAME_W - 20 };
+  }
+  const xs = currentArena.platforms.map(pl => pl.x);
+  const xr = currentArena.platforms.map(pl => pl.x + pl.w);
+  const left = currentArena.worldWidth
+    ? Math.max(Math.min(...xs), (currentArena.mapLeft !== undefined ? currentArena.mapLeft : Math.min(...xs)) - GAME_W * 0.5)
+    : 20;
+  const right = currentArena.worldWidth
+    ? Math.min(Math.max(...xr), (currentArena.mapRight !== undefined ? currentArena.mapRight : Math.max(...xr)) + GAME_W * 0.5)
+    : GAME_W - 20;
+  return { left, right };
+}
+
+function _spawnHazardFloorY() {
+  if (!currentArena) return Infinity;
+  if (currentArena.hasLava) return currentArena.lavaY || 442;
+  if (currentArenaKey === 'void' && bossFloorState === 'hazard') return 470;
+  return Infinity;
+}
+
+function _spawnPointSafe(x, y, w = 24, h = 60) {
+  if (!currentArena || !Array.isArray(currentArena.platforms)) return false;
+  if (!Number.isFinite(x) || !Number.isFinite(y)) return false;
+
+  const bounds = _arenaSpawnBounds();
+  const left   = x - w / 2;
+  const right  = x + w / 2;
+  const top    = y - h;
+  const bottom = y;
+  const hazardY = _spawnHazardFloorY();
+
+  if (left < bounds.left + 8 || right > bounds.right - 8) return false;
+  if (bottom >= hazardY - 8) return false;
+
+  let support = null;
+  for (const pl of currentArena.platforms) {
+    if (!pl || pl.isFloorDisabled) continue;
+    const overlapX = Math.min(right, pl.x + pl.w) - Math.max(left, pl.x);
+    if (overlapX < Math.min(18, w * 0.55)) continue;
+    const footGap = Math.abs(bottom - pl.y);
+    if (footGap <= 6 && (!support || pl.y < support.y)) support = pl;
+    const intersectsBody =
+      right > pl.x + 4 &&
+      left < pl.x + pl.w - 4 &&
+      bottom > pl.y + 3 &&
+      top < pl.y + pl.h - 2;
+    if (intersectsBody) return false;
+  }
+  if (!support) return false;
+
+  for (const other of currentArena.platforms) {
+    if (!other || other === support || other.isFloorDisabled) continue;
+    const blocksHead =
+      right > other.x + 4 &&
+      left < other.x + other.w - 4 &&
+      top < other.y + other.h &&
+      bottom > other.y + 2;
+    if (blocksHead) return false;
+  }
+
+  return true;
+}
+
 function pickSafeSpawn(sideHint, avoidX) {
   if (!currentArena) return null;
   if (['void','soccer'].includes(currentArenaKey)) return null;
@@ -747,26 +897,80 @@ function pickSafeSpawn(sideHint, avoidX) {
   // Use current pl.x (live, after random-lerp) so spawn lands on the actual platform.
   // Also exclude platforms at or below the lava line (would place spawns in lava).
   // lavaY - 90: keep spawns well above lava so players don't immediately burn on respawn
-  const safe = platforms.filter(pl => !pl.isFloorDisabled && pl.w > 50 && pl.y < lavaY - 90);
+  // Fix 5: stricter lava margin — keep 120px above lava to account for fall arc
+  const lavaMargin = currentArena.hasLava ? 120 : 90;
+  const safe = platforms.filter(pl => !pl.isFloorDisabled && pl.w > 50 && pl.y < lavaY - lavaMargin);
   const raised = safe.filter(pl => !pl.isFloor);
   const floor  = safe.find(pl => pl.isFloor);
 
+  // Fix 4: for story arenas with worldWidth, restrict candidates to visible starting section
+  // to avoid spawning players on platforms 3000px away from the action.
+  // Use camera position if available; otherwise default to first screen near mapLeft.
+  let _storyPool = null;
+  if (storyModeActive && currentArena.worldWidth) {
+    const viewCX = (typeof camX === 'number' ? camX : (currentArena.mapLeft || 0)) + GAME_W / 2;
+    const viewHalf = GAME_W * 0.75;
+    const nearby = raised.filter(pl => Math.abs(pl.x + pl.w / 2 - viewCX) < viewHalf);
+    _storyPool = nearby.length ? nearby : raised;
+  }
+
+  // Overhead clearance check: filter out platforms that have another platform within 100px above them
+  function hasOverheadClearance(pl) {
+    const spawnX = pl.x + pl.w / 2;
+    const spawnY = pl.y;
+    for (const other of platforms) {
+      if (other === pl || other.isFloor) continue;
+      // Check if 'other' is directly above this platform spawn point
+      if (other.y + other.h > spawnY - 100 && other.y + other.h < spawnY &&
+          other.x < spawnX + 20 && other.x + other.w > spawnX - 20) {
+        return false;
+      }
+    }
+    return true;
+  }
+
   let pool;
-  if (raised.length) {
-    // Prefer raised platforms on the requested side when possible
-    const preferred = sideHint === 'any' ? raised
-      : raised.filter(pl => sideHint === 'right' ? (pl.x + pl.w / 2 > GAME_W / 2) : (pl.x + pl.w / 2 < GAME_W / 2));
-    pool = preferred.length ? preferred : raised;
+  const raisedBase = _storyPool || raised;
+  if (raisedBase.length) {
+    // Prefer platforms with overhead clearance, then requested side
+    const clear = raisedBase.filter(hasOverheadClearance);
+    const usable = clear.length ? clear : raisedBase;
+    const preferred = sideHint === 'any' ? usable
+      : usable.filter(pl => sideHint === 'right' ? (pl.x + pl.w / 2 > GAME_W / 2) : (pl.x + pl.w / 2 < GAME_W / 2));
+    pool = preferred.length ? preferred : usable;
   } else if (floor) {
-    // Only the floor is available — place on appropriate side, far from avoidX
-    const fx = floor.x + (sideHint === 'right' ? floor.w * 0.65 : floor.w * 0.25);
-    let rx = Math.max(100, Math.min(GAME_W - 100, fx));
-    // If too close to avoidX, push to the opposite quarter of the floor
+    // Only the floor is available — place on appropriate side, far from avoidX.
+    // For large worldWidth maps the floor may be wider than the viewport; use viewport-relative
+    // coordinates so both players don't clamp to the same GAME_W edge.
+    const ww = currentArena.worldWidth;
+    let rx;
+    if (ww) {
+      // Viewport starts at mapLeft (or floor.x as a proxy). Spawn within first screen-width of world.
+      const viewStart = currentArena.mapLeft !== undefined ? currentArena.mapLeft : floor.x;
+      const viewSpan  = Math.min(GAME_W - 160, floor.w);
+      rx = viewStart + viewSpan * (sideHint === 'right' ? 0.70 : 0.25);
+      rx = Math.max(floor.x + 80, Math.min(floor.x + floor.w - 80, rx));
+    } else {
+      const fx = floor.x + (sideHint === 'right' ? floor.w * 0.65 : floor.w * 0.25);
+      rx = Math.max(100, Math.min(GAME_W - 100, fx));
+    }
+    // If too close to avoidX, push to the far quarter of the view span
     if (avoidX !== undefined && Math.abs(rx - avoidX) < MIN_SPAWN_SEP) {
-      rx = avoidX < GAME_W / 2
-        ? Math.max(avoidX + MIN_SPAWN_SEP, GAME_W * 0.65)
-        : Math.min(avoidX - MIN_SPAWN_SEP, GAME_W * 0.35);
-      rx = Math.max(100, Math.min(GAME_W - 100, rx));
+      const refW = ww ? Math.min(GAME_W - 160, floor.w) : (GAME_W - 200);
+      const refL = ww ? (currentArena.mapLeft !== undefined ? currentArena.mapLeft : floor.x) : 100;
+      rx = avoidX < refL + refW / 2
+        ? Math.max(avoidX + MIN_SPAWN_SEP, refL + refW * 0.65)
+        : Math.min(avoidX - MIN_SPAWN_SEP, refL + refW * 0.35);
+      rx = Math.max(floor.x + 80, Math.min(floor.x + floor.w - 80, rx));
+    }
+    const floorCandidates = [
+      rx,
+      floor.x + floor.w * 0.22,
+      floor.x + floor.w * 0.50,
+      floor.x + floor.w * 0.78,
+    ];
+    for (const candX of floorCandidates) {
+      if (_spawnPointSafe(candX, floor.y - 1)) return { x: candX, y: floor.y - 1 };
     }
     return { x: rx, y: floor.y - 1 };
   } else {
@@ -779,22 +983,89 @@ function pickSafeSpawn(sideHint, avoidX) {
     const farPool = pool.filter(pl => Math.abs(pl.x + pl.w / 2 - avoidX) >= MIN_SPAWN_SEP);
     if (farPool.length) chosenPool = farPool;
   }
-  const pl = chosenPool[Math.floor(Math.random() * chosenPool.length)];
+  const orderedPool = chosenPool
+    .slice()
+    .sort((a, b) => {
+      const aMid = a.x + a.w / 2;
+      const bMid = b.x + b.w / 2;
+      const aScore = avoidX !== undefined ? Math.abs(aMid - avoidX) : 0;
+      const bScore = avoidX !== undefined ? Math.abs(bMid - avoidX) : 0;
+      return bScore - aScore;
+    });
 
-  // Keep spawn at least 100px from game-world edges.
-  const SPAWN_EDGE_MARGIN = 100;
-  const safeLeft  = Math.max(pl.x + 14, SPAWN_EDGE_MARGIN);
-  const safeRight = Math.min(pl.x + pl.w - 14, GAME_W - SPAWN_EDGE_MARGIN);
-  let rx = safeLeft < safeRight
-    ? safeLeft + Math.random() * (safeRight - safeLeft)
-    : pl.x + pl.w / 2;
-  // Final nudge: if still too close to avoidX, clamp to the far end of this platform
-  if (avoidX !== undefined && Math.abs(rx - avoidX) < MIN_SPAWN_SEP) {
-    rx = avoidX < GAME_W / 2
-      ? Math.min(safeRight, avoidX + MIN_SPAWN_SEP)
-      : Math.max(safeLeft,  avoidX - MIN_SPAWN_SEP);
+  for (const pl of orderedPool) {
+    // Keep spawn within platform bounds without leaking outside the current arena
+    const bounds = _arenaSpawnBounds();
+    const safeLeft  = Math.max(pl.x + 14, bounds.left + 12);
+    const safeRight = Math.min(pl.x + pl.w - 14, bounds.right - 12);
+    if (!(safeLeft < safeRight)) continue;
+
+    const samples = [
+      safeLeft + (safeRight - safeLeft) * 0.18,
+      safeLeft + (safeRight - safeLeft) * 0.50,
+      safeLeft + (safeRight - safeLeft) * 0.82,
+    ];
+    if (avoidX !== undefined) {
+      samples.push(avoidX < (safeLeft + safeRight) / 2
+        ? Math.min(safeRight, avoidX + MIN_SPAWN_SEP)
+        : Math.max(safeLeft, avoidX - MIN_SPAWN_SEP));
+    }
+
+    for (let i = 0; i < 6; i++) {
+      samples.push(safeLeft + Math.random() * (safeRight - safeLeft));
+    }
+
+    for (const candX of samples) {
+      if (avoidX !== undefined && Math.abs(candX - avoidX) < MIN_SPAWN_SEP * 0.72) continue;
+      if (_spawnPointSafe(candX, pl.y - 1)) return { x: candX, y: pl.y - 1 };
+    }
   }
-  return { x: rx, y: pl.y - 1 };
+
+  const fallback = orderedPool[0];
+  if (!fallback) return null;
+  return { x: clamp(fallback.x + fallback.w / 2, fallback.x + 14, fallback.x + fallback.w - 14), y: fallback.y - 1 };
+}
+
+function pickSafeSpawnNear(preferredX, sideHint = 'any', avoidX) {
+  if (!currentArena || !Array.isArray(currentArena.platforms)) return pickSafeSpawn(sideHint, avoidX);
+  const hazardY = _spawnHazardFloorY();
+  const bounds = _arenaSpawnBounds();
+  const candidates = currentArena.platforms.filter(pl =>
+    pl && !pl.isFloorDisabled && pl.w > 46 && pl.y < hazardY - 18
+  );
+  if (!candidates.length) return pickSafeSpawn(sideHint, avoidX);
+
+  const desiredX = Number.isFinite(preferredX)
+    ? clamp(preferredX, bounds.left + 24, bounds.right - 24)
+    : (bounds.left + bounds.right) * 0.5;
+
+  const filtered = sideHint === 'left'
+    ? candidates.filter(pl => pl.x + pl.w / 2 <= desiredX + GAME_W * 0.15)
+    : sideHint === 'right'
+      ? candidates.filter(pl => pl.x + pl.w / 2 >= desiredX - GAME_W * 0.15)
+      : candidates;
+  const pool = filtered.length ? filtered : candidates;
+  const ordered = pool
+    .slice()
+    .sort((a, b) => Math.abs((a.x + a.w / 2) - desiredX) - Math.abs((b.x + b.w / 2) - desiredX));
+
+  for (const pl of ordered) {
+    const left = Math.max(pl.x + 14, bounds.left + 12);
+    const right = Math.min(pl.x + pl.w - 14, bounds.right - 12);
+    if (!(left < right)) continue;
+    const samples = [
+      clamp(desiredX, left, right),
+      clamp((left + right) * 0.5, left, right),
+      left + (right - left) * 0.22,
+      left + (right - left) * 0.78,
+    ];
+    for (let i = 0; i < 5; i++) samples.push(left + Math.random() * (right - left));
+    for (const candX of samples) {
+      if (avoidX !== undefined && Math.abs(candX - avoidX) < MIN_SPAWN_SEP * 0.66) continue;
+      if (_spawnPointSafe(candX, pl.y - 1)) return { x: candX, y: pl.y - 1 };
+    }
+  }
+  return pickSafeSpawn(sideHint, avoidX);
 }
 
 function _startGameCore() {
@@ -815,7 +1086,11 @@ function _startGameCore() {
   const isTrainingMode  = gameMode === 'training';
   const isMinigamesMode = gameMode === 'minigames';
   const isExploreMode   = gameMode === 'exploration';
-  const isAdaptiveMode  = gameMode === 'adaptive';
+  const isAdaptiveMode     = gameMode === 'adaptive' || gameMode === 'sovereign';
+  const isSovereignMode    = gameMode === 'sovereign';
+  const isCompleteRandMode = gameMode === '2p' && completeRandomizer;
+  const isBossLivesMode    = isBossMode || isTrueFormMode;
+  _setBossFightLivesLock(isBossLivesMode);
   trainingMode = isTrainingMode;
   tutorialMode = false; // tutorial mode removed
   if (isBossMode) {
@@ -833,6 +1108,9 @@ function _startGameCore() {
       const arenaPool = ARENA_KEYS_ORDERED.filter(k => ARENAS[k] && !ARENAS[k].isStoryOnly);
       currentArenaKey = randChoice(arenaPool);
     }
+  } else if (isCompleteRandMode) {
+    const arenaPool = ARENA_KEYS_ORDERED.filter(k => ARENAS[k] && !ARENAS[k].isStoryOnly);
+    currentArenaKey = randChoice(arenaPool);
   } else {
     // Only standard PvP arenas (ARENA_KEYS_ORDERED) available for random pick
     const arenaPool = ARENA_KEYS_ORDERED.filter(k => ARENAS[k] && !ARENAS[k].isStoryOnly);
@@ -844,7 +1122,7 @@ function _startGameCore() {
       currentArenaKey = selectedArena === 'random' ? randChoice(arenaPool) : selectedArena;
     }
   }
-  isRandomMapMode = (selectedArena === 'random');
+  isRandomMapMode = (selectedArena === 'random' && !isCompleteRandMode);
   // Lava/void: no randomization
   if (currentArenaKey !== 'creator' && currentArenaKey !== 'lava' && currentArenaKey !== 'void' && currentArenaKey !== 'soccer' && !isExploreMode) randomizeArenaLayout(currentArenaKey);
   currentArena = ARENAS[currentArenaKey];
@@ -867,8 +1145,9 @@ function _startGameCore() {
   }
 
   // Resolve weapons & classes together — handles 50/50 when both are 'random'
-  const _p1Resolved = resolveWeaponAndClass('p1Weapon', 'p1Class');
-  const _p2Resolved = resolveWeaponAndClass('p2Weapon', 'p2Class');
+  // Complete Randomizer is a 1v1 modifier: force random arena + weapon + class
+  const _p1Resolved = isCompleteRandMode ? resolveWeaponAndClassValues('random', 'random') : resolveWeaponAndClass('p1Weapon', 'p1Class');
+  const _p2Resolved = isCompleteRandMode ? resolveWeaponAndClassValues('random', 'random') : resolveWeaponAndClass('p2Weapon', 'p2Class');
   const w1 = _p1Resolved.weaponKey;
   const w2 = _p2Resolved.weaponKey;
   // Store resolved class keys so applyClass calls below use the coordinated result
@@ -880,11 +1159,6 @@ function _startGameCore() {
   const p2Diff = (document.getElementById('p2Difficulty')?.value) || 'hard';
   const diff   = p2Diff; // legacy alias used below for p2
   const isBot  = p2IsBot; // bot determined by P2 toggle, not separate mode
-
-  // Rebuild Matter.js ragdoll bounds when ragdoll is enabled
-  if (settings.ragdollEnabled && typeof RagdollSystem !== 'undefined') {
-    RagdollSystem.rebuildBounds();
-  }
 
   // Generate bg elements fresh each game
   generateBgElements();
@@ -1018,12 +1292,15 @@ function _startGameCore() {
     }
   } else if (isAdaptiveMode) {
     // Adaptive AI: P1 vs the learning AdaptiveAI opponent
+    // Sovereign mode uses SovereignMK2 (enhanced); story adaptive uses base AdaptiveAI
     p1.isAI  = false;
     p1.lives = chosenLives;
     // Pick a weapon for the AI — random from a balanced set
     const _aiWeapons = ['sword','axe','spear','hammer','scythe','katana'];
     const _aiWeapon  = _aiWeapons[Math.floor(Math.random() * _aiWeapons.length)];
-    const ai = new AdaptiveAI(720, 300, '#9955ee', _aiWeapon);
+    const ai = isSovereignMode
+      ? new SovereignMK2(720, 300, '#ff3311', _aiWeapon)
+      : new AdaptiveAI(720, 300, '#9955ee', _aiWeapon);
     ai.playerNum = 2;
     ai.lives     = chosenLives;
     const _aiSpawn = pickSafeSpawn('right', _p1SpawnPos.x) || { x: 720, y: 300 };
@@ -1121,6 +1398,11 @@ function _startGameCore() {
         if (_ec.enemyAtkCdMult !== undefined) p2.attackCooldownMult = _ec.enemyAtkCdMult;
       }
     }
+    if (storyModeActive && typeof _storyScaleEnemyUnit === 'function' && typeof _activeStory2Chapter !== 'undefined' && _activeStory2Chapter) {
+      _storyScaleEnemyUnit(p2, _activeStory2Chapter.id, {
+        elite: !!(typeof storyPendingPhaseConfig !== 'undefined' && storyPendingPhaseConfig && (storyPendingPhaseConfig.type === 'elite_wave' || storyPendingPhaseConfig.type === 'mini_boss'))
+      });
+    }
     // Story armor: apply to p2
     if (storyModeActive && storyEnemyArmor && storyEnemyArmor.length > 0) {
       p2.armorPieces = [...storyEnemyArmor];
@@ -1128,6 +1410,10 @@ function _startGameCore() {
     // Story opponent name
     if (storyModeActive && storyOpponentName) p2.name = storyOpponentName;
     players = [p1, p2];
+    if (storyModeActive) {
+      p1.storyFaction = 'player'; p1._teamId = 1;
+      p2.storyFaction = 'enemy';  p2._teamId = 2;
+    }
     p1.target = p2; p2.target = p1;
 
     // Story two-enemies: spawn a third fighter on p2's side
@@ -1140,7 +1426,7 @@ function _startGameCore() {
       const p3 = new Fighter(_sp3.x, _sp3.y, _p3c, _p3w,
         { left:'ArrowLeft', right:'ArrowRight', jump:'ArrowUp', attack:'Enter', shield:'ArrowDown', ability:'.', super:'/' },
         true, _p3d);
-      p3.playerNum = 3; p3.name = 'BOT2'; p3.lives = chosenLives;
+      p3.playerNum = 3; p3.name = _sed.name || 'ENEMY B'; p3.lives = chosenLives;
       p3.spawnX = _sp3.x; p3.spawnY = _sp3.y;
       if (_sed.classKey) applyClass(p3, _sed.classKey);
       if (storyModeActive && typeof STORY_ENEMY_CONFIGS !== 'undefined') {
@@ -1150,7 +1436,14 @@ function _startGameCore() {
           if (_ec2.enemyAtkCdMult !== undefined) p3.attackCooldownMult = _ec2.enemyAtkCdMult;
         }
       }
+      if (storyModeActive && typeof _storyScaleEnemyUnit === 'function' && typeof _activeStory2Chapter !== 'undefined' && _activeStory2Chapter) {
+        _storyScaleEnemyUnit(p3, _activeStory2Chapter.id, { elite: true });
+      }
       players.push(p3);
+      if (storyModeActive) {
+        p3.storyFaction = 'enemy';
+        p3._teamId = 2;
+      }
       // All bots target the player
       p2.target = p1; p3.target = p1;
     }
@@ -1194,6 +1487,8 @@ function _startGameCore() {
       p2.x = 640; p2.y = 200;
     }
   }
+
+  _applyBossFightLivesLockToPlayers();
 
   // Training mode: show in-game HUD (not in tutorial)
   const trainingHud = document.getElementById('trainingHud');
@@ -1292,10 +1587,10 @@ if (localStorage.getItem('smc_bossBeaten')) {
   const bossCard = document.getElementById('modeBoss');
   if (bossCard) bossCard.style.display = '';
 }
-// Unlock Adaptive AI (SOVEREIGN) mode card after beating it in story
+// Unlock SOVEREIGN Ω mode card after beating SOVEREIGN in story
 if (localStorage.getItem('smc_sovereignBeaten')) {
-  const _adCard = document.getElementById('modeAdaptive');
-  if (_adCard) _adCard.style.display = '';
+  const _s2Card  = document.getElementById('modeSovereign');
+  if (_s2Card)  _s2Card.style.display  = '';
 }
 if (localStorage.getItem('smc_trueform')) {
   const card = document.getElementById('modeTrueForm');
@@ -1310,11 +1605,6 @@ if (localStorage.getItem('smc_trueform')) {
     if (settings.view3D && typeof set3DView === 'function') set3DView('settings');
   }
 }
-// Restore ragdoll setting checkbox
-(function() {
-  const el = document.getElementById('settingRagdoll');
-  if (el) el.checked = settings.ragdollEnabled;
-})();
 // Init arena & lives dropdowns — default to random on first load
 selectArena('random');
 selectLives(chosenLives);
@@ -1389,4 +1679,3 @@ function drawEdgeIndicators(scX, scY, camCX, camCY) {
     ctx.restore();
   }
 }
-

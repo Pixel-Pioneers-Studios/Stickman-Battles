@@ -109,10 +109,10 @@
   <div class="menu-center">
     <h1 class="game-title">STICKMAN BATTLES</h1>
     <p class="game-subtitle">Local Multiplayer Platform Fighter</p>
-    <p id="gameVersionLabel" style="font-size:0.65rem;color:rgba(255,255,255,0.25);letter-spacing:1px;margin:-6px 0 4px;text-align:center;">v2.4.2</p>
+    <p id="gameVersionLabel" style="font-size:0.65rem;color:rgba(255,255,255,0.25);letter-spacing:1px;margin:-6px 0 4px;text-align:center;">v2.4.4</p>
 
     <!-- TRUE FORM HINT — hidden once unlocked -->
-    <div id="trueFormHint" style="text-align:center;margin:4px 0 6px;font-size:0.72rem;color:#886699;letter-spacing:1px;opacity:0.8;min-height:1.2em;overflow:visible;">
+    <div id="trueFormHint" style="text-align:center;margin:0;font-size:0.68rem;color:#886699;letter-spacing:1px;opacity:0.8;overflow:visible;">
       &#128274; <em>A secret power lies dormant... beat the boss to uncover it.</em>
     </div>
 
@@ -140,9 +140,13 @@
           <div class="mode-name" style="color:#ffffff">True Form</div>
           <div class="mode-desc" style="color:#888">Face what lies beneath</div>
         </div>
-        <div class="mode-card" id="modeAdaptive" data-mode="adaptive" onclick="selectMode('adaptive')" style="display:none">
-          <div class="mode-name" style="color:#bb88ff">🧠 Adaptive AI</div>
-          <div class="mode-desc">Fight an AI that learns you</div>
+        <div class="mode-card" id="modeSovereign" data-mode="sovereign" onclick="selectMode('sovereign')" style="display:none">
+          <div class="mode-name" style="color:#ff4422">⚡ SOVEREIGN Ω</div>
+          <div class="mode-desc" style="color:#cc6644">No limits. No mercy.</div>
+        </div>
+        <div class="mode-card" id="modeCompleteRandom" data-mode="completerandom" onclick="selectMode('completerandom')" style="display:none">
+          <div class="mode-name" style="color:#ff9944">🎲 Complete Random</div>
+          <div class="mode-desc" style="color:#aa7733">New map, weapon &amp; class every death</div>
         </div>
         <div class="mode-card" id="modeStory" data-mode="story" onclick="selectMode('story')">
           <div class="mode-name" style="color:#ffcc88">📖 Story</div>
@@ -163,6 +167,10 @@
       <div id="bossPlayerToggle" style="display:none; gap:8px; margin-top:8px;">
         <button id="bpBtn1" class="btn active" onclick="setBossPlayers(1)">1 Player</button>
         <button id="bpBtn2" class="btn" onclick="setBossPlayers(2)">2 Players</button>
+      </div>
+      <div id="completeRandomRow" style="display:none; gap:8px; align-items:center; margin-top:8px;">
+        <span style="color:#ffbb66; font-size:0.78rem;">1v1 Modifier:</span>
+        <button id="completeRandomBtn" class="btn" onclick="toggleCompleteRandom()">🎲 Complete Random: OFF</button>
       </div>
       <!-- Online multiplayer connection panel (PeerJS — no server required) -->
       <div id="onlinePanel" style="display:none; flex-direction:column; gap:8px; margin-top:10px; padding:10px; background:rgba(0,100,200,0.15); border-radius:8px; border:1px solid rgba(0,150,255,0.3);">
@@ -267,8 +275,10 @@
       </div>
     </div>
 
-    <!-- ARENA SELECTION -->
-    <div id="arenaSection">
+    <!-- ARENA + LIVES (side by side) -->
+    <div id="arenaSection" style="width:100%;max-width:600px;">
+      <div style="display:grid;grid-template-columns:1fr auto;gap:10px;align-items:start;">
+        <div>
       <p class="section-label">Arena</p>
       <div style="display:flex;gap:6px;align-items:center;">
         <select id="arenaSelect" onchange="selectArena(this.value)" style="flex:1;background:rgba(10,10,30,0.85);color:#c8d8ff;border:1px solid rgba(100,140,255,0.35);border-radius:8px;padding:6px 10px;font-size:0.82rem;outline:none;cursor:pointer;">
@@ -298,7 +308,19 @@
           </optgroup>
         </select>
       </div>
-      <div id="arenaGimmickHint" style="font-size:0.70rem;color:#8899bb;margin-top:4px;min-height:14px;"></div>
+          <div id="arenaGimmickHint" style="font-size:0.70rem;color:#8899bb;margin-top:4px;min-height:14px;"></div>
+        </div>
+        <div>
+          <p class="section-label">Lives</p>
+          <select id="livesSelect" onchange="selectLives(parseInt(this.value))" style="width:100px;background:rgba(10,10,30,0.85);color:#c8d8ff;border:1px solid rgba(100,140,255,0.35);border-radius:8px;padding:6px 8px;font-size:0.82rem;outline:none;cursor:pointer;">
+            <option value="1">1 Life</option>
+            <option value="3" selected>3 Lives</option>
+            <option value="5">5 Lives</option>
+            <option value="10">10 Lives</option>
+            <option value="0" id="infiniteOption">∞ Infinite</option>
+          </select>
+        </div>
+      </div>
     </div>
 
     <!-- TRAINING PANEL (shown only in training mode) -->
@@ -321,20 +343,8 @@
       </div>
     </div>
 
-    <!-- LIVES SELECTION -->
-    <div>
-      <p class="section-label">Lives Per Player</p>
-      <select id="livesSelect" onchange="selectLives(parseInt(this.value))" style="width:100%;background:rgba(10,10,30,0.85);color:#c8d8ff;border:1px solid rgba(100,140,255,0.35);border-radius:8px;padding:6px 10px;font-size:0.82rem;outline:none;cursor:pointer;">
-        <option value="1">1 Life</option>
-        <option value="3" selected>3 Lives</option>
-        <option value="5">5 Lives</option>
-        <option value="10">10 Lives</option>
-        <option value="0" id="infiniteOption">∞ Infinite</option>
-      </select>
-    </div>
-
     <!-- CHAOS MODE TOGGLE -->
-    <div id="chaosModeRow" style="display:flex;align-items:center;gap:10px;margin-top:6px;">
+    <div id="chaosModeRow" style="display:none;align-items:center;gap:10px;width:100%;max-width:600px;">
       <button id="chaosModeBtn" class="btn" onclick="toggleChaosMode()"
         style="flex:1;background:rgba(20,10,40,0.85);border:1px solid rgba(160,60,255,0.4);color:#cc88ff;font-size:0.8rem;padding:6px 10px;border-radius:8px;cursor:pointer;transition:all 0.2s;">
         ⚡ Chaos Mode: OFF
@@ -398,10 +408,6 @@
                 <input type="checkbox" id="settingPhaseFlash" checked onchange="updateSettings()">
                 <span>Phase Flash</span>
               </label>
-              <label class="setting-item">
-                <input type="checkbox" id="settingRagdoll" onchange="updateSettings()">
-                <span>Ragdoll Physics</span>
-              </label>
               <label class="setting-item" id="setting3DRow" style="display:none;" title="Unlocked by defeating the True Form boss">
                 <input type="checkbox" id="setting3DView" onchange="updateSettings()">
                 <span style="color:#cc88ff;">3D View ✦</span>
@@ -438,43 +444,47 @@
       </div>
     </div>
 
-    <button class="btn btn-start" onclick="startGame()">START GAME</button>
-
-    <div class="controls-info">
-      <div><strong>P1:</strong> <strong>A/D</strong> move · <strong>W</strong> jump · <strong>W</strong> again in air = double jump · <strong>S</strong> shield · <strong>Space</strong> attack · <strong>Q</strong> ability · <strong>E</strong> super</div>
-      <div><strong>P2:</strong> <strong>←/→</strong> move · <strong>↑</strong> jump · <strong>↑</strong> again in air = double jump · <strong>↓</strong> shield · <strong>Enter</strong> attack · <strong>.</strong> ability · <strong>/</strong> super</div>
-      <div><strong>Esc</strong> = pause &nbsp;|&nbsp; Shield has a cooldown after use</div>
-    </div>
-    <!-- Fullscreen button -->
-    <div style="display:flex;justify-content:center;margin-top:8px;">
+    <!-- START + FULLSCREEN row -->
+    <div style="display:flex;gap:8px;align-items:center;justify-content:center;">
+      <button class="btn btn-start" onclick="startGame()">START GAME</button>
       <button id="fullscreenBtn" onclick="toggleFullscreen()"
-        style="font-size:0.75rem;color:#cceeff;background:rgba(0,180,255,0.1);border:1px solid rgba(0,180,255,0.3);border-radius:6px;padding:5px 16px;cursor:pointer;letter-spacing:1px;transition:background 0.15s;"
+        style="font-size:0.75rem;color:#cceeff;background:rgba(0,180,255,0.1);border:1px solid rgba(0,180,255,0.3);border-radius:8px;padding:10px 14px;cursor:pointer;letter-spacing:1px;transition:background 0.15s;"
         onmouseover="this.style.background='rgba(0,180,255,0.22)'" onmouseout="this.style.background='rgba(0,180,255,0.1)'">
-        ⛶ Fullscreen
+        ⛶
       </button>
     </div>
 
-    <!-- Footer: version + feedback links -->
-    <div style="display:flex;justify-content:center;align-items:center;gap:10px;margin-top:10px;flex-wrap:wrap;">
+    <!-- Controls info (collapsible) -->
+    <details style="width:100%;max-width:600px;">
+      <summary style="cursor:pointer;font-size:0.72rem;color:rgba(180,200,255,0.55);letter-spacing:2px;text-transform:uppercase;list-style:none;text-align:center;padding:4px 0;">Controls ▾</summary>
+      <div class="controls-info" style="margin-top:6px;">
+        <div><strong>P1:</strong> <strong>A/D</strong> move · <strong>W</strong> jump/double-jump · <strong>S</strong> shield · <strong>Space</strong> attack · <strong>Q</strong> ability · <strong>E</strong> super</div>
+        <div><strong>P2:</strong> <strong>←/→</strong> move · <strong>↑</strong> jump/double-jump · <strong>↓</strong> shield · <strong>Enter</strong> attack · <strong>.</strong> ability · <strong>/</strong> super</div>
+        <div><strong>Esc</strong> = pause &nbsp;|&nbsp; Shield has a cooldown after use</div>
+      </div>
+    </details>
+
+    <!-- Footer row: links + changelog -->
+    <div style="display:flex;justify-content:center;align-items:center;gap:8px;flex-wrap:wrap;padding-bottom:4px;">
       <a href="https://docs.google.com/forms/d/e/1FAIpQLSfcW-7Ywj5lu8yXo3Z7rXloq4HF9hm7WAHtTrimvOrU6yccrQ/viewform?usp=header" target="_blank" rel="noopener"
-         style="font-size:0.7rem;color:#ff6666;text-decoration:none;border:1px solid rgba(255,80,80,0.35);border-radius:5px;padding:4px 10px;transition:background 0.15s;"
+         style="font-size:0.68rem;color:#ff6666;text-decoration:none;border:1px solid rgba(255,80,80,0.35);border-radius:5px;padding:4px 10px;transition:background 0.15s;"
          onmouseover="this.style.background='rgba(255,60,60,0.15)'" onmouseout="this.style.background='transparent'">
-        🐛 Report a Bug
+        🐛 Bug
       </a>
       <a href="https://docs.google.com/forms/d/e/1FAIpQLSd0FTw-TMGY-NMwXITIJy2tyOYZKndnCkj3vyxUzek5L8IVKA/viewform?usp=header" target="_blank" rel="noopener"
-         style="font-size:0.7rem;color:#aaddff;text-decoration:none;border:1px solid rgba(100,180,255,0.35);border-radius:5px;padding:4px 10px;transition:background 0.15s;"
+         style="font-size:0.68rem;color:#aaddff;text-decoration:none;border:1px solid rgba(100,180,255,0.35);border-radius:5px;padding:4px 10px;transition:background 0.15s;"
          onmouseover="this.style.background='rgba(100,180,255,0.12)'" onmouseout="this.style.background='transparent'">
-        💡 Suggest a Feature
+        💡 Suggest
       </a>
       <button onclick="showAchievementsModal()" id="homeAchievementsBtn"
-        style="margin-top:6px;width:100%;background:rgba(255,200,0,0.08);border:1px solid rgba(255,200,0,0.35);color:#ffcc00;font-family:inherit;font-size:0.82rem;padding:7px 0;border-radius:8px;cursor:pointer;letter-spacing:0.04em;transition:background 0.15s,border-color 0.15s;"
+        style="background:rgba(255,200,0,0.08);border:1px solid rgba(255,200,0,0.35);color:#ffcc00;font-family:inherit;font-size:0.68rem;padding:4px 10px;border-radius:5px;cursor:pointer;transition:background 0.15s;"
         onmouseover="this.style.background='rgba(255,200,0,0.18)'" onmouseout="this.style.background='rgba(255,200,0,0.08)'">
         🏆 Achievements
       </button>
       <button onclick="showChangelogModal()"
-        style="margin-top:5px;width:100%;background:rgba(60,100,220,0.08);border:1px solid rgba(80,130,255,0.3);color:#7799ee;font-family:inherit;font-size:0.78rem;padding:6px 0;border-radius:8px;cursor:pointer;letter-spacing:0.06em;transition:background 0.15s,border-color 0.15s;"
+        style="background:rgba(60,100,220,0.08);border:1px solid rgba(80,130,255,0.3);color:#7799ee;font-family:inherit;font-size:0.68rem;padding:4px 10px;border-radius:5px;cursor:pointer;transition:background 0.15s;"
         onmouseover="this.style.background='rgba(60,100,220,0.18)'" onmouseout="this.style.background='rgba(60,100,220,0.08)'">
-        📋 Update Logs &nbsp;<span id="homeVersionBadge" style="font-size:0.68rem;color:#4466bb;"></span>
+        📋 Updates <span id="homeVersionBadge" style="font-size:0.65rem;color:#4466bb;"></span>
       </button>
     </div>
   </div><!-- /.menu-center -->
@@ -949,7 +959,6 @@
 })();
 </script>
 
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
   <!-- PeerJS — serverless WebRTC peer-to-peer multiplayer -->
   <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
   <!-- Error boundary — must be FIRST so it catches all other module errors -->
@@ -979,8 +988,10 @@
   <script src="./js/smb-enemies.js"></script>
   <!-- Boss and True Form -->
   <script src="./js/smb-boss.js"></script>
-  <!-- Adaptive AI — learning opponent for Adaptive AI mode -->
+  <!-- Adaptive AI — learning opponent for Adaptive AI mode (story) -->
   <script src="./js/smb-adaptive-ai.js"></script>
+  <!-- SOVEREIGN Ω — upgraded adaptive AI with prediction/punishment/limiter break -->
+  <script src="./js/smb-sovereign-mk2.js"></script>
   <!-- TrueForm ending cinematic -->
   <script src="./js/smb-trueform-ending.js"></script>
   <!-- Drawing, game state, HUD, visual effects -->
@@ -997,8 +1008,6 @@
   <script src="./js/smb-menu.js"></script>
   <!-- Network / online multiplayer -->
   <script src="./js/smb-network.js"></script>
-  <!-- True Matter.js ragdoll system (optional, enabled via settings) -->
-  <script src="./js/smb-ragdoll.js"></script>
   <!-- Developer debug toolkit (loaded last so all systems exist) -->
   <script src="./js/smb-debug.js"></script>
   <!-- Save / Export / Import system -->
@@ -1478,27 +1487,6 @@ document.addEventListener('keydown', function(e) {
   </div>
 </div>
 
-<!-- ============================================================
-     STORY LEVEL COMPLETE OVERLAY
-     ============================================================ -->
-<div id="storyCompleteOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.82);z-index:9200;align-items:center;justify-content:center;">
-  <div style="background:rgba(6,6,20,0.98);border:1px solid rgba(80,220,120,0.30);border-radius:14px;padding:36px 40px 28px;width:min(400px,88vw);color:#dde4ff;font-family:'Segoe UI',Arial,sans-serif;text-align:center;box-shadow:0 0 50px rgba(0,180,80,0.15);">
-    <div style="font-size:2rem;margin-bottom:8px;">✓</div>
-    <div id="storyCompleteCh" style="font-size:1.1rem;color:#66ee99;font-weight:bold;margin-bottom:4px;"></div>
-    <div id="storyCompleteTitle" style="font-size:0.85rem;color:#889;margin-bottom:18px;"></div>
-    <div id="storyCompleteReward" style="display:none;background:rgba(80,220,120,0.12);border:1px solid rgba(80,220,120,0.30);border-radius:8px;padding:9px 16px;font-size:0.82rem;color:#88ffaa;margin-bottom:20px;"></div>
-    <div style="display:flex;flex-direction:column;gap:8px;">
-      <button id="storyCompleteNextBtn"
-        style="background:rgba(80,200,255,0.14);border:1px solid rgba(80,200,255,0.40);border-radius:8px;color:#88ccff;font-family:inherit;font-size:0.9rem;padding:9px 20px;cursor:pointer;transition:background 0.15s;"
-        onmouseover="this.style.background='rgba(80,200,255,0.26)'"
-        onmouseout="this.style.background='rgba(80,200,255,0.14)'">Next Level →</button>
-      <button id="storyCompleteMenuBtn"
-        style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.15);border-radius:8px;color:#aab;font-family:inherit;font-size:0.82rem;padding:7px 20px;cursor:pointer;transition:background 0.15s;"
-        onmouseover="this.style.background='rgba(255,255,255,0.12)'"
-        onmouseout="this.style.background='rgba(255,255,255,0.05)'">↩ Story Menu</button>
-    </div>
-  </div>
-</div>
 
 <!-- IMPORT SAVE MODAL -->
 <div id="importSaveModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.88);z-index:10000;align-items:center;justify-content:center;">
