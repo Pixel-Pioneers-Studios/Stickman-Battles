@@ -279,14 +279,32 @@ function _renderChapterList() {
         const replayTag = (done)
           ? `<span style="font-size:0.52rem;color:#667;margin-left:4px;border:1px solid #334;border-radius:3px;padding:1px 4px;">replay</span>` : '';
 
+        // Spoiler-safe: redact boss/trueform fights that are locked
+        const isSpoilerChapter = (ch.isBossFight || ch.isTrueFormFight);
+        const isSpoilerLocked  = locked && !done && isSpoilerChapter;
+        const isDeepLocked     = locked && !done && i > cur + 3 && isSpoilerChapter;
+        let displayTitle = ch.title;
+        let displayWorld = ch.world || '';
+        if (isSpoilerLocked) {
+          displayTitle = ch.isTrueFormFight ? '??? Final Entity' : '??? Boss Encounter';
+          displayWorld = 'Unknown Zone';
+        }
+
         const infoEl = document.createElement('div');
         infoEl.style.cssText = 'flex:1;min-width:0;line-height:1.3;';
         infoEl.innerHTML =
           `<div style="display:flex;align-items:center;flex-wrap:wrap;gap:2px;">` +
-            `<span style="font-size:0.81rem;color:${done ? '#88ffaa' : current ? '#dde4ff' : '#556'};">${ch.title}</span>` +
-            livesTag + rewardTag + bpTag + replayTag +
+            `<span style="font-size:0.81rem;color:${done ? '#88ffaa' : current ? '#dde4ff' : '#556'};">${displayTitle}</span>` +
+            (isSpoilerLocked ? '' : livesTag + rewardTag + bpTag) + replayTag +
           `</div>` +
-          `<div style="font-size:0.60rem;color:#4a4a6a;margin-top:1px;">${ch.world || ''}</div>`;
+          `<div style="font-size:0.60rem;color:#4a4a6a;margin-top:1px;">${displayWorld}</div>`;
+
+        if (isSpoilerLocked) {
+          infoEl.title = "You're not supposed to see that yet.";
+        }
+        if (isDeepLocked) {
+          el.style.filter = 'brightness(0.7)';
+        }
 
         el.appendChild(statusEl);
         el.appendChild(infoEl);
@@ -577,6 +595,77 @@ function restoreStoryDataFromSave(data) {
 //                 Ability Store, Story Online unlock
 // ============================================================
 
+// ============================================================
+// STORY SKILL TREE
+// ============================================================
+const STORY_SKILL_TREE = {
+  mobility: {
+    label: 'Mobility',
+    color: '#44ffaa',
+    nodes: [
+      { id: 'highJump1',   name: 'Stronger Legs',    desc: 'Jump 15% higher',              expCost: 25,  requires: null },
+      { id: 'highJump2',   name: 'Leap Training',     desc: 'Jump 25% higher total',        expCost: 45,  requires: 'highJump1' },
+      { id: 'doubleJump',  name: 'Double Jump',       desc: 'Press W again while airborne', expCost: 80,  requires: 'highJump2' },
+    ],
+  },
+  combat: {
+    label: 'Combat',
+    color: '#ff8844',
+    nodes: [
+      { id: 'heavyHit1',      name: 'Stronger Strikes',  desc: '+15% attack damage',            expCost: 25, requires: null },
+      { id: 'heavyHit2',      name: 'Power Blows',        desc: '+25% damage total',             expCost: 45, requires: 'heavyHit1' },
+      { id: 'weaponAbility',  name: 'Weapon Mastery',     desc: 'Unlock weapon Q-ability',       expCost: 80, requires: 'heavyHit2' },
+    ],
+  },
+  resilience: {
+    label: 'Resilience',
+    color: '#88aaff',
+    nodes: [
+      { id: 'tankier1',   name: 'Tougher Body',  desc: '+15 max HP',                  expCost: 25, requires: null },
+      { id: 'tankier2',   name: 'Hardened',       desc: '+25 max HP total',            expCost: 45, requires: 'tankier1' },
+      { id: 'superMeter', name: 'Inner Power',    desc: 'Unlock Super meter (E key)',  expCost: 80, requires: 'tankier2' },
+    ],
+  },
+  speed: {
+    label: 'Speed',
+    color: '#ffee44',
+    nodes: [
+      { id: 'fastMove1', name: 'Quick Feet',      desc: 'Move 10% faster',       expCost: 20, requires: null },
+      { id: 'fastMove2', name: 'Sprint Training', desc: 'Move 20% faster total', expCost: 40, requires: 'fastMove1' },
+    ],
+  },
+};
+
+// Apply purchased skill tree bonuses to a fighter in story mode
+function _applySkillTreeToPlayer(p) {
+  if (!p || !_story2.skillTree) return;
+  const sk = _story2.skillTree;
+  p._storyJumpMult = 1.0 + (sk.highJump2 ? 0.25 : sk.highJump1 ? 0.15 : 0);
+  if (p._storyNoDoubleJump !== undefined) p._storyNoDoubleJump = !sk.doubleJump;
+  const hpBonus = (sk.tankier2 ? 25 : sk.tankier1 ? 15 : 0);
+  if (hpBonus > 0) {
+    p.maxHealth = (p.maxHealth || 100) + hpBonus;
+    p.health    = Math.min(p.health + hpBonus, p.maxHealth);
+  }
+}
+
+// Award EXP to the player for a story kill
+function _storyAwardKillExp(amount) {
+  if (!storyModeActive) return;
+  _story2.exp = (_story2.exp || 0) + amount;
+  _saveStory2();
+  if (players[0] && typeof DamageText !== 'undefined') {
+    const dt = new DamageText(`+${amount} EXP`, players[0].cx(), players[0].y - 30, '#aaff88');
+    damageTexts.push(dt);
+  }
+  _storyUpdateExpDisplay();
+}
+
+function _storyUpdateExpDisplay() {
+  const el = document.getElementById('storyExpDisplay');
+  if (el) el.textContent = `${_story2.exp || 0} EXP`;
+}
+
 // ── Persistent state (separate key to avoid collision with v1) ───────────────
 const _STORY2_KEY = 'smc_story2';
 
@@ -584,8 +673,10 @@ function _defaultStory2Progress() {
   return {
     chapter:           0,       // index into STORY_CHAPTERS2 (next to play)
     tokens:            0,
+    exp:               0,       // EXP earned from kills — used for skill tree
     blueprints:        [],      // blueprint keys earned
     unlockedAbilities: [],      // ability keys bought from store
+    skillTree:         {},      // { nodeId: true } — purchased skill nodes
     defeated:          [],      // chapter indices completed
     storyComplete:     false,
     runState:          { healthPct: 1, noDeathChain: 0 },
@@ -607,6 +698,8 @@ let _story2 = (function() {
     if (!p.actExpanded  || typeof p.actExpanded  !== 'object') p.actExpanded  = {};
     if (!p.runState || typeof p.runState !== 'object') p.runState = { healthPct: 1, noDeathChain: 0 };
     if (!p.metaUpgrades || typeof p.metaUpgrades !== 'object') p.metaUpgrades = { damage: 0, survivability: 0, healUses: 0 };
+    if (typeof p.exp !== 'number') p.exp = 0;
+    if (!p.skillTree || typeof p.skillTree !== 'object') p.skillTree = {};
     return p;
   } catch(e) { return _defaultStory2Progress(); }
 })();
@@ -3956,6 +4049,129 @@ const STORY_ACT_STRUCTURE = [
   },
 ];
 
+// ============================================================
+// PHASE EXPANSION — converts each chapter's auto-generated
+// phases into individual chapter entries so the chapter list
+// shows every phase as its own chapter with its own title.
+// Runs once after both STORY_CHAPTERS2 and STORY_ACT_STRUCTURE
+// are defined (see _expandStoryChaptersInPlace below).
+// ============================================================
+function _phaseToChapter(origCh, phase, newId, pi, isFirst, isFinal, totalTokens, numPhases) {
+  const phaseCh = {
+    id:          newId,
+    title:       origCh.title + (numPhases > 1 ? ' — ' + (phase.label || _storyPhaseName(phase.type)) : ''),
+    world:       origCh.world,
+    narrative:   isFirst ? (origCh.narrative || []) : [],
+    preText:     phase.label || _storyPhaseName(phase.type),
+    fightScript: isFirst ? (origCh.fightScript || []) : [],
+    tokenReward: isFinal
+      ? Math.max(8, Math.ceil(totalTokens * 0.55))
+      : Math.max(4, Math.floor(totalTokens * 0.45 / Math.max(1, numPhases - 1))),
+    playerLives: phase.playerLives || origCh.playerLives || 3,
+    arena:       phase.arena || origCh.arena,
+    blueprintDrop: isFinal ? (origCh.blueprintDrop || null) : null,
+    storeNag:    isFinal ? (origCh.storeNag || null) : null,
+    _origId:     origCh.id,   // original chapter ID for difficulty scaling
+    _phaseType:  phase.type,
+    _phaseFinal: isFinal,
+  };
+
+  if (phase.type === 'traversal') {
+    phaseCh.type         = 'exploration';
+    phaseCh.worldLength  = phase.worldLength || origCh.worldLength;
+    phaseCh.objectName   = phase.objectName  || origCh.objectName;
+    phaseCh.spawnEnemies = phase.spawnEnemies || origCh.spawnEnemies || [];
+    phaseCh.exploreStyle = origCh.exploreStyle || null;
+    phaseCh.sky          = origCh.sky;
+    phaseCh.groundColor  = origCh.groundColor;
+    phaseCh.platColor    = origCh.platColor;
+  } else {
+    // Fight phase
+    if (Array.isArray(phase.opponents) && phase.opponents.length > 0) {
+      const lead           = phase.opponents[0];
+      phaseCh.opponentName  = lead.name         || origCh.opponentName  || 'Enemy';
+      phaseCh.weaponKey     = lead.weaponKey     || origCh.weaponKey     || 'sword';
+      phaseCh.classKey      = lead.classKey      || origCh.classKey      || 'warrior';
+      phaseCh.aiDiff        = lead.aiDiff        || origCh.aiDiff        || 'medium';
+      phaseCh.opponentColor = lead.color         || origCh.opponentColor || '#778899';
+      phaseCh.armor         = lead.armor         || [];
+      if (phase.opponents.length > 1) {
+        phaseCh.twoEnemies  = true;
+        phaseCh.secondEnemy = phase.opponents[1];
+      }
+    } else {
+      // Final phase (mini_boss) — use original chapter opponent
+      phaseCh.opponentName  = origCh.opponentName;
+      phaseCh.weaponKey     = origCh.weaponKey;
+      phaseCh.classKey      = origCh.classKey;
+      phaseCh.aiDiff        = origCh.aiDiff;
+      phaseCh.opponentColor = origCh.opponentColor;
+      phaseCh.armor         = origCh.armor || [];
+    }
+    if (isFinal) {
+      phaseCh.isBossFight      = !!origCh.isBossFight;
+      phaseCh.isTrueFormFight  = !!origCh.isTrueFormFight;
+      phaseCh.isSovereignFight = !!origCh.isSovereignFight;
+    }
+  }
+  return phaseCh;
+}
+
+function _expandStoryChaptersInPlace() {
+  // Take a snapshot of the original 80 chapters
+  const origList = STORY_CHAPTERS2.slice();
+  const expanded = [];
+  // Track new ID range for each original chapter (for act structure rebuild)
+  const origToNewRange = {}; // origId → { start, end }
+
+  for (const origCh of origList) {
+    const rangeStart = expanded.length;
+
+    if (origCh.noFight || origCh.isEpilogue) {
+      // noFight / epilogue chapters stay as single chapters
+      expanded.push({ ...origCh, id: expanded.length });
+    } else {
+      // Build phases using the original chapter's id for difficulty scaling
+      const phaseSrc = { ...origCh }; // don't mutate origCh
+      delete phaseSrc.phases;         // force rebuild
+      const phases   = _storyBuildPhases(phaseSrc);
+      const n        = phases.length;
+      const tok      = origCh.tokenReward || 0;
+
+      phases.forEach((phase, pi) => {
+        expanded.push(_phaseToChapter(
+          origCh, phase,
+          expanded.length,   // new sequential id
+          pi,
+          pi === 0,          // isFirst
+          pi === n - 1,      // isFinal
+          tok,
+          n,
+        ));
+      });
+    }
+
+    origToNewRange[origCh.id] = { start: rangeStart, end: expanded.length - 1 };
+  }
+
+  // Mutate STORY_CHAPTERS2 in place (it's a const array)
+  STORY_CHAPTERS2.length = 0;
+  for (const ch of expanded) STORY_CHAPTERS2.push(ch);
+
+  // Rebuild STORY_ACT_STRUCTURE chapterRanges with new IDs
+  for (const act of STORY_ACT_STRUCTURE) {
+    for (const arc of act.arcs) {
+      const [origStart, origEnd] = arc.chapterRange;
+      const newStart = origToNewRange[origStart] ? origToNewRange[origStart].start : origStart;
+      const newEnd   = origToNewRange[origEnd]   ? origToNewRange[origEnd].end     : origEnd;
+      arc.chapterRange = [newStart, newEnd];
+    }
+  }
+}
+
+// Run expansion immediately after both arrays are defined
+_expandStoryChaptersInPlace();
+
 // ── Current chapter state for a fight in progress ─────────────────────────────
 let _activeStory2Chapter = null;  // set when launching a chapter fight
 
@@ -4019,12 +4235,35 @@ function _renderStoryJourney() {
 }
 
 // ── Ability Store tab ─────────────────────────────────────────────────────────
+let _storeSubTab = 'shop';
+
 function _renderStoryStore2() {
   const grid = document.getElementById('storyAbilityGrid2');
   if (!grid) return;
   grid.innerHTML = '';
   _story2TokenDisplay();
+  _storyUpdateExpDisplay();
 
+  // Sub-tab header
+  const subTabBar = document.createElement('div');
+  subTabBar.style.cssText = 'display:flex;gap:8px;margin-bottom:14px;border-bottom:1px solid rgba(255,255,255,0.1);padding-bottom:8px;';
+  for (const [key, label] of [['shop','🪙 Shop'], ['skilltree','🌿 Skill Tree']]) {
+    const btn = document.createElement('button');
+    btn.textContent = label;
+    btn.style.cssText = `background:${_storeSubTab===key?'rgba(80,140,255,0.25)':'transparent'};border:1px solid ${_storeSubTab===key?'rgba(80,140,255,0.6)':'rgba(255,255,255,0.12)'};color:${_storeSubTab===key?'#aacfff':'#6677aa'};padding:5px 14px;border-radius:5px;cursor:pointer;font-size:0.75rem;letter-spacing:1px;`;
+    btn.onclick = () => { _storeSubTab = key; _renderStoryStore2(); };
+    subTabBar.appendChild(btn);
+  }
+  grid.appendChild(subTabBar);
+
+  if (_storeSubTab === 'shop') {
+    _renderShopSection(grid);
+  } else {
+    _renderSkillTreeSection(grid);
+  }
+}
+
+function _renderShopSection(grid) {
   for (const item of _storyBuildShopItems()) {
     const canBuy = _story2.tokens >= item.tokenCost && item.canBuy();
     const card = document.createElement('div');
@@ -4033,9 +4272,7 @@ function _renderStoryStore2() {
       <div class="sa-name2">${item.name}</div>
       <div class="sa-desc2">${item.desc}</div>
       <span class="sa-cost2">${item.tokenCost} 🪙</span>`;
-    if (canBuy) {
-      card.onclick = () => _buyStoryShopItem(item);
-    }
+    if (canBuy) card.onclick = () => _buyStoryShopItem(item);
     grid.appendChild(card);
   }
 
@@ -4043,26 +4280,84 @@ function _renderStoryStore2() {
     const owned  = _story2.unlockedAbilities.includes(key);
     const hasBP  = !ab.requiresBlueprint || _story2.blueprints.includes(key);
     const canBuy = !owned && hasBP && _story2.tokens >= ab.tokenCost;
-
-    const card = document.createElement('div');
+    const card   = document.createElement('div');
     card.className = 'story-ability-card2' + (owned ? ' sa-owned' : canBuy ? ' sa-buyable' : ' sa-locked');
-
     const costLabel = owned
       ? `<span class="sa-cost2 sa-owned-label">✅ Owned</span>`
       : !hasBP
       ? `<span class="sa-cost2 sa-locked-label">📋 Blueprint needed</span>`
       : `<span class="sa-cost2">${ab.tokenCost} 🪙</span>`;
-
     card.innerHTML = `<div class="sa-icon2">${ab.icon}</div>
       <div class="sa-name2">${ab.name}</div>
       <div class="sa-desc2">${ab.desc}</div>
       ${costLabel}`;
-
-    if (canBuy) {
-      card.onclick = () => _buyAbility2(key, ab);
-    }
+    if (canBuy) card.onclick = () => _buyAbility2(key, ab);
     grid.appendChild(card);
   }
+}
+
+function _renderSkillTreeSection(grid) {
+  const sk  = _story2.skillTree || {};
+  const exp = _story2.exp || 0;
+
+  const expBanner = document.createElement('div');
+  expBanner.style.cssText = 'padding:8px 12px;background:rgba(100,220,100,0.08);border:1px solid rgba(100,220,100,0.25);border-radius:7px;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;';
+  expBanner.innerHTML = `<span style="color:#88cc88;font-size:0.72rem;letter-spacing:1px;">SKILL POINTS (EXP)</span><span id="storyExpDisplay" style="color:#aaff88;font-size:1.0rem;font-weight:700;">${exp} EXP</span>`;
+  grid.appendChild(expBanner);
+
+  for (const [, branch] of Object.entries(STORY_SKILL_TREE)) {
+    const branchHeader = document.createElement('div');
+    branchHeader.style.cssText = `margin:10px 0 6px;font-size:0.65rem;letter-spacing:2px;text-transform:uppercase;color:${branch.color};font-weight:700;`;
+    branchHeader.textContent = branch.label;
+    grid.appendChild(branchHeader);
+
+    const nodeRow = document.createElement('div');
+    nodeRow.style.cssText = 'display:flex;flex-wrap:wrap;gap:8px;margin-bottom:4px;';
+
+    for (const node of branch.nodes) {
+      const owned    = !!sk[node.id];
+      const reqMet   = !node.requires || !!sk[node.requires];
+      const canBuy   = !owned && reqMet && exp >= node.expCost;
+      const isLocked = !owned && !reqMet;
+
+      const card = document.createElement('div');
+      card.style.cssText = [
+        'border-radius:8px', 'padding:8px 10px', 'min-width:120px', 'flex:1',
+        `border:1px solid ${owned ? 'rgba(100,220,100,0.4)' : canBuy ? `${branch.color}55` : 'rgba(255,255,255,0.07)'}`,
+        `background:${owned ? 'rgba(40,90,50,0.35)' : canBuy ? 'rgba(20,30,60,0.4)' : 'rgba(5,5,15,0.25)'}`,
+        `opacity:${isLocked ? '0.35' : '1'}`,
+        canBuy ? 'cursor:pointer' : 'cursor:default',
+      ].join(';');
+
+      card.innerHTML = `
+        <div style="font-size:0.79rem;color:${owned ? '#88ffaa' : canBuy ? '#dde4ff' : '#556'};font-weight:600;">${node.name}</div>
+        <div style="font-size:0.62rem;color:#5566aa;margin:3px 0 5px;">${node.desc}</div>
+        <div style="font-size:0.70rem;${owned ? 'color:#66ee99' : canBuy ? `color:${branch.color}` : 'color:#445'}">
+          ${owned ? '✓ Unlocked' : isLocked ? '🔒 ' + node.requires.replace(/([A-Z])/g,' $1').trim() + ' required' : node.expCost + ' EXP'}
+        </div>`;
+
+      if (canBuy) {
+        card.addEventListener('click', () => _buySkillNode(node, branch));
+        card.addEventListener('mouseover', () => { card.style.background = 'rgba(30,50,100,0.6)'; });
+        card.addEventListener('mouseout',  () => { card.style.background = 'rgba(20,30,60,0.4)'; });
+      }
+      nodeRow.appendChild(card);
+    }
+    grid.appendChild(nodeRow);
+  }
+}
+
+function _buySkillNode(node, branch) {
+  const sk  = _story2.skillTree = _story2.skillTree || {};
+  const exp = _story2.exp || 0;
+  if (sk[node.id]) return;
+  if (node.requires && !sk[node.requires]) return;
+  if (exp < node.expCost) return;
+  _story2.exp = exp - node.expCost;
+  sk[node.id] = true;
+  _saveStory2();
+  _renderStoryStore2();
+  if (typeof showToast === 'function') showToast(`✅ ${node.name} unlocked!`);
 }
 
 function _buyStoryShopItem(item) {
@@ -4279,13 +4574,14 @@ function _advanceStoryGauntletPhase(ch) {
 }
 
 function _beginChapter2(idx) {
-  if (_narrativeActive) return; // already showing a narrative — ignore duplicate click
+  if (_narrativeActive) return;
   const ch = STORY_CHAPTERS2[idx];
   if (!ch) return;
   _activeStory2Chapter = ch;
+  storyGauntletState = null; // no phases — single chapter only
 
   if (ch.noFight && !ch.isEpilogue) {
-    _showStory2Narrative(ch.narrative, () => _startStoryGauntlet(ch));
+    _showStory2Narrative(ch.narrative, () => _completeChapter2(ch));
     return;
   }
   if (ch.noFight) {
@@ -4295,17 +4591,27 @@ function _beginChapter2(idx) {
 
   // On retry (narrative already seen this session), skip straight to fight
   if (_seenNarrativeIds.has(ch.id)) {
-    _launchChapter2Fight(ch);
+    _directLaunchChapter(ch);
     return;
   }
 
   _seenNarrativeIds.add(ch.id);
-  // Narrative lines + preText as the final page before the fight
   const allLines = [...(ch.narrative || [])];
   if (ch.preText) allLines.push(ch.preText);
   _showStory2Narrative(allLines, () => {
-    _showPreFightStoreNag(ch, () => _startStoryGauntlet(ch));
+    _showPreFightStoreNag(ch, () => _directLaunchChapter(ch));
   });
+}
+
+// Direct launch — no gauntlet phases, just the chapter itself
+function _directLaunchChapter(ch) {
+  if (!ch) return;
+  storyGauntletState = null;
+  if (ch.type === 'exploration') {
+    _launchExplorationChapter(ch);
+  } else {
+    _launchChapter2Fight(ch);
+  }
 }
 
 // Reuse the existing storyDialoguePanel for narrative display.
@@ -4475,32 +4781,23 @@ function _launchChapter2FightImmediate(ch) {
   // storyState.abilities is the authoritative source; chapter thresholds are
   // the fallback minimum for players who have already progressed past the unlock point.
   const _caps = ch.playerCaps || {};
-  const id = ch.id;
+  const id = ch._origId !== undefined ? ch._origId : ch.id; // use original id for difficulty scaling
   const _sa = (typeof storyState !== 'undefined') ? storyState.abilities : {};
+  const _sk = _story2.skillTree || {};
   storyPlayerOverride = {
     // If chapter not yet beaten, strip ranged weapons from the player too
-    weapon:        _caps.weapon        !== undefined ? _safeWeapon(_caps.weapon) : (id < 1 ? 'sword' : (_isRanged(document.getElementById('p1Weapon')?.value) ? _RANGED_FALLBACK : null)),
-    noDoubleJump:  _caps.noDoubleJump  !== undefined ? _caps.noDoubleJump  : !(id >= 1  || !!_sa.doubleJump),
-    noAbility:     _caps.noAbility     !== undefined ? _caps.noAbility     : !(id >= 3  || !!_sa.weaponAbility),
-    noSuper:       _caps.noSuper       !== undefined ? _caps.noSuper       : !(id >= 5  || !!_sa.superMeter),
-    noClass:       _caps.noClass       !== undefined ? _caps.noClass       : (id < 13),
-    noDodge:       !(id >= 9 || !!_sa.dodge || storyDodgeUnlocked),
-    dmgMult:   id < 3 ? 0.70 : (id < 6 ? 0.85 : (id < 10 ? 0.95 : 1.0)),
-    speedMult: id < 3 ? 0.85 : (id < 6 ? 0.92 : 1.0),
+    weapon:        _caps.weapon !== undefined ? _safeWeapon(_caps.weapon) : (id < 1 ? 'sword' : (_isRanged(document.getElementById('p1Weapon')?.value) ? _RANGED_FALLBACK : null)),
+    noDoubleJump:  _caps.noDoubleJump !== undefined ? _caps.noDoubleJump : !(_sk.doubleJump || !!_sa.doubleJump),
+    noAbility:     _caps.noAbility    !== undefined ? _caps.noAbility    : !(_sk.weaponAbility || !!_sa.weaponAbility),
+    noSuper:       _caps.noSuper      !== undefined ? _caps.noSuper      : !(_sk.superMeter || !!_sa.superMeter),
+    noClass:       _caps.noClass      !== undefined ? _caps.noClass      : !_sk.classUnlock,
+    noDodge:       !(_sk.dodge || !!_sa.dodge || storyDodgeUnlocked),
+    dmgMult:       1.0 + (_sk.heavyHit2 ? 0.25 : _sk.heavyHit1 ? 0.15 : 0),
+    speedMult:     1.0 + (_sk.fastMove2 ? 0.20 : _sk.fastMove1 ? 0.10 : 0),
+    jumpMult:      1.0 + (_sk.highJump2 ? 0.25 : _sk.highJump1 ? 0.15 : 0),
   };
 
-  // Show ability unlock toast when a new ability becomes available this chapter
-  const _toastMap = [
-    [1,  '⬆️ DOUBLE JUMP — Press W twice in the air!', '#44ffaa'],
-    [3,  '⚡ WEAPON ABILITY — Press Q to activate!',   '#ffcc44'],
-    [5,  '💥 SUPER ATTACK — Press E when meter fills!', '#ff6644'],
-    [9,  '🏃 DODGE — Press Shift to dash!',            '#44aaff'],
-    [13, '🎭 CLASS SYSTEM — Select a class before battle!', '#cc88ff'],
-  ];
-  const _unlock = _toastMap.find(([threshold]) => threshold === id);
-  if (_unlock) {
-    abilityUnlockToast = { text: _unlock[1], color: _unlock[2], timer: 260, maxTimer: 260 };
-  }
+  // Ability toasts are now shown only when purchased in the skill tree
 
   // Opponent name
   storyOpponentName = ch.opponentName || null;
@@ -4583,6 +4880,7 @@ function _launchChapter2FightImmediate(ch) {
   }
 
   if (typeof startGame === 'function') startGame();
+  setTimeout(() => { if (players[0]) _applySkillTreeToPlayer(players[0]); }, 50);
 }
 
 // ── Called when the player wins a story2 chapter ─────────────────────────────
@@ -5685,24 +5983,39 @@ function _exploreGenPlatforms(worldLen, seed, ch) {
       }
     }
   } else {
-    // ── Mid-level platforms ─────────────────────────────────────────────────
-    for (let wx = 250; wx < worldLen - 500; wx += 240 + Math.floor(rng() * 200)) {
-      plats.push({
-        x: wx + Math.floor(rng() * 80),
-        y: 290 + Math.floor((rng() - 0.5) * 80),
-        w: 100 + Math.floor(rng() * 80),
-        h: 18,
-      });
-    }
+    const exploreStyle = ch && ch.exploreStyle ? ch.exploreStyle : 'generic';
+    const isCity = exploreStyle === 'city';
 
-    // ── High platforms ──────────────────────────────────────────────────────
-    for (let wx = 500; wx < worldLen - 700; wx += 380 + Math.floor(rng() * 280)) {
-      plats.push({
-        x: wx + Math.floor(rng() * 120),
-        y: 170 + Math.floor((rng() - 0.5) * 70),
-        w: 85 + Math.floor(rng() * 70),
-        h: 15,
-      });
+    if (isCity) {
+      // ── City-style: wide rooftop sections at consistent height with gaps ──
+      for (let wx = 200; wx < worldLen - 400; wx += 300 + Math.floor(rng() * 180)) {
+        const bldW = 220 + Math.floor(rng() * 160);
+        const bldY = 370 + Math.floor(rng() * 30);
+        plats.push({ x: wx, y: bldY, w: bldW, h: 20 });
+        if (rng() < 0.5) {
+          plats.push({ x: wx + 40 + Math.floor(rng() * 60), y: bldY - 80, w: 100 + Math.floor(rng() * 60), h: 16 });
+        }
+      }
+    } else {
+      // ── Mid-level platforms ─────────────────────────────────────────────────
+      for (let wx = 250; wx < worldLen - 500; wx += 240 + Math.floor(rng() * 200)) {
+        plats.push({
+          x: wx + Math.floor(rng() * 80),
+          y: 290 + Math.floor((rng() - 0.5) * 80),
+          w: 100 + Math.floor(rng() * 80),
+          h: 18,
+        });
+      }
+
+      // ── High platforms ──────────────────────────────────────────────────────
+      for (let wx = 500; wx < worldLen - 700; wx += 380 + Math.floor(rng() * 280)) {
+        plats.push({
+          x: wx + Math.floor(rng() * 120),
+          y: 170 + Math.floor((rng() - 0.5) * 70),
+          w: 85 + Math.floor(rng() * 70),
+          h: 15,
+        });
+      }
     }
 
     if (mode === 'objective') {
@@ -5846,29 +6159,22 @@ function _launchExplorationChapter(ch) {
   p2IsBot       = false;
 
   // Ability progression (mirror fight chapter logic)
-  const id  = ch.id;
+  const id  = ch._origId !== undefined ? ch._origId : ch.id; // use original id for difficulty scaling
   const _sa = (typeof storyState !== 'undefined') ? storyState.abilities : {};
+  const _sk = _story2.skillTree || {};
   storyPlayerOverride = {
     weapon:       null,
-    noDoubleJump: !(id >= 1  || !!_sa.doubleJump),
-    noAbility:    !(id >= 3  || !!_sa.weaponAbility),
-    noSuper:      !(id >= 5  || !!_sa.superMeter),
-    noClass:      id < 13,
-    noDodge:      !(id >= 9  || !!_sa.dodge || storyDodgeUnlocked),
-    dmgMult:      id < 3 ? 0.70 : (id < 6 ? 0.85 : (id < 10 ? 0.95 : 1.0)),
-    speedMult:    id < 3 ? 0.85 : (id < 6 ? 0.92 : 1.0),
+    noDoubleJump: !(_sk.doubleJump || !!_sa.doubleJump),
+    noAbility:    !(_sk.weaponAbility || !!_sa.weaponAbility),
+    noSuper:      !(_sk.superMeter || !!_sa.superMeter),
+    noClass:      !_sk.classUnlock,
+    noDodge:      !(_sk.dodge || !!_sa.dodge || storyDodgeUnlocked),
+    dmgMult:      1.0 + (_sk.heavyHit2 ? 0.25 : _sk.heavyHit1 ? 0.15 : 0),
+    speedMult:    1.0 + (_sk.fastMove2 ? 0.20 : _sk.fastMove1 ? 0.10 : 0),
+    jumpMult:     1.0 + (_sk.highJump2 ? 0.25 : _sk.highJump1 ? 0.15 : 0),
   };
 
-  // Ability unlock toast (same as fight chapters)
-  const _toastMap = [
-    [1,  '⬆️ DOUBLE JUMP — Press W twice in the air!', '#44ffaa'],
-    [3,  '⚡ WEAPON ABILITY — Press Q to activate!',   '#ffcc44'],
-    [5,  '💥 SUPER ATTACK — Press E when meter fills!', '#ff6644'],
-    [9,  '🏃 DODGE — Press Shift to dash!',            '#44aaff'],
-    [13, '🎭 CLASS SYSTEM — Select a class before battle!', '#cc88ff'],
-  ];
-  const _unlock = _toastMap.find(([t]) => t === id);
-  if (_unlock) abilityUnlockToast = { text: _unlock[1], color: _unlock[2], timer: 260, maxTimer: 260 };
+  // Ability toasts are now shown only when purchased in the skill tree
 
   storyModeActive     = true;
   storyCurrentLevel   = Math.min(8, Math.floor(id / 5) + 1);
@@ -5886,6 +6192,7 @@ function _launchExplorationChapter(ch) {
   infiniteMode = false;
 
   startGame();
+  setTimeout(() => { if (players[0]) _applySkillTreeToPlayer(players[0]); }, 50);
 }
 
 // Called each frame from gameLoop when gameMode === 'exploration'
@@ -5932,7 +6239,6 @@ function updateExploration() {
     // Complete chapter after a short delay
     setTimeout(() => {
       if (!gameRunning) return;
-      if (storyGauntletState && _advanceStoryGauntletPhase(_activeStory2Chapter)) return;
       endGame();
     }, 2200);
   }

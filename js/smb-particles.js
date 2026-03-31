@@ -19,7 +19,14 @@ function dealDamage(attacker, target, dmg, kbForce, stunMult = 1.0, isSplash = f
   if (activeCinematic) return; // no damage during cinematic pauses
   if (!target || target.invincible > 0 || target.health <= 0) return;
   if (target.godmode) return; // godmode: no hitbox — all damage blocked
+  if (target._guiAttackImmune) return; // GUI-triggered attacks never damage the triggering player
   if (attacker && areAlliedEntities(attacker, target)) return;
+  // Paradox damage lock: player deals 0 damage to TrueForm during lock phase
+  if (typeof tfDamageLocked !== 'undefined' && tfDamageLocked &&
+      target && target.isTrueForm && attacker && !attacker.isBoss) {
+    if (settings.dmgNumbers) damageTexts.push(new DamageText(target.cx(), target.y - 20, 0, '#445566'));
+    return;
+  }
   let actualDmg = (attacker && attacker.dmgMult !== undefined) ? Math.max(1, Math.round(dmg * attacker.dmgMult)) : dmg;
   // Kratos rage bonus
   if (attacker && attacker.charClass === 'kratos' && attacker.rageStacks > 0) {
@@ -174,6 +181,34 @@ function dealDamage(attacker, target, dmg, kbForce, stunMult = 1.0, isSplash = f
     target._antiRangedStats = target._antiRangedStats || { projectiles: 0, rangedDamage: 0, farTicks: 0 };
     target._antiRangedStats.rangedDamage = Math.min(999, (target._antiRangedStats.rangedDamage || 0) + actualDmg);
   }
+  // Wall-combo escape: if TrueForm is hit 3+ times quickly while near a boundary, trigger escape
+  if (target && target.isTrueForm && attacker && !attacker.isBoss && !attacker.isTrueForm &&
+      target.invincible <= 0 && !target.godmode) {
+    target._wallComboTimer = target._wallComboTimer || 0;
+    target._wallComboHits  = target._wallComboHits  || 0;
+    // Reset counter when the window expires (90 frames ≈ 1.5 s)
+    if (target._wallComboTimer <= 0) target._wallComboHits = 0;
+    target._wallComboHits++;
+    target._wallComboTimer = 90; // refresh window
+    const _nearLeft  = target.x < 80;
+    const _nearRight = target.x + target.w > GAME_W - 80;
+    if (target._wallComboHits >= 3 && (_nearLeft || _nearRight)) {
+      // Trigger escape: teleport to center + brief invulnerability
+      target._wallComboHits  = 0;
+      target._wallComboTimer = 0;
+      // Choose escape destination: center of arena, with slight vertical lift
+      const _escX = GAME_W / 2 - target.w / 2 + (Math.random() - 0.5) * 120;
+      const _escY  = GAME_H * 0.35;
+      target.x  = Math.max(20, Math.min(GAME_W - target.w - 20, _escX));
+      target.y  = _escY;
+      target.vx = 0;
+      target.vy = -6;
+      // Brief invulnerability (~0.4 s = 24 frames at 60 fps)
+      target.invincible = Math.max(target.invincible, 24);
+      spawnParticles(target.cx(), target.cy(), '#ffffff', 20);
+      spawnParticles(target.cx(), target.cy(), '#aa00ff', 14);
+    }
+  }
   const dir        = attacker ? (target.cx() > attacker.cx() ? 1 : -1) : 1;
   if (!target.godmode) {
     target.vx      = dir * actualKb;
@@ -258,8 +293,14 @@ function dealDamage(attacker, target, dmg, kbForce, stunMult = 1.0, isSplash = f
   // Super move itself doesn't charge the next super (prevents instant refill)
   if (attacker && !attacker.superActive) {
     const superRate = (attacker.superChargeRate || 1) * (attacker.weapon && attacker.weapon.superRateBonus || 1);
+    let _superGain = Math.floor(actualDmg * 0.70 * superRate);
+    // Q-ability super cap: max 28 meter points per Q activation (≈28% super)
+    if (attacker._qSuperCapRemaining !== undefined) {
+      _superGain = Math.min(_superGain, Math.max(0, attacker._qSuperCapRemaining));
+      attacker._qSuperCapRemaining -= _superGain;
+    }
     const prev = attacker.superReady;
-    attacker.superMeter = Math.min(100, attacker.superMeter + Math.floor(actualDmg * 0.70 * superRate));
+    attacker.superMeter = Math.min(100, attacker.superMeter + _superGain);
     if (!prev && attacker.superMeter >= 100) {
       attacker.superReady      = true;
       attacker.superFlashTimer = 90;
@@ -415,6 +456,7 @@ function spawnBullet(user, speed, color, overrideDmg = null) {
     _proj2._warmupFrames = _isRapid ? 3 : 2;
     projectiles.push(_proj2);
   }
+  return _proj; // return primary projectile so callers can mark Q-ability shots
 }
 
 // ============================================================
@@ -430,6 +472,7 @@ class Projectile {
     this.life   = 90;
     this.active = true;
     this._warmupFrames = 0;
+    this.hitEntities = new Set(); // prevents duplicate hits from same projectile (e.g. piercing)
     const tf = typeof getTrueFormAntiRangedBoss === 'function' ? getTrueFormAntiRangedBoss() : (players && players.find(p => p.isTrueForm && p.health > 0));
     if (tf && owner && !owner.isAI && owner.weapon && owner.weapon.type === 'ranged') {
       tf._antiRangedStats = tf._antiRangedStats || { projectiles: 0, rangedDamage: 0, farTicks: 0 };
@@ -451,10 +494,9 @@ class Projectile {
       const dy = tfAnti.cy() - this.y;
       const dd = Math.hypot(dx, dy) || 1;
       const fieldR = (tfAnti._antiRangedFieldR || 220) * 1.18;
-      if (dd < fieldR) {
+      if (dd < fieldR && !this._tfReflected && Math.random() < 0.05) {
         const reflectTarget = this.owner && this.owner.health > 0 ? this.owner : players.find(p => !p.isBoss && p.health > 0);
-        const reflectChance = dd < fieldR * 0.45 ? 0.32 : 0.14;
-        if (!this._tfReflected && reflectTarget && Math.random() < reflectChance) {
+        if (reflectTarget) {
           this._tfReflected = true;
           this.owner = tfAnti;
           const rdx = reflectTarget.cx() - this.x;
@@ -467,15 +509,6 @@ class Projectile {
           this.color = '#ffffff';
           spawnParticles(this.x, this.y, '#ffffff', 6);
           screenShake = Math.max(screenShake, 5);
-        } else {
-          const pull = 0.42 + (1 - dd / fieldR) * 0.58;
-          this.vx = this.vx * 0.92 + (dx / dd) * pull;
-          this.vy = this.vy * 0.94 + (dy / dd) * pull * 0.28;
-          if (dd < fieldR * 0.34 && !this._tfReflected) {
-            this.active = false;
-            spawnParticles(this.x, this.y, '#8844ff', 5);
-            return;
-          }
         }
       }
     }
@@ -528,7 +561,15 @@ class Projectile {
       const _survFF = gameMode === 'minigames' && minigameType === 'survival' && survivalFriendlyFire;
       if (!_survFF && gameMode === 'boss' && !this.owner.isBoss && !p.isBoss) continue;
       if (!_survFF && gameMode === 'minigames' && !this.owner.isBoss && !p.isBoss && !p.isAI) continue;
-      if (this.x > p.x && this.x < p.x+p.w && this.y > p.y && this.y < p.y+p.h) {
+      if (this.hitEntities && this.hitEntities.has(p)) continue; // dedup: already hit this target
+    if (this.x > p.x && this.x < p.x+p.w && this.y > p.y && this.y < p.y+p.h) {
+        this.hitEntities.add(p);
+        // Q-ability: diminishing returns on damage per sequential hit
+        if (this._isQAbility && this.owner) {
+          const hc = this.owner._qHitCount || 0;
+          this.damage = Math.max(1, Math.round(this.damage * Math.max(0.10, 1 - hc * 0.18)));
+          this.owner._qHitCount = hc + 1;
+        }
         // Distance falloff: full damage ≤200px, ramps down to 60% at ≥600px
         const _falloff = Math.max(0.60, 1.0 - Math.max(0, (this._distTraveled - 200) / 1000));
         const _hitDmg  = Math.max(1, Math.round(this.damage * _falloff * (1 - (this._closeRangePenalty || 0) * 0.18)));

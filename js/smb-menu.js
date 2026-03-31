@@ -178,54 +178,38 @@ function showDesc(pid, type, value) {
   ].join('');
 }
 
-// Map of weapon keys that are exclusive to a specific class
-const WEAPON_CLASS_LOCK = { bow: 'archer', shield: 'paladin' };
+// Bidirectional class/weapon locking removed.
+// Rules: weapon selection never forces a class; class selection suggests a weapon only on first pick.
+const WEAPON_CLASS_LOCK = {}; // kept as empty stub — logic below no longer uses it
 
-// Force-select the weapon required by a class, OR force the class required by a weapon.
-// Called from both the class selector (onchange) and the weapon selector (onchange).
+// Called when the CLASS selector changes.
 function updateClassWeapon(pid) {
   const classEl  = document.getElementById(pid + 'Class');
   const weaponEl = document.getElementById(pid + 'Weapon');
   if (!classEl || !weaponEl) return;
 
-  const wKey = weaponEl.value;
-  const lockedClass = WEAPON_CLASS_LOCK[wKey];
+  // Always unlock both selectors
+  classEl.disabled  = false;
+  classEl.title     = '';
+  weaponEl.disabled = false;
 
-  if (lockedClass) {
-    // Weapon forces a specific class — lock the class selector
-    classEl.value    = lockedClass;
-    classEl.disabled = true;
-    classEl.title    = `${lockedClass.charAt(0).toUpperCase() + lockedClass.slice(1)} is required for this weapon`;
-    weaponEl.disabled = false;
-    classSel_wasLocked(classEl, true);
-    showDesc(pid, 'class', lockedClass);
-    return;
-  }
-
-  // No weapon lock — check if class forces a weapon
-  classSel_wasLocked(classEl, false);
-  classEl.disabled = false;
-  classEl.title    = '';
-
+  // Class suggests a default weapon ONLY if user has not manually picked one yet
   const cls = CLASSES[classEl.value];
-  if (cls && cls.weapon) {
-    // Class forces a specific weapon — lock the weapon selector
-    weaponEl.value    = cls.weapon;
-    weaponEl.disabled = true;
-  } else {
-    weaponEl.disabled = false;
-    // Reset class to none only if it was previously locked by a weapon
-    if (classEl.dataset.wasLocked === 'true' && !lockedClass) {
-      classEl.value = 'none';
-    }
+  if (cls && cls.weapon && !weaponEl.dataset.userPicked) {
+    weaponEl.value = cls.weapon;
   }
-  // Show description for the class
+
   showDesc(pid, 'class', classEl.value);
 }
 
-function classSel_wasLocked(el, val) {
-  el.dataset.wasLocked = val ? 'true' : 'false';
+// Called when the WEAPON selector changes — marks user intent so class can no longer override it.
+function onWeaponChange(pid) {
+  const weaponEl = document.getElementById(pid + 'Weapon');
+  if (weaponEl) weaponEl.dataset.userPicked = 'true';
+  updateClassWeapon(pid);
 }
+
+function classSel_wasLocked(el, val) { /* no-op — bidirectional locking removed */ }
 
 const _ARENA_GIMMICKS = {
   grass:      '',
@@ -439,44 +423,57 @@ function showChangelogModal() {
   if (verHead) verHead.textContent = 'v' + GAME_VERSION;
 
   let html = '';
+  const _clgProgress = (typeof playerProgressLevel !== 'undefined') ? playerProgressLevel : 0;
   for (const entry of CHANGELOG) {
     const isLatest = entry.isLatest;
+    const entryRequired = entry.requiredProgress || 0;
+    const isRedacted = _clgProgress < entryRequired;
     html += `
-      <div style="margin-bottom:28px;border:1px solid rgba(${isLatest?'80,120,255':'40,60,120'},0.35);border-radius:10px;overflow:hidden;">
+      <div style="margin-bottom:28px;border:1px solid rgba(${isLatest?'80,120,255':'40,60,120'},0.35);border-radius:10px;overflow:hidden;${isRedacted?'opacity:0.55;':''}">
         <!-- Header row -->
         <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 16px;background:rgba(${isLatest?'30,50,120':'15,20,50'},0.55);cursor:pointer;"
              onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'':'none'">
           <div style="display:flex;align-items:center;gap:10px;">
             ${isLatest ? '<span style="background:linear-gradient(90deg,#4488ff,#8844ff);color:#fff;font-size:0.6rem;padding:2px 8px;border-radius:4px;letter-spacing:2px;font-weight:700;">NEW</span>' : ''}
             <span style="color:${isLatest?'#aaccff':'#7788aa'};font-size:1.0rem;font-weight:700;letter-spacing:1px;">v${entry.version}</span>
-            <span style="color:${isLatest?'#ddeeff':'#8899bb'};font-size:0.9rem;">${entry.title}</span>
+            <span style="color:${isLatest?'#ddeeff':'#8899bb'};font-size:0.9rem;">${isRedacted ? '??? REDACTED' : entry.title}</span>
           </div>
           <span style="color:#334466;font-size:0.72rem;letter-spacing:1px;">${entry.date} &nbsp;▾</span>
         </div>
         <!-- Body -->
         <div style="padding:12px 16px 14px;background:rgba(5,8,25,0.6);">
+    `;
+    if (isRedacted) {
+      html += `
+          <div style="font-size:0.68rem;color:#334466;letter-spacing:2px;margin-bottom:10px;font-style:italic;">"You're not supposed to see that yet."</div>
+          <div style="color:#334466;font-size:0.78rem;letter-spacing:1px;font-style:italic;">[ CONTENT REDACTED — UNLOCK TO VIEW ]</div>
+      `;
+    } else {
+      html += `
           <div style="font-size:0.68rem;color:#334466;letter-spacing:2px;margin-bottom:10px;font-style:italic;">"${entry.flavor}"</div>
           <div style="display:flex;flex-direction:column;gap:5px;">
-    `;
-    // Group by category
-    const grouped = {};
-    for (const ch of entry.changes) {
-      if (!grouped[ch.cat]) grouped[ch.cat] = [];
-      grouped[ch.cat].push(ch.text);
-    }
-    for (const [cat, items] of Object.entries(grouped)) {
-      const col = _CLG_CAT_COLORS[cat] || '#aaaacc';
-      html += `<div style="margin-bottom:4px;">
-        <span style="font-size:0.62rem;color:${col};letter-spacing:2px;opacity:0.8;text-transform:uppercase;font-weight:700;">[${cat}]</span>
-        <ul style="margin:3px 0 0 0;padding-left:18px;list-style:none;">`;
-      for (const item of items) {
-        html += `<li style="color:#8899bb;font-size:0.78rem;line-height:1.65;position:relative;">
-          <span style="position:absolute;left:-14px;color:${col};opacity:0.6;">›</span>${item}
-        </li>`;
+      `;
+      // Group by category
+      const grouped = {};
+      for (const ch of entry.changes) {
+        if (!grouped[ch.cat]) grouped[ch.cat] = [];
+        grouped[ch.cat].push(ch.text);
       }
-      html += `</ul></div>`;
+      for (const [cat, items] of Object.entries(grouped)) {
+        const col = _CLG_CAT_COLORS[cat] || '#aaaacc';
+        html += `<div style="margin-bottom:4px;">
+          <span style="font-size:0.62rem;color:${col};letter-spacing:2px;opacity:0.8;text-transform:uppercase;font-weight:700;">[${cat}]</span>
+          <ul style="margin:3px 0 0 0;padding-left:18px;list-style:none;">`;
+        for (const item of items) {
+          html += `<li style="color:#8899bb;font-size:0.78rem;line-height:1.65;position:relative;">
+            <span style="position:absolute;left:-14px;color:${col};opacity:0.6;">›</span>${item}
+          </li>`;
+        }
+        html += `</ul></div>`;
+      }
+      html += `</div>`;
     }
-    html += `</div></div></div>`;
+    html += `</div></div>`;
   }
 
   content.innerHTML = html;
@@ -1148,8 +1145,14 @@ function _startGameCore() {
   // Complete Randomizer is a 1v1 modifier: force random arena + weapon + class
   const _p1Resolved = isCompleteRandMode ? resolveWeaponAndClassValues('random', 'random') : resolveWeaponAndClass('p1Weapon', 'p1Class');
   const _p2Resolved = isCompleteRandMode ? resolveWeaponAndClassValues('random', 'random') : resolveWeaponAndClass('p2Weapon', 'p2Class');
-  const w1 = _p1Resolved.weaponKey;
-  const w2 = _p2Resolved.weaponKey;
+  let w1 = _p1Resolved.weaponKey;
+  let w2 = _p2Resolved.weaponKey;
+  // Story mode: HARD enforce no ranged weapons for human players at game start
+  if (storyModeActive) {
+    const _isMeleeOnly = (key) => typeof WEAPONS !== 'undefined' && WEAPONS[key] && WEAPONS[key].type === 'ranged';
+    if (_isMeleeOnly(w1)) w1 = 'sword';
+    if (_isMeleeOnly(w2)) w2 = 'sword';
+  }
   // Store resolved class keys so applyClass calls below use the coordinated result
   const _p1ResolvedClass = _p1Resolved.classKey;
   const _p2ResolvedClass = _p2Resolved.classKey;
@@ -1185,6 +1188,7 @@ function _startGameCore() {
   lightningBolts     = [];
   bossDeathScene     = null;
   fakeDeath          = { triggered: false, active: false, timer: 0, player: null };
+  if (typeof resetParadoxState === 'function') resetParadoxState();
   mapItems           = [];
   mapPerkState       = {};
   winsP1             = 0;
@@ -1197,6 +1201,7 @@ function _startGameCore() {
   hitStopFrames   = 0;
   hitSlowTimer    = 0;
   storyFreezeTimer = 0;
+  gameFrozen      = false; // ensure cinematic freeze is cleared on new game start
   if (typeof _lastFrameTime !== 'undefined') _lastFrameTime = 0;
   if (typeof resetDirector === 'function') resetDirector();
 
@@ -1230,6 +1235,12 @@ function _startGameCore() {
   // Story mode: if class is locked for this chapter, ignore player's class selection
   const _storyClassLocked = storyModeActive && storyPlayerOverride && storyPlayerOverride.noClass;
   applyClass(p1, _storyClassLocked ? 'none' : _p1ResolvedClass);
+  // If player explicitly chose a weapon (not random), restore it after applyClass
+  // so archer/paladin class doesn't forcefully override the selected weapon
+  if (document.getElementById('p1Weapon')?.value && document.getElementById('p1Weapon').value !== 'random'
+      && !isCompleteRandMode && typeof WEAPONS !== 'undefined' && WEAPONS[w1]) {
+    p1.weaponKey = w1; p1.weapon = WEAPONS[w1]; p1._ammo = p1.weapon.clipSize || 0;
+  }
   // Story mode: apply per-level player restrictions (weak human → powerful fighter progression)
   if (storyModeActive && storyPlayerOverride) {
     const _sc = storyPlayerOverride;
@@ -1510,6 +1521,16 @@ function _startGameCore() {
   // Chaos mode: initialize after players are set up
   if (typeof chaosMode !== 'undefined' && chaosMode && typeof initChaosMode === 'function') {
     initChaosMode();
+  }
+
+  // Post-class weapon restore: if player explicitly selected a non-random weapon,
+  // respect that choice over what applyClass may have forced
+  if (!isCompleteRandMode && typeof WEAPONS !== 'undefined') {
+    const _p2WeaponEl = document.getElementById('p2Weapon');
+    const _p2WeaponVal = _p2WeaponEl?.value;
+    if (p2 && !p2.isBoss && _p2WeaponVal && _p2WeaponVal !== 'random' && WEAPONS[w2]) {
+      p2.weaponKey = w2; p2.weapon = WEAPONS[w2]; p2._ammo = p2.weapon.clipSize || 0;
+    }
   }
 
   gameRunning = true;

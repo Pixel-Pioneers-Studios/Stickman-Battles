@@ -1302,9 +1302,7 @@ function _makeTFReality50Cinematic(tf) {
         run() {
           if (typeof tfGravityInverted !== 'undefined') {
             tfGravityInverted = true;
-            // Auto-restore after ~3s (180 frames) — we hijack the TF desperation check
-            // TrueForm.updateAI already handles tfGravityInverted duration; just set a timer
-            if (typeof mapPerkState !== 'undefined') mapPerkState._cinGravTimer = 240;
+            tfGravityTimer    = 240; // hard 4-second restore via the central failsafe
           }
           CinFX.shake(44);
           CinFX.flash('#ffffff', 0.48, 16);

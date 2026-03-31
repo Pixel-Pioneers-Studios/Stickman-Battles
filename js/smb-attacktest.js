@@ -82,12 +82,27 @@ function _atkMakeProxy(isTF, x, y) {
     _cinematicFired: new Set(),
     _lastPhase:1,
     backstageHiding: false,
+    // Attack state — required by TrueForm._doSpecial
+    _tfAttackState: { name: null, phase: 'idle', timer: 0, locked: false },
     // Methods
     cx()  { return this.x + this.w / 2; },
     cy()  { return this.y + this.h / 2; },
     getPhase() { return 3; },  // always phase-3 so all attacks are available
     platformAbove() { return null; },
     isEdgeDanger()  { return false; },
+    _startAttackState(name, startFrames = 0, locked = false) {
+      this._tfAttackState = { name, phase: 'start', timer: startFrames, locked };
+    },
+    _setAttackPhase(phase, frames = 0, locked = false) {
+      if (!this._tfAttackState.name) return;
+      this._tfAttackState.phase  = phase;
+      this._tfAttackState.timer  = frames;
+      this._tfAttackState.locked = locked;
+    },
+    _finishAttackState(name = null) {
+      if (name && this._tfAttackState.name && this._tfAttackState.name !== name) return;
+      this._tfAttackState = { name: null, phase: 'idle', timer: 0, locked: false };
+    },
   };
 
   // Attach TrueForm._doSpecial if available, binding to proxy
@@ -161,9 +176,24 @@ function _atkMakePlayerCtx(player, isTF) {
     _cinematicFired: new Set(),
     _lastPhase: 1,
     backstageHiding: false,
+    // Attack state — required by TrueForm._doSpecial
+    _tfAttackState: { name: null, phase: 'idle', timer: 0, locked: false },
     getPhase()      { return 3; },
     platformAbove() { return null; },
     isEdgeDanger()  { return false; },
+    _startAttackState(name, startFrames = 0, locked = false) {
+      this._tfAttackState = { name, phase: 'start', timer: startFrames, locked };
+    },
+    _setAttackPhase(phase, frames = 0, locked = false) {
+      if (!this._tfAttackState.name) return;
+      this._tfAttackState.phase  = phase;
+      this._tfAttackState.timer  = frames;
+      this._tfAttackState.locked = locked;
+    },
+    _finishAttackState(name = null) {
+      if (name && this._tfAttackState.name && this._tfAttackState.name !== name) return;
+      this._tfAttackState = { name: null, phase: 'idle', timer: 0, locked: false };
+    },
   };
   // Attach boss methods
   if (isTF && typeof TrueForm !== 'undefined') {
@@ -216,6 +246,14 @@ function _atkGetAOETargets(firingPlayer) {
 
 // Current kit firer — set in _atkKitFire so _atkDeal can use it as attacker
 let _atkCurrentFirer = null;
+
+// Mark a player as immune to GUI-triggered attacks for the duration of the attack (~20s max).
+// This prevents AOE attacks from damaging the player who triggered them.
+function _atkSetGuiFirer(player) {
+  if (!player) return;
+  player._guiAttackImmune = true;
+  setTimeout(() => { if (player) player._guiAttackImmune = false; }, 20000);
+}
 
 function _atkDeal(attacker, target, dmg, kb) {
   if (_atkSafeMode) return;
@@ -1097,6 +1135,7 @@ function _atkSummon(label) {
     const ctx      = needsCtx ? _atkGetSummonCtx(isTF) : null;
     const tgt      = firer ? _atkGetKitTarget(firer) : _atkGetTarget();
     _atkCurrentFirer = firer;
+    _atkSetGuiFirer(firer);
     _consolePrint('[ATK] ' + entry.label + ' — ' + entry.desc, '#ffcc00');
     forceExecuteAttack(entry, classKey, ctx, tgt);
     _atkCurrentFirer = null;
@@ -1127,6 +1166,7 @@ function _atkAll(classKey) {
     const ctx      = needsCtx ? _atkGetSummonCtx(isTF) : null;
     const tgt      = firer ? _atkGetKitTarget(firer) : _atkGetTarget();
     _atkCurrentFirer = firer;
+    _atkSetGuiFirer(firer);
     _consolePrint('[ATK] ' + idx + '/' + bucket.length + ' → ' + entry.label, '#aaddff');
     forceExecuteAttack(entry, classKey, ctx, tgt);
     _atkCurrentFirer = null;
@@ -1238,6 +1278,7 @@ function _atkKitFire(player) {
     ? players.find(p => p !== player && !p._isDummy && p.health > 0) || null
     : null;
   _atkCurrentFirer = player;
+  _atkSetGuiFirer(player);
   _consolePrint(`[ADMIN KIT] [${kit.idx + 1}] ${entry.label}`, '#ffcc44');
   forceExecuteAttack(entry, kit.kitKey, ctx, tgt);
   _atkCurrentFirer = null;

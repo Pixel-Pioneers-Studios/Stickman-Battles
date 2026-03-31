@@ -255,6 +255,8 @@ function gameLoop(timestamp) {
   // Tick active cinematic (before input and physics)
   updateCinematic();
   if (typeof updateCinematicSystem === 'function') updateCinematicSystem();
+  // Tick deterministic cutscene system
+  if (typeof updateCutscene === 'function') updateCutscene();
   frameCount++;
   aiTick++;
   // Approximate real delta-time at 60fps for Director
@@ -331,7 +333,7 @@ function gameLoop(timestamp) {
     }
 
     // Floor hazard state machine
-    bossFloorTimer--;
+    if (!gameFrozen) bossFloorTimer--;
     if (bossFloorTimer <= 0) {
       if (bossFloorState === 'normal') {
         bossFloorState = 'warning';
@@ -519,6 +521,9 @@ function gameLoop(timestamp) {
     }
     bossSpikes = bossSpikes.filter(sp => !sp.done);
     drawBossSpikes();
+    // Paradox foreshadow: background silhouettes during boss fight (drawn behind fighters)
+    if (typeof updateBossParadoxForeshadow === 'function') updateBossParadoxForeshadow();
+    if (typeof drawBossParadoxForeshadow   === 'function') drawBossParadoxForeshadow();
     if (bossDeathScene) updateBossDeathScene();
     if (tfEndingScene)  updateTFEnding();
     // Telegraph system: pending attacks, stagger, desperation, warnings draw
@@ -581,6 +586,7 @@ function gameLoop(timestamp) {
     updateTFClones();
     updateTFChainSlam();
     updateTFGraspSlam();
+    updateTFDimensionPunch();
     updateTFShockwaves();
     updateTFPendingAttacks();
     updateTFGammaBeam();
@@ -589,14 +595,34 @@ function gameLoop(timestamp) {
     updateTFGalaxySweep();
     updateTFMultiverse();
     updateTFSupernova();
-    // Gravity timer: auto-restore after 10 seconds
-    if (tfGravityInverted && tfGravityTimer > 0) {
-      tfGravityTimer--;
-      if (tfGravityTimer <= 0) {
-        tfGravityInverted = false;
-        showBossDialogue('I restored gravity. You\'re welcome.', 150);
-        spawnParticles(GAME_W / 2, GAME_H / 2, '#ffffff', 16);
+    // Gravity failsafe: ensure inversion ALWAYS expires via timer or hard cap
+    if (tfGravityInverted) {
+      if (tfGravityTimer > 0) {
+        // Normal path: timer-driven restore
+        tfGravityTimer--;
+        if (tfGravityTimer <= 0) {
+          forceResetGravity();
+          showBossDialogue('I restored gravity. You\'re welcome.', 150);
+          spawnParticles(GAME_W / 2, GAME_H / 2, '#ffffff', 16);
+        }
+      } else {
+        // Failsafe path: inverted but no timer set (e.g. chaos event / cinematic without tfGravityTimer)
+        if (!gravityState.active) {
+          gravityState.active   = true;
+          gravityState.type     = 'reverse';
+          gravityState.timer    = 0;
+          gravityState.maxTimer = 240; // 4-second hard cap
+        }
+        gravityState.timer++;
+        if (gravityState.timer >= gravityState.maxTimer) {
+          forceResetGravity();
+          spawnParticles(GAME_W / 2, GAME_H / 2, '#ffffff', 12);
+        }
       }
+    } else if (gravityState.active) {
+      // Not inverted — clear failsafe tracker
+      gravityState.active = false;
+      gravityState.timer  = 0;
     }
     if (tfControlsInverted && tfControlsInvertTimer > 0) {
       tfControlsInvertTimer--;
@@ -622,13 +648,20 @@ function gameLoop(timestamp) {
     if (!isFinite(p.x))  { p.x = GAME_W / 2; p.vx = 0; }
     if (!isFinite(p.y))  { p.y = 200;         p.vy = 0; }
   }
-  // Players — skip physics update for remote (network-driven) players
-  players.forEach(p => { if ((p.health > 0 || p.invincible > 0) && !p.isRemote) p.update(); });
+  // Players — skip physics update for remote (network-driven) players; also skip during hard freeze
+  if (!gameFrozen) {
+    players.forEach(p => { if ((p.health > 0 || p.invincible > 0) && !p.isRemote) p.update(); });
+  }
   // Chaos system: per-frame update (events, drops, effects, multi-kill, announcer)
   if (typeof chaosMode !== 'undefined' && chaosMode && typeof updateChaosSystem === 'function') updateChaosSystem();
   // Finisher: override positions/state AFTER physics, BEFORE draw
   if (typeof updateFinisher === 'function') updateFinisher();
-  players.forEach(p => { if (p.health > 0 || p.invincible > 0) p.draw(); });
+  players.forEach((p, i) => {
+    if (p.health <= 0 && p.invincible <= 0) return;
+    // Cinematic visibility: skip players flagged as hidden for this scene
+    if (activeCinematic && activeCinematic.hidePlayers && activeCinematic.hidePlayers.includes(i)) return;
+    p.draw();
+  });
   // Chaos system: world-space draw (item drops, effect badges, platform effects)
   if (typeof chaosMode !== 'undefined' && chaosMode && typeof drawChaosWorldSpace === 'function') drawChaosWorldSpace();
   drawSpartanRageEffects();
@@ -656,10 +689,20 @@ function gameLoop(timestamp) {
     drawTFGalaxySweep();
     drawTFMultiverse();
     drawTFSupernova();
+    drawTFDimensionPunch();
     drawBossWarnings();
   }
   drawPhaseTransitionRings();
   drawCinematicWorldEffects(); // ground cracks + world-space cinematic fx
+  // Paradox entity (world-space, drawn over fighters)
+  if (typeof drawParadox === 'function') drawParadox();
+  // TF-kills-Paradox cinematic overlay (lock rings world-space + terminal screen-space)
+  if (typeof updateTFKCOverlay === 'function') updateTFKCOverlay();
+  if (typeof drawTFKCOverlay   === 'function') drawTFKCOverlay();
+  // Absorption aura on player (world-space cyan glow, active and permanent)
+  if (typeof drawTFAbsorption  === 'function') drawTFAbsorption();
+  // Paradox empowerment aura (world-space, over fighters)
+  if (typeof drawParadoxEmpowerment === 'function') drawParadoxEmpowerment();
   checkWeaponSparks();
 
   // Ability activation ring flash
@@ -681,28 +724,32 @@ function gameLoop(timestamp) {
   updateMapPerks();
   updateMirrorGimmick();
   drawMirrorGimmickOverlay();
-  // Controls-inverted status indicator
-  if (tfControlsInverted && tfControlsInvertTimer > 0) {
-    ctx.save();
-    ctx.setTransform(1,0,0,1,0,0);
-    const _cw = canvas.width, _ch = canvas.height;
-    const _alpha = Math.min(1, tfControlsInvertTimer / 30) * 0.18;
-    ctx.fillStyle = `rgba(180,0,255,${_alpha})`;
-    ctx.fillRect(0, 0, _cw, _ch);
-    const _secs = Math.ceil(tfControlsInvertTimer / 60);
-    ctx.font = `bold ${Math.round(_cw * 0.028)}px monospace`;
-    ctx.textAlign = 'center';
-    ctx.globalAlpha = Math.min(1, tfControlsInvertTimer / 30);
-    ctx.fillStyle = '#cc44ff';
-    ctx.shadowColor = '#ff00ff';
-    ctx.shadowBlur = 18;
-    ctx.fillText(`CONTROLS INVERTED  ${_secs}s`, _cw / 2, _ch * 0.12);
-    ctx.shadowBlur = 0;
-    ctx.globalAlpha = 1;
-    ctx.restore();
+  // Paradox revive system (screen-space overlay — replaces fake-death visually)
+  if (typeof updateParadoxRevive === 'function') updateParadoxRevive();
+  if (typeof drawParadoxRevive   === 'function') drawParadoxRevive();
+  // Standalone Paradox entity update (fade-out cleanup outside of revive/opening-fight sequence)
+  if (typeof updateParadox === 'function' && (typeof paradoxReviveActive === 'undefined' || !paradoxReviveActive)
+      && (typeof tfOpeningFightActive === 'undefined' || !tfOpeningFightActive)) updateParadox();
+  // Paradox empowerment timer tick
+  if (typeof updateParadoxEmpowerment === 'function') updateParadoxEmpowerment();
+  // Paradox ability effects update
+  if (typeof updateParadoxEffects === 'function') updateParadoxEffects();
+  // False Victory sequence update + draw
+  if (typeof updateFalseVictory === 'function') updateFalseVictory();
+  if (typeof drawFalseVictory   === 'function') drawFalseVictory();
+  if (typeof updateTFOpeningFight === 'function') updateTFOpeningFight();
+  if (typeof updateTFAbsorption   === 'function') updateTFAbsorption();
+  // Paradox Fusion visual overlay on P1
+  if (typeof drawParadoxFusion === 'function' && typeof tfParadoxFused !== 'undefined' && tfParadoxFused) {
+    drawParadoxFusion(players[0]);
   }
-  updateFakeDeathScene();
-  drawFakeDeathScene();
+  // Paradox ability effects draw
+  if (typeof drawParadoxEffects === 'function') drawParadoxEffects();
+  // Legacy fake-death scene (runs only when paradox system unavailable)
+  if (typeof triggerParadoxRevive === 'undefined') {
+    updateFakeDeathScene();
+    drawFakeDeathScene();
+  }
 
   // ---------- Phase: updateParticles (prevent memory leak: remove expired) ----------
   const _liveParticles = [];
@@ -846,7 +893,29 @@ function gameLoop(timestamp) {
   if (gameMode === 'exploration') drawExploreHUD();
   if (abilityUnlockToast && abilityUnlockToast.timer > 0) drawAbilityUnlockToast();
   if (gameMode === 'trueform' && typeof drawQTE === 'function') drawQTE(ctx, canvas.width, canvas.height);
+  if (typeof drawCutscene === 'function') drawCutscene(ctx, canvas.width, canvas.height);
   if (typeof drawFinisher === 'function') drawFinisher(ctx); // finisher overlay (topmost)
+  // Controls-inverted status indicator (drawn above all HUD layers)
+  if (tfControlsInverted && tfControlsInvertTimer > 0) {
+    ctx.save();
+    ctx.setTransform(1,0,0,1,0,0);
+    const _cw = canvas.width, _ch = canvas.height;
+    const _alpha = Math.min(1, tfControlsInvertTimer / 30) * 0.18;
+    ctx.fillStyle = `rgba(180,0,255,${_alpha})`;
+    ctx.fillRect(0, 0, _cw, _ch);
+    const _secs = Math.ceil(tfControlsInvertTimer / 60);
+    const _flash = 0.55 + 0.45 * Math.sin(frameCount * 0.18);
+    ctx.font = `bold ${Math.round(_cw * 0.032)}px monospace`;
+    ctx.textAlign = 'center';
+    ctx.globalAlpha = Math.min(1, tfControlsInvertTimer / 30) * _flash;
+    ctx.fillStyle = '#cc44ff';
+    ctx.shadowColor = '#ff00ff';
+    ctx.shadowBlur = 22;
+    ctx.fillText(`\u26a0 CONTROLS INVERTED  ${_secs}s`, _cw / 2, _ch * 0.12);
+    ctx.shadowBlur = 0;
+    ctx.globalAlpha = 1;
+    ctx.restore();
+  }
   drawEdgeIndicators(finalScX, finalScY, camCX, camCY);
   // Restore the stable game transform after (remaining draws use it already)
   ctx.setTransform(finalScX, 0, 0, finalScY, canvas.width/2 - camCX*finalScX, canvas.height/2 - camCY*finalScY);
@@ -1000,12 +1069,36 @@ function processInput() {
   if (!gameRunning || paused) return;
   if (gameLoading) return; // freeze input while loading screen is visible
   if (activeCinematic) return; // freeze player controls during boss cinematics
+  if (gameFrozen) return;      // hard freeze during cinematics — halts all input
+  if (typeof isCutsceneActive === 'function' && isCutsceneActive()) return; // freeze during cutscenes
+
+  // Paradox Fusion control switching
+  if (typeof tfParadoxFused !== 'undefined' && tfParadoxFused) {
+    if (typeof tfFusionSwitchTimer !== 'undefined') {
+      tfFusionSwitchTimer--;
+      if (tfFusionSwitchTimer <= 0) {
+        tfFusionControlMode = (tfFusionControlMode === 'player') ? 'paradox' : 'player';
+        // Random 3–5 second duration per phase to prevent predictable flickering
+        tfFusionSwitchTimer = 180 + Math.floor(Math.random() * 120);
+        tfFusionGlitchTimer = 20;
+      }
+    }
+    // When in Paradox control mode: force AI behavior on P1
+    const _fusionP1 = players[0];
+    if (_fusionP1 && !_fusionP1.isBoss) {
+      _fusionP1._fusionAIOverride = (tfFusionControlMode === 'paradox');
+    }
+    if (tfFusionControlMode === 'paradox' && _fusionP1 && typeof paradoxFusionUpdateAI === 'function') {
+      if (aiTick % AI_TICK_INTERVAL === 0) paradoxFusionUpdateAI(_fusionP1);
+    }
+  }
 
   // Update key-held counters
   for (const k of keysDown) keyHeldFrames[k] = (keyHeldFrames[k] || 0) + 1;
 
   players.forEach(p => {
     if (p.isAI || p.health <= 0) return;
+    if (p._fusionAIOverride) return; // Paradox Fusion: AI handles movement, skip keyboard input
     if (p.ragdollTimer > 0 || p.stunTimer > 0) { p.shielding = false; return; }
 
     const hasCurseSlow = p.curses && p.curses.some(c => c.type === 'curse_slow');
@@ -1087,6 +1180,15 @@ function processInput() {
         p.shieldHoldTimer = 0;
       }
       if (!sHeld) p.shielding = false;
+    }
+    // Paradox Fusion: ability key triggers paradox abilities during player control phase
+    if (typeof tfParadoxFused !== 'undefined' && tfParadoxFused &&
+        typeof tfFusionControlMode !== 'undefined' && tfFusionControlMode === 'player' &&
+        !p._fusionAIOverride) {
+      const _abilityHeldFrames = keyHeldFrames[p.controls.ability] || 0;
+      if (_abilityHeldFrames === 1 && typeof paradoxPlayerUseAbility === 'function') {
+        paradoxPlayerUseAbility(p);
+      }
     }
   });
 }

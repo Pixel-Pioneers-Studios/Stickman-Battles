@@ -1539,15 +1539,22 @@ const WEAPONS = {
     superRateBonus: 2.8,
     splashRange: 38, splashDmgPct: 0.30,
     clipSize: 6, reloadFrames: 90,
-    kb: 7,           abilityCooldown: 140, type: 'ranged', color: '#666666',
+    kb: 7,           abilityCooldown: 200, type: 'ranged', color: '#666666',
     abilityName: 'Rapid Fire',
     ability(user, _target) {
+      user._qHitCount = 0;
+      user._qSuperCapRemaining = 15; // max 15% super gain per activation (nerfed from 28%)
+      user._qBulletDmg = 5;         // tracks damage falloff across burst
       for (let i = 0; i < 5; i++) {
         setTimeout(() => {
           if (!gameRunning || user.health <= 0) return;
-          spawnBullet(user, 12 + (Math.random()-0.5)*2, '#ffdd00');
-        }, i * 80);
+          // Each bullet does 90% of previous bullet's damage (falloff)
+          const dmg = Math.max(3, Math.round((user._qBulletDmg || 5) * Math.pow(0.90, i)));
+          const _p = spawnBullet(user, Math.min(5, dmg), '#ffdd00');
+          if (_p) { _p._isQAbility = true; _p._overrideDamage = Math.min(5, dmg); }
+        }, i * 100); // slightly slower burst (was 80ms)
       }
+      setTimeout(() => { user._qSuperCapRemaining = undefined; user._qBulletDmg = undefined; }, 700);
     }
   },
   axe: {
@@ -1584,14 +1591,19 @@ const WEAPONS = {
     requiresClass: 'archer',
     abilityName: 'Triple Shot',
     ability(user, _target) {
+      user._qHitCount = 0;
+      user._qSuperCapRemaining = 28;
       const angles = [-0.22, 0, 0.22];
       for (let i = 0; i < 3; i++) {
         const dmg = user.weapon.damageFunc();
         const speed = 13;
         const vx = user.facing * speed * Math.cos(angles[i]);
         const vy = speed * Math.sin(angles[i]);
-        projectiles.push(new Projectile(user.cx() + user.facing * 12, user.y + 22, vx, vy, user, dmg, '#aad47a'));
+        const _p = new Projectile(user.cx() + user.facing * 12, user.y + 22, vx, vy, user, dmg, '#aad47a');
+        _p._isQAbility = true;
+        projectiles.push(_p);
       }
+      setTimeout(() => { user._qSuperCapRemaining = undefined; }, 400);
     }
   },
   shield: {
@@ -1693,18 +1705,23 @@ const WEAPONS = {
     kb: 3,               abilityCooldown: 120, type: 'ranged', color: '#44cc44',
     abilityName: 'Pea Storm',
     ability(user, _target) {
+      user._qHitCount = 0;
+      user._qSuperCapRemaining = 28;
       for (let i = 0; i < 9; i++) {
         setTimeout(() => {
           if (!gameRunning || user.health <= 0) return;
           const angle = (Math.random() - 0.5) * 0.28;
           const spd   = 13 + Math.random() * 3;
-          projectiles.push(new Projectile(
+          const _p = new Projectile(
             user.cx() + user.facing * 12, user.y + 22,
             user.facing * spd * Math.cos(angle), spd * Math.sin(angle),
             user, user.weapon.damageFunc(), '#44cc44'
-          ));
+          );
+          _p._isQAbility = true;
+          projectiles.push(_p);
         }, i * 65);
       }
+      setTimeout(() => { user._qSuperCapRemaining = undefined; }, 800);
     }
   },
   slingshot: {

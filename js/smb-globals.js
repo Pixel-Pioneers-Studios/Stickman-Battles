@@ -25,11 +25,31 @@ window.addEventListener('resize', resizeCanvas);
 // ============================================================
 const CHANGELOG = [
   {
+    version: '2.5.0',
+    title: 'THE PARADOX UPDATE',
+    date: '2026-03-28',
+    flavor: 'A multiversal being steps out of the background. Nothing about the Creator fight — or the True Form — will ever feel the same.',
+    isLatest: true,
+    requiredProgress: 1,
+    changes: [
+      { cat: 'Narrative', text: 'Introduced Paradox — a multiversal entity that exists at the edge of every major fight as a hidden force' },
+      { cat: 'Cinematic', text: 'True Form fight now opens with a 7-second pre-fight cinematic: Paradox and True Form clash evenly, True Form escalates, snaps Paradox\'s neck, and hurls them into a portal' },
+      { cat: 'Cinematic', text: 'New 5-second cinematic at 30% True Form HP: True Form warps away, returns dragging Paradox, and attacks them repeatedly before the final stretch' },
+      { cat: 'Cinematic', text: 'Creator fight now shows random background flashes of True Form and Paradox fighting as silhouettes (under 1 second each, every 11–20 seconds)' },
+      { cat: 'Cinematic', text: 'Creator fight scripted moment at 50% HP: Boss punches Paradox out of the arena with a particle burst and unique dialogue' },
+      { cat: 'Mechanic',  text: 'True Form fight now begins with a damage lock phase — player deals 0 damage until Paradox Empowerment activates (8 seconds)' },
+      { cat: 'Mechanic',  text: 'Paradox Empowerment grants 1.4× speed and 1.6× damage for 15 seconds with a pulsing cyan aura, restoring full combat after the lock' },
+      { cat: 'System',    text: 'Revive system reworked: Paradox now appears as a visual entity during the boss mercy revive, delivering randomized dialogue before restoring 2 lives' },
+      { cat: 'Polish',    text: 'Paradox entity features a flickering black/cyan stickman with glitch offsets, scan-line artifacts, and a cyan particle trail' },
+      { cat: 'Polish',    text: 'Damage lock shows grey "0" hit numbers so the player knows the lock is active rather than feeling like a bug' },
+    ],
+  },
+  {
     version: '2.4.4',
     title: 'STORY GAUNTLET OVERHAUL',
     date: '2026-03-27',
     flavor: 'Story Mode now fights back like a real progression gauntlet instead of a quick sprint.',
-    isLatest: true,
+    isLatest: false,
     changes: [
       { cat: 'Story',    text: 'Story chapters now auto-build into 3–5 phase gauntlets with traversal, arena locks, elite waves, hazards, and mini-boss finishes' },
       { cat: 'Story',    text: 'Exploration pacing was expanded with stronger enemy pressure, checkpoint bursts, ambush punish, side portals, and optional Distorted Rift encounters' },
@@ -45,6 +65,7 @@ const CHANGELOG = [
     date: '2026-03-25',
     flavor: 'The Code Realm has been fixed. SOVEREIGN awaits challengers.',
     isLatest: false,
+    requiredProgress: 1,
     changes: [
       { cat: 'Fix',      text: 'True Form Code Realm: added double-jump so all 5 nodes are reachable' },
       { cat: 'Fix',      text: 'True Form Code Realm: lowered unreachable high nodes to proper jump height' },
@@ -66,6 +87,7 @@ const CHANGELOG = [
     title: 'FULL RELEASE — FRACTURE CAMPAIGN',
     date: '2026-03-24',
     flavor: 'Reality patch applied. All dimensional rifts sealed.',
+    requiredProgress: 1,
     changes: [
       { cat: 'Story',    text: 'Added full Story Mode — 80 chapters across 6 Acts' },
       { cat: 'Story',    text: 'Added Act / Arc navigation system with chapter select' },
@@ -109,6 +131,7 @@ const CHANGELOG = [
     title: 'TRUE FORM AWAKENS',
     date: '2025-11-15',
     flavor: 'Something stirs beneath the surface.',
+    requiredProgress: 1,
     changes: [
       { cat: 'Boss',     text: 'Added True Form — adaptive boss with player pattern recognition' },
       { cat: 'Boss',     text: 'Added secret letter hunt system unlocking True Form mode' },
@@ -146,6 +169,7 @@ let p2IsBot         = false;
 let training2P      = false; // 2-player training mode toggle
 let p2IsNone        = false; // "None" — no P2 at all (solo mode)
 let paused          = false;
+let gameFrozen      = false; // true during cinematics — halts physics, input, hazard damage, boss AI
 let players         = [];
 let minions         = [];    // boss-spawned minions
 let verletRagdolls  = [];    // active Verlet death ragdolls
@@ -219,6 +243,24 @@ let bgBuildings = [];
 let unlockedTrueBoss   = !!localStorage.getItem('smc_trueform');
 let tfGravityInverted  = false;
 let tfGravityTimer     = 0;    // countdown (frames); 0 = gravity normal
+
+// ── Gravity failsafe ─────────────────────────────────────────────────────────
+// Tracks active inversion with a hard 4-second cap so no gravity flip can get permanently stuck.
+let gravityState = { active: false, type: 'normal', timer: 0, maxTimer: 0 };
+
+function forceResetGravity() {
+  tfGravityInverted    = false;
+  tfGravityTimer       = 0;
+  gravityState.active  = false;
+  gravityState.type    = 'normal';
+  gravityState.timer   = 0;
+  gravityState.maxTimer = 0;
+  if (typeof players !== 'undefined') {
+    for (const p of players) {
+      if (p && p.vy !== undefined) p.vy = Math.min(p.vy, 2); // prevent upward launch on restore
+    }
+  }
+}
 let tfControlsInverted    = false;
 let tfControlsInvertTimer = 0;   // countdown (frames); controls auto-restore when 0
 // Mirror arena gimmick
@@ -236,6 +278,7 @@ let tfChainSlam        = null; // { stage:0-3, timer, target }
 let tfGraspSlam        = null; // { timer }
 let tfShockwaves       = [];   // { x, y, r, maxR, timer, maxTimer, boss, hit:Set }
 let tfDimensionIs3D    = false; // true while TrueForm has shifted the game to 3D perspective
+let tfDimensionPunch   = null;  // { stage, timer, target, boss, launchDir, travelTimer, bgPhase, inputLocked }
 let tfEndingScene      = null;  // TrueForm ending cinematic state machine (smb-trueform-ending.js)
 
 // ── Boss telegraph / warning system ──────────────────────────────────────────
@@ -255,6 +298,8 @@ let bossDesperationFlash = 0;   // visual flash timer on activate
 // ============================================================
 let bossBeaten         = !!localStorage.getItem('smc_bossBeaten');
 let collectedLetterIds = new Set(JSON.parse(localStorage.getItem('smc_letters') || '[]'));
+// 0 = fresh player, 1 = boss beaten, 2 = true form unlocked
+const playerProgressLevel = unlockedTrueBoss ? 2 : bossBeaten ? 1 : 0;
 const SECRET_LETTERS   = ['T','R','U','E','F','O','R','M'];
 const SECRET_ARENAS    = ['grass','city','space','lava','forest','ice','ruins','creator'];
 const SECRET_LETTER_POS = {

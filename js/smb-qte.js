@@ -265,6 +265,11 @@ let _qteWarpGrid     = [];  // { x, y, ox, oy } warp grid nodes
 let _qteTimeline     = 0;   // global frame counter within QTE
 let _qteComboText    = null; // { text, timer, x, y, color }
 
+// ── Pre-QTE pending state ────────────────────────────────────────────────────
+// When a threshold is crossed, we enter a short warning window before firing.
+// _qtePending = { phaseId, tf, p1, timer, totalDelay }
+let _qtePending = null;
+
 // ── Public API ───────────────────────────────────────────────────────────────
 
 /**
@@ -294,6 +299,38 @@ function updateQTE() {
  * Call in screen-space (after ctx.setTransform(1,0,0,1,0,0)) from drawLoop.
  */
 function drawQTE(ctx, cw, ch) {
+  // Draw pre-QTE warning pulse even when QTE hasn't started yet
+  if (!QTE_STATE && _qtePending) {
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    const progress = _qtePending.timer / _qtePending.totalDelay; // 0 → 1
+    const pulse = Math.sin(progress * Math.PI * 4) * 0.5 + 0.5; // oscillates
+    const color = _phaseColor(_qtePending.phaseId);
+    // Vignette-style border flash
+    // Parse hex color to rgba
+    const r = parseInt(color.slice(1,3),16), g = parseInt(color.slice(3,5),16), b = parseInt(color.slice(5,7),16);
+    const a = (0.25 + pulse * 0.25).toFixed(2);
+    const gradient = ctx.createRadialGradient(cw * 0.5, ch * 0.5, ch * 0.3, cw * 0.5, ch * 0.5, Math.max(cw, ch) * 0.7);
+    gradient.addColorStop(0, 'rgba(0,0,0,0)');
+    gradient.addColorStop(1, `rgba(${r},${g},${b},${a})`);
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, cw, ch);
+    // Warning text
+    if (progress > 0.3) {
+      ctx.globalAlpha = Math.min(1, (progress - 0.3) / 0.3) * (0.7 + pulse * 0.3);
+      ctx.font = 'bold 18px monospace';
+      ctx.textAlign = 'center';
+      ctx.fillStyle = '#ffffff';
+      ctx.shadowColor = color;
+      ctx.shadowBlur = 12;
+      ctx.fillText('⚠ REALITY FRACTURING', cw * 0.5, ch * 0.12);
+      ctx.shadowBlur = 0;
+      ctx.globalAlpha = 1;
+    }
+    ctx.restore();
+    return;
+  }
+
   if (!QTE_STATE) return;
   ctx.save();
   ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -339,6 +376,7 @@ function drawQTE(ctx, cw, ch) {
 function resetQTEState() {
   QTE_STATE       = null;
   _qteFiredPhases.clear();
+  _qtePending     = null;
   _qteParticles   = [];
   _qteRipples     = [];
   _qteFlashAlpha  = 0;
@@ -366,6 +404,10 @@ function triggerQTEPhase(phaseId) {
 // ── Trigger detection (called each frame when QTE is inactive) ────────────────
 function _checkQTETriggers() {
   if (gameMode !== 'trueform' || !gameRunning) return;
+  if (_qtePending) {
+    _tickQTEPending();
+    return;
+  }
   const tf = players && players.find(p => p.isTrueForm);
   const p1 = players && players.find(p => !p.isTrueForm && p.health > 0);
   if (!tf || !p1 || tf.health <= 0 || activeCinematic) return;
@@ -376,16 +418,76 @@ function _checkQTETriggers() {
   for (const phaseId of [4, 3, 2, 1]) {
     const def = QTE_PHASES[phaseId];
     if (!_qteFiredPhases.has(phaseId) && hpPct <= def.hpThreshold) {
-      _startQTE(phaseId, tf, p1);
+      // Mark as fired immediately so re-entry next frame doesn't double-trigger
+      _qteFiredPhases.add(phaseId);
+      // 0.3–0.6s delay at 60fps = 18–36 frames
+      const delay = 18 + Math.floor(Math.random() * 19);
+      _qtePending = { phaseId, tf, p1, timer: 0, totalDelay: delay };
       return;
     }
   }
 }
 
+// ── Pre-QTE warning tick ─────────────────────────────────────────────────────
+// Runs each frame while _qtePending is set.  Checks player safety conditions
+// and fires _startQTE only when the player is in a safe, grounded state.
+function _tickQTEPending() {
+  const pd = _qtePending;
+  if (!pd) return;
+
+  const { tf, p1 } = pd;
+
+  // Abort if entities are gone
+  if (!tf || tf.health <= 0 || !p1 || p1.health <= 0) {
+    _qtePending = null;
+    return;
+  }
+
+  // Apply gentle slow-motion during the warning window (0.7× speed)
+  if (typeof slowMotionFor === 'function') slowMotionFor(0.7, 120);
+
+  pd.timer++;
+
+  // Safety checks — only proceed once the player is in a safe state.
+  // Block if player is in an active combat state.
+  const SPEED_THRESHOLD = 8; // px/frame
+  const playerBusy = (
+    (p1.attackTimer  > 0) ||
+    (p1.hurtTimer    > 0) ||
+    (p1.stunTimer    > 0) ||
+    (Math.abs(p1.vx) > SPEED_THRESHOLD || Math.abs(p1.vy) > SPEED_THRESHOLD)
+  );
+
+  // Block if boss is mid-attack
+  const bossBusy = (tf.attackTimer > 0);
+
+  // Require player to be grounded (or at least not freefalling hard)
+  const playerGrounded = p1.onGround || Math.abs(p1.vy) < 3;
+
+  const safeToFire = !playerBusy && !bossBusy && playerGrounded;
+
+  // Wait at least totalDelay frames AND for a safe window.
+  // Hard cap: after 3× totalDelay frames always fire regardless (prevents indefinite deferral).
+  const hardCap = pd.totalDelay * 3;
+  if ((pd.timer >= pd.totalDelay && safeToFire) || pd.timer >= hardCap) {
+    _qtePending = null;
+    _startQTE(pd.phaseId, tf, p1);
+  }
+}
+
 // ── QTE Initialisation ───────────────────────────────────────────────────────
 function _startQTE(phaseId, bossRef, playerRef) {
-  _qteFiredPhases.add(phaseId);
+  // Note: _qteFiredPhases.add() already called in _checkQTETriggers when pending starts
   const def = QTE_PHASES[phaseId];
+
+  // Snap player to neutral — cancel velocity and any active combat timers
+  if (playerRef) {
+    playerRef.vx = 0;
+    playerRef.vy = 0;
+    if (playerRef.attackTimer  > 0) playerRef.attackTimer  = 0;
+    if (playerRef.hurtTimer    > 0) playerRef.hurtTimer    = 0;
+    if (playerRef.stunTimer    > 0) playerRef.stunTimer    = 0;
+  }
 
   // Freeze normal game physics during QTE
   if (typeof slowMotionFor === 'function') slowMotionFor(0.0, 99999); // held until QTE ends

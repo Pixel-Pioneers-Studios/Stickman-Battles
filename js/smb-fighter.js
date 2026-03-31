@@ -143,6 +143,7 @@ class Fighter {
     this.x  = this.spawnX;
     this.y  = this.spawnY - 60;
     this.vx = 0; this.vy = 0;
+    this._dimPunchGravLock = false;
     this.health          = this.maxHealth; // always restore to full on respawn
     this.shielding       = false;
     this.spinning        = 0;
@@ -306,6 +307,14 @@ class Fighter {
       this.abilityCooldown = 0; this.abilityCooldown2 = 0;
       this.shieldCooldown = 0; this.boostCooldown = 0;
     }
+    // Story mode: runtime enforcement — ranged weapons silently swap to sword
+    if (storyModeActive && !this.isBoss && this.weapon && this.weapon.type === 'ranged') {
+      if (typeof WEAPONS !== 'undefined' && WEAPONS.sword) {
+        this.weapon = WEAPONS.sword;
+        this.weaponKey = 'sword';
+        this._ammo = 0;
+      }
+    }
 
     // ---- RAGDOLL SPIN PHYSICS ----
     if (this.ragdollTimer > 0) {
@@ -409,7 +418,8 @@ class Fighter {
     }
 
     // AI: only update every AI_TICK_INTERVAL frames (smoother movement, less CPU)
-    if (this.isAI && this.target && !activeCinematic && aiTick % AI_TICK_INTERVAL === 0) this.updateAI();
+    // _fusionAIOverride is handled by paradoxFusionUpdateAI() in the game loop — do NOT run stock AI
+    if (this.isAI && !this._fusionAIOverride && this.target && !activeCinematic && !(typeof isCutsceneActive === 'function' && isCutsceneActive()) && aiTick % AI_TICK_INTERVAL === 0) this.updateAI();
 
       // ── Standard game physics ──
       // godmode cheat: free flight for human player
@@ -449,13 +459,18 @@ class Fighter {
       const arenaGravity = _chaosMoon ? 0.18 : (currentArena.isLowGravity ? 0.28 : (currentArena.isHeavyGravity ? 0.95 : (currentArena.earthPhysics ? 0.88 : 0.65)));
       const gravDir = (gameMode === 'trueform' && tfGravityInverted && !this.isBoss) ? -1 : 1;
       const _sm = slowMotion; // cinematic slow-motion time scale
-      this.vy += arenaGravity * gravDir * _sm;
+      // Dimension punch gravity lock: skip gravity while player is being launched/travelling
+      if (!this._dimPunchGravLock) {
+        this.vy += arenaGravity * gravDir * _sm;
+      }
       this.x  += this.vx * _sm;
       this.y  += this.vy * _sm;
       const _chaosSlip = gameMode === 'minigames' && currentChaosModifiers.has('slippery');
       const friction = (this.onGround && (currentArena.isIcy || _chaosSlip)) ? 0.975 : (this.onGround ? 0.78 : 0.94);
       this.vx *= friction;
-      this.vx  = clamp(this.vx, -13, 13);
+      // During dimension travel, allow vx beyond the normal cap
+      const _vxMax = this._dimPunchGravLock ? 60 : 13;
+      this.vx  = clamp(this.vx, -_vxMax, _vxMax);
       const vyMax = currentArena.isLowGravity ? 10 : 19;
       this.vy  = clamp(this.vy, -20, vyMax);
       this.onGround = false;
@@ -1867,6 +1882,8 @@ class Fighter {
             footY <= pl.y + 22 && footY >= pl.y - 8) return false;
       }
       if (currentArena.hasLava) return true;
+      // Boss arena void floor: floor is disabled — treat as instant death zone
+      if (currentArena.isBossArena && bossFloorState === 'hazard' && bossFloorType === 'void') return true;
       return this.y + this.h < GAME_H + 40;
     }
 

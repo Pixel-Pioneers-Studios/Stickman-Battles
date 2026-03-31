@@ -1073,12 +1073,12 @@ function updateClassWeapon(player) {
   const clsKey = document.getElementById(player + 'Class').value;
   const cls    = CLASSES[clsKey];
   const wEl    = document.getElementById(player + 'Weapon');
+  // Default to the class's preferred weapon but do NOT lock the dropdown
+  // Players can freely change weapon after selecting a class
   if (cls && cls.weapon) {
-    wEl.value    = cls.weapon;
-    wEl.disabled = true;
-  } else {
-    wEl.disabled = false;
+    wEl.value = cls.weapon;
   }
+  wEl.disabled = false; // always keep weapon selectable
   showDesc(player, 'class', clsKey);
 }
 

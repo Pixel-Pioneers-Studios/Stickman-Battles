@@ -38,7 +38,7 @@
         </div>
         <div class="config-row">
           <label>Weapon</label>
-          <select id="p1Weapon" onchange="showDesc('p1','weapon',this.value); updateClassWeapon('p1');">
+          <select id="p1Weapon" onchange="showDesc('p1','weapon',this.value); onWeaponChange('p1');">
             <option value="random">Random</option>
             <option value="sword">Sword</option>
             <option value="hammer">Hammer</option>
@@ -514,7 +514,7 @@
         </div>
         <div class="config-row" id="p2WeaponRow">
           <label>Weapon</label>
-          <select id="p2Weapon" onchange="showDesc('p2','weapon',this.value); updateClassWeapon('p2');">
+          <select id="p2Weapon" onchange="showDesc('p2','weapon',this.value); onWeaponChange('p2');">
             <option value="random">Random</option>
             <option value="sword">Sword</option>
             <option value="hammer">Hammer</option>
@@ -988,6 +988,8 @@
   <script src="./js/smb-enemies.js"></script>
   <!-- Boss and True Form -->
   <script src="./js/smb-boss.js"></script>
+  <!-- Paradox entity: multiversal being, revive system, TF damage lock, foreshadowing -->
+  <script src="./js/smb-paradox.js"></script>
   <!-- Adaptive AI — learning opponent for Adaptive AI mode (story) -->
   <script src="./js/smb-adaptive-ai.js"></script>
   <!-- SOVEREIGN Ω — upgraded adaptive AI with prediction/punishment/limiter break -->
@@ -1002,6 +1004,8 @@
   <script src="./js/smb-qte.js"></script>
   <!-- Impact cinematic system: playCinematicAttack, CINEMATIC_PRESETS, updateCinematicSystem -->
   <script src="./js/smb-cinematic.js"></script>
+  <!-- Deterministic step-based cutscene system -->
+  <script src="./js/smb-cutscene.js"></script>
   <!-- Camera, main game loop, input -->
   <script src="./js/smb-loop.js"></script>
   <!-- Menu UI, startGame, tutorial -->

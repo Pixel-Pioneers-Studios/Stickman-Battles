@@ -134,7 +134,8 @@ function _tfeLaunchPts(hero) {
 }
 
 // ── Entry point ───────────────────────────────────────────────────────────────
-function startTFEnding(boss) {
+// isIntro=true: fires as opening sequence; resumes gameplay after code realm instead of endGame
+function startTFEnding(boss, isIntro) {
   const hero = players.find(p => !p.isBoss);
   if (!hero) { endGame(); return; }
 
@@ -227,6 +228,9 @@ function startTFEnding(boss) {
     skippable: false,
     skipped:   false,
     canReplay:  (localStorage.getItem('smc_tfEndingSeen') === '1'),
+
+    // intro mode: resume gameplay instead of calling endGame
+    isIntro: isIntro === true,
   };
 
   localStorage.setItem('smc_tfEndingSeen', '1');
@@ -362,11 +366,10 @@ function updateTFEnding() {
       sc.phase = 'coderealm';
       sc.timer = 0;
       sc.hero.backstageHiding = true;
+      sc.hero.invincible = 999999;  // full immunity for entire coderealm phase
       sc.crHeroX  = GAME_W / 2;
       sc.crHeroY  = GAME_H * 0.52;
-      sc.crHeroVY      = 0;
-      sc.crOnGround    = false;
-      sc.crCanDoubleJump = false;
+      sc.crHeroVY = 0;
       sc.nodesCorrupted = 0;
       _tfeInitRain();
       _tfeCamFocus(GAME_W / 2, GAME_H / 2, 1.0);
@@ -378,41 +381,21 @@ function updateTFEnding() {
   else if (sc.phase === 'coderealm') {
     sc.rainAlpha = Math.min(0.92, t / 50);
 
-    // Hero physics in coderealm (managed manually, not by Fighter)
-    const crFloor = GAME_H * 0.72;
-    if (!sc.crOnGround) {
-      sc.crHeroVY += 0.55;
-      sc.crHeroY  += sc.crHeroVY;
-      if (sc.crHeroY >= crFloor) {
-        sc.crHeroY = crFloor;
-        sc.crHeroVY   = 0;
-        sc.crOnGround = true;
-        sc.crCanDoubleJump = false;
-      }
-    }
+    // Keep hero fully immune to damage and hazards throughout coderealm
+    sc.hero.invincible = 999999;
 
-    // Hero horizontal movement + jump (with double-jump) via controls
+    // Free-flight physics — no gravity, directional control (jump=up, shield=down)
     const ctrl = sc.hero.controls;
     if (ctrl) {
-      const spd = 3.5;
+      const spd = 3.8;
       if (keysDown.has(ctrl.left))  sc.crHeroX -= spd;
       if (keysDown.has(ctrl.right)) sc.crHeroX += spd;
-      const _jumpJust = keysDown.has(ctrl.jump) && !sc._crJumpWas;
-      sc._crJumpWas = keysDown.has(ctrl.jump);
-      if (_jumpJust) {
-        if (sc.crOnGround) {
-          sc.crHeroVY    = -9;
-          sc.crOnGround  = false;
-          sc.crCanDoubleJump = true;
-          spawnParticles(sc.crHeroX, crFloor, '#00ff41', 5);
-        } else if (sc.crCanDoubleJump) {
-          sc.crHeroVY    = -9;
-          sc.crCanDoubleJump = false;
-          spawnParticles(sc.crHeroX, sc.crHeroY, '#00ff41', 8);
-          spawnParticles(sc.crHeroX, sc.crHeroY, '#ffffff', 4);
-        }
-      }
+      const fUp   = keysDown.has(ctrl.jump);
+      const fDown = keysDown.has(ctrl.shield);
+      sc.crHeroVY = fUp ? -6 : (fDown ? 6 : sc.crHeroVY * 0.7);
+      sc.crHeroY += sc.crHeroVY;
       sc.crHeroX = Math.max(12, Math.min(GAME_W - 12, sc.crHeroX));
+      sc.crHeroY = Math.max(18, Math.min(GAME_H - 18, sc.crHeroY));
     }
 
     // Update node pulse
@@ -421,23 +404,21 @@ function updateTFEnding() {
       if (nd.hitTimer > 0) nd.hitTimer--;
     }
 
-    // Corrupt node if hero close and attacks
-    if (_tfeAtkJust()) {
-      for (const nd of sc.codeNodes) {
-        if (!nd.corrupted) {
-          const dx = nd.x - sc.crHeroX, dy = nd.y - sc.crHeroY;
-          if (Math.sqrt(dx*dx+dy*dy) < 55) {
-            nd.corrupted = true;
-            nd.hitTimer  = 30;
-            sc.nodesCorrupted++;
-            sc.crFlashTimer = 20;
-            screenShake = 22;
-            CinFX.flash('#00ff41', 0.55, 10);
-            spawnParticles(nd.x, nd.y, '#00ff41', 18);
-            spawnParticles(nd.x, nd.y, '#ffffff', 10);
-            SoundManager.explosion && SoundManager.explosion();
-            break;
-          }
+    // Corrupt node on proximity contact — no attack required, generous radius
+    for (const nd of sc.codeNodes) {
+      if (!nd.corrupted) {
+        const dx = nd.x - sc.crHeroX, dy = nd.y - sc.crHeroY;
+        if (Math.sqrt(dx*dx+dy*dy) < 80) {
+          nd.corrupted = true;
+          nd.hitTimer  = 30;
+          sc.nodesCorrupted++;
+          sc.crFlashTimer = 20;
+          screenShake = 22;
+          CinFX.flash('#00ff41', 0.55, 10);
+          spawnParticles(nd.x, nd.y, '#00ff41', 18);
+          spawnParticles(nd.x, nd.y, '#ffffff', 10);
+          SoundManager.explosion && SoundManager.explosion();
+          break;
         }
       }
     }
@@ -499,6 +480,15 @@ function updateTFEnding() {
       screenShake = 28;
       CinFX.flash('#ffffff', 0.55, 8);
       spawnParticles(GAME_W/2, floorY, '#ffffff', 20);
+      // Intro mode: skip finisher/aura/powers/fall — go straight to fadeout
+      if (sc.isIntro) {
+        sc.phase = 'fadeout';
+        sc.timer = 0;
+        sc.hero.backstageHiding = false;
+        sc.hero.x = GAME_W / 2 - sc.hero.w / 2;
+        if (typeof showBossDialogue === 'function') showBossDialogue('NOW we begin.', 300);
+        return;
+      }
       sc.phase = 'finisher';
       sc.timer = 0;
       sc.hero.backstageHiding = false;
@@ -654,10 +644,51 @@ function updateTFEnding() {
     if (t >= 80) {
       tfEndingScene = null;
       if (typeof cinematicCamOverride !== 'undefined') cinematicCamOverride = false;
-      _tfeUnlockPatrolMode();
-      endGame();
+      if (sc.isIntro) {
+        _tfeResumeAfterIntro(sc);
+      } else {
+        _tfeUnlockPatrolMode();
+        endGame();
+      }
     }
   }
+}
+
+// ── Resume gameplay after intro dimension-punch cinematic ─────────────────────
+function _tfeResumeAfterIntro(sc) {
+  // Restore boss
+  if (sc.boss) {
+    sc.boss.invincible      = 90;
+    sc.boss.backstageHiding = false;
+    sc.boss.vx = 0;
+    sc.boss.vy = 0;
+  }
+
+  // Restore hero — lose weapon, gain Paradox powers
+  if (sc.hero) {
+    sc.hero.backstageHiding = false;
+    sc.hero.invincible      = Math.max(sc.hero.invincible, 180);
+    sc.hero.weapon          = null; // player loses weapon (Part 4)
+    sc.hero.vx = 0;
+    sc.hero.vy = 0;
+  }
+
+  // Activate final TrueForm mode (halved cooldowns, max aggression)
+  if (typeof tfFinalStateActive !== 'undefined') tfFinalStateActive = true;
+
+  // Activate Paradox fusion control system (Part 4)
+  if (typeof tfParadoxFused !== 'undefined') {
+    tfParadoxFused      = true;
+    tfFusionControlMode = 'player';
+    tfFusionSwitchTimer = typeof tfFusionSwitchInterval !== 'undefined' ? tfFusionSwitchInterval : 300;
+    tfFusionGlitchTimer = 0;
+  }
+
+  screenShake = Math.max(screenShake, 35);
+  if (typeof CinFX !== 'undefined') CinFX.flash('#ffffff', 0.5, 14);
+
+  gameRunning = true;
+  requestAnimationFrame(gameLoop);
 }
 
 // ── Unlock post-ending features ───────────────────────────────────────────────

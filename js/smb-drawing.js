@@ -1103,6 +1103,10 @@ function checkDeaths() {
           const killer = players.find(q => q !== p && !q.isAI);
           storyOnEnemyDeath(p, killer || null);
         }
+        // Award EXP for killing a story enemy
+        if (storyModeActive && p.isAI && !p.isBoss && typeof _storyAwardKillExp === 'function') {
+          _storyAwardKillExp(12);
+        }
         addKillFeed(p);
         spawnParticles(p.cx(), p.cy(), p.color, 20);
         if (!p.ragdollTimer) { p.ragdollTimer = 45; p.ragdollSpin = (Math.random() - 0.5) * 0.25; }
@@ -1130,7 +1134,12 @@ function checkDeaths() {
           // Check if boss fake-death should trigger (boss < 33% HP, once per game)
           const boss = players.find(q => q.isBoss);
           if (boss && boss.health < boss.maxHealth * 0.33 && !fakeDeath.triggered && gameMode === 'boss') {
-            triggerFakeDeath(p);
+            // Use Paradox revive if available, otherwise fall back to standard fake-death
+            if (typeof triggerParadoxRevive === 'function') {
+              triggerParadoxRevive(p);
+            } else {
+              triggerFakeDeath(p);
+            }
           } else if (gameMode === 'boss' && bossPlayerCount === 2) {
             // In 2P boss co-op: only delay end if teammate is still alive
             const otherHumansAlive = players.some(q => !q.isBoss && q !== p && q.lives > 0 && q.health > 0);
