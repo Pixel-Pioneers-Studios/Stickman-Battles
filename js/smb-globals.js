@@ -1,0 +1,502 @@
+'use strict';
+
+// ============================================================
+// CANVAS
+// ============================================================
+const canvas = document.getElementById('gameCanvas');
+const ctx    = canvas.getContext('2d');
+ctx.imageSmoothingEnabled = true;
+
+// Logical game-space dimensions — all game coordinates use these
+const GAME_W = 900;
+const GAME_H = 520;
+
+// Resize canvas to fill the browser window; game world stays GAME_W x GAME_H (fixed resolution)
+function resizeCanvas() {
+  canvas.width  = window.innerWidth;
+  canvas.height = window.innerHeight;
+  ctx.imageSmoothingEnabled = true;
+}
+resizeCanvas();
+window.addEventListener('resize', resizeCanvas);
+
+// ============================================================
+// CHANGELOG
+// ============================================================
+const CHANGELOG = [
+  {
+    version: '2.6.0',
+    title: 'THE SOVEREIGN UPDATE',
+    date: '2026-04-01',
+    flavor: 'A new intelligence rises. Save your progress, command the stage, and face an opponent that refuses to be beaten the same way twice.',
+    isLatest: true,
+    changes: [
+      { cat: 'Mode',     text: 'Added SOVEREIGN Ω — a next-gen adaptive AI mode unlocked by beating SOVEREIGN in Story Mode; features bigram sequence learning, spam punishment, limiter-break power-up, anti-exploit detection, and humanized early delays' },
+      { cat: 'Mode',     text: 'Added Complete Randomizer — a 2P variant that randomizes both fighters\' weapon, class, and arena every match' },
+      { cat: 'Mode',     text: 'Added Story Online mode — unlocked on Story completion; plays online multiplayer within the story\'s arena and rule set' },
+      { cat: 'System',   text: 'Added persistent Save System — full game state (unlocks, achievements, story progress, settings) serialized to a single localStorage key with export-to-clipboard and file import/export' },
+      { cat: 'System',   text: 'Added Game Director — real-time match intensity tracker that accelerates arena hazards and pacing events to prevent stale lulls' },
+      { cat: 'System',   text: 'Added Cutscene System (smb-cutscene.js) — deterministic step-based cutscene engine with control lock, freeze physics, and per-step onEnter/onTick/onExit hooks; replaces ad-hoc timer sequences' },
+      { cat: 'AI',       text: 'Pathfinding upgraded to v4 — predictive arc-based platform pathfinding; bots now plan multi-hop routes via a platform graph instead of reacting frame-by-frame' },
+      { cat: 'AI',       text: 'Added Map Analyzer v2 — static analysis of arena platform graphs pre-computes node adjacency and jump arcs, feeding both pathfinding and AI navigation' },
+      { cat: 'Music',    text: 'Added background music via YouTube IFrame API — separate normal and boss tracks; switches automatically between combat states; mutable independently from SFX' },
+      { cat: 'System',   text: 'Added Error Boundary module — global error handler catches module-load failures and shows a friendly recovery overlay instead of a blank screen' },
+    ],
+  },
+  {
+    version: '2.5.0',
+    title: 'THE PARADOX UPDATE',
+    date: '2026-03-28',
+    flavor: 'A multiversal being steps out of the background. Nothing about the Creator fight — or the True Form — will ever feel the same.',
+    isLatest: false,
+    requiredProgress: 1,
+    changes: [
+      { cat: 'Narrative', text: 'Introduced Paradox — a multiversal entity that exists at the edge of every major fight as a hidden force' },
+      { cat: 'Cinematic', text: 'True Form fight now opens with a 7-second pre-fight cinematic: Paradox and True Form clash evenly, True Form escalates, snaps Paradox\'s neck, and hurls them into a portal' },
+      { cat: 'Cinematic', text: 'New 5-second cinematic at 30% True Form HP: True Form warps away, returns dragging Paradox, and attacks them repeatedly before the final stretch' },
+      { cat: 'Cinematic', text: 'Creator fight now shows random background flashes of True Form and Paradox fighting as silhouettes (under 1 second each, every 11–20 seconds)' },
+      { cat: 'Cinematic', text: 'Creator fight scripted moment at 50% HP: Boss punches Paradox out of the arena with a particle burst and unique dialogue' },
+      { cat: 'Mechanic',  text: 'True Form fight now begins with a damage lock phase — player deals 0 damage until Paradox Empowerment activates (8 seconds)' },
+      { cat: 'Mechanic',  text: 'Paradox Empowerment grants 1.4× speed and 1.6× damage for 15 seconds with a pulsing cyan aura, restoring full combat after the lock' },
+      { cat: 'System',    text: 'Revive system reworked: Paradox now appears as a visual entity during the boss mercy revive, delivering randomized dialogue before restoring 2 lives' },
+      { cat: 'Polish',    text: 'Paradox entity features a flickering black/cyan stickman with glitch offsets, scan-line artifacts, and a cyan particle trail' },
+      { cat: 'Polish',    text: 'Damage lock shows grey "0" hit numbers so the player knows the lock is active rather than feeling like a bug' },
+    ],
+  },
+  {
+    version: '2.4.4',
+    title: 'STORY GAUNTLET OVERHAUL',
+    date: '2026-03-27',
+    flavor: 'Story Mode now fights back like a real progression gauntlet instead of a quick sprint.',
+    isLatest: false,
+    changes: [
+      { cat: 'Story',    text: 'Story chapters now auto-build into 3–5 phase gauntlets with traversal, arena locks, elite waves, hazards, and mini-boss finishes' },
+      { cat: 'Story',    text: 'Exploration pacing was expanded with stronger enemy pressure, checkpoint bursts, ambush punish, side portals, and optional Distorted Rift encounters' },
+      { cat: 'Story',    text: 'Chapter difficulty now scales from chapter progression plus player performance, including stronger elite variants and denser encounter caps' },
+      { cat: 'Economy',  text: 'Tokens now power a real between-chapter shop with healing, permanent damage upgrades, and survivability upgrades' },
+      { cat: 'UI',       text: 'Story HUD now shows the current gauntlet phase clearly during both combat and traversal sections' },
+      { cat: 'Balance',  text: 'Story carryover health and progression upgrades make long-form runs matter instead of resetting into isolated demo fights' },
+    ],
+  },
+  {
+    version: '2.0.0',
+    title: 'THE ARCHITECT UPDATE',
+    date: '2026-03-25',
+    flavor: 'The Code Realm has been fixed. SOVEREIGN awaits challengers.',
+    isLatest: false,
+    requiredProgress: 1,
+    changes: [
+      { cat: 'Fix',      text: 'True Form Code Realm: added double-jump so all 5 nodes are reachable' },
+      { cat: 'Fix',      text: 'True Form Code Realm: lowered unreachable high nodes to proper jump height' },
+      { cat: 'Fix',      text: 'QTE: movement keys (WASD/arrows) now register correctly mid-QTE' },
+      { cat: 'Fix',      text: 'QTE: phases now end after max attempts with penalty damage instead of looping forever' },
+      { cat: 'Fix',      text: 'Large maps: camera now clamps to world bounds and no longer drifts off-edge' },
+      { cat: 'Fix',      text: 'Large maps: both players no longer spawn at the same position' },
+      { cat: 'Fix',      text: 'Boss dialogue bubble now scales correctly when camera is zoomed out' },
+      { cat: 'Fix',      text: 'Background void no longer visible when zooming out on any map' },
+      { cat: 'Balance',  text: 'Reduced large map platforms from 40+ to ~27 with better spread and landmark bridges' },
+      { cat: 'AI',       text: 'Beating SOVEREIGN in Story Mode now unlocks Neural AI as a standalone gamemode' },
+      { cat: 'Polish',   text: 'Damage numbers: color-coded by severity with glow on heavy hits' },
+      { cat: 'Polish',   text: 'Screen shake now scales with hit damage; no longer jitters at near-zero values' },
+      { cat: 'Polish',   text: 'Red vignette overlay when player takes heavy damage' },
+    ],
+  },
+  {
+    version: '1.0.0',
+    title: 'FULL RELEASE — FRACTURE CAMPAIGN',
+    date: '2026-03-24',
+    flavor: 'Reality patch applied. All dimensional rifts sealed.',
+    requiredProgress: 1,
+    changes: [
+      { cat: 'Story',    text: 'Added full Story Mode — 80 chapters across 6 Acts' },
+      { cat: 'Story',    text: 'Added Act / Arc navigation system with chapter select' },
+      { cat: 'Story',    text: 'Implemented exploration chapters and cutscene dialogues' },
+      { cat: 'Story',    text: 'Added major narrative twist: the fragment is the Creator\'s conscience' },
+      { cat: 'Story',    text: 'Introduced the Void Mind as a post-campaign threat' },
+      { cat: 'Cinematic',text: 'Redesigned True Form ending into a 10-phase meta-breaking cinematic' },
+      { cat: 'Cinematic',text: 'Added interactive Code Realm with 5 corruptible nodes' },
+      { cat: 'Cinematic',text: 'Added 3-hit Kratos-style QTE finisher sequence' },
+      { cat: 'Cinematic',text: 'Added dimension-panel launch sequence across 7 realities' },
+      { cat: 'Cinematic',text: 'True Form ending now triggers at 10% HP threshold' },
+      { cat: 'AI',       text: 'Improved True Form adaptive AI — 6 attack tiers, player profiling' },
+      { cat: 'AI',       text: 'Added dedicated Adaptive AI game mode' },
+      { cat: 'Combat',   text: 'Added finisher system (killcam killing blows)' },
+      { cat: 'Combat',   text: 'Balanced ranged weapons — reduced bullet spam window' },
+      { cat: 'Combat',   text: 'Added QTE phases at 75/50/25/10% True Form HP' },
+      { cat: 'UI',       text: 'Added Experimental 3D Mode setting with dimension-break visuals' },
+      { cat: 'UI',       text: 'Added Replay Cinematic button on True Form end screen' },
+      { cat: 'Network',  text: 'Improved multiplayer state sync and disconnect handling' },
+      { cat: 'System',   text: 'Modularised codebase into 20+ named JS modules' },
+    ],
+  },
+  {
+    version: '0.9.0',
+    title: 'CHAOS & CREATION',
+    date: '2026-02-10',
+    flavor: 'New modes, new maps, new mayhem.',
+    changes: [
+      { cat: 'Mode',     text: 'Added Map Creator / Designer tool (standalone, launch from main menu)' },
+      { cat: 'Mode',     text: 'Added Chaos Multiplayer — 12 chaos events, item drops, kill streaks' },
+      { cat: 'Mode',     text: 'Added Survival, King of the Hill, and Soccer minigames' },
+      { cat: 'Mode',     text: 'Added Adaptive AI standalone mode (SOVEREIGN)' },
+      { cat: 'Maps',     text: 'Added Megacity, Warpzone, and Colosseum large-scale arenas' },
+      { cat: 'Combat',   text: 'Added 8 weapon classes with unique supers and abilities' },
+      { cat: 'Combat',   text: 'Added character class system (Berserker, Ninja, Tank, etc.)' },
+      { cat: 'Combat',   text: 'Added combo limiter to prevent infinite lock-out combos' },
+    ],
+  },
+  {
+    version: '0.5.0',
+    title: 'TRUE FORM AWAKENS',
+    date: '2025-11-15',
+    flavor: 'Something stirs beneath the surface.',
+    requiredProgress: 1,
+    changes: [
+      { cat: 'Boss',     text: 'Added True Form — adaptive boss with player pattern recognition' },
+      { cat: 'Boss',     text: 'Added secret letter hunt system unlocking True Form mode' },
+      { cat: 'Boss',     text: 'Added Boss fight mode (The Creator, phase AI, beams, minion spawns)' },
+      { cat: 'Combat',   text: 'Added shield, ability, and super systems' },
+      { cat: 'UI',       text: 'Full UI redesign — glass-morphism, mode cards, player config panels' },
+      { cat: 'Network',  text: 'Added online multiplayer via PeerJS WebRTC + Socket.io relay' },
+    ],
+  },
+  {
+    version: '0.1.0',
+    title: 'INITIAL RELEASE',
+    date: '2025-08-01',
+    flavor: 'Two stickmen. One arena. Fight.',
+    changes: [
+      { cat: 'Core',     text: '2-player local PvP on a single canvas' },
+      { cat: 'Core',     text: 'Basic weapons: sword, hammer, spear, gun' },
+      { cat: 'Core',     text: 'Basic arenas: grass, city, lava, space' },
+    ],
+  },
+];
+
+// ============================================================
+// GLOBAL STATE
+// ============================================================
+let gameMode        = '2p';
+let selectedArena   = 'grass';
+let isRandomMapMode    = false;
+let completeRandomizer = false; // Complete Randomizer mode: reroll arena+weapon+class on every death
+let chosenLives     = 3;
+let gameRunning     = false;
+let gameLoading     = false; // true while loading screen is visible — freezes input/physics
+let p1IsBot         = false;
+let p2IsBot         = false;
+let training2P      = false; // 2-player training mode toggle
+let p2IsNone        = false; // "None" — no P2 at all (solo mode)
+let paused          = false;
+let gameFrozen      = false; // true during cinematics — halts physics, input, hazard damage, boss AI
+let players         = [];
+let minions         = [];    // boss-spawned minions
+let verletRagdolls  = [];    // active Verlet death ragdolls
+let bossBeams       = [];    // boss beam attacks (warning + active)
+let bossSpikes      = [];    // boss spike attacks rising from floor
+let infiniteMode    = false; // if true, no game over — just win counter
+let tutorialMode       = false; // kept as stub — tutorial mode fully removed, always false
+let trainingMode          = false; // training mode flag
+let trainingDesignerOpen  = false; // in-game live map designer active
+let trainingDummies    = [];    // training dummies/bots
+let trainingPlayerOnly = true;  // godmode/onePunch apply only to player (not all entities)
+let trainingChaosMode  = false; // all entities attack nearest target
+let winsP1 = 0, winsP2 = 0;
+let bossDialogue    = { text: '', timer: 0 }; // speech bubble above boss
+let projectiles        = [];
+let particles          = [];
+let damageTexts        = [];
+let respawnCountdowns  = [];  // { color, x, y, framesLeft }
+let screenShake     = 0;
+const BOSS_FIGHT_LIVES = 10;
+const BOSS_FLOOR_WARNING_FRAMES = 180; // 3 seconds at 60 FPS
+let bossFightLivesLock = false;
+let bossFightLivesPrev = null;
+
+// Dynamic camera zoom — lerped each frame
+let camZoomTarget = 1, camZoomCur = 1;
+let hitStopFrames  = 0; // frames to freeze game for hit impact feel
+let hitSlowTimer   = 0; // frames remaining on post-hit slow-motion burst
+let camHitZoomTimer  = 0; // frames of zoom-in after a heavy hit
+let hitVignetteTimer = 0; // frames of red vignette overlay when player takes heavy damage
+let hitVignetteColor = 'rgba(220,30,0,';  // color prefix for vignette fill
+// Camera dead zone: don't update target until center moves beyond this (reduces jitter)
+const CAMERA_DEAD_ZONE = 18;
+const CAMERA_LERP_ZOOM = 0.07;
+const CAMERA_LERP_POS  = 0.08;
+
+// Camera pan position (lerped each frame)
+let camXTarget = 450, camYTarget = 260, camXCur = 450, camYCur = 260;
+
+let camDramaState  = 'normal'; // 'normal' | 'focus' | 'impact' | 'wideshot'
+let camDramaTimer  = 0;
+let camDramaTarget = null;
+let camDramaZoom   = 1.0;
+
+// ============================================================
+// SETTINGS & FRAME STATE
+// ============================================================
+// User-configurable settings (toggled from menu)
+const settings = { particles: true, screenShake: true, dmgNumbers: true, landingDust: true, bossAura: true, botPortal: true, phaseFlash: true, ragdollEnabled: (localStorage.getItem('smc_ragdoll') === '1'), finishers: true, view3D: (localStorage.getItem('smc_view3D') === '1'), experimental3D: (localStorage.getItem('smc_experimental3D') === '1') };
+
+// Active finisher state — set by triggerFinisher(), cleared when animation completes or on backToMenu
+let activeFinisher = null;
+
+// ── World System ──────────────────────────────────────────────────────────────
+let currentWorld   = null; // STORY_WORLDS entry for the active chapter's world
+let worldModifiers = {};   // modifier key(s) from currentWorld, applied by game systems
+let worldId        = null; // string id of active world (e.g. 'fracture')
+let storyCurrentArc = null; // id of active multiverse arc (e.g. 'fracture', 'war', 'godfall')
+let bossPhaseFlash     = 0;    // countdown for white screen flash on boss phase transition
+let abilityFlashTimer  = 0;    // frames remaining for ability ring flash
+let abilityFlashPlayer = null; // player who activated ability
+let frameCount         = 0;
+let _firstDeathFrame   = -1;   // frame when first player's lives hit 0
+let _firstDeathPlayer  = null; // that player ref (to find the opponent)
+let aiTick             = 0;    // AI update runs every N frames (see AI_TICK_INTERVAL)
+const AI_TICK_INTERVAL = 15;
+let currentArena    = null;    // the arena data object
+let currentArenaKey = 'grass';
+
+// Pre-generated bg elements (so they don't flicker each frame)
+let bgStars     = [];
+let bgBuildings = [];
+
+// ============================================================
+// TRUE FORM BOSS STATE
+// ============================================================
+let unlockedTrueBoss   = !!localStorage.getItem('smc_trueform');
+let tfGravityInverted  = false;
+let tfGravityTimer     = 0;    // countdown (frames); 0 = gravity normal
+
+// ── Gravity failsafe ─────────────────────────────────────────────────────────
+// Tracks active inversion with a hard 4-second cap so no gravity flip can get permanently stuck.
+let gravityState = { active: false, type: 'normal', timer: 0, maxTimer: 0 };
+
+function forceResetGravity() {
+  tfGravityInverted    = false;
+  tfGravityTimer       = 0;
+  gravityState.active  = false;
+  gravityState.type    = 'normal';
+  gravityState.timer   = 0;
+  gravityState.maxTimer = 0;
+  if (typeof players !== 'undefined') {
+    for (const p of players) {
+      if (p && p.vy !== undefined) p.vy = Math.min(p.vy, 2); // prevent upward launch on restore
+    }
+  }
+}
+let tfControlsInverted    = false;
+let tfControlsInvertTimer = 0;   // countdown (frames); controls auto-restore when 0
+// Mirror arena gimmick
+let mirrorFlipTimer     = 0;    // counts up; flips controls at interval
+let mirrorFlipped       = false; // current inversion state
+let mirrorFlipWarning   = 0;    // warning flash timer (counts down)
+let tfFloorRemoved     = false;
+let tfFloorTimer       = 0;    // countdown (frames) until floor returns
+let tfBlackHoles       = [];   // { x, y, r, timer, maxTimer }
+let tfSizeTargets      = new Map(); // fighter → {origW, origH, scale}
+let tfGravityWells     = [];   // { x, y, r, timer, maxTimer, strength }
+let tfMeteorCrash      = null; // { phase:'rising'|'shadow'|'crash', timer, landX, boss, shadowR }
+let tfClones           = [];   // { x, y, w, h, health, timer, facing, attackTimer, animTimer, isReal }
+let tfChainSlam        = null; // { stage:0-3, timer, target }
+let tfGraspSlam        = null; // { timer }
+let tfShockwaves       = [];   // { x, y, r, maxR, timer, maxTimer, boss, hit:Set }
+let tfDimensionIs3D    = false; // true while TrueForm has shifted the game to 3D perspective
+let tfDimensionPunch   = null;  // { stage, timer, target, boss, launchDir, travelTimer, bgPhase, inputLocked }
+let tfEndingScene      = null;  // TrueForm ending cinematic state machine (smb-trueform-ending.js)
+
+// ── TrueForm intro cinematic state machine ────────────────────────────────────
+// Strict ordering: opening_fight → paradox_death → absorption → punch_transition → backstage
+// 'none'            — not in trueform mode yet
+// 'opening_fight'   — player + Paradox vs TF (1000 damage threshold)
+// 'paradox_death'   — TF kills Paradox cinematic (_makeTFKillsParadoxCinematic)
+// 'absorption'      — Paradox energy flows into player (_tfAbsorptionState active)
+// 'punch_transition'— dimension-punch intro (startTFEnding isIntro=true)
+// 'backstage'       — real fight resumed; normal death/ending logic allowed
+let tfCinematicState     = 'none';
+let paradoxDeathComplete = false;  // set true when kills-Paradox cinematic onEnd() fires
+let absorptionComplete   = false;  // set true when absorption phase completes
+
+// ── Boss telegraph / warning system ──────────────────────────────────────────
+// Visual warning indicators shown before attacks land (give player time to dodge)
+let bossWarnings        = [];   // { type:'circle'|'arc'|'cone', x, y, r, color, timer, maxTimer, label, safeZone, facing }
+let bossMetSafeZones    = [];   // safe zones during meteor storm { x, y, r, timer, maxTimer }
+// Stagger: boss takes 120+ damage in 3s window → stunned for 2.5s
+let bossStaggerTimer    = 0;    // frames remaining in stagger
+let bossStaggerDmg      = 0;    // accumulated damage in current window
+let bossStaggerDecay    = 0;    // decay timer; when 0 accumulator resets
+// Desperation mode: boss health < 25% → faster, more intense
+let bossDesperationMode  = false;
+let bossDesperationFlash = 0;   // visual flash timer on activate
+
+// ============================================================
+// SECRET LETTER HUNT
+// ============================================================
+let bossBeaten         = !!localStorage.getItem('smc_bossBeaten');
+let collectedLetterIds = new Set(JSON.parse(localStorage.getItem('smc_letters') || '[]'));
+// 0 = fresh player, 1 = boss beaten, 2 = true form unlocked
+const playerProgressLevel = unlockedTrueBoss ? 2 : bossBeaten ? 1 : 0;
+const SECRET_LETTERS   = ['T','R','U','E','F','O','R','M'];
+const SECRET_ARENAS    = ['grass','city','space','lava','forest','ice','ruins','creator'];
+const SECRET_LETTER_POS = {
+  grass:   { x: 450, y: 330 },
+  city:    { x: 748, y: 390 },
+  space:   { x: 200, y: 290 },
+  lava:    { x: 450, y: 170 },
+  forest:  { x: 310, y: 360 },
+  ice:     { x: 640, y: 290 },
+  ruins:   { x: 765, y: 360 },
+  creator: { x: 450, y: 220 },
+};
+
+// Arena order (used for menu background cycling)
+const ARENA_KEYS_ORDERED = ['grass', 'city', 'space', 'lava', 'forest', 'ice', 'ruins',
+  'cave', 'mirror', 'underwater', 'volcano', 'colosseum', 'cyberpunk', 'haunted', 'clouds', 'neonGrid', 'mushroom'];
+
+// Menu background cycling state
+let menuBgArenaIdx   = 0;
+let menuBgTimer      = 0;
+let menuBgFade       = 0;      // 0→1 fade to black, 1→2 fade from black
+let menuBgFrameCount = 0;
+let menuLoopRunning  = false;
+
+// ============================================================
+// ONLINE STATE
+// ============================================================
+let onlineMode       = false;
+let onlineReady      = false;
+let onlineLocalSlot  = 0;
+let _onlineGameMode  = '2p';
+
+// Online multiplayer extended state
+let onlinePlayerSlots = []; // array of player state objects for all online players
+let localPlayerSlot = 0;    // which slot this player occupies (0=host)
+let onlinePlayerCount = 2;  // chosen player count (2-10)
+let onlineMaxPlayers = 10;
+let onlineFreeCamera = false; // in online mode, camera tracks only local player
+let onlineCamX = 450, onlineCamY = 260; // free camera target position for online mode
+let _cheatBuffer     = ''; // tracks recent keypresses for cheat codes
+let unlockedMegaknight = (localStorage.getItem('smc_megaknight') === '1');
+// Public room browser state
+let _publicRooms     = [];  // [{code, host, created}] — discovered public rooms
+let _isPublicRoom    = false; // whether current hosted room is public
+let _publicRoomCheckTimer = 0;
+
+// ============================================================
+// ============================================================
+// VERSION
+// ============================================================
+const GAME_VERSION = '2.6.0';  // bump this when releasing; must match CHANGELOG[0].version
+
+// DEBUG / DEVELOPER STATE
+// ============================================================
+let debugMode          = false;
+let timeScale          = 1.0;
+let showHitboxes       = false;  // F1 — fighter hitboxes + weapon tips
+let showCollisionBoxes = false;  // F2 — platform collision geometry
+let showPhysicsInfo    = false;  // F3 — velocity vectors + onGround/vy labels
+let _debugKeyBuf       = '';     // rolling key buffer for "debugmode" cheat
+
+// ============================================================
+// STORY MODE STATE
+// ============================================================
+let playerPowerLevel    = 1.0;   // hidden: grows +0.02 per chapter cleared; applied to player damage in story
+let storyModeActive      = false; // true while a story level is in progress
+let multiverseModeActive = false; // true while a multiverse encounter is in progress
+let storyCurrentLevel   = 1;     // which story level is being played (1-indexed)
+let storyPlayerOverride = null;  // { speedMult, dmgMult, noAbility, noSuper, noDoubleJump, weapon } — applied to p1 on level start
+let storyFightSubtitle  = null;  // { text, timer, maxTimer, color } — in-fight narrative subtitle
+let storyFightScript    = [];    // [{ frame, text, color }] — scheduled messages for current level
+let storyFightScriptIdx = 0;     // next unplayed entry index
+let storyEnemyArmor     = [];    // ['helmet','chestplate','leggings'] — armor pieces on enemy this chapter
+let storyTwoEnemies     = false; // true = spawn a second enemy bot in this chapter
+let storySecondEnemyDef = null;  // { weaponKey, classKey, aiDiff, color } for the second enemy
+let storyOpponentName   = null;  // display name of the story chapter opponent (shown in HUD)
+let storyBossType       = null;  // 'fallen_god' | null — overrides which Boss subclass is spawned
+let storyAbilityState   = {};    // per-fight state for unlocked story abilities (medkit used, last stand triggered, etc.)
+let storyPhaseIndicator = null;  // { index, total, label, type }
+let storyGauntletState  = null;  // active chapter phase runtime
+let storyPendingPhaseConfig = null; // temporary launch override for next story phase
+let storyCameraLock     = null;  // { left, right, reason }
+let storyPressureState  = { dodgeFatigue: 0, dodgeTimer: 0 };
+
+// ============================================================
+// ENTITY & VISUAL STATE
+// ============================================================
+let lightningBolts   = [];    // { x, y, timer, segments } — Thor perk visual lightning
+let backstagePortals = [];    // {x,y,type,phase,timer,radius,maxRadius,codeChars,done}
+let phaseTransitionRings = []; // expanding ring effects on phase change
+// ---- Cinematic System ----
+let cinGroundCracks  = [];    // world-space crack effects (managed by smc-cinematics.js)
+let cinScreenFlash   = null;  // screen-space flash { color, alpha, timer, maxTimer }
+let activeCinematic      = null;  // active cinematic sequence or null
+let isCinematic          = false; // true during any cinematic or finisher — blocks new attack/projectile creation
+let slowMotion           = 1.0;   // physics time scale (1=normal, 0=fully frozen)
+let cinematicCamOverride = false; // when true, camera uses cinematic focus targets
+let cinematicZoomTarget  = 1.0;   // zoom level during cinematic
+let cinematicFocusX      = 450;   // camera focus X during cinematic
+let cinematicFocusY      = 260;   // camera focus Y during cinematic
+let cinematicCamSnapFrames = 0;   // one-frame hard-cut override for punchy cinematic beats
+let _camPrevFocusX      = 450;    // previous cinematic focus target X (for spring feel)
+let _camPrevFocusY      = 260;    // previous cinematic focus target Y (for spring feel)
+let _camOvershootX      = 0;      // decaying cinematic camera overshoot X
+let _camOvershootY      = 0;      // decaying cinematic camera overshoot Y
+let bossDeathScene   = null;  // boss defeat animation state
+let fakeDeath        = { triggered: false, active: false, timer: 0, player: null };
+let bossPlayerCount  = 1;     // 1 or 2 players vs boss
+let forestBeast      = null;  // current ForestBeast instance (null if none)
+let forestBeastCooldown = 0;  // frames until beast can spawn again after death
+let yeti             = null;  // current Yeti instance in ice arena
+let yetiCooldown     = 0;     // frames until yeti can spawn again
+let mapItems         = [];    // arena-perk pickups
+let randomWeaponPool = null;  // null = use all; Set of weapon keys
+let randomClassPool  = null;  // null = use all; Set of class keys
+
+// Boss fight floor hazard state machine
+let bossFloorState = 'normal';  // 'normal' | 'warning' | 'hazard'
+let bossFloorType  = 'lava';    // 'lava' | 'void'
+let bossFloorTimer = 1500;      // frames until next state transition
+
+// True Form — dimensional attacks
+let tfPhaseShift   = null;  // { timer, maxTimer, echoes:[{x,y}], realIdx, revealed }
+let tfRealityTear  = null;  // { x, y, timer, maxTimer, phase:'warn'|'active'|'close' }
+let tfMathBubble   = null;  // { text, timer, maxTimer, x, y }
+let tfCalcStrike   = null;  // { timer, maxTimer, predictX, predictY, fired, strikeDelay }
+let tfGhostPaths      = null;  // { paths:[{pts,selected,alpha}], timer, maxTimer } — 5D path visualization
+let tfRealityOverride = null;  // { timer, maxTimer, bossRef, targetRef, phase } — dominance mechanic
+// ── New cosmic attacks ─────────────────────────────────────────────────────────
+let tfGammaBeam     = null;  // { phase:'telegraph'|'active', timer, y, hit:Set }
+let tfBurnTrail     = null;  // { y, timer, maxTimer } — glowing aftermath streak after gamma beam
+let tfNeutronStar   = null;  // { phase:'pull'|'warn'|'slam', timer, bossRef, startX }
+let tfGalaxySweep   = null;  // { angle, speed, timer, maxTimer, hit:Set }
+let tfMultiverse    = null;  // { timer, maxTimer, echoes:[{x,y,selected}], targetIdx, phase, bossRef, targetRef }
+let tfSupernova     = null;  // { timer, maxTimer, phase:'buildup'|'active', bossRef, hit:Set, r }
+let tfAttackRetryQueue = []; // [{ ctx, move, targetRef, source, framesLeft, attempts }]
+
+// ── Story event / cinematic system ────────────────────────────────────────────
+let storyEventFired    = {};   // { [eventName]: true } — dedup per fight
+let storyFreezeTimer   = 0;    // frames of physics halt for cinematic freezes
+let storyDistortLevel  = 0;    // 0-1 world distortion intensity (rises with chapter progress)
+let storyDodgeUnlocked = false; // set true when DODGE_UNLOCK event fires
+
+// ── Ability unlock toast ─────────────────────────────────────────────────
+let abilityUnlockToast = null;  // { text, icon, timer, maxTimer }
+
+// ── Exploration chapter state ─────────────────────────────────────────────
+let exploreActive    = false;   // true while exploration chapter is running
+let exploreWorldLen  = 4200;    // total world length in game px (set per chapter)
+let exploreGoalX     = 3800;    // world x of goal object
+let exploreGoalName  = '';      // display name of the goal object
+let exploreGoalFound = false;   // true when player reaches the goal
+let exploreSpawnQ    = [];      // [{wx, def}] enemies to spawn as player passes wx
+let exploreEnemyCap  = 2;       // max concurrent exploration enemies alive at once
+let exploreCheckpoints = [];    // [{ x, hit }]
+let exploreCheckpointIdx = -1;
+let exploreSidePortals = [];    // [{ x, y, type, reward, active, entered }]
+let exploreAmbushTimer = 0;
+let exploreCombatQuiet = 0;
+let exploreArenaLock = null;    // { left, right, enemies:[], cleared, label }
+
+// ── TrueForm clone position history (ring buffer for multiverse lag effect) ──
+let _tfCloneHistory = [];   // [{ x, cy, facing }, ...] — last 24 frames
