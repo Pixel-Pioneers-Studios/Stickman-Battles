@@ -15,6 +15,12 @@ function areAlliedEntities(a, b) {
   return false;
 }
 
+// Hook for future class-weapon special interactions. Called after affinity multiplier is applied.
+function applyClassWeaponInteraction(attacker, target, dmg) {
+  // placeholder for future logic
+  return dmg;
+}
+
 function dealDamage(attacker, target, dmg, kbForce, stunMult = 1.0, isSplash = false, hitInvincibleFrames = 16) {
   if (activeCinematic) return; // no damage during cinematic pauses
   if (!target || target.invincible > 0 || target.health <= 0) return;
@@ -28,6 +34,21 @@ function dealDamage(attacker, target, dmg, kbForce, stunMult = 1.0, isSplash = f
     return;
   }
   let actualDmg = (attacker && attacker.dmgMult !== undefined) ? Math.max(1, Math.round(dmg * attacker.dmgMult)) : dmg;
+  // Hidden power level: story player gains +2% damage per cleared chapter (capped at +200%).
+  // Only applies to human players in story mode — enemies are never buffed by this.
+  if (storyModeActive && attacker && !attacker.isAI && !attacker.isBoss &&
+      typeof playerPowerLevel !== 'undefined' && playerPowerLevel > 1.0) {
+    actualDmg = Math.max(1, Math.round(actualDmg * (1 + (playerPowerLevel - 1.0) * 0.15)));
+  }
+  // Class affinity multiplier: bonus/penalty based on attacker's class vs weapon type
+  if (attacker && attacker.charClass && attacker.weapon && typeof CLASS_AFFINITY !== 'undefined') {
+    const aff = CLASS_AFFINITY[attacker.charClass];
+    if (aff) {
+      const mult = aff[attacker.weapon.type] || 1.0;
+      actualDmg = Math.max(1, Math.round(actualDmg * mult));
+    }
+  }
+  actualDmg = applyClassWeaponInteraction(attacker, target, actualDmg);
   // Kratos rage bonus
   if (attacker && attacker.charClass === 'kratos' && attacker.rageStacks > 0) {
     actualDmg = Math.round(actualDmg * (1 + Math.min(attacker.rageStacks, 30) * 0.015));
@@ -150,6 +171,15 @@ function dealDamage(attacker, target, dmg, kbForce, stunMult = 1.0, isSplash = f
   // Boss modifier: deals double KB, takes half KB
   if (attacker && attacker.kbBonus) actualKb = Math.round(actualKb * attacker.kbBonus);
   if (target.kbResist)  actualKb = Math.round(actualKb * target.kbResist);
+  // Affinity feel: low affinity reduces KB output; high affinity slightly boosts it
+  if (attacker && attacker.charClass && attacker.weapon && typeof CLASS_AFFINITY !== 'undefined') {
+    const _affKb = CLASS_AFFINITY[attacker.charClass];
+    if (_affKb) {
+      const _affKbMult = _affKb[attacker.weapon.type] || 1.0;
+      if (_affKbMult < 0.8) actualKb = Math.round(actualKb * 0.85);
+      else if (_affKbMult > 1.2) actualKb = Math.round(actualKb * 1.12);
+    }
+  }
 
   // One-punch mode: training only — instantly kills on hit
   if (trainingMode && attacker && attacker.onePunchMode && !target.shielding) {
@@ -419,6 +449,7 @@ function _achCheckYetiDead()  { unlockAchievement('yeti_hunter'); }
 function _achCheckBeastDead() { unlockAchievement('beast_tamer'); }
 
 function spawnBullet(user, speed, color, overrideDmg = null) {
+  if (isCinematic) return null; // no new projectiles during cinematics or finishers
   SoundManager.shoot();
   const _nearest = [user.target, ...players, ...minions, ...trainingDummies].filter(Boolean).find(t => t !== user && t.health > 0) || null;
   const _distToT = _nearest ? Math.abs(_nearest.cx() - user.cx()) : 999;
@@ -494,7 +525,10 @@ class Projectile {
       const dy = tfAnti.cy() - this.y;
       const dd = Math.hypot(dx, dy) || 1;
       const fieldR = (tfAnti._antiRangedFieldR || 220) * 1.18;
-      if (dd < fieldR && !this._tfReflected && Math.random() < 0.05) {
+      const wasInField = this._inAntiRangedField;
+      this._inAntiRangedField = dd < fieldR;
+      const justEntered = this._inAntiRangedField && !wasInField;
+      if (justEntered && !this._tfReflected && Math.random() < 0.05) {
         const reflectTarget = this.owner && this.owner.health > 0 ? this.owner : players.find(p => !p.isBoss && p.health > 0);
         if (reflectTarget) {
           this._tfReflected = true;

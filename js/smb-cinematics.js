@@ -150,6 +150,16 @@ const CinCam = {
     if (zoom !== undefined) cinematicZoomTarget = zoom;
   },
 
+  // Hard-cut camera to a new focal point for one frame before normal smoothing resumes.
+  snap(x, y, zoom) {
+    this.setFocus(x, y, zoom);
+    cinematicCamSnapFrames = Math.max(cinematicCamSnapFrames || 0, 1);
+    _camPrevFocusX = cinematicFocusX;
+    _camPrevFocusY = cinematicFocusY;
+    _camOvershootX = 0;
+    _camOvershootY = 0;
+  },
+
   // Orbit camera around a center point (for dramatic circular reveal)
   // angle in radians; call each frame with an incrementing angle value
   orbit(cx, cy, radius, angle, zoom) {
@@ -205,6 +215,11 @@ const CinCam = {
   // Restore camera to normal gameplay control
   restore() {
     cinematicCamOverride = false;
+    cinematicCamSnapFrames = 0;
+    _camPrevFocusX = camXCur;
+    _camPrevFocusY = camYCur;
+    _camOvershootX = 0;
+    _camOvershootY = 0;
     slowMotion = 1.0;
   },
 };
@@ -215,16 +230,69 @@ const CinCam = {
 // Smooth-step easing (s-curve between 0 and 1)
 function _cinEase(t) { return t * t * (3 - 2 * t); }
 
+const _CIN_EASINGS = {
+  linear: t => t,
+  smooth: _cinEase,
+  smoothstep: _cinEase,
+  cubic: t => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2,
+  expo: t => {
+    if (t === 0 || t === 1) return t;
+    return t < 0.5
+      ? Math.pow(2, 20 * t - 10) / 2
+      : (2 - Math.pow(2, -20 * t + 10)) / 2;
+  },
+  back: t => {
+    const c1 = 1.70158;
+    const c2 = c1 * 1.525;
+    return t < 0.5
+      ? (Math.pow(2 * t, 2) * ((c2 + 1) * 2 * t - c2)) / 2
+      : (Math.pow(2 * t - 2, 2) * ((c2 + 1) * (2 * t - 2) + c2) + 2) / 2;
+  },
+  elastic: t => {
+    if (t === 0 || t === 1) return t;
+    const c5 = (2 * Math.PI) / 4.5;
+    return t < 0.5
+      ? -(Math.pow(2, 20 * t - 10) * Math.sin((20 * t - 11.125) * c5)) / 2
+      : (Math.pow(2, -20 * t + 10) * Math.sin((20 * t - 11.125) * c5)) / 2 + 1;
+  },
+  bounce: t => {
+    const n1 = 7.5625;
+    const d1 = 2.75;
+    if (t < 1 / d1) return n1 * t * t;
+    if (t < 2 / d1) return n1 * (t -= 1.5 / d1) * t + 0.75;
+    if (t < 2.5 / d1) return n1 * (t -= 2.25 / d1) * t + 0.9375;
+    return n1 * (t -= 2.625 / d1) * t + 0.984375;
+  },
+};
+
+function _cinGetEaseName(k0, k1) {
+  const v0 = k0 && k0[1];
+  const v1 = k1 && k1[1];
+  const ease0 = Array.isArray(k0) ? k0[2] : null;
+  const ease1 = Array.isArray(k1) ? k1[2] : null;
+  const objEase0 = v0 && typeof v0 === 'object' && !Array.isArray(v0) ? v0._ease : null;
+  const objEase1 = v1 && typeof v1 === 'object' && !Array.isArray(v1) ? v1._ease : null;
+  return ease0 || objEase0 || ease1 || objEase1 || 'smooth';
+}
+
+function _cinGetEaseFn(k0, k1) {
+  return _CIN_EASINGS[_cinGetEaseName(k0, k1)] || _cinEase;
+}
+
 // Linear interpolation along sorted [[t, value], ...] keyframe array
 function _cinSampleKeyframes(kf, t) {
   if (!kf || kf.length === 0) return 1.0;
   if (t <= kf[0][0])                  return kf[0][1];
   if (t >= kf[kf.length - 1][0])     return kf[kf.length - 1][1];
   for (let i = 0; i < kf.length - 1; i++) {
-    const [t0, v0] = kf[i];
-    const [t1, v1] = kf[i + 1];
+    const k0 = kf[i];
+    const k1 = kf[i + 1];
+    const [t0, v0] = k0;
+    const [t1, v1] = k1;
     if (t >= t0 && t <= t1) {
-      return v0 + (v1 - v0) * _cinEase((t - t0) / (t1 - t0));
+      if (t1 <= t0) return v1;
+      const ease = _cinGetEaseFn(k0, k1);
+      return v0 + (v1 - v0) * ease((t - t0) / (t1 - t0));
     }
   }
   return kf[kf.length - 1][1];
@@ -238,10 +306,14 @@ function _cinSampleCam(kf, t) {
   if (t <= kf[0][0])              return kf[0][1];
   if (t >= kf[kf.length - 1][0]) return kf[kf.length - 1][1];
   for (let i = 0; i < kf.length - 1; i++) {
-    const [t0, k0] = kf[i];
-    const [t1, k1] = kf[i + 1];
+    const seg0 = kf[i];
+    const seg1 = kf[i + 1];
+    const [t0, k0] = seg0;
+    const [t1, k1] = seg1;
     if (t >= t0 && t <= t1) {
-      const a    = _cinEase((t - t0) / (t1 - t0));
+      if (t1 <= t0) return k1;
+      const ease = _cinGetEaseFn(seg0, seg1);
+      const a    = ease((t - t0) / (t1 - t0));
       const zoom = (k0.zoomTo !== undefined && k1.zoomTo !== undefined)
         ? k0.zoomTo + (k1.zoomTo - k0.zoomTo) * a
         : (k0.zoomTo ?? k1.zoomTo ?? 1.0);
@@ -255,6 +327,38 @@ function _cinSampleCam(kf, t) {
     }
   }
   return kf[kf.length - 1][1];
+}
+
+function _cinUpsertKey(keys, time, value, ease) {
+  const key = ease ? [time, value, ease] : [time, value];
+  const last = keys[keys.length - 1];
+  if (last && Math.abs(last[0] - time) < 1e-6) keys[keys.length - 1] = key;
+  else keys.push(key);
+}
+
+function _cinCloneCamState(state) {
+  return state ? Object.assign({}, state) : {};
+}
+
+function _cinApplyCamState(base, opts) {
+  const next = _cinCloneCamState(base);
+  if (!opts) return next;
+  if (opts.zoom !== undefined) next.zoomTo = opts.zoom;
+  if (opts.focusOn !== undefined) {
+    if (opts.focusOn) {
+      next.focusOn = opts.focusOn;
+      delete next.focusX;
+      delete next.focusY;
+    } else {
+      delete next.focusOn;
+    }
+  }
+  if (opts.focusX !== undefined || opts.focusY !== undefined) {
+    delete next.focusOn;
+    if (opts.focusX !== undefined) next.focusX = opts.focusX;
+    if (opts.focusY !== undefined) next.focusY = opts.focusY;
+  }
+  return next;
 }
 
 
@@ -374,9 +478,134 @@ function cinScript(def) {
     onEnd() {
       slowMotion           = 1.0;
       cinematicCamOverride = false;
+      cinematicCamSnapFrames = 0;
+      _camPrevFocusX = camXCur;
+      _camPrevFocusY = camYCur;
+      _camOvershootX = 0;
+      _camOvershootY = 0;
     },
   };
 }
+
+const CinTimeline = (function() {
+  function create(labelDef) {
+    let cursor = 0;
+    let dur = 0;
+    const slowMoKeys = [];
+    const camKeys = [];
+    const steps = [];
+    let orbitDef = null;
+    let slowMoState = typeof slowMotion === 'number' ? slowMotion : 1.0;
+    let camState = {
+      zoomTo: cinematicCamOverride ? cinematicZoomTarget : (typeof camZoomCur === 'number' ? camZoomCur : 1.0),
+      focusX: cinematicCamOverride ? cinematicFocusX : (typeof camXCur === 'number' ? camXCur : GAME_W / 2),
+      focusY: cinematicCamOverride ? cinematicFocusY : (typeof camYCur === 'number' ? camYCur : GAME_H / 2),
+    };
+
+    function touch(time) {
+      dur = Math.max(dur, time);
+    }
+
+    function pushStep(step) {
+      steps.push(step);
+      touch(step.at);
+    }
+
+    const api = {
+      to(opts = {}) {
+        const startState = _cinApplyCamState(camState, {
+          zoom: opts.zoomStart,
+          focusX: opts.fromX,
+          focusY: opts.fromY,
+          focusOn: opts.focusOnStart,
+        });
+        const duration = Math.max(0, opts.duration || 0);
+        _cinUpsertKey(camKeys, cursor, startState);
+
+        const endState = _cinApplyCamState(startState, {
+          zoom: opts.zoom,
+          focusX: opts.focusX,
+          focusY: opts.focusY,
+          focusOn: opts.focusOn,
+        });
+
+        cursor += duration;
+        touch(cursor);
+        _cinUpsertKey(camKeys, cursor, endState, opts.ease);
+        camState = _cinCloneCamState(endState);
+        return api;
+      },
+
+      wait(secs) {
+        cursor += Math.max(0, secs || 0);
+        touch(cursor);
+        return api;
+      },
+
+      fx(opts = {}) {
+        const fx = Object.assign({}, opts);
+        if (fx.shake !== undefined && fx.screenShake === undefined) {
+          fx.screenShake = fx.shake;
+        }
+        pushStep({ at: cursor, fx });
+        return api;
+      },
+
+      dialogue(text, durationFrames) {
+        pushStep({ at: cursor, dialogue: text, dialogueDur: durationFrames });
+        return api;
+      },
+
+      run(fn) {
+        pushStep({ at: cursor, run: fn });
+        return api;
+      },
+
+      slowMo(scale, rampDur, ease) {
+        _cinUpsertKey(slowMoKeys, cursor, slowMoState);
+        cursor += Math.max(0, rampDur || 0);
+        touch(cursor);
+        _cinUpsertKey(slowMoKeys, cursor, scale, ease);
+        slowMoState = scale;
+        return api;
+      },
+
+      orbit(opts) {
+        orbitDef = Object.assign({}, opts || {}, { start: cursor });
+        touch(cursor);
+        return api;
+      },
+
+      at(t) {
+        cursor = Math.max(0, t || 0);
+        touch(cursor);
+        return api;
+      },
+
+      build() {
+        const sortedSteps = steps.slice().sort((a, b) => a.at - b.at);
+        const duration = Math.max(
+          dur,
+          camKeys.length ? camKeys[camKeys.length - 1][0] : 0,
+          slowMoKeys.length ? slowMoKeys[slowMoKeys.length - 1][0] : 0
+        );
+
+        return cinScript({
+          duration,
+          label: labelDef,
+          slowMo: slowMoKeys.length ? slowMoKeys : undefined,
+          cam: camKeys.length ? camKeys : undefined,
+          orbit: orbitDef,
+          steps: sortedSteps,
+        });
+      },
+    };
+
+    return api;
+  }
+
+  return { create };
+})();
 
 
 // ============================================================
@@ -1427,4 +1656,164 @@ function _makeTFDesp15Cinematic(tf) {
       },
     ],
   });
+}
+
+// ============================================================
+// MULTIVERSE TRAVEL CINEMATIC
+// DOM-canvas overlay; runs independently of the game loop so
+// it can play safely between story chapters (no game loop active).
+// ============================================================
+function startMultiverseTravelCinematic(arcLabel, arcColor, onComplete) {
+  // Remove any leftover overlay from a previous call
+  const old = document.getElementById('multiverseTravelOverlay');
+  if (old) old.remove();
+
+  const overlay = document.createElement('div');
+  overlay.id = 'multiverseTravelOverlay';
+  overlay.style.cssText = [
+    'position:fixed', 'top:0', 'left:0', 'width:100%', 'height:100%',
+    'z-index:9000', 'background:#000', 'pointer-events:all',
+  ].join(';');
+
+  const cvs = document.createElement('canvas');
+  cvs.width  = window.innerWidth;
+  cvs.height = window.innerHeight;
+  cvs.style.cssText = 'width:100%;height:100%;display:block;';
+  overlay.appendChild(cvs);
+  document.body.appendChild(overlay);
+
+  const c   = cvs.getContext('2d');
+  const W   = cvs.width;
+  const H   = cvs.height;
+  const COL = arcColor || '#8844ff';
+  const TOTAL_FRAMES = 162; // ~2.7 s at 60 fps
+  let frame = 0;
+  let rafId;
+
+  // Build star-field particles once
+  const stars = [];
+  for (let i = 0; i < 140; i++) {
+    stars.push({
+      x:  W * Math.random(),
+      y:  H * Math.random(),
+      vx: (Math.random() - 0.5) * 3.5,
+      vy: (Math.random() - 0.5) * 3.5,
+      r:  0.8 + Math.random() * 2.4,
+    });
+  }
+
+  function tick() {
+    frame++;
+    const t   = frame / TOTAL_FRAMES;       // 0 → 1
+    const env = Math.sin(t * Math.PI);       // 0 → 1 → 0 envelope
+
+    // ── Background ───────────────────────────────────────────────
+    c.clearRect(0, 0, W, H);
+    c.fillStyle = '#000';
+    c.fillRect(0, 0, W, H);
+
+    // ── Streaking distortion lines ────────────────────────────────
+    c.save();
+    for (let i = 0; i < 28; i++) {
+      const y     = H * ((i / 28 + t * 0.6) % 1);
+      const alpha = env * 0.25 * (0.4 + 0.6 * Math.sin((i / 28) * Math.PI * 4 + frame * 0.04));
+      c.globalAlpha = Math.max(0, alpha);
+      c.strokeStyle = COL;
+      c.lineWidth   = 0.8 + Math.random() * 0.4;
+      c.beginPath();
+      c.moveTo(0, y);
+      c.lineTo(W, y + (Math.random() - 0.5) * 14);
+      c.stroke();
+    }
+    c.restore();
+
+    // ── Star particles ────────────────────────────────────────────
+    const speed = 1 + t * 3;
+    c.save();
+    c.globalAlpha = env * 0.85;
+    c.fillStyle = COL;
+    for (const s of stars) {
+      s.x = (s.x + s.vx * speed + W) % W;
+      s.y = (s.y + s.vy * speed + H) % H;
+      c.beginPath();
+      c.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+      c.fill();
+    }
+    c.restore();
+
+    // ── Radial vortex (peaks at t=0.5) ───────────────────────────
+    const vortexAlpha = Math.max(0, 1 - Math.abs(t - 0.5) * 3.5) * 0.75;
+    if (vortexAlpha > 0.01) {
+      const grad = c.createRadialGradient(W / 2, H / 2, 0, W / 2, H / 2, H * 0.65);
+      grad.addColorStop(0,   COL);
+      grad.addColorStop(0.35, COL + '55');
+      grad.addColorStop(1,   '#00000000');
+      c.save();
+      c.globalAlpha = vortexAlpha;
+      c.fillStyle   = grad;
+      c.fillRect(0, 0, W, H);
+      c.restore();
+    }
+
+    // ── White flash at peak ───────────────────────────────────────
+    const flashAlpha = Math.max(0, 1 - Math.abs(t - 0.5) * 9);
+    if (flashAlpha > 0.01) {
+      c.save();
+      c.globalAlpha = flashAlpha;
+      c.fillStyle   = '#ffffff';
+      c.fillRect(0, 0, W, H);
+      c.restore();
+    }
+
+    // ── Text ──────────────────────────────────────────────────────
+    const textAlpha = env;
+    if (textAlpha > 0.01) {
+      c.save();
+      c.globalAlpha   = textAlpha;
+      c.textAlign     = 'center';
+      c.textBaseline  = 'middle';
+
+      // "REALITY SHIFT" heading
+      c.font        = `bold ${Math.round(H * 0.062)}px 'Arial Black', Arial, sans-serif`;
+      c.shadowColor = COL;
+      c.shadowBlur  = 28;
+      c.fillStyle   = '#ffffff';
+      c.fillText('REALITY SHIFT', W / 2, H / 2 - H * 0.065);
+
+      // Arc label sub-heading
+      if (arcLabel) {
+        c.font        = `${Math.round(H * 0.033)}px Arial, sans-serif`;
+        c.shadowBlur  = 14;
+        c.fillStyle   = COL;
+        c.fillText(arcLabel, W / 2, H / 2 + H * 0.038);
+      }
+      c.restore();
+    }
+
+    // ── Fade in / fade out ────────────────────────────────────────
+    if (t < 0.09) {
+      c.save();
+      c.globalAlpha = 1 - t / 0.09;
+      c.fillStyle   = '#000';
+      c.fillRect(0, 0, W, H);
+      c.restore();
+    }
+    if (t > 0.91) {
+      c.save();
+      c.globalAlpha = (t - 0.91) / 0.09;
+      c.fillStyle   = '#000';
+      c.fillRect(0, 0, W, H);
+      c.restore();
+    }
+
+    if (frame < TOTAL_FRAMES) {
+      rafId = requestAnimationFrame(tick);
+    } else {
+      cancelAnimationFrame(rafId);
+      overlay.remove();
+      if (typeof onComplete === 'function') onComplete();
+    }
+  }
+
+  rafId = requestAnimationFrame(tick);
 }

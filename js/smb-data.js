@@ -1512,7 +1512,7 @@ const WEAPONS = {
     // THE ALL-ROUNDER: Fast, mobile, reliable. Jack of all trades.
     // Identity: Dash Slash chases and punishes. Great neutral game.
     name: 'Sword',   damage: 16, range: 90, cooldown: 30, endlag: 7,
-    kb: 10,          abilityCooldown: 150, type: 'melee', color: '#cccccc',
+    kb: 10,          abilityCooldown: 150, type: 'melee', weaponType: 'light', color: '#cccccc',
     abilityName: 'Dash Slash',
     ability(user, target) {
       user.vx = user.facing * 16;
@@ -1523,7 +1523,7 @@ const WEAPONS = {
     // THE CRUSHER: Slow, punishing, massive knockback. Forces commitment.
     // Identity: Every hit sends enemies flying. One good read = huge reward.
     name: 'Hammer',  damage: 22, range: 80, cooldown: 62, endlag: 22,
-    kb: 20,          abilityCooldown: 230, type: 'melee', color: '#888888',
+    kb: 20,          abilityCooldown: 230, type: 'melee', weaponType: 'heavy', color: '#888888',
     abilityName: 'Ground Slam',
     ability(user, target) {
       screenShake = Math.max(screenShake, 24);
@@ -1536,25 +1536,26 @@ const WEAPONS = {
     // Identity: Steady chip damage + burst fire ability. Control space.
     name: 'Gun',     damage: 7, range: 600, cooldown: 42, endlag: 8,
     damageFunc: () => Math.floor(Math.random() * 3) + 5,
-    superRateBonus: 2.8,
+    superRateBonus: 1.2,
     splashRange: 38, splashDmgPct: 0.30,
     clipSize: 6, reloadFrames: 90,
-    kb: 7,           abilityCooldown: 200, type: 'ranged', color: '#666666',
-    abilityName: 'Rapid Fire',
+    kb: 7,           abilityCooldown: 200, type: 'ranged', weaponType: 'ranged', color: '#666666',
+    abilityName: 'Burst Shot',
     ability(user, _target) {
-      user._qHitCount = 0;
-      user._qSuperCapRemaining = 15; // max 15% super gain per activation (nerfed from 28%)
-      user._qBulletDmg = 5;         // tracks damage falloff across burst
-      for (let i = 0; i < 5; i++) {
+      // 3-round burst: fires 3 bullets in a tight vertical fan, rapid-fire feel
+      user._qSuperCapRemaining = 10; // max 10% super per activation
+      const offsets = [-0.55, 0, 0.55]; // slight vertical spread
+      for (let i = 0; i < 3; i++) {
         setTimeout(() => {
           if (!gameRunning || user.health <= 0) return;
-          // Each bullet does 90% of previous bullet's damage (falloff)
-          const dmg = Math.max(3, Math.round((user._qBulletDmg || 5) * Math.pow(0.90, i)));
-          const _p = spawnBullet(user, Math.min(5, dmg), '#ffdd00');
-          if (_p) { _p._isQAbility = true; _p._overrideDamage = Math.min(5, dmg); }
-        }, i * 100); // slightly slower burst (was 80ms)
+          const _p = spawnBullet(user, 9, '#ffdd00', 7);
+          if (_p) {
+            _p._isQAbility = true;
+            _p.vy += offsets[i]; // fan spread
+          }
+        }, i * 60);
       }
-      setTimeout(() => { user._qSuperCapRemaining = undefined; user._qBulletDmg = undefined; }, 700);
+      setTimeout(() => { user._qSuperCapRemaining = undefined; }, 400);
     }
   },
   axe: {
@@ -1562,7 +1563,7 @@ const WEAPONS = {
     // Identity: Spin Attack is a defensive escape AND offensive tool. Trades raw dmg for coverage.
     name: 'Axe',     damage: 13, range: 88, cooldown: 52, endlag: 16,
     splashRange: 70, splashDmgPct: 0.30,
-    kb: 10,          abilityCooldown: 180, type: 'melee', color: '#cc4422',
+    kb: 10,          abilityCooldown: 180, type: 'melee', weaponType: 'heavy', color: '#cc4422',
     abilityName: 'Spin Attack',
     ability(user, target) {
       user.spinning = 30;
@@ -1573,7 +1574,7 @@ const WEAPONS = {
     // THE POKER: Longest melee reach. Safe, consistent, spacing-dependent.
     // Identity: Never lets enemies get close. Low KB keeps spacing tight for follow-ups.
     name: 'Spear',   damage: 15, range: 140, cooldown: 44, endlag: 12,
-    kb: 7,           abilityCooldown: 165, type: 'melee', color: '#8888ff',
+    kb: 7,           abilityCooldown: 165, type: 'melee', weaponType: 'light', color: '#8888ff',
     abilityName: 'Lunge',
     ability(user, target) {
       user.vx = user.facing * 14;
@@ -1587,7 +1588,7 @@ const WEAPONS = {
     name: 'Bow',  damage: 0, range: 700, cooldown: 52, endlag: 4,
     damageFunc: () => Math.floor(14 + Math.random() * 8),
     clipSize: 3, reloadFrames: 120,
-    kb: 14,       abilityCooldown: 185, type: 'ranged', color: '#aad47a',
+    kb: 14,       abilityCooldown: 185, type: 'ranged', weaponType: 'ranged', color: '#aad47a',
     requiresClass: 'archer',
     abilityName: 'Triple Shot',
     ability(user, _target) {
@@ -1610,7 +1611,7 @@ const WEAPONS = {
     // THE WALL: Lowest damage, highest block and pushback. Paladin class only.
     // Identity: You don't kill with damage — you kill by shoving enemies off platforms.
     name: 'Shield', damage: 10, range: 52, cooldown: 36, endlag: 9,
-    kb: 26,         abilityCooldown: 195, type: 'melee', color: '#88aaff',
+    kb: 26,         abilityCooldown: 195, type: 'melee', weaponType: 'heavy', color: '#88aaff',
     requiresClass: 'paladin',
     contactDmgMult: 0,
     abilityName: 'Shield Bash',
@@ -1628,7 +1629,7 @@ const WEAPONS = {
     // Identity: Fights multiple targets simultaneously. Healing rewards multi-hit risks.
     name: 'Scythe', damage: 12, range: 100, cooldown: 44, endlag: 13,
     splashRange: 60, splashDmgPct: 0.35,
-    kb: 8,           abilityCooldown: 195, type: 'melee', color: '#aa44aa',
+    kb: 8,           abilityCooldown: 195, type: 'melee', weaponType: 'light', color: '#aa44aa',
     abilityName: 'Reaping Sweep',
     ability(user, _target) {
       let healed = 0;
@@ -1649,7 +1650,7 @@ const WEAPONS = {
     // THE STUNNER: Slow but delivers punishing stun windows. Reads = reward.
     // Identity: Land the slow swing → stun window → follow-up combo. High risk, high reward.
     name: 'Frying Pan', damage: 18, range: 60, cooldown: 58, endlag: 20,
-    kb: 12,              abilityCooldown: 220, type: 'melee', color: '#ccaa44',
+    kb: 12,              abilityCooldown: 220, type: 'melee', weaponType: 'heavy', color: '#ccaa44',
     abilityName: 'Pan Slam',
     ability(user, target) {
       if (dist(user, target) < 105) {
@@ -1664,7 +1665,7 @@ const WEAPONS = {
     // THE PUSHER: Long reach + extreme knockback. Kills by platform denial.
     // Identity: Lowest damage, highest push force. Win by edgeguarding.
     name: 'Broomstick', damage: 12, range: 125, cooldown: 32, endlag: 8,
-    kb: 22,              abilityCooldown: 155, type: 'melee', color: '#aa8855',
+    kb: 22,              abilityCooldown: 155, type: 'melee', weaponType: 'light', color: '#aa8855',
     abilityName: 'Sweep',
     ability(user, target) {
       user.vx = user.facing * 12;
@@ -1679,7 +1680,7 @@ const WEAPONS = {
     // THE BRAWLER: Fastest attack speed in the game. Wins by relentless pressure.
     // Identity: Lowest range, must stay face-to-face. Rapid Combo is the identity skill.
     name: 'Boxing Gloves', damage: 9, range: 50, cooldown: 20, endlag: 10,
-    kb: 4,                 abilityCooldown: 110, type: 'melee', color: '#ee3333',
+    kb: 4,                 abilityCooldown: 110, type: 'melee', weaponType: 'light', color: '#ee3333',
     abilityName: 'Rapid Combo',
     ability(user, target) {
       let count = 0;
@@ -1702,7 +1703,7 @@ const WEAPONS = {
     damageFunc: () => 2 + Math.floor(Math.random() * 2), // 2-3 per shot
     bulletSpeed: 15, bulletColor: '#44cc44',
     clipSize: 15, reloadFrames: 75,
-    kb: 3,               abilityCooldown: 120, type: 'ranged', color: '#44cc44',
+    kb: 3,               abilityCooldown: 120, type: 'ranged', weaponType: 'ranged', color: '#44cc44',
     abilityName: 'Pea Storm',
     ability(user, _target) {
       user._qHitCount = 0;
@@ -1731,7 +1732,7 @@ const WEAPONS = {
     damageFunc: () => 10 + Math.floor(Math.random() * 5), // 10-14 per shot (was 15-21)
     bulletSpeed: 9, bulletColor: '#ff9933', bulletVy: -1.5,
     clipSize: 4, reloadFrames: 130,
-    kb: 10,            abilityCooldown: 230, type: 'ranged', color: '#cc8833',
+    kb: 10,            abilityCooldown: 230, type: 'ranged', weaponType: 'ranged', color: '#cc8833',
     abilityName: 'Power Stone',
     ability(user, target) {
       const dx = (target.cx() - user.cx()) || 1;
@@ -1754,7 +1755,7 @@ const WEAPONS = {
     damageFunc: () => 8 + Math.floor(Math.random() * 5), // 8-12 per shot
     bulletSpeed: 7, bulletColor: '#aaccff', bulletVy: -0.5,
     clipSize: 5, reloadFrames: 80,
-    kb: 6,                  abilityCooldown: 160, type: 'ranged', color: '#ddeeff',
+    kb: 6,                  abilityCooldown: 160, type: 'ranged', weaponType: 'ranged', color: '#ddeeff',
     abilityName: 'Paper Barrage',
     ability(user, _target) {
       for (let i = 0; i < 5; i++) {
@@ -1774,7 +1775,7 @@ const WEAPONS = {
   gauntlet: {
     // Boss-only weapon. Heavy hitting melee, massive void slam ability.
     name: 'Gauntlet', damage: 13, range: 30, cooldown: 38,
-    kb: 18,            abilityCooldown: 160, type: 'melee', color: '#9900ee',
+    kb: 18,            abilityCooldown: 160, type: 'melee', weaponType: 'heavy', color: '#9900ee',
     contactDmgMult: 0.55,
     abilityName: 'Void Slam',
     ability(user, _target) {
@@ -1796,7 +1797,7 @@ const WEAPONS = {
   mkgauntlet: {
     // Megaknight class weapon — locked to Megaknight. Overrides handled in attack()/ability().
     name: 'Mk. Gauntlets', damage: 20, range: 72, cooldown: 22,
-    kb: 24, abilityCooldown: 75, type: 'melee', color: '#8844ff',
+    kb: 24, abilityCooldown: 75, type: 'melee', weaponType: 'heavy', color: '#8844ff',
     contactDmgMult: 0.5, abilityName: 'Uppercut',
     ability(_user, _tgt) { /* fully overridden by Megaknight class */ }
   },
@@ -1805,7 +1806,7 @@ const WEAPONS = {
   voidblade: {
     enemyOnly: true,
     name: 'Void Blade', damage: 14, range: 58, cooldown: 26, endlag: 9,
-    kb: 10, abilityCooldown: 140, type: 'melee', color: '#9933ff',
+    kb: 10, abilityCooldown: 140, type: 'melee', weaponType: 'light', color: '#9933ff',
     abilityName: 'Void Slash',
     ability(user, target) {
       if (!target || target.health <= 0) return;
@@ -1821,7 +1822,7 @@ const WEAPONS = {
   shockrifle: {
     enemyOnly: true,
     name: 'Shock Rifle', damage: 8, range: 600, cooldown: 36, endlag: 10,
-    kb: 6, abilityCooldown: 180, type: 'ranged', color: '#00ddff',
+    kb: 6, abilityCooldown: 180, type: 'ranged', weaponType: 'ranged', color: '#00ddff',
     abilityName: 'Chain Lightning',
     ability(user, _target) {
       // Rapid triple burst — fire 3 projectiles in quick sequence
@@ -1848,6 +1849,31 @@ const CLASSES = {
   paladin:   { name: 'Paladin',   desc: 'Shield-only. Tanky. 15% dmg reduction.', weapon: 'shield', hp: 132, speedMult: 0.88, perk: 'holy_light' },
   berserker:  { name: 'Berserker',  desc: 'Any weapon. Rage boosts dmg at low HP.',             weapon: null, hp: 115, speedMult: 1.08, perk: 'blood_frenzy' },
   megaknight: { name: 'Megaknight', desc: 'Legendary knight. Smash, uppercut, and crush enemies.', weapon: 'mkgauntlet', hp: 165, speedMult: 0.84, perk: null },
+};
+
+// Damage multipliers applied when a class uses a weapon of a given weaponType.
+// Keys must match classKey values used in applyClass().
+const CLASS_AFFINITY = {
+  archer: {
+    light: 0.9,
+    heavy: 0.7,
+    ranged: 1.25
+  },
+  berserker: {
+    light: 1.1,
+    heavy: 1.3,
+    ranged: 0.6
+  },
+  phasewalker: {
+    light: 1.2,
+    heavy: 0.8,
+    ranged: 1.0
+  },
+  juggernaut: {
+    light: 0.9,
+    heavy: 1.4,
+    ranged: 0.5
+  }
 };
 
 // ============================================================

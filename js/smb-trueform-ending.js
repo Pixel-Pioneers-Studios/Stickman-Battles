@@ -656,6 +656,9 @@ function updateTFEnding() {
 
 // ── Resume gameplay after intro dimension-punch cinematic ─────────────────────
 function _tfeResumeAfterIntro(sc) {
+  // Advance state machine to backstage — from here normal death/ending logic is allowed
+  if (typeof tfCinematicState !== 'undefined') tfCinematicState = 'backstage';
+
   // Restore boss
   if (sc.boss) {
     sc.boss.invincible      = 90;
@@ -682,6 +685,9 @@ function _tfeResumeAfterIntro(sc) {
     tfFusionControlMode = 'player';
     tfFusionSwitchTimer = typeof tfFusionSwitchInterval !== 'undefined' ? tfFusionSwitchInterval : 300;
     tfFusionGlitchTimer = 0;
+    // Reset canonical control-override state; timer=0 so smb-loop initialises it on next tick
+    controlState = 'player';
+    controlTimer = 0;
   }
 
   screenShake = Math.max(screenShake, 35);

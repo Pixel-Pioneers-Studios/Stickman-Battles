@@ -1063,10 +1063,7 @@ function applyClass(fighter, classKey) {
   fighter.maxHealth       = cls.hp;
   fighter.health          = cls.hp;
   fighter.classSpeedMult  = cls.speedMult;
-  if (cls.weapon) {
-    fighter.weaponKey = cls.weapon;
-    fighter.weapon    = WEAPONS[cls.weapon];
-  }
+  // Weapon is NOT forced by class — player's selected weapon is always preserved
 }
 
 function updateClassWeapon(player) {
@@ -1109,3 +1106,56 @@ function showDesc(player, type, key) {
   body.innerHTML = html;
   panel.style.display = 'block';
 }
+
+// ============================================================
+// MIRROR ARENA — AI mimic behavior patch
+// Wraps Fighter.prototype.updateAI so mirror logic fires only
+// in the 'mirror' arena without touching any other AI path.
+// ============================================================
+(function _patchMirrorAI() {
+  const _origUpdateAI = Fighter.prototype.updateAI;
+
+  Fighter.prototype.updateAI = function() {
+    // Mirror logic: only for non-boss AI fighters in the mirror arena
+    if (currentArenaKey === 'mirror' && this.isAI && !this.isBoss && !this.isMinion) {
+      // Find the human (or first non-AI) target
+      const human = players.find(p => p !== this && !p.isAI && p.health > 0);
+      if (human) {
+        // ── Weapon mimic ─────────────────────────────────────────
+        // Copy the human's current weapon with a small random delay
+        // so it never feels instant / perfect.
+        if (!this._mirrorWeaponTimer || this._mirrorWeaponTimer <= 0) {
+          if (human.weapon && this.weapon !== human.weapon) {
+            this.weapon = human.weapon;
+          }
+          // Reset timer: 20–40 frames before next check
+          this._mirrorWeaponTimer = 20 + Math.floor(Math.random() * 21);
+        } else {
+          this._mirrorWeaponTimer--;
+        }
+
+        // ── Attack-frequency mimic ────────────────────────────────
+        // Track when the human last attacked; mirror with a delay.
+        if (human.isAttacking && !human._mirrorAttackSeen) {
+          human._mirrorAttackSeen = true;
+          // Queue a delayed mirror attack (20–40 frames from now)
+          this._mirrorDelay = 20 + Math.floor(Math.random() * 21);
+        }
+        if (!human.isAttacking) human._mirrorAttackSeen = false;
+
+        if (this._mirrorDelay > 0) {
+          this._mirrorDelay--;
+          if (this._mirrorDelay === 0 && this.cooldown <= 0 && this.health > 0) {
+            this.isAttacking   = true;
+            this.attackTimer   = this.weapon ? (this.weapon.atkDur || 18) : 18;
+            this.cooldown      = this.weapon ? (this.weapon.cooldown || 28) : 28;
+            this.attackDir     = this.facing;
+          }
+        }
+      }
+    }
+
+    // Always run the standard AI logic
+    _origUpdateAI.call(this);
+  };
+})();

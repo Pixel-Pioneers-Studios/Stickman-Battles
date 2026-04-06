@@ -16,16 +16,20 @@ function selectMode(mode) {
     return;
   }
   // 'storyonline' — story online mode (unlocked on story completion)
-  if (mode === 'storyonline') {
+  const isStoryOnline = mode === 'storyonline';
+  if (isStoryOnline) {
     // Story Online: behaves like online mode but marks storyonline context
     mode = 'online';
+  }
+  gameMode = isStoryOnline ? 'storyonline' : mode;
+  document.querySelectorAll('.mode-card').forEach(c => c.classList.remove('active'));
+  if (isStoryOnline) {
     const soCard = document.getElementById('modeStoryOnline');
     if (soCard) soCard.classList.add('active');
+  } else {
+    const modeCard = document.querySelector(`[data-mode="${mode}"]`);
+    if (modeCard) modeCard.classList.add('active');
   }
-  gameMode = mode;
-  document.querySelectorAll('.mode-card').forEach(c => c.classList.remove('active'));
-  const modeCard = document.querySelector(`[data-mode="${mode}"]`);
-  if (modeCard) modeCard.classList.add('active');
   const isBoss       = mode === 'boss';
   // When connected online, only 2p is supported — redirect all other modes back to online
   if (NetworkManager.connected && mode !== 'online' && mode !== '2p') {
@@ -158,6 +162,85 @@ function toggleBot(pid) {
 }
 
 // ============================================================
+// WEAPON / CLASS CARD GRIDS
+// ============================================================
+const _WEAPON_CARD_DATA = {
+  random:        { icon: '🎲', tag: 'Chaos' },
+  sword:         { icon: '⚔️',  tag: 'Fast' },
+  hammer:        { icon: '🔨', tag: 'Heavy' },
+  gun:           { icon: '🔫', tag: 'Ranged' },
+  axe:           { icon: '🪓', tag: 'Splash' },
+  spear:         { icon: '🗡️', tag: 'Reach' },
+  bow:           { icon: '🏹', tag: 'Archer' },
+  shield:        { icon: '🛡️', tag: 'Paladin' },
+  scythe:        { icon: '💀', tag: 'Lifesteal' },
+  fryingpan:     { icon: '🍳', tag: 'Stun' },
+  broomstick:    { icon: '🧹', tag: 'Push' },
+  boxinggloves:  { icon: '🥊', tag: 'Combo' },
+  peashooter:    { icon: '🌿', tag: 'Rapid' },
+  slingshot:     { icon: '🪃', tag: 'Arc' },
+  paperairplane: { icon: '✈️', tag: 'Curve' },
+};
+
+const _CLASS_CARD_DATA = {
+  random:    { icon: '🎲', tag: 'Surprise' },
+  none:      { icon: '⬜', tag: 'Free' },
+  thor:      { icon: '⚡', tag: 'Tank' },
+  kratos:    { icon: '🔴', tag: 'Rage' },
+  ninja:     { icon: '💨', tag: 'Speed' },
+  gunner:    { icon: '🔵', tag: 'Double' },
+  archer:    { icon: '🏹', tag: 'Evasive' },
+  paladin:   { icon: '🛡️', tag: 'Holy' },
+  berserker: { icon: '💢', tag: 'Frenzy' },
+};
+
+function _syncSelCards(gridId, val) {
+  const grid = document.getElementById(gridId);
+  if (!grid) return;
+  grid.querySelectorAll('.sel-card').forEach(c =>
+    c.classList.toggle('active', c.dataset.val === val));
+}
+
+function _buildSelCardGrid(gridId, selectId, cardData, pid, type) {
+  const grid = document.getElementById(gridId);
+  const sel  = document.getElementById(selectId);
+  if (!grid || !sel) return;
+  grid.innerHTML = '';
+  [...sel.options].forEach(opt => {
+    const val  = opt.value;
+    const info = cardData[val] || { icon: '❓', tag: '' };
+    // Strip class-lock annotations from display name
+    const name = opt.text.replace(/\s*⚔\s*.*/,'');
+    const card = document.createElement('div');
+    card.className = 'sel-card' + (val === sel.value ? ' active' : '');
+    card.dataset.val = val;
+    card.innerHTML =
+      `<span class="sel-card-icon">${info.icon}</span>` +
+      `<span class="sel-card-name">${name}</span>` +
+      `<span class="sel-card-tag">${info.tag}</span>`;
+    card.addEventListener('click', () => {
+      sel.value = val;
+      _syncSelCards(gridId, val);
+      if (type === 'weapon') {
+        showDesc(pid, 'weapon', val);
+        onWeaponChange(pid);
+      } else {
+        updateClassWeapon(pid);
+        showDesc(pid, 'class', val);
+      }
+    });
+    grid.appendChild(card);
+  });
+}
+
+function _initSelCardGrids() {
+  _buildSelCardGrid('p1WeaponCards', 'p1Weapon', _WEAPON_CARD_DATA, 'p1', 'weapon');
+  _buildSelCardGrid('p1ClassCards',  'p1Class',  _CLASS_CARD_DATA,  'p1', 'class');
+  _buildSelCardGrid('p2WeaponCards', 'p2Weapon', _WEAPON_CARD_DATA, 'p2', 'weapon');
+  _buildSelCardGrid('p2ClassCards',  'p2Class',  _CLASS_CARD_DATA,  'p2', 'class');
+}
+
+// ============================================================
 // WEAPON / CLASS DESCRIPTION PANEL
 // ============================================================
 function showDesc(pid, type, value) {
@@ -197,6 +280,7 @@ function updateClassWeapon(pid) {
   const cls = CLASSES[classEl.value];
   if (cls && cls.weapon && !weaponEl.dataset.userPicked) {
     weaponEl.value = cls.weapon;
+    _syncSelCards(pid + 'WeaponCards', cls.weapon);
   }
 
   showDesc(pid, 'class', classEl.value);
@@ -401,6 +485,53 @@ function updateSettings() {
 function toggleAdvanced() {
   const panel = document.getElementById('advancedPanel');
   if (panel) panel.style.display = panel.style.display === 'block' ? 'none' : 'block';
+}
+
+let _performanceModeActive = false;
+let _perfModePrevSettings = null;
+
+function togglePerformanceMode() {
+  const btn = document.getElementById('perfModeBtn');
+  _performanceModeActive = !_performanceModeActive;
+
+  if (_performanceModeActive) {
+    // Save current checkbox states
+    _perfModePrevSettings = {
+      particles:   document.getElementById('settingParticles').checked,
+      shake:       document.getElementById('settingShake').checked,
+      dmgNums:     document.getElementById('settingDmgNums').checked,
+      landDust:    document.getElementById('settingLandDust').checked,
+      finishers:   document.getElementById('settingFinishers') ? document.getElementById('settingFinishers').checked : true,
+      bossAura:    document.getElementById('settingBossAura')  ? document.getElementById('settingBossAura').checked  : true,
+      botPortal:   document.getElementById('settingBotPortal') ? document.getElementById('settingBotPortal').checked : true,
+      phaseFlash:  document.getElementById('settingPhaseFlash')? document.getElementById('settingPhaseFlash').checked: true,
+    };
+    // Disable all visual effects
+    document.getElementById('settingParticles').checked = false;
+    document.getElementById('settingShake').checked     = false;
+    document.getElementById('settingDmgNums').checked   = false;
+    document.getElementById('settingLandDust').checked  = false;
+    if (document.getElementById('settingFinishers'))  document.getElementById('settingFinishers').checked  = false;
+    if (document.getElementById('settingBossAura'))   document.getElementById('settingBossAura').checked   = false;
+    if (document.getElementById('settingBotPortal'))  document.getElementById('settingBotPortal').checked  = false;
+    if (document.getElementById('settingPhaseFlash')) document.getElementById('settingPhaseFlash').checked = false;
+    if (btn) { btn.textContent = '⚡ Performance Mode: On'; btn.style.color = '#ffff66'; btn.style.borderColor = 'rgba(255,255,80,0.5)'; }
+  } else {
+    // Restore previous settings
+    if (_perfModePrevSettings) {
+      document.getElementById('settingParticles').checked = _perfModePrevSettings.particles;
+      document.getElementById('settingShake').checked     = _perfModePrevSettings.shake;
+      document.getElementById('settingDmgNums').checked   = _perfModePrevSettings.dmgNums;
+      document.getElementById('settingLandDust').checked  = _perfModePrevSettings.landDust;
+      if (document.getElementById('settingFinishers'))  document.getElementById('settingFinishers').checked  = _perfModePrevSettings.finishers;
+      if (document.getElementById('settingBossAura'))   document.getElementById('settingBossAura').checked   = _perfModePrevSettings.bossAura;
+      if (document.getElementById('settingBotPortal'))  document.getElementById('settingBotPortal').checked  = _perfModePrevSettings.botPortal;
+      if (document.getElementById('settingPhaseFlash')) document.getElementById('settingPhaseFlash').checked = _perfModePrevSettings.phaseFlash;
+    }
+    if (btn) { btn.textContent = '⚡ Performance Mode: Off'; btn.style.color = '#88ffaa'; btn.style.borderColor = 'rgba(80,255,120,0.4)'; }
+  }
+
+  updateSettings();
 }
 
 // ── Changelog ─────────────────────────────────────────────────────────────────
@@ -644,9 +775,9 @@ function resolveWeaponAndClass(weaponSelectId, classSelectId) {
     if (Math.random() < 0.5) {
       // ── Weapon-first: pick weapon, then derive class ─────────
       weaponKey = wPool.length ? wPool[Math.floor(Math.random() * wPool.length)] : 'sword';
-      classKey  = wcMap[weaponKey] || 'none';  // use matching class or No Class
+      classKey  = cPool.length ? cPool[Math.floor(Math.random() * cPool.length)] : 'none';
     } else {
-      // ── Class-first: pick class, then use its weapon ─────────
+      // ── Class-first: pick class with a random weapon ──────────
       const eligibleClasses = cPool.filter(c => c !== 'none');
       if (eligibleClasses.length === 0) {
         // fallback: pure weapon random
@@ -654,8 +785,7 @@ function resolveWeaponAndClass(weaponSelectId, classSelectId) {
         classKey  = 'none';
       } else {
         classKey  = eligibleClasses[Math.floor(Math.random() * eligibleClasses.length)];
-        const lockedWeapon = (typeof CLASSES !== 'undefined' && CLASSES[classKey]?.weapon) || null;
-        weaponKey = lockedWeapon || (wPool.length ? wPool[Math.floor(Math.random() * wPool.length)] : 'sword');
+        weaponKey = wPool.length ? wPool[Math.floor(Math.random() * wPool.length)] : 'sword';
       }
     }
   } else if (wVal === 'random') {
@@ -688,14 +818,13 @@ function resolveWeaponAndClassValues(wVal, cVal) {
   if (wVal === 'random' && cVal === 'random') {
     if (Math.random() < 0.5) {
       weaponKey = wPool[Math.floor(Math.random() * wPool.length)] || 'sword';
-      classKey  = wcMap[weaponKey] || 'none';
+      classKey  = cPool[Math.floor(Math.random() * cPool.length)] || 'none';
     } else {
       const eligible = cPool.filter(c => c !== 'none');
       if (!eligible.length) { weaponKey = wPool[Math.floor(Math.random() * wPool.length)] || 'sword'; classKey = 'none'; }
       else {
         classKey  = eligible[Math.floor(Math.random() * eligible.length)];
-        const locked = (typeof CLASSES !== 'undefined' && CLASSES[classKey]?.weapon) || null;
-        weaponKey = locked || (wPool[Math.floor(Math.random() * wPool.length)] || 'sword');
+        weaponKey = wPool[Math.floor(Math.random() * wPool.length)] || 'sword';
       }
     }
   } else if (wVal === 'random') {
@@ -1078,19 +1207,23 @@ function _startGameCore() {
   if (chatEl) chatEl.style.display = onlineMode ? 'flex' : 'none';
 
   // Resolve arena
-  const isBossMode      = gameMode === 'boss';
-  const isTrueFormMode  = gameMode === 'trueform';
-  const isTrainingMode  = gameMode === 'training';
-  const isMinigamesMode = gameMode === 'minigames';
-  const isExploreMode   = gameMode === 'exploration';
+  const isBossMode         = gameMode === 'boss';
+  const isTrueFormMode     = gameMode === 'trueform';
+  const isTrainingMode     = gameMode === 'training';
+  const isMinigamesMode    = gameMode === 'minigames';
+  const isExploreMode      = gameMode === 'exploration';
   const isAdaptiveMode     = gameMode === 'adaptive' || gameMode === 'sovereign';
   const isSovereignMode    = gameMode === 'sovereign';
   const isCompleteRandMode = gameMode === '2p' && completeRandomizer;
+  const isMultiverseMode   = gameMode === 'multiverse';
   const isBossLivesMode    = isBossMode || isTrueFormMode;
   _setBossFightLivesLock(isBossLivesMode);
   trainingMode = isTrainingMode;
   tutorialMode = false; // tutorial mode removed
-  if (isBossMode) {
+  if (isMultiverseMode) {
+    const mvWorld = (typeof MultiverseManager !== 'undefined') ? MultiverseManager.getActiveWorld() : null;
+    currentArenaKey = (mvWorld && mvWorld.arenaKey) ? mvWorld.arenaKey : 'homeAlley';
+  } else if (isBossMode) {
     currentArenaKey = 'creator';
   } else if (isTrueFormMode) {
     currentArenaKey = 'void';
@@ -1228,7 +1361,7 @@ function _startGameCore() {
   const p1 = new Fighter(160, 300, c1, w1, { left:'a', right:'d', jump:'w', attack:' ', shield:'s', ability:'q', super:'e' }, p1IsBot, p1Diff);
   p1.playerNum = 1; p1.name = p1IsBot ? 'BOT1' : 'P1'; p1.lives = chosenLives;
   const _p1SpawnPos = pickSafeSpawn('left') || { x: 160, y: 300 };
-  p1.spawnX = _p1SpawnPos.x; p1.spawnY = _p1SpawnPos.y; p1.x = _p1SpawnPos.x; p1.y = _p1SpawnPos.y;
+  p1.spawnX = _p1SpawnPos.x; p1.spawnY = _p1SpawnPos.y; p1.x = _p1SpawnPos.x; p1.y = _p1SpawnPos.y - p1.h;
   p1.hat  = document.getElementById('p1Hat')?.value  || 'none';
   p1.cape = document.getElementById('p1Cape')?.value || 'none';
   if (p1Skin !== 'default' && SKIN_COLORS[p1Skin]) p1.color = SKIN_COLORS[p1Skin];
@@ -1260,9 +1393,10 @@ function _startGameCore() {
   // Player 2 / Bot / Boss / Training Dummy
   let p2;
   if (isBossMode) {
-    const boss = new Boss();
+    const boss = (storyBossType === 'fallen_god' && typeof FallenGod !== 'undefined') ? new FallenGod() : new Boss();
     // True Creator mode: significantly harder boss (requires TRUEFORM code)
-    if (unlockedTrueBoss) {
+    // Skipped in story mode — story has its own boss scaling below
+    if (unlockedTrueBoss && !storyModeActive) {
       boss.health            = 4500;
       boss.maxHealth         = 4500;
       boss.attackCooldownMult = 0.28;
@@ -1271,7 +1405,20 @@ function _startGameCore() {
       boss.name              = 'CREATOR';
       boss.color             = '#ff00ee';
     }
-    if (bossPlayerCount === 2) {
+    // Story mode: scale boss to be challenging but beatable
+    if (storyModeActive) {
+      boss.health            = 800;
+      boss.maxHealth         = 800;
+      boss.dmgMult           = 0.65;
+      boss.attackCooldownMult = 1.3;
+      boss.kbBonus           = 1.2;
+    }
+    // Fallen God: apply health multiplier on top of story scaling
+    if (boss.isFallenGod && boss._healthMult) {
+      boss.health    = Math.round(boss.health    * boss._healthMult);
+      boss.maxHealth = Math.round(boss.maxHealth * boss._healthMult);
+    }
+    if (bossPlayerCount === 2 && !storyModeActive) {
       // 2P boss: harder boss
       boss.attackCooldownMult = 0.38; // ~1.3x faster attacks than 1P
       boss.kbBonus            = 2.0;  // 1.33x more KB than 1P
@@ -1284,7 +1431,7 @@ function _startGameCore() {
       const p2h  = new Fighter(720, 300, c2b, w2b, { left:'ArrowLeft', right:'ArrowRight', jump:'ArrowUp', attack:'Enter', shield:'ArrowDown', ability:'.', super:'/' }, p2IsBot, diff);
       p2h.playerNum = 2; p2h.name = p2IsBot ? 'BOT' : 'P2'; p2h.lives = chosenLives;
       { const _sp2 = pickSafeSpawn('right', _p1SpawnPos.x) || { x: 720, y: 300 };
-        p2h.spawnX = _sp2.x; p2h.spawnY = _sp2.y; p2h.x = _sp2.x; p2h.y = _sp2.y; }
+        p2h.spawnX = _sp2.x; p2h.spawnY = _sp2.y; p2h.x = _sp2.x; p2h.y = _sp2.y - p2h.h; }
       p2h.hat  = document.getElementById('p2Hat')?.value  || 'none';
       p2h.cape = document.getElementById('p2Cape')?.value || 'none';
       applyClass(p2h, _p2ResolvedClass);
@@ -1301,6 +1448,59 @@ function _startGameCore() {
       p1.target = p2;
       p2.target = p1;
     }
+  } else if (isMultiverseMode) {
+    // Multiverse: P1 vs AI fighter configured by the pending encounter
+    p1.isAI  = false;
+    p1.lives = (_pendingMultiverseEncounter && _pendingMultiverseEncounter.lives) || 3;
+    const _mvEnc = (typeof _pendingMultiverseEncounter !== 'undefined' && _pendingMultiverseEncounter) || {};
+    const _mvSpawn = pickSafeSpawn('right', _p1SpawnPos.x) || { x: 720, y: 300 };
+    const mvEnemy = new Fighter(
+      _mvSpawn.x, _mvSpawn.y,
+      _mvEnc.color || '#778899',
+      _mvEnc.weaponKey || 'sword',
+      null, // AI-controlled
+      true,
+      _mvEnc.aiDiff || 'hard'
+    );
+    mvEnemy.playerNum = 2;
+    mvEnemy.name      = _mvEnc.opponentName || 'Dimensional Fighter';
+    mvEnemy.lives     = p1.lives;
+    mvEnemy.spawnX    = _mvSpawn.x; mvEnemy.spawnY = _mvSpawn.y;
+    mvEnemy.x = _mvSpawn.x; mvEnemy.y = _mvSpawn.y - mvEnemy.h;
+    if (typeof applyClass === 'function') applyClass(mvEnemy, _mvEnc.classKey || 'warrior');
+    if (Array.isArray(_mvEnc.armor)) {
+      mvEnemy.armorPieces = [..._mvEnc.armor];
+    }
+    if (_mvEnc.isBossEnc) mvEnemy.isBoss = false; // treat as strong AI, not actual boss class
+    p2 = mvEnemy;
+    players = [p1, mvEnemy];
+    p1.target = mvEnemy; mvEnemy.target = p1;
+
+    // Optional second enemy (elite/survival encounters)
+    if (_mvEnc.twoEnemies) {
+      const _mvSpawn2 = pickSafeSpawn('right', _mvSpawn.x + 80) || { x: 760, y: 300 };
+      const mvEnemy2  = new Fighter(
+        _mvSpawn2.x, _mvSpawn2.y,
+        _mvEnc.secondColor || '#667788',
+        _mvEnc.weaponKey || 'sword',
+        null, true, _mvEnc.aiDiff || 'hard'
+      );
+      mvEnemy2.playerNum = 3;
+      mvEnemy2.name      = (_mvEnc.opponentName || 'Fighter') + ' II';
+      mvEnemy2.lives     = p1.lives;
+      mvEnemy2.spawnX    = _mvSpawn2.x; mvEnemy2.spawnY = _mvSpawn2.y;
+      mvEnemy2.x = _mvSpawn2.x; mvEnemy2.y = _mvSpawn2.y - mvEnemy2.h;
+      if (typeof applyClass === 'function') applyClass(mvEnemy2, _mvEnc.classKey || 'warrior');
+      mvEnemy2.target = p1;
+      players.push(mvEnemy2);
+    }
+
+    // Clear pending so it doesn't persist across fights
+    _pendingMultiverseEncounter = null;
+
+    // Fire multiverse fight start hooks (scaling, modifiers)
+    if (typeof MultiverseManager !== 'undefined') MultiverseManager.onFightStart();
+
   } else if (isAdaptiveMode) {
     // Adaptive AI: P1 vs the learning AdaptiveAI opponent
     // Sovereign mode uses SovereignMK2 (enhanced); story adaptive uses base AdaptiveAI
@@ -1316,7 +1516,7 @@ function _startGameCore() {
     ai.lives     = chosenLives;
     const _aiSpawn = pickSafeSpawn('right', _p1SpawnPos.x) || { x: 720, y: 300 };
     ai.spawnX = _aiSpawn.x; ai.spawnY = _aiSpawn.y;
-    ai.x = _aiSpawn.x;      ai.y = _aiSpawn.y;
+    ai.x = _aiSpawn.x;      ai.y = _aiSpawn.y - ai.h;
     p2 = ai;
     players = [p1, ai];
     p1.target = ai;
@@ -1326,6 +1526,13 @@ function _startGameCore() {
     p1.isAI = false;
     p1.lives = chosenLives;
     const tf = new TrueForm();
+    // Story mode: scale TrueForm to be challenging but beatable
+    if (storyModeActive) {
+      tf.health            = 1500;
+      tf.maxHealth         = 1500;
+      tf.dmgMult           = 0.65;
+      tf.attackCooldownMult = 1.25;
+    }
     tf.target = p1;
     p1.target = tf;
     p2 = tf;
@@ -1336,7 +1543,7 @@ function _startGameCore() {
       p2 = new Fighter(720, 300, c2, w2, { left:'ArrowLeft', right:'ArrowRight', jump:'ArrowUp', attack:'Enter', shield:'ArrowDown', ability:'.', super:'/' }, p2IsBot, diff);
       p2.playerNum = 2; p2.name = p2IsBot ? 'BOT' : 'P2'; p2.lives = 999;
       { const _sp2 = pickSafeSpawn('right', _p1SpawnPos.x) || { x: 720, y: 300 };
-        p2.spawnX = _sp2.x; p2.spawnY = _sp2.y; p2.x = _sp2.x; p2.y = _sp2.y; }
+        p2.spawnX = _sp2.x; p2.spawnY = _sp2.y; p2.x = _sp2.x; p2.y = _sp2.y - p2.h; }
       applyClass(p2, _p2ResolvedClass);
       if (p2.charClass === 'megaknight') { p2.y = -120; p2.vy = 2; p2._spawnFalling = true; p2.invincible = 200; }
       const starterDummy = new Dummy(450, 200);
@@ -1364,7 +1571,7 @@ function _startGameCore() {
       p2mg.playerNum = 2; p2mg.name = p2IsBot ? 'BOT' : 'P2';
       p2mg.lives = (minigameType === 'survival') ? 1 : 99;
       { const _sp2 = pickSafeSpawn('right', _p1SpawnPos.x) || { x: 720, y: 300 };
-        p2mg.spawnX = _sp2.x; p2mg.spawnY = _sp2.y; p2mg.x = _sp2.x; p2mg.y = _sp2.y; }
+        p2mg.spawnX = _sp2.x; p2mg.spawnY = _sp2.y; p2mg.x = _sp2.x; p2mg.y = _sp2.y - p2mg.h; }
       p2mg.hat  = document.getElementById('p2Hat')?.value  || 'none';
       p2mg.cape = document.getElementById('p2Cape')?.value || 'none';
       if (p2Skin !== 'default' && SKIN_COLORS[p2Skin]) p2mg.color = SKIN_COLORS[p2Skin];
@@ -1395,7 +1602,7 @@ function _startGameCore() {
     p2 = new Fighter(720, 300, c2, w2, { left:'ArrowLeft', right:'ArrowRight', jump:'ArrowUp', attack:'Enter', shield:'ArrowDown', ability:'.', super:'/' }, isBot, diff);
     p2.playerNum = 2; p2.name = p2IsBot ? 'BOT' : 'P2'; p2.lives = chosenLives;
     { const _sp2 = pickSafeSpawn('right', _p1SpawnPos.x) || { x: 720, y: 300 };
-      p2.spawnX = _sp2.x; p2.spawnY = _sp2.y; p2.x = _sp2.x; p2.y = _sp2.y; }
+      p2.spawnX = _sp2.x; p2.spawnY = _sp2.y; p2.x = _sp2.x; p2.y = _sp2.y - p2.h; }
     p2.hat  = document.getElementById('p2Hat')?.value  || 'none';
     p2.cape = document.getElementById('p2Cape')?.value || 'none';
     if (p2Skin !== 'default' && SKIN_COLORS[p2Skin]) p2.color = SKIN_COLORS[p2Skin];
@@ -1438,7 +1645,7 @@ function _startGameCore() {
         { left:'ArrowLeft', right:'ArrowRight', jump:'ArrowUp', attack:'Enter', shield:'ArrowDown', ability:'.', super:'/' },
         true, _p3d);
       p3.playerNum = 3; p3.name = _sed.name || 'ENEMY B'; p3.lives = chosenLives;
-      p3.spawnX = _sp3.x; p3.spawnY = _sp3.y;
+      p3.spawnX = _sp3.x; p3.spawnY = _sp3.y; p3.y = _sp3.y - p3.h;
       if (_sed.classKey) applyClass(p3, _sed.classKey);
       if (storyModeActive && typeof STORY_ENEMY_CONFIGS !== 'undefined') {
         const _ec2 = STORY_ENEMY_CONFIGS[storyCurrentLevel];
@@ -1593,6 +1800,9 @@ requestAnimationFrame(menuBgLoop);
 // Sync version labels from GAME_VERSION constant so they never drift
 (function() { const el = document.getElementById('gameVersionLabel'); if (el && typeof GAME_VERSION !== 'undefined') el.textContent = GAME_VERSION; })();
 _initVersionLabels();
+
+// Build weapon/class selection card grids
+_initSelCardGrids();
 
 // Restore secret letter state from localStorage on page load
 syncCodeInput();

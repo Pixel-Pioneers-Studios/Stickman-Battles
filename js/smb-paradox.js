@@ -12,13 +12,28 @@ let paradoxRevivePlayer  = null;  // player being revived
 
 // ---- Opening fight state (player + Paradox vs TF for 1000 total damage) ----
 let tfOpeningFightActive   = false;
-let tfOpeningDamageDealt   = 0;     // damage Paradox has dealt to TF so far
+let tfOpeningDamageDealt   = 0;     // total damage dealt to TF so far
 let _tfOpeningParadoxAtkCd = 0;     // frames until next Paradox attack
+let _tfOpeningHeroAtkCd    = 90;    // frames until next scripted hero attack
 let _tfOpeningTFRef        = null;  // reference to TrueForm entity
+let _tfOpeningPhase        = 0;     // 0=slow buildup, 1=building, 2=climax
+let _tfOpeningDialogueFired = new Set(); // which scripted lines have been shown
+let _paradoxVx             = 0;    // smoothed horizontal velocity for Paradox movement
+let _tfOpeningHeroReactDelay = 0;  // frames hero has been in back-off zone (reaction delay)
 const TF_OPENING_DAMAGE_THRESHOLD = 1000;
 
 // ---- Absorption state (after Paradox dies and enters player) ----------------
 let _tfAbsorptionState = null; // { timer, boss, hero }
+
+// ---- New declarative absorption cinematic (replaces _startAbsorptionThenPunch in main flow) ----
+let tfAbsorptionScene = null; // { timer, maxTimer, playerRef, paradoxRef, bossRef, phase, memoryIndex, flashAlpha, absorbed }
+
+const _TF_ABSORPTION_MEMORIES = [
+  '"Not this outcome."',
+  '"You\'re not done."',
+  '"Try again."',
+  'Their sacrifice echoes...',
+];
 
 // ---- TF-kills-Paradox cinematic overlay state --------------------------------
 let playerParadoxAbsorbed = false; // permanent: player carries Paradox energy
@@ -196,9 +211,15 @@ class Paradox {
 function startTFOpeningFight(tf) {
   if (tfOpeningFightActive) return;
   tfOpeningFightActive   = true;
-  tfOpeningDamageDealt   = 0;
-  _tfOpeningParadoxAtkCd = 60;
-  _tfOpeningTFRef        = tf;
+  tfCinematicState       = 'opening_fight';
+  tfOpeningDamageDealt    = 0;
+  _tfOpeningParadoxAtkCd    = 90;   // slow start — Paradox hangs back at first
+  _tfOpeningHeroAtkCd       = 120;  // hero approaches cautiously
+  _tfOpeningPhase           = 0;
+  _tfOpeningDialogueFired   = new Set();
+  _tfOpeningTFRef           = tf;
+  _paradoxVx                = 0;
+  _tfOpeningHeroReactDelay  = 0;
 
   spawnParadox(155, GAME_H - 190);
   if (paradoxEntity) paradoxEntity.facing = 1;
@@ -218,36 +239,138 @@ function updateTFOpeningFight() {
   const tf = _tfOpeningTFRef;
   if (!tf || tf.health <= 0) return;
 
-  // Keep Paradox alive and updated (don't let the generic cleanup remove it)
+  // ── Phase advancement ──────────────────────────────────────────────────────
+  // Phase 0: 0-250 dmg  — slow, cautious approach
+  // Phase 1: 250-650 dmg — building pressure, TF starts reacting
+  // Phase 2: 650+ dmg   — relentless climax, max intensity
+  const newPhase = tfOpeningDamageDealt < 250 ? 0 : tfOpeningDamageDealt < 650 ? 1 : 2;
+  if (newPhase > _tfOpeningPhase) {
+    _tfOpeningPhase = newPhase;
+    if (newPhase === 1) {
+      screenShake = Math.max(screenShake, 12);
+      if (typeof showBossDialogue === 'function')
+        showBossDialogue('Persistent.', 200);
+    } else if (newPhase === 2) {
+      screenShake = Math.max(screenShake, 18);
+      if (typeof CinFX !== 'undefined') CinFX.flash('#ffffff', 0.18, 10);
+      if (typeof showBossDialogue === 'function')
+        showBossDialogue('...you\'re stronger than you look.', 220);
+    }
+  }
+
+  // Speed multipliers per phase
+  const paradoxSpeed  = [2.0, 2.6, 3.2][_tfOpeningPhase];
+  const paradoxCdBase = [90,  58,  34][_tfOpeningPhase];
+  const heroCdBase    = [110, 68,  38][_tfOpeningPhase];
+
+  // Keep Paradox alive and updated
   if (!paradoxEntity || paradoxEntity.done) {
     spawnParadox(155, GAME_H - 190);
     if (paradoxEntity) paradoxEntity.facing = 1;
   }
-
   if (paradoxEntity) paradoxEntity.update();
 
-  // Move Paradox toward TF
-  if (paradoxEntity) {
-    const dx = tf.cx() - paradoxEntity.cx();
-    if (Math.abs(dx) > 55) {
-      paradoxEntity.x += Math.sign(dx) * 1.8;
-      paradoxEntity.facing = Math.sign(dx);
+  // ── Hero scripted behaviour ────────────────────────────────────────────────
+  const hero = players && players.find(p => !p.isBoss && !p.isRemote);
+  if (hero) {
+    const hdx = tf.cx() - hero.cx();
+    const heroSign = Math.sign(hdx);
+
+    // Always face TF
+    hero.facing = heroSign || hero.facing;
+
+    // Walk toward TF if far; hang back slightly when already close
+    if (Math.abs(hdx) > 80) {
+      hero.vx = heroSign * (1.8 + _tfOpeningPhase * 0.7);
+      _tfOpeningHeroReactDelay = 0;
+    } else if (Math.abs(hdx) < 50 && hero.attackTimer <= 0) {
+      // Reaction delay: only back off after 6-10 frames in back-off zone
+      _tfOpeningHeroReactDelay++;
+      if (_tfOpeningHeroReactDelay >= 8) {
+        hero.vx = -heroSign * 0.8;
+      }
+    } else {
+      _tfOpeningHeroReactDelay = 0;
     }
 
-    // Periodic Paradox attack on TF
+    // Occasional phase-appropriate jump to feel alive
+    if (hero.onGround && Math.random() < 0.003 + _tfOpeningPhase * 0.003) {
+      hero.vy = -14;
+    }
+
+    // Periodic scripted attack
+    _tfOpeningHeroAtkCd--;
+    if (_tfOpeningHeroAtkCd <= 0) {
+      if (Math.abs(hdx) >= 95 || hero.attackTimer > 0) {
+        // Not in range yet — hold ready (check again next frame)
+        _tfOpeningHeroAtkCd = 1;
+      } else {
+        _tfOpeningHeroAtkCd = heroCdBase + Math.floor(Math.random() * 30);
+        // Trigger attack animation
+        hero.attackTimer    = 18;
+        hero.attackDuration = 18;
+        hero.facing         = heroSign || hero.facing;
+
+        // Deal scripted damage to TF
+        const heroDmg = 12 + _tfOpeningPhase * 8 + Math.floor(Math.random() * 8);
+        tf.health = Math.max(tf.health - heroDmg, 1);
+        tfOpeningDamageDealt += heroDmg;
+
+        // TF flinch + micro-knockback
+        tf.hurtTimer = 7 + _tfOpeningPhase * 3;
+        tf.vx = -heroSign * (2 + _tfOpeningPhase * 1.5);
+
+        // Hit particles
+        const hitColor = hero.color || '#ff8800';
+        spawnParticles(tf.cx(), tf.cy() - 10, hitColor, 5 + _tfOpeningPhase * 3);
+        spawnParticles(tf.cx(), tf.cy() - 10, '#ffffff', 2 + _tfOpeningPhase);
+        screenShake = Math.max(screenShake, 5 + _tfOpeningPhase * 4);
+
+        if (settings.dmgNumbers && typeof DamageText !== 'undefined') {
+          damageTexts.push(new DamageText(String(heroDmg),
+            tf.cx() + (Math.random()-0.5)*28, tf.cy() - 28, hitColor));
+        }
+      }
+    }
+  }
+
+  // ── Paradox attack on TF ──────────────────────────────────────────────────
+  if (paradoxEntity) {
+    const pdx = tf.cx() - paradoxEntity.cx();
+
+    // Smoothed velocity movement — lerp toward target speed to prevent jitter
+    const targetVx = Math.abs(pdx) > 65 ? Math.sign(pdx) * paradoxSpeed : 0;
+    _paradoxVx += (targetVx - _paradoxVx) * 0.2;
+    if (Math.abs(_paradoxVx) > 0.1) {
+      paradoxEntity.x += _paradoxVx;
+      paradoxEntity.facing = Math.sign(_paradoxVx);
+    }
+
     _tfOpeningParadoxAtkCd--;
     if (_tfOpeningParadoxAtkCd <= 0) {
-      _tfOpeningParadoxAtkCd = 50 + Math.floor(Math.random() * 40);
-      if (Math.abs(dx) < 85) {
-        paradoxEntity.punch(Math.sign(dx));
-        const dmg = 18 + Math.floor(Math.random() * 12);
+      if (Math.abs(pdx) >= 95) {
+        // Not in range — hold ready, check next frame
+        _tfOpeningParadoxAtkCd = 1;
+      } else {
+        _tfOpeningParadoxAtkCd = paradoxCdBase + Math.floor(Math.random() * 25);
+        paradoxEntity.punch(Math.sign(pdx));
+        const dmg = 18 + _tfOpeningPhase * 7 + Math.floor(Math.random() * 10);
         tf.health = Math.max(tf.health - dmg, 1);
         tfOpeningDamageDealt += dmg;
-        spawnParticles(tf.cx(), tf.cy(), '#00ffff', 6);
-        spawnParticles(tf.cx(), tf.cy(), '#ffffff', 4);
-        screenShake = Math.max(screenShake, 8);
+
+        // TF flinch + micro-knockback from Paradox
+        tf.hurtTimer = Math.max(tf.hurtTimer, 7 + _tfOpeningPhase * 2);
+        tf.vx = Math.sign(pdx) === 1
+          ? -Math.abs(tf.vx + 1.5 + _tfOpeningPhase)
+          :  Math.abs(tf.vx + 1.5 + _tfOpeningPhase);
+
+        spawnParticles(tf.cx(), tf.cy(), '#00ffff', 6 + _tfOpeningPhase * 2);
+        spawnParticles(tf.cx(), tf.cy(), '#ffffff', 3 + _tfOpeningPhase);
+        screenShake = Math.max(screenShake, 6 + _tfOpeningPhase * 5);
+
         if (settings.dmgNumbers && typeof DamageText !== 'undefined') {
-          damageTexts.push(new DamageText(String(dmg), tf.cx() + (Math.random()-0.5)*30, tf.cy() - 22, '#00ffff'));
+          damageTexts.push(new DamageText(String(dmg),
+            tf.cx() + (Math.random()-0.5)*30, tf.cy() - 22, '#00ffff'));
         }
       }
     }
@@ -257,6 +380,9 @@ function updateTFOpeningFight() {
   if (tfOpeningDamageDealt >= TF_OPENING_DAMAGE_THRESHOLD) {
     tfOpeningFightActive = false;
     _tfOpeningTFRef      = null;
+    tfCinematicState     = 'paradox_death';
+    if (typeof showBossDialogue === 'function')
+      showBossDialogue('Enough.', 180);
     if (typeof startCinematic === 'function' && typeof _makeTFKillsParadoxCinematic === 'function') {
       startCinematic(_makeTFKillsParadoxCinematic(tf));
     } else if (typeof startCinematic === 'function' && typeof _makeTFParadoxEntryCinematic === 'function') {
@@ -270,7 +396,10 @@ function updateTFOpeningFight() {
 // Triggered from _makeTFParadoxEntryCinematic.onEnd()
 // ============================================================
 function _startAbsorptionThenPunch(boss, hero) {
+  // Guard: only start if paradox death cinematic has fully completed
+  if (!paradoxDeathComplete) return;
   _tfAbsorptionState = { timer: 0, boss, hero };
+  tfCinematicState   = 'absorption';
   if (hero) hero.invincible = Math.max(hero.invincible || 0, 9999);
   // Freeze game: blocks player input, boss AI, and all hazard damage
   gameFrozen = true;
@@ -335,10 +464,16 @@ function updateTFAbsorption() {
   }
 
   // t=170: hand off to dimension-punch intro
+  // Set absorptionComplete first, then guard on both flags so punch NEVER starts
+  // unless paradox death cinematic has fully run onEnd() (paradoxDeathComplete === true).
   if (t >= 170) {
-    _tfAbsorptionState = null;
-    if (typeof startTFEnding === 'function') {
-      startTFEnding(s.boss, true); // true = isIntro mode
+    if (!absorptionComplete) absorptionComplete = true;
+    if (paradoxDeathComplete && absorptionComplete) {
+      _tfAbsorptionState = null;
+      tfCinematicState   = 'punch_transition';
+      if (typeof startTFEnding === 'function') {
+        startTFEnding(s.boss, true); // true = isIntro mode
+      }
     }
   }
 }
@@ -385,6 +520,310 @@ function drawTFAbsorption() {
     ctx.arc(hero.cx(), hero.cy(), 30, 0, Math.PI * 2);
     ctx.stroke();
   }
+  ctx.restore();
+}
+
+// ============================================================
+// ABSORPTION CINEMATIC v2  — memory-driven scene
+// Phases: fade_in(0-40) → memories(40-130) → merge(130-175) → power_surge(175-210) → done(210+)
+// Uses activeCinematic + gameFrozen so no gameplay occurs during the scene.
+// Hands off to startTFEnding() when complete.
+// ============================================================
+function startTFAbsorptionScene(player, paradoxRef) {
+  if (tfAbsorptionScene) return; // already running
+  const boss = typeof players !== 'undefined' ? players.find(p => p.isBoss && p.health > 0) : null;
+  tfAbsorptionScene = {
+    timer:      0,
+    maxTimer:   220,
+    playerRef:  player,
+    paradoxRef: paradoxRef,
+    bossRef:    boss,
+    phase:      'fade_in',
+    memoryIndex: 0,
+    flashAlpha:  0,
+    absorbed:    false
+  };
+  activeCinematic = true;
+  gameFrozen      = true;
+  tfCinematicState = 'absorption';
+  if (player) player.invincible = Math.max(player.invincible || 0, 9999);
+}
+
+function updateTFAbsorptionScene() {
+  const sc = tfAbsorptionScene;
+  if (!sc) return;
+
+  sc.timer++;
+
+  // Keep player frozen
+  if (sc.playerRef) {
+    sc.playerRef.vx = 0;
+    sc.playerRef.vy = 0;
+  }
+
+  //--------------------------------------------------
+  // PHASE 1 — FADE IN (0–40)
+  if (sc.timer < 40) {
+    sc.phase = 'fade_in';
+    sc.flashAlpha = Math.min(1, sc.timer / 40);
+  }
+
+  //--------------------------------------------------
+  // PHASE 2 — MEMORY FLASHES (40–140)
+  else if (sc.timer < 140) {
+    sc.phase = 'memories';
+
+    if (sc.timer % 20 === 0) {
+      sc.memoryIndex++;
+    }
+  }
+
+  //--------------------------------------------------
+  // PHASE 3 — MERGE (140–180)
+  else if (sc.timer < 180) {
+    sc.phase = 'merge';
+
+    // Pull paradox into player
+    if (sc.paradoxRef && sc.playerRef) {
+      const dx = sc.playerRef.cx() - sc.paradoxRef.cx();
+      const dy = sc.playerRef.cy() - sc.paradoxRef.cy();
+
+      sc.paradoxRef.x += dx * 0.08;
+      sc.paradoxRef.y += dy * 0.08;
+    }
+  }
+
+  //--------------------------------------------------
+  // PHASE 4 — POWER SURGE (180–210)
+  else if (sc.timer < 210) {
+    sc.phase = 'power_surge';
+
+    sc.flashAlpha = Math.sin(sc.timer * 0.4) * 0.5 + 0.5;
+  }
+
+  //--------------------------------------------------
+  // END
+  else {
+    sc.phase = 'done';
+
+    if (!sc.absorbed) {
+      sc.absorbed = true;
+
+      if (sc.playerRef) {
+        sc.playerRef.paradoxPowered = true;
+      }
+    }
+
+    tfAbsorptionScene = null;
+    activeCinematic = false;
+
+    // Continue to punch cinematic
+    if (typeof startTFEnding === 'function') {
+      startTFEnding(true);
+    }
+  }
+}
+
+function drawTFAbsorptionScene() {
+  if (!tfAbsorptionScene) return;
+  const s  = tfAbsorptionScene;
+  const t  = s.timer;
+  const hero = s.playerRef;
+  if (!hero) return;
+
+  const hx = hero.cx();
+  const hy = hero.cy();
+
+  ctx.save();
+  ctx.setTransform(1, 0, 0, 1, 0, 0); // screen-space for overlay
+
+  // Fade-in dark vignette
+  if (s.phase === 'fade_in') {
+    const a = Math.min(1, t / 40);
+    ctx.globalAlpha = a * 0.38;
+    ctx.fillStyle = '#000033';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+  }
+
+  // Memories + merge: dark overlay behind the scene
+  if (s.phase === 'memories' || s.phase === 'merge') {
+    const fadeOut = s.phase === 'merge' ? Math.max(0, 1 - (t - 130) / 45) : 1;
+    ctx.globalAlpha = 0.50 * fadeOut;
+    ctx.fillStyle = '#000022';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+  }
+
+  // Back to world-space for rings (drawn on top of fighters)
+  ctx.restore();
+  ctx.save();
+
+  // Memory text (world-space, centered)
+  if (s.phase === 'memories') {
+    const memText = _TF_ABSORPTION_MEMORIES[s.memoryIndex] || '';
+    const textAge = (t - 40) % 22;
+    const textAlpha = textAge < 6 ? textAge / 6 : textAge > 16 ? Math.max(0, 1 - (textAge - 16) / 6) : 1;
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.globalAlpha = textAlpha * 0.88;
+    ctx.font = 'italic 18px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#00ffff';
+    ctx.shadowColor = '#00ffff';
+    ctx.shadowBlur = 16;
+    ctx.fillText(memText, canvas.width / 2, canvas.height / 2 - 80);
+    ctx.restore();
+  }
+
+  // Pulsing absorption rings around player (world-space)
+  if (s.phase === 'memories' || s.phase === 'merge' || s.phase === 'power_surge') {
+    const ringProgress = s.phase === 'memories'
+      ? Math.min(1, (t - 40) / 90)
+      : s.phase === 'merge'
+        ? 1.0
+        : Math.max(0, 1 - (t - 175) / 35);
+    const pulse = 0.5 + Math.sin(t * 0.18) * 0.5;
+    for (let i = 0; i < 3; i++) {
+      const r = 28 + i * 18 + Math.sin(t * 0.1 + i * 1.4) * 7;
+      ctx.globalAlpha = ringProgress * pulse * (0.60 - i * 0.15);
+      ctx.strokeStyle = i % 2 === 0 ? '#00ffff' : '#aa44ff';
+      ctx.lineWidth   = 3 - i * 0.6;
+      ctx.shadowColor = '#00ffff';
+      ctx.shadowBlur  = 22;
+      ctx.beginPath();
+      ctx.arc(hx, hy, r, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+  }
+
+  ctx.restore();
+}
+
+// ============================================================
+// ABSORPTION SCENE (ctx-param version) — strong visual clarity
+// Called from smb-drawing.js / smb-loop.js with explicit ctx arg.
+// The no-arg drawTFAbsorptionScene() above handles in-loop calls.
+// ============================================================
+function drawTFAbsorptionScene(ctx) {
+  const sc = tfAbsorptionScene;
+  if (!sc) return;
+
+  ctx.save();
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+
+  // Dark overlay — deepens during flash
+  ctx.globalAlpha = 1;
+  ctx.fillStyle = `rgba(0,0,0,${0.6 + sc.flashAlpha * 0.4})`;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  // --------------------------------------------------
+  // MEMORY PHASE
+  if (sc.phase === 'memories') {
+    drawTFAbsorptionMemories(ctx, sc);
+  }
+
+  // --------------------------------------------------
+  // MERGE EFFECT — purple tint signals convergence
+  if (sc.phase === 'merge') {
+    ctx.globalAlpha = 0.3;
+    ctx.fillStyle = '#aa55ff';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+  }
+
+  // --------------------------------------------------
+  // POWER SURGE — white flash at peak intensity
+  if (sc.phase === 'power_surge') {
+    ctx.globalAlpha = sc.flashAlpha;
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+  }
+
+  ctx.restore();
+}
+
+// ============================================================
+// ABSORPTION MEMORY FLASHES  — Paradox backstory visual flashes
+// ============================================================
+function drawTFAbsorptionMemories(ctx, sc) {
+  const t = sc.memoryIndex % 5;
+
+  ctx.save();
+  ctx.globalAlpha = 0.5;
+
+  switch (t) {
+
+    case 0:
+      // Creation attempt
+      ctx.font = 'bold 22px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillStyle = '#ffffff';
+      ctx.shadowColor = '#ffffff';
+      ctx.shadowBlur = 14;
+      ctx.fillText('CREATION FAILED', GAME_W / 2, GAME_H / 2);
+      break;
+
+    case 1:
+      // Paradox forming
+      ctx.strokeStyle = '#aa55ff';
+      ctx.lineWidth = 3;
+      ctx.shadowColor = '#aa55ff';
+      ctx.shadowBlur = 18;
+      ctx.beginPath();
+      ctx.arc(GAME_W / 2, GAME_H / 2, 40, 0, Math.PI * 2);
+      ctx.stroke();
+      break;
+
+    case 2:
+      // Axiom silhouette
+      ctx.fillStyle = '#ffffff';
+      ctx.shadowColor = '#ffffff';
+      ctx.shadowBlur = 10;
+      // Head
+      ctx.beginPath();
+      ctx.arc(GAME_W / 2, GAME_H / 2 - 60, 8, 0, Math.PI * 2);
+      ctx.fill();
+      // Body
+      ctx.lineWidth = 2.5;
+      ctx.strokeStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.moveTo(GAME_W / 2, GAME_H / 2 - 52);
+      ctx.lineTo(GAME_W / 2, GAME_H / 2 - 25);
+      // Arms
+      ctx.moveTo(GAME_W / 2 - 14, GAME_H / 2 - 44);
+      ctx.lineTo(GAME_W / 2 + 14, GAME_H / 2 - 44);
+      // Legs
+      ctx.moveTo(GAME_W / 2, GAME_H / 2 - 25);
+      ctx.lineTo(GAME_W / 2 - 10, GAME_H / 2 - 8);
+      ctx.moveTo(GAME_W / 2, GAME_H / 2 - 25);
+      ctx.lineTo(GAME_W / 2 + 10, GAME_H / 2 - 8);
+      ctx.stroke();
+      // Label
+      ctx.font = 'bold 16px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillStyle = '#ffffff';
+      ctx.fillText('AXIOM', GAME_W / 2, GAME_H / 2 - 90);
+      break;
+
+    case 3:
+      // Endless fights
+      ctx.font = 'bold 22px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillStyle = '#ff4444';
+      ctx.shadowColor = '#ff4444';
+      ctx.shadowBlur = 14;
+      ctx.fillText('DEFEAT', GAME_W / 2, GAME_H / 2);
+      break;
+
+    case 4:
+      // Persistence
+      ctx.font = 'bold 22px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillStyle = '#44ffaa';
+      ctx.shadowColor = '#44ffaa';
+      ctx.shadowBlur = 14;
+      ctx.fillText('AGAIN', GAME_W / 2, GAME_H / 2);
+      break;
+  }
+
   ctx.restore();
 }
 
@@ -941,6 +1380,9 @@ function _makeTFKillsParadoxCinematic(tf) {
       paradoxEntity        = null;
       _tfKCOverlay         = null;
 
+      // Mark paradox death cinematic as complete — absorption MUST check this flag
+      paradoxDeathComplete = true;
+
       // Guarantee TF starts the main fight at exactly 9000 HP
       if (tf) {
         tf.health           = 9000;
@@ -957,7 +1399,10 @@ function _makeTFKillsParadoxCinematic(tf) {
       }
 
       // Begin absorption → transition to dimension-punch cinematic
-      if (hero && typeof _startAbsorptionThenPunch === 'function') {
+      // startTFAbsorptionScene is the new declarative version; falls back to legacy helper
+      if (hero && typeof startTFAbsorptionScene === 'function') {
+        startTFAbsorptionScene(hero, paradoxEntity);
+      } else if (hero && typeof _startAbsorptionThenPunch === 'function') {
         _startAbsorptionThenPunch(tf, hero);
       }
     }
@@ -2032,7 +2477,16 @@ let tfFusionGlow        = 0;
 let tfFusionControlMode = 'player'; // 'player' | 'paradox'
 let tfFusionSwitchTimer = 0;
 let tfFusionSwitchInterval = 300; // switch every 5 seconds
+
+// ---- Paradox Control Override system ----
+// controlState: which entity currently owns the player's inputs
+// controlTimer: frames remaining before the next ownership switch
+let controlState = 'player'; // 'player' | 'paradox' — only ONE is ever active
+let controlTimer = 0;        // counts down; when 0 → switch ownership
 let tfFusionGlitchTimer = 0;
+// Switch-feel timers
+let tfSwitchToParadoxFlash = 0; // counts 18→0: glow burst when paradox takes over
+let tfSwitchToPlayerFade   = 0; // counts 12→0: fade-out when player regains control
 let tfFinalStateActive  = false;
 
 function triggerFalseVictory(bossRef) {
@@ -2064,6 +2518,9 @@ function updateFalseVictory() {
     tfFusionControlMode    = 'player';
     tfFusionSwitchTimer    = tfFusionSwitchInterval;
     tfFusionGlitchTimer    = 0;
+    // Reset canonical control-override state; timer=0 so smb-loop initialises it on next tick
+    controlState = 'player';
+    controlTimer = 0;
     if (typeof showBossDialogue === 'function') {
       showBossDialogue('resetFightState();', 3000);
     }
@@ -2169,6 +2626,47 @@ function drawParadoxFusion(player) {
     }
     ctx.restore();
   }
+
+  // Switch-to-Paradox: expanding ring burst + deep magenta flash
+  if (tfSwitchToParadoxFlash > 0) {
+    tfSwitchToParadoxFlash--;
+    const t18 = tfSwitchToParadoxFlash; // 17→0
+    const alpha = t18 / 18;
+    ctx.save();
+    // Expanding ring centered on player
+    const ringR = (18 - t18) * 7;
+    ctx.globalAlpha = alpha * 0.75;
+    ctx.strokeStyle = '#ff00cc';
+    ctx.lineWidth = 4 - t18 / 6;
+    ctx.shadowColor = '#ff00cc';
+    ctx.shadowBlur = 24;
+    ctx.beginPath();
+    ctx.arc(player.cx(), player.cy(), ringR, 0, Math.PI * 2);
+    ctx.stroke();
+    // Second smaller ring offset
+    ctx.globalAlpha = alpha * 0.4;
+    ctx.beginPath();
+    ctx.arc(player.cx(), player.cy(), ringR * 0.55, 0, Math.PI * 2);
+    ctx.stroke();
+    // Screen-space vignette pulse
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.globalAlpha = alpha * 0.18;
+    ctx.fillStyle = '#ff00cc';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.restore();
+  }
+
+  // Switch-to-Player: quick cyan fade-out
+  if (tfSwitchToPlayerFade > 0) {
+    tfSwitchToPlayerFade--;
+    const alpha = tfSwitchToPlayerFade / 12;
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.globalAlpha = alpha * 0.22;
+    ctx.fillStyle = '#00ffff';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.restore();
+  }
 }
 
 // ============================================================
@@ -2177,10 +2675,13 @@ function drawParadoxFusion(player) {
 function resetParadoxState() {
   paradoxEntity        = null;
   paradoxReviveActive  = false;
-  tfOpeningFightActive   = false;
-  tfOpeningDamageDealt   = 0;
-  _tfOpeningParadoxAtkCd = 0;
-  _tfOpeningTFRef        = null;
+  tfOpeningFightActive    = false;
+  tfOpeningDamageDealt    = 0;
+  _tfOpeningParadoxAtkCd  = 0;
+  _tfOpeningHeroAtkCd     = 90;
+  _tfOpeningPhase         = 0;
+  _tfOpeningDialogueFired = new Set();
+  _tfOpeningTFRef         = null;
   _tfAbsorptionState    = null;
   playerParadoxAbsorbed = false;
   _tfKCOverlay          = null;
@@ -2203,6 +2704,10 @@ function resetParadoxState() {
   tfFusionControlMode = 'player';
   tfFusionSwitchTimer = 0;
   tfFusionGlitchTimer = 0;
+  controlState = 'player';
+  controlTimer = 0;
+  tfSwitchToParadoxFlash = 0;
+  tfSwitchToPlayerFade   = 0;
   tfFinalStateActive  = false;
   _paradoxPendingStrikes = [];
   _paradoxEchoHits       = [];
@@ -2611,42 +3116,113 @@ function drawParadoxEffects() {
 }
 
 // ============================================================
-// paradoxFusionUpdateAI — full AI tick for Paradox control phase
-// Aggressive: always pursues boss, attacks on sight, uses abilities
+// paradoxFusionUpdateAI — deterministic combat loop for Paradox control phase
+// Priority: DODGE > ATTACK > CHASE > REPOSITION
+// Never stands still; always faces boss; forces attack when in range.
 // ============================================================
 function paradoxFusionUpdateAI(fighter) {
   if (!tfParadoxFused || tfFusionControlMode !== 'paradox') return;
   if (!fighter || fighter.health <= 0 || fighter.ragdollTimer > 0 || fighter.stunTimer > 0) return;
 
-  // Always target the boss
+  // ── Target ────────────────────────────────────────────────
   const boss = players.find(p => p.isBoss && p.health > 0);
   if (!boss) return;
   fighter.target = boss;
 
   const dx   = boss.cx() - fighter.cx();
   const dist = Math.abs(dx);
-  const dir  = dx > 0 ? 1 : -1;
+  const dir  = Math.sign(dx) || 1;
 
+  // Always face the boss
   fighter.facing = dir;
 
-  // Aggressive movement: always close the gap
-  const speed = 5.8;
-  if (dist > 60) {
-    fighter.vx = dir * speed;
-  } else {
-    // In range — hold position with slight pressure
-    fighter.vx = dir * 1.5;
-  }
+  // Init drift tracker
+  if (fighter._pdxDriftDir === undefined) fighter._pdxDriftDir = 0;
+  if (fighter._pdxDriftFrames === undefined) fighter._pdxDriftFrames = 0;
 
-  // Jump to reach boss if boss is significantly above or if far away
-  if (fighter.onGround && (boss.y < fighter.y - 50 || dist > 280)) {
-    fighter.vy = -18;
-  }
-
-  // Attack when in weapon range — high frequency, not passive
   const range = (fighter.weapon && fighter.weapon.range) ? fighter.weapon.range : 60;
-  if (dist < range + 15 && fighter.cooldown <= 0) {
-    fighter.attack(boss);
+  const OPTIMAL_DIST = range - 5; // stay just inside attack range
+
+  // ── A. DODGE — check active telegraphs near fighter ───────
+  let inDanger = false;
+  let dodgeDir = 0;
+
+  // Boss beams (warning or active)
+  if (typeof bossBeams !== 'undefined') {
+    for (const beam of bossBeams) {
+      if (beam.done) continue;
+      const beamDist = Math.abs(fighter.cx() - beam.x);
+      if (beamDist < 80) {
+        inDanger = true;
+        dodgeDir = fighter.cx() < beam.x ? -1 : 1; // move away from beam
+        break;
+      }
+    }
+  }
+
+  // Black holes
+  if (!inDanger && typeof tfBlackHoles !== 'undefined') {
+    for (const bh of tfBlackHoles) {
+      const bhDist = Math.hypot(fighter.cx() - bh.x, fighter.cy() - bh.y);
+      if (bhDist < bh.r + 60) {
+        inDanger = true;
+        // move directly away from black hole
+        dodgeDir = Math.sign(fighter.cx() - bh.x) || (Math.random() < 0.5 ? -1 : 1);
+        break;
+      }
+    }
+  }
+
+  // Floor hazard
+  if (!inDanger && typeof bossFloorState !== 'undefined' && bossFloorState === 'hazard') {
+    // Stay airborne — jump constantly
+    inDanger = true;
+    dodgeDir = dir; // keep moving toward boss even during floor hazard
+  }
+
+  // ── Execute priority ───────────────────────────────────────
+  if (inDanger) {
+    // A. DODGE: sprint away from danger zone
+    fighter.vx = dodgeDir * 7.5;
+    if (fighter.onGround) fighter.vy = -17; // jump out of danger
+    // Reset drift counter when dodging
+    fighter._pdxDriftDir    = dodgeDir;
+    fighter._pdxDriftFrames = 0;
+
+  } else if (dist <= range + 10) {
+    // B. ATTACK: in range — must attack; maintain close pressure
+    if (fighter.cooldown <= 0) {
+      fighter.attack(boss);
+    }
+    // Maintain optimal distance (slight forward pressure, never retreat)
+    if (dist > OPTIMAL_DIST) {
+      fighter.vx = dir * 2.5;
+    } else {
+      fighter.vx = dir * 0.8; // micro-pressure, never zero
+    }
+    fighter._pdxDriftDir    = dir;
+    fighter._pdxDriftFrames = 0;
+
+  } else {
+    // C. CHASE: close the gap aggressively
+    fighter.vx = dir * 6.2;
+
+    // D. REPOSITION drift guard — if drifting backward > 30 frames, force forward
+    if (Math.sign(fighter.vx) !== dir) {
+      fighter._pdxDriftFrames++;
+    } else {
+      fighter._pdxDriftFrames = 0;
+      fighter._pdxDriftDir    = dir;
+    }
+    if (fighter._pdxDriftFrames >= 30) {
+      fighter.vx = dir * 6.2;
+      fighter._pdxDriftFrames = 0;
+    }
+  }
+
+  // Jump to reach boss on elevated platforms or when far
+  if (fighter.onGround && (boss.y < fighter.y - 45 || dist > 260)) {
+    fighter.vy = -18;
   }
 
   // Use Paradox special abilities on top of movement

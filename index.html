@@ -22,6 +22,7 @@
         <span class="expand-arrow">▾</span>
       </div>
       <div class="config-body">
+        <canvas id="p1Preview" class="player-preview-canvas" width="120" height="110"></canvas>
         <div class="config-row">
           <label>Color</label>
           <input type="color" id="p1Color" value="#00d4ff">
@@ -36,9 +37,9 @@
             <button class="skin-swatch" data-pid="p1" data-skin="gold"   onclick="setSkin('p1','gold',this)"   style="background:#cc8800" title="Gold"></button>
           </div>
         </div>
-        <div class="config-row">
+        <div class="config-row config-card-section">
           <label>Weapon</label>
-          <select id="p1Weapon" onchange="showDesc('p1','weapon',this.value); onWeaponChange('p1');">
+          <select id="p1Weapon" onchange="showDesc('p1','weapon',this.value); onWeaponChange('p1');" style="display:none">
             <option value="random">Random</option>
             <option value="sword">Sword</option>
             <option value="hammer">Hammer</option>
@@ -55,10 +56,11 @@
             <option value="slingshot">Slingshot</option>
             <option value="paperairplane">Paper Airplane</option>
           </select>
+          <div class="sel-card-grid" id="p1WeaponCards"></div>
         </div>
-        <div class="config-row" id="p1ClassRow">
+        <div class="config-row config-card-section" id="p1ClassRow">
           <label>Class</label>
-          <select id="p1Class" onchange="updateClassWeapon('p1'); showDesc('p1','class',this.value)">
+          <select id="p1Class" onchange="updateClassWeapon('p1'); showDesc('p1','class',this.value)" style="display:none">
             <option value="random">Random</option>
             <option value="none">None</option>
             <option value="thor">Thor</option>
@@ -69,6 +71,7 @@
             <option value="paladin">Paladin</option>
             <option value="berserker">Berserker</option>
           </select>
+          <div class="sel-card-grid" id="p1ClassCards"></div>
         </div>
         <div class="config-row">
           <label>Hat</label>
@@ -109,7 +112,7 @@
   <div class="menu-center">
     <h1 class="game-title">STICKMAN BATTLES</h1>
     <p class="game-subtitle">Local Multiplayer Platform Fighter</p>
-    <p id="gameVersionLabel" style="font-size:0.65rem;color:rgba(255,255,255,0.25);letter-spacing:1px;margin:-6px 0 4px;text-align:center;">v2.4.4</p>
+    <p id="gameVersionLabel" style="font-size:0.65rem;color:rgba(255,255,255,0.25);letter-spacing:1px;margin:-6px 0 4px;text-align:center;">v2.6.0</p>
 
     <!-- TRUE FORM HINT — hidden once unlocked -->
     <div id="trueFormHint" style="text-align:center;margin:0;font-size:0.68rem;color:#886699;letter-spacing:1px;opacity:0.8;overflow:visible;">
@@ -152,7 +155,10 @@
           <div class="mode-name" style="color:#ffcc88">📖 Story</div>
           <div class="mode-desc" style="color:#aa8866">A world unraveling</div>
         </div>
-        <div class="mode-card" id="modeOnline" data-mode="online" onclick="selectMode('online')">🌐 Online</div>
+        <div class="mode-card" id="modeOnline" data-mode="online" onclick="selectMode('online')">
+          <div class="mode-name" style="color:#00eeff">🌐 Online</div>
+          <div class="mode-desc">Play against others</div>
+        </div>
         <div class="mode-card" onclick="openDesigner()" style="border-color:rgba(100,200,255,0.25);">
           <div class="mode-icon">🛠</div>
           <div class="mode-name" style="color:#88ccff;">Creator</div>
@@ -426,6 +432,10 @@
             <button class="btn" onclick="document.getElementById('resetConfirmRow').style.display='none'" style="font-size:0.72rem;padding:4px 12px;">Cancel</button>
           </div>
         </div>
+        <!-- PERFORMANCE MODE -->
+        <div style="margin-top:8px;">
+          <button id="perfModeBtn" class="btn settings-toggle" onclick="togglePerformanceMode()" style="color:#88ffaa;border-color:rgba(80,255,120,0.4);" title="Disable all visual effects for max FPS">⚡ Performance Mode: Off</button>
+        </div>
         <!-- STATS LOG + ACHIEVEMENTS + RESET -->
         <div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap;">
           <button class="btn settings-toggle" onclick="toggleStatsLog()">Stats Log</button>
@@ -498,6 +508,7 @@
         <span class="expand-arrow">▾</span>
       </div>
       <div class="config-body">
+        <canvas id="p2Preview" class="player-preview-canvas" width="120" height="110"></canvas>
         <div class="config-row" id="p2ColorRow">
           <label>Color</label>
           <input type="color" id="p2Color" value="#ff4455">
@@ -512,9 +523,9 @@
             <button class="skin-swatch" data-pid="p2" data-skin="gold"   onclick="setSkin('p2','gold',this)"   style="background:#cc8800" title="Gold"></button>
           </div>
         </div>
-        <div class="config-row" id="p2WeaponRow">
+        <div class="config-row config-card-section" id="p2WeaponRow">
           <label>Weapon</label>
-          <select id="p2Weapon" onchange="showDesc('p2','weapon',this.value); onWeaponChange('p2');">
+          <select id="p2Weapon" onchange="showDesc('p2','weapon',this.value); onWeaponChange('p2');" style="display:none">
             <option value="random">Random</option>
             <option value="sword">Sword</option>
             <option value="hammer">Hammer</option>
@@ -531,10 +542,11 @@
             <option value="slingshot">Slingshot</option>
             <option value="paperairplane">Paper Airplane</option>
           </select>
+          <div class="sel-card-grid" id="p2WeaponCards"></div>
         </div>
-        <div class="config-row" id="p2ClassRow">
+        <div class="config-row config-card-section" id="p2ClassRow">
           <label>Class</label>
-          <select id="p2Class" onchange="updateClassWeapon('p2'); showDesc('p2','class',this.value)">
+          <select id="p2Class" onchange="updateClassWeapon('p2'); showDesc('p2','class',this.value)" style="display:none">
             <option value="random">Random</option>
             <option value="none">None</option>
             <option value="thor">Thor</option>
@@ -545,6 +557,7 @@
             <option value="paladin">Paladin</option>
             <option value="berserker">Berserker</option>
           </select>
+          <div class="sel-card-grid" id="p2ClassCards"></div>
         </div>
         <div class="selection-desc" id="p2Desc" style="display:none">
           <div class="desc-title" id="p2DescTitle"></div>
@@ -674,6 +687,11 @@
     </div>
     <div class="lives-display" id="p2Lives">3</div>
   </div>
+</div>
+
+<!-- Controls-Inverted banner — shown above HUD via z-index -->
+<div id="ctrlInvertedBanner">
+  <span id="ctrlInvertedIcon">⚠</span> CONTROLS INVERTED &nbsp;<span id="ctrlInvertedTimer"></span>
 </div>
 
 <!-- ============================================================
@@ -987,7 +1005,10 @@
   <!-- Enemy NPCs, training mode -->
   <script src="./js/smb-enemies.js"></script>
   <!-- Boss and True Form -->
-  <script src="./js/smb-boss.js"></script>
+  <script src="./js/boss/smb-boss.js"></script>
+  <script src="./js/boss/smb-boss-helpers.js"></script>
+  <script src="./js/boss/smb-trueform.js"></script>
+  <script src="./js/boss/smb-trueform-attacks.js"></script>
   <!-- Paradox entity: multiversal being, revive system, TF damage lock, foreshadowing -->
   <script src="./js/smb-paradox.js"></script>
   <!-- Adaptive AI — learning opponent for Adaptive AI mode (story) -->
@@ -997,7 +1018,8 @@
   <!-- TrueForm ending cinematic -->
   <script src="./js/smb-trueform-ending.js"></script>
   <!-- Drawing, game state, HUD, visual effects -->
-  <script src="./js/smb-drawing.js"></script>
+  <script src="./js/rendering/smb-drawing-arenas.js"></script>
+  <script src="./js/rendering/smb-drawing.js"></script>
   <!-- Minigame systems -->
   <script src="./js/smb-minigames.js"></script>
   <!-- True-Form QTE system -->
@@ -1019,7 +1041,28 @@
   <!-- Attack Test Sandbox — dev tool (type "atk help" in the game console) -->
   <script src="./js/smb-attacktest.js"></script>
   <!-- Story Mode system -->
-  <script src="./js/smb-story.js"></script>
+  <script src="./js/story/smb-story-registry.js"></script>
+  <script src="./js/story/acts/act0/smb-act0-arc1.js"></script>
+  <script src="./js/story/acts/act0/smb-act0-arc2.js"></script>
+  <script src="./js/story/acts/act1/smb-act1-arc1.js"></script>
+  <script src="./js/story/acts/act1/smb-act1-arc2.js"></script>
+  <script src="./js/story/acts/act2/smb-act2-arc1.js"></script>
+  <script src="./js/story/acts/act2/smb-act2-arc2.js"></script>
+  <script src="./js/story/acts/act2/smb-act2-arc3.js"></script>
+  <script src="./js/story/acts/act3/smb-act3-arc1.js"></script>
+  <script src="./js/story/acts/act3/smb-act3-arc2.js"></script>
+  <script src="./js/story/acts/act4mv/smb-act4mv-arc1.js"></script>
+  <script src="./js/story/acts/act4mv/smb-act4mv-arc2.js"></script>
+  <script src="./js/story/acts/act4/smb-act4-arc1.js"></script>
+  <script src="./js/story/acts/act4/smb-act4-arc2.js"></script>
+  <script src="./js/story/acts/act5/smb-act5-arc1.js"></script>
+  <script src="./js/story/acts/act5/smb-act5-arc2.js"></script>
+  <script src="./js/story/acts/act6/smb-act6-arc1.js"></script>
+  <script src="./js/story/acts/act6/smb-act6-arc2.js"></script>
+  <script src="./js/story/smb-story-engine.js"></script>
+  <script src="./js/story/smb-story-finalize.js"></script>
+  <!-- Multiverse Progression System -->
+  <script src="./js/smb-multiverse.js"></script>
   <!-- Chaos Multiplayer system — events, mutations, item drops, kill streaks, spectator -->
   <script src="./js/smb-multiplayer-chaos.js"></script>
   <!-- Map & Weapon Designer (standalone tool) -->
@@ -1423,6 +1466,7 @@ document.addEventListener('keydown', function(e) {
 <!-- ============================================================
      STORY MODE MODAL — chapter list + new game
      ============================================================ -->
+
 <div id="storyModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.92);z-index:9000;align-items:center;justify-content:center;">
   <div style="background:rgba(6,6,20,0.98);border:1px solid rgba(255,200,100,0.25);border-radius:14px;padding:28px 28px 22px;width:min(520px,92vw);max-height:88vh;overflow-y:auto;color:#dde4ff;font-family:'Segoe UI',Arial,sans-serif;box-shadow:0 0 60px rgba(180,120,0,0.12);">
     <!-- Header -->
@@ -1436,8 +1480,9 @@ document.addEventListener('keydown', function(e) {
     <!-- Token display + tab row -->
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
       <div style="display:flex;gap:6px;">
-        <button id="storyTabChapters" class="story-tab active" onclick="switchStoryTab('chapters')">📖 Chapters</button>
-        <button id="storyTabStore"    class="story-tab"        onclick="switchStoryTab('store')">🏪 Ability Store</button>
+        <button id="storyTabChapters"   class="story-tab active" onclick="switchStoryTab('chapters')">📖 Chapters</button>
+        <button id="storyTabStore"      class="story-tab"        onclick="switchStoryTab('store')">🏪 Ability Store</button>
+        <button id="storyTabMultiverse" class="story-tab"        onclick="switchStoryTab('multiverse')" style="color:#bb88ff;">🌌 Multiverse</button>
       </div>
       <span style="color:#ffd700;font-size:0.80rem;">🪙 <span id="storyTokenDisplay">0</span></span>
     </div>
@@ -1446,6 +1491,12 @@ document.addEventListener('keydown', function(e) {
     <!-- TAB: Chapters (existing level list) -->
     <div id="storyTabPanelChapters">
       <div id="storyLevelList" style="margin-bottom:14px;"></div>
+    </div>
+
+    <!-- TAB: Multiverse -->
+    <div id="storyTabPanelMultiverse" style="display:none;">
+      <p style="margin:0 0 10px;font-size:0.72rem;color:#7755aa;line-height:1.5;">Travel across dimensions. Each world grants permanent power before you face the Creator and True Form.</p>
+      <div id="multiverseWorldList" style="max-height:360px;overflow-y:auto;"></div>
     </div>
 
     <!-- TAB: Ability Store -->

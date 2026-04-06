@@ -1,0 +1,53 @@
+// Appends chapters for act6/smb-act6-arc1.js.
+STORY_CHAPTER_REGISTRY.push(
+  {
+    id: 89, title: 'A Signal From Before',
+    world: '🌌 The Sealed Rift — Aftermath',
+    narrative: [
+      'Three days after the rift closed.',
+      '',
+      'Veran\'s scanner picked up something that shouldn\'t exist:',
+      'a coherent signal threading through the sealed fracture.',
+      '',
+      'Not hostile. Not human.',
+      '',
+      '"It\'s old," she said.',
+      '"Older than the Creator\'s system.",',
+      '"Older than the fracture.",',
+      '',
+      '"Something fell when the walls came down.",',
+      '"And now it\'s trying to speak.",',
+    ],
+    noFight: true,
+    tokenReward: 40,
+    postText: 'The signal resolves into a voice. Ancient. Calm. Patient. "I have been waiting for someone strong enough to hear this."',
+  },
+
+  {
+    id: 90, title: 'The Architect Before the Architects',
+    world: '🌌 The Sealed Rift — Deep Layer',
+    narrative: [
+      '"I am what the Architects called their origin.",',
+      '"They named me the First Principle.",',
+      '"I named myself: Fallen God.",',
+      '',
+      '"I built the walls between dimensions.",',
+      '"Not to cage life. To protect it.",',
+      '"The Creator was my student.",',
+      '"I taught them the law of separation.",',
+      '',
+      '"They believed separation was the flaw.",',
+      '"Not the protection.",',
+      '"They were wrong.",',
+      '"The fracture proved it.",',
+      '',
+      '"But you — you sealed the fracture.",',
+      '"That tells me something.",',
+      '"Before I rest, I need to know if you understand what you saved.",',
+    ],
+    noFight: true,
+    tokenReward: 50,
+    postText: 'You listen. The voice grows stronger — not with anger, but with weight. "Words are insufficient. Show me."',
+  },
+
+);

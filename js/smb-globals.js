@@ -25,11 +25,30 @@ window.addEventListener('resize', resizeCanvas);
 // ============================================================
 const CHANGELOG = [
   {
+    version: '2.6.0',
+    title: 'THE SOVEREIGN UPDATE',
+    date: '2026-04-01',
+    flavor: 'A new intelligence rises. Save your progress, command the stage, and face an opponent that refuses to be beaten the same way twice.',
+    isLatest: true,
+    changes: [
+      { cat: 'Mode',     text: 'Added SOVEREIGN Ω — a next-gen adaptive AI mode unlocked by beating SOVEREIGN in Story Mode; features bigram sequence learning, spam punishment, limiter-break power-up, anti-exploit detection, and humanized early delays' },
+      { cat: 'Mode',     text: 'Added Complete Randomizer — a 2P variant that randomizes both fighters\' weapon, class, and arena every match' },
+      { cat: 'Mode',     text: 'Added Story Online mode — unlocked on Story completion; plays online multiplayer within the story\'s arena and rule set' },
+      { cat: 'System',   text: 'Added persistent Save System — full game state (unlocks, achievements, story progress, settings) serialized to a single localStorage key with export-to-clipboard and file import/export' },
+      { cat: 'System',   text: 'Added Game Director — real-time match intensity tracker that accelerates arena hazards and pacing events to prevent stale lulls' },
+      { cat: 'System',   text: 'Added Cutscene System (smb-cutscene.js) — deterministic step-based cutscene engine with control lock, freeze physics, and per-step onEnter/onTick/onExit hooks; replaces ad-hoc timer sequences' },
+      { cat: 'AI',       text: 'Pathfinding upgraded to v4 — predictive arc-based platform pathfinding; bots now plan multi-hop routes via a platform graph instead of reacting frame-by-frame' },
+      { cat: 'AI',       text: 'Added Map Analyzer v2 — static analysis of arena platform graphs pre-computes node adjacency and jump arcs, feeding both pathfinding and AI navigation' },
+      { cat: 'Music',    text: 'Added background music via YouTube IFrame API — separate normal and boss tracks; switches automatically between combat states; mutable independently from SFX' },
+      { cat: 'System',   text: 'Added Error Boundary module — global error handler catches module-load failures and shows a friendly recovery overlay instead of a blank screen' },
+    ],
+  },
+  {
     version: '2.5.0',
     title: 'THE PARADOX UPDATE',
     date: '2026-03-28',
     flavor: 'A multiversal being steps out of the background. Nothing about the Creator fight — or the True Form — will ever feel the same.',
-    isLatest: true,
+    isLatest: false,
     requiredProgress: 1,
     changes: [
       { cat: 'Narrative', text: 'Introduced Paradox — a multiversal entity that exists at the edge of every major fight as a hidden force' },
@@ -222,6 +241,12 @@ const settings = { particles: true, screenShake: true, dmgNumbers: true, landing
 
 // Active finisher state — set by triggerFinisher(), cleared when animation completes or on backToMenu
 let activeFinisher = null;
+
+// ── World System ──────────────────────────────────────────────────────────────
+let currentWorld   = null; // STORY_WORLDS entry for the active chapter's world
+let worldModifiers = {};   // modifier key(s) from currentWorld, applied by game systems
+let worldId        = null; // string id of active world (e.g. 'fracture')
+let storyCurrentArc = null; // id of active multiverse arc (e.g. 'fracture', 'war', 'godfall')
 let bossPhaseFlash     = 0;    // countdown for white screen flash on boss phase transition
 let abilityFlashTimer  = 0;    // frames remaining for ability ring flash
 let abilityFlashPlayer = null; // player who activated ability
@@ -280,6 +305,18 @@ let tfShockwaves       = [];   // { x, y, r, maxR, timer, maxTimer, boss, hit:Se
 let tfDimensionIs3D    = false; // true while TrueForm has shifted the game to 3D perspective
 let tfDimensionPunch   = null;  // { stage, timer, target, boss, launchDir, travelTimer, bgPhase, inputLocked }
 let tfEndingScene      = null;  // TrueForm ending cinematic state machine (smb-trueform-ending.js)
+
+// ── TrueForm intro cinematic state machine ────────────────────────────────────
+// Strict ordering: opening_fight → paradox_death → absorption → punch_transition → backstage
+// 'none'            — not in trueform mode yet
+// 'opening_fight'   — player + Paradox vs TF (1000 damage threshold)
+// 'paradox_death'   — TF kills Paradox cinematic (_makeTFKillsParadoxCinematic)
+// 'absorption'      — Paradox energy flows into player (_tfAbsorptionState active)
+// 'punch_transition'— dimension-punch intro (startTFEnding isIntro=true)
+// 'backstage'       — real fight resumed; normal death/ending logic allowed
+let tfCinematicState     = 'none';
+let paradoxDeathComplete = false;  // set true when kills-Paradox cinematic onEnd() fires
+let absorptionComplete   = false;  // set true when absorption phase completes
 
 // ── Boss telegraph / warning system ──────────────────────────────────────────
 // Visual warning indicators shown before attacks land (give player time to dodge)
@@ -350,7 +387,7 @@ let _publicRoomCheckTimer = 0;
 // ============================================================
 // VERSION
 // ============================================================
-const GAME_VERSION = '2.4.4';  // bump this when releasing; must match CHANGELOG[0].version
+const GAME_VERSION = '2.6.0';  // bump this when releasing; must match CHANGELOG[0].version
 
 // DEBUG / DEVELOPER STATE
 // ============================================================
@@ -364,7 +401,9 @@ let _debugKeyBuf       = '';     // rolling key buffer for "debugmode" cheat
 // ============================================================
 // STORY MODE STATE
 // ============================================================
-let storyModeActive     = false; // true while a story level is in progress
+let playerPowerLevel    = 1.0;   // hidden: grows +0.02 per chapter cleared; applied to player damage in story
+let storyModeActive      = false; // true while a story level is in progress
+let multiverseModeActive = false; // true while a multiverse encounter is in progress
 let storyCurrentLevel   = 1;     // which story level is being played (1-indexed)
 let storyPlayerOverride = null;  // { speedMult, dmgMult, noAbility, noSuper, noDoubleJump, weapon } — applied to p1 on level start
 let storyFightSubtitle  = null;  // { text, timer, maxTimer, color } — in-fight narrative subtitle
@@ -374,6 +413,7 @@ let storyEnemyArmor     = [];    // ['helmet','chestplate','leggings'] — armor
 let storyTwoEnemies     = false; // true = spawn a second enemy bot in this chapter
 let storySecondEnemyDef = null;  // { weaponKey, classKey, aiDiff, color } for the second enemy
 let storyOpponentName   = null;  // display name of the story chapter opponent (shown in HUD)
+let storyBossType       = null;  // 'fallen_god' | null — overrides which Boss subclass is spawned
 let storyAbilityState   = {};    // per-fight state for unlocked story abilities (medkit used, last stand triggered, etc.)
 let storyPhaseIndicator = null;  // { index, total, label, type }
 let storyGauntletState  = null;  // active chapter phase runtime
@@ -391,11 +431,17 @@ let phaseTransitionRings = []; // expanding ring effects on phase change
 let cinGroundCracks  = [];    // world-space crack effects (managed by smc-cinematics.js)
 let cinScreenFlash   = null;  // screen-space flash { color, alpha, timer, maxTimer }
 let activeCinematic      = null;  // active cinematic sequence or null
+let isCinematic          = false; // true during any cinematic or finisher — blocks new attack/projectile creation
 let slowMotion           = 1.0;   // physics time scale (1=normal, 0=fully frozen)
 let cinematicCamOverride = false; // when true, camera uses cinematic focus targets
 let cinematicZoomTarget  = 1.0;   // zoom level during cinematic
 let cinematicFocusX      = 450;   // camera focus X during cinematic
 let cinematicFocusY      = 260;   // camera focus Y during cinematic
+let cinematicCamSnapFrames = 0;   // one-frame hard-cut override for punchy cinematic beats
+let _camPrevFocusX      = 450;    // previous cinematic focus target X (for spring feel)
+let _camPrevFocusY      = 260;    // previous cinematic focus target Y (for spring feel)
+let _camOvershootX      = 0;      // decaying cinematic camera overshoot X
+let _camOvershootY      = 0;      // decaying cinematic camera overshoot Y
 let bossDeathScene   = null;  // boss defeat animation state
 let fakeDeath        = { triggered: false, active: false, timer: 0, player: null };
 let bossPlayerCount  = 1;     // 1 or 2 players vs boss

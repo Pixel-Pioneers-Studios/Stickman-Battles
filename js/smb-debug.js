@@ -348,9 +348,11 @@ document.addEventListener('keydown', e => {
 // Commands mirror the existing slash-command system plus extras.
 // ============================================================
 
-let _consoleOpen    = false;
-let _consoleHistory = [];  // command history (up/down arrow)
-let _consoleHistIdx = -1;
+let _consoleOpen      = false;
+let _consoleHistory   = [];  // command history (up/down arrow)
+let _consoleHistIdx   = -1;
+let consoleUnlocked   = false;  // password lock — cleared each page load
+const _CONSOLE_PASS   = 'devmode';  // hardcoded password
 
 // Intercept native console so game logs appear in the overlay
 const _origLog   = console.log.bind(console);
@@ -383,7 +385,11 @@ function openGameConsole() {
   ov.style.display = 'flex';
   const inp = document.getElementById('gameConsoleInput');
   if (inp) { inp.value = ''; inp.focus(); }
-  _consolePrint('Stickman Clash Console — type HELP for commands.', '#88bbff');
+  if (!consoleUnlocked) {
+    _consolePrint('Console locked. Enter password to continue.', '#ffaa44');
+  } else {
+    _consolePrint('Stickman Clash Console — type HELP for commands.', '#88bbff');
+  }
   // History navigation
   if (inp) {
     inp.onkeydown = (e) => {
@@ -414,6 +420,19 @@ function gameConsoleRun() {
   const raw = inp.value.trim();
   inp.value = '';
   if (!raw) return;
+
+  // Password gate — check on every submission until unlocked
+  if (!consoleUnlocked) {
+    if (raw === _CONSOLE_PASS) {
+      consoleUnlocked = true;
+      _consoleOk('Password accepted. Console unlocked.');
+      _consolePrint('Stickman Clash Console — type HELP for commands.', '#88bbff');
+    } else {
+      _consoleErr('Incorrect password. Console locked.');
+    }
+    return;
+  }
+
   _consoleHistory.push(raw);
   _consoleHistIdx = -1;
   _consolePrint('> ' + raw, '#ffffff');
@@ -506,7 +525,20 @@ function _consoleExec(raw) {
     if (typeof players === 'undefined') { _consoleErr('No game running.'); return; }
     if (who === 'p1' || who === '1') { if (players[0]) players[0].health = 0; }
     else if (who === 'p2' || who === '2') { if (players[1]) players[1].health = 0; }
-    else if (who === 'boss') { players.forEach(p => { if (p.isBoss) p.health = 0; }); }
+    else if (who === 'boss') {
+      players.forEach(p => {
+        if (!p.isBoss) return;
+        // Respect TrueForm intro sequence — block kill boss until backstage
+        if (p.isTrueForm
+            && typeof tfCinematicState !== 'undefined'
+            && tfCinematicState !== 'none'
+            && tfCinematicState !== 'backstage') {
+          _consoleErr('TF intro sequence in progress (' + tfCinematicState + ') — kill boss blocked to preserve cinematic order. Wait for backstage state.');
+          return;
+        }
+        p.health = 0;
+      });
+    }
     else {
       // kill all: players + minions + training dummies (including boss)
       const all = [...players, ...(minions||[]), ...(trainingDummies||[])];
@@ -757,6 +789,31 @@ function _consoleExec(raw) {
   if (cmd.startsWith('sov limiter') || cmd.startsWith('sovereign limiter')) {
     const ai = players && players.find(p => p.isSovereignMK2);
     if (ai) { ai._limiterBroken = !ai._limiterBroken; ok(`Limiter break: ${ai._limiterBroken ? 'ON' : 'OFF'}`); }
+    return;
+  }
+
+  // ── SETHP ─────────────────────────────────────────────────────────────
+  if (parts[0].toLowerCase() === 'sethp') {
+    // sethp <value>  |  sethp player <value>  |  sethp boss <value>
+    let target = 'all', valStr;
+    if (parts.length >= 3 && isNaN(parts[1])) {
+      target = parts[1].toLowerCase();
+      valStr = parts[2];
+    } else {
+      valStr = parts[1];
+    }
+    const val = parseInt(valStr, 10);
+    if (isNaN(val)) { _consoleErr('Usage: sethp <value>  or  sethp player|boss <value>'); return; }
+    if (!players || players.length === 0) { _consoleErr('No active game.'); return; }
+    let count = 0;
+    players.forEach(p => {
+      const isBossEntity = p.isBoss || p.isTrueForm;
+      if (target === 'player' && isBossEntity) return;
+      if (target === 'boss'   && !isBossEntity) return;
+      p.health = Math.max(1, Math.min(val, p.maxHealth));
+      count++;
+    });
+    ok(`Set HP to ${val} for ${count} entit${count === 1 ? 'y' : 'ies'}.`);
     return;
   }
 

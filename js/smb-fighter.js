@@ -228,12 +228,23 @@ class Fighter {
       // Low stamina: sluggish recovery (up to +40% at 0 stamina)
       const staminaRatio = this.stamina / (this.maxStamina || 100);
       if (staminaRatio < 0.4) endlag = Math.round(endlag * (1 + 0.4 * (1 - staminaRatio / 0.4)));
+      // Affinity feel: low affinity = sluggish recovery, high affinity = snappier recovery
+      if (this.charClass && this.weapon && typeof CLASS_AFFINITY !== 'undefined') {
+        const _aff = CLASS_AFFINITY[this.charClass];
+        if (_aff) {
+          const _affMult = _aff[this.weapon.type] || 1.0;
+          if (_affMult < 0.8) endlag = Math.round(endlag * (1 + (_affMult < 0.6 ? 0.30 : 0.15)));
+          else if (_affMult > 1.2) endlag = Math.round(endlag * (1 - (_affMult > 1.4 ? 0.20 : 0.10)));
+        }
+      }
       this.attackEndlag = endlag;
       // Stamina drain on attack
       const staminaCost = Math.min(this.stamina, (this.weapon.damage || 10) * 1.5);
       this.stamina = Math.max(0, this.stamina - staminaCost);
     }
     if (this.attackEndlag > 0) { this.attackEndlag--; this.vx *= 0.72; } // slow during recovery
+    // Affinity move penalty: low-affinity attacks slow the attacker during the active swing frames
+    if (this._affinityMovePenalty > 0) { this._affinityMovePenalty--; this.vx *= 0.88; }
     // Stamina regen
     if (!this.isBoss) this.stamina = Math.min(this.maxStamina, this.stamina + 0.35);
 
@@ -457,7 +468,7 @@ class Fighter {
       }
       const _chaosMoon = gameMode === 'minigames' && currentChaosModifiers.has('moon');
       const arenaGravity = _chaosMoon ? 0.18 : (currentArena.isLowGravity ? 0.28 : (currentArena.isHeavyGravity ? 0.95 : (currentArena.earthPhysics ? 0.88 : 0.65)));
-      const gravDir = (gameMode === 'trueform' && tfGravityInverted && !this.isBoss) ? -1 : 1;
+      const gravDir = ((gameMode === 'trueform' || gameMode === 'story') && tfGravityInverted && !this.isBoss) ? -1 : 1;
       const _sm = slowMotion; // cinematic slow-motion time scale
       // Dimension punch gravity lock: skip gravity while player is being launched/travelling
       if (!this._dimPunchGravLock) {
@@ -875,6 +886,7 @@ class Fighter {
 
   // ---- ATTACK ----
   attack(target) {
+    if (isCinematic) return; // no new attacks during cinematics or finishers
     if (this.backstageHiding) return;
     if (this.state === 'dead' || this.state === 'stunned' || this.state === 'ragdoll') return;
     if (this.cooldown > 0 || this.health <= 0 || this.stunTimer > 0 || this.ragdollTimer > 0) return;
@@ -993,9 +1005,19 @@ class Fighter {
     }
     this.cooldown    = this.attackCooldownMult ? Math.max(1, Math.ceil(this.weapon.cooldown * this.attackCooldownMult)) : this.weapon.cooldown;
     this.attackTimer = this.attackDuration;
+    // Affinity feel: low affinity slows movement during attack swing; high affinity lets you stay mobile
+    if (!this.isBoss && this.charClass && this.weapon && typeof CLASS_AFFINITY !== 'undefined') {
+      const _aff2 = CLASS_AFFINITY[this.charClass];
+      if (_aff2) {
+        const _affMult2 = _aff2[this.weapon.type] || 1.0;
+        if (_affMult2 < 0.8) this._affinityMovePenalty = Math.round(this.attackDuration * 0.6); // sluggish during swing
+        else if (_affMult2 > 1.2) this._affinityMovePenalty = 0; // no extra penalty
+      }
+    }
   }
 
   ability(target) {
+    if (isCinematic) return; // no abilities during cinematics or finishers
     if (this.backstageHiding) return;
     if (this._storyNoAbility) return; // story progression — ability not yet unlocked
     if (this.state === 'dead' || this.state === 'stunned' || this.state === 'ragdoll') return;

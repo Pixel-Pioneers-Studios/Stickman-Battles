@@ -15,6 +15,7 @@ const _CAM_LERP = {
   gameplay:  { pos: 0.062, zoom: 0.045 },
   combat:    { pos: 0.130, zoom: 0.095 },
   cinematic: { pos: 0.220, zoom: 0.180 },
+  cinematic_snap: { pos: 0.55, zoom: 0.45 },
 };
 
 function setCameraDrama(state, frames, target, zoom) {
@@ -46,7 +47,7 @@ function _updateCameraDrama() {
 // Determine active camera mode each frame
 function _updateCamMode() {
   if (cinematicCamOverride || activeCinematic) {
-    _camMode = 'cinematic';
+    _camMode = cinematicCamSnapFrames > 0 ? 'cinematic_snap' : 'cinematic';
     _camCombatTimer = 0;
     return;
   }
@@ -213,6 +214,46 @@ function updateCamera() {
 let _lastFrameTime = 0;
 const _FRAME_MIN_MS = 1000 / 62; // cap at ~62fps to prevent double-speed on 120Hz displays
 
+// ── World Modifier Handler ────────────────────────────────────────────────────
+// Called once per frame during story mode to apply per-world gameplay changes.
+// All mutations are transient (re-applied each frame) — nothing is permanently stored.
+function applyWorldModifiers() {
+  if (!worldId || gameMode !== 'story') return;
+
+  switch (worldId) {
+
+    case 'fracture':
+      // Random gravity shift: ~1% chance per frame to invert gravity direction.
+      // Uses the existing tfGravityInverted flag so fighter physics already handle it.
+      if (Math.random() < 0.01) {
+        tfGravityInverted = !tfGravityInverted;
+      }
+      break;
+
+    case 'war':
+      // Boost AI aggression each frame (re-applied so removal on world change is clean).
+      players.forEach(p => {
+        if (p && p.isAI) p._aggroBoost = 1.25;
+      });
+      break;
+
+    case 'mirror':
+      // Mirror AI behaviour is handled in the AI update path.
+      break;
+
+    case 'godfall':
+      // Increase incoming damage multiplier each frame (re-applied so it resets naturally).
+      players.forEach(p => {
+        if (p) p._damageTakenMult = 1.3;
+      });
+      break;
+
+    case 'code':
+      // Visual glitch effects are handled in the drawing layer.
+      break;
+  }
+}
+
 function gameLoop(timestamp) {
   if (!gameRunning) return;
   // Frame rate cap: skip this frame if called too soon after the last one
@@ -253,8 +294,11 @@ function gameLoop(timestamp) {
     SoundManager._silencedGain = Math.min(1.0, (SoundManager._silencedGain || 0) + 0.06);
   }
   // Tick active cinematic (before input and physics)
-  updateCinematic();
-  if (typeof updateCinematicSystem === 'function') updateCinematicSystem();
+  // Skip if absorption cinematic is running — prevents overlap with activeCinematic
+  if (!tfAbsorptionScene) {
+    updateCinematic();
+    if (typeof updateCinematicSystem === 'function') updateCinematicSystem();
+  }
   // Tick deterministic cutscene system
   if (typeof updateCutscene === 'function') updateCutscene();
   frameCount++;
@@ -303,6 +347,7 @@ function gameLoop(timestamp) {
     }
   }
 
+  applyWorldModifiers();
   processInput(); // updateInput
 
   // ---------- Phase: updateBossArena (platforms, floor hazard) ----------
@@ -419,11 +464,37 @@ function gameLoop(timestamp) {
     camCY   = camYCur;
   }
 
-  // Cinematic camera: smoothly zoom in on focal point during cinematic
+  // Cinematic camera: smooth follow with a subtle spring, plus optional hard cuts.
   if (cinematicCamOverride) {
-    camZoom += (cinematicZoomTarget - camZoom) * 0.09;
-    camCX   += (cinematicFocusX    - camCX)   * 0.07;
-    camCY   += (cinematicFocusY    - camCY)   * 0.07;
+    if (cinematicCamSnapFrames > 0) {
+      camZoom = cinematicZoomTarget;
+      camCX   = cinematicFocusX;
+      camCY   = cinematicFocusY;
+      cinematicCamSnapFrames--;
+      _camPrevFocusX = cinematicFocusX;
+      _camPrevFocusY = cinematicFocusY;
+      _camOvershootX = 0;
+      _camOvershootY = 0;
+    } else {
+      camZoom += (cinematicZoomTarget - camZoom) * 0.09;
+      camCX   += (cinematicFocusX    - camCX)   * 0.07;
+      camCY   += (cinematicFocusY    - camCY)   * 0.07;
+
+      _camOvershootX += (cinematicFocusX - _camPrevFocusX) * 0.04;
+      _camOvershootY += (cinematicFocusY - _camPrevFocusY) * 0.04;
+      _camPrevFocusX = cinematicFocusX;
+      _camPrevFocusY = cinematicFocusY;
+      _camOvershootX *= 0.82;
+      _camOvershootY *= 0.82;
+      camCX += _camOvershootX;
+      camCY += _camOvershootY;
+    }
+  } else {
+    cinematicCamSnapFrames = 0;
+    _camPrevFocusX = camCX;
+    _camPrevFocusY = camCY;
+    _camOvershootX = 0;
+    _camOvershootY = 0;
   }
 
   // Impact cinematic: override tracking target and apply zoom boost
@@ -536,8 +607,8 @@ function gameLoop(timestamp) {
   projectiles = projectiles.filter(p => p.active); // prevent leak
   projectiles.forEach(p => p.draw());
 
-  // Minions (boss-spawned)
-  minions.forEach(m => { if (m.health > 0) m.update(); });
+  // Minions (boss-spawned) — freeze during absorption cinematic
+  minions.forEach(m => { if (m.health > 0 && !tfAbsorptionScene) m.update(); });
   minions.forEach(m => { if (m.health > 0) m.draw(); });
   minions = minions.filter(m => m.health > 0);
 
@@ -648,8 +719,8 @@ function gameLoop(timestamp) {
     if (!isFinite(p.x))  { p.x = GAME_W / 2; p.vx = 0; }
     if (!isFinite(p.y))  { p.y = 200;         p.vy = 0; }
   }
-  // Players — skip physics update for remote (network-driven) players; also skip during hard freeze
-  if (!gameFrozen) {
+  // Players — skip physics update for remote (network-driven) players; also skip during hard freeze or absorption cinematic
+  if (!gameFrozen && !tfAbsorptionScene) {
     players.forEach(p => { if ((p.health > 0 || p.invincible > 0) && !p.isRemote) p.update(); });
   }
   // Chaos system: per-frame update (events, drops, effects, multi-kill, announcer)
@@ -700,7 +771,9 @@ function gameLoop(timestamp) {
   if (typeof updateTFKCOverlay === 'function') updateTFKCOverlay();
   if (typeof drawTFKCOverlay   === 'function') drawTFKCOverlay();
   // Absorption aura on player (world-space cyan glow, active and permanent)
-  if (typeof drawTFAbsorption  === 'function') drawTFAbsorption();
+  if (typeof drawTFAbsorption      === 'function') drawTFAbsorption();
+  // Absorption cinematic v2 — memory-driven scene overlay
+  if (tfAbsorptionScene && typeof drawTFAbsorptionScene === 'function') drawTFAbsorptionScene();
   // Paradox empowerment aura (world-space, over fighters)
   if (typeof drawParadoxEmpowerment === 'function') drawParadoxEmpowerment();
   checkWeaponSparks();
@@ -737,8 +810,9 @@ function gameLoop(timestamp) {
   // False Victory sequence update + draw
   if (typeof updateFalseVictory === 'function') updateFalseVictory();
   if (typeof drawFalseVictory   === 'function') drawFalseVictory();
-  if (typeof updateTFOpeningFight === 'function') updateTFOpeningFight();
-  if (typeof updateTFAbsorption   === 'function') updateTFAbsorption();
+  if (typeof updateTFOpeningFight   === 'function') updateTFOpeningFight();
+  if (typeof updateTFAbsorption     === 'function') updateTFAbsorption();
+  if (tfAbsorptionScene && typeof updateTFAbsorptionScene === 'function') updateTFAbsorptionScene();
   // Paradox Fusion visual overlay on P1
   if (typeof drawParadoxFusion === 'function' && typeof tfParadoxFused !== 'undefined' && tfParadoxFused) {
     drawParadoxFusion(players[0]);
@@ -828,8 +902,10 @@ function gameLoop(timestamp) {
   if (storyModeActive && typeof storyTickFightScript    === 'function') storyTickFightScript();
   if (storyModeActive && typeof storyCheckEvents        === 'function') storyCheckEvents();
   if (storyModeActive && typeof storyUpdateBoundaries   === 'function') storyUpdateBoundaries();
+  // Multiverse: per-frame world modifier tick (gravity flip, shadow teleport, etc.)
+  if (multiverseModeActive && typeof MultiverseManager !== 'undefined') MultiverseManager.tick();
   if (exploreActive && typeof updateExploration === 'function') updateExploration();
-  if (gameMode === 'trueform' && typeof updateQTE === 'function') updateQTE();
+  if (gameMode === 'trueform' && !tfAbsorptionScene && typeof updateQTE === 'function') updateQTE();
 
   // TrueForm: record player position history for multiverse lag-echo
   if (gameMode === 'trueform' && players[0] && players[0].health > 0) {
@@ -839,19 +915,8 @@ function gameLoop(timestamp) {
 
   // Minigame HUD overlay
   if (gameMode === 'minigames') drawMinigameHUD();
-  // New chaos modifier notification
-  if (_chaosModNotif && _chaosModNotif.timer > 0) {
-    _chaosModNotif.timer--;
-    const alpha = Math.min(1, _chaosModNotif.timer / 30);
-    ctx.save();
-    ctx.globalAlpha = alpha;
-    ctx.font = 'bold 16px Arial';
-    ctx.fillStyle = '#ff88ff';
-    ctx.textAlign = 'center';
-    ctx.shadowColor = '#ff00ff'; ctx.shadowBlur = 12;
-    ctx.fillText('+ ' + _chaosModNotif.label, GAME_W / 2, GAME_H - 60);
-    ctx.restore();
-  }
+  // New chaos modifier notification — timer ticked here, drawn in screen-space below
+  if (_chaosModNotif && _chaosModNotif.timer > 0) _chaosModNotif.timer--;
   if (exploreActive && typeof drawExploreGoalObject === 'function') drawExploreGoalObject();
   // Story mode: void fog + boundary warning (drawn in game-world space)
   if (storyModeActive) drawStoryVoidFog();
@@ -889,33 +954,83 @@ function gameLoop(timestamp) {
   if (storyModeActive && typeof drawStorySubtitle        === 'function') drawStorySubtitle();
   if (storyModeActive && typeof drawStoryOpponentHUD     === 'function') drawStoryOpponentHUD();
   if (storyModeActive && typeof drawStoryPhaseHUD        === 'function') drawStoryPhaseHUD();
+  if (storyModeActive && typeof drawFallenWarriorMemory  === 'function') drawFallenWarriorMemory();
+  // Multiverse: in-world-space modifier visuals (badge, gravity bar, warning text)
+  if (multiverseModeActive && typeof MultiverseManager !== 'undefined') MultiverseManager.draw();
+  // Multiverse: screen-space overlays (shadow fog, Fallen God dialogue, world-complete banner, encounter HUD)
+  if (multiverseModeActive && typeof MultiverseManager !== 'undefined') {
+    MultiverseManager.drawScreenSpace();
+    MultiverseManager.drawHUD();
+  }
   if ((currentArena.isBossArena || window.FORCE_ATTACK_MODE) && typeof drawBossDialogue === 'function') drawBossDialogue(finalScX, finalScY, camCX, camCY);
   if (gameMode === 'exploration') drawExploreHUD();
   if (abilityUnlockToast && abilityUnlockToast.timer > 0) drawAbilityUnlockToast();
   if (gameMode === 'trueform' && typeof drawQTE === 'function') drawQTE(ctx, canvas.width, canvas.height);
   if (typeof drawCutscene === 'function') drawCutscene(ctx, canvas.width, canvas.height);
   if (typeof drawFinisher === 'function') drawFinisher(ctx); // finisher overlay (topmost)
-  // Controls-inverted status indicator (drawn above all HUD layers)
-  if (tfControlsInverted && tfControlsInvertTimer > 0) {
-    ctx.save();
-    ctx.setTransform(1,0,0,1,0,0);
-    const _cw = canvas.width, _ch = canvas.height;
-    const _alpha = Math.min(1, tfControlsInvertTimer / 30) * 0.18;
-    ctx.fillStyle = `rgba(180,0,255,${_alpha})`;
-    ctx.fillRect(0, 0, _cw, _ch);
-    const _secs = Math.ceil(tfControlsInvertTimer / 60);
-    const _flash = 0.55 + 0.45 * Math.sin(frameCount * 0.18);
-    ctx.font = `bold ${Math.round(_cw * 0.032)}px monospace`;
-    ctx.textAlign = 'center';
-    ctx.globalAlpha = Math.min(1, tfControlsInvertTimer / 30) * _flash;
-    ctx.fillStyle = '#cc44ff';
-    ctx.shadowColor = '#ff00ff';
-    ctx.shadowBlur = 22;
-    ctx.fillText(`\u26a0 CONTROLS INVERTED  ${_secs}s`, _cw / 2, _ch * 0.12);
-    ctx.shadowBlur = 0;
-    ctx.globalAlpha = 1;
-    ctx.restore();
+
+  // ── Critical status overlays — always screen-space, always above HUD ──────
+  // Hide legacy DOM banner (replaced by canvas draw below)
+  { const _b = document.getElementById('ctrlInvertedBanner'); if (_b) _b.style.display = 'none'; }
+
+  ctx.setTransform(1, 0, 0, 1, 0, 0); // ensure screen space
+  {
+    const _now = performance.now();
+    const _cW  = canvas.width;
+    const _cH  = canvas.height;
+
+    // Chaos mod notification (screen-space, was world-space before)
+    if (_chaosModNotif && _chaosModNotif.timer > 0) {
+      const _alpha = Math.min(1, _chaosModNotif.timer / 30);
+      const _pulse = 0.75 + 0.25 * Math.sin(_now / 220);
+      const _scale = 1 + 0.06 * Math.sin(_now / 180);
+      ctx.save();
+      ctx.globalAlpha = _alpha * _pulse;
+      ctx.translate(_cW / 2, _cH * 0.88);
+      ctx.scale(_scale, _scale);
+      ctx.font = 'bold 16px Arial';
+      ctx.fillStyle = '#ff88ff';
+      ctx.textAlign = 'center';
+      ctx.shadowColor = '#ff00ff'; ctx.shadowBlur = 14;
+      ctx.fillText('+ ' + _chaosModNotif.label, 0, 0);
+      ctx.restore();
+    }
+
+    // Gravity-inverted warning
+    if (typeof tfGravityInverted !== 'undefined' && tfGravityInverted) {
+      const _pulse = 0.55 + 0.45 * Math.abs(Math.sin(_now / 350));
+      const _scale = 1 + 0.07 * Math.sin(_now / 280);
+      ctx.save();
+      ctx.globalAlpha = _pulse;
+      ctx.translate(_cW / 2, _cH * 0.13);
+      ctx.scale(_scale, _scale);
+      ctx.font = 'bold 19px Arial';
+      ctx.textAlign = 'center';
+      ctx.fillStyle = '#ccaaff';
+      ctx.shadowColor = '#8844ff'; ctx.shadowBlur = 22;
+      ctx.fillText('\u26A0 GRAVITY INVERTED', 0, 0);
+      ctx.restore();
+    }
+
+    // Controls-inverted warning (canvas replacement for DOM banner)
+    if (typeof tfControlsInverted !== 'undefined' && tfControlsInverted && tfControlsInvertTimer > 0) {
+      const _pulse = 0.6 + 0.4 * Math.abs(Math.sin(_now / 300));
+      const _scale = 1 + 0.05 * Math.sin(_now / 240);
+      const _secs  = Math.ceil(tfControlsInvertTimer / 60);
+      ctx.save();
+      ctx.globalAlpha = _pulse;
+      ctx.translate(_cW / 2, _cH * 0.08);
+      ctx.scale(_scale, _scale);
+      ctx.font = 'bold 18px Arial';
+      ctx.textAlign = 'center';
+      ctx.fillStyle = '#ff5555';
+      ctx.shadowColor = '#ff0000'; ctx.shadowBlur = 18;
+      ctx.fillText('\u26A0 CONTROLS INVERTED  ' + _secs + 's', 0, 0);
+      ctx.restore();
+    }
   }
+  // ── End critical status overlays ─────────────────────────────────────────
+
   drawEdgeIndicators(finalScX, finalScY, camCX, camCY);
   // Restore the stable game transform after (remaining draws use it already)
   ctx.setTransform(finalScX, 0, 0, finalScY, canvas.width/2 - camCX*finalScX, canvas.height/2 - camCY*finalScY);
@@ -1035,6 +1150,8 @@ document.addEventListener('keydown', e => {
     if (p.isAI || p.health <= 0) return;
     const other         = players[i === 0 ? 1 : 0];
     const incapacitated = p.ragdollTimer > 0 || p.stunTimer > 0;
+    // Paradox Fusion: block all direct player actions while Paradox owns controls
+    if (p._fusionAIOverride) return;
     if (!incapacitated && _nk === p.controls.attack)  { e.preventDefault(); p.attack(other); }
     if (!incapacitated && _nk === p.controls.ability) { e.preventDefault(); p.ability(other); }
     if (!incapacitated && p.controls.super && _nk === p.controls.super) {
@@ -1070,27 +1187,95 @@ function processInput() {
   if (gameLoading) return; // freeze input while loading screen is visible
   if (activeCinematic) return; // freeze player controls during boss cinematics
   if (gameFrozen) return;      // hard freeze during cinematics — halts all input
+  if (tfAbsorptionScene) return; // freeze all input during absorption cinematic
   if (typeof isCutsceneActive === 'function' && isCutsceneActive()) return; // freeze during cutscenes
 
-  // Paradox Fusion control switching
+  // Paradox Control Override — tick the canonical controlState/controlTimer
+  // Hard rule: only ONE controller is active at a time; no overlap.
   if (typeof tfParadoxFused !== 'undefined' && tfParadoxFused) {
-    if (typeof tfFusionSwitchTimer !== 'undefined') {
-      tfFusionSwitchTimer--;
-      if (tfFusionSwitchTimer <= 0) {
-        tfFusionControlMode = (tfFusionControlMode === 'player') ? 'paradox' : 'player';
-        // Random 3–5 second duration per phase to prevent predictable flickering
-        tfFusionSwitchTimer = 180 + Math.floor(Math.random() * 120);
-        tfFusionGlitchTimer = 20;
+    // --- Safeguard 1: controlState must always be a known value ---
+    if (controlState !== 'player' && controlState !== 'paradox') {
+      controlState = 'player';
+      controlTimer = 0;
+    }
+
+    // --- Safeguard 2: controlTimer must never go negative ---
+    if (typeof controlTimer !== 'undefined' && controlTimer < 0) {
+      controlTimer = 0;
+    }
+
+    // --- Safeguard 3: boss death → immediately return control to player ---
+    const _paradoxBoss = players.find(p => p.isBoss);
+    if (_paradoxBoss && _paradoxBoss.health <= 0 && controlState !== 'player') {
+      controlState = 'player';
+      controlTimer = 0;
+      tfFusionControlMode = 'player';
+      const _fp1Early = players[0];
+      if (_fp1Early) { _fp1Early._fusionAIOverride = false; }
+    }
+
+    // --- Safeguard 4: player (P1) death → disable Paradox control loop ---
+    const _paradoxP1 = players[0];
+    if (_paradoxP1 && _paradoxP1.health <= 0) {
+      if (_paradoxP1._fusionAIOverride) { _paradoxP1._fusionAIOverride = false; }
+      // Skip the rest of the Paradox control tick this frame
+    } else {
+
+    // Initialise on first entry (timer will be 0 when fusion first activates)
+    if (typeof controlTimer !== 'undefined' && controlTimer <= 0) {
+      // Assign a fresh random duration based on who currently owns controls
+      if (controlState === 'player') {
+        controlTimer = 180 + Math.floor(Math.random() * 121); // 180–300 frames
+      } else {
+        controlTimer = 120 + Math.floor(Math.random() * 121); // 120–240 frames
       }
     }
-    // When in Paradox control mode: force AI behavior on P1
+
+    // Count down; switch ownership the moment the timer expires
+    if (typeof controlTimer !== 'undefined') {
+      controlTimer--;
+      if (controlTimer <= 0) {
+        // Flip ownership — exactly one switch, no overlap
+        controlState = (controlState === 'player') ? 'paradox' : 'player';
+        // Assign duration for the NEW owner
+        if (controlState === 'player') {
+          controlTimer = 180 + Math.floor(Math.random() * 121); // 180–300
+        } else {
+          controlTimer = 120 + Math.floor(Math.random() * 121); // 120–240
+        }
+        // Keep legacy variable in sync for rendering/other systems
+        tfFusionControlMode = controlState;
+        tfFusionGlitchTimer = 20;
+        // Clear any buffered key state for P1 so no inputs bleed across the boundary
+        const _fp1 = players[0];
+        if (_fp1 && _fp1.controls) {
+          for (const k of Object.values(_fp1.controls)) { delete keyHeldFrames[k]; }
+        }
+        // When paradox takes over: abort any in-progress attack swing immediately
+        if (controlState === 'paradox' && _fp1) {
+          _fp1.attackTimer  = 0;
+          _fp1.attackEndlag = 0;
+          _fp1.shielding    = false;
+          // Short freeze + visual burst
+          hitStopFrames = Math.max(hitStopFrames, 5);
+          if (typeof tfSwitchToParadoxFlash !== 'undefined') tfSwitchToParadoxFlash = 18;
+        }
+        // When player regains control: quick fade-out effect
+        if (controlState === 'player' && typeof tfSwitchToPlayerFade !== 'undefined') {
+          tfSwitchToPlayerFade = 12;
+        }
+      }
+    }
+
+    // When Paradox owns controls: force AI behaviour on P1
     const _fusionP1 = players[0];
     if (_fusionP1 && !_fusionP1.isBoss) {
-      _fusionP1._fusionAIOverride = (tfFusionControlMode === 'paradox');
+      _fusionP1._fusionAIOverride = (controlState === 'paradox');
     }
-    if (tfFusionControlMode === 'paradox' && _fusionP1 && typeof paradoxFusionUpdateAI === 'function') {
+    if (controlState === 'paradox' && _fusionP1 && typeof paradoxFusionUpdateAI === 'function') {
       if (aiTick % AI_TICK_INTERVAL === 0) paradoxFusionUpdateAI(_fusionP1);
     }
+    } // end safeguard-4 else (player alive)
   }
 
   // Update key-held counters
@@ -1233,10 +1418,40 @@ function _cheatUnlockAll() {
   if (typeof _story2 !== 'undefined' && typeof STORY_CHAPTERS2 !== 'undefined') {
     STORY_CHAPTERS2.forEach(ch => {
       if (!_story2.defeated.includes(ch.id)) _story2.defeated.push(ch.id);
+      // Unlock all blueprints that chapters drop
+      if (ch.blueprintDrop && !_story2.blueprints.includes(ch.blueprintDrop)) {
+        _story2.blueprints.push(ch.blueprintDrop);
+      }
     });
     _story2.chapter = STORY_CHAPTERS2.length;
-    _story2.tokens  = (_story2.tokens || 0) + 9999;
+    _story2.tokens  = 99999;
+    _story2.exp     = 99999;
     _story2.storyComplete = true;
+
+    // Max out meta upgrades (shop items with ranks)
+    if (!_story2.metaUpgrades) _story2.metaUpgrades = {};
+    _story2.metaUpgrades.damage        = 6;
+    _story2.metaUpgrades.survivability = 6;
+    _story2.metaUpgrades.healUses      = 0; // not a rank cap, skip
+
+    // Purchase all story abilities
+    if (typeof STORY_ABILITIES2 !== 'undefined') {
+      if (!Array.isArray(_story2.unlockedAbilities)) _story2.unlockedAbilities = [];
+      Object.keys(STORY_ABILITIES2).forEach(key => {
+        if (!_story2.unlockedAbilities.includes(key)) _story2.unlockedAbilities.push(key);
+      });
+    }
+
+    // Max out skill tree (unlock every node, ignoring cost/prereq order)
+    if (typeof STORY_SKILL_TREE !== 'undefined') {
+      if (!_story2.skillTree) _story2.skillTree = {};
+      for (const branch of Object.values(STORY_SKILL_TREE)) {
+        for (const node of branch.nodes) {
+          _story2.skillTree[node.id] = true;
+        }
+      }
+    }
+
     if (typeof _saveStory2 === 'function') _saveStory2();
     if (typeof _updateStoryCloseBtn === 'function') _updateStoryCloseBtn();
     // Reveal story online card if present
