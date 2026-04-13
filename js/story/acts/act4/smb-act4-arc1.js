@@ -1,7 +1,7 @@
 // Appends chapters for act4/smb-act4-arc1.js.
 STORY_CHAPTER_REGISTRY.push(
   {
-    id: 70, type: 'exploration', title: 'The Architecture',
+    id: 74, type: 'exploration', title: 'The Architecture',
     world: '🔩 Creator\'s Domain — The Inner Framework',
     narrative: [
       'The Architects couldn\'t follow.',
@@ -50,7 +50,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 71, title: 'Architecture Soldiers',
+    id: 75, title: 'Architecture Soldiers',
     world: '🔩 Creator\'s Domain — Inner Corridor',
     narrative: [
       'Two of them.',
@@ -83,7 +83,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 72, title: 'The Offer',
+    id: 76, title: 'The Offer',
     world: '🔩 Creator\'s Domain — Audience Chamber',
     noFight: true,
     narrative: [
@@ -118,7 +118,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 73, title: 'Twin Enforcers',
+    id: 77, title: 'Twin Enforcers',
     world: '🔩 Creator\'s Domain — The Corridor of Forms',
     narrative: [
       'The Enforcers arrived as the architecture shifted.',
@@ -154,7 +154,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 74, title: 'The Architect\'s Message',
+    id: 78, title: 'The Architect\'s Message',
     world: '🔩 Creator\'s Domain — Signal Alcove',
     noFight: true,
     narrative: [
@@ -197,7 +197,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 75, title: 'The First Creation',
+    id: 79, title: 'The First Creation',
     world: '🔩 Creator\'s Domain — Memory Chamber',
     noFight: true,
     narrative: [
@@ -236,7 +236,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 76, title: 'The First Promise',
+    id: 80, title: 'The First Promise',
     world: '🔩 Creator\'s Domain — Memory Vault',
     noFight: true,
     narrative: [
@@ -278,7 +278,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 77, title: 'Purge Sequence',
+    id: 81, title: 'Purge Sequence',
     world: '🔩 Creator\'s Domain — Purge Zone',
     narrative: [
       'The architecture shook.',

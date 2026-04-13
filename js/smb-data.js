@@ -1064,6 +1064,7 @@ function updateMapPerks() {
         vx:     goRight ? 6.5 : -6.5,
         color:  ['#cc2200','#0033cc','#448800','#cc8800'][Math.floor(Math.random() * 4)],
         warned: false,
+        hit:    new Set(), // dedup: each player can only be hit once per car
       });
       // Warn players with a HUD message
       if (settings.dmgNumbers) damageTexts.push(new DamageText(GAME_W / 2, 105, 'CAR!', '#ffcc00'));
@@ -1074,9 +1075,10 @@ function updateMapPerks() {
       // Remove when off-screen
       if (car.x > GAME_W + 120 || car.x < -120) { mapPerkState.cityCars.splice(ci, 1); continue; }
       // Damage players
-      let _cityCarExploded = false;
+      let _cityCarHit = false;
       for (const p of players) {
         if (p.health <= 0 || p.invincible > 0 || p.isBoss) continue;
+        if (car.hit.has(p)) continue; // already hit this player — skip
         const carCX = car.x + car.w / 2;
         const carCY = car.y - car.h / 2;
         if (Math.abs(p.cx() - carCX) < car.w / 2 + p.w / 2 &&
@@ -1085,14 +1087,16 @@ function updateMapPerks() {
             spawnParticles(carCX, carCY, '#ff8800', 16);
             spawnParticles(carCX, carCY, '#ffff00', 8);
             if (settings.screenShake) screenShake = Math.max(screenShake, 14);
-            _cityCarExploded = true; break;
+            _cityCarHit = true; break;
           }
-          dealDamage(null, p, 20, 28);
+          car.hit.add(p);
+          dealDamage(null, p, 20, 28, 1.0, false, 16);
           spawnParticles(p.cx(), p.cy(), '#ffcc00', 12);
           if (settings.screenShake) screenShake = Math.max(screenShake, 12);
+          _cityCarHit = true; break; // car destroyed on first player hit
         }
       }
-      if (_cityCarExploded) { mapPerkState.cityCars.splice(ci, 1); continue; }
+      if (_cityCarHit) { mapPerkState.cityCars.splice(ci, 1); continue; }
     }
   }
 
@@ -1534,8 +1538,8 @@ const WEAPONS = {
   gun: {
     // THE HARASSER: Reliable ranged poke. Rewards keeping distance.
     // Identity: Steady chip damage + burst fire ability. Control space.
-    name: 'Gun',     damage: 7, range: 600, cooldown: 42, endlag: 8,
-    damageFunc: () => Math.floor(Math.random() * 3) + 5,
+    name: 'Gun',     damage: 9, range: 600, cooldown: 32, endlag: 6,
+    damageFunc: () => Math.floor(Math.random() * 4) + 7,
     superRateBonus: 1.2,
     splashRange: 38, splashDmgPct: 0.30,
     clipSize: 6, reloadFrames: 90,

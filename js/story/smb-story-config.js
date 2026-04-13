@@ -88,6 +88,14 @@ function openStoryMenu() {
   _updateStoryCloseBtn();
 }
 
+// Single entry point for launching a specific chapter from the menu.
+// Every chapter button should call this — behavior is always chapter-driven.
+function startStoryFromMenu(chapterId) {
+  storyModeActive    = true;
+  storyCurrentLevel  = Math.min(8, Math.floor(chapterId / 5) + 1);
+  if (typeof _beginChapter2 === 'function') _beginChapter2(chapterId);
+}
+
 function closeStoryMenu() {
   // Block close until chapter 0 is beaten
   const ch0Beaten = Array.isArray(_story2.defeated) && _story2.defeated.includes(0);
@@ -370,6 +378,19 @@ function getDifficultyMultiplier(chapterId) {
   return 1 + (chapterId * 0.08);
 }
 
+// ── Unified balance scaling ────────────────────────────────────────────────────
+// Returns raw (unclamped) stat targets for a given original chapter index.
+// Clamps are applied by _storyScaleEnemyUnit before writing to a fighter.
+function getScaling(chapter) {
+  const base = 1 + chapter * 0.08;
+  return {
+    enemyHP:     100 * base,   // standard enemy HP target
+    enemyDamage: 12  * base,   // damage per hit target (pre-weapon-multiplier)
+    bossHP:      600 * base,   // boss HP target (used for Fallen God / custom bosses)
+    bossDamage:  18  * base,   // boss damage per hit target
+  };
+}
+
 function _storyPerformanceBonus() {
   const run = _story2 && _story2.runState;
   if (!run) return 0;
@@ -601,40 +622,82 @@ function restoreStoryDataFromSave(data) {
 // ============================================================
 // STORY SKILL TREE
 // ============================================================
+// ── Skill Tree ────────────────────────────────────────────────────────────────
+// Layout: each branch has a root node(s), with child chains.
+// `requires` is a single parent nodeId (or null for root).
+// `requiresAny` is an array of alternative parents (unlocked if ANY is met).
+// The renderer builds the visual tree from these dependency relationships.
 const STORY_SKILL_TREE = {
   mobility: {
     label: 'Mobility',
     color: '#44ffaa',
+    icon: '🏃',
     nodes: [
-      { id: 'highJump1',   name: 'Stronger Legs',    desc: 'Jump 15% higher',              expCost: 25,  requires: null },
-      { id: 'highJump2',   name: 'Leap Training',     desc: 'Jump 25% higher total',        expCost: 45,  requires: 'highJump1' },
-      { id: 'doubleJump',  name: 'Double Jump',       desc: 'Press W again while airborne', expCost: 80,  requires: 'highJump2' },
+      { id: 'highJump1',      name: 'Stronger Legs',       desc: 'Jump 15% higher',                           expCost: 25,  requires: null },
+      { id: 'highJump2',      name: 'Leap Training',        desc: 'Jump 25% higher total',                     expCost: 45,  requires: 'highJump1' },
+      { id: 'doubleJump',     name: 'Double Jump',          desc: 'Press W again while airborne',              expCost: 80,  requires: 'highJump2' },
+      { id: 'airDash',        name: 'Air Dash',             desc: 'Double-tap ← or → while airborne to dash',  expCost: 120, requires: 'doubleJump' },
+      { id: 'fastFall',       name: 'Fast Fall',            desc: 'Hold S in air to drop fast; cancel lag',    expCost: 55,  requires: 'highJump2' },
     ],
   },
   combat: {
     label: 'Combat',
     color: '#ff8844',
+    icon: '⚔️',
     nodes: [
-      { id: 'heavyHit1',      name: 'Stronger Strikes',  desc: '+15% attack damage',            expCost: 25, requires: null },
-      { id: 'heavyHit2',      name: 'Power Blows',        desc: '+25% damage total',             expCost: 45, requires: 'heavyHit1' },
-      { id: 'weaponAbility',  name: 'Weapon Mastery',     desc: 'Unlock weapon Q-ability',       expCost: 80, requires: 'heavyHit2' },
+      { id: 'heavyHit1',      name: 'Stronger Strikes',     desc: '+15% attack damage',                        expCost: 25,  requires: null },
+      { id: 'heavyHit2',      name: 'Power Blows',          desc: '+25% damage total',                         expCost: 45,  requires: 'heavyHit1' },
+      { id: 'weaponAbility',  name: 'Weapon Mastery',       desc: 'Unlock weapon Q-ability',                   expCost: 80,  requires: 'heavyHit2' },
+      { id: 'comboExtender',  name: 'Combo Flow',           desc: 'One extra hit before combo limiter kicks in',expCost: 100, requires: 'weaponAbility' },
+      { id: 'criticalEdge',   name: 'Critical Edge',        desc: '8% chance to deal 2× damage on any hit',    expCost: 140, requires: 'comboExtender' },
+      { id: 'impactShield',   name: 'Impact Shield',        desc: 'Q while shielding: slam forward 15 dmg + stagger (3s CD)', expCost: 60, requires: 'heavyHit1' },
     ],
   },
   resilience: {
     label: 'Resilience',
     color: '#88aaff',
+    icon: '🛡️',
     nodes: [
-      { id: 'tankier1',   name: 'Tougher Body',  desc: '+15 max HP',                  expCost: 25, requires: null },
-      { id: 'tankier2',   name: 'Hardened',       desc: '+25 max HP total',            expCost: 45, requires: 'tankier1' },
-      { id: 'superMeter', name: 'Inner Power',    desc: 'Unlock Super meter (E key)',  expCost: 80, requires: 'tankier2' },
+      { id: 'tankier1',       name: 'Tougher Body',         desc: '+15 max HP',                                expCost: 25,  requires: null },
+      { id: 'tankier2',       name: 'Hardened',             desc: '+25 max HP total',                          expCost: 45,  requires: 'tankier1' },
+      { id: 'superMeter',     name: 'Inner Power',          desc: 'Unlock Super meter (E key)',                 expCost: 80,  requires: 'tankier2' },
+      { id: 'tankier3',       name: 'Iron Frame',           desc: '+40 max HP total',                          expCost: 70,  requires: 'tankier2' },
+      { id: 'dimensionalPatch', name: 'Dimensional Patch',  desc: 'Once per match, Q heals 30% max HP',         expCost: 50,  requires: 'tankier1' },
+      { id: 'voidStep',       name: 'Void Step',            desc: 'Below 30% HP: one-time +50% speed for 5s',  expCost: 85,  requires: 'dimensionalPatch' },
     ],
   },
   speed: {
     label: 'Speed',
     color: '#ffee44',
+    icon: '⚡',
     nodes: [
-      { id: 'fastMove1', name: 'Quick Feet',      desc: 'Move 10% faster',       expCost: 20, requires: null },
-      { id: 'fastMove2', name: 'Sprint Training', desc: 'Move 20% faster total', expCost: 40, requires: 'fastMove1' },
+      { id: 'fastMove1',      name: 'Quick Feet',           desc: 'Move 10% faster',                           expCost: 20,  requires: null },
+      { id: 'fastMove2',      name: 'Sprint Training',      desc: 'Move 20% faster total',                     expCost: 40,  requires: 'fastMove1' },
+      { id: 'fastMove3',      name: 'Blur Step',            desc: 'Move 30% faster total',                     expCost: 75,  requires: 'fastMove2' },
+      { id: 'fractureSurge',  name: 'Fracture Surge',       desc: 'Super meter charges 40% faster',            expCost: 75,  requires: 'fastMove1' },
+    ],
+  },
+  survival: {
+    label: 'Survival',
+    color: '#ff5588',
+    icon: '❤️',
+    nodes: [
+      { id: 'lastStrike',     name: 'Last Strike',          desc: 'Below 10% HP: next attack deals 2× damage (once per life)', expCost: 60, requires: null },
+      { id: 'echoRage',       name: 'Echo Rage',            desc: '3 rapid hits trigger rage: next 5 attacks 3× damage',       expCost: 110, requires: 'lastStrike' },
+      { id: 'mirrorFracture', name: 'Mirror Fracture',      desc: 'While shielding, reflect 25% damage back at attacker',      expCost: 90,  requires: 'lastStrike' },
+      { id: 'temporalBreak',  name: 'Temporal Break',       desc: 'Below 20% HP: freeze all enemies 2s once per match',        expCost: 180, requires: 'echoRage' },
+    ],
+  },
+  mastery: {
+    label: 'Mastery',
+    color: '#cc88ff',
+    icon: '🌀',
+    // Root requires any tier-2 node from another branch (gate behind progression)
+    nodes: [
+      { id: 'masterRoot',     name: 'Fragment Sync',        desc: 'Reduces all ability cooldowns by 15%',      expCost: 100, requires: null, requiresAny: ['heavyHit2','tankier2','fastMove2'] },
+      { id: 'fragmentHunger', name: 'Fragment Hunger',      desc: 'Each kill: +8% damage stacked (max 5 kills, resets on death)', expCost: 130, requires: 'masterRoot' },
+      { id: 'architects',     name: 'Architects\' Resolve', desc: 'Once per match: auto-revive at 25% HP when you would die', expCost: 160, requires: 'masterRoot' },
+      { id: 'coreCollapse',   name: 'Core Collapse',        desc: 'Once per match, super deals 60% of enemy max HP',           expCost: 350, requires: 'architects' },
     ],
   },
 };
@@ -643,13 +706,36 @@ const STORY_SKILL_TREE = {
 function _applySkillTreeToPlayer(p) {
   if (!p || !_story2.skillTree) return;
   const sk = _story2.skillTree;
+  // Jump
   p._storyJumpMult = 1.0 + (sk.highJump2 ? 0.25 : sk.highJump1 ? 0.15 : 0);
   if (p._storyNoDoubleJump !== undefined) p._storyNoDoubleJump = !sk.doubleJump;
-  const hpBonus = (sk.tankier2 ? 25 : sk.tankier1 ? 15 : 0);
+  // HP bonus (stacking tiers)
+  const hpBonus = (sk.tankier3 ? 40 : sk.tankier2 ? 25 : sk.tankier1 ? 15 : 0);
   if (hpBonus > 0) {
     p.maxHealth = (p.maxHealth || 100) + hpBonus;
     p.health    = Math.min(p.health + hpBonus, p.maxHealth);
   }
+  // Speed
+  const speedBonus = sk.fastMove3 ? 0.30 : sk.fastMove2 ? 0.20 : sk.fastMove1 ? 0.10 : 0;
+  if (speedBonus > 0) p._storySpeedMult = 1.0 + speedBonus;
+  // Damage
+  const dmgBonus = sk.heavyHit2 ? 0.25 : sk.heavyHit1 ? 0.15 : 0;
+  if (dmgBonus > 0) p._storyDmgMult = 1.0 + dmgBonus;
+  // Skill flags (consumed by game systems already checking _story2.skillTree)
+  p._skillAirDash        = !!sk.airDash;
+  p._skillImpactShield   = !!sk.impactShield;
+  p._skillDimensionalPatch = !!sk.dimensionalPatch;
+  p._skillVoidStep       = !!sk.voidStep;
+  p._skillFractureSurge  = !!sk.fractureSurge;
+  p._skillEchoRage       = !!sk.echoRage;
+  p._skillMirrorFracture = !!sk.mirrorFracture;
+  p._skillFragmentHunger = !!sk.fragmentHunger;
+  p._skillArchitects     = !!sk.architects;
+  p._skillCoreCollapse   = !!sk.coreCollapse;
+  p._skillLastStrike     = !!sk.lastStrike;
+  p._skillTemporalBreak  = !!sk.temporalBreak;
+  p._skillCriticalEdge   = !!sk.criticalEdge;
+  p._skillCooldownReduction = !!sk.masterRoot ? 0.15 : 0;
 }
 
 // Award EXP to the player for a story kill
@@ -738,6 +824,22 @@ function _isArcUnlocked(arc) {
   // First arc of first act is always unlocked
   const firstArc = STORY_ACT_STRUCTURE[0].arcs[0];
   if (arc.id === firstArc.id) return true;
+
+  // Fallen God arc unlocks directly from Act V completion (not multiverse).
+  // This ensures the revelation lore fires before the Creator domain,
+  // removing the postgame/multiverse-completion dependency.
+  if (arc.id === 'arc5-godfall') {
+    const actV = STORY_ACT_STRUCTURE.find(a => a.id === 'act5');
+    if (actV) return _isArcComplete(actV.arcs[actV.arcs.length - 1]);
+    return false;
+  }
+
+  // Multiverse arcs (arc4mv-*) additionally require the Axiom Ship to be built.
+  // The trials were designed for a traveler with a stable vessel — not before.
+  if (arc.id && arc.id.startsWith('arc4mv')) {
+    if (!window.SHIP || !SHIP.built) return false;
+  }
+
   // An arc is unlocked if all chapters in the previous arc are complete
   for (let ai = 0; ai < STORY_ACT_STRUCTURE.length; ai++) {
     const act = STORY_ACT_STRUCTURE[ai];
@@ -1233,31 +1335,7 @@ const STORY_ABILITIES2 = {
     icon: '🩸', tokenCost: 130, requiresBlueprint: true,
     lore: 'The fragment was always absorbing. You learned to direct it.',
   },
-  // ── Direct purchase abilities (no blueprint required) ─────────────────────
-  shield_bash2: {
-    name: 'Impact Shield',
-    desc: 'Press Q while shielding to slam forward: 15 dmg + stagger. 3s cooldown.',
-    icon: '🛡', tokenCost: 60, requiresBlueprint: false,
-    lore: 'Basic momentum physics. You figured it out in the first portal fight.',
-  },
-  medkit2: {
-    name: 'Dimensional Patch',
-    desc: 'Once per match, press Q to heal 30% of max HP instantly.',
-    icon: '💊', tokenCost: 50, requiresBlueprint: false,
-    lore: 'Veran\'s field kit. She modified it for fragment-bearer physiology.',
-  },
-  fracture_surge2: {
-    name: 'Fracture Surge',
-    desc: 'Super meter charges 40% faster for the entire match.',
-    icon: '⚡', tokenCost: 75, requiresBlueprint: false,
-    lore: 'The fragment stores energy more efficiently now. So do you.',
-  },
-  void_step2: {
-    name: 'Void Step',
-    desc: 'When your health drops below 30%, gain a one-time burst of +50% speed for 5 seconds.',
-    icon: '🌑', tokenCost: 85, requiresBlueprint: false,
-    lore: 'The void between dimensions is not empty. You learned to move through it.',
-  },
+  // (Impact Shield, Dimensional Patch, Fracture Surge, Void Step migrated to Skill Tree)
   // ── New Act IV / Act V blueprint abilities ────────────────────────
   architects_resolve2: {
     name: 'Architects\' Resolve',

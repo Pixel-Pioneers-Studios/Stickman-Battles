@@ -1,7 +1,7 @@
 // Appends chapters for act5/smb-act5-arc1.js.
 STORY_CHAPTER_REGISTRY.push(
   {
-    id: 86, title: 'What Remains',
+    id: 90, title: 'What Remains',
     world: '🕳️ The Void Between',
     isEpilogue: false,
     narrative: [
