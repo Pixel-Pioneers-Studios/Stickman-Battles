@@ -55,7 +55,33 @@ function drawVoidArena() {
     ctx.shadowBlur  = 0;
   }
 
-  // When floor is removed: orange lava rises from below
+  // Void floor hazard from bossFloorState machine (type = 'void')
+  if (bossFloorState === 'hazard' && bossFloorType === 'void') {
+    const vy = 460;
+    ctx.save();
+    const vg = ctx.createLinearGradient(0, vy, 0, GAME_H);
+    vg.addColorStop(0,   'rgba(20,0,60,0.92)');
+    vg.addColorStop(0.3, 'rgba(8,0,30,0.97)');
+    vg.addColorStop(1,   'rgba(0,0,0,1)');
+    ctx.fillStyle = vg;
+    ctx.beginPath();
+    ctx.moveTo(0, vy);
+    for (let x = 0; x <= GAME_W; x += 18) {
+      ctx.lineTo(x, vy + Math.sin(x * 0.045 + frameCount * 0.07) * 6);
+    }
+    ctx.lineTo(GAME_W, GAME_H);
+    ctx.lineTo(0, GAME_H);
+    ctx.closePath();
+    ctx.fill();
+    ctx.shadowColor = '#6600cc';
+    ctx.shadowBlur  = 28;
+    ctx.fillStyle   = `rgba(80,0,180,${0.18 + Math.abs(Math.sin(frameCount * 0.04)) * 0.12})`;
+    ctx.fillRect(0, vy - 10, GAME_W, 12);
+    ctx.shadowBlur  = 0;
+    ctx.restore();
+  }
+
+  // When floor is removed by TrueForm attack: orange lava rises from below
   if (tfFloorRemoved) {
     ctx.globalAlpha = 1;
     const ly = 460;
@@ -763,12 +789,33 @@ function checkDeaths() {
         }
         if (!tfEndingScene && !bossDeathScene && !p._tfEndingPrimed
             && p.health > 0 && p.health <= p.maxHealth * 0.10) {
-          p._tfEndingPrimed = true;
-          p.invincible = 999999;
-          startTFEnding(p);
+          // Round 1 end: intro sequence not yet done — route through Paradox return → Code Realm → Round 2
+          if (typeof tfFalseVictoryFired !== 'undefined' && !tfFalseVictoryFired
+              && typeof startTFParadoxReturn1000 === 'function') {
+            p.invincible = 9999;
+            if (p._cinematicFired) p._cinematicFired.add('paradox1000'); // block AI double-fire
+            startTFParadoxReturn1000(p);
+          } else {
+            // Round 2: fire the real ending
+            p._tfEndingPrimed = true;
+            p.invincible = 999999;
+            startTFEnding(p);
+          }
           continue;
         }
-        if (!tfEndingScene && !bossDeathScene) { startTFEnding(p); continue; }
+        // health=0 fallthrough — same routing logic
+        if (!tfEndingScene && !bossDeathScene) {
+          if (typeof tfFalseVictoryFired !== 'undefined' && !tfFalseVictoryFired
+              && typeof startTFParadoxReturn1000 === 'function') {
+            p.health = 1;     // keep alive for intro sequence
+            p.invincible = 9999;
+            if (p._cinematicFired) p._cinematicFired.add('paradox1000');
+            startTFParadoxReturn1000(p);
+          } else {
+            startTFEnding(p); // Round 2 real ending
+          }
+          continue;
+        }
         if (tfEndingScene || bossDeathScene)   { continue; }
       }
       if (p.isBoss && !bossDeathScene) { startBossDeathScene(p); continue; }
@@ -1285,7 +1332,7 @@ function updateHUD() {
     const shEl = document.getElementById(`p${n}ShieldBar`);
     if (shEl) {
       const shPct = p.shieldCooldown > 0
-        ? Math.max(0, 100 - (p.shieldCooldown / 1800) * 100)
+        ? Math.max(0, 100 - (p.shieldCooldown / 180) * 100)
         : 100;
       shEl.style.width = shPct + '%';
       shEl.style.background = p.shieldCooldown > 0

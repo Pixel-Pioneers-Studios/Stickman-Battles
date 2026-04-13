@@ -12,7 +12,7 @@ let paradoxRevivePlayer  = null;  // player being revived
 
 // ---- Opening fight state (player + Paradox vs TF for 1000 total damage) ----
 let tfOpeningFightActive   = false;
-let tfOpeningDamageDealt   = 0;     // total damage dealt to TF so far
+let tfOpeningDamageDealt   = 0;     // total damage dealt to TF so far (free + scripted)
 let _tfOpeningParadoxAtkCd = 0;     // frames until next Paradox attack
 let _tfOpeningHeroAtkCd    = 90;    // frames until next scripted hero attack
 let _tfOpeningTFRef        = null;  // reference to TrueForm entity
@@ -20,6 +20,8 @@ let _tfOpeningPhase        = 0;     // 0=slow buildup, 1=building, 2=climax
 let _tfOpeningDialogueFired = new Set(); // which scripted lines have been shown
 let _paradoxVx             = 0;    // smoothed horizontal velocity for Paradox movement
 let _tfOpeningHeroReactDelay = 0;  // frames hero has been in back-off zone (reaction delay)
+let _tfOpeningFreeFrames   = 0;    // countdown: player controls active during this many frames
+let _tfOpeningTFStartHealth = 0;   // TF HP at fight start — used to pin exact 1000 damage
 const TF_OPENING_DAMAGE_THRESHOLD = 1000;
 
 // ---- Absorption state (after Paradox dies and enters player) ----------------
@@ -28,11 +30,20 @@ let _tfAbsorptionState = null; // { timer, boss, hero }
 // ---- New declarative absorption cinematic (replaces _startAbsorptionThenPunch in main flow) ----
 let tfAbsorptionScene = null; // { timer, maxTimer, playerRef, paradoxRef, bossRef, phase, memoryIndex, flashAlpha, absorbed }
 
+// Brief fragmented flashes of Paradox's origin — shown during the absorption scene.
+// Intentionally incomplete so the player must piece them together.
+// CANON: Paradox was built during the multiversal war to fight beside Axiom.
+//        A construction error caused it to turn against everyone.
+//        It has been fighting ever since — not out of malice, but because
+//        the error is all it knows.
 const _TF_ABSORPTION_MEMORIES = [
-  '"Not this outcome."',
-  '"You\'re not done."',
-  '"Try again."',
-  'Their sacrifice echoes...',
+  'Built to fight beside him.',
+  'Something went wrong.',
+  '"I was not supposed to be the enemy."',
+  'The error was never fixed.',
+  '"I fought because that is what I was made to do."',
+  'It was always going to end here.',
+  '"Remember what I was before the mistake."',
 ];
 
 // ---- TF-kills-Paradox cinematic overlay state --------------------------------
@@ -205,30 +216,100 @@ class Paradox {
 }
 
 // ============================================================
-// OPENING FIGHT  — player + Paradox fight TF together
-// Called from TrueForm.updateAI() on first tick (replaces direct entry cinematic)
+// OPENING FIGHT  — player + Paradox fight TF together (fully scripted cinematic)
+// Called from TrueForm.updateAI() on first tick.
+// Player has NO control. TF cannot attack. Everything is driven by a GSAP timeline
+// for phase events/dialogue; per-frame movement handled in updateTFOpeningFight().
 // ============================================================
+let _tfOpeningGSAPTL = null; // active GSAP timeline for this cinematic
+
 function startTFOpeningFight(tf) {
   if (tfOpeningFightActive) return;
-  tfOpeningFightActive   = true;
-  tfCinematicState       = 'opening_fight';
-  tfOpeningDamageDealt    = 0;
-  _tfOpeningParadoxAtkCd    = 90;   // slow start — Paradox hangs back at first
-  _tfOpeningHeroAtkCd       = 120;  // hero approaches cautiously
+  tfOpeningFightActive      = true;
+  tfCinematicState          = 'opening_fight';
+  tfOpeningDamageDealt      = 0;
+  _tfOpeningParadoxAtkCd    = 90;
+  _tfOpeningHeroAtkCd       = 120;
   _tfOpeningPhase           = 0;
   _tfOpeningDialogueFired   = new Set();
   _tfOpeningTFRef           = tf;
   _paradoxVx                = 0;
   _tfOpeningHeroReactDelay  = 0;
+  _tfOpeningFreeFrames      = 300; // 5 seconds of free player control at start
+  _tfOpeningTFStartHealth   = tf ? tf.health : 10000;
+
+  // Player is INVINCIBLE throughout but retains full control for the first 5 seconds.
+  // Input lock kicks in at _tfOpeningFreeFrames === 0 (see processInput + updateTFOpeningFight).
+  if (typeof players !== 'undefined') {
+    for (const p of players) {
+      if (!p.isBoss) {
+        p.invincible = 99999; // god-mode — TF cannot hurt the player during this cinematic
+      }
+    }
+  }
 
   spawnParadox(155, GAME_H - 190);
   if (paradoxEntity) paradoxEntity.facing = 1;
 
-  if (typeof showBossDialogue === 'function') {
-    showBossDialogue('Two of you? How desperate.', 270);
+  // ── GSAP Timeline: schedule all phase/dialogue/camera events ──────────────
+  if (typeof gsap !== 'undefined') {
+    if (_tfOpeningGSAPTL) _tfOpeningGSAPTL.kill();
+
+    // Use a proxy object so GSAP can tween numeric properties
+    const state = { damagePhase: 0, camZoom: 1.0, camX: GAME_W / 2, camY: GAME_H / 2 };
+    _tfOpeningGSAPTL = gsap.timeline({ paused: false });
+
+    // t=0: opening flash + dialogue
+    _tfOpeningGSAPTL.call(() => {
+      screenShake = Math.max(screenShake, 18);
+      if (typeof CinFX !== 'undefined') CinFX.flash('#00ffff', 0.22, 14);
+      if (typeof showBossDialogue === 'function')
+        showBossDialogue('Two of you? How desperate.', 270);
+      // Enable cinematic camera
+      cinematicCamOverride = true;
+      cinematicZoomTarget  = 1.1;
+      cinematicFocusX      = tf ? tf.cx() : GAME_W / 2;
+      cinematicFocusY      = GAME_H / 2 - 20;
+    });
+
+    // t=3s: phase 1 (250 dmg equiv) — Paradox closes in
+    _tfOpeningGSAPTL.call(() => {
+      _tfOpeningPhase = 1;
+      screenShake = Math.max(screenShake, 12);
+      if (typeof showBossDialogue === 'function')
+        showBossDialogue('Persistent.', 200);
+    }, [], 3);
+
+    // t=6s: phase 2 (650 dmg equiv) — climax
+    _tfOpeningGSAPTL.call(() => {
+      _tfOpeningPhase = 2;
+      screenShake = Math.max(screenShake, 18);
+      if (typeof CinFX !== 'undefined') CinFX.flash('#ffffff', 0.18, 10);
+      if (typeof showBossDialogue === 'function')
+        showBossDialogue("...you're stronger than you look.", 220);
+      // Zoom in tighter for climax
+      cinematicZoomTarget = 1.3;
+    }, [], 6);
+
+    // t=9s: threshold reached — pin TF HP to exactly 1000 below its start value,
+    // then hand off to the kicks-paradox-out cinematic.
+    _tfOpeningGSAPTL.call(() => {
+      if (!tfOpeningFightActive) return;
+      const _tf9 = _tfOpeningTFRef;
+      if (_tf9) {
+        // Always land on exactly startHP - 1000, regardless of free-phase damage
+        _tf9.health = Math.max(1, _tfOpeningTFStartHealth - TF_OPENING_DAMAGE_THRESHOLD);
+      }
+      tfOpeningDamageDealt = TF_OPENING_DAMAGE_THRESHOLD;
+    }, [], 9);
+
+  } else {
+    // No GSAP fallback: use frame counters (legacy)
+    screenShake = Math.max(screenShake, 18);
+    if (typeof CinFX !== 'undefined') CinFX.flash('#00ffff', 0.22, 14);
+    if (typeof showBossDialogue === 'function')
+      showBossDialogue('Two of you? How desperate.', 270);
   }
-  screenShake = Math.max(screenShake, 18);
-  if (typeof CinFX !== 'undefined') CinFX.flash('#00ffff', 0.22, 14);
 }
 
 // Called each frame from game loop while opening fight is active.
@@ -239,27 +320,28 @@ function updateTFOpeningFight() {
   const tf = _tfOpeningTFRef;
   if (!tf || tf.health <= 0) return;
 
-  // ── Phase advancement ──────────────────────────────────────────────────────
-  // Phase 0: 0-250 dmg  — slow, cautious approach
-  // Phase 1: 250-650 dmg — building pressure, TF starts reacting
-  // Phase 2: 650+ dmg   — relentless climax, max intensity
-  const newPhase = tfOpeningDamageDealt < 250 ? 0 : tfOpeningDamageDealt < 650 ? 1 : 2;
-  if (newPhase > _tfOpeningPhase) {
-    _tfOpeningPhase = newPhase;
-    if (newPhase === 1) {
-      screenShake = Math.max(screenShake, 12);
-      if (typeof showBossDialogue === 'function')
-        showBossDialogue('Persistent.', 200);
-    } else if (newPhase === 2) {
-      screenShake = Math.max(screenShake, 18);
-      if (typeof CinFX !== 'undefined') CinFX.flash('#ffffff', 0.18, 10);
-      if (typeof showBossDialogue === 'function')
-        showBossDialogue('...you\'re stronger than you look.', 220);
+  // ── Free period: player can move/attack for first 2 seconds ──────────────
+  if (_tfOpeningFreeFrames > 0) {
+    _tfOpeningFreeFrames--;
+    // Track any damage the player freely deals during this window
+    const freedmg = Math.max(0, _tfOpeningTFStartHealth - tf.health);
+    tfOpeningDamageDealt = freedmg;
+    // Prevent TF from retaliating — keep it locked during free phase
+    tf.attackTimer = Math.max(tf.attackTimer, 1);
+    if (paradoxEntity) paradoxEntity.update();
+    return; // skip scripted section entirely while player has control
+  }
+
+  // ── Scripted phase begins: lock player movement to zero ──────────────────
+  if (typeof players !== 'undefined') {
+    for (const p of players) {
+      if (!p.isBoss) { p.vx = 0; p.invincible = Math.max(p.invincible, 9999); }
     }
   }
 
+  // ── Phase speed/cadence (phase index set by GSAP timeline, not damage count) ─
   // Speed multipliers per phase
-  const paradoxSpeed  = [2.0, 2.6, 3.2][_tfOpeningPhase];
+  const paradoxSpeed  = [4.5, 5.5, 6.5][_tfOpeningPhase];
   const paradoxCdBase = [90,  58,  34][_tfOpeningPhase];
   const heroCdBase    = [110, 68,  38][_tfOpeningPhase];
 
@@ -339,7 +421,7 @@ function updateTFOpeningFight() {
     const pdx = tf.cx() - paradoxEntity.cx();
 
     // Smoothed velocity movement — lerp toward target speed to prevent jitter
-    const targetVx = Math.abs(pdx) > 65 ? Math.sign(pdx) * paradoxSpeed : 0;
+    const targetVx = Math.abs(pdx) > 55 ? Math.sign(pdx) * paradoxSpeed : 0;
     _paradoxVx += (targetVx - _paradoxVx) * 0.2;
     if (Math.abs(_paradoxVx) > 0.1) {
       paradoxEntity.x += _paradoxVx;
@@ -348,7 +430,7 @@ function updateTFOpeningFight() {
 
     _tfOpeningParadoxAtkCd--;
     if (_tfOpeningParadoxAtkCd <= 0) {
-      if (Math.abs(pdx) >= 95) {
+      if (Math.abs(pdx) >= 130) {
         // Not in range — hold ready, check next frame
         _tfOpeningParadoxAtkCd = 1;
       } else {
@@ -376,19 +458,437 @@ function updateTFOpeningFight() {
     }
   }
 
-  // When threshold reached: fire the entry cinematic (TF kills Paradox)
+  // When threshold reached: TF teleports behind Paradox and punches them out of the stage.
+  // Fight then continues normally; Paradox returns later at 1000 HP.
   if (tfOpeningDamageDealt >= TF_OPENING_DAMAGE_THRESHOLD) {
     tfOpeningFightActive = false;
     _tfOpeningTFRef      = null;
-    tfCinematicState     = 'paradox_death';
-    if (typeof showBossDialogue === 'function')
-      showBossDialogue('Enough.', 180);
-    if (typeof startCinematic === 'function' && typeof _makeTFKillsParadoxCinematic === 'function') {
-      startCinematic(_makeTFKillsParadoxCinematic(tf));
-    } else if (typeof startCinematic === 'function' && typeof _makeTFParadoxEntryCinematic === 'function') {
-      startCinematic(_makeTFParadoxEntryCinematic(tf));
+    // Kill GSAP timeline so it doesn't fire any more callbacks
+    if (_tfOpeningGSAPTL) { _tfOpeningGSAPTL.kill(); _tfOpeningGSAPTL = null; }
+    cinematicCamOverride = false;
+    // Restore player invincibility to normal (brief window so they land safely)
+    if (typeof players !== 'undefined') {
+      for (const p of players) {
+        if (!p.isBoss) p.invincible = Math.min(p.invincible, 90);
+      }
+    }
+    if (typeof startCinematic === 'function' && typeof _makeTFKicksParadoxOutCinematic === 'function') {
+      startCinematic(_makeTFKicksParadoxOutCinematic(tf));
+    } else {
+      // Fallback: just end the opening phase cleanly
+      if (paradoxEntity) paradoxEntity.done = true;
+      tfCinematicState = 'none';
     }
   }
+}
+
+// ============================================================
+// TF KICKS PARADOX OUT  — fires after opening 1000-damage threshold
+// TF teleports behind Paradox and punches them off-stage.
+// After this cinematic: tfCinematicState = 'none' (fight continues normally).
+// ============================================================
+function _makeTFKicksParadoxOutCinematic(tf) {
+  return {
+    durationFrames:   300,  // 5 seconds
+    _teleportFired:   false,
+    _windupFired:     false,
+    _launchFired:     false,
+    _phaseLabel: { text: '— ENOUGH —', color: '#ffffff' },
+
+    update(t) {
+      if      (t < 0.2) slowMotion = Math.max(0.05, 1 - t * 4.75);
+      else if (t > 3.8) slowMotion = Math.min(1.0,  (t - 3.8) / 1.0);
+      else              slowMotion = 0.05;
+
+      cinematicCamOverride = t < 4.8;
+      if (cinematicCamOverride) {
+        cinematicZoomTarget = 1.6;
+        const px = paradoxEntity ? paradoxEntity.cx() : GAME_W / 2;
+        cinematicFocusX = px;
+        cinematicFocusY = GAME_H / 2 - 20;
+      }
+
+      // 0.5 s: TF teleports directly behind Paradox
+      if (t >= 0.5 && !this._teleportFired) {
+        this._teleportFired = true;
+        if (tf && paradoxEntity) {
+          spawnParticles(tf.cx(), tf.cy(), '#000000', 20);
+          spawnParticles(tf.cx(), tf.cy(), '#ffffff', 12);
+          const behindX = paradoxEntity.cx() - paradoxEntity.facing * 24 - tf.w / 2;
+          tf.x = Math.max(10, Math.min(GAME_W - tf.w - 10, behindX));
+          tf.y = paradoxEntity.y;
+          tf.vx = 0; tf.vy = 0;
+          tf.facing = paradoxEntity.facing;
+          spawnParticles(tf.cx(), tf.cy(), '#000000', 20);
+          spawnParticles(tf.cx(), tf.cy(), '#ffffff', 12);
+          screenShake = Math.max(screenShake, 18);
+        }
+        if (typeof showBossDialogue === 'function') showBossDialogue("I've seen enough.", 220);
+      }
+
+      // 1.2 s: TF winds up punch
+      if (t >= 1.2 && !this._windupFired) {
+        this._windupFired = true;
+        if (tf) { tf.attackTimer = 22; tf.attackDuration = 22; }
+        screenShake = Math.max(screenShake, 10);
+      }
+
+      // 1.8 s: TF punches Paradox off-stage
+      if (t >= 1.8 && !this._launchFired) {
+        this._launchFired = true;
+        if (paradoxEntity) {
+          const launchDir = paradoxEntity.facing;
+          spawnParticles(paradoxEntity.cx(), paradoxEntity.cy(), '#00ffff', 45);
+          spawnParticles(paradoxEntity.cx(), paradoxEntity.cy(), '#ffffff', 22);
+          paradoxEntity._launchVx = launchDir * 28;
+          paradoxEntity._launchVy = -16;
+        }
+        if (typeof CinFX !== 'undefined') CinFX.flash('#ffffff', 0.7, 18);
+        screenShake = Math.max(screenShake, 48);
+        if (typeof showBossDialogue === 'function')
+          showBossDialogue('You are not needed here.', 280);
+      }
+
+      // Fly Paradox off-screen after launch
+      if (this._launchFired && paradoxEntity && paradoxEntity._launchVx !== undefined) {
+        paradoxEntity.x  += paradoxEntity._launchVx;
+        paradoxEntity.y  += paradoxEntity._launchVy;
+        paradoxEntity._launchVy += 0.5;
+        paradoxEntity.alpha = Math.max(0, paradoxEntity.alpha - 0.04);
+        if (paradoxEntity.alpha <= 0) paradoxEntity.done = true;
+      } else if (paradoxEntity) {
+        paradoxEntity.update();
+      }
+    },
+
+    onEnd() {
+      slowMotion           = 1.0;
+      cinematicCamOverride = false;
+      paradoxEntity        = null;
+      tfCinematicState     = 'none'; // main fight resumes normally
+      if (tf) {
+        tf.x = Math.max(40, Math.min(GAME_W - tf.w - 40, tf.x));
+        tf.y = GAME_H - 200;
+        tf.vy = 0; tf.vx = 0;
+        tf.invincible      = 60;
+        tf.postSpecialPause = 3;
+      }
+    }
+  };
+}
+
+// ============================================================
+// PARADOX RETURN AT 1000 HP  — fires from startTFParadoxReturn1000()
+// Sequence: Paradox flashes back → brief joint fight → TF gamma rays
+//           → multiversal attacks → execute command → Paradox dies
+//           → absorption → dimension punch → Code Realm
+// ============================================================
+// Helper: reposition TF and hero to a flat, always-visible cinematic stage position
+function _snapToCinematicStage(tf, hero) {
+  const stageY = GAME_H - 120;
+  if (tf)   { tf.x   = GAME_W * 0.65 - tf.w / 2;   tf.y   = stageY - tf.h;   tf.vx = 0; tf.vy = 0; }
+  if (hero) { hero.x = GAME_W * 0.28 - hero.w / 2; hero.y = stageY - hero.h; hero.vx = 0; hero.vy = 0; }
+}
+
+function startTFParadoxReturn1000(tf) {
+  tfCinematicState = 'paradox_death'; // reuse state to suppress normal AI
+  if (tf) tf.invincible = 9999;
+
+  // Snap both entities to a guaranteed visible stage position
+  const _hero = typeof players !== 'undefined' ? players.find(p => !p.isBoss) : null;
+  _snapToCinematicStage(tf, _hero);
+  if (_hero) _hero.invincible = Math.max(_hero.invincible || 0, 9999);
+
+  if (typeof showBossDialogue === 'function') showBossDialogue('Not yet.', 200);
+  if (typeof startCinematic === 'function') {
+    startCinematic(_makeTFParadoxReturn1000Cinematic(tf));
+  }
+}
+
+function _makeTFParadoxReturn1000Cinematic(tf) {
+  return {
+    durationFrames:   900,  // 15 seconds — extended for pacing
+    _spawnFired:      false,
+    _fightFired:      false,
+    _fight2Fired:     false,
+    _gammaFired:      false,
+    _multiAttackFired:false,
+    _multiStrike2:    false,
+    _multiStrike3:    false,
+    _executeFired:    false,
+    _collapseFired:   false,
+    _paradoxContinuousCd: 0, // frames until next autonomous Paradox attack
+    _phaseLabel: { text: '— THE RETURN —', color: '#00ffff' },
+
+    update(t) {
+      if      (t < 0.3)  slowMotion = Math.max(0.05, 1 - t * 3.3);
+      else if (t > 13.5) slowMotion = Math.min(1.0,  (t - 13.5) / 1.0);
+      else               slowMotion = 0.06;
+
+      cinematicCamOverride = t < 14.8;
+      if (cinematicCamOverride) {
+        const focus = paradoxEntity || tf;
+        // Camera shifts focus: start on TF, then to Paradox during gamma, then both
+        if (t < 4.0) {
+          cinematicZoomTarget = 1.3;
+          cinematicFocusX = tf ? tf.cx() : GAME_W / 2;
+          cinematicFocusY = GAME_H / 2 - 20;
+        } else if (t < 8.0) {
+          cinematicZoomTarget = 1.5;
+          cinematicFocusX = paradoxEntity ? paradoxEntity.cx() : (tf ? tf.cx() : GAME_W / 2);
+          cinematicFocusY = GAME_H / 2 - 30;
+        } else {
+          cinematicZoomTarget = 1.2;
+          cinematicFocusX = GAME_W / 2;
+          cinematicFocusY = GAME_H / 2 - 20;
+        }
+      }
+
+      // 0.6 s: Paradox flashes back in — spawn on cinematic stage next to hero
+      if (t >= 0.6 && !this._spawnFired) {
+        this._spawnFired = true;
+        const _stageY = GAME_H - 120 - 50;
+        spawnParadox(GAME_W * 0.20, _stageY);
+        if (paradoxEntity) { paradoxEntity.facing = 1; paradoxEntity.vy = 0; }
+        if (typeof CinFX !== 'undefined') CinFX.flash('#00ffff', 0.5, 16);
+        screenShake = Math.max(screenShake, 20);
+        if (typeof showBossDialogue === 'function')
+          showBossDialogue("I'm not finished.", 260);
+        const _hero = typeof players !== 'undefined' ? players.find(p => !p.isBoss) : null;
+        if (_hero) _hero.invincible = Math.max(_hero.invincible || 0, 9999);
+      }
+
+      // 1.5 s: Paradox and hero land first scripted hit on TF
+      if (t >= 1.5 && !this._fightFired) {
+        this._fightFired = true;
+        if (paradoxEntity) paradoxEntity.punch(1);
+        if (tf) {
+          tf.hurtTimer = 12;
+          tf.vx        = -4;
+          spawnParticles(tf.cx(), tf.cy(), '#00ffff', 22);
+          spawnParticles(tf.cx(), tf.cy(), '#ffffff', 12);
+          screenShake = Math.max(screenShake, 24);
+          if (typeof DamageText !== 'undefined' && settings.dmgNumbers) {
+            damageTexts.push(new DamageText('CRITICAL', tf.cx(), tf.cy() - 30, '#00ffff'));
+          }
+        }
+        if (typeof showBossDialogue === 'function')
+          showBossDialogue("You can't stop both of us.", 260);
+      }
+
+      // 2.8 s: Second coordinated attack burst
+      if (t >= 2.8 && !this._fight2Fired) {
+        this._fight2Fired = true;
+        if (paradoxEntity) paradoxEntity.punch(1);
+        const _hero = typeof players !== 'undefined' ? players.find(p => !p.isBoss) : null;
+        if (_hero) { _hero.attackTimer = 16; _hero.attackDuration = 16; }
+        if (tf) {
+          tf.hurtTimer = 10; tf.vx = 3;
+          spawnParticles(tf.cx(), tf.cy(), '#ffffff', 16);
+          spawnParticles(tf.cx(), tf.cy(), '#ffaa00', 10);
+          screenShake = Math.max(screenShake, 18);
+        }
+        if (typeof CinFX !== 'undefined') CinFX.flash('#ffffff', 0.22, 8);
+        if (typeof showBossDialogue === 'function')
+          showBossDialogue("End of the line.", 260);
+      }
+
+      // 4.5 s: TF turns on Paradox — GAMMA RAY BURST
+      if (t >= 4.5 && !this._gammaFired) {
+        this._gammaFired = true;
+        const gx = tf ? tf.cx() : GAME_W * 0.65;
+        const gy = tf ? tf.cy() : GAME_H / 2;
+        if (settings.particles) {
+          for (let i = 0; i < 80 && particles.length < MAX_PARTICLES; i++) {
+            const angle = Math.random() * Math.PI * 2;
+            const spd   = 5 + Math.random() * 16;
+            const _p    = _getParticle();
+            _p.x = gx; _p.y = gy;
+            _p.vx = Math.cos(angle) * spd; _p.vy = Math.sin(angle) * spd;
+            _p.color = Math.random() < 0.5 ? '#ffff00' : (Math.random() < 0.5 ? '#ffffff' : '#ff8800');
+            _p.size  = 2 + Math.random() * 6; _p.life = 40 + Math.random() * 40; _p.maxLife = 80;
+            particles.push(_p);
+          }
+        }
+        // Gamma beam visual: large shockwave ring from TF toward Paradox
+        if (typeof CinFX !== 'undefined') {
+          CinFX.shockwave(gx, gy, '#ffff44', { count: 3, maxR: 340, lw: 6, dur: 55 });
+          CinFX.flash('#ffff44', 0.65, 22);
+        }
+        screenShake = Math.max(screenShake, 44);
+        if (typeof showBossDialogue === 'function')
+          showBossDialogue('GAMMA RAY BURST — MULTIVERSAL COLLAPSE', 300);
+        if (paradoxEntity) {
+          paradoxEntity.hurtTimer = 35;
+          paradoxEntity.alpha     = 0.5;
+          if (cinematicCamOverride) {
+            cinematicFocusX = paradoxEntity.cx();
+            cinematicFocusY = paradoxEntity.cy() - 30;
+          }
+        }
+        // TF faces Paradox and wind-up
+        if (tf && paradoxEntity) {
+          tf.facing = Math.sign(paradoxEntity.cx() - tf.cx()) || 1;
+          tf.attackTimer = 20; tf.attackDuration = 20;
+        }
+      }
+
+      // 6.0 s: MULTIVERSAL STRIKE 1 — dimensional lightning bolt at Paradox
+      if (t >= 6.0 && !this._multiAttackFired) {
+        this._multiAttackFired = true;
+        const px = paradoxEntity ? paradoxEntity.cx() : GAME_W * 0.25;
+        const py = paradoxEntity ? paradoxEntity.cy() : GAME_H / 2;
+        screenShake = Math.max(screenShake, 40);
+        if (settings.particles) {
+          // Streak from sky → Paradox
+          for (let i = 0; i < 50 && particles.length < MAX_PARTICLES; i++) {
+            const _p = _getParticle();
+            const frac = i / 50;
+            _p.x = px + (Math.random() - 0.5) * 30;
+            _p.y = py - 200 * (1 - frac) + (Math.random() - 0.5) * 20;
+            _p.vx = (Math.random() - 0.5) * 3;
+            _p.vy = 4 + Math.random() * 6;
+            _p.color = Math.random() < 0.55 ? '#ff00ff' : '#8800ff';
+            _p.size  = 2 + Math.random() * 5; _p.life = 20 + Math.random() * 20; _p.maxLife = 40;
+            particles.push(_p);
+          }
+        }
+        if (typeof CinFX !== 'undefined') {
+          CinFX.shockwave(px, py, '#ff00ff', { count: 2, maxR: 200, lw: 5, dur: 40 });
+          CinFX.flash('#ff00ff', 0.50, 16);
+        }
+        if (typeof showBossDialogue === 'function')
+          showBossDialogue('MULTIVERSAL STRIKE — DIMENSIONAL OVERWRITE', 300);
+        if (paradoxEntity) { paradoxEntity.hurtTimer = Math.max(paradoxEntity.hurtTimer, 20); }
+      }
+
+      // 7.2 s: MULTIVERSAL STRIKE 2 — reality tear
+      if (t >= 7.2 && !this._multiStrike2) {
+        this._multiStrike2 = true;
+        const px2 = paradoxEntity ? paradoxEntity.cx() : GAME_W * 0.25;
+        const py2 = paradoxEntity ? paradoxEntity.cy() : GAME_H / 2;
+        screenShake = Math.max(screenShake, 36);
+        if (settings.particles) {
+          for (let i = 0; i < 60 && particles.length < MAX_PARTICLES; i++) {
+            const angle = (i / 60) * Math.PI * 2;
+            const spd   = 2 + Math.random() * 9;
+            const _p    = _getParticle();
+            _p.x = px2 + Math.cos(angle) * 20; _p.y = py2 + Math.sin(angle) * 20;
+            _p.vx = Math.cos(angle) * spd; _p.vy = Math.sin(angle) * spd;
+            _p.color = Math.random() < 0.5 ? '#00ffff' : '#ffffff';
+            _p.size  = 1.5 + Math.random() * 4; _p.life = 25 + Math.random() * 25; _p.maxLife = 50;
+            particles.push(_p);
+          }
+        }
+        if (typeof CinFX !== 'undefined') {
+          CinFX.shockwave(px2, py2, '#00ffff', { count: 2, maxR: 160, lw: 4, dur: 35 });
+          CinFX.flash('#00ffff', 0.35, 12);
+          CinFX.groundCrack(px2, GAME_H - 120, { count: 8, color: '#00ffff' });
+        }
+        if (typeof showBossDialogue === 'function')
+          showBossDialogue('REALITY TEAR — TIMELINE COLLAPSE', 300);
+      }
+
+      // 8.0 s: MULTIVERSAL STRIKE 3 — execute windup
+      if (t >= 8.0 && !this._multiStrike3) {
+        this._multiStrike3 = true;
+        if (tf) {
+          tf.attackTimer    = 30;
+          tf.attackDuration = 30;
+          if (paradoxEntity) tf.facing = Math.sign(paradoxEntity.cx() - tf.cx()) || tf.facing;
+        }
+        screenShake = Math.max(screenShake, 28);
+        if (typeof CinFX !== 'undefined') CinFX.flash('#ff4400', 0.30, 14);
+        if (typeof showBossDialogue === 'function')
+          showBossDialogue("You've served your purpose. End sequence.", 320);
+      }
+
+      // 9.2 s: Execute command — TF charges final blow
+      if (t >= 9.2 && !this._executeFired) {
+        this._executeFired = true;
+        if (tf) {
+          tf.attackTimer    = 28;
+          tf.attackDuration = 28;
+          if (paradoxEntity) tf.facing = Math.sign(paradoxEntity.cx() - tf.cx()) || tf.facing;
+        }
+        screenShake = Math.max(screenShake, 24);
+        if (typeof showBossDialogue === 'function')
+          showBossDialogue('EXECUTE: PARADOX_ENTITY.terminate()', 360);
+        if (typeof CinFX !== 'undefined') CinFX.flash('#00ff88', 0.35, 14);
+      }
+
+      // 11.0 s: Paradox collapses — big final burst
+      if (t >= 11.0 && !this._collapseFired) {
+        this._collapseFired = true;
+        if (paradoxEntity) {
+          spawnParticles(paradoxEntity.cx(), paradoxEntity.cy(), '#00ffff', 80);
+          spawnParticles(paradoxEntity.cx(), paradoxEntity.cy(), '#ffffff', 40);
+          spawnParticles(paradoxEntity.cx(), paradoxEntity.cy(), '#000000', 30);
+          if (typeof CinFX !== 'undefined') {
+            CinFX.shockwave(paradoxEntity.cx(), paradoxEntity.cy(), '#ffffff', { count: 4, maxR: 300, lw: 5, dur: 60 });
+          }
+          paradoxEntity.done = true;
+        }
+        if (typeof CinFX !== 'undefined') CinFX.flash('#ffffff', 0.90, 30);
+        screenShake = Math.max(screenShake, 60);
+        if (typeof showBossDialogue === 'function') showBossDialogue('...', 280);
+      }
+
+      // ── Continuous Paradox movement + attacks (between spawn and gamma ray) ──
+      // Paradox actively fights TF — moves toward them and punches on cooldown.
+      if (t >= 0.6 && t < 4.5 && paradoxEntity && !paradoxEntity.done && tf) {
+        const pdx = tf.cx() - paradoxEntity.cx();
+        // Smooth movement toward TF; hang back slightly when in punch range
+        const targetVx = Math.abs(pdx) > 60 ? Math.sign(pdx) * 5.5 : 0;
+        paradoxEntity.x += targetVx * 0.45;
+        paradoxEntity.facing = Math.sign(pdx) || paradoxEntity.facing;
+
+        this._paradoxContinuousCd = (this._paradoxContinuousCd || 0) - 1;
+        if (this._paradoxContinuousCd <= 0 && Math.abs(pdx) < 110) {
+          this._paradoxContinuousCd = 48 + Math.floor(Math.random() * 20);
+          paradoxEntity.punch(Math.sign(pdx));
+          // Visual flinch on TF — no actual HP change, cinematic controls that
+          tf.hurtTimer = Math.max(tf.hurtTimer, 8);
+          tf.vx        = -Math.sign(pdx) * 2.5;
+          spawnParticles(tf.cx(), tf.cy(), '#00ffff', 10);
+          spawnParticles(tf.cx(), tf.cy(), '#ffffff', 5);
+          screenShake = Math.max(screenShake, 8);
+        }
+      }
+
+      if (paradoxEntity) paradoxEntity.update();
+    },
+
+    onEnd() {
+      slowMotion           = 1.0;
+      cinematicCamOverride = false;
+      paradoxEntity        = null;
+      _tfKCOverlay         = null;
+
+      // Mark Paradox as dead — required by _startAbsorptionThenPunch guard
+      paradoxDeathComplete = true;
+
+      if (tf) {
+        tf.invincible       = 60;
+        tf.postSpecialPause = 3;
+      }
+
+      // Reposition hero safely, then begin absorption → dimension punch → Code Realm
+      const hero = typeof players !== 'undefined' ? players.find(p => !p.isBoss) : null;
+      if (hero) {
+        hero.x  = Math.max(40, tf ? tf.x - 150 : GAME_W * 0.25);
+        hero.y  = GAME_H - 72 - hero.h;
+        hero.vx = 0; hero.vy = 0;
+        hero.invincible = 9999;
+      }
+
+      if (hero && typeof startTFAbsorptionScene === 'function') {
+        startTFAbsorptionScene(hero, null);
+      } else if (hero && typeof _startAbsorptionThenPunch === 'function') {
+        _startAbsorptionThenPunch(tf, hero);
+      }
+    }
+  };
 }
 
 // ============================================================
@@ -398,6 +898,8 @@ function updateTFOpeningFight() {
 function _startAbsorptionThenPunch(boss, hero) {
   // Guard: only start if paradox death cinematic has fully completed
   if (!paradoxDeathComplete) return;
+  // Clear any pending dialogue so death-scene lines don't bleed into absorption text
+  if (typeof bossDialogue !== 'undefined') bossDialogue.timer = 0;
   _tfAbsorptionState = { timer: 0, boss, hero };
   tfCinematicState   = 'absorption';
   if (hero) hero.invincible = Math.max(hero.invincible || 0, 9999);
@@ -435,7 +937,7 @@ function updateTFAbsorption() {
     screenShake = Math.max(screenShake, 30);
     if (typeof CinFX !== 'undefined') CinFX.flash('#00ffff', 0.62, 20);
     if (typeof showBossDialogue === 'function')
-      showBossDialogue('Their power is yours now.', 260);
+      showBossDialogue("Paradox is gone. What remains is yours. Use it.", 280);
     if (s.hero && settings.particles) {
       for (let i = 0; i < 40 && particles.length < MAX_PARTICLES; i++) {
         const angle = Math.random() * Math.PI * 2;
@@ -454,26 +956,19 @@ function updateTFAbsorption() {
   // t=110: explain survival
   if (t === 110) {
     if (typeof showBossDialogue === 'function')
-      showBossDialogue('You cannot be erased. Not while you carry that power.', 300);
+      showBossDialogue("No weapon. No system. Just your hands. Finish it.", 320);
   }
 
-  // t=150: unfreeze — player regains control before punch cinematic
-  if (t === 150) {
-    gameFrozen = false;
-    if (s.hero) s.hero.invincible = 0;
-  }
-
-  // t=170: hand off to dimension-punch intro
-  // Set absorptionComplete first, then guard on both flags so punch NEVER starts
-  // unless paradox death cinematic has fully run onEnd() (paradoxDeathComplete === true).
+  // t=170: hand off directly to punch cinematic — clear state AFTER startTFEnding
+  // takes ownership so there is no gap frame between the two sequences.
   if (t >= 170) {
     if (!absorptionComplete) absorptionComplete = true;
     if (paradoxDeathComplete && absorptionComplete) {
-      _tfAbsorptionState = null;
-      tfCinematicState   = 'punch_transition';
+      tfCinematicState = 'punch_transition';
       if (typeof startTFEnding === 'function') {
         startTFEnding(s.boss, true); // true = isIntro mode
       }
+      _tfAbsorptionState = null; // clear only after handoff
     }
   }
 }
@@ -531,6 +1026,8 @@ function drawTFAbsorption() {
 // ============================================================
 function startTFAbsorptionScene(player, paradoxRef) {
   if (tfAbsorptionScene) return; // already running
+  // Clear any pending boss dialogue so death-scene lines don't bleed into absorption
+  if (typeof bossDialogue !== 'undefined') bossDialogue.timer = 0;
   const boss = typeof players !== 'undefined' ? players.find(p => p.isBoss && p.health > 0) : null;
   tfAbsorptionScene = {
     timer:      0,
@@ -614,13 +1111,15 @@ function updateTFAbsorptionScene() {
       }
     }
 
-    tfAbsorptionScene = null;
-    activeCinematic = false;
-
-    // Continue to punch cinematic
+    // Hand off directly to punch cinematic — do NOT clear activeCinematic/gameFrozen
+    // before startTFEnding runs, or a gap frame will flash between the two cinematics.
     if (typeof startTFEnding === 'function') {
-      startTFEnding(true);
+      const _tfEndBoss = players.find(p => p.isBoss);
+      startTFEnding(_tfEndBoss, true);
     }
+    // Only clear after startTFEnding has taken ownership
+    tfAbsorptionScene = null;
+    activeCinematic   = false;
   }
 }
 
@@ -703,7 +1202,7 @@ function drawTFAbsorptionScene() {
 // Called from smb-drawing.js / smb-loop.js with explicit ctx arg.
 // The no-arg drawTFAbsorptionScene() above handles in-loop calls.
 // ============================================================
-function drawTFAbsorptionScene(ctx) {
+function drawTFAbsorptionSceneWithCtx(ctx) {
   const sc = tfAbsorptionScene;
   if (!sc) return;
 
@@ -742,85 +1241,138 @@ function drawTFAbsorptionScene(ctx) {
 
 // ============================================================
 // ABSORPTION MEMORY FLASHES  — Paradox backstory visual flashes
+// Shown in sequence during the absorption scene after Paradox dies.
+// Each flash is a brief, fragmented glimpse — enough for the player
+// to piece together what Paradox was and why it fought.
+//
+// CANON: Paradox was constructed during the multiversal war to fight
+// beside Axiom. An error in its design caused it to turn against
+// everything. It was not malicious — it was broken. It has been
+// fighting since the error, unable to stop.
 // ============================================================
 function drawTFAbsorptionMemories(ctx, sc) {
-  const t = sc.memoryIndex % 5;
+  // Cycle through 7 memories (length of _TF_ABSORPTION_MEMORIES)
+  const t = sc.memoryIndex % 7;
 
   ctx.save();
-  ctx.globalAlpha = 0.5;
+  ctx.globalAlpha = 0.72;
 
   switch (t) {
 
     case 0:
-      // Creation attempt
-      ctx.font = 'bold 22px sans-serif';
+      // Flash 1: Construction — clean, cold, clinical. Paradox was made deliberately.
+      ctx.font = 'bold 13px monospace';
       ctx.textAlign = 'center';
-      ctx.fillStyle = '#ffffff';
-      ctx.shadowColor = '#ffffff';
-      ctx.shadowBlur = 14;
-      ctx.fillText('CREATION FAILED', GAME_W / 2, GAME_H / 2);
+      ctx.fillStyle = '#aaddff';
+      ctx.shadowColor = '#aaddff';
+      ctx.shadowBlur = 10;
+      ctx.fillText('UNIT DESIGNATION: PARADOX', GAME_W / 2, GAME_H / 2 - 20);
+      ctx.fillText('PURPOSE: COMBAT AUXILIARY', GAME_W / 2, GAME_H / 2);
+      ctx.fillText('CREATOR: AXIOM', GAME_W / 2, GAME_H / 2 + 20);
       break;
 
     case 1:
-      // Paradox forming
-      ctx.strokeStyle = '#aa55ff';
-      ctx.lineWidth = 3;
-      ctx.shadowColor = '#aa55ff';
-      ctx.shadowBlur = 18;
+      // Flash 2: Paradox and Axiom, side by side.
+      // Two stickman silhouettes standing together.
+      ctx.fillStyle = '#aaddff';
+      ctx.shadowColor = '#aaddff';
+      ctx.shadowBlur = 14;
+      // Axiom (left)
+      const ax = GAME_W / 2 - 40;
+      ctx.beginPath(); ctx.arc(ax, GAME_H / 2 - 55, 7, 0, Math.PI * 2); ctx.fill();
+      ctx.lineWidth = 2.5; ctx.strokeStyle = '#aaddff';
       ctx.beginPath();
-      ctx.arc(GAME_W / 2, GAME_H / 2, 40, 0, Math.PI * 2);
+      ctx.moveTo(ax, GAME_H / 2 - 48); ctx.lineTo(ax, GAME_H / 2 - 22);
+      ctx.moveTo(ax - 12, GAME_H / 2 - 40); ctx.lineTo(ax + 12, GAME_H / 2 - 40);
+      ctx.moveTo(ax, GAME_H / 2 - 22); ctx.lineTo(ax - 9, GAME_H / 2 - 5);
+      ctx.moveTo(ax, GAME_H / 2 - 22); ctx.lineTo(ax + 9, GAME_H / 2 - 5);
       ctx.stroke();
+      ctx.font = '11px sans-serif'; ctx.fillStyle = '#aaddff';
+      ctx.fillText('AXIOM', ax, GAME_H / 2 - 70);
+      // Paradox (right) — slightly glitched outline
+      const px2 = GAME_W / 2 + 40;
+      ctx.globalAlpha = 0.55;
+      ctx.fillStyle = '#aa55ff'; ctx.shadowColor = '#aa55ff'; ctx.shadowBlur = 18;
+      ctx.beginPath(); ctx.arc(px2, GAME_H / 2 - 55, 7, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = '#aa55ff';
+      ctx.beginPath();
+      ctx.moveTo(px2, GAME_H / 2 - 48); ctx.lineTo(px2, GAME_H / 2 - 22);
+      ctx.moveTo(px2 - 12, GAME_H / 2 - 40); ctx.lineTo(px2 + 12, GAME_H / 2 - 40);
+      ctx.moveTo(px2, GAME_H / 2 - 22); ctx.lineTo(px2 - 9, GAME_H / 2 - 5);
+      ctx.moveTo(px2, GAME_H / 2 - 22); ctx.lineTo(px2 + 9, GAME_H / 2 - 5);
+      ctx.stroke();
+      ctx.font = '11px sans-serif'; ctx.fillStyle = '#aa55ff';
+      ctx.fillText('PARADOX', px2, GAME_H / 2 - 70);
       break;
 
     case 2:
-      // Axiom silhouette
-      ctx.fillStyle = '#ffffff';
-      ctx.shadowColor = '#ffffff';
-      ctx.shadowBlur = 10;
-      // Head
-      ctx.beginPath();
-      ctx.arc(GAME_W / 2, GAME_H / 2 - 60, 8, 0, Math.PI * 2);
-      ctx.fill();
-      // Body
-      ctx.lineWidth = 2.5;
-      ctx.strokeStyle = '#ffffff';
-      ctx.beginPath();
-      ctx.moveTo(GAME_W / 2, GAME_H / 2 - 52);
-      ctx.lineTo(GAME_W / 2, GAME_H / 2 - 25);
-      // Arms
-      ctx.moveTo(GAME_W / 2 - 14, GAME_H / 2 - 44);
-      ctx.lineTo(GAME_W / 2 + 14, GAME_H / 2 - 44);
-      // Legs
-      ctx.moveTo(GAME_W / 2, GAME_H / 2 - 25);
-      ctx.lineTo(GAME_W / 2 - 10, GAME_H / 2 - 8);
-      ctx.moveTo(GAME_W / 2, GAME_H / 2 - 25);
-      ctx.lineTo(GAME_W / 2 + 10, GAME_H / 2 - 8);
-      ctx.stroke();
-      // Label
-      ctx.font = 'bold 16px sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillStyle = '#ffffff';
-      ctx.fillText('AXIOM', GAME_W / 2, GAME_H / 2 - 90);
-      break;
-
-    case 3:
-      // Endless fights
-      ctx.font = 'bold 22px sans-serif';
+      // Flash 3: The error — red diagnostic text, glitchy
+      ctx.font = 'bold 14px monospace';
       ctx.textAlign = 'center';
       ctx.fillStyle = '#ff4444';
       ctx.shadowColor = '#ff4444';
-      ctx.shadowBlur = 14;
-      ctx.fillText('DEFEAT', GAME_W / 2, GAME_H / 2);
+      ctx.shadowBlur = 20;
+      ctx.fillText('CRITICAL ERROR', GAME_W / 2, GAME_H / 2 - 22);
+      ctx.globalAlpha = 0.5;
+      ctx.font = '11px monospace';
+      ctx.fillStyle = '#ff8888';
+      ctx.fillText('LOYALTY DIRECTIVE: CORRUPTED', GAME_W / 2, GAME_H / 2 + 2);
+      ctx.fillText('TARGET LOCK: ALL', GAME_W / 2, GAME_H / 2 + 20);
+      break;
+
+    case 3:
+      // Flash 4: Paradox turns — silhouette facing away, hostile aura
+      ctx.strokeStyle = '#ff4444';
+      ctx.lineWidth = 2.5;
+      ctx.shadowColor = '#ff4444';
+      ctx.shadowBlur = 22;
+      // Paradox silhouette facing away (mirrored arms — aggressive stance)
+      const px3 = GAME_W / 2;
+      ctx.fillStyle = '#ff4444';
+      ctx.beginPath(); ctx.arc(px3, GAME_H / 2 - 55, 7, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(px3, GAME_H / 2 - 48); ctx.lineTo(px3, GAME_H / 2 - 20);
+      ctx.moveTo(px3 - 16, GAME_H / 2 - 36); ctx.lineTo(px3 + 16, GAME_H / 2 - 36); // arms wide
+      ctx.moveTo(px3, GAME_H / 2 - 20); ctx.lineTo(px3 - 10, GAME_H / 2 - 4);
+      ctx.moveTo(px3, GAME_H / 2 - 20); ctx.lineTo(px3 + 10, GAME_H / 2 - 4);
+      ctx.stroke();
+      ctx.font = '11px monospace'; ctx.textAlign = 'center';
+      ctx.fillStyle = '#ff6666'; ctx.globalAlpha = 0.6;
+      ctx.fillText('TARGET: AXIOM', px3, GAME_H / 2 + 14);
       break;
 
     case 4:
-      // Persistence
-      ctx.font = 'bold 22px sans-serif';
+      // Flash 5: A voice — first person. Brief. Incomplete.
+      ctx.font = 'italic 15px sans-serif';
       ctx.textAlign = 'center';
-      ctx.fillStyle = '#44ffaa';
-      ctx.shadowColor = '#44ffaa';
+      ctx.fillStyle = '#ccaaff';
+      ctx.shadowColor = '#aa55ff';
+      ctx.shadowBlur = 16;
+      ctx.fillText('"I was not supposed to be the enemy."', GAME_W / 2, GAME_H / 2);
+      break;
+
+    case 5:
+      // Flash 6: The war — Paradox fighting alone, endless. Abstract.
+      ctx.font = 'bold 20px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillStyle = '#ff8844';
+      ctx.shadowColor = '#ff6600';
+      ctx.shadowBlur = 18;
+      ctx.fillText('FIGHT.', GAME_W / 2, GAME_H / 2 - 10);
+      ctx.globalAlpha = 0.4;
+      ctx.font = '11px monospace';
+      ctx.fillStyle = '#ffaa66';
+      ctx.fillText('ITERATION: ???', GAME_W / 2, GAME_H / 2 + 16);
+      break;
+
+    case 6:
+      // Flash 7: The end. Final words. Fades with purpose.
+      ctx.font = 'italic 14px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillStyle = '#88ccff';
+      ctx.shadowColor = '#44aaff';
       ctx.shadowBlur = 14;
-      ctx.fillText('AGAIN', GAME_W / 2, GAME_H / 2);
+      ctx.fillText('"Remember what I was before the mistake."', GAME_W / 2, GAME_H / 2);
       break;
   }
 
@@ -1091,6 +1643,13 @@ function _makeTFKillsParadoxCinematic(tf) {
       else if (t > 9.3) slowMotion = Math.min(1.0,  (t - 9.3) / 0.7);
       else              slowMotion = 0.06;
 
+      // Manually tick TF attack animation (gameFrozen skips Fighter.update())
+      if (tf && tf.attackTimer > 0) {
+        tf.attackTimer--;
+        tf.state = tf.attackTimer > 0 ? 'attacking' : 'idle';
+      }
+      if (paradoxEntity) paradoxEntity.update();
+
       // ── camera ───────────────────────────────────────────────
       cinematicCamOverride = (t < 9.8);
       if (cinematicCamOverride && tf) {
@@ -1154,6 +1713,10 @@ function _makeTFKillsParadoxCinematic(tf) {
           tf.y      = paradoxEntity.y;
           tf.vy     = 0;
           tf.facing = -1;
+          tf.state          = 'attacking';
+          tf._attackMode    = 'punch';
+          tf.attackTimer    = 18;
+          tf.attackDuration = 18;
           paradoxEntity.facing = 1;
           paradoxEntity.vx = 0;
           paradoxEntity.vy = -4;
@@ -1185,6 +1748,10 @@ function _makeTFKillsParadoxCinematic(tf) {
           tf.y      = paradoxEntity.y - 60;
           tf.vy     = 6;
           tf.facing = 1;
+          tf.state          = 'attacking';
+          tf._attackMode    = 'kick';
+          tf.attackTimer    = 22;
+          tf.attackDuration = 22;
           paradoxEntity.vx = (Math.random() - 0.5) * 3;
           paradoxEntity.vy = 5;
           spawnParticles(paradoxEntity.cx(), paradoxEntity.cy(), '#ffffff', 18);
@@ -1211,6 +1778,10 @@ function _makeTFKillsParadoxCinematic(tf) {
           tf.y      = paradoxEntity.y;
           tf.vy     = 0;
           tf.facing = 1;
+          tf.state          = 'attacking';
+          tf._attackMode    = 'punch';
+          tf.attackTimer    = 26;
+          tf.attackDuration = 26;
           paradoxEntity.facing = -1;
           paradoxEntity.vx = 0;
           paradoxEntity.vy = -2;
@@ -1386,6 +1957,7 @@ function _makeTFKillsParadoxCinematic(tf) {
       // Guarantee TF starts the main fight at exactly 9000 HP
       if (tf) {
         tf.health           = 9000;
+        tf.maxHealth        = Math.max(tf.maxHealth, 9000);
         tf.postSpecialPause = 4;
       }
 
@@ -2037,7 +2609,8 @@ function _makeTFIntroCinematic(tf) {
       if (!this._hp9kForced && t >= 5.0) {
         this._hp9kForced = true;
         if (tf) {
-          tf.health          = 9000; // hard set — no Math.max, no Math.min
+          tf.health           = 9000; // hard set — no Math.max, no Math.min
+          tf.maxHealth        = Math.max(tf.maxHealth, 9000);
           tf.postSpecialPause = 0;   // will be re-applied in onEnd guard
         }
       }
@@ -2219,7 +2792,8 @@ function _makeTFIntroCinematic(tf) {
       // Guarantee TF is at exactly 9000 HP when fight resumes.
       // (Safety net in case the cinematic was skipped or cut short.)
       if (tf) {
-        tf.health = 9000;
+        tf.health           = 9000;
+        tf.maxHealth        = Math.max(tf.maxHealth, 9000);
         // Re-enable TF abilities for the main fight (postSpecialPause was
         // set to 9999 in setup; give a small grace window before first attack).
         tf.postSpecialPause = 4; // ~60 frames before first special
@@ -2511,8 +3085,15 @@ function updateFalseVictory() {
       boss.health    = 10000;
       boss.maxHealth = 10000;
       boss.invincible = 90;
+      boss._tfEndingPrimed = false; // allow Round 2's real ending to trigger at 10% HP
     }
     tfFinalStateActive = true;
+    // Restore player weapon (was nulled during Code Realm) so ability key works in Round 2
+    const _p1 = players && players[0];
+    if (_p1 && !_p1.weapon) {
+      const _wk = _p1._savedWeaponKey || _p1.weaponKey || 'sword';
+      if (typeof WEAPONS !== 'undefined' && WEAPONS[_wk]) _p1.weapon = WEAPONS[_wk];
+    }
     // Activate Paradox fusion on player 1
     tfParadoxFused         = true;
     tfFusionControlMode    = 'player';
@@ -3321,5 +3902,118 @@ function paradoxPlayerUseAbility(fighter) {
   }
   for (const k of Object.keys(PARADOX_ABILITIES)) {
     if (tryAbility(k)) return;
+  }
+}
+
+// ============================================================
+// PARADOX COMPANION  — post-final-boss ambient voice system
+// Activated once by setting localStorage 'smc_paradox_companion'
+// after the TrueForm ending. No UI, no spam.
+// ============================================================
+
+// Read persisted flag once on load
+let paradoxCompanionActive = localStorage.getItem('smc_paradox_companion') === '1';
+
+// Internal state
+let _pdxCompIdleTimer    = 0;   // counts up; fires a line at threshold
+let _pdxCompLastArena    = '';  // detect arena change
+let _pdxCompCooldown     = 0;   // global cooldown between any lines (frames)
+const _PDX_IDLE_MIN      = 3600; // 60s minimum between idle lines
+const _PDX_IDLE_VARIANCE = 3600; // up to 60s additional random delay
+const _PDX_COOLDOWN      = 900;  // 15s minimum between any two lines
+
+const _PDX_BOSS_START_LINES = [
+  "I have seen this fight before. It ends differently now.",
+  "He is strong. You are stronger than you were.",
+  "I remember the last time you faced him. You did not hesitate.",
+  "Do not let him read you. Move first.",
+];
+
+const _PDX_AREA_LINES = {
+  creator:   ["This place again. The architecture is afraid of you now.", "He built this arena to break you. It did not."],
+  void:      ["The void remembers what happened here.", "He thought the void was his. You proved otherwise."],
+  _default:  ["New ground. Stay sharp.", "I am still here.", "Different arena. Same outcome."],
+};
+
+const _PDX_IDLE_LINES = [
+  "Still here.",
+  "I watch. That is enough.",
+  "You carry what I gave you. Use it well.",
+  "The fracture is quiet for now.",
+  "I do not sleep. I observe.",
+  "Something is coming. Not today.",
+];
+
+/**
+ * Speak a single line as Paradox. Uses showBossDialogue if available,
+ * otherwise silently skips. Respects global cooldown.
+ */
+function paradoxSpeak(line) {
+  if (!paradoxCompanionActive) return;
+  if (_pdxCompCooldown > 0) return;
+  if (typeof showBossDialogue !== 'function') return;
+  showBossDialogue(`[Paradox] ${line}`, 200);
+  _pdxCompCooldown = _PDX_COOLDOWN;
+}
+
+/**
+ * Called once when the TrueForm ending completes (non-intro path).
+ * Sets the persistent companion flag.
+ */
+function activateParadoxCompanion() {
+  if (paradoxCompanionActive) return;
+  paradoxCompanionActive = true;
+  localStorage.setItem('smc_paradox_companion', '1');
+}
+
+/**
+ * Called at boss/trueform game start, after players[] is populated.
+ * Fires a single contextual line with a short delay so it lands
+ * after the opening animation settles.
+ */
+function paradoxOnBossStart() {
+  if (!paradoxCompanionActive) return;
+  const line = _PDX_BOSS_START_LINES[Math.floor(Math.random() * _PDX_BOSS_START_LINES.length)];
+  // Delay 4 seconds — let opening cinematics breathe
+  setTimeout(() => paradoxSpeak(line), 4000);
+}
+
+/**
+ * Called from updateParadoxCompanion() when arena changes mid-session.
+ */
+function _paradoxOnAreaChange(arenaKey) {
+  if (!paradoxCompanionActive) return;
+  const pool = _PDX_AREA_LINES[arenaKey] || _PDX_AREA_LINES._default;
+  const line = pool[Math.floor(Math.random() * pool.length)];
+  paradoxSpeak(line);
+}
+
+/**
+ * Tick function — called each frame from gameLoop.
+ * Handles cooldown decay, arena-change detection, and rare idle lines.
+ */
+function updateParadoxCompanion() {
+  if (!paradoxCompanionActive || !gameRunning) return;
+
+  if (_pdxCompCooldown > 0) _pdxCompCooldown--;
+
+  // Arena-change detection
+  if (typeof currentArenaKey !== 'undefined' && currentArenaKey !== _pdxCompLastArena) {
+    if (_pdxCompLastArena !== '') _paradoxOnAreaChange(currentArenaKey);
+    _pdxCompLastArena = currentArenaKey;
+  }
+
+  // Rare idle line — only during active gameplay, not during cinematics
+  if (!isCinematic) {
+    _pdxCompIdleTimer++;
+    const threshold = _PDX_IDLE_MIN + Math.floor(Math.random() * _PDX_IDLE_VARIANCE);
+    if (_pdxCompIdleTimer >= threshold) {
+      _pdxCompIdleTimer = 0;
+      // ~40% chance to actually speak when threshold reached (keeps it rare)
+      if (Math.random() < 0.4) {
+        const line = _PDX_IDLE_LINES[Math.floor(Math.random() * _PDX_IDLE_LINES.length)];
+        paradoxSpeak(line);
+      }
+    }
   }
 }

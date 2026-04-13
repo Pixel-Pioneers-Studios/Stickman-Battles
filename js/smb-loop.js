@@ -5,10 +5,22 @@
 // Mode 1 — Gameplay: bounding-box tracking, 60/40 player bias
 // Mode 2 — Combat Focus: triggered when players are close / attacking
 // Mode 3 — Cinematic: entity-lock (boss attacks, QTEs, specials)
+// Mode 4 — DuelCam: smooth midpoint+distance-zoom for exactly 2 entities
 // ============================================================
-let _camMode         = 'gameplay';  // 'gameplay' | 'combat' | 'cinematic'
+let _camMode         = 'gameplay';  // 'gameplay' | 'combat' | 'cinematic' | 'duel'
 let _camCombatTimer  = 0;           // frames remaining in forced combat mode
 let _camModeBlend    = 0;           // 0→1 smoothing factor for mode transitions
+let _camSnapCooldown = 0;           // frames before failsafe snap can fire again
+
+// Duel-cam: smoothed midpoint target (separate from camXTarget/camYTarget so it doesn't fight lerp)
+let _duelMidX = GAME_W / 2;
+let _duelMidY = GAME_H / 2;
+// Max world-units the smoothed midpoint can travel per frame — prevents snapping on sudden jumps.
+// Scales with distance so far-behind camera catches up without overshooting.
+const _DUEL_MAX_SPEED   = 14;   // hard cap (world units/frame)
+const _DUEL_SPEED_SCALE = 0.10; // proportional factor (speed = dist * scale, then capped)
+// How many frames to delay following a fast-falling entity (cinematic drop feel)
+let _duelFallDelay = 0;
 
 // Per-mode lerp speeds
 const _CAM_LERP = {
@@ -16,7 +28,87 @@ const _CAM_LERP = {
   combat:    { pos: 0.130, zoom: 0.095 },
   cinematic: { pos: 0.220, zoom: 0.180 },
   cinematic_snap: { pos: 0.55, zoom: 0.45 },
+  duel:      { pos: 0.072, zoom: 0.052 },   // slightly slower than combat for smoothness
+  duel_close: { pos: 0.110, zoom: 0.082 },  // tighter when fighters are close
 };
+
+// ── Camera Keyframe Sequencer ─────────────────────────────────────────────────
+// createCameraSequence(keyframes) — drives camera through a timed path.
+// Each keyframe: { t: seconds, zoom: number, target: entityRef|{x,y}|null }
+// While a sequence is active, cinematicCamOverride is forced true.
+let _camSeq = null; // active sequence state
+let _camSeqTime = 0; // elapsed seconds
+
+function createCameraSequence(keyframes) {
+  if (!Array.isArray(keyframes) || keyframes.length === 0) return;
+  _camSeq = keyframes.slice().sort((a, b) => a.t - b.t);
+  _camSeqTime = 0;
+  cinematicCamOverride = true;
+}
+
+function _tickCameraSequence(dt) {
+  if (!_camSeq) return;
+  _camSeqTime += dt;
+
+  // Find surrounding keyframes
+  const kf = _camSeq;
+  const last = kf[kf.length - 1];
+  if (_camSeqTime >= last.t) {
+    // Sequence finished — apply final frame and release
+    const fx = _resolveSeqTarget(last);
+    if (fx) { camXTarget = fx.x; camYTarget = fx.y; }
+    if (last.zoom) camZoomTarget = last.zoom;
+    _camSeq = null;
+    cinematicCamOverride = false;
+    return;
+  }
+
+  let kfA = kf[0], kfB = kf[1] || kf[0];
+  for (let i = 0; i < kf.length - 1; i++) {
+    if (_camSeqTime >= kf[i].t && _camSeqTime < kf[i + 1].t) {
+      kfA = kf[i]; kfB = kf[i + 1]; break;
+    }
+  }
+
+  const span = Math.max(0.001, kfB.t - kfA.t);
+  const t    = Math.min(1, (_camSeqTime - kfA.t) / span);
+  const ease = t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t; // smooth-step
+
+  const ptA = _resolveSeqTarget(kfA);
+  const ptB = _resolveSeqTarget(kfB);
+  if (ptA && ptB) {
+    camXTarget = ptA.x + (ptB.x - ptA.x) * ease;
+    camYTarget = ptA.y + (ptB.y - ptA.y) * ease;
+  } else if (ptB) {
+    camXTarget = ptB.x; camYTarget = ptB.y;
+  }
+  const zA = kfA.zoom || camZoomCur;
+  const zB = kfB.zoom || camZoomCur;
+  camZoomTarget = zA + (zB - zA) * ease;
+
+  // Apply timed shake from keyframe
+  if (kfA.shake && t < 0.05) screenShake = Math.max(screenShake, kfA.shake);
+
+  // Smooth-apply camera
+  camZoomCur += (camZoomTarget - camZoomCur) * 0.22;
+  camXCur    += (camXTarget    - camXCur)    * 0.22;
+  camYCur    += (camYTarget    - camYCur)    * 0.22;
+}
+
+function _resolveSeqTarget(kf) {
+  if (!kf) return null;
+  if (!kf.target) return null;
+  const t = kf.target;
+  if (typeof t === 'function') { const e = t(); return e ? { x: e.cx ? e.cx() : e.x, y: e.cy ? e.cy() : e.y } : null; }
+  if (typeof t.cx === 'function') return { x: t.cx(), y: t.cy() };
+  if (typeof t.x === 'number')   return { x: t.x, y: t.y };
+  return null;
+}
+
+function stopCameraSequence() {
+  _camSeq = null;
+  cinematicCamOverride = false;
+}
 
 function setCameraDrama(state, frames, target, zoom) {
   camDramaState  = state  || 'normal';
@@ -73,14 +165,26 @@ function _updateCamMode() {
 
 // ============================================================
 function updateCamera() {
+  // Camera keyframe sequence: runs at 60fps (dt = 1/60s per frame)
+  if (_camSeq) { _tickCameraSequence(1 / 60); return; }
   _updateCamMode();
 
   const lerp = _CAM_LERP[_camMode] || _CAM_LERP.gameplay;
   const activePlayers = [...players, ...trainingDummies, ...minions].filter(p => p.health > 0 && !p.backstageHiding);
 
+  // ── HUD safe-area offset ──────────────────────────────────────────────────
+  // The HUD is a fixed HTML bar at the top of the screen. Convert its pixel
+  // height to game units so camera targets can be shifted down, keeping
+  // players visible below the HUD instead of hidden behind it.
+  const _hudEl = document.getElementById('hud');
+  const _hudScreenH = (_hudEl && _hudEl.offsetHeight) || 0;
+  const _hudGU = _hudScreenH * GAME_H / Math.max(canvas.height, 1); // HUD height in game units
+  const _hudShift = _hudGU / 2; // shift camera center down by half HUD height
+
   let targetZoom = 1.0;
   let targetX    = GAME_W / 2;
   let targetY    = GAME_H / 2;
+  let _isDuel    = false;  // set inside activePlayers block, read in post-block apply
 
   // ── Online: track only local player ──────────────────────
   if (gameMode === 'online' && typeof localPlayerSlot !== 'undefined' && players[localPlayerSlot]) {
@@ -122,6 +226,63 @@ function updateCamera() {
       maxY = Math.max(maxY, p.y + (p.h || 0));
     }
 
+    // ── Mode 4 — DuelCam: exactly 2 entities, smooth midpoint + distance zoom ──
+    // Applies to 1v1, boss fights, and 2-entity minigames.
+    // Excluded: online (has its own path), exploration, 3+ entity situations.
+    _isDuel = activePlayers.length === 2 &&
+      gameMode !== 'online' && gameMode !== 'exploration' && !cinematicCamOverride;
+
+    if (_isDuel) {
+      const pA = activePlayers[0], pB = activePlayers[1];
+
+      // Raw midpoint
+      const rawMidX = (pA.cx() + pB.cx()) / 2;
+      const rawMidY = (pA.cy() + pB.cy()) / 2 + 15 + _hudShift; // slight downward offset for floor context + HUD safe area
+
+      // Velocity-capped smooth follow: moves toward raw midpoint at proportional speed,
+      // capped to _DUEL_MAX_SPEED units/frame — never snaps regardless of jump size.
+      const dMidX = rawMidX - _duelMidX;
+      const dMidY = rawMidY - _duelMidY;
+      const dMid  = Math.hypot(dMidX, dMidY);
+      if (dMid > 0.5) {
+        const speed = Math.min(dMid * _DUEL_SPEED_SCALE, _DUEL_MAX_SPEED);
+        _duelMidX += (dMidX / dMid) * speed;
+        _duelMidY += (dMidY / dMid) * speed;
+      }
+
+      // Distance-based zoom: close (<120px) → zoom in, far (>480px) → zoom out
+      const spread = Math.hypot(pA.cx() - pB.cx(), pA.cy() - pB.cy());
+      // Smooth zoom curve: maps spread 0→600 to zoom 1.18→0.52; scale down by HUD safe-area ratio
+      const _duelSafeH = Math.max(GAME_H - _hudGU, GAME_H * 0.7);
+      const duelZoom = Math.max(0.50, Math.min(1.18, (1.18 - (spread / 600) * 0.68) * (_duelSafeH / GAME_H)));
+
+      // Detect fast-falling entity (|vy| > 12) — reduce vertical speed during fall
+      const anyFalling = activePlayers.some(p => p.vy && Math.abs(p.vy) > 12);
+      if (anyFalling) _duelFallDelay = 8;
+      if (_duelFallDelay > 0) {
+        _duelFallDelay--;
+        // Undo 30% of the vertical advance this frame for a cinematic lag feel
+        _duelMidY -= (dMidY / Math.max(dMid, 1)) * Math.min(dMid * _DUEL_SPEED_SCALE, _DUEL_MAX_SPEED) * 0.30;
+      }
+
+      targetX    = _duelMidX;
+      targetY    = _duelMidY;
+      targetZoom = duelZoom;
+
+      // Pick lerp speed based on proximity
+      const duelLerp = spread < 200 ? _CAM_LERP.duel_close : _CAM_LERP.duel;
+      // Always update camXTarget — no secondary dead zone here (that caused the snap)
+      camZoomTarget = targetZoom;
+      camXTarget = targetX;
+      camYTarget = targetY;
+      _updateCameraDrama();
+      if (camHitZoomTimer > 0) { camHitZoomTimer--; camZoomTarget = Math.max(camZoomTarget, 1.0 + 0.18 * (camHitZoomTimer / 15)); }
+      camZoomCur += (camZoomTarget - camZoomCur) * duelLerp.zoom;
+      camXCur    += (camXTarget    - camXCur)    * duelLerp.pos;
+      camYCur    += (camYTarget    - camYCur)    * duelLerp.pos;
+
+    } else {
+
     // ── Mode 2 — Combat Focus: center on midpoint, zoom in ──
     if (_camMode === 'combat' && activePlayers.length >= 2) {
       const pA = activePlayers[0], pB = activePlayers[activePlayers.length - 1];
@@ -130,7 +291,7 @@ function updateCamera() {
       const spread = Math.hypot(pA.cx() - pB.cx(), pA.cy() - pB.cy());
       const combatZoom = Math.max(0.55, Math.min(1.2, 320 / (spread + 80)));
       targetX    = midX;
-      targetY    = midY + 20;  // slight downward offset to show floor
+      targetY    = midY + 20 + _hudShift;  // slight downward offset to show floor + HUD safe area
       targetZoom = combatZoom;
     } else {
       // ── Mode 1 — Gameplay: always fit all players in frame ───
@@ -138,7 +299,9 @@ function updateCamera() {
       const isWideMap = !!(currentArena && currentArena.worldWidth);
       const PAD       = isWideMap ? 220 : 140;
       const zoomX     = GAME_W / ((maxX - minX) + PAD);
-      const zoomY     = GAME_H / ((maxY - minY) + PAD);
+      // Reduce effective height by HUD height so players aren't hidden behind the HUD bar
+      const _safeH    = Math.max(GAME_H - _hudGU, GAME_H * 0.7);
+      const zoomY     = _safeH / ((maxY - minY) + PAD);
       // On wide maps keep a zoom floor of 0.30 so players never become tiny specks
       const minZoom   = isWideMap
         ? Math.max(0.30, GAME_W / (currentArena.worldWidth + 200))
@@ -147,42 +310,48 @@ function updateCamera() {
 
       const rawCX  = (minX + maxX) / 2;
       const rawCY  = (minY + maxY) / 2;
-      // 78/22 bias: slight nudge toward first human player
+      // 72/28 horizontal bias toward human player; 62/38 vertical bias so jumps are tracked better
       const humanP = activePlayers.find(p => !p.isAI && !p.isBoss) || activePlayers[0];
-      targetX = rawCX * 0.78 + humanP.cx() * 0.22;
-      targetY = rawCY * 0.82 + humanP.cy() * 0.18;
+      targetX = rawCX * 0.72 + humanP.cx() * 0.28;
+      targetY = rawCY * 0.62 + humanP.cy() * 0.38 + _hudShift; // shift down to keep players below HUD
     }
 
-    // Brief hit-zoom (cinematic heavy hit pulse)
-    if (camHitZoomTimer > 0) {
-      camHitZoomTimer--;
-      targetZoom = Math.max(targetZoom, 1.0 + 0.22 * (camHitZoomTimer / 15));
-    }
+    } // end non-duel branch
 
-    // Boss attack: bias camera slightly toward boss (unchanged behaviour)
-    if (!cinematicCamOverride && gameRunning && _camMode !== 'combat') {
-      const attackingBoss = players.find(p => p.isBoss && p.attackTimer > 0 && p.health > 0);
-      if (attackingBoss) {
-        targetZoom = Math.max(targetZoom, 1.08);
-        targetX = targetX * 0.6 + attackingBoss.cx() * 0.4;
-        targetY = targetY * 0.6 + attackingBoss.cy() * 0.4;
+    if (!_isDuel) {
+      // Brief hit-zoom (cinematic heavy hit pulse)
+      if (camHitZoomTimer > 0) {
+        camHitZoomTimer--;
+        targetZoom = Math.max(targetZoom, 1.0 + 0.22 * (camHitZoomTimer / 15));
+      }
+
+      // Boss attack: bias camera slightly toward boss (unchanged behaviour)
+      if (!cinematicCamOverride && gameRunning && _camMode !== 'combat') {
+        const attackingBoss = players.find(p => p.isBoss && p.attackTimer > 0 && p.health > 0);
+        if (attackingBoss) {
+          targetZoom = Math.max(targetZoom, 1.08);
+          targetX = targetX * 0.6 + attackingBoss.cx() * 0.4;
+          targetY = targetY * 0.6 + attackingBoss.cy() * 0.4;
+        }
       }
     }
   }
 
-  camZoomTarget = targetZoom;
-  const dx = targetX - camXTarget, dy = targetY - camYTarget;
-  if (Math.hypot(dx, dy) > CAMERA_DEAD_ZONE) {
-    camXTarget = targetX;
-    camYTarget = targetY;
+  if (!_isDuel) {
+    camZoomTarget = targetZoom;
+    const dx = targetX - camXTarget, dy = targetY - camYTarget;
+    if (Math.hypot(dx, dy) > CAMERA_DEAD_ZONE) {
+      camXTarget = targetX;
+      camYTarget = targetY;
+    }
+
+    _updateCameraDrama();
+
+    // Smooth transition: use combat-speed lerp when entering/leaving mode
+    camZoomCur += (camZoomTarget - camZoomCur) * lerp.zoom;
+    camXCur    += (camXTarget    - camXCur)    * lerp.pos;
+    camYCur    += (camYTarget    - camYCur)    * lerp.pos;
   }
-
-  _updateCameraDrama();
-
-  // Smooth transition: use combat-speed lerp when entering/leaving mode
-  camZoomCur += (camZoomTarget - camZoomCur) * lerp.zoom;
-  camXCur    += (camXTarget    - camXCur)    * lerp.pos;
-  camYCur    += (camYTarget    - camYCur)    * lerp.pos;
 
   // ── Clamp camera to world bounds so we never show empty space past map edges ──
   if (currentArena && !cinematicCamOverride) {
@@ -204,6 +373,28 @@ function updateCamera() {
     const wTop    = 0;
     if (wBottom - wTop > GAME_H / camZoomCur) {
       camYCur = Math.max(wTop + hvh, Math.min(wBottom - hvh, camYCur));
+    }
+  }
+
+  // ── CAMERA FAILSAFE: player out of view → instant partial snap ───────────────
+  // Cooldown prevents repeated snaps each frame (causes shudder when lerp fights snap).
+  if (_camSnapCooldown > 0) _camSnapCooldown--;
+  // Duel mode: skip hard failsafe entirely — velocity-capped midpoint will always catch up
+  // smoothly. Brief off-screen is acceptable.
+  if (!_isDuel && !cinematicCamOverride && gameRunning && activePlayers.length > 0 && _camSnapCooldown === 0) {
+    for (const _fp of activePlayers) {
+      const _sx = (_fp.cx() - camXCur) * camZoomCur + GAME_W * 0.5;
+      const _sy = (_fp.cy() - camYCur) * camZoomCur + GAME_H * 0.5;
+      const _margin = 40;
+      if (_sx < -_margin || _sx > GAME_W + _margin || _sy < -_margin || _sy > GAME_H + _margin) {
+        // Snap once, then disable lerp conflict for 10 frames
+        camXCur    += (_fp.cx() - camXCur) * 0.50;
+        camYCur    += (_fp.cy() - camYCur) * 0.50;
+        camXTarget  = camXCur;
+        camYTarget  = camYCur;
+        _camSnapCooldown = 10;
+        break;
+      }
     }
   }
 }
@@ -301,6 +492,7 @@ function gameLoop(timestamp) {
   }
   // Tick deterministic cutscene system
   if (typeof updateCutscene === 'function') updateCutscene();
+  if (typeof updateParadoxCompanion === 'function') updateParadoxCompanion();
   frameCount++;
   aiTick++;
   // Approximate real delta-time at 60fps for Director
@@ -377,8 +569,8 @@ function gameLoop(timestamp) {
       }
     }
 
-    // Floor hazard state machine
-    if (!gameFrozen) bossFloorTimer--;
+    // Floor hazard state machine — suppressed during TF opening cinematic
+    if (!gameFrozen && !(typeof tfOpeningFightActive !== 'undefined' && tfOpeningFightActive)) bossFloorTimer--;
     if (bossFloorTimer <= 0) {
       if (bossFloorState === 'normal') {
         bossFloorState = 'warning';
@@ -409,6 +601,18 @@ function gameLoop(timestamp) {
         currentArena.deathY  = 640;
         mapPerkState.eruptions    = [];
         mapPerkState.eruptCooldown = 0;
+      }
+    }
+
+    // TrueForm floor-removal per-frame countdown (runs every frame, not on AI ticks)
+    if (typeof tfFloorRemoved !== 'undefined' && tfFloorRemoved && !gameFrozen) {
+      tfFloorTimer--;
+      if (tfFloorTimer <= 0) {
+        tfFloorRemoved = false;
+        const _floorPl = currentArena.platforms.find(p => p.isFloor);
+        if (_floorPl) _floorPl.isFloorDisabled = false;
+        if (typeof showBossDialogue === 'function')
+          showBossDialogue('I gave it back. Enjoy it while it lasts.', 150);
       }
     }
 
@@ -551,7 +755,19 @@ function gameLoop(timestamp) {
             // Skip damage if player is inside a safe zone
             const inSafe = bossMetSafeZones.some(sz =>
               Math.hypot(p.cx() - sz.x, (p.y + p.h * 0.5) - sz.y) < sz.r);
-            if (!inSafe && Math.abs(p.cx() - b.x) < 24) dealDamage(boss || players[1], p, 8, 5);
+            if (!inSafe && Math.abs(p.cx() - b.x) < 24) {
+              // Per-beam damage accumulator — cap at 40% of max HP per beam.
+              // Keyed on the beam object so overlapping beams don't share/reset each other's cap.
+              if (!b._damageAccum) b._damageAccum = {};
+              const pid = p.playerNum != null ? p.playerNum : players.indexOf(p);
+              if (b._damageAccum[pid] == null) b._damageAccum[pid] = 0;
+              const MAX_BEAM_DAMAGE = Math.floor((p.maxHealth || 100) * 0.4);
+              if (b._damageAccum[pid] < MAX_BEAM_DAMAGE) {
+                const allowed = Math.min(6, MAX_BEAM_DAMAGE - b._damageAccum[pid]);
+                b._damageAccum[pid] += allowed;
+                dealDamage(boss || players[1], p, allowed, 5, 1.0, false, 12);
+              }
+            }
           }
         }
       }
@@ -580,7 +796,7 @@ function gameLoop(timestamp) {
         for (const p of spikeTargets) {
           if (p.health <= 0 || p.invincible > 0) continue;
           if (Math.abs(p.cx() - sp.x) < 9 && p.y + p.h > spikeTopY) {
-            dealDamage(bossRef || players.find(q => q.isBoss) || players[1], p, 14, 14);
+            dealDamage(bossRef || players.find(q => q.isBoss) || players[1], p, 14, 14, 1.0, false, 20);
             // Bounce player upward so they can escape
             if (p.vy >= 0) {
               p.vy = -20;
@@ -650,7 +866,8 @@ function gameLoop(timestamp) {
     (typeof tfPhaseShift  !== 'undefined' && tfPhaseShift)         ||
     (typeof tfGravityInverted !== 'undefined' && tfGravityInverted)
   );
-  if (gameMode === 'trueform' || _anyTFKit || _forceTF) {
+  if ((gameMode === 'trueform' || _anyTFKit || _forceTF) &&
+      !(typeof tfOpeningFightActive !== 'undefined' && tfOpeningFightActive)) {
     updateTFBlackHoles();
     updateTFGravityWells();
     updateTFMeteorCrash();
@@ -723,6 +940,18 @@ function gameLoop(timestamp) {
   if (!gameFrozen && !tfAbsorptionScene) {
     players.forEach(p => { if ((p.health > 0 || p.invincible > 0) && !p.isRemote) p.update(); });
   }
+  // Passive super charge: every player (non-boss) gains a small amount of super each frame
+  if (!isCinematic && !paused) {
+    players.forEach(p => {
+      if (p.isBoss || p.superActive || p.health <= 0) return;
+      const _prev = p.superReady;
+      p.superMeter = Math.min(100, p.superMeter + 0.04);
+      if (!_prev && p.superMeter >= 100) {
+        p.superReady      = true;
+        p.superFlashTimer = 90;
+      }
+    });
+  }
   // Chaos system: per-frame update (events, drops, effects, multi-kill, announcer)
   if (typeof chaosMode !== 'undefined' && chaosMode && typeof updateChaosSystem === 'function') updateChaosSystem();
   // Finisher: override positions/state AFTER physics, BEFORE draw
@@ -739,7 +968,8 @@ function gameLoop(timestamp) {
   drawClassEffects();
   drawCurseAuras();
   updateAndDrawLightningBolts();
-  if (gameMode === 'trueform' || _anyTFKit || _forceTF) {
+  if ((gameMode === 'trueform' || _anyTFKit || _forceTF) &&
+      !(typeof tfOpeningFightActive !== 'undefined' && tfOpeningFightActive)) {
     updateTFPhaseShift();
     updateTFRealityTear();
     updateTFCalcStrike();
@@ -905,6 +1135,8 @@ function gameLoop(timestamp) {
   // Multiverse: per-frame world modifier tick (gravity flip, shadow teleport, etc.)
   if (multiverseModeActive && typeof MultiverseManager !== 'undefined') MultiverseManager.tick();
   if (exploreActive && typeof updateExploration === 'function') updateExploration();
+  // Ship & Fracture progression — tick preview timer each frame
+  if (typeof updateFracturePreview === 'function') updateFracturePreview();
   if (gameMode === 'trueform' && !tfAbsorptionScene && typeof updateQTE === 'function') updateQTE();
 
   // TrueForm: record player position history for multiverse lag-echo
@@ -939,6 +1171,7 @@ function gameLoop(timestamp) {
   drawCinematicOverlay();
   // Story world distortion intentionally disabled (purple scanlines removed per user request)
   drawAchievementPopups();
+  if (typeof drawObjectiveHUD === 'function') drawObjectiveHUD();
   // Chaos system: screen-space draw (score HUD, event badge, announcer, spectator label)
   if (typeof chaosMode !== 'undefined' && chaosMode && typeof drawChaosOverlay === 'function') drawChaosOverlay();
   if (gameMode === 'adaptive' && typeof drawAdaptiveAIDebug === 'function') drawAdaptiveAIDebug();
@@ -1032,6 +1265,7 @@ function gameLoop(timestamp) {
   // ── End critical status overlays ─────────────────────────────────────────
 
   drawEdgeIndicators(finalScX, finalScY, camCX, camCY);
+  if (typeof drawCinematicLetterbox === 'function') drawCinematicLetterbox();
   // Restore the stable game transform after (remaining draws use it already)
   ctx.setTransform(finalScX, 0, 0, finalScY, canvas.width/2 - camCX*finalScX, canvas.height/2 - camCY*finalScY);
 
@@ -1121,6 +1355,22 @@ document.addEventListener('keydown', e => {
         setTimeout(() => notif.remove(), 3000);
       }
     }
+    // SOVEREIGN cheat: type UNLOCKSOVEREIGN in menu
+    if (_cheatBuffer.endsWith('UNLOCKSOVEREIGN')) {
+      _cheatBuffer = '';
+      if (!localStorage.getItem('smc_sovereignBeaten')) {
+        localStorage.setItem('smc_sovereignBeaten', '1');
+        const adCard  = document.getElementById('modeAdaptive');
+        const sovCard = document.getElementById('modeSovereign');
+        if (adCard)  adCard.style.display  = '';
+        if (sovCard) sovCard.style.display = '';
+        const notif = document.createElement('div');
+        notif.textContent = '⚡ SOVEREIGN UNLOCKED ⚡';
+        notif.style.cssText = 'position:fixed;top:20%;left:50%;transform:translateX(-50%);background:rgba(100,0,200,0.92);color:#fff;padding:16px 32px;border-radius:12px;font-size:1.2rem;font-weight:900;letter-spacing:3px;z-index:9999;pointer-events:none;text-align:center;box-shadow:0 0 40px #8800ff;';
+        document.body.appendChild(notif);
+        setTimeout(() => notif.remove(), 3000);
+      }
+    }
     // MEGAKNIGHT cheat: type CLASSMEGAKNIGHT in menu
     if (_cheatBuffer.endsWith('CLASSMEGAKNIGHT')) {
       _cheatBuffer = '';
@@ -1145,6 +1395,9 @@ document.addEventListener('keydown', e => {
   keysDown.add(_nk);
 
   if (!gameRunning || paused) return;
+  // Block attack/ability/super keydown events during the TF opening cinematic (after free period)
+  if (typeof tfOpeningFightActive !== 'undefined' && tfOpeningFightActive
+      && (typeof _tfOpeningFreeFrames === 'undefined' || _tfOpeningFreeFrames <= 0)) return;
 
   players.forEach((p, i) => {
     if (p.isAI || p.health <= 0) return;
@@ -1180,7 +1433,7 @@ document.addEventListener('visibilitychange', () => {
 });
 
 const SHIELD_MAX    = 140;  // max frames shield stays up (~2.3 s)
-const SHIELD_CD     = 450; // 7.5-second cooldown at 60 fps
+const SHIELD_CD     = 180; // 3-second cooldown at 60 fps
 
 function processInput() {
   if (!gameRunning || paused) return;
@@ -1189,6 +1442,9 @@ function processInput() {
   if (gameFrozen) return;      // hard freeze during cinematics — halts all input
   if (tfAbsorptionScene) return; // freeze all input during absorption cinematic
   if (typeof isCutsceneActive === 'function' && isCutsceneActive()) return; // freeze during cutscenes
+  // Lock player input only after the 5-second free period has elapsed
+  if (typeof tfOpeningFightActive !== 'undefined' && tfOpeningFightActive
+      && (typeof _tfOpeningFreeFrames === 'undefined' || _tfOpeningFreeFrames <= 0)) return;
 
   // Paradox Control Override — tick the canonical controlState/controlTimer
   // Hard rule: only ONE controller is active at a time; no overlap.
@@ -1337,8 +1593,8 @@ function processInput() {
         spawnParticles(p.cx(), p.y + p.h, '#ffffff', 5);
         if (p.charClass === 'megaknight') spawnParticles(p.cx(), p.y + p.h, '#8844ff', 5);
         SoundManager.jump();
-      } else if (p.canDoubleJump && !p._storyNoDoubleJump) {
-        // Double jump in air
+      } else if (p.canDoubleJump && !p._noDoubleJump) {
+        // Double jump in air — gated by skill flag in story mode
         p.vy = dblPower;
         p.canDoubleJump = false;
         spawnParticles(p.cx(), p.cy(), p.color,  8);
@@ -1375,6 +1631,11 @@ function processInput() {
         paradoxPlayerUseAbility(p);
       }
     }
+    // Fracture interaction — E key (super) or ability key on P1 near an unlocked fracture
+    if (!p.isAI && p === players[0] && typeof checkFractureInteraction === 'function') {
+      const _ePressed = (keyHeldFrames[p.controls.super] || 0) === 1;
+      checkFractureInteraction(p, _ePressed);
+    }
   });
 }
 
@@ -1396,6 +1657,13 @@ function _cheatUnlockAll() {
   syncCodeInput && syncCodeInput();
   const tfCard = document.getElementById('modeTrueForm');
   if (tfCard) tfCard.style.display = '';
+
+  // Sovereign
+  localStorage.setItem('smc_sovereignBeaten', '1');
+  const _adCard  = document.getElementById('modeAdaptive');
+  const _sovCard = document.getElementById('modeSovereign');
+  if (_adCard)  _adCard.style.display  = '';
+  if (_sovCard) _sovCard.style.display = '';
 
   // Megaknight
   unlockedMegaknight = true;
@@ -1482,6 +1750,13 @@ function applyCode(val) {
     const card = document.getElementById('modeTrueForm');
     if (card) card.style.display = '';
     ok('True Creator unlocked! Start a boss fight.');
+  } else if (code === 'SOVEREIGN') {
+    localStorage.setItem('smc_sovereignBeaten', '1');
+    const adCard  = document.getElementById('modeAdaptive');
+    const sovCard = document.getElementById('modeSovereign');
+    if (adCard)  adCard.style.display  = '';
+    if (sovCard) sovCard.style.display = '';
+    ok('SOVEREIGN Ω unlocked! Select it from the menu.');
   } else if (code === 'CLASSMEGAKNIGHT') {
     unlockedMegaknight = true;
     localStorage.setItem('smc_megaknight','1');
@@ -1542,12 +1817,81 @@ function applyCode(val) {
       if (boss) boss.health = 1;
       ok('Boss is nearly dead!');
     } else { err('Enter KILLBOSS while in-game.'); }
+  } else if (code.startsWith('SETHP:')) {
+    // SETHP:<n> — set TrueForm (Axion) HP and bypass all cinematics above that threshold.
+    // Example: SETHP:1001  →  boss at 1001 HP, paradox1000 cinematic ready to fire.
+    if (!gameRunning) { err('Enter SETHP: while in a TrueForm fight.'); return; }
+    const _targetHp = parseInt(code.slice(6), 10);
+    if (isNaN(_targetHp) || _targetHp < 1) { err('Usage: SETHP:<number>  e.g. SETHP:1001'); return; }
+    const _tfBoss = players.find(p => p.isBoss && p.isTrueForm);
+    if (!_tfBoss) { err('No TrueForm boss found. Start a True Form fight first.'); return; }
+
+    // ── 1. Set HP ────────────────────────────────────────────────────────────
+    _tfBoss.health    = Math.min(_targetHp, _tfBoss.maxHealth);
+    _tfBoss.invincible = 90; // brief invincibility so the HP set doesn't immediately trigger death
+
+    // ── 2. Mark all cinematics that would have fired above _targetHp ─────────
+    if (!_tfBoss._cinematicFired) _tfBoss._cinematicFired = new Set();
+    // 'entry' always fires at fight start
+    _tfBoss._cinematicFired.add('entry');
+    if (_targetHp < 7500) _tfBoss._cinematicFired.add('qte75');
+    if (_targetHp < 5000) { _tfBoss._cinematicFired.add('50'); }
+    if (_targetHp < 2500) _tfBoss._cinematicFired.add('qte25');
+    if (_targetHp < 1500) _tfBoss._cinematicFired.add('15');
+    // paradox1000 fires at <=1000; only pre-mark if we're setting above that
+    if (_targetHp <= 1000) _tfBoss._cinematicFired.add('paradox1000');
+    // false victory no longer HP-triggered; never pre-mark it
+
+    // ── 3. Reset in-flight cinematic state ──────────────────────────────────
+    // Stop opening fight if it was running
+    if (typeof tfOpeningFightActive !== 'undefined') tfOpeningFightActive = false;
+    if (typeof _tfOpeningTFRef     !== 'undefined') _tfOpeningTFRef      = null;
+    if (typeof paradoxEntity       !== 'undefined' && paradoxEntity) {
+      paradoxEntity.done = true;
+      paradoxEntity = null;
+    }
+    // Reset absorption / paradox death flags so the 1000-HP sequence can run clean
+    if (typeof paradoxDeathComplete !== 'undefined') paradoxDeathComplete = false;
+    if (typeof absorptionComplete   !== 'undefined') absorptionComplete   = false;
+    if (typeof _tfAbsorptionState   !== 'undefined') _tfAbsorptionState   = null;
+    if (typeof tfAbsorptionScene    !== 'undefined') tfAbsorptionScene    = null;
+    if (typeof tfFinalParadoxFired  !== 'undefined') tfFinalParadoxFired  = false;
+
+    // Cancel any active cinematic / QTE
+    if (typeof activeCinematic !== 'undefined') activeCinematic = null;
+    if (typeof isCinematic     !== 'undefined') isCinematic     = false;
+    if (typeof slowMotion      !== 'undefined') slowMotion       = 1.0;
+    if (typeof gameFrozen      !== 'undefined') gameFrozen       = false;
+    if (typeof cinematicCamOverride !== 'undefined') cinematicCamOverride = false;
+    if (typeof activeQTE       !== 'undefined' && activeQTE) {
+      if (typeof cancelQTE === 'function') cancelQTE();
+      else activeQTE = null;
+    }
+
+    // Ensure fight state is 'none' (or 'backstage' if we're past the Code Realm)
+    if (typeof tfCinematicState !== 'undefined') {
+      tfCinematicState = (_targetHp <= 50) ? 'backstage' : 'none';
+    }
+
+    // Reset free-phase timer so it doesn't block AI
+    _tfBoss._freePhaseTimer = 9999;
+
+    // Reposition hero next to boss for easy testing
+    const _hero = players.find(p => !p.isBoss && !p.isRemote);
+    if (_hero) {
+      _hero.x  = Math.max(40, _tfBoss.x - 160);
+      _hero.y  = _tfBoss.y;
+      _hero.vx = 0; _hero.vy = 0;
+      _hero.health = _hero.maxHealth; // full HP so player doesn't die during test
+    }
+
+    ok('TrueForm HP → ' + _tfBoss.health + '. Cinematics above this threshold bypassed.');
   } else if (code === 'UNLOCKALL') {
     _cheatUnlockAll();
     ok('Everything unlocked!');
   } else if (code === 'HELP' || code === 'CODES') {
     if (msgEl) {
-      msgEl.textContent = 'TRUEFORM · CLASSMEGAKNIGHT · UNLOCKALL · GODMODE · FULLHEAL · KILLBOSS · MAP:<arena> · WEAPON:<key> · CLASS:<key>';
+      msgEl.textContent = 'TRUEFORM · SOVEREIGN · CLASSMEGAKNIGHT · UNLOCKALL · GODMODE · FULLHEAL · KILLBOSS · SETHP:<n> · MAP:<arena> · WEAPON:<key> · CLASS:<key>';
       msgEl.style.color = '#aabbff'; msgEl.style.fontSize = '0.7rem';
     }
   } else {

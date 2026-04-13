@@ -83,6 +83,17 @@ const NetworkManager = (() => {
         _setStatus('Players: ' + _slotCount + '/' + _maxPlayers);
         showToast('Player ' + (guestSlot + 1) + ' joined!');
         _broadcast({ type: 'playerCount', count: _slotCount });
+        // Late-join: send full story state so guest can reconstruct current scene
+        if (typeof storyModeActive !== 'undefined' && storyModeActive && typeof _story2 !== 'undefined') {
+          const _bossEntity = typeof players !== 'undefined' && players.find(p => p && p.isBoss);
+          conn.send({
+            type: 'gameEvent', event: 'story_state',
+            story2:     JSON.parse(JSON.stringify(_story2)),
+            bossHealth: _bossEntity ? _bossEntity.health : undefined,
+            objective:  typeof window !== 'undefined' && window.currentObjective ? window.currentObjective.text : undefined,
+            isCinematic: typeof isCinematic !== 'undefined' ? isCinematic : false,
+          });
+        }
       });
 
       conn.on('data', msg => _handleMessage(guestSlot, conn, msg));
@@ -206,6 +217,38 @@ const NetworkManager = (() => {
       // Remote console command — execute locally (sender already ran it on their end)
       if (msg.cmd && typeof _consoleExec === 'function') {
         _consoleExec(msg.cmd);
+      }
+    } else if (msg.event === 'story_sync') {
+      // Client: apply host story state without restarting the scene
+      if (!_isHost && typeof _story2 !== 'undefined' && msg.chapter !== undefined) {
+        if (msg.chapter > (_story2.chapter || 0)) _story2.chapter = msg.chapter;
+        if (Array.isArray(msg.defeated)) {
+          for (const id of msg.defeated) {
+            if (!_story2.defeated.includes(id)) _story2.defeated.push(id);
+          }
+        }
+        if (typeof _saveStory2 === 'function') _saveStory2();
+        // Sync boss health (prevent client-side boss from being a different HP)
+        if (msg.bossHealth !== undefined) {
+          const boss = typeof players !== 'undefined' && players.find(p => p.isBoss);
+          if (boss && !boss.isRemote) boss.health = Math.min(boss.health, msg.bossHealth);
+        }
+        // Sync objective label
+        if (msg.objective && typeof setObjective === 'function') {
+          setObjective(msg.objective);
+        }
+      }
+    } else if (msg.event === 'story_state') {
+      // Deep late-join sync — reconstruct current story state from host snapshot
+      if (!_isHost && typeof _story2 !== 'undefined') {
+        if (msg.story2)   Object.assign(_story2, msg.story2);
+        if (msg.bossHealth !== undefined) {
+          const boss = typeof players !== 'undefined' && players.find(p => p.isBoss);
+          if (boss) boss.health = msg.bossHealth;
+        }
+        if (msg.objective && typeof setObjective === 'function') setObjective(msg.objective);
+        if (msg.isCinematic && typeof isCinematic !== 'undefined') isCinematic = true;
+        if (typeof _saveStory2 === 'function') _saveStory2();
       }
     } else if (typeof handleChaosNetworkEvent === 'function' && handleChaosNetworkEvent(msg)) {
       // handled by chaos system
@@ -560,3 +603,97 @@ function networkStartGame() {
     if (typeof startGame === 'function') startGame();
   }, 120);
 }
+
+// ============================================================
+// VOICE CHAT SCAFFOLD (push-to-talk, peer-to-peer WebRTC)
+// Lightweight: no server. Mic stream sent directly to peers via PeerJS MediaConnection.
+// ============================================================
+window._voiceChat = (function() {
+  let _localStream     = null; // microphone MediaStream
+  let _mediaConns      = [];   // PeerJS MediaConnection array (one per remote peer)
+  let _micActive       = false;
+  let _enabled         = false; // only active in multiplayer
+
+  function init() {
+    if (!window.onlineMode) return; // only in multiplayer
+    _enabled = true;
+    // Bind push-to-talk key (V)
+    document.addEventListener('keydown', _onKeyDown);
+    document.addEventListener('keyup',   _onKeyUp);
+  }
+
+  function destroy() {
+    _enabled = false;
+    _stopMic();
+    for (const mc of _mediaConns) { try { mc.close(); } catch(e){} }
+    _mediaConns = [];
+    document.removeEventListener('keydown', _onKeyDown);
+    document.removeEventListener('keyup',   _onKeyUp);
+  }
+
+  function _onKeyDown(e) {
+    if (!_enabled || e.repeat) return;
+    if (e.code === 'KeyV') { e.preventDefault(); _startMic(); }
+  }
+  function _onKeyUp(e) {
+    if (!_enabled) return;
+    if (e.code === 'KeyV') { e.preventDefault(); _stopMic(); }
+  }
+
+  async function _startMic() {
+    if (_micActive) return;
+    try {
+      _localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+      _micActive = true;
+      // Broadcast mic stream to all connected peers via NetworkManager's peer object
+      const peer = window.NetworkManager && window.NetworkManager._peer;
+      if (peer) {
+        // Call all connected peers with our audio stream
+        const conns = window.NetworkManager._connections || [];
+        for (const conn of conns) {
+          if (!conn || !conn.peer) continue;
+          const mc = peer.call(conn.peer, _localStream);
+          if (mc) _mediaConns.push(mc);
+        }
+      }
+      _showVoiceIndicator(true);
+    } catch(e) {
+      console.warn('[VoiceChat] Mic access denied:', e.message);
+    }
+  }
+
+  function _stopMic() {
+    if (!_micActive) return;
+    if (_localStream) { _localStream.getTracks().forEach(t => t.stop()); _localStream = null; }
+    for (const mc of _mediaConns) { try { mc.close(); } catch(e){} }
+    _mediaConns = [];
+    _micActive = false;
+    _showVoiceIndicator(false);
+  }
+
+  function _showVoiceIndicator(active) {
+    let el = document.getElementById('voiceChatIndicator');
+    if (!el) {
+      el = document.createElement('div');
+      el.id = 'voiceChatIndicator';
+      el.style.cssText = 'position:fixed;bottom:60px;left:16px;background:rgba(0,200,80,0.18);border:1px solid rgba(0,200,80,0.5);color:#44ff88;font-size:0.72rem;padding:4px 10px;border-radius:5px;z-index:9999;pointer-events:none;font-family:Arial,sans-serif;transition:opacity 0.2s;';
+      document.body.appendChild(el);
+    }
+    el.textContent = active ? '🎤 MIC ON (V)' : '🔇 MIC OFF';
+    el.style.opacity = active ? '1' : '0.45';
+    el.style.display = 'block';
+  }
+
+  // Called by NetworkManager when a remote peer calls us (answer incoming media call)
+  function answerIncoming(mediaConn) {
+    mediaConn.answer(); // no stream back (listen-only by default)
+    mediaConn.on('stream', remoteStream => {
+      const audio = new Audio();
+      audio.srcObject = remoteStream;
+      audio.autoplay = true;
+      audio.volume = 0.85;
+    });
+  }
+
+  return { init, destroy, answerIncoming };
+})();

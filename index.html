@@ -977,6 +977,8 @@
 })();
 </script>
 
+  <!-- GSAP — timeline/tweening library used for cinematic sequencing -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
   <!-- PeerJS — serverless WebRTC peer-to-peer multiplayer -->
   <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
   <!-- Error boundary — must be FIRST so it catches all other module errors -->
@@ -1061,9 +1063,12 @@
   <script src="./js/story/acts/act5/smb-act5-arc2.js"></script>
   <script src="./js/story/acts/act6/smb-act6-arc1.js"></script>
   <script src="./js/story/acts/act6/smb-act6-arc2.js"></script>
+  <script src="./js/story/acts/side/smb-lab-infiltration.js"></script>
   <script src="./js/story/smb-story-config.js"></script>
   <script src="./js/story/smb-story-engine.js"></script>
   <script src="./js/story/smb-story-finalize.js"></script>
+  <!-- Ship & Fracture Progression (lore: Axiom, the war, branch rulers, True Form) -->
+  <script src="./js/smb-progression.js"></script>
   <!-- Multiverse Progression System -->
   <script src="./js/smb-multiverse.js"></script>
   <!-- Chaos Multiplayer system — events, mutations, item drops, kill streaks, spectator -->
@@ -1485,7 +1490,6 @@ document.addEventListener('keydown', function(e) {
       <div style="display:flex;gap:6px;">
         <button id="storyTabChapters"   class="story-tab active" onclick="switchStoryTab('chapters')">📖 Chapters</button>
         <button id="storyTabStore"      class="story-tab"        onclick="switchStoryTab('store')">🏪 Ability Store</button>
-        <button id="storyTabMultiverse" class="story-tab"        onclick="switchStoryTab('multiverse')" style="color:#bb88ff;">🌌 Multiverse</button>
       </div>
       <span style="color:#ffd700;font-size:0.80rem;">🪙 <span id="storyTokenDisplay">0</span></span>
     </div>

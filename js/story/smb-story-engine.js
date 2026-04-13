@@ -137,12 +137,20 @@ function _story2TokenDisplay() {
 
 // ── Tab switching ─────────────────────────────────────────────────────────────
 function switchStoryTab(tab) {
+  // 'multiverse' panel is kept but has no tab button — only accessible via story progression
   ['chapters','store','multiverse'].forEach(t => {
     const btn   = document.getElementById('storyTab' + t.charAt(0).toUpperCase() + t.slice(1));
     const panel = document.getElementById('storyTabPanel' + t.charAt(0).toUpperCase() + t.slice(1));
     if (btn)   btn.classList.toggle('active', t === tab);
     if (panel) panel.style.display = (t === tab) ? '' : 'none';
   });
+  // Deactivate visible tab buttons when multiverse panel is shown programmatically
+  if (tab === 'multiverse') {
+    ['storyTabChapters','storyTabStore'].forEach(id => {
+      const b = document.getElementById(id);
+      if (b) b.classList.remove('active');
+    });
+  }
   if (tab === 'store') _renderStoryStore2();
   if (tab === 'multiverse' && typeof _renderMultiverseWorldList === 'function') _renderMultiverseWorldList();
   _story2TokenDisplay();
@@ -246,54 +254,126 @@ function _renderShopSection(grid) {
   }
 }
 
+// Helper: check if a skill node's requirements are met
+function _skillNodeReqMet(node, sk) {
+  if (!node.requires && !node.requiresAny) return true;
+  if (node.requiresAny && node.requiresAny.some(r => !!sk[r])) return true;
+  if (node.requires && !!sk[node.requires]) return true;
+  return false;
+}
+
 function _renderSkillTreeSection(grid) {
   const sk  = _story2.skillTree || {};
   const exp = _story2.exp || 0;
 
+  // EXP banner
   const expBanner = document.createElement('div');
-  expBanner.style.cssText = 'padding:8px 12px;background:rgba(100,220,100,0.08);border:1px solid rgba(100,220,100,0.25);border-radius:7px;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;';
-  expBanner.innerHTML = `<span style="color:#88cc88;font-size:0.72rem;letter-spacing:1px;">SKILL POINTS (EXP)</span><span id="storyExpDisplay" style="color:#aaff88;font-size:1.0rem;font-weight:700;">${exp} EXP</span>`;
+  expBanner.style.cssText = 'padding:8px 12px;background:rgba(100,220,100,0.08);border:1px solid rgba(100,220,100,0.25);border-radius:7px;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;';
+  expBanner.innerHTML = `<span style="color:#88cc88;font-size:0.72rem;letter-spacing:1px;">🌟 SKILL POINTS (EXP)</span><span id="storyExpDisplay" style="color:#aaff88;font-size:1.05rem;font-weight:700;">${exp} EXP</span>`;
   grid.appendChild(expBanner);
 
   for (const [, branch] of Object.entries(STORY_SKILL_TREE)) {
-    const branchHeader = document.createElement('div');
-    branchHeader.style.cssText = `margin:10px 0 6px;font-size:0.65rem;letter-spacing:2px;text-transform:uppercase;color:${branch.color};font-weight:700;`;
-    branchHeader.textContent = branch.label;
-    grid.appendChild(branchHeader);
+    // Branch wrapper
+    const branchWrap = document.createElement('div');
+    branchWrap.style.cssText = 'margin-bottom:18px;';
 
-    const nodeRow = document.createElement('div');
-    nodeRow.style.cssText = 'display:flex;flex-wrap:wrap;gap:8px;margin-bottom:4px;';
+    // Branch header bar
+    const header = document.createElement('div');
+    header.style.cssText = `display:flex;align-items:center;gap:7px;margin-bottom:10px;padding:5px 10px;background:rgba(0,0,0,0.22);border-left:3px solid ${branch.color};border-radius:0 6px 6px 0;`;
+    header.innerHTML = `<span style="font-size:1rem;">${branch.icon || ''}</span><span style="font-size:0.70rem;letter-spacing:2px;text-transform:uppercase;color:${branch.color};font-weight:700;">${branch.label}</span>`;
+    branchWrap.appendChild(header);
 
-    for (const node of branch.nodes) {
-      const owned    = !!sk[node.id];
-      const reqMet   = !node.requires || !!sk[node.requires];
-      const canBuy   = !owned && reqMet && exp >= node.expCost;
-      const isLocked = !owned && !reqMet;
+    // Build a depth map: nodeId → depth (0 = root)
+    const nodeMap = {};
+    for (const n of branch.nodes) nodeMap[n.id] = n;
+    const depthOf = {};
+    const getDepth = (n) => {
+      if (n.id in depthOf) return depthOf[n.id];
+      const parent = n.requires ? nodeMap[n.requires] : null;
+      depthOf[n.id] = parent ? getDepth(parent) + 1 : 0;
+      return depthOf[n.id];
+    };
+    for (const n of branch.nodes) getDepth(n);
+    const maxDepth = Math.max(...branch.nodes.map(n => depthOf[n.id]));
 
-      const card = document.createElement('div');
-      card.style.cssText = [
-        'border-radius:8px', 'padding:8px 10px', 'min-width:120px', 'flex:1',
-        `border:1px solid ${owned ? 'rgba(100,220,100,0.4)' : canBuy ? `${branch.color}55` : 'rgba(255,255,255,0.07)'}`,
-        `background:${owned ? 'rgba(40,90,50,0.35)' : canBuy ? 'rgba(20,30,60,0.4)' : 'rgba(5,5,15,0.25)'}`,
-        `opacity:${isLocked ? '0.35' : '1'}`,
-        canBuy ? 'cursor:pointer' : 'cursor:default',
-      ].join(';');
-
-      card.innerHTML = `
-        <div style="font-size:0.79rem;color:${owned ? '#88ffaa' : canBuy ? '#dde4ff' : '#556'};font-weight:600;">${node.name}</div>
-        <div style="font-size:0.62rem;color:#5566aa;margin:3px 0 5px;">${node.desc}</div>
-        <div style="font-size:0.70rem;${owned ? 'color:#66ee99' : canBuy ? `color:${branch.color}` : 'color:#445'}">
-          ${owned ? '✓ Unlocked' : isLocked ? '🔒 ' + node.requires.replace(/([A-Z])/g,' $1').trim() + ' required' : node.expCost + ' EXP'}
-        </div>`;
-
-      if (canBuy) {
-        card.addEventListener('click', () => _buySkillNode(node, branch));
-        card.addEventListener('mouseover', () => { card.style.background = 'rgba(30,50,100,0.6)'; });
-        card.addEventListener('mouseout',  () => { card.style.background = 'rgba(20,30,60,0.4)'; });
-      }
-      nodeRow.appendChild(card);
+    // Group nodes by depth
+    const layers = [];
+    for (let d = 0; d <= maxDepth; d++) {
+      layers.push(branch.nodes.filter(n => depthOf[n.id] === d));
     }
-    grid.appendChild(nodeRow);
+
+    // Render layers top-to-bottom with connector lines between parent-child
+    const treeWrap = document.createElement('div');
+    treeWrap.style.cssText = 'position:relative;padding:0 4px;';
+
+    for (let d = 0; d <= maxDepth; d++) {
+      const layerNodes = layers[d];
+      const layerRow = document.createElement('div');
+      layerRow.style.cssText = 'display:flex;gap:8px;margin-bottom:0;';
+
+      for (const node of layerNodes) {
+        const owned   = !!sk[node.id];
+        const reqMet  = _skillNodeReqMet(node, sk);
+        const canBuy  = !owned && reqMet && exp >= node.expCost;
+        const isLocked = !owned && !reqMet;
+
+        // Connector line above non-root nodes
+        const colWrap = document.createElement('div');
+        colWrap.style.cssText = 'display:flex;flex-direction:column;align-items:center;flex:1;min-width:110px;';
+
+        if (d > 0) {
+          const connector = document.createElement('div');
+          connector.style.cssText = `width:2px;height:14px;background:${owned ? branch.color : reqMet ? branch.color + '55' : 'rgba(255,255,255,0.08)'};margin-bottom:2px;border-radius:1px;`;
+          colWrap.appendChild(connector);
+        }
+
+        const card = document.createElement('div');
+        card.style.cssText = [
+          'border-radius:9px', 'padding:9px 10px 8px', 'width:100%', 'box-sizing:border-box',
+          `border:1px solid ${owned ? branch.color + 'aa' : canBuy ? branch.color + '55' : 'rgba(255,255,255,0.07)'}`,
+          `background:${owned ? 'rgba(20,60,35,0.55)' : canBuy ? 'rgba(20,30,60,0.5)' : 'rgba(5,5,18,0.30)'}`,
+          `opacity:${isLocked ? '0.32' : '1'}`,
+          canBuy ? 'cursor:pointer;transition:background 0.12s,box-shadow 0.12s;' : 'cursor:default;',
+          owned ? `box-shadow:0 0 8px ${branch.color}44;` : '',
+        ].join(';');
+
+        const reqLabel = isLocked
+          ? (node.requiresAny
+              ? '🔒 Requires ' + (node.requiresAny[0] || '').replace(/([A-Z])/g,' $1').trim()
+              : '🔒 ' + (node.requires || '').replace(/([A-Z])/g,' $1').trim() + ' required')
+          : '';
+
+        card.innerHTML = `
+          <div style="font-size:0.80rem;color:${owned ? '#aaff88' : canBuy ? '#dde4ff' : '#556'};font-weight:700;margin-bottom:3px;">${node.name}</div>
+          <div style="font-size:0.60rem;color:#5a6a9a;line-height:1.35;margin-bottom:5px;">${node.desc}</div>
+          <div style="font-size:0.68rem;${owned ? 'color:#66ee99' : canBuy ? `color:${branch.color}` : 'color:#445'}">
+            ${owned ? '✓ Unlocked' : isLocked ? reqLabel : node.expCost + ' EXP'}
+          </div>`;
+
+        if (canBuy) {
+          card.addEventListener('click', () => _buySkillNode(node, branch));
+          card.addEventListener('mouseover', () => { card.style.background = 'rgba(30,55,110,0.7)'; card.style.boxShadow = `0 0 12px ${branch.color}33`; });
+          card.addEventListener('mouseout',  () => { card.style.background = 'rgba(20,30,60,0.5)';  card.style.boxShadow = ''; });
+        }
+
+        colWrap.appendChild(card);
+
+        // Connector line below if this node has children
+        const hasChild = branch.nodes.some(c => c.requires === node.id);
+        if (hasChild) {
+          const connDown = document.createElement('div');
+          connDown.style.cssText = `width:2px;height:14px;background:${owned ? branch.color : branch.color + '33'};margin-top:2px;border-radius:1px;`;
+          colWrap.appendChild(connDown);
+        }
+
+        layerRow.appendChild(colWrap);
+      }
+
+      treeWrap.appendChild(layerRow);
+    }
+
+    branchWrap.appendChild(treeWrap);
+    grid.appendChild(branchWrap);
   }
 }
 
@@ -301,7 +381,7 @@ function _buySkillNode(node, branch) {
   const sk  = _story2.skillTree = _story2.skillTree || {};
   const exp = _story2.exp || 0;
   if (sk[node.id]) return;
-  if (node.requires && !sk[node.requires]) return;
+  if (!_skillNodeReqMet(node, sk)) return;
   if (exp < node.expCost) return;
   _story2.exp = exp - node.expCost;
   sk[node.id] = true;
@@ -756,6 +836,22 @@ function _launchChapter2FightImmediate(ch) {
     jumpMult:      1.0 + (_sk.highJump2 ? 0.25 : _sk.highJump1 ? 0.15 : 0),
   };
 
+  // Set in-fight objective based on chapter type
+  if (typeof setObjective === 'function') {
+    const _chOrigId = ch._origId !== undefined ? ch._origId : ch.id;
+    let _obj;
+    if (ch.isTrueFormFight)  _obj = 'Defeat True Form';
+    else if (ch.isBossFight) _obj = 'Defeat the Creator';
+    else if (ch.isSovereignFight) _obj = 'Defeat the Sovereign';
+    else if (ch.type === 'exploration') _obj = 'Reach ' + (ch.objectName || 'the objective');
+    else if (_chOrigId < 8)  _obj = 'Survive the attack — find out why.';
+    else if (_chOrigId < 20) _obj = 'Investigate the fractures.';
+    else if (_chOrigId < 40) _obj = 'Follow the trail. Someone is coordinating this.';
+    else if (_chOrigId < 60) _obj = 'Breach the Creator\'s domain.';
+    else                     _obj = 'Prepare for the Creator.';
+    setObjective(_obj);
+  }
+
   // Ability toasts are now shown only when purchased in the skill tree
 
   // Boss type override (e.g. 'fallen_god' → spawns FallenGod instead of Boss)
@@ -1073,6 +1169,19 @@ function story2OnMatchEnd(playerWon) {
     if (typeof playerPowerLevel !== 'undefined') playerPowerLevel = Math.min(3.0, playerPowerLevel + 0.02);
   }
   _story2.chapter = Math.max(_story2.chapter, ch.id + 1);
+  if (typeof completeObjective === 'function') completeObjective();
+  // Online: broadcast story state so clients stay in sync
+  if (typeof onlineMode !== 'undefined' && onlineMode && typeof NetworkManager !== 'undefined' && NetworkManager.connected) {
+    const _bossEntity = typeof players !== 'undefined' && players.find(p => p && p.isBoss);
+    const _syncData = {
+      chapter:    _story2.chapter,
+      defeated:   _story2.defeated.slice(),
+      bossHealth: _bossEntity ? _bossEntity.health : undefined,
+      objective:  window.currentObjective ? window.currentObjective.text : undefined,
+      isCinematic: typeof isCinematic !== 'undefined' ? isCinematic : false,
+    };
+    NetworkManager.sendGameEvent('story_sync', _syncData);
+  }
   if (!_story2.runState) _story2.runState = { healthPct: 1, noDeathChain: 0 };
   _story2.runState.noDeathChain = (_story2.runState.noDeathChain || 0) + 1;
 
@@ -1092,9 +1201,45 @@ function story2OnMatchEnd(playerWon) {
   }
   _saveStory2();
 
+  // ── Ship part awards (first-clear only) ────────────────────────────────
+  // Hull fragments scattered through Act 0 and Act 1.
+  // Engine drops at the Act 1 climax (ch ~24). Core at Act 3 (ch ~50).
+  // Crystal is awarded by the fracture preview system, not here.
+  if (_firstClear && typeof giveShipPart === 'function') {
+    if (ch.id === 5)  giveShipPart('hull');   // Act 0 — first victory
+    if (ch.id === 12) giveShipPart('hull');   // Act 0 arc 2 close
+    if (ch.id === 18) giveShipPart('hull');   // Act 1 — void arena cleared
+    if (ch.id === 24) giveShipPart('hull');   // Act 1 climax
+    if (ch.id === 30) giveShipPart('hull');   // Act 2 entry
+    if (ch.id === 24) giveShipPart('engine'); // Act 1 boss — engine recovered
+    if (ch.id === 50) giveShipPart('core');   // Act 3 climax — dimensional core
+  }
+
+  // ── Motivation advancement ─────────────────────────────────────────────
+  // Stage 0→1: player has fought enough to start asking why (ch 10)
+  // Stage 1→2: player learns the Creator controls the branch (ch 30)
+  // Stage 2→3: player understands True Form is the only end (ch 55)
+  if (_firstClear && typeof advanceMotivation === 'function') {
+    if (ch.id === 10) advanceMotivation(); // 0→1: investigation
+    if (ch.id === 30) advanceMotivation(); // 1→2: understanding
+    if (ch.id === 55) advanceMotivation(); // 2→3: commitment
+  }
+
+  // ── Fracture unlock: reveal branch_alpha after Act 1 ──────────────────
+  if (_firstClear && ch.id === 20 && typeof unlockFracture === 'function') {
+    unlockFracture('branch_alpha');
+  }
+
   // Fallen God post-defeat backstory sequence
   if (ch.bossType === 'fallen_god' && typeof startFallenGodBackstory === 'function') {
     startFallenGodBackstory();
+  }
+
+  // ── Per-chapter onComplete hook ───────────────────────────────────────────
+  // Arc files can attach `onComplete()` to a chapter object to fire side effects
+  // (set story flags, trigger lore moments, etc.) on first-clear win.
+  if (_firstClear && typeof ch.onComplete === 'function') {
+    try { ch.onComplete(); } catch (e) { /* guard: never let a hook crash the win path */ }
   }
 
   // Show victory overlay (instead of or in addition to level complete)
@@ -1282,13 +1427,14 @@ const storyState = {
   flags: {},
 };
 
-// Restore ability state from saved chapter progress on load
+// Restore ability state from saved chapter progress on load.
+// Abilities are now gated ONLY by skill tree (not chapter index).
 (function _restoreStoryStateAbilities() {
-  const id = storyState.chapter;
-  storyState.abilities.doubleJump    = id >= 1;
-  storyState.abilities.weaponAbility = id >= 3;
-  storyState.abilities.superMeter    = id >= 5;
-  storyState.abilities.dodge         = id >= 9 || !!localStorage.getItem('smc_storyDodgeUnlocked');
+  const sk = (typeof _story2 !== 'undefined' && _story2.skillTree) ? _story2.skillTree : {};
+  storyState.abilities.doubleJump    = !!sk.doubleJump;
+  storyState.abilities.weaponAbility = !!(sk.weaponAbility || sk.weaponAbilityOld);
+  storyState.abilities.superMeter    = !!sk.superMeter;
+  storyState.abilities.dodge         = !!sk.dodge || !!localStorage.getItem('smc_storyDodgeUnlocked');
   storyDodgeUnlocked                 = storyState.abilities.dodge;
 })();
 
@@ -1342,7 +1488,7 @@ function _handleBuiltinEvent(name, data) {
         });
         // Apply immediately to current player
         const p1 = players && players[0];
-        if (p1) p1._storyNoDoubleJump = false;
+        if (p1) { p1._storyNoDoubleJump = false; p1._noDoubleJump = false; }
       }
       break;
     }
@@ -2133,15 +2279,38 @@ function _exploreGenPlatforms(worldLen, seed, ch) {
 function _storyScaleEnemyUnit(unit, chapterId, opts = {}) {
   if (!unit) return unit;
   const elite = !!opts.elite;
-  const mult = _storyDifficultyForChapter(chapterId, elite);
-  unit.maxHealth = Math.round((unit.maxHealth || unit.health || 100) * mult * (elite ? 1.5 : 1));
-  unit.health = unit.maxHealth;
-  unit.dmgMult = (unit.dmgMult || 1) * (0.9 + mult * 0.22);
+
+  // Use the ORIGINAL chapter id for scaling — after phase expansion, _activeStory2Chapter.id
+  // can be 200+ (each original chapter fans into ~3 phases), which would give 17× multipliers
+  // and produce 2000+ HP elites. _origId tracks the pre-expansion index (0–79).
+  const origId = (typeof _activeStory2Chapter !== 'undefined'
+    && _activeStory2Chapter
+    && _activeStory2Chapter._origId !== undefined)
+    ? _activeStory2Chapter._origId
+    : Math.min(chapterId, 79); // hard-cap fallback to prevent runaway scaling
+
+  const s = getScaling(origId + (_storyPerformanceBonus() / 0.08 | 0));
+  const PLAYER_HP = 100; // Fighter base maxHealth
+
+  // ── HP ───────────────────────────────────────────────────────
+  // Standard enemy: capped at 2× player HP (200).  Elite: 3× (300).
+  const hpBase = unit.maxHealth || unit.health || 100;
+  const rawHP  = Math.round(hpBase * (s.enemyHP / 100) * (elite ? 1.5 : 1));
+  unit.maxHealth = Math.min(rawHP, elite ? PLAYER_HP * 3 : PLAYER_HP * 2);
+  unit.health    = unit.maxHealth;
+
+  // ── Damage ───────────────────────────────────────────────────
+  // Standard: ≤ 25% player HP per hit.  Elite: ≤ 32% (still survivable with 2 hits).
+  const dmgCap    = elite ? PLAYER_HP * 0.32 : PLAYER_HP * 0.25;
+  const scaledDmg = Math.min(s.enemyDamage, dmgCap);
+  unit.dmgMult    = (unit.dmgMult || 1) * (scaledDmg / 12); // 12 = median base weapon damage
+
+  // ── Attack speed / AI ────────────────────────────────────────
   unit.attackCooldownMult = Math.max(0.58, (unit.attackCooldownMult || 1) * (elite ? 0.72 : 0.86));
-  unit.aiReact = elite ? 0 : unit.aiReact;
-  unit._storyElite = elite;
-  unit._storyPredict = 0.10 + Math.min(0.18, chapterId * 0.0035) + (elite ? 0.12 : 0);
-  unit._storyDodgeChance = elite ? 0.14 : 0.05;
+  unit.aiReact            = elite ? 0 : unit.aiReact;
+  unit._storyElite        = elite;
+  unit._storyPredict      = 0.10 + Math.min(0.18, origId * 0.0035) + (elite ? 0.12 : 0);
+  unit._storyDodgeChance  = elite ? 0.14 : 0.05;
   return unit;
 }
 

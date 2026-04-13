@@ -4,7 +4,16 @@ Items are ordered by impact and stability risk. High-priority items are closer t
 
 ---
 
-## Completed (v2.6.0 — Current)
+## Completed (v2.7.0 — Current)
+
+- Multiverse Mode: 4 dimensional worlds (War-Torn, Gravity Flux, Shadow Realm, Titan World) with AI modifiers, encounter tiers, and Fallen God dialogue
+- Ship Progression System: collect 5 ship parts across story chapters to unlock full fracture branch access
+- Fracture System: 3 named fracture branches (Alpha/Null/Crimson), each with preview and full ruler-boss entry
+- Lore Moment + Motivation Tracker: narrative context updates at key milestones
+- Attack Test Sandbox: console-driven attack previewer + admin class kits for any player
+- Arena rendering submodule: Soccer/Void draw calls split to js/rendering/smb-drawing-arenas.js
+
+## Completed (v2.6.0)
 
 - SOVEREIGN Ω AI: bigram sequence learning, spam punishment, aggro-burst mode
 - Complete Randomizer mode: reroll arena, weapons, classes every death

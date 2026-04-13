@@ -122,14 +122,20 @@ const _TFE_QTE_PROMPTS = [
 const _TFE_QTE_FLASH_COLORS = ['#ff4400','#ff0088','#ffffff'];
 
 // ── Main launch spline points ──────────────────────────────────────────────────
-function _tfeLaunchPts(hero) {
+// Hero is blasted RIGHT by the boss punch — straight rightward arc
+function _tfeLaunchPts(hero, boss) {
+  // Direction: boss is usually left of hero, punches right.
+  // If boss is to the right, flip direction.
+  const dir = (boss && boss.cx() < hero.cx()) ? 1 : -1;
+  const sx  = hero.cx();
+  const sy  = hero.cy();
   return [
-    { x: hero.cx(),        y: hero.cy()        },
-    { x: GAME_W * 0.25,   y: GAME_H * 0.10    },
-    { x: GAME_W * 0.55,   y: GAME_H * 0.06    },
-    { x: GAME_W * 0.85,   y: GAME_H * 0.18    },
-    { x: GAME_W * 1.20,   y: GAME_H * 0.60    },
-    { x: GAME_W * 1.60,   y: GAME_H * 1.40    },  // off-screen exit
+    { x: sx,                          y: sy                       },  // start
+    { x: sx + dir * GAME_W * 0.22,   y: sy - 30                  },  // initial blast
+    { x: sx + dir * GAME_W * 0.50,   y: sy - 55                  },  // mid-air
+    { x: sx + dir * GAME_W * 0.85,   y: sy - 35                  },  // near edge
+    { x: sx + dir * GAME_W * 1.20,   y: sy + 30                  },  // exit screen
+    { x: sx + dir * GAME_W * 1.70,   y: sy + 120                 },  // far exit
   ];
 }
 
@@ -171,7 +177,7 @@ function startTFEnding(boss, isIntro) {
     bossRushed: false,
 
     // launch
-    launchPts:   _tfeLaunchPts(hero),
+    launchPts:   _tfeLaunchPts(hero, boss),
     launchT:     0,
     heroScreenX: hero.cx(),
     heroScreenY: hero.cy(),
@@ -295,20 +301,70 @@ function updateTFEnding() {
   else if (sc.phase === 'punch') {
     const bx = sc.boss.cx(), by = sc.boss.cy();
     const hx = sc.hero.cx(), hy = sc.hero.cy();
-    // Boss rushes then explodes-punches hero
-    if (t < 24) {
-      sc.boss.x += (hx - bx - sc.boss.w / 2) * 0.20;
-      sc.boss.y += (hy - by - sc.boss.h / 2) * 0.20;
+    const punchDir = bx < hx ? 1 : -1; // direction hero will be launched
+
+    // Frames 0–8: freeze + dramatic slow-motion buildup (anticipation)
+    if (t < 8) {
+      slowMotion = Math.max(0.05, 1 - t * 0.12);
     }
-    if (t === 26) {
-      screenShake = 70;
-      CinFX.shockwave(hx, hy, '#ffffff', { count: 3, maxR: 260, dur: 60 });
-      CinFX.flash('#ffffff', 0.95, 12);
-      spawnParticles(hx, hy, '#ffffff', 50);
-      spawnParticles(hx, hy, '#000000', 30);
-      spawnParticles(hx, hy, '#8800ff', 20);
+
+    // Frames 0–18: boss rushes toward hero with wind-up energy swirl
+    if (t < 18) {
+      sc.boss.x += (hx - bx - sc.boss.w / 2) * 0.22;
+      sc.boss.y += (hy - by - sc.boss.h / 2) * 0.22;
+      // Charge particles spiraling around boss
+      if (settings.particles && t % 2 === 0 && particles.length < MAX_PARTICLES) {
+        const _p = _getParticle();
+        const ang = (t / 18) * Math.PI * 4;
+        _p.x = sc.boss.cx() + Math.cos(ang) * 28;
+        _p.y = sc.boss.cy() + Math.sin(ang) * 28;
+        _p.vx = Math.cos(ang + 1.5) * 3; _p.vy = Math.sin(ang + 1.5) * 3;
+        _p.color = Math.random() < 0.5 ? '#8800ff' : '#ffffff';
+        _p.size = 2 + Math.random() * 3; _p.life = 14; _p.maxLife = 14;
+        particles.push(_p);
+      }
+    }
+
+    // Frame 18: time snaps back — IMPACT
+    if (t === 18) {
+      slowMotion = 1.0;
+      sc.boss.attackTimer    = 22;
+      sc.boss.attackDuration = 22;
+      sc.boss.facing         = punchDir;
+    }
+
+    // Frame 22: PUNCH LANDS — directional blast
+    if (t === 22) {
+      screenShake = 75;
+      // Shockwave at hero position
+      CinFX.shockwave(hx, hy, '#ffffff', { count: 3, maxR: 280, lw: 6, dur: 60 });
+      // Directional speed-line burst in punch direction
+      CinFX.flash('#ffffff', 0.95, 14);
+      spawnParticles(hx, hy, '#ffffff', 55);
+      spawnParticles(hx, hy, '#8800ff', 25);
+      spawnParticles(hx + punchDir * 30, hy, '#ffffff', 30);
+      // Directional speed lines: particles blast in punch direction
+      if (settings.particles) {
+        for (let i = 0; i < 30 && particles.length < MAX_PARTICLES; i++) {
+          const _p = _getParticle();
+          _p.x = hx + (Math.random() - 0.5) * 20;
+          _p.y = hy + (Math.random() - 0.5) * 20;
+          _p.vx = punchDir * (10 + Math.random() * 14);
+          _p.vy = (Math.random() - 0.5) * 4;
+          _p.color = Math.random() < 0.6 ? '#ffffff' : '#8800ff';
+          _p.size  = 1.5 + Math.random() * 4;
+          _p.life  = 20 + Math.random() * 15; _p.maxLife = 35;
+          particles.push(_p);
+        }
+      }
       SoundManager.heavyHit && SoundManager.heavyHit();
+      // Camera snap to launch direction
+      cinematicCamOverride = true;
+      cinematicZoomTarget  = 1.6;
+      cinematicFocusX      = hx + punchDir * 80;
+      cinematicFocusY      = hy - 20;
     }
+
     if (t >= 32) {
       sc.phase = 'launch';
       sc.timer = 0;
@@ -320,6 +376,8 @@ function updateTFEnding() {
       sc.heroPrevY   = sc.heroScreenY;
       sc.bgPanelIdx  = 0;
       sc.bgPanelT    = 0;
+      // Rebuild launch spline now that we know boss direction
+      sc.launchPts = _tfeLaunchPts(sc.hero, sc.boss);
     }
   }
 
@@ -366,6 +424,7 @@ function updateTFEnding() {
       sc.phase = 'coderealm';
       sc.timer = 0;
       sc.hero.backstageHiding = true;
+      sc.boss.backstageHiding = true;  // hide TF so it doesn't attack in background
       sc.hero.invincible = 999999;  // full immunity for entire coderealm phase
       sc.crHeroX  = GAME_W / 2;
       sc.crHeroY  = GAME_H * 0.52;
@@ -648,6 +707,7 @@ function updateTFEnding() {
         _tfeResumeAfterIntro(sc);
       } else {
         _tfeUnlockPatrolMode();
+        if (typeof activateParadoxCompanion === 'function') activateParadoxCompanion();
         endGame();
       }
     }
@@ -655,39 +715,52 @@ function updateTFEnding() {
 }
 
 // ── Resume gameplay after intro dimension-punch cinematic ─────────────────────
+// Player returns from Code Realm to see TrueForm apparently dying.
+// A shadow clone then executes a command to reset the fight (triggerFalseVictory).
 function _tfeResumeAfterIntro(sc) {
   // Advance state machine to backstage — from here normal death/ending logic is allowed
   if (typeof tfCinematicState !== 'undefined') tfCinematicState = 'backstage';
 
-  // Restore boss
+  // Restore boss visually (shadow clone will resurrect it via triggerFalseVictory)
   if (sc.boss) {
-    sc.boss.invincible      = 90;
     sc.boss.backstageHiding = false;
     sc.boss.vx = 0;
     sc.boss.vy = 0;
   }
 
-  // Restore hero — lose weapon, gain Paradox powers
+  // Restore hero — player keeps the gauntlet (fists) after absorbing Paradox.
+  // Paradox's power is expressed through raw combat, not weapons.
   if (sc.hero) {
     sc.hero.backstageHiding = false;
-    sc.hero.invincible      = Math.max(sc.hero.invincible, 180);
-    sc.hero.weapon          = null; // player loses weapon (Part 4)
+    sc.hero.invincible      = Math.max(sc.hero.invincible, 60);
+    // Switch to gauntlet (fists) — the player fights bare-handed from here on.
+    if (typeof WEAPONS !== 'undefined' && WEAPONS['gauntlet']) {
+      sc.hero.weapon = WEAPONS['gauntlet'];
+    }
     sc.hero.vx = 0;
     sc.hero.vy = 0;
   }
 
-  // Activate final TrueForm mode (halved cooldowns, max aggression)
-  if (typeof tfFinalStateActive !== 'undefined') tfFinalStateActive = true;
-
-  // Activate Paradox fusion control system (Part 4)
-  if (typeof tfParadoxFused !== 'undefined') {
-    tfParadoxFused      = true;
-    tfFusionControlMode = 'player';
-    tfFusionSwitchTimer = typeof tfFusionSwitchInterval !== 'undefined' ? tfFusionSwitchInterval : 300;
-    tfFusionGlitchTimer = 0;
-    // Reset canonical control-override state; timer=0 so smb-loop initialises it on next tick
-    controlState = 'player';
-    controlTimer = 0;
+  // Shadow clone saves TrueForm: trigger fight reset sequence.
+  // triggerFalseVictory shows the clone, resets boss to 10000 HP, and
+  // activates Paradox fusion so player keeps Paradox's power for round 2.
+  if (typeof triggerFalseVictory === 'function' &&
+      typeof tfFalseVictoryFired !== 'undefined' && !tfFalseVictoryFired) {
+    if (sc.boss) {
+      sc.boss.health     = 51;   // keep alive; false victory will restore to 10000
+      sc.boss.invincible = 9999;
+    }
+    triggerFalseVictory(sc.boss);
+  } else {
+    // Fallback: resume fight directly if false victory unavailable or already fired
+    if (sc.boss) sc.boss.invincible = 90;
+    if (typeof tfFinalStateActive !== 'undefined') tfFinalStateActive = true;
+    if (typeof tfParadoxFused !== 'undefined') {
+      tfParadoxFused      = true;
+      tfFusionControlMode = 'player';
+      if (typeof controlState !== 'undefined') controlState = 'player';
+      if (typeof controlTimer !== 'undefined') controlTimer = 0;
+    }
   }
 
   screenShake = Math.max(screenShake, 35);

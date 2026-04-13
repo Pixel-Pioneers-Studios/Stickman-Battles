@@ -74,9 +74,9 @@ function updateTFBlackHoles() {
         p.vx += (dx / d) * pull;
         p.vy += (dy / d) * pull * 0.75;
       }
-      // Event horizon damage
+      // Event horizon damage — 18 iframes so back-to-back frame hits can't chain
       if (d < bh.r + 8 && p.invincible <= 0) {
-        dealDamage(tf || players[1], p, 36, 0);
+        dealDamage(tf || players[1], p, 36, 0, 1.0, false, 18);
         spawnParticles(p.cx(), p.cy(), '#000000', 10);
         spawnParticles(p.cx(), p.cy(), '#aa00ff',  6);
         hitStopFrames = Math.max(hitStopFrames, 8);
@@ -995,9 +995,9 @@ function updateTFGravityWells() {
         p.vx += (dx / dd) * pull;
         p.vy += (dy / dd) * pull;
       }
-      // Damage when very close to well centre
+      // Damage when very close to well centre — 18 iframes to prevent per-frame drain
       if (dd < 32 && p.invincible <= 0) {
-        dealDamage(tf || players[players.length - 1], p, 18, 3);
+        dealDamage(tf || players[players.length - 1], p, 18, 3, 1.0, false, 18);
         spawnParticles(p.cx(), p.cy(), '#440044', 8);
       }
     }
@@ -1792,7 +1792,7 @@ function updateTFPendingAttacks() {
         }
       }
       tf._pendingSlash = null;
-      tf._setAttackPhase('recovery', 12, false);
+      tf._setAttackPhase('recovery', 20, false);
     }
   }
 
@@ -2138,7 +2138,7 @@ function updateTFPhaseShift() {
   }
 
   if (ps.timer >= ps.maxTimer) {
-    if (ps.bossRef && ps.bossRef._setAttackPhase) ps.bossRef._setAttackPhase('recovery', 12, false);
+    if (ps.bossRef && ps.bossRef._setAttackPhase) ps.bossRef._setAttackPhase('recovery', 20, false);
     tfPhaseShift = null;
   }
 }
@@ -2232,7 +2232,7 @@ function updateTFRealityTear() {
     }
   }
   if (rt.phase === 'close'  && rt.timer >= rt.maxTimer) {
-    if (rt.bossRef && rt.bossRef._setAttackPhase) rt.bossRef._setAttackPhase('recovery', 12, false);
+    if (rt.bossRef && rt.bossRef._setAttackPhase) rt.bossRef._setAttackPhase('recovery', 20, false);
     tfRealityTear = null;
     return;
   }
@@ -2348,7 +2348,9 @@ function updateTFCalcStrike() {
           screenShake = Math.max(screenShake, 8);
           spawnParticles(target.cx(), target.cy(), '#88ccff', 12);
         } else {
-          target.invincible = 0;
+          // Calc-strike: deliver impact — do NOT strip prior invincibility.
+          // hitInvincibleFrames=0 lets the strike land if the player has no active iframes,
+          // but respawn protection and finisher locks are now respected.
           dealDamage(tf, target, 34, 16, 1.2, false, 0);
           target.stunTimer = Math.max(target.stunTimer || 0, 14);
           target.vx += tf.facing * 10;
@@ -2359,7 +2361,7 @@ function updateTFCalcStrike() {
   }
   if (cs.timer >= cs.maxTimer) {
     const tf = players.find(p => p.isTrueForm);
-    if (tf && tf._setAttackPhase) tf._setAttackPhase('recovery', 12, false);
+    if (tf && tf._setAttackPhase) tf._setAttackPhase('recovery', 20, false);
     tfCalcStrike = null;
   }
 }

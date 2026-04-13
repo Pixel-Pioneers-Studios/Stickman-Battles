@@ -25,8 +25,25 @@ function dealDamage(attacker, target, dmg, kbForce, stunMult = 1.0, isSplash = f
   if (activeCinematic) return; // no damage during cinematic pauses
   if (!target || target.invincible > 0 || target.health <= 0) return;
   if (target.godmode) return; // godmode: no hitbox — all damage blocked
+  // Capped env-stack: environmental sources (attacker===null) may stack within one frame,
+  // but total env damage per target per frame is capped at MAX_ENV_DAMAGE.
+  // This allows lava+eruption combos while preventing instant burst kills.
+  if (!attacker && typeof frameCount !== 'undefined') {
+    if (target._envDamageFrame !== frameCount) {
+      target._envDamageFrame = frameCount;
+      target._envDamageAccum = 0;
+    }
+    const MAX_ENV_DAMAGE = 14;
+    if (target._envDamageAccum >= MAX_ENV_DAMAGE) return;
+    const _allowed = Math.min(dmg, MAX_ENV_DAMAGE - target._envDamageAccum);
+    target._envDamageAccum += _allowed;
+    dmg = _allowed;
+  }
   if (target._guiAttackImmune) return; // GUI-triggered attacks never damage the triggering player
   if (attacker && areAlliedEntities(attacker, target)) return;
+  // TF opening cinematic: TrueForm cannot hurt players — fight is fully scripted
+  if (typeof tfOpeningFightActive !== 'undefined' && tfOpeningFightActive &&
+      attacker && attacker.isTrueForm && target && !target.isBoss) return;
   // Paradox damage lock: player deals 0 damage to TrueForm during lock phase
   if (typeof tfDamageLocked !== 'undefined' && tfDamageLocked &&
       target && target.isTrueForm && attacker && !attacker.isBoss) {
@@ -181,14 +198,61 @@ function dealDamage(attacker, target, dmg, kbForce, stunMult = 1.0, isSplash = f
     }
   }
 
+  // ── COMBO TRACKING: hitstun decay + auto-launch ─────────────────────────────
+  // Track how many consecutive hits attacker has landed on target within 45 frames.
+  // This is separate from TrueForm's _comboCount (which is boss-specific).
+  if (attacker && !attacker.isBoss && !attacker.isTrueForm && target && !target.isBoss && typeof frameCount !== 'undefined') {
+    const _fc = frameCount;
+    // Reset counter when last hit was >45 frames ago (combo window expired)
+    if (_fc - (attacker._comboLastFrame || 0) > 45) attacker._comboHitCount = 0;
+    attacker._comboHitCount  = (attacker._comboHitCount  || 0) + 1;
+    attacker._comboLastFrame = _fc;
+    const _cn = attacker._comboHitCount;
+    // Knockback scaling: each successive hit pushes target further (prevents re-hit loops)
+    if (_cn > 1) {
+      const _kbScale = Math.min(1.5, 1 + (_cn - 1) * 0.08);
+      actualKb = Math.min(actualKb * _kbScale, 22);
+    }
+    // Auto-launch: 7+ hit combo forces a hard launcher; combo breaks naturally
+    if (_cn >= 7) {
+      actualKb = Math.max(actualKb, 17);
+      console.log('[COMBO] Auto-launch at hit', _cn, 'on', target.name || 'fighter', '— breaking combo');
+    }
+    // Debug: log high combo count
+    if (_cn === 5) console.log('[COMBO] Extended combo (5+) by', attacker.name || 'attacker', 'on', target.name || 'fighter');
+  }
+
+  // ── PER-FRAME IMPULSE LIMIT ───────────────────────────────────────────────
+  // If target was already knocked back this frame, reduce subsequent KB by 55%.
+  // Prevents velocity stacking from AoE / multi-hit sources in one frame.
+  if (typeof frameCount !== 'undefined') {
+    if (target._kbAppliedFrame === frameCount) {
+      actualKb = Math.round(actualKb * 0.45);
+    } else {
+      target._kbAppliedFrame = frameCount;
+    }
+  }
+
+  // ── HARD KB CAP (before apply) ────────────────────────────────────────────
+  // Normalize actualKb: non-boss hits capped at 20, boss/TF hits capped at 26.
+  if (attacker && (attacker.isBoss || attacker.isTrueForm)) {
+    actualKb = Math.min(actualKb, 26);
+  } else {
+    actualKb = Math.min(actualKb, 20);
+  }
+
   // One-punch mode: training only — instantly kills on hit
   if (trainingMode && attacker && attacker.onePunchMode && !target.shielding) {
     actualDmg = target.health; // always lethal
-  } else {
-    // Class perk protection: can't be one-shot before their passive triggers
-    if (!target.shielding && target.charClass !== 'none' && !target.classPerkUsed && target.health > 1) {
-      actualDmg = Math.min(actualDmg, target.health - 1);
-    }
+  }
+  // Hard cap: no single hit may remove more than 45% of a player's max HP,
+  // or 25% of a boss's max HP (prevents broken scaling at 2000+ HP).
+  // Exempt: one-punch training mode (handled above).
+  if (!trainingMode || !(attacker && attacker.onePunchMode)) {
+    const _maxHit = target.isBoss
+      ? Math.floor((target.maxHealth || 100) * 0.25)
+      : Math.floor((target.maxHealth || 100) * 0.45);
+    if (actualDmg > _maxHit) actualDmg = _maxHit;
   }
   // Soccer: players take no health damage but still feel KB/stun
   if (gameMode === 'minigames' && minigameType === 'soccer') actualDmg = 0;
@@ -245,6 +309,12 @@ function dealDamage(attacker, target, dmg, kbForce, stunMult = 1.0, isSplash = f
     target.vy      = -actualKb * 0.55;
     if (currentArena && currentArena.isLowGravity)  target.vy = -actualKb * 0.25;
     if (currentArena && currentArena.isHeavyGravity) target.vy = -actualKb * 0.75;
+    // Hard velocity cap applied immediately — fighter.update() also clamps but
+    // runs next frame; this prevents fling glitch from same-frame stacking.
+    target.vx = clamp(target.vx, -18, 18);
+    target.vy = clamp(target.vy, -18, 18);
+    if (Math.abs(target.vx) > 14 || Math.abs(target.vy) > 14)
+      console.log('[KB] High velocity on', target.name || 'fighter', 'vx:', target.vx.toFixed(1), 'vy:', target.vy.toFixed(1), 'from actualKb:', actualKb.toFixed(1));
   }
   if (settings.screenShake) {
     // Scale shake with actual damage: light hits barely move, heavy hits punch hard
@@ -312,6 +382,22 @@ function dealDamage(attacker, target, dmg, kbForce, stunMult = 1.0, isSplash = f
     } else if (actualKb >= 8 && Math.random() < 0.45) {
       target.stunTimer    = Math.min(MAX_STUN, 18 + Math.floor(actualKb * 1.1));
     }
+    // ── HITSTUN DECAY: each successive combo hit reduces stun duration ────────
+    // Prevents indefinite hitstun chains from rapid melee.
+    // Minimum floor (8) ensures attacks still feel responsive.
+    if (attacker && !attacker.isBoss && !attacker.isTrueForm && attacker._comboHitCount > 1 && target.stunTimer > 0) {
+      const _decayFactor = Math.max(0.28, 1 - (attacker._comboHitCount - 1) * 0.08);
+      target.stunTimer    = Math.max(8, Math.floor(target.stunTimer * _decayFactor));
+      if (target.ragdollTimer > 0)
+        target.ragdollTimer = Math.max(6, Math.floor(target.ragdollTimer * _decayFactor));
+    }
+    // ── AIR ESCAPE WINDOW: high combo + airborne → reduce invincibility frames ─
+    // Gives the defending player an earlier escape window while airborne.
+    if (attacker && attacker._comboHitCount >= 5 && !target.onGround && !target.isBoss) {
+      target.invincible = Math.max(target.invincible, Math.round(hitInvincibleFrames * 1.5));
+    }
+    // Debug: log unusually high damage events
+    if (actualDmg >= 40) console.log('[DMG] Heavy hit', actualDmg, 'by', (attacker && attacker.name) || 'unknown', 'on', target.name || 'target');
     // Per-limb spring reaction
     if (target._rd) {
       const impactX = attacker ? attacker.cx() : target.cx();
@@ -334,6 +420,16 @@ function dealDamage(attacker, target, dmg, kbForce, stunMult = 1.0, isSplash = f
     if (!prev && attacker.superMeter >= 100) {
       attacker.superReady      = true;
       attacker.superFlashTimer = 90;
+    }
+  }
+  // Target also gains super from taking damage (half of what attacker gained)
+  if (target && !target.superActive && !target.isBoss) {
+    const _targetSuperGain = Math.floor(actualDmg * 0.35);
+    const _tPrev = target.superReady;
+    target.superMeter = Math.min(100, target.superMeter + _targetSuperGain);
+    if (!_tPrev && target.superMeter >= 100) {
+      target.superReady      = true;
+      target.superFlashTimer = 90;
     }
   }
   if (settings.dmgNumbers) damageTexts.push(new DamageText(target.cx(), target.y, actualDmg, target.shielding ? '#88ddff' : '#ffdd00'));

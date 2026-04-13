@@ -201,18 +201,46 @@ class FallenGod extends Boss {
 
 // ── Post-defeat backstory sequence for Fallen God ──────────────────────────
 function startFallenGodBackstory() {
+  // Guard: only play once ever (persisted) and once per session.
+  // Without this the full 35-second sequence re-fires on every repeated defeat.
+  try { if (localStorage.getItem('smb_fallenGodBackstoryPlayed')) return; } catch (e) { /* ignore */ }
+  if (storyEventFired && storyEventFired['_fallenGodBackstory']) return;
+  if (storyEventFired) storyEventFired['_fallenGodBackstory'] = true;
+  try { localStorage.setItem('smb_fallenGodBackstoryPlayed', '1'); } catch (e) { /* ignore */ }
+
+  // The Fallen God narrates Axiom's full story — who he was, what happened,
+  // and why True Form exists. This plays after the Fallen God is defeated.
+  //
+  // CANON (do not alter sequence):
+  //   Axiom was a hero. He gathered allies — his closest friends.
+  //   They found a fracture leading to a separate multiversal layer.
+  //   Inside it: power to reshape reality, to create and destroy.
+  //   That power corrupted perception. Identity collapsed. War began.
+  //   Each of them seized a branch and became its ruler.
+  //   Axiom seized this one. The Creator shell is the interface.
+  //   True Form is what Axiom became.
+  //   Paradox was built during the war to fight beside Axiom.
+  //   An error in its construction caused it to turn against everyone.
+  //   That is the fight you witnessed in the void arena.
   const lines = [
-    { delay: 400,  text: '"Before the fracture…"',                     color: '#ffcc44' },
-    { delay: 2200, text: '"…there was one system. One truth."',         color: '#ffdd88' },
-    { delay: 4200, text: '"I built the walls between dimensions."',     color: '#ffcc44' },
-    { delay: 6200, text: '"So nothing could bleed through."',           color: '#ffee99' },
-    { delay: 8200, text: '"The Creator was my student."',               color: '#ffcc44' },
-    { delay: 10200,text: '"I taught them everything."',                 color: '#ffdd88' },
-    { delay: 12200,text: '"They built the fracture anyway."',           color: '#ff8800' },
-    { delay: 14200,text: '"I fell trying to stop it."',                 color: '#ffaa44' },
-    { delay: 16200,text: '"Now you have done what I could not."',       color: '#ffffff'  },
-    { delay: 18200,text: '"Remember the cost of what was broken."',     color: '#ffcc44' },
-    { delay: 20500,text: null /* end */ },
+    { delay:   400, text: '"I watched it happen. All of it."',                             color: '#ffcc44' },
+    { delay:  2400, text: '"Axiom was a hero before any of this."',                        color: '#ffee88' },
+    { delay:  4400, text: '"He proved himself. Others like him found him."',               color: '#ffdd88' },
+    { delay:  6400, text: '"They became his closest allies. His friends."',                color: '#ffcc44' },
+    { delay:  8400, text: '"Together they discovered the fracture."',                      color: '#ffee99' },
+    { delay: 10400, text: '"A tear between multiversal layers. They went through it."',    color: '#ffcc44' },
+    { delay: 12400, text: '"Inside: power without limit. Reality bending to their will."', color: '#ffaa00' },
+    { delay: 14400, text: '"That power does not stay in your hands. It enters your mind."',color: '#ff8800' },
+    { delay: 16400, text: '"They stopped recognising each other. Trust became war."',      color: '#ff6600' },
+    { delay: 18400, text: '"Each of them took a branch. Became its ruler."',               color: '#ffcc44' },
+    { delay: 20400, text: '"Axiom took this one. He built the Creator as its shell."',     color: '#ffee88' },
+    { delay: 22400, text: '"True Form is what he became inside it."',                      color: '#ffffff'  },
+    { delay: 24400, text: '"During the war he built Paradox — a weapon to fight beside him."', color: '#aaddff' },
+    { delay: 26400, text: '"An error in its construction. Paradox turned against everything."', color: '#88aaff' },
+    { delay: 28400, text: '"That fight in the void arena — that was the error playing out."',    color: '#aaddff' },
+    { delay: 30400, text: '"Now you have done what I could not."',                         color: '#ffffff'  },
+    { delay: 32400, text: '"Remember what he was. And what the fracture cost."',           color: '#ffcc44' },
+    { delay: 34800, text: null /* end */ },
   ];
 
   // Use the existing storyFightSubtitle / showBossDialogue infrastructure

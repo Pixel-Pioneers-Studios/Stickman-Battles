@@ -15,21 +15,10 @@ function selectMode(mode) {
     if (typeof openStoryMenu === 'function') openStoryMenu();
     return;
   }
-  // 'storyonline' — story online mode (unlocked on story completion)
-  const isStoryOnline = mode === 'storyonline';
-  if (isStoryOnline) {
-    // Story Online: behaves like online mode but marks storyonline context
-    mode = 'online';
-  }
-  gameMode = isStoryOnline ? 'storyonline' : mode;
+  gameMode = mode;
   document.querySelectorAll('.mode-card').forEach(c => c.classList.remove('active'));
-  if (isStoryOnline) {
-    const soCard = document.getElementById('modeStoryOnline');
-    if (soCard) soCard.classList.add('active');
-  } else {
-    const modeCard = document.querySelector(`[data-mode="${mode}"]`);
-    if (modeCard) modeCard.classList.add('active');
-  }
+  const modeCard = document.querySelector(`[data-mode="${mode}"]`);
+  if (modeCard) modeCard.classList.add('active');
   const isBoss       = mode === 'boss';
   // When connected online, only 2p is supported — redirect all other modes back to online
   if (NetworkManager.connected && mode !== 'online' && mode !== '2p') {
@@ -624,6 +613,85 @@ function _initVersionLabels() {
   if (settings) settings.textContent = 'v' + GAME_VERSION;
 }
 
+// ── Custom Weapons Panel ──────────────────────────────────────────────────────
+function openCustomWeaponsPanel() {
+  const existing = document.getElementById('customWeaponsPanel');
+  if (existing) { existing.remove(); return; }
+
+  const panel = document.createElement('div');
+  panel.id = 'customWeaponsPanel';
+  panel.style.cssText = [
+    'position:fixed','top:50%','left:50%','transform:translate(-50%,-50%)',
+    'background:rgba(8,10,30,0.97)','border:1px solid rgba(100,150,255,0.35)',
+    'border-radius:12px','padding:20px 24px','z-index:5000','min-width:320px',
+    'max-width:480px','max-height:70vh','overflow-y:auto',
+    'box-shadow:0 8px 40px rgba(0,0,0,0.8)',
+    'font-family:"Segoe UI",Arial,sans-serif',
+  ].join(';');
+
+  const closeBtn = document.createElement('button');
+  closeBtn.textContent = '✕';
+  closeBtn.style.cssText = 'position:absolute;top:10px;right:14px;background:transparent;border:none;color:#667;font-size:1.1rem;cursor:pointer;';
+  closeBtn.onclick = () => panel.remove();
+
+  const title = document.createElement('h3');
+  title.textContent = '⚒ Custom Weapons';
+  title.style.cssText = 'margin:0 0 14px;font-size:1rem;color:#aaccff;letter-spacing:1px;';
+
+  const currentKey = typeof loadCustomWeaponSelection === 'function' ? loadCustomWeaponSelection() : '';
+  const weapons = window.CUSTOM_WEAPONS || {};
+  const keys = Object.keys(weapons);
+
+  if (keys.length === 0) {
+    const empty = document.createElement('p');
+    empty.style.cssText = 'color:#445;font-size:0.82rem;text-align:center;padding:20px 0;';
+    empty.textContent = 'No custom weapons created yet. Use the Level Designer or the EVAL console command to create weapons.';
+    panel.appendChild(closeBtn);
+    panel.appendChild(title);
+    panel.appendChild(empty);
+    document.body.appendChild(panel);
+    return;
+  }
+
+  // "None" option
+  const noneCard = _cwCard('(none)', '', currentKey === '', () => {
+    if (typeof saveCustomWeaponSelection === 'function') saveCustomWeaponSelection('');
+    panel.remove(); openCustomWeaponsPanel();
+  });
+  panel.appendChild(closeBtn);
+  panel.appendChild(title);
+  panel.appendChild(noneCard);
+
+  for (const key of keys) {
+    const w = weapons[key];
+    const card = _cwCard(key, w.description || w.type || '', currentKey === key, () => {
+      if (typeof saveCustomWeaponSelection === 'function') saveCustomWeaponSelection(key);
+      panel.remove(); openCustomWeaponsPanel();
+    });
+    panel.appendChild(card);
+  }
+
+  document.body.appendChild(panel);
+}
+
+function _cwCard(name, desc, active, onClick) {
+  const card = document.createElement('div');
+  card.style.cssText = [
+    'display:flex','align-items:center','justify-content:space-between',
+    'padding:9px 12px','margin-bottom:6px','border-radius:7px','cursor:pointer',
+    `border:1px solid ${active ? 'rgba(80,160,255,0.6)' : 'rgba(255,255,255,0.1)'}`,
+    `background:${active ? 'rgba(30,60,120,0.55)' : 'rgba(10,12,30,0.4)'}`,
+    'transition:background 0.12s',
+  ].join(';');
+  card.innerHTML = `<div>
+    <div style="font-size:0.82rem;color:${active ? '#aacfff' : '#99aacc'};font-weight:600;">${name}</div>
+    ${desc ? `<div style="font-size:0.66rem;color:#445;margin-top:2px;">${desc}</div>` : ''}
+  </div>
+  <div style="font-size:0.72rem;color:${active ? '#44aaff' : '#334'};">${active ? '✓ Equipped' : 'Equip'}</div>`;
+  card.onclick = onClick;
+  return card;
+}
+
 function toggleStatsLog() {
   const modal   = document.getElementById('statsLogModal');
   const content = document.getElementById('statsLogContent');
@@ -964,8 +1032,34 @@ function _arenaSpawnBounds() {
 function _spawnHazardFloorY() {
   if (!currentArena) return Infinity;
   if (currentArena.hasLava) return currentArena.lavaY || 442;
-  if (currentArenaKey === 'void' && bossFloorState === 'hazard') return 470;
+  // Both void (TrueForm) and creator (Boss) arenas use bossFloorState for floor hazards
+  if ((currentArenaKey === 'void' || currentArenaKey === 'creator') && bossFloorState === 'hazard') return 460;
   return Infinity;
+}
+
+/**
+ * isHazard(x, y) — returns true if the world-space point (x, y) falls inside
+ * a damaging zone (lava surface, active boss-floor hazard).
+ * Uses a small upward margin so spawns land clearly above the danger boundary.
+ */
+function isHazard(x, y) {
+  if (!currentArena) return false;
+  // Lava / magma floor
+  if (currentArena.hasLava) {
+    const ly = currentArena.lavaY || 442;
+    if (y >= ly - 10) return true;
+  }
+  // Boss-arena floor hazard (void = TrueForm arena, creator = Boss arena)
+  if ((currentArenaKey === 'void' || currentArenaKey === 'creator') &&
+      bossFloorState === 'hazard' && y >= 450) return true;
+  // Active boss beams — don't spawn players into a live beam column
+  if (typeof bossBeams !== 'undefined' && Array.isArray(bossBeams)) {
+    for (const beam of bossBeams) {
+      if (beam.done || beam.phase !== 'active') continue;
+      if (Math.abs(x - beam.x) < 28) return true;
+    }
+  }
+  return false;
 }
 
 function _spawnPointSafe(x, y, w = 24, h = 60) {
@@ -1098,12 +1192,27 @@ function pickSafeSpawn(sideHint, avoidX) {
     for (const candX of floorCandidates) {
       if (_spawnPointSafe(candX, floor.y - 1)) return { x: candX, y: floor.y - 1 };
     }
-    return { x: rx, y: floor.y - 1 };
+    // Last-resort floor fallback: only return if not in a hazard zone
+    if (!isHazard(rx, floor.y - 1)) return { x: rx, y: floor.y - 1 };
+    // Floor is hazardous — use center-of-map safe position instead
+    const safeHazY = _spawnHazardFloorY();
+    return { x: GAME_W / 2, y: Math.min(safeHazY - 140, GAME_H * 0.55) };
   } else {
     return null; // no safe surface at all
   }
 
-  // If avoidX is set, prefer platforms that are far enough away; fall back to any platform
+  // Spawn fairness: check if a candidate point is within 120px of a living enemy.
+  function _spawnNearEnemy(x, y) {
+    if (typeof players === 'undefined') return false;
+    for (const p of players) {
+      if (!p || p.health <= 0) continue;
+      if (Math.hypot(p.x - x, p.y - y) < 120) return true;
+    }
+    return false;
+  }
+
+  // If avoidX is set, prefer platforms that are far enough away; fall back to any platform.
+  // Secondary sort: prefer elevated platforms (lower y value = higher on screen) for fairer spawns.
   let chosenPool = pool;
   if (avoidX !== undefined) {
     const farPool = pool.filter(pl => Math.abs(pl.x + pl.w / 2 - avoidX) >= MIN_SPAWN_SEP);
@@ -1114,9 +1223,12 @@ function pickSafeSpawn(sideHint, avoidX) {
     .sort((a, b) => {
       const aMid = a.x + a.w / 2;
       const bMid = b.x + b.w / 2;
+      // Primary: distance from avoidX (farther = better)
       const aScore = avoidX !== undefined ? Math.abs(aMid - avoidX) : 0;
       const bScore = avoidX !== undefined ? Math.abs(bMid - avoidX) : 0;
-      return bScore - aScore;
+      if (bScore !== aScore) return bScore - aScore;
+      // Secondary: prefer elevated platforms (smaller y = higher)
+      return a.y - b.y;
     });
 
   for (const pl of orderedPool) {
@@ -1137,19 +1249,40 @@ function pickSafeSpawn(sideHint, avoidX) {
         : Math.max(safeLeft, avoidX - MIN_SPAWN_SEP));
     }
 
-    for (let i = 0; i < 6; i++) {
+    // Up to 50 random retries per platform to avoid hazards
+    for (let i = 0; i < 50; i++) {
       samples.push(safeLeft + Math.random() * (safeRight - safeLeft));
     }
 
     for (const candX of samples) {
       if (avoidX !== undefined && Math.abs(candX - avoidX) < MIN_SPAWN_SEP * 0.72) continue;
-      if (_spawnPointSafe(candX, pl.y - 1)) return { x: candX, y: pl.y - 1 };
+      // Spawn 6px above platform surface so player lands cleanly and not inside geometry
+      const spawnY = pl.y - 6;
+      if (!isHazard(candX, spawnY) && _spawnPointSafe(candX, spawnY) && !_spawnNearEnemy(candX, spawnY)) return { x: candX, y: spawnY };
     }
   }
 
+  // Last-resort: return the center of the best platform, validated against hazards.
+  // If still unsafe, use map center above the hazard floor.
   const fallback = orderedPool[0];
-  if (!fallback) return null;
-  return { x: clamp(fallback.x + fallback.w / 2, fallback.x + 14, fallback.x + fallback.w - 14), y: fallback.y - 1 };
+  if (fallback) {
+    const fbX = clamp(fallback.x + fallback.w / 2, fallback.x + 14, fallback.x + fallback.w - 14);
+    const fbY = fallback.y - 6;
+    if (!isHazard(fbX, fbY)) {
+      // If still too close to an enemy, nudge to map center
+      const fbSafeX = _spawnNearEnemy(fbX, fbY) ? GAME_W / 2 : fbX;
+      return { x: fbSafeX, y: fbY };
+    }
+  }
+  // Center-of-map safe fallback — well above any hazard floor
+  const safeHazardY = _spawnHazardFloorY();
+  const fallbackY = Math.min(safeHazardY - 140, GAME_H * 0.55);
+  // If center is occupied, alternate to left or right quarter of the arena
+  let fallbackX = GAME_W / 2;
+  if (_spawnNearEnemy(fallbackX, fallbackY)) {
+    fallbackX = _spawnNearEnemy(GAME_W * 0.2, fallbackY) ? GAME_W * 0.8 : GAME_W * 0.2;
+  }
+  return { x: fallbackX, y: fallbackY };
 }
 
 function pickSafeSpawnNear(preferredX, sideHint = 'any', avoidX) {
@@ -1343,6 +1476,8 @@ function _startGameCore() {
   camXCur = GAME_W / 2; camYCur = GAME_H / 2;
   camXTarget = GAME_W / 2; camYTarget = GAME_H / 2;
   camHitZoomTimer = 0;
+  // Reset duel-cam state so it doesn't carry stale midpoint from previous match
+  if (typeof _duelMidX !== 'undefined') { _duelMidX = GAME_W / 2; _duelMidY = GAME_H / 2; _duelFallDelay = 0; }
   aiTick = 0;
   // Reset boss floor state for every game start
   bossFloorState = 'normal';
@@ -1385,7 +1520,16 @@ function _startGameCore() {
     p1._storyNoAbility    = !!_sc.noAbility;
     p1._storyNoSuper      = !!_sc.noSuper;
     p1._storyNoDoubleJump = !!_sc.noDoubleJump;
+    p1._noDoubleJump      = !!_sc.noDoubleJump;  // unified flag checked in smb-loop.js
     p1._storyNoDodge      = !!_sc.noDodge;
+  }
+  // Auto-equip saved custom weapon (non-story modes only; story overrides weapon)
+  if (!storyModeActive && typeof loadCustomWeaponSelection === 'function') {
+    const _cwKey = loadCustomWeaponSelection();
+    if (_cwKey && window.CUSTOM_WEAPONS && window.CUSTOM_WEAPONS[_cwKey]) {
+      p1.weapon    = window.CUSTOM_WEAPONS[_cwKey];
+      p1.weaponKey = _cwKey;
+    }
   }
   // Megaknight spawn fall
   if (p1.charClass === 'megaknight') { p1.y = -120; p1.vy = 2; p1._spawnFalling = true; p1.invincible = 200; }
@@ -1393,7 +1537,11 @@ function _startGameCore() {
   // Player 2 / Bot / Boss / Training Dummy
   let p2;
   if (isBossMode) {
+    const _guestOnline = typeof onlineMode !== 'undefined' && onlineMode
+      && typeof NetworkManager !== 'undefined' && !NetworkManager.isHost();
     const boss = (storyBossType === 'fallen_god' && typeof FallenGod !== 'undefined') ? new FallenGod() : new Boss();
+    // Online guests: mark boss as remote so loop skips its AI
+    if (_guestOnline) { boss.isRemote = true; boss.isAI = false; }
     // True Creator mode: significantly harder boss (requires TRUEFORM code)
     // Skipped in story mode — story has its own boss scaling below
     if (unlockedTrueBoss && !storyModeActive) {
@@ -1600,7 +1748,9 @@ function _startGameCore() {
     p1.target = null;
   } else {
     p2 = new Fighter(720, 300, c2, w2, { left:'ArrowLeft', right:'ArrowRight', jump:'ArrowUp', attack:'Enter', shield:'ArrowDown', ability:'.', super:'/' }, isBot, diff);
-    p2.playerNum = 2; p2.name = p2IsBot ? 'BOT' : 'P2'; p2.lives = chosenLives;
+    // In story two-enemy fights, cap p2 lives so total enemy lives ≤ player lives
+    const _p2StoryLives = (storyModeActive && storyTwoEnemies) ? Math.max(1, Math.floor(chosenLives / 2)) : chosenLives;
+    p2.playerNum = 2; p2.name = p2IsBot ? 'BOT' : 'P2'; p2.lives = _p2StoryLives;
     { const _sp2 = pickSafeSpawn('right', _p1SpawnPos.x) || { x: 720, y: 300 };
       p2.spawnX = _sp2.x; p2.spawnY = _sp2.y; p2.x = _sp2.x; p2.y = _sp2.y - p2.h; }
     p2.hat  = document.getElementById('p2Hat')?.value  || 'none';
@@ -1644,7 +1794,10 @@ function _startGameCore() {
       const p3 = new Fighter(_sp3.x, _sp3.y, _p3c, _p3w,
         { left:'ArrowLeft', right:'ArrowRight', jump:'ArrowUp', attack:'Enter', shield:'ArrowDown', ability:'.', super:'/' },
         true, _p3d);
-      p3.playerNum = 3; p3.name = _sed.name || 'ENEMY B'; p3.lives = chosenLives;
+      // In story two-enemy fights the player must have lives ≥ total enemy lives.
+      // Cap each enemy at floor(playerLives/2) so 2 enemies never exceed the player's total.
+      const _p3Lives = storyModeActive ? Math.max(1, Math.floor(chosenLives / 2)) : chosenLives;
+      p3.playerNum = 3; p3.name = _sed.name || 'ENEMY B'; p3.lives = _p3Lives;
       p3.spawnX = _sp3.x; p3.spawnY = _sp3.y; p3.y = _sp3.y - p3.h;
       if (_sed.classKey) applyClass(p3, _sed.classKey);
       if (storyModeActive && typeof STORY_ENEMY_CONFIGS !== 'undefined') {
@@ -1741,6 +1894,11 @@ function _startGameCore() {
   }
 
   gameRunning = true;
+  // Paradox companion: speak on boss start
+  if ((gameMode === 'boss' || gameMode === 'trueform') &&
+      typeof paradoxOnBossStart === 'function') {
+    paradoxOnBossStart();
+  }
   // Start appropriate background music
   if (gameMode === 'boss' || gameMode === 'trueform') {
     MusicManager.playBoss();

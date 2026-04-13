@@ -290,6 +290,21 @@ class Fighter {
     if (this.hurtTimer > 0)       this.hurtTimer--;
     if (this.stunTimer > 0)       this.stunTimer--;
     if (this.ragdollTimer > 0)    this.ragdollTimer--;
+    // ── STATE RESET FAILSAFE ─────────────────────────────────────────────────
+    // If hitstun/stun/ragdoll timers are stuck above their maximum possible values,
+    // force them back to neutral so the fighter doesn't get permanently locked.
+    if (this.hurtTimer > 240) {
+      console.warn('[STATE] hurtTimer overflow — reset on', this.name || 'fighter');
+      this.hurtTimer = 0;
+    }
+    if (this.stunTimer > 180) {
+      console.warn('[STATE] stunTimer overflow — reset on', this.name || 'fighter');
+      this.stunTimer = 0;
+    }
+    if (this.ragdollTimer > 180) {
+      console.warn('[STATE] ragdollTimer overflow — reset on', this.name || 'fighter');
+      this.ragdollTimer = 0; this.ragdollSpin = 0;
+    }
     if (this.spinning > 0)        this.spinning--;
     if (this.boostCooldown > 0)        this.boostCooldown--;
     if (this.shieldCooldown > 0)       this.shieldCooldown--;
@@ -470,6 +485,17 @@ class Fighter {
       const arenaGravity = _chaosMoon ? 0.18 : (currentArena.isLowGravity ? 0.28 : (currentArena.isHeavyGravity ? 0.95 : (currentArena.earthPhysics ? 0.88 : 0.65)));
       const gravDir = ((gameMode === 'trueform' || gameMode === 'story') && tfGravityInverted && !this.isBoss) ? -1 : 1;
       const _sm = slowMotion; // cinematic slow-motion time scale
+
+      // ── GRAVITY FAILSAFE ─────────────────────────────────────────────────────
+      // If _dimPunchGravLock is stuck (sequence was interrupted without cleanup), clear it.
+      if (this._dimPunchGravLock) {
+        const _dpActive = (typeof tfDimensionPunch !== 'undefined') && tfDimensionPunch != null;
+        if (!_dpActive) {
+          this._dimPunchGravLock = false;
+          console.warn('[PHYS] gravity lock cleared by failsafe on', this.name || 'fighter');
+        }
+      }
+
       // Dimension punch gravity lock: skip gravity while player is being launched/travelling
       if (!this._dimPunchGravLock) {
         this.vy += arenaGravity * gravDir * _sm;
@@ -484,6 +510,11 @@ class Fighter {
       this.vx  = clamp(this.vx, -_vxMax, _vxMax);
       const vyMax = currentArena.isLowGravity ? 10 : 19;
       this.vy  = clamp(this.vy, -20, vyMax);
+
+      // ── VELOCITY SANITY LOG (debug) ──────────────────────────────────────────
+      if (Math.abs(this.vx) > 11 || Math.abs(this.vy) > 17) {
+        console.warn('[PHYS] high velocity', this.name || 'fighter', 'vx:', this.vx.toFixed(1), 'vy:', this.vy.toFixed(1));
+      }
       this.onGround = false;
       // Inverted gravity ceiling bounce
       if (gameMode === 'trueform' && tfGravityInverted && !this.isBoss && this.y < 0) {
@@ -549,9 +580,13 @@ class Fighter {
         }
         this.vx *= 0.88;
         // Apply immediate damage on first contact and every 6 frames thereafter
+        // Routes through dealDamage so shield, iframes, and anti-stack checks apply
         if (this.lavaBurnTimer === 1 || this.lavaBurnTimer % 6 === 0) {
-          this.health = Math.max(0, this.health - 8);
-          this.hurtTimer = 8;
+          // Ramping lava damage: starts gentle, escalates with sustained contact
+          let _lavaDmg = 4;
+          if (this.lavaBurnTimer > 120) _lavaDmg = 8;
+          else if (this.lavaBurnTimer > 60) _lavaDmg = 6;
+          dealDamage(null, this, _lavaDmg, 0, 1.0, false, 6);
           if (settings.particles) spawnParticles(this.cx(), this.cy(), '#ff6600', 8);
           if (settings.particles) spawnParticles(this.cx(), this.cy(), '#ffaa00', 5);
           if (settings.screenShake) screenShake = Math.max(screenShake, 4);
@@ -916,6 +951,7 @@ class Fighter {
       return;
     }
 
+    if (!this.weapon) return;
     if (this.weapon.type === 'melee') {
       // Use closest enemy (dummy, minion, or training target) if target is null
       const _atkTarget = target || this.target || trainingDummies[0] || players.find(p => p !== this);
@@ -1046,6 +1082,7 @@ class Fighter {
     }
     const _safeTarget = target || this.target || trainingDummies[0] || players.find(p => p !== this && p.health > 0);
     if (!_safeTarget) return; // no valid target — don't fire ability (avoids null crash in weapon ability functions)
+    if (!this.weapon || typeof this.weapon.ability !== 'function') return; // weapon not loaded yet
     this.weapon.ability(this, _safeTarget);
     this.abilityCooldown = this.weapon.abilityCooldown;
     this.attackTimer     = this.attackDuration * 2;

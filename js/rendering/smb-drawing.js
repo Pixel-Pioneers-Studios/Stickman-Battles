@@ -1134,6 +1134,106 @@ function drawStorySubtitle() {
   if (storyFightSubtitle.timer <= 0) storyFightSubtitle = null;
 }
 
+// ── Objective system ─────────────────────────────────────────────────────────
+function setObjective(text) {
+  window.currentObjective = { text: text, completed: false };
+  window.objectiveCompleteTimer = 0;
+}
+
+function completeObjective() {
+  if (!window.currentObjective || window.currentObjective.completed) return;
+  window.currentObjective.completed = true;
+  window.objectiveCompleteTimer = 200; // show "COMPLETE" for ~3.3s
+}
+
+function drawObjectiveHUD() {
+  if (!storyModeActive) return;
+  if (!window.currentObjective && window.objectiveCompleteTimer <= 0) return;
+  if (typeof isCinematic !== 'undefined' && isCinematic) return; // hide during cinematics
+
+  ctx.save();
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+
+  const cw = canvas.width;
+  const ch = canvas.height;
+  const isComplete = window.objectiveCompleteTimer > 0;
+  const label  = isComplete ? '✓ OBJECTIVE COMPLETE' : (window.currentObjective ? window.currentObjective.text : '');
+  if (!label) { ctx.restore(); return; }
+
+  // Fade in/out
+  let alpha = 1.0;
+  if (isComplete) {
+    window.objectiveCompleteTimer--;
+    alpha = Math.min(1.0, window.objectiveCompleteTimer / 30); // fade out in last 30 frames
+    if (window.objectiveCompleteTimer <= 0) { window.currentObjective = null; }
+  }
+
+  ctx.globalAlpha = alpha * 0.92;
+  const fontSize = Math.round(cw * 0.018);
+  ctx.font = `${isComplete ? 'bold ' : ''}${fontSize}px "Segoe UI", Arial, sans-serif`;
+  ctx.textAlign    = 'left';
+  ctx.textBaseline = 'middle';
+
+  const prefix   = isComplete ? '' : '▶ ';
+  const fullText = prefix + label;
+  const tw = ctx.measureText(fullText).width;
+  const px = Math.round(cw * 0.015);
+  const hudH = typeof _hudBottom === 'function' ? _hudBottom() : 0;
+  const py = hudH + fontSize + 10;
+  const padX = 9, padH = fontSize + 10;
+
+  // Background pill
+  ctx.fillStyle = isComplete ? 'rgba(30,120,50,0.82)' : 'rgba(5,8,22,0.78)';
+  ctx.beginPath();
+  ctx.roundRect(px - padX, py - padH / 2, tw + padX * 2, padH, 5);
+  ctx.fill();
+
+  // Accent left bar
+  ctx.fillStyle = isComplete ? '#44ee88' : '#4488ff';
+  ctx.fillRect(px - padX, py - padH / 2, 3, padH);
+
+  // Text
+  ctx.fillStyle = isComplete ? '#aaffcc' : '#c8d8ff';
+  ctx.shadowColor = isComplete ? '#44ff88' : '#4466ff';
+  ctx.shadowBlur  = isComplete ? 8 : 4;
+  ctx.fillText(fullText, px, py + 1);
+  ctx.restore();
+}
+
+// ── Cinematic letterbox (top/bottom black bars) ───────────────────────────────
+function drawCinematicLetterbox() {
+  if (typeof cinematicLetterboxAmt === 'undefined') return;
+  // Lerp toward target
+  const lerpRate = 0.08;
+  cinematicLetterboxAmt += (cinematicLetterboxTarget - cinematicLetterboxAmt) * lerpRate;
+  if (Math.abs(cinematicLetterboxTarget - cinematicLetterboxAmt) < 0.001) cinematicLetterboxAmt = cinematicLetterboxTarget;
+  if (cinematicLetterboxAmt < 0.002) return;
+
+  const barH = Math.round(canvas.height * cinematicLetterboxAmt * 0.13); // 13% per side max
+  ctx.save();
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0, 0, canvas.width, barH);
+  ctx.fillRect(0, canvas.height - barH, canvas.width, barH);
+  ctx.restore();
+}
+
+// ── Cinematic mode helpers ────────────────────────────────────────────────────
+function startCinematicMode() {
+  if (typeof isCinematic !== 'undefined') isCinematic = true;
+  if (typeof cinematicLetterboxTarget !== 'undefined') cinematicLetterboxTarget = 1;
+  // Hide debug overlays during cinematics
+  if (typeof debugMode !== 'undefined') window._debugModePreCinematic = debugMode;
+}
+function endCinematicMode() {
+  if (typeof isCinematic !== 'undefined') isCinematic = false;
+  if (typeof cinematicLetterboxTarget !== 'undefined') cinematicLetterboxTarget = 0;
+  if (typeof window._debugModePreCinematic !== 'undefined') {
+    if (typeof debugMode !== 'undefined') debugMode = window._debugModePreCinematic;
+    delete window._debugModePreCinematic;
+  }
+}
+
 // ── Story opponent name HUD — small banner at top-right during story fights ───
 function drawStoryOpponentHUD() {
   if (!storyModeActive || !storyOpponentName || gameMode === 'exploration') return;
@@ -1179,6 +1279,20 @@ function drawStoryOpponentHUD() {
   ctx.fillStyle = '#dde4ff';
   ctx.shadowColor = '#6688ff'; ctx.shadowBlur = 6;
   ctx.fillText(label, px - padX, py + 1);
+
+  // Class label (small, below name pill)
+  if (p2.charClass) {
+    const clsName = (typeof CLASSES !== 'undefined' && CLASSES[p2.charClass])
+      ? (CLASSES[p2.charClass].name || p2.charClass)
+      : p2.charClass;
+    const clsFontSize = Math.round(cw * 0.013);
+    ctx.font = `${clsFontSize}px "Segoe UI", Arial, sans-serif`;
+    ctx.globalAlpha = 0.65;
+    ctx.fillStyle = '#88aaff';
+    ctx.shadowBlur = 0;
+    ctx.fillText(clsName.toUpperCase(), px - padX, py + bh / 2 + clsFontSize + 4);
+  }
+
   ctx.restore();
 }
 

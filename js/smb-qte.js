@@ -398,6 +398,8 @@ function triggerQTEPhase(phaseId) {
   const tf  = players && players.find(p => p.isTrueForm);
   const p1  = players && players.find(p => !p.isTrueForm && p.health > 0);
   if (!tf || !p1) return;
+  // Mark fired so _checkQTETriggers doesn't double-trigger the same phase
+  _qteFiredPhases.add(phaseId);
   _startQTE(phaseId, tf, p1);
 }
 

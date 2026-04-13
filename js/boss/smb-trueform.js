@@ -22,7 +22,7 @@ class TrueForm extends Fighter {
     this.color         = '#000000';
     this.kbResist      = 0.90;  // nearly no knockback — lowest in game
     this.kbBonus       = 0.55;  // deals low KB for tight combos
-    this.attackCooldownMult = 0.45;
+    this.attackCooldownMult = 0.65; // was 0.45 — increased to reduce M1 spam frequency
     this.superChargeRate    = 0; // no super meter
     this._tfSpeed      = 4.2;   // 1.3× normal fighter speed
     this._attackMode   = 'punch'; // alternates punch/kick
@@ -164,7 +164,34 @@ class TrueForm extends Fighter {
 
   _finishAttackState(name = null) {
     if (name && this._tfAttackState.name && this._tfAttackState.name !== name) return;
-    this._tfAttackState = { name: null, phase: 'idle', timer: 0, locked: false };
+    // Recovery windows per attack — gives players a punish opportunity after heavy moves.
+    // Light specials: 15–25f. Heavy/multiversal: 35–60f. Omit = no forced recovery.
+    const TF_RECOVERY_FRAMES = {
+      slash:           25,
+      shockwave:       20,
+      chain:           22,
+      calcStrike:      45,
+      grasp:           35,
+      gravityCrush:    50,
+      portal:          30,
+      phaseShift:      25,
+      realityTear:     40,
+      collapseStrike:  35,
+      gammaBeam:       30,
+      neutronStar:     55,
+      galaxySweep:     45,
+      meteor:          55,
+      realityOverride: 40,
+      multiverseFracture: 50,
+      clones:             28,
+      well:               22,
+    };
+    const _recovFrames = (name && TF_RECOVERY_FRAMES[name]) || 0;
+    if (_recovFrames > 0) {
+      this._tfAttackState = { name, phase: 'recovery', timer: _recovFrames, locked: false };
+    } else {
+      this._tfAttackState = { name: null, phase: 'idle', timer: 0, locked: false };
+    }
   }
 
   _startAntiRangedPhase(reason) {
@@ -216,6 +243,7 @@ class TrueForm extends Fighter {
   attack(target) {
     if (this.cooldown > 0 || this.health <= 0 || this.stunTimer > 0 || this.ragdollTimer > 0) return;
     if (this.postSpecialPause > 0) return;
+    if (this._tfAttackState?.phase === 'recovery') return;
     // Combo cap: max 4 hits per combo burst
     if (this._comboCount >= 4) return;
     // Damage cap: combo cannot deal more than 85% of target's maxHP
@@ -232,6 +260,7 @@ class TrueForm extends Fighter {
 
   updateAI() {
     if (activeCinematic || gameFrozen) return; // freeze during cinematics / freeze frames
+    if (typeof tfOpeningFightActive !== 'undefined' && tfOpeningFightActive) return; // scripted opening — TF does not act
     if (this.aiReact > 0) { this.aiReact--; return; }
     if (this.ragdollTimer > 0 || this.stunTimer > 0) return;
     if (bossStaggerTimer > 0) return; // stunned — vulnerability window
@@ -289,14 +318,17 @@ class TrueForm extends Fighter {
 
     // ── Mid-fight HP cinematics ───────────────────────────────
     if (!this._cinematicFired.has('entry')) {
+      // Free-fight phase: player can move/attack freely for ~6 seconds before Paradox joins.
+      if (!this._freePhaseTimer) this._freePhaseTimer = 0;
+      this._freePhaseTimer++;
+      if (this._freePhaseTimer < 24) return; // ~6 seconds of free combat (24 AI ticks × 15 frames = 360 frames)
       this._cinematicFired.add('entry');
       this.postSpecialPause = Math.max(this.postSpecialPause, 24);
-      // Intro cinematic: TF vs Paradox+player scripted sequence
-      if (typeof _makeTFIntroCinematic === 'function') {
-        startCinematic(_makeTFIntroCinematic(this));
-      } else if (typeof startTFOpeningFight === 'function') {
-        // Fallback to interactive opening fight if intro cinematic unavailable
+      // Entry: interactive opening fight (player + Paradox vs TF before main fight)
+      if (typeof startTFOpeningFight === 'function') {
         startTFOpeningFight(this);
+      } else if (typeof _makeTFIntroCinematic === 'function') {
+        startCinematic(_makeTFIntroCinematic(this));
       } else {
         const _entryCin = (typeof _makeTFParadoxEntryCinematic === 'function')
           ? _makeTFParadoxEntryCinematic(this)
@@ -318,14 +350,12 @@ class TrueForm extends Fighter {
       startCinematic(_makeTFReality50Cinematic(this));
       return;
     }
-    // 30% HP: Final Paradox cinematic — TF retrieves and attacks Paradox (precedes existing cinematics)
-    if (!this._cinematicFired.has('paradox30') && _tfHpPct <= 0.30 &&
-        typeof _makeTFFinalParadoxCinematic === 'function' &&
-        typeof tfFinalParadoxFired !== 'undefined' && !tfFinalParadoxFired) {
-      this._cinematicFired.add('paradox30');
-      tfFinalParadoxFired = true;
-      this.postSpecialPause = Math.max(this.postSpecialPause, 18);
-      startCinematic(_makeTFFinalParadoxCinematic(this));
+    // 1000 HP: Paradox returns — joint fight, TF kills Paradox, absorption, dimension punch
+    if (!this._cinematicFired.has('paradox1000') && this.health <= 1000 &&
+        typeof startTFParadoxReturn1000 === 'function') {
+      this._cinematicFired.add('paradox1000');
+      this.postSpecialPause = Math.max(this.postSpecialPause, 20);
+      startTFParadoxReturn1000(this);
       return;
     }
     if (!this._cinematicFired.has('qte25') && _tfHpPct <= 0.25) {
@@ -340,15 +370,8 @@ class TrueForm extends Fighter {
       return;
     }
 
-    // ── False Victory: intercept near-death before ending fires ──
-    if (!this._cinematicFired.has('falseVictory') && this.health <= 50 &&
-        typeof triggerFalseVictory === 'function' && typeof tfFalseVictoryFired !== 'undefined' && !tfFalseVictoryFired) {
-      this._cinematicFired.add('falseVictory');
-      this.health    = 51; // keep alive so checkDeaths doesn't fire yet
-      this.invincible = 9999; // invincible during the sequence
-      triggerFalseVictory(this);
-      return;
-    }
+    // False Victory is now triggered from _tfeResumeAfterIntro (after Code Realm),
+    // not from an HP threshold — so no HP check here.
 
     // Combo reset: if no new attack for 90 frames, reset combo window
     this._comboTimer++;
@@ -402,6 +425,18 @@ class TrueForm extends Fighter {
     if (this._multiverseCd   > 0) this._multiverseCd--;
     if (this._supernovaCd    > 0) this._supernovaCd--;
     if (this._multiversalGroupCd > 0) this._multiversalGroupCd--;
+    // ── Recovery phase tick-down ──────────────────────────────────
+    // When _tfAttackState.phase === 'recovery', TF cannot start new specials (enforced in _doSpecial).
+    // Tick down the timer here so it clears automatically.
+    if (this._tfAttackState.phase === 'recovery' && this._tfAttackState.timer > 0) {
+      this._tfAttackState.timer--;
+      if (this._tfAttackState.timer <= 0) {
+        this._tfAttackState = { name: null, phase: 'idle', timer: 0, locked: false };
+      }
+      // Dampen movement during recovery — gives players a real punish window
+      this.vx *= 0.4;
+      this.vy *= 0.4;
+    }
     // ── Desperation: triple burn on all offensive cooldowns ──────
     if (this._desperationMode) {
       const burnKeys = ['_slashCd','_graspCd','_chainCd','_phaseShiftCd','_gammaBeamCd','_shockwaveCd','_calcStrikeCd','_portalCd'];
@@ -435,16 +470,7 @@ class TrueForm extends Fighter {
       }
     }
 
-    // Floor-removal countdown
-    if (tfFloorRemoved) {
-      tfFloorTimer--;
-      if (tfFloorTimer <= 0) {
-        tfFloorRemoved = false;
-        const floorPl = currentArena.platforms.find(p => p.isFloor);
-        if (floorPl) floorPl.isFloorDisabled = false;
-        showBossDialogue('I gave it back. Enjoy it while it lasts.', 150);
-      }
-    }
+    // Floor-removal countdown — handled per-frame in smb-loop.js (updateTFFloorTimer)
 
     const t = this.target;
     if (!t || t.health <= 0) return;
@@ -1406,7 +1432,7 @@ class TrueForm extends Fighter {
     if (tfs !== 1) { ctx.translate(cx, coreY); ctx.scale(tfs, tfs); ctx.translate(-cx, -coreY); }
 
     // Pulsing singularity at the chest level — the "soul" of True Form
-    const coreR = (5 + Math.sin(T * 3.1) * 2 + rage * 5) * tfs;
+    const coreR = Math.max(0.01, (5 + Math.sin(T * 3.1) * 2 + rage * 5) * tfs);
     const coreGrad = ctx.createRadialGradient(cx, coreY, 0, cx, coreY, coreR * 3.5);
     coreGrad.addColorStop(0,   WHITE);
     coreGrad.addColorStop(0.2, glowColor);
@@ -1523,6 +1549,21 @@ class TrueForm extends Fighter {
       }
     }
     ctx.restore();
+
+    // ── RECOVERY INDICATOR — teaches players when to punish ──────────────
+    if (this._tfAttackState?.phase === 'recovery') {
+      ctx.save();
+      ctx.globalAlpha = 0.25;
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 3;
+      ctx.shadowColor = '#ffffff';
+      ctx.shadowBlur = 8;
+      const _recScale = this.tfDrawScale && this.tfDrawScale !== 1 ? this.tfDrawScale : 1;
+      ctx.beginPath();
+      ctx.arc(cx, coreY, 40 * _recScale, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+    }
 
     // ── HIGH-ADAPTATION INSTABILITY OVERLAY ──────────────────────────────
     // At AL >= 70: subtle reality-crack scan-lines flicker over the entity

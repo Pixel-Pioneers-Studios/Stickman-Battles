@@ -9,7 +9,7 @@ TrueForm.prototype._doSpecial = function(move, target) {
       console.warn(`[TrueFormAttack:runtime] attack "${move}" missing target`);
       return false;
     }
-    if (this._tfAttackState.name && this._tfAttackState.phase === 'recovery' && this._tfAttackState.timer > 0) {
+    if (this._tfAttackState.phase === 'recovery' && this._tfAttackState.timer > 0) {
       return false;
     }
     if (this._tfAttackState.locked && this._tfAttackState.name && this._tfAttackState.name !== move) {

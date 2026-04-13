@@ -6,11 +6,11 @@ ACT I — Home Collapse
 ACT II — Fracture Network
 ACT III — Architects
 ACT IV — War & Betrayal
-ACT V — Creator Domain
-ACT VI — TRUE FORM (FINAL)
-
-POST-STORY:
-ACT VII — Godfall Arc (Fallen God)
+ACT V — Stickman Universe
+ACT V.5 — Fallen God Trial (unlocks after Act V; gates the full revelation before Creator domain)
+ACT VI — Multiverse Exploration (optional depth; does not gate Act V.5 or Creator)
+ACT VII — Creator Domain
+ACT VIII — TRUE FORM (FINAL)
 
 ---
 
@@ -26,8 +26,10 @@ ACT VII — Godfall Arc (Fallen God)
 8. Final fight = True Form
 9. System stabilizes
 
-THEN:
-10. Fallen God appears AFTER
+THEN (before Creator domain):
+10. Fallen God appears — narrates full truth (allies, war, Axiom transformation, Paradox error)
+11. Creator domain opens
+12. True Form is final
 
 ---
 

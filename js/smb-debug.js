@@ -467,6 +467,7 @@ function _consoleExec(raw) {
       'setmap <arena>        — change arena (e.g. setmap lava)',
       'setweapon <key> [p1|p2] — change weapon (e.g. setweapon gun)',
       'setclass <key> [p1|p2]  — change class (e.g. setclass megaknight)',
+      'sethp <n> [p1|p2|player|boss|all] — set health',
       'lives <n> [p1|p2|all] — set lives remaining',
       'godmode [p1|p2|on|off] — toggle invincibility',
       'fps                   — show current FPS',
@@ -536,7 +537,12 @@ function _consoleExec(raw) {
           _consoleErr('TF intro sequence in progress (' + tfCinematicState + ') — kill boss blocked to preserve cinematic order. Wait for backstage state.');
           return;
         }
-        p.health = 0;
+        // TrueForm Round 1: set HP to 1 so checkDeaths routes through Paradox return → Code Realm → Round 2
+        if (p.isTrueForm && typeof tfFalseVictoryFired !== 'undefined' && !tfFalseVictoryFired) {
+          p.health = 1;
+        } else {
+          p.health = 0;
+        }
       });
     }
     else {
@@ -710,6 +716,23 @@ function _consoleExec(raw) {
     return;
   }
 
+  // ---- SETWEAPON <weaponName> [p1|p2] ----
+  if (cmd.startsWith('SETWEAPON')) {
+    const parts = raw.trim().split(/\s+/);
+    const wName = (parts[1] || '').toLowerCase();
+    const slot  = parts[2] === 'p2' ? 1 : 0;
+    if (!wName) { _consoleErr('Usage: setweapon <name> [p1|p2]'); return; }
+    const allWeapons = Object.assign({}, typeof WEAPONS !== 'undefined' ? WEAPONS : {}, window.CUSTOM_WEAPONS || {});
+    const wKey = Object.keys(allWeapons).find(k => k.toLowerCase() === wName);
+    if (!wKey) { _consoleErr('Unknown weapon: ' + wName + '. Available: ' + Object.keys(allWeapons).join(', ')); return; }
+    const p = players && players[slot];
+    if (!p) { _consoleErr('No player in slot ' + slot); return; }
+    p.weapon = allWeapons[wKey];
+    p.weaponKey = wKey;
+    _consoleOk('P' + (slot + 1) + ' weapon set to ' + wKey);
+    return;
+  }
+
   // ---- EVAL (raw JS) ----
   if (raw.toLowerCase().startsWith('eval ')) {
     const code = raw.slice(5);
@@ -794,7 +817,7 @@ function _consoleExec(raw) {
 
   // ── SETHP ─────────────────────────────────────────────────────────────
   if (parts[0].toLowerCase() === 'sethp') {
-    // sethp <value>  |  sethp player <value>  |  sethp boss <value>
+    // sethp <value>  |  sethp p1|p2|player|boss|all <value>
     let target = 'all', valStr;
     if (parts.length >= 3 && isNaN(parts[1])) {
       target = parts[1].toLowerCase();
@@ -803,17 +826,19 @@ function _consoleExec(raw) {
       valStr = parts[1];
     }
     const val = parseInt(valStr, 10);
-    if (isNaN(val)) { _consoleErr('Usage: sethp <value>  or  sethp player|boss <value>'); return; }
+    if (isNaN(val)) { _consoleErr('Usage: sethp <value>  or  sethp p1|p2|player|boss|all <value>'); return; }
     if (!players || players.length === 0) { _consoleErr('No active game.'); return; }
     let count = 0;
-    players.forEach(p => {
+    players.forEach((p, idx) => {
       const isBossEntity = p.isBoss || p.isTrueForm;
       if (target === 'player' && isBossEntity) return;
       if (target === 'boss'   && !isBossEntity) return;
+      if (target === 'p1'     && idx !== 0) return;
+      if (target === 'p2'     && idx !== 1) return;
       p.health = Math.max(1, Math.min(val, p.maxHealth));
       count++;
     });
-    ok(`Set HP to ${val} for ${count} entit${count === 1 ? 'y' : 'ies'}.`);
+    _consoleOk(`Set HP to ${val} for ${count} entit${count === 1 ? 'y' : 'ies'}.`);
     return;
   }
 

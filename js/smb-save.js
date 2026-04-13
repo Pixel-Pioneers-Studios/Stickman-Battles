@@ -1,8 +1,8 @@
 // smc-save.js — Persistent save system: auto-save, export, import
 'use strict';
 
-const SAVE_VERSION = 1;
-const SAVE_KEY     = 'smc_save_v1';
+const SAVE_VERSION = 2;
+const SAVE_KEY     = 'smc_save_v1'; // key intentionally kept for backwards compat
 
 // ── Default save structure (used for deep-merge / version migrations) ─────────
 const _SAVE_DEFAULTS = {
@@ -21,6 +21,34 @@ const _SAVE_DEFAULTS = {
     ragdoll:   false,
   },
 };
+
+// ── Custom Weapon helpers ─────────────────────────────────────────────────────
+// window.CUSTOM_WEAPONS is populated by smb-designer.js or cheat console.
+// We persist the user's selected custom weapon key across sessions.
+function saveCustomWeaponSelection(key) {
+  try { localStorage.setItem('smc_customWeapon', key || ''); } catch(e) {}
+}
+function loadCustomWeaponSelection() {
+  return localStorage.getItem('smc_customWeapon') || '';
+}
+function clearCustomWeaponSelection() {
+  localStorage.removeItem('smc_customWeapon');
+}
+
+// ── Migration ─────────────────────────────────────────────────────────────────
+function _migrateSave(data) {
+  const d = Object.assign({}, data);
+  // v1 → v2: ensure settings.musicMute exists (was added in v2)
+  if (!d.settings) d.settings = {};
+  if (typeof d.settings.musicMute === 'undefined') d.settings.musicMute = false;
+  if (typeof d.settings.ragdoll   === 'undefined') d.settings.ragdoll   = false;
+  // ensure unlocks sub-object has all keys
+  if (!d.unlocks) d.unlocks = {};
+  if (typeof d.unlocks.megaknight === 'undefined') d.unlocks.megaknight = false;
+  if (!Array.isArray(d.unlocks.achievements)) d.unlocks.achievements = [];
+  d.version = SAVE_VERSION;
+  return d;
+}
 
 // ── Utilities ─────────────────────────────────────────────────────────────────
 function _deepMerge(defaults, saved) {
@@ -81,9 +109,14 @@ function _applySaveData(data) {
 }
 
 // ── Save ──────────────────────────────────────────────────────────────────────
+const _SAVE_BACKUP_KEY = 'smc_save_backup';
+
 function saveGame() {
   try {
     const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(_gatherSaveData()))));
+    // Write backup BEFORE overwriting main slot (protects against mid-write crash)
+    const prev = localStorage.getItem(SAVE_KEY);
+    if (prev) localStorage.setItem(_SAVE_BACKUP_KEY, prev);
     localStorage.setItem(SAVE_KEY, encoded);
   } catch(e) {
     console.warn('[SMC Save] Save failed:', e);
@@ -92,14 +125,42 @@ function saveGame() {
 
 // ── Load (called once on page start) ─────────────────────────────────────────
 function loadGame() {
+  function _tryLoad(raw) {
+    if (!raw) return false;
+    let data = JSON.parse(decodeURIComponent(escape(atob(raw))));
+    if (!data || typeof data.version !== 'number') return false;
+    if (data.version < SAVE_VERSION) data = _migrateSave(data);
+    _applySaveData(data);
+    return true;
+  }
   try {
     const raw = localStorage.getItem(SAVE_KEY);
-    if (!raw) return; // first run — individual keys are already in their default state
-    const data = JSON.parse(decodeURIComponent(escape(atob(raw))));
-    if (!data || typeof data.version !== 'number') return;
-    _applySaveData(data);
+    if (_tryLoad(raw)) return;
+    // Main slot failed or empty — fall back to backup
+    const backup = localStorage.getItem(_SAVE_BACKUP_KEY);
+    if (backup) {
+      console.warn('[SMC Save] Main save missing/corrupt — restoring backup.');
+      if (_tryLoad(backup)) {
+        // Restore backup into main slot
+        localStorage.setItem(SAVE_KEY, backup);
+        return;
+      }
+    }
+    // First run — individual keys already in default state
   } catch(e) {
-    console.warn('[SMC Save] Load failed (save may be from older version):', e);
+    console.warn('[SMC Save] Load failed:', e);
+    // Attempt backup restore on exception
+    try {
+      const backup = localStorage.getItem(_SAVE_BACKUP_KEY);
+      if (backup) {
+        const data = JSON.parse(decodeURIComponent(escape(atob(backup))));
+        if (data && typeof data.version === 'number') {
+          _applySaveData(data.version < SAVE_VERSION ? _migrateSave(data) : data);
+          localStorage.setItem(SAVE_KEY, backup);
+          console.warn('[SMC Save] Restored from backup after load failure.');
+        }
+      }
+    } catch(e2) { console.warn('[SMC Save] Backup restore also failed:', e2); }
   }
 }
 

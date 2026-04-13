@@ -25,11 +25,29 @@ window.addEventListener('resize', resizeCanvas);
 // ============================================================
 const CHANGELOG = [
   {
+    version: '2.7.0',
+    title: 'THE FRACTURE UPDATE',
+    date: '2026-04-08',
+    flavor: 'Reality is cracking. Four dimensions await — each ruled by someone you once called a friend. Build your ship. Cross the fractures. Face what you became.',
+    isLatest: true,
+    changes: [
+      { cat: 'Mode',     text: 'Added Multiverse Mode — travel across 4 dimensional worlds (War-Torn, Gravity Flux, Shadow Realm, Titan World), each with unique AI modifiers, encounter progressions, and Fallen God observer dialogue' },
+      { cat: 'Mode',     text: 'Each Multiverse world has 4 encounter tiers: standard, elite (2-enemy), survival wave, and ruler boss fight with persistent stat rewards' },
+      { cat: 'System',   text: 'Added Ship Progression System — collect 5 ship parts (hull ×5, engine, core, crystal) scattered across story chapters; when complete, Axiom\'s ship is built and full fracture branch access unlocks' },
+      { cat: 'System',   text: 'Added Fracture System — visible interdimensional tears appear in-world; before ship is built, only a 10-second preview with one branch guardian; after ship built, full branch entry and ruler boss fight available' },
+      { cat: 'System',   text: 'Three fracture branches added: Alpha Branch (Vael), Null Branch (Kael), Crimson Branch (Sora) — each with its own ruler, lore, and combat challenge' },
+      { cat: 'System',   text: 'Added Lore Moment system — ambient story beats fire at key progression milestones (first fracture, ship completion, ruler defeat) and persist across sessions' },
+      { cat: 'System',   text: 'Added Motivation Tracker — narrative context updates dynamically as Axiom\'s investigation progresses toward True Form' },
+      { cat: 'Dev',      text: 'Added Attack Test Sandbox (smb-attacktest.js) — open via GAMECONSOLE cheat: preview any boss/NPC attack as a pure visual; equip Creator, TrueForm, Yeti, or Beast admin kits on any player with "atk class <name> [p1|p2]"' },
+      { cat: 'Polish',   text: 'Arena rendering pipeline split: Soccer and Void arena draw calls extracted to dedicated rendering submodule (js/rendering/smb-drawing-arenas.js) for cleaner separation' },
+    ],
+  },
+  {
     version: '2.6.0',
     title: 'THE SOVEREIGN UPDATE',
     date: '2026-04-01',
     flavor: 'A new intelligence rises. Save your progress, command the stage, and face an opponent that refuses to be beaten the same way twice.',
-    isLatest: true,
+    isLatest: false,
     changes: [
       { cat: 'Mode',     text: 'Added SOVEREIGN Ω — a next-gen adaptive AI mode unlocked by beating SOVEREIGN in Story Mode; features bigram sequence learning, spam punishment, limiter-break power-up, anti-exploit detection, and humanized early delays' },
       { cat: 'Mode',     text: 'Added Complete Randomizer — a 2P variant that randomizes both fighters\' weapon, class, and arena every match' },
@@ -387,7 +405,7 @@ let _publicRoomCheckTimer = 0;
 // ============================================================
 // VERSION
 // ============================================================
-const GAME_VERSION = '2.6.0';  // bump this when releasing; must match CHANGELOG[0].version
+const GAME_VERSION = '2.7.0';  // bump this when releasing; must match CHANGELOG[0].version
 
 // DEBUG / DEVELOPER STATE
 // ============================================================
@@ -419,6 +437,9 @@ let storyPhaseIndicator = null;  // { index, total, label, type }
 let storyGauntletState  = null;  // active chapter phase runtime
 let storyPendingPhaseConfig = null; // temporary launch override for next story phase
 let storyCameraLock     = null;  // { left, right, reason }
+// ── Objective system ──────────────────────────────────────────────────────────
+window.currentObjective        = null;   // { text, completedAt } | null
+window.objectiveCompleteTimer  = 0;      // frames to show "COMPLETE" banner
 let storyPressureState  = { dodgeFatigue: 0, dodgeTimer: 0 };
 
 // ============================================================
@@ -438,6 +459,8 @@ let cinematicZoomTarget  = 1.0;   // zoom level during cinematic
 let cinematicFocusX      = 450;   // camera focus X during cinematic
 let cinematicFocusY      = 260;   // camera focus Y during cinematic
 let cinematicCamSnapFrames = 0;   // one-frame hard-cut override for punchy cinematic beats
+let cinematicLetterboxAmt    = 0;   // current letterbox bar height (0–1 fraction of screen height)
+let cinematicLetterboxTarget = 0;   // target letterbox amount (lerped toward)
 let _camPrevFocusX      = 450;    // previous cinematic focus target X (for spring feel)
 let _camPrevFocusY      = 260;    // previous cinematic focus target Y (for spring feel)
 let _camOvershootX      = 0;      // decaying cinematic camera overshoot X
@@ -500,3 +523,79 @@ let exploreArenaLock = null;    // { left, right, enemies:[], cleared, label }
 
 // ── TrueForm clone position history (ring buffer for multiverse lag effect) ──
 let _tfCloneHistory = [];   // [{ x, cy, facing }, ...] — last 24 frames
+
+// ============================================================
+// SHIP PROGRESSION SYSTEM
+// Axiom cannot travel the multiverse without a stable vessel.
+// Parts are collected through main story chapters and exploration.
+// When all 5 parts are gathered, SHIP.built = true → full branch access.
+// ============================================================
+window.SHIP = {
+    built: false,
+    parts: {
+        hull:    0,       // needs 5 (scattered across early arcs)
+        engine:  false,   // dropped by Arc 2 boss
+        core:    false,   // dropped by Act 3 climax
+        crystal: false    // dropped after first fracture preview completes
+    }
+};
+
+// ============================================================
+// FRACTURE SYSTEM
+// Fractures are visible tears to other branches.
+// Before SHIP.built: only a 10-second preview with one branch guardian.
+// After SHIP.built: full branch entry unlocked.
+// Each fracture is tied to one of Axiom's former allies turned rulers.
+// ============================================================
+window.FRACTURES = [
+    {
+        id:          'branch_alpha',
+        name:        'Alpha Branch',
+        rulerName:   'Vael',
+        rulerLore:   'Once Axiom\'s closest ally. Now ruler of a branch built on absolute order.',
+        x:           500,
+        y:           250,
+        unlocked:    false,
+        previewed:   false,   // true after first preview entry
+        completed:   false    // true after full branch cleared (post-ship)
+    },
+    {
+        id:          'branch_null',
+        name:        'Null Branch',
+        rulerName:   'Kael',
+        rulerLore:   'Consumed by the fracture\'s power. Built his branch from silence — nothing enters, nothing leaves.',
+        x:           720,
+        y:           180,
+        unlocked:    false,
+        previewed:   false,
+        completed:   false
+    },
+    {
+        id:          'branch_crimson',
+        name:        'Crimson Branch',
+        rulerName:   'Sora',
+        rulerLore:   'The most aggressive of the group. Her branch is a battlefield that never ends.',
+        x:           200,
+        y:           320,
+        unlocked:    false,
+        previewed:   false,
+        completed:   false
+    }
+];
+
+// Active fracture preview state — set by enterFracturePreview(), cleared on exit
+let fracturePreviewActive = false;   // true while 10s preview is running
+let fracturePreviewTimer  = 0;       // counts down from 600 (10 seconds at 60fps)
+let fracturePreviewId     = null;    // id of the fracture being previewed
+
+// ============================================================
+// STORY PROGRESS SYSTEM
+// Tracks act/chapter position and persistent story flags.
+// Acts 0–9; chapter is a 0-based index within the current act.
+// flags{} is a free-form key→true store for one-shot events.
+// ============================================================
+window.STORY_PROGRESS = {
+    act:     0,
+    chapter: 0,
+    flags:   {}
+};

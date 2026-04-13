@@ -778,6 +778,17 @@ function _renderMultiverseWorldList() {
   if (!list) return;
   list.innerHTML = '';
 
+  // Show a top-level banner if the ship isn't built yet — no cards are clickable.
+  const shipReady = window.SHIP && SHIP.built;
+  if (!shipReady) {
+    const banner = document.createElement('div');
+    banner.style.cssText = 'padding:12px 14px;border-radius:8px;background:rgba(60,30,0,0.40);border:1px solid rgba(255,160,50,0.30);margin-bottom:12px;text-align:center;';
+    banner.innerHTML =
+      `<div style="font-size:0.80rem;color:#ffaa44;font-weight:700;margin-bottom:4px;">🚀 Axiom Ship Required</div>` +
+      `<div style="font-size:0.68rem;color:#aa7733;line-height:1.5;">"The trials were built to break those who arrive unprepared.<br>Complete the ship first. Then we talk."</div>`;
+    list.appendChild(banner);
+  }
+
   const save = MultiverseManager.getSave();
   const statLines = MultiverseScalingSystem.getSummaryLines(save);
 
@@ -796,13 +807,15 @@ function _renderMultiverseWorldList() {
     const completed = MultiverseManager.isWorldComplete(world.id);
     const isCurrent = save.currentWorldId === world.id;
 
+    // Card is only interactive if the ship is built AND the world is unlocked
+    const cardClickable = shipReady && unlocked && !completed;
     const card = document.createElement('div');
     card.style.cssText = [
       'padding:12px 14px', 'border-radius:10px', 'margin-bottom:8px',
       `border:1px solid ${completed ? 'rgba(80,220,120,0.35)' : isCurrent ? world.color + '66' : 'rgba(255,255,255,0.07)'}`,
       `background:${completed ? 'rgba(20,60,35,0.30)' : isCurrent ? 'rgba(20,20,50,0.40)' : 'rgba(8,8,22,0.25)'}`,
-      `opacity:${unlocked ? '1' : '0.30'}`,
-      unlocked ? 'cursor:pointer' : 'cursor:default',
+      `opacity:${shipReady ? (unlocked ? '1' : '0.30') : '0.20'}`,
+      cardClickable ? 'cursor:pointer' : 'cursor:default',
     ].join(';');
 
     const encounterDots = world.encounters.map((e, i) => {
@@ -815,7 +828,7 @@ function _renderMultiverseWorldList() {
       `<div style="display:flex;align-items:center;gap:10px;margin-bottom:5px;">` +
         `<span style="font-size:1.3rem;">${world.icon}</span>` +
         `<span style="font-size:0.88rem;font-weight:700;color:${world.color};flex:1;">${world.name}</span>` +
-        `<span style="font-size:0.65rem;color:${completed ? '#66ee99' : '#556'};">${completed ? '✓ Complete' : unlocked ? 'Available' : '🔒'}</span>` +
+        `<span style="font-size:0.65rem;color:${completed ? '#66ee99' : shipReady ? '#556' : '#aa5500'};">${completed ? '✓ Complete' : !shipReady ? '🚀 Ship Required' : unlocked ? 'Available' : '🔒'}</span>` +
       `</div>` +
       `<div style="font-size:0.70rem;color:#778;line-height:1.4;margin-bottom:6px;">${world.description}</div>` +
       `<div style="font-size:0.62rem;color:#445;font-style:italic;margin-bottom:7px;">"${world.loreText}"</div>` +
@@ -827,7 +840,7 @@ function _renderMultiverseWorldList() {
       `</div>` +
       `<div style="font-size:0.62rem;color:#556;margin-top:5px;">${world.modifier.description}</div>`;
 
-    if (unlocked && !completed) {
+    if (cardClickable) {
       card.addEventListener('mouseover', () => { card.style.borderColor = world.color + 'aa'; });
       card.addEventListener('mouseout',  () => { card.style.borderColor = isCurrent ? world.color + '66' : 'rgba(255,255,255,0.07)'; });
       card.addEventListener('click', () => _beginMultiverseWorld(world.id));
@@ -843,6 +856,19 @@ function _renderMultiverseWorldList() {
 }
 
 function _beginMultiverseWorld(worldId) {
+  // Require the Axiom Ship to be complete before any trial can be entered.
+  // The ship is built by collecting all 5 parts through story chapters.
+  if (!window.SHIP || !SHIP.built) {
+    if (typeof storyFightSubtitle !== 'undefined') {
+      storyFightSubtitle = {
+        text:     '"The ship is not ready. The trials will destroy you without it."',
+        color:    '#ffaa44',
+        timer:    300,
+        maxTimer: 300
+      };
+    }
+    return;
+  }
   closeMultiverseMenu();
   MultiverseManager.enterWorld(worldId);
   // Launch first encounter
