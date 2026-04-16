@@ -20,10 +20,7 @@ function selectMode(mode) {
   const modeCard = document.querySelector(`[data-mode="${mode}"]`);
   if (modeCard) modeCard.classList.add('active');
   const isBoss       = mode === 'boss';
-  // When connected online, only 2p is supported — redirect all other modes back to online
-  if (NetworkManager.connected && mode !== 'online' && mode !== '2p') {
-    mode = 'online';
-  }
+  // Online allows boss, trueform, training, minigames — no redirect needed
   const isTrueForm   = mode === 'trueform';
   const isBoss2p     = isBoss && bossPlayerCount === 2;
   const isTraining   = mode === 'training';
@@ -115,15 +112,153 @@ const SKIN_COLORS = {
   ice:     '#44aaff',
   shadow:  '#222233',
   gold:    '#cc8800',
+  void:    '#7700cc',
+  neon:    '#00ff88',
 };
+
+// Weapon theme tint colors applied as a colour-blend overlay in drawWeapon()
+const WEAPON_THEMES = {
+  default: null,
+  fire:    '#ff5500',
+  ice:     '#44aaff',
+  shadow:  '#220033',
+  gold:    '#ffaa00',
+  void:    '#aa00ff',
+  neon:    '#00ff88',
+};
+
+// Cosmetic catalog — price 0 = free / always unlocked
+const COSMETIC_CATALOG = [
+  // Character skins
+  { id: 'skin_default', type: 'skin', key: 'default', name: 'Default',   price: 0,   color: null },
+  { id: 'skin_fire',    type: 'skin', key: 'fire',    name: 'Fire',      price: 0,   color: '#ff4400' },
+  { id: 'skin_ice',     type: 'skin', key: 'ice',     name: 'Ice',       price: 0,   color: '#44aaff' },
+  { id: 'skin_shadow',  type: 'skin', key: 'shadow',  name: 'Shadow',    price: 0,   color: '#222233' },
+  { id: 'skin_gold',    type: 'skin', key: 'gold',    name: 'Gold',      price: 0,   color: '#cc8800' },
+  { id: 'skin_void',    type: 'skin', key: 'void',    name: 'Void',      price: 150, color: '#7700cc' },
+  { id: 'skin_neon',    type: 'skin', key: 'neon',    name: 'Neon',      price: 100, color: '#00ff88' },
+  // Weapon themes
+  { id: 'wskin_default', type: 'wskin', key: 'default', name: 'Default', price: 0,   color: '#888888' },
+  { id: 'wskin_fire',    type: 'wskin', key: 'fire',    name: 'Inferno', price: 50,  color: '#ff5500' },
+  { id: 'wskin_ice',     type: 'wskin', key: 'ice',     name: 'Glacier', price: 50,  color: '#44aaff' },
+  { id: 'wskin_shadow',  type: 'wskin', key: 'shadow',  name: 'Shadow',  price: 50,  color: '#220033' },
+  { id: 'wskin_gold',    type: 'wskin', key: 'gold',    name: 'Gilded',  price: 75,  color: '#ffaa00' },
+  { id: 'wskin_void',    type: 'wskin', key: 'void',    name: 'Void',    price: 200, color: '#aa00ff' },
+  { id: 'wskin_neon',    type: 'wskin', key: 'neon',    name: 'Neon',    price: 125, color: '#00ff88' },
+];
+
+// ---- Coin balance ----
+let coinBalance = parseInt(localStorage.getItem('smb_coins') || '0', 10);
+
+function awardCoins(n) {
+  coinBalance += n;
+  localStorage.setItem('smb_coins', String(coinBalance));
+  const storeBal = document.getElementById('storeCoinBalance');
+  if (storeBal) { storeBal.textContent = coinBalance + ' ⬡'; storeBal.classList.add('coin-pop'); setTimeout(() => storeBal.classList.remove('coin-pop'), 500); }
+  const coinEl = document.getElementById('coinDisplay');
+  if (coinEl) coinEl.textContent = coinBalance + ' ⬡';
+}
+
+// ---- Unlocked cosmetics (persisted) ----
+let _unlockedSet = null;
+function _getUnlocked() {
+  if (!_unlockedSet) {
+    try { _unlockedSet = new Set(JSON.parse(localStorage.getItem('smb_unlocked_cosmetics') || '[]')); }
+    catch(e) { _unlockedSet = new Set(); }
+  }
+  return _unlockedSet;
+}
+function isCosmeticUnlocked(id) {
+  const entry = COSMETIC_CATALOG.find(c => c.id === id);
+  if (!entry || entry.price === 0) return true;
+  return _getUnlocked().has(id);
+}
+function unlockCosmetic(id) {
+  const entry = COSMETIC_CATALOG.find(c => c.id === id);
+  if (!entry) return false;
+  if (isCosmeticUnlocked(id)) return true;
+  if (coinBalance < entry.price) return false;
+  coinBalance -= entry.price;
+  localStorage.setItem('smb_coins', String(coinBalance));
+  _getUnlocked().add(id);
+  localStorage.setItem('smb_unlocked_cosmetics', JSON.stringify([..._getUnlocked()]));
+  return true;
+}
+
+// ---- Equip state ----
 let p1Skin = 'default', p2Skin = 'default';
+let p1WeaponSkin = 'default', p2WeaponSkin = 'default';
 
 function setSkin(pid, skin, btn) {
   if (pid === 'p1') p1Skin = skin;
   else              p2Skin = skin;
-  // Update active state on buttons for this player
   document.querySelectorAll(`.skin-swatch[data-pid="${pid}"]`).forEach(b => b.classList.remove('active'));
   if (btn) btn.classList.add('active');
+}
+
+function setWeaponSkin(pid, skin, btn) {
+  if (pid === 'p1') p1WeaponSkin = skin;
+  else              p2WeaponSkin = skin;
+  document.querySelectorAll(`.wskin-swatch[data-pid="${pid}"]`).forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+}
+
+// ---- Store modal ----
+function openStore() {
+  renderStore();
+  const m = document.getElementById('cosmeticStore');
+  if (m) m.style.display = 'flex';
+}
+function closeStore() {
+  const m = document.getElementById('cosmeticStore');
+  if (m) m.style.display = 'none';
+}
+function renderStore() {
+  const el = document.getElementById('storeCoinBalance');
+  if (el) el.textContent = coinBalance + ' ⬡';
+  const grid = document.getElementById('storeGrid');
+  if (!grid) return;
+  grid.innerHTML = '';
+  COSMETIC_CATALOG.forEach(item => {
+    const owned = isCosmeticUnlocked(item.id);
+    const card  = document.createElement('div');
+    card.className = 'store-card' + (owned ? ' owned' : '');
+    const swatch = item.color
+      ? `<div class="store-swatch" style="background:${item.color}"></div>`
+      : `<div class="store-swatch" style="background:linear-gradient(135deg,#00d4ff,#ff4455)"></div>`;
+    const typeLabel = item.type === 'skin' ? 'Character Skin' : 'Weapon Theme';
+    card.innerHTML = `
+      ${swatch}
+      <div class="store-name">${item.name}</div>
+      <div class="store-type">${typeLabel}</div>
+      ${owned
+        ? `<div class="store-owned">Owned</div>`
+        : `<button class="store-buy-btn" onclick="handleStoreBuy('${item.id}')">${item.price} ⬡</button>`
+      }`;
+    grid.appendChild(card);
+  });
+}
+function handleStoreBuy(id) {
+  const ok = unlockCosmetic(id);
+  if (!ok) {
+    const msg = document.getElementById('storeMsg');
+    if (msg) { msg.textContent = 'Not enough coins!'; msg.style.color = '#ff4455'; setTimeout(() => { msg.textContent = ''; }, 1800); }
+    return;
+  }
+  renderStore(); // refresh
+  // If bought a skin/wskin that is currently equipped, mark it visually
+  _syncStoreSwatches();
+}
+function _syncStoreSwatches() {
+  // Mark locked swatches visually
+  document.querySelectorAll('.skin-swatch[data-cosid]').forEach(btn => {
+    btn.disabled = !isCosmeticUnlocked(btn.dataset.cosid);
+    btn.style.opacity = btn.disabled ? '0.35' : '1';
+  });
+  document.querySelectorAll('.wskin-swatch[data-cosid]').forEach(btn => {
+    btn.disabled = !isCosmeticUnlocked(btn.dataset.cosid);
+    btn.style.opacity = btn.disabled ? '0.35' : '1';
+  });
 }
 
 function setBossPlayers(n) {
@@ -455,20 +590,6 @@ function updateSettings() {
   if (phaseFlashEl) settings.phaseFlash = phaseFlashEl.checked;
   const finishersEl = document.getElementById('settingFinishers');
   if (finishersEl) settings.finishers = finishersEl.checked;
-  const view3DEl = document.getElementById('setting3DView');
-  if (view3DEl) {
-    settings.view3D = view3DEl.checked;
-    localStorage.setItem('smc_view3D', settings.view3D ? '1' : '0');
-    // Only apply persistent 3D when not in a TF-driven dimension shift
-    if (!tfDimensionIs3D && typeof set3DView === 'function') {
-      set3DView(settings.view3D ? 'settings' : false);
-    }
-  }
-  const exp3DEl = document.getElementById('settingExp3D');
-  if (exp3DEl) {
-    settings.experimental3D = exp3DEl.checked;
-    localStorage.setItem('smc_experimental3D', settings.experimental3D ? '1' : '0');
-  }
 }
 
 function toggleAdvanced() {
@@ -534,6 +655,28 @@ const _CLG_CAT_COLORS = {
   System:    '#aaaacc',
 };
 
+// Returns true if this change item should currently be shown glitched/hidden.
+function _clgSpoilerHidden(ch) {
+  if (ch.spoilerLevel !== undefined) {
+    const lvl = (typeof playerProgressLevel !== 'undefined') ? playerProgressLevel : 0;
+    return lvl < ch.spoilerLevel;
+  }
+  if (ch.spoilerAct !== undefined) {
+    const act = (window.STORY_PROGRESS && typeof STORY_PROGRESS.act === 'number') ? STORY_PROGRESS.act : 0;
+    return act < ch.spoilerAct;
+  }
+  return false;
+}
+
+// Deterministic character scramble — stable across renders (same text → same scramble).
+function _clgScramble(text) {
+  const CHARS = '▓░█▒▀▄╬╫╠╣▌▐■□▲▼⚡╪╥╨▬╗╚╔╝╩╦';
+  let seed = 0;
+  for (let i = 0; i < text.length; i++) seed = (seed * 31 + text.charCodeAt(i)) & 0xffffff;
+  const rng = () => { seed = (seed * 1664525 + 1013904223) & 0xffffffff; return (seed >>> 0) / 0xffffffff; };
+  return text.split('').map(c => (c === ' ' || c === '—') ? c : CHARS[Math.floor(rng() * CHARS.length)]).join('');
+}
+
 function showChangelogModal() {
   const modal   = document.getElementById('changelogModal');
   const content = document.getElementById('changelogContent');
@@ -573,21 +716,30 @@ function showChangelogModal() {
           <div style="font-size:0.68rem;color:#334466;letter-spacing:2px;margin-bottom:10px;font-style:italic;">"${entry.flavor}"</div>
           <div style="display:flex;flex-direction:column;gap:5px;">
       `;
-      // Group by category
+      // Group by category (keep full change objects)
       const grouped = {};
       for (const ch of entry.changes) {
         if (!grouped[ch.cat]) grouped[ch.cat] = [];
-        grouped[ch.cat].push(ch.text);
+        grouped[ch.cat].push(ch);
       }
       for (const [cat, items] of Object.entries(grouped)) {
         const col = _CLG_CAT_COLORS[cat] || '#aaaacc';
         html += `<div style="margin-bottom:4px;">
           <span style="font-size:0.62rem;color:${col};letter-spacing:2px;opacity:0.8;text-transform:uppercase;font-weight:700;">[${cat}]</span>
           <ul style="margin:3px 0 0 0;padding-left:18px;list-style:none;">`;
-        for (const item of items) {
-          html += `<li style="color:#8899bb;font-size:0.78rem;line-height:1.65;position:relative;">
-            <span style="position:absolute;left:-14px;color:${col};opacity:0.6;">›</span>${item}
-          </li>`;
+        for (const ch of items) {
+          const hidden = _clgSpoilerHidden(ch);
+          if (hidden) {
+            const scrambled = _clgScramble(ch.text);
+            html += `<li style="font-size:0.78rem;line-height:1.65;position:relative;overflow:visible;">
+              <span style="position:absolute;left:-14px;color:${col};opacity:0.3;">›</span>
+              <span class="clg-spoiler" title="Progress further to reveal">${scrambled}</span>
+            </li>`;
+          } else {
+            html += `<li style="color:#8899bb;font-size:0.78rem;line-height:1.65;position:relative;">
+              <span style="position:absolute;left:-14px;color:${col};opacity:0.6;">›</span>${ch.text}
+            </li>`;
+          }
         }
         html += `</ul></div>`;
       }
@@ -1333,8 +1485,7 @@ function _startGameCore() {
   document.getElementById('pauseOverlay').style.display     = 'none';
   canvas.style.display = 'block';
   document.getElementById('hud').style.display = 'flex';
-  // Apply persistent 3D view setting at game start (TF fight may override this later)
-  if (typeof set3DView === 'function') set3DView(settings.view3D ? 'settings' : false);
+
   // Show chat widget if online
   const chatEl = document.getElementById('onlineChat');
   if (chatEl) chatEl.style.display = onlineMode ? 'flex' : 'none';
@@ -1342,7 +1493,11 @@ function _startGameCore() {
   // Resolve arena
   const isBossMode         = gameMode === 'boss';
   const isTrueFormMode     = gameMode === 'trueform';
+  const isDamnationMode    = gameMode === 'damnation';
   const isTrainingMode     = gameMode === 'training';
+  // Online: force 2P-compatible variants so guest doesn't get assigned to boss/dummy
+  if (onlineMode && isBossMode && bossPlayerCount !== 2) bossPlayerCount = 2;
+  if (onlineMode && isTrainingMode) training2P = true;
   const isMinigamesMode    = gameMode === 'minigames';
   const isExploreMode      = gameMode === 'exploration';
   const isAdaptiveMode     = gameMode === 'adaptive' || gameMode === 'sovereign';
@@ -1361,6 +1516,9 @@ function _startGameCore() {
   } else if (isTrueFormMode) {
     currentArenaKey = 'void';
     resetTFState();
+  } else if (isDamnationMode) {
+    currentArenaKey = 'damnation';
+    if (typeof resetDamnationState === 'function') resetDamnationState();
   } else if (isExploreMode) {
     currentArenaKey = '__explore__';
   } else if (isMinigamesMode) {
@@ -1387,7 +1545,7 @@ function _startGameCore() {
   }
   isRandomMapMode = (selectedArena === 'random' && !isCompleteRandMode);
   // Lava/void: no randomization
-  if (currentArenaKey !== 'creator' && currentArenaKey !== 'lava' && currentArenaKey !== 'void' && currentArenaKey !== 'soccer' && !isExploreMode) randomizeArenaLayout(currentArenaKey);
+  if (currentArenaKey !== 'creator' && currentArenaKey !== 'lava' && currentArenaKey !== 'void' && currentArenaKey !== 'soccer' && currentArenaKey !== 'damnation' && !isExploreMode) randomizeArenaLayout(currentArenaKey);
   currentArena = ARENAS[currentArenaKey];
   if (typeof buildGraphForCurrentArena === 'function') buildGraphForCurrentArena();
   initMapPerks(currentArenaKey);
@@ -1500,14 +1658,18 @@ function _startGameCore() {
   p1.hat  = document.getElementById('p1Hat')?.value  || 'none';
   p1.cape = document.getElementById('p1Cape')?.value || 'none';
   if (p1Skin !== 'default' && SKIN_COLORS[p1Skin]) p1.color = SKIN_COLORS[p1Skin];
+  p1.weaponTheme = (p1WeaponSkin && p1WeaponSkin !== 'default') ? p1WeaponSkin : null;
   // Story mode: if class is locked for this chapter, ignore player's class selection
   const _storyClassLocked = storyModeActive && storyPlayerOverride && storyPlayerOverride.noClass;
   applyClass(p1, _storyClassLocked ? 'none' : _p1ResolvedClass);
   // If player explicitly chose a weapon (not random), restore it after applyClass
   // so archer/paladin class doesn't forcefully override the selected weapon
   if (document.getElementById('p1Weapon')?.value && document.getElementById('p1Weapon').value !== 'random'
-      && !isCompleteRandMode && typeof WEAPONS !== 'undefined' && WEAPONS[w1]) {
-    p1.weaponKey = w1; p1.weapon = WEAPONS[w1]; p1._ammo = p1.weapon.clipSize || 0;
+      && !isCompleteRandMode) {
+    const _w1Obj = (w1 && w1.startsWith('_custom_') && window.CUSTOM_WEAPONS && window.CUSTOM_WEAPONS[w1])
+                   ? window.CUSTOM_WEAPONS[w1]
+                   : (typeof WEAPONS !== 'undefined' && WEAPONS[w1] ? WEAPONS[w1] : null);
+    if (_w1Obj) { p1.weaponKey = w1; p1.weapon = _w1Obj; p1._ammo = p1.weapon.clipSize || 0; }
   }
   // Story mode: apply per-level player restrictions (weak human → powerful fighter progression)
   if (storyModeActive && storyPlayerOverride) {
@@ -1655,7 +1817,7 @@ function _startGameCore() {
     p1.isAI  = false;
     p1.lives = chosenLives;
     // Pick a weapon for the AI — random from a balanced set
-    const _aiWeapons = ['sword','axe','spear','hammer','scythe','katana'];
+    const _aiWeapons = ['sword','axe','spear','hammer','scythe','voidblade'];
     const _aiWeapon  = _aiWeapons[Math.floor(Math.random() * _aiWeapons.length)];
     const ai = isSovereignMode
       ? new SovereignMK2(720, 300, '#ff3311', _aiWeapon)
@@ -1669,6 +1831,14 @@ function _startGameCore() {
     players = [p1, ai];
     p1.target = ai;
     ai.target = p1;
+  } else if (isDamnationMode) {
+    // Eternal Damnation arc: P1 solo, wave manager spawns echoes dynamically
+    p1.isAI  = false;
+    p1.lives = 9999;   // damnationDeaths manages progression, not lives
+    players  = [p1];
+    p1.target = null;
+    damnationActive = true;
+    if (typeof spawnDamnationWave === 'function') spawnDamnationWave();
   } else if (isTrueFormMode) {
     // True Form: solo — P1 vs True Form boss, void arena, no 2P
     p1.isAI = false;
@@ -1685,6 +1855,15 @@ function _startGameCore() {
     p1.target = tf;
     p2 = tf;
     players = [p1, tf];
+    // Damnation scar bonus: surviving the echo gives 10% extra damage
+    if (storyModeActive) {
+      try {
+        if (localStorage.getItem('smb_damnationScar')) {
+          p1.dmgMult = (p1.dmgMult || 1.0) * 1.10;
+          p1._hasDamnationScar = true;
+        }
+      } catch(e) {}
+    }
   } else if (isTrainingMode) {
     if (training2P) {
       // 2P training: both fighters present, shared dummy
@@ -1711,7 +1890,7 @@ function _startGameCore() {
   } else if (isMinigamesMode) {
     // Minigames: P1 always human; survival/koth both support optional P2
     p1.isAI = false;
-    p1.lives = (minigameType === 'survival') ? 1 : 10; // survival: 1 life; others: managed by mode
+    p1.lives = (minigameType === 'survival') ? 1 : 99; // survival: 1 life; koth/chaos/soccer: infinite (99)
     if (minigameType === 'koth' || minigameType === 'chaos' || minigameType === 'soccer' || (minigameType === 'survival' && !p2IsNone)) {
       const p2mg = new Fighter(720, 300, c2, w2,
         { left:'ArrowLeft', right:'ArrowRight', jump:'ArrowUp', attack:'Enter',
@@ -1723,6 +1902,7 @@ function _startGameCore() {
       p2mg.hat  = document.getElementById('p2Hat')?.value  || 'none';
       p2mg.cape = document.getElementById('p2Cape')?.value || 'none';
       if (p2Skin !== 'default' && SKIN_COLORS[p2Skin]) p2mg.color = SKIN_COLORS[p2Skin];
+      p2mg.weaponTheme = (p2WeaponSkin && p2WeaponSkin !== 'default') ? p2WeaponSkin : null;
       applyClass(p2mg, _p2ResolvedClass);
       players = [p1, p2mg];
       if (minigameType === 'koth' || minigameType === 'chaos') { p1.target = p2mg; p2mg.target = p1; }
@@ -1756,6 +1936,7 @@ function _startGameCore() {
     p2.hat  = document.getElementById('p2Hat')?.value  || 'none';
     p2.cape = document.getElementById('p2Cape')?.value || 'none';
     if (p2Skin !== 'default' && SKIN_COLORS[p2Skin]) p2.color = SKIN_COLORS[p2Skin];
+    p2.weaponTheme = (p2WeaponSkin && p2WeaponSkin !== 'default') ? p2WeaponSkin : null;
     applyClass(p2, _p2ResolvedClass);
     if (p2.charClass === 'megaknight') { p2.y = -120; p2.vy = 2; p2._spawnFalling = true; p2.invincible = 200; }
     // Story mode: apply enemy damage and cooldown scaling so fights feel fair at each chapter
@@ -1830,22 +2011,22 @@ function _startGameCore() {
 
   // Online mode: mark which player is remote so gameLoop applies network state
   if (onlineMode && NetworkManager.connected) {
-    // onlineLocalSlot: 0 = host (plays as P1/index 0), 1 = guest (plays as P2/index 1)
-    const localIdx  = onlineLocalSlot;      // 0 for host, 1 for guest
-    const remoteIdx = 1 - localIdx;        // the other slot
-    if (players[localIdx]) {
-      players[localIdx].isRemote = false;
-      // Host always uses P1 keys; guest always uses P1 keys on their machine too
-      players[localIdx].controls = {
+    // Only remap human (non-boss, non-trueform) players — boss/TrueForm always stay AI
+    const humanPlayers = players.filter(p => p && !p.isBoss && !p.isTrueForm);
+    const localIdx  = onlineLocalSlot;  // 0 = host, 1 = guest
+    const remoteIdx = 1 - localIdx;
+    if (humanPlayers[localIdx]) {
+      humanPlayers[localIdx].isRemote = false;
+      humanPlayers[localIdx].controls = {
         left: 'a', right: 'd', jump: 'w', attack: ' ',
         shield: 's', ability: 'q', super: 'e',
       };
-      players[localIdx].isAI = false;
+      humanPlayers[localIdx].isAI = false;
     }
-    if (players[remoteIdx]) {
-      players[remoteIdx].isRemote  = true;
-      players[remoteIdx].isAI      = false; // network drives this player, not AI
-      players[remoteIdx].controls  = {};    // no local keyboard input
+    if (humanPlayers[remoteIdx]) {
+      humanPlayers[remoteIdx].isRemote  = true;
+      humanPlayers[remoteIdx].isAI      = false; // network drives this player, not AI
+      humanPlayers[remoteIdx].controls  = {};    // no local keyboard input
     }
   }
 
@@ -1885,11 +2066,14 @@ function _startGameCore() {
 
   // Post-class weapon restore: if player explicitly selected a non-random weapon,
   // respect that choice over what applyClass may have forced
-  if (!isCompleteRandMode && typeof WEAPONS !== 'undefined') {
+  if (!isCompleteRandMode) {
     const _p2WeaponEl = document.getElementById('p2Weapon');
     const _p2WeaponVal = _p2WeaponEl?.value;
-    if (p2 && !p2.isBoss && _p2WeaponVal && _p2WeaponVal !== 'random' && WEAPONS[w2]) {
-      p2.weaponKey = w2; p2.weapon = WEAPONS[w2]; p2._ammo = p2.weapon.clipSize || 0;
+    if (p2 && !p2.isBoss && _p2WeaponVal && _p2WeaponVal !== 'random') {
+      const _w2Obj = (w2 && w2.startsWith('_custom_') && window.CUSTOM_WEAPONS && window.CUSTOM_WEAPONS[w2])
+                     ? window.CUSTOM_WEAPONS[w2]
+                     : (typeof WEAPONS !== 'undefined' && WEAPONS[w2] ? WEAPONS[w2] : null);
+      if (_w2Obj) { p2.weaponKey = w2; p2.weapon = _w2Obj; p2._ammo = p2.weapon.clipSize || 0; }
     }
   }
 
@@ -1984,16 +2168,15 @@ if (localStorage.getItem('smc_sovereignBeaten')) {
 if (localStorage.getItem('smc_trueform')) {
   const card = document.getElementById('modeTrueForm');
   if (card) card.style.display = '';
-  // Show 3D View setting (unlocked by defeating True Form)
-  const row3D = document.getElementById('setting3DRow');
-  if (row3D) row3D.style.display = '';
-  // Restore 3D checkbox and apply persistent setting
-  const el3D = document.getElementById('setting3DView');
-  if (el3D) {
-    el3D.checked = settings.view3D;
-    if (settings.view3D && typeof set3DView === 'function') set3DView('settings');
-  }
+
 }
+// Init cosmetic swatch lock state and coin display
+(function() {
+  _syncStoreSwatches();
+  const coinEl = document.getElementById('coinDisplay');
+  if (coinEl) coinEl.textContent = coinBalance + ' ⬡';
+})();
+
 // Init arena & lives dropdowns — default to random on first load
 selectArena('random');
 selectLives(chosenLives);

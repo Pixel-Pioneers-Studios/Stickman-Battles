@@ -1235,7 +1235,7 @@ function _storyPassiveEnemyDefs(ch, variant) {
 
 function _promotePassiveStoryChapters() {
   for (const ch of STORY_CHAPTERS2) {
-    if (!ch || !ch.noFight || ch.isEpilogue) continue;
+    if (!ch || !ch.noFight || ch.isEpilogue || ch.isCinematicBridge) continue;
 
     const variant = _storyPassiveChapterVariant(ch);
     const objective = _storyPassiveChapterObjective(ch, variant);

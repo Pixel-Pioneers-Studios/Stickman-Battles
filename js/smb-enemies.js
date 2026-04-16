@@ -130,6 +130,16 @@ class ForestBeast extends Fighter {
       return;
     }
 
+    // Dynamic retargeting: immediately retarget if current target is dead/missing
+    if (!this.target || this.target.health <= 0) this._fbRetargetCd = 0;
+    this._fbRetargetCd = (this._fbRetargetCd || 0) - 1;
+    if (this._fbRetargetCd <= 0) {
+      const _pool = players.filter(p => p !== this && p.health > 0);
+      if (_pool.length > 0)
+        this.target = _pool.reduce((a, b) => Math.abs(b.cx() - this.cx()) < Math.abs(a.cx() - this.cx()) ? b : a);
+      this._fbRetargetCd = 30;
+    }
+
     const tgt = this.target;
     if (!tgt || tgt.health <= 0) return;
     const dx  = tgt.cx() - this.cx();

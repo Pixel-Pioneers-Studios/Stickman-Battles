@@ -1660,10 +1660,12 @@ function wEquipWeapon(pid) {
     // Not in game — store for next game start
     const wObj = _wBuildObj();
     if (pid === 'p1') {
-      if (typeof WEAPONS !== 'undefined') {
-        WEAPONS['_custom_' + Date.now()] = wObj;
-        alert(`Custom weapon ready — it will be used when you start a 1v1 or Training match.`);
-      }
+      const _cwKey = '_custom_' + Date.now();
+      window.CUSTOM_WEAPONS = window.CUSTOM_WEAPONS || {};
+      window.CUSTOM_WEAPONS[_cwKey] = wObj;
+      if (typeof saveCustomWeaponSelection === 'function') saveCustomWeaponSelection(_cwKey);
+      if (typeof saveCustomWeaponsData === 'function') saveCustomWeaponsData();
+      alert(`Custom weapon ready — it will be equipped on P1 when you start a 1v1 or Training match.`);
     }
     return;
   }
@@ -1851,6 +1853,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const raw = localStorage.getItem('smc_custom_weapons');
     if (raw) _dCustomWeapons = JSON.parse(raw);
   } catch(e) {}
+  // Restore persisted custom weapons into window.CUSTOM_WEAPONS
+  if (typeof loadCustomWeaponsData === 'function') loadCustomWeaponsData();
   // Restore custom maps into arena dropdown
   // Defer slightly so ARENAS (smb-data.js) is guaranteed to be defined
   setTimeout(_dRestoreCustomMapsToDropdown, 200);

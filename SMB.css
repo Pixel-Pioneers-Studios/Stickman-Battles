@@ -1169,6 +1169,62 @@ input[type="color"] {
 }
 .skin-swatch:hover { border-color: rgba(255,255,255,0.7); }
 
+/* Weapon skin swatches — diamond shape */
+.wskin-swatch {
+  width: 18px; height: 18px;
+  border-radius: 3px;
+  border: 2px solid rgba(255,255,255,0.25);
+  cursor: pointer;
+  padding: 0;
+  transform: rotate(45deg) scale(0.85);
+  transition: border-color 0.15s, transform 0.1s;
+}
+.wskin-swatch.active {
+  border-color: #ffcc44;
+  transform: rotate(45deg) scale(1.1);
+}
+.wskin-swatch:hover { border-color: rgba(255,255,255,0.7); }
+.wskin-swatch:disabled { opacity: 0.35; cursor: default; }
+
+/* Cosmetic store cards */
+.store-card {
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 9px;
+  padding: 10px 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  text-align: center;
+}
+.store-card.owned {
+  border-color: rgba(255,200,0,0.4);
+  background: rgba(255,200,0,0.07);
+}
+.store-swatch {
+  width: 36px; height: 36px;
+  border-radius: 50%;
+  border: 2px solid rgba(255,255,255,0.2);
+}
+.store-name { color: #eee; font-size: 0.78rem; font-weight: bold; }
+.store-type { color: #666; font-size: 0.65rem; }
+.store-owned { color: #ffcc44; font-size: 0.70rem; }
+.store-buy-btn {
+  background: rgba(255,180,0,0.2);
+  border: 1px solid rgba(255,180,0,0.5);
+  border-radius: 5px;
+  color: #ffdd66;
+  font-size: 0.72rem;
+  padding: 2px 8px;
+  cursor: pointer;
+}
+.store-buy-btn:hover { background: rgba(255,180,0,0.35); }
+
+/* Coin balance pop animation */
+@keyframes coinPop { 0%{transform:scale(1)} 50%{transform:scale(1.3)} 100%{transform:scale(1)} }
+.coin-pop { animation: coinPop 0.4s ease; }
+
 /* Boss HP bar (2P boss mode) */
 .boss-bar-label {
   font-size: 10px;

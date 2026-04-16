@@ -165,6 +165,29 @@ class SovereignMK2 extends AdaptiveAI {
     this._repositionBurstCd = 0;
     this._audioSpikeTimer   = 0;
     this._limiterReason     = null;
+
+    // ── Observation window + adaptation lock ────────────────────
+    // No adaptation fires until _observationFrames >= 180 (≈3 sec)
+    // AND _actionSampleCount >= 6 non-idle actions.
+    this._observationFrames  = 0;   // incremented every AI tick
+    this._actionSampleCount  = 0;   // non-idle actions seen
+    this._adaptLockTimer     = 0;   // frames remaining on locked strategy
+    this._lockedCounterStrategy = null; // 'anti-air'|'parry'|'guard-break'|'intercept'|'pressure'|null
+
+    // ── Force Engagement System ──────────────────────────────────
+    // Tracks how long the player has stayed distant AND avoided attacking.
+    // When both thresholds are exceeded, Sovereign enters FORCE MODE and
+    // overrides all movement decisions to close the gap relentlessly.
+    // Does NOT change speed values or cooldowns — only decision priority.
+    this._forceEngageDistFrames = 0;  // frames player has been > FORCE_DIST_THRESHOLD away
+    this._forceEngageIdleFrames = 0;  // frames since player last attacked
+    this._forceModeActive       = false;
+    this._forceModeCloseFrames  = 0;  // frames spent within close range during force mode
+    // Thresholds (tunable without touching speed/cooldowns):
+    this._FORCE_DIST_THRESHOLD  = 200; // px — "player is staying far"
+    this._FORCE_DIST_FRAMES     = 240; // ~4 sec continuously far
+    this._FORCE_IDLE_FRAMES     = 300; // ~5 sec since player last attacked
+    this._FORCE_CLOSE_NEEDED    = 60;  // frames close (<140px) needed to exit force mode
   }
 
   // ══════════════════════════════════════════════════════════════
@@ -192,7 +215,7 @@ class SovereignMK2 extends AdaptiveAI {
         if (count > triBestCount) { triBestCount = count; triBest = key.split('→')[2]; }
       }
     }
-    if (triTotal >= 3 && triBestCount / triTotal >= 0.50) {
+    if (triTotal >= 2 && triBestCount / triTotal >= 0.50) {
       this._predictedNext = triBest;
       this._predictConf   = triBestCount / triTotal;
       this._predictSource = 'trigram';
@@ -227,8 +250,8 @@ class SovereignMK2 extends AdaptiveAI {
         if (count > bestCount) { bestCount = count; best = key.split('→')[1]; }
       }
     }
-    // Require at least 4 observations before predicting
-    if (total >= 4 && bestCount / total >= 0.40) {
+    // Require at least 2 observations before predicting
+    if (total >= 2 && bestCount / total >= 0.40) {
       this._predictedNext = best;
       this._predictConf   = bestCount / total;
       this._predictSource = 'bigram';
@@ -302,14 +325,14 @@ class SovereignMK2 extends AdaptiveAI {
     if (action !== 'idle') {
       if (action === sp.action) {
         sp.count++;
-        sp.timer = 48; // reset window on each new occurrence
+        sp.timer = 36; // reset window on each new occurrence
       } else {
         sp.action = action;
         sp.count  = 1;
-        sp.timer  = 48;
+        sp.timer  = 36;
       }
-      // 3+ same actions in the window = spam detected
-      if (sp.count >= 3 && !this._punishModeActive) {
+      // 4+ same actions in the window = spam detected (requires clear pattern, not noise)
+      if (sp.count >= 4 && !this._punishModeActive) {
         this._activatePunishMode(action);
       }
     }
@@ -391,7 +414,7 @@ class SovereignMK2 extends AdaptiveAI {
     this._limiterBroken      = true;
     this._limiterReason      = reason;
     this._limiterFlashTimer  = 25;
-    this._adaptInterval      = 15;
+    this._adaptInterval      = 4; // post-break: ~15x/sec — superhuman pattern lock
     this._pressureMode       = 'suffocate';
     this._pressureHoldTimer  = 300;
     this._audioSpikeTimer    = 75;
@@ -416,7 +439,7 @@ class SovereignMK2 extends AdaptiveAI {
       this._limiterAuraPhase = (this._limiterAuraPhase + 0.12) % (Math.PI * 2);
       if (this._limiterFlashTimer > 0) this._limiterFlashTimer--;
       if (this._pressureHoldTimer > 0) this._pressureHoldTimer--;
-      if (this._adaptInterval > 15) this._adaptInterval = 15;
+      if (this._adaptInterval > 4) this._adaptInterval = 4;
       return;
     }
     const recentTaken = this._countRecent('dmg_taken', 180);
@@ -424,7 +447,7 @@ class SovereignMK2 extends AdaptiveAI {
     const targetAdv = t && t.health > 0 ? t.health / Math.max(1, this.health) : 1;
     const overwhelmed = recentTaken >= 4 || (targetAdv > 1.28 && hpPct < 0.72);
     const habitOverload = this._dominantHabitScore >= 5.2 && this._punishModeCount >= 1;
-    if (this.intelligence >= 0.88) return this._triggerLimiterBreak('evolution');
+    if (this.intelligence >= 0.82) return this._triggerLimiterBreak('evolution');
     if (hpPct <= 0.38) return this._triggerLimiterBreak('low_hp');
     if (overwhelmed) return this._triggerLimiterBreak('dominated');
     if (habitOverload) return this._triggerLimiterBreak('habit');
@@ -492,10 +515,117 @@ class SovereignMK2 extends AdaptiveAI {
     }
   }
 
+  // ── Force Engagement tracker ─────────────────────────────────
+  // Call once per AI tick before movement decisions.
+  // Returns true if force mode is currently active (caller should act on it).
+  _updateForceEngagement(t, d, playerAttacking) {
+    const far  = d > this._FORCE_DIST_THRESHOLD;
+    const idle = !playerAttacking;
+
+    // Count frames player is staying distant
+    if (far)  this._forceEngageDistFrames++;
+    else      this._forceEngageDistFrames = Math.max(0, this._forceEngageDistFrames - 4); // decay when close
+
+    // Count frames since player last attacked
+    if (idle) this._forceEngageIdleFrames++;
+    else      this._forceEngageIdleFrames = 0; // reset on any player attack
+
+    // Activate force mode when BOTH thresholds are met
+    if (!this._forceModeActive) {
+      if (this._forceEngageDistFrames >= this._FORCE_DIST_FRAMES &&
+          this._forceEngageIdleFrames >= this._FORCE_IDLE_FRAMES) {
+        this._forceModeActive     = true;
+        this._forceModeCloseFrames = 0;
+        if (typeof showBossDialogue === 'function') {
+          showBossDialogue('You cannot run forever.', 120);
+        }
+      }
+    }
+
+    // While active: count frames spent within close range
+    if (this._forceModeActive) {
+      if (d < 140) {
+        this._forceModeCloseFrames++;
+      } else {
+        this._forceModeCloseFrames = Math.max(0, this._forceModeCloseFrames - 1);
+      }
+      // Exit force mode once Sovereign has maintained close range long enough
+      if (this._forceModeCloseFrames >= this._FORCE_CLOSE_NEEDED) {
+        this._forceModeActive       = false;
+        this._forceEngageDistFrames = 0;
+        this._forceEngageIdleFrames = 0;
+        this._forceModeCloseFrames  = 0;
+      }
+    }
+
+    return this._forceModeActive;
+  }
+
+  // Returns a strategy string if a confident pattern is detected, else null.
+  // Requires minimum observation window to have elapsed.
+  _getCounterStrategy() {
+    if (this._observationFrames < 180 || this._actionSampleCount < 6) return null;
+
+    const seq = this._actionSeq.filter(a => a !== 'idle');
+    if (seq.length < 6) return null;
+
+    // Use the last 12 non-idle actions for rate calculation
+    const recent = seq.slice(-12);
+    const total  = recent.length;
+    const counts = { jump: 0, attack: 0, shield: 0, dodge: 0 };
+    for (const a of recent) if (counts[a] !== undefined) counts[a]++;
+
+    const jumpRate   = counts.jump   / total;
+    const attackRate = counts.attack / total;
+    const shieldRate = counts.shield / total;
+    const dodgeRate  = counts.dodge  / total;
+
+    // High-confidence thresholds — must be strong pattern, not noise
+    if (jumpRate   > 0.60) return 'anti-air';
+    if (attackRate > 0.65) return 'parry';
+    if (shieldRate > 0.50) return 'guard-break';
+    if (dodgeRate  > 0.50) return 'intercept';
+    // Passive player (low overall action rate relative to window): apply pressure
+    if (total <= 6 && this._observationFrames > 300) return 'pressure';
+    return null;
+  }
+
   _runHardCounter(t, dir, d, moveSpd, weaponRange, atkRange, playerAttacking) {
     if (this._counterLockTimer > 0) return false;
 
-    if (this._habitRepeated('jump', 3) && !t.onGround) {
+    // Use rate-based strategy with lock-in — don't re-evaluate every tick
+    if (this._adaptLockTimer <= 0) {
+      const strategy = this._getCounterStrategy();
+      if (strategy) {
+        this._lockedCounterStrategy = strategy;
+        this._adaptLockTimer = 120; // hold this counter for 2 seconds
+      }
+    }
+    if (this._adaptLockTimer > 0) this._adaptLockTimer--;
+
+    // Execute locked strategy
+    const strat = this._lockedCounterStrategy;
+    if (strat === 'anti-air' && !t.onGround) {
+      this._counterLockTimer = 10;
+      this._pressureHoldTimer = Math.max(this._pressureHoldTimer, 50);
+      if (!this.isEdgeDanger(dir)) this.vx = dir * moveSpd * 1.18;
+      if (this.onGround && t.cy() < this.cy() - 14) this.vy = -19;
+      if (d < atkRange * 1.15 && this.cooldown <= 0) this.attack(t);
+      this._triggerFearLine(SMK2_DOMINANCE_LINES, 95);
+      return true;
+    }
+    if (strat === 'pressure' && d > 150) {
+      // Passive player — close gap and force engagement
+      if (!this.isEdgeDanger(dir)) this.vx = dir * moveSpd * 1.35;
+      if (this.onGround && t.y < this.y - 40) this.vy = -18;
+      this._triggerFearLine(SMK2_INTIMIDATION_LINES, 95);
+      return true;
+    }
+
+    // Legacy habit checks — only if observation window passed AND thresholds are stricter
+    if (this._observationFrames < 180) return false;
+
+    if (this._habitRepeated('jump', 4, 3) && !t.onGround) {
       this._counterLockTimer = 10;
       this._pressureHoldTimer = Math.max(this._pressureHoldTimer, 50);
       if (!this.isEdgeDanger(dir)) this.vx = dir * moveSpd * 1.18;
@@ -505,7 +635,7 @@ class SovereignMK2 extends AdaptiveAI {
       return true;
     }
 
-    if (this._habitRepeated('shield', 3) && t.shielding) {
+    if (this._habitRepeated('shield', 4, 3) && t.shielding) {
       this._counterLockTimer = 12;
       if (!this.isEdgeDanger(dir)) this.vx = dir * moveSpd * 1.25;
       if (d < weaponRange * 1.25 + 24) {
@@ -528,7 +658,7 @@ class SovereignMK2 extends AdaptiveAI {
       return true;
     }
 
-    if (this._habitRepeated('dodge', 3) && Math.abs(t.vx) > 3) {
+    if (this._habitRepeated('dodge', 4, 3) && Math.abs(t.vx) > 3) {
       this._counterLockTimer = 9;
       const interceptDir = Math.sign(t.vx) || dir;
       if (!this.isEdgeDanger(interceptDir)) this.vx = interceptDir * moveSpd * 1.55;
@@ -537,7 +667,7 @@ class SovereignMK2 extends AdaptiveAI {
       return true;
     }
 
-    if (this._habitRepeated('attack', 4, 3) && playerAttacking && d < 170) {
+    if (this._habitRepeated('attack', 5, 3) && playerAttacking && d < 170) {
       this._counterLockTimer = 10;
       const dDir = (this.x < 100 && dir < 0) ? 1 : (this.x + this.w > GAME_W - 100 && dir > 0) ? -1 : -dir;
       if (this.onGround && !this.isEdgeDanger(dDir)) this.vx = dDir * moveSpd * 2.2;
@@ -685,9 +815,9 @@ class SovereignMK2 extends AdaptiveAI {
 
   _getHumanizedReact() {
     const i = this.intelligence;
-    // Early: 8→4 frames; mid: 4→1 frame; late: 1→0 frames
-    if (i < 0.35) return Math.round(8 - i * 11.4);          // 8→4
-    if (i < 0.65) return Math.round(4 - (i - 0.35) * 10);  // 4→1
+    // Early: 4→2 frames; mid: 2→1 frame; late: 1→0 frames
+    if (i < 0.35) return Math.round(4 - i * 5.7);           // 4→2
+    if (i < 0.65) return Math.round(2 - (i - 0.35) * 3.3); // 2→1
     return Math.round(Math.max(0, 1 - (i - 0.65) * 3.3));  // 1→0
   }
 
@@ -748,9 +878,15 @@ class SovereignMK2 extends AdaptiveAI {
     if (playerAirborne && !this._prevPlayerAirborne) this._recordEvent('player_jump', 0);
     this._prevPlayerAirborne = playerAirborne;
 
+    // ── Observation window ───────────────────────────────────
+    // Sovereign must observe for at least 180 frames (~3 sec) and see
+    // at least 6 non-idle player actions before adapting.
+    this._observationFrames++;
+
     // ── A. Bigram action tracking ────────────────────────────
     const currentAction = _smk2ClassifyAction(t, this._prevT2state);
     if (currentAction !== 'idle') {
+      this._actionSampleCount++;
       this._recordActionBigram(currentAction);
       this._updatePrediction();
     }
@@ -758,8 +894,10 @@ class SovereignMK2 extends AdaptiveAI {
     this._checkPredictionCorrect(t, currentAction);
     this._prevT2state = { attacking: t.attackTimer > 0, onGround: t.onGround, shielding: t.shielding, vx: t.vx };
 
-    // ── B. Spam/punishment tracking ──────────────────────────
-    this._updateSpamTracker(currentAction);
+    // ── B. Spam/punishment tracking (gated by observation window) ──
+    if (this._observationFrames >= 180 && this._actionSampleCount >= 6) {
+      this._updateSpamTracker(currentAction);
+    }
 
     // ── D. Anti-exploit tracking ─────────────────────────────
     this._updateAntiExploit(t);
@@ -849,6 +987,35 @@ class SovereignMK2 extends AdaptiveAI {
     const nearLeft  = this.x < 50;
     const nearRight = this.x + this.w > GAME_W - 50;
 
+    // ── FORCE ENGAGEMENT ─────────────────────────────────────────
+    // If player has been passive AND distant for too long, override movement.
+    // Does not change speed values — only decision priority.
+    const inForceMode = this._updateForceEngagement(t, d, playerAttacking);
+    if (inForceMode) {
+      // Override: always path directly at player, no hesitation
+      if (!this.isEdgeDanger(dir)) {
+        this.vx = dir * moveSpd; // full speed toward player, no multiplier increase
+      } else {
+        // Near edge — jump over instead of walking into the void
+        if (this.onGround) { this.vy = -19; this.vx = dir * moveSpd * 0.6; }
+      }
+      // Jump if player is elevated or if a platform is in the way
+      if (this.onGround && t.y < this.y - 45 && Math.random() < 0.55) {
+        this.vy = -19;
+      } else if (this.canDoubleJump && this.vy > 0 && t.y < this.y - 45) {
+        this.vy = -15; this.canDoubleJump = false;
+      }
+      // Attack the moment range allows — no bait, no hesitation
+      if (d < atkRange && this.cooldown <= 0) {
+        this.attack(t);
+      }
+      // Use ability to close gap faster (decision, not speed change)
+      if (this.abilityCooldown <= 0 && d < 300 && Math.random() < 0.35) this.ability(t);
+      this.aiReact = Math.max(1, reactFrames - 1);
+      this._updateFearFactor(d, recentLanded, true);
+      return;
+    }
+
     // ── D. Anti-exploit forced response ───────────────────────
     if (this._runExploitResponse(t, dir, d, moveSpd)) {
       this.aiReact = Math.max(0, reactFrames - 1);
@@ -874,14 +1041,18 @@ class SovereignMK2 extends AdaptiveAI {
           this._comboFollowTimer = Math.max(4, Math.round(8 - m.reactionSpeed * 5));
         }
       }
+      // Use ability and super aggressively during punish mode
+      if (this.abilityCooldown <= 0 && d < 280 && Math.random() < 0.45) this.ability(t);
+      if (this.superReady && Math.random() < (finishPush ? 0.80 : 0.50)) this.useSuper(t);
       this.aiReact = 0; // zero delay in punish mode
       this._updateFearFactor(d, recentLanded, true);
       return;
     }
 
     // ── A. Preemptive prediction counter ─────────────────────
-    // Intentional miss: don't apply prediction counter early-game
-    if (!this._humanMissArmed) {
+    // Only after observation window — requires real pattern data
+    const adaptReady = this._observationFrames >= 180 && this._actionSampleCount >= 6;
+    if (adaptReady && !this._humanMissArmed) {
       if (this._applyPredictionCounter(t, dir, d, moveSpd)) {
         this.aiReact = reactFrames;
         return;
@@ -931,6 +1102,8 @@ class SovereignMK2 extends AdaptiveAI {
           this.attack(t);
           this._counterWindowOpen = false;
         }
+        if (this.superReady && Math.random() < 0.55) this.useSuper(t);
+        if (this.abilityCooldown <= 0 && d < 200 && Math.random() < 0.40) this.ability(t);
       }
       return;
     }

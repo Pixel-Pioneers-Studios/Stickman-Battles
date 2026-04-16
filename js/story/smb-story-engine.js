@@ -76,8 +76,8 @@ function _expandStoryChaptersInPlace() {
   for (const origCh of origList) {
     const rangeStart = expanded.length;
 
-    if (origCh.noFight || origCh.isEpilogue) {
-      // noFight / epilogue chapters stay as single chapters
+    if (origCh.noFight || origCh.isEpilogue || origCh.isDamnationChapter) {
+      // noFight / epilogue / damnation chapters stay as single chapters
       expanded.push({ ...origCh, id: expanded.length });
     } else {
       // Build phases using the original chapter's id for difficulty scaling
@@ -737,6 +737,10 @@ function _launchChapter2FightImmediate(ch) {
     gameMode = 'adaptive';
     p2IsBot  = true;
     if (typeof selectMode === 'function') selectMode('adaptive');
+  } else if (ch.isDamnationChapter) {
+    gameMode = 'damnation';
+    p2IsBot  = true;
+    if (typeof selectMode === 'function') selectMode('damnation');
   } else {
     gameMode = '2p';
     p2IsBot  = true;
@@ -1195,7 +1199,7 @@ function story2OnMatchEnd(playerWon) {
   }
 
   // Check story completion (trigger on last non-epilogue chapter win)
-  const _lastFightId = STORY_CHAPTERS2.filter(c => !c.noFight && !c.isEpilogue).reduce((m,c)=>Math.max(m,c.id),-1);
+  const _lastFightId = STORY_CHAPTERS2.filter(c => !c.noFight && !c.isEpilogue && !c.isDamnationChapter).reduce((m,c)=>Math.max(m,c.id),-1);
   if (ch.id >= _lastFightId && !_story2.storyComplete) {
     _completeStory2();
   }

@@ -22,6 +22,7 @@ let survivalInfinite  = false;      // infinite waves in team mode
 let kothPoints       = [0, 0];     // points for P1, P2
 let kothTimer        = 0;          // game timer
 let kothZoneX        = GAME_W / 2; // center of hill zone
+let kothWinnerIdx    = -1;         // index into players[] of KotH winner; -1 = no winner yet
 
 // --- Chaos modifiers ---
 const CHAOS_MODS = [
@@ -183,6 +184,7 @@ function initMinigame() {
   kothPoints        = [0, 0];
   kothTimer         = 0;
   kothZoneX         = GAME_W / 2;
+  kothWinnerIdx     = -1;
   chaosMatchTimer = 0;
   soccerBall   = null;
   soccerScore  = [0, 0];
@@ -296,9 +298,7 @@ function updateMinigame() {
     // Win at 1800 frames (30 seconds of uncontested zone)
     const WIN_FRAMES = 1800;
     if (kothPoints[0] >= WIN_FRAMES || kothPoints[1] >= WIN_FRAMES) {
-      const winIdx = kothPoints[0] >= WIN_FRAMES ? 0 : 1;
-      // Override lives so endGame() sees a clear winner
-      players.forEach((p, i) => { p.lives = i === winIdx ? 1 : 0; });
+      kothWinnerIdx = kothPoints[0] >= WIN_FRAMES ? 0 : 1;
       setTimeout(endGame, 600);
     }
   } else if (minigameType === 'chaos') {
@@ -581,5 +581,125 @@ function confirmResetProgress() {
   msg.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(0,0,0,0.95);color:#ffaa44;padding:16px 28px;border-radius:8px;font-size:1.1rem;font-weight:bold;z-index:9999;pointer-events:none';
   document.body.appendChild(msg);
   setTimeout(() => { location.reload(); }, 1200);
+}
+
+// ============================================================
+// ETERNAL DAMNATION ARC — wave management + escape system
+// ============================================================
+
+function spawnDamnationWave() {
+  if (!damnationActive) return;
+  const wave = damnationCheckpoint > damnationWave ? damnationCheckpoint : damnationWave;
+  damnationWave = wave;
+
+  // Remove any remaining echo fighters from the previous wave
+  players = players.filter(p => !p.isEcho);
+
+  if (wave === 0) {
+    // Wave 1: three minion echoes
+    for (let i = 0; i < 3; i++) {
+      const echo = new Minion(200 + i * 200, 300);
+      echo.isEcho = true;
+      echo.color = '#880000';
+      echo.health = 30;
+      echo.maxHealth = 30;
+      echo.target = players[0] || null;
+      players.push(echo);
+    }
+  } else if (wave === 1) {
+    // Wave 2: one Boss echo
+    const echoB = new Boss();
+    echoB.isEcho = true;
+    echoB.color = '#770000';
+    echoB.health = 1200;
+    echoB.maxHealth = 1200;
+    echoB.target = players[0] || null;
+    // Suppress backstory + all mid-fight cinematics
+    echoB._backstoryPlayed = true;
+    ['75', 'paradox50', '40', '10'].forEach(k => echoB._cinematicFired.add(k));
+    players.push(echoB);
+    if (players[0]) players[0].target = echoB;
+  } else if (wave === 2) {
+    // Wave 3: one TrueForm echo
+    const echoTF = new TrueForm();
+    echoTF.isEcho = true;
+    echoTF.color = '#660000';
+    echoTF.health = 2500;
+    echoTF.maxHealth = 2500;
+    echoTF.target = players[0] || null;
+    // Story scale: reduce damage output on echo
+    echoTF.dmgMult = 0.6;
+    // Suppress intro + all threshold cinematics
+    ['entry', 'qte75', '50', 'paradox30', 'qte25', '15', 'falseVictory'].forEach(k =>
+      echoTF._cinematicFired.add(k));
+    players.push(echoTF);
+    if (players[0]) players[0].target = echoTF;
+  }
+}
+
+function updateDamnation() {
+  if (!damnationActive) return;
+  const p1 = players[0];
+  if (!p1) return;
+
+  // Pulse timer for visual effects
+  damnationPulse = (damnationPulse + 1) % 120;
+
+  // Check if all enemies in current wave are dead (only non-P1 echo fighters)
+  const echoFighters = players.filter(p => p.isEcho && !p.isBoss && !p.isTrueForm);
+  const allEchoesDead = echoFighters.length > 0 && echoFighters.every(p => p.health <= 0 || p.isDead);
+  if (damnationWave === 0 && allEchoesDead) {
+    // Advance from wave 1 to wave 2 (spawn boss echo)
+    damnationWave = 1;
+    spawnDamnationWave();
+  }
+
+  // Collect anchor orbs
+  for (let i = damnationAnchorOrbs.length - 1; i >= 0; i--) {
+    const orb = damnationAnchorOrbs[i];
+    orb.frame++;
+    const dx = p1.cx() - orb.x;
+    const dy = (p1.y + p1.h / 2) - orb.y;
+    if (Math.sqrt(dx * dx + dy * dy) < 50) {
+      damnationAnchors++;
+      if (typeof SoundManager !== 'undefined' && SoundManager.pickup) SoundManager.pickup();
+      damnationAnchorOrbs.splice(i, 1);
+      // Open portal once 8 anchors collected
+      if (!damnationPortalActive && damnationAnchors >= 8) {
+        damnationPortalActive = true;
+        damnationPortal = { x: GAME_W / 2, y: 200, frame: 0 };
+        if (typeof SoundManager !== 'undefined') {
+          if (SoundManager.phaseUp)   SoundManager.phaseUp();
+          if (SoundManager.portalOpen) SoundManager.portalOpen();
+        }
+      }
+    }
+  }
+
+  // Check portal escape
+  if (damnationPortalActive && damnationPortal) {
+    damnationPortal.frame++;
+    const dx = p1.cx() - damnationPortal.x;
+    const dy = (p1.y + p1.h / 2) - damnationPortal.y;
+    if (Math.sqrt(dx * dx + dy * dy) < 50) {
+      escapeDamnation();
+    }
+  }
+}
+
+function escapeDamnation() {
+  if (damnationEscaped) return;
+  damnationEscaped = true;
+  damnationActive  = false;
+  // Flash white to signal escape
+  if (typeof screenFlash === 'function') screenFlash('#ffffff', 20);
+  if (typeof SoundManager !== 'undefined' && SoundManager.superActivate) SoundManager.superActivate();
+  // Remove all echo fighters
+  players = players.filter(p => !p.isEcho);
+  // End the match — story engine will advance to Ch. 93
+  if (typeof endGame === 'function') {
+    const p1 = players[0];
+    endGame(p1 ? p1.playerNum : 1);
+  }
 }
 

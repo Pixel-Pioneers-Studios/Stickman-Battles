@@ -766,6 +766,31 @@ function _tfeResumeAfterIntro(sc) {
   screenShake = Math.max(screenShake, 35);
   if (typeof CinFX !== 'undefined') CinFX.flash('#ffffff', 0.5, 14);
 
+  // ── Depth Phase transition: trigger the Z-axis final phase ────────────────
+  // Freeze player briefly (30 frames = 0.5s), then enable Z-movement.
+  // This fires after the fight resets (false victory sequence) — the very last
+  // phase of the True Form encounter.
+  if (typeof tfDepthPhaseActive !== 'undefined') {
+    tfDepthPhaseActive     = true;
+    tfDepthTransitionTimer = 30;   // 0.5-second input freeze
+    tfDepthEnabled         = false;
+    tfDepthPlayerStillZ    = {};
+    // Reset all entities' Z to 0 (center layer) at phase start
+    if (typeof players !== 'undefined') {
+      players.forEach(p => { p.z = 0; });
+    }
+    // Camera tilt: focus on center-field with a slight zoom-in
+    if (typeof setCameraDrama === 'function') setCameraDrama('focus', 90, null, 1.08);
+    // Screen distortion burst
+    if (typeof cinScreenFlash !== 'undefined')
+      cinScreenFlash = { color: '#440088', alpha: 0.4, timer: 16, maxTimer: 16 };
+    screenShake = Math.max(screenShake, 20);
+    spawnParticles(GAME_W * 0.5, GAME_H * 0.5, '#8844ff', 28);
+    spawnParticles(GAME_W * 0.5, GAME_H * 0.5, '#000000', 18);
+    if (typeof showBossDialogue === 'function')
+      showBossDialogue('You broke my world. I\'ll break yours.', 220);
+  }
+
   gameRunning = true;
   requestAnimationFrame(gameLoop);
 }

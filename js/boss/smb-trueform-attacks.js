@@ -540,6 +540,120 @@ TrueForm.prototype._doSpecial = function(move, target) {
         break;
       }
 
+      // ── DEPTH PHASE SHIFT STRIKE — shift to target's Z layer then attack ──
+      // TrueForm copies the player's exact Z, closes in, and lands a guaranteed hit.
+      case 'depthPhaseShift': {
+        this._depthPhaseShiftCd = Math.ceil(38 * cdMult);
+        this.postSpecialPause   = 8;
+        if (!target || target.health <= 0) break;
+        const _tz = target.z || 0;
+        // Snap TrueForm to the same Z layer as the player (no escape via layer switch)
+        this.z = _tz;
+        screenShake = Math.max(screenShake, 14);
+        spawnParticles(this.cx(), this.cy(), '#000000', 12);
+        spawnParticles(this.cx(), this.cy(), '#8844ff',  8);
+        // Teleport to just behind the player (same approach as 'slash')
+        const _psDir  = target.cx() > this.cx() ? 1 : -1;
+        const _psDestX = clamp(target.cx() - _psDir * 38, 20, GAME_W - 20);
+        this.x = _psDestX - this.w * 0.5;
+        this.y = target.y;
+        this.facing = _psDir;
+        // Visual burst at landing point
+        spawnParticles(this.cx(), this.cy(), '#ffffff', 10);
+        // Schedule direct melee hit (next frame — attacker and target are now same Z)
+        this._pendingChainMove = { move: 'slash', delay: 2 };
+        showBossDialogue(randChoice([
+          'Same layer. Nowhere to go.',
+          'I follow you everywhere.',
+          'Depth means nothing to me.',
+          'You chose this layer. I choose it too.',
+        ]), 160);
+        bossWarnings.push({ type: 'cross', x: target.cx(), y: target.cy(),
+          r: 28, color: '#ff0088', timer: 18, maxTimer: 18, label: 'LAYER LOCKED!' });
+        break;
+      }
+
+      // ── MULTI-LAYER FAKE — afterimages at different Z values; only one is real ──
+      // Spawns 2 shadow copies at z = -0.6 and +0.6; TrueForm stays at z = 0.
+      // Clones vanish after 3 s; only the real copy (z=0) deals damage.
+      case 'depthLayerFake': {
+        this._depthLayerFakeCd = Math.ceil(54 * cdMult);
+        this.postSpecialPause  = 10;
+        // True form stays at its current Z (default 0 if not in depth phase)
+        const _realZ = this.z || 0;
+        // Place two fake clones at symmetric Z offsets
+        const _fakeZs = [_realZ - 0.6, _realZ + 0.6].map(v => Math.max(-1, Math.min(1, v)));
+        // Re-use tfClones array (same structure as Shadow Clones)
+        for (const fz of _fakeZs) {
+          tfClones.push({
+            x:           this.x,
+            y:           this.y,
+            w:           this.w,
+            h:           this.h,
+            health:      1,   // dies instantly if hit
+            timer:       180, // 3 s lifetime
+            facing:      this.facing,
+            attackTimer: 0,
+            animTimer:   Math.random() * Math.PI * 2,
+            isReal:      false,
+            z:           fz,    // depth layer tag (read by draw/hit code)
+            _isDepthFake: true, // flag so clone update doesn't move independently
+          });
+        }
+        screenShake = Math.max(screenShake, 12);
+        spawnParticles(this.cx(), this.cy(), '#8844ff', 18);
+        spawnParticles(this.cx(), this.cy(), '#000000', 10);
+        showBossDialogue(randChoice([
+          'Which one is real? Guess fast.',
+          'Three layers. One truth.',
+          'Find me — if depth lets you.',
+          'This is how I vanish.',
+        ]), 180);
+        // Warn player that multiple Z-layer entities just appeared
+        bossWarnings.push({ type: 'circle', x: this.cx(), y: this.cy(),
+          r: 80, color: '#aa00ff', timer: 40, maxTimer: 40, label: 'MULTI-LAYER FAKE!' });
+        break;
+      }
+
+      // ── DEPTH PUNISH — fires when player camps the same Z layer too long ──
+      // Strikes into that exact Z with an unavoidable beam column.
+      case 'depthPunish': {
+        this._depthPunishCd = Math.ceil(48 * cdMult);
+        this.postSpecialPause = 6;
+        if (!target || target.health <= 0) break;
+        const _dpZ = target.z || 0;
+        // Shift TrueForm to the player's Z layer
+        this.z = _dpZ;
+        // Wide vertical beam locked on the player's X (re-uses bossBeams infrastructure)
+        // Telegraph for 20 frames then active for 60 frames
+        bossBeams.push({
+          x:            target.cx(),
+          warningTimer: 20,
+          activeTimer:  0,
+          phase:        'warning',
+          done:         false,
+          _depthZ:      _dpZ,  // only hits entities at this Z layer
+          _ownerRef:    this,
+        });
+        screenShake = Math.max(screenShake, 18);
+        spawnParticles(target.cx(), target.cy(), '#ff0044', 20);
+        spawnParticles(target.cx(), target.cy(), '#ffffff',  8);
+        showBossDialogue(randChoice([
+          'You stayed too long in one place.',
+          'I know where you are. In every dimension.',
+          'Same layer. Same fate.',
+          'Predictable. Even across depth.',
+        ]), 180);
+        bossWarnings.push({ type: 'circle', x: target.cx(), y: target.cy(),
+          r: 60, color: '#ff0044', timer: 20, maxTimer: 20, label: 'DEPTH PUNISH!' });
+        // Reset the still-Z counter for this player so it doesn't re-trigger immediately
+        const _dpIdx = players.findIndex(p => p === target);
+        if (_dpIdx >= 0 && typeof tfDepthPlayerStillZ !== 'undefined') {
+          tfDepthPlayerStillZ[_dpIdx] = { z: _dpZ, frames: 0 };
+        }
+        break;
+      }
+
       // ── DIMENSION SHIFT — toggle game between 2D and 3D perspective ──
       case 'dimension': {
         this._dimensionCd = Math.ceil(110 * cdMult);

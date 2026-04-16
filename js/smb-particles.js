@@ -50,6 +50,14 @@ function dealDamage(attacker, target, dmg, kbForce, stunMult = 1.0, isSplash = f
     if (settings.dmgNumbers) damageTexts.push(new DamageText(target.cx(), target.y - 20, 0, '#445566'));
     return;
   }
+  // Depth phase: Z-axis hit gate — attacker and target must share the same depth layer.
+  // A miss shows a grey "~" so the player knows the layer mismatch caused it, not a bug.
+  if (typeof tfDepthPhaseActive !== 'undefined' && tfDepthPhaseActive && attacker &&
+      Math.abs((attacker.z || 0) - (target.z || 0)) >= 0.4) {
+    if (settings.dmgNumbers)
+      damageTexts.push(new DamageText(target.cx(), target.y - 20, '~', '#556677'));
+    return;
+  }
   let actualDmg = (attacker && attacker.dmgMult !== undefined) ? Math.max(1, Math.round(dmg * attacker.dmgMult)) : dmg;
   // Hidden power level: story player gains +2% damage per cleared chapter (capped at +200%).
   // Only applies to human players in story mode — enemies are never buffed by this.
@@ -546,6 +554,10 @@ function _achCheckBeastDead() { unlockAchievement('beast_tamer'); }
 
 function spawnBullet(user, speed, color, overrideDmg = null) {
   if (isCinematic) return null; // no new projectiles during cinematics or finishers
+  // Sovereign Domain rule: no ranged weapons allowed — melee only
+  if (typeof gameMode !== 'undefined' && gameMode === 'sovereign') return null;
+  // Arena-level no-ranged flag (e.g. story sovereign arena)
+  if (typeof currentArena !== 'undefined' && currentArena && currentArena.isNoRanged) return null;
   SoundManager.shoot();
   const _nearest = [user.target, ...players, ...minions, ...trainingDummies].filter(Boolean).find(t => t !== user && t.health > 0) || null;
   const _distToT = _nearest ? Math.abs(_nearest.cx() - user.cx()) : 999;
@@ -689,8 +701,8 @@ class Projectile {
       }
       // Block friendly fire unless survival competitive mode explicitly enables it
       const _survFF = gameMode === 'minigames' && minigameType === 'survival' && survivalFriendlyFire;
-      if (!_survFF && gameMode === 'boss' && !this.owner.isBoss && !p.isBoss) continue;
-      if (!_survFF && gameMode === 'minigames' && !this.owner.isBoss && !p.isBoss && !p.isAI) continue;
+      if (!_survFF && gameMode === 'boss' && !(this.owner && this.owner.isBoss) && !p.isBoss) continue;
+      if (!_survFF && gameMode === 'minigames' && !(this.owner && this.owner.isBoss) && !p.isBoss && !p.isAI) continue;
       if (this.hitEntities && this.hitEntities.has(p)) continue; // dedup: already hit this target
     if (this.x > p.x && this.x < p.x+p.w && this.y > p.y && this.y < p.y+p.h) {
         this.hitEntities.add(p);

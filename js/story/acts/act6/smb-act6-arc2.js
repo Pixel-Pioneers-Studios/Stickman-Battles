@@ -16,7 +16,7 @@ STORY_CHAPTER_REGISTRY.push(
     storeNag: '⚠️ BOSS FIGHT — The Fallen God. Final trial before the Creator\'s domain.',
     isBossFight: true,
     bossType: 'fallen_god',
-    arena: 'creator',
+    arena: 'space',
     playerLives: 2,
     tokenReward: 200, blueprintDrop: 'godfall_seal',
     fightScript: [

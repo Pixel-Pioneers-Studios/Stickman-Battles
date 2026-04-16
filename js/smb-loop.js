@@ -739,7 +739,8 @@ function gameLoop(timestamp) {
 
   // Boss beams — update logic + draw (also in training mode when boss is present, or when an admin kit is equipped)
   const _anyAdminKit = typeof players !== 'undefined' && players.some(p => p._adminKit);
-  const hasBossActive = (currentArena && currentArena.isBossArena) || (trainingMode && trainingDummies.some(d => d.isBoss)) || _anyAdminKit;
+  const hasBossActive = (currentArena && currentArena.isBossArena) || (trainingMode && trainingDummies.some(d => d.isBoss)) || _anyAdminKit
+    || (damnationActive && players.some(p => p.isBoss));
   if (hasBossActive) {
     for (const b of bossBeams) {
       if (b.phase === 'warning') {
@@ -848,6 +849,8 @@ function gameLoop(timestamp) {
   if (gameMode === 'minigames' && minigameType === 'soccer') updateSoccerBall();
   // Minigame logic update
   if (gameMode === 'minigames') updateMinigame();
+  // Eternal Damnation arc update
+  if (damnationActive && typeof updateDamnation === 'function') updateDamnation();
   // True Form special updates (also active when a trueform admin kit is equipped, or FORCE_ATTACK_MODE has active TF effects)
   const _anyTFKit = typeof players !== 'undefined' && players.some(p => p._adminKit && p._adminKit.kitKey === 'trueform');
   const _forceTF  = !!window.FORCE_ATTACK_MODE && (
@@ -866,7 +869,8 @@ function gameLoop(timestamp) {
     (typeof tfPhaseShift  !== 'undefined' && tfPhaseShift)         ||
     (typeof tfGravityInverted !== 'undefined' && tfGravityInverted)
   );
-  if ((gameMode === 'trueform' || _anyTFKit || _forceTF) &&
+  if ((gameMode === 'trueform' || _anyTFKit || _forceTF
+      || (damnationActive && players.some(p => p.isTrueForm))) &&
       !(typeof tfOpeningFightActive !== 'undefined' && tfOpeningFightActive)) {
     updateTFBlackHoles();
     updateTFGravityWells();
@@ -956,10 +960,81 @@ function gameLoop(timestamp) {
   if (typeof chaosMode !== 'undefined' && chaosMode && typeof updateChaosSystem === 'function') updateChaosSystem();
   // Finisher: override positions/state AFTER physics, BEFORE draw
   if (typeof updateFinisher === 'function') updateFinisher();
+
+  // ── Depth Phase: transition, circular arena constraint, still-Z tracking ──────
+  if (typeof tfDepthPhaseActive !== 'undefined' && tfDepthPhaseActive) {
+    // Tick the freeze-transition timer; unlock Z-movement when it expires
+    if (tfDepthTransitionTimer > 0) {
+      tfDepthTransitionTimer--;
+      if (tfDepthTransitionTimer === 0) {
+        tfDepthEnabled = true;
+        if (typeof cinScreenFlash !== 'undefined')
+          cinScreenFlash = { color: '#8844ff', alpha: 0.55, timer: 22, maxTimer: 22 };
+        screenShake = Math.max(screenShake, 26);
+        spawnParticles(TF_DEPTH_CX, TF_DEPTH_CY, '#8844ff', 22);
+        spawnParticles(TF_DEPTH_CX, TF_DEPTH_CY, '#ffffff', 14);
+        if (typeof showBossDialogue === 'function')
+          showBossDialogue('Every dimension. Every layer. I am all of them.', 240);
+      }
+    }
+    // Clamp all living entities inside the circular arena boundary
+    for (const ent of players) {
+      if (!ent || (ent.health <= 0 && ent.invincible <= 0)) continue;
+      const ecx = ent.cx(), ecy = ent.cy();
+      const edx = ecx - TF_DEPTH_CX, edy = ecy - TF_DEPTH_CY;
+      const ed  = Math.hypot(edx, edy);
+      if (ed > TF_DEPTH_R) {
+        const sc = TF_DEPTH_R / ed;
+        ent.x  = TF_DEPTH_CX + edx * sc - ent.w * 0.5;
+        ent.y  = TF_DEPTH_CY + edy * sc - ent.h * 0.5;
+        ent.vx *= -0.45;
+        ent.vy *= -0.45;
+      }
+    }
+    // Track per-player same-Z idle frames for depthPunish
+    if (typeof tfDepthPlayerStillZ !== 'undefined') {
+      players.forEach((p, pi) => {
+        if (p.isAI || p.isBoss || p.health <= 0) return;
+        const rec = tfDepthPlayerStillZ[pi] || { z: p.z || 0, frames: 0 };
+        if (Math.abs((p.z || 0) - rec.z) < 0.05) { rec.frames++; }
+        else { rec.z = p.z || 0; rec.frames = 0; }
+        tfDepthPlayerStillZ[pi] = rec;
+      });
+    }
+  }
+
   players.forEach((p, i) => {
     if (p.health <= 0 && p.invincible <= 0) return;
     // Cinematic visibility: skip players flagged as hidden for this scene
     if (activeCinematic && activeCinematic.hidePlayers && activeCinematic.hidePlayers.includes(i)) return;
+    // Depth phase: apply per-entity Z-axis depth illusion transform
+    if (typeof tfDepthPhaseActive !== 'undefined' && tfDepthPhaseActive) {
+      const pz     = p.z || 0;
+      const dScale = 1 + pz * 0.2;  // z=1 → 20% larger, z=-1 → 20% smaller
+      const dOffY  = pz * 40;        // z=1 → 40px lower (foreground), z=-1 → 40px higher
+      const pivX   = p.cx();
+      const pivY   = p.cy();
+      ctx.save();
+      ctx.translate(pivX, pivY + dOffY);
+      ctx.scale(dScale, dScale);
+      ctx.translate(-pivX, -pivY);
+      p.draw();
+      ctx.restore();
+      // Draw Z-layer indicator bar beneath entity
+      const barW = p.w * 1.4, barH = 4;
+      const barX = p.cx() - barW * 0.5;
+      const barY = p.y + p.h + dOffY + 6 * dScale;
+      ctx.save();
+      ctx.globalAlpha = 0.7;
+      ctx.fillStyle = '#222';
+      ctx.fillRect(barX, barY, barW, barH);
+      // Filled portion shows z position (center = z:0, right = z:1, left = z:-1)
+      const fillX  = barX + barW * 0.5 + (pz * barW * 0.5) - barH * 0.5;
+      ctx.fillStyle = pz >= 0 ? '#00aaff' : '#aa44ff';
+      ctx.fillRect(Math.max(barX, fillX), barY, barH, barH);
+      ctx.restore();
+      return; // draw already called above
+    }
     p.draw();
   });
   // Chaos system: world-space draw (item drops, effect badges, platform effects)
@@ -968,7 +1043,8 @@ function gameLoop(timestamp) {
   drawClassEffects();
   drawCurseAuras();
   updateAndDrawLightningBolts();
-  if ((gameMode === 'trueform' || _anyTFKit || _forceTF) &&
+  if ((gameMode === 'trueform' || _anyTFKit || _forceTF
+      || (damnationActive && players.some(p => p.isTrueForm))) &&
       !(typeof tfOpeningFightActive !== 'undefined' && tfOpeningFightActive)) {
     updateTFPhaseShift();
     updateTFRealityTear();
@@ -1171,6 +1247,8 @@ function gameLoop(timestamp) {
   drawCinematicOverlay();
   // Story world distortion intentionally disabled (purple scanlines removed per user request)
   drawAchievementPopups();
+  if (damnationActive && typeof drawDamnationEffects === 'function') drawDamnationEffects();
+  if (damnationActive && typeof drawDamnationAnchors === 'function') drawDamnationAnchors();
   if (typeof drawObjectiveHUD === 'function') drawObjectiveHUD();
   // Chaos system: screen-space draw (score HUD, event badge, announcer, spectator label)
   if (typeof chaosMode !== 'undefined' && chaosMode && typeof drawChaosOverlay === 'function') drawChaosOverlay();
@@ -1406,11 +1484,28 @@ document.addEventListener('keydown', e => {
     // Paradox Fusion: block all direct player actions while Paradox owns controls
     if (p._fusionAIOverride) return;
     if (!incapacitated && _nk === p.controls.attack)  { e.preventDefault(); p.attack(other); }
-    if (!incapacitated && _nk === p.controls.ability) { e.preventDefault(); p.ability(other); }
+    if (!incapacitated && _nk === p.controls.ability) {
+      e.preventDefault();
+      // Depth phase: Q = move toward background layer (-Z) instead of ability
+      if (typeof tfDepthPhaseActive !== 'undefined' && tfDepthPhaseActive &&
+          typeof tfDepthEnabled !== 'undefined' && tfDepthEnabled && !p.isAI) {
+        p.z = Math.max(-1, (p.z || 0) - 0.3);
+        spawnParticles(p.cx(), p.cy(), '#8844ff', 4);
+      } else {
+        p.ability(other);
+      }
+    }
     if (!incapacitated && p.controls.super && _nk === p.controls.super) {
       e.preventDefault();
-      checkSecretLetterCollect(p);
-      p.useSuper(other);
+      // Depth phase: E = move toward foreground layer (+Z) instead of super
+      if (typeof tfDepthPhaseActive !== 'undefined' && tfDepthPhaseActive &&
+          typeof tfDepthEnabled !== 'undefined' && tfDepthEnabled && !p.isAI) {
+        p.z = Math.min(1, (p.z || 0) + 0.3);
+        spawnParticles(p.cx(), p.cy(), '#00aaff', 4);
+      } else {
+        checkSecretLetterCollect(p);
+        p.useSuper(other);
+      }
     }
   });
 });

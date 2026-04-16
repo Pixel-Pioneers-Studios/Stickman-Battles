@@ -203,12 +203,22 @@ const NetworkManager = (() => {
       _onlineGameMode = msg.data && msg.data.mode ? msg.data.mode : (msg.mode || '2p');
       gameMode = _onlineGameMode;
       if (typeof selectMode === 'function') selectMode(gameMode);
+    } else if (msg.event === 'minigameSelected') {
+      if (!_isHost && msg.minigameType && typeof minigameType !== 'undefined') minigameType = msg.minigameType;
+      if (!_isHost && msg.minigameType && typeof selectMinigame === 'function') selectMinigame(msg.minigameType);
+    } else if (msg.event === 'livesSelected') {
+      if (!_isHost && msg.lives !== undefined && typeof chosenLives !== 'undefined') chosenLives = msg.lives;
+      if (!_isHost && msg.lives !== undefined && typeof selectLives === 'function') selectLives(msg.lives);
+    } else if (msg.event === 'arenaSelected') {
+      if (!_isHost && msg.arena && typeof selectArena === 'function') selectArena(msg.arena);
     } else if (msg.event === 'startGame') {
       // Guest receives host's start signal — sync settings then launch
       if (!_isHost) {
         if (msg.arena  && typeof selectArena === 'function') selectArena(msg.arena);
         if (msg.mode   && typeof selectMode  === 'function') { gameMode = msg.mode; selectMode(msg.mode); }
-        if (msg.lives  && typeof chosenLives !== 'undefined') chosenLives = msg.lives;
+        if (msg.lives  !== undefined && typeof chosenLives !== 'undefined') chosenLives = msg.lives;
+        if (msg.minigameType && typeof minigameType !== 'undefined') minigameType = msg.minigameType;
+        if (msg.minigameType && typeof selectMinigame === 'function') selectMinigame(msg.minigameType);
         if (typeof startGame === 'function') startGame();
       }
     } else if (msg.event === 'playerLeft') {
@@ -252,6 +262,8 @@ const NetworkManager = (() => {
       }
     } else if (typeof handleChaosNetworkEvent === 'function' && handleChaosNetworkEvent(msg)) {
       // handled by chaos system
+    } else if (typeof handleAdminNetworkEvent === 'function' && handleAdminNetworkEvent(msg)) {
+      // handled by admin system
     }
   }
 
@@ -524,10 +536,42 @@ const NetworkManager = (() => {
     _onlineGameMode = mode;
     gameMode = mode;
     if (typeof selectMode === 'function') selectMode(mode);
-    document.querySelectorAll('#onlineGameModeRow .btn').forEach(b => {
-      b.classList.toggle('active', b.dataset.mode === mode);
+    document.querySelectorAll('#onlineGameModeRow [data-onlinemode]').forEach(b => {
+      b.classList.toggle('active', b.dataset.onlinemode === mode);
     });
+    // Show/hide minigame type row
+    const mgRow = document.getElementById('onlineMinigameRow');
+    if (mgRow) mgRow.style.display = mode === 'minigames' ? 'flex' : 'none';
     sendGameEvent('gameModeSelected', { mode });
+  }
+
+  function setOnlineMinigame(type) {
+    if (!_isHost) return;
+    if (typeof minigameType !== 'undefined') minigameType = type;
+    if (typeof selectMinigame === 'function') selectMinigame(type);
+    document.querySelectorAll('#onlineMinigameRow [data-onlinemg]').forEach(b => {
+      b.classList.toggle('active', b.dataset.onlinemg === type);
+    });
+    sendGameEvent('minigameSelected', { minigameType: type });
+  }
+
+  function setOnlineLives(n) {
+    if (!_isHost) return;
+    if (typeof chosenLives !== 'undefined') chosenLives = n;
+    if (typeof selectLives === 'function') selectLives(n);
+    document.querySelectorAll('[data-onlinelives]').forEach(b => {
+      b.classList.toggle('active', parseInt(b.dataset.onlinelives) === n);
+    });
+    sendGameEvent('livesSelected', { lives: n });
+  }
+
+  function selectOnlineArenaLocal(arenaKey) {
+    if (!_isHost) return;
+    if (typeof selectArena === 'function') selectArena(arenaKey);
+    document.querySelectorAll('[data-onlinearena]').forEach(b => {
+      b.classList.toggle('active', b.dataset.onlinearena === arenaKey);
+    });
+    sendGameEvent('arenaSelected', { arena: arenaKey });
   }
 
   // Legacy sendGameStateSync for compatibility
@@ -541,7 +585,7 @@ const NetworkManager = (() => {
     sendState, sendHit, sendGameEvent, sendChatMsg,
     getRemoteState, getRemoteStateLegacy,
     getLocalSlot, getSlotCount, isHost, isConnected, getLatency,
-    setRoomType, refreshPublicRooms, setOnlineGameMode, showToast,
+    setRoomType, refreshPublicRooms, setOnlineGameMode, setOnlineMinigame, setOnlineLives, selectOnlineArenaLocal, showToast,
     sendGameStateSync,
     get connected() { return _connected; },
     get slot() { return _localSlot; },
@@ -573,9 +617,12 @@ function refreshPublicRooms() { NetworkManager.refreshPublicRooms(); }
 
 function setOnlineGameMode(mode) { NetworkManager.setOnlineGameMode(mode); }
 
+function setOnlineMinigame(type) { NetworkManager.setOnlineMinigame(type); }
+
+function setOnlineLives(n) { NetworkManager.setOnlineLives(n); }
+
 function selectOnlineArena(arenaKey) {
-  if (typeof selectArena === 'function') selectArena(arenaKey);
-  NetworkManager.sendGameEvent('modeChange', { arena: arenaKey });
+  NetworkManager.selectOnlineArenaLocal(arenaKey);
 }
 
 function showToast(msg, duration) {
@@ -594,9 +641,10 @@ function networkStartGame() {
   }
   // Broadcast current arena + mode so guests match
   NetworkManager.sendGameEvent('startGame', {
-    arena: typeof selectedArena !== 'undefined' ? selectedArena : 'random',
-    mode:  typeof gameMode    !== 'undefined' ? gameMode    : '2p',
-    lives: typeof chosenLives !== 'undefined' ? chosenLives : 3,
+    arena:        typeof selectedArena  !== 'undefined' ? selectedArena  : 'random',
+    mode:         typeof gameMode       !== 'undefined' ? gameMode       : '2p',
+    lives:        typeof chosenLives    !== 'undefined' ? chosenLives    : 3,
+    minigameType: typeof minigameType   !== 'undefined' ? minigameType   : 'survival',
   });
   // Small delay so the network message reaches guests before host starts
   setTimeout(() => {

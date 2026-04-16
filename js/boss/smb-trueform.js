@@ -97,6 +97,10 @@ class TrueForm extends Fighter {
     this._galaxySweepCd  = 14;  // Galaxy Sweep      — ~3.5s  (was 24)
     this._multiverseCd   = 19;  // Multiverse Fracture — ~4.75s (was 32)
     this._supernovaCd    = 999; // Supernova — triggers once at low HP only
+    // ── Depth Phase Z-axis attack cooldowns (AI ticks) ───────────────────────
+    this._depthPhaseShiftCd = 12; // Phase Shift Strike — ~3s  (shift Z then attack)
+    this._depthLayerFakeCd  = 18; // Multi-Layer Fake   — ~4.5s (afterimages at diff Z)
+    this._depthPunishCd     = 16; // Depth Punish       — ~4s  (attack if player idle in Z)
 
     // ── Adaptive AI: real-time player pattern recognition ──────────────────
     this.adaptationLevel  = 0;      // 0–100: depth of player understanding
@@ -425,6 +429,9 @@ class TrueForm extends Fighter {
     if (this._multiverseCd   > 0) this._multiverseCd--;
     if (this._supernovaCd    > 0) this._supernovaCd--;
     if (this._multiversalGroupCd > 0) this._multiversalGroupCd--;
+    if (this._depthPhaseShiftCd > 0) this._depthPhaseShiftCd--;
+    if (this._depthLayerFakeCd  > 0) this._depthLayerFakeCd--;
+    if (this._depthPunishCd     > 0) this._depthPunishCd--;
     // ── Recovery phase tick-down ──────────────────────────────────
     // When _tfAttackState.phase === 'recovery', TF cannot start new specials (enforced in _doSpecial).
     // Tick down the timer here so it clears automatically.
@@ -725,6 +732,23 @@ class TrueForm extends Fighter {
       w.supernova = 0.28;
     } else if (al < 90 && this._supernovaCd <= 0 && !tfSupernova && this.health / this.maxHealth < 0.18) {
       w.supernova = 0.12; // fallback at very low HP even without full adaptation
+    }
+
+    // ── DEPTH PHASE — Z-axis attacks (only when depth phase is active) ───────
+    if (typeof tfDepthPhaseActive !== 'undefined' && tfDepthPhaseActive &&
+        typeof tfDepthEnabled !== 'undefined' && tfDepthEnabled) {
+      // Phase Shift Strike: TF shifts Z layer before attacking
+      if (this._depthPhaseShiftCd <= 0) w.depthPhaseShift = 0.30;
+      // Multi-Layer Fake: spawn afterimages at different Z values
+      if (this._depthLayerFakeCd  <= 0) w.depthLayerFake  = 0.22;
+      // Depth Punish: punish player who stays in same Z > 120 frames
+      const _pi = players.findIndex(p => !p.isBoss && p.health > 0);
+      const _pz = typeof tfDepthPlayerStillZ !== 'undefined' && tfDepthPlayerStillZ[_pi];
+      if (this._depthPunishCd <= 0 && _pz && _pz.frames >= 120) w.depthPunish = 0.40;
+      // Suppress regular non-Z specials during depth phase to emphasise the system
+      for (const k of Object.keys(w)) {
+        if (!k.startsWith('depth')) w[k] *= 0.35;
+      }
     }
 
     // ── Distance zone modifiers ───────────────────────────────
@@ -1591,6 +1615,16 @@ class TrueForm extends Fighter {
         }
         ctx.restore();
       }
+    }
+
+    // ── Echo red tint — post-render overlay (Damnation arc) ──────────
+    if (this.isEcho && typeof damnationActive !== 'undefined' && damnationActive) {
+      ctx.save();
+      ctx.globalCompositeOperation = 'multiply';
+      ctx.globalAlpha = 0.50;
+      ctx.fillStyle   = '#ff1100';
+      ctx.fillRect(this.x - 6, this.y - 6, this.w + 12, this.h + 12);
+      ctx.restore();
     }
   }
 }

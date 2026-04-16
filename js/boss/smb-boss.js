@@ -872,6 +872,10 @@ const TF_ATTACK_REGISTRY = {
   multiverseFracture: { requiresTarget: true,  cooldownKey: '_multiverseCd' },
   supernova:          { requiresTarget: false, cooldownKey: '_supernovaCd' },
   dimension:          { requiresTarget: false, cooldownKey: '_dimensionCd' },
+  // ── Depth Phase Z-axis attacks (active only when tfDepthPhaseActive) ─────────
+  depthPhaseShift:    { requiresTarget: true,  cooldownKey: '_depthPhaseShiftCd' },
+  depthLayerFake:     { requiresTarget: true,  cooldownKey: '_depthLayerFakeCd'  },
+  depthPunish:        { requiresTarget: true,  cooldownKey: '_depthPunishCd'     },
 };
 
 function executeTrueFormAttack(ctx, move, target, source = 'runtime') {

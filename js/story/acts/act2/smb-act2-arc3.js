@@ -78,7 +78,7 @@ STORY_CHAPTER_REGISTRY.push(
     secondEnemy: { weaponKey: 'axe', classKey: 'berserker', aiDiff: 'hard', color: '#8800cc' },
     armor: ['helmet', 'chestplate'],
     playerLives: 2,
-    arena: 'space',
+    arena: 'ruins',
     tokenReward: 120, blueprintDrop: null,
     postText: 'The echoes collapse. The outer ring is clear. Ahead: the rift core. Veran and the Architects are in position. "Whenever you\'re ready," Veran says. Her voice is steady. Yours is too.',
   },

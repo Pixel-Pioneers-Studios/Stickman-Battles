@@ -157,7 +157,7 @@ function pfCheckJumpValid(bot, targetPlatIdx, useDouble) {
 // interfering with intentional jump arcs.
 // ─────────────────────────────────────────────────────────────
 function pfAirborneCorrect(bot, spd) {
-  if (bot.onGround || bot.isBoss || storyModeActive) return false;
+  if (bot.onGround || bot.isBoss || !bot.isAI) return false;
   if (!currentArena) return false;
   // Only correct when falling (vy > 0) — upward arc is deliberate
   if (bot.vy <= 0 && !bot._pfDoubleJumpPending) return false;
@@ -218,7 +218,7 @@ function pfAirborneCorrect(bot, spd) {
 // Returns true if no safe platform exists below the look-ahead point.
 // ─────────────────────────────────────────────────────────────
 function pfVoidAhead(bot, dir) {
-  if (!currentArena || storyModeActive) return false;
+  if (!currentArena) return false;
   const lookX = bot.cx() + dir * 52;
   const footY = bot.y + bot.h;
   const lavY  = currentArena.hasLava ? currentArena.lavaY  : Infinity;
@@ -251,7 +251,6 @@ function pfVoidAhead(bot, dir) {
 // ─────────────────────────────────────────────────────────────
 function pfDropSafe(bot, dir) {
   if (!currentArena) return false;
-  if (storyModeActive) return true;
   const arena  = currentArena;
   const edgeX  = dir > 0 ? bot.x + bot.w + 8 : bot.x - 8;
   const startY = bot.y + bot.h;
@@ -519,7 +518,6 @@ function pfAStar(graph, startId, goalId) {
 // ═════════════════════════════════════════════════════════════
 
 function pfGetNextWaypoint(bot, targetX, targetY) {
-  if (storyModeActive) return null; // story uses portals
   const graph = currentPlatformGraph;
   if (!graph || !graph.nodes.length) return null;
 

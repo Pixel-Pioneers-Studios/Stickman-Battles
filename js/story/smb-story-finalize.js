@@ -88,8 +88,9 @@ const STORY_ACT_STRUCTURE = [
     // True Form — absolute final act, nothing follows
     id: 'act8', label: 'Act VIII — True Form', color: '#cc44ff',
     arcs: [
-      { id: 'arc5-0', label: 'Into the Void', chapterRange: [90, 90] },
-      { id: 'arc5-1', label: 'Final Confrontation', chapterRange: [91, 92] },
+      { id: 'arc5-0',          label: 'Into the Void',        chapterRange: [90, 90] },
+      { id: 'arc5-damnation',  label: 'The Damnation Loop',   chapterRange: [91, 93] },
+      { id: 'arc5-1',          label: 'Final Confrontation',  chapterRange: [94, 95] },
     ],
   },
 ];

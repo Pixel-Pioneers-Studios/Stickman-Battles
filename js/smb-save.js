@@ -2,7 +2,12 @@
 'use strict';
 
 const SAVE_VERSION = 2;
-const SAVE_KEY     = 'smc_save_v1'; // key intentionally kept for backwards compat
+const SAVE_KEY     = 'smc_save_v1'; // legacy fallback key (used when AccountManager is absent)
+
+// Dynamic key helpers — route through AccountManager when available so each
+// account gets its own isolated save slot.
+function _getSaveKey()   { return (window.AccountManager) ? window.AccountManager.getActiveSaveKey() : SAVE_KEY; }
+function _getBackupKey() { return _getSaveKey() + '_backup'; }
 
 // ── Default save structure (used for deep-merge / version migrations) ─────────
 const _SAVE_DEFAULTS = {
@@ -24,7 +29,7 @@ const _SAVE_DEFAULTS = {
 
 // ── Custom Weapon helpers ─────────────────────────────────────────────────────
 // window.CUSTOM_WEAPONS is populated by smb-designer.js or cheat console.
-// We persist the user's selected custom weapon key across sessions.
+// We persist both the selected key and all weapon objects across sessions.
 function saveCustomWeaponSelection(key) {
   try { localStorage.setItem('smc_customWeapon', key || ''); } catch(e) {}
 }
@@ -32,7 +37,34 @@ function loadCustomWeaponSelection() {
   return localStorage.getItem('smc_customWeapon') || '';
 }
 function clearCustomWeaponSelection() {
-  localStorage.removeItem('smc_customWeapon');
+  try {
+    localStorage.removeItem('smc_customWeapon');
+    localStorage.removeItem('smc_customWeaponsData');
+  } catch(e) {}
+}
+function saveCustomWeaponsData() {
+  try {
+    const data = window.CUSTOM_WEAPONS || {};
+    // Strip non-serializable fields (functions like ability)
+    const serializable = {};
+    for (const [k, w] of Object.entries(data)) {
+      const copy = Object.assign({}, w);
+      delete copy.ability;
+      serializable[k] = copy;
+    }
+    localStorage.setItem('smc_customWeaponsData', JSON.stringify(serializable));
+  } catch(e) {}
+}
+function loadCustomWeaponsData() {
+  try {
+    const raw = localStorage.getItem('smc_customWeaponsData');
+    if (!raw) return;
+    const data = JSON.parse(raw);
+    window.CUSTOM_WEAPONS = window.CUSTOM_WEAPONS || {};
+    for (const [k, w] of Object.entries(data)) {
+      window.CUSTOM_WEAPONS[k] = w;
+    }
+  } catch(e) {}
 }
 
 // ── Migration ─────────────────────────────────────────────────────────────────
@@ -109,22 +141,26 @@ function _applySaveData(data) {
 }
 
 // ── Save ──────────────────────────────────────────────────────────────────────
-const _SAVE_BACKUP_KEY = 'smc_save_backup';
+// _SAVE_BACKUP_KEY is now computed dynamically via _getBackupKey()
 
 function saveGame() {
   try {
+    const key    = _getSaveKey();
+    const bkKey  = _getBackupKey();
     const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(_gatherSaveData()))));
     // Write backup BEFORE overwriting main slot (protects against mid-write crash)
-    const prev = localStorage.getItem(SAVE_KEY);
-    if (prev) localStorage.setItem(_SAVE_BACKUP_KEY, prev);
-    localStorage.setItem(SAVE_KEY, encoded);
+    const prev = localStorage.getItem(key);
+    if (prev) localStorage.setItem(bkKey, prev);
+    localStorage.setItem(key, encoded);
   } catch(e) {
     console.warn('[SMC Save] Save failed:', e);
   }
 }
 
-// ── Load (called once on page start) ─────────────────────────────────────────
+// ── Load (called once on page start, and on every account switch) ─────────────
 function loadGame() {
+  const key   = _getSaveKey();
+  const bkKey = _getBackupKey();
   function _tryLoad(raw) {
     if (!raw) return false;
     let data = JSON.parse(decodeURIComponent(escape(atob(raw))));
@@ -134,15 +170,15 @@ function loadGame() {
     return true;
   }
   try {
-    const raw = localStorage.getItem(SAVE_KEY);
+    const raw = localStorage.getItem(key);
     if (_tryLoad(raw)) return;
     // Main slot failed or empty — fall back to backup
-    const backup = localStorage.getItem(_SAVE_BACKUP_KEY);
+    const backup = localStorage.getItem(bkKey);
     if (backup) {
       console.warn('[SMC Save] Main save missing/corrupt — restoring backup.');
       if (_tryLoad(backup)) {
         // Restore backup into main slot
-        localStorage.setItem(SAVE_KEY, backup);
+        localStorage.setItem(key, backup);
         return;
       }
     }
@@ -151,12 +187,12 @@ function loadGame() {
     console.warn('[SMC Save] Load failed:', e);
     // Attempt backup restore on exception
     try {
-      const backup = localStorage.getItem(_SAVE_BACKUP_KEY);
+      const backup = localStorage.getItem(bkKey);
       if (backup) {
         const data = JSON.parse(decodeURIComponent(escape(atob(backup))));
         if (data && typeof data.version === 'number') {
           _applySaveData(data.version < SAVE_VERSION ? _migrateSave(data) : data);
-          localStorage.setItem(SAVE_KEY, backup);
+          localStorage.setItem(key, backup);
           console.warn('[SMC Save] Restored from backup after load failure.');
         }
       }

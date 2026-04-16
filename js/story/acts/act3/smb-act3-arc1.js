@@ -58,7 +58,7 @@ STORY_CHAPTER_REGISTRY.push(
     preText: 'Creator\'s Probe — a calibration construct. It is learning you. Don\'t let it finish its assessment. 3 lives.',
     opponentName: 'Creator\'s Probe', weaponKey: 'sword', classKey: 'warrior', aiDiff: 'hard', opponentColor: '#bbbbdd',
     playerLives: 3,
-    arena: 'space',
+    arena: 'city',
     tokenReward: 60, blueprintDrop: null,
     postText: 'The probe collapses. But it got what it needed — data transmitted. The Third Architect: "It called you by name. It knew your name before I said it."',
   },

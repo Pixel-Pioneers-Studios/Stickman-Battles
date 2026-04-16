@@ -65,7 +65,7 @@ class AdaptiveAI extends Fighter {
 
     // Adaptation timer — fast adaptation
     this._adaptTick     = 0;
-    this._adaptInterval = 30; // batch every 0.5s (was 60)
+    this._adaptInterval = 8; // batch ~7.5x/sec — above human adaptation rate
     this._adaptCycles   = 0;
 
     // Health snapshots for delta detection
@@ -185,7 +185,7 @@ class AdaptiveAI extends Fighter {
     const deaths       = recent.filter(e => e.type === 'death').length;
     const dodges       = recent.filter(e => e.type === 'dodge').length;
 
-    const R = 0.22; // faster learning rate (was 0.16)
+    const R = 0.32; // faster learning rate (was 0.22)
 
     // Aggression: always trends up; only minor dip when outright destroyed
     if (hitsLanded   >= 1) m.aggression = Math.min(1, m.aggression + R * 1.4);

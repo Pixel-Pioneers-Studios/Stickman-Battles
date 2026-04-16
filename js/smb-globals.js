@@ -25,20 +25,34 @@ window.addEventListener('resize', resizeCanvas);
 // ============================================================
 const CHANGELOG = [
   {
+    version: '2.8.0',
+    title: 'THE LOOP UPDATE',
+    date: '2026-04-15',
+    flavor: 'Before you can reach True Form, it reaches you first. Escape the loop. Uncover what started it all. And take your shape.',
+    isLatest: true,
+    changes: [
+      { cat: 'Story',   text: 'Added Eternal Damnation arc (Act 5, Ch. 91–92) — True Form sends an echo of itself inward before the player arrives; the dimension wall seals, trapping the player in a dying loop with 17 fractured echoes of past enemies', spoilerAct: 5 },
+      { cat: 'Story',   text: 'Added Damnation arena — a crumbling loop-dimension stage exclusive to the Eternal Damnation gauntlet; platforms are removed in sequence as the escape window closes', spoilerAct: 5 },
+      { cat: 'Story',   text: 'Added Lab Infiltration side mission (Ch. 93) — an abandoned research facility buried under a collapsed district; logs inside reveal the fractures were not an accident', spoilerAct: 5 },
+      { cat: 'System',  text: 'Added Cosmetic Store — earn ⬡ coins by playing matches (5 per match, +10 for winning, +20 for beating the boss); spend them on character skins and weapon themes' },
+      { cat: 'System',  text: 'Added 6 character skins (Fire, Ice, Shadow, Gold, Void, Neon) and 6 weapon themes (Inferno, Glacier, Shadow, Gilded, Void, Neon); defaults are free, rarer skins require coins' },
+      { cat: 'AI',      text: 'Rewrote enemy combat logic with Modular Combat AI — three-class architecture (CombatSystem, MovementSystem, AIController) replaces frame-by-frame reactions with utility-scored action selection, reaction delays, and suboptimal-choice variance' },
+    ],
+  },
+  {
     version: '2.7.0',
     title: 'THE FRACTURE UPDATE',
     date: '2026-04-08',
     flavor: 'Reality is cracking. Four dimensions await — each ruled by someone you once called a friend. Build your ship. Cross the fractures. Face what you became.',
-    isLatest: true,
+    isLatest: false,
     changes: [
       { cat: 'Mode',     text: 'Added Multiverse Mode — travel across 4 dimensional worlds (War-Torn, Gravity Flux, Shadow Realm, Titan World), each with unique AI modifiers, encounter progressions, and Fallen God observer dialogue' },
       { cat: 'Mode',     text: 'Each Multiverse world has 4 encounter tiers: standard, elite (2-enemy), survival wave, and ruler boss fight with persistent stat rewards' },
       { cat: 'System',   text: 'Added Ship Progression System — collect 5 ship parts (hull ×5, engine, core, crystal) scattered across story chapters; when complete, Axiom\'s ship is built and full fracture branch access unlocks' },
       { cat: 'System',   text: 'Added Fracture System — visible interdimensional tears appear in-world; before ship is built, only a 10-second preview with one branch guardian; after ship built, full branch entry and ruler boss fight available' },
-      { cat: 'System',   text: 'Three fracture branches added: Alpha Branch (Vael), Null Branch (Kael), Crimson Branch (Sora) — each with its own ruler, lore, and combat challenge' },
+      { cat: 'System',   text: 'Three fracture branches added: Alpha Branch (Vael), Null Branch (Kael), Crimson Branch (Sora) — each with its own ruler, lore, and combat challenge', spoilerAct: 4 },
       { cat: 'System',   text: 'Added Lore Moment system — ambient story beats fire at key progression milestones (first fracture, ship completion, ruler defeat) and persist across sessions' },
       { cat: 'System',   text: 'Added Motivation Tracker — narrative context updates dynamically as Axiom\'s investigation progresses toward True Form' },
-      { cat: 'Dev',      text: 'Added Attack Test Sandbox (smb-attacktest.js) — open via GAMECONSOLE cheat: preview any boss/NPC attack as a pure visual; equip Creator, TrueForm, Yeti, or Beast admin kits on any player with "atk class <name> [p1|p2]"' },
       { cat: 'Polish',   text: 'Arena rendering pipeline split: Soccer and Void arena draw calls extracted to dedicated rendering submodule (js/rendering/smb-drawing-arenas.js) for cleaner separation' },
     ],
   },
@@ -70,15 +84,15 @@ const CHANGELOG = [
     requiredProgress: 1,
     changes: [
       { cat: 'Narrative', text: 'Introduced Paradox — a multiversal entity that exists at the edge of every major fight as a hidden force' },
-      { cat: 'Cinematic', text: 'True Form fight now opens with a 7-second pre-fight cinematic: Paradox and True Form clash evenly, True Form escalates, snaps Paradox\'s neck, and hurls them into a portal' },
-      { cat: 'Cinematic', text: 'New 5-second cinematic at 30% True Form HP: True Form warps away, returns dragging Paradox, and attacks them repeatedly before the final stretch' },
+      { cat: 'Cinematic', text: 'True Form fight now opens with a 7-second pre-fight cinematic: Paradox and True Form clash evenly, True Form escalates, snaps Paradox\'s neck, and hurls them into a portal', spoilerLevel: 2 },
+      { cat: 'Cinematic', text: 'New 5-second cinematic at 30% True Form HP: True Form warps away, returns dragging Paradox, and attacks them repeatedly before the final stretch', spoilerLevel: 2 },
       { cat: 'Cinematic', text: 'Creator fight now shows random background flashes of True Form and Paradox fighting as silhouettes (under 1 second each, every 11–20 seconds)' },
       { cat: 'Cinematic', text: 'Creator fight scripted moment at 50% HP: Boss punches Paradox out of the arena with a particle burst and unique dialogue' },
-      { cat: 'Mechanic',  text: 'True Form fight now begins with a damage lock phase — player deals 0 damage until Paradox Empowerment activates (8 seconds)' },
-      { cat: 'Mechanic',  text: 'Paradox Empowerment grants 1.4× speed and 1.6× damage for 15 seconds with a pulsing cyan aura, restoring full combat after the lock' },
+      { cat: 'Mechanic',  text: 'True Form fight now begins with a damage lock phase — player deals 0 damage until Paradox Empowerment activates (8 seconds)', spoilerLevel: 2 },
+      { cat: 'Mechanic',  text: 'Paradox Empowerment grants 1.4× speed and 1.6× damage for 15 seconds with a pulsing cyan aura, restoring full combat after the lock', spoilerLevel: 2 },
       { cat: 'System',    text: 'Revive system reworked: Paradox now appears as a visual entity during the boss mercy revive, delivering randomized dialogue before restoring 2 lives' },
       { cat: 'Polish',    text: 'Paradox entity features a flickering black/cyan stickman with glitch offsets, scan-line artifacts, and a cyan particle trail' },
-      { cat: 'Polish',    text: 'Damage lock shows grey "0" hit numbers so the player knows the lock is active rather than feeling like a bug' },
+      { cat: 'Polish',    text: 'Damage lock shows grey "0" hit numbers so the player knows the lock is active rather than feeling like a bug', spoilerLevel: 2 },
     ],
   },
   {
@@ -104,8 +118,8 @@ const CHANGELOG = [
     isLatest: false,
     requiredProgress: 1,
     changes: [
-      { cat: 'Fix',      text: 'True Form Code Realm: added double-jump so all 5 nodes are reachable' },
-      { cat: 'Fix',      text: 'True Form Code Realm: lowered unreachable high nodes to proper jump height' },
+      { cat: 'Fix',      text: 'True Form Code Realm: added double-jump so all 5 nodes are reachable', spoilerLevel: 2 },
+      { cat: 'Fix',      text: 'True Form Code Realm: lowered unreachable high nodes to proper jump height', spoilerLevel: 2 },
       { cat: 'Fix',      text: 'QTE: movement keys (WASD/arrows) now register correctly mid-QTE' },
       { cat: 'Fix',      text: 'QTE: phases now end after max attempts with penalty damage instead of looping forever' },
       { cat: 'Fix',      text: 'Large maps: camera now clamps to world bounds and no longer drifts off-edge' },
@@ -129,20 +143,20 @@ const CHANGELOG = [
       { cat: 'Story',    text: 'Added full Story Mode — 80 chapters across 6 Acts' },
       { cat: 'Story',    text: 'Added Act / Arc navigation system with chapter select' },
       { cat: 'Story',    text: 'Implemented exploration chapters and cutscene dialogues' },
-      { cat: 'Story',    text: 'Added major narrative twist: the fragment is the Creator\'s conscience' },
-      { cat: 'Story',    text: 'Introduced the Void Mind as a post-campaign threat' },
-      { cat: 'Cinematic',text: 'Redesigned True Form ending into a 10-phase meta-breaking cinematic' },
-      { cat: 'Cinematic',text: 'Added interactive Code Realm with 5 corruptible nodes' },
-      { cat: 'Cinematic',text: 'Added 3-hit Kratos-style QTE finisher sequence' },
-      { cat: 'Cinematic',text: 'Added dimension-panel launch sequence across 7 realities' },
-      { cat: 'Cinematic',text: 'True Form ending now triggers at 10% HP threshold' },
-      { cat: 'AI',       text: 'Improved True Form adaptive AI — 6 attack tiers, player profiling' },
+      { cat: 'Story',    text: 'Added major narrative twist: the fragment is the Creator\'s conscience', spoilerAct: 4 },
+      { cat: 'Story',    text: 'Introduced the Void Mind as a post-campaign threat', spoilerAct: 6 },
+      { cat: 'Cinematic',text: 'Redesigned True Form ending into a 10-phase meta-breaking cinematic', spoilerLevel: 2 },
+      { cat: 'Cinematic',text: 'Added interactive Code Realm with 5 corruptible nodes', spoilerLevel: 2 },
+      { cat: 'Cinematic',text: 'Added 3-hit QTE finisher sequence', spoilerLevel: 2 },
+      { cat: 'Cinematic',text: 'Added dimension-panel launch sequence across 7 realities', spoilerLevel: 2 },
+      { cat: 'Cinematic',text: 'True Form ending now triggers at a critical HP threshold', spoilerLevel: 2 },
+      { cat: 'AI',       text: 'Improved True Form adaptive AI — 6 attack tiers, player profiling', spoilerLevel: 2 },
       { cat: 'AI',       text: 'Added dedicated Adaptive AI game mode' },
       { cat: 'Combat',   text: 'Added finisher system (killcam killing blows)' },
       { cat: 'Combat',   text: 'Balanced ranged weapons — reduced bullet spam window' },
-      { cat: 'Combat',   text: 'Added QTE phases at 75/50/25/10% True Form HP' },
+      { cat: 'Combat',   text: 'Added QTE phases at critical True Form HP thresholds', spoilerLevel: 2 },
       { cat: 'UI',       text: 'Added Experimental 3D Mode setting with dimension-break visuals' },
-      { cat: 'UI',       text: 'Added Replay Cinematic button on True Form end screen' },
+      { cat: 'UI',       text: 'Added Replay Cinematic button on True Form end screen', spoilerLevel: 2 },
       { cat: 'Network',  text: 'Improved multiplayer state sync and disconnect handling' },
       { cat: 'System',   text: 'Modularised codebase into 20+ named JS modules' },
     ],
@@ -336,6 +350,38 @@ let tfCinematicState     = 'none';
 let paradoxDeathComplete = false;  // set true when kills-Paradox cinematic onEnd() fires
 let absorptionComplete   = false;  // set true when absorption phase completes
 
+// ── Eternal Damnation arc globals ────────────────────────────────────────────
+let damnationActive          = false;
+let damnationWave            = 0;
+let damnationDeaths          = 0;
+let damnationAnchors         = 0;
+let damnationCheckpoint      = 0;
+let damnationBrokenPlatforms = [];
+let damnationRemovalOrder    = [4, 5, 2, 3];
+let damnationPulse           = 0;
+let damnationPortalActive    = false;
+let damnationEscaped         = false;
+let damnationAnchorOrbs      = [];  // { x, y, frame }
+let damnationPortal          = null; // { x, y, frame }
+
+function resetDamnationState() {
+  damnationActive          = false;
+  damnationWave            = 0;
+  damnationDeaths          = 0;
+  damnationAnchors         = 0;
+  damnationCheckpoint      = 0;
+  damnationBrokenPlatforms = [];
+  damnationPulse           = 0;
+  damnationPortalActive    = false;
+  damnationEscaped         = false;
+  damnationAnchorOrbs      = [];
+  damnationPortal          = null;
+  // Restore any platforms disabled by a previous run (mutable shared objects)
+  if (typeof ARENAS !== 'undefined' && ARENAS.damnation) {
+    for (const pl of ARENAS.damnation.platforms) pl.isFloorDisabled = false;
+  }
+}
+
 // ── Boss telegraph / warning system ──────────────────────────────────────────
 // Visual warning indicators shown before attacks land (give player time to dodge)
 let bossWarnings        = [];   // { type:'circle'|'arc'|'cone', x, y, r, color, timer, maxTimer, label, safeZone, facing }
@@ -405,7 +451,7 @@ let _publicRoomCheckTimer = 0;
 // ============================================================
 // VERSION
 // ============================================================
-const GAME_VERSION = '2.7.0';  // bump this when releasing; must match CHANGELOG[0].version
+const GAME_VERSION = '2.8.0';  // bump this when releasing; must match CHANGELOG[0].version
 
 // DEBUG / DEVELOPER STATE
 // ============================================================
@@ -472,6 +518,21 @@ let forestBeast      = null;  // current ForestBeast instance (null if none)
 let forestBeastCooldown = 0;  // frames until beast can spawn again after death
 let yeti             = null;  // current Yeti instance in ice arena
 let yetiCooldown     = 0;     // frames until yeti can spawn again
+
+// ── Spawn config — single source of truth for all enemy spawn timing ──────────
+const SPAWN_CONFIG = {
+  yeti: {
+    minDelay:      900,   // frames before yeti can first spawn (15s at 60fps)
+    respawnDelay:  1200,  // frames cooldown after yeti death (20s)
+    spawnInterval: 400,   // deterministic spawn check interval (~6.7s)
+    maxAlive:      1
+  },
+  forestBeast: {
+    respawnDelay:  900,   // frames cooldown after beast death (15s)
+    spawnInterval: 300,   // deterministic spawn check interval (5s)
+    maxAlive:      1
+  }
+};
 let mapItems         = [];    // arena-perk pickups
 let randomWeaponPool = null;  // null = use all; Set of weapon keys
 let randomClassPool  = null;  // null = use all; Set of class keys
@@ -480,6 +541,17 @@ let randomClassPool  = null;  // null = use all; Set of class keys
 let bossFloorState = 'normal';  // 'normal' | 'warning' | 'hazard'
 let bossFloorType  = 'lava';    // 'lava' | 'void'
 let bossFloorTimer = 1500;      // frames until next state transition
+
+// ── Depth Phase: Z-axis final phase (triggers after Code Realm + fight reset) ──
+// Entities gain a z-coordinate (-1 to 1); only same-layer hits land (|dz| < 0.4).
+// Player uses Q (ability key) to decrease Z and E (super key) to increase Z.
+let tfDepthPhaseActive     = false; // true while Z-axis illusion phase is live
+let tfDepthTransitionTimer = 0;     // >0 = input frozen during scripted entry (~30f)
+let tfDepthEnabled         = false; // Z-movement unlocked after transition completes
+let tfDepthPlayerStillZ    = {};    // { [playerIdx]: { z, frames } } for depthPunish tracking
+const TF_DEPTH_CX = 450;           // circular arena center X
+const TF_DEPTH_CY = 300;           // circular arena center Y
+const TF_DEPTH_R  = 300;           // circular arena radius
 
 // True Form — dimensional attacks
 let tfPhaseShift   = null;  // { timer, maxTimer, echoes:[{x,y}], realIdx, revealed }

@@ -11,6 +11,7 @@ const ARENAS = {
     platEdge:    '#3a7030',
     hasLava:     false,
     deathY:      640,
+    modifiers:   { gravityMult: 1.0, frictionMult: 1.0, hazardFrequency: 1.0 },
     platforms: [
       { x: -60,  y: 480, w: 1020, h: 40 }, // ground
       // density zone: center high — prominent central hub
@@ -37,6 +38,7 @@ const ARENAS = {
     isHeavyGravity: true,
     lavaY:       442,
     deathY:      580,
+    modifiers:   { gravityMult: 1.1, frictionMult: 1.0, hazardFrequency: 1.2 },
     platforms: [
       { x: 360, y: 118, w: 180, h: 18 }, // top centre
       { x: 178, y: 208, w: 140, h: 18 }, // upper left
@@ -54,6 +56,7 @@ const ARENAS = {
     hasLava:      false,
     deathY:       640,
     isLowGravity: true,
+    modifiers:    { gravityMult: 0.85, frictionMult: 0.9, hazardFrequency: 0.8 },
     platforms: [
       { x: -60,  y: 480, w: 1020, h: 40 }, // asteroid belt floor
       { x: 350,  y: 170, w: 200,  h: 15 }, // centre station
@@ -74,6 +77,7 @@ const ARENAS = {
     platEdge:    '#55556a',
     hasLava:     false,
     deathY:      640,
+    modifiers:   { gravityMult: 1.0, frictionMult: 1.0, hazardFrequency: 1.1 },
     platforms: [
       { x: -60,  y: 438, w: 1020, h: 82 }, // continuous rooftop floor
       // far-left zone — fire escape / ledge
@@ -107,6 +111,24 @@ const ARENAS = {
       { x: 680, y: 295, w: 140, h: 16 },
     ]
   },
+  damnation: {
+    sky:         ['#0a0000', '#1a0000'],
+    groundColor: '#1a0000',
+    platColor:   '#3a0010',
+    platEdge:    '#ff2200',
+    hasLava:     false,
+    deathY:      640,
+    isStoryOnly:      true,
+    isDamnationArena: true,
+    platforms: [
+      { x: 0,   y: 460, w: 900, h: 60, isFloor: true, isFloorDisabled: false }, // index 0 — floor, NEVER removed
+      { x: 300, y: 310, w: 300, h: 16, isFloorDisabled: false },                // index 1 — center mid
+      { x: 80,  y: 240, w: 140, h: 16, isFloorDisabled: false },                // index 2 — lower left
+      { x: 680, y: 240, w: 140, h: 16, isFloorDisabled: false },                // index 3 — lower right
+      { x: 200, y: 160, w: 120, h: 16, isFloorDisabled: false },                // index 4 — upper left  (death 1)
+      { x: 580, y: 160, w: 120, h: 16, isFloorDisabled: false },                // index 5 — upper right (death 2)
+    ]
+  },
   creator: {
     sky:         ['#050010', '#180030'],
     groundColor: '#1a0028',
@@ -132,6 +154,7 @@ const ARENAS = {
     platEdge:    '#2a5a18',
     hasLava:     false,
     deathY:      640,
+    modifiers:   { gravityMult: 1.0, frictionMult: 1.05, hazardFrequency: 1.15 },
     platforms: [
       { x: -60,  y: 480, w: 1020, h: 40 }, // ground
       // tree canopy tiers — spread across full width
@@ -154,6 +177,7 @@ const ARENAS = {
     hasLava:     false,
     deathY:      640,
     isIcy:       true,
+    modifiers:   { gravityMult: 1.0, frictionMult: 0.85, hazardFrequency: 1.0 },
     platforms: [
       { x: -60,  y: 460, w: 1020, h: 60 }, // frozen ground
       // wide centre glacier (landmark)
@@ -176,6 +200,7 @@ const ARENAS = {
     platEdge:    '#5a4432',
     hasLava:     false,
     deathY:      640,
+    modifiers:   { gravityMult: 1.05, frictionMult: 1.0, hazardFrequency: 0.9 },
     platforms: [
       { x:   0, y: 440, w: 260, h: 80 },
       { x: 320, y: 440, w: 260, h: 80 },
@@ -210,6 +235,7 @@ const ARENAS = {
     platEdge:    '#5a3a28',
     hasLava:     false,
     deathY:      640,
+    modifiers:   { gravityMult: 1.05, frictionMult: 1.1, hazardFrequency: 0.8 },
     platforms: [
       { x: -60, y: 480, w: 1020, h: 40 },          // ground
       { x: -60, y:   0, w: 1020, h: 20, isCeiling: true }, // low ceiling
@@ -227,6 +253,7 @@ const ARENAS = {
     platEdge:    '#2a4a6a',
     hasLava:     false,
     deathY:      640,
+    modifiers:   { gravityMult: 1.0, frictionMult: 0.95, hazardFrequency: 1.0 },
     platforms: [
       { x: -60,  y: 480, w: 1020, h: 40 },
       { x: 355,  y: 175, w: 190, h: 15, ox: 355, oscX: 60, oscSpeed: 0.011, oscPhase: 0.0 },
@@ -246,6 +273,7 @@ const ARENAS = {
     hasLava:        false,
     deathY:         640,
     isSlowMovement: true,
+    modifiers:      { gravityMult: 0.7, frictionMult: 1.2, hazardFrequency: 0.7 },
     platforms: [
       { x: -60, y: 480, w: 1020, h: 40 },
       { x: 355, y: 185, w: 190, h: 15 },
@@ -264,6 +292,7 @@ const ARENAS = {
     isHeavyGravity: true,
     lavaY:          442,
     deathY:         580,
+    modifiers:      { gravityMult: 1.15, frictionMult: 1.0, hazardFrequency: 1.4 },
     platforms: [
       { x: 360, y: 118, w: 180, h: 18 },
       { x: 178, y: 208, w: 140, h: 18 },
@@ -280,6 +309,7 @@ const ARENAS = {
     platEdge:    '#8a6040',
     hasLava:     false,
     deathY:      640,
+    modifiers:   { gravityMult: 1.05, frictionMult: 1.0, hazardFrequency: 1.0 },
     platforms: [
       { x: -60, y: 480, w: 1020, h: 40 },
       { x: 355, y: 195, w: 190, h: 20 },
@@ -296,6 +326,7 @@ const ARENAS = {
     platEdge:    '#00eeff',
     hasLava:     false,
     deathY:      640,
+    modifiers:   { gravityMult: 1.0, frictionMult: 0.95, hazardFrequency: 1.2 },
     platforms: [
       { x: -60, y: 480, w: 1020, h: 40 },
       { x: 355, y: 195, w: 190, h: 14 },
@@ -312,6 +343,7 @@ const ARENAS = {
     platEdge:    '#4a2860',
     hasLava:     false,
     deathY:      640,
+    modifiers:   { gravityMult: 0.95, frictionMult: 0.92, hazardFrequency: 1.1 },
     platforms: [
       { x: -60, y: 480, w: 1020, h: 40 },
       { x: 345, y: 185, w: 210, h: 18 },
@@ -329,6 +361,7 @@ const ARENAS = {
     hasLava:      false,
     deathY:       640,
     isLowGravity: true,
+    modifiers:    { gravityMult: 0.8, frictionMult: 0.88, hazardFrequency: 0.6 },
     platforms: [
       { x: -60, y: 480, w: 1020, h: 40 },
       { x: 355, y: 175, w: 190, h: 22 },
@@ -345,6 +378,7 @@ const ARENAS = {
     platEdge:    '#00ff44',
     hasLava:     false,
     deathY:      640,
+    modifiers:   { gravityMult: 1.0, frictionMult: 1.0, hazardFrequency: 1.0 },
     platforms: [
       { x: -60, y: 480, w: 1020, h: 40 },
       { x: 355, y: 195, w: 190, h: 14 },
@@ -361,6 +395,7 @@ const ARENAS = {
     platEdge:    '#aa44ee',
     hasLava:     false,
     deathY:      640,
+    modifiers:   { gravityMult: 0.9, frictionMult: 0.85, hazardFrequency: 0.9 },
     platforms: [
       { x: -60, y: 480, w: 1020, h: 40 },
       // NOTE: isBouncy platforms — smc-loop.js checkPlatform should apply
@@ -933,11 +968,11 @@ function updateMapPerks() {
     if (forestBeast && forestBeast.health <= 0) {
       _achCheckBeastDead();
       forestBeast = null;
-      forestBeastCooldown = 900; // 15s cooldown after death
+      forestBeastCooldown = SPAWN_CONFIG.forestBeast.respawnDelay;
     }
     if (forestBeastCooldown > 0) forestBeastCooldown--;
-    // ~1/250 chance per second to spawn (checked once per second) — more common than before
-    if (!forestBeast && forestBeastCooldown <= 0 && frameCount % 60 === 0 && Math.random() < 0.04) {
+    // Deterministic interval spawn — no hidden randomness
+    if (!forestBeast && forestBeastCooldown <= 0 && frameCount % SPAWN_CONFIG.forestBeast.spawnInterval === 0) {
       spawnForestBeastNow();
     }
   }
@@ -1102,12 +1137,11 @@ function updateMapPerks() {
 
   // ---- ICE: Yeti rare encounter ----
   if (currentArenaKey === 'ice') {
-    // Clean up dead yeti and start 20s respawn cooldown
-    if (yeti && yeti.health <= 0) { _achCheckYetiDead(); yeti = null; yetiCooldown = 1200; }
+    // Clean up dead yeti and start respawn cooldown
+    if (yeti && yeti.health <= 0) { _achCheckYetiDead(); yeti = null; yetiCooldown = SPAWN_CONFIG.yeti.respawnDelay; }
     if (yetiCooldown > 0) yetiCooldown--;
-    // Can't spawn: still on cooldown, one already alive, or first 15s of game haven't passed
-    const yetiMinStartFrame = 900; // 15 seconds at 60fps
-    if (!yeti && yetiCooldown <= 0 && frameCount >= yetiMinStartFrame && Math.random() < 1/400) {
+    // Deterministic interval spawn — no hidden randomness
+    if (!yeti && yetiCooldown <= 0 && frameCount >= SPAWN_CONFIG.yeti.minDelay && frameCount % SPAWN_CONFIG.yeti.spawnInterval === 0) {
       spawnYetiNow();
     }
   }
@@ -1844,15 +1878,15 @@ const WEAPON_KEYS = Object.keys(WEAPONS).filter(k => k !== 'gauntlet' && k !== '
 // CHARACTER CLASSES
 // ============================================================
 const CLASSES = {
-  none:      { name: 'None',      desc: 'Standard balanced fighter',            weapon: null,     hp: 100, speedMult: 1.00, perk: null           },
-  thor:      { name: 'Thor',      desc: 'Hammer master, thunder on dash',       weapon: 'hammer', hp: 112, speedMult: 0.90, perk: 'thunder'      },
-  kratos:    { name: 'Kratos',    desc: 'Axe specialist, rage at low HP',       weapon: 'axe',    hp: 110, speedMult: 0.95, perk: 'rage'         },
-  ninja:     { name: 'Ninja',     desc: 'Fast sword fighter, quick dash',       weapon: 'sword',  hp: 78,  speedMult: 1.24, perk: 'swift'        },
-  gunner:    { name: 'Gunner',    desc: 'Dual-shot gunslinger',                 weapon: 'gun',    hp: 92,  speedMult: 1.06, perk: 'dual_shot'    },
-  archer:    { name: 'Archer',    desc: 'Bow-only. Fast. Auto-backstep at low HP.', weapon: 'bow', hp: 82,  speedMult: 1.20, perk: 'backstep'    },
-  paladin:   { name: 'Paladin',   desc: 'Shield-only. Tanky. 15% dmg reduction.', weapon: 'shield', hp: 132, speedMult: 0.88, perk: 'holy_light' },
-  berserker:  { name: 'Berserker',  desc: 'Any weapon. Rage boosts dmg at low HP.',             weapon: null, hp: 115, speedMult: 1.08, perk: 'blood_frenzy' },
-  megaknight: { name: 'Megaknight', desc: 'Legendary knight. Smash, uppercut, and crush enemies.', weapon: 'mkgauntlet', hp: 165, speedMult: 0.84, perk: null },
+  none:      { name: 'None',      desc: 'Standard balanced fighter',            weapon: null,     hp: 150, speedMult: 1.00, perk: null           },
+  thor:      { name: 'Thor',      desc: 'Hammer master, thunder on dash',       weapon: 'hammer', hp: 150, speedMult: 0.90, perk: 'thunder'      },
+  kratos:    { name: 'Kratos',    desc: 'Axe specialist, rage at low HP',       weapon: 'axe',    hp: 150, speedMult: 0.95, perk: 'rage'         },
+  ninja:     { name: 'Ninja',     desc: 'Fast sword fighter, quick dash',       weapon: 'sword',  hp: 150, speedMult: 1.24, perk: 'swift'        },
+  gunner:    { name: 'Gunner',    desc: 'Dual-shot gunslinger',                 weapon: 'gun',    hp: 150, speedMult: 1.06, perk: 'dual_shot'    },
+  archer:    { name: 'Archer',    desc: 'Bow-only. Fast. Auto-backstep at low HP.', weapon: 'bow', hp: 150, speedMult: 1.20, perk: 'backstep'    },
+  paladin:   { name: 'Paladin',   desc: 'Shield-only. Tanky. 15% dmg reduction.', weapon: 'shield', hp: 150, speedMult: 0.88, perk: 'holy_light' },
+  berserker:  { name: 'Berserker',  desc: 'Any weapon. Rage boosts dmg at low HP.',             weapon: null, hp: 150, speedMult: 1.08, perk: 'blood_frenzy' },
+  megaknight: { name: 'Megaknight', desc: 'Legendary knight. Smash, uppercut, and crush enemies.', weapon: 'mkgauntlet', hp: 150, speedMult: 0.84, perk: null },
 };
 
 // Damage multipliers applied when a class uses a weapon of a given weaponType.

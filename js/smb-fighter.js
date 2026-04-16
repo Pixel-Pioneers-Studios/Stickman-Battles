@@ -10,7 +10,9 @@ class Fighter {
     this.vx = 0; this.vy = 0;
     this.color       = color;
     this.weaponKey   = weaponKey;
-    this.weapon      = WEAPONS[weaponKey];
+    this.weapon      = (weaponKey && weaponKey.startsWith('_custom_') && window.CUSTOM_WEAPONS && window.CUSTOM_WEAPONS[weaponKey])
+                       ? window.CUSTOM_WEAPONS[weaponKey]
+                       : WEAPONS[weaponKey];
     this.controls    = controls;
     this.isAI        = isAI || false;
     this.aiDiff      = aiDifficulty || 'medium';
@@ -363,14 +365,17 @@ class Fighter {
       // Build a set of hit-check points: tip + mid-arc + close-arc for wide coverage
       const hitPoints = this._getMeleeArcPoints();
       if (hitPoints.length > 0) {
-        const hitPad = 18; // generous horizontal pad so edge clips still register
+        const hitPad = 8; // tight horizontal pad — reduces phantom hits from behind/above
 
         // Helper: is any hit point inside the target's box?
+        // Y-axis is strict: no hit if attacker and target have > 70px vertical separation.
         const arcHits = (tx, ty, tw, th, extraPad) => {
           const ep = extraPad || 0;
+          // Directional check: hit point must be on the side the attacker is facing
+          const facingSign = this.facing;
           for (const pt of hitPoints) {
             if (pt.x > tx - hitPad - ep && pt.x < tx + tw + hitPad + ep &&
-                pt.y > ty - 10 - ep    && pt.y < ty + th + 16 + ep) return true;
+                pt.y > ty - 8  - ep    && pt.y < ty + th + 8  + ep) return true;
           }
           return false;
         };
@@ -378,6 +383,8 @@ class Fighter {
         // All players in range (multi-target — not locked to primary target)
         for (const tgt of players) {
           if (tgt === this || !tgt || tgt.health <= 0) continue;
+          // Vertical separation guard: require meaningful bounding-box overlap (~55px center gap)
+          if (Math.abs((this.y + this.h / 2) - (tgt.y + tgt.h / 2)) > 55) continue;
           // Block friendly fire unless survival competitive mode explicitly enables it
           const _survFFM = gameMode === 'minigames' && minigameType === 'survival' && survivalFriendlyFire;
           if (!_survFFM && gameMode === 'boss' && !this.isBoss && !tgt.isBoss) continue;
@@ -482,7 +489,8 @@ class Fighter {
         return; // skip normal physics this frame
       }
       const _chaosMoon = gameMode === 'minigames' && currentChaosModifiers.has('moon');
-      const arenaGravity = _chaosMoon ? 0.18 : (currentArena.isLowGravity ? 0.28 : (currentArena.isHeavyGravity ? 0.95 : (currentArena.earthPhysics ? 0.88 : 0.65)));
+      const _arenaModGrav = (currentArena.modifiers && currentArena.modifiers.gravityMult) || 1.0;
+      const arenaGravity = (_chaosMoon ? 0.18 : (currentArena.isLowGravity ? 0.28 : (currentArena.isHeavyGravity ? 0.95 : (currentArena.earthPhysics ? 0.88 : 0.65)))) * _arenaModGrav;
       const gravDir = ((gameMode === 'trueform' || gameMode === 'story') && tfGravityInverted && !this.isBoss) ? -1 : 1;
       const _sm = slowMotion; // cinematic slow-motion time scale
 
@@ -503,7 +511,10 @@ class Fighter {
       this.x  += this.vx * _sm;
       this.y  += this.vy * _sm;
       const _chaosSlip = gameMode === 'minigames' && currentChaosModifiers.has('slippery');
-      const friction = (this.onGround && (currentArena.isIcy || _chaosSlip)) ? 0.975 : (this.onGround ? 0.78 : 0.94);
+      const _arenaModFric = (currentArena.modifiers && currentArena.modifiers.frictionMult) || 1.0;
+      const _baseFric = (this.onGround && (currentArena.isIcy || _chaosSlip)) ? 0.975 : (this.onGround ? 0.78 : 0.94);
+      // frictionMult > 1 = more grip (higher deceleration); < 1 = more slip
+      const friction = 1 - (1 - _baseFric) * _arenaModFric;
       this.vx *= friction;
       // During dimension travel, allow vx beyond the normal cap
       const _vxMax = this._dimPunchGravLock ? 60 : 13;
@@ -910,7 +921,7 @@ class Fighter {
       ? lerp(-0.45, 1.1,          atkP)
       : lerp(Math.PI + 0.45, Math.PI - 1.1, atkP);
     const tipLens = { sword: 30, hammer: 34, axe: 26, spear: 44, gauntlet: 28 };
-    const wLen    = (tipLens[this.weaponKey] || 26) + 10; // +10 extra reach vs original
+    const wLen    = tipLens[this.weaponKey] || 26; // no extra reach padding — keep hitbox tight
     const fullReach = armLen + wLen;
     // Sample inner (50%), mid (75%), and tip (100%) along the weapon
     return [0.50, 0.75, 1.0].map(frac => ({
@@ -1742,7 +1753,7 @@ class Fighter {
         if (this.abilityCooldown <= 0 && Math.random() < abiFreq) this.ability(t);
         if (this.superReady && Math.random() < 0.25) this.useSuper(t);
         // Hop to reach target on a higher platform
-        if (this.onGround && t && t.y + t.h < this.y - 30 && !fwd.cliff && Math.random() < 0.05)
+        if (this.onGround && t && t.y + t.h < this.y - 30 && !fwd.cliff && !nearLeftEdge && !nearRightEdge && Math.random() < 0.05)
           this.vy = -16;
         break;
 
@@ -1840,7 +1851,7 @@ class Fighter {
             }
 
             // Hop to clear terrain or reach airborne targets
-            if (this.onGround && t && t.y + t.h < this.y - 50 && !voidFwd && Math.random() < 0.08)
+            if (this.onGround && t && t.y + t.h < this.y - 50 && !voidFwd && !nearLeftEdge && !nearRightEdge && Math.random() < 0.08)
               this.vy = -18;
           }
 
@@ -1859,7 +1870,7 @@ class Fighter {
           if (this.onGround && t && t.y + t.h < this.y - 50 && !fwd.cliff && !voidFwd &&
               Math.random() < 0.06 && (!currentArena.hasLava || this.platformAbove()))
             this.vy = -18;
-          if (this.onGround && t && !t.onGround && !voidFwd && Math.random() < 0.06 && !fwd.cliff)
+          if (this.onGround && t && !t.onGround && !voidFwd && Math.random() < 0.06 && !fwd.cliff && !this.isEdgeDanger(dir))
             this.vy = -18;
           if (t && this.onGround && !voidFwd) {
             const _vGap  = this.cy() - t.cy();
@@ -1989,6 +2000,14 @@ class Fighter {
     // ---- TARGET VALIDATION: reassign if current target is dead/invalid ----
     if (this._isInvalidAITarget(this.target)) this._acquireAITarget();
 
+    // ---- DYNAMIC RETARGETING: re-evaluate closest enemy every 25 ticks ----
+    // Prevents bots from tunnel-visioning a far target while a closer one is adjacent.
+    this._targetRetargetCd = (this._targetRetargetCd || 0) - 1;
+    if (this._targetRetargetCd <= 0) {
+      this._acquireAITarget();
+      this._targetRetargetCd = 25;
+    }
+
     // ---- DANGER AVOIDANCE: boss beams ----
     if (bossBeams && bossBeams.length > 0 && !this.isBoss) {
       for (const beam of bossBeams) {
@@ -2114,7 +2133,7 @@ class Fighter {
 
     // ---- KOTH: bots rush the zone; only fight if an enemy is also in the zone ----
     if (gameMode === 'minigames' && minigameType === 'koth' && !this.isBoss) {
-      const kothSpd     = this.aiDiff === 'easy' ? 2.6 : this.aiDiff === 'medium' ? 4.2 : 5.8;
+      const kothSpd     = this.aiDiff === 'easy' ? 3.8 : this.aiDiff === 'medium' ? 4.8 : 5.8;
       const kothAtkFreq = this.aiDiff === 'easy' ? 0.04 : this.aiDiff === 'medium' ? 0.16 : 0.28;
       const kothAbiFreq = this.aiDiff === 'easy' ? 0.004 : this.aiDiff === 'medium' ? 0.022 : 0.04;
       const zoneLeft  = kothZoneX - 100;
@@ -2135,7 +2154,7 @@ class Fighter {
         } else {
           const kdir = kothZoneX > this.cx() ? 1 : -1;
           this.vx = kdir * kothSpd * 1.1;
-          if (this.onGround && Math.random() < 0.05) this.vy = -18;
+          if (this.onGround && !this.isEdgeDanger(kdir) && Math.random() < 0.05) this.vy = -18;
           else if (this.canDoubleJump && this.vy > 1 && Math.random() < 0.08) { this.vy = -14; this.canDoubleJump = false; }
         }
         return; // never leave zone logic — skip all other AI this frame
@@ -2413,7 +2432,7 @@ class Fighter {
         }
         const forceDir = Math.sign(t.cx() - this.cx());
         if (!this.isEdgeDanger(forceDir)) this.vx = forceDir * spd * 1.5;
-        if (this.onGround && (this.platformAbove() || Math.random() < 0.35)) this.vy = -17;
+        if (this.onGround && !this.isEdgeDanger(dir) && (this.platformAbove() || Math.random() < 0.35)) this.vy = -17;
         if (this.cooldown <= 0 && d < this.weapon.range * 1.5 + 35) this.attack(t);
         return;
       }
@@ -2817,6 +2836,13 @@ class Fighter {
       ctx.shadowBlur  = attacking ? Math.max(15, 18 + pulse * 8) : 5 + pulse * 5;
     }
 
+    // Weapon theme: override glow colour when a cosmetic theme is active
+    if (!overrideKey && this.weaponTheme && typeof WEAPON_THEMES !== 'undefined' && WEAPON_THEMES[this.weaponTheme]) {
+      const pulse = 0.5 + 0.5 * Math.sin(frameCount * 0.12 + (this.playerNum || 0));
+      ctx.shadowColor = WEAPON_THEMES[this.weaponTheme];
+      ctx.shadowBlur  = attacking ? Math.max(18, 22 + pulse * 10) : 7 + pulse * 7;
+    }
+
     if (k === 'sword') {
       ctx.strokeStyle = '#cccccc';
       ctx.lineWidth   = 3;
@@ -3183,6 +3209,26 @@ class Fighter {
       ctx.font        = '9px Arial';
       ctx.textAlign   = 'center';
       ctx.fillText('🛡', this.cx(), this.y - 35);
+      ctx.restore();
+    }
+
+    // ── Echo red tint (Damnation arc) ─────────────────────────────
+    if (this.isEcho && damnationActive) {
+      ctx.save();
+      ctx.globalCompositeOperation = 'multiply';
+      ctx.globalAlpha = 0.45;
+      ctx.fillStyle   = '#ff2200';
+      ctx.fillRect(this.x - 4, this.y - 4, this.w + 8, this.h + 8);
+      ctx.restore();
+    }
+
+    // ── Damnation scar ghost trail (player who survived the loop) ─
+    if (this._hasDamnationScar && !this.isEcho) {
+      ctx.save();
+      ctx.globalAlpha = 0.07;
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.fillStyle = '#cc2200';
+      ctx.fillRect(this.x - 3, this.y - 3, this.w + 6, this.h + 6);
       ctx.restore();
     }
 

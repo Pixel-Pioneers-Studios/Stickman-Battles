@@ -52,7 +52,7 @@ STORY_CHAPTER_REGISTRY.push(
     opponentName: 'Shadow Warden', weaponKey: 'sword', classKey: 'ninja', aiDiff: 'expert', opponentColor: '#9900ff',
     armor: ['helmet', 'chestplate', 'leggings'],
     playerLives: 1,
-    arena: 'city',
+    arena: 'space',
     tokenReward: 65,
     blueprintDrop: null,
     postText: 'The Warden stops moving. Stands still. "You found me," it says. "That has never happened." It steps aside. The fracture opens. You walk through.',

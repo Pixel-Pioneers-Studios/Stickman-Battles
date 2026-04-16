@@ -30,11 +30,25 @@
         <div class="config-row" style="align-items:center; gap:6px;">
           <label>Skin</label>
           <div style="display:flex; gap:5px;">
-            <button class="skin-swatch active" data-pid="p1" data-skin="default" onclick="setSkin('p1','default',this)" style="background:#00d4ff" title="Default"></button>
-            <button class="skin-swatch" data-pid="p1" data-skin="fire"   onclick="setSkin('p1','fire',this)"   style="background:#ff4400" title="Fire"></button>
-            <button class="skin-swatch" data-pid="p1" data-skin="ice"    onclick="setSkin('p1','ice',this)"    style="background:#44aaff" title="Ice"></button>
-            <button class="skin-swatch" data-pid="p1" data-skin="shadow" onclick="setSkin('p1','shadow',this)" style="background:#222233" title="Shadow"></button>
-            <button class="skin-swatch" data-pid="p1" data-skin="gold"   onclick="setSkin('p1','gold',this)"   style="background:#cc8800" title="Gold"></button>
+            <button class="skin-swatch active" data-pid="p1" data-skin="default" data-cosid="skin_default" onclick="setSkin('p1','default',this)" style="background:#00d4ff" title="Default"></button>
+            <button class="skin-swatch" data-pid="p1" data-skin="fire"   data-cosid="skin_fire"   onclick="setSkin('p1','fire',this)"   style="background:#ff4400" title="Fire"></button>
+            <button class="skin-swatch" data-pid="p1" data-skin="ice"    data-cosid="skin_ice"    onclick="setSkin('p1','ice',this)"    style="background:#44aaff" title="Ice"></button>
+            <button class="skin-swatch" data-pid="p1" data-skin="shadow" data-cosid="skin_shadow" onclick="setSkin('p1','shadow',this)" style="background:#222233" title="Shadow"></button>
+            <button class="skin-swatch" data-pid="p1" data-skin="gold"   data-cosid="skin_gold"   onclick="setSkin('p1','gold',this)"   style="background:#cc8800" title="Gold"></button>
+            <button class="skin-swatch" data-pid="p1" data-skin="void"   data-cosid="skin_void"   onclick="if(isCosmeticUnlocked('skin_void'))setSkin('p1','void',this);else openStore()" style="background:#7700cc" title="Void (150⬡)"></button>
+            <button class="skin-swatch" data-pid="p1" data-skin="neon"   data-cosid="skin_neon"   onclick="if(isCosmeticUnlocked('skin_neon'))setSkin('p1','neon',this);else openStore()" style="background:#00ff88" title="Neon (100⬡)"></button>
+          </div>
+        </div>
+        <div class="config-row" style="align-items:center; gap:6px;">
+          <label>Weapon</label>
+          <div style="display:flex; gap:5px;">
+            <button class="wskin-swatch active" data-pid="p1" data-wskin="default" data-cosid="wskin_default" onclick="setWeaponSkin('p1','default',this)" style="background:#888" title="Default"></button>
+            <button class="wskin-swatch" data-pid="p1" data-wskin="fire"   data-cosid="wskin_fire"   onclick="if(isCosmeticUnlocked('wskin_fire'))setWeaponSkin('p1','fire',this);else openStore()"   style="background:#ff5500" title="Inferno (50⬡)"></button>
+            <button class="wskin-swatch" data-pid="p1" data-wskin="ice"    data-cosid="wskin_ice"    onclick="if(isCosmeticUnlocked('wskin_ice'))setWeaponSkin('p1','ice',this);else openStore()"    style="background:#44aaff" title="Glacier (50⬡)"></button>
+            <button class="wskin-swatch" data-pid="p1" data-wskin="shadow" data-cosid="wskin_shadow" onclick="if(isCosmeticUnlocked('wskin_shadow'))setWeaponSkin('p1','shadow',this);else openStore()" style="background:#220033" title="Shadow (50⬡)"></button>
+            <button class="wskin-swatch" data-pid="p1" data-wskin="gold"   data-cosid="wskin_gold"   onclick="if(isCosmeticUnlocked('wskin_gold'))setWeaponSkin('p1','gold',this);else openStore()"   style="background:#ffaa00" title="Gilded (75⬡)"></button>
+            <button class="wskin-swatch" data-pid="p1" data-wskin="void"   data-cosid="wskin_void"   onclick="if(isCosmeticUnlocked('wskin_void'))setWeaponSkin('p1','void',this);else openStore()"   style="background:#aa00ff" title="Void (200⬡)"></button>
+            <button class="wskin-swatch" data-pid="p1" data-wskin="neon"   data-cosid="wskin_neon"   onclick="if(isCosmeticUnlocked('wskin_neon'))setWeaponSkin('p1','neon',this);else openStore()"   style="background:#00ff88" title="Neon (125⬡)"></button>
           </div>
         </div>
         <div class="config-row config-card-section">
@@ -113,6 +127,10 @@
     <h1 class="game-title">STICKMAN BATTLES</h1>
     <p class="game-subtitle">Local Multiplayer Platform Fighter</p>
     <p id="gameVersionLabel" style="font-size:0.65rem;color:rgba(255,255,255,0.25);letter-spacing:1px;margin:-6px 0 4px;text-align:center;">v2.6.0</p>
+    <!-- Store button -->
+    <div style="text-align:center;margin:2px 0 4px;">
+      <button class="btn" onclick="openStore()" style="font-size:0.72rem;padding:3px 14px;background:rgba(255,180,0,0.15);border-color:rgba(255,180,0,0.45);color:#ffcc66;">🏪 Store <span id="coinDisplay" style="color:#ffdd44;font-weight:bold;"></span></button>
+    </div>
 
     <!-- TRUE FORM HINT — hidden once unlocked -->
     <div id="trueFormHint" style="text-align:center;margin:0;font-size:0.68rem;color:#886699;letter-spacing:1px;opacity:0.8;overflow:visible;">
@@ -217,20 +235,59 @@
             <span style="color:#556;">No public rooms found. Refresh or create one!</span>
           </div>
         </div>
-        <!-- Game mode selector — only visible to the host (slot 1) after joining -->
-        <div id="onlineGameModeRow" style="display:none; flex-direction:column; gap:4px;">
+        <!-- Game mode selector — only visible to the host after joining -->
+        <div id="onlineGameModeRow" style="display:none; flex-direction:column; gap:6px;">
           <div style="color:#88ccff; font-size:0.72rem;">Game Mode (host picks)</div>
           <div style="display:flex; gap:5px; flex-wrap:wrap;">
-            <button class="btn active" data-mode="2p" onclick="setOnlineGameMode('2p')" style="font-size:0.72rem; padding:3px 9px;">1v1</button>
-            <button class="btn" data-mode="boss" onclick="setOnlineGameMode('boss')" style="font-size:0.72rem; padding:3px 9px;">Boss</button>
-            <button class="btn" data-mode="minigames" onclick="setOnlineGameMode('minigames')" style="font-size:0.72rem; padding:3px 9px;">Minigames</button>
-            <button class="btn" data-mode="training" onclick="setOnlineGameMode('training')" style="font-size:0.72rem; padding:3px 9px;">Training</button>
+            <button class="btn active" data-onlinemode="2p" onclick="setOnlineGameMode('2p')" style="font-size:0.72rem; padding:3px 9px;">1v1</button>
+            <button class="btn" data-onlinemode="boss" onclick="setOnlineGameMode('boss')" style="font-size:0.72rem; padding:3px 9px;">Boss (2P)</button>
+            <button class="btn" data-onlinemode="trueform" onclick="setOnlineGameMode('trueform')" style="font-size:0.72rem; padding:3px 9px;">True Form</button>
+            <button class="btn" data-onlinemode="minigames" onclick="setOnlineGameMode('minigames')" style="font-size:0.72rem; padding:3px 9px;">Minigames</button>
+            <button class="btn" data-onlinemode="training" onclick="setOnlineGameMode('training')" style="font-size:0.72rem; padding:3px 9px;">Training</button>
           </div>
-          <div style="color:#88ccff; font-size:0.72rem; margin-top:4px;">Large Online Maps (host picks):</div>
-          <div style="display:flex; gap:5px; flex-wrap:wrap;">
-            <button onclick="selectOnlineArena('megacity')" class="btn" style="font-size:0.72rem;padding:3px 9px;">Mega City</button>
-            <button onclick="selectOnlineArena('warpzone')" class="btn" style="font-size:0.72rem;padding:3px 9px;">Warp Zone</button>
-            <button onclick="selectOnlineArena('colosseum10')" class="btn" style="font-size:0.72rem;padding:3px 9px;">Grand Colosseum</button>
+          <!-- Minigame type row — shown only when minigames mode selected -->
+          <div id="onlineMinigameRow" style="display:none; flex-direction:column; gap:3px;">
+            <div style="color:#88ccff; font-size:0.72rem;">Minigame Type</div>
+            <div style="display:flex; gap:5px; flex-wrap:wrap;">
+              <button class="btn active" data-onlinemg="survival" onclick="setOnlineMinigame('survival')" style="font-size:0.72rem;padding:3px 9px;">Survival</button>
+              <button class="btn" data-onlinemg="koth" onclick="setOnlineMinigame('koth')" style="font-size:0.72rem;padding:3px 9px;">King of the Hill</button>
+              <button class="btn" data-onlinemg="chaos" onclick="setOnlineMinigame('chaos')" style="font-size:0.72rem;padding:3px 9px;">Chaos Match</button>
+            </div>
+          </div>
+          <!-- Lives selector -->
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span style="color:#88ccff; font-size:0.72rem;">Lives:</span>
+            <div style="display:flex; gap:4px;">
+              <button class="btn" data-onlinelives="1" onclick="setOnlineLives(1)" style="font-size:0.72rem;padding:3px 8px;">1</button>
+              <button class="btn" data-onlinelives="2" onclick="setOnlineLives(2)" style="font-size:0.72rem;padding:3px 8px;">2</button>
+              <button class="btn active" data-onlinelives="3" onclick="setOnlineLives(3)" style="font-size:0.72rem;padding:3px 8px;">3</button>
+              <button class="btn" data-onlinelives="5" onclick="setOnlineLives(5)" style="font-size:0.72rem;padding:3px 8px;">5</button>
+            </div>
+          </div>
+          <!-- Arena selector -->
+          <div style="color:#88ccff; font-size:0.72rem; margin-top:2px;">Map (host picks):</div>
+          <div style="display:flex; gap:4px; flex-wrap:wrap;">
+            <button onclick="selectOnlineArena('random')" class="btn active" data-onlinearena="random" style="font-size:0.70rem;padding:3px 8px;">Random</button>
+            <button onclick="selectOnlineArena('grass')" class="btn" data-onlinearena="grass" style="font-size:0.70rem;padding:3px 8px;">Grass</button>
+            <button onclick="selectOnlineArena('lava')" class="btn" data-onlinearena="lava" style="font-size:0.70rem;padding:3px 8px;">Lava</button>
+            <button onclick="selectOnlineArena('space')" class="btn" data-onlinearena="space" style="font-size:0.70rem;padding:3px 8px;">Space</button>
+            <button onclick="selectOnlineArena('city')" class="btn" data-onlinearena="city" style="font-size:0.70rem;padding:3px 8px;">City</button>
+            <button onclick="selectOnlineArena('forest')" class="btn" data-onlinearena="forest" style="font-size:0.70rem;padding:3px 8px;">Forest</button>
+            <button onclick="selectOnlineArena('ice')" class="btn" data-onlinearena="ice" style="font-size:0.70rem;padding:3px 8px;">Ice</button>
+            <button onclick="selectOnlineArena('ruins')" class="btn" data-onlinearena="ruins" style="font-size:0.70rem;padding:3px 8px;">Ruins</button>
+            <button onclick="selectOnlineArena('cave')" class="btn" data-onlinearena="cave" style="font-size:0.70rem;padding:3px 8px;">Cave</button>
+            <button onclick="selectOnlineArena('mirror')" class="btn" data-onlinearena="mirror" style="font-size:0.70rem;padding:3px 8px;">Mirror</button>
+            <button onclick="selectOnlineArena('underwater')" class="btn" data-onlinearena="underwater" style="font-size:0.70rem;padding:3px 8px;">Underwater</button>
+            <button onclick="selectOnlineArena('volcano')" class="btn" data-onlinearena="volcano" style="font-size:0.70rem;padding:3px 8px;">Volcano</button>
+            <button onclick="selectOnlineArena('colosseum')" class="btn" data-onlinearena="colosseum" style="font-size:0.70rem;padding:3px 8px;">Colosseum</button>
+            <button onclick="selectOnlineArena('cyberpunk')" class="btn" data-onlinearena="cyberpunk" style="font-size:0.70rem;padding:3px 8px;">Cyberpunk</button>
+            <button onclick="selectOnlineArena('haunted')" class="btn" data-onlinearena="haunted" style="font-size:0.70rem;padding:3px 8px;">Haunted</button>
+            <button onclick="selectOnlineArena('clouds')" class="btn" data-onlinearena="clouds" style="font-size:0.70rem;padding:3px 8px;">Clouds</button>
+            <button onclick="selectOnlineArena('neonGrid')" class="btn" data-onlinearena="neonGrid" style="font-size:0.70rem;padding:3px 8px;">Neon Grid</button>
+            <button onclick="selectOnlineArena('mushroom')" class="btn" data-onlinearena="mushroom" style="font-size:0.70rem;padding:3px 8px;">Mushroom</button>
+            <button onclick="selectOnlineArena('megacity')" class="btn" data-onlinearena="megacity" style="font-size:0.70rem;padding:3px 8px;">Mega City</button>
+            <button onclick="selectOnlineArena('warpzone')" class="btn" data-onlinearena="warpzone" style="font-size:0.70rem;padding:3px 8px;">Warp Zone</button>
+            <button onclick="selectOnlineArena('colosseum10')" class="btn" data-onlinearena="colosseum10" style="font-size:0.70rem;padding:3px 8px;">Grand Colosseum</button>
           </div>
         </div>
         <div id="onlineStatus" style="font-size:0.72rem; color:#aab; min-height:18px;"></div>
@@ -414,14 +471,6 @@
                 <input type="checkbox" id="settingPhaseFlash" checked onchange="updateSettings()">
                 <span>Phase Flash</span>
               </label>
-              <label class="setting-item" id="setting3DRow" style="display:none;" title="Unlocked by defeating the True Form boss">
-                <input type="checkbox" id="setting3DView" onchange="updateSettings()">
-                <span style="color:#cc88ff;">3D View ✦</span>
-              </label>
-              <label class="setting-item" id="settingExp3DRow" title="Experimental: enhanced dimension-break visuals during True Form ending. May cause seizure-like flashing.">
-                <input type="checkbox" id="settingExp3D" onchange="updateSettings()">
-                <span style="color:#ff88cc;">Experimental 3D Mode ⚠</span>
-              </label>
             </div>
           </div>
         </div>
@@ -440,6 +489,7 @@
         <div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap;">
           <button class="btn settings-toggle" onclick="toggleStatsLog()">Stats Log</button>
           <button class="btn settings-toggle" onclick="showAchievementsModal()" style="color:#ffcc00;border-color:rgba(255,200,0,0.4);">🏆 Achievements</button>
+          <button class="btn settings-toggle" onclick="openAccountsModal()" style="color:#aaddff;border-color:rgba(100,180,255,0.4);">👤 Accounts</button>
           <button class="btn settings-toggle" onclick="document.getElementById('resetConfirmRow').style.display='block'" style="color:#ff8888;border-color:rgba(255,80,80,0.4);">Reset Progress</button>
         </div>
         <!-- SAVE EXPORT / IMPORT -->
@@ -516,11 +566,25 @@
         <div class="config-row" id="p2SkinRow" style="align-items:center; gap:6px;">
           <label>Skin</label>
           <div style="display:flex; gap:5px;">
-            <button class="skin-swatch active" data-pid="p2" data-skin="default" onclick="setSkin('p2','default',this)" style="background:#ff4455" title="Default"></button>
-            <button class="skin-swatch" data-pid="p2" data-skin="fire"   onclick="setSkin('p2','fire',this)"   style="background:#ff4400" title="Fire"></button>
-            <button class="skin-swatch" data-pid="p2" data-skin="ice"    onclick="setSkin('p2','ice',this)"    style="background:#44aaff" title="Ice"></button>
-            <button class="skin-swatch" data-pid="p2" data-skin="shadow" onclick="setSkin('p2','shadow',this)" style="background:#222233" title="Shadow"></button>
-            <button class="skin-swatch" data-pid="p2" data-skin="gold"   onclick="setSkin('p2','gold',this)"   style="background:#cc8800" title="Gold"></button>
+            <button class="skin-swatch active" data-pid="p2" data-skin="default" data-cosid="skin_default" onclick="setSkin('p2','default',this)" style="background:#ff4455" title="Default"></button>
+            <button class="skin-swatch" data-pid="p2" data-skin="fire"   data-cosid="skin_fire"   onclick="setSkin('p2','fire',this)"   style="background:#ff4400" title="Fire"></button>
+            <button class="skin-swatch" data-pid="p2" data-skin="ice"    data-cosid="skin_ice"    onclick="setSkin('p2','ice',this)"    style="background:#44aaff" title="Ice"></button>
+            <button class="skin-swatch" data-pid="p2" data-skin="shadow" data-cosid="skin_shadow" onclick="setSkin('p2','shadow',this)" style="background:#222233" title="Shadow"></button>
+            <button class="skin-swatch" data-pid="p2" data-skin="gold"   data-cosid="skin_gold"   onclick="setSkin('p2','gold',this)"   style="background:#cc8800" title="Gold"></button>
+            <button class="skin-swatch" data-pid="p2" data-skin="void"   data-cosid="skin_void"   onclick="if(isCosmeticUnlocked('skin_void'))setSkin('p2','void',this);else openStore()" style="background:#7700cc" title="Void (150⬡)"></button>
+            <button class="skin-swatch" data-pid="p2" data-skin="neon"   data-cosid="skin_neon"   onclick="if(isCosmeticUnlocked('skin_neon'))setSkin('p2','neon',this);else openStore()" style="background:#00ff88" title="Neon (100⬡)"></button>
+          </div>
+        </div>
+        <div class="config-row" id="p2WeaponSkinRow" style="align-items:center; gap:6px;">
+          <label>Weapon</label>
+          <div style="display:flex; gap:5px;">
+            <button class="wskin-swatch active" data-pid="p2" data-wskin="default" data-cosid="wskin_default" onclick="setWeaponSkin('p2','default',this)" style="background:#888" title="Default"></button>
+            <button class="wskin-swatch" data-pid="p2" data-wskin="fire"   data-cosid="wskin_fire"   onclick="if(isCosmeticUnlocked('wskin_fire'))setWeaponSkin('p2','fire',this);else openStore()"   style="background:#ff5500" title="Inferno (50⬡)"></button>
+            <button class="wskin-swatch" data-pid="p2" data-wskin="ice"    data-cosid="wskin_ice"    onclick="if(isCosmeticUnlocked('wskin_ice'))setWeaponSkin('p2','ice',this);else openStore()"    style="background:#44aaff" title="Glacier (50⬡)"></button>
+            <button class="wskin-swatch" data-pid="p2" data-wskin="shadow" data-cosid="wskin_shadow" onclick="if(isCosmeticUnlocked('wskin_shadow'))setWeaponSkin('p2','shadow',this);else openStore()" style="background:#220033" title="Shadow (50⬡)"></button>
+            <button class="wskin-swatch" data-pid="p2" data-wskin="gold"   data-cosid="wskin_gold"   onclick="if(isCosmeticUnlocked('wskin_gold'))setWeaponSkin('p2','gold',this);else openStore()"   style="background:#ffaa00" title="Gilded (75⬡)"></button>
+            <button class="wskin-swatch" data-pid="p2" data-wskin="void"   data-cosid="wskin_void"   onclick="if(isCosmeticUnlocked('wskin_void'))setWeaponSkin('p2','void',this);else openStore()"   style="background:#aa00ff" title="Void (200⬡)"></button>
+            <button class="wskin-swatch" data-pid="p2" data-wskin="neon"   data-cosid="wskin_neon"   onclick="if(isCosmeticUnlocked('wskin_neon'))setWeaponSkin('p2','neon',this);else openStore()"   style="background:#00ff88" title="Neon (125⬡)"></button>
           </div>
         </div>
         <div class="config-row config-card-section" id="p2WeaponRow">
@@ -1004,6 +1068,8 @@
   <script src="./js/smb-pathfinding.js"></script>
   <!-- Fighter base class -->
   <script src="./js/smb-fighter.js"></script>
+  <!-- Modular combat AI: CombatSystem, MovementSystem, AIController, CombatAIFighter -->
+  <script src="./js/smb-combat-ai.js"></script>
   <!-- Enemy NPCs, training mode -->
   <script src="./js/smb-enemies.js"></script>
   <!-- Boss and True Form -->
@@ -1038,10 +1104,19 @@
   <script src="./js/smb-menu.js"></script>
   <!-- Network / online multiplayer -->
   <script src="./js/smb-network.js"></script>
+  <!-- Centralized runtime state (accounts, admin overrides, online session) -->
+  <!-- Must load before smb-online.js, smb-accounts.js, and smb-admin.js -->
+  <script src="./js/smb-state.js"></script>
+  <!-- Lobby presence layer — wraps NetworkManager with lobby API + UI -->
+  <script src="./js/smb-online.js"></script>
   <!-- Developer debug toolkit (loaded last so all systems exist) -->
   <script src="./js/smb-debug.js"></script>
+  <!-- Account system — must load before smb-save.js so getSaveKey() works -->
+  <script src="./js/smb-accounts.js"></script>
   <!-- Save / Export / Import system -->
   <script src="./js/smb-save.js"></script>
+  <!-- Admin control panel — F9 to toggle; only visible for accounts in ADMIN_IDS -->
+  <script src="./js/smb-admin.js"></script>
   <!-- Attack Test Sandbox — dev tool (type "atk help" in the game console) -->
   <script src="./js/smb-attacktest.js"></script>
   <!-- Story Mode system -->
@@ -1061,6 +1136,7 @@
   <script src="./js/story/acts/act4/smb-act4-arc2.js"></script>
   <script src="./js/story/acts/act5/smb-act5-arc1.js"></script>
   <script src="./js/story/acts/act5/smb-act5-arc2.js"></script>
+  <script src="./js/story/acts/act5/smb-act5-arc-damnation.js"></script>
   <script src="./js/story/acts/act6/smb-act6-arc1.js"></script>
   <script src="./js/story/acts/act6/smb-act6-arc2.js"></script>
   <script src="./js/story/acts/side/smb-lab-infiltration.js"></script>
@@ -1075,6 +1151,8 @@
   <script src="./js/smb-multiplayer-chaos.js"></script>
   <!-- Map & Weapon Designer (standalone tool) -->
   <script src="./js/smb-designer.js"></script>
+  <!-- Test harness — only active when window.DEBUG_MODE = true -->
+  <script src="./js/smb-test-tools.js"></script>
 
   <!-- YouTube IFrame API for background music (HTTP/HTTPS only — skipped on file://) -->
   <div id="ytBossPlayer"    style="position:fixed;width:1px;height:1px;opacity:0;pointer-events:none;left:-9999px;top:-9999px;"></div>
@@ -1421,6 +1499,37 @@ document.addEventListener('keydown', function(e) {
   @keyframes splashPulse {
     0%,100% { opacity:0.35; } 50% { opacity:0.85; }
   }
+  /* Changelog spoiler glitch effect */
+  @keyframes clgGlitch {
+    0%   { transform:translate(0,0);      clip-path:inset(0 0 0 0);          opacity:0.70; }
+    8%   { transform:translate(-2px,0);   clip-path:inset(30% 0 40% 0);      opacity:0.55; }
+    16%  { transform:translate(1px,-1px); clip-path:inset(70% 0 10% 0);      opacity:0.80; }
+    24%  { transform:translate(-1px,1px); clip-path:inset(10% 0 70% 0);      opacity:0.60; }
+    32%  { transform:translate(2px,0);    clip-path:inset(50% 0 20% 0);      opacity:0.70; }
+    40%  { transform:translate(0,0);      clip-path:inset(0 0 0 0);          opacity:0.65; }
+    100% { transform:translate(0,0);      clip-path:inset(0 0 0 0);          opacity:0.70; }
+  }
+  .clg-spoiler {
+    display:inline-block;
+    color:#1e3a6e;
+    font-family:monospace;
+    letter-spacing:0.5px;
+    animation:clgGlitch 4s infinite;
+    cursor:default;
+    user-select:none;
+    position:relative;
+  }
+  .clg-spoiler::after {
+    content:'[REDACTED]';
+    position:absolute;
+    right:-64px;
+    top:0;
+    font-size:0.6rem;
+    color:#2a4580;
+    letter-spacing:2px;
+    opacity:0.5;
+    pointer-events:none;
+  }
 </style>
 <script>
 (function() {
@@ -1573,6 +1682,24 @@ document.addEventListener('keydown', function(e) {
         Import
       </button>
     </div>
+  </div>
+</div>
+
+<!-- ============================================================
+     COSMETIC STORE MODAL
+     ============================================================ -->
+<div id="cosmeticStore" style="display:none;position:fixed;inset:0;z-index:700;align-items:center;justify-content:center;background:rgba(0,0,0,0.75);">
+  <div style="background:#0d0d1a;border:1px solid rgba(255,180,0,0.4);border-radius:14px;padding:20px 24px;max-width:520px;width:92%;max-height:80vh;overflow-y:auto;box-shadow:0 0 40px rgba(255,180,0,0.15);">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+      <h2 style="color:#ffcc66;font-size:1.1rem;margin:0;">🏪 Cosmetic Store</h2>
+      <div style="display:flex;align-items:center;gap:12px;">
+        <span id="storeCoinBalance" style="color:#ffdd44;font-weight:bold;font-size:0.9rem;">0 ⬡</span>
+        <button onclick="closeStore()" style="background:none;border:none;color:#888;font-size:1.2rem;cursor:pointer;">✕</button>
+      </div>
+    </div>
+    <p style="color:#888;font-size:0.72rem;margin:0 0 10px;">Earn ⬡ coins by playing matches (5 per match, +10 for winning, +20 for beating boss).</p>
+    <p id="storeMsg" style="font-size:0.75rem;min-height:1em;margin:0 0 8px;"></p>
+    <div id="storeGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px;"></div>
   </div>
 </div>
 

@@ -775,6 +775,50 @@ function checkDeaths() {
         continue;
       }
 
+      // Damnation echo death: drop anchor orb, advance wave — do NOT trigger cinematic death scenes
+      if (damnationActive && p.isBoss && p.isEcho && p.invincible === 0) {
+        spawnParticles(p.cx(), p.cy(), p.color, 30);
+        if (!p.ragdollTimer) { p.ragdollTimer = 45; p.ragdollSpin = (Math.random() - 0.5) * 0.25; }
+        if (!p._anchorDropped) {
+          p._anchorDropped = true;
+          damnationAnchorOrbs.push({ x: p.cx(), y: p.y + p.h / 2, frame: 0 });
+        }
+        p.invincible = 999;
+        damnationCheckpoint = Math.max(damnationCheckpoint, damnationWave);
+        damnationWave++;
+        // Spawn next wave (wave 3: TrueForm echo)
+        if (typeof spawnDamnationWave === 'function') spawnDamnationWave();
+        continue;
+      }
+
+      // Damnation human death: lose a platform, not a life
+      if (damnationActive && !p.isBoss && !p.isEcho) {
+        damnationDeaths++;
+        SoundManager.death();
+        spawnParticles(p.cx(), p.cy(), p.color, 20);
+        if (!p.ragdollTimer) { p.ragdollTimer = 45; p.ragdollSpin = (Math.random() - 0.5) * 0.25; }
+        // Remove the next platform in sequence
+        if (damnationDeaths <= damnationRemovalOrder.length && currentArena) {
+          const removeIdx = damnationRemovalOrder[damnationDeaths - 1];
+          if (currentArena.platforms[removeIdx]) {
+            currentArena.platforms[removeIdx].isFloorDisabled = true;
+            if (typeof SoundManager !== 'undefined' && SoundManager.explosion) SoundManager.explosion();
+          }
+        }
+        if (damnationDeaths >= 4) {
+          // Total Erasure: fail condition
+          damnationActive = false;
+          if (typeof endGame === 'function') endGame(0); // player 0 = no winner (loss)
+          continue;
+        }
+        p.invincible = 120;
+        const spawnPl = currentArena && currentArena.platforms.find(pl => pl.isFloor && !pl.isFloorDisabled);
+        const spawnX = spawnPl ? spawnPl.x + spawnPl.w / 2 : GAME_W / 2;
+        const spawnY = spawnPl ? spawnPl.y - 60 : 400;
+        p.x = spawnX - p.w / 2; p.y = spawnY; p.vx = 0; p.vy = 0; p.health = p.maxHealth;
+        continue;
+      }
+
       // Boss defeat: trigger cinematic scene instead of normal death
       // True Form ending fires at 10% HP threshold (not on actual death)
       if (p.isBoss && p.isTrueForm) {
@@ -992,7 +1036,11 @@ function endGame() {
     const other = players.find(p => p !== _firstDeathPlayer && !p.isBoss);
     if (other) _tiebreakWinner = other;
   }
+  // KotH win is determined by zone-time (kothWinnerIdx), not by lives
+  const _kothWin = gameMode === 'minigames' && minigameType === 'koth' && typeof kothWinnerIdx !== 'undefined' && kothWinnerIdx >= 0
+    ? players[kothWinnerIdx] || null : null;
   const winner = bossDefeated                              ? null   // human win — handled in bossDefeated block
+               : _kothWin                                  ? _kothWin
                : (storyTwoEnemies && _aliveHuman)          ? _aliveHuman
                : alive.length === 1                        ? alive[0]
                : (alive.length === 0 && isBossModeEnd)     ? bossEntity
@@ -1007,6 +1055,19 @@ function endGame() {
   // so use a sentinel achiever object for boss-defeat achievements if no human ref available
   const _bossDefeatedAchiever = bossDefeated ? (alive[0] || { isBoss: false, health: 1, maxHealth: 1, weaponKey: null, kills: 0 }) : null;
   const achievWinner = _anyCustomWeapon ? null : (winner || _bossDefeatedAchiever);
+
+  // ── Coin rewards ──────────────────────────────────────────────────────────
+  if (typeof awardCoins === 'function') {
+    const _humanPlayers = players.filter(p => !p.isAI && !p.isBoss);
+    if (_humanPlayers.length > 0) {
+      // Base: 5 coins per match played; bonus for winning or beating boss
+      let _coins = 5;
+      if (bossDefeated) _coins += 20;
+      else if (winner && !winner.isAI && !winner.isBoss) _coins += 10;
+      awardCoins(_coins);
+    }
+  }
+
   if (achievWinner && !achievWinner.isBoss && !achievWinner.isAI) {
     _achStats.totalWins++;
     _achStats.winStreak++;
@@ -1027,9 +1088,7 @@ function endGame() {
     if (_achStats.superCount >= 10) unlockAchievement('super_saver');
     // Hammer-only win
     if (achievWinner.weaponKey === 'hammer') unlockAchievement('hammer_time');
-    // Boss slayer
-    if (isBossModeEnd && gameMode === 'boss') unlockAchievement('boss_slayer');
-    if (isBossModeEnd && gameMode === 'trueform') unlockAchievement('true_form');
+    // Boss slayer achievements are intentionally unobtainable
     // SOVEREIGN beaten — unlock the SOVEREIGN mode card
     if (gameMode === 'adaptive' && !localStorage.getItem('smc_sovereignBeaten')) {
       localStorage.setItem('smc_sovereignBeaten', '1');
@@ -1305,7 +1364,8 @@ function updateHUD() {
         // Boss: show a phase indicator instead of hearts
         const phase = p.getPhase ? p.getPhase() : 1;
         lEl.innerHTML = `<span style="font-size:10px;letter-spacing:1px;color:#cc00ee">PHASE ${phase}</span>`;
-      } else if (infiniteMode || p.isDummy || p.lives >= 50) {
+      } else if (infiniteMode || p.isDummy || p.lives >= 50 ||
+                 (gameMode === 'minigames' && (minigameType === 'survival' || minigameType === 'koth' || minigameType === 'chaos'))) {
         lEl.innerHTML = '∞';
       } else {
         const capped    = Math.min(p.lives, 10);
@@ -1764,5 +1824,101 @@ function drawBossDialogue(scX, scY, camX, camY) {
     const ty = ry + padY + lineH * (i + 0.5);
     ctx.fillText(lines[i], bubbleCx, ty);
   }
+  ctx.restore();
+}
+
+// ── Eternal Damnation visual effects ─────────────────────────────────────────
+
+function drawDamnationEffects() {
+  if (!damnationActive) return;
+  ctx.save();
+
+  // Heartbeat fog overlay — pulses red at the edges
+  const pulse = 0.08 + 0.06 * Math.sin(damnationPulse * Math.PI / 60);
+  const grad = ctx.createRadialGradient(GAME_W / 2, GAME_H / 2, GAME_H * 0.3, GAME_W / 2, GAME_H / 2, GAME_H * 0.9);
+  grad.addColorStop(0, 'rgba(0,0,0,0)');
+  grad.addColorStop(1, `rgba(180,0,0,${pulse.toFixed(3)})`);
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, GAME_W, GAME_H);
+
+  // Corner vignette
+  const corners = [
+    [0, 0], [GAME_W, 0], [0, GAME_H], [GAME_W, GAME_H]
+  ];
+  for (const [cx, cy] of corners) {
+    const cg = ctx.createRadialGradient(cx, cy, 0, cx, cy, GAME_H * 0.5);
+    cg.addColorStop(0, 'rgba(100,0,0,0.18)');
+    cg.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = cg;
+    ctx.fillRect(0, 0, GAME_W, GAME_H);
+  }
+
+  // Ghost platforms (show disabled platforms as faint outlines)
+  if (currentArena && currentArena.isDamnationArena) {
+    ctx.strokeStyle = 'rgba(255,34,0,0.18)';
+    ctx.lineWidth   = 1;
+    ctx.setLineDash([4, 4]);
+    for (const pl of currentArena.platforms) {
+      if (pl.isFloor) continue;
+      if (pl.isFloorDisabled) {
+        ctx.strokeRect(pl.x, pl.y, pl.w, pl.h);
+      }
+    }
+    ctx.setLineDash([]);
+  }
+
+  // Deaths counter
+  const scarText = `FALLS: ${damnationDeaths}/4`;
+  ctx.font      = 'bold 13px monospace';
+  ctx.textAlign = 'right';
+  ctx.fillStyle = damnationDeaths >= 3 ? '#ff4444' : '#ff8844';
+  ctx.fillText(scarText, GAME_W - 12, 22);
+
+  // Anchors counter
+  const anchText = `ANCHORS: ${damnationAnchors}/8`;
+  ctx.textAlign  = 'right';
+  ctx.fillStyle  = '#ffaa44';
+  ctx.fillText(anchText, GAME_W - 12, 38);
+
+  // Portal
+  if (damnationPortalActive && damnationPortal) {
+    const pf    = damnationPortal.frame;
+    const alpha = Math.min(1, pf / 30);
+    const r     = 24 + 6 * Math.sin(pf * 0.08);
+    ctx.globalAlpha = alpha;
+    ctx.strokeStyle = '#88ffcc';
+    ctx.lineWidth   = 3;
+    ctx.shadowColor = '#88ffcc';
+    ctx.shadowBlur  = 18;
+    ctx.beginPath();
+    ctx.arc(damnationPortal.x, damnationPortal.y, r, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.font = 'bold 11px monospace';
+    ctx.fillStyle = '#88ffcc';
+    ctx.textAlign = 'center';
+    ctx.fillText('EXIT', damnationPortal.x, damnationPortal.y - r - 6);
+    ctx.shadowBlur = 0;
+    ctx.globalAlpha = 1;
+  }
+
+  ctx.restore();
+}
+
+function drawDamnationAnchors() {
+  if (!damnationActive || !damnationAnchorOrbs.length) return;
+  ctx.save();
+  for (const orb of damnationAnchorOrbs) {
+    const alpha = Math.min(1, orb.frame / 20);
+    const r     = 8 + 3 * Math.sin(orb.frame * 0.1);
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle   = '#ff8800';
+    ctx.shadowColor = '#ff4400';
+    ctx.shadowBlur  = 12;
+    ctx.beginPath();
+    ctx.arc(orb.x, orb.y, r, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.shadowBlur  = 0;
+  ctx.globalAlpha = 1;
   ctx.restore();
 }
