@@ -1221,12 +1221,14 @@ function drawCinematicLetterbox() {
 // ── Cinematic mode helpers ────────────────────────────────────────────────────
 function startCinematicMode() {
   if (typeof isCinematic !== 'undefined') isCinematic = true;
+  if (typeof setCombatLock === 'function') setCombatLock('cinematic');
   if (typeof cinematicLetterboxTarget !== 'undefined') cinematicLetterboxTarget = 1;
   // Hide debug overlays during cinematics
   if (typeof debugMode !== 'undefined') window._debugModePreCinematic = debugMode;
 }
 function endCinematicMode() {
   if (typeof isCinematic !== 'undefined') isCinematic = false;
+  if (typeof clearCombatLock === 'function') clearCombatLock('cinematic');
   if (typeof cinematicLetterboxTarget !== 'undefined') cinematicLetterboxTarget = 0;
   if (typeof window._debugModePreCinematic !== 'undefined') {
     if (typeof debugMode !== 'undefined') debugMode = window._debugModePreCinematic;

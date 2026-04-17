@@ -116,6 +116,10 @@ class Fighter {
     this._rangedStrafeDir   = 1;   // current strafe direction
     this._rangedStrafeTimer = 0;   // frames until next strafe direction flip
     this._rangedAimPause    = 0;   // frames spent aiming (standing still for accuracy)
+    // ── AI Intent buffer ─────────────────────────────────────────────────────
+    // Written by AI systems each tick; consumed by applyAIIntent().
+    // null between ticks (AI cleared it) or { vx, vy, jump } when pending.
+    this._aiIntent = null;
   }
 
   cx() { return this.x + this.w / 2; }
@@ -452,7 +456,12 @@ class Fighter {
 
     // AI: only update every AI_TICK_INTERVAL frames (smoother movement, less CPU)
     // _fusionAIOverride is handled by paradoxFusionUpdateAI() in the game loop — do NOT run stock AI
-    if (this.isAI && !this._fusionAIOverride && this.target && !activeCinematic && !(typeof isCutsceneActive === 'function' && isCutsceneActive()) && aiTick % AI_TICK_INTERVAL === 0) this.updateAI();
+    // combatLock.blocks.ai gates the whole update during finishers, QTEs, and cinematics
+    if (this.isAI && !this._fusionAIOverride && this.target &&
+        !activeCinematic &&
+        !(typeof isCutsceneActive === 'function' && isCutsceneActive()) &&
+        !(typeof isCombatLocked === 'function' && isCombatLocked('ai')) &&
+        aiTick % AI_TICK_INTERVAL === 0) this.updateAI();
 
       // ── Standard game physics ──
       // godmode cheat: free flight for human player

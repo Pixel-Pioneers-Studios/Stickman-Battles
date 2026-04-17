@@ -307,6 +307,8 @@ function _adminPanelIsAllowed() {
   if (!window.AccountManager) return false;
   const active = AccountManager.getActiveAccount();
   if (!active) return false;
+  // Role-based check first; fall back to legacy ADMIN_IDS for existing admins
+  if (typeof hasPermission === 'function' && hasPermission('admin')) return true;
   return _isAdmin(active.id);
 }
 

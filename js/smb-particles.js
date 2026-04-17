@@ -151,22 +151,26 @@ function dealDamage(attacker, target, dmg, kbForce, stunMult = 1.0, isSplash = f
     spawnParticles(target.cx(), target.cy(), '#88ddff', 6);
   } else {
     target.hurtTimer = 8;
+    // Hit confirmation flash: brief white overlay drawn over the target in the render loop
+    target._hitFlashTimer = actualDmg >= 22 ? 5 : 3;
     // Variable hitstop: light 2-4f, medium 4-7f, heavy 8-11f, cosmic(boss) 11-14f
+    // ±2 frame variance keeps each impact feeling distinct rather than metronomic.
     const _isCosmicHit = attacker && (attacker.isBoss || attacker.isTrueForm);
+    const _hsVar = Math.round((Math.random() - 0.5) * 4); // ±2 frames
     if (!target.isBoss) {
       if (_isCosmicHit && actualDmg >= 20) {
-        hitStopFrames = Math.min(14, Math.floor(actualDmg / 4) + 6);
+        hitStopFrames = Math.max(1, Math.min(16, Math.floor(actualDmg / 4) + 6 + _hsVar));
       } else if (actualDmg >= 30) {
-        hitStopFrames = Math.min(11, Math.floor(actualDmg / 6) + 5);
+        hitStopFrames = Math.max(1, Math.min(13, Math.floor(actualDmg / 6) + 5 + _hsVar));
       } else if (actualDmg >= 18) {
-        hitStopFrames = Math.min(7, Math.floor(actualDmg / 7) + 2);
+        hitStopFrames = Math.max(1, Math.min(9,  Math.floor(actualDmg / 7) + 2 + _hsVar));
       } else if (actualDmg >= 8) {
-        hitStopFrames = Math.min(4, Math.floor(actualDmg / 6) + 1);
+        hitStopFrames = Math.max(1, Math.min(6,  Math.floor(actualDmg / 6) + 1 + _hsVar));
       }
     } else {
       // Boss taking damage — lighter hitstop so boss doesn't feel stunned
-      if (actualDmg >= 30) hitStopFrames = Math.min(4, Math.floor(actualDmg / 22));
-      else if (actualDmg >= 15) hitStopFrames = 2;
+      if (actualDmg >= 30) hitStopFrames = Math.max(1, Math.min(5, Math.floor(actualDmg / 22) + (_hsVar > 1 ? 1 : 0)));
+      else if (actualDmg >= 15) hitStopFrames = _hsVar > 1 ? 3 : 2;
     }
     if (typeof setCameraDrama === 'function' && actualDmg > 22) {
       setCameraDrama('impact', 18);
@@ -323,6 +327,11 @@ function dealDamage(attacker, target, dmg, kbForce, stunMult = 1.0, isSplash = f
     target.vy = clamp(target.vy, -18, 18);
     if (Math.abs(target.vx) > 14 || Math.abs(target.vy) > 14)
       console.log('[KB] High velocity on', target.name || 'fighter', 'vx:', target.vx.toFixed(1), 'vy:', target.vy.toFixed(1), 'from actualKb:', actualKb.toFixed(1));
+    // Directional impact nudge: brief cosmetic draw-offset that decays over 4 frames.
+    // Purely visual — does not affect hitboxes, physics, or online sync.
+    if (!target.shielding) {
+      target._hitNudge = { x: dir * Math.min(4, 2 + Math.floor(actualDmg / 15)), t: 4 };
+    }
   }
   if (settings.screenShake) {
     // Scale shake with actual damage: light hits barely move, heavy hits punch hard

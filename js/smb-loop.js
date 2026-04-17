@@ -340,10 +340,11 @@ function updateCamera() {
   if (!_isDuel) {
     camZoomTarget = targetZoom;
     const dx = targetX - camXTarget, dy = targetY - camYTarget;
-    if (Math.hypot(dx, dy) > CAMERA_DEAD_ZONE) {
-      camXTarget = targetX;
-      camYTarget = targetY;
-    }
+    // Per-axis deadzone: decouple horizontal and vertical thresholds so that
+    // a jump doesn't trigger horizontal drift and a side-step doesn't pull the
+    // camera vertically. Tighter Y (16) keeps jumps tracked promptly.
+    if (Math.abs(dx) > 28) camXTarget = targetX;
+    if (Math.abs(dy) > 16) camYTarget = targetY;
 
     _updateCameraDrama();
 
@@ -1035,7 +1036,25 @@ function gameLoop(timestamp) {
       ctx.restore();
       return; // draw already called above
     }
-    p.draw();
+    // Hit nudge: directional visual recoil — linearly decays over 4 frames
+    if (p._hitNudge && p._hitNudge.t > 0) {
+      ctx.save();
+      ctx.translate(p._hitNudge.x * (p._hitNudge.t / 4), 0);
+      p.draw();
+      ctx.restore();
+      p._hitNudge.t--;
+    } else {
+      p.draw();
+    }
+    // Hit confirmation flash: brief white overlay sized to fighter bounding box
+    if (p._hitFlashTimer && p._hitFlashTimer > 0) {
+      p._hitFlashTimer--;
+      ctx.save();
+      ctx.globalAlpha = (p._hitFlashTimer / 5) * 0.38;
+      ctx.fillStyle   = '#ffffff';
+      ctx.fillRect(p.x - 1, p.y - 1, p.w + 2, p.h + 2);
+      ctx.restore();
+    }
   });
   // Chaos system: world-space draw (item drops, effect badges, platform effects)
   if (typeof chaosMode !== 'undefined' && chaosMode && typeof drawChaosWorldSpace === 'function') drawChaosWorldSpace();
@@ -1483,28 +1502,36 @@ document.addEventListener('keydown', e => {
     const incapacitated = p.ragdollTimer > 0 || p.stunTimer > 0;
     // Paradox Fusion: block all direct player actions while Paradox owns controls
     if (p._fusionAIOverride) return;
-    if (!incapacitated && _nk === p.controls.attack)  { e.preventDefault(); p.attack(other); }
-    if (!incapacitated && _nk === p.controls.ability) {
+    if (_nk === p.controls.attack) {
       e.preventDefault();
-      // Depth phase: Q = move toward background layer (-Z) instead of ability
+      if (!incapacitated) { p.attack(other); }
+      else { p._inputBuffer = { action: 'attack', frame: frameCount }; }
+    }
+    if (_nk === p.controls.ability) {
+      e.preventDefault();
+      // Depth phase: Q = move toward background layer (-Z) — not bufferable
       if (typeof tfDepthPhaseActive !== 'undefined' && tfDepthPhaseActive &&
           typeof tfDepthEnabled !== 'undefined' && tfDepthEnabled && !p.isAI) {
         p.z = Math.max(-1, (p.z || 0) - 0.3);
         spawnParticles(p.cx(), p.cy(), '#8844ff', 4);
-      } else {
+      } else if (!incapacitated) {
         p.ability(other);
+      } else {
+        p._inputBuffer = { action: 'ability', frame: frameCount };
       }
     }
-    if (!incapacitated && p.controls.super && _nk === p.controls.super) {
+    if (p.controls.super && _nk === p.controls.super) {
       e.preventDefault();
-      // Depth phase: E = move toward foreground layer (+Z) instead of super
+      // Depth phase: E = move toward foreground layer (+Z) — not bufferable
       if (typeof tfDepthPhaseActive !== 'undefined' && tfDepthPhaseActive &&
           typeof tfDepthEnabled !== 'undefined' && tfDepthEnabled && !p.isAI) {
         p.z = Math.min(1, (p.z || 0) + 0.3);
         spawnParticles(p.cx(), p.cy(), '#00aaff', 4);
-      } else {
+      } else if (!incapacitated) {
         checkSecretLetterCollect(p);
         p.useSuper(other);
+      } else {
+        p._inputBuffer = { action: 'super', frame: frameCount };
       }
     }
   });
@@ -1537,6 +1564,8 @@ function processInput() {
   if (gameFrozen) return;      // hard freeze during cinematics — halts all input
   if (tfAbsorptionScene) return; // freeze all input during absorption cinematic
   if (typeof isCutsceneActive === 'function' && isCutsceneActive()) return; // freeze during cutscenes
+  // Combat lock: highest-priority phase (cinematic/finisher) blocks all player input
+  if (typeof isCombatLocked === 'function' && isCombatLocked('input')) return;
   // Lock player input only after the 5-second free period has elapsed
   if (typeof tfOpeningFightActive !== 'undefined' && tfOpeningFightActive
       && (typeof _tfOpeningFreeFrames === 'undefined' || _tfOpeningFreeFrames <= 0)) return;
@@ -1635,7 +1664,27 @@ function processInput() {
   players.forEach(p => {
     if (p.isAI || p.health <= 0) return;
     if (p._fusionAIOverride) return; // Paradox Fusion: AI handles movement, skip keyboard input
-    if (p.ragdollTimer > 0 || p.stunTimer > 0) { p.shielding = false; return; }
+    if (p.ragdollTimer > 0 || p.stunTimer > 0) {
+      // Expire stale buffer so it can't fire far outside the intended window
+      if (p._inputBuffer && (frameCount - p._inputBuffer.frame) > 8) p._inputBuffer = null;
+      p.shielding = false;
+      return;
+    }
+    // Input buffer: if a buffered action was queued while incapacitated and the
+    // window (~133ms / 8 frames) hasn't expired, execute it now and clear.
+    if (p._inputBuffer) {
+      if ((frameCount - p._inputBuffer.frame) <= 8) {
+        const _buf      = p._inputBuffer;
+        const _pi       = players.indexOf(p);
+        const _bufOther = players[_pi === 0 ? 1 : 0];
+        p._inputBuffer  = null;
+        if      (_buf.action === 'attack')  p.attack(_bufOther);
+        else if (_buf.action === 'ability') p.ability(_bufOther);
+        else if (_buf.action === 'super')   { checkSecretLetterCollect(p); p.useSuper(_bufOther); }
+      } else {
+        p._inputBuffer = null; // window expired
+      }
+    }
 
     const hasCurseSlow = p.curses && p.curses.some(c => c.type === 'curse_slow');
     const _chaosSpeed = gameMode === 'minigames' && currentChaosModifiers.has('speedy') ? 1.4 : 1.0;
@@ -1958,6 +2007,12 @@ function applyCode(val) {
     if (typeof slowMotion      !== 'undefined') slowMotion       = 1.0;
     if (typeof gameFrozen      !== 'undefined') gameFrozen       = false;
     if (typeof cinematicCamOverride !== 'undefined') cinematicCamOverride = false;
+    // Hard-reset combatLock so no phase leaks across game sessions
+    if (typeof combatLock !== 'undefined') {
+      combatLock.phase    = 'normal';
+      combatLock.priority = 0;
+      combatLock.blocks   = { ai: false, movement: false, input: false };
+    }
     if (typeof activeQTE       !== 'undefined' && activeQTE) {
       if (typeof cancelQTE === 'function') cancelQTE();
       else activeQTE = null;

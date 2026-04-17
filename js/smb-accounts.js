@@ -30,6 +30,13 @@ const AccountManager = (() => {
       GameState.update(s => { s.persistent.activeAccountId = keys.length > 0 ? keys[0] : null; });
     }
 
+    // Migration: ensure every account has a role field (accounts created before roles were added)
+    if (p.accounts && Object.values(p.accounts).some(function(a) { return !a.role; })) {
+      GameState.update(function(s) {
+        Object.values(s.persistent.accounts || {}).forEach(function(a) { if (!a.role) a.role = 'player'; });
+      });
+    }
+
     // Already have a valid active account — flush and return
     if (p.accounts && Object.keys(p.accounts).length > 0 && GameState.getPersistent().activeAccountId) {
       _persist();
@@ -47,6 +54,7 @@ const AccountManager = (() => {
           username:  'Player 1',
           createdAt: Date.now(),
           saveKey:   'smc_save_v1',
+          role:      'player',
         },
       };
     });
@@ -68,6 +76,16 @@ const AccountManager = (() => {
     return Object.values(GameState.getPersistent().accounts || {}).sort((a, b) => a.createdAt - b.createdAt);
   }
 
+  // ── findAccountByName ────────────────────────────────────────────────────────
+  // Returns ALL accounts whose username matches (case-insensitive).
+  // Always returns an array — callers must not assume uniqueness.
+  // Authority actions (bans, kicks) MUST use the returned account.id, never the name.
+  function findAccountByName(name) {
+    const needle = String(name || '').trim().toLowerCase();
+    if (!needle) return [];
+    return getAllAccounts().filter(a => String(a.username || '').toLowerCase() === needle);
+  }
+
   // ── createAccount ────────────────────────────────────────────────────────────
   function createAccount(username) {
     const name = (String(username || '').trim().slice(0, 20)) || 'Player';
@@ -78,6 +96,7 @@ const AccountManager = (() => {
         username:  name,
         createdAt: Date.now(),
         saveKey:   'smb_acct_' + id,
+        role:      'player',
       };
     });
     _persist();
@@ -138,6 +157,7 @@ const AccountManager = (() => {
     getActiveAccount,
     getActiveSaveKey,
     getAllAccounts,
+    findAccountByName,
     createAccount,
     switchAccount,
     deleteAccount,
@@ -226,6 +246,9 @@ function _acctRefreshList() {
           isActive ? ' <span style="font-size:0.7rem;color:#88ffaa;">(active)</span>' : '',
         '</div>',
         '<div style="font-size:0.7rem;opacity:0.45;">Created ' + date + '</div>',
+        '<div style="font-size:0.63rem;opacity:0.28;font-family:monospace;cursor:pointer;margin-top:1px;" ' +
+          'onclick="navigator.clipboard&&navigator.clipboard.writeText(\'' + _acctEscId(acct.id) + '\')" ' +
+          'title="Your player ID — click to copy">ID: ' + _acctEscHtml(acct.id) + '</div>',
       '</div>',
       switchBtn,
       delBtn,
@@ -261,6 +284,21 @@ function _acctEscStr(s) {
 function _acctEscId(s) {
   // Account IDs are auto-generated alphanumeric+underscore — no escaping needed, but be safe
   return String(s).replace(/[^a-zA-Z0-9_]/g,'');
+}
+
+// ── hasPermission ─────────────────────────────────────────────────────────────
+// Check whether the active account has at least the given role level.
+// Levels (ascending): 'player' (default) < 'admin' < 'dev'
+// Accounts that predate the role field are treated as 'player'.
+function hasPermission(level) {
+  const _ROLE_RANK = { player: 0, admin: 1, dev: 2 };
+  const required = (_ROLE_RANK[level] !== undefined) ? _ROLE_RANK[level] : 999;
+  if (required === 0) return true; // 'player' level is always granted
+  const acct = (typeof AccountManager !== 'undefined') ? AccountManager.getActiveAccount() : null;
+  if (!acct) return false;
+  const role   = acct.role || 'player';
+  const actual = (_ROLE_RANK[role] !== undefined) ? _ROLE_RANK[role] : 0;
+  return actual >= required;
 }
 
 // ── Toast ─────────────────────────────────────────────────────────────────────

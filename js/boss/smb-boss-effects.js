@@ -220,6 +220,7 @@ function startCinematic(seq) {
   if (activeCinematic) endCinematic();
   activeCinematic = Object.assign({ timer: 0 }, seq);
   isCinematic = true;
+  if (typeof setCombatLock === 'function') setCombatLock('cinematic');
   // Hard freeze: halt physics, input, and hazard damage so player cannot die during cinematics
   gameFrozen = true;
   // Freeze all player velocities to prevent mid-air drift during cinematic
@@ -258,6 +259,7 @@ function endCinematic() {
   if (activeCinematic.onEnd) activeCinematic.onEnd();
   activeCinematic = null;
   isCinematic = false;
+  if (typeof clearCombatLock === 'function') clearCombatLock('cinematic');
   slowMotion = 1.0;
   cinematicCamOverride = false;
   gameFrozen = false; // resume physics and input

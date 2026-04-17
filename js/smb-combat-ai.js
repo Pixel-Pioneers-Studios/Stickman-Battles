@@ -55,6 +55,33 @@ function _noise(score) {
   return score * (1 + _rand(-f, f));
 }
 
+// ─────────────────────────────────────────────────────────────
+// applyAIIntent — single consolidation point
+// ─────────────────────────────────────────────────────────────
+// AI systems write to fighter._aiIntent instead of mutating
+// vx/vy directly.  The game loop (or Fighter.update) calls
+// applyAIIntent(fighter) once per frame to flush the buffer.
+//
+// If _aiIntent is null (AI did not run this tick), physics
+// is left untouched — no stale overwrite.
+// ─────────────────────────────────────────────────────────────
+function applyAIIntent(fighter) {
+  if (!fighter || !fighter._aiIntent) return;
+  const intent = fighter._aiIntent;
+  fighter._aiIntent = null; // consume
+
+  if (intent.vx !== null && intent.vx !== undefined) fighter.vx = intent.vx;
+  if (intent.vy !== null && intent.vy !== undefined) fighter.vy = intent.vy;
+  if (intent.jump && fighter.onGround) {
+    fighter.vy = intent.jumpForce || -20;
+    fighter.onGround = false;
+  }
+  if (intent.doubleJump && fighter.canDoubleJump && !fighter.onGround) {
+    fighter.vy = intent.doubleJumpForce || -17;
+    fighter.canDoubleJump = false;
+  }
+}
+
 // ═════════════════════════════════════════════════════════════
 // 1.  CombatSystem
 //     Manages attacking: range check, cooldown tracking,
@@ -88,9 +115,30 @@ class CombatSystem {
   /**
    * Attempt a normal attack.
    * Returns true if the attack was executed.
+   *
+   * A small wind-up delay (50–100 ms) is inserted between the decision to attack
+   * and the actual swing.  This gives the player a brief readable telegraph without
+   * touching AI decision logic or targeting.
    */
   tryAttack(target) {
-    if (this.cd > 0 || !this.inRange(target)) return false;
+    if (this.cd > 0) return false;
+    // Cancel pending wind-up if the AI stepped out of range mid-telegraph
+    if (!this.inRange(target)) {
+      this._windupTimer = undefined;
+      return false;
+    }
+    // First call this decision cycle: start the wind-up countdown
+    if (this._windupTimer === undefined) {
+      this._windupTimer = _msToFrames(_rand(50, 100)); // 3–6 frames ≈ 50–100 ms
+      return false;
+    }
+    // Still winding up
+    if (this._windupTimer > 0) {
+      this._windupTimer--;
+      return false;
+    }
+    // Wind-up complete — fire the swing
+    this._windupTimer = undefined;
     this.owner.attack(target);           // uses Fighter.attack → dealDamage
     this.cd = this.owner.cooldown || 28; // sync with weapon cooldown
     return true;

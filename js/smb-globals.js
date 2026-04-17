@@ -494,6 +494,46 @@ let storyPressureState  = { dodgeFatigue: 0, dodgeTimer: 0 };
 let lightningBolts   = [];    // { x, y, timer, segments } — Thor perk visual lightning
 let backstagePortals = [];    // {x,y,type,phase,timer,radius,maxRadius,codeChars,done}
 let phaseTransitionRings = []; // expanding ring effects on phase change
+// ---- Combat Phase Lock ----
+// Single authority for which phase owns the frame. Higher-priority phases block lower ones.
+// Priorities: normal=0, hitstop=1, finisher=3, qte=3, cinematic=4.
+// Only the system that SET the lock can CLEAR it (matched by phase name).
+let combatLock = {
+  phase:    'normal',
+  priority: 0,
+  blocks:   { ai: false, movement: false, input: false },
+};
+
+const _COMBAT_LOCK_DEFS = {
+  normal:    { priority: 0, blocks: { ai: false,  movement: false, input: false } },
+  hitstop:   { priority: 1, blocks: { ai: false,  movement: false, input: false } },
+  finisher:  { priority: 3, blocks: { ai: true,   movement: true,  input: true  } },
+  qte:       { priority: 3, blocks: { ai: true,   movement: false, input: false } },
+  cinematic: { priority: 4, blocks: { ai: true,   movement: true,  input: true  } },
+};
+
+/** Raise the combat lock to the given phase (ignored if a higher-priority phase is already active). */
+function setCombatLock(phase) {
+  const def = _COMBAT_LOCK_DEFS[phase];
+  if (!def || def.priority < combatLock.priority) return;
+  combatLock.phase    = phase;
+  combatLock.priority = def.priority;
+  combatLock.blocks   = { ai: def.blocks.ai, movement: def.blocks.movement, input: def.blocks.input };
+}
+
+/** Release the combat lock — only effective if the caller owns the current phase. */
+function clearCombatLock(phase) {
+  if (combatLock.phase !== phase) return;
+  combatLock.phase    = 'normal';
+  combatLock.priority = 0;
+  combatLock.blocks   = { ai: false, movement: false, input: false };
+}
+
+/** Returns true when the named system ('ai' | 'movement' | 'input') is currently blocked. */
+function isCombatLocked(system) {
+  return !!combatLock.blocks[system];
+}
+
 // ---- Cinematic System ----
 let cinGroundCracks  = [];    // world-space crack effects (managed by smc-cinematics.js)
 let cinScreenFlash   = null;  // screen-space flash { color, alpha, timer, maxTimer }

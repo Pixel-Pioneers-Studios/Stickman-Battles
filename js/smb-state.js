@@ -16,6 +16,9 @@
 
 const GameState = (() => {
 
+  // ── Dev flag ──────────────────────────────────────────────────────────────────
+  const DEBUG_STATE = false;
+
   // ── Internal state ────────────────────────────────────────────────────────────
   //
   // Explicitly split into two subtrees so callers always know what is safe
@@ -39,6 +42,27 @@ const GameState = (() => {
     },
   };
 
+  // ── Schema validation ─────────────────────────────────────────────────────────
+
+  /**
+   * Validates the persistent subtree structure.
+   * Throws a descriptive Error if the shape is invalid.
+   * Called after load() and after every update() commit.
+   */
+  function _validatePersistent(p) {
+    if (!p) throw new Error("Persistent state missing");
+
+    if (typeof p.accounts !== 'object') {
+      if (DEBUG_STATE) console.warn('[GameState] Invalid accounts structure:', p.accounts);
+      throw new Error('Invalid accounts structure');
+    }
+
+    if (!p.admin || typeof p.admin.overrides !== 'object') {
+      if (DEBUG_STATE) console.warn('[GameState] Invalid admin overrides:', p.admin);
+      throw new Error('Invalid admin overrides');
+    }
+  }
+
   // ── Core accessors ────────────────────────────────────────────────────────────
 
   /** Returns the full state object (both subtrees). */
@@ -59,13 +83,29 @@ const GameState = (() => {
   }
 
   /**
-   * Passes the full internal state to `fn` for in-place mutation.
+   * Passes a shallow-cloned draft to `fn` for mutation.
+   * Validates persistent state after mutation; commits only if valid.
    * Always use the explicit subtree path, e.g.:
    *   GameState.update(s => { s.persistent.activeAccountId = id; });
    *   GameState.update(s => { s.session.online.connected = true; });
    */
   function update(fn) {
-    fn(_state);
+    const draft = {
+      persistent: { ..._state.persistent },
+      session:    { ..._state.session },
+    };
+
+    fn(draft);
+
+    try {
+      _validatePersistent(draft.persistent);
+    } catch (e) {
+      if (DEBUG_STATE) console.warn('[GameState] update() rejected — invalid state:', e.message);
+      throw e;
+    }
+
+    _state.persistent = draft.persistent;
+    _state.session    = draft.session;
   }
 
   // ── Convenience helper ────────────────────────────────────────────────────────
@@ -84,8 +124,10 @@ const GameState = (() => {
   /**
    * Serializes _state.persistent to localStorage under 'smb_state'.
    * _state.session is intentionally excluded — it is runtime-only.
+   * Throws if persistent state fails validation; nothing is written in that case.
    */
   function save() {
+    _validatePersistent(_state.persistent); // throws before touching localStorage
     try {
       localStorage.setItem('smb_state', JSON.stringify(_state.persistent));
     } catch (e) {}
@@ -116,6 +158,7 @@ const GameState = (() => {
           );
           if (!_state.persistent.admin)           _state.persistent.admin           = { overrides: {} };
           if (!_state.persistent.admin.overrides) _state.persistent.admin.overrides = {};
+          _validatePersistent(_state.persistent);
           return;
         }
       }
@@ -136,9 +179,37 @@ const GameState = (() => {
     } catch (e) {}
   }
 
+  // ── Session helpers ───────────────────────────────────────────────────────────
+
+  /**
+   * Resets session.online to its default idle shape.
+   * Call when leaving a lobby or on clean disconnect.
+   */
+  function resetSession() {
+    _state.session = {
+      online: {
+        lobbyId:   null,
+        role:      null,
+        connected: false,
+      },
+    };
+  }
+
+  /**
+   * Shallow-merges `data` onto session.online.
+   * Use instead of direct mutation so all online-state writes are traceable.
+   *   GameState.setOnlineState({ lobbyId: 'abc', role: 'host', connected: true });
+   */
+  function setOnlineState(data) {
+    _state.session.online = {
+      ..._state.session.online,
+      ...data,
+    };
+  }
+
   // Eager load: _state is fully populated before any downstream IIFE runs.
   load();
 
-  return { get, getPersistent, getSession, set, update, save, load, getActiveAccount };
+  return { get, getPersistent, getSession, set, update, save, load, getActiveAccount, resetSession, setOnlineState };
 
 })();

@@ -375,6 +375,7 @@ function drawQTE(ctx, cw, ch) {
  */
 function resetQTEState() {
   QTE_STATE       = null;
+  if (typeof clearCombatLock === 'function') clearCombatLock('qte');
   _qteFiredPhases.clear();
   _qtePending     = null;
   _qteParticles   = [];
@@ -491,8 +492,9 @@ function _startQTE(phaseId, bossRef, playerRef) {
     if (playerRef.stunTimer    > 0) playerRef.stunTimer    = 0;
   }
 
-  // Freeze normal game physics during QTE
+  // Freeze normal game physics during QTE; raise combat lock so AI cannot run
   if (typeof slowMotionFor === 'function') slowMotionFor(0.0, 99999); // held until QTE ends
+  if (typeof setCombatLock === 'function') setCombatLock('qte');
 
   // Build random prompt queue
   const count = def.promptCount[0] + Math.floor(Math.random() * (def.promptCount[1] - def.promptCount[0] + 1));
@@ -984,8 +986,9 @@ function _endQTE(success) {
   if (!QTE_STATE) return;
   const phase = QTE_STATE.phase;
 
-  // Restore slowMotion (we froze it at 0.0 during the QTE)
+  // Restore slowMotion (we froze it at 0.0 during the QTE) and release combat lock
   if (typeof slowMotion !== 'undefined') slowMotion = 1.0;
+  if (typeof clearCombatLock === 'function') clearCombatLock('qte');
 
   // Fade out visuals
   _qteFlashAlpha  = 0;

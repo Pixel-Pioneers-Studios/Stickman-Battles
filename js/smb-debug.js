@@ -489,6 +489,12 @@ function _consoleExec(raw) {
       'maps analyze          — print analysis of all maps to console',
       'maps analyze raw      — print raw analysis array to console',
       'map analyze <key>     — print analysis of one map (e.g. map analyze lava)',
+      '--- Dev commands (require dev role) ---',
+      'spawn / godmode / unlockall / eval — gated to dev role',
+      'setchapter <id> [acctId]           — jump to story chapter',
+      'startboss [boss|trueform]          — start boss fight immediately',
+      'unlockallskills [acctId]           — unlock all items for account',
+      'setaccountrole <id> <player|admin|dev> — change account role',
     ];
     cmds.forEach(c => _consolePrint(c, '#88bbff'));
     return;
@@ -564,6 +570,9 @@ function _consoleExec(raw) {
 
   // ---- SPAWN ----
   if (cmd.startsWith('SPAWN')) {
+    if (typeof hasPermission === 'function' && !hasPermission('dev')) {
+      _consoleErr('Permission denied — developer role required.'); return;
+    }
     if (!sub) { _consoleErr('Usage: spawn <forestbeast|yeti|boss|dummy>'); return; }
     if (typeof gameRunning === 'undefined' || !gameRunning) { _consoleErr('Start a game first.'); return; }
     if (sub === 'forestbeast' || sub === 'forest') {
@@ -643,6 +652,9 @@ function _consoleExec(raw) {
 
   // ---- GODMODE ----
   if (cmd.startsWith('GODMODE')) {
+    if (typeof hasPermission === 'function' && !hasPermission('dev')) {
+      _consoleErr('Permission denied — developer role required.'); return;
+    }
     if (typeof players === 'undefined') { _consoleErr('No game running.'); return; }
     const who = sub || 'p1';
     const on  = parts[2] ? parts[2].toLowerCase() !== 'off' : true;
@@ -693,6 +705,9 @@ function _consoleExec(raw) {
 
   // ---- UNLOCKALL ----
   if (cmd === 'UNLOCKALL') {
+    if (typeof hasPermission === 'function' && !hasPermission('dev')) {
+      _consoleErr('Permission denied — developer role required.'); return;
+    }
     if (typeof _cheatUnlockAll === 'function') {
       _cheatUnlockAll();
       _consoleOk('Everything unlocked!');
@@ -743,6 +758,9 @@ function _consoleExec(raw) {
 
   // ---- EVAL (raw JS) ----
   if (raw.toLowerCase().startsWith('eval ')) {
+    if (typeof hasPermission === 'function' && !hasPermission('dev')) {
+      _consoleErr('Permission denied — developer role required.'); return;
+    }
     const code = raw.slice(5);
     try {
       // eslint-disable-next-line no-eval
@@ -847,6 +865,70 @@ function _consoleExec(raw) {
       count++;
     });
     _consoleOk(`Set HP to ${val} for ${count} entit${count === 1 ? 'y' : 'ies'}.`);
+    return;
+  }
+
+  // ---- SETCHAPTER (dev only) ----
+  if (cmd.startsWith('SETCHAPTER')) {
+    if (typeof hasPermission === 'function' && !hasPermission('dev')) {
+      _consoleErr('Permission denied — developer role required.'); return;
+    }
+    const chId  = parseInt(parts[1], 10);
+    const acId  = parts[2] || (typeof AccountManager !== 'undefined' && AccountManager.getActiveAccount()
+      ? AccountManager.getActiveAccount().id : '');
+    if (isNaN(chId))  { _consoleErr('Usage: setchapter <id> [accountId]'); return; }
+    if (!acId)        { _consoleErr('No active account.'); return; }
+    if (typeof setPlayerChapter === 'function') { setPlayerChapter(acId, chId); _consoleOk('Chapter set to ' + chId); }
+    else              { _consoleErr('setPlayerChapter not available.'); }
+    return;
+  }
+
+  // ---- STARTBOSS (dev only) ----
+  if (cmd.startsWith('STARTBOSS')) {
+    if (typeof hasPermission === 'function' && !hasPermission('dev')) {
+      _consoleErr('Permission denied — developer role required.'); return;
+    }
+    const bossType = sub || 'boss';
+    if (typeof gameRunning !== 'undefined' && gameRunning && typeof backToMenu === 'function') backToMenu();
+    if (typeof selectMode === 'function') selectMode(bossType === 'trueform' ? 'trueform' : 'boss');
+    if (typeof startGame  === 'function') startGame();
+    _consoleOk('Starting ' + bossType + ' fight…');
+    return;
+  }
+
+  // ---- UNLOCKALLSKILLS (dev only) ----
+  if (cmd === 'UNLOCKALLSKILLS') {
+    if (typeof hasPermission === 'function' && !hasPermission('dev')) {
+      _consoleErr('Permission denied — developer role required.'); return;
+    }
+    const unlAcct = parts[1] || (typeof AccountManager !== 'undefined' && AccountManager.getActiveAccount()
+      ? AccountManager.getActiveAccount().id : '');
+    if (!unlAcct) { _consoleErr('No active account.'); return; }
+    if (typeof unlockAllItems === 'function') { unlockAllItems(unlAcct); _consoleOk('All items unlocked for ' + unlAcct); }
+    else          { _consoleErr('unlockAllItems not available.'); }
+    return;
+  }
+
+  // ---- SETACCOUNTROLE (dev only) ----
+  if (cmd.startsWith('SETACCOUNTROLE')) {
+    if (typeof hasPermission === 'function' && !hasPermission('dev')) {
+      _consoleErr('Permission denied — developer role required.'); return;
+    }
+    const roleTargetId = parts[1] || '';
+    const newRole      = (parts[2] || '').toLowerCase();
+    if (!roleTargetId || !['player', 'admin', 'dev'].includes(newRole)) {
+      _consoleErr('Usage: setaccountrole <accountId> <player|admin|dev>'); return;
+    }
+    if (typeof AccountManager === 'undefined') { _consoleErr('AccountManager not available.'); return; }
+    const roleAcct = AccountManager.getAllAccounts().find(function(a) { return a.id === roleTargetId; });
+    if (!roleAcct) { _consoleErr('Account not found: ' + roleTargetId); return; }
+    if (typeof GameState !== 'undefined') {
+      GameState.update(function(s) {
+        if (s.persistent.accounts[roleTargetId]) s.persistent.accounts[roleTargetId].role = newRole;
+      });
+      GameState.save();
+    }
+    _consoleOk('Account ' + roleTargetId + ' role set to ' + newRole);
     return;
   }
 

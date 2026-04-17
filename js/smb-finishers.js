@@ -2605,6 +2605,7 @@ function triggerFinisher(attacker, target) {
   // Block processInput() and updateAI() during the finisher
   activeCinematic = _makeFinisherSentinel();
   isCinematic = true;
+  if (typeof setCombatLock === 'function') setCombatLock('finisher');
 
   // Completely stop the game world — physics, particles, everything freezes
   slowMotion = 0;
@@ -2637,6 +2638,7 @@ function updateFinisher() {
       activeCinematic = null;
     }
     isCinematic = false;
+    if (typeof clearCombatLock === 'function') clearCombatLock('finisher');
     // Let normal death logic take over
     target.health    = 0;
     target.invincible = 0;
