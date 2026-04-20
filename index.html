@@ -11,7 +11,7 @@
 <!-- ============================================================
      MENU SCREEN — 3-column grid layout
      ============================================================ -->
-<div id="menu">
+<div id="menu" class="menu-home">
 
   <!-- LEFT COLUMN: Player 1 config -->
   <div class="menu-side left">
@@ -124,6 +124,8 @@
 
   <!-- CENTER COLUMN: everything else -->
   <div class="menu-center">
+    <!-- HOME VIEW: shown by default, hidden when a mode is selected -->
+    <div id="menuHomeContent">
     <h1 class="game-title">STICKMAN BATTLES</h1>
     <p class="game-subtitle">Local Multiplayer Platform Fighter</p>
     <p id="gameVersionLabel" style="font-size:0.65rem;color:rgba(255,255,255,0.25);letter-spacing:1px;margin:-6px 0 4px;text-align:center;">v2.6.0</p>
@@ -186,6 +188,15 @@
           <div class="mode-name" style="color:#ffdd88">🌐⚔️ Story Online</div>
           <div class="mode-desc" style="color:#aa9944">Cross-world multiplayer</div>
         </div>
+      </div>
+      </div><!-- /.mode-section -->
+    </div><!-- /#menuHomeContent -->
+
+    <!-- CONFIG VIEW: shown when a game mode is selected -->
+    <div id="menuConfigContent">
+      <div style="display:flex; align-items:center; gap:12px; width:100%; max-width:600px; margin-bottom:4px;">
+        <button class="btn" onclick="backToHome()" style="font-size:0.78rem; padding:5px 14px; background:rgba(80,60,180,0.18); border-color:rgba(120,100,220,0.5); color:#aabbff;">← Back</button>
+        <span id="configModeLabel" style="font-size:1rem; color:#c8d8ff; font-weight:bold; letter-spacing:2px; text-transform:uppercase;"></span>
       </div>
       <!-- Boss player count toggle (shown when boss mode is selected) -->
       <div id="bossPlayerToggle" style="display:none; gap:8px; margin-top:8px;">
@@ -264,6 +275,11 @@
               <button class="btn" data-onlinelives="5" onclick="setOnlineLives(5)" style="font-size:0.72rem;padding:3px 8px;">5</button>
             </div>
           </div>
+          <!-- Custom weapons toggle -->
+          <label style="display:flex; align-items:center; gap:6px; cursor:pointer; user-select:none;">
+            <input type="checkbox" id="onlineCustomWeaponsCheck" onchange="toggleOnlineCustomWeapons(this.checked)" style="accent-color:#6699ff; width:13px; height:13px;">
+            <span style="color:#88ccff; font-size:0.72rem;">Allow Custom Weapons</span>
+          </label>
           <!-- Arena selector -->
           <div style="color:#88ccff; font-size:0.72rem; margin-top:2px;">Map (host picks):</div>
           <div style="display:flex; gap:4px; flex-wrap:wrap;">
@@ -336,7 +352,6 @@
           </div>
         </div>
       </div>
-    </div>
 
     <!-- ARENA + LIVES (side by side) -->
     <div id="arenaSection" style="width:100%;max-width:600px;">
@@ -513,6 +528,7 @@
         ⛶
       </button>
     </div>
+    </div><!-- /#menuConfigContent -->
 
     <!-- Controls info (collapsible) -->
     <details style="width:100%;max-width:600px;">
@@ -1055,15 +1071,33 @@
   <script src="./js/smb-director.js"></script>
   <!-- Achievement system -->
   <script src="./js/smb-achievements.js"></script>
-  <!-- Arena, weapon, class data -->
-  <script src="./js/smb-data.js"></script>
+  <!-- Arena, weapon, class data (split from smb-data.js) -->
+  <script src="./js/smb-data-arenas.js"></script>
+  <script src="./js/smb-data-mapperks.js"></script>
+  <script src="./js/smb-data-mapperks-draw.js"></script>
+  <script src="./js/smb-data-weapons.js"></script>
   <script src="./js/smb-map-analyzer.js"></script>
-  <!-- Utilities, particles, physics, ragdoll -->
-  <script src="./js/smb-particles.js"></script>
-  <!-- Cinematic scripting system v2: cinScript, CinCam, CinFX, ground cracks -->
-  <script src="./js/smb-cinematics.js"></script>
-  <!-- Finisher system — killing-blow cinematic animations -->
-  <script src="./js/smb-finishers.js"></script>
+  <!-- Combat pipeline, particles, heatmap, ragdoll (split from smb-particles.js) -->
+  <script src="./js/smb-combat.js"></script>
+  <script src="./js/smb-particles-core.js"></script>
+  <script src="./js/smb-heatmap.js"></script>
+  <script src="./js/smb-verlet.js"></script>
+  <!-- Cinematic scripting system (split from smb-cinematics.js) -->
+  <script src="./js/smb-cinematics-core.js"></script>
+  <script src="./js/smb-cinematics-backstory.js"></script>
+  <script src="./js/smb-cinematics-boss-thresh.js"></script>
+  <script src="./js/smb-cinematics-tf-thresh.js"></script>
+  <script src="./js/smb-cinematics-multiverse.js"></script>
+  <!-- Finisher system — killing-blow cinematic animations (split from smb-finishers.js) -->
+  <script src="./js/smb-finisher-helpers.js"></script>
+  <script src="./js/smb-finisher-void.js"></script>
+  <script src="./js/smb-finisher-reality.js"></script>
+  <script src="./js/smb-finisher-boss.js"></script>
+  <script src="./js/smb-finisher-tf.js"></script>
+  <script src="./js/smb-finisher-yeti.js"></script>
+  <script src="./js/smb-finisher-beast.js"></script>
+  <script src="./js/smb-finisher-weapon.js"></script>
+  <script src="./js/smb-finisher-engine.js"></script>
   <!-- Platform graph + A* pathfinding (must load before smb-fighter.js) -->
   <script src="./js/smb-pathfinding.js"></script>
   <!-- Fighter base class -->
@@ -1075,12 +1109,30 @@
   <!-- Boss and True Form -->
   <script src="./js/boss/smb-boss.js"></script>
   <script src="./js/boss/smb-boss-cinematics.js"></script>
-  <script src="./js/boss/smb-boss-effects.js"></script>
+  <script src="./js/boss/smb-boss-tf-misc.js"></script>
+  <script src="./js/boss/smb-boss-phase-cin.js"></script>
+  <script src="./js/boss/smb-boss-tf-legacy.js"></script>
+  <script src="./js/boss/smb-boss-tf-attacks1.js"></script>
+  <script src="./js/boss/smb-boss-tf-attacks2.js"></script>
+  <script src="./js/boss/smb-boss-tf-visuals1.js"></script>
+  <script src="./js/boss/smb-boss-tf-visuals2.js"></script>
   <script src="./js/boss/smb-boss-helpers.js"></script>
   <script src="./js/boss/smb-trueform.js"></script>
   <script src="./js/boss/smb-trueform-attacks.js"></script>
   <!-- Paradox entity: multiversal being, revive system, TF damage lock, foreshadowing -->
-  <script src="./js/smb-paradox.js"></script>
+  <script src="./js/smb-paradox-class.js"></script>
+  <script src="./js/smb-paradox-opening.js"></script>
+  <script src="./js/smb-paradox-return-cin.js"></script>
+  <script src="./js/smb-paradox-absorption-update.js"></script>
+  <script src="./js/smb-paradox-absorption-draw.js"></script>
+  <script src="./js/smb-paradox-kills-cin.js"></script>
+  <script src="./js/smb-paradox-revive.js"></script>
+  <script src="./js/smb-paradox-intro-cin.js"></script>
+  <script src="./js/smb-paradox-cin2.js"></script>
+  <script src="./js/smb-paradox-effects.js"></script>
+  <script src="./js/smb-paradox-ai.js"></script>
+  <!-- BehaviorModel — player fingerprinting / prediction / punish ledger -->
+  <script src="./js/smb-behavior-model.js"></script>
   <!-- Adaptive AI — learning opponent for Adaptive AI mode (story) -->
   <script src="./js/smb-adaptive-ai.js"></script>
   <!-- SOVEREIGN Ω — upgraded adaptive AI with prediction/punishment/limiter break -->
@@ -1089,7 +1141,12 @@
   <script src="./js/smb-trueform-ending.js"></script>
   <!-- Drawing, game state, HUD, visual effects -->
   <script src="./js/rendering/smb-drawing-arenas.js"></script>
-  <script src="./js/rendering/smb-drawing.js"></script>
+  <script src="./js/rendering/smb-drawing-bg.js"></script>
+  <script src="./js/rendering/smb-drawing-effects.js"></script>
+  <script src="./js/rendering/smb-drawing-scenes.js"></script>
+  <script src="./js/rendering/smb-drawing-hud.js"></script>
+  <script src="./js/rendering/smb-drawing-arenas2.js"></script>
+  <script src="./js/rendering/smb-drawing-arenas3.js"></script>
   <!-- Minigame systems -->
   <script src="./js/smb-minigames.js"></script>
   <!-- True-Form QTE system -->
@@ -1098,10 +1155,18 @@
   <script src="./js/smb-cinematic.js"></script>
   <!-- Deterministic step-based cutscene system -->
   <script src="./js/smb-cutscene.js"></script>
-  <!-- Camera, main game loop, input -->
-  <script src="./js/smb-loop.js"></script>
+  <!-- Camera, main game loop, input (split from smb-loop.js) -->
+  <script src="./js/smb-camera.js"></script>
+  <script src="./js/smb-loop-core.js"></script>
+  <script src="./js/smb-input.js"></script>
+  <script src="./js/smb-cheats.js"></script>
   <!-- Menu UI, startGame, tutorial -->
-  <script src="./js/smb-menu.js"></script>
+  <script src="./js/smb-menu-ui.js"></script>
+  <script src="./js/smb-menu-select.js"></script>
+  <script src="./js/smb-menu-config.js"></script>
+  <script src="./js/smb-menu-spawn.js"></script>
+  <script src="./js/smb-menu-startcore.js"></script>
+  <script src="./js/smb-menu-utils.js"></script>
   <!-- Network / online multiplayer -->
   <script src="./js/smb-network.js"></script>
   <!-- Centralized runtime state (accounts, admin overrides, online session) -->
@@ -1110,7 +1175,9 @@
   <!-- Lobby presence layer — wraps NetworkManager with lobby API + UI -->
   <script src="./js/smb-online.js"></script>
   <!-- Developer debug toolkit (loaded last so all systems exist) -->
-  <script src="./js/smb-debug.js"></script>
+  <script src="./js/smb-debug-overlay.js"></script>
+  <script src="./js/smb-debug-console.js"></script>
+  <script src="./js/smb-debug-jump.js"></script>
   <!-- Account system — must load before smb-save.js so getSaveKey() works -->
   <script src="./js/smb-accounts.js"></script>
   <!-- Save / Export / Import system -->
@@ -1141,7 +1208,14 @@
   <script src="./js/story/acts/act6/smb-act6-arc2.js"></script>
   <script src="./js/story/acts/side/smb-lab-infiltration.js"></script>
   <script src="./js/story/smb-story-config.js"></script>
-  <script src="./js/story/smb-story-engine.js"></script>
+  <script src="./js/story/smb-story-engine-data.js"></script>
+  <script src="./js/story/smb-story-engine-ui.js"></script>
+  <script src="./js/story/smb-story-engine-flow.js"></script>
+  <script src="./js/story/smb-story-engine-match.js"></script>
+  <script src="./js/story/smb-story-engine-events.js"></script>
+  <script src="./js/story/smb-story-engine-frame.js"></script>
+  <script src="./js/story/smb-story-engine-explore.js"></script>
+  <script src="./js/story/smb-story-engine-explore2.js"></script>
   <script src="./js/story/smb-story-finalize.js"></script>
   <!-- Ship & Fracture Progression (lore: Axiom, the war, branch rulers, True Form) -->
   <script src="./js/smb-progression.js"></script>
@@ -1159,8 +1233,9 @@
   <div id="ytNormalPlayer"  style="position:fixed;width:1px;height:1px;opacity:0;pointer-events:none;left:-9999px;top:-9999px;"></div>
   <!-- In-game console overlay (activated by typing GAMECONSOLE) -->
   <div id="gameConsoleOverlay" style="display:none;position:fixed;bottom:0;left:0;right:0;height:260px;background:rgba(8,8,18,0.96);border-top:2px solid #3366ff;z-index:9999;font-family:'Courier New',monospace;flex-direction:column;">
-    <div style="display:flex;align-items:center;padding:4px 10px;background:rgba(20,30,80,0.95);border-bottom:1px solid #3366ff;">
-      <span style="color:#88aaff;font-size:0.78rem;font-weight:bold;flex:1;">&#9658; Stickman Clash Console</span>
+    <div id="gameConsoleTitleBar" style="display:flex;align-items:center;padding:4px 10px;background:rgba(20,30,80,0.95);border-bottom:1px solid #3366ff;">
+      <span id="gameConsoleTitle" style="color:#88aaff;font-size:0.78rem;font-weight:bold;flex:1;">&#9658; Stickman Clash Console</span>
+      <span id="gameConsoleRoleBadge" style="display:none;font-size:0.65rem;padding:1px 7px;border-radius:4px;margin-right:8px;font-weight:700;letter-spacing:1px;"></span>
       <button onclick="closeGameConsole()" style="background:none;border:none;color:#ff5555;font-size:1rem;cursor:pointer;padding:0 6px;">&#x2715;</button>
     </div>
     <div id="gameConsoleLog" style="flex:1;overflow-y:auto;padding:6px 10px;font-size:0.75rem;color:#ccddff;line-height:1.5;"></div>

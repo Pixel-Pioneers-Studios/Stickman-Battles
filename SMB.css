@@ -84,6 +84,29 @@ body {
 
 @keyframes fadeIn { from { opacity: 0; transform: translateY(-12px); } to { opacity: 1; transform: none; } }
 
+/* Home view: single centered column, no side panels */
+#menu.menu-home {
+  grid-template-columns: 1fr;
+}
+#menu.menu-home .menu-side {
+  display: none;
+}
+#menuHomeContent {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  gap: 6px;
+}
+#menuConfigContent {
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  gap: 10px;
+  padding-bottom: 12px;
+}
+
 /* ============================================================
    MENU SIDE COLUMNS (Player cards)
    ============================================================ */
