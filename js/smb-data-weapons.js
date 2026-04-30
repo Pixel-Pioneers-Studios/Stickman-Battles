@@ -303,20 +303,20 @@ const WEAPONS = {
 
   // ── ENEMY-ONLY WEAPONS (never available in player weapon picker) ─────────
   nullblade: {
-    // Sovereign's signature weapon. Fast melee with a dashing gap-closer ability.
-    // enemyOnly keeps it out of WEAPON_KEYS and all player-facing UI.
+    // Sovereign's signature weapon. Balanced melee — slightly faster cooldown than sword,
+    // a touch more KB, and a Dash Slash-style ability that hits harder.
+    // enemyOnly: keeps it out of WEAPON_KEYS and all player-facing UI.
     enemyOnly: true,
-    name: 'Null Blade', damage: 14, range: 95, cooldown: 26, endlag: 8,
-    kb: 11, abilityCooldown: 145, type: 'melee', weaponType: 'light', color: '#cc2200',
+    name: 'Null Blade', damage: 15, range: 92, cooldown: 28, endlag: 8,
+    kb: 13, abilityCooldown: 150, type: 'melee', weaponType: 'light', color: '#cc2200',
     abilityName: 'Phase Step',
     ability(user, target) {
       if (!target || target.health <= 0) return;
-      // Aggressive forward burst — closes gap and strikes
-      user.vx = user.facing * 20;
-      user.vy = -5;
-      if (dist(user, target) < 120) dealDamage(user, target, 20, 14);
-      spawnParticles(user.cx(), user.cy(), '#cc2200', 10);
-      spawnParticles(user.cx(), user.cy(), '#ff4400', 6);
+      // Controlled dash strike — same speed as sword Dash Slash, more damage
+      user.vx = user.facing * 14;
+      if (dist(user, target) < 115) dealDamage(user, target, 24, 16);
+      spawnParticles(user.cx(), user.cy(), '#cc2200', 8);
+      spawnParticles(user.cx(), user.cy(), '#ff3300', 5);
     }
   },
 

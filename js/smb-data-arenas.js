@@ -146,12 +146,12 @@ const ARENAS = {
     isSovereignArena: true,
     modifiers:   { gravityMult: 1.0, frictionMult: 1.0, hazardFrequency: 0.0 },
     platforms: [
-      { x:   0, y: 460, w: 900, h: 60, isFloor: true, isFloorDisabled: false }, // index 0 — floor
-      { x: 325, y: 210, w: 250, h: 16, isFloorDisabled: false },                // index 1 — wide center hub
-      { x: 112, y: 310, w: 128, h: 16, isFloorDisabled: false },                // index 2 — left mid
-      { x: 660, y: 310, w: 128, h: 16, isFloorDisabled: false },                // index 3 — right mid
-      { x: 198, y: 148, w: 104, h: 14, isFloorDisabled: false },                // index 4 — upper left
-      { x: 598, y: 148, w: 104, h: 14, isFloorDisabled: false },                // index 5 — upper right
+      { x: -60, y: 460, w:1020, h: 60, isFloor: true, isFloorDisabled: false }, // index 0 — floor (wider like grass)
+      { x: 300, y: 210, w: 300, h: 16, isFloorDisabled: false },                // index 1 — wide center hub
+      { x:  72, y: 310, w: 145, h: 16, isFloorDisabled: false },                // index 2 — left mid (pushed out)
+      { x: 683, y: 310, w: 145, h: 16, isFloorDisabled: false },                // index 3 — right mid (pushed out)
+      { x: 155, y: 148, w: 115, h: 14, isFloorDisabled: false },                // index 4 — upper left (pushed out)
+      { x: 630, y: 148, w: 115, h: 14, isFloorDisabled: false },                // index 5 — upper right (pushed out)
     ]
   },
   creator: {

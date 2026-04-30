@@ -227,3 +227,7 @@ const GameState = (() => {
   return { get, getPersistent, getSession, set, update, save, load, getActiveAccount, resetSession, setOnlineState };
 
 })();
+
+// Expose on window so guards like `window.GameState && ...` work correctly.
+// `const` at script top-level is not a window property in browsers.
+window.GameState = GameState;

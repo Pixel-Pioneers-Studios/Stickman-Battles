@@ -363,6 +363,42 @@ function _startGameCore() {
     const ai = isSovereignMode
       ? new SovereignMK2(720, 300, '#ff3311', _aiWeapon)
       : new AdaptiveAI(720, 300, '#9955ee', _aiWeapon);
+
+    // Belt-and-suspenders weapon lock: Fighter constructor resolves WEAPONS[weaponKey],
+    // but set it explicitly here too so any hot-reload or edge-case fallback is overridden.
+    if (isSovereignMode && typeof WEAPONS !== 'undefined' && WEAPONS.nullblade) {
+      ai.weapon    = WEAPONS.nullblade;
+      ai.weaponKey = 'nullblade';
+    }
+
+    // ── Difficulty boosts applied post-construction ───────────────────────────
+    // Sovereign gamemode: start at near-peak intelligence, limiter already broken.
+    // The player faces maximum Sovereign from round 1 — no warm-up phase.
+    if (isSovereignMode) {
+      ai.aiMemory.aggression    = 0.94;
+      ai.aiMemory.defense       = 0.90;
+      ai.aiMemory.spacing       = 0.08;
+      ai.aiMemory.reactionSpeed = 0.98;
+      ai.intelligence           = 0.97;
+      ai._limiterBroken         = true;
+      ai._limiterBreakDialogue  = true;  // suppress opening "limiters withdrawn" line
+      ai._adaptInterval         = 4;
+      ai._pressureMode          = 'suffocate';
+      ai._evolutionStage        = 2;     // start at DOMINATING; earns TYRANT through play
+      ai._intimidation          = 0.60;
+      ai._updateAuraColor();
+    }
+    // Story adaptive: start sharper than default so the fight feels earned, not trivial.
+    if (storyModeActive && !isSovereignMode) {
+      ai.aiMemory.aggression    = 0.88;
+      ai.aiMemory.defense       = 0.82;
+      ai.aiMemory.spacing       = 0.10;
+      ai.aiMemory.reactionSpeed = 0.95;
+      ai.intelligence = (ai.aiMemory.aggression + ai.aiMemory.defense +
+                         (1 - ai.aiMemory.spacing) * 0.5 + ai.aiMemory.reactionSpeed) / 3.5;
+      ai._updateAuraColor();
+    }
+
     ai.playerNum = 2;
     ai.lives     = chosenLives;
     const _aiSpawn = pickSafeSpawn('right', _p1SpawnPos.x) || { x: 720, y: 300 };

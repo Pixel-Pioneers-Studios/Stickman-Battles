@@ -421,6 +421,9 @@ const AccountManager = (() => {
   };
 })();
 
+// Expose on window so guards like `window.AccountManager && ...` work correctly.
+window.AccountManager = AccountManager;
+
 function isSuperuserAccountId(accountId) {
   return SUPERUSER_ACCOUNT_IDS.indexOf(String(accountId)) !== -1;
 }
