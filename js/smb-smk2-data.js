@@ -21,7 +21,11 @@
 function _smk2ClassifyAction(t, prevT) {
   if (t.attackTimer > 0 && !(prevT && prevT.attacking))  return 'attack'; // rising edge
   if (t.shielding  && !(prevT && prevT.shielding))        return 'shield'; // rising edge
-  const vxFlip = prevT && Math.abs(t.vx) > 3 && Math.sign(t.vx) !== Math.sign(prevT.vx || 0);
+  // Require the player was already moving (|prevVx| > 3) AND is now moving fast in the
+  // opposite direction (|vx| > 4.5) — prevents normal walking direction changes from
+  // being logged as dodges and corrupting the bigram table.
+  const wasMoving = prevT && Math.abs(prevT.vx || 0) > 3;
+  const vxFlip    = wasMoving && Math.abs(t.vx) > 4.5 && Math.sign(t.vx) !== Math.sign(prevT.vx || 0);
   if (vxFlip)                                             return 'dodge';
   if (!t.onGround && prevT && prevT.onGround)             return 'jump';   // rising edge
   return 'idle';

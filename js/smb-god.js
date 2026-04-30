@@ -65,7 +65,7 @@ function spawnGod(consoleSummoned) {
   const gx  = ref ? ref.x + (Math.random() < 0.5 ? 1 : -1) * (120 + Math.random() * 80) : 450;
   const gy  = ref ? ref.y - 100 : 200;
   const g   = new God(gx, gy);
-  g._teamId          = 2;
+  g._teamId          = 50;
   g._consoleSummoned = !!consoleSummoned;
   minions.push(g);
   return g;
@@ -299,9 +299,10 @@ class God extends Fighter {
     }
   }
 
-  respawn()       { this.health = 0; }
-  useSuper()      {}
-  activateSuper() {}
+  respawn()        { this.health = 0; }
+  useSuper()       {}
+  activateSuper()  {}
+  checkPlatform()  {} // God phases through all surfaces
 
   // ── Special attacks ────────────────────────────────────────────────────
 
@@ -311,7 +312,7 @@ class God extends Fighter {
     for (let i = 0; i < count; i++) {
       const spawnX = target.cx() + (Math.random() - 0.5) * 220;
       const angel  = new HolyAngel(spawnX, -50);
-      angel._teamId = 2;
+      angel._teamId = 50;
       minions.push(angel);
     }
     if (typeof spawnParticles === 'function') spawnParticles(this.cx(), this.y, '#ffffc0', 14);
@@ -366,8 +367,9 @@ class God extends Fighter {
 
   _godTargetPool() {
     const pool = [];
-    if (Array.isArray(players)) for (const p of players) pool.push(p);
-    if (Array.isArray(minions)) for (const m of minions) pool.push(m);
+    if (Array.isArray(players))        for (const p of players)        pool.push(p);
+    if (Array.isArray(minions))        for (const m of minions)        pool.push(m);
+    if (Array.isArray(trainingDummies)) for (const d of trainingDummies) pool.push(d);
     return pool;
   }
 
