@@ -132,6 +132,28 @@ const ARENAS = {
       { x: 580, y: 160, w: 120, h: 16, isFloorDisabled: false },                // index 5 — upper right (death 2)
     ]
   },
+  sovereign: {
+    // Sovereign's personal arena — "The Circuit".
+    // Designed for pure melee: tight platform spacing, no safe ranged distance,
+    // symmetric layout that rewards reading movement over camping.
+    name:       'The Circuit',
+    sky:         ['#030005', '#0d0010'],
+    groundColor: '#0e0008',
+    platColor:   '#1a0010',
+    platEdge:    '#aa1100',
+    hasLava:     false,
+    deathY:      640,
+    isSovereignArena: true,
+    modifiers:   { gravityMult: 1.0, frictionMult: 1.0, hazardFrequency: 0.0 },
+    platforms: [
+      { x:   0, y: 460, w: 900, h: 60, isFloor: true, isFloorDisabled: false }, // index 0 — floor
+      { x: 325, y: 210, w: 250, h: 16, isFloorDisabled: false },                // index 1 — wide center hub
+      { x: 112, y: 310, w: 128, h: 16, isFloorDisabled: false },                // index 2 — left mid
+      { x: 660, y: 310, w: 128, h: 16, isFloorDisabled: false },                // index 3 — right mid
+      { x: 198, y: 148, w: 104, h: 14, isFloorDisabled: false },                // index 4 — upper left
+      { x: 598, y: 148, w: 104, h: 14, isFloorDisabled: false },                // index 5 — upper right
+    ]
+  },
   creator: {
     sky:         ['#050010', '#180030'],
     groundColor: '#1a0028',

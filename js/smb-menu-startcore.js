@@ -33,7 +33,9 @@ function _startGameCore() {
   _setBossFightLivesLock(isBossLivesMode);
   trainingMode = isTrainingMode;
   tutorialMode = false; // tutorial mode removed
-  if (isGodMode) {
+  if (isSovereignMode) {
+    currentArenaKey = 'sovereign'; // Sovereign's dedicated melee-only arena
+  } else if (isGodMode) {
     currentArenaKey = 'creator'; // reuse creator arena for the god encounter
   } else if (isMultiverseMode) {
     const mvWorld = (typeof MultiverseManager !== 'undefined') ? MultiverseManager.getActiveWorld() : null;
@@ -72,7 +74,7 @@ function _startGameCore() {
   }
   isRandomMapMode = (selectedArena === 'random' && !isCompleteRandMode);
   // Lava/void: no randomization
-  if (currentArenaKey !== 'creator' && currentArenaKey !== 'lava' && currentArenaKey !== 'void' && currentArenaKey !== 'soccer' && currentArenaKey !== 'damnation' && !isExploreMode) randomizeArenaLayout(currentArenaKey);
+  if (currentArenaKey !== 'creator' && currentArenaKey !== 'lava' && currentArenaKey !== 'void' && currentArenaKey !== 'soccer' && currentArenaKey !== 'damnation' && currentArenaKey !== 'sovereign' && !isExploreMode) randomizeArenaLayout(currentArenaKey);
   currentArena = ARENAS[currentArenaKey];
   if (typeof buildGraphForCurrentArena === 'function') buildGraphForCurrentArena();
   initMapPerks(currentArenaKey);
@@ -103,6 +105,12 @@ function _startGameCore() {
     const _isMeleeOnly = (key) => typeof WEAPONS !== 'undefined' && WEAPONS[key] && WEAPONS[key].type === 'ranged';
     if (_isMeleeOnly(w1)) w1 = 'sword';
     if (_isMeleeOnly(w2)) w2 = 'sword';
+  }
+  // Sovereign mode: ban ranged weapons for the player — Sovereign is a pure melee read-and-punish
+  // fighter; ranged weapons allow kiting that bypasses all of his adaptation systems.
+  if (isSovereignMode) {
+    const _isRanged = (key) => typeof WEAPONS !== 'undefined' && WEAPONS[key] && WEAPONS[key].type === 'ranged';
+    if (_isRanged(w1)) w1 = 'sword';
   }
   // Store resolved class keys so applyClass calls below use the coordinated result
   const _p1ResolvedClass = _p1Resolved.classKey;
@@ -349,9 +357,9 @@ function _startGameCore() {
     // Sovereign mode uses SovereignMK2 (enhanced); story adaptive uses base AdaptiveAI
     p1.isAI  = false;
     p1.lives = chosenLives;
-    // Pick a weapon for the AI — random from a balanced set
+    // Pick a weapon for the AI — Sovereign always uses nullblade; adaptive uses a random melee set
     const _aiWeapons = ['sword','axe','spear','hammer','scythe','voidblade'];
-    const _aiWeapon  = _aiWeapons[Math.floor(Math.random() * _aiWeapons.length)];
+    const _aiWeapon  = isSovereignMode ? 'nullblade' : _aiWeapons[Math.floor(Math.random() * _aiWeapons.length)];
     const ai = isSovereignMode
       ? new SovereignMK2(720, 300, '#ff3311', _aiWeapon)
       : new AdaptiveAI(720, 300, '#9955ee', _aiWeapon);

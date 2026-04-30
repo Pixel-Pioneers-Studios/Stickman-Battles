@@ -242,10 +242,7 @@ function dealDamage(attacker, target, dmg, kbForce, stunMult = 1.0, isSplash = f
     // Auto-launch: 7+ hit combo forces a hard launcher; combo breaks naturally
     if (_cn >= 7) {
       actualKb = Math.max(actualKb, 17);
-      console.log('[COMBO] Auto-launch at hit', _cn, 'on', target.name || 'fighter', '— breaking combo');
     }
-    // Debug: log high combo count
-    if (_cn === 5) console.log('[COMBO] Extended combo (5+) by', attacker.name || 'attacker', 'on', target.name || 'fighter');
   }
 
   // ── PER-FRAME IMPULSE LIMIT ───────────────────────────────────────────────
@@ -349,8 +346,6 @@ function dealDamage(attacker, target, dmg, kbForce, stunMult = 1.0, isSplash = f
     // runs next frame; this prevents fling glitch from same-frame stacking.
     target.vx = clamp(target.vx, -18, 18);
     target.vy = clamp(target.vy, -18, 18);
-    if (Math.abs(target.vx) > 14 || Math.abs(target.vy) > 14)
-      console.log('[KB] High velocity on', target.name || 'fighter', 'vx:', target.vx.toFixed(1), 'vy:', target.vy.toFixed(1), 'from actualKb:', actualKb.toFixed(1));
     // Directional impact nudge: brief cosmetic draw-offset that decays over 4 frames.
     // Purely visual — does not affect hitboxes, physics, or online sync.
     if (!target.shielding) {
@@ -437,8 +432,6 @@ function dealDamage(attacker, target, dmg, kbForce, stunMult = 1.0, isSplash = f
     if (attacker && attacker._comboHitCount >= 5 && !target.onGround && !target.isBoss) {
       target.invincible = Math.max(target.invincible, Math.round(hitInvincibleFrames * 1.5));
     }
-    // Debug: log unusually high damage events
-    if (actualDmg >= 40) console.log('[DMG] Heavy hit', actualDmg, 'by', (attacker && attacker.name) || 'unknown', 'on', target.name || 'target');
     // Per-limb spring reaction
     if (target._rd) {
       const impactX = attacker ? attacker.cx() : target.cx();

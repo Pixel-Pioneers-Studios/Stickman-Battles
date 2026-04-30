@@ -331,8 +331,9 @@ function _flushRuntimeIntoBase(base) {
   const _rch = (base.story && typeof base.story.chapter === 'number') ? base.story.chapter
     : (base.storyProgress && typeof base.storyProgress.chapter === 'number') ? base.storyProgress.chapter : 0;
   if (typeof base.chapter !== 'number' || _rch > base.chapter) base.chapter = _rch;
-  // coins — always read from account.data via getCoins() (the canonical source)
-  base.coins = getCoins();
+  // coins — prefer the runtime global (authoritative after setCoins / _refreshRuntimeFromSave)
+  // Fall back to getCoins() only if playerCoins is not yet a number (parse-time edge case).
+  base.coins = (typeof playerCoins === 'number') ? playerCoins : getCoins();
   // cosmetics — runtime is always authoritative (kept in sync by addCosmetic → setAccountFlag)
   if (typeof unlockedCosmetics !== 'undefined' && Array.isArray(unlockedCosmetics)) {
     base.cosmetics = unlockedCosmetics.slice();
@@ -669,25 +670,45 @@ let _hydratedAccountId = null;
 // by reading through getPersistent() — the path that always works.
 let _diagWarnedOnce = false;
 function _getActiveAcctDirect() {
-  if (!window.GameState) return null;
-  try {
-    const p = GameState.getPersistent();
-    if (!p || !p.activeAccountId || !p.accounts) return null;
-    const a = p.accounts[p.activeAccountId];
-    if (!a) return null;
-    // Diagnostic: warn once if the canonical helper disagrees (avoids log spam)
-    if (!_diagWarnedOnce) {
-      const canonical = GameState.getActiveAccount();
-      if (!canonical) {
-        _diagWarnedOnce = true;
-        console.warn('[SAVE DIAG] getActiveAccount() returned null but direct lookup found account', {
-          activeAccountId: p.activeAccountId,
-          accountKeys: Object.keys(p.accounts),
-        });
+  // Path 1 — GameState via getPersistent() (primary)
+  if (window.GameState && typeof GameState.getPersistent === 'function') {
+    try {
+      const p = GameState.getPersistent();
+      if (!p) { console.warn('[DIAG-2] getPersistent() returned null/undefined'); }
+      else if (!p.activeAccountId) { console.warn('[DIAG-3] no activeAccountId', { accountKeys: p.accounts ? Object.keys(p.accounts) : 'no accounts' }); }
+      else if (!p.accounts) { console.warn('[DIAG-4] accounts is null/undefined', { activeAccountId: p.activeAccountId }); }
+      else {
+        const a = p.accounts[p.activeAccountId];
+        if (!a) {
+          console.warn('[DIAG-5] account not found by key', { id: p.activeAccountId, keys: Object.keys(p.accounts) });
+        } else {
+          // Warn once if getActiveAccount() disagrees (helps diagnose the root cause)
+          if (!_diagWarnedOnce) {
+            _diagWarnedOnce = true;
+            try {
+              const canonical = GameState.getActiveAccount();
+              if (!canonical) console.warn('[SAVE DIAG] getActiveAccount() null but direct lookup OK', { id: p.activeAccountId });
+            } catch(e2) { console.warn('[SAVE DIAG] getActiveAccount() threw', e2.message); }
+          }
+          return a;
+        }
       }
+    } catch(e) { console.warn('[DIAG-6] getPersistent() threw', e && e.message); }
+  } else {
+    console.warn('[DIAG-1] window.GameState missing or no getPersistent');
+  }
+
+  // Path 2 — Direct localStorage fallback (bypasses GameState entirely)
+  try {
+    const raw = localStorage.getItem('smb_state');
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (parsed && parsed.activeAccountId && parsed.accounts && parsed.accounts[parsed.activeAccountId]) {
+      console.info('[DIAG-LS] using localStorage fallback for active account', { id: parsed.activeAccountId });
+      return parsed.accounts[parsed.activeAccountId];
     }
-    return a;
-  } catch(e) { return null; }
+  } catch(e) {}
+  return null;
 }
 
 function forceRehydrateFromAccount(acct) {

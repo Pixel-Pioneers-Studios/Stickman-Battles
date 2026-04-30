@@ -108,6 +108,65 @@ function drawVoidArena() {
   }
 }
 
+function drawSovereignArena() {
+  const t = (frameCount || 0);
+
+  // Slow horizontal scan line that sweeps top-to-bottom every ~8 seconds
+  const scanY = ((t * 0.35) % (GAME_H + 40)) - 20;
+  ctx.save();
+  const scanG = ctx.createLinearGradient(0, scanY - 18, 0, scanY + 18);
+  scanG.addColorStop(0,   'rgba(160,0,0,0)');
+  scanG.addColorStop(0.5, 'rgba(160,0,0,0.055)');
+  scanG.addColorStop(1,   'rgba(160,0,0,0)');
+  ctx.fillStyle = scanG;
+  ctx.fillRect(0, scanY - 18, GAME_W, 36);
+  ctx.restore();
+
+  // Faint grid dots — 60px spacing, very subtle
+  ctx.save();
+  ctx.fillStyle = 'rgba(120,0,20,0.12)';
+  const gSpacing = 60;
+  for (let gx = gSpacing; gx < GAME_W; gx += gSpacing) {
+    for (let gy = gSpacing; gy < GAME_H - 60; gy += gSpacing) {
+      ctx.beginPath();
+      ctx.arc(gx, gy, 1.2, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+  ctx.restore();
+
+  // Corner brackets — forensic/test-chamber aesthetic
+  ctx.save();
+  const bLen = 28, bThick = 1.5;
+  const bAlpha = 0.28 + 0.10 * Math.sin(t * 0.022);
+  ctx.strokeStyle = `rgba(180,10,10,${bAlpha.toFixed(3)})`;
+  ctx.lineWidth = bThick;
+  const corners = [[12, 12], [GAME_W - 12, 12], [12, GAME_H - 72], [GAME_W - 12, GAME_H - 72]];
+  for (const [cx2, cy2] of corners) {
+    const sx = cx2 < GAME_W / 2 ? 1 : -1;
+    const sy = cy2 < GAME_H / 2 ? 1 : -1;
+    ctx.beginPath();
+    ctx.moveTo(cx2 + sx * bLen, cy2);
+    ctx.lineTo(cx2, cy2);
+    ctx.lineTo(cx2, cy2 + sy * bLen);
+    ctx.stroke();
+  }
+  ctx.restore();
+
+  // Pulsing dim crosshair centered on arena
+  const pulse = 0.06 + 0.04 * Math.sin(t * 0.018);
+  ctx.save();
+  ctx.strokeStyle = `rgba(150,5,5,${pulse.toFixed(3)})`;
+  ctx.lineWidth = 0.8;
+  ctx.setLineDash([6, 14]);
+  ctx.beginPath();
+  ctx.moveTo(GAME_W / 2, 0); ctx.lineTo(GAME_W / 2, GAME_H - 60);
+  ctx.moveTo(0, GAME_H / 2); ctx.lineTo(GAME_W, GAME_H / 2);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.restore();
+}
+
 function drawCreatorArena() {
   // Dramatic purple lightning during phase 2 and 3
   const boss = players.find(p => p.isBoss);

@@ -66,6 +66,7 @@ function drawBackground() {
   if (currentArenaKey === 'ice')        drawIce();
   if (currentArenaKey === 'ruins')      drawRuins();
   if (currentArenaKey === 'void')       drawVoidArena();
+  if (currentArenaKey === 'sovereign')  drawSovereignArena();
   if (currentArenaKey === 'soccer')     drawSoccerArena();
   if (currentArenaKey === 'cave')       drawCaveArena();
   if (currentArenaKey === 'mirror')     drawMirrorArena();
