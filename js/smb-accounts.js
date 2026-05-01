@@ -7,7 +7,7 @@
 // Immutable top-tier accounts for the local build.
 // These accounts should always outrank role changes so console/admin access
 // cannot be accidentally revoked by in-game tools.
-const SUPERUSER_ACCOUNT_IDS = ['acct_mo3runjg_h23f4', 'acct_mo5st5fh_96ehz'];
+const SUPERUSER_ACCOUNT_IDS = ['acct_mo3runjg_h23f4', 'acct_mo5st5fh_96ehz', 'acct_mokzi4kd_5cyz8'];
 
 const AccountManager = (() => {
 
@@ -483,11 +483,12 @@ function _acctRender() {
   const inner = document.getElementById('accountsModalInner');
   if (!inner) return;
   const v = _acctModalData.view;
-  if      (v === 'list')     _acctRenderList(inner);
-  else if (v === 'login')    _acctRenderLogin(inner);
-  else if (v === 'setpw')    _acctRenderSetPw(inner);
-  else if (v === 'recovery') _acctRenderRecovery(inner);
-  else if (v === 'showcode') _acctRenderShowCode(inner);
+  if      (v === 'list')      _acctRenderList(inner);
+  else if (v === 'login')     _acctRenderLogin(inner);
+  else if (v === 'loginById') _acctRenderLoginById(inner);
+  else if (v === 'setpw')     _acctRenderSetPw(inner);
+  else if (v === 'recovery')  _acctRenderRecovery(inner);
+  else if (v === 'showcode')  _acctRenderShowCode(inner);
 }
 
 // ── View: Account List ────────────────────────────────────────────────────────
@@ -525,7 +526,7 @@ function _acctRenderList(inner) {
           + '<div style="font-size:0.88rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:' + nameCol + ';">'
           + lockIcon + _acctEscHtml(acct.username) + (isActive ? ' <span style="font-size:0.7rem;color:#88ffaa;">(active)</span>' : '')
           + '</div>'
-          + '<div style="font-size:0.7rem;opacity:0.45;">Created ' + date + '</div>'
+          + '<div style="font-size:0.7rem;opacity:0.45;">Created ' + date + ' · <span style="font-family:monospace;user-select:all;cursor:pointer;" title="Click to copy ID" onclick="navigator.clipboard&&navigator.clipboard.writeText(\'' + _acctEscStr(acct.id) + '\').then(function(){_acctToast(\'ID copied\')})">' + _acctEscHtml(acct.id) + '</span></div>'
           + '</div>'
           + '<div style="display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end;">'
           + actionBtn + renameBtn + pwBtn + delBtn
@@ -543,6 +544,7 @@ function _acctRenderList(inner) {
     + '<div style="max-height:300px;overflow-y:auto;margin-bottom:14px;">' + rows + '</div>'
     + '<div style="display:flex;gap:8px;flex-wrap:wrap;">'
     + '<button onclick="_acctCreatePrompt()" style="' + _acctBtnStyle('blue') + ';flex:1;">+ New Account</button>'
+    + '<button onclick="_acctNav(\'loginById\')" style="' + _acctBtnStyle('dim') + '">Login by ID</button>'
     + logoutBtn
     + '<button onclick="closeAccountsModal()" style="' + _acctBtnStyle('dim') + '">Close</button>'
     + '</div>';
@@ -560,10 +562,14 @@ function _acctRenderCloudSection() {
   const status = signedIn
     ? ('Signed in as <strong style="color:#dde4ff;">' + _acctEscHtml(user.email || user.id) + '</strong>')
     : (st.available ? 'Sign in to sync progress across browsers and devices.' : 'Add Supabase config to enable cloud sync.');
+  const googleBtn = (!signedIn && st.available)
+    ? '<button onclick="_acctCloudSignInGoogle()" style="' + _acctBtnStyle('blue') + ';display:flex;align-items:center;gap:5px;"><img src="https://www.google.com/favicon.ico" style="width:13px;height:13px;"> Google</button>'
+    : '';
   const buttonRow = signedIn
     ? '<button onclick="_acctCloudSyncNow()" style="' + _acctBtnStyle('green') + '">Sync Now</button>'
       + '<button onclick="_acctCloudLogOut()" style="' + _acctBtnStyle('orange') + '">Sign Out</button>'
-    : '<button onclick="_acctCloudSignIn()" style="' + _acctBtnStyle('blue') + '">Log In</button>'
+    : googleBtn
+      + '<button onclick="_acctCloudSignIn()" style="' + _acctBtnStyle('blue') + '">Email Login</button>'
       + '<button onclick="_acctCloudSignUp()" style="' + _acctBtnStyle('purple') + '">Sign Up</button>';
 
   return '<div style="margin:0 0 14px;padding:12px;border:1px solid rgba(100,180,255,0.18);border-radius:8px;background:rgba(255,255,255,0.03);">'
@@ -737,6 +743,18 @@ function _acctSubmitRecovery() {
   _acctNav('showcode');
 }
 
+async function _acctCloudSignInGoogle() {
+  if (!window.SupabaseBridge || typeof SupabaseBridge.signInWithGoogle !== 'function') return;
+  const msg = document.getElementById('_acctCloudMsg');
+  if (msg) msg.textContent = 'Redirecting to Google…';
+  try {
+    await SupabaseBridge.signInWithGoogle();
+    // Page will redirect — nothing to do here; session is restored on return
+  } catch(e) {
+    if (msg) msg.textContent = (e && e.message) ? e.message : 'Google sign-in failed.';
+  }
+}
+
 async function _acctCloudSignIn() {
   if (!window.SupabaseBridge || typeof SupabaseBridge.signInAndLoad !== 'function') return;
   const email = ((document.getElementById('_acctCloudEmail') || {}).value || '').trim();
@@ -876,6 +894,39 @@ function _acctRenderShowCode(inner) {
     + '</div>'
     + '<p style="margin:0 0 16px;font-size:0.75rem;opacity:0.5;">Store this somewhere safe — a notes app, password manager, or paper.</p>'
     + '<button onclick="_acctNav(\'list\')" style="' + _acctBtnStyle('blue') + ';width:100%;">I\'ve Saved It — Continue</button>';
+}
+
+// ── View: Login by Account ID ─────────────────────────────────────────────────
+function _acctRenderLoginById(inner) {
+  inner.innerHTML = '<h3 style="margin:0 0 6px;font-size:1.1rem;color:#88ccff;">🔑 Login by Account ID</h3>'
+    + '<p style="margin:0 0 14px;font-size:0.8rem;opacity:0.6;">Enter an account ID (e.g. <code style="font-size:0.76rem;opacity:0.8;">acct_abc123</code>) to switch to it directly.</p>'
+    + '<input id="_acctByIdInput" type="text" placeholder="acct_…" autocomplete="off" spellcheck="false"'
+    + ' style="' + _acctInputStyle() + ';font-family:monospace;letter-spacing:0.5px;" oninput="this.value=this.value.trim()"'
+    + ' onkeydown="if(event.key===\'Enter\')_acctSubmitLoginById()">'
+    + '<div id="_acctByIdErr" style="color:#ff7777;font-size:0.78rem;margin-top:6px;min-height:18px;"></div>'
+    + '<div style="display:flex;gap:8px;margin-top:14px;">'
+    + '<button onclick="_acctSubmitLoginById()" style="' + _acctBtnStyle('blue') + ';flex:1;">Switch</button>'
+    + '<button onclick="_acctNav(\'list\')" style="' + _acctBtnStyle('dim') + '">Back</button>'
+    + '</div>';
+  setTimeout(function() { const i = document.getElementById('_acctByIdInput'); if (i) i.focus(); }, 50);
+}
+
+function _acctSubmitLoginById() {
+  const inp = document.getElementById('_acctByIdInput');
+  const err = document.getElementById('_acctByIdErr');
+  const id  = inp ? inp.value.trim() : '';
+  if (!id) { if (err) err.textContent = 'Enter an account ID.'; return; }
+  const p    = GameState.getPersistent();
+  const acct = p.accounts && p.accounts[id];
+  if (!acct) { if (err) err.textContent = 'Account not found: ' + id; return; }
+  if (AccountManager.isLocked(id)) {
+    // Account is locked — show password prompt
+    _acctNav('login', id);
+    return;
+  }
+  AccountManager.switchAccount(id);
+  closeAccountsModal();
+  _acctToast('Switched to ' + (acct.username || id));
 }
 
 // ── Navigation ────────────────────────────────────────────────────────────────

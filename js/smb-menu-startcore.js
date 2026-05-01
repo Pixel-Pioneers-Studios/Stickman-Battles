@@ -235,7 +235,7 @@ function _startGameCore() {
     }
   }
   // Megaknight spawn fall
-  if (p1.charClass === 'megaknight') { p1.y = -120; p1.vy = 2; p1._spawnFalling = true; p1.invincible = 200; }
+  if (p1.charClass === 'megaknight') { p1.y = -120; p1.vy = 2; p1._spawnFalling = true; p1.invincible = 200; SoundManager.megaknightFall && SoundManager.megaknightFall(); }
 
   // Player 2 / Bot / Boss / Training Dummy
   let p2;
@@ -286,7 +286,7 @@ function _startGameCore() {
       p2h.hat  = document.getElementById('p2Hat')?.value  || 'none';
       p2h.cape = document.getElementById('p2Cape')?.value || 'none';
       applyClass(p2h, _p2ResolvedClass);
-      if (p2h.charClass === 'megaknight') { p2h.y = -120; p2h.vy = 2; p2h._spawnFalling = true; p2h.invincible = 200; }
+      if (p2h.charClass === 'megaknight') { p2h.y = -120; p2h.vy = 2; p2h._spawnFalling = true; p2h.invincible = 200; SoundManager.megaknightFall && SoundManager.megaknightFall(); }
       if (p2h.isAI) p2h.target = boss; // bot targets boss
       players = [p1, p2h, boss];
       p1.target  = boss;
@@ -449,7 +449,7 @@ function _startGameCore() {
       { const _sp2 = pickSafeSpawn('right', _p1SpawnPos.x) || { x: 720, y: 300 };
         p2.spawnX = _sp2.x; p2.spawnY = _sp2.y; p2.x = _sp2.x; p2.y = _sp2.y - p2.h; }
       applyClass(p2, _p2ResolvedClass);
-      if (p2.charClass === 'megaknight') { p2.y = -120; p2.vy = 2; p2._spawnFalling = true; p2.invincible = 200; }
+      if (p2.charClass === 'megaknight') { p2.y = -120; p2.vy = 2; p2._spawnFalling = true; p2.invincible = 200; SoundManager.megaknightFall && SoundManager.megaknightFall(); }
       const starterDummy = new Dummy(450, 200);
       starterDummy.playerNum = 3; starterDummy.name = 'DUMMY';
       trainingDummies.push(starterDummy);
@@ -539,7 +539,7 @@ function _startGameCore() {
     if (p2Skin !== 'default' && SKIN_COLORS[p2Skin]) p2.color = SKIN_COLORS[p2Skin];
     p2.weaponTheme = (p2WeaponSkin && p2WeaponSkin !== 'default') ? p2WeaponSkin : null;
     applyClass(p2, _p2ResolvedClass);
-    if (p2.charClass === 'megaknight') { p2.y = -120; p2.vy = 2; p2._spawnFalling = true; p2.invincible = 200; }
+    if (p2.charClass === 'megaknight') { p2.y = -120; p2.vy = 2; p2._spawnFalling = true; p2.invincible = 200; SoundManager.megaknightFall && SoundManager.megaknightFall(); }
     // Story mode: apply enemy damage and cooldown scaling so fights feel fair at each chapter
     if (storyModeActive && typeof STORY_ENEMY_CONFIGS !== 'undefined') {
       const _ec = STORY_ENEMY_CONFIGS[storyCurrentLevel];

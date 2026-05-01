@@ -35,14 +35,8 @@ function _cheatUnlockAll() {
 
   // Megaknight
   if (typeof setAccountFlagWithRuntime === 'function') {
-    setAccountFlagWithRuntime(['unlocks', 'megaknight'], true, function(v) { unlockedMegaknight = v; });
-  } else { unlockedMegaknight = true; }
-  ['p1Class','p2Class'].forEach(id => {
-    const sel = document.getElementById(id);
-    if (sel && !sel.querySelector('option[value="megaknight"]')) {
-      const opt = document.createElement('option'); opt.value = 'megaknight'; opt.textContent = 'Class: Megaknight ★'; sel.appendChild(opt);
-    }
-  });
+    setAccountFlagWithRuntime(['unlocks', 'megaknight'], true, function(v) { unlockedMegaknight = v; if (typeof refreshMegaknightClassOption === 'function') refreshMegaknightClassOption(); });
+  } else { unlockedMegaknight = true; if (typeof refreshMegaknightClassOption === 'function') refreshMegaknightClassOption(); }
 
   // All achievements
   if (typeof ACHIEVEMENTS !== 'undefined') {
@@ -134,15 +128,9 @@ function applyCode(val) {
     ok('SOVEREIGN Ω unlocked! Select it from the menu.');
   } else if (code === 'CLASSMEGAKNIGHT') {
     if (typeof setAccountFlagWithRuntime === 'function') {
-      setAccountFlagWithRuntime(['unlocks', 'megaknight'], true, function(v) { unlockedMegaknight = v; });
-    } else { unlockedMegaknight = true; }
-    ['p1Class','p2Class'].forEach(id => {
-      const sel = document.getElementById(id);
-      if (sel && !sel.querySelector('option[value="megaknight"]')) {
-        const opt = document.createElement('option'); opt.value = 'megaknight'; opt.textContent = 'Class: Megaknight ★'; sel.appendChild(opt);
-      }
-    });
-    ok('Megaknight class unlocked! Select it in the class dropdown.');
+      setAccountFlagWithRuntime(['unlocks', 'megaknight'], true, function(v) { unlockedMegaknight = v; if (typeof refreshMegaknightClassOption === 'function') refreshMegaknightClassOption(); });
+    } else { unlockedMegaknight = true; if (typeof refreshMegaknightClassOption === 'function') refreshMegaknightClassOption(); }
+    ok('Megaknight class unlocked! Select it from the class cards.');
   } else if (code.startsWith('MAP:')) {
     const mapKey = code.slice(4).toLowerCase();
     if (!ARENAS[mapKey]) { err('Unknown arena. Try: grass lava space city forest ice ruins'); return; }

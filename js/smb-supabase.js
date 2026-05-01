@@ -655,6 +655,14 @@ const SupabaseBridge = (() => {
     }, 800);
   }
 
+  async function signInWithGoogle() {
+    const client = await getClient();
+    return client.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo: _redirectTarget() },
+    });
+  }
+
   async function signInAndLoad(email, password) {
     const res = await signIn(email, password);
     if (res && !res.error) {
@@ -694,6 +702,7 @@ const SupabaseBridge = (() => {
     onChange,
     signUp,
     signIn,
+    signInWithGoogle,
     signOut,
     signInAndLoad,
     signUpAndLoad,

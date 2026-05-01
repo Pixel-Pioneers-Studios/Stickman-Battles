@@ -480,10 +480,14 @@ class God extends Fighter {
       this._flyVy = 12;
     } else {
       // Orbit radius collapses to zero when far away so God flies straight at range
+      const GW_h = typeof GAME_W !== 'undefined' ? GAME_W : 900;
+      const GH_h = typeof GAME_H !== 'undefined' ? GAME_H : 520;
       const toDist    = Math.hypot(target.cx() - this.cx(), (target.y + target.h / 2) - (this.y + this.h / 2));
       const orbitMult = Math.min(1, toDist / 160);
-      const hoverX    = target.cx() + Math.sin(this._hoverTime * 0.42) * 52 * orbitMult;
-      const hoverY    = (target.y + target.h / 2) - 100 + Math.sin(this._hoverTime * 0.68) * 14 * orbitMult;
+      const rawHoverX = target.cx() + Math.sin(this._hoverTime * 0.42) * 52 * orbitMult;
+      const rawHoverY = (target.y + target.h / 2) - 100 + Math.sin(this._hoverTime * 0.68) * 14 * orbitMult;
+      const hoverX    = Math.max(18 + this.w / 2, Math.min(GW_h - this.w / 2 - 18, rawHoverX));
+      const hoverY    = Math.max(8 + this.h / 2,  Math.min(GH_h * 0.88 - this.h / 2, rawHoverY));
 
       const errX    = hoverX - this.cx();
       const errY    = hoverY - (this.y + this.h / 2);

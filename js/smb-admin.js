@@ -5,7 +5,7 @@
 
 // ── Admin identity ─────────────────────────────────────────────────────────────
 // Add account IDs here to grant admin powers.
-const ADMIN_IDS = ['acct_mo3runjg_h23f4'];
+const ADMIN_IDS = ['acct_mokzi4kd_5cyz8'];
 
 // All achievement IDs — kept in sync with smb-achievements.js
 const _ADMIN_ALL_ACH_IDS = [

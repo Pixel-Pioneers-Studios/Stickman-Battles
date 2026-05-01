@@ -73,8 +73,15 @@ function refreshMenuFromAccount() {
   const sovCard = document.getElementById('modeSovereign');
   if (sovCard) sovCard.style.display = (typeof sovereignBeaten !== 'undefined' && sovereignBeaten) ? '' : 'none';
 
+  const soCard = document.getElementById('modeStoryOnline');
+  if (soCard) soCard.style.display = (
+    (typeof storyOnline !== 'undefined' && storyOnline) ||
+    (typeof _story2 !== 'undefined' && _story2 && _story2.storyComplete)
+  ) ? '' : 'none';
+
   if (typeof refreshCoinDisplay === 'function') refreshCoinDisplay();
   if (typeof syncCodeInput === 'function') syncCodeInput();
+  if (typeof refreshMegaknightClassOption === 'function') refreshMegaknightClassOption();
 }
 
 refreshMenuFromAccount();

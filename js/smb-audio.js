@@ -9,6 +9,9 @@ const SoundManager = (() => {
   let _muted = false;
   let _silencedGain = undefined; // set by gameLoop for cosmic silence moments
   let _cosmicSilenceTimer = 0;
+  // File-based audio: raw bytes fetched at load time, decoded to AudioBuffer on first play
+  const _rawBuffers = {};  // key → ArrayBuffer
+  const _buffers    = {};  // key → AudioBuffer (decoded, reusable)
   function _effectiveVol() {
     if (_silencedGain !== undefined) return _vol * _silencedGain;
     return _vol;
@@ -21,6 +24,26 @@ const SoundManager = (() => {
   function _play(fn) {
     if (_muted) return;
     try { fn(_getCtx()); } catch(e) {}
+  }
+  function _playBuffer(key, vol) {
+    if (_muted) return;
+    const finish = (audioBuf) => {
+      try {
+        const ctx = _getCtx();
+        const src = ctx.createBufferSource();
+        src.buffer = audioBuf;
+        const g = ctx.createGain();
+        g.gain.value = vol * _effectiveVol();
+        src.connect(g); g.connect(ctx.destination);
+        src.start();
+      } catch(e) {}
+    };
+    if (_buffers[key]) { finish(_buffers[key]); return; }
+    if (!_rawBuffers[key]) return;
+    // Decode on first play — slice so the ArrayBuffer stays intact for future calls
+    _getCtx().decodeAudioData(_rawBuffers[key].slice(0))
+      .then(buf => { _buffers[key] = buf; finish(buf); })
+      .catch(() => {});
   }
   function _osc(ctx, type, freq, dur, vol, envA = 0.005) {
     const g = ctx.createGain();
@@ -82,6 +105,13 @@ const SoundManager = (() => {
                    g.gain.exponentialRampToValueAtTime(0.001,c.currentTime+0.40);
                    o.connect(g); g.connect(c.destination); o.start(); o.stop(c.currentTime+0.40); }); },
     superActivate(){ _play(c => { [262,330,392,523].forEach((f,i)=>setTimeout(()=>_osc(c,'sine',f,0.18,0.22),i*55)); }); },
+    megaknightFall() { _playBuffer('megaknight', 0.90); },
+    loadAudio(key, url) {
+      fetch(url)
+        .then(r => { if (!r.ok) throw new Error(r.status); return r.arrayBuffer(); })
+        .then(buf => { _rawBuffers[key] = buf; })
+        .catch(e => console.warn('[SoundManager] Failed to load audio "' + key + '":', e));
+    },
   };
 })();
 
@@ -91,6 +121,9 @@ const SoundManager = (() => {
   if (sv !== null) SoundManager.setVolume(parseFloat(sv));
   if (localStorage.getItem('smc_sfxMute') === '1') SoundManager.setMuted(true);
 })();
+
+// Pre-fetch audio assets so they're decoded and ready on first play
+SoundManager.loadAudio('megaknight', 'mega-knight-evolution.mp3');
 
 // ============================================================
 // MUSIC MANAGER  (YouTube IFrame API — background music only)

@@ -988,7 +988,13 @@ class SovereignMK2 extends AdaptiveAI {
 
     // Tick frame-safe shield drop (replaces the old setTimeout approach)
     if (this._shieldHoldFrames > 0) {
-      if (--this._shieldHoldFrames === 0) this.shielding = false;
+      if (--this._shieldHoldFrames === 0) {
+        this.shielding = false;
+        // Shield-counter: player was attacking while we blocked → punish the moment shield drops
+        if (playerAttacking && d < atkRange * 1.6 + 40) {
+          this._punishTimer = lb ? 2 : 4;
+        }
+      }
     }
 
     // ── FORCE ENGAGEMENT ─────────────────────────────────────────
@@ -1080,8 +1086,25 @@ class SovereignMK2 extends AdaptiveAI {
       return;
     }
 
-    // ── COUNTER-ATTACK: dodge + punish on player attack ───────
+    // ── COUNTER-ATTACK: dodge or shield on player attack ─────
     if (playerAttacking && d < 160) {
+      const canShield = this.shieldCooldown === 0;
+      const cornered  = (nearLeft && dir < 0) || (nearRight && dir > 0);
+      // Shield preferred when cornered (no clean dodge direction), under heavy pressure,
+      // or limiter broken (Sovereign wants to absorb and counter rather than flee).
+      const shieldChance = (canShield && effDef > 0.55)
+        ? (cornered ? 0.62 : 0.22) + (lb ? 0.12 : 0) + (recentTaken >= 2 ? 0.14 : 0)
+        : 0;
+
+      if (shieldChance > 0 && Math.random() < shieldChance) {
+        this.shielding        = true;
+        this.shieldCooldown   = typeof SHIELD_CD !== 'undefined' ? SHIELD_CD : 450;
+        this._shieldHoldFrames = 17;
+        this._recordEvent('dodge', 3);
+        this.aiReact = Math.max(1, reactFrames);
+        return;
+      }
+
       if (effDef > 0.45) {
         const dDir = (nearLeft && dir < 0) ? 1 : (nearRight && dir > 0) ? -1 : -dir;
         if (this.onGround && !this.isEdgeDanger(dDir)) {
@@ -1093,15 +1116,18 @@ class SovereignMK2 extends AdaptiveAI {
         }
         this.shielding = false;
         this._recordEvent('dodge', 5);
-        this._punishTimer = lb ? 4 : 6; // limiter break: faster punish
+        this._punishTimer = lb ? 4 : 6;
         this.aiReact = Math.max(1, reactFrames);
         return;
       }
-      if (this.shieldCooldown === 0 && effDef > 0.72) {
-        this.shielding = true;
-        this.shieldCooldown = typeof SHIELD_CD !== 'undefined' ? SHIELD_CD : 450;
-        this._shieldHoldFrames = 17; // ~280 ms at 60 fps — frame-safe, respects slow-motion
+
+      // Cornered with no usable dodge direction — shield as last resort
+      if (canShield) {
+        this.shielding        = true;
+        this.shieldCooldown   = typeof SHIELD_CD !== 'undefined' ? SHIELD_CD : 450;
+        this._shieldHoldFrames = 17;
         this._recordEvent('dodge', 3);
+        this.aiReact = Math.max(1, reactFrames);
         return;
       }
     } else {
@@ -1174,6 +1200,20 @@ class SovereignMK2 extends AdaptiveAI {
         this._punishTimer = 4;
         this._recordEvent('dodge', 8);
       }
+      return;
+    }
+
+    // ── PROACTIVE SHIELD STANCE ────────────────────────────────
+    // At close range, occasionally hold shield briefly to bait the player into
+    // attacking — shield drops after 17 frames and the counter fires immediately.
+    // Only fires when not in bait/punish/force mode and shield cooldown is ready.
+    if (!this._punishModeActive && this._shieldHoldFrames === 0 && this.shieldCooldown === 0
+        && this.intelligence > 0.60 && d < 150 && d > prefDist * 0.7
+        && !playerAttacking && Math.random() < (0.006 + this.intelligence * 0.005)) {
+      this.shielding        = true;
+      this.shieldCooldown   = typeof SHIELD_CD !== 'undefined' ? SHIELD_CD : 450;
+      this._shieldHoldFrames = 12; // shorter hold for proactive stance
+      this.aiReact = Math.max(1, reactFrames);
       return;
     }
 

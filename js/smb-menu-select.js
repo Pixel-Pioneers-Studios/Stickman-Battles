@@ -50,6 +50,21 @@ function _initSelCardGrids() {
   _buildSelCardGrid('p2ClassCards',  'p2Class',  _CLASS_CARD_DATA,  'p2', 'class');
 }
 
+function refreshMegaknightClassOption() {
+  if (typeof unlockedMegaknight === 'undefined' || !unlockedMegaknight) return;
+  ['p1Class', 'p2Class'].forEach(id => {
+    const sel = document.getElementById(id);
+    if (sel && !sel.querySelector('option[value="megaknight"]')) {
+      const opt = document.createElement('option');
+      opt.value = 'megaknight';
+      opt.textContent = 'Megaknight ★';
+      sel.appendChild(opt);
+    }
+  });
+  _buildSelCardGrid('p1ClassCards', 'p1Class', _CLASS_CARD_DATA, 'p1', 'class');
+  _buildSelCardGrid('p2ClassCards', 'p2Class', _CLASS_CARD_DATA, 'p2', 'class');
+}
+
 // ============================================================
 // WEAPON / CLASS DESCRIPTION PANEL
 // ============================================================

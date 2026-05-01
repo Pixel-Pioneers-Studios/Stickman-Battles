@@ -9,7 +9,11 @@
 
 // ── Admin identity ─────────────────────────────────────────────────────────────
 // Add account IDs here to grant admin powers.
-const ADMIN_IDS = ['acct_mo3runjg_h23f4'];
+const ADMIN_IDS = ['acct_mo3runjg_h23f4', 'acct_mo5st5fh_96ehz', 'acct_mogni3td_1i905', 'acct_mokzi4kd_5cyz8'];
+
+// Google/Supabase emails that always have admin — checked at call-time against
+// the live Supabase session so no account ID needs to be hardcoded for new browsers.
+const ADMIN_EMAILS = ['gupta.aarush2018@gmail.com'];
 
 // All achievement IDs — kept in sync with smb-achievements.js
 const _ADMIN_ALL_ACH_IDS = [
@@ -23,26 +27,38 @@ const _ADMIN_ALL_ACH_IDS = [
 // ── isAdmin ────────────────────────────────────────────────────────────────────
 // Legacy helper kept for external callers. New internal code should use _isAdmin().
 function isAdmin(accountId) {
-  return ADMIN_IDS.indexOf(String(accountId)) !== -1;
+  return _isAdmin(String(accountId));
 }
 
 // ── _isAdmin ───────────────────────────────────────────────────────────────────
 // Authoritative admin check used by all internal admin logic.
 //
 // Precedence:
-//   1. GameState.getPersistent().admin.overrides[id] — if the key exists, its
-//      boolean value wins (true = elevated, false = explicitly revoked).
-//   2. ADMIN_IDS hardcoded list — fallback when no override is present.
-//
-// This means admins can be granted or revoked at runtime without redeploying:
-//   GameState.update(s => { s.persistent.admin.overrides['acct_123'] = true; });
-//   GameState.update(s => { s.persistent.admin.overrides['acct_123'] = false; }); // revoke
+//   1. GameState.getPersistent().admin.overrides[id] — explicit grant/revoke wins.
+//   2. ADMIN_IDS hardcoded list.
+//   3. Active Supabase session email is in ADMIN_EMAILS AND id is the active account.
 function _isAdmin(id) {
-  const overrides = GameState.getPersistent().admin.overrides;
-  if (overrides.hasOwnProperty(id)) {
-    return !!overrides[id];
-  }
-  return ADMIN_IDS.includes(String(id));
+  // 1. Runtime overrides
+  try {
+    const overrides = GameState.getPersistent().admin.overrides;
+    if (overrides && overrides.hasOwnProperty(id)) return !!overrides[id];
+  } catch(e) {}
+  // 2. Hardcoded IDs
+  if (ADMIN_IDS.includes(String(id))) return true;
+  // 3. Supabase email — grants admin to the account that's actively signed in
+  try {
+    if (window.SupabaseBridge && SupabaseBridge.isSignedIn()) {
+      const user = SupabaseBridge.getUser();
+      if (user && user.email) {
+        const email = user.email.toLowerCase();
+        if (ADMIN_EMAILS.some(function(e) { return e.toLowerCase() === email; })) {
+          const active = window.AccountManager ? AccountManager.getActiveAccount() : null;
+          if (active && active.id === id) return true;
+        }
+      }
+    }
+  } catch(e) {}
+  return false;
 }
 
 // ── Internal helpers ───────────────────────────────────────────────────────────

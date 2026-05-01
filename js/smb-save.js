@@ -544,6 +544,11 @@ function _refreshRuntimeFromSave(data) {
   // Sync secret-letter UI (no-op if still in loading phase)
   if (typeof syncCodeInput === 'function') syncCodeInput();
 
+  // Sync mode-card visibility so unlocked modes (Boss, TrueForm, Sovereign, etc.)
+  // show correctly after a page reload — without this they stay hidden because
+  // refreshMenuFromAccount() ran at smb-menu-utils.js parse time before loadGame().
+  if (typeof refreshMenuFromAccount === 'function') refreshMenuFromAccount();
+
   // Mark this account as hydrated — guards against redundant re-runs this session
   if (_acctId) _hydratedAccountId = _acctId;
 }

@@ -435,13 +435,14 @@ const _WEAPON_CARD_DATA = {
 };
 
 const _CLASS_CARD_DATA = {
-  random:    { icon: '🎲', tag: 'Surprise' },
-  none:      { icon: '⬜', tag: 'Free' },
-  thor:      { icon: '⚡', tag: 'Tank' },
-  kratos:    { icon: '🔴', tag: 'Rage' },
-  ninja:     { icon: '💨', tag: 'Speed' },
-  gunner:    { icon: '🔵', tag: 'Double' },
-  archer:    { icon: '🏹', tag: 'Evasive' },
-  paladin:   { icon: '🛡️', tag: 'Holy' },
-  berserker: { icon: '💢', tag: 'Frenzy' },
+  random:      { icon: '🎲', tag: 'Surprise' },
+  none:        { icon: '⬜', tag: 'Free' },
+  thor:        { icon: '⚡', tag: 'Tank' },
+  kratos:      { icon: '🔴', tag: 'Rage' },
+  ninja:       { icon: '💨', tag: 'Speed' },
+  gunner:      { icon: '🔵', tag: 'Double' },
+  archer:      { icon: '🏹', tag: 'Evasive' },
+  paladin:     { icon: '🛡️', tag: 'Holy' },
+  berserker:   { icon: '💢', tag: 'Frenzy' },
+  megaknight:  { icon: '⚔️', tag: 'Legend' },
 };

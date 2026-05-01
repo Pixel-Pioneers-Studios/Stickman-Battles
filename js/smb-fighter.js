@@ -200,6 +200,7 @@ class Fighter {
       this.vy = 2;
       this._spawnFalling = true;
       this.invincible = 200;
+      SoundManager.megaknightFall && SoundManager.megaknightFall();
     }
     if (this.isAI) {
       this.target = null;
@@ -549,7 +550,7 @@ class Fighter {
       this.vy  = clamp(this.vy, -20, vyMax);
 
       // ── VELOCITY SANITY LOG (debug) ──────────────────────────────────────────
-      if (Math.abs(this.vx) > 11 || Math.abs(this.vy) > 17) {
+      if (debugMode && (Math.abs(this.vx) > 11 || Math.abs(this.vy) > 17)) {
         console.warn('[PHYS] high velocity', this.name || 'fighter', 'vx:', this.vx.toFixed(1), 'vy:', this.vy.toFixed(1));
       }
       this.onGround = false;
@@ -2730,15 +2731,34 @@ class Fighter {
     ctx.beginPath(); ctx.moveTo(hipX, hipY); ctx.lineTo(rKneeX, rKneeY); ctx.lineTo(rFootX, rFootY); ctx.stroke();
     ctx.beginPath(); ctx.moveTo(hipX, hipY); ctx.lineTo(lKneeX, lKneeY); ctx.lineTo(lFootX, lFootY); ctx.stroke();
 
-    // SHIELD bubble
+    // SHIELD bubble (or raised kite shield for Paladin)
     if (this.shielding) {
-      ctx.beginPath();
-      ctx.arc(cx + f * 15, shoulderY + 12, 23, 0, Math.PI * 2);
-      ctx.strokeStyle = 'rgba(100,210,255,0.88)';
-      ctx.lineWidth   = 3;
-      ctx.stroke();
-      ctx.fillStyle   = 'rgba(100,210,255,0.14)';
-      ctx.fill();
+      if (this.charClass === 'paladin' && this.weaponKey === 'shield') {
+        // Draw a large raised kite shield in blocking position
+        const shX = cx + f * 20;
+        const shY = shoulderY + 2;
+        ctx.save();
+        ctx.translate(shX, shY);
+        ctx.scale(1.8, 1.8);
+        ctx.fillStyle = '#4466cc';
+        ctx.beginPath();
+        ctx.moveTo(-8, -14); ctx.lineTo(8, -14);
+        ctx.lineTo(12, 4); ctx.lineTo(0, 16); ctx.lineTo(-12, 4);
+        ctx.closePath(); ctx.fill();
+        ctx.strokeStyle = '#aabbff'; ctx.lineWidth = 1.5; ctx.stroke();
+        ctx.strokeStyle = '#ffee88'; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(0, -8); ctx.lineTo(0, 10); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(-7, -2); ctx.lineTo(7, -2); ctx.stroke();
+        ctx.restore();
+      } else {
+        ctx.beginPath();
+        ctx.arc(cx + f * 15, shoulderY + 12, 23, 0, Math.PI * 2);
+        ctx.strokeStyle = 'rgba(100,210,255,0.88)';
+        ctx.lineWidth   = 3;
+        ctx.stroke();
+        ctx.fillStyle   = 'rgba(100,210,255,0.14)';
+        ctx.fill();
+      }
     }
 
     // ARMOR visuals (enemy story armor pieces)

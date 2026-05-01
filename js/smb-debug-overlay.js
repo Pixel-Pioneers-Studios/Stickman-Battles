@@ -38,7 +38,7 @@ function runSanityChecks() {
       p.x = GAME_W / 2; p.y = 200; p.vx = 0; p.vy = 0;
     }
     if (isNaN(p.vx) || isNaN(p.vy) || !isFinite(p.vx) || !isFinite(p.vy)) {
-      console.warn('[DBG] NaN/Inf velocity on', p.name || 'fighter', { vx: p.vx, vy: p.vy });
+      if (debugMode) console.warn('[DBG] NaN/Inf velocity on', p.name || 'fighter', { vx: p.vx, vy: p.vy });
       p.vx = 0; p.vy = 0;
     }
     if (isNaN(p.health) || p.health < 0) {
@@ -341,6 +341,8 @@ document.addEventListener('keydown', e => {
     _dbgJumpMenuOpen();
     return;
   }
+  // Shift+O: toggle game console
+  if (e.key === 'O' && e.shiftKey) { e.preventDefault(); if (_consoleOpen) closeGameConsole(); else openGameConsole(); return; }
   // Escape closes game console if open (when console input is NOT focused)
   if (e.key === 'Escape' && _consoleOpen) { closeGameConsole(); return; }
   // Track "debugmode" secret buffer
