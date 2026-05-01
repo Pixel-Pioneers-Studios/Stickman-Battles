@@ -295,9 +295,9 @@ const WEAPONS = {
 
   mkgauntlet: {
     // Megaknight class weapon — locked to Megaknight. Overrides handled in attack()/ability().
-    name: 'Mk. Gauntlets', damage: 20, range: 72, cooldown: 22,
-    kb: 24, abilityCooldown: 75, type: 'melee', weaponType: 'heavy', color: '#8844ff',
-    contactDmgMult: 0.5, abilityName: 'Uppercut',
+    name: 'Mk. Gauntlets', damage: 30, range: 90, cooldown: 22,
+    kb: 32, abilityCooldown: 80, type: 'melee', weaponType: 'heavy', color: '#8844ff',
+    contactDmgMult: 0.65, abilityName: 'Grand Slam',
     ability(_user, _tgt) { /* fully overridden by Megaknight class */ }
   },
 

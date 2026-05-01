@@ -223,9 +223,11 @@ function _startGameCore() {
   // Auto-equip saved custom weapon only when the player is not explicitly
   // asking for random weapons/classes. Random mode should stay random.
   const _p1WeaponSel = document.getElementById('p1Weapon')?.value || 'sword';
+  const _p1ClassForcesWeapon = typeof CLASSES !== 'undefined' && CLASSES[_p1ResolvedClass] && !!CLASSES[_p1ResolvedClass].weapon;
   if (!storyModeActive && !isBossMode && gameMode !== 'trueform'
       && !isCompleteRandMode
       && _p1WeaponSel !== 'random'
+      && !_p1ClassForcesWeapon
       && (!onlineMode || onlineAllowCustomWeapons)
       && typeof loadCustomWeaponSelection === 'function') {
     const _cwKey = loadCustomWeaponSelection();
@@ -279,7 +281,7 @@ function _startGameCore() {
       const w2b  = _p2ResolvedClass !== 'none' && typeof CLASSES !== 'undefined' && CLASSES[_p2ResolvedClass]?.weapon
                    ? CLASSES[_p2ResolvedClass].weapon : w2;
       const c2b  = document.getElementById('p2Color').value;
-      const p2h  = new Fighter(720, 300, c2b, w2b, { left:'ArrowLeft', right:'ArrowRight', jump:'ArrowUp', attack:'Enter', shield:'ArrowDown', ability:'.', super:'/' }, p2IsBot, diff);
+      const p2h  = new Fighter(720, 300, c2b, w2b, { left:'j', right:'l', jump:'i', attack:'u', shield:'k', ability:'o', super:'p' }, p2IsBot, diff);
       p2h.playerNum = 2; p2h.name = p2IsBot ? 'BOT' : 'P2'; p2h.lives = chosenLives;
       { const _sp2 = pickSafeSpawn('right', _p1SpawnPos.x) || { x: 720, y: 300 };
         p2h.spawnX = _sp2.x; p2h.spawnY = _sp2.y; p2h.x = _sp2.x; p2h.y = _sp2.y - p2h.h; }
@@ -444,7 +446,7 @@ function _startGameCore() {
   } else if (isTrainingMode) {
     if (training2P) {
       // 2P training: both fighters present, shared dummy
-      p2 = new Fighter(720, 300, c2, w2, { left:'ArrowLeft', right:'ArrowRight', jump:'ArrowUp', attack:'Enter', shield:'ArrowDown', ability:'.', super:'/' }, p2IsBot, diff);
+      p2 = new Fighter(720, 300, c2, w2, { left:'j', right:'l', jump:'i', attack:'u', shield:'k', ability:'o', super:'p' }, p2IsBot, diff);
       p2.playerNum = 2; p2.name = p2IsBot ? 'BOT' : 'P2'; p2.lives = 999;
       { const _sp2 = pickSafeSpawn('right', _p1SpawnPos.x) || { x: 720, y: 300 };
         p2.spawnX = _sp2.x; p2.spawnY = _sp2.y; p2.x = _sp2.x; p2.y = _sp2.y - p2.h; }
@@ -470,8 +472,7 @@ function _startGameCore() {
     p1.lives = (minigameType === 'survival') ? 1 : 99; // survival: 1 life; koth/chaos/soccer: infinite (99)
     if (minigameType === 'koth' || minigameType === 'chaos' || minigameType === 'soccer' || (minigameType === 'survival' && !p2IsNone)) {
       const p2mg = new Fighter(720, 300, c2, w2,
-        { left:'ArrowLeft', right:'ArrowRight', jump:'ArrowUp', attack:'Enter',
-          shield:'ArrowDown', ability:'.', super:'/' }, p2IsBot, p2Diff);
+        { left:'j', right:'l', jump:'i', attack:'u', shield:'k', ability:'o', super:'p' }, p2IsBot, p2Diff);
       p2mg.playerNum = 2; p2mg.name = p2IsBot ? 'BOT' : 'P2';
       p2mg.lives = (minigameType === 'survival') ? 1 : 99;
       { const _sp2 = pickSafeSpawn('right', _p1SpawnPos.x) || { x: 720, y: 300 };
@@ -528,7 +529,7 @@ function _startGameCore() {
     players = [p1];
     p1.target = null;
   } else {
-    p2 = new Fighter(720, 300, c2, w2, { left:'ArrowLeft', right:'ArrowRight', jump:'ArrowUp', attack:'Enter', shield:'ArrowDown', ability:'.', super:'/' }, isBot, diff);
+    p2 = new Fighter(720, 300, c2, w2, { left:'j', right:'l', jump:'i', attack:'u', shield:'k', ability:'o', super:'p' }, isBot, diff);
     // In story two-enemy fights, cap p2 lives so total enemy lives ≤ player lives
     const _p2StoryLives = (storyModeActive && storyTwoEnemies) ? Math.max(1, Math.floor(chosenLives / 2)) : chosenLives;
     p2.playerNum = 2; p2.name = p2IsBot ? 'BOT' : 'P2'; p2.lives = _p2StoryLives;
@@ -574,7 +575,7 @@ function _startGameCore() {
       const _p3c = _sed.color || '#cc5500';
       const _p3d = _sed.aiDiff || diff;
       const p3 = new Fighter(_sp3.x, _sp3.y, _p3c, _p3w,
-        { left:'ArrowLeft', right:'ArrowRight', jump:'ArrowUp', attack:'Enter', shield:'ArrowDown', ability:'.', super:'/' },
+        { left:'j', right:'l', jump:'i', attack:'u', shield:'k', ability:'o', super:'p' },
         true, _p3d);
       // In story two-enemy fights the player must have lives ≥ total enemy lives.
       // Cap each enemy at floor(playerLives/2) so 2 enemies never exceed the player's total.
@@ -628,16 +629,6 @@ function _startGameCore() {
       humanPlayers[remoteIdx].isRemote  = true;
       humanPlayers[remoteIdx].isAI      = false; // network drives this player, not AI
       humanPlayers[remoteIdx].controls  = {};    // no local keyboard input
-    }
-  }
-
-  // Lava arena: override spawn positions to ensure players land on solid platforms
-  if (currentArenaKey === 'lava') {
-    p1.spawnX = 236; p1.spawnY = 260; // above upper-left platform (x=178,y=278)
-    p1.x = 236; p1.y = 200;
-    if (p2 && !p2.isBoss) {
-      p2.spawnX = 640; p2.spawnY = 260; // above upper-right platform (x=582,y=278)
-      p2.x = 640; p2.y = 200;
     }
   }
 

@@ -538,6 +538,12 @@ body {
   padding: 2px 1px;
 }
 
+.sel-card-grid.locked {
+  pointer-events: none;
+  opacity: 0.45;
+  position: relative;
+}
+
 .sel-card {
   background: rgba(255,255,255,0.04);
   border: 1.5px solid rgba(255,255,255,0.1);

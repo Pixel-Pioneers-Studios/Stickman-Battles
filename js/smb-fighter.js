@@ -851,18 +851,19 @@ class Fighter {
         this._megaJumping    = false;
         this._megaJumpLanded = true;
         this.invincible      = 0;
-        screenShake = Math.max(screenShake, 28);
-        spawnParticles(this.cx(), pl.y, '#8844ff', 30);
-        spawnParticles(this.cx(), pl.y, '#ffffff', 18);
+        screenShake = Math.max(screenShake, 36);
+        spawnParticles(this.cx(), pl.y, '#8844ff', 40);
+        spawnParticles(this.cx(), pl.y, '#cc88ff', 22);
+        spawnParticles(this.cx(), pl.y, '#ffffff', 14);
         const _allF = [...players, ...minions, ...trainingDummies];
         for (const f of _allF) {
           if (f === this || f.health <= 0) continue;
           const _d = Math.hypot(f.cx() - this.cx(), f.cy() - this.cy());
-          if (_d < 200) {
-            const _pct = 1 - _d / 200;
-            dealDamage(this, f, Math.round(45 * _pct), Math.round(55 * _pct));
-            f.vy = Math.min(f.vy, -22 * _pct);
-            f.vx += Math.sign(f.cx() - this.cx()) * 12 * _pct;
+          if (_d < 220) {
+            const _pct = 1 - _d / 220;
+            dealDamage(this, f, Math.round(62 * _pct), Math.round(72 * _pct));
+            f.vy = Math.min(f.vy, -28 * _pct);
+            f.vx += Math.sign(f.cx() - this.cx()) * 14 * _pct;
           }
         }
         SoundManager.explosion && SoundManager.explosion();
@@ -923,10 +924,15 @@ class Fighter {
     const shoulderY  = this.y + 29;
     const armLen     = 24; // matches draw() armLen
     const atkP       = 1 - this.attackTimer / this.attackDuration;
-    const ang = this.facing > 0
-      ? lerp(-0.45, 1.1,          atkP)
-      : lerp(Math.PI + 0.45, Math.PI - 1.1, atkP);
-    const tipLens = { sword: 30, hammer: 34, axe: 26, spear: 44, gauntlet: 28 };
+    // Megaknight: upward arc — fist sweeps from low to high
+    const ang = (this.charClass === 'megaknight')
+      ? (this.facing > 0
+          ? lerp(1.2, -1.1, atkP)
+          : lerp(Math.PI - 1.2, Math.PI + 1.1, atkP))
+      : (this.facing > 0
+          ? lerp(-0.45, 1.1, atkP)
+          : lerp(Math.PI + 0.45, Math.PI - 1.1, atkP));
+    const tipLens = { sword: 30, hammer: 34, axe: 26, spear: 44, gauntlet: 28, mkgauntlet: 34 };
     const wLen    = tipLens[this.weaponKey] || 26;
     const reach   = armLen + wLen;
     return {
@@ -944,11 +950,16 @@ class Fighter {
     const shoulderY = this.y + 29;
     const armLen    = 24;
     const atkP      = 1 - this.attackTimer / this.attackDuration;
-    const ang = this.facing > 0
-      ? lerp(-0.45, 1.1,          atkP)
-      : lerp(Math.PI + 0.45, Math.PI - 1.1, atkP);
-    const tipLens = { sword: 30, hammer: 34, axe: 26, spear: 44, gauntlet: 28 };
-    const wLen    = tipLens[this.weaponKey] || 26; // no extra reach padding — keep hitbox tight
+    // Megaknight: upward arc — fist sweeps from low to high
+    const ang = (this.charClass === 'megaknight')
+      ? (this.facing > 0
+          ? lerp(1.2, -1.1, atkP)
+          : lerp(Math.PI - 1.2, Math.PI + 1.1, atkP))
+      : (this.facing > 0
+          ? lerp(-0.45, 1.1, atkP)
+          : lerp(Math.PI + 0.45, Math.PI - 1.1, atkP));
+    const tipLens = { sword: 30, hammer: 34, axe: 26, spear: 44, gauntlet: 28, mkgauntlet: 34 };
+    const wLen    = tipLens[this.weaponKey] || 26;
     const fullReach = armLen + wLen;
     // Sample inner (50%), mid (75%), and tip (100%) along the weapon
     return [0.50, 0.75, 1.0].map(frac => ({
@@ -965,7 +976,7 @@ class Fighter {
     if (this.cooldown > 0 || this.health <= 0 || this.stunTimer > 0 || this.ragdollTimer > 0) return;
     if (!this.isBoss && this.attackEndlag > 0) return; // enforced swing recovery window
 
-    // MEGAKNIGHT: Gauntlet Smash — AoE slam in front, launches enemies outward
+    // MEGAKNIGHT: Uppercut Slam — upward fist swing, wide arc, sends enemies skyward
     if (this.charClass === 'megaknight') {
       this.cooldown     = this.attackCooldownMult ? Math.max(1, Math.ceil(this.weapon.cooldown * this.attackCooldownMult)) : this.weapon.cooldown;
       this.attackTimer  = this.attackDuration;
@@ -977,15 +988,18 @@ class Fighter {
         if (f === this || f.health <= 0) continue;
         const relX = f.cx() - this.cx();
         const relY = f.cy() - this.cy();
-        if (Math.hypot(relX, relY) < 140 && (relX * this.facing > -30)) {
+        // Wide upward arc in front — 185px range, generous vertical tolerance
+        if (Math.hypot(relX, relY) < 185 && (relX * this.facing > -50)) {
           dealDamage(this, f, this.weapon.damage, this.weapon.kb);
-          f.vx += this.facing * 10;
-          f.vy  = Math.min(f.vy, -6);
+          f.vy  = Math.min(f.vy, -26);      // strong upward launch
+          f.vx += this.facing * 5;           // slight forward push, mostly vertical
         }
       }
-      spawnParticles(this.cx() + this.facing * 40, this.cy(), '#8844ff', 12);
-      spawnParticles(this.cx() + this.facing * 40, this.cy(), '#cc88ff', 6);
-      screenShake = Math.max(screenShake, 8);
+      // Upward arc particle burst
+      spawnParticles(this.cx() + this.facing * 35, this.y,      '#8844ff', 18);
+      spawnParticles(this.cx() + this.facing * 35, this.y - 20, '#cc88ff', 10);
+      spawnParticles(this.cx() + this.facing * 35, this.y - 35, '#ffffff',  6);
+      screenShake = Math.max(screenShake, 11);
       return;
     }
 
@@ -1097,25 +1111,29 @@ class Fighter {
     if (this.state === 'dead' || this.state === 'stunned' || this.state === 'ragdoll') return;
     if (this.abilityCooldown > 0 || this.health <= 0 || this.stunTimer > 0 || this.ragdollTimer > 0) return;
     if (!this.isBoss && this.attackEndlag > 0) return; // can't ability during swing recovery
-    // MEGAKNIGHT class override: Q = Uppercut — launch nearby enemies skyward
+    // MEGAKNIGHT class override: Q = Grand Slam — spinning slam that craters nearby enemies upward
     if (this.charClass === 'megaknight') {
-      this.abilityCooldown  = 75;
-      this.abilityCooldown2 = 75;
+      this.abilityCooldown  = 80;
+      this.abilityCooldown2 = 80;
+      this.attackTimer      = this.attackDuration; // drives the upward swing animation
       abilityFlashTimer = 14; abilityFlashPlayer = this;
       const _allF = [...players, ...minions, ...trainingDummies];
       let hitCount = 0;
       for (const f of _allF) {
         if (f === this || f.health <= 0) continue;
-        if (Math.hypot(f.cx() - this.cx(), f.cy() - this.cy()) < 130) {
-          dealDamage(this, f, 25, 20);
-          f.vy = Math.min(f.vy, -28); // strong upward launch
-          f.vx += (f.cx() > this.cx() ? 1 : -1) * 6;
+        const _d = Math.hypot(f.cx() - this.cx(), f.cy() - this.cy());
+        if (_d < 160) {
+          const _pct = 1 - _d / 160;
+          dealDamage(this, f, Math.round(38 * _pct + 12), 28);
+          f.vy = Math.min(f.vy, -36);  // massive upward launch
+          f.vx += (f.cx() > this.cx() ? 1 : -1) * 8;
           hitCount++;
         }
       }
-      spawnParticles(this.cx(), this.y, '#8844ff', 22);
-      spawnParticles(this.cx(), this.y, '#ffffff', hitCount > 0 ? 18 : 6);
-      screenShake = Math.max(screenShake, hitCount > 0 ? 14 : 6);
+      spawnParticles(this.cx(), this.y,      '#8844ff', 28);
+      spawnParticles(this.cx(), this.y - 20, '#cc88ff', hitCount > 0 ? 20 : 8);
+      spawnParticles(this.cx(), this.y - 40, '#ffffff', hitCount > 0 ? 12 : 4);
+      if (settings.screenShake) screenShake = Math.max(screenShake, hitCount > 0 ? 18 : 7);
       return;
     }
     const _safeTarget = target || this.target || trainingDummies[0] || players.find(p => p !== this && p.health > 0);
@@ -1140,7 +1158,7 @@ class Fighter {
     if (this.charClass === 'megaknight') {
       this._megaJumping    = true;
       this._megaJumpLanded = false;
-      this.vy              = -32;
+      this.vy              = -40;
       this.canDoubleJump   = true;
       this.superMeter      = 0;
       this.superReady      = false;

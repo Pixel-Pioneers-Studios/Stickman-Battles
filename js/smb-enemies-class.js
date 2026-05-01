@@ -9,19 +9,36 @@ function applyClass(fighter, classKey) {
   fighter.maxHealth       = cls.hp;
   fighter.health          = cls.hp;
   fighter.classSpeedMult  = cls.speedMult;
-  // Weapon is NOT forced by class — player's selected weapon is always preserved
+  // Megaknight always uses mkgauntlet — force it regardless of what was selected
+  if (classKey === 'megaknight' && typeof WEAPONS !== 'undefined' && WEAPONS.mkgauntlet) {
+    fighter.weapon    = WEAPONS.mkgauntlet;
+    fighter.weaponKey = 'mkgauntlet';
+    fighter._ammo     = 0;
+  }
 }
 
 function updateClassWeapon(player) {
-  const clsKey = document.getElementById(player + 'Class').value;
-  const cls    = CLASSES[clsKey];
-  const wEl    = document.getElementById(player + 'Weapon');
-  // Default to the class's preferred weapon but do NOT lock the dropdown
-  // Players can freely change weapon after selecting a class
-  if (cls && cls.weapon) {
-    wEl.value = cls.weapon;
+  const clsKey   = document.getElementById(player + 'Class').value;
+  const cls      = CLASSES[clsKey];
+  const wEl      = document.getElementById(player + 'Weapon');
+  const cardGrid = document.getElementById(player + 'WeaponCards');
+  const isMK     = clsKey === 'megaknight';
+
+  if (cls && cls.weapon) wEl.value = cls.weapon;
+
+  // Megaknight always uses mkgauntlet — lock the weapon selector
+  wEl.disabled = isMK;
+  if (cardGrid) {
+    if (isMK) {
+      cardGrid.classList.add('locked');
+      // Keep mkgauntlet visually active
+      cardGrid.querySelectorAll('.sel-card').forEach(c =>
+        c.classList.toggle('active', c.dataset.val === 'mkgauntlet'));
+    } else {
+      cardGrid.classList.remove('locked');
+    }
   }
-  wEl.disabled = false; // always keep weapon selectable
+
   showDesc(player, 'class', clsKey);
 }
 

@@ -51,7 +51,7 @@
             <button class="wskin-swatch" data-pid="p1" data-wskin="neon"   data-cosid="wskin_neon"   onclick="if(isCosmeticUnlocked('wskin_neon'))setWeaponSkin('p1','neon',this);else openStore()"   style="background:#00ff88" title="Neon (125⬡)"></button>
           </div>
         </div>
-        <div class="config-row config-card-section">
+        <div class="config-row config-card-section" id="p1WeaponRow">
           <label>Weapon</label>
           <select id="p1Weapon" onchange="showDesc('p1','weapon',this.value); onWeaponChange('p1');" style="display:none">
             <option value="random">Random</option>
@@ -458,7 +458,7 @@
       <summary style="cursor:pointer;font-size:0.72rem;color:rgba(180,200,255,0.55);letter-spacing:2px;text-transform:uppercase;list-style:none;text-align:center;padding:4px 0;">Controls ▾</summary>
       <div class="controls-info" style="margin-top:6px;">
         <div><strong>P1:</strong> <strong>A/D</strong> move · <strong>W</strong> jump/double-jump · <strong>S</strong> shield · <strong>Space</strong> attack · <strong>Q</strong> ability · <strong>E</strong> super</div>
-        <div><strong>P2:</strong> <strong>←/→</strong> move · <strong>↑</strong> jump/double-jump · <strong>↓</strong> shield · <strong>Enter</strong> attack · <strong>.</strong> ability · <strong>/</strong> super</div>
+        <div><strong>P2:</strong> <strong>J/L</strong> move · <strong>I</strong> jump/double-jump · <strong>K</strong> shield · <strong>U</strong> attack · <strong>O</strong> ability · <strong>P</strong> super</div>
         <div><strong>Esc</strong> = pause &nbsp;|&nbsp; Shield has a cooldown after use</div>
       </div>
     </details>
@@ -1544,16 +1544,16 @@ document.addEventListener('keydown', function(e) {
   <div class="mc-pad" id="mc-p2" style="display:none;">
     <!-- Action row (mirrored: actions on left of dpad) -->
     <div class="mc-actions">
-      <button class="mc-btn mc-attack"  data-key="Enter"      title="Attack">ATK</button>
-      <button class="mc-btn mc-ability" data-key="."           title="Ability">.</button>
-      <button class="mc-btn mc-super"   data-key="/"           title="Super">SUP</button>
-      <button class="mc-btn mc-shield"  data-key="ArrowDown"   title="Shield">SHD</button>
+      <button class="mc-btn mc-attack"  data-key="u"  title="Attack">ATK</button>
+      <button class="mc-btn mc-ability" data-key="o"  title="Ability">O</button>
+      <button class="mc-btn mc-super"   data-key="p"  title="Super">SUP</button>
+      <button class="mc-btn mc-shield"  data-key="k"  title="Shield">SHD</button>
     </div>
     <!-- Movement row -->
     <div class="mc-dpad">
-      <button class="mc-btn mc-left"  data-key="ArrowLeft"  title="Move Left">◀</button>
-      <button class="mc-btn mc-jump"  data-key="ArrowUp"    title="Jump">▲</button>
-      <button class="mc-btn mc-right" data-key="ArrowRight" title="Move Right">▶</button>
+      <button class="mc-btn mc-left"  data-key="j"  title="Move Left">◀</button>
+      <button class="mc-btn mc-jump"  data-key="i"  title="Jump">▲</button>
+      <button class="mc-btn mc-right" data-key="l"  title="Move Right">▶</button>
     </div>
   </div>
 
