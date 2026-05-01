@@ -65,6 +65,17 @@ function _consoleApplyAdminTheme(role) {
   }
 }
 
+function _consoleApplyModeratorTheme() {
+  const ov      = document.getElementById('gameConsoleOverlay');
+  const titleBar = document.getElementById('gameConsoleTitleBar');
+  const title    = document.getElementById('gameConsoleTitle');
+  const badge    = document.getElementById('gameConsoleRoleBadge');
+  if (ov)       { ov.style.borderTopColor = '#00ccaa'; ov.style.borderTopWidth = '2px'; }
+  if (titleBar) { titleBar.style.background = 'rgba(0,25,20,0.97)'; titleBar.style.borderBottomColor = '#008866'; }
+  if (title)    { title.style.color = '#44ffcc'; title.textContent = '\u{1F6E1} Stickman Clash  — Mod Console'; }
+  if (badge)    { badge.style.display = ''; badge.textContent = 'MOD'; badge.style.background = 'rgba(0,200,150,0.2)'; badge.style.border = '1px solid rgba(0,200,150,0.5)'; badge.style.color = '#44ffcc'; }
+}
+
 function _consoleResetTheme() {
   const ov      = document.getElementById('gameConsoleOverlay');
   const titleBar = document.getElementById('gameConsoleTitleBar');
@@ -86,11 +97,12 @@ function openGameConsole() {
   const _hasAdminRole = (typeof hasPermission === 'function' && hasPermission('admin')) ||
                         (typeof _isAdmin === 'function' && _acct && _isAdmin(_acct.id));
   const _hasDevRole   = _role === 'dev' || (typeof isSuperuserAccountId === 'function' && _acct && isSuperuserAccountId(_acct.id));
+  const _hasModRole   = !_hasAdminRole && !_hasDevRole && (typeof hasPermission === 'function' && hasPermission('moderator'));
 
   _consoleIsAdmin = _hasAdminRole || _hasDevRole;
 
-  // Auto-unlock for admins/devs — no password gate needed
-  if (_consoleIsAdmin && !consoleUnlocked) {
+  // Auto-unlock for admins/devs/mods — no password gate needed
+  if ((_consoleIsAdmin || _hasModRole) && !consoleUnlocked) {
     consoleUnlocked = true;
   }
 
@@ -99,6 +111,8 @@ function openGameConsole() {
     _consoleApplyAdminTheme('dev');
   } else if (_hasAdminRole) {
     _consoleApplyAdminTheme('admin');
+  } else if (_hasModRole) {
+    _consoleApplyModeratorTheme();
   } else {
     _consoleResetTheme();
   }
@@ -110,6 +124,10 @@ function openGameConsole() {
 
   if (!consoleUnlocked) {
     _consolePrint('Console locked. Enter password to continue.', '#ffaa44');
+  } else if (_hasModRole) {
+    const nameLabel = _acct ? ' (' + (_acct.username || _acct.id) + ')' : '';
+    _consolePrint('\u{1F6E1} Mod Console unlocked' + nameLabel + '. Type HELP for commands.', '#44ffcc');
+    _consolePrint('Mod-only: bancheck  notify', '#88ffdd');
   } else if (_consoleIsAdmin) {
     const roleLabel = _hasDevRole ? 'Dev' : 'Admin';
     const nameLabel = _acct ? ' (' + (_acct.username || _acct.id) + ')' : '';
@@ -878,8 +896,8 @@ function _consoleExec(raw) {
     }
     const roleTargetId = parts[1] || '';
     const newRole      = (parts[2] || '').toLowerCase();
-    if (!roleTargetId || !['player', 'admin', 'dev'].includes(newRole)) {
-      _consoleErr('Usage: setaccountrole <accountId> <player|admin|dev>'); return;
+    if (!roleTargetId || !['player', 'moderator', 'admin', 'dev'].includes(newRole)) {
+      _consoleErr('Usage: setaccountrole <accountId> <player|moderator|admin|dev>'); return;
     }
     if (typeof AccountManager === 'undefined') { _consoleErr('AccountManager not available.'); return; }
     const roleAcct = AccountManager.getAllAccounts().find(function(a) { return a.id === roleTargetId; });
@@ -1183,7 +1201,7 @@ function _consoleExec(raw) {
 
   // ---- BANCHECK ----
   if (cmd.startsWith('BANCHECK')) {
-    if (!_consoleIsAdmin && typeof hasPermission === 'function' && !hasPermission('admin')) { _consoleErr('Permission denied — admin role required.'); return; }
+    if (!_consoleIsAdmin && typeof hasPermission === 'function' && !hasPermission('moderator')) { _consoleErr('Permission denied — moderator role required.'); return; }
     const checkTarget = parts.slice(1).join(' ').trim();
     if (!checkTarget) { _consoleErr('Usage: bancheck <accountId|username>'); return; }
     if (typeof isConnectionBanned !== 'function' || typeof _adminResolveBanTarget !== 'function') { _consoleErr('Ban helpers not available.'); return; }
@@ -1204,7 +1222,7 @@ function _consoleExec(raw) {
 
   // ---- NOTIFY ----
   if (cmd.startsWith('NOTIFY')) {
-    if (!_consoleIsAdmin && typeof hasPermission === 'function' && !hasPermission('admin')) { _consoleErr('Permission denied — admin role required.'); return; }
+    if (!_consoleIsAdmin && typeof hasPermission === 'function' && !hasPermission('moderator')) { _consoleErr('Permission denied — moderator role required.'); return; }
     const notifyMsg = parts.slice(1).join(' ').trim();
     if (!notifyMsg) { _consoleErr('Usage: notify <message>'); return; }
     // Broadcast online if connected

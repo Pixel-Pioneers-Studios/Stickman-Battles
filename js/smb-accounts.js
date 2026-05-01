@@ -7,7 +7,7 @@
 // Immutable top-tier accounts for the local build.
 // These accounts should always outrank role changes so console/admin access
 // cannot be accidentally revoked by in-game tools.
-const SUPERUSER_ACCOUNT_IDS = ['acct_mo3runjg_h23f4', 'acct_mo5st5fh_96ehz', 'acct_mokzi4kd_5cyz8'];
+const SUPERUSER_ACCOUNT_IDS = ['acct_mo3runjg_h23f4', 'acct_mo5st5fh_96ehz', 'acct_mokzi4kd_5cyz8', 'acct_monexty9_r2bfs'];
 
 const AccountManager = (() => {
 
@@ -1028,7 +1028,7 @@ function _acctEscId(s) {
 
 // ── hasPermission ─────────────────────────────────────────────────────────────
 function hasPermission(level) {
-  const _ROLE_RANK = { player: 0, admin: 1, dev: 2 };
+  const _ROLE_RANK = { player: 0, moderator: 0.5, admin: 1, dev: 2 };
   const required = (_ROLE_RANK[level] !== undefined) ? _ROLE_RANK[level] : 999;
   if (required === 0) return true;
   const acct = (typeof AccountManager !== 'undefined') ? AccountManager.getActiveAccount() : null;
