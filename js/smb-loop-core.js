@@ -350,6 +350,7 @@ function gameLoop(timestamp) {
   // ---------- Phase: render (world, entities, particles, HUD) ----------
   drawBackground();
   drawPlatforms();
+  if (typeof drawDepthFloorGrid === 'function') drawDepthFloorGrid();
   if (typeof drawCinematicImpactWorldEffects === 'function') drawCinematicImpactWorldEffects();
   if (gameMode === 'minigames' && minigameType === 'soccer') drawSoccer();
   drawBackstagePortals();

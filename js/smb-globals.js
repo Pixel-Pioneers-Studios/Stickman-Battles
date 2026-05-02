@@ -64,7 +64,7 @@ const CHANGELOG = [
       { cat: 'Account', text: 'Added Moderator role — moderators get a teal console theme with a MOD badge; mod-specific console commands include bancheck and notify; the console auto-unlocks for admins, devs, and mods without a password gate' },
       { cat: 'AI',      text: 'Fighter targeting now prioritises players — any player within 350 px is always targeted over other entities; beyond that range the nearest entity wins; prevents bots from ignoring the player to attack minions during mixed encounters' },
       { cat: 'UI',      text: 'Canvas now letterboxes on small screens — on viewports under 900×600 the game scales down while maintaining the 900×520 aspect ratio with centred margins; prevents clipping on mobile and small windows' },
-      { cat: 'Audio',   text: 'Added file-based audio system — sounds are fetched as raw ArrayBuffers at load time and decoded to AudioBuffer on first play; decoded buffers are cached for subsequent calls; Megaknight entry now plays a dedicated fall sound' },
+      { cat: 'Audio',   text: 'Added file-based audio system — sounds are fetched as raw ArrayBuffers at load time and decoded to AudioBuffer on first play; decoded buffers are cached for subsequent calls;' },
     ],
   },
   {
