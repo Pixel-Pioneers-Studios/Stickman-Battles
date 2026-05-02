@@ -256,12 +256,20 @@ function updateTFPendingAttacks() {
         spawnParticles(tf.cx(), tf.cy(), '#ffffff', 28);
         spawnParticles(tf.cx(), tf.cy(), '#aaddff', 18);
         spawnParticles(tf.cx(), tf.cy(), '#000000', 14);
-        // Heavy strike — 55 damage + strong knockback
+        // Heavy strike — 55 damage + strong knockback, always guaranteed via dealDamage fallback
         const oldDmg = tf.weapon.damage;
         const oldKb  = tf.weapon.kb;
         tf.weapon.damage = 55;
         tf.weapon.kb     = 16;
-        if (tf.cooldown <= 0) tf.attack(csTgt);
+        if (tf.cooldown <= 0) {
+          tf.attack(csTgt);
+        } else {
+          // Cooldown not ready — fire damage directly so the cinematic never whiffs
+          dealDamage(tf, csTgt, 55, 16);
+          csTgt.vx += (csTgt.cx() > tf.cx() ? 1 : -1) * 16;
+          csTgt.vy  = Math.min(csTgt.vy, -10);
+          tf.cooldown = 12; // brief cooldown so back-to-back calls don't double-hit
+        }
         tf.weapon.damage = oldDmg;
         tf.weapon.kb     = oldKb;
       }

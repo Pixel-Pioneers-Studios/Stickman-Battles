@@ -628,7 +628,7 @@ function updateTFGammaBeam() {
     for (const p of players) {
       if (((p.isBoss || p.isTrueForm) && !(gb.bossRef && gb.bossRef.isProxy)) || p.health <= 0) continue;
       const py = p.y + p.h * 0.5;
-      if (Math.abs(py - gb.y) < 24 && p.invincible <= 0 && !gb.hit.has(p)) {
+      if (Math.abs(py - gb.y) < 36 && p.invincible <= 0 && !gb.hit.has(p)) {
         gb.hit.add(p);
         dealDamage(boss || players[1], p, 24, 14);
         spawnParticles(p.cx(), p.cy(), '#ffff00', 14);
@@ -721,16 +721,16 @@ function drawTFGammaBeam() {
     ctx.globalAlpha = 0.96 * fade;
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, gb.y - 14, GAME_W, 28);
-    // Wide glow envelope
-    const grad = ctx.createLinearGradient(0, gb.y - 45, 0, gb.y + 45);
-    grad.addColorStop(0,   'rgba(255,255,0,0)');
+    // Wide glow envelope — kept in sync with ±36px hitbox so visual matches
+    const grad = ctx.createLinearGradient(0, gb.y - 36, 0, gb.y + 36);
+    grad.addColorStop(0,    'rgba(255,255,0,0)');
     grad.addColorStop(0.30, `rgba(255,220,0,${0.55 * fade})`);
     grad.addColorStop(0.50, `rgba(255,255,255,${0.95 * fade})`);
     grad.addColorStop(0.70, `rgba(255,220,0,${0.55 * fade})`);
-    grad.addColorStop(1,   'rgba(255,255,0,0)');
+    grad.addColorStop(1,    'rgba(255,255,0,0)');
     ctx.globalAlpha = 1;
     ctx.fillStyle = grad;
-    ctx.fillRect(0, gb.y - 45, GAME_W, 90);
+    ctx.fillRect(0, gb.y - 36, GAME_W, 72);
     // Periodic flare pops along beam
     if (gb.timer % 7 === 0) {
       ctx.globalAlpha = fade * 0.65;

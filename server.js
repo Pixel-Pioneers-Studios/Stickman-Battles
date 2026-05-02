@@ -25,6 +25,12 @@
 //   GET    /api/live-config                  — live ops configuration (public)
 //   POST   /api/live-config    [admin]       — update live ops config
 //
+//   GET    /admin/state        [admin]       — server runtime stats
+//   GET    /admin/logs         [admin]       — recent admin action log entries
+//   POST   /admin/player-action[admin]       — broadcast a player action via socket.io
+//   POST   /admin/broadcast    [admin]       — push announcement to all clients
+//   POST   /admin/command      [admin]       — dispatch server-side commands
+//
 // Data is persisted via storage.js (SQLite by default, in-memory fallback).
 // ============================================================
 
@@ -43,6 +49,24 @@ const ADMIN_KEY = process.env.ADMIN_KEY || 'smb-dev-key-change-me';
 if (ADMIN_KEY === 'smb-dev-key-change-me') {
   console.warn('[!] Using default ADMIN_KEY. Set the ADMIN_KEY environment variable before deploying!');
 }
+
+// ── Admin action log buffer ───────────────────────────────────────────────────
+// In-memory ring buffer. Entries: { ts, level, msg, meta? }
+const _adminLogBuf = [];
+const _MAX_ADMIN_LOGS = 500;
+
+function _pushAdminLog(level, msg, meta) {
+  const entry = { ts: Date.now(), level: String(level), msg: String(msg) };
+  if (meta) entry.meta = meta;
+  _adminLogBuf.push(entry);
+  if (_adminLogBuf.length > _MAX_ADMIN_LOGS) _adminLogBuf.shift();
+  // Broadcast to all connected clients so the live log panel updates
+  if (_io) _io.emit('adminLog', entry);
+}
+
+// ── Socket metadata registry ──────────────────────────────────────────────────
+// socketId → { accountId, username, peerId, deviceId, roomCode }
+const _socketMeta = new Map();
 
 // ── Data persistence ─────────────────────────────────────────────────────────
 // Reads/writes go through storage.js (SQLite, or in-memory fallback).
@@ -195,7 +219,9 @@ function _handleRequest(req, res) {
       if (_io) _io.emit('banSync', { action: 'add', key, record });
       const label = record.targetLabel || record.accountId || record.peerId || record.deviceId || '?';
       const ttl   = record.expiresAt ? Math.ceil((record.expiresAt - Date.now()) / 60000) + 'm' : 'perm';
-      console.log(`[Ban] + ${label}  [${ttl}]${record.reason ? '  — ' + record.reason : ''}`);
+      const banMsg = `Banned ${label} [${ttl}]${record.reason ? ' — ' + record.reason : ''}`;
+      console.log(`[Ban] + ${banMsg}`);
+      _pushAdminLog('BAN', banMsg);
       _json(res, 200, { ok: true, key });
     }).catch(err => _json(res, 500, { error: err.message }));
     return;
@@ -275,8 +301,105 @@ function _handleRequest(req, res) {
       if (body.events)  merged.events  = Object.assign({}, current.events  || {}, body.events);
       if (body.balance) merged.balance = Object.assign({}, current.balance || {}, body.balance);
       storage.set('liveConfig', merged);
-      console.log('[LiveOps] config updated:', JSON.stringify(merged));
+      const cfgMsg = 'Live config updated: ' + JSON.stringify(body);
+      console.log('[LiveOps]', cfgMsg);
+      _pushAdminLog('LIVEOPS', cfgMsg);
+      // Broadcast updated config to all clients so dashboards refresh
+      if (_io) _io.emit('liveConfigUpdated', merged);
       _json(res, 200, { ok: true, config: merged });
+    }).catch(err => _json(res, 500, { error: err.message }));
+    return;
+  }
+
+  // ── GET /admin/state ──────────────────────────────────────────────────────────
+  // Returns live server runtime stats. Requires X-Admin-Key.
+  if (pathname === '/admin/state' && req.method === 'GET') {
+    if (!_isAdmin(req)) { _json(res, 403, { error: 'Forbidden' }); return; }
+    const liveConfig = storage.get('liveConfig') || {};
+    const activeRooms = [...rooms.values()].filter(r => r.p1 || r.p2);
+    const roomList = [...rooms.entries()]
+      .filter(([, r]) => r.p1 || r.p2)
+      .map(([code, r]) => ({ code, players: [r.p1, r.p2].filter(Boolean).length }));
+    _json(res, 200, {
+      ok: true,
+      uptime:        Math.floor(process.uptime()),
+      onlinePlayers: _io ? _io.engine.clientsCount : 0,
+      activeRooms:   activeRooms.length,
+      rooms:         roomList,
+      version:       liveConfig.latestVersion || '?',
+      liveConfig,
+    });
+    return;
+  }
+
+  // ── GET /admin/logs ───────────────────────────────────────────────────────────
+  // Returns recent admin log entries. Requires X-Admin-Key.
+  if (pathname === '/admin/logs' && req.method === 'GET') {
+    if (!_isAdmin(req)) { _json(res, 403, { error: 'Forbidden' }); return; }
+    const limit = Math.min(parseInt(url.searchParams.get('limit') || '200', 10), 500);
+    _json(res, 200, { ok: true, logs: _adminLogBuf.slice(-limit) });
+    return;
+  }
+
+  // ── POST /admin/player-action ─────────────────────────────────────────────────
+  // Broadcasts a player-action event via socket.io. Each client checks if it is
+  // the target and applies the action locally. Requires X-Admin-Key.
+  // Body: { type, targetAccountId?, targetUsername?, value?, adminBy? }
+  if (pathname === '/admin/player-action' && req.method === 'POST') {
+    if (!_isAdmin(req)) { _json(res, 403, { error: 'Forbidden' }); return; }
+    _readBody(req).then(body => {
+      const { type, targetAccountId, targetUsername, value, adminBy } = body || {};
+      if (!type) { _json(res, 400, { error: 'type required' }); return; }
+      if (_io) _io.emit('adminPlayerAction', { type, targetAccountId, targetUsername, value, ts: Date.now() });
+      const label = targetUsername || targetAccountId || 'unknown';
+      _pushAdminLog('ADMIN', `[${adminBy || 'admin'}] player-action type=${type} target=${label} value=${JSON.stringify(value)}`);
+      console.log(`[AdminAction] ${type} → ${label}`);
+      _json(res, 200, { ok: true });
+    }).catch(err => _json(res, 500, { error: err.message }));
+    return;
+  }
+
+  // ── POST /admin/broadcast ─────────────────────────────────────────────────────
+  // Pushes an announcement toast to all connected clients. Requires X-Admin-Key.
+  // Body: { message, color?, duration?, adminBy? }
+  if (pathname === '/admin/broadcast' && req.method === 'POST') {
+    if (!_isAdmin(req)) { _json(res, 403, { error: 'Forbidden' }); return; }
+    _readBody(req).then(body => {
+      const { message, color, duration, adminBy } = body || {};
+      if (!message) { _json(res, 400, { error: 'message required' }); return; }
+      if (_io) _io.emit('adminAnnouncement', { message, color: color || '#ffcc66', duration: duration || 6000 });
+      _pushAdminLog('ANNOUNCE', `[${adminBy || 'admin'}] broadcast: ${message}`);
+      console.log(`[Broadcast] ${message}`);
+      _json(res, 200, { ok: true });
+    }).catch(err => _json(res, 500, { error: err.message }));
+    return;
+  }
+
+  // ── POST /admin/command ───────────────────────────────────────────────────────
+  // Dispatches server-side commands. Requires X-Admin-Key.
+  // Body: { command, ...params }
+  if (pathname === '/admin/command' && req.method === 'POST') {
+    if (!_isAdmin(req)) { _json(res, 403, { error: 'Forbidden' }); return; }
+    _readBody(req).then(body => {
+      const { command, adminBy } = body || {};
+      let result = { ok: true };
+      switch (command) {
+        case 'endAllMatches':
+          // Close all active rooms by emitting disconnect to all sockets
+          if (_io) _io.emit('adminForceDisconnect', { reason: 'Match ended by admin.' });
+          _pushAdminLog('ADMIN', `[${adminBy || 'admin'}] endAllMatches — ${rooms.size} room(s) affected`);
+          console.log(`[AdminCmd] endAllMatches — ${rooms.size} room(s)`);
+          result.roomsAffected = rooms.size;
+          break;
+        case 'getStats':
+          result.onlinePlayers = _io ? _io.engine.clientsCount : 0;
+          result.activeRooms   = [...rooms.values()].filter(r => r.p1 || r.p2).length;
+          result.uptime        = Math.floor(process.uptime());
+          break;
+        default:
+          result = { ok: false, error: 'Unknown command: ' + command };
+      }
+      _json(res, result.ok ? 200 : 400, result);
     }).catch(err => _json(res, 500, { error: err.message }));
     return;
   }
@@ -329,10 +452,27 @@ function _getRoomBySocket(socketId) {
 
 _io.on('connection', (socket) => {
   console.log(`[+] socket connected: ${socket.id}`);
+  _pushAdminLog('CONNECT', `Socket connected: ${socket.id}`);
 
-  socket.on('joinRoom', (rawCode) => {
-    const code = String(rawCode || '').trim().toLowerCase().slice(0, 20);
+  // Client may send identity metadata alongside the room code
+  socket.on('joinRoom', (payload) => {
+    // Accept both legacy string and new object { code, accountId, username, ... }
+    const rawCode = typeof payload === 'object' && payload !== null ? (payload.code || '') : (payload || '');
+    const code = String(rawCode).trim().toLowerCase().slice(0, 20);
     if (!code) return;
+
+    // Store socket metadata for admin targeting
+    if (typeof payload === 'object' && payload !== null) {
+      _socketMeta.set(socket.id, {
+        accountId: payload.accountId || null,
+        username:  payload.username  || null,
+        peerId:    payload.peerId    || null,
+        deviceId:  payload.deviceId  || null,
+        roomCode:  code,
+      });
+    } else {
+      _socketMeta.set(socket.id, { roomCode: code });
+    }
 
     let room = rooms.get(code);
     if (!room) { room = { p1: null, p2: null }; rooms.set(code, room); }
@@ -345,7 +485,10 @@ _io.on('connection', (socket) => {
 
     socket.join(code);
     socket.emit('joined', { slot, roomCode: code });
-    console.log(`  Room "${code}" — slot ${slot} → ${socket.id}`);
+    const meta = _socketMeta.get(socket.id) || {};
+    const label = meta.username ? ` (${meta.username})` : '';
+    console.log(`  Room "${code}" — slot ${slot} → ${socket.id}${label}`);
+    _pushAdminLog('JOIN', `Room "${code}" slot ${slot}: ${socket.id}${label}`);
 
     if (room.p1 && room.p2) {
       _io.to(code).emit('bothConnected');
@@ -369,7 +512,12 @@ _io.on('connection', (socket) => {
   });
 
   socket.on('disconnect', () => {
-    console.log(`[-] socket disconnected: ${socket.id}`);
+    const meta = _socketMeta.get(socket.id);
+    const label = (meta && meta.username) ? ` (${meta.username})` : '';
+    console.log(`[-] socket disconnected: ${socket.id}${label}`);
+    _pushAdminLog('DISCONNECT', `Socket disconnected: ${socket.id}${label}`);
+    _socketMeta.delete(socket.id);
+
     const found = _getRoomBySocket(socket.id);
     if (!found) return;
     const { code, room } = found;

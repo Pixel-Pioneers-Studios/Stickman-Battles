@@ -142,10 +142,17 @@ function resetTFState() {
   tfAttackRetryQueue = [];
   // Restore slow-motion if any attack left it in a reduced state
   if (slowMotion < 1.0) { slowMotion = 1.0; hitSlowTimer = 0; }
-  // Reset dimension shift — always restore 2D on fight end
+  // Reset dimension shift and depth phase — always restore 2D on fight end
   if (tfDimensionIs3D) {
     tfDimensionIs3D = false;
     set3DView(settings.view3D ? 'settings' : false);
+  }
+  if (typeof tfDepthPhaseActive !== 'undefined' && tfDepthPhaseActive) {
+    tfDepthPhaseActive  = false;
+    tfDepthEnabled      = false;
+    set3DView(settings.view3D ? 'settings' : false);
+    // Clear all entity Z values
+    if (typeof players !== 'undefined') players.forEach(p => { p.z = 0; });
   }
   // Reset telegraph / warning system
   resetBossWarnings();
@@ -681,6 +688,89 @@ function startAxiomOriginCutscene(onDoneCallback) {
   }
 
   rafId = requestAnimationFrame(tick);
+}
+
+// ── Depth Phase floor grid ─────────────────────────────────────────────────────
+// Drawn between background and entities. Since the canvas has CSS rotateX applied,
+// a regular orthographic grid in the lower half looks exactly like a receding 3D floor.
+function drawDepthFloorGrid() {
+  if (typeof tfDepthPhaseActive === 'undefined' || !tfDepthPhaseActive) return;
+  ctx.save();
+
+  const floorTop = 300;   // where the grid starts (upper edge of "floor" region)
+  const floorBot = GAME_H; // bottom of canvas
+
+  // Dim overlay — desaturate the arena so the 3D grid pops
+  const dimAlpha = (typeof tfDepthTransitionTimer !== 'undefined' && tfDepthTransitionTimer > 0)
+    ? 0.45 * (1 - tfDepthTransitionTimer / 30)
+    : 0.45;
+  ctx.globalAlpha = dimAlpha;
+  const dimGrad = ctx.createLinearGradient(0, floorTop, 0, floorBot);
+  dimGrad.addColorStop(0,   'rgba(0,0,0,0)');
+  dimGrad.addColorStop(0.3, 'rgba(4,0,16,0.75)');
+  dimGrad.addColorStop(1,   'rgba(0,0,0,0.92)');
+  ctx.fillStyle = dimGrad;
+  ctx.fillRect(0, floorTop, GAME_W, floorBot - floorTop);
+  ctx.globalAlpha = 1;
+
+  // Grid line base alpha — fades in with transition timer
+  const gridAlpha = (typeof tfDepthTransitionTimer !== 'undefined' && tfDepthTransitionTimer > 0)
+    ? 0.55 * (1 - tfDepthTransitionTimer / 30)
+    : 0.55;
+
+  // Horizontal lines — equal canvas spacing; CSS rotateX makes them look foreshortened
+  ctx.strokeStyle = `rgba(100,40,220,${gridAlpha})`;
+  ctx.lineWidth = 1;
+  ctx.shadowColor = '#6622cc';
+  ctx.shadowBlur = 4;
+  for (let y = floorTop; y <= floorBot; y += 28) {
+    const rowAlpha = gridAlpha * (0.4 + 0.6 * ((y - floorTop) / (floorBot - floorTop)));
+    ctx.globalAlpha = rowAlpha;
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    ctx.lineTo(GAME_W, y);
+    ctx.stroke();
+  }
+
+  // Vertical lines — converge toward vanishing point at (GAME_W/2, floorTop)
+  const vp = GAME_W / 2;
+  const cols = 18;
+  for (let i = 0; i <= cols; i++) {
+    const tx = (i / cols) * GAME_W;
+    // Top point converges toward vanishing point
+    const topX = vp + (tx - vp) * 0.22;
+    ctx.globalAlpha = gridAlpha * 0.65;
+    ctx.beginPath();
+    ctx.moveTo(topX, floorTop);
+    ctx.lineTo(tx, floorBot);
+    ctx.stroke();
+  }
+
+  // Bright horizon line at floorTop
+  ctx.globalAlpha = gridAlpha * 0.9;
+  ctx.strokeStyle = `rgba(160,80,255,${gridAlpha})`;
+  ctx.lineWidth = 2;
+  ctx.shadowColor = '#aa44ff';
+  ctx.shadowBlur = 12;
+  ctx.beginPath();
+  ctx.moveTo(0, floorTop);
+  ctx.lineTo(GAME_W, floorTop);
+  ctx.stroke();
+
+  // Z-layer legend: tiny text in corner telling first-time players what Q/E does
+  if (typeof tfDepthEnabled !== 'undefined' && tfDepthEnabled) {
+    ctx.globalAlpha = 0.55;
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = '#cc88ff';
+    ctx.font = 'bold 11px monospace';
+    ctx.textAlign = 'right';
+    ctx.fillText('Q ◀ DEPTH ▶ E', GAME_W - 10, GAME_H - 58);
+    ctx.globalAlpha = 1;
+  }
+
+  ctx.shadowBlur = 0;
+  ctx.globalAlpha = 1;
+  ctx.restore();
 }
 
 // ── 3D View helper ────────────────────────────────────────────────────────────

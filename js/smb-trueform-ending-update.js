@@ -539,6 +539,8 @@ function _tfeResumeAfterIntro(sc) {
     if (typeof players !== 'undefined') {
       players.forEach(p => { p.z = 0; });
     }
+    // Apply perspective CSS tilt so the canvas looks like a real 3D view
+    if (typeof set3DView === 'function') set3DView('tf');
     // Camera tilt: focus on center-field with a slight zoom-in
     if (typeof setCameraDrama === 'function') setCameraDrama('focus', 90, null, 1.08);
     // Screen distortion burst

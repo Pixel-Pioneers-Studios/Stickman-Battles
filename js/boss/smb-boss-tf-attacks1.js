@@ -28,7 +28,7 @@ function updateTFGravityWells() {
     gw.timer--;
     if (gw.timer <= 0) { tfGravityWells.splice(i, 1); continue; }
     for (const p of players) {
-      if ((p.isBoss && !(gw.bossRef && gw.bossRef.isProxy)) || p.health <= 0) continue;
+      if (((p.isBoss || p.isTrueForm) && !(gw.bossRef && gw.bossRef.isProxy)) || p.health <= 0) continue;
       const dx = gw.x - p.cx();
       const dy = gw.y - (p.y + p.h * 0.5);
       const dd = Math.hypot(dx, dy);
@@ -296,10 +296,12 @@ function updateTFGraspSlam() {
   tfGraspSlam.timer--;
   if (tfGraspSlam.timer <= 0) {
     const tf = players.find(p => p.isTrueForm);
-    // Slam everyone near the boss
+    // Use position locked at telegraph time so hit zone matches warning circle
+    const _slamCX = tfGraspSlam.slamX !== undefined ? tfGraspSlam.slamX : (tf ? tf.cx() : GAME_W / 2);
+    const _slamCY = tfGraspSlam.slamY !== undefined ? tfGraspSlam.slamY : (tf ? tf.cy() : 300);
     for (const p of players) {
       if (p.isBoss || p.health <= 0) continue;
-      const dd = Math.hypot(p.cx() - (tf ? tf.cx() : GAME_W / 2), (p.y + p.h * 0.5) - (tf ? tf.cy() : 300));
+      const dd = Math.hypot(p.cx() - _slamCX, (p.y + p.h * 0.5) - _slamCY);
       if (dd < 120) {
         p.vy = 22;  // drive into ground
         dealDamage(tf || players[players.length - 1], p, 30, 2);
@@ -329,8 +331,13 @@ function updateTFDimensionPunch() {
   const tf = dp.boss;
   const t  = dp.target;
 
-  // Abort if entities gone
-  if (!tf || !t || t.health <= 0) { tfDimensionPunch = null; return; }
+  // Abort if entities gone — always clear grav lock so player doesn't float forever
+  if (!tf || !t || t.health <= 0) {
+    if (t) t._dimPunchGravLock = false;
+    if (typeof slowMotion !== 'undefined') slowMotion = 1.0;
+    tfDimensionPunch = null;
+    return;
+  }
 
   dp.timer++;
   dp.bgFlashTimer = Math.max(0, dp.bgFlashTimer - 1);

@@ -63,11 +63,12 @@ TrueForm.prototype._doSpecial = function(move, target) {
             p.vy = (ddy / dd) * pull * 0.5 - 4;
           }
         }
-        // Telegraph: show slam impact zone at boss position for the pull duration
-        bossWarnings.push({ type: 'circle', x: this.cx(), y: this.cy(), r: 120,
+        // Lock slam position at telegraph time so the warning circle matches the actual hit
+        const _slamX = this.cx(), _slamY = this.cy();
+        bossWarnings.push({ type: 'circle', x: _slamX, y: _slamY, r: 120,
           color: '#ff00ff', timer: 45, maxTimer: 45, label: 'SLAM INCOMING!' });
         // Schedule a slam hit after the pull lands (~45 frames)
-        tfGraspSlam = { timer: 45 };
+        tfGraspSlam = { timer: 45, slamX: _slamX, slamY: _slamY };
         break;
       }
       // ── NEW: Reality Slash — DEFERRED with telegraph ────────

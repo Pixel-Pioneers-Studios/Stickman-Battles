@@ -5,11 +5,16 @@
   "coinMultiplier": 1,
   "xpMultiplier": 1,
   "shopRotation": [],
+  "maintenance": false,
+  "matchmakingLocked": false,
+  "pvpLocked": false,
+  "reloadRequired": false,
   "events": {
     "doubleCoins": false,
     "bloodMoon": false,
     "xpWeekend": false,
-    "bossRush": false
+    "bossRush": false,
+    "rareSkinSale": false
   },
   "balance": {
     "playerDamageMult": 1,

@@ -45,11 +45,35 @@ const SERVER_CONFIG = {
 // ============================================================
 const CHANGELOG = [
   {
+    version: '3.0.0',
+    title: 'THE EVOLUTION UPDATE',
+    date: '2026-05-01',
+    flavor: 'A knight falls from the sky. A divine being issues a challenge. The system goes live. Everything adapts.',
+    isLatest: true,
+    changes: [
+      { cat: 'Entity',  text: 'God Phase 2 fully built — Phase 2 now includes two new special attacks: Angel Fleet (spawns waves of HolyAngel minions from above) and Divine Columns (targeted light pillars that detonate for AoE damage); Phase 2 movement and attack timing tuned separately from Phase 1', spoilerLevel: 2 },
+      { cat: 'Mode',    text: 'Added God Challenge prompt — when God returns to a player who has already defeated it, a modal offers the choice to accept or decline a direct God encounter; accepting immediately launches a dedicated God fight outside normal match flow', spoilerLevel: 2 },
+      { cat: 'Combat',  text: 'Added Megaknight — a hidden unlockable class locked to the mkgauntlet; enters every match by falling from off-screen (invincible during descent); upward arc sweep attack, enhanced jump height, and purple landing particles; unlock with a secret code on the main menu' },
+      { cat: 'AI',      text: 'Sovereign mode now starts at near-peak intelligence — limiter is broken from round 1, aggression and reaction speed are pre-maxed, and evolution begins at stage DOMINATING; the player faces a fully capable Sovereign from the first exchange' },
+      { cat: 'Mode',    text: 'Sovereign mode bans ranged weapons for the player — kiting bypasses all of Sovereign\'s adaptation systems; the fight is locked to melee' },
+      { cat: 'Mode',    text: 'Added Sovereign arena — "The Circuit": a dedicated melee-only stage for Sovereign fights; symmetric 5-platform layout, tight spacing with no ranged safe distance, no hazards, no arena randomization; Sovereign always uses Nullblade here' },
+      { cat: 'System',  text: 'Added LiveOps system (smb-liveops.js) — fetches a live config from the server every 60 seconds; supports MOTD banners (shown in menu, hidden during fights), coin multiplier events, XP multiplier events, shop rotation overrides, and per-key balance patches; toasts queue during active fights and flush on return to menu' },
+      { cat: 'System',  text: 'Added cloud save via Supabase — create a free account to sync unlocks, story progress, cosmetics, and coins across devices; sign-up, sign-in, and sign-out flow wired into the account UI; auth state changes trigger a runtime refresh automatically' },
+      { cat: 'System',  text: 'Save system rebuilt on a canonical single source of truth — all coin reads/writes go through getCoins/setCoins/addCoins; all save writes go through a unified canonical path keyed to the active account; account switches trigger forceRehydrateFromAccount to guarantee a clean runtime state' },
+      { cat: 'System',  text: 'Story progress is now cloud-synced — save reconciliation compares local and cloud story state by timestamp; the more advanced save wins; no progress is lost on sign-in or account switch' },
+      { cat: 'Account', text: 'Admin system extended with Supabase email auth — accounts whose signed-in Supabase email matches the ADMIN_EMAILS list receive admin access on any device without requiring a hardcoded account ID' },
+      { cat: 'Account', text: 'Added Moderator role — moderators get a teal console theme with a MOD badge; mod-specific console commands include bancheck and notify; the console auto-unlocks for admins, devs, and mods without a password gate' },
+      { cat: 'AI',      text: 'Fighter targeting now prioritises players — any player within 350 px is always targeted over other entities; beyond that range the nearest entity wins; prevents bots from ignoring the player to attack minions during mixed encounters' },
+      { cat: 'UI',      text: 'Canvas now letterboxes on small screens — on viewports under 900×600 the game scales down while maintaining the 900×520 aspect ratio with centred margins; prevents clipping on mobile and small windows' },
+      { cat: 'Audio',   text: 'Added file-based audio system — sounds are fetched as raw ArrayBuffers at load time and decoded to AudioBuffer on first play; decoded buffers are cached for subsequent calls; Megaknight entry now plays a dedicated fall sound' },
+    ],
+  },
+  {
     version: '2.9.0',
     title: 'THE GOD UPDATE',
     date: '2026-04-26',
     flavor: 'Something older than the Creator. Something that was never meant to be found. It found you anyway.',
-    isLatest: true,
+    isLatest: false,
     changes: [
       { cat: 'Mode',    text: 'Added God encounter — a hidden entity that can appear in any non-story match with a 1-in-1,000,000 chance per second; chance rises to 1-in-10,000 after beating Sovereign or surviving a prior encounter, and 1-in-5,000 after defeating God; a 10-minute in-game cooldown prevents back-to-back appearances' },
       { cat: 'Mode',    text: 'God fight has two phases — Phase 1 is a one-sided encounter; Phase 2 unlocks after a prior encounter or Sovereign defeat and changes the fight entirely', spoilerLevel: 2 },
@@ -503,7 +527,7 @@ let _publicRoomCheckTimer = 0;
 // ============================================================
 // VERSION
 // ============================================================
-const GAME_VERSION = '2.9.0';  // bump this when releasing; must match CHANGELOG[0].version
+const GAME_VERSION = '3.0.0';  // bump this when releasing; must match CHANGELOG[0].version
 
 // DEBUG / DEVELOPER STATE
 // ============================================================
