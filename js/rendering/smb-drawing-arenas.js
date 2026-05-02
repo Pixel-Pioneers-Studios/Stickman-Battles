@@ -81,29 +81,30 @@ function drawVoidArena() {
     ctx.restore();
   }
 
-  // When floor is removed by TrueForm attack: orange lava rises from below
+  // When floor is removed by TrueForm attack: void abyss opens below
   if (tfFloorRemoved) {
+    ctx.save();
     ctx.globalAlpha = 1;
-    const ly = 460;
-    const lg = ctx.createLinearGradient(0, ly, 0, GAME_H);
-    lg.addColorStop(0,   '#ff6600');
-    lg.addColorStop(0.3, '#cc2200');
-    lg.addColorStop(1,   '#880000');
-    ctx.fillStyle = lg;
+    const vy = 460;
+    const vg = ctx.createLinearGradient(0, vy, 0, GAME_H);
+    vg.addColorStop(0,   'rgba(20,0,60,0.92)');
+    vg.addColorStop(0.3, 'rgba(8,0,30,0.97)');
+    vg.addColorStop(1,   'rgba(0,0,0,1)');
+    ctx.fillStyle = vg;
     ctx.beginPath();
-    ctx.moveTo(0, ly);
+    ctx.moveTo(0, vy);
     for (let x = 0; x <= GAME_W; x += 18) {
-      ctx.lineTo(x, ly + Math.sin(x * 0.055 + frameCount * 0.09) * 8);
+      ctx.lineTo(x, vy + Math.sin(x * 0.045 + frameCount * 0.09) * 7);
     }
     ctx.lineTo(GAME_W, GAME_H);
     ctx.lineTo(0, GAME_H);
     ctx.closePath();
     ctx.fill();
-    ctx.save();
-    ctx.shadowColor = '#ff4400';
-    ctx.shadowBlur  = 24;
-    ctx.fillStyle   = 'rgba(255,100,0,0.28)';
-    ctx.fillRect(0, ly - 12, GAME_W, 14);
+    ctx.shadowColor = '#6600cc';
+    ctx.shadowBlur  = 28;
+    ctx.fillStyle   = `rgba(80,0,180,${0.18 + Math.abs(Math.sin(frameCount * 0.04)) * 0.12})`;
+    ctx.fillRect(0, vy - 12, GAME_W, 14);
+    ctx.shadowBlur  = 0;
     ctx.restore();
   }
 }
@@ -1123,7 +1124,8 @@ function endGame() {
       let _coins = 5;
       if (bossDefeated) _coins += 20;
       else if (winner && !winner.isAI && !winner.isBoss) _coins += 10;
-      awardCoins(_coins);
+      const _coinMult = (window.LiveOps && typeof LiveOps.getCoinMult === 'function') ? LiveOps.getCoinMult() : 1;
+      awardCoins(Math.round(_coins * _coinMult));
     }
   }
 

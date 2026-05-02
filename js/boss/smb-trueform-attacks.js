@@ -82,8 +82,8 @@ TrueForm.prototype._doSpecial = function(move, target) {
           r: 30, color: '#ffffff', timer: 30, maxTimer: 30, label: 'TELEPORT!' });
         bossWarnings.push({ type: 'circle', x: warnX, y: warnY,
           r: 80, color: '#ff0044', timer: 30, maxTimer: 30, label: 'SLASH ZONE' });
-        // Store pending slash; execute teleport+damage after telegraph
-        this._pendingSlash = { timer: 30, target, behindOff };
+        // Lock destination at telegraph time so the warning circle matches where boss lands
+        this._pendingSlash = { timer: 30, target, behindOff, landX: warnX, landY: target.y };
         showBossDialogue('I was already there.', 100);
         break;
       }

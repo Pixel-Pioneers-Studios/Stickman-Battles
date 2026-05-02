@@ -22,6 +22,8 @@
 //   POST   /api/bans           [admin]       — add a ban record
 //   DELETE /api/bans/:key      [admin]       — remove a ban by key
 //   DELETE /api/bans           [admin]       — bulk remove by identity (body)
+//   GET    /api/live-config                  — live ops configuration (public)
+//   POST   /api/live-config    [admin]       — update live ops config
 //
 // Data is persisted via storage.js (SQLite by default, in-memory fallback).
 // ============================================================
@@ -236,6 +238,45 @@ function _handleRequest(req, res) {
         console.log('[Ban] - bulk removed ' + removedKeys.length + ' record(s)');
       }
       _json(res, 200, { ok: true, removed: removedKeys.length });
+    }).catch(err => _json(res, 500, { error: err.message }));
+    return;
+  }
+
+  // ── GET /api/live-config ─────────────────────────────────────────────────────
+  // Returns the current live ops configuration. Public — no auth required.
+  // Falls back to live-config.json on disk if nothing has been set in storage yet.
+  if (pathname === '/api/live-config' && req.method === 'GET') {
+    let cfg = storage.get('liveConfig');
+    if (!cfg) {
+      // Seed from the static file shipped with the repo
+      const staticPath = path.join(STATIC_ROOT, 'live-config.json');
+      try {
+        cfg = JSON.parse(fs.readFileSync(staticPath, 'utf8'));
+      } catch (_) {
+        cfg = {};
+      }
+    }
+    _json(res, 200, cfg);
+    return;
+  }
+
+  // ── POST /api/live-config ────────────────────────────────────────────────────
+  // Replaces the live ops config (merged over current). Requires X-Admin-Key.
+  // Body: partial or full config object. Stored in storage under 'liveConfig'.
+  if (pathname === '/api/live-config' && req.method === 'POST') {
+    if (!_isAdmin(req)) { _json(res, 403, { error: 'Forbidden — invalid or missing X-Admin-Key' }); return; }
+    _readBody(req).then(body => {
+      if (!body || typeof body !== 'object') {
+        _json(res, 400, { error: 'Body must be a JSON config object' }); return;
+      }
+      const current = storage.get('liveConfig') || {};
+      const merged  = Object.assign({}, current, body);
+      // Merge nested objects (events, balance) instead of overwriting
+      if (body.events)  merged.events  = Object.assign({}, current.events  || {}, body.events);
+      if (body.balance) merged.balance = Object.assign({}, current.balance || {}, body.balance);
+      storage.set('liveConfig', merged);
+      console.log('[LiveOps] config updated:', JSON.stringify(merged));
+      _json(res, 200, { ok: true, config: merged });
     }).catch(err => _json(res, 500, { error: err.message }));
     return;
   }

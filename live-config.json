@@ -1,0 +1,18 @@
+{
+  "latestVersion": "2.9.0",
+  "minSupportedVersion": "2.9.0",
+  "motd": "",
+  "coinMultiplier": 1,
+  "xpMultiplier": 1,
+  "shopRotation": [],
+  "events": {
+    "doubleCoins": false,
+    "bloodMoon": false,
+    "xpWeekend": false,
+    "bossRush": false
+  },
+  "balance": {
+    "playerDamageMult": 1,
+    "enemyHpMult": 1
+  }
+}

@@ -117,7 +117,8 @@ function updateTFMeteorCrash() {
       for (const p of players) {
         if (p.isBoss || p.health <= 0) continue;
         const sdx = p.cx() - mc.landX;
-        const sdd = Math.abs(sdx);
+        const sdy = (p.y + p.h * 0.5) - 460; // vertical distance from impact floor
+        const sdd = Math.hypot(sdx, sdy);
         if (sdd < 280) {
           const force = 28 * (1 - sdd / 280);
           p.vx = (sdx > 0 ? 1 : -1) * force;
@@ -274,8 +275,10 @@ function updateTFChainSlam() {
     for (const p of players) {
       if (p.isBoss || p.health <= 0) continue;
       const sdx = p.cx() - tf.cx();
-      if (Math.abs(sdx) < 300) {
-        p.vx = (sdx > 0 ? 1 : -1) * 20 * (1 - Math.abs(sdx) / 300);
+      const sdy = (p.y + p.h * 0.5) - (tf.y + tf.h);
+      const sdd = Math.hypot(sdx, sdy);
+      if (sdd < 300) {
+        p.vx = (sdx > 0 ? 1 : -1) * 20 * (1 - sdd / 300);
         p.vy = -14;
         dealDamage(tf, p, 14, 0);
       }

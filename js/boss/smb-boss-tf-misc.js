@@ -74,14 +74,14 @@ function updateTFBlackHoles() {
       const dx = bh.x - p.cx();
       const dy = bh.y - (p.y + p.h / 2);
       const d  = Math.hypot(dx, dy);
-      if (d < 180 && d > 0.5) {
-        const pull = 0.65 * (1 - d / 180) * pullMult;
+      if (d < 140 && d > 0.5) {
+        const pull = 0.55 * (1 - d / 140) * pullMult;
         p.vx += (dx / d) * pull;
         p.vy += (dy / d) * pull * 0.75;
       }
-      // Event horizon damage — 18 iframes so back-to-back frame hits can't chain
-      if (d < bh.r + 8 && p.invincible <= 0) {
-        dealDamage(tf || players[1], p, 36, 0, 1.0, false, 18);
+      // Event horizon damage — 36 iframes gives player time to escape after one hit
+      if (d < bh.r && p.invincible <= 0) {
+        dealDamage(tf || players[1], p, 28, 0, 1.0, false, 36);
         spawnParticles(p.cx(), p.cy(), '#000000', 10);
         spawnParticles(p.cx(), p.cy(), '#aa00ff',  6);
         hitStopFrames = Math.max(hitStopFrames, 8);

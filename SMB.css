@@ -1369,7 +1369,7 @@ input[type="color"] {
   #hud { flex-direction: column; align-items: stretch; }
   .hud-side.right { align-items: flex-start; }
   .hud-center { order: -1; }
-  canvas { width: 100vw !important; height: 100vh !important; }
+  /* canvas sizing handled by resizeGame() */
 }
 
 /* ============================================================
@@ -1933,3 +1933,117 @@ input[type="color"] {
   border-color: rgba(255, 255, 255, 0.22);
 }
 .sa-cost2.sa-locked-label { color: #558; }
+
+/* ============================================================
+   MOBILE — Portrait (phones ≤ 600px wide)
+   ============================================================ */
+@media (max-width: 600px) {
+  /* Allow the menu to scroll in portrait */
+  html, body { overflow-y: auto; overflow-x: hidden; }
+
+  #menu {
+    padding: 16px 12px 24px;
+    height: auto;
+    min-height: 100vh;
+    overflow-y: visible;
+    overflow-x: hidden;
+  }
+
+  .menu-center {
+    height: auto;
+    overflow-y: visible;
+    gap: 12px;
+  }
+
+  #menuHomeContent { gap: 12px; }
+
+  .game-title    { font-size: 2rem; letter-spacing: 3px; }
+  .game-subtitle { font-size: 0.70rem; letter-spacing: 3px; }
+
+  .home-quicknav {
+    gap: 8px;
+    margin: 6px 0 4px;
+  }
+  .home-nav-btn {
+    font-size: 0.82rem;
+    padding: 9px 18px;
+  }
+
+  /* 2-column mode cards instead of 3 */
+  .mode-cards {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+  .mode-card { padding: 14px 10px; }
+  .mode-name  { font-size: 0.92rem; }
+  .mode-desc  { font-size: 0.68rem; }
+
+  .section-label { font-size: 0.68rem; margin-bottom: 6px; }
+
+  .btn { padding: 9px 18px; font-size: 0.85rem; }
+
+  /* Canvas sizing handled by resizeGame() letterbox logic */
+}
+
+/* ============================================================
+   MOBILE — Landscape (phone held sideways, height ≤ 500px)
+   ============================================================ */
+@media (orientation: landscape) and (max-height: 500px) {
+  html, body { overflow: hidden; }
+
+  /* Compact header so more menu fits */
+  .game-title    { font-size: 1.5rem; letter-spacing: 2px; line-height: 1.1; }
+  .game-subtitle { display: none; }
+  #gameVersionLabel { display: none; }
+  #trueFormHint { display: none; }
+
+  #menuHomeContent { gap: 6px; }
+
+  .home-quicknav {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    justify-content: flex-start;
+    -webkit-overflow-scrolling: touch;
+    padding: 0 2px;
+    gap: 5px;
+    scrollbar-width: none;
+  }
+  .home-quicknav::-webkit-scrollbar { display: none; }
+
+  /* 4-column mode cards to use horizontal space */
+  .mode-cards {
+    grid-template-columns: repeat(4, 1fr);
+    gap: 6px;
+  }
+  .mode-card { padding: 8px 6px; }
+  .mode-name  { font-size: 0.78rem; }
+  .mode-desc  { font-size: 0.60rem; }
+
+  /* Canvas fills the full landscape screen */
+  canvas {
+    width: 100vw !important;
+    height: 100vh !important;
+    margin: 0 !important;
+  }
+
+  /* Tighten mobile control pads for landscape */
+  .mc-pad    { bottom: max(10px, env(safe-area-inset-bottom, 10px)); }
+  #mc-p1     { left:  max(10px, env(safe-area-inset-left,   10px)); }
+  #mc-p2     { right: max(10px, env(safe-area-inset-right,  10px)); }
+  .mc-btn    { width: 52px; height: 52px; }
+  .mc-left, .mc-right { width: 48px; height: 48px; }
+}
+
+/* ============================================================
+   SAFE AREA INSETS — notched / dynamic-island phones
+   ============================================================ */
+@supports (padding: max(0px)) {
+  #menu {
+    padding-left:   max(14px, env(safe-area-inset-left));
+    padding-right:  max(14px, env(safe-area-inset-right));
+    padding-bottom: max(10px, env(safe-area-inset-bottom));
+  }
+  .mc-pad { bottom: max(16px, env(safe-area-inset-bottom)); }
+  #mc-p1  { left:   max(12px, env(safe-area-inset-left)); }
+  #mc-p2  { right:  max(12px, env(safe-area-inset-right)); }
+}

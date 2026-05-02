@@ -111,7 +111,10 @@ function updateTFPendingAttacks() {
     if (tf._pendingSlash.timer <= 0) {
       const tgt = tf._pendingSlash.target;
       const behindOff = tf._pendingSlash.behindOff;
-      const landed = _bossTeleportActor(tf, tgt.cx() + behindOff, tgt.y, { preferRaised: true, sideBias: Math.sign(behindOff) || 1 });
+      // Use the position locked at telegraph time so the warning circle matches the actual landing spot
+      const destX = tf._pendingSlash.landX !== undefined ? tf._pendingSlash.landX : clamp(tgt.cx() + behindOff, 20, GAME_W - 20);
+      const destY = tf._pendingSlash.landY !== undefined ? tf._pendingSlash.landY : tgt.y;
+      const landed = _bossTeleportActor(tf, destX, destY, { preferRaised: true, sideBias: Math.sign(behindOff) || 1 });
       if (!landed) {
         tf._pendingSlash = null;
         tf._finishAttackState('slash');

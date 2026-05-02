@@ -19,15 +19,34 @@ function toggleChaosMode() {
 // FULLSCREEN / RESIZE
 // ============================================================
 function resizeGame() {
-  const hud  = document.getElementById('hud');
-  const hudH = (hud && hud.offsetHeight) || 0;
-  const w    = window.innerWidth;
-  const h    = window.innerHeight - hudH;
+  const hud   = document.getElementById('hud');
+  const hudH  = (hud && hud.offsetHeight) || 0;
+  const avW   = window.innerWidth;
+  const avH   = window.innerHeight - hudH;
+  const isMob = avW < 900 || avH < 600;
 
-  canvas.style.width      = w + 'px';
-  canvas.style.height     = h + 'px';
-  canvas.style.marginLeft = '0';
-  canvas.style.marginTop  = '0';
+  let w, h, ml = 0, mt = 0;
+  if (isMob) {
+    // Letterbox: fit inside available space while keeping 900×520 ratio
+    const aspect = GAME_W / GAME_H;
+    if (avW / avH > aspect) {
+      h  = avH;
+      w  = Math.round(h * aspect);
+      ml = Math.round((avW - w) / 2);
+    } else {
+      w  = avW;
+      h  = Math.round(w / aspect);
+      mt = Math.round((avH - h) / 2);
+    }
+  } else {
+    w = avW;
+    h = avH;
+  }
+
+  canvas.style.width      = w  + 'px';
+  canvas.style.height     = h  + 'px';
+  canvas.style.marginLeft = ml + 'px';
+  canvas.style.marginTop  = mt + 'px';
 }
 
 window.addEventListener('resize', resizeGame);
