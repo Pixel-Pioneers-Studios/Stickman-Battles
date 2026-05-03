@@ -42,11 +42,36 @@ const SERVER_CONFIG = {
 // ============================================================
 const CHANGELOG = [
   {
+    version: '3.1.0',
+    title: 'THE GAUNTLET UPDATE',
+    date: '2026-05-03',
+    flavor: 'Story Mode is no longer a corridor. It\'s a system — eight ways to play, one world that uses all of them.',
+    isLatest: true,
+    changes: [
+      { cat: 'Story',  text: 'Story Mode chapters are now multi-phase gauntlets — every fight chapter runs through a pacing engine that builds a sequence of 3–4 phases before the final encounter; boss and True Form chapters are excluded and launch directly as before' },
+      { cat: 'Story',  text: 'Added Chase phase archetype — a timed traversal with a countdown bar; if the timer expires the run ends immediately; fires at chapters 24, 31, 38, 45 and later' },
+      { cat: 'Story',  text: 'Added Survival Wave phase archetype — wave-defence mode in a compact 900px arena; enemies spawn in escalating waves from a state machine (countdown → active → between → victory); the arena locks the camera for the duration; fires at chapters 15, 20, 25, 30 and later' },
+      { cat: 'Story',  text: 'Added Puzzle Lock phase archetype — replaces the opening phase with a mechanic challenge; three rotating variants: Timed Duel (one life, no mistakes), Marked Target (eliminate the priority target first), Platform Switch (high-ground advantage active); fires at chapters 11, 21, 41 and later' },
+      { cat: 'Story',  text: 'Added Parkour phase archetype — a pure platforming run with no arena-lock combat, tight jump geometry, and sparse enemy spawns; fires at chapters 16, 32, 48, 64' },
+      { cat: 'Story',  text: 'Added Branch/Choice phase archetype — narrative crossroads chapters where the player makes a persistent choice; flags are stored in save data and can affect later chapter dialogue; three branch points added: "The Weight of It" (ch. 26), "The Split" (ch. 47), and "What Veran Didn\'t Say" (ch. 49)' },
+      { cat: 'Story',  text: 'Story HUD now shows a chase countdown bar (green → yellow → red, flashing white under 10s) and a survival wave indicator (wave number, dot pip progress, kill-bar fill, flashing orange when a wave is active)' },
+      { cat: 'Story',  text: 'Ch. 7 "The Long Walk" given a custom phase sequence: traversal → chase (patrol lockdown) → survival wave (hold the beacon) → mini-boss; auto-generation is bypassed' },
+      { cat: 'Story',  text: 'Ch. 52 "Signal Maze" given a custom phase sequence: parkour (scrambled geometry run) → survival wave (interference surge) → elite encounter → mini-boss; auto-generation is bypassed' },
+      { cat: 'Story',  text: 'Pacing schedule is deterministic and collision-free across all 80+ chapters — each archetype fires at a fixed stride with a guaranteed-free offset so no two archetypes claim the same chapter' },
+      { cat: 'Entity', text: 'Added GodParadoxAlly to the God Phase 2 encounter — a flying blue entity that targets God exclusively, orbits its position, and delivers melee attacks; phases through all surfaces; cannot be harmed by the player', spoilerLevel: 2 },
+      { cat: 'Arena',  text: 'Added God Domain arena — a dedicated divine stage for the God encounter; deep purple theme, oscillating platforms (3 moving horizontally, 2 moving vertically), divine eye-portal background elements, and a particle storm that intensifies as God loses health' },
+      { cat: 'Visual', text: 'Godslayer armor visual rebuilt — golden gradient helmet with three crown spikes, pulsing golden glow, and a divine aura tied to the Godslayer weapon; renders as a distinct crown silhouette during the God Phase 2 fight', spoilerLevel: 2 },
+      { cat: 'Visual', text: 'Fighter floor shadow improved — renders as a depth-scaled ellipse that tracks the ground plane with correct alpha falloff; replaces the old fixed-offset dot shadow' },
+      { cat: 'System', text: 'Unlock rewards are now server-authoritative — coin grants, story unlocks, and achievement flags are validated through a server call before being written to the save; prevents client-side manipulation of progression state' },
+      { cat: 'System', text: 'Branch choice flags are persisted to story save data (branchFlags map) and restored into storyState.flags on load; flags survive session resets and cloud sync' },
+    ],
+  },
+  {
     version: '3.0.0',
     title: 'THE EVOLUTION UPDATE',
     date: '2026-05-01',
     flavor: 'A knight falls from the sky. A divine being issues a challenge. The system goes live. Everything adapts.',
-    isLatest: true,
+    isLatest: false,
     changes: [
       { cat: 'Entity',  text: 'God Phase 2 fully built — Phase 2 now includes two new special attacks: Angel Fleet (spawns waves of HolyAngel minions from above) and Divine Columns (targeted light pillars that detonate for AoE damage); Phase 2 movement and attack timing tuned separately from Phase 1', spoilerLevel: 2 },
       { cat: 'Mode',    text: 'Added God Challenge prompt — when God returns to a player who has already defeated it, a modal offers the choice to accept or decline a direct God encounter; accepting immediately launches a dedicated God fight outside normal match flow', spoilerLevel: 2 },

@@ -173,22 +173,22 @@ const ARENAS = {
     ]
   },
   god_domain: {
-    sky:         ['#000008', '#06001a'],
-    groundColor: '#080014',
-    platColor:   '#100025',
-    platEdge:    '#bb44ff',
+    sky:         ['#fff8d0', '#030008'],
+    groundColor: '#f5f0d8',
+    platColor:   '#f0ead0',
+    platEdge:    '#c89820',
     hasLava:     false,
     deathY:      640,
     isBossArena: true,
     isGodArena:  true,
     platforms: [
       { x: 0,   y: 460, w: 900, h: 60, isFloor: true, isFloorDisabled: false },
-      { x: 325, y: 178, w: 250, h: 16, ox: 325, oscX: 90,  oscSpeed: 0.009, oscPhase: 0.0 },
-      { x: 45,  y: 258, w: 165, h: 16, ox: 45,  oscX: 50,  oscSpeed: 0.014, oscPhase: 1.8 },
-      { x: 690, y: 258, w: 165, h: 16, ox: 690, oscX: 50,  oscSpeed: 0.014, oscPhase: 3.6 },
-      { x: 175, y: 118, w: 125, h: 14, oy: 118, oscY: 38,  oscSpeed: 0.017, oscPhase: 0.9 },
-      { x: 600, y: 118, w: 125, h: 14, oy: 118, oscY: 38,  oscSpeed: 0.017, oscPhase: 2.7 },
-      { x: 375, y: 58,  w: 150, h: 14 },
+      { x: 325, y: 178, w: 250, h: 14, ox: 325, oscX: 90,  oscSpeed: 0.009, oscPhase: 0.0 },
+      { x: 45,  y: 258, w: 165, h: 14, ox: 45,  oscX: 50,  oscSpeed: 0.014, oscPhase: 1.8 },
+      { x: 690, y: 258, w: 165, h: 14, ox: 690, oscX: 50,  oscSpeed: 0.014, oscPhase: 3.6 },
+      { x: 175, y: 118, w: 125, h: 12, oy: 118, oscY: 38,  oscSpeed: 0.017, oscPhase: 0.9 },
+      { x: 600, y: 118, w: 125, h: 12, oy: 118, oscY: 38,  oscSpeed: 0.017, oscPhase: 2.7 },
+      { x: 375, y: 58,  w: 150, h: 12 },
     ]
   },
   forest: {
