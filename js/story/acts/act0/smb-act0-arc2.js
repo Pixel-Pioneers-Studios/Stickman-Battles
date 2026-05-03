@@ -67,6 +67,50 @@ STORY_CHAPTER_REGISTRY.push(
     playerLives: 3,
     tokenReward: 38, blueprintDrop: 'last_stand2',
     postText: 'The signal beacon. Still transmitting. Still pointing toward the relay station. You pocket it and keep moving.',
+    phases: [
+      {
+        type: 'traversal',
+        label: 'Navigate the fractured city streets.',
+        worldLength: 3000,
+        objectName: 'Signal Beacon',
+        spawnEnemies: [
+          { wx: 600,  name: 'Drifter',     weaponKey: 'sword',  classKey: 'none',    aiDiff: 'medium', color: '#665544' },
+          { wx: 1100, name: 'Looter',       weaponKey: 'axe',    classKey: 'none',    aiDiff: 'medium', color: '#776655' },
+          { wx: 1700, name: 'Street Thug',  weaponKey: 'hammer', classKey: 'warrior', aiDiff: 'hard',   color: '#665533' },
+        ],
+        playerLives: 3,
+      },
+      {
+        type: 'chase',
+        label: 'Patrol bots locked on. Move.',
+        timeLimit: 1500,
+        worldLength: 2400,
+        objectName: 'Safe Zone',
+        spawnEnemies: [
+          { wx: 500,  name: 'Patrol Bot', weaponKey: 'spear', classKey: 'warrior', aiDiff: 'hard', color: '#556677' },
+          { wx: 1100, name: 'Riot Unit',  weaponKey: 'sword', classKey: 'warrior', aiDiff: 'hard', color: '#445566' },
+        ],
+        playerLives: 3,
+      },
+      {
+        type: 'survival_wave',
+        label: 'Hold the beacon. Three waves incoming.',
+        waves: 3,
+        waveSize: 2,
+        arena: 'city',
+        playerLives: 3,
+      },
+      {
+        type: 'mini_boss',
+        label: 'Iron Warden — the station\'s last defender.',
+        arena: 'city',
+        finalChapter: true,
+        opponents: [
+          { name: 'Iron Warden', weaponKey: 'hammer', classKey: 'tank', aiDiff: 'hard', color: '#334455', armor: ['helmet', 'chestplate'], isElite: true },
+        ],
+        playerLives: 3,
+      },
+    ],
   },
 
   {

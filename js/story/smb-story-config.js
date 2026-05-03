@@ -434,6 +434,7 @@ const STORY_PACING_RULES = [
   { every: 7,  offset: 3, inject: 'chase',         minId: 20 },
   { every: 10, offset: 1, inject: 'puzzle_lock',   minId: 10 },
   { every: 30, offset: 5, inject: 'branch',        minId: 25 },
+  { every: 16, offset: 0, inject: 'parkour',       minId: 14 }, // ch 16, 32, 48, 64 — guaranteed free slots
 ];
 
 // Returns the pacing archetype override for a given chapter id, or null.
@@ -571,6 +572,50 @@ function _storyBuildPhases(ch) {
       });
     }
   }
+
+  // Apply pacing override: puzzle_lock — replace the opening phase with a mechanism challenge.
+  // Three mechanics rotate by chapter id; each is pure flavor on top of normal combat.
+  if (ch._pacingOverride === 'puzzle_lock' && ch.phases.length > 0 && !ch.isBossFight && !ch.isTrueFormFight) {
+    const mechanic = ch.id % 3 === 0 ? 'timed_duel'
+                   : ch.id % 3 === 1 ? 'marked_target'
+                   : 'platform_switch';
+    const mechanicLabel =
+        mechanic === 'timed_duel'
+          ? 'One life. No mistakes — win on the first try.'
+          : mechanic === 'marked_target'
+          ? `Priority target: ${ch.opponentName || 'lead enemy'}. Identify and eliminate first.`
+          : 'High-ground advantage active. Use the terrain — they will.';
+    ch.phases[0] = {
+      ...ch.phases[0],
+      type:        'puzzle_lock',
+      label:       mechanicLabel,
+      mechanic,
+      playerLives: mechanic === 'timed_duel'
+        ? 1
+        : (ch.phases[0].playerLives || Math.max(2, ch.playerLives || 3)),
+      arena: mechanic === 'platform_switch'
+        ? (ch.id % 2 === 0 ? 'forest' : 'ruins')
+        : (ch.phases[0].arena || ch.arena || 'homeAlley'),
+    };
+  }
+
+  // Apply pacing override: parkour — replace the first traversal phase with a pure platforming run.
+  // No enemies in early chapters; sparse spawns after ch 28.
+  if (ch._pacingOverride === 'parkour' && !ch.isBossFight && !ch.isTrueFormFight) {
+    const parkourIdx = ch.phases.findIndex(p => p.type === 'traversal');
+    const insertAt   = parkourIdx >= 0 ? parkourIdx : 0;
+    ch.phases[insertAt] = {
+      type:        'parkour',
+      label:       ch.id >= 30
+        ? 'Precision Run — one wrong step ends it.'
+        : 'Navigate the terrain. There is no cover here.',
+      worldLength: 3200 + Math.min(ch.id * 30, 900),
+      objectName:  ch.objectName || 'Checkpoint',
+      spawnEnemies: ch.id >= 28 ? (ch.spawnEnemies || []).slice(0, 2) : [],
+      playerLives: ch.playerLives || 3,
+    };
+  }
+
   return ch.phases;
 }
 
@@ -815,6 +860,7 @@ function _defaultStory2Progress() {
     // v3 hierarchy fields — added by migration for old saves
     arcCollapsed:      {},      // { arcId: bool } — user-toggled arc collapse state
     actExpanded:       {},      // { actIndex: bool } — user forced an out-of-range act open
+    branchFlags:       {},      // { [flagKey]: true } — choices made at branch chapters
   };
 }
 
@@ -835,6 +881,7 @@ function _normalizeStory2Progress(data) {
   if (data.arcCollapsed && typeof data.arcCollapsed === 'object') out.arcCollapsed = Object.assign({}, data.arcCollapsed);
   if (data.actExpanded && typeof data.actExpanded === 'object') out.actExpanded = Object.assign({}, data.actExpanded);
   if (data.meta && typeof data.meta === 'object') out.meta = Object.assign({}, data.meta);
+  if (data.branchFlags && typeof data.branchFlags === 'object') out.branchFlags = Object.assign({}, data.branchFlags);
   return out;
 }
 

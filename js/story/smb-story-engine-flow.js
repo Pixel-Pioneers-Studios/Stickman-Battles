@@ -45,6 +45,24 @@ function _storyPhaseLaunchConfig(ch, phase) {
     return { mode: 'exploration', chapter: traversalChapter };
   }
 
+  if (phaseType === 'survival_wave') {
+    const survivalChapter = {
+      ...ch,
+      type:          'exploration',
+      exploreMode:   'survival',
+      worldLength:   900,
+      objectName:    'Survive All Waves',
+      spawnEnemies:  [],
+      survivalWaves: phase.waves      || 3,
+      waveSize:      phase.waveSize   || 2,
+      arena:         phase.arena      || ch.arena,
+      playerLives:   phase.playerLives || ch.playerLives || 3,
+      fightScript:   [...(ch.fightScript || [])],
+      preText:       phase.label || 'Hold the arena. Survive all waves.',
+    };
+    return { mode: 'exploration', chapter: survivalChapter };
+  }
+
   const launch = {
     ...ch,
     type: 'fight',
@@ -108,25 +126,35 @@ function _advanceStoryGauntletPhase(ch) {
   return true;
 }
 
+// Boss/special chapters bypass the gauntlet and launch directly.
+// All other fight/exploration chapters go through _startStoryGauntlet so pacing archetypes fire.
+function _launchChapterWithGauntlet(ch) {
+  if (ch.isBossFight || ch.isTrueFormFight || ch.isSovereignFight) {
+    _directLaunchChapter(ch);
+  } else {
+    _startStoryGauntlet(ch);
+  }
+}
+
 function _beginChapter2(idx) {
   if (_narrativeActive) return;
   const ch = STORY_CHAPTERS2[idx];
   if (!ch) return;
   _activeStory2Chapter = ch;
-  storyGauntletState = null; // no phases — single chapter only
 
-  if (ch.noFight && !ch.isEpilogue) {
-    _showStory2Narrative(ch.narrative, () => _completeChapter2(ch));
+  if (ch.type === 'branch') {
+    _showStory2Narrative(ch.narrative, () => _showBranchChoice(ch, () => _completeChapter2(ch)));
     return;
   }
+
   if (ch.noFight) {
     _showStory2Narrative(ch.narrative, () => _completeChapter2(ch));
     return;
   }
 
-  // On retry (narrative already seen this session), skip straight to fight
+  // On retry (narrative already seen this session), skip straight to gauntlet
   if (_seenNarrativeIds.has(ch.id)) {
-    _directLaunchChapter(ch);
+    _launchChapterWithGauntlet(ch);
     return;
   }
 
@@ -134,7 +162,7 @@ function _beginChapter2(idx) {
   const allLines = [...(ch.narrative || [])];
   if (ch.preText) allLines.push(ch.preText);
   _showStory2Narrative(allLines, () => {
-    _showPreFightStoreNag(ch, () => _directLaunchChapter(ch));
+    _showPreFightStoreNag(ch, () => _launchChapterWithGauntlet(ch));
   });
 }
 
@@ -191,6 +219,68 @@ function _showStory2Narrative(lines, callback) {
 function _showStory2PreFight(ch) {
   // Legacy stub — now handled inline by _showStory2Narrative
   _launchChapter2Fight(ch);
+}
+
+function _showBranchChoice(ch, onComplete) {
+  const choices = Array.isArray(ch.choices) && ch.choices.length ? ch.choices : [
+    { label: 'Press On',  flag: `branch_${ch.id}_a`, consequence: null },
+    { label: 'Step Back', flag: `branch_${ch.id}_b`, consequence: null },
+  ];
+
+  // Build overlay
+  const overlay = document.createElement('div');
+  overlay.id = '_storyBranchOverlay';
+  overlay.style.cssText = [
+    'position:fixed;inset:0;z-index:9000;display:flex;flex-direction:column',
+    'align-items:center;justify-content:center;background:rgba(0,0,12,0.88)',
+    'font-family:inherit;',
+  ].join(';');
+
+  const title = document.createElement('div');
+  title.textContent = ch.branchPrompt || 'Choose your path.';
+  title.style.cssText = 'color:#dde8ff;font-size:1.25rem;font-weight:700;margin-bottom:28px;text-align:center;max-width:520px;line-height:1.5;';
+  overlay.appendChild(title);
+
+  const btnRow = document.createElement('div');
+  btnRow.style.cssText = 'display:flex;gap:16px;flex-wrap:wrap;justify-content:center;';
+
+  choices.forEach(choice => {
+    const btn = document.createElement('button');
+    btn.textContent = choice.label;
+    btn.style.cssText = [
+      'background:#1a2a44;border:2px solid #4466aa;color:#ccdaff',
+      'padding:14px 28px;font-size:1rem;font-weight:600;border-radius:8px',
+      'cursor:pointer;transition:background 0.15s,border-color 0.15s;min-width:160px;',
+    ].join(';');
+    btn.onmouseenter = () => { btn.style.background = '#263a5a'; btn.style.borderColor = '#88aaff'; };
+    btn.onmouseleave = () => { btn.style.background = '#1a2a44'; btn.style.borderColor = '#4466aa'; };
+
+    btn.onclick = () => {
+      // Persist flag
+      if (!_story2.branchFlags) _story2.branchFlags = {};
+      _story2.branchFlags[choice.flag] = true;
+      storyState.flags[choice.flag]    = true;
+      if (typeof _saveStory2 === 'function') _saveStory2();
+
+      if (choice.consequence) {
+        title.textContent = choice.consequence;
+        btnRow.style.display = 'none';
+        const contBtn = document.createElement('button');
+        contBtn.textContent = 'Continue →';
+        contBtn.style.cssText = btn.style.cssText;
+        contBtn.onclick = () => { document.body.removeChild(overlay); onComplete(); };
+        overlay.appendChild(contBtn);
+      } else {
+        document.body.removeChild(overlay);
+        onComplete();
+      }
+    };
+
+    btnRow.appendChild(btn);
+  });
+
+  overlay.appendChild(btnRow);
+  document.body.appendChild(overlay);
 }
 
 function _launchChapter2Fight(ch) {
@@ -301,7 +391,7 @@ function _launchChapter2FightImmediate(ch) {
       storyFightScript.unshift({
         frame: 20,
         text: `${_storyPhaseName(_phase.type)} — ${_phase.label || 'Engage and clear the arena.'}`,
-        color: _phase.type === 'hazard_phase' ? '#ff8844' : _phase.type === 'elite_wave' ? '#ffcc66' : '#aaccff',
+        color: _phase.type === 'hazard_phase' ? '#ff8844' : _phase.type === 'elite_wave' ? '#ffcc66' : _phase.type === 'puzzle_lock' ? '#99ffcc' : '#aaccff',
         timer: 220,
       });
     }
@@ -316,7 +406,7 @@ function _launchChapter2FightImmediate(ch) {
         text: `${_storyPhaseName(_phase.type)} — ${_phase.label || 'Clear the phase.'}`,
         timer: 220,
         maxTimer: 220,
-        color: _phase.type === 'hazard_phase' ? '#ff8844' : '#aaccff'
+        color: _phase.type === 'hazard_phase' ? '#ff8844' : _phase.type === 'puzzle_lock' ? '#99ffcc' : '#aaccff'
       };
     }
   }

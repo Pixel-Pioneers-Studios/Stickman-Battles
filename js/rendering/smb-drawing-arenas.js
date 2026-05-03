@@ -703,6 +703,42 @@ function drawExploreHUD() {
     ctx.fillText(`PHASE ${storyPhaseIndicator.index}/${storyPhaseIndicator.total}  ${storyPhaseIndicator.label}`, barX + barW, barY + barH + 4);
   }
 
+  // Survival wave indicator (replaces goal arrow; shown when wave defence is active)
+  if (storeSurvivalState && (storeSurvivalState.active || storeSurvivalState.state === 'victory')) {
+    const ss   = storeSurvivalState;
+    const waveY = barY + 36;
+    const dots  = Array.from({ length: ss.totalWaves }, (_, i) => i < ss.wave ? '◆' : '◇').join(' ');
+    const waveLabel = ss.state === 'countdown' ? 'GET READY...'
+      : ss.state === 'between'  ? `WAVE ${ss.wave} CLEARED`
+      : ss.state === 'victory'  ? 'ALL WAVES CLEARED'
+      : `WAVE ${ss.wave} / ${ss.totalWaves}`;
+    const flash = ss.state === 'active' && (Math.floor(frameCount / 20) % 2 === 0);
+
+    ctx.globalAlpha = 0.90;
+    ctx.fillStyle   = 'rgba(0,0,0,0.62)';
+    ctx.beginPath(); ctx.roundRect(barX - 4, waveY - 4, barW + 8, barH + 22, 6); ctx.fill();
+
+    const fillPct = ss.state === 'active'
+      ? Math.max(0, 1 - minions.filter(m => m.health > 0).length / Math.max(1, ss.waveSize + Math.floor((ss.wave - 1) / 2)))
+      : ss.state === 'between' || ss.state === 'victory' ? 1 : 0;
+    ctx.globalAlpha = 0.85;
+    ctx.fillStyle   = ss.state === 'victory' ? '#ffffaa' : flash ? '#ff9944' : '#cc6622';
+    if (fillPct > 0) { ctx.beginPath(); ctx.roundRect(barX, waveY, barW * fillPct, barH, 4); ctx.fill(); }
+
+    ctx.globalAlpha = 0.88;
+    ctx.strokeStyle = 'rgba(255,255,255,0.25)'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.roundRect(barX, waveY, barW, barH, 4); ctx.stroke();
+
+    ctx.globalAlpha = 1;
+    ctx.fillStyle   = flash ? '#ff9944' : '#ffddaa';
+    ctx.font = 'bold 11px Arial';
+    ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+    ctx.fillText(waveLabel, barX, waveY + barH + 4);
+    ctx.fillStyle = '#ffdd88';
+    ctx.textAlign = 'right';
+    ctx.fillText(dots, barX + barW, waveY + barH + 4);
+  }
+
   // Chase phase countdown bar (shown when storyChaseMaxTimer > 0)
   if (storyChaseMaxTimer > 0) {
     const pct      = Math.max(0, storyChaseTimer / storyChaseMaxTimer);

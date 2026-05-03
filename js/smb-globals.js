@@ -712,6 +712,7 @@ let exploreCombatQuiet = 0;
 let exploreArenaLock = null;    // { left, right, enemies:[], cleared, label }
 let storyChaseTimer    = 0;     // frames remaining in a chase phase (0 = no chase active)
 let storyChaseMaxTimer = 0;     // max frames (used for the HUD progress bar)
+let storeSurvivalState = null;  // { active, state, wave, totalWaves, waveSize, timer, baseEnemy }
 
 // ── TrueForm clone position history (ring buffer for multiverse lag effect) ──
 let _tfCloneHistory = [];   // [{ x, cy, facing }, ...] — last 24 frames

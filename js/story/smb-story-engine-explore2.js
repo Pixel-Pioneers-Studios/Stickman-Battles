@@ -2,6 +2,59 @@
 // smb-story-engine-explore2.js — updateExploration, _exploreSpawnEnemy, triggerScene, drawFallenWarriorMemory
 // Depends on: smb-globals.js, smb-story-registry.js (and preceding story-engine splits)
 
+function _spawnSurvivalWave(ss, p1) {
+  const count   = ss.waveSize + Math.floor((ss.wave - 1) / 2); // waves grow slightly
+  const isElite = ss.wave >= ss.totalWaves; // final wave is elite
+  for (let i = 0; i < count; i++) {
+    const def = Object.assign({}, ss.baseEnemy, {
+      wx:       750 + i * 50,
+      isElite,
+      health:   isElite ? 180 : 110,
+      name:     isElite ? (ss.baseEnemy.name + ' Elite') : ss.baseEnemy.name,
+    });
+    _exploreSpawnEnemy(def, p1);
+  }
+}
+
+function _updateSurvivalWave(p1) {
+  const ss = storeSurvivalState;
+  if (!ss || !ss.active || exploreGoalFound) return;
+  const liveEnemies = minions.filter(m => m.health > 0).length;
+  ss.timer--;
+
+  if (ss.state === 'countdown' && ss.timer <= 0) {
+    ss.state = 'active';
+    ss.wave  = 1;
+    ss.timer = 9999;
+    _spawnSurvivalWave(ss, p1);
+    storyFightSubtitle = { text: `⚔ Wave 1/${ss.totalWaves} — Defend!`, timer: 190, maxTimer: 190, color: '#ff9944' };
+    screenShake = 10;
+
+  } else if (ss.state === 'active' && liveEnemies === 0) {
+    if (ss.wave >= ss.totalWaves) {
+      ss.state  = 'victory';
+      ss.active = false;
+      exploreGoalFound = true;
+      SoundManager && typeof SoundManager.superActivate === 'function' && SoundManager.superActivate();
+      spawnParticles && spawnParticles(p1.cx(), p1.cy(), '#ffffaa', 28);
+      storyFightSubtitle = { text: `All ${ss.totalWaves} waves cleared!`, timer: 250, maxTimer: 250, color: '#ffffaa' };
+      setTimeout(() => { if (!gameRunning) return; endGame(); }, 2200);
+    } else {
+      ss.state = 'between';
+      ss.timer = 90;
+      storyFightSubtitle = { text: `Wave ${ss.wave} cleared — next incoming...`, timer: 80, maxTimer: 80, color: '#88ffcc' };
+    }
+
+  } else if (ss.state === 'between' && ss.timer <= 0) {
+    ss.state = 'active';
+    ss.wave++;
+    ss.timer = 9999;
+    _spawnSurvivalWave(ss, p1);
+    storyFightSubtitle = { text: `⚔ Wave ${ss.wave}/${ss.totalWaves} — Hold!`, timer: 190, maxTimer: 190, color: '#ff9944' };
+    screenShake = 10;
+  }
+}
+
 function updateExploration() {
   if (!exploreActive || !players[0] || !gameRunning) return;
   const p1 = players[0];
@@ -17,6 +70,11 @@ function updateExploration() {
       setTimeout(() => { if (!gameRunning) return; endGame(); }, 1400);
       return;
     }
+  }
+
+  // Survival wave management (runs before normal explore logic)
+  if (storeSurvivalState && storeSurvivalState.active) {
+    _updateSurvivalWave(p1);
   }
 
   const activeEnemyCount = minions.filter(m => m.health > 0).length;
@@ -126,7 +184,7 @@ function updateExploration() {
     }
   }
 
-  if (exploreCombatQuiet > 260 && activeEnemyCount < exploreEnemyCap) {
+  if (!storeSurvivalState && exploreCombatQuiet > 260 && activeEnemyCount < exploreEnemyCap) {
     const spawnAhead = p1.x + GAME_W * 0.92;
     _exploreSpawnEnemy({
       wx: spawnAhead,
@@ -139,7 +197,7 @@ function updateExploration() {
     exploreCombatQuiet = 120;
   }
 
-  if (exploreAmbushTimer > 360 && Math.abs(p1.vx) < 1.1 && !inCombat && activeEnemyCount < exploreEnemyCap) {
+  if (!storeSurvivalState && exploreAmbushTimer > 360 && Math.abs(p1.vx) < 1.1 && !inCombat && activeEnemyCount < exploreEnemyCap) {
     _exploreSpawnEnemy({
       wx: p1.x + 120,
       name: 'Ambush Elite',

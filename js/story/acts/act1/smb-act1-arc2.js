@@ -204,7 +204,7 @@ STORY_CHAPTER_REGISTRY.push(
   {
     id: 26, title: 'The Weight of It',
     world: '🌀 Fracture Core — Eye Antechamber',
-    noFight: true,
+    type: 'branch',
     narrative: [
       'Before the Core\'s Eye: a chamber of silence.',
       '',
@@ -231,6 +231,19 @@ STORY_CHAPTER_REGISTRY.push(
       '"Let\'s go."',
     ],
     preText: null,
+    branchPrompt: 'Veran told you the truth. Now you have to decide what to do with it.',
+    choices: [
+      {
+        label: 'Walk in. Whatever the cost.',
+        flag: 'ch26_accepted_risk',
+        consequence: '"Death can have me when it earns me." You said it before you could think about it. Veran looked like she was going to say something. She didn\'t.',
+      },
+      {
+        label: 'Find another way first.',
+        flag: 'ch26_seek_alternative',
+        consequence: 'You told Veran you needed more time. She didn\'t argue. The Third Architect found the pause useful. You weren\'t sure if that was good or bad.',
+      },
+    ],
     tokenReward: 40, blueprintDrop: null,
     postText: 'Unknown. Not impossible. You\'ve handled unknown before. The Core\'s Eye is ahead. Whatever waits inside — it ends here.',
   },

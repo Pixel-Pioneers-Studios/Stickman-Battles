@@ -50,6 +50,12 @@ const storyState = {
   storyDodgeUnlocked                 = storyState.abilities.dodge;
 })();
 
+// Restore branch-choice flags from persistent save data.
+(function _restoreStoryFlags() {
+  const bf = (typeof _story2 !== 'undefined' && _story2.branchFlags) ? _story2.branchFlags : {};
+  Object.assign(storyState.flags, bf);
+})();
+
 // ── Event bus ─────────────────────────────────────────────────────────────────
 const _storyEventHandlers = {};   // { [eventName]: [fn, ...] }
 

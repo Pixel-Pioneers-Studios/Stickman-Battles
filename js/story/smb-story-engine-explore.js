@@ -17,6 +17,16 @@ function _exploreGenPlatforms(worldLen, seed, ch) {
   // ── Solid floor (no gaps — players should never fall into the void) ──────
   plats.push({ x: 0, y: 440, w: worldLen, h: 80, isFloor: true });
 
+  if (mode === 'survival') {
+    // Compact enclosed arena for wave-defence (worldLen = 900)
+    plats.push({ x: 90,  y: 330, w: 150, h: 16 });
+    plats.push({ x: 375, y: 265, w: 150, h: 16 });
+    plats.push({ x: 660, y: 330, w: 150, h: 16 });
+    plats.push({ x: 220, y: 190, w: 110, h: 14 });
+    plats.push({ x: 570, y: 190, w: 110, h: 14 });
+    return plats;
+  }
+
   if (mode === 'parkour') {
     for (let wx = 220; wx < worldLen - 420; wx += 170 + Math.floor(rng() * 85)) {
       plats.push({
@@ -236,6 +246,36 @@ function _launchExplorationChapter(ch) {
   exploreSidePortals = [];
   storyChaseTimer    = (ch.chaseTimer > 0) ? ch.chaseTimer : 0;
   storyChaseMaxTimer = storyChaseTimer;
+  storeSurvivalState = null; // cleared for every exploration chapter; set below for survival
+
+  if (ch.exploreMode === 'survival') {
+    // Lock the camera to the compact 900px arena — no scrolling
+    ARENAS[arenaKey].mapLeft   = 0;
+    ARENAS[arenaKey].mapRight  = GAME_W;
+    ARENAS[arenaKey].worldWidth = GAME_W;
+    exploreGoalX   = 999999; // unreachable — wave-clear is the win condition
+    exploreGoalName = 'All Waves';
+    exploreCheckpoints = []; // no checkpoints in survival
+    exploreEnemyCap = Math.max(6, (ch.waveSize || 2) * 2 + 2);
+    const _diffTier = ch.id >= 45 ? 'expert' : ch.id >= 25 ? 'hard' : ch.id >= 10 ? 'medium' : 'easy';
+    storeSurvivalState = {
+      active:     true,
+      state:      'countdown', // 'countdown' | 'active' | 'between' | 'victory'
+      wave:       0,
+      totalWaves: ch.survivalWaves || 3,
+      waveSize:   ch.waveSize      || 2,
+      timer:      90, // frames before first wave
+      baseEnemy: {
+        name:      ch.opponentName  || 'Wave Enemy',
+        weaponKey: ch.weaponKey     || 'sword',
+        classKey:  ch.classKey      || 'warrior',
+        aiDiff:    ch.aiDiff        || _diffTier,
+        color:     ch.opponentColor || '#778899',
+        armor:     ch.armor         || [],
+      },
+    };
+  }
+
   const sidePortal = _storyBuildSidePortal(ch);
   if (sidePortal) exploreSidePortals.push(sidePortal);
 

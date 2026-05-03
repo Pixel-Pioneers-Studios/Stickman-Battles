@@ -43,6 +43,47 @@ STORY_CHAPTER_REGISTRY.push(
     playerLives: 3,
     tokenReward: 100, blueprintDrop: null,
     postText: 'The fallback beacon. The Architects are here — all four of them. But the Third Architect arrived first. And they\'re standing in the wrong place.',
+    phases: [
+      {
+        type: 'parkour',
+        label: 'The geometry is wrong. The fragment will guide you — trust it.',
+        worldLength: 3800,
+        objectName: 'Fallback Node',
+        spawnEnemies: [
+          { wx: 800,  name: 'Signal Construct', weaponKey: 'sword', classKey: 'warrior', aiDiff: 'hard',   color: '#554466' },
+          { wx: 1600, name: 'Loop Guard',        weaponKey: 'axe',   classKey: 'ninja',   aiDiff: 'hard',   color: '#443355' },
+        ],
+        playerLives: 3,
+      },
+      {
+        type: 'survival_wave',
+        label: 'The Creator sealed the exits. Survive the interference surge.',
+        waves: 3,
+        waveSize: 3,
+        arena: 'cyberpunk',
+        playerLives: 3,
+      },
+      {
+        type: 'elite_wave',
+        label: 'The Null Warden has your coordinates.',
+        arena: 'cyberpunk',
+        opponents: [
+          { name: 'Null Warden',   weaponKey: 'spear', classKey: 'warrior',   aiDiff: 'expert', color: '#6a5575', armor: ['helmet', 'chestplate'], isElite: true },
+          { name: 'Glitch Knight', weaponKey: 'axe',   classKey: 'berserker', aiDiff: 'expert', color: '#6a4a7a', isElite: true },
+        ],
+        playerLives: 3,
+      },
+      {
+        type: 'mini_boss',
+        label: 'Beacon Sentinel — the last lock on the fallback point.',
+        arena: 'cyberpunk',
+        finalChapter: true,
+        opponents: [
+          { name: 'Beacon Sentinel', weaponKey: 'axe', classKey: 'tank', aiDiff: 'expert', color: '#5a3a6a', armor: ['helmet', 'chestplate'], isElite: true },
+        ],
+        playerLives: 3,
+      },
+    ],
   },
 
   {

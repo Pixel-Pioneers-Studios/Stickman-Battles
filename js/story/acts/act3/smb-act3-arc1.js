@@ -66,7 +66,7 @@ STORY_CHAPTER_REGISTRY.push(
   {
     id: 47, title: 'The Split',
     world: '🌐 Neutral Dimension — Assembly Hall',
-    noFight: true,
+    type: 'branch',
     narrative: [
       'The Third Architect had run the numbers.',
       '',
@@ -89,6 +89,19 @@ STORY_CHAPTER_REGISTRY.push(
       'Not to the argument — to something in the Third Architect\'s voice.',
       'They had already decided.',
       'They just hadn\'t said it yet.',
+    ],
+    branchPrompt: 'The Third Architect has already decided. The others know it. What do you do?',
+    choices: [
+      {
+        label: 'Confront them directly.',
+        flag: 'ch47_confronted_third',
+        consequence: 'You said what everyone was thinking. The Third Architect didn\'t deny it. The silence that followed was its own kind of answer. The Fourth Architect looked at you like you\'d just made something irreversible.',
+      },
+      {
+        label: 'Stay focused. There\'s no time.',
+        flag: 'ch47_stayed_focused',
+        consequence: 'You said nothing. You\'d seen the vote already in their faces. The fracture lines were real. But the rogue faction was more real, and it was already moving.',
+      },
     ],
     tokenReward: 15,
     postText: 'The fault lines are visible. But there\'s no time to address them — a rogue faction has found the assembly point.',
@@ -131,7 +144,7 @@ STORY_CHAPTER_REGISTRY.push(
   {
     id: 49, title: 'What Veran Didn\'t Say',
     world: '🌐 Neutral Dimension — Assembly Hall',
-    noFight: true,
+    type: 'branch',
     narrative: [
       'The Fourth Architect found you afterward.',
       '',
@@ -154,6 +167,19 @@ STORY_CHAPTER_REGISTRY.push(
       '',
       'Maybe she was.',
       'Maybe it didn\'t matter.',
+    ],
+    branchPrompt: 'Veran gave your enemy confirmation. She did it to protect you. What does that mean to you right now?',
+    choices: [
+      {
+        label: 'She was trying to protect me. I understand.',
+        flag: 'ch49_forgave_veran',
+        consequence: 'You told her you understood. You weren\'t sure if it was true. But the mission needed her, and you needed the mission. The Creator knowing was a problem for later. The Creator not knowing had been a lie for a while.',
+      },
+      {
+        label: 'Understanding it doesn\'t make it right.',
+        flag: 'ch49_distanced_veran',
+        consequence: 'You didn\'t yell. You just went quiet. Veran knew what it meant. She gave you space. You weren\'t sure space helped. But you couldn\'t use her the same way for a while, and she knew that too.',
+      },
     ],
     tokenReward: 15,
     postText: 'The Creator now knows you have all four Architects. And the Third Architect heard every word.',
