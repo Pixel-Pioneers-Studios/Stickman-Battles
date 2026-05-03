@@ -1125,7 +1125,20 @@ function endGame() {
       if (bossDefeated) _coins += 20;
       else if (winner && !winner.isAI && !winner.isBoss) _coins += 10;
       const _coinMult = (window.LiveOps && typeof LiveOps.getCoinMult === 'function') ? LiveOps.getCoinMult() : 1;
-      awardCoins(Math.round(_coins * _coinMult));
+      const _rewardCoins = Math.round(_coins * _coinMult);
+      if (window.SupabaseBridge && typeof SupabaseBridge.claimMatchRewards === 'function') {
+        void SupabaseBridge.claimMatchRewards({
+          rewardType: 'match',
+          reward: {
+            coins: _rewardCoins,
+            mode: gameMode,
+            arena: currentArenaKey,
+            bossDefeated: !!bossDefeated,
+          },
+        });
+      } else {
+        awardCoins(_rewardCoins);
+      }
     }
   }
 

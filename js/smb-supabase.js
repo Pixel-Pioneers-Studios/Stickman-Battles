@@ -593,6 +593,108 @@ const SupabaseBridge = (() => {
     }
   }
 
+  function _rewardHash(input) {
+    const text = String(input || '');
+    let hash = 2166136261;
+    for (let i = 0; i < text.length; i++) {
+      hash ^= text.charCodeAt(i);
+      hash = Math.imul(hash, 16777619);
+    }
+    return (hash >>> 0).toString(36);
+  }
+
+  function _makeRewardClaimKey(payload) {
+    const reward = payload && payload.reward ? payload.reward : {};
+    const stats = (typeof window._achStats === 'object' && window._achStats) ? window._achStats : {};
+    const accountId = _user && _user.id ? _user.id : 'anon';
+    const mode = String(reward.mode || window.gameMode || 'unknown');
+    const arena = String(reward.arena || window.currentArenaKey || 'unknown');
+    const rewardType = String(payload.rewardType || 'match');
+    const matchStart = Number(stats.matchStartTime || 0);
+    const coins = Number(reward.coins || 0);
+    const chapterAdvance = Number(reward.chapterAdvance || 0);
+    const chapterTarget = Number(reward.chapterTarget || 0);
+    return [
+      'rw',
+      accountId,
+      rewardType,
+      mode,
+      arena,
+      String(matchStart),
+      String(coins),
+      String(chapterAdvance),
+      String(chapterTarget),
+      _rewardHash([accountId, rewardType, mode, arena, matchStart, coins, chapterAdvance, chapterTarget].join('|')),
+    ].join(':').slice(0, 180);
+  }
+
+  function _isServerUnavailable(err, resp) {
+    if (resp && resp.status >= 500) return true;
+    if (!err) return false;
+    const msg = String(err.message || err);
+    return /fetch|network|failed to fetch|load failed|timeout/i.test(msg);
+  }
+
+  function _applyOfflineRewardFallback(reward) {
+    if (typeof window.applyRewardDeltaLocally === 'function') {
+      return window.applyRewardDeltaLocally(reward);
+    }
+    if (reward && typeof reward.coins === 'number' && typeof addCoins === 'function') {
+      addCoins(reward.coins);
+    }
+    return { ok: true, offline: true };
+  }
+
+  async function claimMatchRewards(payload) {
+    const body = payload && typeof payload === 'object' ? JSON.parse(JSON.stringify(payload)) : {};
+    const reward = body.reward && typeof body.reward === 'object' ? body.reward : {};
+    body.rewardType = body.rewardType || 'match';
+    body.claimKey = body.claimKey || _makeRewardClaimKey(body);
+    body.reward = reward;
+
+    try {
+      await ensureReady();
+      if (!_session || !_user) {
+        return _applyOfflineRewardFallback(reward);
+      }
+      const token = _session.access_token || '';
+      const headers = { 'Content-Type': 'application/json' };
+      if (token) headers.Authorization = `Bearer ${token}`;
+      const resp = await fetch('/api/rewards/claim', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(body),
+      });
+      const data = await resp.json().catch(function() { return null; });
+      if (!resp.ok) {
+        if (_isServerUnavailable(null, resp)) {
+          return _applyOfflineRewardFallback(reward);
+        }
+        return {
+          ok: false,
+          status: resp.status,
+          error: data && data.error ? data.error : 'Reward claim rejected',
+          claimKey: body.claimKey,
+          duplicate: !!(data && data.duplicate),
+        };
+      }
+      if (data && data.save) {
+        if (typeof window.applyServerRewardSave === 'function') {
+          window.applyServerRewardSave(data.save);
+        } else if (typeof window._applySaveData === 'function' && typeof window._refreshRuntimeFromSave === 'function') {
+          window._applySaveData(data.save);
+          window._refreshRuntimeFromSave(data.save);
+        }
+      }
+      return data || { ok: true, claimKey: body.claimKey };
+    } catch (err) {
+      if (_isServerUnavailable(err)) {
+        return _applyOfflineRewardFallback(reward);
+      }
+      return { ok: false, error: err && err.message ? err.message : 'Reward claim failed', claimKey: body.claimKey };
+    }
+  }
+
   async function fetchRemoteSave() {
     if (!isAvailable()) return null;
     await ensureReady();
@@ -720,6 +822,7 @@ const SupabaseBridge = (() => {
     signInWithGoogle,
     signOut,
     logSuspiciousActivity,
+    claimMatchRewards,
     signInAndLoad,
     signUpAndLoad,
     fetchRemoteSave,

@@ -45,11 +45,24 @@ create table if not exists public.suspicious_activity (
   created_at timestamptz not null default now()
 );
 
+create table if not exists public.reward_claims (
+  claim_key text primary key,
+  user_id uuid references auth.users(id) on delete cascade,
+  reward_type text not null,
+  reward_data jsonb not null default '{}'::jsonb,
+  before_state jsonb not null default '{}'::jsonb,
+  after_state jsonb not null default '{}'::jsonb,
+  status text not null default 'pending' check (status in ('pending', 'applied', 'rejected')),
+  created_at timestamptz not null default now(),
+  claimed_at timestamptz
+);
+
 alter table public.admin_roles enable row level security;
 alter table public.admin_audit_logs enable row level security;
 alter table public.bans enable row level security;
 alter table public.liveops_config enable row level security;
 alter table public.suspicious_activity enable row level security;
+alter table public.reward_claims enable row level security;
 
 create or replace function public.smb_is_admin()
 returns boolean
@@ -102,7 +115,20 @@ create policy "Admins read suspicious activity" on public.suspicious_activity
 for select to authenticated
 using (public.smb_is_admin());
 
+drop policy if exists "Users read own reward claims" on public.reward_claims;
+create policy "Users read own reward claims" on public.reward_claims
+for select to authenticated
+using (auth.uid() = user_id);
+
+drop policy if exists "Admins manage reward claims" on public.reward_claims;
+create policy "Admins manage reward claims" on public.reward_claims
+for all to authenticated
+using (public.smb_is_admin())
+with check (public.smb_is_admin());
+
 create index if not exists admin_audit_logs_created_at_idx on public.admin_audit_logs (created_at desc);
 create index if not exists bans_identity_idx on public.bans (account_id, peer_id, device_id, username);
 create index if not exists bans_active_idx on public.bans (expires_at, revoked_at) where revoked_at is null;
 create index if not exists suspicious_activity_user_created_idx on public.suspicious_activity (user_id, created_at desc);
+create index if not exists reward_claims_user_created_idx on public.reward_claims (user_id, created_at desc);
+create index if not exists reward_claims_user_status_idx on public.reward_claims (user_id, status, claimed_at desc);

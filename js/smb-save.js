@@ -671,6 +671,119 @@ function addLetter(id) {
   setAccountFlag(['unlocks', 'letters'], Array.from(collectedLetterIds));
 }
 
+function _rewardUnlockSetter(key, value) {
+  const runtimeMap = {
+    bossBeaten:         function(v) { if (typeof bossBeaten !== 'undefined') bossBeaten = v; },
+    trueform:           function(v) { if (typeof unlockedTrueBoss !== 'undefined') unlockedTrueBoss = v; },
+    megaknight:         function(v) { if (typeof unlockedMegaknight !== 'undefined') unlockedMegaknight = v; },
+    sovereignBeaten:    function(v) { if (typeof sovereignBeaten !== 'undefined') sovereignBeaten = v; },
+    storyOnline:        function(v) { if (typeof storyOnline !== 'undefined') storyOnline = v; },
+    tfEndingSeen:       function(v) { if (typeof tfEndingSeen !== 'undefined') tfEndingSeen = v; },
+    damnationScar:      function(v) { if (typeof damnationScar !== 'undefined') damnationScar = v; },
+    storyDodgeUnlocked: function(v) { if (typeof storyDodgeUnlocked !== 'undefined') storyDodgeUnlocked = v; },
+    paradoxCompanion:   function(v) { if (typeof paradoxCompanionActive !== 'undefined') paradoxCompanionActive = v; },
+    interTravel:        function(v) { if (typeof interTravel !== 'undefined') interTravel = v; },
+    patrolMode:         function(v) { if (typeof patrolMode !== 'undefined') patrolMode = v; },
+    godEncountered:     function(v) { if (typeof godEncountered !== 'undefined') godEncountered = v; },
+    godDefeated:        function(v) { if (typeof godDefeated !== 'undefined') godDefeated = v; },
+  };
+  const runtimeSetter = runtimeMap[key];
+  if (typeof runtimeSetter === 'function' && typeof setAccountFlagWithRuntime === 'function') {
+    setAccountFlagWithRuntime(['unlocks', key], value, runtimeSetter);
+    return true;
+  }
+  if (typeof setAccountFlag === 'function') {
+    setAccountFlag(['unlocks', key], value);
+    return true;
+  }
+  return false;
+}
+
+function applyRewardDeltaLocally(reward) {
+  const src = reward && typeof reward === 'object' ? reward : {};
+  const acct = _getActiveAcctDirect();
+  const activeSave = acct && acct.data ? _normalizeAccountSaveShape(acct.data) : null;
+  if (typeof src.coins === 'number' && src.coins !== 0 && typeof addCoins === 'function') {
+    addCoins(src.coins);
+  }
+
+  if (src.unlocks && typeof src.unlocks === 'object') {
+    Object.keys(src.unlocks).forEach(function(key) {
+      if (!src.unlocks[key]) return;
+      _rewardUnlockSetter(key, true);
+    });
+  }
+
+  if (Array.isArray(src.cosmetics)) {
+    src.cosmetics.forEach(function(id) {
+      if (typeof addCosmetic === 'function') addCosmetic(String(id));
+    });
+  }
+
+  if (Array.isArray(src.achievements)) {
+    src.achievements.forEach(function(id) {
+      if (typeof addAchievement === 'function') addAchievement(String(id));
+    });
+  }
+
+  const chapterAdvance = Math.max(0, Math.floor(Number(src.chapterAdvance) || 0));
+  const chapterTarget = Number.isFinite(Number(src.chapterTarget)) ? Math.max(0, Math.floor(Number(src.chapterTarget))) : null;
+  const chapterSource = (activeSave && typeof activeSave.chapter === 'number')
+    ? activeSave.chapter
+    : (activeSave && activeSave.story && typeof activeSave.story.chapter === 'number')
+      ? activeSave.story.chapter
+      : (activeSave && activeSave.storyProgress && typeof activeSave.storyProgress.chapter === 'number')
+        ? activeSave.storyProgress.chapter
+        : 0;
+  const currentChapter = Math.max(0, Math.floor(Number(chapterSource) || 0));
+  let nextChapter = currentChapter;
+  if (chapterAdvance > 0) nextChapter = Math.max(nextChapter, currentChapter + chapterAdvance);
+  if (chapterTarget !== null) nextChapter = Math.max(nextChapter, chapterTarget);
+  if (nextChapter > currentChapter) {
+    const chapterValue = nextChapter;
+    if (typeof setAccountFlag === 'function') {
+      setAccountFlag(['chapter'], chapterValue);
+      setAccountFlag(['story', 'chapter'], chapterValue);
+      setAccountFlag(['storyProgress', 'chapter'], chapterValue);
+      const defeated = activeSave && activeSave.story && Array.isArray(activeSave.story.defeated)
+        ? Array.from(new Set(activeSave.story.defeated.concat([chapterValue]))).sort(function(a, b) { return Number(a) - Number(b); })
+        : [chapterValue];
+      setAccountFlag(['story', 'defeated'], defeated);
+    }
+    if (typeof refreshCoinDisplay === 'function') refreshCoinDisplay();
+  }
+
+  return true;
+}
+
+function applyServerRewardSave(save) {
+  const normalized = typeof _normalizeAccountSaveShape === 'function' ? _normalizeAccountSaveShape(save) : save;
+  if (!normalized) return null;
+  const acct = _getActiveAcctDirect();
+  if (!acct) return null;
+  if (!acct.data || typeof acct.data !== 'object') acct.data = {};
+  const suppress = !!window.__SMB_SUPPRESS_CLOUD_SYNC;
+  window.__SMB_SUPPRESS_CLOUD_SYNC = true;
+  try {
+    acct.data = normalized;
+    if (window.GameState && typeof GameState.update === 'function') {
+      GameState.update(function(s) {
+        const active = s.persistent.accounts && s.persistent.activeAccountId
+          ? s.persistent.accounts[s.persistent.activeAccountId]
+          : null;
+        if (active) active.data = normalized;
+      });
+    }
+    if (typeof _applySaveData === 'function') _applySaveData(normalized);
+    if (typeof _refreshRuntimeFromSave === 'function') _refreshRuntimeFromSave(normalized);
+    if (typeof _writeCanonicalSave === 'function') _writeCanonicalSave(normalized);
+    if (typeof refreshCoinDisplay === 'function') refreshCoinDisplay();
+    return normalized;
+  } finally {
+    window.__SMB_SUPPRESS_CLOUD_SYNC = suppress;
+  }
+}
+
 // ── Legacy key cleanup ────────────────────────────────────────────────────────
 function _clearLegacyKeys() {
   return;

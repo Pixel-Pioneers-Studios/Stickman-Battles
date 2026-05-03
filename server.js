@@ -15,6 +15,10 @@
 //   ADMIN_EMAILS          Comma-separated Supabase emails allowed as admins.
 //   SUPABASE_URL          Supabase project URL.
 //   SUPABASE_ANON_KEY     Supabase publishable/anon key for user verification.
+//   SUPABASE_SERVICE_ROLE_KEY Supabase service key used for reward writes.
+//   REWARD_COOLDOWN_MS    Minimum delay between distinct reward claims.
+//   REWARD_MAX_COINS      Maximum coins granted by one claim.
+//   REWARD_MAX_BALANCE    Hard upper bound for the stored coin balance.
 //
 // REST Endpoints:
 //   GET    /api/status                       — health check
@@ -23,6 +27,7 @@
 //   POST   /api/bans           [admin]       — add a ban record
 //   DELETE /api/bans/:key      [admin]       — remove a ban by key
 //   DELETE /api/bans           [admin]       — bulk remove by identity (body)
+//   POST   /api/rewards/claim  [user]        — claim match/story rewards
 //   GET    /api/live-config                  — live ops configuration (public)
 //   POST   /api/live-config    [admin]       — update live ops config
 //
@@ -55,6 +60,26 @@ const ADMIN_EMAILS = new Set(String(process.env.ADMIN_EMAILS || 'gupta.aarush201
 const ADMIN_BOOTSTRAP_KEY = process.env.ADMIN_BOOTSTRAP_KEY || '';
 const SUPABASE_URL = String(process.env.SUPABASE_URL || '').replace(/\/$/, '');
 const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || '';
+const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+const REWARD_COOLDOWN_MS = Math.max(1000, Number(process.env.REWARD_COOLDOWN_MS || 10000));
+const REWARD_MAX_COINS = Math.max(1, Number(process.env.REWARD_MAX_COINS || 500));
+const REWARD_MAX_BALANCE = Math.max(1000, Number(process.env.REWARD_MAX_BALANCE || 999999));
+const REWARD_ALLOWED_UNLOCKS = new Set([
+  'bossBeaten',
+  'trueform',
+  'megaknight',
+  'sovereignBeaten',
+  'storyOnline',
+  'tfEndingSeen',
+  'damnationScar',
+  'storyDodgeUnlocked',
+  'paradoxCompanion',
+  'interTravel',
+  'patrolMode',
+  'godEncountered',
+  'godDefeated',
+]);
+const REWARD_ALLOWED_TYPES = new Set(['match', 'chapter', 'story']);
 const ALLOWED_ORIGINS = new Set(String(process.env.ALLOWED_ORIGINS || 'https://stickman-battles.onrender.com,http://localhost:3001,http://localhost:5173,http://127.0.0.1:3001')
   .split(',')
   .map(v => v.trim())
@@ -211,6 +236,33 @@ function _b64url(input) {
   return Buffer.from(input).toString('base64url');
 }
 
+function _tryJson(value) {
+  if (value === null || value === undefined) return null;
+  try { return JSON.parse(JSON.stringify(value)); } catch (e) { return null; }
+}
+
+function _clampInt(value, min, max) {
+  const n = Math.floor(Number(value));
+  if (!Number.isFinite(n)) return null;
+  return Math.max(min, Math.min(max, n));
+}
+
+function _cleanInt(value, min, max) {
+  const n = _clampInt(value, min, max);
+  return n === null ? null : n;
+}
+
+function _rewardAudit(type, msg, meta) {
+  _pushAdminLog(type, msg, meta);
+  if (/REJECT|FAIL|ERROR|COOLDOWN/i.test(String(type || '')) && SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY) {
+    void _supabaseInsert('suspicious_activity', {
+      user_id: meta && meta.userId ? meta.userId : null,
+      event_type: String(type).slice(0, 80),
+      details: Object.assign({ message: msg }, meta || {}),
+    }).catch(() => {});
+  }
+}
+
 function _signAdminSession(payload) {
   const body = _b64url(JSON.stringify(payload));
   const sig = crypto.createHmac('sha256', ADMIN_SESSION_SECRET).update(body).digest('base64url');
@@ -258,6 +310,328 @@ async function _verifySupabaseUser(accessToken) {
   return resp.json();
 }
 
+function _supabaseHeaders({ service = false, bearer = null } = {}) {
+  const key = service ? SUPABASE_SERVICE_ROLE_KEY : SUPABASE_ANON_KEY;
+  if (!SUPABASE_URL || !key) return null;
+  return {
+    apikey: key,
+    Authorization: `Bearer ${bearer || key}`,
+    'Content-Type': 'application/json',
+    Prefer: 'return=representation',
+  };
+}
+
+async function _supabaseRequest(method, path, body, opts) {
+  const headers = _supabaseHeaders(opts || {});
+  if (!headers) throw new Error('Supabase service access is not configured');
+  const init = { method, headers };
+  if (body !== undefined) init.body = JSON.stringify(body);
+  const resp = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, init);
+  const text = await resp.text();
+  let data = null;
+  try { data = text ? JSON.parse(text) : null; } catch (e) { data = text; }
+  if (!resp.ok) {
+    const err = new Error(`Supabase ${method} ${path} failed: ${resp.status}`);
+    err.status = resp.status;
+    err.data = data;
+    throw err;
+  }
+  return data;
+}
+
+async function _supabaseSelect(table, query, opts) {
+  const headers = _supabaseHeaders(opts || {});
+  if (!headers) throw new Error('Supabase service access is not configured');
+  const url = `${SUPABASE_URL}/rest/v1/${table}${query ? '?' + query : ''}`;
+  const resp = await fetch(url, { method: 'GET', headers });
+  const text = await resp.text();
+  let data = null;
+  try { data = text ? JSON.parse(text) : null; } catch (e) { data = text; }
+  if (!resp.ok) {
+    const err = new Error(`Supabase GET ${table} failed: ${resp.status}`);
+    err.status = resp.status;
+    err.data = data;
+    throw err;
+  }
+  return data;
+}
+
+async function _supabaseUpsert(table, body, onConflict, opts) {
+  const headers = _supabaseHeaders(opts || {});
+  if (!headers) throw new Error('Supabase service access is not configured');
+  headers.Prefer = 'resolution=merge-duplicates,return=representation';
+  const query = onConflict ? `?on_conflict=${encodeURIComponent(onConflict)}` : '';
+  const resp = await fetch(`${SUPABASE_URL}/rest/v1/${table}${query}`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(body),
+  });
+  const text = await resp.text();
+  let data = null;
+  try { data = text ? JSON.parse(text) : null; } catch (e) { data = text; }
+  if (!resp.ok) {
+    const err = new Error(`Supabase upsert ${table} failed: ${resp.status}`);
+    err.status = resp.status;
+    err.data = data;
+    throw err;
+  }
+  return data;
+}
+
+async function _supabaseInsert(table, body, opts) {
+  const headers = _supabaseHeaders(opts || {});
+  if (!headers) throw new Error('Supabase service access is not configured');
+  const resp = await fetch(`${SUPABASE_URL}/rest/v1/${table}`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(body),
+  });
+  const text = await resp.text();
+  let data = null;
+  try { data = text ? JSON.parse(text) : null; } catch (e) { data = text; }
+  if (!resp.ok && resp.status !== 409) {
+    const err = new Error(`Supabase insert ${table} failed: ${resp.status}`);
+    err.status = resp.status;
+    err.data = data;
+    throw err;
+  }
+  return data;
+}
+
+async function _supabaseDelete(table, query, opts) {
+  const headers = _supabaseHeaders(opts || {});
+  if (!headers) throw new Error('Supabase service access is not configured');
+  const resp = await fetch(`${SUPABASE_URL}/rest/v1/${table}${query ? '?' + query : ''}`, {
+    method: 'DELETE',
+    headers,
+  });
+  const text = await resp.text();
+  let data = null;
+  try { data = text ? JSON.parse(text) : null; } catch (e) { data = text; }
+  if (!resp.ok) {
+    const err = new Error(`Supabase delete ${table} failed: ${resp.status}`);
+    err.status = resp.status;
+    err.data = data;
+    throw err;
+  }
+  return data;
+}
+
+function _defaultRewardSave() {
+  return {
+    version: 3,
+    coins: 0,
+    chapter: 0,
+    cosmetics: [],
+    achievements: [],
+    unlocks: {
+      bossBeaten: false,
+      trueform: false,
+      megaknight: false,
+      letters: [],
+      achievements: [],
+      sovereignBeaten: false,
+      storyOnline: false,
+      tfEndingSeen: false,
+      damnationScar: false,
+      storyDodgeUnlocked: false,
+      paradoxCompanion: false,
+      interTravel: false,
+      patrolMode: false,
+      godEncountered: false,
+      godDefeated: false,
+    },
+    storyProgress: { act: 0, chapter: 0, flags: {} },
+    progression: {},
+    settings: { sfxVol: 0.35, sfxMute: false, musicMute: false, ragdoll: false },
+    story: { chapter: 0, defeated: [] },
+    meta: { updatedAt: Date.now(), source: 'cloud' },
+  };
+}
+
+function _normalizeRewardSave(raw) {
+  const out = _defaultRewardSave();
+  const src = _tryJson(raw) || {};
+  if (typeof src.version === 'number') out.version = src.version;
+  if (typeof src.coins === 'number') out.coins = Math.max(0, Math.min(REWARD_MAX_BALANCE, Math.floor(src.coins)));
+  if (typeof src.chapter === 'number') out.chapter = Math.max(0, Math.floor(src.chapter));
+  if (Array.isArray(src.cosmetics)) out.cosmetics = Array.from(new Set(src.cosmetics.map(v => String(v))));
+  if (Array.isArray(src.achievements)) out.achievements = Array.from(new Set(src.achievements.map(v => String(v))));
+  if (src.unlocks && typeof src.unlocks === 'object') {
+    for (const key of Object.keys(src.unlocks)) {
+      if (REWARD_ALLOWED_UNLOCKS.has(key)) out.unlocks[key] = !!src.unlocks[key];
+    }
+    if (Array.isArray(src.unlocks.letters)) out.unlocks.letters = Array.from(new Set(src.unlocks.letters.map(v => String(v))));
+    if (Array.isArray(src.unlocks.achievements)) out.unlocks.achievements = Array.from(new Set(src.unlocks.achievements.map(v => String(v))));
+  }
+  if (src.storyProgress && typeof src.storyProgress === 'object') {
+    out.storyProgress.act = Math.max(0, Math.floor(Number(src.storyProgress.act) || 0));
+    out.storyProgress.chapter = Math.max(0, Math.floor(Number(src.storyProgress.chapter) || 0));
+    out.storyProgress.flags = Object.assign({}, src.storyProgress.flags || {});
+  }
+  if (src.story && typeof src.story === 'object') {
+    out.story.chapter = Math.max(0, Math.floor(Number(src.story.chapter) || 0));
+    if (Array.isArray(src.story.defeated)) {
+      out.story.defeated = Array.from(new Set(src.story.defeated.map(v => Math.max(0, Math.floor(Number(v) || 0)))));
+    }
+  }
+  if (src.progression && typeof src.progression === 'object') out.progression = _tryJson(src.progression) || {};
+  if (src.settings && typeof src.settings === 'object') out.settings = Object.assign({}, out.settings, _tryJson(src.settings) || {});
+  if (src.meta && typeof src.meta === 'object') out.meta = Object.assign({}, out.meta, _tryJson(src.meta) || {});
+  if (typeof out.story.chapter !== 'number') out.story.chapter = out.chapter;
+  if (typeof out.storyProgress.chapter !== 'number') out.storyProgress.chapter = out.chapter;
+  if (typeof out.meta.updatedAt !== 'number') out.meta.updatedAt = Date.now();
+  return out;
+}
+
+function _mergeRewardDelta(save, reward, currentChapter) {
+  const out = _normalizeRewardSave(save);
+  const deltaCoins = _cleanInt(reward && reward.coins, 0, REWARD_MAX_COINS);
+  if (deltaCoins === null) throw new Error('Invalid coin reward');
+  const totalCoins = out.coins + deltaCoins;
+  if (totalCoins > REWARD_MAX_BALANCE) throw new Error('Coin balance would exceed maximum');
+  out.coins = totalCoins;
+
+  const chapterAdvance = reward && reward.chapterAdvance !== undefined ? _cleanInt(reward.chapterAdvance, 0, 1) : 0;
+  const targetChapter = reward && reward.chapterTarget !== undefined
+    ? _cleanInt(reward.chapterTarget, 0, 9999)
+    : null;
+  if (targetChapter !== null && targetChapter < 0) throw new Error('Invalid chapter target');
+  let nextChapter = out.chapter;
+  if (chapterAdvance) {
+    nextChapter = currentChapter + chapterAdvance;
+    if (chapterAdvance > 1) throw new Error('Chapter advance too large');
+    if (nextChapter > currentChapter + 1) throw new Error('Chapter progression skipped ahead');
+  } else if (targetChapter !== null) {
+    if (targetChapter !== currentChapter + 1 && targetChapter !== currentChapter) {
+      throw new Error('Chapter progression out of order');
+    }
+    nextChapter = Math.max(nextChapter, targetChapter);
+  }
+  if (nextChapter > out.chapter) {
+    out.chapter = nextChapter;
+    out.story.chapter = nextChapter;
+    out.storyProgress.chapter = nextChapter;
+    if (!Array.isArray(out.story.defeated)) out.story.defeated = [];
+    if (out.story.defeated.indexOf(nextChapter) === -1) out.story.defeated.push(nextChapter);
+    out.story.defeated.sort(function(a, b) { return a - b; });
+  }
+
+  const unlocks = reward && reward.unlocks && typeof reward.unlocks === 'object' ? reward.unlocks : null;
+  if (unlocks) {
+    for (const key of Object.keys(unlocks)) {
+      if (!REWARD_ALLOWED_UNLOCKS.has(key)) throw new Error('Unknown unlock key: ' + key);
+      if (typeof unlocks[key] !== 'boolean') throw new Error('Unlock flags must be boolean');
+      if (unlocks[key]) out.unlocks[key] = true;
+    }
+  }
+
+  const cosmetics = reward && Array.isArray(reward.cosmetics) ? reward.cosmetics : [];
+  if (cosmetics.length > 0) {
+    const merged = new Set(out.cosmetics);
+    cosmetics.forEach(c => merged.add(String(c)));
+    out.cosmetics = Array.from(merged);
+  }
+
+  const achievements = reward && Array.isArray(reward.achievements) ? reward.achievements : [];
+  if (achievements.length > 0) {
+    const merged = new Set(out.achievements);
+    achievements.forEach(a => merged.add(String(a)));
+    out.achievements = Array.from(merged);
+    out.unlocks.achievements = Array.from(new Set([...(out.unlocks.achievements || []), ...out.achievements]));
+  }
+
+  out.meta.updatedAt = Date.now();
+  out.meta.source = 'server';
+  return out;
+}
+
+function _buildRewardRows(user, save, reward, claim) {
+  const now = new Date().toISOString();
+  const stats = {
+    rewardType: claim.rewardType,
+    claimKey: claim.claimKey,
+    coins: reward.coins || 0,
+    chapterAdvance: reward.chapterAdvance || 0,
+    chapterTarget: reward.chapterTarget || null,
+    mode: reward.mode || null,
+    arena: reward.arena || null,
+  };
+  return {
+    profile: {
+      user_id: user.id,
+      email: user.email || '',
+      display_name: String((reward.displayName || user.user_metadata?.full_name || (user.email || 'Player').split('@')[0]) || 'Player').slice(0, 32),
+      provider: String(user.app_metadata && user.app_metadata.provider ? user.app_metadata.provider : 'email').slice(0, 32),
+      last_login_at: now,
+      last_sync_at: now,
+      updated_at: now,
+    },
+    progress: {
+      user_id: user.id,
+      save_version: save.version || 3,
+      progress_data: {
+        storyProgress: save.storyProgress || null,
+        progression: save.progression || null,
+        unlocks: save.unlocks || null,
+        coins: save.coins || 0,
+        cosmetics: save.cosmetics || [],
+        settings: save.settings || null,
+      },
+      updated_at: now,
+    },
+    snapshot: {
+      user_id: user.id,
+      save_version: save.version || 3,
+      save_data: save,
+      client_updated_at: now,
+      updated_at: now,
+    },
+    stats: {
+      user_id: user.id,
+      stats_data: stats,
+      updated_at: now,
+    },
+    claim: {
+      claim_key: claim.claimKey,
+      user_id: user.id,
+      reward_type: claim.rewardType,
+      reward_data: reward,
+      before_state: claim.beforeState || null,
+      after_state: null,
+      status: 'pending',
+      created_at: now,
+      claimed_at: null,
+    },
+  };
+}
+
+async function _loadCurrentRewardState(userId) {
+  const snapshot = await _supabaseSelect('player_save_snapshots', `select=save_data,save_version,updated_at,client_updated_at&user_id=eq.${encodeURIComponent(userId)}&limit=1`, { service: true });
+  const progress = await _supabaseSelect('player_progress', `select=progress_data,save_version,updated_at&user_id=eq.${encodeURIComponent(userId)}&limit=1`, { service: true });
+  const row = Array.isArray(snapshot) && snapshot.length > 0 ? snapshot[0] : null;
+  const progressRow = Array.isArray(progress) && progress.length > 0 ? progress[0] : null;
+  const current = row && row.save_data ? row.save_data : (progressRow && progressRow.progress_data ? progressRow.progress_data : null);
+  const save = _normalizeRewardSave(current);
+  if (progressRow && progressRow.progress_data) {
+    const pdata = progressRow.progress_data;
+    if (typeof pdata.coins === 'number') save.coins = Math.max(0, Math.floor(pdata.coins));
+    if (pdata.storyProgress && typeof pdata.storyProgress === 'object') {
+      if (typeof pdata.storyProgress.chapter === 'number') save.storyProgress.chapter = pdata.storyProgress.chapter;
+      if (typeof pdata.storyProgress.act === 'number') save.storyProgress.act = pdata.storyProgress.act;
+      if (pdata.storyProgress.flags && typeof pdata.storyProgress.flags === 'object') save.storyProgress.flags = Object.assign({}, pdata.storyProgress.flags);
+    }
+    if (pdata.unlocks && typeof pdata.unlocks === 'object') {
+      for (const key of Object.keys(pdata.unlocks)) {
+        if (REWARD_ALLOWED_UNLOCKS.has(key)) save.unlocks[key] = !!pdata.unlocks[key];
+      }
+    }
+  }
+  if (typeof save.story.chapter !== 'number') save.story.chapter = save.chapter;
+  if (typeof save.storyProgress.chapter !== 'number') save.storyProgress.chapter = save.chapter;
+  return { snapshotRow: row, progressRow, save };
+}
+
 function _cleanString(value, maxLen) {
   return String(value || '').replace(/[\u0000-\u001f\u007f]/g, '').trim().slice(0, maxLen);
 }
@@ -278,6 +652,19 @@ function _sanitizeBanRecord(record) {
     reason: _cleanString(record.reason, 240),
     createdAt: Number(record.createdAt) || Date.now(),
     expiresAt: Number.isFinite(ttl) && ttl > Date.now() ? ttl : null,
+  };
+}
+
+function _summarizeRewardClaim(save, reward, claim) {
+  return {
+    claimKey: claim.claimKey,
+    rewardType: claim.rewardType,
+    coins: reward.coins || 0,
+    chapterAdvance: reward.chapterAdvance || 0,
+    chapterTarget: reward.chapterTarget || null,
+    beforeCoins: save.coins || 0,
+    afterCoins: save.coins || 0,
+    afterChapter: save.chapter || 0,
   };
 }
 
@@ -499,6 +886,198 @@ function _handleRequest(req, res) {
       if (_io) _io.emit('liveConfigUpdated', merged);
       _json(res, 200, { ok: true, config: merged });
     }).catch(err => _json(res, 500, { error: err.message }));
+    return;
+  }
+
+  // ── POST /api/rewards/claim ────────────────────────────────────────────────
+  // Claims match/story rewards for the authenticated Supabase user.
+  if (pathname === '/api/rewards/claim' && req.method === 'POST') {
+    if (!_rateLimit(req, 'reward-claim', 20, 60 * 1000)) {
+      _json(res, 429, { error: 'Too many reward claims' });
+      return;
+    }
+    _readBody(req).then(async body => {
+      const authHeader = String(req.headers.authorization || '').trim();
+      const bearer = authHeader.toLowerCase().startsWith('bearer ') ? authHeader.slice(7).trim() : '';
+      const accessToken = bearer || _cleanString(body && body.supabaseAccessToken, 4096);
+      if (!accessToken) {
+        _json(res, 401, { error: 'Supabase access token required' });
+        return;
+      }
+      let user;
+      try {
+        user = await _verifySupabaseUser(accessToken);
+      } catch (e) {
+        _rewardAudit('REWARD_AUTH_FAIL', `Reward claim auth failed: ${e.message}`, { ip: _clientIp(req) });
+        _json(res, 401, { error: 'Unauthorized' });
+        return;
+      }
+
+      const rewardType = _cleanIdentity(body && body.rewardType, 24) || 'match';
+      if (!REWARD_ALLOWED_TYPES.has(rewardType)) {
+        _rewardAudit('REWARD_REJECT', `Rejected reward claim with unsupported type "${rewardType}"`, { userId: user.id, email: user.email || null });
+        _json(res, 400, { error: 'Unsupported reward type' });
+        return;
+      }
+
+      const claimKey = _cleanIdentity(body && body.claimKey, 180);
+      if (!claimKey) {
+        _rewardAudit('REWARD_REJECT', 'Rejected reward claim with missing claim key', { userId: user.id, email: user.email || null });
+        _json(res, 400, { error: 'claimKey required' });
+        return;
+      }
+
+      const reward = _tryJson(body && body.reward) || {};
+      const coins = _cleanInt(reward.coins, 0, REWARD_MAX_COINS);
+      if (coins === null) {
+        _rewardAudit('REWARD_REJECT', `Rejected reward claim "${claimKey}" due to invalid coins`, { userId: user.id, email: user.email || null, claimKey });
+        _json(res, 400, { error: 'Invalid coin amount' });
+        return;
+      }
+
+      let current;
+      try {
+        current = await _loadCurrentRewardState(user.id);
+      } catch (e) {
+        _rewardAudit('REWARD_ERROR', `Failed loading current reward state for "${claimKey}": ${e.message}`, { userId: user.id, email: user.email || null, claimKey });
+        _json(res, 500, { error: 'Failed to load reward state' });
+        return;
+      }
+
+      const duplicateRow = await _supabaseSelect('reward_claims', `select=*&claim_key=eq.${encodeURIComponent(claimKey)}&limit=1`, { service: true }).catch(() => []);
+      if (Array.isArray(duplicateRow) && duplicateRow.length > 0) {
+        _json(res, 200, { ok: true, duplicate: true, claimKey, save: duplicateRow[0].after_state || current.save });
+        return;
+      }
+
+      const recentClaims = await _supabaseSelect('reward_claims', `select=claim_key,claimed_at&user_id=eq.${encodeURIComponent(user.id)}&order=claimed_at.desc&limit=1`, { service: true }).catch(() => []);
+      if (Array.isArray(recentClaims) && recentClaims.length > 0) {
+        const lastAt = Date.parse(recentClaims[0].claimed_at || recentClaims[0].created_at || 0);
+        if (Number.isFinite(lastAt) && Date.now() - lastAt < REWARD_COOLDOWN_MS) {
+          _rewardAudit('REWARD_COOLDOWN', `Rejected reward claim "${claimKey}" due to cooldown`, {
+            userId: user.id,
+            email: user.email || null,
+            claimKey,
+            lastClaimAt: recentClaims[0].claimed_at || recentClaims[0].created_at || null,
+          });
+          _json(res, 429, { error: 'Reward cooldown active' });
+          return;
+        }
+      }
+
+      let mergedSave;
+      try {
+        mergedSave = _mergeRewardDelta(current.save, reward, Math.max(
+          Number(current.save.chapter || 0),
+          Number(current.save.storyProgress && current.save.storyProgress.chapter || 0),
+          Number(current.save.story && current.save.story.chapter || 0),
+        ));
+      } catch (e) {
+        _rewardAudit('REWARD_REJECT', `Rejected reward claim "${claimKey}": ${e.message}`, {
+          userId: user.id,
+          email: user.email || null,
+          claimKey,
+          rewardType,
+        });
+        _json(res, 400, { error: e.message });
+        return;
+      }
+
+      const rows = _buildRewardRows(user, mergedSave, reward, {
+        claimKey,
+        rewardType,
+        beforeState: current.save,
+      });
+
+      let insertedClaim = false;
+      try {
+        await _supabaseInsert('reward_claims', rows.claim, { service: true });
+        insertedClaim = true;
+      } catch (e) {
+        if (e.status === 409) {
+          const existing = await _supabaseSelect('reward_claims', `select=*&claim_key=eq.${encodeURIComponent(claimKey)}&limit=1`, { service: true }).catch(() => []);
+          const existingRow = Array.isArray(existing) && existing[0] ? existing[0] : null;
+          _json(res, 200, {
+            ok: true,
+            duplicate: true,
+            claimKey,
+            status: existingRow && existingRow.status ? existingRow.status : 'duplicate',
+            save: existingRow && existingRow.after_state ? existingRow.after_state : mergedSave,
+          });
+          return;
+        }
+        _rewardAudit('REWARD_ERROR', `Failed inserting reward claim "${claimKey}": ${e.message}`, {
+          userId: user.id,
+          email: user.email || null,
+          claimKey,
+          rewardType,
+        });
+        _json(res, 500, { error: 'Failed to record reward claim' });
+        return;
+      }
+
+      try {
+        await _supabaseUpsert('player_profiles', rows.profile, 'user_id', { service: true });
+        await _supabaseUpsert('player_progress', rows.progress, 'user_id', { service: true });
+        await _supabaseUpsert('player_save_snapshots', rows.snapshot, 'user_id', { service: true });
+        await _supabaseUpsert('player_stats', rows.stats, 'user_id', { service: true });
+      } catch (e) {
+        if (insertedClaim) {
+          await _supabaseDelete('reward_claims', `claim_key=eq.${encodeURIComponent(claimKey)}`, { service: true }).catch(() => {});
+        }
+        _rewardAudit('REWARD_ERROR', `Reward claim "${claimKey}" recorded but save sync failed: ${e.message}`, {
+          userId: user.id,
+          email: user.email || null,
+          claimKey,
+          rewardType,
+        });
+        _json(res, 500, { error: 'Reward saved but sync failed' });
+        return;
+      }
+
+      const claimFinishedAt = new Date().toISOString();
+      await _supabaseUpsert('reward_claims', Object.assign({}, rows.claim, {
+        after_state: mergedSave,
+        status: 'applied',
+        claimed_at: claimFinishedAt,
+      }), 'claim_key', { service: true }).catch(e => {
+        _rewardAudit('REWARD_ERROR', `Reward claim "${claimKey}" saved but claim status update failed: ${e.message}`, {
+          userId: user.id,
+          email: user.email || null,
+          claimKey,
+          rewardType,
+        });
+      });
+
+      if (mergedSave.chapter > current.save.chapter) {
+        await _supabaseUpsert('player_chapters_beaten', {
+          user_id: user.id,
+          chapter_index: mergedSave.chapter,
+          beaten_at: new Date().toISOString(),
+        }, 'user_id,chapter_index', { service: true }).catch(() => {});
+      }
+
+      const summary = _summarizeRewardClaim(mergedSave, reward, { claimKey, rewardType });
+      _rewardAudit('REWARD_OK', `Reward claim accepted for ${user.email || user.id}: ${claimKey}`, {
+        userId: user.id,
+        email: user.email || null,
+        claimKey,
+        rewardType,
+        coins,
+        chapter: mergedSave.chapter,
+      });
+      _json(res, 200, {
+        ok: true,
+        claimKey,
+        duplicate: false,
+        rewardType,
+        summary,
+        save: mergedSave,
+      });
+    }).catch(err => {
+      _rewardAudit('REWARD_ERROR', `Reward claim handler failed: ${err.message}`, { ip: _clientIp(req) });
+      _json(res, 500, { error: 'Reward claim failed' });
+    });
     return;
   }
 
