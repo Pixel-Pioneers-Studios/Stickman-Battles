@@ -5,6 +5,20 @@
 function updateExploration() {
   if (!exploreActive || !players[0] || !gameRunning) return;
   const p1 = players[0];
+
+  // Chase phase: count down the escape timer each frame
+  if (storyChaseTimer > 0 && !exploreGoalFound) {
+    storyChaseTimer--;
+    if (storyChaseTimer <= 0) {
+      exploreGoalFound = true; // block further goal/checkpoint checks
+      screenShake = 22;
+      storyFightSubtitle = { text: '⏱ Time expired — route collapsed!', timer: 240, maxTimer: 240, color: '#ff4422' };
+      p1.lives = 0; // signal a loss to endGame()
+      setTimeout(() => { if (!gameRunning) return; endGame(); }, 1400);
+      return;
+    }
+  }
+
   const activeEnemyCount = minions.filter(m => m.health > 0).length;
   const inCombat = activeEnemyCount > 0 || !!players.find(p => p !== p1 && p.health > 0 && p.isAI);
   exploreCombatQuiet = inCombat ? 0 : (exploreCombatQuiet + 1);

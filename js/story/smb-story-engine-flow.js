@@ -22,7 +22,7 @@ function _startStoryGauntlet(ch) {
 
 function _storyPhaseLaunchConfig(ch, phase) {
   const phaseType = phase.type;
-  const traversalLike = phaseType === 'traversal';
+  const traversalLike = phaseType === 'traversal' || phaseType === 'chase' || phaseType === 'parkour';
   if (traversalLike) {
     const traversalChapter = {
       ...ch,
@@ -35,6 +35,13 @@ function _storyPhaseLaunchConfig(ch, phase) {
       playerLives: phase.playerLives || ch.playerLives || 3,
       fightScript: [...(ch.fightScript || [])],
     };
+    if (phaseType === 'chase') {
+      traversalChapter.chaseTimer  = phase.timeLimit || 1800; // 30s at 60fps
+      traversalChapter.exploreMode = 'chase';
+    }
+    if (phaseType === 'parkour') {
+      traversalChapter.exploreMode = 'parkour';
+    }
     return { mode: 'exploration', chapter: traversalChapter };
   }
 

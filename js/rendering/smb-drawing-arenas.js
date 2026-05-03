@@ -703,6 +703,37 @@ function drawExploreHUD() {
     ctx.fillText(`PHASE ${storyPhaseIndicator.index}/${storyPhaseIndicator.total}  ${storyPhaseIndicator.label}`, barX + barW, barY + barH + 4);
   }
 
+  // Chase phase countdown bar (shown when storyChaseMaxTimer > 0)
+  if (storyChaseMaxTimer > 0) {
+    const pct      = Math.max(0, storyChaseTimer / storyChaseMaxTimer);
+    const secsLeft = Math.ceil(storyChaseTimer / 60);
+    const urgent   = storyChaseTimer < 600; // under 10 s
+    const flash    = urgent && (Math.floor(frameCount / 8) % 2 === 0);
+    const cbY      = barY + 36; // stacked below the progress bar
+
+    ctx.globalAlpha = 0.88;
+    ctx.fillStyle = 'rgba(0,0,0,0.6)';
+    ctx.beginPath(); ctx.roundRect(barX - 4, cbY - 4, barW + 8, barH + 22, 6); ctx.fill();
+
+    const fillColor = pct > 0.5 ? '#44ff88' : pct > 0.25 ? '#ffcc44' : '#ff4422';
+    ctx.globalAlpha = flash ? 0.95 : 0.88;
+    ctx.fillStyle   = flash ? '#ffffff' : fillColor;
+    if (pct > 0) { ctx.beginPath(); ctx.roundRect(barX, cbY, barW * pct, barH, 4); ctx.fill(); }
+
+    ctx.globalAlpha = 0.88;
+    ctx.strokeStyle = 'rgba(255,255,255,0.3)'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.roundRect(barX, cbY, barW, barH, 4); ctx.stroke();
+
+    ctx.globalAlpha = 1;
+    ctx.fillStyle   = flash ? '#ff6644' : '#ccddff';
+    ctx.font = 'bold 11px Arial';
+    ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+    ctx.fillText('⏱ ESCAPE ROUTE', barX, cbY + barH + 4);
+    ctx.fillStyle = flash ? '#ff4422' : '#ffcc44';
+    ctx.textAlign = 'right';
+    ctx.fillText(`${secsLeft}s`, barX + barW, cbY + barH + 4);
+  }
+
   // Distance hint (arrow on right side of screen when goal is ahead)
   if (!exploreGoalFound && p1.x < exploreGoalX - 150) {
     const arrowX = cw * 0.92, arrowY = ch / 2;

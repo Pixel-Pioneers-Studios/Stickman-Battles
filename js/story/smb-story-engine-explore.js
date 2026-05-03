@@ -234,6 +234,8 @@ function _launchExplorationChapter(ch) {
   exploreAmbushTimer = 0;
   exploreArenaLock = null;
   exploreSidePortals = [];
+  storyChaseTimer    = (ch.chaseTimer > 0) ? ch.chaseTimer : 0;
+  storyChaseMaxTimer = storyChaseTimer;
   const sidePortal = _storyBuildSidePortal(ch);
   if (sidePortal) exploreSidePortals.push(sidePortal);
 

@@ -409,12 +409,40 @@ function _storyDifficultyForChapter(chapterId, elite = false) {
 }
 
 function _storyPhaseName(type) {
-  if (type === 'traversal') return 'Traversal';
-  if (type === 'arena_lock') return 'Arena Lock';
-  if (type === 'hazard_phase') return 'Hazard Surge';
-  if (type === 'elite_wave') return 'Elite Wave';
-  if (type === 'mini_boss') return 'Mini Boss';
+  if (type === 'traversal')     return 'Traversal';
+  if (type === 'arena_lock')    return 'Arena Lock';
+  if (type === 'hazard_phase')  return 'Hazard Surge';
+  if (type === 'elite_wave')    return 'Elite Wave';
+  if (type === 'mini_boss')     return 'Mini Boss';
+  if (type === 'chase')         return 'Escape Route';
+  if (type === 'survival_wave') return 'Survival Wave';
+  if (type === 'puzzle_lock')   return 'Mechanism Lock';
+  if (type === 'parkour')       return 'Parkour Run';
+  if (type === 'branch')        return 'Decision Point';
   return 'Phase';
+}
+
+// ── Level archetype pacing schedule ──────────────────────────────────────────
+// Controls which archetype is injected as a chapter's opening phase.
+// Rules checked in order; first match wins.
+// every:  fire every N chapters
+// offset: shift the start of the cycle
+// minId:  gate by chapter index (don't fire in early chapters)
+const STORY_PACING_RULES = [
+  { every: 4,  offset: 2, inject: 'traversal',     minId: 5  },
+  { every: 5,  offset: 0, inject: 'survival_wave', minId: 15 },
+  { every: 7,  offset: 3, inject: 'chase',         minId: 20 },
+  { every: 10, offset: 1, inject: 'puzzle_lock',   minId: 10 },
+  { every: 30, offset: 5, inject: 'branch',        minId: 25 },
+];
+
+// Returns the pacing archetype override for a given chapter id, or null.
+function _storyGetPacingOverride(chId) {
+  for (const rule of STORY_PACING_RULES) {
+    if (chId < rule.minId) continue;
+    if ((chId - rule.offset) % rule.every === 0) return rule.inject;
+  }
+  return null;
 }
 
 function _storyCloneEnemyDef(base, extra = {}) {
@@ -434,6 +462,12 @@ function _storyCloneEnemyDef(base, extra = {}) {
 
 function _storyBuildPhases(ch) {
   if (Array.isArray(ch.phases) && ch.phases.length >= 3) return ch.phases;
+
+  // Stamp the pacing archetype for this chapter. No-op until Phase 2+ dispatchers
+  // read ch._pacingOverride and inject the appropriate opening phase.
+  if (ch._pacingOverride === undefined) {
+    ch._pacingOverride = _storyGetPacingOverride(ch.id);
+  }
 
   const diffTier = ch.id >= 45 ? 'expert' : ch.id >= 25 ? 'hard' : ch.id >= 10 ? 'medium' : 'easy';
   const eliteAI  = ch.id >= 40 ? 'expert' : 'hard';
