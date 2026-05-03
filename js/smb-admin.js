@@ -1320,18 +1320,14 @@ function _syncServerUrl() {
     : null;
 }
 
-function _syncAdminKey() {
-  return (typeof SERVER_CONFIG !== 'undefined') ? (SERVER_CONFIG.adminKey || '') : '';
-}
-
 // Generic fetch wrapper. Returns parsed JSON or null on any failure.
 async function _serverFetch(method, endpoint, body) {
   const base = _syncServerUrl();
   if (!base) return null; // server not configured — offline mode
 
-  const headers = { 'Content-Type': 'application/json' };
-  const key = _syncAdminKey();
-  if (key) headers['X-Admin-Key'] = key;
+  if (window.AdminSession && method !== 'GET') await AdminSession.ensure();
+  const headers = Object.assign({ 'Content-Type': 'application/json' },
+    window.AdminSession && method !== 'GET' ? AdminSession.authHeaders() : {});
 
   const opts = { method: method, headers: headers };
   if (body !== undefined) opts.body = JSON.stringify(body);
@@ -1364,6 +1360,8 @@ async function _serverDeleteBan(key) {
 // New server records are added locally; existing local records are left alone.
 // Returns the number of newly imported records.
 async function syncBansFromServer() {
+  if (typeof _adminPanelIsAllowed === 'function' && !_adminPanelIsAllowed()) return 0;
+  if (window.AdminSession && !AdminSession.getToken()) await AdminSession.ensure();
   const data = await _serverFetch('GET', '/api/bans');
   if (!data || typeof data.records !== 'object') return 0;
 

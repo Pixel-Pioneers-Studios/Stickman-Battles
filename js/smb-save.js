@@ -610,9 +610,19 @@ function getCoins() {
 }
 
 function setCoins(n) {
-  const clamped = Math.max(0, Math.floor(Number(n) || 0));
+  const requested = Math.floor(Number(n) || 0);
+  const clamped = Math.max(0, Math.min(999999, requested));
   const acct = _getActiveAcctDirect();
   const old = getCoins();
+  const delta = clamped - old;
+  const isAdminGrant = !!(window.__SMB_ADMIN_ACTION_IN_PROGRESS);
+  if (!isAdminGrant && delta > 5000) {
+    console.warn('[SECURITY] suspicious coin spike blocked', { old, requested, delta });
+    if (window.SupabaseBridge && typeof SupabaseBridge.logSuspiciousActivity === 'function') {
+      SupabaseBridge.logSuspiciousActivity('coin_spike_blocked', { old, requested, delta });
+    }
+    return;
+  }
   if (acct) {
     if (!acct.data || typeof acct.data !== 'object') acct.data = {};
     acct.data.coins = clamped;
@@ -623,7 +633,8 @@ function setCoins(n) {
 }
 
 function addCoins(n) {
-  setCoins(getCoins() + (Number(n) || 0));
+  const delta = Math.max(-5000, Math.min(5000, Math.floor(Number(n) || 0)));
+  setCoins(getCoins() + delta);
 }
 
 // ── Legacy updateCoins — kept for backward-compat; delegates to setCoins ─────

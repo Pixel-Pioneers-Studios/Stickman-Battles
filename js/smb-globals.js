@@ -32,11 +32,8 @@ window.addEventListener('resize', resizeCanvas);
 // Running locally?
 //   url: 'http://localhost:3001'
 //
-// IMPORTANT: adminKey must match the ADMIN_KEY env variable on your server.
-//            Change the default before going live.
 const SERVER_CONFIG = {
-  url:            '',                         // e.g. 'http://localhost:3001'
-  adminKey:       'smb-dev-key-change-me',    // must match server ADMIN_KEY
+  url:            'https://stickman-battles.onrender.com',
   syncIntervalMs: 300000,                     // re-sync bans every 5 min
 };
 

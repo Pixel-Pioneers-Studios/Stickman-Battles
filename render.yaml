@@ -1,0 +1,24 @@
+services:
+  - type: web
+    name: Stickman Battles
+    runtime: node
+    plan: free
+    region: virginia
+    branch: main
+    buildCommand: npm ci && npm run build
+    startCommand: npm start
+    autoDeploy: true
+    healthCheckPath: /healthz
+    envVars:
+      - key: NODE_VERSION
+        value: 22
+      - key: ADMIN_SESSION_SECRET
+        sync: false
+      - key: ADMIN_EMAILS
+        value: gupta.aarush2018@gmail.com
+      - key: SUPABASE_URL
+        value: https://cpqlqaynealpilmvollv.supabase.co
+      - key: SUPABASE_ANON_KEY
+        sync: false
+      - key: ALLOWED_ORIGINS
+        value: https://stickman-battles.onrender.com,http://localhost:3001

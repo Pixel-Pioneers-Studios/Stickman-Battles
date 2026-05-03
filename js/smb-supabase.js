@@ -578,6 +578,21 @@ const SupabaseBridge = (() => {
     }
   }
 
+  async function logSuspiciousActivity(type, details) {
+    try {
+      await ensureReady();
+      if (!_session || !_user) return { skipped: true, reason: 'signed_out' };
+      const client = await getClient();
+      return client.from('suspicious_activity').insert({
+        user_id: _user.id,
+        event_type: String(type || 'unknown').slice(0, 80),
+        details: details || {},
+      });
+    } catch (e) {
+      return { skipped: true, reason: e.message || 'error' };
+    }
+  }
+
   async function fetchRemoteSave() {
     if (!isAvailable()) return null;
     await ensureReady();
@@ -704,6 +719,7 @@ const SupabaseBridge = (() => {
     signIn,
     signInWithGoogle,
     signOut,
+    logSuspiciousActivity,
     signInAndLoad,
     signUpAndLoad,
     fetchRemoteSave,

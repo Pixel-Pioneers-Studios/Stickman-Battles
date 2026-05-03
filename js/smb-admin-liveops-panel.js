@@ -38,18 +38,19 @@
     return (typeof SERVER_CONFIG !== 'undefined' && SERVER_CONFIG.url)
       ? String(SERVER_CONFIG.url).replace(/\/$/, '') : '';
   }
-  function _adminKeyHeader() {
-    return (typeof SERVER_CONFIG !== 'undefined') ? (SERVER_CONFIG.adminKey || '') : '';
-  }
-
   async function _apiFetch(method, path, body) {
     const base = _serverBase();
     if (!base) return null;
     try {
-      const headers = { 'Content-Type': 'application/json', 'X-Admin-Key': _adminKeyHeader() };
+      if (window.AdminSession) await AdminSession.ensure();
+      const headers = Object.assign({ 'Content-Type': 'application/json' },
+        window.AdminSession ? AdminSession.authHeaders() : {});
       const opts = { method, headers };
       if (body !== undefined) opts.body = JSON.stringify(body);
       const res = await fetch(base + path, opts);
+      if (res.status === 401 || res.status === 403) {
+        if (window.AdminSession) await AdminSession.refresh();
+      }
       if (!res.ok) return null;
       return await res.json();
     } catch (_) { return null; }
@@ -1616,6 +1617,7 @@
   document.addEventListener('keydown', function(e) {
     // F10 = open/close admin dashboard
     if (e.key === 'F10') { e.preventDefault(); _toggle(); }
+    if (e.key === 'Escape' && e.shiftKey && window.AdminSession) AdminSession.logout();
   });
 
   // Log unauthorized F10 presses for non-admins
