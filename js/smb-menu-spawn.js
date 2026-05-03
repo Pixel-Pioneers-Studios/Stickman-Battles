@@ -59,8 +59,8 @@ function _arenaSpawnBounds() {
 function _spawnHazardFloorY() {
   if (!currentArena) return Infinity;
   if (currentArena.hasLava) return currentArena.lavaY || 442;
-  // Both void (TrueForm) and creator (Boss) arenas use bossFloorState for floor hazards
-  if ((currentArenaKey === 'void' || currentArenaKey === 'creator') && bossFloorState === 'hazard') return 460;
+  // void/creator/god_domain arenas use bossFloorState for floor hazards
+  if ((currentArenaKey === 'void' || currentArenaKey === 'creator' || currentArenaKey === 'god_domain') && bossFloorState === 'hazard') return 460;
   return Infinity;
 }
 
@@ -76,8 +76,8 @@ function isHazard(x, y) {
     const ly = currentArena.lavaY || 442;
     if (y >= ly - 10) return true;
   }
-  // Boss-arena floor hazard (void = TrueForm arena, creator = Boss arena)
-  if ((currentArenaKey === 'void' || currentArenaKey === 'creator') &&
+  // Boss-arena floor hazard (void = TrueForm, creator = Boss, god_domain = God)
+  if ((currentArenaKey === 'void' || currentArenaKey === 'creator' || currentArenaKey === 'god_domain') &&
       bossFloorState === 'hazard' && y >= 450) return true;
   // Active boss beams — don't spawn players into a live beam column
   if (typeof bossBeams !== 'undefined' && Array.isArray(bossBeams)) {

@@ -1140,10 +1140,10 @@ class HolyAngel extends Fighter {
   }
 }
 
-// ── GodParadoxAlly (Phase 2 helper — targets God only) ────────────────────
+// ── GodParadoxAlly (Phase 2 helper — targets God only, flying blue fighter) ─
 class GodParadoxAlly extends Fighter {
   constructor(x, y) {
-    super(x, y, '#8844ee', 'sword',
+    super(x, y, '#2288ff', 'sword',
       { left: null, right: null, jump: null, attack: null, ability: null, super: null },
       true, 'hard');
     this.name      = 'PARADOX';
@@ -1151,53 +1151,135 @@ class GodParadoxAlly extends Fighter {
     this.isAlly    = true;
     this.w         = 32;
     this.h         = 62;
-    this.health    = 10000;
-    this.maxHealth = 10000;
+    this.health    = 20000;
+    this.maxHealth = 20000;
     this.lives     = 1;
-    this.dmgMult   = 0.9;
-    this.kbBonus   = 1.3;
+    this.dmgMult   = 1.1;
+    this.kbBonus   = 1.4;
+    this.kbResist  = 0.5;
     this.spawnX    = x;
     this.spawnY    = y;
     this.playerNum = 98;
-    this._attackCd  = 30;
-    this._wingAngle = 0;
-    this._godTarget = null;
+    this._attackCd   = 30;
+    this._specialCd  = 180;
+    this._wingAngle  = 0;
+    this._auraPhase  = 0;
+    this._hoverTime  = 0;
+    this._flyVy      = 0;
+    this._dashCd     = 50;
+    this._dashFrames = 0;
+    this._dashVx     = 0;
+    this._dashVy     = 0;
+    this._trailPts   = [];
+    this._trailTimer = 0;
+    this._godTarget  = null;
+    this._blastRings = [];
   }
 
   respawn()       { this.health = 0; }
   useSuper()      {}
   activateSuper() {}
+  checkPlatform() {} // Paradox flies — phase through surfaces
 
   update() {
     if (this.health <= 0) return;
     if (typeof activeCinematic !== 'undefined' && activeCinematic) return;
-    super.update();
-    this._wingAngle += 0.1;
-    if (this._attackCd > 0) this._attackCd--;
+
+    this._wingAngle += 0.09;
+    this._auraPhase += 0.04;
+    this._hoverTime += 0.03;
+    if (this._attackCd  > 0) this._attackCd--;
+    if (this._specialCd > 0) this._specialCd--;
+    if (this._dashCd    > 0) this._dashCd--;
+
+    // Trail
+    this._trailTimer++;
+    if (this._trailTimer >= 5) {
+      this._trailTimer = 0;
+      this._trailPts.unshift({ x: this.cx(), y: this.y + this.h * 0.4 });
+      if (this._trailPts.length > 14) this._trailPts.pop();
+    }
+
+    // Update blast rings
+    for (let i = this._blastRings.length - 1; i >= 0; i--) {
+      const ring = this._blastRings[i];
+      ring.r    += 9;
+      ring.alpha = Math.max(0, ring.alpha - 0.028);
+      if (!ring._hit && ring.r > 40 && typeof dealDamage === 'function') {
+        ring._hit = true;
+        const pool = [];
+        if (Array.isArray(minions)) for (const m of minions) pool.push(m);
+        for (const e of pool) {
+          if (e === this || e.health <= 0 || !e.isGod) continue;
+          if (Math.hypot(e.cx() - this.cx(), (e.y+e.h/2) - (this.y+this.h/2)) < ring.maxR * 0.85)
+            dealDamage(this, e, 220, 14);
+        }
+      }
+      if (ring.alpha <= 0) this._blastRings.splice(i, 1);
+    }
 
     if (!this._godTarget || this._godTarget.health <= 0) {
       this._godTarget = Array.isArray(minions)
-        ? minions.find(m => m.isGod && m.health > 0) || null
-        : null;
+        ? minions.find(m => m.isGod && m.health > 0) || null : null;
     }
     if (!this._godTarget) return;
 
     this.target  = this._godTarget;
-    const dx     = this._godTarget.cx() - this.cx();
-    const distX  = Math.abs(dx);
-    const dir    = Math.sign(dx) || 1;
-    this.facing  = dir;
+    this.facing  = Math.sign(this._godTarget.cx() - this.cx()) || 1;
 
-    if (distX > 80) {
-      this.vx = dir * 6;
-      if (this.onGround && distX > 180) this.vy = -15;
+    const dx      = this._godTarget.cx() - this.cx();
+    const dy      = (this._godTarget.y + this._godTarget.h/2) - (this.y + this.h/2);
+    const toDist  = Math.hypot(dx, dy) || 1;
+    const GW = typeof GAME_W !== 'undefined' ? GAME_W : 900;
+    const GH = typeof GAME_H !== 'undefined' ? GAME_H : 520;
+
+    // Hover orbit target
+    const orbitM  = Math.min(1, toDist / 140);
+    const hoverX  = this._godTarget.cx() + Math.sin(this._hoverTime * 0.52) * 62 * orbitM;
+    const hoverY  = (this._godTarget.y + this._godTarget.h/2) - 90 + Math.sin(this._hoverTime * 0.76) * 18 * orbitM;
+    const clampX  = Math.max(22 + this.w/2, Math.min(GW - this.w/2 - 22, hoverX));
+    const clampY  = Math.max(8  + this.h/2, Math.min(GH * 0.88 - this.h/2, hoverY));
+    const errX    = clampX - this.cx();
+    const errY    = clampY - (this.y + this.h/2);
+    const eDist   = Math.hypot(errX, errY) || 1;
+    const spd     = Math.min(22, eDist);
+
+    if (this._dashFrames > 0) {
+      this._dashFrames--;
+      this.vx     = this._dashVx;
+      this._flyVy = this._dashVy;
+    } else if (this._dashCd <= 0 && toDist > 90) {
+      const ds    = 70;
+      this._dashVx     = (dx / toDist) * ds;
+      this._dashVy     = (dy / toDist) * ds;
+      this._dashFrames = 5;
+      this._dashCd     = 65;
+      this.vx     = this._dashVx;
+      this._flyVy = this._dashVy;
     } else {
-      this.vx *= 0.75;
-      if (this._attackCd <= 0 && typeof dealDamage === 'function') {
-        const baseDmg = this.weapon ? (this.weapon.damage || 20) : 20;
-        dealDamage(this, this._godTarget, baseDmg * this.dmgMult, 6 * this.kbBonus);
-        this._attackCd = 45;
-      }
+      this.vx     = (errX / eDist) * spd;
+      this._flyVy = (errY / eDist) * spd;
+    }
+
+    this.vy = this._flyVy - 0.65;
+    super.update();
+
+    this.y = Math.max(8, Math.min(GH * 0.88 - this.h, this.y));
+    this.x = Math.max(18, Math.min(GW - this.w - 18, this.x));
+
+    // Melee strike
+    if (toDist < 130 && this._attackCd <= 0 && typeof dealDamage === 'function') {
+      dealDamage(this, this._godTarget, 120 * this.dmgMult, 8 * this.kbBonus);
+      this._attackCd = 50;
+      if (typeof spawnParticles === 'function') spawnParticles(this.cx(), this.y + this.h/2, '#55aaff', 8);
+    }
+
+    // Special: dimensional blast
+    if (this._specialCd <= 0) {
+      this._blastRings.push({ r: 0, maxR: 200, alpha: 1.0, _hit: false });
+      this._specialCd = 240;
+      if (typeof screenShake !== 'undefined') screenShake = Math.max(screenShake, 5);
+      if (typeof spawnParticles === 'function') spawnParticles(this.cx(), this.y + this.h/2, '#0099ff', 16);
     }
   }
 
@@ -1206,48 +1288,175 @@ class GodParadoxAlly extends Fighter {
     if (typeof ctx === 'undefined') return;
 
     const cx    = this.cx();
-    const headY = this.y + 10;
-    const cy    = this.y + this.h / 2;
+    const headY = this.y + 11;
+    const cy    = this.y + this.h * 0.44;
+    const t     = this._wingAngle;
 
     ctx.save();
 
-    const pulse = 0.28 + Math.sin(this._wingAngle) * 0.08;
-    ctx.globalAlpha = pulse;
-    ctx.beginPath();
-    ctx.arc(cx, cy, 30, 0, Math.PI * 2);
-    ctx.fillStyle = 'rgba(140,70,255,0.22)';
-    ctx.fill();
+    // Movement trail
+    for (let i = 0; i < this._trailPts.length; i++) {
+      const tp = this._trailPts[i];
+      const a  = ((this._trailPts.length - i) / this._trailPts.length) * 0.28;
+      ctx.beginPath();
+      ctx.arc(tp.x, tp.y, 6 - i * 0.35, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(30,140,255,${a})`;
+      ctx.fill();
+    }
+
+    // Outer aura
+    const farR = 80 + Math.sin(this._auraPhase * 0.4) * 10;
+    const aG   = ctx.createRadialGradient(cx, cy, 0, cx, cy, farR);
+    aG.addColorStop(0, 'rgba(0,120,255,0.12)');
+    aG.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = aG;
+    ctx.beginPath(); ctx.arc(cx, cy, farR, 0, Math.PI*2); ctx.fill();
+
+    // Two pairs of electric blue wings
+    const wingFills = ['rgba(30,130,255,0.72)', 'rgba(10,90,200,0.42)'];
+    for (let pair = 0; pair < 2; pair++) {
+      const yOff   = (pair - 0.5) * 20;
+      const spread = 52 - pair * 8;
+      const thick  = 14 - pair * 3;
+      const wave   = Math.sin(t * (0.85 + pair * 0.3) + pair * 0.9) * 12;
+      const tilt   = 0.20 + pair * 0.12;
+
+      ctx.fillStyle   = wingFills[pair];
+      ctx.strokeStyle = 'rgba(80,160,255,0.5)';
+      ctx.lineWidth   = 0.8;
+      ctx.shadowColor = 'rgba(0,140,255,0.6)';
+      ctx.shadowBlur  = 10;
+
+      for (const side of [-1, 1]) {
+        ctx.beginPath();
+        ctx.ellipse(cx + side * spread * 0.52, cy + yOff - wave, spread * 0.60, thick, side * tilt, 0, Math.PI*2);
+        ctx.fill(); ctx.stroke();
+
+        // Energy filaments on wings
+        ctx.strokeStyle = 'rgba(100,200,255,0.35)';
+        ctx.lineWidth   = 0.5;
+        ctx.shadowBlur  = 3;
+        for (let q = 0; q < 5; q++) {
+          const qf = q / 4;
+          const qx = cx + side * (spread * 0.15 + qf * spread * 0.68);
+          const qy = cy + yOff - wave * (0.5 + qf * 0.5);
+          ctx.beginPath();
+          ctx.moveTo(qx, qy); ctx.lineTo(qx + side * 8, qy + 10);
+          ctx.stroke();
+        }
+        ctx.strokeStyle = 'rgba(80,160,255,0.5)';
+        ctx.lineWidth   = 0.8;
+        ctx.shadowBlur  = 10;
+      }
+    }
+
+    // Body — thick blue glowing stickman
+    ctx.strokeStyle = '#3399ff';
+    ctx.lineWidth   = 5;
+    ctx.shadowColor = 'rgba(30,130,255,0.95)';
+    ctx.shadowBlur  = 24;
+    ctx.lineCap     = 'round';
+    ctx.lineJoin    = 'round';
+
+    // Head
+    ctx.beginPath(); ctx.arc(cx, headY, 10, 0, Math.PI*2); ctx.stroke();
+    ctx.globalAlpha = 0.38;
+    ctx.lineWidth   = 9;
+    ctx.shadowBlur  = 36;
+    ctx.beginPath(); ctx.arc(cx, headY, 10, 0, Math.PI*2); ctx.stroke();
     ctx.globalAlpha = 1;
+    ctx.lineWidth   = 5;
+    ctx.shadowBlur  = 24;
 
-    ctx.strokeStyle = '#aa66ff';
-    ctx.lineWidth   = 3;
-    ctx.shadowColor = 'rgba(160,90,255,0.9)';
-    ctx.shadowBlur  = 10;
+    const torsoY = headY + 10;
+    ctx.beginPath(); ctx.moveTo(cx, torsoY); ctx.lineTo(cx, torsoY + 24); ctx.stroke();
 
-    ctx.beginPath(); ctx.arc(cx, headY, 8, 0, Math.PI * 2); ctx.stroke();
-    const torsoY = headY + 8;
-    ctx.beginPath(); ctx.moveTo(cx, torsoY); ctx.lineTo(cx, torsoY + 22); ctx.stroke();
-    const armY = torsoY + 8;
-    ctx.beginPath(); ctx.moveTo(cx - 14, armY + 6); ctx.lineTo(cx, armY); ctx.lineTo(cx + 14, armY + 6); ctx.stroke();
-    const legY = torsoY + 22;
+    const armY   = torsoY + 9;
+    const aWave  = Math.sin(t * 0.55) * 5;
     ctx.beginPath();
-    ctx.moveTo(cx, legY); ctx.lineTo(cx - 10, legY + 18);
-    ctx.moveTo(cx, legY); ctx.lineTo(cx + 10, legY + 18);
+    ctx.moveTo(cx - 20, armY + 5 + aWave); ctx.lineTo(cx, armY); ctx.lineTo(cx + 20, armY + 5 - aWave);
     ctx.stroke();
+
+    const legY  = torsoY + 24;
+    const lWave = Math.sin(t * 0.42) * 4;
+    ctx.beginPath();
+    ctx.moveTo(cx, legY); ctx.lineTo(cx - 12, legY + 20 + lWave);
+    ctx.moveTo(cx, legY); ctx.lineTo(cx + 12, legY + 20 - lWave);
+    ctx.stroke();
+
+    // Glowing diamond eyes
+    ctx.shadowColor = 'rgba(100,200,255,1)';
+    ctx.shadowBlur  = 18;
+    ctx.fillStyle   = '#aaddff';
+    for (const ox of [-3, 3]) {
+      ctx.save();
+      ctx.translate(cx + this.facing * 1.5 + ox, headY - 1);
+      ctx.rotate(Math.PI / 4);
+      ctx.beginPath(); ctx.rect(-2.8, -2.8, 5.6, 5.6); ctx.fill();
+      ctx.restore();
+    }
+
+    // Electric arc orbit runes
+    const RUNE_N = 8;
+    this._auraPhase += 0.018;
+    for (let i = 0; i < RUNE_N; i++) {
+      const base  = this._auraPhase + (i / RUNE_N) * Math.PI * 2;
+      const rx    = cx + Math.cos(base) * 48 + Math.cos(base * 2.2 + i * 0.5) * 10;
+      const ry    = cy + Math.sin(base) * 24 + Math.sin(base * 1.9 + i * 0.5) * 8;
+      const brite = 0.35 + Math.sin(t * 1.1 + i * 0.9) * 0.28;
+      ctx.save();
+      ctx.translate(rx, ry); ctx.rotate(base * 3);
+      ctx.shadowColor = 'rgba(60,160,255,0.9)';
+      ctx.shadowBlur  = 8;
+      ctx.strokeStyle = `rgba(80,180,255,${brite})`;
+      ctx.lineWidth   = 1.2;
+      ctx.beginPath();
+      for (let v = 0; v < 6; v++) {
+        const va = (v / 6) * Math.PI * 2;
+        const vr = v % 2 === 0 ? 5 : 2.2;
+        v === 0 ? ctx.moveTo(Math.cos(va)*vr, Math.sin(va)*vr)
+                : ctx.lineTo(Math.cos(va)*vr, Math.sin(va)*vr);
+      }
+      ctx.closePath(); ctx.stroke();
+      ctx.restore();
+    }
 
     ctx.restore();
 
-    const barW = 52, barH = 4, bx = cx - barW / 2, by = this.y - 14;
+    // Blast rings
+    for (const ring of this._blastRings) {
+      ctx.save();
+      ctx.strokeStyle = `rgba(50,160,255,${ring.alpha * 0.7})`;
+      ctx.lineWidth   = 3.5 * ring.alpha;
+      ctx.shadowColor = 'rgba(30,120,255,0.85)';
+      ctx.shadowBlur  = 16;
+      ctx.beginPath(); ctx.arc(cx, cy, ring.r, 0, Math.PI*2); ctx.stroke();
+      ctx.strokeStyle = `rgba(200,230,255,${ring.alpha * 0.35})`;
+      ctx.lineWidth   = 1.2;
+      ctx.beginPath(); ctx.arc(cx, cy, ring.r * 0.84, 0, Math.PI*2); ctx.stroke();
+      ctx.restore();
+    }
+
+    // Health bar
+    const barW = 70, barH = 6, bx = cx - barW/2, by = this.y - 22;
     const pct  = Math.max(0, this.health / this.maxHealth);
-    ctx.fillStyle = 'rgba(0,0,0,0.4)';
-    ctx.fillRect(bx, by, barW, barH);
-    ctx.fillStyle = '#aa66ff';
+    ctx.fillStyle = 'rgba(0,0,0,0.6)';
+    ctx.fillRect(bx - 1, by - 1, barW + 2, barH + 2);
+    const bGr = ctx.createLinearGradient(bx, by, bx + barW * pct, by + barH);
+    bGr.addColorStop(0, '#44aaff');
+    bGr.addColorStop(0.5, '#66ccff');
+    bGr.addColorStop(1, '#2277cc');
+    ctx.fillStyle = bGr;
     ctx.fillRect(bx, by, barW * pct, barH);
 
-    ctx.fillStyle = 'rgba(200,170,255,0.85)';
-    ctx.font      = 'bold 9px Arial';
-    ctx.textAlign = 'center';
-    ctx.fillText('PARADOX', cx, by - 2);
-    ctx.textAlign = 'left';
+    ctx.save();
+    ctx.shadowColor = 'rgba(50,170,255,0.9)';
+    ctx.shadowBlur  = 9;
+    ctx.fillStyle   = '#aaddff';
+    ctx.font        = 'bold 10px Arial';
+    ctx.textAlign   = 'center';
+    ctx.fillText('✦ PARADOX ✦', cx, by - 3);
+    ctx.textAlign   = 'left';
+    ctx.restore();
   }
 }

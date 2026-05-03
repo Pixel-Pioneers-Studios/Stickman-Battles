@@ -36,7 +36,7 @@ function _startGameCore() {
   if (isSovereignMode) {
     currentArenaKey = 'sovereign'; // Sovereign's dedicated melee-only arena
   } else if (isGodMode) {
-    currentArenaKey = 'creator'; // reuse creator arena for the god encounter
+    currentArenaKey = 'god_domain'; // God's own divine domain arena
   } else if (isMultiverseMode) {
     const mvWorld = (typeof MultiverseManager !== 'undefined') ? MultiverseManager.getActiveWorld() : null;
     currentArenaKey = (mvWorld && mvWorld.arenaKey) ? mvWorld.arenaKey : 'homeAlley';
@@ -74,7 +74,7 @@ function _startGameCore() {
   }
   isRandomMapMode = (selectedArena === 'random' && !isCompleteRandMode);
   // Lava/void: no randomization
-  if (currentArenaKey !== 'creator' && currentArenaKey !== 'lava' && currentArenaKey !== 'void' && currentArenaKey !== 'soccer' && currentArenaKey !== 'damnation' && currentArenaKey !== 'sovereign' && !isExploreMode) randomizeArenaLayout(currentArenaKey);
+  if (currentArenaKey !== 'creator' && currentArenaKey !== 'god_domain' && currentArenaKey !== 'lava' && currentArenaKey !== 'void' && currentArenaKey !== 'soccer' && currentArenaKey !== 'damnation' && currentArenaKey !== 'sovereign' && !isExploreMode) randomizeArenaLayout(currentArenaKey);
   currentArena = ARENAS[currentArenaKey];
   if (typeof buildGraphForCurrentArena === 'function') buildGraphForCurrentArena();
   initMapPerks(currentArenaKey);
@@ -183,6 +183,13 @@ function _startGameCore() {
     if (floorPl) floorPl.isFloorDisabled = false;
     ARENAS.creator.hasLava = false;
     ARENAS.creator.deathY  = 640;
+  }
+  // Restore god_domain arena floor platform
+  if (ARENAS.god_domain) {
+    const floorPl = ARENAS.god_domain.platforms.find(p => p.isFloor);
+    if (floorPl) floorPl.isFloorDisabled = false;
+    ARENAS.god_domain.hasLava = false;
+    ARENAS.god_domain.deathY  = 640;
   }
 
   // Player 1  (W/A/D move · S=shield · Space=attack · Q=ability)
@@ -498,7 +505,8 @@ function _startGameCore() {
     // God encounter — P1 vs God (in minions), optional Paradox ally
     p1.isAI  = false;
     p1.lives = 10;
-    p1.armorPieces = ['helmet', 'chestplate', 'leggings']; // Godslayer armor
+    p1.armorPieces = ['helmet', 'chestplate', 'leggings'];
+    p1.armorStyle  = 'godslayer';
     p1._teamId = 1;
     if (window.GODSLAYER_WEAPON) {
       p1.weapon    = window.GODSLAYER_WEAPON;

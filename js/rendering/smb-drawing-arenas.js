@@ -1991,6 +1991,282 @@ function drawDamnationEffects() {
   ctx.restore();
 }
 
+function drawGodDomainArena() {
+  if (typeof ctx === 'undefined') return;
+  const GW = GAME_W, GH = GAME_H;
+  const t  = frameCount;
+
+  // Scale chaos from 0 (God full HP) → 1 (God dead)
+  let chaos = 0;
+  if (typeof gameMode !== 'undefined' && gameMode === 'god' && typeof minions !== 'undefined') {
+    const _g = Array.isArray(minions) ? minions.find(m => m && m.isGod) : null;
+    if (_g && _g.maxHealth > 0) chaos = 1 - Math.max(0, Math.min(1, _g.health / _g.maxHealth));
+  }
+
+  // ── 1. Layered background radiance ───────────────────────────────────────
+  const bgPulse = 0.5 + 0.5 * Math.sin(t * 0.006);
+  const goldAmt = Math.max(0, (1 - chaos * 1.3) * bgPulse * 0.20);
+  const voidAmt = 0.13 + chaos * 0.16;
+  const crimAmt = chaos * 0.25 * (0.6 + 0.4 * Math.sin(t * 0.018));
+
+  ctx.save();
+  const bg1 = ctx.createRadialGradient(GW/2, GH/2, 0, GW/2, GH/2, GW * 0.78);
+  bg1.addColorStop(0,   `rgba(${40 + (chaos*70)|0},${5},${65 + (chaos*35)|0},${voidAmt})`);
+  bg1.addColorStop(0.55, `rgba(${20 + (chaos*90)|0},0,40,${voidAmt * 0.55})`);
+  bg1.addColorStop(1,   'rgba(0,0,0,0)');
+  ctx.fillStyle = bg1;
+  ctx.fillRect(0, 0, GW, GH);
+
+  if (goldAmt > 0.01) {
+    const bg2 = ctx.createRadialGradient(GW/2, GH*0.28, 0, GW/2, GH*0.28, GW * 0.58);
+    bg2.addColorStop(0, `rgba(255,218,90,${goldAmt})`);
+    bg2.addColorStop(1, 'rgba(255,130,0,0)');
+    ctx.fillStyle = bg2;
+    ctx.fillRect(0, 0, GW, GH);
+  }
+
+  if (crimAmt > 0.01) {
+    const bg3 = ctx.createRadialGradient(GW/2, GH*0.65, 0, GW/2, GH*0.65, GW * 0.72);
+    bg3.addColorStop(0, `rgba(180,0,0,${crimAmt})`);
+    bg3.addColorStop(1, 'rgba(70,0,0,0)');
+    ctx.fillStyle = bg3;
+    ctx.fillRect(0, 0, GW, GH);
+  }
+  ctx.restore();
+
+  // ── 2. Three massive divine eye-portals ───────────────────────────────────
+  const portals = [
+    { bx: GW*0.5,  by: GH*0.36, base: 115, spd: 0.004, ph: 0.0 },
+    { bx: GW*0.19, by: GH*0.50, base: 78,  spd: 0.007, ph: 2.1 },
+    { bx: GW*0.81, by: GH*0.45, base: 78,  spd: 0.006, ph: 4.2 },
+  ];
+  ctx.save();
+  for (const pd of portals) {
+    const pulse  = Math.sin(t * pd.spd + pd.ph);
+    const px     = pd.bx + Math.sin(t * 0.003 + pd.ph) * 28 * chaos;
+    const py     = pd.by + Math.cos(t * 0.004 + pd.ph) * 18 * chaos;
+    const r      = pd.base * (1 + pulse * 0.13) * (1 + chaos * 0.35);
+    const rA     = 0.07 + Math.abs(pulse) * 0.09;
+    const gR     = (255) | 0;
+    const gG     = (220 * (1 - chaos * 0.85)) | 0;
+    const gB     = (60  + chaos * 130) | 0;
+
+    const pg = ctx.createRadialGradient(px, py, r * 0.65, px, py, r);
+    pg.addColorStop(0,   `rgba(${gR},${gG},${gB},0)`);
+    pg.addColorStop(0.55, `rgba(${gR},${gG},${gB},${rA})`);
+    pg.addColorStop(1,   `rgba(${gR},${gG},${gB},0)`);
+    ctx.fillStyle = pg;
+    ctx.beginPath(); ctx.arc(px, py, r, 0, Math.PI*2); ctx.fill();
+
+    ctx.strokeStyle = chaos < 0.5
+      ? `rgba(255,210,75,${0.14 + Math.abs(pulse)*0.18})`
+      : `rgba(255,${(75*(1-chaos))|0},${(100*chaos)|0},${0.16 + Math.abs(pulse)*0.20})`;
+    ctx.lineWidth   = 2.2 + pulse * 1.1;
+    ctx.shadowColor = chaos < 0.5 ? 'rgba(255,195,40,0.7)' : 'rgba(210,0,40,0.7)';
+    ctx.shadowBlur  = 22;
+    ctx.beginPath(); ctx.arc(px, py, r, 0, Math.PI*2); ctx.stroke();
+
+    // Inner concentrated light
+    const ig = ctx.createRadialGradient(px, py, 0, px, py, r * 0.32);
+    ig.addColorStop(0, chaos < 0.5 ? `rgba(255,245,160,${0.14+chaos*0.08})` : `rgba(220,30,30,${0.14+chaos*0.12})`);
+    ig.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = ig;
+    ctx.beginPath(); ctx.arc(px, py, r * 0.32, 0, Math.PI*2); ctx.fill();
+  }
+  ctx.restore();
+
+  // ── 3. Reality fractures (jagged tears in space) ─────────────────────────
+  const fracSeed   = (t / 80) | 0;
+  const fracCount  = (2 + chaos * 6) | 0;
+  ctx.save();
+  for (let fi = 0; fi < fracCount; fi++) {
+    const fs   = fracSeed * 19 + fi * 1031;
+    const sr   = n => Math.abs(Math.sin(fs * 131.7 + n * 87.3) * 43758.5) % 1;
+    const fAge = (t % 80) / 80;
+    const fAlp = Math.min(1, fAge < 0.15 ? fAge/0.15 : fAge > 0.78 ? (1-fAge)/0.22 : 1)
+               * (0.22 + chaos * 0.40);
+    if (fAlp < 0.03) continue;
+
+    ctx.globalAlpha = fAlp;
+    const sx     = sr(1) * GW;
+    const sy     = sr(2) * GH * 0.85;
+    const length = 55 + sr(3) * 190 * (1 + chaos);
+    const angle  = sr(4) * Math.PI * 2;
+    const steps  = (5 + sr(5) * 5) | 0;
+
+    let fx = sx, fy = sy;
+    ctx.beginPath(); ctx.moveTo(fx, fy);
+    for (let s = 1; s <= steps; s++) {
+      fx += Math.cos(angle + (sr(s*7)   - 0.5) * 2.0) * (length / steps);
+      fy += Math.sin(angle + (sr(s*7+1) - 0.5) * 2.0) * (length / steps);
+      ctx.lineTo(fx, fy);
+    }
+    const fCol = chaos < 0.4
+      ? 'rgba(255,242,130,1)'
+      : `rgba(255,${(110*(1-chaos))|0},${(90*chaos)|0},1)`;
+    ctx.strokeStyle = fCol;
+    ctx.lineWidth   = 1.8 + chaos * 0.8;
+    ctx.shadowColor = fCol;
+    ctx.shadowBlur  = 9 + chaos * 15;
+    ctx.stroke();
+    // Bright white core
+    ctx.strokeStyle = 'rgba(255,255,255,0.55)';
+    ctx.lineWidth   = 0.6;
+    ctx.shadowBlur  = 3;
+    ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+  ctx.restore();
+
+  // ── 4. Void tendrils from edges (grows with chaos) ────────────────────────
+  if (chaos > 0.28) {
+    const tAlpha = ((chaos - 0.28) / 0.72) * 0.52;
+    ctx.save();
+    for (let side = 0; side < 4; side++) {
+      const sCount = (2 + chaos * 3.5) | 0;
+      for (let si = 0; si < sCount; si++) {
+        const off   = (si / sCount + Math.sin(t * 0.008 + si * 1.4 + side * 2.2) * 0.04)
+                    * (side < 2 ? GH : GW);
+        const depth = (0.07 + Math.sin(t * 0.013 + si * 2.3 + side) * 0.04)
+                    * (side < 2 ? GW : GH) * (0.45 + chaos * 0.55);
+        const [ex, ey, ex2, ey2] = side === 0 ? [0, off, depth, off]
+          : side === 1 ? [GW, off, GW-depth, off]
+          : side === 2 ? [off, 0, off, depth]
+          : [off, GH, off, GH-depth];
+        const tg = ctx.createLinearGradient(ex, ey, ex2, ey2);
+        tg.addColorStop(0,   `rgba(${(18+chaos*32)|0},0,${(8+chaos*22)|0},${tAlpha})`);
+        tg.addColorStop(0.5, `rgba(8,0,18,${tAlpha*0.35})`);
+        tg.addColorStop(1,   'rgba(0,0,0,0)');
+        ctx.fillStyle = tg;
+        if (side < 2) ctx.fillRect(side===0 ? 0 : GW-depth, off-14, depth, 28);
+        else           ctx.fillRect(off-14, side===2 ? 0 : GH-depth, 28, depth);
+      }
+    }
+    ctx.restore();
+  }
+
+  // ── 5. Divine particle storm ──────────────────────────────────────────────
+  const pCount = (22 + chaos * 44) | 0;
+  ctx.save();
+  for (let i = 0; i < pCount; i++) {
+    const px = ((i * 137.508 + t * (0.09 + i * 0.004)) % GW + GW) % GW;
+    const py = ((i * 97.3   - t * (0.13 + i * 0.005 + chaos * 0.045)) % GH + GH) % GH;
+    const pr = 1.1 + Math.abs(Math.sin(i * 0.73 + t * 0.042)) * 2.2;
+    const pa = Math.min(1, (0.18 + Math.abs(Math.sin(i * 1.35 + t * 0.065)) * 0.5) * (1 + chaos*0.4));
+    const pCol = chaos < 0.38
+      ? `rgba(255,220,95,${pa})`
+      : i % 3 === 0 ? `rgba(255,75,75,${pa})` : `rgba(255,205,75,${pa})`;
+    ctx.globalAlpha = pa;
+    ctx.fillStyle   = pCol;
+    ctx.shadowColor = pCol;
+    ctx.shadowBlur  = 5 + chaos * 7;
+    ctx.beginPath(); ctx.arc(px, py, pr, 0, Math.PI*2); ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+  ctx.restore();
+
+  // ── 6. Ascending light-beam pillars ──────────────────────────────────────
+  const bCount = (2 + chaos * 4) | 0;
+  const bSeed  = (t / 180) | 0;
+  ctx.save();
+  for (let bi = 0; bi < bCount; bi++) {
+    const bsr  = n => Math.abs(Math.sin(bSeed * 53.1 + bi * 113 + n * 79.3) * 43758.5) % 1;
+    const bx   = bsr(1) * GW;
+    const bAge = ((t + bi * 60) % 180) / 180;
+    const bA   = Math.min(1, bAge < 0.15 ? bAge/0.15 : bAge > 0.70 ? (1-bAge)/0.30 : 1)
+               * (0.07 + chaos * 0.065);
+    if (bA < 0.01) continue;
+    const bW   = 28 + bsr(2) * 44;
+    const bCol = chaos < 0.5 ? [255,238,120] : [255,95,70];
+    const bGr  = ctx.createLinearGradient(bx, GH, bx, 0);
+    bGr.addColorStop(0,   `rgba(${bCol[0]},${bCol[1]},${bCol[2]},0)`);
+    bGr.addColorStop(0.28, `rgba(${bCol[0]},${bCol[1]},${bCol[2]},${bA})`);
+    bGr.addColorStop(0.72, `rgba(${bCol[0]},${bCol[1]},${bCol[2]},${bA*0.45})`);
+    bGr.addColorStop(1,   `rgba(${bCol[0]},${bCol[1]},${bCol[2]},0)`);
+    ctx.fillStyle   = bGr;
+    ctx.shadowColor = chaos < 0.5 ? 'rgba(255,215,70,0.45)' : 'rgba(255,75,45,0.45)';
+    ctx.shadowBlur  = 22;
+    ctx.fillRect(bx - bW/2, 0, bW, GH);
+  }
+  ctx.restore();
+
+  // ── 7. Ground energy grid and glow-line ───────────────────────────────────
+  const groundY = 460;
+  ctx.save();
+  ctx.globalAlpha = 0.22 + chaos * 0.22;
+  const gSz   = 46;
+  const gCol  = chaos < 0.5 ? 'rgba(255,205,70,0.18)' : 'rgba(200,45,45,0.22)';
+  ctx.strokeStyle = gCol;
+  ctx.lineWidth   = 0.75;
+  for (let gy = groundY; gy < groundY + 62; gy += 11) {
+    ctx.beginPath();
+    for (let gx = 0; gx <= GW; gx += gSz) {
+      const wy = gy + Math.sin(gx * 0.042 + t * 0.042) * (2 + chaos * 6);
+      gx === 0 ? ctx.moveTo(gx, wy) : ctx.lineTo(gx, wy);
+    }
+    ctx.stroke();
+  }
+  ctx.globalAlpha = 0.55 + chaos * 0.30;
+  ctx.strokeStyle = chaos < 0.5 ? '#ffda55' : '#ff4422';
+  ctx.lineWidth   = 1.6;
+  ctx.shadowColor = chaos < 0.5 ? 'rgba(255,195,55,0.9)' : 'rgba(255,55,25,0.9)';
+  ctx.shadowBlur  = 13;
+  ctx.beginPath();
+  for (let gx = 0; gx <= GW; gx += 4) {
+    const wy = groundY + Math.sin(gx * 0.038 + t * 0.055) * (3 + chaos * 9);
+    gx === 0 ? ctx.moveTo(gx, wy) : ctx.lineTo(gx, wy);
+  }
+  ctx.stroke();
+  ctx.globalAlpha = 1;
+  ctx.restore();
+
+  // ── 8. Energy barrier side walls ─────────────────────────────────────────
+  const wPulse = 0.38 + Math.abs(Math.sin(t * 0.04)) * 0.48;
+  ctx.save();
+  for (const wallX of [0, GW]) {
+    const isR   = wallX === GW;
+    const wR    = chaos < 0.4 ? 195 : 255;
+    const wG    = chaos < 0.4 ? 150 : (60*(1-chaos))|0;
+    const wB    = chaos < 0.4 ? 255 : (200*(1-chaos))|0;
+    const wGr   = ctx.createLinearGradient(isR ? GW-18:0, 0, isR ? GW:18, 0);
+    wGr.addColorStop(0, `rgba(${wR},${wG},${wB},${wPulse})`);
+    wGr.addColorStop(1, `rgba(${wR},${wG},${wB},0)`);
+    ctx.fillStyle = wGr;
+    ctx.fillRect(isR ? GW-18 : 0, 0, 18, GH);
+  }
+  ctx.restore();
+
+  // ── 9. Reality warp scan-lines at high chaos ─────────────────────────────
+  if (chaos > 0.58) {
+    const wA = (chaos - 0.58) / 0.42 * 0.055;
+    ctx.save();
+    ctx.globalAlpha = wA;
+    for (let wy = 0; wy < GH; wy += 14) {
+      const wOff = Math.sin(wy * 0.09 + t * 0.022) * (chaos - 0.58) * 22;
+      ctx.fillStyle = `rgba(80,0,0,0.09)`;
+      ctx.fillRect(wOff, wy, GW, 7);
+    }
+    ctx.globalAlpha = 1;
+    ctx.restore();
+  }
+
+  // ── 10. Boss-floor hazard (lava or void) ──────────────────────────────────
+  if (bossFloorState === 'hazard' && bossFloorType === 'lava') {
+    const ly  = 460;
+    const lg  = ctx.createLinearGradient(0, ly, 0, GH);
+    lg.addColorStop(0, '#ff6600'); lg.addColorStop(0.3, '#cc2200'); lg.addColorStop(1, '#880000');
+    ctx.fillStyle = lg;
+    ctx.beginPath(); ctx.moveTo(0, ly);
+    for (let x = 0; x <= GW; x += 18)
+      ctx.lineTo(x, ly + Math.sin(x * 0.055 + t * 0.07) * 7);
+    ctx.lineTo(GW, GH); ctx.lineTo(0, GH); ctx.closePath(); ctx.fill();
+    ctx.shadowColor = '#ff4400'; ctx.shadowBlur = 20;
+    ctx.fillStyle   = 'rgba(255,80,0,0.22)';
+    ctx.fillRect(0, ly - 10, GW, 12);
+    ctx.shadowBlur = 0;
+  }
+}
+
 function drawDamnationAnchors() {
   if (!damnationActive || !damnationAnchorOrbs.length) return;
   ctx.save();

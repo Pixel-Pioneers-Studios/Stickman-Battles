@@ -2782,42 +2782,128 @@ class Fighter {
     // ARMOR visuals (enemy story armor pieces)
     if (this.armorPieces && this.armorPieces.length > 0) {
       ctx.save();
-      const armorCol  = '#9ab8e8';
-      const armorEdge = '#cde0ff';
+      const isGodslayer = this.armorStyle === 'godslayer';
+      const gsPulse    = isGodslayer ? (0.5 + 0.5 * Math.sin(t * 0.08)) : 0;
+      const armorCol   = isGodslayer ? '#c09018' : '#9ab8e8';
+      const armorEdge  = isGodslayer ? '#ffe060' : '#cde0ff';
+      if (isGodslayer) {
+        ctx.shadowColor = '#ffe840';
+        ctx.shadowBlur  = 7 + gsPulse * 9;
+      }
       ctx.strokeStyle = armorEdge;
       ctx.fillStyle   = armorCol;
       ctx.lineWidth   = 1.5;
+
       // Helmet
       if (this.armorPieces.includes('helmet')) {
+        if (isGodslayer) {
+          // Gold divine helmet with crown spikes
+          const helmGr = ctx.createLinearGradient(cx - headR - 3, headCY - headR - 3, cx + headR + 3, headCY + 4);
+          helmGr.addColorStop(0, '#d4a820');
+          helmGr.addColorStop(0.45, '#ffe87a');
+          helmGr.addColorStop(1, '#a07010');
+          ctx.fillStyle = helmGr;
+        } else {
+          ctx.fillStyle = armorCol;
+        }
         ctx.beginPath();
         ctx.arc(cx, headCY, headR + 3, Math.PI, 0);
         ctx.lineTo(cx + headR + 3, headCY + 4);
         ctx.lineTo(cx - headR - 3, headCY + 4);
         ctx.closePath();
-        ctx.fillStyle = armorCol; ctx.fill();
+        ctx.fill();
         ctx.strokeStyle = armorEdge; ctx.stroke();
-        // visor slit
-        ctx.strokeStyle = '#7090c0'; ctx.lineWidth = 1;
-        ctx.beginPath(); ctx.moveTo(cx - 5, headCY); ctx.lineTo(cx + 5, headCY); ctx.stroke();
+
+        if (isGodslayer) {
+          // Crown spikes (3 golden spikes)
+          ctx.fillStyle   = '#ffd040';
+          ctx.shadowColor = '#ffaa00';
+          ctx.shadowBlur  = 8 + gsPulse * 6;
+          for (const [sx, sh] of [[-8, 7], [0, 11], [8, 7]]) {
+            ctx.beginPath();
+            ctx.moveTo(cx + sx - 2.5, headCY - headR - 1);
+            ctx.lineTo(cx + sx,       headCY - headR - 1 - sh);
+            ctx.lineTo(cx + sx + 2.5, headCY - headR - 1);
+            ctx.closePath();
+            ctx.fill();
+          }
+          ctx.shadowColor = '#ffe840';
+          ctx.shadowBlur  = 7 + gsPulse * 9;
+          // Glowing visor slit
+          ctx.strokeStyle = `rgba(255,235,80,${0.7 + gsPulse * 0.3})`;
+          ctx.lineWidth   = 1.8;
+          ctx.shadowBlur  = 6;
+          ctx.beginPath(); ctx.moveTo(cx - 6, headCY); ctx.lineTo(cx + 6, headCY); ctx.stroke();
+        } else {
+          ctx.strokeStyle = '#7090c0'; ctx.lineWidth = 1;
+          ctx.beginPath(); ctx.moveTo(cx - 5, headCY); ctx.lineTo(cx + 5, headCY); ctx.stroke();
+        }
       }
+
       // Chestplate
       if (this.armorPieces.includes('chestplate')) {
-        ctx.fillStyle = armorCol; ctx.strokeStyle = armorEdge; ctx.lineWidth = 1.5;
-        ctx.beginPath();
-        ctx.roundRect(cx - 8, neckY + 2, 16, 18, 2);
-        ctx.fill(); ctx.stroke();
-        // center line
-        ctx.strokeStyle = '#7090c0'; ctx.lineWidth = 1;
-        ctx.beginPath(); ctx.moveTo(cx, neckY + 4); ctx.lineTo(cx, neckY + 18); ctx.stroke();
+        ctx.lineWidth = 1.5;
+        if (isGodslayer) {
+          const cpGr = ctx.createLinearGradient(cx - 9, neckY + 2, cx + 9, neckY + 20);
+          cpGr.addColorStop(0, '#d4a820');
+          cpGr.addColorStop(0.45, '#ffe070');
+          cpGr.addColorStop(1, '#9a6e10');
+          ctx.fillStyle = cpGr;
+        } else {
+          ctx.fillStyle = armorCol;
+        }
+        ctx.strokeStyle = armorEdge;
+        ctx.beginPath(); ctx.roundRect(cx - 9, neckY + 2, 18, 20, 3); ctx.fill(); ctx.stroke();
+
+        if (isGodslayer) {
+          // Divine rune cross on chest
+          ctx.strokeStyle = `rgba(255,235,80,${0.65 + gsPulse * 0.30})`;
+          ctx.lineWidth   = 1.1;
+          ctx.shadowBlur  = 5;
+          ctx.beginPath();
+          ctx.moveTo(cx,     neckY + 6); ctx.lineTo(cx,     neckY + 19);
+          ctx.moveTo(cx - 5, neckY + 12); ctx.lineTo(cx + 5, neckY + 12);
+          ctx.stroke();
+          // Small corner diamonds
+          ctx.fillStyle = `rgba(255,240,120,${0.5 + gsPulse * 0.4})`;
+          ctx.shadowBlur = 4;
+          for (const [ox, oy] of [[-6, 4], [6, 4], [-6, 17], [6, 17]]) {
+            ctx.save();
+            ctx.translate(cx + ox, neckY + oy);
+            ctx.rotate(Math.PI / 4);
+            ctx.beginPath(); ctx.rect(-1.8, -1.8, 3.6, 3.6); ctx.fill();
+            ctx.restore();
+          }
+        } else {
+          ctx.strokeStyle = '#7090c0'; ctx.lineWidth = 1;
+          ctx.beginPath(); ctx.moveTo(cx, neckY + 4); ctx.lineTo(cx, neckY + 18); ctx.stroke();
+        }
       }
+
       // Leggings
       if (this.armorPieces.includes('leggings')) {
-        ctx.fillStyle = armorCol; ctx.strokeStyle = armorEdge; ctx.lineWidth = 1.5;
-        // left leg plate
-        ctx.beginPath(); ctx.roundRect(hipX - 8, hipY, 7, 12, 2); ctx.fill(); ctx.stroke();
-        // right leg plate
-        ctx.beginPath(); ctx.roundRect(hipX + 1, hipY, 7, 12, 2); ctx.fill(); ctx.stroke();
+        ctx.lineWidth = 1.5;
+        if (isGodslayer) {
+          const lgGr = ctx.createLinearGradient(0, hipY, 0, hipY + 13);
+          lgGr.addColorStop(0, '#c89818');
+          lgGr.addColorStop(1, '#8a6010');
+          ctx.fillStyle = lgGr;
+        } else {
+          ctx.fillStyle = armorCol;
+        }
+        ctx.strokeStyle = armorEdge;
+        ctx.beginPath(); ctx.roundRect(hipX - 9, hipY, 8, 13, 2); ctx.fill(); ctx.stroke();
+        ctx.beginPath(); ctx.roundRect(hipX + 1, hipY, 8, 13, 2); ctx.fill(); ctx.stroke();
+        if (isGodslayer) {
+          ctx.fillStyle   = `rgba(255,230,80,${0.55 + gsPulse * 0.40})`;
+          ctx.shadowBlur  = 5;
+          ctx.beginPath();
+          ctx.arc(hipX - 5,  hipY + 7, 1.8, 0, Math.PI*2);
+          ctx.arc(hipX + 5,  hipY + 7, 1.8, 0, Math.PI*2);
+          ctx.fill();
+        }
       }
+
       ctx.restore();
     }
 
@@ -3154,6 +3240,59 @@ class Fighter {
       // Edge glow
       ctx.strokeStyle = '#9933ff'; ctx.lineWidth = 1.5;
       ctx.beginPath(); ctx.moveTo(0, -3); ctx.lineTo(30, 0); ctx.lineTo(0, 2); ctx.stroke();
+      ctx.restore();
+
+    } else if (k === '_godslayer') {
+      ctx.save();
+      const gsPulse = 0.5 + 0.5 * Math.sin((typeof frameCount !== 'undefined' ? frameCount : 0) * 0.1);
+      ctx.shadowColor = '#ffe888';
+      ctx.shadowBlur  = 20 + gsPulse * 16;
+      // Blade gradient — divine gold/white metal
+      ctx.beginPath();
+      ctx.moveTo(0, -2.8); ctx.lineTo(31, -0.9); ctx.lineTo(35, 0);
+      ctx.lineTo(31,  0.9); ctx.lineTo(0,  2.8); ctx.closePath();
+      const gsGr = ctx.createLinearGradient(0, 0, 35, 0);
+      gsGr.addColorStop(0,   '#fffde8');
+      gsGr.addColorStop(0.28, '#ffe866');
+      gsGr.addColorStop(0.72, '#ffcc22');
+      gsGr.addColorStop(1,   'rgba(255,200,60,0)');
+      ctx.fillStyle = gsGr;
+      ctx.fill();
+      // Bright edge
+      ctx.strokeStyle = 'rgba(255,255,210,0.8)';
+      ctx.lineWidth   = 0.7;
+      ctx.shadowBlur  = 6;
+      ctx.beginPath();
+      ctx.moveTo(0, -2.8); ctx.lineTo(35, 0); ctx.lineTo(0, 2.8);
+      ctx.stroke();
+      // Crossguard
+      ctx.shadowBlur  = 12;
+      ctx.shadowColor = '#ffaa00';
+      const gsGuard = ctx.createLinearGradient(-2, -10, 3, 10);
+      gsGuard.addColorStop(0, '#ffd040');
+      gsGuard.addColorStop(0.5, '#ffee99');
+      gsGuard.addColorStop(1, '#cc8800');
+      ctx.fillStyle = gsGuard;
+      ctx.beginPath(); ctx.roundRect(-2, -9, 5, 18, 2); ctx.fill();
+      ctx.strokeStyle = '#ffe8aa'; ctx.lineWidth = 1; ctx.stroke();
+      // Rune inscriptions on blade
+      ctx.globalAlpha = 0.55 + gsPulse * 0.35;
+      ctx.strokeStyle = 'rgba(255,250,200,0.9)';
+      ctx.lineWidth   = 0.65;
+      ctx.shadowBlur  = 5;
+      ctx.shadowColor = '#fffacc';
+      ctx.beginPath();
+      ctx.moveTo(8, -1.6); ctx.lineTo(11, 0); ctx.lineTo(8, 1.6);
+      ctx.moveTo(16, -1.6); ctx.lineTo(19, 0); ctx.lineTo(16, 1.6);
+      ctx.moveTo(23, -1.2); ctx.lineTo(26, 0); ctx.lineTo(23, 1.2);
+      ctx.stroke();
+      // Glowing tip
+      ctx.globalAlpha = 0.8 + gsPulse * 0.2;
+      ctx.shadowColor = '#ffee55';
+      ctx.shadowBlur  = 18 + gsPulse * 12;
+      ctx.fillStyle   = '#fffde0';
+      ctx.beginPath(); ctx.arc(34, 0, 2.8, 0, Math.PI*2); ctx.fill();
+      ctx.globalAlpha = 1;
       ctx.restore();
 
     } else if (k === 'shockrifle') {

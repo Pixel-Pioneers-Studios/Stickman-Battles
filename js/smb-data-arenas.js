@@ -172,6 +172,25 @@ const ARENAS = {
       { x: 375, y: 82,  w: 150, h: 18 },
     ]
   },
+  god_domain: {
+    sky:         ['#000008', '#06001a'],
+    groundColor: '#080014',
+    platColor:   '#100025',
+    platEdge:    '#bb44ff',
+    hasLava:     false,
+    deathY:      640,
+    isBossArena: true,
+    isGodArena:  true,
+    platforms: [
+      { x: 0,   y: 460, w: 900, h: 60, isFloor: true, isFloorDisabled: false },
+      { x: 325, y: 178, w: 250, h: 16, ox: 325, oscX: 90,  oscSpeed: 0.009, oscPhase: 0.0 },
+      { x: 45,  y: 258, w: 165, h: 16, ox: 45,  oscX: 50,  oscSpeed: 0.014, oscPhase: 1.8 },
+      { x: 690, y: 258, w: 165, h: 16, ox: 690, oscX: 50,  oscSpeed: 0.014, oscPhase: 3.6 },
+      { x: 175, y: 118, w: 125, h: 14, oy: 118, oscY: 38,  oscSpeed: 0.017, oscPhase: 0.9 },
+      { x: 600, y: 118, w: 125, h: 14, oy: 118, oscY: 38,  oscSpeed: 0.017, oscPhase: 2.7 },
+      { x: 375, y: 58,  w: 150, h: 14 },
+    ]
+  },
   forest: {
     sky:         ['#1a4020', '#2d6b3a'],
     groundColor: '#2a5a20',
@@ -723,12 +742,12 @@ const ARENAS = {
 // Stores base platform positions per arena for randomization reference
 const ARENA_BASE_PLATFORMS = {};
 for (const key of Object.keys(ARENAS)) {
-  if (key === 'creator') continue; // boss arena — never randomize
+  if (key === 'creator' || key === 'god_domain') continue; // boss/god arenas — never randomize
   ARENA_BASE_PLATFORMS[key] = ARENAS[key].platforms.map(p => ({ ...p }));
 }
 
 function randomizeArenaLayout(key) {
-  if (key === 'creator' || key === 'soccer' || key === 'cave') return; // never randomize boss/soccer/cave (ceiling constraint)
+  if (key === 'creator' || key === 'god_domain' || key === 'soccer' || key === 'cave') return; // never randomize
   const base  = ARENA_BASE_PLATFORMS[key];
   if (!base) return;
   const arena = ARENAS[key];
