@@ -631,29 +631,40 @@ function gameLoop(timestamp) {
     // Depth phase: apply per-entity Z-axis depth illusion transform
     if (typeof tfDepthPhaseActive !== 'undefined' && tfDepthPhaseActive) {
       const pz     = p.z || 0;
-      const dScale = 1 + pz * 0.2;  // z=1 → 20% larger, z=-1 → 20% smaller
-      const dOffY  = pz * 40;        // z=1 → 40px lower (foreground), z=-1 → 40px higher
+      const dScale = 1 + pz * 0.22;   // z=1 → 22% larger (foreground), z=-1 → 22% smaller (bg)
+      const dOffY  = pz * 44;          // z=1 → 44px lower, z=-1 → 44px higher
       const pivX   = p.cx();
       const pivY   = p.cy();
+
+      // ── Floor shadow: ellipse on the ground that shifts with depth ───────
+      // Foreground entities (z>0) cast a shadow closer to us; bg entities further away.
+      const shadowFloorY = 460;
+      const shadowCX     = p.cx();
+      const shadowRX     = p.w * 0.55 * dScale;
+      const shadowRY     = shadowRX * 0.22;
+      const shadowAlpha  = (0.40 - Math.abs(pz) * 0.12) * Math.max(0, 1 - (shadowFloorY - (p.y + p.h + dOffY)) / 200);
+      if (shadowAlpha > 0.02) {
+        ctx.save();
+        ctx.globalAlpha = shadowAlpha;
+        ctx.fillStyle   = '#000000';
+        ctx.beginPath();
+        ctx.ellipse(shadowCX, shadowFloorY, Math.max(2, shadowRX), Math.max(1, shadowRY), 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+
+      // ── Depth fog: background entities dimmer, foreground at full brightness ─
+      const fogAlpha = pz >= 0 ? 1.0 : 0.62 + pz * 0.38; // z=-1 → 0.24 dimmer
+
+      // ── Draw entity with depth transform ─────────────────────────────────
       ctx.save();
+      ctx.globalAlpha = fogAlpha;
       ctx.translate(pivX, pivY + dOffY);
       ctx.scale(dScale, dScale);
       ctx.translate(-pivX, -pivY);
       p.draw();
       ctx.restore();
-      // Draw Z-layer indicator bar beneath entity
-      const barW = p.w * 1.4, barH = 4;
-      const barX = p.cx() - barW * 0.5;
-      const barY = p.y + p.h + dOffY + 6 * dScale;
-      ctx.save();
-      ctx.globalAlpha = 0.7;
-      ctx.fillStyle = '#222';
-      ctx.fillRect(barX, barY, barW, barH);
-      // Filled portion shows z position (center = z:0, right = z:1, left = z:-1)
-      const fillX  = barX + barW * 0.5 + (pz * barW * 0.5) - barH * 0.5;
-      ctx.fillStyle = pz >= 0 ? '#00aaff' : '#aa44ff';
-      ctx.fillRect(Math.max(barX, fillX), barY, barH, barH);
-      ctx.restore();
+
       return; // draw already called above
     }
     // Hit nudge: directional visual recoil — linearly decays over 4 frames

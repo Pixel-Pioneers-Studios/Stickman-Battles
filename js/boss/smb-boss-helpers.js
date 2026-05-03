@@ -779,6 +779,11 @@ function set3DView(mode) {
   const c = document.getElementById('gameCanvas');
   if (!c) return;
   c.classList.remove('view-3d', 'view-3d-tf');
-  if (mode === 'tf')  c.classList.add('view-3d-tf');
-  else if (mode)      c.classList.add('view-3d');
+  document.body.classList.remove('depth-phase-active');
+  if (mode === 'tf') {
+    c.classList.add('view-3d-tf');
+    document.body.classList.add('depth-phase-active');
+  } else if (mode) {
+    c.classList.add('view-3d');
+  }
 }
