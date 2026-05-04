@@ -166,7 +166,9 @@
       'cursor:pointer', 'font-size:0.9rem', 'font-family:inherit',
     ].join(';');
     reload.textContent = 'Reload Now';
-    reload.onclick = function () { window.location.reload(true); };
+    reload.onclick = function () {
+      window.location.href = window.location.origin + window.location.pathname + '?_cb=' + Date.now();
+    };
     row.appendChild(reload);
 
     if (optional) {
