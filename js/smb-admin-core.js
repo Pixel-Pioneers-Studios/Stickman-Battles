@@ -24,6 +24,11 @@ const _ADMIN_ALL_ACH_IDS = [
   'chaos_survivor', 'super_saver', 'speedrun', 'perfectionist',
 ];
 
+// ── Server-side admin overrides cache ─────────────────────────────────────────
+// Populated by syncAdminOverridesFromServer() at startup.
+// Keys are account IDs; values are true (granted) or false (revoked).
+let _serverAdminOverrides = {};
+
 // ── isAdmin ────────────────────────────────────────────────────────────────────
 // Legacy helper kept for external callers. New internal code should use _isAdmin().
 function isAdmin(accountId) {
@@ -34,18 +39,21 @@ function isAdmin(accountId) {
 // Authoritative admin check used by all internal admin logic.
 //
 // Precedence:
-//   1. GameState.getPersistent().admin.overrides[id] — explicit grant/revoke wins.
-//   2. ADMIN_IDS hardcoded list.
-//   3. Active Supabase session email is in ADMIN_EMAILS AND id is the active account.
+//   1. GameState.getPersistent().admin.overrides[id] — explicit local grant/revoke wins.
+//   2. Server-side overrides fetched from /api/admin/overrides at startup.
+//   3. ADMIN_IDS hardcoded list.
+//   4. Active Supabase session email is in ADMIN_EMAILS AND id is the active account.
 function _isAdmin(id) {
-  // 1. Runtime overrides
+  // 1. Local runtime overrides
   try {
     const overrides = GameState.getPersistent().admin.overrides;
     if (overrides && overrides.hasOwnProperty(id)) return !!overrides[id];
   } catch(e) {}
-  // 2. Hardcoded IDs
+  // 2. Server-side overrides (cross-device grants from admin panel)
+  if (_serverAdminOverrides.hasOwnProperty(id)) return !!_serverAdminOverrides[id];
+  // 3. Hardcoded IDs
   if (ADMIN_IDS.includes(String(id))) return true;
-  // 3. Supabase email — grants admin to the account that's actively signed in
+  // 4. Supabase email — grants admin to the account that's actively signed in
   try {
     if (window.SupabaseBridge && SupabaseBridge.isSignedIn()) {
       const user = SupabaseBridge.getUser();
@@ -59,6 +67,62 @@ function _isAdmin(id) {
     }
   } catch(e) {}
   return false;
+}
+
+// ── syncAdminOverridesFromServer ───────────────────────────────────────────────
+// Fetches server-side admin overrides and populates _serverAdminOverrides.
+// Called at startup (smb-admin-panels.js) alongside syncBansFromServer().
+// Fails silently if the server is unreachable or caller is not an admin.
+async function syncAdminOverridesFromServer() {
+  const base = (typeof SERVER_CONFIG !== 'undefined' && SERVER_CONFIG.url)
+    ? String(SERVER_CONFIG.url).replace(/\/$/, '') : null;
+  if (!base) return;
+  try {
+    if (window.AdminSession) await AdminSession.ensure();
+    const headers = Object.assign({ 'Content-Type': 'application/json' },
+      window.AdminSession ? AdminSession.authHeaders() : {});
+    const res = await fetch(base + '/api/admin/overrides', { headers });
+    if (!res.ok) return;
+    const data = await res.json();
+    if (data && typeof data.overrides === 'object') {
+      _serverAdminOverrides = data.overrides;
+      console.log('[AdminOverrides] Synced ' + Object.keys(_serverAdminOverrides).length + ' override(s) from server.');
+    }
+  } catch(e) {
+    console.warn('[AdminOverrides] Sync failed (server unreachable):', e.message || e);
+  }
+}
+
+// ── grantAdminRemote ───────────────────────────────────────────────────────────
+// Posts a grant or revoke to the server. Does not require a local account lookup —
+// the target account ID can belong to a player on a completely different device.
+// granted=true → admin, granted=false → explicit revoke, call with no arg to remove override.
+async function grantAdminRemote(accountId, granted) {
+  if (!_adminPanelIsAllowed()) { console.warn('[AdminOverrides] Not an admin.'); return false; }
+  const base = (typeof SERVER_CONFIG !== 'undefined' && SERVER_CONFIG.url)
+    ? String(SERVER_CONFIG.url).replace(/\/$/, '') : null;
+  if (!base) { console.warn('[AdminOverrides] Server not configured.'); return false; }
+  try {
+    if (window.AdminSession) await AdminSession.ensure();
+    const headers = Object.assign({ 'Content-Type': 'application/json' },
+      window.AdminSession ? AdminSession.authHeaders() : {});
+    const res = await fetch(base + '/api/admin/overrides', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ accountId: String(accountId), granted: !!granted }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(function() { return {}; });
+      console.warn('[AdminOverrides] Grant failed:', err.error || res.status);
+      return false;
+    }
+    _serverAdminOverrides[accountId] = !!granted;
+    console.log('[AdminOverrides] ' + (granted ? 'Granted' : 'Revoked') + ' admin for ' + accountId);
+    return true;
+  } catch(e) {
+    console.warn('[AdminOverrides] Grant request failed:', e.message || e);
+    return false;
+  }
 }
 
 // ── Internal helpers ───────────────────────────────────────────────────────────

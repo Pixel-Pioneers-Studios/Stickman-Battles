@@ -265,6 +265,25 @@ function _adminPanelRefresh() {
       '</div>',
     '</div>',
 
+    // ── Manage Admins ──────────────────────────────────────────────────────
+    '<div style="border-top:1px solid rgba(255,140,0,0.15);padding-top:12px;">',
+      '<div style="font-size:0.8rem;font-weight:600;color:#ffcc66;margin-bottom:4px;">Manage Admins</div>',
+      '<div style="font-size:0.7rem;opacity:0.5;margin-bottom:6px;">Paste any account ID — no local lookup needed, works cross-device.</div>',
+      '<div style="display:flex;flex-direction:column;gap:6px;">',
+        '<input id="adminGrantIdInput" placeholder="acct_..." maxlength="80"',
+          ' style="width:100%;background:#0a0a1c;border:1px solid rgba(255,160,40,0.4);',
+          'border-radius:6px;color:#ffe0a0;padding:5px 8px;font-size:0.78rem;outline:none;box-sizing:border-box;">',
+        '<div style="display:flex;gap:6px;">',
+          '<button onclick="_adminPanelGrantAdmin(true)"',
+            ' style="flex:1;background:rgba(40,180,80,0.16);border:1px solid rgba(60,220,100,0.4);',
+            'border-radius:6px;color:#88ffaa;padding:5px 10px;cursor:pointer;font-size:0.78rem;">Grant Admin</button>',
+          '<button onclick="_adminPanelGrantAdmin(false)"',
+            ' style="flex:1;background:rgba(180,40,40,0.14);border:1px solid rgba(255,80,80,0.35);',
+            'border-radius:6px;color:#ff9999;padding:5px 10px;cursor:pointer;font-size:0.78rem;">Revoke Admin</button>',
+        '</div>',
+      '</div>',
+    '</div>',
+
     // ── Footer hint ────────────────────────────────────────────────────────
     '<div style="font-size:0.7rem;opacity:0.35;text-align:center;padding-top:4px;',
       'border-top:1px solid rgba(255,140,0,0.15);">Press F9 to close</div>',
@@ -322,6 +341,18 @@ function _adminPanelDelete() {
   if (!confirm('Permanently delete account "' + name + '"?')) return;
   adminDeleteAccount(id);
   _adminToast('Deleted: ' + name);
+}
+
+async function _adminPanelGrantAdmin(granted) {
+  const id = ((document.getElementById('adminGrantIdInput') || {}).value || '').trim();
+  if (!id) { _adminToast('Enter an account ID first', true); return; }
+  if (!/^acct_/.test(id)) { _adminToast('ID must start with acct_', true); return; }
+  const ok = await grantAdminRemote(id, granted);
+  if (ok) {
+    _adminToast((granted ? 'Admin granted: ' : 'Admin revoked: ') + id);
+  } else {
+    _adminToast('Failed — check console for details', true);
+  }
 }
 
 function _adminPanelJoinLobby() {
@@ -737,6 +768,10 @@ window.addEventListener('load', function() {
   setTimeout(async function() {
     // Pull server bans into local cache first (so local check also catches them).
     await syncBansFromServer();
+    // Pull server-side admin overrides so cross-device grants take effect.
+    if (typeof syncAdminOverridesFromServer === 'function') {
+      await syncAdminOverridesFromServer();
+    }
     // Then check whether the active account is banned.
     await checkAndShowBanScreen();
     // Schedule periodic background re-sync while the tab is open.

@@ -30,6 +30,9 @@
 //   POST   /api/rewards/claim  [user]        — claim match/story rewards
 //   GET    /api/live-config                  — live ops configuration (public)
 //   POST   /api/live-config    [admin]       — update live ops config
+//   GET    /api/admin/overrides [admin]      — list server-side admin grants/revokes
+//   POST   /api/admin/overrides [admin]      — grant or revoke admin for an account ID
+//   DELETE /api/admin/overrides/:id [admin] — remove an admin override
 //
 //   GET    /admin/state        [admin]       — server runtime stats
 //   GET    /admin/logs         [admin]       — recent admin action log entries
@@ -122,6 +125,14 @@ function _loadBans() {
 function _saveBans(data) {
   data.lastModified = Date.now();
   storage.set('bans', data);
+}
+
+function _loadAdminOverrides() {
+  return storage.get('adminOverrides') || { overrides: {} };
+}
+
+function _saveAdminOverrides(data) {
+  storage.set('adminOverrides', data);
 }
 
 // Removes expired records in-place. Returns true if any were removed.
@@ -841,6 +852,58 @@ function _handleRequest(req, res) {
       }
       _json(res, 200, { ok: true, removed: removedKeys.length });
     }).catch(err => _json(res, 500, { error: err.message }));
+    return;
+  }
+
+  // ── GET /api/admin/overrides ──────────────────────────────────────────────────
+  // Returns all server-side admin grants/revokes. Requires a signed admin session.
+  if (pathname === '/api/admin/overrides' && req.method === 'GET') {
+    if (!_isAdmin(req)) { _json(res, 403, { error: 'Forbidden' }); return; }
+    const data = _loadAdminOverrides();
+    _json(res, 200, { overrides: data.overrides });
+    return;
+  }
+
+  // ── POST /api/admin/overrides ─────────────────────────────────────────────────
+  // Body: { accountId: string, granted: bool }
+  // Grants or revokes admin for the given account ID.
+  if (pathname === '/api/admin/overrides' && req.method === 'POST') {
+    if (!_rateLimit(req, 'admin-write', 60, 60 * 1000)) { _json(res, 429, { error: 'Too many admin writes' }); return; }
+    if (!_isAdmin(req)) { _json(res, 403, { error: 'Forbidden' }); return; }
+    _readBody(req).then(body => {
+      const accountId = _cleanIdentity(body && body.accountId, 80);
+      if (!accountId || !/^acct_/.test(accountId)) {
+        _json(res, 400, { error: 'accountId must be a valid account ID (acct_...)' }); return;
+      }
+      if (typeof body.granted !== 'boolean') {
+        _json(res, 400, { error: 'granted must be a boolean' }); return;
+      }
+      const data = _loadAdminOverrides();
+      data.overrides[accountId] = body.granted;
+      _saveAdminOverrides(data);
+      const adminBy = (req.adminSession && req.adminSession.email) || 'admin';
+      const action = body.granted ? 'GRANT_ADMIN' : 'REVOKE_ADMIN';
+      _pushAdminLog(action, `[${adminBy}] ${body.granted ? 'granted' : 'revoked'} admin for ${accountId}`);
+      console.log(`[AdminOverride] ${body.granted ? 'granted' : 'revoked'} admin → ${accountId}`);
+      _json(res, 200, { ok: true, accountId, granted: body.granted });
+    }).catch(err => _json(res, 500, { error: err.message }));
+    return;
+  }
+
+  // ── DELETE /api/admin/overrides/:accountId ────────────────────────────────────
+  // Removes the server-side admin override for the given account ID.
+  if (pathname.startsWith('/api/admin/overrides/') && req.method === 'DELETE') {
+    if (!_rateLimit(req, 'admin-write', 60, 60 * 1000)) { _json(res, 429, { error: 'Too many admin writes' }); return; }
+    if (!_isAdmin(req)) { _json(res, 403, { error: 'Forbidden' }); return; }
+    const targetId = decodeURIComponent(pathname.slice('/api/admin/overrides/'.length).trim());
+    if (!targetId) { _json(res, 400, { error: 'Account ID required in path' }); return; }
+    const data = _loadAdminOverrides();
+    if (!data.overrides.hasOwnProperty(targetId)) { _json(res, 404, { error: 'No override found for that ID' }); return; }
+    delete data.overrides[targetId];
+    _saveAdminOverrides(data);
+    const adminBy = (req.adminSession && req.adminSession.email) || 'admin';
+    _pushAdminLog('REMOVE_ADMIN_OVERRIDE', `[${adminBy}] removed admin override for ${targetId}`);
+    _json(res, 200, { ok: true });
     return;
   }
 

@@ -167,7 +167,9 @@
     ].join(';');
     reload.textContent = 'Reload Now';
     reload.onclick = function () {
-      window.location.href = window.location.origin + window.location.pathname + '?_cb=' + Date.now();
+      const url = new URL(window.location.href);
+      url.searchParams.set('v', Date.now());
+      window.location.href = url.toString();
     };
     row.appendChild(reload);
 
