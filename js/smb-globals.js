@@ -549,6 +549,7 @@ let _publicRoomCheckTimer = 0;
 // VERSION
 // ============================================================
 const GAME_VERSION = '3.1.0';  // bump this when releasing; must match CHANGELOG[0].version
+console.log('[VERSION CHECK]', GAME_VERSION);
 
 // DEBUG / DEVELOPER STATE
 // ============================================================
