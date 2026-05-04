@@ -1206,9 +1206,14 @@ function _handleRequest(req, res) {
       return;
     }
     const contentType = mime.lookup(filePath) || 'application/octet-stream';
-    const cacheControl = /\.(?:js|css|png|jpg|jpeg|gif|webp|mp3|wav|ogg)$/i.test(filePath)
-      ? 'public, max-age=31536000, immutable'
-      : 'no-cache';
+    let cacheControl = 'no-cache';
+    if (/\.(?:png|jpg|jpeg|gif|webp|mp3|wav|ogg)$/i.test(filePath)) {
+      cacheControl = 'public, max-age=31536000, immutable';
+    } else if (/\.(?:js|css)$/i.test(filePath)) {
+      cacheControl = 'no-cache, must-revalidate';
+    } else if (/\.html?$/i.test(filePath)) {
+      cacheControl = 'no-store, no-cache, must-revalidate';
+    }
     res.writeHead(200, { 'Content-Type': contentType, 'Cache-Control': cacheControl });
     res.end(data);
   });
