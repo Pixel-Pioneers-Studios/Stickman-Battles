@@ -1015,6 +1015,9 @@ function gameLoop(timestamp) {
     ctx.restore();
   }
 
+  // Always tick FPS so console 'fps' command works without debug overlay open
+  if (typeof _dbgTickFps === 'function' && !debugMode) _dbgTickFps();
+
   // Debug overlay (drawn last, in screen-space)
   if (debugMode) {
     runSanityChecks();

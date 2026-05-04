@@ -548,7 +548,7 @@ let _publicRoomCheckTimer = 0;
 // ============================================================
 // VERSION
 // ============================================================
-const GAME_VERSION = '3.0.0';  // bump this when releasing; must match CHANGELOG[0].version
+const GAME_VERSION = '3.1.0';  // bump this when releasing; must match CHANGELOG[0].version
 
 // DEBUG / DEVELOPER STATE
 // ============================================================

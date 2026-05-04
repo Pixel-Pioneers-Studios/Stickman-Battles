@@ -578,6 +578,8 @@ class God extends Fighter {
     ctx.save();
     ctx.translate(cx, cy);
     ctx.rotate(this._crossAngle);
+    ctx.shadowColor = accentCol;
+    ctx.shadowBlur  = 8;
     const RAYS = 8;
     for (let r = 0; r < RAYS; r++) {
       const ang   = (r / RAYS) * Math.PI * 2;
@@ -588,9 +590,7 @@ class God extends Fighter {
       const rGrad = ctx.createLinearGradient(0, -6, 0, -pulse);
       rGrad.addColorStop(0, p2 ? 'rgba(200,140,255,0.38)' : 'rgba(255,242,120,0.42)');
       rGrad.addColorStop(1, 'rgba(255,255,255,0)');
-      ctx.fillStyle   = rGrad;
-      ctx.shadowColor = accentCol;
-      ctx.shadowBlur  = 8;
+      ctx.fillStyle = rGrad;
       ctx.beginPath();
       ctx.moveTo(-5, 0);
       ctx.lineTo(0, -pulse);
@@ -602,6 +602,9 @@ class God extends Fighter {
     ctx.restore();
 
     // ── Layer 3: Gyroscopic halo rings (3 rings, different tilt axes) ───
+    ctx.save();
+    ctx.shadowColor = accentCol;
+    ctx.shadowBlur  = 22;
     for (let h = 0; h < 3; h++) {
       this._haloAngles[h] += 0.011 + h * 0.006;
       const ha    = this._haloAngles[h];
@@ -618,13 +621,12 @@ class God extends Fighter {
       ctx.rotate(ha);
       ctx.strokeStyle = hCol;
       ctx.lineWidth   = 2.8 - h * 0.5;
-      ctx.shadowColor = accentCol;
-      ctx.shadowBlur  = 18 + h * 4;
       ctx.beginPath();
       ctx.ellipse(0, 0, rx, ry, 0, 0, Math.PI * 2);
       ctx.stroke();
       ctx.restore();
     }
+    ctx.restore();
 
     // ── Layer 4: Four pairs of seraphic wings ────────────────────────────
     const wingFills = p2
@@ -682,10 +684,10 @@ class God extends Fighter {
           ctx.fill();
         }
 
-        // Feather quill strokes
+        // Feather quill strokes (no shadow — too fine to matter)
         ctx.strokeStyle = p2 ? 'rgba(200,165,255,0.38)' : 'rgba(215,238,255,0.42)';
         ctx.lineWidth   = 0.55;
-        ctx.shadowBlur  = 2;
+        ctx.shadowBlur  = 0;
         const QUILLS = 6;
         for (let q = 0; q < QUILLS; q++) {
           const qf  = q / (QUILLS - 1);
@@ -826,6 +828,10 @@ class God extends Fighter {
     // ── Layer 10: Lissajous-orbit runes ──────────────────────────────────
     this._runeAngle += 0.016;
     const RUNE_N = p2 ? 14 : 10;
+    ctx.save();
+    ctx.shadowColor = p2 ? 'rgba(215,165,255,0.9)' : 'rgba(255,232,80,0.9)';
+    ctx.shadowBlur  = 9;
+    ctx.lineWidth   = 1.3;
     for (let i = 0; i < RUNE_N; i++) {
       const base  = this._runeAngle + (i / RUNE_N) * Math.PI * 2;
       const rx    = cx + Math.cos(base) * 58 + Math.cos(base * 2.1 + i * 0.6) * 12;
@@ -834,11 +840,7 @@ class God extends Fighter {
       ctx.save();
       ctx.translate(rx, ry);
       ctx.rotate(base * 2.8);
-      ctx.shadowColor = p2 ? 'rgba(215,165,255,0.9)' : 'rgba(255,232,80,0.9)';
-      ctx.shadowBlur  = 9;
       ctx.strokeStyle = p2 ? `rgba(210,170,255,${brite})` : `rgba(255,242,108,${brite})`;
-      ctx.lineWidth   = 1.3;
-      // Star-rune: two overlapping triangles
       ctx.beginPath();
       for (let v = 0; v < 6; v++) {
         const va = (v / 6) * Math.PI * 2;
@@ -850,6 +852,7 @@ class God extends Fighter {
       ctx.stroke();
       ctx.restore();
     }
+    ctx.restore();
 
     ctx.restore();
 
@@ -941,41 +944,43 @@ class God extends Fighter {
     }
 
     // Radiant nova orbs
-    for (const b of this._novaRings) {
-      const a = Math.max(0, 1 - b.timer / b.maxTimer);
+    if (this._novaRings.length > 0) {
       ctx.save();
       ctx.shadowColor = p2 ? 'rgba(220,180,255,0.9)' : 'rgba(255,232,80,0.9)';
       ctx.shadowBlur  = 16;
-      // Outer glow orb
-      ctx.fillStyle = p2 ? `rgba(200,150,255,${a * 0.5})` : `rgba(255,235,100,${a * 0.5})`;
-      ctx.beginPath();
-      ctx.arc(b.x, b.y, 13, 0, Math.PI * 2);
-      ctx.fill();
-      // Bright core
-      ctx.fillStyle = `rgba(255,255,255,${a * 0.9})`;
-      ctx.beginPath();
-      ctx.arc(b.x, b.y, 5, 0, Math.PI * 2);
-      ctx.fill();
+      for (const b of this._novaRings) {
+        const a = Math.max(0, 1 - b.timer / b.maxTimer);
+        ctx.fillStyle = p2 ? `rgba(200,150,255,${a * 0.5})` : `rgba(255,235,100,${a * 0.5})`;
+        ctx.beginPath();
+        ctx.arc(b.x, b.y, 13, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = `rgba(255,255,255,${a * 0.9})`;
+        ctx.beginPath();
+        ctx.arc(b.x, b.y, 5, 0, Math.PI * 2);
+        ctx.fill();
+      }
       ctx.restore();
     }
 
     // Smite shockwave rings
-    for (const ring of this._smiteRings) {
+    if (this._smiteRings.length > 0) {
       ctx.save();
-      ctx.strokeStyle = p2
-        ? `rgba(190,128,255,${ring.alpha * 0.65})`
-        : `rgba(255,232,80,${ring.alpha * 0.65})`;
-      ctx.lineWidth   = 4 * ring.alpha;
       ctx.shadowColor = p2 ? 'rgba(160,95,255,0.85)' : 'rgba(255,222,55,0.85)';
       ctx.shadowBlur  = 18;
-      ctx.beginPath();
-      ctx.arc(godCx, godCy, ring.r, 0, Math.PI * 2);
-      ctx.stroke();
-      ctx.strokeStyle = `rgba(255,255,255,${ring.alpha * 0.3})`;
-      ctx.lineWidth   = 1.5;
-      ctx.beginPath();
-      ctx.arc(godCx, godCy, ring.r * 0.86, 0, Math.PI * 2);
-      ctx.stroke();
+      for (const ring of this._smiteRings) {
+        ctx.strokeStyle = p2
+          ? `rgba(190,128,255,${ring.alpha * 0.65})`
+          : `rgba(255,232,80,${ring.alpha * 0.65})`;
+        ctx.lineWidth = 4 * ring.alpha;
+        ctx.beginPath();
+        ctx.arc(godCx, godCy, ring.r, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.strokeStyle = `rgba(255,255,255,${ring.alpha * 0.3})`;
+        ctx.lineWidth   = 1.5;
+        ctx.beginPath();
+        ctx.arc(godCx, godCy, ring.r * 0.86, 0, Math.PI * 2);
+        ctx.stroke();
+      }
       ctx.restore();
     }
   }
