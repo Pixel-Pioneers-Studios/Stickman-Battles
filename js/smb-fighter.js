@@ -333,6 +333,7 @@ class Fighter {
     if (this.boostCooldown > 0)        this.boostCooldown--;
     if (this.shieldCooldown > 0)       this.shieldCooldown--;
     if (this._projDeflectCd > 0)       this._projDeflectCd--;
+    if (this._parryVulnFrames > 0)     this._parryVulnFrames--;
     if (this.contactDamageCooldown > 0) this.contactDamageCooldown--;
     // Reload ticker — refill clip when timer expires
     if (this._reloadTimer > 0) {
@@ -387,7 +388,7 @@ class Fighter {
       // Build a set of hit-check points: tip + mid-arc + close-arc for wide coverage
       const hitPoints = this._getMeleeArcPoints();
       if (hitPoints.length > 0) {
-        const hitPad = 8; // tight horizontal pad — reduces phantom hits from behind/above
+        const hitPad = 6; // tight horizontal pad — reduces phantom hits from behind/above
 
         // Helper: is any hit point inside the target's box?
         // Y-axis is strict: no hit if attacker and target have > 70px vertical separation.
@@ -932,8 +933,8 @@ class Fighter {
       : (this.facing > 0
           ? lerp(-0.45, 1.1, atkP)
           : lerp(Math.PI + 0.45, Math.PI - 1.1, atkP));
-    const tipLens = { sword: 30, hammer: 34, axe: 26, spear: 44, gauntlet: 28, mkgauntlet: 34 };
-    const wLen    = tipLens[this.weaponKey] || 26;
+    const tipLens = { sword: 26, hammer: 30, axe: 23, spear: 40, gauntlet: 22, mkgauntlet: 30 };
+    const wLen    = tipLens[this.weaponKey] || 23;
     const reach   = armLen + wLen;
     return {
       x: cx         + Math.cos(ang) * reach,
@@ -958,8 +959,8 @@ class Fighter {
       : (this.facing > 0
           ? lerp(-0.45, 1.1, atkP)
           : lerp(Math.PI + 0.45, Math.PI - 1.1, atkP));
-    const tipLens = { sword: 30, hammer: 34, axe: 26, spear: 44, gauntlet: 28, mkgauntlet: 34 };
-    const wLen    = tipLens[this.weaponKey] || 26;
+    const tipLens = { sword: 26, hammer: 30, axe: 23, spear: 40, gauntlet: 22, mkgauntlet: 30 };
+    const wLen    = tipLens[this.weaponKey] || 23;
     const fullReach = armLen + wLen;
     // Sample inner (50%), mid (75%), and tip (100%) along the weapon
     return [0.50, 0.75, 1.0].map(frac => ({
@@ -3313,6 +3314,49 @@ class Fighter {
       // Grip
       ctx.fillStyle = '#224455';
       ctx.beginPath(); ctx.roundRect(-3, 0, 6, 10, 2); ctx.fill();
+      ctx.restore();
+
+    } else if (k === 'nullblade') {
+      // Sovereign's signature weapon — slim geometric blade, dark metal + deep-red edge glow
+      ctx.save();
+      const nbPulse = 0.5 + 0.5 * Math.sin((typeof frameCount !== 'undefined' ? frameCount : 0) * 0.14);
+      ctx.shadowColor = '#cc2200';
+      ctx.shadowBlur  = attacking ? 18 + nbPulse * 10 : 7 + nbPulse * 5;
+      // Main blade body — near-black steel with slight dark-red tint
+      ctx.beginPath();
+      ctx.moveTo(0, -2.5);
+      ctx.lineTo(28, -0.8);
+      ctx.lineTo(32,  0);
+      ctx.lineTo(28,  0.8);
+      ctx.lineTo(0,   2.5);
+      ctx.closePath();
+      const nbGrad = ctx.createLinearGradient(0, 0, 32, 0);
+      nbGrad.addColorStop(0,   '#1a0808');
+      nbGrad.addColorStop(0.45, '#2d0d0d');
+      nbGrad.addColorStop(1,   'rgba(80,10,10,0)');
+      ctx.fillStyle = nbGrad;
+      ctx.fill();
+      // Edge line — single bright red stroke on the upper edge
+      ctx.strokeStyle = `rgba(220,40,0,${(0.55 + nbPulse * 0.30).toFixed(2)})`;
+      ctx.lineWidth   = 1;
+      ctx.beginPath(); ctx.moveTo(0, -2.5); ctx.lineTo(32, 0); ctx.stroke();
+      // Thin fuller groove down the centre
+      ctx.strokeStyle = `rgba(180,20,0,${(0.28 + nbPulse * 0.18).toFixed(2)})`;
+      ctx.lineWidth   = 0.6;
+      ctx.beginPath(); ctx.moveTo(3, 0); ctx.lineTo(26, 0); ctx.stroke();
+      // Crossguard — two minimal prongs
+      ctx.fillStyle = '#2a0808';
+      ctx.shadowBlur = 6;
+      ctx.beginPath(); ctx.roundRect(-2, -7, 4, 14, 1); ctx.fill();
+      ctx.strokeStyle = '#cc2200'; ctx.lineWidth = 0.8;
+      ctx.strokeRect(-2, -7, 4, 14);
+      // Glowing tip
+      ctx.globalAlpha = 0.6 + nbPulse * 0.35;
+      ctx.shadowColor = '#ff2200';
+      ctx.shadowBlur  = 12 + nbPulse * 8;
+      ctx.fillStyle   = '#ff4422';
+      ctx.beginPath(); ctx.arc(32, 0, 1.8, 0, Math.PI * 2); ctx.fill();
+      ctx.globalAlpha = 1;
       ctx.restore();
     }
 

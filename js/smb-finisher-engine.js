@@ -61,8 +61,8 @@ function triggerFinisher(attacker, target) {
     else if (attacker.isBeast)         _pool = _BEAST_KILL_POOL;
     else                               _pool = _CREATOR_KILL_POOL;
     def = _pool[Math.floor(Math.random() * _pool.length)];
-  } else if (target.isBoss && !attacker.isBoss) {
-    // Player kills boss
+  } else if ((target.isBoss || target.isSovereignMK2) && !attacker.isBoss) {
+    // Player kills boss or Sovereign
     def = FIN_HEROS_TRIUMPH;
   } else if (!attacker.isBoss && !target.isBoss) {
     // Player vs player

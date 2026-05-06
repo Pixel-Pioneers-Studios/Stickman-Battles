@@ -584,4 +584,62 @@ const CLASS_FINISHERS = {
       _finTitle(ctx,'FINAL JUDGMENT',t,'rgba(220,180,40,1)');
     }
   ),
+
+  // ── nullblade (Sovereign's signature weapon) ─────────────────
+  // VOID RECKONING: Sovereign dashes forward and opens a null-space
+  // slash that erases everything in its path — blade trace, crimson
+  // shockwave, brief screen-void (black flash), aftermath fire.
+  nullblade: _wfDef('VOID RECKONING','rgba(220,40,0,1)',124,
+    (att,tgt,data)=>{ _wfBaseSetup(att,tgt,data); data.slashFired=false; data.slashAngle=0;
+      data.tracers=[]; data.voidFlash=0;
+      data.tl=_makeTimeline([
+        {frame:0,  fn(){ CinCam.zoomTo(1.28); CinCam.focusMidpoint(att,tgt); CinCam.slowMo(0.22); }},
+        {frame:10, fn(){ CinCam.focusOn(att); }},
+        {frame:28, fn(){ CinCam.slowMo(0.06); CinCam.zoomTo(1.6); CinCam.focusMidpoint(att,tgt); }},
+        {frame:38, fn(){ data.slashFired=true; data.slashAngle=Math.atan2(tgt.cy()-att.cy(),tgt.cx()-att.cx()); CinCam.slowMo(1.0); CinCam.shake(36); spawnParticles(tgt.cx(),tgt.cy(),'#cc2200',44); spawnParticles(tgt.cx(),tgt.cy(),'#ff4400',18); spawnParticles(tgt.cx(),tgt.cy(),'#000000',16); data.shockR=1;data.shockAlpha=0.95; data.voidFlash=12; CinCam.focusOn(tgt); CinCam.zoomTo(1.35); }},
+        {frame:92, fn(){ CinCam.restore(); }},
+      ]); },
+    (att,tgt,timer,data)=>{ _tickTimeline(data.tl,timer); _wfTick(timer,124,data);
+      if(data.voidFlash>0) data.voidFlash--;
+      // Phase 1 (0-10): lock positions, aura builds
+      if(timer<10){ att.x=data.ax0;att.y=data.ay0; tgt.x=data.tx0;tgt.y=data.ty0; data.auraAlpha=0; }
+      // Phase 2 (10-28): dash approach with red aura
+      else if(timer<28){ const p=(timer-10)/18; att.x=data.ax0+data.dir*_finEaseOut(p)*50; att.y=data.ay0; tgt.x=data.tx0;tgt.y=data.ty0; data.auraAlpha=p*0.9; data.auraR=32+p*22; }
+      // Phase 3 (28-38): freeze — blade drawn back
+      else if(timer<38){ att.x=data.ax0+data.dir*50; tgt.x=data.tx0;tgt.y=data.ty0; data.auraAlpha=0.9; data.auraR=54; }
+      // Phase 4+ (38-): target launches
+      else{ const p=Math.min(1,(timer-38)/62); tgt.x=data.tx0+data.dir*_finEaseOut(p)*95; tgt.y=data.ty0-_finEaseOut(p)*22; att.x=data.ax0+data.dir*50; data.auraAlpha=Math.max(0,data.auraAlpha-0.036); }
+      // Blade tracers (crimson afterimage lines)
+      if(timer>=28&&timer<=42&&data.slashFired){ data.tracers.push({x:att.cx(),y:att.cy(),a:0.85,fr:0}); }
+      for(const tr of data.tracers){ tr.a=Math.max(0,tr.a-0.055); tr.fr++; }
+      data.tracers=data.tracers.filter(tr=>tr.a>0);
+      att.vx=0;att.vy=0;tgt.vx=0;tgt.vy=0; },
+    (ctx,att,tgt,t,timer,data)=>{
+      const {scX,scY,ox,oy}=_finGameTransform();
+      _finBars(ctx,data.bars); _finVignette(ctx,0.50);
+      _wfDrawAura(ctx,att,'rgba(220,40,0,1)',data.auraAlpha,data.auraR,scX,scY,ox,oy);
+      ctx.save(); ctx.setTransform(scX,0,0,scY,ox,oy);
+      // Crimson blade tracers
+      for(const tr of data.tracers){
+        ctx.strokeStyle=`rgba(220,40,0,${tr.a})`; ctx.lineWidth=2+tr.a*3;
+        ctx.shadowColor='#cc2200'; ctx.shadowBlur=14;
+        ctx.beginPath();
+        ctx.moveTo(tr.x,tr.y); ctx.lineTo(tr.x+Math.cos(data.slashAngle)*44,tr.y+Math.sin(data.slashAngle)*44);
+        ctx.stroke();
+      }
+      // Shockwave ring
+      if(data.shockR>0&&data.shockAlpha>0){
+        ctx.strokeStyle=`rgba(220,40,0,${data.shockAlpha})`; ctx.lineWidth=5+data.shockAlpha*4;
+        ctx.shadowColor='#ff2200'; ctx.shadowBlur=24;
+        ctx.beginPath(); ctx.arc(tgt.cx(),tgt.cy(),data.shockR,0,Math.PI*2); ctx.stroke();
+        _finImpactLines(ctx,tgt.cx(),tgt.cy(),12,data.shockR*0.45,'#ff3300',3.5);
+      }
+      ctx.restore();
+      // Void flash — brief black-out on impact (Null Blade erases)
+      if(data.voidFlash>0) _finFlash(ctx,Math.min(1,data.voidFlash/8)*0.75,0,0,0);
+      if(timer>=42&&timer<=50) _finFlash(ctx,(50-timer)/8*0.72,220,40,0);
+      if(timer>60&&timer<116) _finSubtitle(ctx,'"There was never any other outcome."',t);
+      _finTitle(ctx,'VOID RECKONING',t,'rgba(220,40,0,1)');
+    }
+  ),
 };

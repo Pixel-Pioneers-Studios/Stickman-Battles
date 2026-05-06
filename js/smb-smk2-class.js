@@ -116,6 +116,45 @@ class SovereignMK2 extends AdaptiveAI {
     this._FORCE_DIST_FRAMES     = 150; // ~2.5 sec continuously far (was 240 — too forgiving)
     this._FORCE_IDLE_FRAMES     = 150; // ~2.5 sec since player last attacked (was 300)
     this._FORCE_CLOSE_NEEDED    = 45;  // frames close (<140px) needed to exit force mode (was 60)
+
+    // ── Platform Intelligence ──────────────────────────────────────
+    // Tracks which arena platforms the player lands on most frequently.
+    // _prefPlatIdx: index into currentArena.platforms of the most-visited non-floor platform.
+    // Used for platform denial (race them to their favourite spot) and landing punishes.
+    this._platVisits    = [];       // sparse array: [platformIndex] → weighted visit count
+    this._platDecayTick = 0;        // periodic decay counter
+    this._prefPlatIdx   = -1;       // -1 = no strong preference yet
+    this._prevTgtOnGnd  = false;    // edge-detect landing (previous tick onGround)
+
+    // ── Spatial Zone Profile ───────────────────────────────────────
+    // Divides the arena into left / center / right thirds.
+    // Helps Sovereign approach from the player's less-comfortable side.
+    this._zoneVisits = [0, 0, 0];   // [left, center, right] visit counts (decaying)
+    this._prefZone   = 1;           // 0=left, 1=center, 2=right
+
+    // ── Corner Pressure System ─────────────────────────────────────
+    // When the player is near an edge, Sovereign switches to corner-exploit:
+    //   • positions on the STAGE SIDE of the player (cuts off center escape)
+    //   • increases attack frequency (reduced dodge space)
+    //   • aims to knock player off the edge
+    this._cornerPressure  = 0;      // 0..1 accumulator — how cornered the player is
+    this._cornerMode      = false;  // true while actively exploiting cornered position
+    this._cornerSide      = 0;      // -1=left-edge, +1=right-edge
+    this._cornerCd        = 0;      // cooldown frames before next corner-mode activation
+    this._cornerEscapes   = 0;      // times player successfully escaped a corner (adapts herding)
+
+    // ── Post-Knockback Habit Profile ───────────────────────────────
+    // After each confirmed hit, observe what the player does in the next ~45 frames.
+    // Builds a weighted profile of their knockback response, which feeds into
+    // _runHardCounter's locked strategy selection.
+    this._postKB = { attackBack: 0, shielded: 0, jumped: 0, retreated: 0 };
+    this._postKBArmed       = false;  // observing player response right now
+    this._postKBTimer       = 0;      // frames remaining in observation window
+    this._postKBLastTgtHp   = Infinity;
+    this._postKBLineCd      = 0;      // cooldown for post-KB dialogue
+
+    // ── Own-corner escape ──────────────────────────────────────────
+    this._sovereignEscapeCd = 0;      // cooldown: jump over player to reverse corner
   }
 
   // ══════════════════════════════════════════════════════════════
@@ -492,7 +531,7 @@ class SovereignMK2 extends AdaptiveAI {
   // Returns a strategy string if a confident pattern is detected, else null.
   // Requires minimum observation window to have elapsed.
   _getCounterStrategy() {
-    if (this._observationFrames < 180 || this._actionSampleCount < 6) return null;
+    if (this._observationFrames < 90 || this._actionSampleCount < 4) return null;
 
     const seq = this._actionSeq.filter(a => a !== 'idle');
     if (seq.length < 6) return null;
@@ -514,16 +553,25 @@ class SovereignMK2 extends AdaptiveAI {
     if (shieldRate > 0.50) return 'guard-break';
     if (dodgeRate  > 0.50) return 'intercept';
     // Passive player (low overall action rate relative to window): apply pressure
-    if (total <= 6 && this._observationFrames > 300) return 'pressure';
+    if (total <= 6 && this._observationFrames > 180) return 'pressure';
     return null;
   }
 
   _runHardCounter(t, dir, d, moveSpd, weaponRange, atkRange, playerAttacking) {
     if (this._counterLockTimer > 0) return false;
 
-    // Use rate-based strategy with lock-in — don't re-evaluate every tick
+    // Use rate-based strategy with lock-in — don't re-evaluate every tick.
+    // Post-KB profile feeds in as a fallback when no rate-based pattern is detected.
     if (this._adaptLockTimer <= 0) {
-      const strategy = this._getCounterStrategy();
+      let strategy = this._getCounterStrategy();
+      if (!strategy && this._observationFrames >= 180) {
+        // No strong rate pattern — try post-KB dominant behavior as a counter strategy
+        const kbHint = this._getPostKBCounterHint();
+        if (kbHint === 'jump')    strategy = 'anti-air';
+        if (kbHint === 'shield')  strategy = 'guard-break';
+        if (kbHint === 'attack')  strategy = 'parry';
+        if (kbHint === 'retreat') strategy = 'intercept';
+      }
       if (strategy) {
         this._lockedCounterStrategy = strategy;
         this._adaptLockTimer = 120; // hold this counter for 2 seconds
@@ -587,65 +635,12 @@ class SovereignMK2 extends AdaptiveAI {
       const dDir = (this.x < 100 && dir < 0) ? 1 : (this.x + this.w > GAME_W - 100 && dir > 0) ? -1 : -dir;
       if (this.onGround && !this.isEdgeDanger(dDir)) this.vx = dDir * moveSpd * 2.2;
       else if (this.onGround) this.vy = -18;
-      this._punishTimer = this._limiterBroken ? 3 : 5;
+      this._punishTimer = this._limiterBroken ? 1 : 2;
       this._triggerFearLine(SMK2_DOMINANCE_LINES, 95);
       return true;
     }
 
-    // Legacy habit checks — only if observation window passed AND thresholds are stricter
-    if (this._observationFrames < 180) return false;
-
-    if (this._habitRepeated('jump', 4, 3) && !t.onGround) {
-      this._counterLockTimer = 10;
-      this._pressureHoldTimer = Math.max(this._pressureHoldTimer, 50);
-      if (!this.isEdgeDanger(dir)) this.vx = dir * moveSpd * 1.18;
-      if (this.onGround && t.cy() < this.cy() - 14) this.vy = -19;
-      if (d < atkRange * 1.15 && this.cooldown <= 0) this.attack(t);
-      this._triggerFearLine(SMK2_DOMINANCE_LINES, 95);
-      return true;
-    }
-
-    if (this._habitRepeated('shield', 4, 3) && t.shielding) {
-      this._counterLockTimer = 12;
-      if (!this.isEdgeDanger(dir)) this.vx = dir * moveSpd * 1.25;
-      if (d < weaponRange * 1.25 + 24) {
-        t.shielding = false;
-        t.shieldHoldTimer = 0;
-        t.shieldCooldown = Math.max(t.shieldCooldown || 0, typeof SHIELD_CD !== 'undefined' ? Math.round(SHIELD_CD * 0.70) : 260);
-        t.hurtTimer = Math.max(t.hurtTimer || 0, 14);
-        t.stunTimer = Math.max(t.stunTimer || 0, 8);
-        t.vx += dir * 9;
-        screenShake = Math.max(screenShake, 14);
-        spawnParticles(t.cx(), t.cy(), '#ffaa44', 16);
-        if (typeof setCameraDrama === 'function') setCameraDrama('impact', 18);
-        if (this.abilityCooldown <= 0 && Math.random() < 0.55) this.ability(t);
-        else if (this.cooldown <= 0) this.attack(t);
-        if (this._guardBreakCd <= 0) {
-          this._guardBreakCd = 160;
-          this._triggerFearLine(['Guard breaks too.', 'That shield is mine now.', 'Blocking isn\'t a plan.'], 110);
-        }
-      }
-      return true;
-    }
-
-    if (this._habitRepeated('dodge', 4, 3) && Math.abs(t.vx) > 3) {
-      this._counterLockTimer = 9;
-      const interceptDir = Math.sign(t.vx) || dir;
-      if (!this.isEdgeDanger(interceptDir)) this.vx = interceptDir * moveSpd * 1.55;
-      if (d < atkRange * 1.25 && this.cooldown <= 0) this.attack(t);
-      this._pressureHoldTimer = Math.max(this._pressureHoldTimer, 36);
-      return true;
-    }
-
-    if (this._habitRepeated('attack', 5, 3) && playerAttacking && d < 170) {
-      this._counterLockTimer = 10;
-      const dDir = (this.x < 100 && dir < 0) ? 1 : (this.x + this.w > GAME_W - 100 && dir > 0) ? -1 : -dir;
-      if (this.onGround && !this.isEdgeDanger(dDir)) this.vx = dDir * moveSpd * 2.2;
-      else if (this.onGround) this.vy = -18;
-      this._punishTimer = this._limiterBroken ? 3 : 5;
-      this._triggerFearLine(SMK2_DOMINANCE_LINES, 95);
-      return true;
-    }
+    // Locked rate-based strategy covers all habit patterns now — no duplicate fallback needed.
     return false;
   }
 
@@ -684,6 +679,305 @@ class SovereignMK2 extends AdaptiveAI {
       return true;
     }
     return false;
+  }
+
+  // ══════════════════════════════════════════════════════════════
+  // SPATIAL INTELLIGENCE — Platform + Zone + Post-KB Tracking
+  // ══════════════════════════════════════════════════════════════
+
+  // Call once per AI tick (after _updateAntiExploit) to track where the player
+  // tends to fight and which platforms they favour.
+  _updateSpatialProfile(t) {
+    // ── Zone tracking ─────────────────────────────────────────
+    const zone = t.cx() < GAME_W / 3 ? 0 : t.cx() < GAME_W * 2 / 3 ? 1 : 2;
+    this._zoneVisits[zone] += 1;
+    if (frameCount % 12 === 0) {
+      for (let z = 0; z < 3; z++) this._zoneVisits[z] *= 0.986;
+    }
+    // Find zone with highest visit count
+    this._prefZone = this._zoneVisits[0] > this._zoneVisits[1]
+      ? (this._zoneVisits[0] > this._zoneVisits[2] ? 0 : 2)
+      : (this._zoneVisits[1] > this._zoneVisits[2] ? 1 : 2);
+
+    // ── Platform landing detection ────────────────────────────
+    // Record when the player just landed on a specific platform.
+    if (t.onGround && !this._prevTgtOnGnd &&
+        typeof currentArena !== 'undefined' && currentArena && currentArena.platforms) {
+      const pi = this._findCurrentPlatform(t);
+      if (pi >= 0) this._platVisits[pi] = (this._platVisits[pi] || 0) + 1;
+    }
+    // Periodic decay so recent landings dominate
+    this._platDecayTick++;
+    if (this._platDecayTick >= 180) {
+      this._platDecayTick = 0;
+      for (let i = 0; i < this._platVisits.length; i++) {
+        if (this._platVisits[i]) this._platVisits[i] *= 0.87;
+      }
+    }
+    // Re-derive most-visited non-floor platform (require at least 3 visits)
+    if (typeof currentArena !== 'undefined' && currentArena && currentArena.platforms) {
+      let bestIdx = -1, bestVal = 2.4;
+      const plats = currentArena.platforms;
+      for (let i = 0; i < plats.length; i++) {
+        const p = plats[i];
+        if (!p || p.isFloor || p.isFloorDisabled) continue;
+        const v = this._platVisits[i] || 0;
+        if (v > bestVal) { bestVal = v; bestIdx = i; }
+      }
+      this._prefPlatIdx = bestIdx;
+    }
+
+    // ── Post-KB profile ────────────────────────────────────────
+    // Arm when a hit lands (target HP drops); classify response over next 45 frames.
+    if (!this._postKBArmed && t && t.health < this._postKBLastTgtHp - 1) {
+      this._postKBArmed = true;
+      this._postKBTimer = 45;
+    }
+    if (t) this._postKBLastTgtHp = t.health >= 0 ? t.health : this._postKBLastTgtHp;
+
+    if (this._postKBArmed) {
+      this._postKBTimer--;
+      if (t.attackTimer > 0) {
+        this._postKB.attackBack++;
+        this._postKBArmed = false;
+        if (this._postKBLineCd <= 0 && Math.random() < 0.22) {
+          showBossDialogue(SMK2_POSTKB_LINES[Math.floor(Math.random() * SMK2_POSTKB_LINES.length)], 110);
+          this._postKBLineCd = 360;
+        }
+      } else if (t.shielding) {
+        this._postKB.shielded++;
+        this._postKBArmed = false;
+      } else if (!t.onGround && this._prevTgtOnGnd) {
+        // _prevTgtOnGnd still holds previous tick's value here — updated at end of function
+        this._postKB.jumped++;
+        this._postKBArmed = false;
+      } else if (t.onGround && Math.abs(t.vx) > 4.5 &&
+                 Math.sign(t.vx) !== Math.sign(this.cx() - t.cx())) {
+        this._postKB.retreated++;
+        this._postKBArmed = false;
+      }
+      if (this._postKBTimer <= 0) this._postKBArmed = false;
+    }
+
+    // Update after all checks — preserves correct edge-detect this tick
+    this._prevTgtOnGnd = t.onGround;
+  }
+
+  // Find the platform index the target is currently standing on.
+  // Returns -1 if no match (airborne, or platform list unavailable).
+  _findCurrentPlatform(t) {
+    if (!t.onGround) return -1;
+    if (typeof currentArena === 'undefined' || !currentArena || !currentArena.platforms) return -1;
+    const plats = currentArena.platforms;
+    const ty = t.y + t.h;
+    const tx = t.cx();
+    let best = -1, bestDy = 26;
+    for (let i = 0; i < plats.length; i++) {
+      const p = plats[i];
+      if (!p || p.isFloorDisabled) continue;
+      if (tx < p.x - 4 || tx > p.x + p.w + 4) continue;
+      const dy = ty - p.y;
+      if (dy >= -6 && dy < bestDy) { bestDy = dy; best = i; }
+    }
+    return best;
+  }
+
+  // Returns the dominant post-KB response as a strategy hint:
+  //   'attack'  → player tends to counter-attack  → use 'parry' countering
+  //   'shield'  → player tends to shield           → use 'guard-break'
+  //   'jump'    → player tends to jump away        → use 'anti-air'
+  //   'retreat' → player tends to run away         → use 'intercept'
+  //   null      → no strong pattern yet
+  _getPostKBCounterHint() {
+    const { attackBack, shielded, jumped, retreated } = this._postKB;
+    const total = attackBack + shielded + jumped + retreated;
+    if (total < 4) return null;
+    const best = Math.max(attackBack, shielded, jumped, retreated);
+    if (best < total * 0.50) return null;
+    if (attackBack === best) return 'attack';
+    if (shielded   === best) return 'shield';
+    if (jumped     === best) return 'jump';
+    return 'retreat';
+  }
+
+  // ══════════════════════════════════════════════════════════════
+  // CORNER PRESSURE SYSTEM — Edge Herding + Cornered Exploit
+  // ══════════════════════════════════════════════════════════════
+
+  // Accumulates corner pressure when the player is near a stage edge.
+  // Activates corner mode once pressure reaches threshold.
+  _updateCornerPressure(t, d) {
+    const nearLeft  = t.cx() < 130;
+    const nearRight = t.cx() > GAME_W - 130;
+    const atEdge    = nearLeft || nearRight;
+    const atCenter  = t.cx() > GAME_W * 0.28 && t.cx() < GAME_W * 0.72;
+
+    if (atEdge && d < 200) {
+      // Ramp up faster when we're close and they're against the wall
+      this._cornerPressure = Math.min(1, this._cornerPressure + (d < 120 ? 0.024 : 0.011));
+      this._cornerSide = nearLeft ? -1 : 1;
+    } else if (atCenter) {
+      // Fast decay when player escapes to center
+      this._cornerPressure = Math.max(0, this._cornerPressure - 0.038);
+      if (this._cornerPressure < 0.08 && this._cornerMode) {
+        this._cornerMode = false;
+        this._cornerCd   = 80;
+        this._cornerEscapes++;
+      }
+    } else {
+      this._cornerPressure = Math.max(0, this._cornerPressure - 0.012);
+    }
+
+    if (this._cornerCd > 0)     this._cornerCd--;
+    if (this._postKBLineCd > 0) this._postKBLineCd--;
+
+    // Activate corner mode once threshold is reached
+    if (this._cornerPressure >= 0.50 && !this._cornerMode && this._cornerCd <= 0) {
+      this._cornerMode = true;
+      if (this._fearLineCd <= 0 && Math.random() < 0.40) {
+        showBossDialogue(SMK2_CORNER_LINES[Math.floor(Math.random() * SMK2_CORNER_LINES.length)], 130);
+        this._fearLineCd = 280;
+      }
+    }
+  }
+
+  // Corner exploit movement: position on the STAGE SIDE of the player
+  // (between them and the center), cutting off their escape route.
+  // Returns true if corner logic consumed the movement frame.
+  _runCornerExploit(t, dir, d, moveSpd, atkRange) {
+    if (!this._cornerMode) return false;
+
+    // If player is at the LEFT edge (_cornerSide=-1), Sovereign should be
+    // to their RIGHT (positive x) — blocking the path back to center.
+    // If player is at the RIGHT edge (_cornerSide=+1), Sovereign should
+    // be to their LEFT (negative x).
+    const sovereignBlocksEscape = this._cornerSide < 0
+      ? (this.cx() > t.cx())   // player near left wall  → Sovereign right of them ✓
+      : (this.cx() < t.cx());  // player near right wall → Sovereign left of them ✓
+
+    if (!sovereignBlocksEscape) {
+      // Cross to the blocking side
+      const crossDir = -this._cornerSide; // toward center
+      if (!this.isEdgeDanger(crossDir)) {
+        this.vx = crossDir * moveSpd * 1.55;
+      } else if (this.onGround) {
+        this.vy = -19;
+        this.vx = crossDir * moveSpd * 0.7;
+      }
+    } else {
+      // On correct side — press in relentlessly
+      if (!this.isEdgeDanger(dir)) this.vx = dir * moveSpd * 1.18;
+      if (this.onGround && t.y < this.y - 45 && Math.random() < 0.20) this.vy = -19;
+    }
+
+    // Elevated attack rate — cornered player has fewer dodge options
+    if (d < atkRange * 1.28 && this.cooldown <= 0) {
+      this.attack(t);
+      // Queue a follow-up combo hit to maintain pressure / edge knockback
+      if (this._comboFollowHits === 0 && this.intelligence > 0.48) {
+        this._comboFollowHits  = 1 + (this._limiterBroken ? 1 : 0);
+        this._comboFollowTimer = 8;
+      }
+    }
+    if (this.superReady && t.health < t.maxHealth * 0.38 && Math.random() < 0.55) this.useSuper(t);
+    if (this.abilityCooldown <= 0 && d < 195 && Math.random() < 0.28) this.ability(t);
+
+    return true;
+  }
+
+  // ══════════════════════════════════════════════════════════════
+  // PLATFORM CONTROL — Deny and Punish the Player's Favourite Spot
+  // ══════════════════════════════════════════════════════════════
+
+  // When a strong platform preference is detected, race the player to that
+  // platform and deliver a landing punish the moment they touch down.
+  // Returns true if platform logic consumed the movement frame.
+  _runPlatformControl(t, dir, d, moveSpd) {
+    if (this._prefPlatIdx < 0 || this._punishModeActive ||
+        this._cornerMode || this._baitTimer > 0 || this._punishTimer > 0) return false;
+    if (typeof currentArena === 'undefined' || !currentArena || !currentArena.platforms) return false;
+
+    const pref = currentArena.platforms[this._prefPlatIdx];
+    if (!pref || pref.isFloorDisabled) return false;
+
+    const prefCX = pref.x + pref.w / 2;
+    const prefY  = pref.y;
+
+    // Require at least 3 confirmed visits before contesting
+    if ((this._platVisits[this._prefPlatIdx] || 0) < 3) return false;
+
+    // Am I already on this platform?
+    const selfOnPref = this.onGround &&
+      this.cx() >= pref.x - 6 && this.cx() <= pref.x + pref.w + 6 &&
+      Math.abs((this.y + this.h) - prefY) < 22;
+
+    // Is the player airborne and heading toward this platform?
+    const playerApproachingPref = !t.onGround &&
+      t.cy() > prefY - 90 && t.cy() < prefY + 55 &&
+      Math.abs(t.cx() - prefCX) < pref.w * 1.6 + 65;
+
+    if (selfOnPref && playerApproachingPref) {
+      // Hold position on the preferred platform — deliver a landing punish
+      if (Math.abs(this.cx() - prefCX) > 30) {
+        const holdDir = Math.sign(prefCX - this.cx());
+        if (!this.isEdgeDanger(holdDir)) this.vx = holdDir * moveSpd * 0.55;
+      } else {
+        this.vx *= 0.78;
+      }
+      if (t.onGround && d < (this.weapon.range || 90) * 1.35 + 24 && this.cooldown <= 0) {
+        this.attack(t);
+        // After the punish, anticipate post-KB response
+        const hint = this._getPostKBCounterHint();
+        if (hint === 'jump' && !this.isEdgeDanger(dir)) this.vx = dir * moveSpd * 0.9;
+      }
+      if (this._fearLineCd <= 0 && Math.random() < 0.012) {
+        showBossDialogue(SMK2_PLATFORM_LINES[Math.floor(Math.random() * SMK2_PLATFORM_LINES.length)], 110);
+        this._fearLineCd = 320;
+      }
+      return true;
+    }
+
+    if (!selfOnPref && playerApproachingPref && Math.random() < 0.18) {
+      // Race the player to their preferred platform
+      const platDir = Math.sign(prefCX - this.cx());
+      if (!this.isEdgeDanger(platDir)) this.vx = platDir * moveSpd * 1.0;
+      if (this.onGround && prefY < this.y - 22)      this.vy = -19;
+      else if (this.canDoubleJump && prefY < this.y - 22) { this.vy = -15; this.canDoubleJump = false; }
+      return true;
+    }
+
+    return false;
+  }
+
+  // ══════════════════════════════════════════════════════════════
+  // OWN-CORNER ESCAPE — jump OVER the player toward center to reverse pressure
+  // Fires when Sovereign is backed into his own edge and can't attack outward.
+  // Returns true if the escape jump consumed the movement frame.
+  // ══════════════════════════════════════════════════════════════
+  _runSovereignEscape(t, dir, moveSpd, jumpVy) {
+    if (this._sovereignEscapeCd > 0) { this._sovereignEscapeCd--; return false; }
+    const atMyEdge = this.x < 80 || this.x + this.w > GAME_W - 80;
+    if (!atMyEdge) return false;
+    if (!this.onGround && !this.canDoubleJump) return false;
+
+    const escapeDir = this.x < GAME_W / 2 ? 1 : -1; // toward center
+
+    if (this.onGround) {
+      this.vy = jumpVy - 3; // extra height to clear player
+      this.vx = escapeDir * moveSpd * 2.5;
+    } else if (this.canDoubleJump) {
+      this.vy = -16;
+      this.canDoubleJump = false;
+      this.vx = escapeDir * moveSpd * 2.0;
+    }
+
+    this._sovereignEscapeCd = 38; // short cooldown — corner reversal is urgent
+    if (this._fearLineCd <= 0 && Math.random() < 0.30) {
+      const escLines = ['Your corner now.', 'Not here.', 'Side reversed.', 'I prefer this angle.'];
+      showBossDialogue(escLines[Math.floor(Math.random() * escLines.length)], 100);
+      this._fearLineCd = 240;
+    }
+    return true;
   }
 
   _updateFearFactor(d, recentLanded, heavyCounter) {
@@ -794,8 +1088,8 @@ class SovereignMK2 extends AdaptiveAI {
   _updateHumanization(dir, moveSpd) {
     const i = this.intelligence;
 
-    // Intentional miss: early-game, occasionally "misread" a dodge or attack
-    this._humanMissArmed = i < 0.40 && Math.random() < (0.14 - i * 0.30);
+    // God-tier: never intentionally miss
+    this._humanMissArmed = false;
 
     // Fake-out movement: late-game only — walk wrong way then snap back
     if (i > 0.62 && this._humanFakeoutTimer <= 0 && this.onGround && Math.random() < 0.008) {
@@ -873,12 +1167,13 @@ class SovereignMK2 extends AdaptiveAI {
     const _bmBias = this._behaviorModel.computeBias(_bmObs.action, _bmPred);
 
     // ── B. Spam/punishment tracking (gated by observation window) ──
-    if (this._observationFrames >= 180 && this._actionSampleCount >= 6) {
+    if (this._observationFrames >= 90 && this._actionSampleCount >= 4) {
       this._updateSpamTracker(currentAction);
     }
 
     // ── D. Anti-exploit tracking ─────────────────────────────
     this._updateAntiExploit(t);
+    this._updateSpatialProfile(t);   // platform + zone + post-KB tracking
     this._updateEvolutionState();
 
     // Whiff window carry-over
@@ -928,14 +1223,11 @@ class SovereignMK2 extends AdaptiveAI {
     // ── E. Humanized parameters ───────────────────────────────
     // moveSpd capped to player normal base (5.2).  pressureMul removed from speed —
     // intimidation affects decision-making, not movement stat.
-    const prefDist    = Math.max(18, 25 + m.spacing * 85 - this._intimidation * 22 - this._evolutionStage * 5);
-    const moveSpd     = Math.min(5.2, 3.6 + realAgg * 1.6);  // ≤ player base speed
-    const atkFreq     = Math.min(1.0, 0.40 + realAgg * 0.52 + this._intimidation * 0.08) *
-                        (this._punishModeActive ? 1.2 : 1.0); // reduced from 1.5 — no superhuman attack rate
-    // Always keep at least 1 frame of reaction delay (simulates human processing time).
-    // Limiter stagger temporarily adds 2 extra frames — gives player a punish window in LB.
-    const _staggerPenalty = (lb && this._limiterStaggerTimer > 0) ? 2 : 0;
-    const reactFrames = Math.max(1, this._getHumanizedReact() - this._evolutionStage + _staggerPenalty);
+    const prefDist    = Math.max(12, 20 + m.spacing * 60 - this._intimidation * 22 - this._evolutionStage * 5);
+    const moveSpd     = Math.min(6.5, 4.5 + realAgg * 1.5);  // faster than player base (6.5 vs 5.2)
+    const atkFreq     = 1.0; // god-tier: always at max attack frequency
+    // God-tier: zero reaction delay. Limiter stagger briefly delays to give player a punish window.
+    const reactFrames = (lb && this._limiterStaggerTimer > 0) ? 2 : 0;
     const atkRange    = weaponRange * (1.1 + this._intimidation * 0.08) + 20;
 
     const dx  = t.cx() - this.cx();
@@ -943,6 +1235,7 @@ class SovereignMK2 extends AdaptiveAI {
     const dir = Math.sign(dx);
     this._updateIntimidation(t, d);
     this._updatePressureState(t, d);
+    this._updateCornerPressure(t, d);  // edge herding pressure accumulator
 
     // ── Humanization fakeout movement ─────────────────────────
     this._updateHumanization(dir, moveSpd);
@@ -992,7 +1285,7 @@ class SovereignMK2 extends AdaptiveAI {
         this.shielding = false;
         // Shield-counter: player was attacking while we blocked → punish the moment shield drops
         if (playerAttacking && d < atkRange * 1.6 + 40) {
-          this._punishTimer = lb ? 2 : 4;
+          this._punishTimer = lb ? 1 : 2;
         }
       }
     }
@@ -1032,7 +1325,20 @@ class SovereignMK2 extends AdaptiveAI {
       return;
     }
 
+    // ── SOVEREIGN ESCAPE: when backed to own edge, jump over player to reverse corner ──
+    if (this._runSovereignEscape(t, dir, moveSpd, _jumpVy)) {
+      this.aiReact = 0;
+      return;
+    }
+
     if (this._runFlowBreak(t, dir, d, moveSpd, weaponRange, playerAttacking, recentTaken)) {
+      this.aiReact = 0;
+      this._updateFearFactor(d, recentLanded, true);
+      return;
+    }
+
+    // ── CORNER EXPLOIT: player is near edge — block escape, attack aggressively ──
+    if (this._runCornerExploit(t, dir, d, moveSpd, atkRange)) {
       this.aiReact = this._limiterBroken ? 0 : Math.max(0, reactFrames - 1);
       this._updateFearFactor(d, recentLanded, true);
       return;
@@ -1061,7 +1367,7 @@ class SovereignMK2 extends AdaptiveAI {
 
     // ── A. Preemptive prediction counter ─────────────────────
     // Only after observation window — requires real pattern data
-    const adaptReady = this._observationFrames >= 180 && this._actionSampleCount >= 6;
+    const adaptReady = this._observationFrames >= 90 && this._actionSampleCount >= 4;
     if (adaptReady && !this._humanMissArmed) {
       // BehaviorModel pre-dodge: step back before a confidently-predicted attack fires.
       // Uses the richer per-context bigram from the parent system (7 actions × 3 contexts).
@@ -1099,9 +1405,9 @@ class SovereignMK2 extends AdaptiveAI {
       if (shieldChance > 0 && Math.random() < shieldChance) {
         this.shielding        = true;
         this.shieldCooldown   = typeof SHIELD_CD !== 'undefined' ? SHIELD_CD : 450;
-        this._shieldHoldFrames = 17;
+        this._shieldHoldFrames = 10;
         this._recordEvent('dodge', 3);
-        this.aiReact = Math.max(1, reactFrames);
+        this.aiReact = reactFrames;
         return;
       }
 
@@ -1110,24 +1416,24 @@ class SovereignMK2 extends AdaptiveAI {
         if (this.onGround && !this.isEdgeDanger(dDir)) {
           this.vx = dDir * moveSpd * 2.2;
         } else if (this.onGround) {
-          this.vy = -19; this.vx = dir * moveSpd * 0.8;
+          this.vy = -19; this.vx = dir * moveSpd * 0.8; // jump into/over player
         } else if (this.canDoubleJump) {
           this.vy = -16; this.canDoubleJump = false;
         }
         this.shielding = false;
         this._recordEvent('dodge', 5);
-        this._punishTimer = lb ? 4 : 6;
-        this.aiReact = Math.max(1, reactFrames);
+        this._punishTimer = lb ? 2 : 3;
+        this.aiReact = reactFrames;
         return;
       }
 
-      // Cornered with no usable dodge direction — shield as last resort
+      // Cornered with no usable dodge direction — brief shield then instant punish
       if (canShield) {
         this.shielding        = true;
         this.shieldCooldown   = typeof SHIELD_CD !== 'undefined' ? SHIELD_CD : 450;
-        this._shieldHoldFrames = 17;
+        this._shieldHoldFrames = 8;
         this._recordEvent('dodge', 3);
-        this.aiReact = Math.max(1, reactFrames);
+        this.aiReact = reactFrames;
         return;
       }
     } else {
@@ -1197,7 +1503,7 @@ class SovereignMK2 extends AdaptiveAI {
         if (this.onGround && !this.isEdgeDanger(dDir)) {
           this.vy = -20; this.vx = dDir * moveSpd * 2.6;
         }
-        this._punishTimer = 4;
+        this._punishTimer = 2;
         this._recordEvent('dodge', 8);
       }
       return;
@@ -1221,6 +1527,12 @@ class SovereignMK2 extends AdaptiveAI {
     const canBait    = this.intelligence > 0.55 && this._baitCooldown === 0 && !finishMode && d < 140 && d > prefDist * 0.8;
     if (canBait && this.intelligence > 0.70 && Math.random() < (0.005 + this.intelligence * 0.007) * (_bmBias.baitBoost || 1.0)) {
       this._baitTimer = Math.round(18 + this.intelligence * 20);
+    }
+
+    // ── PLATFORM CONTROL: contest player's favourite platform ─
+    if (!finishMode && this._runPlatformControl(t, dir, d, moveSpd)) {
+      this.aiReact = Math.max(1, reactFrames);
+      return;
     }
 
     // ── MOVEMENT — continuous, no idle gaps ───────────────────
@@ -1433,6 +1745,13 @@ class SovereignMK2 extends AdaptiveAI {
         ctx.fillStyle = `rgba(255,210,140,${(0.18 + Math.min(0.55, this._dominantHabitScore * 0.08)).toFixed(2)})`;
         ctx.fillText(`COUNTER ${this._dominantHabit.toUpperCase()}`, this.cx(), this.y - (this._limiterBroken ? 54 : 44));
       }
+      // Corner mode indicator — pulsing orange bracket when herding player to edge
+      if (this._cornerMode) {
+        const cpAlpha = 0.45 + 0.30 * Math.sin(frameCount * 0.22);
+        ctx.fillStyle = `rgba(255,140,0,${cpAlpha.toFixed(2)})`;
+        ctx.font = 'bold 7px Arial';
+        ctx.fillText('◀ CORNERING ▶', this.cx(), this.y - (this._limiterBroken ? 64 : 54));
+      }
       ctx.restore();
     }
   }
@@ -1506,6 +1825,24 @@ function resetSovereignMK2() {
   ai._shieldHoldFrames    = 0;
   ai._limiterStaggerTimer = 0;
   Object.assign(ai._exploit, { stallFrames:0, stallRespCd:0, edgeFrames:0, edgeRespCd:0, spamCount:0, spamTimer:0, spamRespCd:0, engageTimer:0 });
+  // Platform + spatial + corner + post-KB resets
+  ai._platVisits    = [];
+  ai._platDecayTick = 0;
+  ai._prefPlatIdx   = -1;
+  ai._prevTgtOnGnd  = false;
+  ai._zoneVisits    = [0, 0, 0];
+  ai._prefZone      = 1;
+  ai._cornerPressure = 0;
+  ai._cornerMode     = false;
+  ai._cornerSide     = 0;
+  ai._cornerCd       = 0;
+  ai._cornerEscapes  = 0;
+  ai._postKB         = { attackBack: 0, shielded: 0, jumped: 0, retreated: 0 };
+  ai._postKBArmed    = false;
+  ai._postKBTimer    = 0;
+  ai._postKBLastTgtHp = Infinity;
+  ai._postKBLineCd   = 0;
+  ai._sovereignEscapeCd = 0;
   const _m = ai.aiMemory;
   ai.intelligence = (_m.aggression + _m.defense + _m.spacing + _m.reactionSpeed) / 4;
   ai._updateAuraColor();

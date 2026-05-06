@@ -1975,7 +1975,8 @@ function showBossDialogue(text, dur = 220) {
 
 function drawBossDialogue(scX, scY, camX, camY) {
   if (bossDialogue.timer <= 0) return;
-  const boss = players.find(p => p.isBoss);
+  // Accept a real boss OR any adaptive AI (Sovereign / AdaptiveAI) as the speaker.
+  const boss = players.find(p => p.isBoss) || players.find(p => p.isAdaptive);
   if (!boss || boss.health <= 0) return;
   bossDialogue.timer--;
 

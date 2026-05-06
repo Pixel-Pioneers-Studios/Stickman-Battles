@@ -288,7 +288,7 @@ function _startGameCore() {
       const w2b  = _p2ResolvedClass !== 'none' && typeof CLASSES !== 'undefined' && CLASSES[_p2ResolvedClass]?.weapon
                    ? CLASSES[_p2ResolvedClass].weapon : w2;
       const c2b  = document.getElementById('p2Color').value;
-      const p2h  = new Fighter(720, 300, c2b, w2b, { left:'j', right:'l', jump:'i', attack:'u', shield:'k', ability:'o', super:'p' }, p2IsBot, diff);
+      const p2h  = new Fighter(720, 300, c2b, w2b, { left:'j', right:'l', jump:'i', attack:'u', shield:'k', ability:'o', super:'[' }, p2IsBot, diff);
       p2h.playerNum = 2; p2h.name = p2IsBot ? 'BOT' : 'P2'; p2h.lives = chosenLives;
       { const _sp2 = pickSafeSpawn('right', _p1SpawnPos.x) || { x: 720, y: 300 };
         p2h.spawnX = _sp2.x; p2h.spawnY = _sp2.y; p2h.x = _sp2.x; p2h.y = _sp2.y - p2h.h; }
@@ -453,7 +453,7 @@ function _startGameCore() {
   } else if (isTrainingMode) {
     if (training2P) {
       // 2P training: both fighters present, shared dummy
-      p2 = new Fighter(720, 300, c2, w2, { left:'j', right:'l', jump:'i', attack:'u', shield:'k', ability:'o', super:'p' }, p2IsBot, diff);
+      p2 = new Fighter(720, 300, c2, w2, { left:'j', right:'l', jump:'i', attack:'u', shield:'k', ability:'o', super:'[' }, p2IsBot, diff);
       p2.playerNum = 2; p2.name = p2IsBot ? 'BOT' : 'P2'; p2.lives = 999;
       { const _sp2 = pickSafeSpawn('right', _p1SpawnPos.x) || { x: 720, y: 300 };
         p2.spawnX = _sp2.x; p2.spawnY = _sp2.y; p2.x = _sp2.x; p2.y = _sp2.y - p2.h; }
@@ -479,7 +479,7 @@ function _startGameCore() {
     p1.lives = (minigameType === 'survival') ? 1 : 99; // survival: 1 life; koth/chaos/soccer: infinite (99)
     if (minigameType === 'koth' || minigameType === 'chaos' || minigameType === 'soccer' || (minigameType === 'survival' && !p2IsNone)) {
       const p2mg = new Fighter(720, 300, c2, w2,
-        { left:'j', right:'l', jump:'i', attack:'u', shield:'k', ability:'o', super:'p' }, p2IsBot, p2Diff);
+        { left:'j', right:'l', jump:'i', attack:'u', shield:'k', ability:'o', super:'[' }, p2IsBot, p2Diff);
       p2mg.playerNum = 2; p2mg.name = p2IsBot ? 'BOT' : 'P2';
       p2mg.lives = (minigameType === 'survival') ? 1 : 99;
       { const _sp2 = pickSafeSpawn('right', _p1SpawnPos.x) || { x: 720, y: 300 };
@@ -537,7 +537,7 @@ function _startGameCore() {
     players = [p1];
     p1.target = null;
   } else {
-    p2 = new Fighter(720, 300, c2, w2, { left:'j', right:'l', jump:'i', attack:'u', shield:'k', ability:'o', super:'p' }, isBot, diff);
+    p2 = new Fighter(720, 300, c2, w2, { left:'j', right:'l', jump:'i', attack:'u', shield:'k', ability:'o', super:'[' }, isBot, diff);
     // In story two-enemy fights, cap p2 lives so total enemy lives ≤ player lives
     const _p2StoryLives = (storyModeActive && storyTwoEnemies) ? Math.max(1, Math.floor(chosenLives / 2)) : chosenLives;
     p2.playerNum = 2; p2.name = p2IsBot ? 'BOT' : 'P2'; p2.lives = _p2StoryLives;
@@ -583,7 +583,7 @@ function _startGameCore() {
       const _p3c = _sed.color || '#cc5500';
       const _p3d = _sed.aiDiff || diff;
       const p3 = new Fighter(_sp3.x, _sp3.y, _p3c, _p3w,
-        { left:'j', right:'l', jump:'i', attack:'u', shield:'k', ability:'o', super:'p' },
+        { left:'j', right:'l', jump:'i', attack:'u', shield:'k', ability:'o', super:'[' },
         true, _p3d);
       // In story two-enemy fights the player must have lives ≥ total enemy lives.
       // Cap each enemy at floor(playerLives/2) so 2 enemies never exceed the player's total.

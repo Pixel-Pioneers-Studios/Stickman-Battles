@@ -129,6 +129,11 @@ function dealDamage(attacker, target, dmg, kbForce, stunMult = 1.0, isSplash = f
   if (target && typeof target._damageTakenMult === 'number') {
     actualDmg = Math.max(1, Math.round(actualDmg * clamp(target._damageTakenMult, 0.25, 3)));
   }
+  // Parry vulnerability: target was parry-stunned — takes 1.5× damage while open
+  if (target && target._parryVulnFrames > 0) {
+    actualDmg = Math.max(1, Math.round(actualDmg * 1.5));
+    spawnParticles(target.cx(), target.cy(), '#ffdd00', 8);
+  }
   // Mirror Fracture ability: reflect 25% damage back to attacker while shielding
   if (target && target.isShielding && target.story2Abilities && target.story2Abilities.has('reflect2') && attacker && attacker !== target) {
     const reflectDmg = Math.max(1, Math.floor(actualDmg * 0.25));
@@ -168,6 +173,23 @@ function dealDamage(attacker, target, dmg, kbForce, stunMult = 1.0, isSplash = f
     actualDmg = Math.max(1, Math.floor(actualDmg * 0.08));
     actualKb  = Math.floor(actualKb * 0.15);
     spawnParticles(target.cx(), target.cy(), '#88ddff', 6);
+    // Parry: near-perfect block (shield raised ≤ 15 frames ago) has a chance to
+    // stun the attacker for 1.5 s and leave them vulnerable to 1.5× damage.
+    if (attacker && !(attacker.stunTimer > 0) && !(attacker.isBoss && attacker.phase >= 3)) {
+      const held = target.shieldHoldTimer || 0;
+      const parryChance = held <= 8 ? 0.65 : held <= 15 ? 0.30 : 0;
+      if (parryChance > 0 && Math.random() < parryChance) {
+        attacker.stunTimer     = Math.max(attacker.stunTimer || 0, 90);
+        attacker._parryVulnFrames = 90;
+        spawnParticles(target.cx(),   target.cy(),   '#ffff00', 22);
+        spawnParticles(target.cx(),   target.cy(),   '#ffffff', 12);
+        spawnParticles(attacker.cx(), attacker.cy(), '#ff8800', 14);
+        screenShake = Math.max(screenShake, 10);
+        if (settings.dmgNumbers)
+          damageTexts.push(new DamageText(target.cx(), target.y - 38, 'PARRY!', '#ffff00'));
+        SoundManager.clang && SoundManager.clang();
+      }
+    }
   } else {
     target.hurtTimer = 8;
     // Hit confirmation flash: brief white overlay drawn over the target in the render loop

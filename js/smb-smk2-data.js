@@ -86,3 +86,28 @@ const SMK2_DOMINANCE_LINES = [
 ];
 const SMK2_STAGE_NAMES = ['OBSERVING', 'READING', 'DOMINATING', 'TYRANT'];
 
+// ── Edge / Corner pressure ────────────────────────────────────
+const SMK2_CORNER_LINES = [
+  'You\'re running out of room.',
+  'The edge is right there.',
+  'Nowhere left to run.',
+  'I prefer you cornered.',
+  'One more step and it\'s over.',
+];
+
+// ── Platform control ─────────────────────────────────────────
+const SMK2_PLATFORM_LINES = [
+  'You keep coming back here.',
+  'I know exactly where you\'re going.',
+  'That platform belongs to me now.',
+  'Predictable path.',
+];
+
+// ── Post-knockback read ───────────────────────────────────────
+const SMK2_POSTKB_LINES = [
+  'You always do that after a hit.',
+  'Same reflex. Same result.',
+  'I\'ve filed that response away.',
+  'Predictable recovery.',
+];
+
