@@ -227,22 +227,6 @@ function _startGameCore() {
     p1._noDoubleJump      = !!_sc.noDoubleJump;  // unified flag checked in smb-loop.js
     p1._storyNoDodge      = !!_sc.noDodge;
   }
-  // Auto-equip saved custom weapon only when the player is not explicitly
-  // asking for random weapons/classes. Random mode should stay random.
-  const _p1WeaponSel = document.getElementById('p1Weapon')?.value || 'sword';
-  const _p1ClassForcesWeapon = typeof CLASSES !== 'undefined' && CLASSES[_p1ResolvedClass] && !!CLASSES[_p1ResolvedClass].weapon;
-  if (!storyModeActive && !isBossMode && gameMode !== 'trueform'
-      && !isCompleteRandMode
-      && _p1WeaponSel !== 'random'
-      && !_p1ClassForcesWeapon
-      && (!onlineMode || onlineAllowCustomWeapons)
-      && typeof loadCustomWeaponSelection === 'function') {
-    const _cwKey = loadCustomWeaponSelection();
-    if (_cwKey && window.CUSTOM_WEAPONS && window.CUSTOM_WEAPONS[_cwKey]) {
-      p1.weapon    = window.CUSTOM_WEAPONS[_cwKey];
-      p1.weaponKey = _cwKey;
-    }
-  }
   // Megaknight spawn fall
   if (p1.charClass === 'megaknight') { p1.y = -120; p1.vy = 2; p1._spawnFalling = true; p1.invincible = 200; SoundManager.megaknightFall && SoundManager.megaknightFall(); }
 

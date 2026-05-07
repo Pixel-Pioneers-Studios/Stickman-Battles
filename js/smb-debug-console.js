@@ -273,9 +273,10 @@ function _consoleExec(raw) {
       'gravity [n]             — set gravity multiplier (1=normal) [dev]',
       'noclip [p1|p2|on|off]   — toggle platform collision [dev]',
       '── Entities ─────────────────────────────────────────────────────',
-      'spawn <forestbeast|yeti|minion|dummy|god> — spawn entity [dev]',
+      'spawn <forestbeast|yeti|minion|dummy|god|absoluteaxiom> — spawn entity [dev]',
       'spawn bot [weapon] [class]    — spawn an AI fighter (e.g. spawn bot gun megaknight) [dev]',
       'summon god — summon God entity (no crash behavior) [dev]',
+      'summon absoluteaxiom (alias: axiom, aa) — summon Absolute Axiom [dev]',
       'bots reset              — reset all bot AI states',
       'bots kill               — kill all bots instantly',
       'boss phase <1|2|3>      — force boss to a phase [dev]',
@@ -442,6 +443,17 @@ function _consoleExec(raw) {
         if (_g) _consoleOk('Summoned God (no crash — dev mode)');
         else    _consoleErr('I am already present.');
       } else _consoleErr('spawnGod not available.');
+    } else if (sub === 'absoluteaxiom' || sub === 'axiom' || sub === 'aa') {
+      if (typeof AbsoluteAxiom === 'undefined') { _consoleErr('AbsoluteAxiom not available.'); return; }
+      const already = Array.isArray(minions) && minions.some(m => m.isAbsoluteAxiom && m.health > 0);
+      if (already) { _consoleErr('Absolute Axiom is already present.'); return; }
+      const _sp = _spawnPos();
+      const _aa = new AbsoluteAxiom(_sp.x, _sp.y);
+      _aa._teamId = 50;
+      minions.push(_aa);
+      window._absoluteAxiomWasAlive = true;
+      if (typeof resetGodCinematicFlags === 'function') resetGodCinematicFlags();
+      _consoleOk('Absolute Axiom summoned. Good luck.');
     } else if (sub === 'bot') {
       if (typeof Fighter === 'undefined') { _consoleErr('Fighter not available.'); return; }
       const _botWKey   = (parts[2] || 'sword').toLowerCase();
@@ -465,7 +477,7 @@ function _consoleExec(raw) {
       }
       players.push(bot);
       _consoleOk('Spawned bot #' + _num + ' (' + _botWeapon + (_botCKey && CLASSES && CLASSES[_botCKey] ? ' / ' + _botCKey : '') + ')');
-    } else { _consoleErr('Unknown entity: ' + sub + '.  Try: forestbeast yeti minion dummy god bot'); }
+    } else { _consoleErr('Unknown entity: ' + sub + '.  Try: forestbeast yeti minion dummy god absoluteaxiom bot'); }
     return;
   }
 
@@ -474,12 +486,25 @@ function _consoleExec(raw) {
     if (typeof gameRunning === 'undefined' || !gameRunning) { _consoleErr('Start a game first.'); return; }
     if (sub === 'god') {
       if (typeof spawnGod === 'function') {
-        const _g = spawnGod(true); // consoleSummoned=true suppresses crash screen
+        const _g = spawnGod(true);
         if (_g) _consoleOk('Summoned God (no crash — dev mode)');
         else    _consoleErr('I am already present.');
       } else _consoleErr('spawnGod not available.');
+    } else if (sub === 'absoluteaxiom' || sub === 'axiom' || sub === 'aa') {
+      if (typeof AbsoluteAxiom === 'undefined') { _consoleErr('AbsoluteAxiom not available.'); return; }
+      const already = Array.isArray(minions) && minions.some(m => m.isAbsoluteAxiom && m.health > 0);
+      if (already) { _consoleErr('Absolute Axiom is already present.'); return; }
+      const _aaRef = Array.isArray(players) && players[0];
+      const _aaX   = _aaRef ? _aaRef.x + (_aaRef.facing > 0 ? 160 : -160) : 550;
+      const _aaY   = _aaRef ? _aaRef.y - 60 : 200;
+      const _aa    = new AbsoluteAxiom(_aaX, _aaY);
+      _aa._teamId  = 50;
+      minions.push(_aa);
+      window._absoluteAxiomWasAlive = true;
+      if (typeof resetGodCinematicFlags === 'function') resetGodCinematicFlags();
+      _consoleOk('Absolute Axiom summoned. Good luck.');
     } else {
-      _consoleErr('Usage: summon god');
+      _consoleErr('Usage: summon god | summon absoluteaxiom');
     }
     return;
   }

@@ -1,11 +1,17 @@
 // Appends chapters for act5/smb-act5-arc-damnation.js.
-// "Eternal Damnation" — inserted between Ch.90 (What Remains) and Ch.94 (True Form).
-// The TrueForm sends an echo of itself inward before the player can reach it,
-// trapping them in a dying loop dimension. Escape is the only option.
+// "Eternal Damnation" arc: Axiom encounter (impossible fight) -> hell loop -> escape.
 STORY_CHAPTER_REGISTRY.push(
   {
     id: 63, title: 'The Weight of What\'s Coming',
-    world: '\uD83D\uDD73\uFE0F The Void — Threshold',
+    world: '🕳️ The Void — Threshold',
+    // isBossFight spawns the Boss entity: visually massive and unmistakably not a scout.
+    // _launchChapter2FightImmediate detects _axiomTeaser and patches the entity post-start:
+    // Axiom colour (#cc44ff), all Boss cinematics suppressed, player lives reset to 1.
+    isBossFight:  true,
+    _axiomTeaser: true,
+    opponentName: 'Axiom',
+    playerLives:  1,
+    arena:        'void',
     narrative: [
       'You step through the dimension wall.',
       '',
@@ -20,26 +26,19 @@ STORY_CHAPTER_REGISTRY.push(
       'This is why.',
       '',
       'Axiom turns.',
-      '\"You finally made it to the threshold.\"',
-      '\"I was beginning to think the fractures would take you first.\"',
+      '“You finally made it to the threshold.”',
+      '“I was beginning to think the fractures would take you first.”',
       '',
       'You raise your weapon.',
       '',
-      '\"Go ahead,\" it says.',
-      '\"You need to understand what you\'re walking into.\"',
+      '“Go ahead,” it says.',
+      '“You need to understand what you\'re walking into.”',
     ],
-    opponentName:  'Axiom',
-    weaponKey:     'sword',
-    classKey:      'ninja',
-    aiDiff:        'expert',
-    opponentColor: '#cc44ff',
-    playerLives:   1,
-    arena:         'void',
     fightScript: [
       { frame: 30,   text: 'Your attacks connect. Nothing happens. It doesn\'t even react.', color: '#cc88ff', timer: 300 },
-      { frame: 240,  text: '\"You\'ve grown stronger. Seventeen fractures of growth.\" It sounds almost respectful.', color: '#bb66ee', timer: 300 },
+      { frame: 240,  text: '“You\'ve grown stronger. Seventeen fractures of growth.” It sounds almost respectful.', color: '#bb66ee', timer: 300 },
       { frame: 480,  text: 'You\'ve never felt this outmatched. It\'s not even trying.', color: '#ff8866', timer: 280 },
-      { frame: 720,  text: '\"You\'re not ready. But you will be. I\'ll make sure of it.\"', color: '#cc44ff', timer: 300 },
+      { frame: 720,  text: '“You\'re not ready. But you will be. I\'ll make sure of it.”', color: '#cc44ff', timer: 300 },
       { frame: 960,  text: 'The air pressure drops. Something shifts in how it\'s standing.', color: '#ff4444', timer: 260 },
       { frame: 1120, text: 'This is the end of the encounter — and it chose that.', color: '#ff2222', timer: 220 },
     ],
@@ -50,16 +49,16 @@ STORY_CHAPTER_REGISTRY.push(
 
   {
     id: 64, title: 'Eternal Damnation',
-    world: '\uD83D\uDD73\uFE0F The Loop — Escape or Be Erased',
+    world: '🕳️ The Loop — Escape or Be Erased',
     isDamnationChapter: true,
     arena: 'damnation',
     playerLives: 3,
-    storeNag: '\u26A0\uFE0F ESCAPE — Survive three waves and collect reality anchors to open the portal.',
+    storeNag: '⚠️ ESCAPE — Survive three waves and collect reality anchors to open the portal.',
     fightScript: [
       { frame: 60,   text: 'The loop is degrading. Platforms will collapse when you fall.', color: '#cc4444', timer: 280 },
       { frame: 300,  text: 'Collect the anchor fragments the echoes leave behind.',          color: '#ff8844', timer: 260 },
       { frame: 720,  text: 'Eight anchors open the portal. Do not miss them.',               color: '#ffaa44', timer: 260 },
-      { frame: 1100, text: '\u26A0\uFE0F The True Form echo approaches. This is its final test.', color: '#cc44ff', timer: 300 },
+      { frame: 1100, text: '⚠️ The True Form echo approaches. This is its final test.', color: '#cc44ff', timer: 300 },
       { frame: 1500, text: 'The portal is open. Reach it.',                                  color: '#88ffcc', timer: 320 },
     ],
     preText: 'A dying loop dimension — echoes of past enemies, degrading platforms, eight reality anchors. Collect all eight to open the escape portal. Every time you fall, a platform is gone forever. Four falls means erasure.',
@@ -69,28 +68,28 @@ STORY_CHAPTER_REGISTRY.push(
 
   {
     id: 65, title: 'What the Scar Remembers',
-    world: '\uD83D\uDD73\uFE0F The Void — Threshold Restored',
+    world: '🕳️ The Void — Threshold Restored',
     isCinematicBridge: true,
     noFight: true,
     narrative: [
       'Veran\'s signal returns.',
       '',
-      '"You\'re back.",',
-      '"We couldn\'t reach you for — how long was that?",',
+      '“You\'re back.”',
+      '“We couldn\'t reach you for — how long was that?”',
       '',
       'Long.',
       '',
-      '"The compass is still pointing forward.",',
-      '"Are you... the scar on your fragment — that\'s new.",',
+      '“The compass is still pointing forward.”',
+      '“Are you... the scar on your fragment — that\'s new.”',
       '',
       'You absorbed the echo.',
       'A piece of the True Form, consumed.',
       'It doesn\'t leave.',
       '',
-      '"I don\'t know if that makes you stronger or just different.",',
-      '"Either way. You know what it is now.",',
-      '"You\'ve fought inside it.",',
-      '"Go finish it.",',
+      '“I don\'t know if that makes you stronger or just different.”',
+      '“Either way. You know what it is now.”',
+      '“You\'ve fought inside it.”',
+      '“Go finish it.”',
     ],
     tokenReward: 150,
     onComplete: function() {

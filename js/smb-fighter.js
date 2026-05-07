@@ -266,33 +266,6 @@ class Fighter {
     if (this.invincible > 0)      this.invincible--;
     const _prevAtkTimer = this.attackTimer;
     if (this.attackTimer > 0)     this.attackTimer--;
-    // Trigger endlag when swing animation completes (attackTimer just hit 0)
-    if (_prevAtkTimer === 1 && this.attackTimer === 0 && !this.isBoss) {
-      let endlag = this.weapon.endlag || 0;
-      // Whiff punish: extra recovery if swing missed + 30% chance of stun (stars overhead)
-      if (!this.weaponHit) {
-        endlag = Math.round(endlag * 2.4);
-        if (Math.random() < 0.30) {
-          this.stunTimer = Math.max(this.stunTimer || 0, 20 + Math.floor(Math.random() * 16));
-        }
-      }
-      // Low stamina: sluggish recovery (up to +40% at 0 stamina)
-      const staminaRatio = this.stamina / (this.maxStamina || 100);
-      if (staminaRatio < 0.4) endlag = Math.round(endlag * (1 + 0.4 * (1 - staminaRatio / 0.4)));
-      // Affinity feel: low affinity = sluggish recovery, high affinity = snappier recovery
-      if (this.charClass && this.weapon && typeof CLASS_AFFINITY !== 'undefined') {
-        const _aff = CLASS_AFFINITY[this.charClass];
-        if (_aff) {
-          const _affMult = _aff[this.weapon.type] || 1.0;
-          if (_affMult < 0.8) endlag = Math.round(endlag * (1 + (_affMult < 0.6 ? 0.30 : 0.15)));
-          else if (_affMult > 1.2) endlag = Math.round(endlag * (1 - (_affMult > 1.4 ? 0.20 : 0.10)));
-        }
-      }
-      this.attackEndlag = endlag;
-      // Stamina drain on attack
-      const staminaCost = Math.min(this.stamina, (this.weapon.damage || 10) * 1.5);
-      this.stamina = Math.max(0, this.stamina - staminaCost);
-    }
     if (this.attackEndlag > 0) { this.attackEndlag--; this.vx *= 0.72; } // slow during recovery
     // Affinity move penalty: low-affinity attacks slow the attacker during the active swing frames
     if (this._affinityMovePenalty > 0) { this._affinityMovePenalty--; this.vx *= 0.88; }
@@ -375,6 +348,7 @@ class Fighter {
       }
       if (this._hammerSpin.timer <= 0) {
         this._hammerSpin = null;
+        this.superActive = false;
         this.vx = this.facing * 44;
         this.vy = -16;
         screenShake = Math.max(screenShake, 26);
@@ -395,7 +369,7 @@ class Fighter {
           this._spearCharge.hitSet.add(f);
         }
       }
-      if (this._spearCharge.timer <= 0) this._spearCharge = null;
+      if (this._spearCharge.timer <= 0) { this._spearCharge = null; this.superActive = false; }
     }
 
     // ── Axe super: Whirlwind — continuous multi-hit spin ────────────────────────
@@ -413,6 +387,7 @@ class Fighter {
       }
     } else if (this._axeWhirl && this.spinning <= 0) {
       this._axeWhirl = null;
+      this.superActive = false;
     }
 
     // ── Sword super: slash queue (staggered spawn) + slash movement ─────────────
@@ -427,6 +402,7 @@ class Fighter {
             vx: this.facing * 8,
             vy: q.vy,
             tilt: q.tilt,
+            facing: this.facing,
             life: 42, maxLife: 42,
             size: 26 + Math.abs(q.yOff) * 0.3,
             hitSet: new Set(),
@@ -456,6 +432,9 @@ class Fighter {
           }
         }
         if (sl.life <= 0) this._swordSlashes.splice(i, 1);
+      }
+      if (this._swordSlashes.length === 0 && (this._swordSlashQueue || []).length === 0) {
+        this.superActive = false;
       }
     }
 
@@ -517,7 +496,9 @@ class Fighter {
     if (Math.abs(this.vx) > 0.5) PlayerRagdoll.applyMovement(this);
 
     // ---- WEAPON ARC HITBOX (melee only) — sweeps multiple points along swing arc ----
-    if (this.attackTimer > 0 && this.weapon.type === 'melee') {
+    // Use _prevAtkTimer so hit detection also runs on the final swing frame (timer 1→0),
+    // ensuring weaponHit is correctly set before the whiff-stun check below.
+    if (_prevAtkTimer > 0 && this.weapon.type === 'melee') {
       // Build a set of hit-check points: tip + mid-arc + close-arc for wide coverage
       const hitPoints = this._getMeleeArcPoints();
       if (hitPoints.length > 0) {
@@ -587,6 +568,42 @@ class Fighter {
             }
           }
         }
+      }
+    }
+
+    // Trigger endlag when swing animation completes (attackTimer just hit 0).
+    // Placed AFTER hit detection so weaponHit is accurate before the whiff-stun check.
+    if (_prevAtkTimer === 1 && this.attackTimer === 0 && !this.isBoss) {
+      let endlag = this.weapon.endlag || 0;
+      // Whiff punish: extra recovery if swing missed + 30% chance of stun (stars overhead)
+      if (!this.weaponHit) {
+        endlag = Math.round(endlag * 2.4);
+        if (Math.random() < 0.30) {
+          this.stunTimer = Math.max(this.stunTimer || 0, 20 + Math.floor(Math.random() * 16));
+        }
+      }
+      // Low stamina: sluggish recovery (up to +40% at 0 stamina)
+      const staminaRatio = this.stamina / (this.maxStamina || 100);
+      if (staminaRatio < 0.4) endlag = Math.round(endlag * (1 + 0.4 * (1 - staminaRatio / 0.4)));
+      // Affinity feel: low affinity = sluggish recovery, high affinity = snappier recovery
+      if (this.charClass && this.weapon && typeof CLASS_AFFINITY !== 'undefined') {
+        const _aff = CLASS_AFFINITY[this.charClass];
+        if (_aff) {
+          const _affMult = _aff[this.weapon.type] || 1.0;
+          if (_affMult < 0.8) endlag = Math.round(endlag * (1 + (_affMult < 0.6 ? 0.30 : 0.15)));
+          else if (_affMult > 1.2) endlag = Math.round(endlag * (1 - (_affMult > 1.4 ? 0.20 : 0.10)));
+        }
+      }
+      this.attackEndlag = endlag;
+      // Stamina drain on attack
+      const staminaCost = Math.min(this.stamina, (this.weapon.damage || 10) * 1.5);
+      this.stamina = Math.max(0, this.stamina - staminaCost);
+      // Clear super-active guard so subsequent normal attacks can charge meter again.
+      // Supers with ongoing effects (hammer, axe, spear, sword) clear it themselves when those end.
+      if (this.superActive && !this._hammerSpin && !this._axeWhirl && !this._spearCharge &&
+          !(this._swordSlashes && this._swordSlashes.length) &&
+          !(this._swordSlashQueue && this._swordSlashQueue.length)) {
+        this.superActive = false;
       }
     }
 
@@ -1001,6 +1018,7 @@ class Fighter {
           }
         }
         SoundManager.explosion && SoundManager.explosion();
+        this.superActive = false;
       }
       // MEGAKNIGHT: spawn-fall landing — deals AoE damage when dropping in from sky
       if (this._spawnFalling && landVy > 6) {
@@ -1080,7 +1098,7 @@ class Fighter {
   // Includes the inner arm, mid-arc, and tip — so enemies right next to the
   // attacker or slightly misaligned still get hit.
   _getMeleeArcPoints() {
-    if (this.attackTimer <= 0) return [];
+    if (this.attackTimer < 0) return [];
     const cx        = this.cx();
     const shoulderY = this.y + 29;
     const _sc2      = this.drawScale || 1;
@@ -1129,6 +1147,7 @@ class Fighter {
           dealDamage(this, f, this.weapon.damage, this.weapon.kb);
           f.vy  = Math.min(f.vy, -26);      // strong upward launch
           f.vx += this.facing * 5;           // slight forward push, mostly vertical
+          this.weaponHit = true;
         }
       }
       // Upward arc particle burst
@@ -1305,7 +1324,7 @@ class Fighter {
       spawnParticles(this.cx(), this.y + this.h, '#cc88ff', 18);
       spawnParticles(this.cx(), this.y + this.h, '#ffffff', 10);
       SoundManager.explosion && SoundManager.explosion();
-      setTimeout(() => { if (this) this.superActive = false; }, 4000);
+      setTimeout(() => { if (this) this.superActive = false; }, 3000); // fallback: MegaKnight may not land (e.g. falls off-map)
       return;
     }
     if (!this.isBoss) {
@@ -1314,7 +1333,7 @@ class Fighter {
     this.superMeter  = 0;
     this.superReady  = false;
     this.superActive = true; // block super-meter charging during this move
-    setTimeout(() => { if (this) this.superActive = false; }, 4000); // clear after 4s (covers full attackTimer*3 window)
+    setTimeout(() => { if (this) this.superActive = false; }, 1800); // fallback: clears if per-effect cleanup is somehow skipped
     screenShake      = Math.max(screenShake, 24);
     SoundManager.superActivate();
     if (!this.isAI && !this.isBoss) { _achStats.superCount++; if (_achStats.superCount >= 10) unlockAchievement('super_saver'); }
@@ -3132,6 +3151,33 @@ class Fighter {
     // Per-limb ragdoll debug overlay
     if (this._rd) PlayerRagdoll.debugDraw(this, cx, shoulderY, hipY);
 
+    // ── Sword air-slash crescent arcs (absolute coords — must be outside drawWeapon) ──
+    if (this._swordSlashes && this._swordSlashes.length > 0) {
+      for (const sl of this._swordSlashes) {
+        const alpha = (sl.life / sl.maxLife);
+        const col   = sl.color || '#88ccff';
+        ctx.save();
+        ctx.translate(sl.x, sl.y);
+        ctx.scale(sl.facing || 1, 1);
+        ctx.rotate(sl.tilt || 0);
+        ctx.globalAlpha = alpha * 0.88;
+        ctx.strokeStyle = col;
+        ctx.lineWidth   = 4.5;
+        ctx.shadowColor = col;
+        ctx.shadowBlur  = 12;
+        ctx.beginPath();
+        ctx.arc(0, 0, sl.size, -Math.PI * 0.42, Math.PI * 0.42);
+        ctx.stroke();
+        ctx.globalAlpha = alpha * 0.45;
+        ctx.lineWidth   = 2;
+        ctx.beginPath();
+        ctx.arc(0, 0, sl.size * 0.62, -Math.PI * 0.38, Math.PI * 0.38);
+        ctx.stroke();
+        ctx.shadowBlur = 0;
+        ctx.restore();
+      }
+    }
+
     ctx.restore();
   }
 
@@ -3654,34 +3700,6 @@ class Fighter {
       ctx.fillStyle = '#cc2200';
       ctx.fillRect(this.x - 3, this.y - 3, this.w + 6, this.h + 6);
       ctx.restore();
-    }
-
-    // ── Sword/Scythe air-slash crescent arcs ────────────────────────────────────
-    if (this._swordSlashes && this._swordSlashes.length > 0) {
-      for (const sl of this._swordSlashes) {
-        const alpha = (sl.life / sl.maxLife);
-        const col   = sl.color || '#88ccff';
-        ctx.save();
-        ctx.translate(sl.x, sl.y);
-        ctx.rotate(sl.tilt || 0);
-        ctx.globalAlpha = alpha * 0.88;
-        ctx.strokeStyle = col;
-        ctx.lineWidth   = 4.5;
-        ctx.shadowColor = col;
-        ctx.shadowBlur  = 12;
-        // Outer crescent arc
-        ctx.beginPath();
-        ctx.arc(0, 0, sl.size, -Math.PI * 0.42, Math.PI * 0.42);
-        ctx.stroke();
-        // Inner thinner arc for depth
-        ctx.globalAlpha = alpha * 0.45;
-        ctx.lineWidth   = 2;
-        ctx.beginPath();
-        ctx.arc(0, 0, sl.size * 0.62, -Math.PI * 0.38, Math.PI * 0.38);
-        ctx.stroke();
-        ctx.shadowBlur = 0;
-        ctx.restore();
-      }
     }
 
     ctx.restore();

@@ -543,6 +543,24 @@ function _launchChapter2FightImmediate(ch) {
   if (ch.isWorldBoss) {
     setTimeout(() => spawnWorldBoss(worldId), 100);
   }
+
+  // Axiom teaser (ch63): patch the Boss entity color + suppress all threshold cinematics + reset player to 1 life
+  if (ch._axiomTeaser) {
+    setTimeout(() => {
+      if (!gameRunning) return;
+      const _axiomBoss = players && players.find(p => p && p.isBoss);
+      if (_axiomBoss) {
+        _axiomBoss.color = '#cc44ff';
+        if (_axiomBoss._cinematicFired) {
+          ['75','paradox50','40','10','phase2','phase3','rage','desp','warn'].forEach(k => _axiomBoss._cinematicFired.add(k));
+        }
+      }
+      const _p1 = players && players.find(p => !p.isBoss && !p.isAI);
+      if (_p1) { _p1.lives = 1; _p1._maxLives = 1; }
+      chosenLives = 1;
+      bossFightLivesLock = false;
+    }, 150);
+  }
 }
 
 // ── World Boss variants ────────────────────────────────────────────────────────

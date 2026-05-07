@@ -935,6 +935,7 @@ function _defaultStory2Progress() {
     arcCollapsed:      {},      // { arcId: bool } — user-toggled arc collapse state
     actExpanded:       {},      // { actIndex: bool } — user forced an out-of-range act open
     branchFlags:       {},      // { [flagKey]: true } — choices made at branch chapters
+    prologueSeen:      false,   // true after the Axiom/multiverse intro plays once
   };
 }
 
@@ -956,6 +957,7 @@ function _normalizeStory2Progress(data) {
   if (data.actExpanded && typeof data.actExpanded === 'object') out.actExpanded = Object.assign({}, data.actExpanded);
   if (data.meta && typeof data.meta === 'object') out.meta = Object.assign({}, data.meta);
   if (data.branchFlags && typeof data.branchFlags === 'object') out.branchFlags = Object.assign({}, data.branchFlags);
+  if (typeof data.prologueSeen === 'boolean') out.prologueSeen = data.prologueSeen;
   return out;
 }
 

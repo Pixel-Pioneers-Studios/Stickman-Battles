@@ -160,6 +160,8 @@ function _checkGodDeath() {
     _godWasAlive = false;
     _onGodDefeated();
   }
+  // AbsoluteAxiom death hook (defined in smb-absolute-axiom.js)
+  if (typeof _checkAbsoluteAxiomDeathHook === 'function') _checkAbsoluteAxiomDeathHook();
 }
 
 function _onGodDefeated() {
@@ -773,6 +775,35 @@ class God extends Fighter {
     ctx.moveTo(cx, torsoY);
     ctx.lineTo(cx, torsoY + 26);
     ctx.stroke();
+
+    // ── The Kernel — blazing orb lodged in the chest ────────────────────────
+    if (this._phase === 2) {
+      const kx = cx;
+      const ky = torsoY + 13;
+      const kPulse = 5.5 + Math.sin(this._auraPhase * 2.2) * 1.8;
+      ctx.save();
+      // Outer glow
+      const kGrd = ctx.createRadialGradient(kx, ky, 0, kx, ky, kPulse * 3.2);
+      kGrd.addColorStop(0,   'rgba(255,220,60,0.82)');
+      kGrd.addColorStop(0.45,'rgba(255,160,0,0.45)');
+      kGrd.addColorStop(1,   'rgba(0,0,0,0)');
+      ctx.fillStyle = kGrd;
+      ctx.beginPath(); ctx.arc(kx, ky, kPulse * 3.2, 0, Math.PI * 2); ctx.fill();
+      // Core
+      ctx.shadowColor = '#ffcc00'; ctx.shadowBlur = 16;
+      ctx.fillStyle   = '#fff8c0';
+      ctx.beginPath(); ctx.arc(kx, ky, kPulse, 0, Math.PI * 2); ctx.fill();
+      // 6 tight orbiting fragments
+      for (let fi = 0; fi < 6; fi++) {
+        const fa = this._auraPhase * 2.8 + (fi / 6) * Math.PI * 2;
+        const fr = kPulse * 1.9;
+        ctx.fillStyle   = 'rgba(255,210,50,0.75)';
+        ctx.shadowBlur  = 6;
+        ctx.beginPath(); ctx.arc(kx + Math.cos(fa) * fr, ky + Math.sin(fa) * fr, 1.6, 0, Math.PI * 2); ctx.fill();
+      }
+      ctx.shadowBlur = 0;
+      ctx.restore();
+    }
 
     // Arms — outstretched like a cruciform figure, animated
     const armY    = torsoY + 10;

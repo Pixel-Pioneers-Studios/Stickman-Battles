@@ -182,8 +182,8 @@ function story2OnMatchEnd(playerWon) {
     }
   }
   if (!playerWon) {
-    // Ch91: Axiom scripted defeat — advance automatically, do not show retry screen
-    if (_axiomForcedPlayerLoss && ch.id === 91) {
+    // Ch63: Axiom scripted defeat — advance automatically, do not show retry screen
+    if (_axiomForcedPlayerLoss && ch.id === 63) {
       _axiomForcedPlayerLoss = false;
       _completeChapter2(ch);
       return true;
