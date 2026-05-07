@@ -86,6 +86,77 @@ function openStoryMenu() {
   }
   if (typeof _story2TokenDisplay === 'function') _story2TokenDisplay();
   _updateStoryCloseBtn();
+
+  // First-time prologue: show purpose screen before player sees chapter list
+  if (m && !_story2.prologueSeen) {
+    _story2.prologueSeen = true;
+    if (typeof saveGame === 'function') saveGame();
+    _showStoryPrologue(m);
+  }
+}
+
+function _showStoryPrologue(modalEl) {
+  const ov = document.createElement('div');
+  ov.id = 'storyPrologueOverlay';
+  ov.style.cssText = [
+    'position:absolute;inset:0;z-index:999;background:#000;',
+    'display:flex;flex-direction:column;align-items:center;justify-content:center;',
+    'padding:48px 40px;box-sizing:border-box;',
+  ].join('');
+
+  const lines = [
+    { text: 'The multiverse is fracturing.',           delay: 0,    color: '#ffffff', size: '1.15rem', weight: '600' },
+    { text: 'Not slowly. Not naturally.',               delay: 400,  color: '#dddddd', size: '0.92rem' },
+    { text: '',                                          delay: 700  },
+    { text: 'Something is accelerating the collapse.',  delay: 900,  color: '#cc88ff', size: '1rem' },
+    { text: 'Seventeen branches of reality. All dying.', delay: 1400, color: '#cc88ff', size: '1rem' },
+    { text: '',                                          delay: 1700 },
+    { text: 'The entity responsible is called Axiom.',  delay: 1900, color: '#ff6644', size: '1rem', weight: '600' },
+    { text: 'It built the system. It set the rules.',   delay: 2400, color: '#ff8866', size: '0.92rem' },
+    { text: 'It has never lost.',                       delay: 2800, color: '#ff4422', size: '0.92rem' },
+    { text: '',                                          delay: 3100 },
+    { text: 'Across all seventeen fracture branches,',  delay: 3300, color: '#88ccff', size: '1rem' },
+    { text: 'Axiom\'s scouts recognized exactly one person.', delay: 3700, color: '#aaddff', size: '1rem' },
+    { text: '',                                          delay: 4000 },
+    { text: 'You.',                                      delay: 4200, color: '#ffffff', size: '1.4rem', weight: '800' },
+    { text: '',                                          delay: 4500 },
+    { text: 'You don\'t know why. Not yet.',            delay: 4700, color: '#999999', size: '0.88rem' },
+    { text: 'But every fight from here is an answer.',  delay: 5100, color: '#999999', size: '0.88rem' },
+  ];
+
+  const textContainer = document.createElement('div');
+  textContainer.style.cssText = 'max-width:540px;width:100%;text-align:center;';
+
+  lines.forEach(({ text, delay, color, size, weight }) => {
+    const el = document.createElement('div');
+    el.style.cssText = [
+      `color:${color || '#cccccc'};`,
+      `font-size:${size || '0.88rem'};`,
+      `font-weight:${weight || '400'};`,
+      'line-height:1.7;margin-bottom:2px;',
+      'opacity:0;transition:opacity 0.6s ease;',
+      'font-family:inherit;',
+    ].join('');
+    el.textContent = text;
+    textContainer.appendChild(el);
+    setTimeout(() => { el.style.opacity = '1'; }, delay + 300);
+  });
+
+  const btn = document.createElement('button');
+  btn.textContent = 'Begin';
+  btn.style.cssText = [
+    'margin-top:40px;padding:12px 36px;',
+    'background:rgba(204,68,255,0.15);border:1px solid rgba(204,68,255,0.5);',
+    'color:#cc44ff;font-size:0.9rem;font-weight:600;letter-spacing:2px;',
+    'border-radius:4px;cursor:pointer;opacity:0;transition:opacity 0.6s ease;',
+  ].join('');
+  setTimeout(() => { btn.style.opacity = '1'; }, 5800);
+  btn.onclick = () => { ov.style.opacity = '0'; setTimeout(() => ov.remove(), 400); };
+  ov.style.transition = 'opacity 0.4s ease';
+
+  ov.appendChild(textContainer);
+  ov.appendChild(btn);
+  modalEl.appendChild(ov);
 }
 
 // Single entry point for launching a specific chapter from the menu.
