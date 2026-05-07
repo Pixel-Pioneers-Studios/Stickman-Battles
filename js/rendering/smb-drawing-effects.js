@@ -179,14 +179,19 @@ function drawAccessory(fighter, cx, headCY, shoulderY, hipY, facing, headR) {
 
   // --- CAPE (draw behind body) ---
   if (cape !== 'none') {
-    const capeX = cx - facing * 4;
+    const capeX  = cx - facing * 4;
+    // Gentle wave: tip sways based on time + fighter position for natural cloth feel
+    const _capeT = (typeof frameCount !== 'undefined' ? frameCount : 0);
+    const _wave  = Math.sin(_capeT * 0.13 + fighter.x * 0.04) * 4
+                 + Math.sin(_capeT * 0.07 + fighter.y * 0.03) * 2;
+    const _waveY = Math.sin(_capeT * 0.10) * 1.5;
     ctx.lineWidth = 1;
     if (cape === 'short') {
       ctx.fillStyle = 'rgba(180,20,20,0.8)';
       ctx.beginPath();
       ctx.moveTo(cx - 5, shoulderY);
       ctx.lineTo(cx + 5, shoulderY);
-      ctx.lineTo(cx - facing * 14, hipY - 6);
+      ctx.lineTo(cx - facing * 14 + _wave, hipY - 6 + _waveY);
       ctx.closePath(); ctx.fill();
     } else if (cape === 'long') {
       const capeGrad = ctx.createLinearGradient(capeX, shoulderY, capeX, hipY + 18);
@@ -196,19 +201,19 @@ function drawAccessory(fighter, cx, headCY, shoulderY, hipY, facing, headR) {
       ctx.beginPath();
       ctx.moveTo(cx - 7, shoulderY);
       ctx.lineTo(cx + 7, shoulderY);
-      ctx.lineTo(cx - facing * 18, hipY + 18);
+      ctx.lineTo(cx - facing * 18 + _wave, hipY + 18 + _waveY);
       ctx.closePath(); ctx.fill();
     } else if (cape === 'royal') {
       ctx.fillStyle = 'rgba(160,10,10,0.9)';
       ctx.beginPath();
       ctx.moveTo(cx - 7, shoulderY);
       ctx.lineTo(cx + 7, shoulderY);
-      ctx.lineTo(cx - facing * 18, hipY + 14);
+      ctx.lineTo(cx - facing * 18 + _wave, hipY + 14 + _waveY);
       ctx.closePath(); ctx.fill();
       ctx.strokeStyle = '#ffcc00'; ctx.lineWidth = 1.5;
       ctx.beginPath();
       ctx.moveTo(cx - 6, shoulderY + 2);
-      ctx.lineTo(cx - facing * 16, hipY + 10);
+      ctx.lineTo(cx - facing * 16 + _wave * 0.7, hipY + 10 + _waveY);
       ctx.stroke();
     }
   }

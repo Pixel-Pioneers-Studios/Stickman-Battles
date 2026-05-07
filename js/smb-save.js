@@ -3,6 +3,20 @@
 
 console.info('[BOOT ORDER] smb-save init');
 
+function __smb_isStorageWorking() {
+  try {
+    const k = '__smb_test__';
+    localStorage.setItem(k, '1');
+    localStorage.removeItem(k);
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+window.__SMB_STORAGE_OK__ = __smb_isStorageWorking();
+if (!window.__SMB_STORAGE_OK__) console.warn('[SMB] NO-PERSISTENCE MODE');
+window.__SMB_RUNTIME_SAVE__ = null;
+
 const SAVE_VERSION = 3;
 const SAVE_KEY     = 'smb_state';
 const CANONICAL_SAVE_KEY = 'smb_state';
@@ -888,6 +902,21 @@ function _guardLocalStorageRead(key) {
 // _SAVE_BACKUP_KEY is now computed dynamically via _getBackupKey()
 
 function saveGame() {
+  if (!window.__SMB_STORAGE_OK__) {
+    try {
+      const _acct = _getActiveAcctDirect();
+      if (_acct && _acct.data) {
+        window.__SMB_RUNTIME_SAVE__ = structuredClone(_acct.data);
+        console.info('[RUNTIME SAVE]', {
+          coins: window.__SMB_RUNTIME_SAVE__.coins,
+          chapter: window.__SMB_RUNTIME_SAVE__.story && window.__SMB_RUNTIME_SAVE__.story.chapter,
+        });
+      }
+    } catch (e) {
+      console.warn('[RUNTIME SAVE FAILED]', e);
+    }
+    return;
+  }
   try {
     if (!window.GameState) return;
     const acct = _getActiveAcctDirect();
@@ -931,6 +960,13 @@ function saveGame() {
 
 // ── Load (called once on page start, and on every account switch) ─────────────
 function loadGame() {
+  if (!window.__SMB_STORAGE_OK__ && window.__SMB_RUNTIME_SAVE__) {
+    console.info('[RUNTIME LOAD]');
+    _applySaveData(window.__SMB_RUNTIME_SAVE__);
+    _refreshRuntimeFromSave(window.__SMB_RUNTIME_SAVE__);
+    if (typeof refreshCoinDisplay === 'function') refreshCoinDisplay();
+    return;
+  }
   try {
     const acct = _getActiveAcctDirect();
     console.info('[BOOT LOAD] start', { acct: acct ? acct.id : 'none' });
@@ -1001,8 +1037,12 @@ function loadGame() {
     }
 
     // ── First run: no save data exists at all ─────────────────────────────────
-    if (typeof resetProgressionGlobals   === 'function') resetProgressionGlobals();
-    if (typeof resetAccountScopedGlobals === 'function') resetAccountScopedGlobals();
+    if (window.__SMB_STORAGE_OK__) {
+      if (typeof resetProgressionGlobals   === 'function') resetProgressionGlobals();
+      if (typeof resetAccountScopedGlobals === 'function') resetAccountScopedGlobals();
+    } else {
+      console.warn('[STORAGE UNSTABLE] Skipping reset');
+    }
     console.info('[DEFAULT BLOCKED]', { coins: 0, chapter: 0 });
     _logSaveState('LOAD FINAL', { coins: 0, chapter: 0, storyProgress: { chapter: 0 } }, 'defaults used');
     if (typeof restoreStoryDataFromSave === 'function' &&

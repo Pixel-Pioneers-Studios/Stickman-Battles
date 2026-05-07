@@ -281,10 +281,13 @@ function _renderChapterList() {
         statusEl.textContent    = done ? '✓' : locked ? '🔒' : current ? '▶' : String(i + 1);
         statusEl.style.color    = done ? '#66ee99' : current ? '#aacfff' : '#445';
 
-        const livesTag = (!locked && !done && ch.playerLives === 1)
-          ? `<span style="font-size:0.54rem;color:#ff5533;background:rgba(255,50,20,0.15);border:1px solid rgba(255,50,20,0.30);border-radius:3px;padding:1px 4px;margin-left:4px;">1 life</span>`
-          : (!locked && !done && ch.playerLives === 2)
-          ? `<span style="font-size:0.54rem;color:#ffaa44;background:rgba(255,140,0,0.08);border:1px solid rgba(255,140,0,0.25);border-radius:3px;padding:1px 4px;margin-left:4px;">2 lives</span>`
+        const _livesCount = ch.playerLives !== undefined ? ch.playerLives : 3;
+        const _livesColor = _livesCount === 1 ? '#ff5533' : _livesCount === 2 ? '#ffaa44' : '#88cc88';
+        const _livesBg    = _livesCount === 1 ? 'rgba(255,50,20,0.15)' : _livesCount === 2 ? 'rgba(255,140,0,0.08)' : 'rgba(80,200,80,0.07)';
+        const _livesBorder = _livesCount === 1 ? 'rgba(255,50,20,0.30)' : _livesCount === 2 ? 'rgba(255,140,0,0.25)' : 'rgba(80,200,80,0.20)';
+        const _livesLabel = _livesCount === 1 ? '1 life' : `${_livesCount} lives`;
+        const livesTag = (!locked && !done && !ch.noFight && _livesCount !== undefined)
+          ? `<span style="font-size:0.54rem;color:${_livesColor};background:${_livesBg};border:1px solid ${_livesBorder};border-radius:3px;padding:1px 4px;margin-left:4px;">${_livesLabel}</span>`
           : '';
         const rewardTag = (!done && ch.tokenReward)
           ? `<span style="font-size:0.54rem;color:#998833;margin-left:3px;">+${ch.tokenReward}🪙</span>` : '';

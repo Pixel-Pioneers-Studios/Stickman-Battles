@@ -38,8 +38,10 @@ class Fighter {
     this.ragdollTimer = 0;   // frames of limp physics (flailing limbs)
     this.weaponHit    = false; // has weapon tip dealt damage this swing?
     this.boostCooldown   = 0;  // ability cooldown (legacy field)
-    this.shieldCooldown  = 0;  // shield cooldown
-    this.shieldHoldTimer = 0;  // frames S is held this activation
+    this.shieldCooldown      = 0;  // legacy field kept for compatibility — always 0 now
+    this.shieldHoldTimer     = 0;  // frames S is held this activation
+    this.shieldStacks        = 0;  // consecutive activations since last full recharge
+    this.shieldRechargeTimer = 0;  // frames until stacks reset to 0 (recharge)
     this.canDoubleJump   = false; // allows one double-jump after leaving ground
     this.superMeter      = 0;    // 0-100 super charge
     this.superReady      = false; // true when super is fully charged
@@ -157,24 +159,42 @@ class Fighter {
   }
 
   respawn() {
+    // Restore size if Axiom resized this fighter — must happen before spawn position calc
+    if (typeof tfSizeTargets !== 'undefined' && tfSizeTargets.has(this)) {
+      const orig = tfSizeTargets.get(this);
+      this.w = orig.w; this.h = orig.h;
+      tfSizeTargets.delete(this);
+      this.tfDrawScale = 1;
+      this.drawScale   = 1;
+    }
     // Always re-pick a safe platform — this handles moving/disappearing boss floor
     if (currentArena && typeof pickSafeSpawn === 'function') {
       const sideHint = this.playerNum === 2 ? 'right' : 'left';
       const newSpawn = pickSafeSpawn(sideHint);
       if (newSpawn) { this.spawnX = newSpawn.x; this.spawnY = newSpawn.y; }
+      else if (currentArena.isBossArena) {
+        // Floor was removed — use screen centre at a safe height so player can reach a platform
+        this.spawnX = GAME_W / 2;
+        this.spawnY = GAME_H * 0.38;
+      }
     }
     this.x  = this.spawnX;
-    this.y  = this.spawnY - 60;
+    this.y  = this.spawnY - this.h; // use actual height so spawn lands on platform regardless of scale
     this.vx = 0; this.vy = 0;
     this._dimPunchGravLock = false;
     this.health          = this.maxHealth; // always restore to full on respawn
-    this.shielding       = false;
-    this.spinning        = 0;
-    this.ragdollTimer    = 0;
-    this.stunTimer       = 0;
-    this.weaponHit       = false;
-    this.boostCooldown   = 0;
-    this.shieldHoldTimer = 0;
+    this.shielding           = false;
+    this.spinning            = 0;
+    this.ragdollTimer        = 0;
+    this.stunTimer           = 0;
+    this.weaponHit           = false;
+    this.boostCooldown       = 0;
+    this.shieldHoldTimer     = 0;
+    this.shieldStacks        = 0;
+    this.shieldRechargeTimer = 0;
+    this._hammerSpin         = null;
+    this._spearCharge        = null;
+    this._axeWhirl           = null;
     this.canDoubleJump   = false;
     // superMeter / superReady intentionally NOT reset — supers carry over between lives
     this.contactDamageCooldown = 0;
@@ -247,8 +267,13 @@ class Fighter {
     // Trigger endlag when swing animation completes (attackTimer just hit 0)
     if (_prevAtkTimer === 1 && this.attackTimer === 0 && !this.isBoss) {
       let endlag = this.weapon.endlag || 0;
-      // Whiff punish: extra recovery if swing missed
-      if (!this.weaponHit) endlag = Math.round(endlag * 2.4); // whiff is heavily punishable
+      // Whiff punish: extra recovery if swing missed + 30% chance of stun (stars overhead)
+      if (!this.weaponHit) {
+        endlag = Math.round(endlag * 2.4);
+        if (Math.random() < 0.30) {
+          this.stunTimer = Math.max(this.stunTimer || 0, 20 + Math.floor(Math.random() * 16));
+        }
+      }
       // Low stamina: sluggish recovery (up to +40% at 0 stamina)
       const staminaRatio = this.stamina / (this.maxStamina || 100);
       if (staminaRatio < 0.4) endlag = Math.round(endlag * (1 + 0.4 * (1 - staminaRatio / 0.4)));
@@ -331,7 +356,67 @@ class Fighter {
     }
     if (this.spinning > 0)        this.spinning--;
     if (this.boostCooldown > 0)        this.boostCooldown--;
-    if (this.shieldCooldown > 0)       this.shieldCooldown--;
+
+    // ── Hammer super: Mjolnir Spin — contact hits while spinning, launch on end ──
+    if (this._hammerSpin) {
+      this._hammerSpin.timer--;
+      if (this._hammerSpin.timer % 8 === 0) {
+        const _hAll = [...players, ...trainingDummies];
+        for (const f of _hAll) {
+          if (f === this || f.health <= 0 || this._hammerSpin.hitSet.has(f)) continue;
+          if (dist(this, f) < 80) {
+            dealDamage(this, f, 10, 8);
+            this._hammerSpin.hitSet.delete(f); // allow re-hit after interval
+          }
+        }
+        this._hammerSpin.hitSet.clear();
+      }
+      if (this._hammerSpin.timer <= 0) {
+        this._hammerSpin = null;
+        this.vx = this.facing * 26;
+        this.vy = -7;
+        screenShake = Math.max(screenShake, 18);
+        spawnRing(this.cx(), this.y + this.h);
+      }
+    }
+
+    // ── Spear super: Lance Charge — sustained forward pierce ─────────────────────
+    if (this._spearCharge) {
+      this._spearCharge.timer--;
+      this.vx = this.facing * 16;
+      const _sAll = [...players, ...trainingDummies];
+      for (const f of _sAll) {
+        if (f === this || f.health <= 0 || this._spearCharge.hitSet.has(f)) continue;
+        if (dist(this, f) < 50) {
+          dealDamage(this, f, 28, 18);
+          this._spearCharge.hitSet.add(f);
+        }
+      }
+      if (this._spearCharge.timer <= 0) this._spearCharge = null;
+    }
+
+    // ── Axe super: Whirlwind — continuous multi-hit spin ────────────────────────
+    if (this._axeWhirl && this.spinning > 0) {
+      const _aAll = [...players, ...trainingDummies];
+      for (const f of _aAll) {
+        if (f === this || f.health <= 0) continue;
+        if (dist(this, f) < 90) {
+          this._axeWhirl.hitCd[f._id || f.name] = (this._axeWhirl.hitCd[f._id || f.name] || 0) - 1;
+          if ((this._axeWhirl.hitCd[f._id || f.name] || 0) <= 0) {
+            dealDamage(this, f, 14, 10);
+            this._axeWhirl.hitCd[f._id || f.name] = 12;
+          }
+        }
+      }
+    } else if (this._axeWhirl && this.spinning <= 0) {
+      this._axeWhirl = null;
+    }
+    if (this.shieldCooldown > 0)       this.shieldCooldown--; // legacy — kept at 0
+    // Shield recharge: tick down while not shielding; when it hits 0 stacks reset
+    if (!this.shielding && this.shieldRechargeTimer > 0) {
+      this.shieldRechargeTimer--;
+      if (this.shieldRechargeTimer === 0) this.shieldStacks = 0;
+    }
     if (this._projDeflectCd > 0)       this._projDeflectCd--;
     if (this._parryVulnFrames > 0)     this._parryVulnFrames--;
     if (this.contactDamageCooldown > 0) this.contactDamageCooldown--;
@@ -461,7 +546,7 @@ class Fighter {
     if (this.weapon && this.weapon.type === 'melee' && this.attackTimer === 0 &&
         this.contactDamageCooldown === 0 && this.target) {
       const tgt = this.target;
-      if (tgt.health > 0 && dist(this, tgt) < this.weapon.range * 0.62) {
+      if (tgt.health > 0 && dist(this, tgt) < this.weapon.range * 0.62 * (this.drawScale || 1)) {
         const movingToward = (tgt.cx() > this.cx() && this.vx > 0.8) ||
                              (tgt.cx() < this.cx() && this.vx < -0.8);
         if (movingToward) {
@@ -923,7 +1008,8 @@ class Fighter {
     const cx         = this.cx();
     // Must match draw() layout: headR(11) + 1 + headR(11) + 1 + neckLen(5) = 29
     const shoulderY  = this.y + 29;
-    const armLen     = 24; // matches draw() armLen
+    const _sc        = this.drawScale || 1;
+    const armLen     = 24 * _sc; // matches draw() armLen, scaled by size
     const atkP       = 1 - this.attackTimer / this.attackDuration;
     // Megaknight: upward arc — fist sweeps from low to high
     const ang = (this.charClass === 'megaknight')
@@ -934,7 +1020,7 @@ class Fighter {
           ? lerp(-0.45, 1.1, atkP)
           : lerp(Math.PI + 0.45, Math.PI - 1.1, atkP));
     const tipLens = { sword: 26, hammer: 30, axe: 23, spear: 40, gauntlet: 22, mkgauntlet: 30 };
-    const wLen    = tipLens[this.weaponKey] || 23;
+    const wLen    = (tipLens[this.weaponKey] || 23) * _sc;
     const reach   = armLen + wLen;
     return {
       x: cx         + Math.cos(ang) * reach,
@@ -949,7 +1035,8 @@ class Fighter {
     if (this.attackTimer <= 0) return [];
     const cx        = this.cx();
     const shoulderY = this.y + 29;
-    const armLen    = 24;
+    const _sc2      = this.drawScale || 1;
+    const armLen    = 24 * _sc2;
     const atkP      = 1 - this.attackTimer / this.attackDuration;
     // Megaknight: upward arc — fist sweeps from low to high
     const ang = (this.charClass === 'megaknight')
@@ -960,7 +1047,7 @@ class Fighter {
           ? lerp(-0.45, 1.1, atkP)
           : lerp(Math.PI + 0.45, Math.PI - 1.1, atkP));
     const tipLens = { sword: 26, hammer: 30, axe: 23, spear: 40, gauntlet: 22, mkgauntlet: 30 };
-    const wLen    = tipLens[this.weaponKey] || 23;
+    const wLen    = (tipLens[this.weaponKey] || 23) * _sc2;
     const fullReach = armLen + wLen;
     // Sample inner (50%), mid (75%), and tip (100%) along the weapon
     return [0.50, 0.75, 1.0].map(frac => ({
@@ -1012,7 +1099,7 @@ class Fighter {
       // Always clear swingHitTargets so previous swing's targets can be hit again
       this.weaponHit = false;
       this.swingHitTargets.clear();
-      if (!_atkTarget || dist(this, _atkTarget) < this.weapon.range * 1.4) {
+      if (!_atkTarget || dist(this, _atkTarget) < this.weapon.range * 1.4 * (this.drawScale || 1)) {
         if (!this.isAI) SoundManager.swing();
       }
     } else {
@@ -1173,12 +1260,8 @@ class Fighter {
       setTimeout(() => { if (this) this.superActive = false; }, 4000);
       return;
     }
-    // Boss heals 5% of max HP (no max HP increase); players gain +20 max HP and heal 20
-    if (this.isBoss) {
-      // Boss no longer heals on super — super is purely offensive
-    } else {
-      this.maxHealth = Math.min(200, this.maxHealth + 20);
-      this.health    = Math.min(this.maxHealth, this.health + 20);
+    if (!this.isBoss) {
+      this.health = Math.min(this.maxHealth, this.health + 20);
     }
     this.superMeter  = 0;
     this.superReady  = false;
@@ -1196,15 +1279,29 @@ class Fighter {
     // Resolve a safe target — target arg may be undefined in solo/training modes
     const _superTarget = target || this.target || trainingDummies[0] || players.find(p => p !== this && p.health > 0);
     const superMoves = {
-      sword:  () => {
-        this.vx = this.facing * 24;
-        if (_superTarget && dist(this, _superTarget) < 210) dealDamage(this, _superTarget, 60, 30);
+      // ── Sword: Air Slash — three energy slashes fan out horizontally ───────────
+      sword: () => {
+        const _angles = [-0.22, 0, 0.22];
+        _angles.forEach((ang, i) => {
+          setTimeout(() => {
+            if (!gameRunning || this.health <= 0) return;
+            const spd = 18;
+            projectiles.push(new Projectile(
+              this.cx() + this.facing * 14, this.y + 22,
+              this.facing * spd * Math.cos(ang), spd * Math.sin(ang),
+              this, 22, '#88ccff'
+            ));
+          }, i * 60);
+        });
+        spawnParticles(this.cx(), this.cy(), '#88ccff', 14);
+        screenShake = Math.max(screenShake, 16);
       },
+      // ── Hammer: Mjolnir Spin — spinning contact AoE then forward launch ─────────
       hammer: () => {
-        screenShake = Math.max(screenShake, 36);
-        spawnRing(this.cx(), this.y + this.h);
-        spawnRing(this.cx(), this.y + this.h);
-        if (_superTarget && dist(this, _superTarget) < 230) dealDamage(this, _superTarget, 38, 28);
+        this.spinning   = 70;
+        this._hammerSpin = { timer: 70, hitSet: new Set() };
+        screenShake = Math.max(screenShake, 22);
+        spawnParticles(this.cx(), this.cy(), '#ffcc44', 20);
       },
       gun: () => {
         for (let i = 0; i < 14; i++) {
@@ -1214,14 +1311,21 @@ class Fighter {
           }, i * 50);
         }
       },
-      axe:   () => {
-        this.spinning = 75;
-        if (_superTarget && dist(this, _superTarget) < 175) dealDamage(this, _superTarget, 52, 26);
+      // ── Axe: Whirlwind — continuous multi-hit spin with wider AoE ───────────────
+      axe: () => {
+        this.spinning = 90;
+        this._axeWhirl = { hitCd: {} };
+        screenShake = Math.max(screenShake, 20);
+        spawnParticles(this.cx(), this.cy(), '#ff8833', 18);
+        spawnRing(this.cx(), this.cy());
       },
+      // ── Spear: Lance Charge — sustained forward pierce through all enemies ───────
       spear: () => {
-        this.vx = this.facing * 22;
-        this.vy = -10;
-        if (_superTarget && dist(this, _superTarget) < 230) dealDamage(this, _superTarget, 50, 24);
+        this._spearCharge = { timer: 60, hitSet: new Set() };
+        this.vx  = this.facing * 18;
+        this.vy  = -3;
+        spawnParticles(this.cx(), this.cy(), '#ffaa44', 14);
+        screenShake = Math.max(screenShake, 14);
       },
       // ── Bow: Arrow Rain — 8 spread arrows arc outward ───────────────────────
       bow: () => {
@@ -1958,11 +2062,15 @@ class Fighter {
     if (this.inputBuffer.length > 3) this.inputBuffer.length = 3;
 
     // --- Shield reaction (medium+): block incoming melee swing ---
+    // Only shield when stacks are low (shield still effective); bots won't spam a depleted shield
     if (t && this.aiDiff !== 'easy' && t.attackTimer > 0 && d < 110 &&
-        this.shieldCooldown === 0 && Math.random() < 0.22) {
+        (this.shieldStacks || 0) <= 2 && Math.random() < 0.22) {
+      if ((this.shieldHoldTimer || 0) === 0) {
+        this.shieldStacks        = (this.shieldStacks || 0) + 1;
+        this.shieldRechargeTimer = 90;
+      }
       this.shielding = true;
-      this.shieldCooldown = SHIELD_CD;
-      setTimeout(() => { this.shielding = false; }, 320);
+      setTimeout(() => { this.shielding = false; this.shieldHoldTimer = 0; }, 320);
     }
 
     // --- Dodge projectiles (medium+) ---

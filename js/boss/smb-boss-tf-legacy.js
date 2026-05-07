@@ -1,7 +1,13 @@
 'use strict';
-// smb-boss-tf-legacy.js — DELETED cinematic stubs (dead code kept for reference) + triggerPhaseTransition
+// smb-boss-tf-legacy.js — DELETED cinematic stubs (dead code kept for reference)
 // Depends on: smb-globals.js, smb-boss-phase-cin.js
 // Must load AFTER smb-boss-phase-cin.js, BEFORE smb-boss-tf-attacks1.js
+//
+// !! CAUTION: Do NOT delete this file !!
+// triggerPhaseTransition is the canonical live version used by:
+//   smb-boss.js, smb-trueform.js, smb-enemies-core.js, smb-enemies-creatures.js
+// (The version in smb-boss-tf-attacks1.js overrides it at runtime — both are identical
+//  intentionally so neither must be removed alone.)
 
 // ============================================================
 // MID-FIGHT CINEMATICS — see js/smc-cinematics.js for all 6 factory fns

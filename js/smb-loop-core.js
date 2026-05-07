@@ -262,7 +262,7 @@ function gameLoop(timestamp) {
         for (const p of players) {
           if (p.isBoss || p.health <= 0 || p.invincible > 0) continue;
           if (Math.abs(p.cx() - er.x) < 100 && p.y + p.h > (currentArena.lavaY || 462) - 250) {
-            if (er.timer % 10 === 0) dealDamage(players.find(q => q.isBoss) || players[1], p, Math.ceil(p.maxHealth * 0.044), 8);
+            if (er.timer % 10 === 0) dealDamage(players.find(q => q.isBoss) || null, p, Math.ceil(p.maxHealth * 0.044), 8);
           }
         }
       }
@@ -385,7 +385,7 @@ function gameLoop(timestamp) {
               if (b._damageAccum[pid] < MAX_BEAM_DAMAGE) {
                 const allowed = Math.min(6, MAX_BEAM_DAMAGE - b._damageAccum[pid]);
                 b._damageAccum[pid] += allowed;
-                dealDamage(boss || players[1], p, allowed, 5, 1.0, false, 12);
+                dealDamage(boss || null, p, allowed, 5, 1.0, false, 12);
               }
             }
           }
@@ -416,7 +416,7 @@ function gameLoop(timestamp) {
         for (const p of spikeTargets) {
           if (p.health <= 0 || p.invincible > 0) continue;
           if (Math.abs(p.cx() - sp.x) < 9 && p.y + p.h > spikeTopY) {
-            dealDamage(bossRef || players.find(q => q.isBoss) || players[1], p, 14, 14, 1.0, false, 20);
+            dealDamage(bossRef || players.find(q => q.isBoss) || null, p, 14, 14, 1.0, false, 20);
             // Bounce player upward so they can escape
             if (p.vy >= 0) {
               p.vy = -20;

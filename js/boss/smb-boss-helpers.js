@@ -140,6 +140,17 @@ function resetTFState() {
   if (tfMultiverse) { tfMultiverse.shards && (tfMultiverse.shards.length = 0); tfMultiverse = null; }
   tfSupernova        = null;
   tfAttackRetryQueue = [];
+  // Clear any pending TrueForm-instance deferred attacks (chain, slash, teleport combo, etc.)
+  if (typeof players !== 'undefined') {
+    const _tf = players.find(p => p.isTrueForm);
+    if (_tf) {
+      _tf._pendingChainMove     = null;
+      _tf._pendingSlash         = null;
+      _tf._pendingTeleportCombo = null;
+      _tf._pendingGravityCrush  = null;
+      _tf._pendingShockwave     = null;
+    }
+  }
   // Restore slow-motion if any attack left it in a reduced state
   if (slowMotion < 1.0) { slowMotion = 1.0; hitSlowTimer = 0; }
   // Reset dimension shift and depth phase — always restore 2D on fight end

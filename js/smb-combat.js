@@ -170,12 +170,18 @@ function dealDamage(attacker, target, dmg, kbForce, stunMult = 1.0, isSplash = f
     directorAddIntensity(actualDmg * 0.02);
   }
   if (target.shielding) {
-    actualDmg = Math.max(1, Math.floor(actualDmg * 0.08));
-    actualKb  = Math.floor(actualKb * 0.15);
-    spawnParticles(target.cx(), target.cy(), '#88ddff', 6);
-    // Parry: near-perfect block (shield raised ≤ 15 frames ago) has a chance to
-    // stun the attacker for 1.5 s and leave them vulnerable to 1.5× damage.
-    if (attacker && !(attacker.stunTimer > 0) && !(attacker.isBoss && attacker.phase >= 3)) {
+    // Stack-degrading shield: each consecutive activation weakens protection.
+    // Passthrough fractions indexed by shieldStacks (1=fresh, 5+=depleted).
+    const _SHIELD_PASS = [0, 0.00, 0.25, 0.60, 0.80, 0.90];
+    const _stackIdx    = Math.min(Math.max(target.shieldStacks || 1, 1), _SHIELD_PASS.length - 1);
+    const _passThrough = _SHIELD_PASS[_stackIdx];
+    actualDmg = Math.max(1, Math.floor(actualDmg * _passThrough));
+    actualKb  = Math.floor(actualKb * (0.15 + _passThrough * 0.5)); // KB also partially scales
+    const _shieldColor = _stackIdx >= 4 ? '#ff6644' : _stackIdx >= 3 ? '#ffaa44' : '#88ddff';
+    spawnParticles(target.cx(), target.cy(), _shieldColor, 6);
+    // Parry: only available on fresh shield (stacks <= 1)
+    if (attacker && !(attacker.stunTimer > 0) && !(attacker.isBoss && attacker.phase >= 3)
+        && (target.shieldStacks || 1) <= 1) {
       const held = target.shieldHoldTimer || 0;
       const parryChance = held <= 8 ? 0.65 : held <= 15 ? 0.30 : 0;
       if (parryChance > 0 && Math.random() < parryChance) {

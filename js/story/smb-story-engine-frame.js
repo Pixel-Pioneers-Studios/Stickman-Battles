@@ -49,6 +49,18 @@ function storyCheckEvents() {
     if (Math.random() < 0.10) triggerScene('fallen_warrior_memory');
   }
 
+  // ── Axiom encounter (ch 91): keep Axiom invincible; force scripted defeat at 20s ──
+  if (ch && ch.id === 91 && !ch.noFight) {
+    const _axiom = players && players.find(p => p !== p1 && !p.isBoss);
+    if (_axiom && _axiom.health > 0) {
+      _axiom.invincible = Math.max(_axiom.invincible || 0, 10);
+      _axiom.health     = _axiom.maxHealth; // instantly undo any damage — attacks visually connect but deal nothing
+    }
+    if (frameCount >= 1200 && p1.health > 0) {
+      dealDamage(null, p1, p1.maxHealth * 99, 80); // scripted defeat — Axiom ends the encounter
+    }
+  }
+
   // ── Tick storyFreezeTimer ─────────────────────────────────────────────────
   if (storyFreezeTimer > 0) storyFreezeTimer--;
 

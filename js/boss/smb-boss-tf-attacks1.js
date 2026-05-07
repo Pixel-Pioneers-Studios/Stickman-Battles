@@ -5,6 +5,8 @@
 
 // ============================================================
 function triggerPhaseTransition(entity, phase) {
+  // Reset stagger accumulator so TrueForm doesn't inherit boss-phase stagger state
+  bossStaggerDmg = 0; bossStaggerDecay = 0;
   if (entity.isTrueForm) {
     startCinematic(phase === 2 ? _makeTFPhase2Cinematic(entity) : _makeTFPhase3Cinematic(entity));
   } else if (entity.isBeast) {
@@ -571,7 +573,7 @@ function updateTFShockwaves() {
       const pd = Math.hypot(p.cx() - sw.x, (p.y + p.h * 0.5) - sw.y);
       if (pd < sw.r + 20 && pd > sw.r - 22) {
         sw.hit.add(p);
-        dealDamage(sw.boss || null, p, 15, 9);
+        dealDamage(sw.boss || players.find(q => q.isTrueForm) || null, p, 15, 9);
         const rDir = p.cx() > sw.x ? 1 : -1;
         p.vx += rDir * 13;
         p.vy  = Math.min(p.vy, -7);
@@ -607,7 +609,10 @@ function updateBossPendingAttacks() {
   if (!gameRunning) return;
   const boss = players.find(p => p.isBoss && !p.isTrueForm);
 
-  // ── Tick bossWarnings (visual only) ───────────────────────
+  if (!boss || boss.health <= 0) return;
+
+  // ── Tick bossWarnings (visual only) ─ kept AFTER null guard so TF phase
+  // doesn't double-tick them (updateTFPendingAttacks handles it during TF phase)
   for (let i = bossWarnings.length - 1; i >= 0; i--) {
     bossWarnings[i].timer--;
     if (bossWarnings[i].timer <= 0) bossWarnings.splice(i, 1);
@@ -619,8 +624,6 @@ function updateBossPendingAttacks() {
   }
   // ── Desperation flash decay ────────────────────────────────
   if (bossDesperationFlash > 0) bossDesperationFlash--;
-
-  if (!boss || boss.health <= 0) return;
 
   // ── Stagger: accumulate damage taken, trigger stun ────────
   const dmgThisFrame = (boss._prevHealth || boss.health) - boss.health;

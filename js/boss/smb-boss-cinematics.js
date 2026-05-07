@@ -3,56 +3,9 @@
 // Depends on: smb-globals.js, smb-cinematics.js
 // Must load: AFTER smb-boss.js, BEFORE smb-loop.js
 
-// ============================================================
-// CINEMATIC MANAGER
-// ============================================================
-function startCinematic(seq) {
-  if (onlineMode) return; // skip cinematics in online multiplayer (sync too complex)
-  if (activeCinematic) endCinematic();
-  activeCinematic = Object.assign({ timer: 0 }, seq);
-  isCinematic = true;
-  // Hard freeze: halt physics, input, and hazard damage so player cannot die during cinematics
-  gameFrozen = true;
-  // Freeze all player velocities to prevent mid-air drift during cinematic
-  if (typeof players !== 'undefined') {
-    for (const p of players) {
-      if (!p.isBoss && p.health > 0) { p.vx = 0; p.vy = Math.min(p.vy, 0); }
-    }
-  }
-}
-
-function updateCinematic() {
-  if (!activeCinematic) return;
-  activeCinematic.timer++;
-  const t = activeCinematic.timer / 60; // seconds
-  activeCinematic.update(t);
-  if (activeCinematic.timer >= activeCinematic.durationFrames) {
-    endCinematic();
-  }
-}
-
-function endCinematic() {
-  if (!activeCinematic) return;
-  // Respawn any players that were hidden during the cinematic at a safe position
-  if (activeCinematic.hidePlayers && typeof players !== 'undefined' && typeof pickSafeSpawn === 'function') {
-    for (const idx of activeCinematic.hidePlayers) {
-      const p = players[idx];
-      if (p && p.health > 0) {
-        const spawn = pickSafeSpawn(idx === 0 ? 'left' : 'right');
-        p.x  = spawn.x - p.w / 2;
-        p.y  = spawn.y - p.h;
-        p.vx = 0;
-        p.vy = 0;
-      }
-    }
-  }
-  if (activeCinematic.onEnd) activeCinematic.onEnd();
-  activeCinematic = null;
-  isCinematic = false;
-  slowMotion = 1.0;
-  cinematicCamOverride = false;
-  gameFrozen = false; // resume physics and input
-}
+// startCinematic / updateCinematic / endCinematic are defined in smb-boss-phase-cin.js
+// (loaded immediately after this file). That version is the canonical one — it includes
+// setCombatLock/clearCombatLock and the null-safe pickSafeSpawn fallback.
 
 // ============================================================
 // CINEMATIC SEQUENCES — one factory per boss × phase
@@ -364,20 +317,8 @@ function _makeYetiPhase2Cinematic(yetiEnt) {
   };
 }
 
-// ============================================================
-// PHASE TRANSITION — triggers appropriate cinematic sequence
-// ============================================================
-function triggerPhaseTransition(entity, phase) {
-  if (entity.isTrueForm) {
-    startCinematic(phase === 2 ? _makeTFPhase2Cinematic(entity) : _makeTFPhase3Cinematic(entity));
-  } else if (entity.isBeast) {
-    startCinematic(_makeBeastPhase2Cinematic(entity));
-  } else if (entity.isYeti) {
-    startCinematic(_makeYetiPhase2Cinematic(entity));
-  } else {
-    startCinematic(phase === 2 ? _makeBossPhase2Cinematic(entity) : _makeBossPhase3Cinematic(entity));
-  }
-}
+// triggerPhaseTransition is defined in smb-boss-tf-attacks1.js (loaded after this file)
+// to avoid silent divergence between duplicate copies.
 
 // ── GRAB CINEMATIC ────────────────────────────────────────────────────────────
 function _makeTFGrabCinematic(tf, target) {

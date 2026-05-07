@@ -39,7 +39,8 @@ function endCinematic() {
     for (const idx of activeCinematic.hidePlayers) {
       const p = players[idx];
       if (p && p.health > 0) {
-        const spawn = pickSafeSpawn(idx === 0 ? 'left' : 'right');
+        const spawn = pickSafeSpawn(idx === 0 ? 'left' : 'right')
+                   || { x: idx === 0 ? GAME_W * 0.25 : GAME_W * 0.75, y: GAME_H * 0.35 };
         p.x  = spawn.x - p.w / 2;
         p.y  = spawn.y - p.h;
         p.vx = 0;

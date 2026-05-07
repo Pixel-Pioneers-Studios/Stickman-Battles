@@ -171,7 +171,11 @@ TrueForm.prototype._doSpecial = function(move, target) {
         spawnParticles(this.cx(), this.cy(), '#ffffff', 22);
         break;
       case 'warp': {
-        _bossTeleportActor(this, (this.target ? this.target.cx() : this.cx()) + (Math.random() < 0.5 ? -140 : 140), this.y, { preferRaised: true });
+        // Lock destination before pushing telegraph so the circle marks where TF lands
+        const _warpDestX = (this.target ? this.target.cx() : this.cx()) + (Math.random() < 0.5 ? -140 : 140);
+        bossWarnings.push({ type: 'circle', x: _warpDestX, y: this.y, r: 60,
+          color: '#8800ff', timer: 16, maxTimer: 16, label: 'WARP' });
+        _bossTeleportActor(this, _warpDestX, this.y, { preferRaised: false });
         this._warpCd = Math.ceil(80 * cdMult);
         this._setAttackPhase('recovery', 18, false);
         showBossDialogue('Same arena. Different angle.', 150);
@@ -195,6 +199,8 @@ TrueForm.prototype._doSpecial = function(move, target) {
       }
       case 'invert':
         // Apply a timed 10s inversion instead of a permanent toggle
+        bossWarnings.push({ type: 'circle', x: GAME_W / 2, y: GAME_H / 2, r: 180,
+          color: '#00aaff', timer: 22, maxTimer: 22, label: 'CONTROLS INVERTED!' });
         tfControlsInverted    = true;
         tfControlsInvertTimer = 600; // 10 seconds at 60fps
         this._invertCd = Math.ceil(36 * cdMult);
@@ -204,6 +210,8 @@ TrueForm.prototype._doSpecial = function(move, target) {
       case 'size': {
         const t = this.target;
         if (t) {
+          bossWarnings.push({ type: 'cross', x: t.cx(), y: t.cy(), r: 55,
+            color: '#cc00ff', timer: 24, maxTimer: 24, label: 'SIZE SHIFT' });
           const scales = [0.4, 0.55, 0.7, 1.0, 1.25, 1.5];
           tfSetSize(t, scales[Math.floor(Math.random() * scales.length)]);
         }

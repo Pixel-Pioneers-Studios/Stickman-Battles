@@ -5,6 +5,7 @@
 
 function updateTFPendingAttacks() {
   if (!gameRunning) return;
+  if (gameFrozen || activeCinematic) return; // never fire deferred attacks during cinematics
   const tf = players.find(p => p.isTrueForm);
 
   for (let i = tfAttackRetryQueue.length - 1; i >= 0; i--) {

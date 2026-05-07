@@ -630,12 +630,12 @@ class TrueForm extends Fighter {
     }
 
     // --- Attack: frequency driven by adaptive behavior multiplier ────────
-    const atkFreq = Math.min(antiRangeActive ? 0.62 : 0.44, this._adaptAtkFreq * (antiRangeActive ? 2.8 : (phase === 3 ? 2.2 : phase === 2 ? 1.5 : 1.0)));
+    const atkFreq = Math.min(antiRangeActive ? 0.45 : 0.28, this._adaptAtkFreq * (antiRangeActive ? 2.2 : (phase === 3 ? 1.8 : phase === 2 ? 1.2 : 0.8)));
     if (d < this._adaptSpacing + 20 && Math.random() < atkFreq && this.cooldown <= 0) {
       this.attack(t); this._noActionTicks = 0;
     }
     // Second hit of a combo when very close (area control)
-    const atkFreq2 = Math.min(antiRangeActive ? 0.38 : 0.28, (this._adaptAtkFreq * 0.6) * (antiRangeActive ? 2.4 : (phase === 3 ? 2.0 : phase === 2 ? 1.4 : 0.9)));
+    const atkFreq2 = Math.min(antiRangeActive ? 0.26 : 0.18, (this._adaptAtkFreq * 0.6) * (antiRangeActive ? 1.8 : (phase === 3 ? 1.6 : phase === 2 ? 1.1 : 0.7)));
     if (d < 48 && Math.random() < atkFreq2 && this.cooldown <= 0) {
       this.attack(t); this._noActionTicks = 0;
     }

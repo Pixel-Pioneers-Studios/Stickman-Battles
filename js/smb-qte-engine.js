@@ -385,6 +385,36 @@ function _beginOutroSuccess() {
     }
   }
 
+  // Reward player for successfully completing the QTE
+  const p1 = s.playerRef;
+  if (p1 && p1.health > 0) {
+    if (s.phase <= 2) {
+      // Phases 1–2: heal 15% max HP
+      const _healAmt = Math.round(p1.maxHealth * 0.15);
+      p1.health = Math.min(p1.maxHealth, p1.health + _healAmt);
+      if (typeof spawnParticles === 'function') spawnParticles(p1.cx(), p1.cy(), '#00ff88', 14);
+      if (typeof damageTexts !== 'undefined')
+        damageTexts.push(new DamageText(p1.cx(), p1.y - 30, `+${_healAmt}`, '#00ff88'));
+    } else if (s.phase === 3) {
+      // Phase 3: heal 25% max HP
+      const _healAmt = Math.round(p1.maxHealth * 0.25);
+      p1.health = Math.min(p1.maxHealth, p1.health + _healAmt);
+      if (typeof spawnParticles === 'function') spawnParticles(p1.cx(), p1.cy(), '#00ff88', 20);
+      if (typeof damageTexts !== 'undefined')
+        damageTexts.push(new DamageText(p1.cx(), p1.y - 30, `+${_healAmt}`, '#00ff88'));
+    } else {
+      // Phase 4: full HP restore + extra life
+      p1.health = p1.maxHealth;
+      p1.lives  = (p1.lives || 0) + 1;
+      if (typeof spawnParticles === 'function') {
+        spawnParticles(p1.cx(), p1.cy(), '#ffcc00', 30);
+        spawnParticles(p1.cx(), p1.cy(), '#ffffff', 20);
+      }
+      if (typeof damageTexts !== 'undefined')
+        damageTexts.push(new DamageText(p1.cx(), p1.y - 30, '+1 LIFE', '#ffcc00'));
+    }
+  }
+
   // Phase-specific cinematic extras
   _phaseSuccessExtras(s);
 }

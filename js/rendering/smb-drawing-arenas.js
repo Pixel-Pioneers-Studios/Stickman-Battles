@@ -1119,8 +1119,10 @@ function checkDeaths() {
           }
         }, 1100);
       } else if (p.lives > 0) {
-        p.lives--;
+        p.lives = Math.max(0, p.lives - 1);
         p.invincible = 999; // block re-trigger until respawn clears it
+        // Clean up any TrueForm size entry so stale scale data doesn't persist past death
+        if (typeof tfSizeTargets !== 'undefined') tfSizeTargets.delete(p);
         // Story event: enemy just died — fire FIRST_KILL for the killer
         if (storyModeActive && p.isAI && typeof storyOnEnemyDeath === 'function') {
           const killer = players.find(q => q !== p && !q.isAI);
@@ -1602,11 +1604,15 @@ function updateHUD() {
       }
     }
     if (nEl) nEl.style.color = p.color;
+    const superTrack = sEl && sEl.parentElement;
+    if (superTrack) superTrack.style.display = (storyModeActive && p._storyNoSuper) ? 'none' : '';
     if (sEl) {
       sEl.style.width = p.superMeter + '%';
       if (p.superReady) sEl.classList.add('ready');
       else              sEl.classList.remove('ready');
     }
+    const cdTrack = cdEl && cdEl.parentElement;
+    if (cdTrack) cdTrack.style.display = (storyModeActive && p._storyNoAbility) ? 'none' : '';
     if (cdEl) {
       // Show how much of the Q cooldown has recovered (full = ready)
       const maxCd = p.weapon && p.weapon.abilityCooldown;

@@ -128,6 +128,8 @@ document.addEventListener('keydown', e => {
           typeof tfDepthEnabled !== 'undefined' && tfDepthEnabled && !p.isAI) {
         p.z = Math.max(-1, (p.z || 0) - 0.3);
         spawnParticles(p.cx(), p.cy(), '#8844ff', 4);
+      } else if (p._storyNoAbility) {
+        // ability locked in story — silently ignore
       } else if (!incapacitated) {
         p.ability(other);
       } else {
@@ -141,6 +143,8 @@ document.addEventListener('keydown', e => {
           typeof tfDepthEnabled !== 'undefined' && tfDepthEnabled && !p.isAI) {
         p.z = Math.min(1, (p.z || 0) + 0.3);
         spawnParticles(p.cx(), p.cy(), '#00aaff', 4);
+      } else if (p._storyNoSuper) {
+        // super locked in story — silently ignore
       } else if (!incapacitated) {
         checkSecretLetterCollect(p);
         p.useSuper(other);
@@ -293,8 +297,8 @@ function processInput() {
         const _bufOther = players[_pi === 0 ? 1 : 0];
         p._inputBuffer  = null;
         if      (_buf.action === 'attack')  p.attack(_bufOther);
-        else if (_buf.action === 'ability') p.ability(_bufOther);
-        else if (_buf.action === 'super')   { checkSecretLetterCollect(p); p.useSuper(_bufOther); }
+        else if (_buf.action === 'ability' && !p._storyNoAbility) p.ability(_bufOther);
+        else if (_buf.action === 'super'   && !p._storyNoSuper)   { checkSecretLetterCollect(p); p.useSuper(_bufOther); }
       } else {
         p._inputBuffer = null; // window expired
       }
@@ -360,25 +364,28 @@ function processInput() {
         SoundManager.jump();
       }
     }
-    // --- S / ArrowDown = boost shield (30-second cooldown) ---
-    const sHeld = keysDown.has(p.controls.shield);
-    if (sHeld && p.shieldCooldown === 0 && !(p.weapon && p.weapon.type === 'ranged' && p._rangedCommitTimer > 0)) {
+    // --- S / ArrowDown = shield (no cooldown; repeated use degrades protection) ---
+    const sHeld      = keysDown.has(p.controls.shield);
+    const sNewPress  = sHeld && (p.shieldHoldTimer || 0) === 0;
+    if (sHeld && !(p.weapon && p.weapon.type === 'ranged' && p._rangedCommitTimer > 0)) {
+      if (sNewPress) {
+        // New activation: count it as a consecutive use and restart the recharge window
+        p.shieldStacks        = (p.shieldStacks        || 0) + 1;
+        p.shieldRechargeTimer = 90; // 1.5 s of no-shield use fully recharges
+      }
       p.shielding       = true;
       p.shieldHoldTimer = (p.shieldHoldTimer || 0) + 1;
       if (p.shieldHoldTimer >= SHIELD_MAX) {
-        // Max duration exhausted → forced break and start cooldown
+        // Held too long — force a break so player can't hold forever
         p.shielding       = false;
-        p.shieldCooldown  = SHIELD_CD;
         p.shieldHoldTimer = 0;
       }
     } else {
-      if (p.shielding && !sHeld) {
-        // Player released S — start cooldown if they used it for more than 3 frames
-        if ((p.shieldHoldTimer || 0) > 3) p.shieldCooldown = SHIELD_CD;
+      if (p.shielding) {
         p.shielding       = false;
         p.shieldHoldTimer = 0;
       }
-      if (!sHeld) p.shielding = false;
+      if (!sHeld) { p.shielding = false; p.shieldHoldTimer = 0; }
     }
     // Paradox Fusion: ability key triggers paradox abilities during player control phase
     if (typeof tfParadoxFused !== 'undefined' && tfParadoxFused &&

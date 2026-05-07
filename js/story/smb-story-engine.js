@@ -1504,19 +1504,7 @@ function _handleBuiltinEvent(name, data) {
 
     // ── Player kills their first enemy ───────────────────────────────────────
     case 'FIRST_KILL': {
-      // Only show the double-jump unlock ceremony if it hasn't been granted yet
-      if (!storyState.abilities.doubleJump && storyState.chapter >= 2) {
-        storyState.abilities.doubleJump = true;
-        _showMidFightUnlock({
-          icon: '⬆',
-          name: 'Double Jump',
-          desc: 'Your body adapted.\nPress W again in the air.',
-          color: '#44ffaa',
-        });
-        // Apply immediately to current player
-        const p1 = players && players[0];
-        if (p1) { p1._storyNoDoubleJump = false; p1._noDoubleJump = false; }
-      }
+      // Double jump is now skill-tree gated — no mid-fight auto-grant
       break;
     }
 
@@ -1924,12 +1912,8 @@ function resetStoryEventState() {
   storyFreezeTimer = 0;
   _fallenWarrior   = null;
   syncStoryDistortLevel();
-  // Sync ability locks from current chapter
-  const id = storyState.chapter;
-  storyState.abilities.doubleJump    = id >= 1  || storyState.abilities.doubleJump;
-  storyState.abilities.weaponAbility = id >= 3  || storyState.abilities.weaponAbility;
-  storyState.abilities.superMeter    = id >= 5  || storyState.abilities.superMeter;
-  storyState.abilities.dodge         = id >= 9  || storyDodgeUnlocked;
+  // Abilities unlock via skill tree only — do not auto-grant based on chapter index
+  storyState.abilities.dodge = storyDodgeUnlocked;
 }
 
 // ── Story soft boundary / portal system ───────────────────────────────────────
