@@ -4,7 +4,7 @@
 // trapping them in a dying loop dimension. Escape is the only option.
 STORY_CHAPTER_REGISTRY.push(
   {
-    id: 91, title: 'The Weight of What\'s Coming',
+    id: 63, title: 'The Weight of What\'s Coming',
     world: '\uD83D\uDD73\uFE0F The Void — Threshold',
     narrative: [
       'You step through the dimension wall.',
@@ -49,7 +49,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 92, title: 'Eternal Damnation',
+    id: 64, title: 'Eternal Damnation',
     world: '\uD83D\uDD73\uFE0F The Loop — Escape or Be Erased',
     isDamnationChapter: true,
     arena: 'damnation',
@@ -68,7 +68,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 93, title: 'What the Scar Remembers',
+    id: 65, title: 'What the Scar Remembers',
     world: '\uD83D\uDD73\uFE0F The Void — Threshold Restored',
     isCinematicBridge: true,
     noFight: true,

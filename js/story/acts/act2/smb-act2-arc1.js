@@ -1,7 +1,7 @@
 // Appends chapters for act2/smb-act2-arc1.js.
 STORY_CHAPTER_REGISTRY.push(
   {
-    id: 28, title: 'Gravity Anomaly',
+    id: 29, title: 'Gravity Anomaly',
     world: '⚛️ Multiversal Core — Flux Zone',
     narrative: [
       'The flux zone.',
@@ -31,7 +31,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 29, title: 'The Orbital Duel',
+    id: 30, title: 'The Orbital Duel',
     world: '⚛️ Multiversal Core — Orbital Ring',
     narrative: [
       'The orbital ring circled the core\'s eye.',
@@ -62,7 +62,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 30, title: 'Echo Storm',
+    id: 31, title: 'Echo Storm',
     world: '⚛️ Multiversal Core — Storm Eye',
     narrative: [
       'The rift entity felt it.',
@@ -92,7 +92,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 31, title: 'The Core\'s Eye',
+    id: 32, title: 'The Core\'s Eye',
     world: '⚛️ Multiversal Core — Eye',
     narrative: [
       'At the center of everything: not a monster.',
@@ -124,7 +124,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 32, title: 'The Weight of the Core',
+    id: 33, title: 'The Weight of the Core',
     world: '⚛️ Multiversal Core — Observation Deck',
     noFight: true,
     narrative: [
@@ -158,7 +158,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 33, title: 'Resonance Spike',
+    id: 34, title: 'Resonance Spike',
     world: '⚛️ Multiversal Core — Resonance Chamber',
     narrative: [
       'The rift entity needed to test it.',
@@ -191,7 +191,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 34, title: 'Residue',
+    id: 35, title: 'Residue',
     world: '⚛️ Multiversal Core — Quiet Chamber',
     noFight: true,
     narrative: [

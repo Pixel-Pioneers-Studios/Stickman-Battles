@@ -1,7 +1,7 @@
 // Appends chapters for act4mv/smb-act4mv-arc1.js.
 STORY_CHAPTER_REGISTRY.push(
   {
-    id: 62,
+    id: 66,
     title: 'A World That Never Stopped Fighting',
     world: '⚔️ War-Torn Dimension',
     noFight: true,
@@ -29,7 +29,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 63,
+    id: 67,
     title: 'War Champion',
     world: '⚔️ War-Torn Dimension — Front Lines',
     narrative: [
@@ -69,7 +69,7 @@ STORY_CHAPTER_REGISTRY.push(
   // ─────── Arc 5-1: Gravity Flux World (ids 64–65) ──────────────────
 
   {
-    id: 64,
+    id: 68,
     title: 'The Ground Is a Suggestion',
     world: '🌀 Gravity Flux World',
     noFight: true,
@@ -97,7 +97,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 65,
+    id: 69,
     title: 'Flux Guardian',
     world: '🌀 Gravity Flux World — The Axis',
     narrative: [

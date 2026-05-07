@@ -195,6 +195,8 @@ class Fighter {
     this._hammerSpin         = null;
     this._spearCharge        = null;
     this._axeWhirl           = null;
+    this._swordSlashes       = [];
+    this._swordSlashQueue    = [];
     this.canDoubleJump   = false;
     // superMeter / superReady intentionally NOT reset — supers carry over between lives
     this.contactDamageCooldown = 0;
@@ -373,17 +375,18 @@ class Fighter {
       }
       if (this._hammerSpin.timer <= 0) {
         this._hammerSpin = null;
-        this.vx = this.facing * 26;
-        this.vy = -7;
-        screenShake = Math.max(screenShake, 18);
+        this.vx = this.facing * 44;
+        this.vy = -16;
+        screenShake = Math.max(screenShake, 26);
         spawnRing(this.cx(), this.y + this.h);
+        spawnParticles(this.cx(), this.cy(), '#ffcc44', 22);
       }
     }
 
     // ── Spear super: Lance Charge — sustained forward pierce ─────────────────────
     if (this._spearCharge) {
       this._spearCharge.timer--;
-      this.vx = this.facing * 16;
+      this.vx = this.facing * 14;
       const _sAll = [...players, ...trainingDummies];
       for (const f of _sAll) {
         if (f === this || f.health <= 0 || this._spearCharge.hitSet.has(f)) continue;
@@ -411,6 +414,51 @@ class Fighter {
     } else if (this._axeWhirl && this.spinning <= 0) {
       this._axeWhirl = null;
     }
+
+    // ── Sword super: slash queue (staggered spawn) + slash movement ─────────────
+    if (this._swordSlashQueue && this._swordSlashQueue.length > 0) {
+      for (let i = this._swordSlashQueue.length - 1; i >= 0; i--) {
+        this._swordSlashQueue[i].delay--;
+        if (this._swordSlashQueue[i].delay <= 0) {
+          const q = this._swordSlashQueue.splice(i, 1)[0];
+          this._swordSlashes.push({
+            x: this.cx() + this.facing * 18,
+            y: this.y + this.h * 0.38 + q.yOff,
+            vx: this.facing * 8,
+            vy: q.vy,
+            tilt: q.tilt,
+            life: 42, maxLife: 42,
+            size: 26 + Math.abs(q.yOff) * 0.3,
+            hitSet: new Set(),
+          });
+          // slicing forward dash on first slash
+          if (i === 0 || this._swordSlashQueue.length === 0) {
+            this.vx = this.facing * 10;
+            this.vy = Math.min(this.vy, -2);
+          }
+        }
+      }
+    }
+    if (this._swordSlashes && this._swordSlashes.length > 0) {
+      for (let i = this._swordSlashes.length - 1; i >= 0; i--) {
+        const sl = this._swordSlashes[i];
+        sl.x += sl.vx;
+        sl.y += sl.vy;
+        sl.vy += 0.08; // slight gravity arc
+        sl.life--;
+        // damage check
+        const _slAll = [...players, ...trainingDummies];
+        for (const f of _slAll) {
+          if (f === this || f.health <= 0 || sl.hitSet.has(f)) continue;
+          if (Math.hypot(f.cx() - sl.x, (f.y + f.h * 0.5) - sl.y) < sl.size + 14) {
+            dealDamage(this, f, 22, 12);
+            sl.hitSet.add(f);
+          }
+        }
+        if (sl.life <= 0) this._swordSlashes.splice(i, 1);
+      }
+    }
+
     if (this.shieldCooldown > 0)       this.shieldCooldown--; // legacy — kept at 0
     // Shield recharge: tick down while not shielding; when it hits 0 stacks reset
     if (!this.shielding && this.shieldRechargeTimer > 0) {
@@ -1279,20 +1327,14 @@ class Fighter {
     // Resolve a safe target — target arg may be undefined in solo/training modes
     const _superTarget = target || this.target || trainingDummies[0] || players.find(p => p !== this && p.health > 0);
     const superMoves = {
-      // ── Sword: Air Slash — three energy slashes fan out horizontally ───────────
+      // ── Sword: Air Slash — three crescent blade arcs sweep outward ──────────────
       sword: () => {
-        const _angles = [-0.22, 0, 0.22];
-        _angles.forEach((ang, i) => {
-          setTimeout(() => {
-            if (!gameRunning || this.health <= 0) return;
-            const spd = 18;
-            projectiles.push(new Projectile(
-              this.cx() + this.facing * 14, this.y + 22,
-              this.facing * spd * Math.cos(ang), spd * Math.sin(ang),
-              this, 22, '#88ccff'
-            ));
-          }, i * 60);
-        });
+        this._swordSlashes     = [];
+        this._swordSlashQueue  = [
+          { delay: 0,  yOff: -8,  vy: -1.2, tilt:  0.3 },
+          { delay: 10, yOff:  0,  vy: -0.4, tilt:  0   },
+          { delay: 20, yOff:  9,  vy:  0.5, tilt: -0.3 },
+        ];
         spawnParticles(this.cx(), this.cy(), '#88ccff', 14);
         screenShake = Math.max(screenShake, 16);
       },
@@ -1319,11 +1361,11 @@ class Fighter {
         spawnParticles(this.cx(), this.cy(), '#ff8833', 18);
         spawnRing(this.cx(), this.cy());
       },
-      // ── Spear: Lance Charge — sustained forward pierce through all enemies ───────
+      // ── Spear: Lance Charge — short forward pierce burst ────────────────────────
       spear: () => {
-        this._spearCharge = { timer: 60, hitSet: new Set() };
-        this.vx  = this.facing * 18;
-        this.vy  = -3;
+        this._spearCharge = { timer: 26, hitSet: new Set() };
+        this.vx  = this.facing * 14;
+        this.vy  = -2;
         spawnParticles(this.cx(), this.cy(), '#ffaa44', 14);
         screenShake = Math.max(screenShake, 14);
       },
@@ -1360,32 +1402,57 @@ class Fighter {
         spawnParticles(this.cx(), this.cy(), '#88aaff', 30);
         spawnRing(this.cx(), this.cy());
       },
-      // ── Scythe: Soul Reap — huge AoE spin, heals 12 HP per target hit ───────
+      // ── Scythe: Soul Reap — forward reaping sweep, heals per target hit ─────────
       scythe: () => {
-        this.spinning = 90;
-        screenShake   = Math.max(screenShake, 22);
-        let healed    = 0;
-        const _scAll  = [...players, ...trainingDummies];
+        this.spinning  = 90;
+        this.vx        = this.facing * 18;
+        this.vy        = -5;
+        screenShake    = Math.max(screenShake, 24);
+        // Spawn crescent slash arcs sweeping in the charge direction
+        this._swordSlashes = this._swordSlashes || [];
+        for (let i = 0; i < 4; i++) {
+          const yOff = (i - 1.5) * 14;
+          this._swordSlashes.push({
+            x: this.cx() + this.facing * 20,
+            y: this.y + this.h * 0.38 + yOff,
+            vx: this.facing * 9,
+            vy: yOff * 0.04,
+            tilt: this.facing * 0.5,
+            life: 50, maxLife: 50,
+            size: 30,
+            color: '#cc44cc',
+            hitSet: new Set(),
+          });
+        }
+        let healed = 0;
+        const _scAll = [...players, ...trainingDummies];
         for (const f of _scAll) {
           if (f === this || f.health <= 0) continue;
           if (dist(this, f) < 210) { dealDamage(this, f, 32, 16); healed++; }
         }
         if (healed > 0) {
-          this.health = Math.min(this.maxHealth, this.health + healed * 12);
+          this.health = Math.min(this.maxHealth, this.health + healed * 14);
           spawnParticles(this.cx(), this.cy(), '#cc44cc', 28);
-          spawnRing(this.cx(), this.cy());
         }
+        spawnRing(this.cx(), this.cy());
       },
-      // ── Frying Pan: Grand Slam — 62 dmg + 1.5 s stun ────────────────────────
+      // ── Frying Pan: Grand Slam — overhead smash launches target straight up ──────
       fryingpan: () => {
-        if (_superTarget && dist(this, _superTarget) < 140) {
-          dealDamage(this, _superTarget, 40, 20);
-          _superTarget.stunTimer = Math.max(_superTarget.stunTimer || 0, 28); // reduced from 90 — no more infinite stun chains
-          spawnParticles(_superTarget.cx(), _superTarget.cy(), '#ffdd44', 24);
-          spawnParticles(_superTarget.cx(), _superTarget.cy(), '#ffffff', 12);
-          screenShake = Math.max(screenShake, 32);
-          spawnRing(_superTarget.cx(), _superTarget.cy());
+        screenShake = Math.max(screenShake, 36);
+        this.vy = -6; // user leaps up into the slam
+        const _slAll = [...players, ...trainingDummies];
+        for (const f of _slAll) {
+          if (f === this || f.health <= 0) continue;
+          if (dist(this, f) < 150) {
+            dealDamage(this, f, 45, 8);
+            f.vy = -32;  // launched straight up
+            f.vx *= 0.2;
+            f.stunTimer = Math.max(f.stunTimer || 0, 22);
+            spawnParticles(f.cx(), f.cy(), '#ffdd44', 22);
+            spawnParticles(f.cx(), f.cy(), '#ffffff', 10);
+          }
         }
+        spawnRing(this.cx(), this.cy());
       },
       // ── Broomstick: Storm Sweep — spin + extreme edge-push on all nearby ─────
       broomstick: () => {
@@ -3587,6 +3654,34 @@ class Fighter {
       ctx.fillStyle = '#cc2200';
       ctx.fillRect(this.x - 3, this.y - 3, this.w + 6, this.h + 6);
       ctx.restore();
+    }
+
+    // ── Sword/Scythe air-slash crescent arcs ────────────────────────────────────
+    if (this._swordSlashes && this._swordSlashes.length > 0) {
+      for (const sl of this._swordSlashes) {
+        const alpha = (sl.life / sl.maxLife);
+        const col   = sl.color || '#88ccff';
+        ctx.save();
+        ctx.translate(sl.x, sl.y);
+        ctx.rotate(sl.tilt || 0);
+        ctx.globalAlpha = alpha * 0.88;
+        ctx.strokeStyle = col;
+        ctx.lineWidth   = 4.5;
+        ctx.shadowColor = col;
+        ctx.shadowBlur  = 12;
+        // Outer crescent arc
+        ctx.beginPath();
+        ctx.arc(0, 0, sl.size, -Math.PI * 0.42, Math.PI * 0.42);
+        ctx.stroke();
+        // Inner thinner arc for depth
+        ctx.globalAlpha = alpha * 0.45;
+        ctx.lineWidth   = 2;
+        ctx.beginPath();
+        ctx.arc(0, 0, sl.size * 0.62, -Math.PI * 0.38, Math.PI * 0.38);
+        ctx.stroke();
+        ctx.shadowBlur = 0;
+        ctx.restore();
+      }
     }
 
     ctx.restore();

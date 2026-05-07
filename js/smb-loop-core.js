@@ -433,6 +433,7 @@ function gameLoop(timestamp) {
     if (typeof drawBossParadoxForeshadow   === 'function') drawBossParadoxForeshadow();
     if (bossDeathScene) updateBossDeathScene();
     if (tfEndingScene)  updateTFEnding();
+    if (typeof godCinematicScene !== 'undefined' && godCinematicScene) updateGodCinematic();
     // Telegraph system: pending attacks, stagger, desperation, warnings draw
     updateBossPendingAttacks();
     drawBossWarnings();
@@ -750,6 +751,7 @@ function gameLoop(timestamp) {
   drawSecretLetters();
   if (bossDeathScene) drawBossDeathScene();
   if (tfEndingScene)  drawTFEnding();
+  if (typeof godCinematicScene !== 'undefined' && godCinematicScene) drawGodCinematic();
   updateMapPerks();
   updateMirrorGimmick();
   drawMirrorGimmickOverlay();

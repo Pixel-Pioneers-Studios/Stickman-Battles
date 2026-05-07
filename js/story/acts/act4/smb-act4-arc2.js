@@ -1,7 +1,7 @@
 // Appends chapters for act4/smb-act4-arc2.js.
 STORY_CHAPTER_REGISTRY.push(
   {
-    id: 82, title: 'The Face',
+    id: 86, title: 'The Face',
     world: '🔩 Creator\'s Domain — Inner Sanctum',
     noFight: true,
     narrative: [
@@ -34,7 +34,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 83, title: 'First Form',
+    id: 87, title: 'First Form',
     world: '🔩 Creator\'s Domain — Combat Space',
     narrative: [
       '"I will not make this easy," the Creator said.',
@@ -66,7 +66,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 84, title: 'Between Forms',
+    id: 88, title: 'Between Forms',
     world: '🔩 Creator\'s Domain — Inner Sanctum',
     noFight: true,
     narrative: [
@@ -102,7 +102,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 85, title: 'The Cost',
+    id: 89, title: 'The Cost',
     world: '🔩 Creator\'s Domain — Before the Final Gate',
     noFight: true,
     narrative: [
@@ -146,7 +146,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 86, title: 'Second Form',
+    id: 90, title: 'Second Form',
     world: '🔩 Creator\'s Domain — Final Combat Space',
     narrative: [
       'The Creator\'s second form was everything the first one had learned.',
@@ -181,7 +181,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 87, title: 'The Last Request',
+    id: 91, title: 'The Last Request',
     world: '🔩 Creator\'s Domain — The Gate Threshold',
     noFight: true,
     narrative: [
@@ -220,7 +220,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 88, title: 'SOVEREIGN',
+    id: 92, title: 'SOVEREIGN',
     world: '⚡ Creator\'s Proving Ground',
     narrative: [
       'The gate demanded a proof.',
@@ -265,7 +265,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 89, title: 'The Creator\'s Gate',
+    id: 93, title: 'The Creator\'s Gate',
     world: '⚛️ Multiversal Core — Creator\'s Domain',
     narrative: [
       'The rift was open.',

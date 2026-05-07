@@ -56,8 +56,11 @@ function storyCheckEvents() {
       _axiom.invincible = Math.max(_axiom.invincible || 0, 10);
       _axiom.health     = _axiom.maxHealth; // instantly undo any damage — attacks visually connect but deal nothing
     }
-    if (frameCount >= 1200 && p1.health > 0) {
-      dealDamage(null, p1, p1.maxHealth * 99, 80); // scripted defeat — Axiom ends the encounter
+    // Frame 1200 (~20s): Axiom ends the encounter with one scripted strike.
+    // Use Axiom as attacker so the env-damage cap (14/frame) doesn't nerf the kill.
+    if (frameCount >= 1200 && p1.health > 0 && !_axiomForcedPlayerLoss) {
+      _axiomForcedPlayerLoss = true;
+      dealDamage(_axiom || null, p1, p1.maxHealth * 99, 80);
     }
   }
 

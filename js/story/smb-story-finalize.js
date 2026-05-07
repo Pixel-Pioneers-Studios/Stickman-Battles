@@ -27,12 +27,12 @@ for (const _ch of STORY_CHAPTERS2) {
 //         8 acts matching canon:
 //           I   Initial Encounter  (0–5)
 //           II  City               (6–12)
-//           III Rifts / Veran      (13–27)
-//           IV  Rural              (28–44)
-//           V   Stickman Universe  (45–61)
-//           VI  Multiverse Exploration + Fallen God (62–73)
-//           VII Creator            (74–89)
-//           VIII True Form — FINAL (90–92)
+//           III Rifts / Veran      (13–28)  ← Lab truth revealed at 28
+//           IV  Rural              (29–45)
+//           V   Stickman Universe  (46–62)
+//           VI  Damnation + Multiverse + Fallen God (63–77)
+//           VII Creator            (78–93)
+//           VIII True Form — FINAL (94–96)
 const STORY_ACT_STRUCTURE = [
   {
     id: 'act1', label: 'Act I — Initial Encounter', color: '#88aacc',
@@ -51,46 +51,47 @@ const STORY_ACT_STRUCTURE = [
     arcs: [
       { id: 'arc1-0', label: 'Fracture Network', chapterRange: [13, 19] },
       { id: 'arc1-1', label: 'The Core', chapterRange: [20, 27] },
+      { id: 'arc1-lab', label: 'Laboratory Truth', chapterRange: [28, 28] },
     ],
   },
   {
     id: 'act4', label: 'Act IV — Rural', color: '#33aa44',
     arcs: [
-      { id: 'arc2-0', label: 'The Rift Core', chapterRange: [28, 34] },
-      { id: 'arc2-1', label: 'Forest & Ice', chapterRange: [35, 41] },
-      { id: 'arc2-2', label: 'Ruins & Collapse', chapterRange: [42, 44] },
+      { id: 'arc2-0', label: 'The Rift Core', chapterRange: [29, 35] },
+      { id: 'arc2-1', label: 'Forest & Ice', chapterRange: [36, 42] },
+      { id: 'arc2-2', label: 'Ruins & Collapse', chapterRange: [43, 45] },
     ],
   },
   {
     id: 'act5', label: 'Act V — Stickman Universe', color: '#cc7722',
     arcs: [
-      { id: 'arc3-0', label: 'The Assembly', chapterRange: [45, 51] },
-      { id: 'arc3-1', label: 'The Fracture Within', chapterRange: [52, 61] },
+      { id: 'arc3-0', label: 'The Assembly', chapterRange: [46, 52] },
+      { id: 'arc3-1', label: 'The Fracture Within', chapterRange: [53, 62] },
     ],
   },
   {
-    // Multiverse trials (62-69) + Fallen God final trial (70-73)
-    id: 'act6', label: 'Act VI — Multiverse Exploration', color: '#bb88ff',
+    // Damnation gateway (63–65) + multiverse trials (66–73) + Fallen God (74–77)
+    id: 'act6', label: 'Act VI — The Loop & Multiverse', color: '#bb88ff',
     arcs: [
-      { id: 'arc4mv-0', label: 'War & Flux', chapterRange: [62, 65] },
-      { id: 'arc4mv-1', label: 'Shadow & Titan', chapterRange: [66, 69] },
-      { id: 'arc5-godfall', label: 'The Fallen God', chapterRange: [70, 73] },
+      { id: 'arc5-damnation', label: 'The Damnation Loop',   chapterRange: [63, 65] },
+      { id: 'arc4mv-0',       label: 'War & Flux',           chapterRange: [66, 69] },
+      { id: 'arc4mv-1',       label: 'Shadow & Titan',       chapterRange: [70, 73] },
+      { id: 'arc5-godfall',   label: 'The Fallen God',       chapterRange: [74, 77] },
     ],
   },
   {
     id: 'act7', label: 'Act VII — Creator', color: '#dd3344',
     arcs: [
-      { id: 'arc4-0', label: 'The Creator\'s Threshold', chapterRange: [74, 81] },
-      { id: 'arc4-1', label: 'The Final Architecture', chapterRange: [82, 89] },
+      { id: 'arc4-0', label: 'The Creator\'s Threshold', chapterRange: [78, 85] },
+      { id: 'arc4-1', label: 'The Final Architecture',   chapterRange: [86, 93] },
     ],
   },
   {
     // True Form — absolute final act, nothing follows
     id: 'act8', label: 'Act VIII — True Form', color: '#cc44ff',
     arcs: [
-      { id: 'arc5-0',          label: 'Into the Void',        chapterRange: [90, 90] },
-      { id: 'arc5-damnation',  label: 'The Damnation Loop',   chapterRange: [91, 93] },
-      { id: 'arc5-1',          label: 'Final Confrontation',  chapterRange: [94, 95] },
+      { id: 'arc5-0', label: 'Into the Void',       chapterRange: [94, 94] },
+      { id: 'arc5-1', label: 'Final Confrontation', chapterRange: [95, 96] },
     ],
   },
 ];

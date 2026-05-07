@@ -98,6 +98,9 @@ cd "Stickman-Battles" && python3 -m http.server 8080
 
 # Syntax-check a JS file
 node --check js/smb-globals.js
+
+# Syntax-check all server-side files (matches the CI build step)
+npm run check
 ```
 
 ### Server details (`server.js` + `storage.js`)
@@ -113,8 +116,11 @@ Environment variables:
 |----------|---------|---------|
 | `PORT` | `3001` | Server port |
 | `ADMIN_KEY` | `smb-dev-key-change-me` | Required for write operations (`POST`/`DELETE /api/bans`) |
+| `SUPABASE_URL` | — | Supabase project URL (cloud auth + saves) |
+| `SUPABASE_ANON_KEY` | — | Supabase publishable key (client-side JWT verification) |
+| `SUPABASE_SERVICE_ROLE_KEY` | — | Supabase service key (server-side reward writes — never expose to browser) |
 
-`ADMIN_KEY` must match `SERVER_CONFIG.adminKey` in `js/smb-globals.js`.
+`ADMIN_KEY` must match `SERVER_CONFIG.adminKey` in `js/smb-globals.js`. For local dev, copy `SMB.env` to `.env` and fill in Supabase values; the server reads them via `process.env`. Database migrations live in `supabase/migrations/`.
 
 ---
 
@@ -213,21 +219,22 @@ Script load order in `Stickman-Battles/index.html` — files may only reference 
 89. `js/smb-menu-utils.js` — `toggleChaosMode`, `resizeGame`, `refreshMenuFromAccount`, `drawEdgeIndicators`
 90. `js/smb-network.js` — NetworkManager (PeerJS/WebRTC)
 91. `js/smb-state.js` — `GameState`: centralized persistent state (accounts, admin overrides, session metadata)
-92. `js/smb-online.js` — `LobbyManager`: lobby presence layer on top of NetworkManager; localStorage lobby ads
-93. `js/smb-debug-overlay.js` — Debug HUD, sanity checks, debug menu panel
-94. `js/smb-debug-console.js` — In-game developer console (`_consoleExec`)
-95. `js/smb-debug-jump.js` — F8 developer jump menu (story/cinematic/arena/boss fast-travel)
-96. `js/smb-accounts.js` — `AccountManager`: local multi-account system; reads/writes via `GameState`
-97. `js/smb-save.js` — Save/load persistence
-98. `js/smb-admin-core.js` — Admin identity, isAdmin, ban/unban/kick actions, player management
-99. `js/smb-admin-panels.js` — Admin panel DOM, action handlers, toast, ban screen, F9 listener
-100. `js/smb-attacktest-core.js` — ATK sandbox state, proxy factory, helpers
-101. `js/smb-attacktest-exec.js` — `FORCE_ATTACK_MODE`, `forceExecuteAttack`, debug tools
-102. `js/smb-attacktest-registry.js` — `ATK_REGISTRY` per-class attack definitions
-103. `js/smb-attacktest-commands.js` — `_atkCommand` router, kit HUD, key handler
-104. `js/smb-attacktest-gui.js` — Visual GUI overlay + console patch
-105. `js/story/smb-story-registry.js` — Story chapter registry
-106. `js/story/acts/` — Per-act story arc files:
+92. `js/smb-supabase.js` — Cloud auth + remote save adapter; wraps Supabase JS SDK (loaded between smb-state and smb-online)
+93. `js/smb-online.js` — `LobbyManager`: lobby presence layer on top of NetworkManager; localStorage lobby ads
+94. `js/smb-debug-overlay.js` — Debug HUD, sanity checks, debug menu panel
+95. `js/smb-debug-console.js` — In-game developer console (`_consoleExec`)
+96. `js/smb-debug-jump.js` — F8 developer jump menu (story/cinematic/arena/boss fast-travel)
+97. `js/smb-accounts.js` — `AccountManager`: local multi-account system; reads/writes via `GameState`
+98. `js/smb-save.js` — Save/load persistence
+99. `js/smb-admin-core.js` — Admin identity, isAdmin, ban/unban/kick actions, player management
+100. `js/smb-admin-panels.js` — Admin panel DOM, action handlers, toast, ban screen, F9 listener
+101. `js/smb-attacktest-core.js` — ATK sandbox state, proxy factory, helpers
+102. `js/smb-attacktest-exec.js` — `FORCE_ATTACK_MODE`, `forceExecuteAttack`, debug tools
+103. `js/smb-attacktest-registry.js` — `ATK_REGISTRY` per-class attack definitions
+104. `js/smb-attacktest-commands.js` — `_atkCommand` router, kit HUD, key handler
+105. `js/smb-attacktest-gui.js` — Visual GUI overlay + console patch
+106. `js/story/smb-story-registry.js` — Story chapter registry
+107. `js/story/acts/` — Per-act story arc files:
     - act0: arc1, arc2
     - act1: arc1, arc2
     - act2: arc1, arc2, arc3
@@ -237,23 +244,25 @@ Script load order in `Stickman-Battles/index.html` — files may only reference 
     - act5: arc1, arc2, arc-damnation
     - act6: arc1, arc2
     - side: smb-lab-infiltration
-107. `js/story/smb-story-config.js` — Story configuration
-108. `js/story/smb-story-engine-data.js` — Chapter expansion helpers, state vars
-109. `js/story/smb-story-engine-ui.js` — Tab switching, journey/store/skill-tree UI
-110. `js/story/smb-story-engine-flow.js` — Chapter launch flow
-111. `js/story/smb-story-engine-match.js` — `spawnWorldBoss`, `story2OnMatchEnd`, victory
-112. `js/story/smb-story-engine-events.js` — Event bus, `_handleBuiltinEvent`, freeze/slow helpers
-113. `js/story/smb-story-engine-frame.js` — Per-frame: `storyCheckEvents`, dodge roll, boundaries
-114. `js/story/smb-story-engine-explore.js` — Exploration chapter: platform gen, side portal
-115. `js/story/smb-story-engine-explore2.js` — `updateExploration`, scene triggers, fallen warrior
-116. `js/story/smb-story-finalize.js` — Story end/transition logic
-117. `js/smb-progression.js` — Player progression / unlocks
-118. `js/smb-multiverse.js` — Multiverse mode
-119. `js/smb-multiplayer-chaos.js` — Multiplayer chaos extensions
-120. `js/smb-designer.js` — Level designer tool
-121. `js/smb-test-tools.js` — Test/QA tooling (loaded last)
+108. `js/story/smb-story-config.js` — Story configuration
+109. `js/story/smb-story-engine-data.js` — Chapter expansion helpers, state vars
+110. `js/story/smb-story-engine-ui.js` — Tab switching, journey/store/skill-tree UI
+111. `js/story/smb-story-engine-flow.js` — Chapter launch flow
+112. `js/story/smb-story-engine-match.js` — `spawnWorldBoss`, `story2OnMatchEnd`, victory
+113. `js/story/smb-story-engine-events.js` — Event bus, `_handleBuiltinEvent`, freeze/slow helpers
+114. `js/story/smb-story-engine-frame.js` — Per-frame: `storyCheckEvents`, dodge roll, boundaries
+115. `js/story/smb-story-engine-explore.js` — Exploration chapter: platform gen, side portal
+116. `js/story/smb-story-engine-explore2.js` — `updateExploration`, scene triggers, fallen warrior
+117. `js/story/smb-story-finalize.js` — Story end/transition logic
+118. `js/smb-progression.js` — Player progression / unlocks
+119. `js/smb-multiverse.js` — Multiverse mode
+120. `js/smb-multiplayer-chaos.js` — Multiplayer chaos extensions
+121. `js/smb-designer.js` — Level designer tool
+122. `js/smb-test-tools.js` — Test/QA tooling (loaded last)
 
 Dependencies: GSAP 3.12.5 (CDN), PeerJS 1.5.4 (CDN).
+
+**Cache-busting:** All `<script>` tags use `?v=3.1.0`. When adding a new script to `index.html`, match the current version suffix. Bump the version string across all tags when shipping a breaking change.
 
 ---
 

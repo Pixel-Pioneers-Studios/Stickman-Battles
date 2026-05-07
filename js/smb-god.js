@@ -284,6 +284,7 @@ class God extends Fighter {
     this._smiteRings    = [];
 
     this._phase = _isGodPhase2() ? 2 : 1;
+    if (typeof resetGodCinematicFlags === 'function') resetGodCinematicFlags();
     if (this._phase === 1) {
       this.health    = 1e15;
       this.maxHealth = 1e15;
@@ -533,6 +534,12 @@ class God extends Fighter {
     }
 
     if (this._phase === 2 && this._specialCd <= 0) this._pickAndFireSpecial(target);
+
+    // Cinematic HP thresholds (Phase 2 only)
+    if (this._phase === 2) {
+      if (typeof _tryFireGodDialogueCin === 'function') _tryFireGodDialogueCin(this);
+      if (typeof _tryFireGod1000Cin     === 'function') _tryFireGod1000Cin(this);
+    }
   }
 
   // ── Draw ───────────────────────────────────────────────────────────────

@@ -4,12 +4,11 @@
 //             smb-progression.js (setStoryFlag, fireLoreMoment)
 // Must load: after smb-story-registry.js, before smb-story-finalize.js
 //
-// Chapter id 96 — sits outside the main 0–95 story arc so it never
-// affects story-completion checks or id/index alignment in 0–95.
-// Launched via startLabInfiltration() in smb-progression.js.
+// Chapter id 28 — inserted at end of Act III (Rifts/Veran), after Core Entry.
+// Reveals the fractures were engineered by the Creator before the Rural arc begins.
 
 STORY_CHAPTER_REGISTRY.push({
-    id: 96,
+    id: 28,
     title: 'Laboratory Infiltration',
     world: '🧪 Abandoned Research Facility',
 

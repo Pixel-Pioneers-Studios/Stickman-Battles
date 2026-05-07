@@ -600,10 +600,11 @@ function spawnDamnationWave() {
   players = players.filter(p => !p.isEcho);
 
   if (wave === 0) {
-    // Wave 1: three minion echoes
+    // Wave 1: three minion echoes — all on team 99 so they don't attack each other
     for (let i = 0; i < 3; i++) {
       const echo = new Minion(200 + i * 200, 300);
       echo.isEcho = true;
+      echo._teamId = 99;
       echo.color = '#880000';
       echo.health = 150;
       echo.maxHealth = 150;
@@ -614,6 +615,7 @@ function spawnDamnationWave() {
     // Wave 2: one Boss echo
     const echoB = new Boss();
     echoB.isEcho = true;
+    echoB._teamId = 99;
     echoB.color = '#770000';
     echoB.health = 1200;
     echoB.maxHealth = 1200;
@@ -626,6 +628,7 @@ function spawnDamnationWave() {
     // Wave 3: one TrueForm echo
     const echoTF = new TrueForm();
     echoTF.isEcho = true;
+    echoTF._teamId = 99;
     echoTF.color = '#660000';
     echoTF.health = 2500;
     echoTF.maxHealth = 2500;

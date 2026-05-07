@@ -346,6 +346,65 @@ function drawTFEnding() {
     }
   }
 
+  // ── KERNEL FLIGHT ─────────────────────────────────────────────────────────────
+  if (sc.phase === 'kernelFlight') {
+    // Kernel orb
+    if (sc._kfAlpha > 0 && sc._kfX !== undefined) {
+      const kx = sc._kfX * scX, ky = sc._kfY * scY;
+      const kr = (sc._kfR || 12) * sc_;
+      ctx.globalAlpha = sc._kfAlpha;
+      const kgrd = ctx.createRadialGradient(kx, ky, 0, kx, ky, kr * 2.8);
+      kgrd.addColorStop(0,   'rgba(255,210,50,0.95)');
+      kgrd.addColorStop(0.5, 'rgba(255,130,0,0.55)');
+      kgrd.addColorStop(1,   'rgba(0,0,0,0)');
+      ctx.fillStyle = kgrd;
+      ctx.beginPath(); ctx.arc(kx, ky, kr * 2.8, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle   = '#fff8c0';
+      ctx.shadowColor = '#ffcc00'; ctx.shadowBlur = 20;
+      ctx.beginPath(); ctx.arc(kx, ky, kr, 0, Math.PI * 2); ctx.fill();
+      ctx.shadowBlur  = 0;
+      // Label
+      ctx.globalAlpha = sc._kfAlpha * 0.8;
+      ctx.font        = `bold ${Math.round(9 * sc_)}px monospace`;
+      ctx.fillStyle   = '#ffeeaa';
+      ctx.textAlign   = 'center';
+      ctx.fillText('THE KERNEL', kx, ky - kr * 2.2 - 4 * sc_);
+    }
+
+    // Dialogue
+    if (sc._kfLine !== undefined && sc.timer > 60) {
+      const _kfLines = [
+        { speaker: 'YOU',    text: 'What is that thing?', side: 'left', color: '#aaddff' },
+        { speaker: 'PARADOX',text: 'The Kernel. It was lodged in Axiom\'s core.', side: 'right', color: '#aa66ff' },
+        { speaker: 'PARADOX',text: 'The System planted it to keep him bound. Contained.', side: 'right', color: '#aa66ff' },
+        { speaker: 'YOU',    text: 'And now it\'s free.', side: 'left', color: '#aaddff' },
+        { speaker: 'PARADOX',text: 'It went somewhere you can\'t reach. Don\'t worry about it.', side: 'right', color: '#cc88ff' },
+        { speaker: 'PARADOX',text: '...I think it\'ll be fine.', side: 'right', color: '#cc88ff' },
+      ];
+      const line = _kfLines[sc._kfLine];
+      if (line) {
+        const isLeft = line.side === 'left';
+        const boxW   = 420 * sc_, boxH = 64 * sc_;
+        const boxX   = isLeft ? 24 * sc_ : cw - boxW - 24 * sc_;
+        const boxY   = ch - 90 * scY;
+        ctx.globalAlpha  = 0.95;
+        ctx.fillStyle   = 'rgba(0,0,0,0.82)';
+        ctx.strokeStyle = line.color;
+        ctx.lineWidth   = 1.8;
+        _roundRect(ctx, boxX, boxY, boxW, boxH, 10 * sc_);
+        ctx.fill(); ctx.stroke();
+        ctx.font      = `bold ${Math.round(10 * sc_)}px monospace`;
+        ctx.fillStyle = line.color;
+        ctx.textAlign = isLeft ? 'left' : 'right';
+        ctx.fillText(line.speaker, isLeft ? boxX + 12 * sc_ : boxX + boxW - 12 * sc_, boxY + 16 * sc_);
+        ctx.font      = `${Math.round(12 * sc_)}px sans-serif`;
+        ctx.fillStyle = '#ffffff';
+        ctx.textAlign = 'center';
+        ctx.fillText(line.text, boxX + boxW / 2, boxY + boxH * 0.7);
+      }
+    }
+  }
+
   // ── Hero aura glow (powers + fall) ────────────────────────────────────────────
   if (sc.hero._tfAuraGlow && (sc.phase === 'powers' || sc.phase === 'fall')) {
     const hsx = sc.hero.cx() * scX, hsy = sc.hero.cy() * scY;

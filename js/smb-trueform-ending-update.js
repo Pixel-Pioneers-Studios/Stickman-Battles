@@ -419,9 +419,56 @@ function updateTFEnding() {
 
     if (t === 90) { screenShake = 35; CinFX.flash('#000000', 0.55, 14); }
     if (t >= dur + 20) {
-      sc.phase = 'powers';
+      sc.phase = 'kernelFlight';
       sc.timer = 0;
       _tfeAuraParticles = [];
+    }
+  }
+
+  // ── KERNEL FLIGHT: The Kernel escapes Axiom's corpse ─────────────────────
+  else if (sc.phase === 'kernelFlight') {
+    if (t === 1) {
+      sc._kfX    = sc.auraX;
+      sc._kfY    = sc.auraY;
+      sc._kfVy   = -5;
+      sc._kfLine = 0;
+      sc._kfLineTimer = 0;
+      sc._kfAlpha = 1;
+    }
+    sc._kfVy += 0.12;
+    sc._kfX  += Math.sin(t * 0.08) * 0.9;
+    sc._kfY  += sc._kfVy;
+    sc._kfR   = 12 + Math.sin(t * 0.22) * 3;
+
+    // Dialogue after kernel settles
+    const _kfDialogue = [
+      { speaker: 'YOU', text: 'What is that thing?', side: 'left' },
+      { speaker: 'PARADOX', text: 'The Kernel. It was lodged in Axiom\'s core.', side: 'right' },
+      { speaker: 'PARADOX', text: 'The System planted it there to keep him bound. Contained.', side: 'right' },
+      { speaker: 'YOU', text: 'And now it\'s free.', side: 'left' },
+      { speaker: 'PARADOX', text: 'It went somewhere you can\'t reach. Don\'t worry about it.', side: 'right' },
+      { speaker: 'PARADOX', text: '...I think it\'ll be fine.', side: 'right' },
+    ];
+
+    if (t > 60) {
+      sc._kfLineTimer++;
+      const line     = _kfDialogue[sc._kfLine];
+      const holdTime = line ? 58 + line.text.length * 2 : 70;
+      if (sc._kfLineTimer >= holdTime) {
+        sc._kfLineTimer = 0;
+        sc._kfLine++;
+      }
+    }
+
+    // Kernel flies off-screen upward after dialogue
+    if (sc._kfLine >= _kfDialogue.length && t > 60) {
+      sc._kfVy -= 0.5;
+      sc._kfAlpha = Math.max(0, sc._kfAlpha - 0.04);
+    }
+
+    if (t > 60 + _kfDialogue.length * 70 + 40) {
+      sc.phase = 'powers';
+      sc.timer = 0;
       sc.hero._tfAuraGlow = true;
       if (typeof setAccountFlag === 'function') {
         setAccountFlag(['unlocks', 'patrolMode'],  true);
