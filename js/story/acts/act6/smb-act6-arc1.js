@@ -1,7 +1,7 @@
 // Appends chapters for act6/smb-act6-arc1.js.
 STORY_CHAPTER_REGISTRY.push(
   {
-    id: 74, title: 'A Voice Between Worlds',
+    id: 66, title: 'A Voice Between Worlds',
     world: '🌌 The Void Between Dimensions',
     narrative: [
       'Beyond the Titan World, the compass stopped.',
@@ -25,7 +25,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 75, title: 'The Architect Before the Architects',
+    id: 67, title: 'The Architect Before the Architects',
     world: '🌌 The Void Between — The First Voice',
     narrative: [
       '"I am what the Architects called their origin.",',

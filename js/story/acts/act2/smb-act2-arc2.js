@@ -1,7 +1,7 @@
 // Appends chapters for act2/smb-act2-arc2.js.
 STORY_CHAPTER_REGISTRY.push(
   {
-    id: 36, type: 'exploration', title: 'Into the Green',
+    id: 35, type: 'exploration', title: 'Into the Green',
     world: '🌲 Forest Dimension — Endless Canopy',
     narrative: [
       'The forest had no edges.',
@@ -43,7 +43,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 37, title: 'The Second Architect',
+    id: 36, title: 'The Second Architect',
     world: '🌲 Forest Dimension — Architect\'s Sanctum',
     narrative: [
       '"I know why you\'re here," the second Architect said.',
@@ -72,7 +72,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 38, title: 'The Third Key',
+    id: 37, title: 'The Third Key',
     world: '🌲 Forest Dimension — Architect\'s Sanctum',
     noFight: true,
     narrative: [
@@ -108,7 +108,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 39, title: 'The Ice Dimension',
+    id: 38, title: 'The Ice Dimension',
     world: '❄️ Ice Dimension',
     narrative: [
       'The ice dimension was perfect.',
@@ -137,7 +137,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 40, title: 'The Pessimist',
+    id: 39, title: 'The Pessimist',
     world: '❄️ Ice Dimension — Summit',
     narrative: [
       '"You want me to believe a fragment bearer can close the rift."',
@@ -169,7 +169,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 41, title: 'The Fragment Breathes',
+    id: 40, title: 'The Fragment Breathes',
     world: '❄️ Ice Dimension — Healing Quarter',
     noFight: true,
     narrative: [
@@ -204,7 +204,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 42, title: 'Third Architect\'s Doubt',
+    id: 41, title: 'Third Architect\'s Doubt',
     world: '❄️ Ice Dimension — Summit Approach',
     noFight: true,
     narrative: [

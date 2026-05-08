@@ -1,7 +1,7 @@
 // Appends chapters for act3/smb-act3-arc2.js.
 STORY_CHAPTER_REGISTRY.push(
   {
-    id: 53, type: 'exploration', title: 'Signal Maze',
+    id: 52, type: 'exploration', title: 'Signal Maze',
     world: '📡 Creator\'s Interference Layer — Fractured City',
     narrative: [
       'The Creator began unmaking the pathways.',
@@ -87,7 +87,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 54, title: 'Empty Sanctum',
+    id: 53, title: 'Empty Sanctum',
     world: '📡 Creator\'s Interference Layer — Third Architect\'s Post',
     noFight: true,
     narrative: [
@@ -112,7 +112,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 55, title: 'Converted',
+    id: 54, title: 'Converted',
     world: '📡 Interference Layer — Fallback Perimeter',
     narrative: [
       'They wore the Third Architect\'s colors.',
@@ -143,7 +143,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 56, title: 'The Deal',
+    id: 55, title: 'The Deal',
     world: '📡 Interference Layer — Fallback Point',
     noFight: true,
     narrative: [
@@ -173,7 +173,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 57, title: 'The Preserved Speak',
+    id: 56, title: 'The Preserved Speak',
     world: '📡 Creator\'s Interference Layer — Shelter Chamber',
     noFight: true,
     narrative: [
@@ -210,7 +210,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 58, title: 'Against the Architect',
+    id: 57, title: 'Against the Architect',
     world: '📡 Interference Layer — Confrontation Point',
     narrative: [
       'The Third Architect came themselves.',
@@ -250,7 +250,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 59, title: 'Aftermath',
+    id: 58, title: 'Aftermath',
     world: '📡 Interference Layer — Fallback Point',
     noFight: true,
     narrative: [
@@ -279,7 +279,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 60, title: 'Veran\'s Confession',
+    id: 59, title: 'Veran\'s Confession',
     world: '📡 Interference Layer — Fallback Point',
     noFight: true,
     narrative: [
@@ -331,7 +331,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 61, title: 'The Enforcer',
+    id: 60, title: 'The Enforcer',
     world: '📡 Interference Layer — The Gate',
     narrative: [
       'It arrived without announcement.',
@@ -365,7 +365,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 62, title: 'The Constant',
+    id: 61, title: 'The Constant',
     world: '📡 Interference Layer — Fallback Chamber',
     noFight: true,
     narrative: [

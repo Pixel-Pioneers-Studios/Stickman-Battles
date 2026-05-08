@@ -1,7 +1,7 @@
 // Appends chapters for act4mv/smb-act4mv-arc2.js.
 STORY_CHAPTER_REGISTRY.push(
   {
-    id: 70,
+    id: 74,
     title: 'What You Cannot See',
     world: '🌑 Shadow Realm',
     noFight: true,
@@ -28,7 +28,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 71,
+    id: 75,
     title: 'Shadow Warden',
     world: '🌑 Shadow Realm — The Unseen Court',
     narrative: [
@@ -64,7 +64,7 @@ STORY_CHAPTER_REGISTRY.push(
   // ─────── Arc 5-3: Titan World (ids 68–69) ─────────────────────────
 
   {
-    id: 72,
+    id: 76,
     title: 'Things That Cannot Be Shattered',
     world: '🏔️ Titan World',
     noFight: true,
@@ -88,7 +88,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 73,
+    id: 77,
     title: 'Titan King',
     world: '🏔️ Titan World — The Throne Plateau',
     narrative: [
