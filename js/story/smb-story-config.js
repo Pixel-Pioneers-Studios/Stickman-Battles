@@ -690,6 +690,9 @@ function _storyBuildPhases(ch) {
     };
   }
 
+  // Collapse auto-generated phases to the finale only — each chapter is one focused fight
+  const finale = ch.phases.find(p => p.finalChapter) || ch.phases[ch.phases.length - 1];
+  ch.phases = [finale];
   return ch.phases;
 }
 
@@ -701,7 +704,7 @@ function _storyGetCurrentPhase() {
 
 function _storyUpdatePhaseIndicator() {
   const phase = _storyGetCurrentPhase();
-  if (!storyGauntletState || !phase) {
+  if (!storyGauntletState || !phase || storyGauntletState.phases.length <= 1) {
     storyPhaseIndicator = null;
     return;
   }

@@ -1,7 +1,7 @@
 'use strict';
 
 // ============================================================
-// Stickman Battles — Relay + Moderation API Server
+// Stickman Evolution — Relay + Moderation API Server
 //
 // Runs two services on the same port:
 //   1. Socket.io relay — relays playerState / hitEvent / gameEvent
@@ -707,7 +707,7 @@ function _handleRequest(req, res) {
     _trimExpiredBans(data);
     _json(res, 200, {
       ok: true,
-      server: 'Stickman Battles Moderation API',
+      server: 'Stickman Evolution Moderation API',
       version: BUILD_VERSION,
       activeBans: Object.keys(data.records).length,
       uptime: Math.floor(process.uptime()),
@@ -1397,7 +1397,7 @@ _io.on('connection', (socket) => {
 });
 
 httpServer.listen(PORT, () => {
-  console.log(`\nStickman Battles relay + moderation API`);
+  console.log(`\nStickman Evolution relay + moderation API`);
   console.log(`  Listening on port ${PORT}`);
   console.log(`  Version:   ${BUILD_VERSION}`);
   console.log(`  Admin auth:${ADMIN_SESSION_SECRET ? ' signed sessions configured' : ' NOT CONFIGURED'}`);

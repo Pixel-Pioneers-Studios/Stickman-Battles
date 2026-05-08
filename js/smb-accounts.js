@@ -854,7 +854,7 @@ function showChapter1SavePrompt() {
   if (!inner) return;
   inner.innerHTML = [
     '<div style="font-size:1.15rem;font-weight:800;color:#88ccff;margin-bottom:10px;">Save Your Progress Forever</div>',
-    '<div style="font-size:0.84rem;line-height:1.6;opacity:0.82;margin-bottom:16px;">Create a free Stickman Battles account to:<br>- Keep progress forever<br>- Play on any device<br>- Unlock future online features<br>- Join the community</div>',
+    '<div style="font-size:0.84rem;line-height:1.6;opacity:0.82;margin-bottom:16px;">Create a free Stickman Evolution account to:<br>- Keep progress forever<br>- Play on any device<br>- Unlock future online features<br>- Join the community</div>',
     '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">',
     '<button onclick="_acctOpenCloudSignupFromPrompt()" style="' + _acctBtnStyle('blue') + ';flex:1;">Create Account</button>',
     '<button onclick="_acctCloseChapter1SavePrompt(true)" style="' + _acctBtnStyle('dim') + '">Later</button>',

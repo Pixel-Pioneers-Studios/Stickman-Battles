@@ -288,6 +288,151 @@ function _buyAbility2(key, ab) {
   if (typeof showToast === 'function') showToast('✅ Unlocked: ' + ab.name + '!');
 }
 
+// ── Story path submenu entry points ──────────────────────────────────────────
+function openStoryMenuChapters() {
+  if (typeof closeStoryPath === 'function') closeStoryPath();
+  if (typeof openStoryMenu === 'function') openStoryMenu();
+  switchStoryTab('chapters');
+}
+
+function openStoryMenuShop() {
+  if (typeof closeStoryPath === 'function') closeStoryPath();
+  _storeSubTab = 'shop';
+  if (typeof openStoryMenu === 'function') openStoryMenu();
+  switchStoryTab('store');
+}
+
+// ── Standalone Skill Tree modal ───────────────────────────────────────────────
+function openSkillTreeModal() {
+  if (typeof closeStoryPath === 'function') closeStoryPath();
+  const modal = document.getElementById('skillTreeModal');
+  if (!modal) return;
+  modal.style.display = 'flex';
+  _renderSkillTreeModal();
+}
+
+function closeSkillTreeModal() {
+  const modal = document.getElementById('skillTreeModal');
+  if (modal) modal.style.display = 'none';
+}
+
+function _renderSkillTreeModal() {
+  const container = document.getElementById('skillTreeModalContent');
+  if (!container) return;
+  container.innerHTML = '';
+
+  const sk  = (_story2 && _story2.skillTree) || {};
+  const exp = (_story2 && _story2.exp) || 0;
+  const expEl = document.getElementById('skillTreeExpDisplay');
+  if (expEl) expEl.textContent = exp;
+
+  if (typeof STORY_SKILL_TREE === 'undefined') {
+    container.innerHTML = '<p style="color:#556;font-size:0.8rem;padding:16px;">Skill tree not available yet.</p>';
+    return;
+  }
+
+  const branchesWrap = document.createElement('div');
+  branchesWrap.className = 'skill-tree-branches';
+
+  for (const [, branch] of Object.entries(STORY_SKILL_TREE)) {
+    const branchCol = document.createElement('div');
+    branchCol.className = 'skill-tree-branch';
+
+    const header = document.createElement('div');
+    header.style.cssText = `display:flex;align-items:center;gap:7px;margin-bottom:10px;padding:5px 10px;background:rgba(0,0,0,0.22);border-left:3px solid ${branch.color};border-radius:0 6px 6px 0;`;
+    header.innerHTML = `<span style="font-size:1rem;">${branch.icon || ''}</span><span style="font-size:0.70rem;letter-spacing:2px;text-transform:uppercase;color:${branch.color};font-weight:700;">${branch.label}</span>`;
+    branchCol.appendChild(header);
+
+    const nodeMap = {};
+    for (const n of branch.nodes) nodeMap[n.id] = n;
+    const depthOf = {};
+    const getDepth = (n) => {
+      if (n.id in depthOf) return depthOf[n.id];
+      const parent = n.requires ? nodeMap[n.requires] : null;
+      depthOf[n.id] = parent ? getDepth(parent) + 1 : 0;
+      return depthOf[n.id];
+    };
+    for (const n of branch.nodes) getDepth(n);
+    const maxDepth = Math.max(...branch.nodes.map(n => depthOf[n.id]));
+
+    for (let d = 0; d <= maxDepth; d++) {
+      const layerNodes = branch.nodes.filter(n => depthOf[n.id] === d);
+      const layerRow = document.createElement('div');
+      layerRow.style.cssText = 'display:flex;gap:7px;margin-bottom:4px;';
+
+      for (const node of layerNodes) {
+        const owned   = !!sk[node.id];
+        const reqMet  = _skillNodeReqMet(node, sk);
+        const canBuy  = !owned && reqMet && exp >= node.expCost;
+        const isLocked = !owned && !reqMet;
+
+        const colWrap = document.createElement('div');
+        colWrap.style.cssText = 'display:flex;flex-direction:column;align-items:center;flex:1;';
+
+        if (d > 0) {
+          const connUp = document.createElement('div');
+          connUp.style.cssText = `width:2px;height:14px;background:${owned ? branch.color : reqMet ? branch.color + '55' : 'rgba(255,255,255,0.08)'};margin-bottom:2px;border-radius:1px;`;
+          colWrap.appendChild(connUp);
+        }
+
+        const card = document.createElement('div');
+        card.style.cssText = [
+          'border-radius:9px','padding:9px 10px 8px','width:100%','box-sizing:border-box',
+          `border:1px solid ${owned ? branch.color + 'aa' : canBuy ? branch.color + '55' : 'rgba(255,255,255,0.07)'}`,
+          `background:${owned ? 'rgba(20,60,35,0.55)' : canBuy ? 'rgba(20,30,60,0.5)' : 'rgba(5,5,18,0.30)'}`,
+          `opacity:${isLocked ? '0.32' : '1'}`,
+          canBuy ? 'cursor:pointer;transition:background 0.12s,box-shadow 0.12s;' : 'cursor:default;',
+          owned ? `box-shadow:0 0 8px ${branch.color}44;` : '',
+        ].join(';');
+
+        const reqLabel = isLocked
+          ? (node.requiresAny
+              ? '&#128274; Requires ' + (node.requiresAny[0] || '').replace(/([A-Z])/g, ' $1').trim()
+              : '&#128274; ' + (node.requires || '').replace(/([A-Z])/g, ' $1').trim() + ' required')
+          : '';
+
+        card.innerHTML = `
+          <div style="font-size:0.80rem;color:${owned ? '#aaff88' : canBuy ? '#dde4ff' : '#556'};font-weight:700;margin-bottom:3px;">${node.name}</div>
+          <div style="font-size:0.60rem;color:#5a6a9a;line-height:1.35;margin-bottom:5px;">${node.desc}</div>
+          <div style="font-size:0.68rem;${owned ? 'color:#66ee99' : canBuy ? `color:${branch.color}` : 'color:#445'}">
+            ${owned ? '&#10003; Unlocked' : isLocked ? reqLabel : node.expCost + ' EXP'}
+          </div>`;
+
+        if (canBuy) {
+          card.addEventListener('click', () => {
+            const sk2 = _story2.skillTree = _story2.skillTree || {};
+            const exp2 = _story2.exp || 0;
+            if (sk2[node.id] || !_skillNodeReqMet(node, sk2) || exp2 < node.expCost) return;
+            _story2.exp = exp2 - node.expCost;
+            sk2[node.id] = true;
+            if (typeof _saveStory2 === 'function') _saveStory2();
+            _renderSkillTreeModal();
+            if (typeof showToast === 'function') showToast('&#10003; ' + node.name + ' unlocked!');
+          });
+          card.addEventListener('mouseover', () => { card.style.background = 'rgba(30,55,110,0.7)'; card.style.boxShadow = `0 0 12px ${branch.color}33`; });
+          card.addEventListener('mouseout',  () => { card.style.background = 'rgba(20,30,60,0.5)';  card.style.boxShadow = ''; });
+        }
+
+        colWrap.appendChild(card);
+
+        const hasChild = branch.nodes.some(c => c.requires === node.id);
+        if (hasChild) {
+          const connDown = document.createElement('div');
+          connDown.style.cssText = `width:2px;height:14px;background:${owned ? branch.color : branch.color + '33'};margin-top:2px;border-radius:1px;`;
+          colWrap.appendChild(connDown);
+        }
+
+        layerRow.appendChild(colWrap);
+      }
+      branchCol.appendChild(layerRow);
+    }
+
+    branchesWrap.appendChild(branchCol);
+  }
+
+  container.appendChild(branchesWrap);
+}
+
 // ── Opening prologue — shown on first play or after save wipe ─────────────────
 const _PROLOGUE_LINES = [
   { text: 'Every universe has a seam.',                        delay: 0    },

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <title>Stickman Battles</title>
+  <title>Stickman Evolution</title>
   <link rel="stylesheet" href="SMB.css">
 </head>
 <body>
@@ -126,7 +126,7 @@
   <div class="menu-center">
     <!-- HOME VIEW: shown by default, hidden when a mode is selected -->
     <div id="menuHomeContent">
-    <h1 class="game-title">STICKMAN BATTLES</h1>
+    <h1 class="game-title">STICKMAN EVOLUTION</h1>
     <p class="game-subtitle">Local Multiplayer Platform Fighter</p>
     <p id="gameVersionLabel" style="font-size:0.65rem;color:rgba(255,255,255,0.25);letter-spacing:1px;margin:-6px 0 4px;text-align:center;">v3.1.0</p>
     <!-- HOME QUICK NAV -->
@@ -144,7 +144,7 @@
 
     <!-- PATH SELECTION: two entry points -->
     <div class="path-cards" id="pathCards">
-      <div class="path-card path-story" onclick="selectMode('story')">
+      <div class="path-card path-story" onclick="openStoryPath()">
         <div class="path-card-icon">&#128214;</div>
         <div class="path-card-title">Story</div>
         <div class="path-card-desc">Follow the fracture across worlds.<br>Chapters &middot; Skill Tree &middot; Shop</div>
@@ -156,65 +156,71 @@
       </div>
     </div>
 
-    <!-- NEXUS PANEL: organized mode selection, hidden until openNexus() -->
+    <!-- STORY PATH PANEL: shown when Story path card is clicked -->
+    <div class="nexus-panel" id="storyPathPanel" style="display:none">
+      <button class="nexus-back" onclick="closeStoryPath()">&#8592; Back</button>
+      <div class="path-cards path-cards-3">
+        <div class="path-card path-chapters" onclick="openStoryMenuChapters()">
+          <div class="path-card-icon">&#128214;</div>
+          <div class="path-card-title">Chapters</div>
+          <div class="path-card-desc">Continue your journey</div>
+        </div>
+        <div class="path-card path-shop" onclick="openStoryMenuShop()">
+          <div class="path-card-icon">&#127819;</div>
+          <div class="path-card-title">Shop</div>
+          <div class="path-card-desc">Spend tokens on abilities</div>
+        </div>
+        <div class="path-card path-skilltree" onclick="openSkillTreeModal()">
+          <div class="path-card-icon">&#127807;</div>
+          <div class="path-card-title">Skill Tree</div>
+          <div class="path-card-desc">Spend EXP to grow stronger</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- NEXUS PANEL: 2-column grid, hidden until openNexus() -->
     <div class="nexus-panel" id="nexusPanel" style="display:none">
       <button class="nexus-back" onclick="closeNexus()">&#8592; Back</button>
-
-      <div class="nexus-section">
-        <div class="nexus-section-label">Combat</div>
-        <div class="mode-cards">
-          <div class="mode-card active" data-mode="2p" onclick="selectMode('2p')">
-            <div class="mode-name">1v1</div>
-            <div class="mode-desc">Toggle bot on either player</div>
-          </div>
-          <div class="mode-card" id="modeBoss" data-mode="boss" onclick="selectMode('boss')" style="display:none">
-            <div class="mode-name">Boss Fight</div>
-            <div class="mode-desc" id="bossModeDesc">Battle the Creator</div>
-          </div>
-          <div class="mode-card" id="modeTrueForm" data-mode="trueform" style="display:none" onclick="selectMode('trueform')">
-            <div class="mode-name" style="color:#ffffff">True Form</div>
-            <div class="mode-desc" style="color:#888">Face what lies beneath</div>
-          </div>
-          <div class="mode-card" id="modeSovereign" data-mode="sovereign" onclick="selectMode('sovereign')" style="display:none">
-            <div class="mode-name" style="color:#ff4422">&#9889; SOVEREIGN &#937;</div>
-            <div class="mode-desc" style="color:#cc6644">No limits. No mercy.</div>
-          </div>
-          <div class="mode-card" id="modeCompleteRandom" data-mode="completerandom" onclick="selectMode('completerandom')" style="display:none">
-            <div class="mode-name" style="color:#ff9944">&#127922; Complete Random</div>
-            <div class="mode-desc" style="color:#aa7733">New map, weapon &amp; class every death</div>
-          </div>
+      <div class="nexus-grid">
+        <div class="mode-card active" data-mode="2p" onclick="selectMode('2p')">
+          <div class="mode-name">1v1</div>
+          <div class="mode-desc">Local or vs bot</div>
         </div>
-      </div>
-
-      <div class="nexus-section">
-        <div class="nexus-section-label">Multiplayer</div>
-        <div class="mode-cards">
-          <div class="mode-card" id="modeOnline" data-mode="online" onclick="selectMode('online')">
-            <div class="mode-name" style="color:#00eeff">&#127760; Online</div>
-            <div class="mode-desc">Play against others</div>
-          </div>
-          <div class="mode-card" id="modeStoryOnline" data-mode="storyonline" onclick="selectMode('storyonline')" style="display:none">
-            <div class="mode-name" style="color:#ffdd88">&#127760;&#9876;&#65039; Story Online</div>
-            <div class="mode-desc" style="color:#aa9944">Cross-world multiplayer</div>
-          </div>
+        <div class="mode-card" id="modeOnline" data-mode="online" onclick="selectMode('online')">
+          <div class="mode-name" style="color:#00eeff">&#127760; Online</div>
+          <div class="mode-desc">Play against others</div>
         </div>
-      </div>
-
-      <div class="nexus-section">
-        <div class="nexus-section-label">Activities</div>
-        <div class="mode-cards">
-          <div class="mode-card" data-mode="training" onclick="selectMode('training')">
-            <div class="mode-name">Training</div>
-            <div class="mode-desc">Practice with dummies</div>
-          </div>
-          <div class="mode-card" data-mode="minigames" onclick="selectMode('minigames')">
-            <div class="mode-name">Minigames</div>
-            <div class="mode-desc">Special game modes</div>
-          </div>
-          <div class="mode-card" onclick="openDesigner()" style="border-color:rgba(100,200,255,0.25);">
-            <div class="mode-name" style="color:#88ccff;">&#128295; Creator</div>
-            <div class="mode-desc">Map &amp; Weapon Studio</div>
-          </div>
+        <div class="mode-card" data-mode="training" onclick="selectMode('training')">
+          <div class="mode-name">Training</div>
+          <div class="mode-desc">Practice with dummies</div>
+        </div>
+        <div class="mode-card" data-mode="minigames" onclick="selectMode('minigames')">
+          <div class="mode-name">Minigames</div>
+          <div class="mode-desc">Survival · KotH · Chaos</div>
+        </div>
+        <div class="mode-card" onclick="openDesigner()" style="border-color:rgba(100,200,255,0.25);">
+          <div class="mode-name" style="color:#88ccff;">&#128295; Creator</div>
+          <div class="mode-desc">Map &amp; Weapon Studio</div>
+        </div>
+        <div class="mode-card" id="modeBoss" data-mode="boss" onclick="selectMode('boss')" style="display:none">
+          <div class="mode-name">Boss Fight</div>
+          <div class="mode-desc" id="bossModeDesc">Battle the Creator</div>
+        </div>
+        <div class="mode-card" id="modeTrueForm" data-mode="trueform" style="display:none" onclick="selectMode('trueform')">
+          <div class="mode-name" style="color:#ccaaff">True Form</div>
+          <div class="mode-desc" style="color:#887799">Face what lies beneath</div>
+        </div>
+        <div class="mode-card" id="modeSovereign" data-mode="sovereign" onclick="selectMode('sovereign')" style="display:none">
+          <div class="mode-name" style="color:#ff4422">&#9889; SOVEREIGN &#937;</div>
+          <div class="mode-desc" style="color:#cc6644">No limits. No mercy.</div>
+        </div>
+        <div class="mode-card" id="modeCompleteRandom" data-mode="completerandom" onclick="selectMode('completerandom')" style="display:none">
+          <div class="mode-name" style="color:#ff9944">&#127922; Complete Random</div>
+          <div class="mode-desc" style="color:#aa7733">New weapon &amp; class every death</div>
+        </div>
+        <div class="mode-card" id="modeStoryOnline" data-mode="storyonline" onclick="selectMode('storyonline')" style="display:none">
+          <div class="mode-name" style="color:#ffdd88">&#127760; Story Online</div>
+          <div class="mode-desc" style="color:#aa9944">Cross-world multiplayer</div>
         </div>
       </div>
     </div>
@@ -1460,7 +1466,7 @@
 
         const ver = (typeof GAME_VERSION !== 'undefined') ? GAME_VERSION : '?';
         document.getElementById('crashVersion').textContent =
-          'Stickman Battles ' + ver + '  |  ' + new Date().toLocaleString();
+          'Stickman Evolution ' + ver + '  |  ' + new Date().toLocaleString();
 
         document.getElementById('crashMessage').textContent  = msg || 'Unknown error';
         document.getElementById('crashLocation').textContent =
@@ -1760,7 +1766,7 @@ document.addEventListener('keydown', function(e) {
 <div id="splashOverlay" style="position:fixed;inset:0;z-index:10000;background:#000;cursor:pointer;transition:opacity 0.6s ease;"
      onclick="dismissSplash()">
   <img id="splashImg" src="images/Game-Page.png"
-       alt="Stickman Battles"
+       alt="Stickman Evolution"
        style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;">
   <!-- Subtle click-to-continue hint -->
   <div id="splashHint" style="position:absolute;bottom:7%;left:50%;transform:translateX(-50%);
@@ -1899,6 +1905,20 @@ document.addEventListener('keydown', function(e) {
     <div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;">
       <button onclick="storyNewGame()" style="background:rgba(255,80,80,0.10);border:1px solid rgba(255,80,80,0.30);border-radius:7px;color:#ff9988;padding:6px 16px;cursor:pointer;font-size:0.78rem;">↺ New Game</button>
     </div>
+  </div>
+</div>
+
+<!-- ============================================================
+     SKILL TREE MODAL — standalone, horizontal branch layout
+     ============================================================ -->
+<div id="skillTreeModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.92);z-index:9050;align-items:center;justify-content:center;">
+  <div class="smb-modal-box" style="width:min(840px,96vw);max-height:88vh;display:flex;flex-direction:column;gap:0;padding:22px 24px 18px;">
+    <div class="smb-modal-header" style="margin-bottom:14px;">
+      <span>&#127807; SKILL TREE</span>
+      <span style="color:#aaff88;font-size:0.82rem;">&#11088; <span id="skillTreeExpDisplay">0</span> EXP</span>
+      <button class="smb-modal-close" onclick="closeSkillTreeModal()">&#10005; Close</button>
+    </div>
+    <div id="skillTreeModalContent" style="overflow-y:auto;flex:1;padding-right:4px;"></div>
   </div>
 </div>
 

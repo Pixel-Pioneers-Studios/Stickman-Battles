@@ -1980,6 +1980,50 @@ body.depth-phase-active {
 .path-card.path-nexus .path-card-title { color: #55ddff; }
 .path-card.path-nexus .path-card-desc  { color: #4488aa; }
 
+/* 3-card row variant for story submenu */
+.path-cards-3 { max-width: 480px; }
+.path-cards-3 .path-card { padding: 16px 8px 14px; }
+.path-cards-3 .path-card-icon { font-size: 1.5rem; }
+.path-cards-3 .path-card-title { font-size: 0.82rem; letter-spacing: 2px; }
+.path-cards-3 .path-card-desc { font-size: 0.60rem; }
+
+/* Story submenu card variants */
+.path-card.path-chapters {
+  background: rgba(28, 16, 6, 0.92);
+  border-color: rgba(255, 175, 55, 0.35);
+  box-shadow: 0 0 28px rgba(255, 130, 0, 0.07);
+}
+.path-card.path-chapters:hover {
+  border-color: rgba(255, 175, 55, 0.65);
+  box-shadow: 0 4px 36px rgba(255, 130, 0, 0.18);
+}
+.path-card.path-chapters .path-card-title { color: #ffcc88; }
+.path-card.path-chapters .path-card-desc  { color: #a88055; }
+
+.path-card.path-shop {
+  background: rgba(6, 22, 10, 0.92);
+  border-color: rgba(80, 200, 100, 0.28);
+  box-shadow: 0 0 28px rgba(60, 200, 80, 0.06);
+}
+.path-card.path-shop:hover {
+  border-color: rgba(80, 220, 110, 0.55);
+  box-shadow: 0 4px 36px rgba(60, 200, 80, 0.15);
+}
+.path-card.path-shop .path-card-title { color: #88ee99; }
+.path-card.path-shop .path-card-desc  { color: #3a7a4a; }
+
+.path-card.path-skilltree {
+  background: rgba(8, 16, 28, 0.92);
+  border-color: rgba(120, 170, 255, 0.28);
+  box-shadow: 0 0 28px rgba(100, 140, 255, 0.06);
+}
+.path-card.path-skilltree:hover {
+  border-color: rgba(140, 190, 255, 0.55);
+  box-shadow: 0 4px 36px rgba(100, 140, 255, 0.16);
+}
+.path-card.path-skilltree .path-card-title { color: #aaccff; }
+.path-card.path-skilltree .path-card-desc  { color: #4466aa; }
+
 /* ============================================================
    NEXUS PANEL
    ============================================================ */
@@ -2018,6 +2062,29 @@ body.depth-phase-active {
   color: rgba(130, 155, 220, 0.45);
   margin-bottom: 5px;
   padding-left: 2px;
+}
+
+/* 2-column grid for the nexus mode cards */
+.nexus-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  width: 100%;
+}
+.nexus-grid .mode-card {
+  margin: 0;
+}
+
+/* Skill tree modal: branches side-by-side */
+.skill-tree-branches {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+  align-items: flex-start;
+}
+.skill-tree-branch {
+  flex: 1;
+  min-width: 180px;
 }
 
 /* ============================================================

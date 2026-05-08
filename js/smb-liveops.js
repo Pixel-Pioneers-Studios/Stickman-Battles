@@ -153,7 +153,7 @@
     const body = document.createElement('p');
     body.style.cssText = 'font-size:0.84rem;opacity:0.78;margin:0 0 26px;line-height:1.65;';
     body.textContent = optional
-      ? 'A new version of Stickman Battles is available. Reload to get the latest features and fixes.'
+      ? 'A new version of Stickman Evolution is available. Reload to get the latest features and fixes.'
       : 'A mandatory update is required. Gameplay is disabled until you reload.';
 
     const row = document.createElement('div');

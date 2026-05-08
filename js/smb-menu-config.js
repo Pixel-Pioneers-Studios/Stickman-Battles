@@ -88,7 +88,7 @@ function toggleStatsLog() {
   if (modal.style.display === 'block') { modal.style.display = 'none'; return; }
 
   // Build HTML tables from game constants
-  let html = '<h2 style="color:#cc00ee;margin-bottom:16px;letter-spacing:2px">STATS LOG — Stickman Battles</h2>';
+  let html = '<h2 style="color:#cc00ee;margin-bottom:16px;letter-spacing:2px">STATS LOG — Stickman Evolution</h2>';
 
   // Classes
   html += '<h3 style="color:#00d4ff;margin:12px 0 6px">Classes</h3><table style="width:100%;border-collapse:collapse;font-size:12px">';

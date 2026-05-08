@@ -141,6 +141,7 @@ function backToHome() {
   const configContent = document.getElementById('menuConfigContent');
   if (configContent) configContent.style.display = 'none';
   closeNexus();
+  closeStoryPath();
 }
 
 function openNexus() {
@@ -155,6 +156,20 @@ function closeNexus() {
   const nexusPanel = document.getElementById('nexusPanel');
   if (pathCards) pathCards.style.display = '';
   if (nexusPanel) nexusPanel.style.display = 'none';
+}
+
+function openStoryPath() {
+  const pathCards = document.getElementById('pathCards');
+  const storyPathPanel = document.getElementById('storyPathPanel');
+  if (pathCards) pathCards.style.display = 'none';
+  if (storyPathPanel) storyPathPanel.style.display = '';
+}
+
+function closeStoryPath() {
+  const pathCards = document.getElementById('pathCards');
+  const storyPathPanel = document.getElementById('storyPathPanel');
+  if (pathCards) pathCards.style.display = '';
+  if (storyPathPanel) storyPathPanel.style.display = 'none';
 }
 
 // ── Custom weapon options ─────────────────────────────────────────────────────
