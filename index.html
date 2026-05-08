@@ -142,57 +142,84 @@
       &#128274; <em>A secret power lies dormant... beat the boss to uncover it.</em>
     </div>
 
-    <!-- MODE SELECTION -->
-    <div>
-      <p class="section-label">Game Mode</p>
-      <div class="mode-cards">
-        <div class="mode-card active" data-mode="2p" onclick="selectMode('2p')">
-          <div class="mode-name">1v1</div>
-          <div class="mode-desc">Toggle bot on either player config</div>
-        </div>
-        <div class="mode-card" id="modeBoss" data-mode="boss" onclick="selectMode('boss')" style="display:none">
-          <div class="mode-name">Boss Fight</div>
-          <div class="mode-desc" id="bossModeDesc">Battle the Creator</div>
-        </div>
-        <div class="mode-card" data-mode="training" onclick="selectMode('training')">
-          <div class="mode-name">Training</div>
-          <div class="mode-desc">Practice with dummies</div>
-        </div>
-        <div class="mode-card" data-mode="minigames" onclick="selectMode('minigames')">
-          <div class="mode-name">Minigames</div>
-          <div class="mode-desc">Special game modes</div>
-        </div>
-        <div class="mode-card" id="modeTrueForm" data-mode="trueform" style="display:none" onclick="selectMode('trueform')">
-          <div class="mode-name" style="color:#ffffff">True Form</div>
-          <div class="mode-desc" style="color:#888">Face what lies beneath</div>
-        </div>
-        <div class="mode-card" id="modeSovereign" data-mode="sovereign" onclick="selectMode('sovereign')" style="display:none">
-          <div class="mode-name" style="color:#ff4422">⚡ SOVEREIGN Ω</div>
-          <div class="mode-desc" style="color:#cc6644">No limits. No mercy.</div>
-        </div>
-        <div class="mode-card" id="modeCompleteRandom" data-mode="completerandom" onclick="selectMode('completerandom')" style="display:none">
-          <div class="mode-name" style="color:#ff9944">🎲 Complete Random</div>
-          <div class="mode-desc" style="color:#aa7733">New map, weapon &amp; class every death</div>
-        </div>
-        <div class="mode-card" id="modeStory" data-mode="story" onclick="selectMode('story')">
-          <div class="mode-name" style="color:#ffcc88">📖 Story</div>
-          <div class="mode-desc" style="color:#aa8866">A world unraveling</div>
-        </div>
-        <div class="mode-card" id="modeOnline" data-mode="online" onclick="selectMode('online')">
-          <div class="mode-name" style="color:#00eeff">🌐 Online</div>
-          <div class="mode-desc">Play against others</div>
-        </div>
-        <div class="mode-card" onclick="openDesigner()" style="border-color:rgba(100,200,255,0.25);">
-          <div class="mode-icon">🛠</div>
-          <div class="mode-name" style="color:#88ccff;">Creator</div>
-          <div class="mode-desc">Map &amp; Weapon Studio</div>
-        </div>
-        <div class="mode-card" id="modeStoryOnline" data-mode="storyonline" onclick="selectMode('storyonline')" style="display:none;">
-          <div class="mode-name" style="color:#ffdd88">🌐⚔️ Story Online</div>
-          <div class="mode-desc" style="color:#aa9944">Cross-world multiplayer</div>
+    <!-- PATH SELECTION: two entry points -->
+    <div class="path-cards" id="pathCards">
+      <div class="path-card path-story" onclick="selectMode('story')">
+        <div class="path-card-icon">&#128214;</div>
+        <div class="path-card-title">Story</div>
+        <div class="path-card-desc">Follow the fracture across worlds.<br>Chapters &middot; Skill Tree &middot; Shop</div>
+      </div>
+      <div class="path-card path-nexus" onclick="openNexus()">
+        <div class="path-card-icon">&#9889;</div>
+        <div class="path-card-title">The Nexus</div>
+        <div class="path-card-desc">Combat &middot; Online &middot; Minigames &middot; More</div>
+      </div>
+    </div>
+
+    <!-- NEXUS PANEL: organized mode selection, hidden until openNexus() -->
+    <div class="nexus-panel" id="nexusPanel" style="display:none">
+      <button class="nexus-back" onclick="closeNexus()">&#8592; Back</button>
+
+      <div class="nexus-section">
+        <div class="nexus-section-label">Combat</div>
+        <div class="mode-cards">
+          <div class="mode-card active" data-mode="2p" onclick="selectMode('2p')">
+            <div class="mode-name">1v1</div>
+            <div class="mode-desc">Toggle bot on either player</div>
+          </div>
+          <div class="mode-card" id="modeBoss" data-mode="boss" onclick="selectMode('boss')" style="display:none">
+            <div class="mode-name">Boss Fight</div>
+            <div class="mode-desc" id="bossModeDesc">Battle the Creator</div>
+          </div>
+          <div class="mode-card" id="modeTrueForm" data-mode="trueform" style="display:none" onclick="selectMode('trueform')">
+            <div class="mode-name" style="color:#ffffff">True Form</div>
+            <div class="mode-desc" style="color:#888">Face what lies beneath</div>
+          </div>
+          <div class="mode-card" id="modeSovereign" data-mode="sovereign" onclick="selectMode('sovereign')" style="display:none">
+            <div class="mode-name" style="color:#ff4422">&#9889; SOVEREIGN &#937;</div>
+            <div class="mode-desc" style="color:#cc6644">No limits. No mercy.</div>
+          </div>
+          <div class="mode-card" id="modeCompleteRandom" data-mode="completerandom" onclick="selectMode('completerandom')" style="display:none">
+            <div class="mode-name" style="color:#ff9944">&#127922; Complete Random</div>
+            <div class="mode-desc" style="color:#aa7733">New map, weapon &amp; class every death</div>
+          </div>
         </div>
       </div>
-      </div><!-- /.mode-section -->
+
+      <div class="nexus-section">
+        <div class="nexus-section-label">Multiplayer</div>
+        <div class="mode-cards">
+          <div class="mode-card" id="modeOnline" data-mode="online" onclick="selectMode('online')">
+            <div class="mode-name" style="color:#00eeff">&#127760; Online</div>
+            <div class="mode-desc">Play against others</div>
+          </div>
+          <div class="mode-card" id="modeStoryOnline" data-mode="storyonline" onclick="selectMode('storyonline')" style="display:none">
+            <div class="mode-name" style="color:#ffdd88">&#127760;&#9876;&#65039; Story Online</div>
+            <div class="mode-desc" style="color:#aa9944">Cross-world multiplayer</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="nexus-section">
+        <div class="nexus-section-label">Activities</div>
+        <div class="mode-cards">
+          <div class="mode-card" data-mode="training" onclick="selectMode('training')">
+            <div class="mode-name">Training</div>
+            <div class="mode-desc">Practice with dummies</div>
+          </div>
+          <div class="mode-card" data-mode="minigames" onclick="selectMode('minigames')">
+            <div class="mode-name">Minigames</div>
+            <div class="mode-desc">Special game modes</div>
+          </div>
+          <div class="mode-card" onclick="openDesigner()" style="border-color:rgba(100,200,255,0.25);">
+            <div class="mode-name" style="color:#88ccff;">&#128295; Creator</div>
+            <div class="mode-desc">Map &amp; Weapon Studio</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- Hidden ID anchor for modeStory — JS uses this to toggle active state -->
+    <div id="modeStory" data-mode="story" style="display:none"></div>
     </div><!-- /#menuHomeContent -->
 
     <!-- CONFIG VIEW: shown when a game mode is selected -->

@@ -140,6 +140,21 @@ function backToHome() {
   if (homeContent) homeContent.style.display = '';
   const configContent = document.getElementById('menuConfigContent');
   if (configContent) configContent.style.display = 'none';
+  closeNexus();
+}
+
+function openNexus() {
+  const pathCards = document.getElementById('pathCards');
+  const nexusPanel = document.getElementById('nexusPanel');
+  if (pathCards) pathCards.style.display = 'none';
+  if (nexusPanel) nexusPanel.style.display = '';
+}
+
+function closeNexus() {
+  const pathCards = document.getElementById('pathCards');
+  const nexusPanel = document.getElementById('nexusPanel');
+  if (pathCards) pathCards.style.display = '';
+  if (nexusPanel) nexusPanel.style.display = 'none';
 }
 
 // ── Custom weapon options ─────────────────────────────────────────────────────

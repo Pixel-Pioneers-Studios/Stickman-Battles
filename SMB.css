@@ -1913,6 +1913,114 @@ body.depth-phase-active {
 }
 
 /* ============================================================
+   PATH CARDS (Story | The Nexus)
+   ============================================================ */
+.path-cards {
+  display: flex;
+  gap: 14px;
+  width: 100%;
+  max-width: 480px;
+  margin: 4px 0;
+}
+
+.path-card {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 22px 12px 20px;
+  border-radius: 14px;
+  border: 1.5px solid;
+  cursor: pointer;
+  transition: transform 0.14s, box-shadow 0.14s, background 0.14s, border-color 0.14s;
+  text-align: center;
+}
+.path-card:hover { transform: translateY(-3px); }
+.path-card:active { transform: scale(0.97); }
+
+.path-card-icon { font-size: 1.9rem; line-height: 1; }
+.path-card-title {
+  font-size: 1.05rem;
+  font-weight: 900;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+}
+.path-card-desc {
+  font-size: 0.66rem;
+  letter-spacing: 0.4px;
+  line-height: 1.55;
+  opacity: 0.72;
+}
+
+.path-card.path-story {
+  background: rgba(28, 16, 6, 0.92);
+  border-color: rgba(255, 175, 55, 0.35);
+  box-shadow: 0 0 32px rgba(255, 130, 0, 0.08);
+}
+.path-card.path-story:hover {
+  background: rgba(38, 22, 7, 0.96);
+  border-color: rgba(255, 175, 55, 0.65);
+  box-shadow: 0 4px 40px rgba(255, 130, 0, 0.20);
+}
+.path-card.path-story .path-card-title { color: #ffcc88; }
+.path-card.path-story .path-card-desc  { color: #a88055; }
+
+.path-card.path-nexus {
+  background: rgba(5, 12, 26, 0.92);
+  border-color: rgba(0, 175, 255, 0.28);
+  box-shadow: 0 0 32px rgba(0, 140, 255, 0.06);
+}
+.path-card.path-nexus:hover {
+  background: rgba(6, 16, 34, 0.96);
+  border-color: rgba(0, 200, 255, 0.55);
+  box-shadow: 0 4px 40px rgba(0, 170, 255, 0.16);
+}
+.path-card.path-nexus .path-card-title { color: #55ddff; }
+.path-card.path-nexus .path-card-desc  { color: #4488aa; }
+
+/* ============================================================
+   NEXUS PANEL
+   ============================================================ */
+.nexus-panel {
+  width: 100%;
+  max-width: 480px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  animation: fadeIn 0.16s ease;
+}
+
+.nexus-back {
+  font-family: inherit;
+  font-size: 0.70rem;
+  font-weight: 600;
+  color: rgba(130, 170, 255, 0.65);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 8px;
+  padding: 4px 12px;
+  cursor: pointer;
+  transition: color 0.14s, background 0.14s;
+  align-self: flex-start;
+  margin-bottom: 8px;
+}
+.nexus-back:hover { color: #fff; background: rgba(255, 255, 255, 0.09); }
+
+.nexus-section { margin-bottom: 8px; }
+
+.nexus-section-label {
+  font-size: 0.58rem;
+  font-weight: 800;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: rgba(130, 155, 220, 0.45);
+  margin-bottom: 5px;
+  padding-left: 2px;
+}
+
+/* ============================================================
    MENU FOOTER ROW
    ============================================================ */
 .menu-footer-row {
