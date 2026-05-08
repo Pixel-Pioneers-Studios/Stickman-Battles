@@ -724,7 +724,7 @@ function spawnCombatAI(x, y, color, weaponKey, cfg) {
 
   // Pick a human player as the default target
   const humanTarget = typeof players !== 'undefined'
-    ? players.find(p => !p.isAI && p.health > 0)
+    ? players.find(p => !p.isAI && p.health > 0 && !p.godmode)
     : null;
   if (humanTarget) ai.target = humanTarget;
 

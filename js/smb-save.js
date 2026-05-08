@@ -205,6 +205,7 @@ const _SAVE_DEFAULTS = {
     patrolMode:         false,
     godEncountered:     false,
     godDefeated:        false,
+    bossRushUnlocked:   false,
   },
   settings: {
     sfxVol:    0.35,
@@ -277,6 +278,7 @@ function _migrateSave(data) {
   if (typeof d.unlocks.patrolMode         === 'undefined') d.unlocks.patrolMode         = false;
   if (typeof d.unlocks.godEncountered    === 'undefined') d.unlocks.godEncountered    = false;
   if (typeof d.unlocks.godDefeated       === 'undefined') d.unlocks.godDefeated       = false;
+  if (typeof d.unlocks.bossRushUnlocked  === 'undefined') d.unlocks.bossRushUnlocked  = false;
   if (typeof d.coins !== 'number')     d.coins     = 0;
   if (!Array.isArray(d.cosmetics))     d.cosmetics = [];
   d.version = SAVE_VERSION;
@@ -370,6 +372,7 @@ function _flushRuntimeIntoBase(base) {
   if (typeof paradoxCompanionActive !== 'undefined') base.unlocks.paradoxCompanion = base.unlocks.paradoxCompanion || !!paradoxCompanionActive;
   if (typeof godEncountered     !== 'undefined') base.unlocks.godEncountered  = base.unlocks.godEncountered  || !!godEncountered;
   if (typeof godDefeated        !== 'undefined') base.unlocks.godDefeated     = base.unlocks.godDefeated     || !!godDefeated;
+  if (typeof bossRushUnlocked   !== 'undefined') base.unlocks.bossRushUnlocked = base.unlocks.bossRushUnlocked || !!bossRushUnlocked;
   if (typeof collectedLetterIds !== 'undefined') {
     const _ids = Array.from(collectedLetterIds);
     if (!Array.isArray(base.unlocks.letters) || _ids.length > base.unlocks.letters.length) base.unlocks.letters = _ids;
@@ -494,6 +497,7 @@ function _refreshRuntimeFromSave(data) {
     // God encounter flags
     if (typeof godEncountered  !== 'undefined') godEncountered  = !!data.unlocks.godEncountered;
     if (typeof godDefeated     !== 'undefined') godDefeated     = !!data.unlocks.godDefeated;
+    if (typeof bossRushUnlocked !== 'undefined') bossRushUnlocked = !!data.unlocks.bossRushUnlocked;
   }
 
   // Coins — mirror account.data.coins into runtime global; use getCoins() for the canonical value
@@ -700,6 +704,7 @@ function _rewardUnlockSetter(key, value) {
     patrolMode:         function(v) { if (typeof patrolMode !== 'undefined') patrolMode = v; },
     godEncountered:     function(v) { if (typeof godEncountered !== 'undefined') godEncountered = v; },
     godDefeated:        function(v) { if (typeof godDefeated !== 'undefined') godDefeated = v; },
+    bossRushUnlocked:   function(v) { if (typeof bossRushUnlocked !== 'undefined') bossRushUnlocked = v; },
   };
   const runtimeSetter = runtimeMap[key];
   if (typeof runtimeSetter === 'function' && typeof setAccountFlagWithRuntime === 'function') {

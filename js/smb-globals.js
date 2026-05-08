@@ -713,6 +713,7 @@ let storyFreezeTimer   = 0;    // frames of physics halt for cinematic freezes
 let storyDistortLevel  = 0;    // 0-1 world distortion intensity (rises with chapter progress)
 let storyDodgeUnlocked = false; // set true when DODGE_UNLOCK event fires
 let sovereignBeaten    = false; // set true after Sovereign MK2 is defeated
+let bossRushUnlocked   = false; // set true by cheat code UNLOCKBOSSRUSH
 let storyOnline        = false; // set true after online story completion
 let godEncountered     = false; // set true after first God encounter
 let godDefeated        = false; // set true after God is defeated in Phase 2

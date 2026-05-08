@@ -204,6 +204,18 @@ function updateCamera() {
     return;
   }
 
+  // ── Battle Royale: lock camera to P1 only, fixed zoom ────
+  if (gameMode === 'battleroyale' && players[0] && players[0].health > 0) {
+    const bp = players[0];
+    camXTarget = bp.cx();
+    camYTarget = bp.cy() + _hudShift;
+    camZoomTarget = 1.0;
+    camZoomCur += (camZoomTarget - camZoomCur) * lerp.zoom;
+    camXCur    += (camXTarget - camXCur) * lerp.pos;
+    camYCur    += (camYTarget - camYCur) * lerp.pos;
+    return;
+  }
+
   if (activePlayers.length > 0) {
     // Exploration: track only P1 at steady zoom — world is wide
     if (gameMode === 'exploration' && players[0] && players[0].health > 0) {
@@ -371,12 +383,19 @@ function updateCamera() {
       camXCur = Math.max(wLeft  + hvw, Math.min(wRight - hvw, camXCur));
     }
 
-    // Vertical: clamp so floor is always visible (don't pan above top or below floor+margin)
+    // Vertical: clamp so floor is always visible (don't pan above top or below floor+margin).
+    // Also account for the HUD at the top of the screen — it blocks that many game-units of
+    // visible area, so we must shift the top clamp down by _hudGU so players on the highest
+    // platform aren't hidden behind the HUD bar. Clamping camYTarget alongside camYCur
+    // stops the lerp from fighting the boundary each frame (the root cause of vibration).
     const floorPl = currentArena.platforms && currentArena.platforms.find(p => p.isFloor);
     const wBottom = floorPl ? floorPl.y + 80 : GAME_H;
     const wTop    = 0;
     if (wBottom - wTop > GAME_H / camZoomCur) {
-      camYCur = Math.max(wTop + hvh, Math.min(wBottom - hvh, camYCur));
+      const _topBound = wTop + hvh + _hudGU;
+      const _botBound = wBottom - hvh;
+      camYCur    = Math.max(_topBound, Math.min(_botBound, camYCur));
+      camYTarget = Math.max(_topBound, Math.min(_botBound, camYTarget));
     }
   }
 
@@ -387,13 +406,17 @@ function updateCamera() {
   // smoothly. Brief off-screen is acceptable.
   if (!_isDuel && !cinematicCamOverride && gameRunning && activePlayers.length > 0 && _camSnapCooldown === 0) {
     for (const _fp of activePlayers) {
-      const _sx = (_fp.cx() - camXCur) * camZoomCur + GAME_W * 0.5;
-      const _sy = (_fp.cy() - camYCur) * camZoomCur + GAME_H * 0.5;
+      const _sx    = (_fp.cx() - camXCur) * camZoomCur + GAME_W * 0.5;
+      const _syTop = (_fp.y - camYCur) * camZoomCur + GAME_H * 0.5;
+      const _syBot = (_fp.y + (_fp.h || 50) - camYCur) * camZoomCur + GAME_H * 0.5;
+      const _hudTopPx = _hudGU * camZoomCur; // HUD occupies this many px at top
       const _margin = 40;
-      if (_sx < -_margin || _sx > GAME_W + _margin || _sy < -_margin || _sy > GAME_H + _margin) {
+      if (_sx < -_margin || _sx > GAME_W + _margin ||
+          _syBot < -_margin || _syTop > GAME_H + _margin ||
+          _syTop < _hudTopPx - _margin) {
         // Snap once, then disable lerp conflict for 10 frames
         camXCur    += (_fp.cx() - camXCur) * 0.50;
-        camYCur    += (_fp.cy() - camYCur) * 0.50;
+        camYCur    += (_fp.cy() + _hudShift - camYCur) * 0.50;
         camXTarget  = camXCur;
         camYTarget  = camYCur;
         _camSnapCooldown = 10;

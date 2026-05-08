@@ -23,8 +23,9 @@ function _startGameCore() {
   // Online: force 2P-compatible variants so guest doesn't get assigned to boss/dummy
   if (onlineMode && isBossMode && bossPlayerCount !== 2) bossPlayerCount = 2;
   if (onlineMode && isTrainingMode) training2P = true;
-  const isMinigamesMode    = gameMode === 'minigames';
-  const isExploreMode      = gameMode === 'exploration';
+  const isMinigamesMode      = gameMode === 'minigames';
+  const isBattleRoyaleMode   = gameMode === 'battleroyale';
+  const isExploreMode        = gameMode === 'exploration';
   const isAdaptiveMode     = gameMode === 'adaptive' || gameMode === 'sovereign';
   const isSovereignMode    = gameMode === 'sovereign';
   const isCompleteRandMode = gameMode === '2p' && completeRandomizer;
@@ -50,6 +51,8 @@ function _startGameCore() {
     if (typeof resetDamnationState === 'function') resetDamnationState();
   } else if (isExploreMode) {
     currentArenaKey = '__explore__';
+  } else if (isBattleRoyaleMode) {
+    currentArenaKey = '__br__'; // initBattleRoyale() sets currentArena directly
   } else if (isMinigamesMode) {
     if (minigameType === 'soccer') {
       currentArenaKey = 'soccer';
@@ -74,7 +77,7 @@ function _startGameCore() {
   }
   isRandomMapMode = (selectedArena === 'random' && !isCompleteRandMode);
   // Lava/void: no randomization
-  if (currentArenaKey !== 'creator' && currentArenaKey !== 'god_domain' && currentArenaKey !== 'lava' && currentArenaKey !== 'void' && currentArenaKey !== 'soccer' && currentArenaKey !== 'damnation' && currentArenaKey !== 'sovereign' && !isExploreMode) randomizeArenaLayout(currentArenaKey);
+  if (currentArenaKey !== 'creator' && currentArenaKey !== 'god_domain' && currentArenaKey !== 'lava' && currentArenaKey !== 'void' && currentArenaKey !== 'soccer' && currentArenaKey !== 'damnation' && currentArenaKey !== 'sovereign' && !isExploreMode && !isBattleRoyaleMode) randomizeArenaLayout(currentArenaKey);
   currentArena = ARENAS[currentArenaKey];
   if (typeof buildGraphForCurrentArena === 'function') buildGraphForCurrentArena();
   initMapPerks(currentArenaKey);
@@ -485,6 +488,12 @@ function _startGameCore() {
       p1.target = null;
     }
     initMinigame();
+  } else if (isBattleRoyaleMode) {
+    p1.isAI  = false;
+    p1.lives = 1;
+    players  = [p1];
+    p1.target = null;
+    if (typeof initBattleRoyale === 'function') initBattleRoyale();
   } else if (isGodMode) {
     // God encounter — P1 vs God (in minions), optional Paradox ally
     p1.isAI  = false;

@@ -2482,7 +2482,7 @@ class Fighter {
       const allEntities = [...players, ...trainingDummies, ...minions];
       let nearDist = Infinity, nearEnt = null;
       for (const e of allEntities) {
-        if (e === this || e.health <= 0) continue;
+        if (e === this || e.health <= 0 || e.godmode) continue;
         const dd = dist(this, e);
         if (dd < nearDist) { nearDist = dd; nearEnt = e; }
       }

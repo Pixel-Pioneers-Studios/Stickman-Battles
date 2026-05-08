@@ -467,7 +467,7 @@ class TrueForm extends Fighter {
       if (this._pendingChainMove.delay <= 0) {
         const cm = this._pendingChainMove;
         this._pendingChainMove = null;
-        const freshTarget = players.find(p => !p.isBoss && p.health > 0);
+        const freshTarget = players.find(p => !p.isBoss && p.health > 0 && !p.godmode);
         if (freshTarget) {
           const fired = this._doSpecial(cm.move, freshTarget);
           // Give the boss's locked attack state time to clear before retrying
@@ -742,7 +742,7 @@ class TrueForm extends Fighter {
       // Multi-Layer Fake: spawn afterimages at different Z values
       if (this._depthLayerFakeCd  <= 0) w.depthLayerFake  = 0.22;
       // Depth Punish: punish player who stays in same Z > 120 frames
-      const _pi = players.findIndex(p => !p.isBoss && p.health > 0);
+      const _pi = players.findIndex(p => !p.isBoss && p.health > 0 && !p.godmode);
       const _pz = typeof tfDepthPlayerStillZ !== 'undefined' && tfDepthPlayerStillZ[_pi];
       if (this._depthPunishCd <= 0 && _pz && _pz.frames >= 120) w.depthPunish = 0.40;
       // Suppress regular non-Z specials during depth phase to emphasise the system

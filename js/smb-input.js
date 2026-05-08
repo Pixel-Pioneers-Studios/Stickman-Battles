@@ -105,6 +105,12 @@ document.addEventListener('keydown', e => {
   if (keysDown.has(_nk)) return; // already tracked — let held-frame counter run
   keysDown.add(_nk);
 
+  // Battle Royale inventory: 1-5 use item in that slot
+  if (gameRunning && !paused && gameMode === 'battleroyale' && e.key >= '1' && e.key <= '5') {
+    if (typeof useBRItem === 'function') useBRItem(parseInt(e.key, 10) - 1);
+    return;
+  }
+
   if (!gameRunning || paused) return;
   // Block attack/ability/super keydown events during the TF opening cinematic (after free period)
   if (typeof tfOpeningFightActive !== 'undefined' && tfOpeningFightActive

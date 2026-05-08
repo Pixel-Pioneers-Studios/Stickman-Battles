@@ -98,6 +98,9 @@ function refreshMenuFromAccount() {
     (typeof _story2 !== 'undefined' && _story2 && _story2.storyComplete)
   ) ? '' : 'none';
 
+  const brCard = document.getElementById('modeBossRush');
+  if (brCard) brCard.style.display = (typeof bossRushUnlocked !== 'undefined' && bossRushUnlocked) ? '' : 'none';
+
   if (typeof refreshCoinDisplay === 'function') refreshCoinDisplay();
   if (typeof syncCodeInput === 'function') syncCodeInput();
   if (typeof refreshMegaknightClassOption === 'function') refreshMegaknightClassOption();

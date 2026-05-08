@@ -107,7 +107,7 @@ class Boss extends Fighter {
     if (gameMode === 'boss' && bossPlayerCount === 2) {
       let nearDist = Infinity, nearP = null;
       for (const p of players) {
-        if (p.isBoss || p.health <= 0) continue;
+        if (p.isBoss || p.health <= 0 || p.godmode) continue;
         const d2 = dist(this, p);
         if (d2 < nearDist) { nearDist = d2; nearP = p; }
       }
@@ -346,7 +346,7 @@ class Boss extends Fighter {
         const spawnX = Math.random() < 0.5 ? 60 : 840;
         const spawnY = 200;
         const mn     = new Minion(spawnX, spawnY);
-        mn.target    = players[0];
+        mn.target    = players.find(p => !p.isBoss && p.health > 0 && !p.godmode) || players[0];
         minions.push(mn);
         spawnParticles(spawnX, spawnY, '#bb00ee', 24);
         if (settings.screenShake) screenShake = Math.max(screenShake, 12);
@@ -883,7 +883,7 @@ function executeTrueFormAttack(ctx, move, target, source = 'runtime') {
   }
   const liveTarget = target && target.health > 0
     ? target
-    : ctx.target && ctx.target.health > 0 ? ctx.target : players.find(p => !p.isBoss && p.health > 0);
+    : ctx.target && ctx.target.health > 0 ? ctx.target : players.find(p => !p.isBoss && p.health > 0 && !p.godmode);
   if (entry.requiresTarget && !liveTarget) {
     console.warn(`[TrueFormAttack:${source}] attack "${move}" requires a valid target`);
     return false;

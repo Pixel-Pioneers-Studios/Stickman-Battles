@@ -353,6 +353,8 @@ function gameLoop(timestamp) {
   if (typeof drawDepthFloorGrid === 'function') drawDepthFloorGrid();
   if (typeof drawCinematicImpactWorldEffects === 'function') drawCinematicImpactWorldEffects();
   if (gameMode === 'minigames' && minigameType === 'soccer') drawSoccer();
+  if (gameMode === 'minigames' && minigameType === 'defense' && typeof drawDefenseNexus === 'function') drawDefenseNexus();
+  if (gameMode === 'battleroyale' && typeof drawBattleRoyaleWorld === 'function') drawBattleRoyaleWorld();
   drawBackstagePortals();
   drawMapPerks();
 
@@ -471,6 +473,8 @@ function gameLoop(timestamp) {
   if (gameMode === 'minigames' && minigameType === 'soccer') updateSoccerBall();
   // Minigame logic update
   if (gameMode === 'minigames') updateMinigame();
+  // Battle Royale update
+  if (gameMode === 'battleroyale' && typeof updateBattleRoyale === 'function') updateBattleRoyale();
   // Eternal Damnation arc update
   if (damnationActive && typeof updateDamnation === 'function') updateDamnation();
   // True Form special updates (also active when a trueform admin kit is equipped, or FORCE_ATTACK_MODE has active TF effects)
@@ -875,6 +879,7 @@ function gameLoop(timestamp) {
 
   // Minigame HUD overlay
   if (gameMode === 'minigames') drawMinigameHUD();
+  if (gameMode === 'battleroyale' && typeof drawBattleRoyaleHUD === 'function') drawBattleRoyaleHUD();
   // New chaos modifier notification — timer ticked here, drawn in screen-space below
   if (_chaosModNotif && _chaosModNotif.timer > 0) _chaosModNotif.timer--;
   if (exploreActive && typeof drawExploreGoalObject === 'function') drawExploreGoalObject();

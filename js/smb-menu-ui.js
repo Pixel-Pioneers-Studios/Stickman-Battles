@@ -60,8 +60,9 @@ function selectMode(mode) {
   if (_p2Hint) _p2Hint.textContent = isTrueForm ? 'Secret Final Boss' : isAdaptive ? 'Learns your playstyle' : (isBoss && !isBoss2p) ? 'Boss — AI Controlled' : (isBoss2p ? '← → ↑ · Enter · . · /' : (isTraining ? 'Practice mode' : (p2IsBot ? 'AI Controlled' : '← → ↑ · Enter · . · / · ↓')));
   document.getElementById('p1DifficultyRow').style.display = p1IsBot ? 'flex' : 'none';
   document.getElementById('p2DifficultyRow').style.display = p2IsBot ? 'flex' : 'none';
-  // Hide P2 config rows in boss 1P, training, trueform, adaptive
-  const hideP2 = (isBoss && !isBoss2p) || isTraining || isTrueForm || isAdaptive;
+  // Hide P2 config rows in boss 1P, training, trueform, adaptive, battle royale
+  const isBattleRoyale = mode === 'battleroyale';
+  const hideP2 = (isBoss && !isBoss2p) || isTraining || isTrueForm || isAdaptive || isBattleRoyale;
   document.getElementById('p2ColorRow').style.display     = hideP2 ? 'none' : 'flex';
   document.getElementById('p2WeaponRow').style.display    = hideP2 ? 'none' : 'flex';
   document.getElementById('p2ClassRow').style.display     = hideP2 ? 'none' : 'flex';

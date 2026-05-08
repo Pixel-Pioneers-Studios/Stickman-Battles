@@ -3,7 +3,7 @@
 // ============================================================
 // MINIGAMES
 // ============================================================
-let minigameType      = 'survival'; // 'survival' | 'koth' | 'chaos' | 'soccer'
+let minigameType      = 'survival'; // 'survival' | 'koth' | 'chaos' | 'soccer' | 'defense'
 let soccerBall   = null;
 let soccerScore  = [0, 0];
 let soccerScored = 0;
@@ -36,6 +36,15 @@ const CHAOS_MODS = [
   { id: 'weapon_swap',  label: '🔀 WEAPON SWAP',    desc: 'Random weapon each wave' },
 ];
 let currentChaosModifiers = new Set(); // active modifier ids this wave
+
+// --- Nexus Defense ---
+let defenseNexusHp    = 100;
+let defenseNexusMaxHp = 100;
+let defenseWave       = 0;
+let defenseEnemies    = [];
+let defenseWaveDelay  = 0;
+let defenseNexusX     = GAME_W / 2;
+let defenseNexusY     = GAME_H - 80;
 
 function selectMinigame(type) {
   if (type === 'coins') {
@@ -200,6 +209,17 @@ function initMinigame() {
     // Reset all players to standard settings; updateChaosMatch will add first mod on frame 1
     clearChaosModifiers();
   }
+  if (minigameType === 'defense') {
+    defenseNexusHp    = 100;
+    defenseNexusMaxHp = 100;
+    defenseWave       = 0;
+    defenseEnemies    = [];
+    defenseWaveDelay  = 210; // 3.5s before first wave
+    const _floorPl = typeof currentArena !== 'undefined' && currentArena && currentArena.platforms &&
+                     currentArena.platforms.find(function(p) { return p.isFloor; });
+    defenseNexusX = GAME_W / 2;
+    defenseNexusY = _floorPl ? _floorPl.y : GAME_H - 80;
+  }
 }
 
 function spawnSurvivalWave() {
@@ -231,6 +251,29 @@ function spawnSurvivalWave() {
   damageTexts.push(new DamageText(GAME_W / 2, 80, `WAVE ${survivalWave}!`, '#ffdd44'));
   screenShake = Math.max(screenShake, 8);
   SoundManager.waveStart();
+}
+
+function spawnDefenseWave() {
+  defenseWave++;
+  const waveSize = Math.min(1 + Math.floor(defenseWave * 0.8), 7);
+  const speed    = Math.min(2.0 + defenseWave * 0.25, 4.5); // rushers get faster each wave
+  for (let i = 0; i < waveSize; i++) {
+    const fromLeft = i % 2 === 0;
+    const bx = fromLeft ? 20 + Math.random() * 60 : GAME_W - 20 - Math.random() * 60;
+    const bot = new Fighter(bx, 80, `hsl(${10 + Math.random() * 25},85%,50%)`, randChoice(WEAPON_KEYS),
+      { left: null, right: null, jump: null, attack: null, ability: null, super: null }, false, 'easy');
+    bot.name        = 'Rusher';
+    bot.lives       = 1;
+    bot.dmgMult     = 0;    // rushers deal no combat damage — they only damage the nexus on contact
+    bot._defenseRusher = true;
+    bot._defenseSpeed  = (fromLeft ? 1 : -1) * speed;
+    bot.playerNum   = 3;    // enemy faction colour (red tint from playerNum = 3 styling)
+    minions.push(bot);
+    defenseEnemies.push(bot);
+  }
+  damageTexts.push(new DamageText(GAME_W / 2, 80, `WAVE ${defenseWave}!`, '#ff8844'));
+  screenShake = Math.max(screenShake, 6);
+  if (typeof SoundManager !== 'undefined' && SoundManager.waveStart) SoundManager.waveStart();
 }
 
 function updateMinigame() {
@@ -308,7 +351,114 @@ function updateMinigame() {
   } else if (minigameType === 'chaos') {
     updateChaosMatch();
     // Chaos match is just 1v1 — no special logic, just let normal 2P combat happen with modifiers
+  } else if (minigameType === 'defense') {
+    defenseEnemies = defenseEnemies.filter(function(e) { return e.health > 0; });
+
+    // Drive each rusher toward the nexus and check for contact
+    var _nexusReached = false;
+    for (var _di = 0; _di < defenseEnemies.length; _di++) {
+      var _de = defenseEnemies[_di];
+      if (!_de || _de.health <= 0) continue;
+
+      // Continuously push them toward the nexus (overrides whatever AI/friction would do)
+      var _toDx = defenseNexusX - _de.cx();
+      _de.vx = Math.sign(_toDx) * _de._defenseSpeed || (defenseNexusX > _de.cx() ? 3.5 : -3.5);
+
+      // Contact check: rusher bottom touches nexus base
+      var _ddx = Math.abs(_de.cx() - defenseNexusX);
+      var _ddy = Math.abs((_de.y + (_de.h || 50)) - defenseNexusY);
+      if (_ddx < 50 && _ddy < 60) {
+        defenseNexusHp -= 15;
+        _de.health = 0;
+        screenShake = Math.max(screenShake, 14);
+        if (typeof spawnParticles === 'function') spawnParticles(defenseNexusX, defenseNexusY - 30, '#ff4422', 14);
+        if (defenseNexusHp <= 0) {
+          defenseNexusHp = 0;
+          _nexusReached = true;
+        }
+      }
+    }
+
+    if (_nexusReached) {
+      damageTexts.push(new DamageText(GAME_W / 2, GAME_H / 2 - 40, 'NEXUS DESTROYED!', '#ff2200'));
+      clearChaosModifiers();
+      setTimeout(endGame, 2500);
+      return;
+    }
+
+    // Wave timer / spawn next wave
+    if (defenseWaveDelay > 0) {
+      defenseWaveDelay--;
+      if (defenseWaveDelay === 0) spawnDefenseWave();
+    } else if (defenseEnemies.filter(function(e) { return e.health > 0; }).length === 0) {
+      // Wave cleared — reward HP and queue next
+      players.forEach(function(p) { if (!p.isBoss) p.health = Math.min(p.maxHealth, p.health + 20); });
+      defenseWaveDelay = 240;
+      damageTexts.push(new DamageText(GAME_W / 2, 110, 'Wave cleared!  +20 HP', '#44ff88'));
+    }
   }
+}
+
+function drawDefenseNexus() {
+  if (!gameRunning || minigameType !== 'defense') return;
+  var _cx = defenseNexusX, _cy = defenseNexusY;
+  var _hpFrac = Math.max(0, defenseNexusHp / defenseNexusMaxHp);
+  var _pulse  = 0.88 + 0.12 * Math.sin(typeof frameCount !== 'undefined' ? frameCount * 0.06 : 0);
+  var _col    = _hpFrac > 0.5 ? '#44aaff' : _hpFrac > 0.25 ? '#ffaa22' : '#ff4422';
+
+  ctx.save();
+
+  // Outer glow
+  var _grd = ctx.createRadialGradient(_cx, _cy - 30, 4, _cx, _cy - 30, 48 * _pulse);
+  _grd.addColorStop(0, _col + 'bb');
+  _grd.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = _grd;
+  ctx.beginPath();
+  ctx.arc(_cx, _cy - 30, 48 * _pulse, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Crystal (diamond shape)
+  ctx.fillStyle = _col;
+  ctx.strokeStyle = 'rgba(255,255,255,0.6)';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(_cx,      _cy - 62); // tip
+  ctx.lineTo(_cx + 22, _cy - 30); // right shoulder
+  ctx.lineTo(_cx,      _cy);      // base
+  ctx.lineTo(_cx - 22, _cy - 30); // left shoulder
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  // Inner highlight shard
+  ctx.fillStyle = 'rgba(255,255,255,0.28)';
+  ctx.beginPath();
+  ctx.moveTo(_cx - 2,  _cy - 58);
+  ctx.lineTo(_cx + 10, _cy - 36);
+  ctx.lineTo(_cx - 6,  _cy - 36);
+  ctx.closePath();
+  ctx.fill();
+
+  // HP bar
+  var _barW = 80, _barH = 8;
+  var _bx = _cx - _barW / 2, _by = _cy - 82;
+  ctx.fillStyle = 'rgba(0,0,0,0.65)';
+  ctx.fillRect(_bx - 1, _by - 1, _barW + 2, _barH + 2);
+  ctx.fillStyle = _hpFrac > 0.5 ? '#44ff88' : _hpFrac > 0.25 ? '#ffaa22' : '#ff4422';
+  ctx.fillRect(_bx, _by, _barW * _hpFrac, _barH);
+  ctx.strokeStyle = 'rgba(255,255,255,0.25)';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(_bx, _by, _barW, _barH);
+
+  // Label
+  ctx.fillStyle = '#ffffff';
+  ctx.font = 'bold 10px Arial';
+  ctx.textAlign = 'center';
+  ctx.shadowColor = '#000'; ctx.shadowBlur = 4;
+  ctx.fillText('NEXUS', _cx, _by - 4);
+  ctx.shadowBlur = 0;
+
+  ctx.restore();
 }
 
 function updateSoccerBall() {
@@ -527,6 +677,17 @@ function drawMinigameHUD() {
       });
       ctx.globalAlpha = 1;
       ctx.textAlign = 'center';
+    }
+  } else if (minigameType === 'defense') {
+    ctx.fillStyle = '#ff8844'; ctx.font = 'bold 14px Arial'; ctx.textAlign = 'center';
+    var _defAlive = defenseEnemies.filter(function(e) { return e.health > 0; }).length;
+    ctx.fillText('Wave ' + defenseWave + '  —  Enemies: ' + _defAlive, GAME_W / 2, GAME_H - 20);
+    if (defenseWaveDelay > 0 && defenseWave === 0) {
+      ctx.fillStyle = '#aaffaa'; ctx.font = 'bold 18px Arial';
+      ctx.fillText('Protect the Nexus!  Starting in ' + Math.ceil(defenseWaveDelay / 60) + 's', GAME_W / 2, GAME_H - 44);
+    } else if (defenseWaveDelay > 0) {
+      ctx.fillStyle = '#aaffaa'; ctx.font = 'bold 18px Arial';
+      ctx.fillText('Next wave in ' + Math.ceil(defenseWaveDelay / 60) + 's', GAME_W / 2, GAME_H - 44);
     }
   } else if (minigameType === 'koth') {
     // Draw zone indicator

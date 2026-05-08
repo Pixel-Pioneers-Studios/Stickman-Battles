@@ -12,6 +12,13 @@ function _cheatUnlockAll() {
   const bossCard = document.getElementById('modeBoss');
   if (bossCard) bossCard.style.display = '';
 
+  // Boss Rush
+  if (typeof setAccountFlagWithRuntime === 'function') {
+    setAccountFlagWithRuntime(['unlocks', 'bossRushUnlocked'], true, function(v) { bossRushUnlocked = v; });
+  } else { bossRushUnlocked = true; }
+  const brCard = document.getElementById('modeBossRush');
+  if (brCard) brCard.style.display = '';
+
   // True Form
   if (typeof setAccountFlagWithRuntime === 'function') {
     setAccountFlagWithRuntime(['unlocks', 'trueform'], true, function(v) { unlockedTrueBoss = v; });
@@ -110,7 +117,14 @@ function applyCode(val) {
   const ok  = (t) => { if (msgEl) { msgEl.textContent = '✓ ' + t; msgEl.style.color = '#44ff88'; msgEl.style.fontSize = ''; } };
   const err = (t) => { if (msgEl) { msgEl.textContent = '✗ ' + t; msgEl.style.color = '#ff4444'; msgEl.style.fontSize = ''; } };
 
-  if (code === 'TRUEFORM') {
+  if (code === 'UNLOCKBOSSRUSH') {
+    if (typeof setAccountFlagWithRuntime === 'function') {
+      setAccountFlagWithRuntime(['unlocks', 'bossRushUnlocked'], true, function(v) { bossRushUnlocked = v; });
+    } else { bossRushUnlocked = true; }
+    const brCard = document.getElementById('modeBossRush');
+    if (brCard) brCard.style.display = '';
+    ok('Boss Rush unlocked! Find it in The Nexus.');
+  } else if (code === 'TRUEFORM') {
     if (typeof setAccountFlagWithRuntime === 'function') {
       setAccountFlagWithRuntime(['unlocks', 'trueform'], true, function(v) { unlockedTrueBoss = v; });
     } else { unlockedTrueBoss = true; }
