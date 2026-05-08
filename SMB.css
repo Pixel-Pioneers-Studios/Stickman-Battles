@@ -2064,6 +2064,42 @@ body.depth-phase-active {
   padding-left: 2px;
 }
 
+/* Boss Rush always-visible card in nexus grid */
+.nexus-bossrush-card {
+  border-color: rgba(200, 80, 30, 0.35) !important;
+  background: rgba(24, 8, 4, 0.85) !important;
+}
+.nexus-bossrush-card:hover {
+  border-color: rgba(220, 100, 40, 0.65) !important;
+  box-shadow: 0 0 20px rgba(200, 80, 30, 0.2) !important;
+}
+
+/* Boss Rush panel individual fight cards */
+.path-card.path-boss-fight {
+  background: rgba(20, 6, 4, 0.92);
+  border-color: rgba(200, 60, 20, 0.32);
+  box-shadow: 0 0 22px rgba(200, 50, 10, 0.06);
+}
+.path-card.path-boss-fight:hover {
+  border-color: rgba(220, 80, 30, 0.60);
+  box-shadow: 0 4px 32px rgba(200, 60, 20, 0.18);
+}
+.path-card.path-boss-fight .path-card-title { color: #ff8855; }
+.path-card.path-boss-fight .path-card-desc  { color: #773322; }
+
+/* Gauntlet card — gold/prestige feel */
+.path-card.path-gauntlet {
+  background: rgba(20, 14, 4, 0.92);
+  border-color: rgba(220, 170, 20, 0.38);
+  box-shadow: 0 0 22px rgba(200, 150, 0, 0.07);
+}
+.path-card.path-gauntlet:hover {
+  border-color: rgba(240, 190, 30, 0.65);
+  box-shadow: 0 4px 36px rgba(200, 160, 0, 0.20);
+}
+.path-card.path-gauntlet .path-card-title { color: #ffcc44; }
+.path-card.path-gauntlet .path-card-desc  { color: #886622; }
+
 /* 2-column grid for the nexus mode cards */
 .nexus-grid {
   display: grid;

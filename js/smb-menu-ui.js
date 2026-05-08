@@ -142,6 +142,7 @@ function backToHome() {
   if (configContent) configContent.style.display = 'none';
   closeNexus();
   closeStoryPath();
+  closeBossRush();
 }
 
 function openNexus() {
@@ -156,6 +157,73 @@ function closeNexus() {
   const nexusPanel = document.getElementById('nexusPanel');
   if (pathCards) pathCards.style.display = '';
   if (nexusPanel) nexusPanel.style.display = 'none';
+}
+
+// ── Boss Rush gauntlet ────────────────────────────────────────────────────────
+let _bossRushGauntlet = [];  // ['boss','trueform','sovereign'] when gauntlet active
+let _bossRushIdx = -1;
+
+function openBossRush() {
+  const pathCards = document.getElementById('pathCards');
+  const bossRushPanel = document.getElementById('bossRushPanel');
+  if (pathCards) pathCards.style.display = 'none';
+  if (bossRushPanel) bossRushPanel.style.display = '';
+}
+
+function closeBossRush() {
+  const pathCards = document.getElementById('pathCards');
+  const bossRushPanel = document.getElementById('bossRushPanel');
+  if (pathCards) pathCards.style.display = '';
+  if (bossRushPanel) bossRushPanel.style.display = 'none';
+}
+
+function startBossRushFight(mode) {
+  _bossRushGauntlet = [];
+  _bossRushIdx = -1;
+  closeBossRush();
+  selectMode(mode);
+}
+
+function startBossRushGauntlet() {
+  _bossRushGauntlet = ['boss', 'trueform', 'sovereign'];
+  _bossRushIdx = 0;
+  closeBossRush();
+  selectMode('boss');
+  if (typeof startGame === 'function') startGame();
+}
+
+function bossRushAdvance() {
+  _bossRushIdx++;
+  const overlay = document.getElementById('gameOverOverlay');
+  if (overlay) overlay.style.display = 'none';
+  if (_bossRushIdx < _bossRushGauntlet.length) {
+    const nextMode = _bossRushGauntlet[_bossRushIdx];
+    selectMode(nextMode);
+    if (typeof startGame === 'function') startGame();
+  } else {
+    _clearBossRushGauntlet();
+    if (typeof backToMenu === 'function') backToMenu();
+    if (typeof showToast === 'function') showToast('&#127942; Gauntlet Complete — you are unstoppable.');
+  }
+}
+
+function _clearBossRushGauntlet() {
+  _bossRushGauntlet = [];
+  _bossRushIdx = -1;
+  const row = document.getElementById('bossRushRow');
+  if (row) row.style.display = 'none';
+}
+
+function _updateBossRushNextBtn(playerWon) {
+  const row = document.getElementById('bossRushRow');
+  if (!row) return;
+  const hasNext = _bossRushGauntlet.length > 0 && (_bossRushIdx + 1) < _bossRushGauntlet.length;
+  row.style.display = (playerWon && hasNext) ? '' : 'none';
+  if (playerWon && hasNext) {
+    const labels = { boss: 'Creator', trueform: 'True Form', sovereign: 'SOVEREIGN Ω' };
+    const btn = document.getElementById('bossRushNextBtn');
+    if (btn) btn.textContent = 'Continue: ' + (labels[_bossRushGauntlet[_bossRushIdx + 1]] || 'Next') + ' →';
+  }
 }
 
 function openStoryPath() {

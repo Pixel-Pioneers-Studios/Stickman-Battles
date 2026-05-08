@@ -1354,6 +1354,11 @@ function endGame() {
   }
   document.getElementById('statsDisplay').innerHTML = statsHtml;
   document.getElementById('gameOverOverlay').style.display = 'flex';
+  // Boss Rush gauntlet: show "Next Boss" button when player wins
+  if (typeof _updateBossRushNextBtn === 'function') {
+    const _playerWon = bossDefeated || !!(winner && !winner.isAI && !winner.isBoss);
+    _updateBossRushNextBtn(_playerWon);
+  }
   // Show Replay Cinematic button if TF ending has been seen and this was a TF fight
   const _replayRow = document.getElementById('replayCinematicRow');
   if (_replayRow) {
@@ -1535,6 +1540,8 @@ function backToMenu() {
   if (storyModeActive && typeof storyOnBackToMenu === 'function') {
     storyOnBackToMenu();
   }
+  // Clear boss rush gauntlet if player exits mid-run
+  if (typeof _clearBossRushGauntlet === 'function') _clearBossRushGauntlet();
   // Always return to home view when leaving a game
   if (typeof backToHome === 'function') backToHome();
 }

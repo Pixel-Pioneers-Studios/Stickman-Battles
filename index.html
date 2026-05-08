@@ -202,6 +202,10 @@
           <div class="mode-name" style="color:#88ccff;">&#128295; Creator</div>
           <div class="mode-desc">Map &amp; Weapon Studio</div>
         </div>
+        <div class="mode-card nexus-bossrush-card" onclick="openBossRush()">
+          <div class="mode-name" style="color:#ff7744;">&#128293; Boss Rush</div>
+          <div class="mode-desc" style="color:#884422;">Face the end-game now</div>
+        </div>
         <div class="mode-card" id="modeBoss" data-mode="boss" onclick="selectMode('boss')" style="display:none">
           <div class="mode-name">Boss Fight</div>
           <div class="mode-desc" id="bossModeDesc">Battle the Creator</div>
@@ -224,6 +228,34 @@
         </div>
       </div>
     </div>
+    <!-- BOSS RUSH PANEL -->
+    <div class="nexus-panel" id="bossRushPanel" style="display:none">
+      <button class="nexus-back" onclick="closeBossRush()">&#8592; Back</button>
+      <p style="font-size:0.68rem;color:#884422;letter-spacing:1px;margin:0 0 10px;text-align:center;">All fights available immediately — no story required.</p>
+      <div class="nexus-grid">
+        <div class="path-card path-boss-fight" onclick="startBossRushFight('boss')">
+          <div class="path-card-icon">&#128293;</div>
+          <div class="path-card-title">Creator</div>
+          <div class="path-card-desc">Three-phase battle against the Creator</div>
+        </div>
+        <div class="path-card path-boss-fight" onclick="startBossRushFight('trueform')">
+          <div class="path-card-icon">&#9889;</div>
+          <div class="path-card-title">True Form</div>
+          <div class="path-card-desc">Face what lies beneath the Creator</div>
+        </div>
+        <div class="path-card path-boss-fight" onclick="startBossRushFight('sovereign')">
+          <div class="path-card-icon">&#937;</div>
+          <div class="path-card-title">SOVEREIGN</div>
+          <div class="path-card-desc">No limits. No mercy. No escape.</div>
+        </div>
+        <div class="path-card path-gauntlet" onclick="startBossRushGauntlet()">
+          <div class="path-card-icon">&#127942;</div>
+          <div class="path-card-title">Full Gauntlet</div>
+          <div class="path-card-desc">Creator &rarr; True Form &rarr; Sovereign. All three. Back to back.</div>
+        </div>
+      </div>
+    </div>
+
     <!-- Hidden ID anchor for modeStory — JS uses this to toggle active state -->
     <div id="modeStory" data-mode="story" style="display:none"></div>
     </div><!-- /#menuHomeContent -->
@@ -797,7 +829,10 @@
       <button class="btn" onclick="backToMenu()">Menu</button>
     </div>
     <div id="replayCinematicRow" style="display:none; margin-top:10px;">
-      <button class="btn" style="color:#cc88ff;border-color:#8844aa;" onclick="replayTFEnding()">↺ Replay Cinematic</button>
+      <button class="btn" style="color:#cc88ff;border-color:#8844aa;" onclick="replayTFEnding()">&#8634; Replay Cinematic</button>
+    </div>
+    <div id="bossRushRow" style="display:none; margin-top:10px;">
+      <button id="bossRushNextBtn" class="btn" style="color:#ff8844;border-color:rgba(200,80,30,0.5);font-weight:700;letter-spacing:1px;" onclick="bossRushAdvance()">Next Boss &#8594;</button>
     </div>
   </div>
 </div>
