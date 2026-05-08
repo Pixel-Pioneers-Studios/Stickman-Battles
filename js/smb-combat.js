@@ -170,22 +170,13 @@ function dealDamage(attacker, target, dmg, kbForce, stunMult = 1.0, isSplash = f
     directorAddIntensity(actualDmg * 0.02);
   }
   if (target.shielding) {
-    // Stack-degrading shield: each consecutive activation weakens protection.
-    // Passthrough fractions indexed by shieldStacks (1=fresh, 5+=depleted).
-    const _SHIELD_PASS = [0, 0.00, 0.25, 0.60, 0.80, 0.90];
-    const _stackIdx    = Math.min(Math.max(target.shieldStacks || 1, 1), _SHIELD_PASS.length - 1);
-    const _passThrough = _SHIELD_PASS[_stackIdx];
-    actualDmg = Math.max(1, Math.floor(actualDmg * _passThrough));
-    actualKb  = Math.floor(actualKb * (0.15 + _passThrough * 0.5)); // KB also partially scales
-    const _shieldColor = _stackIdx >= 4 ? '#ff6644' : _stackIdx >= 3 ? '#ffaa44' : '#88ddff';
-    spawnParticles(target.cx(), target.cy(), _shieldColor, 6);
-    // Parry: only available on fresh shield (stacks <= 1)
-    if (attacker && !(attacker.stunTimer > 0) && !(attacker.isBoss && attacker.phase >= 3)
-        && (target.shieldStacks || 1) <= 1) {
+    const _stacks = Math.max(1, target.shieldStacks || 1);
+    // Parry: only on fresh HP shield (stack 1); fires before damage absorption
+    if (_stacks === 1 && attacker && !(attacker.stunTimer > 0) && !(attacker.isBoss && attacker.phase >= 3)) {
       const held = target.shieldHoldTimer || 0;
       const parryChance = held <= 8 ? 0.65 : held <= 15 ? 0.30 : 0;
       if (parryChance > 0 && Math.random() < parryChance) {
-        attacker.stunTimer     = Math.max(attacker.stunTimer || 0, 90);
+        attacker.stunTimer        = Math.max(attacker.stunTimer || 0, 90);
         attacker._parryVulnFrames = 90;
         spawnParticles(target.cx(),   target.cy(),   '#ffff00', 22);
         spawnParticles(target.cx(),   target.cy(),   '#ffffff', 12);
@@ -194,6 +185,38 @@ function dealDamage(attacker, target, dmg, kbForce, stunMult = 1.0, isSplash = f
         if (settings.dmgNumbers)
           damageTexts.push(new DamageText(target.cx(), target.y - 38, 'PARRY!', '#ffff00'));
         SoundManager.clang && SoundManager.clang();
+        actualDmg = 0;
+        actualKb  = 0;
+      }
+    }
+    if (actualDmg > 0) {
+      if (_stacks <= 3) {
+        // HP-based shield: hit drains shieldHP; overflow passes through and breaks shield
+        const _shHP = target.shieldHP || 0;
+        if (actualDmg >= _shHP) {
+          const _overflow = Math.max(0, actualDmg - _shHP);
+          target.shieldHP        = 0;
+          target.shielding       = false;
+          target.shieldBroken    = true;
+          target.shieldHoldTimer = 0;
+          spawnParticles(target.cx(), target.cy(), '#ff8844', 14);
+          SoundManager.clang && SoundManager.clang();
+          actualDmg = _overflow;
+          actualKb  = _overflow > 0 ? Math.floor(actualKb * 0.6) : 0;
+        } else {
+          target.shieldHP -= actualDmg;
+          spawnParticles(target.cx(), target.cy(), '#88ddff', 6);
+          actualDmg = 0;
+          actualKb  = 0;
+        }
+      } else {
+        // Percentage-based shield (stacks 4-6): reduce damage proportionally
+        const _SHIELD_PASS = [0, 0, 0, 0, 0.20, 0.50, 0.80];
+        const _passThrough = _stacks <= 6 ? _SHIELD_PASS[_stacks] : 1.00;
+        actualDmg = Math.floor(actualDmg * _passThrough);
+        actualKb  = Math.floor(actualKb * (0.15 + _passThrough * 0.5));
+        const _shColor = _stacks === 4 ? '#88ddff' : _stacks === 5 ? '#ffaa44' : '#ff6644';
+        spawnParticles(target.cx(), target.cy(), _shColor, 6);
       }
     }
   } else {

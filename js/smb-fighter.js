@@ -42,6 +42,8 @@ class Fighter {
     this.shieldHoldTimer     = 0;  // frames S is held this activation
     this.shieldStacks        = 0;  // consecutive activations since last full recharge
     this.shieldRechargeTimer = 0;  // frames until stacks reset to 0 (recharge)
+    this.shieldHP            = 0;  // remaining HP for current HP-based shield tier (stacks 1-3)
+    this.shieldBroken        = false; // true while shield is broken and awaiting re-press
     this.canDoubleJump   = false; // allows one double-jump after leaving ground
     this.superMeter      = 0;    // 0-100 super charge
     this.superReady      = false; // true when super is fully charged
@@ -192,6 +194,8 @@ class Fighter {
     this.shieldHoldTimer     = 0;
     this.shieldStacks        = 0;
     this.shieldRechargeTimer = 0;
+    this.shieldHP            = 0;
+    this.shieldBroken        = false;
     this._hammerSpin         = null;
     this._spearCharge        = null;
     this._axeWhirl           = null;
@@ -439,10 +443,10 @@ class Fighter {
     }
 
     if (this.shieldCooldown > 0)       this.shieldCooldown--; // legacy — kept at 0
-    // Shield recharge: tick down while not shielding; when it hits 0 stacks reset
+    // Shield recharge: tick down while not shielding; when it hits 0 stacks fully reset
     if (!this.shielding && this.shieldRechargeTimer > 0) {
       this.shieldRechargeTimer--;
-      if (this.shieldRechargeTimer === 0) this.shieldStacks = 0;
+      if (this.shieldRechargeTimer === 0) { this.shieldStacks = 0; this.shieldHP = 0; }
     }
     if (this._projDeflectCd > 0)       this._projDeflectCd--;
     if (this._parryVulnFrames > 0)     this._parryVulnFrames--;
@@ -2152,11 +2156,16 @@ class Fighter {
     if (t && this.aiDiff !== 'easy' && t.attackTimer > 0 && d < 110 &&
         (this.shieldStacks || 0) <= 2 && Math.random() < 0.22) {
       if ((this.shieldHoldTimer || 0) === 0) {
-        this.shieldStacks        = (this.shieldStacks || 0) + 1;
-        this.shieldRechargeTimer = 90;
+        const _aiStacks = (this.shieldStacks || 0) + 1;
+        this.shieldStacks        = _aiStacks;
+        this.shieldRechargeTimer = 180;
+        if (_aiStacks <= 3) {
+          const _aiHPTable = [30, 15, 5];
+          this.shieldHP = _aiHPTable[_aiStacks - 1] || 0;
+        }
       }
       this.shielding = true;
-      setTimeout(() => { this.shielding = false; this.shieldHoldTimer = 0; }, 320);
+      setTimeout(() => { this.shielding = false; this.shieldHoldTimer = 0; this.shieldBroken = false; }, 320);
     }
 
     // --- Dodge projectiles (medium+) ---
@@ -2964,13 +2973,30 @@ class Fighter {
         ctx.beginPath(); ctx.moveTo(-7, -2); ctx.lineTo(7, -2); ctx.stroke();
         ctx.restore();
       } else {
+        const _shStacks = this.shieldStacks || 1;
+        // Color shifts from blue → yellow → orange → red as shield degrades
+        let _shStroke, _shFill;
+        if      (_shStacks <= 1) { _shStroke = 'rgba(100,210,255,0.88)'; _shFill = 'rgba(100,210,255,0.14)'; }
+        else if (_shStacks === 2) { _shStroke = 'rgba(255,210,60,0.88)';  _shFill = 'rgba(255,210,60,0.14)'; }
+        else if (_shStacks === 3) { _shStroke = 'rgba(255,140,50,0.88)';  _shFill = 'rgba(255,140,50,0.14)'; }
+        else                      { _shStroke = 'rgba(255,70,40,0.88)';   _shFill = 'rgba(255,70,40,0.10)'; }
         ctx.beginPath();
         ctx.arc(cx + f * 15, shoulderY + 12, 23, 0, Math.PI * 2);
-        ctx.strokeStyle = 'rgba(100,210,255,0.88)';
+        ctx.strokeStyle = _shStroke;
         ctx.lineWidth   = 3;
         ctx.stroke();
-        ctx.fillStyle   = 'rgba(100,210,255,0.14)';
+        ctx.fillStyle   = _shFill;
         ctx.fill();
+        // HP arc for stacks 1-3: shows remaining shield health as a partial ring
+        if (_shStacks <= 3 && (this.shieldHP || 0) > 0) {
+          const _hpMax  = [30, 15, 5][_shStacks - 1] || 1;
+          const _hpFrac = Math.min(1, (this.shieldHP || 0) / _hpMax);
+          ctx.beginPath();
+          ctx.arc(cx + f * 15, shoulderY + 12, 27, -Math.PI / 2, -Math.PI / 2 + _hpFrac * Math.PI * 2);
+          ctx.strokeStyle = _shStroke;
+          ctx.lineWidth   = 2.5;
+          ctx.stroke();
+        }
       }
     }
 

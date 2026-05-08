@@ -364,28 +364,36 @@ function processInput() {
         SoundManager.jump();
       }
     }
-    // --- S / ArrowDown = shield (no cooldown; repeated use degrades protection) ---
-    const sHeld      = keysDown.has(p.controls.shield);
-    const sNewPress  = sHeld && (p.shieldHoldTimer || 0) === 0;
-    if (sHeld && !(p.weapon && p.weapon.type === 'ranged' && p._rangedCommitTimer > 0)) {
-      if (sNewPress) {
-        // New activation: count it as a consecutive use and restart the recharge window
-        p.shieldStacks        = (p.shieldStacks        || 0) + 1;
-        p.shieldRechargeTimer = 90; // 1.5 s of no-shield use fully recharges
+    // --- S / ArrowDown = shield (degrades per consecutive deployment; re-press required after break) ---
+    // Tiers: stacks 1→30HP, 2→15HP, 3→5HP, 4→80% block, 5→50% block, 6→20% block, 7+→no effect
+    const _SHIELD_HP_TABLE = [0, 30, 15, 5];
+    const sHeld     = keysDown.has(p.controls.shield);
+    const sNewPress = sHeld && (p.shieldHoldTimer || 0) === 0 && !p.shieldBroken;
+    if (!sHeld) {
+      // Key released — clear shield state and allow fresh activation on next press
+      p.shielding       = false;
+      p.shieldHoldTimer = 0;
+      p.shieldBroken    = false;
+    } else if (sNewPress && !(p.weapon && p.weapon.type === 'ranged' && p._rangedCommitTimer > 0)) {
+      // New key-press: increment stack tier and activate shield if still effective
+      const _newStacks = (p.shieldStacks || 0) + 1;
+      p.shieldStacks        = _newStacks;
+      p.shieldRechargeTimer = 180; // 3 s recharge window; resets on every deployment
+      if (_newStacks <= 6) {
+        p.shielding       = true;
+        p.shieldHoldTimer = 1;
+        if (_newStacks <= 3) p.shieldHP = _SHIELD_HP_TABLE[_newStacks];
       }
-      p.shielding       = true;
+      // Stack 7+: shield fails — stacks still tracked, shielding stays false
+    } else if (sHeld && p.shielding) {
+      // Continuing to hold an active shield
       p.shieldHoldTimer = (p.shieldHoldTimer || 0) + 1;
       if (p.shieldHoldTimer >= SHIELD_MAX) {
-        // Held too long — force a break so player can't hold forever
+        // Max continuous hold — force re-press for next activation
         p.shielding       = false;
         p.shieldHoldTimer = 0;
+        p.shieldBroken    = true;
       }
-    } else {
-      if (p.shielding) {
-        p.shielding       = false;
-        p.shieldHoldTimer = 0;
-      }
-      if (!sHeld) { p.shielding = false; p.shieldHoldTimer = 0; }
     }
     // Paradox Fusion: ability key triggers paradox abilities during player control phase
     if (typeof tfParadoxFused !== 'undefined' && tfParadoxFused &&
