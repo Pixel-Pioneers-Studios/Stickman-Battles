@@ -50,6 +50,11 @@ function triggerFinisher(attacker, target) {
   if (!attacker || !target) return false;
   if (trainingMode || tutorialMode) return false;
   if (onlineMode)          return false;
+  // In BR (or any mode with many bot-vs-bot fights) only show finishers the local player is part of
+  if (gameMode === 'battleroyale') {
+    var _localP = players[0];
+    if (!_localP || (attacker !== _localP && target !== _localP)) return false;
+  }
 
   let def = null;
 
