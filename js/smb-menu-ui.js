@@ -62,7 +62,8 @@ function selectMode(mode) {
   document.getElementById('p2DifficultyRow').style.display = p2IsBot ? 'flex' : 'none';
   // Hide P2 config rows in boss 1P, training, trueform, adaptive, battle royale
   const isBattleRoyale = mode === 'battleroyale';
-  const hideP2 = (isBoss && !isBoss2p) || isTraining || isTrueForm || isAdaptive || isBattleRoyale;
+  const isEscort       = mode === 'escort';
+  const hideP2 = (isBoss && !isBoss2p) || isTraining || isTrueForm || isAdaptive || isBattleRoyale || isEscort;
   document.getElementById('p2ColorRow').style.display     = hideP2 ? 'none' : 'flex';
   document.getElementById('p2WeaponRow').style.display    = hideP2 ? 'none' : 'flex';
   document.getElementById('p2ClassRow').style.display     = hideP2 ? 'none' : 'flex';

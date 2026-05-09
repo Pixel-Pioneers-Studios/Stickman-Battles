@@ -1192,7 +1192,10 @@ function checkDeaths() {
               _firstDeathFrame  = frameCount;
               _firstDeathPlayer = p;
             }
-            if (gameMode === 'trueform') {
+            if (gameMode === 'battleroyale') {
+              // Enter spectate instead of ending — game continues until 1 survivor
+              if (typeof _brEnterSpectate === 'function') _brEnterSpectate(p);
+            } else if (gameMode === 'trueform') {
               showBossDialogue('That was always how this ended.', 220);
               setTimeout(endGame, 1400);
             } else {

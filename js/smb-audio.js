@@ -21,8 +21,15 @@ const SoundManager = (() => {
     if (_ctx.state === 'suspended') _ctx.resume();
     return _ctx;
   }
+  let _brSndFrame = -1, _brSndCount = 0;
   function _play(fn) {
     if (_muted) return;
+    // BR mode: cap to 4 sounds per frame to prevent audio overload from 99 bots fighting
+    if (typeof gameMode !== 'undefined' && gameMode === 'battleroyale') {
+      var _cf = typeof frameCount !== 'undefined' ? frameCount : 0;
+      if (_cf !== _brSndFrame) { _brSndFrame = _cf; _brSndCount = 0; }
+      if (++_brSndCount > 4) return;
+    }
     try { fn(_getCtx()); } catch(e) {}
   }
   function _playBuffer(key, vol) {

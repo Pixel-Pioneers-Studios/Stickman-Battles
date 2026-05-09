@@ -283,6 +283,71 @@ function _showBranchChoice(ch, onComplete) {
   document.body.appendChild(overlay);
 }
 
+// ── Escort chapter launch ─────────────────────────────────────────────────────
+function _launchEscortChapter(ch) {
+  const _storyModal = document.getElementById('storyModal');
+  if (_storyModal) _storyModal.style.display = 'none';
+
+  // World / arc state (same as fight chapters)
+  worldId        = getWorldForChapter(ch.id);
+  currentWorld   = STORY_WORLDS[worldId] || null;
+  worldModifiers = currentWorld ? currentWorld.modifier : null;
+  const _arc = getStoryArc(ch.id);
+  if (_arc) storyCurrentArc = _arc.id;
+
+  // Set arena
+  if (ch.arena) {
+    selectedArena = ch.arena;
+    const arSelect = document.getElementById('arenaSelect');
+    if (arSelect) arSelect.value = selectedArena;
+  }
+
+  // Fight script (story subtitles)
+  storyFightScript    = Array.isArray(ch.fightScript) ? ch.fightScript.slice() : [];
+  storyFightScriptIdx = 0;
+  storyFightSubtitle  = null;
+
+  // Player lives
+  if (typeof selectLives === 'function') selectLives(ch.playerLives || 3);
+  infiniteMode = false;
+
+  // Ability gate (same defaults as fight chapters)
+  const _sk = _story2.skillTree || {};
+  const _sa = (typeof storyState !== 'undefined') ? storyState.abilities : {};
+  storyPlayerOverride = {
+    noDoubleJump: !(_sk.doubleJump  || !!_sa.doubleJump),
+    noAbility:    !(_sk.weaponAbility || !!_sa.weaponAbility),
+    noSuper:      !(_sk.superMeter  || !!_sa.superMeter),
+    noClass:      !_sk.classUnlock,
+    noDodge:      !(_sk.dodge || !!_sa.dodge || storyDodgeUnlocked),
+    dmgMult:      1.0 + (_sk.heavyHit2 ? 0.25 : _sk.heavyHit1 ? 0.15 : 0),
+    speedMult:    1.0 + (_sk.fastMove2 ? 0.20 : _sk.fastMove1 ? 0.10 : 0),
+    jumpMult:     1.0 + (_sk.highJump2 ? 0.25 : _sk.highJump1 ? 0.15 : 0),
+  };
+
+  storyBossType       = null;
+  storyOpponentName   = null;
+  storyEnemyArmor     = [];
+  storyTwoEnemies     = false;
+  storySecondEnemyDef = null;
+  storyModeActive     = true;
+  storyCurrentLevel   = Math.min(8, Math.floor(ch.id / 5) + 1);
+
+  if (typeof setObjective === 'function')
+    setObjective('Escort ' + ((ch.escortNPC && ch.escortNPC.name) || 'the NPC') + ' to safety');
+
+  // Launch as escort (single-player, no P2 enemy)
+  gameMode = 'escort';
+  if (typeof selectMode === 'function') selectMode('escort');
+
+  if (typeof startGame === 'function') startGame();
+
+  // After startGame creates players[], initialise the escort engine
+  setTimeout(function() {
+    if (typeof initEscortMode === 'function') initEscortMode(ch);
+  }, 120);
+}
+
 function _launchChapter2Fight(ch) {
   if (!ch) return;
 
@@ -292,6 +357,12 @@ function _launchChapter2Fight(ch) {
   // Exploration chapter: different launch path
   if (ch.type === 'exploration') {
     _launchExplorationChapter(ch);
+    return;
+  }
+
+  // Escort chapter: protect an NPC to a goal position
+  if (ch.type === 'escort') {
+    _launchEscortChapter(ch);
     return;
   }
 

@@ -413,10 +413,12 @@ function dealDamage(attacker, target, dmg, kbForce, stunMult = 1.0, isSplash = f
     const _shakeBase = target.shielding ? 2 : Math.min(18, 4 + Math.floor(actualDmg / 5));
     screenShake = Math.max(screenShake, _shakeBase);
   }
-  // Sound feedback
+  // Sound feedback — environmental damage (attacker===null: storm, lava, void) skips the
+  // combat hit sound; the burst of simultaneous env hits each frame would otherwise cause
+  // horrible audio overload, especially in BR mode where 99 fighters share the same tick.
   if (target.shielding) SoundManager.clang();
-  else if (actualDmg >= 30) SoundManager.heavyHit();
-  else SoundManager.hit();
+  else if (attacker && actualDmg >= 30) SoundManager.heavyHit();
+  else if (attacker) SoundManager.hit();
 
   // Achievement / progression tracking — skip if attacker is using a custom weapon
   const _attackerHasCustomWeapon = attacker && attacker.weapon && typeof attacker.weapon._isCustom === 'boolean' && attacker.weapon._isCustom;

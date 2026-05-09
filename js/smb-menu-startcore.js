@@ -25,6 +25,7 @@ function _startGameCore() {
   if (onlineMode && isTrainingMode) training2P = true;
   const isMinigamesMode      = gameMode === 'minigames';
   const isBattleRoyaleMode   = gameMode === 'battleroyale';
+  const isEscortMode         = gameMode === 'escort';
   const isExploreMode        = gameMode === 'exploration';
   const isAdaptiveMode     = gameMode === 'adaptive' || gameMode === 'sovereign';
   const isSovereignMode    = gameMode === 'sovereign';
@@ -77,7 +78,7 @@ function _startGameCore() {
   }
   isRandomMapMode = (selectedArena === 'random' && !isCompleteRandMode);
   // Lava/void: no randomization
-  if (currentArenaKey !== 'creator' && currentArenaKey !== 'god_domain' && currentArenaKey !== 'lava' && currentArenaKey !== 'void' && currentArenaKey !== 'soccer' && currentArenaKey !== 'damnation' && currentArenaKey !== 'sovereign' && !isExploreMode && !isBattleRoyaleMode) randomizeArenaLayout(currentArenaKey);
+  if (currentArenaKey !== 'creator' && currentArenaKey !== 'god_domain' && currentArenaKey !== 'lava' && currentArenaKey !== 'void' && currentArenaKey !== 'soccer' && currentArenaKey !== 'damnation' && currentArenaKey !== 'sovereign' && !isExploreMode && !isBattleRoyaleMode && !isEscortMode) randomizeArenaLayout(currentArenaKey);
   currentArena = ARENAS[currentArenaKey];
   if (typeof buildGraphForCurrentArena === 'function') buildGraphForCurrentArena();
   initMapPerks(currentArenaKey);
@@ -494,6 +495,14 @@ function _startGameCore() {
     players  = [p1];
     p1.target = null;
     if (typeof initBattleRoyale === 'function') initBattleRoyale();
+  } else if (gameMode === 'escort') {
+    // Escort: single player only — NPC and enemies spawned by initEscortMode() later
+    p1.isAI   = false;
+    p1.lives  = (typeof _activeStory2Chapter !== 'undefined' && _activeStory2Chapter && _activeStory2Chapter.playerLives) || chosenLives;
+    players   = [p1];
+    p1.target = null;
+    minions.length = 0;
+    if (typeof escortCleanup === 'function') escortCleanup(); // reset any prior escort state
   } else if (isGodMode) {
     // God encounter — P1 vs God (in minions), optional Paradox ally
     p1.isAI  = false;

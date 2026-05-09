@@ -355,6 +355,7 @@ function gameLoop(timestamp) {
   if (gameMode === 'minigames' && minigameType === 'soccer') drawSoccer();
   if (gameMode === 'minigames' && minigameType === 'defense' && typeof drawDefenseNexus === 'function') drawDefenseNexus();
   if (gameMode === 'battleroyale' && typeof drawBattleRoyaleWorld === 'function') drawBattleRoyaleWorld();
+  if (gameMode === 'escort' && typeof drawEscortNPC === 'function') drawEscortNPC();
   drawBackstagePortals();
   drawMapPerks();
 
@@ -447,7 +448,13 @@ function gameLoop(timestamp) {
   projectiles.forEach(p => p.draw());
 
   // Minions (boss-spawned) — freeze during absorption cinematic
-  minions.forEach(m => { if (m.health > 0 && !tfAbsorptionScene) m.update(); });
+  minions.forEach(m => {
+    if (m.health > 0 && !tfAbsorptionScene) {
+      // BR: skip full physics/AI for bots far from camera (still do void-death check in BR update)
+      if (gameMode === 'battleroyale' && m._brBot && m._brSleep) return;
+      m.update();
+    }
+  });
   minions.forEach(m => { if (m.health > 0) m.draw(); });
   minions = minions.filter(m => m.health > 0);
   // God death hook — triggers achievement when God is removed from minions
@@ -867,6 +874,7 @@ function gameLoop(timestamp) {
   // Multiverse: per-frame world modifier tick (gravity flip, shadow teleport, etc.)
   if (multiverseModeActive && typeof MultiverseManager !== 'undefined') MultiverseManager.tick();
   if (exploreActive && typeof updateExploration === 'function') updateExploration();
+  if (gameMode === 'escort' && typeof updateEscortMode === 'function') updateEscortMode();
   // Ship & Fracture progression — tick preview timer each frame
   if (typeof updateFracturePreview === 'function') updateFracturePreview();
   if (gameMode === 'trueform' && !tfAbsorptionScene && typeof updateQTE === 'function') updateQTE();
@@ -880,6 +888,7 @@ function gameLoop(timestamp) {
   // Minigame HUD overlay
   if (gameMode === 'minigames') drawMinigameHUD();
   if (gameMode === 'battleroyale' && typeof drawBattleRoyaleHUD === 'function') drawBattleRoyaleHUD();
+  if (gameMode === 'escort' && typeof drawEscortHUD === 'function') drawEscortHUD();
   // New chaos modifier notification — timer ticked here, drawn in screen-space below
   if (_chaosModNotif && _chaosModNotif.timer > 0) _chaosModNotif.timer--;
   if (exploreActive && typeof drawExploreGoalObject === 'function') drawExploreGoalObject();

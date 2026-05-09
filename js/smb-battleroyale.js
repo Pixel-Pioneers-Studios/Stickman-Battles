@@ -16,16 +16,16 @@ const BR_PLANE_SPEED  = 14;     // px/frame (crosses 9000 units in ~640 frames �
 const BR_ZONE_WAIT_F  = 1800;   // 30s wait between zone moves
 const BR_ZONE_CLOSE_F = 600;    // 10s linear close duration
 
-// Zone target boundaries (left/right) — timing is always 30s wait + 10s close
+// Zone target boundaries (left/right/top/bottom) — timing is always 30s wait + 10s close
 const BR_ZONE_PHASES = [
-  { left: 0,    right: 9000 }, // 0 — full map (initial state)
-  { left: 700,  right: 8300 }, // 1
-  { left: 1600, right: 7400 }, // 2
-  { left: 2700, right: 6300 }, // 3
-  { left: 3500, right: 5500 }, // 4
-  { left: 4000, right: 5000 }, // 5
-  { left: 4200, right: 4800 }, // 6
-  { left: 4350, right: 4650 }, // 7 — final ring
+  { left: 0,    right: 9000, top: 0,    bottom: 2800 }, // 0 — full map (initial state)
+  { left: 700,  right: 8300, top: 200,  bottom: 2600 }, // 1
+  { left: 1600, right: 7400, top: 450,  bottom: 2350 }, // 2
+  { left: 2700, right: 6300, top: 700,  bottom: 2100 }, // 3
+  { left: 3500, right: 5500, top: 900,  bottom: 1900 }, // 4
+  { left: 4000, right: 5000, top: 1050, bottom: 1750 }, // 5
+  { left: 4200, right: 4800, top: 1150, bottom: 1650 }, // 6
+  { left: 4350, right: 4650, top: 1250, bottom: 1550 }, // 7 — final ring
 ];
 
 // Loot pool
@@ -48,10 +48,16 @@ var brZoneState    = 'wait';   // 'wait' | 'close' | 'final'
 var brZoneTimer    = 0;        // countdown frames for current state
 var brZoneLeft     = 0;
 var brZoneRight    = BR_WORLD_W;
+var brZoneTop      = 0;
+var brZoneBottom   = BR_WORLD_H;
 var brZoneTargetL  = 0;
 var brZoneTargetR  = BR_WORLD_W;
+var brZoneTargetT  = 0;
+var brZoneTargetB  = BR_WORLD_H;
 var brZoneSpeedL   = 0;        // px/frame during close
 var brZoneSpeedR   = 0;
+var brZoneSpeedT   = 0;
+var brZoneSpeedB   = 0;
 var brZoneDmgTick  = 0;
 var brWinner       = null;
 var brLootBoxes    = [];
@@ -64,6 +70,13 @@ var brPlaneX       = -300;
 var brJumped       = false;   // P1 has jumped
 var brLanded       = false;   // P1 has landed
 var brBotsFallDone = false;   // all bots have been assigned drop points
+
+// Spectate state
+var brSpectating      = false;
+var brSpectateTarget  = null;
+var brSpectateList    = [];   // alive fighters to cycle through
+var brSpectateIdx     = 0;
+var brElimBanner      = 0;    // frames to show "ELIMINATED" banner
 
 // ============================================================
 // ARENA GENERATION — 30 platform tiers, no floor, void death
@@ -123,10 +136,16 @@ function initBattleRoyale() {
   brZoneTimer    = BR_ZONE_WAIT_F;
   brZoneLeft     = 0;
   brZoneRight    = BR_WORLD_W;
+  brZoneTop      = 0;
+  brZoneBottom   = BR_WORLD_H;
   brZoneTargetL  = 0;
   brZoneTargetR  = BR_WORLD_W;
+  brZoneTargetT  = 0;
+  brZoneTargetB  = BR_WORLD_H;
   brZoneSpeedL   = 0;
   brZoneSpeedR   = 0;
+  brZoneSpeedT   = 0;
+  brZoneSpeedB   = 0;
   brZoneDmgTick  = 0;
   brWinner       = null;
   brLootBoxes    = [];
@@ -137,6 +156,11 @@ function initBattleRoyale() {
   brJumped       = false;
   brLanded       = false;
   brBotsFallDone = false;
+  brSpectating      = false;
+  brSpectateTarget  = null;
+  brSpectateList    = [];
+  brSpectateIdx     = 0;
+  brElimBanner      = 0;
 
   currentArena = _makeBRArena();
   if (typeof buildGraphForCurrentArena === 'function') buildGraphForCurrentArena();
@@ -339,8 +363,12 @@ function _brUpdateZone() {
       if (ni < BR_ZONE_PHASES.length) {
         brZoneTargetL = BR_ZONE_PHASES[ni].left;
         brZoneTargetR = BR_ZONE_PHASES[ni].right;
-        brZoneSpeedL  = (brZoneTargetL - brZoneLeft)  / BR_ZONE_CLOSE_F;
-        brZoneSpeedR  = (brZoneTargetR - brZoneRight) / BR_ZONE_CLOSE_F;
+        brZoneTargetT = BR_ZONE_PHASES[ni].top;
+        brZoneTargetB = BR_ZONE_PHASES[ni].bottom;
+        brZoneSpeedL  = (brZoneTargetL - brZoneLeft)   / BR_ZONE_CLOSE_F;
+        brZoneSpeedR  = (brZoneTargetR - brZoneRight)  / BR_ZONE_CLOSE_F;
+        brZoneSpeedT  = (brZoneTargetT - brZoneTop)    / BR_ZONE_CLOSE_F;
+        brZoneSpeedB  = (brZoneTargetB - brZoneBottom) / BR_ZONE_CLOSE_F;
         brZoneState   = 'close';
         brZoneTimer   = BR_ZONE_CLOSE_F;
         if (typeof DamageText !== 'undefined')
@@ -351,12 +379,16 @@ function _brUpdateZone() {
       }
     }
   } else if (brZoneState === 'close') {
-    brZoneLeft  += brZoneSpeedL;
-    brZoneRight += brZoneSpeedR;
+    brZoneLeft   += brZoneSpeedL;
+    brZoneRight  += brZoneSpeedR;
+    brZoneTop    += brZoneSpeedT;
+    brZoneBottom += brZoneSpeedB;
     brZoneTimer--;
     if (brZoneTimer <= 0) {
-      brZoneLeft  = brZoneTargetL;
-      brZoneRight = brZoneTargetR;
+      brZoneLeft   = brZoneTargetL;
+      brZoneRight  = brZoneTargetR;
+      brZoneTop    = brZoneTargetT;
+      brZoneBottom = brZoneTargetB;
       brZonePhase++;
       var hasNext = (brZonePhase + 1) < BR_ZONE_PHASES.length;
       brZoneState = hasNext ? 'wait' : 'final';
@@ -371,10 +403,23 @@ function _brZoneDamage() {
   brZoneDmgTick++;
   if (brZoneDmgTick >= BR_ZONE_TICK) {
     brZoneDmgTick = 0;
+    // Damage scales exponentially with zone phase (1.5x per phase) so late-game
+    // storm is lethal and bots are strongly incentivised to flee.
+    var phaseMult = Math.pow(1.5, Math.min(brZonePhase, 7));
     players.concat(minions).forEach(function(f) {
       if (!f || f.health <= 0) return;
-      if (f.cx() < brZoneLeft || f.cx() > brZoneRight)
-        if (typeof dealDamage === 'function') dealDamage(null, f, BR_ZONE_DAMAGE, 0);
+      var inStorm = f.cx() < brZoneLeft || f.cx() > brZoneRight ||
+                   f.cy() < brZoneTop  || f.cy() > brZoneBottom;
+      if (inStorm) {
+        // Per-fighter exposure counter: each continuous second in storm adds 20%
+        // more damage, capped at 3x so it stays finite.
+        f._brStormTicks = (f._brStormTicks || 0) + 1;
+        var exposureMult = Math.min(3, 1 + (f._brStormTicks - 1) * 0.2);
+        var dmg = Math.ceil(BR_ZONE_DAMAGE * phaseMult * exposureMult);
+        if (typeof dealDamage === 'function') dealDamage(null, f, dmg, 0);
+      } else {
+        f._brStormTicks = 0;
+      }
     });
   }
 }
@@ -441,8 +486,8 @@ function _brPickupBot(bot, item) {
 function _brApplyItem(item, fighter) {
   if (!item || !fighter) return;
   if      (item.type === 'medkit') { fighter.health = Math.min(fighter.maxHealth, fighter.health + 50); if (typeof spawnParticles === 'function') spawnParticles(fighter.cx(), fighter.cy(), '#44ff88', 12); }
-  else if (item.type === 'shield') { fighter.shieldHP = Math.min(100, (fighter.shieldHP || 0) + 30); fighter.shielding = true; if (typeof spawnParticles === 'function') spawnParticles(fighter.cx(), fighter.cy(), '#4488ff', 10); }
-  else if (item.type === 'super')  { fighter.superCharge = fighter.maxSuperCharge || 100; if (typeof spawnParticles === 'function') spawnParticles(fighter.cx(), fighter.cy(), '#ffdd00', 14); }
+  else if (item.type === 'shield') { fighter.shieldHP = 30; fighter.shielding = true; fighter._brShieldTimer = 300; if (typeof spawnParticles === 'function') spawnParticles(fighter.cx(), fighter.cy(), '#4488ff', 10); }
+  else if (item.type === 'super')  { fighter.superMeter = 100; fighter.superReady = true; if (typeof spawnParticles === 'function') spawnParticles(fighter.cx(), fighter.cy(), '#ffdd00', 14); }
   else if (item.type === 'weapon' && item.weaponKey) { var w = WEAPONS[item.weaponKey]; if (w) { fighter.weaponKey = item.weaponKey; fighter.weapon = w; fighter.cooldown = 0; } }
 }
 
@@ -469,8 +514,16 @@ function _brUpdateBots() {
         if (it && it.type === 'medkit' && bot.health < bot.maxHealth * 0.35) { _brApplyItem(it, bot); bot._brInv[s] = null; break; }
       }
     }
-    if (bot.cx() < brZoneLeft + 100)  { bot.target = _brFakeTarget(brZoneLeft  + 300, bot.y); return; }
-    if (bot.cx() > brZoneRight - 100) { bot.target = _brFakeTarget(brZoneRight - 300, bot.y); return; }
+    // Storm avoidance: flee to well inside the safe zone.
+    // 300px lookahead catches both bots already in the storm and those about
+    // to enter it; flee target is 600px inside so bots run clear, not just
+    // to the edge.
+    var stormMargin = 300;
+    var fleeDepth   = 600;
+    if (bot.cx() < brZoneLeft + stormMargin)   { bot.target = _brFakeTarget(brZoneLeft  + fleeDepth, bot.y); return; }
+    if (bot.cx() > brZoneRight - stormMargin)  { bot.target = _brFakeTarget(brZoneRight - fleeDepth, bot.y); return; }
+    if (bot.cy() < brZoneTop + stormMargin)    { bot.target = _brFakeTarget(bot.cx(), brZoneTop    + fleeDepth); return; }
+    if (bot.cy() > brZoneBottom - stormMargin) { bot.target = _brFakeTarget(bot.cx(), brZoneBottom - fleeDepth); return; }
     var best = null, bestD = Infinity;
     all.forEach(function(f) { if (f === bot || f.health <= 0 || f._brOnPlane) return; var d = Math.abs(f.cx() - bot.cx()) + Math.abs(f.cy() - bot.cy()); if (d < bestD) { bestD = d; best = f; } });
     if (best) bot.target = best;
@@ -499,6 +552,62 @@ function _brCheckWin() {
 }
 
 // ============================================================
+// SPECTATE
+// ============================================================
+function _brEnterSpectate(deadPlayer) {
+  brSpectating     = true;
+  brElimBanner     = 300; // 5 seconds
+  brSpectateList   = minions.filter(function(m) { return m.health > 0; });
+  // Pick closest surviving fighter to where P1 died
+  var lastX = deadPlayer ? deadPlayer.cx() : BR_WORLD_W / 2;
+  var lastY = deadPlayer ? deadPlayer.cy() : BR_WORLD_H / 2;
+  if (brSpectateList.length > 0) {
+    var best = 0, bestD = Infinity;
+    brSpectateList.forEach(function(f, i) {
+      var d = Math.abs(f.cx() - lastX) + Math.abs(f.cy() - lastY);
+      if (d < bestD) { bestD = d; best = i; }
+    });
+    brSpectateIdx    = best;
+    brSpectateTarget = brSpectateList[brSpectateIdx];
+  }
+}
+
+function _brCycleSpectate(dir) {
+  if (!brSpectating || brSpectateList.length === 0) return;
+  brSpectateIdx = ((brSpectateIdx + dir) + brSpectateList.length) % brSpectateList.length;
+  brSpectateTarget = brSpectateList[brSpectateIdx];
+}
+
+function _brUpdateSpectate() {
+  if (!brSpectating) return;
+  if (brElimBanner > 0) brElimBanner--;
+  // Refresh list — remove newly dead fighters
+  brSpectateList = minions.filter(function(m) { return m.health > 0; });
+  if (brSpectateList.length === 0) { brSpectateTarget = null; return; }
+  // If current target died, auto-switch to next
+  if (!brSpectateTarget || brSpectateTarget.health <= 0) {
+    brSpectateIdx    = Math.min(brSpectateIdx, brSpectateList.length - 1);
+    brSpectateTarget = brSpectateList[brSpectateIdx];
+  }
+}
+
+// ============================================================
+// BOT SLEEP CULLING — freeze bots far from camera each frame
+// ============================================================
+function _brCullBots() {
+  var camX = typeof camXCur !== 'undefined' ? camXCur : BR_WORLD_W / 2;
+  var camY = typeof camYCur !== 'undefined' ? camYCur : BR_WORLD_H / 2;
+  minions.forEach(function(bot) {
+    if (!bot._brBot || bot.health <= 0) return;
+    // Never sleep bots still falling — they need gravity to land
+    if (bot._brDropped && !bot._brLanded) { bot._brSleep = false; return; }
+    var dx = Math.abs(bot.cx() - camX);
+    var dy = Math.abs(bot.cy() - camY);
+    bot._brSleep = (dx > 2000 || dy > 1200);
+  });
+}
+
+// ============================================================
 // MAIN UPDATE
 // ============================================================
 function updateBattleRoyale() {
@@ -506,9 +615,11 @@ function updateBattleRoyale() {
   _brUpdatePlane();
   _brUpdateBotFalls();
   _brCheckVoidDeaths();
+  _brCullBots();
   _brUpdateZone();
   _brCheckBoxBreaking();
   _brUpdateBots();
+  _brUpdateSpectate();
   _brCheckWin();
 }
 
@@ -545,6 +656,22 @@ function drawBattleRoyaleWorld() {
     rg.addColorStop(0, 'rgba(255,50,0,0.6)'); rg.addColorStop(1, 'rgba(255,50,0,0)');
     ctx.fillStyle = rg; ctx.fillRect(brZoneRight - 12, -400, 112, worldH + 400);
     ctx.fillStyle = '#ff5500'; ctx.fillRect(brZoneRight - 3, -400, 3, worldH + 400);
+  }
+  if (brZoneTop > 0) {
+    ctx.fillStyle = 'rgba(255,35,0,0.14)';
+    ctx.fillRect(0, -400, BR_WORLD_W, brZoneTop + 400);
+    var tg = ctx.createLinearGradient(0, brZoneTop - 10, 0, brZoneTop + 100);
+    tg.addColorStop(0, 'rgba(255,50,0,0.6)'); tg.addColorStop(1, 'rgba(255,50,0,0)');
+    ctx.fillStyle = tg; ctx.fillRect(0, brZoneTop - 12, BR_WORLD_W, 112);
+    ctx.fillStyle = '#ff5500'; ctx.fillRect(0, brZoneTop, BR_WORLD_W, 3);
+  }
+  if (brZoneBottom < BR_WORLD_H) {
+    ctx.fillStyle = 'rgba(255,35,0,0.14)';
+    ctx.fillRect(0, brZoneBottom, BR_WORLD_W, BR_WORLD_H - brZoneBottom + 400);
+    var bg2 = ctx.createLinearGradient(0, brZoneBottom - 100, 0, brZoneBottom + 10);
+    bg2.addColorStop(0, 'rgba(255,50,0,0)'); bg2.addColorStop(1, 'rgba(255,50,0,0.6)');
+    ctx.fillStyle = bg2; ctx.fillRect(0, brZoneBottom - 100, BR_WORLD_W, 112);
+    ctx.fillStyle = '#ff5500'; ctx.fillRect(0, brZoneBottom - 3, BR_WORLD_W, 3);
   }
 
   // Loot chests — unknown crates (no icon revealed until broken)
@@ -685,6 +812,33 @@ function drawBattleRoyaleHUD() {
     ctx.textAlign = 'left'; ctx.fillText('' + (si + 1), sx + 4, iby + 11);
   }
 
+  // ── Spectate overlay ──────────────────────────────────────
+  if (brSpectating) {
+    // "ELIMINATED" banner (fades out after 5s)
+    if (brElimBanner > 0) {
+      var elimAlpha = Math.min(1, brElimBanner / 60);
+      ctx.globalAlpha = elimAlpha;
+      ctx.font = 'bold 36px Arial'; ctx.textAlign = 'center';
+      ctx.fillStyle = '#ff2222'; ctx.shadowColor = '#000'; ctx.shadowBlur = 14;
+      ctx.fillText('ELIMINATED', GAME_W / 2, GAME_H / 2 - 20);
+      ctx.font = '14px Arial'; ctx.fillStyle = '#ffaaaa';
+      ctx.fillText('You have been eliminated. Spectating...', GAME_W / 2, GAME_H / 2 + 14);
+      ctx.globalAlpha = 1; ctx.shadowBlur = 0;
+    }
+    // Spectate target name bar (bottom, above inventory)
+    if (brSpectateTarget) {
+      var tname = brSpectateTarget.name || 'Bot';
+      ctx.fillStyle = 'rgba(0,0,0,0.55)';
+      ctx.fillRect(GAME_W / 2 - 120, GAME_H - 95, 240, 22);
+      ctx.font = 'bold 12px Arial'; ctx.textAlign = 'center';
+      ctx.fillStyle = '#ffffff'; ctx.shadowColor = '#000'; ctx.shadowBlur = 4;
+      ctx.fillText('SPECTATING  ' + tname, GAME_W / 2, GAME_H - 79);
+      ctx.shadowBlur = 0;
+      ctx.font = '9px Arial'; ctx.fillStyle = 'rgba(200,200,200,0.7)';
+      ctx.fillText('[Q] Prev    [E] Next', GAME_W / 2, GAME_H - 64);
+    }
+  }
+
   // ── Minimap ───────────────────────────────────────────────
   _drawBRMinimap();
 
@@ -709,18 +863,16 @@ function _drawBRMinimap() {
   ctx.strokeRect(mmX, mmY, mmW, mmH);
 
   // Storm zones
-  if (brZoneLeft > 0) {
-    ctx.fillStyle = 'rgba(255,60,0,0.35)';
-    ctx.fillRect(mmX, mmY, brZoneLeft * scX, mmH);
-  }
-  if (brZoneRight < BR_WORLD_W) {
-    var rzX = mmX + brZoneRight * scX;
-    ctx.fillStyle = 'rgba(255,60,0,0.35)';
-    ctx.fillRect(rzX, mmY, mmW - (rzX - mmX), mmH);
-  }
+  ctx.fillStyle = 'rgba(255,60,0,0.35)';
+  if (brZoneLeft > 0)           ctx.fillRect(mmX, mmY, brZoneLeft * scX, mmH);
+  if (brZoneRight < BR_WORLD_W) { var rzX = mmX + brZoneRight * scX; ctx.fillRect(rzX, mmY, mmW - (rzX - mmX), mmH); }
+  if (brZoneTop > 0)            ctx.fillRect(mmX, mmY, mmW, brZoneTop * scY);
+  if (brZoneBottom < BR_WORLD_H){ var rbY = mmY + brZoneBottom * scY; ctx.fillRect(mmX, rbY, mmW, mmH - (rbY - mmY)); }
   ctx.strokeStyle = '#ff5500'; ctx.lineWidth = 1.5;
-  if (brZoneLeft > 0)          { var lx = mmX + brZoneLeft  * scX; ctx.beginPath(); ctx.moveTo(lx, mmY); ctx.lineTo(lx, mmY + mmH); ctx.stroke(); }
-  if (brZoneRight < BR_WORLD_W){ var rx = mmX + brZoneRight * scX; ctx.beginPath(); ctx.moveTo(rx, mmY); ctx.lineTo(rx, mmY + mmH); ctx.stroke(); }
+  if (brZoneLeft > 0)           { var lx = mmX + brZoneLeft  * scX; ctx.beginPath(); ctx.moveTo(lx, mmY); ctx.lineTo(lx, mmY + mmH); ctx.stroke(); }
+  if (brZoneRight < BR_WORLD_W) { var rx = mmX + brZoneRight * scX; ctx.beginPath(); ctx.moveTo(rx, mmY); ctx.lineTo(rx, mmY + mmH); ctx.stroke(); }
+  if (brZoneTop > 0)            { var ty = mmY + brZoneTop    * scY; ctx.beginPath(); ctx.moveTo(mmX, ty); ctx.lineTo(mmX + mmW, ty); ctx.stroke(); }
+  if (brZoneBottom < BR_WORLD_H){ var by = mmY + brZoneBottom * scY; ctx.beginPath(); ctx.moveTo(mmX, by); ctx.lineTo(mmX + mmW, by); ctx.stroke(); }
 
   // Platform silhouettes
   ctx.fillStyle = 'rgba(80,100,140,0.5)';
@@ -748,12 +900,15 @@ function _drawBRMinimap() {
     ctx.beginPath(); ctx.arc(eX, eY, 2, 0, Math.PI * 2); ctx.fill();
   });
 
-  // P1 dot
-  if (p1 && p1.health > 0 && !p1._brOnPlane) {
-    var p1mmX = Math.max(mmX + 3, Math.min(mmX + mmW - 3, mmX + p1.cx() * scX));
-    var p1mmY = Math.max(mmY + 3, Math.min(mmY + mmH - 3, mmY + p1.cy() * scY));
+  // P1 dot (or spectate target when spectating)
+  var _mmDot = (brSpectating && brSpectateTarget) ? brSpectateTarget
+             : (p1 && p1.health > 0 && !p1._brOnPlane ? p1 : null);
+  if (_mmDot) {
+    var p1mmX = Math.max(mmX + 3, Math.min(mmX + mmW - 3, mmX + _mmDot.cx() * scX));
+    var p1mmY = Math.max(mmY + 3, Math.min(mmY + mmH - 3, mmY + _mmDot.cy() * scY));
     ctx.fillStyle = '#000'; ctx.beginPath(); ctx.arc(p1mmX, p1mmY, 4, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(p1mmX, p1mmY, 3, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = brSpectating ? '#aaffff' : '#ffffff';
+    ctx.beginPath(); ctx.arc(p1mmX, p1mmY, 3, 0, Math.PI * 2); ctx.fill();
   }
 
   // Plane indicator

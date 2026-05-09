@@ -204,15 +204,19 @@ function updateCamera() {
     return;
   }
 
-  // ── Battle Royale: lock camera to P1 only, fixed zoom ────
-  if (gameMode === 'battleroyale' && players[0] && players[0].health > 0) {
-    const bp = players[0];
-    camXTarget = bp.cx();
-    camYTarget = bp.cy() + _hudShift;
-    camZoomTarget = 1.0;
-    camZoomCur += (camZoomTarget - camZoomCur) * lerp.zoom;
-    camXCur    += (camXTarget - camXCur) * lerp.pos;
-    camYCur    += (camYTarget - camYCur) * lerp.pos;
+  // ── Battle Royale: lock camera to P1 (or spectate target) ───
+  if (gameMode === 'battleroyale') {
+    const brCamTarget = (typeof brSpectating !== 'undefined' && brSpectating && typeof brSpectateTarget !== 'undefined' && brSpectateTarget)
+      ? brSpectateTarget
+      : (players[0] && players[0].health > 0 ? players[0] : null);
+    if (brCamTarget) {
+      camXTarget = brCamTarget.cx();
+      camYTarget = brCamTarget.cy() + _hudShift;
+      camZoomTarget = 1.0;
+      camZoomCur += (camZoomTarget - camZoomCur) * lerp.zoom;
+      camXCur    += (camXTarget - camXCur) * lerp.pos;
+      camYCur    += (camYTarget - camYCur) * lerp.pos;
+    }
     return;
   }
 

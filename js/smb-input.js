@@ -110,6 +110,11 @@ document.addEventListener('keydown', e => {
     if (typeof useBRItem === 'function') useBRItem(parseInt(e.key, 10) - 1);
     return;
   }
+  // Battle Royale spectate: Q = prev, E = next
+  if (gameRunning && gameMode === 'battleroyale' && typeof brSpectating !== 'undefined' && brSpectating) {
+    if (_nk === 'q') { if (typeof _brCycleSpectate === 'function') _brCycleSpectate(-1); return; }
+    if (_nk === 'e') { if (typeof _brCycleSpectate === 'function') _brCycleSpectate(1);  return; }
+  }
 
   if (!gameRunning || paused) return;
   // Block attack/ability/super keydown events during the TF opening cinematic (after free period)
@@ -375,7 +380,12 @@ function processInput() {
     const _SHIELD_HP_TABLE = [0, 30, 15, 5];
     const sHeld     = keysDown.has(p.controls.shield);
     const sNewPress = sHeld && (p.shieldHoldTimer || 0) === 0 && !p.shieldBroken;
-    if (!sHeld) {
+    // Tick down BR item shield timer
+    if (p._brShieldTimer > 0) {
+      p._brShieldTimer--;
+      if (p._brShieldTimer <= 0) { p.shielding = false; p._brShieldTimer = 0; }
+    }
+    if (!sHeld && !p._brShieldTimer) {
       // Key released — clear shield state and allow fresh activation on next press
       p.shielding       = false;
       p.shieldHoldTimer = 0;
