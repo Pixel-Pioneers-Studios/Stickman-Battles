@@ -219,6 +219,13 @@ function initMinigame() {
                      currentArena.platforms.find(function(p) { return p.isFloor; });
     defenseNexusX = GAME_W / 2;
     defenseNexusY = _floorPl ? _floorPl.y : GAME_H - 80;
+    // Defense mode: faster attacking, bigger knockback for player(s)
+    players.forEach(function(p) {
+      if (!p.isBoss) {
+        p.attackCooldownMult = 0.55; // 45% shorter attack cooldowns
+        p._nexusKBBoost      = true;  // flag read by dealDamage
+      }
+    });
   }
 }
 
@@ -256,7 +263,7 @@ function spawnSurvivalWave() {
 function spawnDefenseWave() {
   defenseWave++;
   const waveSize = Math.min(1 + Math.floor(defenseWave * 0.8), 7);
-  const speed    = Math.min(2.0 + defenseWave * 0.25, 4.5); // rushers get faster each wave
+  const speed    = Math.min(1.2 + defenseWave * 0.14, 2.8); // rushers get faster each wave
   for (let i = 0; i < waveSize; i++) {
     const fromLeft = i % 2 === 0;
     const bx = fromLeft ? 20 + Math.random() * 60 : GAME_W - 20 - Math.random() * 60;
@@ -266,7 +273,7 @@ function spawnDefenseWave() {
     bot.lives       = 1;
     bot.dmgMult     = 0;    // rushers deal no combat damage — they only damage the nexus on contact
     bot._defenseRusher = true;
-    bot._defenseSpeed  = (fromLeft ? 1 : -1) * speed;
+    bot._defenseSpeed  = speed; // always positive — direction computed from position each frame
     bot.playerNum   = 3;    // enemy faction colour (red tint from playerNum = 3 styling)
     minions.push(bot);
     defenseEnemies.push(bot);
@@ -362,7 +369,7 @@ function updateMinigame() {
 
       // Continuously push them toward the nexus (overrides whatever AI/friction would do)
       var _toDx = defenseNexusX - _de.cx();
-      _de.vx = Math.sign(_toDx) * _de._defenseSpeed || (defenseNexusX > _de.cx() ? 3.5 : -3.5);
+      _de.vx = (_toDx >= 0 ? 1 : -1) * (_de._defenseSpeed || 2.0);
 
       // Contact check: rusher bottom touches nexus base
       var _ddx = Math.abs(_de.cx() - defenseNexusX);

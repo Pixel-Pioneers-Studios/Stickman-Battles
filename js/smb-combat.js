@@ -146,6 +146,9 @@ function dealDamage(attacker, target, dmg, kbForce, stunMult = 1.0, isSplash = f
   }
   // KB scales with damage — heavier hits launch targets further
   let actualKb  = kbForce * (1 + actualDmg * 0.028);
+  // Nexus defense mode: player hits send enemies flying further
+  if (attacker && attacker._nexusKBBoost && target && !target._nexusKBBoost)
+    actualKb = actualKb * 1.8;
   // Curse: target has curse_fragile — 1.5× KB received
   if (target && target.curses && target.curses.some(c => c.type === 'curse_fragile'))
     actualKb = actualKb * 1.5;

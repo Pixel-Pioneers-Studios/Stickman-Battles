@@ -1295,7 +1295,7 @@ class Fighter {
       if (settings.screenShake) screenShake = Math.max(screenShake, hitCount > 0 ? 18 : 7);
       return;
     }
-    const _safeTarget = target || this.target || trainingDummies[0] || players.find(p => p !== this && p.health > 0);
+    const _safeTarget = target || this.target || trainingDummies[0] || players.find(p => p !== this && p.health > 0) || minions.find(m => m.health > 0);
     if (!_safeTarget) return; // no valid target — don't fire ability (avoids null crash in weapon ability functions)
     if (!this.weapon || typeof this.weapon.ability !== 'function') return; // weapon not loaded yet
     this.weapon.ability(this, _safeTarget);
