@@ -73,6 +73,7 @@ class SovereignMK2 extends AdaptiveAI {
     // ── F. Frame-safe shield drop / stagger ──────────────────────
     this._shieldHoldFrames   = 0;  // counts down; drops shield at 0 (replaces setTimeout)
     this._limiterStaggerTimer= 0;  // grace window when player combos Sovereign in LB
+    this._limiterStaggerCd   = 0;  // cooldown: prevents stagger from being farmed
 
     // ── Garou-style habit / counter / fear layers ───────────────
     this._habitStats = {
@@ -94,9 +95,12 @@ class SovereignMK2 extends AdaptiveAI {
     this._audioSpikeTimer   = 0;
     this._limiterReason     = null;
 
+    // ── Faster base adaptation rate for Sovereign ────────────────
+    this._adaptInterval = 5; // ~12×/sec vs inherited 8 (~7.5×/sec)
+
     // ── Observation window + adaptation lock ────────────────────
-    // No adaptation fires until _observationFrames >= 180 (≈3 sec)
-    // AND _actionSampleCount >= 6 non-idle actions.
+    // No adaptation fires until _observationFrames >= 40 (≈0.7 sec)
+    // AND _actionSampleCount >= 2 non-idle actions.
     this._observationFrames  = 0;   // incremented every AI tick
     this._actionSampleCount  = 0;   // non-idle actions seen
     this._adaptLockTimer     = 0;   // frames remaining on locked strategy
@@ -155,6 +159,11 @@ class SovereignMK2 extends AdaptiveAI {
 
     // ── Own-corner escape ──────────────────────────────────────────
     this._sovereignEscapeCd = 0;      // cooldown: jump over player to reverse corner
+
+    // Tune BehaviorModel for Sovereign: faster decay so recent patterns dominate
+    // Default 0.993 / 6-frame interval; Sovereign uses 0.988 / 4-frame for quicker adaptation
+    this._behaviorModel._decayRate     = 0.988;
+    this._behaviorModel._decayInterval = 4;
   }
 
   // ══════════════════════════════════════════════════════════════
@@ -231,7 +240,7 @@ class SovereignMK2 extends AdaptiveAI {
   }
 
   _applyPredictionCounter(t, dir, d, moveSpd) {
-    const confFloor = 0.44 - this._evolutionStage * 0.03 - this._intimidation * 0.05;
+    const confFloor = 0.38 - this._evolutionStage * 0.03 - this._intimidation * 0.05;
     if (!this._predictedNext || this._predictConf < confFloor) return false;
     if (this._preemptTimer > 0) {
       this._preemptTimer--;
@@ -239,26 +248,28 @@ class SovereignMK2 extends AdaptiveAI {
       if (this._preemptTarget === 'attack') {
         // Pre-dash back — create distance to whiff their attack
         const safeDir = (this.x < 100) ? 1 : (this.x + this.w > GAME_W - 100) ? -1 : -dir;
-        if (!this.isEdgeDanger(safeDir)) this.vx = safeDir * moveSpd * (2.0 + this._evolutionStage * 0.12);
+        if (!this.isEdgeDanger(safeDir)) this.vx = safeDir * moveSpd * (2.2 + this._evolutionStage * 0.14);
       } else if (this._preemptTarget === 'jump') {
         // Reposition to anti-air zone: move under predicted apex
-        if (!this.isEdgeDanger(dir)) this.vx = dir * moveSpd * (0.7 + this._intimidation * 0.35);
+        if (!this.isEdgeDanger(dir)) this.vx = dir * moveSpd * (0.85 + this._intimidation * 0.40);
       } else if (this._preemptTarget === 'dodge') {
         // Chase in predicted escape direction
-        if (!this.isEdgeDanger(dir)) this.vx = dir * moveSpd * (1.5 + this._intimidation * 0.35);
+        if (!this.isEdgeDanger(dir)) this.vx = dir * moveSpd * (1.7 + this._intimidation * 0.40);
       } else if (this._preemptTarget === 'shield') {
-        if (!this.isEdgeDanger(dir)) this.vx = dir * moveSpd * (0.95 + this._evolutionStage * 0.08);
+        if (!this.isEdgeDanger(dir)) this.vx = dir * moveSpd * (1.1 + this._evolutionStage * 0.10);
         const weapon = this._getCombatWeapon();
-        if (d < (weapon.range || 90) * 1.3 && this.cooldown <= 0) this.attack(t);
+        if (d < (weapon.range || 90) * 1.4 && this.cooldown <= 0) this.attack(t);
       }
       return true; // consumed movement frame
     }
 
-    // Arm new preemptive action if confidence high enough
-    if (this._predictConf >= (0.58 - this._evolutionStage * 0.03) && d < 220) {
-      this._preemptTimer  = Math.max(4, 6 - this._evolutionStage);
+    // Arm new preemptive action — lower confidence floor means earlier reads
+    if (this._predictConf >= (0.50 - this._evolutionStage * 0.03) && d < 240) {
+      this._preemptTimer  = Math.max(3, 5 - this._evolutionStage);
       this._preemptTarget = this._predictedNext;
       this._preemptMode   = true;
+      // Brief visual tell — player sees Sovereign shift just before their input lands
+      spawnParticles(this.cx(), this.cy(), `rgb(${this._auraR},${this._auraG},${this._auraB})`, 3);
       return true;
     }
     return false;
@@ -298,8 +309,8 @@ class SovereignMK2 extends AdaptiveAI {
         sp.count  = 1;
         sp.timer  = 36;
       }
-      // 4+ same actions in the window = spam detected (requires clear pattern, not noise)
-      if (sp.count >= 4 && !this._punishModeActive) {
+      // 3+ same actions in the window = spam detected
+      if (sp.count >= 3 && !this._punishModeActive) {
         this._activatePunishMode(action);
       }
     }
@@ -358,7 +369,8 @@ class SovereignMK2 extends AdaptiveAI {
     let best = null;
     let bestScore = 0;
     for (const [key, h] of Object.entries(this._habitStats)) {
-      const score = h.count + h.streak * 0.7;
+      const recency = h.timer > 0 ? (1.0 + h.timer / 95 * 0.8) : 1.0;
+      const score = (h.count + h.streak * 0.7) * recency;
       if (score > bestScore) { best = key; bestScore = score; }
     }
     this._dominantHabit = best;
@@ -414,8 +426,8 @@ class SovereignMK2 extends AdaptiveAI {
     const targetAdv = t && t.health > 0 ? t.health / Math.max(1, this.health) : 1;
     const overwhelmed = recentTaken >= 4 || (targetAdv > 1.28 && hpPct < 0.72);
     const habitOverload = this._dominantHabitScore >= 5.2 && this._punishModeCount >= 1;
-    if (this.intelligence >= 0.82) return this._triggerLimiterBreak('evolution');
-    if (hpPct <= 0.38) return this._triggerLimiterBreak('low_hp');
+    if (this.intelligence >= 0.76) return this._triggerLimiterBreak('evolution');
+    if (hpPct <= 0.48) return this._triggerLimiterBreak('low_hp');
     if (overwhelmed) return this._triggerLimiterBreak('dominated');
     if (habitOverload) return this._triggerLimiterBreak('habit');
   }
@@ -581,14 +593,19 @@ class SovereignMK2 extends AdaptiveAI {
 
     // Execute locked strategy
     const strat = this._lockedCounterStrategy;
-    if (strat === 'anti-air' && !t.onGround) {
-      this._counterLockTimer = 10;
-      this._pressureHoldTimer = Math.max(this._pressureHoldTimer, 50);
-      if (!this.isEdgeDanger(dir)) this.vx = dir * moveSpd * 1.18;
-      if (this.onGround && t.cy() < this.cy() - 14) this.vy = -19;
-      if (d < atkRange * 1.15 && this.cooldown <= 0) this.attack(t);
-      this._triggerFearLine(SMK2_DOMINANCE_LINES, 95);
-      return true;
+    if (strat === 'anti-air') {
+      if (!t.onGround) {
+        this._counterLockTimer = 10;
+        this._pressureHoldTimer = Math.max(this._pressureHoldTimer, 50);
+        if (!this.isEdgeDanger(dir)) this.vx = dir * moveSpd * 1.18;
+        if (this.onGround && t.cy() < this.cy() - 14) this.vy = -19;
+        if (d < atkRange * 1.15 && this.cooldown <= 0) this.attack(t);
+        this._triggerFearLine(SMK2_DOMINANCE_LINES, 95);
+        return true;
+      }
+      // Player is grounded: keep positioning so we're already in range when they jump
+      if (!this.isEdgeDanger(dir)) this.vx = dir * moveSpd * 0.95;
+      // fall through to attack logic
     }
     if (strat === 'pressure' && d > 150) {
       // Passive player — close gap and force engagement
@@ -731,7 +748,13 @@ class SovereignMK2 extends AdaptiveAI {
     // Arm when a hit lands (target HP drops); classify response over next 45 frames.
     if (!this._postKBArmed && t && t.health < this._postKBLastTgtHp - 1) {
       this._postKBArmed = true;
-      this._postKBTimer = 45;
+      this._postKBTimer = 60; // extended window: full knockback arc is ~1 sec
+      // Edge awareness: hit near edge → immediately ramp corner pressure
+      const hitNearEdge = t.cx() < 130 || t.cx() > GAME_W - 130;
+      if (hitNearEdge) {
+        this._cornerPressure = Math.min(1, this._cornerPressure + 0.40);
+        this._cornerSide     = t.cx() < GAME_W / 2 ? -1 : 1;
+      }
     }
     if (t) this._postKBLastTgtHp = t.health >= 0 ? t.health : this._postKBLastTgtHp;
 
@@ -1166,8 +1189,8 @@ class SovereignMK2 extends AdaptiveAI {
     const _bmPred = this._behaviorModel.predictNext(_bmObs.action, _bmObs.context);
     const _bmBias = this._behaviorModel.computeBias(_bmObs.action, _bmPred);
 
-    // ── B. Spam/punishment tracking (gated by observation window) ──
-    if (this._observationFrames >= 90 && this._actionSampleCount >= 4) {
+    // ── B. Spam/punishment tracking (very short gate — Sovereign reads fast) ──
+    if (this._observationFrames >= 40 && this._actionSampleCount >= 2) {
       this._updateSpamTracker(currentAction);
     }
 
@@ -1214,11 +1237,20 @@ class SovereignMK2 extends AdaptiveAI {
     // Limiter break stagger: if the player lands 3+ hits within 1 sec while LB is active,
     // Sovereign briefly staggers — reaction delay spikes for ~1.5 sec, giving the player
     // a window to counter rather than facing permanent superhuman mode.
-    if (lb && this._limiterStaggerTimer <= 0 && this._countRecent('dmg_taken', 60) >= 3) {
+    if (this._limiterStaggerCd > 0) this._limiterStaggerCd--;
+    if (lb && this._limiterStaggerTimer <= 0 && this._limiterStaggerCd <= 0 && this._countRecent('dmg_taken', 60) >= 4) {
       this._limiterStaggerTimer = 90;
+      this._limiterStaggerCd    = 360; // 6-second cooldown — cannot be farmed
       showBossDialogue('...tch.', 80);
     }
-    if (this._limiterStaggerTimer > 0) this._limiterStaggerTimer--;
+    if (this._limiterStaggerTimer > 0) {
+      this._limiterStaggerTimer--;
+      // Stagger window just closed — immediately arm a punish counter
+      if (this._limiterStaggerTimer === 0 && this._punishTimer === 0) {
+        this._punishTimer = 1;
+        showBossDialogue('My turn.', 70);
+      }
+    }
 
     // ── E. Humanized parameters ───────────────────────────────
     // moveSpd capped to player normal base (5.2).  pressureMul removed from speed —
@@ -1366,8 +1398,8 @@ class SovereignMK2 extends AdaptiveAI {
     }
 
     // ── A. Preemptive prediction counter ─────────────────────
-    // Only after observation window — requires real pattern data
-    const adaptReady = this._observationFrames >= 90 && this._actionSampleCount >= 4;
+    // Short observation window — Sovereign reads patterns almost immediately
+    const adaptReady = this._observationFrames >= 40 && this._actionSampleCount >= 2;
     if (adaptReady && !this._humanMissArmed) {
       // BehaviorModel pre-dodge: step back before a confidently-predicted attack fires.
       // Uses the richer per-context bigram from the parent system (7 actions × 3 contexts).

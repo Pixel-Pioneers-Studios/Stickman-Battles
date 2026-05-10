@@ -744,6 +744,11 @@ function drawBattleRoyaleHUD() {
 
   var _fc = typeof frameCount !== 'undefined' ? frameCount : 0;
 
+  // Compute safe top margin below the DOM HUD (HUD is position:fixed, overlays canvas top)
+  var _brTopY = (typeof _hudBottom === 'function' && canvas.clientHeight > 0)
+    ? Math.ceil(_hudBottom() * GAME_H / canvas.clientHeight) + 6
+    : 8;
+
   // ── Plane drop prompt ────────────────────────────────────
   if (brPlaneFlight && !brJumped) {
     var pulse = 0.6 + 0.4 * Math.sin(_fc * 0.12);
@@ -766,9 +771,9 @@ function drawBattleRoyaleHUD() {
   ctx.font = 'bold 15px Arial'; ctx.textAlign = 'center';
   var cStr = '🏆 ' + brAlive + ' / ' + BR_TOTAL;
   var cW   = ctx.measureText(cStr).width + 24;
-  ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(GAME_W / 2 - cW / 2, 57, cW, 26);
+  ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(GAME_W / 2 - cW / 2, _brTopY, cW, 26);
   ctx.fillStyle = '#fff'; ctx.shadowColor = '#000'; ctx.shadowBlur = 4;
-  ctx.fillText(cStr, GAME_W / 2, 75); ctx.shadowBlur = 0;
+  ctx.fillText(cStr, GAME_W / 2, _brTopY + 18); ctx.shadowBlur = 0;
 
   // ── Zone status (top right) ───────────────────────────────
   var zLabel, zColor;
@@ -783,11 +788,11 @@ function drawBattleRoyaleHUD() {
     zColor = '#ffaa44';
   }
   ctx.font = 'bold 11px Arial'; ctx.textAlign = 'right';
-  ctx.fillStyle = 'rgba(0,0,0,0.55)'; ctx.fillRect(GAME_W - 132, 57, 124, 20);
+  ctx.fillStyle = 'rgba(0,0,0,0.55)'; ctx.fillRect(GAME_W - 132, _brTopY, 124, 20);
   ctx.fillStyle = zColor;
   ctx.shadowColor = brZoneState === 'close' || brZoneState === 'final' ? zColor : 'transparent';
   ctx.shadowBlur  = brZoneState !== 'wait' ? 6 : 0;
-  ctx.fillText(zLabel, GAME_W - 10, 71); ctx.shadowBlur = 0;
+  ctx.fillText(zLabel, GAME_W - 10, _brTopY + 14); ctx.shadowBlur = 0;
 
   // ── Inventory bar (bottom centre) ────────────────────────
   var slotW = 50, slotH = 50, gap = 5;

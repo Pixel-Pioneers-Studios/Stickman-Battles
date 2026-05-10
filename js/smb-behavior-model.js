@@ -101,6 +101,7 @@ class BehaviorModel {
     };
     this._punishCount = 0;   // total selections (drives rotation cadence)
     this._lastRoute   = 'direct';
+    this._rotateAt    = 4 + Math.floor(Math.random() * 4); // jittered: 4-7 punishes before rotation
   }
 
   // ─── observe() ───────────────────────────────────────────────
@@ -254,7 +255,8 @@ class BehaviorModel {
     this._punishCount++;
 
     // Forced rotation: avoids the AI becoming exploitable on a single route
-    if (this._punishCount % 5 === 0 && Math.random() < 0.35) {
+    if (this._punishCount >= this._rotateAt && Math.random() < 0.40) {
+      this._rotateAt = this._punishCount + 4 + Math.floor(Math.random() * 4); // next rotation in 4-7 punishes
       const avail = routes.filter(r =>
         this._ledger[r].cooldown === 0 && r !== this._lastRoute
       );

@@ -74,7 +74,7 @@ function selectMode(mode) {
   const trainingPanel = document.getElementById('trainingPanel');
   if (trainingPanel) trainingPanel.style.display = isTraining ? 'block' : 'none';
   // Boss/training/minigames/trueform/online/adaptive: hide ∞ infinite; adaptive still shows arena picker
-  document.getElementById('arenaSection').style.display   = (isBoss || isTraining || isMinigames || isTrueForm || isOnline || isCompleteRandom) ? 'none' : '';
+  document.getElementById('arenaSection').style.display   = isOnline ? '' : 'none';
   const _infOpt = document.getElementById('infiniteOption');
   if (_infOpt) _infOpt.disabled = !!(isBoss || isTraining || isMinigames || isTrueForm || isOnline || isAdaptive);
   if ((isBoss || isTraining || isMinigames || isTrueForm || isOnline || isAdaptive) && infiniteMode) {

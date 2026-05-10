@@ -141,6 +141,114 @@ const _ARENA_GIMMICKS = {
   random:     '🎲 A random arena is chosen each match',
 };
 
+// ── Arena Vote Screen (2P local only) ────────────────────────────────────────
+const _ARENA_ICONS = {
+  grass:'🌿', city:'🚗', space:'🌌', lava:'🔥', forest:'🐾', ice:'❄️',
+  ruins:'📦', cave:'🦇', volcano:'🌋', underwater:'🌊', colosseum:'⚔️',
+  clouds:'☁️', mushroom:'🍄', haunted:'👻', cyberpunk:'⚡', neonGrid:'💾',
+  mirror:'🪞', random:'🎲',
+};
+const _VOTE_COLS = 4;
+
+function _showArenaVoteScreen(onResolve) {
+  const keys = Object.keys(_ARENA_GIMMICKS);
+  let p1i = 0, p2i = Math.min(1, keys.length - 1);
+  let p1ok = false, p2ok = false;
+
+  const ov = document.createElement('div');
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.94);z-index:9990;' +
+    'display:flex;flex-direction:column;align-items:center;justify-content:center;' +
+    'font-family:"Segoe UI",Arial,sans-serif;color:#dde4ff;user-select:none;';
+
+  ov.innerHTML =
+    '<h2 style="font-size:1.5rem;letter-spacing:3px;margin:0 0 4px;color:#fff">CHOOSE YOUR ARENA</h2>' +
+    '<div style="font-size:0.72rem;color:#667788;letter-spacing:1px;margin-bottom:20px">' +
+      'P1 · A/D/W/S to move &nbsp;·&nbsp; SPACE to lock in' +
+      '&emsp;|&emsp;' +
+      'P2 · J/L/I/K to move &nbsp;·&nbsp; U to lock in' +
+    '</div>' +
+    '<div id="_voteGrid" style="display:grid;grid-template-columns:repeat(' + _VOTE_COLS + ',1fr);' +
+      'gap:9px;max-width:720px;width:90%;"></div>' +
+    '<div id="_voteStatus" style="margin-top:18px;font-size:0.95rem;letter-spacing:2px;height:28px;text-align:center"></div>';
+
+  document.body.appendChild(ov);
+
+  function card(i) { return ov.querySelector('#_voteGrid').children[i]; }
+
+  function render() {
+    const grid = ov.querySelector('#_voteGrid');
+    grid.innerHTML = '';
+    keys.forEach((key, i) => {
+      const el = document.createElement('div');
+      const isP1 = i === p1i, isP2 = i === p2i, both = isP1 && isP2;
+      let border, bg;
+      if (both)       { border = '2px solid #ffffff'; bg = 'rgba(255,255,255,0.14)'; }
+      else if (isP1)  { border = '2px solid ' + (p1ok ? '#ff3333' : '#ff7755'); bg = 'rgba(255,80,40,0.16)'; }
+      else if (isP2)  { border = '2px solid ' + (p2ok ? '#33aaff' : '#4488ff'); bg = 'rgba(40,100,255,0.16)'; }
+      else            { border = '1px solid rgba(255,255,255,0.1)'; bg = 'rgba(255,255,255,0.04)'; }
+      el.style.cssText = 'border:' + border + ';background:' + bg + ';border-radius:8px;' +
+        'padding:10px 6px;text-align:center;cursor:pointer;';
+      el.innerHTML = '<div style="font-size:1.25rem">' + (_ARENA_ICONS[key] || '🗺️') + '</div>' +
+        '<div style="font-size:0.7rem;font-weight:700;margin-top:3px;letter-spacing:0.5px">' +
+        key.toUpperCase() + '</div>';
+      el.onclick = () => {
+        if (!p1ok) { p1i = i; }
+        if (!p2ok) { p2i = i; }
+        render();
+      };
+      grid.appendChild(el);
+    });
+
+    const st = ov.querySelector('#_voteStatus');
+    if (p1ok && p2ok) {
+      st.textContent = '';
+    } else if (p1ok) {
+      st.innerHTML = '<span style="color:#ff4444">P1 locked: ' + keys[p1i].toUpperCase() +
+        '</span>&ensp;—&ensp;waiting for P2...';
+    } else if (p2ok) {
+      st.innerHTML = '<span style="color:#4488ff">P2 locked: ' + keys[p2i].toUpperCase() +
+        '</span>&ensp;—&ensp;waiting for P1...';
+    } else {
+      st.textContent = '';
+    }
+  }
+
+  function finish() {
+    document.removeEventListener('keydown', onKey);
+    ov.remove();
+    const winner = (p1i === p2i) ? keys[p1i]
+      : keys[Math.random() < 0.5 ? p1i : p2i];
+    onResolve(winner);
+  }
+
+  function move(player, delta) {
+    const n = keys.length;
+    if (player === 1 && !p1ok) {
+      p1i = ((p1i + delta) % n + n) % n;
+    } else if (player === 2 && !p2ok) {
+      p2i = ((p2i + delta) % n + n) % n;
+    }
+    render();
+  }
+
+  function onKey(e) {
+    const k = e.key === ' ' ? ' ' : e.key.toLowerCase();
+    if (k === 'a')  { move(1, -1); }
+    else if (k === 'd')  { move(1,  1); }
+    else if (k === 'w')  { move(1, -_VOTE_COLS); }
+    else if (k === 's' && !p1ok)  { move(1,  _VOTE_COLS); }
+    else if (k === ' ') { e.preventDefault(); if (!p1ok) { p1ok = true; render(); if (p2ok) finish(); } }
+    else if (k === 'j')  { move(2, -1); }
+    else if (k === 'l')  { move(2,  1); }
+    else if (k === 'i')  { move(2, -_VOTE_COLS); }
+    else if (k === 'k' && !p2ok)  { move(2,  _VOTE_COLS); }
+    else if (k === 'u')  { if (!p2ok) { p2ok = true; render(); if (p1ok) finish(); } }
+  }
+
+  document.addEventListener('keydown', onKey);
+  render();
+}
+
 function selectArena(name) {
   selectedArena = name;
   const sel = document.getElementById('arenaSelect');

@@ -109,6 +109,7 @@ function gameLoop(timestamp) {
   if (typeof updateParadoxCompanion === 'function') updateParadoxCompanion();
   frameCount++;
   aiTick++;
+  if (typeof ReplaySystem !== 'undefined') ReplaySystem.recordFrame();
   // Once-per-second God encounter roll
   if (frameCount % 60 === 0 && typeof updateGodEncounterTick === 'function') {
     updateGodEncounterTick();
@@ -269,6 +270,34 @@ function gameLoop(timestamp) {
     }
   }
 
+  // ── Sudden death rising floor ─────────────────────────────────────────────
+  if (gameRunning && !isCinematic && !gameFrozen && !storyModeActive
+      && gameMode === '2p'
+      && typeof _sdFloor !== 'undefined' && _achStats.matchStartTime) {
+    _sdFloor.frames++;
+    const _elapsed = _sdFloor.frames / 60;
+    if (!_sdFloor.warned && _elapsed >= 75) {
+      _sdFloor.warned = true;
+      if (typeof queueAnnouncement === 'function') queueAnnouncement('SUDDEN DEATH IN 15s!', '#ff8800');
+    }
+    if (!_sdFloor.active && _elapsed >= 90) {
+      _sdFloor.active = true;
+      _sdFloor.y = GAME_H + 40;
+      if (typeof queueAnnouncement === 'function') queueAnnouncement('SUDDEN DEATH!', '#ff3300');
+    }
+    if (_sdFloor.active) {
+      _sdFloor.y = Math.max(_sdFloor.y - 0.5, GAME_H * 0.5);
+      if (currentArena) {
+        currentArena.hasLava = true;
+        currentArena.lavaY   = _sdFloor.y + 6;
+      }
+      if (currentArena && !_sdFloor._floorDisabled) {
+        const _fp = currentArena.platforms.find(p => p.isFloor);
+        if (_fp) { _fp.isFloorDisabled = true; _sdFloor._floorDisabled = true; }
+      }
+    }
+  }
+
   // ---------- Phase: updateCamera (bounding box, dead zone, lerp) ----------
   const baseScale = Math.min(canvas.width / GAME_W, canvas.height / GAME_H);
   const baseScaleX = baseScale;
@@ -350,6 +379,7 @@ function gameLoop(timestamp) {
   // ---------- Phase: render (world, entities, particles, HUD) ----------
   drawBackground();
   drawPlatforms();
+  if (typeof drawSuddenDeathFloor === 'function') drawSuddenDeathFloor();
   if (typeof drawDepthFloorGrid === 'function') drawDepthFloorGrid();
   if (typeof drawCinematicImpactWorldEffects === 'function') drawCinematicImpactWorldEffects();
   if (gameMode === 'minigames' && minigameType === 'soccer') drawSoccer();
@@ -916,6 +946,7 @@ function gameLoop(timestamp) {
   if (damnationActive && typeof drawDamnationEffects === 'function') drawDamnationEffects();
   if (damnationActive && typeof drawDamnationAnchors === 'function') drawDamnationAnchors();
   if (typeof drawObjectiveHUD === 'function') drawObjectiveHUD();
+  if (typeof drawMatchAnnouncer === 'function') drawMatchAnnouncer();
   // Chaos system: screen-space draw (score HUD, event badge, announcer, spectator label)
   if (typeof chaosMode !== 'undefined' && chaosMode && typeof drawChaosOverlay === 'function') drawChaosOverlay();
   if (gameMode === 'adaptive' && typeof drawAdaptiveAIDebug === 'function') drawAdaptiveAIDebug();
@@ -940,6 +971,7 @@ function gameLoop(timestamp) {
     MultiverseManager.drawHUD();
   }
   if ((currentArena.isBossArena || window.FORCE_ATTACK_MODE) && typeof drawBossDialogue === 'function') drawBossDialogue(finalScX, finalScY, camCX, camCY);
+  if (typeof drawHitEffectivenessHUD === 'function') drawHitEffectivenessHUD();
   if (gameMode === 'exploration') drawExploreHUD();
   if (abilityUnlockToast && abilityUnlockToast.timer > 0) drawAbilityUnlockToast();
   if (gameMode === 'trueform' && typeof drawQTE === 'function') drawQTE(ctx, canvas.width, canvas.height);

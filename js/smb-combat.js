@@ -344,6 +344,7 @@ function dealDamage(attacker, target, dmg, kbForce, stunMult = 1.0, isSplash = f
     NetworkManager.sendHit(actualDmg, actualKb, actualKb > 0 ? (target.cx() > attacker.cx() ? 1 : -1) : 0);
   }
   target.health    = Math.max(0, target.health - actualDmg);
+  if (attacker && actualDmg > 0) attacker.totalDamageDealt = (attacker.totalDamageDealt || 0) + actualDmg;
   // God Phase 1 crash: fires once on the first successful hit against a human player.
   // Deferred via setTimeout so the current game-loop iteration completes before the
   // overlay halts execution — avoids mid-frame teardown.

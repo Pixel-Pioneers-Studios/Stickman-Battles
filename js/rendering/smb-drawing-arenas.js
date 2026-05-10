@@ -2,6 +2,42 @@
 //   globals used: ctx, GAME_W, GAME_H, frameCount, currentArena,
 //                 players, bossFloorState, bossFloorType, tfFloorRemoved
 
+let _sdFloor = { active: false, warned: false, y: GAME_H + 40, _floorDisabled: false, frames: 0 };
+
+function drawSuddenDeathFloor() {
+  if (!_sdFloor.active) return;
+  const y = _sdFloor.y;
+  ctx.save();
+  // glow above the floor
+  const glowGrad = ctx.createLinearGradient(0, y - 30, 0, y);
+  glowGrad.addColorStop(0, 'rgba(255,60,0,0)');
+  glowGrad.addColorStop(1, 'rgba(255,60,0,0.22)');
+  ctx.fillStyle = glowGrad;
+  ctx.fillRect(0, y - 30, GAME_W, 30);
+  // wavy lava surface
+  const lg = ctx.createLinearGradient(0, y, 0, GAME_H + 60);
+  lg.addColorStop(0,   '#ff5500');
+  lg.addColorStop(0.2, '#cc1100');
+  lg.addColorStop(1,   '#440000');
+  ctx.fillStyle = lg;
+  ctx.beginPath();
+  ctx.moveTo(0, y);
+  for (let x = 0; x <= GAME_W; x += 16) {
+    ctx.lineTo(x, y + Math.sin(x * 0.06 + frameCount * 0.09) * 9);
+  }
+  ctx.lineTo(GAME_W, GAME_H + 60);
+  ctx.lineTo(0, GAME_H + 60);
+  ctx.closePath();
+  ctx.fill();
+  // surface shimmer
+  ctx.shadowColor = '#ff4400';
+  ctx.shadowBlur  = 16;
+  ctx.fillStyle   = `rgba(255,100,0,${0.18 + Math.abs(Math.sin(frameCount * 0.06)) * 0.1})`;
+  ctx.fillRect(0, y - 8, GAME_W, 10);
+  ctx.shadowBlur  = 0;
+  ctx.restore();
+}
+
 function drawSoccerArena() {
   // Green field with vertical stripe pattern
   ctx.fillStyle = '#2d6b1e';
@@ -1218,9 +1254,23 @@ function addKillFeed(loser) {
   msg.style.color = killer ? killer.color : '#fff';
   feed.prepend(msg);
   setTimeout(() => msg.remove(), 3200);
+
+  if (typeof queueAnnouncement !== 'function' || !killer) return;
+  const _fighters = players.filter(p => !p.isBoss && !p.isMinion);
+  const _totalKOs = _fighters.reduce((s, p) => s + (p.kills || 0), 0);
+  if (_totalKOs === 1) {
+    queueAnnouncement('FIRST BLOOD!', killer.color);
+  } else if (!infiniteMode && loser.lives === 1) {
+    queueAnnouncement(loser.name.toUpperCase() + ' — LAST STOCK', loser.color);
+  } else if ((killer.kills - 1) < (loser.kills || 0)) {
+    queueAnnouncement('COMEBACK!', killer.color);
+  } else if (killer.kills >= 3 && killer.kills % 3 === 0) {
+    queueAnnouncement('ON FIRE!', '#ff8800');
+  }
 }
 
 function endGame() {
+  if (typeof ReplaySystem !== 'undefined') ReplaySystem.stopRecording();
   gameRunning = false;
   exploreActive = false;
   if (typeof saveGame === 'function') saveGame();
@@ -1348,7 +1398,19 @@ function endGame() {
     wt.textContent = 'DRAW!';
     wt.style.color = '#ffffff';
   }
-  let statsHtml = players.map(p => `<div class="stat-row" style="color:${p.color}">${p.name}: ${p.kills} KO${p.kills !== 1 ? 's' : ''}</div>`).join('');
+  const _matchSecs = _achStats.matchStartTime ? Math.round((Date.now() - _achStats.matchStartTime) / 1000) : 0;
+  const _matchDur  = _matchSecs >= 60 ? `${Math.floor(_matchSecs / 60)}m ${_matchSecs % 60}s` : `${_matchSecs}s`;
+  const _showablePlayers = players.filter(p => !p.isMinion);
+  let statsHtml = '<div style="font-size:11px;color:#778899;letter-spacing:1px;margin-bottom:8px">MATCH SUMMARY  &bull;  ' + _matchDur + '</div>';
+  statsHtml += _showablePlayers.map(p => {
+    const _dmg = Math.round(p.totalDamageDealt || 0);
+    const _kos  = p.kills || 0;
+    return `<div class="stat-row" style="color:${p.color};display:flex;justify-content:space-between;gap:16px">` +
+           `<span>${p.name}</span>` +
+           `<span style="color:#aabbcc;font-size:12px">${_kos} KO${_kos !== 1 ? 's' : ''}` +
+           `&ensp;<span style="color:#ffcc66">${_dmg} dmg</span></span>` +
+           `</div>`;
+  }).join('');
   // Boss defeated hint (only if letters not yet unlocked)
   const defeatedBoss = players.find(p => p.isBoss && p.health <= 0);
   if (defeatedBoss && (winner || bossDefeated) && !(winner && winner.isBoss) && !unlockedTrueBoss && bossBeaten) {
@@ -1357,6 +1419,7 @@ function endGame() {
   }
   document.getElementById('statsDisplay').innerHTML = statsHtml;
   document.getElementById('gameOverOverlay').style.display = 'flex';
+  if (typeof ReplaySystem !== 'undefined') ReplaySystem.refreshReplayPanel();
   // Boss Rush gauntlet: show "Next Boss" button when player wins
   if (typeof _updateBossRushNextBtn === 'function') {
     const _playerWon = bossDefeated || !!(winner && !winner.isAI && !winner.isBoss);
@@ -1383,6 +1446,12 @@ function endGame() {
     const playerWon = !!(winner && !winner.isAI);
     multiverseOnMatchEnd(playerWon);
   }
+
+  // Rematch countdown: only for standard PvP / vs-bot matches (not story, boss, online, boss-rush)
+  const _isRematchable = !storyModeActive && !onlineMode &&
+    gameMode !== 'boss' && gameMode !== 'trueform' && gameMode !== 'multiverse' &&
+    !(gameMode === 'minigames' && minigameType === 'koth');
+  if (_isRematchable) _startRematchCountdown();
 }
 
 // ============================================================
@@ -1494,7 +1563,48 @@ function replayTFEnding() {
   }
 }
 
+// ── Rematch countdown ────────────────────────────────────────────────────────
+let _rematchInterval = null;
+
+function _cancelRematchCountdown() {
+  if (_rematchInterval) { clearInterval(_rematchInterval); _rematchInterval = null; }
+  const btn = document.getElementById('playAgainBtn');
+  if (btn) btn.textContent = 'Play Again';
+}
+
+function _startRematchCountdown() {
+  const btn = document.getElementById('playAgainBtn');
+  if (!btn) return;
+  let secs = 10;
+  btn.textContent = 'Play Again (' + secs + ')';
+  _rematchInterval = setInterval(function() {
+    secs--;
+    if (secs <= 0) {
+      _cancelRematchCountdown();
+      if (typeof startGame === 'function') startGame();
+    } else {
+      btn.textContent = 'Play Again (' + secs + ')';
+    }
+  }, 1000);
+}
+
+function _resetSdFloor() {
+  if (typeof _sdFloor === 'undefined') return;
+  if (_sdFloor._floorDisabled && currentArena) {
+    const _fp = currentArena.platforms && currentArena.platforms.find(p => p.isFloor);
+    if (_fp) _fp.isFloorDisabled = false;
+  }
+  if (currentArena && _sdFloor.active) currentArena.hasLava = false;
+  _sdFloor.active = false;
+  _sdFloor.warned = false;
+  _sdFloor.y = GAME_H + 40;
+  _sdFloor._floorDisabled = false;
+  _sdFloor.frames = 0;
+}
+
 function backToMenu() {
+  _cancelRematchCountdown();
+  _resetSdFloor();
   MusicManager.stop();
   activeFinisher = null; // cancel any in-progress finisher
   gameRunning  = false;

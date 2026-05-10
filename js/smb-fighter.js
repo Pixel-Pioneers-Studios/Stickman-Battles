@@ -19,7 +19,8 @@ class Fighter {
     this.health      = 150;
     this.maxHealth   = 150;
     this.lives       = chosenLives;
-    this.kills       = 0;
+    this.kills           = 0;
+    this.totalDamageDealt = 0;
     this.onGround    = false;
     this.cooldown    = 0;
     this.cooldown2   = 0;

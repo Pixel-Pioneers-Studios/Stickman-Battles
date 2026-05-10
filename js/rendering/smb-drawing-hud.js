@@ -264,3 +264,161 @@ function drawStoryOpponentHUD() {
   ctx.restore();
 }
 
+// ── Hit Effectiveness HUD ─────────────────────────────────────────────────────
+// Phase threshold proximity + player combo streak feedback.
+// Reads boss/Sovereign HP each frame; no external hook required.
+
+const _hitfb = {
+  bossHPprev  : null,
+  comboCount  : 0,
+  comboTimer  : 0,   // frames until combo resets
+  comboFlash  : 0,   // bright-flash frames on new hit
+  phaseTimer  : 0,   // internal pulse clock
+};
+const _HFB_COMBO_WINDOW = 210; // ~3.5 s
+
+function drawHitEffectivenessHUD() {
+  if (!gameRunning || (typeof isCinematic !== 'undefined' && isCinematic)) return;
+
+  const boss = (typeof players !== 'undefined') && players &&
+    players.find(p => (p.isBoss || p.isSovereignMK2) && p.health > 0);
+  if (!boss) {
+    _hitfb.bossHPprev = null;
+    _hitfb.comboCount = 0;
+    return;
+  }
+
+  // ── Combo detection: HP drop this frame = hit landed ─────────
+  const curHP = boss.health;
+  if (_hitfb.bossHPprev !== null && curHP < _hitfb.bossHPprev - 0.5) {
+    _hitfb.comboCount++;
+    _hitfb.comboTimer = _HFB_COMBO_WINDOW;
+    _hitfb.comboFlash = 16;
+  }
+  _hitfb.bossHPprev = curHP;
+  if (_hitfb.comboTimer > 0) _hitfb.comboTimer--;
+  else _hitfb.comboCount = 0;
+  if (_hitfb.comboFlash > 0) _hitfb.comboFlash--;
+  _hitfb.phaseTimer++;
+
+  // ── Phase threshold proximity (boss only, not Sovereign) ─────
+  const nearThresh = boss.isBoss && (() => {
+    const th1 = boss.maxHealth * (2 / 3); // ~2000 (phase 1→2)
+    const th2 = boss.maxHealth * (1 / 3); // ~1000 (phase 2→3)
+    const margin = boss.maxHealth * 0.075; // within 7.5% HP = ~225 HP
+    return (curHP > th1 && curHP - th1 < margin) ||
+           (curHP > th2 && curHP - th2 < margin);
+  })();
+
+  const cw = canvas.width;
+  const ch = canvas.height;
+  const now = performance.now();
+  const hudH = typeof _hudBottom === 'function' ? _hudBottom() : 0;
+
+  ctx.save();
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+
+  // ── Phase Threshold Indicator ─────────────────────────────────
+  if (nearThresh) {
+    const pulse = 0.55 + 0.45 * Math.sin(now / 260);
+    const alpha = 0.78 * pulse;
+    const fontSize = Math.round(cw * 0.019);
+    ctx.font = `bold ${fontSize}px "Segoe UI", Arial, sans-serif`;
+    ctx.textAlign    = 'center';
+    ctx.textBaseline = 'middle';
+    const label = '⚡ PHASE BREAK';
+    const lw    = ctx.measureText(label).width;
+    const ty    = hudH + Math.round(cw * 0.036);
+    const padX  = 14, padH2 = fontSize + 12;
+    ctx.globalAlpha = alpha * 0.60;
+    const gr = ctx.createLinearGradient(cw / 2 - lw / 2 - padX, ty, cw / 2 + lw / 2 + padX, ty);
+    gr.addColorStop(0, 'rgba(255,60,0,0)');
+    gr.addColorStop(0.5, 'rgba(255,60,0,0.85)');
+    gr.addColorStop(1, 'rgba(255,60,0,0)');
+    ctx.fillStyle = gr;
+    ctx.beginPath();
+    if (ctx.roundRect) ctx.roundRect(cw / 2 - lw / 2 - padX, ty - padH2 / 2, lw + padX * 2, padH2, 5);
+    else ctx.rect(cw / 2 - lw / 2 - padX, ty - padH2 / 2, lw + padX * 2, padH2);
+    ctx.fill();
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle   = '#ffcc44';
+    ctx.shadowColor = '#ff4400';
+    ctx.shadowBlur  = 18 * pulse;
+    ctx.fillText(label, cw / 2, ty);
+  }
+
+  // ── Combo Feedback ────────────────────────────────────────────
+  if (_hitfb.comboCount >= 2 && _hitfb.comboTimer > 0) {
+    const flashBoost = _hitfb.comboFlash > 0 ? (_hitfb.comboFlash / 16) * 0.35 : 0;
+    const fadeRatio  = Math.min(1, _hitfb.comboTimer / 55);
+    const alpha      = fadeRatio * (0.80 + flashBoost);
+
+    const n = _hitfb.comboCount;
+    let r = 100, g = 220, b = 255, label;
+    if (n >= 8)      { r = 255; g = 40;  b = 40;  label = `OBLITERATE ×${n}`; }
+    else if (n >= 5) { r = 255; g = 120; b = 0;   label = `UNSTOPPABLE ×${n}`; }
+    else if (n >= 3) { r = 255; g = 220; b = 0;   label = `HOT STREAK ×${n}`; }
+    else             { r = 100; g = 220; b = 255;  label = `COMBO ×${n}`; }
+
+    const scale    = 1 + flashBoost * 0.12;
+    const fontSize = Math.round(cw * 0.018 * scale);
+    ctx.font = `bold ${fontSize}px "Segoe UI", Arial, sans-serif`;
+    ctx.textAlign    = 'right';
+    ctx.textBaseline = 'middle';
+    const tx = cw - Math.round(cw * 0.012);
+    const ty = hudH + Math.round(ch * 0.055);
+    const tw = ctx.measureText(label).width;
+    const padX = 10, padY2 = 6;
+
+    ctx.globalAlpha = alpha * 0.65;
+    ctx.fillStyle = `rgba(${r},${g},${b},0.15)`;
+    ctx.beginPath();
+    if (ctx.roundRect) ctx.roundRect(tx - tw - padX, ty - fontSize / 2 - padY2, tw + padX * 2, fontSize + padY2 * 2, 5);
+    else ctx.rect(tx - tw - padX, ty - fontSize / 2 - padY2, tw + padX * 2, fontSize + padY2 * 2);
+    ctx.fill();
+
+    ctx.globalAlpha  = alpha;
+    ctx.fillStyle    = `rgb(${r},${g},${b})`;
+    ctx.shadowColor  = `rgb(${r},${g},${b})`;
+    ctx.shadowBlur   = 10 + flashBoost * 14;
+    ctx.fillText(label, tx, ty);
+  }
+
+  ctx.restore();
+}
+
+// ── Match Announcer ──────────────────────────────────────────────────────────
+let _announcerMsg = null; // {text, color, timer, maxTimer}
+
+function queueAnnouncement(text, color) {
+  _announcerMsg = { text, color: color || '#ffffff', timer: 120, maxTimer: 120 };
+}
+
+function drawMatchAnnouncer() {
+  if (!_announcerMsg || _announcerMsg.timer <= 0) { _announcerMsg = null; return; }
+  if (typeof isCinematic !== 'undefined' && isCinematic) return;
+  _announcerMsg.timer--;
+  const { text, color, timer, maxTimer } = _announcerMsg;
+  const fadeIn  = Math.min(1, (maxTimer - timer) / 10);
+  const fadeOut = Math.min(1, timer / 20);
+  const alpha   = Math.min(fadeIn, fadeOut);
+  if (alpha <= 0) return;
+
+  const cw = canvas.width;
+  const ch = canvas.height;
+  ctx.save();
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.globalAlpha = alpha;
+  const fontSize = Math.round(cw * 0.038);
+  ctx.font        = `bold ${fontSize}px "Segoe UI", Arial, sans-serif`;
+  ctx.textAlign   = 'center';
+  ctx.shadowColor = color;
+  ctx.shadowBlur  = 28;
+  ctx.fillStyle   = '#ffffff';
+  ctx.fillText(text, cw / 2, ch * 0.22);
+  ctx.globalAlpha = alpha * 0.55;
+  ctx.fillStyle   = color;
+  ctx.fillText(text, cw / 2, ch * 0.22);
+  ctx.restore();
+}
+

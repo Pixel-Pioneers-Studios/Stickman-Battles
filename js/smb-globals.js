@@ -42,11 +42,41 @@ const SERVER_CONFIG = {
 // ============================================================
 const CHANGELOG = [
   {
+    version: '3.2.0',
+    title: 'THE APEX UPDATE',
+    date: '2026-05-10',
+    flavor: 'A hundred fighters fall from the sky. A god and a kernel merge into something that should not exist. The floor rises. The clock runs out. Welcome to the end.',
+    isLatest: true,
+    changes: [
+      { cat: 'Mode',    text: 'Added Battle Royale — 100 fighters, a 9000px-wide procedural world, a transport plane drop, loot chests, a shrinking void zone with 6 phases, spectate-on-death, and a real-time minimap; the last fighter standing wins' },
+      { cat: 'Mode',    text: 'Battle Royale loot system — 200 chests scattered across 30 platform rows; chests contain weapons drawn from the full roster; equipped weapon updates the fighter\'s full combat state mid-match' },
+      { cat: 'Story',   text: 'Added Escort chapter type — protect an NPC as it walks toward a goal; enemies spawn in configurable waves triggered by NPC position; NPC pauses when an enemy enters its stop range; chapter fails if NPC health reaches zero' },
+      { cat: 'Entity',  text: 'Added Absolute Axiom — a secret final boss (God + Kernel merged); three power phases with escalating stats and distinct attack pools; attacks include Time Freeze, Inferno Rain, Gravity Singularity, and Kernel Beam; pattern analysis adapts the attack selection to player behaviour over the fight', spoilerLevel: 3 },
+      { cat: 'Entity',  text: 'Absolute Axiom has a dedicated defeat card and unlocks the "Absolute Axiom Slayer" achievement; cannot be encountered while another secret boss is active', spoilerLevel: 3 },
+      { cat: 'Combat',  text: 'Added parry system — shielding at stack 1 within the first 8 frames of an incoming hit has a 65% parry chance (30% at frames 9–15, 0% after); a successful parry stuns the attacker for 90 frames and opens a 1.5× damage vulnerability window' },
+      { cat: 'Combat',  text: 'Added armor system — story enemies can equip helmet (−12% damage taken), chestplate (−15%), and leggings (−8%), stacking up to −40%; reduction is applied inside dealDamage() after all other multipliers' },
+      { cat: 'Combat',  text: 'Shield completely rebuilt — stacks 1–3 use HP-based absorption that degrades on each activation; stacks 4–6 use percentage pass-through (20% / 50% / 80%); stacks reset after a full recharge timer; bots respect the depletion state before shielding' },
+      { cat: 'Camera',  text: 'Added DuelCam — when exactly 2 active fighters remain, the camera switches to a smooth midpoint mode with distance-based zoom; separate lerp targets prevent the duel cam from fighting the standard camera; tightens further when fighters are within close range' },
+      { cat: 'Camera',  text: 'Added hit-zoom — heavy hits (≥18 damage) zoom the camera in for 15–22 frames; cosmic hits zoom further; intensity scales with damage value' },
+      { cat: 'Camera',  text: 'Added cinematic camera overshoot — dramatic camera moves add a decaying X/Y overshoot so the camera swings past its target and settles; eliminates the flat teleport feel on phase transitions and finishers' },
+      { cat: 'Admin',   text: 'Added LiveOps admin panel — full server control UI with live config editing, broadcast dispatch, per-player coin grants, cosmetic grants, unlock tools, and server log streaming' },
+      { cat: 'Admin',   text: 'Added admin session bridge — short-lived server session tokens replace the permanent admin key in the browser; the secret lives only on the server; tokens expire after 30 minutes of inactivity' },
+      { cat: 'Polish',  text: 'Added post-match stats screen — game-over overlay now shows a MATCH SUMMARY header with elapsed time, KOs, and total damage dealt (highlighted in gold) for every player; boss and minion entries are filtered out' },
+      { cat: 'Polish',  text: 'Added match announcer — canvas text bursts fire at key moments: FIRST BLOOD (first KO), LAST STOCK (player drops to final life), COMEBACK (trailing player scores a KO), ON FIRE (every 3rd kill by the same player); suppressed during cinematics' },
+      { cat: 'Polish',  text: 'Added 2P arena vote screen — in local 2-player matches both players navigate a 4-column arena grid (P1: A/D/W/S + Space; P2: J/L/I/K + U); same pick wins outright; different picks go to a random tiebreak between the two; cards are clickable as a fallback' },
+      { cat: 'Polish',  text: 'Added rematch countdown — after standard PvP and vs-bot matches the Play Again button counts down from 10 and auto-restarts; clicking Menu or Play Again cancels it immediately; disabled for story, boss, TrueForm, online, and KotH' },
+      { cat: 'Polish',  text: 'Added sudden death rising floor — at 75 seconds a warning fires; at 90 seconds a lava floor rises from below the screen at 0.5 px/frame, stopping at 50% screen height; the floor platform is disabled and lava burn damage begins; activates in standard PvP and vs-bot matches only' },
+      { cat: 'Polish',  text: 'Added hit effectiveness HUD — a pulsing "⚡ PHASE BREAK" label appears when the boss is within 7.5% HP of a phase transition; combo streaks against the boss or Sovereign display on the right edge with escalating labels (COMBO, HOT STREAK ×3, UNSTOPPABLE ×5, OBLITERATE ×8) and a flash burst on each new hit' },
+      { cat: 'AI',      text: 'Sovereign AI sharpened — observation window cut from 3 s / 6 actions to 0.7 s / 2 actions so pattern reads happen almost immediately; adaptation rate raised from ~7.5 to ~12 ticks per second; prediction confidence floor lowered; preemptive counter range widened; spam detection triggers at 3 repeated actions instead of 4; limiter break fires at intelligence ≥ 0.76 (was 0.82) and HP ≤ 48% (was 38%); after a stagger window closes Sovereign immediately arms a punish counter and says "My turn."' },
+      { cat: 'System',  text: 'Added match replay system — the last 3 matches are recorded as input-log snapshots at ~20 fps and stored in IndexedDB; a Save Replay button on the post-match screen downloads the recording as a JSON file; each file embeds the game version and mismatched versions are rejected at load time; battle royale, training, and exploration are excluded from recording' },
+    ],
+  },
+  {
     version: '3.1.0',
     title: 'THE GAUNTLET UPDATE',
     date: '2026-05-03',
     flavor: 'Story Mode is no longer a corridor. It\'s a system — eight ways to play, one world that uses all of them.',
-    isLatest: true,
+    isLatest: false,
     changes: [
       { cat: 'Story',  text: 'Story Mode chapters are now multi-phase gauntlets — every fight chapter runs through a pacing engine that builds a sequence of 3–4 phases before the final encounter; boss and True Form chapters are excluded and launch directly as before' },
       { cat: 'Story',  text: 'Added Chase phase archetype — a timed traversal with a countdown bar; if the timer expires the run ends immediately; fires at chapters 24, 31, 38, 45 and later' },
@@ -548,7 +578,7 @@ let _publicRoomCheckTimer = 0;
 // ============================================================
 // VERSION
 // ============================================================
-const GAME_VERSION = '3.1.0';  // bump this when releasing; must match CHANGELOG[0].version
+const GAME_VERSION = '3.2.0';  // bump this when releasing; must match CHANGELOG[0].version
 console.log('[VERSION CHECK]', GAME_VERSION);
 
 // DEBUG / DEVELOPER STATE

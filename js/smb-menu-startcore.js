@@ -680,6 +680,7 @@ function _startGameCore() {
   }
 
   gameRunning = true;
+  if (typeof ReplaySystem !== 'undefined') ReplaySystem.startRecording();
   // Paradox companion: speak on boss start
   if ((gameMode === 'boss' || gameMode === 'trueform') &&
       typeof paradoxOnBossStart === 'function') {

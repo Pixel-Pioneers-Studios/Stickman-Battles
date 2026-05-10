@@ -648,20 +648,25 @@ function drawMinigameHUD() {
   if (minigameType === 'soccer') {
     const p1c = players[0]?.color || '#00d4ff';
     const p2c = players[1]?.color || '#ff4444';
+    // Draw score in screen space so it stays fixed and below the DOM HUD
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    const _ssy = (typeof _hudBottom === 'function' ? _hudBottom() : 0) + 8;
     ctx.fillStyle = 'rgba(0,0,0,0.6)';
-    ctx.fillRect(GAME_W / 2 - 70, 58, 140, 30);
+    ctx.fillRect(canvas.width / 2 - 70, _ssy, 140, 30);
     ctx.font = 'bold 22px Arial';
     ctx.shadowColor = '#000'; ctx.shadowBlur = 4;
     ctx.fillStyle = p1c;
     ctx.textAlign = 'left';
-    ctx.fillText(soccerScore[0], GAME_W / 2 - 60, 80);
+    ctx.fillText(soccerScore[0], canvas.width / 2 - 60, _ssy + 22);
     ctx.fillStyle = '#fff';
     ctx.textAlign = 'center';
-    ctx.fillText('–', GAME_W / 2, 80);
+    ctx.fillText('–', canvas.width / 2, _ssy + 22);
     ctx.fillStyle = p2c;
     ctx.textAlign = 'right';
-    ctx.fillText(soccerScore[1], GAME_W / 2 + 60, 80);
+    ctx.fillText(soccerScore[1], canvas.width / 2 + 60, _ssy + 22);
     ctx.shadowBlur = 0;
+    ctx.restore();
   } else if (minigameType === 'survival') {
     ctx.fillStyle = '#ffdd44'; ctx.font = 'bold 14px Arial'; ctx.textAlign = 'center';
     const waveGoalStr = survivalFriendlyFire ? '⚔' : survivalInfinite ? '∞' : `/${survivalWaveGoal}`;
@@ -709,15 +714,18 @@ function drawMinigameHUD() {
     ctx.shadowColor = '#000'; ctx.shadowBlur = 6;
     ctx.fillText('KING ZONE', kothZoneX, 62);
     ctx.shadowBlur = 0;
-    // Top score bar
+    // Top score bar — drawn in screen space so it stays fixed below the DOM HUD
     const p1 = players[0], p2 = players[1];
     const WIN_FRAMES = 1800;
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    const _khy = (typeof _hudBottom === 'function' ? _hudBottom() : 0) + 8;
     [p1, p2].forEach((p, i) => {
       if (!p) return;
       const pts = kothPoints[i];
       const barW = 130, barH = 10;
-      const bx = i === 0 ? 20 : GAME_W - 20 - barW;
-      const by = 56;
+      const bx = i === 0 ? 20 : canvas.width - 20 - barW;
+      const by = _khy;
       ctx.fillStyle = 'rgba(0,0,0,0.55)';
       ctx.fillRect(bx, by, barW, barH);
       ctx.fillStyle = p.color;
@@ -725,9 +733,10 @@ function drawMinigameHUD() {
       ctx.fillStyle = '#fff'; ctx.font = 'bold 9px Arial';
       ctx.textAlign = i === 0 ? 'left' : 'right';
       const tx = i === 0 ? bx : bx + barW;
-      ctx.fillText(`${p.name}  ${Math.floor(pts / 60)}s / 30s`, tx, by - 2);
+      ctx.fillText(`${p.name}  ${Math.floor(pts / 60)}s / 30s`, tx, by + 22);
     });
-    // Time-in-zone counter ABOVE each player's head
+    ctx.restore();
+    // Time-in-zone counter ABOVE each player's head (game/camera space)
     [p1, p2].forEach((p, i) => {
       if (!p || p.health <= 0) return;
       const t = Math.floor(kothPoints[i] / 60);

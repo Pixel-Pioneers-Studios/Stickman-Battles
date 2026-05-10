@@ -80,6 +80,7 @@ All docs are in `Stickman-Battles/docs/`.
 | [docs/canon.md](Stickman-Battles/docs/canon.md) | In-universe lore and character canon |
 | [docs/implementation-checklist.md](Stickman-Battles/docs/implementation-checklist.md) | Step-by-step refactor checklist — execute in order, test after each step |
 | [docs/refactoring-plan.md](Stickman-Battles/docs/refactoring-plan.md) | Globals-based modularity patterns; which files are too large and how to split them |
+| [docs/gameplay-notes.md](Stickman-Battles/docs/gameplay-notes.md) | Playtested feel: combat pacing, boss difficulty, adaptive AI goals, story onboarding, online state |
 
 ---
 

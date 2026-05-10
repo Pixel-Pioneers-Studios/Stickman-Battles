@@ -3,7 +3,17 @@
 // Depends on: smb-globals.js, smb-data-arenas.js, smb-menu-config.js
 // Must load AFTER smb-menu-config.js, BEFORE smb-menu-startcore.js
 
-function startGame() {
+function startGame(_skipVote) {
+  // Arena vote: show 2P pick screen before loading, then re-enter with _skipVote=true
+  if (!_skipVote && gameMode === '2p' && !p2IsBot && !p2IsNone && !onlineMode && !storyModeActive
+      && typeof _showArenaVoteScreen === 'function') {
+    _showArenaVoteScreen(function(arenaKey) {
+      if (typeof selectArena === 'function') selectArena(arenaKey);
+      startGame(true);
+    });
+    return;
+  }
+  if (typeof _resetSdFloor === 'function') _resetSdFloor();
   // Story mode: reset per-fight event state when launching from story
   if (storyModeActive && typeof _onStoryFightStart === 'function') _onStoryFightStart();
   const fadeOv = document.getElementById('fadeOverlay');
