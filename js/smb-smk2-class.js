@@ -7,6 +7,9 @@ class SovereignMK2 extends AdaptiveAI {
     super(x, y, color, weaponKey);
 
     this.name           = 'SOVEREIGN Ω';
+
+    // Override AdaptiveAI defaults — Sovereign starts near-peak, not at warmup level
+    this.aiMemory = { aggression: 0.90, defense: 0.88, spacing: 0.12, reactionSpeed: 0.95 };
     this.isSovereignMK2 = true;
     // Don't affect story mode — story uses AdaptiveAI directly
 
@@ -117,9 +120,9 @@ class SovereignMK2 extends AdaptiveAI {
     this._forceModeCloseFrames  = 0;  // frames spent within close range during force mode
     // Thresholds (tunable without touching speed/cooldowns):
     this._FORCE_DIST_THRESHOLD  = 200; // px — "player is staying far"
-    this._FORCE_DIST_FRAMES     = 150; // ~2.5 sec continuously far (was 240 — too forgiving)
-    this._FORCE_IDLE_FRAMES     = 150; // ~2.5 sec since player last attacked (was 300)
-    this._FORCE_CLOSE_NEEDED    = 45;  // frames close (<140px) needed to exit force mode (was 60)
+    this._FORCE_DIST_FRAMES     = 70;  // ~1.2 sec continuously far
+    this._FORCE_IDLE_FRAMES     = 70;  // ~1.2 sec since player last attacked
+    this._FORCE_CLOSE_NEEDED    = 30;  // frames close (<140px) needed to exit force mode
 
     // ── Platform Intelligence ──────────────────────────────────────
     // Tracks which arena platforms the player lands on most frequently.
@@ -1425,7 +1428,7 @@ class SovereignMK2 extends AdaptiveAI {
     }
 
     // ── COUNTER-ATTACK: dodge or shield on player attack ─────
-    if (playerAttacking && d < 160) {
+    if (playerAttacking && d < 210) {
       const canShield = this.shieldCooldown === 0;
       const cornered  = (nearLeft && dir < 0) || (nearRight && dir > 0);
       // Shield preferred when cornered (no clean dodge direction), under heavy pressure,
@@ -1443,7 +1446,13 @@ class SovereignMK2 extends AdaptiveAI {
         return;
       }
 
-      if (effDef > 0.45) {
+      // At high intelligence, dodge is near-certain — not a coin flip.
+      // Below 0.72 intelligence it stays probabilistic so early-game has counterplay.
+      const dodgeThresh = this.intelligence > 0.72
+        ? Math.min(0.97, effDef * Math.min(1.45, _bmBias.dodgeBoost))
+        : effDef * 0.88 * Math.min(1.45, _bmBias.dodgeBoost);
+
+      if (Math.random() < dodgeThresh) {
         const dDir = (nearLeft && dir < 0) ? 1 : (nearRight && dir > 0) ? -1 : -dir;
         if (this.onGround && !this.isEdgeDanger(dDir)) {
           this.vx = dDir * moveSpd * 2.2;
@@ -1564,6 +1573,25 @@ class SovereignMK2 extends AdaptiveAI {
     // ── PLATFORM CONTROL: contest player's favourite platform ─
     if (!finishMode && this._runPlatformControl(t, dir, d, moveSpd)) {
       this.aiReact = Math.max(1, reactFrames);
+      return;
+    }
+
+    // ── MID-APPROACH EVASION ──────────────────────────────────
+    // Player attacks while Sovereign is outside attack range — without this check
+    // the movement code runs and Sovereign walks straight into the hit.
+    if (playerAttacking && d > atkRange && d < 240) {
+      const dDir = (nearLeft && dir < 0) ? 1 : (nearRight && dir > 0) ? -1 : -dir;
+      if (this.onGround && !this.isEdgeDanger(dDir)) {
+        this.vx = dDir * moveSpd * 2.2;
+      } else if (this.onGround) {
+        this.vy = _jumpVy; this.vx = dir * moveSpd * 0.7;
+      } else if (this.canDoubleJump) {
+        this.vy = -15; this.canDoubleJump = false;
+      }
+      this._recordEvent('dodge', 5);
+      this._punishTimer = lb ? 2 : 3;
+      this.aiReact = 0;
+      this._updateFearFactor(d, recentLanded, false);
       return;
     }
 

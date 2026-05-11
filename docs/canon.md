@@ -36,6 +36,11 @@
 5. High-tier enemies
 6. Standard enemies
 
+Absolute Axiom:
+- The merger of God's physical body and Axiom's core
+- A fusion entity — combines God's vessel with Axiom's raw power/consciousness
+- Distinct from both God and Axiom individually
+
 Fallen God:
 - Exists OUTSIDE this hierarchy
 - Acts as observer/tester, not a power escalation
