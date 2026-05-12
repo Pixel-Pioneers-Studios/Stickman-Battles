@@ -873,6 +873,10 @@ const SovereignAdaptiveMemory = (() => {
     };
   }
 
+  function _emptySourceCounts() {
+    return { human: 0, self_play: 0, replay: 0 };
+  }
+
   function _normalizeKey(value, fallback) {
     const key = String(value || fallback || 'unknown').trim().toLowerCase();
     return key || String(fallback || 'unknown');
@@ -910,6 +914,7 @@ const SovereignAdaptiveMemory = (() => {
         meleePressure: 0,
         passive: 0,
       },
+      currentSourceCounts: _emptySourceCounts(),
       globalSummary: null,
       globalLoaded: false,
       globalLoading: false,
@@ -944,6 +949,25 @@ const SovereignAdaptiveMemory = (() => {
     return out;
   }
 
+  function _mergeSourceCounts(target, source) {
+    const out = target || _emptySourceCounts();
+    if (!source) return out;
+    for (const [key, value] of Object.entries(source)) {
+      out[key] = (Number(out[key]) || 0) + (Number(value) || 0);
+    }
+    return out;
+  }
+
+  function _effectiveSampleCount(summary) {
+    if (!summary) return 0;
+    const counts = summary.source_counts || summary.sourceCounts || null;
+    const human = Number(counts && counts.human) || 0;
+    const selfPlay = Number(counts && counts.self_play) || 0;
+    const replay = Number(counts && counts.replay) || 0;
+    const raw = Number(summary.sample_count) || 0;
+    return Math.max(0, raw + human * 0.3 + replay * 0.15 - selfPlay * 0.05);
+  }
+
   function _bucketKey(type, value) {
     return `${type}:${String(value || 'unknown').trim().toLowerCase()}`;
   }
@@ -960,6 +984,7 @@ const SovereignAdaptiveMemory = (() => {
       context_counts: _safeJsonClone(session.currentContextCounts) || _emptyContextCounts(),
       punish_stats: _safeJsonClone(session.currentPunishStats) || _emptyPunishStats(),
       tendency_stats: _safeJsonClone(session.currentTendencies) || {},
+      source_counts: _safeJsonClone(session.currentSourceCounts) || _emptySourceCounts(),
       last_summary: summary || {},
       updated_at: new Date().toISOString(),
     };
@@ -976,6 +1001,7 @@ const SovereignAdaptiveMemory = (() => {
     out.context_counts = _mergeCounts(out.context_counts || _emptyContextCounts(), incoming.context_counts);
     out.punish_stats = _mergePunishStats(out.punish_stats || _emptyPunishStats(), incoming.punish_stats);
     out.tendency_stats = _mergeCounts(out.tendency_stats || {}, incoming.tendency_stats);
+    out.source_counts = _mergeSourceCounts(out.source_counts || _emptySourceCounts(), incoming.source_counts);
     out.last_summary = incoming.last_summary || out.last_summary || {};
     out.bucket_key = incoming.bucket_key || out.bucket_key;
     out.bucket_type = incoming.bucket_type || out.bucket_type;
@@ -993,6 +1019,7 @@ const SovereignAdaptiveMemory = (() => {
       context_counts: _emptyContextCounts(),
       punish_stats: _emptyPunishStats(),
       tendency_stats: {},
+      source_counts: _emptySourceCounts(),
       row_count: 0,
     };
     for (const row of rows || []) {
@@ -1005,6 +1032,7 @@ const SovereignAdaptiveMemory = (() => {
       summary.context_counts = _mergeCounts(summary.context_counts, row.context_counts);
       summary.punish_stats = _mergePunishStats(summary.punish_stats, row.punish_stats);
       summary.tendency_stats = _mergeCounts(summary.tendency_stats, row.tendency_stats);
+      summary.source_counts = _mergeSourceCounts(summary.source_counts, row.source_counts);
     }
     return summary;
   }
@@ -1012,12 +1040,12 @@ const SovereignAdaptiveMemory = (() => {
   function _deriveState(session) {
     const localObs = Math.max(1, session.observed);
     const globalSummary = session.globalSummary || null;
-    const globalObs = globalSummary ? Number(globalSummary.sample_count || 0) : 0;
+    const globalObs = globalSummary ? _effectiveSampleCount(globalSummary) : 0;
 
-    const localWeight = _clamp((localObs - 10) / 30, 0, 1);
-    const globalWeight = _clamp(globalObs / 24, 0, 1);
-    const blendLocal = localWeight;
-    const blendGlobal = globalWeight * (1 - 0.45 * blendLocal);
+    const localWeight = _clamp((localObs - 4) / 18, 0, 1);
+    const globalWeight = _clamp(globalObs / 14, 0, 1);
+    const blendLocal = 0.25 + localWeight * 0.75;
+    const blendGlobal = (0.15 + globalWeight * 0.85) * (1 - 0.35 * blendLocal);
 
     const localAction = session.currentActionCounts;
     const localContext = session.currentContextCounts;
@@ -1073,56 +1101,56 @@ const SovereignAdaptiveMemory = (() => {
     );
 
     const aggressionBias = _clamp(
-      (globalAttack * 0.12 * blendGlobal) +
-      (localAttack * 0.18 * blendLocal) +
-      (meleeThreat ? 0.03 : 0) +
-      (localPassive > 0.28 ? -0.02 : 0),
+      (globalAttack * 0.18 * blendGlobal) +
+      (localAttack * 0.28 * blendLocal) +
+      (meleeThreat ? 0.05 : 0) +
+      (localPassive > 0.28 ? -0.03 : 0),
       -0.08,
-      0.18
+      0.28
     );
     const defenseBias = _clamp(
-      (globalShield * 0.10 * blendGlobal) +
-      (localShield * 0.16 * blendLocal) +
-      (localJump * 0.05 * blendLocal) +
-      (meleeThreat ? 0.03 : 0),
+      (globalShield * 0.16 * blendGlobal) +
+      (localShield * 0.24 * blendLocal) +
+      (localJump * 0.08 * blendLocal) +
+      (meleeThreat ? 0.05 : 0),
       0,
-      0.20
+      0.32
     );
     const spacingShift = _clamp(
-      (localAttack > 0.28 ? -0.03 : 0) +
-      (localShield > 0.18 ? -0.02 : 0) +
-      (localEdge > 0.18 ? -0.03 : 0) +
-      (globalAttack > 0.24 ? -0.02 : 0),
-      -0.10,
-      0.06
+      (localAttack > 0.28 ? -0.05 : 0) +
+      (localShield > 0.18 ? -0.04 : 0) +
+      (localEdge > 0.18 ? -0.05 : 0) +
+      (globalAttack > 0.24 ? -0.03 : 0),
+      -0.16,
+      0.04
     );
     const reactionBoost = _clamp(
-      (globalJump * 0.06 * blendGlobal) +
-      (localJump * 0.10 * blendLocal) +
-      (localEdge > 0.18 ? 0.03 : 0),
+      (globalJump * 0.08 * blendGlobal) +
+      (localJump * 0.14 * blendLocal) +
+      (localEdge > 0.18 ? 0.05 : 0),
       0,
-      0.18
+      0.28
     );
     const dodgeBias = _clamp(
-      1 + (localJump * 0.6 * blendLocal) + (globalJump * 0.25 * blendGlobal),
+      1 + (localJump * 0.85 * blendLocal) + (globalJump * 0.35 * blendGlobal),
       1,
-      1.55
+      1.9
     );
     const baitBias = _clamp(
-      1 + (localPassive * 0.5 * blendLocal) + (globalAttack < 0.22 ? 0.14 : 0) - (localAttack * 0.25 * blendLocal),
-      0.75,
-      1.55
+      1 + (localPassive * 0.75 * blendLocal) + (globalAttack < 0.22 ? 0.18 : 0) - (localAttack * 0.40 * blendLocal),
+      0.62,
+      1.85
     );
     const shieldBias = _clamp(
-      (localShield * 0.7 * blendLocal) + (globalShield * 0.35 * blendGlobal) + (meleeThreat ? 0.08 : 0),
+      (localShield * 1.0 * blendLocal) + (globalShield * 0.50 * blendGlobal) + (meleeThreat ? 0.14 : 0),
       0,
-      0.45
+      0.60
     );
 
     const routeBias = {
-      direct:  _clamp((localRouteBias.direct * blendLocal) + (globalRouteBias.direct * blendGlobal) + (meleeThreat ? 0.08 : 0), 0.35, 1.75),
-      crossup: _clamp((localRouteBias.crossup * blendLocal) + (globalRouteBias.crossup * blendGlobal) + (localJump * 0.25), 0.35, 1.75),
-      delayed: _clamp((localRouteBias.delayed * blendLocal) + (globalRouteBias.delayed * blendGlobal) + (localShield * 0.22), 0.35, 1.75),
+      direct:  _clamp((localRouteBias.direct * blendLocal) + (globalRouteBias.direct * blendGlobal) + (meleeThreat ? 0.12 : 0), 0.28, 2.0),
+      crossup: _clamp((localRouteBias.crossup * blendLocal) + (globalRouteBias.crossup * blendGlobal) + (localJump * 0.35), 0.28, 2.0),
+      delayed: _clamp((localRouteBias.delayed * blendLocal) + (globalRouteBias.delayed * blendGlobal) + (localShield * 0.30), 0.28, 2.0),
     };
 
     return {
@@ -1148,6 +1176,7 @@ const SovereignAdaptiveMemory = (() => {
         localActionCounts: _safeJsonClone(localAction) || _emptyActionCounts(),
         localContextCounts: _safeJsonClone(localContext) || _emptyContextCounts(),
         localPunishStats: _safeJsonClone(localPunish) || _emptyPunishStats(),
+        localSourceCounts: _safeJsonClone(session.currentSourceCounts) || _emptySourceCounts(),
         globalSummary: _safeJsonClone(globalSummary) || null,
       },
     };
@@ -1240,6 +1269,75 @@ const SovereignAdaptiveMemory = (() => {
     return _deriveState(session);
   }
 
+  function _buildCommitRows(session, outcome, summary) {
+    return [
+      _rowFromSession(session, 'weapon', session.weaponKey, outcome, summary),
+      _rowFromSession(session, 'class', session.classKey, outcome, summary),
+      _rowFromSession(session, 'loadout', session.loadoutKey, outcome, summary),
+    ];
+  }
+
+  function _buildSelfPlayRows(session, outcome, summary) {
+    const rows = _buildCommitRows(session, outcome, summary).map(function(row) {
+      const out = _safeJsonClone(row) || row;
+      const punish = out.punish_stats || _emptyPunishStats();
+      const routes = _routeNames.map(function(route) {
+        const stats = punish[route] || { hits: 0, escapes: 0 };
+        const total = (Number(stats.hits) || 0) + (Number(stats.escapes) || 0);
+        const rate = total > 0 ? (Number(stats.hits) || 0) / total : 0.5;
+        return { route, stats, rate };
+      }).sort(function(a, b) {
+        return a.rate - b.rate;
+      });
+
+      const weak = routes[0] || { route: 'direct', stats: { hits: 0, escapes: 0 } };
+      punish[weak.route] = punish[weak.route] || { hits: 0, escapes: 0 };
+      punish[weak.route].escapes = (Number(punish[weak.route].escapes) || 0) + 2;
+
+      if ((session.currentTendencies.edgeCamp || 0) > 1 || (session.currentActionCounts.edge || 0) > 1) {
+        out.context_counts.edge = (Number(out.context_counts.edge) || 0) + 2;
+        out.tendency_stats.edgeCamp = (Number(out.tendency_stats.edgeCamp) || 0) + 2;
+      }
+      if ((session.currentActionCounts.jump || 0) > 1) {
+        out.action_counts.jump = (Number(out.action_counts.jump) || 0) + 1;
+        out.context_counts.airborne = (Number(out.context_counts.airborne) || 0) + 1;
+        out.tendency_stats.jump = (Number(out.tendency_stats.jump) || 0) + 1;
+      }
+      if ((session.currentActionCounts.melee || 0) > 0 || (out.last_summary && out.last_summary.meleeThreat)) {
+        out.tendency_stats.meleePressure = (Number(out.tendency_stats.meleePressure) || 0) + 1;
+      }
+      out.action_counts.idle = (Number(out.action_counts.idle) || 0) + 1;
+      out.source_counts = _mergeSourceCounts(out.source_counts || _emptySourceCounts(), { self_play: 1 });
+      out.last_summary = Object.assign({}, out.last_summary || {}, {
+        source: 'self_play',
+        training: true,
+        weakRoute: weak.route,
+        replayMeta: null,
+      });
+      return out;
+    });
+    return rows;
+  }
+
+  async function _postSovereignMemoryCommit(payload) {
+    const token = _session && _session.access_token ? _session.access_token : '';
+    const headers = { 'Content-Type': 'application/json' };
+    if (token) headers.Authorization = `Bearer ${token}`;
+    const resp = await fetch('/api/sovereign/memory/commit', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(payload),
+    });
+    const data = await resp.json().catch(function() { return null; });
+    if (!resp.ok) {
+      const err = new Error((data && data.error) ? data.error : `Sovereign memory commit failed (${resp.status})`);
+      err.status = resp.status;
+      err.data = data;
+      throw err;
+    }
+    return data || { ok: true };
+  }
+
   async function observe(ai, payload) {
     const target = payload && payload.target ? payload.target : (ai && ai.target) || null;
     if (!target) return null;
@@ -1264,9 +1362,6 @@ const SovereignAdaptiveMemory = (() => {
 
   async function commit(ai, payload) {
     try {
-      if (!window.SupabaseBridge || typeof SupabaseBridge.isAvailable !== 'function' || !SupabaseBridge.isAvailable()) {
-        return { skipped: true, reason: 'unavailable' };
-      }
       const target = payload && payload.target ? payload.target : (ai && ai.target) || null;
       if (!target) return { skipped: true, reason: 'no-target' };
 
@@ -1287,38 +1382,37 @@ const SovereignAdaptiveMemory = (() => {
         durationSec: outcome.durationSec,
         replayMeta: payload && payload.replay && payload.replay.meta ? _safeJsonClone(payload.replay.meta) : null,
         winner: payload && payload.winner ? String(payload.winner.name || 'unknown') : null,
+        source: payload && payload.source ? String(payload.source) : 'human',
       };
 
-      const baseRows = [
-        _rowFromSession(session, 'weapon', session.weaponKey, outcome, summary),
-        _rowFromSession(session, 'class', session.classKey, outcome, summary),
-        _rowFromSession(session, 'loadout', session.loadoutKey, outcome, summary),
-      ];
-      const client = await SupabaseBridge.getClient();
-      const keys = baseRows.map(function(row) { return row.bucket_key; });
-      let existing = [];
-      try {
-        const res = await client.from(_table).select('*').in('bucket_key', keys);
-        if (res.error) throw res.error;
-        existing = res.data || [];
-      } catch (e) {
-        existing = [];
-      }
-
-      const existingMap = new Map(existing.map(function(row) { return [row.bucket_key, row]; }));
-      const mergedRows = baseRows.map(function(row) {
-        return _mergeRows(existingMap.get(row.bucket_key), row);
+      const humanRows = _buildCommitRows(session, outcome, summary);
+      humanRows.forEach(function(row) {
+        row.source_counts = _mergeSourceCounts(row.source_counts || _emptySourceCounts(), {
+          human: 1,
+          replay: payload && payload.replay ? 1 : 0,
+        });
+        row.last_summary = Object.assign({}, row.last_summary || {}, summary);
       });
 
-      const upsert = await client.from(_table).upsert(mergedRows, { onConflict: 'bucket_key' });
-      if (upsert.error) throw upsert.error;
+      const shouldTrain = payload && payload.autoTrain !== false;
+      const trainingRows = shouldTrain ? _buildSelfPlayRows(session, outcome, summary) : [];
+      const commitRows = humanRows.concat(trainingRows);
 
-      const mergedSummary = _mergeSummaries(mergedRows);
-      session.globalSummary = mergedSummary;
+      const remote = await _postSovereignMemoryCommit({
+        rows: commitRows,
+        source: summary.source,
+        target: parts,
+        summary,
+      });
+
+      session.currentSourceCounts.human += 1;
+      if (payload && payload.replay) session.currentSourceCounts.replay += 1;
+      if (trainingRows.length) session.currentSourceCounts.self_play += trainingRows.length;
+      session.globalSummary = _mergeSummaries(commitRows);
       session.globalLoaded = true;
       session.globalLoadError = null;
       _sessions.delete(session.key);
-      return { ok: true, rows: mergedRows.length, bucketKey: session.key };
+      return { ok: true, rows: commitRows.length, bucketKey: session.key, remote };
     } catch (e) {
       return { skipped: true, reason: e && e.message ? e.message : 'commit_failed' };
     }

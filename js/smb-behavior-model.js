@@ -379,10 +379,18 @@ class BehaviorModel {
     if (routeMemory.direct)  routeFit.direct  *= routeMemory.direct;
     if (routeMemory.crossup) routeFit.crossup *= routeMemory.crossup;
     if (routeMemory.delayed)  routeFit.delayed *= routeMemory.delayed;
+    for (const r of routes) {
+      const e = this._ledger[r];
+      const attempts = e.hits + e.escapes;
+      const escapeRate = attempts > 0 ? e.escapes / attempts : 0;
+      if (e.escapes > e.hits) routeFit[r] *= 0.78;
+      if (e.escapes >= e.hits + 2) routeFit[r] *= 0.66;
+      if (escapeRate > 0.55) routeFit[r] *= 0.86;
+    }
 
     // Forced rotation: avoids the AI becoming exploitable on a single route
-    if (this._punishCount >= this._rotateAt && Math.random() < 0.40) {
-      this._rotateAt = this._punishCount + 4 + Math.floor(Math.random() * 4); // next rotation in 4-7 punishes
+    if (this._punishCount >= this._rotateAt && Math.random() < 0.58) {
+      this._rotateAt = this._punishCount + 2 + Math.floor(Math.random() * 3); // next rotation in 2-4 punishes
       const avail = routes.filter(r =>
         this._ledger[r].cooldown === 0 && r !== this._lastRoute
       );
@@ -399,8 +407,10 @@ class BehaviorModel {
       const e = this._ledger[r];
       if (e.cooldown > 0) continue;
       const history = (e.hits + 0.5) / (e.hits + e.escapes + 1);
-      const rotationPenalty = r === this._lastRoute ? 0.12 : 0;
-      const score = history * 0.72 + routeFit[r] * 0.58 - rotationPenalty + (profile.styleConf - 0.5) * 0.06;
+      const failureRate = (e.escapes + 1) / (e.hits + e.escapes + 2);
+      const rotationPenalty = r === this._lastRoute ? 0.22 : 0;
+      const escapePenalty = Math.min(0.38, failureRate * 0.30 + (e.escapes > e.hits ? 0.10 : 0));
+      const score = history * 0.60 + routeFit[r] * 0.72 - rotationPenalty - escapePenalty + (profile.styleConf - 0.5) * 0.05;
       if (score > bestScore) { bestScore = score; best = r; }
     }
 
@@ -419,12 +429,12 @@ class BehaviorModel {
       e.hits++;
     } else {
       e.escapes++;
-      let baseCd = route === 'crossup' ? 74 : route === 'delayed' ? 88 : 60;
+      let baseCd = route === 'crossup' ? 90 : route === 'delayed' ? 104 : 74;
       if (hint.cornered) baseCd += 12;
       if (hint.playerShielding) baseCd += 10;
       if (hint.playerAttacking) baseCd -= 6;
       if (hint.distance > 180) baseCd += 8;
-      e.cooldown = Math.max(45, baseCd + Math.floor(Math.random() * 41));
+      e.cooldown = Math.max(60, baseCd + Math.floor(Math.random() * 45) + e.escapes * 5 + Math.max(0, e.escapes - e.hits) * 8);
     }
   }
 

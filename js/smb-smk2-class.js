@@ -494,16 +494,27 @@ class SovereignMK2 extends AdaptiveAI {
   _updatePressureState(t, d) {
     if (this._pressureHoldTimer > 0) this._pressureHoldTimer--;
     if (this._studyBurstTimer > 0) this._studyBurstTimer--;
-    const suffocateNow = this._limiterBroken || this._punishModeActive || this._intimidation > 0.70 || this._pressureHoldTimer > 0;
+    const memory = this._adaptiveMemoryState || null;
+    const memoryHot = !!(memory && (
+      memory.meleeThreat ||
+      memory.openingStyle === 'defensive' ||
+      memory.openingStyle === 'edge' ||
+      memory.openingStyle === 'aggressive'
+    ));
+    const memoryAggressive = !!(memory && (
+      (memory.localWeight || 0) > 0.18 ||
+      (memory.globalWeight || 0) > 0.28
+    ));
+    const suffocateNow = this._limiterBroken || this._punishModeActive || this._intimidation > 0.58 || this._pressureHoldTimer > 0 || memoryHot || memoryAggressive;
     if (suffocateNow) {
       this._pressureMode = 'suffocate';
-      if (d < 150) this._pressureHoldTimer = Math.max(this._pressureHoldTimer, 22);
+      if (d < 170) this._pressureHoldTimer = Math.max(this._pressureHoldTimer, memoryHot ? 34 : 24);
       return;
     }
-    const studying = this._predictConf >= 0.42 && this._intimidation < 0.62 && d > 95;
+    const studying = this._predictConf >= 0.34 && this._intimidation < 0.52 && d > 78 && !memoryHot;
     this._pressureMode = studying ? 'study' : 'suffocate';
-    if (studying && this._studyBurstTimer <= 0 && this._predictedNext && this._predictConf >= 0.55) {
-      this._studyBurstTimer = 36;
+    if (studying && this._studyBurstTimer <= 0 && this._predictedNext && this._predictConf >= 0.47) {
+      this._studyBurstTimer = 20;
     }
   }
 
@@ -1101,9 +1112,9 @@ class SovereignMK2 extends AdaptiveAI {
     const offLeft  = this.x < -18;
     const offRight = this.x + this.w > GAME_W + 18;
     const offBottom = this.y > GAME_H + 28;
-    const nearLedge = this.x < 72 || this.x + this.w > GAME_W - 72 || this.y > GAME_H - 150;
+    const nearLedge = this.x < 90 || this.x + this.w > GAME_W - 90 || this.y > GAME_H - 180;
     const heavyThreat = !!(t && t.weapon && (t.weapon.kb >= 18 || t.weapon.weaponType === 'heavy'));
-    const inVoidRisk = offLeft || offRight || offBottom || (nearLedge && (this.vy > 2 || this._countRecent('dmg_taken', 45) >= 1));
+    const inVoidRisk = offLeft || offRight || offBottom || (nearLedge && (this.vy > -1 || Math.abs(this.vx) > 4.4 || this._countRecent('dmg_taken', 45) >= 1));
 
     if (!inVoidRisk) {
       if (heavyThreat) this._heavyThreatCd = Math.max(0, this._heavyThreatCd - 1);
@@ -1114,7 +1125,10 @@ class SovereignMK2 extends AdaptiveAI {
     this._cornerMode = false;
     this._punishModeActive = false;
     this._forceModeActive = false;
+    this._studyBurstTimer = 0;
+    this._counterLockTimer = 0;
     this._baitTimer = 0;
+    this._baitCooldown = Math.max(this._baitCooldown || 0, 18);
     this._humanFakeoutTimer = 0;
     this.shielding = false;
 
@@ -1123,11 +1137,11 @@ class SovereignMK2 extends AdaptiveAI {
     const escapeDir = offLeft ? 1 : offRight ? -1 : centerDir;
 
     if (this.onGround || this.canDoubleJump || this.vy > 0 || offBottom) {
-      this.vx = escapeDir * moveSpd * (heavyThreat ? 1.08 : 0.96);
+      this.vx = escapeDir * moveSpd * (heavyThreat ? 1.02 : 0.90);
       this.vy = this.onGround ? jumpVy : (offBottom ? -16 : -14);
       if (this.canDoubleJump && !this.onGround) this.canDoubleJump = false;
       if (this._voidRecoverCd <= 0) {
-        this._voidRecoverCd = heavyThreat ? 22 : 16;
+        this._voidRecoverCd = heavyThreat ? 16 : 12;
         if (typeof showBossDialogue === 'function' && Math.random() < 0.15) {
           showBossDialogue('Not yet.', 70);
         }
@@ -1136,8 +1150,8 @@ class SovereignMK2 extends AdaptiveAI {
     }
 
     if (this._voidRecoverCd <= 0) {
-      this._voidRecoverCd = heavyThreat ? 18 : 12;
-      this.vx = retreatDir * moveSpd * (heavyThreat ? 1.0 : 0.88);
+      this._voidRecoverCd = heavyThreat ? 14 : 10;
+      this.vx = retreatDir * moveSpd * (heavyThreat ? 0.96 : 0.84);
       this.vy = -12;
     } else {
       this.vx = escapeDir * moveSpd * 0.85;
@@ -1387,8 +1401,12 @@ class SovereignMK2 extends AdaptiveAI {
     const memoryDodge = _memoryState ? (_memoryState.dodgeBias || 1) : 1;
     const memoryBait  = _memoryState ? (_memoryState.baitBias || 1) : 1;
     const memoryShield = _memoryState ? (_memoryState.shieldBias || 0) : 0;
-    const effAgg = Math.min(1, m.aggression + microAgg + memoryAgg);
-    const effDef = Math.min(1, m.defense    + microDef + memoryDef);
+    const memoryLocalWeight = _memoryState ? (_memoryState.localWeight || 0) : 0;
+    const memoryGlobalWeight = _memoryState ? (_memoryState.globalWeight || 0) : 0;
+    const memoryOpening = _memoryState ? (_memoryState.openingStyle || 'balanced') : 'balanced';
+    const memoryPressure = _memoryState ? (0.10 + memoryLocalWeight * 0.30 + memoryGlobalWeight * 0.18) : 0;
+    const effAgg = Math.min(1, m.aggression + microAgg + memoryAgg + memoryPressure * 0.55);
+    const effDef = Math.min(1, m.defense    + microDef + memoryDef + memoryPressure * 0.65);
 
     // State-based aggression: pull back when low HP, surge when player is vulnerable.
     const hpPct      = this.health / Math.max(1, this.maxHealth);
@@ -1397,10 +1415,17 @@ class SovereignMK2 extends AdaptiveAI {
     const finishPush = tHpPct < 0.25;  // surge when player is near death
     const GAROU_FLOOR = lowHPMode ? 0.42 : 0.70; // reduced floor when defensive
     const evoAgg      = this._evolutionStage * 0.05 + this._intimidation * 0.06;
+    const memoryPressureShift = _memoryState
+      ? ((memoryOpening === 'defensive' ? 0.08 : 0) +
+         (memoryOpening === 'edge' ? 0.10 : 0) +
+         (memoryOpening === 'aggressive' ? 0.06 : 0) +
+         (memoryLocalWeight > 0.24 ? 0.05 : 0) +
+         (memoryGlobalWeight > 0.30 ? 0.03 : 0))
+      : 0;
     const rawAgg      = Math.min(1, effAgg + evoAgg);
     const realAgg     = finishPush
-      ? Math.min(1.0, rawAgg + 0.15)   // extra aggression when player is nearly dead
-      : Math.max(GAROU_FLOOR, rawAgg);
+      ? Math.min(1.0, rawAgg + 0.15 + memoryPressureShift)   // extra aggression when player is nearly dead
+      : Math.max(GAROU_FLOOR, rawAgg + memoryPressureShift * 0.5);
 
     // ── C. Limiter Break flags ────────────────────────────────
     // lbSpd / lbAtk removed: Sovereign must not exceed player stat caps.
@@ -1437,7 +1462,12 @@ class SovereignMK2 extends AdaptiveAI {
 
     const threatSpacing = heavyThreat ? 30 : 0;
     const thorSpacing   = (t.weaponKey === 'hammer' || t.charClass === 'thor') ? 14 : 0;
-    const prefDist    = Math.max(12, 20 + m.spacing * 60 - this._intimidation * 22 - this._evolutionStage * 5 + threatSpacing + thorSpacing + memorySpacing * 70);
+    const openerAggroBias = _memoryState ? (
+      memoryOpening === 'aggressive' ? -18 :
+      memoryOpening === 'edge' ? -22 :
+      memoryOpening === 'defensive' ? -14 : 0
+    ) : 0;
+    const prefDist    = Math.max(10, 20 + m.spacing * 60 - this._intimidation * 22 - this._evolutionStage * 5 + threatSpacing + thorSpacing + memorySpacing * 80 + openerAggroBias);
     const moveSpd     = Math.min(6.5, 4.5 + realAgg * 1.5 + memoryReact * 0.25);  // faster than player base (6.5 vs 5.2)
     const atkFreq     = 1.0; // god-tier: always at max attack frequency
     // God-tier: zero reaction delay. Limiter stagger briefly delays to give player a punish window.
@@ -1452,7 +1482,14 @@ class SovereignMK2 extends AdaptiveAI {
     this._updateIntimidation(t, d);
     this._updatePressureState(t, d);
     this._updateCornerPressure(t, d);  // edge herding pressure accumulator
-    if (heavyThreat) this._pressureMode = 'suffocate';
+    const memoryForceSuffocate = !!(_memoryState && (
+      memoryOpening === 'defensive' ||
+      memoryOpening === 'edge' ||
+      _memoryState.meleeThreat ||
+      memoryLocalWeight > 0.28 ||
+      memoryGlobalWeight > 0.38
+    ));
+    if (heavyThreat || memoryForceSuffocate) this._pressureMode = 'suffocate';
 
     // ── Humanization fakeout movement ─────────────────────────
     this._updateHumanization(dir, moveSpd);
@@ -1821,7 +1858,11 @@ class SovereignMK2 extends AdaptiveAI {
 
     // ── MOVEMENT — continuous, no idle gaps ───────────────────
     if (this._pressureMode === 'study' && !finishMode) {
-      const studyDist = Math.max(prefDist + 16, weaponRange * 0.95);
+      const studyGate = Math.max(0.30, 0.42 - memoryLocalWeight * 0.10 - (memoryForceSuffocate ? 0.06 : 0));
+      const studyDist = Math.max(prefDist + 16 - memoryLocalWeight * 18, weaponRange * 0.95);
+      if (_memoryState && this._predictConf >= studyGate && this._intimidation < 0.60 - memoryLocalWeight * 0.04 && d > studyDist - 16) {
+        this._pressureMode = 'suffocate';
+      }
       if (d > studyDist + 26) {
         const _passiveMult = recentPAtks === 0 ? 1.10 : 0.82;
         if (!this.isEdgeDanger(dir)) this.vx = dir * moveSpd * _passiveMult;

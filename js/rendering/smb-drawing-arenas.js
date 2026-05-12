@@ -1430,9 +1430,12 @@ function endGame() {
       sovereignWon: !!(winner && winner.isSovereignMK2),
       mode: gameMode,
       arenaKey: currentArenaKey,
-      durationSec: _matchSecs,
-      replay: _sovReplay,
-    });
+        durationSec: _matchSecs,
+        replay: _sovReplay,
+      });
+    if (typeof SovereignAdaptiveMemory.resetSession === 'function') {
+      SovereignAdaptiveMemory.resetSession(_sovOpponent || (winner && !winner.isSovereignMK2 ? winner : null));
+    }
   }
   document.getElementById('gameOverOverlay').style.display = 'flex';
   if (typeof ReplaySystem !== 'undefined') ReplaySystem.refreshReplayPanel();

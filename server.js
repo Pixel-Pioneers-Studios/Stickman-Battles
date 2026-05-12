@@ -28,6 +28,7 @@
 //   DELETE /api/bans/:key      [admin]       — remove a ban by key
 //   DELETE /api/bans           [admin]       — bulk remove by identity (body)
 //   POST   /api/rewards/claim  [user]        — claim match/story rewards
+//   POST   /api/sovereign/memory/commit [user] — persist Sovereign MK2 matchup priors
 //   GET    /api/live-config                  — live ops configuration (public)
 //   POST   /api/live-config    [admin]       — update live ops config
 //   GET    /api/admin/overrides [admin]      — list server-side admin grants/revokes
@@ -426,6 +427,126 @@ async function _supabaseDelete(table, query, opts) {
     throw err;
   }
   return data;
+}
+
+function _emptySovereignActionCounts() {
+  return {
+    attack: 0,
+    shield: 0,
+    jump: 0,
+    dodge: 0,
+    idle: 0,
+    edge: 0,
+    melee: 0,
+    ranged: 0,
+  };
+}
+
+function _emptySovereignContextCounts() {
+  return { grounded: 0, airborne: 0, edge: 0 };
+}
+
+function _emptySovereignPunishStats() {
+  return {
+    direct:  { hits: 0, escapes: 0 },
+    crossup: { hits: 0, escapes: 0 },
+    delayed: { hits: 0, escapes: 0 },
+  };
+}
+
+function _emptySovereignSourceCounts() {
+  return { human: 0, self_play: 0, replay: 0 };
+}
+
+function _mergeSovereignCounts(target, source) {
+  const out = target || {};
+  if (!source) return out;
+  for (const [key, value] of Object.entries(source)) {
+    out[key] = (Number(out[key]) || 0) + (Number(value) || 0);
+  }
+  return out;
+}
+
+function _mergeSovereignPunishStats(target, source) {
+  const out = target || _emptySovereignPunishStats();
+  if (!source) return out;
+  for (const route of ['direct', 'crossup', 'delayed']) {
+    const row = out[route] || { hits: 0, escapes: 0 };
+    const add = source[route] || {};
+    row.hits = (Number(row.hits) || 0) + (Number(add.hits) || 0);
+    row.escapes = (Number(row.escapes) || 0) + (Number(add.escapes) || 0);
+    out[route] = row;
+  }
+  return out;
+}
+
+function _mergeSovereignSourceCounts(target, source) {
+  const out = target || _emptySovereignSourceCounts();
+  if (!source) return out;
+  for (const [key, value] of Object.entries(source)) {
+    out[key] = (Number(out[key]) || 0) + (Number(value) || 0);
+  }
+  return out;
+}
+
+function _cloneJson(value) {
+  try { return JSON.parse(JSON.stringify(value)); } catch (e) { return null; }
+}
+
+function _normalizeSovereignRow(row) {
+  const out = _cloneJson(row) || {};
+  out.bucket_key = String(out.bucket_key || '').trim();
+  out.bucket_type = String(out.bucket_type || '').trim();
+  out.bucket_value = String(out.bucket_value || 'unknown').trim();
+  out.sample_count = Math.max(0, Math.floor(Number(out.sample_count) || 0));
+  out.win_count = Math.max(0, Math.floor(Number(out.win_count) || 0));
+  out.loss_count = Math.max(0, Math.floor(Number(out.loss_count) || 0));
+  out.action_counts = _mergeSovereignCounts(_emptySovereignActionCounts(), out.action_counts);
+  out.context_counts = _mergeSovereignCounts(_emptySovereignContextCounts(), out.context_counts);
+  out.punish_stats = _mergeSovereignPunishStats(_emptySovereignPunishStats(), out.punish_stats);
+  out.tendency_stats = _mergeSovereignCounts({}, out.tendency_stats);
+  out.source_counts = _mergeSovereignSourceCounts(_emptySovereignSourceCounts(), out.source_counts);
+  out.last_summary = _cloneJson(out.last_summary) || {};
+  out.updated_at = out.updated_at || new Date().toISOString();
+  return out;
+}
+
+function _sourceKindFromRow(row, fallback) {
+  const summary = row && row.last_summary && typeof row.last_summary === 'object' ? row.last_summary : null;
+  const source = String(summary && summary.source || fallback || 'human').toLowerCase();
+  if (source === 'self_play') return 'self_play';
+  if (source === 'replay') return 'replay';
+  return 'human';
+}
+
+function _buildSovereignSourceCounts(row, fallback) {
+  const kind = _sourceKindFromRow(row, fallback);
+  const out = _emptySovereignSourceCounts();
+  out[kind] += 1;
+  const summary = row && row.last_summary && typeof row.last_summary === 'object' ? row.last_summary : null;
+  if (summary && summary.replayMeta) out.replay += 1;
+  return out;
+}
+
+function _mergeSovereignMemoryRow(existing, incoming, fallbackSource) {
+  const base = _normalizeSovereignRow(existing);
+  const add = _normalizeSovereignRow(incoming);
+  const sourceCounts = _buildSovereignSourceCounts(add, fallbackSource);
+  return {
+    bucket_key: add.bucket_key || base.bucket_key,
+    bucket_type: add.bucket_type || base.bucket_type,
+    bucket_value: add.bucket_value || base.bucket_value,
+    sample_count: (Number(base.sample_count) || 0) + (Number(add.sample_count) || 0),
+    win_count: (Number(base.win_count) || 0) + (Number(add.win_count) || 0),
+    loss_count: (Number(base.loss_count) || 0) + (Number(add.loss_count) || 0),
+    action_counts: _mergeSovereignCounts(base.action_counts, add.action_counts),
+    context_counts: _mergeSovereignCounts(base.context_counts, add.context_counts),
+    punish_stats: _mergeSovereignPunishStats(base.punish_stats, add.punish_stats),
+    tendency_stats: _mergeSovereignCounts(base.tendency_stats, add.tendency_stats),
+    source_counts: _mergeSovereignSourceCounts(base.source_counts, sourceCounts),
+    last_summary: add.last_summary || base.last_summary || {},
+    updated_at: new Date().toISOString(),
+  };
 }
 
 function _defaultRewardSave() {
@@ -948,6 +1069,81 @@ function _handleRequest(req, res) {
       // Broadcast updated config to all clients so dashboards refresh
       if (_io) _io.emit('liveConfigUpdated', merged);
       _json(res, 200, { ok: true, config: merged });
+    }).catch(err => _json(res, 500, { error: err.message }));
+    return;
+  }
+
+  // ── POST /api/sovereign/memory/commit ─────────────────────────────────────
+  // Records compact Sovereign MK2 matchup summaries using the server-side
+  // service role key. Human match data is accepted from authenticated users;
+  // self-play summaries can be batched into the same request.
+  if (pathname === '/api/sovereign/memory/commit' && req.method === 'POST') {
+    if (!_rateLimit(req, 'sovereign-memory', 30, 60 * 1000)) {
+      _json(res, 429, { error: 'Too many Sovereign memory writes' });
+      return;
+    }
+    _readBody(req).then(async body => {
+      const authHeader = String(req.headers.authorization || '').trim();
+      const bearer = authHeader.toLowerCase().startsWith('bearer ') ? authHeader.slice(7).trim() : '';
+      const accessToken = bearer || _cleanString(body && body.supabaseAccessToken, 4096);
+      if (!accessToken) {
+        _json(res, 401, { error: 'Supabase access token required' });
+        return;
+      }
+
+      let user;
+      try {
+        user = await _verifySupabaseUser(accessToken);
+      } catch (e) {
+        _json(res, 401, { error: 'Unauthorized' });
+        return;
+      }
+
+      if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
+        _json(res, 503, { error: 'Sovereign memory persistence is not configured' });
+        return;
+      }
+
+      const rows = Array.isArray(body && body.rows) ? body.rows.slice(0, 9) : [];
+      if (!rows.length) {
+        _json(res, 400, { error: 'rows required' });
+        return;
+      }
+
+      const normalizedRows = rows
+        .map(row => _normalizeSovereignRow(row))
+        .filter(row => row.bucket_key && row.bucket_type && row.bucket_value);
+      if (!normalizedRows.length) {
+        _json(res, 400, { error: 'No valid memory rows supplied' });
+        return;
+      }
+
+      const mergedRows = [];
+      for (const row of normalizedRows) {
+        const existing = await _supabaseSelect(
+          'sovereign_matchup_memory',
+          `select=*&bucket_key=eq.${encodeURIComponent(row.bucket_key)}&limit=1`,
+          { service: true }
+        ).catch(() => []);
+        const existingRow = Array.isArray(existing) && existing[0] ? existing[0] : null;
+        mergedRows.push(_mergeSovereignMemoryRow(existingRow, row, body && body.source ? body.source : 'human'));
+      }
+
+      try {
+        await _supabaseUpsert('sovereign_matchup_memory', mergedRows, 'bucket_key', { service: true });
+      } catch (e) {
+        _json(res, 500, { error: 'Failed to persist Sovereign memory' });
+        return;
+      }
+
+      _pushAdminLog('SOV_MEMORY', `Sovereign memory commit from ${user.email || user.id} (${mergedRows.length} row(s))`, {
+        userId: user.id,
+        email: user.email || null,
+        rows: mergedRows.length,
+        source: body && body.source ? String(body.source) : 'human',
+      });
+
+      _json(res, 200, { ok: true, rows: mergedRows.length });
     }).catch(err => _json(res, 500, { error: err.message }));
     return;
   }
