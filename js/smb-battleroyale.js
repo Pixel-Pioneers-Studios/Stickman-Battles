@@ -61,6 +61,7 @@ var brZoneSpeedB   = 0;
 var brZoneDmgTick  = 0;
 var brWinner       = null;
 var brLootBoxes    = [];
+var brGroundItems  = [];       // items dropped on the ground: { x, y, vy, item, life }
 var brInventory    = [null, null, null, null, null];
 var brActiveSlot   = 0;
 
@@ -149,6 +150,7 @@ function initBattleRoyale() {
   brZoneDmgTick  = 0;
   brWinner       = null;
   brLootBoxes    = [];
+  brGroundItems  = [];
   brInventory    = [null, null, null, null, null];
   brActiveSlot   = 0;
   brPlaneFlight  = true;
@@ -443,8 +445,7 @@ function _brCheckBoxBreaking() {
         if (typeof spawnParticles === 'function') spawnParticles(box.x, box.y, '#aaccff', 3);
         if (box.health <= 0) {
           box.opened = true; box.anim = 30;
-          if (!f.isAI) _brPickupHuman(box.item, f);
-          else         _brPickupBot(f, box.item);
+          _brDropGroundItem(box.item, box.x, box.y);
           if (typeof spawnParticles === 'function') spawnParticles(box.x, box.y, box.item.color, 12);
         }
         break;
@@ -458,6 +459,54 @@ function _brCheckBoxBreaking() {
 }
 
 // ============================================================
+// GROUND ITEM SYSTEM
+// ============================================================
+function _brDropGroundItem(item, x, y) {
+  brGroundItems.push({ x: x, y: y, vy: -3, item: item, life: 900 }); // ~15s at 60fps
+}
+
+function _brUpdateGroundItems() {
+  var all = players.concat(minions);
+  for (var gi = brGroundItems.length - 1; gi >= 0; gi--) {
+    var gi_item = brGroundItems[gi];
+    gi_item.life--;
+    // Simple gravity + floor check
+    gi_item.vy += 0.4;
+    gi_item.y  += gi_item.vy;
+    // Settle on nearest platform below
+    var plats = currentArena && currentArena.platforms;
+    if (plats) {
+      for (var pi = 0; pi < plats.length; pi++) {
+        var pl = plats[pi];
+        if (gi_item.y >= pl.y - 2 && gi_item.y <= pl.y + 14 &&
+            gi_item.x >= pl.x && gi_item.x <= pl.x + pl.w && gi_item.vy > 0) {
+          gi_item.y  = pl.y - 2;
+          gi_item.vy = 0;
+          break;
+        }
+      }
+    }
+    if (gi_item.life <= 0) { brGroundItems.splice(gi, 1); continue; }
+
+    // Bots auto-pickup if inventory has space
+    for (var bi = 0; bi < minions.length; bi++) {
+      var bot = minions[bi];
+      if (!bot || !bot._brBot || bot.health <= 0 || !bot._brLanded) continue;
+      if (Math.abs(bot.cx() - gi_item.x) < 40 && Math.abs((bot.y + (bot.h || 50)) - gi_item.y) < 50) {
+        if (!bot._brInv) bot._brInv = [null, null, null, null, null];
+        var bslot = bot._brInv.indexOf(null);
+        if (bslot !== -1) {
+          bot._brInv[bslot] = gi_item.item;
+          if (gi_item.item.type === 'weapon') _brApplyItem(gi_item.item, bot);
+          brGroundItems.splice(gi, 1);
+          break;
+        }
+      }
+    }
+  }
+}
+
+// ============================================================
 // ITEM PICKUP
 // ============================================================
 function _brPickupHuman(item, fighter) {
@@ -466,18 +515,31 @@ function _brPickupHuman(item, fighter) {
     brInventory[slot] = item;
     if (typeof DamageText !== 'undefined')
       damageTexts.push(new DamageText(fighter.cx(), fighter.y - 35, '+' + (item.label || item.type), item.color));
-  } else if (item.type !== 'weapon') {
-    _brApplyItem(item, fighter);
-  } else if (typeof DamageText !== 'undefined') {
-    damageTexts.push(new DamageText(fighter.cx(), fighter.y - 35, 'Bag full!', '#ff8888'));
+  } else {
+    if (typeof DamageText !== 'undefined')
+      damageTexts.push(new DamageText(fighter.cx(), fighter.y - 35, 'Bag full!', '#ff8888'));
   }
 }
 
-function _brPickupBot(bot, item) {
-  if (!bot._brInv) bot._brInv = [null, null, null, null, null];
-  var slot = bot._brInv.indexOf(null);
-  if (slot !== -1) { bot._brInv[slot] = item; if (item.type === 'weapon') _brApplyItem(item, bot); }
-  else if (item.type === 'medkit' && bot.health < bot.maxHealth * 0.5) _brApplyItem(item, bot);
+function _brPickupNearbyGroundItem() {
+  var p = players.find(function(pl) { return !pl.isAI && pl.health > 0; });
+  if (!p) return;
+  var slot = brInventory.indexOf(null);
+  if (slot === -1) {
+    if (typeof DamageText !== 'undefined')
+      damageTexts.push(new DamageText(p.cx(), p.y - 35, 'Bag full!', '#ff8888'));
+    return;
+  }
+  for (var i = brGroundItems.length - 1; i >= 0; i--) {
+    var g = brGroundItems[i];
+    if (Math.abs(p.cx() - g.x) < 52 && Math.abs((p.y + (p.h || 50) * 0.5) - g.y) < 60) {
+      brInventory[slot] = g.item;
+      if (typeof DamageText !== 'undefined')
+        damageTexts.push(new DamageText(p.cx(), p.y - 35, '+' + (g.item.label || g.item.type), g.item.color));
+      brGroundItems.splice(i, 1);
+      return;
+    }
+  }
 }
 
 // ============================================================
@@ -491,14 +553,54 @@ function _brApplyItem(item, fighter) {
   else if (item.type === 'weapon' && item.weaponKey) { var w = WEAPONS[item.weaponKey]; if (w) { fighter.weaponKey = item.weaponKey; fighter.weapon = w; fighter.cooldown = 0; } }
 }
 
-function useBRItem(slotIdx) {
-  if (!brActive || !gameRunning || slotIdx < 0 || slotIdx > 4) return;
-  var item = brInventory[slotIdx]; if (!item) return;
-  var p = players.find(function(pl) { return !pl.isAI && pl.health > 0; }); if (!p) return;
-  _brApplyItem(item, p); brInventory[slotIdx] = null; brActiveSlot = slotIdx;
+// Pressing 1-5: select the slot; for weapon slots swap with equipped weapon immediately
+function selectBRSlot(s) {
+  if (!brActive || s < 0 || s > 4) return;
+  brActiveSlot = s;
+  var item = brInventory[s];
+  if (!item || item.type !== 'weapon') return;
+  // Weapon slot: swap inventory weapon with currently equipped weapon
+  var p = players.find(function(pl) { return !pl.isAI && pl.health > 0; });
+  if (!p || !p.weaponKey || !p.weapon) return;
+  var equippedItem = { type: 'weapon', weaponKey: p.weaponKey,
+                       label: (p.weapon && p.weapon.name) || p.weaponKey, icon: '⚔', color: '#cc88ff' };
+  var newWeapon = WEAPONS[item.weaponKey];
+  if (!newWeapon) return;
+  brInventory[s]  = equippedItem;
+  p.weaponKey     = item.weaponKey;
+  p.weapon        = newWeapon;
+  p.cooldown      = 0;
+  if (typeof spawnParticles === 'function') spawnParticles(p.cx(), p.cy(), '#cc88ff', 6);
+  if (typeof DamageText !== 'undefined')
+    damageTexts.push(new DamageText(p.cx(), p.y - 35, newWeapon.name || item.weaponKey, '#cc88ff'));
 }
 
-function selectBRSlot(s) { brActiveSlot = Math.max(0, Math.min(4, s)); }
+// R key: consume/use the selected consumable slot
+function consumeBRActiveSlot() {
+  if (!brActive || !gameRunning) return;
+  var item = brInventory[brActiveSlot];
+  if (!item || item.type === 'weapon') return; // weapons are swapped via selectBRSlot, not consumed
+  var p = players.find(function(pl) { return !pl.isAI && pl.health > 0; });
+  if (!p) return;
+  _brApplyItem(item, p);
+  brInventory[brActiveSlot] = null;
+}
+
+// G key: drop active slot item to ground
+function dropBRActiveSlot() {
+  if (!brActive || !gameRunning) return;
+  var item = brInventory[brActiveSlot];
+  if (!item) return;
+  var p = players.find(function(pl) { return !pl.isAI && pl.health > 0; });
+  if (!p) return;
+  _brDropGroundItem(item, p.cx(), p.y + (p.h || 50) * 0.4);
+  brInventory[brActiveSlot] = null;
+  if (typeof DamageText !== 'undefined')
+    damageTexts.push(new DamageText(p.cx(), p.y - 35, 'Dropped ' + (item.label || item.type), '#aaaaaa'));
+}
+
+// Legacy: kept for backward compatibility (was the old item-use on number press)
+function useBRItem(slotIdx) { selectBRSlot(slotIdx); }
 
 // ============================================================
 // BOT AI (throttled every 10 frames)
@@ -506,26 +608,92 @@ function selectBRSlot(s) { brActiveSlot = Math.max(0, Math.min(4, s)); }
 function _brUpdateBots() {
   if (typeof frameCount === 'undefined' || frameCount % 10 !== 0) return;
   var all = players.concat(minions);
+  var _fc = typeof frameCount !== 'undefined' ? frameCount : 0;
+
   minions.forEach(function(bot) {
     if (!bot || !bot._brBot || bot.health <= 0 || !bot._brLanded) return;
-    if (bot._brInv) {
-      for (var s = 0; s < 5; s++) {
-        var it = bot._brInv[s];
-        if (it && it.type === 'medkit' && bot.health < bot.maxHealth * 0.35) { _brApplyItem(it, bot); bot._brInv[s] = null; break; }
+    if (!bot._brInv) bot._brInv = [null, null, null, null, null];
+
+    // ── 1. Intelligent item consumption ──────────────────────
+    var invHasSpace = bot._brInv.indexOf(null) !== -1;
+    for (var s = 0; s < 5; s++) {
+      var it = bot._brInv[s];
+      if (!it) continue;
+      // Medkit: use when below 40% health
+      if (it.type === 'medkit' && bot.health < bot.maxHealth * 0.40) {
+        _brApplyItem(it, bot); bot._brInv[s] = null; break;
+      }
+      // Shield: use when below 55% health and not currently shielded
+      if (it.type === 'shield' && bot.health < bot.maxHealth * 0.55 && !bot._brShieldTimer) {
+        _brApplyItem(it, bot); bot._brInv[s] = null; break;
+      }
+      // Super charge: use before engaging nearby enemy
+      if (it.type === 'super' && !bot.superReady) {
+        var nearEnemy = all.some(function(f) {
+          return f !== bot && f.health > 0 && !f._brOnPlane &&
+                 Math.abs(f.cx() - bot.cx()) + Math.abs(f.cy() - bot.cy()) < 300;
+        });
+        if (nearEnemy) { _brApplyItem(it, bot); bot._brInv[s] = null; break; }
       }
     }
-    // Storm avoidance: flee to well inside the safe zone.
-    // 300px lookahead catches both bots already in the storm and those about
-    // to enter it; flee target is 600px inside so bots run clear, not just
-    // to the edge.
+
+    // ── 2. Storm avoidance (highest priority — overrides loot seeking) ──
     var stormMargin = 300;
-    var fleeDepth   = 600;
-    if (bot.cx() < brZoneLeft + stormMargin)   { bot.target = _brFakeTarget(brZoneLeft  + fleeDepth, bot.y); return; }
-    if (bot.cx() > brZoneRight - stormMargin)  { bot.target = _brFakeTarget(brZoneRight - fleeDepth, bot.y); return; }
-    if (bot.cy() < brZoneTop + stormMargin)    { bot.target = _brFakeTarget(bot.cx(), brZoneTop    + fleeDepth); return; }
-    if (bot.cy() > brZoneBottom - stormMargin) { bot.target = _brFakeTarget(bot.cx(), brZoneBottom - fleeDepth); return; }
+    var fleeDepth   = 700;
+    var inDanger = (
+      bot.cx() < brZoneLeft + stormMargin  || bot.cx() > brZoneRight  - stormMargin ||
+      bot.cy() < brZoneTop  + stormMargin  || bot.cy() > brZoneBottom - stormMargin
+    );
+    if (inDanger) {
+      var safeX = Math.max(brZoneLeft + fleeDepth, Math.min(brZoneRight  - fleeDepth, bot.cx()));
+      var safeY = Math.max(brZoneTop  + fleeDepth, Math.min(brZoneBottom - fleeDepth, bot.cy()));
+      bot.target = _brFakeTarget(safeX, safeY);
+      return;
+    }
+
+    // ── 3. Seek nearest unopened chest (if inventory has space and not full health) ──
+    var wantsLoot = invHasSpace || bot.health < bot.maxHealth * 0.70;
+    var nearChest = null, nearChestD = Infinity;
+    if (wantsLoot) {
+      for (var ci = 0; ci < brLootBoxes.length; ci++) {
+        var box = brLootBoxes[ci];
+        if (box.opened || box.health <= 0) continue;
+        var cd = Math.abs(box.x - bot.cx()) + Math.abs(box.y - bot.cy());
+        if (cd < nearChestD && cd < 1200) { nearChestD = cd; nearChest = box; }
+      }
+    }
+
+    // ── 4. Seek nearby ground items if inventory has space ────
+    var nearGround = null, nearGroundD = Infinity;
+    if (invHasSpace) {
+      for (var gi = 0; gi < brGroundItems.length; gi++) {
+        var g = brGroundItems[gi];
+        var gd = Math.abs(g.x - bot.cx()) + Math.abs(g.y - bot.cy());
+        if (gd < nearGroundD && gd < 600) { nearGroundD = gd; nearGround = g; }
+      }
+    }
+
+    // ── 5. Decide target ──────────────────────────────────────
+    // Priority: nearby enemy → ground item (very close) → chest → roam to enemy
     var best = null, bestD = Infinity;
-    all.forEach(function(f) { if (f === bot || f.health <= 0 || f._brOnPlane) return; var d = Math.abs(f.cx() - bot.cx()) + Math.abs(f.cy() - bot.cy()); if (d < bestD) { bestD = d; best = f; } });
+    all.forEach(function(f) {
+      if (f === bot || f.health <= 0 || f._brOnPlane) return;
+      var d = Math.abs(f.cx() - bot.cx()) + Math.abs(f.cy() - bot.cy());
+      if (d < bestD) { bestD = d; best = f; }
+    });
+
+    // Ground item: seek if very close OR no enemies nearby
+    if (nearGround && (nearGroundD < 250 || bestD > 500)) {
+      bot.target = _brFakeTarget(nearGround.x, nearGround.y);
+      return;
+    }
+
+    // Chest: seek if health low or needs items AND no close enemies
+    if (nearChest && (bestD > 400 || bot.health < bot.maxHealth * 0.55)) {
+      bot.target = _brFakeTarget(nearChest.x, nearChest.y - 10);
+      return;
+    }
+
     if (best) bot.target = best;
   });
 }
@@ -618,6 +786,7 @@ function updateBattleRoyale() {
   _brCullBots();
   _brUpdateZone();
   _brCheckBoxBreaking();
+  _brUpdateGroundItems();
   _brUpdateBots();
   _brUpdateSpectate();
   _brCheckWin();
@@ -707,6 +876,22 @@ function drawBattleRoyaleWorld() {
     }
   });
 
+  // Ground items — dropped loot waiting to be picked up (F key)
+  brGroundItems.forEach(function(gi) {
+    var pulse    = 0.7 + 0.3 * Math.sin(_fc * 0.1);
+    var fadeAlpha = Math.min(1, gi.life / 120);  // fade out last 2 seconds
+    ctx.globalAlpha = fadeAlpha;
+    ctx.shadowColor = gi.item.color; ctx.shadowBlur = 8 * pulse;
+    ctx.fillStyle   = gi.item.color;
+    ctx.beginPath(); ctx.arc(gi.x, gi.y, 8, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.arc(gi.x, gi.y, 8, 0, Math.PI * 2); ctx.stroke();
+    ctx.shadowBlur  = 0;
+    ctx.font = '10px Arial'; ctx.textAlign = 'center'; ctx.fillStyle = '#fff';
+    ctx.fillText(gi.item.icon || '?', gi.x, gi.y + 4);
+    ctx.globalAlpha = 1;
+  });
+
   // Plane
   if (brPlaneFlight && brPlaneX > -400 && brPlaneX < BR_WORLD_W + 400) {
     var px = brPlaneX, py = BR_PLANE_Y;
@@ -794,6 +979,28 @@ function drawBattleRoyaleHUD() {
   ctx.shadowBlur  = brZoneState !== 'wait' ? 6 : 0;
   ctx.fillText(zLabel, GAME_W - 10, _brTopY + 14); ctx.shadowBlur = 0;
 
+  // ── Pickup prompt: show when P1 is near a ground item ────
+  var _p1hud = players[0];
+  if (_p1hud && _p1hud.health > 0 && !brSpectating) {
+    var _nearItem = null;
+    for (var _gi = 0; _gi < brGroundItems.length; _gi++) {
+      var _g = brGroundItems[_gi];
+      if (Math.abs(_p1hud.cx() - _g.x) < 52 && Math.abs((_p1hud.y + (_p1hud.h || 50) * 0.5) - _g.y) < 60) {
+        _nearItem = _g.item; break;
+      }
+    }
+    if (_nearItem) {
+      var _pPulse = 0.7 + 0.3 * Math.sin(_fc * 0.15);
+      ctx.globalAlpha = _pPulse;
+      ctx.font = 'bold 12px Arial'; ctx.textAlign = 'center';
+      ctx.fillStyle = '#ffffff'; ctx.shadowColor = '#000'; ctx.shadowBlur = 6;
+      var _invFull = brInventory.indexOf(null) === -1;
+      var _pMsg = _invFull ? '[Bag full] ' + (_nearItem.label || _nearItem.type) : '[F] Pick up  ' + (_nearItem.label || _nearItem.type);
+      ctx.fillText(_pMsg, GAME_W / 2, GAME_H / 2 + 60);
+      ctx.shadowBlur = 0; ctx.globalAlpha = 1;
+    }
+  }
+
   // ── Inventory bar (bottom centre) ────────────────────────
   var slotW = 50, slotH = 50, gap = 5;
   var totW  = 5 * slotW + 4 * gap;
@@ -815,6 +1022,12 @@ function drawBattleRoyaleHUD() {
     }
     ctx.font = 'bold 9px Arial'; ctx.fillStyle = sel ? '#ffcc33' : 'rgba(255,255,255,0.45)';
     ctx.textAlign = 'left'; ctx.fillText('' + (si + 1), sx + 4, iby + 11);
+    // Show action hint on selected slot
+    if (sel && item) {
+      ctx.font = '7px Arial'; ctx.textAlign = 'center';
+      ctx.fillStyle = 'rgba(255,200,80,0.7)';
+      ctx.fillText(item.type === 'weapon' ? 'EQUIP' : 'R:USE  G:DROP', sx + slotW / 2, iby + slotH + 10);
+    }
   }
 
   // ── Spectate overlay ──────────────────────────────────────

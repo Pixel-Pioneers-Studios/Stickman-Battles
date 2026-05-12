@@ -427,12 +427,12 @@ class Fighter {
         sl.y += sl.vy;
         sl.vy += 0.08; // slight gravity arc
         sl.life--;
-        // damage check
+        // damage check — short invincibility window (8 frames) so all 3 staggered slashes can land
         const _slAll = [...players, ...trainingDummies];
         for (const f of _slAll) {
           if (f === this || f.health <= 0 || sl.hitSet.has(f)) continue;
           if (Math.hypot(f.cx() - sl.x, (f.y + f.h * 0.5) - sl.y) < sl.size + 14) {
-            dealDamage(this, f, 22, 12);
+            dealDamage(this, f, 22, 12, 1.0, false, 8);
             sl.hitSet.add(f);
           }
         }

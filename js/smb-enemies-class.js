@@ -88,7 +88,7 @@ function showDesc(player, type, key) {
         // Copy the human's current weapon with a small random delay
         // so it never feels instant / perfect.
         if (!this._mirrorWeaponTimer || this._mirrorWeaponTimer <= 0) {
-          if (human.weapon && this.weapon !== human.weapon) {
+          if (!this.isSovereignMK2 && human.weapon && this.weapon !== human.weapon) {
             this.weapon = human.weapon;
           }
           // Reset timer: 20–40 frames before next check

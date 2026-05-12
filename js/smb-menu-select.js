@@ -388,6 +388,25 @@ function closeSettingsModal() {
   if (m) m.style.display = 'none';
 }
 
+function openReplayBrowser() {
+  const m = document.getElementById('replayBrowserModal');
+  if (!m) return;
+  m.style.display = 'flex';
+  // Populate the list using the same data as the match-end panel
+  const listEl = document.getElementById('replayBrowserList');
+  if (listEl && typeof ReplaySystem !== 'undefined') {
+    // Temporarily redirect refreshReplayPanel output to the browser list
+    const origEl = document.getElementById('replayPanelList');
+    // We can't easily redirect, so manually replicate the render
+    ReplaySystem._refreshBrowserList(listEl);
+  }
+}
+
+function closeReplayBrowser() {
+  const m = document.getElementById('replayBrowserModal');
+  if (m) m.style.display = 'none';
+}
+
 function toggleCard(id) {
   const card  = document.getElementById(id);
   const arrow = card.querySelector('.expand-arrow');

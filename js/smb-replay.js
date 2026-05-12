@@ -218,6 +218,34 @@ const ReplaySystem = (() => {
   // Download
   // ════════════════════════════════════════════════════════════════════════════
 
+  async function _loadReplayByIndex(listIndex) {
+    const db = await _ensureDB();
+    const { vals } = await _dbGetAll(db);
+    const origIdx = vals.length - 1 - listIndex;
+    if (origIdx < 0 || origIdx >= vals.length) return null;
+    return vals[origIdx];
+  }
+
+  async function watchReplay(listIndex) {
+    let replay;
+    try {
+      replay = await _loadReplayByIndex(listIndex);
+      if (!replay) return;
+    } catch (e) {
+      console.warn('[Replay] Watch read failed:', e);
+      return;
+    }
+    if (!replay.smb_replay) { _viewerError('Not a valid Stickman Battles replay.'); return; }
+    if (replay.version !== GAME_VERSION) {
+      _viewerError(`Version mismatch — replay is v${replay.version}, this game is v${GAME_VERSION}.`);
+      return;
+    }
+    if (!Array.isArray(replay.frames) || replay.frames.length === 0) {
+      _viewerError('Replay file contains no frame data.'); return;
+    }
+    _startPlayback(replay);
+  }
+
   async function downloadReplay(listIndex) {
     let replay;
     try {
@@ -249,43 +277,49 @@ const ReplaySystem = (() => {
   // Replay list panel (inside game-over overlay)
   // ════════════════════════════════════════════════════════════════════════════
 
-  async function refreshReplayPanel() {
-    const el = document.getElementById('replayPanelList');
-    if (!el) return;
-
-    let keys, vals;
-    try {
-      const db = await _ensureDB();
-      ({ keys, vals } = await _dbGetAll(db));
-    } catch (e) {
-      el.innerHTML = '<span style="color:#556;font-size:10px">Replay storage unavailable.</span>';
-      return;
-    }
-
+  function _renderReplayList(el, vals) {
     if (vals.length === 0) {
       el.innerHTML = '<span style="color:#445566;font-size:10px">No saved replays yet — they appear here after each match.</span>';
       return;
     }
-
-    // Show newest first
     el.innerHTML = vals.slice().reverse().map((r, i) => {
       const d    = new Date(r.meta.date);
       const dStr = `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
       const dur  = r.meta.durationSec != null
         ? `${Math.floor(r.meta.durationSec / 60)}m${String(r.meta.durationSec % 60).padStart(2, '0')}s`
         : '?';
-      const mode  = r.meta.mode  || '?';
-      const arena = r.meta.arenaKey || '?';
-      const label = `${dStr} · ${mode} · ${arena} · ${dur}`;
-
+      const label = `${dStr} · ${r.meta.mode || '?'} · ${r.meta.arenaKey || '?'} · ${dur}`;
       return `<div style="display:flex;align-items:center;gap:6px;margin:3px 0">` +
              `<span style="flex:1;font-size:10px;color:#8899bb;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${label}">${label}</span>` +
+             `<button onclick="ReplaySystem.watchReplay(${i})" ` +
+             `style="flex-shrink:0;background:rgba(60,120,255,0.12);border:1px solid rgba(80,160,255,0.45);border-radius:4px;` +
+             `color:#88ccff;padding:2px 8px;cursor:pointer;font-size:10px;letter-spacing:.5px">` +
+             `&#9654; Watch</button>` +
              `<button onclick="ReplaySystem.downloadReplay(${i})" ` +
-             `style="flex-shrink:0;background:none;border:1px solid rgba(80,160,255,0.35);border-radius:4px;` +
-             `color:#77bbff;padding:2px 8px;cursor:pointer;font-size:10px;letter-spacing:.5px">` +
-             `&#8681; Download</button>` +
+             `style="flex-shrink:0;background:none;border:1px solid rgba(80,160,255,0.25);border-radius:4px;` +
+             `color:#5588aa;padding:2px 8px;cursor:pointer;font-size:10px;letter-spacing:.5px">` +
+             `&#8681; Save</button>` +
              `</div>`;
     }).join('');
+  }
+
+  async function _refreshBrowserList(el) {
+    if (!el) return;
+    let vals;
+    try {
+      const db = await _ensureDB();
+      ({ vals } = await _dbGetAll(db));
+    } catch (e) {
+      el.innerHTML = '<span style="color:#556;font-size:10px">Replay storage unavailable.</span>';
+      return;
+    }
+    _renderReplayList(el, vals);
+  }
+
+  async function refreshReplayPanel() {
+    const el = document.getElementById('replayPanelList');
+    if (!el) return;
+    await _refreshBrowserList(el);
   }
 
   // ════════════════════════════════════════════════════════════════════════════
@@ -620,8 +654,10 @@ const ReplaySystem = (() => {
     startRecording,
     recordFrame,
     stopRecording,
+    watchReplay,
     downloadReplay,
     refreshReplayPanel,
+    _refreshBrowserList,
     openFilePicker,
     loadFromFile,
     togglePlay,

@@ -105,10 +105,16 @@ document.addEventListener('keydown', e => {
   if (keysDown.has(_nk)) return; // already tracked — let held-frame counter run
   keysDown.add(_nk);
 
-  // Battle Royale inventory: 1-5 use item in that slot
+  // Battle Royale inventory: 1-5 select slot (weapons auto-swap, consumables just highlight)
   if (gameRunning && !paused && gameMode === 'battleroyale' && e.key >= '1' && e.key <= '5') {
-    if (typeof useBRItem === 'function') useBRItem(parseInt(e.key, 10) - 1);
+    if (typeof selectBRSlot === 'function') selectBRSlot(parseInt(e.key, 10) - 1);
     return;
+  }
+  // Battle Royale item actions (only when alive, not spectating)
+  if (gameRunning && !paused && gameMode === 'battleroyale' && typeof brSpectating !== 'undefined' && !brSpectating) {
+    if (_nk === 'r') { if (typeof consumeBRActiveSlot === 'function') consumeBRActiveSlot(); return; }
+    if (_nk === 'g') { if (typeof dropBRActiveSlot    === 'function') dropBRActiveSlot();    return; }
+    if (_nk === 'f') { if (typeof _brPickupNearbyGroundItem === 'function') _brPickupNearbyGroundItem(); return; }
   }
   // Battle Royale spectate: Q = prev, E = next
   if (gameRunning && gameMode === 'battleroyale' && typeof brSpectating !== 'undefined' && brSpectating) {
