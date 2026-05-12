@@ -834,3 +834,514 @@ const SupabaseBridge = (() => {
 })();
 
 window.SupabaseBridge = SupabaseBridge;
+
+const SovereignAdaptiveMemory = (() => {
+  const _sessions = new Map();
+  const _table = 'sovereign_matchup_memory';
+  const _routeNames = ['direct', 'crossup', 'delayed'];
+
+  function _clamp(v, min, max) {
+    return Math.max(min, Math.min(max, v));
+  }
+
+  function _safeJsonClone(value) {
+    try { return JSON.parse(JSON.stringify(value)); } catch (e) { return null; }
+  }
+
+  function _emptyActionCounts() {
+    return {
+      attack: 0,
+      shield: 0,
+      jump: 0,
+      dodge: 0,
+      idle: 0,
+      edge: 0,
+      melee: 0,
+      ranged: 0,
+    };
+  }
+
+  function _emptyContextCounts() {
+    return { grounded: 0, airborne: 0, edge: 0 };
+  }
+
+  function _emptyPunishStats() {
+    return {
+      direct:  { hits: 0, escapes: 0 },
+      crossup: { hits: 0, escapes: 0 },
+      delayed: { hits: 0, escapes: 0 },
+    };
+  }
+
+  function _normalizeKey(value, fallback) {
+    const key = String(value || fallback || 'unknown').trim().toLowerCase();
+    return key || String(fallback || 'unknown');
+  }
+
+  function _resolveTargetParts(target) {
+    const weaponKey = _normalizeKey(target && target.weaponKey, 'sword');
+    const classKey = _normalizeKey(target && target.charClass, 'none');
+    const loadoutKey = `${weaponKey}|${classKey}`;
+    return {
+      weaponKey,
+      classKey,
+      loadoutKey,
+      sessionKey: loadoutKey,
+    };
+  }
+
+  function _getSession(parts) {
+    const key = parts.sessionKey;
+    if (_sessions.has(key)) return _sessions.get(key);
+    const session = {
+      key,
+      weaponKey: parts.weaponKey,
+      classKey: parts.classKey,
+      loadoutKey: parts.loadoutKey,
+      observed: 0,
+      currentActionCounts: _emptyActionCounts(),
+      currentContextCounts: _emptyContextCounts(),
+      currentPunishStats: _emptyPunishStats(),
+      currentTendencies: {
+        aggression: 0,
+        shield: 0,
+        jump: 0,
+        edgeCamp: 0,
+        meleePressure: 0,
+        passive: 0,
+      },
+      globalSummary: null,
+      globalLoaded: false,
+      globalLoading: false,
+      globalLoadError: null,
+      loadPromise: null,
+      lastObservedAt: 0,
+      lastSummary: null,
+    };
+    _sessions.set(key, session);
+    return session;
+  }
+
+  function _mergeCounts(target, source) {
+    const out = target || {};
+    if (!source) return out;
+    for (const [key, value] of Object.entries(source)) {
+      out[key] = (Number(out[key]) || 0) + (Number(value) || 0);
+    }
+    return out;
+  }
+
+  function _mergePunishStats(target, source) {
+    const out = target || _emptyPunishStats();
+    if (!source) return out;
+    for (const route of _routeNames) {
+      const row = out[route] || { hits: 0, escapes: 0 };
+      const add = source[route] || {};
+      row.hits    = (Number(row.hits) || 0) + (Number(add.hits) || 0);
+      row.escapes = (Number(row.escapes) || 0) + (Number(add.escapes) || 0);
+      out[route] = row;
+    }
+    return out;
+  }
+
+  function _bucketKey(type, value) {
+    return `${type}:${String(value || 'unknown').trim().toLowerCase()}`;
+  }
+
+  function _rowFromSession(session, bucketType, bucketValue, outcome, summary) {
+    const row = {
+      bucket_key: _bucketKey(bucketType, bucketValue),
+      bucket_type: bucketType,
+      bucket_value: String(bucketValue || 'unknown'),
+      sample_count: 1,
+      win_count: outcome.sovereignWon ? 1 : 0,
+      loss_count: outcome.sovereignWon ? 0 : 1,
+      action_counts: _safeJsonClone(session.currentActionCounts) || _emptyActionCounts(),
+      context_counts: _safeJsonClone(session.currentContextCounts) || _emptyContextCounts(),
+      punish_stats: _safeJsonClone(session.currentPunishStats) || _emptyPunishStats(),
+      tendency_stats: _safeJsonClone(session.currentTendencies) || {},
+      last_summary: summary || {},
+      updated_at: new Date().toISOString(),
+    };
+    return row;
+  }
+
+  function _mergeRows(existing, incoming) {
+    if (!existing) return _safeJsonClone(incoming);
+    const out = _safeJsonClone(existing) || {};
+    out.sample_count = (Number(out.sample_count) || 0) + (Number(incoming.sample_count) || 0);
+    out.win_count = (Number(out.win_count) || 0) + (Number(incoming.win_count) || 0);
+    out.loss_count = (Number(out.loss_count) || 0) + (Number(incoming.loss_count) || 0);
+    out.action_counts = _mergeCounts(out.action_counts || _emptyActionCounts(), incoming.action_counts);
+    out.context_counts = _mergeCounts(out.context_counts || _emptyContextCounts(), incoming.context_counts);
+    out.punish_stats = _mergePunishStats(out.punish_stats || _emptyPunishStats(), incoming.punish_stats);
+    out.tendency_stats = _mergeCounts(out.tendency_stats || {}, incoming.tendency_stats);
+    out.last_summary = incoming.last_summary || out.last_summary || {};
+    out.bucket_key = incoming.bucket_key || out.bucket_key;
+    out.bucket_type = incoming.bucket_type || out.bucket_type;
+    out.bucket_value = incoming.bucket_value || out.bucket_value;
+    out.updated_at = incoming.updated_at || out.updated_at;
+    return out;
+  }
+
+  function _mergeSummaries(rows) {
+    const summary = {
+      sample_count: 0,
+      win_count: 0,
+      loss_count: 0,
+      action_counts: _emptyActionCounts(),
+      context_counts: _emptyContextCounts(),
+      punish_stats: _emptyPunishStats(),
+      tendency_stats: {},
+      row_count: 0,
+    };
+    for (const row of rows || []) {
+      if (!row) continue;
+      summary.row_count++;
+      summary.sample_count += Number(row.sample_count) || 0;
+      summary.win_count += Number(row.win_count) || 0;
+      summary.loss_count += Number(row.loss_count) || 0;
+      summary.action_counts = _mergeCounts(summary.action_counts, row.action_counts);
+      summary.context_counts = _mergeCounts(summary.context_counts, row.context_counts);
+      summary.punish_stats = _mergePunishStats(summary.punish_stats, row.punish_stats);
+      summary.tendency_stats = _mergeCounts(summary.tendency_stats, row.tendency_stats);
+    }
+    return summary;
+  }
+
+  function _deriveState(session) {
+    const localObs = Math.max(1, session.observed);
+    const globalSummary = session.globalSummary || null;
+    const globalObs = globalSummary ? Number(globalSummary.sample_count || 0) : 0;
+
+    const localWeight = _clamp((localObs - 10) / 30, 0, 1);
+    const globalWeight = _clamp(globalObs / 24, 0, 1);
+    const blendLocal = localWeight;
+    const blendGlobal = globalWeight * (1 - 0.45 * blendLocal);
+
+    const localAction = session.currentActionCounts;
+    const localContext = session.currentContextCounts;
+    const localPunish = session.currentPunishStats;
+    const globalAction = globalSummary ? globalSummary.action_counts : _emptyActionCounts();
+    const globalContext = globalSummary ? globalSummary.context_counts : _emptyContextCounts();
+    const globalPunish = globalSummary ? globalSummary.punish_stats : _emptyPunishStats();
+
+    const localTotal = Object.values(localAction).reduce((s, n) => s + (Number(n) || 0), 0);
+    const globalTotal = Object.values(globalAction).reduce((s, n) => s + (Number(n) || 0), 0);
+
+    const localAttack = localTotal > 0 ? ((localAction.attack || 0) / localTotal) : 0;
+    const localShield = localTotal > 0 ? ((localAction.shield || 0) / localTotal) : 0;
+    const localJump   = localTotal > 0 ? ((localAction.jump || 0) / localTotal) : 0;
+    const localDodge  = localTotal > 0 ? ((localAction.dodge || 0) / localTotal) : 0;
+    const localEdge   = localTotal > 0 ? ((localAction.edge || 0) / localTotal) : 0;
+    const localMelee  = localTotal > 0 ? ((localAction.melee || 0) / localTotal) : 0;
+    const localPassive = localTotal > 0 ? ((localAction.idle || 0) / localTotal) : 0;
+
+    const globalAttack = globalTotal > 0 ? (((globalAction.attack || 0) + (globalAction.dodge || 0) * 0.25) / globalTotal) : 0;
+    const globalShield = globalTotal > 0 ? ((globalAction.shield || 0) / globalTotal) : 0;
+    const globalJump   = globalTotal > 0 ? ((globalAction.jump || 0) / globalTotal) : 0;
+    const globalEdge   = globalTotal > 0 ? ((globalAction.edge || 0) / globalTotal) : 0;
+
+    const localRouteHits = {
+      direct:  localPunish.direct.hits + localPunish.direct.escapes,
+      crossup: localPunish.crossup.hits + localPunish.crossup.escapes,
+      delayed: localPunish.delayed.hits + localPunish.delayed.escapes,
+    };
+    const globalRouteHits = {
+      direct:  globalPunish.direct.hits + globalPunish.direct.escapes,
+      crossup: globalPunish.crossup.hits + globalPunish.crossup.escapes,
+      delayed: globalPunish.delayed.hits + globalPunish.delayed.escapes,
+    };
+
+    function _routeRate(route, hits, total) {
+      return total > 0 ? (hits + 0.5) / (total + 1) : 0.5;
+    }
+
+    const localRouteBias = {
+      direct:  _routeRate('direct', localPunish.direct.hits, localRouteHits.direct),
+      crossup: _routeRate('crossup', localPunish.crossup.hits, localRouteHits.crossup),
+      delayed: _routeRate('delayed', localPunish.delayed.hits, localRouteHits.delayed),
+    };
+    const globalRouteBias = {
+      direct:  _routeRate('direct', globalPunish.direct.hits, globalRouteHits.direct),
+      crossup: _routeRate('crossup', globalPunish.crossup.hits, globalRouteHits.crossup),
+      delayed: _routeRate('delayed', globalPunish.delayed.hits, globalRouteHits.delayed),
+    };
+
+    const meleeThreat = /hammer|axe|sword|spear|gauntlet|nullblade|voidblade|scythe|shield|boxing gloves|frying pan|broomstick|mk\. gauntlets/.test(
+      `${session.weaponKey} ${session.classKey}`
+    );
+
+    const aggressionBias = _clamp(
+      (globalAttack * 0.12 * blendGlobal) +
+      (localAttack * 0.18 * blendLocal) +
+      (meleeThreat ? 0.03 : 0) +
+      (localPassive > 0.28 ? -0.02 : 0),
+      -0.08,
+      0.18
+    );
+    const defenseBias = _clamp(
+      (globalShield * 0.10 * blendGlobal) +
+      (localShield * 0.16 * blendLocal) +
+      (localJump * 0.05 * blendLocal) +
+      (meleeThreat ? 0.03 : 0),
+      0,
+      0.20
+    );
+    const spacingShift = _clamp(
+      (localAttack > 0.28 ? -0.03 : 0) +
+      (localShield > 0.18 ? -0.02 : 0) +
+      (localEdge > 0.18 ? -0.03 : 0) +
+      (globalAttack > 0.24 ? -0.02 : 0),
+      -0.10,
+      0.06
+    );
+    const reactionBoost = _clamp(
+      (globalJump * 0.06 * blendGlobal) +
+      (localJump * 0.10 * blendLocal) +
+      (localEdge > 0.18 ? 0.03 : 0),
+      0,
+      0.18
+    );
+    const dodgeBias = _clamp(
+      1 + (localJump * 0.6 * blendLocal) + (globalJump * 0.25 * blendGlobal),
+      1,
+      1.55
+    );
+    const baitBias = _clamp(
+      1 + (localPassive * 0.5 * blendLocal) + (globalAttack < 0.22 ? 0.14 : 0) - (localAttack * 0.25 * blendLocal),
+      0.75,
+      1.55
+    );
+    const shieldBias = _clamp(
+      (localShield * 0.7 * blendLocal) + (globalShield * 0.35 * blendGlobal) + (meleeThreat ? 0.08 : 0),
+      0,
+      0.45
+    );
+
+    const routeBias = {
+      direct:  _clamp((localRouteBias.direct * blendLocal) + (globalRouteBias.direct * blendGlobal) + (meleeThreat ? 0.08 : 0), 0.35, 1.75),
+      crossup: _clamp((localRouteBias.crossup * blendLocal) + (globalRouteBias.crossup * blendGlobal) + (localJump * 0.25), 0.35, 1.75),
+      delayed: _clamp((localRouteBias.delayed * blendLocal) + (globalRouteBias.delayed * blendGlobal) + (localShield * 0.22), 0.35, 1.75),
+    };
+
+    return {
+      loaded: !!session.globalLoaded,
+      loading: !!session.globalLoading,
+      localWeight,
+      globalWeight,
+      aggressionBias,
+      defenseBias,
+      spacingShift,
+      reactionBoost,
+      dodgeBias,
+      baitBias,
+      shieldBias,
+      routeBias,
+      meleeThreat,
+      openingStyle: localShield > 0.20 ? 'defensive' : localJump > 0.20 ? 'airborne' : localAttack > 0.26 ? 'aggressive' : localEdge > 0.18 ? 'edge' : 'balanced',
+      summary: {
+        weaponKey: session.weaponKey,
+        classKey: session.classKey,
+        loadoutKey: session.loadoutKey,
+        observed: session.observed,
+        localActionCounts: _safeJsonClone(localAction) || _emptyActionCounts(),
+        localContextCounts: _safeJsonClone(localContext) || _emptyContextCounts(),
+        localPunishStats: _safeJsonClone(localPunish) || _emptyPunishStats(),
+        globalSummary: _safeJsonClone(globalSummary) || null,
+      },
+    };
+  }
+
+  async function _loadGlobalSummary(session) {
+    if (session.globalLoading || session.globalLoaded) return;
+    if (!window.SupabaseBridge || typeof SupabaseBridge.isAvailable !== 'function' || !SupabaseBridge.isAvailable()) {
+      session.globalLoaded = true;
+      session.globalSummary = null;
+      return;
+    }
+
+    session.globalLoading = true;
+    try {
+      const client = await SupabaseBridge.getClient();
+      const keys = [
+        _bucketKey('weapon', session.weaponKey),
+        _bucketKey('class', session.classKey),
+        _bucketKey('loadout', session.loadoutKey),
+      ];
+      const res = await client
+        .from(_table)
+        .select('*')
+        .in('bucket_key', keys);
+      if (res.error) throw res.error;
+      session.globalSummary = _mergeSummaries(res.data || []);
+      session.globalLoaded = true;
+      session.globalLoadError = null;
+    } catch (e) {
+      session.globalSummary = null;
+      session.globalLoaded = true;
+      session.globalLoadError = e && e.message ? e.message : 'unknown';
+    } finally {
+      session.globalLoading = false;
+    }
+  }
+
+  function _recordObservation(session, payload) {
+    const currentAction = String(payload.currentAction || 'idle');
+    const bmObs = payload.bmObs || {};
+    const bmPred = payload.bmPred || {};
+    const bmRead = payload.bmRead || {};
+    const target = payload.target || null;
+
+    session.observed++;
+    session.lastObservedAt = Date.now();
+
+    const actionCounts = session.currentActionCounts;
+    actionCounts[currentAction] = (Number(actionCounts[currentAction]) || 0) + 1;
+    if (bmObs.context === BM_CTX.EDGE) session.currentActionCounts.edge++;
+    if (bmObs.context === BM_CTX.AIRBORNE) session.currentContextCounts.airborne++;
+    if (bmObs.context === BM_CTX.GROUNDED) session.currentContextCounts.grounded++;
+    if (bmObs.context === BM_CTX.EDGE) session.currentContextCounts.edge++;
+
+    const targetWeapon = String(target && target.weaponKey || session.weaponKey || '').toLowerCase();
+    const targetClass = String(target && target.charClass || session.classKey || '').toLowerCase();
+    if (targetWeapon) {
+      const meleeKeys = ['hammer', 'axe', 'sword', 'spear', 'gauntlet', 'nullblade', 'voidblade', 'scythe', 'shield', 'boxing gloves', 'frying pan', 'broomstick', 'mk. gauntlets'];
+      const isMelee = meleeKeys.includes(targetWeapon) || meleeKeys.includes(targetClass);
+      if (isMelee) {
+        session.currentActionCounts.melee++;
+        session.currentTendencies.meleePressure += 1;
+      } else {
+        session.currentActionCounts.ranged++;
+      }
+    }
+
+    if (currentAction === 'attack') session.currentTendencies.aggression += 1;
+    if (currentAction === 'shield') session.currentTendencies.shield += 1;
+    if (currentAction === 'jump') session.currentTendencies.jump += 1;
+    if (currentAction === 'dodge') session.currentTendencies.edgeCamp += bmObs.context === BM_CTX.EDGE ? 1 : 0;
+    if (currentAction === 'idle') session.currentTendencies.passive += 1;
+    if (bmObs.context === BM_CTX.EDGE) session.currentTendencies.edgeCamp += 1;
+
+    const route = payload.route || null;
+    const landed = !!payload.punishLanded;
+    if (route && session.currentPunishStats[route]) {
+      if (landed) session.currentPunishStats[route].hits += 1;
+      else session.currentPunishStats[route].escapes += 1;
+    }
+
+    if (bmRead && bmRead.style === 'aggressive') session.currentTendencies.aggression += 1;
+    if (bmRead && bmRead.style === 'defensive') session.currentTendencies.shield += 1;
+    if (bmRead && bmRead.style === 'airborne') session.currentTendencies.jump += 1;
+    if (bmPred && (bmPred.action === PA.JUMP || bmPred.action === PA.AIRBORNE_ATK)) session.currentTendencies.jump += 0.5;
+    if (bmPred && (bmPred.action === PA.ATTACK || bmPred.action === PA.AIRBORNE_ATK)) session.currentTendencies.aggression += 0.5;
+    if (bmPred && bmPred.action === PA.BLOCK) session.currentTendencies.shield += 0.5;
+
+    return _deriveState(session);
+  }
+
+  async function observe(ai, payload) {
+    const target = payload && payload.target ? payload.target : (ai && ai.target) || null;
+    if (!target) return null;
+
+    const parts = _resolveTargetParts(target);
+    const session = _getSession(parts);
+
+    if (!session.loadPromise && !session.globalLoaded) {
+      session.loadPromise = _loadGlobalSummary(session).finally(function() {
+        session.loadPromise = null;
+      });
+    }
+
+    const state = _recordObservation(session, Object.assign({ target: target }, payload || {}, parts));
+    if (ai) {
+      ai._adaptiveMemoryKey = session.key;
+      ai._adaptiveMemoryState = state;
+      ai._adaptiveMemorySession = session;
+    }
+    return state;
+  }
+
+  async function commit(ai, payload) {
+    try {
+      if (!window.SupabaseBridge || typeof SupabaseBridge.isAvailable !== 'function' || !SupabaseBridge.isAvailable()) {
+        return { skipped: true, reason: 'unavailable' };
+      }
+      const target = payload && payload.target ? payload.target : (ai && ai.target) || null;
+      if (!target) return { skipped: true, reason: 'no-target' };
+
+      const parts = _resolveTargetParts(target);
+      const session = _getSession(parts);
+      const outcome = {
+        sovereignWon: !!(payload && payload.sovereignWon),
+        mode: payload && payload.mode ? String(payload.mode) : 'sovereign',
+        arenaKey: payload && payload.arenaKey ? String(payload.arenaKey) : 'unknown',
+        durationSec: payload && payload.durationSec ? Number(payload.durationSec) : 0,
+        replayVersion: payload && payload.replay && payload.replay.version ? String(payload.replay.version) : null,
+      };
+
+      const summary = {
+        matchup: parts,
+        mode: outcome.mode,
+        arenaKey: outcome.arenaKey,
+        durationSec: outcome.durationSec,
+        replayMeta: payload && payload.replay && payload.replay.meta ? _safeJsonClone(payload.replay.meta) : null,
+        winner: payload && payload.winner ? String(payload.winner.name || 'unknown') : null,
+      };
+
+      const baseRows = [
+        _rowFromSession(session, 'weapon', session.weaponKey, outcome, summary),
+        _rowFromSession(session, 'class', session.classKey, outcome, summary),
+        _rowFromSession(session, 'loadout', session.loadoutKey, outcome, summary),
+      ];
+      const client = await SupabaseBridge.getClient();
+      const keys = baseRows.map(function(row) { return row.bucket_key; });
+      let existing = [];
+      try {
+        const res = await client.from(_table).select('*').in('bucket_key', keys);
+        if (res.error) throw res.error;
+        existing = res.data || [];
+      } catch (e) {
+        existing = [];
+      }
+
+      const existingMap = new Map(existing.map(function(row) { return [row.bucket_key, row]; }));
+      const mergedRows = baseRows.map(function(row) {
+        return _mergeRows(existingMap.get(row.bucket_key), row);
+      });
+
+      const upsert = await client.from(_table).upsert(mergedRows, { onConflict: 'bucket_key' });
+      if (upsert.error) throw upsert.error;
+
+      const mergedSummary = _mergeSummaries(mergedRows);
+      session.globalSummary = mergedSummary;
+      session.globalLoaded = true;
+      session.globalLoadError = null;
+      _sessions.delete(session.key);
+      return { ok: true, rows: mergedRows.length, bucketKey: session.key };
+    } catch (e) {
+      return { skipped: true, reason: e && e.message ? e.message : 'commit_failed' };
+    }
+  }
+
+  function resetSession(target) {
+    const parts = _resolveTargetParts(target);
+    _sessions.delete(parts.sessionKey);
+  }
+
+  function getState(target) {
+    const parts = _resolveTargetParts(target);
+    const session = _sessions.get(parts.sessionKey) || null;
+    if (!session) return null;
+    return _deriveState(session);
+  }
+
+  return {
+    observe,
+    commit,
+    getState,
+    resetSession,
+  };
+})();
+
+window.SovereignAdaptiveMemory = SovereignAdaptiveMemory;

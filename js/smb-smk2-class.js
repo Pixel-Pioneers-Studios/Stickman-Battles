@@ -36,6 +36,8 @@ class SovereignMK2 extends AdaptiveAI {
     this._punishModeTimer  = 0;        // frames remaining in punish mode
     this._punishModeCount  = 0;        // total activations (increases severity)
     this._punishDialogueCd = 0;
+    this._adaptivePunishRoute = 'direct';
+    this._adaptivePunishTimer  = 0;
 
     // ── C. Limiter Break Mode ────────────────────────────────────
     this._limiterBroken       = false;
@@ -162,11 +164,19 @@ class SovereignMK2 extends AdaptiveAI {
 
     // ── Own-corner escape ──────────────────────────────────────────
     this._sovereignEscapeCd = 0;      // cooldown: jump over player to reverse corner
+    this._voidRecoverCd     = 0;      // emergency recovery cooldown after edge launch
+    this._heavyThreatCd     = 0;      // short memory for high-knockback weapons
 
     // Tune BehaviorModel for Sovereign: faster decay so recent patterns dominate
     // Default 0.993 / 6-frame interval; Sovereign uses 0.988 / 4-frame for quicker adaptation
     this._behaviorModel._decayRate     = 0.988;
     this._behaviorModel._decayInterval = 4;
+
+    // Adaptive memory bridge state (local session + Supabase priors)
+    this._adaptiveMemoryState   = null;
+    this._adaptiveMemoryKey     = null;
+    this._adaptiveMemorySession  = null;
+    this._adaptiveMemoryPending  = false;
   }
 
   // ══════════════════════════════════════════════════════════════
@@ -826,6 +836,85 @@ class SovereignMK2 extends AdaptiveAI {
     return 'retreat';
   }
 
+  _chooseAdaptivePunishRoute(t, dir, d, playerAttacking, currentAction, bmObs, bmPred, recentTaken) {
+    const route = this._behaviorModel.bestPunishRoute({
+      currentAction,
+      prediction: bmPred,
+      distance: d,
+      playerOnGround: t.onGround,
+      playerAttacking: !!playerAttacking,
+      playerShielding: !!t.shielding,
+      playerRetreating: t.onGround && Math.abs(t.vx) > 4.5 && Math.sign(t.vx) === -dir,
+      playerPassive: !playerAttacking && !t.shielding && Math.abs(t.vx) < 1.3,
+      cornered: t.cx() < 110 || t.cx() > GAME_W - 110,
+      recentTaken,
+      context: bmObs.context,
+      pressure: this._pressureMode,
+      memory: this._adaptiveMemoryState || null,
+    });
+    this._adaptivePunishRoute = route;
+    this._adaptivePunishTimer  = route === 'delayed'
+      ? Math.round(7 + this.intelligence * 8)
+      : route === 'crossup'
+        ? Math.round(5 + this.intelligence * 4)
+        : 0;
+    return route;
+  }
+
+  _queueAdaptivePunishOutcome(route, t, d) {
+    if (typeof frameCount === 'undefined') return;
+    this._bmActivePunish = {
+      route,
+      hpSnap: t ? t.health : Infinity,
+      checkFrame: frameCount + 22,
+      cornered: !!(t && (t.cx() < 110 || t.cx() > GAME_W - 110)),
+      playerShielding: !!(t && t.shielding),
+      playerAttacking: !!(t && t.attackTimer > 0),
+      distance: typeof d === 'number' ? d : 0,
+    };
+  }
+
+  _applyAdaptivePunishRoute(route, t, dir, d, moveSpd, jumpVy, weaponRange, atkRange) {
+    if (route === 'crossup') {
+      if (this.onGround) {
+        this.vy = jumpVy;
+        if (!this.isEdgeDanger(dir)) this.vx = dir * moveSpd * 0.78;
+      } else if (this.canDoubleJump && t.y < this.y - 22) {
+        this.vy = -16;
+        this.canDoubleJump = false;
+      }
+      if (d < weaponRange * 1.25 + 20 && this.cooldown <= 0 && !this.onGround) {
+        this.attack(t);
+        this._queueAdaptivePunishOutcome(route, t, d);
+        this._adaptivePunishTimer = 0;
+      }
+      return true;
+    }
+
+    if (route === 'delayed') {
+      if (this._adaptivePunishTimer > 0) {
+        this._adaptivePunishTimer--;
+        this.vx *= 0.62;
+        return true;
+      }
+      if (d < atkRange * 1.15 && this.cooldown <= 0) {
+        this.attack(t);
+        this._queueAdaptivePunishOutcome(route, t, d);
+        return true;
+      }
+      if (!this.isEdgeDanger(dir)) this.vx = dir * moveSpd * 0.42;
+      return true;
+    }
+
+    if (d < atkRange * 1.1 && this.cooldown <= 0) {
+      this.attack(t);
+      this._queueAdaptivePunishOutcome(route, t, d);
+      return true;
+    }
+    if (!this.isEdgeDanger(dir)) this.vx = dir * moveSpd * 0.82;
+    return true;
+  }
+
   // ══════════════════════════════════════════════════════════════
   // CORNER PRESSURE SYSTEM — Edge Herding + Cornered Exploit
   // ══════════════════════════════════════════════════════════════
@@ -1006,6 +1095,58 @@ class SovereignMK2 extends AdaptiveAI {
     return true;
   }
 
+  _runVoidRecovery(t, dir, moveSpd, jumpVy) {
+    if (this._voidRecoverCd > 0) this._voidRecoverCd--;
+
+    const offLeft  = this.x < -18;
+    const offRight = this.x + this.w > GAME_W + 18;
+    const offBottom = this.y > GAME_H + 28;
+    const nearLedge = this.x < 72 || this.x + this.w > GAME_W - 72 || this.y > GAME_H - 150;
+    const heavyThreat = !!(t && t.weapon && (t.weapon.kb >= 18 || t.weapon.weaponType === 'heavy'));
+    const inVoidRisk = offLeft || offRight || offBottom || (nearLedge && (this.vy > 2 || this._countRecent('dmg_taken', 45) >= 1));
+
+    if (!inVoidRisk) {
+      if (heavyThreat) this._heavyThreatCd = Math.max(0, this._heavyThreatCd - 1);
+      return false;
+    }
+
+    this._pressureHoldTimer = Math.max(this._pressureHoldTimer, 65);
+    this._cornerMode = false;
+    this._punishModeActive = false;
+    this._forceModeActive = false;
+    this._baitTimer = 0;
+    this._humanFakeoutTimer = 0;
+    this.shielding = false;
+
+    const centerDir = this.cx() < GAME_W / 2 ? 1 : -1;
+    const retreatDir = (offLeft || (nearLedge && this.cx() < GAME_W / 2)) ? 1 : -1;
+    const escapeDir = offLeft ? 1 : offRight ? -1 : centerDir;
+
+    if (this.onGround || this.canDoubleJump || this.vy > 0 || offBottom) {
+      this.vx = escapeDir * moveSpd * (heavyThreat ? 1.08 : 0.96);
+      this.vy = this.onGround ? jumpVy : (offBottom ? -16 : -14);
+      if (this.canDoubleJump && !this.onGround) this.canDoubleJump = false;
+      if (this._voidRecoverCd <= 0) {
+        this._voidRecoverCd = heavyThreat ? 22 : 16;
+        if (typeof showBossDialogue === 'function' && Math.random() < 0.15) {
+          showBossDialogue('Not yet.', 70);
+        }
+      }
+      return true;
+    }
+
+    if (this._voidRecoverCd <= 0) {
+      this._voidRecoverCd = heavyThreat ? 18 : 12;
+      this.vx = retreatDir * moveSpd * (heavyThreat ? 1.0 : 0.88);
+      this.vy = -12;
+    } else {
+      this.vx = escapeDir * moveSpd * 0.85;
+      if (this.vy > 0) this.vy = Math.max(this.vy, 3);
+    }
+    if (heavyThreat) this._heavyThreatCd = 45;
+    return true;
+  }
+
   _updateFearFactor(d, recentLanded, heavyCounter) {
     if ((this._intimidation > 0.70 || this._limiterBroken) && this._dominanceZoomCd <= 0) {
       if (typeof setCameraDrama === 'function') setCameraDrama('focus', 32, this, 1.12 + this._intimidation * 0.06);
@@ -1156,6 +1297,14 @@ class SovereignMK2 extends AdaptiveAI {
     const t = this.target;
     if (!t || t.health <= 0) return;
 
+    if (this._bmActivePunish && typeof frameCount !== 'undefined' &&
+        frameCount >= this._bmActivePunish.checkFrame) {
+      const ap = this._bmActivePunish;
+      this._bmActivePunish = null;
+      const target = this.target;
+      if (target) this._behaviorModel.recordPunish(ap.route, target.health < ap.hpSnap - 1, ap);
+    }
+
     const m = this.aiMemory;
     const weapon = this._getCombatWeapon();
     const weaponRange = weapon.range || 90;
@@ -1191,6 +1340,20 @@ class SovereignMK2 extends AdaptiveAI {
     this._bmPrevSnap = { onGround: t.onGround, vx: t.vx, vy: t.vy };
     const _bmPred = this._behaviorModel.predictNext(_bmObs.action, _bmObs.context);
     const _bmBias = this._behaviorModel.computeBias(_bmObs.action, _bmPred);
+    const _bmRead  = this._behaviorModel.summarizeOpponent(_bmObs.action, _bmPred);
+    const _memoryState = (typeof SovereignAdaptiveMemory !== 'undefined' &&
+      SovereignAdaptiveMemory && typeof SovereignAdaptiveMemory.observe === 'function')
+      ? SovereignAdaptiveMemory.observe(this, {
+          target: t,
+          currentAction,
+          bmObs: _bmObs,
+          bmPred: _bmPred,
+          bmRead: _bmRead,
+        })
+      : null;
+    if (_memoryState) {
+      this._adaptiveMemoryState  = _memoryState;
+    }
 
     // ── B. Spam/punishment tracking (very short gate — Sovereign reads fast) ──
     if (this._observationFrames >= 40 && this._actionSampleCount >= 2) {
@@ -1208,6 +1371,7 @@ class SovereignMK2 extends AdaptiveAI {
     if (playerJustWhiffed) this._counterWindowOpen = true;
     if (this._baitCooldown > 0) this._baitCooldown--;
     if (this._comboFollowTimer > 0) this._comboFollowTimer--;
+    if (this._adaptivePunishTimer > 0) this._adaptivePunishTimer--;
 
     // ── Micro-adaptation ─────────────────────────────────────
     const recentTaken  = this._countRecent('dmg_taken',    90);
@@ -1216,8 +1380,15 @@ class SovereignMK2 extends AdaptiveAI {
     const recentPJumps = this._countRecent('player_jump',   150);
     const microDef = recentTaken  >= 2 ? 0.32 : recentTaken  >= 1 ? 0.16 : 0;
     const microAgg = recentLanded >= 2 ? 0.22 : recentLanded >= 1 ? 0.11 : 0;
-    const effAgg = Math.min(1, m.aggression + microAgg);
-    const effDef = Math.min(1, m.defense    + microDef);
+    const memoryAgg = _memoryState ? (_memoryState.aggressionBias || 0) : 0;
+    const memoryDef = _memoryState ? (_memoryState.defenseBias || 0) : 0;
+    const memorySpacing = _memoryState ? (_memoryState.spacingShift || 0) : 0;
+    const memoryReact = _memoryState ? (_memoryState.reactionBoost || 0) : 0;
+    const memoryDodge = _memoryState ? (_memoryState.dodgeBias || 1) : 1;
+    const memoryBait  = _memoryState ? (_memoryState.baitBias || 1) : 1;
+    const memoryShield = _memoryState ? (_memoryState.shieldBias || 0) : 0;
+    const effAgg = Math.min(1, m.aggression + microAgg + memoryAgg);
+    const effDef = Math.min(1, m.defense    + microDef + memoryDef);
 
     // State-based aggression: pull back when low HP, surge when player is vulnerable.
     const hpPct      = this.health / Math.max(1, this.maxHealth);
@@ -1258,11 +1429,21 @@ class SovereignMK2 extends AdaptiveAI {
     // ── E. Humanized parameters ───────────────────────────────
     // moveSpd capped to player normal base (5.2).  pressureMul removed from speed —
     // intimidation affects decision-making, not movement stat.
-    const prefDist    = Math.max(12, 20 + m.spacing * 60 - this._intimidation * 22 - this._evolutionStage * 5);
-    const moveSpd     = Math.min(6.5, 4.5 + realAgg * 1.5);  // faster than player base (6.5 vs 5.2)
+    const meleeWeapon = !!(t.weapon && t.weapon.type === 'melee');
+    const heavyWeapon = !!(t.weapon && (t.weapon.kb >= 18 || t.weapon.weaponType === 'heavy'));
+    const heavyThreat = meleeWeapon || heavyWeapon || this._heavyThreatCd > 0 || !!(_memoryState && _memoryState.meleeThreat);
+    if (meleeWeapon || heavyWeapon) this._heavyThreatCd = Math.max(this._heavyThreatCd, 120);
+    else if (this._heavyThreatCd > 0) this._heavyThreatCd--;
+
+    const threatSpacing = heavyThreat ? 30 : 0;
+    const thorSpacing   = (t.weaponKey === 'hammer' || t.charClass === 'thor') ? 14 : 0;
+    const prefDist    = Math.max(12, 20 + m.spacing * 60 - this._intimidation * 22 - this._evolutionStage * 5 + threatSpacing + thorSpacing + memorySpacing * 70);
+    const moveSpd     = Math.min(6.5, 4.5 + realAgg * 1.5 + memoryReact * 0.25);  // faster than player base (6.5 vs 5.2)
     const atkFreq     = 1.0; // god-tier: always at max attack frequency
     // God-tier: zero reaction delay. Limiter stagger briefly delays to give player a punish window.
-    const reactFrames = (lb && this._limiterStaggerTimer > 0) ? 2 : 0;
+    const reactFrames = (lb && this._limiterStaggerTimer > 0)
+      ? 2
+      : Math.max(0, Math.round(4 - m.reactionSpeed * 4 - memoryReact * 6));
     const atkRange    = weaponRange * (1.1 + this._intimidation * 0.08) + 20;
 
     const dx  = t.cx() - this.cx();
@@ -1271,6 +1452,7 @@ class SovereignMK2 extends AdaptiveAI {
     this._updateIntimidation(t, d);
     this._updatePressureState(t, d);
     this._updateCornerPressure(t, d);  // edge herding pressure accumulator
+    if (heavyThreat) this._pressureMode = 'suffocate';
 
     // ── Humanization fakeout movement ─────────────────────────
     this._updateHumanization(dir, moveSpd);
@@ -1313,6 +1495,12 @@ class SovereignMK2 extends AdaptiveAI {
       }
       return -19;
     })();
+
+    if (this._runVoidRecovery(t, dir, moveSpd, _jumpVy)) {
+      this.aiReact = 0;
+      this._updateFearFactor(d, recentLanded, true);
+      return;
+    }
 
     // Tick frame-safe shield drop (replaces the old setTimeout approach)
     if (this._shieldHoldFrames > 0) {
@@ -1434,7 +1622,7 @@ class SovereignMK2 extends AdaptiveAI {
       // Shield preferred when cornered (no clean dodge direction), under heavy pressure,
       // or limiter broken (Sovereign wants to absorb and counter rather than flee).
       const shieldChance = (canShield && effDef > 0.55)
-        ? (cornered ? 0.62 : 0.22) + (lb ? 0.12 : 0) + (recentTaken >= 2 ? 0.14 : 0)
+        ? (cornered ? 0.62 : 0.22) + (lb ? 0.12 : 0) + (recentTaken >= 2 ? 0.14 : 0) + (heavyThreat ? 0.18 : 0) + memoryShield
         : 0;
 
       if (shieldChance > 0 && Math.random() < shieldChance) {
@@ -1442,6 +1630,7 @@ class SovereignMK2 extends AdaptiveAI {
         this.shieldCooldown   = typeof SHIELD_CD !== 'undefined' ? SHIELD_CD : 450;
         this._shieldHoldFrames = 10;
         this._recordEvent('dodge', 3);
+        this._chooseAdaptivePunishRoute(t, dir, d, playerAttacking, currentAction, _bmObs, _bmPred, recentTaken);
         this.aiReact = reactFrames;
         return;
       }
@@ -1449,8 +1638,8 @@ class SovereignMK2 extends AdaptiveAI {
       // At high intelligence, dodge is near-certain — not a coin flip.
       // Below 0.72 intelligence it stays probabilistic so early-game has counterplay.
       const dodgeThresh = this.intelligence > 0.72
-        ? Math.min(0.97, effDef * Math.min(1.45, _bmBias.dodgeBoost))
-        : effDef * 0.88 * Math.min(1.45, _bmBias.dodgeBoost);
+        ? Math.min(0.98, effDef * Math.min(1.55, _bmBias.dodgeBoost) * (heavyThreat ? 1.08 : 1.0) * memoryDodge)
+        : effDef * 0.88 * Math.min(1.55, _bmBias.dodgeBoost) * (heavyThreat ? 1.05 : 1.0) * memoryDodge;
 
       if (Math.random() < dodgeThresh) {
         const dDir = (nearLeft && dir < 0) ? 1 : (nearRight && dir > 0) ? -1 : -dir;
@@ -1463,6 +1652,7 @@ class SovereignMK2 extends AdaptiveAI {
         }
         this.shielding = false;
         this._recordEvent('dodge', 5);
+        this._chooseAdaptivePunishRoute(t, dir, d, playerAttacking, currentAction, _bmObs, _bmPred, recentTaken);
         this._punishTimer = lb ? 2 : 3;
         this.aiReact = reactFrames;
         return;
@@ -1474,6 +1664,7 @@ class SovereignMK2 extends AdaptiveAI {
         this.shieldCooldown   = typeof SHIELD_CD !== 'undefined' ? SHIELD_CD : 450;
         this._shieldHoldFrames = 8;
         this._recordEvent('dodge', 3);
+        this._chooseAdaptivePunishRoute(t, dir, d, playerAttacking, currentAction, _bmObs, _bmPred, recentTaken);
         this.aiReact = reactFrames;
         return;
       }
@@ -1481,13 +1672,29 @@ class SovereignMK2 extends AdaptiveAI {
       this.shielding = false;
     }
 
+    if (heavyThreat && !playerAttacking && d < Math.max(prefDist, 190) && this.shieldCooldown === 0 && this._shieldHoldFrames === 0) {
+      if (Math.random() < 0.02 + this.intelligence * 0.01) {
+        this.shielding        = true;
+        this.shieldCooldown   = typeof SHIELD_CD !== 'undefined' ? SHIELD_CD : 450;
+        this._shieldHoldFrames = 12;
+        this._chooseAdaptivePunishRoute(t, dir, d, playerAttacking, currentAction, _bmObs, _bmPred, recentTaken);
+        this.aiReact = reactFrames;
+        return;
+      }
+    }
+
     // ── PUNISH TIMER: sprint and strike after dodge ────────────
     if (this._punishTimer > 0) {
       this._punishTimer--;
       if (!this.isEdgeDanger(dir)) this.vx = dir * moveSpd * 1.9;
       if (this._punishTimer === 0) {
+        const route = this._adaptivePunishRoute || this._chooseAdaptivePunishRoute(t, dir, d, playerAttacking, currentAction, _bmObs, _bmPred, recentTaken);
         if (this.cooldown <= 0 && d < weaponRange * 1.5 + 35) {
-          this.attack(t);
+          const handled = this._applyAdaptivePunishRoute(route, t, dir, d, moveSpd, _jumpVy, weaponRange, atkRange);
+          if (!handled) {
+            this.attack(t);
+            this._queueAdaptivePunishOutcome(route, t, d);
+          }
           this._counterWindowOpen = false;
         }
         if (this.superReady && Math.random() < 0.55) this.useSuper(t);
@@ -1498,9 +1705,25 @@ class SovereignMK2 extends AdaptiveAI {
 
     // Instant counter on whiff — dash in even from range to punish consistently
     if (this._counterWindowOpen) {
+      const route = this._adaptivePunishRoute || this._chooseAdaptivePunishRoute(t, dir, d, playerAttacking, currentAction, _bmObs, _bmPred, recentTaken);
+      if (route === 'delayed' && this._adaptivePunishTimer > 0) {
+        this.vx *= 0.60;
+        this.aiReact = 0;
+        return;
+      }
+      if (route === 'crossup' && this.onGround && d < 210) {
+        this.vy = _jumpVy;
+        if (!this.isEdgeDanger(dir)) this.vx = dir * moveSpd * 0.75;
+        this.aiReact = 0;
+        return;
+      }
       if (d < weaponRange * 1.6 + 40 && this.cooldown <= 0) {
         if (!this.isEdgeDanger(dir)) this.vx = dir * moveSpd * 1.6;
-        this.attack(t);
+        const handled = this._applyAdaptivePunishRoute(route, t, dir, d, moveSpd, _jumpVy, weaponRange, atkRange);
+        if (!handled) {
+          this.attack(t);
+          this._queueAdaptivePunishOutcome(route, t, d);
+        }
         this._counterWindowOpen = false;
         this.aiReact = 0;
         return;
@@ -1566,7 +1789,8 @@ class SovereignMK2 extends AdaptiveAI {
 
     const finishMode = finishPush;
     const canBait    = this.intelligence > 0.55 && this._baitCooldown === 0 && !finishMode && d < 140 && d > prefDist * 0.8;
-    if (canBait && this.intelligence > 0.70 && Math.random() < (0.005 + this.intelligence * 0.007) * (_bmBias.baitBoost || 1.0)) {
+    const baitStyleBoost = (_bmRead.style === 'defensive' || _bmRead.style === 'passive') ? 1.25 : 1.0;
+    if (canBait && this.intelligence > 0.70 && Math.random() < (0.005 + this.intelligence * 0.007) * (_bmBias.baitBoost || 1.0) * baitStyleBoost * memoryBait) {
       this._baitTimer = Math.round(18 + this.intelligence * 20);
     }
 
@@ -1627,6 +1851,9 @@ class SovereignMK2 extends AdaptiveAI {
       if (this._pressureMode === 'suffocate') {
         if (!this.isEdgeDanger(dir)) this.vx = dir * moveSpd * 0.70;
         else this.vx *= 0.90;
+      } else if (heavyThreat && d < 175) {
+        if (!this.isEdgeDanger(-dir)) this.vx = -dir * moveSpd * 0.42;
+        else this.vx *= 0.82;
       } else if (!this.isEdgeDanger(-dir)) {
         this.vx = -dir * moveSpd * 0.3;
       } else {
@@ -1850,6 +2077,9 @@ function resetSovereignMK2() {
   ai._punishModeActive = false;
   ai._punishModeTimer  = 0;
   ai._punishModeCount  = 0;
+  ai._adaptivePunishRoute = 'direct';
+  ai._adaptivePunishTimer  = 0;
+  ai._bmActivePunish = null;
   ai._predictedNext = null;
   ai._predictConf   = 0;
   ai._predictSource = 'none';
@@ -1903,6 +2133,16 @@ function resetSovereignMK2() {
   ai._postKBLastTgtHp = Infinity;
   ai._postKBLineCd   = 0;
   ai._sovereignEscapeCd = 0;
+  ai._voidRecoverCd     = 0;
+  ai._heavyThreatCd     = 0;
+  ai._adaptiveMemoryState  = null;
+  ai._adaptiveMemoryKey    = null;
+  ai._adaptiveMemorySession = null;
+  ai._adaptiveMemoryPending = false;
+  if (typeof SovereignAdaptiveMemory !== 'undefined' && SovereignAdaptiveMemory &&
+      typeof SovereignAdaptiveMemory.resetSession === 'function') {
+    SovereignAdaptiveMemory.resetSession(ai.target || ai);
+  }
   const _m = ai.aiMemory;
   ai.intelligence = (_m.aggression + _m.defense + _m.spacing + _m.reactionSpeed) / 4;
   ai._updateAuraColor();

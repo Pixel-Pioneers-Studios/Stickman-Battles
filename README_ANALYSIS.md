@@ -119,6 +119,7 @@ This is a soft limiter — infinite combos are theoretically possible before the
 - Base bot logic: inside `Fighter` / `js/smb-enemies.js` (`updateAI()`)
 - Pathfinding: `js/smb-pathfinding.js`
 - Adaptive AI (TrueForm only): `js/smb-adaptive-ai.js` — profiles player attack patterns in real time
+- Sovereign MK2 adaptive memory now layers local session heuristics over Supabase-backed shared priors; the shared table lives in `supabase/migrations/20260511_sovereign_adaptive_memory.sql` and falls back cleanly when Supabase is unavailable.
 - Bot difficulty: `aiDiff` property on fighter (`'easy'`, `'medium'`, `'hard'`)
 - Edge avoidance: 100px buffer with 25% jump-away chance
 - KotH bots override `updateAI()` to rush the zone instead of engaging freely

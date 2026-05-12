@@ -28,6 +28,7 @@ const ReplaySystem = (() => {
   let _platFrames = {};        // { recordedFrameIdx: [platformSnapshot] }
   let _meta       = null;
   let _startFC    = 0;         // value of frameCount when recording began
+  let _lastReplay = null;      // most recent completed replay object
 
   // ── Database handle ─────────────────────────────────────────────────────────
   let _db = null;
@@ -164,6 +165,7 @@ const ReplaySystem = (() => {
     _recording  = true;
     _frames     = [];
     _platFrames = {};
+    _lastReplay = null;
     _startFC    = typeof frameCount !== 'undefined' ? frameCount : 0;
     _meta = {
       version:  GAME_VERSION,
@@ -205,13 +207,18 @@ const ReplaySystem = (() => {
     _meta.frameCount = _frames.length;
     _meta.durationSec = Math.round(_frames.length / PLAYBACK_FPS);
 
-    _persist({
+    _lastReplay = {
       smb_replay: true,
       version:    GAME_VERSION,
       meta:       _meta,
       frames:     _frames,
       platFrames: _platFrames,
-    });
+    };
+    _persist(_lastReplay);
+  }
+
+  function getLastReplay() {
+    return _lastReplay ? JSON.parse(JSON.stringify(_lastReplay)) : null;
   }
 
   // ════════════════════════════════════════════════════════════════════════════
@@ -660,6 +667,7 @@ const ReplaySystem = (() => {
     _refreshBrowserList,
     openFilePicker,
     loadFromFile,
+    getLastReplay,
     togglePlay,
     stepForward,
     stepBack,

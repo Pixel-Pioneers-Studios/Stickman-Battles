@@ -239,7 +239,59 @@ class BehaviorModel {
       ? Math.round(3 + (prediction.confidence - 0.52) * 8.3)
       : 0;
 
-    return { dodgeBoost, approachBoost, baitBoost, preDodgeFrames, atkProb };
+    const tempoBias = this._tempoBias(currentAction);
+    const routeBias = this._routeBias(currentAction, prediction);
+
+    return { dodgeBoost, approachBoost, baitBoost, preDodgeFrames, atkProb, tempoBias, routeBias };
+  }
+
+  // ─── summarizeOpponent() ────────────────────────────────────
+  // Produces a compact read on what the player is trying to do right now.
+  // This is intentionally tactical rather than statistical: the caller can
+  // use it to choose an aggressive plan instead of a single reactive move.
+  summarizeOpponent(currentAction = PA.IDLE, prediction = { action: PA.IDLE, confidence: 0 }) {
+    const safe = Math.max(1, this._totalObs);
+    const jumpFreq  = this._freq[PA.JUMP]  / safe;
+    const atkFreq   = (this._freq[PA.ATTACK] + this._freq[PA.AIRBORNE_ATK]) / safe;
+    const blockFreq = this._freq[PA.BLOCK] / safe;
+    const idleFreq  = this._freq[PA.IDLE] / safe;
+
+    let style = 'balanced';
+    let styleConf = 0.35;
+    const attackPred = prediction.action === PA.ATTACK || prediction.action === PA.AIRBORNE_ATK;
+
+    if (jumpFreq > 0.22 && jumpFreq >= atkFreq && jumpFreq >= blockFreq) {
+      style = 'airborne';
+      styleConf = Math.min(0.92, 0.40 + jumpFreq * 1.7);
+    } else if (blockFreq > 0.22 && blockFreq >= atkFreq) {
+      style = 'defensive';
+      styleConf = Math.min(0.92, 0.40 + blockFreq * 1.7);
+    } else if (atkFreq > 0.28 && atkFreq >= jumpFreq) {
+      style = 'aggressive';
+      styleConf = Math.min(0.95, 0.42 + atkFreq * 1.6);
+    } else if (idleFreq > 0.30) {
+      style = 'passive';
+      styleConf = Math.min(0.88, 0.38 + idleFreq * 1.4);
+    }
+
+    const escapeLikely = currentAction === PA.LAND || currentAction === PA.JUMP ||
+      (currentAction === PA.IDLE && idleFreq > 0.18) || (prediction.confidence > 0.58 && !attackPred);
+    const pressureLikely = atkFreq > 0.26 || style === 'aggressive';
+    const airLikely = jumpFreq > 0.18 || currentAction === PA.AIRBORNE_ATK;
+    const blockLikely = blockFreq > 0.18 || currentAction === PA.BLOCK;
+
+    return {
+      style,
+      styleConf,
+      jumpFreq,
+      atkFreq,
+      blockFreq,
+      idleFreq,
+      escapeLikely,
+      pressureLikely,
+      airLikely,
+      blockLikely,
+    };
   }
 
   // ─── bestPunishRoute() ───────────────────────────────────────
@@ -250,9 +302,83 @@ class BehaviorModel {
   //      available route — prevents the AI from becoming one-note.
   //   2. Otherwise: Laplace-smoothed success rate = (hits+0.5)/(hits+escapes+1)
   //      Routes on cooldown (recently escaped) are skipped.
-  bestPunishRoute() {
+  bestPunishRoute(hint = {}) {
     const routes = ['direct', 'crossup', 'delayed'];
     this._punishCount++;
+
+    const profile = this.summarizeOpponent(
+      hint.currentAction !== undefined ? hint.currentAction : PA.IDLE,
+      hint.prediction || { action: PA.IDLE, confidence: 0 }
+    );
+    const dist = typeof hint.distance === 'number' ? hint.distance : 160;
+    const grounded = hint.playerOnGround !== false;
+    const cornered = !!hint.cornered;
+    const attacking = !!hint.playerAttacking;
+    const shielding = !!hint.playerShielding;
+    const retreating = !!hint.playerRetreating;
+    const passive = !!hint.playerPassive;
+    const memory = hint.memory || {};
+    const routeMemory = memory.routeBias || {};
+
+    const routeFit = {
+      direct: 1.0,
+      crossup: 1.0,
+      delayed: 1.0,
+    };
+
+    if (attacking) {
+      routeFit.direct += 0.65;
+      routeFit.delayed += 0.18;
+      routeFit.crossup += grounded ? 0.12 : 0.48;
+    }
+    if (shielding) {
+      routeFit.delayed += 0.72;
+      routeFit.direct  += 0.18;
+      routeFit.crossup += 0.10;
+    }
+    if (profile.airLikely || !grounded) {
+      routeFit.crossup += 0.88;
+      routeFit.direct  += 0.14;
+      routeFit.delayed += 0.06;
+    }
+    if (profile.blockLikely || passive) {
+      routeFit.delayed += 0.62;
+      routeFit.direct  += 0.12;
+    }
+    if (profile.escapeLikely || retreating) {
+      routeFit.crossup += 0.52;
+      routeFit.direct  += 0.22;
+    }
+    if (cornered) {
+      routeFit.crossup += 0.42;
+      routeFit.direct  += 0.24;
+      routeFit.delayed += 0.08;
+    }
+    if (dist < 110) {
+      routeFit.direct += 0.52;
+      routeFit.delayed += 0.14;
+      routeFit.crossup -= 0.12;
+    } else if (dist > 175) {
+      routeFit.delayed += 0.22;
+      routeFit.crossup += 0.18;
+    }
+
+    if (memory.meleeThreat) {
+      routeFit.direct  += 0.22;
+      routeFit.delayed += 0.12;
+      routeFit.crossup += 0.08;
+    }
+    if (memory.openingStyle === 'defensive') {
+      routeFit.delayed += 0.16;
+    } else if (memory.openingStyle === 'airborne') {
+      routeFit.crossup += 0.16;
+    } else if (memory.openingStyle === 'edge') {
+      routeFit.direct += 0.10;
+      routeFit.crossup += 0.12;
+    }
+    if (routeMemory.direct)  routeFit.direct  *= routeMemory.direct;
+    if (routeMemory.crossup) routeFit.crossup *= routeMemory.crossup;
+    if (routeMemory.delayed)  routeFit.delayed *= routeMemory.delayed;
 
     // Forced rotation: avoids the AI becoming exploitable on a single route
     if (this._punishCount >= this._rotateAt && Math.random() < 0.40) {
@@ -272,7 +398,9 @@ class BehaviorModel {
     for (const r of routes) {
       const e = this._ledger[r];
       if (e.cooldown > 0) continue;
-      const score = (e.hits + 0.5) / (e.hits + e.escapes + 1);
+      const history = (e.hits + 0.5) / (e.hits + e.escapes + 1);
+      const rotationPenalty = r === this._lastRoute ? 0.12 : 0;
+      const score = history * 0.72 + routeFit[r] * 0.58 - rotationPenalty + (profile.styleConf - 0.5) * 0.06;
       if (score > bestScore) { bestScore = score; best = r; }
     }
 
@@ -284,15 +412,42 @@ class BehaviorModel {
   // Called ~22 frames after a punish attempt to record the outcome.
   // 'landed' = true if target HP dropped since the attempt.
   // Escaped punishes put the route on a random 60–120 frame cooldown.
-  recordPunish(route, landed) {
+  recordPunish(route, landed, hint = {}) {
     const e = this._ledger[route];
     if (!e) return;
     if (landed) {
       e.hits++;
     } else {
       e.escapes++;
-      e.cooldown = 60 + Math.floor(Math.random() * 61);  // 1–2 s
+      let baseCd = route === 'crossup' ? 74 : route === 'delayed' ? 88 : 60;
+      if (hint.cornered) baseCd += 12;
+      if (hint.playerShielding) baseCd += 10;
+      if (hint.playerAttacking) baseCd -= 6;
+      if (hint.distance > 180) baseCd += 8;
+      e.cooldown = Math.max(45, baseCd + Math.floor(Math.random() * 41));
     }
+  }
+
+  // ─── _tempoBias() / _routeBias() ───────────────────────────
+  // Internal helpers that translate opponent rhythm into tactical nudges.
+  _tempoBias(currentAction) {
+    if (currentAction === PA.BLOCK) return 1.12;
+    if (currentAction === PA.LAND) return 1.08;
+    if (currentAction === PA.JUMP) return 0.92;
+    if (currentAction === PA.ATTACK || currentAction === PA.AIRBORNE_ATK) return 0.98;
+    return 1.0;
+  }
+
+  _routeBias(currentAction, prediction) {
+    const attackPred = prediction.action === PA.ATTACK || prediction.action === PA.AIRBORNE_ATK;
+    const jumpPred   = prediction.action === PA.JUMP;
+    const shieldPred = prediction.action === PA.BLOCK;
+
+    return {
+      direct : attackPred ? 1.30 : currentAction === PA.ATTACK ? 1.15 : 1.0,
+      crossup: jumpPred ? 1.38 : currentAction === PA.LAND ? 1.18 : 1.0,
+      delayed: shieldPred ? 1.35 : currentAction === PA.BLOCK ? 1.20 : 1.0,
+    };
   }
 
   // ─── projectPosition() ───────────────────────────────────────

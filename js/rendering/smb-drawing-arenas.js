@@ -1418,6 +1418,22 @@ function endGame() {
                  '&#x2756; Something stirs... seek clues in the arenas.</div>';
   }
   document.getElementById('statsDisplay').innerHTML = statsHtml;
+  if (gameMode === 'sovereign' && typeof SovereignAdaptiveMemory !== 'undefined' &&
+      SovereignAdaptiveMemory && typeof SovereignAdaptiveMemory.commit === 'function') {
+    const _sovOpponent = players.find(p => p && !p.isSovereignMK2 && !p.isBoss && !p.isMinion) || null;
+    const _sovReplay = (typeof ReplaySystem !== 'undefined' && typeof ReplaySystem.getLastReplay === 'function')
+      ? ReplaySystem.getLastReplay()
+      : null;
+    void SovereignAdaptiveMemory.commit(null, {
+      target: _sovOpponent,
+      winner: winner || null,
+      sovereignWon: !!(winner && winner.isSovereignMK2),
+      mode: gameMode,
+      arenaKey: currentArenaKey,
+      durationSec: _matchSecs,
+      replay: _sovReplay,
+    });
+  }
   document.getElementById('gameOverOverlay').style.display = 'flex';
   if (typeof ReplaySystem !== 'undefined') ReplaySystem.refreshReplayPanel();
   // Boss Rush gauntlet: show "Next Boss" button when player wins
