@@ -1540,8 +1540,8 @@ body.depth-phase-active {
   touch-action: none;
   user-select: none;
   -webkit-user-select: none;
-  width: 54px;
-  height: 54px;
+  width: 64px;
+  height: 64px;
   border-radius: 50%;
   border: 2px solid rgba(255,255,255,0.25);
   background: rgba(0,0,0,0.55);
@@ -1566,14 +1566,14 @@ body.depth-phase-active {
 
 /* D-pad directional arrows — slightly wider */
 .mc-left, .mc-right {
-  width: 50px;
-  height: 50px;
+  width: 60px;
+  height: 60px;
   border-radius: 10px;
   font-size: 1.1rem;
 }
 .mc-jump {
-  width: 54px;
-  height: 54px;
+  width: 64px;
+  height: 64px;
   background: rgba(0, 180, 255, 0.2);
   border-color: rgba(0,200,255,0.5);
   font-size: 1.1rem;
@@ -1618,14 +1618,14 @@ body.depth-phase-active {
   color: #88ddff;
 }
 
-/* On small / touch screens: shrink buttons a bit */
+/* On small / touch screens: keep buttons at minimum 56px for usability */
 @media (max-height: 500px) {
-  .mc-btn { width: 44px; height: 44px; font-size: 0.65rem; }
-  .mc-left, .mc-right { width: 40px; height: 40px; }
-  .mc-jump { width: 44px; height: 44px; }
+  .mc-btn { width: 56px; height: 56px; font-size: 0.65rem; }
+  .mc-left, .mc-right { width: 52px; height: 52px; }
+  .mc-jump { width: 56px; height: 56px; }
 }
 @media (max-width: 480px) {
-  .mc-btn { width: 48px; height: 48px; }
+  .mc-btn { width: 64px; height: 64px; }
 }
 
 /* ─── STORY MODE v2 — Chapters, Ability Store, Tokens ────────────────────── */
@@ -2250,8 +2250,8 @@ body.depth-phase-active {
   .mc-pad    { bottom: max(10px, env(safe-area-inset-bottom, 10px)); }
   #mc-p1     { left:  max(10px, env(safe-area-inset-left,   10px)); }
   #mc-p2     { right: max(10px, env(safe-area-inset-right,  10px)); }
-  .mc-btn    { width: 52px; height: 52px; }
-  .mc-left, .mc-right { width: 48px; height: 48px; }
+  .mc-btn    { width: 60px; height: 60px; }
+  .mc-left, .mc-right { width: 56px; height: 56px; }
 }
 
 /* ============================================================

@@ -562,7 +562,9 @@ function _acctRenderCloudSection() {
   const status = signedIn
     ? ('Signed in as <strong style="color:#dde4ff;">' + _acctEscHtml(user.email || user.id) + '</strong>')
     : (st.available ? 'Sign in to sync progress across browsers and devices.' : 'Add Supabase config to enable cloud sync.');
-  const googleBtn = (!signedIn && st.available)
+  // Hide Google login on CrazyGames — external OAuth providers are not permitted
+  const _onCrazyGames = !!(window.CrazyGames && window.CrazyGames.SDK);
+  const googleBtn = (!signedIn && st.available && !_onCrazyGames)
     ? '<button onclick="_acctCloudSignInGoogle()" style="' + _acctBtnStyle('blue') + ';display:flex;align-items:center;gap:5px;"><img src="https://www.google.com/favicon.ico" style="width:13px;height:13px;"> Google</button>'
     : '';
   const buttonRow = signedIn

@@ -14,6 +14,7 @@ function startGame(_skipVote) {
     return;
   }
   if (typeof _resetSdFloor === 'function') _resetSdFloor();
+  if (typeof cgSdk !== 'undefined') cgSdk.gameplayStart();
   // Story mode: reset per-fight event state when launching from story
   if (storyModeActive && typeof _onStoryFightStart === 'function') _onStoryFightStart();
   const fadeOv = document.getElementById('fadeOverlay');

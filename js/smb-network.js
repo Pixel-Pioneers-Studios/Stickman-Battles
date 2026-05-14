@@ -634,6 +634,7 @@ const NetworkManager = (() => {
   }
 
   function sendChatMsg() {
+    if (window._cgChatDisabled) return;
     const inp = document.getElementById('chatInput');
     if (!inp || !inp.value.trim()) return;
     const text = inp.value.trim();

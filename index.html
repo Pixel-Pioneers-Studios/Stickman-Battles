@@ -1313,6 +1313,8 @@
   </div>
 </div>
 
+  <!-- CrazyGames SDK v3 — must load before game scripts -->
+  <script src="https://sdk.crazygames.com/crazygames-sdk-v3.js"></script>
   <!-- GSAP — timeline/tweening library used for cinematic sequencing -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
   <!-- PeerJS — serverless WebRTC peer-to-peer multiplayer -->
@@ -1321,6 +1323,8 @@
   <script src="./js/smb-errorboundary.js?v=3.2.0"></script>
   <!-- Global state, canvas setup -->
   <script src="./js/smb-globals.js?v=3.2.0"></script>
+  <!-- CrazyGames SDK wrapper — must follow smb-globals.js -->
+  <script src="./js/smb-crazygames.js?v=3.2.0"></script>
   <!-- Live ops: remote config, version checks, soft updates (must follow smb-globals.js) -->
   <script src="./js/smb-liveops.js?v=3.2.0"></script>
   <script src="./js/smb-admin-session.js?v=3.2.0"></script>

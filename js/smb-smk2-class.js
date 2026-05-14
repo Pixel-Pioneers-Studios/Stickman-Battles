@@ -1118,8 +1118,9 @@ class SovereignMK2 extends AdaptiveAI {
     const offBottom = this.y > GAME_H + 28;
     // Only treat low-y as a ledge risk when AIRBORNE — the floor itself can sit
     // below GAME_H-180 in some arenas, which would otherwise trigger a trampoline loop.
+    // Threshold is GAME_H-120 (=400) — floor y≈376 and normal jump arcs never reach 400.
     const nearLedge = this.x < 90 || this.x + this.w > GAME_W - 90 ||
-                      (!this.onGround && this.y > GAME_H - 180);
+                      (!this.onGround && this.y > GAME_H - 120);
     const heavyThreat = !!(t && t.weapon && (t.weapon.kb >= 18 || t.weapon.weaponType === 'heavy'));
     const inVoidRisk = offLeft || offRight || offBottom || (nearLedge && (this.vy > -1 || Math.abs(this.vx) > 4.4 || this._countRecent('dmg_taken', 45) >= 1));
 

@@ -1271,6 +1271,7 @@ function addKillFeed(loser) {
 
 function endGame() {
   if (typeof ReplaySystem !== 'undefined') ReplaySystem.stopRecording();
+  if (typeof cgSdk !== 'undefined') cgSdk.gameplayStop();
   gameRunning = false;
   exploreActive = false;
   if (typeof saveGame === 'function') saveGame();
@@ -1675,11 +1676,13 @@ function pauseGame() {
   if (!gameRunning) return;
   paused = !paused;
   document.getElementById('pauseOverlay').style.display = paused ? 'flex' : 'none';
+  if (typeof cgSdk !== 'undefined') { if (paused) cgSdk.gameplayStop(); else cgSdk.gameplayStart(); }
 }
 
 function resumeGame() {
   paused = false;
   document.getElementById('pauseOverlay').style.display = 'none';
+  if (typeof cgSdk !== 'undefined') cgSdk.gameplayStart();
 }
 
 // ============================================================
