@@ -58,16 +58,18 @@ class SovereignMK2 extends AdaptiveAI {
 
     // ── D. Anti-Exploit System ───────────────────────────────────
     this._exploit = {
-      stallFrames:    0,
-      stallRespCd:    0,
-      edgeFrames:     0,
-      edgeRespCd:     0,
-      spamCount:      0,
-      spamTimer:      0,
-      spamRespCd:     0,
-      lastTargetX:    0,
-      engageTimer:    0,   // forced-engage countdown after exploit trigger
-      engageType:     null,
+      stallFrames:       0,
+      stallRespCd:       0,
+      edgeFrames:        0,
+      edgeRespCd:        0,
+      spamCount:         0,
+      spamTimer:         0,
+      spamRespCd:        0,
+      lastTargetX:       0,
+      engageTimer:       0,   // forced-engage countdown after exploit trigger
+      engageType:        null,
+      idleShieldFrames:  0,   // frames player has been shielding without attacking
+      idleShieldRespCd:  0,
     };
 
     // ── E. Humanization Layer ────────────────────────────────────
@@ -125,6 +127,7 @@ class SovereignMK2 extends AdaptiveAI {
     this._FORCE_DIST_FRAMES     = 70;  // ~1.2 sec continuously far
     this._FORCE_IDLE_FRAMES     = 70;  // ~1.2 sec since player last attacked
     this._FORCE_CLOSE_NEEDED    = 30;  // frames close (<140px) needed to exit force mode
+    this._jumpCooldown          = 0;   // frames until next upward-chase jump is allowed
 
     // ── Platform Intelligence ──────────────────────────────────────
     // Tracks which arena platforms the player lands on most frequently.
@@ -434,6 +437,7 @@ class SovereignMK2 extends AdaptiveAI {
       if (this._adaptInterval > 4) this._adaptInterval = 4;
       return;
     }
+    if (this._observationFrames < 120) return;
     const recentTaken = this._countRecent('dmg_taken', 180);
     const hpPct = this.health / Math.max(1, this.maxHealth);
     const targetAdv = t && t.health > 0 ? t.health / Math.max(1, this.health) : 1;
@@ -586,7 +590,7 @@ class SovereignMK2 extends AdaptiveAI {
     // High-confidence thresholds — must be strong pattern, not noise
     if (jumpRate   > 0.60) return 'anti-air';
     if (attackRate > 0.65) return 'parry';
-    if (shieldRate > 0.50) return 'guard-break';
+    if (shieldRate > 0.30) return 'guard-break';
     if (dodgeRate  > 0.50) return 'intercept';
     // Passive player (low overall action rate relative to window): apply pressure
     if (total <= 6 && this._observationFrames > 180) return 'pressure';
@@ -1109,10 +1113,13 @@ class SovereignMK2 extends AdaptiveAI {
   _runVoidRecovery(t, dir, moveSpd, jumpVy) {
     if (this._voidRecoverCd > 0) this._voidRecoverCd--;
 
-    const offLeft  = this.x < -18;
-    const offRight = this.x + this.w > GAME_W + 18;
+    const offLeft   = this.x < -18;
+    const offRight  = this.x + this.w > GAME_W + 18;
     const offBottom = this.y > GAME_H + 28;
-    const nearLedge = this.x < 90 || this.x + this.w > GAME_W - 90 || this.y > GAME_H - 180;
+    // Only treat low-y as a ledge risk when AIRBORNE — the floor itself can sit
+    // below GAME_H-180 in some arenas, which would otherwise trigger a trampoline loop.
+    const nearLedge = this.x < 90 || this.x + this.w > GAME_W - 90 ||
+                      (!this.onGround && this.y > GAME_H - 180);
     const heavyThreat = !!(t && t.weapon && (t.weapon.kb >= 18 || t.weapon.weaponType === 'heavy'));
     const inVoidRisk = offLeft || offRight || offBottom || (nearLedge && (this.vy > -1 || Math.abs(this.vx) > 4.4 || this._countRecent('dmg_taken', 45) >= 1));
 
@@ -1138,10 +1145,12 @@ class SovereignMK2 extends AdaptiveAI {
 
     if (this.onGround || this.canDoubleJump || this.vy > 0 || offBottom) {
       this.vx = escapeDir * moveSpd * (heavyThreat ? 1.02 : 0.90);
-      this.vy = this.onGround ? jumpVy : (offBottom ? -16 : -14);
-      if (this.canDoubleJump && !this.onGround) this.canDoubleJump = false;
+      // Gate the jump behind the cooldown — prevents the trampoline pogo-stick
+      // that fires when the arena floor is below the GAME_H-180 threshold.
       if (this._voidRecoverCd <= 0) {
         this._voidRecoverCd = heavyThreat ? 16 : 12;
+        this.vy = this.onGround ? jumpVy : (offBottom ? -16 : -14);
+        if (this.canDoubleJump && !this.onGround) this.canDoubleJump = false;
         if (typeof showBossDialogue === 'function' && Math.random() < 0.15) {
           showBossDialogue('Not yet.', 70);
         }
@@ -1224,6 +1233,19 @@ class SovereignMK2 extends AdaptiveAI {
     }
 
     if (ex.engageTimer > 0) ex.engageTimer--;
+
+    // ── Passive shield detection: player shields without attacking ─
+    const _shieldingIdle = t.shielding && t.attackTimer === 0;
+    ex.idleShieldFrames = _shieldingIdle ? ex.idleShieldFrames + 1 : Math.max(0, ex.idleShieldFrames - 3);
+    if (ex.idleShieldRespCd > 0) ex.idleShieldRespCd--;
+
+    if (ex.idleShieldFrames >= 60 && ex.idleShieldRespCd === 0) {
+      ex.idleShieldFrames  = 0;
+      ex.idleShieldRespCd  = 240;
+      ex.engageTimer       = 90;
+      ex.engageType        = 'passive_shield';
+      if (!this._punishModeActive) this._activatePunishMode('shield');
+    }
   }
 
   // Returns true if anti-exploit is forcing a specific action this tick
@@ -1249,6 +1271,28 @@ class SovereignMK2 extends AdaptiveAI {
       if (!this.isEdgeDanger(dir)) this.vx = dir * moveSpd * 1.6;
       const weapon = this._getCombatWeapon();
       if (d < (weapon.range || 90) * 1.5 && this.cooldown <= 0) this.attack(t);
+      return true;
+    }
+    if (ex.engageType === 'passive_shield') {
+      this._lockedCounterStrategy = 'guard-break';
+      this._adaptLockTimer = Math.max(this._adaptLockTimer, 90);
+      if (!this.isEdgeDanger(dir)) this.vx = dir * moveSpd * 1.45;
+      const _gbWeapon = this._getCombatWeapon();
+      const _gbRange  = (_gbWeapon.range || 90) * 1.3 + 20;
+      if (t.shielding && d < _gbRange) {
+        this._counterLockTimer = 12;
+        t.shielding      = false;
+        t.shieldHoldTimer = 0;
+        t.hurtTimer      = Math.max(t.hurtTimer  || 0, 14);
+        t.stunTimer      = Math.max(t.stunTimer  || 0, 8);
+        t.vx            += dir * 9;
+        screenShake      = Math.max(screenShake, 14);
+        spawnParticles(t.cx(), t.cy(), '#ffaa44', 16);
+        if (this.abilityCooldown <= 0) this.ability(t);
+        else if (this.cooldown <= 0)   this.attack(t);
+      } else if (this.cooldown <= 0 && d < (_gbWeapon.range || 90) * 1.4) {
+        this.attack(t);
+      }
       return true;
     }
     return false;
@@ -1386,6 +1430,7 @@ class SovereignMK2 extends AdaptiveAI {
     if (this._baitCooldown > 0) this._baitCooldown--;
     if (this._comboFollowTimer > 0) this._comboFollowTimer--;
     if (this._adaptivePunishTimer > 0) this._adaptivePunishTimer--;
+    if (this._jumpCooldown > 0) this._jumpCooldown--;
 
     // ── Micro-adaptation ─────────────────────────────────────
     const recentTaken  = this._countRecent('dmg_taken',    90);
@@ -1664,7 +1709,7 @@ class SovereignMK2 extends AdaptiveAI {
 
       if (shieldChance > 0 && Math.random() < shieldChance) {
         this.shielding        = true;
-        this.shieldCooldown   = typeof SHIELD_CD !== 'undefined' ? SHIELD_CD : 450;
+        this.shieldCooldown   = 60;
         this._shieldHoldFrames = 10;
         this._recordEvent('dodge', 3);
         this._chooseAdaptivePunishRoute(t, dir, d, playerAttacking, currentAction, _bmObs, _bmPred, recentTaken);
@@ -1698,7 +1743,7 @@ class SovereignMK2 extends AdaptiveAI {
       // Cornered with no usable dodge direction — brief shield then instant punish
       if (canShield) {
         this.shielding        = true;
-        this.shieldCooldown   = typeof SHIELD_CD !== 'undefined' ? SHIELD_CD : 450;
+        this.shieldCooldown   = 60;
         this._shieldHoldFrames = 8;
         this._recordEvent('dodge', 3);
         this._chooseAdaptivePunishRoute(t, dir, d, playerAttacking, currentAction, _bmObs, _bmPred, recentTaken);
@@ -1712,7 +1757,7 @@ class SovereignMK2 extends AdaptiveAI {
     if (heavyThreat && !playerAttacking && d < Math.max(prefDist, 190) && this.shieldCooldown === 0 && this._shieldHoldFrames === 0) {
       if (Math.random() < 0.02 + this.intelligence * 0.01) {
         this.shielding        = true;
-        this.shieldCooldown   = typeof SHIELD_CD !== 'undefined' ? SHIELD_CD : 450;
+        this.shieldCooldown   = 60;
         this._shieldHoldFrames = 12;
         this._chooseAdaptivePunishRoute(t, dir, d, playerAttacking, currentAction, _bmObs, _bmPred, recentTaken);
         this.aiReact = reactFrames;
@@ -1784,7 +1829,7 @@ class SovereignMK2 extends AdaptiveAI {
 
     // ── PATTERN ANTICIPATION ───────────────────────────────────
     // Jump-heavy player → shadow their air movement
-    if (recentPJumps >= 3 && !this.onGround && this.canDoubleJump) {
+    if (recentPJumps >= 3 && !this.onGround && this.canDoubleJump && !t.onGround) {
       this.vy = -15; this.canDoubleJump = false;
     }
     // Rapid-attack player → pre-position at punish range
@@ -1818,7 +1863,7 @@ class SovereignMK2 extends AdaptiveAI {
         && this.intelligence > 0.60 && d < 150 && d > prefDist * 0.7
         && !playerAttacking && Math.random() < (0.006 + this.intelligence * 0.005)) {
       this.shielding        = true;
-      this.shieldCooldown   = typeof SHIELD_CD !== 'undefined' ? SHIELD_CD : 450;
+      this.shieldCooldown   = 60;
       this._shieldHoldFrames = 12; // shorter hold for proactive stance
       this.aiReact = Math.max(1, reactFrames);
       return;
@@ -1883,10 +1928,12 @@ class SovereignMK2 extends AdaptiveAI {
         const _aBoost  = _bmBias.approachBoost || 1.0;
         this.vx = _aDir * moveSpd * (finishMode ? 1.34 : this._pressureMode === 'suffocate' ? 1.16 : 1.0) * _aBoost;
       }
-      if (this.onGround && t.y < this.y - 55) {
+      if (this._jumpCooldown <= 0 && this.onGround && t.y < this.y - 80) {
         this.vy = _jumpVy;
-      } else if (this.canDoubleJump && this.vy > 0 && t.y < this.y - 45) {
+        this._jumpCooldown = 30;
+      } else if (this._jumpCooldown <= 0 && this.canDoubleJump && this.vy > 0 && t.y < this.y - 70) {
         this.vy = -15; this.canDoubleJump = false;
+        this._jumpCooldown = 20;
       }
     } else if (d < prefDist - 15) {
       if (this._pressureMode === 'suffocate') {

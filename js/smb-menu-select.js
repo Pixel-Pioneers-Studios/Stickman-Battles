@@ -392,19 +392,53 @@ function openReplayBrowser() {
   const m = document.getElementById('replayBrowserModal');
   if (!m) return;
   m.style.display = 'flex';
-  // Populate the list using the same data as the match-end panel
-  const listEl = document.getElementById('replayBrowserList');
-  if (listEl && typeof ReplaySystem !== 'undefined') {
-    // Temporarily redirect refreshReplayPanel output to the browser list
-    const origEl = document.getElementById('replayPanelList');
-    // We can't easily redirect, so manually replicate the render
-    ReplaySystem._refreshBrowserList(listEl);
-  }
+  switchReplayTab('match');
 }
 
 function closeReplayBrowser() {
   const m = document.getElementById('replayBrowserModal');
   if (m) m.style.display = 'none';
+}
+
+function switchReplayTab(tab) {
+  const matchTab = document.getElementById('replayTabMatch');
+  const bossTab  = document.getElementById('replayTabBoss');
+  const matchBtn = document.getElementById('replayTabMatchBtn');
+  const bossBtn  = document.getElementById('replayTabBossBtn');
+
+  const activeStyle   = 'background:rgba(50,100,200,0.22);border:1px solid rgba(80,140,255,0.5);color:#88bbff;';
+  const inactiveStyle = 'background:none;border:1px solid rgba(80,100,140,0.3);color:#556677;';
+
+  if (tab === 'match') {
+    if (matchTab) matchTab.style.display = 'flex';
+    if (bossTab)  bossTab.style.display  = 'none';
+    if (matchBtn) matchBtn.style.cssText += activeStyle;
+    if (bossBtn)  bossBtn.style.cssText  += inactiveStyle;
+    // Populate match replay list
+    const listEl = document.getElementById('replayBrowserList');
+    if (listEl && typeof ReplaySystem !== 'undefined') {
+      ReplaySystem._refreshBrowserList(listEl);
+    }
+  } else {
+    if (matchTab) matchTab.style.display = 'none';
+    if (bossTab)  { bossTab.style.display = 'flex'; }
+    if (matchBtn) matchBtn.style.cssText += inactiveStyle;
+    if (bossBtn)  bossBtn.style.cssText  += activeStyle;
+    // Populate boss fights tab
+    _refreshBossReplayTab();
+  }
+}
+
+function _refreshBossReplayTab() {
+  const tfRow   = document.getElementById('replayBossRow_tf');
+  const emptyEl = document.getElementById('replayBossEmpty');
+
+  const tfSeen = !!(window.GameState &&
+    GameState.getActiveAccount &&
+    GameState.getActiveAccount()?.data?.unlocks?.tfEndingSeen);
+
+  if (tfRow)   tfRow.style.display   = tfSeen ? 'flex' : 'none';
+  if (emptyEl) emptyEl.style.display = tfSeen ? 'none' : 'block';
 }
 
 function toggleCard(id) {

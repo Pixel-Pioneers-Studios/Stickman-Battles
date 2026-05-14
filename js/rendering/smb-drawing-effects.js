@@ -91,6 +91,14 @@ function drawCinematicOverlay() {
   ctx.fillStyle = vg;
   ctx.fillRect(0, barH, cw, ch - barH * 2);
 
+  // Per-frame anime FX (screen-space draw pass — runs between bars and phase label)
+  if (typeof activeCinematic.draw === 'function') {
+    ctx.save();
+    ctx.globalAlpha = 1;
+    activeCinematic.draw(ctx, t);
+    ctx.restore();
+  }
+
   // Phase label (if set by the cinematic sequence)
   const labelAlpha = Math.max(0,
     Math.min(1, (t - 0.9) / 0.25) * Math.min(1, (totalSec - t - 0.25) / 0.25));

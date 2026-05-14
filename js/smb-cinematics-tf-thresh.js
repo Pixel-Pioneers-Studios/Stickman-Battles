@@ -6,6 +6,9 @@
 // ============================================================
 
 function _makeTFEntryCinematic(tf) {
+  let _burstLineFired = false;
+  const _trailTF = []; // afterimage positions captured during the opening rush
+
   return cinScript({
     duration: 4.8,
     label: { text: '— TRUE POWER —', color: '#ffffff' },
@@ -82,7 +85,54 @@ function _makeTFEntryCinematic(tf) {
       { at: 3.35,
         fx: { flash: { color: '#7f96ff', alpha: 0.30, dur: 10 }, screenShake: 16 }
       },
+      // Mark the burst so afterimage starts collecting
+      { at: 0.44, run() { _burstLineFired = true; } },
     ],
+
+    onDraw(ctx, t) {
+      if (typeof AniFX === 'undefined') return;
+      const b = players ? players.find(p => p.isTrueForm && p.health > 0) : null;
+
+      // Charge glow building before the energy burst (0–0.45s)
+      if (t < 0.45 && b) {
+        AniFX.charge(ctx, b, t / 0.45, { color: '#aaaaff' });
+      }
+
+      // Collect afterimage during and just after the burst
+      if (b && _burstLineFired && t > 0.44 && t < 1.2) {
+        _trailTF.push({ wx: b.cx(), wy: b.y + (b.h || 60), color: '#ffffff' });
+        if (_trailTF.length > 8) _trailTF.shift();
+      }
+      if (_trailTF.length > 1) AniFX.afterimage(ctx, _trailTF, { tint: '#8899ff', alpha: 0.35 });
+
+      // Speed-line explosion at the burst moment (0.44–0.85s)
+      if (_burstLineFired && t > 0.44 && t < 0.85 && b) {
+        const fade = 1 - (t - 0.44) / 0.41;
+        AniFX.speedLines(ctx, b, {
+          count: 75, minLen: 50, maxLen: 220,
+          color: '#ffffff', alpha: 0.65 * fade,
+        });
+      }
+
+      // Full-screen convergence lines mid-cinematic (1.6–2.6s pulse)
+      if (t > 1.6 && t < 2.6) {
+        const wave = Math.sin((t - 1.6) * Math.PI / 0.5);
+        if (wave > 0.4) {
+          AniFX.screenSpeedLines(ctx, { color: '#8899ff', alpha: 0.12 * wave });
+        }
+      }
+
+      // Sustained aura throughout (white → blue)
+      if (b) {
+        const intensity = Math.min(1, t / 0.8);
+        AniFX.aura(ctx, b, t, {
+          color:  '#aabbff',
+          rings:  3,
+          orbits: Math.round(6 + intensity * 6),
+          radius: (b.h || 60) * (0.75 + intensity * 0.3),
+        });
+      }
+    },
   });
 }
 

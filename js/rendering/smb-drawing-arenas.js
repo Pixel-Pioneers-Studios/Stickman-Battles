@@ -1438,17 +1438,10 @@ function endGame() {
     }
   }
   document.getElementById('gameOverOverlay').style.display = 'flex';
-  if (typeof ReplaySystem !== 'undefined') ReplaySystem.refreshReplayPanel();
   // Boss Rush gauntlet: show "Next Boss" button when player wins
   if (typeof _updateBossRushNextBtn === 'function') {
     const _playerWon = bossDefeated || !!(winner && !winner.isAI && !winner.isBoss);
     _updateBossRushNextBtn(_playerWon);
-  }
-  // Show Replay Cinematic button if TF ending has been seen and this was a TF fight
-  const _replayRow = document.getElementById('replayCinematicRow');
-  if (_replayRow) {
-    _replayRow.style.display = (gameMode === 'trueform' && window.GameState &&
-      !!GameState.getActiveAccount()?.data?.unlocks?.tfEndingSeen) ? '' : 'none';
   }
 
   // Story mode: detect win and show level-complete screen

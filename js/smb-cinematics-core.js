@@ -477,6 +477,12 @@ function cinScript(def) {
       }
     },
 
+    // Called every frame from drawCinematicOverlay() in screen-space.
+    // def.onDraw(ctx, t) — t in seconds, ctx is identity-transform canvas context.
+    draw(rctx, t) {
+      if (typeof def.onDraw === 'function') def.onDraw(rctx, t);
+    },
+
     onEnd() {
       slowMotion           = 1.0;
       cinematicCamOverride = false;

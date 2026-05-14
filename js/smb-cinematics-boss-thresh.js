@@ -6,11 +6,13 @@
 // ============================================================
 
 function _makeBossWarning75Cinematic(boss) {
+  // Track whether the speed-line burst has fired (it should only render for ~0.4s)
+  let _riseLineFired = false;
+
   return cinScript({
     duration: 3.2,
     label:    { text: '— I MADE THIS WORLD —', color: '#aa44ff' },
 
-    // Slow ramp down → near-freeze through dialogue → ramp back
     slowMo: [[0, 1.0], [0.35, 0.06], [2.8, 0.06], [3.2, 1.0]],
 
     cam: [
@@ -21,57 +23,75 @@ function _makeBossWarning75Cinematic(boss) {
     ],
 
     steps: [
-      // Boss rises off the ground
       { at: 0.3,
         run({ boss }) {
           if (!boss) return;
           boss.vy = -8;
+          _riseLineFired = true;
           CinFX.particles(boss.cx(), boss.cy(), '#aa44ff', 25);
           CinFX.particles(boss.cx(), boss.cy(), '#ffffff', 12);
           CinFX.shake(18);
         }
       },
-      // Arena hazard triggers (makes the arena feel like it's reacting)
       { at: 0.5,
         fx: { shockwave: { x: () => boss ? boss.cx() : GAME_W/2,
                            y: () => boss ? boss.cy() : GAME_H/2,
                            color: '#aa44ff', count: 3, maxR: 240 } }
       },
       { at: 0.5, run() { CinFX.arenaHazardNow(); } },
-      // First dialogue line
       { at: 0.6, dialogue: 'This world existed before you arrived.', dialogueDur: 160 },
-      // Purple energy rings pulse from arena center
       { at: 1.0,
         fx: { shockwave: { x: GAME_W / 2, y: GAME_H / 2,
                            color: '#cc00ee', count: 2, maxR: 380, dur: 90 } }
       },
-      // Second dialogue line
       { at: 1.7, dialogue: 'I wrote the rules. I can revise them.', dialogueDur: 180 },
-      // Screen flash + shake for emphasis
       { at: 1.75,
         fx: { flash: { color: '#aa44ff', alpha: 0.35, dur: 10 },
               screenShake: 22 }
       },
-      // Boss lands / resumes
       { at: 2.6,
         run({ boss }) {
           if (boss) CinFX.particles(boss.cx(), boss.cy(), '#cc00ee', 18);
         }
       },
     ],
+
+    onDraw(ctx, t) {
+      if (typeof AniFX === 'undefined') return;
+      const b = players ? players.find(p => p.isBoss && p.health > 0) : null;
+
+      // Pulsing aura throughout the cinematic
+      if (b) AniFX.aura(ctx, b, t, { color: '#aa44ff', rings: 2, orbits: 6 });
+
+      // Speed-line burst on boss rise (0.28–0.7s), fading out
+      if (_riseLineFired && t > 0.28 && t < 0.7 && b) {
+        const fade = 1 - (t - 0.28) / 0.42;
+        AniFX.speedLines(ctx, b, {
+          count: 50, minLen: 35, maxLen: 130,
+          color: '#cc66ff', alpha: 0.5 * fade,
+        });
+      }
+
+      // Charge glow building in the final beat (2.0–2.6s)
+      if (t > 2.0 && t < 2.6 && b) {
+        AniFX.charge(ctx, b, (t - 2.0) / 0.6 * 0.6, { color: '#aa44ff' });
+      }
+    },
   });
 }
 
 
 function _makeBossRage40Cinematic(boss) {
-  // Capture the thrown target at the moment of the grab so camera can track it
   let _throwTarget = null;
+  // Rolling afterimage buffers (oldest → newest)
+  const _trailBoss   = [];
+  const _trailTarget = [];
+  let _panelActive   = false;
 
   return cinScript({
     duration: 4.2,
     label: { text: '— ENOUGH. —', color: '#ff0044' },
 
-    // 0–0.4: ramp to freeze; 0.4–1.2: ramp UP so throw is visible; 1.2–1.7: freeze for slam; 1.7+: crawl then resume
     slowMo: [[0, 1.0], [0.4, 0.05], [0.45, 0.05], [1.1, 0.50], [1.7, 0.05], [3.8, 0.06], [4.2, 1.0]],
 
     cam: [
@@ -164,17 +184,68 @@ function _makeBossRage40Cinematic(boss) {
           }
         }
       },
-      // Dialogue
       { at: 1.55, dialogue: 'I\'m done being generous.',  dialogueDur: 140 },
       { at: 2.30, dialogue: 'You don\'t get to leave.',   dialogueDur: 220 },
-      // Second dramatic shake for the line delivery
       { at: 2.35, fx: { flash: { color: '#ff0044', alpha: 0.3, dur: 8 }, screenShake: 26 } },
+      // Mark panel window closed
+      { at: 1.25, run() { _panelActive = false; } },
     ],
+
+    onDraw(ctx, t) {
+      if (typeof AniFX === 'undefined') return;
+      const b   = players ? players.find(p => p.isBoss && p.health > 0) : null;
+      const tgt = _throwTarget;
+
+      // Collect afterimage positions during the teleport + throw phase
+      if (b && t > 0.4 && t < 1.5) {
+        _trailBoss.push({ wx: b.cx(), wy: b.y + (b.h || 60), color: b.color || '#cc00ee' });
+        if (_trailBoss.length > 7) _trailBoss.shift();
+      }
+      if (tgt && t > 0.42 && t < 1.25) {
+        _trailTarget.push({ wx: tgt.cx(), wy: tgt.y + (tgt.h || 60), color: tgt.color || '#ffffff' });
+        if (_trailTarget.length > 7) _trailTarget.shift();
+        _panelActive = true;
+      }
+
+      // Afterimage trails
+      if (_trailBoss.length > 1)   AniFX.afterimage(ctx, _trailBoss,   { tint: '#ff0066', alpha: 0.32 });
+      if (_trailTarget.length > 1) AniFX.afterimage(ctx, _trailTarget, { alpha: 0.25 });
+
+      // Manga panel split during the throw arc
+      if (_panelActive && t > 0.55 && t < 1.25) {
+        const inOut = Math.min(1, (t - 0.55) / 0.18) * Math.min(1, (1.25 - t) / 0.18);
+        AniFX.panels(ctx, 3, { alpha: inOut * 0.82, lw: 11 });
+      }
+
+      // Speed-line burst at the slam impact (1.1–1.4s)
+      if (t > 1.1 && t < 1.4 && b) {
+        const fade = 1 - (t - 1.1) / 0.3;
+        AniFX.speedLines(ctx, b, {
+          count: 60, minLen: 55, maxLen: 200,
+          color: '#ff0044', alpha: 0.7 * fade,
+        });
+      }
+
+      // Slash mark at the exact impact moment (1.1–1.22s)
+      if (t > 1.1 && t < 1.22 && b) {
+        const s = _cinWorldToScreen(b.cx(), b.y + (b.h || 60));
+        AniFX.slashMark(ctx, s.x, s.y, Math.PI * 0.25, {
+          color: '#ff0044', len: 90, lw: 5, alpha: (1.22 - t) / 0.12,
+        });
+      }
+
+      // Red charge glow during final dialogue
+      if (t > 2.0 && b) {
+        AniFX.charge(ctx, b, Math.min(1, (t - 2.0) / 1.0) * 0.55, { color: '#ff0044' });
+      }
+    },
   });
 }
 
 
 function _makeBossDesp10Cinematic(boss) {
+  let _screenLinePulse = 0; // tracks last pulse timestamp for screen speed lines
+
   return cinScript({
     duration: 3.5,
     label: { text: '— IMPOSSIBLE —', color: '#ff8800' },
@@ -229,11 +300,42 @@ function _makeBossDesp10Cinematic(boss) {
       { at: 1.9,
         fx: { flash: { color: '#ff8800', alpha: 0.40, dur: 10 }, screenShake: 32 }
       },
-      // Final crack burst
       { at: 2.6,
         fx: { groundCrack: { x: GAME_W / 2, y: GAME_H - 65, color: '#ff4400', count: 6 } }
       },
     ],
+
+    onDraw(ctx, t) {
+      if (typeof AniFX === 'undefined') return;
+      const b = players ? players.find(p => p.isBoss && p.health > 0) : null;
+
+      // Unstable aura throughout — intensity increases with time
+      if (b) {
+        const intensity = 0.5 + (t / 3.5) * 0.5;
+        AniFX.aura(ctx, b, t, {
+          color:  '#ff8800',
+          rings:  Math.round(2 + intensity * 2),
+          orbits: Math.round(6 + intensity * 6),
+          radius: (b.h || 60) * (0.8 + intensity * 0.4),
+        });
+      }
+
+      // Screen-wide speed-line pulses every ~0.6s (desperation energy bursts)
+      const pulseInterval = 0.6;
+      if (t - _screenLinePulse >= pulseInterval && t > 0.3) {
+        _screenLinePulse = t;
+      }
+      const sincePulse = t - _screenLinePulse;
+      if (sincePulse < 0.25) {
+        const fade = 1 - sincePulse / 0.25;
+        AniFX.screenSpeedLines(ctx, { color: '#ff6600', alpha: 0.22 * fade });
+      }
+
+      // Building charge in the final stretch (2.5–3.5s)
+      if (t > 2.5 && b) {
+        AniFX.charge(ctx, b, (t - 2.5) / 1.0 * 0.7, { color: '#ff8800' });
+      }
+    },
   });
 }
 

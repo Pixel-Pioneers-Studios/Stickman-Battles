@@ -837,39 +837,66 @@
       <button id="playAgainBtn" class="btn btn-start" onclick="_cancelRematchCountdown(); startGame()">Play Again</button>
       <button class="btn" onclick="backToMenu()">Menu</button>
     </div>
-    <div id="replayCinematicRow" style="display:none; margin-top:10px;">
-      <button class="btn" style="color:#cc88ff;border-color:#8844aa;" onclick="replayTFEnding()">&#8634; Replay Cinematic</button>
-    </div>
     <div id="bossRushRow" style="display:none; margin-top:10px;">
       <button id="bossRushNextBtn" class="btn" style="color:#ff8844;border-color:rgba(200,80,30,0.5);font-weight:700;letter-spacing:1px;" onclick="bossRushAdvance()">Next Boss &#8594;</button>
-    </div>
-    <!-- Replay panel — populated by ReplaySystem.refreshReplayPanel() on each match end -->
-    <div id="replayPanel" style="margin-top:12px;padding-top:10px;border-top:1px solid rgba(80,100,140,0.25);text-align:left;min-width:260px">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
-        <span style="font-size:10px;letter-spacing:1.5px;color:#556677">REPLAYS (last 3)</span>
-        <button onclick="ReplaySystem.openFilePicker()" style="background:none;border:1px solid rgba(100,180,255,0.3);border-radius:4px;color:#66aadd;padding:1px 7px;cursor:pointer;font-size:10px;letter-spacing:.5px">&#9654; Watch file</button>
-      </div>
-      <div id="replayPanelList" style="min-height:18px">
-        <span style="color:#445566;font-size:10px">No saved replays yet.</span>
-      </div>
     </div>
   </div>
 </div>
 <!-- ============================================================
-     REPLAY BROWSER MODAL (accessible from main menu)
+     REPLAYS MODAL — two tabs: Match Replays | Boss Fights
      ============================================================ -->
 <div id="replayBrowserModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.88);z-index:9900;align-items:center;justify-content:center;font-family:'Segoe UI',Arial,sans-serif;">
-  <div style="width:min(480px,92vw);background:rgba(8,12,24,0.97);border:1px solid rgba(80,120,200,0.3);border-radius:12px;padding:20px 22px;display:flex;flex-direction:column;gap:10px">
+  <div style="width:min(520px,94vw);background:rgba(8,12,24,0.97);border:1px solid rgba(80,120,200,0.3);border-radius:12px;padding:20px 22px;display:flex;flex-direction:column;gap:12px">
+    <!-- header -->
     <div style="display:flex;align-items:center;justify-content:space-between">
-      <span style="font-size:12px;letter-spacing:2px;color:#667799;text-transform:uppercase">Replay Library</span>
+      <span style="font-size:12px;letter-spacing:2px;color:#667799;text-transform:uppercase">Replays</span>
       <button onclick="closeReplayBrowser()" style="background:none;border:1px solid rgba(255,255,255,0.15);border-radius:6px;color:#aaa;padding:3px 12px;cursor:pointer;font-size:13px">&#x2715;</button>
     </div>
-    <div style="display:flex;align-items:center;justify-content:space-between;padding-bottom:6px;border-bottom:1px solid rgba(80,100,140,0.2)">
-      <span style="font-size:10px;color:#445566">Up to 3 recent matches are saved automatically.</span>
-      <button onclick="ReplaySystem.openFilePicker()" style="background:none;border:1px solid rgba(100,180,255,0.3);border-radius:4px;color:#66aadd;padding:2px 10px;cursor:pointer;font-size:10px;letter-spacing:.5px">&#9654; Open file</button>
+    <!-- tab bar -->
+    <div style="display:flex;gap:6px;border-bottom:1px solid rgba(80,100,140,0.25);padding-bottom:8px">
+      <button id="replayTabMatchBtn"
+        onclick="switchReplayTab('match')"
+        style="background:rgba(50,100,200,0.22);border:1px solid rgba(80,140,255,0.5);border-radius:6px;color:#88bbff;padding:4px 14px;cursor:pointer;font-size:11px;letter-spacing:.5px">
+        &#9654; Match Replays
+      </button>
+      <button id="replayTabBossBtn"
+        onclick="switchReplayTab('boss')"
+        style="background:none;border:1px solid rgba(80,100,140,0.3);border-radius:6px;color:#556677;padding:4px 14px;cursor:pointer;font-size:11px;letter-spacing:.5px">
+        &#9888; Boss Fights
+      </button>
     </div>
-    <div id="replayBrowserList" style="min-height:40px">
-      <span style="color:#445566;font-size:10px">Loading...</span>
+
+    <!-- ── Match Replays tab ── -->
+    <div id="replayTabMatch" style="display:flex;flex-direction:column;gap:8px">
+      <div style="display:flex;align-items:center;justify-content:space-between">
+        <span style="font-size:10px;color:#445566">Up to 3 recent matches saved automatically.</span>
+        <button onclick="ReplaySystem.openFilePicker()" style="background:none;border:1px solid rgba(100,180,255,0.3);border-radius:4px;color:#66aadd;padding:2px 10px;cursor:pointer;font-size:10px;letter-spacing:.5px">&#9654; Open file</button>
+      </div>
+      <div id="replayBrowserList" style="min-height:40px">
+        <span style="color:#445566;font-size:10px">Loading...</span>
+      </div>
+    </div>
+
+    <!-- ── Boss Fights tab ── -->
+    <div id="replayTabBoss" style="display:none;flex-direction:column;gap:10px">
+      <span style="font-size:10px;color:#445566">Replay key cinematic moments from boss encounters.</span>
+
+      <!-- TrueForm Ending -->
+      <div id="replayBossRow_tf" style="display:none;align-items:center;gap:8px;background:rgba(100,0,180,0.1);border:1px solid rgba(140,60,220,0.3);border-radius:8px;padding:10px 12px">
+        <div style="flex:1">
+          <div style="font-size:11px;color:#cc88ff;font-weight:600;letter-spacing:.5px">TRUE FORM — Ending Cinematic</div>
+          <div style="font-size:10px;color:#556;margin-top:2px">The final sequence after TrueForm is defeated.</div>
+        </div>
+        <button onclick="closeReplayBrowser(); replayTFEnding();"
+          style="flex-shrink:0;background:rgba(140,0,220,0.2);border:1px solid rgba(180,80,255,0.5);border-radius:6px;color:#cc88ff;padding:5px 14px;cursor:pointer;font-size:11px;letter-spacing:.5px">
+          &#9654; Watch
+        </button>
+      </div>
+
+      <!-- placeholder when nothing unlocked -->
+      <div id="replayBossEmpty" style="font-size:10px;color:#334;text-align:center;padding:14px 0">
+        Defeat bosses to unlock their cinematic replays here.
+      </div>
     </div>
   </div>
 </div>
@@ -1316,6 +1343,7 @@
   <script src="./js/smb-verlet.js?v=3.2.0"></script>
   <!-- Cinematic scripting system (split from smb-cinematics.js) -->
   <script src="./js/smb-cinematics-core.js?v=3.2.0"></script>
+  <script src="./js/smb-anime-fx.js?v=3.2.0"></script>
   <script src="./js/smb-cinematics-backstory.js?v=3.2.0"></script>
   <script src="./js/smb-cinematics-boss-thresh.js?v=3.2.0"></script>
   <script src="./js/smb-cinematics-tf-thresh.js?v=3.2.0"></script>
