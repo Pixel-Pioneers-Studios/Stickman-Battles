@@ -7,7 +7,7 @@
 // Immutable top-tier accounts for the local build.
 // These accounts should always outrank role changes so console/admin access
 // cannot be accidentally revoked by in-game tools.
-const SUPERUSER_ACCOUNT_IDS = ['acct_mo3runjg_h23f4', 'acct_mo5st5fh_96ehz', 'acct_mokzi4kd_5cyz8', 'acct_monexty9_r2bfs'];
+const SUPERUSER_ACCOUNT_IDS = ['acct_mp4wuj48_4k52s', 'acct_mp4wvabe_5rp7h', 'acct_mp4wwgnw_3r0r3'];
 
 const AccountManager = (() => {
 

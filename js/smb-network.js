@@ -481,6 +481,7 @@ const NetworkManager = (() => {
       _setupHostListeners();
       _setStatus('Hosting \u2022 Players: 1/' + _maxPlayers);
       showToast('Room created! Share code: ' + _roomCode);
+      if (typeof cgSdk !== 'undefined') cgSdk.showInviteBtn();
       if (_roomType === 'public') _advertisePublicRoom();
       const modeRow = document.getElementById('onlineGameModeRow');
       if (modeRow) modeRow.style.display = 'flex';

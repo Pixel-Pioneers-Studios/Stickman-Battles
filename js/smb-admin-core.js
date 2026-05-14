@@ -9,7 +9,7 @@
 
 // ── Admin identity ─────────────────────────────────────────────────────────────
 // Add account IDs here to grant admin powers.
-const ADMIN_IDS = ['acct_mo3runjg_h23f4', 'acct_mo5st5fh_96ehz', 'acct_mogni3td_1i905', 'acct_mokzi4kd_5cyz8', 'acct_monexty9_r2bfs'];
+const ADMIN_IDS = ['acct_mp4wuj48_4k52s', 'acct_mp4wvabe_5rp7h', 'acct_mp4wwgnw_3r0r3'];
 
 // Google/Supabase emails that always have admin — checked at call-time against
 // the live Supabase session so no account ID needs to be hardcoded for new browsers.
