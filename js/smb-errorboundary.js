@@ -246,6 +246,8 @@ window.onerror = function(message, source, lineno, colno, errorObj) {
 };
 
 window.onunhandledrejection = function(event) {
+  // Skip plain-object rejections from third-party SDKs (e.g. CrazyGames throws {})
+  if (event.reason !== null && typeof event.reason === 'object' && !(event.reason instanceof Error)) return;
   const msg = event.reason instanceof Error
     ? event.reason.message
     : String(event.reason || 'Unhandled promise rejection');

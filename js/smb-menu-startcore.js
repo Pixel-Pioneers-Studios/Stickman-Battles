@@ -383,6 +383,9 @@ function _startGameCore() {
       ai._pressureMode          = 'suffocate';
       ai._evolutionStage        = 2;     // start at DOMINATING; earns TYRANT through play
       ai._intimidation          = 0.60;
+      // Skip the observation warmup — Sovereign fights at full intelligence from frame 1
+      ai._observationFrames     = 120;
+      ai._actionSampleCount     = 10;
       ai._updateAuraColor();
     }
     // Story adaptive: start sharper than default so the fight feels earned, not trivial.
@@ -397,7 +400,8 @@ function _startGameCore() {
     }
 
     ai.playerNum = 2;
-    ai.lives     = chosenLives;
+    // Sovereign needs multiple lives to build pattern data across rounds — minimum 5 regardless of menu pick
+    ai.lives     = isSovereignMode ? Math.max(chosenLives, 5) : chosenLives;
     const _aiSpawn = pickSafeSpawn('right', _p1SpawnPos.x) || { x: 720, y: 300 };
     ai.spawnX = _aiSpawn.x; ai.spawnY = _aiSpawn.y;
     ai.x = _aiSpawn.x;      ai.y = _aiSpawn.y - ai.h;

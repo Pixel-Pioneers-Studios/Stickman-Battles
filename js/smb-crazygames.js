@@ -3,8 +3,16 @@
 // Wraps all SDK calls with null checks so the game runs identically outside CrazyGames.
 
 var cgSdk = (function () {
+  // Returns the SDK only when it is fully initialized (i.e. on CrazyGames).
+  // On other hosts the SDK object may exist but throws on property access.
   function sdk() {
-    return (window.CrazyGames && window.CrazyGames.SDK) || null;
+    try {
+      var s = (window.CrazyGames && window.CrazyGames.SDK) || null;
+      if (!s) return null;
+      // Probe .game — throws if SDK is present but not initialized (e.g. itch.io)
+      void s.game;
+      return s;
+    } catch(e) { return null; }
   }
 
   window.addEventListener('load', function () {
@@ -12,8 +20,8 @@ var cgSdk = (function () {
     if (!s) return;
 
     // SDK v3 auto-initializes — no init() call needed
-    s.game.sdkGameLoadingStart();
-    s.game.sdkGameLoadingFinished();
+    try { s.game.sdkGameLoadingStart(); } catch(e) { return; }
+    try { s.game.sdkGameLoadingFinished(); } catch(e) {}
 
     // CrazyGames can request chat be disabled (parental controls, minors, etc.)
     if (s.game && typeof s.game.addListener === 'function') {
