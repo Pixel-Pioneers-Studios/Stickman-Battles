@@ -22,7 +22,6 @@
 // ============================================================
 var escortActive     = false;
 var escortNPC        = null;       // the Fighter being escorted (NOT in players/minions)
-var escortGoalX      = 780;
 var escortSpeed      = 0.7;
 var escortStopRange  = 220;
 var escortWaveDefs   = [];

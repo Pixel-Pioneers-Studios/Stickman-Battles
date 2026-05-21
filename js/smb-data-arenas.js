@@ -734,6 +734,77 @@ const ARENAS = {
       { x: 2650, y: 158, w: 145, h: 18 }, { x: 3040, y: 148, w: 140, h: 18 },
     ]
   },
+
+  training: {
+    name:          'Training Grounds',
+    sky:           ['#1a1a2e', '#16213e'],
+    groundColor:   '#2a2a3a',
+    platColor:     '#3a3a5a',
+    platEdge:      '#5a5a8a',
+    hasLava:       false,
+    deathY:        640,
+    isTrainingOnly: true,
+    modifiers:     { gravityMult: 1.0, frictionMult: 1.0, hazardFrequency: 0.0 },
+    platforms: [
+      { x: -60,  y: 480, w: 1020, h: 40, isFloor: true }, // main floor
+      // low platforms flanking center — basic combo range
+      { x: 120,  y: 340, w: 140,  h: 16 }, // left low
+      { x: 640,  y: 340, w: 140,  h: 16 }, // right low
+      // mid-height pair — jump practice
+      { x: 230,  y: 240, w: 120,  h: 15 }, // left mid
+      { x: 550,  y: 240, w: 120,  h: 15 }, // right mid
+      // centre elevated — reward for vertical play
+      { x: 370,  y: 155, w: 160,  h: 15 }, // centre top
+      // high corners — for aerial/edge-guard drills
+      { x:  20,  y: 145, w: 100,  h: 14 }, // far-left high
+      { x: 780,  y: 145, w: 100,  h: 14 }, // far-right high
+    ]
+  },
+
+  // ── Absolute Axiom's Domain — "The Fracture Point" ───────────────────────
+  // A combination of all base arenas, merged into one massive stage.
+  // More complex than any boss arena (16 platforms, multiple height tiers).
+  // Larger than god_domain/creator, slightly smaller than scrolling mega-maps.
+  absolute_axiom_domain: {
+    name:              'The Fracture Point',
+    sky:               ['#000005', '#060010', '#0a0018'],
+    groundColor:       '#080010',
+    platColor:         '#180828',
+    platEdge:          '#cc0044',
+    hasLava:           false,
+    deathY:            640,
+    isBossArena:       true,
+    isAbsoluteAxiomArena: true,
+    modifiers:         { gravityMult: 0.96, frictionMult: 0.98, hazardFrequency: 0.0 },
+    platforms: [
+      // Ground — full width, required for pickSafeSpawn
+      { x: 0,   y: 460, w: 900, h: 60, isFloor: true, isFloorDisabled: false },
+
+      // ── Tier 1 (low-mid): 4 platforms covering all quadrants ─────────────
+      { x:  20, y: 405, w:  95, h: 16, isFloorDisabled: false }, // far-left shelf (ice)
+      { x: 175, y: 385, w: 125, h: 16, isFloorDisabled: false }, // left-low (grass)
+      { x: 600, y: 385, w: 125, h: 16, isFloorDisabled: false }, // right-low (grass)
+      { x: 785, y: 405, w:  95, h: 16, isFloorDisabled: false }, // far-right shelf (ice)
+
+      // ── Tier 2 (mid): wide central hub + flanking
+      { x: 305, y: 300, w: 290, h: 18, isFloorDisabled: false }, // wide centre bridge
+      { x:  55, y: 320, w: 155, h: 18, isFloorDisabled: false }, // left-mid (city)
+      { x: 690, y: 320, w: 155, h: 18, isFloorDisabled: false }, // right-mid (city)
+
+      // ── Tier 3 (upper-mid): ──────────────────────────────────────────────
+      { x: 355, y: 215, w: 190, h: 16, isFloorDisabled: false }, // centre-upper (space station)
+      { x:  85, y: 228, w: 140, h: 16, isFloorDisabled: false }, // left-upper (forest canopy)
+      { x: 675, y: 228, w: 140, h: 16, isFloorDisabled: false }, // right-upper (forest canopy)
+
+      // ── Tier 4 (high): ──────────────────────────────────────────────────
+      { x: 375, y: 140, w: 150, h: 14, isFloorDisabled: false }, // apex (void)
+      { x:  50, y: 148, w: 115, h: 14, isFloorDisabled: false }, // high-left (ruins)
+      { x: 735, y: 148, w: 115, h: 14, isFloorDisabled: false }, // high-right (ruins)
+
+      // ── Apex pinnacle ────────────────────────────────────────────────────
+      { x: 400, y:  68, w: 100, h: 13, isFloorDisabled: false }, // pinnacle (space)
+    ]
+  },
 };
 
 // ============================================================
@@ -742,12 +813,12 @@ const ARENAS = {
 // Stores base platform positions per arena for randomization reference
 const ARENA_BASE_PLATFORMS = {};
 for (const key of Object.keys(ARENAS)) {
-  if (key === 'creator' || key === 'god_domain') continue; // boss/god arenas — never randomize
+  if (key === 'creator' || key === 'god_domain' || key === 'absolute_axiom_domain') continue; // boss arenas — never randomize
   ARENA_BASE_PLATFORMS[key] = ARENAS[key].platforms.map(p => ({ ...p }));
 }
 
 function randomizeArenaLayout(key) {
-  if (key === 'creator' || key === 'god_domain' || key === 'soccer' || key === 'cave') return; // never randomize
+  if (key === 'creator' || key === 'god_domain' || key === 'soccer' || key === 'cave' || key === 'absolute_axiom_domain') return; // never randomize
   const base  = ARENA_BASE_PLATFORMS[key];
   if (!base) return;
   const arena = ARENAS[key];

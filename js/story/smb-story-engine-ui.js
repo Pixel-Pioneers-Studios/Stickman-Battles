@@ -42,6 +42,8 @@ function _renderStoryJourney() {
   const cur = _story2.chapter;
 
   STORY_CHAPTERS2.forEach((ch, i) => {
+    if (ch._menuHidden) return; // narrative plays automatically as a transition; not a separate step
+
     const done    = _story2.defeated.includes(i);
     const current = i === cur;
     const locked  = i > cur;

@@ -308,13 +308,23 @@ const WEAPONS = {
     // enemyOnly: keeps it out of WEAPON_KEYS and all player-facing UI.
     enemyOnly: true,
     name: 'Null Blade', damage: 15, range: 92, cooldown: 28, endlag: 8,
-    kb: 13, abilityCooldown: 150, type: 'melee', weaponType: 'light', color: '#cc2200',
-    abilityName: 'Phase Step',
+    kb: 13, abilityCooldown: 140, type: 'melee', weaponType: 'light', color: '#cc2200',
+    abilityName: 'Counter Step',
     ability(user, target) {
       if (!target || target.health <= 0) return;
-      // Controlled dash strike — same speed as sword Dash Slash, more damage
-      user.vx = user.facing * 14;
-      if (dist(user, target) < 115) dealDamage(user, target, 24, 16);
+      // Counter-hit mechanic: punishes mid-swing opponents harder
+      const counterHit = target.attackTimer > 0;
+      user.vx = user.facing * 12;
+      user.vy = -3;
+      if (dist(user, target) < 120) {
+        if (counterHit) {
+          dealDamage(user, target, 28, 16);
+          target.stunTimer = Math.max(target.stunTimer || 0, 8);
+          spawnParticles(target.cx(), target.cy(), '#ffffff', 10);
+        } else {
+          dealDamage(user, target, 20, 14);
+        }
+      }
       spawnParticles(user.cx(), user.cy(), '#cc2200', 8);
       spawnParticles(user.cx(), user.cy(), '#ff3300', 5);
     }

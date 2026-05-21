@@ -496,6 +496,13 @@ const MultiverseManager = (function() {
       const unlocked = this._tryUnlockNext(worldId);
       _persist();
 
+      if (typeof unlockAchievement === 'function') {
+        unlockAchievement('multiverse_warrior');
+        if (_save.completedWorlds.length >= MULTIVERSE_WORLDS.length) {
+          unlockAchievement('multiverse_master');
+        }
+      }
+
       // Show world-complete banner
       _multiverseWorldCompleteTimer  = 280;
       _multiverseWorldCompleteLabel  = MULTIVERSE_WORLDS.find(w => w.id === worldId)?.name || '';

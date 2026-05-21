@@ -102,7 +102,7 @@ function _storyScaleEnemyUnit(unit, chapterId, opts = {}) {
     && _activeStory2Chapter
     && _activeStory2Chapter._origId !== undefined)
     ? _activeStory2Chapter._origId
-    : Math.min(chapterId, 79); // hard-cap fallback to prevent runaway scaling
+    : Math.min(chapterId, 84); // hard-cap fallback to prevent runaway scaling
 
   const s = getScaling(origId + (_storyPerformanceBonus() / 0.08 | 0));
   const PLAYER_HP = 100; // Fighter base maxHealth
@@ -248,6 +248,16 @@ function _launchExplorationChapter(ch) {
   storyChaseMaxTimer = storyChaseTimer;
   storeSurvivalState = null; // cleared for every exploration chapter; set below for survival
 
+  // Reset all special-mode active flags so stale state never leaks between chapters
+  stealthModeActive  = false;
+  escapeModeActive   = false;
+  defenseModeActive  = false;
+  scavengeModeActive = false;
+  puzzleModeActive   = false;
+
+  // New modes: initialise after startGame() via setTimeout
+  const _exploreMode = ch.exploreMode;
+
   if (ch.exploreMode === 'survival') {
     // Lock the camera to the compact 900px arena — no scrolling
     ARENAS[arenaKey].mapLeft   = 0;
@@ -318,7 +328,15 @@ function _launchExplorationChapter(ch) {
   infiniteMode = false;
 
   startGame();
-  setTimeout(() => { if (players[0]) _applySkillTreeToPlayer(players[0]); }, 50);
+  setTimeout(() => {
+    if (players[0]) _applySkillTreeToPlayer(players[0]);
+    // Initialise special explore modes after players[] is populated
+    if (_exploreMode === 'stealth'  && typeof initStealthMode  === 'function') initStealthMode(ch);
+    if (_exploreMode === 'escape'   && typeof initEscapeMode   === 'function') initEscapeMode(ch);
+    if (_exploreMode === 'defense'  && typeof initDefenseMode  === 'function') initDefenseMode(ch);
+    if (_exploreMode === 'scavenge' && typeof initScavengeMode === 'function') initScavengeMode(ch);
+    if (_exploreMode === 'puzzle'   && typeof initPuzzleMode   === 'function') initPuzzleMode(ch);
+  }, 80);
 }
 
 // Called each frame from gameLoop when gameMode === 'exploration'

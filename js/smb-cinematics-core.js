@@ -615,3 +615,344 @@ const CinTimeline = (function() {
   return { create };
 })();
 
+// ============================================================
+// CINEMATIC ENHANCEMENTS v1
+// Speed lines, motion trails, impact frames, name cards,
+// Dutch angle, directional shake, background contrast shifts.
+// All draw functions are called from smb-loop-core.js at the
+// appropriate world-space or screen-space insertion points.
+// ============================================================
+
+// ── Dutch angle: apply game world transform with optional tilt ────────────
+// Replaces raw ctx.setTransform() calls so a rotation can be baked in.
+// Called from smb-loop-core.js wherever the game matrix is set.
+function _applyGameTransform(scX, scY, tx, ty) {
+  const tilt = (typeof cinematicTiltAngle !== 'undefined') ? cinematicTiltAngle : 0;
+  if (Math.abs(tilt) < 0.0001) {
+    ctx.setTransform(scX, 0, 0, scY, tx, ty);
+    return;
+  }
+  const cw2 = canvas.width / 2;
+  const ch2 = canvas.height / 2;
+  const cos = Math.cos(tilt);
+  const sin = Math.sin(tilt);
+  const ex = tx - cw2;
+  const ey = ty - ch2;
+  ctx.setTransform(
+    cos * scX,  sin * scX,
+    -sin * scY, cos * scY,
+    ex * cos - ey * sin + cw2,
+    ex * sin + ey * cos + ch2
+  );
+}
+
+// ── CinFX additions ───────────────────────────────────────────────────────
+
+// Radial or directional speed line burst (world-space).
+// opts: { count, maxLen, dur, spread, dir, cone }
+// dir = angle in radians for cone center; spread = cone width (default 2π = full circle)
+CinFX.speedLines = function(x, y, color, opts) {
+  opts = opts || {};
+  const count  = opts.count  || 26;
+  const maxLen = opts.maxLen || 260;
+  const dur    = opts.dur    || 14;
+  const spread = (opts.spread !== undefined) ? opts.spread : Math.PI * 2;
+  const dir    = opts.dir    || 0;
+  const lines  = [];
+  for (let i = 0; i < count; i++) {
+    const angle = dir + (Math.random() - 0.5) * spread;
+    lines.push({
+      angle,
+      startFrac: 0.08 + Math.random() * 0.18,
+      endFrac:   0.45 + Math.random() * 0.55,
+      width:     0.7 + Math.random() * 1.8,
+    });
+  }
+  cinSpeedLines.push({ x, y, color: color || '#ffffff', lines, maxLen, timer: dur, maxTimer: dur });
+};
+
+// Hard-cut impact frame: white (or custom) bg + entity silhouettes for N frames.
+// entities: a single entity or array of entities to silhouette.
+CinFX.impactFrame = function(entities, opts) {
+  opts = opts || {};
+  const ents = Array.isArray(entities) ? entities : (entities ? [entities] : []);
+  cinImpactFrame = {
+    timer:    opts.dur   || 4,
+    maxTimer: opts.dur   || 4,
+    color:    opts.color || '#ffffff',
+    entities: ents,
+  };
+};
+
+// Named move card that slams onto screen for ~1.5 s.
+// accentColor defaults to color.
+CinFX.nameCard = function(text, color, opts) {
+  opts = opts || {};
+  cinNameCard = {
+    text,
+    color:       color       || '#ffffff',
+    accentColor: opts.accent || color || '#ffffff',
+    timer:       0,
+    maxTimer:    opts.dur    || 92,
+  };
+};
+
+// Full-bg contrast shift (drawn over background, under platforms).
+// color = fill color, alpha = max opacity, duration = frames
+CinFX.bgContrast = function(color, alpha, duration) {
+  cinBgContrast = {
+    color:    color    || '#000000',
+    alpha:    (alpha   !== undefined) ? alpha    : 0.82,
+    timer:    0,
+    maxTimer: (duration !== undefined) ? duration : 28,
+  };
+};
+
+// Enable motion trail on an entity (uses entity reference as key).
+CinFX.motionTrailOn = function(entity, color) {
+  if (!entity) return;
+  for (const t of cinMotionTrails) {
+    if (t.entity === entity) { t.enabled = true; t.color = color || entity.color; return; }
+  }
+  cinMotionTrails.push({ entity, positions: [], color: color || entity.color || '#ffffff', enabled: true });
+};
+
+// Disable and clear trail for an entity.
+CinFX.motionTrailOff = function(entity) {
+  for (let i = cinMotionTrails.length - 1; i >= 0; i--) {
+    if (cinMotionTrails[i].entity === entity) { cinMotionTrails.splice(i, 1); return; }
+  }
+};
+
+// ── CinCam additions ──────────────────────────────────────────────────────
+
+// Dutch angle: degrees (positive = clockwise tilt, negative = counter-clockwise).
+// The angle lerps smoothly via updateCinematicEnhancements().
+CinCam.tilt = function(degrees) {
+  cinematicTiltTarget = (degrees || 0) * (Math.PI / 180);
+};
+
+// Directional shake: intensity = screen shake amount, dx/dy = bias direction (-1..1).
+// The shake is biased in that direction for the first ~6 frames.
+CinCam.directionalShake = function(intensity, dx, dy) {
+  if (settings && settings.screenShake !== false) {
+    screenShake = Math.max(screenShake, intensity || 0);
+  }
+  cinShakeDir = { x: dx || 0, y: dy || 0, timer: 6 };
+};
+
+// Extend restore() to clean up enhancement state.
+const _origCinCamRestore = CinCam.restore.bind(CinCam);
+CinCam.restore = function() {
+  _origCinCamRestore();
+  cinematicTiltTarget = 0;
+  cinShakeDir = null;
+};
+
+// ── Per-frame update ──────────────────────────────────────────────────────
+// Called once per frame from smb-loop-core.js (after updateCinematicSystem).
+
+function updateCinematicEnhancements() {
+  // Lerp Dutch angle toward its target
+  if (Math.abs(cinematicTiltTarget - cinematicTiltAngle) > 0.0001) {
+    cinematicTiltAngle += (cinematicTiltTarget - cinematicTiltAngle) * 0.14;
+  } else {
+    cinematicTiltAngle = cinematicTiltTarget;
+  }
+
+  // Directional shake timer: tick unconditionally so it clears even if shake decays to 0
+  if (cinShakeDir && cinShakeDir.timer > 0) {
+    cinShakeDir.timer--;
+    if (cinShakeDir.timer <= 0) cinShakeDir = null;
+  }
+
+  // Collect motion trail positions for all active trail entities
+  for (let i = cinMotionTrails.length - 1; i >= 0; i--) {
+    const t = cinMotionTrails[i];
+    if (!t.enabled || !t.entity || t.entity.health <= 0) continue;
+    t.positions.push({ x: t.entity.x, y: t.entity.y });
+    if (t.positions.length > 9) t.positions.shift();
+  }
+}
+
+// ── World-space draw: speed lines ────────────────────────────────────────
+// Called from smb-loop-core.js after drawCinematicWorldEffects().
+
+function drawCinSpeedLines() {
+  if (!cinSpeedLines || !cinSpeedLines.length) return;
+  ctx.save();
+  ctx.lineCap = 'round';
+  for (let i = cinSpeedLines.length - 1; i >= 0; i--) {
+    const sl = cinSpeedLines[i];
+    sl.timer--;
+    if (sl.timer <= 0) { cinSpeedLines.splice(i, 1); continue; }
+    const progress = 1 - sl.timer / sl.maxTimer;
+    // Fade: full opacity at start, gone at end
+    const alpha = Math.max(0, (1 - progress) * 0.9);
+    ctx.strokeStyle = sl.color;
+    ctx.shadowColor = sl.color;
+    ctx.shadowBlur  = 5;
+    ctx.globalAlpha = alpha;
+    for (const line of sl.lines) {
+      const startD = line.startFrac * sl.maxLen * (0.1 + progress * 0.9);
+      const endD   = line.endFrac   * sl.maxLen * (0.15 + progress * 0.85);
+      ctx.lineWidth = line.width;
+      ctx.beginPath();
+      ctx.moveTo(sl.x + Math.cos(line.angle) * startD, sl.y + Math.sin(line.angle) * startD);
+      ctx.lineTo(sl.x + Math.cos(line.angle) * endD,   sl.y + Math.sin(line.angle) * endD);
+      ctx.stroke();
+    }
+  }
+  ctx.shadowBlur  = 0;
+  ctx.globalAlpha = 1;
+  ctx.restore();
+}
+
+// ── World-space draw: motion trails ──────────────────────────────────────
+// Called from smb-loop-core.js before the players draw loop.
+
+function drawCinMotionTrails() {
+  if (!cinMotionTrails || !cinMotionTrails.length) return;
+  ctx.save();
+  ctx.shadowBlur = 10;
+  for (const t of cinMotionTrails) {
+    if (!t.positions || t.positions.length < 2) continue;
+    const ent = t.entity;
+    if (!ent) continue;
+    const count = t.positions.length;
+    for (let i = 0; i < count - 1; i++) {
+      const pos   = t.positions[i];
+      const frac  = (i + 1) / count;         // 0 = oldest, 1 = newest
+      const alpha = frac * frac * 0.42;      // quadratic: newest ghost most visible
+      ctx.globalAlpha = Math.max(0, alpha);
+      ctx.fillStyle   = t.color || '#ffffff';
+      ctx.shadowColor = t.color || '#ffffff';
+      ctx.fillRect(pos.x + 4, pos.y + 4, ent.w - 8, ent.h - 8);
+    }
+  }
+  ctx.shadowBlur  = 0;
+  ctx.globalAlpha = 1;
+  ctx.restore();
+}
+
+// ── World-space draw: background contrast shift ───────────────────────────
+// Called from smb-loop-core.js immediately after drawBackground().
+
+function drawCinBgContrast() {
+  if (!cinBgContrast) return;
+  cinBgContrast.timer++;
+  if (cinBgContrast.timer >= cinBgContrast.maxTimer) { cinBgContrast = null; return; }
+  const t = cinBgContrast.timer / cinBgContrast.maxTimer;
+  // Fade in fast (first 20%), hold, fade out (last 25%)
+  let fade;
+  if (t < 0.20)      fade = t / 0.20;
+  else if (t < 0.75) fade = 1.0;
+  else               fade = (1.0 - t) / 0.25;
+  ctx.save();
+  // Screen-space fill — Dutch angle tilt would leave uncovered corners if drawn in world space
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.globalAlpha = cinBgContrast.alpha * Math.max(0, fade);
+  ctx.fillStyle   = cinBgContrast.color;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.restore();
+}
+
+// ── World-space draw: impact frame (hard-cut white + silhouettes) ─────────
+// Called from smb-loop-core.js in the world-space pass (after bg, before platforms).
+// The hard-cut must happen before platforms so silhouettes show cleanly.
+
+function drawCinImpactFrame() {
+  if (!cinImpactFrame) return;
+  cinImpactFrame.timer--;
+  if (cinImpactFrame.timer <= 0) { cinImpactFrame = null; return; }
+  // First half: fully opaque. Second half: fade out.
+  const progress = cinImpactFrame.timer / cinImpactFrame.maxTimer;
+  const alpha    = progress > 0.5 ? 1.0 : (progress / 0.5);
+  ctx.save();
+  // Screen-space fill — Dutch angle tilt would leave uncovered corners if drawn in world space.
+  // Silhouettes are re-mapped from world→canvas coords manually below.
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  // White (or custom) wash
+  ctx.globalAlpha = Math.max(0, alpha);
+  ctx.fillStyle   = cinImpactFrame.color;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  // Silhouettes: use the current game transform to convert world coords → canvas pixels
+  // (we read the matrix from the saved state via a temp canvas trick is complex;
+  //  instead we store the last-computed transform values as globals in smb-loop-core.js)
+  ctx.fillStyle  = '#0a0a0a';
+  ctx.shadowBlur = 0;
+  if (typeof camXCur !== 'undefined' && typeof camZoomCur !== 'undefined') {
+    const _bSc = Math.min(canvas.width / GAME_W, canvas.height / GAME_H);
+    const _fSc = _bSc * camZoomCur;
+    const _tx  = canvas.width  / 2 - camXCur * _fSc;
+    const _ty  = canvas.height / 2 - camYCur * _fSc;
+    for (const ent of cinImpactFrame.entities) {
+      if (!ent || ent.health <= 0) continue;
+      const sx = (ent.x - 3) * _fSc + _tx;
+      const sy = (ent.y - 3) * _fSc + _ty;
+      ctx.fillRect(sx, sy, (ent.w + 6) * _fSc, (ent.h + 6) * _fSc);
+    }
+  }
+  ctx.globalAlpha = 1;
+  ctx.restore();
+}
+
+// ── Screen-space draw: move name card ────────────────────────────────────
+// Called from smb-loop-core.js in screen-space (after setTransform identity).
+
+function drawCinNameCard(cw, ch) {
+  if (!cinNameCard) return;
+  cinNameCard.timer++;
+  if (cinNameCard.timer >= cinNameCard.maxTimer) { cinNameCard = null; return; }
+
+  const t = cinNameCard.timer / cinNameCard.maxTimer;
+  // Alpha envelope: slam in (0–12%), hold (12–78%), fade out (78–100%)
+  let alpha;
+  if (t < 0.12)      alpha = t / 0.12;
+  else if (t < 0.78) alpha = 1.0;
+  else               alpha = (1.0 - t) / 0.22;
+
+  // Scale: starts punchy (1.55→1.0 over first 10%)
+  const scale = t < 0.10 ? (1.55 - (t / 0.10) * 0.55) : 1.0;
+
+  const text   = cinNameCard.text        || '';
+  const color  = cinNameCard.color       || '#ffffff';
+  const accent = cinNameCard.accentColor || color;
+
+  ctx.save();
+  ctx.globalAlpha = Math.max(0, alpha);
+  ctx.translate(cw * 0.5, ch * 0.775);
+  ctx.scale(scale, scale);
+  ctx.textAlign = 'center';
+
+  // Measure text so plate width is dynamic
+  ctx.font = 'bold 20px Arial';
+  const textW = ctx.measureText(text).width;
+  const pw = Math.max(260, textW + 80);
+  const ph = 42;
+
+  // Dark semi-transparent backing plate with sharp edges
+  ctx.fillStyle = 'rgba(0,0,0,0.62)';
+  ctx.fillRect(-pw / 2, -ph / 2 + 2, pw, ph);
+
+  // Accent bar — top
+  ctx.fillStyle   = accent;
+  ctx.shadowColor = accent;
+  ctx.shadowBlur  = 14;
+  ctx.fillRect(-pw / 2 + 10, -ph / 2 + 2, pw - 20, 2);
+
+  // Move name text
+  ctx.font        = 'bold 20px Arial';
+  ctx.fillStyle   = '#ffffff';
+  ctx.shadowColor = accent;
+  ctx.shadowBlur  = 20;
+  ctx.fillText(text, 0, 6);
+
+  // Accent bar — bottom
+  ctx.shadowBlur  = 10;
+  ctx.fillStyle   = accent;
+  ctx.fillRect(-pw / 2 + 10, ph / 2 - 2, pw - 20, 2);
+
+  ctx.restore();
+}
+

@@ -307,6 +307,8 @@ function _updateGodFinale(sc) {
         aa._teamId  = 50;
         minions.push(aa);
         if (typeof window !== 'undefined') window._absoluteAxiomWasAlive = true;
+        // Activate Reinforced God Slayer for the lead player
+        if (typeof _activateRGSForMatch === 'function') _activateRGSForMatch();
       }
       // Remove God's corpse
       if (Array.isArray(minions)) {

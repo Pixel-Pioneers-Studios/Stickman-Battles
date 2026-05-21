@@ -204,6 +204,10 @@ class Fighter {
     this._swordSlashQueue    = [];
     this.canDoubleJump   = false;
     // superMeter / superReady intentionally NOT reset — supers carry over between lives
+    // Domain: clear expansion state and reset counter so domain must be re-earned
+    if (typeof DomainManager !== 'undefined') DomainManager.onFighterDied(this);
+    this._domainSuperCount = 0;
+    this._domainRising     = false;
     this.contactDamageCooldown = 0;
     this.ragdollAngle    = 0;
     this.ragdollSpin     = 0;
@@ -510,14 +514,17 @@ class Fighter {
         const hitPad = 6; // tight horizontal pad — reduces phantom hits from behind/above
 
         // Helper: is any hit point inside the target's box?
-        // Y-axis is strict: no hit if attacker and target have > 70px vertical separation.
+        // Y-axis tolerance tightened to ±4px to prevent phantom hits above/below.
+        // Directional guard ensures hit points are on the attacker's facing side.
         const arcHits = (tx, ty, tw, th, extraPad) => {
           const ep = extraPad || 0;
-          // Directional check: hit point must be on the side the attacker is facing
           const facingSign = this.facing;
+          const sCx = this.cx();
           for (const pt of hitPoints) {
+            // Directional pruning: discard points clearly behind the attacker's facing direction
+            if (facingSign * (pt.x - sCx) < -12) continue;
             if (pt.x > tx - hitPad - ep && pt.x < tx + tw + hitPad + ep &&
-                pt.y > ty - 8  - ep    && pt.y < ty + th + 8  + ep) return true;
+                pt.y > ty - 4  - ep    && pt.y < ty + th + 4  + ep) return true;
           }
           return false;
         };
@@ -632,6 +639,7 @@ class Fighter {
     // _fusionAIOverride is handled by paradoxFusionUpdateAI() in the game loop — do NOT run stock AI
     // combatLock.blocks.ai gates the whole update during finishers, QTEs, and cinematics
     if (this.isAI && !this._fusionAIOverride && this.target &&
+        !this._domainRising &&
         !activeCinematic &&
         !(typeof isCutsceneActive === 'function' && isCutsceneActive()) &&
         !(typeof isCombatLocked === 'function' && isCombatLocked('ai')) &&
@@ -687,9 +695,12 @@ class Fighter {
         }
       }
 
-      // Dimension punch gravity lock: skip gravity while player is being launched/travelling
-      if (!this._dimPunchGravLock) {
+      // Dimension punch gravity lock / domain rising: skip gravity while floating
+      if (!this._dimPunchGravLock && !this._domainRising) {
         this.vy += arenaGravity * gravDir * _sm;
+      } else if (this._domainRising) {
+        // Lock horizontal drift — input runs before this so we enforce it here
+        this.vx = 0;
       }
       this.x  += this.vx * _sm;
       this.y  += this.vy * _sm;
@@ -718,10 +729,12 @@ class Fighter {
       // Story/story-only arenas: soft boundary — flag for portal teleport instead of hard wall
       const _storyWalls = storyModeActive || (currentArena && currentArena.isStoryOnly);
       if (_storyWalls && !this.isBoss && gameMode !== 'exploration') {
-        // Mark fighter for portal teleport when they step into the boundary portal visual
-        // Portal visuals are drawn at mapLeft+10 and mapRight-10; trigger fires as player enters them
-        const softLeft  = currentArena && currentArena.mapLeft  !== undefined ? currentArena.mapLeft  + 30 : -60;
-        const softRight = currentArena && currentArena.mapRight !== undefined ? currentArena.mapRight - this.w - 30 : GAME_W - this.w + 60;
+        // For arenas with visible boundary portals (portalW=30 centered at mapLeft+10/mapRight-10),
+        // trigger fires exactly at the portal inner face so players can't walk through the visual.
+        // Inner face positions: mapLeft+40 (left portal right face) and mapRight-40 (right portal left face).
+        const _bOff = (currentArena && currentArena.boundaryPortals) ? 40 : 30;
+        const softLeft  = currentArena && currentArena.mapLeft  !== undefined ? currentArena.mapLeft  + _bOff : -60;
+        const softRight = currentArena && currentArena.mapRight !== undefined ? currentArena.mapRight - this.w - _bOff : GAME_W - this.w + 60;
         if (this.x < softLeft)   { this._storyBoundaryBreached = 'left';  }
         else if (this.x > softRight) { this._storyBoundaryBreached = 'right'; }
         else { this._storyBoundaryBreached = null; }
@@ -829,27 +842,28 @@ class Fighter {
     if (!this.classPerkUsed && this.charClass !== 'none' && this.health > 0 && this.target) {
       const pct = this.health / this.maxHealth;
 
-      // THOR: Lightning Storm at ≤20% HP — 3 lightning strikes on opponent
+      // THOR: Lightning Storm at ≤20% HP — 2 strikes after a visible 600ms windup.
+      // Damage routed through dealDamage so shields/multipliers/achievements apply.
+      // Stun reduced (25f) and windup gives a dodge window before the first strike.
       if (this.charClass === 'thor' && pct <= 0.20) {
         this.classPerkUsed = true;
-        screenShake = Math.max(screenShake, 22);
-        spawnParticles(this.cx(), this.cy(), '#ffff00', 28);
-        spawnParticles(this.cx(), this.cy(), '#88ddff', 14);
-        const _t = this.target;
-        for (let _i = 0; _i < 3; _i++) {
-          setTimeout(() => {
-            if (!gameRunning || !_t || _t.health <= 0) return;
-            // Spawn visible lightning bolt from sky to target
-            spawnLightningBolt(_t.cx(), _t.y);
-            spawnParticles(_t.cx(), _t.cy(), '#ffff00', 22);
-            spawnParticles(_t.cx(), _t.cy(), '#ffffff', 12);
-            if (settings.screenShake) screenShake = Math.max(screenShake, 12);
-            _t.health = Math.max(0, _t.health - 8);
-            _t.hurtTimer = 10;
-            _t.stunTimer = Math.max(_t.stunTimer, 45);
-            if (settings.dmgNumbers) damageTexts.push(new DamageText(_t.cx(), _t.y, 8, '#ffff00'));
-          }, _i * 350);
-        }
+        screenShake = Math.max(screenShake, 16);
+        spawnParticles(this.cx(), this.cy(), '#ffff00', 20);
+        spawnParticles(this.cx(), this.cy(), '#88ddff', 10);
+        const _t    = this.target;
+        const _thor = this;
+        const _strikeFn = () => {
+          if (!gameRunning || !_t || _t.health <= 0 || _thor.health <= 0) return;
+          spawnLightningBolt(_t.cx(), _t.y);
+          spawnParticles(_t.cx(), _t.cy(), '#ffff00', 18);
+          spawnParticles(_t.cx(), _t.cy(), '#ffffff', 10);
+          if (settings.screenShake) screenShake = Math.max(screenShake, 10);
+          dealDamage(_thor, _t, 8, 0);
+          // Apply stun post-dealDamage so it stacks with (rather than overwrites) KB stun
+          if (_t.health > 0) _t.stunTimer = Math.max(_t.stunTimer, 25);
+        };
+        setTimeout(_strikeFn, 600);  // windup: target can dodge the first bolt
+        setTimeout(_strikeFn, 950);  // follow-up
       }
 
       // KRATOS: Spartan Rage at ≤15% HP — 5s damage boost; heals 10% of damage dealt during rage
@@ -1316,6 +1330,20 @@ class Fighter {
   }
 
   activateSuper(target) {
+    // ── Domain Expansion: every 5th super triggers domain instead of normal super ──
+    this._domainSuperCount = (this._domainSuperCount || 0) + 1;
+    if (this._domainSuperCount >= 5
+        && this.charClass && this.charClass !== 'none'
+        && typeof DomainManager !== 'undefined'
+        && typeof DOMAIN_DEFS !== 'undefined' && DOMAIN_DEFS[this.charClass]) {
+      this._domainSuperCount = 0;
+      this.superMeter = 0;
+      this.superReady = false;
+      if (!this.isAI && !this.isBoss) { _achStats.superCount++; if (_achStats.superCount >= 10) unlockAchievement('super_saver'); }
+      DomainManager.triggerExpansion(this);
+      return;
+    }
+
     // MEGAKNIGHT super: Mega Jump — massive leap into the sky, shockwave on landing
     if (this.charClass === 'megaknight') {
       this._megaJumping    = true;
@@ -1571,6 +1599,31 @@ class Fighter {
           if (dist(this, d) < 280) dealDamage(this, d, 15, 50);
         }
         if (this.isBoss) this.postSpecialPause = 90; // 1.5s pause after super
+      },
+      // ── Nullblade: Null Sequence — 3-hit combo extender, low KB to keep target in range ──
+      nullblade: () => {
+        this.vx = this.facing * 4;
+        screenShake = Math.max(screenShake, 10);
+        spawnParticles(this.cx(), this.cy(), '#cc2200', 10);
+        const _allTargets = [...players, ...trainingDummies];
+        const _nullHits = [
+          { delay: 0,   dmg: 14, kb: 6  },
+          { delay: 110, dmg: 14, kb: 6  },
+          { delay: 220, dmg: 24, kb: 16 },
+        ];
+        for (const hit of _nullHits) {
+          setTimeout(() => {
+            if (!gameRunning || this.health <= 0) return;
+            for (const f of _allTargets) {
+              if (f === this || f.health <= 0) continue;
+              if (dist(this, f) < 110) {
+                dealDamage(this, f, hit.dmg, hit.kb);
+                spawnParticles(f.cx(), f.cy(), hit.kb >= 16 ? '#ff3300' : '#cc2200', hit.kb >= 16 ? 12 : 6);
+                if (hit.kb >= 16) screenShake = Math.max(screenShake, 18);
+              }
+            }
+          }, hit.delay);
+        }
       }
     };
     (superMoves[this.weaponKey] || superMoves.sword)();
@@ -2927,7 +2980,7 @@ class Fighter {
 
     // WEAPON in right hand (boss draws gauntlet on both hands for visual flair)
     const weapScale = this.isBoss ? 1.0 : 1.5;
-    this.drawWeapon(rEx, rEy, rAng, s === 'attacking', null, weapScale);
+    this.drawWeapon(rEx, rEy, rAng, s === 'attacking', this._domainDisplayWeapon || null, weapScale);
     if (this.isBoss && this.weaponKey === 'gauntlet') {
       this.drawWeapon(lEx, lEy, lAng + Math.PI, s === 'attacking', 'gauntlet', weapScale);
     }
@@ -3280,6 +3333,36 @@ class Fighter {
       ctx.closePath();
       ctx.fillStyle = '#cc4422';
       ctx.fill();
+
+    } else if (k === 'stormbreaker') {
+      // Long war-axe held in hand; lightning crackles from the blade tip
+      const _sbNow = performance.now();
+      // Handle pole
+      ctx.strokeStyle = '#6b3a1f'; ctx.lineWidth = 4;
+      ctx.shadowColor = '#aaddff'; ctx.shadowBlur = 6;
+      ctx.beginPath(); ctx.moveTo(-4, 0); ctx.lineTo(24, 0); ctx.stroke();
+      // Blade
+      ctx.shadowColor = '#aaddff'; ctx.shadowBlur = 18;
+      ctx.fillStyle = '#9999bb';
+      ctx.beginPath();
+      ctx.moveTo(18, -13); ctx.lineTo(34, 1); ctx.lineTo(18, 6);
+      ctx.closePath(); ctx.fill();
+      ctx.fillStyle = '#ccccee';
+      ctx.beginPath();
+      ctx.moveTo(20, -11); ctx.lineTo(32, 1); ctx.lineTo(20, 5);
+      ctx.closePath(); ctx.fill();
+      // Bright cutting edge
+      ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 1.5;
+      ctx.shadowColor = '#ffffff'; ctx.shadowBlur = 14;
+      ctx.beginPath(); ctx.moveTo(34, 1); ctx.lineTo(18, -13); ctx.stroke();
+      // Lightning discharge from blade tip
+      ctx.globalAlpha = 0.6 + 0.3 * Math.sin(_sbNow / 55);
+      ctx.strokeStyle = '#88ccff'; ctx.lineWidth = 1.5;
+      ctx.shadowColor = '#aaddff'; ctx.shadowBlur = 14;
+      ctx.beginPath(); ctx.moveTo(34, 0);
+      ctx.lineTo(40 + Math.sin(_sbNow / 40) * 4, -5 + Math.sin(_sbNow / 50) * 5);
+      ctx.stroke();
+      ctx.globalAlpha = 1;
 
     } else if (k === 'spear') {
       ctx.strokeStyle = '#8888ff';

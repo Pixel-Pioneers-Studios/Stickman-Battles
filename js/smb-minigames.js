@@ -43,8 +43,8 @@ let defenseNexusMaxHp = 100;
 let defenseWave       = 0;
 let defenseEnemies    = [];
 let defenseWaveDelay  = 0;
-let defenseNexusX     = GAME_W / 2;
-let defenseNexusY     = GAME_H - 80;
+defenseNexusX     = GAME_W / 2;
+defenseNexusY     = GAME_H - 80;
 
 function selectMinigame(type) {
   if (type === 'coins') {
@@ -253,6 +253,7 @@ function spawnSurvivalWave() {
   if (survivalWave >= 5)  unlockAchievement('wave_5');
   if (survivalWave >= 10) unlockAchievement('wave_10');
   if (currentChaosModifiers.size >= 3) unlockAchievement('chaos_survivor');
+  if (currentChaosModifiers.size >= CHAOS_MODS.length) unlockAchievement('chaos_all');
   // Give all players brief invincibility at wave start so they aren't immediately hit
   players.forEach(p => { if (!p.isBoss) p.invincible = Math.max(p.invincible, 90); });
   damageTexts.push(new DamageText(GAME_W / 2, 80, `WAVE ${survivalWave}!`, '#ffdd44'));
@@ -402,6 +403,7 @@ function updateMinigame() {
       players.forEach(function(p) { if (!p.isBoss) p.health = Math.min(p.maxHealth, p.health + 20); });
       defenseWaveDelay = 240;
       damageTexts.push(new DamageText(GAME_W / 2, 110, 'Wave cleared!  +20 HP', '#44ff88'));
+      if (defenseWave >= 5) unlockAchievement('nexus_defender');
     }
   }
 }

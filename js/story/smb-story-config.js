@@ -493,6 +493,15 @@ function _storyPhaseName(type) {
   if (type === 'puzzle_lock')   return 'Mechanism Lock';
   if (type === 'parkour')       return 'Parkour Run';
   if (type === 'branch')        return 'Decision Point';
+  if (type === 'stealth')       return 'Infiltration';
+  if (type === 'escape')        return 'Escape';
+  if (type === 'defense')       return 'Hold the Line';
+  if (type === 'scavenge')      return 'Scavenge';
+  if (type === 'puzzle')        return 'Mechanism Puzzle';
+  if (type === 'assassination') return 'Elimination';
+  if (type === 'gauntlet')      return 'Gauntlet';
+  if (type === 'ship_flight')   return 'Ship Flight';
+  if (type === 'escort')        return 'Escort';
   return 'Phase';
 }
 
@@ -1484,9 +1493,13 @@ function _storyPassiveEnemyDefs(ch, variant) {
   return [walker, hunter, { wx: 2050, name: 'Pursuer', weaponKey: id >= 22 ? 'axe' : 'sword', classKey: 'warrior', aiDiff: tier, color: baseColor }];
 }
 
+const _NEW_CHAPTER_TYPES = new Set(['stealth','escape','defense','scavenge','puzzle','assassination','gauntlet','ship_flight','escort']);
+
 function _promotePassiveStoryChapters() {
   for (const ch of STORY_CHAPTERS2) {
     if (!ch || !ch.noFight || ch.isEpilogue || ch.isCinematicBridge) continue;
+    // Skip chapters that already have a designated new interactive type
+    if (_NEW_CHAPTER_TYPES.has(ch.type) || _NEW_CHAPTER_TYPES.has(ch.exploreMode)) continue;
 
     const variant = _storyPassiveChapterVariant(ch);
     const objective = _storyPassiveChapterObjective(ch, variant);

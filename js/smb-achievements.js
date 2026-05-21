@@ -5,31 +5,51 @@
 // ============================================================
 const ACHIEVEMENTS = [
   // Combat
-  { id: 'first_blood',    title: 'First Blood',        desc: 'Win your first match',                icon: '🩸', hint: 'Win a 1v1 match against a bot set to Hard difficulty' },
-  { id: 'hat_trick',      title: 'Hat Trick',          desc: 'Win 3 matches in a row',              icon: '🎩', hint: 'Win 3 consecutive matches without losing in between' },
-  { id: 'survivor',       title: 'Survivor',            desc: 'Win with 10 HP or less',              icon: '💀', hint: 'Win a match while your HP is at 10 or below' },
-  { id: 'untouchable',    title: 'Untouchable',         desc: 'Win without taking any damage',       icon: '✨', hint: 'Win a full match without being hit once' },
-  { id: 'combo_king',     title: 'Combo King',          desc: 'Land 5 hits without missing',         icon: '👑', hint: 'Hit an opponent 5 times in a row without whiffing' },
-  // Weapons
-  { id: 'gunslinger',     title: 'Gunslinger',          desc: 'Deal 500 ranged damage in one match', icon: '🔫', hint: 'Use the Gun weapon and deal 500 total ranged damage in one match' },
-  { id: 'hammer_time',    title: 'Hammer Time',         desc: 'Win using only hammer',               icon: '🔨', hint: 'Win a match with the Hammer weapon equipped' },
-  { id: 'clash_master',   title: 'Clash Master',        desc: 'Trigger a weapon clash (spark)',       icon: '⚡', hint: 'Get both weapons to collide mid-swing to spark a clash' },
+  { id: 'first_blood',         title: 'First Blood',          desc: 'Win your first match',                      icon: '🩸', hint: 'Win a 1v1 match against a bot set to Hard difficulty' },
+  { id: 'hat_trick',           title: 'Hat Trick',            desc: 'Win 3 matches in a row',                    icon: '🎩', hint: 'Win 3 consecutive matches without losing in between' },
+  { id: 'survivor',            title: 'Survivor',             desc: 'Win with 10 HP or less',                    icon: '💀', hint: 'Win a match while your HP is at 10 or below' },
+  { id: 'untouchable',         title: 'Untouchable',          desc: 'Win without taking any damage',             icon: '✨', hint: 'Win a full match without being hit once' },
+  { id: 'combo_king',          title: 'Combo King',           desc: 'Land 5 hits without missing',               icon: '👑', hint: 'Hit an opponent 5 times in a row without whiffing' },
+  { id: 'perfectionist',       title: 'Perfectionist',        desc: 'Win 10 total matches',                      icon: '🌟' },
+  { id: 'legend',              title: 'Legend',               desc: 'Win 50 total matches',                      icon: '🏅', hint: 'A true veteran of Stickman Battles' },
+  { id: 'speedrun',            title: 'Speedster',            desc: 'Win a match in under 30 seconds',           icon: '⏱' },
+  // Weapons & Classes
+  { id: 'gunslinger',          title: 'Gunslinger',           desc: 'Deal 500 ranged damage in one match',       icon: '🔫', hint: 'Use the Gun weapon and deal 500 total ranged damage in one match' },
+  { id: 'hammer_time',         title: 'Hammer Time',          desc: 'Win using only hammer',                     icon: '🔨', hint: 'Win a match with the Hammer weapon equipped' },
+  { id: 'clash_master',        title: 'Clash Master',         desc: 'Trigger a weapon clash (spark)',             icon: '⚡', hint: 'Get both weapons to collide mid-swing to spark a clash' },
+  { id: 'super_saver',         title: 'Super Saver',          desc: 'Use your super move 10 times',              icon: '💫' },
+  { id: 'class_collector',     title: 'Class Collector',      desc: 'Win as 5 different classes in one session', icon: '🎭', hint: 'Play and win a match as 5 distinct character classes' },
+  // Finishers
+  { id: 'first_finisher',      title: 'Finishing Touch',      desc: 'Execute your first Finisher',               icon: '💥', hint: 'KO an opponent when finishers are enabled to trigger one' },
+  { id: 'finisher_master',     title: 'Finisher Master',      desc: 'Execute 10 Finishers in one session',       icon: '🎬', hint: 'Keep triggering finishers across multiple matches' },
   // Minigames
-  { id: 'wave_5',         title: 'Wave Warrior',        desc: 'Survive 5 survival waves',            icon: '🌊' },
-  { id: 'wave_10',        title: 'Wave Master',         desc: 'Survive 10 survival waves',           icon: '🌊🌊' },
-  { id: 'survival_win',   title: 'Extinction Event',    desc: 'Beat all waves in team survival',     icon: '🏆' },
-  { id: 'koth_win',       title: 'King of the Hill',   desc: 'Win a King of the Hill match',        icon: '🏔' },
-  // Exploration
-  { id: 'boss_slayer',    title: 'Boss Slayer',         desc: 'Defeat the Creator boss',             icon: '👹' },
-  { id: 'true_form',      title: 'True Form',           desc: 'Unlock and defeat the True Form',    icon: '🌑' },
-  { id: 'yeti_hunter',    title: 'Yeti Hunter',         desc: 'Defeat the Yeti on Ice arena',       icon: '❄' },
-  { id: 'beast_tamer',    title: 'Beast Tamer',         desc: 'Defeat the Forest Beast',             icon: '🦴' },
-  // Fun
-  { id: 'chaos_survivor', title: 'Chaos Agent',         desc: 'Survive a wave with 3 chaos mods',   icon: '🌀' },
-  { id: 'super_saver',    title: 'Super Saver',         desc: 'Use your super move 10 times',        icon: '⚡' },
-  { id: 'speedrun',       title: 'Speedster',           desc: 'Win a match in under 30 seconds',     icon: '⏱' },
-  { id: 'perfectionist',  title: 'Perfectionist',       desc: 'Win 10 total matches',                icon: '🌟' },
-  { id: 'god_slayer',     title: 'God Slayer',          desc: 'How did you do this!?!',              icon: '⚔️' },
+  { id: 'wave_5',              title: 'Wave Warrior',         desc: 'Survive 5 survival waves',                  icon: '🌊' },
+  { id: 'wave_10',             title: 'Wave Master',          desc: 'Survive 10 survival waves',                 icon: '🌊🌊' },
+  { id: 'survival_win',        title: 'Extinction Event',     desc: 'Beat all waves in team survival',           icon: '🏆' },
+  { id: 'koth_win',            title: 'King of the Hill',     desc: 'Win a King of the Hill match',              icon: '🏔' },
+  { id: 'chaos_survivor',      title: 'Chaos Agent',          desc: 'Survive a wave with 3 chaos mods',          icon: '🌀' },
+  { id: 'chaos_all',           title: 'Pure Chaos',           desc: 'Activate all 8 chaos modifiers at once',    icon: '🔥', hint: 'Toggle all chaos modifiers on before starting a match' },
+  { id: 'nexus_defender',      title: 'Nexus Defender',       desc: 'Survive 5 waves in Nexus Defense',          icon: '🔷', hint: 'Protect the Nexus from 5 waves of attackers' },
+  // Online
+  { id: 'online_winner',       title: 'Connected',            desc: 'Win your first online match',               icon: '🌐', hint: 'Beat a real player in an online PvP session' },
+  // Bosses & Enemies
+  { id: 'boss_slayer',         title: 'Boss Slayer',          desc: 'Defeat the Creator boss',                   icon: '👹' },
+  { id: 'true_form',           title: 'True Form',            desc: 'Unlock and defeat the True Form',           icon: '🌑' },
+  { id: 'yeti_hunter',         title: 'Yeti Hunter',          desc: 'Defeat the Yeti on Ice arena',              icon: '❄' },
+  { id: 'beast_tamer',         title: 'Beast Tamer',          desc: 'Defeat the Forest Beast',                   icon: '🦴' },
+  { id: 'sovereign_slayer',    title: 'Sovereign Slayer',     desc: 'Defeat Sovereign Ω in Adaptive mode',       icon: '⚔️', hint: 'Beat Sovereign MK2 — the AI that learns and adapts to your playstyle' },
+  { id: 'god_slayer',          title: 'God Slayer',           desc: 'How did you do this!?!',                    icon: '☄️' },
+  { id: 'absolute_axiom_slayer', title: 'Beyond Godhood',     desc: 'Defeat Absolute Axiom',                     icon: '🌌', hint: 'A secret boss. You\'ll know it when you see it.' },
+  // Story Mode
+  { id: 'story_begin',         title: 'The Journey Begins',   desc: 'Complete your first Story chapter',         icon: '📖', hint: 'Win any fight in Story Mode' },
+  { id: 'story_complete',      title: 'End of the Line',      desc: 'Complete the full Story Mode',              icon: '📕', hint: 'Reach and win the final chapter of Story Mode' },
+  { id: 'lab_infiltrator',     title: 'Lab Infiltrator',      desc: 'Complete the Laboratory Infiltration',      icon: '🧪', hint: 'Find and finish the Laboratory side mission' },
+  // Multiverse
+  { id: 'multiverse_warrior',  title: 'Multiverse Warrior',   desc: 'Conquer your first Multiverse world',       icon: '🌍', hint: 'Defeat the boss champion of any Multiverse dimension' },
+  { id: 'multiverse_master',   title: 'Dimension Breaker',    desc: 'Conquer all 4 Multiverse worlds',           icon: '🗺', hint: 'Clear every dimension in the Multiverse mode' },
+  // Progression
+  { id: 'fracture_explorer',   title: 'Fracture Explorer',    desc: 'Enter a Fracture for the first time',       icon: '🔮', hint: 'Find an unlocked Fracture portal and enter it' },
+  { id: 'ship_builder',        title: 'Axiom Ship Complete',  desc: 'Build the complete Axiom Ship',             icon: '🚀', hint: 'Collect all ship parts: Hull x5, Engine, Core, and Crystal' },
 ];
 
 // Hydrated by _refreshRuntimeFromSave(); never read directly from localStorage
@@ -40,7 +60,8 @@ let achievementTimer   = 0;  // frames remaining for current popup
 // Per-session stats for achievements
 let _achStats = { damageTaken: 0, rangedDmg: 0, consecutiveHits: 0, superCount: 0,
                   winStreak: 0, totalWins: 0, matchStartTime: 0,
-                  botKills: 0, pvpDamageDealt: 0, pvpDamageReceived: 0 };
+                  botKills: 0, pvpDamageDealt: 0, pvpDamageReceived: 0,
+                  finisherCount: 0, classWins: null };
 
 function unlockAchievement(id) {
   if (earnedAchievements.has(id)) return;

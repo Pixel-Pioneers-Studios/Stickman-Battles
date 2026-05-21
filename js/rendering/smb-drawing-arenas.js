@@ -1376,6 +1376,17 @@ function endGame() {
       if (_achStats.winStreak >= 3) unlockAchievement('hat_trick');
       if (achievWinner.health <= 10) unlockAchievement('survivor');
     }
+    // Online win
+    if (onlineMode) unlockAchievement('online_winner');
+    // Win count milestones
+    if (_achStats.totalWins >= 50) unlockAchievement('legend');
+    // Class variety — track unique winning classes per session
+    if (!_achStats.classWins) _achStats.classWins = new Set();
+    const _wClass = achievWinner.charClass;
+    if (_wClass && _wClass !== 'none') {
+      _achStats.classWins.add(_wClass);
+      if (_achStats.classWins.size >= 5) unlockAchievement('class_collector');
+    }
   } else if (winner && winner.isBoss) {
     _achStats.winStreak = 0; // loss resets streak
   } else {
@@ -2634,5 +2645,256 @@ function drawDamnationAnchors() {
   }
   ctx.shadowBlur  = 0;
   ctx.globalAlpha = 1;
+  ctx.restore();
+}
+
+// ── Absolute Axiom Domain — "The Fracture Point" ─────────────────────────────
+// Visual theme: all base arenas merged — sky cycles through every biome palette,
+// cracked dimension rifts split the background, reality tears bleed through.
+function drawAbsoluteAxiomArena() {
+  if (typeof ctx === 'undefined') return;
+  const GW = GAME_W, GH = GAME_H;
+  const t  = typeof frameCount !== 'undefined' ? frameCount : 0;
+
+  // Derive AA health fraction for visual chaos (1 = full health, 0 = near death)
+  let chaos = 0.2;
+  if (typeof minions !== 'undefined' && Array.isArray(minions)) {
+    const aa = minions.find(m => m && m.isAbsoluteAxiom && m.health > 0);
+    if (aa && aa.maxHealth > 0) chaos = 1 - Math.max(0, Math.min(1, aa.health / aa.maxHealth));
+  }
+
+  const slow  = Math.sin(t * 0.006);
+  const med   = Math.sin(t * 0.014);
+  const fast  = Math.sin(t * 0.028);
+
+  ctx.save();
+
+  // ── 1. Layered biome sky gradient — reality fracturing ───────────────────
+  // Rotates through grass/space/forest/lava hues over time, all bleeding into
+  // the void darkness as chaos increases.
+  const hueShift = (t * 0.15) % 360;
+  const biomeA   = Math.max(0, (Math.sin(t * 0.003) + 1) / 2);   // 0-1 cycle
+  const biomeB   = Math.max(0, (Math.sin(t * 0.003 + 2.1) + 1) / 2);
+  const biomeC   = Math.max(0, (Math.sin(t * 0.003 + 4.2) + 1) / 2);
+  // Each biome contributes a tinted sky sliver — combined they feel like all maps merged
+  const bgGr = ctx.createLinearGradient(0, 0, 0, GH);
+  bgGr.addColorStop(0,    `rgba(${(50*biomeA+20*biomeB)|0},${(80*biomeA)|0},${(5+40*biomeC)|0},${0.18 * (1-chaos*0.55)})`);
+  bgGr.addColorStop(0.25, `rgba(${(30*biomeB)|0},${(15+50*biomeA)|0},${(60*biomeC)|0},${0.10 * (1-chaos*0.4)})`);
+  bgGr.addColorStop(0.6,  `rgba(${(80*biomeC)|0},${(10*biomeB)|0},${(20*biomeA)|0},${0.07})`);
+  bgGr.addColorStop(1,    'rgba(0,0,0,0)');
+  ctx.fillStyle = bgGr;
+  ctx.fillRect(0, 0, GW, GH);
+
+  // Void darkness bleeds in from edges as chaos increases
+  if (chaos > 0.15) {
+    const vA = (chaos - 0.15) / 0.85 * 0.28;
+    const vGrL = ctx.createLinearGradient(0, 0, GW * 0.35, 0);
+    vGrL.addColorStop(0, `rgba(0,0,8,${vA})`);
+    vGrL.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = vGrL; ctx.fillRect(0, 0, GW, GH);
+    const vGrR = ctx.createLinearGradient(GW, 0, GW * 0.65, 0);
+    vGrR.addColorStop(0, `rgba(8,0,4,${vA})`);
+    vGrR.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = vGrR; ctx.fillRect(0, 0, GW, GH);
+  }
+
+  // ── 2. Stars — dense deep-space field ───────────────────────────────────
+  // Seeded random so they're stable across frames, occasional twinkle
+  ctx.save();
+  for (let i = 0; i < 200; i++) {
+    const sx   = ((i * 4127 + 503)  % GW);
+    const sy   = ((i * 3011 + 997)  % GH);
+    const sR   = i % 5 === 0 ? 1.6 : 0.9;
+    const twk  = Math.sin(t * 0.04 + i * 0.73);
+    const sA   = 0.32 + twk * 0.22;
+    // Stars are more visible in top 60% of screen
+    if (sy > GH * 0.7 && i % 3 !== 0) continue;
+    // Colour-tinted stars — each biome leaves a different tint
+    let sr = 200, sg = 220, sb = 255;
+    if (i % 5 === 1) { sr = 255; sg = 220; sb = 160; }    // warm/lava tint
+    else if (i % 5 === 2) { sr = 160; sg = 230; sb = 200; } // forest tint
+    else if (i % 5 === 3) { sr = 200; sg = 180; sb = 255; } // void tint
+    ctx.fillStyle = `rgba(${sr},${sg},${sb},${sA})`;
+    ctx.beginPath();
+    ctx.arc(sx, sy, sR, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.restore();
+
+  // ── 3. Nebula clouds — slow shifting colour masses ───────────────────────
+  const nebulae = [
+    { cx: GW * 0.18, cy: GH * 0.18, r: 120, col: `rgba(80,0,200,${0.05 + slow*0.02})` },
+    { cx: GW * 0.78, cy: GH * 0.22, r: 110, col: `rgba(200,30,0,${0.04 + slow*0.02})`  },
+    { cx: GW * 0.50, cy: GH * 0.10, r: 90,  col: `rgba(0,140,200,${0.04 + med*0.02})`  },
+    { cx: GW * 0.30, cy: GH * 0.60, r: 80,  col: `rgba(180,180,0,${0.03 + fast*0.01})` },
+    { cx: GW * 0.72, cy: GH * 0.55, r: 85,  col: `rgba(0,180,100,${0.03 + fast*0.01})` },
+  ];
+  ctx.save();
+  for (const nb of nebulae) {
+    const nGr = ctx.createRadialGradient(nb.cx, nb.cy, 0, nb.cx, nb.cy, nb.r);
+    nGr.addColorStop(0,   nb.col);
+    nGr.addColorStop(0.5, nb.col.replace(/[\d.]+\)$/, '0.02)'));
+    nGr.addColorStop(1,   'rgba(0,0,0,0)');
+    ctx.fillStyle = nGr;
+    ctx.beginPath();
+    ctx.arc(nb.cx, nb.cy, nb.r, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.restore();
+
+  // ── 4. Dimension rifts — vertical cracks bleeding light ─────────────────
+  // These represent all the fractured realities bleeding into each other.
+  // More cracks appear as chaos increases.
+  const numRifts = 2 + Math.floor(chaos * 4);
+  const riftSeed = [0.12, 0.38, 0.62, 0.85, 0.25, 0.72];
+  ctx.save();
+  for (let ri = 0; ri < numRifts; ri++) {
+    const rx     = GW * riftSeed[ri % riftSeed.length];
+    const riftH  = (80 + ri * 40) * (1 + chaos * 0.5);
+    const riftY  = GH * 0.05 + ri * (GH * 0.12);
+    const phase  = t * 0.018 + ri * 1.4;
+    const riftA  = 0.10 + Math.sin(phase) * 0.06 + chaos * 0.12;
+    const riftCol = ri % 3 === 0 ? '#ff4400' : ri % 3 === 1 ? '#aa00ff' : '#0044ff';
+
+    ctx.shadowColor = riftCol;
+    ctx.shadowBlur  = 18;
+    ctx.strokeStyle = `rgba(${ri%3===0?255:ri%3===1?180:50},${ri%3===2?100:20},${ri%3===2?255:ri%3===1?220:0},${riftA})`;
+    ctx.lineWidth   = 1.5 + Math.sin(phase * 1.6) * 0.8;
+    ctx.beginPath();
+    for (let py = riftY; py < riftY + riftH; py += 3) {
+      const wobble = Math.sin(py * 0.08 + phase) * 6;
+      if (py === riftY) ctx.moveTo(rx + wobble, py);
+      else              ctx.lineTo(rx + wobble, py);
+    }
+    ctx.stroke();
+    // Glow halo around rift
+    const rGr = ctx.createLinearGradient(rx - 16, 0, rx + 16, 0);
+    rGr.addColorStop(0, 'rgba(0,0,0,0)');
+    rGr.addColorStop(0.5, `rgba(${ri%3===0?255:ri%3===1?180:30},0,${ri%3===2?255:ri%3===1?200:0},${riftA * 0.4})`);
+    rGr.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = rGr;
+    ctx.fillRect(rx - 16, riftY, 32, riftH);
+    ctx.shadowBlur = 0;
+  }
+  ctx.restore();
+
+  // ── 5. Background biome fragments — ghost images of all maps ────────────
+  // Translucent silhouettes of other arena elements bleed through:
+  // grass hills, city skyline, ice mountains, forest treetops, lava glow.
+  const fragA = 0.04 + Math.sin(t * 0.007) * 0.02;
+
+  ctx.save();
+  ctx.globalAlpha = fragA * (1 + chaos * 0.5);
+  // Grass hill silhouette (left)
+  const gGr = ctx.createLinearGradient(0, GH * 0.55, 0, GH);
+  gGr.addColorStop(0, 'rgba(40,100,20,0.5)');
+  gGr.addColorStop(1, 'rgba(30,80,10,0)');
+  ctx.fillStyle = gGr;
+  ctx.beginPath();
+  ctx.moveTo(0, GH * 0.95);
+  ctx.quadraticCurveTo(GW * 0.12, GH * 0.55 + Math.sin(t * 0.01) * 8, GW * 0.25, GH * 0.78);
+  ctx.lineTo(0, GH * 0.95); ctx.closePath(); ctx.fill();
+
+  // City skyline silhouette (right)
+  ctx.fillStyle = 'rgba(20,25,50,0.35)';
+  const buildings = [[GW*0.65,GH*0.55,28,GH*0.45],[GW*0.72,GH*0.48,22,GH*0.52],[GW*0.79,GH*0.58,30,GH*0.42],[GW*0.87,GH*0.50,24,GH*0.50]];
+  for (const [bx, by, bw, bh] of buildings) ctx.fillRect(bx, by, bw, bh);
+
+  // Ice mountain (far-right hint)
+  ctx.strokeStyle = 'rgba(160,220,255,0.2)';
+  ctx.lineWidth   = 2;
+  ctx.beginPath();
+  ctx.moveTo(GW * 0.88, GH * 0.95);
+  ctx.lineTo(GW * 0.93, GH * 0.45 + Math.sin(t * 0.008) * 4);
+  ctx.lineTo(GW * 0.98, GH * 0.95);
+  ctx.stroke();
+
+  // Forest treetop canopy (top strip)
+  ctx.fillStyle = 'rgba(20,60,15,0.18)';
+  for (let ti = 0; ti < 8; ti++) {
+    const tx = GW * 0.02 + ti * GW * 0.115;
+    const ty = GH * 0.06 + Math.sin(t * 0.009 + ti) * 5;
+    ctx.beginPath();
+    ctx.arc(tx, ty, 22, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Lava glow from bottom-centre
+  const lvGr = ctx.createRadialGradient(GW * 0.5, GH, 0, GW * 0.5, GH, GH * 0.35);
+  lvGr.addColorStop(0, `rgba(220,40,0,${0.06 * (1 + chaos)})`);
+  lvGr.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = lvGr;
+  ctx.fillRect(0, 0, GW, GH);
+
+  ctx.globalAlpha = 1;
+  ctx.restore();
+
+  // ── 6. Dimensional portal rings (background depth) ──────────────────────
+  // Concentric rings suggesting infinite portals to other worlds behind the stage.
+  ctx.save();
+  const portalCX = GW * 0.5;
+  const portalCY = GH * 0.52;
+  const numRings = 6;
+  for (let ri = 0; ri < numRings; ri++) {
+    const baseR = 60 + ri * 55;
+    const pR    = baseR + Math.sin(t * 0.015 + ri * 0.9) * 12;
+    const pA    = (0.06 - ri * 0.008) * (1 + chaos * 0.4);
+    if (pA <= 0) continue;
+    const ringHue = [200, 280, 350, 130, 50, 180][ri % 6];
+    ctx.strokeStyle = `hsla(${ringHue},80%,60%,${pA})`;
+    ctx.lineWidth   = 1.2;
+    ctx.shadowColor = `hsla(${ringHue},80%,60%,0.5)`;
+    ctx.shadowBlur  = 8;
+    ctx.beginPath();
+    ctx.arc(portalCX, portalCY, pR, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+  ctx.shadowBlur = 0;
+  ctx.restore();
+
+  // ── 7. Platform biome texture overlays ─────────────────────────────────
+  // Each platform tier is tinted to evoke its home biome.
+  // This is drawn lightly on top of the platform fill by the main renderer;
+  // here we draw subtle glows beneath each platform zone.
+  const platZones = [
+    { x: GW*0.0, y: 370, w: GW*0.20, col: 'rgba(100,180,60,0.06)'  },  // grass (left-low)
+    { x: GW*0.8, y: 370, w: GW*0.20, col: 'rgba(160,230,255,0.05)' },  // ice (right shelf)
+    { x: GW*0.3, y: 270, w: GW*0.40, col: 'rgba(40,60,130,0.06)'   },  // city (centre)
+    { x: GW*0.0, y: 200, w: GW*0.25, col: 'rgba(30,90,20,0.05)'    },  // forest (upper-left)
+    { x: GW*0.7, y: 200, w: GW*0.30, col: 'rgba(30,90,20,0.05)'    },  // forest (upper-right)
+    { x: GW*0.3, y: 120, w: GW*0.40, col: 'rgba(10,20,60,0.07)'    },  // space (apex)
+  ];
+  ctx.save();
+  for (const pz of platZones) {
+    const pzGr = ctx.createLinearGradient(pz.x, pz.y, pz.x, pz.y + 80);
+    pzGr.addColorStop(0, pz.col);
+    pzGr.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = pzGr;
+    ctx.fillRect(pz.x, pz.y, pz.w, 80);
+  }
+  ctx.restore();
+
+  // ── 8. Chaos distortion overlay (late fight) ─────────────────────────────
+  if (chaos > 0.6) {
+    const distA = (chaos - 0.6) / 0.4 * 0.08;
+    const dGr   = ctx.createLinearGradient(0, 0, GW, GH);
+    dGr.addColorStop(0,    `rgba(200,0,50,${distA * 0.8})`);
+    dGr.addColorStop(0.33, `rgba(100,0,200,${distA})`);
+    dGr.addColorStop(0.66, `rgba(0,0,80,${distA * 0.6})`);
+    dGr.addColorStop(1,    `rgba(200,30,0,${distA * 0.8})`);
+    ctx.fillStyle = dGr;
+    ctx.fillRect(0, 0, GW, GH);
+    // Scan-line distortion effect
+    ctx.save();
+    ctx.globalAlpha = distA * 0.5;
+    for (let sl = 0; sl < GH; sl += 4) {
+      if ((sl + (t & 3)) % 8 === 0) {
+        ctx.fillStyle = 'rgba(0,0,0,0.15)';
+        ctx.fillRect(0, sl, GW, 1);
+      }
+    }
+    ctx.restore();
+  }
+
   ctx.restore();
 }

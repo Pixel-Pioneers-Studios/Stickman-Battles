@@ -1,0 +1,2774 @@
+// smb-domain.js — Domain Expansion system
+// Loaded after: smb-combat.js, smb-fighter.js, smb-enemies-class.js, smb-god.js
+// Loaded before: smb-loop-core.js
+// Globals used: players, gameRunning, GAME_W, GAME_H, ctx, canvas, dealDamage,
+//               spawnParticles, queueAnnouncement, slowMotion, screenShake
+
+'use strict';
+
+// ── Domain Definitions ────────────────────────────────────────────────────
+// One entry per class key.  'none' has no domain — 5th super fires normally.
+const DOMAIN_DEFS = {
+  thor: {
+    name:       'Storm Realm',
+    color:      '#44aaff',
+    bgTint:     'rgba(10,30,80,0.52)',
+    spawnEvery: 38,           // lightning strikes relentlessly
+    hazardType: 'lightning',
+    ownerBuff: { speed: true },
+    announce:   'The sky tears open — lightning reigns!',
+  },
+  kratos: {
+    name:       'Spartan War Domain',
+    color:      '#ff5500',
+    bgTint:     'rgba(70,15,0,0.52)',
+    spawnEvery: 34,           // logs roll in constantly
+    hazardType: 'debris',
+    ownerBuff: { power: true },
+    announce:   'Rage of Sparta — no mercy, no escape!',
+  },
+  ninja: {
+    name:       'Shadow Realm',
+    color:      '#bb44ff',
+    bgTint:     'rgba(8,0,28,0.60)',
+    spawnEvery: 34,
+    hazardType: 'shadow_blade',
+    ownerBuff: { speed: true },
+    announce:   'Darkness consumes all — nowhere to hide!',
+  },
+  gunner: {
+    name:       'Arsenal Domain',
+    color:      '#ff9900',
+    bgTint:     'rgba(35,15,0,0.48)',
+    spawnEvery: 26,
+    hazardType: 'bullet',
+    ownerBuff: {},
+    announce:   'Weapons free — total fire superiority!',
+  },
+  archer: {
+    name:       'Verdant Hunt',
+    color:      '#44ff88',
+    bgTint:     'rgba(0,35,10,0.48)',
+    spawnEvery: 40,
+    hazardType: 'arrow',
+    ownerBuff: {},
+    announce:   'The hunt begins — the forest has eyes!',
+  },
+  paladin: {
+    name:       'Holy Sanctuary',
+    color:      '#ffffaa',
+    bgTint:     'rgba(70,65,20,0.40)',
+    spawnEvery: 52,
+    hazardType: 'holy_beam',
+    ownerBuff:  { healPerFrame: 0.016 },
+    announce:   'Divine judgment descends — the unworthy burn!',
+  },
+  berserker: {
+    name:       'Blood Arena',
+    color:      '#ff2222',
+    bgTint:     'rgba(55,0,0,0.55)',
+    spawnEvery: 0,
+    hazardType: null,
+    ownerBuff:  { speed: true, power: true, healPerFrame: 0.020 },
+    announce:   'Blood and fury — death walks among you!',
+  },
+  megaknight: {
+    name:       'Void Rift',
+    color:      '#9944ff',
+    bgTint:     'rgba(18,0,55,0.55)',
+    spawnEvery: 0,
+    hazardType: 'void_rock',
+    ownerBuff:  {},
+    announce:   'Reality tears — the void claims this arena!',
+  },
+};
+
+// ── DomainManager singleton ───────────────────────────────────────────────
+const DomainManager = (() => {
+  const RISE_FRAMES   = 300; // 5 s at 60 fps
+  const DOMAIN_FRAMES = 25 * 60; // 25 s
+
+  // [{owner, defKey, def, timer, hazards[], spawnCooldown}]
+  let _domains = [];
+  // [{fighter, timer}]
+  let _rising  = [];
+
+  // ── Domain entry cinematic tracking ────────────────────────────────
+  let _domainCinActive = false;
+  let _domainCinOwner  = null;
+
+  // ── Hazard spawning ─────────────────────────────────────────────────
+
+  function _spawnHazard(domain) {
+    const { def } = domain;
+    switch (def.hazardType) {
+      case 'lightning': {
+        // 2 bolts every interval — dense pressure; first bolt aimed at an enemy
+        const count = Math.random() < 0.55 ? 2 : 1;
+        const _enemies = typeof players !== 'undefined'
+          ? players.filter(p => p !== domain.owner && p.health > 0 && !p.isBoss)
+          : [];
+        for (let i = 0; i < count; i++) {
+          let x;
+          if (i === 0 && _enemies.length > 0) {
+            const _tgt = _enemies[Math.floor(Math.random() * _enemies.length)];
+            x = _tgt.cx() + (Math.random() - 0.5) * 80;
+          } else {
+            x = 50 + Math.random() * (GAME_W - 100);
+          }
+          x = Math.max(50, Math.min(GAME_W - 50, x));
+          domain.hazards.push({
+            type: 'lightning', x, y: 0,
+            damage: 55, radius: 52,
+            warningTimer: 26, strikeTimer: 0, struck: false,
+            hitSet: new Set(),
+          });
+        }
+        break;
+      }
+      case 'debris': {
+        // Logs from both sides — staggered heights, deadly speed
+        for (let side = 0; side < 2; side++) {
+          const left = side === 0;
+          const x    = left ? -40 : GAME_W + 40;
+          const y    = GAME_H * 0.35 + (Math.random() - 0.5) * GAME_H * 0.40;
+          const spd  = 20 + Math.random() * 8;
+          domain.hazards.push({
+            type: 'debris', x, y,
+            vx: left ? spd : -spd,
+            vy: (Math.random() - 0.5) * 4,
+            damage: 48, radius: 24, hitSet: new Set(),
+          });
+        }
+        break;
+      }
+      case 'shadow_blade': {
+        for (let i = 0; i < 5; i++) {
+          domain.hazards.push({
+            type: 'shadow_blade',
+            x: 30 + Math.random() * (GAME_W - 60), y: -40,
+            vx: (Math.random() - 0.5) * 8,
+            vy: 16 + Math.random() * 7,
+            angle: Math.random() * Math.PI * 2,
+            damage: 40, radius: 14, hitSet: new Set(),
+          });
+        }
+        break;
+      }
+      case 'bullet': {
+        // Both sides — dense burst, faster projectiles
+        for (let side = 0; side < 2; side++) {
+          const left = side === 0;
+          for (let i = 0; i < 5; i++) {
+            const x  = left ? -10 : GAME_W + 10;
+            const y  = GAME_H * 0.15 + Math.random() * GAME_H * 0.62;
+            const vx = left ? 24 + Math.random() * 5 : -(24 + Math.random() * 5);
+            domain.hazards.push({
+              type: 'bullet', x, y, vx, vy: (Math.random() - 0.5) * 5,
+              damage: 22, radius: 7, hitSet: new Set(),
+            });
+          }
+        }
+        break;
+      }
+      case 'arrow': {
+        // 7-arrow blanket volley covering the full arena width
+        for (let i = 0; i < 7; i++) {
+          const spread = (i / 6) * (GAME_W - 80) + 40;
+          domain.hazards.push({
+            type: 'arrow',
+            x: spread, y: -25,
+            vx: (Math.random() - 0.5) * 5,
+            vy: 17 + Math.random() * 6,
+            damage: 42, radius: 10, hitSet: new Set(),
+          });
+        }
+        break;
+      }
+      case 'holy_beam': {
+        // Three beams — impossible to dodge all, must pick which to take
+        const x1 = 60  + Math.random() * (GAME_W * 0.28);
+        const x2 = GAME_W * 0.40 + Math.random() * (GAME_W * 0.20);
+        const x3 = GAME_W * 0.65 + Math.random() * (GAME_W * 0.28);
+        for (const x of [x1, x2, x3]) {
+          domain.hazards.push({
+            type: 'holy_beam', x, y: 0,
+            damage: 54, radius: 32,
+            warningTimer: 40, activeTimer: 0,
+            hitSet: new Set(),
+          });
+        }
+        break;
+      }
+    }
+  }
+
+  function _createVoidRocks(domain) {
+    // Three rocks at different radii — inner, mid, and outer ring
+    const orbits = [120, 200, 280];
+    for (let i = 0; i < 3; i++) {
+      const orbitR = orbits[i];
+      domain.hazards.push({
+        type:    'void_rock',
+        angle:   (Math.PI * 2 * i / 3),  // 120° apart
+        orbitR,
+        damage:  48,
+        radius:  22,
+        hitSet:  new Set(),
+        get x() { return GAME_W / 2 + Math.cos(this.angle) * this.orbitR; },
+        get y() { return GAME_H * 0.58 + Math.sin(this.angle) * this.orbitR * 0.52; },
+      });
+    }
+  }
+
+  // ── Weapon-specific persistent hazards ─────────────────────────────
+
+  function _createWeaponHazards(domain) {
+    const wk = domain.owner.weaponKey;
+
+    // Thor + Hammer → Mjolnir roams the arena freely, periodically dart-strikes an enemy
+    if (domain.defKey === 'thor') {
+      domain.hazards.push({
+        type:        'mjolnir',
+        x:           domain.owner.cx(),
+        y:           domain.owner.cy() - 80,
+        vx:          8, vy: -6,
+        spinAngle:   0,       // visual hammer rotation
+        roamTarget:  null,    // picked each frame when roaming
+        state:       'roam',  // 'roam' | 'strike'
+        stateTimer:  90,      // 1.5 s before first strike
+        damage:      65,      // strike-hit damage
+        orbitDamage: 32,      // damage on contact while roaming
+        radius:      22,
+        hitSet:      new Set(),
+        orbitHitSet: new Set(),
+      });
+    }
+
+    // Kratos → Blades of Chaos: fire chains whipping across the arena
+    if (domain.defKey === 'kratos') {
+      domain.hazards.push({
+        type:       'blades_of_chaos',
+        x:          GAME_W / 2,
+        y:          GAME_H * 0.52,
+        angle:      -Math.PI * 0.80, // start at left edge of sweep
+        sweepDir:   1,
+        sweepSpeed: 0.068,           // faster arc — harder to dodge
+        armLength:  200,             // longer reach
+        phase:      'sweep',
+        resetTimer: 0,
+        damage:     58,
+        radius:     20,
+        hitSet:     new Set(),
+      });
+    }
+
+    // Ninja + Sword → TWO Shadow Clones: both patrol and lunge independently
+    if (domain.defKey === 'ninja') {
+      for (let ci = 0; ci < 2; ci++) {
+        domain.hazards.push({
+          type:         'shadow_clone',
+          x:            GAME_W * (ci === 0 ? 0.25 : 0.75),
+          y:            GAME_H * 0.50,
+          vx:           0, vy: 0,
+          state:        'patrol',
+          patrolTarget: ci === 0 ? GAME_W * 0.15 : GAME_W * 0.85,
+          recoverTimer: 0,
+          damage:       50,
+          radius:       18,
+          hitSet:       new Set(),
+        });
+      }
+    }
+
+    // Gunner + Gun → Twin turrets, each fires 4-bullet aimed bursts rapidly
+    if (domain.defKey === 'gunner') {
+      for (let side = 0; side < 2; side++) {
+        domain.hazards.push({
+          type:      'turret',
+          x:         side === 0 ? 18 : GAME_W - 18,
+          y:         GAME_H * 0.50,
+          facing:    side === 0 ? 1 : -1,
+          fireTimer: 20 + side * 32,  // stagger so salvos don't overlap
+          fireEvery: 62,              // fire every ~1 s
+          damage:    24,
+          radius:    14,
+          hitSet:    new Set(),
+        });
+      }
+    }
+
+    // Archer + Bow → Giant power arrow — fast, huge, crosses the whole arena
+    if (domain.defKey === 'archer') {
+      domain.hazards.push({
+        type:       'giant_arrow',
+        x:          -80,
+        y:          GAME_H * 0.38,
+        vx:         0, vy: 0,
+        fromLeft:   true,
+        phase:      'cooldown',
+        phaseTimer: 90,     // 1.5 s cooldown before first shot
+        damage:     100,    // devastating — a single hit is half a health bar
+        radius:     28,
+        hitSet:     new Set(),
+      });
+    }
+
+    // Paladin + Shield → Divine shield orb, faster orbit, punishing on contact
+    if (domain.defKey === 'paladin') {
+      domain.hazards.push({
+        type:   'divine_shield',
+        angle:  0,
+        orbitR: 78,
+        damage: 52,
+        radius: 22,
+        hitSet: new Set(),
+        get x() { return domain.owner.cx() + Math.cos(this.angle) * this.orbitR; },
+        get y() { return domain.owner.cy() + Math.sin(this.angle) * this.orbitR * 0.68; },
+      });
+    }
+
+    // Berserker → Rage Pulse — huge AoE, frequent, brutally high damage
+    if (domain.defKey === 'berserker') {
+      domain.hazards.push({
+        type:       'rage_pulse',
+        pulseTimer: 70,
+        pulseEvery: 100,   // pulse every 1.6 s — relentless
+        ringRadius: 0,
+        ringActive: false,
+        damage:     48,
+        radius:     115,   // covers most of the arena
+        hitSet:     new Set(),
+      });
+    }
+
+    // Megaknight → Gravity Vortex: strong pull drags enemies into the void rocks
+    if (domain.defKey === 'megaknight') {
+      domain.hazards.push({
+        type:   'gravity_vortex',
+        x:      GAME_W / 2,
+        y:      GAME_H * 0.44,
+        pull:   0.85,   // overpowering — hard to fight out of
+        radius: 0,
+        damage: 0,
+        hitSet: new Set(),
+      });
+    }
+  }
+
+  // ── Domain lifecycle ────────────────────────────────────────────────
+
+  function _clearOwnerBuffs(owner) {
+    if (!owner) return;
+    delete owner._domainSpeedRefresh;
+    delete owner._domainPowerRefresh;
+    delete owner._domainDisplayWeapon;
+  }
+
+  // ── Domain entry cinematic ──────────────────────────────────────────
+
+  const _DOMAIN_ENTRY_TILT = {
+    thor: -3.5, kratos: 4, ninja: -5,
+    paladin: 2.5, gunner: -2, archer: 3,
+    berserker: 5, megaknight: -4,
+  };
+  const _DOMAIN_DARK_COLOR = {
+    thor: '#000a1a', kratos: '#1a0500', ninja: '#030008',
+    paladin: '#1a1800', gunner: '#1a0e00', archer: '#001a05',
+    berserker: '#1a0000', megaknight: '#050013',
+  };
+  const _DOMAIN_ENTRY_LINE = {
+    thor:       'By Odin\'s command...',
+    kratos:     'Feel the rage of Sparta!',
+    ninja:      'Nowhere to hide in the shadows.',
+    paladin:    'The light judges all.',
+    gunner:     'Weapons free — open fire!',
+    archer:     'The hunt... begins.',
+    berserker:  'RAAAAGH!',
+    megaknight: 'Your reality... crumbles.',
+  };
+
+  function _tickDomainEntry(r) {
+    const f   = r.fighter;
+    const def = DOMAIN_DEFS[f.charClass];
+    if (!def) return;
+    if (typeof CinCam === 'undefined' || typeof CinFX === 'undefined') return;
+    const t = r.timer; // counts DOWN from RISE_FRAMES (300)
+    const d = r.animData || (r.animData = {});
+
+    // Common: entry setup — no tilt (tilt can clip name card text)
+    if (t === RISE_FRAMES - 5) {
+      _domainCinActive = true;
+      _domainCinOwner  = f;
+      CinCam.zoomTo(1.65);
+      CinCam.focusPoint(f.cx(), f.cy());
+      if (typeof screenShake !== 'undefined') screenShake = Math.max(screenShake, 18);
+    }
+
+    switch (f.charClass) {
+
+      // ── Thor: hammer raised → lightning strikes → supercharge → ground slam ──
+      case 'thor': {
+        if (t === 275) {
+          CinFX.bgContrast('#000a1a', 0.88, 60);
+          CinCam.directionalShake(22, 0, -1);
+        }
+        if (t === 260) {
+          CinFX.flash('#ffffff', 0.92, 10);
+          if (typeof screenShake !== 'undefined') screenShake = Math.max(screenShake, 38);
+          d.lightningStruck = true; d.lightningTimer = 65;
+        }
+        if (t === 248) {
+          CinFX.speedLines(f.cx(), f.cy(), '#44aaff', { count: 32, maxLen: 380, dur: 20, spread: Math.PI * 2 });
+          if (typeof spawnParticles === 'function') {
+            spawnParticles(f.cx(), f.cy(), '#44aaff', 30);
+            spawnParticles(f.cx(), f.cy(), '#ffffff', 15);
+          }
+        }
+        if (t === 228) {
+          d.slamStart = true;
+        }
+        if (t === 215) {
+          CinFX.flash('#aaddff', 0.65, 8);
+          CinFX.shockwave(f.cx(), GAME_H - 80, '#44aaff', { count: 3, maxR: 340, lw: 6, dur: 65 });
+          if (typeof screenShake !== 'undefined') screenShake = Math.max(screenShake, 58);
+          d.slamFired = true;
+          d.slamActivate = true; // domain activates at slam impact
+          if (typeof spawnParticles === 'function') {
+            spawnParticles(f.cx(), GAME_H - 80, '#44aaff', 55);
+            spawnParticles(f.cx(), GAME_H - 80, '#ffffff', 28);
+          }
+        }
+        if (t === 218) {
+          CinFX.nameCard('DOMAIN EXPANSION', def.color, { dur: 110 });
+          const line = _DOMAIN_ENTRY_LINE[f.charClass];
+          if (line && typeof queueAnnouncement === 'function') queueAnnouncement('"' + line + '"', def.color);
+        }
+        if (t === 200) {
+          CinFX.speedLines(f.cx(), f.cy(), '#44aaff', { count: 42, maxLen: 460, dur: 24, spread: Math.PI * 2 });
+          CinFX.motionTrailOn(f, def.color);
+          CinCam.zoomTo(1.28);
+        }
+        if (t === 160) { CinCam.tilt(0); CinFX.motionTrailOff(f); CinCam.zoomTo(1.18); }
+        if (t === 60)  { CinCam.restore(); _domainCinActive = false; _domainCinOwner = null; }
+        break;
+      }
+
+      // ── Kratos: axe charged → rage explosion → axe thrown into sky → war domain ──
+      case 'kratos': {
+        if (t === 275) {
+          CinFX.bgContrast('#1a0500', 0.90, 60);
+          CinCam.directionalShake(24, 0, -1);
+        }
+        if (t === 262) {
+          CinFX.flash('#cc0000', 0.80, 8);
+          if (typeof screenShake !== 'undefined') screenShake = Math.max(screenShake, 42);
+          if (typeof spawnParticles === 'function') {
+            spawnParticles(f.cx(), f.cy(), '#cc2200', 36);
+            spawnParticles(f.cx(), f.cy(), '#ff6600', 18);
+          }
+          d.rageBurst = true; d.rageBurstTimer = 45;
+        }
+        if (t === 248) {
+          CinFX.groundCrack(f.cx(), GAME_H - 80, { count: 10, color: '#aa1100' });
+          if (typeof screenShake !== 'undefined') screenShake = Math.max(screenShake, 56);
+          CinFX.shockwave(f.cx(), f.cy(), '#ff3300', { count: 2, maxR: 280, lw: 6, dur: 55 });
+        }
+        if (t === 235) {
+          d.axeThrown = true; d.axeX = f.cx(); d.axeY = f.cy() - 20; d.axeVy = -18;
+        }
+        if (t === 215) {
+          CinFX.nameCard('DOMAIN EXPANSION', def.color, { dur: 110 });
+          const line = _DOMAIN_ENTRY_LINE[f.charClass];
+          if (line && typeof queueAnnouncement === 'function') queueAnnouncement('"' + line + '"', def.color);
+          CinFX.flash('#ff4400', 0.65, 6);
+          CinFX.speedLines(f.cx(), f.cy(), '#ff5500', { count: 36, maxLen: 400, dur: 22, spread: Math.PI * 2 });
+          CinFX.motionTrailOn(f, def.color);
+          CinCam.zoomTo(1.28);
+          if (typeof spawnParticles === 'function') {
+            spawnParticles(f.cx(), 60, '#ff4400', 40);
+            spawnParticles(f.cx(), 60, '#ffaa00', 20);
+          }
+        }
+        if (t === 160) { CinCam.tilt(0); CinFX.motionTrailOff(f); CinCam.zoomTo(1.18); }
+        if (t === 60)  { CinCam.restore(); _domainCinActive = false; _domainCinOwner = null; }
+        break;
+      }
+
+      // ── Ninja: vanish → shadow clone burst → reappear → reality slash ──
+      case 'ninja': {
+        if (t === 278) { CinFX.bgContrast('#030008', 0.92, 65); }
+        if (t === 265) {
+          CinFX.flash('#660099', 0.70, 6);
+          d.clonePositions = [];
+          for (let i = 0; i < 6; i++) {
+            d.clonePositions.push({
+              x: 80 + Math.random() * (GAME_W - 160),
+              y: GAME_H * 0.25 + Math.random() * GAME_H * 0.4,
+              alpha: 0.7 + Math.random() * 0.3,
+              timer: 30 + Math.floor(Math.random() * 20),
+            });
+          }
+          if (typeof screenShake !== 'undefined') screenShake = Math.max(screenShake, 28);
+        }
+        if (t === 242) {
+          CinFX.flash('#ffffff', 0.72, 6);
+          d.slashFired = true; d.slashAlpha = 1.0;
+          d.slashX1 = f.cx() - 120; d.slashY1 = f.cy() - 80;
+          d.slashX2 = f.cx() + 140; d.slashY2 = f.cy() + 60;
+          if (typeof screenShake !== 'undefined') screenShake = Math.max(screenShake, 36);
+          if (typeof spawnParticles === 'function') {
+            spawnParticles(f.cx(), f.cy(), '#bb44ff', 28);
+            spawnParticles(f.cx(), f.cy(), '#ffffff', 14);
+          }
+        }
+        if (t === 228) {
+          CinFX.nameCard('DOMAIN EXPANSION', def.color, { dur: 110 });
+          const line = _DOMAIN_ENTRY_LINE[f.charClass];
+          if (line && typeof queueAnnouncement === 'function') queueAnnouncement('"' + line + '"', def.color);
+          CinFX.speedLines(f.cx(), f.cy(), '#bb44ff', { count: 34, maxLen: 400, dur: 20, spread: Math.PI * 2 });
+          CinFX.motionTrailOn(f, def.color);
+          CinCam.zoomTo(1.28);
+        }
+        if (t === 160) { CinCam.tilt(0); CinFX.motionTrailOff(f); CinCam.zoomTo(1.18); }
+        if (t === 60)  { CinCam.restore(); _domainCinActive = false; _domainCinOwner = null; }
+        break;
+      }
+
+      // ── Gunner: guns hot → reticles lock → bullet burst → designator beam ──
+      case 'gunner': {
+        if (t === 276) {
+          CinFX.bgContrast('#1a0e00', 0.86, 58);
+          CinCam.directionalShake(18, 0, -1);
+        }
+        if (t === 262) {
+          CinFX.flash('#ffaa00', 0.65, 6);
+          d.reticlesActive = true; d.bulletTrails = [];
+          if (typeof screenShake !== 'undefined') screenShake = Math.max(screenShake, 28);
+        }
+        if (t === 246) {
+          for (let i = 0; i < 12; i++) {
+            const ang = (i / 12) * Math.PI * 2;
+            d.bulletTrails.push({ x: f.cx(), y: f.cy(), ang, len: 0, maxLen: 120 + Math.random() * 80, speed: 22 });
+          }
+          CinFX.flash('#ffcc44', 0.55, 5);
+          if (typeof screenShake !== 'undefined') screenShake = Math.max(screenShake, 34);
+          if (typeof spawnParticles === 'function') spawnParticles(f.cx(), f.cy(), '#ff9900', 30);
+        }
+        if (t === 228) {
+          d.beamActive = true; d.beamAlpha = 1.0;
+          CinFX.flash('#ffffaa', 0.62, 8);
+          if (typeof screenShake !== 'undefined') screenShake = Math.max(screenShake, 40);
+        }
+        if (t === 215) {
+          CinFX.nameCard('DOMAIN EXPANSION', def.color, { dur: 110 });
+          const line = _DOMAIN_ENTRY_LINE[f.charClass];
+          if (line && typeof queueAnnouncement === 'function') queueAnnouncement('"' + line + '"', def.color);
+          CinFX.speedLines(f.cx(), f.cy(), '#ff9900', { count: 34, maxLen: 400, dur: 22, spread: Math.PI * 2 });
+          CinFX.motionTrailOn(f, def.color);
+          CinCam.zoomTo(1.28);
+        }
+        if (t === 160) { CinCam.tilt(0); CinFX.motionTrailOff(f); CinCam.zoomTo(1.18); }
+        if (t === 60)  { CinCam.restore(); _domainCinActive = false; _domainCinOwner = null; }
+        break;
+      }
+
+      // ── Archer: giant arrow nocked → fires skyward → rain of arrows ──
+      case 'archer': {
+        if (t === 278) {
+          CinFX.bgContrast('#001a05', 0.86, 58);
+          CinCam.directionalShake(16, 0, -1);
+        }
+        if (t === 264) {
+          d.arrowNocked = true; d.arrowCharge = 0;
+          CinFX.flash('#44ff88', 0.55, 5);
+          if (typeof spawnParticles === 'function') spawnParticles(f.cx(), f.cy(), '#44ff88', 16);
+        }
+        if (t === 245) {
+          d.arrowFired = true; d.arrowX = f.cx(); d.arrowY = f.cy() - 10;
+          d.arrowVy = -20; d.arrowAlpha = 1.0; d.arrowRain = [];
+          CinFX.flash('#aaffcc', 0.60, 6);
+          if (typeof screenShake !== 'undefined') screenShake = Math.max(screenShake, 28);
+          if (typeof spawnParticles === 'function') spawnParticles(f.cx(), f.cy(), '#88ff88', 24);
+        }
+        if (t === 228) {
+          for (let i = 0; i < 10; i++) {
+            d.arrowRain.push({
+              x: 40 + Math.random() * (GAME_W - 80),
+              y: -30 - Math.random() * 60,
+              vy: 14 + Math.random() * 8,
+              alpha: 0.8 + Math.random() * 0.2,
+              timer: 60 + Math.floor(Math.random() * 30),
+            });
+          }
+          CinFX.groundCrack(f.cx(), GAME_H - 80, { count: 6, color: '#44aa44' });
+          if (typeof spawnParticles === 'function') spawnParticles(f.cx(), GAME_H - 120, '#44ff88', 30);
+        }
+        if (t === 215) {
+          CinFX.nameCard('DOMAIN EXPANSION', def.color, { dur: 110 });
+          const line = _DOMAIN_ENTRY_LINE[f.charClass];
+          if (line && typeof queueAnnouncement === 'function') queueAnnouncement('"' + line + '"', def.color);
+          CinFX.speedLines(f.cx(), f.cy(), '#44ff88', { count: 32, maxLen: 380, dur: 20, spread: Math.PI * 2 });
+          CinFX.motionTrailOn(f, def.color);
+          CinCam.zoomTo(1.28);
+        }
+        if (t === 160) { CinCam.tilt(0); CinFX.motionTrailOff(f); CinCam.zoomTo(1.18); }
+        if (t === 60)  { CinCam.restore(); _domainCinActive = false; _domainCinOwner = null; }
+        break;
+      }
+
+      // ── Paladin: holy light → divine cross → pillar of judgment → shield slam ──
+      case 'paladin': {
+        if (t === 278) {
+          CinFX.bgContrast('#1a1800', 0.84, 60);
+          CinCam.directionalShake(16, 0, -1);
+        }
+        if (t === 264) {
+          d.crossAlpha = 0; d.crossFade = true;
+          CinFX.flash('#ffffaa', 0.72, 8);
+          if (typeof screenShake !== 'undefined') screenShake = Math.max(screenShake, 26);
+          if (typeof spawnParticles === 'function') {
+            spawnParticles(f.cx(), f.cy(), '#ffe888', 22);
+            spawnParticles(f.cx(), f.cy(), '#ffffff', 12);
+          }
+        }
+        if (t === 246) {
+          d.pillarActive = true; d.pillarAlpha = 0.9;
+          CinFX.flash('#ffffff', 0.55, 5);
+          if (typeof spawnParticles === 'function') spawnParticles(f.cx(), f.cy() - 40, '#ffffaa', 30);
+        }
+        if (t === 228) {
+          CinFX.shockwave(f.cx(), f.cy(), '#ffe888', { count: 3, maxR: 300, lw: 5, dur: 58 });
+          CinFX.flash('#ffffcc', 0.68, 6);
+          if (typeof screenShake !== 'undefined') screenShake = Math.max(screenShake, 44);
+          d.pillarAlpha = 0;
+          if (typeof spawnParticles === 'function') {
+            spawnParticles(f.cx(), f.cy(), '#ffffff', 40);
+            spawnParticles(f.cx(), f.cy(), '#ffe888', 24);
+          }
+        }
+        if (t === 215) {
+          CinFX.nameCard('DOMAIN EXPANSION', def.color, { dur: 110 });
+          const line = _DOMAIN_ENTRY_LINE[f.charClass];
+          if (line && typeof queueAnnouncement === 'function') queueAnnouncement('"' + line + '"', def.color);
+          CinFX.speedLines(f.cx(), f.cy(), '#ffffaa', { count: 32, maxLen: 380, dur: 20, spread: Math.PI * 2 });
+          CinFX.motionTrailOn(f, def.color);
+          CinCam.zoomTo(1.28);
+        }
+        if (t === 160) { CinCam.tilt(0); CinFX.motionTrailOff(f); CinCam.zoomTo(1.18); }
+        if (t === 60)  { CinCam.restore(); _domainCinActive = false; _domainCinOwner = null; }
+        break;
+      }
+
+      // ── Berserker: rage veins → frenzy thrash → ROAR shatters ground → blood pool ──
+      case 'berserker': {
+        if (t === 278) {
+          CinFX.bgContrast('#1a0000', 0.90, 62);
+          CinCam.directionalShake(20, 0, -1);
+        }
+        if (t === 265) {
+          d.veinsActive = true; d.veins = [];
+          for (let i = 0; i < 8; i++) {
+            d.veins.push({ ang: Math.random() * Math.PI * 2, len: 30 + Math.random() * 50, alpha: 0.9 });
+          }
+        }
+        if (t === 252) {
+          CinFX.flash('#cc0000', 0.90, 10);
+          CinFX.groundCrack(f.cx(), GAME_H - 80, { count: 10, color: '#880000' });
+          CinFX.shockwave(f.cx(), f.cy(), '#ff0000', { count: 3, maxR: 320, lw: 6, dur: 58 });
+          if (typeof screenShake !== 'undefined') screenShake = Math.max(screenShake, 64);
+          if (typeof spawnParticles === 'function') {
+            spawnParticles(f.cx(), f.cy(), '#cc0000', 50);
+            spawnParticles(f.cx(), f.cy(), '#ff4400', 26);
+          }
+          d.bloodPool = true; d.bloodPoolR = 0;
+        }
+        if (t === 238) {
+          CinFX.nameCard('DOMAIN EXPANSION', def.color, { dur: 110 });
+          const line = _DOMAIN_ENTRY_LINE[f.charClass];
+          if (line && typeof queueAnnouncement === 'function') queueAnnouncement('"' + line + '"', def.color);
+        }
+        if (t === 220) {
+          CinFX.speedLines(f.cx(), f.cy(), '#ff2222', { count: 38, maxLen: 420, dur: 24, spread: Math.PI * 2 });
+          CinFX.motionTrailOn(f, def.color);
+          CinCam.zoomTo(1.28);
+        }
+        if (t === 160) { CinCam.tilt(0); CinFX.motionTrailOff(f); CinCam.zoomTo(1.18); }
+        if (t === 60)  { CinCam.restore(); _domainCinActive = false; _domainCinOwner = null; }
+        break;
+      }
+
+      // ── Megaknight: reality cracks → void gauntlet charges → punches rift open ──
+      case 'megaknight': {
+        if (t === 278) {
+          CinFX.bgContrast('#050013', 0.90, 62);
+          CinCam.directionalShake(18, 0, -1);
+        }
+        if (t === 264) {
+          d.cracks = [];
+          for (let i = 0; i < 6; i++) {
+            d.cracks.push({ ang: Math.random() * Math.PI * 2, len: 20 + Math.random() * 50, alpha: 0.8, growth: 1.5 + Math.random() });
+          }
+          CinFX.flash('#330066', 0.55, 5);
+          if (typeof screenShake !== 'undefined') screenShake = Math.max(screenShake, 24);
+        }
+        if (t === 248) {
+          CinFX.flash('#000000', 0.82, 8);
+          d.voidTear = true;
+          d.voidTearX = f.cx() + (f.facing || 1) * 60;
+          d.voidTearY = f.cy();
+          d.voidTearW = 0; d.voidTearH = 0;
+          if (typeof screenShake !== 'undefined') screenShake = Math.max(screenShake, 48);
+          if (typeof spawnParticles === 'function') {
+            spawnParticles(f.cx(), f.cy(), '#9944ff', 36);
+            spawnParticles(f.cx(), f.cy(), '#220044', 20);
+          }
+        }
+        if (t === 232) {
+          CinFX.shockwave(f.cx(), f.cy(), '#9944ff', { count: 3, maxR: 300, lw: 5, dur: 58 });
+          if (typeof screenShake !== 'undefined') screenShake = Math.max(screenShake, 52);
+          CinFX.nameCard('DOMAIN EXPANSION', def.color, { dur: 110 });
+          const line = _DOMAIN_ENTRY_LINE[f.charClass];
+          if (line && typeof queueAnnouncement === 'function') queueAnnouncement('"' + line + '"', def.color);
+        }
+        if (t === 215) {
+          CinFX.speedLines(f.cx(), f.cy(), '#9944ff', { count: 36, maxLen: 420, dur: 24, spread: Math.PI * 2 });
+          CinFX.motionTrailOn(f, def.color);
+          CinCam.zoomTo(1.28);
+        }
+        if (t === 160) { CinCam.tilt(0); CinFX.motionTrailOff(f); CinCam.zoomTo(1.18); }
+        if (t === 60)  { CinCam.restore(); _domainCinActive = false; _domainCinOwner = null; }
+        break;
+      }
+
+      default: {
+        if (t === 275) {
+          CinFX.bgContrast(_DOMAIN_DARK_COLOR[f.charClass] || '#0a0a0a', 0.88, 55);
+          CinFX.speedLines(f.cx(), f.cy(), def.color, { count: 28, maxLen: 320, dur: 18, spread: Math.PI * 2 });
+          CinCam.directionalShake(30, 0, -1);
+        }
+        if (t === 252) {
+          if (typeof CinFX.impactFrame === 'function') CinFX.impactFrame([f], { dur: 5, color: '#ffffff' });
+          if (typeof spawnParticles === 'function') {
+            spawnParticles(f.cx(), f.y + f.h, def.color, 22);
+            spawnParticles(f.cx(), f.y + f.h, '#ffffff', 10);
+          }
+          const line = _DOMAIN_ENTRY_LINE[f.charClass];
+          if (line && typeof queueAnnouncement === 'function') queueAnnouncement('"' + line + '"', def.color);
+        }
+        if (t === 235) { CinFX.nameCard('DOMAIN EXPANSION', def.color, { dur: 100 }); }
+        if (t === 215) {
+          CinFX.speedLines(f.cx(), f.cy(), def.color, { count: 36, maxLen: 420, dur: 22, spread: Math.PI * 2 });
+          CinFX.motionTrailOn(f, def.color);
+          CinCam.zoomTo(1.2);
+        }
+        if (t === 160) { CinCam.tilt(0); CinFX.motionTrailOff(f); CinCam.zoomTo(1.18); }
+        if (t === 60)  { CinCam.restore(); _domainCinActive = false; _domainCinOwner = null; }
+      }
+    }
+  }
+
+  // ── Domain sky effects (world-space; class-specific atmosphere) ────
+
+  function _drawDomainSkyEffects(domain) {
+    const { defKey, timer } = domain;
+    const now = performance.now();
+    const fadeIn = Math.min(1, (DOMAIN_FRAMES - timer) / 60 + 0.3);
+
+    ctx.save();
+
+    switch (defKey) {
+      case 'thor': {
+        // Dark storm clouds scrolling across the top
+        ctx.globalAlpha = fadeIn * 0.5;
+        for (let c = 0; c < 7; c++) {
+          const cx = ((c * 145 + now * 0.025) % (GAME_W + 120)) - 60;
+          const cy = 18 + (c % 3) * 20;
+          const cw = 90 + (c % 4) * 22;
+          const ch = 26 + (c % 3) * 10;
+          ctx.fillStyle = '#1a2040';
+          ctx.shadowColor = '#0a1040'; ctx.shadowBlur = 18;
+          ctx.beginPath(); ctx.ellipse(cx, cy, cw * 0.5, ch * 0.5, 0, 0, Math.PI * 2); ctx.fill();
+          ctx.fillStyle = '#252a55';
+          ctx.beginPath(); ctx.ellipse(cx - 14, cy - 4, cw * 0.34, ch * 0.37, 0, 0, Math.PI * 2); ctx.fill();
+        }
+        // Lightning flicker across top
+        if (Math.sin(now / 220) > 0.90) {
+          ctx.globalAlpha = 0.12 * fadeIn;
+          ctx.fillStyle = '#aaddff';
+          ctx.fillRect(0, 0, GAME_W, GAME_H * 0.28);
+        }
+        // Occasional crack lightning
+        if (Math.sin(now / 310) > 0.93) {
+          ctx.globalAlpha = 0.45 * fadeIn;
+          ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 1.5;
+          ctx.shadowColor = '#aaddff'; ctx.shadowBlur = 14;
+          const lx = GAME_W * 0.1 + ((now * 0.007) % (GAME_W * 0.8));
+          const ly = 20 + Math.sin(now / 180) * 18;
+          ctx.beginPath(); ctx.moveTo(lx, ly); ctx.lineTo(lx + 80 + Math.sin(now / 50) * 40, ly + Math.sin(now / 70) * 22); ctx.stroke();
+        }
+        break;
+      }
+
+      case 'kratos': {
+        // Blood rain drops
+        ctx.shadowColor = '#ff0000'; ctx.shadowBlur = 4;
+        for (let d = 0; d < 24; d++) {
+          const dropX = (d * 39 + now * 0.1) % GAME_W;
+          const dropY = (d * 23 + now * 0.15) % GAME_H;
+          ctx.globalAlpha = fadeIn * 0.35;
+          ctx.fillStyle = '#cc0000';
+          ctx.beginPath(); ctx.ellipse(dropX, dropY, 1.5, 5, 0, 0, Math.PI * 2); ctx.fill();
+        }
+        // Ember glows near ground
+        for (let e = 0; e < 8; e++) {
+          const ex = (e * 118 + now * 0.028) % GAME_W;
+          const ey = GAME_H * 0.72 + Math.sin(now / 400 + e) * 28;
+          ctx.globalAlpha = (0.18 + 0.10 * Math.sin(now / 200 + e)) * fadeIn;
+          ctx.fillStyle = '#ff4400';
+          ctx.shadowColor = '#ff6600'; ctx.shadowBlur = 18;
+          ctx.beginPath(); ctx.arc(ex, ey, 7, 0, Math.PI * 2); ctx.fill();
+        }
+        break;
+      }
+
+      case 'ninja': {
+        // Shadow tendrils from both edges
+        ctx.shadowColor = '#bb44ff'; ctx.shadowBlur = 16;
+        for (let i = 0; i < 5; i++) {
+          const side = i % 2 === 0 ? 0 : GAME_W;
+          const ty   = GAME_H * 0.22 + i * GAME_H * 0.15 + Math.sin(now / 600 + i) * 16;
+          const len  = 75 + Math.sin(now / 400 + i * 1.8) * 28;
+          const dir  = side === 0 ? 1 : -1;
+          ctx.globalAlpha = fadeIn * 0.38;
+          ctx.fillStyle = '#220044';
+          ctx.beginPath();
+          ctx.moveTo(side, ty - 12);
+          ctx.lineTo(side + dir * len, ty);
+          ctx.lineTo(side, ty + 12);
+          ctx.closePath(); ctx.fill();
+        }
+        break;
+      }
+
+      case 'paladin': {
+        // Divine light rays fanning from top center
+        ctx.fillStyle = '#ffffcc';
+        ctx.shadowColor = '#ffff88'; ctx.shadowBlur = 28;
+        for (let r = 0; r < 7; r++) {
+          const angle = (r - 3) * 0.22;
+          const rayW  = 16 + r * 3;
+          ctx.globalAlpha = fadeIn * 0.15;
+          ctx.save();
+          ctx.translate(GAME_W / 2, 0);
+          ctx.rotate(angle);
+          ctx.fillRect(-rayW / 2, 0, rayW, GAME_H * 0.88);
+          ctx.restore();
+        }
+        break;
+      }
+
+      case 'gunner': {
+        // Floating targeting reticles drifting across the arena
+        for (let ti = 0; ti < 4; ti++) {
+          const tx = 80 + ti * 220 + Math.sin(now / 1000 + ti) * 28;
+          const ty = GAME_H * 0.28 + Math.sin(now / 800 + ti * 1.4) * 38;
+          ctx.globalAlpha = (0.20 + 0.10 * Math.sin(now / 300 + ti)) * fadeIn;
+          ctx.strokeStyle = '#ff9900'; ctx.lineWidth = 1.5;
+          ctx.shadowColor = '#ffaa00'; ctx.shadowBlur = 10;
+          ctx.beginPath(); ctx.arc(tx, ty, 18, 0, Math.PI * 2); ctx.stroke();
+          ctx.beginPath(); ctx.moveTo(tx - 26, ty); ctx.lineTo(tx + 26, ty); ctx.stroke();
+          ctx.beginPath(); ctx.moveTo(tx, ty - 26); ctx.lineTo(tx, ty + 26); ctx.stroke();
+        }
+        break;
+      }
+
+      case 'archer': {
+        // Falling forest leaves
+        for (let l = 0; l < 14; l++) {
+          const lx = (l * 67 + now * 0.038) % GAME_W;
+          const ly = (l * 41 + now * 0.055) % GAME_H;
+          const la = now / 500 + l * 0.8;
+          ctx.globalAlpha = (0.22 + 0.14 * Math.sin(now / 300 + l)) * fadeIn;
+          ctx.fillStyle = '#88ff88';
+          ctx.shadowColor = '#44ff88'; ctx.shadowBlur = 5;
+          ctx.save();
+          ctx.translate(lx, ly); ctx.rotate(la);
+          ctx.beginPath(); ctx.ellipse(0, 0, 6, 3, 0, 0, Math.PI * 2); ctx.fill();
+          ctx.restore();
+        }
+        break;
+      }
+
+      case 'berserker': {
+        // Blood pool at ground level
+        ctx.globalAlpha = fadeIn * 0.40;
+        ctx.fillStyle = '#880000';
+        ctx.shadowColor = '#ff0000'; ctx.shadowBlur = 14;
+        ctx.fillRect(0, GAME_H - 18, GAME_W, 22);
+        // Rising blood wisps
+        for (let w = 0; w < 6; w++) {
+          const wx    = (w * 152 + now * 0.018) % GAME_W;
+          const wFrac = ((now / 10 + w * 40) % 80) / 80;
+          const wy    = GAME_H - 18 - wFrac * 78;
+          ctx.globalAlpha = (1 - wFrac) * 0.32 * fadeIn;
+          ctx.fillStyle = '#cc0000';
+          ctx.beginPath(); ctx.arc(wx, wy, 5, 0, Math.PI * 2); ctx.fill();
+        }
+        break;
+      }
+
+      case 'megaknight': {
+        // Void crack lines from fixed positions
+        ctx.strokeStyle = '#9944ff'; ctx.lineWidth = 1.5;
+        ctx.shadowColor = '#7700cc'; ctx.shadowBlur = 12;
+        for (let vc = 0; vc < 5; vc++) {
+          const vcx = (vc * 173 + 55) % GAME_W;
+          const vcy = (vc * 101 + 40) % GAME_H;
+          ctx.globalAlpha = fadeIn * 0.38;
+          ctx.beginPath(); ctx.moveTo(vcx, vcy);
+          ctx.lineTo(vcx + Math.sin(now / 500 + vc) * 55 - 27, vcy + Math.cos(now / 400 + vc) * 45 - 22);
+          ctx.stroke();
+        }
+        // Drifting star points
+        ctx.fillStyle = '#ffffff';
+        ctx.shadowColor = '#aa88ff'; ctx.shadowBlur = 8;
+        for (let s = 0; s < 20; s++) {
+          const sx = (s * 47 + 20) % GAME_W;
+          const sy = (s * 28 + 15) % GAME_H;
+          ctx.globalAlpha = fadeIn * (0.28 + 0.22 * Math.sin(now / 300 + s * 0.7));
+          ctx.beginPath(); ctx.arc(sx, sy, 1.5, 0, Math.PI * 2); ctx.fill();
+        }
+        break;
+      }
+    }
+
+    ctx.restore();
+  }
+
+  // ── Entry animation drawing helpers ────────────────────────────────────
+
+  function _dLerp(a, b, t) { return a + (b - a) * t; }
+  function _dClamp(v, lo, hi) { return v < lo ? lo : v > hi ? hi : v; }
+  function _dSmooth(t) { return t * t * (3 - 2 * t); }          // smoothstep
+  function _dEaseIn(t) { return t * t; }
+  function _dEaseOut(t) { return 1 - (1 - t) * (1 - t); }
+
+  // Build a jagged bolt path between two points (stored as [{x,y}] array)
+  function _dMakeBoltPath(x1, y1, x2, y2, segs, jitterX, jitterY) {
+    const pts = [];
+    for (let i = 0; i <= segs; i++) {
+      const frac = i / segs;
+      const jx = (i === 0 || i === segs) ? 0 : (Math.random() - 0.5) * jitterX;
+      const jy = (i === 0 || i === segs) ? 0 : (Math.random() - 0.5) * jitterY;
+      pts.push({ x: _dLerp(x1, x2, frac) + jx, y: _dLerp(y1, y2, frac) + jy });
+    }
+    return pts;
+  }
+
+  // Draw a pre-generated bolt path (stable across frames)
+  function _dDrawBolt(pts, color, lw, blur) {
+    if (!pts || pts.length < 2) return;
+    ctx.strokeStyle = color; ctx.lineWidth = lw;
+    ctx.shadowColor = color; ctx.shadowBlur = blur || 14;
+    ctx.beginPath(); ctx.moveTo(pts[0].x, pts[0].y);
+    for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
+    ctx.stroke();
+  }
+
+  // Legacy single-call lightning (for one-off sparks, not sustained bolts)
+  function _dLightning(x1, y1, x2, y2, color, lw) {
+    _dDrawBolt(_dMakeBoltPath(x1, y1, x2, y2, 7, 20, 10), color, lw, 14);
+  }
+
+  function _drawHammer(cx, cy, glowR, glowColor) {
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.shadowColor = glowColor || '#4488ff'; ctx.shadowBlur = glowR || 12;
+    ctx.fillStyle = '#8B4513'; ctx.fillRect(-4, 0, 8, 32);
+    ctx.fillStyle = '#c0c0c0'; ctx.fillRect(-20, -22, 40, 20);
+    ctx.fillStyle = '#e8e8e8'; ctx.fillRect(-17, -19, 34, 8);
+    ctx.fillStyle = '#aaaaaa'; ctx.fillRect(-20, -4, 40, 4);
+    ctx.restore();
+  }
+
+  // Draws the fighter's equipped weapon pointing upward at (cx, cy) for cinematics.
+  function _drawWeaponAtPos(f, cx, cy, sc, glowColor, glowR) {
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.scale(sc || 1, sc || 1);
+    ctx.shadowColor = glowColor || '#aaddff'; ctx.shadowBlur = glowR || 12;
+    ctx.rotate(-Math.PI / 2); // weapon normally points right; rotate so it points up
+    f.drawWeapon(0, 0, 0, false, f.weaponKey, 1.3);
+    ctx.restore();
+  }
+
+  function _drawThorEntry(f, t, now, d) {
+    ctx.save();
+    const fx = f.cx(), fy = f.cy();
+    const hamX = fx;
+    let   hamY = fy - 92;
+    const isHammer = f.weaponKey === 'hammer';
+
+    // ── Phase 1: Weapon rises (t=295→268) ──────────────────────────────────
+    if (t > 268) {
+      const p = _dSmooth(_dClamp((RISE_FRAMES - t) / 27, 0, 1));
+      hamY = fy - 40 - p * 52;
+      const sc = 0.7 + p * 0.55;
+      if (isHammer) {
+        ctx.save();
+        ctx.translate(hamX, hamY); ctx.scale(sc, sc);
+        ctx.shadowColor = '#4488ff'; ctx.shadowBlur = 6 + p * 16;
+        ctx.fillStyle = '#8B4513'; ctx.fillRect(-4, 0, 8, 32);
+        ctx.fillStyle = '#c0c0c0'; ctx.fillRect(-20, -22, 40, 20);
+        ctx.fillStyle = '#e8e8e8'; ctx.fillRect(-17, -19, 34, 8);
+        ctx.fillStyle = '#aaaaaa'; ctx.fillRect(-20, -4, 40, 4);
+        ctx.restore();
+      } else {
+        _drawWeaponAtPos(f, hamX, hamY, sc, '#aaddff', 6 + p * 16);
+      }
+      // Faint spark trails rising with the hammer
+      if (p > 0.35) {
+        ctx.globalAlpha = p * 0.4;
+        for (let i = 0; i < Math.floor(p * 4); i++) {
+          _dLightning(hamX + (Math.random() - 0.5) * 32, hamY - 20 - Math.random() * 18,
+                      hamX, hamY - 8, '#88ccff', 1.2);
+        }
+        ctx.globalAlpha = 1;
+      }
+    }
+
+    // ── Phase 2: Held high, anticipation crackle (t=268→260) ───────────────
+    if (t <= 268 && t > 260) {
+      const p = _dSmooth((268 - t) / 8);
+      // Refresh crackle paths every 3 frames so sparks are stable arcs
+      if (!d.cracklePaths || !d.crackleRefresh || d.crackleRefresh <= 0) {
+        d.cracklePaths = Array.from({ length: 5 }, () => {
+          const ang = Math.random() * Math.PI * 2;
+          const r   = 14 + Math.random() * 12;
+          return _dMakeBoltPath(hamX, hamY - 10,
+            hamX + Math.cos(ang) * r, hamY - 10 + Math.sin(ang) * r, 4, 6, 4);
+        });
+        d.crackleRefresh = 3;
+      }
+      d.crackleRefresh--;
+      ctx.globalAlpha = 0.55 + 0.35 * Math.sin(now / 45) * p;
+      for (const path of d.cracklePaths) _dDrawBolt(path, '#aaddff', 1.8, 12);
+      ctx.globalAlpha = 1;
+    }
+
+    // ── Phase 3: Massive sky lightning strike (d.lightningTimer 65→0) ──────
+    if (d.lightningTimer > 0) {
+      const hamHeadY = hamY - 10;
+      // Regenerate bolt paths every 3 frames — stable arcs, not per-frame noise
+      if (!d.boltRefresh || d.boltRefresh <= 0) {
+        d.coreBolt  = _dMakeBoltPath(hamX, -20, hamX, hamHeadY, 12, 18, 8);
+        d.midBolt   = _dMakeBoltPath(hamX, -20, hamX, hamHeadY, 12, 10, 5);
+        d.innerBolt = _dMakeBoltPath(hamX, -20, hamX, hamHeadY, 10,  5, 3);
+        d.sideBolts = Array.from({ length: 4 }, () => {
+          const bx = hamX + (Math.random() - 0.5) * 190;
+          return _dMakeBoltPath(bx, -10, bx + (Math.random() - 0.5) * 45, hamHeadY + 30, 6, 12, 6);
+        });
+        d.boltRefresh = 3;
+      }
+      d.boltRefresh--;
+
+      const a = _dClamp(d.lightningTimer / 55, 0, 1);
+      // Draw weapon while it's still held high, charged by lightning
+      if (isHammer) _drawHammer(hamX, hamY, 38 * a, '#ffffff');
+      else _drawWeaponAtPos(f, hamX, hamY, 1, '#ffffff', 38 * a);
+
+      // Multi-layer core bolt — white → blue → cyan outer glow
+      ctx.globalAlpha = a;
+      _dDrawBolt(d.coreBolt,  '#ffffff', 14, 45);
+      _dDrawBolt(d.midBolt,   '#aaddff',  8, 28);
+      _dDrawBolt(d.innerBolt, '#88ccff',  3, 10);
+
+      // Side bolts from sky
+      ctx.globalAlpha = a * 0.65;
+      for (const bolt of d.sideBolts) _dDrawBolt(bolt, '#88ccff', 2.5, 14);
+
+      // Corona at hammer head — stable radius with subtle breathing
+      ctx.globalAlpha = a * 0.92;
+      ctx.fillStyle = '#ffffff'; ctx.shadowColor = '#aaddff'; ctx.shadowBlur = 50;
+      const coronaR = 16 + 3 * Math.sin(now / 30);
+      ctx.beginPath(); ctx.arc(hamX, hamHeadY, coronaR, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#cceeff'; ctx.shadowBlur = 22;
+      ctx.beginPath(); ctx.arc(hamX, hamHeadY, coronaR * 0.55, 0, Math.PI * 2); ctx.fill();
+
+      ctx.globalAlpha = 1;
+      d.lightningTimer--;
+    }
+
+    // ── Phase 4: Supercharge aura, weapon held (t=248→228) ─────────────────
+    if (t <= 248 && t > 228) {
+      const p = _dSmooth((248 - t) / 20);
+      if (isHammer) _drawHammer(hamX, hamY, 28 + p * 28, '#44aaff');
+      else _drawWeaponAtPos(f, hamX, hamY, 1, '#44aaff', 28 + p * 28);
+
+      // Outer pulsing ring
+      ctx.globalAlpha = (0.45 + 0.2 * Math.sin(now / 70)) * p;
+      ctx.strokeStyle = '#44aaff'; ctx.lineWidth = 3 + p * 5;
+      ctx.shadowColor = '#44aaff'; ctx.shadowBlur = 30;
+      ctx.beginPath(); ctx.arc(hamX, fy, 24 + p * 30, 0, Math.PI * 2); ctx.stroke();
+
+      // Inner fill
+      ctx.globalAlpha = 0.18 * p;
+      ctx.fillStyle = '#44aaff';
+      ctx.beginPath(); ctx.arc(hamX, fy, 18 + p * 18, 0, Math.PI * 2); ctx.fill();
+
+      // Rotating arc bolts — paths stable for 3 frames
+      if (!d.auralRefresh || d.auralRefresh <= 0) {
+        d.auralBolts = Array.from({ length: 6 }, (_, i) => {
+          const ang = (i / 6) * Math.PI * 2 + now / 180;
+          return _dMakeBoltPath(hamX, fy,
+            hamX + Math.cos(ang) * 58, fy + Math.sin(ang) * 34, 5, 8, 6);
+        });
+        d.auralRefresh = 3;
+      }
+      d.auralRefresh--;
+      ctx.globalAlpha = (0.48 + 0.28 * Math.sin(now / 90)) * p;
+      for (const bolt of d.auralBolts) _dDrawBolt(bolt, '#aaddff', 1.8, 14);
+
+      ctx.globalAlpha = 1;
+    }
+
+    // ── Phase 5: Weapon slams DOWN (t=228→215) ─────────────────────────────
+    if (d.slamStart && t <= 228 && !d.slamFired) {
+      const p = _dEaseIn(_dClamp((228 - t) / 13, 0, 1));
+      const startY = fy - 92, endY = GAME_H - 92;
+      hamY = startY + (endY - startY) * p;
+      if (isHammer) _drawHammer(hamX, hamY, 18 + p * 32, '#44aaff');
+      else _drawWeaponAtPos(f, hamX, hamY, 1, '#44aaff', 18 + p * 32);
+
+      // Motion trail — ghost copies fading above the descending weapon
+      const trailCount = 5;
+      for (let tr = 1; tr <= trailCount; tr++) {
+        const trFrac = tr / (trailCount + 1);
+        const trY    = hamY - (p * (endY - startY)) * trFrac * 0.38;
+        ctx.globalAlpha = (1 - trFrac) * 0.38 * p;
+        ctx.fillStyle = '#44aaff'; ctx.shadowColor = '#44aaff'; ctx.shadowBlur = 8;
+        if (isHammer) ctx.fillRect(hamX - 20, trY - 22, 40, 20); // hammer head shape
+        else          ctx.fillRect(hamX - 4, trY - 16, 8, 16);   // weapon shaft shape
+      }
+      ctx.globalAlpha = 1;
+    }
+
+    // ── Phase 6: Impact shockwave (t=215→165) ──────────────────────────────
+    if (d.slamFired && t <= 215 && t > 165) {
+      const p = _dEaseOut((215 - t) / 50);
+
+      // Semicircle shockwave expanding from ground
+      ctx.globalAlpha = _dSmooth(1 - p) * 0.78;
+      ctx.strokeStyle = '#44aaff'; ctx.lineWidth = _dLerp(5, 1, p);
+      ctx.shadowColor = '#44aaff'; ctx.shadowBlur = 24;
+      ctx.beginPath(); ctx.arc(fx, GAME_H - 80, p * 320, Math.PI, Math.PI * 2); ctx.stroke();
+
+      // Stable ground-bolt paths — regenerate every 4 frames
+      if (!d.groundBoltRefresh || d.groundBoltRefresh <= 0) {
+        d.groundBolts = Array.from({ length: 6 }, () => {
+          const ba = (Math.random() - 0.5) * Math.PI;
+          const len = 180 + Math.random() * 100;
+          return _dMakeBoltPath(fx, GAME_H - 80,
+            fx + Math.cos(ba) * len, GAME_H - 80 - Math.sin(Math.abs(ba)) * 65, 7, 16, 10);
+        });
+        d.groundBoltRefresh = 4;
+      }
+      d.groundBoltRefresh--;
+      ctx.globalAlpha = _dSmooth(1 - p) * 0.62;
+      for (const bolt of d.groundBolts) _dDrawBolt(bolt, '#aaddff', 2.2, 18);
+
+      // Weapon resting at ground after slam
+      ctx.globalAlpha = _dSmooth(1 - p) * 0.7;
+      if (isHammer) _drawHammer(hamX, GAME_H - 92, 18, '#44aaff');
+      else _drawWeaponAtPos(f, hamX, GAME_H - 92, 1, '#44aaff', 18);
+      ctx.globalAlpha = 1;
+    }
+
+    ctx.restore();
+  }
+
+  function _drawKratosEntry(f, t, now, d) {
+    const fx = f.cx(), fy = f.cy();
+
+    // Axe raised with red energy (t=295→262)
+    if (t > 262) {
+      const phase = _dClamp((RISE_FRAMES - t) / 33, 0, 1);
+      const axeY  = fy - 35 - phase * 25;
+      ctx.save();
+      ctx.translate(fx + 12, axeY); ctx.rotate(Math.PI * 0.15);
+      ctx.shadowColor = '#ff3300'; ctx.shadowBlur = 8 + phase * 22;
+      ctx.fillStyle = '#6b3a1f'; ctx.fillRect(-3, -25, 6, 50);
+      ctx.fillStyle = '#888';
+      ctx.beginPath(); ctx.moveTo(0, -20); ctx.lineTo(22, -28); ctx.lineTo(24, -4); ctx.lineTo(2, -4); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = '#bbb';
+      ctx.beginPath(); ctx.moveTo(2, -18); ctx.lineTo(18, -24); ctx.lineTo(20, -8); ctx.lineTo(4, -8); ctx.closePath(); ctx.fill();
+      ctx.restore();
+      if (phase > 0.3) {
+        for (let i = 0; i < 3; i++) {
+          ctx.globalAlpha = 0.5 + 0.3 * Math.sin(now / 90 + i);
+          _dLightning(fx + 12, axeY - 14, fx + 12 + (Math.random() - 0.5) * 55, axeY - 30 - Math.random() * 22, '#ff4400', 1.8);
+        }
+      }
+    }
+
+    // Rage burst ring (t=262→248)
+    if (d.rageBurst && d.rageBurstTimer > 0) {
+      const ba = d.rageBurstTimer / 45;
+      ctx.globalAlpha = ba * 0.55;
+      ctx.fillStyle = '#cc2200'; ctx.shadowColor = '#ff4400'; ctx.shadowBlur = 28;
+      ctx.beginPath(); ctx.arc(fx, fy, (1 - ba) * 90 + 12, 0, Math.PI * 2); ctx.fill();
+      d.rageBurstTimer--;
+    }
+
+    // Axe thrown into sky (t=235→200)
+    if (d.axeThrown && t <= 235) {
+      d.axeY += d.axeVy; d.axeVy += 0.4;
+      if (d.axeY > -30) {
+        ctx.globalAlpha = Math.min(1, Math.max(0, (d.axeY + 30) / 80));
+        ctx.save();
+        ctx.translate(d.axeX, d.axeY); ctx.rotate(now / 150);
+        ctx.fillStyle = '#888'; ctx.shadowColor = '#ff5500'; ctx.shadowBlur = 16;
+        ctx.beginPath(); ctx.moveTo(-16, -12); ctx.lineTo(0, -22); ctx.lineTo(16, -12); ctx.lineTo(10, 0); ctx.lineTo(-10, 0); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = '#6b3a1f'; ctx.fillRect(-2, 0, 4, 22);
+        ctx.globalAlpha *= 0.4;
+        ctx.fillStyle = '#ff4400'; ctx.beginPath(); ctx.arc(0, 15, 8, 0, Math.PI * 2); ctx.fill();
+        ctx.restore();
+      }
+    }
+
+    // Ground heat (t=248+)
+    if (t <= 248) {
+      const hp = _dClamp((248 - t) / 60, 0, 0.3);
+      ctx.globalAlpha = hp;
+      ctx.fillStyle = '#ff2200'; ctx.shadowColor = '#ff6600'; ctx.shadowBlur = 22;
+      ctx.fillRect(fx - 80, GAME_H - 85, 160, 8);
+    }
+  }
+
+  function _drawNinjaEntry(f, t, now, d) {
+    const fx = f.cx(), fy = f.cy();
+
+    // Ghost veil (t=278→265)
+    if (t <= 278 && t > 265) {
+      const phase = (278 - t) / 13;
+      ctx.globalAlpha = phase * 0.40;
+      ctx.fillStyle = '#220044'; ctx.shadowColor = '#bb44ff'; ctx.shadowBlur = 18;
+      ctx.beginPath(); ctx.ellipse(fx, fy, 20, 28, 0, 0, Math.PI * 2); ctx.fill();
+    }
+
+    // Shadow clone silhouettes (t=265→242)
+    if (d.clonePositions) {
+      for (const cl of d.clonePositions) {
+        if (cl.timer <= 0) continue;
+        cl.timer--;
+        ctx.globalAlpha = cl.alpha * (cl.timer / 50) * 0.65;
+        ctx.fillStyle = '#330055'; ctx.shadowColor = '#bb44ff'; ctx.shadowBlur = 12;
+        ctx.beginPath(); ctx.arc(cl.x, cl.y - 22, 9, 0, Math.PI * 2); ctx.fill();
+        ctx.fillRect(cl.x - 6, cl.y - 13, 12, 18);
+        ctx.fillRect(cl.x - 10, cl.y + 5, 7, 14);
+        ctx.fillRect(cl.x + 3,  cl.y + 5, 7, 14);
+        ctx.fillStyle = '#7700cc';
+        ctx.fillRect(cl.x + 7, cl.y - 25, 2.5, 22);
+      }
+    }
+
+    // Reality slash + void tear (t=242→60)
+    if (d.slashFired && d.slashAlpha > 0) {
+      d.slashAlpha = Math.max(0, d.slashAlpha - 0.012);
+      const sa = d.slashAlpha;
+      ctx.globalAlpha = sa * 0.88;
+      ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 3;
+      ctx.shadowColor = '#cc88ff'; ctx.shadowBlur = 18;
+      ctx.beginPath(); ctx.moveTo(d.slashX1, d.slashY1); ctx.lineTo(d.slashX2, d.slashY2); ctx.stroke();
+      ctx.globalAlpha = sa * 0.50;
+      ctx.strokeStyle = '#330066'; ctx.lineWidth = 8;
+      ctx.shadowColor = '#9900cc'; ctx.shadowBlur = 24; ctx.stroke();
+      if (sa > 0.25) {
+        ctx.globalAlpha = sa * 0.35;
+        ctx.strokeStyle = '#bb44ff'; ctx.lineWidth = 2;
+        for (let i = 0; i < 5; i++) {
+          const p = i / 5;
+          const mx = _dLerp(d.slashX1, d.slashX2, p), my = _dLerp(d.slashY1, d.slashY2, p);
+          ctx.beginPath();
+          ctx.moveTo(mx + (Math.random() - 0.5) * 14, my + (Math.random() - 0.5) * 14);
+          ctx.lineTo(mx + (Math.random() - 0.5) * 22, my + (Math.random() - 0.5) * 22);
+          ctx.stroke();
+        }
+      }
+    }
+  }
+
+  function _drawGunnerEntry(f, t, now, d) {
+    const fx = f.cx(), fy = f.cy();
+
+    // Targeting reticles (t=262+)
+    if (d.reticlesActive) {
+      const rPos = [{x: fx - 200, y: fy - 30}, {x: fx + 180, y: fy + 20}, {x: fx - 80, y: fy - 80}, {x: fx + 100, y: fy - 60}];
+      for (const rp of rPos) {
+        ctx.globalAlpha = 0.38 + 0.18 * Math.sin(now / 200 + rp.x);
+        ctx.strokeStyle = '#ff9900'; ctx.lineWidth = 1.5;
+        ctx.shadowColor = '#ffaa00'; ctx.shadowBlur = 8;
+        const rr = 18;
+        ctx.beginPath(); ctx.arc(rp.x, rp.y, rr, 0, Math.PI * 2); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(rp.x - rr - 8, rp.y); ctx.lineTo(rp.x + rr + 8, rp.y); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(rp.x, rp.y - rr - 8); ctx.lineTo(rp.x, rp.y + rr + 8); ctx.stroke();
+      }
+    }
+
+    // Bullet trails expanding outward (t=246+)
+    if (d.bulletTrails && d.bulletTrails.length > 0) {
+      for (const bt of d.bulletTrails) {
+        if (bt.len < bt.maxLen) bt.len += bt.speed;
+        const endX = bt.x + Math.cos(bt.ang) * bt.len;
+        const endY = bt.y + Math.sin(bt.ang) * bt.len;
+        const ta = Math.max(0, 1 - bt.len / bt.maxLen);
+        ctx.globalAlpha = ta * 0.65;
+        ctx.strokeStyle = '#ffcc44'; ctx.lineWidth = 2;
+        ctx.shadowColor = '#ff9900'; ctx.shadowBlur = 8;
+        ctx.beginPath(); ctx.moveTo(bt.x, bt.y); ctx.lineTo(endX, endY); ctx.stroke();
+        ctx.globalAlpha = ta;
+        ctx.fillStyle = '#ffee88'; ctx.beginPath(); ctx.arc(endX, endY, 3, 0, Math.PI * 2); ctx.fill();
+      }
+    }
+
+    // Orbital designator beam (t=228+)
+    if (d.beamActive && d.beamAlpha > 0) {
+      d.beamAlpha = Math.max(0, d.beamAlpha - 0.008);
+      const ba = d.beamAlpha;
+      const grad = ctx.createLinearGradient(fx, fy, fx, 0);
+      grad.addColorStop(0, `rgba(255,200,50,${ba * 0.9})`);
+      grad.addColorStop(1, 'rgba(255,200,50,0)');
+      ctx.globalAlpha = 1;
+      ctx.strokeStyle = grad; ctx.lineWidth = 8;
+      ctx.shadowColor = '#ffaa00'; ctx.shadowBlur = 22;
+      ctx.beginPath(); ctx.moveTo(fx, fy); ctx.lineTo(fx, 0); ctx.stroke();
+      ctx.globalAlpha = ba;
+      ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(fx, fy); ctx.lineTo(fx, 0); ctx.stroke();
+      ctx.globalAlpha = ba * (0.6 + 0.3 * Math.sin(now / 80));
+      ctx.fillStyle = '#ffffaa'; ctx.shadowColor = '#ffcc44'; ctx.shadowBlur = 28;
+      ctx.beginPath(); ctx.arc(fx, 12, 14 + Math.random() * 5, 0, Math.PI * 2); ctx.fill();
+    }
+  }
+
+  function _drawArcherEntry(f, t, now, d) {
+    const fx = f.cx(), fy = f.cy();
+
+    // Giant power arrow nocked (t=264→245)
+    if (d.arrowNocked && t > 245) {
+      d.arrowCharge = _dClamp(d.arrowCharge + 0.03, 0, 1);
+      const sc = 0.7 + d.arrowCharge * 0.8;
+      ctx.globalAlpha = 0.75 + d.arrowCharge * 0.25;
+      ctx.save();
+      ctx.translate(fx + 8, fy - 20 - d.arrowCharge * 20); ctx.rotate(-Math.PI / 2 - 0.2); ctx.scale(sc, sc);
+      ctx.strokeStyle = '#2a8a50'; ctx.lineWidth = 5;
+      ctx.shadowColor = '#44ff88'; ctx.shadowBlur = 12 + d.arrowCharge * 20;
+      ctx.beginPath(); ctx.moveTo(-35, 0); ctx.lineTo(35, 0); ctx.stroke();
+      ctx.fillStyle = '#88ffcc'; ctx.shadowBlur = 18;
+      ctx.beginPath(); ctx.moveTo(35, 0); ctx.lineTo(22, -10); ctx.lineTo(22, 10); ctx.closePath(); ctx.fill();
+      if (d.arrowCharge > 0.5) {
+        ctx.globalAlpha = (d.arrowCharge - 0.5) * 0.55;
+        ctx.fillStyle = '#44ff88';
+        ctx.beginPath(); ctx.arc(35, 0, 14 + d.arrowCharge * 10, 0, Math.PI * 2); ctx.fill();
+      }
+      ctx.restore();
+    }
+
+    // Arrow flying upward (t=245→220)
+    if (d.arrowFired && d.arrowY !== undefined) {
+      d.arrowY += d.arrowVy; d.arrowAlpha = Math.max(0, d.arrowAlpha - 0.015);
+      if (d.arrowY > -60) {
+        ctx.globalAlpha = d.arrowAlpha * 0.88;
+        ctx.save();
+        ctx.translate(d.arrowX, d.arrowY); ctx.rotate(-Math.PI / 2);
+        ctx.fillStyle = '#44ff88'; ctx.shadowColor = '#44ff88'; ctx.shadowBlur = 18;
+        ctx.beginPath(); ctx.moveTo(20, 0); ctx.lineTo(6, -8); ctx.lineTo(6, 8); ctx.closePath(); ctx.fill();
+        ctx.strokeStyle = '#2a8a50'; ctx.lineWidth = 4;
+        ctx.beginPath(); ctx.moveTo(-25, 0); ctx.lineTo(6, 0); ctx.stroke();
+        ctx.globalAlpha = d.arrowAlpha * 0.32;
+        const tg = ctx.createLinearGradient(0, 0, 0, 70);
+        tg.addColorStop(0, 'rgba(68,255,136,0.8)'); tg.addColorStop(1, 'rgba(68,255,136,0)');
+        ctx.strokeStyle = tg; ctx.lineWidth = 6;
+        ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(0, 70); ctx.stroke();
+        ctx.restore();
+      }
+    }
+
+    // Arrow rain falling (t=228+)
+    if (d.arrowRain && d.arrowRain.length > 0) {
+      for (const ar of d.arrowRain) {
+        ar.y += ar.vy; ar.timer = Math.max(0, ar.timer - 1);
+        if (ar.y > GAME_H + 10) continue;
+        ctx.globalAlpha = ar.alpha * Math.min(1, ar.timer / 20);
+        ctx.save();
+        ctx.translate(ar.x, ar.y); ctx.rotate(Math.PI / 2 + 0.1);
+        ctx.strokeStyle = '#44ff88'; ctx.lineWidth = 2;
+        ctx.shadowColor = '#88ff88'; ctx.shadowBlur = 8;
+        ctx.beginPath(); ctx.moveTo(-14, 0); ctx.lineTo(14, 0); ctx.stroke();
+        ctx.fillStyle = '#aaffcc';
+        ctx.beginPath(); ctx.moveTo(14, 0); ctx.lineTo(8, -5); ctx.lineTo(8, 5); ctx.closePath(); ctx.fill();
+        ctx.restore();
+      }
+    }
+  }
+
+  function _drawPaladinEntry(f, t, now, d) {
+    const fx = f.cx(), fy = f.cy();
+
+    // Shield glow pre-activation (t=295→264)
+    if (t > 264) {
+      const phase = _dClamp((RISE_FRAMES - t) / 31, 0, 1);
+      ctx.globalAlpha = phase * 0.55;
+      ctx.fillStyle = '#ffffaa'; ctx.shadowColor = '#ffe888'; ctx.shadowBlur = 18 + phase * 14;
+      ctx.beginPath(); ctx.arc(fx - 10, fy, 20 + phase * 10, 0, Math.PI * 2); ctx.fill();
+    }
+
+    // Divine cross in sky (t=264→228)
+    if (d.crossFade) {
+      d.crossAlpha = Math.min(0.9, d.crossAlpha + 0.04);
+      const cx2 = GAME_W / 2, cy2 = GAME_H * 0.22;
+      ctx.globalAlpha = d.crossAlpha * 0.62;
+      ctx.fillStyle = '#ffffaa'; ctx.shadowColor = '#ffe888'; ctx.shadowBlur = 32;
+      ctx.fillRect(cx2 - 9, cy2 - 100, 18, 200);
+      ctx.fillRect(cx2 - 80, cy2 - 9, 160, 18);
+      ctx.globalAlpha = d.crossAlpha * 0.40;
+      ctx.fillStyle = '#ffffff'; ctx.shadowBlur = 16;
+      ctx.fillRect(cx2 - 4, cy2 - 85, 8, 170);
+      ctx.fillRect(cx2 - 68, cy2 - 4, 136, 8);
+      if (t <= 228) d.crossAlpha = Math.max(0, d.crossAlpha - 0.03);
+    }
+
+    // Holy pillar (t=246→228)
+    if (d.pillarActive && d.pillarAlpha > 0) {
+      const pg = ctx.createLinearGradient(fx, fy, fx, 0);
+      pg.addColorStop(0, `rgba(255,255,180,${d.pillarAlpha * 0.6})`);
+      pg.addColorStop(0.6, `rgba(255,255,220,${d.pillarAlpha * 0.32})`);
+      pg.addColorStop(1, 'rgba(255,255,200,0)');
+      ctx.fillStyle = pg; ctx.fillRect(fx - 28, 0, 56, fy);
+      ctx.globalAlpha = d.pillarAlpha * 0.78;
+      ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 4;
+      ctx.shadowColor = '#ffffaa'; ctx.shadowBlur = 20;
+      ctx.beginPath(); ctx.moveTo(fx, fy); ctx.lineTo(fx, 0); ctx.stroke();
+    }
+
+    // Shield slam residual (t=228+)
+    if (t <= 228) {
+      const sp = _dClamp((228 - t) / 40, 0, 1);
+      ctx.globalAlpha = (1 - sp) * 0.28;
+      ctx.fillStyle = '#ffffaa'; ctx.shadowColor = '#ffe888'; ctx.shadowBlur = 22;
+      ctx.beginPath(); ctx.arc(fx, fy, sp * 120, 0, Math.PI * 2); ctx.fill();
+    }
+  }
+
+  function _drawBerserkerEntry(f, t, now, d) {
+    const fx = f.cx(), fy = f.cy();
+
+    // Red rage veins radiating from body (t=265+)
+    if (d.veinsActive && d.veins) {
+      for (const v of d.veins) {
+        ctx.globalAlpha = (0.65 + 0.25 * Math.sin(now / 150 + v.ang)) * 0.7;
+        ctx.strokeStyle = '#ff2222'; ctx.lineWidth = 2;
+        ctx.shadowColor = '#ff0000'; ctx.shadowBlur = 10;
+        const ex = fx + Math.cos(v.ang) * v.len, ey = fy + Math.sin(v.ang) * v.len * 0.7;
+        ctx.beginPath(); ctx.moveTo(fx, fy);
+        ctx.quadraticCurveTo((fx + ex) / 2 + (Math.random() - 0.5) * 18, (fy + ey) / 2 + (Math.random() - 0.5) * 18, ex, ey);
+        ctx.stroke();
+      }
+    }
+
+    // Frenzy erratic glow (t=265→252)
+    if (t <= 265 && t > 252) {
+      const phase = (265 - t) / 13;
+      ctx.globalAlpha = 0.42 + phase * 0.28;
+      ctx.fillStyle = '#880000'; ctx.shadowColor = '#ff2222'; ctx.shadowBlur = 18 + phase * 20;
+      const jx = (Math.random() - 0.5) * 12 * phase, jy = (Math.random() - 0.5) * 12 * phase;
+      ctx.beginPath(); ctx.ellipse(fx + jx, fy + jy, 22 + phase * 18, 28 + phase * 14, 0, 0, Math.PI * 2); ctx.fill();
+    }
+
+    // ROAR shockwave ring (t=252→220)
+    if (t <= 252 && t > 220) {
+      const phase = (252 - t) / 32;
+      ctx.globalAlpha = (1 - phase) * 0.58;
+      ctx.strokeStyle = '#cc0000'; ctx.lineWidth = 3 - phase * 2;
+      ctx.shadowColor = '#ff0000'; ctx.shadowBlur = 14;
+      ctx.beginPath(); ctx.arc(fx, fy, phase * 200, 0, Math.PI * 2); ctx.stroke();
+      ctx.globalAlpha = (1 - phase) * 0.32;
+      ctx.beginPath(); ctx.arc(fx, fy, Math.max(0, phase * 200 - 20), 0, Math.PI * 2); ctx.stroke();
+    }
+
+    // Blood pool at feet (t=252+)
+    if (d.bloodPool) {
+      d.bloodPoolR = Math.min(60, d.bloodPoolR + 1.2);
+      ctx.globalAlpha = 0.52;
+      const pg = ctx.createRadialGradient(fx, GAME_H - 80, 0, fx, GAME_H - 80, d.bloodPoolR);
+      pg.addColorStop(0, 'rgba(150,0,0,0.8)'); pg.addColorStop(1, 'rgba(80,0,0,0)');
+      ctx.fillStyle = pg;
+      ctx.beginPath(); ctx.ellipse(fx, GAME_H - 78, d.bloodPoolR, d.bloodPoolR * 0.38, 0, 0, Math.PI * 2); ctx.fill();
+    }
+  }
+
+  function _drawMegaknightEntry(f, t, now, d) {
+    const fx = f.cx(), fy = f.cy();
+
+    // Reality cracks radiating outward (t=264+)
+    if (d.cracks && d.cracks.length > 0) {
+      for (const c of d.cracks) {
+        if (c.len < 90) c.len += c.growth;
+        ctx.globalAlpha = c.alpha * (0.58 + 0.28 * Math.sin(now / 200 + c.ang));
+        ctx.strokeStyle = '#9944ff'; ctx.lineWidth = 1.5;
+        ctx.shadowColor = '#7700cc'; ctx.shadowBlur = 10;
+        const ex = fx + Math.cos(c.ang) * c.len, ey = fy + Math.sin(c.ang) * c.len * 0.7;
+        ctx.beginPath(); ctx.moveTo(fx, fy);
+        const steps = 5;
+        for (let s = 1; s <= steps; s++) {
+          const p = s / steps;
+          ctx.lineTo(_dLerp(fx, ex, p) + (Math.random() - 0.5) * 12, _dLerp(fy, ey, p) + (Math.random() - 0.5) * 12);
+        }
+        ctx.stroke();
+      }
+    }
+
+    // Void gauntlet charging (t=264→248)
+    if (t <= 264 && t > 248) {
+      const phase = (264 - t) / 16;
+      const gx = fx + (f.facing || 1) * 18;
+      ctx.globalAlpha = phase * 0.78;
+      ctx.fillStyle = '#220044'; ctx.shadowColor = '#9944ff'; ctx.shadowBlur = 22 + phase * 18;
+      ctx.beginPath(); ctx.arc(gx, fy, 10 + phase * 18, 0, Math.PI * 2); ctx.fill();
+      for (let i = 0; i < 5; i++) {
+        const ta = (i / 5) * Math.PI * 2 + now / 300;
+        const td = 40 + phase * 20;
+        ctx.globalAlpha = phase * 0.38;
+        ctx.strokeStyle = '#9944ff'; ctx.lineWidth = 1.5; ctx.shadowBlur = 8;
+        ctx.beginPath();
+        ctx.moveTo(gx + Math.cos(ta) * td, fy + Math.sin(ta) * td * 0.7);
+        ctx.lineTo(gx, fy); ctx.stroke();
+      }
+    }
+
+    // Void tear growing (t=248→60)
+    if (d.voidTear && t <= 248) {
+      d.voidTearW = Math.min(80, d.voidTearW + 4);
+      d.voidTearH = Math.min(130, d.voidTearH + 6);
+      const tw = d.voidTearW, th = d.voidTearH, tx = d.voidTearX, ty = d.voidTearY;
+      ctx.globalAlpha = 0.94;
+      ctx.fillStyle = '#000000'; ctx.shadowColor = '#9944ff'; ctx.shadowBlur = 24;
+      ctx.beginPath(); ctx.ellipse(tx, ty, tw / 2, th / 2, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.globalAlpha = 0.68;
+      ctx.strokeStyle = '#9944ff'; ctx.lineWidth = 4; ctx.shadowBlur = 16;
+      ctx.beginPath(); ctx.ellipse(tx, ty, tw / 2, th / 2, 0, 0, Math.PI * 2); ctx.stroke();
+      ctx.globalAlpha = 0.52;
+      ctx.fillStyle = '#ffffff'; ctx.shadowBlur = 4;
+      for (let s = 0; s < 6; s++) {
+        ctx.beginPath(); ctx.arc(tx + (Math.random() - 0.5) * tw * 0.7, ty + (Math.random() - 0.5) * th * 0.7, 1.5, 0, Math.PI * 2); ctx.fill();
+      }
+      ctx.globalAlpha = 0.48;
+      ctx.strokeStyle = '#cc77ff'; ctx.lineWidth = 2;
+      for (let e = 0; e < 8; e++) {
+        const ea = (e / 8) * Math.PI * 2;
+        const ex0 = tx + Math.cos(ea) * (tw / 2), ey0 = ty + Math.sin(ea) * (th / 2);
+        ctx.beginPath();
+        ctx.moveTo(ex0, ey0);
+        ctx.lineTo(ex0 + Math.cos(ea) * (8 + Math.random() * 18), ey0 + Math.sin(ea) * (8 + Math.random() * 18));
+        ctx.stroke();
+      }
+    }
+  }
+
+  function _drawDomainEntryAnim(r) {
+    if (!r.animData) return;
+    const f = r.fighter;
+    if (!f || f.health <= 0) return;
+    const def = DOMAIN_DEFS[f.charClass];
+    if (!def) return;
+    const t = r.timer, d = r.animData, now = performance.now();
+    ctx.save();
+    ctx.globalAlpha = 1;
+    switch (f.charClass) {
+      case 'thor':       _drawThorEntry(f, t, now, d);       break;
+      case 'kratos':     _drawKratosEntry(f, t, now, d);     break;
+      case 'ninja':      _drawNinjaEntry(f, t, now, d);      break;
+      case 'gunner':     _drawGunnerEntry(f, t, now, d);     break;
+      case 'archer':     _drawArcherEntry(f, t, now, d);     break;
+      case 'paladin':    _drawPaladinEntry(f, t, now, d);    break;
+      case 'berserker':  _drawBerserkerEntry(f, t, now, d);  break;
+      case 'megaknight': _drawMegaknightEntry(f, t, now, d); break;
+    }
+    ctx.restore();
+  }
+
+  function _activateDomain(fighter, suppressAnnounce = false) {
+    const defKey = fighter.charClass;
+    if (!defKey || defKey === 'none') return;
+    const def = DOMAIN_DEFS[defKey];
+    if (!def) return;
+
+    // Remove any existing domain by this fighter
+    _removeDomainFor(fighter);
+
+    const domain = {
+      owner: fighter, defKey, def,
+      timer: DOMAIN_FRAMES,
+      hazards: [],
+      spawnCooldown: 30, // first hazard after 0.5 s
+    };
+
+    if (def.hazardType === 'void_rock') _createVoidRocks(domain);
+    _createWeaponHazards(domain);
+
+    // Thor holds Mjolnir during domain when hammer-equipped; otherwise holds equipped weapon.
+    // Kratos holds the Blade of Olympus while his axe tears the arena apart.
+    if (defKey === 'thor') fighter._domainDisplayWeapon = 'stormbreaker';
+    if (defKey === 'kratos') fighter._domainDisplayWeapon = 'sword';
+
+    _domains.push(domain);
+
+    if (!suppressAnnounce && typeof queueAnnouncement === 'function') {
+      queueAnnouncement('DOMAIN EXPANSION — ' + def.name.toUpperCase(), def.color);
+    }
+    if (typeof screenShake !== 'undefined') screenShake = Math.max(screenShake, 28);
+    if (typeof spawnParticles === 'function') {
+      spawnParticles(fighter.cx(), fighter.cy(), def.color, 40);
+      spawnParticles(fighter.cx(), fighter.cy(), '#ffffff', 20);
+    }
+  }
+
+  function _removeDomainFor(fighter) {
+    const idx = _domains.findIndex(d => d.owner === fighter);
+    if (idx === -1) return;
+    _clearOwnerBuffs(fighter);
+    _domains.splice(idx, 1);
+  }
+
+  function _endRisingFor(fighter) {
+    const idx = _rising.findIndex(r => r.fighter === fighter);
+    if (idx !== -1) _rising.splice(idx, 1);
+    if (!fighter) return;
+    fighter._domainRising = false;
+    // Clean up any in-progress domain entry cinematic for this fighter
+    if (_domainCinOwner === fighter) {
+      if (typeof CinCam !== 'undefined') CinCam.restore();
+      if (typeof CinFX  !== 'undefined') CinFX.motionTrailOff(fighter);
+      _domainCinActive = false;
+      _domainCinOwner  = null;
+    }
+  }
+
+  // ── Public API ─────────────────────────────────────────────────────
+
+  function triggerExpansion(fighter) {
+    if (!fighter || fighter.health <= 0 || !fighter.charClass || fighter.charClass === 'none') return;
+    if (!DOMAIN_DEFS[fighter.charClass]) return;
+    if (_rising.some(r => r.fighter === fighter)) return;
+    if (_domains.some(d => d.owner === fighter)) return;
+
+    fighter._domainRising    = true;
+    fighter._domainRiseTimer = RISE_FRAMES;
+    fighter.invincible = Math.max(fighter.invincible || 0, RISE_FRAMES + 30);
+    fighter.vy = -5;  // initial upward impulse
+
+    _rising.push({ fighter, timer: RISE_FRAMES, animData: {} });
+    if (typeof screenShake !== 'undefined') screenShake = Math.max(screenShake, 14);
+  }
+
+  function onFighterDied(fighter) {
+    if (!fighter) return;
+    _endRisingFor(fighter);
+    _removeDomainFor(fighter);
+    fighter._domainSuperCount = 0;
+    fighter._domainRising = false;
+  }
+
+  function anyActive() {
+    return _domains.length > 0 || _rising.length > 0;
+  }
+
+  // Domain hazards manage hit cadence via hitSet/setTimeout — bypass normal iframes
+  // so that being in combat doesn't permanently shield players from the domain.
+  function _dealDomainDamage(owner, target, dmg, kbForce) {
+    if (!target || target.health <= 0 || !owner || owner.health <= 0) return;
+    const scaledDmg = (target.isBoss || target.isTrueForm)
+      ? Math.max(1, Math.round(dmg * 0.35))
+      : dmg;
+    const savedInv = target.invincible;
+    target.invincible = 0;
+    dealDamage(owner, target, scaledDmg, kbForce);
+    // Preserve longer iframes from boss hits / special attacks
+    target.invincible = Math.max(target.invincible, savedInv);
+  }
+
+  function _getDomainTargets(owner) {
+    if (!owner || owner.health <= 0) return [];
+    const all = []
+      .concat(typeof players !== 'undefined' ? players : [])
+      .concat(typeof minions !== 'undefined' ? minions : [])
+      .concat(typeof trainingDummies !== 'undefined' ? trainingDummies : []);
+    const targets = [];
+    for (const ent of all) {
+      if (!ent || ent === owner || ent.health <= 0 || ent._brOnPlane) continue;
+      if (_isDomainAlly(owner, ent)) continue;
+      targets.push(ent);
+    }
+    return targets;
+  }
+
+  function _isDomainAlly(owner, ent) {
+    if (typeof areAlliedEntities === 'function' && areAlliedEntities(owner, ent)) return true;
+    const ownerIsPlayerSide = !owner.isBoss && !owner._brBot && !owner.isMinion;
+    const entIsPlayerSide   = !ent.isBoss   && !ent._brBot   && !ent.isMinion;
+    if (!ownerIsPlayerSide || !entIsPlayerSide) return false;
+
+    // Co-op modes share the same side even when older setup code did not stamp _teamId.
+    if (typeof gameMode !== 'undefined' && (
+        gameMode === 'boss' || gameMode === 'god' ||
+        (gameMode === 'minigames' && (minigameType === 'survival' || minigameType === 'defense'))
+      )) {
+      return true;
+    }
+    return false;
+  }
+
+  // ── Update (called once per game frame before player.update()) ─────
+
+  function update() {
+    if (!gameRunning) return;
+
+    // ── Rising fighters ───────────────────────────────────────────
+    for (let i = _rising.length - 1; i >= 0; i--) {
+      const r = _rising[i];
+      r.timer--;
+      r.fighter._domainRiseTimer = r.timer;
+
+      // Zero horizontal drift; gravity is skipped via _domainRising flag in fighter.js
+      r.fighter.vx = 0;
+      if (r.timer > RISE_FRAMES - 60) {
+        // Rising phase (first second): keep upward velocity
+        r.fighter.vy = Math.min(r.fighter.vy, -2);
+      } else {
+        // Hover phase: lock vertical
+        r.fighter.vy = 0;
+        r.fighter.y  = Math.max(40, r.fighter.y);
+      }
+
+      // Fire cinematic events tied to the rising phase countdown
+      _tickDomainEntry(r);
+
+      // Thor: domain activates at the hammer/weapon slam (t=215), not end of rising
+      if (r.fighter.charClass === 'thor' && r.animData.slamActivate && !r.animData.domainActivated) {
+        r.animData.domainActivated = true;
+        _activateDomain(r.fighter, true); // nameCard already shown at t=218
+      }
+
+      if (r.timer <= 0) {
+        _endRisingFor(r.fighter);
+        if (!r.animData.domainActivated) _activateDomain(r.fighter);
+      }
+    }
+
+    // ── Active domains ────────────────────────────────────────────
+    for (let i = _domains.length - 1; i >= 0; i--) {
+      const domain = _domains[i];
+      const { owner, def } = domain;
+      if (!owner || owner.health <= 0) {
+        _clearOwnerBuffs(owner);
+        _domains.splice(i, 1);
+        continue;
+      }
+      domain.timer--;
+
+      // Owner buffs: refresh _speedBuff / _powerBuff so they stay active
+      if (owner && owner.health > 0) {
+        if (def.ownerBuff.speed) owner._speedBuff = Math.max(owner._speedBuff || 0, 10);
+        if (def.ownerBuff.power) owner._powerBuff = Math.max(owner._powerBuff || 0, 10);
+        if (def.ownerBuff.healPerFrame) {
+          owner.health = Math.min(owner.maxHealth, owner.health + def.ownerBuff.healPerFrame);
+        }
+      }
+
+      // Void rocks: advance orbit angle — inner rock faster, outer slower
+      if (def.hazardType === 'void_rock') {
+        for (const h of domain.hazards) {
+          if (h.type === 'void_rock') {
+            // Smaller orbit = higher angular speed (keeps linear speed high for all)
+            h.angle += 0.032 * (200 / (h.orbitR || 200));
+          }
+        }
+      }
+
+      // Spawn hazards
+      if (def.spawnEvery > 0) {
+        domain.spawnCooldown--;
+        if (domain.spawnCooldown <= 0) {
+          _spawnHazard(domain);
+          domain.spawnCooldown = def.spawnEvery;
+        }
+      }
+
+      // Identify valid targets across all active entity buckets. This keeps
+      // Domains useful in boss/minion/training modes without hitting teammates.
+      const targets = _getDomainTargets(owner);
+
+      // Update individual hazards
+      for (let j = domain.hazards.length - 1; j >= 0; j--) {
+        const h = domain.hazards[j];
+        let remove = false;
+
+        switch (h.type) {
+          case 'lightning': {
+            if (h.warningTimer > 0) {
+              h.warningTimer--;
+            } else if (!h.struck) {
+              h.struck = true;
+              h.strikeTimer = 22;
+              for (const t of targets) {
+                if (h.hitSet.has(t)) continue;
+                if (Math.abs(t.cx() - h.x) < h.radius + t.w / 2) {
+                  h.hitSet.add(t);
+                  _dealDomainDamage(owner, t, h.damage, 8);
+                  if (typeof spawnParticles === 'function')
+                    spawnParticles(h.x, t.cy(), '#aaddff', 14);
+                }
+              }
+            } else {
+              if (--h.strikeTimer <= 0) remove = true;
+            }
+            break;
+          }
+
+          case 'debris':
+          case 'shadow_blade':
+          case 'bullet':
+          case 'arrow': {
+            h.x += h.vx * (typeof slowMotion !== 'undefined' ? slowMotion : 1);
+            h.y += h.vy * (typeof slowMotion !== 'undefined' ? slowMotion : 1);
+            // Slight gravity on physical projectiles
+            if (h.type === 'shadow_blade' || h.type === 'arrow') h.vy += 0.18;
+            if (h.type === 'shadow_blade') h.angle += 0.12;
+            // Out-of-bounds cleanup
+            if (h.x < -80 || h.x > GAME_W + 80 || h.y > GAME_H + 80) {
+              remove = true; break;
+            }
+            // Collision
+            for (const t of targets) {
+              if (h.hitSet.has(t)) continue;
+              const dx = h.x - t.cx(), dy = h.y - t.cy();
+              if (Math.hypot(dx, dy) < h.radius + t.w / 2) {
+                h.hitSet.add(t);
+                _dealDomainDamage(owner, t, h.damage, 6);
+                if (typeof spawnParticles === 'function')
+                  spawnParticles(h.x, h.y, def.color, 8);
+                if (h.type === 'debris' || h.type === 'arrow') remove = true;
+              }
+            }
+            break;
+          }
+
+          case 'holy_beam': {
+            if (h.warningTimer > 0) {
+              h.warningTimer--;
+            } else if (h.activeTimer <= 0) {
+              h.activeTimer = 42;
+              for (const t of targets) {
+                if (h.hitSet.has(t)) continue;
+                if (Math.abs(t.cx() - h.x) < h.radius + t.w / 2) {
+                  h.hitSet.add(t);
+                  _dealDomainDamage(owner, t, h.damage, 6);
+                  if (typeof spawnParticles === 'function')
+                    spawnParticles(h.x, t.cy(), '#ffffaa', 16);
+                }
+              }
+            } else {
+              if (--h.activeTimer <= 0) remove = true;
+            }
+            break;
+          }
+
+          case 'void_rock': {
+            for (const t of targets) {
+              if (h.hitSet.has(t)) continue;
+              const dx = h.x - t.cx(), dy = h.y - t.cy();
+              if (Math.hypot(dx, dy) < h.radius + t.w / 2) {
+                h.hitSet.add(t);
+                _dealDomainDamage(owner, t, h.damage, 12);
+                if (typeof spawnParticles === 'function') {
+                  spawnParticles(h.x, h.y, '#9944ff', 14);
+                  spawnParticles(h.x, h.y, '#220044', 8);
+                }
+                if (typeof screenShake !== 'undefined') screenShake = Math.max(screenShake, 10);
+                setTimeout(() => h.hitSet.delete(t), 1200);
+              }
+            }
+            break;
+          }
+
+          case 'shadow_clone': {
+            if (h.state === 'patrol') {
+              const dx = h.patrolTarget - h.x;
+              h.vx = Math.sign(dx) * 5.0;
+              h.x += h.vx;
+              if (Math.abs(dx) < 8) {
+                h.patrolTarget = h.patrolTarget < GAME_W / 2
+                  ? 60  + Math.random() * (GAME_W * 0.55)
+                  : GAME_W * 0.1 + Math.random() * (GAME_W * 0.4);
+              }
+              // Lunge from 240 px — very hard to maintain safe distance
+              const nearest = targets.reduce((best, t) => {
+                const d = Math.hypot(t.cx() - h.x, t.cy() - h.y);
+                return (!best || d < best.d) ? { t, d } : best;
+              }, null);
+              if (nearest && nearest.d < 240) {
+                h.state = 'lunge';
+                // Aim directly at target
+                const tdx = nearest.t.cx() - h.x, tdy = nearest.t.cy() - h.y;
+                const tlen = Math.hypot(tdx, tdy) || 1;
+                h.vx = (tdx / tlen) * 18;
+                h.vy = (tdy / tlen) * 18 - 4;
+              }
+            } else if (h.state === 'lunge') {
+              h.x += h.vx;
+              h.y += h.vy;
+              h.vy += 0.5;
+              for (const t of targets) {
+                if (h.hitSet.has(t)) continue;
+                if (Math.hypot(h.x - t.cx(), h.y - t.cy()) < h.radius + t.w / 2) {
+                  h.hitSet.add(t);
+                  _dealDomainDamage(owner, t, h.damage, 10);
+                  if (typeof spawnParticles === 'function') {
+                    spawnParticles(h.x, h.y, '#bb44ff', 14);
+                    spawnParticles(h.x, h.y, '#220033', 8);
+                  }
+                  setTimeout(() => h.hitSet.delete(t), 1000);
+                }
+              }
+              if (h.x < -20 || h.x > GAME_W + 20 || h.y > GAME_H + 60) {
+                h.x = GAME_W / 2 + (Math.random() - 0.5) * 180;
+                h.y = GAME_H * 0.48;
+                h.vx = 0; h.vy = 0;
+                h.state = 'recover';
+                h.recoverTimer = 70;
+              }
+            } else { // 'recover'
+              h.recoverTimer--;
+              if (h.recoverTimer <= 0) h.state = 'patrol';
+            }
+            break;
+          }
+
+          case 'turret': {
+            h.fireTimer--;
+            if (h.fireTimer <= 0) {
+              h.fireTimer = h.fireEvery;
+              const tgt = targets.reduce((best, t) => {
+                const d = Math.hypot(t.cx() - h.x, t.cy() - h.y);
+                return (!best || d < best.d) ? { t, d } : best;
+              }, null);
+              // 4-bullet burst — tighter spread, faster projectiles
+              for (let b = 0; b < 4; b++) {
+                const spread = (b - 1.5) * 0.09;
+                let bvx, bvy;
+                if (tgt) {
+                  const dx = tgt.t.cx() - h.x, dy = tgt.t.cy() - h.y;
+                  const len = Math.hypot(dx, dy) || 1;
+                  const spd = 20;
+                  const ang = Math.atan2(dy, dx) + spread;
+                  bvx = Math.cos(ang) * spd;
+                  bvy = Math.sin(ang) * spd;
+                } else {
+                  bvx = h.facing * 20;
+                  bvy = (b - 1.5) * 2;
+                }
+                domain.hazards.push({
+                  type: 'bullet', x: h.x + h.facing * 18, y: h.y,
+                  vx: bvx, vy: bvy, damage: h.damage, radius: 7, hitSet: new Set(),
+                });
+              }
+              if (typeof spawnParticles === 'function')
+                spawnParticles(h.x + h.facing * 18, h.y, '#ff9900', 8);
+            }
+            break;
+          }
+
+          case 'giant_arrow': {
+            if (h.phase === 'cooldown') {
+              h.phaseTimer--;
+              if (h.phaseTimer <= 0) {
+                h.phase = 'warning';
+                h.phaseTimer = 72; // 1.2 s warning — shorter reaction window
+                h.fromLeft = Math.random() < 0.5;
+                h.x = h.fromLeft ? -60 : GAME_W + 60;
+                h.y = GAME_H * 0.22 + Math.random() * GAME_H * 0.35;
+              }
+            } else if (h.phase === 'warning') {
+              h.phaseTimer--;
+              if (h.phaseTimer <= 0) {
+                h.phase = 'flying';
+                h.vx = h.fromLeft ? 8 : -8; // faster flight
+                h.vy = 0;
+                h.hitSet.clear();
+              }
+            } else { // 'flying'
+              h.x += h.vx;
+              h.y += h.vy;
+              for (const t of targets) {
+                if (h.hitSet.has(t)) continue;
+                if (Math.hypot(h.x - t.cx(), h.y - t.cy()) < h.radius + t.w / 2) {
+                  h.hitSet.add(t);
+                  _dealDomainDamage(owner, t, h.damage, 18);
+                  if (typeof spawnParticles === 'function') {
+                    spawnParticles(h.x, h.y, '#44ff88', 28);
+                    spawnParticles(h.x, h.y, '#ffffff', 14);
+                  }
+                  if (typeof screenShake !== 'undefined') screenShake = Math.max(screenShake, 22);
+                }
+              }
+              if (h.x < -120 || h.x > GAME_W + 120) {
+                h.phase = 'cooldown';
+                h.phaseTimer = 210; // 3.5 s until next
+                h.vx = 0;
+              }
+            }
+            break;
+          }
+
+          case 'divine_shield': {
+            h.angle += 0.058; // faster orbit
+            for (const t of targets) {
+              if (h.hitSet.has(t)) continue;
+              const dx = h.x - t.cx(), dy = h.y - t.cy();
+              if (Math.hypot(dx, dy) < h.radius + t.w / 2) {
+                h.hitSet.add(t);
+                _dealDomainDamage(owner, t, h.damage, 14);
+                const len = Math.hypot(dx, dy) || 1;
+                t.vx += (dx / len) * 14;
+                t.vy += (dy / len) * 8;
+                if (typeof spawnParticles === 'function') {
+                  spawnParticles(h.x, h.y, '#ffffaa', 16);
+                  spawnParticles(h.x, h.y, '#ffffff', 8);
+                }
+                if (typeof screenShake !== 'undefined') screenShake = Math.max(screenShake, 12);
+                setTimeout(() => h.hitSet.delete(t), 1100);
+              }
+            }
+            break;
+          }
+
+          case 'rage_pulse': {
+            h.pulseTimer--;
+            if (h.ringActive) {
+              h.ringRadius += 6;
+              if (h.ringRadius > h.radius + 50) { h.ringActive = false; h.ringRadius = 0; }
+            }
+            if (h.pulseTimer <= 0) {
+              h.pulseTimer = h.pulseEvery;
+              h.ringActive = true;
+              h.ringRadius = 0;
+              h.hitSet.clear();
+              for (const t of targets) {
+                if (Math.hypot(t.cx() - owner.cx(), t.cy() - owner.cy()) < h.radius) {
+                  _dealDomainDamage(owner, t, h.damage, 9);
+                  if (typeof spawnParticles === 'function') {
+                    spawnParticles(owner.cx(), owner.cy(), '#ff2222', 20);
+                    spawnParticles(owner.cx(), owner.cy(), '#ff8800', 10);
+                  }
+                  if (typeof screenShake !== 'undefined') screenShake = Math.max(screenShake, 14);
+                }
+              }
+            }
+            break;
+          }
+
+          case 'gravity_vortex': {
+            // Pull non-owner players toward arena center — stronger when closer to void rocks
+            for (const t of targets) {
+              const dx = h.x - t.cx(), dy = h.y - t.cy();
+              const dist = Math.hypot(dx, dy) || 1;
+              // Pull scales inversely with distance so it's hardest to escape near center
+              const scaledPull = h.pull * Math.min(2.0, 260 / dist);
+              t.vx += (dx / dist) * scaledPull;
+              t.vy += (dy / dist) * scaledPull * 0.55;
+            }
+            break;
+          }
+
+          case 'mjolnir': {
+            h.spinAngle += 0.18;
+            h.stateTimer--;
+
+            if (h.state === 'roam') {
+              // Fly toward random arena waypoints continuously
+              if (!h.roamTarget ||
+                  Math.hypot(h.x - h.roamTarget.x, h.y - h.roamTarget.y) < 38) {
+                h.roamTarget = {
+                  x: 70 + Math.random() * (GAME_W - 140),
+                  y: GAME_H * 0.12 + Math.random() * (GAME_H * 0.58),
+                };
+              }
+              const rdx = h.roamTarget.x - h.x, rdy = h.roamTarget.y - h.y;
+              const rLen = Math.hypot(rdx, rdy) || 1;
+              h.vx += (rdx / rLen) * 2.8;
+              h.vy += (rdy / rLen) * 2.8;
+              const rSp = Math.hypot(h.vx, h.vy);
+              if (rSp > 15) { h.vx = (h.vx / rSp) * 15; h.vy = (h.vy / rSp) * 15; }
+              h.x += h.vx;
+              h.y += h.vy;
+
+              // Hit any enemy Mjolnir passes through while roaming
+              for (const t of targets) {
+                if (h.orbitHitSet.has(t)) continue;
+                if (Math.hypot(h.x - t.cx(), h.y - t.cy()) < h.radius + t.w / 2) {
+                  h.orbitHitSet.add(t);
+                  _dealDomainDamage(owner, t, h.orbitDamage, 10);
+                  if (typeof spawnParticles === 'function') {
+                    spawnParticles(h.x, h.y, '#ffee44', 14);
+                    spawnParticles(h.x, h.y, '#aaddff', 8);
+                  }
+                  if (typeof screenShake !== 'undefined') screenShake = Math.max(screenShake, 8);
+                  setTimeout(() => h.orbitHitSet.delete(t), 1200);
+                }
+              }
+
+              // Periodically dash at the nearest enemy
+              if (h.stateTimer <= 0) {
+                const tgt = targets.reduce((best, t) => {
+                  const d = Math.hypot(t.cx() - h.x, t.cy() - h.y);
+                  return (!best || d < best.d) ? { t, d } : best;
+                }, null);
+                if (tgt) {
+                  h.state = 'strike';
+                  h.stateTimer = 85;
+                  const sdx = tgt.t.cx() - h.x, sdy = tgt.t.cy() - h.y;
+                  const sLen = Math.hypot(sdx, sdy) || 1;
+                  h.vx = (sdx / sLen) * 32;
+                  h.vy = (sdy / sLen) * 32;
+                  h.hitSet.clear();
+                } else {
+                  h.stateTimer = 50;
+                }
+              }
+
+            } else { // 'strike'
+              // Strong homing during the dash
+              const tgt = targets.reduce((best, t) => {
+                const d = Math.hypot(t.cx() - h.x, t.cy() - h.y);
+                return (!best || d < best.d) ? { t, d } : best;
+              }, null);
+              if (tgt) {
+                const sdx = tgt.t.cx() - h.x, sdy = tgt.t.cy() - h.y;
+                const sLen = Math.hypot(sdx, sdy) || 1;
+                h.vx += (sdx / sLen) * 3.0;
+                h.vy += (sdy / sLen) * 3.0;
+              }
+              const sp = Math.hypot(h.vx, h.vy);
+              if (sp > 34) { h.vx = (h.vx / sp) * 34; h.vy = (h.vy / sp) * 34; }
+              h.x += h.vx;
+              h.y += h.vy;
+
+              for (const t of targets) {
+                if (h.hitSet.has(t)) continue;
+                if (Math.hypot(h.x - t.cx(), h.y - t.cy()) < h.radius + t.w / 2) {
+                  h.hitSet.add(t);
+                  _dealDomainDamage(owner, t, h.damage, 18);
+                  if (typeof spawnParticles === 'function') {
+                    spawnParticles(h.x, h.y, '#ffee44', 26);
+                    spawnParticles(h.x, h.y, '#aaddff', 18);
+                  }
+                  if (typeof screenShake !== 'undefined') screenShake = Math.max(screenShake, 20);
+                }
+              }
+              // After hit, timer expired, or off-screen — resume roaming
+              if (h.stateTimer <= 0 || h.hitSet.size > 0 ||
+                  h.x < -120 || h.x > GAME_W + 120 || h.y > GAME_H + 120) {
+                h.state = 'roam';
+                h.stateTimer = 110;
+                h.roamTarget = {
+                  x: 70 + Math.random() * (GAME_W - 140),
+                  y: GAME_H * 0.12 + Math.random() * (GAME_H * 0.58),
+                };
+              }
+            }
+
+            // Trailing sparks — brighter during strike
+            if (typeof spawnParticles === 'function' && Math.random() < (h.state === 'strike' ? 0.55 : 0.28))
+              spawnParticles(h.x, h.y, h.state === 'roam' ? '#ffffaa' : '#88ccff', 1);
+            break;
+          }
+
+          case 'blades_of_chaos': {
+            if (h.phase === 'sweep') {
+              h.angle += h.sweepSpeed * h.sweepDir;
+              const tipX = h.x + Math.cos(h.angle) * h.armLength;
+              const tipY = h.y + Math.sin(h.angle) * h.armLength;
+              // Check collision at 6 points along the chain length
+              const steps = 6;
+              for (let s = 2; s <= steps; s++) { // start at s=2 to skip the anchor point
+                const t_frac = s / steps;
+                const sx = h.x + Math.cos(h.angle) * h.armLength * t_frac;
+                const sy = h.y + Math.sin(h.angle) * h.armLength * t_frac;
+                for (const t of targets) {
+                  if (h.hitSet.has(t)) continue;
+                  if (Math.hypot(sx - t.cx(), sy - t.cy()) < h.radius + t.w / 2) {
+                    h.hitSet.add(t);
+                    _dealDomainDamage(owner, t, h.damage, 10);
+                    if (typeof spawnParticles === 'function') {
+                      spawnParticles(sx, sy, '#ff5500', 18);
+                      spawnParticles(sx, sy, '#ffbb00', 10);
+                    }
+                    if (typeof screenShake !== 'undefined') screenShake = Math.max(screenShake, 12);
+                    setTimeout(() => h.hitSet.delete(t), 700);
+                  }
+                }
+              }
+              // Sparks along the sweeping tip
+              if (Math.random() < 0.65 && typeof spawnParticles === 'function')
+                spawnParticles(tipX, tipY, '#ff4400', 4);
+              // Reverse at ±160° from center — proper two-sided sweep
+              if (h.angle > Math.PI * 0.88 || h.angle < -Math.PI * 0.88) {
+                h.sweepDir *= -1;
+                h.phase = 'reset';
+                h.resetTimer = 30; // 0.5 s pause — just long enough to read, not long enough to breathe
+                h.hitSet.clear();
+              }
+            } else {
+              h.resetTimer--;
+              if (h.resetTimer <= 0) h.phase = 'sweep';
+            }
+            break;
+          }
+
+        }
+        // (stormbreaker is now drawn via fighter._domainDisplayWeapon = 'stormbreaker' — no update needed here)
+
+        if (remove) domain.hazards.splice(j, 1);
+      }
+
+      // Domain expired
+      if (domain.timer <= 0) {
+        _clearOwnerBuffs(owner);
+        _domains.splice(i, 1);
+        if (typeof queueAnnouncement === 'function') {
+          queueAnnouncement(def.name.toUpperCase() + ' FADES', def.color);
+        }
+      }
+    }
+  }
+
+  // ── Draw — bg tint (screen-space; call before world-space phase) ───
+
+  function draw() {
+    if (!gameRunning) return;
+    if (_domains.length === 0 && _rising.length === 0) return;
+
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    const cW = canvas.width, cH = canvas.height;
+
+    for (const domain of _domains) {
+      ctx.fillStyle = domain.def.bgTint;
+      ctx.fillRect(0, 0, cW, cH);
+    }
+    for (const r of _rising) {
+      const def = DOMAIN_DEFS[r.fighter.charClass];
+      if (!def) continue;
+      ctx.globalAlpha = 0.22 * (1 - r.timer / RISE_FRAMES);
+      ctx.fillStyle = def.bgTint;
+      ctx.fillRect(0, 0, cW, cH);
+      ctx.globalAlpha = 1;
+    }
+    ctx.restore();
+  }
+
+  // ── Draw — hazards (world-space; call inside game transform) ───────
+
+  function drawHazards() {
+    // Entry animations for rising fighters (drawn before active domain hazards)
+    for (const r of _rising) _drawDomainEntryAnim(r);
+    if (_domains.length === 0) return;
+    for (const domain of _domains) {
+      _drawDomainSkyEffects(domain);
+      for (const h of domain.hazards) {
+        _drawHazard(h, domain.def);
+      }
+    }
+  }
+
+  function _drawHazard(h, def) {
+    ctx.save();
+    ctx.globalAlpha = 1;
+    switch (h.type) {
+
+      case 'lightning': {
+        if (h.warningTimer > 0) {
+          ctx.globalAlpha = 0.25 + 0.25 * Math.sin(h.warningTimer * 0.35);
+          ctx.strokeStyle = '#aaddff';
+          ctx.lineWidth = 2;
+          ctx.setLineDash([9, 7]);
+          ctx.beginPath(); ctx.moveTo(h.x, 0); ctx.lineTo(h.x, GAME_H); ctx.stroke();
+          ctx.setLineDash([]);
+        } else if (h.struck && h.strikeTimer > 0) {
+          ctx.globalAlpha = h.strikeTimer / 22;
+          ctx.strokeStyle = '#ffffff';
+          ctx.lineWidth = 3 + Math.random() * 5;
+          ctx.shadowColor = '#88ccff'; ctx.shadowBlur = 22;
+          ctx.beginPath();
+          let cy = 0; ctx.moveTo(h.x + (Math.random() - 0.5) * 10, cy);
+          while (cy < GAME_H) { cy += 20 + Math.random() * 24; ctx.lineTo(h.x + (Math.random() - 0.5) * 18, cy); }
+          ctx.stroke();
+          ctx.globalAlpha = (h.strikeTimer / 22) * 0.7;
+          ctx.fillStyle = '#aaddff';
+          ctx.beginPath(); ctx.arc(h.x, GAME_H - 8, 30, 0, Math.PI * 2); ctx.fill();
+        }
+        break;
+      }
+
+      case 'debris': {
+        ctx.translate(h.x, h.y);
+        ctx.rotate(performance.now() * 0.003 * Math.sign(h.vx));
+        ctx.fillStyle = '#7a4a2a';
+        ctx.shadowColor = '#ff4400'; ctx.shadowBlur = 10;
+        ctx.fillRect(-h.radius, -h.radius * 0.5, h.radius * 2, h.radius);
+        ctx.fillStyle = '#5a3015';
+        ctx.fillRect(-h.radius + 2, -h.radius * 0.5 + 2, h.radius * 2 - 4, h.radius - 4);
+        break;
+      }
+
+      case 'shadow_blade': {
+        ctx.translate(h.x, h.y);
+        ctx.rotate(h.angle);
+        ctx.fillStyle = '#330066';
+        ctx.shadowColor = '#bb44ff'; ctx.shadowBlur = 14;
+        ctx.fillRect(-2, -h.radius * 2.2, 4, h.radius * 4.4);
+        ctx.fillStyle = '#7700cc';
+        ctx.beginPath();
+        ctx.moveTo(0, -h.radius * 2.2); ctx.lineTo(7, -h.radius * 1.5); ctx.lineTo(0, -h.radius); ctx.closePath();
+        ctx.fill();
+        break;
+      }
+
+      case 'bullet': {
+        ctx.fillStyle = def.color;
+        ctx.shadowColor = def.color; ctx.shadowBlur = 12;
+        ctx.beginPath(); ctx.arc(h.x, h.y, h.radius, 0, Math.PI * 2); ctx.fill();
+        ctx.globalAlpha = 0.4;
+        ctx.beginPath(); ctx.arc(h.x - h.vx * 2, h.y - h.vy * 2, h.radius * 0.6, 0, Math.PI * 2); ctx.fill();
+        break;
+      }
+
+      case 'arrow': {
+        ctx.translate(h.x, h.y);
+        ctx.rotate(Math.atan2(h.vy, h.vx));
+        ctx.strokeStyle = def.color; ctx.lineWidth = 2;
+        ctx.shadowColor = def.color; ctx.shadowBlur = 8;
+        ctx.beginPath(); ctx.moveTo(-h.radius * 2.5, 0); ctx.lineTo(h.radius * 2.5, 0); ctx.stroke();
+        ctx.fillStyle = def.color;
+        ctx.beginPath();
+        ctx.moveTo(h.radius * 2.5, 0); ctx.lineTo(h.radius * 2.5 - 7, -4); ctx.lineTo(h.radius * 2.5 - 7, 4);
+        ctx.closePath(); ctx.fill();
+        break;
+      }
+
+      case 'holy_beam': {
+        if (h.warningTimer > 0) {
+          ctx.globalAlpha = 0.20 + 0.20 * Math.sin(h.warningTimer * 0.28);
+          ctx.fillStyle = '#ffffcc';
+          ctx.fillRect(h.x - h.radius, 0, h.radius * 2, GAME_H);
+        } else if (h.activeTimer > 0) {
+          ctx.globalAlpha = Math.min(1, h.activeTimer / 12);
+          ctx.fillStyle   = 'rgba(255,255,180,0.45)';
+          ctx.shadowColor = '#ffffaa'; ctx.shadowBlur = 28;
+          ctx.fillRect(h.x - h.radius, 0, h.radius * 2, GAME_H);
+          ctx.fillStyle = 'rgba(255,255,255,0.80)';
+          ctx.fillRect(h.x - 4, 0, 8, GAME_H);
+        }
+        break;
+      }
+
+      case 'void_rock': {
+        ctx.translate(h.x, h.y);
+        ctx.rotate(h.angle * 0.35);
+        ctx.fillStyle = '#1a0033';
+        ctx.shadowColor = '#9944ff'; ctx.shadowBlur = 20;
+        ctx.beginPath(); ctx.arc(0, 0, h.radius, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#44007a';
+        ctx.beginPath(); ctx.arc(-h.radius * 0.32, -h.radius * 0.32, h.radius * 0.48, 0, Math.PI * 2); ctx.fill();
+        break;
+      }
+
+      case 'shadow_clone': {
+        const pulse = 0.55 + 0.25 * Math.sin(performance.now() / 200);
+        ctx.globalAlpha = pulse;
+        ctx.translate(h.x, h.y);
+        ctx.shadowColor = '#bb44ff'; ctx.shadowBlur = 16;
+        // Body silhouette — simple stickman ghost
+        ctx.fillStyle = '#220033';
+        ctx.beginPath(); ctx.arc(0, -26, 10, 0, Math.PI * 2); ctx.fill(); // head
+        ctx.fillRect(-7, -16, 14, 22);  // torso
+        ctx.fillRect(-12, 6, 8, 18);    // left leg
+        ctx.fillRect(4,   6, 8, 18);    // right leg
+        ctx.fillRect(-16, -14, 10, 6);  // left arm
+        ctx.fillRect(6,   -14, 10, 6);  // right arm
+        // Sword silhouette
+        ctx.fillStyle = '#6600aa';
+        ctx.fillRect(8, -30, 3, 28);    // blade
+        ctx.fillRect(4, -8,  11, 3);    // guard
+        break;
+      }
+
+      case 'turret': {
+        ctx.translate(h.x, h.y);
+        ctx.shadowColor = '#ff9900'; ctx.shadowBlur = 12;
+        // Base
+        ctx.fillStyle = '#333333';
+        ctx.fillRect(-h.radius, 0, h.radius * 2, 14);
+        // Body
+        ctx.fillStyle = '#555555';
+        ctx.fillRect(-h.radius + 2, -14, h.radius * 2 - 4, 14);
+        // Barrel
+        ctx.fillStyle = '#888888';
+        ctx.fillRect(h.facing > 0 ? h.radius - 4 : -h.radius - 8, -7, 12, 5);
+        // Muzzle glow (pulses with fireTimer)
+        const gPulse = Math.max(0, 1 - (h.fireTimer / 20));
+        if (gPulse > 0) {
+          ctx.globalAlpha = gPulse;
+          ctx.fillStyle = '#ff9900';
+          ctx.beginPath();
+          ctx.arc(h.facing > 0 ? h.radius + 8 : -h.radius - 8, -4, 6, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        break;
+      }
+
+      case 'giant_arrow': {
+        if (h.phase === 'warning') {
+          // Show which side it will enter from
+          const alpha = 0.30 + 0.25 * Math.sin(performance.now() / 120);
+          ctx.globalAlpha = alpha;
+          ctx.strokeStyle = '#44ff88';
+          ctx.lineWidth = 2;
+          ctx.setLineDash([10, 8]);
+          ctx.beginPath(); ctx.moveTo(h.fromLeft ? 0 : GAME_W, h.y); ctx.lineTo(h.fromLeft ? GAME_W : 0, h.y); ctx.stroke();
+          ctx.setLineDash([]);
+          // Chevron at entry side
+          ctx.fillStyle = '#44ff88';
+          const ex = h.fromLeft ? 14 : GAME_W - 14;
+          ctx.beginPath();
+          ctx.moveTo(ex, h.y - 12);
+          ctx.lineTo(h.fromLeft ? ex + 18 : ex - 18, h.y);
+          ctx.lineTo(ex, h.y + 12);
+          ctx.closePath(); ctx.fill();
+        } else if (h.phase === 'flying') {
+          ctx.translate(h.x, h.y);
+          if (!h.fromLeft) ctx.scale(-1, 1);
+          ctx.shadowColor = '#44ff88'; ctx.shadowBlur = 20;
+          // Large shaft
+          ctx.fillStyle = '#2a8a50';
+          ctx.fillRect(-h.radius * 2, -5, h.radius * 4, 10);
+          // Arrowhead
+          ctx.fillStyle = '#88ffcc';
+          ctx.beginPath();
+          ctx.moveTo(h.radius * 2,  0);
+          ctx.lineTo(h.radius * 2 - 28, -16);
+          ctx.lineTo(h.radius * 2 - 28,  16);
+          ctx.closePath(); ctx.fill();
+          // Fletching
+          ctx.fillStyle = '#44ff88';
+          ctx.beginPath();
+          ctx.moveTo(-h.radius * 2,  0);
+          ctx.lineTo(-h.radius * 2 + 16, -12);
+          ctx.lineTo(-h.radius * 2 + 8,  0);
+          ctx.closePath(); ctx.fill();
+          ctx.beginPath();
+          ctx.moveTo(-h.radius * 2,  0);
+          ctx.lineTo(-h.radius * 2 + 16,  12);
+          ctx.lineTo(-h.radius * 2 + 8,   0);
+          ctx.closePath(); ctx.fill();
+        }
+        break;
+      }
+
+      case 'divine_shield': {
+        ctx.translate(h.x, h.y);
+        ctx.rotate(h.angle + Math.PI / 2);
+        ctx.shadowColor = '#ffffaa'; ctx.shadowBlur = 18;
+        // Kite shield shape
+        ctx.fillStyle = '#ddcc44';
+        ctx.beginPath();
+        ctx.moveTo(0, -h.radius);
+        ctx.bezierCurveTo(h.radius, -h.radius, h.radius, h.radius * 0.4, 0, h.radius * 1.3);
+        ctx.bezierCurveTo(-h.radius, h.radius * 0.4, -h.radius, -h.radius, 0, -h.radius);
+        ctx.fill();
+        // Shield face design
+        ctx.fillStyle = '#ffffff';
+        ctx.globalAlpha = 0.7;
+        ctx.beginPath();
+        ctx.moveTo(0, -h.radius * 0.7);
+        ctx.bezierCurveTo(h.radius * 0.6, -h.radius * 0.7, h.radius * 0.6, h.radius * 0.2, 0, h.radius * 0.9);
+        ctx.bezierCurveTo(-h.radius * 0.6, h.radius * 0.2, -h.radius * 0.6, -h.radius * 0.7, 0, -h.radius * 0.7);
+        ctx.fill();
+        // Holy glow pulse
+        ctx.globalAlpha = 0.30 + 0.20 * Math.sin(performance.now() / 150);
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.arc(0, 0, h.radius + 6, 0, Math.PI * 2); ctx.stroke();
+        break;
+      }
+
+      case 'rage_pulse': {
+        // Draw the expanding ring when active
+        if (h.ringActive && h.ringRadius > 0) {
+          const alpha = Math.max(0, 1 - h.ringRadius / (h.radius + 40));
+          ctx.globalAlpha = alpha * 0.7;
+          ctx.strokeStyle = '#ff2222';
+          ctx.lineWidth = 4 - alpha * 2;
+          ctx.shadowColor = '#ff0000'; ctx.shadowBlur = 14;
+          ctx.beginPath(); ctx.arc(owner.cx(), owner.cy(), h.ringRadius, 0, Math.PI * 2); ctx.stroke();
+        }
+        // Constant blood aura around owner
+        ctx.globalAlpha = 0.18 + 0.10 * Math.sin(performance.now() / 180);
+        ctx.fillStyle = '#ff0000';
+        ctx.beginPath(); ctx.arc(owner.cx(), owner.cy(), h.radius, 0, Math.PI * 2); ctx.fill();
+        break;
+      }
+
+      case 'gravity_vortex': {
+        const now = performance.now();
+        // Swirling rings
+        for (let ring = 0; ring < 3; ring++) {
+          const r    = 28 + ring * 22;
+          const spin = now / (400 + ring * 120) + ring * Math.PI * 0.66;
+          ctx.globalAlpha = 0.30 - ring * 0.07;
+          ctx.strokeStyle = '#9944ff';
+          ctx.lineWidth = 2;
+          ctx.shadowColor = '#9944ff'; ctx.shadowBlur = 10;
+          ctx.beginPath();
+          ctx.arc(h.x, h.y, r, spin, spin + Math.PI * 1.5);
+          ctx.stroke();
+          // Small arrow-head on the arc to show rotation direction
+          const ax = h.x + Math.cos(spin + Math.PI * 1.5) * r;
+          const ay = h.y + Math.sin(spin + Math.PI * 1.5) * r;
+          ctx.fillStyle = '#9944ff';
+          ctx.beginPath(); ctx.arc(ax, ay, 3, 0, Math.PI * 2); ctx.fill();
+        }
+        // Core glow
+        ctx.globalAlpha = 0.55 + 0.20 * Math.sin(now / 220);
+        ctx.fillStyle = '#220044';
+        ctx.shadowColor = '#cc66ff'; ctx.shadowBlur = 20;
+        ctx.beginPath(); ctx.arc(h.x, h.y, 12, 0, Math.PI * 2); ctx.fill();
+        break;
+      }
+
+      case 'mjolnir': {
+        ctx.globalAlpha = 1;
+        ctx.translate(h.x, h.y);
+        ctx.rotate(h.spinAngle);
+        ctx.shadowColor = '#ffee44'; ctx.shadowBlur = 26;
+        // Motion trail when striking
+        if (h.state === 'strike') {
+          ctx.globalAlpha = 0.38;
+          ctx.fillStyle = '#aaddff';
+          ctx.beginPath(); ctx.arc(-h.vx * 2.2, -h.vy * 2.2, h.radius * 0.8, 0, Math.PI * 2); ctx.fill();
+          ctx.globalAlpha = 1;
+        }
+        // Head
+        ctx.fillStyle = '#cccccc';
+        ctx.fillRect(-14, -8, 28, 12);
+        ctx.fillStyle = '#eeeeee';
+        ctx.fillRect(-13, -7, 26, 5);
+        ctx.fillStyle = '#888888';
+        ctx.fillRect(-14, 3, 28, 2);
+        // Handle
+        ctx.fillStyle = '#8B4513';
+        ctx.fillRect(-3, 4, 6, 18);
+        ctx.fillStyle = '#5c2e0a';
+        ctx.fillRect(-3, 7, 6, 2);
+        ctx.fillRect(-3, 12, 6, 2);
+        ctx.fillStyle = '#cccccc';
+        ctx.fillRect(-4, 20, 8, 4);
+        // Lightning glow — pulses faster when striking
+        const mRate = h.state === 'strike' ? 45 : 95;
+        ctx.globalAlpha = 0.6 + 0.3 * Math.sin(performance.now() / mRate);
+        ctx.strokeStyle = '#aaddff';
+        ctx.lineWidth = 2.5;
+        ctx.beginPath(); ctx.arc(0, -2, h.radius + 4, 0, Math.PI * 2); ctx.stroke();
+        break;
+      }
+
+      case 'blades_of_chaos': {
+        if (h.phase !== 'sweep') break;
+        ctx.shadowColor = '#ff4400'; ctx.shadowBlur = 20;
+        // Draw chain from center to tip
+        const segments = 8;
+        const segLen = h.armLength / segments;
+        for (let s = 0; s < segments; s++) {
+          const t0 = s / segments, t1 = (s + 1) / segments;
+          const x0 = h.x + Math.cos(h.angle) * h.armLength * t0;
+          const y0 = h.y + Math.sin(h.angle) * h.armLength * t0;
+          const x1 = h.x + Math.cos(h.angle) * h.armLength * t1;
+          const y1 = h.y + Math.sin(h.angle) * h.armLength * t1;
+          // Chain link (alternating rectangles)
+          ctx.fillStyle = s % 2 === 0 ? '#cc3300' : '#ff6600';
+          ctx.globalAlpha = 0.9 - s * 0.06;
+          ctx.beginPath();
+          ctx.moveTo(x0, y0 - 4); ctx.lineTo(x1, y1 - 4);
+          ctx.lineTo(x1, y1 + 4); ctx.lineTo(x0, y0 + 4);
+          ctx.closePath(); ctx.fill();
+        }
+        // Blade tip — glowing fire point
+        const tipX = h.x + Math.cos(h.angle) * h.armLength;
+        const tipY = h.y + Math.sin(h.angle) * h.armLength;
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = '#ffffff';
+        ctx.shadowBlur = 30;
+        ctx.beginPath(); ctx.arc(tipX, tipY, 10, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#ff6600';
+        ctx.shadowBlur = 18;
+        ctx.beginPath(); ctx.arc(tipX, tipY, 7, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#ffaa00';
+        ctx.beginPath(); ctx.arc(tipX, tipY, 4, 0, Math.PI * 2); ctx.fill();
+        break;
+      }
+
+    }
+    ctx.restore();
+  }
+
+  // ── Draw — speech bubbles (world-space; call after entities) ──────
+
+  function drawSpeechBubbles() {
+    for (const r of _rising) {
+      const f   = r.fighter;
+      const def = DOMAIN_DEFS[f.charClass];
+      if (!def) continue;
+
+      const progress = 1 - r.timer / RISE_FRAMES;
+      const alpha    = Math.min(1, progress * 2.5);
+      if (alpha < 0.04) continue;
+
+      ctx.save();
+      ctx.globalAlpha = alpha;
+
+      const bx    = f.cx();
+      const by    = f.y - 14;
+      const line1 = 'DOMAIN EXPANSION';
+      const line2 = def.name;
+
+      ctx.font = 'bold 13px Arial';
+      const w1 = ctx.measureText(line1).width;
+      ctx.font = 'bold 11px Arial';
+      const w2 = ctx.measureText(line2).width;
+      const bW  = Math.max(w1, w2) + 22;
+      const bH  = 44;
+      const top = by - bH - 8;
+
+      // Bubble
+      ctx.fillStyle   = 'rgba(255,255,255,0.93)';
+      ctx.strokeStyle = def.color;
+      ctx.lineWidth   = 2;
+      ctx.beginPath();
+      if (ctx.roundRect) ctx.roundRect(bx - bW / 2, top, bW, bH, 8);
+      else { ctx.rect(bx - bW / 2, top, bW, bH); }
+      ctx.fill(); ctx.stroke();
+
+      // Tail
+      ctx.fillStyle   = 'rgba(255,255,255,0.93)';
+      ctx.strokeStyle = def.color;
+      ctx.lineWidth   = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(bx - 6, top + bH);
+      ctx.lineTo(bx + 6, top + bH);
+      ctx.lineTo(bx, top + bH + 9);
+      ctx.closePath();
+      ctx.fill(); ctx.stroke();
+
+      // Text
+      ctx.textAlign = 'center';
+      ctx.fillStyle = '#111';
+      ctx.font = 'bold 13px Arial';
+      ctx.shadowBlur = 0;
+      ctx.fillText(line1, bx, top + 18);
+      ctx.fillStyle   = def.color;
+      ctx.shadowColor = def.color;
+      ctx.shadowBlur  = 8;
+      ctx.font = 'bold 11px Arial';
+      ctx.fillText(line2, bx, top + 35);
+
+      ctx.restore();
+    }
+  }
+
+  // ── Draw — HUD (screen-space; call after ctx.setTransform(1,0,0,1,0,0)) ──
+
+  function drawHUD() {
+    if (_domains.length === 0) return;
+    const cW = canvas.width, cH = canvas.height;
+    const DOMAIN_BAR_W = 160, DOMAIN_BAR_H = 8;
+    const now = performance.now();
+
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+
+    let yOff = cH * 0.09;
+    for (const domain of _domains) {
+      const frac  = domain.timer / DOMAIN_FRAMES;
+      const secs  = Math.ceil(domain.timer / 60);
+      const bx    = cW / 2 - DOMAIN_BAR_W / 2;
+      const pulse = frac <= (5 / 25) ? (0.85 + 0.15 * Math.sin(now / 100)) : 1;
+
+      // Domain name
+      ctx.font      = 'bold 13px Arial';
+      ctx.textAlign = 'center';
+      ctx.fillStyle   = domain.def.color;
+      ctx.shadowColor = domain.def.color;
+      ctx.shadowBlur  = 10;
+      ctx.fillText(domain.def.name, cW / 2, yOff);
+
+      // Bar background
+      ctx.shadowBlur = 0;
+      ctx.fillStyle  = 'rgba(0,0,0,0.52)';
+      ctx.fillRect(bx, yOff + 4, DOMAIN_BAR_W, DOMAIN_BAR_H);
+
+      // Bar fill
+      ctx.fillStyle = domain.def.color;
+      ctx.fillRect(bx, yOff + 4, DOMAIN_BAR_W * frac * pulse, DOMAIN_BAR_H);
+
+      // Seconds label
+      ctx.fillStyle   = '#ffffff';
+      ctx.font        = '11px Arial';
+      ctx.textAlign   = 'center';
+      ctx.fillText(secs + 's', cW / 2 + DOMAIN_BAR_W / 2 + 18, yOff + 12);
+
+      yOff += 30;
+    }
+    ctx.restore();
+  }
+
+  function reset() {
+    for (const domain of _domains) _clearOwnerBuffs(domain.owner);
+    for (const r of _rising) {
+      if (!r || !r.fighter) continue;
+      r.fighter._domainRising    = false;
+      r.fighter._domainRiseTimer = 0;
+      delete r.fighter._domainSuperCount;
+    }
+    _domains.length = 0;
+    _rising.length  = 0;
+    if (_domainCinOwner && typeof CinFX !== 'undefined') CinFX.motionTrailOff(_domainCinOwner);
+    if (_domainCinActive && typeof CinCam !== 'undefined') CinCam.restore();
+    _domainCinActive = false;
+    _domainCinOwner  = null;
+  }
+
+  return {
+    triggerExpansion,
+    onFighterDied,
+    anyActive,
+    reset,
+    update,
+    draw,
+    drawHazards,
+    drawSpeechBubbles,
+    drawHUD,
+    get domains() { return _domains; },
+    get rising()  { return _rising; },
+  };
+})();

@@ -45,26 +45,36 @@ const FIN_VOID_SLAM = {
       }},
       // Frame 28: lift begins — slow-mo deepens
       { frame: 28, fn() { CinCam.slowMo(0.18); } },
-      // Frame 55: at peak — pause briefly
+      // Frame 55: at peak — pause briefly, Dutch tilt for drama
       { frame: 55, fn() {
           CinCam.slowMo(0.08);
           CinCam.zoomTo(1.5);
           CinCam.focusMidpoint(att, tgt);
           CinCam.shake(8);
+          CinCam.tilt(data.dir > 0 ? 4 : -4);
+          // Speed lines radiating from attacker — "holding them in the air" feel
+          CinFX.speedLines(att.cx(), att.cy(), '#aa00ff', { count: 20, maxLen: 180, dur: 18, spread: Math.PI * 2 });
       }},
-      // Frame 80: SLAM DOWN — full speed
+      // Frame 80: SLAM DOWN — full speed, snap tilt back
       { frame: 80, fn() {
           CinCam.slowMo(1.0);
           CinCam.zoomTo(1.1);
+          CinCam.tilt(0);
+          // Directional speed lines pointing down as they plunge
+          CinFX.speedLines(tgt.cx(), tgt.cy(), '#ffffff', { count: 18, maxLen: 200, dur: 20, spread: 0.9, dir: Math.PI * 0.5 });
       }},
-      // Frame 105: impact — shockwave + heavy shake
+      // Frame 105: impact — shockwave + heavy directional shake + impact frame
       { frame: 105, fn() {
           data.shockR = 1;
           data.shockAlpha = 1;
-          CinCam.shake(48);
+          // Directional shake: push downward (y=1) then snap back
+          CinCam.directionalShake(52, 0, 1);
           spawnParticles(data.tx0+tgt.w/2, data.ty0+tgt.h, '#aa00ff', 50);
           spawnParticles(data.tx0+tgt.w/2, data.ty0+tgt.h, '#ffffff', 20);
           spawnParticles(data.tx0+tgt.w/2, data.ty0+tgt.h, '#ff44ff', 25);
+          CinFX.impactFrame([att, tgt], { dur: 5, color: '#ffffff' });
+          CinFX.speedLines(data.tx0+tgt.w/2, data.ty0+tgt.h, '#aa00ff', { count: 32, maxLen: 300, dur: 16, spread: Math.PI * 2 });
+          CinFX.bgContrast('#1a001a', 0.72, 40);
           CinCam.zoomTo(1.35);
           CinCam.focusPoint(data.tx0+tgt.w/2, data.ty0+tgt.h);
       }},

@@ -42,11 +42,45 @@ const SERVER_CONFIG = {
 // ============================================================
 const CHANGELOG = [
   {
+    version: '3.3.0',
+    title: 'THE DOMAIN UPDATE',
+    date: '2026-05-18',
+    flavor: 'Every fighter carries a world inside them. Use your super five times and it erupts — a 25-second nightmare born from who you are. The arena is no longer neutral ground.',
+    isLatest: true,
+    changes: [
+      { cat: 'Mode',    text: 'Added Domain Expansion — once you activate your super 5 times in a match, your class unleashes its personal Domain: a 25-second environmental takeover that floods the arena with class-specific hazards; each class has a unique named domain with its own atmosphere, hazard type, and owner buff' },
+      { cat: 'Mode',    text: 'Domain roster — Thor: Storm Realm (relentless lightning strikes, speed boost); Kratos: Spartan War Domain (debris barrages, power boost); Ninja: Shadow Realm (shadow blade volleys, speed boost); Gunner: Arsenal Domain (bullet storm); Archer: Verdant Hunt (arrow curtain); Paladin: Holy Sanctuary (holy beams, passive heal); Berserker: Blood Arena (speed + power + lifesteal, no environmental hazard — pure stats); further domains are unlocked through progression' },
+      { cat: 'Mode',    text: 'Domain entry plays a full cinematic sequence: world darkens, the class name card slams onto screen, a Dutch camera tilt locks in, and the arena atmosphere shifts to match the domain\'s color and sky; sudden death is suppressed for the full duration' },
+      { cat: 'Arena',   text: 'Added Training Grounds — a clean symmetry-balanced stage with 8 platforms across 4 height tiers; designed for combo drills, jump practice, and aerial/edge-guard training; only accessible in Training mode' },
+      { cat: 'Visual',  text: 'Added cinematic speed lines — radial and directional burst effects used during finishers, Domain entry, and heavy cinematic hits; cone, spread, count, and length are fully configurable' },
+      { cat: 'Visual',  text: 'Added impact frames — hard-cut color flash with entity silhouettes on the heaviest moments; gives a manga / fighting-game punctuation feel to KO blows and Domain activations' },
+      { cat: 'Visual',  text: 'Added move name cards — a bold text card slams onto screen at frame 18 of any finisher displaying the move\'s name; fades after ~1.5 seconds' },
+      { cat: 'Visual',  text: 'Added motion trails — a semi-transparent echo strip traces the attacker\'s path for the duration of every finisher; auto-enabled on entry, auto-cleared on exit' },
+      { cat: 'Visual',  text: 'Added Dutch angle (world tilt) — the game world can now rotate to a biased angle for dramatic effect; used during Domain entry and select finisher moments; angle lerps smoothly in and out' },
+      { cat: 'Visual',  text: 'Added directional screen shake — shake can be biased in a specific direction (e.g., straight down on a ground slam) for the first several frames before falling back to random; removes the ambiguous rattle on precision impacts' },
+      { cat: 'Visual',  text: 'Added background contrast shift — a momentary color-tinted overlay pulses over the background at peak impact moments for a brief, punchy visual accent' },
+      { cat: 'Visual',  text: 'Void Slam finisher rebuilt with full cinematic suite: Dutch tilt at the peak hold, radial speed lines during the lift, downward speed lines at the drop, directional downward shake on impact, impact frame flash, and background contrast pulse; the hit frame is 47% harder to look away from than before' },
+      { cat: 'Achieve', text: 'Added 20+ new achievements — Finishing Touch (first finisher), Finisher Master (10 finishers in one session), Connected (first online win), Class Collector (win as 5 different classes in one session), Sovereign Slayer (defeat Sovereign Ω), Legend (50 total wins)' },
+      { cat: 'Achieve', text: 'Story achievements added — The Journey Begins (complete your first Story chapter), End of the Line (complete full Story Mode), Lab Infiltrator (complete the Laboratory side mission)' },
+      { cat: 'Achieve', text: 'Multiverse achievements added — Multiverse Warrior (conquer your first Multiverse world), Dimension Breaker (conquer all Multiverse worlds)' },
+      { cat: 'Achieve', text: 'Progression achievements added — Fracture Explorer (enter a Fracture for the first time), Axiom Ship Complete (build the full Axiom Ship); Nexus Defender (survive 5 Nexus Defense waves); Pure Chaos (activate all chaos modifiers at once); Beyond Godhood (a secret — you\'ll know it when you see it)' },
+      { cat: 'Combat',  text: 'Melee hitboxes tightened — vertical tolerance reduced from ±8 px to ±4 px; directional pruning added so hit points more than 12 px behind the attacker\'s facing direction are discarded; reduces phantom hits above/below and on rapid-turnaround frames' },
+      { cat: 'Combat',  text: 'Thor perk reworked — now fires 2 lightning strikes (was 3) after a 600 ms visual windup that telegraphs the attack; damage is now routed through the full combat pipeline so shields, multipliers, and combo limits apply; stun reduced from 45 to 25 frames; both bolts are fully dodgeable' },
+      { cat: 'Combat',  text: 'Damage multiplier cap — combined attacker buffs (class rage, abilities, map perks) are now capped at 3.5× the original hit value; prevents multiplicative stack-spikes at high-buff states while leaving normal combat completely unaffected' },
+      { cat: 'AI',      text: 'Sovereign habit window extended from 6 to 12 recent actions for more stable pattern reads; anti-air counter now activates at 38% jump rate (was 50%), catching aerial-preference players sooner; habit confidence is penalised when the player mixes 3+ distinct action types in rapid succession' },
+      { cat: 'AI',      text: 'Sovereign aerial tracking — Sovereign now tracks what fraction of the match the player spends airborne; once this exceeds 35%, it proactively jumps to match the player\'s altitude and engage in the air rather than waiting on the ground' },
+      { cat: 'AI',      text: 'Sovereign edge-camp counter overhauled — the old brute-force charge is replaced with a bait-and-punish loop: Sovereign holds just outside attack range to force a commitment, then dashes in on the whiff; corner mode activates immediately to block the escape path back to center' },
+      { cat: 'AI',      text: 'Sovereign matches always grant the player at least 5 lives regardless of the lives setting, ensuring enough rounds for the AI to fully ramp before a result is decided' },
+      { cat: 'Polish',  text: 'Camera HUD clamp — when players are near the top of the screen, the camera shifts down so they are never hidden behind the HUD bar' },
+      { cat: 'Polish',  text: 'Boss and TF attack states are fully reset on every game start, preventing hazards from a previous match from carrying damage or state into the next one' },
+    ],
+  },
+  {
     version: '3.2.0',
     title: 'THE APEX UPDATE',
     date: '2026-05-10',
     flavor: 'A hundred fighters fall from the sky. A god and a kernel merge into something that should not exist. The floor rises. The clock runs out. Welcome to the end.',
-    isLatest: true,
+    isLatest: false,
     changes: [
       { cat: 'Mode',    text: 'Added Battle Royale — 100 fighters, a 9000px-wide procedural world, a transport plane drop, loot chests, a shrinking void zone with 6 phases, spectate-on-death, and a real-time minimap; the last fighter standing wins' },
       { cat: 'Mode',    text: 'Battle Royale loot system — 200 chests scattered across 30 platform rows; chests contain weapons drawn from the full roster; equipped weapon updates the fighter\'s full combat state mid-match' },
@@ -578,7 +612,7 @@ let _publicRoomCheckTimer = 0;
 // ============================================================
 // VERSION
 // ============================================================
-const GAME_VERSION = '3.2.0';  // bump this when releasing; must match CHANGELOG[0].version
+const GAME_VERSION = '3.3.0';  // bump this when releasing; must match CHANGELOG[0].version
 console.log('[VERSION CHECK]', GAME_VERSION);
 
 // DEBUG / DEVELOPER STATE
@@ -679,6 +713,15 @@ let _camPrevFocusX      = 450;    // previous cinematic focus target X (for spri
 let _camPrevFocusY      = 260;    // previous cinematic focus target Y (for spring feel)
 let _camOvershootX      = 0;      // decaying cinematic camera overshoot X
 let _camOvershootY      = 0;      // decaying cinematic camera overshoot Y
+// ── Cinematic Enhancements (smb-cinematics-core.js) ──────────────────────
+let cinSpeedLines       = [];     // radial/directional speed line burst effects
+let cinMotionTrails     = [];     // [{entity, positions:[{x,y}], color, maxLen}]
+let cinImpactFrame      = null;   // hard-cut impact frame {timer, maxTimer, color, entities[]}
+let cinNameCard         = null;   // move name card {text, color, accentColor, timer, maxTimer}
+let cinematicTiltAngle  = 0;      // current Dutch angle in radians (world-space render tilt)
+let cinematicTiltTarget = 0;      // target Dutch angle — lerped toward each frame
+let cinBgContrast       = null;   // bg contrast override {color, alpha, timer, maxTimer}
+let cinShakeDir         = null;   // directional shake first-frame bias {x, y, timer}
 let bossDeathScene   = null;  // boss defeat animation state
 let fakeDeath        = { triggered: false, active: false, timer: 0, player: null };
 let bossPlayerCount  = 1;     // 1 or 2 players vs boss
@@ -773,6 +816,64 @@ let storeSurvivalState = null;  // { active, state, wave, totalWaves, waveSize, 
 
 // ── TrueForm clone position history (ring buffer for multiverse lag effect) ──
 let _tfCloneHistory = [];   // [{ x, cy, facing }, ...] — last 24 frames
+
+// ── New interactive chapter mode globals ─────────────────────────────────────
+
+// Mode-active flags (checked in updateExploration each frame)
+let stealthModeActive    = false;
+let escapeModeActive     = false;
+let defenseModeActive    = false;
+let scavengeModeActive   = false;
+let puzzleModeActive     = false;
+
+// Stealth mode
+let stealthGuards        = [];   // [{ x, y, radius, alertTimer, maxAlertTimer, alerted }]
+let stealthAlarmed       = false; // true once any alarm fires
+let stealthNeverAlarmed  = true;  // bonus flag: never triggered alert
+
+// Escape mode
+let escapeWallX          = -80;  // world x of the collapse wall
+let escapeWallSpeed      = 1.2;  // px/frame; accelerates over time
+let escapeWallAccelTimer = 0;    // frames since last speed tick
+
+// Defense mode
+let defenseNexusHP       = 300;
+let defenseNexusMaxHP    = 300;
+let defenseNexusX        = 450;
+let defenseNexusY        = 390;
+let defenseNexusHitTimer = 0;    // per-enemy cooldown (frames since last nexus hit)
+let defenseNexusPulse    = 0;    // glow animation counter
+
+// Scavenge mode
+let scavengeItems        = [];   // [{ x, y, name, icon, collected }]
+let scavengeTotal        = 0;
+
+// Puzzle mode
+let puzzleSwitches       = [];   // [{ x, y, label, activated, pulseTimer }]
+let puzzleStep           = 0;    // next switch index that must be activated
+
+// Assassination mode
+let assassinationTimer   = 0;    // frames remaining (counts down)
+let assassinationTarget  = null; // reference to target fighter
+
+// Gauntlet mode
+let gauntletRound        = 0;    // current round (0-indexed)
+let gauntletTotalRounds  = 3;
+let gauntletRoundDelay   = 0;    // frames until next round starts
+let gauntletActive       = false;
+
+// Ship flight mode
+let shipFlightShip       = null; // { x, y, vx, vy, hp, maxHp, bullets:[], fireTimer:0 }
+let shipFlightEnemies    = [];   // [{ x, y, hp, maxHp, speed, hitTimer }]
+let shipFlightScrollX    = 0;    // camera scroll (based on ship.x)
+let shipFlightLen        = 6000; // total flight length
+let shipFlightStars      = [];   // parallax star layer
+
+// Escort mode (implemented in smb-story-engine-modes.js)
+let escortNPCTarget      = null; // Fighter-like NPC wrapper object
+let escortNPCHP          = 200;
+let escortNPCMaxHP       = 200;
+let escortGoalX          = 4000; // world x the NPC must reach
 
 // ============================================================
 // SHIP PROGRESSION SYSTEM

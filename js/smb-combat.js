@@ -69,6 +69,7 @@ function dealDamage(attacker, target, dmg, kbForce, stunMult = 1.0, isSplash = f
       damageTexts.push(new DamageText(target.cx(), target.y - 20, '~', '#556677'));
     return;
   }
+  const _origDmg = dmg; // pre-multiplier value used for the stacking cap below
   let actualDmg = (attacker && attacker.dmgMult !== undefined) ? Math.max(1, Math.round(dmg * attacker.dmgMult)) : dmg;
   // Hidden power level: story player gains +2% damage per cleared chapter (capped at +200%).
   // Only applies to human players in story mode — enemies are never buffed by this.
@@ -128,6 +129,12 @@ function dealDamage(attacker, target, dmg, kbForce, stunMult = 1.0, isSplash = f
   }
   if (target && typeof target._damageTakenMult === 'number') {
     actualDmg = Math.max(1, Math.round(actualDmg * clamp(target._damageTakenMult, 0.25, 3)));
+  }
+  // Multiplier stacking cap: player attacks cannot exceed 3.5× the original hit value
+  // (prevents Kratos rage + Spartan Rage + story powerLevel + map perk from compounding
+  // into 5× damage — all legitimate bonuses still apply, just with a ceiling).
+  if (attacker && !attacker.isBoss && !attacker.isTrueForm && _origDmg > 0) {
+    actualDmg = Math.min(actualDmg, Math.round(_origDmg * 3.5));
   }
   // Parry vulnerability: target was parry-stunned — takes 1.5× damage while open
   if (target && target._parryVulnFrames > 0) {

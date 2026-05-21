@@ -611,7 +611,7 @@ function _brUpdateBots() {
   var _fc = typeof frameCount !== 'undefined' ? frameCount : 0;
 
   minions.forEach(function(bot) {
-    if (!bot || !bot._brBot || bot.health <= 0 || !bot._brLanded) return;
+    if (!bot || !bot._brBot || bot.health <= 0 || !bot._brLanded || bot._brSleep) return;
     if (!bot._brInv) bot._brInv = [null, null, null, null, null];
 
     // ── 1. Intelligent item consumption ──────────────────────
@@ -710,6 +710,22 @@ function _brFakeTarget(wx, wy) {
 function _brCheckWin() {
   var all = players.concat(minions);
   brAlive = all.filter(function(f) { return f.health > 0; }).length;
+
+  // Safety net: if every surviving entity other than (possibly) P1 is asleep,
+  // the player can never reach them. Wake one sleeping bot per second so the
+  // game eventually resolves instead of stalling indefinitely.
+  if (brAlive > 1 && brLanded && typeof frameCount !== 'undefined' && frameCount % 60 === 0) {
+    var awakeCount = all.filter(function(f) { return f.health > 0 && !f._brSleep; }).length;
+    if (awakeCount <= 1) {
+      for (var _wi = 0; _wi < minions.length; _wi++) {
+        if (minions[_wi] && minions[_wi].health > 0 && minions[_wi]._brSleep) {
+          minions[_wi]._brSleep = false;
+          break;  // one per second — avoids frame-rate spike from mass wakeup
+        }
+      }
+    }
+  }
+
   if (brAlive <= 1 && !brWinner && gameRunning) {
     brWinner = all.find(function(f) { return f.health > 0; }) || null;
     var msg  = brWinner ? '#1  ' + (brWinner.name || 'P1') + '  WINS!' : 'DRAW!';
@@ -763,14 +779,20 @@ function _brUpdateSpectate() {
 // BOT SLEEP CULLING — freeze bots far from camera each frame
 // ============================================================
 function _brCullBots() {
+  // In endgame (≤10 alive) wake everyone — frozen bots would be unkillable otherwise.
+  var endgame = brAlive <= 10;
   var camX = typeof camXCur !== 'undefined' ? camXCur : BR_WORLD_W / 2;
   var camY = typeof camYCur !== 'undefined' ? camYCur : BR_WORLD_H / 2;
   minions.forEach(function(bot) {
     if (!bot._brBot || bot.health <= 0) return;
     // Never sleep bots still falling — they need gravity to land
     if (bot._brDropped && !bot._brLanded) { bot._brSleep = false; return; }
+    if (endgame) { bot._brSleep = false; return; }
     var dx = Math.abs(bot.cx() - camX);
     var dy = Math.abs(bot.cy() - camY);
+    // Only sleep bots that are also safely inside the zone — bots outside the zone
+    // still need storm-damage applied each tick (which happens in _brZoneDamage regardless
+    // of sleep state), but bots inside the zone that are far away can safely freeze.
     bot._brSleep = (dx > 2000 || dy > 1200);
   });
 }

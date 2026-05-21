@@ -259,11 +259,12 @@ Script load order in `Stickman-Battles/index.html` — files may only reference 
 119. `js/smb-multiverse.js` — Multiverse mode
 120. `js/smb-multiplayer-chaos.js` — Multiplayer chaos extensions
 121. `js/smb-designer.js` — Level designer tool
-122. `js/smb-test-tools.js` — Test/QA tooling (loaded last)
+122. `js/smb-test-tools.js` — Test/QA tooling
+123. `js/smb-replay.js` — Match replay recording, storage (IndexedDB, up to 3 replays), download, and viewer (loaded last)
 
 Dependencies: GSAP 3.12.5 (CDN), PeerJS 1.5.4 (CDN).
 
-**Cache-busting:** All `<script>` tags use `?v=3.1.0`. When adding a new script to `index.html`, match the current version suffix. Bump the version string across all tags when shipping a breaking change.
+**Cache-busting:** All `<script>` tags use `?v=3.2.0`. When adding a new script to `index.html`, match the current version suffix. Bump the version string across all tags when shipping a breaking change.
 
 ---
 

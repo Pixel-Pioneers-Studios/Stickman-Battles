@@ -30,9 +30,9 @@ for (const _ch of STORY_CHAPTERS2) {
 //           III Rifts / Veran      (13–28)  ← Lab truth revealed at 28
 //           IV  Rural              (29–45)
 //           V   Stickman Universe  (46–62)
-//           VI  Damnation + Multiverse + Fallen God (63–77)
-//           VII Creator            (78–93)
-//           VIII True Form — FINAL (94–96)
+//           VI  Damnation + Multiverse + Fallen God + Betrayal (63–82)
+//           VII Creator            (83–98)
+//           VIII True Form — FINAL (99–101)
 const STORY_ACT_STRUCTURE = [
   {
     id: 'act1', label: 'Act I — Initial Encounter', color: '#88aacc',
@@ -70,28 +70,29 @@ const STORY_ACT_STRUCTURE = [
     ],
   },
   {
-    // Damnation gateway (63–65) + multiverse trials (66–73) + Fallen God (74–77)
+    // Damnation gateway (63–65) + multiverse trials (66–73) + Fallen God (74–77) + The Betrayal (78–82)
     id: 'act6', label: 'Act VI — The Loop & Multiverse', color: '#bb88ff',
     arcs: [
       { id: 'arc5-damnation', label: 'The Damnation Loop',   chapterRange: [63, 65] },
       { id: 'arc4mv-0',       label: 'War & Flux',           chapterRange: [66, 69] },
       { id: 'arc4mv-1',       label: 'Shadow & Titan',       chapterRange: [70, 73] },
       { id: 'arc5-godfall',   label: 'The Fallen God',       chapterRange: [74, 77] },
+      { id: 'arc5-betrayal',  label: 'The Betrayal',         chapterRange: [78, 82] },
     ],
   },
   {
     id: 'act7', label: 'Act VII — Creator', color: '#dd3344',
     arcs: [
-      { id: 'arc4-0', label: 'The Creator\'s Threshold', chapterRange: [78, 85] },
-      { id: 'arc4-1', label: 'The Final Architecture',   chapterRange: [86, 93] },
+      { id: 'arc4-0', label: 'The Creator\'s Threshold', chapterRange: [83, 90] },
+      { id: 'arc4-1', label: 'The Final Architecture',   chapterRange: [91, 98] },
     ],
   },
   {
     // True Form — absolute final act, nothing follows
     id: 'act8', label: 'Act VIII — True Form', color: '#cc44ff',
     arcs: [
-      { id: 'arc5-0', label: 'Into the Void',       chapterRange: [94, 94] },
-      { id: 'arc5-1', label: 'Final Confrontation', chapterRange: [95, 96] },
+      { id: 'arc5-0', label: 'Into the Void',       chapterRange: [99,  99]  },
+      { id: 'arc5-1', label: 'Final Confrontation', chapterRange: [100, 101] },
     ],
   },
 ];

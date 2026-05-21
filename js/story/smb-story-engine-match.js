@@ -233,6 +233,7 @@ function story2OnMatchEnd(playerWon) {
   if (_firstClear) {
     _story2.defeated.push(ch.id);
     if (typeof playerPowerLevel !== 'undefined') playerPowerLevel = Math.min(3.0, playerPowerLevel + 0.02);
+    if (typeof unlockAchievement === 'function') unlockAchievement('story_begin');
     // Immediately commit defeated list to account.data so it survives before saveGame flushes
     const _acctD = window.GameState ? GameState.getActiveAccount() : null;
     if (_acctD && _acctD.data) {
@@ -363,6 +364,7 @@ function _completeChapter2(ch) {
 
 function _completeStory2() {
   _story2.storyComplete = true;
+  if (typeof unlockAchievement === 'function') unlockAchievement('story_complete');
   if (typeof setAccountFlagWithRuntime === 'function') {
     setAccountFlagWithRuntime(['unlocks', 'storyOnline'], true, function(v) { storyOnline = v; });
   } else {
@@ -407,7 +409,12 @@ function _showStory2Victory(ch) {
     rewardEl.innerHTML = html;
   }
 
-  const nextCh = STORY_CHAPTERS2[ch.id + 1];
+  // Find the next VISIBLE chapter for the button label (skip over hidden transition chapters)
+  let _nextVisIdx = ch.id + 1;
+  while (STORY_CHAPTERS2[_nextVisIdx] && STORY_CHAPTERS2[_nextVisIdx]._menuHidden) _nextVisIdx++;
+  const nextCh = STORY_CHAPTERS2[ch.id + 1];    // first immediate next (may be hidden)
+  const nextVisCh = STORY_CHAPTERS2[_nextVisIdx]; // first visible next
+
   if (nextBtn) {
     if (ch.id === 0) {
       // First chapter beaten — offer "Continue to Game" to unlock the main menu
@@ -427,7 +434,7 @@ function _showStory2Victory(ch) {
       };
     } else if (nextCh && !ch.isEpilogue) {
       nextBtn.style.display = '';
-      nextBtn.textContent = '▶ Continue: ' + nextCh.title;
+      nextBtn.textContent = '▶ Continue' + (nextVisCh ? ': ' + nextVisCh.title : '');
       nextBtn.style.cssText = 'padding:12px 28px;font-size:1rem;font-weight:800;letter-spacing:1px;background:linear-gradient(135deg,#1a8a44,#22bb66);border:none;border-radius:10px;color:#fff;cursor:pointer;box-shadow:0 4px 20px rgba(0,200,80,0.5);width:100%;margin-top:8px;';
       nextBtn.onclick = () => storyVictoryNextChapter();
     } else {

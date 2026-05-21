@@ -106,6 +106,13 @@ function triggerFinisher(attacker, target) {
   // Completely stop the game world — physics, particles, everything freezes
   slowMotion = 0;
 
+  // Achievement tracking — only credit the human player's finishers
+  if (!attacker.isAI && !attacker.isBoss && typeof unlockAchievement === 'function') {
+    _achStats.finisherCount = (_achStats.finisherCount || 0) + 1;
+    unlockAchievement('first_finisher');
+    if (_achStats.finisherCount >= 10) unlockAchievement('finisher_master');
+  }
+
   return true;
 }
 
@@ -121,11 +128,23 @@ function updateFinisher() {
   // Keep attacker from drifting under gravity
   attacker.invincible = Math.max(attacker.invincible, 2);
 
+  // Auto motion trail: enable on attacker from frame 1, disable when finisher ends
+  if (activeFinisher.timer === 1 && typeof CinFX !== 'undefined') {
+    CinFX.motionTrailOn(attacker, def.accentColor || attacker.color || '#ffffff');
+  }
+
+  // Auto name card: slam in at frame 18 using the finisher's name property
+  if (activeFinisher.timer === 18 && def.name && typeof CinFX !== 'undefined') {
+    CinFX.nameCard(def.name, def.accentColor || '#ffffff', { dur: Math.min(90, def.duration - 28) });
+  }
+
   if (def.update) def.update(attacker, target, activeFinisher.timer, data);
 
   activeFinisher.timer++;
 
   if (activeFinisher.timer >= activeFinisher.totalDuration) {
+    // Clean up motion trail on attacker
+    if (typeof CinFX !== 'undefined') CinFX.motionTrailOff(activeFinisher.attacker);
     // Restore camera / time
     CinCam.restore();
     slowMotion = 1.0; // resume game world

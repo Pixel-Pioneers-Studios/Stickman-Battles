@@ -403,6 +403,38 @@ function updateCamera() {
     }
   }
 
+  // ── HUD player-visibility clamp ──────────────────────────────────────────────
+  // The canvas buffer (canvas.height px tall) is CSS-displayed as
+  // (window.innerHeight - _hudScreenH) px, anchored at CSS y=0, directly behind
+  // the opaque HUD bar.  Buffer pixel Y maps to CSS Y = bufY * cssH / canvas.height,
+  // which is *less* than bufY — so content near the top of the buffer renders
+  // higher on screen than the plain _hudGU calculation expects.
+  //
+  // This clamp enforces: the topmost active player's top edge always appears at
+  // least _HUD_GAP CSS pixels below the HUD's bottom edge, in every camera mode.
+  const _HUD_GAP = 24; // minimum gap in CSS px between HUD bottom and player top
+  if (!cinematicCamOverride && gameRunning && _hudScreenH > 0 && activePlayers.length > 0) {
+    const _cssCH = Math.max(window.innerHeight - _hudScreenH, 1);
+    // The buffer-pixel row that corresponds to (HUD bottom + gap) in CSS:
+    const _hudBufLimit = (_hudScreenH + _HUD_GAP) * canvas.height / _cssCH;
+    // For the topmost player at world-Y = _topmostY we need:
+    //   (_topmostY - camYCur) * finalScY + canvas.height/2  >=  _hudBufLimit
+    // →  camYCur  <=  _topmostY + (canvas.height/2 - _hudBufLimit) / finalScY
+    let _topmostY = Infinity;
+    for (const _hap of activePlayers) { if (_hap.y < _topmostY) _topmostY = _hap.y; }
+    if (isFinite(_topmostY)) {
+      const _bSc = Math.min(canvas.width / GAME_W, canvas.height / GAME_H);
+      const _fSc = _bSc * camZoomCur;
+      if (_fSc > 0) {
+        const _hudCamMax = _topmostY + (canvas.height / 2 - _hudBufLimit) / _fSc;
+        if (camYCur > _hudCamMax) {
+          camYCur    = _hudCamMax;
+          camYTarget = Math.min(camYTarget, _hudCamMax);
+        }
+      }
+    }
+  }
+
   // ── CAMERA FAILSAFE: player out of view → instant partial snap ───────────────
   // Cooldown prevents repeated snaps each frame (causes shudder when lerp fights snap).
   if (_camSnapCooldown > 0) _camSnapCooldown--;

@@ -44,9 +44,10 @@ function _startGameCore() {
     currentArenaKey = (mvWorld && mvWorld.arenaKey) ? mvWorld.arenaKey : 'homeAlley';
   } else if (isBossMode) {
     currentArenaKey = 'creator';
+  } else if (isTrainingMode) {
+    currentArenaKey = 'training';
   } else if (isTrueFormMode) {
     currentArenaKey = 'void';
-    resetTFState();
   } else if (isDamnationMode) {
     currentArenaKey = 'damnation';
     if (typeof resetDamnationState === 'function') resetDamnationState();
@@ -78,7 +79,7 @@ function _startGameCore() {
   }
   isRandomMapMode = (selectedArena === 'random' && !isCompleteRandMode);
   // Lava/void: no randomization
-  if (currentArenaKey !== 'creator' && currentArenaKey !== 'god_domain' && currentArenaKey !== 'lava' && currentArenaKey !== 'void' && currentArenaKey !== 'soccer' && currentArenaKey !== 'damnation' && currentArenaKey !== 'sovereign' && !isExploreMode && !isBattleRoyaleMode && !isEscortMode) randomizeArenaLayout(currentArenaKey);
+  if (currentArenaKey !== 'creator' && currentArenaKey !== 'god_domain' && currentArenaKey !== 'lava' && currentArenaKey !== 'void' && currentArenaKey !== 'soccer' && currentArenaKey !== 'damnation' && currentArenaKey !== 'sovereign' && currentArenaKey !== 'training' && !isExploreMode && !isBattleRoyaleMode && !isEscortMode) randomizeArenaLayout(currentArenaKey);
   currentArena = ARENAS[currentArenaKey];
   if (typeof buildGraphForCurrentArena === 'function') buildGraphForCurrentArena();
   initMapPerks(currentArenaKey);
@@ -144,7 +145,11 @@ function _startGameCore() {
   yetiCooldown       = 0;
   bossBeams          = [];
   bossSpikes         = [];
+  // Unconditional TF/boss global reset — clears all attack state arrays regardless of mode
+  // so hazards from a previous game never carry damage into the next one.
   if (typeof resetBossWarnings === 'function') resetBossWarnings();
+  if (typeof resetTFState === 'function') resetTFState();
+  if (typeof DomainManager !== 'undefined') DomainManager.reset();
   trainingDummies    = [];
   bossDialogue       = { text: '', timer: 0 };
   backstagePortals   = [];
@@ -353,7 +358,7 @@ function _startGameCore() {
     // Adaptive AI: P1 vs the learning AdaptiveAI opponent
     // Sovereign mode uses SovereignMK2 (enhanced); story adaptive uses base AdaptiveAI
     p1.isAI  = false;
-    p1.lives = chosenLives;
+    p1.lives = isSovereignMode ? Math.max(chosenLives, 5) : chosenLives;
     // Pick a weapon for the AI — Sovereign always uses nullblade; adaptive uses a random melee set
     const _aiWeapons = ['sword','axe','spear','hammer','scythe','voidblade'];
     const _aiWeapon  = isSovereignMode ? 'nullblade' : _aiWeapons[Math.floor(Math.random() * _aiWeapons.length)];

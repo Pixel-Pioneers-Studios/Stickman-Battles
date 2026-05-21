@@ -89,6 +89,7 @@ function drawBackground() {
   if (currentArenaKey === 'realmEntry')  drawRealmEntryArena();
   if (currentArenaKey === 'bossSanctum') drawBossSanctumArena();
   if (currentArenaKey === 'god_domain')  drawGodDomainArena();
+  if (currentArenaKey === 'absolute_axiom_domain') drawAbsoluteAxiomArena();
 
   // Exploration: tile the style-appropriate background across world width
   if (currentArena && currentArena.isExploreArena) {

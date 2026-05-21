@@ -148,7 +148,20 @@ function _beginChapter2(idx) {
   }
 
   if (ch.noFight) {
-    _showStory2Narrative(ch.narrative, () => _completeChapter2(ch));
+    _showStory2Narrative(ch.narrative, () => {
+      if (ch._menuHidden) {
+        // Silent completion — no victory screen. Mark done and chain to the next chapter.
+        if (!_story2.defeated.includes(ch.id)) _story2.defeated.push(ch.id);
+        _story2.tokens += ch.tokenReward || 0;
+        _story2.chapter = Math.max(_story2.chapter, ch.id + 1);
+        if (typeof _saveStory2 === 'function') _saveStory2();
+        const _nextCh = STORY_CHAPTERS2[ch.id + 1];
+        if (_nextCh) _beginChapter2(ch.id + 1);
+        else if (typeof openStoryMenu === 'function') openStoryMenu();
+      } else {
+        _completeChapter2(ch);
+      }
+    });
     return;
   }
 
@@ -177,43 +190,43 @@ function _directLaunchChapter(ch) {
   }
 }
 
-// Reuse the existing storyDialoguePanel for narrative display.
+// Show narrative as an animated canvas scene (replaces the static black panel).
 function _showStory2Narrative(lines, callback) {
-  const panel   = document.getElementById('storyDialoguePanel');
-  const chEl    = document.getElementById('storyDialogueChapter');
-  const titleEl = document.getElementById('storyDialogueTitle');
-  const bodyEl  = document.getElementById('storyDialogueBody');
-  const btn     = document.getElementById('storyDialogueFightBtn');
-
-  if (!panel || !lines || !lines.length) { _narrativeActive = false; if (callback) callback(); return; }
+  if (!lines || !lines.length) { _narrativeActive = false; if (callback) callback(); return; }
 
   _narrativeActive = true;
-  let idx = 0;
 
-  function showLine() {
-    if (idx >= lines.length) {
-      panel.style.display = 'none';
+  if (typeof showNarrativeScene === 'function') {
+    showNarrativeScene(lines, _activeStory2Chapter, function () {
       _narrativeActive = false;
-      callback();
-      return;
+      if (callback) callback();
+    });
+  } else {
+    // Fallback: legacy DOM panel if scene renderer not loaded
+    const panel   = document.getElementById('storyDialoguePanel');
+    const bodyEl  = document.getElementById('storyDialogueBody');
+    const btn     = document.getElementById('storyDialogueFightBtn');
+    if (!panel) { _narrativeActive = false; if (callback) callback(); return; }
+    let idx = 0;
+    function showLine() {
+      if (idx >= lines.length) {
+        panel.style.display = 'none';
+        _narrativeActive = false;
+        if (callback) callback();
+        return;
+      }
+      bodyEl.innerHTML = `<p style="margin:0;font-size:0.93rem;color:#dde4ff;line-height:1.65;">${lines[idx]}</p>`;
+      idx++;
+      btn.textContent = idx < lines.length ? 'Next →' : (_activeStory2Chapter && _activeStory2Chapter.noFight ? 'Continue →' : '⚔️ Fight!');
+      btn.onclick = showLine;
     }
-    bodyEl.innerHTML = `<p style="margin:0;font-size:0.93rem;color:#dde4ff;line-height:1.65;">${lines[idx]}</p>`;
-    idx++;
-    btn.textContent = idx < lines.length ? 'Next →' : (_activeStory2Chapter && _activeStory2Chapter.noFight ? 'Continue →' : '⚔️ Fight!');
-    btn.onclick = showLine;
+    const chEl    = document.getElementById('storyDialogueChapter');
+    const titleEl = document.getElementById('storyDialogueTitle');
+    if (chEl)    chEl.textContent    = _activeStory2Chapter ? _worldIcon(_activeStory2Chapter.world) : '';
+    if (titleEl) titleEl.textContent = _activeStory2Chapter ? _activeStory2Chapter.title : '';
+    panel.style.display = 'flex';
+    showLine();
   }
-
-  if (chEl)    chEl.textContent   = _activeStory2Chapter ? _worldIcon(_activeStory2Chapter.world) : '';
-  if (titleEl) titleEl.textContent = _activeStory2Chapter ? _activeStory2Chapter.title : '';
-  // Show opponent name sub-label if available
-  const _diagOpp = document.getElementById('storyDialogueOpponent');
-  if (_diagOpp) {
-    const _oppName = _activeStory2Chapter && _activeStory2Chapter.opponentName;
-    _diagOpp.textContent = _oppName ? `vs. ${_oppName}` : '';
-    _diagOpp.style.display = _oppName ? '' : 'none';
-  }
-  panel.style.display = 'flex';
-  showLine();
 }
 
 function _showStory2PreFight(ch) {
@@ -363,6 +376,24 @@ function _launchChapter2Fight(ch) {
   // Escort chapter: protect an NPC to a goal position
   if (ch.type === 'escort') {
     _launchEscortChapter(ch);
+    return;
+  }
+
+  // Ship flight chapter: horizontal shmup with the assembled ship
+  if (ch.type === 'ship_flight') {
+    if (typeof _launchShipFlightChapter === 'function') _launchShipFlightChapter(ch);
+    return;
+  }
+
+  // Assassination chapter: defeat target before timer expires
+  if (ch.type === 'assassination') {
+    _launchAssassinationChapter(ch);
+    return;
+  }
+
+  // Gauntlet chapter: consecutive rounds without healing
+  if (ch.type === 'gauntlet') {
+    _launchGauntletChapter(ch);
     return;
   }
 
@@ -632,6 +663,125 @@ function _launchChapter2FightImmediate(ch) {
       bossFightLivesLock = false;
     }, 150);
   }
+}
+
+// ── Assassination chapter launch ──────────────────────────────────────────────
+function _launchAssassinationChapter(ch) {
+  const _storyModal = document.getElementById('storyModal');
+  if (_storyModal) _storyModal.style.display = 'none';
+
+  worldId        = getWorldForChapter(ch.id);
+  currentWorld   = STORY_WORLDS[worldId] || null;
+  worldModifiers = currentWorld ? currentWorld.modifier : null;
+  const _arc = getStoryArc(ch.id);
+  if (_arc) storyCurrentArc = _arc.id;
+
+  if (ch.arena) {
+    selectedArena = ch.arena;
+    const arSelect = document.getElementById('arenaSelect');
+    if (arSelect) arSelect.value = selectedArena;
+  }
+
+  storyFightScript    = Array.isArray(ch.fightScript) ? ch.fightScript.slice() : [];
+  storyFightScriptIdx = 0;
+  storyFightSubtitle  = null;
+
+  if (typeof selectLives === 'function') selectLives(ch.playerLives || 3);
+  infiniteMode = false;
+
+  const _sk = _story2.skillTree || {};
+  const _sa = (typeof storyState !== 'undefined') ? storyState.abilities : {};
+  storyPlayerOverride = {
+    noDoubleJump: !(_sk.doubleJump  || !!_sa.doubleJump),
+    noAbility:    !(_sk.weaponAbility || !!_sa.weaponAbility),
+    noSuper:      !(_sk.superMeter  || !!_sa.superMeter),
+    noClass:      !_sk.classUnlock,
+    noDodge:      !(_sk.dodge || !!_sa.dodge || storyDodgeUnlocked),
+    dmgMult:      1.0 + (_sk.heavyHit2 ? 0.25 : _sk.heavyHit1 ? 0.15 : 0),
+    speedMult:    1.0 + (_sk.fastMove2 ? 0.20 : _sk.fastMove1 ? 0.10 : 0),
+    jumpMult:     1.0 + (_sk.highJump2 ? 0.25 : _sk.highJump1 ? 0.15 : 0),
+  };
+
+  if (ch.weaponKey) { const w = document.getElementById('p2Weapon'); if (w) w.value = ch.weaponKey; }
+  if (ch.classKey)  { const c = document.getElementById('p2Class');  if (c) c.value = ch.classKey; }
+  if (ch.aiDiff)    { const d = document.getElementById('p2Difficulty'); if (d) d.value = ch.aiDiff; }
+
+  storyBossType       = null;
+  storyOpponentName   = ch.opponentName || 'Target';
+  storyEnemyArmor     = ch.armor || [];
+  storyTwoEnemies     = false;
+  storySecondEnemyDef = null;
+  storyModeActive     = true;
+  storyCurrentLevel   = Math.min(8, Math.floor(ch.id / 5) + 1);
+  gameMode            = 'assassination';
+  p2IsBot             = true;
+
+  if (typeof selectMode === 'function') selectMode('2p');
+
+  if (typeof setObjective === 'function') setObjective('Eliminate the target before they escape');
+
+  if (typeof startGame === 'function') startGame();
+  setTimeout(() => {
+    if (players[0]) _applySkillTreeToPlayer(players[0]);
+    if (typeof initAssassinationMode === 'function') initAssassinationMode(ch);
+  }, 80);
+}
+
+// ── Gauntlet chapter launch ────────────────────────────────────────────────────
+function _launchGauntletChapter(ch) {
+  const _storyModal = document.getElementById('storyModal');
+  if (_storyModal) _storyModal.style.display = 'none';
+
+  worldId        = getWorldForChapter(ch.id);
+  currentWorld   = STORY_WORLDS[worldId] || null;
+  worldModifiers = currentWorld ? currentWorld.modifier : null;
+  const _arc = getStoryArc(ch.id);
+  if (_arc) storyCurrentArc = _arc.id;
+
+  if (ch.arena) {
+    selectedArena = ch.arena;
+    const arSelect = document.getElementById('arenaSelect');
+    if (arSelect) arSelect.value = selectedArena;
+  }
+
+  storyFightScript    = Array.isArray(ch.fightScript) ? ch.fightScript.slice() : [];
+  storyFightScriptIdx = 0;
+  storyFightSubtitle  = null;
+
+  if (typeof selectLives === 'function') selectLives(ch.playerLives || 3);
+  infiniteMode = false;
+
+  const _sk = _story2.skillTree || {};
+  const _sa = (typeof storyState !== 'undefined') ? storyState.abilities : {};
+  storyPlayerOverride = {
+    noDoubleJump: !(_sk.doubleJump  || !!_sa.doubleJump),
+    noAbility:    !(_sk.weaponAbility || !!_sa.weaponAbility),
+    noSuper:      !(_sk.superMeter  || !!_sa.superMeter),
+    noClass:      !_sk.classUnlock,
+    noDodge:      !(_sk.dodge || !!_sa.dodge || storyDodgeUnlocked),
+    dmgMult:      1.0 + (_sk.heavyHit2 ? 0.25 : _sk.heavyHit1 ? 0.15 : 0),
+    speedMult:    1.0 + (_sk.fastMove2 ? 0.20 : _sk.fastMove1 ? 0.10 : 0),
+    jumpMult:     1.0 + (_sk.highJump2 ? 0.25 : _sk.highJump1 ? 0.15 : 0),
+  };
+
+  storyBossType       = null;
+  storyOpponentName   = ch.opponentName || 'Enemy';
+  storyEnemyArmor     = ch.armor || [];
+  storyTwoEnemies     = false;
+  storySecondEnemyDef = null;
+  storyModeActive     = true;
+  storyCurrentLevel   = Math.min(8, Math.floor(ch.id / 5) + 1);
+  gameMode            = 'gauntlet';
+  p2IsBot             = true;
+
+  if (typeof selectMode === 'function') selectMode('2p');
+  if (typeof setObjective === 'function') setObjective('Defeat all ' + (ch.gauntletRounds || 3) + ' rounds');
+
+  if (typeof startGame === 'function') startGame();
+  setTimeout(() => {
+    if (players[0]) _applySkillTreeToPlayer(players[0]);
+    if (typeof initGauntletMode === 'function') initGauntletMode(ch);
+  }, 80);
 }
 
 // ── World Boss variants ────────────────────────────────────────────────────────

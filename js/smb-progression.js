@@ -73,6 +73,8 @@ function checkShipCompletion() {
 
 /** Called once when the ship first becomes complete. */
 function _onShipBuilt() {
+    if (typeof unlockAchievement === 'function') unlockAchievement('ship_builder');
+
     // Show an ability-unlock-style toast if that system is available
     if (typeof abilityUnlockToast !== 'undefined') {
         abilityUnlockToast = {
@@ -172,6 +174,7 @@ function enterFracturePreview(id) {
     _spawnFractureGuardian(f, /*isPreview=*/true);
 
     f.previewed = true;
+    if (typeof unlockAchievement === 'function') unlockAchievement('fracture_explorer');
     _saveFractureState();
 }
 

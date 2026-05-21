@@ -17,11 +17,28 @@ const ADMIN_EMAILS = ['gupta.aarush2018@gmail.com'];
 
 // All achievement IDs — kept in sync with smb-achievements.js
 const _ADMIN_ALL_ACH_IDS = [
+  // Combat
   'first_blood', 'hat_trick', 'survivor', 'untouchable', 'combo_king',
-  'gunslinger', 'hammer_time', 'clash_master',
+  'perfectionist', 'legend', 'speedrun',
+  // Weapons & Classes
+  'gunslinger', 'hammer_time', 'clash_master', 'super_saver',
+  'class_collector',
+  // Finishers
+  'first_finisher', 'finisher_master',
+  // Minigames
   'wave_5', 'wave_10', 'survival_win', 'koth_win',
+  'chaos_survivor', 'chaos_all', 'nexus_defender',
+  // Online
+  'online_winner',
+  // Bosses
   'boss_slayer', 'true_form', 'yeti_hunter', 'beast_tamer',
-  'chaos_survivor', 'super_saver', 'speedrun', 'perfectionist',
+  'sovereign_slayer', 'god_slayer', 'absolute_axiom_slayer',
+  // Story
+  'story_begin', 'story_complete', 'lab_infiltrator',
+  // Multiverse
+  'multiverse_warrior', 'multiverse_master',
+  // Progression
+  'fracture_explorer', 'ship_builder',
 ];
 
 // ── Server-side admin overrides cache ─────────────────────────────────────────

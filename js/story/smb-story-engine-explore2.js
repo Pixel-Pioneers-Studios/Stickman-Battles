@@ -77,6 +77,13 @@ function updateExploration() {
     _updateSurvivalWave(p1);
   }
 
+  // New explore modes
+  if (typeof updateStealthMode  === 'function' && stealthModeActive)  updateStealthMode();
+  if (typeof updateEscapeMode   === 'function' && escapeModeActive)   updateEscapeMode();
+  if (typeof updateDefenseMode  === 'function' && defenseModeActive)  updateDefenseMode();
+  if (typeof updateScavengeMode === 'function' && scavengeModeActive) updateScavengeMode();
+  if (typeof updatePuzzleMode   === 'function' && puzzleModeActive)   updatePuzzleMode();
+
   const activeEnemyCount = minions.filter(m => m.health > 0).length;
   const inCombat = activeEnemyCount > 0 || !!players.find(p => p !== p1 && p.health > 0 && p.isAI);
   exploreCombatQuiet = inCombat ? 0 : (exploreCombatQuiet + 1);

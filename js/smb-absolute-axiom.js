@@ -62,8 +62,8 @@ class AbsoluteAxiom extends God {
 
     // Override stats
     this._phase      = 2; // always use God's phase-2 movement system
-    this.health      = 250000;
-    this.maxHealth   = 250000;
+    this.health      = 1000000;
+    this.maxHealth   = 1000000;
     this.dmgMult     = 4.5;
     this.kbBonus     = 1.3;
     this.kbResist    = 0.88;
@@ -76,6 +76,18 @@ class AbsoluteAxiom extends God {
     this._phase2Fired    = false;
     this._phase3Fired    = false;
     this._phase3SpeedMod = 1;
+
+    // Checkpoint system (every 200K dmg = 800/600/400/200/0K HP remaining)
+    this._checkpointThresholds = [800000, 600000, 400000, 200000, 100000];
+    this._checkpointsFired     = new Set();
+    this._checkpointQtePending = false;
+
+    // Portal invincibility: immune once below 100K until 5 portal allies are active
+    this._portalInvincible = false;
+    this._portalPhaseAnnounced = false;
+
+    // Dimension punch state
+    this._dimPunchCd = 0;
 
     // Pattern detection
     this._playerActions  = [];   // ring buffer, last 12 tagged actions
@@ -103,6 +115,15 @@ class AbsoluteAxiom extends God {
 
     // Re-init animation timers (override God's white values)
     this._haloAngles = [0, Math.PI / 3, Math.PI * 2 / 3];
+  }
+
+  // Block damage while portal-invincible
+  receiveDamage(dmg) {
+    if (this._portalInvincible) {
+      if (typeof spawnParticles === 'function') spawnParticles(this.cx(), this.cy(), '#8800ff', 5);
+      return;
+    }
+    this.health = Math.max(0, this.health - dmg);
   }
 
   respawn()       { this.health = 0; }
@@ -148,6 +169,30 @@ class AbsoluteAxiom extends God {
       }
       if (typeof spawnParticles === 'function') spawnParticles(this.cx(), this.cy(), '#ff4400', 40);
     }
+
+    // Checkpoint triggers
+    for (const threshold of this._checkpointThresholds) {
+      if (!this._checkpointsFired.has(threshold) && this.health <= threshold) {
+        this._checkpointsFired.add(threshold);
+        this._fireCheckpoint(threshold);
+      }
+    }
+
+    // Portal invincibility once below 100K HP
+    if (!this._portalPhaseAnnounced && this.health <= 100000) {
+      this._portalPhaseAnnounced = true;
+      this._portalInvincible = true;
+      if (typeof showBossDialogue === 'function') showBossDialogue('You cannot kill me alone. Summon your forces… or perish.', 300);
+      if (typeof CinFX !== 'undefined') { CinFX.flash('#8800ff', 0.6, 20); CinFX.flash('#000000', 0.5, 35); }
+      if (typeof screenShake !== 'undefined') screenShake = Math.max(screenShake, 40);
+    }
+    // Remove portal invincibility when enough allies are active
+    if (this._portalInvincible) {
+      const allyCount = (typeof minions !== 'undefined' ? minions : []).filter(m => m.isAAPortalAlly && m.health > 0).length;
+      if (allyCount >= 3) this._portalInvincible = false;
+    }
+
+    if (this._dimPunchCd > 0) this._dimPunchCd--;
 
     // Update active effects
     this._updateKernelPulse();
@@ -341,8 +386,9 @@ class AbsoluteAxiom extends God {
       else if (r < 0.92) this._doHolySmite();
       else               this._doColumnBarrage(target);
     } else { // phase 3
-      if (r < 0.12)      this._doDimShattering();
-      else if (r < 0.24) this._doColumnBarrage(target);
+      if (r < 0.10)      this._doDimensionPunch(target);
+      else if (r < 0.20) this._doDimShattering();
+      else if (r < 0.30) this._doColumnBarrage(target);
       else if (r < 0.34) this._doAbsoluteStrike(target);
       else if (r < 0.44) this._doKernelBeam(target);
       else if (r < 0.54) this._doSingularity(target);
@@ -665,6 +711,85 @@ class AbsoluteAxiom extends God {
       CinFX.flash('#8800ff', 0.5, 16);
       CinFX.flash('#000000', 0.4, 25);
     }
+  }
+
+  // ── Checkpoint ────────────────────────────────────────────────────────────
+  _fireCheckpoint(threshold) {
+    const label = Math.round((1000000 - threshold) / 1000) + 'K';
+    if (typeof showBossDialogue === 'function') showBossDialogue(`You\'ve dealt ${label}K damage. The fracture deepens…`, 220);
+    if (typeof screenShake !== 'undefined') screenShake = Math.max(screenShake, 24);
+    if (typeof CinFX !== 'undefined') CinFX.flash('#ffffff', 0.55, 18);
+    if (typeof spawnParticles === 'function') {
+      const GW = typeof GAME_W !== 'undefined' ? GAME_W : 900;
+      const GH = typeof GAME_H !== 'undefined' ? GAME_H : 520;
+      for (let i = 0; i < 6; i++) spawnParticles(GW * 0.1 + Math.random() * GW * 0.8, GH * 0.3 + Math.random() * GH * 0.4, '#cc00ff', 14);
+    }
+    // Trigger QTE if available
+    if (typeof _startQTE === 'function') {
+      const qteKey = `aa_checkpoint_${threshold}`;
+      if (typeof activeCinematic === 'undefined' || !activeCinematic) {
+        try {
+          _startQTE({ id: qteKey, stages: 4, windowMs: 1800, successDmg: 60000, source: this });
+        } catch(e) {}
+      }
+    }
+  }
+
+  // ── Dimension Punch ────────────────────────────────────────────────────────
+  _doDimensionPunch(target) {
+    if (!target || this._dimPunchCd > 0) return;
+    if (window._aaDimPunchState && window._aaDimPunchState.active) return;
+    this._dimPunchCd = 900; // 15s cooldown
+
+    // Deal the launch hit
+    if (typeof dealDamage === 'function') dealDamage(this, target, 350, 0);
+    if (typeof screenShake !== 'undefined') screenShake = Math.max(screenShake, 35);
+    if (typeof CinFX !== 'undefined') { CinFX.flash('#8800ff', 0.7, 20); CinFX.flash('#000000', 0.6, 30); }
+    if (typeof showBossDialogue === 'function') showBossDialogue('Feel the void between dimensions.', 200);
+
+    // Activate the full-screen space travel overlay
+    window._aaDimPunchState = {
+      active: true,
+      timer: 0,
+      duration: 340,    // frames total
+      returnAt: 280,    // when player "arrives back"
+      targetRef: target,
+      stars: Array.from({ length: 200 }, () => ({
+        x: Math.random(), y: Math.random(),
+        r: 0.5 + Math.random() * 2.5,
+        speed: 0.2 + Math.random() * 1.4,
+        col: ['#ffffff','#aaddff','#ffd4a8','#c8a8ff','#ffccaa'][Math.floor(Math.random() * 5)],
+      })),
+      planets: [
+        { relX: 0.18, relY: 0.55, r: 38, col: '#2a4080', ringCol: '#8899bb', hasRing: true,  passFrame: 60  },
+        { relX: 0.72, relY: 0.35, r: 26, col: '#803020', ringCol: null,      hasRing: false, passFrame: 110 },
+        { relX: 0.42, relY: 0.70, r: 52, col: '#305040', ringCol: '#55aa66', hasRing: true,  passFrame: 160 },
+        { relX: 0.85, relY: 0.60, r: 18, col: '#5530a0', ringCol: null,      hasRing: false, passFrame: 200 },
+        { relX: 0.30, relY: 0.28, r: 44, col: '#604010', ringCol: '#aa8844', hasRing: true,  passFrame: 240 },
+      ],
+      stickmenFights: [
+        { relX: 0.25, relY: 0.65, frame: 80  },
+        { relX: 0.60, relY: 0.45, frame: 140 },
+        { relX: 0.80, relY: 0.75, frame: 190 },
+      ],
+      ships: [
+        { relX: 0.55, relY: 0.30, vx: 0.0012, vy: 0.0004, frame: 50  },
+        { relX: 0.15, relY: 0.50, vx:-0.0008, vy: 0.0002, frame: 130 },
+        { relX: 0.70, relY: 0.65, vx: 0.0006, vy:-0.0005, frame: 220 },
+      ],
+      asteroids: Array.from({ length: 18 }, (_, i) => ({
+        relX: Math.random(), relY: Math.random(),
+        r: 4 + Math.random() * 10,
+        rot: Math.random() * Math.PI * 2,
+        vx: (Math.random() - 0.5) * 0.0014,
+        vy: (Math.random() - 0.5) * 0.0008,
+        frame: 30 + Math.floor(Math.random() * 220),
+      })),
+      galaxies: [
+        { relX: 0.08, relY: 0.15, rot: 0.4, frame: 20  },
+        { relX: 0.90, relY: 0.80, rot: 1.2, frame: 170 },
+      ],
+    };
   }
 
   // ── Draw ──────────────────────────────────────────────────────────────────
@@ -1174,4 +1299,704 @@ class AbsoluteAxiom extends God {
       ctx.restore();
     }
   }
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// RGS — Reinforced God Slayer loadout system
+// ══════════════════════════════════════════════════════════════════════════════
+const RGS_LOADOUTS = [
+  {
+    name: 'Sovereign Blade',
+    color: '#ffe066',
+    desc: 'Lightning sword — projectile slashes, thunder smash',
+    attackDesc: 'Volt Slash (projectile)',
+    qDesc: 'Thunder Cascade (AoE)',
+    superDesc: 'Sky Judgment (column storm)',
+  },
+  {
+    name: 'Void Lancer',
+    color: '#cc88ff',
+    desc: 'Draupnir spears — homing duplicates, void barrage',
+    attackDesc: 'Spear Clone Volley',
+    qDesc: 'Void Rupture (AoE pull)',
+    superDesc: 'Draupnir Storm (16 homing)',
+  },
+  {
+    name: 'Reality Breaker',
+    color: '#00ffcc',
+    desc: 'Time bubble + fracture rift, rewind damage',
+    attackDesc: 'Fracture Bolt',
+    qDesc: 'Time Bubble (slow field)',
+    superDesc: 'Reality Collapse (DoT zone)',
+  },
+];
+
+// RGS runtime state (attached to player object on activation)
+function _initRGS(player) {
+  if (player._rgsActive) return;
+  player._rgsActive      = true;
+  player._rgsLoadout     = 0;     // 0/1/2
+  player._rgsJumpsLeft   = 4;     // extra air jumps (total 5 with base)
+  player._rgsOnGround    = false;
+  player._rgsHpRegen     = 0;     // regen accumulator
+  player._rgsAbilityCd   = 0;
+  player._rgsSuperCd     = 0;
+  player._rgsPortalCd    = 0;
+  player._rgsSpears      = [];    // active void lancer spears
+  player._rgsTimeBubbles = [];    // active time bubbles
+  player._rgsRiftZones   = [];    // reality breaker DoT zones
+  player._rgsLightning   = [];    // sovereign lightning strikes
+  // Global perks
+  player.kbResist = Math.max(player.kbResist || 0, 0.55);
+  if (typeof showBossDialogue === 'function') showBossDialogue('Reinforced God Slayer activated.', 180);
+  if (typeof CinFX !== 'undefined') CinFX.flash('#ffe066', 0.5, 16);
+}
+
+function _updateRGS(aa, player) {
+  if (!player || player.health <= 0) return;
+  if (!aa || !aa.isAbsoluteAxiom) return;
+  _initRGS(player);
+
+  const GW = typeof GAME_W !== 'undefined' ? GAME_W : 900;
+  const GH = typeof GAME_H !== 'undefined' ? GAME_H : 520;
+  const load = player._rgsLoadout;
+
+  // ── HP Regen (2 HP/frame = ~120/s, very slow for 1M fight) ───────────────
+  player._rgsHpRegen++;
+  if (player._rgsHpRegen >= 30) {
+    player._rgsHpRegen = 0;
+    if (player.health < player.maxHealth) player.health = Math.min(player.maxHealth, player.health + 2);
+  }
+
+  // ── Quintuple jump: restore canDoubleJump if extra jumps remain ───────────
+  const onGround = player.onGround || player.grounded || (player.vy === 0 && player.y + player.h >= GH - 70);
+  if (onGround) {
+    player._rgsJumpsLeft = 4;
+    player._rgsOnGround  = true;
+  } else if (player._rgsOnGround) {
+    player._rgsOnGround = false;
+  }
+  // Intercept double-jump exhaustion
+  if (!onGround && !player.canDoubleJump && player._rgsJumpsLeft > 0) {
+    player.canDoubleJump = true;
+    player._rgsJumpsLeft--;
+  }
+
+  // ── Cooldowns ─────────────────────────────────────────────────────────────
+  if (player._rgsAbilityCd  > 0) player._rgsAbilityCd--;
+  if (player._rgsSuperCd    > 0) player._rgsSuperCd--;
+  if (player._rgsPortalCd   > 0) player._rgsPortalCd--;
+
+  // ── Damage resistance — halve all incoming knockback ─────────────────────
+  // (enforced by kbResist set in _initRGS; also cap received damage)
+
+  // ── T key — portal summon ─────────────────────────────────────────────────
+  const keys = typeof keysDown !== 'undefined' ? keysDown : {};
+  if ((keys['t'] || keys['T']) && !player._rgsTHeld && player._rgsPortalCd <= 0) {
+    player._rgsTHeld = true;
+    player._rgsPortalCd = 600;
+    _rgsPortalSummon(player, aa);
+  }
+  if (!keys['t'] && !keys['T']) player._rgsTHeld = false;
+
+  // ── X key — loadout switch ────────────────────────────────────────────────
+  if ((keys['x'] || keys['X']) && !player._rgsXHeld) {
+    player._rgsXHeld = true;
+    player._rgsLoadout = (player._rgsLoadout + 1) % 3;
+    player._rgsAbilityCd = 30; // brief switch delay
+    if (typeof CinFX !== 'undefined') CinFX.flash(RGS_LOADOUTS[player._rgsLoadout].color, 0.3, 8);
+  }
+  if (!keys['x'] && !keys['X']) player._rgsXHeld = false;
+
+  // ── Q key — loadout ability ───────────────────────────────────────────────
+  if ((keys['q'] || keys['Q']) && !player._rgsQHeld && player._rgsAbilityCd <= 0) {
+    player._rgsQHeld = true;
+    _rgsUseAbility(player, aa, load);
+    player._rgsAbilityCd = 240;
+  }
+  if (!keys['q'] && !keys['Q']) player._rgsQHeld = false;
+
+  // ── Update active effects ─────────────────────────────────────────────────
+  _rgsUpdateEffects(player, aa);
+}
+
+function _rgsUseAbility(player, aa, load) {
+  const GW = typeof GAME_W !== 'undefined' ? GAME_W : 900;
+  const GH = typeof GAME_H !== 'undefined' ? GAME_H : 520;
+  if (load === 0) {
+    // Thunder Cascade — lightning strikes in 5 columns around aa
+    if (typeof showBossDialogue === 'function') showBossDialogue('Thunder Cascade!', 80);
+    for (let i = -2; i <= 2; i++) {
+      const lx = aa.cx() + i * 55;
+      player._rgsLightning.push({ x: lx, timer: 0, maxTimer: 40, hitDealt: false });
+    }
+    if (typeof screenShake !== 'undefined') screenShake = Math.max(screenShake, 18);
+  } else if (load === 1) {
+    // Void Rupture — pull aa toward player then burst
+    const dx = player.cx() - aa.cx(), dy = (player.y + player.h / 2) - (aa.y + aa.h / 2);
+    const d = Math.hypot(dx, dy) || 1;
+    aa.vx += (dx / d) * 22;
+    if (typeof dealDamage === 'function') dealDamage(player, aa, 4800, 12);
+    if (typeof spawnParticles === 'function') spawnParticles(aa.cx(), aa.cy(), '#cc88ff', 22);
+    if (typeof screenShake !== 'undefined') screenShake = Math.max(screenShake, 14);
+  } else {
+    // Time Bubble — slow field around player
+    player._rgsTimeBubbles.push({ x: player.cx(), y: player.y + player.h / 2, r: 0, maxR: 120, timer: 0, maxTimer: 200 });
+    if (typeof showBossDialogue === 'function') showBossDialogue('Time Bubble!', 80);
+  }
+}
+
+function _rgsUpdateEffects(player, aa) {
+  const GW = typeof GAME_W !== 'undefined' ? GAME_W : 900;
+  const GH = typeof GAME_H !== 'undefined' ? GAME_H : 520;
+
+  // Lightning strikes
+  for (let i = player._rgsLightning.length - 1; i >= 0; i--) {
+    const l = player._rgsLightning[i];
+    l.timer++;
+    if (!l.hitDealt && l.timer >= l.maxTimer - 5) {
+      l.hitDealt = true;
+      if (typeof dealDamage === 'function' && Math.abs(aa.cx() - l.x) < 60) dealDamage(player, aa, 3600, 8);
+      if (typeof spawnParticles === 'function') spawnParticles(l.x, GH * 0.5, '#ffe066', 16);
+    }
+    if (l.timer >= l.maxTimer + 20) player._rgsLightning.splice(i, 1);
+  }
+
+  // Homing spears (Void Lancer attack)
+  for (let i = player._rgsSpears.length - 1; i >= 0; i--) {
+    const sp = player._rgsSpears[i];
+    sp.timer++;
+    // Home toward aa
+    const tx = aa.cx() - sp.x, ty = aa.cy() - sp.y;
+    const d = Math.hypot(tx, ty) || 1;
+    sp.vx += (tx / d) * 0.9;
+    sp.vy += (ty / d) * 0.9;
+    const spd = Math.hypot(sp.vx, sp.vy);
+    if (spd > 14) { sp.vx = sp.vx / spd * 14; sp.vy = sp.vy / spd * 14; }
+    sp.x += sp.vx; sp.y += sp.vy;
+    if (!sp.hit && Math.hypot(aa.cx() - sp.x, aa.cy() - sp.y) < 30) {
+      sp.hit = true;
+      if (typeof dealDamage === 'function') dealDamage(player, aa, 5500, 10);
+      if (typeof spawnParticles === 'function') spawnParticles(sp.x, sp.y, '#cc88ff', 14);
+    }
+    if (sp.timer > 180 || sp.hit) player._rgsSpears.splice(i, 1);
+  }
+
+  // Time bubbles — slow aa if inside
+  for (let i = player._rgsTimeBubbles.length - 1; i >= 0; i--) {
+    const tb = player._rgsTimeBubbles[i];
+    tb.timer++;
+    tb.r = Math.min(tb.maxR, tb.r + 4);
+    if (typeof aa !== 'undefined' && Math.hypot(aa.cx() - tb.x, aa.cy() - tb.y) < tb.r) {
+      // Slow aa movement
+      aa.vx *= 0.6;
+    }
+    if (tb.timer >= tb.maxTimer) player._rgsTimeBubbles.splice(i, 1);
+  }
+
+  // Rift zones (Reality Breaker super)
+  for (let i = player._rgsRiftZones.length - 1; i >= 0; i--) {
+    const rz = player._rgsRiftZones[i];
+    rz.timer++;
+    if (rz.timer % 20 === 0 && typeof dealDamage === 'function') {
+      if (Math.hypot(aa.cx() - rz.x, aa.cy() - rz.y) < rz.r) dealDamage(player, aa, 2800, 2);
+    }
+    if (rz.timer >= rz.maxTimer) player._rgsRiftZones.splice(i, 1);
+  }
+}
+
+// ── Portal summon ─────────────────────────────────────────────────────────────
+function _rgsPortalSummon(player, aa) {
+  if (typeof minions === 'undefined') return;
+  const GW = typeof GAME_W !== 'undefined' ? GAME_W : 900;
+  const GH = typeof GAME_H !== 'undefined' ? GAME_H : 520;
+  const spawnX = player.cx() + (Math.random() - 0.5) * 200;
+  const spawnY = GH - 120;
+  const ally = new AAPortalAlly(spawnX, spawnY, aa);
+  minions.push(ally);
+  if (typeof spawnParticles === 'function') spawnParticles(spawnX, spawnY, '#cc00ff', 22);
+  if (typeof CinFX !== 'undefined') CinFX.flash('#cc00ff', 0.3, 10);
+  if (typeof showBossDialogue === 'function') showBossDialogue('Portal opened — an ally enters the fray!', 140);
+}
+
+// ── Portal Ally class ─────────────────────────────────────────────────────────
+class AAPortalAlly extends Fighter {
+  constructor(x, y, aaRef) {
+    super(x, y);
+    this.isAAPortalAlly = true;
+    this.name           = 'PORTAL ALLY';
+    this.health         = 8000;
+    this.maxHealth      = 8000;
+    this._teamId        = 10;   // same side as players (different from AA's 50)
+    this._aaRef         = aaRef;
+    this._attackCd      = 0;
+    this._moveCd        = 0;
+    this.w              = 20;
+    this.h              = 40;
+    this._auraPhase     = Math.random() * Math.PI * 2;
+    this.kbResist       = 0.5;
+  }
+
+  update() {
+    if (this.health <= 0) return;
+    const aa = this._aaRef;
+    if (!aa || aa.health <= 0) return;
+
+    this._auraPhase += 0.08;
+    if (this._attackCd > 0) this._attackCd--;
+
+    const GW = typeof GAME_W !== 'undefined' ? GAME_W : 900;
+    const GH = typeof GAME_H !== 'undefined' ? GAME_H : 520;
+    const dx = aa.cx() - this.cx();
+    const dy = (aa.y + aa.h / 2) - (this.y + this.h / 2);
+    const d  = Math.hypot(dx, dy) || 1;
+
+    // Move toward aa
+    if (d > 50) {
+      this.vx = (dx / d) * 4.5;
+      if (d > 120 && this.onGround) this.vy = -10; // jump toward
+    } else {
+      this.vx *= 0.8;
+    }
+
+    // Melee
+    if (d < 65 && this._attackCd <= 0 && typeof dealDamage === 'function') {
+      dealDamage(this, aa, 1200, 5);
+      this._attackCd = 45;
+      if (typeof spawnParticles === 'function') spawnParticles(aa.cx(), aa.cy(), '#cc00ff', 8);
+    }
+
+    this.vy += 0.65; // gravity
+    this.x += this.vx;
+    this.y += this.vy;
+    // Simple floor collision
+    if (this.y + this.h >= GH - 60) { this.y = GH - 60 - this.h; this.vy = 0; this.onGround = true; }
+    else { this.onGround = false; }
+    this.x = Math.max(0, Math.min(GW - this.w, this.x));
+    this.facing = Math.sign(dx) || 1;
+  }
+
+  draw() {
+    if (this.health <= 0 || typeof ctx === 'undefined') return;
+    const cx = this.cx(), cy = this.y + this.h * 0.5;
+    const headY = this.y + 8;
+    const t = this._auraPhase;
+
+    ctx.save();
+    // Portal aura
+    const aGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, 36);
+    aGrad.addColorStop(0, 'rgba(180,0,255,0.18)');
+    aGrad.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = aGrad;
+    ctx.beginPath(); ctx.arc(cx, cy, 36, 0, Math.PI * 2); ctx.fill();
+
+    // Body
+    ctx.strokeStyle = '#cc44ff';
+    ctx.lineWidth   = 3.5;
+    ctx.shadowColor = '#cc00ff'; ctx.shadowBlur = 14;
+    ctx.lineCap     = 'round';
+    ctx.beginPath(); ctx.arc(cx, headY, 8, 0, Math.PI * 2); ctx.fillStyle = '#440066'; ctx.fill(); ctx.stroke();
+    const torsoY = headY + 8;
+    ctx.beginPath(); ctx.moveTo(cx, torsoY); ctx.lineTo(cx, torsoY + 18); ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(cx - 14, torsoY + 7 + Math.sin(t) * 3);
+    ctx.lineTo(cx, torsoY + 4);
+    ctx.lineTo(cx + 14, torsoY + 7 - Math.sin(t) * 3);
+    ctx.stroke();
+    const legY = torsoY + 18;
+    ctx.beginPath();
+    ctx.moveTo(cx, legY); ctx.lineTo(cx - 9, legY + 16 + Math.sin(t * 0.8) * 2);
+    ctx.moveTo(cx, legY); ctx.lineTo(cx + 9, legY + 16 - Math.sin(t * 0.8) * 2);
+    ctx.stroke();
+
+    // HP bar
+    const hp = this.health / this.maxHealth;
+    ctx.fillStyle = 'rgba(0,0,0,0.6)';
+    ctx.fillRect(cx - 20, this.y - 14, 40, 5);
+    ctx.fillStyle = '#cc00ff';
+    ctx.fillRect(cx - 20, this.y - 14, 40 * hp, 5);
+    ctx.restore();
+  }
+
+  cx() { return this.x + this.w / 2; }
+  cy() { return this.y + this.h / 2; }
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// RGS HUD — drawn in screen space from smb-loop-core hook
+// ══════════════════════════════════════════════════════════════════════════════
+function _drawRGSHud(W, H) {
+  const player = (typeof players !== 'undefined' && players[0]) ? players[0] : null;
+  if (!player || !player._rgsActive) return;
+
+  const aa = (typeof minions !== 'undefined') ? minions.find(m => m.isAbsoluteAxiom && m.health > 0) : null;
+
+  if (typeof ctx === 'undefined') return;
+  ctx.save();
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+
+  const load   = player._rgsLoadout;
+  const ldata  = RGS_LOADOUTS[load];
+  const panX   = 10, panY = H - 120;
+  const panW   = 240, panH = 110;
+
+  // Panel BG
+  ctx.fillStyle = 'rgba(0,0,0,0.65)';
+  _roundRect(ctx, panX, panY, panW, panH, 8);
+  ctx.fill();
+
+  // Loadout name + color bar
+  ctx.fillStyle = ldata.color;
+  _roundRect(ctx, panX, panY, panW, 24, 8);
+  ctx.fill();
+  ctx.fillStyle = '#000';
+  ctx.font = 'bold 11px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText(`[X] ${ldata.name}`, panX + panW / 2, panY + 15);
+
+  // Move descriptions
+  ctx.textAlign = 'left';
+  ctx.fillStyle = '#ddd';
+  ctx.font = '9px monospace';
+  ctx.fillText(`SPACE: ${ldata.attackDesc}`, panX + 8, panY + 36);
+  ctx.fillText(`Q (${player._rgsAbilityCd > 0 ? Math.ceil(player._rgsAbilityCd/60)+'s' : 'READY'}): ${ldata.qDesc}`, panX + 8, panY + 48);
+  ctx.fillText(`SUPER: ${ldata.superDesc}`, panX + 8, panY + 60);
+
+  // Jumps remaining
+  ctx.fillStyle = '#ffe066';
+  ctx.fillText(`JUMPS: `, panX + 8, panY + 74);
+  for (let j = 0; j < 4; j++) {
+    ctx.fillStyle = j < player._rgsJumpsLeft ? '#ffe066' : 'rgba(255,224,102,0.25)';
+    ctx.fillRect(panX + 56 + j * 14, panY + 64, 10, 8);
+  }
+
+  // Portal cooldown bar
+  const pcdFrac = player._rgsPortalCd > 0 ? 1 - player._rgsPortalCd / 600 : 1;
+  ctx.fillStyle = '#333';
+  ctx.fillRect(panX + 8, panY + 82, panW - 16, 7);
+  ctx.fillStyle = pcdFrac >= 1 ? '#cc00ff' : '#660099';
+  ctx.fillRect(panX + 8, panY + 82, (panW - 16) * pcdFrac, 7);
+  ctx.fillStyle = '#aaa';
+  ctx.font = '8px monospace';
+  ctx.textAlign = 'left';
+  ctx.fillText(pcdFrac >= 1 ? '[T] PORTAL READY' : `[T] ${Math.ceil(player._rgsPortalCd / 60)}s`, panX + 8, panY + 96);
+
+  // Ally count
+  const allyCount = (typeof minions !== 'undefined') ? minions.filter(m => m.isAAPortalAlly && m.health > 0).length : 0;
+  ctx.fillStyle = allyCount >= 3 ? '#00ffcc' : '#888';
+  ctx.textAlign = 'right';
+  ctx.fillText(`ALLIES: ${allyCount}/3`, panX + panW - 8, panY + 96);
+
+  // AA HP bar (top center)
+  if (aa) {
+    const barW = 360, barH = 18;
+    const bx   = (W - barW) / 2, by = 8;
+    const hpFrac = aa.health / aa.maxHealth;
+
+    ctx.fillStyle = 'rgba(0,0,0,0.75)';
+    _roundRect(ctx, bx - 2, by - 2, barW + 4, barH + 4, 4);
+    ctx.fill();
+
+    const barGrad = ctx.createLinearGradient(bx, by, bx + barW, by + barH);
+    barGrad.addColorStop(0,   '#ff2200');
+    barGrad.addColorStop(0.5, '#ff6600');
+    barGrad.addColorStop(1,   '#ff4400');
+    ctx.fillStyle = barGrad;
+    ctx.fillRect(bx, by, barW * hpFrac, barH);
+
+    // Checkpoint tick marks
+    const ticks = [0.8, 0.6, 0.4, 0.2, 0.1];
+    for (const tick of ticks) {
+      const tx = bx + barW * tick;
+      ctx.fillStyle = aa._checkpointsFired.has(Math.round(tick * 1000000)) ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.7)';
+      ctx.fillRect(tx - 1, by, 2, barH);
+    }
+
+    ctx.fillStyle = aa._portalInvincible ? '#cc00ff' : '#fff';
+    ctx.font      = 'bold 10px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText(
+      aa._portalInvincible ? '⚡ ABSOLUTE AXIOM — PORTAL INVINCIBLE ⚡' : '✦ ABSOLUTE AXIOM ✦',
+      W / 2, by - 3
+    );
+
+    // Portal invincible warning pulse
+    if (aa._portalInvincible) {
+      const pulse = 0.4 + 0.4 * Math.sin(Date.now() * 0.005);
+      ctx.strokeStyle = `rgba(200,0,255,${pulse})`;
+      ctx.lineWidth   = 2.5;
+      _roundRect(ctx, bx - 2, by - 2, barW + 4, barH + 4, 4);
+      ctx.stroke();
+    }
+  }
+
+  ctx.restore();
+}
+
+function _roundRect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + w - r, y);
+  ctx.arcTo(x + w, y, x + w, y + r, r);
+  ctx.lineTo(x + w, y + h - r);
+  ctx.arcTo(x + w, y + h, x + w - r, y + h, r);
+  ctx.lineTo(x + r, y + h);
+  ctx.arcTo(x, y + h, x, y + h - r, r);
+  ctx.lineTo(x, y + r);
+  ctx.arcTo(x, y, x + r, y, r);
+  ctx.closePath();
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// Dimension Punch overlay — full-screen space travel sequence
+// ══════════════════════════════════════════════════════════════════════════════
+function _drawDimPunchOverlay(W, H) {
+  const state = window._aaDimPunchState;
+  if (!state || !state.active) return;
+
+  state.timer++;
+  const t   = state.timer;
+  const dur = state.duration;
+
+  // Fade in / fade out
+  let alpha = 1;
+  if (t < 20)        alpha = t / 20;
+  if (t > dur - 30)  alpha = Math.max(0, (dur - t) / 30);
+
+  if (typeof ctx === 'undefined') return;
+  ctx.save();
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.globalAlpha = alpha;
+
+  // ── Deep space background ────────────────────────────────────────────────
+  const bgGrad = ctx.createLinearGradient(0, 0, 0, H);
+  bgGrad.addColorStop(0, '#000005');
+  bgGrad.addColorStop(0.5, '#04000e');
+  bgGrad.addColorStop(1, '#000810');
+  ctx.fillStyle = bgGrad;
+  ctx.fillRect(0, 0, W, H);
+
+  // ── Warp-speed star streaks ───────────────────────────────────────────────
+  const warpProgress = Math.min(t / 60, 1);
+  for (const star of state.stars) {
+    const streakLen = warpProgress * star.speed * 40;
+    const sx = star.x * W;
+    const sy = star.y * H;
+    const a  = 0.4 + star.speed * 0.4;
+    ctx.globalAlpha = alpha * a;
+    ctx.strokeStyle = star.col;
+    ctx.lineWidth   = star.r * 0.5;
+    ctx.beginPath();
+    ctx.moveTo(sx, sy);
+    ctx.lineTo(sx + streakLen * (sx / W - 0.5) * 0.5, sy + streakLen * (sy / H - 0.5) * 0.3);
+    ctx.stroke();
+    // Star dot
+    ctx.fillStyle = star.col;
+    ctx.beginPath(); ctx.arc(sx + streakLen * (sx / W - 0.5) * 0.5, sy, star.r * 0.7, 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.globalAlpha = alpha;
+
+  // ── Galaxy spirals ────────────────────────────────────────────────────────
+  for (const gal of state.galaxies) {
+    if (t < gal.frame) continue;
+    const gx = gal.relX * W, gy = gal.relY * H;
+    const galT = (t - gal.frame) / 120;
+    const galAlpha = Math.min(galT, 1) * 0.6;
+    ctx.globalAlpha = alpha * galAlpha;
+    ctx.save();
+    ctx.translate(gx, gy);
+    ctx.rotate(gal.rot + galT * 0.3);
+    for (let arm = 0; arm < 3; arm++) {
+      const armRot = (arm / 3) * Math.PI * 2;
+      for (let s = 0; s < 40; s++) {
+        const ang = armRot + s * 0.18;
+        const dist = s * 2.2;
+        const gsx  = Math.cos(ang) * dist, gsy = Math.sin(ang) * dist;
+        const col  = s < 10 ? '#ffffff' : (s < 25 ? '#aaddff' : '#8866aa');
+        ctx.fillStyle = col;
+        ctx.globalAlpha = alpha * galAlpha * (1 - s / 40);
+        ctx.beginPath(); ctx.arc(gsx, gsy, 1.5 - s * 0.02, 0, Math.PI * 2); ctx.fill();
+      }
+    }
+    ctx.restore();
+    ctx.globalAlpha = alpha;
+  }
+
+  // ── Planets ───────────────────────────────────────────────────────────────
+  for (const planet of state.planets) {
+    if (t < planet.passFrame) continue;
+    const passT  = Math.min((t - planet.passFrame) / 80, 1);
+    const pAlpha = passT < 0.5 ? passT * 2 : (1 - (passT - 0.5) * 2);
+    const px     = planet.relX * W + (t - planet.passFrame) * 0.3;
+    const py     = planet.relY * H;
+    ctx.globalAlpha = alpha * pAlpha * 0.9;
+
+    // Planet body
+    const pGrad = ctx.createRadialGradient(px - planet.r * 0.3, py - planet.r * 0.3, 0, px, py, planet.r);
+    pGrad.addColorStop(0, _lightenHex(planet.col, 60));
+    pGrad.addColorStop(0.6, planet.col);
+    pGrad.addColorStop(1, _darkenHex(planet.col, 40));
+    ctx.fillStyle = pGrad;
+    ctx.beginPath(); ctx.arc(px, py, planet.r, 0, Math.PI * 2); ctx.fill();
+
+    // Ring
+    if (planet.hasRing && planet.ringCol) {
+      ctx.save();
+      ctx.translate(px, py);
+      ctx.scale(1, 0.28);
+      ctx.strokeStyle = planet.ringCol;
+      ctx.lineWidth   = 4;
+      ctx.globalAlpha = alpha * pAlpha * 0.55;
+      ctx.beginPath(); ctx.arc(0, 0, planet.r * 1.7, 0, Math.PI * 2); ctx.stroke();
+      ctx.restore();
+    }
+
+    // Surface detail lines
+    ctx.save();
+    ctx.globalAlpha = alpha * pAlpha * 0.25;
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth   = 1;
+    for (let li = 0; li < 3; li++) {
+      const ly = py - planet.r * 0.4 + li * planet.r * 0.4;
+      const lw = Math.sqrt(Math.max(0, planet.r * planet.r - (ly - py) * (ly - py)));
+      ctx.beginPath(); ctx.moveTo(px - lw, ly); ctx.lineTo(px + lw, ly); ctx.stroke();
+    }
+    ctx.restore();
+    ctx.globalAlpha = alpha;
+  }
+
+  // ── Asteroids ─────────────────────────────────────────────────────────────
+  for (const ast of state.asteroids) {
+    if (t < ast.frame) continue;
+    ast.relX += ast.vx; ast.relY += ast.vy; ast.rot += 0.03;
+    const ax = ast.relX * W, ay = ast.relY * H;
+    const passT = Math.min((t - ast.frame) / 40, 1);
+    ctx.globalAlpha = alpha * passT * 0.75;
+    ctx.save();
+    ctx.translate(ax, ay);
+    ctx.rotate(ast.rot);
+    ctx.fillStyle = '#887766';
+    ctx.shadowColor = '#554433'; ctx.shadowBlur = 4;
+    ctx.beginPath();
+    ctx.ellipse(0, 0, ast.r, ast.r * 0.7, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+    ctx.globalAlpha = alpha;
+  }
+
+  // ── Ships ─────────────────────────────────────────────────────────────────
+  for (const ship of state.ships) {
+    if (t < ship.frame) continue;
+    ship.relX += ship.vx; ship.relY += ship.vy;
+    const sx   = ship.relX * W, sy = ship.relY * H;
+    const passT = Math.min((t - ship.frame) / 50, 1);
+    ctx.globalAlpha = alpha * passT * 0.8;
+    ctx.save();
+    ctx.translate(sx, sy);
+    ctx.rotate(Math.atan2(ship.vy, ship.vx));
+    // Simple angular ship shape
+    ctx.fillStyle = '#aabbcc';
+    ctx.beginPath();
+    ctx.moveTo(16, 0); ctx.lineTo(-10, 8); ctx.lineTo(-6, 0); ctx.lineTo(-10, -8); ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = 'rgba(100,200,255,0.7)';
+    ctx.beginPath(); ctx.arc(-5, 0, 3, 0, Math.PI * 2); ctx.fill();
+    // Engine glow
+    ctx.fillStyle = 'rgba(255,180,50,0.8)';
+    ctx.beginPath(); ctx.arc(-10, 0, 2.5, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+    ctx.globalAlpha = alpha;
+  }
+
+  // ── Stickmen fighting in space ─────────────────────────────────────────────
+  for (const sf of state.stickmenFights) {
+    if (t < sf.frame) continue;
+    const sfx = sf.relX * W, sfy = sf.relY * H;
+    const sfT = Math.min((t - sf.frame) / 60, 1);
+    ctx.globalAlpha = alpha * sfT * 0.7;
+    _drawSpaceStickFight(ctx, sfx, sfy, t - sf.frame);
+    ctx.globalAlpha = alpha;
+  }
+
+  // ── Return flash when player arrives back ──────────────────────────────────
+  if (t === state.returnAt) {
+    if (typeof CinFX !== 'undefined') { CinFX.flash('#ffffff', 0.9, 12); CinFX.flash('#8800ff', 0.5, 20); }
+    if (typeof screenShake !== 'undefined') screenShake = Math.max(screenShake, 30);
+  }
+
+  // ── "DIMENSION PUNCH" title ────────────────────────────────────────────────
+  if (t < 90) {
+    const titleAlpha = t < 30 ? t / 30 : t > 70 ? (90 - t) / 20 : 1;
+    ctx.globalAlpha = alpha * titleAlpha;
+    ctx.save();
+    ctx.shadowColor = '#cc00ff'; ctx.shadowBlur = 30;
+    ctx.fillStyle   = '#ffffff';
+    ctx.font        = 'bold 36px serif';
+    ctx.textAlign   = 'center';
+    ctx.fillText('DIMENSION PUNCH', W / 2, H * 0.45);
+    ctx.font        = '14px monospace';
+    ctx.fillStyle   = '#cc88ff';
+    ctx.fillText('ABSOLUTE AXIOM', W / 2, H * 0.45 + 28);
+    ctx.restore();
+    ctx.globalAlpha = alpha;
+  }
+
+  ctx.restore();
+
+  // End sequence
+  if (t >= dur) window._aaDimPunchState = null;
+}
+
+function _drawSpaceStickFight(ctx, x, y, ft) {
+  const bob = Math.sin(ft * 0.15) * 3;
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2.5; ctx.lineCap = 'round';
+  // Stickman A
+  ctx.globalAlpha *= 0.9;
+  ctx.beginPath(); ctx.arc(-18, -30 + bob, 6, 0, Math.PI * 2); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(-18, -24 + bob); ctx.lineTo(-18, -8 + bob);
+  ctx.moveTo(-18, -18 + bob); ctx.lineTo(-28, -12 + bob); // left arm
+  ctx.moveTo(-18, -18 + bob); ctx.lineTo(-9, -10 + bob + Math.sin(ft * 0.4) * 6); // right arm (attacking)
+  ctx.moveTo(-18, -8 + bob); ctx.lineTo(-24, 6 + bob);
+  ctx.moveTo(-18, -8 + bob); ctx.lineTo(-13, 6 + bob);
+  ctx.stroke();
+  // Sword
+  ctx.strokeStyle = '#ffe066'; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(-9, -10 + bob + Math.sin(ft * 0.4) * 6); ctx.lineTo(2, -20 + bob + Math.sin(ft * 0.4) * 8); ctx.stroke();
+  // Stickman B
+  ctx.strokeStyle = '#ff6644'; ctx.lineWidth = 2.5;
+  ctx.beginPath(); ctx.arc(18, -30 - bob, 6, 0, Math.PI * 2); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(18, -24 - bob); ctx.lineTo(18, -8 - bob);
+  ctx.moveTo(18, -18 - bob); ctx.lineTo(28, -12 - bob);
+  ctx.moveTo(18, -18 - bob); ctx.lineTo(8, -10 - bob - Math.sin(ft * 0.4) * 4);
+  ctx.moveTo(18, -8 - bob); ctx.lineTo(24, 6 - bob);
+  ctx.moveTo(18, -8 - bob); ctx.lineTo(12, 6 - bob);
+  ctx.stroke();
+  ctx.restore();
+}
+
+function _lightenHex(hex, amt) {
+  let n = parseInt(hex.replace('#',''), 16);
+  const r = Math.min(255, (n >> 16) + amt);
+  const g = Math.min(255, ((n >> 8) & 0xff) + amt);
+  const b = Math.min(255, (n & 0xff) + amt);
+  return `rgb(${r},${g},${b})`;
+}
+
+function _darkenHex(hex, amt) {
+  let n = parseInt(hex.replace('#',''), 16);
+  const r = Math.max(0, (n >> 16) - amt);
+  const g = Math.max(0, ((n >> 8) & 0xff) - amt);
+  const b = Math.max(0, (n & 0xff) - amt);
+  return `rgb(${r},${g},${b})`;
+}
+
+// ── Activate RGS for player on arena start ────────────────────────────────────
+function _activateRGSForMatch() {
+  const aa = (typeof minions !== 'undefined') ? minions.find(m => m.isAbsoluteAxiom) : null;
+  if (!aa) return;
+  const player = (typeof players !== 'undefined' && players[0]) ? players[0] : null;
+  if (player) _initRGS(player);
+  window._absoluteAxiomWasAlive = true;
 }

@@ -58,6 +58,7 @@ STORY_CHAPTER_REGISTRY.push({
 
     // Fires on first-clear win via the onComplete hook in story2OnMatchEnd.
     onComplete() {
+        if (typeof unlockAchievement === 'function') unlockAchievement('lab_infiltrator');
         if (typeof setStoryFlag === 'function') {
             setStoryFlag('test_subject_freed');
             setStoryFlag('lab_truth_known');  // gates Creator confrontation dialogue

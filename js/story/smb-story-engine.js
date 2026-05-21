@@ -2310,7 +2310,7 @@ function _storyScaleEnemyUnit(unit, chapterId, opts = {}) {
     && _activeStory2Chapter
     && _activeStory2Chapter._origId !== undefined)
     ? _activeStory2Chapter._origId
-    : Math.min(chapterId, 79); // hard-cap fallback to prevent runaway scaling
+    : Math.min(chapterId, 84); // hard-cap fallback to prevent runaway scaling
 
   const s = getScaling(origId + (_storyPerformanceBonus() / 0.08 | 0));
   const PLAYER_HP = 100; // Fighter base maxHealth

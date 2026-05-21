@@ -103,6 +103,7 @@ function gameLoop(timestamp) {
   if (!tfAbsorptionScene) {
     updateCinematic();
     if (typeof updateCinematicSystem === 'function') updateCinematicSystem();
+    if (typeof updateCinematicEnhancements === 'function') updateCinematicEnhancements();
   }
   // Tick deterministic cutscene system
   if (typeof updateCutscene === 'function') updateCutscene();
@@ -271,7 +272,9 @@ function gameLoop(timestamp) {
   }
 
   // ── Sudden death rising floor ─────────────────────────────────────────────
-  if (gameRunning && !isCinematic && !gameFrozen && !storyModeActive
+  // Suppressed while any domain is active — domains are the climax; sudden death undercuts them.
+  const _domainSuppressSuddenDeath = typeof DomainManager !== 'undefined' && DomainManager.anyActive();
+  if (gameRunning && !isCinematic && !gameFrozen && !storyModeActive && !_domainSuppressSuddenDeath
       && gameMode === '2p'
       && typeof _sdFloor !== 'undefined' && _achStats.matchStartTime) {
     _sdFloor.frames++;
@@ -372,13 +375,30 @@ function gameLoop(timestamp) {
   const _cinOY = typeof _cinCamOffY !== 'undefined' ? _cinCamOffY : 0;
   // Only apply screen shake above a threshold to prevent micro-jitter at near-zero values
   const _shakeAmt = screenShake > 1.0 ? screenShake : 0;
-  const sx = (Math.random() - 0.5) * _shakeAmt + (canvas.width  / 2 - camCX * finalScX) + _cinOX;
-  const sy = (Math.random() - 0.5) * _shakeAmt + (canvas.height / 2 - camCY * finalScY) + _cinOY;
-  ctx.setTransform(finalScX, 0, 0, finalScY, sx, sy);
+  // Directional shake: first N frames bias in the specified direction then fall back to random.
+  // Timer is ticked in updateCinematicEnhancements() — read-only here.
+  let _sdx = 0, _sdy = 0;
+  if (typeof cinShakeDir !== 'undefined' && cinShakeDir && cinShakeDir.timer > 0) {
+    _sdx = cinShakeDir.x * _shakeAmt * 0.72;
+    _sdy = cinShakeDir.y * _shakeAmt * 0.72;
+  }
+  const sx = _sdx + (Math.random() - 0.5) * _shakeAmt * 0.35 + (canvas.width  / 2 - camCX * finalScX) + _cinOX;
+  const sy = _sdy + (Math.random() - 0.5) * _shakeAmt * 0.35 + (canvas.height / 2 - camCY * finalScY) + _cinOY;
+  if (typeof _applyGameTransform === 'function') {
+    _applyGameTransform(finalScX, finalScY, sx, sy);
+  } else {
+    ctx.setTransform(finalScX, 0, 0, finalScY, sx, sy);
+  }
 
   // ---------- Phase: render (world, entities, particles, HUD) ----------
   drawBackground();
+  // Domain Expansion: background tint overlay (screen-space, before world entities)
+  if (typeof DomainManager !== 'undefined') DomainManager.draw();
+  if (typeof drawCinBgContrast   === 'function') drawCinBgContrast();
+  if (typeof drawCinImpactFrame  === 'function') drawCinImpactFrame();
   drawPlatforms();
+  // Domain hazards (world-space, above platforms, below entities)
+  if (typeof DomainManager !== 'undefined') DomainManager.drawHazards();
   if (typeof drawSuddenDeathFloor === 'function') drawSuddenDeathFloor();
   if (typeof drawDepthFloorGrid === 'function') drawDepthFloorGrid();
   if (typeof drawCinematicImpactWorldEffects === 'function') drawCinematicImpactWorldEffects();
@@ -386,6 +406,7 @@ function gameLoop(timestamp) {
   if (gameMode === 'minigames' && minigameType === 'defense' && typeof drawDefenseNexus === 'function') drawDefenseNexus();
   if (gameMode === 'battleroyale' && typeof drawBattleRoyaleWorld === 'function') drawBattleRoyaleWorld();
   if (gameMode === 'escort' && typeof drawEscortNPC === 'function') drawEscortNPC();
+  if (gameMode === 'shipflight' && typeof drawShipFlight === 'function') drawShipFlight();
   drawBackstagePortals();
   drawMapPerks();
 
@@ -489,6 +510,12 @@ function gameLoop(timestamp) {
   minions = minions.filter(m => m.health > 0);
   // God death hook — triggers achievement when God is removed from minions
   if (typeof _checkGodDeath === 'function') _checkGodDeath();
+
+  // Absolute Axiom: per-frame RGS update (loadout, jumps, portals, checkpoints)
+  if (typeof _updateRGS === 'function' && players[0] && players[0]._rgsActive) {
+    const _aaEnt = minions.find(m => m && m.isAbsoluteAxiom);
+    if (_aaEnt) _updateRGS(_aaEnt, players[0]);
+  }
 
   // Training dummies / bots
   if (trainingMode) {
@@ -603,6 +630,10 @@ function gameLoop(timestamp) {
     if (!isFinite(p.x))  { p.x = GAME_W / 2; p.vx = 0; }
     if (!isFinite(p.y))  { p.y = 200;         p.vy = 0; }
   }
+  // Domain Expansion: update state (must run before player.update() so vx override takes effect)
+  if (typeof DomainManager !== 'undefined' && !gameFrozen && !tfAbsorptionScene) {
+    DomainManager.update();
+  }
   // Players — skip physics update for remote (network-driven) players; also skip during hard freeze or absorption cinematic
   if (!gameFrozen && !tfAbsorptionScene) {
     players.forEach(p => { if ((p.health > 0 || p.invincible > 0) && !p.isRemote) p.update(); });
@@ -666,6 +697,7 @@ function gameLoop(timestamp) {
     }
   }
 
+  if (typeof drawCinMotionTrails === 'function') drawCinMotionTrails();
   players.forEach((p, i) => {
     if (p.health <= 0 && p.invincible <= 0) return;
     // Cinematic visibility: skip players flagged as hidden for this scene
@@ -763,6 +795,7 @@ function gameLoop(timestamp) {
   }
   drawPhaseTransitionRings();
   drawCinematicWorldEffects(); // ground cracks + world-space cinematic fx
+  if (typeof drawCinSpeedLines === 'function') drawCinSpeedLines();
   // Paradox entity (world-space, drawn over fighters)
   if (typeof drawParadox === 'function') drawParadox();
   // TF-kills-Paradox cinematic overlay (lock rings world-space + terminal screen-space)
@@ -846,6 +879,9 @@ function gameLoop(timestamp) {
   particles = _liveParticles; // keep only live (life > 0) to prevent leak
   ctx.globalAlpha = 1;
 
+  // Domain speech bubbles (world-space, above entities)
+  if (typeof DomainManager !== 'undefined') DomainManager.drawSpeechBubbles();
+
   // Damage texts — filter expired to prevent leak
   damageTexts.forEach(d => { d.update(); d.draw(); });
   damageTexts = damageTexts.filter(d => d.life > 0);
@@ -892,9 +928,15 @@ function gameLoop(timestamp) {
 
   screenShake *= 0.9; // decay-based shake (smoother than instant drop)
   // Reset to non-shake transform (keep scale + camera centering, remove shake)
-  ctx.setTransform(finalScX, 0, 0, finalScY,
-    canvas.width  / 2 - camCX * finalScX,
-    canvas.height / 2 - camCY * finalScY);
+  if (typeof _applyGameTransform === 'function') {
+    _applyGameTransform(finalScX, finalScY,
+      canvas.width  / 2 - camCX * finalScX,
+      canvas.height / 2 - camCY * finalScY);
+  } else {
+    ctx.setTransform(finalScX, 0, 0, finalScY,
+      canvas.width  / 2 - camCX * finalScX,
+      canvas.height / 2 - camCY * finalScY);
+  }
 
   checkDeaths();
   updateHUD();
@@ -905,6 +947,9 @@ function gameLoop(timestamp) {
   if (multiverseModeActive && typeof MultiverseManager !== 'undefined') MultiverseManager.tick();
   if (exploreActive && typeof updateExploration === 'function') updateExploration();
   if (gameMode === 'escort' && typeof updateEscortMode === 'function') updateEscortMode();
+  if (gameMode === 'shipflight' && typeof updateShipFlight === 'function') updateShipFlight();
+  if (gameMode === 'assassination' && typeof updateAssassinationMode === 'function') updateAssassinationMode();
+  if (gameMode === 'gauntlet' && typeof updateGauntletMode === 'function') updateGauntletMode();
   // Ship & Fracture progression — tick preview timer each frame
   if (typeof updateFracturePreview === 'function') updateFracturePreview();
   if (gameMode === 'trueform' && !tfAbsorptionScene && typeof updateQTE === 'function') updateQTE();
@@ -919,12 +964,15 @@ function gameLoop(timestamp) {
   if (gameMode === 'minigames') drawMinigameHUD();
   if (gameMode === 'battleroyale' && typeof drawBattleRoyaleHUD === 'function') drawBattleRoyaleHUD();
   if (gameMode === 'escort' && typeof drawEscortHUD === 'function') drawEscortHUD();
+  if (gameMode === 'assassination' && typeof drawAssassinationHUD === 'function') drawAssassinationHUD();
+  if (gameMode === 'gauntlet' && typeof drawGauntletHUD === 'function') drawGauntletHUD();
   // New chaos modifier notification — timer ticked here, drawn in screen-space below
   if (_chaosModNotif && _chaosModNotif.timer > 0) _chaosModNotif.timer--;
   if (exploreActive && typeof drawExploreGoalObject === 'function') drawExploreGoalObject();
   // Story mode: void fog + boundary warning (drawn in game-world space)
   if (storyModeActive) drawStoryVoidFog();
   if (storyModeActive && typeof drawStoryBoundaryWarning === 'function') drawStoryBoundaryWarning();
+  if (exploreActive && typeof drawExploreWorldModeOverlay === 'function') drawExploreWorldModeOverlay();
   // Achievement popups (drawn over everything, in screen space)
   ctx.setTransform(1, 0, 0, 1, 0, 0); // reset transform for screen-space draw
 
@@ -973,10 +1021,18 @@ function gameLoop(timestamp) {
   if ((currentArena.isBossArena || window.FORCE_ATTACK_MODE) && typeof drawBossDialogue === 'function') drawBossDialogue(finalScX, finalScY, camCX, camCY);
   if (typeof drawHitEffectivenessHUD === 'function') drawHitEffectivenessHUD();
   if (gameMode === 'exploration') drawExploreHUD();
+  if (exploreActive && typeof drawExploreModeOverlay === 'function') drawExploreModeOverlay();
   if (abilityUnlockToast && abilityUnlockToast.timer > 0) drawAbilityUnlockToast();
   if (gameMode === 'trueform' && typeof drawQTE === 'function') drawQTE(ctx, canvas.width, canvas.height);
   if (typeof drawCutscene === 'function') drawCutscene(ctx, canvas.width, canvas.height);
   if (typeof drawFinisher === 'function') drawFinisher(ctx); // finisher overlay (topmost)
+  if (typeof drawCinNameCard === 'function') drawCinNameCard(canvas.width, canvas.height);
+  // Absolute Axiom: RGS HUD + Dimension Punch overlay (topmost — must draw after finisher)
+  if (typeof _drawRGSHud === 'function') _drawRGSHud(canvas.width, canvas.height);
+  if (typeof _drawDimPunchOverlay === 'function') _drawDimPunchOverlay(canvas.width, canvas.height);
+
+  // Domain Expansion HUD: timer bars (screen-space, above game HUD)
+  if (typeof DomainManager !== 'undefined') DomainManager.drawHUD();
 
   // ── Critical status overlays — always screen-space, always above HUD ──────
   // Hide legacy DOM banner (replaced by canvas draw below)
@@ -1043,7 +1099,11 @@ function gameLoop(timestamp) {
   drawEdgeIndicators(finalScX, finalScY, camCX, camCY);
   if (typeof drawCinematicLetterbox === 'function') drawCinematicLetterbox();
   // Restore the stable game transform after (remaining draws use it already)
-  ctx.setTransform(finalScX, 0, 0, finalScY, canvas.width/2 - camCX*finalScX, canvas.height/2 - camCY*finalScY);
+  if (typeof _applyGameTransform === 'function') {
+    _applyGameTransform(finalScX, finalScY, canvas.width/2 - camCX*finalScX, canvas.height/2 - camCY*finalScY);
+  } else {
+    ctx.setTransform(finalScX, 0, 0, finalScY, canvas.width/2 - camCX*finalScX, canvas.height/2 - camCY*finalScY);
+  }
 
   // Infinite mode: draw win score on canvas (outside shake transform)
   if (infiniteMode && gameRunning) {

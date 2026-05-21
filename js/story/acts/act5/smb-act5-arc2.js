@@ -1,7 +1,7 @@
 // Appends chapters for act5/smb-act5-arc2.js.
 STORY_CHAPTER_REGISTRY.push(
   {
-    id: 95, title: 'True Form',
+    id: 100, title: 'True Form',
     world: '\uD83D\uDD73\uFE0F The Void — Final Confrontation',
     narrative: [
       'The True Form arrived without announcement.',
@@ -47,37 +47,28 @@ STORY_CHAPTER_REGISTRY.push(
   // \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550 EPILOGUE \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550
 
   {
-    id: 96, title: 'After',
+    id: 101, title: 'After',
     world: '\uD83C\uDFD9\uFE0F Home \u2014 Epilogue',
     isEpilogue: true,
-    narrative: [
-      'The city is rebuilding.',
-      '',
-      'The portals still open sometimes.',
-      'Not as invasions.',
-      'Just as doors.',
-      '',
-      'People use them now.',
-      'For trade. For travel.',
-      'For reaching places they never could before.',
-      '',
-      'Veran has an office on the fourteenth floor of what used to be a ruin.',
-      'She sends you coordinates sometimes.',
-      '"Another fracture point. Thought you should know."',
-      '',
-      'You always go.',
-      '',
-      'The scar is still there.',
-      'It doesn\'t hurt.',
-      'It just reminds you of what you carried out of the loop.',
-      '',
-      '...',
-      '',
-      'Some things don\'t need explaining.',
+    type: 'ship_flight',
+    preText: 'The portals are open \u2014 doors now, not wounds. Fly the compass-ship home through stabilized dimensional space. The last journey is yours.',
+    shipFlightLength: 6000,
+    shipFlightEnemies: [
+      { spawnX: 800,  type: 'scout',   color: '#88ccff', hp: 30 },
+      { spawnX: 1600, type: 'scout',   color: '#88ccff', hp: 30 },
+      { spawnX: 2400, type: 'fighter', color: '#44aaff', hp: 50 },
+      { spawnX: 3200, type: 'scout',   color: '#88ccff', hp: 30 },
+      { spawnX: 4000, type: 'fighter', color: '#44aaff', hp: 50 },
+      { spawnX: 4800, type: 'boss',    color: '#2266cc', hp: 120 },
     ],
-    preText: null, noFight: true,
-    tokenReward: 300,
-    postText: 'STORY COMPLETE. You held the rift open with your own fragment. You survived the loop. You are the reason seventeen dimensions are still standing. Story Online is now unlocked.',
+    fightScript: [
+      { frame: 60,  text: 'The portals are open. Not wounds \u2014 doors. People use them now.', color: '#88ccff', timer: 290 },
+      { frame: 400, text: 'The compass always finds something. You always go.', color: '#aaccff', timer: 270 },
+      { frame: 800, text: 'Some things don\'t need forgiveness. They just need to be carried.', color: '#ffffff', timer: 280 },
+    ],
+    playerLives: 3,
+    tokenReward: 300, blueprintDrop: null,
+    postText: 'STORY COMPLETE. You held the rift open with your own fragment. You survived the loop. You are the reason seventeen dimensions are still standing. But you know what it cost. Story Online is now unlocked.',
   },
 
   // ══════════════════════════════════════════════════════════════════

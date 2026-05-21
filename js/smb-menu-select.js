@@ -299,7 +299,7 @@ function switchArenaWithTransition(newArenaKey, callback) {
 function switchArena(newKey) {
   if (!gameRunning) return;
   const OFFMAP = ['creator', 'void', 'soccer'];
-  if (OFFMAP.includes(newKey) || ARENAS[newKey]?.isStoryOnly || ARENAS[newKey]?.isExploreArena) return;
+  if (OFFMAP.includes(newKey) || ARENAS[newKey]?.isStoryOnly || ARENAS[newKey]?.isExploreArena || ARENAS[newKey]?.isTrainingOnly) return;
   currentArenaKey = newKey;
   if (currentArenaKey !== 'lava') randomizeArenaLayout(currentArenaKey);
   currentArena = ARENAS[currentArenaKey];
