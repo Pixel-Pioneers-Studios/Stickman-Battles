@@ -1,11 +1,11 @@
 // Appends chapters for act4mv/smb-act4mv-arc3.js.
-// The Betrayal Arc (ids 78–82): A concealed stranger dismantles the player's trust in Veran,
+// The Betrayal Arc (ids 91–95): A concealed stranger dismantles the player's trust in Veran,
 // piece by piece, using truths she actually committed and lies calibrated to fit them.
 // The player kills Veran. A mystery figure intervenes and teleports the stranger away.
 // The player enters the Creator's domain alone, carrying guilt they cannot explain.
 STORY_CHAPTER_REGISTRY.push(
   {
-    id: 78, title: 'The Watcher',
+    id: 91, title: 'The Watcher',
     world: '🔩 The Threshold — Fracture Boundary',
     type: 'exploration', exploreMode: 'scavenge',
     style: 'void',
@@ -28,16 +28,16 @@ STORY_CHAPTER_REGISTRY.push(
       { frame: 40,  text: 'Collect all four traces before they dissipate. Someone was here — and knew exactly when to leave.', color: '#cc88ff', timer: 270 },
       { frame: 560, text: 'Veran: "There\'s something on the scanner. A signature I can\'t identify. Be careful."', color: '#88ccff', timer: 270 },
     ],
-    sky: ['#04040a', '#08080f'],
-    groundColor: '#0f0f18',
-    platColor: '#1a1a28',
+    sky: ['#06060c', '#0c0c14', '#121218'],
+    groundColor: '#0a0a12',
+    platColor: '#141420',
     playerLives: 3,
     tokenReward: 25, blueprintDrop: null,
     postText: 'You don\'t tell Veran what the figure said. Because it named things — specific things — you hadn\'t told anyone.',
   },
 
   {
-    id: 79, title: 'Everything You Already Know',
+    id: 92, title: 'Everything You Already Know',
     world: '🔩 The Threshold — Ridge Approach',
     type: 'exploration', exploreMode: 'stealth',
     style: 'void',
@@ -60,16 +60,16 @@ STORY_CHAPTER_REGISTRY.push(
       { frame: 30,  text: 'Signal drones are sweeping the ridge. Don\'t let Veran know you\'re here.', color: '#ffcc44', timer: 270 },
       { frame: 490, text: '"Everything I\'m about to say — you already know. I\'m only saying it out loud."', color: '#cc88ff', timer: 270 },
     ],
-    sky: ['#04040a', '#08080f'],
-    groundColor: '#0f0f18',
-    platColor: '#1a1a28',
+    sky: ['#080606', '#141010'],
+    groundColor: '#120c0c',
+    platColor: '#1c1414',
     playerLives: 3,
     tokenReward: 30, blueprintDrop: null,
     postText: 'Each thing it named had a truth attached to it. You had lived all of them. You couldn\'t dismiss any of them. You didn\'t go back to the Architects. You sat with it for a long time.',
   },
 
   {
-    id: 80, title: 'The Architecture of the Lie',
+    id: 93, title: 'The Architecture of the Lie',
     world: '🔩 The Threshold — Fracture Boundary',
     type: 'branch',
     narrative: [
@@ -112,12 +112,12 @@ STORY_CHAPTER_REGISTRY.push(
       {
         label: '"How do I know any of this is true?"',
         flag: 'ch80_questioned',
-        consequence: '"You don\'t," it said simply. "Verify everything I named against what you lived. The fracture event. The confirmation she gave the Creator. Every secret she kept until you were already committed." It waited. The terrible thing was — you couldn\'t find the lie. Not in the truths. Which made the offer harder to dismiss.',
+        consequence: '"You don\'t," it said simply. "Verify everything I named against what you lived. The fracture event. The confirmation she gave the Creator. Every secret she kept until you were already committed." It waited. The terrible thing was — you couldn\'t find the lie. Not in the truths. Which made the offer harder to dismiss. Your feet were already moving before you made a decision.',
       },
       {
         label: '"What do you get out of this?"',
         flag: 'ch80_pressed',
-        consequence: '"I get to watch one bearer make it back," it said. "That is all." A slight pause. "I have watched ninety-four not. I would like to watch one succeed." The answer was too clean. But the offer underneath it was real. And the fragment in your chest had been burning since it started talking.',
+        consequence: '"I get to watch one bearer make it back," it said. "That is all." A slight pause. "I have watched ninety-four not. I would like to watch one succeed." The answer was too clean. But the offer underneath it was real. And the fragment in your chest had been burning since it started talking. You were already walking back before you knew what you intended.',
       },
     ],
     tokenReward: 30,
@@ -125,10 +125,11 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 81, title: 'The Weight of a Choice',
+    id: 94, title: 'The Weight of a Choice',
     world: '🔩 The Threshold — Open Ground',
     narrative: [
-      'You went back.',
+      'You didn\'t make a decision.',
+      'You went back anyway.',
       '',
       '"Something\'s wrong," Veran said immediately.',
       '"Talk to me.",',
@@ -194,14 +195,14 @@ STORY_CHAPTER_REGISTRY.push(
     opponentName: 'Veran — The Architect', weaponKey: 'sword', classKey: 'warrior', aiDiff: 'hard', opponentColor: '#4488dd',
     armor: ['helmet'],
     playerLives: 1,
-    arena: 'ruins',
+    arena: 'grass',
     tokenReward: 0,
     blueprintDrop: null,
     postText: 'She doesn\'t finish. The fragment doesn\'t pulse. The mysterious figure descends from the ridge. In its hands — a cold point of compressed energy, dense and ancient. "The anchor is ready," it says. "You\'ve done the right thing." The words land wrong. You don\'t say anything.',
   },
 
   {
-    id: 82, title: 'Paradox',
+    id: 95, title: 'Paradox',
     world: '🔩 The Threshold — Open Ground',
     type: 'exploration', exploreMode: 'escape',
     style: 'void',
@@ -219,9 +220,9 @@ STORY_CHAPTER_REGISTRY.push(
       { frame: 380, text: '"You have been lied to. You are at your lowest. But you must keep going."', color: '#aaccff', timer: 270 },
       { frame: 680, text: 'The compass points forward. It always points forward.', color: '#88aaff', timer: 230 },
     ],
-    sky: ['#04040a', '#08080f'],
-    groundColor: '#0f0f18',
-    platColor: '#1a1a28',
+    sky: ['#0a060c', '#160e18', '#200c1e'],
+    groundColor: '#0e0812',
+    platColor: '#180e1c',
     playerLives: 3,
     tokenReward: 50, blueprintDrop: null,
     postText: 'The figure that intervened — you don\'t know what it was. It didn\'t stay long enough to ask. You carry two questions into the Creator\'s domain: what you just did, and whether the hooded figure told you even one true thing. The answer to the second will not come quickly.',

@@ -533,6 +533,12 @@ const _WEAPON_CARD_DATA = {
   peashooter:    { icon: '🌿', tag: 'Rapid' },
   slingshot:     { icon: '🪃', tag: 'Arc' },
   paperairplane: { icon: '✈️', tag: 'Curve' },
+  flail:         { icon: '⛓️', tag: 'Return' },
+  whip:          { icon: '〰️', tag: 'Zone' },
+  boomerang:     { icon: '🪃', tag: 'Returner' },
+  katana:        { icon: '🗡️', tag: 'Precise' },
+  flamethrower:  { icon: '🔥', tag: 'Suppress' },
+  electricstaff: { icon: '⚡', tag: 'Chain' },
 };
 
 const _CLASS_CARD_DATA = {
@@ -546,4 +552,7 @@ const _CLASS_CARD_DATA = {
   paladin:     { icon: '🛡️', tag: 'Holy' },
   berserker:   { icon: '💢', tag: 'Frenzy' },
   megaknight:  { icon: '⚔️', tag: 'Legend' },
+  pugilist:    { icon: '🥊', tag: 'Brawler' },
+  ronin:       { icon: '🗡️', tag: 'Precision' },
+  reaper:      { icon: '💀', tag: 'Undying' },
 };

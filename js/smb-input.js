@@ -99,6 +99,25 @@ document.addEventListener('keydown', e => {
       document.body.appendChild(notif2);
       setTimeout(() => notif2.remove(), 3000);
     }
+    // ABSOLUTE AXIOM cheat: type AXIOMSQUARED in menu
+    if (_cheatBuffer.endsWith('AXIOMSQUARED')) {
+      _cheatBuffer = '';
+      if (!absoluteAxiomUnlocked) {
+        if (typeof setAccountFlagWithRuntime === 'function') {
+          setAccountFlagWithRuntime(['unlocks', 'absoluteAxiomUnlocked'], true, function(v) { absoluteAxiomUnlocked = v; });
+        } else {
+          absoluteAxiomUnlocked = true;
+        }
+        if (typeof saveGame === 'function') saveGame();
+        const aaCard = document.getElementById('modeAbsoluteAxiom');
+        if (aaCard) aaCard.style.display = '';
+        const notif3 = document.createElement('div');
+        notif3.textContent = '⚠ ABSOLUTE AXIOM UNLOCKED ⚠';
+        notif3.style.cssText = 'position:fixed;top:20%;left:50%;transform:translateX(-50%);background:rgba(180,50,0,0.95);color:#fff;padding:14px 32px;border-radius:12px;font-size:1.2rem;font-weight:900;letter-spacing:2px;z-index:9999;pointer-events:none;text-align:center;box-shadow:0 0 40px #ff4400;';
+        document.body.appendChild(notif3);
+        setTimeout(() => notif3.remove(), 3000);
+      }
+    }
   }
   const _nk = _normKey(e.key);
   if (SCROLL_BLOCK.has(_nk)) e.preventDefault();

@@ -1,7 +1,7 @@
 // Appends chapters for act4/smb-act4-arc2.js.
 STORY_CHAPTER_REGISTRY.push(
   {
-    id: 91, title: 'The Face',
+    id: 104, title: 'The Face',
     world: '🔩 Creator\'s Domain — Inner Sanctum Approach',
     type: 'exploration', exploreMode: 'scavenge',
     style: 'void',
@@ -24,16 +24,16 @@ STORY_CHAPTER_REGISTRY.push(
       { frame: 40,  text: 'Collect all four records before the architecture purges them.', color: '#cc6600', timer: 270 },
       { frame: 550, text: '"I decided the cost was acceptable. I have known it wasn\'t for five thousand years." The Creator.', color: '#ffaa44', timer: 290 },
     ],
-    sky: ['#04040a', '#08080f'],
-    groundColor: '#0f0f18',
-    platColor: '#1a1a28',
+    sky: ['#100800', '#1c0e04', '#280c04'],
+    groundColor: '#180c04',
+    platColor: '#22100a',
     playerLives: 3,
     tokenReward: 20, blueprintDrop: null,
     postText: 'It\'s not a villain. It\'s a frightened thing that made a terrible choice a long time ago and has been living in it ever since. That doesn\'t mean you let it continue.',
   },
 
   {
-    id: 92, title: 'First Form',
+    id: 105, title: 'First Form',
     world: '🔩 Creator\'s Domain — Combat Space',
     narrative: [
       '"I will not make this easy," the Creator said.',
@@ -65,7 +65,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 93, title: 'Between Forms',
+    id: 106, title: 'Between Forms',
     world: '🔩 Creator\'s Domain — Recalibration Chamber',
     type: 'gauntlet',
     preText: 'While the Creator recalibrates, its domain floods with residual constructs. Defeat three waves — no rest between them.',
@@ -87,7 +87,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 94, title: 'The Cost',
+    id: 107, title: 'The Cost',
     world: '🔩 Creator\'s Domain — Gate Approach',
     type: 'exploration', exploreMode: 'defense',
     style: 'void',
@@ -106,16 +106,16 @@ STORY_CHAPTER_REGISTRY.push(
       { frame: 300, text: '"If you close the rift, the fracture system is dismantled. The Void Mind still comes." Hold.', color: '#aaccff', timer: 280 },
       { frame: 600, text: '"I chose you because you were still whole." The rift entity. Final wave incoming.', color: '#88aaff', timer: 270 },
     ],
-    sky: ['#04040a', '#08080f'],
-    groundColor: '#0f0f18',
-    platColor: '#1a1a28',
+    sky: ['#120600', '#1e0a04', '#2c0c04'],
+    groundColor: '#180808',
+    platColor: '#220e0e',
     playerLives: 2,
     tokenReward: 30, blueprintDrop: null,
     postText: 'Closing the rift may leave the world defenseless against something worse. Not closing it means the fracture system continues. You know what it costs either way. You have to choose.',
   },
 
   {
-    id: 95, title: 'Second Form',
+    id: 108, title: 'Second Form',
     world: '🔩 Creator\'s Domain — Final Combat Space',
     narrative: [
       'The Creator\'s second form was everything the first one had learned.',
@@ -128,7 +128,7 @@ STORY_CHAPTER_REGISTRY.push(
       '',
       '"But the system\'s final gate must be earned.",',
       '"Everything I have. Everything you have.",',
-      '"After this — the rift.",',
+      '"After this — the final guardian.",',
     ],
     storeNag: '⚠️ CREATOR — Second Form. Expert. 1 life. QTE sequences will trigger. Use every ability.',
     fightScript: [
@@ -150,7 +150,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 96, title: 'The Last Request',
+    id: 109, title: 'The Last Request',
     world: '🔩 Creator\'s Domain — Gate Threshold',
     type: 'assassination',
     preText: 'A Creator overseer is broadcasting a jamming signal that prevents the rift entity from transmitting the final message. Eliminate it before the gate locks permanently.',
@@ -177,7 +177,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 97, title: 'SOVEREIGN',
+    id: 110, title: 'SOVEREIGN',
     world: '⚡ Creator\'s Proving Ground',
     narrative: [
       'The gate demanded a proof.',
@@ -188,13 +188,13 @@ STORY_CHAPTER_REGISTRY.push(
       'It had watched every fighter that ever approached the gate.',
       'Every dodge. Every mistake. Every habit.',
       '',
-      '"\"It knows what you will do before you do it,\" Veran said.',
-      '"\"It\'s been watching you since the beginning.\"",',
+      '"It knows what you will do before you do it," Veran said.',
+      '"It\'s been watching you since the beginning."',
       '',
-      '"\"Then I\'ll have to surprise it.\"",',
+      '"Then I\'ll have to surprise it."',
       '',
-      '"\"That\'s the problem.\"",',
-      '"\"It\'s already accounted for that.\"",',
+      '"That\'s the problem."',
+      '"It\'s already accounted for that."',
       '',
       'The construct stepped forward.',
       'It had no face. Only readiness.',
@@ -222,7 +222,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 98, title: 'The Creator\'s Gate',
+    id: 111, title: 'The Creator\'s Gate',
     world: '⚛️ Multiversal Core — Creator\'s Domain',
     narrative: [
       'The rift was open.',
@@ -250,11 +250,9 @@ STORY_CHAPTER_REGISTRY.push(
     arena: 'creator',
     playerLives: 1,
     tokenReward: 250, blueprintDrop: 'world_break2',
-    postText: 'The Creator\'s construct falls. The system fractures. The Second Architect\'s voice through the fracture resonance: "Now — hold the rift open. Three seconds." You drive the fragment into the core. The rift tears open in both directions. The Architects seal it from outside. The rift entity speaks one last time, its voice dissolving into light: "Go home." And then — the light takes everything.',
+    postText: 'The Creator\'s construct falls. The system fractures. The Second Architect\'s voice through the fracture resonance: "Now — hold the rift open. Three seconds." You drive the fragment into the core. The rift tears open in both directions. The Architects seal it from outside. The rift entity speaks one last time, its voice dissolving into light: "Go home." Somewhere behind the fracture resonance, barely there: the Fourth Architect\'s voice. "You came back." And then — the light takes everything.',
   },
 
-  // ══════════════════════════════════════════════════════════════════
-  // ACT VI — TRUE FORM (ids 77–79)
-  // ══════════════════════════════════════════════════════════════════
+  // ── True Form arc continues in smb-act5-arc1.js and smb-act5-arc2.js (ids 112–116) ──
 
 );

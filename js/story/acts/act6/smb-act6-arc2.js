@@ -1,7 +1,7 @@
 // Appends chapters for act6/smb-act6-arc2.js.
 STORY_CHAPTER_REGISTRY.push(
   {
-    id: 68, title: 'Proof of Understanding',
+    id: 73, title: 'Proof of Understanding',
     world: '🌌 The Void Between — The Fallen God\'s Trial',
     narrative: [
       '"I will not destroy you.",',
@@ -29,7 +29,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 69, title: 'What Was Before',
+    id: 74, title: 'What Was Before',
     world: '🌌 The Void Between — The Last Threshold',
     type: 'exploration', exploreMode: 'puzzle',
     style: 'void',
@@ -50,11 +50,11 @@ STORY_CHAPTER_REGISTRY.push(
       { frame: 40,  text: 'Activate memory locks in order. The Fallen God is watching.', color: '#ffcc44', timer: 270 },
       { frame: 600, text: '"You carry its conscience. When you face it — remind it of what it was." — The Fallen God', color: '#ffdd88', timer: 290 },
     ],
-    sky: ['#040408', '#08080f'],
-    groundColor: '#0f0f14',
-    platColor: '#1a1a20',
+    sky: ['#060818', '#0a0c22', '#0e102c'],
+    groundColor: '#080a1c',
+    platColor: '#10142a',
     playerLives: 3,
     tokenReward: 150, blueprintDrop: null,
-    postText: 'The Fallen God is gone. What remains is clarity: the Creator\'s domain lies ahead, and you now understand both sides of what it built. The compass burns. You go forward.',
+    postText: 'What remains is clarity: the worlds ahead require a different kind of understanding. The Fallen God\'s voice settles around you once more. "The multiverse is not safe. But it will teach you what you need. Follow." The compass burns. You go forward.',
   },
 );

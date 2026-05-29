@@ -42,11 +42,33 @@ const SERVER_CONFIG = {
 // ============================================================
 const CHANGELOG = [
   {
+    version: '3.4.0',
+    title: 'THE COMBAT POLISH UPDATE',
+    date: '2026-05-28',
+    flavor: 'Every weapon finally does what it says. Boomerangs leave your hand. Flames look like flames. The whip actually pulls. The balance is real this time.',
+    isLatest: true,
+    changes: [
+      { cat: 'Combat',  text: 'Boomerang basic attack now throws a real visible boomerang that physically leaves the player\'s hand; the weapon disappears from the grip while in flight and reappears on return' },
+      { cat: 'Combat',  text: 'Paper Airplane basic attack now fires a visible paper plane that leaves the player\'s hand; the Q ability (Barrage) now fires 5 correctly-shaped paper airplane projectiles instead of glowing circles' },
+      { cat: 'Combat',  text: 'Flamethrower attack redesigned as a short-range cone of 3 flame projectiles drawn as layered teardrop flames, replacing the single generic bullet; Backdraft super (E) now fires a forward wave of 8 visual flame projectiles on activation' },
+      { cat: 'Combat',  text: 'Whip hitbox extended — tip reach increased significantly (tipLen 50, 4 sample points, +10px hit tolerance); Lasso (Q) now hard-sets enemy velocity directly instead of adding to it for a reliable pull regardless of enemy movement; Lasso stun increased from 18 to 22 frames' },
+      { cat: 'Combat',  text: 'Flail Chain Yank (Q) hitbox radius increased from 22 to 30px to register head-level hits; basic attack now launches the target slightly upward and spawns impact particles; Orbit Storm (E) duration extended from 65 to 85 frames and damage per contact increased from 12 to 16' },
+      { cat: 'Combat',  text: 'Electric Staff Shock Bolt (Q) hitbox repositioned to upper-body check (y + h*0.3) and radius increased from 24 to 30px to correctly register hits on the head and shoulders; Thunderstrike (E) damage per bolt increased from 24 to 32 and area-of-effect radius widened from 58 to 62px' },
+      { cat: 'Combat',  text: 'Katana Iaijutsu (Q) standing-still damage reduced from 42 to 28 — still the highest single-hit ability in the game, but no longer a one-shot for most fighters; Shadow Step (E) capped to 450px maximum teleport range' },
+      { cat: 'Combat',  text: 'Broom Ride (Q) now cancels immediately on landing if fewer than 18 frames remain, preventing ground-level sliding after the aerial window closes' },
+      { cat: 'Domain',  text: 'Gunner domain turrets heavily nerfed — damage halved from 24 to 12 and fire rate reduced from every 62 to every 140 frames; the domain is now a zoning presence rather than near-instant lethality' },
+      { cat: 'Domain',  text: 'Domain expansion coverage now complete — Ronin (Death\'s Dojo), Reaper (Eternal Harvest), Pugilist (Iron Arena), and None class (Primal Surge) all have full domain expansions with unique hazards, sky effects, and entry cinematics; berserker domain now has weapon-specific hazards for every weapon category (bladed, heavy, ranged spray, ranged arc, electric)' },
+      { cat: 'Visual',  text: 'Whip now draws a brief dashed rope line from the player to the struck target on both the basic hit and Lasso pull, making the weapon\'s reach visually legible' },
+      { cat: 'Visual',  text: 'Flame projectiles rendered as directional teardrop shapes with layered orange/yellow glow instead of plain colored ellipses' },
+      { cat: 'AI',      text: 'Bot paper airplane and boomerang AI updated to use the new throw system rather than the legacy bullet path' },
+    ],
+  },
+  {
     version: '3.3.0',
     title: 'THE DOMAIN UPDATE',
     date: '2026-05-18',
     flavor: 'Every fighter carries a world inside them. Use your super five times and it erupts — a 25-second nightmare born from who you are. The arena is no longer neutral ground.',
-    isLatest: true,
+    isLatest: false,
     changes: [
       { cat: 'Mode',    text: 'Added Domain Expansion — once you activate your super 5 times in a match, your class unleashes its personal Domain: a 25-second environmental takeover that floods the arena with class-specific hazards; each class has a unique named domain with its own atmosphere, hazard type, and owner buff' },
       { cat: 'Mode',    text: 'Domain roster — Thor: Storm Realm (relentless lightning strikes, speed boost); Kratos: Spartan War Domain (debris barrages, power boost); Ninja: Shadow Realm (shadow blade volleys, speed boost); Gunner: Arsenal Domain (bullet storm); Archer: Verdant Hunt (arrow curtain); Paladin: Holy Sanctuary (holy beams, passive heal); Berserker: Blood Arena (speed + power + lifesteal, no environmental hazard — pure stats); further domains are unlocked through progression' },
@@ -396,6 +418,7 @@ let winsP1 = 0, winsP2 = 0;
 let bossDialogue    = { text: '', timer: 0 }; // speech bubble above boss
 let projectiles        = [];
 let particles          = [];
+let bloodStains        = [];   // persistent ground blood marks
 let damageTexts        = [];
 let respawnCountdowns  = [];  // { color, x, y, framesLeft }
 let screenShake     = 0;
@@ -428,7 +451,7 @@ let camDramaZoom   = 1.0;
 // SETTINGS & FRAME STATE
 // ============================================================
 // User-configurable settings (toggled from menu)
-const settings = { particles: true, screenShake: true, dmgNumbers: true, landingDust: true, bossAura: true, botPortal: true, phaseFlash: true, ragdollEnabled: (localStorage.getItem('smc_ragdoll') === '1'), finishers: true, view3D: (localStorage.getItem('smc_view3D') === '1'), experimental3D: (localStorage.getItem('smc_experimental3D') === '1') };
+const settings = { particles: true, screenShake: true, dmgNumbers: true, landingDust: true, bossAura: true, botPortal: true, phaseFlash: true, ragdollEnabled: (localStorage.getItem('smc_ragdoll') === '1'), finishers: true, view3D: (localStorage.getItem('smc_view3D') === '1'), experimental3D: (localStorage.getItem('smc_experimental3D') === '1'), hideHud: false };
 
 // Active finisher state — set by triggerFinisher(), cleared when animation completes or on backToMenu
 let activeFinisher = null;
@@ -612,7 +635,7 @@ let _publicRoomCheckTimer = 0;
 // ============================================================
 // VERSION
 // ============================================================
-const GAME_VERSION = '3.3.0';  // bump this when releasing; must match CHANGELOG[0].version
+const GAME_VERSION = '3.4.0';  // bump this when releasing; must match CHANGELOG[0].version
 console.log('[VERSION CHECK]', GAME_VERSION);
 
 // DEBUG / DEVELOPER STATE
@@ -788,8 +811,9 @@ let storyDodgeUnlocked = false; // set true when DODGE_UNLOCK event fires
 let sovereignBeaten    = false; // set true after Sovereign MK2 is defeated
 let bossRushUnlocked   = false; // set true by cheat code UNLOCKBOSSRUSH
 let storyOnline        = false; // set true after online story completion
-let godEncountered     = false; // set true after first God encounter
-let godDefeated        = false; // set true after God is defeated in Phase 2
+let godEncountered        = false; // set true after first God encounter
+let godDefeated           = false; // set true after God is defeated in Phase 2
+let absoluteAxiomUnlocked = false; // set true by cheat code AXIOMSQUARED
 let playerCoins        = 0;     // coin balance; hydrated per account
 let unlockedCosmetics  = [];    // cosmetic IDs; hydrated per account
 

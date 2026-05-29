@@ -772,37 +772,112 @@ const ARENAS = {
     platColor:         '#180828',
     platEdge:          '#cc0044',
     hasLava:           false,
-    deathY:            640,
+    deathY:            720,
     isBossArena:       true,
     isAbsoluteAxiomArena: true,
+    isLargeMap:        true,
+    worldWidth:        3600,
+    mapLeft:           -900,
+    mapRight:          2700,
     modifiers:         { gravityMult: 0.96, frictionMult: 0.98, hazardFrequency: 0.0 },
     platforms: [
-      // Ground — full width, required for pickSafeSpawn
-      { x: 0,   y: 460, w: 900, h: 60, isFloor: true, isFloorDisabled: false },
+      // ── FLOOR — spans entire world ──────────────────────────────────────
+      { x:-900, y:560, w:3600, h:50, isFloor:true },
 
-      // ── Tier 1 (low-mid): 4 platforms covering all quadrants ─────────────
-      { x:  20, y: 405, w:  95, h: 16, isFloorDisabled: false }, // far-left shelf (ice)
-      { x: 175, y: 385, w: 125, h: 16, isFloorDisabled: false }, // left-low (grass)
-      { x: 600, y: 385, w: 125, h: 16, isFloorDisabled: false }, // right-low (grass)
-      { x: 785, y: 405, w:  95, h: 16, isFloorDisabled: false }, // far-right shelf (ice)
+      // ═══ ZONE 1 — GRASS (x -900 to -400) ════════════════════════════════
+      { x:-840, y:435, w:160, h:16 },  // grass low-left
+      { x:-640, y:450, w:140, h:16 },  // grass low-right
+      { x:-800, y:330, w:190, h:16 },  // grass mid (wide hill)
+      { x:-600, y:315, w:150, h:16 },  // grass mid-right
+      { x:-730, y:215, w:160, h:16 },  // grass upper
+      { x:-510, y:205, w:130, h:14 },  // grass canopy
 
-      // ── Tier 2 (mid): wide central hub + flanking
-      { x: 305, y: 300, w: 290, h: 18, isFloorDisabled: false }, // wide centre bridge
-      { x:  55, y: 320, w: 155, h: 18, isFloorDisabled: false }, // left-mid (city)
-      { x: 690, y: 320, w: 155, h: 18, isFloorDisabled: false }, // right-mid (city)
+      // ═══ ZONE 2 — CITY (x -400 to 100) ══════════════════════════════════
+      { x:-390, y:450, w:110, h:16 },  // city rooftop low-left
+      { x:-240, y:438, w:130, h:16 },  // city rooftop low-mid
+      { x: -60, y:452, w:110, h:16 },  // city rooftop low-right
+      { x:-360, y:335, w:170, h:16 },  // city mid-left
+      { x:-150, y:318, w:200, h:16 },  // city centre bridge (wide)
+      { x: -20, y:332, w:140, h:16 },  // city mid-right
+      { x:-310, y:215, w:145, h:16 },  // city upper-left
+      { x: -80, y:200, w:140, h:16 },  // city upper-right
 
-      // ── Tier 3 (upper-mid): ──────────────────────────────────────────────
-      { x: 355, y: 215, w: 190, h: 16, isFloorDisabled: false }, // centre-upper (space station)
-      { x:  85, y: 228, w: 140, h: 16, isFloorDisabled: false }, // left-upper (forest canopy)
-      { x: 675, y: 228, w: 140, h: 16, isFloorDisabled: false }, // right-upper (forest canopy)
+      // ═══ ZONE 3 — FOREST (x 100 to 600) ═════════════════════════════════
+      { x: 120, y:442, w:140, h:16 },  // forest floor-left
+      { x: 330, y:455, w:120, h:16 },  // forest floor-mid
+      { x: 510, y:440, w:120, h:16 },  // forest floor-right
+      { x: 100, y:328, w:165, h:16 },  // forest mid-left
+      { x: 320, y:308, w:210, h:16 },  // forest wide canopy bridge
+      { x: 530, y:325, w:140, h:16 },  // forest mid-right
+      { x: 145, y:210, w:150, h:16 },  // forest upper-left
+      { x: 390, y:192, w:175, h:16 },  // forest apex canopy
+      { x: 580, y:208, w:120, h:14 },  // forest high-right
 
-      // ── Tier 4 (high): ──────────────────────────────────────────────────
-      { x: 375, y: 140, w: 150, h: 14, isFloorDisabled: false }, // apex (void)
-      { x:  50, y: 148, w: 115, h: 14, isFloorDisabled: false }, // high-left (ruins)
-      { x: 735, y: 148, w: 115, h: 14, isFloorDisabled: false }, // high-right (ruins)
+      // ═══ ZONE 4 — ICE (x 600 to 1100) ═══════════════════════════════════ ← SPAWN CENTRE
+      { x: 630, y:440, w:150, h:16 },  // ice shelf left
+      { x: 850, y:432, w:130, h:16 },  // ice shelf mid
+      { x:1010, y:448, w:140, h:16 },  // ice shelf right
+      { x: 610, y:326, w:175, h:16 },  // ice mid-left
+      { x: 860, y:308, w:210, h:16 },  // ice CENTRE BRIDGE — main battle platform
+      { x:1040, y:322, w:150, h:16 },  // ice mid-right
+      { x: 700, y:210, w:155, h:16 },  // ice upper-left
+      { x: 940, y:194, w:165, h:16 },  // ice apex
+      { x:1070, y:108, w:130, h:13 },  // ice pinnacle
 
-      // ── Apex pinnacle ────────────────────────────────────────────────────
-      { x: 400, y:  68, w: 100, h: 13, isFloorDisabled: false }, // pinnacle (space)
+      // ═══ ZONE 5 — LAVA (x 1100 to 1600) ═════════════════════════════════
+      { x:1150, y:438, w:130, h:16 },  // lava shelf left
+      { x:1360, y:450, w:140, h:16 },  // lava shelf mid
+      { x:1530, y:436, w:125, h:16 },  // lava shelf right
+      { x:1130, y:322, w:165, h:16 },  // lava mid-left
+      { x:1360, y:305, w:210, h:16 },  // lava crossing bridge
+      { x:1550, y:320, w:140, h:16 },  // lava mid-right
+      { x:1200, y:205, w:150, h:16 },  // lava upper-left
+      { x:1440, y:190, w:160, h:16 },  // lava upper apex
+      { x:1590, y:108, w:120, h:13 },  // lava pinnacle
+
+      // ═══ ZONE 6 — RUINS (x 1600 to 2100) ════════════════════════════════
+      { x:1640, y:444, w:135, h:16 },  // ruins shelf left
+      { x:1870, y:434, w:125, h:16 },  // ruins shelf mid
+      { x:2020, y:448, w:120, h:16 },  // ruins shelf right
+      { x:1615, y:328, w:175, h:16 },  // ruins mid-left
+      { x:1860, y:310, w:200, h:16 },  // ruins bridge
+      { x:2055, y:325, w:130, h:16 },  // ruins mid-right
+      { x:1700, y:210, w:145, h:16 },  // ruins upper-left
+      { x:1945, y:194, w:165, h:16 },  // ruins apex
+      { x:2090, y:108, w:115, h:13 },  // ruins pinnacle
+
+      // ═══ ZONE 7 — VOID/SPACE (x 2100 to 2700) ════════════════════════════
+      { x:2130, y:440, w:140, h:16 },  // void shelf left
+      { x:2360, y:455, w:130, h:16 },  // void shelf mid
+      { x:2560, y:440, w:140, h:16 },  // void shelf right
+      { x:2110, y:326, w:180, h:16 },  // void mid-left
+      { x:2360, y:308, w:225, h:16 },  // void final bridge
+      { x:2575, y:323, w:155, h:16 },  // void mid-right
+      { x:2200, y:208, w:155, h:16 },  // void upper-left
+      { x:2440, y:190, w:185, h:16 },  // void apex
+      { x:2640, y:206, w:125, h:16 },  // void upper-right
+      { x:2530, y:105, w:140, h:13 },  // void pinnacle — final confrontation
+    ]
+  },
+
+  // ── The Studio — dev-only recording/showcase stage ───────────────────────
+  // Clean 3-tier layout: wide center stage flanked by two low wings.
+  // Accessible only via console: `setmap studio` or the `STUDIO` command.
+  studio: {
+    name:          'The Studio',
+    sky:           ['#030810', '#060f1e'],
+    groundColor:   '#040c1a',
+    platColor:     '#182844',
+    platEdge:      '#3a5890',
+    hasLava:       false,
+    deathY:        640,
+    isStudioArena: true,
+    modifiers:     { gravityMult: 1.0, frictionMult: 1.0, hazardFrequency: 0.0 },
+    platforms: [
+      { x: -60,  y: 460, w: 1020, h: 40, isFloor: true },   // floor — full width
+      { x: 310,  y: 285, w: 280,  h: 18 },                  // centre main stage
+      { x:  95,  y: 362, w: 155,  h: 15 },                  // left wing
+      { x: 650,  y: 362, w: 155,  h: 15 },                  // right wing
     ]
   },
 };
@@ -818,7 +893,7 @@ for (const key of Object.keys(ARENAS)) {
 }
 
 function randomizeArenaLayout(key) {
-  if (key === 'creator' || key === 'god_domain' || key === 'soccer' || key === 'cave' || key === 'absolute_axiom_domain') return; // never randomize
+  if (key === 'creator' || key === 'god_domain' || key === 'soccer' || key === 'cave' || key === 'absolute_axiom_domain' || key === 'studio') return; // never randomize
   const base  = ARENA_BASE_PLATFORMS[key];
   if (!base) return;
   const arena = ARENAS[key];

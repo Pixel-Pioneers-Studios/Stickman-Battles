@@ -35,6 +35,7 @@ function generateBgElements() {
 // ============================================================
 function drawBackground() {
   const a = currentArena;
+  if (!a) return;
   // Fill the entire world width (+ generous overdraw) so no void shows through on wide/panning maps
   // The extra 3000px on each axis covers extreme zoom-out where the visible world exceeds GAME_H
   const _bgX = a.mapLeft  !== undefined ? a.mapLeft  - 3000 : -3000;
@@ -90,6 +91,7 @@ function drawBackground() {
   if (currentArenaKey === 'bossSanctum') drawBossSanctumArena();
   if (currentArenaKey === 'god_domain')  drawGodDomainArena();
   if (currentArenaKey === 'absolute_axiom_domain') drawAbsoluteAxiomArena();
+  if (currentArenaKey === 'studio')               drawStudioArena();
 
   // Exploration: tile the style-appropriate background across world width
   if (currentArena && currentArena.isExploreArena) {

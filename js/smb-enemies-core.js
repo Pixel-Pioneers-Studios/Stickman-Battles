@@ -182,7 +182,12 @@ class ForestBeast extends Fighter {
     }
   }
 
-  useSuper() {}
+  // Disable inherited bot AI — beast has its own complete AI in update().
+  // The base updateAI() fires ability/super/attack independently and conflicts with
+  // the beast's slam/leap/burst system, causing erratic damage and unexpected arc hits.
+  updateAI() { return; }
+  ability()   { return; }
+  useSuper()  {}
   activateSuper() {}
   respawn() { this.health = 0; }
 

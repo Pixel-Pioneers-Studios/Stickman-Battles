@@ -1,7 +1,7 @@
 // Appends chapters for act4/smb-act4-arc1.js.
 STORY_CHAPTER_REGISTRY.push(
   {
-    id: 83, type: 'exploration', title: 'The Architecture',
+    id: 96, type: 'exploration', title: 'The Architecture',
     world: '🔩 Creator\'s Domain — The Inner Framework',
     narrative: [
       'The Architects waited at the threshold.',
@@ -13,9 +13,10 @@ STORY_CHAPTER_REGISTRY.push(
       '"The fragment bearer goes alone," the Fourth Architect said.',
       '"That was always the design."',
       '',
-      'No one mentioned Veran.',
+      'Veran was alive. The Architects knew.',
+      'No one mentioned it by name.',
       'The Second Architect started to, once.',
-      'Then didn\'t.',
+      'Looked at you. Then didn\'t.',
       '',
       'The Fourth Architect put a hand on your shoulder.',
       '"Come back," they said.',
@@ -32,9 +33,9 @@ STORY_CHAPTER_REGISTRY.push(
     objectName: 'Dimensional Anchor Node',
     style: 'city',
     worldLength: 5500,
-    sky: ['#04040a', '#08080f'],
-    groundColor: '#0f0f18',
-    platColor: '#1a1a28',
+    sky: ['#040810', '#080c1a', '#0c1224'],
+    groundColor: '#060a18',
+    platColor: '#101828',
     spawnEnemies: [
       { wx: 500,  name: 'Architecture Soldier', weaponKey: 'spear',  classKey: 'warrior',   aiDiff: 'hard',   color: '#334455', armor: ['helmet'] },
       { wx: 900,  name: 'Grid Enforcer',        weaponKey: 'sword',  classKey: 'warrior',   aiDiff: 'hard',   color: '#2a3a4a', armor: ['helmet'] },
@@ -55,7 +56,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 84, title: 'Architecture Soldiers',
+    id: 97, title: 'Architecture Soldiers',
     world: '🔩 Creator\'s Domain — Inner Corridor',
     narrative: [
       'Two of them.',
@@ -82,13 +83,13 @@ STORY_CHAPTER_REGISTRY.push(
     secondEnemy: { weaponKey: 'spear', classKey: 'warrior', aiDiff: 'expert', color: '#224466' },
     armor: ['helmet', 'chestplate'],
     playerLives: 2,
-    arena: 'city',
+    arena: 'space',
     tokenReward: 100, blueprintDrop: null,
     postText: 'They dissolve into the architecture. The Creator has noticed. You feel its attention shift toward you — not hostile yet. Curious.',
   },
 
   {
-    id: 85, title: 'The Offer',
+    id: 98, title: 'The Offer',
     world: '🔩 Creator\'s Domain — Audience Corridor',
     type: 'exploration', exploreMode: 'stealth',
     style: 'void',
@@ -113,16 +114,16 @@ STORY_CHAPTER_REGISTRY.push(
       { frame: 30,  text: 'Architecture constructs everywhere. The Creator is watching this chamber directly.', color: '#ffcc44', timer: 270 },
       { frame: 520, text: '"I was never offered a choice." The rift entity, very quietly. You keep moving.', color: '#aaccff', timer: 260 },
     ],
-    sky: ['#04040a', '#08080f'],
-    groundColor: '#0f0f18',
-    platColor: '#1a1a28',
+    sky: ['#040c0a', '#081614', '#0c201e'],
+    groundColor: '#061210',
+    platColor: '#101e1c',
     playerLives: 3,
     tokenReward: 15, blueprintDrop: null,
     postText: 'You don\'t answer. Not yet. The Creator withdraws. You keep moving deeper.',
   },
 
   {
-    id: 86, title: 'Twin Enforcers',
+    id: 99, title: 'Twin Enforcers',
     world: '🔩 Creator\'s Domain — The Corridor of Forms',
     narrative: [
       'The Enforcers arrived as the architecture shifted.',
@@ -152,13 +153,13 @@ STORY_CHAPTER_REGISTRY.push(
     secondEnemy: { weaponKey: 'sword', classKey: 'berserker', aiDiff: 'expert', color: '#aa1133' },
     armor: ['helmet', 'chestplate'],
     playerLives: 1,
-    arena: 'city',
+    arena: 'colosseum',
     tokenReward: 130, blueprintDrop: 'void_pulse2',
     postText: 'Both dissolve. The architecture trembles once. The Creator is recalculating. You keep moving.',
   },
 
   {
-    id: 87, title: 'The Architect\'s Message',
+    id: 100, title: 'The Architect\'s Message',
     world: '🔩 Creator\'s Domain — Signal Alcove',
     type: 'exploration', exploreMode: 'escape',
     style: 'void',
@@ -177,16 +178,16 @@ STORY_CHAPTER_REGISTRY.push(
       { frame: 380, text: '"The fragment is the Creator\'s carved-out conscience." Second Architect\'s voice. Almost gone.', color: '#aaccff', timer: 280 },
       { frame: 680, text: 'Reach the relay. The signal is about to cut out.', color: '#ff6644', timer: 220 },
     ],
-    sky: ['#04040a', '#08080f'],
-    groundColor: '#0f0f18',
-    platColor: '#1a1a28',
+    sky: ['#0c0804', '#180e08', '#240e0c'],
+    groundColor: '#140c06',
+    platColor: '#1e140e',
     playerLives: 3,
     tokenReward: 35, blueprintDrop: null,
     postText: 'The fragment is the Creator\'s carved-out conscience. It has been trying to find its way back for five thousand years. You are carrying the Creator\'s capacity for guilt, empathy, and doubt. You always were.',
   },
 
   {
-    id: 88, title: 'The First Creation',
+    id: 101, title: 'The First Creation',
     world: '🔩 Creator\'s Domain — Memory Chamber',
     type: 'gauntlet',
     preText: 'The Creator tests your resolve with three consecutive rounds of architecture constructs. No breaks. Show it that you\'ve already made your choice.',
@@ -201,14 +202,14 @@ STORY_CHAPTER_REGISTRY.push(
       { frame: 300, text: '"The fragment — it\'s a piece of what I was before. It chose you." Round 2.', color: '#88aaff', timer: 270 },
       { frame: 560, text: '"This is the first time I\'ve had something to lose." Round 3. Finish it.', color: '#ffffff', timer: 250 },
     ],
-    arena: 'city',
+    arena: 'haunted',
     playerLives: 2,
     tokenReward: 20, blueprintDrop: null,
     postText: 'The Creator heard. Its attention shifts again — not curiosity. Something older. Something that might have been guilt.',
   },
 
   {
-    id: 89, title: 'The First Promise',
+    id: 102, title: 'The First Promise',
     world: '🔩 Creator\'s Domain — Memory Vault',
     type: 'exploration', exploreMode: 'puzzle',
     style: 'void',
@@ -230,16 +231,16 @@ STORY_CHAPTER_REGISTRY.push(
       { frame: 40,  text: 'Activate vault locks in order. The Creator\'s oldest memory is here.', color: '#99ffcc', timer: 270 },
       { frame: 650, text: '"I will stop it. I don\'t know how yet. But I will. I promise." It sounded like a person.', color: '#aaccff', timer: 300 },
     ],
-    sky: ['#04040a', '#08080f'],
-    groundColor: '#0f0f18',
-    platColor: '#1a1a28',
+    sky: ['#080414', '#10081e', '#180c28'],
+    groundColor: '#0c0618',
+    platColor: '#160e22',
     playerLives: 3,
     tokenReward: 25, blueprintDrop: null,
     postText: 'The Creator was once something that made promises. It hollowed itself out to keep one. Understanding that doesn\'t forgive what it did. But it changes what you\'re walking into.',
   },
 
   {
-    id: 90, title: 'Purge Sequence',
+    id: 103, title: 'Purge Sequence',
     world: '🔩 Creator\'s Domain — Purge Zone',
     narrative: [
       'The architecture shook.',
@@ -273,6 +274,6 @@ STORY_CHAPTER_REGISTRY.push(
     postText: 'The purge sequence ends. The architecture goes still. Ahead: the inner sanctum. The Creator itself.',
   },
 
-  // ─────── Arc 4-1: The Final Architecture (ids 70–76) ─────────────
+  // ─────── Act 4 Arc 2 continues in smb-act4-arc2.js (ids 104–111) ──
 
 );

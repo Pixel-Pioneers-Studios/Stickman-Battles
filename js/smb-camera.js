@@ -187,7 +187,6 @@ function updateCamera() {
   let targetZoom = 1.0;
   let targetX    = GAME_W / 2;
   let targetY    = GAME_H / 2;
-  let _isDuel    = false;  // set inside activePlayers block, read in post-block apply
 
   // ── Online: track only local player ──────────────────────
   if (gameMode === 'online' && typeof localPlayerSlot !== 'undefined' && players[localPlayerSlot]) {
@@ -237,115 +236,48 @@ function updateCamera() {
       return;
     }
 
-    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
-    for (const p of activePlayers) {
-      minX = Math.min(minX, p.x);
-      maxX = Math.max(maxX, p.x + (p.w || 0));
-      minY = Math.min(minY, p.y);
-      maxY = Math.max(maxY, p.y + (p.h || 0));
-    }
+    const _isWide = !!(currentArena && currentArena.worldWidth);
 
-    // ── Mode 4 — DuelCam: exactly 2 entities, smooth midpoint + distance zoom ──
-    // Applies to 1v1, boss fights, and 2-entity minigames.
-    // Excluded: online (has its own path), exploration, 3+ entity situations.
-    _isDuel = activePlayers.length === 2 &&
-      gameMode !== 'online' && gameMode !== 'exploration' && !cinematicCamOverride;
-
-    if (_isDuel) {
-      const pA = activePlayers[0], pB = activePlayers[1];
-
-      // Raw midpoint
-      const rawMidX = (pA.cx() + pB.cx()) / 2;
-      const rawMidY = (pA.cy() + pB.cy()) / 2 + 15 + _hudShift; // slight downward offset for floor context + HUD safe area
-
-      // Velocity-capped smooth follow: moves toward raw midpoint at proportional speed,
-      // capped to _DUEL_MAX_SPEED units/frame — never snaps regardless of jump size.
-      const dMidX = rawMidX - _duelMidX;
-      const dMidY = rawMidY - _duelMidY;
-      const dMid  = Math.hypot(dMidX, dMidY);
-      if (dMid > 0.5) {
-        const speed = Math.min(dMid * _DUEL_SPEED_SCALE, _DUEL_MAX_SPEED);
-        _duelMidX += (dMidX / dMid) * speed;
-        _duelMidY += (dMidY / dMid) * speed;
-      }
-
-      // Distance-based zoom: close (<120px) → zoom in, far (>480px) → zoom out
-      const spread = Math.hypot(pA.cx() - pB.cx(), pA.cy() - pB.cy());
-      // Smooth zoom curve: maps spread 0→600 to zoom 1.18→0.52; scale down by HUD safe-area ratio
-      const _duelSafeH = Math.max(GAME_H - _hudGU, GAME_H * 0.7);
-      const duelZoom = Math.max(0.50, Math.min(1.18, (1.18 - (spread / 600) * 0.68) * (_duelSafeH / GAME_H)));
-
-      // Detect fast-falling entity (|vy| > 12) — reduce vertical speed during fall
-      const anyFalling = activePlayers.some(p => p.vy && Math.abs(p.vy) > 12);
-      if (anyFalling) _duelFallDelay = 8;
-      if (_duelFallDelay > 0) {
-        _duelFallDelay--;
-        // Undo 30% of the vertical advance this frame for a cinematic lag feel
-        _duelMidY -= (dMidY / Math.max(dMid, 1)) * Math.min(dMid * _DUEL_SPEED_SCALE, _DUEL_MAX_SPEED) * 0.30;
-      }
-
-      targetX    = _duelMidX;
-      targetY    = _duelMidY;
-      targetZoom = duelZoom;
-
-      // Pick lerp speed based on proximity
-      const duelLerp = spread < 200 ? _CAM_LERP.duel_close : _CAM_LERP.duel;
-      // Always update camXTarget — no secondary dead zone here (that caused the snap)
-      camZoomTarget = targetZoom;
-      camXTarget = targetX;
-      camYTarget = targetY;
-      _updateCameraDrama();
-      if (camHitZoomTimer > 0) { camHitZoomTimer--; camZoomTarget = Math.max(camZoomTarget, 1.0 + 0.18 * (camHitZoomTimer / 15)); }
-      camZoomCur += (camZoomTarget - camZoomCur) * duelLerp.zoom;
-      camXCur    += (camXTarget    - camXCur)    * duelLerp.pos;
-      camYCur    += (camYTarget    - camYCur)    * duelLerp.pos;
-
+    if (!_isWide) {
+      // ── Standard arena: fixed full-map view, nothing clipped by HUD or edges ──
+      const _aLeft  = (currentArena && currentArena.mapLeft  !== undefined) ? currentArena.mapLeft  : 0;
+      const _aRight = (currentArena && currentArena.mapRight !== undefined) ? currentArena.mapRight : GAME_W;
+      const _aW     = _aRight - _aLeft;
+      // Available viewport height below the HUD (add a small buffer so floor isn't flush against edge)
+      const _safeH  = Math.max(GAME_H - _hudGU * 1.15, GAME_H * 0.72);
+      const _fullZoom = Math.min(GAME_W / (_aW + 16), _safeH / (GAME_H + 8));
+      targetZoom = Math.max(0.72, Math.min(1.0, _fullZoom));
+      targetX    = (_aLeft + _aRight) / 2;
+      targetY    = GAME_H / 2 + _hudShift;
+      // tick camHitZoomTimer without applying the zoom boost (keep view wide)
+      if (camHitZoomTimer > 0) camHitZoomTimer--;
     } else {
-
-    // ── Mode 2 — Combat Focus: center on midpoint, zoom in ──
-    if (_camMode === 'combat' && activePlayers.length >= 2) {
-      const pA = activePlayers[0], pB = activePlayers[activePlayers.length - 1];
-      const midX = (pA.cx() + pB.cx()) / 2;
-      const midY = (pA.cy() + pB.cy()) / 2;
-      const spread = Math.hypot(pA.cx() - pB.cx(), pA.cy() - pB.cy());
-      const combatZoom = Math.max(0.55, Math.min(1.2, 320 / (spread + 80)));
-      targetX    = midX;
-      targetY    = midY + 20 + _hudShift;  // slight downward offset to show floor + HUD safe area
-      targetZoom = combatZoom;
-    } else {
-      // ── Mode 1 — Gameplay: always fit all players in frame ───
-      // Use a larger PAD on wide maps so players don't crowd the screen edges
-      const isWideMap = !!(currentArena && currentArena.worldWidth);
-      const PAD       = isWideMap ? 220 : 140;
-      const zoomX     = GAME_W / ((maxX - minX) + PAD);
-      // Reduce effective height by HUD height so players aren't hidden behind the HUD bar
-      const _safeH    = Math.max(GAME_H - _hudGU, GAME_H * 0.7);
-      const zoomY     = _safeH / ((maxY - minY) + PAD);
-      // On wide maps keep a zoom floor of 0.30 so players never become tiny specks
-      const minZoom   = isWideMap
-        ? Math.max(0.30, GAME_W / (currentArena.worldWidth + 200))
-        : 0.42;
+      // ── Wide/scrolling arena: bounding-box tracking to follow players ──────
+      let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+      for (const p of activePlayers) {
+        minX = Math.min(minX, p.x);
+        maxX = Math.max(maxX, p.x + (p.w || 0));
+        minY = Math.min(minY, p.y);
+        maxY = Math.max(maxY, p.y + (p.h || 0));
+      }
+      const PAD      = 220;
+      const zoomX    = GAME_W / ((maxX - minX) + PAD);
+      const _safeH   = Math.max(GAME_H - _hudGU, GAME_H * 0.7);
+      const zoomY    = _safeH / ((maxY - minY) + PAD);
+      const minZoom  = Math.max(0.30, GAME_W / (currentArena.worldWidth + 200));
       targetZoom = Math.min(1.18, Math.max(minZoom, Math.min(zoomX, zoomY)));
-
       const rawCX  = (minX + maxX) / 2;
       const rawCY  = (minY + maxY) / 2;
-      // 72/28 horizontal bias toward human player; 62/38 vertical bias so jumps are tracked better
       const humanP = activePlayers.find(p => !p.isAI && !p.isBoss) || activePlayers[0];
       targetX = rawCX * 0.72 + humanP.cx() * 0.28;
-      targetY = rawCY * 0.62 + humanP.cy() * 0.38 + _hudShift; // shift down to keep players below HUD
-    }
-
-    } // end non-duel branch
-
-    if (!_isDuel) {
-      // Brief hit-zoom (cinematic heavy hit pulse)
+      targetY = rawCY * 0.62 + humanP.cy() * 0.38 + _hudShift;
+      // Brief hit-zoom pulse for wide arenas
       if (camHitZoomTimer > 0) {
         camHitZoomTimer--;
         targetZoom = Math.max(targetZoom, 1.0 + 0.22 * (camHitZoomTimer / 15));
       }
-
-      // Boss attack: bias camera slightly toward boss (unchanged behaviour)
-      if (!cinematicCamOverride && gameRunning && _camMode !== 'combat') {
+      // Boss attack: bias camera toward boss on wide maps
+      if (!cinematicCamOverride && gameRunning) {
         const attackingBoss = players.find(p => p.isBoss && p.attackTimer > 0 && p.health > 0);
         if (attackingBoss) {
           targetZoom = Math.max(targetZoom, 1.08);
@@ -356,18 +288,16 @@ function updateCamera() {
     }
   }
 
-  if (!_isDuel) {
+  {
     camZoomTarget = targetZoom;
     const dx = targetX - camXTarget, dy = targetY - camYTarget;
-    // Per-axis deadzone: decouple horizontal and vertical thresholds so that
-    // a jump doesn't trigger horizontal drift and a side-step doesn't pull the
-    // camera vertically. Tighter Y (16) keeps jumps tracked promptly.
     if (Math.abs(dx) > 28) camXTarget = targetX;
     if (Math.abs(dy) > 16) camYTarget = targetY;
 
-    _updateCameraDrama();
+    // Drama cam (zoom-in effects) only on wide/scrolling arenas; standard arenas stay wide
+    const _isWideApply = !!(currentArena && currentArena.worldWidth);
+    if (_isWideApply) _updateCameraDrama();
 
-    // Smooth transition: use combat-speed lerp when entering/leaving mode
     camZoomCur += (camZoomTarget - camZoomCur) * lerp.zoom;
     camXCur    += (camXTarget    - camXCur)    * lerp.pos;
     camYCur    += (camYTarget    - camYCur)    * lerp.pos;
@@ -438,9 +368,7 @@ function updateCamera() {
   // ── CAMERA FAILSAFE: player out of view → instant partial snap ───────────────
   // Cooldown prevents repeated snaps each frame (causes shudder when lerp fights snap).
   if (_camSnapCooldown > 0) _camSnapCooldown--;
-  // Duel mode: skip hard failsafe entirely — velocity-capped midpoint will always catch up
-  // smoothly. Brief off-screen is acceptable.
-  if (!_isDuel && !cinematicCamOverride && gameRunning && activePlayers.length > 0 && _camSnapCooldown === 0) {
+  if (!cinematicCamOverride && gameRunning && activePlayers.length > 0 && _camSnapCooldown === 0) {
     for (const _fp of activePlayers) {
       const _sx    = (_fp.cx() - camXCur) * camZoomCur + GAME_W * 0.5;
       const _syTop = (_fp.y - camYCur) * camZoomCur + GAME_H * 0.5;

@@ -199,6 +199,9 @@ function gameLoop(timestamp) {
         showBossDialogue(bossFloorType === 'lava'
           ? randChoice(['The floor has a new purpose.', 'Heat is a matter of perspective.', 'I\'d move if I were you. I\'m not.'])
           : randChoice(['The ground is a luxury.', 'Space beneath your feet — gone.', 'Let\'s see how well you float.']), 220);
+        // Screen-level announcement so the warning is always visible even if dialogue is overwritten
+        if (typeof queueAnnouncement === 'function')
+          queueAnnouncement(bossFloorType === 'lava' ? '⚠ FLOOR IS LAVA!' : '⚠ FLOOR REMOVED!', bossFloorType === 'lava' ? '#ff6600' : '#8855ff');
       } else if (bossFloorState === 'warning') {
         bossFloorState = 'hazard';
         bossFloorTimer = 900; // 15-second hazard
@@ -857,6 +860,19 @@ function gameLoop(timestamp) {
     drawFakeDeathScene();
   }
 
+  // ---------- Blood stains — draw persistent marks on surfaces ----------
+  for (let i = bloodStains.length - 1; i >= 0; i--) {
+    const _bs = bloodStains[i];
+    _bs.life--;
+    if (_bs.life <= 0) { bloodStains.splice(i, 1); continue; }
+    ctx.globalAlpha = Math.min(0.55, (_bs.life / _bs.maxLife) * 0.7);
+    ctx.fillStyle   = '#660000';
+    ctx.beginPath();
+    ctx.ellipse(_bs.x, _bs.y, _bs.r, _bs.r * 0.28, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+
   // ---------- Phase: updateParticles (prevent memory leak: remove expired) ----------
   const _liveParticles = [];
   for (let i = 0; i < particles.length; i++) {
@@ -865,6 +881,21 @@ function gameLoop(timestamp) {
     p.vy += 0.12; p.vx *= 0.96;
     p.life--;
     if (p.life > 0) {
+      // Blood particles: check if landing on a platform surface → leave a stain
+      if (p.isBlood && p.vy > 0 && currentArena && currentArena.platforms) {
+        for (const _pl of currentArena.platforms) {
+          if (p.x > _pl.x && p.x < _pl.x + _pl.w &&
+              p.y >= _pl.y - 1 && p.y - p.vy < _pl.y) {
+            if (bloodStains.length < 80) {
+              bloodStains.push({ x: p.x + (Math.random() - 0.5) * 4, y: _pl.y,
+                r: 3 + Math.random() * 5, life: 720, maxLife: 720 });
+            }
+            p.life = 0; // consume particle
+            break;
+          }
+        }
+        if (p.life <= 0) { _recycleParticle(p); continue; }
+      }
       _liveParticles.push(p);
       const a = p.life / p.maxLife;
       ctx.globalAlpha = Math.max(0, a);
@@ -1018,7 +1049,7 @@ function gameLoop(timestamp) {
     MultiverseManager.drawScreenSpace();
     MultiverseManager.drawHUD();
   }
-  if ((currentArena.isBossArena || window.FORCE_ATTACK_MODE) && typeof drawBossDialogue === 'function') drawBossDialogue(finalScX, finalScY, camCX, camCY);
+  if ((currentArena && currentArena.isBossArena || window.FORCE_ATTACK_MODE) && typeof drawBossDialogue === 'function') drawBossDialogue(finalScX, finalScY, camCX, camCY);
   if (typeof drawHitEffectivenessHUD === 'function') drawHitEffectivenessHUD();
   if (gameMode === 'exploration') drawExploreHUD();
   if (exploreActive && typeof drawExploreModeOverlay === 'function') drawExploreModeOverlay();

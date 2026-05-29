@@ -19,8 +19,8 @@ const ReplaySystem = (() => {
   const PLAYBACK_FPS   = 20;   // frames per second of recorded data during playback
   const DB_NAME        = 'smb_replays_v1';
 
-  // Modes that are not worth recording
-  const SKIP_MODES = new Set(['battleroyale', 'training', 'exploration']);
+  // No modes are skipped — record everything (training, minigames, exploration, etc.)
+  const SKIP_MODES = new Set();
 
   // ── Recording state ─────────────────────────────────────────────────────────
   let _recording  = false;

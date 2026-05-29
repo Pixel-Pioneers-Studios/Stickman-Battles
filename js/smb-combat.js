@@ -24,6 +24,78 @@ function applyClassWeaponInteraction(attacker, target, dmg) {
   return dmg;
 }
 
+// ── WEAPON-AWARE HIT PARTICLES ───────────────────────────────────────────────
+// Spawns visually distinct particle bursts based on the attacker's weapon type.
+// Called from dealDamage() on a non-shielded, non-boss hit.
+function _spawnWeaponHitFX(attacker, target, dmg) {
+  if (!settings.particles) return;
+  const tx = target.cx(), ty = target.cy();
+  const wk = attacker && attacker.weaponKey ? attacker.weaponKey : null;
+  const heavy = dmg >= 22;
+  switch (wk) {
+    case 'sword':
+      // Metallic sparks: white core + light-blue scatter
+      spawnParticles(tx, ty, '#d4eeff', heavy ? 14 : 8);
+      spawnParticles(tx, ty, '#ffffff', heavy ? 8 : 4);
+      if (heavy) spawnParticles(tx, ty, '#88ccff', 6);
+      break;
+    case 'hammer':
+      // Dusty orange shockwave chunks
+      spawnParticles(tx, ty, '#cc5500', heavy ? 16 : 10);
+      spawnParticles(tx, ty, '#ffaa44', heavy ? 10 : 5);
+      if (heavy) spawnParticles(tx, ty + 10, '#887766', 8); // ground dust
+      break;
+    case 'axe':
+      // Chunky red/orange shards
+      spawnParticles(tx, ty, '#ff4400', heavy ? 14 : 9);
+      spawnParticles(tx, ty, '#cc2200', heavy ? 8 : 4);
+      break;
+    case 'scythe':
+      // Dark purple reaping wisps
+      spawnParticles(tx, ty, '#9900cc', heavy ? 14 : 8);
+      spawnParticles(tx, ty, '#440066', heavy ? 8 : 5);
+      if (heavy) spawnParticles(tx, ty, '#cc88ff', 6);
+      break;
+    case 'spear':
+      // Teal piercing sparks
+      spawnParticles(tx, ty, '#00ccbb', heavy ? 12 : 7);
+      spawnParticles(tx, ty, '#ffffff', heavy ? 6 : 3);
+      break;
+    case 'fryingpan':
+      // Bright yellow/gold clang burst
+      spawnParticles(tx, ty, '#ffdd00', heavy ? 16 : 10);
+      spawnParticles(tx, ty, '#ffffff', heavy ? 10 : 5);
+      break;
+    case 'broomstick':
+      // Purple/yellow magic scatter
+      spawnParticles(tx, ty, '#cc44ff', heavy ? 12 : 7);
+      spawnParticles(tx, ty, '#ffee44', heavy ? 8 : 4);
+      break;
+    case 'boxinggloves':
+      // Red/white punch burst with extra count on heavy
+      spawnParticles(tx, ty, '#ff2233', heavy ? 18 : 10);
+      spawnParticles(tx, ty, '#ffffff', heavy ? 10 : 5);
+      break;
+    case 'shield':
+      // Gold/blue blocking-style burst (attacker hitting with shield bash)
+      spawnParticles(tx, ty, '#4488ff', heavy ? 12 : 7);
+      spawnParticles(tx, ty, '#ffdd88', heavy ? 8 : 4);
+      break;
+    case 'gun': case 'peashooter': case 'slingshot': case 'bow': case 'paperairplane':
+      // Ranged: particles are spawned by Projectile on hit, nothing extra needed here
+      spawnParticles(tx, ty, target.color, 8);
+      break;
+    default:
+      // Generic fallback
+      spawnParticles(tx, ty, target.color, 12);
+      if (heavy) {
+        spawnParticles(tx, ty, '#ffffff', 8);
+        spawnParticles(tx, ty, dmg >= 34 ? '#ff8844' : '#ffee88', dmg >= 34 ? 12 : 7);
+      }
+      break;
+  }
+}
+
 function dealDamage(attacker, target, dmg, kbForce, stunMult = 1.0, isSplash = false, hitInvincibleFrames = 16) {
   if (activeCinematic) return; // no damage during cinematic pauses
   if (!target || target.invincible > 0 || target.health <= 0) return;
@@ -343,6 +415,10 @@ function dealDamage(attacker, target, dmg, kbForce, stunMult = 1.0, isSplash = f
       : Math.floor((target.maxHealth || 100) * 0.45);
     if (actualDmg > _maxHit) actualDmg = _maxHit;
   }
+  // Godslayer armor: 88% damage resistance during the Absolute Axiom encounter
+  if (target.armorStyle === 'godslayer' && typeof gameMode !== 'undefined' && gameMode === 'absoluteaxiom') {
+    actualDmg = Math.max(1, Math.round(actualDmg * 0.12));
+  }
   // Soccer: players take no health damage but still feel KB/stun
   if (gameMode === 'minigames' && minigameType === 'soccer') actualDmg = 0;
   // Online: if attacker is local and target is remote, send hit event to server
@@ -352,6 +428,7 @@ function dealDamage(attacker, target, dmg, kbForce, stunMult = 1.0, isSplash = f
   }
   target.health    = Math.max(0, target.health - actualDmg);
   if (attacker && actualDmg > 0) attacker.totalDamageDealt = (attacker.totalDamageDealt || 0) + actualDmg;
+  if (actualDmg > 0 && !target.isBoss) target._damageAccumThisLife = (target._damageAccumThisLife || 0) + actualDmg;
   // God Phase 1 crash: fires once on the first successful hit against a human player.
   // Deferred via setTimeout so the current game-loop iteration completes before the
   // overlay halts execution — avoids mid-frame teardown.
@@ -430,6 +507,12 @@ function dealDamage(attacker, target, dmg, kbForce, stunMult = 1.0, isSplash = f
   if (target.shielding) SoundManager.clang();
   else if (attacker && actualDmg >= 30) SoundManager.heavyHit();
   else if (attacker) SoundManager.hit();
+  // Blood spray — only on real entity hits, not shields or splash or environment
+  if (!target.shielding && !isSplash && attacker && !target.isBoss &&
+      actualDmg > 0 && typeof spawnBlood === 'function') {
+    const _bDir = target.cx() > attacker.cx() ? 1 : -1;
+    spawnBlood(target.cx(), target.cy() - 4, _bDir, actualDmg);
+  }
 
   // Achievement / progression tracking — skip if attacker is using a custom weapon
   const _attackerHasCustomWeapon = attacker && attacker.weapon && typeof attacker.weapon._isCustom === 'boolean' && attacker.weapon._isCustom;
@@ -471,11 +554,7 @@ function dealDamage(attacker, target, dmg, kbForce, stunMult = 1.0, isSplash = f
     }
   }
   if (!target.shielding) {
-    spawnParticles(target.cx(), target.cy(), target.color, 12);
-    if (actualDmg >= 22) {
-      spawnParticles(target.cx(), target.cy(), '#ffffff', 10);
-      spawnParticles(target.cx(), target.cy(), actualDmg >= 34 ? '#ff8844' : '#ffee88', actualDmg >= 34 ? 14 : 8);
-    }
+    _spawnWeaponHitFX(attacker, target, actualDmg);
     // Chance-based stun / ragdoll (not guaranteed; boss is harder to ragdoll)
     const ragdollChance = target.kbResist ? 0.30 * target.kbResist : 0.30;
     const MAX_STUN = 90; // cap at 1.5s

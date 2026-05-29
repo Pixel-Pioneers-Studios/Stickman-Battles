@@ -4,7 +4,7 @@
 //             smb-progression.js (setStoryFlag, fireLoreMoment)
 // Must load: after smb-story-registry.js, before smb-story-finalize.js
 //
-// Chapter id 28 — inserted at end of Act III (Rifts/Veran), after Core Entry.
+// Chapter id 62 — inserted at end of Act III (Rifts/Veran), after Core Entry.
 // Reveals the fractures were engineered by the Creator before the Rural arc begins.
 
 STORY_CHAPTER_REGISTRY.push({
@@ -50,7 +50,7 @@ STORY_CHAPTER_REGISTRY.push({
     aiDiff: 'hard',
     opponentColor: '#336688',
     playerLives: 3,
-    arena: 'city',
+    arena: 'ruins',
     tokenReward: 80,
     blueprintDrop: null,
 

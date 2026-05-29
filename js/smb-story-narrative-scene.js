@@ -33,18 +33,29 @@
   // ── Beat parsing ───────────────────────────────────────────────────────────────
   function _parseBeats(lines) {
     var beats = [], group = [];
-    function flush() {
-      if (!group.length) return;
-      var joined = group.join(' ');
-      var hasQuote = group.some(function(l){ return l.trim().charAt(0) === '"'; });
+    function pushRun(runLines) {
+      if (!runLines.length) return;
+      var hasQuote = runLines.some(function(l){ return l.trim().charAt(0) === '"'; });
       var speaker = 'none';
       if (hasQuote) {
-        var lo = joined.toLowerCase();
+        var lo = runLines.join(' ').toLowerCase();
         speaker = (lo.indexOf('your voice') !== -1 || lo.indexOf('you said') !== -1 ||
                    lo.indexOf('you replied') !== -1 || lo.indexOf('you asked') !== -1)
                   ? 'player' : 'npc';
       }
-      beats.push({ lines: group.filter(function(l){return l.trim()!==''; }), speaker: speaker, hasQuote: hasQuote });
+      beats.push({ lines: runLines.filter(function(l){return l.trim()!==''; }), speaker: speaker, hasQuote: hasQuote });
+    }
+    function flush() {
+      if (!group.length) return;
+      // Split mixed narrator+dialogue groups so narrator lines don't appear in speech bubbles
+      var cur = [], curIsQuote = null;
+      for (var i = 0; i < group.length; i++) {
+        var isQ = group[i].trim().charAt(0) === '"';
+        if (curIsQuote === null) curIsQuote = isQ;
+        if (isQ !== curIsQuote) { pushRun(cur); cur = []; curIsQuote = isQ; }
+        cur.push(group[i]);
+      }
+      pushRun(cur);
       group = [];
     }
     for (var i = 0; i < lines.length; i++) { if (lines[i]==='') flush(); else group.push(lines[i]); }
@@ -138,6 +149,7 @@
       state:  cur.state, facing: cur.facing,
       alpha:  _lerp(cur.alpha!==undefined?cur.alpha:1, nxt.alpha!==undefined?nxt.alpha:1, p),
       scale:  cur.scale || 1, show: cur.show !== false,
+      expr:   cur.expr,
     };
   }
 
@@ -389,7 +401,7 @@
   }
 
   // ── Stick figure — enhanced ────────────────────────────────────────────────────
-  function _drawFigure(c, x, y, color, facing, state, t, alpha, scale) {
+  function _drawFigure(c, x, y, color, facing, state, t, alpha, scale, expr) {
     c.save();
     c.globalAlpha = Math.max(0, alpha !== undefined ? alpha : 1);
     scale = scale || 1;
@@ -438,15 +450,86 @@
 
     // Head
     c.fillStyle = color; c.beginPath(); c.arc(x, headCY, headR, 0, Math.PI*2); c.fill();
-    // Eyes
-    c.fillStyle = 'rgba(0,0,0,0.48)';
-    var eyeOff = facing * 4.5;
-    if (isHit) eyeOff *= -0.5; // eyes scrunch on hit
-    c.beginPath(); c.arc(x+eyeOff*0.5, headCY-1.5, 2, 0, Math.PI*2); c.fill();
-    c.beginPath(); c.arc(x+eyeOff*0.5+facing*5, headCY-1.5, 2, 0, Math.PI*2); c.fill();
+
+    // ── FACE ──────────────────────────────────────────────────────
+    var _feExpr   = expr || 'neutral';
+    var _feEyeOff = facing * 4.5;
+    if (isHit) _feEyeOff *= -0.5;
+    var _feEyeY = headCY - 1.5;
+    var _feE1x  = x + _feEyeOff * 0.5;           // inner eye
+    var _feE2x  = x + _feEyeOff * 0.5 + facing * 5; // outer eye
+
+    // White sclerae
+    c.fillStyle = '#ffffff';
+    c.beginPath(); c.arc(_feE1x, _feEyeY, 2.4, 0, Math.PI*2); c.fill();
+    c.beginPath(); c.arc(_feE2x, _feEyeY, 2.4, 0, Math.PI*2); c.fill();
+
+    // Half-lid: paint head color over the top portion of each eye
+    if (_feExpr === 'cool' || _feExpr === 'serene') {
+      c.fillStyle = color;
+      c.fillRect(_feE1x - 2.6, _feEyeY - 2.4, 5.2, 1.6);
+      c.fillRect(_feE2x - 2.6, _feEyeY - 2.4, 5.2, 1.6);
+    }
+
+    // Pupils
+    if (!isHit) {
+      c.fillStyle = 'rgba(0,0,0,0.88)';
+      c.beginPath(); c.arc(_feE1x + facing * 0.4, _feEyeY, 1.2, 0, Math.PI*2); c.fill();
+      c.beginPath(); c.arc(_feE2x + facing * 0.4, _feEyeY, 1.2, 0, Math.PI*2); c.fill();
+    } else {
+      c.fillStyle = 'rgba(200,0,0,0.75)';
+      c.beginPath(); c.arc(_feE1x, _feEyeY, 1.5, 0, Math.PI*2); c.fill();
+      c.beginPath(); c.arc(_feE2x, _feEyeY, 1.5, 0, Math.PI*2); c.fill();
+    }
+
+    // Eyebrows — one line above each eye; nose-side lower = determined, higher = worried
+    var _feBrowY = headCY - 7.5;
+    c.strokeStyle = 'rgba(0,0,0,0.65)';
+    c.lineWidth   = 1.8;
+    c.lineCap     = 'round';
+    for (var _feBI = 0; _feBI < 2; _feBI++) {
+      var _feBEx   = _feBI === 0 ? _feE1x : _feE2x;
+      var _feNoseX = _feBEx - facing * 2.0;  // toward nose
+      var _feEarX  = _feBEx + facing * 2.5;  // toward ear
+      var _feNoseY = _feBrowY, _feEarY = _feBrowY;
+      if (isHit) {
+        _feNoseY -= 2.0; _feEarY += 0.6;            // worried ↗
+      } else if (isAttack || _feExpr === 'focused' || _feExpr === 'intense') {
+        _feNoseY += 2.0; _feEarY -= 0.6;            // determined ↘
+      } else if (_feExpr === 'cool') {
+        _feNoseY += 1.0; _feEarY -= 0.3;            // cool slight ↘
+      }
+      c.beginPath(); c.moveTo(_feEarX, _feEarY); c.lineTo(_feNoseX, _feNoseY); c.stroke();
+    }
+
     // Mouth
-    if (isTalk) { var mw=5+Math.abs(Math.sin(t*0.18))*3; c.save(); c.strokeStyle='rgba(0,0,0,0.4)'; c.lineWidth=2; c.beginPath(); c.arc(x+eyeOff*0.3,headCY+5,mw,0.1,Math.PI-0.1); c.stroke(); c.restore(); }
-    if (isHit)  { c.save(); c.strokeStyle='rgba(0,0,0,0.35)'; c.lineWidth=2; c.beginPath(); c.moveTo(x-4,headCY+5); c.lineTo(x+4,headCY+5); c.stroke(); c.restore(); } // flat mouth
+    c.lineWidth = 2;
+    if (isTalk) {
+      var mw = 5 + Math.abs(Math.sin(t*0.18)) * 3;
+      c.strokeStyle = 'rgba(0,0,0,0.45)';
+      c.beginPath(); c.arc(x + _feEyeOff*0.3, headCY+5, mw, 0.1, Math.PI-0.1); c.stroke();
+    } else if (isHit) {
+      c.strokeStyle = 'rgba(0,0,0,0.35)';
+      c.beginPath(); c.moveTo(x-4, headCY+5); c.lineTo(x+4, headCY+5); c.stroke();
+    } else if (_feExpr === 'cool' || _feExpr === 'serene') {
+      // Smirk: inner corner flat, outer corner lifts
+      c.strokeStyle = 'rgba(0,0,0,0.50)';
+      c.lineWidth = 1.8;
+      var _smMid = x + facing * 1.5;
+      c.beginPath();
+      c.moveTo(_smMid - 3.5, headCY + 5.5);
+      c.quadraticCurveTo(_smMid + 1, headCY + 6, _smMid + 5, headCY + 4);
+      c.stroke();
+    } else if (_feExpr === 'intense') {
+      // Tight grim line
+      c.strokeStyle = 'rgba(190,0,0,0.45)';
+      c.lineWidth = 1.8;
+      c.beginPath(); c.moveTo(x - 3.5, headCY+5); c.lineTo(x + 4.5, headCY+5); c.stroke();
+    } else if (isAttack) {
+      c.strokeStyle = 'rgba(200,0,0,0.40)';
+      c.beginPath(); c.arc(x + _feEyeOff*0.2, headCY+4, 4, 0, Math.PI, true); c.stroke();
+    }
+    // neutral/focused: no mouth drawn = stoic read
 
     // Torso
     c.beginPath(); c.moveTo(x, neckY); c.lineTo(hipX, hipY); c.stroke();
@@ -575,7 +658,7 @@
 
       switch (ef.type) {
         case 'portal':
-          _drawPortal(c, ef.xf*w, ef.yf*h, ef.height*h, ef.color||'#aa44ff', alpha, localT);
+          _drawPortal(c, (ef.xf!==undefined?ef.xf:ef.cx||0.5)*w, (ef.yf!==undefined?ef.yf:ef.cy||0.5)*h, (ef.height||0.45)*h, ef.color||'#aa44ff', alpha, localT);
           break;
         case 'multi_portals':
           for (var pi=0;pi<ef.portals.length;pi++) { var p=ef.portals[pi]; _drawPortal(c,p.xf*w,p.yf*h,(p.height||0.45)*h,p.color||'#aa44ff',alpha*(p.a||1),localT+pi*13); }
@@ -699,8 +782,8 @@
     var pCfg = _resolveFig('player', bs, beat);
     var nCfg = _resolveFig('npc',    bs, beat);
 
-    if (pCfg.show) _drawFigure(_ctx, pCfg.x, footY, '#4488ff', pCfg.facing, pCfg.state, _t, pCfg.alpha, pCfg.scale||1);
-    if (nCfg.show) _drawFigure(_ctx, nCfg.x, footY, nCfg.color, nCfg.facing, nCfg.state, _t, nCfg.alpha, nCfg.scale||1);
+    if (pCfg.show) _drawFigure(_ctx, pCfg.x, footY, '#4488ff', pCfg.facing, pCfg.state, _t, pCfg.alpha, pCfg.scale||1, pCfg.expr);
+    if (nCfg.show) _drawFigure(_ctx, nCfg.x, footY, nCfg.color, nCfg.facing, nCfg.state, _t, nCfg.alpha, nCfg.scale||1, nCfg.expr);
 
     // Effects in front of figures
     if (bs && bs.effects) _drawBeatEffects(bs.effects,_ctx,w,h,footY,_t,_beatT,_pX(),_nX());
@@ -796,6 +879,7 @@
         scale:  fa.scale  || 1,
         show:   fa.show   !== false,
         color:  isPlayer ? '#4488ff' : npcColor,
+        expr:   fa.expr || (isPlayer ? (bs && bs.playerExpr) : (bs && bs.npcExpr)) || 'neutral',
       };
     }
 
@@ -810,6 +894,7 @@
         alpha:  (bs && bs.playerAlpha !== undefined) ? bs.playerAlpha  : 1,
         scale:  1, show: (bs && bs.playerShow !== undefined) ? bs.playerShow : true,
         color:  '#4488ff',
+        expr:   (bs && bs.playerExpr) || 'neutral',
       };
     } else {
       var defNState = beat.speaker==='npc' ? 'talk' : 'idle';
@@ -821,6 +906,7 @@
         alpha:  (bs && bs.npcAlpha  !== undefined) ? bs.npcAlpha  : 1,
         scale:  1, show: (bs && bs.npcShow !== undefined) ? bs.npcShow : defShow,
         color:  npcColor,
+        expr:   (bs && bs.npcExpr) || 'neutral',
       };
     }
   }

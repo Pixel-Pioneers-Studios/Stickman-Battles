@@ -8,7 +8,7 @@ function _startGameCore() {
   document.getElementById('gameOverOverlay').style.display  = 'none';
   document.getElementById('pauseOverlay').style.display     = 'none';
   canvas.style.display = 'block';
-  document.getElementById('hud').style.display = 'flex';
+  document.getElementById('hud').style.display = (settings && settings.hideHud) ? 'none' : 'flex';
 
   // Show chat widget if online
   const chatEl = document.getElementById('onlineChat');
@@ -18,6 +18,7 @@ function _startGameCore() {
   const isBossMode         = gameMode === 'boss';
   const isTrueFormMode     = gameMode === 'trueform';
   const isGodMode          = gameMode === 'god';
+  const isAbsoluteAxiomMode = gameMode === 'absoluteaxiom';
   const isDamnationMode    = gameMode === 'damnation';
   const isTrainingMode     = gameMode === 'training';
   // Online: force 2P-compatible variants so guest doesn't get assigned to boss/dummy
@@ -33,10 +34,28 @@ function _startGameCore() {
   const isMultiverseMode   = gameMode === 'multiverse';
   const isBossLivesMode    = isBossMode || isTrueFormMode;
   _setBossFightLivesLock(isBossLivesMode);
+
+  // Track which fighters the player has encountered for the Guidebook Fighters Log
+  if (typeof GameState !== 'undefined') {
+    const _seen = GameState.get('fightersSeen') || {};
+    if (gameMode === '2p' || gameMode === 'minigames' || gameMode === 'battleroyale') _seen.guard = true;
+    if (isBossMode) _seen.boss = true;
+    if (isTrueFormMode) { _seen.boss = true; _seen.trueform = true; }
+    if (isSovereignMode) _seen.axiom = true;
+    if (isAdaptiveMode && !isSovereignMode) _seen.adaptive = true;
+    if (isDamnationMode) _seen.damnation = true;
+    if (isGodMode) _seen.god = true;
+    if (storyModeActive) _seen.story = true;
+    GameState.set('fightersSeen', _seen);
+    GameState.save();
+  }
+
   trainingMode = isTrainingMode;
   tutorialMode = false; // tutorial mode removed
   if (isSovereignMode) {
     currentArenaKey = 'sovereign'; // Sovereign's dedicated melee-only arena
+  } else if (isAbsoluteAxiomMode) {
+    currentArenaKey = 'absolute_axiom_domain';
   } else if (isGodMode) {
     currentArenaKey = 'god_domain'; // God's own divine domain arena
   } else if (isMultiverseMode) {
@@ -54,7 +73,8 @@ function _startGameCore() {
   } else if (isExploreMode) {
     currentArenaKey = '__explore__';
   } else if (isBattleRoyaleMode) {
-    currentArenaKey = '__br__'; // initBattleRoyale() sets currentArena directly
+    currentArenaKey = '__br__';
+    if (typeof _makeBRArena === 'function') ARENAS['__br__'] = _makeBRArena(); // ensure ARENAS lookup works at line 83
   } else if (isMinigamesMode) {
     if (minigameType === 'soccer') {
       currentArenaKey = 'soccer';
@@ -135,6 +155,7 @@ function _startGameCore() {
   frameCount         = 0; // reset per-game frame counter (used for yeti min-spawn delay)
   projectiles        = [];
   particles          = [];
+  bloodStains        = [];
   verletRagdolls     = [];
   damageTexts        = [];
   respawnCountdowns  = [];
@@ -536,6 +557,28 @@ function _startGameCore() {
       const _ally = new GodParadoxAlly(300, 200);
       _ally._teamId = 1;
       minions.push(_ally);
+    }
+  } else if (isAbsoluteAxiomMode) {
+    // Absolute Axiom encounter — P1 vs Absolute Axiom directly
+    p1.isAI  = false;
+    p1.lives = 10;
+    p1.armorPieces = ['helmet', 'chestplate', 'leggings'];
+    p1.armorStyle  = 'godslayer';
+    p1._teamId = 1;
+    if (window.GODSLAYER_WEAPON) {
+      p1.weapon    = window.GODSLAYER_WEAPON;
+      p1.weaponKey = '_godslayer';
+      p1._ammo     = 0;
+    }
+    players = [p1];
+    p1.target = null;
+    minions.length = 0;
+    if (typeof AbsoluteAxiom !== 'undefined') {
+      const _aa = new AbsoluteAxiom(600, 200);
+      _aa._teamId = 50;
+      minions.push(_aa);
+      window._absoluteAxiomWasAlive = true;
+      if (typeof _activateRGSForMatch === 'function') _activateRGSForMatch();
     }
   } else if (isExploreMode) {
     // Exploration: P1 only — enemies are dynamically spawned as minions

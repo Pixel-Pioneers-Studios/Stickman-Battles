@@ -45,6 +45,13 @@ function _cheatUnlockAll() {
     setAccountFlagWithRuntime(['unlocks', 'megaknight'], true, function(v) { unlockedMegaknight = v; if (typeof refreshMegaknightClassOption === 'function') refreshMegaknightClassOption(); });
   } else { unlockedMegaknight = true; if (typeof refreshMegaknightClassOption === 'function') refreshMegaknightClassOption(); }
 
+  // Absolute Axiom
+  if (typeof setAccountFlagWithRuntime === 'function') {
+    setAccountFlagWithRuntime(['unlocks', 'absoluteAxiomUnlocked'], true, function(v) { absoluteAxiomUnlocked = v; });
+  } else if (typeof absoluteAxiomUnlocked !== 'undefined') { absoluteAxiomUnlocked = true; }
+  const _aaCard = document.getElementById('modeAbsoluteAxiom');
+  if (_aaCard) _aaCard.style.display = '';
+
   // All achievements
   if (typeof ACHIEVEMENTS !== 'undefined') {
     ACHIEVEMENTS.forEach(a => {
@@ -270,12 +277,20 @@ function applyCode(val) {
     }
 
     ok('TrueForm HP → ' + _tfBoss.health + '. Cinematics above this threshold bypassed.');
+  } else if (code === 'AXIOMSQUARED') {
+    if (typeof setAccountFlagWithRuntime === 'function') {
+      setAccountFlagWithRuntime(['unlocks', 'absoluteAxiomUnlocked'], true, function(v) { absoluteAxiomUnlocked = v; });
+    } else if (typeof absoluteAxiomUnlocked !== 'undefined') { absoluteAxiomUnlocked = true; }
+    const aaCard = document.getElementById('modeAbsoluteAxiom');
+    if (aaCard) aaCard.style.display = '';
+    if (typeof saveGame === 'function') saveGame();
+    ok('ABSOLUTE AXIOM unlocked! Select it from the menu.');
   } else if (code === 'UNLOCKALL') {
     _cheatUnlockAll();
     ok('Everything unlocked!');
   } else if (code === 'HELP' || code === 'CODES') {
     if (msgEl) {
-      msgEl.textContent = 'TRUEFORM · SOVEREIGN · CLASSMEGAKNIGHT · UNLOCKALL · GODMODE · FULLHEAL · KILLBOSS · SETHP:<n> · MAP:<arena> · WEAPON:<key> · CLASS:<key>';
+      msgEl.textContent = 'TRUEFORM · SOVEREIGN · CLASSMEGAKNIGHT · AXIOMSQUARED · UNLOCKALL · GODMODE · FULLHEAL · KILLBOSS · SETHP:<n> · MAP:<arena> · WEAPON:<key> · CLASS:<key>';
       msgEl.style.color = '#aabbff'; msgEl.style.fontSize = '0.7rem';
     }
   } else {

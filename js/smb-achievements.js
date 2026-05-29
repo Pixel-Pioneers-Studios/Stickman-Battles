@@ -90,19 +90,11 @@ function unlockAchievement(id) {
   el.addEventListener('click', () => {
     el.remove();
     showAchievementsModal();
-    // Scroll to the specific achievement card after modal opens
+    // Highlight the specific achievement in the detail panel after modal opens
     setTimeout(() => {
-      const cards = document.querySelectorAll('.ach-card');
-      for (const card of cards) {
-        if (card.textContent.includes(def.title)) {
-          card.scrollIntoView({ behavior: 'smooth', block: 'center' });
-          card.style.outline = '2px solid #ffcc00';
-          card.style.boxShadow = '0 0 14px #ffcc00aa';
-          setTimeout(() => { card.style.outline = ''; card.style.boxShadow = ''; }, 2000);
-          break;
-        }
-      }
-    }, 120);
+      const card = document.querySelector(`.ach-card[data-id="${def.id}"]`);
+      if (card) card.click();
+    }, 80);
   });
   document.body.appendChild(el);
   const _autoFade = setTimeout(() => { el.style.transition='opacity 0.5s'; el.style.opacity='0'; setTimeout(() => el.remove(), 500); }, 3500);
@@ -147,16 +139,47 @@ function showAchievementsModal() {
   if (!modal) return;
   const grid = document.getElementById('achievementsGrid');
   if (!grid) return;
+
+  const countEl = document.getElementById('achCount');
+  if (countEl) countEl.textContent = `${earnedAchievements.size} / ${ACHIEVEMENTS.length} unlocked`;
+
   grid.innerHTML = '';
+
+  function showDetail(a) {
+    const earned = earnedAchievements.has(a.id);
+    const iconEl = document.getElementById('achDetailIcon');
+    const titleEl = document.getElementById('achDetailTitle');
+    const descEl = document.getElementById('achDetailDesc');
+    const hintEl = document.getElementById('achDetailHint');
+    const statusEl = document.getElementById('achDetailStatus');
+    if (iconEl) iconEl.textContent = earned ? a.icon : '🔒';
+    if (titleEl) { titleEl.textContent = earned ? a.title : '???'; titleEl.style.color = earned ? '#ffcc00' : '#777'; }
+    if (descEl) descEl.textContent = earned ? a.desc : 'Not yet unlocked';
+    if (hintEl) hintEl.textContent = (!earned && a.hint) ? '🔓 ' + a.hint : '';
+    if (statusEl) {
+      statusEl.textContent = earned ? '✓  EARNED' : '—  LOCKED';
+      statusEl.style.cssText = earned
+        ? 'font-size:0.7rem;padding:4px 14px;border-radius:20px;margin-top:4px;letter-spacing:0.5px;background:rgba(255,200,0,0.14);border:1px solid rgba(255,200,0,0.4);color:#ffcc00;'
+        : 'font-size:0.7rem;padding:4px 14px;border-radius:20px;margin-top:4px;letter-spacing:0.5px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);color:#555;';
+    }
+    grid.querySelectorAll('.ach-card').forEach(c => c.classList.remove('ach-selected'));
+    const target = grid.querySelector(`.ach-card[data-id="${a.id}"]`);
+    if (target) target.classList.add('ach-selected');
+  }
+
   ACHIEVEMENTS.forEach(a => {
     const earned = earnedAchievements.has(a.id);
     const div = document.createElement('div');
     div.className = 'ach-card' + (earned ? ' ach-earned' : ' ach-locked');
-    const hintHtml = a.hint ? `<div class="ach-hint">${earned ? '' : '🔓 ' + a.hint}</div>` : '';
-    div.innerHTML = `<div class="ach-icon">${earned ? a.icon : '🔒'}</div>
-      <div class="ach-title">${earned ? a.title : '???'}</div>
-      <div class="ach-desc">${earned ? a.desc : 'Not yet unlocked'}</div>${hintHtml}`;
+    div.dataset.id = a.id;
+    div.title = earned ? `${a.title}: ${a.desc}` : '???';
+    div.innerHTML = `<div class="ach-icon">${earned ? a.icon : '🔒'}</div><div class="ach-title-mini">${earned ? a.title : '???'}</div>`;
+    div.addEventListener('click', () => showDetail(a));
     grid.appendChild(div);
   });
+
+  const firstEarned = ACHIEVEMENTS.find(a => earnedAchievements.has(a.id));
+  showDetail(firstEarned || ACHIEVEMENTS[0]);
+
   modal.style.display = 'flex';
 }

@@ -142,6 +142,102 @@ function _finVignette(ctx, alpha) {
   ctx.restore();
 }
 
+// ── Cinematic face close-up (screen-space) ──────────────────
+// Draws a large both-eyes face at screen position sx, sy.
+// scale: size multiplier (1 = game-size; 4 = 4× bigger).
+// exprOverride: 'neutral'|'cool'|'focused'|'intense'|'serene' or null to read fighter.expressionState
+function _drawFaceCloseup(ctx, fighter, sx, sy, scale, exprOverride) {
+  const col  = fighter ? fighter.color : '#333';
+  const expr = exprOverride || (fighter && fighter.expressionState) || 'neutral';
+  const s    = (fighter && fighter.state) || 'idle';
+  const r    = 11 * scale;
+
+  ctx.save();
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+
+  // Head
+  ctx.fillStyle = col;
+  ctx.beginPath(); ctx.arc(sx, sy, r, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = 'rgba(0,0,0,0.25)';
+  ctx.lineWidth   = scale * 1.5;
+  ctx.beginPath(); ctx.arc(sx, sy, r, 0, Math.PI * 2); ctx.stroke();
+
+  const eyeOffX = r * 0.36;
+  const eyeOffY = r * -0.18;
+  const eyeR    = r * 0.27;
+  const pupilR  = eyeR * 0.53;
+  const lidH    = eyeR * 0.65;
+
+  for (const side of [-1, 1]) {
+    const ex = sx + side * eyeOffX;
+    const ey = sy + eyeOffY;
+
+    // Sclera
+    ctx.fillStyle = '#fff';
+    ctx.beginPath(); ctx.arc(ex, ey, eyeR, 0, Math.PI * 2); ctx.fill();
+
+    // Half-lid
+    if (expr === 'cool' || expr === 'serene') {
+      ctx.fillStyle = col;
+      ctx.fillRect(ex - eyeR - 0.5, ey - eyeR, (eyeR + 0.5) * 2, lidH);
+    }
+
+    // Pupil — angled slightly toward center (facing viewer)
+    ctx.fillStyle = s === 'hurt' ? '#cc0000' : '#111';
+    ctx.beginPath();
+    ctx.arc(ex - side * eyeR * 0.12, ey, pupilR, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Eyebrow
+    const browBaseY  = ey - eyeR - r * 0.12;
+    const browInnerX = ex - side * eyeR * 0.45; // toward nose
+    const browOuterX = ex + side * eyeR * 0.85; // toward ear
+    let   biY = browBaseY, boY = browBaseY;
+    if (s === 'hurt') {
+      biY -= eyeR * 0.5; boY += eyeR * 0.2;                   // worried ↗
+    } else if (s === 'attacking' || expr === 'focused' || expr === 'intense') {
+      biY += eyeR * 0.5; boY -= eyeR * 0.2;                   // determined ↘
+    } else if (expr === 'cool') {
+      biY += eyeR * 0.3; boY -= eyeR * 0.1;                   // cool slight ↘
+    }
+    ctx.strokeStyle = 'rgba(0,0,0,0.75)';
+    ctx.lineWidth   = scale * 1.8;
+    ctx.lineCap     = 'round';
+    ctx.beginPath();
+    ctx.moveTo(browOuterX, boY);
+    ctx.lineTo(browInnerX, biY);
+    ctx.stroke();
+  }
+
+  // Mouth
+  const mX = sx, mY = sy + r * 0.35, mR = r * 0.32;
+  ctx.lineWidth = scale * 1.5;
+  if (s === 'hurt') {
+    ctx.strokeStyle = '#ff3333';
+    ctx.beginPath(); ctx.arc(mX, mY, mR, 0, Math.PI); ctx.stroke();
+  } else if (expr === 'cool' || expr === 'serene') {
+    // Smirk: inner corner flat, outer corner lifts
+    ctx.strokeStyle = 'rgba(0,0,0,0.6)';
+    ctx.beginPath();
+    ctx.moveTo(mX - mR, mY + mR * 0.3);
+    ctx.quadraticCurveTo(mX, mY + mR * 0.5, mX + mR, mY);
+    ctx.stroke();
+  } else if (expr === 'intense') {
+    ctx.strokeStyle = '#ff3333';
+    ctx.beginPath();
+    ctx.moveTo(mX - mR * 0.7, mY + mR * 0.3);
+    ctx.lineTo(mX + mR * 0.7, mY + mR * 0.3);
+    ctx.stroke();
+  } else {
+    ctx.strokeStyle = 'rgba(0,0,0,0.6)';
+    ctx.beginPath();
+    ctx.arc(mX, mY - mR * 0.3, mR, 0, Math.PI, true);
+    ctx.stroke();
+  }
+
+  ctx.restore();
+}
+
 // CinCam, _makeTimeline, _tickTimeline, _makeFinisherSentinel
 // are all defined in smc-cinematics.js (loaded before this file).
 

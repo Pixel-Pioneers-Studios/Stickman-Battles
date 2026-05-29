@@ -52,35 +52,85 @@ function _wfDrawAura(ctx, att, color, alpha, r, scX, scY, ox, oy) {
 const WEAPON_FINISHERS = {
 
   // ── sword ────────────────────────────────────────────────────
-  sword: _wfDef('PHANTOM SLASH','rgba(100,160,255,1)',120,
-    (att,tgt,data)=>{ _wfBaseSetup(att,tgt,data); data.slashFired=false;
+  sword: _wfDef('GHOST STEP','rgba(100,160,255,1)',122,
+    (att,tgt,data)=>{ _wfBaseSetup(att,tgt,data); data.slashLines=[]; data.ghostTrail=[];
+      // Attacker appears on the OPPOSITE side of the target after the pass-through
+      data.otherSideX = data.dir>0 ? data.tx0+tgt.w+16 : data.tx0-att.w-16;
       data.tl=_makeTimeline([
         {frame:0, fn(){ CinCam.zoomTo(1.3); CinCam.focusMidpoint(att,tgt); CinCam.slowMo(0.25); }},
         {frame:12,fn(){ CinCam.focusOn(att); }},
-        {frame:30,fn(){ CinCam.slowMo(0.07); CinCam.zoomTo(1.55); CinCam.focusMidpoint(att,tgt); }},
-        {frame:40,fn(){ data.slashFired=true; CinCam.slowMo(1.0); CinCam.shake(32); spawnParticles(tgt.cx(),tgt.cy(),'#88ccff',40); spawnParticles(tgt.cx(),tgt.cy(),'#ffffff',14); data.shockR=1;data.shockAlpha=1; CinCam.focusOn(tgt); CinCam.zoomTo(1.3); }},
-        {frame:90,fn(){ CinCam.restore(); }},
+        {frame:28,fn(){ CinCam.slowMo(0.07); CinCam.zoomTo(1.62); CinCam.focusMidpoint(att,tgt); }},
+        {frame:38,fn(){
+          // Teleport through — attacker snaps to opposite side, slash lines burst out
+          data.slashLines=[
+            {x0:tgt.cx()-data.dir*65,y0:tgt.cy()-16,x1:tgt.cx()+data.dir*65,y1:tgt.cy()-16,a:1.0},
+            {x0:tgt.cx()-data.dir*58,y0:tgt.cy()+3, x1:tgt.cx()+data.dir*58,y1:tgt.cy()+3, a:1.0},
+            {x0:tgt.cx()-data.dir*50,y0:tgt.cy()+22,x1:tgt.cx()+data.dir*50,y1:tgt.cy()+22,a:0.8},
+          ];
+          CinCam.slowMo(1.0); CinCam.shake(30);
+          spawnParticles(tgt.cx(),tgt.cy(),'#88ccff',42);
+          spawnParticles(tgt.cx(),tgt.cy(),'#ffffff',16);
+          data.shockR=1; data.shockAlpha=1;
+          CinCam.focusOn(tgt); CinCam.zoomTo(1.3);
+        }},
+        {frame:92,fn(){ CinCam.restore(); }},
       ]); },
-    (att,tgt,timer,data)=>{ _tickTimeline(data.tl,timer); _wfTick(timer,120,data);
-      if(timer<12){ att.x=data.ax0; tgt.x=data.tx0;tgt.y=data.ty0; data.auraAlpha=0; }
-      else if(timer<30){ const p=(timer-12)/18; att.x=data.ax0+data.dir*_finEaseOut(p)*35; tgt.x=data.tx0;tgt.y=data.ty0; data.auraAlpha=p*0.8; data.auraR=30+p*20; }
-      else if(timer<40){ att.x=data.ax0+data.dir*35; tgt.x=data.tx0;tgt.y=data.ty0; data.auraAlpha=0.85; data.auraR=50; }
-      else{ const p=Math.min(1,(timer-40)/50); tgt.x=data.tx0+data.dir*_finEaseOut(p)*80; tgt.y=data.ty0-_finEaseOut(p)*28; att.x=data.ax0+data.dir*35; data.auraAlpha=Math.max(0,data.auraAlpha-0.04); }
+    (att,tgt,timer,data)=>{ _tickTimeline(data.tl,timer); _wfTick(timer,122,data);
+      // Fade slash lines
+      for(const sl of data.slashLines) sl.a=Math.max(0,sl.a-0.036);
+      // Fade ghost trail
+      for(const g of data.ghostTrail) g.a=Math.max(0,g.a-0.025);
+      data.ghostTrail=data.ghostTrail.filter(g=>g.a>0);
+      if(timer<12){ att.x=data.ax0;att.y=data.ay0; tgt.x=data.tx0;tgt.y=data.ty0; data.auraAlpha=0; }
+      else if(timer<28){
+        const p=(timer-12)/16;
+        att.x=data.ax0+data.dir*_finEaseOut(p)*62; att.y=data.ay0;
+        tgt.x=data.tx0;tgt.y=data.ty0;
+        data.auraAlpha=p*0.8; data.auraR=28+p*22;
+        if(timer%2===0) data.ghostTrail.push({x:att.x,y:att.y,w:att.w,h:att.h,a:0.52});
+      }
+      else if(timer<38){
+        att.x=data.ax0+data.dir*62; tgt.x=data.tx0;tgt.y=data.ty0;
+        data.auraAlpha=0.88; data.auraR=50;
+        if(timer%2===0) data.ghostTrail.push({x:att.x,y:att.y,w:att.w,h:att.h,a:0.52});
+      }
+      else{
+        // Attacker on the opposite side, target falls FORWARD and DOWN
+        att.x=data.otherSideX; att.y=data.ay0;
+        const p=Math.min(1,(timer-38)/52);
+        tgt.x=data.tx0+data.dir*_finEaseOut(p)*36;
+        tgt.y=data.ty0+_finEaseOut(p)*58;
+        data.auraAlpha=Math.max(0,data.auraAlpha-0.04);
+      }
       att.vx=0;att.vy=0;tgt.vx=0;tgt.vy=0; },
     (ctx,att,tgt,t,timer,data)=>{
       const {scX,scY,ox,oy}=_finGameTransform();
-      _finBars(ctx,data.bars); _finVignette(ctx,0.42);
+      _finBars(ctx,data.bars); _finVignette(ctx,0.44);
       _wfDrawAura(ctx,att,'rgba(100,160,255,1)',data.auraAlpha,data.auraR,scX,scY,ox,oy);
-      if(data.slashFired){ ctx.save();ctx.setTransform(scX,0,0,scY,ox,oy);
-        const a=Math.atan2(tgt.cy()-att.cy(),tgt.cx()-att.cx());
-        ctx.strokeStyle=`rgba(150,200,255,${data.shockAlpha*0.9})`; ctx.lineWidth=3+data.shockAlpha*5;
-        ctx.shadowColor='#88ccff';ctx.shadowBlur=28;
-        ctx.beginPath();ctx.moveTo(att.cx()-Math.cos(a)*50,att.cy()-Math.sin(a)*50);
-        ctx.lineTo(tgt.cx()+Math.cos(a)*60,tgt.cy()+Math.sin(a)*60);ctx.stroke();ctx.restore();
+      ctx.save();ctx.setTransform(scX,0,0,scY,ox,oy);
+      // Ghost afterimage trail
+      for(const g of data.ghostTrail){
+        ctx.globalAlpha=g.a*0.55; ctx.fillStyle='#2255aa';
+        ctx.shadowColor='#88ccff'; ctx.shadowBlur=20;
+        ctx.fillRect(g.x,g.y,g.w,g.h);
       }
-      if(timer>=40&&timer<=48) _finFlash(ctx,(48-timer)/8*0.65,100,160,255);
-      if(timer>50&&timer<105) _finSubtitle(ctx,'"Faster than the eye can see."',t);
-      _finTitle(ctx,'PHANTOM SLASH',t,'rgba(100,160,255,1)');
+      ctx.globalAlpha=1; ctx.shadowBlur=0;
+      // Horizontal slash lines through target
+      for(const sl of data.slashLines){
+        if(sl.a<=0) continue;
+        ctx.strokeStyle=`rgba(140,200,255,${sl.a})`; ctx.lineWidth=2+sl.a*5;
+        ctx.shadowColor='#88ccff'; ctx.shadowBlur=22*sl.a;
+        ctx.beginPath(); ctx.moveTo(sl.x0,sl.y0); ctx.lineTo(sl.x1,sl.y1); ctx.stroke();
+      }
+      if(data.shockR>0&&data.shockAlpha>0){
+        ctx.strokeStyle=`rgba(100,160,255,${data.shockAlpha*0.65})`; ctx.lineWidth=4;
+        ctx.shadowColor='#88ccff'; ctx.shadowBlur=20;
+        ctx.beginPath(); ctx.arc(tgt.cx(),tgt.cy(),data.shockR,0,Math.PI*2); ctx.stroke();
+      }
+      ctx.restore();
+      if(timer>=38&&timer<=47) _finFlash(ctx,(47-timer)/9*0.62,100,160,255);
+      if(timer>52&&timer<108) _finSubtitle(ctx,'"You cannot block what passes through you."',t);
+      _finTitle(ctx,'GHOST STEP',t,'rgba(100,160,255,1)');
     }
   ),
 
@@ -184,32 +234,100 @@ const WEAPON_FINISHERS = {
   ),
 
   // ── spear ────────────────────────────────────────────────────
-  spear: _wfDef('PIERCING LANCE','rgba(40,200,255,1)',115,
+  spear: _wfDef('CELESTIAL IMPALE','rgba(40,200,255,1)',132,
     (att,tgt,data)=>{ _wfBaseSetup(att,tgt,data);
+      data.impaleX=0; data.apexY=0; data.pillarAlpha=0;
+      // Find the floor so target lands precisely on it
+      const _floorPl=currentArena&&currentArena.platforms&&currentArena.platforms.find(pl=>pl.isFloor&&!pl.isFloorDisabled);
+      data.groundY=_floorPl?_floorPl.y:GAME_H-120;
       data.tl=_makeTimeline([
         {frame:0, fn(){ CinCam.zoomTo(1.3); CinCam.focusMidpoint(att,tgt); CinCam.slowMo(0.25); }},
         {frame:12,fn(){ CinCam.focusOn(att); }},
-        {frame:28,fn(){ CinCam.slowMo(0.07); CinCam.zoomTo(1.6); CinCam.focusMidpoint(att,tgt); }},
-        {frame:38,fn(){ CinCam.slowMo(1.0); CinCam.shake(30); data.shockR=1;data.shockAlpha=1; spawnParticles(tgt.cx(),tgt.cy(),'#44ccff',35); CinCam.focusOn(tgt); CinCam.zoomTo(1.3); }},
-        {frame:88,fn(){ CinCam.restore(); }},
+        {frame:28,fn(){ CinCam.slowMo(0.07); CinCam.zoomTo(1.65); CinCam.focusMidpoint(att,tgt); }},
+        {frame:38,fn(){
+          // IMPACT — target launches straight up
+          data.impaleX=tgt.cx(); data.apexY=data.ty0-140; data.pillarAlpha=1;
+          spawnParticles(tgt.cx(),tgt.cy(),'#44ccff',32);
+          spawnParticles(tgt.cx(),tgt.cy(),'#ffffff',14);
+          CinCam.slowMo(0.45); CinCam.focusOn(tgt); CinCam.zoomTo(1.5);
+        }},
+        {frame:60,fn(){
+          // Apex — deep freeze as target hangs at peak
+          CinCam.slowMo(0.06); CinCam.zoomTo(1.7);
+        }},
+        {frame:68,fn(){
+          // CRASH DOWN — full speed
+          CinCam.slowMo(1.0); CinCam.zoomTo(1.35);
+        }},
+        {frame:76,fn(){
+          // Ground slam impact
+          data.shockR=1; data.shockAlpha=1;
+          spawnParticles(data.impaleX,data.groundY-18,'#44ccff',60);
+          spawnParticles(data.impaleX,data.groundY-18,'#ffffff',24);
+          CinCam.shake(58); CinCam.focusMidpoint(att,tgt);
+        }},
+        {frame:102,fn(){ CinCam.restore(); }},
       ]); },
-    (att,tgt,timer,data)=>{ _tickTimeline(data.tl,timer); _wfTick(timer,115,data);
-      if(timer<12){ att.x=data.ax0;tgt.x=data.tx0;tgt.y=data.ty0; data.auraAlpha=0; }
-      else if(timer<28){ const p=(timer-12)/16; att.x=data.ax0; tgt.x=data.tx0;tgt.y=data.ty0; data.auraAlpha=p*0.75; data.auraR=18+p*28; }
-      else if(timer<38){ const p=(timer-28)/10; att.x=data.ax0+data.dir*_finEaseIn(p)*75; tgt.x=data.tx0;tgt.y=data.ty0; data.auraAlpha=0.85; data.auraR=46; }
-      else{ const p=Math.min(1,(timer-38)/52); tgt.x=data.tx0+data.dir*_finEaseOut(p)*90; tgt.y=data.ty0-_finEaseOut(p)*14; att.x=data.ax0+data.dir*75; att.y=data.ay0; data.auraAlpha=Math.max(0,data.auraAlpha-0.04); }
+    (att,tgt,timer,data)=>{ _tickTimeline(data.tl,timer); _wfTick(timer,132,data);
+      if(data.pillarAlpha>0) data.pillarAlpha=Math.max(0,data.pillarAlpha-0.042);
+      if(timer<12){ att.x=data.ax0;att.y=data.ay0; tgt.x=data.tx0;tgt.y=data.ty0; data.auraAlpha=0; }
+      else if(timer<28){ const p=(timer-12)/16; att.x=data.ax0; tgt.x=data.tx0;tgt.y=data.ty0; data.auraAlpha=p*0.78; data.auraR=20+p*28; }
+      else if(timer<38){ const p=(timer-28)/10; att.x=data.ax0+data.dir*_finEaseIn(p)*72; tgt.x=data.tx0;tgt.y=data.ty0; data.auraAlpha=0.88; data.auraR=48; }
+      else if(timer<60){
+        // Target rockets STRAIGHT UP
+        const p=(timer-38)/22;
+        att.x=data.ax0+data.dir*72; att.y=data.ay0;
+        tgt.x=data.impaleX-tgt.w/2; tgt.y=_finLerp(data.ty0,data.apexY,_finEaseOut(p));
+        data.auraAlpha=Math.max(0,data.auraAlpha-0.03);
+      }
+      else if(timer<68){
+        // Hang at apex
+        att.x=data.ax0+data.dir*72; att.y=data.ay0;
+        tgt.x=data.impaleX-tgt.w/2; tgt.y=data.apexY;
+      }
+      else if(timer<76){
+        // CRASH straight down
+        const p=(timer-68)/8;
+        att.x=data.ax0+data.dir*72; att.y=data.ay0;
+        tgt.x=data.impaleX-tgt.w/2; tgt.y=_finLerp(data.apexY,data.groundY-tgt.h,_finEaseIn(p));
+      }
+      else{
+        // Target slumped on ground
+        att.x=data.ax0+data.dir*72; att.y=data.ay0;
+        tgt.x=data.impaleX-tgt.w/2; tgt.y=data.groundY-tgt.h;
+        data.auraAlpha=Math.max(0,data.auraAlpha-0.04);
+      }
       att.vx=0;att.vy=0;tgt.vx=0;tgt.vy=0; },
     (ctx,att,tgt,t,timer,data)=>{
       const {scX,scY,ox,oy}=_finGameTransform();
-      _finBars(ctx,data.bars); _finVignette(ctx,0.4);
+      _finBars(ctx,data.bars); _finVignette(ctx,0.42);
       _wfDrawAura(ctx,att,'rgba(40,200,255,1)',data.auraAlpha,data.auraR,scX,scY,ox,oy);
       ctx.save();ctx.setTransform(scX,0,0,scY,ox,oy);
-      if(timer>=12&&timer<38){ ctx.strokeStyle='rgba(80,220,255,0.75)';ctx.lineWidth=4;ctx.shadowColor='#44ccff';ctx.shadowBlur=22;ctx.beginPath();ctx.moveTo(att.cx(),att.cy());ctx.lineTo(att.cx()-data.dir*60,att.cy());ctx.stroke(); }
-      if(data.shockR>0&&data.shockAlpha>0){ctx.strokeStyle=`rgba(40,200,255,${data.shockAlpha})`;ctx.lineWidth=5;ctx.shadowColor='#44ccff';ctx.shadowBlur=24;ctx.beginPath();ctx.arc(tgt.cx(),tgt.cy(),data.shockR,0,Math.PI*2);ctx.stroke();}
+      // Spear shaft during approach
+      if(timer>=12&&timer<38){
+        ctx.strokeStyle='rgba(80,220,255,0.78)';ctx.lineWidth=4;ctx.shadowColor='#44ccff';ctx.shadowBlur=22;
+        ctx.beginPath();ctx.moveTo(att.cx(),att.cy());ctx.lineTo(att.cx()-data.dir*68,att.cy());ctx.stroke();
+      }
+      // Vertical pillar of light at impact point (fades as target rises)
+      if(data.pillarAlpha>0&&timer>=38){
+        const pa=data.pillarAlpha;
+        const grd=ctx.createLinearGradient(data.impaleX,data.apexY,data.impaleX,data.ty0);
+        grd.addColorStop(0,'rgba(40,200,255,0)');
+        grd.addColorStop(0.5,`rgba(40,200,255,${pa*0.5})`);
+        grd.addColorStop(1,`rgba(255,255,255,${pa*0.88})`);
+        ctx.fillStyle=grd;
+        ctx.fillRect(data.impaleX-18,data.apexY,36,data.ty0-data.apexY);
+      }
+      // Ground shockwave — half-circle erupting upward from the floor
+      if(data.shockR>0&&data.shockAlpha>0){
+        ctx.strokeStyle=`rgba(40,200,255,${data.shockAlpha})`;ctx.lineWidth=6;ctx.shadowColor='#44ccff';ctx.shadowBlur=30;
+        ctx.beginPath();ctx.arc(data.impaleX,data.groundY,data.shockR,Math.PI,0);ctx.stroke();
+        _finImpactLines(ctx,data.impaleX,data.groundY,16,data.shockR*0.52,'#44ccff',4.5);
+      }
       ctx.restore();
-      if(timer>=38&&timer<=46) _finFlash(ctx,(46-timer)/8*0.65,40,180,255);
-      if(timer>50&&timer<102) _finSubtitle(ctx,'"Nothing can outrun this lance."',t);
-      _finTitle(ctx,'PIERCING LANCE',t,'rgba(40,200,255,1)');
+      if(timer>=76&&timer<=85) _finFlash(ctx,(85-timer)/9*0.82,40,180,255);
+      if(timer>90&&timer<122) _finSubtitle(ctx,'"Pinned to the earth by heaven itself."',t);
+      _finTitle(ctx,'CELESTIAL IMPALE',t,'rgba(40,200,255,1)');
     }
   ),
 

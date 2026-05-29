@@ -655,7 +655,7 @@ class SovereignMK2 extends AdaptiveAI {
 
     // Thresholds: anti-air fires earlier (0.38) since aerial camping is a dominant exploit
     if (jumpRate   > 0.38) return 'anti-air';
-    if (attackRate > 0.38) return 'parry';
+    if (attackRate > 0.22) return 'parry';
     if (shieldRate > 0.22) return 'guard-break';
     if (dodgeRate  > 0.40) return 'intercept';
     // Passive player (low overall action rate relative to window): apply pressure
@@ -677,6 +677,11 @@ class SovereignMK2 extends AdaptiveAI {
         if (kbHint === 'shield')  strategy = 'guard-break';
         if (kbHint === 'attack')  strategy = 'parry';
         if (kbHint === 'retreat') strategy = 'intercept';
+      }
+      // Heavy weapon user who has attacked at all: stay in parry mode by default —
+      // their long recovery window is the best punish opportunity Sovereign has.
+      if (!strategy && t && t.weapon && t.weapon.kb >= 18 && this._actionSampleCount >= 3) {
+        strategy = 'parry';
       }
       if (strategy) {
         this._lockedCounterStrategy = strategy;
@@ -1721,7 +1726,11 @@ class SovereignMK2 extends AdaptiveAI {
         this.shielding = false;
         // Shield-counter: player was attacking while we blocked → punish the moment shield drops
         if (playerAttacking && d < atkRange * 1.6 + 40) {
-          this._punishTimer = lb ? 1 : 2;
+          const _shWpnRec = t.weapon ? ((t.weapon.cooldown || 32) + (t.weapon.endlag || 8)) : 40;
+          const _shHeavy  = (t.weapon && t.weapon.kb >= 18) ? Math.min(10, Math.round(_shWpnRec / 9)) : 0;
+          this._punishTimer        = (lb ? 6 : 10) + _shHeavy;
+          this._commitToChaseFrames = Math.max(this._commitToChaseFrames, 28);
+          this._chaseDirection     = dir;
         }
       }
     }
@@ -1896,11 +1905,10 @@ class SovereignMK2 extends AdaptiveAI {
     // If it doesn't fire, hardCounter and flowBreak handle the response normally.
     if (playerAttacking && d < 210 && this.shieldCooldown === 0 && this._shieldHoldFrames === 0 && effDef > 0.55) {
       const _shCornered = (nearLeft && dir < 0) || (nearRight && dir > 0);
-      // vs high-KB melee: strongly prefer dodge-parry over standing shield.
-      // Shield is passive; the parry dodge closes range and leads to punish combos.
+      // vs high-KB melee: shield-parry works well — their long recovery is punishable.
       const _shieldDisabled = !!(t.weapon && t.weapon.kb >= 18);
       const _shChance   = _shieldDisabled
-        ? (_shCornered ? 0.10 : 0.04)  // almost always dodge vs heavy melee
+        ? (_shCornered ? 0.55 : 0.35) + (recentTaken >= 1 ? 0.10 : 0) + memoryShield
         : (_shCornered ? 0.62 : 0.28) + (lb ? 0.12 : 0)
           + (recentTaken >= 2 ? 0.22 : recentTaken >= 1 ? 0.10 : 0)
           + (heavyThreat ? 0.22 : 0) + memoryShield;
@@ -1964,7 +1972,7 @@ class SovereignMK2 extends AdaptiveAI {
       const _shDisabled2 = !!(t.weapon && t.weapon.kb >= 18);
       const shieldChance = (canShield && effDef > 0.55 && !_shDisabled2)
         ? (cornered ? 0.62 : 0.28) + (lb ? 0.12 : 0) + (recentTaken >= 2 ? 0.22 : recentTaken >= 1 ? 0.10 : 0) + (heavyThreat ? 0.22 : 0) + memoryShield
-        : (canShield && _shDisabled2 ? (cornered ? 0.10 : 0.04) : 0);
+        : (canShield && _shDisabled2 ? (cornered ? 0.55 : 0.35) + (recentTaken >= 1 ? 0.10 : 0) + memoryShield : 0);
 
       if (shieldChance > 0 && Math.random() < shieldChance) {
         this.shielding        = true;
@@ -2008,7 +2016,7 @@ class SovereignMK2 extends AdaptiveAI {
         // Ensures defensive success never simply returns to passive neutral.
         this._commitToChaseFrames = 30;
         this._chaseDirection      = dir; // dir = toward player; commit to closing back in
-        this.aiReact = reactFrames;
+        this.aiReact = Math.max(1, reactFrames - 1); // punish sprint starts one frame earlier
         return;
       }
 
@@ -2361,10 +2369,17 @@ class SovereignMK2 extends AdaptiveAI {
         }
       }
     } else if (d < weaponRange + 10 && this.cooldown <= 0) {
+      // Don't arm the telegraph against a player who just spawned — prevents spawn-kills
+      if (t.invincible > 80) { this.aiReact = reactFrames; return; }
       // In range — arm the telegraph (visual tell before striking)
       this._telegraphTimer = Math.max(lb ? 2 : 4, Math.round(8 - this._evolutionStage * 2 - (lb ? 1 : 0)));
       spawnParticles(this.cx(), this.cy(), '#ffaa00', 4);
       this.vx *= 0.35; // begin slowing as wind-up starts
+      // Verbal cue — fires occasionally so the player has a chance to react
+      if (typeof SMK2_ATTACK_WARN_LINES !== 'undefined' && Math.random() < 0.35) {
+        if (typeof showBossDialogue === 'function')
+          showBossDialogue(SMK2_ATTACK_WARN_LINES[Math.floor(Math.random() * SMK2_ATTACK_WARN_LINES.length)], 60);
+      }
     }
 
     // ── ABILITY / SUPER ───────────────────────────────────────

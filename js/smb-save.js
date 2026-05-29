@@ -203,9 +203,10 @@ const _SAVE_DEFAULTS = {
     paradoxCompanion:   false,
     interTravel:        false,
     patrolMode:         false,
-    godEncountered:     false,
-    godDefeated:        false,
-    bossRushUnlocked:   false,
+    godEncountered:        false,
+    godDefeated:           false,
+    bossRushUnlocked:      false,
+    absoluteAxiomUnlocked: false,
   },
   settings: {
     sfxVol:    0.35,
@@ -278,7 +279,8 @@ function _migrateSave(data) {
   if (typeof d.unlocks.patrolMode         === 'undefined') d.unlocks.patrolMode         = false;
   if (typeof d.unlocks.godEncountered    === 'undefined') d.unlocks.godEncountered    = false;
   if (typeof d.unlocks.godDefeated       === 'undefined') d.unlocks.godDefeated       = false;
-  if (typeof d.unlocks.bossRushUnlocked  === 'undefined') d.unlocks.bossRushUnlocked  = false;
+  if (typeof d.unlocks.bossRushUnlocked      === 'undefined') d.unlocks.bossRushUnlocked      = false;
+  if (typeof d.unlocks.absoluteAxiomUnlocked === 'undefined') d.unlocks.absoluteAxiomUnlocked = false;
   if (typeof d.coins !== 'number')     d.coins     = 0;
   if (!Array.isArray(d.cosmetics))     d.cosmetics = [];
   d.version = SAVE_VERSION;
@@ -372,7 +374,8 @@ function _flushRuntimeIntoBase(base) {
   if (typeof paradoxCompanionActive !== 'undefined') base.unlocks.paradoxCompanion = base.unlocks.paradoxCompanion || !!paradoxCompanionActive;
   if (typeof godEncountered     !== 'undefined') base.unlocks.godEncountered  = base.unlocks.godEncountered  || !!godEncountered;
   if (typeof godDefeated        !== 'undefined') base.unlocks.godDefeated     = base.unlocks.godDefeated     || !!godDefeated;
-  if (typeof bossRushUnlocked   !== 'undefined') base.unlocks.bossRushUnlocked = base.unlocks.bossRushUnlocked || !!bossRushUnlocked;
+  if (typeof bossRushUnlocked        !== 'undefined') base.unlocks.bossRushUnlocked      = base.unlocks.bossRushUnlocked      || !!bossRushUnlocked;
+  if (typeof absoluteAxiomUnlocked   !== 'undefined') base.unlocks.absoluteAxiomUnlocked = base.unlocks.absoluteAxiomUnlocked || !!absoluteAxiomUnlocked;
   if (typeof collectedLetterIds !== 'undefined') {
     const _ids = Array.from(collectedLetterIds);
     if (!Array.isArray(base.unlocks.letters) || _ids.length > base.unlocks.letters.length) base.unlocks.letters = _ids;
@@ -429,7 +432,8 @@ function _gatherSaveData() {
       interTravel:     !!(active && active.data && active.data.unlocks && active.data.unlocks.interTravel),
       patrolMode:      !!(active && active.data && active.data.unlocks && active.data.unlocks.patrolMode),
       godEncountered:  (typeof godEncountered !== 'undefined') ? !!godEncountered : false,
-      godDefeated:     (typeof godDefeated    !== 'undefined') ? !!godDefeated    : false,
+      godDefeated:           (typeof godDefeated           !== 'undefined') ? !!godDefeated           : false,
+      absoluteAxiomUnlocked: (typeof absoluteAxiomUnlocked !== 'undefined') ? !!absoluteAxiomUnlocked : false,
     },
     coins:     (typeof playerCoins        !== 'undefined') ? playerCoins                  : 0,
     cosmetics: (typeof unlockedCosmetics  !== 'undefined') ? unlockedCosmetics.slice()    : [],
@@ -497,7 +501,8 @@ function _refreshRuntimeFromSave(data) {
     // God encounter flags
     if (typeof godEncountered  !== 'undefined') godEncountered  = !!data.unlocks.godEncountered;
     if (typeof godDefeated     !== 'undefined') godDefeated     = !!data.unlocks.godDefeated;
-    if (typeof bossRushUnlocked !== 'undefined') bossRushUnlocked = !!data.unlocks.bossRushUnlocked;
+    if (typeof bossRushUnlocked        !== 'undefined') bossRushUnlocked        = !!data.unlocks.bossRushUnlocked;
+    if (typeof absoluteAxiomUnlocked   !== 'undefined') absoluteAxiomUnlocked   = !!data.unlocks.absoluteAxiomUnlocked;
   }
 
   // Coins — mirror account.data.coins into runtime global; use getCoins() for the canonical value

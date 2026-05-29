@@ -257,14 +257,15 @@ function _consoleExec(raw) {
       'fps                     — show current FPS',
       'reload                  — reload the page (dev only)',
       '── Combat ───────────────────────────────────────────────────────',
-      'heal [p1|p2|all]        — restore health',
-      'kill [p1|p2|boss|all]   — set health to 0',
+      'heal [p1|p2|p3…|bot|boss|minions|all] — restore health',
+      'kill [p1|p2|p3…|bot|boss|minions|enemies|all] — set health to 0',
       'sethp <n> [p1|p2|player|boss|all] — set health to exact value',
       'lives <n> [p1|p2|all]   — set lives remaining',
-      'revive [p1|p2|boss|all] — respawn fighters at full health',
+      'revive [p1|p2|p3…|bot|boss|minions|all] — respawn fighters at full health',
       'godmode [p1|p2|on|off]  — toggle invincibility (dev only)',
       '── Game Setup ───────────────────────────────────────────────────',
       'setmap <arena>          — change arena (e.g. setmap lava)',
+      'studio                  — load The Studio recording stage',
       'setweapon <key> [p1|p2] — change weapon (e.g. setweapon gun)',
       'setclass <key> [p1|p2]  — change class (e.g. setclass megaknight)',
       'setspeed <n>            — set game time scale (1=normal, 0.5=slow, 2=fast) [dev]',
@@ -351,11 +352,23 @@ function _consoleExec(raw) {
   // ---- HEAL ----
   if (cmd.startsWith('HEAL')) {
     const who = sub || 'all';
-    const _heal = (p) => { p.health = p.maxHealth; p.invincible = 60; };
+    const _heal = (p) => { if (!p) return; p.health = p.maxHealth; p.invincible = 60; };
     if (typeof players === 'undefined') { _consoleErr('No game running.'); return; }
-    if (who === 'p1' || who === '1') { if (players[0]) _heal(players[0]); }
-    else if (who === 'p2' || who === '2') { if (players[1]) _heal(players[1]); }
-    else { players.forEach(_heal); (typeof trainingDummies !== 'undefined') && trainingDummies.forEach(_heal); }
+    const _slotH = who.match(/^p?(\d+)$/);
+    if (_slotH) {
+      const idx = parseInt(_slotH[1]) - 1;
+      if (players[idx]) _heal(players[idx]); else _consoleErr('No player in slot ' + (idx + 1));
+    } else if (who === 'bot' || who === 'bots') {
+      players.filter(p => p.isAI && !p.isBoss).forEach(_heal);
+    } else if (who === 'minion' || who === 'minions') {
+      (minions || []).forEach(_heal);
+    } else if (who === 'boss') {
+      const b = players.find(p => p && p.isBoss); if (b) _heal(b); else _consoleErr('No boss active.');
+    } else {
+      players.forEach(_heal);
+      (typeof trainingDummies !== 'undefined') && trainingDummies.forEach(_heal);
+      (minions || []).forEach(_heal);
+    }
     _consoleOk('Healed ' + who);
     return;
   }
@@ -364,31 +377,37 @@ function _consoleExec(raw) {
   if (cmd.startsWith('KILL')) {
     const who = sub || 'all';
     if (typeof players === 'undefined') { _consoleErr('No game running.'); return; }
-    if (who === 'p1' || who === '1') { if (players[0]) players[0].health = 0; }
-    else if (who === 'p2' || who === '2') { if (players[1]) players[1].health = 0; }
-    else if (who === 'boss') {
-      players.forEach(p => {
-        if (!p.isBoss) return;
-        // Respect TrueForm intro sequence — block kill boss until backstage
-        if (p.isTrueForm
-            && typeof tfCinematicState !== 'undefined'
-            && tfCinematicState !== 'none'
-            && tfCinematicState !== 'backstage') {
-          _consoleErr('TF intro sequence in progress (' + tfCinematicState + ') — kill boss blocked to preserve cinematic order. Wait for backstage state.');
-          return;
-        }
-        // TrueForm Round 1: set HP to 1 so checkDeaths routes through Paradox return → Code Realm → Round 2
-        if (p.isTrueForm && typeof tfFalseVictoryFired !== 'undefined' && !tfFalseVictoryFired) {
-          p.health = 1;
-        } else {
-          p.health = 0;
-        }
-      });
-    }
-    else {
-      // kill all: players + minions + training dummies (including boss)
-      const all = [...players, ...(minions||[]), ...(trainingDummies||[])];
-      all.forEach(p => { if (!p.godmode && !p._godmode) p.health = 0; });
+    const _killBoss = (p) => {
+      if (!p.isBoss) return;
+      if (p.isTrueForm
+          && typeof tfCinematicState !== 'undefined'
+          && tfCinematicState !== 'none'
+          && tfCinematicState !== 'backstage') {
+        _consoleErr('TF intro in progress (' + tfCinematicState + ') — wait for backstage state.');
+        return;
+      }
+      p.health = (p.isTrueForm && typeof tfFalseVictoryFired !== 'undefined' && !tfFalseVictoryFired) ? 1 : 0;
+    };
+    const _slotK = who.match(/^p?(\d+)$/);
+    if (_slotK) {
+      const idx = parseInt(_slotK[1]) - 1;
+      const p = players[idx];
+      if (p) { if (p.isBoss) _killBoss(p); else if (!p.godmode && !p._godmode) p.health = 0; }
+      else _consoleErr('No player in slot ' + (idx + 1));
+    } else if (who === 'boss') {
+      players.forEach(_killBoss);
+    } else if (who === 'bot' || who === 'bots') {
+      const bots = players.filter(p => p.isAI && !p.isBoss);
+      if (!bots.length) { _consoleErr('No bots in game.'); return; }
+      bots.forEach(p => { if (!p.godmode && !p._godmode) p.health = 0; });
+    } else if (who === 'minion' || who === 'minions') {
+      (minions || []).forEach(p => { if (!p.godmode && !p._godmode) p.health = 0; });
+    } else if (who === 'enemies') {
+      players.filter(p => p.isAI && !p.isBoss).forEach(p => { if (!p.godmode && !p._godmode) p.health = 0; });
+      (minions || []).forEach(p => { if (!p.godmode && !p._godmode) p.health = 0; });
+    } else {
+      const all = [...players, ...(minions || []), ...(trainingDummies || [])];
+      all.forEach(p => { if (p.isBoss) _killBoss(p); else if (!p.godmode && !p._godmode) p.health = 0; });
     }
     _consoleOk('Killed ' + who);
     return;
@@ -509,6 +528,18 @@ function _consoleExec(raw) {
     return;
   }
 
+  // ---- STUDIO — recording/showcase stage ----
+  if (cmd === 'STUDIO') {
+    if (typeof gameRunning === 'undefined' || !gameRunning) { _consoleErr('Start a game first, then run STUDIO.'); return; }
+    if (typeof ARENAS === 'undefined' || !ARENAS['studio']) { _consoleErr('Studio arena not found.'); return; }
+    currentArenaKey = 'studio';
+    currentArena    = ARENAS['studio'];
+    if (typeof generateBgElements === 'function') generateBgElements();
+    _consoleOk('Studio mode — The Studio loaded.');
+    _consolePrint('Tips: SLOW ON  •  GODMODE ON  •  PAUSE to freeze  •  F10 hides HUD', '#8899cc');
+    return;
+  }
+
   // ---- SETMAP ----
   if (cmd.startsWith('SETMAP')) {
     const mapKey = sub;
@@ -532,7 +563,7 @@ function _consoleExec(raw) {
     if (!wKey || typeof WEAPONS === 'undefined' || !WEAPONS[wKey]) { _consoleErr('Unknown weapon key.'); return; }
     if (typeof players === 'undefined') { _consoleErr('No game running.'); return; }
     const p = who === 'p2' || who === '2' ? players[1] : players[0];
-    if (p) { p.weapon = WEAPONS[wKey]; _consoleOk(who + ' weapon set to ' + wKey); }
+    if (p) { p.weapon = WEAPONS[wKey]; p.weaponKey = wKey; _consoleOk(who + ' weapon set to ' + wKey); }
     return;
   }
 
@@ -691,12 +722,16 @@ function _consoleExec(raw) {
       }
       if (typeof p.lives === 'number' && p.lives <= 0) p.lives = 1;
     };
-    if (who === 'p1' || who === '1' || who === 'player') {
-      _revive(players[0]);
-    } else if (who === 'p2' || who === '2') {
-      _revive(players[1]);
+    const _slotR = who.match(/^p?(\d+)$/);
+    if (_slotR) {
+      const idx = parseInt(_slotR[1]) - 1;
+      if (players[idx]) _revive(players[idx]); else _consoleErr('No player in slot ' + (idx + 1));
     } else if (who === 'boss') {
       _revive(players.find(p => p && p.isBoss));
+    } else if (who === 'bot' || who === 'bots') {
+      players.filter(p => p.isAI && !p.isBoss).forEach(_revive);
+    } else if (who === 'minion' || who === 'minions') {
+      if (typeof minions !== 'undefined') minions.forEach(_revive);
     } else {
       players.forEach(_revive);
       if (typeof trainingDummies !== 'undefined') trainingDummies.forEach(_revive);
@@ -885,6 +920,25 @@ function _consoleExec(raw) {
     if (!acId)        { _consoleErr('No active account.'); return; }
     if (typeof setPlayerChapter === 'function') { setPlayerChapter(acId, chId); _consoleOk('Chapter set to ' + chId); }
     else              { _consoleErr('setPlayerChapter not available.'); }
+    return;
+  }
+
+  // ---- STARTMATCH (dev only) ----
+  if (cmd.startsWith('STARTMATCH')) {
+    if (typeof hasPermission === 'function' && !hasPermission('dev')) {
+      _consoleErr('Permission denied — developer role required.'); return;
+    }
+    const matchType = sub || 'p1vsbot';
+    if (typeof gameRunning !== 'undefined' && gameRunning && typeof backToMenu === 'function') backToMenu();
+    // "1p vs bot" is mode '2p' with p2IsBot=true — there is no separate '1p' mode
+    const isVsBot = matchType === 'p1vsbot' || matchType === '1p' || matchType === 'bot' || matchType === '1pvbot';
+    const modeMap = { '2p': '2p', 'boss': 'boss', 'trueform': 'trueform', 'training': 'training', 'adaptive': 'adaptive', 'sovereign': 'sovereign' };
+    const resolvedMode = isVsBot ? '2p' : (modeMap[matchType] || '2p');
+    if (typeof p2IsBot !== 'undefined') p2IsBot = isVsBot;
+    if (typeof p2IsNone !== 'undefined') p2IsNone = false;
+    if (typeof selectMode === 'function') selectMode(resolvedMode);
+    if (typeof startGame === 'function') startGame();
+    _consoleOk('Starting match: ' + (isVsBot ? '1p vs bot' : resolvedMode));
     return;
   }
 
@@ -1159,7 +1213,7 @@ function _consoleExec(raw) {
     _consolePrint('Available arenas:', '#44aaff');
     Object.keys(ARENAS).forEach(function(k) {
       const a = ARENAS[k];
-      _consolePrint('  ' + k + (a.name ? '  — ' + a.name : '') + (a.isBossArena ? '  [boss]' : '') + (a.isVoidArena ? '  [trueform]' : ''), '#ccddff');
+      _consolePrint('  ' + k + (a.name ? '  — ' + a.name : '') + (a.isBossArena ? '  [boss]' : '') + (a.isVoidArena ? '  [trueform]' : '') + (a.isStudioArena ? '  [studio — dev only]' : ''), '#ccddff');
     });
     return;
   }

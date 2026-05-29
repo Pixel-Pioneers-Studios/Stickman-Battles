@@ -106,9 +106,9 @@ STORY_CHAPTER_REGISTRY.push(
       { frame: 380, text: '"They didn\'t flee," the Fourth Architect says. "They left on their own terms." Keep running.', color: '#aaccff', timer: 270 },
       { frame: 680, text: 'Don\'t stop. Constructs don\'t process grief.', color: '#ff6644', timer: 220 },
     ],
-    sky: ['#0a080e', '#130d1a'],
-    groundColor: '#1a1622',
-    platColor: '#2a2035',
+    sky: ['#120808', '#1c1010'],
+    groundColor: '#1a0e0e',
+    platColor: '#261616',
     playerLives: 3,
     tokenReward: 10, blueprintDrop: null,
     postText: 'The Third Architect is gone. And the Creator\'s constructs are already converging on the fallback point.',
@@ -164,9 +164,9 @@ STORY_CHAPTER_REGISTRY.push(
       { frame: 30,  text: 'Creator probes locked onto the terminal. Hold them off.', color: '#cc88ff', timer: 270 },
       { frame: 420, text: '"Can the fragment substitute for the fourth step?" Fourth Architect. The rift entity: "Maybe."', color: '#aaccff', timer: 280 },
     ],
-    sky: ['#0a080e', '#130d1a'],
-    groundColor: '#1a1622',
-    platColor: '#2a2035',
+    sky: ['#080e0e', '#10181a'],
+    groundColor: '#0c1414',
+    platColor: '#161e20',
     playerLives: 3,
     tokenReward: 10, blueprintDrop: null,
     postText: 'The protocol is incomplete. The fragment might be enough — but it means using more of yourself than anyone expected. The Creator\'s Enforcer arrives within the hour.',
@@ -196,9 +196,9 @@ STORY_CHAPTER_REGISTRY.push(
       { frame: 30,  text: 'Creator sweep units everywhere. The Preserved won\'t wait if the alarm fires.', color: '#ffcc44', timer: 270 },
       { frame: 480, text: '"Don\'t be surprised if what you find is afraid." She means the Creator.', color: '#cc88ff', timer: 260 },
     ],
-    sky: ['#0a080e', '#130d1a'],
-    groundColor: '#1a1622',
-    platColor: '#2a2035',
+    sky: ['#100c06', '#1c160a'],
+    groundColor: '#140e06',
+    platColor: '#1e1a10',
     playerLives: 3,
     tokenReward: 20, blueprintDrop: null,
     postText: 'There is something older than the Creator. Something that cannot be negotiated with. The fracture system was built as a weapon against it. You needed to know that before you go further.',
@@ -239,7 +239,7 @@ STORY_CHAPTER_REGISTRY.push(
     secondEnemy: { weaponKey: 'sword', classKey: 'warrior', aiDiff: 'expert', color: '#9999cc' },
     armor: ['helmet'],
     playerLives: 2,
-    arena: 'ice',
+    arena: 'lava',
     tokenReward: 110, blueprintDrop: null,
     postText: 'The Third Architect looks up at you from the ground. "The trade finalized thirty seconds ago. The Preserved are free." A pause. "Go close the rift. I was wrong about whether it was possible. I wasn\'t wrong about the cost." They step back through a portal. It closes. You don\'t see them again.',
   },
@@ -270,9 +270,9 @@ STORY_CHAPTER_REGISTRY.push(
       { frame: 40,  text: 'Collect all five protocol components. Interference units are erasing them — move fast.', color: '#cc88ff', timer: 270 },
       { frame: 550, text: 'Veran: "You\'re still here. After all of this." The Fourth Architect: "We continue. Forward."', color: '#88ccff', timer: 280 },
     ],
-    sky: ['#0a080e', '#130d1a'],
-    groundColor: '#1a1622',
-    platColor: '#2a2035',
+    sky: ['#0e080e', '#181018'],
+    groundColor: '#120e14',
+    platColor: '#1c1620',
     playerLives: 3,
     tokenReward: 25, blueprintDrop: null,
     postText: 'Three Architects remain. The fragment may be enough. The Creator\'s Enforcer is coming.',
@@ -300,9 +300,9 @@ STORY_CHAPTER_REGISTRY.push(
       { frame: 40,  text: 'Activate sequence locks in order to access the research data.', color: '#99ffcc', timer: 270 },
       { frame: 580, text: 'Veran: "The first fracture event — that was me. I caused it." Fifteen years of truth.', color: '#88ccff', timer: 300 },
     ],
-    sky: ['#0a080e', '#130d1a'],
-    groundColor: '#1a1622',
-    platColor: '#2a2035',
+    sky: ['#08090e', '#101318'],
+    groundColor: '#0c1018',
+    platColor: '#161822',
     playerLives: 3,
     tokenReward: 30, blueprintDrop: null,
     postText: 'Veran caused the original fracture event. She has spent fifteen years trying to fix it. You know the full truth now. You go forward anyway — but now it is a genuine choice.',
@@ -337,7 +337,7 @@ STORY_CHAPTER_REGISTRY.push(
     opponentName: 'The Enforcer', weaponKey: 'axe', classKey: 'berserker', aiDiff: 'expert', opponentColor: '#cc0044',
     armor: ['helmet', 'chestplate', 'leggings'],
     playerLives: 1,
-    arena: 'ruins',
+    arena: 'cyberpunk',
     tokenReward: 140, blueprintDrop: 'architects_resolve2',
     postText: 'The Enforcer collapses completely. No reset, no transmission — gone. The Second Architect: "The Creator didn\'t pull it back." The Fourth Architect: "Or it wanted to see if we could do this."',
   },
@@ -363,18 +363,15 @@ STORY_CHAPTER_REGISTRY.push(
       { frame: 300, text: '"You are the only thing that has not broken." The rift entity. Through the air. Not a whisper.', color: '#aaccff', timer: 270 },
       { frame: 560, text: 'Finish it. The Creator\'s domain is ahead.', color: '#ffffff', timer: 240 },
     ],
-    arena: 'city',
+    arena: 'cave',
     playerLives: 2,
     tokenReward: 30, blueprintDrop: null,
     postText: 'Act IV complete. The Creator\'s domain opens ahead. Three Architects. One fragment bearer. One rift entity. Forward.',
   },
 
-  // ══════════════════════════════════════════════════════════════════
-  // ACT V — MULTIVERSAL ASCENSION (ids 62–69)
-  // Before the Creator's domain, the fragment bearer must traverse
-  // four hostile dimensions. Each world hardens them for what comes next.
-  // ══════════════════════════════════════════════════════════════════
-
-  // ─────── Arc 5-0: The War-Torn Dimension (ids 62–63) ──────────────
+  // ─────── Side mission: Lab Infiltration (id 62) ────────────────────
+  // Damnation arc follows in smb-act5-arc-damnation.js (ids 63–68)
+  // Fallen God arc follows in smb-act6-arc1.js / smb-act6-arc2.js (ids 69–74)
+  // Multiverse arcs follow in smb-act4mv-arc1.js / arc2.js / arc3.js (ids 75–95)
 
 );

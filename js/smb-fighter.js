@@ -106,6 +106,7 @@ class Fighter {
     this.spawnY      = y;
     this.name        = '';
     this.playerNum   = 1;
+    this.expressionState = 'neutral'; // 'neutral'|'cool'|'focused'|'intense'|'serene'
     // ── Anti-kite system ─────────────────────────────────────────────────────
     this._kiteTimer     = 0;   // frames of continuous high-speed movement
     this._kiteSpeedMult = 1.0; // applied in processInput; decays toward 0.70 over 8s
@@ -125,6 +126,18 @@ class Fighter {
     // Written by AI systems each tick; consumed by applyAIIntent().
     // null between ticks (AI cleared it) or { vx, vy, jump } when pending.
     this._aiIntent = null;
+    this._damageAccumThisLife = 0; // cumulative damage taken since last respawn — drives degradation visuals
+    this._boomOrbit      = null;
+    this._thrownAxe      = null;
+    this._shockBolt      = null;
+    this._elecZones      = [];
+    this._thunderStrikes = null;
+    this._thunderTimer   = 0;
+    this._chainArcs      = [];
+    this._hammerShock    = null;
+    this._broomRide      = null;
+    this._scytheToss     = null;
+    this._paperPlanes    = [];
   }
 
   cx() { return this.x + this.w / 2; }
@@ -202,6 +215,29 @@ class Fighter {
     this._axeWhirl           = null;
     this._swordSlashes       = [];
     this._swordSlashQueue    = [];
+    this._giantFist          = null;
+    this._peaCluster         = null;
+    this._gravityStone       = null;
+    this._paperSwarm         = [];
+    this._flailBall          = null;
+    this._flailOrbit         = null;
+    this._boomerangs         = [];
+    this._boomOrbit          = null;
+    this._thrownAxe          = null;
+    this._shockBolt          = null;
+    this._elecZones          = [];
+    this._thunderStrikes     = null;
+    this._thunderTimer       = 0;
+    this._chainArcs          = [];
+    this._hammerShock        = null;
+    this._broomRide          = null;
+    this._scytheToss         = null;
+    this._paperPlanes        = [];
+    this._shieldCharge       = null;
+    this._whipSlow           = 0;
+    this._whipCrack          = null;
+    this._whipRope           = null;
+    this._overcharged        = 0;
     this.canDoubleJump   = false;
     // superMeter / superReady intentionally NOT reset — supers carry over between lives
     // Domain: clear expansion state and reset counter so domain must be re-earned
@@ -224,7 +260,8 @@ class Fighter {
     this._recentRangedUse = 0;
     this._reloadInterrupted = false;
     this._rangedRecoilKick = 0;
-    this.invincible = 100;
+    this._damageAccumThisLife = 0;
+    this.invincible = 180; // 3 s of spawn protection — enough for a stable landing
     // Megaknight spawn animation: fall from sky
     if (this.charClass === 'megaknight') {
       this.y = -120;
@@ -447,6 +484,496 @@ class Fighter {
       }
     }
 
+    // ── Boxing Gloves super: Giant Fist — slow-moving massive fist hitbox ────────
+    if (this._giantFist) {
+      const gf = this._giantFist;
+      gf.x += gf.vx;
+      gf.life--;
+      const _gfAll = [...players, ...trainingDummies];
+      for (const f of _gfAll) {
+        if (f === this || f.health <= 0 || gf.hitSet.has(f)) continue;
+        if (Math.abs(f.cx() - gf.x) < 55 && Math.abs((f.y + f.h * 0.5) - gf.y) < 38) {
+          dealDamage(this, f, 58, 30);
+          f.vy = -14;
+          gf.hitSet.add(f);
+          spawnParticles(f.cx(), f.cy(), '#ff4444', 18);
+          screenShake = Math.max(screenShake, 22);
+        }
+      }
+      if (gf.life <= 0 || gf.x < -100 || gf.x > GAME_W + 100) {
+        this._giantFist = null;
+        this.superActive = false;
+      }
+    }
+
+    // ── Pea Shooter super: Cluster Bomb — large pea that bursts into radial shrapnel ──
+    if (this._peaCluster) {
+      const pc = this._peaCluster;
+      pc.x += pc.vx;
+      pc.y += pc.vy;
+      pc.vy += 0.15;
+      pc.life--;
+      let _pcDetonated = false;
+      const _pcAll = [...players, ...trainingDummies];
+      for (const f of _pcAll) {
+        if (f === this || f.health <= 0) continue;
+        if (Math.hypot(f.cx() - pc.x, (f.y + f.h * 0.5) - pc.y) < 36) { _pcDetonated = true; break; }
+      }
+      if (_pcDetonated || pc.life <= 0) {
+        for (let i = 0; i < 10; i++) {
+          const angle = (i / 10) * Math.PI * 2;
+          const spd   = 9 + Math.random() * 3;
+          const dmg   = 8 + Math.floor(Math.random() * 4);
+          projectiles.push(new Projectile(pc.x, pc.y, Math.cos(angle) * spd, Math.sin(angle) * spd, this, dmg, '#00ff44'));
+        }
+        spawnParticles(pc.x, pc.y, '#44ff44', 26);
+        spawnParticles(pc.x, pc.y, '#ffffff', 10);
+        spawnRing(pc.x, pc.y);
+        screenShake = Math.max(screenShake, 18);
+        this._peaCluster = null;
+      }
+    }
+
+    // ── Slingshot super: Gravity Stone — slow boulder that yanks enemies on detonation ──
+    if (this._gravityStone) {
+      const gs = this._gravityStone;
+      gs.x += gs.vx;
+      gs.y += gs.vy;
+      gs.vy += 0.18;
+      gs.life--;
+      const _gsAll = [...players, ...trainingDummies];
+      let _gsHit = false;
+      for (const f of _gsAll) {
+        if (f === this || f.health <= 0) continue;
+        if (Math.hypot(f.cx() - gs.x, (f.y + f.h * 0.5) - gs.y) < 44) { _gsHit = true; break; }
+      }
+      if (_gsHit || gs.life <= 0) {
+        for (const f of _gsAll) {
+          if (f === this || f.health <= 0) continue;
+          const _gdx = gs.x - f.cx();
+          const _gdy = gs.y - (f.y + f.h * 0.5);
+          const _gd  = Math.hypot(_gdx, _gdy) || 1;
+          if (_gd < 220) {
+            f.vx += (_gdx / _gd) * 18;
+            f.vy += (_gdy / _gd) * 12;
+            dealDamage(this, f, 52, 0);
+            spawnParticles(f.cx(), f.cy(), '#ff6600', 10);
+          }
+        }
+        spawnRing(gs.x, gs.y);
+        spawnRing(gs.x, gs.y);
+        spawnParticles(gs.x, gs.y, '#ff9933', 28);
+        screenShake = Math.max(screenShake, 28);
+        this._gravityStone = null;
+        this.superActive = false;
+      }
+    }
+
+    // ── Paper Airplane super: Origami Swarm — 8 homing planes that track enemies ──
+    if (this._paperSwarm && this._paperSwarm.length > 0) {
+      const _swarmTarget = players.find(p => p !== this && p.health > 0)
+                        || trainingDummies.find(d => d.health > 0);
+      for (let i = this._paperSwarm.length - 1; i >= 0; i--) {
+        const pl = this._paperSwarm[i];
+        if (_swarmTarget) {
+          const _pdx = _swarmTarget.cx() - pl.x;
+          const _pdy = (_swarmTarget.y + _swarmTarget.h * 0.5) - pl.y;
+          const _pd  = Math.hypot(_pdx, _pdy) || 1;
+          pl.vx += (_pdx / _pd) * 0.28;
+          pl.vy += (_pdy / _pd) * 0.28;
+          const _pspd = Math.hypot(pl.vx, pl.vy);
+          if (_pspd > 9) { pl.vx = pl.vx / _pspd * 9; pl.vy = pl.vy / _pspd * 9; }
+        }
+        pl.x += pl.vx;
+        pl.y += pl.vy;
+        pl.life--;
+        const _plAll = [...players, ...trainingDummies];
+        for (const f of _plAll) {
+          if (f === this || f.health <= 0 || pl.hitSet.has(f)) continue;
+          if (Math.hypot(f.cx() - pl.x, (f.y + f.h * 0.5) - pl.y) < 22) {
+            dealDamage(this, f, 22, 9);
+            pl.hitSet.add(f);
+            spawnParticles(pl.x, pl.y, '#aaccff', 6);
+            pl.life = 0;
+          }
+        }
+        if (pl.life <= 0 || pl.x < -60 || pl.x > GAME_W + 60 || pl.y > GAME_H + 60) {
+          this._paperSwarm.splice(i, 1);
+        }
+      }
+      if (this._paperSwarm.length === 0) this.superActive = false;
+    }
+
+    // ── Whip slow: damps velocity on targets hit by Crack ────────────────────────
+    if (this._whipSlow > 0) {
+      this._whipSlow--;
+      this.vx *= 0.82;
+    }
+
+    // ── Whip crack visual timer ───────────────────────────────────────────────────
+    if (this._whipCrack) {
+      this._whipCrack.timer--;
+      if (this._whipCrack.timer <= 0) this._whipCrack = null;
+    }
+    if (this._whipRope) {
+      this._whipRope.timer--;
+      if (this._whipRope.timer <= 0) this._whipRope = null;
+    }
+
+    // ── Shield: Fortress Charge — sustained forward rush with contact hit ─────────
+    if (this._shieldCharge) {
+      const sc = this._shieldCharge;
+      sc.timer--;
+      this.vx = this.facing * 27;
+      spawnParticles(this.cx() - this.facing * 10, this.cy(), '#4488ff', 3);
+      const _scAll = [...players, ...trainingDummies];
+      for (const f of _scAll) {
+        if (f === this || f.health <= 0 || sc.hitSet.has(f)) continue;
+        if (dist(this, f) < 58) {
+          dealDamage(this, f, 32, 40);
+          f.vx        = this.facing * 24;
+          f.stunTimer = Math.max(f.stunTimer || 0, 14);
+          sc.hitSet.add(f);
+          spawnParticles(f.cx(), f.cy(), '#88aaff', 16);
+          spawnRing(f.cx(), f.cy());
+          screenShake = Math.max(screenShake, 22);
+        }
+      }
+      if (sc.timer <= 0) { this._shieldCharge = null; this.superActive = false; }
+    }
+
+    // ── Electric Staff overcharge timer ──────────────────────────────────────────
+    if (this._overcharged > 0) this._overcharged--;
+
+    // ── Flail: Chain Yank ball ────────────────────────────────────────────────────
+    if (this._flailBall) {
+      const fb = this._flailBall;
+      if (!fb.returning) {
+        fb.timer--;
+        if (fb.timer <= 0) { fb.returning = true; fb.hitSet.clear(); }
+      } else {
+        const _fdx = this.cx() - fb.x;
+        const _fdy = this.cy() - fb.y;
+        const _fd  = Math.hypot(_fdx, _fdy) || 1;
+        fb.vx = (_fdx / _fd) * 10;
+        fb.vy = (_fdy / _fd) * 10;
+        if (_fd < 28) { this._flailBall = null; }
+      }
+      if (this._flailBall) {
+        fb.x += fb.vx;
+        fb.y += fb.vy;
+        const _fbDmg = fb.returning ? 16 : 26;
+        const _fbKb  = fb.returning ? 12 : 18;
+        const _fbAll = [...players, ...trainingDummies];
+        for (const f of _fbAll) {
+          if (f === this || f.health <= 0 || fb.hitSet.has(f)) continue;
+          if (Math.hypot(f.cx() - fb.x, (f.y + f.h * 0.5) - fb.y) < 30) {
+            dealDamage(this, f, _fbDmg, _fbKb);
+            fb.hitSet.add(f);
+            spawnParticles(fb.x, fb.y, '#aaaaaa', 8);
+            screenShake = Math.max(screenShake, 10);
+          }
+        }
+        if (fb.x < -100 || fb.x > GAME_W + 100) this._flailBall = null;
+      }
+    }
+
+    // ── Flail: Orbit Storm super — ball orbits and hits nearby enemies ─────────
+    if (this._flailOrbit) {
+      const fo = this._flailOrbit;
+      fo.timer--;
+      fo.angle = (fo.angle || 0) + 0.22;
+      fo.ballX  = this.cx() + Math.cos(fo.angle) * 75;
+      fo.ballY  = (this.y + this.h * 0.4) + Math.sin(fo.angle) * 55;
+      const _foAll = [...players, ...trainingDummies];
+      for (const f of _foAll) {
+        if (f === this || f.health <= 0) continue;
+        const _foid = f._id || f.name || 'dummy';
+        fo.hitCd[_foid] = (fo.hitCd[_foid] || 0) - 1;
+        if ((fo.hitCd[_foid] || 0) <= 0 && Math.hypot(f.cx() - fo.ballX, (f.y + f.h * 0.5) - fo.ballY) < 26) {
+          dealDamage(this, f, 16, 10);
+          fo.hitCd[_foid] = 14;
+          spawnParticles(fo.ballX, fo.ballY, '#888888', 6);
+        }
+      }
+      if (fo.timer <= 0) { this._flailOrbit = null; this.superActive = false; }
+    }
+
+    // ── Boomerang: returning projectiles ─────────────────────────────────────────
+    if (this._boomerangs && this._boomerangs.length > 0) {
+      for (let i = this._boomerangs.length - 1; i >= 0; i--) {
+        const bm = this._boomerangs[i];
+        if (!bm.returning) {
+          bm.timer--;
+          bm.vy += 0.10;
+          if (bm.timer <= 0) {
+            if (bm.oneWay) { this._boomerangs.splice(i, 1); continue; } // basic attack: no return
+            bm.returning = true;
+          }
+        } else {
+          const _bdx = this.cx() - bm.x;
+          const _bdy = (this.y + this.h * 0.5) - bm.y;
+          const _bdd = Math.hypot(_bdx, _bdy) || 1;
+          bm.vx += (_bdx / _bdd) * 0.85;
+          bm.vy += (_bdy / _bdd) * 0.85;
+          const _bspd = Math.hypot(bm.vx, bm.vy);
+          if (_bspd > 11) { bm.vx = bm.vx / _bspd * 11; bm.vy = bm.vy / _bspd * 11; }
+          if (_bdd < 30) { this._boomerangs.splice(i, 1); continue; }
+        }
+        bm.x += bm.vx;
+        bm.y += bm.vy;
+        const _bmHitSet = bm.returning ? bm.hitSetReturn : bm.hitSetGo;
+        const _bmDmg    = bm.returning ? 18 : 22;
+        const _bmAll    = [...players, ...trainingDummies];
+        for (const f of _bmAll) {
+          if (f === this || f.health <= 0 || _bmHitSet.has(f)) continue;
+          if (Math.hypot(f.cx() - bm.x, (f.y + f.h * 0.5) - bm.y) < 26) {
+            dealDamage(this, f, _bmDmg, 12);
+            _bmHitSet.add(f);
+            spawnParticles(bm.x, bm.y, '#cc9944', 8);
+          }
+        }
+        if (bm.x < -100 || bm.x > GAME_W + 100 || bm.y > GAME_H + 100) {
+          this._boomerangs.splice(i, 1);
+        }
+      }
+    }
+
+    // ── Paper Airplane: basic-attack planes fly forward ──────────────────────────
+    if (this._paperPlanes && this._paperPlanes.length > 0) {
+      for (let i = this._paperPlanes.length - 1; i >= 0; i--) {
+        const pp = this._paperPlanes[i];
+        pp.x += pp.vx; pp.y += pp.vy; pp.vy += 0.06;
+        pp.life--;
+        if (pp.life <= 0 || pp.x < -60 || pp.x > GAME_W + 60 || pp.y > GAME_H + 60) {
+          this._paperPlanes.splice(i, 1); continue;
+        }
+        const _ppAll = [...players, ...trainingDummies];
+        for (const f of _ppAll) {
+          if (f === this || f.health <= 0 || pp.hitSet.has(f)) continue;
+          if (pp.x > f.x && pp.x < f.x + f.w && pp.y > f.y - 4 && pp.y < f.y + f.h + 4) {
+            const _ppDmg = this.weapon && this.weapon.damageFunc ? this.weapon.damageFunc() : 10;
+            dealDamage(this, f, _ppDmg, 6);
+            pp.hitSet.add(f);
+            spawnParticles(pp.x, pp.y, '#aaccff', 6);
+            this._paperPlanes.splice(i, 1); break;
+          }
+        }
+      }
+    }
+
+    // ── Boomerang Q: Orbit Guard — boomerang circles user as a spinning shield ────
+    if (this._boomOrbit) {
+      const bo = this._boomOrbit;
+      bo.angle += 0.20;
+      bo.timer--;
+      bo.ballX = this.cx() + Math.cos(bo.angle) * bo.r;
+      bo.ballY = this.cy() + Math.sin(bo.angle) * bo.r * 0.55;
+      // Decrement per-target hit cooldowns
+      for (const [_bof, _bocd] of bo.hitCd) {
+        if (_bocd <= 1) bo.hitCd.delete(_bof); else bo.hitCd.set(_bof, _bocd - 1);
+      }
+      const _boAll = [...players, ...trainingDummies];
+      for (const f of _boAll) {
+        if (f === this || f.health <= 0 || bo.hitCd.has(f)) continue;
+        if (Math.hypot(f.cx() - bo.ballX, (f.y + f.h * 0.5) - bo.ballY) < 30) {
+          dealDamage(this, f, 15, 9);
+          bo.hitCd.set(f, 20);
+          spawnParticles(bo.ballX, bo.ballY, '#cc9944', 7);
+          screenShake = Math.max(screenShake, 6);
+        }
+      }
+      if (bo.timer <= 0) this._boomOrbit = null;
+    }
+
+    // ── Axe E: Thrown Axe — heavy spinning axe head flies out and returns ────────
+    if (this._thrownAxe) {
+      const ta = this._thrownAxe;
+      ta.angle += 0.35;
+      ta.timer--;
+      if (!ta.returning) {
+        ta.x += ta.vx;
+        ta.y += ta.vy;
+        ta.vy += 0.18;
+        if (ta.timer < 40) ta.returning = true; // start curving back
+      } else {
+        const _tadx = this.cx() - ta.x;
+        const _tady = (this.y + this.h * 0.5) - ta.y;
+        const _tadd = Math.hypot(_tadx, _tady) || 1;
+        ta.vx += (_tadx / _tadd) * 1.4;
+        ta.vy += (_tady / _tadd) * 1.4;
+        const _taspd = Math.hypot(ta.vx, ta.vy);
+        if (_taspd > 13) { ta.vx = ta.vx / _taspd * 13; ta.vy = ta.vy / _taspd * 13; }
+        if (_tadd < 32) { this._thrownAxe = null; this.superActive = false; return; }
+      }
+      // Hit detection — 40px radius, once per target
+      const _taAll = [...players, ...trainingDummies];
+      for (const f of _taAll) {
+        if (f === this || f.health <= 0 || ta.hitSet.has(f)) continue;
+        if (Math.hypot(f.cx() - ta.x, (f.y + f.h * 0.5) - ta.y) < 40) {
+          dealDamage(this, f, 38, 18);
+          f.vy = -10;
+          ta.hitSet.add(f);
+          spawnParticles(ta.x, ta.y, '#ff8833', 16);
+          spawnParticles(ta.x, ta.y, '#ffcc44', 8);
+          spawnRing(ta.x, ta.y);
+          screenShake = Math.max(screenShake, 22);
+        }
+      }
+      if (ta.timer <= 0) { this._thrownAxe = null; this.superActive = false; }
+    }
+
+    // ── Electric Staff Q: Shock Bolt — ranged orb; on impact creates electric zone ─
+    if (this._shockBolt) {
+      const sb = this._shockBolt;
+      sb.x += sb.vx; sb.y += sb.vy; sb.vy += 0.06; sb.life--;
+      let _sbExplode = sb.life <= 0;
+      const _sbAll = [...players, ...trainingDummies];
+      for (const f of _sbAll) {
+        if (f === this || f.health <= 0 || sb.hitSet.has(f)) continue;
+        if (Math.hypot(f.cx() - sb.x, (f.y + f.h * 0.3) - sb.y) < 30) {
+          dealDamage(this, f, 20, 9);
+          f.stunTimer = Math.max(f.stunTimer || 0, 12);
+          sb.hitSet.add(f); _sbExplode = true;
+        }
+      }
+      if (_sbExplode) {
+        if (!this._elecZones) this._elecZones = [];
+        this._elecZones.push({ x: sb.x, y: sb.y + 18, r: 62, timer: 95, tickCd: 0 });
+        typeof spawnLightningBolt === 'function' && spawnLightningBolt(sb.x, sb.y);
+        spawnParticles(sb.x, sb.y, '#00eeff', 22); spawnParticles(sb.x, sb.y, '#ffffff', 8);
+        spawnRing(sb.x, sb.y); screenShake = Math.max(screenShake, 14);
+        this._shockBolt = null;
+      }
+    }
+
+    // ── Electric Staff: electric ground zones from Shock Bolt impact ──────────────
+    if (this._elecZones && this._elecZones.length) {
+      for (let _ezi = this._elecZones.length - 1; _ezi >= 0; _ezi--) {
+        const ez = this._elecZones[_ezi];
+        ez.timer--; ez.tickCd = Math.max(0, ez.tickCd - 1);
+        if (ez.timer <= 0) { this._elecZones.splice(_ezi, 1); continue; }
+        if (ez.tickCd <= 0) {
+          const _ezAll = [...players, ...trainingDummies];
+          for (const f of _ezAll) {
+            if (f === this || f.health <= 0) continue;
+            if (Math.hypot(f.cx() - ez.x, (f.y + f.h) - ez.y) < ez.r) {
+              dealDamage(this, f, 5, 3);
+              spawnParticles(f.cx(), f.cy(), '#00eeff', 3);
+            }
+          }
+          ez.tickCd = 15;
+        }
+      }
+    }
+
+    // ── Electric Staff E: Thunderstrike — 4 bolts drop from sky ──────────────────
+    if (this._thunderStrikes) {
+      this._thunderTimer++;
+      for (const ts of this._thunderStrikes) {
+        if (!ts.fired && this._thunderTimer >= ts.delay) {
+          ts.fired = true;
+          typeof spawnLightningBolt === 'function' && spawnLightningBolt(ts.x, ts.y);
+          spawnParticles(ts.x, ts.y, '#00eeff', 20); spawnParticles(ts.x, ts.y, '#aaeeff', 10);
+          screenShake = Math.max(screenShake, 18);
+          const _tsAll = [...players, ...trainingDummies];
+          for (const f of _tsAll) {
+            if (f === this || f.health <= 0) continue;
+            if (Math.hypot(f.cx() - ts.x, f.cy() - ts.y) < 62) {
+              dealDamage(this, f, 32, 14);
+              f.stunTimer = Math.max(f.stunTimer || 0, 10);
+            }
+          }
+        }
+      }
+      if (this._thunderStrikes.every(ts => ts.fired) && this._thunderTimer > 75) {
+        this._thunderStrikes = null; this.superActive = false;
+      }
+    }
+
+    // ── Electric Staff: chain arc visuals (base attack chain) ────────────────────
+    if (this._chainArcs && this._chainArcs.length) {
+      for (let _cai = this._chainArcs.length - 1; _cai >= 0; _cai--) {
+        this._chainArcs[_cai].timer--;
+        if (this._chainArcs[_cai].timer <= 0) this._chainArcs.splice(_cai, 1);
+      }
+    }
+
+    // ── Hammer Q: Ground Shockwave — traveling wave rolls along the floor ────────
+    if (this._hammerShock) {
+      const hs = this._hammerShock;
+      hs.x += hs.vx;
+      hs.timer--;
+      const _hsAll = [...players, ...trainingDummies];
+      for (const f of _hsAll) {
+        if (f === this || f.health <= 0 || hs.hitSet.has(f)) continue;
+        if (Math.hypot(f.cx() - hs.x, (f.y + f.h) - hs.y) < 52) {
+          dealDamage(this, f, 28, 14);
+          f.vy = -16;
+          hs.hitSet.add(f);
+          spawnParticles(f.cx(), f.cy(), '#ffcc44', 14);
+          spawnRing(f.cx(), f.cy());
+          screenShake = Math.max(screenShake, 16);
+        }
+      }
+      if (hs.timer <= 0 || hs.x < -60 || hs.x > GAME_W + 60) this._hammerShock = null;
+    }
+
+    // ── Broomstick Q: Broom Ride — aerial body-check while flying ────────────────
+    if (this._broomRide) {
+      const br = this._broomRide;
+      br.timer--;
+      // Spawn sparkle trail every other frame
+      if (br.timer % 2 === 0) spawnParticles(this.cx(), this.cy(), '#ddbb88', 3);
+      const _brAll = [...players, ...trainingDummies];
+      for (const f of _brAll) {
+        if (f === this || f.health <= 0 || br.hitSet.has(f)) continue;
+        if (Math.hypot(f.cx() - this.cx(), f.cy() - this.cy()) < 52) {
+          dealDamage(this, f, 16, 20);
+          f.vx += this.facing * 16;
+          f.vy = -8;
+          br.hitSet.add(f);
+          spawnParticles(f.cx(), f.cy(), '#cc9966', 12);
+          screenShake = Math.max(screenShake, 12);
+        }
+      }
+      if (br.timer <= 0 || (this.onGround && br.timer < 18)) this._broomRide = null;
+    }
+
+    // ── Scythe Q: Scythe Toss — spinning blade flies out and returns ──────────────
+    if (this._scytheToss) {
+      const st = this._scytheToss;
+      st.angle += 0.28;
+      st.timer--;
+      if (!st.returning) {
+        st.x += st.vx; st.y += st.vy; st.vy += 0.12;
+        if (st.timer < 22) st.returning = true;
+      } else {
+        const _stdx = this.cx() - st.x;
+        const _stdy = this.cy() - st.y;
+        const _stdd = Math.hypot(_stdx, _stdy) || 1;
+        st.vx += (_stdx / _stdd) * 1.6;
+        st.vy += (_stdy / _stdd) * 1.6;
+        const _stspd = Math.hypot(st.vx, st.vy);
+        if (_stspd > 14) { st.vx = st.vx / _stspd * 14; st.vy = st.vy / _stspd * 14; }
+        if (_stdd < 28) { this._scytheToss = null; return; }
+      }
+      const _stAll = [...players, ...trainingDummies];
+      for (const f of _stAll) {
+        if (f === this || f.health <= 0) continue;
+        if (st.returning && st.hitSetReturn.has(f)) continue;
+        if (!st.returning && st.hitSetGo.has(f)) continue;
+        if (Math.hypot(f.cx() - st.x, f.cy() - st.y) < 24) {
+          const _stDmg = st.returning ? 14 : 22;
+          dealDamage(this, f, _stDmg, 9);
+          (st.returning ? st.hitSetReturn : st.hitSetGo).add(f);
+          spawnParticles(st.x, st.y, '#aa44aa', 10);
+          screenShake = Math.max(screenShake, 8);
+        }
+      }
+      if (st.timer <= 0) this._scytheToss = null;
+    }
+
     if (this.shieldCooldown > 0)       this.shieldCooldown--; // legacy — kept at 0
     // Shield recharge: tick down while not shielding; when it hits 0 stacks fully reset
     if (!this.shielding && this.shieldRechargeTimer > 0) {
@@ -539,10 +1066,41 @@ class Fighter {
           if (!_survFFM && gameMode === 'boss' && !this.isBoss && !tgt.isBoss) continue;
           // Block friendly fire in minigames ONLY for survival team mode
           if (gameMode === 'minigames' && minigameType === 'survival' && !_survFFM && !this.isBoss && !tgt.isBoss && !tgt.isAI && !this.isAI) continue;
-          if (!this.swingHitTargets.has(tgt) && arcHits(tgt.x, tgt.y, tgt.w, tgt.h, 0)) {
+          if (!this.swingHitTargets.has(tgt) && arcHits(tgt.x, tgt.y, tgt.w, tgt.h, this.weaponKey === 'whip' ? 10 : 0)) {
             dealDamage(this, tgt, this.weapon.damage, this.weapon.kb);
             this.swingHitTargets.add(tgt);
             this.weaponHit = true;
+            if (this.weaponKey === 'katana') {
+              if (!this._swordSlashes) this._swordSlashes = [];
+              this._swordSlashes.push({ x: tgt.cx(), y: tgt.cy(), vx: this.facing * 7, vy: -0.4,
+                tilt: this.facing * 0.18, facing: this.facing, life: 20, maxLife: 20, size: 20, color: '#aaaadd', hitSet: new Set() });
+            } else if (this.weaponKey === 'flail') {
+              tgt.vy = Math.min(tgt.vy, -10); // chain ball sends upward
+              spawnParticles(tgt.cx(), tgt.cy(), '#bbbbbb', 10);
+              screenShake = Math.max(screenShake, 8);
+            } else if (this.weaponKey === 'whip') {
+              const _wt = this._weaponTip;
+              this._whipCrack = { x: _wt ? _wt.x : tgt.cx(), y: _wt ? _wt.y : tgt.cy(), timer: 11 };
+              this._whipRope  = { tx: tgt.cx(), ty: tgt.cy(), timer: 8 }; // brief rope visual on hit
+            } else if (this.weaponKey === 'electricstaff') {
+              spawnParticles(tgt.cx(), tgt.cy(), '#00eeff', 12);
+              typeof spawnLightningBolt === 'function' && spawnLightningBolt(tgt.cx(), tgt.y);
+              // Chain to nearest other enemy within 130px
+              let _cTgt = null, _cDist = 999;
+              const _cAll = [...players, ...trainingDummies];
+              for (const _cf of _cAll) {
+                if (_cf === this || _cf === tgt || _cf.health <= 0) continue;
+                const _cd = Math.hypot(_cf.cx() - tgt.cx(), _cf.cy() - tgt.cy());
+                if (_cd < 130 && _cd < _cDist) { _cTgt = _cf; _cDist = _cd; }
+              }
+              if (_cTgt) {
+                dealDamage(this, _cTgt, Math.floor((this.weapon.damage || 14) * 0.6), 4);
+                typeof spawnLightningBolt === 'function' && spawnLightningBolt(_cTgt.cx(), _cTgt.y);
+                spawnParticles(_cTgt.cx(), _cTgt.cy(), '#00eeff', 6);
+                if (!this._chainArcs) this._chainArcs = [];
+                this._chainArcs.push({ x1: tgt.cx(), y1: tgt.cy(), x2: _cTgt.cx(), y2: _cTgt.cy(), timer: 14 });
+              }
+            }
           }
         }
         // All minions in range (multi-hit — no break)
@@ -558,6 +1116,7 @@ class Fighter {
         // All training dummies in range (multi-hit — no break)
         if (!this.isDummy) {
           for (const dum of trainingDummies) {
+            if (dum === this) continue; // prevent ForestBeast (stored in trainingDummies) from hitting itself
             if (!this.swingHitTargets.has(dum) && dum.health > 0 && arcHits(dum.x, dum.y, dum.w, dum.h, 0)) {
               dealDamage(this, dum, this.weapon.damage, this.weapon.kb);
               this.swingHitTargets.add(dum);
@@ -614,8 +1173,24 @@ class Fighter {
       // Supers with ongoing effects (hammer, axe, spear, sword) clear it themselves when those end.
       if (this.superActive && !this._hammerSpin && !this._axeWhirl && !this._spearCharge &&
           !(this._swordSlashes && this._swordSlashes.length) &&
-          !(this._swordSlashQueue && this._swordSlashQueue.length)) {
+          !(this._swordSlashQueue && this._swordSlashQueue.length) &&
+          !this._giantFist && !this._peaCluster && !this._gravityStone &&
+          !(this._paperSwarm && this._paperSwarm.length) &&
+          !this._shieldCharge && !this._thrownAxe && !this._thunderStrikes &&
+          !this._flailOrbit && !(this._boomerangs && this._boomerangs.length)) {
         this.superActive = false;
+      }
+      // Electric Staff overcharge: chain to nearby enemies after each melee swing
+      if (this.weaponKey === 'electricstaff' && this._overcharged > 0 && this.weaponHit) {
+        const _ecAll = [...players, ...trainingDummies];
+        for (const f of _ecAll) {
+          if (f === this || f.health <= 0) continue;
+          if (dist(this, f) < 160) {
+            dealDamage(this, f, 10, 5);
+            spawnParticles(f.cx(), f.cy(), '#00ddff', 6);
+            typeof spawnLightningBolt === 'function' && spawnLightningBolt(f.cx(), f.y);
+          }
+        }
       }
     }
 
@@ -759,8 +1334,9 @@ class Fighter {
     if (this.coyoteFrames > 0 && !this.onGround) this.coyoteFrames--;
     this._prevOnGround = this.onGround;
 
-    // Horizontal clamp — only boss arena has hard walls; large maps use floor edges; all others are open
-    if (currentArena.isBossArena) {
+    // Horizontal clamp — boss arenas with no worldWidth get hard walls at 0/GAME_W;
+    // large-world boss arenas (like absolute_axiom_domain) use worldWidth bounds instead.
+    if (currentArena.isBossArena && !currentArena.worldWidth) {
       if (this.x < 0)               { this.x = 0;               this.vx =  Math.abs(this.vx) * 0.25; }
       if (this.x + this.w > GAME_W) { this.x = GAME_W - this.w; this.vx = -Math.abs(this.vx) * 0.25; }
     } else if (currentArena.worldWidth) {
@@ -937,6 +1513,32 @@ class Fighter {
       }
 
       // (Megaknight perk is now the super — no passive HP-threshold trigger)
+
+      // PUGILIST: Surge Fist at ≤20% HP — auto-launches a Giant Fist for free
+      if (this.charClass === 'pugilist' && pct <= 0.20) {
+        this.classPerkUsed = true;
+        this._giantFist = {
+          x:      this.cx() + this.facing * 30,
+          y:      this.cy(),
+          vx:     this.facing * 12,
+          life:   80,
+          hitSet: new Set(),
+        };
+        screenShake = Math.max(screenShake, 20);
+        spawnParticles(this.cx(), this.cy(), '#ff4444', 24);
+        spawnParticles(this.cx(), this.cy(), '#ffffff', 12);
+      }
+
+      // REAPER: Revive at ≤8% HP — restore to 40% HP once
+      if (this.charClass === 'reaper' && pct <= 0.08) {
+        this.classPerkUsed = true;
+        this.health = Math.round(this.maxHealth * 0.40);
+        this.invincible = Math.max(this.invincible, 60);
+        screenShake = Math.max(screenShake, 20);
+        spawnParticles(this.cx(), this.cy(), '#aa44aa', 32);
+        spawnParticles(this.cx(), this.cy(), '#ffffff', 16);
+        spawnRing(this.cx(), this.cy());
+      }
     }
   }
 
@@ -1131,11 +1733,12 @@ class Fighter {
       : (this.facing > 0
           ? lerp(-0.45, 1.1, atkP)
           : lerp(Math.PI + 0.45, Math.PI - 1.1, atkP));
-    const tipLens = { sword: 26, hammer: 30, axe: 23, spear: 40, gauntlet: 22, mkgauntlet: 30 };
+    const tipLens = { sword: 26, hammer: 30, axe: 23, spear: 40, gauntlet: 22, mkgauntlet: 30, whip: 50, flail: 28 };
     const wLen    = (tipLens[this.weaponKey] || 23) * _sc2;
     const fullReach = armLen + wLen;
-    // Sample inner (50%), mid (75%), and tip (100%) along the weapon
-    return [0.50, 0.75, 1.0].map(frac => ({
+    // Sample inner (50%), mid (75%), and tip (100%) along the weapon; whip adds extra outer sample
+    const fracs = this.weaponKey === 'whip' ? [0.40, 0.65, 0.85, 1.0] : [0.50, 0.75, 1.0];
+    return fracs.map(frac => ({
       x: cx        + Math.cos(ang) * fullReach * frac,
       y: shoulderY + Math.sin(ang) * fullReach * frac,
     }));
@@ -1240,20 +1843,57 @@ class Fighter {
                        + _recoilHeat * (_atkRapid ? 0.28 : 0.18)
                        + _pointBlankT * (_atkRapid ? 1.45 : 0.95);
       const _atkVyOff  = _atkSpread > 0 ? (Math.random() - 0.5) * _atkSpread : 0;
-      const _proj = new Projectile(
-        this.cx() + this.facing * 12, this.y + 22,
-        _bvx, _bvy + _atkVyOff, this, dmg, bClr
-      );
-      _proj._closeRangePenalty = _pointBlankT;
-      _proj._warmupFrames = _atkRapid ? 3 : 2;
-      projectiles.push(_proj);
-      // Gunner class: fire a second bullet (costs no extra ammo — it's the same shot)
-      if (this.charClass === 'gunner') {
-        const dmg2 = Math.max(1, Math.round((this.weapon.damageFunc ? this.weapon.damageFunc() : this.weapon.damage) * _closeDmgMult));
-        const _proj2 = new Projectile(this.cx() + this.facing * 12, this.y + 28, this.facing * bSpd * 0.92, bVy - 0.8 + _atkVyOff, this, dmg2, bClr);
-        _proj2._closeRangePenalty = _pointBlankT;
-        _proj2._warmupFrames = _atkRapid ? 3 : 2;
-        projectiles.push(_proj2);
+      // ── Special-cased ranged attacks that bypass the generic Projectile ──────────
+      if (this.weaponKey === 'boomerang') {
+        // Throw a visible, non-returning boomerang (oneWay = fades on timeout, no return arc)
+        if (!this._boomerangs) this._boomerangs = [];
+        this._boomerangs.push({
+          x: this.cx() + this.facing * 20, y: this.cy() - 2,
+          vx: this.facing * bSpd, vy: -0.8,
+          timer: 32, oneWay: true,
+          hitSetGo: new Set(), hitSetReturn: new Set(), returning: false,
+        });
+        spawnParticles(this.cx() + this.facing * 20, this.cy(), '#cc9944', 5);
+      } else if (this.weaponKey === 'paperairplane') {
+        // Fire a paper airplane that flies forward (drawn as a plane shape, not a dot)
+        if (!this._paperPlanes) this._paperPlanes = [];
+        this._paperPlanes.push({
+          x: this.cx() + this.facing * 16, y: this.y + 18,
+          vx: this.facing * bSpd, vy: (Math.random() - 0.5) * 0.6 - 0.4,
+          life: 85, hitSet: new Set(),
+        });
+      } else if (this.weaponKey === 'flamethrower') {
+        // Fire a tight cone of 3 short-range flame projectiles (stream, not a single bullet)
+        const _ftOffs = [-0.45, 0, 0.45];
+        for (const _fto of _ftOffs) {
+          const _fp = new Projectile(
+            this.cx() + this.facing * 14, this.y + 20,
+            this.facing * 11 + (Math.random() - 0.5) * 1.2,
+            _fto + (Math.random() - 0.5) * 0.3,
+            this, dmg, '#ff5500'
+          );
+          _fp.life = 9;
+          _fp._isFlame = true;
+          _fp._warmupFrames = 0;
+          projectiles.push(_fp);
+        }
+      } else {
+        // Generic ranged Projectile
+        const _proj = new Projectile(
+          this.cx() + this.facing * 12, this.y + 22,
+          _bvx, _bvy + _atkVyOff, this, dmg, bClr
+        );
+        _proj._closeRangePenalty = _pointBlankT;
+        _proj._warmupFrames = _atkRapid ? 3 : 2;
+        projectiles.push(_proj);
+        // Gunner class: fire a second bullet (costs no extra ammo — it's the same shot)
+        if (this.charClass === 'gunner') {
+          const dmg2 = Math.max(1, Math.round((this.weapon.damageFunc ? this.weapon.damageFunc() : this.weapon.damage) * _closeDmgMult));
+          const _proj2 = new Projectile(this.cx() + this.facing * 12, this.y + 28, this.facing * bSpd * 0.92, bVy - 0.8 + _atkVyOff, this, dmg2, bClr);
+          _proj2._closeRangePenalty = _pointBlankT;
+          _proj2._warmupFrames = _atkRapid ? 3 : 2;
+          projectiles.push(_proj2);
+        }
       }
       const _commitFrames = Math.max(10, Math.min(18, Math.round((this.weapon.cooldown || 30) * 0.42)));
       const _recoilPush = 0.6 + _recoilHeat * (_atkRapid ? 0.11 : 0.08);
@@ -1394,8 +2034,8 @@ class Fighter {
       },
       // ── Hammer: Mjolnir Spin — spinning contact AoE then forward launch ─────────
       hammer: () => {
-        this.spinning   = 70;
-        this._hammerSpin = { timer: 70, hitSet: new Set() };
+        this.spinning   = 45;
+        this._hammerSpin = { timer: 45, hitSet: new Set() };
         screenShake = Math.max(screenShake, 22);
         spawnParticles(this.cx(), this.cy(), '#ffcc44', 20);
       },
@@ -1407,13 +2047,25 @@ class Fighter {
           }, i * 50);
         }
       },
-      // ── Axe: Whirlwind — continuous multi-hit spin with wider AoE ───────────────
+      // ── Axe: Axe Throw — hurl the axe across the arena; it curves back ─────────
       axe: () => {
-        this.spinning = 90;
-        this._axeWhirl = { hitCd: {} };
+        const _atTgt = _superTarget;
+        const _atVx  = _atTgt
+          ? ((_atTgt.cx() - this.cx()) / Math.max(1, Math.abs(_atTgt.cx() - this.cx()))) * 10
+          : this.facing * 10;
+        this._thrownAxe = {
+          x:         this.cx() + this.facing * 20,
+          y:         this.cy(),
+          vx:        _atVx,
+          vy:        -4,
+          angle:     0,
+          timer:     90,
+          returning: false,
+          hitSet:    new Set(),
+        };
+        spawnParticles(this.cx(), this.cy(), '#ff8833', 22);
+        spawnParticles(this.cx(), this.cy(), '#ffcc44', 10);
         screenShake = Math.max(screenShake, 20);
-        spawnParticles(this.cx(), this.cy(), '#ff8833', 18);
-        spawnRing(this.cx(), this.cy());
       },
       // ── Spear: Lance Charge — short forward pierce burst ────────────────────────
       spear: () => {
@@ -1440,21 +2092,15 @@ class Fighter {
         }
         spawnParticles(this.cx(), this.cy(), '#ffee44', 16);
       },
-      // ── Shield: Fortress Charge — massive dash + KB + stun all nearby ───────
+      // ── Shield: Fortress Charge — blazing forward rush with trail and slam ──────
       shield: () => {
-        this.vx = this.facing * 30;
-        screenShake = Math.max(screenShake, 36);
-        const _sAll = [...players, ...trainingDummies];
-        for (const f of _sAll) {
-          if (f === this || f.health <= 0) continue;
-          if (dist(this, f) < 190) {
-            dealDamage(this, f, 32, 40);
-            f.vx        = this.facing * 22;
-            f.stunTimer = Math.max(f.stunTimer || 0, 14);
-          }
-        }
+        this._shieldCharge = { timer: 22, hitSet: new Set() };
+        this.vx = this.facing * 28;
+        this.vy = Math.min(this.vy, -2);
         spawnParticles(this.cx(), this.cy(), '#88aaff', 30);
+        spawnParticles(this.cx(), this.cy(), '#ffffff', 12);
         spawnRing(this.cx(), this.cy());
+        screenShake = Math.max(screenShake, 36);
       },
       // ── Scythe: Soul Reap — forward reaping sweep, heals per target hit ─────────
       scythe: () => {
@@ -1524,66 +2170,214 @@ class Fighter {
         }
         spawnRing(this.cx(), this.cy());
       },
-      // ── Boxing Gloves: Knockout Flurry — 8-hit rapid combo ──────────────────
+      // ── Boxing Gloves: Giant Fist — massive slow fist crosses the arena ─────────
       boxinggloves: () => {
-        let count = 0;
-        const doHit = () => {
-          if (!gameRunning || this.health <= 0) return;
-          if (_superTarget && dist(this, _superTarget) < 110) {
-            dealDamage(this, _superTarget, 16, 6);
-            spawnParticles(_superTarget.cx(), _superTarget.cy(), '#ff4444', 5);
-          }
-          count++;
-          if (count < 8) setTimeout(doHit, 70);
+        this._giantFist = {
+          x:      this.cx() + this.facing * 30,
+          y:      this.cy(),
+          vx:     this.facing * 12,
+          life:   80,
+          hitSet: new Set(),
         };
-        doHit();
+        screenShake = Math.max(screenShake, 16);
+        spawnParticles(this.cx(), this.cy(), '#ff4444', 20);
+        spawnParticles(this.cx(), this.cy(), '#ffffff', 10);
       },
-      // ── Pea Shooter: Pea Cannon — slow massive explosive pea ────────────────
+      // ── Pea Shooter: Cluster Bomb — travels then bursts into 10 radial peas ────
       peashooter: () => {
-        const _pProj = new Projectile(
-          this.cx() + this.facing * 14, this.y + 22,
-          this.facing * 7, -2,
-          this, 55, '#00ff44'
-        );
-        _pProj.splashRange = 95;
-        _pProj.dmg         = 55;
-        projectiles.push(_pProj);
-        spawnParticles(this.cx(), this.cy(), '#44ff44', 18);
-        screenShake = Math.max(screenShake, 14);
+        this._peaCluster = {
+          x:    this.cx() + this.facing * 16,
+          y:    this.y + 22,
+          vx:   this.facing * 9,
+          vy:   -2,
+          life: 100,
+        };
+        spawnParticles(this.cx(), this.cy(), '#44ff44', 14);
+        screenShake = Math.max(screenShake, 10);
       },
-      // ── Slingshot: Megastone — giant aimed boulder with massive splash ────────
+      // ── Slingshot: Gravity Stone — slow boulder; detonates with a gravity pull ──
       slingshot: () => {
-        const _sdx = _superTarget ? (_superTarget.cx() - this.cx()) : this.facing * 300;
-        const _sdy = _superTarget ? (_superTarget.cy() - this.cy()) : 0;
+        const _sdx  = _superTarget ? (_superTarget.cx() - this.cx()) : this.facing * 300;
+        const _sdy  = _superTarget ? (_superTarget.cy() - this.cy()) : 0;
         const _slen = Math.hypot(_sdx, _sdy) || 1;
-        const _slProj = new Projectile(
-          this.cx() + this.facing * 14, this.y + 22,
-          (_sdx / _slen) * 13, (_sdy / _slen) * 13 - 2,
-          this, 68, '#ff6600'
-        );
-        _slProj.splashRange = 100;
-        _slProj.dmg         = 68;
-        projectiles.push(_slProj);
-        spawnParticles(this.cx(), this.cy(), '#ff9933', 20);
-        screenShake = Math.max(screenShake, 18);
+        this._gravityStone = {
+          x:    this.cx() + this.facing * 16,
+          y:    this.y + 22,
+          vx:   (_sdx / _slen) * 5,
+          vy:   (_sdy / _slen) * 5 - 1,
+          life: 120,
+        };
+        spawnParticles(this.cx(), this.cy(), '#ff9933', 14);
+        screenShake = Math.max(screenShake, 12);
       },
-      // ── Paper Airplane: Paper Flock — 12 planes radiate in all directions ────
+      // ── Paper Airplane: Origami Swarm — 8 homing planes that chase and track ──
       paperairplane: () => {
-        for (let i = 0; i < 12; i++) {
-          setTimeout(() => {
-            if (!gameRunning || this.health <= 0) return;
-            const angle = (i / 12) * Math.PI * 2;
-            const spd   = 9 + Math.random() * 4;
-            const dmg   = 18 + Math.floor(Math.random() * 8);
-            projectiles.push(new Projectile(
-              this.cx(), this.cy(),
-              Math.cos(angle) * spd, Math.sin(angle) * spd,
-              this, dmg, '#aaccff'
-            ));
-          }, i * 40);
+        this._paperSwarm = [];
+        for (let i = 0; i < 8; i++) {
+          const angle = (i / 8) * Math.PI * 2;
+          const spd   = 4 + Math.random() * 3;
+          this._paperSwarm.push({
+            x:      this.cx(),
+            y:      this.cy(),
+            vx:     Math.cos(angle) * spd,
+            vy:     Math.sin(angle) * spd,
+            life:   220 + Math.floor(Math.random() * 60),
+            hitSet: new Set(),
+          });
         }
         spawnParticles(this.cx(), this.cy(), '#aaccff', 22);
+        screenShake = Math.max(screenShake, 12);
+      },
+      // ── Flail: Orbit Storm — ball orbits for 65 frames dealing contact damage ───
+      flail: () => {
+        this._flailOrbit = { timer: 85, angle: 0, hitCd: {}, ballX: 0, ballY: 0 };
+        this._flailBall  = null;
+        spawnRing(this.cx(), this.cy());
+        spawnParticles(this.cx(), this.cy(), '#aaaaaa', 18);
+        screenShake = Math.max(screenShake, 18);
+      },
+      // ── Whip: Reel — yank all enemies within 220px toward user ──────────────────
+      whip: () => {
+        const _wrAll = [...players, ...trainingDummies];
+        for (const f of _wrAll) {
+          if (f === this || f.health <= 0) continue;
+          if (dist(this, f) < 220) {
+            const _wdx = this.cx() - f.cx();
+            const _wdy = (this.y + this.h * 0.5) - (f.y + f.h * 0.5);
+            const _wd  = Math.hypot(_wdx, _wdy) || 1;
+            f.vx += (_wdx / _wd) * 24;
+            f.vy += (_wdy / _wd) * 16;
+            dealDamage(this, f, 12, 0);
+            spawnParticles(f.cx(), f.cy(), '#cc8833', 8);
+          }
+        }
+        screenShake = Math.max(screenShake, 22);
+        spawnRing(this.cx(), this.cy());
+        spawnParticles(this.cx(), this.cy(), '#cc8833', 22);
+      },
+      // ── Boomerang: Boomerang Blitz — 4-way 360° burst; all return ───────────────
+      boomerang: () => {
+        if (!this._boomerangs) this._boomerangs = [];
+        // Four directions: forward, backward, up-forward diagonal, up-backward diagonal
+        const _bbDirs = [
+          { vx: this.facing * 11,  vy: -1   },  // forward
+          { vx: -this.facing * 11, vy: -1   },  // backward (catches flankers)
+          { vx: this.facing * 7,   vy: -10  },  // steep upward arc
+          { vx: -this.facing * 7,  vy: -10  },  // upward backward arc
+        ];
+        for (const d of _bbDirs) {
+          this._boomerangs.push({
+            x:            this.cx(),
+            y:            this.cy(),
+            vx:           d.vx,
+            vy:           d.vy,
+            timer:        55,
+            returning:    false,
+            hitSetGo:     new Set(),
+            hitSetReturn: new Set(),
+          });
+        }
+        spawnParticles(this.cx(), this.cy(), '#cc9944', 28);
+        spawnRing(this.cx(), this.cy());
+        screenShake = Math.max(screenShake, 18);
+      },
+      // ── Katana: Shadow Step — instant teleport to far side of enemy + slash ──────
+      katana: () => {
+        const _kAll = [...players, ...trainingDummies];
+        let _kTgt = null, _kDist = 9999;
+        for (const f of _kAll) {
+          if (f === this || f.health <= 0) continue;
+          const _kd = dist(this, f);
+          if (_kd < _kDist) { _kTgt = f; _kDist = _kd; }
+        }
+        this._swordSlashes = this._swordSlashes || [];
+        if (_kTgt && _kDist < 450) {
+          // Teleport to opposite side of target (max range 450px)
+          const _kDir = _kTgt.cx() > this.cx() ? 1 : -1;
+          this.x = _kDir > 0 ? _kTgt.x + _kTgt.w + 8 : _kTgt.x - this.w - 8;
+          this.y = _kTgt.y;
+          this.facing = -_kDir;
+          this.vx = 0; this.vy = 0;
+          // 3 slash arcs sweeping at the target from the new position
+          for (let i = 0; i < 3; i++) {
+            const yOff = (i - 1) * 12;
+            this._swordSlashes.push({
+              x: this.cx() + this.facing * (14 + i * 16),
+              y: this.y + this.h * 0.38 + yOff,
+              vx: this.facing * 8, vy: yOff * 0.04,
+              tilt: this.facing * 0.4, facing: this.facing,
+              life: 35, maxLife: 35, size: 26, color: '#ffffff', hitSet: new Set(),
+            });
+          }
+          dealDamage(this, _kTgt, 38, 14);
+          spawnParticles(this.cx(), this.cy(), '#ffffff', 22);
+          spawnParticles(this.cx(), this.cy(), '#888899', 12);
+          spawnRing(this.cx(), this.cy());
+          screenShake = Math.max(screenShake, 24);
+        } else {
+          // No target — burst slash in place
+          for (let i = 0; i < 3; i++) {
+            const yOff = (i - 1) * 12;
+            this._swordSlashes.push({
+              x: this.cx() + this.facing * (16 + i * 20),
+              y: this.y + this.h * 0.38 + yOff,
+              vx: this.facing * 7, vy: yOff * 0.04,
+              tilt: this.facing * 0.4, facing: this.facing,
+              life: 35, maxLife: 35, size: 24, color: '#aaaacc', hitSet: new Set(),
+            });
+          }
+          spawnParticles(this.cx(), this.cy(), '#888899', 16);
+          screenShake = Math.max(screenShake, 14);
+        }
+      },
+      // ── Flamethrower: Backdraft — rocket-jump backward + roaring fire wave forward ─
+      flamethrower: () => {
+        this.vx = -this.facing * 26;
+        this.vy = -4;
+        screenShake = Math.max(screenShake, 28);
+        const _ftAll = [...players, ...trainingDummies];
+        for (const f of _ftAll) {
+          if (f === this || f.health <= 0) continue;
+          const _ftRelX = f.cx() - this.cx();
+          const _ftRelY = Math.abs((f.y + f.h * 0.5) - this.cy());
+          if (Math.abs(_ftRelX) < 150 && _ftRelY < 80 && (_ftRelX * this.facing > -20)) {
+            dealDamage(this, f, 40, 20);
+            f.vx = this.facing * 28;
+            spawnParticles(f.cx(), f.cy(), '#ff5500', 18);
+          }
+        }
+        // Fire wave — 8 flame projectiles spraying forward in a cone
+        for (let _fi = 0; _fi < 8; _fi++) {
+          const _fvy = (_fi - 3.5) * 0.55;
+          const _ffp = new Projectile(
+            this.cx() + this.facing * 14, this.y + 22,
+            this.facing * (14 + Math.random() * 4), _fvy + (Math.random() - 0.5) * 0.3,
+            this, 0, '#ff6600'  // damage = 0: pure visual, real damage done in AoE above
+          );
+          _ffp.life = 14;
+          _ffp._isFlame = true;
+          _ffp._warmupFrames = 0;
+          projectiles.push(_ffp);
+        }
+        spawnRing(this.cx(), this.cy());
+        spawnParticles(this.cx(), this.cy(), '#ff3300', 28);
+        spawnParticles(this.cx(), this.cy(), '#ffaa00', 14);
+      },
+      // ── Electric Staff: Thunderstrike — 4 sky bolts crash on target ─────────────
+      electricstaff: () => {
+        const _eTgt = _superTarget;
+        const _eX   = _eTgt ? _eTgt.cx() : this.cx() + this.facing * 140;
+        const _eY   = _eTgt ? _eTgt.y + _eTgt.h * 0.5 : this.cy();
+        this._thunderStrikes = [
+          { delay:  0, x: _eX,                                 y: _eY, fired: false },
+          { delay: 18, x: _eX + (Math.random() - 0.5) * 80,   y: _eY, fired: false },
+          { delay: 36, x: _eX + (Math.random() - 0.5) * 100,  y: _eY, fired: false },
+          { delay: 54, x: _eX,                                 y: _eY, fired: false },
+        ];
+        this._thunderTimer = 0;
         screenShake = Math.max(screenShake, 16);
+        spawnParticles(this.cx(), this.cy(), '#00eeff', 18);
+        spawnParticles(this.cx(), this.cy(), '#aaeeff', 10);
       },
       gauntlet: () => {
         screenShake = Math.max(screenShake, 60);
@@ -2887,8 +3681,31 @@ class Fighter {
     // Inline helper: 2-segment limb joint via midpoint offset
     const _lj = (ax, ay, bx, by, ox, oy) => [(ax+bx)*0.5 + ox, (ay+by)*0.5 + oy];
 
+    // Speed cached for motion trail and speed lines (used in two places below)
+    const _spdAbs = Math.abs(this.vx);
+
+    // ── MOTION AFTERIMAGE ───────────────────────────────────────────────────
+    // Ghosted head+body copies trail behind the fighter when moving fast.
+    if (_spdAbs > 3.0 && !this.isBoss && !this.squashTimer && this.ragdollTimer <= 0) {
+      const _ghosts = _spdAbs > 5.5 ? 3 : 2;
+      for (let _gi = _ghosts; _gi >= 1; _gi--) {
+        const _gAlpha = (_ghosts - _gi + 1) * 0.055;
+        const _gOff   = -Math.sign(this.vx) * _gi * 7;
+        ctx.save();
+        ctx.globalAlpha = _gAlpha;
+        ctx.strokeStyle = this.color;
+        ctx.fillStyle   = this.color;
+        ctx.lineWidth   = 5;
+        ctx.lineCap     = 'round';
+        const _gcx = cx + _gOff;
+        ctx.beginPath(); ctx.arc(_gcx, headCY, headR, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.moveTo(_gcx, neckY); ctx.lineTo(_gcx + (hipX - cx), hipY); ctx.stroke();
+        ctx.restore();
+      }
+    }
+
     ctx.strokeStyle = this.color;
-    ctx.lineWidth   = 4;
+    ctx.lineWidth   = 5;
     ctx.lineCap     = 'round';
     ctx.lineJoin    = 'round';
 
@@ -2898,33 +3715,92 @@ class Fighter {
     ctx.fillStyle = this.color;
     ctx.fill();
 
-    // Eyes
+    // ── FACE ──────────────────────────────────────────────────
+    const _expr = this.expressionState || 'neutral';
+    const _eyeX = cx + f * 3.5;
+    const _eyeY = headCY - 4;    // raised so eye bottom (headCY-1.5) clears mouth top (headCY+2.5)
+    const _eyeR = 2.5;
+
+    // Sclera
     ctx.fillStyle = '#fff';
     ctx.beginPath();
-    ctx.arc(cx + f * 4, headCY - 2, 3, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = s === 'hurt' ? '#ff0000' : '#111';
-    ctx.beginPath();
-    ctx.arc(cx + f * 5.2, headCY - 2, 1.6, 0, Math.PI * 2);
+    ctx.arc(_eyeX, _eyeY, _eyeR, 0, Math.PI * 2);
     ctx.fill();
 
-    // Expression (mouth)
-    ctx.strokeStyle = s === 'hurt' || s === 'attacking' ? '#ff3333' : 'rgba(0,0,0,0.6)';
-    ctx.lineWidth   = 1.5;
-    ctx.beginPath();
-    if (s === 'hurt') {
-      ctx.arc(cx + f * 4, headCY + 4, 3.5, 0, Math.PI);
-    } else {
-      ctx.arc(cx + f * 4, headCY + 3, 3.5, 0, Math.PI, true);
+    // Half-lid: paint a sliver of head color back over the top of the eye
+    if (_expr === 'cool' || _expr === 'serene') {
+      ctx.fillStyle = this.color;
+      ctx.fillRect(_eyeX - _eyeR - 0.5, _eyeY - _eyeR, _eyeR * 2 + 1, _eyeR * 0.65);
     }
+
+    // Pupil
+    ctx.fillStyle = s === 'hurt' ? '#ff0000' : '#111';
+    ctx.beginPath();
+    ctx.arc(cx + f * 4.5, _eyeY, 1.2, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Eyebrow — curved arch; control point lifts the middle
+    const _browNoseX = cx + f * 1.2;
+    const _browEarX  = cx + f * 6.0;
+    const _browMidX  = (cx + f * 1.2 + cx + f * 6.0) / 2;  // midpoint x
+    let   _browNoseY = headCY - 8.5;
+    let   _browEarY  = headCY - 8.5;
+    let   _browMidY  = headCY - 11;   // arch peak (above both endpoints)
+    if (s === 'hurt') {
+      _browNoseY -= 1.5; _browEarY += 0.5; _browMidY -= 0.5;  // worried ↗
+    } else if (s === 'attacking' || _expr === 'focused' || _expr === 'intense') {
+      _browNoseY += 1.5; _browEarY -= 0.5; _browMidY += 0.8;  // determined ↘
+    } else if (_expr === 'cool') {
+      _browNoseY += 0.5; _browEarY -= 0.5; _browMidY += 0.3;  // cool slight ↘
+    }
+    ctx.strokeStyle = 'rgba(0,0,0,0.7)';
+    ctx.lineWidth   = 1.8;
+    ctx.beginPath();
+    ctx.moveTo(_browEarX, _browEarY);
+    ctx.quadraticCurveTo(_browMidX, _browMidY, _browNoseX, _browNoseY);
     ctx.stroke();
+
+    // Mouth — canvas y-down: arc(…,0,π,false)=∪=smile; arc(…,0,π,true)=∩=frown
+    ctx.lineWidth = 1.5;
+    if (s === 'hurt') {
+      ctx.strokeStyle = '#ff3333';
+      ctx.beginPath();
+      ctx.arc(cx + f * 3.5, headCY + 5, 2.5, 0, Math.PI, true); // ∩ frown
+      ctx.stroke();
+    } else if (_expr === 'cool' || _expr === 'serene') {
+      // Smirk: rises toward the ear side
+      ctx.strokeStyle = 'rgba(0,0,0,0.6)';
+      ctx.beginPath();
+      ctx.moveTo(cx + f * 0.5, headCY + 5);
+      ctx.quadraticCurveTo(cx + f * 3.5, headCY + 5.5, cx + f * 6.5, headCY + 3.5);
+      ctx.stroke();
+    } else if (_expr === 'intense') {
+      // Grim tight line
+      ctx.strokeStyle = '#ff3333';
+      ctx.beginPath();
+      ctx.moveTo(cx + f * 1.0, headCY + 5.5);
+      ctx.lineTo(cx + f * 6.0, headCY + 5.5);
+      ctx.stroke();
+    } else if (s === 'attacking') {
+      ctx.strokeStyle = '#ff3333';
+      ctx.beginPath();
+      ctx.arc(cx + f * 3.5, headCY + 5, 2.5, 0, Math.PI, true); // ∩ grit/shout
+      ctx.stroke();
+    } else {
+      // neutral — subtle smirk, ear side lifts slightly
+      ctx.strokeStyle = 'rgba(0,0,0,0.6)';
+      ctx.beginPath();
+      ctx.moveTo(cx - f * 0.5, headCY + 5.2);
+      ctx.quadraticCurveTo(cx + f * 2.0, headCY + 5.6, cx + f * 4.5, headCY + 4.0);
+      ctx.stroke();
+    }
 
     // ACCESSORIES (hat, cape)
     drawAccessory(this, cx, headCY, shoulderY, hipY, f, headR);
 
     // BODY (leans forward when walking)
     ctx.strokeStyle = this.color;
-    ctx.lineWidth   = 4;
+    ctx.lineWidth   = 6;
     ctx.beginPath();
     ctx.moveTo(cx, neckY);
     ctx.lineTo(hipX, hipY);
@@ -2974,7 +3850,7 @@ class Fighter {
     const [rElbX, rElbY] = _lj(cx, shoulderY, rEx, rEy, elbowOut, -3);
     const [lElbX, lElbY] = _lj(cx, shoulderY, lEx, lEy, elbowOut, -3);
     ctx.strokeStyle = this.color;
-    ctx.lineWidth   = 4;
+    ctx.lineWidth   = 5;
     ctx.beginPath(); ctx.moveTo(cx, shoulderY); ctx.lineTo(rElbX, rElbY); ctx.lineTo(rEx, rEy); ctx.stroke();
     ctx.beginPath(); ctx.moveTo(cx, shoulderY); ctx.lineTo(lElbX, lElbY); ctx.lineTo(lEx, lEy); ctx.stroke();
 
@@ -3008,6 +3884,27 @@ class Fighter {
     const [lKneeX, lKneeY] = _lj(hipX, hipY, lFootX, lFootY, kneeOut, 0);
     ctx.beginPath(); ctx.moveTo(hipX, hipY); ctx.lineTo(rKneeX, rKneeY); ctx.lineTo(rFootX, rFootY); ctx.stroke();
     ctx.beginPath(); ctx.moveTo(hipX, hipY); ctx.lineTo(lKneeX, lKneeY); ctx.lineTo(lFootX, lFootY); ctx.stroke();
+
+    // ── SPEED LINES ─────────────────────────────────────────────────────────
+    // Horizontal streaks on the trailing side of the fighter when running fast.
+    if (_spdAbs > 3.5 && !this.isBoss && this.ragdollTimer <= 0) {
+      const _slDir = -Math.sign(this.vx);
+      ctx.save();
+      ctx.lineCap = 'round';
+      for (let _si = 0; _si < 5; _si++) {
+        const _slY   = headCY + 8 + _si * 13;
+        const _slLen = 6 + (4 - Math.abs(_si - 2)) * 3;
+        const _slX   = cx + _slDir * 14;
+        ctx.globalAlpha = 0.28 + Math.sin(t * 0.4 + _si * 0.9) * 0.08;
+        ctx.strokeStyle = 'rgba(255,255,255,0.9)';
+        ctx.lineWidth   = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(_slX, _slY);
+        ctx.lineTo(_slX + _slDir * _slLen, _slY);
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
 
     // SHIELD bubble (or raised kite shield for Paladin)
     if (this.shielding) {
@@ -3233,6 +4130,80 @@ class Fighter {
     // Per-limb ragdoll debug overlay
     if (this._rd) PlayerRagdoll.debugDraw(this, cx, shoulderY, hipY);
 
+    // ── DAMAGE DEGRADATION VISUALS ───────────────────────────────────────────────────
+    // Drawn on top of the body so marks appear as surface wounds.
+    // Tier 1 (>25 accum): sweat. Tier 2 (>60): bruise + scratches. Tier 3 (>110): black eye + blood drip.
+    const _dAccum = this._damageAccumThisLife || 0;
+    if (_dAccum > 25 && !this.isBoss && !this.isDummy) {
+      const _dTier = _dAccum < 60 ? 1 : _dAccum < 110 ? 2 : 3;
+      // Seeded offsets per player so each fighter has consistent wound placement
+      const _dseed = (this.playerNum || 1);
+
+      // Tier 1+: sweat drops sliding down side of face
+      ctx.save();
+      const _sweatSlide = (t * 0.55) % 18;
+      ctx.fillStyle = 'rgba(140,200,255,0.75)';
+      ctx.beginPath();
+      ctx.ellipse(cx + f * 9.5, headCY + _sweatSlide * 0.6 - 2, 1.4, 2.0, 0, 0, Math.PI * 2);
+      ctx.fill();
+      if (_dTier >= 2) {
+        ctx.globalAlpha = 0.55;
+        ctx.beginPath();
+        ctx.ellipse(cx + f * 7, headCY + 4 + _sweatSlide * 0.45, 1.0, 1.5, 0, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.restore();
+
+      // Tier 2+: cheek bruise + scratch marks on torso
+      if (_dTier >= 2) {
+        ctx.save();
+        // Cheek bruise
+        ctx.globalAlpha = 0.32;
+        ctx.fillStyle = '#5a1070';
+        ctx.beginPath();
+        ctx.ellipse(cx + f * 6, headCY + 3, 6, 4, 0.4, 0, Math.PI * 2);
+        ctx.fill();
+        // Scratch marks on torso — placement varies by player seed
+        ctx.globalAlpha = 0.70;
+        ctx.strokeStyle = '#b01010';
+        ctx.lineWidth = 2.0;
+        ctx.lineCap = 'round';
+        const _scrX1 = cx + (_dseed % 2 === 0 ? -4 : 2);
+        const _scrY1 = shoulderY + 7 + (_dseed % 3) * 3;
+        ctx.beginPath(); ctx.moveTo(_scrX1 - 5, _scrY1);     ctx.lineTo(_scrX1 + 4, _scrY1 + 8);  ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(_scrX1 - 3, _scrY1 + 5); ctx.lineTo(_scrX1 + 5, _scrY1 + 12); ctx.stroke();
+        ctx.restore();
+      }
+
+      // Tier 3: black eye, blood drip from forehead, extra scratch on torso
+      if (_dTier >= 3) {
+        ctx.save();
+        // Black / dark purple eye on the non-facing side
+        ctx.globalAlpha = 0.50;
+        ctx.fillStyle = '#1a0025';
+        ctx.beginPath();
+        ctx.ellipse(cx - f * 3.5, headCY - 2.5, 4.5, 3.2, 0, 0, Math.PI * 2);
+        ctx.fill();
+        // Blood drip from top of head, animates downward and loops
+        const _dripPhase = (t * 0.7) % 22;
+        ctx.globalAlpha = 0.75;
+        ctx.fillStyle = '#cc0808';
+        ctx.beginPath();
+        ctx.ellipse(cx + f * 2.5, headCY - headR + 1 + _dripPhase, 2.2, Math.min(5.0, 2.2 + _dripPhase * 0.15), 0, 0, Math.PI * 2);
+        ctx.fill();
+        // Additional scratch lower on torso
+        ctx.globalAlpha = 0.60;
+        ctx.strokeStyle = '#990000';
+        ctx.lineWidth = 1.8;
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.moveTo(cx - 7, shoulderY + 17 + (_dseed % 4));
+        ctx.lineTo(cx + 4, shoulderY + 28 + (_dseed % 4));
+        ctx.stroke();
+        ctx.restore();
+      }
+    }
+
     // ── Sword air-slash crescent arcs (absolute coords — must be outside drawWeapon) ──
     if (this._swordSlashes && this._swordSlashes.length > 0) {
       for (const sl of this._swordSlashes) {
@@ -3255,6 +4226,478 @@ class Fighter {
         ctx.beginPath();
         ctx.arc(0, 0, sl.size * 0.62, -Math.PI * 0.38, Math.PI * 0.38);
         ctx.stroke();
+        ctx.shadowBlur = 0;
+        ctx.restore();
+      }
+    }
+
+    // ── Shield: Fortress Charge afterimage trail ──────────────────────────────────
+    if (this._shieldCharge) {
+      const _scFade = this._shieldCharge.timer / 22;
+      ctx.save();
+      ctx.globalAlpha = _scFade * 0.45;
+      ctx.shadowColor = '#4488ff';
+      ctx.shadowBlur  = 24;
+      ctx.fillStyle   = '#2266cc';
+      ctx.beginPath();
+      ctx.roundRect(this.x - this.facing * 22, this.y + 4, this.w + 8, this.h - 8, 6);
+      ctx.fill();
+      ctx.globalAlpha = _scFade * 0.25;
+      ctx.beginPath();
+      ctx.roundRect(this.x - this.facing * 38, this.y + 8, this.w + 4, this.h - 16, 6);
+      ctx.fill();
+      ctx.shadowBlur = 0; ctx.globalAlpha = 1;
+      ctx.restore();
+    }
+
+    // ── Flail: Chain Yank ball ────────────────────────────────────────────────────
+    if (this._flailBall) {
+      const fb = this._flailBall;
+      ctx.save();
+      ctx.strokeStyle = '#777777';
+      ctx.lineWidth   = 2;
+      ctx.beginPath();
+      ctx.moveTo(this.cx(), this.y + this.h * 0.4);
+      ctx.lineTo(fb.x, fb.y);
+      ctx.stroke();
+      ctx.shadowColor = fb.returning ? '#ffcc44' : '#ffffff';
+      ctx.shadowBlur  = 10;
+      ctx.fillStyle   = '#aaaaaa';
+      ctx.beginPath();
+      ctx.arc(fb.x, fb.y, 10, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = '#dddddd';
+      ctx.lineWidth   = 1.5;
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+      ctx.restore();
+    }
+
+    // ── Whip crack snap burst ─────────────────────────────────────────────────────
+    if (this._whipCrack) {
+      const wc = this._whipCrack;
+      const _wcFade = wc.timer / 11;
+      ctx.save();
+      ctx.globalAlpha = _wcFade * 0.92;
+      ctx.shadowColor = '#ffdd44';
+      ctx.shadowBlur  = 14;
+      ctx.strokeStyle = '#ffcc55';
+      ctx.lineWidth   = 2.5;
+      for (let _wi = 0; _wi < 8; _wi++) {
+        const _wAngle = (_wi / 8) * Math.PI * 2;
+        const _wOuter = 12 + (1 - _wcFade) * 20;
+        const _wInner = _wOuter * 0.3;
+        ctx.beginPath();
+        ctx.moveTo(wc.x + Math.cos(_wAngle) * _wInner, wc.y + Math.sin(_wAngle) * _wInner);
+        ctx.lineTo(wc.x + Math.cos(_wAngle) * _wOuter, wc.y + Math.sin(_wAngle) * _wOuter);
+        ctx.stroke();
+      }
+      ctx.shadowBlur = 0; ctx.globalAlpha = 1;
+      ctx.restore();
+    }
+
+    // ── Flail: Orbit Storm super ball ─────────────────────────────────────────────
+    if (this._flailOrbit && this._flailOrbit.ballX !== undefined) {
+      const fo = this._flailOrbit;
+      const _foAlpha = Math.min(1, fo.timer / 10);
+      ctx.save();
+      ctx.globalAlpha = _foAlpha;
+      ctx.strokeStyle = '#666666';
+      ctx.lineWidth   = 2;
+      ctx.setLineDash([4, 4]);
+      ctx.beginPath();
+      ctx.moveTo(this.cx(), this.y + this.h * 0.4);
+      ctx.lineTo(fo.ballX, fo.ballY);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.shadowColor = '#dddddd';
+      ctx.shadowBlur  = 14;
+      ctx.fillStyle   = '#aaaaaa';
+      ctx.beginPath();
+      ctx.arc(fo.ballX, fo.ballY, 13, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth   = 1.5;
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+      ctx.restore();
+    }
+
+    // ── Boomerangs in flight ───────────────────────────────────────────────────────
+    if (this._boomerangs && this._boomerangs.length > 0) {
+      for (const bm of this._boomerangs) {
+        ctx.save();
+        ctx.translate(bm.x, bm.y);
+        ctx.rotate(Math.atan2(bm.vy, bm.vx));
+        ctx.shadowColor = '#cc9944';
+        ctx.shadowBlur  = 10;
+        ctx.strokeStyle = '#cc9944';
+        ctx.lineWidth   = 3;
+        ctx.lineCap     = 'round';
+        ctx.beginPath();
+        ctx.arc(0, 0, 8, -Math.PI * 0.65, Math.PI * 0.65);
+        ctx.stroke();
+        ctx.strokeStyle = '#ffcc66';
+        ctx.lineWidth   = 1.5;
+        ctx.beginPath();
+        ctx.arc(0, 0, 8, -Math.PI * 0.65, Math.PI * 0.65);
+        ctx.stroke();
+        ctx.shadowBlur = 0;
+        ctx.restore();
+      }
+    }
+
+    // ── Boomerang Q: Orbit Guard — spinning boomerang ring ───────────────────────
+    if (this._boomOrbit && this._boomOrbit.ballX !== undefined) {
+      const bo = this._boomOrbit;
+      ctx.save();
+      ctx.translate(bo.ballX, bo.ballY);
+      ctx.rotate(bo.angle * 3);
+      ctx.shadowColor = '#ffcc44';
+      ctx.shadowBlur  = 14;
+      ctx.strokeStyle = '#cc9944';
+      ctx.lineWidth   = 5;
+      ctx.lineCap     = 'round';
+      ctx.beginPath();
+      ctx.arc(0, 0, 13, -Math.PI * 0.65, Math.PI * 0.65);
+      ctx.stroke();
+      ctx.strokeStyle = '#ffe88a';
+      ctx.lineWidth   = 2.5;
+      ctx.beginPath();
+      ctx.arc(0, 0, 13, -Math.PI * 0.65, Math.PI * 0.65);
+      ctx.stroke();
+      // Faint orbit ring to show path
+      ctx.globalAlpha = 0.18;
+      ctx.strokeStyle = '#ffcc66';
+      ctx.lineWidth   = 1;
+      ctx.beginPath();
+      ctx.ellipse(this.cx(), this.cy(), bo.r, bo.r * 0.55, 0, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+      ctx.shadowBlur  = 0;
+      ctx.restore();
+    }
+
+    // ── Axe E: Thrown Axe — spinning axe head in flight ──────────────────────────
+    if (this._thrownAxe) {
+      const ta = this._thrownAxe;
+      ctx.save();
+      ctx.translate(ta.x, ta.y);
+      ctx.rotate(ta.angle);
+      ctx.shadowColor = '#ff8833';
+      ctx.shadowBlur  = 16;
+      // Axe head: a heavy wedge shape
+      ctx.fillStyle   = '#cc5522';
+      ctx.strokeStyle = '#ff9944';
+      ctx.lineWidth   = 2;
+      ctx.beginPath();
+      ctx.moveTo(0, -18); ctx.lineTo(14, 6); ctx.lineTo(-14, 6); ctx.closePath();
+      ctx.fill(); ctx.stroke();
+      // Handle stub
+      ctx.strokeStyle = '#886633';
+      ctx.lineWidth   = 3;
+      ctx.beginPath();
+      ctx.moveTo(0, 6); ctx.lineTo(0, 18);
+      ctx.stroke();
+      // Speed trail
+      ctx.globalAlpha = 0.35;
+      ctx.fillStyle   = '#ff8833';
+      ctx.beginPath();
+      ctx.moveTo(0, -18); ctx.lineTo(14, 6); ctx.lineTo(-14, 6); ctx.closePath();
+      ctx.fill();
+      ctx.globalAlpha = 1;
+      ctx.shadowBlur  = 0;
+      ctx.restore();
+    }
+
+    // ── Electric Staff overcharge aura ────────────────────────────────────────────
+    if (this._overcharged > 0) {
+      const _ecPulse = 0.5 + 0.5 * Math.sin(frameCount * 0.4);
+      ctx.save();
+      ctx.globalAlpha = 0.22 + _ecPulse * 0.18;
+      ctx.shadowColor = '#00eeff';
+      ctx.shadowBlur  = 18;
+      ctx.strokeStyle = '#00ddff';
+      ctx.lineWidth   = 2;
+      ctx.beginPath();
+      ctx.arc(this.cx(), this.cy(), 30 + _ecPulse * 8, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+      ctx.shadowBlur  = 0;
+      ctx.restore();
+    }
+
+    // ── Electric Staff: Shock Bolt in flight ─────────────────────────────────────
+    if (this._shockBolt) {
+      const sb = this._shockBolt;
+      const _sbNow = typeof frameCount !== 'undefined' ? frameCount : 0;
+      ctx.save();
+      ctx.shadowColor = '#00eeff'; ctx.shadowBlur = 22;
+      ctx.fillStyle = '#aaeeff';
+      ctx.beginPath(); ctx.arc(sb.x, sb.y, 9, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath(); ctx.arc(sb.x, sb.y, 4, 0, Math.PI * 2); ctx.fill();
+      // Crackling arcs around the orb
+      ctx.strokeStyle = '#00eeff'; ctx.lineWidth = 1.5;
+      for (let _si = 0; _si < 4; _si++) {
+        const _sAng = (_si / 4) * Math.PI * 2 + _sbNow * 0.22;
+        ctx.beginPath();
+        ctx.moveTo(sb.x + Math.cos(_sAng) * 9, sb.y + Math.sin(_sAng) * 9);
+        ctx.lineTo(sb.x + Math.cos(_sAng + 0.5) * (16 + Math.sin(_sbNow * 0.3 + _si) * 5),
+                   sb.y + Math.sin(_sAng + 0.5) * (16 + Math.sin(_sbNow * 0.3 + _si) * 5));
+        ctx.stroke();
+      }
+      ctx.shadowBlur = 0; ctx.restore();
+    }
+
+    // ── Electric Staff: electric ground zones ────────────────────────────────────
+    if (this._elecZones && this._elecZones.length) {
+      const _ezNow = typeof frameCount !== 'undefined' ? frameCount : 0;
+      for (const ez of this._elecZones) {
+        const _ezFade = ez.timer / 95;
+        ctx.save();
+        ctx.globalAlpha = _ezFade * 0.55;
+        ctx.shadowColor = '#00eeff'; ctx.shadowBlur = 14;
+        ctx.strokeStyle = '#00ddff'; ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.ellipse(ez.x, ez.y, ez.r, ez.r * 0.22, 0, 0, Math.PI * 2);
+        ctx.stroke();
+        // Crackling sparks across the zone
+        ctx.globalAlpha = _ezFade * 0.7;
+        ctx.strokeStyle = '#aaeeff'; ctx.lineWidth = 1;
+        for (let _es = 0; _es < 4; _es++) {
+          const _esX = ez.x + (Math.sin(_ezNow * 0.17 + _es * 1.57) * ez.r * 0.7);
+          const _esY = ez.y + (Math.cos(_ezNow * 0.21 + _es * 1.57) * ez.r * 0.12);
+          ctx.beginPath();
+          ctx.moveTo(_esX, _esY - 5);
+          ctx.lineTo(_esX + (Math.random() - 0.5) * 14, _esY + 5);
+          ctx.stroke();
+        }
+        ctx.globalAlpha = 1; ctx.shadowBlur = 0; ctx.restore();
+      }
+    }
+
+    // ── Electric Staff: chain arc between primary hit and chained target ──────────
+    if (this._chainArcs && this._chainArcs.length) {
+      for (const ca of this._chainArcs) {
+        const _caAlpha = ca.timer / 14;
+        const _camx = (ca.x1 + ca.x2) / 2;
+        const _camy = (ca.y1 + ca.y2) / 2;
+        ctx.save();
+        ctx.globalAlpha = _caAlpha;
+        ctx.shadowColor = '#00eeff'; ctx.shadowBlur = 16;
+        ctx.strokeStyle = '#00eeff'; ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        ctx.moveTo(ca.x1, ca.y1);
+        ctx.lineTo(_camx + (Math.random() - 0.5) * 28, _camy + (Math.random() - 0.5) * 28);
+        ctx.lineTo(ca.x2, ca.y2);
+        ctx.stroke();
+        ctx.globalAlpha = _caAlpha * 0.7;
+        ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(ca.x1, ca.y1);
+        ctx.lineTo(_camx + (Math.random() - 0.5) * 18, _camy + (Math.random() - 0.5) * 18);
+        ctx.lineTo(ca.x2, ca.y2);
+        ctx.stroke();
+        ctx.globalAlpha = 1; ctx.shadowBlur = 0; ctx.restore();
+      }
+    }
+
+    // ── Electric Staff E: Thunderstrike — warning flash before each bolt ──────────
+    if (this._thunderStrikes) {
+      for (const ts of this._thunderStrikes) {
+        if (ts.fired) continue;
+        // Warn player with a flickering target marker on the ground
+        const _tsWarn = Math.sin((typeof frameCount !== 'undefined' ? frameCount : 0) * 0.55) * 0.5 + 0.5;
+        ctx.save();
+        ctx.globalAlpha = _tsWarn * 0.6;
+        ctx.shadowColor = '#00eeff'; ctx.shadowBlur = 10;
+        ctx.strokeStyle = '#00ddff'; ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.ellipse(ts.x, ts.y, 28, 7, 0, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.globalAlpha = 1; ctx.shadowBlur = 0; ctx.restore();
+      }
+    }
+
+    // ── Hammer Q: Ground Shockwave — rolling ground crack ────────────────────────
+    if (this._hammerShock) {
+      const hs = this._hammerShock;
+      const _hsFade = hs.timer / 55;
+      ctx.save();
+      ctx.globalAlpha = _hsFade * 0.85;
+      ctx.shadowColor = '#ffcc44'; ctx.shadowBlur = 18;
+      ctx.strokeStyle = '#ffdd66'; ctx.lineWidth = 4;
+      // Ground crack: semicircle rising from floor with inner burst lines
+      ctx.beginPath();
+      ctx.arc(hs.x, hs.y, 28, -Math.PI, 0);
+      ctx.stroke();
+      ctx.globalAlpha = _hsFade * 0.5;
+      ctx.strokeStyle = '#ff8800'; ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(hs.x, hs.y, 42, -Math.PI * 0.7, -Math.PI * 0.3);
+      ctx.stroke();
+      ctx.globalAlpha = 1; ctx.shadowBlur = 0; ctx.restore();
+    }
+
+    // ── Broomstick Q: Broom Ride — sparkle aura while flying ────────────────────
+    if (this._broomRide) {
+      const br = this._broomRide;
+      const _brFade = br.timer / 22;
+      ctx.save();
+      ctx.globalAlpha = _brFade * 0.55;
+      ctx.shadowColor = '#ffdd88'; ctx.shadowBlur = 20;
+      ctx.strokeStyle = '#cc9966'; ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.ellipse(this.cx(), this.cy(), 28, 14, 0, 0, Math.PI * 2);
+      ctx.stroke();
+      // Motion streak behind the user
+      ctx.globalAlpha = _brFade * 0.35;
+      ctx.strokeStyle = '#ffdd88'; ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(this.cx() - this.facing * 12, this.cy());
+      ctx.lineTo(this.cx() - this.facing * 44, this.cy() + 4);
+      ctx.stroke();
+      ctx.globalAlpha = 1; ctx.shadowBlur = 0; ctx.restore();
+    }
+
+    // ── Scythe Q: Scythe Toss — spinning crescent in flight ─────────────────────
+    if (this._scytheToss) {
+      const st = this._scytheToss;
+      ctx.save();
+      ctx.translate(st.x, st.y);
+      ctx.rotate(st.angle);
+      ctx.shadowColor = '#aa44aa'; ctx.shadowBlur = 16;
+      ctx.strokeStyle = '#cc44cc'; ctx.lineWidth = 4;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.arc(0, 0, 14, -Math.PI * 0.75, Math.PI * 0.1);
+      ctx.stroke();
+      ctx.strokeStyle = '#ee88ee'; ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(0, 0, 14, -Math.PI * 0.75, Math.PI * 0.1);
+      ctx.stroke();
+      ctx.globalAlpha = 0.3;
+      ctx.fillStyle = '#cc44cc';
+      ctx.beginPath();
+      ctx.arc(0, 0, 14, -Math.PI * 0.75, Math.PI * 0.1);
+      ctx.lineTo(0, 0); ctx.closePath(); ctx.fill();
+      ctx.globalAlpha = 1; ctx.shadowBlur = 0; ctx.restore();
+    }
+
+    // ── Giant Fist (boxing gloves super) ────────────────────────────────────────
+    if (this._giantFist) {
+      const gf    = this._giantFist;
+      const pulse = 0.7 + 0.3 * Math.sin(frameCount * 0.3);
+      ctx.save();
+      ctx.translate(gf.x, gf.y);
+      ctx.scale(gf.vx > 0 ? 1 : -1, 1);
+      ctx.globalAlpha = Math.min(1, gf.life / 10);
+      ctx.shadowColor = '#ff2222';
+      ctx.shadowBlur  = 18 + pulse * 10;
+      ctx.fillStyle   = '#ee3333';
+      ctx.beginPath();
+      ctx.roundRect(-38, -24, 76, 48, 14);
+      ctx.fill();
+      ctx.strokeStyle = '#ff9999';
+      ctx.lineWidth   = 2;
+      for (let _ki = -1; _ki <= 1; _ki++) {
+        ctx.beginPath();
+        ctx.moveTo(_ki * 19, -24);
+        ctx.lineTo(_ki * 19, -10);
+        ctx.stroke();
+      }
+      ctx.shadowBlur = 0;
+      ctx.restore();
+    }
+
+    // ── Pea Cluster projectile ────────────────────────────────────────────────────
+    if (this._peaCluster) {
+      const pc = this._peaCluster;
+      ctx.save();
+      ctx.globalAlpha = 0.95;
+      ctx.shadowColor = '#44ff44';
+      ctx.shadowBlur  = 14;
+      ctx.fillStyle   = '#00cc44';
+      ctx.beginPath();
+      ctx.arc(pc.x, pc.y, 18, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.shadowBlur = 0;
+      ctx.restore();
+    }
+
+    // ── Gravity Stone projectile ──────────────────────────────────────────────────
+    if (this._gravityStone) {
+      const gs = this._gravityStone;
+      ctx.save();
+      ctx.globalAlpha = 0.95;
+      ctx.shadowColor = '#ff6600';
+      ctx.shadowBlur  = 18;
+      ctx.fillStyle   = '#994400';
+      ctx.beginPath();
+      ctx.arc(gs.x, gs.y, 24, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = '#ffaa44';
+      ctx.lineWidth   = 3;
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+      ctx.restore();
+    }
+
+    // ── Paper Swarm homing planes ─────────────────────────────────────────────────
+    // ── Paper Airplane: basic-attack planes ─────────────────────────────────────
+    if (this._paperPlanes && this._paperPlanes.length > 0) {
+      for (const pp of this._paperPlanes) {
+        const _ppA = Math.min(1, pp.life / 20);
+        ctx.save();
+        ctx.translate(pp.x, pp.y);
+        ctx.rotate(Math.atan2(pp.vy, pp.vx));
+        ctx.globalAlpha = _ppA;
+        ctx.shadowColor = '#aaccff'; ctx.shadowBlur = 7;
+        ctx.fillStyle = '#ddeeff';
+        ctx.beginPath();
+        ctx.moveTo(14, 0); ctx.lineTo(-5, -6); ctx.lineTo(-3, 0); ctx.lineTo(-5, 6);
+        ctx.closePath(); ctx.fill();
+        ctx.strokeStyle = '#7799bb'; ctx.lineWidth = 0.7;
+        ctx.beginPath(); ctx.moveTo(-3, 0); ctx.lineTo(10, -1); ctx.stroke();
+        ctx.shadowBlur = 0;
+        ctx.restore();
+      }
+    }
+
+    // ── Whip rope: brief taut-line flash on Lasso/hit ────────────────────────────
+    if (this._whipRope) {
+      const _wrA = Math.min(1, this._whipRope.timer / 6);
+      ctx.save();
+      ctx.globalAlpha = _wrA * 0.75;
+      ctx.strokeStyle = this._whipRope.isLasso ? '#ffcc44' : '#cc8833';
+      ctx.lineWidth   = this._whipRope.isLasso ? 2 : 1.5;
+      ctx.setLineDash([4, 3]);
+      ctx.beginPath();
+      ctx.moveTo(this.cx() + this.facing * 10, this.cy());
+      ctx.lineTo(this._whipRope.tx, this._whipRope.ty);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.restore();
+    }
+
+    if (this._paperSwarm && this._paperSwarm.length > 0) {
+      for (const pl of this._paperSwarm) {
+        const _pAlpha = Math.min(1, pl.life / 30);
+        ctx.save();
+        ctx.translate(pl.x, pl.y);
+        ctx.rotate(Math.atan2(pl.vy, pl.vx));
+        ctx.globalAlpha = _pAlpha * 0.9;
+        ctx.shadowColor = '#aaccff';
+        ctx.shadowBlur  = 8;
+        ctx.fillStyle   = '#ddeeff';
+        ctx.beginPath();
+        ctx.moveTo(12,  0);
+        ctx.lineTo(-6, -7);
+        ctx.lineTo(-4,  0);
+        ctx.lineTo(-6,  7);
+        ctx.closePath();
+        ctx.fill();
         ctx.shadowBlur = 0;
         ctx.restore();
       }
@@ -3285,6 +4728,8 @@ class Fighter {
       spear: '#8888ff', bow: '#aadd88', shield: '#4488ff', scythe: '#aabbcc',
       fryingpan: '#ffcc44', broomstick: '#ddbb44', boxinggloves: '#ff3333',
       peashooter: '#44ff66', slingshot: '#cc8844', paperairplane: '#aaccff',
+      flail: '#cccccc', whip: '#cc8833', boomerang: '#cc9944',
+      katana: '#8888cc', flamethrower: '#ff5500', electricstaff: '#00ccff',
     };
     if (k !== 'gauntlet' && _glowColors[k]) {
       const pulse = 0.5 + 0.5 * Math.sin(frameCount * 0.12 + (this.playerNum || 0));
@@ -3480,17 +4925,149 @@ class Fighter {
       ctx.beginPath(); ctx.arc(8, 0, 3, 0, Math.PI * 2); ctx.fill();
 
     } else if (k === 'paperairplane') {
-      // Paper plane silhouette
-      ctx.fillStyle = '#ddeeff';
+      // Hide plane while it's in the air (basic attack throw or swarm active)
+      const _ppInAir = (this._paperPlanes && this._paperPlanes.length > 0) ||
+                       (this._paperSwarm  && this._paperSwarm.length  > 0);
+      if (!_ppInAir) {
+        ctx.fillStyle = '#ddeeff';
+        ctx.beginPath();
+        ctx.moveTo(0, 0); ctx.lineTo(28, -2); ctx.lineTo(0, -10); ctx.closePath(); ctx.fill();
+        ctx.beginPath();
+        ctx.moveTo(0, 0); ctx.lineTo(28, -2); ctx.lineTo(0, 8); ctx.closePath();
+        ctx.fillStyle = '#bbccee'; ctx.fill();
+        ctx.strokeStyle = '#7799bb'; ctx.lineWidth = 0.8; ctx.stroke();
+        ctx.strokeStyle = '#aabbdd'; ctx.lineWidth = 0.5;
+        ctx.beginPath(); ctx.moveTo(0, -1); ctx.lineTo(20, -2); ctx.stroke();
+      }
+
+    } else if (k === 'flail') {
+      // Short handle + chain links + ball
+      ctx.strokeStyle = '#555555'; ctx.lineWidth = 3; ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.moveTo(-2, 0); ctx.lineTo(14, 0); ctx.stroke();
+      // Chain links swing outward when attacking
+      const _flBallOff = attacking ? 10 : 0;
+      const _flBallY   = attacking ? -12 : 0;
+      ctx.strokeStyle = '#888888'; ctx.lineWidth = 2;
+      for (let _fi = 0; _fi < 3; _fi++) {
+        const _flFrac = (_fi + 1) / 3;
+        ctx.beginPath(); ctx.arc(15 + _fi * 5 + _flBallOff * _flFrac, _flBallY * _flFrac, 3, 0, Math.PI * 2); ctx.stroke();
+      }
+      ctx.shadowColor = attacking ? '#ffffff' : '#cccccc';
+      ctx.shadowBlur  = attacking ? 14 : 6;
+      ctx.fillStyle   = '#aaaaaa';
+      ctx.beginPath(); ctx.arc(30 + _flBallOff, _flBallY, attacking ? 9 : 7, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = '#dddddd'; ctx.lineWidth = 1.5; ctx.stroke();
+      if (attacking) {
+        ctx.globalAlpha = 0.35;
+        ctx.beginPath(); ctx.arc(30 + _flBallOff * 0.6, _flBallY * 0.6, 7, 0, Math.PI * 2); ctx.fill();
+        ctx.globalAlpha = 1;
+      }
+      ctx.shadowBlur = 0;
+
+    } else if (k === 'whip') {
+      // Thin curved whip handle + long lash
+      ctx.fillStyle = '#663311';
+      ctx.beginPath(); ctx.roundRect(-3, -4, 9, 8, 2); ctx.fill();
+      const _whipCp1y = attacking ? 14 : 10;
+      const _whipCp2y = attacking ? -18 : -14;
+      ctx.strokeStyle = '#996622'; ctx.lineWidth = 1.5; ctx.lineCap = 'round';
       ctx.beginPath();
-      ctx.moveTo(0, 0); ctx.lineTo(28, -2); ctx.lineTo(0, -10); ctx.closePath(); ctx.fill();
+      ctx.moveTo(4, 0);
+      ctx.quadraticCurveTo(18, _whipCp1y, 36, _whipCp2y + 9);
+      ctx.quadraticCurveTo(48, _whipCp2y, 56, 2);
+      ctx.stroke();
+      ctx.strokeStyle = '#cc9933'; ctx.lineWidth = 0.8;
       ctx.beginPath();
-      ctx.moveTo(0, 0); ctx.lineTo(28, -2); ctx.lineTo(0, 8); ctx.closePath();
-      ctx.fillStyle = '#bbccee'; ctx.fill();
-      ctx.strokeStyle = '#7799bb'; ctx.lineWidth = 0.8; ctx.stroke();
-      // Fold line
-      ctx.strokeStyle = '#aabbdd'; ctx.lineWidth = 0.5;
-      ctx.beginPath(); ctx.moveTo(0, -1); ctx.lineTo(20, -2); ctx.stroke();
+      ctx.moveTo(4, 0);
+      ctx.quadraticCurveTo(18, _whipCp1y, 36, _whipCp2y + 9);
+      ctx.quadraticCurveTo(48, _whipCp2y, 56, 2);
+      ctx.stroke();
+      if (attacking) {
+        ctx.shadowColor = '#ffdd44'; ctx.shadowBlur = 18;
+        ctx.fillStyle = '#fff099';
+        ctx.beginPath(); ctx.arc(56, 2, 4, 0, Math.PI * 2); ctx.fill();
+        ctx.shadowBlur = 0;
+      }
+
+    } else if (k === 'boomerang') {
+      // Hide while a thrown boomerang is in flight
+      const _bmInAir = this._boomerangs && this._boomerangs.some(b => b.oneWay);
+      if (!_bmInAir) {
+        ctx.strokeStyle = '#aa7722'; ctx.lineWidth = 5; ctx.lineCap = 'round';
+        ctx.beginPath(); ctx.arc(0, 0, 18, -Math.PI * 0.65, Math.PI * 0.65); ctx.stroke();
+        ctx.strokeStyle = '#cc9944'; ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.arc(0, 0, 18, -Math.PI * 0.65, Math.PI * 0.65); ctx.stroke();
+        ctx.strokeStyle = '#ffdd88'; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.arc(0, 0, 18, -Math.PI * 0.5, Math.PI * 0.5); ctx.stroke();
+      }
+
+    } else if (k === 'katana') {
+      // Long slim dark blade with guard
+      ctx.strokeStyle = '#333344'; ctx.lineWidth = 3; ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.moveTo(-4, 0); ctx.lineTo(40, 0); ctx.stroke();
+      ctx.strokeStyle = '#999aaa'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(-2, -1); ctx.lineTo(40, -1); ctx.stroke();
+      ctx.fillStyle = '#888877';
+      ctx.beginPath(); ctx.roundRect(-7, -5, 7, 10, 2); ctx.fill();
+      ctx.strokeStyle = '#aaaaaa'; ctx.lineWidth = 0.8; ctx.stroke();
+      if (attacking) {
+        ctx.shadowColor = '#aaaaff'; ctx.shadowBlur = 22;
+        // Blade edge gleam line
+        ctx.strokeStyle = '#ccccff'; ctx.lineWidth = 1.5;
+        ctx.globalAlpha = 0.7;
+        ctx.beginPath(); ctx.moveTo(0, -1); ctx.lineTo(40, -1); ctx.stroke();
+        ctx.globalAlpha = 1;
+        // Tip flash
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath(); ctx.arc(40, 0, 3, 0, Math.PI * 2); ctx.fill();
+        // Short speed-trail dots along blade
+        for (let _ki = 0; _ki < 3; _ki++) {
+          ctx.globalAlpha = 0.25 - _ki * 0.07;
+          ctx.beginPath(); ctx.arc(28 - _ki * 8, _ki * 3, 1.5, 0, Math.PI * 2); ctx.fill();
+        }
+        ctx.globalAlpha = 1;
+        ctx.shadowBlur = 0;
+      }
+
+    } else if (k === 'flamethrower') {
+      // Tank body + barrel + nozzle + flame glow
+      ctx.fillStyle = '#554400';
+      ctx.beginPath(); ctx.roundRect(-3, -6, 28, 12, 3); ctx.fill();
+      ctx.fillStyle = '#887700';
+      ctx.beginPath(); ctx.arc(2, 0, 7, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = '#997700'; ctx.lineWidth = 2.5; ctx.lineCap = 'square';
+      ctx.beginPath(); ctx.moveTo(23, -3); ctx.lineTo(32, -3); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(23,  3); ctx.lineTo(32,  3); ctx.stroke();
+      const _ftNow = typeof frameCount !== 'undefined' ? frameCount : 0;
+      const _ftPulse = 0.5 + 0.5 * Math.sin(_ftNow * 0.25);
+      ctx.shadowColor = '#ff5500'; ctx.shadowBlur = 8 + _ftPulse * 8;
+      ctx.fillStyle = '#ff7700';
+      ctx.beginPath(); ctx.arc(34, 0, 3 + _ftPulse * 1.5, 0, Math.PI * 2); ctx.fill();
+      ctx.shadowBlur = 0;
+
+    } else if (k === 'electricstaff') {
+      // Long staff + crackling crystal orb tip
+      ctx.strokeStyle = '#446688'; ctx.lineWidth = 3; ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.moveTo(-6, 0); ctx.lineTo(28, 0); ctx.stroke();
+      const _esNow = typeof frameCount !== 'undefined' ? frameCount : 0;
+      const _esPulse = 0.5 + 0.5 * Math.sin(_esNow * 0.18);
+      const _esBlur = attacking ? (18 + _esPulse * 12) : (10 + _esPulse * 10);
+      ctx.shadowColor = '#00ddff'; ctx.shadowBlur = _esBlur;
+      ctx.fillStyle = attacking ? '#44eeff' : '#00aacc';
+      ctx.beginPath(); ctx.arc(33, 0, 6, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = '#aaeeff'; ctx.lineWidth = 1.2; ctx.stroke();
+      // Crackling arcs — more wild when attacking
+      const _esArcs = attacking ? 3 : 1;
+      for (let _ei = 0; _ei < _esArcs; _ei++) {
+        ctx.globalAlpha = (0.5 + _esPulse * 0.4) / _esArcs * 1.8;
+        ctx.strokeStyle = '#88eeff'; ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(33, 0);
+        ctx.lineTo(33 + Math.sin(_esNow / (38 + _ei * 11)) * (attacking ? 9 : 6) + _ei * 2,
+                   Math.sin(_esNow / (47 + _ei * 9)) * (attacking ? 8 : 5));
+        ctx.stroke();
+      }
+      ctx.globalAlpha = 1; ctx.shadowBlur = 0;
 
     } else if (k === 'gauntlet') {
       // Large dark-energy fist/gauntlet around the hand

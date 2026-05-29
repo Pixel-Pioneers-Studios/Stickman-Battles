@@ -35,6 +35,28 @@ function spawnParticles(x, y, color, count) {
   }
 }
 
+// Directional blood spray — sprays away from attacker, falls with gravity
+// dir: 1 = blood sprays right (attacker on left), -1 = sprays left
+function spawnBlood(x, y, dir, dmg) {
+  if (!settings.particles) return;
+  const count = Math.max(2, Math.min(10, Math.floor(dmg / 5)));
+  const toSpawn = Math.min(count, MAX_PARTICLES - particles.length);
+  for (let i = 0; i < toSpawn; i++) {
+    const spread = (Math.random() - 0.5) * 4;
+    const p = _getParticle();
+    p.x = x + (Math.random() - 0.5) * 8;
+    p.y = y + (Math.random() - 0.5) * 10;
+    p.vx = dir * (1.5 + Math.random() * 5) + spread;
+    p.vy = -1.5 - Math.random() * 4;  // upward pop, gravity pulls it down
+    p.color = Math.random() < 0.6 ? '#cc0000' : '#880000';
+    p.size  = 2 + Math.random() * 2.5;
+    p.life  = 14 + Math.random() * 16;
+    p.maxLife = 30;
+    p.isBlood = true;
+    particles.push(p);
+  }
+}
+
 function spawnRing(x, y) {
   if (!settings.particles) return;
   const ringCount = Math.min(18, MAX_PARTICLES - particles.length);
@@ -251,6 +273,22 @@ class Projectile {
         const _hitDmg  = Math.max(1, Math.round(this.damage * _falloff * (1 - (this._closeRangePenalty || 0) * 0.18)));
         dealDamage(this.owner, p, _hitDmg, 7, 1.0, false, 0);
         handleSplash(this.owner, p, _hitDmg, this.x, this.y);
+        // Projectile-level splash (e.g. Napalm Spit Q): range set directly on the projectile
+        if (this.splashRange && this.owner) {
+          spawnRing(this.x, this.y);
+          spawnParticles(this.x, this.y, this.color, 18);
+          if (typeof screenShake !== 'undefined') screenShake = Math.max(screenShake, 14);
+          const _pAll = [...players, ...minions, ...(typeof trainingDummies !== 'undefined' ? trainingDummies : [])];
+          const _sDmg = Math.max(1, Math.round(_hitDmg * 0.50));
+          for (const t of _pAll) {
+            if (t === p || t === this.owner || t.health <= 0) continue;
+            if (areAlliedEntities(this.owner, t)) continue;
+            if (Math.hypot(t.cx() - this.x, (t.y + t.h * 0.5) - this.y) < this.splashRange) {
+              dealDamage(this.owner, t, _sDmg, 6, 1.0, true);
+              spawnParticles(t.cx(), t.cy(), this.color, 8);
+            }
+          }
+        }
         this.active = false;
         spawnParticles(this.x, this.y, this.color, 6);
         return;
@@ -288,17 +326,54 @@ class Projectile {
   }
   draw() {
     ctx.save();
-    ctx.shadowColor = this.color;
-    ctx.shadowBlur  = 8;
-    ctx.fillStyle   = this.color;
-    ctx.beginPath();
-    ctx.ellipse(this.x, this.y, 7, 3, 0, 0, Math.PI * 2);
-    ctx.fill();
-    // trail
-    ctx.globalAlpha = 0.35;
-    ctx.beginPath();
-    ctx.ellipse(this.x - this.vx * 2.5, this.y, 5, 2, 0, 0, Math.PI * 2);
-    ctx.fill();
+    if (this._isPaperPlane) {
+      // Paper airplane ability projectile — drawn as a tiny folded plane
+      const _ppAng = Math.atan2(this.vy, this.vx);
+      const _ppA   = Math.min(1, this.life / 20);
+      ctx.globalAlpha = _ppA * 0.92;
+      ctx.shadowColor = '#aaccff'; ctx.shadowBlur = 8;
+      ctx.translate(this.x, this.y);
+      ctx.rotate(_ppAng);
+      ctx.fillStyle = '#ddeeff';
+      ctx.beginPath();
+      ctx.moveTo(12, 0); ctx.lineTo(-4, -5); ctx.lineTo(-2, 0); ctx.lineTo(-4, 5);
+      ctx.closePath(); ctx.fill();
+      ctx.fillStyle = '#bbccee';
+      ctx.beginPath();
+      ctx.moveTo(12, 0); ctx.lineTo(-4, -5); ctx.lineTo(-2, 0); ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = '#7799bb'; ctx.lineWidth = 0.6;
+      ctx.beginPath(); ctx.moveTo(-2, 0); ctx.lineTo(8, -0.5); ctx.stroke();
+      ctx.shadowBlur = 0;
+    } else if (this._isFlame) {
+      // Flame projectile: teardrop tongue of fire
+      const _fAng = Math.atan2(this.vy, this.vx);
+      const _fA   = Math.min(1, this.life / 6);
+      ctx.globalAlpha = _fA * 0.88;
+      ctx.shadowColor = '#ff8800'; ctx.shadowBlur = 12;
+      ctx.translate(this.x, this.y);
+      ctx.rotate(_fAng);
+      ctx.fillStyle = '#ff6600';
+      ctx.beginPath();
+      ctx.ellipse(2, 0, 8, 3.5, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#ffaa00';
+      ctx.beginPath();
+      ctx.ellipse(-2, 0, 5, 2, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#ffdd44';
+      ctx.beginPath();
+      ctx.ellipse(-4, 0, 2.5, 1.2, 0, 0, Math.PI * 2); ctx.fill();
+    } else {
+      ctx.shadowColor = this.color;
+      ctx.shadowBlur  = 8;
+      ctx.fillStyle   = this.color;
+      ctx.beginPath();
+      ctx.ellipse(this.x, this.y, 7, 3, 0, 0, Math.PI * 2);
+      ctx.fill();
+      // trail
+      ctx.globalAlpha = 0.35;
+      ctx.beginPath();
+      ctx.ellipse(this.x - this.vx * 2.5, this.y, 5, 2, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
     ctx.restore();
   }
 }

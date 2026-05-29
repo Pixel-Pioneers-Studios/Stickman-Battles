@@ -67,9 +67,9 @@ class AbsoluteAxiom extends God {
     this.dmgMult     = 4.5;
     this.kbBonus     = 1.3;
     this.kbResist    = 0.88;
-    this._attackCd   = 50;
-    this._specialCd  = 180;
-    this._dashCd     = 45;
+    this._attackCd   = 80;
+    this._specialCd  = 220;
+    this._dashCd     = 60;
 
     // Internal phase tracking
     this._aaPhase        = 1; // 1→2 at 70%, 2→3 at 35%
@@ -85,6 +85,10 @@ class AbsoluteAxiom extends God {
     // Portal invincibility: immune once below 100K until 5 portal allies are active
     this._portalInvincible = false;
     this._portalPhaseAnnounced = false;
+
+    // Locomotion state: AA primarily walks/runs, occasionally takes to the air
+    this._locomotionMode  = 'walk'; // 'walk' | 'fly'
+    this._locomotionTimer = 0;
 
     // Dimension punch state
     this._dimPunchCd = 0;
@@ -129,7 +133,9 @@ class AbsoluteAxiom extends God {
   respawn()       { this.health = 0; }
   useSuper()      {}
   activateSuper() {}
-  checkPlatform() {}
+  checkPlatform(pl) {
+    if (this._locomotionMode === 'walk') Fighter.prototype.checkPlatform.call(this, pl);
+  }
 
   // ── Per-frame update ──────────────────────────────────────────────────────
   update() {
@@ -178,13 +184,14 @@ class AbsoluteAxiom extends God {
       }
     }
 
-    // Portal invincibility once below 100K HP
+    // Portal invincibility once below 100K HP — trigger grand cinematic
     if (!this._portalPhaseAnnounced && this.health <= 100000) {
       this._portalPhaseAnnounced = true;
       this._portalInvincible = true;
-      if (typeof showBossDialogue === 'function') showBossDialogue('You cannot kill me alone. Summon your forces… or perish.', 300);
-      if (typeof CinFX !== 'undefined') { CinFX.flash('#8800ff', 0.6, 20); CinFX.flash('#000000', 0.5, 35); }
       if (typeof screenShake !== 'undefined') screenShake = Math.max(screenShake, 40);
+      if (typeof CinFX !== 'undefined') { CinFX.flash('#8800ff', 0.7, 22); CinFX.flash('#000000', 0.6, 38); }
+      // Trigger the final assault cinematic (allies burst through portals)
+      setTimeout(() => { if (typeof _startAAFinalAssaultCinematic === 'function') _startAAFinalAssaultCinematic(this); }, 400);
     }
     // Remove portal invincibility when enough allies are active
     if (this._portalInvincible) {
@@ -272,51 +279,90 @@ class AbsoluteAxiom extends God {
     // Track player action for pattern detection
     this._logPlayerAction(target);
 
-    // Flight movement (God-style, phase3 faster)
+    // Locomotion mode switching — primarily walking, briefly airborne
+    this._locomotionTimer++;
+    const _walkDur = this._aaPhase === 3 ? 200 : 320;
+    const _flyDur  = this._aaPhase === 3 ? 160 : 110;
+    if (this._locomotionMode === 'walk' && this._locomotionTimer >= _walkDur) {
+      this._locomotionMode  = 'fly';
+      this._locomotionTimer = 0;
+    } else if (this._locomotionMode === 'fly' && this._locomotionTimer >= _flyDur) {
+      this._locomotionMode  = 'walk';
+      this._locomotionTimer = 0;
+      this._flyVy = 0;
+    }
+    // AbsoluteStrike and smite always run in fly mode
+    if (this._absoluteStrike || this._smiteTimer > 0) this._locomotionMode = 'fly';
+
     const GW = typeof GAME_W !== 'undefined' ? GAME_W : 900;
     const GH = typeof GAME_H !== 'undefined' ? GAME_H : 520;
-    const flySpd = 30 * this._phase3SpeedMod;
 
-    if (this._smiteTimer > 0) {
-      this.vx *= 0.85; this._flyVy = 14;
-    } else if (this._absoluteStrike) {
-      // Absolute strike overrides movement
-    } else {
-      const rawHoverX = target.cx() + Math.sin(this._hoverTime * 0.45) * 48;
-      const rawHoverY = (target.y + target.h / 2) - 95 + Math.sin(this._hoverTime * 0.7) * 16;
-      const hoverX = Math.max(20, Math.min(GW - 20, rawHoverX));
-      const hoverY = Math.max(10, Math.min(GH * 0.85, rawHoverY));
-      const errX = hoverX - this.cx();
-      const errY = hoverY - (this.y + this.h / 2);
-      const d    = Math.hypot(errX, errY) || 1;
-      const spd  = Math.min(flySpd, d);
-
-      if (this._dashCd <= 0 && d > 80) {
-        const dashSpd    = 85 * this._phase3SpeedMod;
-        this._dashVx     = (errX / d) * dashSpd;
-        this._dashVy     = (errY / d) * dashSpd;
-        this._dashFrames = 5;
-        this._dashCd     = Math.ceil(45 / this._phase3SpeedMod);
+    if (this._locomotionMode === 'walk') {
+      // Ground-based: run toward target, jump up to reach higher platforms
+      const walkSpd = (4.5 + this._aaPhase * 0.9) * this._phase3SpeedMod;
+      this.vx = this.facing * walkSpd;
+      if (this.onGround && target.y < this.y - 55) {
+        this.vy = -15;
+        this.onGround = false;
       }
+      // Dash burst toward target on cooldown
       if (this._dashCd > 0) this._dashCd--;
       if (this._dashFrames > 0) {
         this._dashFrames--;
-        this.vx = this._dashVx; this._flyVy = this._dashVy;
-      } else {
-        this.vx = (errX / d) * spd; this._flyVy = (errY / d) * spd;
+        this.vx = this._dashVx;
+      } else if (this._dashCd <= 0 && minDist > 100 && minDist < 500) {
+        const _dashSpd    = 18 * this._phase3SpeedMod;
+        this._dashVx      = this.facing * _dashSpd;
+        this._dashFrames  = 8;
+        this._dashCd      = Math.ceil(80 / this._phase3SpeedMod);
+        this.vx = this._dashVx;
       }
+      super.update(); // Fighter.update() with gravity + platform detection
+      this.x = Math.max(18, Math.min(GW - this.w - 18, this.x));
+    } else {
+      // Fly mode: hover above target at reduced speed
+      const flySpd = 13 * this._phase3SpeedMod;
+
+      if (this._smiteTimer > 0) {
+        this.vx *= 0.85; this._flyVy = 14;
+      } else if (this._absoluteStrike) {
+        // _updateAbsoluteStrike() drives movement directly
+      } else {
+        const rawHoverX = target.cx() + Math.sin(this._hoverTime * 0.45) * 48;
+        const rawHoverY = (target.y + target.h / 2) - 95 + Math.sin(this._hoverTime * 0.7) * 16;
+        const hoverX    = Math.max(20, Math.min(GW - 20, rawHoverX));
+        const hoverY    = Math.max(10, Math.min(GH * 0.85, rawHoverY));
+        const errX = hoverX - this.cx();
+        const errY = hoverY - (this.y + this.h / 2);
+        const d    = Math.hypot(errX, errY) || 1;
+        const spd  = Math.min(flySpd, d);
+
+        if (this._dashCd > 0) this._dashCd--;
+        if (this._dashCd <= 0 && d > 80) {
+          const dashSpd    = 38 * this._phase3SpeedMod;
+          this._dashVx     = (errX / d) * dashSpd;
+          this._dashVy     = (errY / d) * dashSpd;
+          this._dashFrames = 5;
+          this._dashCd     = Math.ceil(65 / this._phase3SpeedMod);
+        }
+        if (this._dashFrames > 0) {
+          this._dashFrames--;
+          this.vx = this._dashVx; this._flyVy = this._dashVy;
+        } else {
+          this.vx = (errX / d) * spd; this._flyVy = (errY / d) * spd;
+        }
+      }
+
+      this.vy = this._flyVy - 0.65;
+      super.update();
+      this.y = Math.max(8, Math.min(GH * 0.88 - this.h, this.y));
+      this.x = Math.max(18, Math.min(GW - this.w - 18, this.x));
     }
-
-    this.vy = this._flyVy - 0.65;
-    super.update(); // Fighter.update() for physics
-
-    this.y = Math.max(8, Math.min(GH * 0.88 - this.h, this.y));
-    this.x = Math.max(18, Math.min(GW - this.w - 18, this.x));
 
     // Melee strike
     if (minDist < 155 && this._attackCd <= 0 && typeof dealDamage === 'function') {
       dealDamage(this, target, 220, 10);
-      this._attackCd = Math.ceil(38 / this._phase3SpeedMod);
+      this._attackCd = Math.ceil(70 / this._phase3SpeedMod);
     }
 
     // Special attacks
@@ -403,6 +449,20 @@ class AbsoluteAxiom extends God {
 
   _setCd() {
     this._specialCd = Math.ceil((this._aaPhase === 3 ? 80 : this._aaPhase === 2 ? 130 : 170) / this._phase3SpeedMod);
+  }
+
+  // Override God's angel fleet: spawn VoidSentinels instead
+  _doAngelFleet(target) {
+    if (!target || !Array.isArray(minions)) return;
+    const count = 2 + Math.floor(Math.random() * 2);
+    for (let i = 0; i < count; i++) {
+      const spawnX = target.cx() + (Math.random() - 0.5) * 320;
+      const sentinel = new VoidSentinel(spawnX, -40);
+      sentinel._teamId = 50;
+      minions.push(sentinel);
+    }
+    if (typeof spawnParticles === 'function') spawnParticles(this.cx(), this.y, '#880022', 14);
+    if (typeof screenShake !== 'undefined') screenShake = Math.max(screenShake, 4);
   }
 
   // ── Attacks ───────────────────────────────────────────────────────────────
@@ -1301,6 +1361,131 @@ class AbsoluteAxiom extends God {
   }
 }
 
+// ── VoidSentinel — spawned by AbsoluteAxiom instead of angels ─────────────────
+class VoidSentinel extends Fighter {
+  constructor(x, y) {
+    super(x, y, '#220000', 'sword',
+      { left: null, right: null, jump: null, attack: null, ability: null, super: null },
+      true, 'hard');
+    this.name            = 'VOID SENTINEL';
+    this.isMinion        = true;
+    this.isVoidSentinel  = true;
+    this.w               = 22;
+    this.h               = 46;
+    this.health          = 800;
+    this.maxHealth       = 800;
+    this.lives           = 1;
+    this.dmgMult         = 0.6;
+    this.kbBonus         = 0.5;
+    this.kbResist        = 0.1;
+    this.playerNum       = 96;
+    this._attackCd       = 55;
+    this._dashCdV        = 100;
+    this._ttl            = 300 + Math.floor(Math.random() * 60);
+    this._auraPhase      = Math.random() * Math.PI * 2;
+  }
+
+  update() {
+    if (this.health <= 0) return;
+    if (typeof activeCinematic !== 'undefined' && activeCinematic) return;
+    this._auraPhase += 0.1;
+    this._ttl--;
+    if (this._ttl <= 0) { this.health = 0; return; }
+    if (this._attackCd > 0) this._attackCd--;
+    if (this._dashCdV  > 0) this._dashCdV--;
+
+    let target = null, minDist = Infinity;
+    if (Array.isArray(players)) {
+      for (const p of players) {
+        if (p === this || p.isMinion || p.health <= 0) continue;
+        if (p._teamId !== undefined && this._teamId !== undefined && p._teamId === this._teamId) continue;
+        const d = Math.hypot(p.cx() - this.cx(), (p.y + p.h / 2) - (this.y + this.h / 2));
+        if (d < minDist) { minDist = d; target = p; }
+      }
+    }
+    if (!target) { super.update(); return; }
+
+    this.facing = Math.sign(target.cx() - this.cx()) || 1;
+
+    if (this._dashCdV <= 0 && minDist > 80 && minDist < 350) {
+      this.vx = this.facing * 10;
+      this._dashCdV = 120;
+    } else if (minDist > 40) {
+      this.vx = this.facing * 2.5;
+    } else {
+      this.vx *= 0.7;
+    }
+    if (this.onGround && target.y < this.y - 55) {
+      this.vy = -11;
+      this.onGround = false;
+    }
+
+    super.update();
+
+    if (minDist < 60 && this._attackCd <= 0 && typeof dealDamage === 'function') {
+      dealDamage(this, target, 40, 6);
+      this._attackCd = 70;
+      if (typeof spawnParticles === 'function') spawnParticles(this.cx(), this.y + this.h / 2, '#880022', 6);
+    }
+  }
+
+  draw() {
+    if (this.health <= 0 || typeof ctx === 'undefined') return;
+    const cx = this.cx(), headY = this.y + 8, cy = this.y + this.h / 2;
+    const t = this._auraPhase;
+    const fade = Math.min(1, this._ttl / 30);
+
+    ctx.save();
+    ctx.globalAlpha = fade;
+
+    // Dark void aura
+    const aG = ctx.createRadialGradient(cx, cy, 0, cx, cy, 32);
+    aG.addColorStop(0, 'rgba(100,0,0,0.22)');
+    aG.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = aG; ctx.beginPath(); ctx.arc(cx, cy, 32, 0, Math.PI * 2); ctx.fill();
+
+    // Stickman body
+    ctx.strokeStyle = '#440010';
+    ctx.lineWidth   = 3.5;
+    ctx.shadowColor = '#ff2200'; ctx.shadowBlur = 14;
+    ctx.lineCap     = 'round';
+    ctx.beginPath(); ctx.arc(cx, headY, 7, 0, Math.PI * 2);
+    ctx.fillStyle = '#220000'; ctx.fill(); ctx.stroke();
+    const tY = headY + 7;
+    ctx.beginPath(); ctx.moveTo(cx, tY); ctx.lineTo(cx, tY + 17); ctx.stroke();
+    const aY = tY + 7;
+    ctx.beginPath(); ctx.moveTo(cx - 12, aY + 4); ctx.lineTo(cx, aY); ctx.lineTo(cx + 12, aY + 4); ctx.stroke();
+    const lY = tY + 17;
+    ctx.beginPath();
+    ctx.moveTo(cx, lY); ctx.lineTo(cx - 9, lY + 14);
+    ctx.moveTo(cx, lY); ctx.lineTo(cx + 9, lY + 14);
+    ctx.stroke();
+
+    // Glowing red diamond eyes
+    ctx.shadowColor = 'rgba(255,50,0,1)'; ctx.shadowBlur = 16;
+    ctx.fillStyle   = '#ff2200';
+    for (const ox of [-2.5, 2.5]) {
+      ctx.save();
+      ctx.translate(cx + this.facing * 1.5 + ox, headY - 1);
+      ctx.rotate(Math.PI / 4);
+      ctx.beginPath(); ctx.rect(-2.5, -2.5, 5, 5); ctx.fill();
+      ctx.restore();
+    }
+
+    ctx.restore();
+
+    // HP bar
+    const pct = Math.max(0, this.health / this.maxHealth);
+    const bw = 36, bh = 3;
+    ctx.globalAlpha = fade * 0.75;
+    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+    ctx.fillRect(cx - bw / 2, this.y - 9, bw, bh);
+    ctx.fillStyle = '#cc0022';
+    ctx.fillRect(cx - bw / 2, this.y - 9, bw * pct, bh);
+    ctx.globalAlpha = 1;
+  }
+}
+
 // ══════════════════════════════════════════════════════════════════════════════
 // RGS — Reinforced God Slayer loadout system
 // ══════════════════════════════════════════════════════════════════════════════
@@ -1626,6 +1811,9 @@ class AAPortalAlly extends Fighter {
 // RGS HUD — drawn in screen space from smb-loop-core hook
 // ══════════════════════════════════════════════════════════════════════════════
 function _drawRGSHud(W, H) {
+  // Ally namecard (independent of player RGS state)
+  if (typeof _tickAAFinalCinCard === 'function') _tickAAFinalCinCard(W, H);
+
   const player = (typeof players !== 'undefined' && players[0]) ? players[0] : null;
   if (!player || !player._rgsActive) return;
 
@@ -1990,6 +2178,249 @@ function _darkenHex(hex, amt) {
   const g = Math.max(0, ((n >> 8) & 0xff) - amt);
   const b = Math.max(0, (n & 0xff) - amt);
   return `rgb(${r},${g},${b})`;
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// FINAL ASSAULT CINEMATIC — triggered when AA drops below 100K HP
+// All allied forces arrive through dimension portals and charge AA together.
+// ══════════════════════════════════════════════════════════════════════════════
+function _startAAFinalAssaultCinematic(aa) {
+  if (typeof isCinematic !== 'undefined' && isCinematic) return;
+  if (typeof activeCinematic !== 'undefined' && activeCinematic) return;
+
+  const GW = typeof GAME_W !== 'undefined' ? GAME_W : 900;
+  const GH = typeof GAME_H !== 'undefined' ? GAME_H : 520;
+
+  // Allies to spawn — each gets a portal entry with a name flash.
+  // Entities alive at Act 6 / end of story:
+  const ALLIES = [
+    { name: 'PARADOX',        col: '#aa44ff', spawnDelay: 60,  x: 720, desc: '"The axiom breaks — I made sure of it."' },
+    { name: 'FOREST BEAST',   col: '#44aa22', spawnDelay: 130, x: 200, desc: '"RAAAHHH!!!"' },
+    { name: 'YETI',           col: '#aaddff', spawnDelay: 200, x: 820, desc: '"No more running."' },
+    { name: 'SOVEREIGN MK2',  col: '#ffcc00', spawnDelay: 270, x: 130, desc: '"…One last fight. For the world."' },
+    { name: 'WARRIOR',        col: '#ff8844', spawnDelay: 330, x: 640, desc: '"WE FIGHT TOGETHER!"' },
+    { name: 'WARRIOR',        col: '#44aaff', spawnDelay: 370, x: 300, desc: '"CHARGE!"' },
+    { name: 'WARRIOR',        col: '#ff4488', spawnDelay: 400, x: 480, desc: '"ABSOLUTE AXIOM FALLS TODAY!"' },
+  ];
+
+  // Use cinScript if available, otherwise build a manual timer sequence
+  if (typeof cinScript === 'function' && typeof CinFX !== 'undefined') {
+    // Build script steps
+    const steps = [
+      // Opening: darkness descends, reality cracks
+      { fn: () => {
+          if (typeof CinFX !== 'undefined') CinFX.flash('#000000', 0.85, 30);
+          if (typeof showBossDialogue === 'function') showBossDialogue('ABSOLUTE AXIOM: "You have no more moves. This ends—"', 160);
+        }
+      },
+      { wait: 120 },
+      { fn: () => {
+          if (typeof CinFX !== 'undefined') CinFX.flash('#ffffff', 0.7, 18);
+          if (typeof screenShake !== 'undefined') screenShake = Math.max(screenShake, 30);
+        }
+      },
+      { wait: 40 },
+      // Paradox bursts through first
+      { fn: () => {
+          _aaSpawnPortalAlly(ALLIES[0], aa);
+          if (typeof showBossDialogue === 'function') showBossDialogue(ALLIES[0].desc, 160);
+          if (typeof CinFX !== 'undefined') CinFX.flash(ALLIES[0].col, 0.4, 12);
+          window._aaFinalCinCard = { name: ALLIES[0].name, col: ALLIES[0].col, timer: 120 };
+        }
+      },
+      { wait: 80 },
+      // Forest Beast arrives
+      { fn: () => {
+          _aaSpawnPortalAlly(ALLIES[1], aa);
+          if (typeof showBossDialogue === 'function') showBossDialogue(ALLIES[1].desc, 140);
+          if (typeof CinFX !== 'undefined') CinFX.flash(ALLIES[1].col, 0.35, 10);
+          window._aaFinalCinCard = { name: ALLIES[1].name, col: ALLIES[1].col, timer: 120 };
+          if (typeof screenShake !== 'undefined') screenShake = Math.max(screenShake, 24);
+        }
+      },
+      { wait: 80 },
+      // Yeti
+      { fn: () => {
+          _aaSpawnPortalAlly(ALLIES[2], aa);
+          if (typeof showBossDialogue === 'function') showBossDialogue(ALLIES[2].desc, 130);
+          if (typeof CinFX !== 'undefined') CinFX.flash(ALLIES[2].col, 0.35, 10);
+          window._aaFinalCinCard = { name: ALLIES[2].name, col: ALLIES[2].col, timer: 120 };
+        }
+      },
+      { wait: 80 },
+      // Sovereign MK2
+      { fn: () => {
+          _aaSpawnPortalAlly(ALLIES[3], aa);
+          if (typeof showBossDialogue === 'function') showBossDialogue(ALLIES[3].desc, 160);
+          if (typeof CinFX !== 'undefined') CinFX.flash(ALLIES[3].col, 0.45, 14);
+          window._aaFinalCinCard = { name: ALLIES[3].name, col: ALLIES[3].col, timer: 120 };
+          if (typeof screenShake !== 'undefined') screenShake = Math.max(screenShake, 18);
+        }
+      },
+      { wait: 80 },
+      // Three additional warriors cascade in
+      { fn: () => {
+          _aaSpawnPortalAlly(ALLIES[4], aa);
+          _aaSpawnPortalAlly(ALLIES[5], aa);
+          _aaSpawnPortalAlly(ALLIES[6], aa);
+          if (typeof showBossDialogue === 'function') showBossDialogue('WARRIORS: "ABSOLUTE AXIOM FALLS TODAY!"', 200);
+          if (typeof CinFX !== 'undefined') { CinFX.flash('#ffffff', 0.6, 16); CinFX.flash('#cc00ff', 0.4, 28); }
+          window._aaFinalCinCard = { name: 'ALL FORCES', col: '#ffffff', timer: 140 };
+          if (typeof screenShake !== 'undefined') screenShake = Math.max(screenShake, 35);
+        }
+      },
+      { wait: 120 },
+      // AA speaks one final defiant line
+      { fn: () => {
+          if (typeof showBossDialogue === 'function') showBossDialogue('ABSOLUTE AXIOM: "IMPOSSIBLE. I AM THE AXIOM ITSELF—!"', 220);
+          if (typeof CinFX !== 'undefined') CinFX.flash('#ff2200', 0.5, 18);
+        }
+      },
+      { wait: 180 },
+      // Final rally: cinematic ends, combat resumes
+      { fn: () => {
+          window._aaFinalCinCard = null;
+          if (typeof showBossDialogue === 'function') showBossDialogue('Now — FINISH IT!', 160);
+          if (typeof CinFX !== 'undefined') { CinFX.flash('#ffffff', 0.9, 20); }
+          if (typeof screenShake !== 'undefined') screenShake = Math.max(screenShake, 40);
+          // Remove portal invincibility — allies are now here
+          if (aa && aa.isAbsoluteAxiom) aa._portalInvincible = false;
+        }
+      },
+    ];
+
+    try {
+      cinScript(steps);
+    } catch(e) {
+      // cinScript unavailable — fall back to manual timers
+      _aaFinalAssaultFallback(ALLIES, aa);
+    }
+  } else {
+    _aaFinalAssaultFallback(ALLIES, aa);
+  }
+}
+
+function _aaFinalAssaultFallback(ALLIES, aa) {
+  // Manual setTimeout chain when CinematicManager isn't available
+  let delay = 200;
+  const msgs = [
+    'The void cracks open…',
+    'PARADOX: "The axiom breaks — I made sure of it."',
+    'FOREST BEAST and YETI: "RAAAHH!!!"',
+    'SOVEREIGN MK2: "One last fight. For the world."',
+    'WARRIORS: "ABSOLUTE AXIOM FALLS TODAY!"',
+    'Now — FINISH IT!',
+  ];
+  for (let i = 0; i < ALLIES.length; i++) {
+    ((ally, d) => {
+      setTimeout(() => {
+        _aaSpawnPortalAlly(ally, aa);
+        if (typeof CinFX !== 'undefined') CinFX.flash(ally.col, 0.35, 10);
+        if (typeof screenShake !== 'undefined') screenShake = Math.max(screenShake, 18);
+        window._aaFinalCinCard = { name: ally.name, col: ally.col, timer: 120 };
+      }, d);
+    })(ALLIES[i], delay);
+    delay += 700;
+  }
+  setTimeout(() => {
+    window._aaFinalCinCard = null;
+    if (typeof showBossDialogue === 'function') showBossDialogue('Now — FINISH IT!', 160);
+    if (typeof CinFX !== 'undefined') { CinFX.flash('#ffffff', 0.9, 20); }
+    if (aa && aa.isAbsoluteAxiom) aa._portalInvincible = false;
+  }, delay + 600);
+
+  for (let i = 0; i < msgs.length; i++) {
+    ((m, d) => setTimeout(() => {
+      if (typeof showBossDialogue === 'function') showBossDialogue(m, 160);
+    }, 200 + i * 700))(msgs[i], 0);
+  }
+}
+
+function _aaSpawnPortalAlly(allyDef, aa) {
+  if (typeof minions === 'undefined') return;
+  const GH = typeof GAME_H !== 'undefined' ? GAME_H : 520;
+  const spawnX = (allyDef.x || 450) + (Math.random() - 0.5) * 60;
+  const spawnY = GH - 120;
+
+  let ally;
+  try {
+    if (allyDef.name === 'PARADOX' && typeof Paradox !== 'undefined') {
+      ally = new AAPortalAlly(spawnX, spawnY, aa);
+      ally.color = '#aa44ff'; ally._displayName = 'PARADOX';
+      ally.health = ally.maxHealth = 18000;
+      ally._teamId = 10;
+    } else if (allyDef.name === 'FOREST BEAST' && typeof ForestBeast !== 'undefined') {
+      ally = new ForestBeast(spawnX, spawnY);
+      ally._teamId = 10; ally._aaTarget = aa;
+      ally.health = Math.min(ally.health || 5000, 15000);
+      ally.maxHealth = ally.health;
+      ally._isAAAlly = true;
+    } else if (allyDef.name === 'YETI' && typeof Yeti !== 'undefined') {
+      ally = new Yeti(spawnX, spawnY);
+      ally._teamId = 10; ally._aaTarget = aa;
+      ally.health = Math.min(ally.health || 4000, 12000);
+      ally.maxHealth = ally.health;
+      ally._isAAAlly = true;
+    } else if (allyDef.name === 'SOVEREIGN MK2' && typeof SovereignMK2 !== 'undefined') {
+      ally = new SovereignMK2(spawnX, spawnY, 'smk2_final');
+      ally._teamId = 10; ally._isAAAlly = true;
+      ally.health = Math.min(ally.health || 6000, 16000);
+    } else {
+      // Generic portal warrior
+      ally = new AAPortalAlly(spawnX, spawnY, aa);
+      ally.color = allyDef.col || '#ffffff';
+      ally._displayName = allyDef.name;
+    }
+  } catch(e) {
+    ally = new AAPortalAlly(spawnX, spawnY, aa);
+    ally.color = allyDef.col || '#cc00ff';
+    ally._displayName = allyDef.name;
+  }
+
+  if (!ally) return;
+  ally.isAAPortalAlly = true;
+  minions.push(ally);
+
+  // Portal burst visual
+  if (typeof spawnParticles === 'function') {
+    spawnParticles(spawnX, spawnY, allyDef.col || '#cc00ff', 24);
+    spawnParticles(spawnX, spawnY - 20, '#ffffff', 12);
+  }
+  if (typeof CinFX !== 'undefined') CinFX.flash(allyDef.col || '#cc00ff', 0.28, 8);
+}
+
+// ── Namecard draw — called from _drawRGSHud each frame ───────────────────────
+// window._aaFinalCinCard = { name, col, timer } — set by cinematic, cleared when timer hits 0
+function _tickAAFinalCinCard(W, H) {
+  const card = window._aaFinalCinCard;
+  if (!card) return;
+  card.timer--;
+  if (card.timer <= 0) { window._aaFinalCinCard = null; return; }
+  if (typeof ctx === 'undefined') return;
+
+  const fadeIn  = Math.min(card.timer > (card.timer + 1) ? 1 : card.timer / 20, 1);
+  const fadeOut = card.timer < 20 ? card.timer / 20 : 1;
+  const alpha   = Math.min(fadeIn, fadeOut);
+
+  ctx.save();
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.globalAlpha = alpha;
+
+  // Horizontal accent bar
+  ctx.fillStyle = card.col;
+  ctx.shadowColor = card.col; ctx.shadowBlur = 30;
+  ctx.fillRect(W * 0.1, H * 0.38, W * 0.8, 3);
+  ctx.fillRect(W * 0.1, H * 0.62, W * 0.8, 3);
+
+  // Name
+  ctx.font        = `bold ${Math.round(H * 0.08)}px serif`;
+  ctx.textAlign   = 'center';
+  ctx.fillStyle   = '#ffffff';
+  ctx.shadowColor = card.col; ctx.shadowBlur = 40;
+  ctx.fillText(card.name, W * 0.5, H * 0.52);
+
+  ctx.shadowBlur = 0;
+  ctx.restore();
 }
 
 // ── Activate RGS for player on arena start ────────────────────────────────────

@@ -101,6 +101,9 @@ function refreshMenuFromAccount() {
   const brCard = document.getElementById('modeBossRush');
   if (brCard) brCard.style.display = (typeof bossRushUnlocked !== 'undefined' && bossRushUnlocked) ? '' : 'none';
 
+  const aaCard = document.getElementById('modeAbsoluteAxiom');
+  if (aaCard) aaCard.style.display = (typeof absoluteAxiomUnlocked !== 'undefined' && absoluteAxiomUnlocked) ? '' : 'none';
+
   if (typeof refreshCoinDisplay === 'function') refreshCoinDisplay();
   if (typeof syncCodeInput === 'function') syncCodeInput();
   if (typeof refreshMegaknightClassOption === 'function') refreshMegaknightClassOption();

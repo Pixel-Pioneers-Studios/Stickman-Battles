@@ -111,3 +111,18 @@ const SMK2_POSTKB_LINES = [
   'Predictable recovery.',
 ];
 
+// ── Pre-attack telegraph warnings ────────────────────────────
+// Short lines that fire when Axiom arms an attack — gives player a verbal cue to react.
+const SMK2_ATTACK_WARN_LINES = [
+  'Here.',
+  'Watch.',
+  'This.',
+  'Now.',
+  'Read this.',
+  'Coming.',
+  'Incoming.',
+  'Block.',
+  'Dodge.',
+  'Your move.',
+];
+

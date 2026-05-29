@@ -85,7 +85,7 @@ function toggleStatsLog() {
   const modal   = document.getElementById('statsLogModal');
   const content = document.getElementById('statsLogContent');
   if (!modal) return;
-  if (modal.style.display === 'block') { modal.style.display = 'none'; return; }
+  if (modal.style.display === 'flex') { modal.style.display = 'none'; return; }
 
   // Build HTML tables from game constants
   let html = '<h2 style="color:#cc00ee;margin-bottom:16px;letter-spacing:2px">STATS LOG — Stickman Evolution</h2>';
@@ -196,7 +196,7 @@ function toggleStatsLog() {
   html += '</table>';
 
   content.innerHTML = html;
-  modal.style.display = 'block';
+  modal.style.display = 'flex';
 }
 
 // Build a reverse map: weaponKey → classKey (first class that locks to that weapon)

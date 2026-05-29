@@ -299,7 +299,7 @@ function switchArenaWithTransition(newArenaKey, callback) {
 function switchArena(newKey) {
   if (!gameRunning) return;
   const OFFMAP = ['creator', 'void', 'soccer'];
-  if (OFFMAP.includes(newKey) || ARENAS[newKey]?.isStoryOnly || ARENAS[newKey]?.isExploreArena || ARENAS[newKey]?.isTrainingOnly) return;
+  if (OFFMAP.includes(newKey) || ARENAS[newKey]?.isStoryOnly || ARENAS[newKey]?.isExploreArena || ARENAS[newKey]?.isTrainingOnly || ARENAS[newKey]?.isStudioArena) return;
   currentArenaKey = newKey;
   if (currentArenaKey !== 'lava') randomizeArenaLayout(currentArenaKey);
   currentArena = ARENAS[currentArenaKey];
@@ -461,6 +461,14 @@ function updateSettings() {
   if (phaseFlashEl) settings.phaseFlash = phaseFlashEl.checked;
   const finishersEl = document.getElementById('settingFinishers');
   if (finishersEl) settings.finishers = finishersEl.checked;
+  const hideHudEl = document.getElementById('settingHideHud');
+  if (hideHudEl) {
+    settings.hideHud = hideHudEl.checked;
+    const hudEl = document.getElementById('hud');
+    if (hudEl && typeof gameRunning !== 'undefined' && gameRunning) {
+      hudEl.style.display = settings.hideHud ? 'none' : 'flex';
+    }
+  }
 }
 
 function toggleAdvanced() {
@@ -632,7 +640,7 @@ function showChangelogModal() {
   }
 
   content.innerHTML = html;
-  modal.style.display = 'block';
+  modal.style.display = 'flex';
 }
 
 function closeChangelogModal() {

@@ -1629,6 +1629,7 @@ function _resetSdFloor() {
 function backToMenu() {
   _cancelRematchCountdown();
   _resetSdFloor();
+  if (typeof ReplaySystem !== 'undefined') ReplaySystem.stopRecording();
   MusicManager.stop();
   activeFinisher = null; // cancel any in-progress finisher
   gameRunning  = false;
@@ -1700,6 +1701,11 @@ function resumeGame() {
 // HUD
 // ============================================================
 function updateHUD() {
+  const _hudEl = document.getElementById('hud');
+  if (typeof settings !== 'undefined' && settings.hideHud) {
+    if (_hudEl) _hudEl.style.display = 'none';
+    return;
+  }
   // Slot 1 = first non-boss player; Slot 2 = boss (1P boss mode) or second human (2P boss mode)
   const nonBoss = players.filter(p => !p.isBoss);
   const boss    = players.find(p => p.isBoss);
@@ -1713,9 +1719,9 @@ function updateHUD() {
     : ((gameMode === 'boss' && bossPlayerCount === 2) ? nonBoss[1] : (boss || nonBoss[1]));
   const hudPlayers = [hudP1, hudP2];
 
-  // Show/hide the p2 HUD panel in training 1P mode
+  // Hide the p2 HUD panel whenever there is no second entity to display
   const hudP2El = document.getElementById('hud-p2');
-  if (hudP2El) hudP2El.style.display = (trainingMode && !training2P && !hudP2) ? 'none' : '';
+  if (hudP2El) hudP2El.style.display = !hudP2 ? 'none' : '';
 
   for (let i = 0; i < 2; i++) {
     const p = hudPlayers[i];
@@ -1780,9 +1786,15 @@ function updateHUD() {
     const wEl = document.getElementById(`p${n}WeaponHud`);
     if (wEl) {
       const hasAmmo = p.weapon && p.weapon.clipSize;
-      wEl.textContent = p.weapon
+      let weapLabel = p.weapon
         ? (hasAmmo ? `${p.weapon.name}  ${p._ammo}/${p.weapon.clipSize}` : p.weapon.name)
         : '';
+      if (p.charClass && p.charClass !== 'none' && typeof CLASSES !== 'undefined' && CLASSES[p.charClass]) {
+        const clsName = CLASSES[p.charClass].name || p.charClass;
+        if (weapLabel) weapLabel += ' · ' + clsName;
+        else weapLabel = clsName;
+      }
+      wEl.textContent = weapLabel;
     }
   }
 
@@ -2649,252 +2661,398 @@ function drawDamnationAnchors() {
 }
 
 // ── Absolute Axiom Domain — "The Fracture Point" ─────────────────────────────
-// Visual theme: all base arenas merged — sky cycles through every biome palette,
-// cracked dimension rifts split the background, reality tears bleed through.
+// Seven horizontal biome zones (3600px world): grass → city → forest → ice →
+// lava → ruins → void/space. Drawn in world coordinates (camera pre-applied).
 function drawAbsoluteAxiomArena() {
   if (typeof ctx === 'undefined') return;
-  const GW = GAME_W, GH = GAME_H;
-  const t  = typeof frameCount !== 'undefined' ? frameCount : 0;
+  const GH  = GAME_H;
+  const t   = typeof frameCount !== 'undefined' ? frameCount : 0;
 
-  // Derive AA health fraction for visual chaos (1 = full health, 0 = near death)
   let chaos = 0.2;
   if (typeof minions !== 'undefined' && Array.isArray(minions)) {
     const aa = minions.find(m => m && m.isAbsoluteAxiom && m.health > 0);
     if (aa && aa.maxHealth > 0) chaos = 1 - Math.max(0, Math.min(1, aa.health / aa.maxHealth));
   }
 
-  const slow  = Math.sin(t * 0.006);
-  const med   = Math.sin(t * 0.014);
-  const fast  = Math.sin(t * 0.028);
+  // World boundaries (must match arena definition)
+  const WL = -900, WR = 2700, WW = WR - WL; // 3600px total
 
-  ctx.save();
-
-  // ── 1. Layered biome sky gradient — reality fracturing ───────────────────
-  // Rotates through grass/space/forest/lava hues over time, all bleeding into
-  // the void darkness as chaos increases.
-  const hueShift = (t * 0.15) % 360;
-  const biomeA   = Math.max(0, (Math.sin(t * 0.003) + 1) / 2);   // 0-1 cycle
-  const biomeB   = Math.max(0, (Math.sin(t * 0.003 + 2.1) + 1) / 2);
-  const biomeC   = Math.max(0, (Math.sin(t * 0.003 + 4.2) + 1) / 2);
-  // Each biome contributes a tinted sky sliver — combined they feel like all maps merged
-  const bgGr = ctx.createLinearGradient(0, 0, 0, GH);
-  bgGr.addColorStop(0,    `rgba(${(50*biomeA+20*biomeB)|0},${(80*biomeA)|0},${(5+40*biomeC)|0},${0.18 * (1-chaos*0.55)})`);
-  bgGr.addColorStop(0.25, `rgba(${(30*biomeB)|0},${(15+50*biomeA)|0},${(60*biomeC)|0},${0.10 * (1-chaos*0.4)})`);
-  bgGr.addColorStop(0.6,  `rgba(${(80*biomeC)|0},${(10*biomeB)|0},${(20*biomeA)|0},${0.07})`);
-  bgGr.addColorStop(1,    'rgba(0,0,0,0)');
-  ctx.fillStyle = bgGr;
-  ctx.fillRect(0, 0, GW, GH);
-
-  // Void darkness bleeds in from edges as chaos increases
-  if (chaos > 0.15) {
-    const vA = (chaos - 0.15) / 0.85 * 0.28;
-    const vGrL = ctx.createLinearGradient(0, 0, GW * 0.35, 0);
-    vGrL.addColorStop(0, `rgba(0,0,8,${vA})`);
-    vGrL.addColorStop(1, 'rgba(0,0,0,0)');
-    ctx.fillStyle = vGrL; ctx.fillRect(0, 0, GW, GH);
-    const vGrR = ctx.createLinearGradient(GW, 0, GW * 0.65, 0);
-    vGrR.addColorStop(0, `rgba(8,0,4,${vA})`);
-    vGrR.addColorStop(1, 'rgba(0,0,0,0)');
-    ctx.fillStyle = vGrR; ctx.fillRect(0, 0, GW, GH);
-  }
-
-  // ── 2. Stars — dense deep-space field ───────────────────────────────────
-  // Seeded random so they're stable across frames, occasional twinkle
-  ctx.save();
-  for (let i = 0; i < 200; i++) {
-    const sx   = ((i * 4127 + 503)  % GW);
-    const sy   = ((i * 3011 + 997)  % GH);
-    const sR   = i % 5 === 0 ? 1.6 : 0.9;
-    const twk  = Math.sin(t * 0.04 + i * 0.73);
-    const sA   = 0.32 + twk * 0.22;
-    // Stars are more visible in top 60% of screen
-    if (sy > GH * 0.7 && i % 3 !== 0) continue;
-    // Colour-tinted stars — each biome leaves a different tint
-    let sr = 200, sg = 220, sb = 255;
-    if (i % 5 === 1) { sr = 255; sg = 220; sb = 160; }    // warm/lava tint
-    else if (i % 5 === 2) { sr = 160; sg = 230; sb = 200; } // forest tint
-    else if (i % 5 === 3) { sr = 200; sg = 180; sb = 255; } // void tint
-    ctx.fillStyle = `rgba(${sr},${sg},${sb},${sA})`;
-    ctx.beginPath();
-    ctx.arc(sx, sy, sR, 0, Math.PI * 2);
-    ctx.fill();
-  }
-  ctx.restore();
-
-  // ── 3. Nebula clouds — slow shifting colour masses ───────────────────────
-  const nebulae = [
-    { cx: GW * 0.18, cy: GH * 0.18, r: 120, col: `rgba(80,0,200,${0.05 + slow*0.02})` },
-    { cx: GW * 0.78, cy: GH * 0.22, r: 110, col: `rgba(200,30,0,${0.04 + slow*0.02})`  },
-    { cx: GW * 0.50, cy: GH * 0.10, r: 90,  col: `rgba(0,140,200,${0.04 + med*0.02})`  },
-    { cx: GW * 0.30, cy: GH * 0.60, r: 80,  col: `rgba(180,180,0,${0.03 + fast*0.01})` },
-    { cx: GW * 0.72, cy: GH * 0.55, r: 85,  col: `rgba(0,180,100,${0.03 + fast*0.01})` },
+  // Biome zone definitions: [worldX start, worldX end, background color tint, accent col]
+  const ZONES = [
+    { x0: WL,    x1: -400, name: 'grass',  sky: 'rgba(20,55,10,0.22)', acc: 'rgba(60,140,30,0.18)',   ground: 'rgba(40,100,20,0.35)' },
+    { x0: -400,  x1:  100, name: 'city',   sky: 'rgba(10,15,40,0.25)', acc: 'rgba(50,70,160,0.15)',   ground: 'rgba(20,25,55,0.30)'  },
+    { x0:  100,  x1:  600, name: 'forest', sky: 'rgba(8,28,8,0.26)',   acc: 'rgba(30,100,20,0.20)',   ground: 'rgba(15,55,10,0.32)'  },
+    { x0:  600,  x1: 1100, name: 'ice',    sky: 'rgba(10,30,55,0.24)', acc: 'rgba(140,210,255,0.14)', ground: 'rgba(80,150,200,0.28)' },
+    { x0: 1100,  x1: 1600, name: 'lava',   sky: 'rgba(60,15,0,0.28)',  acc: 'rgba(255,80,0,0.20)',    ground: 'rgba(200,50,0,0.30)'  },
+    { x0: 1600,  x1: 2100, name: 'ruins',  sky: 'rgba(28,22,10,0.25)', acc: 'rgba(120,100,50,0.16)',  ground: 'rgba(70,60,30,0.32)'  },
+    { x0: 2100,  x1: WR,   name: 'void',   sky: 'rgba(5,0,20,0.30)',   acc: 'rgba(100,0,200,0.18)',   ground: 'rgba(20,0,50,0.35)'   },
   ];
+
   ctx.save();
-  for (const nb of nebulae) {
-    const nGr = ctx.createRadialGradient(nb.cx, nb.cy, 0, nb.cx, nb.cy, nb.r);
-    nGr.addColorStop(0,   nb.col);
-    nGr.addColorStop(0.5, nb.col.replace(/[\d.]+\)$/, '0.02)'));
-    nGr.addColorStop(1,   'rgba(0,0,0,0)');
-    ctx.fillStyle = nGr;
-    ctx.beginPath();
-    ctx.arc(nb.cx, nb.cy, nb.r, 0, Math.PI * 2);
-    ctx.fill();
+
+  // ── 1. Per-zone sky tint strips ──────────────────────────────────────────
+  for (const z of ZONES) {
+    const zW = z.x1 - z.x0;
+    // Vertical gradient for this zone
+    const sg = ctx.createLinearGradient(z.x0, 0, z.x0, GH);
+    sg.addColorStop(0,   z.sky);
+    sg.addColorStop(0.7, z.acc.replace(/[\d.]+\)$/, '0.05)'));
+    sg.addColorStop(1,   'rgba(0,0,0,0)');
+    ctx.fillStyle = sg;
+    ctx.fillRect(z.x0, 0, zW, GH);
+
+    // Ground glow at floor level
+    const gg = ctx.createLinearGradient(z.x0, GH * 0.75, z.x0, GH);
+    gg.addColorStop(0, 'rgba(0,0,0,0)');
+    gg.addColorStop(1, z.ground);
+    ctx.fillStyle = gg;
+    ctx.fillRect(z.x0, GH * 0.75, zW, GH * 0.25);
+
+    // Soft vertical blend seam between zones (so they don't hard-cut)
+    const seamW = 80;
+    const seam  = ctx.createLinearGradient(z.x1 - seamW, 0, z.x1 + seamW, 0);
+    seam.addColorStop(0, z.acc.replace(/[\d.]+\)$/, '0.0)'));
+    seam.addColorStop(0.5, z.acc.replace(/[\d.]+\)$/, '0.08)'));
+    seam.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = seam;
+    ctx.fillRect(z.x1 - seamW, 0, seamW * 2, GH);
+  }
+
+  // ── 2. Zone-specific background elements ────────────────────────────────
+
+  // GRASS: rolling hills, swaying trees
+  ctx.save();
+  ctx.globalAlpha = 0.18 + chaos * 0.06;
+  for (let hi = 0; hi < 6; hi++) {
+    const hx = WL + 60 + hi * 80;
+    const hy = GH * 0.6 + Math.sin(t * 0.008 + hi * 1.1) * 6;
+    const hr = 55 + hi * 10;
+    const hg = ctx.createRadialGradient(hx, hy + hr, 0, hx, hy, hr * 1.8);
+    hg.addColorStop(0, 'rgba(50,130,25,0.5)');
+    hg.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = hg;
+    ctx.beginPath(); ctx.ellipse(hx, hy + hr, hr * 1.3, hr, 0, 0, Math.PI * 2); ctx.fill();
   }
   ctx.restore();
 
-  // ── 4. Dimension rifts — vertical cracks bleeding light ─────────────────
-  // These represent all the fractured realities bleeding into each other.
-  // More cracks appear as chaos increases.
-  const numRifts = 2 + Math.floor(chaos * 4);
-  const riftSeed = [0.12, 0.38, 0.62, 0.85, 0.25, 0.72];
+  // CITY: building silhouettes
   ctx.save();
-  for (let ri = 0; ri < numRifts; ri++) {
-    const rx     = GW * riftSeed[ri % riftSeed.length];
-    const riftH  = (80 + ri * 40) * (1 + chaos * 0.5);
-    const riftY  = GH * 0.05 + ri * (GH * 0.12);
-    const phase  = t * 0.018 + ri * 1.4;
-    const riftA  = 0.10 + Math.sin(phase) * 0.06 + chaos * 0.12;
-    const riftCol = ri % 3 === 0 ? '#ff4400' : ri % 3 === 1 ? '#aa00ff' : '#0044ff';
+  ctx.globalAlpha = 0.22 + chaos * 0.08;
+  const cityBuilds = [[-360,260,32],[-310,300,28],[-250,240,26],[-190,310,30],[-130,260,26],[-70,280,28],[-20,250,24],[30,295,28],[70,265,24]];
+  for (const [bx, bh, bw] of cityBuilds) {
+    ctx.fillStyle = `rgba(15,18,45,0.85)`;
+    ctx.fillRect(bx, GH - bh, bw, bh);
+    // windows
+    ctx.fillStyle = `rgba(200,220,255,0.12)`;
+    for (let wy = GH - bh + 10; wy < GH - 8; wy += 16) {
+      for (let wx = bx + 5; wx < bx + bw - 5; wx += 12) {
+        if ((wy + wx) % 3 !== 0) ctx.fillRect(wx, wy, 5, 7);
+      }
+    }
+  }
+  ctx.restore();
 
-    ctx.shadowColor = riftCol;
-    ctx.shadowBlur  = 18;
-    ctx.strokeStyle = `rgba(${ri%3===0?255:ri%3===1?180:50},${ri%3===2?100:20},${ri%3===2?255:ri%3===1?220:0},${riftA})`;
-    ctx.lineWidth   = 1.5 + Math.sin(phase * 1.6) * 0.8;
+  // FOREST: tall dark trees
+  ctx.save();
+  ctx.globalAlpha = 0.20 + chaos * 0.07;
+  for (let ti = 0; ti < 9; ti++) {
+    const tx  = 120 + ti * 54;
+    const th  = 120 + (ti * 37) % 100;
+    const ta  = 0.25 + (ti % 3) * 0.12;
+    ctx.fillStyle = `rgba(12,40,8,${ta})`;
+    ctx.fillRect(tx + 8, GH - th, 7, th);
+    ctx.fillStyle = `rgba(18,60,12,${ta + 0.1})`;
+    ctx.beginPath(); ctx.arc(tx + 12, GH - th, 18 + (ti * 13) % 12, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(tx + 12, GH - th - 14, 13 + (ti * 7) % 8, 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.restore();
+
+  // ICE: mountain peaks in background
+  ctx.save();
+  ctx.globalAlpha = 0.16 + chaos * 0.04;
+  ctx.strokeStyle = 'rgba(160,220,255,0.5)'; ctx.lineWidth = 2;
+  const icePeaks = [[650,260],[740,210],[820,235],[900,190],[980,240],[1060,215]];
+  for (const [px, py] of icePeaks) {
+    const pw = 35 + (px % 20);
+    ctx.fillStyle = 'rgba(80,140,200,0.18)';
+    ctx.beginPath(); ctx.moveTo(px - pw, GH); ctx.lineTo(px, py + Math.sin(t * 0.006 + px) * 3); ctx.lineTo(px + pw, GH); ctx.closePath();
+    ctx.fill(); ctx.stroke();
+  }
+  ctx.restore();
+
+  // LAVA: bubbling glow pools
+  ctx.save();
+  ctx.globalAlpha = 0.22 + chaos * 0.12;
+  for (let li = 0; li < 5; li++) {
+    const lx = 1150 + li * 90 + Math.sin(t * 0.012 + li) * 8;
+    const lg = ctx.createRadialGradient(lx, GH, 0, lx, GH - 60, 80);
+    lg.addColorStop(0, `rgba(255,80,0,${0.35 + Math.sin(t * 0.04 + li) * 0.1})`);
+    lg.addColorStop(0.5, 'rgba(180,30,0,0.12)');
+    lg.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = lg; ctx.fillRect(lx - 80, GH - 80, 160, 80);
+    // Bubble
+    if ((t + li * 17) % 55 < 12) {
+      const bp = ((t + li * 17) % 55) / 12;
+      ctx.fillStyle = `rgba(255,120,0,${0.5 * (1 - bp)})`;
+      ctx.beginPath(); ctx.arc(lx + (li - 2) * 8, GH - 10 - bp * 30, 4 * (1 - bp), 0, Math.PI * 2); ctx.fill();
+    }
+  }
+  ctx.restore();
+
+  // RUINS: broken pillars
+  ctx.save();
+  ctx.globalAlpha = 0.20 + chaos * 0.07;
+  const ruinPillars = [1640, 1710, 1790, 1870, 1950, 2030, 2080];
+  for (let ri = 0; ri < ruinPillars.length; ri++) {
+    const px  = ruinPillars[ri];
+    const ph  = 80 + (px % 60);
+    const pw  = 18 + (ri % 3) * 5;
+    ctx.fillStyle = 'rgba(65,52,32,0.8)';
+    ctx.fillRect(px, GH - ph, pw, ph);
+    ctx.fillStyle = 'rgba(90,72,44,0.6)';
+    ctx.fillRect(px - 4, GH - ph - 8, pw + 8, 10);
+    // crack
+    ctx.strokeStyle = 'rgba(100,80,40,0.3)'; ctx.lineWidth = 1.2;
+    ctx.beginPath(); ctx.moveTo(px + pw * 0.5, GH - ph); ctx.lineTo(px + pw * 0.3, GH - ph * 0.4); ctx.stroke();
+  }
+  ctx.restore();
+
+  // VOID: floating void fragments and star clusters
+  ctx.save();
+  ctx.globalAlpha = 0.22 + chaos * 0.10;
+  for (let vi = 0; vi < 50; vi++) {
+    const vx  = 2120 + ((vi * 2371 + 113) % 560);
+    const vy  = 40   + ((vi * 1487 + 307) % (GH - 100));
+    const vr  = vi % 5 === 0 ? 1.8 : 0.9;
+    const va  = 0.3 + Math.sin(t * 0.05 + vi * 0.8) * 0.2;
+    const col = vi % 4 === 0 ? `rgba(180,100,255,${va})` : vi % 4 === 1 ? `rgba(255,255,255,${va * 0.7})` : `rgba(100,150,255,${va * 0.6})`;
+    ctx.fillStyle = col;
+    ctx.beginPath(); ctx.arc(vx, vy, vr, 0, Math.PI * 2); ctx.fill();
+  }
+  // Void tendrils rising from below
+  for (let vt = 0; vt < 4; vt++) {
+    const vtx = 2200 + vt * 130;
+    ctx.strokeStyle = `rgba(120,0,220,${0.12 + Math.sin(t * 0.018 + vt) * 0.06})`;
+    ctx.lineWidth   = 2.5;
     ctx.beginPath();
-    for (let py = riftY; py < riftY + riftH; py += 3) {
-      const wobble = Math.sin(py * 0.08 + phase) * 6;
-      if (py === riftY) ctx.moveTo(rx + wobble, py);
-      else              ctx.lineTo(rx + wobble, py);
+    for (let vy2 = GH; vy2 > GH * 0.4; vy2 -= 8) {
+      const vwob = Math.sin(vy2 * 0.06 + t * 0.02 + vt * 1.5) * 14;
+      if (vy2 === GH) ctx.moveTo(vtx + vwob, vy2); else ctx.lineTo(vtx + vwob, vy2);
     }
     ctx.stroke();
-    // Glow halo around rift
-    const rGr = ctx.createLinearGradient(rx - 16, 0, rx + 16, 0);
-    rGr.addColorStop(0, 'rgba(0,0,0,0)');
-    rGr.addColorStop(0.5, `rgba(${ri%3===0?255:ri%3===1?180:30},0,${ri%3===2?255:ri%3===1?200:0},${riftA * 0.4})`);
-    rGr.addColorStop(1, 'rgba(0,0,0,0)');
-    ctx.fillStyle = rGr;
-    ctx.fillRect(rx - 16, riftY, 32, riftH);
-    ctx.shadowBlur = 0;
   }
   ctx.restore();
 
-  // ── 5. Background biome fragments — ghost images of all maps ────────────
-  // Translucent silhouettes of other arena elements bleed through:
-  // grass hills, city skyline, ice mountains, forest treetops, lava glow.
-  const fragA = 0.04 + Math.sin(t * 0.007) * 0.02;
-
+  // ── 3. Stars (visible across the whole world, concentrated in void zone) ─
   ctx.save();
-  ctx.globalAlpha = fragA * (1 + chaos * 0.5);
-  // Grass hill silhouette (left)
-  const gGr = ctx.createLinearGradient(0, GH * 0.55, 0, GH);
-  gGr.addColorStop(0, 'rgba(40,100,20,0.5)');
-  gGr.addColorStop(1, 'rgba(30,80,10,0)');
-  ctx.fillStyle = gGr;
-  ctx.beginPath();
-  ctx.moveTo(0, GH * 0.95);
-  ctx.quadraticCurveTo(GW * 0.12, GH * 0.55 + Math.sin(t * 0.01) * 8, GW * 0.25, GH * 0.78);
-  ctx.lineTo(0, GH * 0.95); ctx.closePath(); ctx.fill();
-
-  // City skyline silhouette (right)
-  ctx.fillStyle = 'rgba(20,25,50,0.35)';
-  const buildings = [[GW*0.65,GH*0.55,28,GH*0.45],[GW*0.72,GH*0.48,22,GH*0.52],[GW*0.79,GH*0.58,30,GH*0.42],[GW*0.87,GH*0.50,24,GH*0.50]];
-  for (const [bx, by, bw, bh] of buildings) ctx.fillRect(bx, by, bw, bh);
-
-  // Ice mountain (far-right hint)
-  ctx.strokeStyle = 'rgba(160,220,255,0.2)';
-  ctx.lineWidth   = 2;
-  ctx.beginPath();
-  ctx.moveTo(GW * 0.88, GH * 0.95);
-  ctx.lineTo(GW * 0.93, GH * 0.45 + Math.sin(t * 0.008) * 4);
-  ctx.lineTo(GW * 0.98, GH * 0.95);
-  ctx.stroke();
-
-  // Forest treetop canopy (top strip)
-  ctx.fillStyle = 'rgba(20,60,15,0.18)';
-  for (let ti = 0; ti < 8; ti++) {
-    const tx = GW * 0.02 + ti * GW * 0.115;
-    const ty = GH * 0.06 + Math.sin(t * 0.009 + ti) * 5;
-    ctx.beginPath();
-    ctx.arc(tx, ty, 22, 0, Math.PI * 2);
-    ctx.fill();
+  for (let i = 0; i < 300; i++) {
+    const sx  = WL + ((i * 6217 + 911) % WW);
+    const sy  = ((i * 3511 + 443) % (GH * 0.72));
+    // Fade stars near grass/city zones; brighten in void/ice
+    const inVoid = sx > 2000;
+    const sA  = (0.18 + Math.sin(t * 0.04 + i * 0.63) * 0.12) * (inVoid ? 1.8 : 0.7);
+    if (sA <= 0.04) continue;
+    const sR  = i % 7 === 0 ? 1.6 : 0.85;
+    let sr = 200, sg = 210, sb = 255;
+    if (i % 5 === 1) { sr = 255; sg = 210; sb = 150; }  // warm
+    else if (i % 5 === 2) { sr = 150; sg = 220; sb = 190; } // forest
+    else if (i % 5 === 3) { sr = 200; sg = 160; sb = 255; } // void
+    ctx.fillStyle = `rgba(${sr},${sg},${sb},${sA})`;
+    ctx.beginPath(); ctx.arc(sx, sy, sR, 0, Math.PI * 2); ctx.fill();
   }
-
-  // Lava glow from bottom-centre
-  const lvGr = ctx.createRadialGradient(GW * 0.5, GH, 0, GW * 0.5, GH, GH * 0.35);
-  lvGr.addColorStop(0, `rgba(220,40,0,${0.06 * (1 + chaos)})`);
-  lvGr.addColorStop(1, 'rgba(0,0,0,0)');
-  ctx.fillStyle = lvGr;
-  ctx.fillRect(0, 0, GW, GH);
-
-  ctx.globalAlpha = 1;
   ctx.restore();
 
-  // ── 6. Dimensional portal rings (background depth) ──────────────────────
-  // Concentric rings suggesting infinite portals to other worlds behind the stage.
+  // ── 4. Zone-border dimension rifts (6 cracks, one per seam) ─────────────
+  const seamXs = [-400, 100, 600, 1100, 1600, 2100];
   ctx.save();
-  const portalCX = GW * 0.5;
-  const portalCY = GH * 0.52;
-  const numRings = 6;
-  for (let ri = 0; ri < numRings; ri++) {
-    const baseR = 60 + ri * 55;
-    const pR    = baseR + Math.sin(t * 0.015 + ri * 0.9) * 12;
-    const pA    = (0.06 - ri * 0.008) * (1 + chaos * 0.4);
-    if (pA <= 0) continue;
-    const ringHue = [200, 280, 350, 130, 50, 180][ri % 6];
-    ctx.strokeStyle = `hsla(${ringHue},80%,60%,${pA})`;
-    ctx.lineWidth   = 1.2;
-    ctx.shadowColor = `hsla(${ringHue},80%,60%,0.5)`;
-    ctx.shadowBlur  = 8;
+  for (let ri = 0; ri < seamXs.length; ri++) {
+    const rx    = seamXs[ri];
+    const phase = t * 0.016 + ri * 1.2;
+    const riftA = 0.12 + Math.sin(phase) * 0.05 + chaos * 0.14;
+    const riftH = (GH * 0.55) * (1 + chaos * 0.3);
+    const cols  = ['#44aa00','#4466ff','#00cc44','#88ddff','#ff5500','#aa8844','#8800ff'];
+    ctx.shadowColor = cols[ri]; ctx.shadowBlur = 14;
+    ctx.strokeStyle = cols[ri].replace('#', 'rgba(').replace(/(..)(..)(..)/, (_,r,g,b) =>
+      `${parseInt(r,16)},${parseInt(g,16)},${parseInt(b,16)},${riftA})`);
+    ctx.lineWidth = 1.8 + Math.sin(phase * 1.8) * 0.6;
     ctx.beginPath();
-    ctx.arc(portalCX, portalCY, pR, 0, Math.PI * 2);
+    for (let py = 0; py < riftH; py += 4) {
+      const wx = rx + Math.sin(py * 0.07 + phase) * 8;
+      py === 0 ? ctx.moveTo(wx, py) : ctx.lineTo(wx, py);
+    }
     ctx.stroke();
-  }
-  ctx.shadowBlur = 0;
-  ctx.restore();
-
-  // ── 7. Platform biome texture overlays ─────────────────────────────────
-  // Each platform tier is tinted to evoke its home biome.
-  // This is drawn lightly on top of the platform fill by the main renderer;
-  // here we draw subtle glows beneath each platform zone.
-  const platZones = [
-    { x: GW*0.0, y: 370, w: GW*0.20, col: 'rgba(100,180,60,0.06)'  },  // grass (left-low)
-    { x: GW*0.8, y: 370, w: GW*0.20, col: 'rgba(160,230,255,0.05)' },  // ice (right shelf)
-    { x: GW*0.3, y: 270, w: GW*0.40, col: 'rgba(40,60,130,0.06)'   },  // city (centre)
-    { x: GW*0.0, y: 200, w: GW*0.25, col: 'rgba(30,90,20,0.05)'    },  // forest (upper-left)
-    { x: GW*0.7, y: 200, w: GW*0.30, col: 'rgba(30,90,20,0.05)'    },  // forest (upper-right)
-    { x: GW*0.3, y: 120, w: GW*0.40, col: 'rgba(10,20,60,0.07)'    },  // space (apex)
-  ];
-  ctx.save();
-  for (const pz of platZones) {
-    const pzGr = ctx.createLinearGradient(pz.x, pz.y, pz.x, pz.y + 80);
-    pzGr.addColorStop(0, pz.col);
-    pzGr.addColorStop(1, 'rgba(0,0,0,0)');
-    ctx.fillStyle = pzGr;
-    ctx.fillRect(pz.x, pz.y, pz.w, 80);
+    ctx.shadowBlur = 0;
+    // Glow halo
+    const rGr = ctx.createLinearGradient(rx - 20, 0, rx + 20, 0);
+    rGr.addColorStop(0, 'rgba(0,0,0,0)');
+    rGr.addColorStop(0.5, `rgba(255,255,255,${riftA * 0.12})`);
+    rGr.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = rGr; ctx.fillRect(rx - 20, 0, 40, riftH);
   }
   ctx.restore();
 
-  // ── 8. Chaos distortion overlay (late fight) ─────────────────────────────
+  // ── 5. Global chaos overlay (last 40% of fight) ──────────────────────────
   if (chaos > 0.6) {
-    const distA = (chaos - 0.6) / 0.4 * 0.08;
-    const dGr   = ctx.createLinearGradient(0, 0, GW, GH);
+    const distA = (chaos - 0.6) / 0.4 * 0.07;
+    const dGr   = ctx.createLinearGradient(WL, 0, WR, GH);
     dGr.addColorStop(0,    `rgba(200,0,50,${distA * 0.8})`);
     dGr.addColorStop(0.33, `rgba(100,0,200,${distA})`);
     dGr.addColorStop(0.66, `rgba(0,0,80,${distA * 0.6})`);
     dGr.addColorStop(1,    `rgba(200,30,0,${distA * 0.8})`);
-    ctx.fillStyle = dGr;
-    ctx.fillRect(0, 0, GW, GH);
-    // Scan-line distortion effect
+    ctx.fillStyle = dGr; ctx.fillRect(WL, 0, WW, GH);
+    // Scan-line effect
     ctx.save();
-    ctx.globalAlpha = distA * 0.5;
+    ctx.globalAlpha = distA * 0.4;
     for (let sl = 0; sl < GH; sl += 4) {
-      if ((sl + (t & 3)) % 8 === 0) {
-        ctx.fillStyle = 'rgba(0,0,0,0.15)';
-        ctx.fillRect(0, sl, GW, 1);
-      }
+      if ((sl + (t & 3)) % 8 === 0) { ctx.fillStyle = 'rgba(0,0,0,0.15)'; ctx.fillRect(WL, sl, WW, 1); }
     }
     ctx.restore();
   }
 
+  ctx.restore();
+}
+
+// ============================================================
+// THE STUDIO — dev recording / showcase stage
+// ============================================================
+function drawStudioArena() {
+  const t = frameCount || 0;
+  const W = GAME_W;
+  const H = GAME_H;
+
+  // ── 1. Soft radial vignette — darkens outer edges for cinematic framing ──
+  ctx.save();
+  const vig = ctx.createRadialGradient(W * 0.5, H * 0.44, H * 0.20, W * 0.5, H * 0.44, H * 0.82);
+  vig.addColorStop(0, 'rgba(0,0,0,0)');
+  vig.addColorStop(1, 'rgba(0,0,0,0.48)');
+  ctx.fillStyle = vig;
+  ctx.fillRect(0, 0, W, H);
+  ctx.restore();
+
+  // ── 2. Distant background pillars — faint marble columns at canvas edges ─
+  ctx.save();
+  ctx.globalAlpha = 0.11 + Math.sin(t * 0.008) * 0.02;
+  const pillarXs = [68, 162, W - 162, W - 68];
+  for (const px of pillarXs) {
+    const cg = ctx.createLinearGradient(px - 11, 0, px + 11, 0);
+    cg.addColorStop(0,   'rgba(80,110,210,0)');
+    cg.addColorStop(0.3, 'rgba(80,110,210,0.65)');
+    cg.addColorStop(0.7, 'rgba(80,110,210,0.65)');
+    cg.addColorStop(1,   'rgba(80,110,210,0)');
+    ctx.fillStyle = cg;
+    ctx.fillRect(px - 11, 38, 22, 422);
+    ctx.fillStyle = 'rgba(100,135,225,0.45)';
+    ctx.fillRect(px - 15, 34, 30, 7);
+    ctx.fillRect(px - 19, 27, 38, 8);
+  }
+  ctx.globalAlpha = 1;
+  ctx.restore();
+
+  // ── 3. Two spotlight beams from top, angling inward to centre stage ───────
+  ctx.save();
+  const beamA = 0.038 + Math.sin(t * 0.012) * 0.009;
+  const bLG = ctx.createLinearGradient(233, 0, 340, 285);
+  bLG.addColorStop(0, `rgba(155,185,255,${(beamA * 2.4).toFixed(3)})`);
+  bLG.addColorStop(1, 'rgba(155,185,255,0)');
+  ctx.fillStyle = bLG;
+  ctx.beginPath();
+  ctx.moveTo(220, 0); ctx.lineTo(252, 0); ctx.lineTo(462, 285); ctx.lineTo(385, 285);
+  ctx.closePath(); ctx.fill();
+  const bRG = ctx.createLinearGradient(667, 0, 560, 285);
+  bRG.addColorStop(0, `rgba(155,185,255,${(beamA * 2.4).toFixed(3)})`);
+  bRG.addColorStop(1, 'rgba(155,185,255,0)');
+  ctx.fillStyle = bRG;
+  ctx.beginPath();
+  ctx.moveTo(680, 0); ctx.lineTo(648, 0); ctx.lineTo(515, 285); ctx.lineTo(590, 285);
+  ctx.closePath(); ctx.fill();
+  ctx.restore();
+
+  // ── 4. Centre stage glow pool — soft radial halo beneath main platform ────
+  ctx.save();
+  const stageG = ctx.createRadialGradient(W * 0.5, 308, 0, W * 0.5, 308, 240);
+  stageG.addColorStop(0,   `rgba(75,115,225,${0.065 + Math.sin(t * 0.018) * 0.018})`);
+  stageG.addColorStop(0.65, 'rgba(50,80,175,0.018)');
+  stageG.addColorStop(1,   'rgba(50,80,175,0)');
+  ctx.fillStyle = stageG;
+  ctx.fillRect(0, 0, W, H);
+  ctx.restore();
+
+  // ── 5. Floor reflection — horizontal shimmer at floor level ──────────────
+  ctx.save();
+  const reflG = ctx.createLinearGradient(0, 456, 0, 522);
+  reflG.addColorStop(0, `rgba(65,105,205,${0.10 + Math.sin(t * 0.022) * 0.016})`);
+  reflG.addColorStop(1, 'rgba(65,105,205,0)');
+  ctx.fillStyle = reflG;
+  ctx.fillRect(0, 456, W, 66);
+  ctx.restore();
+
+  // ── 6. Floating dust motes — 24 particles drifting slowly upward ─────────
+  ctx.save();
+  for (let i = 0; i < 24; i++) {
+    const baseX  = ((Math.sin(i * 374.3 + 1.1) * 0.5 + 0.5) * (W - 60)) + 30;
+    const speed  = 0.11 + (Math.sin(i * 511.7) * 0.5 + 0.5) * 0.16;
+    const rawY   = (Math.sin(i * 197.1) * 0.5 + 0.5) * (H - 80);
+    const driftY = ((rawY - t * speed) % (H - 55) + (H - 55)) % (H - 55);
+    const wobX   = baseX + Math.sin(t * 0.009 + i * 2.3) * 7;
+    const rad    = 0.65 + (Math.sin(i * 293.1) * 0.5 + 0.5) * 1.05;
+    const alpha  = 0.055 + (Math.sin(t * 0.013 + i * 1.7) * 0.5 + 0.5) * 0.085;
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle   = '#aabeff';
+    ctx.beginPath();
+    ctx.arc(wobX, driftY, rad, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+  ctx.restore();
+
+  // ── 7. Stage lip — thin luminous line at the top of the floor ────────────
+  ctx.save();
+  ctx.strokeStyle = `rgba(95,135,235,${0.13 + Math.sin(t * 0.025) * 0.04})`;
+  ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(0, 459); ctx.lineTo(W, 459); ctx.stroke();
+  ctx.restore();
+
+  // ── 8. Centre ring — elliptical halo centred on main stage ───────────────
+  ctx.save();
+  ctx.strokeStyle = `rgba(110,155,250,${0.06 + Math.sin(t * 0.02) * 0.022})`;
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.ellipse(W * 0.5, 296, 232, 92, 0, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.restore();
+
+  // ── 9. Camera viewfinder brackets at canvas corners ──────────────────────
+  ctx.save();
+  const brkA = 0.19 + Math.sin(t * 0.016) * 0.05;
+  ctx.strokeStyle = `rgba(115,155,250,${brkA.toFixed(3)})`;
+  ctx.lineWidth = 1.5;
+  const bLen    = 22;
+  const corners = [[12, 12], [W - 12, 12], [12, H - 74], [W - 12, H - 74]];
+  for (const [cx2, cy2] of corners) {
+    const sx = cx2 < W * 0.5 ? 1 : -1;
+    const sy = cy2 < H * 0.5 ? 1 : -1;
+    ctx.beginPath();
+    ctx.moveTo(cx2 + sx * bLen, cy2);
+    ctx.lineTo(cx2, cy2);
+    ctx.lineTo(cx2, cy2 + sy * bLen);
+    ctx.stroke();
+  }
+  ctx.restore();
+
+  // ── 10. REC indicator — pulsing red dot, top-right corner ────────────────
+  ctx.save();
+  const recSin = Math.sin(t * 0.045);
+  if (recSin > -0.15) {
+    const recA = Math.max(0, recSin) * 0.62;
+    ctx.globalAlpha = recA;
+    ctx.shadowColor = '#ff1111'; ctx.shadowBlur = 9;
+    ctx.fillStyle = '#ff3333';
+    ctx.beginPath(); ctx.arc(W - 26, 16, 4.5, 0, Math.PI * 2); ctx.fill();
+    ctx.shadowBlur = 0;
+    ctx.globalAlpha = recA * 0.40;
+    ctx.fillStyle = '#ff6666';
+    ctx.beginPath(); ctx.arc(W - 26, 16, 8.5, 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.globalAlpha = 1;
   ctx.restore();
 }
