@@ -42,11 +42,28 @@ const SERVER_CONFIG = {
 // ============================================================
 const CHANGELOG = [
   {
+    version: '3.5.0',
+    title: 'THE STORY & SOVEREIGN UPDATE',
+    date: '2026-05-30',
+    flavor: 'The story finally goes where it was always going. The worlds beyond the multiverse are open. Sovereign learned how you killed it. It won\'t let that happen twice.',
+    isLatest: true,
+    changes: [
+      { cat: 'Story',   text: 'Completed Act VI — The Fallen God\'s Trial arc: three bridge chapters covering the God\'s origin vault, the first principles of the walls between dimensions, and the passage into the multiverse' },
+      { cat: 'Story',   text: 'Added four full multiverse worlds — Null Space, Seraph World, Thresh, and Vael — each a self-contained 5-chapter arc with unique enemies, environments, and a world boss' },
+      { cat: 'Story',   text: 'Added Act VII — Creator: 16 chapters across two arcs covering God\'s domain, the Kernel, Axiom\'s construct layer, and the two-phase Absolute Axiom fight' },
+      { cat: 'Story',   text: 'Comprehensive difficulty balance pass across all acts — early chapters (Acts I–II) now properly onboard new players with 3 lives on the first fight; boss-tier encounters in Acts III–VI adjusted from 1-life spikes to 2-life escalations; intentional 1-life milestones preserved at key dramatic moments' },
+      { cat: 'Story',   text: 'Twelve specific chapters rebalanced: ch0 (1L→3L), ch2 (1L→2L), ch8 (hard→medium AI), ch10 (2L→3L), ch11 (1L→2L), ch18 (expert→hard + 1L→2L), ch22 (1L→2L), ch25 (1L→2L), ch69 (2L→3L), ch79 (1L→2L), ch87 (1L→2L), ch91 (1L→2L)' },
+      { cat: 'AI',      text: 'Sovereign death-to-adaptation pipeline — on death, Sovereign snapshots the exact kill context (weapon type, knockback weight, player action, combo depth); on the next life it immediately locks a counter strategy targeting whatever killed it; second death triggers limiter break with no warmup' },
+      { cat: 'AI',      text: 'Sovereign opening weapon prior — reads the player\'s equipped weapon on frame 1 of the match and locks a preemptive counter strategy: ranged/magic → intercept + suffocate pressure; heavy/high-KB → parry lock; shield/knight → guard-break; default → suffocate' },
+      { cat: 'AI',      text: 'Sovereign endlag punish window — tracks the exact frame count of the player\'s post-swing recovery (weapon.endlag); attacks without telegraph during this bounded window, closing the gap at 2× sprint speed if needed; window expires if not acted on, preventing false punishes' },
+    ],
+  },
+  {
     version: '3.4.0',
     title: 'THE COMBAT POLISH UPDATE',
     date: '2026-05-28',
     flavor: 'Every weapon finally does what it says. Boomerangs leave your hand. Flames look like flames. The whip actually pulls. The balance is real this time.',
-    isLatest: true,
+    isLatest: false,
     changes: [
       { cat: 'Combat',  text: 'Boomerang basic attack now throws a real visible boomerang that physically leaves the player\'s hand; the weapon disappears from the grip while in flight and reappears on return' },
       { cat: 'Combat',  text: 'Paper Airplane basic attack now fires a visible paper plane that leaves the player\'s hand; the Q ability (Barrage) now fires 5 correctly-shaped paper airplane projectiles instead of glowing circles' },
@@ -642,7 +659,7 @@ let _publicRoomCheckTimer = 0;
 // ============================================================
 // VERSION
 // ============================================================
-const GAME_VERSION = '3.4.0';  // bump this when releasing; must match CHANGELOG[0].version
+const GAME_VERSION = '3.5.0';  // bump this when releasing; must match CHANGELOG[0].version
 console.log('[VERSION CHECK]', GAME_VERSION);
 
 // DEBUG / DEVELOPER STATE
