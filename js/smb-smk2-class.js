@@ -216,6 +216,16 @@ class SovereignMK2 extends AdaptiveAI {
     this._restCooldown      = 0;  // prevents resting too frequently
     this._aggressionStreak  = 0;  // combo sequences fired; triggers rest when high enough
     this._telegraphTimer    = 0;  // pre-attack wind-up pause frames
+
+    // ── Death-to-Adaptation Pipeline ──────────────────────────────
+    this._deathCount          = 0;    // respawn counter this match
+    this._deathRecord         = null; // kill context snapshot; consumed on first tick of next life
+
+    // ── Opening Weapon Prior ───────────────────────────────────────
+    this._openingPriorApplied = false; // fires once per match on first full observation tick
+
+    // ── Endlag Punish Window ───────────────────────────────────────
+    this._endlagWindow        = 0;    // frames remaining in opponent's post-swing recovery
   }
 
   // ══════════════════════════════════════════════════════════════
@@ -224,7 +234,21 @@ class SovereignMK2 extends AdaptiveAI {
 
   onDeath() {
     super.onDeath();
+    this._deathCount++;
     this._spawnDefendTimer = 20; // ~0.33 sec of defensive jump-back before engaging
+
+    // Snapshot kill context so the next life immediately counters it
+    const _dt = this.target;
+    if (_dt && _dt.weapon) {
+      this._deathRecord = {
+        weaponKey:  _dt.weaponKey || null,
+        isHeavy:    _dt.weapon.kb >= 18,
+        isRanged:   _dt.weapon.type === 'ranged' || _dt.weapon.type === 'magic',
+        lastAction: this._lastAction || 'attack',
+        comboDepth: this._countRecent('dmg_taken', 40),
+      };
+    }
+
     if (typeof unlockAchievement === 'function') unlockAchievement('sovereign_slayer');
   }
 
@@ -1486,6 +1510,34 @@ class SovereignMK2 extends AdaptiveAI {
       return;
     }
 
+    // ── DEATH RECORD — apply counter strategy learned from the previous life ────────────
+    if (this._deathRecord) {
+      const _rec = this._deathRecord;
+      this._deathRecord = null;
+      // 2nd+ death: no warmup — limiter breaks immediately
+      if (this._deathCount >= 2 && !this._limiterBroken) {
+        this._triggerLimiterBreak('death_escalation');
+      }
+      // Lock the counter strategy that directly counters what killed us
+      if (_rec.isRanged) {
+        this._lockedCounterStrategy = 'intercept';
+      } else if (_rec.isHeavy) {
+        this._lockedCounterStrategy = 'parry';
+      } else if (_rec.lastAction === 'jump') {
+        this._lockedCounterStrategy = 'anti-air';
+      } else if (_rec.lastAction === 'shield') {
+        this._lockedCounterStrategy = 'guard-break';
+      } else {
+        this._lockedCounterStrategy = 'pressure';
+      }
+      this._adaptLockTimer = 300; // hold for 5 sec — long enough to punish repeat patterns
+      if (_rec.comboDepth >= 2 && !this._punishModeActive) this._activatePunishMode('revenge');
+      if (this._fearLineCd <= 0) {
+        showBossDialogue(SMK2_LIMITER_LINES[Math.floor(Math.random() * SMK2_LIMITER_LINES.length)], 200);
+        this._fearLineCd = 200;
+      }
+    }
+
     if (this._bmActivePunish && typeof frameCount !== 'undefined' &&
         frameCount >= this._bmActivePunish.checkFrame) {
       const ap = this._bmActivePunish;
@@ -1510,6 +1562,29 @@ class SovereignMK2 extends AdaptiveAI {
     // Sovereign must observe for at least 180 frames (~3 sec) and see
     // at least 6 non-idle player actions before adapting.
     this._observationFrames++;
+
+    // ── OPENING WEAPON PRIOR — read weapon class on frame 1 and lock a counter ──
+    // Fires once per match; skipped when a death record is already active (that takes priority).
+    if (!this._openingPriorApplied && !this._deathRecord && this._adaptLockTimer <= 0) {
+      this._openingPriorApplied = true;
+      const _owType = t.weapon ? t.weapon.type : '';
+      const _owKb   = t.weapon ? (t.weapon.kb   || 0) : 0;
+      if (_owType === 'ranged' || _owType === 'magic') {
+        this._lockedCounterStrategy = 'intercept';
+        this._adaptLockTimer        = 180;
+        this._pressureMode          = 'suffocate';
+      } else if (_owKb >= 18 || _owType === 'heavy') {
+        this._lockedCounterStrategy = 'parry';
+        this._adaptLockTimer        = 180;
+      } else if (t.weaponKey === 'shield' || t.charClass === 'knight') {
+        this._lockedCounterStrategy = 'guard-break';
+        this._adaptLockTimer        = 180;
+      } else {
+        this._lockedCounterStrategy = 'pressure';
+        this._adaptLockTimer        = 120;
+        this._pressureMode          = 'suffocate';
+      }
+    }
 
     // ── A. Bigram action tracking ────────────────────────────
     const currentAction = _smk2ClassifyAction(t, this._prevT2state);
@@ -1558,6 +1633,9 @@ class SovereignMK2 extends AdaptiveAI {
     const playerJustWhiffed = this._prevPlayerAtk > 0 && t.attackTimer === 0;
     this._prevPlayerAtk = t.attackTimer;
     if (playerJustWhiffed) this._counterWindowOpen = true;
+    // Arm endlag window when attack animation ends — attack during this bounded window bypasses telegraph
+    if (playerJustWhiffed) this._endlagWindow = t.weapon ? (t.weapon.endlag || 8) : 8;
+    if (this._endlagWindow > 0) this._endlagWindow--;
     if (this._baitCooldown > 0) this._baitCooldown--;
     if (this._comboFollowTimer > 0) this._comboFollowTimer--;
     if (this._adaptivePunishTimer > 0) this._adaptivePunishTimer--;
@@ -2097,6 +2175,34 @@ class SovereignMK2 extends AdaptiveAI {
         if (this.abilityCooldown <= 0 && d < 220 && Math.random() < _abilPunishChance) this.ability(t);
       }
       return;
+    }
+
+    // ── ENDLAG PUNISH: strike during the exact frames the opponent is locked in recovery ──
+    // _endlagWindow is a bounded timer (= weapon.endlag) set when the attack animation ends.
+    // Unlike _counterWindowOpen this window expires after a specific number of frames,
+    // so Sovereign must commit immediately — no telegraph, no hesitation.
+    if (this._endlagWindow > 0 && !playerAttacking) {
+      if (d < weaponRange + 18 && this.cooldown <= 0) {
+        this.attack(t);
+        this._endlagWindow      = 0;
+        this._postHitLockFrames = Math.max(this._postHitLockFrames, 40);
+        if (this.abilityCooldown <= 0 && d < 120) this.ability(t);
+        if (this._comboFollowHits === 0) {
+          const _elgCombo = Math.floor(this.intelligence * 1.5) + lbCombo;
+          if (_elgCombo > 0) {
+            this._comboFollowHits  = _elgCombo;
+            this._comboFollowTimer = Math.max(lb ? 8 : 10, Math.round(14 - m.reactionSpeed * 4));
+          }
+        }
+        this.aiReact = 1;
+        this._updateFearFactor(d, recentLanded, true);
+        return;
+      }
+      // Out of range: sprint to close the gap — window is brief so no hesitation
+      if (!this.isEdgeDanger(dir)) this.vx = dir * moveSpd * 2.0;
+      if (this._jumpCooldown <= 0 && this.onGround && t.y < this.y - 80) {
+        this.vy = _jumpVy; this._jumpCooldown = 22;
+      }
     }
 
     // Instant counter on whiff — dash in even from range to punish consistently

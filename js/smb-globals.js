@@ -61,6 +61,13 @@ const CHANGELOG = [
       { cat: 'Visual',  text: 'Whip now draws a brief dashed rope line from the player to the struck target on both the basic hit and Lasso pull, making the weapon\'s reach visually legible' },
       { cat: 'Visual',  text: 'Flame projectiles rendered as directional teardrop shapes with layered orange/yellow glow instead of plain colored ellipses' },
       { cat: 'AI',      text: 'Bot paper airplane and boomerang AI updated to use the new throw system rather than the legacy bullet path' },
+      { cat: 'Story',   text: 'Added cinematic narrative scene system — story chapters now play fully-directed canvas cutscenes with typewriter dialogue, speaker detection, camera keyframe animation, letterboxing, portal/shockwave/screen-flash effects, and per-beat NPC positioning' },
+      { cat: 'Story',   text: 'Added per-chapter cinematic scene specs — each chapter has its own beat-by-beat camera choreography, effect timeline, and character staging' },
+      { cat: 'Story',   text: 'Added 5 new interactive chapter types: stealth (guard detection, alarm system), escape (pursuer AI, timed exit), defense (wave hold-point), scavenge (collectibles with enemy patrols), and assassination (target marking, silent-kill bonus)' },
+      { cat: 'Story',   text: 'Added a new multiverse arc where trust is the only casualty that matters; someone knows exactly what to say, and exactly when to say it; what happens at the end cannot be undone', spoilerAct: 4 },
+      { cat: 'Boss',    text: 'A certain secret boss was completely reworked — a fight of this scale demands more than a health bar; multiple thresholds now trigger cinematic moments; a late-fight mechanic changes the rules entirely; find out yourself', spoilerLevel: 3 },
+      { cat: 'Visual',  text: 'Added AniFX — a suite of anime-style cinematic effect utilities: pulsing aura rings, radial speed-line bursts, charge-up glow effects, and stickman afterimage silhouettes; used throughout boss threshold cinematics' },
+      { cat: 'Polish',  text: 'Camera HUD clamp overhauled — guarantees the topmost active player always appears at least 24px below the HUD bar at any camera zoom level; eliminates players being obscured by the health bar' },
     ],
   },
   {
