@@ -1163,6 +1163,9 @@ function gameLoop(timestamp) {
     renderDebugOverlay(ctx);
   }
 
+  // Screen FX post-processing (chromatic aberration, impact flash, ripples, vignette, smear)
+  if (typeof ScreenFX !== 'undefined') ScreenFX.postRender();
+
   // Use error-boundary wrapper if available; fall back to raw rAF
   if (typeof ErrorBoundary !== 'undefined') {
     requestAnimationFrame(ErrorBoundary.wrapLoop(gameLoop));

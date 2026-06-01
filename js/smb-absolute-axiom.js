@@ -86,6 +86,13 @@ function _aaDialogue(lines, dur) {
   if (typeof showBossDialogue === 'function') showBossDialogue(line, dur || 160);
 }
 
+// Flash an attack name in screen-center for a short burst — pure visual weight
+function _aaAttackName(name) {
+  if (typeof ctx === 'undefined' || typeof canvas === 'undefined') return;
+  // Store pending display; drawn by _drawAABossBar each frame
+  window._aaAttackNameDisplay = { text: name, timer: 55 };
+}
+
 // ── Death tracking ──────────────────────────────────────────────────────────
 function _checkAbsoluteAxiomDeathHook() {
   if (!window._absoluteAxiomWasAlive) return;
@@ -178,6 +185,7 @@ class AbsoluteAxiom extends God {
 
     // Aerial slam attack state
     this._aerialSlam = null; // { phase:'rise'|'hover'|'dive', timer, targetX, targetY }
+    this._jumpCd     = 60;   // frames until next jump is allowed
 
     // Melee windup telegraph (no instant auto-attack aura)
     this._meleeWindup       = 0;  // counts 0→35; strike fires at 35
@@ -361,24 +369,25 @@ class AbsoluteAxiom extends God {
     if (this._angelCooldown > 0) this._angelCooldown--;
 
     this._trailTimer++;
-    if (this._trailTimer >= 3) {
+    if (this._trailTimer >= 6) {
       this._trailTimer = 0;
       this._trailPoints.unshift({ x: this.cx(), y: this.y + this.h * 0.38 });
-      if (this._trailPoints.length > 22) this._trailPoints.pop();
+      if (this._trailPoints.length > 12) this._trailPoints.pop();
     }
 
-    // Wing ember particles
-    if (Math.random() < 0.3) {
+    // Wing embers — reduced spawn rate for performance
+    if (Math.random() < 0.08) {
       const side = Math.random() < 0.5 ? -1 : 1;
       this._wingEmbers.push({
-        x: this.cx() + side * (30 + Math.random() * 50),
-        y: this.y + this.h * 0.35 + (Math.random() - 0.5) * 20,
-        vx: side * (0.5 + Math.random() * 1.5),
-        vy: -(0.5 + Math.random() * 1.2),
-        life: 20 + Math.floor(Math.random() * 15),
-        r: 2 + Math.random() * 2.5,
+        x: this.cx() + side * (28 + Math.random() * 44),
+        y: this.y + this.h * 0.35 + (Math.random() - 0.5) * 18,
+        vx: side * (0.4 + Math.random() * 1.2),
+        vy: -(0.4 + Math.random() * 1.0),
+        life: 18 + Math.floor(Math.random() * 12),
+        r: 1.8 + Math.random() * 2,
       });
     }
+    if (this._wingEmbers.length > 30) this._wingEmbers.length = 30; // hard cap
     for (let i = this._wingEmbers.length - 1; i >= 0; i--) {
       const e = this._wingEmbers[i];
       e.x += e.vx; e.y += e.vy; e.life--;
@@ -416,21 +425,40 @@ class AbsoluteAxiom extends God {
     const GH = typeof GAME_H !== 'undefined' ? GAME_H : 520;
 
     if (this._locomotionMode === 'walk') {
-      const walkSpd = (4.8 + this._aaPhase * 0.8) * this._phase3SpeedMod;
-      this.vx = this.facing * walkSpd;
-      if (this.onGround && target.y < this.y - 60) {
-        this.vy = -16;
-        this.onGround = false;
+      // Jump CD — only jump once every 90+ frames, and only when target is really high
+      if (this._jumpCd > 0) this._jumpCd--;
+
+      // Stance mode: when close to firing next special, slow down + face player (boss presence)
+      const _inStance = this._specialCd <= 70 && this._specialCd > 0;
+      const baseSpd   = _inStance
+        ? (1.4 * this._phase3SpeedMod)          // slow predatory walk
+        : (3.6 + this._aaPhase * 0.6) * this._phase3SpeedMod;
+
+      // Move toward player but stop at comfortable range (not constant chase to face)
+      const _stopRange = _inStance ? 200 : 130;
+      if (minDist > _stopRange) {
+        this.vx = this.facing * baseSpd;
+      } else {
+        this.vx *= 0.75; // glide to a stop in melee range
       }
+
+      // Jump: only when player is significantly above AND jump is off cooldown
+      if (this.onGround && this._jumpCd <= 0 && target.y < this.y - 120) {
+        this.vy       = -17;
+        this.onGround = false;
+        this._jumpCd  = 90 + Math.floor(Math.random() * 60);
+      }
+
+      // Dash: only outside of stance
       if (this._dashCd > 0) this._dashCd--;
       if (this._dashFrames > 0) {
         this._dashFrames--;
         this.vx = this._dashVx;
-      } else if (this._dashCd <= 0 && minDist > 120 && minDist < 450) {
-        const _dashSpd   = 20 * this._phase3SpeedMod;
+      } else if (!_inStance && this._dashCd <= 0 && minDist > 180 && minDist < 500) {
+        const _dashSpd   = 18 * this._phase3SpeedMod;
         this._dashVx     = this.facing * _dashSpd;
-        this._dashFrames = 8;
-        this._dashCd     = Math.ceil(90 / this._phase3SpeedMod);
+        this._dashFrames = 7;
+        this._dashCd     = Math.ceil(110 / this._phase3SpeedMod);
         this.vx = this._dashVx;
       }
       super.update();
@@ -577,6 +605,7 @@ class AbsoluteAxiom extends God {
 
   _doAerialSlam(target) {
     if (!target) return;
+    _aaAttackName('AERIAL SLAM');
     this._aerialSlam  = { phase: 'rise', timer: 0, targetX: target.cx(), targetY: target.y + target.h };
     this._locomotionMode = 'fly';
     this._flyVy = 0;
@@ -638,6 +667,7 @@ class AbsoluteAxiom extends God {
 
   // Kernel Pulse — 4 expanding damage rings from chest
   _doKernelPulse() {
+    _aaAttackName('KERNEL PULSE');
     for (let i = 0; i < 4; i++) {
       this._kernelPulseRings.push({
         r: 0, maxR: 60 + i * 70, delay: i * 12,
@@ -673,6 +703,7 @@ class AbsoluteAxiom extends God {
   // Void Rain — 8 spears fall from above in staggered pattern
   _doVoidRain(target) {
     if (!target) return;
+    _aaAttackName('VOID RAIN');
     const base = target.cx();
     const GH   = typeof GAME_H !== 'undefined' ? GAME_H : 520;
     for (let i = 0; i < 8; i++) {
@@ -709,6 +740,7 @@ class AbsoluteAxiom extends God {
   // Temporal Crush — slow everything except AA for 5 seconds
   _doTemporalCrush() {
     if (this._temporalActive) return;
+    _aaAttackName('TEMPORAL CRUSH');
     this._temporalActive = true;
     this._temporalTimer  = 300;
     if (typeof slowMotion !== 'undefined') slowMotion = 0.12;
@@ -722,6 +754,7 @@ class AbsoluteAxiom extends God {
   // Kernel Beam — horizontal laser from chest
   _doKernelBeam(target) {
     if (this._kernelBeam) return;
+    _aaAttackName('KERNEL BEAM');
     this._kernelBeam = { timer: 0, maxTimer: 80, targetY: target ? (target.y + target.h / 2) : this.cy() };
     if (typeof screenShake !== 'undefined') screenShake = Math.max(screenShake, 10);
     if (typeof showBossDialogue === 'function') showBossDialogue('Burn.', 120);
@@ -757,6 +790,7 @@ class AbsoluteAxiom extends God {
   // Singularity — pull all targets to center, then detonate
   _doSingularity(target) {
     if (this._singularity) return;
+    _aaAttackName('SINGULARITY');
     const sx = target ? target.cx() : this.cx();
     const sy = target ? target.y + target.h / 2 : this.cy();
     this._singularity = { x: sx, y: sy, timer: 0, maxTimer: 180, r: 0, detonated: false };
@@ -809,6 +843,7 @@ class AbsoluteAxiom extends God {
   // Absolute Strike — 3-pass gap-close combo, each pass unique
   _doAbsoluteStrike(target) {
     if (this._absoluteStrike || !target) return;
+    _aaAttackName('ABSOLUTE STRIKE');
     this._absoluteStrike = { timer: 0, pass: 0, maxPasses: 3, target, pausing: 0 };
     if (typeof showBossDialogue === 'function') showBossDialogue('Absolute.', 100);
   }
@@ -968,6 +1003,7 @@ class AbsoluteAxiom extends God {
   _doDimensionPunch(target) {
     if (!target || this._dimPunchCd > 0) return;
     if (window._aaDimPunchState && window._aaDimPunchState.active) return;
+    _aaAttackName('DIMENSION PUNCH');
     this._dimPunchCd = 900; // 15s cooldown
 
     // Deal the launch hit
@@ -2221,6 +2257,41 @@ function _drawAABossBar(W, H) {
   ctx.fillStyle = '#ccc';
   ctx.font = '9px monospace';
   ctx.fillText(`${Math.ceil(aa.health).toLocaleString()} / ${aa.maxHealth.toLocaleString()}`, W / 2, by + barH + 11);
+
+  // Phase label (left of HP text)
+  const phaseLabel = ['I', 'II', 'III'][(aa._aaPhase || 1) - 1] || 'I';
+  ctx.fillStyle = col;
+  ctx.font = 'bold 9px monospace';
+  ctx.textAlign = 'left';
+  ctx.fillText(`PHASE ${phaseLabel}`, bx, by + barH + 11);
+
+  // Portal invincible
+  if (aa._portalInvincible) {
+    const pulse = 0.4 + 0.4 * Math.sin(Date.now() * 0.006);
+    ctx.strokeStyle = `rgba(180,0,255,${pulse})`;
+    ctx.lineWidth = 2;
+    ctx.strokeRect(bx - 2, by - 2, barW + 4, barH + 4);
+    ctx.fillStyle = `rgba(180,0,255,${pulse * 0.8})`;
+    ctx.font = 'bold 10px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('⚡  PORTAL INVINCIBLE  ⚡', W / 2, by + barH + 24);
+  }
+
+  // Floating attack name display
+  const _and = window._aaAttackNameDisplay;
+  if (_and && _and.timer > 0) {
+    _and.timer--;
+    const _fadeAlpha = Math.min(1, _and.timer / 18);
+    ctx.save();
+    ctx.globalAlpha = _fadeAlpha;
+    ctx.fillStyle = '#ff1100';
+    ctx.shadowColor = '#ff4400'; ctx.shadowBlur = 28;
+    ctx.font = 'bold 26px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText(_and.text, W / 2, H / 2 - 55);
+    ctx.restore();
+    if (_and.timer <= 0) window._aaAttackNameDisplay = null;
+  }
 
   ctx.restore();
 }
