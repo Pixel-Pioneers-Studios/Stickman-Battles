@@ -762,9 +762,7 @@ const ARENAS = {
   },
 
   // ── Absolute Axiom's Domain — "The Fracture Point" ───────────────────────
-  // A combination of all base arenas, merged into one massive stage.
-  // More complex than any boss arena (16 platforms, multiple height tiers).
-  // Larger than god_domain/creator, slightly smaller than scrolling mega-maps.
+  // Compact focused arena: wide floor + 7 floating platforms. No scrolling.
   absolute_axiom_domain: {
     name:              'The Fracture Point',
     sky:               ['#000005', '#060010', '#0a0018'],
@@ -781,82 +779,30 @@ const ARENAS = {
     mapRight:          2700,
     modifiers:         { gravityMult: 0.96, frictionMult: 0.98, hazardFrequency: 0.0 },
     platforms: [
-      // ── FLOOR — spans entire world ──────────────────────────────────────
+      // Floor — full world width
       { x:-900, y:560, w:3600, h:50, isFloor:true },
-
-      // ═══ ZONE 1 — GRASS (x -900 to -400) ════════════════════════════════
-      { x:-840, y:435, w:160, h:16 },  // grass low-left
-      { x:-640, y:450, w:140, h:16 },  // grass low-right
-      { x:-800, y:330, w:190, h:16 },  // grass mid (wide hill)
-      { x:-600, y:315, w:150, h:16 },  // grass mid-right
-      { x:-730, y:215, w:160, h:16 },  // grass upper
-      { x:-510, y:205, w:130, h:14 },  // grass canopy
-
-      // ═══ ZONE 2 — CITY (x -400 to 100) ══════════════════════════════════
-      { x:-390, y:450, w:110, h:16 },  // city rooftop low-left
-      { x:-240, y:438, w:130, h:16 },  // city rooftop low-mid
-      { x: -60, y:452, w:110, h:16 },  // city rooftop low-right
-      { x:-360, y:335, w:170, h:16 },  // city mid-left
-      { x:-150, y:318, w:200, h:16 },  // city centre bridge (wide)
-      { x: -20, y:332, w:140, h:16 },  // city mid-right
-      { x:-310, y:215, w:145, h:16 },  // city upper-left
-      { x: -80, y:200, w:140, h:16 },  // city upper-right
-
-      // ═══ ZONE 3 — FOREST (x 100 to 600) ═════════════════════════════════
-      { x: 120, y:442, w:140, h:16 },  // forest floor-left
-      { x: 330, y:455, w:120, h:16 },  // forest floor-mid
-      { x: 510, y:440, w:120, h:16 },  // forest floor-right
-      { x: 100, y:328, w:165, h:16 },  // forest mid-left
-      { x: 320, y:308, w:210, h:16 },  // forest wide canopy bridge
-      { x: 530, y:325, w:140, h:16 },  // forest mid-right
-      { x: 145, y:210, w:150, h:16 },  // forest upper-left
-      { x: 390, y:192, w:175, h:16 },  // forest apex canopy
-      { x: 580, y:208, w:120, h:14 },  // forest high-right
-
-      // ═══ ZONE 4 — ICE (x 600 to 1100) ═══════════════════════════════════ ← SPAWN CENTRE
-      { x: 630, y:440, w:150, h:16 },  // ice shelf left
-      { x: 850, y:432, w:130, h:16 },  // ice shelf mid
-      { x:1010, y:448, w:140, h:16 },  // ice shelf right
-      { x: 610, y:326, w:175, h:16 },  // ice mid-left
-      { x: 860, y:308, w:210, h:16 },  // ice CENTRE BRIDGE — main battle platform
-      { x:1040, y:322, w:150, h:16 },  // ice mid-right
-      { x: 700, y:210, w:155, h:16 },  // ice upper-left
-      { x: 940, y:194, w:165, h:16 },  // ice apex
-      { x:1070, y:108, w:130, h:13 },  // ice pinnacle
-
-      // ═══ ZONE 5 — LAVA (x 1100 to 1600) ═════════════════════════════════
-      { x:1150, y:438, w:130, h:16 },  // lava shelf left
-      { x:1360, y:450, w:140, h:16 },  // lava shelf mid
-      { x:1530, y:436, w:125, h:16 },  // lava shelf right
-      { x:1130, y:322, w:165, h:16 },  // lava mid-left
-      { x:1360, y:305, w:210, h:16 },  // lava crossing bridge
-      { x:1550, y:320, w:140, h:16 },  // lava mid-right
-      { x:1200, y:205, w:150, h:16 },  // lava upper-left
-      { x:1440, y:190, w:160, h:16 },  // lava upper apex
-      { x:1590, y:108, w:120, h:13 },  // lava pinnacle
-
-      // ═══ ZONE 6 — RUINS (x 1600 to 2100) ════════════════════════════════
-      { x:1640, y:444, w:135, h:16 },  // ruins shelf left
-      { x:1870, y:434, w:125, h:16 },  // ruins shelf mid
-      { x:2020, y:448, w:120, h:16 },  // ruins shelf right
-      { x:1615, y:328, w:175, h:16 },  // ruins mid-left
-      { x:1860, y:310, w:200, h:16 },  // ruins bridge
-      { x:2055, y:325, w:130, h:16 },  // ruins mid-right
-      { x:1700, y:210, w:145, h:16 },  // ruins upper-left
-      { x:1945, y:194, w:165, h:16 },  // ruins apex
-      { x:2090, y:108, w:115, h:13 },  // ruins pinnacle
-
-      // ═══ ZONE 7 — VOID/SPACE (x 2100 to 2700) ════════════════════════════
-      { x:2130, y:440, w:140, h:16 },  // void shelf left
-      { x:2360, y:455, w:130, h:16 },  // void shelf mid
-      { x:2560, y:440, w:140, h:16 },  // void shelf right
-      { x:2110, y:326, w:180, h:16 },  // void mid-left
-      { x:2360, y:308, w:225, h:16 },  // void final bridge
-      { x:2575, y:323, w:155, h:16 },  // void mid-right
-      { x:2200, y:208, w:155, h:16 },  // void upper-left
-      { x:2440, y:190, w:185, h:16 },  // void apex
-      { x:2640, y:206, w:125, h:16 },  // void upper-right
-      { x:2530, y:105, w:140, h:13 },  // void pinnacle — final confrontation
+      // Zone 1 (left)
+      { x:-800, y:330, w:190, h:16 },
+      { x:-600, y:205, w:160, h:16 },
+      // Zone 2 (city)
+      { x:-360, y:335, w:170, h:16 },
+      { x:-150, y:215, w:180, h:16 },
+      // Zone 3 (forest)
+      { x: 100, y:328, w:165, h:16 },
+      { x: 320, y:192, w:210, h:16 },
+      // Zone 4 (ice — spawn centre)
+      { x: 610, y:326, w:175, h:16 },
+      { x: 860, y:194, w:210, h:16 },
+      { x: 940, y:108, w:130, h:14 },
+      // Zone 5 (lava)
+      { x:1150, y:330, w:160, h:16 },
+      { x:1380, y:200, w:175, h:16 },
+      // Zone 6 (storm)
+      { x:1680, y:328, w:170, h:16 },
+      { x:1900, y:195, w:185, h:16 },
+      // Zone 7 (void — right)
+      { x:2150, y:330, w:165, h:16 },
+      { x:2350, y:205, w:180, h:16 },
     ]
   },
 

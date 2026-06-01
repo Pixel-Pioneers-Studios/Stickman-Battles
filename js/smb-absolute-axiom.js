@@ -64,12 +64,12 @@ class AbsoluteAxiom extends God {
     this._phase      = 2; // always use God's phase-2 movement system
     this.health      = 1000000;
     this.maxHealth   = 1000000;
-    this.dmgMult     = 4.5;
-    this.kbBonus     = 1.3;
-    this.kbResist    = 0.88;
+    this.dmgMult     = 3.0;
+    this.kbBonus     = 1.0;
+    this.kbResist    = 0.62;
     this._attackCd   = 80;
-    this._specialCd  = 220;
-    this._dashCd     = 60;
+    this._specialCd  = 240;
+    this._dashCd     = 70;
 
     // Internal phase tracking
     this._aaPhase        = 1; // 1→2 at 70%, 2→3 at 35%
@@ -87,8 +87,15 @@ class AbsoluteAxiom extends God {
     this._portalPhaseAnnounced = false;
 
     // Locomotion state: AA primarily walks/runs, occasionally takes to the air
-    this._locomotionMode  = 'walk'; // 'walk' | 'fly'
+    this._locomotionMode  = 'walk'; // 'walk' only during normal movement; 'fly' during aerial slam/absoluteStrike/smite
     this._locomotionTimer = 0;
+
+    // Aerial slam attack state
+    this._aerialSlam = null; // { phase:'rise'|'hover'|'dive', timer, targetX, targetY }
+
+    // Melee windup telegraph (no instant auto-attack aura)
+    this._meleeWindup       = 0;  // counts 0→35; strike fires at 35
+    this._meleeWindupTarget = null;
 
     // Dimension punch state
     this._dimPunchCd = 0;
@@ -109,6 +116,9 @@ class AbsoluteAxiom extends God {
     this._columnBarrage    = [];
     this._aaNova           = [];    // dark nova projectiles
     this._shatterTimer     = 0;
+
+    // Stun state (triggered by Godslayer loadout perk)
+    this._stunFrames  = 0;
 
     // Visual
     this._aaAuraPhase = 0;
@@ -227,6 +237,16 @@ class AbsoluteAxiom extends God {
       this._analyzePattern();
     }
 
+    // Stun: freeze movement and attacks while stunned
+    if (this._stunFrames > 0) {
+      this._stunFrames--;
+      this._wingAngle += 0; this._auraPhase = this._aaAuraPhase;
+      if (typeof spawnParticles === 'function' && this._stunFrames % 10 === 0)
+        spawnParticles(this.cx(), this.cy(), '#ffe066', 4);
+      super.update();
+      return;
+    }
+
     // Standard God movement + dash + attack
     this._wingAngle  += 0;
     this._auraPhase   = this._aaAuraPhase;
@@ -279,90 +299,68 @@ class AbsoluteAxiom extends God {
     // Track player action for pattern detection
     this._logPlayerAction(target);
 
-    // Locomotion mode switching — primarily walking, briefly airborne
-    this._locomotionTimer++;
-    const _walkDur = this._aaPhase === 3 ? 200 : 320;
-    const _flyDur  = this._aaPhase === 3 ? 160 : 110;
-    if (this._locomotionMode === 'walk' && this._locomotionTimer >= _walkDur) {
-      this._locomotionMode  = 'fly';
-      this._locomotionTimer = 0;
-    } else if (this._locomotionMode === 'fly' && this._locomotionTimer >= _flyDur) {
-      this._locomotionMode  = 'walk';
-      this._locomotionTimer = 0;
-      this._flyVy = 0;
+    // Fly mode only for aerial slam / absoluteStrike / smite — otherwise always ground
+    if (this._absoluteStrike || this._smiteTimer > 0) {
+      this._locomotionMode = 'fly';
+    } else if (!this._aerialSlam) {
+      this._locomotionMode = 'walk';
     }
-    // AbsoluteStrike and smite always run in fly mode
-    if (this._absoluteStrike || this._smiteTimer > 0) this._locomotionMode = 'fly';
 
     const GW = typeof GAME_W !== 'undefined' ? GAME_W : 900;
     const GH = typeof GAME_H !== 'undefined' ? GAME_H : 520;
 
     if (this._locomotionMode === 'walk') {
-      // Ground-based: run toward target, jump up to reach higher platforms
-      const walkSpd = (4.5 + this._aaPhase * 0.9) * this._phase3SpeedMod;
+      const walkSpd = (4.8 + this._aaPhase * 0.8) * this._phase3SpeedMod;
       this.vx = this.facing * walkSpd;
-      if (this.onGround && target.y < this.y - 55) {
-        this.vy = -15;
+      if (this.onGround && target.y < this.y - 60) {
+        this.vy = -16;
         this.onGround = false;
       }
-      // Dash burst toward target on cooldown
       if (this._dashCd > 0) this._dashCd--;
       if (this._dashFrames > 0) {
         this._dashFrames--;
         this.vx = this._dashVx;
-      } else if (this._dashCd <= 0 && minDist > 100 && minDist < 500) {
-        const _dashSpd    = 18 * this._phase3SpeedMod;
-        this._dashVx      = this.facing * _dashSpd;
-        this._dashFrames  = 8;
-        this._dashCd      = Math.ceil(80 / this._phase3SpeedMod);
+      } else if (this._dashCd <= 0 && minDist > 120 && minDist < 450) {
+        const _dashSpd   = 20 * this._phase3SpeedMod;
+        this._dashVx     = this.facing * _dashSpd;
+        this._dashFrames = 8;
+        this._dashCd     = Math.ceil(90 / this._phase3SpeedMod);
         this.vx = this._dashVx;
       }
-      super.update(); // Fighter.update() with gravity + platform detection
+      super.update();
       this.x = Math.max(18, Math.min(GW - this.w - 18, this.x));
     } else {
-      // Fly mode: hover above target at reduced speed
-      const flySpd = 13 * this._phase3SpeedMod;
-
       if (this._smiteTimer > 0) {
         this.vx *= 0.85; this._flyVy = 14;
-      } else if (this._absoluteStrike) {
-        // _updateAbsoluteStrike() drives movement directly
-      } else {
-        const rawHoverX = target.cx() + Math.sin(this._hoverTime * 0.45) * 48;
-        const rawHoverY = (target.y + target.h / 2) - 95 + Math.sin(this._hoverTime * 0.7) * 16;
-        const hoverX    = Math.max(20, Math.min(GW - 20, rawHoverX));
-        const hoverY    = Math.max(10, Math.min(GH * 0.85, rawHoverY));
-        const errX = hoverX - this.cx();
-        const errY = hoverY - (this.y + this.h / 2);
-        const d    = Math.hypot(errX, errY) || 1;
-        const spd  = Math.min(flySpd, d);
-
-        if (this._dashCd > 0) this._dashCd--;
-        if (this._dashCd <= 0 && d > 80) {
-          const dashSpd    = 38 * this._phase3SpeedMod;
-          this._dashVx     = (errX / d) * dashSpd;
-          this._dashVy     = (errY / d) * dashSpd;
-          this._dashFrames = 5;
-          this._dashCd     = Math.ceil(65 / this._phase3SpeedMod);
-        }
-        if (this._dashFrames > 0) {
-          this._dashFrames--;
-          this.vx = this._dashVx; this._flyVy = this._dashVy;
-        } else {
-          this.vx = (errX / d) * spd; this._flyVy = (errY / d) * spd;
-        }
+      } else if (this._aerialSlam) {
+        this._updateAerialSlam(target, GW, GH);
       }
-
+      // absoluteStrike drives itself via _updateAbsoluteStrike()
       this.vy = this._flyVy - 0.65;
       super.update();
-      this.y = Math.max(8, Math.min(GH * 0.88 - this.h, this.y));
+      this.y = Math.max(8, Math.min(GH * 0.9 - this.h, this.y));
       this.x = Math.max(18, Math.min(GW - this.w - 18, this.x));
     }
 
-    // Melee strike
-    if (minDist < 155 && this._attackCd <= 0 && typeof dealDamage === 'function') {
-      dealDamage(this, target, 220, 10);
-      this._attackCd = Math.ceil(70 / this._phase3SpeedMod);
+    // Melee windup telegraph — strike fires after 35-frame wind-up
+    if (minDist < 155 && this._attackCd <= 0 && !this._meleeWindup) {
+      this._meleeWindup = 1;
+      this._meleeWindupTarget = target;
+    }
+    if (this._meleeWindup > 0) {
+      // Cancel if target escaped
+      if (minDist > 220) {
+        this._meleeWindup = 0;
+        this._meleeWindupTarget = null;
+      } else {
+        this._meleeWindup++;
+        if (this._meleeWindup >= 35 && typeof dealDamage === 'function') {
+          dealDamage(this, this._meleeWindupTarget, 220, 10);
+          this._attackCd    = Math.ceil(70 / this._phase3SpeedMod);
+          this._meleeWindup = 0;
+          this._meleeWindupTarget = null;
+        }
+      }
     }
 
     // Special attacks
@@ -422,26 +420,28 @@ class AbsoluteAxiom extends God {
       else if (r < 0.88) this._doVoidRain(target);
       else               this._doAngelFleet(target);
     } else if (phase === 2) {
-      if (r < 0.16)      this._doDivineColumn(target);
-      else if (r < 0.30) this._doKernelPulse();
-      else if (r < 0.42) this._doKernelBeam(target);
-      else if (r < 0.54) this._doVoidRain(target);
-      else if (r < 0.64) this._doAbsoluteStrike(target);
-      else if (r < 0.74) this._doTemporalCrush();
-      else if (r < 0.84) this._doSingularity(target);
-      else if (r < 0.92) this._doHolySmite();
+      if (r < 0.14)      this._doDivineColumn(target);
+      else if (r < 0.26) this._doKernelPulse();
+      else if (r < 0.38) this._doKernelBeam(target);
+      else if (r < 0.49) this._doVoidRain(target);
+      else if (r < 0.59) this._doAbsoluteStrike(target);
+      else if (r < 0.67) this._doTemporalCrush();
+      else if (r < 0.76) this._doSingularity(target);
+      else if (r < 0.84) this._doHolySmite();
+      else if (r < 0.92) this._doAerialSlam(target);
       else               this._doColumnBarrage(target);
     } else { // phase 3
-      if (r < 0.10)      this._doDimensionPunch(target);
-      else if (r < 0.20) this._doDimShattering();
-      else if (r < 0.30) this._doColumnBarrage(target);
-      else if (r < 0.34) this._doAbsoluteStrike(target);
-      else if (r < 0.44) this._doKernelBeam(target);
-      else if (r < 0.54) this._doSingularity(target);
-      else if (r < 0.63) this._doTemporalCrush();
-      else if (r < 0.72) this._doVoidRain(target);
-      else if (r < 0.80) this._doKernelPulse();
-      else if (r < 0.88) this._doRadiantNova();
+      if (r < 0.09)      this._doDimensionPunch(target);
+      else if (r < 0.18) this._doDimShattering();
+      else if (r < 0.27) this._doColumnBarrage(target);
+      else if (r < 0.33) this._doAbsoluteStrike(target);
+      else if (r < 0.42) this._doKernelBeam(target);
+      else if (r < 0.51) this._doSingularity(target);
+      else if (r < 0.59) this._doAerialSlam(target);
+      else if (r < 0.67) this._doTemporalCrush();
+      else if (r < 0.75) this._doVoidRain(target);
+      else if (r < 0.83) this._doKernelPulse();
+      else if (r < 0.91) this._doRadiantNova();
       else               this._doAngelFleet(target);
     }
     this._setCd();
@@ -463,6 +463,67 @@ class AbsoluteAxiom extends God {
     }
     if (typeof spawnParticles === 'function') spawnParticles(this.cx(), this.y, '#880022', 14);
     if (typeof screenShake !== 'undefined') screenShake = Math.max(screenShake, 4);
+  }
+
+  // ── Aerial Slam ───────────────────────────────────────────────────────────
+
+  _doAerialSlam(target) {
+    if (!target) return;
+    this._aerialSlam  = { phase: 'rise', timer: 0, targetX: target.cx(), targetY: target.y + target.h };
+    this._locomotionMode = 'fly';
+    this._flyVy = 0;
+    if (typeof spawnParticles === 'function') spawnParticles(this.cx(), this.cy(), '#cc0044', 10);
+  }
+
+  _updateAerialSlam(target, GW, GH) {
+    const slam = this._aerialSlam;
+    if (!slam) return;
+    slam.timer++;
+
+    if (slam.phase === 'rise') {
+      // Rocket upward to hover position
+      this._flyVy = -18;
+      this.vx *= 0.7;
+      if (this.y <= 80 || slam.timer >= 25) {
+        slam.phase = 'hover';
+        slam.timer = 0;
+        slam.targetX = target.cx();
+        slam.targetY = target.y + target.h;
+        if (typeof spawnParticles === 'function') spawnParticles(this.cx(), this.cy(), '#ff4400', 16);
+      }
+    } else if (slam.phase === 'hover') {
+      // Lock in position above target for 20 frames (telegraph)
+      const driftX = slam.targetX - this.cx();
+      this.vx = driftX * 0.18;
+      this._flyVy = 0;
+      if (slam.timer >= 20) {
+        slam.phase = 'dive';
+        slam.timer = 0;
+        slam.targetX = target.cx();
+        slam.targetY = target.y + target.h;
+      }
+    } else if (slam.phase === 'dive') {
+      // Slam straight down at extreme speed
+      this._flyVy = 28;
+      const driftX = slam.targetX - this.cx();
+      this.vx = driftX * 0.22;
+      if (this.onGround || slam.timer >= 40) {
+        // Landing impact
+        if (typeof dealDamage === 'function' && target) {
+          const dist = Math.hypot(target.cx() - this.cx(), target.cy() - this.cy());
+          if (dist < 160) dealDamage(this, target, 280, 14);
+        }
+        if (typeof spawnParticles === 'function') {
+          spawnParticles(this.cx(), this.y + this.h, '#ff2200', 28);
+          spawnParticles(this.cx(), this.y + this.h, '#ffcc00', 16);
+        }
+        if (typeof screenShake !== 'undefined') screenShake = Math.max(screenShake, 18);
+        this._attackCd   = Math.ceil(80 / this._phase3SpeedMod);
+        this._aerialSlam = null;
+        this._locomotionMode = 'walk';
+        this._flyVy = 0;
+      }
+    }
   }
 
   // ── Attacks ───────────────────────────────────────────────────────────────
@@ -1358,6 +1419,36 @@ class AbsoluteAxiom extends God {
       ctx.beginPath(); ctx.arc(cx, cy, ring.r, 0, Math.PI * 2); ctx.stroke();
       ctx.restore();
     }
+
+    // Melee windup telegraph — pulsing red ring that grows as windup charges
+    if (this._meleeWindup > 0) {
+      ctx.save();
+      const windupFrac = this._meleeWindup / 35;
+      const pulseR = 50 + windupFrac * 105;
+      ctx.globalAlpha = windupFrac * 0.85;
+      ctx.strokeStyle = '#ff0022';
+      ctx.lineWidth   = 3 + windupFrac * 4;
+      ctx.shadowColor = '#ff0022';
+      ctx.shadowBlur  = 20 + windupFrac * 20;
+      ctx.beginPath(); ctx.arc(cx, cy, pulseR, 0, Math.PI * 2); ctx.stroke();
+      ctx.globalAlpha = windupFrac * 0.35;
+      ctx.fillStyle   = '#ff0022';
+      ctx.beginPath(); ctx.arc(cx, cy, pulseR, 0, Math.PI * 2); ctx.fill();
+      ctx.restore();
+    }
+
+    // Aerial slam dive shadow on floor
+    if (this._aerialSlam && this._aerialSlam.phase === 'hover') {
+      const GH = typeof GAME_H !== 'undefined' ? GAME_H : 520;
+      ctx.save();
+      ctx.globalAlpha = 0.55 + 0.3 * Math.sin(Date.now() * 0.012);
+      ctx.fillStyle   = '#ff2200';
+      ctx.shadowColor = '#ff4400'; ctx.shadowBlur = 18;
+      ctx.beginPath();
+      ctx.ellipse(cx, GH - 38, 36, 9, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
   }
 }
 
@@ -1491,28 +1582,44 @@ class VoidSentinel extends Fighter {
 // ══════════════════════════════════════════════════════════════════════════════
 const RGS_LOADOUTS = [
   {
-    name: 'Sovereign Blade',
+    name: "Godslayer",
     color: '#ffe066',
-    desc: 'Lightning sword — projectile slashes, thunder smash',
-    attackDesc: 'Volt Slash (projectile)',
-    qDesc: 'Thunder Cascade (AoE)',
-    superDesc: 'Sky Judgment (column storm)',
+    key: '1',
+    desc: 'Divine judgment — columns, stun chance, God\'s End finisher',
+    attackDesc: 'Divine Bolt (pierce)',
+    qDesc: 'Holy Columns (stun)',
+    superDesc: "God's End (mega slash)",
+    perkDesc: '35% stun on hit',
   },
   {
-    name: 'Void Lancer',
+    name: 'Null Blade',
     color: '#cc88ff',
-    desc: 'Draupnir spears — homing duplicates, void barrage',
-    attackDesc: 'Spear Clone Volley',
-    qDesc: 'Void Rupture (AoE pull)',
-    superDesc: 'Draupnir Storm (16 homing)',
+    key: '2',
+    desc: 'Void edge — void rupture, extreme KB resistance',
+    attackDesc: 'Null Edge (homing)',
+    qDesc: 'Void Counter (AoE pull)',
+    superDesc: 'Void Collapse (annihilation)',
+    perkDesc: 'KB resist +0.92',
   },
   {
-    name: 'Reality Breaker',
+    name: 'Fracture Staff',
     color: '#00ffcc',
-    desc: 'Time bubble + fracture rift, rewind damage',
-    attackDesc: 'Fracture Bolt',
-    qDesc: 'Time Bubble (slow field)',
-    superDesc: 'Reality Collapse (DoT zone)',
+    key: '3',
+    desc: 'Reality manipulation — freeze field, HP regen, reality fracture',
+    attackDesc: 'Fracture Bolt (slow)',
+    qDesc: 'Freeze Field (hard stop)',
+    superDesc: 'Reality Fracture (DoT nova)',
+    perkDesc: '5 HP/frame regen',
+  },
+  {
+    name: "Titan's Gauntlet",
+    color: '#ff6622',
+    key: '4',
+    desc: 'Unstoppable force — combo stacking, titan crash, seismic slam',
+    attackDesc: 'Titan Punch (AOE)',
+    qDesc: 'Power Surge (damage buff)',
+    superDesc: "Titan's Fall (screen slam)",
+    perkDesc: 'Combo stacks +15% dmg',
   },
 ];
 
@@ -1520,21 +1627,55 @@ const RGS_LOADOUTS = [
 function _initRGS(player) {
   if (player._rgsActive) return;
   player._rgsActive      = true;
-  player._rgsLoadout     = 0;     // 0/1/2
-  player._rgsJumpsLeft   = 4;     // extra air jumps (total 5 with base)
+  player._rgsLoadout     = 0;     // 0/1/2/3
+  player._rgsJumpsLeft   = 4;     // extra air jumps
   player._rgsOnGround    = false;
-  player._rgsHpRegen     = 0;     // regen accumulator
+  player._rgsHpRegen     = 0;
   player._rgsAbilityCd   = 0;
   player._rgsSuperCd     = 0;
   player._rgsPortalCd    = 0;
-  player._rgsSpears      = [];    // active void lancer spears
-  player._rgsTimeBubbles = [];    // active time bubbles
-  player._rgsRiftZones   = [];    // reality breaker DoT zones
-  player._rgsLightning   = [];    // sovereign lightning strikes
-  // Global perks
+  player._rgsSpears      = [];
+  player._rgsTimeBubbles = [];
+  player._rgsRiftZones   = [];
+  player._rgsLightning   = [];
+  player._rgsPowerSurge  = 0;     // Titan loadout: frames of damage buff
+  player._rgsComboStack  = 0;     // Titan combo counter
+  player._rgsComboTimer  = 0;
   player.kbResist = Math.max(player.kbResist || 0, 0.55);
+  _rgsApplyLoadoutWeapon(player, 0);
   if (typeof showBossDialogue === 'function') showBossDialogue('Reinforced God Slayer activated.', 180);
   if (typeof CinFX !== 'undefined') CinFX.flash('#ffe066', 0.5, 16);
+}
+
+// Weapon objects for each loadout — set directly on player.weapon each frame
+const _RGS_WEAPONS = [
+  // 0 — Godslayer: falls back to GODSLAYER_WEAPON defined in smb-god.js
+  null,
+  // 1 — Null Blade (exists in WEAPONS)
+  null,
+  // 2 — Fracture Staff: use electricstaff as base
+  null,
+  // 3 — Titan's Gauntlet: use gauntlet as base
+  null,
+];
+
+function _rgsApplyLoadoutWeapon(player, loadoutIdx) {
+  if (typeof WEAPONS === 'undefined') return;
+  switch (loadoutIdx) {
+    case 0:
+      player.weapon = (typeof GODSLAYER_WEAPON !== 'undefined' ? GODSLAYER_WEAPON : null)
+                      || (window.GODSLAYER_WEAPON) || WEAPONS.katana;
+      break;
+    case 1:
+      player.weapon = WEAPONS.nullblade || WEAPONS.katana;
+      break;
+    case 2:
+      player.weapon = WEAPONS.electricstaff || WEAPONS.sword;
+      break;
+    case 3:
+      player.weapon = WEAPONS.gauntlet || WEAPONS.hammer;
+      break;
+  }
 }
 
 function _updateRGS(aa, player) {
@@ -1542,64 +1683,103 @@ function _updateRGS(aa, player) {
   if (!aa || !aa.isAbsoluteAxiom) return;
   _initRGS(player);
 
-  const GW = typeof GAME_W !== 'undefined' ? GAME_W : 900;
-  const GH = typeof GAME_H !== 'undefined' ? GAME_H : 520;
-  const load = player._rgsLoadout;
+  const GW  = typeof GAME_W !== 'undefined' ? GAME_W : 900;
+  const GH  = typeof GAME_H !== 'undefined' ? GAME_H : 520;
+  const kd  = typeof keysDown !== 'undefined' ? keysDown : new Set();
 
-  // ── HP Regen (2 HP/frame = ~120/s, very slow for 1M fight) ───────────────
-  player._rgsHpRegen++;
-  if (player._rgsHpRegen >= 30) {
-    player._rgsHpRegen = 0;
-    if (player.health < player.maxHealth) player.health = Math.min(player.maxHealth, player.health + 2);
+  // ── Block normal super entirely — _storyNoSuper silences E in smb-input.js ─
+  player._storyNoSuper = true;
+
+  // ── Camera zoom — pull back for the large arena ───────────────────────────
+  if (typeof camZoomTarget !== 'undefined') camZoomTarget = Math.min(camZoomTarget, 0.72);
+
+  // ── 1/2/3/4 — direct loadout switch ──────────────────────────────────────
+  for (let i = 0; i < 4; i++) {
+    const digit = String(i + 1);
+    if (kd.has(digit) && !player[`_rgsKey${i}Held`]) {
+      player[`_rgsKey${i}Held`] = true;
+      if (player._rgsLoadout !== i) {
+        player._rgsLoadout = i;
+        player._rgsAbilityCd = 30;
+        _rgsApplyLoadoutWeapon(player, i);
+        if (typeof CinFX !== 'undefined') CinFX.flash(RGS_LOADOUTS[i].color, 0.3, 8);
+        if (typeof showBossDialogue === 'function') showBossDialogue(`Loadout: ${RGS_LOADOUTS[i].name}`, 80);
+      }
+    } else if (!kd.has(digit)) {
+      player[`_rgsKey${i}Held`] = false;
+    }
   }
 
-  // ── Quintuple jump: restore canDoubleJump if extra jumps remain ───────────
-  const onGround = player.onGround || player.grounded || (player.vy === 0 && player.y + player.h >= GH - 70);
+  const load = player._rgsLoadout;
+
+  // ── Ensure weapon stays correct for current loadout ───────────────────────
+  _rgsApplyLoadoutWeapon(player, load);
+
+  // ── Per-loadout passive perks ─────────────────────────────────────────────
+  if (load === 1) {
+    player.kbResist = 0.92;
+  } else {
+    player.kbResist = Math.max(player.kbResist || 0, 0.55);
+  }
+
+  // Fracture Staff: 5 HP/frame regen
+  if (load === 2) {
+    player._rgsHpRegen++;
+    if (player._rgsHpRegen >= 12) {
+      player._rgsHpRegen = 0;
+      if (player.health < player.maxHealth) player.health = Math.min(player.maxHealth, player.health + 5);
+    }
+  }
+
+  // Titan: combo stack decays
+  if (load === 3) {
+    if (player._rgsComboTimer > 0) player._rgsComboTimer--;
+    else player._rgsComboStack = 0;
+  }
+
+  if (player._rgsPowerSurge > 0) player._rgsPowerSurge--;
+
+  // ── Quintuple jump ────────────────────────────────────────────────────────
+  const onGround = player.onGround || player.grounded;
   if (onGround) {
     player._rgsJumpsLeft = 4;
     player._rgsOnGround  = true;
   } else if (player._rgsOnGround) {
     player._rgsOnGround = false;
   }
-  // Intercept double-jump exhaustion
   if (!onGround && !player.canDoubleJump && player._rgsJumpsLeft > 0) {
     player.canDoubleJump = true;
     player._rgsJumpsLeft--;
   }
 
   // ── Cooldowns ─────────────────────────────────────────────────────────────
-  if (player._rgsAbilityCd  > 0) player._rgsAbilityCd--;
-  if (player._rgsSuperCd    > 0) player._rgsSuperCd--;
-  if (player._rgsPortalCd   > 0) player._rgsPortalCd--;
-
-  // ── Damage resistance — halve all incoming knockback ─────────────────────
-  // (enforced by kbResist set in _initRGS; also cap received damage)
+  if (player._rgsAbilityCd > 0) player._rgsAbilityCd--;
+  if (player._rgsSuperCd   > 0) player._rgsSuperCd--;
+  if (player._rgsPortalCd  > 0) player._rgsPortalCd--;
 
   // ── T key — portal summon ─────────────────────────────────────────────────
-  const keys = typeof keysDown !== 'undefined' ? keysDown : {};
-  if ((keys['t'] || keys['T']) && !player._rgsTHeld && player._rgsPortalCd <= 0) {
-    player._rgsTHeld = true;
+  if (kd.has('t') && !player._rgsTHeld && player._rgsPortalCd <= 0) {
+    player._rgsTHeld    = true;
     player._rgsPortalCd = 600;
     _rgsPortalSummon(player, aa);
   }
-  if (!keys['t'] && !keys['T']) player._rgsTHeld = false;
-
-  // ── X key — loadout switch ────────────────────────────────────────────────
-  if ((keys['x'] || keys['X']) && !player._rgsXHeld) {
-    player._rgsXHeld = true;
-    player._rgsLoadout = (player._rgsLoadout + 1) % 3;
-    player._rgsAbilityCd = 30; // brief switch delay
-    if (typeof CinFX !== 'undefined') CinFX.flash(RGS_LOADOUTS[player._rgsLoadout].color, 0.3, 8);
-  }
-  if (!keys['x'] && !keys['X']) player._rgsXHeld = false;
+  if (!kd.has('t')) player._rgsTHeld = false;
 
   // ── Q key — loadout ability ───────────────────────────────────────────────
-  if ((keys['q'] || keys['Q']) && !player._rgsQHeld && player._rgsAbilityCd <= 0) {
+  if (kd.has('q') && !player._rgsQHeld && player._rgsAbilityCd <= 0) {
     player._rgsQHeld = true;
     _rgsUseAbility(player, aa, load);
     player._rgsAbilityCd = 240;
   }
-  if (!keys['q'] && !keys['Q']) player._rgsQHeld = false;
+  if (!kd.has('q')) player._rgsQHeld = false;
+
+  // ── E key — RGS super ─────────────────────────────────────────────────────
+  if (kd.has('e') && !player._rgsEHeld && player._rgsSuperCd <= 0) {
+    player._rgsEHeld = true;
+    _rgsUseSuper(player, aa, load);
+    player._rgsSuperCd = 360;
+  }
+  if (!kd.has('e')) player._rgsEHeld = false;
 
   // ── Update active effects ─────────────────────────────────────────────────
   _rgsUpdateEffects(player, aa);
@@ -1609,31 +1789,110 @@ function _rgsUseAbility(player, aa, load) {
   const GW = typeof GAME_W !== 'undefined' ? GAME_W : 900;
   const GH = typeof GAME_H !== 'undefined' ? GAME_H : 520;
   if (load === 0) {
-    // Thunder Cascade — lightning strikes in 5 columns around aa
-    if (typeof showBossDialogue === 'function') showBossDialogue('Thunder Cascade!', 80);
-    for (let i = -2; i <= 2; i++) {
-      const lx = aa.cx() + i * 55;
-      player._rgsLightning.push({ x: lx, timer: 0, maxTimer: 40, hitDealt: false });
+    // Godslayer: Holy Columns — 7 divine columns crash down on AA; each stuns
+    if (typeof showBossDialogue === 'function') showBossDialogue('Holy Columns!', 90);
+    for (let i = -3; i <= 3; i++) {
+      const lx = aa.cx() + i * 52;
+      player._rgsLightning.push({ x: lx, timer: 0, maxTimer: 35, hitDealt: false, isHoly: true });
+    }
+    if (typeof screenShake !== 'undefined') screenShake = Math.max(screenShake, 20);
+    if (typeof CinFX !== 'undefined') CinFX.flash('#ffe066', 0.4, 10);
+  } else if (load === 1) {
+    // Null Blade: Void Counter — massive pull + void burst
+    if (typeof showBossDialogue === 'function') showBossDialogue('Void Counter!', 90);
+    const dx = player.cx() - aa.cx(), dy = (player.cy ? player.cy() : player.y + player.h/2) - (aa.y + aa.h / 2);
+    const d = Math.hypot(dx, dy) || 1;
+    aa.vx += (dx / d) * 30;
+    aa.vy += (dy / d) * 18;
+    if (typeof dealDamage === 'function') dealDamage(player, aa, 8500, 15);
+    if (typeof spawnParticles === 'function') {
+      spawnParticles(aa.cx(), aa.cy(), '#cc88ff', 30);
+      spawnParticles(player.cx ? player.cx() : player.x, player.y, '#cc88ff', 16);
     }
     if (typeof screenShake !== 'undefined') screenShake = Math.max(screenShake, 18);
-  } else if (load === 1) {
-    // Void Rupture — pull aa toward player then burst
-    const dx = player.cx() - aa.cx(), dy = (player.y + player.h / 2) - (aa.y + aa.h / 2);
-    const d = Math.hypot(dx, dy) || 1;
-    aa.vx += (dx / d) * 22;
-    if (typeof dealDamage === 'function') dealDamage(player, aa, 4800, 12);
-    if (typeof spawnParticles === 'function') spawnParticles(aa.cx(), aa.cy(), '#cc88ff', 22);
-    if (typeof screenShake !== 'undefined') screenShake = Math.max(screenShake, 14);
+  } else if (load === 2) {
+    // Fracture Staff: Freeze Field — hard stop on AA for 120 frames
+    if (typeof showBossDialogue === 'function') showBossDialogue('Freeze Field!', 90);
+    aa._stunFrames = Math.max(aa._stunFrames || 0, 120);
+    aa.vx = 0; aa.vy = 0;
+    player._rgsTimeBubbles.push({ x: aa.cx(), y: aa.cy(), r: 0, maxR: 90, timer: 0, maxTimer: 120, isFreezeField: true });
+    if (typeof spawnParticles === 'function') spawnParticles(aa.cx(), aa.cy(), '#00ffcc', 24);
+    if (typeof CinFX !== 'undefined') CinFX.flash('#00ffcc', 0.35, 12);
   } else {
-    // Time Bubble — slow field around player
-    player._rgsTimeBubbles.push({ x: player.cx(), y: player.y + player.h / 2, r: 0, maxR: 120, timer: 0, maxTimer: 200 });
-    if (typeof showBossDialogue === 'function') showBossDialogue('Time Bubble!', 80);
+    // Titan's Gauntlet: Power Surge — next 180 frames all attacks deal +60% dmg
+    if (typeof showBossDialogue === 'function') showBossDialogue('Power Surge!', 90);
+    player._rgsPowerSurge = 180;
+    if (typeof spawnParticles === 'function') spawnParticles(player.cx ? player.cx() : player.x, player.y + player.h / 2, '#ff6622', 28);
+    if (typeof CinFX !== 'undefined') CinFX.flash('#ff6622', 0.45, 10);
+  }
+}
+
+function _rgsUseSuper(player, aa, load) {
+  const GW = typeof GAME_W !== 'undefined' ? GAME_W : 900;
+  const GH = typeof GAME_H !== 'undefined' ? GAME_H : 520;
+  if (load === 0) {
+    // Godslayer: God's End — massive diagonal slash wave across entire screen
+    if (typeof showBossDialogue === 'function') showBossDialogue("God's End!", 120);
+    if (typeof dealDamage === 'function') dealDamage(player, aa, 35000, 22);
+    aa._stunFrames = Math.max(aa._stunFrames || 0, 60);
+    for (let i = 0; i < 12; i++) {
+      const lx = 50 + i * 75;
+      player._rgsLightning.push({ x: lx, timer: i * 3, maxTimer: 28 + i * 3, hitDealt: false, isHoly: true, superHit: true });
+    }
+    if (typeof CinFX !== 'undefined') CinFX.flash('#ffe066', 0.75, 22);
+    if (typeof screenShake !== 'undefined') screenShake = Math.max(screenShake, 30);
+  } else if (load === 1) {
+    // Null Blade: Void Collapse — zero-point implosion; massive damage + terrain shatter
+    if (typeof showBossDialogue === 'function') showBossDialogue('Void Collapse!', 120);
+    if (typeof dealDamage === 'function') dealDamage(player, aa, 55000, 28);
+    aa.vx = 0; aa.vy = -20;
+    player._rgsRiftZones.push({ x: aa.cx(), y: aa.cy(), r: 140, timer: 0, maxTimer: 300 });
+    if (typeof spawnParticles === 'function') {
+      for (let i = 0; i < 5; i++) spawnParticles(aa.cx(), aa.cy(), '#cc88ff', 20);
+    }
+    if (typeof CinFX !== 'undefined') CinFX.flash('#cc88ff', 0.8, 25);
+    if (typeof screenShake !== 'undefined') screenShake = Math.max(screenShake, 35);
+  } else if (load === 2) {
+    // Fracture Staff: Reality Fracture — nova of 8 fracture bolts + sustained DoT zones
+    if (typeof showBossDialogue === 'function') showBossDialogue('Reality Fracture!', 120);
+    if (typeof dealDamage === 'function') dealDamage(player, aa, 28000, 16);
+    for (let i = 0; i < 6; i++) {
+      const angle = (Math.PI * 2 / 6) * i;
+      player._rgsRiftZones.push({
+        x: aa.cx() + Math.cos(angle) * 80, y: aa.cy() + Math.sin(angle) * 60,
+        r: 70, timer: 0, maxTimer: 480,
+      });
+    }
+    if (typeof CinFX !== 'undefined') CinFX.flash('#00ffcc', 0.7, 20);
+    if (typeof screenShake !== 'undefined') screenShake = Math.max(screenShake, 28);
+  } else {
+    // Titan's Gauntlet: Titan's Fall — AA is slammed into the ground
+    if (typeof showBossDialogue === 'function') showBossDialogue("Titan's Fall!", 120);
+    aa.vy = 35; aa.vx = 0;
+    aa._stunFrames = Math.max(aa._stunFrames || 0, 150);
+    if (typeof dealDamage === 'function') dealDamage(player, aa, 45000, 30);
+    // Shockwave rings
+    for (let i = 0; i < 4; i++) {
+      player._rgsTimeBubbles.push({ x: aa.cx(), y: aa.cy(), r: i * 30, maxR: 200 + i * 50, timer: 0, maxTimer: 60 + i * 20, isTitanShock: true });
+    }
+    if (typeof CinFX !== 'undefined') CinFX.flash('#ff6622', 0.85, 28);
+    if (typeof screenShake !== 'undefined') screenShake = Math.max(screenShake, 40);
+    player._rgsComboStack = 0;
   }
 }
 
 function _rgsUpdateEffects(player, aa) {
   const GW = typeof GAME_W !== 'undefined' ? GAME_W : 900;
   const GH = typeof GAME_H !== 'undefined' ? GAME_H : 520;
+
+  // Godslayer passive: 35% stun chance when a hit lands on AA (detected via HP drop)
+  if (player._rgsLoadout === 0) {
+    const aaHp = aa.health;
+    if (player._rgsLastAAHp !== undefined && aaHp < player._rgsLastAAHp && Math.random() < 0.35) {
+      aa._stunFrames = Math.max(aa._stunFrames || 0, 50);
+    }
+    player._rgsLastAAHp = aaHp;
+  }
 
   // Lightning strikes
   for (let i = player._rgsLightning.length - 1; i >= 0; i--) {
@@ -1825,55 +2084,89 @@ function _drawRGSHud(W, H) {
 
   const load   = player._rgsLoadout;
   const ldata  = RGS_LOADOUTS[load];
-  const panX   = 10, panY = H - 120;
-  const panW   = 240, panH = 110;
+  const panX   = 10, panY = H - 148;
+  const panW   = 260, panH = 138;
 
   // Panel BG
-  ctx.fillStyle = 'rgba(0,0,0,0.65)';
+  ctx.fillStyle = 'rgba(0,0,0,0.70)';
   _roundRect(ctx, panX, panY, panW, panH, 8);
   ctx.fill();
 
-  // Loadout name + color bar
+  // ── 4 Loadout tabs ────────────────────────────────────────────────────────
+  const tabW = panW / 4;
+  for (let i = 0; i < 4; i++) {
+    const lx  = panX + i * tabW;
+    const ld  = RGS_LOADOUTS[i];
+    const sel = i === load;
+    ctx.fillStyle = sel ? ld.color : 'rgba(255,255,255,0.08)';
+    _roundRect(ctx, lx + 1, panY + 1, tabW - 2, 20, sel ? 6 : 4);
+    ctx.fill();
+    ctx.fillStyle = sel ? '#000' : '#666';
+    ctx.font = `bold ${sel ? 9 : 8}px monospace`;
+    ctx.textAlign = 'center';
+    ctx.fillText(`[${i+1}] ${ld.name.split(' ')[0]}`, lx + tabW / 2, panY + 13);
+  }
+
+  // Active loadout label
+  ctx.textAlign = 'left';
   ctx.fillStyle = ldata.color;
-  _roundRect(ctx, panX, panY, panW, 24, 8);
-  ctx.fill();
-  ctx.fillStyle = '#000';
-  ctx.font = 'bold 11px monospace';
-  ctx.textAlign = 'center';
-  ctx.fillText(`[X] ${ldata.name}`, panX + panW / 2, panY + 15);
+  ctx.font = 'bold 10px monospace';
+  ctx.fillText(ldata.name, panX + 8, panY + 34);
+  ctx.fillStyle = '#999';
+  ctx.font = '8px monospace';
+  ctx.fillText(ldata.perkDesc, panX + 8, panY + 44);
 
   // Move descriptions
-  ctx.textAlign = 'left';
   ctx.fillStyle = '#ddd';
   ctx.font = '9px monospace';
-  ctx.fillText(`SPACE: ${ldata.attackDesc}`, panX + 8, panY + 36);
-  ctx.fillText(`Q (${player._rgsAbilityCd > 0 ? Math.ceil(player._rgsAbilityCd/60)+'s' : 'READY'}): ${ldata.qDesc}`, panX + 8, panY + 48);
-  ctx.fillText(`SUPER: ${ldata.superDesc}`, panX + 8, panY + 60);
+  const qReady = player._rgsAbilityCd <= 0;
+  const eReady = player._rgsSuperCd   <= 0;
+  ctx.fillText(`Q: ${ldata.qDesc}`, panX + 8, panY + 58);
+  ctx.fillText(`E: ${ldata.superDesc}`, panX + 8, panY + 70);
+
+  // Q ability cooldown bar
+  const qFrac = qReady ? 1 : 1 - player._rgsAbilityCd / 240;
+  ctx.fillStyle = '#333';
+  ctx.fillRect(panX + 8, panY + 74, panW - 16, 5);
+  ctx.fillStyle = qReady ? ldata.color : '#555';
+  ctx.fillRect(panX + 8, panY + 74, (panW - 16) * qFrac, 5);
+
+  // E super cooldown bar
+  const eFrac = eReady ? 1 : 1 - player._rgsSuperCd / 360;
+  ctx.fillStyle = '#333';
+  ctx.fillRect(panX + 8, panY + 82, panW - 16, 5);
+  ctx.fillStyle = eReady ? '#ff6622' : '#442200';
+  ctx.fillRect(panX + 8, panY + 82, (panW - 16) * eFrac, 5);
+
+  // Labels
+  ctx.fillStyle = '#aaa';
+  ctx.font = '8px monospace';
+  ctx.fillText(qReady ? 'Q ABILITY READY' : `Q ${Math.ceil(player._rgsAbilityCd/60)}s`, panX + 8, panY + 97);
+  ctx.textAlign = 'right';
+  ctx.fillText(eReady ? 'E SUPER READY' : `E ${Math.ceil(player._rgsSuperCd/60)}s`, panX + panW - 8, panY + 97);
+  ctx.textAlign = 'left';
 
   // Jumps remaining
   ctx.fillStyle = '#ffe066';
-  ctx.fillText(`JUMPS: `, panX + 8, panY + 74);
+  ctx.fillText('JUMPS:', panX + 8, panY + 110);
   for (let j = 0; j < 4; j++) {
-    ctx.fillStyle = j < player._rgsJumpsLeft ? '#ffe066' : 'rgba(255,224,102,0.25)';
-    ctx.fillRect(panX + 56 + j * 14, panY + 64, 10, 8);
+    ctx.fillStyle = j < player._rgsJumpsLeft ? '#ffe066' : 'rgba(255,224,102,0.18)';
+    ctx.fillRect(panX + 58 + j * 14, panY + 101, 10, 8);
   }
 
-  // Portal cooldown bar
+  // Portal cooldown
   const pcdFrac = player._rgsPortalCd > 0 ? 1 - player._rgsPortalCd / 600 : 1;
   ctx.fillStyle = '#333';
-  ctx.fillRect(panX + 8, panY + 82, panW - 16, 7);
-  ctx.fillStyle = pcdFrac >= 1 ? '#cc00ff' : '#660099';
-  ctx.fillRect(panX + 8, panY + 82, (panW - 16) * pcdFrac, 7);
+  ctx.fillRect(panX + 8, panY + 118, panW - 16, 5);
+  ctx.fillStyle = pcdFrac >= 1 ? '#cc00ff' : '#440066';
+  ctx.fillRect(panX + 8, panY + 118, (panW - 16) * pcdFrac, 5);
   ctx.fillStyle = '#aaa';
   ctx.font = '8px monospace';
-  ctx.textAlign = 'left';
-  ctx.fillText(pcdFrac >= 1 ? '[T] PORTAL READY' : `[T] ${Math.ceil(player._rgsPortalCd / 60)}s`, panX + 8, panY + 96);
-
-  // Ally count
+  ctx.fillText(pcdFrac >= 1 ? '[T] PORTAL READY' : `[T] ${Math.ceil(player._rgsPortalCd / 60)}s`, panX + 8, panY + 132);
   const allyCount = (typeof minions !== 'undefined') ? minions.filter(m => m.isAAPortalAlly && m.health > 0).length : 0;
-  ctx.fillStyle = allyCount >= 3 ? '#00ffcc' : '#888';
   ctx.textAlign = 'right';
-  ctx.fillText(`ALLIES: ${allyCount}/3`, panX + panW - 8, panY + 96);
+  ctx.fillStyle = allyCount >= 3 ? '#00ffcc' : '#888';
+  ctx.fillText(`ALLIES: ${allyCount}/3`, panX + panW - 8, panY + 132);
 
   // AA HP bar (top center)
   if (aa) {
