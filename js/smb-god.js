@@ -477,6 +477,23 @@ class God extends Fighter {
     this.target = target;
     this.facing = Math.sign(target.cx() - this.cx()) || 1;
 
+    // AbsoluteAxiom manages its own locomotion and attacks — skip God's versions
+    if (this.isAbsoluteAxiom) {
+      const _aaGH = typeof GAME_H !== 'undefined' ? GAME_H : 520;
+      const _aaGW = typeof GAME_W !== 'undefined' ? GAME_W : 900;
+      if (this._locomotionMode === 'fly') {
+        this.vy = this._flyVy - 0.65;
+        super.update();
+        this.y = Math.max(8, Math.min(_aaGH * 0.9 - this.h, this.y));
+        this.x = Math.max(18, Math.min(_aaGW - this.w - 18, this.x));
+      } else {
+        // Walk mode: let gravity and platform collision run normally
+        super.update();
+        this.x = Math.max(18, Math.min(_aaGW - this.w - 18, this.x));
+      }
+      return; // skip God's locomotion and melee auto-attack entirely
+    }
+
     if (this._smiteTimer > 0) {
       // Forced dive during smite
       this.vx    *= 0.85;

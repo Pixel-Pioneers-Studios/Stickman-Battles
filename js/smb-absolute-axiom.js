@@ -2,6 +2,90 @@
 // smb-absolute-axiom.js — Absolute Axiom: God + Kernel merged. Final secret boss.
 // Extends God (defined in smb-god.js). Load after smb-smk2-class.js.
 
+// ── Absolute Axiom Dialogue Pools ──────────────────────────────────────────
+// Tone: cosmic detachment. Where Axiom observes, AA has already concluded.
+// Short. Final. No questions — only declarations.
+
+const AA_IDLE_LINES = [
+  'The result is already written.',
+  'Every move you make — I\'ve seen it end.',
+  'There is no version of this where you leave.',
+  'You\'re not fighting me. You\'re delaying.',
+  'The equation doesn\'t change because you struggle.',
+  'I\'ve processed every outcome. This is the one.',
+  'Keep going. The ending doesn\'t shift.',
+  'All paths converge here.',
+  'You chose this. The result was always mine.',
+];
+
+const AA_HIT_LINES = [
+  'Interesting.',
+  'That changes nothing.',
+  'Noted.',
+  'A deviation. Irrelevant.',
+  'You found a gap. There are no more.',
+  'Unexpected. Still insufficient.',
+  'You adapted. I already have.',
+];
+
+const AA_KILL_LINES = [
+  'The outcome was always this.',
+  'You were never meant to survive this.',
+  'Fixed point. Inevitable.',
+  'It ends here. As written.',
+  'Every version of you ends the same.',
+];
+
+const AA_PHASE2_LINES = [
+  'You\'ve reached what Axiom couldn\'t. It won\'t matter.',
+  'Interesting. You\'re pushing past the boundary.',
+  'I\'ll stop calculating and start finishing.',
+];
+
+const AA_PHASE3_LINES = [
+  'Impossible. And yet.',
+  'You\'ve broken every model I have. So I discard them.',
+  'This is where the absolute begins.',
+  'No more limits. This is everything I am.',
+];
+
+const AA_CHECKPOINT_LINES = {
+  800000: 'You\'re consistent. Consistency isn\'t enough.',
+  600000: 'You\'ve lasted longer than all of them.',
+  400000: 'Stop. Look at what you\'re doing. It\'s remarkable. It still won\'t work.',
+  200000: 'You\'ve broken a pattern I thought was absolute. Adapt.',
+  100000: 'I don\'t have a model for this. That hasn\'t happened before.',
+};
+
+const AA_ATTACK_WARN_LINES = [
+  'Fixed.',
+  'Calculated.',
+  'Here.',
+  'Absolute.',
+  'End.',
+  'Done.',
+  'Final.',
+];
+
+const AA_SPECIAL_NAMES = [
+  'Kernel Pulse',
+  'Void Rain',
+  'Divine Column',
+  'Absolute Strike',
+  'Singularity',
+  'Smite',
+  'Temporal Crush',
+  'Kernel Beam',
+  'Aerial Slam',
+  'Dimension Punch',
+];
+
+function _aaDialogue(lines, dur) {
+  if (!Array.isArray(lines) || !lines.length) return;
+  const line = lines[Math.floor(Math.random() * lines.length)];
+  if (typeof showBossDialogue === 'function') showBossDialogue(line, dur || 160);
+}
+
 // ── Death tracking ──────────────────────────────────────────────────────────
 function _checkAbsoluteAxiomDeathHook() {
   if (!window._absoluteAxiomWasAlive) return;
@@ -57,6 +141,8 @@ class AbsoluteAxiom extends God {
     this.name            = 'ABSOLUTE AXIOM';
     this.isAbsoluteAxiom = true;
     this.isGod           = false; // prevent normal God death handler
+    this.isAI            = false; // disable Fighter's AI auto-attack system
+    this.playerNum       = 95;   // unique ID for kill feed
     this.w               = 34;
     this.h               = 66;
 
@@ -64,12 +150,12 @@ class AbsoluteAxiom extends God {
     this._phase      = 2; // always use God's phase-2 movement system
     this.health      = 1000000;
     this.maxHealth   = 1000000;
-    this.dmgMult     = 3.0;
-    this.kbBonus     = 1.0;
+    this.dmgMult     = 2.2;
+    this.kbBonus     = 0.9;
     this.kbResist    = 0.62;
-    this._attackCd   = 80;
-    this._specialCd  = 240;
-    this._dashCd     = 70;
+    this._attackCd   = 100;
+    this._specialCd  = 280;
+    this._dashCd     = 90;
 
     // Internal phase tracking
     this._aaPhase        = 1; // 1→2 at 70%, 2→3 at 35%
@@ -143,6 +229,7 @@ class AbsoluteAxiom extends God {
   respawn()       { this.health = 0; }
   useSuper()      {}
   activateSuper() {}
+  attack()        {} // all attacks handled by custom systems, never by Fighter AI
   checkPlatform(pl) {
     if (this._locomotionMode === 'walk') Fighter.prototype.checkPlatform.call(this, pl);
   }
@@ -165,25 +252,36 @@ class AbsoluteAxiom extends God {
     if (!this._phase2Fired && hpFrac <= 0.70) {
       this._phase2Fired = true;
       this._aaPhase = 2;
-      this._specialCd = 140;
-      this._dashCd    = 38;
-      if (typeof showBossDialogue === 'function') showBossDialogue('You\'re stronger than I expected. Let me adjust.', 180);
-      if (typeof screenShake !== 'undefined') screenShake = Math.max(screenShake, 20);
-      if (typeof CinFX !== 'undefined') CinFX.flash('#ff4400', 0.35, 14);
+      this._specialCd  = 160;
+      this._dashCd     = 50;
+      _aaDialogue(AA_PHASE2_LINES, 220);
+      if (typeof screenShake !== 'undefined') screenShake = Math.max(screenShake, 22);
+      if (typeof CinFX !== 'undefined') {
+        CinFX.flash('#ff4400', 0.4, 16);
+        setTimeout(() => { if (typeof CinFX !== 'undefined') CinFX.flash('#880000', 0.3, 24); }, 400);
+      }
+      if (typeof spawnParticles === 'function') {
+        spawnParticles(this.cx(), this.cy(), '#ff2200', 24);
+        spawnParticles(this.cx(), this.cy(), '#ffaa00', 16);
+      }
     }
     if (!this._phase3Fired && hpFrac <= 0.35) {
       this._phase3Fired = true;
       this._aaPhase = 3;
-      this._specialCd     = 90;
-      this._dashCd        = 28;
-      this._phase3SpeedMod = 1.35;
-      if (typeof showBossDialogue === 'function') showBossDialogue('ABSOLUTE POWER. NOW.', 220);
-      if (typeof screenShake !== 'undefined') screenShake = Math.max(screenShake, 35);
+      this._specialCd      = 100;
+      this._dashCd         = 34;
+      this._phase3SpeedMod = 1.30;
+      _aaDialogue(AA_PHASE3_LINES, 260);
+      if (typeof screenShake !== 'undefined') screenShake = Math.max(screenShake, 40);
       if (typeof CinFX !== 'undefined') {
-        CinFX.flash('#ffffff', 0.8, 20);
-        CinFX.flash('#ff2200', 0.5, 35);
+        CinFX.flash('#ffffff', 0.9, 22);
+        setTimeout(() => { if (typeof CinFX !== 'undefined') CinFX.flash('#cc0000', 0.6, 36); }, 300);
+        setTimeout(() => { if (typeof CinFX !== 'undefined') CinFX.flash('#000000', 0.4, 50); }, 700);
       }
-      if (typeof spawnParticles === 'function') spawnParticles(this.cx(), this.cy(), '#ff4400', 40);
+      if (typeof spawnParticles === 'function') {
+        for (let _i = 0; _i < 5; _i++)
+          spawnParticles(this.cx() + (_i - 2) * 60, this.cy(), '#ff2200', 18);
+      }
     }
 
     // Checkpoint triggers
@@ -235,6 +333,14 @@ class AbsoluteAxiom extends God {
     if (this._stratTimer >= 80) {
       this._stratTimer = 0;
       this._analyzePattern();
+    }
+
+    // Idle dialogue — fire every ~8 seconds (480 frames)
+    if (!this._idleDialogueTimer) this._idleDialogueTimer = 180 + Math.floor(Math.random() * 120);
+    this._idleDialogueTimer--;
+    if (this._idleDialogueTimer <= 0) {
+      this._idleDialogueTimer = 420 + Math.floor(Math.random() * 180);
+      _aaDialogue(AA_IDLE_LINES, 160);
     }
 
     // Stun: freeze movement and attacks while stunned
@@ -395,6 +501,8 @@ class AbsoluteAxiom extends God {
     const phase = this._aaPhase;
     const strat = this._counterStrat;
     const roll  = Math.random();
+    // 40% chance to telegraph with a short dialogue line
+    if (Math.random() < 0.40) _aaDialogue(AA_ATTACK_WARN_LINES, 60);
 
     // Strat-override first
     if (strat === 'punish_attacker' && roll < 0.55) {
@@ -836,8 +944,8 @@ class AbsoluteAxiom extends God {
 
   // ── Checkpoint ────────────────────────────────────────────────────────────
   _fireCheckpoint(threshold) {
-    const label = Math.round((1000000 - threshold) / 1000) + 'K';
-    if (typeof showBossDialogue === 'function') showBossDialogue(`You\'ve dealt ${label}K damage. The fracture deepens…`, 220);
+    const _cpLine = AA_CHECKPOINT_LINES[threshold];
+    if (_cpLine && typeof showBossDialogue === 'function') showBossDialogue(_cpLine, 230);
     if (typeof screenShake !== 'undefined') screenShake = Math.max(screenShake, 24);
     if (typeof CinFX !== 'undefined') CinFX.flash('#ffffff', 0.55, 18);
     if (typeof spawnParticles === 'function') {
@@ -1687,8 +1795,11 @@ function _updateRGS(aa, player) {
   const GH  = typeof GAME_H !== 'undefined' ? GAME_H : 520;
   const kd  = typeof keysDown !== 'undefined' ? keysDown : new Set();
 
-  // ── Block normal super entirely — _storyNoSuper silences E in smb-input.js ─
+  // ── Block normal super — _storyNoSuper silences E in smb-input.js ──────────
   player._storyNoSuper = true;
+  // Drain superMeter slowly so the standard HUD bar empties smoothly
+  if (player.superMeter > 0) player.superMeter = Math.max(0, player.superMeter - 4);
+  player.superReady = false;
 
   // ── Camera zoom — pull back for the large arena ───────────────────────────
   if (typeof camZoomTarget !== 'undefined') camZoomTarget = Math.min(camZoomTarget, 0.72);
@@ -1804,7 +1915,7 @@ function _rgsUseAbility(player, aa, load) {
     const d = Math.hypot(dx, dy) || 1;
     aa.vx += (dx / d) * 30;
     aa.vy += (dy / d) * 18;
-    if (typeof dealDamage === 'function') dealDamage(player, aa, 8500, 15);
+    if (typeof dealDamage === 'function') dealDamage(player, aa, 3500, 12);
     if (typeof spawnParticles === 'function') {
       spawnParticles(aa.cx(), aa.cy(), '#cc88ff', 30);
       spawnParticles(player.cx ? player.cx() : player.x, player.y, '#cc88ff', 16);
@@ -1831,52 +1942,51 @@ function _rgsUseSuper(player, aa, load) {
   const GW = typeof GAME_W !== 'undefined' ? GAME_W : 900;
   const GH = typeof GAME_H !== 'undefined' ? GAME_H : 520;
   if (load === 0) {
-    // Godslayer: God's End — massive diagonal slash wave across entire screen
+    // Godslayer: God's End — 10 divine columns crash across the arena; stuns AA
     if (typeof showBossDialogue === 'function') showBossDialogue("God's End!", 120);
-    if (typeof dealDamage === 'function') dealDamage(player, aa, 35000, 22);
-    aa._stunFrames = Math.max(aa._stunFrames || 0, 60);
-    for (let i = 0; i < 12; i++) {
-      const lx = 50 + i * 75;
-      player._rgsLightning.push({ x: lx, timer: i * 3, maxTimer: 28 + i * 3, hitDealt: false, isHoly: true, superHit: true });
+    if (typeof dealDamage === 'function') dealDamage(player, aa, 8000, 14);
+    aa._stunFrames = Math.max(aa._stunFrames || 0, 80);
+    for (let i = 0; i < 10; i++) {
+      const lx = 80 + i * 74;
+      player._rgsLightning.push({ x: lx, timer: i * 4, maxTimer: 30 + i * 4, hitDealt: false, isHoly: true });
     }
-    if (typeof CinFX !== 'undefined') CinFX.flash('#ffe066', 0.75, 22);
-    if (typeof screenShake !== 'undefined') screenShake = Math.max(screenShake, 30);
+    if (typeof CinFX !== 'undefined') CinFX.flash('#ffe066', 0.6, 18);
+    if (typeof screenShake !== 'undefined') screenShake = Math.max(screenShake, 24);
   } else if (load === 1) {
-    // Null Blade: Void Collapse — zero-point implosion; massive damage + terrain shatter
+    // Null Blade: Void Collapse — massive pull + void implosion DoT field
     if (typeof showBossDialogue === 'function') showBossDialogue('Void Collapse!', 120);
-    if (typeof dealDamage === 'function') dealDamage(player, aa, 55000, 28);
-    aa.vx = 0; aa.vy = -20;
-    player._rgsRiftZones.push({ x: aa.cx(), y: aa.cy(), r: 140, timer: 0, maxTimer: 300 });
+    if (typeof dealDamage === 'function') dealDamage(player, aa, 12000, 18);
+    aa.vx = 0; aa.vy = -12;
+    player._rgsRiftZones.push({ x: aa.cx(), y: aa.cy(), r: 120, timer: 0, maxTimer: 300 });
     if (typeof spawnParticles === 'function') {
-      for (let i = 0; i < 5; i++) spawnParticles(aa.cx(), aa.cy(), '#cc88ff', 20);
+      for (let i = 0; i < 4; i++) spawnParticles(aa.cx(), aa.cy(), '#cc88ff', 16);
     }
-    if (typeof CinFX !== 'undefined') CinFX.flash('#cc88ff', 0.8, 25);
-    if (typeof screenShake !== 'undefined') screenShake = Math.max(screenShake, 35);
+    if (typeof CinFX !== 'undefined') CinFX.flash('#cc88ff', 0.65, 20);
+    if (typeof screenShake !== 'undefined') screenShake = Math.max(screenShake, 26);
   } else if (load === 2) {
-    // Fracture Staff: Reality Fracture — nova of 8 fracture bolts + sustained DoT zones
+    // Fracture Staff: Reality Fracture — 6 sustained DoT zones radiate from AA
     if (typeof showBossDialogue === 'function') showBossDialogue('Reality Fracture!', 120);
-    if (typeof dealDamage === 'function') dealDamage(player, aa, 28000, 16);
+    if (typeof dealDamage === 'function') dealDamage(player, aa, 6000, 10);
     for (let i = 0; i < 6; i++) {
       const angle = (Math.PI * 2 / 6) * i;
       player._rgsRiftZones.push({
         x: aa.cx() + Math.cos(angle) * 80, y: aa.cy() + Math.sin(angle) * 60,
-        r: 70, timer: 0, maxTimer: 480,
+        r: 65, timer: 0, maxTimer: 420,
       });
     }
-    if (typeof CinFX !== 'undefined') CinFX.flash('#00ffcc', 0.7, 20);
-    if (typeof screenShake !== 'undefined') screenShake = Math.max(screenShake, 28);
+    if (typeof CinFX !== 'undefined') CinFX.flash('#00ffcc', 0.55, 16);
+    if (typeof screenShake !== 'undefined') screenShake = Math.max(screenShake, 22);
   } else {
-    // Titan's Gauntlet: Titan's Fall — AA is slammed into the ground
+    // Titan's Gauntlet: Titan's Fall — slams AA into the ground + shockwave rings
     if (typeof showBossDialogue === 'function') showBossDialogue("Titan's Fall!", 120);
-    aa.vy = 35; aa.vx = 0;
-    aa._stunFrames = Math.max(aa._stunFrames || 0, 150);
-    if (typeof dealDamage === 'function') dealDamage(player, aa, 45000, 30);
-    // Shockwave rings
-    for (let i = 0; i < 4; i++) {
-      player._rgsTimeBubbles.push({ x: aa.cx(), y: aa.cy(), r: i * 30, maxR: 200 + i * 50, timer: 0, maxTimer: 60 + i * 20, isTitanShock: true });
+    aa.vy = 28; aa.vx = 0;
+    aa._stunFrames = Math.max(aa._stunFrames || 0, 100);
+    if (typeof dealDamage === 'function') dealDamage(player, aa, 10000, 20);
+    for (let i = 0; i < 3; i++) {
+      player._rgsTimeBubbles.push({ x: aa.cx(), y: aa.cy(), r: i * 30, maxR: 160 + i * 50, timer: 0, maxTimer: 50 + i * 18, isTitanShock: true });
     }
-    if (typeof CinFX !== 'undefined') CinFX.flash('#ff6622', 0.85, 28);
-    if (typeof screenShake !== 'undefined') screenShake = Math.max(screenShake, 40);
+    if (typeof CinFX !== 'undefined') CinFX.flash('#ff6622', 0.7, 22);
+    if (typeof screenShake !== 'undefined') screenShake = Math.max(screenShake, 32);
     player._rgsComboStack = 0;
   }
 }
@@ -2069,7 +2179,56 @@ class AAPortalAlly extends Fighter {
 // ══════════════════════════════════════════════════════════════════════════════
 // RGS HUD — drawn in screen space from smb-loop-core hook
 // ══════════════════════════════════════════════════════════════════════════════
+function _drawAABossBar(W, H) {
+  // Standalone AA HP bar — shown always while AA is alive, independent of RGS
+  const aa = (typeof minions !== 'undefined') ? minions.find(m => m.isAbsoluteAxiom && m.health > 0) : null;
+  if (!aa || typeof ctx === 'undefined') return;
+  ctx.save();
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  const barW = Math.min(500, W * 0.55), barH = 20;
+  const bx   = (W - barW) / 2, by = 8;
+  const hpFrac = Math.max(0, aa.health / aa.maxHealth);
+  const phase  = aa._aaPhase || 1;
+  const phaseColors = ['#ff3300', '#cc0044', '#8800ff'];
+  const col = phaseColors[phase - 1] || '#ff3300';
+
+  // Shadow backing
+  ctx.fillStyle = 'rgba(0,0,0,0.80)';
+  _roundRect && _roundRect(ctx, bx - 2, by - 2, barW + 4, barH + 4, 5);
+  ctx.fill();
+
+  // HP fill
+  const grad = ctx.createLinearGradient(bx, by, bx + barW * hpFrac, by);
+  grad.addColorStop(0, col);
+  grad.addColorStop(1, '#ff6600');
+  ctx.fillStyle = grad;
+  ctx.fillRect(bx, by, barW * hpFrac, barH);
+
+  // Phase tick marks at 70% and 35%
+  for (const tick of [0.70, 0.35]) {
+    const tx = bx + barW * tick;
+    ctx.fillStyle = 'rgba(255,255,255,0.6)';
+    ctx.fillRect(tx - 1, by, 2, barH);
+  }
+
+  // Name + HP text
+  ctx.fillStyle = '#fff';
+  ctx.font = 'bold 11px monospace';
+  ctx.textAlign = 'center';
+  ctx.shadowColor = col; ctx.shadowBlur = 8;
+  ctx.fillText('✦ ABSOLUTE AXIOM ✦', W / 2, by - 3);
+  ctx.shadowBlur = 0;
+  ctx.fillStyle = '#ccc';
+  ctx.font = '9px monospace';
+  ctx.fillText(`${Math.ceil(aa.health).toLocaleString()} / ${aa.maxHealth.toLocaleString()}`, W / 2, by + barH + 11);
+
+  ctx.restore();
+}
+
 function _drawRGSHud(W, H) {
+  // Always draw the AA HP bar
+  _drawAABossBar(W, H);
+
   // Ally namecard (independent of player RGS state)
   if (typeof _tickAAFinalCinCard === 'function') _tickAAFinalCinCard(W, H);
 
@@ -2168,48 +2327,7 @@ function _drawRGSHud(W, H) {
   ctx.fillStyle = allyCount >= 3 ? '#00ffcc' : '#888';
   ctx.fillText(`ALLIES: ${allyCount}/3`, panX + panW - 8, panY + 132);
 
-  // AA HP bar (top center)
-  if (aa) {
-    const barW = 360, barH = 18;
-    const bx   = (W - barW) / 2, by = 8;
-    const hpFrac = aa.health / aa.maxHealth;
-
-    ctx.fillStyle = 'rgba(0,0,0,0.75)';
-    _roundRect(ctx, bx - 2, by - 2, barW + 4, barH + 4, 4);
-    ctx.fill();
-
-    const barGrad = ctx.createLinearGradient(bx, by, bx + barW, by + barH);
-    barGrad.addColorStop(0,   '#ff2200');
-    barGrad.addColorStop(0.5, '#ff6600');
-    barGrad.addColorStop(1,   '#ff4400');
-    ctx.fillStyle = barGrad;
-    ctx.fillRect(bx, by, barW * hpFrac, barH);
-
-    // Checkpoint tick marks
-    const ticks = [0.8, 0.6, 0.4, 0.2, 0.1];
-    for (const tick of ticks) {
-      const tx = bx + barW * tick;
-      ctx.fillStyle = aa._checkpointsFired.has(Math.round(tick * 1000000)) ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.7)';
-      ctx.fillRect(tx - 1, by, 2, barH);
-    }
-
-    ctx.fillStyle = aa._portalInvincible ? '#cc00ff' : '#fff';
-    ctx.font      = 'bold 10px monospace';
-    ctx.textAlign = 'center';
-    ctx.fillText(
-      aa._portalInvincible ? '⚡ ABSOLUTE AXIOM — PORTAL INVINCIBLE ⚡' : '✦ ABSOLUTE AXIOM ✦',
-      W / 2, by - 3
-    );
-
-    // Portal invincible warning pulse
-    if (aa._portalInvincible) {
-      const pulse = 0.4 + 0.4 * Math.sin(Date.now() * 0.005);
-      ctx.strokeStyle = `rgba(200,0,255,${pulse})`;
-      ctx.lineWidth   = 2.5;
-      _roundRect(ctx, bx - 2, by - 2, barW + 4, barH + 4, 4);
-      ctx.stroke();
-    }
-  }
+  // AA HP bar drawn by _drawAABossBar() above — no duplicate needed
 
   ctx.restore();
 }
