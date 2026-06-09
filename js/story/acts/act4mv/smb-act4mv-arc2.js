@@ -1,7 +1,7 @@
 // Appends chapters for act4mv/smb-act4mv-arc2.js.
 STORY_CHAPTER_REGISTRY.push(
   {
-    id: 83,
+    id: 86,
     title: 'Into the Dark',
     world: '🌑 Shadow Realm — Entry',
     narrative: [
@@ -36,7 +36,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 84,
+    id: 87,
     title: 'The Unseen Court',
     world: '🌑 Shadow Realm — The Court',
     narrative: [
@@ -72,7 +72,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 85,
+    id: 88,
     title: 'What You Cannot See',
     world: '🌑 Shadow Realm — Entry',
     type: 'exploration', exploreMode: 'stealth',
@@ -107,7 +107,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 86,
+    id: 89,
     title: 'Shadow Warden',
     world: '🌑 Shadow Realm — The Unseen Court',
     narrative: [
@@ -143,7 +143,7 @@ STORY_CHAPTER_REGISTRY.push(
   // ─────── Arc 5-3: Titan World ─────────────────────────────────────
 
   {
-    id: 87,
+    id: 90,
     title: 'The Scale of Things',
     world: '🏔️ Titan World — Outer Ruins',
     type: 'exploration', exploreMode: 'scavenge',
@@ -177,7 +177,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 88,
+    id: 91,
     title: 'The Outer Throne',
     world: '🏔️ Titan World — Throne Approach',
     narrative: [
@@ -213,7 +213,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 89,
+    id: 92,
     title: 'Things That Cannot Be Shattered',
     world: '🏔️ Titan World — Outer Plain',
     type: 'exploration', exploreMode: 'defense',
@@ -243,7 +243,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 90,
+    id: 93,
     title: 'Titan King',
     world: '🏔️ Titan World — The Throne Plateau',
     narrative: [

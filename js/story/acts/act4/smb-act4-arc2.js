@@ -1,7 +1,7 @@
 // Appends chapters for act4/smb-act4-arc2.js.
 STORY_CHAPTER_REGISTRY.push(
   {
-    id: 104, title: 'The Face',
+    id: 122, title: 'The Face',
     world: '🔩 Creator\'s Domain — Inner Sanctum Approach',
     type: 'exploration', exploreMode: 'scavenge',
     style: 'void',
@@ -33,7 +33,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 105, title: 'First Form',
+    id: 123, title: 'First Form',
     world: '🔩 Creator\'s Domain — Combat Space',
     narrative: [
       '"I will not make this easy," the Creator said.',
@@ -65,7 +65,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 106, title: 'Between Forms',
+    id: 124, title: 'Between Forms',
     world: '🔩 Creator\'s Domain — Recalibration Chamber',
     type: 'gauntlet',
     preText: 'While the Creator recalibrates, its domain floods with residual constructs. Defeat three waves — no rest between them.',
@@ -87,7 +87,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 107, title: 'The Cost',
+    id: 125, title: 'The Cost',
     world: '🔩 Creator\'s Domain — Gate Approach',
     type: 'exploration', exploreMode: 'defense',
     style: 'void',
@@ -115,7 +115,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 108, title: 'Second Form',
+    id: 126, title: 'Second Form',
     world: '🔩 Creator\'s Domain — Final Combat Space',
     narrative: [
       'The Creator\'s second form was everything the first one had learned.',
@@ -150,7 +150,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 109, title: 'The Last Request',
+    id: 127, title: 'The Last Request',
     world: '🔩 Creator\'s Domain — Gate Threshold',
     type: 'assassination',
     preText: 'A Creator overseer is broadcasting a jamming signal that prevents the rift entity from transmitting the final message. Eliminate it before the gate locks permanently.',
@@ -177,7 +177,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 110, title: 'SOVEREIGN',
+    id: 128, title: 'SOVEREIGN',
     world: '⚡ Creator\'s Proving Ground',
     narrative: [
       'The gate demanded a proof.',
@@ -188,7 +188,7 @@ STORY_CHAPTER_REGISTRY.push(
       'It had watched every fighter that ever approached the gate.',
       'Every dodge. Every mistake. Every habit.',
       '',
-      '"It knows what you will do before you do it," Veran said.',
+      '"It knows what you will do before you do it," the Fourth Architect said.',
       '"It\'s been watching you since the beginning."',
       '',
       '"Then I\'ll have to surprise it."',
@@ -222,7 +222,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 111, title: 'The Creator\'s Gate',
+    id: 129, title: 'The Creator\'s Gate',
     world: '⚛️ Multiversal Core — Creator\'s Domain',
     narrative: [
       'The rift was open.',
@@ -231,8 +231,8 @@ STORY_CHAPTER_REGISTRY.push(
       'A final threshold, requiring the fragment bearer to pass through',
       'at full force.',
       '',
-      '"This is what we\'ve been building toward," Veran said.',
-      'Her signal had found you again.',
+      '"This is what we\'ve been building toward," the Fourth Architect said.',
+      'A voice through the fracture resonance.',
       '"I know."',
       '',
       '"The Architects are in position.",',

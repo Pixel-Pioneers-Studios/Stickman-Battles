@@ -70,29 +70,39 @@ const STORY_ACT_STRUCTURE = [
     ],
   },
   {
-    // Damnation gateway (63–68) + Fallen God (69–74) + multiverse trials (75–90) + The Betrayal (91–95)
+    // Damnation (63–68) + Fallen God (69–77) + multiverse worlds (78–108) + Betrayal (109–113)
     id: 'act6', label: 'Act VI — The Loop & Multiverse', color: '#bb88ff',
     arcs: [
-      { id: 'arc5-damnation', label: 'The Damnation Loop',    chapterRange: [63, 68] },
-      { id: 'arc5-godfall',   label: 'The Fallen God\'s Trial', chapterRange: [69, 74] },
-      { id: 'arc4mv-0',       label: 'War & Flux',            chapterRange: [75, 82] },
-      { id: 'arc4mv-1',       label: 'Shadow & Titan',        chapterRange: [83, 90] },
-      { id: 'arc5-betrayal',  label: 'The Betrayal',          chapterRange: [91, 95] },
+      { id: 'arc5-damnation', label: 'The Damnation Loop',      chapterRange: [63,  68]  },
+      { id: 'arc5-godfall',   label: 'The Fallen God\'s Trial',  chapterRange: [69,  77]  },
+      { id: 'arc4mv-0',       label: 'War & Flux',              chapterRange: [78,  85]  },
+      { id: 'arc4mv-1',       label: 'Shadow & Titan',          chapterRange: [86,  93]  },
+      { id: 'arc4mv-2',       label: 'Null Space',              chapterRange: [94,  98]  },
+      { id: 'arc4mv-3',       label: 'The Quiet Expanse',       chapterRange: [99,  103] },
+      { id: 'arc4mv-4',       label: 'Fracture Coast',          chapterRange: [104, 108] },
+      { id: 'arc5-betrayal',  label: 'The Betrayal',            chapterRange: [109, 113] },
     ],
   },
   {
-    id: 'act7', label: 'Act VII — Creator', color: '#dd3344',
+    id: 'act7', label: 'Act VII — Creator\'s Domain', color: '#dd3344',
     arcs: [
-      { id: 'arc4-0', label: 'The Creator\'s Threshold', chapterRange: [96,  103] },
-      { id: 'arc4-1', label: 'The Final Architecture',   chapterRange: [104, 111] },
+      { id: 'arc4-0', label: 'The Creator\'s Threshold', chapterRange: [114, 121] },
+      { id: 'arc4-1', label: 'The Final Architecture',   chapterRange: [122, 129] },
     ],
   },
   {
-    // True Form — absolute final act, nothing follows
     id: 'act8', label: 'Act VIII — True Form', color: '#cc44ff',
     arcs: [
-      { id: 'arc5-0', label: 'Into the Void',       chapterRange: [112, 115] },
-      { id: 'arc5-1', label: 'Final Confrontation', chapterRange: [116, 117] },
+      { id: 'arc5-0', label: 'Into the Void',       chapterRange: [130, 133] },
+      { id: 'arc5-1', label: 'Final Confrontation', chapterRange: [134, 135] },
+    ],
+  },
+  {
+    id: 'act9', label: 'Act IX — Absolute Axiom', color: '#ffe8ff',
+    arcs: [
+      { id: 'arc7-0', label: 'The Kernel',          chapterRange: [140, 142] },
+      { id: 'arc7-1', label: 'God\'s Domain',        chapterRange: [143, 149] },
+      { id: 'arc7-2', label: 'Absolute Axiom',       chapterRange: [150, 155] },
     ],
   },
 ];

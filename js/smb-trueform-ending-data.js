@@ -11,7 +11,7 @@
 //   realization  — boss immune at 10%; "0" damage pops; inner dialogue
 //   punch        — boss monologue + devastating hit; hero ragdolls
 //   launch       — hero flies across multi-dimension panels
-//   coderealm    — abstract void; 5 interactive code nodes to corrupt
+//   coderealm    — abstract void; 5 interactive reality rifts to seal
 //   return       — hero falls back through dimensional tear
 //   finisher     — 3-hit Kratos QTE beatdown
 //   aura         — black aura absorbed into hero
@@ -23,9 +23,9 @@
 // tfEndingScene is declared in smb-globals.js
 
 // ── Matrix rain ──────────────────────────────────────────────────────────────
-const _TFE_CHARS = '01ΨΦΛΣΩαβγδεθλμπφψ∞∑∏∫∂√±÷×≠≈≡∈∉⊂⊃⊆⊇∪∩∀∃∄¬→←↑↓↔⟨⟩⌊⌋⌈⌉'.split('');
+const _TFE_CHARS = 'ΨΦΛΣΩαβγδεθλμπφψ∞∑∏∫∂√±÷×≠≈≡∈∉⊂⊃⊆⊇∪∩∀∃∄¬→←↑↓↔⟨⟩⌊⌋⌈⌉'.split('');
 let _tfeRainCols = [];
-const _TFE_RAIN_COLORS = ['#00ff41','#00cc33','#009922','#88ffaa','#ffffff'];
+const _TFE_RAIN_COLORS = ['#cc88ff','#aa66ff','#8844cc','#bbddff','#ffffff'];
 
 function _tfeInitRain() {
   _tfeRainCols = [];
@@ -83,7 +83,7 @@ function _tfeCreateNodes() {
     { x: GAME_W * 0.65, y: GAME_H * 0.35 },  // was 0.25 — lowered to be reachable with double jump
     { x: GAME_W * 0.82, y: GAME_H * 0.42 },
   ];
-  const labels = ['while(1){}', 'x/0', 'NULL→*', '∞-∞', 'goto VOID'];
+  const labels = ['FAULT', 'RIFT', 'TEAR', 'SCAR', 'BREAK'];
   return positions.map((p, i) => ({
     x:         p.x,
     y:         p.y,

@@ -1,7 +1,7 @@
 // Appends chapters for act4/smb-act4-arc1.js.
 STORY_CHAPTER_REGISTRY.push(
   {
-    id: 96, type: 'exploration', title: 'The Architecture',
+    id: 114, type: 'exploration', title: 'The Architecture',
     world: '🔩 Creator\'s Domain — The Inner Framework',
     narrative: [
       'The Architects waited at the threshold.',
@@ -13,7 +13,7 @@ STORY_CHAPTER_REGISTRY.push(
       '"The fragment bearer goes alone," the Fourth Architect said.',
       '"That was always the design."',
       '',
-      'Veran was alive. The Architects knew.',
+      'She was gone. The Architects knew.',
       'No one mentioned it by name.',
       'The Second Architect started to, once.',
       'Looked at you. Then didn\'t.',
@@ -56,7 +56,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 97, title: 'Architecture Soldiers',
+    id: 115, title: 'Architecture Soldiers',
     world: '🔩 Creator\'s Domain — Inner Corridor',
     narrative: [
       'Two of them.',
@@ -89,7 +89,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 98, title: 'The Offer',
+    id: 116, title: 'The Offer',
     world: '🔩 Creator\'s Domain — Audience Corridor',
     type: 'exploration', exploreMode: 'stealth',
     style: 'void',
@@ -123,7 +123,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 99, title: 'Twin Enforcers',
+    id: 117, title: 'Twin Enforcers',
     world: '🔩 Creator\'s Domain — The Corridor of Forms',
     narrative: [
       'The Enforcers arrived as the architecture shifted.',
@@ -159,7 +159,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 100, title: 'The Architect\'s Message',
+    id: 118, title: 'The Architect\'s Message',
     world: '🔩 Creator\'s Domain — Signal Alcove',
     type: 'exploration', exploreMode: 'escape',
     style: 'void',
@@ -183,11 +183,11 @@ STORY_CHAPTER_REGISTRY.push(
     platColor: '#1e140e',
     playerLives: 3,
     tokenReward: 35, blueprintDrop: null,
-    postText: 'The fragment is the Creator\'s carved-out conscience. It has been trying to find its way back for five thousand years. You are carrying the Creator\'s capacity for guilt, empathy, and doubt. You always were.',
+    postText: 'That was what the Second Architect believed — that you had been carrying the capacity for guilt, empathy, and doubt, trying to find its way back for five thousand years. They weren\'t entirely wrong about what you carried. They were wrong about where it came from. You wouldn\'t know that yet. You keep moving.',
   },
 
   {
-    id: 101, title: 'The First Creation',
+    id: 119, title: 'The First Creation',
     world: '🔩 Creator\'s Domain — Memory Chamber',
     type: 'gauntlet',
     preText: 'The Creator tests your resolve with three consecutive rounds of architecture constructs. No breaks. Show it that you\'ve already made your choice.',
@@ -209,7 +209,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 102, title: 'The First Promise',
+    id: 120, title: 'The First Promise',
     world: '🔩 Creator\'s Domain — Memory Vault',
     type: 'exploration', exploreMode: 'puzzle',
     style: 'void',
@@ -240,7 +240,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 103, title: 'Purge Sequence',
+    id: 121, title: 'Purge Sequence',
     world: '🔩 Creator\'s Domain — Purge Zone',
     narrative: [
       'The architecture shook.',

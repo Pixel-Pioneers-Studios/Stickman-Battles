@@ -953,14 +953,13 @@ input[type="color"] {
   transform: perspective(1000px) rotateX(14deg) scale(0.94);
   filter: drop-shadow(0 55px 35px rgba(0,0,0,0.85));
 }
-/* view-3d-tf: dramatic TrueForm depth-phase perspective — must read as "real 3D engine" */
+/* view-3d-tf: TrueForm depth-phase — no canvas tilt; grid drawn in-canvas handles perspective */
 #gameCanvas.view-3d-tf {
-  transform: perspective(600px) rotateX(26deg) scale(0.90);
   filter:
-    drop-shadow(0 90px 70px rgba(90,0,200,0.75))
-    drop-shadow(0 0px 40px rgba(80,0,180,0.35))
-    brightness(0.88)
-    saturate(1.15);
+    drop-shadow(0 0px 60px rgba(120,0,255,0.55))
+    drop-shadow(0 0px 20px rgba(80,0,180,0.40))
+    brightness(0.84)
+    saturate(1.2);
 }
 /* Page background behind canvas during TF depth phase — deep purple void */
 body.depth-phase-active {
@@ -2194,6 +2193,93 @@ body.depth-phase-active {
 .nexus-grid .mode-card {
   margin: 0;
 }
+
+/* ============================================================
+   SIMULATOR PANELS
+   ============================================================ */
+
+/* Landing panel greeting */
+.simulator-greeting {
+  margin: 2px 0 14px;
+  padding: 10px 14px 12px;
+  background: rgba(0, 20, 50, 0.55);
+  border: 1px solid rgba(0, 180, 255, 0.14);
+  border-radius: 10px;
+  text-align: center;
+}
+.sim-greeting-name {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #aaddff;
+  letter-spacing: 1px;
+  margin-bottom: 3px;
+}
+.sim-greeting-name span { color: #55eeff; }
+.sim-greeting-sub {
+  font-size: 0.62rem;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: rgba(100, 170, 220, 0.55);
+}
+
+/* Refight path card — deep red/ember */
+.path-card.path-refight {
+  background: rgba(22, 6, 4, 0.92);
+  border-color: rgba(200, 55, 15, 0.30);
+  box-shadow: 0 0 28px rgba(200, 50, 10, 0.06);
+}
+.path-card.path-refight:hover {
+  background: rgba(30, 8, 5, 0.96);
+  border-color: rgba(220, 80, 25, 0.60);
+  box-shadow: 0 4px 36px rgba(200, 60, 15, 0.18);
+}
+.path-card.path-refight .path-card-title { color: #ff7744; }
+.path-card.path-refight .path-card-desc  { color: #7a3322; }
+
+/* The Grid path card — electric cyan */
+.path-card.path-grid {
+  background: rgba(4, 14, 28, 0.92);
+  border-color: rgba(0, 190, 255, 0.26);
+  box-shadow: 0 0 28px rgba(0, 160, 255, 0.05);
+}
+.path-card.path-grid:hover {
+  background: rgba(5, 18, 36, 0.96);
+  border-color: rgba(0, 210, 255, 0.55);
+  box-shadow: 0 4px 36px rgba(0, 180, 255, 0.16);
+}
+.path-card.path-grid .path-card-title { color: #33ddff; }
+.path-card.path-grid .path-card-desc  { color: #2d6e88; }
+
+/* Locked refight card */
+.path-card.refight-locked {
+  opacity: 0.38;
+  filter: grayscale(0.7);
+  cursor: not-allowed;
+  border-color: rgba(120, 100, 100, 0.25) !important;
+  box-shadow: none !important;
+}
+.path-card.refight-locked:hover {
+  transform: none;
+  border-color: rgba(150, 110, 110, 0.35) !important;
+}
+.path-card.refight-locked .path-card-icon::after {
+  content: ' 🔒';
+  font-size: 0.75em;
+  vertical-align: middle;
+}
+
+/* Cutscene viewer card — deep violet */
+.path-card.path-cutscene {
+  background: rgba(12, 6, 22, 0.92);
+  border-color: rgba(160, 100, 255, 0.26);
+  box-shadow: 0 0 22px rgba(140, 80, 255, 0.05);
+}
+.path-card.path-cutscene:hover {
+  border-color: rgba(180, 120, 255, 0.55);
+  box-shadow: 0 4px 32px rgba(140, 80, 255, 0.16);
+}
+.path-card.path-cutscene .path-card-title { color: #cc99ff; }
+.path-card.path-cutscene .path-card-desc  { color: #664488; }
 
 /* Skill tree modal: branches side-by-side */
 .skill-tree-branches {

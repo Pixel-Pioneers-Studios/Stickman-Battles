@@ -1,7 +1,7 @@
 // Appends chapters for act5/smb-act5-arc1.js.
 STORY_CHAPTER_REGISTRY.push(
   {
-    id: 112, title: 'What Remains',
+    id: 130, title: 'What Remains',
     world: '🕳️ The Void — Breach',
     type: 'exploration', exploreMode: 'escape',
     style: 'void',
@@ -28,7 +28,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 113, title: 'What It Built Here',
+    id: 131, title: 'What It Built Here',
     world: '🕳️ The Void — True Form\'s Domain',
     type: 'exploration', exploreMode: 'scavenge',
     style: 'void',
@@ -60,7 +60,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 114, title: 'The Constructs',
+    id: 132, title: 'The Constructs',
     world: '🕳️ The Void — Construct Layer',
     type: 'gauntlet',
     preText: 'The True Form\'s void constructs stand between you and its core — echoes of absorbed fragment bearers, reshaped into something that serves the Void. Three waves. No rest.',
@@ -82,7 +82,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 115, title: 'Before the End',
+    id: 133, title: 'Before the End',
     world: '🕳️ The Void — True Form\'s Threshold',
     type: 'branch',
     narrative: [
@@ -100,12 +100,12 @@ STORY_CHAPTER_REGISTRY.push(
       '"I say it because it is accurate.",',
       '"I do not know how to be inaccurate.",',
       '',
-      '"The fragment you carry is the Creator\'s conscience.",',
-      '"When you close the rift, that conscience returns to it.",',
-      '"I have spent five thousand years preventing that.",',
+      '"The fragment you carry is something I have spent five thousand years keeping out.",',
+      '"When you close the rift, what it carries returns.",',
+      '"I have prevented that.",',
       '"Not from cruelty.",',
-      '"Because I do not know what a Creator with its conscience restored will do.",',
-      '"Neither does it.",',
+      '"Because I do not know what we become when we are whole.",',
+      '"I have not been whole in five thousand years.",',
       '"That uncertainty is the only thing I am afraid of.",',
       '',
       '"I am telling you this so it is not a secret.",',

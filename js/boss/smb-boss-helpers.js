@@ -702,84 +702,104 @@ function startAxiomOriginCutscene(onDoneCallback) {
 }
 
 // ── Depth Phase floor grid ─────────────────────────────────────────────────────
-// Drawn between background and entities. Since the canvas has CSS rotateX applied,
-// a regular orthographic grid in the lower half looks exactly like a receding 3D floor.
+// Drawn between background and entities. Uses proper perspective foreshortening
+// so horizontal lines bunch near the horizon and spread toward camera — no CSS
+// rotateX needed to sell the 3D illusion.
 function drawDepthFloorGrid() {
   if (typeof tfDepthPhaseActive === 'undefined' || !tfDepthPhaseActive) return;
   ctx.save();
 
-  const floorTop = 300;   // where the grid starts (upper edge of "floor" region)
-  const floorBot = GAME_H; // bottom of canvas
+  const HORIZON = 268;   // y of the perspective vanishing horizon
+  const BOTTOM  = GAME_H;
+  const VP_X    = GAME_W * 0.5;  // vanishing point X (center)
 
-  // Dim overlay — desaturate the arena so the 3D grid pops
-  const dimAlpha = (typeof tfDepthTransitionTimer !== 'undefined' && tfDepthTransitionTimer > 0)
-    ? 0.45 * (1 - tfDepthTransitionTimer / 30)
-    : 0.45;
-  ctx.globalAlpha = dimAlpha;
-  const dimGrad = ctx.createLinearGradient(0, floorTop, 0, floorBot);
-  dimGrad.addColorStop(0,   'rgba(0,0,0,0)');
-  dimGrad.addColorStop(0.3, 'rgba(4,0,16,0.75)');
-  dimGrad.addColorStop(1,   'rgba(0,0,0,0.92)');
+  // Fade-in alpha (0→1 over the 30-frame transition)
+  const fadeIn = (typeof tfDepthTransitionTimer !== 'undefined' && tfDepthTransitionTimer > 0)
+    ? 1 - tfDepthTransitionTimer / 30
+    : 1;
+
+  // Slow pulse driven by real time — no extra global needed
+  const pulse    = Date.now() * 0.001;
+  const pulseMod = 0.85 + 0.15 * Math.sin(pulse * 1.8);
+
+  // ── Dark overlay — kills arena colour so grid reads cleanly ───────────────
+  ctx.globalAlpha = fadeIn * 0.62;
+  const dimGrad = ctx.createLinearGradient(0, HORIZON - 30, 0, BOTTOM);
+  dimGrad.addColorStop(0,    'rgba(0,0,0,0)');
+  dimGrad.addColorStop(0.15, 'rgba(3,0,14,0.80)');
+  dimGrad.addColorStop(1,    'rgba(0,0,6,0.97)');
   ctx.fillStyle = dimGrad;
-  ctx.fillRect(0, floorTop, GAME_W, floorBot - floorTop);
+  ctx.fillRect(0, HORIZON - 30, GAME_W, BOTTOM - (HORIZON - 30));
   ctx.globalAlpha = 1;
 
-  // Grid line base alpha — fades in with transition timer
-  const gridAlpha = (typeof tfDepthTransitionTimer !== 'undefined' && tfDepthTransitionTimer > 0)
-    ? 0.55 * (1 - tfDepthTransitionTimer / 30)
-    : 0.55;
-
-  // Horizontal lines — equal canvas spacing; CSS rotateX makes them look foreshortened
-  ctx.strokeStyle = `rgba(100,40,220,${gridAlpha})`;
-  ctx.lineWidth = 1;
-  ctx.shadowColor = '#6622cc';
-  ctx.shadowBlur = 4;
-  for (let y = floorTop; y <= floorBot; y += 28) {
-    const rowAlpha = gridAlpha * (0.4 + 0.6 * ((y - floorTop) / (floorBot - floorTop)));
-    ctx.globalAlpha = rowAlpha;
+  // ── Horizontal lines (proper perspective foreshortening) ──────────────────
+  // Lines are equally spaced in world-Z; projected with sqrt so they bunch near horizon.
+  const H_ROWS = 16;
+  ctx.shadowColor = '#7730ee';
+  ctx.shadowBlur  = 5;
+  for (let i = 1; i <= H_ROWS; i++) {
+    const t  = Math.pow(i / H_ROWS, 0.52);        // < 1 = foreshortening
+    const y  = HORIZON + (BOTTOM - HORIZON) * t;
+    const ta = fadeIn * pulseMod * (0.18 + 0.82 * t); // dim near horizon, bright near camera
+    const accent = (i % 4 === 0);                  // every 4th line is an accent rail
+    ctx.globalAlpha  = ta * (accent ? 1.0 : 0.65);
+    ctx.strokeStyle  = accent ? '#a855f7' : '#6622cc';
+    ctx.lineWidth    = accent ? 1.5 : 0.75;
     ctx.beginPath();
     ctx.moveTo(0, y);
     ctx.lineTo(GAME_W, y);
     ctx.stroke();
   }
 
-  // Vertical lines — converge toward vanishing point at (GAME_W/2, floorTop)
-  const vp = GAME_W / 2;
-  const cols = 18;
-  for (let i = 0; i <= cols; i++) {
-    const tx = (i / cols) * GAME_W;
-    // Top point converges toward vanishing point
-    const topX = vp + (tx - vp) * 0.22;
-    ctx.globalAlpha = gridAlpha * 0.65;
+  // ── Vertical lines converging to vanishing point ──────────────────────────
+  const V_COLS = 22;
+  ctx.shadowColor = '#4411aa';
+  ctx.shadowBlur  = 3;
+  ctx.lineWidth   = 0.75;
+  for (let i = 0; i <= V_COLS; i++) {
+    const bx = (i / V_COLS) * GAME_W;
+    // At horizon: converge 16% toward center; full spread at bottom
+    const tx = VP_X + (bx - VP_X) * 0.16;
+    ctx.globalAlpha = fadeIn * pulseMod * 0.45;
+    ctx.strokeStyle = '#5522bb';
     ctx.beginPath();
-    ctx.moveTo(topX, floorTop);
-    ctx.lineTo(tx, floorBot);
+    ctx.moveTo(tx, HORIZON);
+    ctx.lineTo(bx, BOTTOM);
     ctx.stroke();
   }
 
-  // Bright horizon line at floorTop
-  ctx.globalAlpha = gridAlpha * 0.9;
-  ctx.strokeStyle = `rgba(160,80,255,${gridAlpha})`;
-  ctx.lineWidth = 2;
-  ctx.shadowColor = '#aa44ff';
-  ctx.shadowBlur = 12;
+  // ── Horizon glow band ─────────────────────────────────────────────────────
+  const horizPulse = 0.75 + 0.25 * Math.sin(pulse * 1.2);
+  ctx.globalAlpha  = fadeIn * horizPulse * 0.85;
+  const horizGrad  = ctx.createLinearGradient(0, HORIZON - 18, 0, HORIZON + 20);
+  horizGrad.addColorStop(0,   'rgba(160,60,255,0)');
+  horizGrad.addColorStop(0.45,'rgba(190,90,255,0.95)');
+  horizGrad.addColorStop(1,   'rgba(110,30,210,0)');
+  ctx.fillStyle = horizGrad;
+  ctx.fillRect(0, HORIZON - 18, GAME_W, 38);
+
+  // Crisp horizon line on top of the glow
+  ctx.globalAlpha = fadeIn * horizPulse;
+  ctx.strokeStyle = 'rgba(220,140,255,0.95)';
+  ctx.lineWidth   = 2;
+  ctx.shadowColor = '#dd88ff';
+  ctx.shadowBlur  = 20;
   ctx.beginPath();
-  ctx.moveTo(0, floorTop);
-  ctx.lineTo(GAME_W, floorTop);
+  ctx.moveTo(0, HORIZON);
+  ctx.lineTo(GAME_W, HORIZON);
   ctx.stroke();
 
-  // Z-layer legend: tiny text in corner telling first-time players what Q/E does
+  // ── Control hint ──────────────────────────────────────────────────────────
   if (typeof tfDepthEnabled !== 'undefined' && tfDepthEnabled) {
-    ctx.globalAlpha = 0.55;
-    ctx.shadowBlur = 0;
-    ctx.fillStyle = '#cc88ff';
-    ctx.font = 'bold 11px monospace';
-    ctx.textAlign = 'right';
+    ctx.globalAlpha = fadeIn * 0.5;
+    ctx.shadowBlur  = 0;
+    ctx.fillStyle   = '#cc88ff';
+    ctx.font        = 'bold 11px monospace';
+    ctx.textAlign   = 'right';
     ctx.fillText('Q ◀ DEPTH ▶ E', GAME_W - 10, GAME_H - 58);
-    ctx.globalAlpha = 1;
   }
 
-  ctx.shadowBlur = 0;
+  ctx.shadowBlur  = 0;
   ctx.globalAlpha = 1;
   ctx.restore();
 }

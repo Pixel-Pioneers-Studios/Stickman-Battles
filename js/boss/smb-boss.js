@@ -568,21 +568,24 @@ class Boss extends Fighter {
 // BACKSTAGE PORTAL HELPERS
 // ============================================================
 function openBackstagePortal(cx, cy, type) {
-  const words = ['if','for','let','const','function','return','true','false','null',
-                 '&&','||','=>','{','}','()','0','1','new','this','class','extends',
-                 'import','export','while','switch','break','typeof','void'];
-  const chars = [];
-  for (let _i = 0; _i < 35; _i++) {
-    chars.push({
+  // Reality-fracture shards drifting inside the rift (replaces the old code-rain).
+  const shards = [];
+  for (let _i = 0; _i < 26; _i++) {
+    const ang = Math.random() * Math.PI * 2;
+    const len = 6 + Math.random() * 16;
+    shards.push({
       x:     (Math.random() * 90) - 45,
       y:     (Math.random() * 160) - 80,
-      char:  words[Math.floor(Math.random() * words.length)],
-      speed: 0.6 + Math.random() * 1.8,
+      dx:    Math.cos(ang) * len,
+      dy:    Math.sin(ang) * len,
+      speed: 0.3 + Math.random() * 0.9,
+      drift: (Math.random() - 0.5) * 0.6,
       alpha: 0.35 + Math.random() * 0.55,
-      color: ['#00ff88','#00cc66','#88ffaa','#44ff00','#aaffaa','#ffffff'][Math.floor(Math.random()*6)]
+      width: 0.8 + Math.random() * 1.8,
+      color: ['#ffffff','#cc99ff','#aa66ff','#dd88ff','#bbddff','#9944cc'][Math.floor(Math.random()*6)]
     });
   }
-  backstagePortals.push({ x: cx, y: cy, type, phase: 'opening', timer: 0, radius: 0, maxRadius: 58, codeChars: chars, done: false });
+  backstagePortals.push({ x: cx, y: cy, type, phase: 'opening', timer: 0, radius: 0, maxRadius: 58, shards: shards, done: false });
 }
 
 function drawBackstagePortals() {
@@ -611,14 +614,19 @@ function drawBackstagePortals() {
     ctx.beginPath();
     ctx.ellipse(bp.x, bp.y, Math.max(0.1, rw - 2), Math.max(0.1, rh - 2), 0, 0, Math.PI * 2);
     ctx.clip();
-    ctx.font = '8px monospace';
-    ctx.textAlign = 'left';
-    for (const c of bp.codeChars) {
+    for (const c of bp.shards) {
       c.y += c.speed;
+      c.x += c.drift;
       if (c.y > rh + 14) c.y = -rh - 14;
       ctx.globalAlpha = c.alpha * (bp.radius / bp.maxRadius);
-      ctx.fillStyle   = c.color;
-      ctx.fillText(c.char, bp.x + c.x - 28, bp.y + c.y);
+      ctx.strokeStyle = c.color;
+      ctx.lineWidth   = c.width;
+      const _sx = bp.x + c.x, _sy = bp.y + c.y;
+      ctx.beginPath();
+      ctx.moveTo(_sx, _sy);
+      ctx.lineTo(_sx + c.dx * 0.5 + c.dy * 0.18, _sy + c.dy * 0.5 - c.dx * 0.18);
+      ctx.lineTo(_sx + c.dx, _sy + c.dy);
+      ctx.stroke();
     }
     ctx.restore();
     ctx.globalAlpha = bp.radius / bp.maxRadius;

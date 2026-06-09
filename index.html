@@ -160,10 +160,10 @@
         <div class="path-card-title">Story</div>
         <div class="path-card-desc">Follow the fracture across worlds.<br>Chapters &middot; Skill Tree &middot; Shop</div>
       </div>
-      <div class="path-card path-nexus" onclick="openNexus()">
+      <div class="path-card path-nexus" onclick="openSimulator()">
         <div class="path-card-icon">&#9889;</div>
-        <div class="path-card-title">The Nexus</div>
-        <div class="path-card-desc">Combat &middot; Online &middot; Minigames &middot; More</div>
+        <div class="path-card-title">The Simulator</div>
+        <div class="path-card-desc">Refight &middot; Versus &middot; Minigames &middot; More</div>
       </div>
     </div>
 
@@ -189,92 +189,121 @@
       </div>
     </div>
 
-    <!-- NEXUS PANEL: 2-column grid, hidden until openNexus() -->
-    <div class="nexus-panel" id="nexusPanel" style="display:none">
-      <button class="nexus-back" onclick="closeNexus()">&#8592; Back</button>
-      <div class="nexus-grid">
-        <div class="mode-card active" data-mode="2p" onclick="selectMode('2p')">
-          <div class="mode-name">1v1</div>
-          <div class="mode-desc">Local or vs bot</div>
-        </div>
-        <div class="mode-card" id="modeOnline" data-mode="online" onclick="selectMode('online')">
-          <div class="mode-name" style="color:#00eeff">&#127760; Online</div>
-          <div class="mode-desc">Play against others</div>
-        </div>
-        <div class="mode-card" data-mode="training" onclick="selectMode('training')">
-          <div class="mode-name">Training</div>
-          <div class="mode-desc">Practice with dummies</div>
-        </div>
-        <div class="mode-card" data-mode="minigames" onclick="selectMode('minigames')">
-          <div class="mode-name">Minigames</div>
-          <div class="mode-desc">Survival · KotH · Chaos</div>
-        </div>
-        <div class="mode-card" data-mode="battleroyale" onclick="selectMode('battleroyale')" style="border-color:rgba(255,160,50,0.4);">
-          <div class="mode-name" style="color:#ffaa33;">&#127942; Battle Royale</div>
-          <div class="mode-desc" style="color:#aa6622;">100 players · zone · loot</div>
-        </div>
-        <div class="mode-card" onclick="openDesigner()" style="border-color:rgba(100,200,255,0.25);">
-          <div class="mode-name" style="color:#88ccff;">&#128295; Creator</div>
-          <div class="mode-desc">Map &amp; Weapon Studio</div>
-        </div>
-        <div class="mode-card nexus-bossrush-card" id="modeBossRush" style="display:none" onclick="openBossRush()">
-          <div class="mode-name" style="color:#ff7744;">&#128293; Boss Rush</div>
-          <div class="mode-desc" style="color:#884422;">Face the end-game now</div>
-        </div>
-        <div class="mode-card" id="modeBoss" data-mode="boss" onclick="selectMode('boss')" style="display:none">
-          <div class="mode-name">Boss Fight</div>
-          <div class="mode-desc" id="bossModeDesc">Battle the Creator</div>
-        </div>
-        <div class="mode-card" id="modeTrueForm" data-mode="trueform" style="display:none" onclick="selectMode('trueform')">
-          <div class="mode-name" style="color:#ccaaff">True Form</div>
-          <div class="mode-desc" style="color:#887799">Face what lies beneath</div>
-        </div>
-        <div class="mode-card" id="modeSovereign" data-mode="sovereign" onclick="selectMode('sovereign')" style="display:none">
-          <div class="mode-name" style="color:#ff4422">&#9889; SOVEREIGN &#937;</div>
-          <div class="mode-desc" style="color:#cc6644">No limits. No mercy.</div>
-        </div>
-        <div class="mode-card" id="modeAbsoluteAxiom" data-mode="absoluteaxiom" onclick="selectMode('absoluteaxiom')" style="display:none">
-          <div class="mode-name" style="color:#ff6600">&#9888; ABSOLUTE AXIOM</div>
-          <div class="mode-desc" style="color:#994400">God. Architect. The Kernel.</div>
-        </div>
-        <div class="mode-card" id="modeCompleteRandom" data-mode="completerandom" onclick="selectMode('completerandom')" style="display:none">
-          <div class="mode-name" style="color:#ff9944">&#127922; Complete Random</div>
-          <div class="mode-desc" style="color:#aa7733">New weapon &amp; class every death</div>
-        </div>
-        <div class="mode-card" id="modeStoryOnline" data-mode="storyonline" onclick="selectMode('storyonline')" style="display:none">
-          <div class="mode-name" style="color:#ffdd88">&#127760; Story Online</div>
-          <div class="mode-desc" style="color:#aa9944">Cross-world multiplayer</div>
-        </div>
+    <!-- SIMULATOR LANDING PANEL -->
+    <div class="nexus-panel" id="simulatorPanel" style="display:none">
+      <button class="nexus-back" onclick="closeSimulator()">&#8592; Back</button>
+      <div class="simulator-greeting">
+        <div class="sim-greeting-name">Welcome back, <span id="simGreetUsername">Pilot</span>.</div>
+        <div class="sim-greeting-sub">What are you simulating today?</div>
       </div>
-    </div>
-    <!-- BOSS RUSH PANEL -->
-    <div class="nexus-panel" id="bossRushPanel" style="display:none">
-      <button class="nexus-back" onclick="closeBossRush()">&#8592; Back</button>
-      <p style="font-size:0.68rem;color:#884422;letter-spacing:1px;margin:0 0 10px;text-align:center;">All fights available immediately — no story required.</p>
-      <div class="nexus-grid">
-        <div class="path-card path-boss-fight" onclick="startBossRushFight('boss')">
-          <div class="path-card-icon">&#128293;</div>
-          <div class="path-card-title">Creator</div>
-          <div class="path-card-desc">Three-phase battle against the Creator</div>
+      <div class="path-cards">
+        <div class="path-card path-refight" onclick="openRefight()">
+          <div class="path-card-icon">&#9876;</div>
+          <div class="path-card-title">Refight</div>
+          <div class="path-card-desc">Boss encounters &middot; Cutscene viewer</div>
         </div>
-        <div class="path-card path-boss-fight" onclick="startBossRushFight('trueform')">
+        <div class="path-card path-grid" onclick="openTheGrid()">
           <div class="path-card-icon">&#9889;</div>
-          <div class="path-card-title">True Form</div>
-          <div class="path-card-desc">Face what lies beneath the Creator</div>
-        </div>
-        <div class="path-card path-boss-fight" onclick="startBossRushFight('sovereign')">
-          <div class="path-card-icon">&#937;</div>
-          <div class="path-card-title">SOVEREIGN</div>
-          <div class="path-card-desc">No limits. No mercy. No escape.</div>
-        </div>
-        <div class="path-card path-gauntlet" onclick="startBossRushGauntlet()">
-          <div class="path-card-icon">&#127942;</div>
-          <div class="path-card-title">Full Gauntlet</div>
-          <div class="path-card-desc">Creator &rarr; True Form &rarr; Sovereign. All three. Back to back.</div>
+          <div class="path-card-title">The Grid</div>
+          <div class="path-card-desc">Versus &middot; Online &middot; Minigames &middot; Arcade</div>
         </div>
       </div>
     </div>
 
+    <!-- REFIGHT PANEL -->
+    <div class="nexus-panel" id="refightPanel" style="display:none">
+      <button class="nexus-back" onclick="closeRefight()">&#8592; Back</button>
+      <p style="font-size:0.68rem;color:#553322;letter-spacing:1px;margin:0 0 10px;text-align:center;">Beat each encounter in Story Mode to unlock it here.</p>
+      <div class="nexus-grid">
+        <div class="path-card path-boss-fight" id="refight-creator">
+          <div class="path-card-icon">&#128293;</div>
+          <div class="path-card-title">Creator</div>
+          <div class="path-card-desc">Three-phase battle against the Creator</div>
+        </div>
+        <div class="path-card path-boss-fight" id="refight-trueform">
+          <div class="path-card-icon">&#9889;</div>
+          <div class="path-card-title">True Form</div>
+          <div class="path-card-desc">Face what lies beneath the Creator</div>
+        </div>
+        <div class="path-card path-boss-fight" id="refight-sovereign">
+          <div class="path-card-icon">&#937;</div>
+          <div class="path-card-title">SOVEREIGN</div>
+          <div class="path-card-desc">No limits. No mercy. No escape.</div>
+        </div>
+        <div class="path-card path-boss-fight path-axiom" id="modeAbsoluteAxiom" data-mode="absoluteaxiom" style="display:none">
+          <div class="path-card-icon">&#9888;</div>
+          <div class="path-card-title" style="color:#ff6600;">ABSOLUTE AXIOM</div>
+          <div class="path-card-desc">God. Architect. The Kernel.</div>
+        </div>
+        <div class="path-card path-gauntlet" id="refight-gauntlet">
+          <div class="path-card-icon">&#127942;</div>
+          <div class="path-card-title">Full Gauntlet</div>
+          <div class="path-card-desc">Creator &rarr; True Form &rarr; Sovereign. All three. Back to back.</div>
+        </div>
+        <div class="path-card path-cutscene" onclick="openCutsceneViewer()">
+          <div class="path-card-icon">&#127916;</div>
+          <div class="path-card-title">Cutscenes</div>
+          <div class="path-card-desc">Replay any cinematic sequence</div>
+        </div>
+      </div>
+      <!-- Unlockable: Boss Rush shortcut (shown by cheat/progression) -->
+      <div class="mode-card nexus-bossrush-card" id="modeBossRush" style="display:none" onclick="startSimFight('boss')">
+        <div class="mode-name" style="color:#ff7744;">&#128293; Boss Rush</div>
+        <div class="mode-desc" style="color:#884422;">Jump straight into the fire</div>
+      </div>
+      <!-- Hidden data-mode anchors so selectMode() can toggle active class -->
+      <div id="modeBoss" data-mode="boss" style="display:none"></div>
+      <div id="modeTrueForm" data-mode="trueform" style="display:none"></div>
+      <div id="modeSovereign" data-mode="sovereign" style="display:none"></div>
+      <div id="bossModeDesc" style="display:none"></div>
+    </div>
+
+    <!-- THE GRID PANEL -->
+    <div class="nexus-panel" id="theGridPanel" style="display:none">
+      <button class="nexus-back" onclick="closeTheGrid()">&#8592; Back</button>
+      <div class="nexus-section">
+        <div class="nexus-section-label">Versus</div>
+        <div class="nexus-grid">
+          <div class="mode-card active" data-mode="2p" onclick="selectMode('2p')">
+            <div class="mode-name">1v1</div>
+            <div class="mode-desc">Local or vs bot</div>
+          </div>
+          <div class="mode-card" id="modeOnline" data-mode="online" onclick="selectMode('online')">
+            <div class="mode-name" style="color:#00eeff">&#127760; Online</div>
+            <div class="mode-desc">Play against others</div>
+          </div>
+          <div class="mode-card" data-mode="battleroyale" onclick="selectMode('battleroyale')" style="border-color:rgba(255,160,50,0.4);">
+            <div class="mode-name" style="color:#ffaa33;">&#127942; Battle Royale</div>
+            <div class="mode-desc" style="color:#aa6622;">100 players · zone · loot</div>
+          </div>
+          <div class="mode-card" id="modeStoryOnline" data-mode="storyonline" onclick="selectMode('storyonline')" style="display:none">
+            <div class="mode-name" style="color:#ffdd88">&#127760; Story Online</div>
+            <div class="mode-desc" style="color:#aa9944">Cross-world multiplayer</div>
+          </div>
+        </div>
+      </div>
+      <div class="nexus-section">
+        <div class="nexus-section-label">Arcade</div>
+        <div class="nexus-grid">
+          <div class="mode-card" data-mode="training" onclick="selectMode('training')">
+            <div class="mode-name">Training</div>
+            <div class="mode-desc">Practice with dummies</div>
+          </div>
+          <div class="mode-card" data-mode="minigames" onclick="selectMode('minigames')">
+            <div class="mode-name">Minigames</div>
+            <div class="mode-desc">Survival · KotH · Chaos</div>
+          </div>
+          <div class="mode-card" onclick="openDesigner()" style="border-color:rgba(100,200,255,0.25);">
+            <div class="mode-name" style="color:#88ccff;">&#128295; Creator</div>
+            <div class="mode-desc">Map &amp; Weapon Studio</div>
+          </div>
+          <div class="mode-card" id="modeCompleteRandom" data-mode="completerandom" onclick="selectMode('completerandom')" style="display:none">
+            <div class="mode-name" style="color:#ff9944">&#127922; Complete Random</div>
+            <div class="mode-desc" style="color:#aa7733">New weapon &amp; class every death</div>
+          </div>
+        </div>
+      </div>
+    </div>
     <!-- Hidden ID anchor for modeStory — JS uses this to toggle active state -->
     <div id="modeStory" data-mode="story" style="display:none"></div>
     </div><!-- /#menuHomeContent -->

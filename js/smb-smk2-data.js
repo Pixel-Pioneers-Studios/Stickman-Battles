@@ -126,3 +126,25 @@ const SMK2_ATTACK_WARN_LINES = [
   'Your move.',
 ];
 
+// ── Tactic-swap (Stage 3) ─────────────────────────────────────
+// When a locked counter-strategy keeps failing, Sovereign switches LATERALLY to
+// a different plan rather than stubbornly re-locking a losing one. Each entry maps
+// a failing strategy → the alternative to try next.
+const SMK2_STRATEGY_SWAP = Object.freeze({
+  'anti-air':    'intercept',   // jumping beats the anti-air → cut off the approach instead
+  'parry':       'guard-break', // their attacks slip the parry → pressure and break the guard
+  'guard-break': 'parry',       // can't crack the guard → bait the attack and punish
+  'intercept':   'anti-air',    // can't cut off the dash → they're escaping upward
+  'pressure':    'intercept',   // pressure isn't landing → read and cut their movement
+});
+
+// Spoken on a tactic-swap — the audible "you adapted, so will I" moment.
+const SMK2_TACTIC_SWAP_LINES = [
+  'That stopped working.',
+  'New plan.',
+  'You adapted. So will I.',
+  'Different approach.',
+  'I won\'t keep losing that exchange.',
+  'Change of pace.',
+];
+

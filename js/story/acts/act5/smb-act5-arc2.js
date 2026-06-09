@@ -1,7 +1,7 @@
 // Appends chapters for act5/smb-act5-arc2.js.
 STORY_CHAPTER_REGISTRY.push(
   {
-    id: 116, title: 'True Form',
+    id: 134, title: 'True Form',
     world: '\uD83D\uDD73\uFE0F The Void — Final Confrontation',
     narrative: [
       'The True Form arrived without announcement.',
@@ -41,17 +41,16 @@ STORY_CHAPTER_REGISTRY.push(
     arena: 'void',
     isTrueFormFight: true,
     tokenReward: 300, blueprintDrop: null,
-    postText: 'The True Form unravels. Not destroyed \u2014 resolved. The fracture system loses its anchor. Seventeen dimensions stabilize simultaneously. And you are still standing in the void. Veran\'s voice, quiet: "We can bring you back." The compass in your pocket spins once. Settles. Points home. "...Yeah. I know."',
+    postText: 'The True Form unravels. Not destroyed \u2014 resolved. The fracture system loses its anchor. Seventeen dimensions stabilize simultaneously. And you are still standing in the void. The Fourth Architect\'s voice, quiet: "We can bring you back." The compass in your pocket spins once. Settles. Points home. "...Yeah. I know."',
   },
 
   // \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550 EPILOGUE \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550
 
   {
-    id: 117, title: 'After',
-    world: '\uD83C\uDFD9\uFE0F Home \u2014 Epilogue',
-    isEpilogue: true,
+    id: 135, title: 'After',
+    world: '\uD83C\uDFD9\uFE0F Home \u2014 Transit',
     type: 'ship_flight',
-    preText: 'The portals are open \u2014 doors now, not wounds. Fly the compass-ship home through stabilized dimensional space. The last journey is yours.',
+    preText: 'The portals are open \u2014 doors now, not wounds. Fly the compass-ship home through stabilized dimensional space.',
     shipFlightLength: 6000,
     shipFlightEnemies: [
       { spawnX: 800,  type: 'scout',   color: '#88ccff', hp: 30 },
@@ -68,7 +67,7 @@ STORY_CHAPTER_REGISTRY.push(
     ],
     playerLives: 3,
     tokenReward: 300, blueprintDrop: null,
-    postText: 'STORY COMPLETE. You held the rift open with your own fragment. You survived the loop. You are the reason seventeen dimensions are still standing. But you know what it cost. Story Online is now unlocked.',
+    postText: 'You held the rift open with your own fragment. You survived the loop. Seventeen dimensions are still standing because of what you did. The compass points home. For now, that is enough. But the compass has always found something.',
   },
 
   // ══════════════════════════════════════════════════════════════════

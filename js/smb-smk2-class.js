@@ -14,15 +14,16 @@ class SovereignMK2 extends AdaptiveAI {
     // Don't affect story mode — story uses AdaptiveAI directly
 
     // ── A. Prediction System ────────────────────────────────────
-    // Bigram table: maps "lastAction→currentAction" → occurrence count
-    this._bigramTable   = {};          // { 'jump→attack': 5, 'idle→jump': 3, … }
-    this._trigramTable  = {};          // { 'jump→attack→dodge': 2, … }
+    // Unified onto the inherited BehaviorModel (smb-behavior-model.js): its
+    // per-context bigram is the single source of "what will the player do next".
+    // _updatePrediction() reads that prediction; _actionSeq stays as a short local
+    // habit buffer for reads the BehaviorModel doesn't model (escape/dodge).
     this._actionSeq     = [];          // ring buffer: last 32 tagged actions
     this._lastAction    = 'idle';
     this._lastTwoActions = ['idle', 'idle'];
-    this._predictedNext = null;        // current prediction or null
+    this._predictedNext = null;        // current prediction (string tag) or null
     this._predictConf   = 0;           // 0–1 confidence
-    this._predictSource = 'none';      // none|bigram|trigram|habit
+    this._predictSource = 'none';      // none|behaviormodel|habit
     this._preemptMode   = false;       // currently executing preemptive counter
     this._preemptTimer  = 0;           // frames left in preemptive action
     this._preemptTarget = null;        // what we're preempting
@@ -112,6 +113,10 @@ class SovereignMK2 extends AdaptiveAI {
     this._actionSampleCount  = 0;   // non-idle actions seen
     this._adaptLockTimer     = 0;   // frames remaining on locked strategy
     this._lockedCounterStrategy = null; // 'anti-air'|'parry'|'guard-break'|'intercept'|'pressure'|null
+    // Tactic-swap (Stage 3): decaying failure tally per strategy. When a locked
+    // counter keeps letting the player through, Sovereign switches laterally.
+    this._strategyFail       = {};  // { strategy: failCount }
+    this._lockScored         = true; // has the current lock been scored for success/failure?
 
     // ── Force Engagement System ──────────────────────────────────
     // Tracks how long the player has stayed distant AND avoided attacking.
@@ -226,6 +231,12 @@ class SovereignMK2 extends AdaptiveAI {
 
     // ── Endlag Punish Window ───────────────────────────────────────
     this._endlagWindow        = 0;    // frames remaining in opponent's post-swing recovery
+
+    // ── Reaction mistake-rate latch (Stage 3) ──────────────────────
+    // One defensive read decision per player attack instance, latched on the
+    // attack's rising edge so a multi-frame swing is a single read (not a fresh
+    // coin-flip every frame). Cleared when the player isn't attacking.
+    this._reactLatch          = null; // { react: bool } | null
   }
 
   // ══════════════════════════════════════════════════════════════
@@ -256,36 +267,36 @@ class SovereignMK2 extends AdaptiveAI {
   // A. PREDICTION SYSTEM
   // ══════════════════════════════════════════════════════════════
 
+  // Maintains the short local action buffer. The parallel bigram/trigram tables
+  // were retired — prediction is sourced from the inherited BehaviorModel (see
+  // _updatePrediction). _actionSeq still feeds _getCounterStrategy and the
+  // habit-fallback read for actions the BehaviorModel doesn't model (escape/dodge).
   _recordActionBigram(action) {
     if (action === 'idle' && this._lastAction === 'idle') return; // skip idle→idle noise
-    const key = `${this._lastAction}→${action}`;
-    this._bigramTable[key] = (this._bigramTable[key] || 0) + 1;
-    const trigramKey = `${this._lastTwoActions[0]}→${this._lastTwoActions[1]}→${action}`;
-    this._trigramTable[trigramKey] = (this._trigramTable[trigramKey] || 0) + 1;
     this._actionSeq.push(action);
     if (this._actionSeq.length > 32) this._actionSeq.shift();
     this._lastTwoActions = [this._lastTwoActions[1], action];
     this._lastAction = action;
   }
 
-  _updatePrediction() {
-    const triPrefix = `${this._lastTwoActions[0]}→${this._lastTwoActions[1]}→`;
-    let triBest = null, triBestCount = 0, triTotal = 0;
-    for (const [key, count] of Object.entries(this._trigramTable)) {
-      if (key.startsWith(triPrefix)) {
-        triTotal += count;
-        if (count > triBestCount) { triBestCount = count; triBest = key.split('→')[2]; }
-      }
-    }
-    if (triTotal >= 2 && triBestCount / triTotal >= 0.50) {
-      this._predictedNext = triBest;
-      this._predictConf   = triBestCount / triTotal;
-      this._predictSource = 'trigram';
-      this._predTotal++;
+  // Prediction is sourced primarily from the inherited BehaviorModel's
+  // per-context bigram (the single prediction brain). A short local habit window
+  // over _actionSeq is kept as a fallback for reads the BehaviorModel doesn't
+  // classify — notably 'dodge'/escape — so coverage isn't lost in the unify.
+  // _predTotal increments only when the prediction CHANGES, so the
+  // _predCorrect/_predTotal ratio tracks distinct reads, not per-frame repeats.
+  _updatePrediction(bmPred) {
+    // ── Primary: BehaviorModel per-context prediction ──
+    const mapped = this._bmActionToTag(bmPred && bmPred.action);
+    if (mapped && bmPred.confidence > 0) {
+      if (this._predictedNext !== mapped) this._predTotal++;
+      this._predictedNext = mapped;
+      this._predictConf   = bmPred.confidence;
+      this._predictSource = 'behaviormodel';
       return;
     }
 
-    // Wider window (12 non-idle actions) gives a more stable habit signal
+    // ── Fallback: local habit window (catches escape/dodge + simple repeats) ──
     const recent = this._actionSeq.slice(-12).filter(a => a !== 'idle');
     if (recent.length >= 4) {
       const counts = {};
@@ -296,10 +307,10 @@ class SovereignMK2 extends AdaptiveAI {
       }
       const habitConf = bestHabitCount / recent.length;
       if (bestHabit && habitConf >= 0.60) {
+        if (this._predictedNext !== bestHabit) this._predTotal++;
         this._predictedNext = bestHabit;
         this._predictConf   = Math.min(0.95, 0.40 + habitConf * 0.65);
         this._predictSource = 'habit';
-        this._predTotal++;
 
         // Style-shift decay: if the player is mixing many different actions recently,
         // reduce confidence so stale predictions don't fire on a varied opponent.
@@ -311,26 +322,20 @@ class SovereignMK2 extends AdaptiveAI {
       }
     }
 
-    // Given _lastAction, find the most likely next action
-    const prefix = `${this._lastAction}→`;
-    let best = null, bestCount = 0, total = 0;
-    for (const [key, count] of Object.entries(this._bigramTable)) {
-      if (key.startsWith(prefix)) {
-        total += count;
-        if (count > bestCount) { bestCount = count; best = key.split('→')[1]; }
-      }
-    }
-    // Require at least 2 observations before predicting
-    if (total >= 2 && bestCount / total >= 0.40) {
-      this._predictedNext = best;
-      this._predictConf   = bestCount / total;
-      this._predictSource = 'bigram';
-      this._predTotal++;
-    } else {
-      this._predictedNext = null;
-      this._predictConf   = 0;
-      this._predictSource = 'none';
-    }
+    this._predictedNext = null;
+    this._predictConf   = 0;
+    this._predictSource = 'none';
+  }
+
+  // Map a BehaviorModel action enum (PA.*) onto Sovereign's preempt vocabulary.
+  // Returns null for actions Sovereign doesn't preempt on (idle/walk/land) — those
+  // fall through to the local habit read, which also covers 'dodge'/escape.
+  _bmActionToTag(pa) {
+    if (typeof PA === 'undefined' || pa === undefined || pa === null) return null;
+    if (pa === PA.ATTACK || pa === PA.AIRBORNE_ATK) return 'attack';
+    if (pa === PA.JUMP)  return 'jump';
+    if (pa === PA.BLOCK) return 'shield';
+    return null;
   }
 
   _applyPredictionCounter(t, dir, d, moveSpd) {
@@ -344,8 +349,16 @@ class SovereignMK2 extends AdaptiveAI {
         const safeDir = (this.x < 100) ? 1 : (this.x + this.w > GAME_W - 100) ? -1 : -dir;
         if (!this.isEdgeDanger(safeDir)) this.vx = safeDir * moveSpd * (2.2 + this._evolutionStage * 0.14);
       } else if (this._preemptTarget === 'jump') {
-        // Reposition to anti-air zone: move under predicted apex
-        if (!this.isEdgeDanger(dir)) this.vx = dir * moveSpd * (0.85 + this._intimidation * 0.40);
+        // Anti-air: pre-position at the projected landing zone — wait where they'll
+        // come down so Sovereign is already there on touchdown. Falls back to closing
+        // in when no distinct landing spot is predictable yet (target still grounded).
+        const _landing = this._behaviorModel.projectPosition(t, 45);
+        const _lDir    = Math.sign(_landing.x - this.cx()) || dir;
+        if (Math.abs(_landing.x - this.cx()) > 28 && !this.isEdgeDanger(_lDir)) {
+          this.vx = _lDir * moveSpd * 1.35;
+        } else if (!this.isEdgeDanger(dir)) {
+          this.vx = dir * moveSpd * (0.85 + this._intimidation * 0.40);
+        }
       } else if (this._preemptTarget === 'dodge') {
         // Chase in predicted escape direction
         if (!this.isEdgeDanger(dir)) this.vx = dir * moveSpd * (1.7 + this._intimidation * 0.40);
@@ -693,6 +706,18 @@ class SovereignMK2 extends AdaptiveAI {
     // Use rate-based strategy with lock-in — don't re-evaluate every tick.
     // Post-KB profile feeds in as a fallback when no rate-based pattern is detected.
     if (this._adaptLockTimer <= 0) {
+      // ── Tactic-swap scoring: did the strategy that just expired actually work? ──
+      // Score it once on expiry by how many hits leaked through while it was locked.
+      if (this._lockedCounterStrategy && !this._lockScored) {
+        this._lockScored = true;
+        const _hitsUnderLock = this._countRecent('dmg_taken', 120);
+        if (_hitsUnderLock >= 3) {
+          this._strategyFail[this._lockedCounterStrategy] = (this._strategyFail[this._lockedCounterStrategy] || 0) + 1;
+        } else if (_hitsUnderLock <= 1) {
+          this._strategyFail[this._lockedCounterStrategy] = Math.max(0, (this._strategyFail[this._lockedCounterStrategy] || 0) - 1);
+        }
+      }
+
       let strategy = this._getCounterStrategy();
       if (!strategy && this._observationFrames >= 180) {
         // No strong rate pattern — try post-KB dominant behavior as a counter strategy
@@ -707,9 +732,28 @@ class SovereignMK2 extends AdaptiveAI {
       if (!strategy && t && t.weapon && t.weapon.kb >= 18 && this._actionSampleCount >= 3) {
         strategy = 'parry';
       }
+
+      // ── Lateral swap: the indicated counter keeps failing → switch plans, out loud. ──
+      // This is the visible "you adapted, so will I" beat — not just escalation.
+      if (strategy && (this._strategyFail[strategy] || 0) >= 2 &&
+          typeof SMK2_STRATEGY_SWAP !== 'undefined' && SMK2_STRATEGY_SWAP[strategy]) {
+        const _alt = SMK2_STRATEGY_SWAP[strategy];
+        if (_alt && _alt !== strategy) {
+          strategy = _alt;
+          this._strategyFail[_alt] = 0; // give the new plan a clean slate
+          if (this._fearLineCd <= 0 && typeof SMK2_TACTIC_SWAP_LINES !== 'undefined') {
+            showBossDialogue(SMK2_TACTIC_SWAP_LINES[Math.floor(Math.random() * SMK2_TACTIC_SWAP_LINES.length)], 130);
+            this._fearLineCd = 200;
+            spawnParticles(this.cx(), this.cy(), '#ff66cc', 10);
+            screenShake = Math.max(screenShake, 5);
+          }
+        }
+      }
+
       if (strategy) {
         this._lockedCounterStrategy = strategy;
         this._adaptLockTimer = 120; // hold this counter for 2 seconds
+        this._lockScored     = false; // fresh lock — score it when it expires
       }
     }
     if (this._adaptLockTimer > 0) this._adaptLockTimer--;
@@ -1472,6 +1516,24 @@ class SovereignMK2 extends AdaptiveAI {
     return resolved || { range: 90, damage: 12, cooldown: 32, kb: 12, type: 'melee' };
   }
 
+  // ── Stage 3: single reaction "beatability" knob ──────────────────────
+  // THE one place defensive difficulty is tuned. Returns the probability that
+  // Sovereign FAILS to react to an attack it can see — i.e. the player's reward
+  // window for committing. Replaces the scattered per-site dodge/shield coin-flips
+  // with one legible, tunable number. Starts forgiving (exchanges are winnable),
+  // shrinks as Sovereign evolves / breaks its limiter, and spikes during a stagger
+  // so even a peaked Sovereign always leaves a genuine opening. Lower the base to
+  // make Sovereign harder; raise it to make it more beatable.
+  _reactionMistakeRate() {
+    let rate = 0.18;
+    rate -= this._evolutionStage * 0.035;                    // main progression: 0 → -0.105
+    rate -= Math.max(0, this.intelligence - 0.85) * 0.30;    // slight (Sovereign starts ~0.91)
+    if (this._limiterBroken)                  rate -= 0.06;  // near-perfect after limiter break
+    if (this._limiterStaggerTimer > 0)        rate += 0.42;  // staggered → genuine counter window
+    if (this.health < this.maxHealth * 0.30)  rate += 0.04;  // desperate, a touch sloppier
+    return Math.max(0.03, Math.min(0.55, rate));
+  }
+
   // ══════════════════════════════════════════════════════════════
   // OVERRIDE: update() — tick new systems before physics
   // ══════════════════════════════════════════════════════════════
@@ -1586,23 +1648,26 @@ class SovereignMK2 extends AdaptiveAI {
       }
     }
 
-    // ── A. Bigram action tracking ────────────────────────────
+    // ── BehaviorModel observe — the single prediction brain ──────────────
+    // Parent updateAI() is bypassed in this override, so we drive the richer
+    // per-context bigram model manually and compute its prediction up front:
+    // _bmPred now feeds Sovereign's own prediction shim (_updatePrediction),
+    // so there is one source of truth for "what will the player do next".
+    const _bmObs  = this._behaviorModel.observe(t, this._bmPrevSnap);
+    this._bmPrevSnap = { onGround: t.onGround, vx: t.vx, vy: t.vy };
+    const _bmPred = this._behaviorModel.predictNext(_bmObs.action, _bmObs.context);
+
+    // ── A. Action tracking + prediction (sourced from the BehaviorModel) ──
     const currentAction = _smk2ClassifyAction(t, this._prevT2state);
     if (currentAction !== 'idle') {
       this._actionSampleCount++;
       this._recordActionBigram(currentAction);
-      this._updatePrediction();
+      this._updatePrediction(_bmPred);
     }
     this._updateHabitTracker(currentAction, t);
     this._checkPredictionCorrect(t, currentAction);
     this._prevT2state = { attacking: t.attackTimer > 0, onGround: t.onGround, shielding: t.shielding, vx: t.vx };
 
-    // ── BehaviorModel observe — parent system kept alive in SMK2 override ──
-    // Parent updateAI() is never called here, so we drive the richer per-context
-    // bigram model manually. _bmPred/_bmBias are used later for pre-dodge and approach.
-    const _bmObs  = this._behaviorModel.observe(t, this._bmPrevSnap);
-    this._bmPrevSnap = { onGround: t.onGround, vx: t.vx, vy: t.vy };
-    const _bmPred = this._behaviorModel.predictNext(_bmObs.action, _bmObs.context);
     const _bmBias = this._behaviorModel.computeBias(_bmObs.action, _bmPred);
     const _bmRead  = this._behaviorModel.summarizeOpponent(_bmObs.action, _bmPred);
     const _memoryState = (typeof SovereignAdaptiveMemory !== 'undefined' &&
@@ -1942,55 +2007,54 @@ class SovereignMK2 extends AdaptiveAI {
       return;
     }
 
-    // ── A. Preemptive prediction counter ─────────────────────
-    // Short observation window — Sovereign reads patterns almost immediately
+    // ── A. Preemptive prediction counter (single authoritative read) ──
+    // Sourced from the unified BehaviorModel prediction (see _updatePrediction).
+    // One path per predicted action, so the player never eats two conflicting
+    // preempt reactions in a tick and every correct read is credited.
     const adaptReady = this._observationFrames >= 40 && this._actionSampleCount >= 2;
-    if (adaptReady && !this._humanMissArmed) {
-      // BehaviorModel pre-dodge: step back before a confidently-predicted attack fires.
-      // Uses the richer per-context bigram from the parent system (7 actions × 3 contexts).
-      if (_bmBias.preDodgeFrames > 0 && !playerAttacking && this.cooldown <= 0) {
+    if (adaptReady && !this._humanMissArmed && !playerAttacking) {
+      // Predicted attack → the authoritative pre-dodge: step back once and commit.
+      // Crediting (_preemptMode/_preemptTarget) lets _checkPredictionCorrect reward it,
+      // so reading an attack correctly advances evolution the same as any other read.
+      if (this._predictedNext === 'attack' && this.cooldown <= 0 &&
+          this._predictConf >= (0.50 - this._evolutionStage * 0.03)) {
+        const _pdFrames = _bmBias.preDodgeFrames > 0 ? _bmBias.preDodgeFrames : Math.max(2, reactFrames);
         const _pdDir = (nearLeft && dir < 0) ? 1 : (nearRight && dir > 0) ? -1 : -dir;
         if (this.onGround && !this.isEdgeDanger(_pdDir)) {
-          this.vx      = _pdDir * moveSpd * 1.5;
-          this.aiReact = _bmBias.preDodgeFrames;
+          this.vx             = _pdDir * moveSpd * 1.5;
+          this.aiReact        = _pdFrames;
+          this._preemptMode   = true;
+          this._preemptTarget = 'attack';
           this._recordEvent('dodge', 4);
           return;
         }
       }
+      // Predicted jump / dodge / shield (and cornered or airborne attack reads) →
+      // the multi-frame preempt: anti-air landing, intercept, or guard-break.
       if (this._applyPredictionCounter(t, dir, d, moveSpd)) {
         this.aiReact = reactFrames;
         return;
       }
-
-      // Pre-position for predicted jump: move to landing zone BEFORE the player jumps.
-      // Player sees Sovereign already waiting at their landing spot — this is the
-      // "I read you" moment that makes adaptation feel real.
-      if (_bmPred.action === PA.JUMP && _bmPred.confidence > 0.55 &&
-          t.onGround && !playerAttacking && d < 300) {
-        const _landing = this._behaviorModel.projectPosition(t, 45);
-        const _lDir    = Math.sign(_landing.x - this.cx());
-        const _lDist   = Math.abs(_landing.x - this.cx());
-        if (_lDist > 28 && !this.isEdgeDanger(_lDir)) {
-          this.vx      = _lDir * moveSpd * 1.35;
-          this.aiReact = 3;
-          return;
-        }
-      }
     }
 
+    // ── Reaction read: one mistake-gated decision for this attack ──────────
+    // Latched per attack instance so every defensive site below shares ONE roll
+    // against the single mistake-rate, instead of independently coin-flipping.
+    if (!playerAttacking) this._reactLatch = null;
+    else if (!this._reactLatch) this._reactLatch = { react: Math.random() >= this._reactionMistakeRate() };
+    const _willReactToAttack = !!(this._reactLatch && this._reactLatch.react);
+
     // ── SHIELD PRIORITY — evaluated before hardCounter so parry/flowBreak don't eat it ──
-    // When the player swings, roll shield FIRST. If it fires, skip all evasion logic.
-    // If it doesn't fire, hardCounter and flowBreak handle the response normally.
+    // Shield FIRST when it's the tactically preferred reaction; otherwise fall through
+    // to hardCounter / COUNTER-ATTACK (which dodge). Reacting at all is the mistake gate.
     if (playerAttacking && d < 210 && this.shieldCooldown === 0 && this._shieldHoldFrames === 0 && effDef > 0.55) {
       const _shCornered = (nearLeft && dir < 0) || (nearRight && dir > 0);
-      // vs high-KB melee: shield-parry works well — their long recovery is punishable.
-      const _shieldDisabled = !!(t.weapon && t.weapon.kb >= 18);
-      const _shChance   = _shieldDisabled
-        ? (_shCornered ? 0.55 : 0.35) + (recentTaken >= 1 ? 0.10 : 0) + memoryShield
-        : (_shCornered ? 0.62 : 0.28) + (lb ? 0.12 : 0)
-          + (recentTaken >= 2 ? 0.22 : recentTaken >= 1 ? 0.10 : 0)
-          + (heavyThreat ? 0.22 : 0) + memoryShield;
-      if (Math.random() < _shChance) {
+      // Shield is preferred when cornered (no clean dodge lane), vs a heavy/high-KB
+      // weapon (long punishable recovery), under sustained pressure, or with a learned
+      // shield bias. The GO/NO-GO on reacting is _willReactToAttack — not a coin flip.
+      const _shieldPreferred = _shCornered || (t.weapon && t.weapon.kb >= 18) ||
+        recentTaken >= 2 || memoryShield > 0.15;
+      if (_willReactToAttack && _shieldPreferred) {
         this._telegraphTimer   = 0; // cancel any pending wind-up — shield takes priority
         this.shielding         = true;
         this.shieldCooldown    = 60;
@@ -2042,34 +2106,31 @@ class SovereignMK2 extends AdaptiveAI {
     }
 
     // ── COUNTER-ATTACK: dodge or shield on player attack ─────
+    // Reaction is governed by the single mistake-rate latch (_willReactToAttack);
+    // the shield-vs-dodge CHOICE is deterministic on tactical context — no coin flip.
     if (playerAttacking && d < 210) {
       const canShield = this.shieldCooldown === 0;
       const cornered  = (nearLeft && dir < 0) || (nearRight && dir > 0);
-      // Shield preferred when cornered (no clean dodge direction), under heavy pressure,
-      // or limiter broken (Sovereign wants to absorb and counter rather than flee).
-      const _shDisabled2 = !!(t.weapon && t.weapon.kb >= 18);
-      const shieldChance = (canShield && effDef > 0.55 && !_shDisabled2)
-        ? (cornered ? 0.62 : 0.28) + (lb ? 0.12 : 0) + (recentTaken >= 2 ? 0.22 : recentTaken >= 1 ? 0.10 : 0) + (heavyThreat ? 0.22 : 0) + memoryShield
-        : (canShield && _shDisabled2 ? (cornered ? 0.55 : 0.35) + (recentTaken >= 1 ? 0.10 : 0) + memoryShield : 0);
+      if (_willReactToAttack) {
+        // Prefer shield when cornered (no clean dodge lane), vs a heavy/high-KB weapon
+        // (long punishable recovery + heavy knockback to avoid), under sustained pressure,
+        // or with a learned shield bias. Otherwise slip the swing and punish.
+        const _preferShield = canShield && (cornered || (t.weapon && t.weapon.kb >= 18) ||
+          recentTaken >= 2 || memoryShield > 0.15);
 
-      if (shieldChance > 0 && Math.random() < shieldChance) {
-        this.shielding        = true;
-        this.shieldCooldown   = 60;
-        this._shieldHoldFrames = 10;
-        this._recordEvent('dodge', 3);
-        this._chooseAdaptivePunishRoute(t, dir, d, playerAttacking, currentAction, _bmObs, _bmPred, recentTaken);
-        this.aiReact = reactFrames;
-        return;
-      }
+        if (_preferShield) {
+          this.shielding        = true;
+          this.shieldCooldown   = 60;
+          this._shieldHoldFrames = 10;
+          this._recordEvent('dodge', 3);
+          this._chooseAdaptivePunishRoute(t, dir, d, playerAttacking, currentAction, _bmObs, _bmPred, recentTaken);
+          this.aiReact = reactFrames;
+          return;
+        }
 
-      // At high intelligence, dodge is near-certain — not a coin flip.
-      // Below 0.72 intelligence it stays probabilistic so early-game has counterplay.
-      const dodgeThresh = this.intelligence > 0.72
-        ? Math.min(0.98, effDef * Math.min(1.55, _bmBias.dodgeBoost) * (heavyThreat ? 1.08 : 1.0) * memoryDodge)
-        : effDef * 0.88 * Math.min(1.55, _bmBias.dodgeBoost) * (heavyThreat ? 1.05 : 1.0) * memoryDodge;
-
-      if (Math.random() < dodgeThresh) {
+        // Dodge — slip the swing, then commit to a punish.
         const dDir = (nearLeft && dir < 0) ? 1 : (nearRight && dir > 0) ? -1 : -dir;
+        let _dodged = true;
         if (this.onGround && !this.isEdgeDanger(dDir)) {
           this.vx = dDir * moveSpd * 2.2;
         } else if (this.onGround) {
@@ -2077,37 +2138,39 @@ class SovereignMK2 extends AdaptiveAI {
         } else if (this.canDoubleJump) {
           this.vx = dDir * moveSpd * 1.8;
           this.vy = -16; this.canDoubleJump = false;
+        } else if (!this.isEdgeDanger(dDir)) {
+          this.vx = dDir * moveSpd * 2.0; // airborne, no double jump — lateral slip
+        } else if (canShield) {
+          // Cornered mid-air with no lane — shield as the last-resort block.
+          this.shielding        = true;
+          this.shieldCooldown   = 60;
+          this._shieldHoldFrames = 8;
+          this._recordEvent('dodge', 3);
+          this._chooseAdaptivePunishRoute(t, dir, d, playerAttacking, currentAction, _bmObs, _bmPred, recentTaken);
+          this.aiReact = reactFrames;
+          return;
         } else {
-          // Airborne, no double jump — lateral boost to slip out of the swing arc
-          if (!this.isEdgeDanger(dDir)) this.vx = dDir * moveSpd * 2.0;
+          _dodged = false; // no dodge lane and no shield — gets clipped this frame
         }
-        this.shielding = false;
-        this._telegraphTimer = 0; // cancel any pending wind-up — dodge takes priority
-        this._recordEvent('dodge', 5);
-        this._chooseAdaptivePunishRoute(t, dir, d, playerAttacking, currentAction, _bmObs, _bmPred, recentTaken);
-        // Scale punish window to the opponent weapon's full recovery (cooldown + endlag).
-        // Heavy weapons have huge recovery — Sovereign has time to close any gap and strike.
-        const _ptWpnRec = t.weapon ? ((t.weapon.cooldown || 32) + (t.weapon.endlag || 8)) : 40;
-        const _ptHeavy  = (t.weapon && t.weapon.kb >= 18) ? Math.min(10, Math.round(_ptWpnRec / 9)) : 0;
-        this._punishTimer = (lb ? 4 : 6) + _ptHeavy;
-        // Dodge-to-chase: after punish timer expires, continue committed pursuit.
-        // Ensures defensive success never simply returns to passive neutral.
-        this._commitToChaseFrames = 30;
-        this._chaseDirection      = dir; // dir = toward player; commit to closing back in
-        this.aiReact = Math.max(1, reactFrames - 1); // punish sprint starts one frame earlier
-        return;
-      }
 
-      // Cornered with no usable dodge direction — brief shield then instant punish
-      if (canShield) {
-        this.shielding        = true;
-        this.shieldCooldown   = 60;
-        this._shieldHoldFrames = 8;
-        this._recordEvent('dodge', 3);
-        this._chooseAdaptivePunishRoute(t, dir, d, playerAttacking, currentAction, _bmObs, _bmPred, recentTaken);
-        this.aiReact = reactFrames;
-        return;
+        if (_dodged) {
+          this.shielding = false;
+          this._telegraphTimer = 0; // cancel any pending wind-up — dodge takes priority
+          this._recordEvent('dodge', 5);
+          this._chooseAdaptivePunishRoute(t, dir, d, playerAttacking, currentAction, _bmObs, _bmPred, recentTaken);
+          // Scale punish window to the opponent weapon's full recovery (cooldown + endlag).
+          const _ptWpnRec = t.weapon ? ((t.weapon.cooldown || 32) + (t.weapon.endlag || 8)) : 40;
+          const _ptHeavy  = (t.weapon && t.weapon.kb >= 18) ? Math.min(10, Math.round(_ptWpnRec / 9)) : 0;
+          this._punishTimer = (lb ? 4 : 6) + _ptHeavy;
+          // Dodge-to-chase: defensive success never simply returns to passive neutral.
+          this._commitToChaseFrames = 30;
+          this._chaseDirection      = dir;
+          this.aiReact = Math.max(1, reactFrames - 1); // punish sprint starts one frame earlier
+          return;
+        }
       }
+      // Not reacting (or no escape lane) — Sovereign eats this attack: the player's
+      // reward window defined by the single mistake-rate.
     } else {
       this.shielding = false;
     }
@@ -2665,11 +2728,10 @@ function showSovereignStats(on) {
 function showSovereignPredictions() {
   const ai = (typeof players !== 'undefined') && players.find(p => p.isSovereignMK2);
   if (!ai) { console.warn('[SovereignMK2] No active SovereignMK2 found.'); return; }
-  const total  = Object.values(ai._bigramTable).reduce((a, b) => a + b, 0);
-  const top    = Object.entries(ai._bigramTable).sort(([,a],[,b]) => b - a).slice(0, 8);
-  console.log(`[SovereignMK2] Top bigrams (${total} total):`);
-  for (const [k, v] of top) console.log(`  ${k.padEnd(18)} x${v} (${(v/total*100).toFixed(0)}%)`);
-  console.log(`Predictions: ${ai._predCorrect}/${ai._predTotal} correct`);
+  console.log(`[SovereignMK2] Prediction brain: BehaviorModel (per-context bigram)`);
+  console.log(`  Current read: ${ai._predictedNext || 'none'} @ ${(ai._predictConf * 100).toFixed(0)}%  [${ai._predictSource}]`);
+  console.log(`  Recent actions: ${ai._actionSeq.slice(-12).join(' → ') || '(none)'}`);
+  console.log(`Predictions: ${ai._predCorrect}/${ai._predTotal} correct (distinct reads)`);
   console.log(`Limiter broken: ${ai._limiterBroken}  |  Punish count: ${ai._punishModeCount}`);
   console.log(`Stage: ${SMK2_STAGE_NAMES[ai._evolutionStage]}  |  Pressure: ${(ai._intimidation * 100).toFixed(0)}%  |  Source: ${ai._predictSource}`);
 }
@@ -2680,8 +2742,6 @@ function resetSovereignMK2() {
   ai._eventBuffer   = [];
   ai._adaptTick     = 0;
   ai._adaptCycles   = 0;
-  ai._bigramTable   = {};
-  ai._trigramTable  = {};
   ai._actionSeq     = [];
   ai._lastAction    = 'idle';
   ai._lastTwoActions = ['idle', 'idle'];
@@ -2717,6 +2777,8 @@ function resetSovereignMK2() {
   ai._dominantHabit = null;
   ai._dominantHabitScore = 0;
   ai._counterLockTimer = 0;
+  ai._strategyFail     = {};
+  ai._lockScored       = true;
   ai._counterCueCd = 0;
   ai._fearLineCd = 0;
   ai._dominanceZoomCd = 0;
@@ -2727,6 +2789,7 @@ function resetSovereignMK2() {
   ai._limiterReason = null;
   ai._shieldHoldFrames    = 0;
   ai._limiterStaggerTimer = 0;
+  ai._reactLatch          = null;
   Object.assign(ai._exploit, { stallFrames:0, stallRespCd:0, edgeFrames:0, edgeRespCd:0, spamCount:0, spamTimer:0, spamRespCd:0, engageTimer:0 });
   // Platform + spatial + corner + post-KB resets
   ai._platVisits    = [];

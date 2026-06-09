@@ -225,7 +225,7 @@ STORY_CHAPTER_REGISTRY.push(
       '',
       'Recognition.',
       '',
-      'Veran\'s voice, somewhere far beneath all of it:',
+      'Paradox\'s voice, somewhere far beneath all of it:',
       '"What do you see?"',
       '',
       'You had a name.',
@@ -272,7 +272,7 @@ STORY_CHAPTER_REGISTRY.push(
     ],
     tokenReward: 100,
     blueprintDrop: null,
-    postText: 'It was over. The domain stopped rewriting itself. Axiom\'s patterns, threaded through God\'s foundations, came undone — not all at once, not violently. The way something falls when the thing driving it no longer has a direction. The architecture settled back toward what it had been. Not restored. Resolved. The fragment was quiet. The compass had no direction. Veran\'s voice came through, very small, from somewhere far outside this domain: "You did it." You didn\'t say anything. You stood in the center of God\'s rebuilt home, the oldest room in existence, with the fragment steady in your chest and no one left to fight. That was enough.',
+    postText: 'It was over. The domain stopped rewriting itself. Axiom\'s patterns, threaded through God\'s foundations, came undone — not all at once, not violently. The way something falls when the thing driving it no longer has a direction. The architecture settled back toward what it had been. Not restored. Resolved. The fragment was quiet. The compass had no direction. Then the fragment pulsed once — not in warning, not in response to anything outside you. Just once. Like something that had been waiting a very long time to be still. You didn\'t say anything. You stood in the center of God\'s rebuilt home, the oldest room in existence, with the fragment steady in your chest and no one left to fight. That was enough.',
   },
 
 );

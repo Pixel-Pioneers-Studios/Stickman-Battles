@@ -5,7 +5,7 @@
 STORY_CHAPTER_REGISTRY.push(
 
   {
-    id: 149, title: 'The Voice Inside',
+    id: 150, title: 'The Voice Inside',
     world: '🌅 God\'s Domain — Rewritten',
     type: 'branch',
     narrative: [
@@ -36,6 +36,9 @@ STORY_CHAPTER_REGISTRY.push(
       '"That is the only variable",',
       '"I did not know how to account for.",',
       '',
+      '"I was the figure on the ridge.",',
+      '"You needed to walk in alone.",',
+      '',
       '"It does not change what comes next.",',
       '',
       'The fragment burned steady.',
@@ -59,7 +62,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 150, title: 'Phase One — Axiom\'s Will',
+    id: 151, title: 'Phase One — Axiom\'s Will',
     world: '🌅 God\'s Domain — Rewritten',
     preText: 'Absolute Axiom — Phase One. Axiom\'s will is driving this. It has catalogued every pattern you have. Every fighter it sent contributed data. 3 lives.',
     opponentName: 'Absolute Axiom', weaponKey: 'sword', classKey: 'warrior', aiDiff: 'expert', opponentColor: '#ffe8ff',
@@ -78,7 +81,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 151, title: 'God\'s Foundation',
+    id: 152, title: 'God\'s Foundation',
     world: '🌅 God\'s Domain — Actively Reshaping',
     type: 'exploration', exploreMode: 'escape',
     style: 'void',
@@ -105,7 +108,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 152, title: 'Phase Two — God\'s Foundations',
+    id: 153, title: 'Phase Two — God\'s Foundations',
     world: '🌅 God\'s Domain — Fully Rewritten',
     preText: 'Absolute Axiom — Phase Two. God\'s creative force is now a weapon. The domain fights alongside it. There is no margin left. 1 life.',
     opponentName: 'Absolute Axiom', weaponKey: 'sword', classKey: 'warrior', aiDiff: 'expert', opponentColor: '#ffe8ff',
@@ -124,7 +127,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 153, title: 'Peak Form',
+    id: 154, title: 'Peak Form',
     world: '🌅 God\'s Domain — Fully Rewritten',
     type: 'branch',
     narrative: [
@@ -173,7 +176,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 154, title: 'After Everything',
+    id: 155, title: 'After Everything',
     world: '🌅 God\'s Domain — Settling',
     type: 'branch',
     narrative: [
@@ -184,6 +187,15 @@ STORY_CHAPTER_REGISTRY.push(
       'came undone — not all at once, not violently.',
       'The way something falls when the thing driving it',
       'no longer has a direction.',
+      '',
+      'Something settled into you.',
+      'Not a weight — a permanence.',
+      'What had been God\'s creative force.',
+      'What had been five thousand years of Axiom\'s will.',
+      'It had nowhere else to go.',
+      'The fragment received it the way a vessel receives',
+      'what finally arrives.',
+      'Quiet. Complete. Irreversible.',
       '',
       'The architecture settled back toward what it had been.',
       'Not restored.',

@@ -139,24 +139,24 @@ function drawTFEnding() {
         // Outer ring
         ctx.beginPath();
         ctx.arc(nx, ny, r * 1.5, 0, Math.PI*2);
-        ctx.strokeStyle = nd.corrupted ? '#224422' : (nd.hitTimer > 0 ? '#ffffff' : '#00ff41');
+        ctx.strokeStyle = nd.corrupted ? '#332244' : (nd.hitTimer > 0 ? '#ffffff' : '#cc66ff');
         ctx.lineWidth   = 2 * sc_;
         ctx.stroke();
 
         // Fill
         ctx.beginPath();
         ctx.arc(nx, ny, r, 0, Math.PI*2);
-        ctx.fillStyle = nd.corrupted ? 'rgba(0,40,0,0.5)' : 'rgba(0,255,65,0.12)';
+        ctx.fillStyle = nd.corrupted ? 'rgba(40,0,40,0.5)' : 'rgba(180,100,255,0.12)';
         ctx.fill();
-        ctx.strokeStyle = nd.corrupted ? '#006600' : '#00ff41';
+        ctx.strokeStyle = nd.corrupted ? '#552288' : '#cc66ff';
         ctx.lineWidth = 1.5 * sc_;
         ctx.stroke();
 
         // Label
         ctx.font      = `bold ${Math.round(10 * sc_)}px monospace`;
         ctx.textAlign = 'center';
-        ctx.fillStyle = nd.corrupted ? '#224422' : '#00ff41';
-        ctx.shadowColor = nd.corrupted ? 'transparent' : '#00ff41';
+        ctx.fillStyle = nd.corrupted ? '#332244' : '#cc66ff';
+        ctx.shadowColor = nd.corrupted ? 'transparent' : '#cc66ff';
         ctx.shadowBlur  = nd.corrupted ? 0 : 8;
         ctx.fillText(nd.label, nx, ny + 4 * sc_);
         ctx.shadowBlur  = 0;
@@ -176,33 +176,33 @@ function drawTFEnding() {
           ctx.globalAlpha = (1 - dist/80) * 0.55;
           ctx.beginPath();
           ctx.arc(nx, ny, r * 2.2 * (1 + (1-dist/80)*0.3), 0, Math.PI*2);
-          ctx.strokeStyle = '#00ffcc';
+          ctx.strokeStyle = '#ddaaff';
           ctx.lineWidth   = 2 * sc_;
           ctx.stroke();
         }
       }
 
-      // Node counter
+      // Rift counter
       ctx.globalAlpha = 0.75;
       ctx.font      = `${Math.round(10 * sc_)}px monospace`;
       ctx.textAlign = 'left';
-      ctx.fillStyle = '#00ff41';
-      ctx.fillText(`NODES CORRUPTED: ${sc.nodesCorrupted}/5`, 14 * scX, 18 * scY);
+      ctx.fillStyle = '#cc66ff';
+      ctx.fillText(`RIFTS SEALED: ${sc.nodesCorrupted}/5`, 14 * scX, 18 * scY);
 
       // Instruction
       if (sc.nodesCorrupted < 5) {
         ctx.globalAlpha = 0.6 + Math.sin(sc.timer * 0.12) * 0.3;
         ctx.font      = `${Math.round(9 * sc_)}px monospace`;
         ctx.textAlign = 'center';
-        ctx.fillStyle = '#88ffaa';
-        ctx.fillText('[ approach node + ATTACK to corrupt ]', cw/2, ch - 16*scY);
+        ctx.fillStyle = '#ddaaff';
+        ctx.fillText('[ approach rift + ATTACK to seal ]', cw/2, ch - 16*scY);
       } else {
         ctx.globalAlpha = 0.9;
         ctx.font      = `bold ${Math.round(14 * sc_)}px monospace`;
         ctx.textAlign = 'center';
         ctx.fillStyle = '#ffffff';
-        ctx.shadowColor = '#00ff41'; ctx.shadowBlur = 18;
-        ctx.fillText('SYSTEM COLLAPSE INITIATED', cw/2, ch*0.5 - 20*scY);
+        ctx.shadowColor = '#cc66ff'; ctx.shadowBlur = 18;
+        ctx.fillText('THE PATTERN UNRAVELS', cw/2, ch*0.5 - 20*scY);
         ctx.shadowBlur = 0;
       }
 
@@ -226,7 +226,7 @@ function drawTFEnding() {
       // Flash on node corruption
       if (sc.crFlashTimer > 0) {
         ctx.globalAlpha = (sc.crFlashTimer / 20) * 0.38;
-        ctx.fillStyle = '#00ff41';
+        ctx.fillStyle = '#cc66ff';
         ctx.fillRect(0, 0, cw, ch);
       }
     }

@@ -143,57 +143,130 @@ function backToHome() {
   if (homeContent) homeContent.style.display = '';
   const configContent = document.getElementById('menuConfigContent');
   if (configContent) configContent.style.display = 'none';
-  closeNexus();
+  closeSimulator();
   closeStoryPath();
-  closeBossRush();
 }
 
-function openNexus() {
-  const pathCards = document.getElementById('pathCards');
-  const nexusPanel = document.getElementById('nexusPanel');
+// ── Simulator navigation ──────────────────────────────────────────────────────
+function _hideAllSimPanels() {
+  ['simulatorPanel', 'refightPanel', 'theGridPanel'].forEach(function(id) {
+    const el = document.getElementById(id);
+    if (el) el.style.display = 'none';
+  });
+}
+
+function openSimulator() {
+  _hideAllSimPanels();
+  const pathCards  = document.getElementById('pathCards');
+  const simPanel   = document.getElementById('simulatorPanel');
+  const usernameEl = document.getElementById('simGreetUsername');
   if (pathCards) pathCards.style.display = 'none';
-  if (nexusPanel) nexusPanel.style.display = '';
+  if (simPanel)  simPanel.style.display  = '';
+  if (usernameEl) {
+    const acct = (typeof AccountManager !== 'undefined') ? AccountManager.getActiveAccount() : null;
+    usernameEl.textContent = (acct && acct.username) ? acct.username : 'Pilot';
+  }
 }
 
-function closeNexus() {
+function closeSimulator() {
+  _hideAllSimPanels();
   const pathCards = document.getElementById('pathCards');
-  const nexusPanel = document.getElementById('nexusPanel');
   if (pathCards) pathCards.style.display = '';
-  if (nexusPanel) nexusPanel.style.display = 'none';
 }
 
-// ── Boss Rush gauntlet ────────────────────────────────────────────────────────
+function openRefight() {
+  _hideAllSimPanels();
+  const refightPanel = document.getElementById('refightPanel');
+  if (refightPanel) refightPanel.style.display = '';
+  _applyRefightLocks();
+}
+
+function _applyRefightLocks() {
+  var _locks = {
+    'refight-creator':  typeof bossBeaten          !== 'undefined' ? !!bossBeaten          : false,
+    'refight-trueform': typeof unlockedTrueBoss     !== 'undefined' ? !!unlockedTrueBoss     : false,
+    'refight-sovereign':typeof sovereignBeaten      !== 'undefined' ? !!sovereignBeaten      : false,
+    'modeAbsoluteAxiom': typeof absoluteAxiomUnlocked !== 'undefined' ? !!absoluteAxiomUnlocked : false,
+  };
+  var _allUnlocked = _locks['refight-creator'] && _locks['refight-trueform'] && _locks['refight-sovereign'];
+
+  Object.keys(_locks).forEach(function(id) {
+    _setRefightCardLock(id, !_locks[id]);
+  });
+  _setRefightCardLock('refight-gauntlet', !_allUnlocked);
+}
+
+function _setRefightCardLock(id, locked) {
+  var el = document.getElementById(id);
+  if (!el) return;
+  if (locked) {
+    el.classList.add('refight-locked');
+    el.onclick = function() {
+      if (typeof showToast === 'function') showToast('&#128274; Complete this fight in Story Mode first.');
+    };
+  } else {
+    el.classList.remove('refight-locked');
+    var _modeMap = {
+      'refight-creator':  function() { startSimFight('boss'); },
+      'refight-trueform': function() { startSimFight('trueform'); },
+      'refight-sovereign':function() { startSimFight('sovereign'); },
+      'modeAbsoluteAxiom': function() { startSimFight('absoluteaxiom'); },
+      'refight-gauntlet': function() { startSimGauntlet(); },
+    };
+    if (_modeMap[id]) el.onclick = _modeMap[id];
+  }
+}
+
+function closeRefight() {
+  const refightPanel = document.getElementById('refightPanel');
+  if (refightPanel) refightPanel.style.display = 'none';
+  const simPanel = document.getElementById('simulatorPanel');
+  if (simPanel) simPanel.style.display = '';
+}
+
+function openTheGrid() {
+  _hideAllSimPanels();
+  const theGridPanel = document.getElementById('theGridPanel');
+  if (theGridPanel) theGridPanel.style.display = '';
+}
+
+function closeTheGrid() {
+  const theGridPanel = document.getElementById('theGridPanel');
+  if (theGridPanel) theGridPanel.style.display = 'none';
+  const simPanel = document.getElementById('simulatorPanel');
+  if (simPanel) simPanel.style.display = '';
+}
+
+function openCutsceneViewer() {
+  if (typeof showToast === 'function') showToast('Cutscene viewer — coming soon.');
+}
+
+// ── Simulator fight launchers (formerly Boss Rush) ────────────────────────────
 let _bossRushGauntlet = [];  // ['boss','trueform','sovereign'] when gauntlet active
 let _bossRushIdx = -1;
 
-function openBossRush() {
-  const pathCards = document.getElementById('pathCards');
-  const bossRushPanel = document.getElementById('bossRushPanel');
-  if (pathCards) pathCards.style.display = 'none';
-  if (bossRushPanel) bossRushPanel.style.display = '';
-}
-
-function closeBossRush() {
-  const pathCards = document.getElementById('pathCards');
-  const bossRushPanel = document.getElementById('bossRushPanel');
-  if (pathCards) pathCards.style.display = '';
-  if (bossRushPanel) bossRushPanel.style.display = 'none';
-}
-
-function startBossRushFight(mode) {
+function startSimFight(mode) {
   _bossRushGauntlet = [];
   _bossRushIdx = -1;
-  closeBossRush();
+  _hideAllSimPanels();
   selectMode(mode);
 }
 
-function startBossRushGauntlet() {
+function startSimGauntlet() {
   _bossRushGauntlet = ['boss', 'trueform', 'sovereign'];
   _bossRushIdx = 0;
-  closeBossRush();
+  _hideAllSimPanels();
   selectMode('boss');
   if (typeof startGame === 'function') startGame();
 }
+
+// Legacy aliases — referenced by old code paths
+function openNexus()     { openSimulator(); }
+function closeNexus()    { closeSimulator(); }
+function openBossRush()  { openRefight(); }
+function closeBossRush() { closeRefight(); }
+function startBossRushFight(mode) { startSimFight(mode); }
+function startBossRushGauntlet()  { startSimGauntlet(); }
 
 function bossRushAdvance() {
   _bossRushIdx++;

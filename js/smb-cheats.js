@@ -130,7 +130,7 @@ function applyCode(val) {
     } else { bossRushUnlocked = true; }
     const brCard = document.getElementById('modeBossRush');
     if (brCard) brCard.style.display = '';
-    ok('Boss Rush unlocked! Find it in The Nexus.');
+    ok('Boss Rush unlocked! Find it in The Simulator → Refight.');
   } else if (code === 'TRUEFORM') {
     if (typeof setAccountFlagWithRuntime === 'function') {
       setAccountFlagWithRuntime(['unlocks', 'trueform'], true, function(v) { unlockedTrueBoss = v; });

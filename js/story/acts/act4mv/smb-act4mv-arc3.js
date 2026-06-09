@@ -1,11 +1,11 @@
 // Appends chapters for act4mv/smb-act4mv-arc3.js.
-// The Betrayal Arc (ids 91–95): A concealed stranger dismantles the player's trust in Veran,
-// piece by piece, using truths she actually committed and lies calibrated to fit them.
-// The player kills Veran. A mystery figure intervenes and teleports the stranger away.
-// The player enters the Creator's domain alone, carrying guilt they cannot explain.
+// The Betrayal Arc (ids 109–113): The stranger is Axiom, disguised. He dismantles the player's
+// trust in Veran using real truths as scaffolding for a fabricated lie about the closure protocol.
+// The player kills Veran. Axiom confirms the deed and disappears before the player can question him.
+// The player enters the Creator's domain alone, carrying guilt and two unanswered questions.
 STORY_CHAPTER_REGISTRY.push(
   {
-    id: 91, title: 'The Watcher',
+    id: 109, title: 'The Watcher',
     world: '🔩 The Threshold — Fracture Boundary',
     type: 'exploration', exploreMode: 'scavenge',
     style: 'void',
@@ -37,7 +37,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 92, title: 'Everything You Already Know',
+    id: 110, title: 'Everything You Already Know',
     world: '🔩 The Threshold — Ridge Approach',
     type: 'exploration', exploreMode: 'stealth',
     style: 'void',
@@ -69,7 +69,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 93, title: 'The Architecture of the Lie',
+    id: 111, title: 'The Architecture of the Lie',
     world: '🔩 The Threshold — Fracture Boundary',
     type: 'branch',
     narrative: [
@@ -125,7 +125,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 94, title: 'The Weight of a Choice',
+    id: 112, title: 'The Weight of a Choice',
     world: '🔩 The Threshold — Open Ground',
     narrative: [
       'You didn\'t make a decision.',
@@ -202,7 +202,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 95, title: 'Paradox',
+    id: 113, title: 'Paradox',
     world: '🔩 The Threshold — Open Ground',
     type: 'exploration', exploreMode: 'escape',
     style: 'void',

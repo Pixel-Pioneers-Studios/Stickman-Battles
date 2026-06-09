@@ -17,7 +17,7 @@ STORY_CHAPTER_REGISTRY.push(
       'The Architects\' instruments went quiet for the first time',
       'since they\'d been built.',
       '',
-      'And then Veran\'s voice.',
+      'And then the Fourth Architect\'s voice.',
       'Not relieved. Urgent.',
       '',
       '"There\'s something still moving."',
@@ -37,7 +37,7 @@ STORY_CHAPTER_REGISTRY.push(
       'It was alive.',
       'And it was moving toward God.',
       '',
-      '"If it reaches God in the right condition," Veran said,',
+      '"If it reaches God in the right condition," the Fourth Architect said,',
       '"it won\'t just merge.",',
       '"It will create something that shouldn\'t exist.",',
       '',
@@ -48,7 +48,7 @@ STORY_CHAPTER_REGISTRY.push(
       {
         label: 'Go. Don\'t give it time.',
         flag: 'kernel_pursued_immediately',
-        consequence: 'The compass didn\'t need to point anywhere. You already knew the direction. The Architects called out coordinates, warnings, half-finished plans. You didn\'t wait for any of it. The kernel had maybe three minutes. That was enough.',
+        consequence: 'The compass didn\'t need to point anywhere. You already knew the direction. The Fourth Architect called out coordinates, warnings, half-finished plans. You didn\'t wait for any of it. The kernel had maybe three minutes. That was enough.',
       },
       {
         label: 'One second. Then go.',

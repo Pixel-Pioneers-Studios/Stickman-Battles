@@ -335,10 +335,10 @@ function drawTFKCOverlay() {
     ctx.save();
     // Background
     ctx.globalAlpha = 0.93 * slide;
-    ctx.fillStyle   = '#000c12';
-    ctx.strokeStyle = '#00ffcc';
+    ctx.fillStyle   = '#0a0014';
+    ctx.strokeStyle = '#cc66ff';
     ctx.lineWidth   = 2;
-    ctx.shadowColor = '#00ffcc';
+    ctx.shadowColor = '#aa44ff';
     ctx.shadowBlur  = 20;
     ctx.beginPath();
     ctx.rect(panX, panY, panW, panH);
@@ -347,20 +347,20 @@ function drawTFKCOverlay() {
 
     // Header bar
     ctx.shadowBlur  = 0;
-    ctx.fillStyle   = '#00281c';
+    ctx.fillStyle   = '#1a0033';
     ctx.fillRect(panX + 1, panY + 1, panW - 2, Math.round(lineH * 1.25));
 
     ctx.globalAlpha = slide;
-    ctx.fillStyle   = '#00ffcc';
+    ctx.fillStyle   = '#cc88ff';
     ctx.font        = `bold ${fSize}px monospace`;
     ctx.textAlign   = 'left';
-    ctx.shadowColor = '#00ffcc';
+    ctx.shadowColor = '#cc88ff';
     ctx.shadowBlur  = 8;
-    ctx.fillText('  REALITY.EXE  v\u221e.0', panX + 10, panY + Math.round(lineH * 0.88));
+    ctx.fillText('  \u25c8  THE UNMAKING', panX + 10, panY + Math.round(lineH * 0.88));
 
     // Separator line
     ctx.globalAlpha = 0.45 * slide;
-    ctx.strokeStyle = '#00ffcc';
+    ctx.strokeStyle = '#cc66ff';
     ctx.lineWidth   = 1;
     ctx.shadowBlur  = 0;
     ctx.beginPath();
@@ -384,11 +384,11 @@ function drawTFKCOverlay() {
         const barY2 = ly - Math.round(fSize * 0.75);
         const barH2 = Math.round(fSize * 1.05);
         ctx.globalAlpha = slide;
-        ctx.fillStyle   = '#001a0f';
+        ctx.fillStyle   = '#1a0033';
         ctx.fillRect(barX, barY2, barW, barH2);
-        ctx.fillStyle   = prog >= 1 ? '#ff3344' : '#00ffcc';
+        ctx.fillStyle   = prog >= 1 ? '#ff3366' : '#cc66ff';
         ctx.fillRect(barX, barY2, Math.round(barW * prog), barH2);
-        ctx.strokeStyle = '#00ffcc';
+        ctx.strokeStyle = '#cc66ff';
         ctx.lineWidth   = 1;
         ctx.strokeRect(barX, barY2, barW, barH2);
         ctx.fillStyle   = '#ffffff';
@@ -408,7 +408,7 @@ function drawTFKCOverlay() {
       // Blinking cursor on actively-typing line
       if (line.revealCount < line.text.length && Math.floor((o.termCursorTimer || 0) / 14) % 2 === 0) {
         const tw = ctx.measureText(revealed).width;
-        ctx.fillStyle  = '#00ffcc';
+        ctx.fillStyle  = '#cc88ff';
         ctx.shadowBlur = 0;
         ctx.fillRect(panX + 14 + tw + 1, ly - Math.round(fSize * 0.85), 5, fSize);
       }

@@ -701,7 +701,7 @@ let storyPressureState  = { dodgeFatigue: 0, dodgeTimer: 0 };
 // ENTITY & VISUAL STATE
 // ============================================================
 let lightningBolts   = [];    // { x, y, timer, segments } — Thor perk visual lightning
-let backstagePortals = [];    // {x,y,type,phase,timer,radius,maxRadius,codeChars,done}
+let backstagePortals = [];    // {x,y,type,phase,timer,radius,maxRadius,shards,done}
 let phaseTransitionRings = []; // expanding ring effects on phase change
 // ---- Combat Phase Lock ----
 // Single authority for which phase owns the frame. Higher-priority phases block lower ones.

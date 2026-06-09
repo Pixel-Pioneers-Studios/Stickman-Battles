@@ -22,7 +22,7 @@ function _makeTFKillsParadoxCinematic(tf) {
     _collapseFired:   false,
     _streamFired:     false,
     _absorptionFired: false,
-    _phaseLabel: { text: '\u2014 TERMINAL SEQUENCE \u2014', color: '#00ffcc' },
+    _phaseLabel: { text: '\u2014 THE UNMAKING \u2014', color: '#cc88ff' },
 
     update(t) {
       // ── slow-motion envelope ──────────────────────────────────
@@ -216,11 +216,11 @@ function _makeTFKillsParadoxCinematic(tf) {
           _tfKCOverlay.termProgress       = 0;
           _tfKCOverlay.termProgressStart  = 145; // progress bar starts ~2.4s after panel opens
           _tfKCOverlay.termLines = [
-            { text: '> query --entity PARADOX',                         color: '#00ffcc', delay: 0,   revealCount: 0 },
-            { text: '  FOUND: 1 instance  [ID: \u03c8-\u221e]',         color: '#aaffee', delay: 42,  revealCount: 0 },
-            { text: '> entity.destroy(--all-timelines --force)',         color: '#00ffcc', delay: 85,  revealCount: 0 },
-            { text: '', isProgress: true, delay: 145, revealCount: 1,   color: '#ffff00' },
-            { text: '  STATUS: TERMINATED \u2713',                       color: '#ff3344', delay: 230, revealCount: 0 },
+            { text: 'I find every thread of you.',                       color: '#cc88ff', delay: 0,   revealCount: 0 },
+            { text: '  across all that ever was   [\u03c8-\u221e]',       color: '#e8d4ff', delay: 42,  revealCount: 0 },
+            { text: 'and I pull them loose.',                            color: '#cc88ff', delay: 85,  revealCount: 0 },
+            { text: '', isProgress: true, delay: 145, revealCount: 1,   color: '#ffffff' },
+            { text: '  UNMADE.',                                          color: '#ff3366', delay: 230, revealCount: 0 },
           ];
         }
         if (typeof showBossDialogue === 'function')
