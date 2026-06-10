@@ -4204,6 +4204,47 @@ class Fighter {
       }
     }
 
+    // ── Swing-arc trail ribbon (absolute coords; samples recorded in drawWeapon) ──
+    // Purely visual: a tapered, fading streak behind the blade tip during swings.
+    if (this._swingTrail && this._swingTrail.length > 0) {
+      // Decay every frame so the ribbon vanishes cleanly once the swing ends
+      for (let _ti = this._swingTrail.length - 1; _ti >= 0; _ti--) {
+        if (--this._swingTrail[_ti].life <= 0) this._swingTrail.splice(_ti, 1);
+      }
+      if (typeof settings !== 'undefined' && settings.particles && this._swingTrail.length >= 2) {
+        const _stPts   = this._swingTrail;
+        const _stCol   = this._swingTrailColor || '#ffffff';
+        const _stHeavy = !!this._swingTrailHeavy;
+        const _stW     = _stHeavy ? 9 : 5;   // width at the newest sample
+        ctx.save();
+        ctx.globalCompositeOperation = 'lighter';
+        ctx.lineCap  = 'round';
+        ctx.lineJoin = 'round';
+        ctx.shadowColor = _stCol;
+        ctx.shadowBlur  = _stHeavy ? 14 : 9;
+        ctx.strokeStyle = _stCol;
+        for (let _ti = 1; _ti < _stPts.length; _ti++) {
+          const _sa = _stPts[_ti - 1], _sb = _stPts[_ti];
+          const _frac = _ti / (_stPts.length - 1);     // 0 = oldest → 1 = newest
+          const _fade = _sb.life / _sb.maxLife;
+          ctx.globalAlpha = _fade * (0.10 + _frac * (_stHeavy ? 0.38 : 0.30));
+          ctx.lineWidth   = Math.max(1, _stW * (0.25 + _frac * 0.75) * _fade);
+          ctx.beginPath(); ctx.moveTo(_sa.x, _sa.y); ctx.lineTo(_sb.x, _sb.y); ctx.stroke();
+        }
+        // Bright core streak hugging the newest segments
+        const _stN = _stPts.length;
+        const _st0 = Math.max(0, _stN - 3);
+        ctx.globalAlpha = (_stPts[_stN - 1].life / _stPts[_stN - 1].maxLife) * (_stHeavy ? 0.5 : 0.55);
+        ctx.lineWidth   = _stHeavy ? 2.5 : 1.5;
+        ctx.strokeStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.moveTo(_stPts[_st0].x, _stPts[_st0].y);
+        for (let _ti = _st0 + 1; _ti < _stN; _ti++) ctx.lineTo(_stPts[_ti].x, _stPts[_ti].y);
+        ctx.stroke();
+        ctx.restore();
+      }
+    }
+
     // ── Sword air-slash crescent arcs (absolute coords — must be outside drawWeapon) ──
     if (this._swordSlashes && this._swordSlashes.length > 0) {
       for (const sl of this._swordSlashes) {
@@ -4742,6 +4783,28 @@ class Fighter {
       const pulse = 0.5 + 0.5 * Math.sin(frameCount * 0.12 + (this.playerNum || 0));
       ctx.shadowColor = WEAPON_THEMES[this.weaponTheme];
       ctx.shadowBlur  = attacking ? Math.max(18, 22 + pulse * 10) : 7 + pulse * 7;
+    }
+
+    // ── Swing-arc trail: record blade-tip samples during the active swing ──────
+    // Render-only. World-space samples (from this._weaponTip) are consumed by the
+    // ribbon drawn in the body draw pass (near the sword air-slash crescents).
+    // Gauntlet/off-hand and ranged weapons are excluded, so the boss's second
+    // drawWeapon() call never records a duplicate or wrong-colored trail.
+    if (typeof settings !== 'undefined' && settings.particles && attacking &&
+        k !== 'gauntlet' && _glowColors[k] &&
+        this.weapon && this.weapon.type === 'melee') {
+      if (!this._swingTrail) this._swingTrail = [];
+      const _stHeavy = this.weapon.weaponType === 'heavy';
+      let _stColor = _glowColors[k];
+      if (!overrideKey && this.weaponTheme && typeof WEAPON_THEMES !== 'undefined' && WEAPON_THEMES[this.weaponTheme]) {
+        _stColor = WEAPON_THEMES[this.weaponTheme];
+      }
+      const _stLife = _stHeavy ? 14 : 9;
+      this._swingTrail.push({ x: this._weaponTip.x, y: this._weaponTip.y, life: _stLife, maxLife: _stLife });
+      this._swingTrailColor = _stColor;
+      this._swingTrailHeavy = _stHeavy;
+      const _stCap = _stHeavy ? 8 : 6;
+      while (this._swingTrail.length > _stCap) this._swingTrail.shift();
     }
 
     if (k === 'sword') {

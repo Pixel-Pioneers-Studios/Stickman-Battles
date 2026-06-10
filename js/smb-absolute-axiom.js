@@ -199,6 +199,18 @@ class AbsoluteAxiom extends God {
     this._counterStrat   = 'normal';
     this._stratTimer     = 0;
 
+    // BehaviorModel composition — anticipatory player-reading brain.
+    // Guarded: if smb-behavior-model.js failed to load, every hook below
+    // degrades gracefully to the existing fixed-timer behavior.
+    this._behaviorModel  = (typeof BehaviorModel !== 'undefined') ? new BehaviorModel() : null;
+    this._bmPrevSnap     = null;  // { onGround, vx, vy } of target last observed tick
+    this._bmLastObs      = null;  // { action, context } from this tick's observe()
+    this._bmPrediction   = null;  // last predictNext() result (refreshed at strat tick)
+    this._bmBias         = null;  // last computeBias() result
+    this._bmMeleeRoute   = null;  // punish route chosen for current melee windup
+    this._bmMeleePunish  = null;  // pending outcome check { route, hpSnap, framesLeft, targetRef }
+    this._meleeWindupDur = 35;    // frames; modulated by punish route
+
     // Active effect state
     this._kernelPulseRings = [];
     this._voidSpears       = [];
@@ -414,6 +426,38 @@ class AbsoluteAxiom extends God {
     // Track player action for pattern detection
     this._logPlayerAction(target);
 
+    // BehaviorModel: observe target once per frame. The brain goes SILENT
+    // during cinematics (update() already returns on activeCinematic above),
+    // explicit isCinematic, an active checkpoint QTE, or the portal-invincible
+    // final phase — no observation, no stale snapshot carried across pauses.
+    if (this._behaviorModel) {
+      const _bmSilent =
+        (typeof isCinematic !== 'undefined' && isCinematic) ||
+        (typeof QTE_STATE !== 'undefined' && QTE_STATE) ||
+        this._checkpointQtePending || this._portalInvincible;
+      if (_bmSilent) {
+        this._bmLastObs  = null;
+        this._bmPrevSnap = null;
+      } else {
+        try {
+          this._bmLastObs  = this._behaviorModel.observe(target, this._bmPrevSnap);
+          this._bmPrevSnap = { onGround: target.onGround, vx: target.vx, vy: target.vy };
+        } catch (e) { this._bmLastObs = null; }
+      }
+      // Pending melee punish outcome check (~20 frames after the strike)
+      if (this._bmMeleePunish) {
+        this._bmMeleePunish.framesLeft--;
+        if (this._bmMeleePunish.framesLeft <= 0) {
+          const _mp = this._bmMeleePunish;
+          this._bmMeleePunish = null;
+          const _mt = _mp.targetRef;
+          try {
+            this._behaviorModel.recordPunish(_mp.route, !!_mt && _mt.health < _mp.hpSnap - 1);
+          } catch (e) {}
+        }
+      }
+    }
+
     // Fly mode only for aerial slam / absoluteStrike / smite — otherwise always ground
     if (this._absoluteStrike || this._smiteTimer > 0) {
       this._locomotionMode = 'fly';
@@ -476,23 +520,58 @@ class AbsoluteAxiom extends God {
       this.x = Math.max(18, Math.min(GW - this.w - 18, this.x));
     }
 
-    // Melee windup telegraph — strike fires after 35-frame wind-up
+    // Melee windup telegraph — strike fires after wind-up (default 35 frames).
+    // The punish ledger learns which timing the player escapes:
+    //   direct  → 35 frames (unchanged default)
+    //   crossup → 28 frames (faster, catches early escapes)
+    //   delayed → 47 frames (timing trip — punishes counter-timed dodges)
     if (minDist < 155 && this._attackCd <= 0 && !this._meleeWindup) {
       this._meleeWindup = 1;
       this._meleeWindupTarget = target;
+      this._meleeWindupDur = 35;
+      this._bmMeleeRoute = null;
+      if (this._behaviorModel) {
+        try {
+          this._bmMeleeRoute = this._behaviorModel.bestPunishRoute({
+            currentAction   : this._bmLastObs ? this._bmLastObs.action : undefined,
+            prediction      : this._bmPrediction || undefined,
+            distance        : minDist,
+            playerOnGround  : target.onGround,
+            playerAttacking : target.attackTimer > 0,
+            playerShielding : !!target.shielding,
+          });
+          if (this._bmMeleeRoute === 'delayed')      this._meleeWindupDur = 47;
+          else if (this._bmMeleeRoute === 'crossup') this._meleeWindupDur = 28;
+        } catch (e) { this._bmMeleeRoute = null; }
+      }
     }
     if (this._meleeWindup > 0) {
       // Cancel if target escaped
       if (minDist > 220) {
+        // Ledger: this timing got read — player escaped the windup
+        if (this._behaviorModel && this._bmMeleeRoute) {
+          try { this._behaviorModel.recordPunish(this._bmMeleeRoute, false, { distance: minDist }); } catch (e) {}
+        }
+        this._bmMeleeRoute = null;
         this._meleeWindup = 0;
         this._meleeWindupTarget = null;
       } else {
         this._meleeWindup++;
-        if (this._meleeWindup >= 35 && typeof dealDamage === 'function') {
+        if (this._meleeWindup >= (this._meleeWindupDur || 35) && typeof dealDamage === 'function') {
+          // Snapshot HP before the strike; outcome resolves ~20 frames later
+          if (this._behaviorModel && this._bmMeleeRoute && this._meleeWindupTarget) {
+            this._bmMeleePunish = {
+              route     : this._bmMeleeRoute,
+              hpSnap    : this._meleeWindupTarget.health,
+              framesLeft: 20,
+              targetRef : this._meleeWindupTarget,
+            };
+          }
           dealDamage(this, this._meleeWindupTarget, 220, 10);
           this._attackCd    = Math.ceil(70 / this._phase3SpeedMod);
           this._meleeWindup = 0;
           this._meleeWindupTarget = null;
+          this._bmMeleeRoute = null;
         }
       }
     }
@@ -522,6 +601,46 @@ class AbsoluteAxiom extends God {
     else if (jmp >= 5)   this._counterStrat = 'punish_jumper';
     else if (run >= 5)   this._counterStrat = 'chase_runner';
     else                 this._counterStrat = 'normal';
+
+    // BehaviorModel refinement: predict the player's NEXT move and bias the
+    // strat — the Axiom counters what you are about to do, not what you did.
+    // A confident prediction only sharpens a 'normal' read; a strong
+    // ring-buffer signal is never overwritten (existing behavior preserved).
+    this._bmPrediction = null;
+    this._bmBias       = null;
+    if (this._behaviorModel && this._bmLastObs && typeof PA !== 'undefined') {
+      try {
+        const pred = this._behaviorModel.predictNext(this._bmLastObs.action, this._bmLastObs.context);
+        this._bmPrediction = pred;
+        this._bmBias = this._behaviorModel.computeBias(this._bmLastObs.action, pred);
+        if (this._counterStrat === 'normal' && pred.action !== PA.IDLE && pred.confidence >= pred.minConf) {
+          if (pred.action === PA.BLOCK)
+            this._counterStrat = 'pierce_shield';   // → Absolute Strike (unblockable displacement)
+          else if (pred.action === PA.ATTACK || pred.action === PA.AIRBORNE_ATK)
+            this._counterStrat = 'punish_attacker'; // → Kernel Beam
+          else if (pred.action === PA.JUMP)
+            this._counterStrat = 'punish_jumper';   // → Void Rain
+          else if (pred.action === PA.WALK)
+            this._counterStrat = 'chase_runner';    // → Singularity (gap-closing pull)
+        }
+      } catch (e) { this._bmPrediction = null; this._bmBias = null; }
+    }
+  }
+
+  // Anticipatory aim helper: where will the target be in `frames` frames?
+  // Falls back to the target's current position if the model is unavailable.
+  _bmProjectX(target, frames) {
+    if (!target) return this.cx();
+    if (this._behaviorModel) {
+      try {
+        const proj = this._behaviorModel.projectPosition(target, frames);
+        if (proj && isFinite(proj.x)) {
+          const GW = typeof GAME_W !== 'undefined' ? GAME_W : 900;
+          return Math.max(30, Math.min(GW - 30, proj.x));
+        }
+      } catch (e) {}
+    }
+    return target.cx();
   }
 
   // ── Special attack selection ───────────────────────────────────────────────
@@ -532,17 +651,29 @@ class AbsoluteAxiom extends God {
     // 40% chance to telegraph with a short dialogue line
     if (Math.random() < 0.40) _aaDialogue(AA_ATTACK_WARN_LINES, 60);
 
+    // Strat-override commitment: base 55%, raised toward 85% when the
+    // BehaviorModel confidently predicts the player's next move, and nudged
+    // by their marginal attack probability when punishing aggression.
+    // No model → exactly the original 0.55 (graceful degradation).
+    let stratChance = 0.55;
+    if (this._behaviorModel && this._bmPrediction) {
+      stratChance = Math.min(0.85, 0.55 + (this._bmPrediction.confidence || 0) * 0.30);
+      if (strat === 'punish_attacker' && this._bmBias && this._bmBias.atkProb > 0.40) {
+        stratChance = Math.min(0.90, stratChance + 0.10);
+      }
+    }
+
     // Strat-override first
-    if (strat === 'punish_attacker' && roll < 0.55) {
+    if (strat === 'punish_attacker' && roll < stratChance) {
       this._doKernelBeam(target); this._setCd(); return;
     }
-    if (strat === 'pierce_shield' && roll < 0.55) {
+    if (strat === 'pierce_shield' && roll < stratChance) {
       this._doAbsoluteStrike(target); this._setCd(); return;
     }
-    if (strat === 'punish_jumper' && roll < 0.55) {
+    if (strat === 'punish_jumper' && roll < stratChance) {
       this._doVoidRain(target); this._setCd(); return;
     }
-    if (strat === 'chase_runner' && roll < 0.55) {
+    if (strat === 'chase_runner' && roll < stratChance) {
       this._doSingularity(target); this._setCd(); return;
     }
 
@@ -606,7 +737,8 @@ class AbsoluteAxiom extends God {
   _doAerialSlam(target) {
     if (!target) return;
     _aaAttackName('AERIAL SLAM');
-    this._aerialSlam  = { phase: 'rise', timer: 0, targetX: target.cx(), targetY: target.y + target.h };
+    // Anticipatory aim: project where the player will be, not where they are
+    this._aerialSlam  = { phase: 'rise', timer: 0, targetX: this._bmProjectX(target, 12), targetY: target.y + target.h };
     this._locomotionMode = 'fly';
     this._flyVy = 0;
     if (typeof spawnParticles === 'function') spawnParticles(this.cx(), this.cy(), '#cc0044', 10);
@@ -624,7 +756,8 @@ class AbsoluteAxiom extends God {
       if (this.y <= 80 || slam.timer >= 25) {
         slam.phase = 'hover';
         slam.timer = 0;
-        slam.targetX = target.cx();
+        // Hover above where the player will be after hover (20f) + dive (~14f)
+        slam.targetX = this._bmProjectX(target, 34);
         slam.targetY = target.y + target.h;
         if (typeof spawnParticles === 'function') spawnParticles(this.cx(), this.cy(), '#ff4400', 16);
       }
@@ -636,7 +769,8 @@ class AbsoluteAxiom extends God {
       if (slam.timer >= 20) {
         slam.phase = 'dive';
         slam.timer = 0;
-        slam.targetX = target.cx();
+        // Final lock: land where the player will be when the dive connects
+        slam.targetX = this._bmProjectX(target, 14);
         slam.targetY = target.y + target.h;
       }
     } else if (slam.phase === 'dive') {

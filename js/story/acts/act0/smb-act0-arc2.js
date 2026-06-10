@@ -31,7 +31,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 7, type: 'exploration', title: 'The Long Walk',
+    id: 7, type: 'exploration', exploreMode: 'traversal', title: 'The Long Walk',
     world: '🌆 City — Fractured Streets',
     narrative: [
       'The relay station signal was coming from deep in the city.',

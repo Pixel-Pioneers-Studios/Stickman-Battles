@@ -1,7 +1,7 @@
 // Appends chapters for act5/smb-act5-arc2.js.
 STORY_CHAPTER_REGISTRY.push(
   {
-    id: 134, title: 'True Form',
+    id: 135, title: 'True Form',
     world: '\uD83D\uDD73\uFE0F The Void — Final Confrontation',
     narrative: [
       'The True Form arrived without announcement.',
@@ -47,7 +47,7 @@ STORY_CHAPTER_REGISTRY.push(
   // \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550 EPILOGUE \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550
 
   {
-    id: 135, title: 'After',
+    id: 136, title: 'After',
     world: '\uD83C\uDFD9\uFE0F Home \u2014 Transit',
     type: 'ship_flight',
     preText: 'The portals are open \u2014 doors now, not wounds. Fly the compass-ship home through stabilized dimensional space.',
@@ -71,9 +71,8 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   // ══════════════════════════════════════════════════════════════════
-  // ACT VII — GODFALL ARC (ids 81–84)
-  // A post-epilogue arc. The Fallen God emerges from the sealed rift
-  // as a lore narrator and final challenge.
+  // Act IX — Absolute Axiom (ids 140–155) continues in act7/ files.
+  // Gap 137–139 reserved for future content (Void Mind fight arc).
   // ══════════════════════════════════════════════════════════════════
 
 );

@@ -86,15 +86,15 @@ const STORY_ACT_STRUCTURE = [
   {
     id: 'act7', label: 'Act VII — Creator\'s Domain', color: '#dd3344',
     arcs: [
-      { id: 'arc4-0', label: 'The Creator\'s Threshold', chapterRange: [114, 121] },
-      { id: 'arc4-1', label: 'The Final Architecture',   chapterRange: [122, 129] },
+      { id: 'arc4-0', label: 'The Creator\'s Threshold', chapterRange: [114, 122] },
+      { id: 'arc4-1', label: 'The Final Architecture',   chapterRange: [123, 130] },
     ],
   },
   {
     id: 'act8', label: 'Act VIII — True Form', color: '#cc44ff',
     arcs: [
-      { id: 'arc5-0', label: 'Into the Void',       chapterRange: [130, 133] },
-      { id: 'arc5-1', label: 'Final Confrontation', chapterRange: [134, 135] },
+      { id: 'arc5-0', label: 'Into the Void',       chapterRange: [131, 134] },
+      { id: 'arc5-1', label: 'Final Confrontation', chapterRange: [135, 136] },
     ],
   },
   {

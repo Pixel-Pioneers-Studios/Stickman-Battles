@@ -1,7 +1,7 @@
 // Appends chapters for act4/smb-act4-arc1.js.
 STORY_CHAPTER_REGISTRY.push(
   {
-    id: 114, type: 'exploration', title: 'The Architecture',
+    id: 114, type: 'exploration', exploreMode: 'traversal', title: 'The Architecture',
     world: '🔩 Creator\'s Domain — The Inner Framework',
     narrative: [
       'The Architects waited at the threshold.',
@@ -274,6 +274,34 @@ STORY_CHAPTER_REGISTRY.push(
     postText: 'The purge sequence ends. The architecture goes still. Ahead: the inner sanctum. The Creator itself.',
   },
 
-  // ─────── Act 4 Arc 2 continues in smb-act4-arc2.js (ids 104–111) ──
+  {
+    id: 122, title: 'Blind Spot',
+    world: '🔩 Creator\'s Domain — Maintenance Layer',
+    type: 'exploration', exploreMode: 'escape',
+    style: 'void',
+    worldLength: 3600,
+    objectName: 'Maintenance Exit',
+    preText: 'The Creator\'s sweep units have locked down the direct approach. A voice through a maintenance conduit: "I know a way. Trust me or don\'t — but I\'m the only one in here who wants you to succeed."',
+    spawnEnemies: [
+      { wx: 700,  name: 'Sweep Unit',    weaponKey: 'sword',  classKey: 'warrior',   aiDiff: 'hard',   color: '#334455' },
+      { wx: 1500, name: 'Sweep Unit',    weaponKey: 'spear',  classKey: 'warrior',   aiDiff: 'hard',   color: '#2a3a4a' },
+      { wx: 2300, name: 'Erasure Drone', weaponKey: 'axe',    classKey: 'berserker', aiDiff: 'expert', color: '#3a4a5a' },
+      { wx: 3100, name: 'Lockdown Unit', weaponKey: 'hammer', classKey: 'tank',      aiDiff: 'expert', color: '#445566', isGuard: true, health: 120 },
+    ],
+    fightScript: [
+      { frame: 20,  text: '⚠️ SWEEP ACTIVE — constructs closing from behind. Keep moving RIGHT.', color: '#ff4422', timer: 290 },
+      { frame: 100, text: '"Left at the junction. The sweep pattern doesn\'t cover it — I\'ve mapped every gap in here." The Preserved. They\'ve lived inside this architecture a long time.', color: '#cc9944', timer: 320 },
+      { frame: 420, text: '"You\'re the one who nodded. In the assembly. No one else did." Keep moving. You know.', color: '#ffaa55', timer: 290 },
+      { frame: 700, text: '"Almost through. The maintenance exit is ahead — they don\'t monitor it. Nothing was supposed to survive in here long enough to need it."', color: '#cc9944', timer: 310 },
+    ],
+    sky: ['#0c0804', '#180e08', '#200e0c'],
+    groundColor: '#140c06',
+    platColor: '#1e140e',
+    playerLives: 3,
+    tokenReward: 40, blueprintDrop: null,
+    postText: 'The maintenance exit. The Preserved\'s voice, one last time before the signal cuts: "There are others. We found ways to hold on." A pause. "We always knew someone would come back through." You step through. Forward.',
+  },
+
+  // ─────── Act 4 Arc 2 continues in smb-act4-arc2.js (ids 123–130) ──
 
 );

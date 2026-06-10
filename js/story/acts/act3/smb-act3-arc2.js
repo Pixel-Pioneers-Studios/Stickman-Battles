@@ -1,7 +1,7 @@
 // Appends chapters for act3/smb-act3-arc2.js.
 STORY_CHAPTER_REGISTRY.push(
   {
-    id: 52, type: 'exploration', title: 'Signal Maze',
+    id: 52, type: 'exploration', exploreMode: 'traversal', title: 'Signal Maze',
     world: '📡 Creator\'s Interference Layer — Fractured City',
     narrative: [
       'The Creator began unmaking the pathways.',
@@ -305,7 +305,7 @@ STORY_CHAPTER_REGISTRY.push(
     platColor: '#161822',
     playerLives: 3,
     tokenReward: 30, blueprintDrop: null,
-    postText: 'Veran caused the original fracture event. She has spent fifteen years trying to fix it. You know the full truth now. You go forward anyway — but now it is a genuine choice.',
+    postText: 'Veran believes she caused the original fracture event. She has carried that for fifteen years. You know what she believes now. You go forward anyway — but now it is a genuine choice.',
   },
 
   {

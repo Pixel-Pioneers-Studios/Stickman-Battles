@@ -68,11 +68,13 @@ This means characters who say "the fracture system was built as a weapon against
 
 ## AXIOM'S COMPANIONS — THE MULTIVERSE WAR
 
-Axiom's former heroes and friends. They were with him when they punched through reality. They survived the Void Mind's contact — they were not absorbed — but they were transformed just as Axiom was. Kept their names. Lost everything else. Became monsters.
+Axiom's former heroes and friends. They were fighters who stood for justice — heroes in the truest sense, people who fought in the name of something rather than for power. They were with him when they punched through reality. They survived the Void Mind's contact — they were not absorbed — but they were transformed just as Axiom was. Kept their names. Lost everything else. Became monsters.
 
 Because none of them could recognize each other, the war between them has no formal sides, no remembered cause, no ideology. It is a free-for-all that has lasted as long as Axiom's existence in his current form. They all know the Void Mind erases all. None of them have stopped fighting each other long enough to address it.
 
-The beings the player fights as world bosses in the multiverse arc are these companions — former heroes who built their own domains and defended them against all comers, including each other, including fragment bearers. They are not villains. They are the wreckage of people who refused to be absorbed and paid for it with everything except their survival.
+The beings the player fights as world bosses in the multiverse arc are these companions — former heroes who built their own domains. They are not villains. They are the wreckage of people who stood for something, refused to be absorbed, and paid for it with everything except their survival. The traces of who they were still exist in their chapter text: Null remembers "Anders" — a human name not said in 4,200 years. Seraph was "made to give." VAEL was "first through every door." These are the remnants of justice-fighters.
+
+**The Rift Entity and the two-layer imprisonment:** The Rift Entity was trapped 10,000 years ago — 5,000 years before Axiom built the fracture system. God imprisoned them during that first period. When Axiom later built the fracture system, it became a second layer of containment around what God had already sealed. The fracture system did not create the Rift Entity's imprisonment. It reinforced it.
 
 ---
 
@@ -83,6 +85,10 @@ The beings the player fights as world bosses in the multiverse arc are these com
 **The guilt she carried:** Veran believed she caused the original fracture event fifteen years ago. She was testing dimensional equipment at the time; the fracture opened while she was running experiments and all blame fell on her. She did not cause it. It was coincidence. She genuinely believes otherwise and has spent fifteen years trying to fix something she was never responsible for. The ch. 154 ending consequence line — *"fifteen years of guilt Veran had carried for something she hadn't caused"* — is correct. The ch. 59 line where she says *"that was me, I caused it"* reflects her belief, not the truth.
 
 **The hooded figure was Axiom.** He knew everything about Veran — her deal with the Creator, the protocol, her hidden visit — because he built the system she operated inside. He used real truths to construct a lie about a "variant" closure protocol, knowing the player would be unable to find the false piece among the real ones. Veran was right: no variant exists. The closure energy must go through the bearer. Axiom needed the player to enter his domain without the person most likely to keep them alive.
+
+**How the truth surfaces — in two beats:**
+1. **Ch. 123 (Creator's records):** The player finds the Paradox origin log and connects the dots — the same being who built a weapon designed to destroy them also had precise knowledge of Veran's guilt, her deal with the Creator, her every truth. The player realizes they were right to distrust the stranger. They just didn't trust themselves. This lands as cold, quiet certainty: *"You had been right. You just hadn't trusted yourself enough to act on it."*
+2. **Ch. 150 (The Voice Inside):** Axiom confirms it directly — *"I was the figure on the ridge. You needed to walk in alone."* No apology. No explanation. A fact. This is the finishing blow — the player's private doubt confirmed as truth by the one who did it.
 
 **After ch. 94:** Veran does not speak, act, or communicate. She is dead. Any reference to her voice appearing after this point is a code error.
 
@@ -248,6 +254,7 @@ After all absorptions:
 
 ## OUTSTANDING (NOT YET IN CHAPTERS)
 
-- **Preserved return — Creator's domain:** A stealth/exploration chapter in the ch. 114–121 range where one Preserved acts as an inside guide. Planned, not yet written
-- **Paradox origin (Null Shard):** Exists in this canon doc but has no chapter yet. Needs a narrative beat — likely during the God domain arc or as Paradox's energy thins in ch. 150–152
-- **Individual companion identities:** The Fallen God (ch. 75) now hints at the connection to the world bosses, but no boss is individually named as a former companion. Future chapters may develop specific identities (Null's name "Anders" is the strongest existing thread)
+- **Preserved return — Creator's domain:** Written at ch. 122 ("Blind Spot") — a Preserved guides the player through the maintenance architecture blind spots, paying off the "Tell them we exist" moment from ch. 48 ✅
+- **Paradox origin (Null Shard):** Written into ch. 123 "The Face" — the "Project: Paradox — Origin" record found in the Creator's inner sanctum reveals the Null Shard collision, the stripped weapon-purpose, and the accidental creation of genuine consciousness belonging to neither Axiom nor the Void Mind ✅
+- **Individual companion identities:** Companions were heroes who fought for justice. Null's "Anders," Seraph's "made to give," VAEL's "before the door" are the strongest threads. Future chapters can develop individual backstories
+- **Act 7 branch consolidation (suggested):** Ch. 142 and ch. 144 are short reflection branches between traversal/fight chapters. Could be folded into surrounding narratives to tighten endgame pacing. Ch. 140, 146, 148, 150, 154, 155 should stay standalone

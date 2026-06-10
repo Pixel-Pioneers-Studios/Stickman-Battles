@@ -1,7 +1,7 @@
 // Appends chapters for act2/smb-act2-arc3.js.
 STORY_CHAPTER_REGISTRY.push(
   {
-    id: 42, type: 'exploration', title: 'What the Ancients Left',
+    id: 42, type: 'exploration', exploreMode: 'traversal', title: 'What the Ancients Left',
     world: '🏛️ Ruins Dimension — The First Collapse',
     narrative: [
       'The first dimension to ever fracture.',

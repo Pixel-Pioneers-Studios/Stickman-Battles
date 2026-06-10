@@ -1,7 +1,7 @@
 // Appends chapters for act2/smb-act2-arc2.js.
 STORY_CHAPTER_REGISTRY.push(
   {
-    id: 35, type: 'exploration', title: 'Into the Green',
+    id: 35, type: 'exploration', exploreMode: 'traversal', title: 'Into the Green',
     world: '🌲 Forest Dimension — Endless Canopy',
     narrative: [
       'The forest had no edges.',

@@ -1,5 +1,5 @@
 // Appends chapters for act7/smb-act7-arc3.js.
-// The Absolute Axiom arc — ch149–154.
+// The Absolute Axiom arc — ch150–155.
 // Axiom speaks. Two phases. The domain fights back. Peak form.
 // The end of what shouldn't exist. The oldest room, empty at last.
 STORY_CHAPTER_REGISTRY.push(

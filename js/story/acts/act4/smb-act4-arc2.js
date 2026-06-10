@@ -1,7 +1,7 @@
 // Appends chapters for act4/smb-act4-arc2.js.
 STORY_CHAPTER_REGISTRY.push(
   {
-    id: 122, title: 'The Face',
+    id: 123, title: 'The Face',
     world: '🔩 Creator\'s Domain — Inner Sanctum Approach',
     type: 'exploration', exploreMode: 'scavenge',
     style: 'void',
@@ -9,10 +9,10 @@ STORY_CHAPTER_REGISTRY.push(
     objectName: 'Creator\'s Records',
     preText: 'The Creator left records of the fracture system\'s origin scattered through the inner sanctum. Collect all four before the architecture purges them.',
     scavengeItemDefs: [
-      { wx: 500,  y: 355, name: 'Void Mind Report',    icon: '📄' },
-      { wx: 1200, y: 315, name: 'System Origin Log',   icon: '💾' },
-      { wx: 2000, y: 345, name: 'Cost Assessment',     icon: '📄' },
-      { wx: 3000, y: 330, name: 'Creator\'s Admission', icon: '📜' },
+      { wx: 500,  y: 355, name: 'Void Mind Report',          icon: '📄' },
+      { wx: 1200, y: 315, name: 'Project: Paradox — Origin', icon: '💾' },
+      { wx: 2000, y: 345, name: 'Cost Assessment',           icon: '📄' },
+      { wx: 3000, y: 330, name: 'Creator\'s Admission',       icon: '📜' },
     ],
     spawnEnemies: [
       { wx: 800,  name: 'Sanctum Guard',  weaponKey: 'sword',  classKey: 'warrior',  aiDiff: 'hard',   color: '#334455' },
@@ -22,18 +22,20 @@ STORY_CHAPTER_REGISTRY.push(
     ],
     fightScript: [
       { frame: 40,  text: 'Collect all four records before the architecture purges them.', color: '#cc6600', timer: 270 },
-      { frame: 550, text: '"I decided the cost was acceptable. I have known it wasn\'t for five thousand years." The Creator.', color: '#ffaa44', timer: 290 },
+      { frame: 290, text: 'Project: Paradox — Origin Log. A weapon-leader built to destroy the fragment bearer. Vessel constructed with Creator form. True Form energy supplied to activate it.', color: '#cc88ff', timer: 360 },
+      { frame: 420, text: 'Mid-transfer: Void Mind interference. A Null Shard — concentrated erasure force — struck the conduit. Weapon-purpose stripped before it could seat. True Form energy filled the gap. What formed was not designed. It was not claimed. It belonged to neither.', color: '#aa66ff', timer: 400 },
+      { frame: 560, text: '"I decided the cost was acceptable. I have known it wasn\'t for five thousand years." The Creator.', color: '#ffaa44', timer: 290 },
     ],
     sky: ['#100800', '#1c0e04', '#280c04'],
     groundColor: '#180c04',
     platColor: '#22100a',
     playerLives: 3,
     tokenReward: 20, blueprintDrop: null,
-    postText: 'It\'s not a villain. It\'s a frightened thing that made a terrible choice a long time ago and has been living in it ever since. That doesn\'t mean you let it continue.',
+    postText: 'It\'s not a villain. It\'s a frightened thing that made a terrible choice a long time ago and has been living in it ever since. And one of those choices produced something designed to destroy you — the same being that designed it also knew your name before any Architect gave it. That knew every truth about Veran. The kind of knowledge a stranger uses when they need someone else to do the thing they need done. You had been right. You just hadn\'t trusted yourself enough to act on it. That thought sits in you, heavy and cold, as you keep moving.',
   },
 
   {
-    id: 123, title: 'First Form',
+    id: 124, title: 'First Form',
     world: '🔩 Creator\'s Domain — Combat Space',
     narrative: [
       '"I will not make this easy," the Creator said.',
@@ -65,7 +67,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 124, title: 'Between Forms',
+    id: 125, title: 'Between Forms',
     world: '🔩 Creator\'s Domain — Recalibration Chamber',
     type: 'gauntlet',
     preText: 'While the Creator recalibrates, its domain floods with residual constructs. Defeat three waves — no rest between them.',
@@ -87,7 +89,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 125, title: 'The Cost',
+    id: 126, title: 'The Cost',
     world: '🔩 Creator\'s Domain — Gate Approach',
     type: 'exploration', exploreMode: 'defense',
     style: 'void',
@@ -115,7 +117,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 126, title: 'Second Form',
+    id: 127, title: 'Second Form',
     world: '🔩 Creator\'s Domain — Final Combat Space',
     narrative: [
       'The Creator\'s second form was everything the first one had learned.',
@@ -150,7 +152,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 127, title: 'The Last Request',
+    id: 128, title: 'The Last Request',
     world: '🔩 Creator\'s Domain — Gate Threshold',
     type: 'assassination',
     preText: 'A Creator overseer is broadcasting a jamming signal that prevents the rift entity from transmitting the final message. Eliminate it before the gate locks permanently.',
@@ -177,7 +179,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 128, title: 'SOVEREIGN',
+    id: 129, title: 'SOVEREIGN',
     world: '⚡ Creator\'s Proving Ground',
     narrative: [
       'The gate demanded a proof.',
@@ -222,7 +224,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 129, title: 'The Creator\'s Gate',
+    id: 130, title: 'The Creator\'s Gate',
     world: '⚛️ Multiversal Core — Creator\'s Domain',
     narrative: [
       'The rift was open.',
