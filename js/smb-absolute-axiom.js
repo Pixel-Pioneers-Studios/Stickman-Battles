@@ -104,6 +104,13 @@ function _checkAbsoluteAxiomDeathHook() {
 }
 
 function _onAbsoluteAxiomDefeated() {
+  // RGS cleanup: _updateRGS re-asserts these every frame while AA lives, but
+  // nothing cleared them on death — the player permanently lost their super.
+  if (typeof players !== 'undefined') {
+    for (const p of players) {
+      if (p && !p.isBoss) { p._storyNoSuper = false; }
+    }
+  }
   if (typeof unlockAchievement === 'function') unlockAchievement('absolute_axiom_slayer');
   if (typeof screenShake !== 'undefined') screenShake = Math.max(screenShake, 60);
   if (typeof CinFX !== 'undefined') {
@@ -238,14 +245,9 @@ class AbsoluteAxiom extends God {
   }
 
   // Block damage while portal-invincible
-  receiveDamage(dmg) {
-    if (this._portalInvincible) {
-      if (typeof spawnParticles === 'function') spawnParticles(this.cx(), this.cy(), '#8800ff', 5);
-      return;
-    }
-    this.health = Math.max(0, this.health - dmg);
-  }
-
+  // receiveDamage() removed: it had zero callers (dealDamage never routed through
+  // it), so portal invincibility was fake. It is now enforced via this.invincible
+  // in update(), which dealDamage actually checks.
   respawn()       { this.health = 0; }
   useSuper()      {}
   activateSuper() {}
@@ -318,11 +320,24 @@ class AbsoluteAxiom extends God {
       this._portalInvincible = true;
       if (typeof screenShake !== 'undefined') screenShake = Math.max(screenShake, 40);
       if (typeof CinFX !== 'undefined') { CinFX.flash('#8800ff', 0.7, 22); CinFX.flash('#000000', 0.6, 38); }
-      // Trigger the final assault cinematic (allies burst through portals)
-      setTimeout(() => { if (typeof _startAAFinalAssaultCinematic === 'function') _startAAFinalAssaultCinematic(this); }, 400);
+      // Frame-counted delay, then RETRY until the cinematic slot is free — the old
+      // one-shot setTimeout aborted permanently if a checkpoint QTE overlapped,
+      // soft-locking the invincible phase with no allies.
+      this._finalAssaultDelay = 24;
+    }
+    if (this._finalAssaultDelay > 0 && --this._finalAssaultDelay === 0) this._finalAssaultPending = true;
+    if (this._finalAssaultPending &&
+        !(typeof isCinematic !== 'undefined' && isCinematic) &&
+        !(typeof activeCinematic !== 'undefined' && activeCinematic) &&
+        typeof _startAAFinalAssaultCinematic === 'function') {
+      this._finalAssaultPending = false;
+      _startAAFinalAssaultCinematic(this);
     }
     // Remove portal invincibility when enough allies are active
     if (this._portalInvincible) {
+      // Enforce REAL invincibility every frame — dealDamage checks target.invincible.
+      // The 2-frame floor self-expires once the flag drops.
+      this.invincible = Math.max(this.invincible || 0, 2);
       const allyCount = (typeof minions !== 'undefined' ? minions : []).filter(m => m.isAAPortalAlly && m.health > 0).length;
       if (allyCount >= 3) this._portalInvincible = false;
     }
@@ -878,6 +893,10 @@ class AbsoluteAxiom extends God {
     this._temporalActive = true;
     this._temporalTimer  = 300;
     if (typeof slowMotion !== 'undefined') slowMotion = 0.12;
+    // hitSlowTimer arms the game loop's slow-mo failsafe: if AA dies mid-crush
+    // (its own per-frame restore stops running), the loop restores speed instead
+    // of leaving the whole game at 0.12× forever.
+    if (typeof hitSlowTimer !== 'undefined') hitSlowTimer = Math.max(hitSlowTimer, 300);
     if (typeof showBossDialogue === 'function') showBossDialogue('Time bends. You do not.', 200);
     if (typeof CinFX !== 'undefined') CinFX.flash('#4488ff', 0.4, 16);
     if (typeof screenShake !== 'undefined') screenShake = Math.max(screenShake, 12);
@@ -1701,7 +1720,7 @@ class AbsoluteAxiom extends God {
     // Melee windup telegraph — pulsing red ring that grows as windup charges
     if (this._meleeWindup > 0) {
       ctx.save();
-      const windupFrac = this._meleeWindup / 35;
+      const windupFrac = Math.min(1, this._meleeWindup / (this._meleeWindupDur || 35));
       const pulseR = 50 + windupFrac * 105;
       ctx.globalAlpha = windupFrac * 0.85;
       ctx.strokeStyle = '#ff0022';

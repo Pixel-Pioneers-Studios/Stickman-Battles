@@ -86,6 +86,7 @@ class AdaptiveAI extends Fighter {
     this._baitTimer    = 0;  // frames remaining in bait stance (stand still to invite attack)
     this._baitCooldown = 0;  // frames until bait is available again
     this._baitCount    = 0;  // how many baits have been successfully punished (tracks pattern)
+    this._baitIgnoredStreak = 0; // consecutive baits the player refused to take — rations future baits
     // ── Combo state ───────────────────────────────────────
     this._comboFollowTimer = 0; // frames until follow-up combo hit fires
     this._comboFollowHits  = 0; // queued follow-up hits remaining
@@ -486,6 +487,7 @@ class AdaptiveAI extends Fighter {
         this._baitTimer = 0;
         this._baitCooldown = 280;
         this._baitCount++;
+        this._baitIgnoredStreak = 0;
         const dDir = (nearLeft && dir < 0) ? 1 : (nearRight && dir > 0) ? -1 : -dir;
         if (this.onGround && !this.isEdgeDanger(dDir)) {
           this.vy = -20;  // jump-cancel away
@@ -493,6 +495,11 @@ class AdaptiveAI extends Fighter {
         }
         this._punishTimer = 4; // immediately punish
         this._recordEvent('dodge', 8);
+      } else if (this._baitTimer === 0) {
+        // Bait expired un-taken — without a cooldown here, baits chain back-to-back
+        // against a disciplined player and the AI just stands at attack range doing nothing.
+        this._baitIgnoredStreak++;
+        this._baitCooldown = Math.max(this._baitCooldown, 160 + this._baitIgnoredStreak * 80);
       }
       return;
     }
@@ -501,7 +508,7 @@ class AdaptiveAI extends Fighter {
 
     // Activate bait: only at decent intelligence, not finishing, not in punish
     const canBait = this.intelligence > 0.50 && this._baitCooldown === 0 && !finishMode && d < 140 && d > prefDist * 0.8;
-    if (canBait && Math.random() < (0.004 + this.intelligence * 0.006) * _bmBias.baitBoost) {
+    if (canBait && Math.random() < (0.004 + this.intelligence * 0.006) * _bmBias.baitBoost / (1 + this._baitIgnoredStreak)) {
       this._baitTimer = Math.round(18 + this.intelligence * 20); // 18–38 frames
     }
 

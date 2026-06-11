@@ -92,6 +92,24 @@ class Boss extends Fighter {
   updateAI() {
     if (activeCinematic || gameFrozen) return; // freeze during cinematics / freeze frames
 
+    // Backstage watchdog: bossTeleport restores via setTimeouts that bail when
+    // gameRunning flickers false (fake crash, round end). If the boss has been
+    // hidden too long (normal window is 2.5s), force-restore — never strand an
+    // invisible invincible boss.
+    if (this.backstageHiding) {
+      this._backstageWatchdog = (this._backstageWatchdog || 0) + 1;
+      if (this._backstageWatchdog > 300) {
+        this._backstageWatchdog = 0;
+        this.backstageHiding = false;
+        this.invincible = 0;
+        this.x = GAME_W / 2 - this.w / 2;
+        this.y = 80;
+        this.vx = 0; this.vy = 0;
+      }
+    } else {
+      this._backstageWatchdog = 0;
+    }
+
     if (this.aiReact > 0) { this.aiReact--; return; }
     if (this.ragdollTimer > 0 || this.stunTimer > 0) return;
     if (bossStaggerTimer > 0) return; // stunned — vulnerability window

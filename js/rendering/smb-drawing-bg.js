@@ -44,11 +44,14 @@ function drawBackground() {
   // Solid base fill first (gradient fallback for bottom overflow area)
   ctx.fillStyle = a.sky[a.sky.length - 1];
   ctx.fillRect(_bgX, 0, _bgW, _bgH);
-  // Gradient layer over the visible game area
-  const g = ctx.createLinearGradient(0, 0, 0, GAME_H);
-  g.addColorStop(0, a.sky[0]);
-  g.addColorStop(1, a.sky[a.sky.length - 1]);
-  ctx.fillStyle = g;
+  // Gradient layer over the visible game area — cached per arena key
+  if (!drawBackground._skyGradCache || drawBackground._skyGradKey !== currentArenaKey) {
+    drawBackground._skyGradCache = ctx.createLinearGradient(0, 0, 0, GAME_H);
+    drawBackground._skyGradCache.addColorStop(0, a.sky[0]);
+    drawBackground._skyGradCache.addColorStop(1, a.sky[a.sky.length - 1]);
+    drawBackground._skyGradKey = currentArenaKey;
+  }
+  ctx.fillStyle = drawBackground._skyGradCache;
   ctx.fillRect(_bgX, 0, _bgW, GAME_H);
   // Ground color fill below floor level — prevents raw canvas showing through on zoomed-out large maps
   if (a.groundColor) {

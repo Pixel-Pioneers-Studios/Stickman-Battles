@@ -2135,6 +2135,9 @@ const DomainManager = (() => {
   // so that being in combat doesn't permanently shield players from the domain.
   function _dealDomainDamage(owner, target, dmg, kbForce) {
     if (!target || target.health <= 0 || !owner || owner.health <= 0) return;
+    // Respect the finisher lock (invincible=9999): domain hazards must never
+    // damage/kill a target mid-finisher cinematic.
+    if (target.invincible > 1000) return;
     const scaledDmg = (target.isBoss || target.isTrueForm)
       ? Math.max(1, Math.round(dmg * 0.35))
       : dmg;

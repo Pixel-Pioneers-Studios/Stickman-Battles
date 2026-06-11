@@ -153,6 +153,10 @@ function _showGodChallengePrompt() {
 }
 
 function _checkGodDeath() {
+  // AbsoluteAxiom death hook must run BEFORE the god-mode gate — AA fights use
+  // gameMode 'absoluteaxiom', so behind the gate the defeat card/achievement
+  // could never fire.
+  if (typeof _checkAbsoluteAxiomDeathHook === 'function') _checkAbsoluteAxiomDeathHook();
   if (typeof gameMode === 'undefined' || gameMode !== 'god') return;
   if (!_godWasAlive) return;
   const hasGod = Array.isArray(minions) && minions.some(m => m.isGod);
@@ -160,8 +164,6 @@ function _checkGodDeath() {
     _godWasAlive = false;
     _onGodDefeated();
   }
-  // AbsoluteAxiom death hook (defined in smb-absolute-axiom.js)
-  if (typeof _checkAbsoluteAxiomDeathHook === 'function') _checkAbsoluteAxiomDeathHook();
 }
 
 function _onGodDefeated() {

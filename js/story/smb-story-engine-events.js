@@ -266,9 +266,16 @@ function freezeGame(frames) {
 }
 
 // ── slowMotionFor: set slowMotion then restore after ms ───────────────────────
+// Token-cancelled: repeated calls (e.g. the QTE warning window calls this every
+// frame) must not stack dozens of restore timers — only the NEWEST timer may
+// restore, and _slowMoInvalidate() voids all pending restores (called when a
+// QTE/cinematic takes explicit ownership of slowMotion).
+let _slowMoToken = 0;
+function _slowMoInvalidate() { _slowMoToken++; }
 function slowMotionFor(factor, ms) {
   slowMotion = factor;
-  setTimeout(() => { if (slowMotion < 0.9) slowMotion = 1.0; }, ms);
+  const _t = ++_slowMoToken;
+  setTimeout(() => { if (_t === _slowMoToken && slowMotion < 0.9) slowMotion = 1.0; }, ms);
 }
 
 // ── Mid-fight ability unlock overlay ─────────────────────────────────────────

@@ -50,7 +50,8 @@ function storyCheckEvents() {
   }
 
   // ── Axiom encounter (ch 63): keep Axiom invincible; force scripted defeat at 20s ──
-  if (ch && ch.id === 63 && !ch.noFight) {
+  // Phase expansion reassigns ch.id; the original id lives in ch._origId.
+  if (ch && (ch._origId !== undefined ? ch._origId : ch.id) === 63 && !ch.noFight) {
     const _axiom = players && players.find(p => p !== p1 && p.isBoss);
     if (_axiom && _axiom.health > 0) {
       _axiom.invincible = Math.max(_axiom.invincible || 0, 10);
@@ -80,6 +81,15 @@ function storyOnEnemyDeath(victim, killer) {
   // Only fire on p1 kills
   if (killer !== (players && players[0])) return;
   triggerEvent('FIRST_KILL', { victim, killer });
+  // berserker_blood2 kill stacks — merged here from smb-story-config.js, whose
+  // own storyOnEnemyDeath wrapper was silently overwritten by this later-loading
+  // declaration (making the ability dead code).
+  const _p1 = players[0];
+  if (_p1 && _p1.story2Abilities && _p1.story2Abilities.has('berserker_blood2') &&
+      typeof storyAbilityState !== 'undefined') {
+    storyAbilityState.killStacks = Math.min(5, (storyAbilityState.killStacks || 0) + 1);
+    storyFightSubtitle = { text: `🩸 Fragment Hunger: ${storyAbilityState.killStacks} stack${storyAbilityState.killStacks > 1 ? 's' : ''}`, timer: 120, maxTimer: 120, color: '#cc2244' };
+  }
 }
 
 // ── syncStoryDistortLevel: call after chapter advances ───────────────────────

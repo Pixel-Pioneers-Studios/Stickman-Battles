@@ -48,6 +48,7 @@ function startTFOpeningFight(tf) {
 
     // t=0: opening flash + dialogue
     _tfOpeningGSAPTL.call(() => {
+      if (!tfOpeningFightActive) return; // stale callback after quit/restart
       screenShake = Math.max(screenShake, 18);
       if (typeof CinFX !== 'undefined') CinFX.flash('#00ffff', 0.22, 14);
       if (typeof showBossDialogue === 'function')
@@ -61,6 +62,7 @@ function startTFOpeningFight(tf) {
 
     // t=3s: phase 1 (250 dmg equiv) — Paradox closes in
     _tfOpeningGSAPTL.call(() => {
+      if (!tfOpeningFightActive) return; // stale callback after quit/restart
       _tfOpeningPhase = 1;
       screenShake = Math.max(screenShake, 12);
       if (typeof showBossDialogue === 'function')
@@ -69,6 +71,7 @@ function startTFOpeningFight(tf) {
 
     // t=6s: phase 2 (650 dmg equiv) — climax
     _tfOpeningGSAPTL.call(() => {
+      if (!tfOpeningFightActive) return; // stale callback after quit/restart
       _tfOpeningPhase = 2;
       screenShake = Math.max(screenShake, 18);
       if (typeof CinFX !== 'undefined') CinFX.flash('#ffffff', 0.18, 10);

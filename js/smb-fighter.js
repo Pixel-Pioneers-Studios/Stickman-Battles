@@ -305,6 +305,10 @@ class Fighter {
       this.updateState();
       return;
     }
+    // AI fighters never run processInput (which ticks shieldHoldTimer for
+    // humans), so theirs froze at 0 — granting the maximum 65% fresh-shield
+    // parry chance for an AI shield's entire duration.
+    if (this.isAI && this.shielding) this.shieldHoldTimer = (this.shieldHoldTimer || 0) + 1;
     if (this.cooldown > 0)         this.cooldown--;
     if (this.cooldown2 > 0)        this.cooldown2--;
     if (this.abilityCooldown > 0)  this.abilityCooldown--;

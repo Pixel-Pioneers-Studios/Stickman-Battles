@@ -136,8 +136,11 @@ function rollChaosModifiers() {
 function applyChaosModifiers() {
   const humanPlayers = players.filter(p => !p.isBoss);
   humanPlayers.forEach(p => {
-    p._chaosOrigW = p.w; p._chaosOrigH = p.h;
-    p._chaosOrigDrawScale = p.drawScale || 1;
+    // Idempotent: never overwrite a saved original with an already-scaled value
+    // (Chaos Match applies modifiers repeatedly without clearing in between —
+    // re-saving caused unbounded hitbox drift across waves).
+    if (p._chaosOrigW === undefined) { p._chaosOrigW = p.w; p._chaosOrigH = p.h; }
+    if (p._chaosOrigDrawScale === undefined) p._chaosOrigDrawScale = p.drawScale || 1;
     if (currentChaosModifiers.has('giant'))  { p.w = Math.floor(p.w * 1.55); p.h = Math.floor(p.h * 1.55); p.drawScale = (p._chaosOrigDrawScale || 1) * 1.55; }
     if (currentChaosModifiers.has('tiny'))   { p.w = Math.floor(p.w * 0.55); p.h = Math.floor(p.h * 0.55); p.drawScale = (p._chaosOrigDrawScale || 1) * 0.55; }
     if (currentChaosModifiers.has('sudden_death')) p.health = 1;
@@ -323,8 +326,9 @@ function updateMinigame() {
       survivalWaveDelay--;
       if (survivalWaveDelay === 0) spawnSurvivalWave();
     } else if (survivalEnemies.length === 0 && minions.filter(m => m.health > 0).length === 0) {
-      // Wave cleared — heal all players (team mode heals; competitive only heals survivor)
-      players.forEach(p => { if (!p.isBoss) p.health = Math.min(p.maxHealth, p.health + 25); });
+      // Wave cleared — heal (team mode heals everyone; competitive must not
+      // revive rival bots between waves)
+      players.forEach(p => { if (!p.isBoss && (survivalTeamMode || p.health > 0)) p.health = Math.min(p.maxHealth, p.health + 25); });
       survivalWaveDelay = 210;
 
       const waveGoal = survivalInfinite ? Infinity : survivalWaveGoal;

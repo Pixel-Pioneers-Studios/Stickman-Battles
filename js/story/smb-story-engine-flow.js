@@ -401,13 +401,17 @@ function _launchChapter2Fight(ch) {
   if (ch.isBossFight) {
     if (typeof triggerEvent === 'function') triggerEvent('BOSS_INTRO', { ch }, true);
     const _bossCinDuration = 7800;
-    setTimeout(() => _launchChapter2FightImmediate(ch), _bossCinDuration);
+    // Single pending launch only: clicking Retry inside the 7.8s window used to
+    // queue a second timer and double-spawn the boss.
+    if (_bossCinLaunchTimer) clearTimeout(_bossCinLaunchTimer);
+    _bossCinLaunchTimer = setTimeout(() => { _bossCinLaunchTimer = null; _launchChapter2FightImmediate(ch); }, _bossCinDuration);
     return;
   }
 
   _launchChapter2FightImmediate(ch);
 }
 
+let _bossCinLaunchTimer = null;
 function _launchChapter2FightImmediate(ch) {
   const _phase = storyPendingPhaseConfig;
   // Close the story modal directly — bypass the ch0-lock guard (fight launch is always valid)

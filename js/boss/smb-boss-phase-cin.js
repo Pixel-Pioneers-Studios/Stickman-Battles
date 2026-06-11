@@ -26,7 +26,14 @@ function updateCinematic() {
   if (!activeCinematic) return;
   activeCinematic.timer++;
   const t = activeCinematic.timer / 60; // seconds
-  activeCinematic.update(t);
+  try {
+    activeCinematic.update(t);
+  } catch (e) {
+    // A throwing cinematic must never leave isCinematic/gameFrozen stuck forever.
+    console.error('[cinematic] update threw — force-ending to avoid permanent freeze:', e);
+    endCinematic();
+    return;
+  }
   if (activeCinematic.timer >= activeCinematic.durationFrames) {
     endCinematic();
   }
@@ -48,11 +55,18 @@ function endCinematic() {
       }
     }
   }
-  if (activeCinematic.onEnd) activeCinematic.onEnd();
+  if (activeCinematic.onEnd) {
+    const _self = activeCinematic;
+    _self.onEnd();
+    // onEnd may hand off to a new cinematic/scene (e.g. the absorption scene).
+    // If ownership changed, the new owner manages freeze/slow-mo — don't clobber it.
+    if (activeCinematic !== _self) return;
+  }
   activeCinematic = null;
   isCinematic = false;
   if (typeof clearCombatLock === 'function') clearCombatLock('cinematic');
   slowMotion = 1.0;
+  if (typeof _slowMoInvalidate === 'function') _slowMoInvalidate();
   cinematicCamOverride = false;
   gameFrozen = false; // resume physics and input
 }

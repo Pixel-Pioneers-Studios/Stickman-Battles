@@ -199,7 +199,14 @@ function applyCode(val) {
   } else if (code === 'KILLBOSS') {
     if (gameRunning) {
       const boss = players.find(p => p.isBoss);
-      if (boss) boss.health = 1;
+      if (boss) {
+        boss.health = 1;
+        // Mark every HP-threshold cinematic/QTE as already fired — dropping HP
+        // past unfired checkpoints used to leave the fight in a broken state.
+        if (!boss._cinematicFired) boss._cinematicFired = new Set();
+        ['entry','75','qte75','50','paradox50','40','paradox1000','qte25','15','10']
+          .forEach(k => boss._cinematicFired.add(k));
+      }
       ok('Boss is nearly dead!');
     } else { err('Enter KILLBOSS while in-game.'); }
   } else if (code.startsWith('SETHP:')) {

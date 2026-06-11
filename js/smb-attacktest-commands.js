@@ -100,6 +100,8 @@ function _atkAll(classKey) {
   let idx = 0;
   function _next() {
     if (!gameRunning) { _atkDemoRunning=false; _consolePrint('[ATK] Demo aborted.','#ff8888'); return; }
+    // Never fire demo attacks into an active cinematic — wait it out instead.
+    if (typeof isCinematic !== 'undefined' && isCinematic) { setTimeout(_next, 500); return; }
     if (idx >= bucket.length) { _atkDemoRunning=false; _consoleOk('[ATK] Demo complete.'); return; }
     const entry    = bucket[idx++];
     const needsCtx = classKey === 'creator' || classKey === 'trueform' || classKey === 'yeti' || classKey === 'beast';

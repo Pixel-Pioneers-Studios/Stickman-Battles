@@ -148,6 +148,9 @@ function _tfeLaunchPts(hero, boss) {
 function startTFEnding(boss, isIntro) {
   const hero = players.find(p => !p.isBoss);
   if (!hero) { endGame(); return; }
+  // Callers pass players.find(p => p.isBoss), which can be undefined — a throw
+  // here would fire inside a scene tick and leave gameFrozen stuck forever.
+  if (!boss) { endGame(); return; }
 
   boss.invincible = 999999;
   boss.vx = 0; boss.vy = 0;

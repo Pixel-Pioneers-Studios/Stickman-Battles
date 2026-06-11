@@ -151,7 +151,10 @@ function startTFAbsorptionScene(player, paradoxRef) {
     flashAlpha:  0,
     absorbed:    false
   };
-  activeCinematic = true;
+  // Inert sentinel object (not `true`): updateCinematic ticks activeCinematic,
+  // and a primitive would throw in strict mode now that endCinematic respects
+  // onEnd handoffs instead of nulling this immediately.
+  activeCinematic = { timer: 0, durationFrames: Infinity, update() {}, onEnd: null, _absorptionSentinel: true };
   gameFrozen      = true;
   tfCinematicState = 'absorption';
   if (player) player.invincible = Math.max(player.invincible || 0, 9999);
@@ -228,9 +231,12 @@ function updateTFAbsorptionScene() {
       const _tfEndBoss = players.find(p => p.isBoss);
       startTFEnding(_tfEndBoss, true);
     }
-    // Only clear after startTFEnding has taken ownership
+    // Only clear after startTFEnding has taken ownership.
+    // null (not false): downstream `=== null` idle checks rely on it, and the
+    // cinematic combat lock must be released now that endCinematic defers to us.
     tfAbsorptionScene = null;
-    activeCinematic   = false;
+    activeCinematic   = null;
+    if (typeof clearCombatLock === 'function') clearCombatLock('cinematic');
   }
 }
 

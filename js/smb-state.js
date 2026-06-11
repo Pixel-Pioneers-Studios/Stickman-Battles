@@ -98,6 +98,13 @@ const GameState = (() => {
    *   GameState.update(s => { s.session.online.connected = true; });
    */
   function update(fn) {
+    // The draft is a SHALLOW copy: nested objects (accounts etc.) are shared with
+    // live state, so fn's nested mutations land immediately. A deep backup lets a
+    // validation failure roll those back instead of committing a partial write.
+    // (Persistent state is localStorage-backed, so it is JSON-safe by construction.)
+    let _rollback = null;
+    try { _rollback = JSON.parse(JSON.stringify(_state.persistent)); } catch (e) { /* non-serializable: skip rollback */ }
+
     const draft = {
       persistent: { ..._state.persistent },
       session:    { ..._state.session },
@@ -108,6 +115,7 @@ const GameState = (() => {
     try {
       _validatePersistent(draft.persistent);
     } catch (e) {
+      if (_rollback) _state.persistent = _rollback;
       if (DEBUG_STATE) console.warn('[GameState] update() rejected — invalid state:', e.message);
       throw e;
     }

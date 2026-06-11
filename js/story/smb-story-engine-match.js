@@ -182,8 +182,9 @@ function story2OnMatchEnd(playerWon) {
     }
   }
   if (!playerWon) {
-    // Ch63: Axiom scripted defeat — advance automatically, do not show retry screen
-    if (_axiomForcedPlayerLoss && ch.id === 63) {
+    // Ch63: Axiom scripted defeat — advance automatically, do not show retry screen.
+    // Phase expansion reassigns ch.id; the original id lives in ch._origId.
+    if (_axiomForcedPlayerLoss && (ch._origId !== undefined ? ch._origId : ch.id) === 63) {
       _axiomForcedPlayerLoss = false;
       _completeChapter2(ch);
       return true;
@@ -294,24 +295,29 @@ function story2OnMatchEnd(playerWon) {
   // Hull fragments scattered through Act 0 and Act 1.
   // Engine drops at the Act 1 climax (ch ~24). Core at Act 3 (ch ~50).
   // Crystal is awarded by the fracture preview system, not here.
-  if (_firstClear && typeof giveShipPart === 'function') {
-    if (ch.id === 5)  giveShipPart('hull');   // Act 0 — first victory
-    if (ch.id === 12) giveShipPart('hull');   // Act 0 arc 2 close
-    if (ch.id === 18) giveShipPart('hull');   // Act 1 — void arena cleared
-    if (ch.id === 24) giveShipPart('hull');   // Act 1 climax
-    if (ch.id === 30) giveShipPart('hull');   // Act 2 entry
-    if (ch.id === 24) giveShipPart('engine'); // Act 1 boss — engine recovered
-    if (ch.id === 50) giveShipPart('core');   // Act 3 climax — dimensional core
+  // Award against the ORIGINAL chapter id (phase expansion reassigns ch.id),
+  // and only on the final phase — otherwise every phase of an expanded chapter
+  // re-awards on its own first clear.
+  const _chOrig = ch._origId !== undefined ? ch._origId : ch.id;
+  const _isFinalPhase = ch._origId === undefined || ch._phaseFinal === true;
+  if (_firstClear && _isFinalPhase && typeof giveShipPart === 'function') {
+    if (_chOrig === 5)  giveShipPart('hull');   // Act 0 — first victory
+    if (_chOrig === 12) giveShipPart('hull');   // Act 0 arc 2 close
+    if (_chOrig === 18) giveShipPart('hull');   // Act 1 — void arena cleared
+    if (_chOrig === 24) giveShipPart('hull');   // Act 1 climax
+    if (_chOrig === 30) giveShipPart('hull');   // Act 2 entry
+    if (_chOrig === 24) giveShipPart('engine'); // Act 1 boss — engine recovered
+    if (_chOrig === 50) giveShipPart('core');   // Act 3 climax — dimensional core
   }
 
   // ── Motivation advancement ─────────────────────────────────────────────
   // Stage 0→1: player has fought enough to start asking why (ch 10)
   // Stage 1→2: player learns the Creator controls the branch (ch 30)
   // Stage 2→3: player understands True Form is the only end (ch 55)
-  if (_firstClear && typeof advanceMotivation === 'function') {
-    if (ch.id === 10) advanceMotivation(); // 0→1: investigation
-    if (ch.id === 30) advanceMotivation(); // 1→2: understanding
-    if (ch.id === 55) advanceMotivation(); // 2→3: commitment
+  if (_firstClear && _isFinalPhase && typeof advanceMotivation === 'function') {
+    if (_chOrig === 10) advanceMotivation(); // 0→1: investigation
+    if (_chOrig === 30) advanceMotivation(); // 1→2: understanding
+    if (_chOrig === 55) advanceMotivation(); // 2→3: commitment
   }
 
   // ── Fracture unlock: reveal branch_alpha after Act 1 ──────────────────

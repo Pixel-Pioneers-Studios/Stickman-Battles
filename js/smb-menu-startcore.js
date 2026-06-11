@@ -191,6 +191,11 @@ function _startGameCore() {
   hitSlowTimer    = 0;
   storyFreezeTimer = 0;
   gameFrozen      = false; // ensure cinematic freeze is cleared on new game start
+  // Stale-mode leak guards: a quit mid-Damnation or mid-gravity-flip chaos event
+  // must never carry these flags into the next match.
+  damnationActive = false;
+  if (typeof tfGravityInverted !== 'undefined') tfGravityInverted = false;
+  if (typeof tfControlsInverted !== 'undefined') tfControlsInverted = false;
   if (typeof _lastFrameTime !== 'undefined') _lastFrameTime = 0;
   if (typeof resetDirector === 'function') resetDirector();
 

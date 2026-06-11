@@ -28,7 +28,13 @@ function drawStorySubtitle() {
   ctx.setTransform(1, 0, 0, 1, 0, 0); // guarantee screen-space regardless of caller transform state
   ctx.font = `${isGuide ? 'bold' : 'italic'} ${fontSize}px "Segoe UI", Arial, sans-serif`;
   ctx.textAlign = 'center';
-  const textW = ctx.measureText(text).width;
+  // Cache measureText width on the subtitle object — recompute only when text or font size changes
+  const _measKey = text + '|' + fontSize;
+  if (storyFightSubtitle._measuredFor !== _measKey) {
+    storyFightSubtitle._measuredW   = ctx.measureText(text).width;
+    storyFightSubtitle._measuredFor = _measKey;
+  }
+  const textW = storyFightSubtitle._measuredW;
   const padX = 28, padY = 12;
   const labelH = isGuide ? labelSize + 10 : 0;
   const bx = cw / 2 - textW / 2 - padX;

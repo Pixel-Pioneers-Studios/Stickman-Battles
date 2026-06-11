@@ -16,7 +16,7 @@ const ARENAS = {
     deathY:      640,
     modifiers:   { gravityMult: 1.0, frictionMult: 1.0, hazardFrequency: 1.0 },
     platforms: [
-      { x: -60,  y: 480, w: 1020, h: 40 }, // ground
+      { x: -60,  y: 480, w: 1020, h: 40, isFloor: true }, // ground
       // density zone: center high — prominent central hub
       { x: 370,  y: 185, w: 160,  h: 18 }, // centre top
       // mid-left zone
@@ -61,7 +61,7 @@ const ARENAS = {
     isLowGravity: true,
     modifiers:    { gravityMult: 0.85, frictionMult: 0.9, hazardFrequency: 0.8 },
     platforms: [
-      { x: -60,  y: 480, w: 1020, h: 40 }, // asteroid belt floor
+      { x: -60,  y: 480, w: 1020, h: 40, isFloor: true }, // asteroid belt floor
       { x: 350,  y: 170, w: 200,  h: 15 }, // centre station
       { x: 135,  y: 255, w: 155,  h: 15 }, // left mid asteroid
       { x: 610,  y: 255, w: 155,  h: 15 }, // right mid asteroid
@@ -82,7 +82,7 @@ const ARENAS = {
     deathY:      640,
     modifiers:   { gravityMult: 1.0, frictionMult: 1.0, hazardFrequency: 1.1 },
     platforms: [
-      { x: -60,  y: 438, w: 1020, h: 82 }, // continuous rooftop floor
+      { x: -60,  y: 438, w: 1020, h: 82, isFloor: true }, // continuous rooftop floor
       // far-left zone — fire escape / ledge
       { x:  18,  y: 320, w:  90,  h: 15 }, // far-left ledge
       // mid-left zone
@@ -200,7 +200,7 @@ const ARENAS = {
     deathY:      640,
     modifiers:   { gravityMult: 1.0, frictionMult: 1.05, hazardFrequency: 1.15 },
     platforms: [
-      { x: -60,  y: 480, w: 1020, h: 40 }, // ground
+      { x: -60,  y: 480, w: 1020, h: 40, isFloor: true }, // ground
       // tree canopy tiers — spread across full width
       { x: 350,  y: 190, w: 200,  h: 18 }, // centre high branch
       { x: 112,  y: 272, w: 150,  h: 18 }, // left branch
@@ -223,7 +223,7 @@ const ARENAS = {
     isIcy:       true,
     modifiers:   { gravityMult: 1.0, frictionMult: 0.85, hazardFrequency: 1.0 },
     platforms: [
-      { x: -60,  y: 460, w: 1020, h: 60 }, // frozen ground
+      { x: -60,  y: 460, w: 1020, h: 60, isFloor: true }, // frozen ground
       // wide centre glacier (landmark)
       { x: 320,  y: 205, w: 260,  h: 16 }, // centre glacier
       // mid-zone ice shelves
@@ -246,7 +246,7 @@ const ARENAS = {
     deathY:      640,
     modifiers:   { gravityMult: 1.05, frictionMult: 1.0, hazardFrequency: 0.9 },
     platforms: [
-      { x:   0, y: 440, w: 260, h: 80 },
+      { x:   0, y: 440, w: 260, h: 80, isFloor: true },
       { x: 320, y: 440, w: 260, h: 80 },
       { x: 640, y: 440, w: 260, h: 80 },
       { x:  90, y: 255, w: 145, h: 18 },
@@ -281,7 +281,7 @@ const ARENAS = {
     deathY:      640,
     modifiers:   { gravityMult: 1.05, frictionMult: 1.1, hazardFrequency: 0.8 },
     platforms: [
-      { x: -60, y: 480, w: 1020, h: 40 },          // ground
+      { x: -60, y: 480, w: 1020, h: 40, isFloor: true },          // ground
       { x: -60, y:   0, w: 1020, h: 20, isCeiling: true }, // low ceiling
       { x: 340, y: 210, w: 220, h: 18 },             // centre mid
       { x: 100, y: 285, w: 150, h: 18 },             // left mid
@@ -299,7 +299,7 @@ const ARENAS = {
     deathY:      640,
     modifiers:   { gravityMult: 1.0, frictionMult: 0.95, hazardFrequency: 1.0 },
     platforms: [
-      { x: -60,  y: 480, w: 1020, h: 40 },
+      { x: -60,  y: 480, w: 1020, h: 40, isFloor: true },
       { x: 355,  y: 175, w: 190, h: 15, ox: 355, oscX: 60, oscSpeed: 0.011, oscPhase: 0.0 },
       { x: 145,  y: 258, w: 160, h: 15, ox: 145, oscX: 40, oscSpeed: 0.015, oscPhase: 1.2 },
       { x: 595,  y: 258, w: 160, h: 15, ox: 595, oscX: 40, oscSpeed: 0.015, oscPhase: 2.4 },
@@ -319,7 +319,7 @@ const ARENAS = {
     isSlowMovement: true,
     modifiers:      { gravityMult: 0.7, frictionMult: 1.2, hazardFrequency: 0.7 },
     platforms: [
-      { x: -60, y: 480, w: 1020, h: 40 },
+      { x: -60, y: 480, w: 1020, h: 40, isFloor: true },
       { x: 355, y: 185, w: 190, h: 15 },
       { x: 145, y: 268, w: 155, h: 15 },
       { x: 600, y: 268, w: 155, h: 15 },
@@ -355,7 +355,7 @@ const ARENAS = {
     deathY:      640,
     modifiers:   { gravityMult: 1.05, frictionMult: 1.0, hazardFrequency: 1.0 },
     platforms: [
-      { x: -60, y: 480, w: 1020, h: 40 },
+      { x: -60, y: 480, w: 1020, h: 40, isFloor: true },
       { x: 355, y: 195, w: 190, h: 20 },
       { x: 155, y: 278, w: 155, h: 20 },
       { x: 590, y: 278, w: 155, h: 20 },
@@ -372,7 +372,7 @@ const ARENAS = {
     deathY:      640,
     modifiers:   { gravityMult: 1.0, frictionMult: 0.95, hazardFrequency: 1.2 },
     platforms: [
-      { x: -60, y: 480, w: 1020, h: 40 },
+      { x: -60, y: 480, w: 1020, h: 40, isFloor: true },
       { x: 355, y: 195, w: 190, h: 14 },
       { x: 150, y: 275, w: 155, h: 14 },
       { x: 595, y: 275, w: 155, h: 14 },
@@ -389,7 +389,7 @@ const ARENAS = {
     deathY:      640,
     modifiers:   { gravityMult: 0.95, frictionMult: 0.92, hazardFrequency: 1.1 },
     platforms: [
-      { x: -60, y: 480, w: 1020, h: 40 },
+      { x: -60, y: 480, w: 1020, h: 40, isFloor: true },
       { x: 345, y: 185, w: 210, h: 18 },
       { x: 130, y: 268, w: 155, h: 18 },
       { x: 615, y: 268, w: 155, h: 18 },
@@ -407,7 +407,7 @@ const ARENAS = {
     isLowGravity: true,
     modifiers:    { gravityMult: 0.8, frictionMult: 0.88, hazardFrequency: 0.6 },
     platforms: [
-      { x: -60, y: 480, w: 1020, h: 40 },
+      { x: -60, y: 480, w: 1020, h: 40, isFloor: true },
       { x: 355, y: 175, w: 190, h: 22 },
       { x: 145, y: 258, w: 165, h: 22 },
       { x: 590, y: 258, w: 165, h: 22 },
@@ -424,7 +424,7 @@ const ARENAS = {
     deathY:      640,
     modifiers:   { gravityMult: 1.0, frictionMult: 1.0, hazardFrequency: 1.0 },
     platforms: [
-      { x: -60, y: 480, w: 1020, h: 40 },
+      { x: -60, y: 480, w: 1020, h: 40, isFloor: true },
       { x: 355, y: 195, w: 190, h: 14 },
       { x: 150, y: 275, w: 155, h: 14 },
       { x: 595, y: 275, w: 155, h: 14 },
@@ -441,7 +441,7 @@ const ARENAS = {
     deathY:      640,
     modifiers:   { gravityMult: 0.9, frictionMult: 0.85, hazardFrequency: 0.9 },
     platforms: [
-      { x: -60, y: 480, w: 1020, h: 40 },
+      { x: -60, y: 480, w: 1020, h: 40, isFloor: true },
       // NOTE: isBouncy platforms — smc-loop.js checkPlatform should apply
       // upward velocity bounce (vy = -abs(vy)*1.4) when landing on isBouncy platforms.
       { x: 355, y: 190, w: 190, h: 22, isBouncy: true },

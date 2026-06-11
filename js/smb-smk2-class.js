@@ -2358,12 +2358,23 @@ class SovereignMK2 extends AdaptiveAI {
         this._baitTimer    = 0;
         this._baitCooldown = lb ? 180 : 280;
         this._baitCount++;
+        this._baitIgnoredStreak = 0;
         const dDir = (nearLeft && dir < 0) ? 1 : (nearRight && dir > 0) ? -1 : -dir;
         if (this.onGround && !this.isEdgeDanger(dDir)) {
           this.vy = -20; this.vx = dDir * moveSpd * 2.6;
         }
         this._punishTimer = 2;
         this._recordEvent('dodge', 8);
+      } else if (this._baitTimer === 0) {
+        // Bait expired un-taken. Without a cooldown here baits chain back-to-back and
+        // Sovereign stands frozen at attack range against a player who won't whiff.
+        // Ration the bait and convert the read into direct pressure instead.
+        this._baitIgnoredStreak = (this._baitIgnoredStreak || 0) + 1;
+        this._baitCooldown = Math.max(this._baitCooldown, (lb ? 120 : 180) + this._baitIgnoredStreak * 60);
+        if (this._baitIgnoredStreak >= 2) {
+          this._pressureMode      = 'suffocate';
+          this._pressureHoldTimer = Math.max(this._pressureHoldTimer, 45);
+        }
       }
       return;
     }
@@ -2385,7 +2396,7 @@ class SovereignMK2 extends AdaptiveAI {
     const finishMode = finishPush;
     const canBait    = this.intelligence > 0.55 && this._baitCooldown === 0 && !finishMode && d < 140 && d > prefDist * 0.8;
     const baitStyleBoost = (_bmRead.style === 'defensive' || _bmRead.style === 'passive') ? 1.25 : 1.0;
-    if (canBait && this.intelligence > 0.70 && Math.random() < (0.005 + this.intelligence * 0.007) * (_bmBias.baitBoost || 1.0) * baitStyleBoost * memoryBait) {
+    if (canBait && this.intelligence > 0.70 && Math.random() < (0.005 + this.intelligence * 0.007) * (_bmBias.baitBoost || 1.0) * baitStyleBoost * memoryBait / (1 + (this._baitIgnoredStreak || 0))) {
       this._baitTimer = Math.round(18 + this.intelligence * 20);
     }
 

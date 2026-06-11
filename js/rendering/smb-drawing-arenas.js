@@ -69,26 +69,7 @@ function drawVoidArena() {
 
   // Draw lava on floor if boss floor hazard is active (same as creator arena)
   if (bossFloorState === 'hazard' && bossFloorType === 'lava') {
-    const ly = 460;
-    const lg = ctx.createLinearGradient(0, ly, 0, GAME_H);
-    lg.addColorStop(0,   '#ff6600');
-    lg.addColorStop(0.3, '#cc2200');
-    lg.addColorStop(1,   '#880000');
-    ctx.fillStyle = lg;
-    ctx.beginPath();
-    ctx.moveTo(0, ly);
-    for (let x = 0; x <= GAME_W; x += 18) {
-      ctx.lineTo(x, ly + Math.sin(x * 0.055 + frameCount * 0.07) * 7);
-    }
-    ctx.lineTo(GAME_W, GAME_H);
-    ctx.lineTo(0, GAME_H);
-    ctx.closePath();
-    ctx.fill();
-    ctx.shadowColor = '#ff4400';
-    ctx.shadowBlur  = 20;
-    ctx.fillStyle   = 'rgba(255,80,0,0.22)';
-    ctx.fillRect(0, ly - 10, GAME_W, 12);
-    ctx.shadowBlur  = 0;
+    _drawLavaFloor(460, 0.22, 20);
   }
 
   // Void floor hazard from bossFloorState machine (type = 'void')
@@ -240,39 +221,30 @@ function drawCreatorArena() {
     }
   }
 
-  // Pulsing void portals in the background
+  // Pulsing void portals in the background — gradient cached per portal index
+  // Invalidated when center/radius moves more than ~2px to avoid per-frame alloc.
+  if (!drawCreatorArena._portalGradCache) drawCreatorArena._portalGradCache = [];
   for (let i = 0; i < 6; i++) {
     const bx = (i * 160 + Math.sin(frameCount * 0.007 + i * 1.1) * 55) % 900;
     const by = 80 + Math.sin(frameCount * 0.011 + i * 1.4) * 70;
     const r  = 35 + Math.sin(frameCount * 0.019 + i) * 12;
-    const g  = ctx.createRadialGradient(bx, by, 0, bx, by, r);
-    g.addColorStop(0, 'rgba(200,0,255,0.14)');
-    g.addColorStop(1, 'rgba(80,0,140,0)');
+    const cached = drawCreatorArena._portalGradCache[i];
+    const bxR = Math.round(bx * 0.5), byR = Math.round(by * 0.5), rR = Math.round(r * 0.5);
+    let g;
+    if (!cached || cached.bxR !== bxR || cached.byR !== byR || cached.rR !== rR) {
+      g = ctx.createRadialGradient(bx, by, 0, bx, by, r);
+      g.addColorStop(0, 'rgba(200,0,255,0.14)');
+      g.addColorStop(1, 'rgba(80,0,140,0)');
+      drawCreatorArena._portalGradCache[i] = { g, bxR, byR, rR };
+    } else {
+      g = cached.g;
+    }
     ctx.fillStyle = g;
     ctx.beginPath(); ctx.arc(bx, by, r, 0, Math.PI * 2); ctx.fill();
   }
   // Draw lava on floor if active hazard
   if (bossFloorState === 'hazard' && bossFloorType === 'lava') {
-    const ly = 460;
-    const lg = ctx.createLinearGradient(0, ly, 0, GAME_H);
-    lg.addColorStop(0,   '#ff6600');
-    lg.addColorStop(0.3, '#cc2200');
-    lg.addColorStop(1,   '#880000');
-    ctx.fillStyle = lg;
-    ctx.beginPath();
-    ctx.moveTo(0, ly);
-    for (let x = 0; x <= GAME_W; x += 18) {
-      ctx.lineTo(x, ly + Math.sin(x * 0.055 + frameCount * 0.07) * 7);
-    }
-    ctx.lineTo(GAME_W, GAME_H);
-    ctx.lineTo(0, GAME_H);
-    ctx.closePath();
-    ctx.fill();
-    ctx.shadowColor = '#ff4400';
-    ctx.shadowBlur  = 20;
-    ctx.fillStyle   = 'rgba(255,80,0,0.22)';
-    ctx.fillRect(0, ly - 10, GAME_W, 12);
-    ctx.shadowBlur  = 0;
+    _drawLavaFloor(460, 0.22, 20);
   }
 
   // Invisible walls — glowing neon energy barriers on left and right
@@ -292,6 +264,7 @@ function drawCreatorArena() {
 }
 
 function drawStars() {
+  ctx.save();
   for (const s of bgStars) {
     const alpha = 0.3 + Math.abs(Math.sin(frameCount * s.speed + s.phase)) * 0.7;
     ctx.globalAlpha = alpha;
@@ -300,7 +273,7 @@ function drawStars() {
     ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
     ctx.fill();
   }
-  ctx.globalAlpha = 1;
+  ctx.restore();
 }
 
 function drawClouds() {
@@ -342,8 +315,14 @@ function drawClouds() {
   ctx.globalAlpha = 1;
 }
 
-function drawLava() {
-  const ly = currentArena.lavaY;
+// ── Shared lava-floor helper ──────────────────────────────────────────────
+// Draws the standard animated lava surface at canvas y-position `ly`.
+// glowAlpha: opacity of the shimmer glow rect (default 0.28).
+// glowBlur:  shadow blur radius for the shimmer (default 22).
+function _drawLavaFloor(ly, glowAlpha, glowBlur) {
+  if (glowAlpha === undefined) glowAlpha = 0.28;
+  if (glowBlur  === undefined) glowBlur  = 22;
+  ctx.save();
   const lg = ctx.createLinearGradient(0, ly, 0, GAME_H);
   lg.addColorStop(0,   '#ff6600');
   lg.addColorStop(0.3, '#cc2200');
@@ -358,12 +337,16 @@ function drawLava() {
   ctx.lineTo(0, GAME_H);
   ctx.closePath();
   ctx.fill();
-  // glow
+  // shimmer glow
   ctx.shadowColor = '#ff4400';
-  ctx.shadowBlur  = 22;
-  ctx.fillStyle   = 'rgba(255,80,0,0.28)';
+  ctx.shadowBlur  = glowBlur;
+  ctx.fillStyle   = `rgba(255,80,0,${glowAlpha})`;
   ctx.fillRect(0, ly - 10, GAME_W, 12);
-  ctx.shadowBlur  = 0;
+  ctx.restore();
+}
+
+function drawLava() {
+  _drawLavaFloor(currentArena.lavaY);
 }
 
 function drawCityBuildings() {
@@ -418,6 +401,7 @@ function drawForest() {
     }
   }
   // Fireflies / floating particles
+  ctx.save();
   for (let i = 0; i < 6; i++) {
     const fx = (frameCount * (0.4 + i * 0.15) + i * 150) % 920 - 10;
     const fy = 200 + Math.sin(frameCount * 0.02 + i * 2.1) * 80;
@@ -428,7 +412,7 @@ function drawForest() {
     ctx.arc(fx, fy, 2.5, 0, Math.PI * 2);
     ctx.fill();
   }
-  ctx.globalAlpha = 1;
+  ctx.restore();
 }
 
 function drawIce() {
@@ -533,20 +517,28 @@ function drawPlatforms() {
         ctx.globalAlpha = 1;
       }
 
-      // Body fill — ivory to warm gold gradient top-to-bottom
-      const platFill = ctx.createLinearGradient(pl.x, pl.y, pl.x, pl.y + pl.h);
-      platFill.addColorStop(0,   '#f8f3e0');
-      platFill.addColorStop(0.55, '#ede0b8');
-      platFill.addColorStop(1,   '#d8c888');
-      ctx.fillStyle = platFill;
+      // Body fill — ivory to warm gold gradient (cached per platform; invalidated on position change)
+      const _pfKey = `${pl.x|0},${pl.y|0},${pl.h|0}`;
+      if (!pl._godGradFill || pl._godGradFillKey !== _pfKey) {
+        pl._godGradFill = ctx.createLinearGradient(pl.x, pl.y, pl.x, pl.y + pl.h);
+        pl._godGradFill.addColorStop(0,   '#f8f3e0');
+        pl._godGradFill.addColorStop(0.55, '#ede0b8');
+        pl._godGradFill.addColorStop(1,   '#d8c888');
+        pl._godGradFillKey = _pfKey;
+      }
+      ctx.fillStyle = pl._godGradFill;
       ctx.fillRect(pl.x, pl.y, pl.w, pl.h);
 
-      // Top highlight — bright white-gold gleam
-      const hlGr = ctx.createLinearGradient(pl.x, pl.y, pl.x + pl.w, pl.y + 3);
-      hlGr.addColorStop(0,   'rgba(255,255,230,0.80)');
-      hlGr.addColorStop(0.5, 'rgba(255,248,200,0.50)');
-      hlGr.addColorStop(1,   'rgba(255,240,160,0.30)');
-      ctx.fillStyle = hlGr;
+      // Top highlight — bright white-gold gleam (cached per platform)
+      const _hlKey = `${pl.x|0},${pl.y|0},${pl.w|0}`;
+      if (!pl._godGradHL || pl._godGradHLKey !== _hlKey) {
+        pl._godGradHL = ctx.createLinearGradient(pl.x, pl.y, pl.x + pl.w, pl.y + 3);
+        pl._godGradHL.addColorStop(0,   'rgba(255,255,230,0.80)');
+        pl._godGradHL.addColorStop(0.5, 'rgba(255,248,200,0.50)');
+        pl._godGradHL.addColorStop(1,   'rgba(255,240,160,0.30)');
+        pl._godGradHLKey = _hlKey;
+      }
+      ctx.fillStyle = pl._godGradHL;
       ctx.fillRect(pl.x, pl.y, pl.w, 3);
 
       // Divine rune marks on surface (subtle horizontal tick marks)
@@ -569,11 +561,13 @@ function drawPlatforms() {
 
       // Moving platforms: extra bright pulsing gold edge (they drift — alive)
       if (pl.ox !== undefined || pl.oy !== undefined) {
+        ctx.save();
         ctx.shadowColor = 'rgba(255,205,50,0.9)';
         ctx.shadowBlur  = 14 + gsPulse * 10;
         ctx.strokeStyle = `rgba(255,220,70,${0.70 + gsPulse * 0.25})`;
         ctx.lineWidth   = 2.2;
         ctx.strokeRect(pl.x, pl.y, pl.w, pl.h);
+        ctx.restore();
       }
 
       // Floor hazard warning flash

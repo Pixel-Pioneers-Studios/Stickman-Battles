@@ -589,7 +589,9 @@ function _tfeResumeAfterIntro(sc) {
     showBossDialogue('You broke my world. I\'ll break yours.', 220);
 
   gameRunning = true;
-  requestAnimationFrame(gameLoop);
+  // No requestAnimationFrame here: the main loop is already self-scheduling
+  // (it is what drives updateTFEnding to reach this point) — re-queuing it
+  // spawned a duplicate rAF chain running the game twice per frame.
 }
 
 // ── Unlock post-ending features ───────────────────────────────────────────────

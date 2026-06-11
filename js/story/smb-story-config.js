@@ -1234,17 +1234,9 @@ function storyTickAbilities() {
   }
 }
 
-// Extend storyOnEnemyDeath to handle berserker_blood2 kill stacks
-const _origStoryOnEnemyDeath = typeof storyOnEnemyDeath !== 'undefined' ? storyOnEnemyDeath : null;
-function storyOnEnemyDeath(victim, killer) {
-  if (_origStoryOnEnemyDeath) _origStoryOnEnemyDeath(victim, killer);
-  const p1 = players && players[0];
-  if (!p1 || killer !== p1 || !p1.story2Abilities) return;
-  if (p1.story2Abilities.has('berserker_blood2')) {
-    storyAbilityState.killStacks = Math.min(5, (storyAbilityState.killStacks || 0) + 1);
-    storyFightSubtitle = { text: `🩸 Fragment Hunger: ${storyAbilityState.killStacks} stack${storyAbilityState.killStacks > 1 ? 's' : ''}`, timer: 120, maxTimer: 120, color: '#cc2244' };
-  }
-}
+// berserker_blood2 kill stacks: handled inside storyOnEnemyDeath in
+// smb-story-engine-frame.js. The wrapper that used to live here was dead code —
+// engine-frame.js loads later and its function declaration overwrote this one.
 
 // ── Pre-fight store nag modal ─────────────────────────────────────────────────
 // Shows a modal with chapter warning + "Go to Store" / "Continue" when ch.storeNag set.

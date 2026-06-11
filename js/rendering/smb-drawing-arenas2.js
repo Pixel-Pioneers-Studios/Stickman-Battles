@@ -183,9 +183,15 @@ function drawUnderwaterArena() {
   }
   // Rising bubbles from perk state or fallback
   const bubbles = (mapPerkState.bubbles) ? mapPerkState.bubbles : [];
+  // Update bubble positions only when not frozen/paused
+  if ((typeof gameFrozen === 'undefined' || !gameFrozen) && (typeof paused === 'undefined' || !paused)) {
+    for (const b of bubbles) {
+      b.y -= b.speed;
+      if (b.y < -10) b.y = 490 + Math.random() * 30;
+    }
+  }
+  // Draw bubbles
   for (const b of bubbles) {
-    b.y -= b.speed;
-    if (b.y < -10) b.y = 490 + Math.random() * 30;
     const wobble = Math.sin(frameCount * 0.06 + b.x * 0.05) * 4;
     ctx.globalAlpha = 0.35;
     ctx.strokeStyle = '#88ccff';
@@ -210,23 +216,10 @@ function drawUnderwaterArena() {
 }
 
 function drawVolcanoArena() {
-  // Lava floor (same wave style as drawLava)
+  ctx.save();
+  // Lava floor — delegate to shared helper (arenas.js loaded before arenas2.js)
   const ly = currentArena.lavaY || 442;
-  const lg = ctx.createLinearGradient(0, ly, 0, GAME_H);
-  lg.addColorStop(0,   '#ff6600');
-  lg.addColorStop(0.3, '#cc2200');
-  lg.addColorStop(1,   '#880000');
-  ctx.fillStyle = lg;
-  ctx.beginPath();
-  ctx.moveTo(0, ly);
-  for (let x = 0; x <= GAME_W; x += 18) {
-    ctx.lineTo(x, ly + Math.sin(x * 0.055 + frameCount * 0.07) * 7);
-  }
-  ctx.lineTo(GAME_W, GAME_H); ctx.lineTo(0, GAME_H); ctx.closePath(); ctx.fill();
-  ctx.shadowColor = '#ff4400'; ctx.shadowBlur = 22;
-  ctx.fillStyle   = 'rgba(255,80,0,0.28)';
-  ctx.fillRect(0, ly - 10, GAME_W, 12);
-  ctx.shadowBlur = 0;
+  _drawLavaFloor(ly);
   // Jagged rock formations along bottom
   ctx.fillStyle = '#2a0800';
   for (let i = 0; i < 7; i++) {
@@ -256,6 +249,7 @@ function drawVolcanoArena() {
       ctx.fill();
     }
   }
+  ctx.restore();
 }
 
 function drawColosseumArena() {
@@ -467,6 +461,7 @@ function drawNeonGridArena() {
   ctx.shadowBlur = 0;
   // Speed-boost pad indicators
   if (MAP_PERK_DEFS.neonGrid && MAP_PERK_DEFS.neonGrid.boostPads) {
+    ctx.save();
     for (const pad of MAP_PERK_DEFS.neonGrid.boostPads) {
       ctx.globalAlpha = 0.35 + Math.abs(Math.sin(frameCount * 0.08 + pad.x * 0.01)) * 0.35;
       ctx.fillStyle   = '#00ff44';
@@ -474,7 +469,7 @@ function drawNeonGridArena() {
       ctx.shadowBlur  = 10;
       ctx.fillRect(pad.x - 20, pad.y, 40, 8);
     }
-    ctx.shadowBlur = 0;
+    ctx.restore();
   }
   // Floating data-stream particles
   for (let i = 0; i < 8; i++) {

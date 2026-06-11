@@ -116,6 +116,13 @@ function _tickQTEPrompts() {
       _resetQTERound();
       return;
     }
+    // Simultaneous: partial misses are punished per-prompt in _onPromptFail and
+    // play continues — but ALL prompts missed (player did nothing) must never
+    // fall through to the success outro.
+    if (def.simultaneous && s.prompts.length > 0 && s.prompts.every(p => p.missed)) {
+      _resetQTERound();
+      return;
+    }
     // Advance to next batch or finish
     _advancePrompts();
   }
@@ -475,8 +482,11 @@ function _endQTE(success) {
   if (!QTE_STATE) return;
   const phase = QTE_STATE.phase;
 
-  // Restore slowMotion (we froze it at 0.0 during the QTE) and release combat lock
+  // Restore slowMotion (we froze it at 0.0 during the QTE) and release combat lock.
+  // Invalidate pending slowMotionFor timers (incl. the 99999ms QTE freeze) so a
+  // stale restore can't fire later into a cinematic's slow-mo.
   if (typeof slowMotion !== 'undefined') slowMotion = 1.0;
+  if (typeof _slowMoInvalidate === 'function') _slowMoInvalidate();
   if (typeof clearCombatLock === 'function') clearCombatLock('qte');
 
   // Fade out visuals
@@ -528,6 +538,9 @@ function _endQTE(success) {
     QTE_STATE.promptIdx    = 0;
     QTE_STATE.prompts      = [];
     slowMotion = 0.0; // re-freeze
+    // Re-raise the combat lock — _endQTE cleared it above, and an unlocked boss
+    // AI would act during the retried QTE.
+    if (typeof setCombatLock === 'function') setCombatLock('qte');
     _advancePrompts();
     return;
   }

@@ -213,10 +213,12 @@ function dealDamage(attacker, target, dmg, kbForce, stunMult = 1.0, isSplash = f
     actualDmg = Math.max(1, Math.round(actualDmg * 1.5));
     spawnParticles(target.cx(), target.cy(), '#ffdd00', 8);
   }
-  // Mirror Fracture ability: reflect 25% damage back to attacker while shielding
-  if (target && target.isShielding && target.story2Abilities && target.story2Abilities.has('reflect2') && attacker && attacker !== target) {
+  // Mirror Fracture ability: reflect 25% damage back to attacker while shielding.
+  // Routed through dealDamage (isSplash=true, 0 i-frames) so death/finishers/online
+  // sync apply; the !isSplash gate stops two reflect2 shields from ping-ponging.
+  if (target && target.shielding && !isSplash && target.story2Abilities && target.story2Abilities.has('reflect2') && attacker && attacker !== target) {
     const reflectDmg = Math.max(1, Math.floor(actualDmg * 0.25));
-    attacker.health = Math.max(0, attacker.health - reflectDmg);
+    dealDamage(target, attacker, reflectDmg, 0, 1.0, true, 0);
     spawnParticles(attacker.cx(), attacker.cy(), '#00aaff', 6);
   }
   // Kratos: target being hit builds rage stacks
@@ -310,19 +312,21 @@ function dealDamage(attacker, target, dmg, kbForce, stunMult = 1.0, isSplash = f
     const _isCosmicHit = attacker && (attacker.isBoss || attacker.isTrueForm);
     const _hsVar = Math.round((Math.random() - 0.5) * 4); // ±2 frames
     if (!target.isBoss) {
+      // Merge with any hitstop already set this frame (Math.max, not =) so a weak
+      // simultaneous hit (splash/AoE) can't truncate a heavy hit's freeze.
       if (_isCosmicHit && actualDmg >= 20) {
-        hitStopFrames = Math.max(1, Math.min(16, Math.floor(actualDmg / 4) + 6 + _hsVar));
+        hitStopFrames = Math.max(hitStopFrames, 1, Math.min(16, Math.floor(actualDmg / 4) + 6 + _hsVar));
       } else if (actualDmg >= 30) {
-        hitStopFrames = Math.max(1, Math.min(13, Math.floor(actualDmg / 6) + 5 + _hsVar));
+        hitStopFrames = Math.max(hitStopFrames, 1, Math.min(13, Math.floor(actualDmg / 6) + 5 + _hsVar));
       } else if (actualDmg >= 18) {
-        hitStopFrames = Math.max(1, Math.min(9,  Math.floor(actualDmg / 7) + 2 + _hsVar));
+        hitStopFrames = Math.max(hitStopFrames, 1, Math.min(9,  Math.floor(actualDmg / 7) + 2 + _hsVar));
       } else if (actualDmg >= 8) {
-        hitStopFrames = Math.max(1, Math.min(6,  Math.floor(actualDmg / 6) + 1 + _hsVar));
+        hitStopFrames = Math.max(hitStopFrames, 1, Math.min(6,  Math.floor(actualDmg / 6) + 1 + _hsVar));
       }
     } else {
       // Boss taking damage — lighter hitstop so boss doesn't feel stunned
-      if (actualDmg >= 30) hitStopFrames = Math.max(1, Math.min(5, Math.floor(actualDmg / 22) + (_hsVar > 1 ? 1 : 0)));
-      else if (actualDmg >= 15) hitStopFrames = _hsVar > 1 ? 3 : 2;
+      if (actualDmg >= 30) hitStopFrames = Math.max(hitStopFrames, 1, Math.min(5, Math.floor(actualDmg / 22) + (_hsVar > 1 ? 1 : 0)));
+      else if (actualDmg >= 15) hitStopFrames = Math.max(hitStopFrames, _hsVar > 1 ? 3 : 2);
     }
     if (typeof setCameraDrama === 'function' && actualDmg > 22) {
       setCameraDrama('impact', 18);
@@ -377,8 +381,9 @@ function dealDamage(attacker, target, dmg, kbForce, stunMult = 1.0, isSplash = f
       const _kbScale = Math.min(1.5, 1 + (_cn - 1) * 0.08);
       actualKb = Math.min(actualKb * _kbScale, 22);
     }
-    // Auto-launch: 7+ hit combo forces a hard launcher; combo breaks naturally
-    if (_cn >= 7) {
+    // Auto-launch: 7+ hit combo forces a hard launcher; combo breaks naturally.
+    // actualKb > 0 guard: a shielded/parried hit (KB zeroed above) must not launch.
+    if (_cn >= 7 && actualKb > 0) {
       actualKb = Math.max(actualKb, 17);
     }
   }
@@ -539,7 +544,8 @@ function dealDamage(attacker, target, dmg, kbForce, stunMult = 1.0, isSplash = f
       _achStats.pvpDamageReceived = (_achStats.pvpDamageReceived || 0) + actualDmg;
     }
   }
-  if (!target.shielding && gameMode === 'minigames' && currentChaosModifiers.has('explosive')) {
+  // !isSplash: chain explosions must not re-chain off their own splash hits
+  if (!target.shielding && !isSplash && gameMode === 'minigames' && currentChaosModifiers.has('explosive')) {
     spawnParticles(target.cx(), target.cy(), '#ff8800', 16);
     spawnParticles(target.cx(), target.cy(), '#ffdd44', 10);
     // Chain explosion: small AoE to nearby fighters

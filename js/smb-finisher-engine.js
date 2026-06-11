@@ -47,6 +47,10 @@ const _BOSS_KILL_POOL    = [FIN_VOID_SLAM, FIN_REALITY_BREAK, FIN_SKY_EXECUTION,
 function triggerFinisher(attacker, target) {
   if (!settings.finishers) return false;
   if (activeFinisher)      return false;
+  // Never start a finisher while a cinematic owns the stage: it would replace
+  // activeCinematic, orphan that cinematic's onEnd, and strand its combat lock.
+  if (typeof activeCinematic !== 'undefined' && activeCinematic) return false;
+  if (typeof isCinematic !== 'undefined' && isCinematic) return false;
   if (!attacker || !target) return false;
   if (trainingMode || tutorialMode) return false;
   if (onlineMode)          return false;
@@ -87,7 +91,18 @@ function triggerFinisher(attacker, target) {
   attacker.vx = 0; attacker.vy = 0;
 
   const data = {};
-  if (def.setup) def.setup(attacker, target, data);
+  if (def.setup) {
+    try {
+      def.setup(attacker, target, data);
+    } catch (e) {
+      // Roll back the freeze-alive lock — otherwise the target is stuck at
+      // health=1/invincible=9999 with no finisher driving completion.
+      console.error('[finisher] setup threw — aborting finisher:', e);
+      target.health = 0;
+      target.invincible = 0;
+      return false;
+    }
+  }
 
   activeFinisher = {
     attacker,
@@ -138,7 +153,16 @@ function updateFinisher() {
     CinFX.nameCard(def.name, def.accentColor || '#ffffff', { dur: Math.min(90, def.duration - 28) });
   }
 
-  if (def.update) def.update(attacker, target, activeFinisher.timer, data);
+  // A throwing finisher must never stall the timer at slowMotion=0 forever —
+  // force-complete so the normal end path below restores camera/time/locks.
+  if (def.update) {
+    try {
+      def.update(attacker, target, activeFinisher.timer, data);
+    } catch (e) {
+      console.error('[finisher] update threw — force-completing:', e);
+      activeFinisher.timer = activeFinisher.totalDuration;
+    }
+  }
 
   activeFinisher.timer++;
 

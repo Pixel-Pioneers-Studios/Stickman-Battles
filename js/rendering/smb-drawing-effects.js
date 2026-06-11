@@ -81,14 +81,18 @@ function drawCinematicOverlay() {
   ctx.fillRect(0, 0,         cw, barH);
   ctx.fillRect(0, ch - barH, cw, barH);
 
-  // Edge vignette
+  // Edge vignette — gradient cached; rebuild only when canvas.width changes
   ctx.globalAlpha = barAlpha * 0.38;
-  const vg = ctx.createLinearGradient(0, 0, cw, 0);
-  vg.addColorStop(0,    'rgba(0,0,0,0.85)');
-  vg.addColorStop(0.13, 'rgba(0,0,0,0)');
-  vg.addColorStop(0.87, 'rgba(0,0,0,0)');
-  vg.addColorStop(1,    'rgba(0,0,0,0.85)');
-  ctx.fillStyle = vg;
+  if (!drawCinematicOverlay._vigCache || drawCinematicOverlay._vigCacheW !== cw) {
+    const _vg = ctx.createLinearGradient(0, 0, cw, 0);
+    _vg.addColorStop(0,    'rgba(0,0,0,0.85)');
+    _vg.addColorStop(0.13, 'rgba(0,0,0,0)');
+    _vg.addColorStop(0.87, 'rgba(0,0,0,0)');
+    _vg.addColorStop(1,    'rgba(0,0,0,0.85)');
+    drawCinematicOverlay._vigCache  = _vg;
+    drawCinematicOverlay._vigCacheW = cw;
+  }
+  ctx.fillStyle = drawCinematicOverlay._vigCache;
   ctx.fillRect(0, barH, cw, ch - barH * 2);
 
   // Per-frame anime FX (screen-space draw pass — runs between bars and phase label)

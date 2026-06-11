@@ -26,6 +26,14 @@ class TrueForm extends Fighter {
     this.superChargeRate    = 0; // no super meter
     this._tfSpeed      = 4.2;   // 1.3× normal fighter speed
     this._attackMode   = 'punch'; // alternates punch/kick
+    // Anti-idle failsafe state — must exist from frame 1. Initializing it only in
+    // _startAntiRangedPhase left _noActionTicks undefined (NaN on ++), silently
+    // disabling the "force action after 8 idle ticks" recovery guarantee.
+    this._noActionTicks         = 0;
+    this._multiversalGroupCd    = 0;
+    this._consecutiveMeleeCount = 0;
+    this._hitReactPending       = false;
+    this._prevHealthForReact    = this.health;
     // Combo tracking (max 4 hits, max 85% maxHP damage per combo)
     this._comboCount   = 0;
     this._comboDamage  = 0;
@@ -349,9 +357,17 @@ class TrueForm extends Fighter {
     }
     if (!this._cinematicFired.has('50') && _tfHpPct <= 0.50) {
       this._cinematicFired.add('50');
-      if (typeof triggerQTEPhase === 'function') triggerQTEPhase(2);
       this.postSpecialPause = Math.max(this.postSpecialPause, 14);
-      startCinematic(_makeTFReality50Cinematic(this));
+      // Defer the QTE to the cinematic's end: starting both in the same tick
+      // runs them simultaneously (prompts expire during the cutscene, slow-mo
+      // keyframes fight the QTE freeze, and lock state corrupts).
+      const _cin50 = _makeTFReality50Cinematic(this);
+      const _onEnd50 = _cin50.onEnd;
+      _cin50.onEnd = function () {
+        if (_onEnd50) _onEnd50();
+        if (typeof triggerQTEPhase === 'function') triggerQTEPhase(2);
+      };
+      startCinematic(_cin50);
       return;
     }
     // 1000 HP: Paradox returns — joint fight, TF kills Paradox, absorption, dimension punch
@@ -368,9 +384,15 @@ class TrueForm extends Fighter {
     }
     if (!this._cinematicFired.has('15') && _tfHpPct <= 0.15) {
       this._cinematicFired.add('15');
-      if (typeof triggerQTEPhase === 'function') triggerQTEPhase(4);
       this.postSpecialPause = Math.max(this.postSpecialPause, 16);
-      startCinematic(_makeTFDesp15Cinematic(this));
+      // Defer QTE to cinematic end — same overlap hazard as the 50% threshold.
+      const _cin15 = _makeTFDesp15Cinematic(this);
+      const _onEnd15 = _cin15.onEnd;
+      _cin15.onEnd = function () {
+        if (_onEnd15) _onEnd15();
+        if (typeof triggerQTEPhase === 'function') triggerQTEPhase(4);
+      };
+      startCinematic(_cin15);
       return;
     }
 

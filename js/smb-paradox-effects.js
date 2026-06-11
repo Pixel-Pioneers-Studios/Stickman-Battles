@@ -6,6 +6,13 @@
 // RESET  (call from _startGameCore to clear state)
 // ============================================================
 function resetParadoxState() {
+  // Kill the opening-fight GSAP timeline: it is wall-clock, and its queued
+  // callbacks (camera override, dialogue, shake) otherwise fire into the next
+  // game after a mid-opening quit/restart.
+  if (typeof _tfOpeningGSAPTL !== 'undefined' && _tfOpeningGSAPTL) {
+    try { _tfOpeningGSAPTL.kill(); } catch (e) {}
+    _tfOpeningGSAPTL = null;
+  }
   paradoxEntity        = null;
   paradoxReviveActive  = false;
   tfOpeningFightActive    = false;

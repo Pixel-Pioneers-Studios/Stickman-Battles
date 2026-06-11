@@ -223,12 +223,23 @@ const NetworkManager = (() => {
         }
       });
 
-      conn.on('data', msg => _handleMessage(guestSlot, conn, msg));
+      conn.on('data', msg => {
+        // One malformed packet from a peer must not crash the host's handler chain.
+        try { _handleMessage(guestSlot, conn, msg); }
+        catch (e) { console.warn('[net] dropped malformed message from slot ' + guestSlot + ':', e); }
+      });
       conn.on('close', () => {
         _connections = _connections.filter(c => c !== conn);
         _slotCount = Math.max(1, _slotCount - 1);
         const forced = !!_forcedCloseSlots[guestSlot];
         _clearSlot(guestSlot);
+        // Always neutralize the slot's fighter — even on forced (ban/kick) closes,
+        // which previously left a ghost fighter in players[] with null remote state.
+        if (typeof players !== 'undefined' && players[guestSlot]) {
+          players[guestSlot].health = 0;
+          players[guestSlot].lives  = 0;
+          players[guestSlot]._disconnected = true;
+        }
         _setStatus('Players: ' + _slotCount + '/' + _maxPlayers);
         if (!forced) _handleOpponentLeft(guestSlot);
       });
@@ -276,19 +287,25 @@ const NetworkManager = (() => {
         }
         break;
 
-      case 'hitEvent':
+      case 'hitEvent': {
         // Only the owning slot may author its own hit packets.
         // This prevents a client from spoofing hits as another player.
         if (fromSlot !== 0 && fromSlot !== msg.attackerSlot) return;
+        // Never trust client-sent numbers: NaN poisons health math permanently,
+        // and unclamped dmg/kb is a cheat vector. Clamp to plausible ranges.
+        const _hDmg = Number(msg.dmg), _hKb = Number(msg.kb);
+        if (!Number.isInteger(msg.targetSlot) || !Number.isFinite(_hDmg) || !Number.isFinite(_hKb)) return;
         if (typeof dealDamage === 'function' && players[msg.targetSlot]) {
           const attacker = players[msg.attackerSlot] || players[0];
-          dealDamage(attacker, players[msg.targetSlot], msg.dmg, msg.kb);
+          dealDamage(attacker, players[msg.targetSlot],
+            Math.max(0, Math.min(80, _hDmg)), Math.max(0, Math.min(26, _hKb)));
         }
         if (_isHost) {
           const relay = Object.assign({}, msg);
           for (const c of _connections) { if (c !== fromConn && c.open) c.send(relay); }
         }
         break;
+      }
 
       case 'gameEvent':
         _handleGameEvent(msg, fromSlot);
@@ -336,16 +353,27 @@ const NetworkManager = (() => {
   }
 
   function _handleOpponentLeft(slotWhoLeft) {
-    showToast('Opponent disconnected — you win!');
     _setStatus('Opponent left');
     if (typeof gameRunning !== 'undefined' && gameRunning &&
         typeof players !== 'undefined' && players.length >= 2 &&
         typeof endGame === 'function') {
       // Kill the remote player so endGame() resolves the correct winner
       const leaver = players[slotWhoLeft !== undefined ? slotWhoLeft : (1 - _localSlot)];
-      if (leaver) { leaver.health = 0; leaver.lives = 0; }
-      // Small delay so the death registers visually before the overlay
-      setTimeout(() => { if (typeof gameRunning !== 'undefined' && gameRunning) endGame(); }, 600);
+      if (leaver) { leaver.health = 0; leaver.lives = 0; leaver._disconnected = true; }
+      // Only end the match when NO active opponent remains — in >2-player rooms
+      // a single disconnect used to end the game for everyone.
+      const _local = players[_localSlot];
+      const _activeOpponents = players.filter(p =>
+        p && p !== _local && !p._disconnected && (p.health > 0 || (p.lives || 0) > 0));
+      if (_activeOpponents.length === 0) {
+        showToast('Opponent disconnected — you win!');
+        // Small delay so the death registers visually before the overlay
+        setTimeout(() => { if (typeof gameRunning !== 'undefined' && gameRunning) endGame(); }, 600);
+      } else {
+        showToast('A player disconnected');
+      }
+    } else {
+      showToast('Opponent disconnected');
     }
   }
 
@@ -394,8 +422,10 @@ const NetworkManager = (() => {
     } else if (msg.event === 'playerLeft') {
       _handleOpponentLeft(msg.slot !== undefined ? msg.slot : undefined);
     } else if (msg.event === 'consoleCmd') {
-      // Remote console command — execute locally (sender already ran it on their end)
-      if (msg.cmd && typeof _consoleExec === 'function') {
+      // Remote console execution is OPT-IN only (set window._smbAllowRemoteConsole
+      // = true in a trusted dev session): a malicious or compromised host could
+      // otherwise execute arbitrary console commands on every guest client.
+      if (msg.cmd && typeof _consoleExec === 'function' && window._smbAllowRemoteConsole === true) {
         _consoleExec(msg.cmd);
       }
     } else if (msg.event === 'story_sync') {
@@ -507,6 +537,7 @@ const NetworkManager = (() => {
           _sendClientHello(conn);
         });
         conn.on('data', msg => {
+          try {
           if (msg.type === 'slotAssign') {
             _localSlot = msg.slot;
             localPlayerSlot = msg.slot;
@@ -534,6 +565,9 @@ const NetworkManager = (() => {
             }
           } else {
             _handleMessage(0, conn, msg);
+          }
+          } catch (e) {
+            console.warn('[net] dropped malformed message from host:', e);
           }
         });
         conn.on('close', () => {
