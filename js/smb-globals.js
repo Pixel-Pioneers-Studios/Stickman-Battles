@@ -68,6 +68,7 @@ const CHANGELOG = [
       { cat: 'Story',   text: 'Story cutscenes gained cinematic language — beats now transition (fade, white flash-cut with shake, or whip-pan with motion streaks) instead of hard-cutting, narration captions fade in with an act-colored accent, and scenes can play audio stings: a dread swell, a tension riser, an impact boom, or a sudden hush' },
       { cat: 'Combat',  text: 'Eleven weapons that had NO finisher now have one — Iaijutsu (Katana), Judgment Lash (Whip), Wrecking Ball (Flail), Overload (Electric Staff), Aegis Break (Shield), Clean Sweep (Broomstick), Full Bloom (Pea Shooter), Orbital Stone (Slingshot), A Thousand Folds (Paper Airplane), Infinite Return (Boomerang), and Incinerate (Flamethrower)' },
       { cat: 'Fix',     text: 'Story maps no longer have walkable land beyond the boundary portals — the ground now ends just past the portal, and the reality-enforcement teleport can no longer place you outside the map' },
+      { cat: 'Combat',  text: 'All 29 finishers upgraded with anime impact frames — the world hard-cuts to a silhouette flash at the moment of the strike — plus an anticipation hush during the deep-freeze windup and a proper impact sound on the hit' },
     ],
   },
   {

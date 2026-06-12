@@ -539,12 +539,15 @@ Object.assign(WEAPON_FINISHERS, {
         {frame:46,fn(){
           // beat of silence — both look up
           data.lookA=1; CinCam.slowMo(0.18); CinCam.zoomTo(1.2); CinCam.focusMidpoint(att,tgt);
+          if (typeof SoundManager!=='undefined') SoundManager._cosmicSilenceTimer=14;
         }},
         {frame:64,fn(){ data.stoneUp=false; CinCam.zoomTo(1.45); CinCam.focusOn(tgt); }},
         {frame:74,fn(){
           // METEOR crash + crater shockwave
           data.craterA=1; data.shockR=1; data.shockAlpha=1;
           CinCam.slowMo(1.0); CinCam.shake(60);
+          if (typeof CinFX!=='undefined'&&CinFX.impactFrame) CinFX.impactFrame([att,tgt],{dur:3});
+          if (typeof SoundManager!=='undefined'&&SoundManager.heavyHit) SoundManager.heavyHit();
           spawnParticles(data.stoneX,data.groundY-16,'#ff8822',60);
           spawnParticles(data.stoneX,data.groundY-16,'#ffcc66',26);
           CinCam.zoomTo(1.32);
