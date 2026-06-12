@@ -330,6 +330,7 @@ function _renderChapterList() {
       // ── Chapter rows ──────────────────────────────────────────────────────
       for (let i = arc.chapterRange[0]; i <= arc.chapterRange[1]; i++) {
         const ch      = STORY_CHAPTERS2[i];
+        if (!ch) continue; // arc range can exceed registry when chapter files aren't loaded
         const done    = _story2.defeated.includes(i);
         const current = i === cur;
         const locked  = !arcUnlocked || i > cur;
