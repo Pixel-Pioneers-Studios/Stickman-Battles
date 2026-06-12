@@ -188,7 +188,8 @@ class SovereignMK2 extends AdaptiveAI {
 
     // Post-respawn protection: brief defensive burst so Sovereign doesn't sprint into a
     // hammer swing the instant it spawns. Set by onDeath(), counts down in updateAI().
-    this._spawnDefendTimer = 0;
+    this._spawnDefendTimer  = 0;
+    this._spawnDefendJumped = false; // one escape jump per respawn — a repeated jump arc is a free read
 
     // ── Combat Conversion Systems ────────────────────────────────
     // Post-hit commitment: skip distance re-evaluation for N frames after landing a hit.
@@ -246,7 +247,8 @@ class SovereignMK2 extends AdaptiveAI {
   onDeath() {
     super.onDeath();
     this._deathCount++;
-    this._spawnDefendTimer = 20; // ~0.33 sec of defensive jump-back before engaging
+    this._spawnDefendTimer  = 20; // ~0.33 sec of defensive jump-back before engaging
+    this._spawnDefendJumped = false;
 
     // Snapshot kill context so the next life immediately counters it
     const _dt = this.target;
@@ -1560,16 +1562,43 @@ class SovereignMK2 extends AdaptiveAI {
     // Counts down; Sovereign fights normally once the window expires.
     if (this._spawnDefendTimer > 0) {
       this._spawnDefendTimer--;
-      if (this.onGround) {
-        const _awayDir = this.cx() < t.cx() ? -1 : 1;
+      // No threat nearby — skip the escape entirely. A panic jump with the player
+      // across the map is a free read: the arc is identical every respawn, and a
+      // thrown hammer at its apex ragdolls Sovereign into the void corner.
+      const _spawnThreat = Math.abs(this.cx() - t.cx()) < 260;
+      if (!_spawnThreat) { this._spawnDefendTimer = 0; }
+      else if (this.onGround && !this._spawnDefendJumped) {
+        this._spawnDefendJumped = true;
+        const _awayDir   = this.cx() < t.cx() ? -1 : 1;
         // Fallback toward CENTER, not toward player — prevents spawn-jumping into own edge
         const _centerDir = this.cx() < GAME_W / 2 ? 1 : -1;
+        // On an elevated platform, jumping launches Sovereign above the arena into
+        // hazard/projectile range — drop-step toward center instead of jumping.
+        const _floorPl   = (typeof currentArena !== 'undefined' && currentArena && currentArena.platforms)
+          ? currentArena.platforms.find(p => p.isFloor) : null;
+        const _onMainFloor = !_floorPl || (this.y + this.h >= _floorPl.y - 12);
         if (!this.isEdgeDanger(_awayDir)) this.vx = _awayDir * 5.5;
         else this.vx = _centerDir * 4.0;
-        this.vy = -19;
+        if (_onMainFloor) this.vy = -16;
       }
-      this.aiReact = 0;
-      return;
+      if (this._spawnDefendTimer > 0) { this.aiReact = 0; return; }
+    }
+
+    // ── OFF-STAGE RECOVERY — never ride a knockback into the void ───────
+    // Airborne beyond the floor platform's span: steer back hard and burn the
+    // double jump. Runs before all combat logic so no other state overrides it.
+    if (!this.onGround && typeof currentArena !== 'undefined' && currentArena && currentArena.platforms) {
+      const _rfl = currentArena.platforms.find(p => p.isFloor && !p.isFloorDisabled);
+      if (_rfl) {
+        const _rL = _rfl.x + 30, _rR = _rfl.x + _rfl.w - 30;
+        if ((this.cx() < _rL || this.cx() > _rR) && this.vy > -4) {
+          const _backDir = this.cx() < _rL ? 1 : -1;
+          this.vx = _backDir * 7;
+          if (this.canDoubleJump && this.vy > 5) { this.vy = -15; this.canDoubleJump = false; }
+          this.aiReact = 0;
+          return;
+        }
+      }
     }
 
     // ── DEATH RECORD — apply counter strategy learned from the previous life ────────────

@@ -59,7 +59,7 @@ const WEAPON_FINISHERS = {
       data.tl=_makeTimeline([
         {frame:0, fn(){ CinCam.zoomTo(1.3); CinCam.focusMidpoint(att,tgt); CinCam.slowMo(0.25); }},
         {frame:12,fn(){ CinCam.focusOn(att); }},
-        {frame:28,fn(){ CinCam.slowMo(0.07); CinCam.zoomTo(1.62); CinCam.focusMidpoint(att,tgt); }},
+        {frame:28,fn(){ CinCam.slowMo(0.07); CinCam.zoomTo(1.62); CinCam.focusMidpoint(att,tgt); if (typeof SoundManager!=='undefined') SoundManager._cosmicSilenceTimer=14; }},
         {frame:38,fn(){
           // Teleport through — attacker snaps to opposite side, slash lines burst out
           data.slashLines=[
@@ -68,6 +68,8 @@ const WEAPON_FINISHERS = {
             {x0:tgt.cx()-data.dir*50,y0:tgt.cy()+22,x1:tgt.cx()+data.dir*50,y1:tgt.cy()+22,a:0.8},
           ];
           CinCam.slowMo(1.0); CinCam.shake(30);
+          if (typeof CinFX!=='undefined'&&CinFX.impactFrame) CinFX.impactFrame([att,tgt],{dur:3});
+          if (typeof SoundManager!=='undefined'&&SoundManager.heavyHit) SoundManager.heavyHit();
           spawnParticles(tgt.cx(),tgt.cy(),'#88ccff',42);
           spawnParticles(tgt.cx(),tgt.cy(),'#ffffff',16);
           data.shockR=1; data.shockAlpha=1;
@@ -140,8 +142,8 @@ const WEAPON_FINISHERS = {
       data.tl=_makeTimeline([
         {frame:0, fn(){ CinCam.zoomTo(1.3); CinCam.focusMidpoint(att,tgt); CinCam.slowMo(0.25); }},
         {frame:12,fn(){ CinCam.focusOn(att); }},
-        {frame:30,fn(){ CinCam.slowMo(0.07); CinCam.zoomTo(1.5); CinCam.focusMidpoint(att,tgt); }},
-        {frame:42,fn(){ CinCam.slowMo(1.0); CinCam.shake(60); data.shockR=1;data.shockAlpha=1; spawnParticles(tgt.cx(),tgt.y+tgt.h,'#cc8800',60); spawnParticles(tgt.cx(),tgt.y+tgt.h,'#ffcc44',22); CinCam.focusOn(tgt); CinCam.zoomTo(1.3); }},
+        {frame:30,fn(){ CinCam.slowMo(0.07); CinCam.zoomTo(1.5); CinCam.focusMidpoint(att,tgt); if (typeof SoundManager!=='undefined') SoundManager._cosmicSilenceTimer=14; }},
+        {frame:42,fn(){ CinCam.slowMo(1.0); CinCam.shake(60); data.shockR=1;data.shockAlpha=1; spawnParticles(tgt.cx(),tgt.y+tgt.h,'#cc8800',60); spawnParticles(tgt.cx(),tgt.y+tgt.h,'#ffcc44',22); CinCam.focusOn(tgt); CinCam.zoomTo(1.3); if (typeof CinFX!=='undefined'&&CinFX.impactFrame) CinFX.impactFrame([att,tgt],{dur:3}); if (typeof SoundManager!=='undefined'&&SoundManager.heavyHit) SoundManager.heavyHit(); }},
         {frame:92,fn(){ CinCam.restore(); }},
       ]); },
     (att,tgt,timer,data)=>{ _tickTimeline(data.tl,timer); _wfTick(timer,125,data);
@@ -171,8 +173,8 @@ const WEAPON_FINISHERS = {
       data.tl=_makeTimeline([
         {frame:0, fn(){ CinCam.zoomTo(1.3); CinCam.focusMidpoint(att,tgt); CinCam.slowMo(0.25); }},
         {frame:12,fn(){ CinCam.focusOn(att); }},
-        {frame:28,fn(){ CinCam.slowMo(0.07); CinCam.zoomTo(1.6); CinCam.focusOn(tgt); }},
-        {frame:40,fn(){ CinCam.slowMo(1.0); data.shockR=1;data.shockAlpha=1; CinCam.shake(22); spawnParticles(tgt.cx(),tgt.cy(),'#ffff44',30); CinCam.focusOn(tgt); CinCam.zoomTo(1.3); }},
+        {frame:28,fn(){ CinCam.slowMo(0.07); CinCam.zoomTo(1.6); CinCam.focusOn(tgt); if (typeof SoundManager!=='undefined') SoundManager._cosmicSilenceTimer=14; }},
+        {frame:40,fn(){ CinCam.slowMo(1.0); data.shockR=1;data.shockAlpha=1; CinCam.shake(22); spawnParticles(tgt.cx(),tgt.cy(),'#ffff44',30); CinCam.focusOn(tgt); CinCam.zoomTo(1.3); if (typeof CinFX!=='undefined'&&CinFX.impactFrame) CinFX.impactFrame([att,tgt],{dur:3}); if (typeof SoundManager!=='undefined'&&SoundManager.heavyHit) SoundManager.heavyHit(); }},
         {frame:88,fn(){ CinCam.restore(); }},
       ]); },
     (att,tgt,timer,data)=>{ _tickTimeline(data.tl,timer); _wfTick(timer,118,data);
@@ -209,8 +211,8 @@ const WEAPON_FINISHERS = {
       data.tl=_makeTimeline([
         {frame:0, fn(){ CinCam.zoomTo(1.3); CinCam.focusMidpoint(att,tgt); CinCam.slowMo(0.25); }},
         {frame:12,fn(){ CinCam.focusOn(att); }},
-        {frame:30,fn(){ CinCam.slowMo(0.07); CinCam.zoomTo(1.55); CinCam.focusMidpoint(att,tgt); }},
-        {frame:40,fn(){ CinCam.slowMo(1.0); CinCam.shake(42); data.shockR=1;data.shockAlpha=1; spawnParticles(tgt.cx(),tgt.cy(),'#ff4422',48); spawnParticles(tgt.cx(),tgt.cy(),'#ff8844',18); CinCam.focusOn(tgt); CinCam.zoomTo(1.3); }},
+        {frame:30,fn(){ CinCam.slowMo(0.07); CinCam.zoomTo(1.55); CinCam.focusMidpoint(att,tgt); if (typeof SoundManager!=='undefined') SoundManager._cosmicSilenceTimer=14; }},
+        {frame:40,fn(){ CinCam.slowMo(1.0); CinCam.shake(42); data.shockR=1;data.shockAlpha=1; spawnParticles(tgt.cx(),tgt.cy(),'#ff4422',48); spawnParticles(tgt.cx(),tgt.cy(),'#ff8844',18); CinCam.focusOn(tgt); CinCam.zoomTo(1.3); if (typeof CinFX!=='undefined'&&CinFX.impactFrame) CinFX.impactFrame([att,tgt],{dur:3}); if (typeof SoundManager!=='undefined'&&SoundManager.heavyHit) SoundManager.heavyHit(); }},
         {frame:90,fn(){ CinCam.restore(); }},
       ]); },
     (att,tgt,timer,data)=>{ _tickTimeline(data.tl,timer); _wfTick(timer,120,data);
@@ -243,7 +245,7 @@ const WEAPON_FINISHERS = {
       data.tl=_makeTimeline([
         {frame:0, fn(){ CinCam.zoomTo(1.3); CinCam.focusMidpoint(att,tgt); CinCam.slowMo(0.25); }},
         {frame:12,fn(){ CinCam.focusOn(att); }},
-        {frame:28,fn(){ CinCam.slowMo(0.07); CinCam.zoomTo(1.65); CinCam.focusMidpoint(att,tgt); }},
+        {frame:28,fn(){ CinCam.slowMo(0.07); CinCam.zoomTo(1.65); CinCam.focusMidpoint(att,tgt); if (typeof SoundManager!=='undefined') SoundManager._cosmicSilenceTimer=14; }},
         {frame:38,fn(){
           // IMPACT — target launches straight up
           data.impaleX=tgt.cx(); data.apexY=data.ty0-140; data.pillarAlpha=1;
@@ -258,6 +260,8 @@ const WEAPON_FINISHERS = {
         {frame:68,fn(){
           // CRASH DOWN — full speed
           CinCam.slowMo(1.0); CinCam.zoomTo(1.35);
+          if (typeof CinFX!=='undefined'&&CinFX.impactFrame) CinFX.impactFrame([att,tgt],{dur:3});
+          if (typeof SoundManager!=='undefined'&&SoundManager.heavyHit) SoundManager.heavyHit();
         }},
         {frame:76,fn(){
           // Ground slam impact
@@ -337,8 +341,8 @@ const WEAPON_FINISHERS = {
       data.tl=_makeTimeline([
         {frame:0, fn(){ CinCam.zoomTo(1.3); CinCam.focusMidpoint(att,tgt); CinCam.slowMo(0.25); }},
         {frame:12,fn(){ CinCam.focusOn(att); }},
-        {frame:30,fn(){ CinCam.slowMo(0.07); CinCam.zoomTo(1.52); CinCam.focusMidpoint(att,tgt); }},
-        {frame:40,fn(){ CinCam.slowMo(1.0); CinCam.shake(36); data.shockR=1;data.shockAlpha=1; spawnParticles(tgt.cx(),tgt.cy(),'#44ff88',42); spawnParticles(tgt.cx(),tgt.cy(),'#ccffcc',14); CinCam.focusOn(tgt); CinCam.zoomTo(1.3); }},
+        {frame:30,fn(){ CinCam.slowMo(0.07); CinCam.zoomTo(1.52); CinCam.focusMidpoint(att,tgt); if (typeof SoundManager!=='undefined') SoundManager._cosmicSilenceTimer=14; }},
+        {frame:40,fn(){ CinCam.slowMo(1.0); CinCam.shake(36); data.shockR=1;data.shockAlpha=1; spawnParticles(tgt.cx(),tgt.cy(),'#44ff88',42); spawnParticles(tgt.cx(),tgt.cy(),'#ccffcc',14); CinCam.focusOn(tgt); CinCam.zoomTo(1.3); if (typeof CinFX!=='undefined'&&CinFX.impactFrame) CinFX.impactFrame([att,tgt],{dur:3}); if (typeof SoundManager!=='undefined'&&SoundManager.heavyHit) SoundManager.heavyHit(); }},
         {frame:90,fn(){ CinCam.restore(); }},
       ]); },
     (att,tgt,timer,data)=>{ _tickTimeline(data.tl,timer); _wfTick(timer,122,data);
@@ -368,8 +372,8 @@ const WEAPON_FINISHERS = {
       data.tl=_makeTimeline([
         {frame:0, fn(){ CinCam.zoomTo(1.3); CinCam.focusMidpoint(att,tgt); CinCam.slowMo(0.25); }},
         {frame:12,fn(){ CinCam.focusOn(att); }},
-        {frame:28,fn(){ CinCam.slowMo(0.07); CinCam.zoomTo(1.58); CinCam.focusMidpoint(att,tgt); }},
-        {frame:38,fn(){ CinCam.slowMo(1.0); CinCam.shake(32); data.shockR=1;data.shockAlpha=1; spawnParticles(tgt.cx(),tgt.cy(),'#ff88cc',34); spawnParticles(tgt.cx(),tgt.cy(),'#ffffff',14); CinCam.focusOn(tgt); CinCam.zoomTo(1.3); }},
+        {frame:28,fn(){ CinCam.slowMo(0.07); CinCam.zoomTo(1.58); CinCam.focusMidpoint(att,tgt); if (typeof SoundManager!=='undefined') SoundManager._cosmicSilenceTimer=14; }},
+        {frame:38,fn(){ CinCam.slowMo(1.0); CinCam.shake(32); data.shockR=1;data.shockAlpha=1; spawnParticles(tgt.cx(),tgt.cy(),'#ff88cc',34); spawnParticles(tgt.cx(),tgt.cy(),'#ffffff',14); CinCam.focusOn(tgt); CinCam.zoomTo(1.3); if (typeof CinFX!=='undefined'&&CinFX.impactFrame) CinFX.impactFrame([att,tgt],{dur:3}); if (typeof SoundManager!=='undefined'&&SoundManager.heavyHit) SoundManager.heavyHit(); }},
         {frame:86,fn(){ CinCam.restore(); }},
       ]); },
     (att,tgt,timer,data)=>{ _tickTimeline(data.tl,timer); _wfTick(timer,115,data);
@@ -396,8 +400,8 @@ const WEAPON_FINISHERS = {
       data.tl=_makeTimeline([
         {frame:0, fn(){ CinCam.zoomTo(1.3); CinCam.focusMidpoint(att,tgt); CinCam.slowMo(0.25); }},
         {frame:12,fn(){ CinCam.focusOn(att); }},
-        {frame:26,fn(){ CinCam.slowMo(0.07); CinCam.zoomTo(1.52); CinCam.focusMidpoint(att,tgt); for(let i=0;i<6;i++) data.arrows.push({x:att.cx(),y:att.cy()-i*10,tx:tgt.cx()+(i-2)*12,ty:tgt.cy(),p:0,speed:0.055+i*0.007,done:false}); }},
-        {frame:40,fn(){ CinCam.slowMo(1.0); CinCam.shake(26); data.shockR=1;data.shockAlpha=1; spawnParticles(tgt.cx(),tgt.cy(),'#aade50',38); CinCam.focusOn(tgt); CinCam.zoomTo(1.3); }},
+        {frame:26,fn(){ CinCam.slowMo(0.07); CinCam.zoomTo(1.52); CinCam.focusMidpoint(att,tgt); for(let i=0;i<6;i++) data.arrows.push({x:att.cx(),y:att.cy()-i*10,tx:tgt.cx()+(i-2)*12,ty:tgt.cy(),p:0,speed:0.055+i*0.007,done:false}); if (typeof SoundManager!=='undefined') SoundManager._cosmicSilenceTimer=14; }},
+        {frame:40,fn(){ CinCam.slowMo(1.0); CinCam.shake(26); data.shockR=1;data.shockAlpha=1; spawnParticles(tgt.cx(),tgt.cy(),'#aade50',38); CinCam.focusOn(tgt); CinCam.zoomTo(1.3); if (typeof CinFX!=='undefined'&&CinFX.impactFrame) CinFX.impactFrame([att,tgt],{dur:3}); if (typeof SoundManager!=='undefined'&&SoundManager.heavyHit) SoundManager.heavyHit(); }},
         {frame:90,fn(){ CinCam.restore(); }},
       ]); },
     (att,tgt,timer,data)=>{ _tickTimeline(data.tl,timer); _wfTick(timer,120,data);
@@ -426,8 +430,8 @@ const WEAPON_FINISHERS = {
       data.tl=_makeTimeline([
         {frame:0, fn(){ CinCam.zoomTo(1.3); CinCam.focusMidpoint(att,tgt); CinCam.slowMo(0.25); }},
         {frame:12,fn(){ CinCam.focusOn(att); }},
-        {frame:28,fn(){ CinCam.slowMo(0.07); CinCam.zoomTo(1.58); CinCam.focusMidpoint(att,tgt); }},
-        {frame:38,fn(){ CinCam.slowMo(1.0); CinCam.shake(48); data.shockR=1;data.shockAlpha=1; spawnParticles(tgt.cx(),tgt.cy(),'#ff4444',46); spawnParticles(tgt.cx(),tgt.cy(),'#ffaa44',18); CinCam.focusOn(tgt); CinCam.zoomTo(1.3); }},
+        {frame:28,fn(){ CinCam.slowMo(0.07); CinCam.zoomTo(1.58); CinCam.focusMidpoint(att,tgt); if (typeof SoundManager!=='undefined') SoundManager._cosmicSilenceTimer=14; }},
+        {frame:38,fn(){ CinCam.slowMo(1.0); CinCam.shake(48); data.shockR=1;data.shockAlpha=1; spawnParticles(tgt.cx(),tgt.cy(),'#ff4444',46); spawnParticles(tgt.cx(),tgt.cy(),'#ffaa44',18); CinCam.focusOn(tgt); CinCam.zoomTo(1.3); if (typeof CinFX!=='undefined'&&CinFX.impactFrame) CinFX.impactFrame([att,tgt],{dur:3}); if (typeof SoundManager!=='undefined'&&SoundManager.heavyHit) SoundManager.heavyHit(); }},
         {frame:88,fn(){ CinCam.restore(); }},
       ]); },
     (att,tgt,timer,data)=>{ _tickTimeline(data.tl,timer); _wfTick(timer,118,data);
@@ -460,8 +464,8 @@ const CLASS_FINISHERS = {
       data.tl=_makeTimeline([
         {frame:0, fn(){ CinCam.zoomTo(1.3); CinCam.focusMidpoint(att,tgt); CinCam.slowMo(0.25); }},
         {frame:12,fn(){ CinCam.focusOn(att); }},
-        {frame:28,fn(){ CinCam.slowMo(0.07); CinCam.zoomTo(1.5); CinCam.focusMidpoint(att,tgt); for(let i=0;i<5;i++) data.bolts.push({x:tgt.cx()+(Math.random()-0.5)*90}); }},
-        {frame:40,fn(){ CinCam.slowMo(1.0); CinCam.shake(42); data.shockR=1;data.shockAlpha=1; spawnParticles(tgt.cx(),tgt.cy(),'#4488ff',50); spawnParticles(tgt.cx(),tgt.cy(),'#ffffff',20); CinCam.focusOn(tgt); CinCam.zoomTo(1.3); }},
+        {frame:28,fn(){ CinCam.slowMo(0.07); CinCam.zoomTo(1.5); CinCam.focusMidpoint(att,tgt); for(let i=0;i<5;i++) data.bolts.push({x:tgt.cx()+(Math.random()-0.5)*90}); if (typeof SoundManager!=='undefined') SoundManager._cosmicSilenceTimer=14; }},
+        {frame:40,fn(){ CinCam.slowMo(1.0); CinCam.shake(42); data.shockR=1;data.shockAlpha=1; spawnParticles(tgt.cx(),tgt.cy(),'#4488ff',50); spawnParticles(tgt.cx(),tgt.cy(),'#ffffff',20); CinCam.focusOn(tgt); CinCam.zoomTo(1.3); if (typeof CinFX!=='undefined'&&CinFX.impactFrame) CinFX.impactFrame([att,tgt],{dur:3}); if (typeof SoundManager!=='undefined'&&SoundManager.heavyHit) SoundManager.heavyHit(); }},
         {frame:92,fn(){ CinCam.restore(); }},
       ]); },
     (att,tgt,timer,data)=>{ _tickTimeline(data.tl,timer); _wfTick(timer,125,data);
@@ -490,8 +494,8 @@ const CLASS_FINISHERS = {
       data.tl=_makeTimeline([
         {frame:0, fn(){ CinCam.zoomTo(1.3); CinCam.focusMidpoint(att,tgt); CinCam.slowMo(0.25); }},
         {frame:12,fn(){ CinCam.focusOn(att); }},
-        {frame:28,fn(){ CinCam.slowMo(0.07); CinCam.zoomTo(1.55); CinCam.focusMidpoint(att,tgt); }},
-        {frame:40,fn(){ CinCam.slowMo(1.0); CinCam.shake(52); data.shockR=1;data.shockAlpha=1; spawnParticles(tgt.cx(),tgt.cy(),'#cc2222',58); spawnParticles(tgt.cx(),tgt.cy(),'#ff6600',24); CinCam.focusOn(tgt); CinCam.zoomTo(1.3); }},
+        {frame:28,fn(){ CinCam.slowMo(0.07); CinCam.zoomTo(1.55); CinCam.focusMidpoint(att,tgt); if (typeof SoundManager!=='undefined') SoundManager._cosmicSilenceTimer=14; }},
+        {frame:40,fn(){ CinCam.slowMo(1.0); CinCam.shake(52); data.shockR=1;data.shockAlpha=1; spawnParticles(tgt.cx(),tgt.cy(),'#cc2222',58); spawnParticles(tgt.cx(),tgt.cy(),'#ff6600',24); CinCam.focusOn(tgt); CinCam.zoomTo(1.3); if (typeof CinFX!=='undefined'&&CinFX.impactFrame) CinFX.impactFrame([att,tgt],{dur:3}); if (typeof SoundManager!=='undefined'&&SoundManager.heavyHit) SoundManager.heavyHit(); }},
         {frame:90,fn(){ CinCam.restore(); }},
       ]); },
     (att,tgt,timer,data)=>{ _tickTimeline(data.tl,timer); _wfTick(timer,120,data);
@@ -519,8 +523,8 @@ const CLASS_FINISHERS = {
       data.tl=_makeTimeline([
         {frame:0, fn(){ CinCam.zoomTo(1.3); CinCam.focusMidpoint(att,tgt); CinCam.slowMo(0.25); }},
         {frame:12,fn(){ CinCam.focusOn(att); }},
-        {frame:28,fn(){ CinCam.slowMo(0.07); CinCam.zoomTo(1.62); CinCam.focusMidpoint(att,tgt); }},
-        {frame:38,fn(){ att.x=tgt.cx()+data.dir*22; att.y=tgt.cy(); CinCam.slowMo(1.0); CinCam.shake(34); data.shockR=1;data.shockAlpha=1; spawnParticles(tgt.cx(),tgt.cy(),'#4444aa',36); spawnParticles(tgt.cx(),tgt.cy(),'#8888dd',16); CinCam.focusOn(tgt); CinCam.zoomTo(1.3); }},
+        {frame:28,fn(){ CinCam.slowMo(0.07); CinCam.zoomTo(1.62); CinCam.focusMidpoint(att,tgt); if (typeof SoundManager!=='undefined') SoundManager._cosmicSilenceTimer=14; }},
+        {frame:38,fn(){ att.x=tgt.cx()+data.dir*22; att.y=tgt.cy(); CinCam.slowMo(1.0); CinCam.shake(34); data.shockR=1;data.shockAlpha=1; spawnParticles(tgt.cx(),tgt.cy(),'#4444aa',36); spawnParticles(tgt.cx(),tgt.cy(),'#8888dd',16); CinCam.focusOn(tgt); CinCam.zoomTo(1.3); if (typeof CinFX!=='undefined'&&CinFX.impactFrame) CinFX.impactFrame([att,tgt],{dur:3}); if (typeof SoundManager!=='undefined'&&SoundManager.heavyHit) SoundManager.heavyHit(); }},
         {frame:88,fn(){ CinCam.restore(); }},
       ]); },
     (att,tgt,timer,data)=>{ _tickTimeline(data.tl,timer); _wfTick(timer,118,data);
@@ -549,8 +553,8 @@ const CLASS_FINISHERS = {
       data.tl=_makeTimeline([
         {frame:0, fn(){ CinCam.zoomTo(1.3); CinCam.focusMidpoint(att,tgt); CinCam.slowMo(0.25); }},
         {frame:12,fn(){ CinCam.focusOn(att); }},
-        {frame:28,fn(){ CinCam.slowMo(0.07); CinCam.zoomTo(1.65); CinCam.focusOn(tgt); }},
-        {frame:40,fn(){ CinCam.slowMo(1.0); CinCam.shake(25); data.shockR=1;data.shockAlpha=1; data.muzzleFlash=12; spawnParticles(tgt.cx(),tgt.cy(),'#ffcc44',28); CinCam.focusOn(tgt); CinCam.zoomTo(1.3); }},
+        {frame:28,fn(){ CinCam.slowMo(0.07); CinCam.zoomTo(1.65); CinCam.focusOn(tgt); if (typeof SoundManager!=='undefined') SoundManager._cosmicSilenceTimer=14; }},
+        {frame:40,fn(){ CinCam.slowMo(1.0); CinCam.shake(25); data.shockR=1;data.shockAlpha=1; data.muzzleFlash=12; spawnParticles(tgt.cx(),tgt.cy(),'#ffcc44',28); CinCam.focusOn(tgt); CinCam.zoomTo(1.3); if (typeof CinFX!=='undefined'&&CinFX.impactFrame) CinFX.impactFrame([att,tgt],{dur:3}); if (typeof SoundManager!=='undefined'&&SoundManager.heavyHit) SoundManager.heavyHit(); }},
         {frame:88,fn(){ CinCam.restore(); }},
       ]); },
     (att,tgt,timer,data)=>{ _tickTimeline(data.tl,timer); _wfTick(timer,118,data);
@@ -582,8 +586,8 @@ const CLASS_FINISHERS = {
       data.tl=_makeTimeline([
         {frame:0, fn(){ CinCam.zoomTo(1.3); CinCam.focusMidpoint(att,tgt); CinCam.slowMo(0.25); }},
         {frame:12,fn(){ CinCam.focusOn(att); }},
-        {frame:30,fn(){ CinCam.slowMo(0.07); CinCam.zoomTo(1.52); CinCam.focusMidpoint(att,tgt); }},
-        {frame:42,fn(){ CinCam.slowMo(1.0); CinCam.shake(40); data.shockR=1;data.shockAlpha=1; spawnParticles(tgt.cx(),tgt.cy(),'#ffe888',52); spawnParticles(tgt.cx(),tgt.cy(),'#ffffff',22); CinCam.focusOn(tgt); CinCam.zoomTo(1.3); }},
+        {frame:30,fn(){ CinCam.slowMo(0.07); CinCam.zoomTo(1.52); CinCam.focusMidpoint(att,tgt); if (typeof SoundManager!=='undefined') SoundManager._cosmicSilenceTimer=14; }},
+        {frame:42,fn(){ CinCam.slowMo(1.0); CinCam.shake(40); data.shockR=1;data.shockAlpha=1; spawnParticles(tgt.cx(),tgt.cy(),'#ffe888',52); spawnParticles(tgt.cx(),tgt.cy(),'#ffffff',22); CinCam.focusOn(tgt); CinCam.zoomTo(1.3); if (typeof CinFX!=='undefined'&&CinFX.impactFrame) CinFX.impactFrame([att,tgt],{dur:3}); if (typeof SoundManager!=='undefined'&&SoundManager.heavyHit) SoundManager.heavyHit(); }},
         {frame:94,fn(){ CinCam.restore(); }},
       ]); },
     (att,tgt,timer,data)=>{ _tickTimeline(data.tl,timer); _wfTick(timer,125,data);
@@ -613,8 +617,8 @@ const CLASS_FINISHERS = {
       data.tl=_makeTimeline([
         {frame:0, fn(){ CinCam.zoomTo(1.3); CinCam.focusMidpoint(att,tgt); CinCam.slowMo(0.25); }},
         {frame:12,fn(){ CinCam.focusOn(att); }},
-        {frame:28,fn(){ CinCam.slowMo(0.07); CinCam.zoomTo(1.55); CinCam.focusMidpoint(att,tgt); }},
-        {frame:38,fn(){ CinCam.slowMo(1.0); CinCam.shake(50); data.shockR=1;data.shockAlpha=1; spawnParticles(tgt.cx(),tgt.cy(),'#cc0030',55); spawnParticles(tgt.cx(),tgt.cy(),'#ff2244',22); CinCam.focusOn(tgt); CinCam.zoomTo(1.3); }},
+        {frame:28,fn(){ CinCam.slowMo(0.07); CinCam.zoomTo(1.55); CinCam.focusMidpoint(att,tgt); if (typeof SoundManager!=='undefined') SoundManager._cosmicSilenceTimer=14; }},
+        {frame:38,fn(){ CinCam.slowMo(1.0); CinCam.shake(50); data.shockR=1;data.shockAlpha=1; spawnParticles(tgt.cx(),tgt.cy(),'#cc0030',55); spawnParticles(tgt.cx(),tgt.cy(),'#ff2244',22); CinCam.focusOn(tgt); CinCam.zoomTo(1.3); if (typeof CinFX!=='undefined'&&CinFX.impactFrame) CinFX.impactFrame([att,tgt],{dur:3}); if (typeof SoundManager!=='undefined'&&SoundManager.heavyHit) SoundManager.heavyHit(); }},
         {frame:90,fn(){ CinCam.restore(); }},
       ]); },
     (att,tgt,timer,data)=>{ _tickTimeline(data.tl,timer); _wfTick(timer,120,data);
@@ -643,8 +647,8 @@ const CLASS_FINISHERS = {
       data.tl=_makeTimeline([
         {frame:0, fn(){ CinCam.zoomTo(1.3); CinCam.focusMidpoint(att,tgt); CinCam.slowMo(0.25); }},
         {frame:12,fn(){ CinCam.focusOn(att); }},
-        {frame:28,fn(){ CinCam.slowMo(0.07); CinCam.zoomTo(1.52); CinCam.focusMidpoint(att,tgt); }},
-        {frame:40,fn(){ CinCam.slowMo(1.0); CinCam.shake(28); data.shockR=1;data.shockAlpha=1; spawnParticles(tgt.cx(),tgt.cy(),'#88cc44',40); CinCam.focusOn(tgt); CinCam.zoomTo(1.3); }},
+        {frame:28,fn(){ CinCam.slowMo(0.07); CinCam.zoomTo(1.52); CinCam.focusMidpoint(att,tgt); if (typeof SoundManager!=='undefined') SoundManager._cosmicSilenceTimer=14; }},
+        {frame:40,fn(){ CinCam.slowMo(1.0); CinCam.shake(28); data.shockR=1;data.shockAlpha=1; spawnParticles(tgt.cx(),tgt.cy(),'#88cc44',40); CinCam.focusOn(tgt); CinCam.zoomTo(1.3); if (typeof CinFX!=='undefined'&&CinFX.impactFrame) CinFX.impactFrame([att,tgt],{dur:3}); if (typeof SoundManager!=='undefined'&&SoundManager.heavyHit) SoundManager.heavyHit(); }},
         {frame:90,fn(){ CinCam.restore(); }},
       ]); },
     (att,tgt,timer,data)=>{ _tickTimeline(data.tl,timer); _wfTick(timer,120,data);
@@ -680,8 +684,8 @@ const CLASS_FINISHERS = {
       data.tl=_makeTimeline([
         {frame:0, fn(){ CinCam.zoomTo(1.3); CinCam.focusMidpoint(att,tgt); CinCam.slowMo(0.25); }},
         {frame:12,fn(){ CinCam.focusOn(att); }},
-        {frame:30,fn(){ CinCam.slowMo(0.07); CinCam.zoomTo(1.55); CinCam.focusMidpoint(att,tgt); }},
-        {frame:44,fn(){ CinCam.slowMo(1.0); CinCam.shake(58); data.shockR=1;data.shockAlpha=1; spawnParticles(tgt.cx(),tgt.cy(),'#ccaa22',62); spawnParticles(tgt.cx(),tgt.cy(),'#ffffff',28); spawnParticles(tgt.cx(),tgt.cy(),'#ffe066',22); CinCam.focusOn(tgt); CinCam.zoomTo(1.3); }},
+        {frame:30,fn(){ CinCam.slowMo(0.07); CinCam.zoomTo(1.55); CinCam.focusMidpoint(att,tgt); if (typeof SoundManager!=='undefined') SoundManager._cosmicSilenceTimer=14; }},
+        {frame:44,fn(){ CinCam.slowMo(1.0); CinCam.shake(58); data.shockR=1;data.shockAlpha=1; spawnParticles(tgt.cx(),tgt.cy(),'#ccaa22',62); spawnParticles(tgt.cx(),tgt.cy(),'#ffffff',28); spawnParticles(tgt.cx(),tgt.cy(),'#ffe066',22); CinCam.focusOn(tgt); CinCam.zoomTo(1.3); if (typeof CinFX!=='undefined'&&CinFX.impactFrame) CinFX.impactFrame([att,tgt],{dur:3}); if (typeof SoundManager!=='undefined'&&SoundManager.heavyHit) SoundManager.heavyHit(); }},
         {frame:96,fn(){ CinCam.restore(); }},
       ]); },
     (att,tgt,timer,data)=>{ _tickTimeline(data.tl,timer); _wfTick(timer,128,data);
@@ -713,8 +717,8 @@ const CLASS_FINISHERS = {
       data.tl=_makeTimeline([
         {frame:0,  fn(){ CinCam.zoomTo(1.28); CinCam.focusMidpoint(att,tgt); CinCam.slowMo(0.22); }},
         {frame:10, fn(){ CinCam.focusOn(att); }},
-        {frame:28, fn(){ CinCam.slowMo(0.06); CinCam.zoomTo(1.6); CinCam.focusMidpoint(att,tgt); }},
-        {frame:38, fn(){ data.slashFired=true; data.slashAngle=Math.atan2(tgt.cy()-att.cy(),tgt.cx()-att.cx()); CinCam.slowMo(1.0); CinCam.shake(36); spawnParticles(tgt.cx(),tgt.cy(),'#cc2200',44); spawnParticles(tgt.cx(),tgt.cy(),'#ff4400',18); spawnParticles(tgt.cx(),tgt.cy(),'#000000',16); data.shockR=1;data.shockAlpha=0.95; data.voidFlash=12; CinCam.focusOn(tgt); CinCam.zoomTo(1.35); }},
+        {frame:28, fn(){ CinCam.slowMo(0.06); CinCam.zoomTo(1.6); CinCam.focusMidpoint(att,tgt); if (typeof SoundManager!=='undefined') SoundManager._cosmicSilenceTimer=14; }},
+        {frame:38, fn(){ data.slashFired=true; data.slashAngle=Math.atan2(tgt.cy()-att.cy(),tgt.cx()-att.cx()); CinCam.slowMo(1.0); CinCam.shake(36); spawnParticles(tgt.cx(),tgt.cy(),'#cc2200',44); spawnParticles(tgt.cx(),tgt.cy(),'#ff4400',18); spawnParticles(tgt.cx(),tgt.cy(),'#000000',16); data.shockR=1;data.shockAlpha=0.95; data.voidFlash=12; CinCam.focusOn(tgt); CinCam.zoomTo(1.35); if (typeof CinFX!=='undefined'&&CinFX.impactFrame) CinFX.impactFrame([att,tgt],{dur:3}); if (typeof SoundManager!=='undefined'&&SoundManager.heavyHit) SoundManager.heavyHit(); }},
         {frame:92, fn(){ CinCam.restore(); }},
       ]); },
     (att,tgt,timer,data)=>{ _tickTimeline(data.tl,timer); _wfTick(timer,124,data);

@@ -12,11 +12,13 @@ Object.assign(WEAPON_FINISHERS, {
       data.tl=_makeTimeline([
         {frame:0, fn(){ CinCam.zoomTo(1.3); CinCam.focusMidpoint(att,tgt); CinCam.slowMo(0.25); }},
         {frame:12,fn(){ CinCam.focusOn(att); }},
-        {frame:30,fn(){ CinCam.slowMo(0.07); CinCam.zoomTo(1.66); CinCam.focusMidpoint(att,tgt); }},
+        {frame:30,fn(){ CinCam.slowMo(0.07); CinCam.zoomTo(1.66); CinCam.focusMidpoint(att,tgt); if (typeof SoundManager!=='undefined') SoundManager._cosmicSilenceTimer=14; }},
         {frame:44,fn(){
           // INSTANT CUT — attacker is already behind, thin line crosses target
           data.cutA=1; data.clickF=10;
           CinCam.slowMo(1.0); CinCam.shake(20);
+          if (typeof CinFX!=='undefined'&&CinFX.impactFrame) CinFX.impactFrame([att,tgt],{dur:3});
+          if (typeof SoundManager!=='undefined'&&SoundManager.heavyHit) SoundManager.heavyHit();
           spawnParticles(tgt.cx(),tgt.cy(),'#cce6ff',24);
           CinCam.focusOn(tgt); CinCam.zoomTo(1.4);
         }},
@@ -94,7 +96,7 @@ Object.assign(WEAPON_FINISHERS, {
       data.tl=_makeTimeline([
         {frame:0, fn(){ CinCam.zoomTo(1.3); CinCam.focusMidpoint(att,tgt); CinCam.slowMo(0.25); }},
         {frame:12,fn(){ CinCam.focusOn(att); }},
-        {frame:28,fn(){ CinCam.slowMo(0.07); CinCam.zoomTo(1.5); CinCam.focusMidpoint(att,tgt); data.coilA=1; }},
+        {frame:28,fn(){ CinCam.slowMo(0.07); CinCam.zoomTo(1.5); CinCam.focusMidpoint(att,tgt); data.coilA=1; if (typeof SoundManager!=='undefined') SoundManager._cosmicSilenceTimer=14; }},
         {frame:38,fn(){
           // YANK airborne
           CinCam.slowMo(0.5); CinCam.focusOn(tgt); CinCam.zoomTo(1.55);
@@ -107,6 +109,8 @@ Object.assign(WEAPON_FINISHERS, {
           // SLAM down into the ground
           data.shockR=1; data.shockAlpha=1;
           CinCam.slowMo(1.0); CinCam.shake(50);
+          if (typeof CinFX!=='undefined'&&CinFX.impactFrame) CinFX.impactFrame([att,tgt],{dur:3});
+          if (typeof SoundManager!=='undefined'&&SoundManager.heavyHit) SoundManager.heavyHit();
           spawnParticles(tgt.cx(),data.groundY-16,'#ffaa22',54);
           spawnParticles(tgt.cx(),data.groundY-16,'#ffffff',20);
           CinCam.focusMidpoint(att,tgt); CinCam.zoomTo(1.32);
@@ -167,10 +171,12 @@ Object.assign(WEAPON_FINISHERS, {
       data.tl=_makeTimeline([
         {frame:0, fn(){ CinCam.zoomTo(1.3); CinCam.focusMidpoint(att,tgt); CinCam.slowMo(0.25); }},
         {frame:12,fn(){ CinCam.focusOn(att); }},
-        {frame:34,fn(){ CinCam.slowMo(0.07); CinCam.zoomTo(1.5); CinCam.focusMidpoint(att,tgt); }},
+        {frame:34,fn(){ CinCam.slowMo(0.07); CinCam.zoomTo(1.5); CinCam.focusMidpoint(att,tgt); if (typeof SoundManager!=='undefined') SoundManager._cosmicSilenceTimer=14; }},
         {frame:44,fn(){
           // RELEASE — massive horizontal smash
           CinCam.slowMo(1.0); CinCam.shake(56);
+          if (typeof CinFX!=='undefined'&&CinFX.impactFrame) CinFX.impactFrame([att,tgt],{dur:3});
+          if (typeof SoundManager!=='undefined'&&SoundManager.heavyHit) SoundManager.heavyHit();
           data.shockR=1; data.shockAlpha=1;
           spawnParticles(tgt.cx(),tgt.cy(),'#999999',56);
           spawnParticles(tgt.cx(),tgt.cy(),'#cccccc',22);
@@ -238,11 +244,14 @@ Object.assign(WEAPON_FINISHERS, {
           // Staff plants — cage of vertical lightning bars forms
           data.cageA=1; CinCam.slowMo(0.07); CinCam.zoomTo(1.5); CinCam.focusOn(tgt);
           spawnParticles(tgt.cx(),tgt.cy(),'#44ddff',24);
+          if (typeof SoundManager!=='undefined') SoundManager._cosmicSilenceTimer=14;
         }},
         {frame:48,fn(){
           // PILLAR detonates the cage
           data.pillarA=1; data.shockR=1; data.shockAlpha=1;
           CinCam.slowMo(1.0); CinCam.shake(46);
+          if (typeof CinFX!=='undefined'&&CinFX.impactFrame) CinFX.impactFrame([att,tgt],{dur:3});
+          if (typeof SoundManager!=='undefined'&&SoundManager.heavyHit) SoundManager.heavyHit();
           spawnParticles(tgt.cx(),tgt.cy(),'#66e6ff',54);
           spawnParticles(tgt.cx(),tgt.cy(),'#ffffff',24);
           CinCam.zoomTo(1.34);
@@ -300,7 +309,7 @@ Object.assign(WEAPON_FINISHERS, {
       data.tl=_makeTimeline([
         {frame:0, fn(){ CinCam.zoomTo(1.3); CinCam.focusMidpoint(att,tgt); CinCam.slowMo(0.25); }},
         {frame:12,fn(){ CinCam.focusOn(att); }},
-        {frame:30,fn(){ CinCam.slowMo(0.07); CinCam.zoomTo(1.55); CinCam.focusMidpoint(att,tgt); data.wallA=1; }},
+        {frame:30,fn(){ CinCam.slowMo(0.07); CinCam.zoomTo(1.55); CinCam.focusMidpoint(att,tgt); data.wallA=1; if (typeof SoundManager!=='undefined') SoundManager._cosmicSilenceTimer=14; }},
         {frame:40,fn(){
           // PIN against the hard-light wall
           CinCam.slowMo(0.45); CinCam.shake(20); CinCam.focusOn(tgt);
@@ -311,6 +320,8 @@ Object.assign(WEAPON_FINISHERS, {
           data.shatterA=1; data.shockR=1; data.shockAlpha=1;
           for(let i=0;i<10;i++) data.shards.push({x:data.wallX,y:tgt.cy()+(i-5)*9,vx:data.dir*(2+Math.random()*4),vy:(Math.random()-0.5)*5,a:1});
           CinCam.slowMo(1.0); CinCam.shake(48);
+          if (typeof CinFX!=='undefined'&&CinFX.impactFrame) CinFX.impactFrame([att,tgt],{dur:3});
+          if (typeof SoundManager!=='undefined'&&SoundManager.heavyHit) SoundManager.heavyHit();
           spawnParticles(data.wallX,tgt.cy(),'#cce0ff',46);
           spawnParticles(data.wallX,tgt.cy(),'#ffd866',20);
           CinCam.zoomTo(1.32);
@@ -384,11 +395,13 @@ Object.assign(WEAPON_FINISHERS, {
         {frame:0, fn(){ CinCam.zoomTo(1.3); CinCam.focusMidpoint(att,tgt); CinCam.slowMo(0.25); }},
         {frame:12,fn(){ CinCam.focusOn(att); }},
         {frame:24,fn(){ CinCam.slowMo(0.6); CinCam.zoomTo(1.2); CinCam.focusMidpoint(att,tgt); }},
-        {frame:40,fn(){ CinCam.slowMo(0.07); CinCam.zoomTo(1.5); CinCam.focusOn(tgt); }},
+        {frame:40,fn(){ CinCam.slowMo(0.07); CinCam.zoomTo(1.5); CinCam.focusOn(tgt); if (typeof SoundManager!=='undefined') SoundManager._cosmicSilenceTimer=14; }},
         {frame:48,fn(){
           // DIVE-RAM
           data.dustA=1; data.shockR=1; data.shockAlpha=1;
           CinCam.slowMo(1.0); CinCam.shake(44);
+          if (typeof CinFX!=='undefined'&&CinFX.impactFrame) CinFX.impactFrame([att,tgt],{dur:3});
+          if (typeof SoundManager!=='undefined'&&SoundManager.heavyHit) SoundManager.heavyHit();
           spawnParticles(tgt.cx(),tgt.cy(),'#caa56e',52);
           spawnParticles(tgt.cx(),tgt.cy(),'#e8d3a0',22);
           CinCam.zoomTo(1.32);
@@ -456,9 +469,12 @@ Object.assign(WEAPON_FINISHERS, {
           // Crank done — fire a converging hail of peas
           CinCam.slowMo(0.07); CinCam.zoomTo(1.5); CinCam.focusOn(tgt);
           for(let i=0;i<16;i++){ const a=(i/16)*Math.PI*2; data.peas.push({x:tgt.cx()+Math.cos(a)*150,y:tgt.cy()+Math.sin(a)*120,tx:tgt.cx(),ty:tgt.cy(),p:0,sp:0.05+Math.random()*0.04,done:false}); }
+          if (typeof SoundManager!=='undefined') SoundManager._cosmicSilenceTimer=14;
         }},
         {frame:40,fn(){
           CinCam.slowMo(1.0); CinCam.shake(30); data.shockR=1; data.shockAlpha=1;
+          if (typeof CinFX!=='undefined'&&CinFX.impactFrame) CinFX.impactFrame([att,tgt],{dur:3});
+          if (typeof SoundManager!=='undefined'&&SoundManager.heavyHit) SoundManager.heavyHit();
           spawnParticles(tgt.cx(),tgt.cy(),'#55cc55',44);
           spawnParticles(tgt.cx(),tgt.cy(),'#aaffaa',18);
           CinCam.zoomTo(1.34);
@@ -597,11 +613,13 @@ Object.assign(WEAPON_FINISHERS, {
           CinCam.slowMo(0.3); CinCam.zoomTo(1.4); CinCam.focusOn(tgt);
           for(let i=0;i<14;i++){ const a=(i/14)*Math.PI*2; data.planes.push({a, r:170, ang:a, sp:0.04+Math.random()*0.03}); }
         }},
-        {frame:48,fn(){ CinCam.slowMo(0.07); CinCam.zoomTo(1.55); }},
+        {frame:48,fn(){ CinCam.slowMo(0.07); CinCam.zoomTo(1.55); if (typeof SoundManager!=='undefined') SoundManager._cosmicSilenceTimer=14; }},
         {frame:56,fn(){
           // STRIKE together — single cross flash
           data.crossA=1; data.shockR=1; data.shockAlpha=1;
           CinCam.slowMo(1.0); CinCam.shake(38);
+          if (typeof CinFX!=='undefined'&&CinFX.impactFrame) CinFX.impactFrame([att,tgt],{dur:3});
+          if (typeof SoundManager!=='undefined'&&SoundManager.heavyHit) SoundManager.heavyHit();
           spawnParticles(tgt.cx(),tgt.cy(),'#cce0ff',48);
           spawnParticles(tgt.cx(),tgt.cy(),'#ffffff',22);
           CinCam.zoomTo(1.34);
@@ -656,11 +674,13 @@ Object.assign(WEAPON_FINISHERS, {
         {frame:0, fn(){ CinCam.zoomTo(1.3); CinCam.focusMidpoint(att,tgt); CinCam.slowMo(0.25); }},
         {frame:12,fn(){ CinCam.focusOn(att); }},
         {frame:24,fn(){ CinCam.slowMo(0.3); CinCam.zoomTo(1.5); CinCam.focusOn(tgt); }},
-        {frame:50,fn(){ CinCam.slowMo(0.07); CinCam.zoomTo(1.58); }},
+        {frame:50,fn(){ CinCam.slowMo(0.07); CinCam.zoomTo(1.58); if (typeof SoundManager!=='undefined') SoundManager._cosmicSilenceTimer=14; }},
         {frame:58,fn(){
           // BOTH strike at once
           data.shockR=1; data.shockAlpha=1;
           CinCam.slowMo(1.0); CinCam.shake(44);
+          if (typeof CinFX!=='undefined'&&CinFX.impactFrame) CinFX.impactFrame([att,tgt],{dur:3});
+          if (typeof SoundManager!=='undefined'&&SoundManager.heavyHit) SoundManager.heavyHit();
           spawnParticles(tgt.cx(),tgt.cy(),'#d4a838',46);
           spawnParticles(tgt.cx(),tgt.cy(),'#ffdd88',20);
           CinCam.zoomTo(1.34);
@@ -722,11 +742,13 @@ Object.assign(WEAPON_FINISHERS, {
           data.tornadoA=1; data.skyA=1;
           CinCam.slowMo(0.4); CinCam.zoomTo(1.45); CinCam.focusOn(tgt);
         }},
-        {frame:50,fn(){ CinCam.slowMo(0.07); CinCam.zoomTo(1.55); }},
+        {frame:50,fn(){ CinCam.slowMo(0.07); CinCam.zoomTo(1.55); if (typeof SoundManager!=='undefined') SoundManager._cosmicSilenceTimer=14; }},
         {frame:58,fn(){
           // COLLAPSE inward into one detonation
           data.detA=1; data.shockR=1; data.shockAlpha=1;
           CinCam.slowMo(1.0); CinCam.shake(54);
+          if (typeof CinFX!=='undefined'&&CinFX.impactFrame) CinFX.impactFrame([att,tgt],{dur:3});
+          if (typeof SoundManager!=='undefined'&&SoundManager.heavyHit) SoundManager.heavyHit();
           spawnParticles(tgt.cx(),tgt.cy(),'#ff5511',60);
           spawnParticles(tgt.cx(),tgt.cy(),'#ffaa33',28);
           CinCam.zoomTo(1.32);
