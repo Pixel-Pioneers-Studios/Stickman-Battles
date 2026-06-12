@@ -543,6 +543,8 @@ const _CLG_CAT_COLORS = {
   Narrative:   '#cc88ff',
   Mechanic:    '#ff6688',
   Music:       '#88ffdd',
+  Audio:       '#7de8c8',
+  Visual:      '#66bbff',
   Fix:         '#66ff99',
 };
 

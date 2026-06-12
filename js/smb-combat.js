@@ -40,10 +40,11 @@ function _spawnWeaponHitFX(attacker, target, dmg) {
       if (heavy) spawnParticles(tx, ty, '#88ccff', 6);
       break;
     case 'hammer':
-      // Dusty orange shockwave chunks
+      // Dusty orange shockwave chunks + ground dust ring (smash archetype)
       spawnParticles(tx, ty, '#cc5500', heavy ? 16 : 10);
       spawnParticles(tx, ty, '#ffaa44', heavy ? 10 : 5);
-      if (heavy) spawnParticles(tx, ty + 10, '#887766', 8); // ground dust
+      spawnParticles(tx, target.y + target.h - 4, '#887766', heavy ? 10 : 5); // ground dust at feet
+      if (heavy) spawnRing(tx, target.y + target.h - 4);
       break;
     case 'axe':
       // Chunky red/orange shards
@@ -56,20 +57,50 @@ function _spawnWeaponHitFX(attacker, target, dmg) {
       spawnParticles(tx, ty, '#440066', heavy ? 8 : 5);
       if (heavy) spawnParticles(tx, ty, '#cc88ff', 6);
       break;
-    case 'spear':
-      // Teal piercing sparks
-      spawnParticles(tx, ty, '#00ccbb', heavy ? 12 : 7);
-      spawnParticles(tx, ty, '#ffffff', heavy ? 6 : 3);
+    case 'spear': {
+      // Pierce flash: sparks streak along the thrust line (thrust archetype)
+      const _spDir = attacker.facing || 1;
+      spawnParticles(tx, ty, '#00ccbb', heavy ? 10 : 6);
+      spawnParticles(tx + _spDir * 10, ty, '#ffffff', heavy ? 6 : 3);
+      spawnParticles(tx + _spDir * 20, ty, '#aaffee', heavy ? 4 : 2);
       break;
+    }
     case 'fryingpan':
-      // Bright yellow/gold clang burst
+      // Bright yellow/gold clang burst + comic impact ring
       spawnParticles(tx, ty, '#ffdd00', heavy ? 16 : 10);
       spawnParticles(tx, ty, '#ffffff', heavy ? 10 : 5);
+      if (heavy) spawnRing(tx, ty);
       break;
-    case 'broomstick':
-      // Purple/yellow magic scatter
-      spawnParticles(tx, ty, '#cc44ff', heavy ? 12 : 7);
-      spawnParticles(tx, ty, '#ffee44', heavy ? 8 : 4);
+    case 'broomstick': {
+      // Poke streak: scatter trails along the jab line (thrust archetype)
+      const _bsDir = attacker.facing || 1;
+      spawnParticles(tx, ty, '#cc44ff', heavy ? 10 : 6);
+      spawnParticles(tx + _bsDir * 12, ty, '#ffee44', heavy ? 6 : 3);
+      break;
+    }
+    case 'katana':
+      // Clean cut: sparse thin white/steel flash (iai archetype — less is more)
+      spawnParticles(tx, ty, '#ffffff', heavy ? 8 : 5);
+      spawnParticles(tx, ty, '#aaaadd', heavy ? 5 : 3);
+      break;
+    case 'whip': {
+      // Snap burst at the crack point (the weapon tip, not the target center)
+      const _wt = attacker._weaponTip;
+      const _wx = _wt ? _wt.x : tx, _wy = _wt ? _wt.y : ty;
+      spawnParticles(_wx, _wy, '#ffffff', heavy ? 10 : 7);
+      spawnParticles(_wx, _wy, '#ffcc88', heavy ? 6 : 3);
+      break;
+    }
+    case 'flail':
+      // Heavy iron chunks (whirl archetype)
+      spawnParticles(tx, ty, '#bbbbbb', heavy ? 14 : 9);
+      spawnParticles(tx, ty, '#777788', heavy ? 8 : 4);
+      if (heavy) spawnParticles(tx, ty, '#ffffff', 6);
+      break;
+    case 'electricstaff':
+      // Crackling cyan discharge (zap archetype)
+      spawnParticles(tx, ty, '#00eeff', heavy ? 14 : 9);
+      spawnParticles(tx, ty, '#ffffff', heavy ? 7 : 4);
       break;
     case 'boxinggloves':
       // Red/white punch burst with extra count on heavy
@@ -510,8 +541,23 @@ function dealDamage(attacker, target, dmg, kbForce, stunMult = 1.0, isSplash = f
   // combat hit sound; the burst of simultaneous env hits each frame would otherwise cause
   // horrible audio overload, especially in BR mode where 99 fighters share the same tick.
   if (target.shielding) SoundManager.clang();
-  else if (attacker && actualDmg >= 30) SoundManager.heavyHit();
-  else if (attacker) SoundManager.hit();
+  else if (attacker) {
+    // Per-archetype melee hit sound from the swing grammar (weapon identity rework);
+    // falls back to the damage-tiered hit/heavyHit for everything else
+    const _hsG = (typeof WEAPON_SWINGS !== 'undefined' && attacker.weaponKey &&
+                  attacker.weapon && attacker.weapon.type === 'melee')
+      ? WEAPON_SWINGS[attacker.weaponKey] : null;
+    const _hs = _hsG && _hsG.hitSound;
+    if      (_hs === 'blunt'  && SoundManager.hitBlunt)  SoundManager.hitBlunt();
+    else if (_hs === 'pierce' && SoundManager.hitPierce) SoundManager.hitPierce();
+    else if (_hs === 'snap'   && SoundManager.hitSnap)   SoundManager.hitSnap();
+    else if (_hs === 'zap'    && SoundManager.hitZap)    SoundManager.hitZap();
+    else if (_hs === 'clang')                            SoundManager.clang();
+    else if (actualDmg >= 30) SoundManager.heavyHit();
+    else SoundManager.hit();
+    // Heavy hits keep their extra weight on top of the archetype sound
+    if (_hs && actualDmg >= 30) SoundManager.heavyHit();
+  }
   // Blood spray — only on real entity hits, not shields or splash or environment
   if (!target.shielding && !isSplash && attacker && !target.isBoss &&
       actualDmg > 0 && typeof spawnBlood === 'function') {

@@ -42,15 +42,59 @@ const SERVER_CONFIG = {
 // ============================================================
 const CHANGELOG = [
   {
+    version: '3.7.0',
+    title: 'THE WEAPON IDENTITY UPDATE',
+    date: '2026-06-11',
+    flavor: 'No two weapons swing alike anymore. The hammer hangs in the air before it falls. The katana cuts before you see it move. Watch the trails — they tell you everything.',
+    isLatest: true,
+    changes: [
+      { cat: 'Combat',  text: 'Every melee weapon now has its own swing animation, timing, and motion — replacing the single shared 12-frame diagonal slash all weapons used before' },
+      { cat: 'Combat',  text: 'Heavy weapons (Hammer, Frying Pan, Flail) gained real overhead windups: slow rise, accelerating drop, 15–20 frame commitment — the flail winds the ball fully behind the body before release' },
+      { cat: 'Combat',  text: 'Katana attack is now an iai cut — the blade holds nearly still for the first half of the swing, then the cut completes almost instantly, leaving a thin lingering afterglow' },
+      { cat: 'Combat',  text: 'Spear and Broomstick are true thrusts — no arc; the arm visibly extends along a straight piercing line and the hitbox follows the actual extension' },
+      { cat: 'Combat',  text: 'Whip lashes out with an accelerating crack and overshoot wobble at full extension; Boxing Gloves alternate a high jab and a body hook every attack at the fastest swing speed in the game (7 frames)' },
+      { cat: 'Combat',  text: 'Axe is a full shoulder-to-hip cleave, Scythe a smooth 180° reap, Electric Staff a two-handed snap strike — each with distinct arc width and rhythm' },
+      { cat: 'Combat',  text: 'Hitbox and visuals now come from the same swing calculation — what you see is exactly what hits' },
+      { cat: 'Visual',  text: 'Swing trails now take their shape from each weapon\'s real motion: thrusts leave straight streaks, smashes vertical crescents, sweeps huge arcs — with per-weapon width, length, and persistence' },
+      { cat: 'Visual',  text: 'Ranged weapons no longer play a melee swing when firing — each has its own firing pose: gun recoil kick, slingshot draw-and-release, overhand airplane throw, sidearm boomerang throw, steady bow aim' },
+      { cat: 'Visual',  text: 'Weapons no longer all tilt the same way mid-attack — grip angle is per-weapon, so spears point forward and guns stay level' },
+      { cat: 'Polish',  text: 'Megaknight\'s drawn arm now follows its actual uppercut arc — the visual previously played a generic slash while the hitbox swept upward' },
+      { cat: 'Audio',   text: 'Per-weapon hit sounds — heavy weapons land with a deep concussive thud, thrusts with a sharp pierce, the whip with an audible crack, the electric staff with a zap, and the frying pan with the clang it always deserved' },
+      { cat: 'Visual',  text: 'Per-weapon hit sparks upgraded — smashes kick up ground dust and impact rings, thrusts streak sparks along the attack line, the whip bursts at the crack point, the katana cuts clean with minimal flash' },
+      { cat: 'Visual',  text: 'Weapons are now carried differently out of combat — spear and broomstick shouldered, hammer rested over the shoulder, katana held low at the hip, scythe upright, flail dangling, boxing gloves up in a guard, gun at low ready' },
+      { cat: 'Visual',  text: 'Player face redesigned — proper two-eye 3/4 view with centered pupils and a catchlight, eyebrows that sit above the eyes instead of floating at the top of the head, and soft head shading for volume; all expressions (cool, focused, intense, hurt) carried over' },
+      { cat: 'Visual',  text: 'Domain Expansion entrances cleaned up — the chaotic radial line-scribble bursts on activation are gone, replaced by clean expanding shockwave rings and a hard anime impact-frame cut at the name-card slam; Kratos\'s floating red heat bar is now a soft ground-hugging glow' },
+      { cat: 'Story',   text: 'Every story act now has its own cinematic identity — per-act color grading, letterbox depth, narration-bar tint, and a signature ambient motif in all cutscenes: drifting dust in the Home City, fracture shards in the Network, falling embers through the war, reality tears near True Form, kernel pulse rings at the very end' },
+      { cat: 'Story',   text: 'Story cutscenes gained cinematic language — beats now transition (fade, white flash-cut with shake, or whip-pan with motion streaks) instead of hard-cutting, narration captions fade in with an act-colored accent, and scenes can play audio stings: a dread swell, a tension riser, an impact boom, or a sudden hush' },
+      { cat: 'Combat',  text: 'Eleven weapons that had NO finisher now have one — Iaijutsu (Katana), Judgment Lash (Whip), Wrecking Ball (Flail), Overload (Electric Staff), Aegis Break (Shield), Clean Sweep (Broomstick), Full Bloom (Pea Shooter), Orbital Stone (Slingshot), A Thousand Folds (Paper Airplane), Infinite Return (Boomerang), and Incinerate (Flamethrower)' },
+      { cat: 'Fix',     text: 'Story maps no longer have walkable land beyond the boundary portals — the ground now ends just past the portal, and the reality-enforcement teleport can no longer place you outside the map' },
+    ],
+  },
+  {
+    version: '3.6.0',
+    title: 'THE COMBAT STABILITY UPDATE',
+    date: '2026-06-11',
+    flavor: 'Forty bugs walked in. None walked out. And something at the very end of everything is paying much closer attention to how you fight.',
+    isLatest: false,
+    changes: [
+      { cat: 'AI',      text: 'Absolute Axiom rebuilt on a composed behavior-model brain — it profiles your habits in real time and adapts its strategy mid-fight; portal phases now grant true invincibility', spoilerLevel: 3 },
+      { cat: 'Visual',  text: 'Added swing-arc trail ribbons — melee swings leave a fading, tapered light trail behind the blade tip' },
+      { cat: 'Combat',  text: 'Combat pipeline fixes: projectile reflect no longer double-triggers, combos no longer continue through shields, and a hit-stop race condition was eliminated' },
+      { cat: 'Fix',     text: 'Cinematic and QTE freeze fixes — cinematic handoff, QTE/cinematic overlap, and slow-motion token cleanup no longer lock the game' },
+      { cat: 'Fix',     text: 'AI could enter a permanent-parry state under sustained pressure — fixed' },
+      { cat: 'Fix',     text: 'Network hardening, story progression fixes, and rendering performance improvements (cached gradients) across roughly 40 verified bug fixes from a full-codebase review' },
+    ],
+  },
+  {
     version: '3.5.0',
     title: 'THE STORY & SOVEREIGN UPDATE',
     date: '2026-05-30',
     flavor: 'The story finally goes where it was always going. The worlds beyond the multiverse are open. Sovereign learned how you killed it. It won\'t let that happen twice.',
-    isLatest: true,
+    isLatest: false,
     changes: [
       { cat: 'Story',   text: 'Completed Act VI — The Fallen God\'s Trial arc: three bridge chapters covering the God\'s origin vault, the first principles of the walls between dimensions, and the passage into the multiverse' },
       { cat: 'Story',   text: 'Added four full multiverse worlds — Null Space, Seraph World, Thresh, and Vael — each a self-contained 5-chapter arc with unique enemies, environments, and a world boss' },
-      { cat: 'Story',   text: 'Added Act VII — Creator: 16 chapters across two arcs covering God\'s domain, the Kernel, Axiom\'s construct layer, and the two-phase Absolute Axiom fight' },
+      { cat: 'Story',   text: 'Added Act VII — Creator: 16 chapters across two arcs covering God\'s domain, the Kernel, Axiom\'s construct layer, and the two-phase Absolute Axiom fight', spoilerLevel: 3 },
       { cat: 'Story',   text: 'Comprehensive difficulty balance pass across all acts — early chapters (Acts I–II) now properly onboard new players with 3 lives on the first fight; boss-tier encounters in Acts III–VI adjusted from 1-life spikes to 2-life escalations; intentional 1-life milestones preserved at key dramatic moments' },
       { cat: 'Story',   text: 'Twelve specific chapters rebalanced: ch0 (1L→3L), ch2 (1L→2L), ch8 (hard→medium AI), ch10 (2L→3L), ch11 (1L→2L), ch18 (expert→hard + 1L→2L), ch22 (1L→2L), ch25 (1L→2L), ch69 (2L→3L), ch79 (1L→2L), ch87 (1L→2L), ch91 (1L→2L)' },
       { cat: 'AI',      text: 'Sovereign death-to-adaptation pipeline — on death, Sovereign snapshots the exact kill context (weapon type, knockback weight, player action, combo depth); on the next life it immediately locks a counter strategy targeting whatever killed it; second death triggers limiter break with no warmup' },
@@ -659,7 +703,7 @@ let _publicRoomCheckTimer = 0;
 // ============================================================
 // VERSION
 // ============================================================
-const GAME_VERSION = '3.5.0';  // bump this when releasing; must match CHANGELOG[0].version
+const GAME_VERSION = '3.7.0';  // bump this when releasing; must match CHANGELOG[0].version
 console.log('[VERSION CHECK]', GAME_VERSION);
 
 // DEBUG / DEVELOPER STATE

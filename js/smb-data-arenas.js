@@ -601,7 +601,7 @@ const ARENAS = {
     groundColor: '#222222', platColor: '#303030', platEdge: '#181818',
     hasLava: false, deathY: 640,
     platforms: [
-      { x: -200, y: 480, w: 6400, h: 200, isFloor: true },
+      { x: -80, y: 480, w: 5980, h: 200, isFloor: true },
     ]
   },
   suburb: {
@@ -611,7 +611,7 @@ const ARENAS = {
     groundColor: '#5a8a3a', platColor: '#6a9a4a', platEdge: '#3a6020',
     hasLava: false, deathY: 640,
     platforms: [
-      { x: -200, y: 480, w: 6400, h: 200, isFloor: true },
+      { x: -80, y: 480, w: 5980, h: 200, isFloor: true },
     ]
   },
   rural: {
@@ -621,7 +621,7 @@ const ARENAS = {
     groundColor: '#7a5c30', platColor: '#8a6c40', platEdge: '#5c4010',
     hasLava: false, deathY: 640,
     platforms: [
-      { x: -200, y: 480, w: 6400, h: 200, isFloor: true },
+      { x: -80, y: 480, w: 5980, h: 200, isFloor: true },
     ]
   },
   portalEdge: {
@@ -631,7 +631,7 @@ const ARENAS = {
     groundColor: '#100020', platColor: '#200050', platEdge: '#6600aa',
     hasLava: false, deathY: 640,
     platforms: [
-      { x: -200, y: 480, w: 6400, h: 200, isFloor: true },
+      { x: -80, y: 480, w: 5980, h: 200, isFloor: true },
       { x:  100, y: 390, w: 140, h: 18 }, { x:  290, y: 340, w: 130, h: 18 },
       { x:  470, y: 280, w: 150, h: 18 }, { x:  660, y: 330, w: 130, h: 18 },
       { x:  840, y: 395, w: 120, h: 18 }, { x: 1010, y: 340, w: 140, h: 18 },
@@ -668,7 +668,7 @@ const ARENAS = {
     groundColor: '#000a20', platColor: '#002050', platEdge: '#0066cc',
     hasLava: false, deathY: 640, isLowGravity: true,
     platforms: [
-      { x: -200, y: 480, w: 6400, h: 200, isFloor: true },
+      { x: -80, y: 480, w: 5980, h: 200, isFloor: true },
       { x:   80, y: 405, w: 140, h: 18 }, { x:  270, y: 355, w: 130, h: 18 },
       { x:  450, y: 295, w: 150, h: 18 }, { x:  640, y: 325, w: 130, h: 18 },
       { x:  820, y: 400, w: 120, h: 18 }, { x: 1000, y: 350, w: 140, h: 18 },
@@ -704,7 +704,7 @@ const ARENAS = {
     groundColor: '#100008', platColor: '#2a0018', platEdge: '#aa0044',
     hasLava: false, deathY: 640,
     platforms: [
-      { x: -200, y: 480, w: 6400, h: 200, isFloor: true },
+      { x: -80, y: 480, w: 5980, h: 200, isFloor: true },
       { x:   60, y: 390, w: 160, h: 22 }, { x:  270, y: 335, w: 145, h: 20 },
       { x:  460, y: 270, w: 165, h: 20 }, { x:  660, y: 330, w: 145, h: 20 },
       { x:  850, y: 395, w: 130, h: 18 }, { x: 1030, y: 340, w: 155, h: 20 },

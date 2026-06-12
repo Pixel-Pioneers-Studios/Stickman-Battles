@@ -49,11 +49,14 @@ function _arenaSpawnBounds() {
   }
   const xs = currentArena.platforms.map(pl => pl.x);
   const xr = currentArena.platforms.map(pl => pl.x + pl.w);
+  // Boundary-portal arenas: spawn targets must stay inside the portals — the
+  // ±half-screen slack let teleport-back targets land BEYOND the boundary portal
+  const _slack = currentArena.boundaryPortals ? -80 : GAME_W * 0.5;
   const left = currentArena.worldWidth
-    ? Math.max(Math.min(...xs), (currentArena.mapLeft !== undefined ? currentArena.mapLeft : Math.min(...xs)) - GAME_W * 0.5)
+    ? Math.max(Math.min(...xs), (currentArena.mapLeft !== undefined ? currentArena.mapLeft : Math.min(...xs)) - _slack)
     : 20;
   const right = currentArena.worldWidth
-    ? Math.min(Math.max(...xr), (currentArena.mapRight !== undefined ? currentArena.mapRight : Math.max(...xr)) + GAME_W * 0.5)
+    ? Math.min(Math.max(...xr), (currentArena.mapRight !== undefined ? currentArena.mapRight : Math.max(...xr)) + _slack)
     : GAME_W - 20;
   return { left, right };
 }

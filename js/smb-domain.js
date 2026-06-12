@@ -577,7 +577,7 @@ const DomainManager = (() => {
           d.lightningStruck = true; d.lightningTimer = 65;
         }
         if (t === 248) {
-          CinFX.speedLines(f.cx(), f.cy(), '#44aaff', { count: 32, maxLen: 380, dur: 20, spread: Math.PI * 2 });
+          CinFX.shockwave(f.cx(), f.cy(), '#44aaff', { count: 2, maxR: 320, lw: 5, dur: 45 });
           if (typeof spawnParticles === 'function') {
             spawnParticles(f.cx(), f.cy(), '#44aaff', 30);
             spawnParticles(f.cx(), f.cy(), '#ffffff', 15);
@@ -599,11 +599,12 @@ const DomainManager = (() => {
         }
         if (t === 218) {
           CinFX.nameCard('DOMAIN EXPANSION', def.color, { dur: 110 });
+          CinFX.impactFrame(f, { dur: 3 });
           const line = _DOMAIN_ENTRY_LINE[f.charClass];
           if (line && typeof queueAnnouncement === 'function') queueAnnouncement('"' + line + '"', def.color);
         }
         if (t === 200) {
-          CinFX.speedLines(f.cx(), f.cy(), '#44aaff', { count: 42, maxLen: 460, dur: 24, spread: Math.PI * 2 });
+          CinFX.shockwave(f.cx(), f.cy(), '#44aaff', { count: 2, maxR: 320, lw: 5, dur: 45 });
           CinFX.motionTrailOn(f, def.color);
           CinCam.zoomTo(1.28);
         }
@@ -637,10 +638,11 @@ const DomainManager = (() => {
         }
         if (t === 215) {
           CinFX.nameCard('DOMAIN EXPANSION', def.color, { dur: 110 });
+          CinFX.impactFrame(f, { dur: 3 });
           const line = _DOMAIN_ENTRY_LINE[f.charClass];
           if (line && typeof queueAnnouncement === 'function') queueAnnouncement('"' + line + '"', def.color);
           CinFX.flash('#ff4400', 0.65, 6);
-          CinFX.speedLines(f.cx(), f.cy(), '#ff5500', { count: 36, maxLen: 400, dur: 22, spread: Math.PI * 2 });
+          CinFX.shockwave(f.cx(), f.cy(), '#ff5500', { count: 2, maxR: 320, lw: 5, dur: 45 });
           CinFX.motionTrailOn(f, def.color);
           CinCam.zoomTo(1.28);
           if (typeof spawnParticles === 'function') {
@@ -682,9 +684,10 @@ const DomainManager = (() => {
         }
         if (t === 228) {
           CinFX.nameCard('DOMAIN EXPANSION', def.color, { dur: 110 });
+          CinFX.impactFrame(f, { dur: 3 });
           const line = _DOMAIN_ENTRY_LINE[f.charClass];
           if (line && typeof queueAnnouncement === 'function') queueAnnouncement('"' + line + '"', def.color);
-          CinFX.speedLines(f.cx(), f.cy(), '#bb44ff', { count: 34, maxLen: 400, dur: 20, spread: Math.PI * 2 });
+          CinFX.shockwave(f.cx(), f.cy(), '#bb44ff', { count: 2, maxR: 320, lw: 5, dur: 45 });
           CinFX.motionTrailOn(f, def.color);
           CinCam.zoomTo(1.28);
         }
@@ -720,9 +723,10 @@ const DomainManager = (() => {
         }
         if (t === 215) {
           CinFX.nameCard('DOMAIN EXPANSION', def.color, { dur: 110 });
+          CinFX.impactFrame(f, { dur: 3 });
           const line = _DOMAIN_ENTRY_LINE[f.charClass];
           if (line && typeof queueAnnouncement === 'function') queueAnnouncement('"' + line + '"', def.color);
-          CinFX.speedLines(f.cx(), f.cy(), '#ff9900', { count: 34, maxLen: 400, dur: 22, spread: Math.PI * 2 });
+          CinFX.shockwave(f.cx(), f.cy(), '#ff9900', { count: 2, maxR: 320, lw: 5, dur: 45 });
           CinFX.motionTrailOn(f, def.color);
           CinCam.zoomTo(1.28);
         }
@@ -764,9 +768,10 @@ const DomainManager = (() => {
         }
         if (t === 215) {
           CinFX.nameCard('DOMAIN EXPANSION', def.color, { dur: 110 });
+          CinFX.impactFrame(f, { dur: 3 });
           const line = _DOMAIN_ENTRY_LINE[f.charClass];
           if (line && typeof queueAnnouncement === 'function') queueAnnouncement('"' + line + '"', def.color);
-          CinFX.speedLines(f.cx(), f.cy(), '#44ff88', { count: 32, maxLen: 380, dur: 20, spread: Math.PI * 2 });
+          CinFX.shockwave(f.cx(), f.cy(), '#44ff88', { count: 2, maxR: 320, lw: 5, dur: 45 });
           CinFX.motionTrailOn(f, def.color);
           CinCam.zoomTo(1.28);
         }
@@ -807,9 +812,10 @@ const DomainManager = (() => {
         }
         if (t === 215) {
           CinFX.nameCard('DOMAIN EXPANSION', def.color, { dur: 110 });
+          CinFX.impactFrame(f, { dur: 3 });
           const line = _DOMAIN_ENTRY_LINE[f.charClass];
           if (line && typeof queueAnnouncement === 'function') queueAnnouncement('"' + line + '"', def.color);
-          CinFX.speedLines(f.cx(), f.cy(), '#ffffaa', { count: 32, maxLen: 380, dur: 20, spread: Math.PI * 2 });
+          CinFX.shockwave(f.cx(), f.cy(), '#ffffaa', { count: 2, maxR: 320, lw: 5, dur: 45 });
           CinFX.motionTrailOn(f, def.color);
           CinCam.zoomTo(1.28);
         }
@@ -843,11 +849,12 @@ const DomainManager = (() => {
         }
         if (t === 238) {
           CinFX.nameCard('DOMAIN EXPANSION', def.color, { dur: 110 });
+          CinFX.impactFrame(f, { dur: 3 });
           const line = _DOMAIN_ENTRY_LINE[f.charClass];
           if (line && typeof queueAnnouncement === 'function') queueAnnouncement('"' + line + '"', def.color);
         }
         if (t === 220) {
-          CinFX.speedLines(f.cx(), f.cy(), '#ff2222', { count: 38, maxLen: 420, dur: 24, spread: Math.PI * 2 });
+          CinFX.shockwave(f.cx(), f.cy(), '#ff2222', { count: 2, maxR: 320, lw: 5, dur: 45 });
           CinFX.motionTrailOn(f, def.color);
           CinCam.zoomTo(1.28);
         }
@@ -886,11 +893,12 @@ const DomainManager = (() => {
           CinFX.shockwave(f.cx(), f.cy(), '#9944ff', { count: 3, maxR: 300, lw: 5, dur: 58 });
           if (typeof screenShake !== 'undefined') screenShake = Math.max(screenShake, 52);
           CinFX.nameCard('DOMAIN EXPANSION', def.color, { dur: 110 });
+          CinFX.impactFrame(f, { dur: 3 });
           const line = _DOMAIN_ENTRY_LINE[f.charClass];
           if (line && typeof queueAnnouncement === 'function') queueAnnouncement('"' + line + '"', def.color);
         }
         if (t === 215) {
-          CinFX.speedLines(f.cx(), f.cy(), '#9944ff', { count: 36, maxLen: 420, dur: 24, spread: Math.PI * 2 });
+          CinFX.shockwave(f.cx(), f.cy(), '#9944ff', { count: 2, maxR: 320, lw: 5, dur: 45 });
           CinFX.motionTrailOn(f, def.color);
           CinCam.zoomTo(1.28);
         }
@@ -926,9 +934,10 @@ const DomainManager = (() => {
         }
         if (t === 228) {
           CinFX.nameCard('DOMAIN EXPANSION', def.color, { dur: 110 });
+          CinFX.impactFrame(f, { dur: 3 });
           const line = _DOMAIN_ENTRY_LINE[f.charClass];
           if (line && typeof queueAnnouncement === 'function') queueAnnouncement('"' + line + '"', def.color);
-          CinFX.speedLines(f.cx(), f.cy(), '#ccccff', { count: 36, maxLen: 420, dur: 22, spread: Math.PI * 2 });
+          CinFX.shockwave(f.cx(), f.cy(), '#ccccff', { count: 2, maxR: 320, lw: 5, dur: 45 });
           CinFX.motionTrailOn(f, def.color);
           CinCam.zoomTo(1.28);
         }
@@ -971,9 +980,10 @@ const DomainManager = (() => {
         if (t === 228) {
           CinFX.shockwave(f.cx(), f.cy(), '#cc44cc', { count: 3, maxR: 300, lw: 5, dur: 58 });
           CinFX.nameCard('DOMAIN EXPANSION', def.color, { dur: 110 });
+          CinFX.impactFrame(f, { dur: 3 });
           const line = _DOMAIN_ENTRY_LINE[f.charClass];
           if (line && typeof queueAnnouncement === 'function') queueAnnouncement('"' + line + '"', def.color);
-          CinFX.speedLines(f.cx(), f.cy(), '#cc44cc', { count: 34, maxLen: 400, dur: 22, spread: Math.PI * 2 });
+          CinFX.shockwave(f.cx(), f.cy(), '#cc44cc', { count: 2, maxR: 320, lw: 5, dur: 45 });
           CinFX.motionTrailOn(f, def.color);
           CinCam.zoomTo(1.28);
         }
@@ -1009,11 +1019,12 @@ const DomainManager = (() => {
           CinFX.flash('#ffaaaa', 0.60, 6);
           if (typeof screenShake !== 'undefined') screenShake = Math.max(screenShake, 44);
           CinFX.nameCard('DOMAIN EXPANSION', def.color, { dur: 110 });
+          CinFX.impactFrame(f, { dur: 3 });
           const line = _DOMAIN_ENTRY_LINE[f.charClass];
           if (line && typeof queueAnnouncement === 'function') queueAnnouncement('"' + line + '"', def.color);
         }
         if (t === 215) {
-          CinFX.speedLines(f.cx(), f.cy(), '#ee4444', { count: 36, maxLen: 420, dur: 24, spread: Math.PI * 2 });
+          CinFX.shockwave(f.cx(), f.cy(), '#ee4444', { count: 2, maxR: 320, lw: 5, dur: 45 });
           CinFX.motionTrailOn(f, def.color);
           CinCam.zoomTo(1.28);
         }
@@ -1028,7 +1039,7 @@ const DomainManager = (() => {
       default: {
         if (t === 275) {
           CinFX.bgContrast(_DOMAIN_DARK_COLOR[f.charClass] || '#0a0a0a', 0.88, 55);
-          CinFX.speedLines(f.cx(), f.cy(), def.color, { count: 28, maxLen: 320, dur: 18, spread: Math.PI * 2 });
+          CinFX.shockwave(f.cx(), f.cy(), def.color, { count: 2, maxR: 320, lw: 5, dur: 45 });
           CinCam.directionalShake(30, 0, -1);
         }
         if (t === 252) {
@@ -1040,9 +1051,10 @@ const DomainManager = (() => {
           const line = _DOMAIN_ENTRY_LINE[f.charClass];
           if (line && typeof queueAnnouncement === 'function') queueAnnouncement('"' + line + '"', def.color);
         }
-        if (t === 235) { CinFX.nameCard('DOMAIN EXPANSION', def.color, { dur: 100 }); }
+        if (t === 235) { CinFX.nameCard('DOMAIN EXPANSION', def.color, { dur: 100 });
+          CinFX.impactFrame(f, { dur: 3 }); }
         if (t === 215) {
-          CinFX.speedLines(f.cx(), f.cy(), def.color, { count: 36, maxLen: 420, dur: 22, spread: Math.PI * 2 });
+          CinFX.shockwave(f.cx(), f.cy(), def.color, { count: 2, maxR: 320, lw: 5, dur: 45 });
           CinFX.motionTrailOn(f, def.color);
           CinCam.zoomTo(1.2);
         }
@@ -1590,12 +1602,20 @@ const DomainManager = (() => {
       }
     }
 
-    // Ground heat (t=248+)
+    // Ground heat (t=248+) — soft glow hugging the ground
+    // (was a hard glowing rect that read as a floating red bar)
     if (t <= 248) {
       const hp = _dClamp((248 - t) / 60, 0, 0.3);
       ctx.globalAlpha = hp;
-      ctx.fillStyle = '#ff2200'; ctx.shadowColor = '#ff6600'; ctx.shadowBlur = 22;
-      ctx.fillRect(fx - 80, GAME_H - 85, 160, 8);
+      ctx.save();
+      ctx.translate(fx, GAME_H - 81);
+      ctx.scale(1, 0.22); // flatten into a ground-hugging ellipse
+      const _khGrad = ctx.createRadialGradient(0, 0, 0, 0, 0, 120);
+      _khGrad.addColorStop(0, 'rgba(255,70,0,0.85)');
+      _khGrad.addColorStop(1, 'rgba(255,70,0,0)');
+      ctx.fillStyle = _khGrad;
+      ctx.beginPath(); ctx.arc(0, 0, 120, 0, Math.PI * 2); ctx.fill();
+      ctx.restore();
     }
   }
 

@@ -1703,16 +1703,20 @@ class Fighter {
     const armLen     = 24 * _sc; // matches draw() armLen, scaled by size
     const atkP       = 1 - this.attackTimer / this.attackDuration;
     // Megaknight: upward arc — fist sweeps from low to high
-    const ang = (this.charClass === 'megaknight')
-      ? (this.facing > 0
-          ? lerp(1.2, -1.1, atkP)
-          : lerp(Math.PI - 1.2, Math.PI + 1.1, atkP))
-      : (this.facing > 0
-          ? lerp(-0.45, 1.1, atkP)
-          : lerp(Math.PI + 0.45, Math.PI - 1.1, atkP));
+    let ang, reachFrac = 1;
+    if (this.charClass === 'megaknight') {
+      ang = this.facing > 0
+        ? lerp(1.2, -1.1, atkP)
+        : lerp(Math.PI - 1.2, Math.PI + 1.1, atkP);
+    } else {
+      const _sp = swingPose(this.weaponKey, atkP, this.facing, this._jabAlt);
+      ang = _sp.ang;
+      reachFrac = _sp.reachFrac;
+    }
     const tipLens = { sword: 26, hammer: 30, axe: 23, spear: 40, gauntlet: 22, mkgauntlet: 30 };
-    const wLen    = (tipLens[this.weaponKey] || 23) * _sc;
-    const reach   = armLen + wLen;
+    const _swg    = (typeof WEAPON_SWINGS !== 'undefined') ? WEAPON_SWINGS[this.weaponKey] : null;
+    const wLen    = ((_swg && _swg.tipLen) || tipLens[this.weaponKey] || 23) * _sc;
+    const reach   = (armLen + wLen) * reachFrac;
     return {
       x: cx         + Math.cos(ang) * reach,
       y: shoulderY  + Math.sin(ang) * reach
@@ -1730,18 +1734,22 @@ class Fighter {
     const armLen    = 24 * _sc2;
     const atkP      = 1 - this.attackTimer / this.attackDuration;
     // Megaknight: upward arc — fist sweeps from low to high
-    const ang = (this.charClass === 'megaknight')
-      ? (this.facing > 0
-          ? lerp(1.2, -1.1, atkP)
-          : lerp(Math.PI - 1.2, Math.PI + 1.1, atkP))
-      : (this.facing > 0
-          ? lerp(-0.45, 1.1, atkP)
-          : lerp(Math.PI + 0.45, Math.PI - 1.1, atkP));
+    let ang, reachFrac = 1;
+    if (this.charClass === 'megaknight') {
+      ang = this.facing > 0
+        ? lerp(1.2, -1.1, atkP)
+        : lerp(Math.PI - 1.2, Math.PI + 1.1, atkP);
+    } else {
+      const _sp = swingPose(this.weaponKey, atkP, this.facing, this._jabAlt);
+      ang = _sp.ang;
+      reachFrac = _sp.reachFrac;
+    }
     const tipLens = { sword: 26, hammer: 30, axe: 23, spear: 40, gauntlet: 22, mkgauntlet: 30, whip: 50, flail: 28 };
-    const wLen    = (tipLens[this.weaponKey] || 23) * _sc2;
-    const fullReach = armLen + wLen;
+    const _swg2   = (typeof WEAPON_SWINGS !== 'undefined') ? WEAPON_SWINGS[this.weaponKey] : null;
+    const wLen    = ((_swg2 && _swg2.tipLen) || tipLens[this.weaponKey] || 23) * _sc2;
+    const fullReach = (armLen + wLen) * reachFrac;
     // Sample inner (50%), mid (75%), and tip (100%) along the weapon; whip adds extra outer sample
-    const fracs = this.weaponKey === 'whip' ? [0.40, 0.65, 0.85, 1.0] : [0.50, 0.75, 1.0];
+    const fracs = (_swg2 && _swg2.hitFracs) || (this.weaponKey === 'whip' ? [0.40, 0.65, 0.85, 1.0] : [0.50, 0.75, 1.0]);
     return fracs.map(frac => ({
       x: cx        + Math.cos(ang) * fullReach * frac,
       y: shoulderY + Math.sin(ang) * fullReach * frac,
@@ -1760,6 +1768,7 @@ class Fighter {
     // MEGAKNIGHT: Uppercut Slam — upward fist swing, wide arc, sends enemies skyward
     if (this.charClass === 'megaknight') {
       this.cooldown     = this.attackCooldownMult ? Math.max(1, Math.ceil(this.weapon.cooldown * this.attackCooldownMult)) : this.weapon.cooldown;
+      this.attackDuration = 12; // reset in case a cinematic stretched it
       this.attackTimer  = this.attackDuration;
       this.superChargeRate = 2;
       this.weaponHit    = false;
@@ -1786,6 +1795,13 @@ class Fighter {
     }
 
     if (!this.weapon) return;
+    // Per-weapon swing grammar: distinct duration per melee weapon (legacy 12 otherwise).
+    // Bosses keep their own attackDuration handling (cinematics set it directly).
+    if (!this.isBoss) {
+      const _sg = (typeof WEAPON_SWINGS !== 'undefined') ? WEAPON_SWINGS[this.weaponKey] : null;
+      this.attackDuration = (this.weapon.type === 'melee' && _sg && _sg.dur) ? _sg.dur : 12;
+      if (_sg && _sg.alternate) this._jabAlt = !this._jabAlt; // boxing gloves: high jab / body hook
+    }
     if (this.weapon.type === 'melee') {
       // Use closest enemy (dummy, minion, or training target) if target is null
       const _atkTarget = target || this.target || trainingDummies[0] || players.find(p => p !== this);
@@ -3718,50 +3734,78 @@ class Fighter {
     ctx.arc(cx, headCY, headR, 0, Math.PI * 2);
     ctx.fillStyle = this.color;
     ctx.fill();
+    // Soft underside shading — gives the head volume instead of a flat disc
+    ctx.fillStyle = 'rgba(0,0,0,0.10)';
+    ctx.beginPath();
+    ctx.arc(cx, headCY + 2.2, headR - 1.6, Math.PI * 0.12, Math.PI * 0.88);
+    ctx.fill();
+    // Top-light sheen on the facing side
+    ctx.fillStyle = 'rgba(255,255,255,0.13)';
+    ctx.beginPath();
+    ctx.ellipse(cx + f * 3.0, headCY - 5.2, 4.6, 2.6, f * 0.5, 0, Math.PI * 2);
+    ctx.fill();
 
     // ── FACE ──────────────────────────────────────────────────
+    // 3/4-view face: large near eye toward facing + smaller far eye, brows
+    // anchored just above each eye (the old single brow floated at the very
+    // top of the head and read as detached marks).
     const _expr = this.expressionState || 'neutral';
-    const _eyeX = cx + f * 3.5;
-    const _eyeY = headCY - 4;    // raised so eye bottom (headCY-1.5) clears mouth top (headCY+2.5)
-    const _eyeR = 2.5;
+    const _eyeX  = cx + f * 4.2;   // near eye
+    const _eyeY  = headCY - 3.2;
+    const _eyeR  = 2.6;
+    const _eye2X = cx - f * 1.8;   // far eye (smaller — perspective)
+    const _eye2R = 2.1;
 
-    // Sclera
+    // Scleras
     ctx.fillStyle = '#fff';
     ctx.beginPath();
-    ctx.arc(_eyeX, _eyeY, _eyeR, 0, Math.PI * 2);
+    ctx.arc(_eyeX,  _eyeY, _eyeR,  0, Math.PI * 2);
+    ctx.arc(_eye2X, _eyeY, _eye2R, 0, Math.PI * 2);
     ctx.fill();
 
-    // Half-lid: paint a sliver of head color back over the top of the eye
+    // Half-lid: paint a sliver of head color back over the top of both eyes
     if (_expr === 'cool' || _expr === 'serene') {
       ctx.fillStyle = this.color;
-      ctx.fillRect(_eyeX - _eyeR - 0.5, _eyeY - _eyeR, _eyeR * 2 + 1, _eyeR * 0.65);
+      ctx.fillRect(_eyeX  - _eyeR  - 0.5, _eyeY - _eyeR,  _eyeR  * 2 + 1, _eyeR  * 0.65);
+      ctx.fillRect(_eye2X - _eye2R - 0.5, _eyeY - _eye2R, _eye2R * 2 + 1, _eye2R * 0.65);
     }
 
-    // Pupil
+    // Pupils — centered in the sclera with a slight look toward facing
     ctx.fillStyle = s === 'hurt' ? '#ff0000' : '#111';
     ctx.beginPath();
-    ctx.arc(cx + f * 4.5, _eyeY, 1.2, 0, Math.PI * 2);
+    ctx.arc(_eyeX  + f * 0.8, _eyeY + 0.2, 1.25, 0, Math.PI * 2);
+    ctx.arc(_eye2X + f * 0.7, _eyeY + 0.2, 1.05, 0, Math.PI * 2);
     ctx.fill();
-
-    // Eyebrow — curved arch; control point lifts the middle
-    const _browNoseX = cx + f * 1.2;
-    const _browEarX  = cx + f * 6.0;
-    const _browMidX  = (cx + f * 1.2 + cx + f * 6.0) / 2;  // midpoint x
-    let   _browNoseY = headCY - 8.5;
-    let   _browEarY  = headCY - 8.5;
-    let   _browMidY  = headCY - 11;   // arch peak (above both endpoints)
-    if (s === 'hurt') {
-      _browNoseY -= 1.5; _browEarY += 0.5; _browMidY -= 0.5;  // worried ↗
-    } else if (s === 'attacking' || _expr === 'focused' || _expr === 'intense') {
-      _browNoseY += 1.5; _browEarY -= 0.5; _browMidY += 0.8;  // determined ↘
-    } else if (_expr === 'cool') {
-      _browNoseY += 0.5; _browEarY -= 0.5; _browMidY += 0.3;  // cool slight ↘
+    // Catchlight on the near pupil
+    if (s !== 'hurt') {
+      ctx.fillStyle = 'rgba(255,255,255,0.85)';
+      ctx.beginPath();
+      ctx.arc(_eyeX + f * 0.8 - 0.45, _eyeY - 0.3, 0.5, 0, Math.PI * 2);
+      ctx.fill();
     }
+
+    // Eyebrows — short arcs hugging each eye; expression tilts the inner end
+    let _browIn = 0, _browOut = 0, _browLift = 0;  // y-offsets: inner end, outer end, mid peak
+    if (s === 'hurt') {
+      _browIn = -1.5; _browOut = 0.5; _browLift = -0.5;  // worried ↗
+    } else if (s === 'attacking' || _expr === 'focused' || _expr === 'intense') {
+      _browIn = 1.5; _browOut = -0.5; _browLift = 0.8;   // determined ↘
+    } else if (_expr === 'cool') {
+      _browIn = 0.5; _browOut = -0.5; _browLift = 0.3;   // cool slight ↘
+    }
+    const _browY = _eyeY - 4.4;
     ctx.strokeStyle = 'rgba(0,0,0,0.7)';
-    ctx.lineWidth   = 1.8;
+    ctx.lineWidth   = 1.6;
     ctx.beginPath();
-    ctx.moveTo(_browEarX, _browEarY);
-    ctx.quadraticCurveTo(_browMidX, _browMidY, _browNoseX, _browNoseY);
+    ctx.moveTo(_eyeX + f * 2.9, _browY + _browOut);
+    ctx.quadraticCurveTo(_eyeX, _browY - 1.6 + _browLift, _eyeX - f * 2.6, _browY + _browIn);
+    ctx.stroke();
+    // Far brow — shorter and fainter
+    ctx.strokeStyle = 'rgba(0,0,0,0.45)';
+    ctx.lineWidth   = 1.4;
+    ctx.beginPath();
+    ctx.moveTo(_eye2X + f * 2.2, _browY + _browOut * 0.7);
+    ctx.quadraticCurveTo(_eye2X, _browY - 1.3 + _browLift * 0.7, _eye2X - f * 1.9, _browY + _browIn * 0.7);
     ctx.stroke();
 
     // Mouth — canvas y-down: arc(…,0,π,false)=∪=smile; arc(…,0,π,true)=∩=frown
@@ -3827,12 +3871,29 @@ class Fighter {
       rAng = spinA;
       lAng = spinA + Math.PI;
     } else if (s === 'attacking') {
-      if (f > 0) { rAng = lerp(-0.45, 1.1, atkProgress); lAng = lerp(Math.PI*0.8, Math.PI*0.55, atkProgress); }
-      else       { rAng = lerp(Math.PI+0.45, Math.PI-1.1, atkProgress); lAng = lerp(Math.PI*0.2, Math.PI*0.45, atkProgress); }
+      // Swing grammar drives the weapon arm; balance arm keeps the legacy counter-pose.
+      if (this.charClass === 'megaknight') {
+        rAng = f > 0 ? lerp(1.2, -1.1, atkProgress) : lerp(Math.PI - 1.2, Math.PI + 1.1, atkProgress);
+        this._swingArmStretch = 1;
+      } else {
+        const _sp = (typeof swingPose === 'function') ? swingPose(this.weaponKey, atkProgress, f, this._jabAlt) : null;
+        rAng = _sp ? _sp.ang
+                   : (f > 0 ? lerp(-0.45, 1.1, atkProgress) : lerp(Math.PI + 0.45, Math.PI - 1.1, atkProgress));
+        // Thrust/jab weapons: arm visibly extends with the reach curve
+        this._swingArmStretch = (_sp && _sp.reachFrac !== 1) ? 0.65 + 0.5 * _sp.reachFrac : 1;
+      }
+      lAng = f > 0 ? lerp(Math.PI*0.8, Math.PI*0.55, atkProgress) : lerp(Math.PI*0.2, Math.PI*0.45, atkProgress);
     } else if (s === 'walking') {
       const sw = Math.sin(t * 0.24) * 0.52;
-      rAng = Math.PI * 0.58 + sw;
-      lAng = Math.PI * 0.42 - sw;
+      // Carry pose: weapon arm holds its carry stance while the off arm keeps swinging
+      const _cw = (!this.isBoss && typeof WEAPON_SWINGS !== 'undefined' && WEAPON_SWINGS[this.weaponKey]) ? WEAPON_SWINGS[this.weaponKey].carry : null;
+      if (_cw) {
+        rAng = (f > 0 ? _cw.arm : Math.PI - _cw.arm) + sw * 0.06; // tiny bob so the carry isn't frozen
+        lAng = _cw.lArm !== undefined ? (f > 0 ? _cw.lArm : Math.PI - _cw.lArm) : Math.PI * 0.42 - sw;
+      } else {
+        rAng = Math.PI * 0.58 + sw;
+        lAng = Math.PI * 0.42 - sw;
+      }
     } else if (s === 'jumping' || s === 'falling') {
       rAng = -0.25; lAng = Math.PI + 0.25;
     } else if (s === 'shielding') {
@@ -3840,12 +3901,19 @@ class Fighter {
       lAng = f > 0 ? -0.55 : Math.PI + 0.55;
     } else {
       const b = Math.sin(t * 0.045) * 0.045;
-      rAng = Math.PI * 0.58 + b;
-      lAng = Math.PI * 0.42 - b;
+      const _ci = (!this.isBoss && typeof WEAPON_SWINGS !== 'undefined' && WEAPON_SWINGS[this.weaponKey]) ? WEAPON_SWINGS[this.weaponKey].carry : null;
+      if (_ci) {
+        rAng = (f > 0 ? _ci.arm : Math.PI - _ci.arm) + b;
+        lAng = _ci.lArm !== undefined ? (f > 0 ? _ci.lArm : Math.PI - _ci.lArm) : Math.PI * 0.42 - b;
+      } else {
+        rAng = Math.PI * 0.58 + b;
+        lAng = Math.PI * 0.42 - b;
+      }
     }
 
-    const rEx = cx + Math.cos(rAng) * armLen;
-    const rEy = shoulderY + Math.sin(rAng) * armLen;
+    const _rArmLen = (s === 'attacking' && this._swingArmStretch) ? armLen * this._swingArmStretch : armLen;
+    const rEx = cx + Math.cos(rAng) * _rArmLen;
+    const rEy = shoulderY + Math.sin(rAng) * _rArmLen;
     const lEx = cx + Math.cos(lAng) * armLen;
     const lEy = shoulderY + Math.sin(lAng) * armLen;
 
@@ -4219,7 +4287,7 @@ class Fighter {
         const _stPts   = this._swingTrail;
         const _stCol   = this._swingTrailColor || '#ffffff';
         const _stHeavy = !!this._swingTrailHeavy;
-        const _stW     = _stHeavy ? 9 : 5;   // width at the newest sample
+        const _stW     = this._swingTrailWidth || (_stHeavy ? 9 : 5);   // width at the newest sample
         ctx.save();
         ctx.globalCompositeOperation = 'lighter';
         ctx.lineCap  = 'round';
@@ -4754,14 +4822,23 @@ class Fighter {
   drawWeapon(hx, hy, angle, attacking, overrideKey = null, scale = 1) {
     ctx.save();
     ctx.translate(hx, hy);
-    ctx.rotate(angle + (attacking ? 0.6 : 0));
+    const k = overrideKey || this.weaponKey;
+    // Per-weapon grip tilt while attacking (legacy weapons keep the 0.6 rad slash tilt)
+    const _swgD = (typeof WEAPON_SWINGS !== 'undefined') ? WEAPON_SWINGS[k] : null;
+    let _atkTilt;
+    if (attacking) {
+      _atkTilt = (_swgD && _swgD.tilt !== undefined) ? _swgD.tilt : 0.6;
+    } else {
+      // Carry tilt: how the weapon rests in the hand out of combat (facing-mirrored)
+      const _cTilt = (_swgD && _swgD.carry && _swgD.carry.tilt) || 0;
+      _atkTilt = this.facing < 0 ? -_cTilt : _cTilt;
+    }
+    ctx.rotate(angle + _atkTilt);
     if (scale !== 1) ctx.scale(scale, scale);
     ctx.lineCap   = 'round';
 
-    const k = overrideKey || this.weaponKey;
-
     // Store world-space weapon tip for clash detection
-    const _tipAngle = angle + (attacking ? 0.6 : 0);
+    const _tipAngle = angle + _atkTilt;
     const _tipRange = this.weapon ? (this.weapon.range || 30) : 30;
     this._weaponTip = { x: hx + Math.cos(_tipAngle) * _tipRange * 0.85,
                         y: hy + Math.sin(_tipAngle) * _tipRange * 0.85,
@@ -4794,20 +4871,23 @@ class Fighter {
     // ribbon drawn in the body draw pass (near the sword air-slash crescents).
     // Gauntlet/off-hand and ranged weapons are excluded, so the boss's second
     // drawWeapon() call never records a duplicate or wrong-colored trail.
+    const _swgTr = _swgD && _swgD.trail;
     if (typeof settings !== 'undefined' && settings.particles && attacking &&
         k !== 'gauntlet' && _glowColors[k] &&
-        this.weapon && this.weapon.type === 'melee') {
+        this.weapon && this.weapon.type === 'melee' &&
+        (!_swgTr || _swgTr.cap > 0)) {
       if (!this._swingTrail) this._swingTrail = [];
       const _stHeavy = this.weapon.weaponType === 'heavy';
       let _stColor = _glowColors[k];
       if (!overrideKey && this.weaponTheme && typeof WEAPON_THEMES !== 'undefined' && WEAPON_THEMES[this.weaponTheme]) {
         _stColor = WEAPON_THEMES[this.weaponTheme];
       }
-      const _stLife = _stHeavy ? 14 : 9;
+      const _stLife = _swgTr ? _swgTr.life : (_stHeavy ? 14 : 9);
       this._swingTrail.push({ x: this._weaponTip.x, y: this._weaponTip.y, life: _stLife, maxLife: _stLife });
       this._swingTrailColor = _stColor;
       this._swingTrailHeavy = _stHeavy;
-      const _stCap = _stHeavy ? 8 : 6;
+      this._swingTrailWidth = _swgTr ? _swgTr.width : 0;
+      const _stCap = _swgTr ? _swgTr.cap : (_stHeavy ? 8 : 6);
       while (this._swingTrail.length > _stCap) this._swingTrail.shift();
     }
 

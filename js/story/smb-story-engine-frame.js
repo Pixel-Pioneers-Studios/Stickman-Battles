@@ -207,6 +207,10 @@ function storyUpdateBoundaries() {
     }
     p.vx = 0;
     p.vy = 0;
+    // Belt-and-braces: whichever path picked the spot, never place the player
+    // outside the boundary portals (floor data may extend past mapRight)
+    if (currentArena.mapLeft  !== undefined) p.x = Math.max(p.x, currentArena.mapLeft + 60);
+    if (currentArena.mapRight !== undefined) p.x = Math.min(p.x, currentArena.mapRight - 60 - p.w);
     p._storyBoundaryBreached = null;
     p._storyBottomBreached   = false;
     // Brief invincibility so the teleport can't be used to dodge attacks

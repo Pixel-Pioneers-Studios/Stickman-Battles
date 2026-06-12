@@ -660,11 +660,14 @@ CinFX.speedLines = function(x, y, color, opts) {
   const dir    = opts.dir    || 0;
   const lines  = [];
   for (let i = 0; i < count; i++) {
-    const angle = dir + (Math.random() - 0.5) * spread;
+    // Even angular distribution with light jitter — random angles made full-circle
+    // bursts read as scribble crossing through the subject
+    const angle = dir + ((i + 0.5) / count - 0.5) * spread + (Math.random() - 0.5) * 0.12;
     lines.push({
       angle,
-      startFrac: 0.08 + Math.random() * 0.18,
-      endFrac:   0.45 + Math.random() * 0.55,
+      // Inner gap: lines start well away from the origin so they form a halo
+      startFrac: 0.30 + Math.random() * 0.15,
+      endFrac:   0.60 + Math.random() * 0.40,
       width:     0.7 + Math.random() * 1.8,
     });
   }

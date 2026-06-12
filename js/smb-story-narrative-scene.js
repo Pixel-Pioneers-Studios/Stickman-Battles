@@ -11,7 +11,8 @@
   // ── State ──────────────────────────────────────────────────────────────────────
   var _canvas, _ctx, _raf;
   var _beats = [], _beatIdx = 0, _typedLen = 0, _lastTypeTime = 0;
-  var _callback = null, _chapter = null, _spec = null;
+  var _callback = null, _chapter = null, _spec = null, _actStyle = null;
+  var _trans = null; // active beat transition {type, t, dur}
   var _t = 0, _beatT = 0;
   var _stars = [];
   var _cam   = { zoom: 1, cx: 0.5, cy: 0.5 };
@@ -617,6 +618,142 @@
     for (var li=0;li<wrLines.length;li++) { c.fillText(wrLines[li],bx+pad,by+pad+fSize+li*lineH); }
   }
 
+  // ── ACT STYLE PACKS ────────────────────────────────────────────────────────────
+  // Per-act visual identity merged into every scene (docs/story-cinematics-plan.md
+  // Phase 1). Existing STORY_SCENE_SPECS inherit these with zero edits.
+  // Chapter→act mapping is by id runs (acts have no act field; ids overlap between
+  // act directories, so ranges are listed explicitly — keep in sync when adding
+  // chapters; unmapped ids warn once in the console).
+  var STORY_ACT_IDS = {
+    act0:   [[0, 12]],
+    act1:   [[13, 27]],
+    act2:   [[28, 44]],
+    act3:   [[45, 61]],
+    side:   [[62, 62]],
+    act5:   [[63, 68], [131, 136]],
+    act6:   [[69, 77]],
+    act4mv: [[78, 113]],
+    act4:   [[114, 130]],
+    act7:   [[140, 155]],
+  };
+  // grade: full-screen color wash; letterbox: default bar fraction when a beat
+  // doesn't set its own; captionTint: narrator bar color; motif: ambient signature.
+  var STORY_ACT_STYLES = {
+    act0:   { grade: 'rgba(255,180,90,0.07)',  letterbox: 0.06,  captionTint: 'rgba(30,18,4,0.74)',  motif: 'dust',     motifColor: '#ffd9a0' },
+    act1:   { grade: 'rgba(0,200,220,0.06)',   letterbox: 0.085, captionTint: 'rgba(2,22,28,0.74)',  motif: 'shards',   motifColor: '#55ddee' },
+    act2:   { grade: 'rgba(170,200,255,0.06)', letterbox: 0.085, captionTint: 'rgba(10,16,30,0.74)', motif: 'grid',     motifColor: '#aaccff' },
+    act3:   { grade: 'rgba(255,60,30,0.055)',  letterbox: 0.10,  captionTint: 'rgba(26,8,4,0.76)',   motif: 'embers',   motifColor: '#ff7733' },
+    act4:   { grade: 'rgba(150,90,255,0.06)',  letterbox: 0.085, captionTint: 'rgba(16,8,30,0.74)',  motif: 'skybleed', motifColor: '#9966ff' },
+    act4mv: { grade: 'rgba(150,90,255,0.06)',  letterbox: 0.085, captionTint: 'rgba(16,8,30,0.74)',  motif: 'skybleed', motifColor: '#bb66ff' },
+    act5:   { grade: 'rgba(120,0,200,0.08)',   letterbox: 0.11,  captionTint: 'rgba(14,0,24,0.78)',  motif: 'tears',    motifColor: '#bb44ff' },
+    act6:   { grade: 'rgba(255,200,80,0.07)',  letterbox: 0.11,  captionTint: 'rgba(24,16,0,0.78)',  motif: 'panels',   motifColor: '#ffcc55' },
+    act7:   { grade: 'rgba(240,240,255,0.05)', letterbox: 0.12,  captionTint: 'rgba(8,8,14,0.80)',   motif: 'rings',    motifColor: '#ffffff' },
+    side:   { grade: 'rgba(170,200,255,0.06)', letterbox: 0.085, captionTint: 'rgba(10,16,30,0.74)', motif: 'grid',     motifColor: '#aaccff' },
+  };
+  var _actWarned = {};
+  function _getActStyle(chId) {
+    if (chId === undefined || chId === null) return null;
+    for (var act in STORY_ACT_IDS) {
+      var runs = STORY_ACT_IDS[act];
+      for (var ri = 0; ri < runs.length; ri++) {
+        if (chId >= runs[ri][0] && chId <= runs[ri][1]) return STORY_ACT_STYLES[act] || null;
+      }
+    }
+    if (!_actWarned[chId]) { _actWarned[chId] = true; console.warn('[StoryScene] chapter', chId, 'has no act mapping in STORY_ACT_IDS'); }
+    return null;
+  }
+
+  // Deterministic per-index pseudo-random (no state — motifs replay identically)
+  function _mHash(i) { var r = Math.sin(i * 127.1 + 311.7) * 43758.5453; return r - Math.floor(r); }
+
+  // Ambient act-signature motif, drawn inside the camera transform over the bg.
+  function _drawActMotif(c, w, h, t, footY) {
+    if (!_actStyle || !_actStyle.motif) return;
+    var col = _actStyle.motifColor || '#ffffff';
+    c.save();
+    switch (_actStyle.motif) {
+      case 'dust': // warm drifting motes
+        c.fillStyle = col;
+        for (var i = 0; i < 18; i++) {
+          var r = _mHash(i);
+          var x = ((r * w) + Math.sin(t * 0.006 + i) * 30 + t * (0.08 + r * 0.12)) % w;
+          var y = (_mHash(i + 50) * h * 0.8) + Math.sin(t * 0.01 + i * 2) * 8;
+          c.globalAlpha = 0.10 + 0.10 * Math.sin(t * 0.02 + i * 1.7);
+          c.beginPath(); c.arc(x, y, 1.1 + r * 1.3, 0, Math.PI * 2); c.fill();
+        }
+        break;
+      case 'shards': // slowly tumbling fracture triangles drifting up
+        c.strokeStyle = col; c.lineWidth = 1;
+        for (var i2 = 0; i2 < 10; i2++) {
+          var r2 = _mHash(i2);
+          var x2 = r2 * w;
+          var y2 = h - (((t * (0.15 + r2 * 0.2)) + _mHash(i2 + 9) * h) % (h * 1.1));
+          var sz = 4 + r2 * 7, a2 = t * 0.004 * (r2 > 0.5 ? 1 : -1) + i2;
+          c.globalAlpha = 0.14 + r2 * 0.12;
+          c.save(); c.translate(x2, y2); c.rotate(a2);
+          c.beginPath(); c.moveTo(0, -sz); c.lineTo(sz * 0.8, sz * 0.6); c.lineTo(-sz * 0.7, sz * 0.5); c.closePath(); c.stroke();
+          c.restore();
+        }
+        break;
+      case 'grid': // faint architect grid with slow parallax drift
+        c.strokeStyle = col; c.lineWidth = 1; c.globalAlpha = 0.05;
+        var gOff = (t * 0.12) % 64;
+        for (var gx = -64 + gOff; gx < w + 64; gx += 64) { c.beginPath(); c.moveTo(gx, 0); c.lineTo(gx - 30, h); c.stroke(); }
+        for (var gy = 32 + (t * 0.05) % 64; gy < h; gy += 64) { c.beginPath(); c.moveTo(0, gy); c.lineTo(w, gy); c.stroke(); }
+        break;
+      case 'embers': // rising embers with flicker
+        c.fillStyle = col;
+        for (var i3 = 0; i3 < 16; i3++) {
+          var r3 = _mHash(i3);
+          var x3 = (r3 * w + Math.sin(t * 0.015 + i3 * 3) * 22) % w;
+          var y3 = h - (((t * (0.35 + r3 * 0.5)) + _mHash(i3 + 30) * h) % (h + 20));
+          c.globalAlpha = (0.12 + 0.16 * Math.abs(Math.sin(t * 0.05 + i3 * 2.3))) * (y3 / h);
+          c.beginPath(); c.arc(x3, y3, 1 + r3 * 1.6, 0, Math.PI * 2); c.fill();
+        }
+        break;
+      case 'skybleed': { // pulsing colored bleed from the sky
+        var sbGrad = c.createLinearGradient(0, 0, 0, h * 0.5);
+        var sbA = 0.10 + 0.05 * Math.sin(t * 0.012);
+        c.globalAlpha = sbA;
+        sbGrad.addColorStop(0, col); sbGrad.addColorStop(1, 'rgba(0,0,0,0)');
+        c.fillStyle = sbGrad; c.fillRect(0, 0, w, h * 0.5);
+        break;
+      }
+      case 'tears': // brief vertical reality-tear flickers
+        c.strokeStyle = col; c.lineWidth = 1.6;
+        for (var i4 = 0; i4 < 3; i4++) {
+          var cyc = (t + i4 * 217) % 260;             // each tear flickers ~1s every ~4.3s
+          if (cyc > 26) continue;
+          var r4 = _mHash(i4 + Math.floor((t + i4 * 217) / 260));
+          var x4 = r4 * w, y4 = _mHash(i4 + 70) * h * 0.5 + h * 0.1;
+          c.globalAlpha = 0.5 * (1 - cyc / 26) * (0.6 + 0.4 * Math.sin(t * 1.3));
+          c.beginPath(); c.moveTo(x4, y4);
+          c.lineTo(x4 + 4, y4 + 18); c.lineTo(x4 - 3, y4 + 34); c.lineTo(x4 + 2, y4 + 52);
+          c.stroke();
+        }
+        break;
+      case 'panels': // floating construct rectangles, slow bob
+        c.strokeStyle = col; c.lineWidth = 1;
+        for (var i5 = 0; i5 < 6; i5++) {
+          var r5 = _mHash(i5);
+          var x5 = r5 * w, y5 = _mHash(i5 + 20) * h * 0.55 + Math.sin(t * 0.008 + i5 * 2) * 10;
+          var pw = 18 + r5 * 26, ph = 10 + _mHash(i5 + 40) * 14;
+          c.globalAlpha = 0.12 + r5 * 0.10;
+          c.strokeRect(x5 - pw / 2, y5 - ph / 2, pw, ph);
+        }
+        break;
+      case 'rings': // kernel pulse rings expanding from upper center
+        c.strokeStyle = col; c.lineWidth = 1.4;
+        for (var i6 = 0; i6 < 2; i6++) {
+          var rp = ((t + i6 * 45) % 90) / 90;
+          c.globalAlpha = 0.16 * (1 - rp);
+          c.beginPath(); c.arc(w * 0.5, h * 0.32, 12 + rp * Math.min(w, h) * 0.42, 0, Math.PI * 2); c.stroke();
+        }
+        break;
+    }
+    c.restore();
+  }
+
   function _drawCaption(c, w, h, text, typedLen) {
     var shown=text.slice(0,typedLen); var pad=22,fSize=16,lineH=25,maxW=w*0.74;
     c.font='italic '+fSize+'px \'Segoe UI\', Georgia, serif';
@@ -624,7 +761,17 @@
     for (var wi=0;wi<words.length;wi++) { var test=cur?cur+' '+words[wi]:words[wi]; if(c.measureText(test).width>maxW){if(cur)wrLines.push(cur);cur=words[wi];}else{cur=test;} }
     if(cur)wrLines.push(cur);
     var totalH=wrLines.length*lineH+pad*2,by=h*FOOT_YF-totalH-12;
-    c.save(); c.fillStyle='rgba(0,0,0,0.72)'; c.fillRect(0,by,w,totalH);
+    c.save();
+    // Narrator restyle (plan Phase 2): bar fades in on beat entry, act-colored
+    // accent rule, slight letter tracking — visually distinct from dialogue bubbles
+    var _capA = Math.min(1, _beatT / 12);
+    c.globalAlpha = _capA;
+    if ('letterSpacing' in c) c.letterSpacing = '0.6px';
+    c.fillStyle=(_actStyle && _actStyle.captionTint) || 'rgba(0,0,0,0.72)'; c.fillRect(0,by,w,totalH);
+    c.globalAlpha = _capA * 0.55;
+    c.fillStyle = (_actStyle && _actStyle.motifColor) || '#8899bb';
+    c.fillRect(w*0.5 - 70, by, 140, 1.5);
+    c.globalAlpha = _capA;
     c.fillStyle='#dde4ff'; c.textAlign='center';
     for (var li=0;li<wrLines.length;li++) { c.fillText(wrLines[li],w*0.5,by+pad+fSize+li*lineH); }
     c.textAlign='left'; c.restore();
@@ -736,6 +883,7 @@
   function _render() {
     if (!_canvas) return;
     _t++; _beatT++;
+    if (_trans) { _trans.t++; if (_trans.t > _trans.dur) _trans = null; }
 
     var w = _canvas.width, h = _canvas.height;
     var beat = _beats[_beatIdx];
@@ -746,6 +894,14 @@
     _camUpdate(bs, _beatT);
 
     _ctx.clearRect(0,0,w,h);
+
+    // Whip-pan transition: scene slides in horizontally with an ease-out snap
+    var _twActive = _trans && _trans.type === 'whip';
+    var _twP = 0;
+    if (_twActive) {
+      _twP = 1 - Math.pow(_trans.t / _trans.dur, 2);
+      _ctx.save(); _ctx.translate(_twP * w * 0.30, 0);
+    }
 
     // ── Scene (inside camera transform) ─────────────────────────────────────────
     _camBegin(_ctx, w, h);
@@ -762,7 +918,10 @@
     }
     if (bs && bs.warp) _ctx.restore();
 
-    if (!beat) { _camEnd(_ctx); _finish(); return; }
+    // Act-signature ambient motif (style pack — over bg, under everything else)
+    _drawActMotif(_ctx, w, h, _t, footY);
+
+    if (!beat) { _camEnd(_ctx); if (_twActive) _ctx.restore(); _finish(); return; }
 
     // Effects behind figures
     if (bs && bs.effectsBehind) _drawBeatEffects(bs.effectsBehind,_ctx,w,h,footY,_t,_beatT,_pX(),_nX());
@@ -789,12 +948,37 @@
     if (bs && bs.effects) _drawBeatEffects(bs.effects,_ctx,w,h,footY,_t,_beatT,_pX(),_nX());
 
     _camEnd(_ctx);
+    if (_twActive) {
+      _ctx.restore();
+      // Horizontal motion streaks while the whip-pan settles
+      _ctx.save();
+      _ctx.globalAlpha = _twP * 0.30; _ctx.strokeStyle = '#ffffff'; _ctx.lineWidth = 1.5;
+      for (var _si = 0; _si < 7; _si++) {
+        var _sy = _mHash(_si + 80) * h;
+        _ctx.beginPath(); _ctx.moveTo(0, _sy); _ctx.lineTo(w * (0.4 + _mHash(_si) * 0.6) * _twP + 40, _sy); _ctx.stroke();
+      }
+      _ctx.restore();
+    }
 
     // ── Screen-space overlays (no camera transform) ──────────────────────────────
-    // Letterbox
-    if (bs && bs.letterbox) {
-      var lbh = (typeof bs.letterbox === 'number' ? bs.letterbox : 0.085) * h;
+    // Act color grade — subtle full-screen wash unifying the act's look
+    if (_actStyle && _actStyle.grade) {
+      _ctx.save(); _ctx.fillStyle = _actStyle.grade; _ctx.fillRect(0, 0, w, h); _ctx.restore();
+    }
+    // Letterbox (beat value wins; act style provides the default depth)
+    var _lbRaw = (bs && bs.letterbox !== undefined) ? bs.letterbox : (_actStyle && _actStyle.letterbox);
+    if (_lbRaw) {
+      var lbh = (typeof _lbRaw === 'number' ? _lbRaw : 0.085) * h;
       _ctx.fillStyle='#000000'; _ctx.fillRect(0,0,w,lbh); _ctx.fillRect(0,h-lbh,w,lbh);
+    }
+    // Beat transition overlay: fade = from black, slam = white flash-cut
+    if (_trans && (_trans.type === 'fade' || _trans.type === 'slam')) {
+      var _tp = _trans.t / _trans.dur;
+      _ctx.save();
+      _ctx.globalAlpha = (1 - _tp) * (_trans.type === 'slam' ? 0.85 : 1);
+      _ctx.fillStyle = _trans.type === 'slam' ? '#ffffff' : '#000000';
+      _ctx.fillRect(0, 0, w, h);
+      _ctx.restore();
     }
     // Screen flash (from effects list)
     var allEf = bs ? (bs.effectsBehind||[]).concat(bs.effects||[]) : [];
@@ -911,6 +1095,30 @@
     }
   }
 
+  // ── Beat entry: transition + audio sting (plan Phase 2) ────────────────────────
+  // Beat spec fields: transition: 'fade' | 'slam' | 'whip' | 'none' (default 'fade');
+  // sting: 'low' | 'rise' | 'impact' | 'silence'.
+  var _TRANS_DUR = { fade: 14, slam: 8, whip: 11 };
+  function _beatEnter(isFirst) {
+    var bs = _getBeatSpec();
+    var tType = (bs && bs.transition !== undefined) ? bs.transition : 'fade';
+    if (isFirst && (!bs || bs.transition === undefined)) {
+      _trans = { type: 'fade', t: 0, dur: 22 };           // scene opens from black
+    } else if (_TRANS_DUR[tType]) {
+      _trans = { type: tType, t: 0, dur: _TRANS_DUR[tType] };
+    } else {
+      _trans = null;                                       // 'none' or unknown
+    }
+    if (tType === 'slam') { _shakeStr = Math.max(_shakeStr || 0, 12); _shakeDecay = Math.max(_shakeDecay || 0, _shakeStr / 14); }
+    var sting = bs && bs.sting;
+    if (sting && typeof SoundManager !== 'undefined') {
+      if      (sting === 'low'     && SoundManager.stingLow)    SoundManager.stingLow();
+      else if (sting === 'rise'    && SoundManager.stingRise)   SoundManager.stingRise();
+      else if (sting === 'impact'  && SoundManager.stingImpact) SoundManager.stingImpact();
+      else if (sting === 'silence') SoundManager._cosmicSilenceTimer = 50; // anticipation hush
+    }
+  }
+
   // ── Advance / finish ───────────────────────────────────────────────────────────
   function _advance() {
     var beat = _beats[_beatIdx]; if(!beat){_finish();return;}
@@ -919,6 +1127,7 @@
     _beatIdx++; _beatT = 0;
     if (_beatIdx >= _beats.length) { _finish(); return; }
     _typedLen=0; _lastTypeTime=performance.now();
+    _beatEnter(false);
   }
 
   function _finish() { _cleanup(); if(_callback){var cb=_callback;_callback=null;cb();} }
@@ -932,7 +1141,7 @@
       _canvas=null; _ctx=null;
     }
     _spec=null; _beatT=0; _cam.zoom=1; _cam.cx=0.5; _cam.cy=0.5;
-    _shakeStr=0; _flashAlpha=0;
+    _shakeStr=0; _flashAlpha=0; _trans=null;
   }
 
   function _onInteract(e) { if(e&&e.type==='keydown'&&(e.key==='Tab'||e.key==='Escape'))return; _advance(); }
@@ -948,6 +1157,9 @@
 
     var chId = chapter && chapter.id;
     _spec = (chId !== undefined && window.STORY_SCENE_SPECS && STORY_SCENE_SPECS[chId]) ? STORY_SCENE_SPECS[chId] : null;
+    _actStyle = _getActStyle(chId);
+    // Coverage drift check (docs/story-cinematics-plan.md): narrated but no visual spec
+    if (chId !== undefined && !_spec) console.info('[StoryScene] chapter', chId, 'has narrative but no STORY_SCENE_SPECS entry — rendering with act style only');
 
     _canvas = document.createElement('canvas');
     _canvas.width = window.innerWidth; _canvas.height = window.innerHeight;
@@ -957,6 +1169,7 @@
     _initStars(75, _canvas.width, _canvas.height);
     _canvas.addEventListener('click', _onInteract);
     document.addEventListener('keydown', _onInteract);
+    _beatEnter(true);
     _raf = requestAnimationFrame(_render);
   }
 

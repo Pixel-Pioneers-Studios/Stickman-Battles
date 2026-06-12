@@ -318,14 +318,16 @@ class PlayerRagdoll {
       };
     }
 
-    // Attacking: forward swing (direction-aware)
+    // Attacking: forward swing (direction-aware; per-weapon grammar when available)
     if (s === 'attacking') {
       const p = f.attackDuration > 0 ? 1 - f.attackTimer / f.attackDuration : 0;
+      const _sp = (typeof swingPose === 'function' && f.charClass !== 'megaknight')
+        ? swingPose(f.weaponKey, p, face, f._jabAlt) : null;
       return face > 0
-        ? { rArm: lerp(-0.45, 1.1, p), lArm: lerp(Math.PI * 0.80, Math.PI * 0.55, p),
+        ? { rArm: _sp ? _sp.ang : lerp(-0.45, 1.1, p), lArm: lerp(Math.PI * 0.80, Math.PI * 0.55, p),
             rLeg: Math.PI * 0.55,      lLeg: Math.PI * 0.45,
             head: -0.08, torso: -0.06 * p }
-        : { rArm: lerp(Math.PI + 0.45, Math.PI - 1.1, p), lArm: lerp(Math.PI * 0.20, Math.PI * 0.45, p),
+        : { rArm: _sp ? _sp.ang : lerp(Math.PI + 0.45, Math.PI - 1.1, p), lArm: lerp(Math.PI * 0.20, Math.PI * 0.45, p),
             rLeg: Math.PI * 0.55, lLeg: Math.PI * 0.45,
             head: -0.08, torso: 0.06 * p };
     }

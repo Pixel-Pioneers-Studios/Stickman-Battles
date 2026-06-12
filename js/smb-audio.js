@@ -89,6 +89,21 @@ const SoundManager = (() => {
     swing()    { _play(c => { _osc(c,'sine',180,0.10,0.18); _noise(c,0.07,0.12,800); }); },
     hit()      { _play(c => { _osc(c,'square',120,0.12,0.22); _noise(c,0.10,0.20,400); }); },
     heavyHit() { _play(c => { _osc(c,'sawtooth',80,0.20,0.38); _noise(c,0.18,0.35,200); }); },
+    // Per-archetype melee hit sounds (weapon identity rework — see docs/weapon-identity-spec.md)
+    hitBlunt()  { _play(c => { _osc(c,'sine',55,0.22,0.40); _osc(c,'square',90,0.10,0.18); _noise(c,0.16,0.28,150); }); },   // deep concussive thud (hammer, flail, gloves)
+    hitPierce() { _play(c => { _osc(c,'sine',1100,0.05,0.16); _osc(c,'square',300,0.06,0.10); _noise(c,0.07,0.14,2200); }); }, // sharp needle tick (spear, katana, broomstick)
+    hitSnap()   { _play(c => { _noise(c,0.05,0.42,3000); _osc(c,'square',1500,0.03,0.12); _osc(c,'sine',200,0.08,0.10); }); }, // whip crack
+    hitZap()    { _play(c => { _osc(c,'sawtooth',880,0.09,0.16); _osc(c,'sawtooth',1320,0.06,0.10); _noise(c,0.08,0.12,1500); }); }, // electric bite (staff)
+    // Story-scene beat stings (docs/story-cinematics-plan.md Phase 2)
+    stingLow()    { _play(c => { _osc(c,'sine',55,0.85,0.20,0.08); _osc(c,'sine',82,0.65,0.09,0.10); }); },              // deep dread swell
+    stingImpact() { _play(c => { _osc(c,'sawtooth',58,0.45,0.34); _osc(c,'sine',40,0.55,0.22); _noise(c,0.30,0.22,120); }); }, // dramatic boom
+    stingRise()   { _play(c => { const o=c.createOscillator(); const g=c.createGain();
+                     o.type='sine'; o.frequency.setValueAtTime(110,c.currentTime);
+                     o.frequency.linearRampToValueAtTime(330,c.currentTime+0.7);
+                     g.gain.setValueAtTime(0.0001,c.currentTime);
+                     g.gain.linearRampToValueAtTime(_effectiveVol()*0.14,c.currentTime+0.35);
+                     g.gain.exponentialRampToValueAtTime(0.001,c.currentTime+0.8);
+                     o.connect(g); g.connect(c.destination); o.start(); o.stop(c.currentTime+0.8); }); },                // tension riser
     jump()     { _play(c => { const o=c.createOscillator(); const g=c.createGain();
                    o.type='sine'; o.frequency.setValueAtTime(220,c.currentTime);
                    o.frequency.linearRampToValueAtTime(440,c.currentTime+0.10);

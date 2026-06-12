@@ -644,6 +644,123 @@ const WEAPONS = {
 const WEAPON_KEYS = Object.keys(WEAPONS).filter(k => k !== 'gauntlet' && k !== 'mkgauntlet' && !WEAPONS[k].enemyOnly);
 
 // ============================================================
+// WEAPON SWING GRAMMAR — per-weapon attack identity
+// ============================================================
+// Design contract: docs/weapon-identity-spec.md
+// Each melee weapon gets a distinct swing: angle path a0→a1 (radians, facing-right,
+// mirrored automatically), easing curve, duration (frames), optional reach curve
+// (thrusts animate tip distance instead of angle), grip tilt while attacking,
+// tipLen (weapon length px for hitbox reach), optional hitFracs (hitbox sample
+// fractions along reach), and trail {life, cap, width} for the swing ribbon.
+// Ranged entries are firing-pose only (tilt 0 keeps the weapon level).
+// Weapons without an entry fall back to the legacy 12-frame diagonal slash.
+const WEAPON_SWINGS = {
+  // ── melee ──────────────────────────────────────────────────────────────
+  sword:         { archetype: 'slash',  dur: 11, a0: -0.65, a1: 1.15, ease: 'snap',   tilt: 0.6,  tipLen: 26, trail: { life:  9, cap: 6,  width: 5 } },
+  katana:        { archetype: 'iai',    dur:  9, a0: -0.35, a1: 0.95, ease: 'iai',    tilt: 0.5,  tipLen: 30, trail: { life: 13, cap: 8,  width: 4 },
+                   hitSound: 'pierce', carry: { arm: 0.80, tilt: 0.45 } },  // held low at the hip, blade angled down — ready stance
+  hammer:        { archetype: 'smash',  dur: 19, a0: -1.85, a1: 0.95, ease: 'heavy',  tilt: 0.7,  tipLen: 30, trail: { life: 14, cap: 9,  width: 10 },
+                   hitSound: 'blunt', carry: { arm: -0.90, tilt: -0.50 } }, // head rested up over the shoulder
+  fryingpan:     { archetype: 'smash',  dur: 15, a0: -1.55, a1: 0.80, ease: 'heavy',  tilt: 0.7,  tipLen: 26, trail: { life: 11, cap: 7,  width: 8 },
+                   hitSound: 'clang', carry: { arm: 1.05, tilt: 0.25 } },   // dangling at the side like a skillet
+  axe:           { archetype: 'cleave', dur: 14, a0: -1.05, a1: 1.35, ease: 'snap',   tilt: 0.65, tipLen: 23, trail: { life: 12, cap: 8,  width: 8 },
+                   carry: { arm: 0.95, tilt: -0.20 } },                     // held low at the side
+  scythe:        { archetype: 'sweep',  dur: 16, a0: -1.45, a1: 1.65, ease: 'sweep',  tilt: 0.8,  tipLen: 30, trail: { life: 13, cap: 9,  width: 7 },
+                   carry: { arm: -1.30, tilt: -0.20 } },                    // upright reaper pose, blade overhead
+  spear:         { archetype: 'thrust', dur: 12, a0:  0.10, a1: 0.02, ease: 'linear', tilt: 0.06, tipLen: 40,
+                   reach: { r0: 0.45, r1: 1.0, ease: 'thrust' }, hitFracs: [0.45, 0.7, 0.9, 1.0], trail: { life: 8, cap: 6, width: 4 },
+                   hitSound: 'pierce', carry: { arm: -1.15, tilt: -0.75 } }, // shouldered, point up-back
+  broomstick:    { archetype: 'poke',   dur: 10, a0:  0.18, a1: -0.06, ease: 'linear', tilt: 0.1, tipLen: 34,
+                   reach: { r0: 0.5, r1: 1.0, ease: 'thrust' }, hitFracs: [0.5, 0.75, 1.0], trail: { life: 7, cap: 5, width: 4 },
+                   hitSound: 'pierce', carry: { arm: -1.00, tilt: -0.85 } }, // slung over the shoulder
+  whip:          { archetype: 'crack',  dur: 13, a0: -0.55, a1: 0.35, ease: 'snap',   tilt: 0.15, tipLen: 50,
+                   reach: { r0: 0.35, r1: 1.0, ease: 'crack' }, hitFracs: [0.4, 0.65, 0.85, 1.0], trail: { life: 10, cap: 8, width: 3 },
+                   hitSound: 'snap', carry: { arm: 1.00, tilt: 0.40 } },     // coiled low at the side
+  boxinggloves:  { archetype: 'jab',    dur:  7, a0:  0.12, a1: -0.10, ease: 'linear', tilt: 0.0, tipLen: 12, alternate: true,
+                   reach: { r0: 0.4, r1: 1.0, ease: 'jab' }, hitFracs: [0.6, 1.0], trail: { life: 6, cap: 4, width: 4 },
+                   hitSound: 'blunt', carry: { arm: -0.35, lArm: -0.60 } },  // boxing guard — both fists up
+  flail:         { archetype: 'whirl',  dur: 20, a0: -2.6,  a1: 1.25, ease: 'heavy',  tilt: 0.55, tipLen: 28, trail: { life: 14, cap: 10, width: 6 },
+                   hitSound: 'blunt', carry: { arm: 1.10, tilt: 0.50 } },    // ball dangling straight down
+  shield:        { archetype: 'bash',   dur: 10, a0:  0.15, a1: -0.05, ease: 'linear', tilt: 0.0, tipLen: 16,
+                   reach: { r0: 0.5, r1: 1.0, ease: 'jab' }, hitFracs: [0.7, 1.0], trail: { life: 0, cap: 0, width: 0 },
+                   hitSound: 'clang', carry: { arm: 0.35, tilt: 0.0 } },     // held braced in front
+  electricstaff: { archetype: 'strike', dur: 13, a0: -0.95, a1: 1.25, ease: 'snap',   tilt: 0.6,  tipLen: 30, trail: { life: 11, cap: 8, width: 6 },
+                   hitSound: 'zap', carry: { arm: 0.70, tilt: -1.30 } },     // walking-staff, held upright
+  // ── enemy-only melee (distinct from sword so duels read differently) ───
+  nullblade:     { archetype: 'slash',  dur: 10, a0: -0.85, a1: 1.05, ease: 'snap',   tilt: 0.55, tipLen: 26, trail: { life: 10, cap: 7, width: 5 } },
+  voidblade:     { archetype: 'slash',  dur:  9, a0: -0.50, a1: 1.20, ease: 'iai',    tilt: 0.5,  tipLen: 24, trail: { life: 10, cap: 7, width: 4 } },
+  // ── ranged firing poses (no swing — recoil/throw arcs, weapon stays level) ──
+  gun:           { archetype: 'point',  a0: -0.45, a1: 0.02, ease: 'recoil', tilt: 0.0, carry: { arm: 0.55, tilt: -0.35 } }, // low ready, muzzle slightly up
+  peashooter:    { archetype: 'point',  a0: -0.18, a1: 0.00, ease: 'recoil', tilt: 0.0 },
+  bow:           { archetype: 'aim',    a0: -0.08, a1: 0.00, ease: 'recoil', tilt: 0.0, carry: { arm: 0.85, tilt: 0.30 } },  // held down at the side
+  slingshot:     { archetype: 'aim',    a0:  0.35, a1: -0.10, ease: 'recoil', tilt: 0.0 },
+  paperairplane: { archetype: 'throw',  a0: -0.95, a1: 0.30, ease: 'snap',   tilt: 0.0 },
+  boomerang:     { archetype: 'throw',  a0: -1.20, a1: 0.50, ease: 'snap',   tilt: 0.0 },
+  flamethrower:  { archetype: 'hose',   a0:  0.12, a1: -0.06, ease: 'recoil', tilt: 0.0 },
+  shockrifle:    { archetype: 'point',  a0: -0.30, a1: 0.02, ease: 'recoil', tilt: 0.0 },
+};
+
+// Easing curves for swing motion. p in [0,1] → interpolation factor (may dip
+// below 0 for wind-back or overshoot past 1 — that's intentional).
+function swingEase(p, type) {
+  switch (type) {
+    case 'snap': { // brief wind-back, then whip through
+      if (p < 0.25) return -0.16 * (p / 0.25);
+      const q = (p - 0.25) / 0.75;
+      return -0.16 + 1.16 * (1 - Math.pow(1 - q, 3));
+    }
+    case 'iai': { // long stillness, then near-instant cut
+      if (p < 0.45) return -0.05 * (p / 0.45);
+      const q = (p - 0.45) / 0.55;
+      return -0.05 + 1.05 * (1 - Math.pow(1 - q, 4));
+    }
+    case 'heavy': { // slow rising windup, accelerating drop
+      if (p < 0.42) return 0.10 * (p / 0.42);
+      const q = (p - 0.42) / 0.58;
+      return 0.10 + 0.90 * q * q;
+    }
+    case 'sweep': // smooth ease-in-out full-body arc
+      return p * p * (3 - 2 * p);
+    case 'thrust': { // pierce out fast, hold, partial retract
+      if (p < 0.40) { const q = p / 0.40; return 1 - Math.pow(1 - q, 3); }
+      if (p < 0.70) return 1;
+      return 1 - 0.45 * ((p - 0.70) / 0.30);
+    }
+    case 'jab': // out-and-back punch
+      return p < 0.45 ? (p / 0.45) : 1 - 0.9 * ((p - 0.45) / 0.55);
+    case 'crack': { // accelerating lash, overshoot wobble at full extension
+      if (p < 0.5) { const q = p / 0.5; return q * q; }
+      const q = (p - 0.5) / 0.5;
+      return 1 + 0.08 * Math.sin(q * Math.PI * 2) - 0.5 * q * q;
+    }
+    case 'recoil': // fast settle from kicked-up firing pose
+      return 1 - Math.pow(1 - p, 2);
+    default:
+      return p;
+  }
+}
+
+// Returns { ang, reachFrac } for a weapon mid-swing. atkP in [0,1] (swing
+// progress), facing ±1 (angle mirrored for facing left), alt toggles the
+// boxing-gloves high-jab/body-hook alternation. Single source of truth for
+// hitbox AND visuals — never re-derive the swing angle elsewhere.
+function swingPose(weaponKey, atkP, facing, alt) {
+  const g = WEAPON_SWINGS[weaponKey];
+  const p = Math.min(1, Math.max(0, atkP));
+  let ang, reachFrac = 1;
+  if (g) {
+    let a0 = g.a0, a1 = g.a1;
+    if (g.alternate) { const off = alt ? 0.30 : -0.12; a0 += off; a1 += off; }
+    ang = a0 + (a1 - a0) * swingEase(p, g.ease);
+    if (g.reach) reachFrac = g.reach.r0 + (g.reach.r1 - g.reach.r0) * swingEase(p, g.reach.ease);
+  } else {
+    ang = -0.45 + (1.1 - -0.45) * p; // legacy diagonal slash
+  }
+  if (facing < 0) ang = Math.PI - ang;
+  return { ang, reachFrac };
+}
+
+// ============================================================
 // CHARACTER CLASSES
 // ============================================================
 const CLASSES = {
