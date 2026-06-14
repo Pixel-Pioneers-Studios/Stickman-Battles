@@ -1,13 +1,12 @@
 extends Node3D
 
 # ── HUD refs ──────────────────────────────────────────────────────────────────
-var _p1_hp_bar    : ProgressBar
-var _p1_lives_lbl : Label
-var _center_lbl   : Label
+var _panels     := {}   # player_num -> { name, hp, super, cd, lives, status }
+var _center_lbl : Label
+var _hud_t      := 0.0
 
 var _fighters  : Array = []
 var _camera    : Camera3D
-var _cam_yaw   := 0.0
 var _game_over := false
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -20,6 +19,7 @@ func _ready() -> void:
 	_build_hud()
 	_spawn_fighters()
 	GameManager.match_won.connect(_on_match_won)
+	GameManager.parried.connect(_on_parried)
 	GameManager.start_round()
 	_show_center_text("FIGHT!", false)
 
@@ -165,19 +165,31 @@ func _make_pillar(pos: Vector3, radius: float, height: float) -> void:
 
 	add_child(body)
 
+# Hollow glowing frame around a platform's perimeter — NOT a solid sheet
+# (a full-size emissive box would cover the whole platform surface).
 func _make_emissive_trim(pos: Vector3, size: Vector3, color: Color) -> void:
-	var mesh := MeshInstance3D.new()
-	var box  := BoxMesh.new()
-	box.size = size
-	mesh.mesh = box
-	mesh.position = pos
+	var t := 0.18   # strip thickness
+	var strips := [
+		# Front / back edges (run along X)
+		[Vector3(pos.x, pos.y, pos.z - size.z * 0.5 + t * 0.5), Vector3(size.x, size.y, t)],
+		[Vector3(pos.x, pos.y, pos.z + size.z * 0.5 - t * 0.5), Vector3(size.x, size.y, t)],
+		# Left / right edges (run along Z, shortened to not overlap corners)
+		[Vector3(pos.x - size.x * 0.5 + t * 0.5, pos.y, pos.z), Vector3(t, size.y, size.z - 2.0 * t)],
+		[Vector3(pos.x + size.x * 0.5 - t * 0.5, pos.y, pos.z), Vector3(t, size.y, size.z - 2.0 * t)],
+	]
 	var mat := StandardMaterial3D.new()
 	mat.albedo_color           = color
 	mat.emission_enabled       = true
 	mat.emission               = color
 	mat.emission_energy_multiplier = 1.8
-	mesh.material_override = mat
-	add_child(mesh)
+	for s in strips:
+		var mesh := MeshInstance3D.new()
+		var box  := BoxMesh.new()
+		box.size  = s[1]
+		mesh.mesh = box
+		mesh.position = s[0]
+		mesh.material_override = mat
+		add_child(mesh)
 
 func _make_deco_box(pos: Vector3, size: Vector3, color: Color) -> void:
 	var mesh := MeshInstance3D.new()
@@ -190,7 +202,7 @@ func _make_deco_box(pos: Vector3, size: Vector3, color: Color) -> void:
 	mesh.material_override = mat
 	add_child(mesh)
 
-# ── Camera (third-person, follows P1 from behind) ─────────────────────────────
+# ── Camera (fighting-game framing cam: keeps both fighters in view) ───────────
 func _build_camera() -> void:
 	_camera = Camera3D.new()
 	_camera.fov = 68.0
@@ -205,29 +217,13 @@ func _build_hud() -> void:
 	root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	layer.add_child(root)
 
-	# P1 panel
-	var p1_box := VBoxContainer.new()
-	p1_box.position = Vector2(16, 14)
-	root.add_child(p1_box)
-
-	var p1_name := Label.new()
-	p1_name.text = "P1"
-	p1_name.add_theme_color_override("font_color", Color(0.5, 0.75, 1.0))
-	p1_name.add_theme_font_size_override("font_size", 16)
-	p1_box.add_child(p1_name)
-
-	_p1_hp_bar = _make_hp_bar(Color(0.35, 0.6, 1.0))
-	p1_box.add_child(_p1_hp_bar)
-
-	_p1_lives_lbl = Label.new()
-	_p1_lives_lbl.text = "♥♥♥"
-	_p1_lives_lbl.add_theme_color_override("font_color", Color(1.0, 0.25, 0.25))
-	_p1_lives_lbl.add_theme_font_size_override("font_size", 22)
-	p1_box.add_child(_p1_lives_lbl)
+	_build_player_panel(root, 1, Color(0.5, 0.75, 1.0), Vector2(16, 14))
+	_build_player_panel(root, 2, Color(1.0, 0.6, 0.35), Vector2(1280 - 296, 14))
 
 	# Controls hint
 	var hint := Label.new()
-	hint.text = "WASD: Move   Space: Jump   E: Light   Q: Heavy   F: Shield   R: Super"
+	hint.text = "P1 — WASD move  Space jump  E light  Q heavy  F shield  R super      " \
+			+ "P2 — Arrows move  Shift jump  , light  . heavy  / shield  N super"
 	hint.add_theme_font_size_override("font_size", 13)
 	hint.add_theme_color_override("font_color", Color(0.55, 0.55, 0.65))
 	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -247,90 +243,157 @@ func _build_hud() -> void:
 	_center_lbl.visible = false
 	root.add_child(_center_lbl)
 
-func _make_hp_bar(color: Color) -> ProgressBar:
+func _build_player_panel(root: Control, p_num: int, color: Color, pos: Vector2) -> void:
+	var box := VBoxContainer.new()
+	box.position = pos
+	box.add_theme_constant_override("separation", 3)
+	root.add_child(box)
+
+	var name_lbl := Label.new()
+	name_lbl.text = "P%d" % p_num
+	name_lbl.add_theme_color_override("font_color", color)
+	name_lbl.add_theme_font_size_override("font_size", 16)
+	box.add_child(name_lbl)
+
+	var hp := _make_bar(Vector2(280, 22), color, 150.0)
+
+	# Damage ghost behind the HP fill would need layering — keep flat for now
+	box.add_child(hp)
+
+	# Super meter: gold, fills 0-100, pulses when ready
+	var sup := _make_bar(Vector2(280, 10), Color(1.0, 0.84, 0.2), 100.0)
+	sup.value = 0
+	box.add_child(sup)
+
+	# Attack cooldown recovery: full = ready to swing
+	var cd := _make_bar(Vector2(280, 5), Color(0.75, 0.78, 0.85), 1.0)
+	box.add_child(cd)
+
+	var lives_lbl := Label.new()
+	lives_lbl.text = "♥♥♥"
+	lives_lbl.add_theme_color_override("font_color", Color(1.0, 0.25, 0.25))
+	lives_lbl.add_theme_font_size_override("font_size", 22)
+	box.add_child(lives_lbl)
+
+	# Transient state line: STUNNED / EXPOSED! / SHIELD DOWN / SUPER READY ★
+	var status := Label.new()
+	status.text = ""
+	status.add_theme_color_override("font_color", Color(1.0, 0.9, 0.3))
+	status.add_theme_font_size_override("font_size", 15)
+	box.add_child(status)
+
+	_panels[p_num] = {
+		"name": name_lbl, "hp": hp, "super": sup, "cd": cd,
+		"lives": lives_lbl, "status": status,
+	}
+
+func _make_bar(size: Vector2, color: Color, max_val: float) -> ProgressBar:
 	var bar := ProgressBar.new()
-	bar.custom_minimum_size = Vector2(260, 24)
-	bar.max_value     = 150
-	bar.value         = 150
+	bar.custom_minimum_size = size
+	bar.max_value     = max_val
+	bar.value         = max_val
 	bar.show_percentage = false
 	var fill := StyleBoxFlat.new()
 	fill.bg_color = color
-	fill.corner_radius_top_left     = 4
-	fill.corner_radius_top_right    = 4
-	fill.corner_radius_bottom_left  = 4
-	fill.corner_radius_bottom_right = 4
+	fill.set_corner_radius_all(3)
 	bar.add_theme_stylebox_override("fill", fill)
 	var bg := StyleBoxFlat.new()
-	bg.bg_color = Color(0.08, 0.08, 0.14)
-	bg.corner_radius_top_left     = 4
-	bg.corner_radius_top_right    = 4
-	bg.corner_radius_bottom_left  = 4
-	bg.corner_radius_bottom_right = 4
+	bg.bg_color = Color(0.08, 0.08, 0.14, 0.85)
+	bg.set_corner_radius_all(3)
 	bar.add_theme_stylebox_override("background", bg)
 	return bar
+
+# Per-frame HUD refresh from fighter state
+func _update_hud() -> void:
+	for f in _fighters:
+		var fighter := f as Fighter
+		if fighter == null or not _panels.has(fighter.player_num): continue
+		var pn: Dictionary = _panels[fighter.player_num]
+
+		pn.name.text = "P%d — %s" % [fighter.player_num,
+				Weapons.get_weapon(fighter.weapon_key).get("name", "?")]
+		pn.hp.value    = fighter.health
+		pn.super.value = fighter.super_meter
+		# Pulse the super bar while ready
+		pn.super.modulate.a = (0.55 + 0.45 * absf(sin(_hud_t * 7.0))) \
+				if fighter.super_ready else 1.0
+		pn.cd.value = 1.0 if fighter.cooldown <= 0 \
+				else 1.0 - float(fighter.cooldown) / float(fighter.cooldown_max)
+		pn.lives.text = "♥".repeat(max(0, fighter.lives))
+
+		if fighter.stun_timer > 0:
+			pn.status.text = "STUNNED"
+			pn.status.add_theme_color_override("font_color", Color(1.0, 0.8, 0.2))
+		elif fighter.parry_vuln_frames > 0:
+			pn.status.text = "EXPOSED!"
+			pn.status.add_theme_color_override("font_color", Color(1.0, 0.45, 0.1))
+		elif fighter.shield_broken:
+			pn.status.text = "SHIELD DOWN"
+			pn.status.add_theme_color_override("font_color", Color(0.5, 0.75, 1.0))
+		elif fighter.super_ready:
+			pn.status.text = "SUPER READY ★"
+			pn.status.add_theme_color_override("font_color", Color(1.0, 0.84, 0.2))
+		else:
+			pn.status.text = ""
 
 # ── Spawn fighters ────────────────────────────────────────────────────────────
 func _spawn_fighters() -> void:
 	var f1 := Fighter.new()
 	add_child(f1)
 	f1.setup(1, Color(0.35, 0.55, 1.0), "sword", Vector3(-4.0, 0.8, 0.0), false, 3)
-	f1.health_changed.connect(_on_health_changed)
-	f1.died.connect(_on_fighter_died)
 	GameManager.register_fighter(f1)
 	_fighters.append(f1)
 
-	# Dummy P2 (AI off for now, just stands there as a target)
+	# P2 — second local human (arrows + right-side keys)
 	var f2 := Fighter.new()
 	add_child(f2)
 	f2.setup(2, Color(1.0, 0.45, 0.20), "hammer", Vector3(4.0, 0.8, 0.0), false, 3)
-	f2.health_changed.connect(_on_health_changed)
-	f2.died.connect(_on_fighter_died)
 	GameManager.register_fighter(f2)
 	_fighters.append(f2)
 
 # ── Per-frame ─────────────────────────────────────────────────────────────────
 func _process(delta: float) -> void:
+	_hud_t += delta
 	_update_camera(delta)
+	_update_hud()
 
-	if _fighters.size() >= 1:
-		_p1_hp_bar.value = (_fighters[0] as Fighter).health
-
-	if _game_over and Input.is_key_pressed(KEY_R):
+	if _game_over and Input.is_key_pressed(KEY_T):
 		GameManager.reset()
 		get_tree().reload_current_scene()
 
+# Framing camera: hovers at a fixed yaw over the midpoint of both fighters,
+# pulling back as they separate so neither leaves the frame.
 func _update_camera(delta: float) -> void:
-	if _fighters.is_empty() or _camera == null: return
-	var p1 := _fighters[0] as Fighter
-	if p1 == null or p1._dying: return
+	if _fighters.size() < 2 or _camera == null: return
+	var a := _fighters[0] as Fighter
+	var b := _fighters[1] as Fighter
+	if a == null or b == null: return
 
-	# Smoothly swing camera behind P1 as they turn
-	_cam_yaw = lerp_angle(_cam_yaw, p1.rotation.y, delta * 5.0)
+	# A dead-and-respawning fighter sits at y=-40; frame the survivor alone
+	var pa := a.global_position
+	var pb := b.global_position
+	if a._dying: pa = pb
+	if b._dying: pb = pa
 
-	var dist   := 9.5
-	var height := 5.0
-	var offset := Vector3(sin(_cam_yaw) * dist, height, cos(_cam_yaw) * dist)
-	var target := p1.global_position + Vector3(0, 1.1, 0)
+	var mid := (pa + pb) * 0.5 + Vector3(0, 1.2, 0)
+	var sep := pa.distance_to(pb)
+	var dist := clampf(sep * 0.85 + 5.0, 9.0, 20.0)
+	var cam_pos := mid + Vector3(0, dist * 0.42, dist)
 
-	_camera.global_position = _camera.global_position.lerp(target + offset, delta * 7.0)
-	_camera.look_at(target)
+	_camera.global_position = _camera.global_position.lerp(cam_pos, 1.0 - exp(-delta * 6.0))
+	_camera.look_at(mid)
 
 # ── HUD callbacks ─────────────────────────────────────────────────────────────
-func _on_health_changed(fighter: Fighter) -> void:
-	if fighter.player_num == 1:
-		_p1_hp_bar.value  = fighter.health
-		_p1_lives_lbl.text = "♥".repeat(max(0, fighter.lives))
-
-func _on_fighter_died(fighter: Fighter) -> void:
-	_on_health_changed(fighter)
+func _on_parried(defender: Node, _attacker: Node) -> void:
+	_show_center_text("P%d PARRY!" % defender.player_num, false)
 
 func _on_match_won(winner_num: int) -> void:
 	if _game_over: return
 	_game_over = true
 	if winner_num == 0:
-		_show_center_text("DRAW!\nPress R to restart", true)
+		_show_center_text("DRAW!\nPress T to restart", true)
 	else:
-		_show_center_text("P%d WINS!\nPress R to restart" % winner_num, true)
+		_show_center_text("P%d WINS!\nPress T to restart" % winner_num, true)
 
 func _show_center_text(text: String, persistent: bool) -> void:
 	_center_lbl.text    = text

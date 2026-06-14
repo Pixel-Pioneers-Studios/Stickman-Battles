@@ -1,9 +1,9 @@
 63f7b34db8d8cdea90c76aacccf841ec
-::res://::1780682122
+::res://::1781270896
 ::res://scenes/::1780643325
 Main.tscn::PackedScene::-1::1780643323::0::1::::<><><>0<>0<><>::res://scripts/Main.gd
-::res://scripts/::1780672801
-Fighter.gd::GDScript::9182300185340566858::1780672737::0::1::::Fighter<>CharacterBody3D<><>0<>0<><>::
-GameManager.gd::GDScript::4133390397256039195::1780643184::0::1::::<>Node<><>0<>0<><>::
-Main.gd::GDScript::5259276975631707922::1780672799::0::1::::<>Node3D<><>0<>0<><>::
-Weapons.gd::GDScript::1610477898157411515::1780643167::0::1::::<>Node<><>0<>0<><>::
+::res://scripts/::1781270397
+Fighter.gd::GDScript::9182300185340566858::1781270395::0::1::::Fighter<>CharacterBody3D<><>0<>0<><>::
+GameManager.gd::GDScript::4133390397256039195::1781269104::0::1::::<>Node<><>0<>0<><>::
+Main.gd::GDScript::5259276975631707922::1781269952::0::1::::<>Node3D<><>0<>0<><>::
+Weapons.gd::GDScript::1610477898157411515::1781269801::0::1::::<>Node<><>0<>0<><>::
