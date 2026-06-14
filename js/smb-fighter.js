@@ -1733,27 +1733,46 @@ class Fighter {
     const _sc2      = this.drawScale || 1;
     const armLen    = 24 * _sc2;
     const atkP      = 1 - this.attackTimer / this.attackDuration;
-    // Megaknight: upward arc — fist sweeps from low to high
-    let ang, reachFrac = 1;
-    if (this.charClass === 'megaknight') {
-      ang = this.facing > 0
-        ? lerp(1.2, -1.1, atkP)
-        : lerp(Math.PI - 1.2, Math.PI + 1.1, atkP);
-    } else {
-      const _sp = swingPose(this.weaponKey, atkP, this.facing, this._jabAlt);
-      ang = _sp.ang;
-      reachFrac = _sp.reachFrac;
-    }
     const tipLens = { sword: 26, hammer: 30, axe: 23, spear: 40, gauntlet: 22, mkgauntlet: 30, whip: 50, flail: 28 };
     const _swg2   = (typeof WEAPON_SWINGS !== 'undefined') ? WEAPON_SWINGS[this.weaponKey] : null;
     const wLen    = ((_swg2 && _swg2.tipLen) || tipLens[this.weaponKey] || 23) * _sc2;
-    const fullReach = (armLen + wLen) * reachFrac;
     // Sample inner (50%), mid (75%), and tip (100%) along the weapon; whip adds extra outer sample
     const fracs = (_swg2 && _swg2.hitFracs) || (this.weaponKey === 'whip' ? [0.40, 0.65, 0.85, 1.0] : [0.50, 0.75, 1.0]);
-    return fracs.map(frac => ({
-      x: cx        + Math.cos(ang) * fullReach * frac,
-      y: shoulderY + Math.sin(ang) * fullReach * frac,
-    }));
+
+    // Pose(s) to sample. Snap/iai easings cross most of the arc in a few frames,
+    // so a single per-frame angle snapshot leaves gaps the blade visibly swept
+    // through — sub-frame sweep interpolation closes them (playtest: "I can't
+    // hit anything" reports were real whiffs through moving targets).
+    const poses = [];
+    if (this.charClass === 'megaknight') {
+      poses.push({
+        ang: this.facing > 0 ? lerp(1.2, -1.1, atkP) : lerp(Math.PI - 1.2, Math.PI + 1.1, atkP),
+        reachFrac: 1,
+      });
+    } else {
+      const _now  = swingPose(this.weaponKey, atkP, this.facing, this._jabAlt);
+      poses.push(_now);
+      if (this.attackDuration > 0) {
+        const prevP = Math.max(0, 1 - (this.attackTimer + 1) / this.attackDuration);
+        const _prev = swingPose(this.weaponKey, prevP, this.facing, this._jabAlt);
+        const dAng  = Math.abs(_now.ang - _prev.ang);
+        const steps = Math.min(3, Math.floor(dAng / 0.14)); // one extra sample per ~0.14 rad swept
+        for (let _si2 = 1; _si2 <= steps; _si2++) {
+          poses.push(swingPose(this.weaponKey, prevP + (atkP - prevP) * _si2 / (steps + 1), this.facing, this._jabAlt));
+        }
+      }
+    }
+    const pts = [];
+    for (const pose of poses) {
+      const fullReach = (armLen + wLen) * pose.reachFrac;
+      for (const frac of fracs) {
+        pts.push({
+          x: cx        + Math.cos(pose.ang) * fullReach * frac,
+          y: shoulderY + Math.sin(pose.ang) * fullReach * frac,
+        });
+      }
+    }
+    return pts;
   }
 
   // ---- ATTACK ----

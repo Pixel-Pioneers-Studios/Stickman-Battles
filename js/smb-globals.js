@@ -69,6 +69,8 @@ const CHANGELOG = [
       { cat: 'Combat',  text: 'Eleven weapons that had NO finisher now have one — Iaijutsu (Katana), Judgment Lash (Whip), Wrecking Ball (Flail), Overload (Electric Staff), Aegis Break (Shield), Clean Sweep (Broomstick), Full Bloom (Pea Shooter), Orbital Stone (Slingshot), A Thousand Folds (Paper Airplane), Infinite Return (Boomerang), and Incinerate (Flamethrower)' },
       { cat: 'Fix',     text: 'Story maps no longer have walkable land beyond the boundary portals — the ground now ends just past the portal, and the reality-enforcement teleport can no longer place you outside the map' },
       { cat: 'Combat',  text: 'All 29 finishers upgraded with anime impact frames — the world hard-cuts to a silhouette flash at the moment of the strike — plus an anticipation hush during the deep-freeze windup and a proper impact sound on the hit' },
+      { cat: 'Fix',     text: 'Fast swings no longer whiff through targets — hit detection now sweeps the full blade path between frames instead of sampling one angle snapshot, so a slash that visibly passes through someone always connects' },
+      { cat: 'Balance', text: 'Heavy weapon windups shortened after playtest (hammer 19→17 frames, frying pan 15→14, flail 20→18, with a snappier transition into the drop) and heavies now get paid for the commitment: Hammer damage 20→22, Flail 19→21' },
     ],
   },
   {

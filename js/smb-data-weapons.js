@@ -43,7 +43,7 @@ const WEAPONS = {
   hammer: {
     // THE CRUSHER: Slow, punishing, massive knockback. Forces commitment.
     // Identity: Every hit sends enemies flying. One good read = huge reward.
-    name: 'Hammer',  damage: 20, range: 80, cooldown: 75, endlag: 22,
+    name: 'Hammer',  damage: 22, range: 80, cooldown: 75, endlag: 22,
     kb: 16,          abilityCooldown: 230, type: 'melee', weaponType: 'heavy', color: '#888888',
     abilityName: 'Ground Shockwave',
     ability(user, _target) {
@@ -381,7 +381,7 @@ const WEAPONS = {
   flail: {
     // THE SWINGER: Heavy, delayed, commitment-heavy. Rewards reading and staying close.
     // Identity: Chain Yank fires ball out then returns — double-hit if you stay in range.
-    name: 'Flail',   damage: 19, range: 95, cooldown: 68, endlag: 26,
+    name: 'Flail',   damage: 21, range: 95, cooldown: 68, endlag: 26,
     kb: 18,          abilityCooldown: 200, type: 'melee', weaponType: 'heavy', color: '#aaaaaa',
     abilityName: 'Chain Yank',
     ability(user, _target) {
@@ -659,9 +659,9 @@ const WEAPON_SWINGS = {
   sword:         { archetype: 'slash',  dur: 11, a0: -0.65, a1: 1.15, ease: 'snap',   tilt: 0.6,  tipLen: 26, trail: { life:  9, cap: 6,  width: 5 } },
   katana:        { archetype: 'iai',    dur:  9, a0: -0.35, a1: 0.95, ease: 'iai',    tilt: 0.5,  tipLen: 30, trail: { life: 13, cap: 8,  width: 4 },
                    hitSound: 'pierce', carry: { arm: 0.80, tilt: 0.45 } },  // held low at the hip, blade angled down — ready stance
-  hammer:        { archetype: 'smash',  dur: 19, a0: -1.85, a1: 0.95, ease: 'heavy',  tilt: 0.7,  tipLen: 30, trail: { life: 14, cap: 9,  width: 10 },
+  hammer:        { archetype: 'smash',  dur: 17, a0: -1.85, a1: 0.95, ease: 'heavy',  tilt: 0.7,  tipLen: 30, trail: { life: 14, cap: 9,  width: 10 },
                    hitSound: 'blunt', carry: { arm: -0.90, tilt: -0.50 } }, // head rested up over the shoulder
-  fryingpan:     { archetype: 'smash',  dur: 15, a0: -1.55, a1: 0.80, ease: 'heavy',  tilt: 0.7,  tipLen: 26, trail: { life: 11, cap: 7,  width: 8 },
+  fryingpan:     { archetype: 'smash',  dur: 14, a0: -1.55, a1: 0.80, ease: 'heavy',  tilt: 0.7,  tipLen: 26, trail: { life: 11, cap: 7,  width: 8 },
                    hitSound: 'clang', carry: { arm: 1.05, tilt: 0.25 } },   // dangling at the side like a skillet
   axe:           { archetype: 'cleave', dur: 14, a0: -1.05, a1: 1.35, ease: 'snap',   tilt: 0.65, tipLen: 23, trail: { life: 12, cap: 8,  width: 8 },
                    carry: { arm: 0.95, tilt: -0.20 } },                     // held low at the side
@@ -679,7 +679,7 @@ const WEAPON_SWINGS = {
   boxinggloves:  { archetype: 'jab',    dur:  7, a0:  0.12, a1: -0.10, ease: 'linear', tilt: 0.0, tipLen: 12, alternate: true,
                    reach: { r0: 0.4, r1: 1.0, ease: 'jab' }, hitFracs: [0.6, 1.0], trail: { life: 6, cap: 4, width: 4 },
                    hitSound: 'blunt', carry: { arm: -0.35, lArm: -0.60 } },  // boxing guard — both fists up
-  flail:         { archetype: 'whirl',  dur: 20, a0: -2.6,  a1: 1.25, ease: 'heavy',  tilt: 0.55, tipLen: 28, trail: { life: 14, cap: 10, width: 6 },
+  flail:         { archetype: 'whirl',  dur: 18, a0: -2.6,  a1: 1.25, ease: 'heavy',  tilt: 0.55, tipLen: 28, trail: { life: 14, cap: 10, width: 6 },
                    hitSound: 'blunt', carry: { arm: 1.10, tilt: 0.50 } },    // ball dangling straight down
   shield:        { archetype: 'bash',   dur: 10, a0:  0.15, a1: -0.05, ease: 'linear', tilt: 0.0, tipLen: 16,
                    reach: { r0: 0.5, r1: 1.0, ease: 'jab' }, hitFracs: [0.7, 1.0], trail: { life: 0, cap: 0, width: 0 },
@@ -715,8 +715,10 @@ function swingEase(p, type) {
       return -0.05 + 1.05 * (1 - Math.pow(1 - q, 4));
     }
     case 'heavy': { // slow rising windup, accelerating drop
-      if (p < 0.42) return 0.10 * (p / 0.42);
-      const q = (p - 0.42) / 0.58;
+      // Windup fraction tuned 0.42→0.35 after playtest: commitment stays, but the
+      // dead window before the drop was a couple frames too long
+      if (p < 0.35) return 0.10 * (p / 0.35);
+      const q = (p - 0.35) / 0.65;
       return 0.10 + 0.90 * q * q;
     }
     case 'sweep': // smooth ease-in-out full-body arc
@@ -824,7 +826,7 @@ const CLASS_AFFINITY = {
 const WEAPON_DESCS = {
   random:  { title: 'Random Weapon',  what: 'Picks a random weapon each game — embrace the chaos.',                                                         ability: null,                                                              super: null,                                                               how:  'Adapt to whatever you get each round.' },
   sword:   { title: 'Sword',          what: 'Fast, balanced melee weapon with good range. Damage: 16.',                                                     ability: 'Q — Blade Storm: 4 crescent arcs burst in all directions (24 dmg). No movement — pure coverage.',  super: 'E — Air Slash: 3 crescent arcs fan outward in sequence.',          how:  'Base = single forward swing. Q = omnidirectional burst. E = sequential forward fan.' },
-  hammer:  { title: 'Hammer',         what: 'Slow but devastating. Huge knockback on every hit. Damage: 20.',                                               ability: 'Q — Ground Shockwave: slam down, a shockwave TRAVELS horizontally from your feet (28 dmg, launches up).', super: 'E — Mjolnir Spin: spinning AoE contact hits, ends with a launch.',  how:  'Base = direct swing. Q = traveling ground wave. E = spinning tornado in place.' },
+  hammer:  { title: 'Hammer',         what: 'Slow but devastating. Huge knockback on every hit. Damage: 22.',                                               ability: 'Q — Ground Shockwave: slam down, a shockwave TRAVELS horizontally from your feet (28 dmg, launches up).', super: 'E — Mjolnir Spin: spinning AoE contact hits, ends with a launch.',  how:  'Base = direct swing. Q = traveling ground wave. E = spinning tornado in place.' },
   gun:     { title: 'Gun',            what: 'Ranged weapon. Each bullet deals 5–8 damage. Fires splash rounds.',                                            ability: 'Q — Rapid Fire: 5-shot burst.',                                   super: 'E — Bullet Storm: 14 rapid shots (9–12 dmg each).',               how:  'Keep your distance. Use Rapid Fire to pressure from afar.' },
   axe:     { title: 'Axe',            what: 'Balanced melee with solid damage, good knockback, and splash hits. Damage: 22.',                               ability: 'Q — Spin Attack: stationary 360° AoE slash — covers all angles.', super: 'E — Axe Throw: hurl your axe across the arena (38 dmg, large radius); it curves back.', how: 'Spin Attack covers close range. Axe Throw punishes enemies at any distance.' },
   spear:   { title: 'Spear',          what: 'Longest melee reach in the game. Consistent damage. Damage: 18.',                                              ability: 'Q — Ground Spike: slam spear down, AoE upward launch for 20 dmg.', super: 'E — Lance Charge: sustained forward pierce burst for 28 dmg.',     how:  'Poke from range. Use Ground Spike when enemies rush you.' },
@@ -837,7 +839,7 @@ const WEAPON_DESCS = {
   peashooter:   { title: 'Pea Shooter',    what: 'Rapid-fire ranged weapon. Very low damage per pea (2-3). High fire rate.',        ability: 'Q — Pea Storm: 10 rapid shots.',                               super: 'E — Cluster Bomb: large pea detonates into 10 radial peas (8-12 dmg each).', how: 'Whittle with shots. Cluster Bomb punishes enemies in tight spots.' },
   slingshot:    { title: 'Slingshot',      what: 'Ranged weapon with arc trajectory. Moderate damage (10-14). Slow fire rate.',     ability: 'Q — Mortar Stone: steep upward arc falls DOWN from above (65px splash, 28 dmg).', super: 'E — Gravity Stone: slow boulder; detonates with a 220px gravity pull for 52 dmg.', how: 'Mortar Stone bypasses shields by dropping from above. Gravity Stone pulls victims into it.' },
   paperairplane: { title: 'Paper Airplane',  what: 'Very slow curving projectile. Low damage (8-12) but unpredictable arc.',          ability: 'Q — Barrage: 5 airplanes at staggered angles.',                   super: 'E — Origami Swarm: 8 homing planes that chase and track enemies.',    how:  'Confuse enemies with the arc. Swarm corners enemies with nowhere to run.' },
-  flail:         { title: 'Flail',           what: 'Heavy melee with a swinging chain ball. Damage: 19.',                              ability: 'Q — Chain Yank: fire ball forward (26 dmg), returns for 16 dmg.',  super: 'E — Orbit Storm: ball orbits at high speed, 12 dmg per contact.',    how:  'Commit hard or miss hard. Stay close during the return to land both hits.' },
+  flail:         { title: 'Flail',           what: 'Heavy melee with a swinging chain ball. Damage: 21.',                              ability: 'Q — Chain Yank: fire ball forward (26 dmg), returns for 16 dmg.',  super: 'E — Orbit Storm: ball orbits at high speed, 12 dmg per contact.',    how:  'Commit hard or miss hard. Stay close during the return to land both hits.' },
   whip:          { title: 'Whip',            what: 'Longest melee reach (200px). Low damage but great control. Damage: 8.',            ability: 'Q — Lasso: yank ONE enemy forcefully toward you (10 dmg, stun 22 frames).', super: 'E — Reel: yanks ALL enemies within 220px toward you for 12 dmg.',    how:  'Base = long forward poke. Q = single-target hard pull + stun. E = mass crowd yank.' },
   boomerang:     { title: 'Boomerang',       what: 'Ranged weapon. Normal throw: 11-15 dmg. Q/E have returning throws.',             ability: 'Q — Orbit Guard: boomerang circles you as a spinning shield, hitting nearby enemies.',  super: 'E — Boomerang Blitz: 4-way 360° burst — forward, backward, and two arcing up. All return.', how: 'Use Orbit Guard defensively when enemies rush. Blitz covers all directions at once.' },
   katana:        { title: 'Katana',          what: 'Fast precise melee weapon. Damage: 14.',                                           ability: 'Q — Iaijutsu: standing still = 28 dmg, no dash. Moving = 22 dmg + forward dash.', super: 'E — Shadow Step: instantly teleport to the far side of the nearest enemy (≤450px), 38 dmg + 3 slash arcs.', how:  'Q rewards patience — stand still for burst damage. E repositions you for the kill.' },
