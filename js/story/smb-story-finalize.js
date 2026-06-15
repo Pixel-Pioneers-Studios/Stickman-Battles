@@ -32,7 +32,8 @@ for (const _ch of STORY_CHAPTERS2) {
 //           V   Stickman Universe  (46–62)
 //           VI  Damnation + Fallen God + Multiverse + Betrayal (63–95)
 //           VII Creator            (96–111)
-//           VIII True Form — FINAL (112–117)
+//           VIII True Form           (131–135)
+//           IX  Absolute Axiom       (140–155) + Epilogue (156)
 const STORY_ACT_STRUCTURE = [
   {
     id: 'act1', label: 'Act I — Initial Encounter', color: '#88aacc',
@@ -79,7 +80,8 @@ const STORY_ACT_STRUCTURE = [
       { id: 'arc4mv-1',       label: 'Shadow & Titan',          chapterRange: [86,  93]  },
       { id: 'arc4mv-2',       label: 'Null Space',              chapterRange: [94,  98]  },
       { id: 'arc4mv-3',       label: 'The Quiet Expanse',       chapterRange: [99,  103] },
-      { id: 'arc4mv-4',       label: 'Fracture Coast',          chapterRange: [104, 108] },
+      // arc4mv-4 (Thresh/VAEL branch, ids 104-108) not yet wired into index.html;
+      // omitted here to avoid the expansion mapping wrong chapters into this arc slot.
       { id: 'arc5-betrayal',  label: 'The Betrayal',            chapterRange: [109, 113] },
     ],
   },
@@ -94,7 +96,7 @@ const STORY_ACT_STRUCTURE = [
     id: 'act8', label: 'Act VIII — True Form', color: '#cc44ff',
     arcs: [
       { id: 'arc5-0', label: 'Into the Void',       chapterRange: [131, 134] },
-      { id: 'arc5-1', label: 'Final Confrontation', chapterRange: [135, 136] },
+      { id: 'arc5-1', label: 'Final Confrontation', chapterRange: [135, 135] },
     ],
   },
   {
@@ -103,6 +105,7 @@ const STORY_ACT_STRUCTURE = [
       { id: 'arc7-0', label: 'The Kernel',          chapterRange: [140, 142] },
       { id: 'arc7-1', label: 'God\'s Domain',        chapterRange: [143, 149] },
       { id: 'arc7-2', label: 'Absolute Axiom',       chapterRange: [150, 155] },
+      { id: 'arc7-epilogue', label: 'Epilogue',      chapterRange: [156, 156] },
     ],
   },
 ];

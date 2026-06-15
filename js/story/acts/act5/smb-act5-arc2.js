@@ -47,7 +47,8 @@ STORY_CHAPTER_REGISTRY.push(
   // \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550 EPILOGUE \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550
 
   {
-    id: 136, title: 'After',
+    id: 156, title: 'After',
+    isEpilogue: true,
     world: '\uD83C\uDFD9\uFE0F Home \u2014 Transit',
     type: 'ship_flight',
     preText: 'The portals are open \u2014 doors now, not wounds. Fly the compass-ship home through stabilized dimensional space.',
@@ -72,7 +73,8 @@ STORY_CHAPTER_REGISTRY.push(
 
   // ══════════════════════════════════════════════════════════════════
   // Act IX — Absolute Axiom (ids 140–155) continues in act7/ files.
-  // Gap 137–139 reserved for future content (Void Mind fight arc).
+  // Ids 136–139 reserved for Void Mind fight arc (future content).
+  // Epilogue 'After' (id 156) follows Act IX — see above.
   // ══════════════════════════════════════════════════════════════════
 
 );
