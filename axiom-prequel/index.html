@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AXIOM</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="wrapper">
+    <canvas id="game"></canvas>
+  </div>
+
+  <!-- Core systems (load first) -->
+  <script src="js/globals.js"></script>
+  <script src="js/input.js"></script>
+  <script src="js/particles.js"></script>
+  <script src="js/camera.js"></script>
+  <script src="js/combat.js"></script>
+
+  <!-- Entities -->
+  <script src="js/enemies.js"></script>
+  <script src="js/companions.js"></script>
+  <script src="js/axiom.js"></script>
+
+  <!-- Story / presentation -->
+  <script src="js/story.js"></script>
+  <script src="js/cinematics.js"></script>
+  <script src="js/interlude.js"></script>
+
+  <!-- Render + loop (load last) -->
+  <script src="js/rendering.js"></script>
+  <script src="js/menu.js"></script>
+  <script src="js/loop.js"></script>
+</body>
+</html>
