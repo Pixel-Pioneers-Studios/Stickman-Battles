@@ -76,7 +76,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 82, title: 'What You Carry',
+    id: 83, title: 'What You Carry',
     world: '🌌 The Void Between — Fragment Core',
     type: 'exploration', exploreMode: 'defense',
     style: 'void',
@@ -107,7 +107,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 83, title: 'The Shape Beyond',
+    id: 85, title: 'The Shape Beyond',
     world: '🌌 The Void Between — Final Threshold',
     type: 'branch',
     narrative: [
