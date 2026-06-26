@@ -5,7 +5,7 @@
 STORY_CHAPTER_REGISTRY.push(
 
   {
-    id: 146, title: 'The Kernel',
+    id: 149, title: 'The Kernel',
     world: '🕳️ The Void — Aftermath',
     type: 'branch',
     narrative: [
@@ -61,7 +61,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 147, title: 'Between Everything',
+    id: 150, title: 'Between Everything',
     world: '✨ The Substrate — Between Worlds',
     type: 'exploration', exploreMode: 'escape',
     style: 'void',
@@ -90,7 +90,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 148, title: 'God\'s Threshold',
+    id: 151, title: 'God\'s Threshold',
     world: '🌅 God\'s Domain — The Outer Edge',
     type: 'branch',
     narrative: [

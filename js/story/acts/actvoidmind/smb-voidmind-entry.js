@@ -13,7 +13,7 @@
 STORY_CHAPTER_REGISTRY.push(
 
   {
-    id: 162, title: 'Into the Substrate',
+    id: 166, title: 'Into the Substrate',
     world: '⬛ The Substrate — Below All Dimensions',
     type: 'branch',
     isEpilogue: false,

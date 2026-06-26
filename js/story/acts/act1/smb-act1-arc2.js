@@ -1,7 +1,7 @@
 // Appends chapters for act1/smb-act1-arc2.js.
 STORY_CHAPTER_REGISTRY.push(
   {
-    id: 23, title: 'Army of Echoes',
+    id: 24, title: 'Army of Echoes',
     world: '🌀 Fracture Network — Echo Corridor',
     narrative: [
       'Veran wasn\'t exaggerating.',
@@ -31,7 +31,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 24, title: 'Collector\'s Network',
+    id: 25, title: 'Collector\'s Network',
     world: '🌀 Fracture Core — Junction Node',
     type: 'exploration', exploreMode: 'scavenge',
     style: 'void',
@@ -64,7 +64,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 25, title: 'The Gate',
+    id: 26, title: 'The Gate',
     world: '🌀 Fracture Core — Entry',
     narrative: [
       'The rift entity felt you coming.',
@@ -99,7 +99,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 26, title: 'Creator\'s Mark',
+    id: 27, title: 'Creator\'s Mark',
     world: '🌀 Fracture Core — Inner Threshold',
     type: 'exploration', exploreMode: 'puzzle',
     style: 'void',
@@ -130,7 +130,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 27, title: 'Into the Crucible',
+    id: 28, title: 'Into the Crucible',
     world: '🌀 Fracture Core — Approach',
     type: 'exploration', exploreMode: 'scavenge',
     style: 'void',
@@ -161,7 +161,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 28, title: 'Deep Fragment',
+    id: 29, title: 'Deep Fragment',
     world: '🌀 Fracture Core — The Crucible',
     narrative: [
       'The Crucible.',
@@ -193,7 +193,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 29, title: 'The Weight of It',
+    id: 30, title: 'The Weight of It',
     world: '🌀 Fracture Core — Eye Antechamber',
     type: 'branch',
     narrative: [
@@ -240,7 +240,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 30, title: 'Core Entry',
+    id: 31, title: 'Core Entry',
     world: '🌀 Fracture Core — The Eye',
     narrative: [
       'The Eye of the Core.',

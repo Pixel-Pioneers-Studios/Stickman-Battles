@@ -5,7 +5,7 @@
 STORY_CHAPTER_REGISTRY.push(
 
   {
-    id: 104, title: 'The Shattered Ground',
+    id: 106, title: 'The Shattered Ground',
     world: '💥 Collision Realm — Impact Field',
     type: 'exploration', exploreMode: 'escape',
     style: 'void',
@@ -36,7 +36,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 105, title: 'What Thresh Kept',
+    id: 107, title: 'What Thresh Kept',
     world: '💥 Collision Realm — Debris Fields',
     type: 'exploration', exploreMode: 'scavenge',
     style: 'void',
@@ -69,7 +69,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 106, title: 'Shockwave Hold',
+    id: 108, title: 'Shockwave Hold',
     world: '💥 Collision Realm — Impact Corridor',
     type: 'exploration', exploreMode: 'defense',
     style: 'void',
@@ -99,7 +99,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 107, title: 'Thresh',
+    id: 109, title: 'Thresh',
     world: '💥 Collision Realm — The Weight of Things',
     narrative: [
       '"I remember being strong," Thresh said.',

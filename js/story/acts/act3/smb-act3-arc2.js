@@ -1,7 +1,7 @@
 // Appends chapters for act3/smb-act3-arc2.js.
 STORY_CHAPTER_REGISTRY.push(
   {
-    id: 55, type: 'exploration', exploreMode: 'traversal', title: 'Signal Maze',
+    id: 56, type: 'exploration', exploreMode: 'traversal', title: 'Signal Maze',
     world: '📡 Creator\'s Interference Layer — Fractured City',
     narrative: [
       'The Creator began unmaking the pathways.',
@@ -87,7 +87,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 56, title: 'Empty Sanctum',
+    id: 57, title: 'Empty Sanctum',
     world: '📡 Creator\'s Interference Layer — Third Architect\'s Post',
     type: 'exploration', exploreMode: 'escape',
     style: 'void',
@@ -115,7 +115,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 57, title: 'Converted',
+    id: 58, title: 'Converted',
     world: '📡 Interference Layer — Fallback Perimeter',
     narrative: [
       'They wore the Third Architect\'s colors.',
@@ -146,7 +146,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 58, title: 'The Deal',
+    id: 59, title: 'The Deal',
     world: '📡 Interference Layer — Fallback Perimeter',
     type: 'exploration', exploreMode: 'defense',
     style: 'void',
@@ -173,7 +173,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 59, title: 'The Preserved Speak',
+    id: 60, title: 'The Preserved Speak',
     world: '📡 Creator\'s Interference Layer — Shelter Approach',
     type: 'exploration', exploreMode: 'stealth',
     style: 'void',
@@ -205,7 +205,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 60, title: 'Against the Architect',
+    id: 61, title: 'Against the Architect',
     world: '📡 Interference Layer — Confrontation Point',
     narrative: [
       'The Third Architect came themselves.',
@@ -245,7 +245,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 61, title: 'Aftermath',
+    id: 62, title: 'Aftermath',
     world: '📡 Interference Layer — Fallback Workshop',
     type: 'exploration', exploreMode: 'scavenge',
     style: 'void',
@@ -279,7 +279,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 62, title: 'Veran\'s Confession',
+    id: 63, title: 'Veran\'s Confession',
     world: '📡 Interference Layer — Research Archive',
     type: 'exploration', exploreMode: 'puzzle',
     style: 'void',
@@ -309,7 +309,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 63, title: 'The Enforcer',
+    id: 64, title: 'The Enforcer',
     world: '📡 Interference Layer — The Gate',
     narrative: [
       'It arrived without announcement.',
@@ -343,7 +343,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 64, title: 'The Constant',
+    id: 65, title: 'The Constant',
     world: '📡 Interference Layer — Signal Station',
     type: 'assassination',
     preText: 'The Creator\'s signal anchor is broadcasting your position to every construct in the interference layer. Eliminate it before it locks the path forward.',

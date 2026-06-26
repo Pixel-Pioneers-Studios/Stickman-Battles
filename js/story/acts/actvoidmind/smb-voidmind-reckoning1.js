@@ -17,7 +17,7 @@
 STORY_CHAPTER_REGISTRY.push(
 
   {
-    id: 163, title: 'What You Know',
+    id: 167, title: 'What You Know',
     world: '⬛ The Substrate — Below All Dimensions',
     type: 'branch',
     narrative: [

@@ -6,7 +6,7 @@
 STORY_CHAPTER_REGISTRY.push(
 
   {
-    id: 149, title: 'The Architecture',
+    id: 152, title: 'The Architecture',
     world: '🌅 God\'s Domain — The Interior',
     type: 'exploration', exploreMode: 'escape',
     style: 'void',
@@ -35,7 +35,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 150, title: 'What You Are',
+    id: 153, title: 'What You Are',
     world: '🌅 God\'s Domain — The Deep Interior',
     type: 'branch',
     narrative: [
@@ -88,7 +88,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 151, title: 'Before Contact',
+    id: 154, title: 'Before Contact',
     world: '🌅 God\'s Domain — The Convergence Zone',
     type: 'exploration', exploreMode: 'scavenge',
     style: 'void',
@@ -120,7 +120,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 152, title: 'God',
+    id: 155, title: 'God',
     world: '🌅 God\'s Domain — The Center',
     type: 'branch',
     narrative: [
@@ -177,7 +177,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 153, title: 'The Fight with God',
+    id: 156, title: 'The Fight with God',
     world: '🌅 God\'s Domain — The Center',
     preText: 'God. Not an enemy — a necessity. The kernel will merge with a weakened God. Keep God fighting. End it before the kernel completes its arc. 1 life.',
     opponentName: 'God', weaponKey: 'sword', classKey: 'warrior', aiDiff: 'expert', opponentColor: '#ffe8aa',
@@ -197,7 +197,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 154, title: 'Absolute Axiom',
+    id: 157, title: 'Absolute Axiom',
     world: '🌅 God\'s Domain — Rewritten',
     type: 'branch',
     narrative: [
@@ -257,7 +257,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 155, title: 'The End of What Shouldn\'t Exist',
+    id: 158, title: 'The End of What Shouldn\'t Exist',
     world: '🌅 God\'s Domain — Rewritten',
     preText: 'Absolute Axiom. The merger of God\'s creative force and Axiom\'s will. The thing that should not exist. This is what everything was for. 1 life.',
     opponentName: 'Absolute Axiom', weaponKey: 'sword', classKey: 'warrior', aiDiff: 'expert', opponentColor: '#ffe8ff',

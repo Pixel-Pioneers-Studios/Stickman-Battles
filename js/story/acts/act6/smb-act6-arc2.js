@@ -1,7 +1,7 @@
 // Appends chapters for act6/smb-act6-arc2.js.
 STORY_CHAPTER_REGISTRY.push(
   {
-    id: 79, title: 'Proof of Understanding',
+    id: 80, title: 'Proof of Understanding',
     world: '🌌 The Void Between — The Fallen God\'s Trial',
     narrative: [
       '"I will not destroy you.",',
@@ -29,7 +29,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 80, title: 'What Was Before',
+    id: 81, title: 'What Was Before',
     world: '🌌 The Void Between — The Last Threshold',
     type: 'exploration', exploreMode: 'puzzle',
     style: 'void',

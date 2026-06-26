@@ -1786,18 +1786,41 @@
 
   <script>
     (function() {
+      // Third-party SDK noise: errors matching these patterns are never game crashes.
+      // They fire constantly outside the CrazyGames platform and must not pollute
+      // the crash report or trigger the overlay.
+      const _NOISE_PATTERNS = [
+        /crazysdk/i,
+        /crazygames/i,
+        /docs\.crazygames\.com/i,
+        /not initialized yet/i,
+        /supabase/i,
+        /ERR_FAILED/i,
+      ];
+      function _isNoise(s) {
+        const str = String(s || '');
+        return _NOISE_PATTERNS.some(p => p.test(str));
+      }
+
       // Capture the last few console errors so we can show them when the
       // browser sanitizes the real error into "Script error."
+      // SDK/third-party noise is excluded from the buffer.
       const _recentErrors = [];
       const _origConsoleError = console.error;
       console.error = function() {
-        _recentErrors.push(Array.from(arguments).map(String).join(' '));
-        if (_recentErrors.length > 5) _recentErrors.shift();
+        const msg = Array.from(arguments).map(String).join(' ');
+        if (!_isNoise(msg)) {
+          _recentErrors.push(msg);
+          if (_recentErrors.length > 5) _recentErrors.shift();
+        }
         return _origConsoleError.apply(console, arguments);
       };
 
       function _showCrash(msg, src, line, col, errObj) {
-        // Throttle: only show first error (don't cascade)
+        // Ignore SDK/third-party noise — these are not game crashes
+        if (_isNoise(msg) || _isNoise(src)) return;
+
+        // Throttle: only show first real game error (don't cascade)
         if (document.getElementById('crashOverlay').style.display === 'flex') return;
 
         const ver = (typeof GAME_VERSION !== 'undefined') ? GAME_VERSION : '?';
@@ -1809,8 +1832,10 @@
         const isScriptError = !msg || msg === 'Script error.' || msg === 'Script error';
         let displayMsg = msg || 'Unknown error';
         if (isScriptError) {
-          displayMsg = _recentErrors.length
-            ? _recentErrors[_recentErrors.length - 1]
+          // Use the most recent non-noise game error from the buffer
+          const gameErrors = _recentErrors.filter(e => !_isNoise(e));
+          displayMsg = gameErrors.length
+            ? gameErrors[gameErrors.length - 1]
             : 'A script error occurred (browser blocked full details).';
         }
         document.getElementById('crashMessage').textContent = displayMsg;
@@ -1824,7 +1849,10 @@
         // Stack trace
         let stack = errObj && errObj.stack ? errObj.stack : '';
         if (!stack && isScriptError && _recentErrors.length) {
-          stack = 'Recent console errors:\n' + _recentErrors.join('\n');
+          const gameErrors = _recentErrors.filter(e => !_isNoise(e));
+          stack = gameErrors.length
+            ? 'Recent console errors:\n' + gameErrors.join('\n')
+            : '';
         }
         document.getElementById('crashStack').textContent =
           stack || 'Not available — open DevTools (F12) → Console for the full trace';
@@ -1847,6 +1875,9 @@
       window.addEventListener('unhandledrejection', function(e) {
         const err = e.reason;
         const msg = err instanceof Error ? err.message : String(err);
+        // Skip plain-object SDK rejections (CrazyGames throws {}, Supabase throws non-Errors)
+        if (!(err instanceof Error) && err !== null && typeof err === 'object') return;
+        if (_isNoise(msg)) return;
         _showCrash('Unhandled Promise rejection: ' + msg, '', '', '', err instanceof Error ? err : null);
       });
     })();

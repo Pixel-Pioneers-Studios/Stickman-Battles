@@ -6,7 +6,7 @@
 STORY_CHAPTER_REGISTRY.push(
 
   {
-    id: 105, title: 'Into the Silence',
+    id: 107, title: 'Into the Silence',
     world: '🌫️ Quiet Expanse — Entry',
     type: 'exploration', exploreMode: 'stealth',
     style: 'void',
@@ -42,7 +42,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 106, title: 'The Drained Records',
+    id: 108, title: 'The Drained Records',
     world: '🌫️ Quiet Expanse — Memory Residue',
     type: 'exploration', exploreMode: 'puzzle',
     style: 'void',
@@ -75,7 +75,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 107, title: 'The Pull',
+    id: 109, title: 'The Pull',
     world: '🌫️ Quiet Expanse — Resonance Point',
     type: 'branch',
     narrative: [
@@ -127,7 +127,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 108, title: 'The Drain Expands',
+    id: 110, title: 'The Drain Expands',
     world: '🌫️ Quiet Expanse — Field Perimeter',
     type: 'exploration', exploreMode: 'escape',
     style: 'void',
@@ -157,7 +157,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 109, title: 'Seraph',
+    id: 111, title: 'Seraph',
     world: '🌫️ Quiet Expanse — The Center',
     narrative: [
       '"I keep taking things," Seraph said.',

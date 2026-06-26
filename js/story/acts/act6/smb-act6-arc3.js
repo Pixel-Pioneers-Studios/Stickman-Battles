@@ -5,7 +5,7 @@
 STORY_CHAPTER_REGISTRY.push(
 
   {
-    id: 81, title: 'The First Heroes',
+    id: 82, title: 'The First Heroes',
     world: '🌌 The Void Between — Memory Archive',
     type: 'branch',
     narrative: [

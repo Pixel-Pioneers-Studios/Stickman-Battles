@@ -4,7 +4,7 @@
 
 STORY_CHAPTER_REGISTRY.push(
   {
-    id: 66, title: 'The Sealed Section',
+    id: 67, title: 'The Sealed Section',
     world: '🧪 Abandoned Research Facility — Restricted Zone',
     type: 'exploration', exploreMode: 'traversal',
     worldLength: 3200,
@@ -46,7 +46,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 67, title: 'Awakening',
+    id: 68, title: 'Awakening',
     world: '🧪 Abandoned Research Facility — Stasis Chamber',
     narrative: [
       'Three inputs on the panel.',
@@ -89,7 +89,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 68, title: 'What the Lab Taught',
+    id: 69, title: 'What the Lab Taught',
     world: '🧪 Abandoned Research Facility — Exit Corridor',
     narrative: [
       'Calix didn\'t explain everything at once.',

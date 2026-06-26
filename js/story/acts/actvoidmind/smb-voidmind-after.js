@@ -15,7 +15,7 @@
 STORY_CHAPTER_REGISTRY.push(
 
   {
-    id: 172, title: 'After',
+    id: 176, title: 'After',
     world: '⬛ The Substrate — The Threshold',
     type: 'branch',
     isEpilogue: false,

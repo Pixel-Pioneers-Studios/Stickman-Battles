@@ -2,7 +2,7 @@
 // "Eternal Damnation" arc: Axiom encounter (impossible fight) -> hell loop -> escape.
 STORY_CHAPTER_REGISTRY.push(
   {
-    id: 69, title: 'The Weight of What\'s Coming',
+    id: 70, title: 'The Weight of What\'s Coming',
     world: '🕳️ The Void — Threshold',
     // isBossFight spawns the Boss entity: visually massive and unmistakably not a scout.
     // _launchChapter2FightImmediate detects _axiomTeaser and patches the entity post-start:
@@ -52,7 +52,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 70, title: 'The First Reset',
+    id: 71, title: 'The First Reset',
     world: '🕳️ The Loop — First Reset',
     isDamnationChapter: true,
     arena: 'damnation',
@@ -69,7 +69,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 71, title: 'What Axiom Wants',
+    id: 72, title: 'What Axiom Wants',
     world: '🕳️ The Loop — The Voice',
     type: 'branch',
     narrative: [
@@ -113,7 +113,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 72, title: 'The Crack',
+    id: 73, title: 'The Crack',
     world: '🕳️ The Loop — Structural Flaw',
     type: 'exploration', exploreMode: 'escape',
     style: 'void',
@@ -140,7 +140,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 73, title: 'Eternal Damnation',
+    id: 74, title: 'Eternal Damnation',
     world: '🕳️ The Loop — Escape or Be Erased',
     isDamnationChapter: true,
     arena: 'damnation',
@@ -159,7 +159,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 74, title: 'What the Scar Remembers',
+    id: 75, title: 'What the Scar Remembers',
     world: '🕳️ The Void — Threshold Restored',
     isCinematicBridge: true,
     type: 'exploration', exploreMode: 'defense',

@@ -6,7 +6,7 @@
 STORY_CHAPTER_REGISTRY.push(
 
   {
-    id: 100, title: 'The Unformed World',
+    id: 102, title: 'The Unformed World',
     world: '🌀 Null Space — Entry',
     type: 'exploration', exploreMode: 'escape',
     style: 'void',
@@ -36,7 +36,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 101, title: 'Pattern Vaults',
+    id: 103, title: 'Pattern Vaults',
     world: '🌀 Null Space — Archive Layer',
     type: 'exploration', exploreMode: 'scavenge',
     style: 'void',
@@ -69,7 +69,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 102, title: 'Erasure Protocol',
+    id: 104, title: 'Erasure Protocol',
     world: '🌀 Null Space — Core Corridor',
     type: 'exploration', exploreMode: 'escape',
     style: 'void',
@@ -100,7 +100,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 103, title: 'The Pattern Gap',
+    id: 105, title: 'The Pattern Gap',
     world: '🌀 Null Space — Observation Platform',
     type: 'branch',
     narrative: [
@@ -148,7 +148,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 104, title: 'Null',
+    id: 106, title: 'Null',
     world: '🌀 Null Space — Pattern Zero',
     narrative: [
       '"You fight in ways that contradict your own previous data."',

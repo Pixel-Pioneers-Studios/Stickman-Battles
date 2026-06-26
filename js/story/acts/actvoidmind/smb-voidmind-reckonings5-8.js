@@ -20,7 +20,7 @@ STORY_CHAPTER_REGISTRY.push(
   // That's not a value. It's a property of the person, not a choice they made.
   // ────────────────────────────────────────────────────────────────────────────
   {
-    id: 167, title: 'The Line You Drew',
+    id: 171, title: 'The Line You Drew',
     world: '⬛ The Substrate — Below All Dimensions',
     type: 'branch',
     narrative: [
@@ -96,7 +96,7 @@ STORY_CHAPTER_REGISTRY.push(
   // before the eventual occupant arrived.
   // ────────────────────────────────────────────────────────────────────────────
   {
-    id: 168, title: 'What God Built',
+    id: 172, title: 'What God Built',
     world: '⬛ The Substrate — Below All Dimensions',
     type: 'branch',
     narrative: [
@@ -169,7 +169,7 @@ STORY_CHAPTER_REGISTRY.push(
   // Peak form was maximum charge. He is standing here because the delivery completed.
   // ────────────────────────────────────────────────────────────────────────────
   {
-    id: 169, title: 'What You Carried',
+    id: 173, title: 'What You Carried',
     world: '⬛ The Substrate — Below All Dimensions',
     type: 'branch',
     narrative: [
@@ -241,7 +241,7 @@ STORY_CHAPTER_REGISTRY.push(
   // It is one question, asked plainly.
   // ────────────────────────────────────────────────────────────────────────────
   {
-    id: 170, title: 'What Remains',
+    id: 174, title: 'What Remains',
     world: '⬛ The Substrate — Below All Dimensions',
     type: 'branch',
     narrative: [

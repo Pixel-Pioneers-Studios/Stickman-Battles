@@ -1,7 +1,7 @@
 // Appends chapters for act2/smb-act2-arc2.js.
 STORY_CHAPTER_REGISTRY.push(
   {
-    id: 38, type: 'exploration', exploreMode: 'traversal', title: 'Into the Green',
+    id: 39, type: 'exploration', exploreMode: 'traversal', title: 'Into the Green',
     world: '🌲 Forest Dimension — Endless Canopy',
     narrative: [
       'The forest had no edges.',
@@ -43,7 +43,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 39, title: 'The Second Architect',
+    id: 40, title: 'The Second Architect',
     world: '🌲 Forest Dimension — Architect\'s Sanctum',
     narrative: [
       '"I know why you\'re here," the second Architect said.',
@@ -72,7 +72,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 40, title: 'The Third Key',
+    id: 41, title: 'The Third Key',
     world: '🌲 Forest Dimension — Sanctum Cache',
     type: 'exploration', exploreMode: 'scavenge',
     style: 'forest',
@@ -104,7 +104,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 41, title: 'The Ice Dimension',
+    id: 42, title: 'The Ice Dimension',
     world: '❄️ Ice Dimension',
     narrative: [
       'The ice dimension was perfect.',
@@ -133,7 +133,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 42, title: 'The Pessimist',
+    id: 43, title: 'The Pessimist',
     world: '❄️ Ice Dimension — Summit',
     narrative: [
       '"You want me to believe a fragment bearer can close the rift."',
@@ -165,7 +165,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 43, title: 'The Fragment Breathes',
+    id: 44, title: 'The Fragment Breathes',
     world: '❄️ Ice Dimension — Fractured Approach',
     type: 'exploration', exploreMode: 'escape',
     style: 'void',
@@ -193,7 +193,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 44, title: 'Third Architect\'s Doubt',
+    id: 45, title: 'Third Architect\'s Doubt',
     world: '❄️ Ice Dimension — Probability Engine',
     type: 'exploration', exploreMode: 'puzzle',
     style: 'void',
