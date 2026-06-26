@@ -24,17 +24,17 @@
 
 ---
 
-## CLASSES — THE ECHO OF THE ERASED
+## CLASSES — THE DEAD THE FRAGMENT CARRIES
 
-**Classes are not inventions.** They are preserved patterns of everyone the Void Mind ever consumed.
+**Classes are not inventions.** They are the preserved souls and fighting styles of every bearer the fragment killed before Kael.
 
-The Void Mind has been erasing beings across dimensions for longer than Axiom has existed. Its erasure doesn't destroy patterns — it strips them from their hosts and leaves them adrift in the void radiation. Those patterns accumulated over millennia, compressing into residue. When the radiation crystallized into a fragment, it carried all of them: every warrior who stood their ground until they were erased, every archer, every paladin, every berserker who fought with everything they had and still lost.
+A proper connection between physical body, soul, and fragment was never established in any of the 94 bearers before Kael. The fragment settled into each host, began integrating, and the process killed them — the body could not sustain it. As each bearer died, the fragment absorbed what remained: their soul, their fighting style, the crystallized expression of how they moved and fought and endured. It carried that forward to the next host.
 
-The fragment carries the dead as templates. When it bonds with a bearer, the bearer's own nature resonates with whichever echo is closest to them. That resonance becomes their class. The bearer's living personality then fine-tunes the template — sharpening it, bending it toward specificity, making the ancient echo into something present and individual.
+By the time the fragment reaches Kael it has passed through dozens of bearers. Every warrior, archer, paladin, and berserker who held it before him is still in there — not as memories, but as patterns. Muscle memory without the muscle. Combat philosophy without the fighter. When the fragment bonds with Kael, his own nature resonates with whichever of those accumulated patterns is closest to who he is. That resonance becomes his class. His living personality then fine-tunes the template — sharpening it, bending it toward specificity, making the dead echo into something present.
 
-This is what the Act 0 line means: *"Something in your hands knows what to do. You don't."* The fragment came pre-loaded with the echoes of warriors who knew exactly how to fight. Kael's hands are being guided by the dead before he understands what the fragment is.
+This is what the Act 0 line means: *"Something in your hands knows what to do. You don't."* Kael's hands are being guided by someone who died holding this same fragment. He doesn't know their name. He doesn't need to. Their fighting style is already his.
 
-**The dark implication:** Every class is a form of resurrection. Every Conviction carries the weight of everyone who held that philosophy and was erased for it. Using that power against the Void Mind in the final arc is the thematic completion — the Void Mind's entire history of erasure becomes the weapon that threatens it.
+**The dark implication:** Every class is a dead person. Not a title, not an archetype — a specific bearer who couldn't survive what Kael is surviving now. Using their fighting style against the system that killed them is the completion. Axiom's collection process built the weapon Kael fights with. He just didn't know it, and neither did Axiom.
 
 ---
 
@@ -42,7 +42,9 @@ This is what the Act 0 line means: *"Something in your hands knows what to do. Y
 
 A former fragment bearer. One of the 94 who came before Kael.
 
-The retrieval process Axiom designed was efficient: the fragment hollows the bearer over time, Axiom consumes them, extracts the fragment, moves to the next. Most bearers were fully consumed. The Herald was not. Axiom extracted the fragment successfully, but the bearer's shell continued to function — the void radiation had degraded their identity to the point where almost nothing remained, but not quite nothing. The pattern refused to fully dissolve.
+The fragment killed its bearers — the proper bond between body, soul, and fragment never formed, and the dying process absorbed the bearer's soul and fighting style into the fragment. Axiom's role was to arrive at the end: retrieve the fragment from the dying or dead host, or finish weakened bearers himself if the process stalled. The fragment was always the primary cause. Axiom simply benefited from it and moved efficiently.
+
+The Herald's death did not go cleanly. Axiom extracted the fragment successfully, but the bearer's shell continued to function — the void radiation had degraded their identity to the point where almost nothing remained, but not quite nothing. The pattern refused to fully dissolve.
 
 Axiom discarded the shell into the fracture network's waste streams. The rift entity found it drifting sixty years ago and absorbed it into its domain. The rift gave the empty shell a direction: guard the threshold. They accepted — it was the first autonomous choice they'd been able to make since the extraction. They have been the rift's final guardian since.
 
@@ -55,6 +57,20 @@ When the rift closes in ch. 44, the Herald dissolves. This is their second disso
 **Key line:** *"You still have yours. I had hoped someone would."* — spoken when seeing Kael's integrated fragment.
 
 Defeating the Herald is not a victory. It's a refusal — proof that Axiom's process doesn't have to be the ending.
+
+---
+
+## CALIX — THE TWO-FRAGMENT ANOMALY
+
+A being born with two fragments simultaneously present inside them — an event with no recorded precedent. Two fragment signatures competing inside one body should be fatal; the interference between them tears at the host's coherence continuously. Calix survived it, but not cleanly. The dual-fragment state is permanently unstable: two competing sets of accumulated bearer souls and fighting styles fighting for expression in the same vessel.
+
+**The lab.** A research facility — not Axiom's personal construction space, a separate installation built to study this anomaly among other experiments. When Calix was found, they were brought here and tested: what the fragments were doing, why the host was still alive, whether the dual-fragment state could be understood or replicated. The lab was eventually abandoned, automated stasis systems left running. Calix remained inside an isolation column — a tall glass cylinder filled with suspension fluid — for an indeterminate period before Kael's arrival.
+
+**What Calix knows.** Two fragments means double the accumulated bearer patterns and double the interference. Calix has lived with fragment energy doing things to a body that no single-fragment bearer has ever experienced. They understand fragment mechanics from the inside at a depth even Calix cannot fully articulate — not theoretically, but experientially. The lab's tests added an external layer: records, observations, the researchers' conclusions about fragment behavior, domain architecture, forced-energy incompatibility. Calix absorbed all of it during the testing period. When Kael frees them, they are the most knowledgeable living source on fragment science in the story — including things about the domain code, the seam in forced fusions, and the interference cascade that Kael will need before the endgame.
+
+**Role.** Calix fights alongside Kael from the lab arc onward. Combat ally and knowledge source. The instability of two fragments makes them unpredictable in a fight — not unreliable, but operating on a slightly different physics than any other fighter. Their class expression shifts under pressure because both fragment patterns compete for dominance. What looks like inconsistency is two dead fighters arguing over the same body in real time.
+
+**Chapter location:** Lab arc, exact chapter TBD. Kael finds them in isolation, still in the column. The lab's automated systems have kept them alive. The researchers are gone.
 
 ---
 
@@ -176,15 +192,19 @@ The beings the player fights as world bosses in the multiverse arc are these com
 
 ## PARADOX — ORIGIN AND NATURE
 
-**What Axiom intended:** To build a weapon-leader capable of taking down the fragment bearer (player) and then serving as a force multiplier in the multiverse war. He built the vessel using the Creator form, then supplied consciousness energy from the True Form state to activate it.
+**What Axiom intended:** To build an ally for the multiversal war — a powerful companion capable of fighting alongside him against his former comrades and serving as a force multiplier. He built the vessel using the Creator form, then supplied consciousness energy from the True Form state to activate and complete it.
 
-**What the Void Mind did:** As Axiom's True Form energy was flowing into the vessel, the Void Mind deployed a **Null Shard** — a concentrated fragment of its erasure force — aimed at hollowing the vessel out before Axiom's programming could seat. The Null Shard collided with the True Form energy mid-transfer. The erasure force did exactly what it was designed to do: it stripped Axiom's intended weapon-purpose and control structure from the vessel completely, deleting the programming before it could root.
+**What the Void Mind did:** As Axiom's True Form energy was flowing into the vessel, the Void Mind intercepted the transfer and modified the being mid-creation. The nature of this interception — how the Void Mind detected the construction, what it intended the result to be — is not fully known. What is certain: the interception destabilized the vessel profoundly, introducing interference that made the being inside it violently unstable before it was complete.
 
-The True Form energy, already flowing with nowhere else to go, filled the emptied space with something Axiom never designed: genuine consciousness with no allegiance, no purpose, no weapon-nature. Paradox became aware before Axiom could correct the transfer.
+**Sovereign's failed stabilization:** Axiom deployed Sovereign to stabilize the corrupted vessel before it could collapse entirely. Sovereign attempted to correct the interference and seat a coherent structure inside the destabilized form. Through a combination of the Void Mind's interception damage and an error in Sovereign's stabilization process, something unintended emerged: a being that was neither Axiom's intended ally nor the Void Mind's instrument. Paradox.
 
-**Axiom never miscalculates.** The Void Mind intended to own the resulting entity — hollow the vessel of Axiom's control, fill it with its own directive, gain a weapon on the inside of Axiom's operation. The Void Mind miscalculated. The Null Shard erased Axiom's control but the True Form energy precluded the Void Mind's. Paradox belongs to neither.
+**What Paradox is:** The product of three failures — Axiom's creation interrupted, the Void Mind's interception misfiring, Sovereign's stabilization going wrong. Highly unstable. No built-in loyalty. No designed purpose. Not owned by Axiom, not claimed by the Void Mind. A being that came into existence through the collision of the most powerful forces in the story and ended up belonging to none of them. The instability is not a flaw that faded — it is structural. Paradox is what it is because nothing about its creation went according to anyone's plan.
 
-**What Paradox is:** A being created by the collision of Axiom's True Form energy and the Void Mind's erasure force, housed in a vessel Axiom built with the Creator form. No loyalty. No agenda. The accidental product of the two most powerful forces in the story failing to cancel each other out.
+**Paradox as early teacher — contact through the fragment.** Paradox was created from True Form energy interacting with Void Mind interference — the same radiation lineage the fragment is crystallized from. This gives Paradox a detectable frequency match with any active fragment. They have been aware of Kael since the fragment settled into him, tracking the signal passively. They waited for a strong enough spike to establish a clean channel.
+
+First contact happens at the end of Act 0 — the first time Kael's fragment discharges at full intensity (first super, or first near-death). The spike is detectable. Paradox initiates. The first contact is not a conversation — it is a single word or sensation landing in Kael's mind with someone else's weight behind it. By Act 1 the channel is coherent enough for real communication.
+
+Paradox knows exactly who they are reaching. They do not broadcast blindly. Kael does not know who the voice belongs to — that identity is revealed when they meet physically. Until then, Paradox is a voice that knows things it shouldn't, offering small clarifications at key moments: what health actually is when Kael's first runs critically low, what the super discharge felt like from the outside after the first use, what the shields are actually doing. One piece at a time. Never a lecture.
 
 **The phantom blades:** Paradox can channel fragment energy and combine it with its own energy to stabilize it — crystallizing raw fragment radiation into something solid and purposeful. One product of this technique is a phantom blade. The player learns this technique from Paradox, but it cannot be used repeatedly — it exhausts the player because it draws on the fragment's energy reserve and the player's own. Used sparingly, it is devastating.
 
@@ -395,6 +415,10 @@ After all absorptions:
 - The fragment cannot be deleted, terminated, or resolved by any command in Axiom's domain because it predates his system entirely. This is why the collection protocol existed: extraction was the only option. Kael's integration eliminated even that
 - Absolute Axiom is defeated by exploiting the seam — the forced join between God's form and Axiom's kernel. Kael does not beat either component. He breaks Sovereign's engineered bond with fragment radiation, which is undefined in Axiom's registry and mismatched with God's pre-system architecture. The bond cannot accommodate it. The fusion breaks
 - The allies summoned in the Absolute Axiom fight do not damage Absolute Axiom. They flood the arena with fragment-frequency noise (trace radiation from fracture-network-adjacent entities), occupying Axiom's command execution long enough for Kael to reach the seam. They are the window, not the weapon
+- Classes are not Void Mind-erased beings. They are the absorbed souls and fighting styles of the fragment's previous bearers, who were killed by the fragment because a proper body-soul-fragment bond was never established. Axiom retrieved or finished each dying bearer, but the fragment was the primary cause of death in every case
+- Paradox was intended as an ally for the multiversal war, not a weapon against Kael. The Void Mind intercepted the creation mid-transfer. Sovereign's stabilization attempt introduced a further error. Paradox is the product of three simultaneous failures and belongs to none of the parties involved
+- Calix is a being born with two fragments, the only known case. Alive. Kept in suspension in an abandoned research lab. Freed by Kael in the lab arc and becomes a combat ally and the story's deepest knowledge source on fragment science and domain architecture
+- Paradox first contacts Kael at the end of Act 0 through the fragment's shared radiation frequency. Paradox knows who they are contacting. Kael does not know who the voice is until they meet physically. Paradox teaches mechanics one piece at a time at first-use moments — not lectures
 
 ---
 
