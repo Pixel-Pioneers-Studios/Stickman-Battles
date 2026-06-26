@@ -68,6 +68,9 @@ const CHANGELOG = [
     flavor: 'The Combat weapon finally has the moveset it deserved. The Pugilist class built their whole identity around it. And somewhere out in the void, a Summoner is calling something into the world.',
     isLatest: false,
     changes: [
+      { cat: 'Prequel',  text: 'Axiom Prequel added — a standalone canvas game (axiom-prequel/) set before the events of the main game; play as the figure the main story is built around across 6 chapters; ends at the moment the main game\'s lore begins', spoilerAct: 4 },
+      { cat: 'Prequel',  text: 'Axiom Prequel — enemy types include dimensional scouts (void burst on death), enforcers, and lieutenants; enforcers absorb 60% of damage and cannot be launched when blocking; three named companions join and depart during the arc', spoilerAct: 4 },
+      { cat: 'Prequel',  text: 'Axiom Prequel combat polish: void pulse super move (radial damage + screen flash), combo counter HUD that scales font size with streak, footstep dust particles, super READY pulse indicator, white hit flash on enemies matching main-game feel' },
       { cat: 'Combat',  text: 'Combat weapon completely reworked — Counter (Q) enters a parry stance: absorb the next hit, teleport behind the attacker, and launcher-kick them airborne (18 dmg); Combo Strike super (E) dashes to the target, kicks them upward (22 dmg), then blasts them away with a power punch (34 dmg)' },
       { cat: 'Combat',  text: 'Giant Fist replaced — the old slow-moving fist hitbox is removed; Combo Strike fills the same niche with a two-hit sequence that requires positioning and commitment' },
       { cat: 'Class',   text: 'Pugilist class added — Combat-only brawler, 135 HP, 1.15× speed; Surge Strike perk automatically fires Combo Strike for free at ≤20% HP (once per match)' },
@@ -121,6 +124,8 @@ const CHANGELOG = [
     flavor: 'Forty bugs walked in. None walked out. And something at the very end of everything is paying much closer attention to how you fight.',
     isLatest: false,
     changes: [
+      { cat: 'Entity',  text: 'Absolute Axiom fight completely rebuilt — HP raised to 1,000,000; five checkpoint thresholds at 800K / 600K / 400K / 200K / 100K; progress is preserved at each checkpoint so death mid-fight no longer restarts from full health', spoilerLevel: 3 },
+      { cat: 'Entity',  text: 'Absolute Axiom portal phase: drops below 100K HP triggers true invincibility until 5 portal allies are active; dimension punch ability added; screen FX system added to power the fight\'s visual escalation', spoilerLevel: 3 },
       { cat: 'AI',      text: 'Absolute Axiom rebuilt on a composed behavior-model brain — it profiles your habits in real time and adapts its strategy mid-fight; portal phases now grant true invincibility', spoilerLevel: 3 },
       { cat: 'Visual',  text: 'Added swing-arc trail ribbons — melee swings leave a fading, tapered light trail behind the blade tip' },
       { cat: 'Combat',  text: 'Combat pipeline fixes: projectile reflect no longer double-triggers, combos no longer continue through shields, and a hit-stop race condition was eliminated' },
