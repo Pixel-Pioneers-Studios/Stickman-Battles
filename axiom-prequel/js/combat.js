@@ -12,12 +12,19 @@ function dealDamage(attacker, target, damage, kbForce, launch) {
   if (!target || target.health <= 0) return;
   if (target.invincibleFrames > 0)   return;
 
-  // Blocking: Enforcers/Lieutenants absorb 60% of damage when their arms are up
+  // Blocking: Enforcers/Lieutenants absorb 60% of damage when their arms are up,
+  // but only when the attack comes from the front (attacker is in the direction they're facing).
+  // Attacks from behind or above bypass the block entirely.
   let actualDamage = damage;
   let actualLaunch = launch;
-  if (target.blocking) {
-    actualDamage = Math.ceil(damage * 0.4);
-    actualLaunch = false;  // blocked hits can't knock down
+  if (target.blocking && attacker) {
+    const attackFromFront = (attacker.cx() - target.cx()) * target.facing > -20;
+    if (attackFromFront) {
+      actualDamage = Math.ceil(damage * 0.4);
+      actualLaunch = false;  // blocked hits can't knock down
+    }
+  } else if (target.blocking && !attacker) {
+    // Hazard/environmental damage always bypasses block
   }
 
   target.health -= actualDamage;

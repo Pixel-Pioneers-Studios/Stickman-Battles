@@ -163,7 +163,7 @@ function _drawBubble(speech) {
 
   // Bubble
   ctx.fillStyle   = 'rgba(14,12,9,0.95)';
-  ctx.strokeStyle = '#665544';
+  ctx.strokeStyle = '#998866';
   ctx.lineWidth   = 1.5;
   roundedRect(bx, by, bw, bh, 5);
   ctx.fill();
@@ -171,15 +171,15 @@ function _drawBubble(speech) {
 
   // Speaker label
   ctx.shadowBlur  = 0;
-  ctx.fillStyle   = '#776655';
-  ctx.font        = 'bold 10px Courier New';
+  ctx.fillStyle   = '#998877';
+  ctx.font        = 'bold 11px Courier New';
   ctx.textAlign   = 'left';
-  ctx.fillText(speech.speaker.toUpperCase(), bx + 10, by + 16);
+  ctx.fillText(speech.speaker.toUpperCase(), bx + 10, by + 17);
 
   // Dialogue text — larger + higher contrast
-  ctx.fillStyle = '#e8dfcc';
+  ctx.fillStyle = '#ece4d4';
   ctx.font      = '14px Courier New';
-  ctx.fillText(speech.text, bx + 10, by + 35);
+  ctx.fillText(speech.text, bx + 10, by + 36);
 
   ctx.restore();
 }

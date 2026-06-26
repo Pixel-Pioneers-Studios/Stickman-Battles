@@ -153,12 +153,7 @@ function _showStory2LoseNag(ch) {
         ov.style.display = 'none';
         storyModeActive = false;
         if (typeof backToMenu === 'function') backToMenu();
-        setTimeout(() => {
-          if (typeof openStoryMenu === 'function') openStoryMenu();
-          setTimeout(() => {
-            if (typeof switchStoryTab === 'function') switchStoryTab('store');
-          }, 120);
-        }, 320);
+        setTimeout(() => { if (typeof openStoryMenuShop === 'function') openStoryMenuShop(); }, 340);
       };
     }
   });

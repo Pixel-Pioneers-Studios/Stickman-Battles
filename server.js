@@ -192,11 +192,11 @@ function _securityHeaders(req, res) {
   }
   res.setHeader('Content-Security-Policy', [
     "default-src 'self'",
-    "script-src 'self' 'unsafe-inline' https://esm.sh https://cdnjs.cloudflare.com https://unpkg.com https://www.youtube.com",
+    "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://esm.sh https://cdnjs.cloudflare.com https://unpkg.com https://www.youtube.com",
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data:",
     "media-src 'self'",
-    "connect-src 'self' https://*.supabase.co https://esm.sh https://*.peerjs.com wss: https:",
+    "connect-src 'self' https://*.supabase.co https://esm.sh https://*.peerjs.com wss: https: http://localhost:11434 http://127.0.0.1:11434",
     "frame-src https://www.youtube.com",
     "frame-ancestors 'none'",
     "base-uri 'self'",

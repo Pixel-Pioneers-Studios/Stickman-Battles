@@ -70,6 +70,16 @@ function storyCheckEvents() {
 
   // ── Per-frame ability processing ─────────────────────────────────────────
   if (typeof storyTickAbilities === 'function') storyTickAbilities();
+
+  // ── Interlude walking chapter ─────────────────────────────────────────────
+  if (typeof _interludeActive !== 'undefined' && _interludeActive) {
+    if (typeof updateInterlude === 'function') updateInterlude();
+    // Completion → advance chapter (same path as exploration)
+    if (typeof isInterludeComplete === 'function' && isInterludeComplete()) {
+      if (typeof resetInterlude === 'function') resetInterlude();
+      if (typeof story2OnMatchEnd === 'function') story2OnMatchEnd('win');
+    }
+  }
 }
 
 /**

@@ -1,4 +1,4 @@
-// smb-domain.js — Domain Expansion system
+// smb-domain.js — Conviction system
 // Loaded after: smb-combat.js, smb-fighter.js, smb-enemies-class.js, smb-god.js
 // Loaded before: smb-loop-core.js
 // Globals used: players, gameRunning, GAME_W, GAME_H, ctx, canvas, dealDamage,
@@ -123,6 +123,15 @@ const DOMAIN_DEFS = {
 const DomainManager = (() => {
   const RISE_FRAMES   = 300; // 5 s at 60 fps
   const DOMAIN_FRAMES = 25 * 60; // 25 s
+
+  // Frames between passive-weapon fires during active domain
+  const _PASSIVE_CDS = {
+    sword: 48, hammer: 72, gun: 20, axe: 60,
+    spear: 55, bow: 70, shield: 95, scythe: 55,
+    fryingpan: 85, broomstick: 60, combat: 75, peashooter: 16,
+    slingshot: 68, paperairplane: 52, flail: 95, whip: 62,
+    boomerang: 56, katana: 32, flamethrower: 90, electricstaff: 42,
+  };
 
   // [{owner, defKey, def, timer, hazards[], spawnCooldown}]
   let _domains = [];
@@ -515,6 +524,7 @@ const DomainManager = (() => {
     delete owner._domainSpeedRefresh;
     delete owner._domainPowerRefresh;
     delete owner._domainDisplayWeapon;
+    delete owner._convictionPassive;
   }
 
   // ── Domain entry cinematic ──────────────────────────────────────────
@@ -598,7 +608,7 @@ const DomainManager = (() => {
           }
         }
         if (t === 218) {
-          CinFX.nameCard('DOMAIN EXPANSION', def.color, { dur: 110 });
+          CinFX.nameCard('CONVICTION', def.color, { dur: 110 });
           CinFX.impactFrame(f, { dur: 3 });
           const line = _DOMAIN_ENTRY_LINE[f.charClass];
           if (line && typeof queueAnnouncement === 'function') queueAnnouncement('"' + line + '"', def.color);
@@ -637,7 +647,7 @@ const DomainManager = (() => {
           d.axeThrown = true; d.axeX = f.cx(); d.axeY = f.cy() - 20; d.axeVy = -18;
         }
         if (t === 215) {
-          CinFX.nameCard('DOMAIN EXPANSION', def.color, { dur: 110 });
+          CinFX.nameCard('CONVICTION', def.color, { dur: 110 });
           CinFX.impactFrame(f, { dur: 3 });
           const line = _DOMAIN_ENTRY_LINE[f.charClass];
           if (line && typeof queueAnnouncement === 'function') queueAnnouncement('"' + line + '"', def.color);
@@ -683,7 +693,7 @@ const DomainManager = (() => {
           }
         }
         if (t === 228) {
-          CinFX.nameCard('DOMAIN EXPANSION', def.color, { dur: 110 });
+          CinFX.nameCard('CONVICTION', def.color, { dur: 110 });
           CinFX.impactFrame(f, { dur: 3 });
           const line = _DOMAIN_ENTRY_LINE[f.charClass];
           if (line && typeof queueAnnouncement === 'function') queueAnnouncement('"' + line + '"', def.color);
@@ -722,7 +732,7 @@ const DomainManager = (() => {
           if (typeof screenShake !== 'undefined') screenShake = Math.max(screenShake, 40);
         }
         if (t === 215) {
-          CinFX.nameCard('DOMAIN EXPANSION', def.color, { dur: 110 });
+          CinFX.nameCard('CONVICTION', def.color, { dur: 110 });
           CinFX.impactFrame(f, { dur: 3 });
           const line = _DOMAIN_ENTRY_LINE[f.charClass];
           if (line && typeof queueAnnouncement === 'function') queueAnnouncement('"' + line + '"', def.color);
@@ -767,7 +777,7 @@ const DomainManager = (() => {
           if (typeof spawnParticles === 'function') spawnParticles(f.cx(), GAME_H - 120, '#44ff88', 30);
         }
         if (t === 215) {
-          CinFX.nameCard('DOMAIN EXPANSION', def.color, { dur: 110 });
+          CinFX.nameCard('CONVICTION', def.color, { dur: 110 });
           CinFX.impactFrame(f, { dur: 3 });
           const line = _DOMAIN_ENTRY_LINE[f.charClass];
           if (line && typeof queueAnnouncement === 'function') queueAnnouncement('"' + line + '"', def.color);
@@ -811,7 +821,7 @@ const DomainManager = (() => {
           }
         }
         if (t === 215) {
-          CinFX.nameCard('DOMAIN EXPANSION', def.color, { dur: 110 });
+          CinFX.nameCard('CONVICTION', def.color, { dur: 110 });
           CinFX.impactFrame(f, { dur: 3 });
           const line = _DOMAIN_ENTRY_LINE[f.charClass];
           if (line && typeof queueAnnouncement === 'function') queueAnnouncement('"' + line + '"', def.color);
@@ -848,7 +858,7 @@ const DomainManager = (() => {
           d.bloodPool = true; d.bloodPoolR = 0;
         }
         if (t === 238) {
-          CinFX.nameCard('DOMAIN EXPANSION', def.color, { dur: 110 });
+          CinFX.nameCard('CONVICTION', def.color, { dur: 110 });
           CinFX.impactFrame(f, { dur: 3 });
           const line = _DOMAIN_ENTRY_LINE[f.charClass];
           if (line && typeof queueAnnouncement === 'function') queueAnnouncement('"' + line + '"', def.color);
@@ -892,7 +902,7 @@ const DomainManager = (() => {
         if (t === 232) {
           CinFX.shockwave(f.cx(), f.cy(), '#9944ff', { count: 3, maxR: 300, lw: 5, dur: 58 });
           if (typeof screenShake !== 'undefined') screenShake = Math.max(screenShake, 52);
-          CinFX.nameCard('DOMAIN EXPANSION', def.color, { dur: 110 });
+          CinFX.nameCard('CONVICTION', def.color, { dur: 110 });
           CinFX.impactFrame(f, { dur: 3 });
           const line = _DOMAIN_ENTRY_LINE[f.charClass];
           if (line && typeof queueAnnouncement === 'function') queueAnnouncement('"' + line + '"', def.color);
@@ -933,7 +943,7 @@ const DomainManager = (() => {
           }
         }
         if (t === 228) {
-          CinFX.nameCard('DOMAIN EXPANSION', def.color, { dur: 110 });
+          CinFX.nameCard('CONVICTION', def.color, { dur: 110 });
           CinFX.impactFrame(f, { dur: 3 });
           const line = _DOMAIN_ENTRY_LINE[f.charClass];
           if (line && typeof queueAnnouncement === 'function') queueAnnouncement('"' + line + '"', def.color);
@@ -979,7 +989,7 @@ const DomainManager = (() => {
         }
         if (t === 228) {
           CinFX.shockwave(f.cx(), f.cy(), '#cc44cc', { count: 3, maxR: 300, lw: 5, dur: 58 });
-          CinFX.nameCard('DOMAIN EXPANSION', def.color, { dur: 110 });
+          CinFX.nameCard('CONVICTION', def.color, { dur: 110 });
           CinFX.impactFrame(f, { dur: 3 });
           const line = _DOMAIN_ENTRY_LINE[f.charClass];
           if (line && typeof queueAnnouncement === 'function') queueAnnouncement('"' + line + '"', def.color);
@@ -1018,7 +1028,7 @@ const DomainManager = (() => {
           CinFX.shockwave(f.cx(), f.cy(), '#ee4444', { count: 3, maxR: 310, lw: 6, dur: 58 });
           CinFX.flash('#ffaaaa', 0.60, 6);
           if (typeof screenShake !== 'undefined') screenShake = Math.max(screenShake, 44);
-          CinFX.nameCard('DOMAIN EXPANSION', def.color, { dur: 110 });
+          CinFX.nameCard('CONVICTION', def.color, { dur: 110 });
           CinFX.impactFrame(f, { dur: 3 });
           const line = _DOMAIN_ENTRY_LINE[f.charClass];
           if (line && typeof queueAnnouncement === 'function') queueAnnouncement('"' + line + '"', def.color);
@@ -2092,12 +2102,556 @@ const DomainManager = (() => {
     _domains.push(domain);
 
     if (!suppressAnnounce && typeof queueAnnouncement === 'function') {
-      queueAnnouncement('DOMAIN EXPANSION — ' + def.name.toUpperCase(), def.color);
+      queueAnnouncement('CONVICTION — ' + def.name.toUpperCase(), def.color);
     }
     if (typeof screenShake !== 'undefined') screenShake = Math.max(screenShake, 28);
     if (typeof spawnParticles === 'function') {
       spawnParticles(fighter.cx(), fighter.cy(), def.color, 40);
       spawnParticles(fighter.cx(), fighter.cy(), '#ffffff', 20);
+    }
+
+    // ── Weapon-specific Conviction burst ─────────────────────────────
+    _applyWeaponConvictionBonus(fighter, def);
+  }
+
+  // ── Weapon Conviction Bonus — unique burst per weapon on activation ──
+  function _applyWeaponConvictionBonus(fighter, def) {
+    const wep  = fighter.weaponKey || '';
+    const cx   = fighter.cx(), cy = fighter.cy();
+    const f    = fighter.facing || 1;
+    const col  = def ? def.color : '#ffffff';
+    const _all = [...(typeof players !== 'undefined' ? players : []),
+                  ...(typeof minions !== 'undefined' ? minions : [])];
+    const _enemies = _all.filter(e => e && e !== fighter && e.health > 0 && !e.godMode
+                                    && (typeof areAlliedEntities === 'function' ? !areAlliedEntities(fighter, e) : true));
+
+    switch (wep) {
+
+      case 'sword': {
+        // Fan of 5 sword-energy slashes spread in a V in front of the fighter
+        if (typeof Projectile === 'undefined' || typeof projectiles === 'undefined') break;
+        for (let i = 0; i < 5; i++) {
+          const ang = (i - 2) * 0.28;
+          const proj = new Projectile(cx, cy, Math.cos(ang) * f * 14, Math.sin(ang) * 14 - 2, 32, fighter, 'sword_slash');
+          proj._convictionSlash = true;
+          proj.life = 22; proj.radius = 14;
+          proj.color = '#aaccff';
+          projectiles.push(proj);
+        }
+        spawnParticles(cx, cy, '#aaccff', 20);
+        break;
+      }
+
+      case 'hammer': {
+        // Ground-pound shockwave: massive radial knockback + damage to all enemies
+        screenShake = Math.max(screenShake || 0, 38);
+        for (const e of _enemies) {
+          const dx = e.cx() - cx, dy = e.cy() - cy;
+          const dist = Math.hypot(dx, dy);
+          if (dist < 280) {
+            dealDamage(fighter, e, 28, 0);
+            const kb = (1 - dist / 280) * 22;
+            e.vx += (dist > 1 ? dx / dist : f) * kb;
+            e.vy  = Math.min(e.vy, -16);
+          }
+        }
+        spawnParticles(cx, cy + 30, '#cc8844', 50);
+        spawnParticles(cx, cy, '#ffcc88', 20);
+        break;
+      }
+
+      case 'gun': {
+        // 12-bullet radial burst in all directions
+        if (typeof Projectile === 'undefined' || typeof projectiles === 'undefined') break;
+        for (let i = 0; i < 12; i++) {
+          const ang = (i / 12) * Math.PI * 2;
+          const proj = new Projectile(cx, cy, Math.cos(ang) * 13, Math.sin(ang) * 13, 22, fighter, 'gun_bullet');
+          proj.life = 28; proj.radius = 6; proj.color = '#ffcc44';
+          projectiles.push(proj);
+        }
+        spawnParticles(cx, cy, '#ffcc44', 24);
+        break;
+      }
+
+      case 'axe': {
+        // 3 orbiting axes — stored on fighter, updated in DomainManager.update()
+        fighter._convictionOrbitAxes = [];
+        for (let i = 0; i < 3; i++) {
+          fighter._convictionOrbitAxes.push({ angle: (i / 3) * Math.PI * 2, r: 60, life: 420, hitSet: new Set() });
+        }
+        spawnParticles(cx, cy, '#ff8800', 28);
+        break;
+      }
+
+      case 'spear': {
+        // Forward charge piercing all enemies in a line
+        fighter._convictionSpearCharge = { frames: 20, done: false };
+        fighter.vx = f * 28;
+        fighter.vy = -3;
+        fighter.invincible = Math.max(fighter.invincible || 0, 25);
+        spawnParticles(cx, cy, '#88aaff', 22);
+        break;
+      }
+
+      case 'bow': {
+        // 8 tracking arrows fired toward nearest enemy
+        if (typeof Projectile === 'undefined' || typeof projectiles === 'undefined') break;
+        const tgt = _enemies.reduce((best, e) => (!best || Math.hypot(e.cx()-cx,e.cy()-cy) < Math.hypot(best.cx()-cx,best.cy()-cy)) ? e : best, null);
+        for (let i = 0; i < 8; i++) {
+          const ang = (i / 8) * Math.PI * 2;
+          const baseVx = tgt ? (tgt.cx()-cx)/Math.max(1,Math.hypot(tgt.cx()-cx,tgt.cy()-cy))*14 : Math.cos(ang)*10;
+          const baseVy = tgt ? (tgt.cy()-cy)/Math.max(1,Math.hypot(tgt.cx()-cx,tgt.cy()-cy))*14 : Math.sin(ang)*10;
+          const scatter = (i / 8) * Math.PI * 2;
+          const proj = new Projectile(cx, cy, baseVx + Math.cos(scatter)*2, baseVy + Math.sin(scatter)*2 - 1, 20, fighter, 'bow_arrow');
+          proj._isArrow = true; proj.life = 32; proj.radius = 7; proj.color = '#44ff88';
+          projectiles.push(proj);
+        }
+        spawnParticles(cx, cy, '#44ff88', 18);
+        break;
+      }
+
+      case 'shield': {
+        // Reflective dome: nearby enemy projectiles get reversed for 3 seconds
+        fighter._convictionReflectDome = 180; // frames
+        fighter.invincible = Math.max(fighter.invincible || 0, 180);
+        spawnParticles(cx, cy, '#ffffaa', 35);
+        spawnParticles(cx, cy - 20, '#ffffff', 15);
+        break;
+      }
+
+      case 'scythe': {
+        // Lifesteal nova: damages all enemies, heals fighter
+        let totalHealed = 0;
+        for (const e of _enemies) {
+          if (Math.hypot(e.cx()-cx, e.cy()-cy) < 250) {
+            dealDamage(fighter, e, 26, 8);
+            totalHealed += 16;
+          }
+        }
+        fighter.health = Math.min(fighter.health + totalHealed, fighter.maxHealth);
+        spawnParticles(cx, cy, '#cc44cc', 40);
+        spawnParticles(cx, cy, '#ffaaff', 20);
+        break;
+      }
+
+      case 'fryingpan': {
+        // Stun ring: enemies in range are stunned (attack cooldown jammed)
+        for (const e of _enemies) {
+          if (Math.hypot(e.cx()-cx, e.cy()-cy) < 220) {
+            dealDamage(fighter, e, 14, 6);
+            e.stunTimer = Math.max(e.stunTimer || 0, 150);
+            if (typeof e.attackTimer !== 'undefined') e.attackTimer = 0;
+            spawnParticles(e.cx(), e.cy(), '#ffcc44', 14);
+          }
+        }
+        screenShake = Math.max(screenShake || 0, 20);
+        spawnParticles(cx, cy, '#ffdd55', 35);
+        break;
+      }
+
+      case 'broomstick': {
+        // Wind gust: massive knockback sends everyone flying to the edges
+        for (const e of _enemies) {
+          const dx = e.cx() - cx;
+          e.vx  = (dx >= 0 ? 1 : -1) * 26;
+          e.vy  = -10;
+          dealDamage(fighter, e, 10, 0);
+          spawnParticles(e.cx(), e.cy(), '#aaddff', 12);
+        }
+        spawnParticles(cx, cy, '#88ccff', 30);
+        break;
+      }
+
+      case 'combat': {
+        // Full-force counter slam: AOE punch hitting all nearby enemies
+        for (const e of _enemies) {
+          if (Math.hypot(e.cx()-cx, e.cy()-cy) < 180) {
+            dealDamage(fighter, e, 30, 20);
+            e.vy = -14;
+            e.vx = (e.cx() > cx ? 1 : -1) * 16;
+            spawnParticles(e.cx(), e.cy(), '#ff4444', 18);
+          }
+        }
+        fighter._counterStance = 180; // extended counter window during conviction
+        spawnParticles(cx, cy, '#ff6655', 28);
+        break;
+      }
+
+      case 'peashooter': {
+        // 24-pea radial volley
+        if (typeof Projectile === 'undefined' || typeof projectiles === 'undefined') break;
+        for (let i = 0; i < 24; i++) {
+          const ang = (i / 24) * Math.PI * 2;
+          const proj = new Projectile(cx, cy, Math.cos(ang)*11, Math.sin(ang)*11, 12, fighter, 'peashooter_pea');
+          proj.life = 30; proj.radius = 8; proj.color = '#44ff44';
+          projectiles.push(proj);
+        }
+        spawnParticles(cx, cy, '#44ff44', 22);
+        break;
+      }
+
+      case 'slingshot': {
+        // 6 large boulders fired in fan, high damage and bounce
+        if (typeof Projectile === 'undefined' || typeof projectiles === 'undefined') break;
+        for (let i = 0; i < 6; i++) {
+          const ang = -0.5 + (i / 5) * 1.0 + (f < 0 ? Math.PI : 0);
+          const proj = new Projectile(cx, cy, Math.cos(ang)*12, Math.sin(ang)*12 - 4, 36, fighter, 'stone');
+          proj.life = 45; proj.radius = 12; proj.color = '#aaaaaa';
+          projectiles.push(proj);
+        }
+        spawnParticles(cx, cy, '#aaaaaa', 20);
+        break;
+      }
+
+      case 'paperairplane': {
+        // 16 converging planes all targeting nearest enemy
+        if (typeof Projectile === 'undefined' || typeof projectiles === 'undefined') break;
+        for (let i = 0; i < 16; i++) {
+          const ang = (i / 16) * Math.PI * 2;
+          const spawnX = cx + Math.cos(ang) * 120;
+          const spawnY = cy + Math.sin(ang) * 80;
+          const proj = new Projectile(spawnX, spawnY, (cx-spawnX)*0.08, (cy-spawnY)*0.08, 16, fighter, 'paper');
+          proj.life = 40; proj.radius = 10; proj.color = '#ffffff';
+          projectiles.push(proj);
+        }
+        spawnParticles(cx, cy, '#ffffff', 26);
+        break;
+      }
+
+      case 'flail': {
+        // Spin mode: fighter deals contact damage while spinning for 2.5 seconds
+        fighter._convictionFlailSpin = 150; // frames of spin
+        fighter.invincible = Math.max(fighter.invincible || 0, 150);
+        spawnParticles(cx, cy, '#cc8844', 26);
+        break;
+      }
+
+      case 'whip': {
+        // Chain pull: all enemies dragged toward fighter's position
+        for (const e of _enemies) {
+          const dx = cx - e.cx(), dy = cy - e.cy();
+          const dist = Math.hypot(dx, dy);
+          if (dist > 20 && dist < 500) {
+            e.vx += (dx / dist) * 20;
+            e.vy += (dy / dist) * 8;
+            dealDamage(fighter, e, 18, 0);
+            spawnParticles(e.cx(), e.cy(), '#ffaa44', 12);
+          }
+        }
+        spawnParticles(cx, cy, '#ffcc66', 28);
+        break;
+      }
+
+      case 'boomerang': {
+        // 8 boomerangs in wide fan, all return
+        if (typeof Projectile === 'undefined' || typeof projectiles === 'undefined') break;
+        for (let i = 0; i < 8; i++) {
+          const ang = -0.7 + (i / 7) * 1.4 + (f < 0 ? Math.PI : 0);
+          const proj = new Projectile(cx, cy, Math.cos(ang)*15, Math.sin(ang)*15 - 3, 24, fighter, 'boomerang');
+          proj._isBoomerang = true; proj.oneWay = true; proj.life = 55; proj.radius = 11; proj.color = '#cc9944';
+          projectiles.push(proj);
+        }
+        spawnParticles(cx, cy, '#cc9944', 22);
+        break;
+      }
+
+      case 'katana': {
+        // Phantom flash: instantly deal damage to ALL enemies simultaneously
+        for (const e of _enemies) {
+          dealDamage(fighter, e, 38, 12);
+          e.vy = Math.min(e.vy, -10);
+          spawnParticles(e.cx(), e.cy(), '#ccccff', 20);
+          spawnParticles(e.cx(), e.cy(), '#ffffff', 10);
+        }
+        fighter.invincible = Math.max(fighter.invincible || 0, 20);
+        screenShake = Math.max(screenShake || 0, 24);
+        spawnParticles(cx, cy, '#eeeeff', 30);
+        break;
+      }
+
+      case 'flamethrower': {
+        // 270° fire burst — wide arc, sustained damage
+        fighter._convictionFlameBurst = { frames: 60, angle: f < 0 ? Math.PI : 0 };
+        spawnParticles(cx, cy, '#ff4400', 35);
+        spawnParticles(cx, cy, '#ffaa00', 18);
+        break;
+      }
+
+      case 'electricstaff': {
+        // Chain lightning: arcs between all enemies dealing cumulative damage
+        let prev = fighter;
+        const chained = new Set();
+        for (let chain = 0; chain < Math.min(_enemies.length, 5); chain++) {
+          let nearest = null, nearDist = 9999;
+          for (const e of _enemies) {
+            if (chained.has(e)) continue;
+            const d = Math.hypot(e.cx()-prev.cx(), e.cy()-prev.cy());
+            if (d < nearDist) { nearDist = d; nearest = e; }
+          }
+          if (!nearest || nearDist > 350) break;
+          dealDamage(fighter, nearest, 30 - chain * 4, 10);
+          spawnParticles(nearest.cx(), nearest.cy(), '#4488ff', 16);
+          spawnParticles((prev.cx()+nearest.cx())/2, (prev.cy()+nearest.cy())/2, '#88ccff', 10);
+          chained.add(nearest);
+          prev = nearest;
+        }
+        spawnParticles(cx, cy, '#4466ff', 30);
+        break;
+      }
+
+      default:
+        // No weapon or unknown weapon: generic nova
+        for (const e of _enemies) {
+          if (Math.hypot(e.cx()-cx, e.cy()-cy) < 200) {
+            dealDamage(fighter, e, 20, 14);
+            e.vy = Math.min(e.vy, -12);
+          }
+        }
+        break;
+    }
+
+    // Start domain-duration weapon passive (fires on cooldown for the full 25 s)
+    if (wep && _PASSIVE_CDS[wep]) {
+      fighter._convictionPassive = { key: wep, timer: DOMAIN_FRAMES, cd: _PASSIVE_CDS[wep] };
+    }
+  }
+
+  // ── Weapon passive that fires on cooldown throughout active domain ──────
+  function _fireWeaponPassive(fighter) {
+    if (!fighter || fighter.health <= 0 || !fighter._convictionPassive) return;
+    const wep = fighter._convictionPassive.key;
+    const cx  = fighter.cx(), cy = fighter.cy();
+    const f   = fighter.facing || 1;
+    const _all = [...(typeof players !== 'undefined' ? players : []),
+                  ...(typeof minions !== 'undefined' ? minions : [])];
+    const _enemies = _all.filter(e => e && e !== fighter && e.health > 0 && !e.godMode
+                                    && (typeof areAlliedEntities === 'function' ? !areAlliedEntities(fighter, e) : true));
+
+    switch (wep) {
+      case 'sword': {
+        if (typeof Projectile === 'undefined' || typeof projectiles === 'undefined') break;
+        for (let i = 0; i < 2; i++) {
+          const ang = (i - 0.5) * 0.28;
+          const proj = new Projectile(cx, cy, Math.cos(ang) * f * 12, Math.sin(ang) * 12 - 1, 18, fighter, 'sword_slash');
+          proj._convictionSlash = true; proj.life = 24; proj.radius = 12; proj.color = '#aaccff';
+          projectiles.push(proj);
+        }
+        spawnParticles(cx, cy, '#aaccff', 8);
+        break;
+      }
+      case 'hammer': {
+        screenShake = Math.max(screenShake || 0, 14);
+        for (const e of _enemies) {
+          if (Math.hypot(e.cx()-cx, e.cy()-cy) < 190) {
+            dealDamage(fighter, e, 16, 0);
+            const dist = Math.hypot(e.cx()-cx, e.cy()-cy);
+            e.vx += ((e.cx()-cx) / Math.max(1, dist)) * 12;
+            e.vy  = Math.min(e.vy, -10);
+            spawnParticles(e.cx(), e.cy(), '#cc8844', 8);
+          }
+        }
+        spawnParticles(cx, cy + 28, '#cc8844', 14);
+        break;
+      }
+      case 'gun': {
+        if (typeof Projectile === 'undefined' || typeof projectiles === 'undefined') break;
+        const tgt = _enemies.reduce((b, e) => (!b || Math.hypot(e.cx()-cx,e.cy()-cy) < Math.hypot(b.cx()-cx,b.cy()-cy)) ? e : b, null);
+        if (!tgt) break;
+        const dx = tgt.cx()-cx, dy = tgt.cy()-cy, dist = Math.hypot(dx, dy);
+        const proj = new Projectile(cx, cy, (dx/dist)*15, (dy/dist)*15, 14, fighter, 'gun_bullet');
+        proj.life = 30; proj.radius = 5; proj.color = '#ffcc44';
+        projectiles.push(proj);
+        break;
+      }
+      case 'axe': {
+        if (!fighter._convictionOrbitAxes || fighter._convictionOrbitAxes.length === 0) {
+          fighter._convictionOrbitAxes = [];
+          for (let i = 0; i < 3; i++) {
+            fighter._convictionOrbitAxes.push({ angle: (i/3)*Math.PI*2, r: 60, life: 400, hitSet: new Set() });
+          }
+          spawnParticles(cx, cy, '#ff8800', 18);
+        }
+        break;
+      }
+      case 'spear': {
+        fighter.vx = f * 18;
+        fighter.vy = Math.min(fighter.vy, -2);
+        fighter.invincible = Math.max(fighter.invincible || 0, 12);
+        for (const e of _enemies) {
+          if (Math.hypot(e.cx()-cx, e.cy()-cy) < 80) {
+            dealDamage(fighter, e, 14, 14);
+            spawnParticles(e.cx(), e.cy(), '#88aaff', 10);
+          }
+        }
+        spawnParticles(cx, cy, '#88aaff', 12);
+        break;
+      }
+      case 'bow': {
+        if (typeof Projectile === 'undefined' || typeof projectiles === 'undefined') break;
+        const tgt2 = _enemies.reduce((b, e) => (!b || Math.hypot(e.cx()-cx,e.cy()-cy) < Math.hypot(b.cx()-cx,b.cy()-cy)) ? e : b, null);
+        const targetX = tgt2 ? tgt2.cx() : cx;
+        for (let i = 0; i < 3; i++) {
+          const spawnX = targetX + (i - 1) * 40;
+          const proj2 = new Projectile(spawnX, -20, (i-1)*0.4, 14, 16, fighter, 'bow_arrow');
+          proj2._isArrow = true; proj2.life = 55; proj2.radius = 7; proj2.color = '#44ff88';
+          projectiles.push(proj2);
+        }
+        spawnParticles(cx, cy - 20, '#44ff88', 10);
+        break;
+      }
+      case 'shield': {
+        fighter.invincible = Math.max(fighter.invincible || 0, 30);
+        fighter._convictionReflectDome = Math.max(fighter._convictionReflectDome || 0, 30);
+        spawnParticles(cx, cy, '#ffffaa', 12);
+        break;
+      }
+      case 'scythe': {
+        let healed = 0;
+        for (const e of _enemies) {
+          if (Math.hypot(e.cx()-cx, e.cy()-cy) < 190) {
+            dealDamage(fighter, e, 12, 5);
+            healed += 8;
+            spawnParticles(e.cx(), e.cy(), '#cc44cc', 6);
+          }
+        }
+        if (healed > 0) {
+          fighter.health = Math.min(fighter.health + healed, fighter.maxHealth);
+          spawnParticles(cx, cy, '#ffaaff', 14);
+        }
+        break;
+      }
+      case 'fryingpan': {
+        for (const e of _enemies) {
+          if (Math.hypot(e.cx()-cx, e.cy()-cy) < 170) {
+            e.stunTimer = Math.max(e.stunTimer || 0, 70);
+            if (typeof e.attackTimer !== 'undefined') e.attackTimer = 0;
+            dealDamage(fighter, e, 8, 3);
+            spawnParticles(e.cx(), e.cy(), '#ffcc44', 8);
+          }
+        }
+        spawnParticles(cx, cy, '#ffdd55', 14);
+        break;
+      }
+      case 'broomstick': {
+        for (const e of _enemies) {
+          const dx = e.cx() - cx;
+          e.vx += (dx >= 0 ? 1 : -1) * 20;
+          e.vy -= 6;
+          dealDamage(fighter, e, 8, 0);
+          spawnParticles(e.cx(), e.cy(), '#aaddff', 8);
+        }
+        spawnParticles(cx, cy, '#88ccff', 16);
+        break;
+      }
+      case 'combat': {
+        fighter._counterStance = Math.max(fighter._counterStance || 0, 90);
+        for (const e of _enemies) {
+          if (Math.hypot(e.cx()-cx, e.cy()-cy) < 120) {
+            dealDamage(fighter, e, 20, 16);
+            e.vy = Math.min(e.vy, -12);
+            e.vx = (e.cx() > cx ? 1 : -1) * 14;
+            spawnParticles(e.cx(), e.cy(), '#ff4444', 10);
+          }
+        }
+        spawnParticles(cx, cy, '#ff6655', 14);
+        break;
+      }
+      case 'peashooter': {
+        if (typeof Projectile === 'undefined' || typeof projectiles === 'undefined') break;
+        const tgt3 = _enemies.reduce((b, e) => (!b || Math.hypot(e.cx()-cx,e.cy()-cy) < Math.hypot(b.cx()-cx,b.cy()-cy)) ? e : b, null);
+        if (!tgt3) break;
+        const dx3 = tgt3.cx()-cx, dy3 = tgt3.cy()-cy, d3 = Math.hypot(dx3, dy3);
+        const proj3 = new Projectile(cx, cy, (dx3/d3)*12, (dy3/d3)*12, 8, fighter, 'peashooter_pea');
+        proj3.life = 32; proj3.radius = 7; proj3.color = '#44ff44';
+        projectiles.push(proj3);
+        break;
+      }
+      case 'slingshot': {
+        if (typeof Projectile === 'undefined' || typeof projectiles === 'undefined') break;
+        const tgt4 = _enemies.reduce((b, e) => (!b || Math.hypot(e.cx()-cx,e.cy()-cy) < Math.hypot(b.cx()-cx,b.cy()-cy)) ? e : b, null);
+        const tx = tgt4 ? tgt4.cx() : cx;
+        for (let i = 0; i < 2; i++) {
+          const dropX = tx + (i === 0 ? -30 : 30);
+          const proj4 = new Projectile(dropX, -10, 0, 12, 28, fighter, 'stone');
+          proj4.life = 60; proj4.radius = 10; proj4.color = '#aaaaaa';
+          projectiles.push(proj4);
+        }
+        spawnParticles(cx, cy - 20, '#aaaaaa', 10);
+        break;
+      }
+      case 'paperairplane': {
+        if (typeof Projectile === 'undefined' || typeof projectiles === 'undefined') break;
+        const tgt5 = _enemies.reduce((b, e) => (!b || Math.hypot(e.cx()-cx,e.cy()-cy) < Math.hypot(b.cx()-cx,b.cy()-cy)) ? e : b, null);
+        const tCx = tgt5 ? tgt5.cx() : cx + f*100;
+        const tCy = tgt5 ? tgt5.cy() : cy;
+        for (let i = 0; i < 3; i++) {
+          const ang = (i / 3) * Math.PI * 2;
+          const spawnX = cx + Math.cos(ang) * 90;
+          const spawnY = cy + Math.sin(ang) * 60;
+          const proj5 = new Projectile(spawnX, spawnY, (tCx-spawnX)*0.09, (tCy-spawnY)*0.09, 12, fighter, 'paper');
+          proj5.life = 40; proj5.radius = 9; proj5.color = '#ffffff';
+          projectiles.push(proj5);
+        }
+        spawnParticles(cx, cy, '#ffffff', 10);
+        break;
+      }
+      case 'flail': {
+        if (!fighter._convictionFlailSpin || fighter._convictionFlailSpin <= 0) {
+          fighter._convictionFlailSpin = 60;
+          fighter.invincible = Math.max(fighter.invincible || 0, 60);
+          spawnParticles(cx, cy, '#cc8844', 16);
+        }
+        break;
+      }
+      case 'whip': {
+        for (const e of _enemies) {
+          const dx = cx - e.cx(), dy = cy - e.cy();
+          const dist = Math.hypot(dx, dy);
+          if (dist > 20 && dist < 460) {
+            e.vx += (dx / dist) * 18;
+            e.vy += (dy / dist) * 7;
+            dealDamage(fighter, e, 10, 0);
+            spawnParticles(e.cx(), e.cy(), '#ffaa44', 8);
+          }
+        }
+        spawnParticles(cx, cy, '#ffcc66', 14);
+        break;
+      }
+      case 'boomerang': {
+        if (typeof Projectile === 'undefined' || typeof projectiles === 'undefined') break;
+        for (let i = 0; i < 2; i++) {
+          const ang = -0.35 + i * 0.7 + (f < 0 ? Math.PI : 0);
+          const proj6 = new Projectile(cx, cy, Math.cos(ang)*13, Math.sin(ang)*13 - 2, 20, fighter, 'boomerang');
+          proj6._isBoomerang = true; proj6.oneWay = true; proj6.life = 50; proj6.radius = 10; proj6.color = '#cc9944';
+          projectiles.push(proj6);
+        }
+        spawnParticles(cx, cy, '#cc9944', 10);
+        break;
+      }
+      case 'katana': {
+        const tgt6 = _enemies.reduce((b, e) => (!b || Math.hypot(e.cx()-cx,e.cy()-cy) < Math.hypot(b.cx()-cx,b.cy()-cy)) ? e : b, null);
+        if (!tgt6) break;
+        dealDamage(fighter, tgt6, 16, 8);
+        tgt6.vy = Math.min(tgt6.vy, -8);
+        spawnParticles(tgt6.cx(), tgt6.cy(), '#ccccff', 14);
+        spawnParticles(tgt6.cx(), tgt6.cy(), '#ffffff', 8);
+        break;
+      }
+      case 'flamethrower': {
+        if (!fighter._convictionFlameBurst || fighter._convictionFlameBurst.frames <= 0) {
+          fighter._convictionFlameBurst = { frames: 40, angle: f < 0 ? Math.PI : 0 };
+          spawnParticles(cx, cy, '#ff4400', 16);
+        }
+        break;
+      }
+      case 'electricstaff': {
+        const tgt7 = _enemies.reduce((b, e) => (!b || Math.hypot(e.cx()-cx,e.cy()-cy) < Math.hypot(b.cx()-cx,b.cy()-cy)) ? e : b, null);
+        if (!tgt7 || Math.hypot(tgt7.cx()-cx, tgt7.cy()-cy) > 380) break;
+        dealDamage(fighter, tgt7, 22, 8);
+        spawnParticles(tgt7.cx(), tgt7.cy(), '#4488ff', 12);
+        spawnParticles((cx+tgt7.cx())/2, (cy+tgt7.cy())/2, '#88ccff', 8);
+        break;
+      }
     }
   }
 
@@ -2958,6 +3512,94 @@ const DomainManager = (() => {
         }
       }
     }
+
+    // ── Per-frame Conviction weapon effects ───────────────────────────
+    const _allFighters = [...(typeof players !== 'undefined' ? players : []),
+                          ...(typeof minions !== 'undefined' ? minions : [])];
+    for (const fighter of _allFighters) {
+      if (!fighter || fighter.health <= 0) continue;
+
+      // Axe orbiting effect
+      if (fighter._convictionOrbitAxes && fighter._convictionOrbitAxes.length) {
+        const axes = fighter._convictionOrbitAxes;
+        const _enemies2 = _allFighters.filter(e => e && e !== fighter && e.health > 0
+                            && (typeof areAlliedEntities === 'function' ? !areAlliedEntities(fighter, e) : true));
+        for (let ai = axes.length - 1; ai >= 0; ai--) {
+          const ax = axes[ai];
+          ax.angle += 0.08;
+          ax.life--;
+          if (ax.life <= 0) { axes.splice(ai, 1); continue; }
+          const ax_x = fighter.cx() + Math.cos(ax.angle) * ax.r;
+          const ax_y = fighter.cy() + Math.sin(ax.angle) * ax.r;
+          for (const e of _enemies2) {
+            if (ax.hitSet.has(e)) continue;
+            if (Math.hypot(e.cx() - ax_x, e.cy() - ax_y) < 22) {
+              ax.hitSet.add(e);
+              dealDamage(fighter, e, 18, 10);
+              spawnParticles(ax_x, ax_y, '#ff8800', 10);
+              setTimeout(() => ax.hitSet.delete(e), 500);
+            }
+          }
+        }
+        if (axes.length === 0) delete fighter._convictionOrbitAxes;
+      }
+
+      // Flail spin damage aura
+      if (fighter._convictionFlailSpin > 0) {
+        fighter._convictionFlailSpin--;
+        if (fighter._convictionFlailSpin % 8 === 0) {
+          const _enemies3 = _allFighters.filter(e => e && e !== fighter && e.health > 0
+                              && (typeof areAlliedEntities === 'function' ? !areAlliedEntities(fighter, e) : true));
+          for (const e of _enemies3) {
+            if (Math.hypot(e.cx() - fighter.cx(), e.cy() - fighter.cy()) < 70) {
+              dealDamage(fighter, e, 8, 5);
+              spawnParticles(e.cx(), e.cy(), '#cc8844', 8);
+            }
+          }
+        }
+        if (fighter._convictionFlailSpin === 0) delete fighter._convictionFlailSpin;
+      }
+
+      // Flamethrower burst arc
+      if (fighter._convictionFlameBurst && fighter._convictionFlameBurst.frames > 0) {
+        const fb = fighter._convictionFlameBurst;
+        fb.frames--;
+        if (fb.frames % 4 === 0) {
+          const _enemies4 = _allFighters.filter(e => e && e !== fighter && e.health > 0
+                              && (typeof areAlliedEntities === 'function' ? !areAlliedEntities(fighter, e) : true));
+          const arcHalf = Math.PI * 0.75;
+          for (const e of _enemies4) {
+            const dx = e.cx() - fighter.cx(), dy = e.cy() - fighter.cy();
+            const dist = Math.hypot(dx, dy);
+            if (dist < 220) {
+              const ang = Math.atan2(dy, dx);
+              const diff = Math.abs(((ang - fb.angle) + Math.PI * 3) % (Math.PI * 2) - Math.PI);
+              if (diff < arcHalf) {
+                dealDamage(fighter, e, 7, 2);
+                spawnParticles(e.cx(), e.cy(), '#ff4400', 8);
+              }
+            }
+          }
+          spawnParticles(fighter.cx() + Math.cos(fb.angle) * 60, fighter.cy() + Math.sin(fb.angle) * 30, '#ff6600', 10);
+        }
+        if (fb.frames <= 0) delete fighter._convictionFlameBurst;
+      }
+
+      // Domain-duration weapon passive tick
+      if (fighter._convictionPassive) {
+        const p = fighter._convictionPassive;
+        p.timer--;
+        if (p.timer <= 0) {
+          delete fighter._convictionPassive;
+        } else {
+          p.cd--;
+          if (p.cd <= 0) {
+            _fireWeaponPassive(fighter);
+            p.cd = _PASSIVE_CDS[p.key] || 60;
+          }
+        }
+      }
+    }
   }
 
   // ── Draw — bg tint (screen-space; call before world-space phase) ───
@@ -2990,6 +3632,59 @@ const DomainManager = (() => {
   function drawHazards() {
     // Entry animations for rising fighters (drawn before active domain hazards)
     for (const r of _rising) _drawDomainEntryAnim(r);
+
+    // Draw conviction weapon overlay effects (world-space)
+    const _cvFighters = typeof players !== 'undefined' ? players : [];
+    for (const fighter of _cvFighters) {
+      if (!fighter || fighter.health <= 0) continue;
+
+      // Orbiting axe indicators
+      if (fighter._convictionOrbitAxes && fighter._convictionOrbitAxes.length) {
+        for (const ax of fighter._convictionOrbitAxes) {
+          const ax_x = fighter.cx() + Math.cos(ax.angle) * ax.r;
+          const ax_y = fighter.cy() + Math.sin(ax.angle) * ax.r;
+          ctx.save();
+          ctx.translate(ax_x, ax_y);
+          ctx.rotate(ax.angle + Math.PI / 4);
+          ctx.fillStyle = '#ff8800';
+          ctx.globalAlpha = Math.min(1, ax.life / 60);
+          ctx.fillRect(-10, -3, 20, 6);
+          ctx.globalAlpha = 1;
+          ctx.restore();
+        }
+      }
+
+      // Shield reflect dome ring
+      if (fighter._convictionReflectDome > 0) {
+        fighter._convictionReflectDome--;
+        const alpha = Math.min(1, fighter._convictionReflectDome / 60) * 0.55;
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        ctx.strokeStyle = '#ffffaa';
+        ctx.lineWidth   = 3;
+        ctx.beginPath();
+        ctx.arc(fighter.cx(), fighter.cy(), 55, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.globalAlpha = alpha * 0.3;
+        ctx.fillStyle   = '#ffffaa';
+        ctx.fill();
+        ctx.restore();
+        if (fighter._convictionReflectDome === 0) delete fighter._convictionReflectDome;
+      }
+
+      // Flail spin glow
+      if (fighter._convictionFlailSpin > 0) {
+        const alpha = Math.min(1, fighter._convictionFlailSpin / 30) * 0.4;
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        ctx.fillStyle   = '#cc8844';
+        ctx.beginPath();
+        ctx.arc(fighter.cx(), fighter.cy(), 65, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+    }
+
     if (_domains.length === 0) return;
     for (const domain of _domains) {
       _drawDomainSkyEffects(domain);
@@ -3531,7 +4226,7 @@ const DomainManager = (() => {
 
       const bx    = f.cx();
       const by    = f.y - 14;
-      const line1 = 'DOMAIN EXPANSION';
+      const line1 = 'CONVICTION';
       const line2 = def.name;
 
       ctx.font = 'bold 13px Arial';

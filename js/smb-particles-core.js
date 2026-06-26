@@ -361,6 +361,37 @@ class Projectile {
       ctx.fillStyle = '#ffdd44';
       ctx.beginPath();
       ctx.ellipse(-4, 0, 2.5, 1.2, 0, 0, Math.PI * 2); ctx.fill();
+    } else if (this._isArrow) {
+      const _ang = Math.atan2(this.vy, this.vx);
+      const _alpha = Math.min(1, this.life / 15);
+      ctx.globalAlpha = _alpha;
+      ctx.save();
+      ctx.translate(this.x, this.y);
+      ctx.rotate(_ang);
+      // Shaft
+      ctx.strokeStyle = '#8B5E3C';
+      ctx.lineWidth   = 2.2;
+      ctx.lineCap     = 'round';
+      ctx.beginPath();
+      ctx.moveTo(-14, 0);
+      ctx.lineTo(10, 0);
+      ctx.stroke();
+      // Arrowhead
+      ctx.fillStyle = '#c8c8a0';
+      ctx.beginPath();
+      ctx.moveTo(14, 0);
+      ctx.lineTo(7, -3.5);
+      ctx.lineTo(7,  3.5);
+      ctx.closePath();
+      ctx.fill();
+      // Fletching (tail feathers)
+      ctx.strokeStyle = '#cc9944';
+      ctx.lineWidth   = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(-14, 0); ctx.lineTo(-10, -5);
+      ctx.moveTo(-14, 0); ctx.lineTo(-10,  5);
+      ctx.stroke();
+      ctx.restore();
     } else {
       ctx.shadowColor = this.color;
       ctx.shadowBlur  = 8;

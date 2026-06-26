@@ -102,7 +102,7 @@ function _spawnWeaponHitFX(attacker, target, dmg) {
       spawnParticles(tx, ty, '#00eeff', heavy ? 14 : 9);
       spawnParticles(tx, ty, '#ffffff', heavy ? 7 : 4);
       break;
-    case 'boxinggloves':
+    case 'combat':
       // Red/white punch burst with extra count on heavy
       spawnParticles(tx, ty, '#ff2233', heavy ? 18 : 10);
       spawnParticles(tx, ty, '#ffffff', heavy ? 10 : 5);
@@ -170,6 +170,19 @@ function dealDamage(attacker, target, dmg, kbForce, stunMult = 1.0, isSplash = f
       Math.abs((attacker.z || 0) - (target.z || 0)) >= 0.4) {
     if (settings.dmgNumbers)
       damageTexts.push(new DamageText(target.cx(), target.y - 20, '~', '#556677'));
+    return;
+  }
+  // Combat weapon counter stance: absorb the hit, teleport behind attacker next frame.
+  // Bosses and TrueForm bypass the counter (unavoidable by design).
+  if (target._counterStance > 0 && attacker && attacker !== target &&
+      !attacker.isBoss && !attacker.isTrueForm) {
+    target._counterStance    = 0;
+    target._counterAttacker  = attacker;
+    spawnParticles(target.cx(), target.cy(), '#ff4444', 14);
+    spawnParticles(target.cx(), target.cy(), '#ffffff', 8);
+    if (settings.dmgNumbers)
+      damageTexts.push(new DamageText(target.cx(), target.y - 38, 'COUNTER!', '#ff4444'));
+    screenShake = Math.max(screenShake, 8);
     return;
   }
   const _origDmg = dmg; // pre-multiplier value used for the stacking cap below

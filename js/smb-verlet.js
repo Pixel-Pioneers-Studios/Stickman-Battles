@@ -332,16 +332,17 @@ class PlayerRagdoll {
             head: -0.08, torso: 0.06 * p };
     }
 
-    // Walking: counter-swinging arms and legs
+    // Walking: discrete step phases (every 8 frames) — snappier, more deliberate stride
     if (s === 'walking') {
-      const sw = Math.sin(t * 0.24) * 0.52;
+      const _stepPhase = Math.floor(t / 8) % 4;
+      const sw = Math.sin(_stepPhase * Math.PI / 2) * 0.62;
       return {
         rArm:  Math.PI * 0.58 + sw,
         lArm:  Math.PI * 0.42 - sw,
-        rLeg:  Math.PI * 0.50 + sw * 0.85,
-        lLeg:  Math.PI * 0.50 - sw * 0.85,
-        head:  Math.sin(t * 0.24) * 0.03,
-        torso: 0,
+        rLeg:  Math.PI * 0.50 + sw,
+        lLeg:  Math.PI * 0.50 - sw,
+        head:  sw * 0.06,
+        torso: (face > 0 ? 0.05 : -0.05),
       };
     }
 
@@ -444,10 +445,12 @@ class PlayerRagdoll {
     rd.damping       = 0.84;
   }
 
-  /** Lean torso + arms slightly into movement direction. */
+  /** Lean torso + arms into movement direction (more pronounced when moving fast). */
   static applyMovement(f) {
     if (!f._rd) return;
-    const lean = f.vx > 0.5 ? 0.03 : f.vx < -0.5 ? -0.03 : 0;
+    const speed = Math.abs(f.vx);
+    const leanAmt = speed > 0.5 ? 0.04 + Math.min(0.03, speed * 0.005) : 0;
+    const lean = f.vx > 0.5 ? leanAmt : f.vx < -0.5 ? -leanAmt : 0;
     f._rd.torso.vel += lean;
   }
 

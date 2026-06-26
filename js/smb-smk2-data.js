@@ -148,3 +148,67 @@ const SMK2_TACTIC_SWAP_LINES = [
   'Change of pace.',
 ];
 
+// ── Profile-read dialogue — fires once when the AI first locks a player pattern ──
+// Super profiles
+const SMK2_PROFILE_SUPER_HEALER = [
+  'You save that for when you\'re low. Fear threshold: noted.',
+  'Desperate — that\'s when you spend it. I\'ll push you there.',
+  'Your super is a panic button. I\'ve mapped the trigger.',
+];
+const SMK2_PROFILE_SUPER_FINISHER = [
+  'Combo, then super. I\'ve timed the gap.',
+  'You finish with it. I know when the chain starts.',
+  'You escalate in sequence. I know the sequence now.',
+];
+const SMK2_PROFILE_SUPER_OPENER = [
+  'Long range, charging. I know what that looks like.',
+  'You open with it from distance. The counter is already set.',
+  'Gap-close as opener. I\'ve measured the timing.',
+];
+const SMK2_PROFILE_SUPER_DUMP = [
+  'You use it the moment it charges. That\'s an opening.',
+  'No timing. Random or panicked — I can work with that.',
+  'No pattern. I prefer that to a good one.',
+];
+// Ability profiles
+const SMK2_PROFILE_ABILITY_POKE = [
+  'Long range, ability ready. I see the distance you like.',
+  'You poke from outside my reach. I\'ve measured the range.',
+  'Ranged pressure. I know the angle. I know the timing.',
+];
+const SMK2_PROFILE_ABILITY_COMBO = [
+  'Ability mid-combo. You use it as a chain link.',
+  'I know when the chain starts. I know what comes after.',
+  'Combo extension. I\'ve logged the rhythm.',
+];
+const SMK2_PROFILE_ABILITY_CLOSER = [
+  'Close range — that\'s when your ability comes out.',
+  'You commit with it in my space. I\'ll be ready.',
+  'Close-pressure trigger. Filed.',
+];
+
+// ── Genome: tunable decision-system parameters ────────────────────────────────
+// Default values match Sovereign's hand-tuned baseline.
+// SMK2Trainer evolves these via self-play and persists the winner to localStorage.
+const SMK2_DEFAULT_GENOME = Object.freeze({
+  aggression:        0.90,  // aiMemory.aggression base      range [0.40, 0.99]
+  spacing:           0.12,  // aiMemory.spacing base         range [0.02, 0.55]
+  reactionSpeed:     0.95,  // aiMemory.reactionSpeed base   range [0.50, 0.99]
+  prefDistBase:      20,    // flat constant in prefDist     range [8,    40  ]
+  adaptLockDuration: 300,   // counter-lock hold (frames)    range [120,  480 ]
+  killInstinctHP:    0.15,  // HP% for kill-instinct         range [0.05, 0.30]
+  superChargeWeight: 0.50,  // super meter spacing ramp      range [0.15, 0.80]
+  moveSpdBase:       4.5,   // base movement speed           range [3.5,  5.5 ]
+});
+
+const SMK2_GENOME_RANGES = Object.freeze({
+  aggression:        [0.40, 0.99],
+  spacing:           [0.02, 0.55],
+  reactionSpeed:     [0.50, 0.99],
+  prefDistBase:      [8,    40  ],
+  adaptLockDuration: [120,  480 ],
+  killInstinctHP:    [0.05, 0.30],
+  superChargeWeight: [0.15, 0.80],
+  moveSpdBase:       [3.5,  5.5 ],
+});
+

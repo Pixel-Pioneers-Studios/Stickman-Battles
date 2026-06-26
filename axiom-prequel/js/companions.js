@@ -221,7 +221,7 @@ class Anders extends Companion {
   constructor(x, y) {
     super(x, y, {
       name: 'ANDERS', color: '#334433', skinColor: '#c09070',
-      damage: 11, speed: 2.6, attackRange: 58,
+      damage: 11, speed: 2.6, attackRange: 66,
     });
     // Anders is calm and deliberate — slightly longer attack cooldown, but reliable
     this.attackCooldown = 60;
@@ -232,7 +232,7 @@ class Seraph extends Companion {
   constructor(x, y) {
     super(x, y, {
       name: 'SERAPH', color: '#334444', skinColor: '#d4b090',
-      damage: 8, speed: 2.4, attackRange: 54,
+      damage: 8, speed: 2.4, attackRange: 62,
     });
     this.healTimer = 0;
     this.healAura  = 0;  // visual pulse for healing
@@ -276,7 +276,7 @@ class VAEL extends Companion {
   constructor(x, y) {
     super(x, y, {
       name: 'VAEL', color: '#442222', skinColor: '#bb9060',
-      damage: 12, speed: 3.6, attackRange: 52,
+      damage: 12, speed: 3.6, attackRange: 62,
     });
     // VAEL is aggressive — always pushes forward, lowest cooldown
     this.attackCooldown = 35;

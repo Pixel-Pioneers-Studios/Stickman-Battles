@@ -506,11 +506,12 @@ function drawHUD() {
     ctx.fillText(readyLabel, p, sbY + 14);
   }
 
-  // Weapon indicator
+  // Weapon indicator — sit below super bar; drop further if super READY label is visible
   if (ax.weapon) {
+    const _wLabelY = superRatio >= 1 ? sbY + 28 : sbY + 20;
     ctx.fillStyle = ax.weapon === 'chain' ? '#ddbb44' : '#aaaadd';
     ctx.font      = 'bold 13px Courier New';
-    ctx.fillText(ax.weapon.toUpperCase() + '  ×' + ax.weaponDurability, p, sbY + 20);
+    ctx.fillText(ax.weapon.toUpperCase() + '  ×' + ax.weaponDurability, p, _wLabelY);
   }
 
   // Companion health bars (top-right)
@@ -536,26 +537,32 @@ function drawHUD() {
   // Enemy count
   const alive = enemies.filter(e => e.health > 0 && e.state !== 'dead').length;
   if (alive > 0) {
-    ctx.fillStyle = 'rgba(0,0,0,0.55)';
-    ctx.fillRect(GAME_W / 2 - 80, 6, 160, 22);
-    ctx.fillStyle = '#dd4444';
+    ctx.fillStyle = 'rgba(0,0,0,0.78)';
+    ctx.fillRect(GAME_W / 2 - 84, 5, 168, 24);
+    ctx.strokeStyle = 'rgba(180,60,60,0.4)';
+    ctx.lineWidth   = 1;
+    ctx.strokeRect(GAME_W / 2 - 84, 5, 168, 24);
+    ctx.fillStyle = '#ee5555';
     ctx.font      = 'bold 13px Courier New';
     ctx.textAlign = 'center';
     ctx.fillText(`${alive} REMAINING`, GAME_W / 2, 22);
   }
 
-  // Combo counter
+  // Combo counter — drop shadow for readability over any background
   if (comboDisplayTimer > 0) {
     comboDisplayTimer--;
     const cAlpha = Math.min(1, comboDisplayTimer / 30);
     ctx.globalAlpha = cAlpha;
-    ctx.fillStyle   = comboCount >= 10 ? '#ff6644' : '#ffcc44';
-    ctx.font        = `bold ${Math.min(30, 14 + comboCount)}px Courier New`;
+    ctx.shadowColor = 'rgba(0,0,0,1)';
+    ctx.shadowBlur  = 8;
+    ctx.fillStyle   = comboCount >= 10 ? '#ff7755' : '#ffdd55';
+    ctx.font        = `bold ${Math.min(32, 16 + comboCount)}px Courier New`;
     ctx.textAlign   = 'left';
     ctx.fillText(`${comboCount} HIT`, p, GAME_H - 52);
-    ctx.fillStyle   = comboCount >= 10 ? '#aa3322' : '#886622';
-    ctx.font        = 'bold 10px Courier New';
-    ctx.fillText('COMBO', p, GAME_H - 36);
+    ctx.fillStyle   = comboCount >= 10 ? '#ff4422' : '#ddaa22';
+    ctx.font        = 'bold 11px Courier New';
+    ctx.fillText('COMBO', p, GAME_H - 34);
+    ctx.shadowBlur  = 0;
     ctx.globalAlpha = 1;
   }
 

@@ -64,7 +64,7 @@ STORY_CHAPTER_REGISTRY.push(
     playerLives: 3,
     arena: 'volcano',
     tokenReward: 60, blueprintDrop: null,
-    postText: 'The probe collapses. But it got what it needed — data transmitted. The Third Architect: "It called you by name. It knew your name before I said it."',
+    postText: 'The probe collapses. But it got what it needed — data transmitted. The Third Architect: "It called you by name. \'Kael,\' it said. I hadn\'t spoken. It already knew."',
   },
 
   {

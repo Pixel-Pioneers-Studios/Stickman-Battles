@@ -1096,7 +1096,7 @@ const SovereignAdaptiveMemory = (() => {
       delayed: _routeRate('delayed', globalPunish.delayed.hits, globalRouteHits.delayed),
     };
 
-    const meleeThreat = /hammer|axe|sword|spear|gauntlet|nullblade|voidblade|scythe|shield|boxing gloves|frying pan|broomstick|mk\. gauntlets/.test(
+    const meleeThreat = /hammer|axe|sword|spear|gauntlet|nullblade|voidblade|scythe|shield|combat|frying pan|broomstick|mk\. gauntlets/.test(
       `${session.weaponKey} ${session.classKey}`
     );
 
@@ -1235,7 +1235,7 @@ const SovereignAdaptiveMemory = (() => {
     const targetWeapon = String(target && target.weaponKey || session.weaponKey || '').toLowerCase();
     const targetClass = String(target && target.charClass || session.classKey || '').toLowerCase();
     if (targetWeapon) {
-      const meleeKeys = ['hammer', 'axe', 'sword', 'spear', 'gauntlet', 'nullblade', 'voidblade', 'scythe', 'shield', 'boxing gloves', 'frying pan', 'broomstick', 'mk. gauntlets'];
+      const meleeKeys = ['hammer', 'axe', 'sword', 'spear', 'gauntlet', 'nullblade', 'voidblade', 'scythe', 'shield', 'combat', 'frying pan', 'broomstick', 'mk. gauntlets'];
       const isMelee = meleeKeys.includes(targetWeapon) || meleeKeys.includes(targetClass);
       if (isMelee) {
         session.currentActionCounts.melee++;

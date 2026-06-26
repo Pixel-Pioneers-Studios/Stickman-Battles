@@ -12,6 +12,7 @@ const SOCCER_GOALS = {
   left:  { x: 0,   y: 360, w: 14, h: 100, team: 1 }, // P2 scores here
   right: { x: 886, y: 360, w: 14, h: 100, team: 0 }, // P1 scores here
 };
+const SOCCER_WIN_SCORE = 5;
 let survivalWave      = 0;
 let survivalEnemies   = [];         // alive enemies this wave
 let survivalWaveDelay = 0;          // countdown to next wave
@@ -38,14 +39,12 @@ const CHAOS_MODS = [
 let currentChaosModifiers = new Set(); // active modifier ids this wave
 
 // --- Nexus Defense ---
+const DEFENSE_WAVE_GOAL = 10;
 let defenseNexusHp    = 100;
 let defenseNexusMaxHp = 100;
 let defenseWave       = 0;
 let defenseEnemies    = [];
 let defenseWaveDelay  = 0;
-defenseNexusX     = GAME_W / 2;
-defenseNexusY     = GAME_H - 80;
-
 function selectMinigame(type) {
   if (type === 'coins') {
     if (typeof showToast === 'function') showToast('Coins minigame is not available yet.');
@@ -192,6 +191,13 @@ function updateChaosModIcons() {
 }
 
 function initMinigame() {
+  // Clear defense-mode properties that bleed across matches if not cleaned up here
+  players.forEach(function(p) {
+    if (!p.isBoss) {
+      delete p.attackCooldownMult;
+      delete p._nexusKBBoost;
+    }
+  });
   survivalWave      = 0;
   survivalEnemies   = [];
   survivalWaveDelay = 180; // 3s before first wave
@@ -262,6 +268,7 @@ function spawnSurvivalWave() {
   damageTexts.push(new DamageText(GAME_W / 2, 80, `WAVE ${survivalWave}!`, '#ffdd44'));
   screenShake = Math.max(screenShake, 8);
   SoundManager.waveStart();
+  rollChaosModifiers();
 }
 
 function spawnDefenseWave() {
@@ -405,9 +412,15 @@ function updateMinigame() {
     } else if (defenseEnemies.filter(function(e) { return e.health > 0; }).length === 0) {
       // Wave cleared — reward HP and queue next
       players.forEach(function(p) { if (!p.isBoss) p.health = Math.min(p.maxHealth, p.health + 20); });
-      defenseWaveDelay = 240;
-      damageTexts.push(new DamageText(GAME_W / 2, 110, 'Wave cleared!  +20 HP', '#44ff88'));
       if (defenseWave >= 5) unlockAchievement('nexus_defender');
+      if (defenseWave >= DEFENSE_WAVE_GOAL) {
+        damageTexts.push(new DamageText(GAME_W / 2, 110, `NEXUS DEFENDED!  ${DEFENSE_WAVE_GOAL} WAVES!`, '#44ff88'));
+        unlockAchievement('nexus_defender');
+        setTimeout(endGame, 2500);
+        return;
+      }
+      damageTexts.push(new DamageText(GAME_W / 2, 110, 'Wave cleared!  +20 HP', '#44ff88'));
+      defenseWaveDelay = 240;
     }
   }
 }
@@ -580,6 +593,12 @@ function updateSoccerBall() {
       spawnParticles(goal.x + goal.w / 2, goal.y + goal.h / 2, '#ffdd00', 20);
       SoundManager.explosion();
       if (settings.screenShake) screenShake = Math.max(screenShake, 10);
+      if (soccerScore[scoringTeam] >= SOCCER_WIN_SCORE) {
+        const winner = players[scoringTeam];
+        const name   = winner ? winner.name : `P${scoringTeam + 1}`;
+        damageTexts.push(new DamageText(GAME_W / 2, GAME_H / 2 - 60, `${name} WINS!`, '#ffdd00'));
+        setTimeout(endGame, 2000);
+      }
     }
   }
 }
@@ -791,6 +810,7 @@ function spawnDamnationWave() {
       echo.color = '#880000';
       echo.health = 150;
       echo.maxHealth = 150;
+      echo.lives = 1; // echoes die once — no respawn
       echo.target = players[0] || null;
       players.push(echo);
     }
@@ -802,6 +822,7 @@ function spawnDamnationWave() {
     echoB.color = '#770000';
     echoB.health = 1200;
     echoB.maxHealth = 1200;
+    echoB.lives = 1; // echoes die once — no respawn
     echoB.target = players[0] || null;
     // Suppress mid-fight cinematics on echo boss
     ['75', 'paradox50', '40', '10'].forEach(k => echoB._cinematicFired.add(k));
@@ -815,11 +836,12 @@ function spawnDamnationWave() {
     echoTF.color = '#660000';
     echoTF.health = 2500;
     echoTF.maxHealth = 2500;
+    echoTF.lives = 1; // echoes die once — no respawn
     echoTF.target = players[0] || null;
     // Story scale: reduce damage output on echo
     echoTF.dmgMult = 0.6;
     // Suppress intro + all threshold cinematics
-    ['entry', 'qte75', '50', 'paradox30', 'qte25', '15', 'falseVictory'].forEach(k =>
+    ['entry', 'qte75', '50', 'paradox1000', 'qte25', '15'].forEach(k =>
       echoTF._cinematicFired.add(k));
     players.push(echoTF);
     if (players[0]) players[0].target = echoTF;
@@ -834,13 +856,26 @@ function updateDamnation() {
   // Pulse timer for visual effects
   damnationPulse = (damnationPulse + 1) % 120;
 
-  // Check if all enemies in current wave are dead (only non-P1 echo fighters)
-  const echoFighters = players.filter(p => p.isEcho && !p.isBoss && !p.isTrueForm);
-  const allEchoesDead = echoFighters.length > 0 && echoFighters.every(p => p.health <= 0 || p.isDead);
-  if (damnationWave === 0 && allEchoesDead) {
-    // Advance from wave 1 to wave 2 (spawn boss echo)
-    damnationWave = 1;
-    spawnDamnationWave();
+  // Wave 0 → 1: all minion echoes dead
+  if (damnationWave === 0) {
+    const minionEchoes = players.filter(p => p.isEcho && !p.isBoss && !p.isTrueForm);
+    if (minionEchoes.length > 0 && minionEchoes.every(p => p.health <= 0 || p.isDead)) {
+      damnationWave = 1;
+      spawnDamnationWave();
+    }
+  // Wave 1 → 2: boss echo dead
+  } else if (damnationWave === 1) {
+    const bossEchoes = players.filter(p => p.isEcho && p.isBoss);
+    if (bossEchoes.length > 0 && bossEchoes.every(p => p.health <= 0 || p.isDead)) {
+      damnationWave = 2;
+      spawnDamnationWave();
+    }
+  // Wave 2 done: TrueForm echo dead — orb/portal system handles victory from here
+  } else if (damnationWave === 2) {
+    const tfEchoes = players.filter(p => p.isEcho && p.isTrueForm);
+    if (tfEchoes.length > 0 && tfEchoes.every(p => p.health <= 0 || p.isDead)) {
+      damnationWave = 3; // mark complete so this doesn't re-fire
+    }
   }
 
   // Collect anchor orbs

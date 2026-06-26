@@ -530,3 +530,119 @@ function drawMushroomArena() {
   }
   ctx.globalAlpha = 1;
 }
+
+function drawDesertArena() {
+  const groundY = 480;
+
+  // Heat shimmer rising from the ground
+  const shimmerAmt = Math.sin(frameCount * 0.03) * 2;
+  ctx.save();
+  ctx.globalAlpha = 0.12;
+  ctx.fillStyle   = '#ffcc44';
+  for (let i = 0; i < 8; i++) {
+    const sx = 80 + i * 110 + Math.sin(frameCount * 0.04 + i) * 18;
+    const sh = 40 + Math.abs(Math.sin(frameCount * 0.025 + i * 1.3)) * 60;
+    ctx.beginPath();
+    ctx.moveTo(sx - 6, groundY);
+    ctx.quadraticCurveTo(sx + shimmerAmt, groundY - sh * 0.5, sx, groundY - sh);
+    ctx.quadraticCurveTo(sx - shimmerAmt, groundY - sh * 0.5, sx + 6, groundY);
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+  ctx.restore();
+
+  // Large sun — high in the sky, bright amber glow
+  const sunX = GAME_W * 0.82, sunY = 62;
+  ctx.save();
+  ctx.shadowColor = '#ffcc44';
+  ctx.shadowBlur  = 40;
+  ctx.fillStyle   = '#ffe88a';
+  ctx.globalAlpha = 0.88;
+  ctx.beginPath();
+  ctx.arc(sunX, sunY, 32, 0, Math.PI * 2);
+  ctx.fill();
+  // Corona rays
+  ctx.globalAlpha = 0.22;
+  ctx.strokeStyle = '#ffdd66';
+  ctx.lineWidth   = 2;
+  for (let r = 0; r < 8; r++) {
+    const ang = r * Math.PI / 4 + frameCount * 0.004;
+    ctx.beginPath();
+    ctx.moveTo(sunX + Math.cos(ang) * 36, sunY + Math.sin(ang) * 36);
+    ctx.lineTo(sunX + Math.cos(ang) * 56, sunY + Math.sin(ang) * 56);
+    ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+  ctx.shadowBlur  = 0;
+  ctx.restore();
+
+  // Distant sand dunes silhouettes on horizon
+  ctx.save();
+  ctx.globalAlpha = 0.28;
+  ctx.fillStyle   = '#c8903a';
+  const duneDefs = [
+    { x: -40, w: 280, h: 90 }, { x: 200, w: 240, h: 70 }, { x: 400, w: 300, h: 100 },
+    { x: 650, w: 260, h: 80 }, { x: 820, w: 200, h: 65 },
+  ];
+  for (const d of duneDefs) {
+    ctx.beginPath();
+    ctx.moveTo(d.x, groundY - 20);
+    ctx.quadraticCurveTo(d.x + d.w * 0.35, groundY - d.h, d.x + d.w * 0.55, groundY - d.h * 0.85);
+    ctx.quadraticCurveTo(d.x + d.w * 0.75, groundY - d.h * 0.6, d.x + d.w, groundY - 20);
+    ctx.closePath();
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+  ctx.restore();
+
+  // Quicksand zone indicator — subtle ripple/sink pattern on the floor
+  if (currentArena && currentArena.hasQuicksand) {
+    const qsX = currentArena.quicksandX || 280;
+    const qsW = currentArena.quicksandW || 340;
+    // Darker sand tone to mark the zone
+    ctx.save();
+    ctx.globalAlpha = 0.22;
+    ctx.fillStyle   = '#8b5a14';
+    ctx.fillRect(qsX, groundY - 8, qsW, 8);
+    ctx.globalAlpha = 1;
+    // Ripple rings expanding outward
+    for (let ri = 0; ri < 4; ri++) {
+      const rPhase  = (frameCount * 0.022 + ri * 0.8) % 1;
+      const rX      = qsX + qsW * (0.2 + ri * 0.18);
+      const rRadius = rPhase * 28;
+      const rAlpha  = (1 - rPhase) * 0.35;
+      ctx.globalAlpha = rAlpha;
+      ctx.strokeStyle = '#aa7722';
+      ctx.lineWidth   = 1.2;
+      ctx.beginPath();
+      ctx.ellipse(rX, groundY - 4, rRadius, rRadius * 0.28, 0, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+    // "Quicksand" label — very faint warning text
+    ctx.globalAlpha = 0.18;
+    ctx.fillStyle   = '#ffffff';
+    ctx.font        = 'bold 11px Arial';
+    ctx.textAlign   = 'center';
+    ctx.fillText('QUICKSAND', qsX + qsW / 2, groundY - 14);
+    ctx.globalAlpha = 1;
+    ctx.restore();
+  }
+
+  // Drifting sand particle streaks (wind effect)
+  ctx.save();
+  for (let i = 0; i < 12; i++) {
+    const sx    = ((frameCount * (1.2 + i * 0.22) + i * 80) % (GAME_W + 60)) - 20;
+    const sy    = 300 + (i * 23) % 180;
+    const sAlpha = 0.08 + (i % 3) * 0.04;
+    ctx.globalAlpha = sAlpha;
+    ctx.strokeStyle = '#d4a040';
+    ctx.lineWidth   = 0.8;
+    ctx.beginPath();
+    ctx.moveTo(sx, sy);
+    ctx.lineTo(sx + 22, sy + (i % 2 === 0 ? 1 : -1));
+    ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+  ctx.restore();
+}

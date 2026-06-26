@@ -407,6 +407,7 @@ function _gatherSaveData() {
   const achievements = (typeof earnedAchievements !== 'undefined') ? Array.from(earnedAchievements) : [];
   return {
     version: SAVE_VERSION,
+    gameVersion: '3.9.0',
     story: (typeof getStoryDataForSave === 'function') ? getStoryDataForSave() : null,
     chapter,
     storyProgress: (typeof STORY_PROGRESS !== 'undefined') ? {

@@ -252,6 +252,8 @@ function _consoleExec(raw) {
       'help                    — show this list',
       'clear                   — clear console output',
       'status                  — show game state summary',
+      'syscheck                — health-check all major systems',
+      'check fighter [p1|p2]   — detailed fighter state dump',
       'version                 — show build/game version info',
       'time                    — show current frame count and game clock',
       'fps                     — show current FPS',
@@ -291,6 +293,7 @@ function _consoleExec(raw) {
       '── Unlocks ──────────────────────────────────────────────────────',
       'unlock trueform|megaknight — unlock secret content',
       'unlockall               — unlock everything [dev]',
+      'grant unlock <type> <accountId>  — grant a fight unlock to a player [admin] (types: creator|trueform|sovereign|absoluteaxiom|god|bossrush|megaknight|damnation)',
       '── Accounts / Moderation ────────────────────────────────────────',
       'who                     — list all accounts with IDs and roles',
       'whoami                  — show local player/account/network identity',
@@ -343,6 +346,108 @@ function _consoleExec(raw) {
     if (typeof players !== 'undefined') {
       players.forEach((p, i) => _consolePrint(`  [${i}] ${p.name||'?'} HP:${Math.round(p.health)}/${p.maxHealth} lives:${p.lives}`));
     }
+    return;
+  }
+
+  // ---- SYSCHECK — health-check all major systems ----
+  if (cmd === 'SYSCHECK') {
+    const ok  = (s) => _consolePrint('  ✓ ' + s, '#44ff88');
+    const warn = (s) => _consolePrint('  ⚠ ' + s, '#ffcc44');
+    const err  = (s) => _consolePrint('  ✗ ' + s, '#ff4444');
+    _consolePrint('══ SYSTEM CHECK ═══════════════════════════════', '#88bbff');
+
+    // Core loop
+    (typeof gameLoop === 'function') ? ok('gameLoop defined') : err('gameLoop MISSING');
+    (typeof gameRunning !== 'undefined') ? ok('gameRunning=' + gameRunning) : err('gameRunning MISSING');
+
+    // Rendering
+    (typeof ctx !== 'undefined' && ctx) ? ok('Canvas context present') : err('ctx MISSING');
+    (typeof drawBackground === 'function') ? ok('drawBackground defined') : warn('drawBackground not found');
+    (typeof drawPlatforms === 'function') ? ok('drawPlatforms defined') : warn('drawPlatforms not found');
+
+    // Combat
+    (typeof dealDamage === 'function') ? ok('dealDamage defined') : err('dealDamage MISSING — all combat broken');
+    (typeof spawnParticles === 'function') ? ok('spawnParticles defined') : warn('spawnParticles not found');
+
+    // Arena
+    (typeof ARENAS !== 'undefined' && ARENAS) ? ok('ARENAS loaded (' + Object.keys(ARENAS).length + ' arenas)') : err('ARENAS MISSING');
+    (typeof currentArenaKey !== 'undefined' && currentArenaKey) ? ok('currentArena=' + currentArenaKey) : warn('currentArenaKey not set');
+
+    // Weapons / Classes
+    (typeof WEAPONS !== 'undefined' && WEAPONS) ? ok('WEAPONS loaded (' + Object.keys(WEAPONS).length + ' entries)') : err('WEAPONS MISSING');
+    (typeof CLASSES !== 'undefined' && CLASSES) ? ok('CLASSES loaded (' + Object.keys(CLASSES).length + ' classes)') : err('CLASSES MISSING');
+
+    // Story
+    (typeof STORY_CHAPTER_REGISTRY !== 'undefined' && STORY_CHAPTER_REGISTRY) ? ok('STORY_CHAPTER_REGISTRY: ' + STORY_CHAPTER_REGISTRY.length + ' chapters') : warn('STORY_CHAPTER_REGISTRY not found');
+    if (typeof STORY_CHAPTER_REGISTRY !== 'undefined' && STORY_CHAPTER_REGISTRY) {
+      let _idErr = false;
+      STORY_CHAPTER_REGISTRY.forEach((ch, i) => { if (ch.id !== i) { err('Chapter id≠index: index ' + i + ' has id ' + ch.id); _idErr = true; } });
+      if (!_idErr) ok('Story chapter id=index invariant holds');
+    }
+
+    // Cinematics
+    (typeof CinematicManager !== 'undefined') ? ok('CinematicManager present') : warn('CinematicManager not found');
+    (typeof activeCinematic !== 'undefined') ? ok('activeCinematic=' + (activeCinematic ? 'ACTIVE' : 'null')) : warn('activeCinematic not defined');
+
+    // Audio
+    (typeof SoundManager !== 'undefined' && SoundManager) ? ok('SoundManager present') : warn('SoundManager not found');
+
+    // Network
+    (typeof NetworkManager !== 'undefined' && NetworkManager) ? ok('NetworkManager present') : warn('NetworkManager not found');
+
+    // Domain / Conviction
+    (typeof DomainManager !== 'undefined' && DomainManager) ? ok('DomainManager (Conviction) present') : warn('DomainManager not found');
+
+    // Physics
+    (typeof VerletRagdoll !== 'undefined') ? ok('VerletRagdoll defined') : warn('VerletRagdoll not found');
+
+    // Players
+    if (typeof players !== 'undefined' && players.length) {
+      players.forEach((p, i) => {
+        if (!p) { warn('players[' + i + '] is null'); return; }
+        const _pOk = p.health > 0 && typeof p.update === 'function' && typeof p.draw === 'function';
+        _pOk ? ok('players[' + i + '] ' + (p.weaponKey||'?') + '/' + (p.charClass||'none') + ' ' + Math.round(p.health) + 'hp') :
+               warn('players[' + i + '] has issues (hp=' + Math.round(p.health) + ' update=' + typeof p.update + ')');
+      });
+    } else {
+      warn('No active players (game not running)');
+    }
+
+    _consolePrint('═══════════════════════════════════════════════', '#88bbff');
+    return;
+  }
+
+  // ---- CHECK FIGHTER — detailed fighter state dump ----
+  if (cmd.startsWith('CHECK FIGHTER') || cmd.startsWith('CHECK F')) {
+    const who = sub === 'p2' ? 1 : 0;
+    if (typeof players === 'undefined' || !players[who]) { _consoleErr('No fighter in slot ' + (who + 1)); return; }
+    const p = players[who];
+    _consolePrint('══ FIGHTER P' + (who + 1) + ' ════════════════════════════════════', '#cc88ff');
+    _consolePrint('  weapon:       ' + (p.weaponKey  || 'none'));
+    _consolePrint('  class:        ' + (p.charClass  || 'none'));
+    _consolePrint('  HP:           ' + Math.round(p.health) + ' / ' + p.maxHealth);
+    _consolePrint('  lives:        ' + p.lives);
+    _consolePrint('  superMeter:   ' + (p.superMeter || 0).toFixed(1) + ' / ' + (p.superMeterMax || 100));
+    _consolePrint('  superReady:   ' + !!p.superReady);
+    _consolePrint('  superCount:   ' + (p._domainSuperCount || 0) + ' (next Conviction at 5)');
+    _consolePrint('  abilityCd:    ' + (p.abilityCooldown || 0));
+    _consolePrint('  attackTimer:  ' + (p.attackTimer || 0));
+    _consolePrint('  isAI:         ' + !!p.isAI);
+    _consolePrint('  isBoss:       ' + !!p.isBoss);
+    _consolePrint('  isTrueForm:   ' + !!p.isTrueForm);
+    _consolePrint('  godMode:      ' + !!p.godMode);
+    _consolePrint('  onGround:     ' + !!p.onGround);
+    _consolePrint('  shielding:    ' + !!p.shielding);
+    _consolePrint('  inQuicksand:  ' + !!p._inQuicksand);
+    _consolePrint('  storyCharId:  ' + (p.storyCharId || 'none'));
+    _consolePrint('  pos:          x=' + Math.round(p.x) + ' y=' + Math.round(p.y));
+    _consolePrint('  vel:          vx=' + (p.vx||0).toFixed(1) + ' vy=' + (p.vy||0).toFixed(1));
+    if (p.isAI && p._behaviorModel) {
+      const bm = p._behaviorModel;
+      _consolePrint('  AI profile:   super=' + (p._superProfile||'?') + ' ability=' + (p._abilityProfile||'?'));
+      _consolePrint('  AI stage:     ' + (p._evolutionStage||0) + ' intelligence=' + (p.intelligence||0).toFixed(2));
+    }
+    _consolePrint('════════════════════════════════════════════════', '#cc88ff');
     return;
   }
 
@@ -779,6 +884,79 @@ function _consoleExec(raw) {
     return;
   }
 
+  // ---- GRANT UNLOCK <type> <accountId> (admin only) ----
+  // Supported types and their save keys:
+  //   creator       → bossBeaten         (Creator / Phase-1 boss fight)
+  //   trueform      → trueform            (True Form fight)
+  //   sovereign     → sovereignBeaten     (Sovereign MK2 refight)
+  //   absoluteaxiom → absoluteAxiomUnlocked (Absolute Axiom mode)
+  //   god           → godDefeated         (God fight)
+  //   bossrush      → bossRushUnlocked    (Boss Rush mode)
+  //   megaknight    → megaknight          (Megaknight class)
+  //   damnation     → damnationScar       (Damnation mode)
+  if (cmd === 'GRANT' && (parts[1] || '').toUpperCase() === 'UNLOCK') {
+    const activeAcct = typeof AccountManager !== 'undefined' ? AccountManager.getActiveAccount() : null;
+    const callerId   = activeAcct ? activeAcct.id : '';
+    if (!callerId || !_isAdmin(callerId)) {
+      _consoleErr('Permission denied — admin only.'); return;
+    }
+
+    const _GRANT_UNLOCK_MAP = {
+      creator:       'bossBeaten',
+      trueform:      'trueform',
+      sovereign:     'sovereignBeaten',
+      absoluteaxiom: 'absoluteAxiomUnlocked',
+      god:           'godDefeated',
+      bossrush:      'bossRushUnlocked',
+      megaknight:    'megaknight',
+      damnation:     'damnationScar',
+    };
+    const unlockAlias   = (parts[2] || '').toLowerCase();
+    const grantTarget   = parts[3] || '';
+    const saveKey       = _GRANT_UNLOCK_MAP[unlockAlias];
+
+    if (!saveKey) {
+      _consoleErr('Unknown unlock type "' + unlockAlias + '". Options: ' + Object.keys(_GRANT_UNLOCK_MAP).join(', ')); return;
+    }
+    if (!grantTarget) {
+      _consoleErr('Usage: grant unlock <type> <accountId>'); return;
+    }
+
+    // 1. Try local account first
+    if (typeof _adminMutateRawSave === 'function' &&
+        typeof AccountManager !== 'undefined' &&
+        AccountManager.getAllAccounts().some(function(a) { return a.id === grantTarget; })) {
+      const ok = _adminMutateRawSave(grantTarget, function(d) {
+        if (!d.unlocks) d.unlocks = {};
+        d.unlocks[saveKey] = true;
+      });
+      if (ok) {
+        _consoleOk(unlockAlias + ' unlocked for local account ' + grantTarget + '.');
+        return;
+      }
+    }
+
+    // 2. Try online peer (targeted — recipient checks their own account ID)
+    if (typeof NetworkManager !== 'undefined' && typeof NetworkManager.getSlotByAccountId === 'function') {
+      const slot = NetworkManager.getSlotByAccountId(grantTarget);
+      if (slot !== null && slot !== undefined && slot >= 0) {
+        if (typeof NetworkManager.sendToSlot === 'function') {
+          const sent = NetworkManager.sendToSlot(slot, {
+            type: 'gameEvent', event: 'grantUnlock',
+            targetAccountId: grantTarget, unlock: saveKey
+          });
+          if (sent) {
+            _consoleOk(unlockAlias + ' unlock sent to online player in slot ' + slot + ' (' + grantTarget + ').');
+            return;
+          }
+        }
+      }
+    }
+
+    _consoleErr('Account not found locally or online: ' + grantTarget);
+    return;
+  }
+
   // ---- SETWEAPON <weaponName> [p1|p2] ----
   if (cmd.startsWith('SETWEAPON')) {
     const parts = raw.trim().split(/\s+/);
@@ -875,9 +1053,50 @@ function _consoleExec(raw) {
   if (cmd === 'SOV STATS' || cmd === 'SOVEREIGN STATS') { if (typeof showSovereignStats === 'function') showSovereignStats(!adaptiveAIDebug); return; }
   if (cmd === 'SOV PREDICT' || cmd === 'SOVEREIGN PREDICT') { if (typeof showSovereignPredictions === 'function') showSovereignPredictions(); return; }
   if (cmd === 'SOV RESET' || cmd === 'SOVEREIGN RESET') { if (typeof resetSovereignMK2 === 'function') resetSovereignMK2(); return; }
+
+  // ── Genome training commands ──────────────────────────────────────────────
+  const _ok = (s) => _consolePrint('  ✓ ' + s, '#44ff88');
+  if (cmd.startsWith('SOVEREIGN:TRAIN') || cmd.startsWith('SOV:TRAIN')) {
+    if (typeof SMK2Trainer === 'undefined') { _ok('SMK2Trainer not loaded.'); return; }
+    const _tp = raw.trim().split(/\s+/);
+    const _gens    = parseInt(_tp[1]) || 20;
+    const _matches = parseInt(_tp[2]) || 10;
+    const _bots    = parseInt(_tp[3]) || 2;
+    SMK2Trainer.run(_gens, _matches, _bots);
+    _ok(`Training started: ${_gens} gen × ${_matches} matches vs ${_bots} bot(s). Watch console.`);
+    return;
+  }
+  if (cmd.startsWith('SOVEREIGN:STRESS') || cmd.startsWith('SOV:STRESS')) {
+    if (typeof SMK2Trainer === 'undefined') { _ok('SMK2Trainer not loaded.'); return; }
+    const _sp = raw.trim().split(/\s+/);
+    const _maxBots  = parseInt(_sp[1]) || 6;
+    const _matches  = parseInt(_sp[2]) || 8;
+    SMK2Trainer.stressTest(_maxBots, _matches);
+    _ok(`Stress test started: 1 → ${_maxBots} bots, ${_matches} matches/level. Watch console.`);
+    return;
+  }
+  if (cmd === 'SOVEREIGN:GENOME' || cmd === 'SOV:GENOME') {
+    if (typeof SMK2Trainer === 'undefined') { _ok('SMK2Trainer not loaded.'); return; }
+    const _g = SMK2Trainer.loadChampion();
+    console.table(_g);
+    _ok(JSON.stringify(_g, null, 2));
+    return;
+  }
+  if (cmd === 'SOVEREIGN:RESET' || cmd === 'SOV:GENOME RESET') {
+    if (typeof SMK2Trainer === 'undefined') { _ok('SMK2Trainer not loaded.'); return; }
+    SMK2Trainer.resetChampion();
+    _ok('Champion genome reset to defaults. Reload to apply.');
+    return;
+  }
+  if (cmd === 'SOVEREIGN:STOP' || cmd === 'SOV:STOP') {
+    if (typeof SMK2Trainer === 'undefined') { _ok('SMK2Trainer not loaded.'); return; }
+    SMK2Trainer.stop();
+    _ok('Training stopped.');
+    return;
+  }
   if (cmd.startsWith('SOV LIMITER') || cmd.startsWith('SOVEREIGN LIMITER')) {
     const ai = players && players.find(p => p.isSovereignMK2);
-    if (ai) { ai._limiterBroken = !ai._limiterBroken; ok(`Limiter break: ${ai._limiterBroken ? 'ON' : 'OFF'}`); }
+    if (ai) { ai._limiterBroken = !ai._limiterBroken; _ok(`Limiter break: ${ai._limiterBroken ? 'ON' : 'OFF'}`); }
     return;
   }
 

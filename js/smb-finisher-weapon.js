@@ -424,8 +424,8 @@ const WEAPON_FINISHERS = {
     }
   ),
 
-  // ── boxinggloves ─────────────────────────────────────────────
-  boxinggloves: _wfDef('KNOCKOUT','rgba(255,80,80,1)',118,
+  // ── combat ─────────────────────────────────────────────
+  combat: _wfDef('KNOCKOUT','rgba(255,80,80,1)',118,
     (att,tgt,data)=>{ _wfBaseSetup(att,tgt,data);
       data.tl=_makeTimeline([
         {frame:0, fn(){ CinCam.zoomTo(1.3); CinCam.focusMidpoint(att,tgt); CinCam.slowMo(0.25); }},

@@ -92,7 +92,7 @@ const WEAPONS = {
   axe: {
     // THE SPINNER: Mid-range AoE brawler. Covers angles, not pure damage.
     // Identity: Spin Attack is a defensive escape AND offensive tool. Trades raw dmg for coverage.
-    name: 'Axe',     damage: 13, range: 88, cooldown: 52, endlag: 16,
+    name: 'Axe',     damage: 15, range: 88, cooldown: 52, endlag: 16,
     splashRange: 70, splashDmgPct: 0.30,
     kb: 10,          abilityCooldown: 180, type: 'melee', weaponType: 'heavy', color: '#cc4422',
     abilityName: 'Spin Attack',
@@ -110,7 +110,7 @@ const WEAPONS = {
   spear: {
     // THE POKER: Longest melee reach. Safe, consistent, spacing-dependent.
     // Identity: Ground Spike punishes rushers close-up; Lance Charge is the mid-range punish.
-    name: 'Spear',   damage: 15, range: 155, cooldown: 44, endlag: 12,
+    name: 'Spear',   damage: 15, range: 130, cooldown: 44, endlag: 12,
     kb: 7,           abilityCooldown: 165, type: 'melee', weaponType: 'light', color: '#8888ff',
     abilityName: 'Ground Spike',
     ability(user, _target) {
@@ -158,6 +158,7 @@ const WEAPONS = {
         const vy = speed * Math.sin(angles[i]);
         const _p = new Projectile(user.cx() + user.facing * 12, user.y + 22, vx, vy, user, dmg, '#aad47a');
         _p._isQAbility = true;
+        _p._isArrow    = true;
         projectiles.push(_p);
       }
       setTimeout(() => { user._qSuperCapRemaining = undefined; }, 400);
@@ -166,7 +167,7 @@ const WEAPONS = {
   shield: {
     // THE WALL: Lowest damage, highest block and pushback. Paladin class only.
     // Identity: You don't kill with damage — you kill by shoving enemies off platforms.
-    name: 'Shield', damage: 10, range: 52, cooldown: 36, endlag: 9,
+    name: 'Shield', damage: 10, range: 62, cooldown: 36, endlag: 9,
     kb: 26,         abilityCooldown: 195, type: 'melee', weaponType: 'heavy', color: '#88aaff',
     requiresClass: 'paladin',
     contactDmgMult: 0,
@@ -216,7 +217,7 @@ const WEAPONS = {
   fryingpan: {
     // THE STUNNER: Slow but delivers punishing stun windows. Reads = reward.
     // Identity: Land the slow swing → stun window → follow-up combo. High risk, high reward.
-    name: 'Frying Pan', damage: 18, range: 60, cooldown: 58, endlag: 20,
+    name: 'Frying Pan', damage: 18, range: 65, cooldown: 58, endlag: 20,
     kb: 12,              abilityCooldown: 220, type: 'melee', weaponType: 'heavy', color: '#ccaa44',
     abilityName: 'Ground Pound',
     ability(user, _target) {
@@ -244,7 +245,7 @@ const WEAPONS = {
   broomstick: {
     // THE PUSHER: Long reach + extreme knockback. Kills by platform denial.
     // Identity: Lowest damage, highest push force. Win by edgeguarding.
-    name: 'Broomstick', damage: 12, range: 125, cooldown: 32, endlag: 8,
+    name: 'Broomstick', damage: 12, range: 105, cooldown: 32, endlag: 8,
     kb: 22,              abilityCooldown: 135, type: 'melee', weaponType: 'light', color: '#aa8855',
     abilityName: 'Broom Ride',
     ability(user, _target) {
@@ -258,38 +259,17 @@ const WEAPONS = {
       screenShake = Math.max(screenShake, 10);
     }
   },
-  boxinggloves: {
-    // THE BRAWLER: Fastest attack speed in the game. Wins by relentless pressure.
-    // Identity: Lowest range, must stay face-to-face. Giant Fist punishes at any range.
-    name: 'Boxing Gloves', damage: 11, range: 50, cooldown: 20, endlag: 10,
-    kb: 4,                 abilityCooldown: 90, type: 'melee', weaponType: 'light', color: '#ee3333',
-    abilityName: 'Flurry Rush',
-    ability(user, target) {
-      // Rush-punch combo: user lunges into enemy and rapid-fires with visible jitter
-      user.vx = user.facing * 20;
-      spawnParticles(user.cx(), user.cy(), '#ff5555', 8);
-      let count = 0;
-      const doHit = () => {
-        if (!gameRunning || user.health <= 0) return;
-        // Keep pressing forward through the first two hits
-        if (count < 2) user.vx = user.facing * 14;
-        if (dist(user, target) < 100) {
-          dealDamage(user, target, 12, 5);
-          user.vy = count % 2 === 0 ? -4 : 3; // body jitter between punches
-          if (!user._swordSlashes) user._swordSlashes = [];
-          user._swordSlashes.push({
-            x: target.cx(), y: target.cy() + (count % 2 === 0 ? -8 : 8),
-            vx: user.facing * 2, vy: 0,
-            tilt: (count % 2 === 0 ? 1 : -1) * 0.15, facing: user.facing,
-            life: 9, maxLife: 9, size: 13, color: '#ff6644', hitSet: new Set()
-          });
-          spawnParticles(target.cx(), target.cy(), '#ff4444', 5);
-        }
-        count++;
-        if (count < 5) setTimeout(doHit, 80);
-        else screenShake = Math.max(screenShake, 18); // final punch lands with impact
-      };
-      doHit();
+  combat: {
+    // THE COMBAT FIGHTER: Fast strikes, a read-based counter, and a long-range finisher.
+    // Identity: Must get close, but Counter Stance rewards patient reads. Combo Strike finisher punishes at any range.
+    name: 'Combat', damage: 11, range: 50, cooldown: 20, endlag: 7,
+    kb: 4,           abilityCooldown: 90, type: 'melee', weaponType: 'light', color: '#ee3333',
+    abilityName: 'Counter',
+    ability(user) {
+      // Enter a parry window: absorb the next hit, teleport behind the attacker, launcher kick them up.
+      user._counterStance = 45; // 45-frame (~0.75s) window
+      spawnParticles(user.cx(), user.cy(), '#ff5555', 6);
+      spawnParticles(user.cx(), user.cy(), '#ffcc44', 4);
     }
   },
   peashooter: {
@@ -356,7 +336,7 @@ const WEAPONS = {
     // THE TRICKSTER: Unpredictable arc confuses and disrupts. Unique flight path.
     // Identity: Angles and curves opponents can't predict. Barrage forces dodging.
     name: 'Paper Airplane', damage: 0, range: 800, cooldown: 35, endlag: 8,
-    damageFunc: () => 8 + Math.floor(Math.random() * 5), // 8-12 per shot
+    damageFunc: () => 9 + Math.floor(Math.random() * 5), // 9-13 per shot
     bulletSpeed: 7, bulletColor: '#aaccff', bulletVy: -0.5,
     clipSize: 5, reloadFrames: 80,
     kb: 6,                  abilityCooldown: 160, type: 'ranged', weaponType: 'ranged', color: '#ddeeff',
@@ -381,7 +361,7 @@ const WEAPONS = {
   flail: {
     // THE SWINGER: Heavy, delayed, commitment-heavy. Rewards reading and staying close.
     // Identity: Chain Yank fires ball out then returns — double-hit if you stay in range.
-    name: 'Flail',   damage: 21, range: 95, cooldown: 68, endlag: 26,
+    name: 'Flail',   damage: 21, range: 95, cooldown: 68, endlag: 20,
     kb: 18,          abilityCooldown: 200, type: 'melee', weaponType: 'heavy', color: '#aaaaaa',
     abilityName: 'Chain Yank',
     ability(user, _target) {
@@ -405,7 +385,7 @@ const WEAPONS = {
   whip: {
     // THE ZONER: Extreme melee reach. Low damage but Crack stuns and Reel pulls enemies in.
     // Identity: Control spacing from afar. Nobody gets close without paying for it.
-    name: 'Whip',    damage: 8, range: 200, cooldown: 40, endlag: 15,
+    name: 'Whip',    damage: 10, range: 150, cooldown: 40, endlag: 15,
     kb: 6,           abilityCooldown: 150, type: 'melee', weaponType: 'light', color: '#cc8833',
     abilityName: 'Lasso',
     ability(user, _target) {
@@ -530,7 +510,7 @@ const WEAPONS = {
   electricstaff: {
     // THE CHAIN STRIKER: Melee with group-shock Q and Overcharge super.
     // Identity: Punishes clustered enemies. Overcharge makes every swing AoE for 4s.
-    name: 'Electric Staff', damage: 14, range: 105, cooldown: 46, endlag: 15,
+    name: 'Electric Staff', damage: 14, range: 105, cooldown: 40, endlag: 15,
     kb: 10,                  abilityCooldown: 190, type: 'melee', weaponType: 'heavy', color: '#00ccff',
     abilityName: 'Shock Bolt',
     ability(user, _target) {
@@ -663,7 +643,7 @@ const WEAPON_SWINGS = {
                    hitSound: 'blunt', carry: { arm: -0.90, tilt: -0.50 } }, // head rested up over the shoulder
   fryingpan:     { archetype: 'smash',  dur: 14, a0: -1.55, a1: 0.80, ease: 'heavy',  tilt: 0.7,  tipLen: 26, trail: { life: 11, cap: 7,  width: 8 },
                    hitSound: 'clang', carry: { arm: 1.05, tilt: 0.25 } },   // dangling at the side like a skillet
-  axe:           { archetype: 'cleave', dur: 14, a0: -1.05, a1: 1.35, ease: 'snap',   tilt: 0.65, tipLen: 23, trail: { life: 12, cap: 8,  width: 8 },
+  axe:           { archetype: 'cleave', dur: 14, a0: -1.05, a1: 1.35, ease: 'snap',   tilt: 0.65, tipLen: 26, trail: { life: 12, cap: 8,  width: 8 },
                    carry: { arm: 0.95, tilt: -0.20 } },                     // held low at the side
   scythe:        { archetype: 'sweep',  dur: 16, a0: -1.45, a1: 1.65, ease: 'sweep',  tilt: 0.8,  tipLen: 30, trail: { life: 13, cap: 9,  width: 7 },
                    carry: { arm: -1.30, tilt: -0.20 } },                    // upright reaper pose, blade overhead
@@ -676,7 +656,7 @@ const WEAPON_SWINGS = {
   whip:          { archetype: 'crack',  dur: 13, a0: -0.55, a1: 0.35, ease: 'snap',   tilt: 0.15, tipLen: 50,
                    reach: { r0: 0.35, r1: 1.0, ease: 'crack' }, hitFracs: [0.4, 0.65, 0.85, 1.0], trail: { life: 10, cap: 8, width: 3 },
                    hitSound: 'snap', carry: { arm: 1.00, tilt: 0.40 } },     // coiled low at the side
-  boxinggloves:  { archetype: 'jab',    dur:  7, a0:  0.12, a1: -0.10, ease: 'linear', tilt: 0.0, tipLen: 12, alternate: true,
+  combat:  { archetype: 'jab',    dur:  7, a0:  0.12, a1: -0.10, ease: 'linear', tilt: 0.0, tipLen: 16, alternate: true,
                    reach: { r0: 0.4, r1: 1.0, ease: 'jab' }, hitFracs: [0.6, 1.0], trail: { life: 6, cap: 4, width: 4 },
                    hitSound: 'blunt', carry: { arm: -0.35, lArm: -0.60 } },  // boxing guard — both fists up
   flail:         { archetype: 'whirl',  dur: 18, a0: -2.6,  a1: 1.25, ease: 'heavy',  tilt: 0.55, tipLen: 28, trail: { life: 14, cap: 10, width: 6 },
@@ -704,15 +684,13 @@ const WEAPON_SWINGS = {
 // below 0 for wind-back or overshoot past 1 — that's intentional).
 function swingEase(p, type) {
   switch (type) {
-    case 'snap': { // brief wind-back, then whip through
-      if (p < 0.25) return -0.16 * (p / 0.25);
-      const q = (p - 0.25) / 0.75;
-      return -0.16 + 1.16 * (1 - Math.pow(1 - q, 3));
+    case 'snap': { // accelerating whip — no wind-back, starts immediately
+      return 1 - Math.pow(1 - p, 3);
     }
-    case 'iai': { // long stillness, then near-instant cut
-      if (p < 0.45) return -0.05 * (p / 0.45);
-      const q = (p - 0.45) / 0.55;
-      return -0.05 + 1.05 * (1 - Math.pow(1 - q, 4));
+    case 'iai': { // brief held tension, then near-instant cut (windup 0.45→0.25)
+      if (p < 0.25) return -0.04 * (p / 0.25);
+      const q = (p - 0.25) / 0.75;
+      return -0.04 + 1.04 * (1 - Math.pow(1 - q, 4));
     }
     case 'heavy': { // slow rising windup, accelerating drop
       // Windup fraction tuned 0.42→0.35 after playtest: commitment stays, but the
@@ -767,17 +745,18 @@ function swingPose(weaponKey, atkP, facing, alt) {
 // ============================================================
 const CLASSES = {
   none:      { name: 'None',      desc: 'Standard balanced fighter',            weapon: null,     hp: 150, speedMult: 1.00, perk: null           },
-  thor:      { name: 'Thor',      desc: 'Hammer master, thunder on dash',       weapon: 'hammer', hp: 150, speedMult: 0.90, perk: 'thunder'      },
-  kratos:    { name: 'Kratos',    desc: 'Axe specialist, rage at low HP',       weapon: 'axe',    hp: 150, speedMult: 0.95, perk: 'rage'         },
-  ninja:     { name: 'Ninja',     desc: 'Fast sword fighter, quick dash',       weapon: 'sword',  hp: 150, speedMult: 1.24, perk: 'swift'        },
-  gunner:    { name: 'Gunner',    desc: 'Dual-shot gunslinger',                 weapon: 'gun',    hp: 150, speedMult: 1.06, perk: 'dual_shot'    },
-  archer:    { name: 'Archer',    desc: 'Bow-only. Fast. Auto-backstep at low HP.', weapon: 'bow', hp: 150, speedMult: 1.20, perk: 'backstep'    },
-  paladin:   { name: 'Paladin',   desc: 'Shield-only. Tanky. 15% dmg reduction.', weapon: 'shield', hp: 150, speedMult: 0.88, perk: 'holy_light' },
-  berserker:  { name: 'Berserker',  desc: 'Any weapon. Rage boosts dmg at low HP.',             weapon: null, hp: 150, speedMult: 1.08, perk: 'blood_frenzy' },
-  megaknight: { name: 'Megaknight', desc: 'Legendary knight. Smash, uppercut, and crush enemies.', weapon: 'mkgauntlet', hp: 150, speedMult: 0.84, perk: null },
-  pugilist:   { name: 'Pugilist',   desc: 'Boxing Gloves brawler. Fast and durable. Giant Fist fires free at low HP.', weapon: 'boxinggloves', hp: 135, speedMult: 1.15, perk: 'surge_fist'  },
-  ronin:      { name: 'Ronin',      desc: 'Katana master. Iaijutsu kills reset all cooldowns.',                         weapon: 'katana',       hp: 115, speedMult: 1.18, perk: 'death_step' },
-  reaper:     { name: 'Reaper',     desc: 'Scythe specialist. Revives once when near death.',                           weapon: 'scythe',       hp: 125, speedMult: 1.00, perk: 'revive'     },
+  thor:      { name: 'Thor',      desc: 'Hammer master, thunder on dash',       weapon: 'hammer', hp: 140, speedMult: 0.90, perk: 'thunder'      },
+  kratos:    { name: 'Kratos',    desc: 'Axe specialist, rage at low HP',       weapon: 'axe',    hp: 145, speedMult: 0.95, perk: 'rage'         },
+  ninja:     { name: 'Ninja',     desc: 'Fast sword fighter, quick dash',       weapon: 'sword',  hp: 90,  speedMult: 1.24, perk: 'swift'        },
+  gunner:    { name: 'Gunner',    desc: 'Dual-shot gunslinger',                 weapon: 'gun',    hp: 110, speedMult: 1.06, perk: 'dual_shot'    },
+  archer:    { name: 'Archer',    desc: 'Bow-only. Fast. Auto-backstep at low HP.', weapon: 'bow', hp: 95, speedMult: 1.20, perk: 'backstep'    },
+  paladin:   { name: 'Paladin',   desc: 'Shield-only. Tanky. 15% dmg reduction.', weapon: 'shield', hp: 160, speedMult: 0.88, perk: 'holy_light' },
+  berserker:  { name: 'Berserker',  desc: 'Any weapon. Rage boosts dmg at low HP.',             weapon: null, hp: 130, speedMult: 1.08, perk: 'blood_frenzy' },
+  megaknight: { name: 'Megaknight', desc: 'Legendary knight. Smash, uppercut, and crush enemies.', weapon: 'mkgauntlet', hp: 170, speedMult: 0.84, perk: null },
+  pugilist:   { name: 'Pugilist',   desc: 'Combat brawler. Fast and durable. Counter reads + Combo Strike fires free at low HP.', weapon: 'combat', hp: 135, speedMult: 1.15, perk: 'surge_fist'  },
+  ronin:      { name: 'Ronin',      desc: 'Katana master. Iaijutsu kills reset all cooldowns.',                         weapon: 'katana',       hp: 115, speedMult: 1.18, perk: 'death_step'    },
+  reaper:     { name: 'Reaper',     desc: 'Scythe specialist. Revives once when near death.',                           weapon: 'scythe',       hp: 125, speedMult: 1.00, perk: 'revive'       },
+  summoner:   { name: 'Summoner',   desc: 'Calls a familiar that fights alongside you. Any weapon.',                   weapon: null,           hp: 120, speedMult: 1.05, perk: 'call_familiar' },
 };
 
 // Damage multipliers applied when a class uses a weapon of a given weaponType.
@@ -828,19 +807,19 @@ const WEAPON_DESCS = {
   sword:   { title: 'Sword',          what: 'Fast, balanced melee weapon with good range. Damage: 16.',                                                     ability: 'Q — Blade Storm: 4 crescent arcs burst in all directions (24 dmg). No movement — pure coverage.',  super: 'E — Air Slash: 3 crescent arcs fan outward in sequence.',          how:  'Base = single forward swing. Q = omnidirectional burst. E = sequential forward fan.' },
   hammer:  { title: 'Hammer',         what: 'Slow but devastating. Huge knockback on every hit. Damage: 22.',                                               ability: 'Q — Ground Shockwave: slam down, a shockwave TRAVELS horizontally from your feet (28 dmg, launches up).', super: 'E — Mjolnir Spin: spinning AoE contact hits, ends with a launch.',  how:  'Base = direct swing. Q = traveling ground wave. E = spinning tornado in place.' },
   gun:     { title: 'Gun',            what: 'Ranged weapon. Each bullet deals 5–8 damage. Fires splash rounds.',                                            ability: 'Q — Rapid Fire: 5-shot burst.',                                   super: 'E — Bullet Storm: 14 rapid shots (9–12 dmg each).',               how:  'Keep your distance. Use Rapid Fire to pressure from afar.' },
-  axe:     { title: 'Axe',            what: 'Balanced melee with solid damage, good knockback, and splash hits. Damage: 22.',                               ability: 'Q — Spin Attack: stationary 360° AoE slash — covers all angles.', super: 'E — Axe Throw: hurl your axe across the arena (38 dmg, large radius); it curves back.', how: 'Spin Attack covers close range. Axe Throw punishes enemies at any distance.' },
+  axe:     { title: 'Axe',            what: 'Balanced melee with solid damage, good knockback, and splash hits. Damage: 15.',                               ability: 'Q — Spin Attack: stationary 360° AoE slash — covers all angles.', super: 'E — Axe Throw: hurl your axe across the arena (38 dmg, large radius); it curves back.', how: 'Spin Attack covers close range. Axe Throw punishes enemies at any distance.' },
   spear:   { title: 'Spear',          what: 'Longest melee reach in the game. Consistent damage. Damage: 18.',                                              ability: 'Q — Ground Spike: slam spear down, AoE upward launch for 20 dmg.', super: 'E — Lance Charge: sustained forward pierce burst for 28 dmg.',     how:  'Poke from range. Use Ground Spike when enemies rush you.' },
   bow:     { title: 'Bow ⚔ Archer only', what: 'Long-range arc weapon. Arrows deal 12–20 damage and arc slightly over distance.', ability: 'Q — Triple Shot: fires 3 arrows in a fan spread.',       super: 'E — Power Arrow: giant arrow for 60 dmg with high knockback.',    how:  'Stay back and poke. Triple Shot punishes clustered enemies. ARCHER CLASS REQUIRED.' },
   shield:  { title: 'Shield ⚔ Paladin only', what: 'Defensive melee weapon. High knockback. Damage: 10.', ability: 'Q — Shield Bash: pushes enemy back and stuns for 25 frames.',              super: 'E — Holy Nova: AoE burst, heals self and deals 40 dmg to nearby foes.', how: 'Block with S key to absorb bullets. Bash enemies away. PALADIN CLASS REQUIRED.' },
   scythe:       { title: 'Scythe',         what: 'Wide-arc melee with splash damage. Heals on hit. Damage: 14.',               ability: 'Q — Scythe Toss: hurl the blade forward (22 dmg out / 14 dmg return). No lifesteal.', super: 'E — Soul Reap: charge forward + sweep arcs, lifesteal AoE for 32 dmg.', how: 'Base heals on melee contact. Q is a ranged blade — throw it and bait the return. E is the lifesteal finisher.' },
   fryingpan:    { title: 'Frying Pan',     what: 'Slow but punishing melee. Solid knockback and AoE ground pound. Damage: 18.',          ability: 'Q — Ground Pound: AoE shockwave from feet — launches ALL nearby enemies straight up.', super: 'E — Grand Slam: single-target overhead launch — massive upward force for 45 dmg.', how: 'Ground Pound clears crowds upward. Grand Slam sends one target flying for a ceiling combo.' },
   broomstick:   { title: 'Broomstick',     what: 'Long-reach melee. Low damage but pushes enemies away. Damage: 12.',               ability: 'Q — Broom Ride: rocket through the air on the broom — 16 dmg aerial body-check to anyone in your path.', super: 'E — Tornado Spin: spin push that hits all directions.',           how:  'Base = ground poke. Q = aerial flying ram. E = stationary spin push.' },
-  boxinggloves: { title: 'Boxing Gloves',  what: 'Very fast punches. Builds up damage with relentless pressure. Damage: 11.',        ability: 'Q — Flurry Rush: lunge INTO the target with 5 rapid dash-punches.',  super: 'E — Giant Fist: massive fist crosses the entire arena for 58 dmg.', how:  'Flurry Rush closes distance instantly. Giant Fist punishes escaped enemies from anywhere.' },
+  combat: { title: 'Combat',         what: 'Fast alternating punches and kicks. Up-close brawler. Damage: 11.',                ability: 'Q — Counter: enter a parry stance. Absorb the next hit, teleport behind the attacker, and launcher-kick them upward (18 dmg).', super: 'E — Combo Strike: dash to target, kick them airborne (22 dmg), then blast them away with a power punch (34 dmg).', how:  'Counter reads punishes aggressive players. Combo Strike is a guaranteed two-hit sequence — use it to close out fights.' },
   peashooter:   { title: 'Pea Shooter',    what: 'Rapid-fire ranged weapon. Very low damage per pea (2-3). High fire rate.',        ability: 'Q — Pea Storm: 10 rapid shots.',                               super: 'E — Cluster Bomb: large pea detonates into 10 radial peas (8-12 dmg each).', how: 'Whittle with shots. Cluster Bomb punishes enemies in tight spots.' },
   slingshot:    { title: 'Slingshot',      what: 'Ranged weapon with arc trajectory. Moderate damage (10-14). Slow fire rate.',     ability: 'Q — Mortar Stone: steep upward arc falls DOWN from above (65px splash, 28 dmg).', super: 'E — Gravity Stone: slow boulder; detonates with a 220px gravity pull for 52 dmg.', how: 'Mortar Stone bypasses shields by dropping from above. Gravity Stone pulls victims into it.' },
-  paperairplane: { title: 'Paper Airplane',  what: 'Very slow curving projectile. Low damage (8-12) but unpredictable arc.',          ability: 'Q — Barrage: 5 airplanes at staggered angles.',                   super: 'E — Origami Swarm: 8 homing planes that chase and track enemies.',    how:  'Confuse enemies with the arc. Swarm corners enemies with nowhere to run.' },
+  paperairplane: { title: 'Paper Airplane',  what: 'Very slow curving projectile. Low damage (9-13) but unpredictable arc.',          ability: 'Q — Barrage: 5 airplanes at staggered angles.',                   super: 'E — Origami Swarm: 8 homing planes that chase and track enemies.',    how:  'Confuse enemies with the arc. Swarm corners enemies with nowhere to run.' },
   flail:         { title: 'Flail',           what: 'Heavy melee with a swinging chain ball. Damage: 21.',                              ability: 'Q — Chain Yank: fire ball forward (26 dmg), returns for 16 dmg.',  super: 'E — Orbit Storm: ball orbits at high speed, 12 dmg per contact.',    how:  'Commit hard or miss hard. Stay close during the return to land both hits.' },
-  whip:          { title: 'Whip',            what: 'Longest melee reach (200px). Low damage but great control. Damage: 8.',            ability: 'Q — Lasso: yank ONE enemy forcefully toward you (10 dmg, stun 22 frames).', super: 'E — Reel: yanks ALL enemies within 220px toward you for 12 dmg.',    how:  'Base = long forward poke. Q = single-target hard pull + stun. E = mass crowd yank.' },
+  whip:          { title: 'Whip',            what: 'Longest melee reach. Low damage but great control. Damage: 10.',            ability: 'Q — Lasso: yank ONE enemy forcefully toward you (10 dmg, stun 22 frames).', super: 'E — Reel: yanks ALL enemies within 220px toward you for 12 dmg.',    how:  'Base = long forward poke. Q = single-target hard pull + stun. E = mass crowd yank.' },
   boomerang:     { title: 'Boomerang',       what: 'Ranged weapon. Normal throw: 11-15 dmg. Q/E have returning throws.',             ability: 'Q — Orbit Guard: boomerang circles you as a spinning shield, hitting nearby enemies.',  super: 'E — Boomerang Blitz: 4-way 360° burst — forward, backward, and two arcing up. All return.', how: 'Use Orbit Guard defensively when enemies rush. Blitz covers all directions at once.' },
   katana:        { title: 'Katana',          what: 'Fast precise melee weapon. Damage: 14.',                                           ability: 'Q — Iaijutsu: standing still = 28 dmg, no dash. Moving = 22 dmg + forward dash.', super: 'E — Shadow Step: instantly teleport to the far side of the nearest enemy (≤450px), 38 dmg + 3 slash arcs.', how:  'Q rewards patience — stand still for burst damage. E repositions you for the kill.' },
   flamethrower:  { title: 'Flamethrower',    what: 'Rapid-fire 25-shot clip. Short range. Low damage per shot (3-4).',                ability: 'Q — Napalm Spit: fireball with 75px splash for 24 dmg. Pushes you back.', super: 'E — Backdraft: reverse launch + 40 dmg AoE burst in front.',    how:  'Suppress with rapid fire. Backdraft punishes enemies who rush you.' },
@@ -848,15 +827,16 @@ const WEAPON_DESCS = {
 };
 
 const CLASS_DESCS = {
-  none:      { title: 'No Class',   what: 'No class modifier. Full freedom of weapon choice. HP: 100.',                                                                    perk: null,                                                                                                                              how:  'Choose any weapon — pure skill matters.' },
-  thor:      { title: 'Thor',       what: 'Hammer master. Slower movement but powerful strikes. Forces Hammer. HP: 115.',                                                   perk: 'Lightning Storm (≤20% HP, once): Summons 3 lightning bolts — 8 dmg + stun each. Activates automatically.',                        how:  'Tank hits to trigger the lightning perk when low. Then finish with your super.' },
-  kratos:    { title: 'Kratos',     what: 'Axe specialist. More HP, builds rage when hit. Forces Axe. HP: 125.',                                                            perk: 'Spartan Rage (≤15% HP, once): Auto-heals to 30% HP and boosts damage by +30% for 5 seconds.',                                     how:  'Survive the threat threshold — let the rage save you. Strike hard in the buff window.' },
-  ninja:     { title: 'Ninja',      what: 'Extremely fast sword fighter. Fragile but elusive. Forces Sword. HP: 80.',                                                       perk: 'Shadow Step (≤25% HP, once): 2 seconds of full invincibility and all cooldowns reset instantly.',                                  how:  'Use your speed advantage to dodge. The perk buys time to escape and counter.' },
-  gunner:    { title: 'Gunner',     what: 'Dual-shot gunslinger — fires 2 bullets every shot. Forces Gun. HP: 95.',                                                         perk: 'Last Stand (≤20% HP, once): Fires 8 bullets in all directions for 3–5 dmg each.',                                                 how:  'Keep distance at all times. The burst perk punishes enemies who close in when you\'re low.' },
-  archer:    { title: 'Archer',     what: 'Long-range bow fighter. Fast movement, low HP. Forces Bow. HP: 85.',                                                              perk: 'Back-Step (≤20% HP): Auto-dash backward and reset double jump when threatened.',                                                  how:  'Stay at range. The auto-backstep keeps you alive when pressured.' },
-  paladin:   { title: 'Paladin',    what: 'Tanky shield warrior. Slower movement, high HP. Forces Shield. HP: 130.',                                                         perk: 'Holy Light (≤25% HP): AoE healing pulse — heals self 20 HP, deals 15 dmg to nearby enemies.',                                    how:  'Block and bash. The perk punishes opponents who rush you when you\'re low.' },
-  berserker: { title: 'Berserker',  what: 'Any-weapon brawler. Strong and sturdy. HP: 120.',                                                                                 perk: 'Blood Frenzy (≤15% HP): 3 seconds of +50% damage and ×1.4 speed.',                                                              how:  'Play aggressively and stack risk — the frenzy perk rewards surviving near death.' },
-  pugilist:  { title: 'Pugilist',   what: 'Boxing Gloves specialist. Extra durability and speed. Forces Boxing Gloves. HP: 135.',                                              perk: 'Surge Fist (≤20% HP, once): Auto-launches a Giant Fist — free, no super meter cost.',                                           how:  'Get in close and never stop. The perk saves you when you\'re nearly dead.' },
+  none:      { title: 'No Class',   what: 'No class modifier. Full freedom of weapon choice. HP: 150.',                                                                   perk: null,                                                                                                                              how:  'Choose any weapon — pure skill matters.' },
+  thor:      { title: 'Thor',       what: 'Hammer master. Slower movement but powerful strikes. Forces Hammer. HP: 140.',                                                   perk: 'Lightning Storm (≤20% HP, once): Summons 3 lightning bolts — 8 dmg + stun each. Activates automatically.',                        how:  'Tank hits to trigger the lightning perk when low. Then finish with your super.' },
+  kratos:    { title: 'Kratos',     what: 'Axe specialist. More HP, builds rage when hit. Forces Axe. HP: 145.',                                                            perk: 'Spartan Rage (≤15% HP, once): Auto-heals to 30% HP and boosts damage by +30% for 5 seconds.',                                     how:  'Survive the threat threshold — let the rage save you. Strike hard in the buff window.' },
+  ninja:     { title: 'Ninja',      what: 'Extremely fast sword fighter. Fragile but elusive. Forces Sword. HP: 90.',                                                       perk: 'Shadow Step (≤25% HP, once): 2 seconds of full invincibility and all cooldowns reset instantly.',                                  how:  'Use your speed advantage to dodge. The perk buys time to escape and counter.' },
+  gunner:    { title: 'Gunner',     what: 'Dual-shot gunslinger — fires 2 bullets every shot. Forces Gun. HP: 110.',                                                         perk: 'Last Stand (≤20% HP, once): Fires 8 bullets in all directions for 3–5 dmg each.',                                                 how:  'Keep distance at all times. The burst perk punishes enemies who close in when you\'re low.' },
+  archer:    { title: 'Archer',     what: 'Long-range bow fighter. Fast movement, low HP. Forces Bow. HP: 95.',                                                              perk: 'Back-Step (≤20% HP): Auto-dash backward and reset double jump when threatened.',                                                  how:  'Stay at range. The auto-backstep keeps you alive when pressured.' },
+  paladin:   { title: 'Paladin',    what: 'Tanky shield warrior. Slower movement, high HP. Forces Shield. HP: 160.',                                                         perk: 'Holy Light (≤25% HP): AoE healing pulse — heals self 20 HP, deals 15 dmg to nearby enemies.',                                    how:  'Block and bash. The perk punishes opponents who rush you when you\'re low.' },
+  berserker: { title: 'Berserker',  what: 'Any-weapon brawler. Strong and sturdy. HP: 130.',                                                                                 perk: 'Blood Frenzy (≤15% HP): 3 seconds of +50% damage and ×1.4 speed.',                                                              how:  'Play aggressively and stack risk — the frenzy perk rewards surviving near death.' },
+  pugilist:  { title: 'Pugilist',   what: 'Combat brawler. Fast and durable. Forces Combat. HP: 135.',                                                           perk: 'Surge Strike (≤20% HP, once): Auto-triggers Combo Strike — free, no super meter cost.',                                         how:  'Counter reads and keep pressing. Surge Strike saves you when nearly dead.' },
   ronin:     { title: 'Ronin',      what: 'Katana specialist. Fastest class, fragile. Forces Katana. HP: 115.',                                                               perk: 'Death Step (passive): Kill with Iaijutsu while standing still → all cooldowns reset instantly.',                                  how:  'Hesitate, land the standing Q kill, and chain resets for perpetual momentum.' },
   reaper:    { title: 'Reaper',     what: 'Scythe specialist. Balanced pace and solid HP. Forces Scythe. HP: 125.',                                                           perk: 'Revive (≤8% HP, once): Instantly restore 40% HP. If that HP bar is depleted, you\'re gone.',                                    how:  'Fight aggressively — the perk is your safety net. After it fires, one more good hit ends you.' },
+  summoner:  { title: 'Summoner',  what: 'Any weapon. A familiar fights beside you, spawning every 10s (max 1). HP: 120.',                                                   perk: 'Desperate Bond (≤20% HP, once): Immediately spawn familiar if absent and empower it for 10s (+70% damage).',                   how:  'Stay alive — your familiar wins attrition fights. Save your perk for comeback moments.' },
 };

@@ -51,9 +51,16 @@ function selectMode(mode) {
   const onlinePanel = document.getElementById('onlinePanel');
   if (onlinePanel) onlinePanel.style.display = isOnline ? 'flex' : 'none';
   if (isOnline && typeof refreshPublicRooms === 'function') refreshPublicRooms();
-  // Show/hide minigame selection panel
+  // Show/hide minigame selection panel; sync card active state and survivalOptions on re-entry
   const mgPanel = document.getElementById('minigamePanel');
   if (mgPanel) mgPanel.style.display = isMinigames ? 'block' : 'none';
+  if (isMinigames) {
+    document.querySelectorAll('#minigamePanel .mode-card').forEach(c => c.classList.remove('active'));
+    const _mgCard = document.getElementById('mgCard' + minigameType.charAt(0).toUpperCase() + minigameType.slice(1));
+    if (_mgCard) _mgCard.classList.add('active');
+    const _survOpts = document.getElementById('survivalOptions');
+    if (_survOpts) _survOpts.style.display = minigameType === 'survival' ? 'flex' : 'none';
+  }
   // P2 panel title/hint
   document.getElementById('p2Title').textContent = isTrueForm ? 'TRUE FORM' : isAdaptive ? 'NEURAL AI' : (isBoss && !isBoss2p) ? 'CREATOR' : (isBoss2p ? 'Player 2' : (isTraining ? 'TRAINING' : (p2IsBot ? 'BOT' : 'Player 2')));
   const _p2Hint = document.getElementById('p2Hint');
@@ -73,8 +80,8 @@ function selectMode(mode) {
   if (p2BotToggleEl) p2BotToggleEl.style.display = (isBoss2p) ? '' : (isBoss || isTrueForm || isAdaptive) ? 'none' : '';
   const trainingPanel = document.getElementById('trainingPanel');
   if (trainingPanel) trainingPanel.style.display = isTraining ? 'block' : 'none';
-  // Boss/training/minigames/trueform/online/adaptive: hide ∞ infinite; adaptive still shows arena picker
-  document.getElementById('arenaSection').style.display   = isOnline ? '' : 'none';
+  // 2p and adaptive: show arena + lives picker; all other modes have fixed/auto arenas
+  document.getElementById('arenaSection').style.display   = (mode === '2p' || isAdaptive) ? '' : 'none';
   const _infOpt = document.getElementById('infiniteOption');
   if (_infOpt) _infOpt.disabled = !!(isBoss || isTraining || isMinigames || isTrueForm || isOnline || isAdaptive);
   if ((isBoss || isTraining || isMinigames || isTrueForm || isOnline || isAdaptive) && infiniteMode) {
@@ -122,6 +129,7 @@ function _enterConfigView(mode) {
   if (menuEl) menuEl.classList.remove('menu-home');
   const homeContent = document.getElementById('menuHomeContent');
   if (homeContent) homeContent.style.display = 'none';
+  _stopHomeCanvas();
   const configContent = document.getElementById('menuConfigContent');
   if (configContent) configContent.style.display = 'flex';
   const modeLabel = document.getElementById('configModeLabel');
@@ -145,6 +153,7 @@ function backToHome() {
   if (configContent) configContent.style.display = 'none';
   closeSimulator();
   closeStoryPath();
+  if (!_homeCanvasRAF) _initHomeCanvas();
 }
 
 // ── Simulator navigation ──────────────────────────────────────────────────────
@@ -602,7 +611,7 @@ const _WEAPON_CARD_DATA = {
   scythe:        { icon: '💀', tag: 'Lifesteal' },
   fryingpan:     { icon: '🍳', tag: 'Stun' },
   broomstick:    { icon: '🧹', tag: 'Push' },
-  boxinggloves:  { icon: '🥊', tag: 'Combo' },
+  combat:        { icon: '👊', tag: 'Combo' },
   peashooter:    { icon: '🌿', tag: 'Rapid' },
   slingshot:     { icon: '🪃', tag: 'Arc' },
   paperairplane: { icon: '✈️', tag: 'Curve' },
@@ -629,3 +638,342 @@ const _CLASS_CARD_DATA = {
   ronin:       { icon: '🗡️', tag: 'Precision' },
   reaper:      { icon: '💀', tag: 'Undying' },
 };
+
+// ── Home Screen Canvas Animation ──────────────────────────────────────────────
+var _homeCanvasRAF = null;
+var _homeCanvasT0  = 0;
+
+function _homeDrawBg(ctx, W, H) {
+  ctx.save();
+  ctx.strokeStyle = 'rgba(0, 130, 255, 0.038)';
+  ctx.lineWidth = 1;
+  var step = 32;
+  for (var i = -H; i < W + H; i += step) {
+    ctx.beginPath();
+    ctx.moveTo(i, 0);
+    ctx.lineTo(i + H * 0.65, H);
+    ctx.stroke();
+  }
+  ctx.strokeStyle = 'rgba(70, 40, 180, 0.05)';
+  for (var gx = 0; gx < W; gx += 95) {
+    ctx.beginPath(); ctx.moveTo(gx, 0); ctx.lineTo(gx, H); ctx.stroke();
+  }
+  for (var gy = 0; gy < H; gy += 95) {
+    ctx.beginPath(); ctx.moveTo(0, gy); ctx.lineTo(W, gy); ctx.stroke();
+  }
+  var vig = ctx.createRadialGradient(W / 2, H * 0.55, H * 0.12, W / 2, H * 0.55, H * 0.82);
+  vig.addColorStop(0, 'rgba(0,0,0,0)');
+  vig.addColorStop(1, 'rgba(0,0,0,0.52)');
+  ctx.fillStyle = vig;
+  ctx.fillRect(0, 0, W, H);
+  ctx.restore();
+}
+
+function _homeDrawStick(ctx, cx, cy, color, t, flipped, sc) {
+  ctx.save();
+  ctx.translate(cx, cy);
+  if (flipped) ctx.scale(-1, 1);
+  ctx.scale(sc, sc);
+
+  var bob       = Math.sin(t * 1.3) * 3.5;
+  var swing     = Math.sin(t * 0.85) * 11;
+  var capeWave  = Math.sin(t * 1.05) * 7;
+  var capeDroop = Math.sin(t * 0.7 + 0.5) * 4;
+
+  ctx.lineCap  = 'round';
+  ctx.lineJoin = 'round';
+
+  // ── CAPE (wide flowing cloak) ────────────────────────────────────
+  var tipX = -40 + capeWave * 0.6, tipY = 55 + bob + capeDroop;
+  ctx.save();
+  ctx.beginPath();
+  // Outer edge: from upper shoulder, sweeps far left, down to tip
+  ctx.moveTo(-4, -43 + bob);
+  ctx.bezierCurveTo(
+    -42 + capeWave * 0.5, -20 + bob,
+    -58 + capeWave * 0.8,  18 + bob,
+    tipX, tipY
+  );
+  // Inner edge: stays closer to body spine, back up to lower neck
+  ctx.bezierCurveTo(
+    -30 + capeWave * 0.4,  28 + bob,
+    -16 + capeWave * 0.2,  -2 + bob,
+    -5, -30 + bob
+  );
+  ctx.closePath();
+  ctx.fillStyle   = color;
+  ctx.globalAlpha = 0.44;
+  ctx.shadowColor = color;
+  ctx.shadowBlur  = 22;
+  ctx.fill();
+  // Outer edge stroke
+  ctx.globalAlpha = 0.9;
+  ctx.strokeStyle = color;
+  ctx.lineWidth   = 1.8;
+  ctx.shadowBlur  = 14;
+  ctx.beginPath();
+  ctx.moveTo(-4, -43 + bob);
+  ctx.bezierCurveTo(
+    -42 + capeWave * 0.5, -20 + bob,
+    -58 + capeWave * 0.8,  18 + bob,
+    tipX, tipY
+  );
+  ctx.stroke();
+  // Center fold crease
+  ctx.lineWidth   = 1;
+  ctx.globalAlpha = 0.4;
+  ctx.shadowBlur  = 8;
+  ctx.beginPath();
+  ctx.moveTo(-5, -36 + bob);
+  ctx.bezierCurveTo(
+    -28 + capeWave * 0.3, -5 + bob,
+    -38 + capeWave * 0.5, 22 + bob,
+    tipX + 8, tipY - 6
+  );
+  ctx.stroke();
+  ctx.restore();
+
+  // ── FIGURE ───────────────────────────────────────────────────────
+  ctx.strokeStyle = color;
+  ctx.shadowColor = color;
+
+  // Head
+  ctx.shadowBlur = 20;
+  ctx.lineWidth  = 4.5;
+  ctx.beginPath();
+  ctx.arc(0, -60 + bob, 15, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.save();
+  ctx.fillStyle   = color;
+  ctx.globalAlpha = 0.15;
+  ctx.fill();
+  ctx.restore();
+
+  // Body
+  ctx.shadowBlur = 14;
+  ctx.lineWidth  = 5.5;
+  ctx.beginPath();
+  ctx.moveTo(0, -45 + bob);
+  ctx.lineTo(0, -7  + bob);
+  ctx.stroke();
+
+  // Back arm
+  ctx.lineWidth = 4.5;
+  ctx.beginPath();
+  ctx.moveTo(0, -38 + bob);
+  ctx.lineTo(-24, -20 + bob - swing * 0.5);
+  ctx.stroke();
+
+  // Weapon arm
+  var hx = 26, hy = -20 + bob + swing;
+  ctx.lineWidth = 4.5;
+  ctx.beginPath();
+  ctx.moveTo(0, -38 + bob);
+  ctx.lineTo(hx, hy);
+  ctx.stroke();
+
+  // Legs
+  ctx.lineWidth = 5;
+  ctx.beginPath();
+  ctx.moveTo(0, -7 + bob);
+  ctx.lineTo(-18, 30 + bob + swing * 0.55);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(0, -7 + bob);
+  ctx.lineTo(18, 30 + bob - swing * 0.55);
+  ctx.stroke();
+
+  // ── SWORD ─────────────────────────────────────────────────────────
+  ctx.save();
+  ctx.translate(hx, hy);
+  ctx.rotate(0.28 + Math.sin(t * 0.6) * 0.15);
+
+  // Wide soft glow
+  ctx.strokeStyle = color;
+  ctx.shadowColor = color;
+  ctx.shadowBlur  = 32;
+  ctx.lineWidth   = 9;
+  ctx.globalAlpha = 0.28;
+  ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(54, 0); ctx.stroke();
+
+  // Blade
+  ctx.globalAlpha = 1.0;
+  ctx.lineWidth   = 4.5;
+  ctx.shadowBlur  = 22;
+  ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(54, 0); ctx.stroke();
+
+  // Blade edge highlight
+  ctx.lineWidth   = 1.5;
+  ctx.globalAlpha = 0.5;
+  ctx.shadowBlur  = 0;
+  ctx.beginPath(); ctx.moveTo(4, -2); ctx.lineTo(54, -0.5); ctx.stroke();
+
+  // Crossguard
+  ctx.globalAlpha = 1.0;
+  ctx.lineWidth   = 3.5;
+  ctx.shadowBlur  = 12;
+  ctx.beginPath(); ctx.moveTo(11, -11); ctx.lineTo(11, 11); ctx.stroke();
+
+  ctx.restore();
+  ctx.restore();
+}
+
+// ── Large Kael hero silhouette for the homescreen ────────────────────────────
+// Drawn on homeCanvas (z-index 9) so he appears above the game canvas fracture
+// but behind HTML cards. baseY = foot position in screen pixels.
+function _homeDrawKael(ctx, cx, baseY, sc, t) {
+  var bob      = Math.sin(t * 0.9) * 3;
+  var headR    = 15 * sc;
+  var headY    = baseY - 80 * sc + bob * sc;
+  var shouldY  = headY + headR + 6 * sc;
+  var hipY     = shouldY + 36 * sc;
+  var aRaise   = Math.sin(t * 0.9) * 3 * sc;
+
+  ctx.save();
+  ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+
+  // Ground void mist
+  var gm = ctx.createRadialGradient(cx, baseY + 5*sc, 2*sc, cx, baseY + 5*sc, 65*sc);
+  gm.addColorStop(0, 'rgba(70,15,140,0.22)');
+  gm.addColorStop(0.5, 'rgba(35,8,70,0.10)');
+  gm.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = gm;
+  ctx.beginPath(); ctx.ellipse(cx, baseY + 5*sc, 65*sc, 16*sc, 0, 0, Math.PI*2); ctx.fill();
+
+  // Dark billowing cape
+  var capeWave  = Math.sin(t * 0.62) * 7 * sc;
+  var capeDroop = Math.sin(t * 0.42 + 0.5) * 4 * sc;
+  var tipX = cx - 52*sc + capeWave * 0.6;
+  var tipY = hipY + 32*sc + bob*sc + capeDroop;
+  ctx.beginPath();
+  ctx.moveTo(cx - 4*sc, shouldY);
+  ctx.bezierCurveTo(
+    cx - 46*sc + capeWave*0.5, shouldY + 12*sc + bob*sc,
+    cx - 66*sc + capeWave*0.8, hipY + bob*sc,
+    tipX, tipY
+  );
+  ctx.bezierCurveTo(
+    cx - 34*sc + capeWave*0.4, hipY - 4*sc + bob*sc,
+    cx - 16*sc + capeWave*0.2, shouldY + 8*sc,
+    cx - 4*sc, shouldY + 12*sc
+  );
+  ctx.closePath();
+  ctx.fillStyle = '#050208'; ctx.globalAlpha = 0.90; ctx.fill();
+  ctx.strokeStyle = 'rgba(55,18,95,0.30)'; ctx.lineWidth = 1.2*sc; ctx.globalAlpha = 1; ctx.stroke();
+
+  // Void rim light on head (fracture light from above)
+  ctx.beginPath(); ctx.arc(cx, headY, headR + 3*sc, 0, Math.PI*2);
+  ctx.fillStyle = 'rgba(75,30,165,0.13)'; ctx.fill();
+
+  // Head
+  ctx.beginPath(); ctx.arc(cx, headY, headR, 0, Math.PI*2);
+  ctx.fillStyle = '#050208'; ctx.globalAlpha = 0.96; ctx.fill(); ctx.globalAlpha = 1;
+
+  // Limbs (near-black silhouette)
+  ctx.strokeStyle = '#050208'; ctx.lineWidth = 3.5*sc;
+  ctx.beginPath(); ctx.moveTo(cx, shouldY); ctx.lineTo(cx, hipY); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(cx, shouldY + 5*sc); ctx.lineTo(cx - 22*sc, shouldY + 28*sc + aRaise); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(cx, shouldY + 5*sc); ctx.lineTo(cx + 20*sc, shouldY + 24*sc - aRaise); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(cx, hipY); ctx.lineTo(cx - 15*sc, baseY); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(cx, hipY); ctx.lineTo(cx + 15*sc, baseY); ctx.stroke();
+
+  // Sword — dark blade, subtle red glow
+  var hx = cx + 20*sc, hy = shouldY + 24*sc - aRaise;
+  ctx.beginPath(); ctx.moveTo(hx, hy); ctx.lineTo(hx + 48*sc, hy - 58*sc);
+  ctx.strokeStyle = 'rgba(160,35,35,0.20)'; ctx.lineWidth = 8*sc; ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(hx, hy); ctx.lineTo(hx + 48*sc, hy - 58*sc);
+  ctx.strokeStyle = '#040208'; ctx.lineWidth = 2.5*sc; ctx.stroke();
+
+  // Red scarf — the defining element
+  var sw1 = Math.sin(t * 1.05) * 10 * sc;
+  var sw2 = Math.sin(t * 1.05 + 1.3) * 7 * sc;
+  var sw3 = Math.sin(t * 1.05 + 2.1) * 4 * sc;
+  ctx.shadowColor = '#ff2222'; ctx.shadowBlur = 10 * sc;
+  ctx.beginPath();
+  ctx.moveTo(cx - 3*sc, shouldY - 2*sc);
+  ctx.bezierCurveTo(
+    cx - 16*sc + sw1, shouldY + 16*sc,
+    cx - 32*sc + sw2, shouldY + 36*sc,
+    cx - 52*sc + sw1, shouldY + 60*sc
+  );
+  ctx.strokeStyle = 'rgba(235,38,38,0.96)'; ctx.lineWidth = 4.5*sc; ctx.lineCap = 'round'; ctx.stroke();
+  ctx.shadowBlur = 0;
+  ctx.beginPath();
+  ctx.moveTo(cx - 52*sc + sw1, shouldY + 60*sc);
+  ctx.bezierCurveTo(
+    cx - 64*sc + sw2, shouldY + 75*sc,
+    cx - 72*sc + sw3, shouldY + 90*sc,
+    cx - 78*sc + sw2, shouldY + 104*sc
+  );
+  ctx.strokeStyle = 'rgba(180,22,22,0.52)'; ctx.lineWidth = 3*sc; ctx.stroke();
+
+  ctx.restore();
+}
+
+function _initHomeCanvas() {
+  var canvas = document.getElementById('homeCanvas');
+  if (!canvas) return;
+  var ctx = canvas.getContext('2d');
+
+  function resize() {
+    canvas.width  = window.innerWidth;
+    canvas.height = window.innerHeight;
+  }
+  resize();
+  if (!canvas._smbResizeBound) {
+    window.addEventListener('resize', resize);
+    canvas._smbResizeBound = true;
+  }
+
+  if (_homeCanvasRAF) cancelAnimationFrame(_homeCanvasRAF);
+  if (!_homeCanvasT0) _homeCanvasT0 = performance.now();
+
+  function frame() {
+    if (typeof gameRunning !== 'undefined' && gameRunning) {
+      _homeCanvasRAF = requestAnimationFrame(frame);
+      return;
+    }
+    var W = canvas.width  || window.innerWidth;
+    var H = canvas.height || window.innerHeight;
+    var t = (performance.now() - _homeCanvasT0) / 1000;
+
+    // Transparent — city skyline from game canvas shows through underneath
+    ctx.clearRect(0, 0, W, H);
+
+    // Subtle dark vignette over center column so text stays readable
+    var cvig = ctx.createRadialGradient(W / 2, H * 0.42, H * 0.05, W / 2, H * 0.42, H * 0.45);
+    cvig.addColorStop(0, 'rgba(4,4,11,0.55)');
+    cvig.addColorStop(1, 'rgba(4,4,11,0)');
+    ctx.fillStyle = cvig;
+    ctx.fillRect(0, 0, W, H);
+
+    // Kael — large dark hero silhouette, alone before the fracture
+    var sc  = Math.min(W, H) / 420;
+    var ksc = sc * 1.35;
+    _homeDrawKael(ctx, W * 0.50, H * 0.41, ksc, t);
+
+    _homeCanvasRAF = requestAnimationFrame(frame);
+  }
+  _homeCanvasRAF = requestAnimationFrame(frame);
+}
+
+function _stopHomeCanvas() {
+  if (_homeCanvasRAF) { cancelAnimationFrame(_homeCanvasRAF); _homeCanvasRAF = null; }
+  var canvas = document.getElementById('homeCanvas');
+  if (canvas) canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
+}
+
+window.addEventListener('load', function() {
+  _homeCanvasT0 = performance.now();
+  _initHomeCanvas();
+  var menuEl = document.getElementById('menu');
+  if (menuEl && window.MutationObserver) {
+    new MutationObserver(function() {
+      if (menuEl.style.display !== 'none') {
+        if (!_homeCanvasRAF) _initHomeCanvas();
+      } else {
+        _stopHomeCanvas();
+      }
+    }).observe(menuEl, { attributes: true, attributeFilter: ['style'] });
+  }
+});

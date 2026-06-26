@@ -9,7 +9,7 @@ STORY_CHAPTER_REGISTRY.push(
       '',
       'A figure stepped through the tear.',
       'They looked at you with recognition.',
-      '"You. Of course it\'s you."',
+      '"Kael. Of course it\'s you."',
       '',
       'You\'d never seen them before in your life.',
     ],
@@ -142,7 +142,7 @@ STORY_CHAPTER_REGISTRY.push(
     playerLives: 2,
     arena: 'cyberpunk',
     tokenReward: 25, blueprintDrop: null,
-    postText: '"There are others like you," they say, falling. "In other fractures. You\'re not the first. But you might be the last." They hand you a torn data card before passing out. One word printed on it: ARCHITECT.',
+    postText: '"Kael," they say first, quiet, like confirming something they already knew. "There are others like you. In other fractures. You\'re not the first. But you might be the last." They hand you a torn data card before passing out. One word printed on it: ARCHITECT.',
   },
 
   {

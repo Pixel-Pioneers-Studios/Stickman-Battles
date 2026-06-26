@@ -2,6 +2,25 @@
 // smb-story-engine-flow.js — Chapter launch flow: _startStoryGauntlet → _launchChapter2Fight (immediate)
 // Depends on: smb-globals.js, smb-story-registry.js (and preceding story-engine splits)
 
+// ── Story character ID lookup — maps opponent names to visual appearance IDs ──
+const _STORY_CHAR_NAME_MAP = {
+  'Veran — The Architect': 'veran',
+  'Veran':                 'veran',
+  'Herald of Nothing':     'herald',
+  'Second Architect':      'second_architect',
+  'Third Architect':       'third_architect',
+  'The Enforcer':          'enforcer',
+  'God':                   'god',
+  'Absolute Axiom':        'absolute_axiom',
+  'Null':                  'null_companion',
+  'VAEL':                  'vael',
+  'Seraph':                'seraph',
+  'Thresh':                'thresh',
+};
+function _resolveStoryCharId(name) {
+  return _STORY_CHAR_NAME_MAP[name] || null;
+}
+
 // ── Chapter flow ──────────────────────────────────────────────────────────────
 let _narrativeActive = false; // guard against re-entrant narrative calls
 const _seenNarrativeIds = new Set(); // chapters whose narrative was already shown this session
@@ -129,7 +148,7 @@ function _advanceStoryGauntletPhase(ch) {
 // Boss/special chapters bypass the gauntlet and launch directly.
 // All other fight/exploration chapters go through _startStoryGauntlet so pacing archetypes fire.
 function _launchChapterWithGauntlet(ch) {
-  if (ch.isBossFight || ch.isTrueFormFight || ch.isSovereignFight) {
+  if (ch.isBossFight || ch.isTrueFormFight || ch.isSovereignFight || ch.isAbsoluteAxiomFight || ch.type === 'interlude') {
     _directLaunchChapter(ch);
   } else {
     _startStoryGauntlet(ch);
@@ -183,11 +202,57 @@ function _beginChapter2(idx) {
 function _directLaunchChapter(ch) {
   if (!ch) return;
   storyGauntletState = null;
-  if (ch.type === 'exploration') {
+  if (ch.type === 'interlude') {
+    _launchInterludeChapter(ch);
+  } else if (ch.type === 'exploration') {
     _launchExplorationChapter(ch);
   } else {
     _launchChapter2Fight(ch);
   }
+}
+
+// ── Interlude chapter launch ───────────────────────────────────────────────────
+function _launchInterludeChapter(ch) {
+  if (!ch) return;
+  if (typeof resetInterlude === 'function') resetInterlude();
+
+  // Select wide arena for the walk (use ch.arena if specified, else 'forest' as default)
+  const arenaKey = ch.arena || 'forest';
+  const arenaEl  = document.getElementById('arenaSelect');
+  if (arenaEl) arenaEl.value = arenaKey;
+
+  // Single-player walk: P1 only, no P2 enemy
+  gameMode = 'exploration';
+  if (typeof selectMode === 'function') selectMode('exploration');
+  if (typeof selectLives === 'function') selectLives(ch.playerLives || 5);
+  infiniteMode = true;
+
+  storyModeActive = true;
+  storyBossType   = null;
+  storyTwoEnemies = false;
+
+  // Ability override: walking chapters keep base movement unlocked
+  const _sk = _story2.skillTree || {};
+  const _sa = (typeof storyState !== 'undefined') ? storyState.abilities : {};
+  storyPlayerOverride = {
+    noAbility:    !(_sk.weaponAbility || !!_sa.weaponAbility),
+    noSuper:      true,    // no combat supers during a walk
+    noClass:      !_sk.classUnlock,
+    noDoubleJump: !(_sk.doubleJump || !!_sa.doubleJump),
+    noDodge:      !(_sk.dodge || !!_sa.dodge),
+    dmgMult:      1.0, speedMult: 1.0, jumpMult: 1.0,
+  };
+
+  if (typeof startGame === 'function') startGame();
+
+  setTimeout(function () {
+    // Init interlude state after fighters are spawned
+    if (typeof initInterlude === 'function') initInterlude(ch);
+    // Widen the level so the player can walk
+    if (ch.worldWidth) {
+      if (currentArena) currentArena.worldWidth = ch.worldWidth;
+    }
+  }, 150);
 }
 
 // Show narrative as an animated canvas scene (replaces the static black panel).
@@ -438,6 +503,10 @@ function _launchChapter2FightImmediate(ch) {
     gameMode = 'adaptive';
     p2IsBot  = true;
     if (typeof selectMode === 'function') selectMode('adaptive');
+  } else if (ch.isAbsoluteAxiomFight) {
+    gameMode = 'absoluteaxiom';
+    if (typeof selectMode === 'function') selectMode('absoluteaxiom');
+    window._aaStoryHealth = ch.aaStoryHealth || 900;
   } else if (ch.isDamnationChapter) {
     gameMode = 'damnation';
     p2IsBot  = true;
@@ -465,7 +534,7 @@ function _launchChapter2FightImmediate(ch) {
   const _safeWeapon = key => (_rangedUnlocked || !_isRanged(key)) ? key : _RANGED_FALLBACK;
 
   // Set P2 weapon/class to chapter opponent
-  const _notBossOrTF = !ch.isBossFight && !ch.isTrueFormFight && !ch.isSovereignFight;
+  const _notBossOrTF = !ch.isBossFight && !ch.isTrueFormFight && !ch.isSovereignFight && !ch.isAbsoluteAxiomFight;
   if (_notBossOrTF && ch.weaponKey) {
     const p2w = document.getElementById('p2Weapon');
     if (p2w) p2w.value = _safeWeapon(ch.weaponKey);
@@ -541,6 +610,21 @@ function _launchChapter2FightImmediate(ch) {
     jumpMult:      1.0 + (_sk.highJump2 ? 0.25 : _sk.highJump1 ? 0.15 : 0),
   };
 
+  // Stripped-powers trial: override all ability gates — only human physicality
+  if (ch.strippedPowers) {
+    storyPlayerOverride.noAbility    = true;
+    storyPlayerOverride.noSuper      = true;
+    storyPlayerOverride.noClass      = true;
+    storyPlayerOverride.noDoubleJump = true;
+    storyPlayerOverride.dmgMult      = 1.0;
+    storyPlayerOverride.speedMult    = 1.0;
+    storyPlayerOverride.jumpMult     = 1.0;
+    // Flag for per-frame suppression of fragment/class visuals
+    if (typeof window !== 'undefined') window._storyStrippedPowers = true;
+  } else {
+    if (typeof window !== 'undefined') window._storyStrippedPowers = false;
+  }
+
   // Set in-fight objective based on chapter type
   if (typeof setObjective === 'function') {
     const _chOrigId = ch._origId !== undefined ? ch._origId : ch.id;
@@ -548,6 +632,7 @@ function _launchChapter2FightImmediate(ch) {
     if (ch.isTrueFormFight)  _obj = 'Defeat True Form';
     else if (ch.isBossFight) _obj = 'Defeat the Creator';
     else if (ch.isSovereignFight) _obj = 'Defeat the Sovereign';
+    else if (ch.isAbsoluteAxiomFight) _obj = 'Defeat Absolute Axiom';
     else if (ch.type === 'exploration') _obj = 'Reach ' + (ch.objectName || 'the objective');
     else if (_chOrigId < 8)  _obj = 'Survive the attack — find out why.';
     else if (_chOrigId < 20) _obj = 'Investigate the fractures.';
@@ -562,8 +647,10 @@ function _launchChapter2FightImmediate(ch) {
   // Boss type override (e.g. 'fallen_god' → spawns FallenGod instead of Boss)
   storyBossType = ch.bossType || null;
 
-  // Opponent name
-  storyOpponentName = ch.opponentName || null;
+  // Opponent name and appearance
+  storyOpponentName  = ch.opponentName  || null;
+  storyOpponentColor = ch.opponentColor || null;
+  storyCharId        = _resolveStoryCharId(ch.opponentName || '');
 
   // Armor and multi-enemy setup
   storyEnemyArmor = ch.armor || [];
@@ -711,7 +798,9 @@ function _launchAssassinationChapter(ch) {
   if (ch.aiDiff)    { const d = document.getElementById('p2Difficulty'); if (d) d.value = ch.aiDiff; }
 
   storyBossType       = null;
-  storyOpponentName   = ch.opponentName || 'Target';
+  storyOpponentName   = ch.opponentName  || 'Target';
+  storyOpponentColor  = ch.opponentColor || null;
+  storyCharId         = _resolveStoryCharId(ch.opponentName || '');
   storyEnemyArmor     = ch.armor || [];
   storyTwoEnemies     = false;
   storySecondEnemyDef = null;
@@ -769,7 +858,9 @@ function _launchGauntletChapter(ch) {
   };
 
   storyBossType       = null;
-  storyOpponentName   = ch.opponentName || 'Enemy';
+  storyOpponentName   = ch.opponentName  || 'Enemy';
+  storyOpponentColor  = ch.opponentColor || null;
+  storyCharId         = _resolveStoryCharId(ch.opponentName || '');
   storyEnemyArmor     = ch.armor || [];
   storyTwoEnemies     = false;
   storySecondEnemyDef = null;

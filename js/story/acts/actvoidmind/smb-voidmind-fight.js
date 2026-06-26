@@ -1,0 +1,253 @@
+// Void Mind arc — The Fight: chapters 167, 168, 169
+//
+// The assessment is over. The Void Mind has a complete map of everything Kael carries
+// and how firmly he carries it. Now it acts — not with threats, but with an argument.
+// The argument is the attack: the dimensions were not worth protecting.
+// If the argument holds, there is nothing left worth defending.
+// If it doesn't, the Void Mind will know why, and so will Kael.
+//
+// 167 — "The Verdict"           — narrative/branch: the Void Mind makes its move
+// 168 — "Against Erasure"       — fight: the confrontation made physical
+// 169 — "What Cannot Be Erased" — epilogue: what the fragment was always going home to
+STORY_CHAPTER_REGISTRY.push(
+
+  // ────────────────────────────────────────────────────────────────────────────
+  // CH. 167 — "The Verdict"
+  // The assessment is complete. The Void Mind has its map. It uses it.
+  // Not with erasure — with argument. The argument is more dangerous.
+  // ────────────────────────────────────────────────────────────────────────────
+  {
+    id: 167, title: 'The Verdict',
+    world: '⬛ The Substrate — The Decision',
+    type: 'branch',
+    narrative: [
+      'The Substrate did not release you.',
+      '',
+      'The assessment completed.',
+      'The attention remained.',
+      '',
+      'You had understood from the beginning',
+      'that the reckonings were not punishment.',
+      'They were preparation.',
+      '',
+      'The Void Mind had spent eight reckonings',
+      'mapping what you carry and how firmly.',
+      'It had a stripped-powers trial',
+      'to answer whether anything underneath the borrowed power',
+      'was worth the rest of the question.',
+      '',
+      'Now it had everything it needed.',
+      '',
+      'The Substrate shifted.',
+      '',
+      'Not threateningly.',
+      'The way the air changes before a statement.',
+      '',
+      'The Void Mind spoke again.',
+      'Direct. In language.',
+      '',
+      '"I have the complete record."',
+      '"I know what you carried. I know what held."',
+      '"I know what it cost you to hold it."',
+      '"I know what the stripped-powers trial revealed."',
+      '',
+      '"Now I will tell you what the record means."',
+      '',
+      '"The dimensions were not worth protecting."',
+      '',
+      'A pause.',
+      '',
+      '"Not because the beings inside them were worthless."',
+      '"Because they could not protect themselves."',
+      '"Because the fracture system — the system built to preserve them —"',
+      '"required ninety-four sequential failures and a ninety-fifth bearer"',
+      '"who happened to carry a fragment"',
+      '"in order to function."',
+      '"That is not protection. That is contingency."',
+      '"And contingency is a name for fragility."',
+      '',
+      '"The Third Architect sacrificed fifty-two dimensions"',
+      '"for a mission that ended with the fracture system gone."',
+      '"The Herald fought, and dissolved, and is gone."',
+      '"The Preserved survived in closed fractures"',
+      '"where forty-three signals went quiet when the walls sealed."',
+      '"The system you were carrying all of this for"',
+      '"no longer exists."',
+      '',
+      '"You won. The system is gone."',
+      '"What you were protecting is now unprotected."',
+      '"What the Third Architect paid for"',
+      '"cannot be accessed anymore."',
+      '"The Herald\'s hope was correct — you made it —"',
+      '"and then the architecture that made the hope meaningful"',
+      '"collapsed."',
+      '',
+      '"This is not an accusation."',
+      '"This is what the record shows."',
+      '"Everything you carried was real."',
+      '"And it still ended in a state that requires erasure to complete"',
+      '"what the fracture system started."',
+      '"I will not start with the Preserved."',
+      '"I will finish what is already finished."',
+      '',
+      'The Substrate stilled.',
+      '',
+      'The fragment burned.',
+      '',
+      'Not in warning.',
+      '',
+      'In answer.',
+    ],
+    branchPrompt: 'The Void Mind has the complete map. Its verdict: everything you protected is now unprotected. The mission succeeded and left everything fragile. The erasure argument is already underway.',
+    choices: [
+      {
+        label: '"Tell them we exist."',
+        flag: 'verdict_preserved_answer',
+        consequence: 'The Preserved testimony. "Tell them we exist." Twenty-two confirmed signals, alive, outside the closed fractures. Beings who built something real inside absorbed systems and said: tell them we exist. Not tell them we won. Not tell them the mission succeeded. Tell them we exist — because existence is the argument, not the outcome. The Void Mind\'s reasoning requires that what was protected be worth protecting. The Preserved are the evidence. They are not a system. They are not architecture. They are people who built something and are asking to be known. The fragment responded. The erasure argument has a specific counterexample.',
+      },
+      {
+        label: '"The fracture system is gone. The Preserved are still here."',
+        flag: 'verdict_outcome_answer',
+        consequence: 'What survived is not what was expected to survive. Twenty-two signals. Beings who had been inside absorbed dimensions and built something inside the absorption and came out the other side. The Third Architect opened that door. The Herald hoped someone would arrive carrying what you were carrying. They did. You did. The fracture system is gone and the beings it was protecting are still standing. That is not contingency. That is what the mission actually protected. The Void Mind\'s argument requires that the outcome was failure. The outcome was not failure. The fragment burned once, steady.',
+      },
+    ],
+    tokenReward: 50,
+    postText: 'The Void Mind received the answer. It did not change its position — it logged the counterargument the way a system logs input. The argument is not resolved by a sentence. It is resolved by what happens next. The Preserved exist. You carry the testimony of everything the fracture system touched. The fragment knows where it is. The Void Mind\'s verdict is not final until the confrontation is.',
+  },
+
+  // ────────────────────────────────────────────────────────────────────────────
+  // CH. 168 — "Against Erasure"
+  // The Void Mind makes its argument physical. A confrontation.
+  // Not an assessment. Not a stripped-powers trial. A fight with everything Kael has.
+  // The fightScript plays out the memory-as-weapon resolution:
+  //   — Void Mind argument in erasure-purple
+  //   — Kael's counter (via the fragment, the classes, the Preserved) in amber
+  // ────────────────────────────────────────────────────────────────────────────
+  {
+    id: 168, title: 'Against Erasure',
+    world: '⬛ The Substrate — The Confrontation',
+    preText: 'The Void Mind cannot manifest a body. What it sends is the argument made physical — an erasure construct shaped from everything it has absorbed across longer than Axiom has existed. You carry everything you carried in. This is what the fragment was building toward. 2 lives.',
+    fightScript: [
+      { frame:  40,  text: '"Dimensions are not worth protecting. The evidence is everything that has already been erased without resistance."', color: '#7744aa', timer: 380 },
+      { frame: 200,  text: 'The fragment is not warming up. It already knows what this is. Everything you carried in fourteen acts is active. Use it.', color: '#cc8833', timer: 320 },
+      { frame: 420,  text: '"The Third Architect is gone. The Herald is gone. Forty-three signals are sealed. The fracture system is gone. Name one thing that survived intact."', color: '#6633aa', timer: 360 },
+      { frame: 600,  text: '"Tell them we exist." Twenty-two signals. Alive. That is the answer. That is the one thing that survived.', color: '#cc9944', timer: 320 },
+      { frame: 800,  text: '"Every class ability you use — you know what those are. Patterns left in void radiation by beings I erased. You are fighting me with my own history."', color: '#7744aa', timer: 360 },
+      { frame: 980,  text: 'That is exactly what this is. Every class is a resurrection. Every power drawn from the echoes of the dead is the Void Mind\'s own erasure turned against it.', color: '#ddaa44', timer: 340 },
+      { frame: 1180, text: '"The fragment is mine. Crystallized radiation. You carried my output back to its source. This was always a delivery."', color: '#5522aa', timer: 360 },
+      { frame: 1360, text: 'A delivery that cannot be received. The fragment and the carrier have merged. You are not the path. You are the answer the Void Mind built by failing to erase ninety-five bearers.', color: '#ffcc55', timer: 360 },
+      { frame: 1550, text: '"The Preserved are alive because I failed to erase the people who saved them. The Third Architect sacrificed for a system I slowed. The fragment found you because my radiation crystallizes when I fail to absorb it."', color: '#4411aa', timer: 400 },
+      { frame: 1720, text: 'Every piece of this counterargument was built from your failures. You cannot erase what you built by failing to erase.', color: '#ffdd66', timer: 380 },
+    ],
+    opponentName:   'Erasure Construct',
+    opponentSuffix: '— the Void Mind\'s argument, made physical',
+    opponentColor:  '#220033',
+    weaponKey:  'combat',
+    classKey:   null,
+    aiDiff:     9,
+    playerLives: 2,
+    arena:      'void',
+    tokenReward:    200,
+    blueprintDrop:  null,
+    postText: 'The construct dissolved. Not destroyed — the way an argument stops when the counterargument holds and the person making it knows it. The Void Mind had come with a hypothesis: everything you protected was always going to be erased. It had a complete map of your counterargument before the fight began. It knew what you would use against it. It fought anyway — because a hypothesis that cannot survive its counterargument in direct contact is not a hypothesis. It is a preference. The Void Mind does not have preferences. It has data. The data says: the argument failed. The fragment pulsed once. Steady. Like something arriving.',
+  },
+
+  // ────────────────────────────────────────────────────────────────────────────
+  // CH. 169 — "What Cannot Be Erased"
+  // The true epilogue. The Void Mind recedes — not defeated, resolved.
+  // The fragment is crystallized Void Mind radiation that carried itself home
+  // inside the one bearer the Void Mind could not dissolve.
+  // The Void Mind cannot erase what was built from its own failures.
+  // ────────────────────────────────────────────────────────────────────────────
+  {
+    id: 169, title: 'What Cannot Be Erased',
+    world: '⬛ The Substrate — The Threshold',
+    type: 'branch',
+    isEpilogue: true,
+    narrative: [
+      'The Substrate was still.',
+      '',
+      'The attention withdrew.',
+      '',
+      'Not because the argument had been abandoned.',
+      'Not because the Void Mind was retreating.',
+      '',
+      'Because the data was complete.',
+      '',
+      'The hypothesis: what is worth protecting cannot protect itself,',
+      'and what cannot protect itself will be erased.',
+      'The counterargument: some things survive because the process of erasing them',
+      'produces the conditions for their survival.',
+      '',
+      'The Void Mind had been erasing beings across dimensions',
+      'since before Axiom existed.',
+      'Every being it erased left a pattern in the void radiation.',
+      'Those patterns accumulated.',
+      'They crystallized.',
+      'They became a fragment.',
+      '',
+      'The fragment found Kael because his identity resists dissolution.',
+      'The fragment amplified every pattern the Void Mind had ever produced by erasing.',
+      'Every class ability — every warrior, archer, paladin, berserker',
+      'who stood their ground until they were erased —',
+      'was still present.',
+      'Still fighting.',
+      '',
+      'The Void Mind had built the counterargument to its own thesis',
+      'by erasing ninety-four bearers before the ninety-fifth.',
+      '',
+      'The Preserved exist because the Third Architect opened a prison',
+      'the Void Mind had slowed the access to.',
+      'The fragment reached Kael because the Void Mind\'s radiation',
+      'crystallizes when it fails to absorb.',
+      'The classes are the patterns of everyone the Void Mind consumed',
+      'but could not complete.',
+      '',
+      'The Void Mind had come to the Substrate with a verdict.',
+      'It left with a record.',
+      '',
+      'The record said:',
+      'the counterargument is built entirely from the Void Mind\'s own output.',
+      'Every erasure that failed became evidence.',
+      'Every pattern left behind became power.',
+      'Every attempt to dissolve something that couldn\'t be dissolved',
+      'produced the exact thing that defeats the erasure argument.',
+      '',
+      'The fragment was still.',
+      '',
+      'Not responding to a threat.',
+      'Not amplifying for a fight.',
+      'Not mapping the environment.',
+      '',
+      'Still.',
+      '',
+      'For the first time since the first alley,',
+      'it was not responding to anything outside you.',
+      '',
+      'It was responding to you.',
+      'Just you.',
+      '',
+      'Like something that had been traveling for a very long time',
+      'and had finally stopped.',
+      '',
+      'Not because the journey was over.',
+      'Because it had arrived.',
+    ],
+    branchPrompt: 'The Void Mind\'s argument failed on its own evidence. Everything it built by failing to erase became the counterargument. The fragment — crystallized void radiation — has arrived where it was always going.',
+    choices: [
+      {
+        label: '"The fragment is yours. The classes are yours. Everything I used against you — you made it, by failing."',
+        flag: 'final_void_argument_named',
+        consequence: 'The Substrate received this. The Void Mind had attempted to erase and produced the fragment instead. It had attempted to absorb and left patterns instead. It had slowed the fracture system and built the architecture that the Third Architect found useful. Every failure was a contribution to the counterargument. You named it plainly. The fragment was still. The Void Mind had the record. The record said: the ninety-fifth bearer arrived with your entire history and used it correctly. The hypothesis failed. The Preserved are still alive. The Third Architect\'s sacrifice still holds. The Herald\'s hope was correct. The void is clean.',
+      },
+      {
+        label: '"I carried everything you touched and refused to put it down. That\'s what this was."',
+        flag: 'final_void_carried_answered',
+        consequence: 'Everything the Void Mind had erased, distorted, slowed, absorbed, or produced by failing to absorb — you carried it. The ninety-four bearers. The Third Architect\'s calculation. The Herald\'s hope. The Preserved\'s testimony. The fragment itself. None of it was yours, except the refusal to release it. That refusal was the only thing in the entire record that originated entirely in you. The Void Mind had asked, in the trial, what was left when everything external was stripped away. Now it had the complete answer: the thing that was left was the thing that held everything else together. The fragment pulsed once. Steady. Arrived.',
+      },
+    ],
+    tokenReward: 250,
+    postText: 'The Substrate released you. Not with ceremony. Not with announcement. One moment the oldest space in existence. The next, outside it — in whatever dimension sits closest to the Substrate\'s edge. The void was clean. The fracture system was gone. The Preserved were alive. The Third Architect\'s sacrifice had held. The fragment was still, responsive only to you, for the first time carrying nothing except what belonged to it. The Void Mind had its record. You had yours. They said the same thing from different directions: the counterargument was always in the evidence. What could not be erased was built from everything the erasure left behind. The story is complete.',
+  },
+
+);

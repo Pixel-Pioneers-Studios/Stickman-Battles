@@ -32,8 +32,8 @@ for (const _ch of STORY_CHAPTERS2) {
 //           V   Stickman Universe  (46–62)
 //           VI  Damnation + Fallen God + Multiverse + Betrayal (63–95)
 //           VII Creator            (96–111)
-//           VIII True Form           (131–135)
-//           IX  Absolute Axiom       (140–155) + Epilogue (156)
+//           VIII True Form + Aftermath (131–139)
+//           IX  Absolute Axiom         (140–155)
 const STORY_ACT_STRUCTURE = [
   {
     id: 'act1', label: 'Act I — Initial Encounter', color: '#88aacc',
@@ -80,8 +80,7 @@ const STORY_ACT_STRUCTURE = [
       { id: 'arc4mv-1',       label: 'Shadow & Titan',          chapterRange: [86,  93]  },
       { id: 'arc4mv-2',       label: 'Null Space',              chapterRange: [94,  98]  },
       { id: 'arc4mv-3',       label: 'The Quiet Expanse',       chapterRange: [99,  103] },
-      // arc4mv-4 (Thresh/VAEL branch, ids 104-108) not yet wired into index.html;
-      // omitted here to avoid the expansion mapping wrong chapters into this arc slot.
+      { id: 'arc4mv-4',       label: 'The Fracture Coast',      chapterRange: [104, 108] },
       { id: 'arc5-betrayal',  label: 'The Betrayal',            chapterRange: [109, 113] },
     ],
   },
@@ -97,15 +96,25 @@ const STORY_ACT_STRUCTURE = [
     arcs: [
       { id: 'arc5-0', label: 'Into the Void',       chapterRange: [131, 134] },
       { id: 'arc5-1', label: 'Final Confrontation', chapterRange: [135, 135] },
+      { id: 'arc5-bridge', label: 'The Aftermath',  chapterRange: [136, 139] },
     ],
   },
   {
     id: 'act9', label: 'Act IX — Absolute Axiom', color: '#ffe8ff',
     arcs: [
-      { id: 'arc7-0', label: 'The Kernel',          chapterRange: [140, 142] },
-      { id: 'arc7-1', label: 'God\'s Domain',        chapterRange: [143, 149] },
-      { id: 'arc7-2', label: 'Absolute Axiom',       chapterRange: [150, 155] },
-      { id: 'arc7-epilogue', label: 'Epilogue',      chapterRange: [156, 156] },
+      { id: 'arc7-0', label: 'The Kernel',        chapterRange: [140, 142] },
+      { id: 'arc7-1', label: 'God\'s Domain',      chapterRange: [143, 149] },
+      { id: 'arc7-2', label: 'Absolute Axiom',     chapterRange: [150, 155] },
+    ],
+  },
+  {
+    id: 'act10', label: 'Act X — The Substrate', color: '#220033',
+    arcs: [
+      { id: 'arc-vm-entry',      label: 'Into the Substrate', chapterRange: [156, 156] },
+      { id: 'arc-vm-reckonings', label: 'The Reckonings',     chapterRange: [157, 164] },
+      { id: 'arc-vm-trial',      label: 'The Trial',          chapterRange: [165, 165] },
+      { id: 'arc-vm-after',      label: 'After',              chapterRange: [166, 166] },
+      { id: 'arc-vm-fight',      label: 'The Confrontation',  chapterRange: [167, 169] },
     ],
   },
 ];

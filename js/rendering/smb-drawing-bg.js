@@ -82,6 +82,7 @@ function drawBackground() {
   if (currentArenaKey === 'clouds')     drawCloudsArena();
   if (currentArenaKey === 'neonGrid')   drawNeonGridArena();
   if (currentArenaKey === 'mushroom')   drawMushroomArena();
+  if (currentArenaKey === 'desert')     drawDesertArena();
   if (currentArenaKey === 'megacity')   drawMegacityArena();
   if (currentArenaKey === 'warpzone')   drawWarpzoneArena();
   if (currentArenaKey === 'colosseum10') drawColosseum10Arena();

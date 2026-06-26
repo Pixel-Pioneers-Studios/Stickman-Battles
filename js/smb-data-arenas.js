@@ -452,6 +452,31 @@ const ARENAS = {
     ]
   },
 
+  desert: {
+    sky:          ['#e8a440', '#c05820'],
+    groundColor:  '#c8a050',
+    platColor:    '#d4b068',
+    platEdge:     '#a8783a',
+    hasLava:      false,
+    hasQuicksand: true,
+    quicksandX:   280,  // center quicksand zone start
+    quicksandW:   340,  // zone width (280–620)
+    deathY:       640,
+    modifiers:    { gravityMult: 1.05, frictionMult: 1.0, hazardFrequency: 0.9 },
+    platforms: [
+      { x: -60,  y: 480, w: 1020, h: 40, isFloor: true },
+      // Raised dune at center — creates a natural hill shape
+      { x: 340,  y: 380, w: 220,  h: 22 }, // central dune shelf
+      { x: 355,  y: 188, w: 190,  h: 18 }, // top plateau
+      // Left dune shelf
+      { x: 130,  y: 272, w: 150,  h: 18 }, // left mid-dune
+      { x:  18,  y: 165, w: 110,  h: 16 }, // far-left perch
+      // Right dune shelf
+      { x: 620,  y: 272, w: 150,  h: 18 }, // right mid-dune
+      { x: 772,  y: 165, w: 110,  h: 16 }, // far-right perch
+    ]
+  },
+
   // ─── ONLINE-ONLY LARGE ARENAS ────────────────────────────────────────────
   megacity: {
     name: 'Mega City', isOnlineOnly: true, isLargeMap: true,

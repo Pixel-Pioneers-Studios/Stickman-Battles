@@ -57,30 +57,30 @@ function _drawTitleScreen() {
   ctx.fillText('A X I O M', GAME_W / 2, GAME_H * 0.4);
 
   // Subtitle
-  ctx.fillStyle = '#443c2c';
+  ctx.fillStyle = '#7a6e52';
   ctx.font      = '14px Courier New';
   ctx.fillText('a prequel', GAME_W / 2, GAME_H * 0.4 + 34);
 
   // Divider
-  ctx.fillStyle = '#222216';
+  ctx.fillStyle = '#33301e';
   ctx.fillRect(GAME_W / 2 - 120, GAME_H * 0.55, 240, 1);
 
   // Prompt
   const promptAlpha = 0.4 + Math.sin(menuPulse * 2.2) * 0.25;
-  ctx.fillStyle = `rgba(180,160,120,${promptAlpha})`;
+  ctx.fillStyle = `rgba(200,180,140,${promptAlpha})`;
   ctx.font      = '13px Courier New';
   ctx.fillText('[ press J to begin ]', GAME_W / 2, GAME_H * 0.65);
 
   // Bottom lore line
-  ctx.fillStyle = '#2a261a';
+  ctx.fillStyle = '#5c5444';
   ctx.font      = '11px Courier New';
   ctx.fillText('"He kept his name.  That was all he kept."', GAME_W / 2, GAME_H - 24);
 }
 
 function _drawChapterSelect() {
   ctx.textAlign = 'center';
-  ctx.fillStyle = '#666655';
-  ctx.font      = '11px Courier New';
+  ctx.fillStyle = '#a09880';
+  ctx.font      = 'bold 12px Courier New';
   ctx.fillText('SELECT CHAPTER', GAME_W / 2, 36);
 
   const totalW  = CHAPTERS.length * 140;
@@ -107,22 +107,22 @@ function _drawChapterSelect() {
     ctx.stroke();
 
     // Act label
-    ctx.fillStyle = sel ? (isIl ? '#446688' : '#887755') : (isIl ? '#222a3a' : '#443c2c');
-    ctx.font      = '9px Courier New';
+    ctx.fillStyle = sel ? (isIl ? '#5580aa' : '#998866') : (isIl ? '#445570' : '#776650');
+    ctx.font      = '10px Courier New';
     ctx.fillText(ch.title, cx, cy - cardH / 2 + 16);
 
     // Interlude tag
     if (isIl) {
-      ctx.fillStyle = sel ? '#334466' : '#1e2230';
-      ctx.font      = '8px Courier New';
-      ctx.fillText('~ INTERLUDE ~', cx, cy - cardH / 2 + 27);
+      ctx.fillStyle = sel ? '#6688aa' : '#445568';
+      ctx.font      = '9px Courier New';
+      ctx.fillText('~ INTERLUDE ~', cx, cy - cardH / 2 + 28);
     }
 
     // Chapter name
     ctx.fillStyle = sel
-      ? (isIl ? '#aabbd0' : '#eedeaa')
-      : (isIl ? '#44526a' : '#665c44');
-    ctx.font      = `bold ${sel ? 11 : 10}px Courier New`;
+      ? (isIl ? '#c0d0e4' : '#f0e0b8')
+      : (isIl ? '#7090b0' : '#998a6c');
+    ctx.font      = `bold ${sel ? 12 : 11}px Courier New`;
     const words   = ch.subtitle.split(' ');
     let line = '', lineY = isIl ? cy - 6 : cy - 12;
     for (const w of words) {
@@ -138,8 +138,8 @@ function _drawChapterSelect() {
   }
 
   // Nav hints
-  ctx.fillStyle = '#3a3628';
-  ctx.font      = '10px Courier New';
+  ctx.fillStyle = '#8a8070';
+  ctx.font      = '11px Courier New';
   ctx.fillText('← →  CHOOSE   J  START   ESC  BACK', GAME_W / 2, GAME_H - 24);
 }
 

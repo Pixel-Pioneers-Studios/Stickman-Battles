@@ -292,25 +292,24 @@ function drawClouds() {
     ctx.arc(cx - r*0.6, cy - r*0.2, r*0.6, 0, Math.PI*2);
     ctx.fill();
   }
-  // Swaying grass tufts along the ground
-  const groundY = 460; // grass floor y
-  ctx.strokeStyle = '#4a8c32';
-  ctx.lineWidth   = 1.5;
-  for (let i = 0; i < 28; i++) {
-    const tx   = 12 + i * 32;
-    const sway = Math.sin(frameCount * 0.025 + i * 0.9) * 5;
-    const h    = 8 + Math.sin(i * 2.7) * 4; // varied height
-    ctx.globalAlpha = 0.65;
+  // Swaying grass tufts along the ground — tapered filled blades with color variation
+  const groundY = 460;
+  for (let i = 0; i < 40; i++) {
+    const tx   = 8 + i * 23 + Math.sin(i * 73.1) * 6;  // slight jitter in x
+    const sway = Math.sin(frameCount * 0.022 + i * 1.1) * 4.5;
+    const h    = 7 + Math.abs(Math.sin(i * 29.3)) * 6;  // 7–13 px
+    const bw   = 0.7 + Math.abs(Math.sin(i * 17.7)) * 0.9; // base half-width
+    // Subtle tone shift: yellow-green to forest green
+    const t  = Math.sin(i * 43.1) * 0.5 + 0.5;
+    ctx.fillStyle   = `rgb(${Math.floor(35+t*55)},${Math.floor(105+t*70)},${Math.floor(18+t*20)})`;
+    ctx.globalAlpha = 0.62 + Math.abs(Math.sin(i * 61.3)) * 0.28;
+    // Filled tapered blade — wide at root, pointed at tip
     ctx.beginPath();
-    ctx.moveTo(tx, groundY);
-    ctx.quadraticCurveTo(tx + sway * 0.5, groundY - h * 0.6, tx + sway, groundY - h);
-    ctx.stroke();
-    // Second blade
-    const sway2 = Math.sin(frameCount * 0.025 + i * 0.9 + 0.5) * 4;
-    ctx.beginPath();
-    ctx.moveTo(tx + 4, groundY);
-    ctx.quadraticCurveTo(tx + 4 + sway2 * 0.5, groundY - h * 0.5, tx + 4 + sway2, groundY - h * 0.85);
-    ctx.stroke();
+    ctx.moveTo(tx - bw, groundY);
+    ctx.quadraticCurveTo(tx - bw * 0.2 + sway * 0.4, groundY - h * 0.6, tx + sway, groundY - h);
+    ctx.quadraticCurveTo(tx + bw * 0.2 + sway * 0.4, groundY - h * 0.6, tx + bw,   groundY);
+    ctx.closePath();
+    ctx.fill();
   }
   ctx.globalAlpha = 1;
 }
@@ -1001,6 +1000,25 @@ function checkDeaths() {
         p.invincible = 999;
         respawnCountdowns.push({ color: p.color, x: p.spawnX, y: p.spawnY - 80, framesLeft: 66 });
         setTimeout(() => { if (gameRunning) p.respawn(); }, 1100);
+        continue;
+      }
+
+      // Damnation minion echo death: mark dead and freeze — updateDamnation() handles wave progression
+      if (damnationActive && !p.isBoss && !p.isTrueForm && p.isEcho) {
+        addKillFeed(p);
+        spawnParticles(p.cx(), p.cy(), p.color, 20);
+        if (!p.ragdollTimer) { p.ragdollTimer = 45; p.ragdollSpin = (Math.random() - 0.5) * 0.25; }
+        if (typeof VerletRagdoll !== 'undefined') {
+          const vr = new VerletRagdoll(p);
+          if (currentArena) {
+            const floor = currentArena.platforms.find(pl => pl.isFloor && !pl.isFloorDisabled);
+            if (floor) vr.floorY = floor.y;
+          }
+          verletRagdolls.push(vr);
+        }
+        if (p._rd) PlayerRagdoll.collapse(p);
+        p.isDead = true;
+        p.invincible = 9999; // prevent re-trigger; Minion.update() guards health<=0 after super.update()
         continue;
       }
 
@@ -1868,60 +1886,260 @@ function drawEntityOverlays(scX, scY, camX, camY) {
 }
 
 // ============================================================
-// MENU BACKGROUND LOOP  (animated arena showcase behind the menu)
+// FRACTURE HOMESCREEN OVERLAY
+// ============================================================
+
+// Jagged crack waypoints relative to fracture center (game-space coords, 900×520 canvas)
+const _FRAC_CRACKS = [
+  [[14,-10],[30,-22],[46,-17],[72,-28],[105,-40],[148,-52]],   // upper-right
+  [[10,  6],[26,  1],[48,  9],[76,  3],[115, 12],[165,  5]],   // right
+  [[10, 14],[22, 32],[38, 46],[58, 66],[ 84, 88],[114,116]],   // lower-right
+  [[-3, 12],[ 4, 28],[-8, 48],[  5, 70],[ -2, 98],[  7,136]], // down
+  [[-12,10],[-26,24],[-44,38],[-66,56],[-94, 76],[-128,100]], // lower-left
+  [[-14,-4],[-32,  5],[-56,-3],[-86,  7],[-124,0],[-170, -6]],// left
+  [[-10,-12],[-24,-28],[-42,-40],[-64,-56],[-92,-74],[-124,-96]], // upper-left
+  [[  4,-14],[  -6,-32],[  8,-54],[  -3,-78],[  5,-106],[  -7,-148]], // up
+];
+
+let _fracPtcl = []; // ambient particle pool
+
+function _drawFractureOverlay(ctx, W, H, t) {
+  const cx = W / 2, cy = H * 0.34;
+
+  // Vignette (replaces the flat dark overlay — arenas bleed through at center)
+  const vg = ctx.createRadialGradient(cx, cy, W * 0.04, cx, cy, W * 0.72);
+  vg.addColorStop(0,   'rgba(10,4,22,0.42)');
+  vg.addColorStop(0.45,'rgba(6,2,14,0.62)');
+  vg.addColorStop(1,   'rgba(0,0,0,0.90)');
+  ctx.fillStyle = vg;
+  ctx.fillRect(0, 0, W, H);
+
+  // Sub-surface void bloom beneath crack origin
+  const bloom = ctx.createRadialGradient(cx, cy, 0, cx, cy, 185);
+  bloom.addColorStop(0,   'rgba(110,30,200,0.20)');
+  bloom.addColorStop(0.5, 'rgba(55,10,115,0.09)');
+  bloom.addColorStop(1,   'rgba(0,0,0,0)');
+  ctx.fillStyle = bloom;
+  ctx.beginPath(); ctx.arc(cx, cy, 185, 0, Math.PI * 2); ctx.fill();
+
+  // Fracture cracks
+  const pulse = 0.65 + 0.35 * Math.sin(t * 0.028);
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+
+  for (let ci = 0; ci < _FRAC_CRACKS.length; ci++) {
+    const pts = _FRAC_CRACKS[ci];
+    const cp  = pulse * (0.75 + 0.25 * Math.sin(t * 0.018 + ci * 0.9));
+
+    // Outer glow
+    ctx.beginPath(); ctx.moveTo(0,0);
+    for (const [dx,dy] of pts) ctx.lineTo(dx,dy);
+    ctx.strokeStyle = `rgba(150,70,255,${(0.22*cp).toFixed(3)})`; ctx.lineWidth = 18; ctx.stroke();
+
+    // Mid glow
+    ctx.beginPath(); ctx.moveTo(0,0);
+    for (const [dx,dy] of pts) ctx.lineTo(dx,dy);
+    ctx.strokeStyle = `rgba(210,150,255,${(0.50*cp).toFixed(3)})`; ctx.lineWidth = 6; ctx.stroke();
+
+    // Core bright line
+    ctx.beginPath(); ctx.moveTo(0,0);
+    for (const [dx,dy] of pts) ctx.lineTo(dx,dy);
+    ctx.strokeStyle = `rgba(255,245,255,${(0.95*cp).toFixed(3)})`; ctx.lineWidth = 1.8; ctx.stroke();
+
+    // Sub-branch on every other crack
+    if (ci % 2 === 0 && pts.length >= 3) {
+      const [bx,by] = pts[2];
+      const dir = (ci % 3) - 1;
+      ctx.beginPath(); ctx.moveTo(bx,by); ctx.lineTo(bx+18*dir, by-16); ctx.lineTo(bx+34*dir, by-8);
+      ctx.strokeStyle = `rgba(200,140,255,${(0.22*cp).toFixed(3)})`; ctx.lineWidth = 3; ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(bx,by); ctx.lineTo(bx+18*dir, by-16); ctx.lineTo(bx+34*dir, by-8);
+      ctx.strokeStyle = `rgba(255,240,255,${(0.55*cp).toFixed(3)})`; ctx.lineWidth = 1; ctx.stroke();
+    }
+  }
+
+  // Central void eye
+  const eyeP = 0.72 + 0.28 * Math.sin(t * 0.05);
+  const eyeR = 28 + 6 * Math.sin(t * 0.04);
+  const eyeGr = ctx.createRadialGradient(0,0,0, 0,0, eyeR*1.8);
+  eyeGr.addColorStop(0,    `rgba(255,255,255,${(0.95*eyeP).toFixed(3)})`);
+  eyeGr.addColorStop(0.15, `rgba(230,190,255,${(0.80*eyeP).toFixed(3)})`);
+  eyeGr.addColorStop(0.45, `rgba(130,50,240,${(0.42*eyeP).toFixed(3)})`);
+  eyeGr.addColorStop(1,    'rgba(0,0,0,0)');
+  ctx.fillStyle = eyeGr;
+  ctx.beginPath(); ctx.arc(0,0, eyeR*1.8, 0, Math.PI*2); ctx.fill();
+
+  ctx.restore();
+
+  // Floating void particles
+  if (_fracPtcl.length < 60 && Math.random() < 0.45) {
+    _fracPtcl.push({
+      x: cx + (Math.random()-0.5)*W*0.85,
+      y: H + 8,
+      vx: (Math.random()-0.5)*0.5,
+      vy: -(0.35 + Math.random()*0.75),
+      life: 1, decay: 0.0025 + Math.random()*0.004,
+      r: 0.8 + Math.random()*2.2,
+      col: Math.random() < 0.55 ? '#cc88ff' : '#ffffff',
+    });
+  }
+  ctx.save();
+  for (let i = _fracPtcl.length-1; i >= 0; i--) {
+    const p = _fracPtcl[i];
+    p.x += p.vx; p.y += p.vy; p.life -= p.decay;
+    if (p.life <= 0 || p.y < -8) { _fracPtcl.splice(i,1); continue; }
+    ctx.globalAlpha = p.life * 0.65;
+    ctx.fillStyle   = p.col;
+    ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI*2); ctx.fill();
+  }
+  ctx.restore();
+
+  // Hero is drawn on homeCanvas (z-index 9) instead — see _initHomeCanvas in smb-menu-ui.js
+}
+
+function _drawFractureHero(ctx, cx, baseY, t) {
+  const bob    = Math.sin(t * 0.038) * 2.8;
+  const headR  = 11;
+  const headY  = baseY - 64 + bob;
+  const shouldY= headY + headR + 6;
+  const hipY   = shouldY + 30;
+  const aSwing = Math.sin(t * 0.038) * 4;
+
+  ctx.save();
+
+  // Aura behind the hero so it reads against the vignette
+  const aura = ctx.createRadialGradient(cx, baseY - 28 + bob, 6, cx, baseY - 28 + bob, 68);
+  aura.addColorStop(0,   'rgba(110,50,210,0.22)');
+  aura.addColorStop(0.6, 'rgba(70,20,150,0.10)');
+  aura.addColorStop(1,   'rgba(0,0,0,0)');
+  ctx.fillStyle = aura;
+  ctx.beginPath(); ctx.arc(cx, baseY - 28 + bob, 68, 0, Math.PI*2); ctx.fill();
+
+  // Ground glow
+  const gg = ctx.createRadialGradient(cx, baseY, 1, cx, baseY, 50);
+  gg.addColorStop(0, 'rgba(160,80,255,0.22)'); gg.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = gg;
+  ctx.beginPath(); ctx.ellipse(cx, baseY, 50, 12, 0, 0, Math.PI*2); ctx.fill();
+
+  ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+
+  // Helper: draw a limb with outer glow then bright core
+  function glowLine(x1,y1,x2,y2, glowCol, coreCol, glowW, coreW) {
+    ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2);
+    ctx.strokeStyle = glowCol; ctx.lineWidth = glowW; ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2);
+    ctx.strokeStyle = coreCol; ctx.lineWidth = coreW; ctx.stroke();
+  }
+
+  const glow = 'rgba(180,120,255,0.42)';
+  const core = 'rgba(230,210,255,0.90)';
+
+  // Head — glow ring then dark fill
+  ctx.beginPath(); ctx.arc(cx, headY, headR+4, 0, Math.PI*2);
+  ctx.fillStyle = 'rgba(160,90,255,0.18)'; ctx.fill();
+  ctx.beginPath(); ctx.arc(cx, headY, headR, 0, Math.PI*2);
+  ctx.fillStyle = '#0e0b1a'; ctx.fill();
+  ctx.beginPath(); ctx.arc(cx, headY, headR, 0, Math.PI*2);
+  ctx.strokeStyle = core; ctx.lineWidth = 1.8; ctx.stroke();
+
+  // Torso
+  glowLine(cx, shouldY, cx, hipY, glow, core, 6, 2);
+
+  // Arms
+  glowLine(cx, shouldY+4, cx-18, shouldY+21+aSwing, glow, core, 5, 2);
+  glowLine(cx, shouldY+4, cx+17, shouldY+20-aSwing, glow, core, 5, 2);
+
+  // Legs
+  glowLine(cx, hipY, cx-13, baseY, glow, core, 5, 2);
+  glowLine(cx, hipY, cx+13, baseY-1, glow, core, 5, 2);
+
+  // Sword — bright red glow then core
+  const hx = cx+17, hy = shouldY+20-aSwing;
+  glowLine(hx, hy, hx+36, hy-40, 'rgba(255,80,80,0.35)', 'rgba(220,70,70,0.95)', 7, 2);
+
+  // Red scarf flowing left
+  const sw1 = Math.sin(t*0.048)*9, sw2 = Math.sin(t*0.048+1.3)*6;
+  ctx.beginPath();
+  ctx.moveTo(cx-3, shouldY);
+  ctx.bezierCurveTo(cx-10+sw1, shouldY+14, cx-24+sw2, shouldY+30, cx-38+sw1, shouldY+46);
+  ctx.strokeStyle = 'rgba(255,50,50,0.95)'; ctx.lineWidth = 4; ctx.lineCap = 'round'; ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(cx-38+sw1, shouldY+46); ctx.lineTo(cx-52+sw2, shouldY+60);
+  ctx.strokeStyle = 'rgba(220,30,30,0.40)'; ctx.lineWidth = 2.5; ctx.stroke();
+
+  ctx.restore();
+}
+
+// ============================================================
+// STATIC FRACTURE SCENE  (replaces arena cycling on homescreen)
+// ============================================================
+function _drawFractureScene(ctx, W, H, t) {
+  // Deep void gradient base
+  const bg = ctx.createLinearGradient(0, 0, 0, H);
+  bg.addColorStop(0,    '#0d0522');
+  bg.addColorStop(0.35, '#08021a');
+  bg.addColorStop(0.7,  '#060110');
+  bg.addColorStop(1,    '#030009');
+  ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
+
+  // Realm color zones in corners (lava, architects, void, true-form)
+  const zones = [
+    { zx:0, zy:0, r:200, g:45,  b:8   },  // lava — top-left
+    { zx:W, zy:0, r:40,  g:85,  b:220 },  // architects — top-right
+    { zx:0, zy:H, r:15,  g:25,  b:160 },  // void — bottom-left
+    { zx:W, zy:H, r:150, g:15,  b:25  },  // true form — bottom-right
+  ];
+  for (const { zx, zy, r, g, b } of zones) {
+    const rg = ctx.createRadialGradient(zx, zy, 0, zx, zy, W * 0.50);
+    rg.addColorStop(0,    `rgba(${r},${g},${b},0.18)`);
+    rg.addColorStop(0.45, `rgba(${r},${g},${b},0.06)`);
+    rg.addColorStop(1,    'rgba(0,0,0,0)');
+    ctx.fillStyle = rg; ctx.fillRect(0, 0, W, H);
+  }
+
+  // Floating reality shards (deterministic — no state array needed)
+  ctx.save();
+  for (let i = 0; i < 22; i++) {
+    const s1 = ((i * 137.508) % 1 + 1) % 1;
+    const s2 = ((i *  73.192) % 1 + 1) % 1;
+    const s3 = ((i *  41.673) % 1 + 1) % 1;
+    const spd = 0.006 + s3 * 0.012;
+    const ph  = s1 * Math.PI * 2;
+    const x   = W * (0.08 + s1 * 0.84) + Math.sin(t * spd + ph) * 14;
+    const y   = H * (0.03 + s2 * 0.65) + Math.cos(t * spd * 0.7 + ph) * 9;
+    const sz  = 5 + s3 * 18;
+    const ang = s1 * Math.PI + t * spd * 0.25;
+    ctx.save();
+    ctx.translate(x, y); ctx.rotate(ang);
+    ctx.globalAlpha = 0.10 + s2 * 0.16;
+    ctx.fillStyle   = '#160b24';
+    ctx.fillRect(-sz * 0.5, -sz * 0.32, sz, sz * 0.64);
+    if (i % 3 === 0) {
+      ctx.strokeStyle = `rgba(${80+i*8%70},${25+i*4%25},${155+i*6%55},0.28)`;
+      ctx.lineWidth   = 0.8;
+      ctx.strokeRect(-sz * 0.5, -sz * 0.32, sz, sz * 0.64);
+    }
+    ctx.restore();
+  }
+  ctx.restore();
+}
+
+// ============================================================
+// MENU BACKGROUND LOOP  (static fracture scene behind the menu)
 // ============================================================
 function menuBgLoop() {
   if (!menuLoopRunning) return;
 
-  menuBgTimer++;
   menuBgFrameCount++;
-
-  // Cycle to next arena every ~5 seconds (300 frames)
-  if (menuBgTimer >= 300 && menuBgFade === 0) {
-    menuBgFade  = 0.01;
-    menuBgTimer = 0;
-  }
-  if (menuBgFade > 0) {
-    menuBgFade = Math.min(2, menuBgFade + 0.028);
-    if (menuBgFade >= 1 && menuBgFade < 1.03) {
-      // Peak darkness: switch to next arena
-      menuBgArenaIdx = (menuBgArenaIdx + 1) % ARENA_KEYS_ORDERED.length;
-    }
-    if (menuBgFade >= 2) menuBgFade = 0;
-  }
-
-  // Temporarily borrow arena + frame state for the background draw
-  const savedKey   = currentArenaKey;
-  const savedArena = currentArena;
-  const savedFrame = frameCount;
-  currentArenaKey  = ARENA_KEYS_ORDERED[menuBgArenaIdx];
-  currentArena     = ARENAS[currentArenaKey];
-  frameCount       = menuBgFrameCount;
 
   const mScX = canvas.width / GAME_W, mScY = canvas.height / GAME_H;
   ctx.setTransform(mScX, 0, 0, mScY, 0, 0);
-  drawBackground();
 
-  // Semi-transparent dark overlay so menu text stays readable
-  ctx.save();
-  ctx.fillStyle = 'rgba(7,7,15,0.55)';
-  ctx.fillRect(0, 0, GAME_W, GAME_H);
-  ctx.restore();
+  // Static fracture scene (replaces arena cycling)
+  _drawFractureScene(ctx, GAME_W, GAME_H, menuBgFrameCount * 0.016);
 
-  // Cross-fade overlay during arena transitions
-  if (menuBgFade > 0) {
-    const fadeA = menuBgFade <= 1 ? menuBgFade : 2 - menuBgFade;
-    ctx.save();
-    ctx.globalAlpha = Math.min(1, Math.max(0, fadeA));
-    ctx.fillStyle   = '#000';
-    ctx.fillRect(0, 0, GAME_W, GAME_H);
-    ctx.restore();
-  }
-
-  // Restore game state
-  currentArenaKey = savedKey;
-  currentArena    = savedArena;
-  frameCount      = savedFrame;
+  // Fracture cracks, void eye, particles
+  _drawFractureOverlay(ctx, GAME_W, GAME_H, menuBgFrameCount);
 
   // Draw animated character previews in config panels
   _drawPlayerPreview('p1', menuBgFrameCount);
@@ -1959,7 +2177,7 @@ const _WEAPON_AURA_COLORS = {
   scythe:       '#cc44ff',
   fryingpan:    '#ffaa44',
   broomstick:   '#cc88ff',
-  boxinggloves: '#ff4444',
+  combat: '#ff4444',
   peashooter:   '#44ff44',
   slingshot:    '#ffdd88',
   paperairplane:'#88ddff',

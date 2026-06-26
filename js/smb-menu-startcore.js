@@ -384,7 +384,7 @@ function _startGameCore() {
     // Adaptive AI: P1 vs the learning AdaptiveAI opponent
     // Sovereign mode uses SovereignMK2 (enhanced); story adaptive uses base AdaptiveAI
     p1.isAI  = false;
-    p1.lives = isSovereignMode ? Math.max(chosenLives, 5) : chosenLives;
+    p1.lives = isSovereignMode ? Math.max(chosenLives, 10) : chosenLives;
     // Pick a weapon for the AI — Sovereign always uses nullblade; adaptive uses a random melee set
     const _aiWeapons = ['sword','axe','spear','hammer','scythe','voidblade'];
     const _aiWeapon  = isSovereignMode ? 'nullblade' : _aiWeapons[Math.floor(Math.random() * _aiWeapons.length)];
@@ -432,7 +432,7 @@ function _startGameCore() {
 
     ai.playerNum = 2;
     // Sovereign needs multiple lives to build pattern data across rounds — minimum 5 regardless of menu pick
-    ai.lives     = isSovereignMode ? Math.max(chosenLives, 5) : chosenLives;
+    ai.lives     = isSovereignMode ? Math.max(chosenLives, 10) : chosenLives;
     const _aiSpawn = pickSafeSpawn('right', _p1SpawnPos.x) || { x: 720, y: 300 };
     ai.spawnX = _aiSpawn.x; ai.spawnY = _aiSpawn.y;
     ai.x = _aiSpawn.x;      ai.y = _aiSpawn.y - ai.h;
@@ -565,15 +565,18 @@ function _startGameCore() {
     }
   } else if (isAbsoluteAxiomMode) {
     // Absolute Axiom encounter — P1 vs Absolute Axiom directly
-    p1.isAI  = false;
-    p1.lives = 10;
-    p1.armorPieces = ['helmet', 'chestplate', 'leggings'];
-    p1.armorStyle  = 'godslayer';
+    p1.isAI    = false;
     p1._teamId = 1;
-    if (window.GODSLAYER_WEAPON) {
-      p1.weapon    = window.GODSLAYER_WEAPON;
-      p1.weaponKey = '_godslayer';
-      p1._ammo     = 0;
+    if (!storyModeActive) {
+      // Standalone mode: give the player the full godslayer loadout and extra lives
+      p1.lives = 10;
+      p1.armorPieces = ['helmet', 'chestplate', 'leggings'];
+      p1.armorStyle  = 'godslayer';
+      if (window.GODSLAYER_WEAPON) {
+        p1.weapon    = window.GODSLAYER_WEAPON;
+        p1.weaponKey = '_godslayer';
+        p1._ammo     = 0;
+      }
     }
     players = [p1];
     p1.target = null;
@@ -583,7 +586,7 @@ function _startGameCore() {
       _aa._teamId = 50;
       minions.push(_aa);
       window._absoluteAxiomWasAlive = true;
-      if (typeof _activateRGSForMatch === 'function') _activateRGSForMatch();
+      if (!storyModeActive && typeof _activateRGSForMatch === 'function') _activateRGSForMatch();
     }
   } else if (isExploreMode) {
     // Exploration: P1 only — enemies are dynamically spawned as minions
@@ -625,8 +628,10 @@ function _startGameCore() {
     if (storyModeActive && storyEnemyArmor && storyEnemyArmor.length > 0) {
       p2.armorPieces = [...storyEnemyArmor];
     }
-    // Story opponent name
-    if (storyModeActive && storyOpponentName) p2.name = storyOpponentName;
+    // Story opponent name, color, and character appearance
+    if (storyModeActive && storyOpponentName)  p2.name    = storyOpponentName;
+    if (storyModeActive && storyOpponentColor) p2.color   = storyOpponentColor;
+    if (storyModeActive && storyCharId)        p2.storyCharId = storyCharId;
     players = [p1, p2];
     if (storyModeActive) {
       p1.storyFaction = 'player'; p1._teamId = 1;

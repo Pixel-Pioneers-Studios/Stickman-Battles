@@ -532,6 +532,48 @@
     }
     // neutral/focused: no mouth drawn = stoic read
 
+    // ── CAPE (behind torso) ───────────────────────────────────────────────
+    var _cd  = -facing;  // trails opposite to facing
+    var _cT  = typeof frameCount !== 'undefined' ? frameCount : t * 1.5;
+    var _cWv = Math.sin(_cT * 0.082) * (isFall || isHit ? 7 : 4);
+    var _cDr = Math.sin(_cT * 0.058 + 0.5) * 2.5;
+    var _cTX = x + _cd * (44 + _cWv);
+    var _cTY = hipY + 28 + _cDr;
+    var _cA  = alpha !== undefined ? alpha : 1;
+    c.save();
+    c.lineCap = 'round'; c.lineJoin = 'round';
+    c.beginPath();
+    c.moveTo(x + _cd * 2, shldrY - 12);
+    c.bezierCurveTo(
+      x + _cd * (40 + _cWv * 0.5), shldrY,
+      x + _cd * (52 + _cWv * 0.8), hipY - 5,
+      _cTX, _cTY);
+    c.bezierCurveTo(
+      x + _cd * (26 + _cWv * 0.4), hipY + 10,
+      x + _cd * (12 + _cWv * 0.2), hipY - 8,
+      x + _cd * 3, shldrY);
+    c.closePath();
+    c.fillStyle = color; c.globalAlpha = _cA * 0.40;
+    c.shadowColor = color; c.shadowBlur = 20; c.fill();
+    c.strokeStyle = color; c.lineWidth = 1.8;
+    c.globalAlpha = _cA * 0.88; c.shadowBlur = 14;
+    c.beginPath();
+    c.moveTo(x + _cd * 2, shldrY - 12);
+    c.bezierCurveTo(
+      x + _cd * (40 + _cWv * 0.5), shldrY,
+      x + _cd * (52 + _cWv * 0.8), hipY - 5,
+      _cTX, _cTY);
+    c.stroke();
+    c.lineWidth = 1; c.globalAlpha = _cA * 0.38; c.shadowBlur = 8;
+    c.beginPath();
+    c.moveTo(x + _cd * 3, shldrY - 4);
+    c.bezierCurveTo(
+      x + _cd * (24 + _cWv * 0.3), hipY - 10,
+      x + _cd * (36 + _cWv * 0.5), hipY + 5,
+      _cTX - _cd * 5, _cTY - 5);
+    c.stroke();
+    c.restore();
+
     // Torso
     c.beginPath(); c.moveTo(x, neckY); c.lineTo(hipX, hipY); c.stroke();
 

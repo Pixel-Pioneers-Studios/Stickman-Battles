@@ -223,7 +223,9 @@ function updateCamera() {
     // Exploration: track only P1 at steady zoom — world is wide
     if (gameMode === 'exploration' && players[0] && players[0].health > 0) {
       const ep = players[0];
-      const targetX2    = ep.cx();
+      // Lead camera ahead of the player's facing direction (like the prequel camera)
+      const _expLead = ep.facing * (28 + Math.min(65, Math.abs(ep.vx) * 14));
+      const targetX2    = ep.cx() + _expLead;
       const targetY2    = ep.cy() - 30;
       const targetZoom2 = 1.05;
       camZoomTarget = targetZoom2;
@@ -269,7 +271,11 @@ function updateCamera() {
       const rawCX  = (minX + maxX) / 2;
       const rawCY  = (minY + maxY) / 2;
       const humanP = activePlayers.find(p => !p.isAI && !p.isBoss) || activePlayers[0];
-      targetX = rawCX * 0.72 + humanP.cx() * 0.28;
+      // Facing look-ahead: only when there is exactly one human player (avoids fighting in local co-op)
+      const _humanPlayers = activePlayers.filter(p => !p.isAI && !p.isBoss);
+      const _wideLead = (_humanPlayers.length === 1)
+        ? humanP.facing * (20 + Math.min(55, Math.abs(humanP.vx) * 12)) : 0;
+      targetX = rawCX * 0.72 + (humanP.cx() + _wideLead) * 0.28;
       targetY = rawCY * 0.62 + humanP.cy() * 0.38 + _hudShift;
       // Brief hit-zoom pulse for wide arenas
       if (camHitZoomTimer > 0) {

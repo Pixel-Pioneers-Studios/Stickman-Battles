@@ -31,7 +31,7 @@ STORY_CHAPTER_REGISTRY.push(
     platColor: '#22100a',
     playerLives: 3,
     tokenReward: 20, blueprintDrop: null,
-    postText: 'It\'s not a villain. It\'s a frightened thing that made a terrible choice a long time ago and has been living in it ever since. And one of those choices produced something designed to destroy you — the same being that designed it also knew your name before any Architect gave it. That knew every truth about Veran. The kind of knowledge a stranger uses when they need someone else to do the thing they need done. You had been right. You just hadn\'t trusted yourself enough to act on it. That thought sits in you, heavy and cold, as you keep moving.',
+    postText: 'It\'s not a villain. It\'s a frightened thing that made a terrible choice a long time ago and has been living in it ever since. And one of those choices produced something designed to destroy you — the same being that designed it also knew your name — Kael — before any Architect gave it. That knew every truth about Veran. Including the one she didn\'t. The Cost Assessment had it — unmarked, filed under operational variance: the original fracture event was equipment failure. A coincidence. The testing run that happened to be active when the fracture opened. Not her fault. Never her fault. Fifteen years of guilt for a thing she didn\'t cause, and Axiom had used that guilt precisely — used it because she believed it, because it was the most real thing she carried, because the truest grief is the easiest to aim. The kind of knowledge a stranger uses when they need someone else to do the thing they need done. You had been right. You just hadn\'t trusted yourself enough to act on it. That thought sits in you, heavy and cold, as you keep moving.',
   },
 
   {

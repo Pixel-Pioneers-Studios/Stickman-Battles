@@ -67,8 +67,9 @@ STORY_CHAPTER_REGISTRY.push(
     preText: 'Absolute Axiom — Phase One. Axiom\'s will is driving this. It has catalogued every pattern you have. Every fighter it sent contributed data. 3 lives.',
     opponentName: 'Absolute Axiom', weaponKey: 'sword', classKey: 'warrior', aiDiff: 'expert', opponentColor: '#ffe8ff',
     armor: ['helmet'],
+    isAbsoluteAxiomFight: true, aaStoryHealth: 900,
     playerLives: 3,
-    arena: 'void',
+    arena: 'absolute_axiom_domain',
     fightScript: [
       { frame: 30,  text: 'It has seen your patterns through nine fighters\' worth of data. It knows what you will do before you decide.', color: '#ffe8aa', timer: 340 },
       { frame: 280, text: 'The domain is shifting with it. Axiom\'s patterns threading through God\'s walls. The ground is not what it was.', color: '#ddaaff', timer: 300 },
@@ -113,8 +114,9 @@ STORY_CHAPTER_REGISTRY.push(
     preText: 'Absolute Axiom — Phase Two. God\'s creative force is now a weapon. The domain fights alongside it. There is no margin left. 1 life.',
     opponentName: 'Absolute Axiom', weaponKey: 'sword', classKey: 'warrior', aiDiff: 'expert', opponentColor: '#ffe8ff',
     armor: ['helmet'],
+    isAbsoluteAxiomFight: true, aaStoryHealth: 700,
     playerLives: 1,
-    arena: 'void',
+    arena: 'absolute_axiom_domain',
     fightScript: [
       { frame: 30,  text: 'God\'s foundations are responding to Axiom\'s will. The domain is part of the fight now. You are not fighting one thing.', color: '#ffe8aa', timer: 340 },
       { frame: 260, text: 'The fragment is working harder than it ever has. Not borrowed power. Not Paradox\'s bridge. What\'s left is what you were always carrying.', color: '#cc88ff', timer: 320 },

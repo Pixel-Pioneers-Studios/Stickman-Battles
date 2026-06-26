@@ -134,7 +134,7 @@ STORY_CHAPTER_REGISTRY.push(
     arena: 'mirror',
     tokenReward: 65,
     blueprintDrop: null,
-    postText: 'The Warden stops moving. Stands still. "You found me," it says. "That has never happened." It steps aside. The fracture opens. You walk through.',
+    postText: 'The Warden stops moving. Stands still. "You found me," it says. "That has never happened." A long silence. Then, involuntary — the way a name surfaces in someone who hasn\'t used it in longer than most civilizations have existed — one word: "VAEL." Said to no one. Said to itself, maybe. Said because defeat reached something that hiding had kept buried for four thousand years. The Fallen God goes very still. It does not comment. The fracture opens. You walk through.',
     isMultiverseWorld: true,
     multiverseWorldId: 'shadow_realm',
     storeNag: '⚠️ Shadow Warden. Expert AI. 1 life. Last world before Titan.',

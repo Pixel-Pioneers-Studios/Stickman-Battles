@@ -19,6 +19,23 @@ function applyWorldModifiers() {
     f._damageTakenMult = 1;
   }
 
+  // ── Quicksand arena hazard ────────────────────────────────────────────────
+  // Applies to all game modes when the desert arena is active.
+  if (currentArena && currentArena.hasQuicksand) {
+    const _qsX = currentArena.quicksandX || 280;
+    const _qsW = currentArena.quicksandW || 340;
+    for (const f of _fighters) {
+      if (!f || f.health <= 0) continue;
+      const _inQs = f.onGround && f.cx() > _qsX && f.cx() < _qsX + _qsW;
+      if (_inQs) {
+        f.vx *= 0.72;     // strong friction — sluggish movement
+        f._inQuicksand = true;
+      } else {
+        f._inQuicksand = false;
+      }
+    }
+  }
+
   if (!worldId || gameMode !== 'story') return;
 
   if (worldId !== 'fracture' && tfGravityInverted && typeof forceResetGravity === 'function') {
@@ -189,9 +206,10 @@ function gameLoop(timestamp) {
       }
     }
 
-    // Floor hazard state machine — suppressed during TF opening cinematic
-    if (!gameFrozen && !(typeof tfOpeningFightActive !== 'undefined' && tfOpeningFightActive)) bossFloorTimer--;
-    if (bossFloorTimer <= 0) {
+    // Floor hazard state machine — boss/trueform only; suppressed during TF opening cinematic
+    const _bossFloorActive = gameMode === 'boss' || gameMode === 'trueform';
+    if (_bossFloorActive && !gameFrozen && !(typeof tfOpeningFightActive !== 'undefined' && tfOpeningFightActive)) bossFloorTimer--;
+    if (_bossFloorActive && bossFloorTimer <= 0) {
       if (bossFloorState === 'normal') {
         bossFloorState = 'warning';
         bossFloorType  = Math.random() < 0.5 ? 'lava' : 'void';
@@ -395,7 +413,7 @@ function gameLoop(timestamp) {
 
   // ---------- Phase: render (world, entities, particles, HUD) ----------
   drawBackground();
-  // Domain Expansion: background tint overlay (screen-space, before world entities)
+  // Conviction: background tint overlay (screen-space, before world entities)
   if (typeof DomainManager !== 'undefined') DomainManager.draw();
   if (typeof drawCinBgContrast   === 'function') drawCinBgContrast();
   if (typeof drawCinImpactFrame  === 'function') drawCinImpactFrame();
@@ -633,7 +651,7 @@ function gameLoop(timestamp) {
     if (!isFinite(p.x))  { p.x = GAME_W / 2; p.vx = 0; }
     if (!isFinite(p.y))  { p.y = 200;         p.vy = 0; }
   }
-  // Domain Expansion: update state (must run before player.update() so vx override takes effect)
+  // Conviction: update state (must run before player.update() so vx override takes effect)
   if (typeof DomainManager !== 'undefined' && !gameFrozen && !tfAbsorptionScene) {
     DomainManager.update();
   }
@@ -657,6 +675,8 @@ function gameLoop(timestamp) {
   if (typeof chaosMode !== 'undefined' && chaosMode && typeof updateChaosSystem === 'function') updateChaosSystem();
   // Finisher: override positions/state AFTER physics, BEFORE draw
   if (typeof updateFinisher === 'function') updateFinisher();
+  // Divine Summon: tick Herald sweep state
+  if (typeof updateDivineSummon === 'function') updateDivineSummon();
 
   // ── Depth Phase: transition, circular arena constraint, still-Z tracking ──────
   if (typeof tfDepthPhaseActive !== 'undefined' && tfDepthPhaseActive) {
@@ -801,6 +821,8 @@ function gameLoop(timestamp) {
   if (typeof drawCinSpeedLines === 'function') drawCinSpeedLines();
   // Paradox entity (world-space, drawn over fighters)
   if (typeof drawParadox === 'function') drawParadox();
+  // Divine Summon: Herald entity world-space draw
+  if (typeof drawDivineSummon === 'function') drawDivineSummon();
   // TF-kills-Paradox cinematic overlay (lock rings world-space + terminal screen-space)
   if (typeof updateTFKCOverlay === 'function') updateTFKCOverlay();
   if (typeof drawTFKCOverlay   === 'function') drawTFKCOverlay();
@@ -1052,6 +1074,7 @@ function gameLoop(timestamp) {
   if ((currentArena && currentArena.isBossArena || window.FORCE_ATTACK_MODE) && typeof drawBossDialogue === 'function') drawBossDialogue(finalScX, finalScY, camCX, camCY);
   if (typeof drawHitEffectivenessHUD === 'function') drawHitEffectivenessHUD();
   if (gameMode === 'exploration') drawExploreHUD();
+  if (typeof _interludeActive !== 'undefined' && _interludeActive && typeof drawInterlude === 'function') drawInterlude();
   if (exploreActive && typeof drawExploreModeOverlay === 'function') drawExploreModeOverlay();
   if (abilityUnlockToast && abilityUnlockToast.timer > 0) drawAbilityUnlockToast();
   if (gameMode === 'trueform' && typeof drawQTE === 'function') drawQTE(ctx, canvas.width, canvas.height);
@@ -1062,7 +1085,7 @@ function gameLoop(timestamp) {
   if (typeof _drawRGSHud === 'function') _drawRGSHud(canvas.width, canvas.height);
   if (typeof _drawDimPunchOverlay === 'function') _drawDimPunchOverlay(canvas.width, canvas.height);
 
-  // Domain Expansion HUD: timer bars (screen-space, above game HUD)
+  // Conviction HUD: timer bars (screen-space, above game HUD)
   if (typeof DomainManager !== 'undefined') DomainManager.drawHUD();
 
   // ── Critical status overlays — always screen-space, always above HUD ──────
@@ -1070,6 +1093,8 @@ function gameLoop(timestamp) {
   { const _b = document.getElementById('ctrlInvertedBanner'); if (_b) _b.style.display = 'none'; }
 
   ctx.setTransform(1, 0, 0, 1, 0, 0); // ensure screen space
+  // Divine Summon HUD: cooldown arc (screen-space, top-right corner)
+  if (typeof drawDivineSummonHUD === 'function') drawDivineSummonHUD(canvas.width, canvas.height);
   {
     const _now = performance.now();
     const _cW  = canvas.width;

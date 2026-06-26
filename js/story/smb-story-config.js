@@ -223,13 +223,13 @@ function _renderChapterList() {
   const doneCh   = _story2.defeated.length;
   const pct      = Math.round((doneCh / totalCh) * 100);
   const progWrap = document.createElement('div');
-  progWrap.style.cssText = 'padding:0 2px 10px;';
+  progWrap.className = 'story-progress-wrap';
   progWrap.innerHTML =
-    `<div style="display:flex;justify-content:space-between;font-size:0.62rem;color:#778;margin-bottom:4px;">` +
-      `<span>Overall Progress</span><span>${doneCh}/${totalCh} chapters</span>` +
+    `<div class="story-progress-row">` +
+      `<span>Progress</span><span style="color:#334d55;">${doneCh}/${totalCh} chapters · ${pct}%</span>` +
     `</div>` +
-    `<div style="height:5px;border-radius:3px;background:rgba(255,255,255,0.07);overflow:hidden;">` +
-      `<div style="height:100%;width:${pct}%;background:linear-gradient(90deg,#4488ff,#88ffcc);border-radius:3px;transition:width 0.4s;"></div>` +
+    `<div class="story-progress-bar-bg">` +
+      `<div class="story-progress-bar-fill" style="width:${pct}%;"></div>` +
     `</div>`;
   list.appendChild(progWrap);
 
@@ -261,35 +261,35 @@ function _renderChapterList() {
 
     // Act header — always clickable to expand/collapse when outside auto range
     const actHeader = document.createElement('div');
-    const chevronRot = (!inAutoRange && !manualExpanded) ? '0deg' : '90deg';
-    actHeader.style.cssText = [
-      'display:flex', 'align-items:center', 'gap:8px',
-      'padding:8px 10px 6px',
-      `border-top:1px solid ${act.color}44`,
-      'margin-top:6px',
-      !inAutoRange ? 'cursor:pointer' : '',
-    ].join(';');
+    actHeader.className = 'story-act-header' + (!inAutoRange ? ' clickable' : '');
+    // Convert hex color to RGB triplet for CSS variable
+    const _hex2rgb = hex => {
+      const m = hex.replace('#','').match(/.{2}/g);
+      return m ? m.map(x => parseInt(x,16)).join(',') : '136,136,136';
+    };
+    actHeader.style.setProperty('--act-color', act.color);
+    actHeader.style.setProperty('--act-rgb', _hex2rgb(act.color));
+    if (!inAutoRange) actHeader.style.cursor = 'pointer';
     actHeader.innerHTML =
       (!inAutoRange
-        ? `<span style="font-size:0.65rem;color:#667;transition:transform 0.18s;display:inline-block;transform:rotate(${chevronRot});">▶</span>`
+        ? `<span class="story-act-chevron" style="transform:rotate(${(!manualExpanded) ? '0deg' : '90deg'});">▶</span>`
         : '') +
-      `<span style="font-size:0.68rem;letter-spacing:1.5px;text-transform:uppercase;color:${act.color};font-weight:700;flex:1;">${act.label}</span>` +
-      `<span style="font-size:0.6rem;color:${actComplete ? '#66ee99' : '#556'};">${actDone}/${actTotal}</span>`;
+      `<span class="story-act-label">${act.label}</span>` +
+      `<span class="story-act-progress${actComplete ? ' done' : ''}">${actDone}/${actTotal}</span>`;
 
     if (!inAutoRange) {
       actHeader.addEventListener('click', () => {
         _story2.actExpanded[ai] = !_story2.actExpanded[ai];
         _saveStory2();
-        openStoryMenu(); // re-render
+        openStoryMenu();
       });
     }
     list.appendChild(actHeader);
 
     if (!isFullRender) {
-      // Compact hint — click the header above to expand
       const summary = document.createElement('div');
-      summary.style.cssText = 'padding:2px 12px 7px;font-size:0.60rem;color:#445;';
-      summary.textContent = actComplete ? '✓ Completed — click to expand' : actDone > 0 ? `${actDone}/${actTotal} done — click to expand` : 'Locked — click to expand';
+      summary.style.cssText = 'padding:1px 18px 8px;font-size:0.58rem;color:#3a3a52;font-style:italic;';
+      summary.textContent = actComplete ? '✓ Complete' : actDone > 0 ? `${actDone}/${actTotal} done` : 'Locked';
       list.appendChild(summary);
       return;
     }
@@ -307,18 +307,12 @@ function _renderChapterList() {
 
       // Arc sub-header
       const arcRow = document.createElement('div');
-      arcRow.style.cssText = [
-        'display:flex', 'align-items:center', 'gap:7px',
-        'padding:6px 14px 5px',
-        `background:${isCurrentArc ? 'rgba(120,170,255,0.07)' : 'transparent'}`,
-        'border-radius:6px', 'margin:2px 0',
-        arcUnlocked ? 'cursor:pointer' : 'cursor:default',
-        `opacity:${arcUnlocked ? '1' : '0.35'}`,
-      ].join(';');
+      arcRow.className = 'story-arc-header';
+      if (!arcUnlocked) arcRow.style.opacity = '0.30';
       arcRow.innerHTML =
-        `<span style="font-size:0.7rem;color:#667;transition:transform 0.18s;display:inline-block;transform:rotate(${collapsed ? '0' : '90'}deg);">▶</span>` +
-        `<span style="font-size:0.72rem;color:${arcComplete ? '#66ee99' : isCurrentArc ? '#aacfff' : '#889'};flex:1;">${arc.label}</span>` +
-        `<span style="font-size:0.58rem;color:${arcComplete ? '#66ee99' : '#556'};">${arcDone}/${arcTotal}</span>`;
+        `<span class="story-act-chevron" style="transform:rotate(${collapsed ? '0' : '90'}deg);">▶</span>` +
+        `<span class="story-arc-label${arcComplete ? ' complete' : isCurrentArc ? ' current' : ''}">${arc.label}</span>` +
+        `<span class="story-arc-count${arcComplete ? ' done' : ''}">${arcDone}/${arcTotal}</span>`;
 
       if (arcUnlocked) {
         arcRow.addEventListener('click', () => _toggleArcCollapse(arc.id));
@@ -330,46 +324,35 @@ function _renderChapterList() {
       // ── Chapter rows ──────────────────────────────────────────────────────
       for (let i = arc.chapterRange[0]; i <= arc.chapterRange[1]; i++) {
         const ch      = STORY_CHAPTERS2[i];
-        if (!ch) continue; // arc range can exceed registry when chapter files aren't loaded
+        if (!ch) continue;
         const done    = _story2.defeated.includes(i);
         const current = i === cur;
         const locked  = !arcUnlocked || i > cur;
-
-        const borderCol = done ? 'rgba(80,220,120,0.35)' : current ? 'rgba(120,170,255,0.40)' : 'rgba(255,255,255,0.07)';
-        const bgCol     = done ? 'rgba(30,90,55,0.28)'   : current ? 'rgba(25,55,110,0.35)'   : 'rgba(10,10,30,0.20)';
+        const isBoss  = !!(ch.isBossFight || ch.isTrueFormFight);
 
         const el = document.createElement('div');
-        el.style.cssText = [
-          'display:flex', 'align-items:center', 'gap:11px',
-          'padding:8px 14px 8px 26px', 'border-radius:8px', 'margin-bottom:3px',
-          `border:1px solid ${borderCol}`, `background:${bgCol}`,
-          `opacity:${locked ? '0.30' : '1'}`,
-          'transition:background 0.14s,border-color 0.14s',
-          locked ? 'cursor:default' : 'cursor:pointer',
-        ].join(';');
+        el.className = 'story-ch-card' +
+          (done ? ' ch-done' : current ? ' ch-current' : '') +
+          (isBoss ? ' ch-boss' : '') +
+          (locked ? ' ch-locked' : '');
 
         const statusEl = document.createElement('span');
-        statusEl.style.cssText = 'font-size:0.72rem;min-width:16px;text-align:center;flex-shrink:0;';
-        statusEl.textContent    = done ? '✓' : locked ? '🔒' : current ? '▶' : String(i + 1);
-        statusEl.style.color    = done ? '#66ee99' : current ? '#aacfff' : '#445';
+        statusEl.className = 'story-ch-status';
+        statusEl.textContent = done ? '✓' : locked ? '🔒' : current ? '▶' : String(i + 1);
+        statusEl.style.color = done ? '#66ee99' : current ? '#aacfff' : '#3a3a55';
 
         const _livesCount = ch.playerLives !== undefined ? ch.playerLives : 3;
-        const _livesColor = _livesCount === 1 ? '#ff5533' : _livesCount === 2 ? '#ffaa44' : '#88cc88';
-        const _livesBg    = _livesCount === 1 ? 'rgba(255,50,20,0.15)' : _livesCount === 2 ? 'rgba(255,140,0,0.08)' : 'rgba(80,200,80,0.07)';
-        const _livesBorder = _livesCount === 1 ? 'rgba(255,50,20,0.30)' : _livesCount === 2 ? 'rgba(255,140,0,0.25)' : 'rgba(80,200,80,0.20)';
         const _livesLabel = _livesCount === 1 ? '1 life' : `${_livesCount} lives`;
-        const livesTag = (!locked && !done && !ch.noFight && _livesCount !== undefined)
-          ? `<span style="font-size:0.54rem;color:${_livesColor};background:${_livesBg};border:1px solid ${_livesBorder};border-radius:3px;padding:1px 4px;margin-left:4px;">${_livesLabel}</span>`
-          : '';
+        const livesTag  = (!locked && !done && !ch.noFight && _livesCount !== undefined)
+          ? `<span class="ch-tag ch-tag-lives-${_livesCount <= 1 ? '1' : _livesCount <= 2 ? '2' : '3'}">${_livesLabel}</span>` : '';
         const rewardTag = (!done && ch.tokenReward)
-          ? `<span style="font-size:0.54rem;color:#998833;margin-left:3px;">+${ch.tokenReward}🪙</span>` : '';
-        const bpTag = (!done && ch.blueprintDrop && STORY_ABILITIES2[ch.blueprintDrop])
-          ? `<span style="font-size:0.54rem;color:#5577bb;margin-left:2px;">📋</span>` : '';
-        const replayTag = (done)
-          ? `<span style="font-size:0.52rem;color:#667;margin-left:4px;border:1px solid #334;border-radius:3px;padding:1px 4px;">replay</span>` : '';
+          ? `<span class="ch-tag ch-tag-reward">+${ch.tokenReward}🪙</span>` : '';
+        const bpTag     = (!done && ch.blueprintDrop && STORY_ABILITIES2[ch.blueprintDrop])
+          ? `<span class="ch-tag ch-tag-bp">📋</span>` : '';
+        const replayTag = done
+          ? `<span class="ch-tag ch-tag-replay">replay</span>` : '';
 
-        // Spoiler-safe: redact boss/trueform fights that are locked
-        const isSpoilerChapter = (ch.isBossFight || ch.isTrueFormFight);
+        const isSpoilerChapter = isBoss;
         const isSpoilerLocked  = locked && !done && isSpoilerChapter;
         const isDeepLocked     = locked && !done && i > cur + 3 && isSpoilerChapter;
         let displayTitle = ch.title;
@@ -380,34 +363,23 @@ function _renderChapterList() {
         }
 
         const infoEl = document.createElement('div');
-        infoEl.style.cssText = 'flex:1;min-width:0;line-height:1.3;';
+        infoEl.className = 'story-ch-info';
         infoEl.innerHTML =
-          `<div style="display:flex;align-items:center;flex-wrap:wrap;gap:2px;">` +
-            `<span style="font-size:0.81rem;color:${done ? '#88ffaa' : current ? '#dde4ff' : '#556'};">${displayTitle}</span>` +
+          `<div class="story-ch-title-row">` +
+            `<span class="story-ch-title ${done ? 'ch-done' : current ? 'ch-curr' : 'ch-lock'}">${displayTitle}</span>` +
             (isSpoilerLocked ? '' : livesTag + rewardTag + bpTag) + replayTag +
           `</div>` +
-          `<div style="font-size:0.60rem;color:#4a4a6a;margin-top:1px;">${displayWorld}</div>`;
+          `<div class="story-ch-world">${displayWorld}</div>`;
 
-        if (isSpoilerLocked) {
-          infoEl.title = "You're not supposed to see that yet.";
-        }
-        if (isDeepLocked) {
-          el.style.filter = 'brightness(0.7)';
-        }
+        if (isSpoilerLocked) infoEl.title = "You're not supposed to see that yet.";
+        if (isDeepLocked)    el.style.filter = 'brightness(0.65)';
 
         el.appendChild(statusEl);
         el.appendChild(infoEl);
 
         if (!locked) {
-          el.addEventListener('click', () => { _beginChapter2(i); });
-          el.addEventListener('mouseover', () => {
-            el.style.background  = done ? 'rgba(30,100,60,0.45)' : 'rgba(35,70,160,0.50)';
-            el.style.borderColor = done ? 'rgba(80,220,120,0.55)' : 'rgba(120,170,255,0.60)';
-          });
-          el.addEventListener('mouseout', () => {
-            el.style.background  = bgCol;
-            el.style.borderColor = borderCol;
-          });
+          el.style.cursor = 'pointer';
+          el.addEventListener('click', () => _beginChapter2(i));
         }
         list.appendChild(el);
       }
@@ -1298,10 +1270,7 @@ function _showPreFightStoreNag(ch, onContinue) {
     ov.style.display = 'none';
     storyModeActive = false;
     if (typeof backToMenu === 'function') backToMenu();
-    setTimeout(() => {
-      if (typeof openStoryMenu === 'function') openStoryMenu();
-      setTimeout(() => { if (typeof switchStoryTab === 'function') switchStoryTab('store'); }, 120);
-    }, 300);
+    setTimeout(() => { if (typeof openStoryMenuShop === 'function') openStoryMenuShop(); }, 320);
   };
 }
 
@@ -1366,10 +1335,7 @@ function _showStory2RetryScreen(ch) {
       if (btnRow) btnRow.style.display = '';
       storyModeActive = false;
       if (typeof backToMenu === 'function') backToMenu();
-      setTimeout(() => {
-        if (typeof openStoryMenu === 'function') openStoryMenu();
-        setTimeout(() => { if (typeof switchStoryTab === 'function') switchStoryTab('store'); }, 120);
-      }, 320);
+      setTimeout(() => { if (typeof openStoryMenuShop === 'function') openStoryMenuShop(); }, 340);
     };
 
     retryDiv.querySelector('#_retryMenuBtn').onclick = () => {

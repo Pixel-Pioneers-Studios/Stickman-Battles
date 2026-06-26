@@ -138,6 +138,9 @@ class Fighter {
     this._broomRide      = null;
     this._scytheToss     = null;
     this._paperPlanes    = [];
+    this._familiar        = null;
+    this._familiarTimer   = 0;
+    this._familiarRespawn = 0;
   }
 
   cx() { return this.x + this.w / 2; }
@@ -215,7 +218,7 @@ class Fighter {
     this._axeWhirl           = null;
     this._swordSlashes       = [];
     this._swordSlashQueue    = [];
-    this._giantFist          = null;
+    this._comboSuper         = null;
     this._peaCluster         = null;
     this._gravityStone       = null;
     this._paperSwarm         = [];
@@ -234,10 +237,15 @@ class Fighter {
     this._scytheToss         = null;
     this._paperPlanes        = [];
     this._shieldCharge       = null;
+    this._familiar           = null;
+    this._familiarTimer      = 0;
+    this._familiarRespawn    = 0;
     this._whipSlow           = 0;
     this._whipCrack          = null;
     this._whipRope           = null;
     this._overcharged        = 0;
+    this._counterStance      = 0;   // frames remaining in counter window
+    this._counterAttacker    = null;
     this.canDoubleJump   = false;
     // superMeter / superReady intentionally NOT reset — supers carry over between lives
     // Domain: clear expansion state and reset counter so domain must be re-earned
@@ -488,25 +496,95 @@ class Fighter {
       }
     }
 
-    // ── Boxing Gloves super: Giant Fist — slow-moving massive fist hitbox ────────
-    if (this._giantFist) {
-      const gf = this._giantFist;
-      gf.x += gf.vx;
-      gf.life--;
-      const _gfAll = [...players, ...trainingDummies];
-      for (const f of _gfAll) {
-        if (f === this || f.health <= 0 || gf.hitSet.has(f)) continue;
-        if (Math.abs(f.cx() - gf.x) < 55 && Math.abs((f.y + f.h * 0.5) - gf.y) < 38) {
-          dealDamage(this, f, 58, 30);
-          f.vy = -14;
-          gf.hitSet.add(f);
-          spawnParticles(f.cx(), f.cy(), '#ff4444', 18);
-          screenShake = Math.max(screenShake, 22);
-        }
+    // ── Combat weapon: Counter Stance timer + teleport retaliation ───────────────
+    if (this._counterStance > 0) {
+      this._counterStance--;
+    }
+    if (this._counterAttacker) {
+      const atk = this._counterAttacker;
+      this._counterAttacker = null;
+      if (atk && atk.health > 0) {
+        // Teleport to the opposite side of the attacker
+        const behindX = atk.cx() + (atk.facing || 1) * 55;
+        this.x = clamp(behindX - this.w / 2, 0, GAME_W - this.w);
+        this.y = atk.y;
+        this.vy = 0;
+        this.vx = 0;
+        // Face toward the attacker's back
+        this.facing = -(atk.facing || 1);
+        spawnParticles(this.cx(), this.cy(), '#ff4444', 18);
+        spawnParticles(this.cx(), this.cy(), '#ffcc44', 10);
+        screenShake = Math.max(screenShake, 12);
+        // Launcher kick: knock them upward
+        dealDamage(this, atk, 18, 12);
+        atk.vy = Math.min(atk.vy, -16);
+        atk.vx = this.facing * 6;
+        spawnParticles(atk.cx(), atk.cy(), '#ff6644', 16);
       }
-      if (gf.life <= 0 || gf.x < -100 || gf.x > GAME_W + 100) {
-        this._giantFist = null;
-        this.superActive = false;
+    }
+
+    // ── Combat super: Combo Strike — dash → kick up → power punch ───────────────
+    if (this._comboSuper) {
+      const cs = this._comboSuper;
+      cs.timer++;
+      const t = cs.target;
+
+      if (cs.phase === 0) {
+        // Phase 0 (frames 0-13): dash toward target
+        if (t && t.health > 0) {
+          const _csDx = t.cx() - this.cx();
+          this.facing = _csDx > 0 ? 1 : -1;
+          this.vx = this.vx * 0.5 + this.facing * 18 * 0.5;
+        }
+        if (cs.timer >= 14) { cs.phase = 1; cs.timer = 0; this.vx = 0; }
+      } else if (cs.phase === 1) {
+        // Phase 1 (frames 0-9): kick — launch target upward
+        this.vx *= 0.55;
+        if (cs.timer === 5 && !cs.kickDone) {
+          cs.kickDone = true;
+          if (t && t.health > 0) {
+            dealDamage(this, t, 22, 6);
+            t.vy = -20;
+            t.vx = this.facing * 5;
+            cs.impactX    = t.cx();
+            cs.impactY    = t.cy();
+            cs.impactFlash = 12;
+            spawnParticles(t.cx(), t.cy(), '#ff4444', 16);
+            spawnParticles(t.cx(), t.cy(), '#ffffff', 8);
+            spawnRing(t.cx(), t.cy());
+            screenShake = Math.max(screenShake, 14);
+          }
+        }
+        if (cs.impactFlash > 0) cs.impactFlash--;
+        if (cs.timer >= 10) { cs.phase = 2; cs.timer = 0; }
+      } else if (cs.phase === 2) {
+        // Phase 2 (frames 0-14): brief pause, jump up to follow target
+        this.vx *= 0.7;
+        if (cs.timer === 3) this.vy = -12;
+        if (cs.timer >= 15) { cs.phase = 3; cs.timer = 0; }
+      } else if (cs.phase === 3) {
+        // Phase 3 (frames 0-13): power punch — blast target sideways
+        this.vx *= 0.65;
+        if (cs.timer === 4 && !cs.punchDone) {
+          cs.punchDone = true;
+          if (t && t.health > 0) {
+            dealDamage(this, t, 34, 28);
+            t.vx = this.facing * 24;
+            t.vy = 3;
+            cs.impactX    = t.cx();
+            cs.impactY    = t.cy();
+            cs.impactFlash = 18;
+            spawnParticles(t.cx(), t.cy(), '#ff2222', 22);
+            spawnParticles(t.cx(), t.cy(), '#ffcc44', 10);
+            spawnRing(t.cx(), t.cy());
+            screenShake = Math.max(screenShake, 22);
+          }
+        }
+        if (cs.impactFlash > 0) cs.impactFlash--;
+        if (cs.timer >= 14) {
+          this._comboSuper = null;
+          this.superActive = false;
+        }
       }
     }
 
@@ -1178,7 +1256,7 @@ class Fighter {
       if (this.superActive && !this._hammerSpin && !this._axeWhirl && !this._spearCharge &&
           !(this._swordSlashes && this._swordSlashes.length) &&
           !(this._swordSlashQueue && this._swordSlashQueue.length) &&
-          !this._giantFist && !this._peaCluster && !this._gravityStone &&
+          !this._comboSuper && !this._peaCluster && !this._gravityStone &&
           !(this._paperSwarm && this._paperSwarm.length) &&
           !this._shieldCharge && !this._thrownAxe && !this._thunderStrikes &&
           !this._flailOrbit && !(this._boomerangs && this._boomerangs.length)) {
@@ -1305,18 +1383,25 @@ class Fighter {
         this.y = 0; this.vy = Math.abs(this.vy) * 0.4;
       }
       // No ceiling — camera zooms out to follow players upward
-      // Story/story-only arenas: soft boundary — flag for portal teleport instead of hard wall
+      // Story/story-only arenas: hard wall at portal face + flag for teleport-back flash
       const _storyWalls = storyModeActive || (currentArena && currentArena.isStoryOnly);
       if (_storyWalls && !this.isBoss && gameMode !== 'exploration') {
-        // For arenas with visible boundary portals (portalW=30 centered at mapLeft+10/mapRight-10),
-        // trigger fires exactly at the portal inner face so players can't walk through the visual.
-        // Inner face positions: mapLeft+40 (left portal right face) and mapRight-40 (right portal left face).
-        const _bOff = (currentArena && currentArena.boundaryPortals) ? 40 : 30;
+        // _bOff=25: aligns the wall with the portal column's right/left visual face
+        // (portal center at mapLeft+10, column is 30px wide → face at mapLeft+10±15 → mapLeft+25)
+        const _bOff = (currentArena && currentArena.boundaryPortals) ? 25 : 30;
         const softLeft  = currentArena && currentArena.mapLeft  !== undefined ? currentArena.mapLeft  + _bOff : -60;
         const softRight = currentArena && currentArena.mapRight !== undefined ? currentArena.mapRight - this.w - _bOff : GAME_W - this.w + 60;
-        if (this.x < softLeft)   { this._storyBoundaryBreached = 'left';  }
-        else if (this.x > softRight) { this._storyBoundaryBreached = 'right'; }
-        else { this._storyBoundaryBreached = null; }
+        if (this.x < softLeft) {
+          this.x  = softLeft;          // hard wall: stop right at the portal face
+          if (this.vx < 0) this.vx = 0;
+          this._storyBoundaryBreached = 'left';  // flag for flash-teleport-back
+        } else if (this.x > softRight) {
+          this.x  = softRight;
+          if (this.vx > 0) this.vx = 0;
+          this._storyBoundaryBreached = 'right';
+        } else {
+          this._storyBoundaryBreached = null;
+        }
       }
       for (const pl of currentArena.platforms) this.checkPlatform(pl);
       this._voidSafetyFrame(); // Per-frame void/lava safety — bypasses AI tick delay
@@ -1518,16 +1603,24 @@ class Fighter {
 
       // (Megaknight perk is now the super — no passive HP-threshold trigger)
 
-      // PUGILIST: Surge Fist at ≤20% HP — auto-launches a Giant Fist for free
-      if (this.charClass === 'pugilist' && pct <= 0.20) {
+      // PUGILIST: Surge Strike at ≤20% HP — auto-launches Combo Strike for free
+      if (this.charClass === 'pugilist' && pct <= 0.20 && !this._comboSuper) {
         this.classPerkUsed = true;
-        this._giantFist = {
-          x:      this.cx() + this.facing * 30,
-          y:      this.cy(),
-          vx:     this.facing * 12,
-          life:   80,
-          hitSet: new Set(),
+        const _sfAll = [...players, ...trainingDummies];
+        let _sfTgt = null, _sfDist = 9999;
+        for (const f of _sfAll) {
+          if (f === this || f.health <= 0) continue;
+          const _d = Math.hypot(f.cx() - this.cx(), f.cy() - this.cy());
+          if (_d < _sfDist) { _sfTgt = f; _sfDist = _d; }
+        }
+        this._comboSuper = {
+          phase: 0, timer: 0, target: _sfTgt,
+          kickDone: false, punchDone: false,
+          impactX: 0, impactY: 0, impactFlash: 0,
         };
+        if (_sfTgt) this.facing = _sfTgt.cx() > this.cx() ? 1 : -1;
+        this.invincible = Math.max(this.invincible || 0, 55);
+        this.superActive = true;
         screenShake = Math.max(screenShake, 20);
         spawnParticles(this.cx(), this.cy(), '#ff4444', 24);
         spawnParticles(this.cx(), this.cy(), '#ffffff', 12);
@@ -1543,7 +1636,55 @@ class Fighter {
         spawnParticles(this.cx(), this.cy(), '#ffffff', 16);
         spawnRing(this.cx(), this.cy());
       }
+
+      // SUMMONER: Desperate Bond at ≤20% HP — immediately spawn/empower familiar
+      if (this.charClass === 'summoner' && pct <= 0.20) {
+        this.classPerkUsed = true;
+        if (!this._familiar || this._familiar.health <= 0) this._spawnFamiliar();
+        if (this._familiar && this._familiar.health > 0) {
+          this._familiar.dmgMult   = 1.2;
+          this._familiar._powerBuff = 600;
+          spawnParticles(this._familiar.cx(), this._familiar.cy(), '#44ccff', 24);
+          spawnParticles(this._familiar.cx(), this._familiar.cy(), '#ffffff', 10);
+        }
+        screenShake = Math.max(screenShake, 16);
+        spawnParticles(this.cx(), this.cy(), '#44ccff', 20);
+      }
     }
+
+    // SUMMONER: passive familiar timer (outside HP-perk block so it ticks every frame)
+    if (this.charClass === 'summoner' && gameRunning && this.health > 0 && !isCinematic) {
+      if (this._familiar && this._familiar.health <= 0) {
+        this._familiar = null;
+        this._familiarRespawn = 300;
+      }
+      if (this._familiarRespawn > 0) {
+        this._familiarRespawn--;
+      } else if (!this._familiar) {
+        this._familiarTimer = (this._familiarTimer || 0) + 1;
+        if (this._familiarTimer >= 600) this._spawnFamiliar();
+      }
+    }
+  }
+
+  _spawnFamiliar() {
+    if (!gameRunning || typeof Minion === 'undefined') return;
+    const fam = new Minion(this.cx() - 20 * this.facing, this.y);
+    const famTeamId   = 'fam_' + this.playerNum + '_' + Date.now();
+    fam._teamId       = famTeamId;
+    this._teamId      = famTeamId;
+    fam.color         = '#44ccff';
+    fam.name          = 'FAMILIAR';
+    fam._isFamiliar   = true;
+    fam.health        = 80;
+    fam.maxHealth     = 80;
+    fam.dmgMult       = 0.7;
+    fam.kbResist      = 0.15;
+    this._familiar    = fam;
+    this._familiarTimer = 0;
+    if (typeof minions !== 'undefined') minions.push(fam);
+    spawnParticles(this.cx(), this.cy(), '#44ccff', 20);
+    spawnParticles(this.cx(), this.cy(), '#aaeeff', 10);
   }
 
   checkPlatform(pl) {
@@ -1819,7 +1960,7 @@ class Fighter {
     if (!this.isBoss) {
       const _sg = (typeof WEAPON_SWINGS !== 'undefined') ? WEAPON_SWINGS[this.weaponKey] : null;
       this.attackDuration = (this.weapon.type === 'melee' && _sg && _sg.dur) ? _sg.dur : 12;
-      if (_sg && _sg.alternate) this._jabAlt = !this._jabAlt; // boxing gloves: high jab / body hook
+      if (_sg && _sg.alternate) this._jabAlt = !this._jabAlt; // combat: high jab / body hook
     }
     if (this.weapon.type === 'melee') {
       // Use closest enemy (dummy, minion, or training target) if target is null
@@ -1924,6 +2065,7 @@ class Fighter {
         );
         _proj._closeRangePenalty = _pointBlankT;
         _proj._warmupFrames = _atkRapid ? 3 : 2;
+        if (this.weaponKey === 'bow') _proj._isArrow = true;
         projectiles.push(_proj);
         // Gunner class: fire a second bullet (costs no extra ammo — it's the same shot)
         if (this.charClass === 'gunner') {
@@ -2009,7 +2151,7 @@ class Fighter {
   }
 
   activateSuper(target) {
-    // ── Domain Expansion: every 5th super triggers domain instead of normal super ──
+    // ── Conviction: every 5th super triggers conviction instead of normal super ──
     this._domainSuperCount = (this._domainSuperCount || 0) + 1;
     if (this._domainSuperCount >= 5
         && this.charClass && this.charClass !== 'none'
@@ -2122,11 +2264,13 @@ class Fighter {
             const angle = -0.48 + (i / 7) * 0.96;
             const spd   = 16;
             const dmg   = 24 + Math.floor(Math.random() * 10);
-            projectiles.push(new Projectile(
+            const _bArrow = new Projectile(
               this.cx() + this.facing * 14, this.y + 20,
               this.facing * spd * Math.cos(angle), spd * Math.sin(angle) - 5,
               this, dmg, '#ffee44'
-            ));
+            );
+            _bArrow._isArrow = true;
+            projectiles.push(_bArrow);
           }, i * 55);
         }
         spawnParticles(this.cx(), this.cy(), '#ffee44', 16);
@@ -2209,18 +2353,30 @@ class Fighter {
         }
         spawnRing(this.cx(), this.cy());
       },
-      // ── Boxing Gloves: Giant Fist — massive slow fist crosses the arena ─────────
-      boxinggloves: () => {
-        this._giantFist = {
-          x:      this.cx() + this.facing * 30,
-          y:      this.cy(),
-          vx:     this.facing * 12,
-          life:   80,
-          hitSet: new Set(),
+      // ── Combat: Combo Strike — dash → kick up → power punch away ───────────────
+      combat: () => {
+        const _csAll = [...players, ...trainingDummies];
+        let _csTgt = null, _csDist = 9999;
+        for (const f of _csAll) {
+          if (f === this || f.health <= 0) continue;
+          const _d = Math.hypot(f.cx() - this.cx(), f.cy() - this.cy());
+          if (_d < _csDist) { _csTgt = f; _csDist = _d; }
+        }
+        this._comboSuper = {
+          phase:     0,   // 0=dash 1=kick 2=pause 3=punch
+          timer:     0,
+          target:    _csTgt,
+          kickDone:  false,
+          punchDone: false,
+          impactX:   0,
+          impactY:   0,
+          impactFlash: 0,
         };
-        screenShake = Math.max(screenShake, 16);
-        spawnParticles(this.cx(), this.cy(), '#ff4444', 20);
-        spawnParticles(this.cx(), this.cy(), '#ffffff', 10);
+        if (_csTgt) this.facing = _csTgt.cx() > this.cx() ? 1 : -1;
+        this.invincible = Math.max(this.invincible || 0, 55);
+        screenShake = Math.max(screenShake, 10);
+        spawnParticles(this.cx(), this.cy(), '#ff4444', 14);
+        spawnParticles(this.cx(), this.cy(), '#ffffff', 6);
       },
       // ── Pea Shooter: Cluster Bomb — travels then bursts into 10 radial peas ────
       peashooter: () => {
@@ -3260,7 +3416,7 @@ class Fighter {
       } else {
         this._wanderDir = -this._wanderDir;
       }
-      if (this.onGround && Math.random() < 0.04) this.vy = -18;
+      if (this.onGround && !this.isEdgeDanger(this._wanderDir) && Math.random() < 0.04) this.vy = -18;
       // Still attack if target walks into range during wander
       const _wt = this.target;
       if (_wt && _wt.health > 0 && this.cooldown <= 0) {
@@ -3707,14 +3863,15 @@ class Fighter {
     }
 
     const headR     = 11;
-    // Head bob when walking: slight downward dip on each step
-    const headBob   = (s === 'walking') ? Math.abs(Math.sin(t * 0.24)) * 1.8 : 0;
+    // Head bob: discrete step phases (every 8 frames) so it dips once per stride like the prequel
+    const _walkStepPhase = Math.floor(t / 8) % 4;
+    const headBob   = (s === 'walking') ? Math.abs(Math.sin(_walkStepPhase * Math.PI / 2)) * 2.2 : 0;
     const headCY    = ty + headR + 1 + animOffY + headBob;
     const neckY     = headCY + headR + 1;
     const shoulderY = neckY + 5;
     const hipY      = shoulderY + 30;
-    // Body lean forward when walking/running
-    const hipX      = cx + (s === 'walking' ? f * 1.8 : 0);
+    // Body lean forward when walking/running (more deliberate stride lean like the prequel)
+    const hipX      = cx + (s === 'walking' ? f * 2.5 : 0);
     const armLen    = 24;
     const legLen    = 27;
     // Inline helper: 2-segment limb joint via midpoint offset
@@ -3864,6 +4021,10 @@ class Fighter {
 
     // ACCESSORIES (hat, cape)
     drawAccessory(this, cx, headCY, shoulderY, hipY, f, headR);
+    // STORY CHARACTER UNIQUE LOOK
+    if (this.storyCharId && typeof drawStoryCharacterOverlay === 'function') {
+      drawStoryCharacterOverlay(this, cx, headCY, shoulderY, hipY, f, headR);
+    }
 
     // BODY (leans forward when walking)
     ctx.strokeStyle = this.color;
@@ -4222,75 +4383,71 @@ class Fighter {
     if (this._rd) PlayerRagdoll.debugDraw(this, cx, shoulderY, hipY);
 
     // ── DAMAGE DEGRADATION VISUALS ───────────────────────────────────────────────────
-    // Drawn on top of the body so marks appear as surface wounds.
-    // Tier 1 (>25 accum): sweat. Tier 2 (>60): bruise + scratches. Tier 3 (>110): black eye + blood drip.
+    // Tier 1 (>25): sweat. Tier 2 (>60): bruise + fine scratches. Tier 3 (>110): black eye + blood drip.
     const _dAccum = this._damageAccumThisLife || 0;
     if (_dAccum > 25 && !this.isBoss && !this.isDummy) {
       const _dTier = _dAccum < 60 ? 1 : _dAccum < 110 ? 2 : 3;
-      // Seeded offsets per player so each fighter has consistent wound placement
       const _dseed = (this.playerNum || 1);
 
-      // Tier 1+: sweat drops sliding down side of face
       ctx.save();
-      const _sweatSlide = (t * 0.55) % 18;
-      ctx.fillStyle = 'rgba(140,200,255,0.75)';
+      // Tier 1+: small sweat drop sliding down temple
+      const _swSlide = (t * 0.45) % 14;
+      ctx.fillStyle = 'rgba(140,210,255,0.7)';
+      // Teardrop shape: round head + elongated tail pointing down
       ctx.beginPath();
-      ctx.ellipse(cx + f * 9.5, headCY + _sweatSlide * 0.6 - 2, 1.4, 2.0, 0, 0, Math.PI * 2);
+      ctx.arc(cx + f * 8.5, headCY + 2 + _swSlide * 0.55, 1.2, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(cx + f * 8.5 - 0.8, headCY + 2 + _swSlide * 0.55);
+      ctx.lineTo(cx + f * 8.5, headCY + 2 + _swSlide * 0.55 + 2.5);
+      ctx.lineTo(cx + f * 8.5 + 0.8, headCY + 2 + _swSlide * 0.55);
       ctx.fill();
-      if (_dTier >= 2) {
-        ctx.globalAlpha = 0.55;
-        ctx.beginPath();
-        ctx.ellipse(cx + f * 7, headCY + 4 + _sweatSlide * 0.45, 1.0, 1.5, 0, 0, Math.PI * 2);
-        ctx.fill();
-      }
       ctx.restore();
 
-      // Tier 2+: cheek bruise + scratch marks on torso
+      // Tier 2+: subtle cheek bruise + two fine parallel scratches on torso
       if (_dTier >= 2) {
         ctx.save();
-        // Cheek bruise
-        ctx.globalAlpha = 0.32;
-        ctx.fillStyle = '#5a1070';
+        // Cheek bruise — small, low opacity, on cheekbone
+        ctx.globalAlpha = 0.28;
+        ctx.fillStyle = '#4a0060';
         ctx.beginPath();
-        ctx.ellipse(cx + f * 6, headCY + 3, 6, 4, 0.4, 0, Math.PI * 2);
-        ctx.fill();
-        // Scratch marks on torso — placement varies by player seed
-        ctx.globalAlpha = 0.70;
-        ctx.strokeStyle = '#b01010';
-        ctx.lineWidth = 2.0;
-        ctx.lineCap = 'round';
-        const _scrX1 = cx + (_dseed % 2 === 0 ? -4 : 2);
-        const _scrY1 = shoulderY + 7 + (_dseed % 3) * 3;
-        ctx.beginPath(); ctx.moveTo(_scrX1 - 5, _scrY1);     ctx.lineTo(_scrX1 + 4, _scrY1 + 8);  ctx.stroke();
-        ctx.beginPath(); ctx.moveTo(_scrX1 - 3, _scrY1 + 5); ctx.lineTo(_scrX1 + 5, _scrY1 + 12); ctx.stroke();
+        ctx.ellipse(cx + f * 5.5, headCY + 4, 4, 2.5, 0.3, 0, Math.PI * 2); ctx.fill();
+        // Fine scratches — thin (lineWidth 1) diagonal lines on torso
+        const _scrX = cx + (_dseed % 2 === 0 ? -3 : 3);
+        const _scrY = shoulderY + 8 + (_dseed % 3) * 2;
+        ctx.globalAlpha = 0.60;
+        ctx.strokeStyle = '#bb1010'; ctx.lineWidth = 1; ctx.lineCap = 'round';
+        ctx.beginPath(); ctx.moveTo(_scrX - 4, _scrY);     ctx.lineTo(_scrX + 3, _scrY + 7);   ctx.stroke();
+        ctx.globalAlpha = 0.45;
+        ctx.beginPath(); ctx.moveTo(_scrX - 2, _scrY + 4); ctx.lineTo(_scrX + 4, _scrY + 10);  ctx.stroke();
         ctx.restore();
       }
 
-      // Tier 3: black eye, blood drip from forehead, extra scratch on torso
+      // Tier 3: black eye + realistic blood drip + extra scratch on torso
       if (_dTier >= 3) {
         ctx.save();
-        // Black / dark purple eye on the non-facing side
-        ctx.globalAlpha = 0.50;
-        ctx.fillStyle = '#1a0025';
+        // Black eye — small dark ellipse over the eye socket, not filling half the face
+        ctx.globalAlpha = 0.55;
+        ctx.fillStyle = '#200030';
         ctx.beginPath();
-        ctx.ellipse(cx - f * 3.5, headCY - 2.5, 4.5, 3.2, 0, 0, Math.PI * 2);
-        ctx.fill();
-        // Blood drip from top of head, animates downward and loops
-        const _dripPhase = (t * 0.7) % 22;
-        ctx.globalAlpha = 0.75;
-        ctx.fillStyle = '#cc0808';
+        ctx.ellipse(cx - f * 2.5, headCY - 1.5, 3.5, 2.5, 0, 0, Math.PI * 2); ctx.fill();
+        // Blood drip — genuine teardrop: round bead at top, thinning tail stretching down
+        const _drip = (t * 0.6) % 20;
+        const _dripX = cx + f * 1.8;
+        const _dripY0 = headCY - headR + 2;
+        ctx.globalAlpha = 0.80;
+        ctx.fillStyle = '#cc0606';
+        // Bead
+        ctx.beginPath(); ctx.arc(_dripX, _dripY0 + _drip, 1.8, 0, Math.PI * 2); ctx.fill();
+        // Tail — thin rectangle above the bead
+        if (_drip > 1) {
+          ctx.fillRect(_dripX - 0.8, _dripY0, 1.6, _drip);
+        }
+        // Extra fine scratch lower on torso
+        ctx.globalAlpha = 0.55;
+        ctx.strokeStyle = '#990000'; ctx.lineWidth = 1; ctx.lineCap = 'round';
         ctx.beginPath();
-        ctx.ellipse(cx + f * 2.5, headCY - headR + 1 + _dripPhase, 2.2, Math.min(5.0, 2.2 + _dripPhase * 0.15), 0, 0, Math.PI * 2);
-        ctx.fill();
-        // Additional scratch lower on torso
-        ctx.globalAlpha = 0.60;
-        ctx.strokeStyle = '#990000';
-        ctx.lineWidth = 1.8;
-        ctx.lineCap = 'round';
-        ctx.beginPath();
-        ctx.moveTo(cx - 7, shoulderY + 17 + (_dseed % 4));
-        ctx.lineTo(cx + 4, shoulderY + 28 + (_dseed % 4));
-        ctx.stroke();
+        ctx.moveTo(cx - 5, shoulderY + 16 + (_dseed % 4));
+        ctx.lineTo(cx + 3, shoulderY + 24 + (_dseed % 4)); ctx.stroke();
         ctx.restore();
       }
     }
@@ -4717,28 +4874,50 @@ class Fighter {
       ctx.globalAlpha = 1; ctx.shadowBlur = 0; ctx.restore();
     }
 
-    // ── Giant Fist (boxing gloves super) ────────────────────────────────────────
-    if (this._giantFist) {
-      const gf    = this._giantFist;
-      const pulse = 0.7 + 0.3 * Math.sin(frameCount * 0.3);
+    // ── Combat counter stance glow ────────────────────────────────────────────────
+    if (this._counterStance > 0) {
+      const _cf = this._counterStance;
+      const _pulse = 0.6 + 0.4 * Math.sin(frameCount * 0.35);
+      const _alpha = Math.min(1, _cf / 12) * _pulse;
       ctx.save();
-      ctx.translate(gf.x, gf.y);
-      ctx.scale(gf.vx > 0 ? 1 : -1, 1);
-      ctx.globalAlpha = Math.min(1, gf.life / 10);
-      ctx.shadowColor = '#ff2222';
-      ctx.shadowBlur  = 18 + pulse * 10;
-      ctx.fillStyle   = '#ee3333';
+      ctx.globalAlpha = _alpha * 0.55;
+      ctx.shadowColor  = '#ff4444';
+      ctx.shadowBlur   = 24;
+      ctx.strokeStyle  = '#ff6644';
+      ctx.lineWidth    = 3;
       ctx.beginPath();
-      ctx.roundRect(-38, -24, 76, 48, 14);
+      ctx.arc(this.cx(), this.cy(), 28 + _pulse * 6, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.globalAlpha = _alpha * 0.18;
+      ctx.fillStyle   = '#ff2200';
+      ctx.beginPath();
+      ctx.arc(this.cx(), this.cy(), 28 + _pulse * 6, 0, Math.PI * 2);
       ctx.fill();
-      ctx.strokeStyle = '#ff9999';
-      ctx.lineWidth   = 2;
-      for (let _ki = -1; _ki <= 1; _ki++) {
-        ctx.beginPath();
-        ctx.moveTo(_ki * 19, -24);
-        ctx.lineTo(_ki * 19, -10);
-        ctx.stroke();
-      }
+      ctx.shadowBlur  = 0;
+      ctx.restore();
+    }
+
+    // ── Combat super: Combo Strike impact flash ──────────────────────────────────
+    if (this._comboSuper && this._comboSuper.impactFlash > 0) {
+      const cs = this._comboSuper;
+      const _csAlpha = cs.impactFlash / 18;
+      const _csPunch = cs.phase === 3;
+      ctx.save();
+      ctx.globalAlpha = _csAlpha * 0.9;
+      ctx.shadowColor = _csPunch ? '#ffcc44' : '#ff4444';
+      ctx.shadowBlur  = _csPunch ? 22 : 14;
+      // Starburst impact ring
+      ctx.strokeStyle = _csPunch ? '#ffee44' : '#ff5555';
+      ctx.lineWidth   = _csPunch ? 4 : 3;
+      ctx.beginPath();
+      ctx.arc(cs.impactX, cs.impactY, (_csPunch ? 32 : 20) * (1 - _csAlpha * 0.3), 0, Math.PI * 2);
+      ctx.stroke();
+      // Inner filled core
+      ctx.globalAlpha = _csAlpha * 0.5;
+      ctx.fillStyle   = _csPunch ? '#ffdd44' : '#ff3333';
+      ctx.beginPath();
+      ctx.arc(cs.impactX, cs.impactY, _csPunch ? 16 : 10, 0, Math.PI * 2);
+      ctx.fill();
       ctx.shadowBlur = 0;
       ctx.restore();
     }
@@ -4867,7 +5046,7 @@ class Fighter {
     const _glowColors = {
       sword: '#c8e8ff', hammer: '#ffaa44', gun: '#ff4444', axe: '#ff6633',
       spear: '#8888ff', bow: '#aadd88', shield: '#4488ff', scythe: '#aabbcc',
-      fryingpan: '#ffcc44', broomstick: '#ddbb44', boxinggloves: '#ff3333',
+      fryingpan: '#ffcc44', broomstick: '#ddbb44', combat: '#ff3333',
       peashooter: '#44ff66', slingshot: '#cc8844', paperairplane: '#aaccff',
       flail: '#cccccc', whip: '#cc8833', boomerang: '#cc9944',
       katana: '#8888cc', flamethrower: '#ff5500', electricstaff: '#00ccff',
@@ -4911,39 +5090,148 @@ class Fighter {
     }
 
     if (k === 'sword') {
-      ctx.strokeStyle = '#cccccc';
-      ctx.lineWidth   = 3;
-      ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(26,-3); ctx.stroke();
-      ctx.strokeStyle = '#ffee99';
-      ctx.lineWidth   = 1.5;
-      ctx.beginPath(); ctx.moveTo(-5,0); ctx.lineTo(5,0); ctx.stroke();
+      // Pommel
+      const _swPomGrd = ctx.createRadialGradient(-7,0,0,-7,0,4);
+      _swPomGrd.addColorStop(0,'#e0e0e0'); _swPomGrd.addColorStop(1,'#888888');
+      ctx.fillStyle = _swPomGrd;
+      ctx.beginPath(); ctx.arc(-7,0,3.5,0,Math.PI*2); ctx.fill();
+      // Grip
+      const _swGrpGrd = ctx.createLinearGradient(0,-3,0,3);
+      _swGrpGrd.addColorStop(0,'#7a4a20'); _swGrpGrd.addColorStop(0.5,'#4a2a10'); _swGrpGrd.addColorStop(1,'#7a4a20');
+      ctx.fillStyle = _swGrpGrd;
+      ctx.beginPath(); ctx.roundRect(-4,-2.5,14,5,1); ctx.fill();
+      ctx.strokeStyle='rgba(0,0,0,0.35)'; ctx.lineWidth=1;
+      for(let _gi=0;_gi<4;_gi++){ctx.beginPath();ctx.moveTo(-3+_gi*3,-2.5);ctx.lineTo(-3+_gi*3,2.5);ctx.stroke();}
+      // Crossguard
+      const _swCgGrd = ctx.createLinearGradient(9,-8,9,8);
+      _swCgGrd.addColorStop(0,'#cccccc'); _swCgGrd.addColorStop(0.45,'#aaaaaa'); _swCgGrd.addColorStop(1,'#777777');
+      ctx.fillStyle = _swCgGrd;
+      ctx.beginPath(); ctx.roundRect(9,-7.5,6,15,1.5); ctx.fill();
+      ctx.strokeStyle='#dddddd'; ctx.lineWidth=0.7; ctx.stroke();
+      // Blade — tapered leaf shape
+      const _swBlGrd = ctx.createLinearGradient(0,-3,0,3);
+      _swBlGrd.addColorStop(0,'#eaeaf2'); _swBlGrd.addColorStop(0.35,'#c8c8d8'); _swBlGrd.addColorStop(1,'#8888aa');
+      ctx.fillStyle = _swBlGrd;
+      ctx.beginPath(); ctx.moveTo(14,-2.8); ctx.lineTo(46,0); ctx.lineTo(14,2.8); ctx.closePath(); ctx.fill();
+      // Fuller groove
+      ctx.strokeStyle='rgba(0,0,0,0.12)'; ctx.lineWidth=0.9;
+      ctx.beginPath(); ctx.moveTo(15,0.6); ctx.lineTo(38,0.4); ctx.stroke();
+      // Edge highlight
+      ctx.strokeStyle='rgba(255,255,255,0.85)'; ctx.lineWidth=0.9;
+      ctx.beginPath(); ctx.moveTo(14,-2.8); ctx.lineTo(46,0); ctx.stroke();
+      // Attack gleam
+      if(attacking){
+        ctx.globalAlpha=0.55+0.3*Math.sin(frameCount*0.3);
+        ctx.strokeStyle='#ffffff'; ctx.lineWidth=1.4;
+        ctx.beginPath(); ctx.moveTo(22,-1.8); ctx.lineTo(46,0); ctx.stroke();
+        ctx.fillStyle='#ffffff';
+        ctx.beginPath(); ctx.arc(46,0,2.8,0,Math.PI*2); ctx.fill();
+        ctx.globalAlpha=1;
+      }
 
     } else if (k === 'hammer') {
-      ctx.strokeStyle = '#888';
-      ctx.lineWidth   = 3;
-      ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(20,0); ctx.stroke();
-      ctx.fillStyle   = '#777';
-      ctx.fillRect(17, -9, 13, 15);
-      ctx.fillStyle   = '#999';
-      ctx.fillRect(17, -9, 13, 4);
+      // Handle — dark wood with grain
+      const _hmHndGrd = ctx.createLinearGradient(0,-2.5,0,2.5);
+      _hmHndGrd.addColorStop(0,'#7a4a20'); _hmHndGrd.addColorStop(0.5,'#4a2a10'); _hmHndGrd.addColorStop(1,'#7a4a20');
+      ctx.fillStyle = _hmHndGrd;
+      ctx.beginPath(); ctx.roundRect(-4,-2.5,27,5,1.5); ctx.fill();
+      ctx.strokeStyle='rgba(0,0,0,0.2)'; ctx.lineWidth=0.9;
+      for(let _hi=0;_hi<5;_hi++){ctx.beginPath();ctx.moveTo(0+_hi*5,-2.5);ctx.lineTo(0+_hi*5,2.5);ctx.stroke();}
+      // Metal collar
+      ctx.fillStyle='#666677'; ctx.beginPath(); ctx.roundRect(20,-3.5,4,7,1); ctx.fill();
+      ctx.strokeStyle='#9999aa'; ctx.lineWidth=0.8; ctx.stroke();
+      // Head body
+      const _hmHdGrd = ctx.createLinearGradient(22,-13,22,12);
+      _hmHdGrd.addColorStop(0,'#aaaaaa'); _hmHdGrd.addColorStop(0.3,'#888888'); _hmHdGrd.addColorStop(1,'#555555');
+      ctx.fillStyle = _hmHdGrd;
+      ctx.beginPath(); ctx.roundRect(22,-13,16,24,2.5); ctx.fill();
+      // Strike face highlight (front of hammer)
+      const _hmFcGrd = ctx.createLinearGradient(35,-13,35,11);
+      _hmFcGrd.addColorStop(0,'#cccccc'); _hmFcGrd.addColorStop(1,'#888888');
+      ctx.fillStyle = _hmFcGrd;
+      ctx.beginPath(); ctx.roundRect(35,-12,4,23,1.5); ctx.fill();
+      // Head rim
+      ctx.strokeStyle='#aaaaaa'; ctx.lineWidth=1.2;
+      ctx.beginPath(); ctx.roundRect(22,-13,16,24,2.5); ctx.stroke();
+      if(attacking){
+        const _hmAtk=0.35+0.2*Math.sin(frameCount*0.2);
+        ctx.shadowColor='#ffcc44'; ctx.shadowBlur=20;
+        ctx.globalAlpha=_hmAtk; ctx.fillStyle='#ffcc44';
+        ctx.beginPath(); ctx.roundRect(22,-13,16,24,2.5); ctx.fill();
+        ctx.globalAlpha=1; ctx.shadowBlur=0;
+      }
 
     } else if (k === 'gun') {
-      ctx.fillStyle = '#444';
-      ctx.fillRect(0, -4, 18, 8);
-      ctx.fillStyle = '#333';
-      ctx.fillRect(15, -2, 12, 4);
-      ctx.fillStyle = '#555';
-      ctx.fillRect(4, 4, 6, 5);
+      // _gSide mirrors the grip direction with facing so it always hangs visually downward
+      // after arm rotation (at carry angle >π/2, local +y inverts in canvas space)
+      const _gSide = this.facing;
+      // Slide / upper frame
+      const _gnSldGrd = ctx.createLinearGradient(0,-5,0,4);
+      _gnSldGrd.addColorStop(0,'#666666'); _gnSldGrd.addColorStop(1,'#333333');
+      ctx.fillStyle=_gnSldGrd;
+      ctx.beginPath();
+      ctx.moveTo(0,-4); ctx.lineTo(22,-4); ctx.lineTo(24,-2); ctx.lineTo(24,3); ctx.lineTo(0,3); ctx.closePath(); ctx.fill();
+      // Slide serrations
+      ctx.strokeStyle='rgba(255,255,255,0.12)'; ctx.lineWidth=0.9;
+      for(let _gsi=0;_gsi<3;_gsi++){ctx.beginPath();ctx.moveTo(4+_gsi*4,-4);ctx.lineTo(4+_gsi*4,3);ctx.stroke();}
+      // Ejection port cut
+      ctx.fillStyle='#222222'; ctx.fillRect(8,-4,8,2);
+      // Barrel extending forward
+      const _gnBrlGrd = ctx.createLinearGradient(0,-2,0,2);
+      _gnBrlGrd.addColorStop(0,'#555555'); _gnBrlGrd.addColorStop(1,'#333333');
+      ctx.fillStyle=_gnBrlGrd; ctx.beginPath(); ctx.roundRect(22,-2,9,4,1); ctx.fill();
+      ctx.strokeStyle='#555555'; ctx.lineWidth=0.6; ctx.stroke();
+      // Grip — direction flips with facing so the grip hangs the correct way after arm rotation
+      const _gnGrpGrd = ctx.createLinearGradient(0, 3*_gSide, 0, 14*_gSide);
+      _gnGrpGrd.addColorStop(0,'#444444'); _gnGrpGrd.addColorStop(1,'#2a2a2a');
+      ctx.fillStyle=_gnGrpGrd;
+      ctx.beginPath(); ctx.moveTo(1,3*_gSide); ctx.lineTo(8,3*_gSide); ctx.lineTo(6,14*_gSide); ctx.lineTo(-1,14*_gSide); ctx.closePath(); ctx.fill();
+      ctx.strokeStyle='rgba(255,255,255,0.08)'; ctx.lineWidth=0.7;
+      for(let _ggi=0;_ggi<3;_ggi++){ctx.beginPath();ctx.moveTo(0+_ggi*2,5*_gSide);ctx.lineTo(0+_ggi*2,12*_gSide);ctx.stroke();}
+      // Trigger guard — follows grip side
+      ctx.strokeStyle='#555555'; ctx.lineWidth=1.2;
+      ctx.save(); ctx.scale(1, _gSide);
+      ctx.beginPath(); ctx.arc(4,8,5,-Math.PI*0.15,Math.PI*0.65); ctx.stroke();
+      ctx.restore();
+      // Rear sight
+      ctx.fillStyle='#888888'; ctx.fillRect(2,-6,3,2);
+      // Front sight post
+      ctx.fillStyle='#888888'; ctx.fillRect(20,-6,2,2);
+      // Muzzle flash when attacking
+      if(attacking){
+        ctx.shadowColor='#ffcc44'; ctx.shadowBlur=16;
+        ctx.fillStyle='#ffee88'; ctx.beginPath(); ctx.arc(31,0,4.5,0,Math.PI*2); ctx.fill();
+        ctx.globalAlpha=0.7; ctx.fillStyle='#ffffff';
+        ctx.beginPath(); ctx.arc(31,0,2.2,0,Math.PI*2); ctx.fill();
+        ctx.globalAlpha=1; ctx.shadowBlur=0;
+      }
 
     } else if (k === 'axe') {
-      ctx.strokeStyle = '#cc4422';
-      ctx.lineWidth   = 3;
-      ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(18,0); ctx.stroke();
+      // Handle
+      const _axHndGrd = ctx.createLinearGradient(0,-2,0,2);
+      _axHndGrd.addColorStop(0,'#6b3a1f'); _axHndGrd.addColorStop(0.5,'#4a2510'); _axHndGrd.addColorStop(1,'#6b3a1f');
+      ctx.fillStyle=_axHndGrd; ctx.beginPath(); ctx.roundRect(-3,-2,24,4,1); ctx.fill();
+      ctx.strokeStyle='rgba(0,0,0,0.2)'; ctx.lineWidth=0.8;
+      for(let _axi=0;_axi<4;_axi++){ctx.beginPath();ctx.moveTo(0+_axi*5,-2);ctx.lineTo(0+_axi*5,2);ctx.stroke();}
+      // Poll (flat back of head)
+      ctx.fillStyle='#888888'; ctx.beginPath(); ctx.roundRect(16,-4,5,8,1); ctx.fill();
+      ctx.strokeStyle='#aaaaaa'; ctx.lineWidth=0.7; ctx.stroke();
+      // Axe head — curved single-bit blade
+      const _axHdGrd = ctx.createLinearGradient(18,-14,18,9);
+      _axHdGrd.addColorStop(0,'#cc5533'); _axHdGrd.addColorStop(0.4,'#aa3311'); _axHdGrd.addColorStop(1,'#772200');
+      ctx.fillStyle=_axHdGrd;
       ctx.beginPath();
-      ctx.moveTo(14,-11); ctx.lineTo(23,2); ctx.lineTo(13,5);
-      ctx.closePath();
-      ctx.fillStyle = '#cc4422';
-      ctx.fill();
+      ctx.moveTo(20,-14);
+      ctx.bezierCurveTo(30,-12,34,-6,34,2);
+      ctx.bezierCurveTo(34,8,28,11,22,8);
+      ctx.lineTo(20,2); ctx.lineTo(20,-2);
+      ctx.closePath(); ctx.fill();
+      // Cutting edge highlight
+      ctx.strokeStyle='#ff8866'; ctx.lineWidth=1.3;
+      ctx.shadowColor=attacking?'#ff5522':'#cc4411'; ctx.shadowBlur=attacking?14:5;
+      ctx.beginPath();
+      ctx.moveTo(20,-14); ctx.bezierCurveTo(30,-12,34,-6,34,2); ctx.bezierCurveTo(34,8,28,11,22,8);
+      ctx.stroke(); ctx.shadowBlur=0;
 
     } else if (k === 'stormbreaker') {
       // Long war-axe held in hand; lightning crackles from the blade tip
@@ -4976,119 +5264,261 @@ class Fighter {
       ctx.globalAlpha = 1;
 
     } else if (k === 'spear') {
-      ctx.strokeStyle = '#8888ff';
-      ctx.lineWidth   = 4;
-      ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(30,0); ctx.stroke();
-      ctx.beginPath();
-      ctx.moveTo(27,-7); ctx.lineTo(38,0); ctx.lineTo(27,7);
-      ctx.closePath();
-      ctx.fillStyle = '#aaaaff';
-      ctx.fill();
+      // Shaft — hardwood pole
+      const _spShGrd = ctx.createLinearGradient(0,-2.5,0,2.5);
+      _spShGrd.addColorStop(0,'#5a3a1a'); _spShGrd.addColorStop(0.5,'#7a5a2a'); _spShGrd.addColorStop(1,'#5a3a1a');
+      ctx.fillStyle=_spShGrd; ctx.beginPath(); ctx.roundRect(-4,-2,38,4,1); ctx.fill();
+      ctx.strokeStyle='rgba(0,0,0,0.12)'; ctx.lineWidth=0.6;
+      ctx.beginPath(); ctx.moveTo(0,-0.8); ctx.lineTo(32,-0.8); ctx.stroke();
+      // Socket
+      ctx.fillStyle='#778899'; ctx.beginPath(); ctx.roundRect(30,-3.5,6,7,1); ctx.fill();
+      ctx.strokeStyle='#aabbcc'; ctx.lineWidth=0.8; ctx.stroke();
+      // Spearhead — leaf shape with fuller
+      const _spHdGrd = ctx.createLinearGradient(0,-7,0,7);
+      _spHdGrd.addColorStop(0,'#aaaaff'); _spHdGrd.addColorStop(0.4,'#8888cc'); _spHdGrd.addColorStop(1,'#5555aa');
+      ctx.fillStyle=_spHdGrd;
+      ctx.beginPath(); ctx.moveTo(34,-7.5); ctx.lineTo(48,0); ctx.lineTo(34,7.5); ctx.lineTo(36,0); ctx.closePath(); ctx.fill();
+      // Fuller groove
+      ctx.strokeStyle='rgba(0,0,0,0.2)'; ctx.lineWidth=0.8;
+      ctx.beginPath(); ctx.moveTo(35,0); ctx.lineTo(45,0); ctx.stroke();
+      // Edge highlight
+      ctx.strokeStyle='#ccccff'; ctx.lineWidth=1;
+      ctx.beginPath(); ctx.moveTo(34,-7.5); ctx.lineTo(48,0); ctx.stroke();
+      if(attacking){
+        ctx.shadowColor='#aaaaff'; ctx.shadowBlur=18;
+        ctx.globalAlpha=0.55; ctx.fillStyle='#ccccff';
+        ctx.beginPath(); ctx.arc(48,0,3,0,Math.PI*2); ctx.fill();
+        ctx.globalAlpha=1; ctx.shadowBlur=0;
+      }
 
     } else if (k === 'bow') {
-      // Curved bow + arrow nocked
-      ctx.strokeStyle = '#8b5e3c'; ctx.lineWidth = 2.5;
-      ctx.beginPath();
-      ctx.arc(0, 0, 18, -Math.PI * 0.6, Math.PI * 0.6);
-      ctx.stroke();
-      // String
-      ctx.strokeStyle = '#ddd'; ctx.lineWidth = 1;
-      ctx.beginPath(); ctx.moveTo(0, -18 * Math.sin(Math.PI * 0.6)); ctx.lineTo(0, 18 * Math.sin(Math.PI * 0.6)); ctx.stroke();
-      // Arrow
-      ctx.strokeStyle = '#c8a060'; ctx.lineWidth = 1.5;
-      ctx.beginPath(); ctx.moveTo(-4, 0); ctx.lineTo(22, 0); ctx.stroke();
-      ctx.fillStyle = '#888';
-      ctx.beginPath(); ctx.moveTo(22, -4); ctx.lineTo(28, 0); ctx.lineTo(22, 4); ctx.fill();
+      // Bow limbs — two curved arcs for upper and lower limb
+      ctx.strokeStyle='#6b3a1a'; ctx.lineWidth=4; ctx.lineCap='round';
+      ctx.beginPath(); ctx.moveTo(-5,-17); ctx.bezierCurveTo(2,-9,5,-3,5,0); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(-5,17);  ctx.bezierCurveTo(2,9,5,3,5,0);  ctx.stroke();
+      // Grain highlight on limbs
+      ctx.strokeStyle='#9b6a3a'; ctx.lineWidth=1.5;
+      ctx.beginPath(); ctx.moveTo(-4,-16); ctx.bezierCurveTo(3,-8,5,-2,5,0); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(-4,16);  ctx.bezierCurveTo(3,8,5,2,5,0);  ctx.stroke();
+      // Recurve tips
+      ctx.strokeStyle='#4a2010'; ctx.lineWidth=4; ctx.lineCap='round';
+      ctx.beginPath(); ctx.moveTo(-5,-17); ctx.lineTo(-9,-20); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(-5,17);  ctx.lineTo(-9,20);  ctx.stroke();
+      // String — from tip to tip, pulled slightly forward at center
+      ctx.strokeStyle='#e8e8e8'; ctx.lineWidth=1;
+      ctx.beginPath(); ctx.moveTo(-9,-20); ctx.lineTo(-7,0); ctx.lineTo(-9,20); ctx.stroke();
+      // Arrow shaft
+      ctx.strokeStyle='#c8a060'; ctx.lineWidth=1.6;
+      ctx.beginPath(); ctx.moveTo(-7,0); ctx.lineTo(22,0); ctx.stroke();
+      // Arrowhead
+      const _bwArGrd = ctx.createLinearGradient(20,-3,20,3);
+      _bwArGrd.addColorStop(0,'#bbbbbb'); _bwArGrd.addColorStop(1,'#666666');
+      ctx.fillStyle=_bwArGrd;
+      ctx.beginPath(); ctx.moveTo(20,-3.5); ctx.lineTo(27,0); ctx.lineTo(20,3.5); ctx.closePath(); ctx.fill();
+      ctx.strokeStyle='#dddddd'; ctx.lineWidth=0.7; ctx.stroke();
+      // Fletching — two angled vanes at the tail
+      ctx.strokeStyle='#cc3333'; ctx.lineWidth=1.6;
+      ctx.beginPath(); ctx.moveTo(-5,0); ctx.lineTo(-10,-5); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(-5,0); ctx.lineTo(-10,5);  ctx.stroke();
+      ctx.strokeStyle='#ffffff'; ctx.lineWidth=0.8;
+      ctx.beginPath(); ctx.moveTo(-5,0); ctx.lineTo(-9,0); ctx.stroke();
+      if(attacking){
+        ctx.shadowColor='#aadd88'; ctx.shadowBlur=14;
+        ctx.globalAlpha=0.55; ctx.fillStyle='#ccff88';
+        ctx.beginPath(); ctx.arc(27,0,2.5,0,Math.PI*2); ctx.fill();
+        ctx.globalAlpha=1; ctx.shadowBlur=0;
+      }
 
     } else if (k === 'shield') {
-      // Kite shield
-      ctx.fillStyle = '#4466cc';
+      // Kite shield body with gradient
+      const _shFillGrd = ctx.createLinearGradient(-12,-14,12,16);
+      _shFillGrd.addColorStop(0,'#5577dd'); _shFillGrd.addColorStop(0.5,'#3355bb'); _shFillGrd.addColorStop(1,'#223399');
+      ctx.fillStyle=_shFillGrd;
       ctx.beginPath();
-      ctx.moveTo(-8, -14); ctx.lineTo(8, -14);
-      ctx.lineTo(12, 4); ctx.lineTo(0, 16); ctx.lineTo(-12, 4);
+      ctx.moveTo(-9,-15); ctx.lineTo(9,-15); ctx.lineTo(13,4); ctx.lineTo(0,17); ctx.lineTo(-13,4);
       ctx.closePath(); ctx.fill();
-      ctx.strokeStyle = '#aabbff'; ctx.lineWidth = 1.5; ctx.stroke();
-      // Boss trim
-      ctx.strokeStyle = '#ffee88'; ctx.lineWidth = 1;
-      ctx.beginPath(); ctx.moveTo(0, -8); ctx.lineTo(0, 10); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(-7, -2); ctx.lineTo(7, -2); ctx.stroke();
+      // Metal rim
+      ctx.strokeStyle='#aabbff'; ctx.lineWidth=1.8; ctx.stroke();
+      // Heraldic cross
+      ctx.strokeStyle='rgba(255,238,120,0.85)'; ctx.lineWidth=1.2;
+      ctx.beginPath(); ctx.moveTo(0,-10); ctx.lineTo(0,11); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(-8,-1); ctx.lineTo(8,-1); ctx.stroke();
+      // Central boss (round rivet)
+      const _shBossGrd = ctx.createRadialGradient(0,-1,0,0,-1,5);
+      _shBossGrd.addColorStop(0,'#ffee88'); _shBossGrd.addColorStop(1,'#cc9900');
+      ctx.fillStyle=_shBossGrd; ctx.beginPath(); ctx.arc(0,-1,4.5,0,Math.PI*2); ctx.fill();
+      ctx.strokeStyle='#ffdd55'; ctx.lineWidth=0.8; ctx.stroke();
+      // Corner rivets
+      ctx.fillStyle='#ffdd55';
+      [[-6,-10],[6,-10],[9,5],[0,14],[-9,5]].forEach(([rx,ry])=>{
+        ctx.beginPath(); ctx.arc(rx,ry,1.5,0,Math.PI*2); ctx.fill();
+      });
+      // Sheen highlight
+      ctx.globalAlpha=0.25;
+      ctx.fillStyle='#ffffff';
+      ctx.beginPath(); ctx.moveTo(-7,-14); ctx.lineTo(2,-14); ctx.lineTo(5,2); ctx.lineTo(-9,2); ctx.closePath(); ctx.fill();
+      ctx.globalAlpha=1;
 
     } else if (k === 'scythe') {
-      // Long handle
-      ctx.strokeStyle = '#5a3a1a'; ctx.lineWidth = 2.5;
-      ctx.beginPath(); ctx.moveTo(-6, 0); ctx.lineTo(28, 0); ctx.stroke();
-      // Curved blade
-      ctx.fillStyle = '#778899';
+      // Shaft — long dark wood pole
+      const _scShGrd = ctx.createLinearGradient(0,-2,0,2);
+      _scShGrd.addColorStop(0,'#5a3a1a'); _scShGrd.addColorStop(0.5,'#7a5a2a'); _scShGrd.addColorStop(1,'#5a3a1a');
+      ctx.fillStyle=_scShGrd; ctx.beginPath(); ctx.roundRect(-6,-2,36,4,1); ctx.fill();
+      ctx.strokeStyle='rgba(0,0,0,0.15)'; ctx.lineWidth=0.7;
+      ctx.beginPath(); ctx.moveTo(-4,-0.8); ctx.lineTo(28,-0.8); ctx.stroke();
+      // Blade ferrule (socket where blade meets shaft)
+      ctx.fillStyle='#667788'; ctx.beginPath(); ctx.roundRect(24,-3.5,5,7,1); ctx.fill();
+      ctx.strokeStyle='#99aabb'; ctx.lineWidth=0.8; ctx.stroke();
+      // Scythe blade — wide sweeping crescent
+      const _scBlGrd = ctx.createLinearGradient(20,-28,28,-2);
+      _scBlGrd.addColorStop(0,'#99aabb'); _scBlGrd.addColorStop(0.5,'#778899'); _scBlGrd.addColorStop(1,'#445566');
+      ctx.fillStyle=_scBlGrd;
       ctx.beginPath();
-      ctx.moveTo(18, -2);
-      ctx.quadraticCurveTo(34, -20, 26, -28);
-      ctx.quadraticCurveTo(14, -20, 18, -2);
+      ctx.moveTo(22,-2);
+      ctx.bezierCurveTo(36,-8,38,-22,28,-30);
+      ctx.bezierCurveTo(18,-26,14,-16,22,-2);
       ctx.fill();
-      ctx.strokeStyle = '#aabbcc'; ctx.lineWidth = 1; ctx.stroke();
+      // Inner edge (sharp inside of crescent)
+      ctx.strokeStyle='#ccdde8'; ctx.lineWidth=1.4;
+      ctx.beginPath();
+      ctx.moveTo(22,-2); ctx.bezierCurveTo(36,-8,38,-22,28,-30); ctx.stroke();
+      // Back edge (spine of blade — thicker)
+      ctx.strokeStyle='rgba(0,0,0,0.2)'; ctx.lineWidth=1.2;
+      ctx.beginPath();
+      ctx.moveTo(22,-2); ctx.bezierCurveTo(14,-16,18,-26,28,-30); ctx.stroke();
+      // Tip gleam
+      if(attacking){
+        ctx.shadowColor='#99ccdd'; ctx.shadowBlur=14;
+        ctx.globalAlpha=0.6; ctx.fillStyle='#cceeee';
+        ctx.beginPath(); ctx.arc(28,-30,3,0,Math.PI*2); ctx.fill();
+        ctx.globalAlpha=1; ctx.shadowBlur=0;
+      }
 
     } else if (k === 'fryingpan') {
-      // Handle
-      ctx.strokeStyle = '#6b4c2a'; ctx.lineWidth = 3;
-      ctx.beginPath(); ctx.moveTo(-2, 0); ctx.lineTo(16, 0); ctx.stroke();
-      // Pan head
-      ctx.fillStyle = '#555';
-      ctx.beginPath(); ctx.arc(23, 0, 10, 0, Math.PI * 2); ctx.fill();
-      ctx.strokeStyle = '#777'; ctx.lineWidth = 1.5; ctx.stroke();
-      // Shine
-      ctx.fillStyle = 'rgba(255,255,255,0.18)';
-      ctx.beginPath(); ctx.ellipse(20, -4, 5, 3, -0.4, 0, Math.PI * 2); ctx.fill();
+      // Handle — riveted metal with wood grip
+      const _fpHndGrd = ctx.createLinearGradient(0,-3,0,3);
+      _fpHndGrd.addColorStop(0,'#7a5a2a'); _fpHndGrd.addColorStop(0.5,'#4a3010'); _fpHndGrd.addColorStop(1,'#7a5a2a');
+      ctx.fillStyle=_fpHndGrd; ctx.beginPath(); ctx.roundRect(-3,-2.5,20,5,1.5); ctx.fill();
+      // Rivet on handle
+      ctx.fillStyle='#888888'; ctx.beginPath(); ctx.arc(5,0,1.5,0,Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.arc(13,0,1.5,0,Math.PI*2); ctx.fill();
+      // Pan body — dark seasoned steel
+      const _fpPanGrd = ctx.createRadialGradient(23,0,2,23,-2,12);
+      _fpPanGrd.addColorStop(0,'#444444'); _fpPanGrd.addColorStop(0.7,'#333333'); _fpPanGrd.addColorStop(1,'#222222');
+      ctx.fillStyle=_fpPanGrd;
+      ctx.beginPath(); ctx.arc(23,0,11,0,Math.PI*2); ctx.fill();
+      ctx.strokeStyle='#555555'; ctx.lineWidth=1.5; ctx.stroke();
+      // Pan rim
+      ctx.strokeStyle='#666666'; ctx.lineWidth=2;
+      ctx.beginPath(); ctx.arc(23,0,11,0,Math.PI*2); ctx.stroke();
+      // Specular highlight (big cookware shine)
+      ctx.globalAlpha=0.35; ctx.fillStyle='#ffffff';
+      ctx.beginPath(); ctx.ellipse(19,-4,5,3,-0.4,0,Math.PI*2); ctx.fill();
+      ctx.globalAlpha=0.12; ctx.beginPath(); ctx.arc(26,2,3,0,Math.PI*2); ctx.fill();
+      ctx.globalAlpha=1;
+      if(attacking){
+        ctx.shadowColor='#ffcc44'; ctx.shadowBlur=12;
+        ctx.globalAlpha=0.3; ctx.fillStyle='#ffcc44';
+        ctx.beginPath(); ctx.arc(23,0,11,0,Math.PI*2); ctx.fill();
+        ctx.globalAlpha=1; ctx.shadowBlur=0;
+      }
 
     } else if (k === 'broomstick') {
-      // Long stick
-      ctx.strokeStyle = '#8b6914'; ctx.lineWidth = 2.5;
-      ctx.beginPath(); ctx.moveTo(-4, 0); ctx.lineTo(32, 0); ctx.stroke();
-      // Bristles
-      ctx.strokeStyle = '#c8a040'; ctx.lineWidth = 1.5;
-      for (let bi = 0; bi < 5; bi++) {
-        const bx = 28 + bi * 2;
-        ctx.beginPath(); ctx.moveTo(bx, -7 + bi); ctx.lineTo(bx + 3, 7 - bi); ctx.stroke();
+      // Shaft — smooth polished wood
+      const _brShGrd = ctx.createLinearGradient(0,-2.5,0,2.5);
+      _brShGrd.addColorStop(0,'#9b7920'); _brShGrd.addColorStop(0.5,'#6b5010'); _brShGrd.addColorStop(1,'#9b7920');
+      ctx.fillStyle=_brShGrd; ctx.beginPath(); ctx.roundRect(-4,-2,36,4,1); ctx.fill();
+      // Wood grain lines
+      ctx.strokeStyle='rgba(0,0,0,0.15)'; ctx.lineWidth=0.6;
+      ctx.beginPath(); ctx.moveTo(0,-0.8); ctx.lineTo(30,-0.8); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(5,0.8); ctx.lineTo(26,0.8); ctx.stroke();
+      // Binding (twine wrap where bristles meet)
+      ctx.fillStyle='#8b4040'; ctx.beginPath(); ctx.roundRect(27,-4,4,8,1); ctx.fill();
+      ctx.strokeStyle='#aa6060'; ctx.lineWidth=0.8; ctx.stroke();
+      // Bristle bundle — fanned out
+      ctx.strokeStyle='#c8a040'; ctx.lineWidth=1.4; ctx.lineCap='round';
+      for(let _bri=0;_bri<7;_bri++){
+        const _brFrac=(_bri-3)/3;
+        ctx.beginPath();
+        ctx.moveTo(30,_brFrac*3);
+        ctx.lineTo(38+_bri*0.5,_brFrac*8);
+        ctx.stroke();
       }
-      // Binding
-      ctx.strokeStyle = '#8b4040'; ctx.lineWidth = 2;
-      ctx.beginPath(); ctx.moveTo(26, -5); ctx.lineTo(26, 5); ctx.stroke();
+      // Bristle tip line
+      ctx.strokeStyle='#e8c060'; ctx.lineWidth=0.8;
+      ctx.beginPath(); ctx.moveTo(37,-7); ctx.lineTo(42,7); ctx.stroke();
 
-    } else if (k === 'boxinggloves') {
-      // Large rounded glove
-      ctx.fillStyle = '#cc2222';
-      ctx.beginPath(); ctx.roundRect(0, -8, 20, 16, 6); ctx.fill();
-      ctx.strokeStyle = '#ff4444'; ctx.lineWidth = 1.5; ctx.stroke();
-      // Knuckle line
-      ctx.strokeStyle = '#ff8888'; ctx.lineWidth = 1;
-      ctx.beginPath(); ctx.moveTo(18, -5); ctx.lineTo(18, 5); ctx.stroke();
-      // Wrist band
-      ctx.fillStyle = '#ffffff';
-      ctx.fillRect(0, -2, 5, 4);
+    } else if (k === 'combat') {
+      // Wrist wrap — white band
+      ctx.fillStyle='#eeeeee'; ctx.beginPath(); ctx.roundRect(-4,-4,8,8,2); ctx.fill();
+      ctx.strokeStyle='#cccccc'; ctx.lineWidth=0.8; ctx.stroke();
+      // Velcro strap line
+      ctx.strokeStyle='rgba(0,0,0,0.15)'; ctx.lineWidth=0.9;
+      ctx.beginPath(); ctx.moveTo(-3,-1); ctx.lineTo(3,-1); ctx.stroke();
+      // Main glove body
+      const _bgGrd = ctx.createLinearGradient(2,-9,2,8);
+      _bgGrd.addColorStop(0,'#dd3333'); _bgGrd.addColorStop(0.5,'#bb1111'); _bgGrd.addColorStop(1,'#881111');
+      ctx.fillStyle=_bgGrd; ctx.beginPath(); ctx.roundRect(3,-9,20,18,7); ctx.fill();
+      ctx.strokeStyle='#ee4444'; ctx.lineWidth=1.5; ctx.stroke();
+      // Thumb bump
+      ctx.fillStyle='#cc2222'; ctx.beginPath(); ctx.ellipse(6,-7,4,3,0.5,0,Math.PI*2); ctx.fill();
+      // Knuckle ridge
+      ctx.strokeStyle='#ee7777'; ctx.lineWidth=1.2;
+      ctx.beginPath(); ctx.moveTo(21,-6); ctx.lineTo(21,6); ctx.stroke();
+      // Seam line down center
+      ctx.strokeStyle='rgba(0,0,0,0.2)'; ctx.lineWidth=0.8;
+      ctx.beginPath(); ctx.moveTo(10,-8); ctx.lineTo(10,8); ctx.stroke();
+      // Sheen highlight
+      ctx.globalAlpha=0.25; ctx.fillStyle='#ffffff';
+      ctx.beginPath(); ctx.ellipse(9,-5,5,3,-0.3,0,Math.PI*2); ctx.fill();
+      ctx.globalAlpha=1;
 
     } else if (k === 'peashooter') {
-      // Tube body
-      ctx.fillStyle = '#228833';
-      ctx.fillRect(0, -4, 22, 8);
-      ctx.strokeStyle = '#44aa44'; ctx.lineWidth = 1; ctx.strokeRect(0, -4, 22, 8);
-      // Barrel opening
-      ctx.fillStyle = '#0a1a0a';
-      ctx.beginPath(); ctx.arc(22, 0, 3.5, 0, Math.PI * 2); ctx.fill();
-      // Leaf detail
-      ctx.fillStyle = '#33aa33';
-      ctx.beginPath(); ctx.ellipse(8, -7, 7, 3, -0.3, 0, Math.PI * 2); ctx.fill();
+      // Stem / body — organic green tube
+      const _psGrd = ctx.createLinearGradient(0,-5,0,5);
+      _psGrd.addColorStop(0,'#33aa44'); _psGrd.addColorStop(0.5,'#227733'); _psGrd.addColorStop(1,'#1a5522');
+      ctx.fillStyle=_psGrd; ctx.beginPath(); ctx.roundRect(0,-4.5,24,9,3); ctx.fill();
+      ctx.strokeStyle='#44cc55'; ctx.lineWidth=1; ctx.stroke();
+      // Ribbing (plant node lines)
+      ctx.strokeStyle='rgba(0,0,0,0.15)'; ctx.lineWidth=1;
+      for(let _psi=0;_psi<3;_psi++){ctx.beginPath();ctx.moveTo(7+_psi*5,-4.5);ctx.lineTo(7+_psi*5,4.5);ctx.stroke();}
+      // Barrel mouth — dark opening with inner glow
+      ctx.fillStyle='#0a1a0a'; ctx.beginPath(); ctx.arc(24,0,4.5,0,Math.PI*2); ctx.fill();
+      ctx.strokeStyle='#33aa44'; ctx.lineWidth=1; ctx.stroke();
+      ctx.globalAlpha=0.5; ctx.fillStyle='#55ff66';
+      ctx.beginPath(); ctx.arc(24,0,2,0,Math.PI*2); ctx.fill(); ctx.globalAlpha=1;
+      // Leaf sprouting from top
+      ctx.fillStyle='#44cc44';
+      ctx.beginPath(); ctx.ellipse(8,-8,7,3.5,-0.4,0,Math.PI*2); ctx.fill();
+      ctx.strokeStyle='#66ee66'; ctx.lineWidth=0.7; ctx.stroke();
+      // Leaf vein
+      ctx.strokeStyle='rgba(0,0,0,0.2)'; ctx.lineWidth=0.6;
+      ctx.beginPath(); ctx.moveTo(4,-8); ctx.lineTo(12,-8); ctx.stroke();
+      // Soil pot at base
+      ctx.fillStyle='#8b5e2a'; ctx.beginPath(); ctx.roundRect(-1,4,8,5,1); ctx.fill();
 
     } else if (k === 'slingshot') {
-      // Y-fork
-      ctx.strokeStyle = '#6b3d0a'; ctx.lineWidth = 3; ctx.lineCap = 'round';
-      ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(14, 0); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(14, 0); ctx.lineTo(20, -10); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(14, 0); ctx.lineTo(20, 10); ctx.stroke();
-      // Elastic band
-      ctx.strokeStyle = '#cc6622'; ctx.lineWidth = 1.5; ctx.setLineDash([2, 2]);
-      ctx.beginPath(); ctx.moveTo(20, -10); ctx.lineTo(8, 0); ctx.lineTo(20, 10); ctx.stroke();
-      ctx.setLineDash([]);
-      // Stone in band
-      ctx.fillStyle = '#888';
-      ctx.beginPath(); ctx.arc(8, 0, 3, 0, Math.PI * 2); ctx.fill();
+      // Handle grip
+      const _ssHndGrd = ctx.createLinearGradient(0,-2,0,2);
+      _ssHndGrd.addColorStop(0,'#7b4a1a'); _ssHndGrd.addColorStop(0.5,'#5a3010'); _ssHndGrd.addColorStop(1,'#7b4a1a');
+      ctx.fillStyle=_ssHndGrd; ctx.beginPath(); ctx.roundRect(-2,-2,16,4,1.5); ctx.fill();
+      // Y-fork arms — thicker, rounded
+      ctx.strokeStyle='#6b3d0a'; ctx.lineWidth=3.5; ctx.lineCap='round';
+      ctx.beginPath(); ctx.moveTo(13,0); ctx.lineTo(20,-11); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(13,0); ctx.lineTo(20,11); ctx.stroke();
+      // Fork tip caps
+      ctx.fillStyle='#8b5520'; ctx.beginPath(); ctx.arc(20,-11,2.5,0,Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.arc(20,11,2.5,0,Math.PI*2); ctx.fill();
+      // Elastic bands (two parallel strands)
+      ctx.strokeStyle='#cc6622'; ctx.lineWidth=1.4;
+      ctx.beginPath(); ctx.moveTo(19,-9); ctx.lineTo(8,-1); ctx.lineTo(19,9); ctx.stroke();
+      ctx.strokeStyle='#ee8844'; ctx.lineWidth=0.7;
+      ctx.beginPath(); ctx.moveTo(20,-10); ctx.lineTo(9,0); ctx.lineTo(20,10); ctx.stroke();
+      // Stone / ammo in the pouch
+      const _ssStGrd = ctx.createRadialGradient(8,0,0,8,0,3.5);
+      _ssStGrd.addColorStop(0,'#aaaaaa'); _ssStGrd.addColorStop(1,'#555555');
+      ctx.fillStyle=_ssStGrd; ctx.beginPath(); ctx.arc(8,0,3.2,0,Math.PI*2); ctx.fill();
+      ctx.strokeStyle='#888888'; ctx.lineWidth=0.6; ctx.stroke();
 
     } else if (k === 'paperairplane') {
       // Hide plane while it's in the air (basic attack throw or swarm active)
@@ -5159,12 +5589,21 @@ class Fighter {
       // Hide while a thrown boomerang is in flight
       const _bmInAir = this._boomerangs && this._boomerangs.some(b => b.oneWay);
       if (!_bmInAir) {
-        ctx.strokeStyle = '#aa7722'; ctx.lineWidth = 5; ctx.lineCap = 'round';
-        ctx.beginPath(); ctx.arc(0, 0, 18, -Math.PI * 0.65, Math.PI * 0.65); ctx.stroke();
-        ctx.strokeStyle = '#cc9944'; ctx.lineWidth = 3;
-        ctx.beginPath(); ctx.arc(0, 0, 18, -Math.PI * 0.65, Math.PI * 0.65); ctx.stroke();
-        ctx.strokeStyle = '#ffdd88'; ctx.lineWidth = 1;
-        ctx.beginPath(); ctx.arc(0, 0, 18, -Math.PI * 0.5, Math.PI * 0.5); ctx.stroke();
+        // Outer arm — layered for depth
+        ctx.strokeStyle='#8b5e22'; ctx.lineWidth=6; ctx.lineCap='round';
+        ctx.beginPath(); ctx.arc(0,0,19,-Math.PI*0.65,Math.PI*0.65); ctx.stroke();
+        // Mid layer — warm wood tone
+        ctx.strokeStyle='#cc9944'; ctx.lineWidth=4;
+        ctx.beginPath(); ctx.arc(0,0,19,-Math.PI*0.65,Math.PI*0.65); ctx.stroke();
+        // Highlight stripe — leading edge
+        ctx.strokeStyle='#eecc66'; ctx.lineWidth=1.8;
+        ctx.beginPath(); ctx.arc(0,0,19,-Math.PI*0.55,Math.PI*0.55); ctx.stroke();
+        // Inner dark edge — trailing edge shadow
+        ctx.strokeStyle='rgba(0,0,0,0.25)'; ctx.lineWidth=1.2;
+        ctx.beginPath(); ctx.arc(0,0,16,-Math.PI*0.6,Math.PI*0.6); ctx.stroke();
+        // End caps
+        ctx.fillStyle='#cc9944'; ctx.beginPath(); ctx.arc(0,-19*Math.sin(0.65*Math.PI),3,0,Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(0,19*Math.sin(0.65*Math.PI),3,0,Math.PI*2); ctx.fill();
       }
 
     } else if (k === 'katana') {

@@ -125,6 +125,13 @@ function _onAbsoluteAxiomDefeated() {
       spawnParticles(GW * 0.1 + Math.random() * GW * 0.8, GH * 0.1 + Math.random() * GH * 0.8, '#ffcc00', 12);
     }
   }
+  // Story mode: trigger endGame so story2OnMatchEnd handles chapter completion.
+  // Standalone mode: show the standalone defeat card instead.
+  if (typeof storyModeActive !== 'undefined' && storyModeActive) {
+    window._aaStoryHealth = null;
+    setTimeout(() => { if (typeof endGame === 'function') endGame(); }, 900);
+    return;
+  }
   if (typeof _showAbsoluteAxiomDefeatCard === 'function') _showAbsoluteAxiomDefeatCard();
 }
 
@@ -171,6 +178,13 @@ class AbsoluteAxiom extends God {
     this._specialCd  = 280;
     this._dashCd     = 90;
 
+    // Story mode: scale health down and skip mechanics tied to 1M-HP thresholds
+    if (typeof storyModeActive !== 'undefined' && storyModeActive) {
+      const _stHealth = (typeof window !== 'undefined' && window._aaStoryHealth) || 900;
+      this.health    = _stHealth;
+      this.maxHealth = _stHealth;
+    }
+
     // Internal phase tracking
     this._aaPhase        = 1; // 1→2 at 70%, 2→3 at 35%
     this._phase2Fired    = false;
@@ -182,9 +196,10 @@ class AbsoluteAxiom extends God {
     this._checkpointsFired     = new Set();
     this._checkpointQtePending = false;
 
-    // Portal invincibility: immune once below 100K until 5 portal allies are active
+    // Portal invincibility: immune once below 100K until 5 portal allies are active.
+    // In story mode this fires immediately (story health < 100K) so pre-announce it.
     this._portalInvincible = false;
-    this._portalPhaseAnnounced = false;
+    this._portalPhaseAnnounced = !!(typeof storyModeActive !== 'undefined' && storyModeActive);
 
     // Locomotion state: AA primarily walks/runs, occasionally takes to the air
     this._locomotionMode  = 'walk'; // 'walk' only during normal movement; 'fly' during aerial slam/absoluteStrike/smite

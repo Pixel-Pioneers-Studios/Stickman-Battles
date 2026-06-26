@@ -179,6 +179,9 @@ class Boss extends Fighter {
     if (this.postPortalAttackBlock > 0) this.postPortalAttackBlock--;
     if (this.forcedTeleportFlash > 0) this.forcedTeleportFlash--;
 
+    if (!this.target || this.target.health <= 0) {
+      this._acquireAITarget();
+    }
     const t  = this.target;
     if (!t || t.health <= 0) return;
     const dx  = t.cx() - this.cx();
@@ -364,7 +367,7 @@ class Boss extends Fighter {
         const spawnX = Math.random() < 0.5 ? 60 : 840;
         const spawnY = 200;
         const mn     = new Minion(spawnX, spawnY);
-        mn.target    = players.find(p => !p.isBoss && p.health > 0 && !p.godmode) || players[0];
+        mn.target    = players.find(p => !p.isBoss && p.health > 0 && !p.godmode) || players.find(p => !p.isBoss) || players[0];
         minions.push(mn);
         spawnParticles(spawnX, spawnY, '#bb00ee', 24);
         if (settings.screenShake) screenShake = Math.max(screenShake, 12);

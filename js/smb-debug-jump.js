@@ -413,7 +413,7 @@ function _devForceFinisher(def, attacker, target) {
   }
 }
 
-// Trigger domain expansion on players[0] with a temporary class override.
+// Trigger conviction on players[0] with a temporary class override.
 function _devPreviewDomain(classKey) {
   if (!classKey) return;
   const fighter = (typeof players !== 'undefined')
@@ -999,7 +999,7 @@ function _cinViewerOpen() {
     'w:scythe':        "Scythe -- Reaper's Sweep",
     'w:fryingpan':     'Frying Pan -- Sweet Dreams',
     'w:bow':           'Bow -- Arrow Storm',
-    'w:boxinggloves':  'Boxing Gloves -- Knockout',
+    'w:combat':        'Combat -- Knockout',
     'w:nullblade':     'Nullblade -- Void Reckoning',
     'c:thor':          'Thor -- Thunder God',
     'c:kratos':        'Kratos -- Spartan Rage',
@@ -1091,8 +1091,8 @@ function _cinViewerOpen() {
     }
   });
 
-  // ── DOMAIN EXPANSION ──────────────────────────────────────────────────────
-  _sec('DOMAIN EXPANSION', 'Auto-starts a VS match if no game is running.');
+  // ── CONVICTION ────────────────────────────────────────────────────────────
+  _sec('CONVICTION', 'Auto-starts a VS match if no game is running.');
   _selRow({
     'thor':       'Thor -- Storm Realm',
     'kratos':     'Kratos -- Spartan War Domain',

@@ -102,6 +102,11 @@ class BehaviorModel {
     this._punishCount = 0;   // total selections (drives rotation cadence)
     this._lastRoute   = 'direct';
     this._rotateAt    = 4 + Math.floor(Math.random() * 4); // jittered: 4-7 punishes before rotation
+
+    // ── Ability / Super context log ───────────────────────────
+    // Stamped with { dist, healthPct, attacking, comboDepth } at the moment of use.
+    this._abilityLog = [];
+    this._superLog   = [];
   }
 
   // ─── observe() ───────────────────────────────────────────────
@@ -458,6 +463,58 @@ class BehaviorModel {
       crossup: jumpPred ? 1.38 : currentAction === PA.LAND ? 1.18 : 1.0,
       delayed: shieldPred ? 1.35 : currentAction === PA.BLOCK ? 1.20 : 1.0,
     };
+  }
+
+  // ─── Ability / Super context logging ─────────────────────────
+  // Call when the player's ability or super rising-edge fires.
+  // ctx: { dist, healthPct, attacking, comboDepth }
+  logAbilityUse(ctx) {
+    this._abilityLog.push(ctx);
+    if (this._abilityLog.length > 20) this._abilityLog.shift();
+  }
+  logSuperUse(ctx) {
+    this._superLog.push(ctx);
+    if (this._superLog.length > 20) this._superLog.shift();
+  }
+
+  // ─── getSuperProfile() ───────────────────────────────────────
+  // Clusters super-use history into a player archetype.
+  //   'healer'   — fires at low health (survival tool)
+  //   'finisher' — fires after landing hits (combo extender)
+  //   'opener'   — fires at long range (gap opener)
+  //   'dump'     — fires as soon as charged, no clear pattern
+  //   'unknown'  — fewer than 3 samples
+  getSuperProfile() {
+    const log = this._superLog;
+    if (log.length < 3) return 'unknown';
+    const n = log.length;
+    let totalDist = 0, totalHp = 0, totalCombo = 0;
+    for (const e of log) { totalDist += e.dist; totalHp += e.healthPct; totalCombo += e.comboDepth; }
+    const avgDist  = totalDist  / n;
+    const avgHp    = totalHp    / n;
+    const avgCombo = totalCombo / n;
+    if (avgHp    < 0.40) return 'healer';
+    if (avgCombo >= 1.5)  return 'finisher';
+    if (avgDist  > 160)   return 'opener';
+    return 'dump';
+  }
+
+  // ─── getAbilityProfile() ─────────────────────────────────────
+  // Clusters ability-use history into an archetype.
+  //   'poke'    — used at long range as a projectile / poke tool
+  //   'combo'   — used mid-attack string (combo extension)
+  //   'closer'  — used at close range to extend pressure
+  //   'unknown' — fewer than 3 samples
+  getAbilityProfile() {
+    const log = this._abilityLog;
+    if (log.length < 3) return 'unknown';
+    const comboCount = log.filter(e => e.attacking).length;
+    let totalDist = 0;
+    for (const e of log) totalDist += e.dist;
+    const avgDist = totalDist / log.length;
+    if (comboCount / log.length >= 0.50) return 'combo';
+    if (avgDist > 155) return 'poke';
+    return 'closer';
   }
 
   // ─── projectPosition() ───────────────────────────────────────

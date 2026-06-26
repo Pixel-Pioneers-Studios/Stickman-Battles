@@ -138,6 +138,7 @@ const _ARENA_GIMMICKS = {
   cyberpunk:  '⚡ Electric floor hazard periodically zaps',
   neonGrid:   '💾 Speed boost pads on the floor',
   mirror:     '🪞 Platforms drift and reality warps',
+  desert:     '🏜️ Quicksand pit slows movement in the center',
   random:     '🎲 A random arena is chosen each match',
 };
 
@@ -146,7 +147,7 @@ const _ARENA_ICONS = {
   grass:'🌿', city:'🚗', space:'🌌', lava:'🔥', forest:'🐾', ice:'❄️',
   ruins:'📦', cave:'🦇', volcano:'🌋', underwater:'🌊', colosseum:'⚔️',
   clouds:'☁️', mushroom:'🍄', haunted:'👻', cyberpunk:'⚡', neonGrid:'💾',
-  mirror:'🪞', random:'🎲',
+  mirror:'🪞', desert:'🏜️', random:'🎲',
 };
 const _VOTE_COLS = 4;
 

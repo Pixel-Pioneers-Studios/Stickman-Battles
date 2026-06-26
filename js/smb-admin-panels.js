@@ -113,7 +113,7 @@ function _adminPanelRefresh() {
     // ── Cinematic Viewer ──────────────────────────────────────────────────
     '<div>',
       '<div style="font-size:0.8rem;font-weight:600;color:#ffcc66;margin-bottom:6px;">Cinematic Viewer</div>',
-      '<div style="font-size:0.73rem;opacity:0.5;margin-bottom:5px;">All cinematics, finishers, and domain expansions. Always fully unlocked.</div>',
+      '<div style="font-size:0.73rem;opacity:0.5;margin-bottom:5px;">All cinematics, finishers, and convictions. Always fully unlocked.</div>',
       '<button onclick="if(typeof _cinViewerOpen===\'function\')_cinViewerOpen();"',
         ' style="width:100%;background:rgba(255,160,40,0.12);border:1px solid rgba(255,160,40,0.4);',
         'border-radius:6px;color:#ffcc66;padding:6px 12px;cursor:pointer;font-size:0.8rem;text-align:left;">',

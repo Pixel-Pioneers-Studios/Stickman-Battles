@@ -2,6 +2,8 @@
 // smb-story-engine-ui.js — Story menu tab switching, journey/store/skill-tree rendering, prologue overlay
 // Depends on: smb-globals.js, smb-story-registry.js (and preceding story-engine splits)
 
+let _skillTreeAnimId = null;
+
 // ── UI helpers ────────────────────────────────────────────────────────────────
 function _worldIcon(w) {
   // World strings already include their emoji, just return as-is
@@ -16,21 +18,17 @@ function _story2TokenDisplay() {
 // ── Tab switching ─────────────────────────────────────────────────────────────
 function switchStoryTab(tab) {
   // 'multiverse' panel is kept but has no tab button — only accessible via story progression
-  ['chapters','store','multiverse'].forEach(t => {
+  ['chapters','multiverse'].forEach(t => {
     const btn   = document.getElementById('storyTab' + t.charAt(0).toUpperCase() + t.slice(1));
     const panel = document.getElementById('storyTabPanel' + t.charAt(0).toUpperCase() + t.slice(1));
     if (btn)   btn.classList.toggle('active', t === tab);
     if (panel) panel.style.display = (t === tab) ? '' : 'none';
   });
-  // Deactivate visible tab buttons when multiverse panel is shown programmatically
   if (tab === 'multiverse') {
-    ['storyTabChapters','storyTabStore'].forEach(id => {
-      const b = document.getElementById(id);
-      if (b) b.classList.remove('active');
-    });
+    const b = document.getElementById('storyTabChapters');
+    if (b) b.classList.remove('active');
+    if (typeof _renderMultiverseWorldList === 'function') _renderMultiverseWorldList();
   }
-  if (tab === 'store') _renderStoryStore2();
-  if (tab === 'multiverse' && typeof _renderMultiverseWorldList === 'function') _renderMultiverseWorldList();
   _story2TokenDisplay();
 }
 
@@ -72,33 +70,15 @@ function _renderStoryJourney() {
   });
 }
 
-// ── Ability Store tab ─────────────────────────────────────────────────────────
-let _storeSubTab = 'shop';
-
+// ── Ability Shop (standalone modal) ──────────────────────────────────────────
 function _renderStoryStore2() {
   const grid = document.getElementById('storyAbilityGrid2');
   if (!grid) return;
   grid.innerHTML = '';
-  _story2TokenDisplay();
+  const tokenEl = document.getElementById('shopModalTokenDisplay');
+  if (tokenEl) tokenEl.textContent = (_story2 && _story2.tokens) || 0;
   _storyUpdateExpDisplay();
-
-  // Sub-tab header
-  const subTabBar = document.createElement('div');
-  subTabBar.style.cssText = 'display:flex;gap:8px;margin-bottom:14px;border-bottom:1px solid rgba(255,255,255,0.1);padding-bottom:8px;';
-  for (const [key, label] of [['shop','🪙 Shop'], ['skilltree','🌿 Skill Tree']]) {
-    const btn = document.createElement('button');
-    btn.textContent = label;
-    btn.style.cssText = `background:${_storeSubTab===key?'rgba(80,140,255,0.25)':'transparent'};border:1px solid ${_storeSubTab===key?'rgba(80,140,255,0.6)':'rgba(255,255,255,0.12)'};color:${_storeSubTab===key?'#aacfff':'#6677aa'};padding:5px 14px;border-radius:5px;cursor:pointer;font-size:0.75rem;letter-spacing:1px;`;
-    btn.onclick = () => { _storeSubTab = key; _renderStoryStore2(); };
-    subTabBar.appendChild(btn);
-  }
-  grid.appendChild(subTabBar);
-
-  if (_storeSubTab === 'shop') {
-    _renderShopSection(grid);
-  } else {
-    _renderSkillTreeSection(grid);
-  }
+  _renderShopSection(grid);
 }
 
 function _renderShopSection(grid) {
@@ -299,12 +279,71 @@ function openStoryMenuChapters() {
 
 function openStoryMenuShop() {
   if (typeof closeStoryPath === 'function') closeStoryPath();
-  _storeSubTab = 'shop';
-  if (typeof openStoryMenu === 'function') openStoryMenu();
-  switchStoryTab('store');
+  const modal = document.getElementById('shopModal');
+  if (!modal) return;
+  modal.style.display = 'flex';
+  _renderStoryStore2();
+}
+
+function closeShopModal() {
+  const modal = document.getElementById('shopModal');
+  if (modal) modal.style.display = 'none';
 }
 
 // ── Standalone Skill Tree modal ───────────────────────────────────────────────
+// ── Canvas skill-tree layout ──────────────────────────────────────────────────
+// Pixel positions (canvas 780 × 565) for every purchasable node.
+const _ST_POS = {
+  __root:           { x: 390, y: 28  },
+  // MOBILITY
+  highJump1:        { x: 82,  y: 105 },
+  highJump2:        { x: 82,  y: 185 },
+  doubleJump:       { x: 52,  y: 265 },
+  airDash:          { x: 52,  y: 345 },
+  fastFall:         { x: 122, y: 265 },
+  // RESILIENCE
+  tankier1:         { x: 210, y: 105 },
+  tankier2:         { x: 193, y: 185 },
+  superMeter:       { x: 158, y: 265 },
+  tankier3:         { x: 208, y: 265 },
+  dimensionalPatch: { x: 252, y: 185 },
+  voidStep:         { x: 260, y: 265 },
+  // SURVIVAL
+  lastStrike:       { x: 330, y: 130 },
+  echoRage:         { x: 305, y: 210 },
+  mirrorFracture:   { x: 358, y: 210 },
+  temporalBreak:    { x: 292, y: 290 },
+  // MASTERY (bottom centre — gated behind other branches)
+  masterRoot:       { x: 390, y: 400 },
+  fragmentHunger:   { x: 348, y: 475 },
+  architects:       { x: 432, y: 475 },
+  coreCollapse:     { x: 440, y: 530 },
+  // SPEED
+  fastMove1:        { x: 458, y: 130 },
+  fastMove2:        { x: 478, y: 210 },
+  fastMove3:        { x: 488, y: 290 },
+  fractureSurge:    { x: 420, y: 210 },
+  // COMBAT
+  heavyHit1:        { x: 660, y: 105 },
+  heavyHit2:        { x: 643, y: 185 },
+  weaponAbility:    { x: 643, y: 265 },
+  comboExtender:    { x: 643, y: 345 },
+  criticalEdge:     { x: 643, y: 425 },
+  impactShield:     { x: 710, y: 185 },
+};
+
+function _stFlatNodes() {
+  if (typeof STORY_SKILL_TREE === 'undefined') return [];
+  const out = [];
+  for (const [bk, branch] of Object.entries(STORY_SKILL_TREE)) {
+    for (const n of branch.nodes) {
+      const p = _ST_POS[n.id];
+      if (p) out.push({ ...n, x: p.x, y: p.y, branchKey: bk, branchColor: branch.color });
+    }
+  }
+  return out;
+}
+
 function openSkillTreeModal() {
   if (typeof closeStoryPath === 'function') closeStoryPath();
   const modal = document.getElementById('skillTreeModal');
@@ -314,11 +353,14 @@ function openSkillTreeModal() {
 }
 
 function closeSkillTreeModal() {
+  if (_skillTreeAnimId) { cancelAnimationFrame(_skillTreeAnimId); _skillTreeAnimId = null; }
   const modal = document.getElementById('skillTreeModal');
   if (modal) modal.style.display = 'none';
 }
 
 function _renderSkillTreeModal() {
+  if (_skillTreeAnimId) { cancelAnimationFrame(_skillTreeAnimId); _skillTreeAnimId = null; }
+
   const container = document.getElementById('skillTreeModalContent');
   if (!container) return;
   container.innerHTML = '';
@@ -333,106 +375,314 @@ function _renderSkillTreeModal() {
     return;
   }
 
-  const branchesWrap = document.createElement('div');
-  branchesWrap.className = 'skill-tree-branches';
+  const CW = 780, CH = 565, R = 20;
+  const canvas = document.createElement('canvas');
+  canvas.width  = CW;
+  canvas.height = CH;
+  canvas.style.cssText = 'display:block;width:100%;height:auto;cursor:default;';
+  container.style.position = 'relative';
+  container.appendChild(canvas);
 
-  for (const [, branch] of Object.entries(STORY_SKILL_TREE)) {
-    const branchCol = document.createElement('div');
-    branchCol.className = 'skill-tree-branch';
+  // Floating tooltip element
+  const ttip = document.createElement('div');
+  ttip.style.cssText = [
+    'position:absolute','pointer-events:none','display:none',
+    'background:rgba(4,4,18,0.97)','border:1px solid rgba(120,120,200,0.28)',
+    'border-radius:8px','padding:10px 14px','font-size:0.72rem','color:#dde4ff',
+    'max-width:215px','z-index:20','font-family:inherit','line-height:1.45',
+    'box-shadow:0 4px 22px rgba(0,0,0,0.75)',
+  ].join(';');
+  container.appendChild(ttip);
 
-    const header = document.createElement('div');
-    header.style.cssText = `display:flex;align-items:center;gap:7px;margin-bottom:10px;padding:5px 10px;background:rgba(0,0,0,0.22);border-left:3px solid ${branch.color};border-radius:0 6px 6px 0;`;
-    header.innerHTML = `<span style="font-size:1rem;">${branch.icon || ''}</span><span style="font-size:0.70rem;letter-spacing:2px;text-transform:uppercase;color:${branch.color};font-weight:700;">${branch.label}</span>`;
-    branchCol.appendChild(header);
+  const ctx   = canvas.getContext('2d');
+  const nodes = _stFlatNodes();
+  const nodeMap = {};
+  for (const n of nodes) nodeMap[n.id] = n;
 
-    const nodeMap = {};
-    for (const n of branch.nodes) nodeMap[n.id] = n;
-    const depthOf = {};
-    const getDepth = (n) => {
-      if (n.id in depthOf) return depthOf[n.id];
-      const parent = n.requires ? nodeMap[n.requires] : null;
-      depthOf[n.id] = parent ? getDepth(parent) + 1 : 0;
-      return depthOf[n.id];
-    };
-    for (const n of branch.nodes) getDepth(n);
-    const maxDepth = Math.max(...branch.nodes.map(n => depthOf[n.id]));
-
-    for (let d = 0; d <= maxDepth; d++) {
-      const layerNodes = branch.nodes.filter(n => depthOf[n.id] === d);
-      const layerRow = document.createElement('div');
-      layerRow.style.cssText = 'display:flex;gap:7px;margin-bottom:4px;';
-
-      for (const node of layerNodes) {
-        const owned   = !!sk[node.id];
-        const reqMet  = _skillNodeReqMet(node, sk);
-        const canBuy  = !owned && reqMet && exp >= node.expCost;
-        const isLocked = !owned && !reqMet;
-
-        const colWrap = document.createElement('div');
-        colWrap.style.cssText = 'display:flex;flex-direction:column;align-items:center;flex:1;';
-
-        if (d > 0) {
-          const connUp = document.createElement('div');
-          connUp.style.cssText = `width:2px;height:14px;background:${owned ? branch.color : reqMet ? branch.color + '55' : 'rgba(255,255,255,0.08)'};margin-bottom:2px;border-radius:1px;`;
-          colWrap.appendChild(connUp);
-        }
-
-        const card = document.createElement('div');
-        card.style.cssText = [
-          'border-radius:9px','padding:9px 10px 8px','width:100%','box-sizing:border-box',
-          `border:1px solid ${owned ? branch.color + 'aa' : canBuy ? branch.color + '55' : 'rgba(255,255,255,0.07)'}`,
-          `background:${owned ? 'rgba(20,60,35,0.55)' : canBuy ? 'rgba(20,30,60,0.5)' : 'rgba(5,5,18,0.30)'}`,
-          `opacity:${isLocked ? '0.32' : '1'}`,
-          canBuy ? 'cursor:pointer;transition:background 0.12s,box-shadow 0.12s;' : 'cursor:default;',
-          owned ? `box-shadow:0 0 8px ${branch.color}44;` : '',
-        ].join(';');
-
-        const reqLabel = isLocked
-          ? (node.requiresAny
-              ? '&#128274; Requires ' + (node.requiresAny[0] || '').replace(/([A-Z])/g, ' $1').trim()
-              : '&#128274; ' + (node.requires || '').replace(/([A-Z])/g, ' $1').trim() + ' required')
-          : '';
-
-        card.innerHTML = `
-          <div style="font-size:0.80rem;color:${owned ? '#aaff88' : canBuy ? '#dde4ff' : '#556'};font-weight:700;margin-bottom:3px;">${node.name}</div>
-          <div style="font-size:0.60rem;color:#5a6a9a;line-height:1.35;margin-bottom:5px;">${node.desc}</div>
-          <div style="font-size:0.68rem;${owned ? 'color:#66ee99' : canBuy ? `color:${branch.color}` : 'color:#445'}">
-            ${owned ? '&#10003; Unlocked' : isLocked ? reqLabel : node.expCost + ' EXP'}
-          </div>`;
-
-        if (canBuy) {
-          card.addEventListener('click', () => {
-            const sk2 = _story2.skillTree = _story2.skillTree || {};
-            const exp2 = _story2.exp || 0;
-            if (sk2[node.id] || !_skillNodeReqMet(node, sk2) || exp2 < node.expCost) return;
-            _story2.exp = exp2 - node.expCost;
-            sk2[node.id] = true;
-            if (typeof _saveStory2 === 'function') _saveStory2();
-            _renderSkillTreeModal();
-            if (typeof showToast === 'function') showToast('&#10003; ' + node.name + ' unlocked!');
-          });
-          card.addEventListener('mouseover', () => { card.style.background = 'rgba(30,55,110,0.7)'; card.style.boxShadow = `0 0 12px ${branch.color}33`; });
-          card.addEventListener('mouseout',  () => { card.style.background = 'rgba(20,30,60,0.5)';  card.style.boxShadow = ''; });
-        }
-
-        colWrap.appendChild(card);
-
-        const hasChild = branch.nodes.some(c => c.requires === node.id);
-        if (hasChild) {
-          const connDown = document.createElement('div');
-          connDown.style.cssText = `width:2px;height:14px;background:${owned ? branch.color : branch.color + '33'};margin-top:2px;border-radius:1px;`;
-          colWrap.appendChild(connDown);
-        }
-
-        layerRow.appendChild(colWrap);
+  // Precompute requiresAny edges (for mastery root)
+  const reqAnyEdges = [];
+  for (const n of nodes) {
+    if (n.requiresAny) {
+      for (const rid of n.requiresAny) {
+        if (nodeMap[rid]) reqAnyEdges.push({ from: nodeMap[rid], to: n });
       }
-      branchCol.appendChild(layerRow);
     }
-
-    branchesWrap.appendChild(branchCol);
   }
 
-  container.appendChild(branchesWrap);
+  // Root connector branch nodes (no requires, no requiresAny)
+  const branchRoots = nodes.filter(n => !n.requires && !n.requiresAny);
+
+  let frame = 0;
+
+  function draw() {
+    const csk  = (_story2 && _story2.skillTree) || {};
+    const cexp = (_story2 && _story2.exp) || 0;
+
+    ctx.clearRect(0, 0, CW, CH);
+
+    // ── Background ──────────────────────────────────────────────────────────
+    ctx.fillStyle = '#05050e';
+    ctx.fillRect(0, 0, CW, CH);
+
+    // Root radial glow
+    let g = ctx.createRadialGradient(390, 28, 0, 390, 28, 340);
+    g.addColorStop(0, 'rgba(90,50,150,0.18)');
+    g.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, CW, CH);
+
+    // Mastery pool glow
+    g = ctx.createRadialGradient(390, 400, 0, 390, 400, 200);
+    g.addColorStop(0, 'rgba(140,50,210,0.13)');
+    g.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, CW, CH);
+
+    // ── Root → branch-root bezier lines ─────────────────────────────────────
+    const rp = _ST_POS.__root;
+    for (const n of branchRoots) {
+      const owned = !!csk[n.id];
+      ctx.save();
+      ctx.lineWidth   = owned ? 2 : 1.5;
+      ctx.strokeStyle = owned ? n.branchColor + 'bb' : n.branchColor + '2a';
+      ctx.beginPath();
+      ctx.moveTo(rp.x, rp.y);
+      const cpx1 = rp.x + (n.x - rp.x) * 0.35;
+      const cpy1 = rp.y + 55;
+      const cpx2 = n.x;
+      const cpy2 = n.y - 35;
+      ctx.bezierCurveTo(cpx1, cpy1, cpx2, cpy2, n.x, n.y);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    // ── Parent → child edges ─────────────────────────────────────────────────
+    for (const n of nodes) {
+      if (!n.requires) continue;
+      const parent = nodeMap[n.requires];
+      if (!parent) continue;
+      const pOwned = !!csk[parent.id];
+      const nOwned = !!csk[n.id];
+      ctx.save();
+      ctx.lineWidth   = pOwned ? 2.5 : 1.5;
+      ctx.strokeStyle = pOwned
+        ? (nOwned ? n.branchColor + 'cc' : n.branchColor + '55')
+        : n.branchColor + '1e';
+      if (!pOwned) ctx.setLineDash([3, 4]);
+      ctx.beginPath();
+      ctx.moveTo(parent.x, parent.y);
+      const dx = n.x - parent.x, dy = n.y - parent.y;
+      ctx.bezierCurveTo(
+        parent.x + dx * 0.15, parent.y + dy * 0.4,
+        n.x - dx * 0.15,      n.y - dy * 0.4,
+        n.x, n.y
+      );
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.restore();
+    }
+
+    // ── RequiresAny dashed lines (mastery) ──────────────────────────────────
+    for (const e of reqAnyEdges) {
+      const srcOwned  = !!csk[e.from.id];
+      const destOwned = !!csk[e.to.id];
+      ctx.save();
+      ctx.setLineDash([4, 5]);
+      ctx.lineWidth   = 1.5;
+      ctx.strokeStyle = srcOwned ? '#cc88ff55' : '#cc88ff18';
+      ctx.beginPath();
+      ctx.moveTo(e.from.x, e.from.y);
+      const cpx1 = e.from.x + (e.to.x - e.from.x) * 0.28;
+      const cpy1 = e.from.y + 70;
+      const cpx2 = e.to.x + (e.from.x - e.to.x) * 0.12;
+      const cpy2 = e.to.y - 70;
+      ctx.bezierCurveTo(cpx1, cpy1, cpx2, cpy2, e.to.x, e.to.y);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.restore();
+    }
+
+    // ── Nodes ────────────────────────────────────────────────────────────────
+    for (const n of nodes) {
+      const owned   = !!csk[n.id];
+      const reqMet  = _skillNodeReqMet(n, csk);
+      const canBuy  = !owned && reqMet && cexp >= n.expCost;
+      const locked  = !owned && !reqMet;
+
+      ctx.save();
+
+      // Outer glow
+      if (owned) {
+        ctx.shadowColor = n.branchColor;
+        ctx.shadowBlur  = 12 + Math.sin(frame * 0.035) * 4;
+      } else if (canBuy) {
+        ctx.shadowColor = n.branchColor;
+        ctx.shadowBlur  = 5 + Math.sin(frame * 0.075 + n.x * 0.02) * 5;
+      }
+
+      // Circle fill
+      ctx.beginPath();
+      ctx.arc(n.x, n.y, R, 0, Math.PI * 2);
+      if (owned) {
+        const grd = ctx.createRadialGradient(n.x - 5, n.y - 6, 0, n.x, n.y, R);
+        grd.addColorStop(0, n.branchColor + 'ff');
+        grd.addColorStop(1, n.branchColor + '66');
+        ctx.fillStyle = grd;
+      } else if (canBuy) {
+        ctx.fillStyle = 'rgba(18,25,55,0.88)';
+      } else {
+        ctx.fillStyle = 'rgba(8,8,20,0.72)';
+      }
+      ctx.fill();
+
+      // Border ring
+      ctx.lineWidth   = owned ? 2.5 : canBuy ? 2 : 1;
+      ctx.strokeStyle = owned ? n.branchColor
+                       : canBuy ? n.branchColor + 'aa'
+                       : 'rgba(255,255,255,0.10)';
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+
+      // Inner mark
+      ctx.textAlign    = 'center';
+      ctx.textBaseline = 'middle';
+      if (owned) {
+        ctx.fillStyle = 'rgba(0,0,0,0.65)';
+        ctx.font      = 'bold 13px "Segoe UI", Arial, sans-serif';
+        ctx.fillText('✓', n.x, n.y);
+      } else if (locked) {
+        ctx.fillStyle = 'rgba(255,255,255,0.13)';
+        ctx.font      = '12px "Segoe UI", Arial, sans-serif';
+        ctx.fillText('×', n.x, n.y);
+      }
+
+      // Name label below circle
+      ctx.shadowColor  = '#000';
+      ctx.shadowBlur   = 5;
+      ctx.fillStyle    = owned ? n.branchColor : canBuy ? '#ccd5ff' : '#334455';
+      ctx.font         = 'bold 8.5px "Segoe UI", Arial, sans-serif';
+      ctx.textAlign    = 'center';
+      ctx.textBaseline = 'top';
+      ctx.fillText(n.name, n.x, n.y + R + 3);
+      ctx.shadowBlur = 0;
+
+      ctx.restore();
+    }
+
+    // ── Root node ────────────────────────────────────────────────────────────
+    ctx.save();
+    ctx.shadowColor = '#aaccff';
+    ctx.shadowBlur  = 10 + Math.sin(frame * 0.04) * 6;
+    ctx.beginPath();
+    ctx.arc(rp.x, rp.y, 24, 0, Math.PI * 2);
+    const rg2 = ctx.createRadialGradient(rp.x - 7, rp.y - 8, 0, rp.x, rp.y, 24);
+    rg2.addColorStop(0, 'rgba(200,220,255,0.9)');
+    rg2.addColorStop(1, 'rgba(80,110,200,0.55)');
+    ctx.fillStyle = rg2;
+    ctx.fill();
+    ctx.strokeStyle = '#aaccff';
+    ctx.lineWidth   = 2;
+    ctx.stroke();
+    ctx.shadowBlur  = 0;
+    ctx.fillStyle   = 'rgba(0,0,20,0.65)';
+    ctx.font        = 'bold 7px "Segoe UI", Arial, sans-serif';
+    ctx.textAlign   = 'center';
+    ctx.textBaseline = 'top';
+    ctx.fillText('FRAGMENT', rp.x, rp.y + 26);
+    ctx.fillText('CORE',     rp.x, rp.y + 35);
+    ctx.restore();
+
+    // ── Branch labels (top row) ──────────────────────────────────────────────
+    if (typeof STORY_SKILL_TREE !== 'undefined') {
+      for (const [, branch] of Object.entries(STORY_SKILL_TREE)) {
+        const firstNode = branch.nodes[0];
+        const fp = firstNode && _ST_POS[firstNode.id];
+        if (!fp) continue;
+        ctx.save();
+        ctx.fillStyle = branch.color + '88';
+        ctx.font      = 'bold 7.5px "Segoe UI", Arial, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'bottom';
+        ctx.fillText(branch.label.toUpperCase(), fp.x, fp.y - R - 5);
+        ctx.restore();
+      }
+    }
+
+    frame++;
+    _skillTreeAnimId = requestAnimationFrame(draw);
+  }
+  draw();
+
+  // ── Mouse interaction ────────────────────────────────────────────────────
+  function hitNode(e) {
+    const rect = canvas.getBoundingClientRect();
+    const sx = CW / rect.width, sy = CH / rect.height;
+    const mx = (e.clientX - rect.left) * sx;
+    const my = (e.clientY - rect.top)  * sy;
+    return nodes.find(n => Math.hypot(n.x - mx, n.y - my) < R + 3);
+  }
+
+  canvas.addEventListener('mousemove', (e) => {
+    const n = hitNode(e);
+    if (!n) {
+      ttip.style.display  = 'none';
+      canvas.style.cursor = 'default';
+      return;
+    }
+    const csk  = (_story2 && _story2.skillTree) || {};
+    const cexp = (_story2 && _story2.exp) || 0;
+    const owned  = !!csk[n.id];
+    const reqMet = _skillNodeReqMet(n, csk);
+    const canBuy = !owned && reqMet && cexp >= n.expCost;
+    const locked = !owned && !reqMet;
+    canvas.style.cursor = canBuy ? 'pointer' : 'default';
+
+    let st;
+    if (owned)       st = `<span style="color:#66ee99">✓ Unlocked</span>`;
+    else if (canBuy) st = `<span style="color:${n.branchColor}">${n.expCost} EXP — click to unlock</span>`;
+    else if (locked) {
+      const need = n.requiresAny
+        ? 'Need any: ' + n.requiresAny.map(r => (nodeMap[r] || {}).name || r).join(', ')
+        : 'Requires: ' + ((nodeMap[n.requires] || {}).name || n.requires || '');
+      st = `<span style="color:#445">🔒 ${need}</span>`;
+    } else {
+      st = `<span style="color:#556">${n.expCost} EXP (have ${cexp})</span>`;
+    }
+
+    ttip.innerHTML = `
+      <div style="font-weight:700;color:${n.branchColor};margin-bottom:5px;font-size:0.75rem;">${n.name}</div>
+      <div style="color:#8899bb;margin-bottom:7px;font-size:0.70rem;line-height:1.4;">${n.desc}</div>
+      <div style="font-size:0.67rem;">${st}</div>`;
+    ttip.style.display = 'block';
+
+    const cRect = container.getBoundingClientRect();
+    let tx = e.clientX - cRect.left + 18;
+    let ty = e.clientY - cRect.top  - 12;
+    if (tx + 225 > container.clientWidth) tx = e.clientX - cRect.left - 232;
+    if (ty < 0) ty = 4;
+    ttip.style.left = tx + 'px';
+    ttip.style.top  = ty + 'px';
+  });
+
+  canvas.addEventListener('mouseleave', () => {
+    ttip.style.display  = 'none';
+    canvas.style.cursor = 'default';
+  });
+
+  canvas.addEventListener('click', (e) => {
+    const n = hitNode(e);
+    if (!n) return;
+    const csk  = (_story2 && _story2.skillTree) || {};
+    const cexp = (_story2 && _story2.exp) || 0;
+    if (csk[n.id] || !_skillNodeReqMet(n, csk) || cexp < n.expCost) return;
+    _story2.skillTree        = csk;
+    csk[n.id]                = true;
+    _story2.exp              = cexp - n.expCost;
+    if (expEl) expEl.textContent = _story2.exp;
+    if (typeof _saveStory2 === 'function') _saveStory2();
+    if (typeof showToast   === 'function') showToast('✓ ' + n.name + ' unlocked!');
+    // No full re-render needed — canvas draws live from _story2 state
+  });
 }
 
 // ── Opening prologue — shown on first play or after save wipe ─────────────────

@@ -428,6 +428,19 @@ const NetworkManager = (() => {
       if (msg.cmd && typeof _consoleExec === 'function' && window._smbAllowRemoteConsole === true) {
         _consoleExec(msg.cmd);
       }
+    } else if (msg.event === 'grantUnlock') {
+      // Admin-issued targeted unlock — only apply if this client's active account matches
+      const active = window.AccountManager ? AccountManager.getActiveAccount() : null;
+      if (active && msg.targetAccountId && active.id === msg.targetAccountId && msg.unlock) {
+        if (typeof _rewardUnlockSetter === 'function') {
+          _rewardUnlockSetter(msg.unlock, true);
+        } else if (typeof setAccountFlag === 'function') {
+          setAccountFlag(['unlocks', msg.unlock], true);
+        }
+        if (typeof _consolePrint === 'function') {
+          _consolePrint('🔓 ' + msg.unlock + ' unlocked by an admin!', '#9966cc');
+        }
+      }
     } else if (msg.event === 'story_sync') {
       // Client: apply host story state without restarting the scene
       if (!_isHost && typeof _story2 !== 'undefined' && msg.chapter !== undefined) {

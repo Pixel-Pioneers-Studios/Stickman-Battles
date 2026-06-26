@@ -42,17 +42,58 @@ const SERVER_CONFIG = {
 // ============================================================
 const CHANGELOG = [
   {
+    version: '3.9.0',
+    title: 'THE SOVEREIGN INTELLIGENCE UPDATE',
+    date: '2026-06-26',
+    flavor: 'Sovereign spent every fight learning. Now it trains itself when you walk away. And somewhere past Act VII, a final arc opens onto something that has no body and no name.',
+    isLatest: true,
+    changes: [
+      { cat: 'AI',      text: 'Sovereign self-play trainer — Sovereign runs evolution matches against randomized bot loadouts when idle, refines its decision genome across three parameters (aggression, spacing, reaction speed), and saves the champion to localStorage; available via console commands sovereign:train, sovereign:stress, sovereign:genome, and sovereign:reset' },
+      { cat: 'AI',      text: 'Sovereign ability/super profiling — classifies the player\'s super usage as healer, finisher, opener, or dump and adapts pressure accordingly; profiles are announced in-character via Sovereign dialogue the first time a pattern is confirmed' },
+      { cat: 'AI',      text: 'Sovereign counter-strategy activates 2× faster — minimum observation window reduced from 45 frames to 20; first confident pattern read fires in seconds instead of over a full minute' },
+      { cat: 'AI',      text: 'Sovereign double-jump awareness — holds back from jumping to intercept aerial players until their double jump is spent; committed aerial chases then close at full speed; post-KO defensive window extended from 20 to 45 frames' },
+      { cat: 'Tool',    text: 'VECTOR developer assistant — the in-game AI console is now named VECTOR and carries comprehensive game lore, character histories, the full 166-chapter story structure, and all major systems reference; answers questions about the game and controls it via console commands' },
+      { cat: 'Visual',  text: 'Home screen canvas animation — animated stickman silhouettes with flowing capes breathe and drift across the main menu background; the hero figure stands centered over the title with a distinct animated form; the animation stops when the mode selector opens and restarts on return' },
+      { cat: 'UI',      text: 'Story shop separated into a standalone full-screen modal; skill tree likewise moved to its own dedicated canvas-rendered interactive modal with animated edge connectors and live unlock flow — both previously lived inside a combined store tab' },
+      { cat: 'Visual',  text: 'Axiom Prequel ending cinematic expanded — void cracks grow from screen corners across beats 2–9; companion silhouettes appear one by one at the portal edge and walk through; Axiom\'s silhouette enters the portal on beat 1 with a burst flash; the visuals now carry the weight the dialogue describes' },
+      { cat: 'Story',   text: 'A long arc was added past the end of Act VII — the oldest threat in the world, with no body and no name; it ends where everything ends', spoilerLevel: 3 },
+      { cat: 'Story',   text: 'Act VIII bridge chapters (IDs 136–139) added, connecting the True Form resolution to the God domain; interlude chapter type added for cinematic walking scenes with no combat' },
+      { cat: 'Admin',   text: 'Divine Summon (H key) — a Herald sweeps the arena and destroys all AI enemies; admin-only, 2-minute cooldown; blocked in boss, True Form, God, and exploration modes' },
+    ],
+  },
+  {
+    version: '3.8.0',
+    title: 'THE PUGILIST UPDATE',
+    date: '2026-06-26',
+    flavor: 'The Combat weapon finally has the moveset it deserved. The Pugilist class built their whole identity around it. And somewhere out in the void, a Summoner is calling something into the world.',
+    isLatest: false,
+    changes: [
+      { cat: 'Combat',  text: 'Combat weapon completely reworked — Counter (Q) enters a parry stance: absorb the next hit, teleport behind the attacker, and launcher-kick them airborne (18 dmg); Combo Strike super (E) dashes to the target, kicks them upward (22 dmg), then blasts them away with a power punch (34 dmg)' },
+      { cat: 'Combat',  text: 'Giant Fist replaced — the old slow-moving fist hitbox is removed; Combo Strike fills the same niche with a two-hit sequence that requires positioning and commitment' },
+      { cat: 'Class',   text: 'Pugilist class added — Combat-only brawler, 135 HP, 1.15× speed; Surge Strike perk automatically fires Combo Strike for free at ≤20% HP (once per match)' },
+      { cat: 'Class',   text: 'Summoner class added — any weapon; calls a familiar that fights alongside you (max 1, respawns every 10 seconds); Desperate Bond perk immediately spawns and empowers the familiar at ≤20% HP (once per match)' },
+      { cat: 'Mode',    text: 'Conviction — renamed from "Domain Expansion" everywhere: cinematics, name cards, announcements, and HUD; the mechanic is otherwise unchanged' },
+      { cat: 'Mode',    text: 'Conviction weapon bonuses — each class\'s Conviction now fires a weapon-specific opening burst appropriate to the equipped weapon (sword rush, gun volley, axe throw, spear wave, etc.) using per-weapon cooldown tables' },
+      { cat: 'Arena',   text: 'Desert arena added — a central quicksand zone pulls fighters slowly downward; raised dune platforms create natural left-right asymmetry with a high plateau in the center' },
+      { cat: 'Visual',  text: 'Grass arena ground now has 40 individually swaying animated grass blades with natural length, color, and sway variation; each blade tapers to a point and bobs at its own phase' },
+      { cat: 'Story',   text: 'Named story opponents (Veran, the Architects, Herald of Nothing, God, Null, Seraph, VAEL) now draw their own appearance overlay over the base stickman — each named encounter is visually distinct from a generic enemy' },
+      { cat: 'Fix',     text: 'Story boundary portals now enforce a hard wall — the floor ends exactly at the portal face; players can no longer walk through the visual boundary or be repositioned outside the arena' },
+      { cat: 'Fix',     text: 'Arena picker now shown in 2P mode (was previously hidden unless Adaptive AI was selected); minigame panel mode card and survival options now sync correctly when re-entering the Minigames selector' },
+      { cat: 'Debug',   text: 'syscheck command health-checks all major systems (combat pipeline, cinematics, story registry chapter id=index invariant, physics, network, players); grant unlock lets admins instantly grant fight unlocks by type and account ID' },
+    ],
+  },
+  {
     version: '3.7.0',
     title: 'THE WEAPON IDENTITY UPDATE',
     date: '2026-06-11',
     flavor: 'No two weapons swing alike anymore. The hammer hangs in the air before it falls. The katana cuts before you see it move. Watch the trails — they tell you everything.',
-    isLatest: true,
+    isLatest: false,
     changes: [
       { cat: 'Combat',  text: 'Every melee weapon now has its own swing animation, timing, and motion — replacing the single shared 12-frame diagonal slash all weapons used before' },
       { cat: 'Combat',  text: 'Heavy weapons (Hammer, Frying Pan, Flail) gained real overhead windups: slow rise, accelerating drop, 15–20 frame commitment — the flail winds the ball fully behind the body before release' },
       { cat: 'Combat',  text: 'Katana attack is now an iai cut — the blade holds nearly still for the first half of the swing, then the cut completes almost instantly, leaving a thin lingering afterglow' },
       { cat: 'Combat',  text: 'Spear and Broomstick are true thrusts — no arc; the arm visibly extends along a straight piercing line and the hitbox follows the actual extension' },
-      { cat: 'Combat',  text: 'Whip lashes out with an accelerating crack and overshoot wobble at full extension; Boxing Gloves alternate a high jab and a body hook every attack at the fastest swing speed in the game (7 frames)' },
+      { cat: 'Combat',  text: 'Whip lashes out with an accelerating crack and overshoot wobble at full extension; Combat alternates a high jab and a body hook every attack at the fastest swing speed in the game (7 frames)' },
       { cat: 'Combat',  text: 'Axe is a full shoulder-to-hip cleave, Scythe a smooth 180° reap, Electric Staff a two-handed snap strike — each with distinct arc width and rhythm' },
       { cat: 'Combat',  text: 'Hitbox and visuals now come from the same swing calculation — what you see is exactly what hits' },
       { cat: 'Visual',  text: 'Swing trails now take their shape from each weapon\'s real motion: thrusts leave straight streaks, smashes vertical crescents, sweeps huge arcs — with per-weapon width, length, and persistence' },
@@ -61,9 +102,9 @@ const CHANGELOG = [
       { cat: 'Polish',  text: 'Megaknight\'s drawn arm now follows its actual uppercut arc — the visual previously played a generic slash while the hitbox swept upward' },
       { cat: 'Audio',   text: 'Per-weapon hit sounds — heavy weapons land with a deep concussive thud, thrusts with a sharp pierce, the whip with an audible crack, the electric staff with a zap, and the frying pan with the clang it always deserved' },
       { cat: 'Visual',  text: 'Per-weapon hit sparks upgraded — smashes kick up ground dust and impact rings, thrusts streak sparks along the attack line, the whip bursts at the crack point, the katana cuts clean with minimal flash' },
-      { cat: 'Visual',  text: 'Weapons are now carried differently out of combat — spear and broomstick shouldered, hammer rested over the shoulder, katana held low at the hip, scythe upright, flail dangling, boxing gloves up in a guard, gun at low ready' },
+      { cat: 'Visual',  text: 'Weapons are now carried differently out of combat — spear and broomstick shouldered, hammer rested over the shoulder, katana held low at the hip, scythe upright, flail dangling, combat gloves up in a guard, gun at low ready' },
       { cat: 'Visual',  text: 'Player face redesigned — proper two-eye 3/4 view with centered pupils and a catchlight, eyebrows that sit above the eyes instead of floating at the top of the head, and soft head shading for volume; all expressions (cool, focused, intense, hurt) carried over' },
-      { cat: 'Visual',  text: 'Domain Expansion entrances cleaned up — the chaotic radial line-scribble bursts on activation are gone, replaced by clean expanding shockwave rings and a hard anime impact-frame cut at the name-card slam; Kratos\'s floating red heat bar is now a soft ground-hugging glow' },
+      { cat: 'Visual',  text: 'Conviction entrances cleaned up — the chaotic radial line-scribble bursts on activation are gone, replaced by clean expanding shockwave rings and a hard anime impact-frame cut at the name-card slam; Kratos\'s floating red heat bar is now a soft ground-hugging glow' },
       { cat: 'Story',   text: 'Every story act now has its own cinematic identity — per-act color grading, letterbox depth, narration-bar tint, and a signature ambient motif in all cutscenes: drifting dust in the Home City, fracture shards in the Network, falling embers through the war, reality tears near True Form, kernel pulse rings at the very end' },
       { cat: 'Story',   text: 'Story cutscenes gained cinematic language — beats now transition (fade, white flash-cut with shake, or whip-pan with motion streaks) instead of hard-cutting, narration captions fade in with an act-colored accent, and scenes can play audio stings: a dread swell, a tension riser, an impact boom, or a sudden hush' },
       { cat: 'Combat',  text: 'Eleven weapons that had NO finisher now have one — Iaijutsu (Katana), Judgment Lash (Whip), Wrecking Ball (Flail), Overload (Electric Staff), Aegis Break (Shield), Clean Sweep (Broomstick), Full Bloom (Pea Shooter), Orbital Stone (Slingshot), A Thousand Folds (Paper Airplane), Infinite Return (Boomerang), and Incinerate (Flamethrower)' },
@@ -121,7 +162,7 @@ const CHANGELOG = [
       { cat: 'Combat',  text: 'Katana Iaijutsu (Q) standing-still damage reduced from 42 to 28 — still the highest single-hit ability in the game, but no longer a one-shot for most fighters; Shadow Step (E) capped to 450px maximum teleport range' },
       { cat: 'Combat',  text: 'Broom Ride (Q) now cancels immediately on landing if fewer than 18 frames remain, preventing ground-level sliding after the aerial window closes' },
       { cat: 'Domain',  text: 'Gunner domain turrets heavily nerfed — damage halved from 24 to 12 and fire rate reduced from every 62 to every 140 frames; the domain is now a zoning presence rather than near-instant lethality' },
-      { cat: 'Domain',  text: 'Domain expansion coverage now complete — Ronin (Death\'s Dojo), Reaper (Eternal Harvest), Pugilist (Iron Arena), and None class (Primal Surge) all have full domain expansions with unique hazards, sky effects, and entry cinematics; berserker domain now has weapon-specific hazards for every weapon category (bladed, heavy, ranged spray, ranged arc, electric)' },
+      { cat: 'Domain',  text: 'Conviction coverage now complete — Ronin (Death\'s Dojo), Reaper (Eternal Harvest), Pugilist (Iron Arena), and None class (Primal Surge) all have full convictions with unique hazards, sky effects, and entry cinematics; Berserker conviction now has weapon-specific hazards for every weapon category (bladed, heavy, ranged spray, ranged arc, electric)' },
       { cat: 'Visual',  text: 'Whip now draws a brief dashed rope line from the player to the struck target on both the basic hit and Lasso pull, making the weapon\'s reach visually legible' },
       { cat: 'Visual',  text: 'Flame projectiles rendered as directional teardrop shapes with layered orange/yellow glow instead of plain colored ellipses' },
       { cat: 'AI',      text: 'Bot paper airplane and boomerang AI updated to use the new throw system rather than the legacy bullet path' },
@@ -141,12 +182,12 @@ const CHANGELOG = [
     flavor: 'Every fighter carries a world inside them. Use your super five times and it erupts — a 25-second nightmare born from who you are. The arena is no longer neutral ground.',
     isLatest: false,
     changes: [
-      { cat: 'Mode',    text: 'Added Domain Expansion — once you activate your super 5 times in a match, your class unleashes its personal Domain: a 25-second environmental takeover that floods the arena with class-specific hazards; each class has a unique named domain with its own atmosphere, hazard type, and owner buff' },
-      { cat: 'Mode',    text: 'Domain roster — Thor: Storm Realm (relentless lightning strikes, speed boost); Kratos: Spartan War Domain (debris barrages, power boost); Ninja: Shadow Realm (shadow blade volleys, speed boost); Gunner: Arsenal Domain (bullet storm); Archer: Verdant Hunt (arrow curtain); Paladin: Holy Sanctuary (holy beams, passive heal); Berserker: Blood Arena (speed + power + lifesteal, no environmental hazard — pure stats); further domains are unlocked through progression' },
-      { cat: 'Mode',    text: 'Domain entry plays a full cinematic sequence: world darkens, the class name card slams onto screen, a Dutch camera tilt locks in, and the arena atmosphere shifts to match the domain\'s color and sky; sudden death is suppressed for the full duration' },
+      { cat: 'Mode',    text: 'Added Conviction — once you activate your super 5 times in a match, your class unleashes its personal Conviction: a 25-second environmental takeover that floods the arena with class-specific hazards; each class has a unique named conviction with its own atmosphere, hazard type, and owner buff' },
+      { cat: 'Mode',    text: 'Conviction roster — Thor: Storm Realm (relentless lightning strikes, speed boost); Kratos: Spartan War Domain (debris barrages, power boost); Ninja: Shadow Realm (shadow blade volleys, speed boost); Gunner: Arsenal Domain (bullet storm); Archer: Verdant Hunt (arrow curtain); Paladin: Holy Sanctuary (holy beams, passive heal); Berserker: Blood Arena (speed + power + lifesteal, no environmental hazard — pure stats); further convictions are unlocked through progression' },
+      { cat: 'Mode',    text: 'Conviction entry plays a full cinematic sequence: world darkens, the class name card slams onto screen, a Dutch camera tilt locks in, and the arena atmosphere shifts to match the conviction\'s color and sky; sudden death is suppressed for the full duration' },
       { cat: 'Arena',   text: 'Added Training Grounds — a clean symmetry-balanced stage with 8 platforms across 4 height tiers; designed for combo drills, jump practice, and aerial/edge-guard training; only accessible in Training mode' },
-      { cat: 'Visual',  text: 'Added cinematic speed lines — radial and directional burst effects used during finishers, Domain entry, and heavy cinematic hits; cone, spread, count, and length are fully configurable' },
-      { cat: 'Visual',  text: 'Added impact frames — hard-cut color flash with entity silhouettes on the heaviest moments; gives a manga / fighting-game punctuation feel to KO blows and Domain activations' },
+      { cat: 'Visual',  text: 'Added cinematic speed lines — radial and directional burst effects used during finishers, Conviction entry, and heavy cinematic hits; cone, spread, count, and length are fully configurable' },
+      { cat: 'Visual',  text: 'Added impact frames — hard-cut color flash with entity silhouettes on the heaviest moments; gives a manga / fighting-game punctuation feel to KO blows and Conviction activations' },
       { cat: 'Visual',  text: 'Added move name cards — a bold text card slams onto screen at frame 18 of any finisher displaying the move\'s name; fades after ~1.5 seconds' },
       { cat: 'Visual',  text: 'Added motion trails — a semi-transparent echo strip traces the attacker\'s path for the duration of every finisher; auto-enabled on entry, auto-cleared on exit' },
       { cat: 'Visual',  text: 'Added Dutch angle (world tilt) — the game world can now rotate to a biased angle for dramatic effect; used during Domain entry and select finisher moments; angle lerps smoothly in and out' },
@@ -163,7 +204,7 @@ const CHANGELOG = [
       { cat: 'AI',      text: 'Sovereign habit window extended from 6 to 12 recent actions for more stable pattern reads; anti-air counter now activates at 38% jump rate (was 50%), catching aerial-preference players sooner; habit confidence is penalised when the player mixes 3+ distinct action types in rapid succession' },
       { cat: 'AI',      text: 'Sovereign aerial tracking — Sovereign now tracks what fraction of the match the player spends airborne; once this exceeds 35%, it proactively jumps to match the player\'s altitude and engage in the air rather than waiting on the ground' },
       { cat: 'AI',      text: 'Sovereign edge-camp counter overhauled — the old brute-force charge is replaced with a bait-and-punish loop: Sovereign holds just outside attack range to force a commitment, then dashes in on the whiff; corner mode activates immediately to block the escape path back to center' },
-      { cat: 'AI',      text: 'Sovereign matches always grant the player at least 5 lives regardless of the lives setting, ensuring enough rounds for the AI to fully ramp before a result is decided' },
+      { cat: 'AI',      text: 'Sovereign matches always grant the player at least 10 lives regardless of the lives setting, ensuring enough rounds for the AI to fully ramp before a result is decided' },
       { cat: 'Polish',  text: 'Camera HUD clamp — when players are near the top of the screen, the camera shifts down so they are never hidden behind the HUD bar' },
       { cat: 'Polish',  text: 'Boss and TF attack states are fully reset on every game start, preventing hazards from a previous match from carrying damage or state into the next one' },
     ],
@@ -706,7 +747,7 @@ let _publicRoomCheckTimer = 0;
 // ============================================================
 // VERSION
 // ============================================================
-const GAME_VERSION = '3.7.0';  // bump this when releasing; must match CHANGELOG[0].version
+const GAME_VERSION = '3.9.0';  // bump this when releasing; must match CHANGELOG[0].version
 console.log('[VERSION CHECK]', GAME_VERSION);
 
 // DEBUG / DEVELOPER STATE
@@ -733,6 +774,8 @@ let storyEnemyArmor     = [];    // ['helmet','chestplate','leggings'] — armor
 let storyTwoEnemies     = false; // true = spawn a second enemy bot in this chapter
 let storySecondEnemyDef = null;  // { weaponKey, classKey, aiDiff, color } for the second enemy
 let storyOpponentName   = null;  // display name of the story chapter opponent (shown in HUD)
+let storyOpponentColor  = null;  // hex color for the story opponent fighter (applied at spawn)
+let storyCharId         = null;  // named character ID for appearance overlay ('veran','herald', etc.)
 let storyBossType       = null;  // 'fallen_god' | null — overrides which Boss subclass is spawned
 let storyAbilityState   = {};    // per-fight state for unlocked story abilities (medkit used, last stand triggered, etc.)
 let storyPhaseIndicator = null;  // { index, total, label, type }

@@ -44,37 +44,8 @@ STORY_CHAPTER_REGISTRY.push(
     postText: 'The True Form unravels. Not destroyed \u2014 resolved. The fracture system loses its anchor. Seventeen dimensions stabilize simultaneously. And you are still standing in the void. The Fourth Architect\'s voice, quiet: "We can bring you back." The compass in your pocket spins once. Settles. Points home. "...Yeah. I know."',
   },
 
-  // \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550 EPILOGUE \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550
-
-  {
-    id: 156, title: 'After',
-    isEpilogue: true,
-    world: '\uD83C\uDFD9\uFE0F Home \u2014 Transit',
-    type: 'ship_flight',
-    preText: 'The portals are open \u2014 doors now, not wounds. Fly the compass-ship home through stabilized dimensional space.',
-    shipFlightLength: 6000,
-    shipFlightEnemies: [
-      { spawnX: 800,  type: 'scout',   color: '#88ccff', hp: 30 },
-      { spawnX: 1600, type: 'scout',   color: '#88ccff', hp: 30 },
-      { spawnX: 2400, type: 'fighter', color: '#44aaff', hp: 50 },
-      { spawnX: 3200, type: 'scout',   color: '#88ccff', hp: 30 },
-      { spawnX: 4000, type: 'fighter', color: '#44aaff', hp: 50 },
-      { spawnX: 4800, type: 'boss',    color: '#2266cc', hp: 120 },
-    ],
-    fightScript: [
-      { frame: 60,  text: 'The portals are open. Not wounds \u2014 doors. People use them now.', color: '#88ccff', timer: 290 },
-      { frame: 400, text: 'The compass always finds something. You always go.', color: '#aaccff', timer: 270 },
-      { frame: 800, text: 'Some things don\'t need forgiveness. They just need to be carried.', color: '#ffffff', timer: 280 },
-    ],
-    playerLives: 3,
-    tokenReward: 300, blueprintDrop: null,
-    postText: 'You held the rift open with your own fragment. You survived the loop. Seventeen dimensions are still standing because of what you did. The compass points home. For now, that is enough. But the compass has always found something.',
-  },
-
-  // ══════════════════════════════════════════════════════════════════
+  // Act VIII bridge (ids 136–139) continues in smb-act5-bridge.js.
   // Act IX — Absolute Axiom (ids 140–155) continues in act7/ files.
-  // Ids 136–139 reserved for Void Mind fight arc (future content).
-  // Epilogue 'After' (id 156) follows Act IX — see above.
-  // ══════════════════════════════════════════════════════════════════
+  // Act X — The Substrate (ids 156–166) continues in actvoidmind/ files.
 
 );
