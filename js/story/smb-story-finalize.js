@@ -26,15 +26,15 @@ for (const _ch of STORY_CHAPTERS2) {
 //         Chapter ranges use the registered chapter IDs (pre-expansion).
 //         10 acts:
 //           I   Initial Encounter  (0–5)
-//           II  City + Fragment Echoes (6–15)
-//           III Rifts / Veran      (16–37)
-//           IV  Rural              (38–54)  ← Act IV arc ranges 32–54 approx
-//           V   Stickman Universe + Calix (49–68)
-//           VI  Damnation + Fallen God + Multiverse + Betrayal (69–119)
-//           VII Creator            (120–136)
-//           VIII True Form + Aftermath (137–145)
-//           IX  Absolute Axiom     (146–161)
-//           X   The Substrate      (162–175)
+//           II  City + Fragment Echoes (6–16)
+//           III Rifts / Veran      (17–32)
+//           IV  Rural              (33–49)
+//           V   Stickman Universe + Calix (50–69)
+//           VI  Damnation + Fallen God + Multiverse + Betrayal (70–121)
+//           VII Creator            (122–138)
+//           VIII True Form + Aftermath (139–148)
+//           IX  Absolute Axiom     (149–165)
+//           X   The Substrate      (166–179)
 const STORY_ACT_STRUCTURE = [
   {
     id: 'act1', label: 'Act I — Initial Encounter', color: '#88aacc',
@@ -46,78 +46,78 @@ const STORY_ACT_STRUCTURE = [
     id: 'act2', label: 'Act II — City', color: '#6699bb',
     arcs: [
       { id: 'arc0-1', label: 'City Collapse', chapterRange: [6, 12] },
-      { id: 'arc0-fragments', label: 'Fragment Echoes', chapterRange: [13, 15] },
+      { id: 'arc0-fragments', label: 'Fragment Echoes', chapterRange: [13, 16] },
     ],
   },
   {
     id: 'act3', label: 'Act III — Rifts / Veran', color: '#7744cc',
     arcs: [
-      { id: 'arc1-0', label: 'Fracture Network', chapterRange: [16, 22] },
-      { id: 'arc1-1', label: 'The Core', chapterRange: [23, 30] },
-      { id: 'arc1-lab', label: 'Laboratory Truth', chapterRange: [31, 31] },
+      { id: 'arc1-0', label: 'Fracture Network', chapterRange: [17, 23] },
+      { id: 'arc1-1', label: 'The Core', chapterRange: [24, 31] },
+      { id: 'arc1-lab', label: 'Laboratory Truth', chapterRange: [32, 32] },
     ],
   },
   {
     id: 'act4', label: 'Act IV — Rural', color: '#33aa44',
     arcs: [
-      { id: 'arc2-0', label: 'The Rift Core', chapterRange: [32, 38] },
-      { id: 'arc2-1', label: 'Forest & Ice', chapterRange: [39, 45] },
-      { id: 'arc2-2', label: 'Ruins & Collapse', chapterRange: [46, 48] },
+      { id: 'arc2-0', label: 'The Rift Core', chapterRange: [33, 39] },
+      { id: 'arc2-1', label: 'Forest & Ice', chapterRange: [40, 46] },
+      { id: 'arc2-2', label: 'Ruins & Collapse', chapterRange: [47, 49] },
     ],
   },
   {
     id: 'act5', label: 'Act V — Stickman Universe', color: '#cc7722',
     arcs: [
-      { id: 'arc3-0',     label: 'The Assembly',       chapterRange: [49, 55] },
-      { id: 'arc3-1',     label: 'The Fracture Within', chapterRange: [56, 65] },
-      { id: 'arc3-calix', label: 'The Hidden Chamber',  chapterRange: [66, 68] },
+      { id: 'arc3-0',     label: 'The Assembly',       chapterRange: [50, 56] },
+      { id: 'arc3-1',     label: 'The Fracture Within', chapterRange: [57, 66] },
+      { id: 'arc3-calix', label: 'The Hidden Chamber',  chapterRange: [67, 69] },
     ],
   },
   {
-    // Damnation (69–74) + Fallen God (75–83) + multiverse worlds (84–114) + Betrayal (115–119)
+    // Damnation (70–75) + Fallen God (76–85) + multiverse worlds (86–116) + Betrayal (117–121)
     id: 'act6', label: 'Act VI — The Loop & Multiverse', color: '#bb88ff',
     arcs: [
-      { id: 'arc5-damnation', label: 'The Damnation Loop',      chapterRange: [69,  74]  },
-      { id: 'arc5-godfall',   label: 'The Fallen God\'s Trial',  chapterRange: [75,  83]  },
-      { id: 'arc4mv-0',       label: 'War & Flux',              chapterRange: [84,  91]  },
-      { id: 'arc4mv-1',       label: 'Shadow & Titan',          chapterRange: [92,  99]  },
-      { id: 'arc4mv-2',       label: 'Null Space',              chapterRange: [100, 104] },
-      { id: 'arc4mv-3',       label: 'The Quiet Expanse',       chapterRange: [105, 109] },
-      { id: 'arc4mv-4',       label: 'The Fracture Coast',      chapterRange: [110, 114] },
-      { id: 'arc5-betrayal',  label: 'The Betrayal',            chapterRange: [115, 119] },
+      { id: 'arc5-damnation', label: 'The Damnation Loop',      chapterRange: [70,  75]  },
+      { id: 'arc5-godfall',   label: 'The Fallen God\'s Trial',  chapterRange: [76,  85]  },
+      { id: 'arc4mv-0',       label: 'War & Flux',              chapterRange: [86,  93]  },
+      { id: 'arc4mv-1',       label: 'Shadow & Titan',          chapterRange: [94,  101] },
+      { id: 'arc4mv-2',       label: 'Null Space',              chapterRange: [102, 106] },
+      { id: 'arc4mv-3',       label: 'The Quiet Expanse',       chapterRange: [107, 111] },
+      { id: 'arc4mv-4',       label: 'The Fracture Coast',      chapterRange: [112, 116] },
+      { id: 'arc5-betrayal',  label: 'The Betrayal',            chapterRange: [117, 121] },
     ],
   },
   {
     id: 'act7', label: 'Act VII — Creator\'s Domain', color: '#dd3344',
     arcs: [
-      { id: 'arc4-0', label: 'The Creator\'s Threshold', chapterRange: [120, 128] },
-      { id: 'arc4-1', label: 'The Final Architecture',   chapterRange: [129, 136] },
+      { id: 'arc4-0', label: 'The Creator\'s Threshold', chapterRange: [122, 130] },
+      { id: 'arc4-1', label: 'The Final Architecture',   chapterRange: [131, 138] },
     ],
   },
   {
     id: 'act8', label: 'Act VIII — True Form', color: '#cc44ff',
     arcs: [
-      { id: 'arc5-0',      label: 'Into the Void',        chapterRange: [137, 140] },
-      { id: 'arc5-1',      label: 'Final Confrontation',  chapterRange: [141, 141] },
-      { id: 'arc5-bridge', label: 'The Aftermath',        chapterRange: [142, 145] },
+      { id: 'arc5-0',      label: 'Into the Void',        chapterRange: [139, 143] },
+      { id: 'arc5-1',      label: 'Final Confrontation',  chapterRange: [144, 144] },
+      { id: 'arc5-bridge', label: 'The Aftermath',        chapterRange: [145, 148] },
     ],
   },
   {
     id: 'act9', label: 'Act IX — Absolute Axiom', color: '#ffe8ff',
     arcs: [
-      { id: 'arc7-0', label: 'The Kernel',        chapterRange: [146, 148] },
-      { id: 'arc7-1', label: 'God\'s Domain',      chapterRange: [149, 155] },
-      { id: 'arc7-2', label: 'Absolute Axiom',     chapterRange: [156, 161] },
+      { id: 'arc7-0', label: 'The Kernel',        chapterRange: [149, 151] },
+      { id: 'arc7-1', label: 'God\'s Domain',      chapterRange: [152, 159] },
+      { id: 'arc7-2', label: 'Absolute Axiom',     chapterRange: [160, 165] },
     ],
   },
   {
     id: 'act10', label: 'Act X — The Substrate', color: '#220033',
     arcs: [
-      { id: 'arc-vm-entry',      label: 'Into the Substrate', chapterRange: [162, 162] },
-      { id: 'arc-vm-reckonings', label: 'The Reckonings',     chapterRange: [163, 170] },
-      { id: 'arc-vm-trial',      label: 'The Trial',          chapterRange: [171, 171] },
-      { id: 'arc-vm-after',      label: 'After',              chapterRange: [172, 172] },
-      { id: 'arc-vm-fight',      label: 'The Confrontation',  chapterRange: [173, 175] },
+      { id: 'arc-vm-entry',      label: 'Into the Substrate', chapterRange: [166, 166] },
+      { id: 'arc-vm-reckonings', label: 'The Reckonings',     chapterRange: [167, 174] },
+      { id: 'arc-vm-trial',      label: 'The Trial',          chapterRange: [175, 175] },
+      { id: 'arc-vm-after',      label: 'After',              chapterRange: [176, 176] },
+      { id: 'arc-vm-fight',      label: 'The Confrontation',  chapterRange: [177, 179] },
     ],
   },
 ];

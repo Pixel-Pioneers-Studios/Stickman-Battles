@@ -346,8 +346,41 @@ STORY_CHAPTER_REGISTRY.push(
     ],
   },
 
+  {
+    id: 16, title: 'The Weight of Other Hands',
+    world: '🌆 Home City',
+    isEpilogue: true,
+    noFight: true,
+    _menuHidden: true,
+    tokenReward: 0,
+    narrative: [
+      'You asked Veran, later, about the class.',
+      'Not what it was. What it meant.',
+      '"It\'s an archetype," she said. "A template. A—"',
+      '"No," the voice cut in through the fragment.',
+      'It had never interrupted someone else before.',
+      '',
+      'A long pause.',
+      '',
+      '"The classes are not archetypes. They are not templates.",',
+      '"They are the dead.",',
+      '',
+      '"The fragment killed every bearer before you because a proper bond",',
+      '"between body, soul, and fragment was never established.",',
+      '"As each one died, the fragment absorbed their soul and their way of fighting.",',
+      '"Your class is a specific person who held this fragment before you.",',
+      '"Your hands knew what to do on the first day",',
+      '"because someone else\'s hands already knew.",',
+      '',
+      'Veran was quiet for a moment.',
+      '"I didn\'t know that," she said.',
+      '',
+      'Neither did you.',
+    ],
+  },
+
   // ═══════════════ ACT II — INTO THE WOUND ═══════════════
 
-  // ─────── Arc 1-0: Fracture Network (ids 16-22) ──────────────────
+  // ─────── Arc 1-0: Fracture Network (ids 17-23) ──────────────────
 
 );
