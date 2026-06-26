@@ -258,8 +258,96 @@ STORY_CHAPTER_REGISTRY.push(
     postText: '"There will be more," Veran says. "We need to go through the primary fracture — into the space between dimensions. Find the rift entity\'s anchor point and destroy it." She hands you a compass that points toward rifts. "Follow it."',
   },
 
+  // ─────── Arc 0-fragments: Fragment Echoes (ids 13-15) ───────────
+  // Three brief narrative interludes — Paradox's voice heard for the
+  // first time, triggered by Kael's super, near-death, and shield use.
+  // noFight + isEpilogue: stay as single chapters, skipped by promotion.
+  // _menuHidden: silently complete and chain to the next chapter.
+
+  {
+    id: 13, title: 'Resonance',
+    world: '🌆 Home City',
+    isEpilogue: true,
+    noFight: true,
+    _menuHidden: true,
+    tokenReward: 0,
+    narrative: [
+      'Something discharged.',
+      'Not like an explosion. Like a frequency — every hit stored, every hit landed,',
+      'releasing at once through the fragment embedded in your chest.',
+      '',
+      'You didn\'t know you could do that.',
+      'You don\'t know what it was.',
+      '',
+      'In the ringing silence after, a voice reached you through the fragment.',
+      'Calm. Precise. Utterly unfamiliar.',
+      '',
+      '"That wasn\'t just energy releasing."',
+      '"That was resonance — every hit you took and every hit you landed,"',
+      '"building toward a single moment."',
+      '"The fragment reads combat from both ends."',
+      '"Pain teaches it the same as power."',
+      '',
+      'Then nothing.',
+      'You don\'t know who that was.',
+    ],
+  },
+
+  {
+    id: 14, title: 'Coherence',
+    world: '🌆 Home City — Relay Station',
+    isEpilogue: true,
+    noFight: true,
+    _menuHidden: true,
+    tokenReward: 0,
+    narrative: [
+      'There was a moment, during the fight for the relay station,',
+      'when you were not sure you were going to stand back up.',
+      '',
+      'The fragment flickered. Something in you went quiet.',
+      '',
+      'And the voice came through again.',
+      '',
+      '"You\'re not bleeding out."',
+      '"Your pattern is losing coherence —"',
+      '"your ability to hold yourself present in this space."',
+      '"Zero doesn\'t mean dead. It means dispersed."',
+      '"The difference matters."',
+      '',
+      'You stood up.',
+      'You don\'t know if it was you who decided that.',
+    ],
+  },
+
+  {
+    id: 15, title: 'Phase',
+    world: '🌆 Home City',
+    isEpilogue: true,
+    noFight: true,
+    _menuHidden: true,
+    tokenReward: 0,
+    narrative: [
+      'You had raised your arm and the impact had simply... not landed.',
+      'Not blocked. Something else.',
+      'A fraction of a second where you were somewhere slightly sideways from here.',
+      '',
+      'The voice again. Third time. Still no introduction.',
+      '',
+      '"You shifted."',
+      '"Not blocked — shifted."',
+      '"Phase displacement."',
+      '"You became a slightly wrong version of yourself,"',
+      '"just long enough for the force to pass through the gap."',
+      '"Eight percent still lands because the shift was imprecise."',
+      '"It always is."',
+      '',
+      'You don\'t know if you should be afraid of whoever this is.',
+      'You think, maybe, you should be.',
+    ],
+  },
+
   // ═══════════════ ACT II — INTO THE WOUND ═══════════════
 
-  // ─────── Arc 1-0: Fracture Network (ids 13-19) ──────────────────
+  // ─────── Arc 1-0: Fracture Network (ids 16-22) ──────────────────
 
 );

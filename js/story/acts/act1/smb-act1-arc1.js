@@ -1,7 +1,7 @@
 // Appends chapters for act1/smb-act1-arc1.js.
 STORY_CHAPTER_REGISTRY.push(
   {
-    id: 13, title: 'Between Worlds',
+    id: 16, title: 'Between Worlds',
     world: '🌀 Fracture Network',
     narrative: [
       'The primary fracture swallowed you whole.',
@@ -27,7 +27,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 14, title: 'Fragment Theory',
+    id: 17, title: 'Fragment Theory',
     world: '🌀 Fracture Network — Collapsing Pocket',
     type: 'exploration', exploreMode: 'escape',
     style: 'void',
@@ -55,7 +55,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 15, title: 'Mirror Fracture',
+    id: 18, title: 'Mirror Fracture',
     world: '🌀 Fracture Network — Mirror Pocket',
     narrative: [
       'The compass led you into a mirror pocket.',
@@ -83,7 +83,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 16, title: 'The Shattered Mirror',
+    id: 19, title: 'The Shattered Mirror',
     world: '🌀 Fracture Network — Debris Field',
     type: 'assassination',
     preText: 'A bounty hunter materialized in the debris field — hired to stop fragment bearers from reaching the Void. Eliminate them before they transmit your location.',
@@ -109,7 +109,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 17, title: 'The Approach',
+    id: 20, title: 'The Approach',
     world: '🌀 Fracture Network — Outer Corridor',
     type: 'exploration', exploreMode: 'stealth',
     style: 'void',
@@ -142,7 +142,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 18, title: 'The Void Arena',
+    id: 21, title: 'The Void Arena',
     world: '🌀 Fracture Network — Collapsed Dimension',
     narrative: [
       'A collapsed dimension.',
@@ -173,7 +173,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 19, title: 'Static from the Core',
+    id: 22, title: 'Static from the Core',
     world: '🌀 Fracture Network — Signal Relay',
     type: 'exploration', exploreMode: 'defense',
     style: 'void',

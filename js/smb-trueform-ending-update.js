@@ -334,8 +334,10 @@ function updateTFEnding() {
         sc.finisherPrompt = 0;
         screenShake = 38 + sc.finisherHits * 10;
         CinFX.flash(_TFE_QTE_FLASH_COLORS[sc.finisherHits - 1] || '#ffffff', 0.7, 12);
-        spawnParticles(sc.boss.cx(), sc.boss.cy(), '#ffffff', 30);
-        spawnParticles(sc.boss.cx(), sc.boss.cy(), '#000000', 20);
+        // Each hit strips a layer of void corruption — purple/dark particles peel away
+        spawnParticles(sc.boss.cx(), sc.boss.cy(), '#8844ff', 28);
+        spawnParticles(sc.boss.cx(), sc.boss.cy(), '#330066', 20);
+        spawnParticles(sc.boss.cx(), sc.boss.cy(), '#ffffff', 14);
         SoundManager.heavyHit && SoundManager.heavyHit();
         // Launch boss backward
         const dir = sc.boss.cx() < sc.hero.cx() ? -1 : 1;
@@ -388,28 +390,30 @@ function updateTFEnding() {
     }
   }
 
-  // ── AURA ────────────────────────────────────────────────────────────────────
+  // ── RESONANCE — Kael's fragment finds Axiom's buried energy ─────────────
+  // The connection is imprecise: Axiom's fragment is dissolved, Kael's is crystallized.
+  // Two different states of the same thing. The resonance fires anyway — not cleanly.
   else if (sc.phase === 'aura') {
-    const dur = 120;
-    const frac = Math.min(1, t / dur);
-    const hx = sc.hero.cx(), hy = sc.hero.cy();
-    sc.auraX = sc.auraX + (hx - sc.auraX) * (frac * 0.08 + 0.01);
-    sc.auraY = sc.auraY + (hy - sc.auraY) * (frac * 0.08 + 0.01);
+    const dur = 150;
+    // Pulse stays at Axiom's last position — it does not flow to the hero.
+    if (sc._resonanceFlicker === undefined) sc._resonanceFlicker = 1;
+    sc._resonanceFlicker = Math.random() < 0.15
+      ? Math.random() * 0.4                        // sudden drop — interference
+      : Math.min(1, sc._resonanceFlicker + 0.07);  // uneven recovery
 
-    if (t % 2 === 0) {
-      for (let i = 0; i < 3; i++) {
-        const angle = Math.random() * Math.PI * 2;
-        const rad   = 20 + Math.random() * 30;
-        _tfeAuraParticles.push({
-          x: sc.auraX + Math.cos(angle) * rad,
-          y: sc.auraY + Math.sin(angle) * rad,
-          vx: (hx - sc.auraX) * 0.04 + (Math.random()-0.5)*2,
-          vy: (hy - sc.auraY) * 0.04 + (Math.random()-0.5)*2,
-          life: 18 + Math.floor(Math.random()*12),
-          maxLife: 30,
-          r: 2 + Math.random() * 3,
-        });
-      }
+    // Erratic scattered particles — not streaming, not directed
+    if (settings.particles && t % 3 === 0 && _tfeAuraParticles.length < 28) {
+      const angle = Math.random() * Math.PI * 2;
+      const rad   = 10 + Math.random() * 40;
+      _tfeAuraParticles.push({
+        x:    sc.auraX + Math.cos(angle) * rad,
+        y:    sc.auraY + Math.sin(angle) * rad,
+        vx:   (Math.random() - 0.5) * 2.2,
+        vy:   (Math.random() - 0.5) * 2.2,
+        life: 12 + Math.floor(Math.random() * 20),
+        maxLife: 32,
+        r:    1.5 + Math.random() * 2.5,
+      });
     }
     for (let i = _tfeAuraParticles.length - 1; i >= 0; i--) {
       const ap = _tfeAuraParticles[i];
@@ -417,37 +421,75 @@ function updateTFEnding() {
       if (ap.life <= 0) _tfeAuraParticles.splice(i, 1);
     }
 
-    if (t === 90) { screenShake = 35; CinFX.flash('#000000', 0.55, 14); }
-    if (t >= dur + 20) {
+    // Resonance interference shudders — uneven, not a clean crescendo
+    if (t === 35) { screenShake = Math.max(screenShake, 10); }
+    if (t === 70) { CinFX.flash('#8844ff', 0.22, 8); screenShake = Math.max(screenShake, 14); }
+    if (t === 100) { CinFX.flash('#ffffff', 0.30, 10); screenShake = Math.max(screenShake, 20); }
+    if (t === 125) { CinFX.flash('#8844ff', 0.18, 6); }
+
+    if (t >= dur + 10) {
       sc.phase = 'kernelFlight';
       sc.timer = 0;
       _tfeAuraParticles = [];
     }
   }
 
-  // ── KERNEL FLIGHT: The Kernel escapes Axiom's corpse ─────────────────────
+  // ── SOVEREIGN ARRIVAL — drops in, extracts the kernel, departs ───────────
+  // Awakened Sovereign was watching. It takes the kernel — Axiom's compressed
+  // identity — the instant his defenses collapse. Surgical. No announcement.
   else if (sc.phase === 'kernelFlight') {
     if (t === 1) {
       sc._kfX    = sc.auraX;
       sc._kfY    = sc.auraY;
-      sc._kfVy   = -5;
+      sc._kfVy   = 0;
       sc._kfLine = 0;
       sc._kfLineTimer = 0;
       sc._kfAlpha = 1;
+      // Sovereign: starts above the viewport, descends fast
+      sc._sovX     = sc.auraX;
+      sc._sovY     = -60;
+      sc._sovVY    = 18;
+      sc._sovAlpha = 0;
+      sc._sovPhase = 'descend'; // 'descend' | 'hold' | 'ascend' | 'gone'
     }
-    sc._kfVy += 0.12;
-    sc._kfX  += Math.sin(t * 0.08) * 0.9;
-    sc._kfY  += sc._kfVy;
-    sc._kfR   = 12 + Math.sin(t * 0.22) * 3;
 
-    // Dialogue after kernel settles
+    // ── Sovereign descends (t 1–25) ─────────────────────────────────────────
+    if (sc._sovPhase === 'descend') {
+      sc._sovAlpha = Math.min(1, sc._sovAlpha + 0.08);
+      sc._sovY    += sc._sovVY;
+      sc._sovVY   *= 0.82; // decelerate into position
+      if (t >= 25) {
+        sc._sovPhase = 'hold';
+        sc._sovY     = sc._kfY - 30; // hover just above kernel position
+        sc._kfAlpha  = 0;            // kernel taken — vanishes instantly
+        CinFX.flash('#ffffff', 0.65, 10);
+        CinFX.shake(36);
+      }
+    }
+
+    // ── Sovereign holds briefly (t 25–45) ────────────────────────────────────
+    else if (sc._sovPhase === 'hold') {
+      if (t >= 45) {
+        sc._sovPhase = 'ascend';
+        sc._sovVY    = -22; // fast upward exit
+      }
+    }
+
+    // ── Sovereign exits (t 45+) ──────────────────────────────────────────────
+    else if (sc._sovPhase === 'ascend') {
+      sc._sovY    += sc._sovVY;
+      sc._sovVY   *= 1.14; // accelerate out
+      sc._sovAlpha = Math.max(0, sc._sovAlpha - 0.07);
+      if (sc._sovAlpha <= 0) sc._sovPhase = 'gone';
+    }
+
+    // ── Dialogue: after Sovereign is gone, outer form lies still ─────────────
     const _kfDialogue = [
-      { speaker: 'YOU', text: 'What is that thing?', side: 'left' },
-      { speaker: 'PARADOX', text: 'The Kernel. It was lodged in Axiom\'s core.', side: 'right' },
-      { speaker: 'PARADOX', text: 'The System planted it there to keep him bound. Contained.', side: 'right' },
-      { speaker: 'YOU', text: 'And now it\'s free.', side: 'left' },
-      { speaker: 'PARADOX', text: 'It went somewhere you can\'t reach. Don\'t worry about it.', side: 'right' },
-      { speaker: 'PARADOX', text: '...I think it\'ll be fine.', side: 'right' },
+      { speaker: 'KAEL', text: 'He stopped.', side: 'left' },
+      { speaker: '',     text: 'For a moment, Axiom was there.', side: 'right' },
+      { speaker: '',     text: 'Sovereign arrived in the same instant.', side: 'right' },
+      { speaker: 'KAEL', text: 'It took him before he could do anything with it.', side: 'left' },
+      { speaker: '',     text: 'The outer form stayed behind.', side: 'right' },
     ];
 
     if (t > 60) {
@@ -460,13 +502,7 @@ function updateTFEnding() {
       }
     }
 
-    // Kernel flies off-screen upward after dialogue
-    if (sc._kfLine >= _kfDialogue.length && t > 60) {
-      sc._kfVy -= 0.5;
-      sc._kfAlpha = Math.max(0, sc._kfAlpha - 0.04);
-    }
-
-    if (t > 60 + _kfDialogue.length * 70 + 40) {
+    if (t > 60 + _kfDialogue.length * 70 + 30) {
       sc.phase = 'powers';
       sc.timer = 0;
       sc.hero._tfAuraGlow = true;

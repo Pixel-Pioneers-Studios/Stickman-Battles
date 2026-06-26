@@ -23,7 +23,7 @@
 STORY_CHAPTER_REGISTRY.push(
 
   {
-    id: 165, title: 'What Is Yours',
+    id: 171, title: 'What Is Yours',
     world: '⬛ The Substrate — The Trial Ground',
     narrative: [
       'The Void Mind spoke for the first time.',

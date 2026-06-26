@@ -17,7 +17,7 @@ STORY_CHAPTER_REGISTRY.push(
   // The Void Mind presents: the liberation was tactical cover. Sabotage dressed as ethics.
   // ────────────────────────────────────────────────────────────────────────────
   {
-    id: 158, title: 'The Work They Left',
+    id: 164, title: 'The Work They Left',
     world: '⬛ The Substrate — Below All Dimensions',
     type: 'branch',
     narrative: [
@@ -87,7 +87,7 @@ STORY_CHAPTER_REGISTRY.push(
   // It was the first finality completing.
   // ────────────────────────────────────────────────────────────────────────────
   {
-    id: 159, title: 'What Was Left',
+    id: 165, title: 'What Was Left',
     world: '⬛ The Substrate — Below All Dimensions',
     type: 'branch',
     narrative: [
@@ -157,7 +157,7 @@ STORY_CHAPTER_REGISTRY.push(
   // The conflict is not evidence of personhood — patterns can conflict.
   // ────────────────────────────────────────────────────────────────────────────
   {
-    id: 160, title: 'Their Names',
+    id: 166, title: 'Their Names',
     world: '⬛ The Substrate — Below All Dimensions',
     type: 'branch',
     narrative: [

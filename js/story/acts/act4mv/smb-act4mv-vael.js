@@ -6,7 +6,7 @@
 STORY_CHAPTER_REGISTRY.push(
 
   {
-    id: 104, title: 'The Fracture Coast',
+    id: 110, title: 'The Fracture Coast',
     world: '🌊 Fracture Coast — Temporal Approach',
     type: 'ship_flight',
     preText: 'The Fracture Coast splits time into visible layers — objects ahead show their future positions before they arrive. Fly through what is and what was at the same time.',
@@ -33,7 +33,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 105, title: 'The Foreseen Path',
+    id: 111, title: 'The Foreseen Path',
     world: '🌊 Fracture Coast — Arranged Ground',
     type: 'exploration', exploreMode: 'puzzle',
     style: 'void',
@@ -66,7 +66,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 106, title: 'What VAEL Saw Before',
+    id: 112, title: 'What VAEL Saw Before',
     world: '🌊 Fracture Coast — Memory Tides',
     type: 'exploration', exploreMode: 'scavenge',
     style: 'void',
@@ -99,7 +99,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 107, title: 'The Blind Spot',
+    id: 113, title: 'The Blind Spot',
     world: '🌊 Fracture Coast — The Overlap',
     type: 'branch',
     narrative: [
@@ -149,7 +149,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 108, title: 'VAEL',
+    id: 114, title: 'VAEL',
     world: '🌊 Fracture Coast — The Outcome',
     narrative: [
       '"I can see three seconds into every fight I have ever had.",',

@@ -1,7 +1,7 @@
 // Appends chapters for act2/smb-act2-arc3.js.
 STORY_CHAPTER_REGISTRY.push(
   {
-    id: 42, type: 'exploration', exploreMode: 'traversal', title: 'What the Ancients Left',
+    id: 45, type: 'exploration', exploreMode: 'traversal', title: 'What the Ancients Left',
     world: '🏛️ Ruins Dimension — The First Collapse',
     narrative: [
       'The first dimension to ever fracture.',
@@ -51,7 +51,7 @@ STORY_CHAPTER_REGISTRY.push(
   // ───────────────────────────────────────────────────────────────
 
   {
-    id: 43, title: 'The Last Army',
+    id: 46, title: 'The Last Army',
     world: '⚛️ Multiversal Core — Outer Ring',
     narrative: [
       'The rift entity had been quiet.',
@@ -84,7 +84,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 44, title: 'The Herald of Nothing',
+    id: 47, title: 'The Herald of Nothing',
     world: '⚛️ Multiversal Core — Threshold',
     narrative: [
       'The rift\'s final guardian.',

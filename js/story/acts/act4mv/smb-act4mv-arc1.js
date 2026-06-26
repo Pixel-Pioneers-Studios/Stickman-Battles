@@ -1,7 +1,7 @@
 // Appends chapters for act4mv/smb-act4mv-arc1.js.
 STORY_CHAPTER_REGISTRY.push(
   {
-    id: 78,
+    id: 84,
     title: 'A World at War',
     world: '⚔️ War-Torn Dimension — Entry',
     narrative: [
@@ -37,7 +37,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 79,
+    id: 85,
     title: 'The War Camp',
     world: '⚔️ War-Torn Dimension — Command Post',
     narrative: [
@@ -71,7 +71,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 80,
+    id: 86,
     title: 'A World That Never Stopped Fighting',
     world: '⚔️ War-Torn Dimension',
     type: 'exploration', exploreMode: 'escape',
@@ -102,7 +102,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 81,
+    id: 87,
     title: 'War Champion',
     world: '⚔️ War-Torn Dimension — Front Lines',
     narrative: [
@@ -142,7 +142,7 @@ STORY_CHAPTER_REGISTRY.push(
   // ─────── Arc 5-1: Gravity Flux World ──────────────────────────────
 
   {
-    id: 82,
+    id: 88,
     title: 'Into the Flux',
     world: '🌀 Gravity Flux World — Entry',
     narrative: [
@@ -176,7 +176,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 83,
+    id: 89,
     title: 'Drifters in the Flux',
     world: '🌀 Gravity Flux World — Mid-Zone',
     narrative: [
@@ -212,7 +212,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 84,
+    id: 90,
     title: 'The Ground Is a Suggestion',
     world: '🌀 Gravity Flux World — Entry Zone',
     type: 'exploration', exploreMode: 'puzzle',
@@ -245,7 +245,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 85,
+    id: 91,
     title: 'Flux Guardian',
     world: '🌀 Gravity Flux World — The Axis',
     narrative: [

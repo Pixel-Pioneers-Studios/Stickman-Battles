@@ -320,35 +320,43 @@ function drawTFEnding() {
     }
   }
 
-  // ── AURA orb + particles ─────────────────────────────────────────────────────
+  // ── RESONANCE pulse — flickering, distorted, imprecise ──────────────────────
   if (sc.phase === 'aura') {
-    const ax = sc.auraX * scX, ay = sc.auraY * scY;
-    const r  = 28 * sc_;
-    const pulse = 1 + Math.sin(sc.timer * 0.18) * 0.1;
-    ctx.globalAlpha = 0.9;
-    const grd = ctx.createRadialGradient(ax, ay, 0, ax, ay, r * 2.5 * pulse);
-    grd.addColorStop(0,   'rgba(0,0,0,0.85)');
-    grd.addColorStop(0.55,'rgba(20,20,40,0.6)');
-    grd.addColorStop(1,   'rgba(0,0,0,0)');
+    const ax  = sc.auraX * scX, ay = sc.auraY * scY;
+    const r   = 28 * sc_;
+    const flk = sc._resonanceFlicker !== undefined ? sc._resonanceFlicker : 1;
+    // Outer glow: flickers between void-purple and near-black
+    const pulse = (1 + Math.sin(sc.timer * 0.28) * 0.14) * flk;
+    ctx.globalAlpha = 0.82 * flk;
+    const grd = ctx.createRadialGradient(ax, ay, 0, ax, ay, r * 3.0 * pulse);
+    grd.addColorStop(0,    'rgba(80,0,160,0.90)');
+    grd.addColorStop(0.4,  'rgba(30,0,60,0.65)');
+    grd.addColorStop(0.75, 'rgba(8,0,20,0.30)');
+    grd.addColorStop(1,    'rgba(0,0,0,0)');
     ctx.fillStyle = grd;
-    ctx.beginPath(); ctx.arc(ax, ay, r * 2.5 * pulse, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(ax, ay, r * 3.0 * pulse, 0, Math.PI*2); ctx.fill();
 
-    ctx.globalAlpha = 0.95;
-    ctx.fillStyle   = '#080808';
-    ctx.shadowColor = '#6600ff'; ctx.shadowBlur = 22;
+    // Core: flickering dark orb with unstable purple rim
+    ctx.globalAlpha = 0.92 * flk;
+    ctx.fillStyle   = '#0a000f';
+    ctx.shadowColor = flk > 0.6 ? '#8800ff' : '#330044';
+    ctx.shadowBlur  = 18 * flk;
     ctx.beginPath(); ctx.arc(ax, ay, r * pulse, 0, Math.PI*2); ctx.fill();
-    ctx.shadowBlur = 0;
+    ctx.shadowBlur  = 0;
 
+    // Particles: scattered, erratic — not streaming
     for (const ap of _tfeAuraParticles) {
-      ctx.globalAlpha = (ap.life / ap.maxLife) * 0.85;
-      ctx.fillStyle   = Math.random() < 0.3 ? '#6600ff' : '#000000';
+      const pAlpha = (ap.life / ap.maxLife) * 0.75 * flk;
+      ctx.globalAlpha = pAlpha;
+      const pColor    = Math.random() < 0.45 ? '#8844ff' : (Math.random() < 0.5 ? '#ffffff' : '#440088');
+      ctx.fillStyle   = pColor;
       ctx.beginPath(); ctx.arc(ap.x * scX, ap.y * scY, ap.r * sc_, 0, Math.PI*2); ctx.fill();
     }
   }
 
-  // ── KERNEL FLIGHT ─────────────────────────────────────────────────────────────
+  // ── SOVEREIGN ARRIVAL + KERNEL THEFT ─────────────────────────────────────────
   if (sc.phase === 'kernelFlight') {
-    // Kernel orb
+    // Kernel orb — visible only until Sovereign extracts it (sc._kfAlpha = 0 after t=25)
     if (sc._kfAlpha > 0 && sc._kfX !== undefined) {
       const kx = sc._kfX * scX, ky = sc._kfY * scY;
       const kr = (sc._kfR || 12) * sc_;
@@ -363,44 +371,75 @@ function drawTFEnding() {
       ctx.shadowColor = '#ffcc00'; ctx.shadowBlur = 20;
       ctx.beginPath(); ctx.arc(kx, ky, kr, 0, Math.PI * 2); ctx.fill();
       ctx.shadowBlur  = 0;
-      // Label
-      ctx.globalAlpha = sc._kfAlpha * 0.8;
+      ctx.globalAlpha = sc._kfAlpha * 0.7;
       ctx.font        = `bold ${Math.round(9 * sc_)}px monospace`;
       ctx.fillStyle   = '#ffeeaa';
       ctx.textAlign   = 'center';
       ctx.fillText('THE KERNEL', kx, ky - kr * 2.2 - 4 * sc_);
     }
 
-    // Dialogue
+    // Sovereign silhouette — dark figure with indigo rim, drops from above
+    if (sc._sovAlpha > 0 && sc._sovX !== undefined) {
+      const sx  = sc._sovX * scX;
+      const sy  = sc._sovY * scY;
+      const sw  = 18 * sc_, sh = 36 * sc_; // body dims
+      const hr  = 7  * sc_;                // head radius
+      ctx.globalAlpha = sc._sovAlpha;
+
+      // Indigo glow halo
+      const halo = ctx.createRadialGradient(sx, sy, 0, sx, sy, 50 * sc_);
+      halo.addColorStop(0,   'rgba(40,0,100,0.55)');
+      halo.addColorStop(0.5, 'rgba(20,0,60,0.25)');
+      halo.addColorStop(1,   'rgba(0,0,0,0)');
+      ctx.fillStyle = halo;
+      ctx.beginPath(); ctx.arc(sx, sy, 50 * sc_, 0, Math.PI*2); ctx.fill();
+
+      // Body silhouette — near-black with sharp indigo stroke
+      ctx.fillStyle   = '#05000a';
+      ctx.strokeStyle = '#5500cc';
+      ctx.lineWidth   = 1.5 * sc_;
+      // Head
+      ctx.shadowColor = '#7722ff'; ctx.shadowBlur = 10 * sc_;
+      ctx.beginPath(); ctx.arc(sx, sy - sh * 0.5 - hr, hr, 0, Math.PI*2);
+      ctx.fill(); ctx.stroke();
+      // Body
+      ctx.beginPath();
+      ctx.rect(sx - sw * 0.5, sy - sh * 0.5, sw, sh);
+      ctx.fill(); ctx.stroke();
+      ctx.shadowBlur = 0;
+    }
+
+    // Dialogue — starts after Sovereign is gone (t > 60)
     if (sc._kfLine !== undefined && sc.timer > 60) {
       const _kfLines = [
-        { speaker: 'YOU',    text: 'What is that thing?', side: 'left', color: '#aaddff' },
-        { speaker: 'PARADOX',text: 'The Kernel. It was lodged in Axiom\'s core.', side: 'right', color: '#aa66ff' },
-        { speaker: 'PARADOX',text: 'The System planted it to keep him bound. Contained.', side: 'right', color: '#aa66ff' },
-        { speaker: 'YOU',    text: 'And now it\'s free.', side: 'left', color: '#aaddff' },
-        { speaker: 'PARADOX',text: 'It went somewhere you can\'t reach. Don\'t worry about it.', side: 'right', color: '#cc88ff' },
-        { speaker: 'PARADOX',text: '...I think it\'ll be fine.', side: 'right', color: '#cc88ff' },
+        { speaker: 'KAEL', text: 'He stopped.', side: 'left',  color: '#aaddff' },
+        { speaker: '',     text: 'For a moment, Axiom was there.', side: 'right', color: '#cc99ff' },
+        { speaker: '',     text: 'Sovereign arrived in the same instant.', side: 'right', color: '#cc99ff' },
+        { speaker: 'KAEL', text: 'It took him before he could do anything with it.', side: 'left', color: '#aaddff' },
+        { speaker: '',     text: 'The outer form stayed behind.', side: 'right', color: '#cc99ff' },
       ];
       const line = _kfLines[sc._kfLine];
       if (line) {
         const isLeft = line.side === 'left';
-        const boxW   = 420 * sc_, boxH = 64 * sc_;
+        const boxW   = 440 * sc_, boxH = 64 * sc_;
         const boxX   = isLeft ? 24 * sc_ : cw - boxW - 24 * sc_;
         const boxY   = ch - 90 * scY;
         ctx.globalAlpha  = 0.95;
-        ctx.fillStyle   = 'rgba(0,0,0,0.82)';
-        ctx.strokeStyle = line.color;
-        ctx.lineWidth   = 1.8;
+        ctx.fillStyle    = 'rgba(0,0,0,0.82)';
+        ctx.strokeStyle  = line.color;
+        ctx.lineWidth    = 1.8;
         _roundRect(ctx, boxX, boxY, boxW, boxH, 10 * sc_);
         ctx.fill(); ctx.stroke();
-        ctx.font      = `bold ${Math.round(10 * sc_)}px monospace`;
-        ctx.fillStyle = line.color;
-        ctx.textAlign = isLeft ? 'left' : 'right';
-        ctx.fillText(line.speaker, isLeft ? boxX + 12 * sc_ : boxX + boxW - 12 * sc_, boxY + 16 * sc_);
+        if (line.speaker) {
+          ctx.font      = `bold ${Math.round(10 * sc_)}px monospace`;
+          ctx.fillStyle = line.color;
+          ctx.textAlign = isLeft ? 'left' : 'right';
+          ctx.fillText(line.speaker, isLeft ? boxX + 12 * sc_ : boxX + boxW - 12 * sc_, boxY + 16 * sc_);
+        }
         ctx.font      = `${Math.round(12 * sc_)}px sans-serif`;
         ctx.fillStyle = '#ffffff';
         ctx.textAlign = 'center';
-        ctx.fillText(line.text, boxX + boxW / 2, boxY + boxH * 0.7);
+        ctx.fillText(line.text, boxX + boxW / 2, boxY + boxH * (line.speaker ? 0.7 : 0.55));
       }
     }
   }
@@ -436,7 +475,7 @@ function drawTFEnding() {
 
     ctx.font      = `${Math.round(ch * 0.025)}px sans-serif`;
     ctx.fillStyle = 'rgba(180,140,255,0.9)';
-    ctx.fillText('You have absorbed the void.', cw/2, baseY + lineH * 0.85);
+    ctx.fillText('The corruption is gone. The fragment stabilized.', cw/2, baseY + lineH * 0.85);
 
     ctx.font = `bold ${Math.round(ch * 0.028)}px monospace`;
     for (let i = 0; i < sc.powersList.length; i++) {

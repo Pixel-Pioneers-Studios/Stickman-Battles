@@ -5,7 +5,7 @@
 STORY_CHAPTER_REGISTRY.push(
 
   {
-    id: 150, title: 'The Voice Inside',
+    id: 156, title: 'The Voice Inside',
     world: '🌅 God\'s Domain — Rewritten',
     type: 'branch',
     narrative: [
@@ -62,7 +62,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 151, title: 'Phase One — Axiom\'s Will',
+    id: 157, title: 'Phase One — Axiom\'s Will',
     world: '🌅 God\'s Domain — Rewritten',
     preText: 'Absolute Axiom — Phase One. Axiom\'s will is driving this. It has catalogued every pattern you have. Every fighter it sent contributed data. 3 lives.',
     opponentName: 'Absolute Axiom', weaponKey: 'sword', classKey: 'warrior', aiDiff: 'expert', opponentColor: '#ffe8ff',
@@ -82,7 +82,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 152, title: 'God\'s Foundation',
+    id: 158, title: 'God\'s Foundation',
     world: '🌅 God\'s Domain — Actively Reshaping',
     type: 'exploration', exploreMode: 'escape',
     style: 'void',
@@ -109,7 +109,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 153, title: 'Phase Two — God\'s Foundations',
+    id: 159, title: 'Phase Two — God\'s Foundations',
     world: '🌅 God\'s Domain — Fully Rewritten',
     preText: 'Absolute Axiom — Phase Two. God\'s creative force is now a weapon. The domain fights alongside it. There is no margin left. 1 life.',
     opponentName: 'Absolute Axiom', weaponKey: 'sword', classKey: 'warrior', aiDiff: 'expert', opponentColor: '#ffe8ff',
@@ -129,7 +129,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 154, title: 'Peak Form',
+    id: 160, title: 'Peak Form',
     world: '🌅 God\'s Domain — Fully Rewritten',
     type: 'branch',
     narrative: [
@@ -178,7 +178,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 155, title: 'After Everything',
+    id: 161, title: 'After Everything',
     world: '🌅 God\'s Domain — Settling',
     type: 'branch',
     narrative: [

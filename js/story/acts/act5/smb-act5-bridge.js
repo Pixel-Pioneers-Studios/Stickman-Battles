@@ -7,7 +7,7 @@
 STORY_CHAPTER_REGISTRY.push(
 
   {
-    id: 136, title: 'The Silence After',
+    id: 142, title: 'The Silence After',
     world: '🌌 Void — Aftermath',
     type: 'branch',
     isEpilogue: true,
@@ -63,7 +63,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 137, title: 'The Cost',
+    id: 143, title: 'The Cost',
     world: '🌌 Void — Aftermath',
     type: 'branch',
     isEpilogue: true,
@@ -115,7 +115,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 138, title: 'What the Void Looks Like Now',
+    id: 144, title: 'What the Void Looks Like Now',
     world: '🌌 Void — New Geometry',
     type: 'branch',
     isEpilogue: true,
@@ -176,7 +176,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 139, title: 'The Compass Points',
+    id: 145, title: 'The Compass Points',
     world: '🌌 Void — The Threshold Ahead',
     type: 'branch',
     isEpilogue: true,

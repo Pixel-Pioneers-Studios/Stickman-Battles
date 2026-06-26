@@ -1,7 +1,7 @@
 // Appends chapters for act3/smb-act3-arc1.js.
 STORY_CHAPTER_REGISTRY.push(
   {
-    id: 45, title: 'The Assembly',
+    id: 48, title: 'The Assembly',
     world: '🌐 Neutral Dimension — The Anchor Point',
     type: 'exploration', exploreMode: 'stealth',
     style: 'void',
@@ -35,7 +35,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 46, title: 'The Probe',
+    id: 49, title: 'The Probe',
     world: '🌐 Neutral Dimension — Entry Point',
     narrative: [
       '"Don\'t engage it," the Third Architect said immediately.',
@@ -68,7 +68,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 47, title: 'The Split',
+    id: 50, title: 'The Split',
     world: '🌐 Neutral Dimension — Assembly Hall',
     type: 'branch',
     narrative: [
@@ -112,7 +112,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 48, title: 'Rogue Faction',
+    id: 51, title: 'Rogue Faction',
     world: '🌐 Neutral Dimension — Outer Perimeter',
     narrative: [
       'They called themselves the Preserved.',
@@ -146,7 +146,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 49, title: 'What Veran Didn\'t Say',
+    id: 52, title: 'What Veran Didn\'t Say',
     world: '🌐 Neutral Dimension — Assembly Hall',
     type: 'branch',
     narrative: [
@@ -190,7 +190,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 50, title: 'The Upload',
+    id: 53, title: 'The Upload',
     world: '🌐 Neutral Dimension — Relay Node',
     narrative: [
       '"The closure data needs to reach the dimensional relay before the Creator seals it,"',
@@ -222,7 +222,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 51, title: 'The Hidden Page',
+    id: 54, title: 'The Hidden Page',
     world: '🌐 Neutral Dimension — Archive Vault',
     type: 'exploration', exploreMode: 'puzzle',
     style: 'void',

@@ -87,6 +87,8 @@ function openStoryMenu() {
   if (typeof _story2TokenDisplay === 'function') _story2TokenDisplay();
   _updateStoryCloseBtn();
 
+  if (typeof _updateContinueStoryBtn === 'function') _updateContinueStoryBtn();
+
   // First-time prologue: show purpose screen before player sees chapter list
   if (m && !_story2.prologueSeen) {
     _story2.prologueSeen = true;

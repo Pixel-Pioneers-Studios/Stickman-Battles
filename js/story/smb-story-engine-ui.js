@@ -270,6 +270,39 @@ function _buyAbility2(key, ab) {
   if (typeof showToast === 'function') showToast('✅ Unlocked: ' + ab.name + '!');
 }
 
+// ── Continue Story button ─────────────────────────────────────────────────────
+function continueStory() {
+  if (!_story2 || typeof STORY_CHAPTERS2 === 'undefined') return;
+  const nextIdx = _story2.chapter || 0;
+  if (nextIdx >= STORY_CHAPTERS2.length) {
+    if (typeof showToast === 'function') showToast('Story Complete — all chapters cleared!');
+    return;
+  }
+  _beginChapter2(nextIdx);
+}
+
+function _updateContinueStoryBtn() {
+  const btn = document.getElementById('continueStoryBtn');
+  if (!btn) return;
+  if (!_story2 || typeof STORY_CHAPTERS2 === 'undefined') return;
+  const nextIdx = _story2.chapter || 0;
+  if (nextIdx >= STORY_CHAPTERS2.length) {
+    btn.textContent = '✓ Story Complete';
+    btn.disabled    = true;
+    btn.style.opacity  = '0.45';
+    btn.style.cursor   = 'default';
+  } else {
+    // Skip menuHidden chapters to get the visible title
+    let visIdx = nextIdx;
+    while (STORY_CHAPTERS2[visIdx] && STORY_CHAPTERS2[visIdx]._menuHidden) visIdx++;
+    const ch = STORY_CHAPTERS2[visIdx] || STORY_CHAPTERS2[nextIdx];
+    btn.textContent = '▶ Continue Story' + (ch ? ' — ' + ch.title : '');
+    btn.disabled    = false;
+    btn.style.opacity = '1';
+    btn.style.cursor  = 'pointer';
+  }
+}
+
 // ── Story path submenu entry points ──────────────────────────────────────────
 function openStoryMenuChapters() {
   if (typeof closeStoryPath === 'function') closeStoryPath();

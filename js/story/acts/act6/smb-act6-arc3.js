@@ -5,7 +5,7 @@
 STORY_CHAPTER_REGISTRY.push(
 
   {
-    id: 75, title: 'The First Heroes',
+    id: 81, title: 'The First Heroes',
     world: '🌌 The Void Between — Memory Archive',
     type: 'branch',
     narrative: [
@@ -76,7 +76,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 76, title: 'What You Carry',
+    id: 82, title: 'What You Carry',
     world: '🌌 The Void Between — Fragment Core',
     type: 'exploration', exploreMode: 'defense',
     style: 'void',
@@ -107,7 +107,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 77, title: 'The Shape Beyond',
+    id: 83, title: 'The Shape Beyond',
     world: '🌌 The Void Between — Final Threshold',
     type: 'branch',
     narrative: [

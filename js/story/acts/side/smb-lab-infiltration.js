@@ -8,7 +8,7 @@
 // Reveals the fractures were engineered by the Creator before the Rural arc begins.
 
 STORY_CHAPTER_REGISTRY.push({
-    id: 62,
+    id: 65,
     title: 'Laboratory Infiltration',
     world: '🧪 Abandoned Research Facility',
 

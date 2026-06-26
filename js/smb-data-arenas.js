@@ -619,6 +619,21 @@ const ARENAS = {
       { x: 0,   y: 460, w: 900, h: 120, isFloor: true },
     ],
   },
+  homeRooftop: {
+    name: 'City Rooftop', isStoryOnly: true, earthPhysics: true,
+    worldWidth: 6000, mapLeft: -50, mapRight: 5850, boundaryPortals: true,
+    sky: ['#0a0d18','#141a28','#1e2538'],
+    groundColor: '#1a1a22', platColor: '#252530', platEdge: '#111118',
+    hasLava: false, deathY: 640,
+    platforms: [
+      { x: -80, y: 480, w: 5980, h: 200, isFloor: true },
+      { x:  200, y: 380, w: 160, h: 20 }, { x:  550, y: 340, w: 140, h: 20 },
+      { x:  900, y: 380, w: 160, h: 20 }, { x: 1250, y: 340, w: 140, h: 20 },
+      { x: 1600, y: 380, w: 160, h: 20 }, { x: 1950, y: 340, w: 140, h: 20 },
+      { x: 2300, y: 380, w: 160, h: 20 }, { x: 2650, y: 340, w: 140, h: 20 },
+      { x: 3000, y: 380, w: 160, h: 20 }, { x: 3350, y: 340, w: 140, h: 20 },
+    ]
+  },
   homeAlley: {
     name: 'City Alley', isStoryOnly: true, earthPhysics: true,
     worldWidth: 6000, mapLeft: -50, mapRight: 5850, boundaryPortals: true,

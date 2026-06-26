@@ -1,7 +1,7 @@
 // Appends chapters for act6/smb-act6-arc1.js.
 STORY_CHAPTER_REGISTRY.push(
   {
-    id: 69, title: 'The First Gate',
+    id: 75, title: 'The First Gate',
     world: '🌌 The Void Between — Outer Threshold',
     narrative: [
       'The scar from the loop was still settling.',
@@ -39,7 +39,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 70, title: 'What Was Lost',
+    id: 76, title: 'What Was Lost',
     world: '🌌 The Void Between — Remnant Space',
     type: 'exploration', exploreMode: 'scavenge',
     style: 'void',
@@ -70,7 +70,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 71, title: 'A Voice Between Worlds',
+    id: 77, title: 'A Voice Between Worlds',
     world: '🌌 The Void Between Dimensions',
     type: 'exploration', exploreMode: 'stealth',
     style: 'void',
@@ -102,7 +102,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 72, title: 'The Architect Before the Architects',
+    id: 78, title: 'The Architect Before the Architects',
     world: '🌌 The Void Between — Origin Vault',
     type: 'exploration', exploreMode: 'scavenge',
     style: 'void',
