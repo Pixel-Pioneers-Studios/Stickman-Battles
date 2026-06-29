@@ -1075,6 +1075,15 @@ function _consoleExec(raw) {
     _ok(`Stress test started: 1 → ${_maxBots} bots, ${_matches} matches/level. Watch console.`);
     return;
   }
+  if (cmd.startsWith('SOVEREIGN:EVAL') || cmd.startsWith('SOV:EVAL')) {
+    if (typeof SMK2Trainer === 'undefined') { _ok('SMK2Trainer not loaded.'); return; }
+    const _ep = raw.trim().split(/\s+/);
+    const _bots    = parseInt(_ep[1]) || 2;
+    const _matches = parseInt(_ep[2]) || 40;
+    SMK2Trainer.evalVsDefault(_bots, _matches);
+    _ok(`Eval started: champion vs DEFAULT, ${_matches} paired matches vs ${_bots} bot(s). Watch console.`);
+    return;
+  }
   if (cmd === 'SOVEREIGN:GENOME' || cmd === 'SOV:GENOME') {
     if (typeof SMK2Trainer === 'undefined') { _ok('SMK2Trainer not loaded.'); return; }
     const _g = SMK2Trainer.loadChampion();

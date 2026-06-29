@@ -86,101 +86,126 @@ const SMK2Trainer = (() => {
   }
 
   // ── Environment stub / restore ──────────────────────────────────────────
+  // CRITICAL: game globals (players, currentArena, gameMode, frameCount, …) are
+  // lexical `let` bindings, NOT window properties — `window.X = …` creates a
+  // SEPARATE property the game never reads, so the old stub left the real
+  // `players` empty and every bot's _acquireAITarget() returned null → bots
+  // stood idle (0 swings) and the trainer was just Sovereign farming dummies.
+  // Fix: mutate arrays IN PLACE (`players.length=0; players.push(…)`) and write
+  // scalars via BARE assignment. (Functions like spawnParticles/isCombatLocked
+  // ARE window-backed, so window stubs still work for those.)
   let _saved = null;
 
+  // Write the headless sim environment into the real (lexical) game globals.
+  // Shared by _stubEnv (once) and _runMatch (per match).
+  function _applySimEnv() {
+    const _noop = () => {};
+    currentArena = (typeof ARENAS !== 'undefined' && ARENAS.sovereign)
+      ? ARENAS.sovereign
+      : { id: 'sim', bgColor: '#000', platforms: [{ x: 0, y: 460, w: 900, h: 60, isFloor: true }] };
+    players.length = 0;
+    if (typeof minions          !== 'undefined') minions.length         = 0;
+    if (typeof trainingDummies  !== 'undefined') trainingDummies.length = 0;
+    if (typeof verletRagdolls   !== 'undefined') verletRagdolls.length  = 0;
+    if (typeof projectiles      !== 'undefined') projectiles.length     = 0;
+    if (typeof damageTexts      !== 'undefined') damageTexts.length     = 0;
+    hitStopFrames   = 0;
+    slowMotion      = 1;   // a prior hit-stop/finisher may have set this to 0
+    screenShake     = 0;
+    isCinematic     = false;
+    activeCinematic = null;
+    storyModeActive = false;
+    gameRunning     = true;
+    gameMode        = 'sovereign';
+    onlineMode      = false;
+    if (typeof trainingMode      !== 'undefined') trainingMode      = false;
+    if (typeof trainingChaosMode !== 'undefined') trainingChaosMode = false;
+    if (typeof activeFinisher    !== 'undefined') activeFinisher    = null;
+    if (typeof qteActive         !== 'undefined') qteActive         = false;
+    if (typeof settings !== 'undefined') { settings.finishers = false; settings.dmgNumbers = false; }
+    if (typeof combatLock !== 'undefined' && combatLock && combatLock.blocks) {
+      Object.keys(combatLock.blocks).forEach(k => { combatLock.blocks[k] = false; });
+    }
+    // Side-effect / guard functions (window-backed — window stubs work here)
+    window.spawnParticles   = _noop;
+    window.showBossDialogue = _noop;
+    if (typeof spawnBullet        !== 'undefined') window.spawnBullet        = _noop;
+    if (typeof unlockAchievement  !== 'undefined') window.unlockAchievement  = _noop;
+    if (typeof pickSafeSpawn      !== 'undefined') window.pickSafeSpawn      = () => null;
+    if (typeof spawnLightningBolt !== 'undefined') window.spawnLightningBolt = _noop;
+    if (typeof isCombatLocked     !== 'undefined') window.isCombatLocked     = () => false;
+    if (typeof isCutsceneActive   !== 'undefined') window.isCutsceneActive   = () => false;
+    if (typeof SoundManager !== 'undefined') {
+      for (const k of Object.keys(SoundManager)) {
+        if (typeof SoundManager[k] === 'function') SoundManager[k] = _noop;
+      }
+    }
+  }
+
   function _stubEnv() {
-    const _g = (n) => (typeof window[n] !== 'undefined' ? window[n] : undefined);
+    // Snapshot the REAL game state (bare reads / array copies) so we can restore
+    // it after the run — the trainer is launched from the in-game console.
     _saved = {
-      players:          _g('players'),
-      minions:          _g('minions'),
-      trainingDummies:  _g('trainingDummies'),
-      verletRagdolls:   _g('verletRagdolls'),
-      projectiles:      _g('projectiles'),
-      damageTexts:      _g('damageTexts'),
-      isCinematic:      _g('isCinematic'),
-      activeCinematic:  _g('activeCinematic'),
-      hitStopFrames:    _g('hitStopFrames'),
-      storyModeActive:  _g('storyModeActive'),
-      gameRunning:      _g('gameRunning'),
-      gameMode:         _g('gameMode'),
-      onlineMode:       _g('onlineMode'),
-      currentArena:     _g('currentArena'),
-      aiTick:           _g('aiTick'),
-      frameCount:       _g('frameCount'),
-      spawnParticles:   _g('spawnParticles'),
-      spawnBullet:      _g('spawnBullet'),
-      showBossDialogue: _g('showBossDialogue'),
-      unlockAchievement:_g('unlockAchievement'),
-      pickSafeSpawn:    _g('pickSafeSpawn'),
-      dmgNumbers:       settings.dmgNumbers,
-      smSounds:         {},
+      players:          players.slice(),
+      minions:          (typeof minions !== 'undefined')         ? minions.slice()         : undefined,
+      trainingDummies:  (typeof trainingDummies !== 'undefined') ? trainingDummies.slice() : undefined,
+      verletRagdolls:   (typeof verletRagdolls !== 'undefined')  ? verletRagdolls.slice()  : undefined,
+      projectiles:      (typeof projectiles !== 'undefined')     ? projectiles.slice()     : undefined,
+      damageTexts:      (typeof damageTexts !== 'undefined')     ? damageTexts.slice()     : undefined,
+      isCinematic, activeCinematic, hitStopFrames, slowMotion, screenShake,
+      storyModeActive, gameRunning, gameMode, onlineMode, currentArena, aiTick, frameCount,
+      trainingMode:      (typeof trainingMode !== 'undefined')      ? trainingMode      : undefined,
+      trainingChaosMode: (typeof trainingChaosMode !== 'undefined') ? trainingChaosMode : undefined,
+      spawnParticles:    (typeof window.spawnParticles   !== 'undefined') ? window.spawnParticles   : undefined,
+      spawnBullet:       (typeof window.spawnBullet      !== 'undefined') ? window.spawnBullet      : undefined,
+      showBossDialogue:  (typeof window.showBossDialogue !== 'undefined') ? window.showBossDialogue : undefined,
+      unlockAchievement: (typeof window.unlockAchievement!== 'undefined') ? window.unlockAchievement: undefined,
+      pickSafeSpawn:     (typeof window.pickSafeSpawn    !== 'undefined') ? window.pickSafeSpawn    : undefined,
+      spawnLightningBolt:(typeof window.spawnLightningBolt!=='undefined') ? window.spawnLightningBolt: undefined,
+      isCombatLocked:    (typeof window.isCombatLocked   !== 'undefined') ? window.isCombatLocked   : undefined,
+      isCutsceneActive:  (typeof window.isCutsceneActive !== 'undefined') ? window.isCutsceneActive : undefined,
+      finishers:         (typeof settings !== 'undefined') ? settings.finishers : undefined,
+      dmgNumbers:        (typeof settings !== 'undefined') ? settings.dmgNumbers : undefined,
+      smSounds:          {},
     };
     if (typeof SoundManager !== 'undefined') {
       for (const k of Object.keys(SoundManager)) {
         if (typeof SoundManager[k] === 'function') _saved.smSounds[k] = SoundManager[k];
       }
     }
-
-    window.currentArena    = (typeof ARENAS !== 'undefined' && ARENAS.sovereign)
-      ? ARENAS.sovereign
-      : { id: 'sim', bgColor: '#000', platforms: [{ x: 0, y: 460, w: 900, h: 60, isFloor: true }] };
-    window.players         = [];
-    window.minions         = [];
-    window.trainingDummies = [];
-    if (_saved.verletRagdolls !== undefined) window.verletRagdolls  = [];
-    if (_saved.projectiles    !== undefined) window.projectiles     = [];
-    if (_saved.damageTexts    !== undefined) window.damageTexts     = [];
-    window.isCinematic         = false;
-    window.activeCinematic     = null;
-    window.hitStopFrames       = 0;
-    window.storyModeActive     = false;
-    window.gameRunning         = true;
-    window.gameMode            = 'sovereign';
-    window.onlineMode          = false;
-    settings.dmgNumbers        = false;
-
-    const _noop = () => {};
-    window.spawnParticles      = _noop;
-    if (_saved.spawnBullet        !== undefined) window.spawnBullet       = _noop;
-    window.showBossDialogue    = _noop;
-    if (_saved.unlockAchievement  !== undefined) window.unlockAchievement = _noop;
-    if (_saved.pickSafeSpawn      !== undefined) window.pickSafeSpawn     = () => null;
-    if (typeof SoundManager !== 'undefined') {
-      for (const k of Object.keys(SoundManager)) {
-        if (typeof SoundManager[k] === 'function') SoundManager[k] = _noop;
-      }
-    }
-    // Stub combat-lock / cutscene guards — if these return true, Fighter skips all AI
-    if (typeof isCombatLocked   !== 'undefined') window.isCombatLocked   = () => false;
-    if (typeof isCutsceneActive !== 'undefined') window.isCutsceneActive = () => false;
+    _applySimEnv();
   }
 
   function _restoreEnv() {
     if (!_saved) return;
     const s = _saved;
-    const _r = (n, v) => { if (v !== undefined) window[n] = v; };
-    _r('players',          s.players);
-    _r('minions',          s.minions);
-    _r('trainingDummies',  s.trainingDummies);
-    _r('verletRagdolls',   s.verletRagdolls);
-    _r('projectiles',      s.projectiles);
-    _r('damageTexts',      s.damageTexts);
-    _r('isCinematic',      s.isCinematic);
-    _r('activeCinematic',  s.activeCinematic);
-    _r('hitStopFrames',    s.hitStopFrames);
-    _r('storyModeActive',  s.storyModeActive);
-    _r('gameRunning',      s.gameRunning);
-    _r('gameMode',         s.gameMode);
-    _r('onlineMode',       s.onlineMode);
-    _r('currentArena',     s.currentArena);
-    _r('aiTick',           s.aiTick);
-    _r('frameCount',       s.frameCount);
-    _r('spawnParticles',   s.spawnParticles);
-    _r('spawnBullet',      s.spawnBullet);
-    _r('showBossDialogue', s.showBossDialogue);
-    _r('unlockAchievement',s.unlockAchievement);
-    _r('pickSafeSpawn',    s.pickSafeSpawn);
-    settings.dmgNumbers = s.dmgNumbers;
+    const _restoreArr = (cond, arr, saved) => { if (cond && saved !== undefined) { arr.length = 0; arr.push(...saved); } };
+    _restoreArr(true, players, s.players);
+    _restoreArr(typeof minions !== 'undefined',         (typeof minions !== 'undefined') ? minions : [],                 s.minions);
+    _restoreArr(typeof trainingDummies !== 'undefined', (typeof trainingDummies !== 'undefined') ? trainingDummies : [], s.trainingDummies);
+    _restoreArr(typeof verletRagdolls !== 'undefined',  (typeof verletRagdolls !== 'undefined') ? verletRagdolls : [],   s.verletRagdolls);
+    _restoreArr(typeof projectiles !== 'undefined',     (typeof projectiles !== 'undefined') ? projectiles : [],         s.projectiles);
+    _restoreArr(typeof damageTexts !== 'undefined',     (typeof damageTexts !== 'undefined') ? damageTexts : [],         s.damageTexts);
+    isCinematic = s.isCinematic; activeCinematic = s.activeCinematic;
+    hitStopFrames = s.hitStopFrames; slowMotion = s.slowMotion; screenShake = s.screenShake;
+    storyModeActive = s.storyModeActive; gameRunning = s.gameRunning;
+    gameMode = s.gameMode; onlineMode = s.onlineMode; currentArena = s.currentArena;
+    aiTick = s.aiTick; frameCount = s.frameCount;
+    if (typeof trainingMode !== 'undefined'      && s.trainingMode      !== undefined) trainingMode      = s.trainingMode;
+    if (typeof trainingChaosMode !== 'undefined' && s.trainingChaosMode !== undefined) trainingChaosMode = s.trainingChaosMode;
+    const _rf = (n, v) => { if (v !== undefined) window[n] = v; };
+    _rf('spawnParticles',    s.spawnParticles);
+    _rf('spawnBullet',       s.spawnBullet);
+    _rf('showBossDialogue',  s.showBossDialogue);
+    _rf('unlockAchievement', s.unlockAchievement);
+    _rf('pickSafeSpawn',     s.pickSafeSpawn);
+    _rf('spawnLightningBolt',s.spawnLightningBolt);
+    _rf('isCombatLocked',    s.isCombatLocked);
+    _rf('isCutsceneActive',  s.isCutsceneActive);
+    if (typeof settings !== 'undefined') {
+      if (s.finishers  !== undefined) settings.finishers  = s.finishers;
+      if (s.dmgNumbers !== undefined) settings.dmgNumbers = s.dmgNumbers;
+    }
     if (typeof SoundManager !== 'undefined') {
       for (const [k, fn] of Object.entries(s.smSounds)) SoundManager[k] = fn;
     }
@@ -210,50 +235,11 @@ const SMK2Trainer = (() => {
     const SOV_LIVES  = 5;
     const MAX_FRAMES = 7200; // ~2 min sim time with full-rate AI
     const matchId    = ++_matchSeq;
-    const _noop      = () => {};
-
     // Full sim-env reset every match — guards against game-loop interference
     // during setTimeout yields AND against state accumulated by prior matches.
-    window.currentArena    = (typeof ARENAS !== 'undefined' && ARENAS.sovereign)
-      ? ARENAS.sovereign
-      : { id: 'sim', bgColor: '#000', platforms: [{ x: 0, y: 460, w: 900, h: 60, isFloor: true }] };
-    window.players         = [];
-    window.minions         = [];
-    window.trainingDummies = [];
-    if (typeof verletRagdolls !== 'undefined') window.verletRagdolls  = [];
-    if (typeof projectiles    !== 'undefined') window.projectiles     = [];
-    if (typeof damageTexts    !== 'undefined') window.damageTexts     = [];
-    window.hitStopFrames   = 0;
-    window.slowMotion      = 1;   // must reset — a hit-stop or finisher in a prior match sets this to 0
-    window.screenShake     = 0;
-    window.isCinematic     = false;
-    window.activeCinematic = null;
-    window.storyModeActive = false;
-    window.gameRunning     = true;
-    window.gameMode        = 'sovereign';
-    window.onlineMode      = false;
-    // Stub side-effect functions every match so a prior match can't have unregistered them
-    window.spawnParticles   = _noop;
-    window.showBossDialogue = _noop;
-    if (typeof spawnBullet        !== 'undefined') window.spawnBullet        = _noop;
-    if (typeof unlockAchievement  !== 'undefined') window.unlockAchievement  = _noop;
-    if (typeof pickSafeSpawn      !== 'undefined') window.pickSafeSpawn      = () => null;
-    if (typeof spawnLightningBolt !== 'undefined') window.spawnLightningBolt = _noop;
-    if (typeof SoundManager !== 'undefined') {
-      for (const k of Object.keys(SoundManager)) {
-        if (typeof SoundManager[k] === 'function') SoundManager[k] = _noop;
-      }
-    }
-    if (typeof isCombatLocked   !== 'undefined') window.isCombatLocked   = () => false;
-    if (typeof isCutsceneActive !== 'undefined') window.isCutsceneActive = () => false;
-    if (typeof activeFinisher   !== 'undefined') window.activeFinisher   = null;
-    if (typeof qteActive        !== 'undefined') window.qteActive        = false;
-    // Disable finishers: triggerFinisher sets slowMotion=0 and freezes the target at health=1
-    // which breaks subsequent matches. No finisher animations are meaningful in a headless sim.
-    if (typeof settings !== 'undefined') settings.finishers = false;
-    if (typeof combatLock !== 'undefined' && combatLock && combatLock.blocks) {
-      Object.keys(combatLock.blocks).forEach(k => { combatLock.blocks[k] = false; });
-    }
+    // Writes the real (lexical) globals via in-place array mutation + bare
+    // assignment so Fighter.update() actually reads them (see _applySimEnv note).
+    _applySimEnv();
 
     // Circuit floor is at y=460; spawn above it so fighters fall into position
     const SPAWN_Y = 380;
@@ -275,7 +261,8 @@ const SMK2Trainer = (() => {
       const ld  = _LOADOUTS[Math.floor(rng() * _LOADOUTS.length)];
       const bot = new Fighter(spawns[i] || 300 + i * 120, SPAWN_Y, colors[i % colors.length], ld.w);
       bot.isAI         = true;
-      bot.intelligence = 0.92; // hard — near peak Fighter AI
+      bot.aiDiff       = 'hard'; // Fighter AI keys off aiDiff (not intelligence)
+      bot.intelligence = 0.92;   // near peak Fighter AI
       bot._teamId      = 'sim_bots'; // shared team → areAlliedEntities() blocks bot-vs-bot damage
       bot.target       = sov;
       _applyBotClass(bot, ld.c);
@@ -283,16 +270,16 @@ const SMK2Trainer = (() => {
     }
 
     if (bots.length > 0) sov.target = bots[0];
-    window.players = [sov, ...bots];
+    players.length = 0; players.push(sov, ...bots); // in-place → real lexical `players`
 
     let kills      = 0;
     let _errSample = null;
 
     for (let f = 0; f < MAX_FRAMES; f++) {   // always runs full duration
-      window.hitStopFrames = 0;
-      window.slowMotion    = 1;
-      window.aiTick        = 0;
-      window.frameCount    = f;
+      hitStopFrames = 0;
+      slowMotion    = 1;
+      aiTick        = f;   // REAL cadence: AI re-decides every AI_TICK_INTERVAL frames (was 0 = every frame)
+      frameCount    = f;
 
       // Sovereign re-targets nearest living bot each frame
       const living = bots.filter(b => b.health > 0);
@@ -337,8 +324,8 @@ const SMK2Trainer = (() => {
       }
     }
 
-    window.players     = [];
-    window.gameRunning = false;
+    players.length = 0;   // clear lexical `players` (final restore happens in _restoreEnv)
+    gameRunning    = false;
 
     // Fitness = kill throughput over fixed duration.
     // Bots have unlimited lives so every match runs MAX_FRAMES.
@@ -359,9 +346,40 @@ const SMK2Trainer = (() => {
     };
   }
 
+  // ── Paired genome evaluation ────────────────────────────────────────────
+  // Runs gA and gB on the SAME seeds (identical bot loadouts) so the only
+  // variable is the genome. Returns summed fitness/kills plus per-match win
+  // counts — the win count is a variance-robust signal (a genome that wins on
+  // lucky seeds by a huge margin doesn't dominate the tally).
+  function _evalPair(gA, gB, numBots, seeds) {
+    let aFit = 0, bFit = 0, aKills = 0, bKills = 0, aWins = 0, bWins = 0;
+    for (const seed of seeds) {
+      const ra = _runMatch(gA, numBots, seed);
+      const rb = _runMatch(gB, numBots, seed);
+      aFit += ra.fitness; bFit += rb.fitness;
+      aKills += ra.kills; bKills += rb.kills;
+      if (ra.fitness > rb.fitness) aWins++; else if (rb.fitness > ra.fitness) bWins++;
+    }
+    return { aFit, bFit, aKills, bKills, aWins, bWins, n: seeds.length };
+  }
+
+  // A challenger is "better" only if it wins clearly MORE individual (paired)
+  // matches — NOT if it has higher summed fitness. Fitness sums are dominated by
+  // a few outlier high-kill matches, so a genome can "win on fitness" while
+  // actually tying or losing the head-to-head; that's how training drifts into
+  // degenerate bot-farming genomes (max aggression/speed) that are worse vs a
+  // real player. Win-count is one vote per match → variance-robust.
+  function _challengerBeats(r) {
+    const need = Math.max(2, Math.ceil(r.n * 0.15)); // must win ≥15% of n more matches
+    return (r.bWins - r.aWins) >= need && r.bFit >= r.aFit;
+  }
+
   // ── Async training loop ─────────────────────────────────────────────────
-  // Each generation: generate K match seeds, run champion and challenger on
-  // the SAME seeds (same bot loadouts), compare total kills. Higher score wins.
+  // Each generation: champion vs a mutated challenger on the SAME seeds. A
+  // challenger is promoted ONLY if it beats the champion by the margin AND wins
+  // the per-match tally — then it must REPEAT that on a fresh confirmation batch.
+  // Requiring two independent wins squares the false-positive rate, so noisy
+  // lucky-seed challengers no longer cause genome drift (the old loop's flaw).
   function run(gens = 20, matchesPerGen = 10, numBots = 2) {
     if (_running) { console.warn('[SMK2Trainer] Already running.'); return; }
     _running  = true;
@@ -369,6 +387,7 @@ const SMK2Trainer = (() => {
     _stubEnv();
 
     let champion = loadChampion();
+    const _initial = champion;   // reference to the genome we started from (promotions reassign `champion`)
     let gen      = 0;
 
     console.log(`[SMK2Trainer] Starting ${gens} gen × ${matchesPerGen} matches vs ${numBots} bot(s).`);
@@ -376,31 +395,54 @@ const SMK2Trainer = (() => {
 
     function _tick() {
       if (!_running || gen >= gens) {
+        // ── FINAL GATEKEEPER ──────────────────────────────────────────────
+        // Per-gen selection is noisy; over many gens the champion can drift
+        // WORSE than where it started (the genome sits near a local optimum, so
+        // the landscape is flatter than the variance). Only persist the evolved
+        // genome if it beats the STARTING genome on a large fresh batch —
+        // training must never regress what's saved.
+        let kept = champion;
+        if (champion !== _initial) {
+          const gate = _evalPair(_initial, champion, numBots,
+            Array.from({ length: Math.max(60, matchesPerGen * 5) }, () => Math.random() * 1e9 | 0));
+          if (_challengerBeats(gate)) {
+            console.log(`[SMK2Trainer] Final check: evolved genome CONFIRMED better than start ` +
+              `(${Math.round(gate.bFit)} vs ${Math.round(gate.aFit)}, wins ${gate.bWins}-${gate.aWins}).`);
+          } else {
+            kept = _initial;
+            console.log(`[SMK2Trainer] Final check: evolved genome did NOT beat the starting genome ` +
+              `(${Math.round(gate.bFit)} vs ${Math.round(gate.aFit)}, wins ${gate.bWins}-${gate.aWins}) — KEEPING ORIGINAL.`);
+          }
+        }
         _restoreEnv();
         _running = false;
-        saveChampion(champion);
-        console.log(`[SMK2Trainer] Done (${gen} gen). Champion saved.`, JSON.stringify(champion));
+        saveChampion(kept);
+        console.log(`[SMK2Trainer] Done (${gen} gen). Champion saved.`, JSON.stringify(kept));
         return;
       }
 
-      // Fixed seeds for this generation — ensures fair comparison
-      const seeds      = Array.from({ length: matchesPerGen }, () => Math.random() * 1e9 | 0);
+      const _mkSeeds = () => Array.from({ length: matchesPerGen }, () => Math.random() * 1e9 | 0);
       const challenger = mutate(champion);
 
-      let cScore = 0, chScore = 0;
-      let cKills = 0, chKills = 0;
-      for (const seed of seeds) {
-        const cr  = _runMatch(champion,   numBots, seed);
-        const chr = _runMatch(challenger, numBots, seed);
-        cScore  += cr.fitness;  cKills  += cr.kills;
-        chScore += chr.fitness; chKills += chr.kills;
+      // Batch 1 — champion vs challenger, paired on identical seeds.
+      const r1 = _evalPair(champion, challenger, numBots, _mkSeeds());
+
+      let promote = false, r2 = null;
+      if (_challengerBeats(r1)) {
+        // Confirmation batch — fresh seeds; must win AGAIN to promote.
+        r2 = _evalPair(champion, challenger, numBots, _mkSeeds());
+        promote = _challengerBeats(r2);
       }
 
-      if (chScore > cScore) {
+      if (promote) {
         champion = challenger;
-        console.log(`[SMK2Trainer] Gen ${gen + 1}: NEW CHAMPION  fit ${chScore} vs ${cScore} (kills ${chKills}/${cKills})`, JSON.stringify(challenger));
+        console.log(`[SMK2Trainer] Gen ${gen + 1}: NEW CHAMPION (confirmed)  ` +
+          `b1 ${Math.round(r1.bFit)}>${Math.round(r1.aFit)} (${r1.bWins}-${r1.aWins}), ` +
+          `b2 ${Math.round(r2.bFit)}>${Math.round(r2.aFit)} (${r2.bWins}-${r2.aWins})`, JSON.stringify(challenger));
       } else {
-        console.log(`[SMK2Trainer] Gen ${gen + 1}: holds          fit ${cScore} vs ${chScore} (kills ${cKills}/${chKills})`);
+        const why = r2 ? 'confirmation failed' : 'below margin';
+        console.log(`[SMK2Trainer] Gen ${gen + 1}: holds (${why})  ` +
+          `champ ${Math.round(r1.aFit)} vs chal ${Math.round(r1.bFit)} (wins ${r1.aWins}-${r1.bWins}, kills ${r1.aKills}/${r1.bKills})`);
       }
 
       gen++;
@@ -455,6 +497,44 @@ const SMK2Trainer = (() => {
     setTimeout(_testLevel, 0);
   }
 
+  // ── Controlled A/B: saved champion vs DEFAULT genome ─────────────────────
+  // The honest "is my trained genome actually better?" check — both genomes run
+  // on the SAME seeds (identical matchups), so the comparison is apples-to-apples
+  // (unlike the per-generation log, where seeds differ every gen). Reports avg
+  // fitness/kills and per-match win counts.
+  function evalVsDefault(numBots = 2, matches = 40) {
+    if (_running) { console.warn('[SMK2Trainer] Already running.'); return; }
+    _running = true;
+    _matchSeq = 0;
+    _stubEnv();
+    const champ = loadChampion();
+    const def   = { ...SMK2_DEFAULT_GENOME };
+    const seeds = Array.from({ length: matches }, () => Math.random() * 1e9 | 0);
+    let i = 0, cFit = 0, dFit = 0, cK = 0, dK = 0, cW = 0, dW = 0;
+    console.log(`[SMK2Trainer] Eval: CHAMPION vs DEFAULT — ${matches} paired matches vs ${numBots} bot(s).`);
+    function _chunk() {
+      if (!_running || i >= seeds.length) {
+        _restoreEnv();
+        _running = false;
+        const delta = ((cFit - dFit) / Math.max(1, Math.abs(dFit)) * 100).toFixed(1);
+        console.log(`[SMK2Trainer] ── EVAL COMPLETE ──`);
+        console.log(`  CHAMPION: avg fit ${(cFit / matches).toFixed(0)}, avg kills ${(cK / matches).toFixed(2)}, match-wins ${cW}/${matches}`);
+        console.log(`  DEFAULT : avg fit ${(dFit / matches).toFixed(0)}, avg kills ${(dK / matches).toFixed(2)}, match-wins ${dW}/${matches}`);
+        console.log(`  → Champion is ${delta}% ${cFit >= dFit ? 'BETTER' : 'WORSE'} than default (total fitness).`);
+        return;
+      }
+      const end = Math.min(i + 4, seeds.length); // chunk to keep the page responsive
+      for (; i < end; i++) {
+        const rc = _runMatch(champ, numBots, seeds[i]);
+        const rd = _runMatch(def,   numBots, seeds[i]);
+        cFit += rc.fitness; dFit += rd.fitness; cK += rc.kills; dK += rd.kills;
+        if (rc.fitness > rd.fitness) cW++; else if (rd.fitness > rc.fitness) dW++;
+      }
+      setTimeout(_chunk, 0);
+    }
+    setTimeout(_chunk, 0);
+  }
+
   function stop() {
     if (!_running) return;
     _running = false;
@@ -490,5 +570,5 @@ const SMK2Trainer = (() => {
     console.log('[SMK2Trainer] Genome reset to defaults.');
   }
 
-  return { run, stop, stressTest, mutate, saveChampion, loadChampion, resetChampion };
+  return { run, stop, stressTest, evalVsDefault, mutate, saveChampion, loadChampion, resetChampion };
 })();

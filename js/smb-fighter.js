@@ -1916,6 +1916,34 @@ class Fighter {
     return pts;
   }
 
+  // Real center-to-center distance the melee weapon tip can reach a target.
+  // Mirrors _getMeleeArcPoints geometry: arc tip = (armLen + weaponLen) * drawScale
+  // from cx(); a hit lands once that tip enters the target box (+half-width +pad).
+  // This is FAR shorter than the AI's loose `weapon.range*1.1+20` commit band —
+  // the gap is what made bots whiff (and eat the harsh whiff-punish) constantly.
+  _meleeReachDist(tgt) {
+    const sc  = this.drawScale || 1;
+    const _tl = { sword: 26, hammer: 30, axe: 23, spear: 40, gauntlet: 22, mkgauntlet: 30, whip: 50, flail: 28 };
+    const _swg = (typeof WEAPON_SWINGS !== 'undefined') ? WEAPON_SWINGS[this.weaponKey] : null;
+    const wLen = ((_swg && _swg.tipLen) || _tl[this.weaponKey] || 23) * sc;
+    const armLen = 24 * sc;
+    const tgtHalf = tgt ? tgt.w * 0.5 : 14;
+    return (armLen + wLen) + tgtHalf + 8; // +8 ≈ hitPad + arc-forgiveness slack
+  }
+
+  // Approx frames into the swing when the blade reaches max forward extension
+  // (i.e. when contact is most likely). Used to lead the target: project our
+  // closing + the target's drift to this frame before deciding to swing.
+  // Heavy weapons wind up first, so contact lands much later in the swing.
+  _meleeContactFrames() {
+    const _swg = (typeof WEAPON_SWINGS !== 'undefined') ? WEAPON_SWINGS[this.weaponKey] : null;
+    const dur  = (_swg && _swg.dur) || 12;
+    const ease = _swg && _swg.ease;
+    const cp = ease === 'heavy' ? 0.62 : ease === 'sweep' ? 0.50 : ease === 'iai' ? 0.38 :
+               ease === 'snap'  ? 0.30 : ease === 'crack' ? 0.50 : 0.42;
+    return dur * cp;
+  }
+
   // ---- ATTACK ----
   attack(target) {
     if (isCinematic) return; // no new attacks during cinematics or finishers
@@ -1955,6 +1983,40 @@ class Fighter {
     }
 
     if (!this.weapon) return;
+
+    // ── AI MELEE WHIFF-GUARD ────────────────────────────────────────────
+    // The melee hitbox is a swept weapon-tip arc whose real reach is only
+    // armLen+tipLen — much shorter than the loose `weapon.range*1.1+20` band
+    // the AI commits in. Post weapon-rework the swing also lands several frames
+    // in (windup), so bots were committing to swings that could never connect,
+    // then eating the harsh whiff-punish (2.4× endlag + 30% stun) — the
+    // "lobotomized" feel. Project our closing + the target's drift to the
+    // swing's contact frame; if the blade still won't reach, abort WITHOUT
+    // consuming the cooldown so the bot keeps closing and only swings when a
+    // hit is actually plausible. AI-only; players keep full manual control.
+    if (this.isAI && !this.isBoss && this.weapon.type === 'melee' &&
+        (typeof window === 'undefined' || window.AI_WHIFF_GUARD !== false)) {
+      const _gT = target || this.target;
+      if (_gT && _gT.health > 0) {
+        const _cf   = this._meleeContactFrames();
+        const _sc   = this.drawScale || 1;
+        const _dir  = (_gT.cx() - this.cx()) >= 0 ? 1 : -1;
+        // Assumed pursuit speed ≈ this bot's difficulty move speed (it closes in
+        // after committing — movement logic runs later this tick). Easy bots
+        // close slower so they commit from closer; expert bots reach further.
+        const _pursue = this.aiDiff === 'easy' ? 3.4 : this.aiDiff === 'medium' ? 4.4
+                      : this.aiDiff === 'expert' ? 5.6 : 5.0;
+        // Distance we can erase by closing during the swing's windup (use our
+        // current closing speed if we're already moving in faster than that).
+        const _close = Math.max(this.vx * _dir, _pursue * _sc) * _cf;
+        // How much the target drifts during the swing (+ = fleeing out of reach).
+        const _drift = (_gT.vx || 0) * _cf * _dir;
+        const _projGap = Math.abs(_gT.cx() - this.cx()) + _drift - _close;
+        const _vGap    = Math.abs((this.y + this.h / 2) - (_gT.y + _gT.h / 2));
+        if (_projGap > this._meleeReachDist(_gT) || _vGap > 60) return;
+      }
+    }
+
     // Per-weapon swing grammar: distinct duration per melee weapon (legacy 12 otherwise).
     // Bosses keep their own attackDuration handling (cinematics set it directly).
     if (!this.isBoss) {
