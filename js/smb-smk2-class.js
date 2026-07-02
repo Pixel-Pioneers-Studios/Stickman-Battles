@@ -12,6 +12,11 @@ class SovereignMK2 extends AdaptiveAI {
     this.aiMemory = { aggression: 0.90, defense: 0.88, spacing: 0.12, reactionSpeed: 0.95 };
     this.isSovereignMK2 = true;
 
+    // Platform-hop steering + projectile-dodge state
+    this._hopTarget   = null;
+    this._hopFrames   = 0;
+    this._projDodgeCd = 0;
+
     // Per-FRAME decision cadence (overrides the shared AI_TICK_INTERVAL=15 gate in
     // Fighter.update). This class's timers are all written in frames — reactFrames,
     // _telegraphTimer, _shieldHoldFrames, the "180 frames (~3 sec)" observation
@@ -2042,6 +2047,34 @@ class SovereignMK2 extends AdaptiveAI {
       return;
     }
 
+    // ── Danger: incoming projectiles / sword crescents (kite counter) ──────
+    // A ranged-poking player (crescent spam from 200-400px) chips Sovereign down
+    // while it approaches on the ground. Read the live projectile pools and jump
+    // the incoming shot — mistake-gated so it stays beatable, and on cooldown so
+    // rapid volleys still land some hits.
+    if (this._projDodgeCd > 0) this._projDodgeCd--;
+    if (this._projDodgeCd <= 0 && this.onGround) {
+      let _incoming = null;
+      const _scanShots = (arr) => {
+        if (!arr || _incoming) return;
+        for (const pr of arr) {
+          if (!pr || pr.done || pr.dead || pr.life <= 0 || pr.owner === this) continue;
+          const _pdx = this.cx() - pr.x;
+          if (Math.abs(_pdx) < 150 && Math.abs((pr.y || 0) - this.cy()) < 55 &&
+              Math.abs(pr.vx || 0) > 3 && Math.sign(pr.vx) === Math.sign(_pdx)) {
+            _incoming = pr; return;
+          }
+        }
+      };
+      if (typeof projectiles !== 'undefined') _scanShots(projectiles);
+      _scanShots(t._swordSlashes);
+      if (_incoming && Math.random() >= this._reactionMistakeRate()) {
+        this.vy = _jumpVy * 0.85;
+        this._projDodgeCd = 30;
+        this._recordEvent('dodge', 2);
+      }
+    }
+
     // Tick frame-safe shield drop (replaces the old setTimeout approach)
     if (this._shieldHoldFrames > 0) {
       if (--this._shieldHoldFrames === 0) {
@@ -2092,6 +2125,16 @@ class SovereignMK2 extends AdaptiveAI {
     // ── FORCE ENGAGEMENT ─────────────────────────────────────────
     // If player has been passive AND distant for too long, override movement.
     // Does not change speed values — only decision priority.
+    // Kite counter: repeated chip damage from outside melee range means the
+    // player is ranging us — skip the passive-player thresholds and engage NOW.
+    if (!this._forceModeActive && d > 160 && this._countRecent('dmg_taken', 240) >= 3) {
+      this._forceModeActive      = true;
+      this._forceModeCloseFrames = 0;
+      if (this._fearLineCd <= 0 && typeof showBossDialogue === 'function') {
+        showBossDialogue('You cannot run forever.', 120);
+        this._fearLineCd = 300;
+      }
+    }
     const inForceMode = this._updateForceEngagement(t, d, playerAttacking);
     if (inForceMode) {
       // Override: always path directly at player, no hesitation

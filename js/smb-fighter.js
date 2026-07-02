@@ -3359,6 +3359,14 @@ class Fighter {
       if (currentArena.hasLava) return true;
       // Boss arena void floor: floor is disabled — treat as instant death zone
       if (currentArena.isBossArena && bossFloorState === 'hazard' && bossFloorType === 'void') return true;
+      // Safe landing below: stepping off an elevated platform is NOT danger when
+      // another platform (e.g. the main floor) catches the fall at the look-ahead
+      // point. Without this every direction on a raised platform read as an edge,
+      // so AI stranded there stood frozen until knocked off.
+      for (const pl of currentArena.platforms) {
+        if (pl.isFloorDisabled) continue;
+        if (lookX > pl.x && lookX < pl.x + pl.w && pl.y > footY - 8) return false;
+      }
       return this.y + this.h < GAME_H + 40;
     }
 
