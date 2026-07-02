@@ -202,6 +202,11 @@ function dealDamage(attacker, target, dmg, kbForce, stunMult = 1.0, isSplash = f
     }
   }
   actualDmg = applyClassWeaponInteraction(attacker, target, actualDmg);
+  // Paradox manifestation: holding the projection occupies a slice of the player's
+  // fragment output — the player hits lighter while the manifestation stands.
+  if (attacker && attacker._pdxManifestHold) {
+    actualDmg = Math.max(1, Math.round(actualDmg * 0.85));
+  }
   // LiveOps balance: server-configurable player damage scale (human attackers only)
   if (window.LiveOps && attacker && !attacker.isAI && !attacker.isBoss) {
     const _pdm = LiveOps.getBalance('playerDamageMult', 1);

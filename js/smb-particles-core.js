@@ -398,6 +398,30 @@ class Projectile {
       ctx.moveTo(-14, 0); ctx.lineTo(-10,  5);
       ctx.stroke();
       ctx.restore();
+    } else if (this._isShuriken) {
+      // Ninja domain shuriken: spinning 4-blade steel star with a violet glow
+      this._spin = (this._spin || 0) + 0.42;
+      ctx.globalAlpha = Math.min(1, this.life / 10);
+      ctx.translate(this.x, this.y);
+      ctx.rotate(this._spin);
+      ctx.shadowColor = '#bb44ff'; ctx.shadowBlur = 10;
+      ctx.fillStyle = '#ccccdd';
+      ctx.beginPath();
+      for (let p = 0; p < 8; p++) {
+        const ang = (p / 8) * Math.PI * 2;
+        const r   = p % 2 === 0 ? 10 : 3;
+        p === 0 ? ctx.moveTo(Math.cos(ang) * r, Math.sin(ang) * r)
+                : ctx.lineTo(Math.cos(ang) * r, Math.sin(ang) * r);
+      }
+      ctx.closePath(); ctx.fill();
+      // blade edge highlight
+      ctx.strokeStyle = '#eeeeff'; ctx.lineWidth = 0.8; ctx.stroke();
+      // hub
+      ctx.shadowBlur = 0;
+      ctx.fillStyle = '#777788';
+      ctx.beginPath(); ctx.arc(0, 0, 2.4, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#222233';
+      ctx.beginPath(); ctx.arc(0, 0, 1.2, 0, Math.PI * 2); ctx.fill();
     } else {
       ctx.shadowColor = this.color;
       ctx.shadowBlur  = 8;

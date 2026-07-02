@@ -322,6 +322,7 @@ function _launchExplorationChapter(ch) {
   storyEnemyArmor     = [];
   storyTwoEnemies     = false;
   storySecondEnemyDef = null;
+  storyAllyDef        = null;
 
   if (typeof selectLives === 'function') selectLives(ch.playerLives || 3);
   infiniteMode = false;

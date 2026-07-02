@@ -673,6 +673,23 @@ function _startGameCore() {
       // All bots target the player
       p2.target = p1; p3.target = p1;
     }
+
+    // Story ally: spawn an AI fighter on the player's side (companion chapters, ch.allyDef)
+    if (storyModeActive && typeof storyAllyDef !== 'undefined' && storyAllyDef) {
+      const _sad = storyAllyDef;
+      const _spA = pickSafeSpawn('left', p2.x) || { x: 250, y: 300 };
+      const pA = new Fighter(_spA.x, _spA.y, _sad.color || '#ffd27f', _sad.weaponKey || 'sword',
+        { left:'j', right:'l', jump:'i', attack:'u', shield:'k', ability:'o', super:'[' },
+        true, _sad.aiDiff || 'expert');
+      pA.playerNum = 4; pA.name = _sad.name || 'Ally'; pA.lives = 1;
+      pA.spawnX = _spA.x; pA.spawnY = _spA.y; pA.y = _spA.y - pA.h;
+      if (_sad.classKey) applyClass(pA, _sad.classKey);
+      if (_sad.health) { pA.maxHealth = _sad.health; pA.health = _sad.health; }
+      pA.storyFaction = 'player'; pA._teamId = 1;
+      pA.isStoryAlly = true;
+      players.push(pA);
+      pA.target = p2;
+    }
   }
 
   // Assign bot personalities — each AI fighter gets a random personality

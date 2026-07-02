@@ -406,6 +406,7 @@ function _launchEscortChapter(ch) {
   storyEnemyArmor     = [];
   storyTwoEnemies     = false;
   storySecondEnemyDef = null;
+  storyAllyDef        = null;
   storyModeActive     = true;
   storyCurrentLevel   = Math.min(8, Math.floor(ch.id / 5) + 1);
 
@@ -668,6 +669,15 @@ function _launchChapter2FightImmediate(ch) {
     storySecondEnemyDef = null;
   }
 
+  // Ally fighter on the player's side (companion chapters, e.g. Axiom in the God fight)
+  if (ch.allyDef) {
+    const _sad = Object.assign({}, ch.allyDef);
+    if (_sad.weaponKey) _sad.weaponKey = _safeWeapon(_sad.weaponKey);
+    storyAllyDef = _sad;
+  } else {
+    storyAllyDef = null;
+  }
+
   // Mark story2 fight active
   storyModeActive = true;
 
@@ -799,6 +809,7 @@ function _launchAssassinationChapter(ch) {
   storyEnemyArmor     = ch.armor || [];
   storyTwoEnemies     = false;
   storySecondEnemyDef = null;
+  storyAllyDef        = null;
   storyModeActive     = true;
   storyCurrentLevel   = Math.min(8, Math.floor(ch.id / 5) + 1);
   gameMode            = 'assassination';
@@ -858,6 +869,7 @@ function _launchGauntletChapter(ch) {
   storyEnemyArmor     = ch.armor || [];
   storyTwoEnemies     = false;
   storySecondEnemyDef = null;
+  storyAllyDef        = null;
   storyModeActive     = true;
   storyCurrentLevel   = Math.min(8, Math.floor(ch.id / 5) + 1);
   gameMode            = 'gauntlet';

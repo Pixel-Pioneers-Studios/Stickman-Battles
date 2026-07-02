@@ -20,6 +20,13 @@ class Dummy extends Fighter {
   }
 
   update() {
+    // Ninja Shadow Realm time dilation — Dummy overrides Fighter.update() entirely,
+    // so the fractional-clock frame skip must be mirrored here
+    if (this._domainSlowFactor > 0 && this._domainSlowFactor < 1) {
+      this._domainSlowAccum = (this._domainSlowAccum || 0) + this._domainSlowFactor;
+      if (this._domainSlowAccum < 1) { this.updateState(); return; }
+      this._domainSlowAccum -= 1;
+    }
     // Timers
     if (this.cooldown > 0)         this.cooldown--;
     if (this.invincible > 0)       this.invincible--;

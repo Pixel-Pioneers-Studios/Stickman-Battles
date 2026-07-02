@@ -475,6 +475,7 @@ class Fighter {
             vx: this.facing * 8,
             vy: q.vy,
             tilt: q.tilt,
+            kb: q.kb !== undefined ? q.kb : 12,
             facing: this.facing,
             life: 42, maxLife: 42,
             size: 26 + Math.abs(q.yOff) * 0.3,
@@ -495,12 +496,26 @@ class Fighter {
         sl.y += sl.vy;
         sl.vy += 0.08; // slight gravity arc
         sl.life--;
-        // damage check — short invincibility window (8 frames) so all 3 staggered slashes can land
         const _slAll = [...players, ...trainingDummies];
+        // Gentle vertical tracking toward the nearest un-hit enemy ahead of the slash,
+        // so the fan doesn't sail over/under the target at range
+        let _slHome = null, _slHomeD = 300;
         for (const f of _slAll) {
           if (f === this || f.health <= 0 || sl.hitSet.has(f)) continue;
+          if (typeof areAlliedEntities === 'function' && areAlliedEntities(this, f)) continue;
+          const dx = (f.cx() - sl.x) * sl.facing;
+          if (dx < -20 || dx > _slHomeD) continue;
+          _slHomeD = dx; _slHome = f;
+        }
+        if (_slHome) sl.vy += clamp(((_slHome.y + _slHome.h * 0.5) - sl.y) * 0.02, -0.35, 0.35);
+        // damage check — short invincibility window (8 frames) so all 3 staggered slashes can land
+        for (const f of _slAll) {
+          if (f === this || f.health <= 0 || sl.hitSet.has(f)) continue;
+          // Don't spend the slash's single hit while the target is in i-frames
+          // (dealDamage would silently no-op) — keep overlapping until they expire
+          if (f.invincible > 0) continue;
           if (Math.hypot(f.cx() - sl.x, (f.y + f.h * 0.5) - sl.y) < sl.size + 14) {
-            dealDamage(this, f, 22, 12, 1.0, false, 8);
+            dealDamage(this, f, 22, sl.kb !== undefined ? sl.kb : 12, 1.0, false, 8);
             sl.hitSet.add(f);
           }
         }
@@ -2298,10 +2313,12 @@ class Fighter {
       // ── Sword: Air Slash — three crescent blade arcs sweep outward ──────────────
       sword: () => {
         this._swordSlashes     = [];
+        // kb: first two hits hold the target in place so the full string lands;
+        // only the final slash launches
         this._swordSlashQueue  = [
-          { delay: 0,  yOff: -8,  vy: -1.2, tilt:  0.3 },
-          { delay: 10, yOff:  0,  vy: -0.4, tilt:  0   },
-          { delay: 20, yOff:  9,  vy:  0.5, tilt: -0.3 },
+          { delay: 0,  yOff: -8,  vy: -1.2, tilt:  0.3, kb: 0 },
+          { delay: 10, yOff:  0,  vy: -0.4, tilt:  0,   kb: 0 },
+          { delay: 20, yOff:  9,  vy:  0.5, tilt: -0.3, kb: 14 },
         ];
         spawnParticles(this.cx(), this.cy(), '#88ccff', 14);
         screenShake = Math.max(screenShake, 16);

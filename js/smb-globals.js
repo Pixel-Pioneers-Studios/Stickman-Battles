@@ -48,7 +48,8 @@ const CHANGELOG = [
     flavor: 'Sovereign spent every fight learning. Now it trains itself when you walk away. And somewhere past Act VII, a final arc opens onto something that has no body and no name.',
     isLatest: true,
     changes: [
-      { cat: 'Mode',    text: 'Ninja Conviction reworked — Shadow Realm no longer rains shadow blades or buffs the owner\'s speed; instead it dilates time: the entry cinematic teleports the ninja behind every opponent and launches them skyward, then all enemies move, fall, attack, shield, and fire projectiles at half speed for the full 25 seconds while the ninja moves free (bosses partially resist)' },
+      { cat: 'Mode',    text: 'Ninja Conviction reworked — Shadow Realm no longer rains shadow blades or buffs the owner\'s speed; instead it dilates time: the entry cinematic teleports the ninja behind every opponent and launches them skyward, then all enemies move, fall, attack, shield, and fire projectiles at half speed for the full 25 seconds while the ninja moves free (bosses partially resist); throughout the domain the ninja hurls spinning shurikens at the nearest foe regardless of equipped weapon' },
+      { cat: 'Combat',  text: 'Sword super (Air Slash) now lands all three crescents reliably — slashes no longer waste their single hit on a target\'s invincibility frames, the first two hits hold the target in place (only the final slash launches), and the arcs gently track the nearest enemy\'s height' },
       { cat: 'AI',      text: 'Sovereign self-play trainer — Sovereign runs evolution matches against randomized bot loadouts when idle, refines its decision genome across three parameters (aggression, spacing, reaction speed), and saves the champion to localStorage; available via console commands sovereign:train, sovereign:stress, sovereign:genome, and sovereign:reset' },
       { cat: 'AI',      text: 'Sovereign ability/super profiling — classifies the player\'s super usage as healer, finisher, opener, or dump and adapts pressure accordingly; profiles are announced in-character via Sovereign dialogue the first time a pattern is confirmed' },
       { cat: 'AI',      text: 'Sovereign counter-strategy activates 2× faster — minimum observation window reduced from 45 frames to 20; first confident pattern read fires in seconds instead of over a full minute' },
@@ -779,6 +780,7 @@ let storyFightScriptIdx = 0;     // next unplayed entry index
 let storyEnemyArmor     = [];    // ['helmet','chestplate','leggings'] — armor pieces on enemy this chapter
 let storyTwoEnemies     = false; // true = spawn a second enemy bot in this chapter
 let storySecondEnemyDef = null;  // { weaponKey, classKey, aiDiff, color } for the second enemy
+let storyAllyDef        = null;  // { name, weaponKey, classKey, aiDiff, color, health } — ally fighter on the player's side (ch.allyDef)
 let storyOpponentName   = null;  // display name of the story chapter opponent (shown in HUD)
 let storyOpponentColor  = null;  // hex color for the story opponent fighter (applied at spawn)
 let storyCharId         = null;  // named character ID for appearance overlay ('veran','herald', etc.)

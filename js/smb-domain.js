@@ -132,6 +132,7 @@ const DomainManager = (() => {
     fryingpan: 85, broomstick: 60, combat: 75, peashooter: 16,
     slingshot: 68, paperairplane: 52, flail: 95, whip: 62,
     boomerang: 56, katana: 32, flamethrower: 90, electricstaff: 42,
+    shuriken: 40, // ninja-class domains only — replaces the weapon passive
   };
 
   // [{owner, defKey, def, timer, hazards[], spawnCooldown}]
@@ -327,25 +328,9 @@ const DomainManager = (() => {
       });
     }
 
-    // Ninja → TWO Shadow Clones: both patrol and lunge independently.
-    // Damage kept modest — the time dilation already stacks the deck; the clones
-    // are pressure, not the kill threat.
-    if (domain.defKey === 'ninja') {
-      for (let ci = 0; ci < 2; ci++) {
-        domain.hazards.push({
-          type:         'shadow_clone',
-          x:            GAME_W * (ci === 0 ? 0.25 : 0.75),
-          y:            GAME_H * 0.50,
-          vx:           0, vy: 0,
-          state:        'patrol',
-          patrolTarget: ci === 0 ? GAME_W * 0.15 : GAME_W * 0.85,
-          recoverTimer: 0,
-          damage:       35,
-          radius:       18,
-          hitSet:       new Set(),
-        });
-      }
-    }
+    // Ninja: no hazards — the time dilation IS the domain.
+    // (Shadow clones removed in the 3.9.x rework; the shadow_clone hazard
+    // machinery below is retained for potential reuse.)
 
     // Gunner + Gun → Twin turrets, each fires 4-bullet aimed bursts rapidly
     if (domain.defKey === 'gunner') {
@@ -703,7 +688,7 @@ const DomainManager = (() => {
             d.slashes.push({ x1: v.cx() - 60, y1: v.cy() + 50, x2: v.cx() + 60, y2: v.cy() - 70, alpha: 1 });
             _dealDomainDamage(f, v, 18, 0);
             if (v.health > 0) {
-              v.vy = Math.min(v.vy, -15);   // launcher — slow kicks in while they hang
+              v.vy = -20;   // launcher (max upward velocity) — slow kicks in while they hang
               v.vx *= 0.2;
               v.stunTimer = Math.max(v.stunTimer || 0, 20);
             }
@@ -2128,6 +2113,12 @@ const DomainManager = (() => {
 
     // ── Weapon-specific Conviction burst ─────────────────────────────
     _applyWeaponConvictionBonus(fighter, def);
+
+    // Ninja: the ongoing passive is always shuriken volleys — generic weapon
+    // passives (energy slashes, bullets, arrows) don't fit the Shadow Realm theme
+    if (defKey === 'ninja') {
+      fighter._convictionPassive = { key: 'shuriken', timer: DOMAIN_FRAMES, cd: _PASSIVE_CDS.shuriken };
+    }
   }
 
   // ── Weapon Conviction Bonus — unique burst per weapon on activation ──
@@ -2148,7 +2139,7 @@ const DomainManager = (() => {
         if (typeof Projectile === 'undefined' || typeof projectiles === 'undefined') break;
         for (let i = 0; i < 5; i++) {
           const ang = (i - 2) * 0.28;
-          const proj = new Projectile(cx, cy, Math.cos(ang) * f * 14, Math.sin(ang) * 14 - 2, 32, fighter, 'sword_slash');
+          const proj = new Projectile(cx, cy, Math.cos(ang) * f * 14, Math.sin(ang) * 14 - 2, fighter, 32, 'sword_slash');
           proj._convictionSlash = true;
           proj.life = 22; proj.radius = 14;
           proj.color = '#aaccff';
@@ -2181,7 +2172,7 @@ const DomainManager = (() => {
         if (typeof Projectile === 'undefined' || typeof projectiles === 'undefined') break;
         for (let i = 0; i < 12; i++) {
           const ang = (i / 12) * Math.PI * 2;
-          const proj = new Projectile(cx, cy, Math.cos(ang) * 13, Math.sin(ang) * 13, 22, fighter, 'gun_bullet');
+          const proj = new Projectile(cx, cy, Math.cos(ang) * 13, Math.sin(ang) * 13, fighter, 22, 'gun_bullet');
           proj.life = 28; proj.radius = 6; proj.color = '#ffcc44';
           projectiles.push(proj);
         }
@@ -2218,7 +2209,7 @@ const DomainManager = (() => {
           const baseVx = tgt ? (tgt.cx()-cx)/Math.max(1,Math.hypot(tgt.cx()-cx,tgt.cy()-cy))*14 : Math.cos(ang)*10;
           const baseVy = tgt ? (tgt.cy()-cy)/Math.max(1,Math.hypot(tgt.cx()-cx,tgt.cy()-cy))*14 : Math.sin(ang)*10;
           const scatter = (i / 8) * Math.PI * 2;
-          const proj = new Projectile(cx, cy, baseVx + Math.cos(scatter)*2, baseVy + Math.sin(scatter)*2 - 1, 20, fighter, 'bow_arrow');
+          const proj = new Projectile(cx, cy, baseVx + Math.cos(scatter)*2, baseVy + Math.sin(scatter)*2 - 1, fighter, 20, 'bow_arrow');
           proj._isArrow = true; proj.life = 32; proj.radius = 7; proj.color = '#44ff88';
           projectiles.push(proj);
         }
@@ -2298,7 +2289,7 @@ const DomainManager = (() => {
         if (typeof Projectile === 'undefined' || typeof projectiles === 'undefined') break;
         for (let i = 0; i < 24; i++) {
           const ang = (i / 24) * Math.PI * 2;
-          const proj = new Projectile(cx, cy, Math.cos(ang)*11, Math.sin(ang)*11, 12, fighter, 'peashooter_pea');
+          const proj = new Projectile(cx, cy, Math.cos(ang)*11, Math.sin(ang)*11, fighter, 12, 'peashooter_pea');
           proj.life = 30; proj.radius = 8; proj.color = '#44ff44';
           projectiles.push(proj);
         }
@@ -2311,7 +2302,7 @@ const DomainManager = (() => {
         if (typeof Projectile === 'undefined' || typeof projectiles === 'undefined') break;
         for (let i = 0; i < 6; i++) {
           const ang = -0.5 + (i / 5) * 1.0 + (f < 0 ? Math.PI : 0);
-          const proj = new Projectile(cx, cy, Math.cos(ang)*12, Math.sin(ang)*12 - 4, 36, fighter, 'stone');
+          const proj = new Projectile(cx, cy, Math.cos(ang)*12, Math.sin(ang)*12 - 4, fighter, 36, 'stone');
           proj.life = 45; proj.radius = 12; proj.color = '#aaaaaa';
           projectiles.push(proj);
         }
@@ -2326,7 +2317,7 @@ const DomainManager = (() => {
           const ang = (i / 16) * Math.PI * 2;
           const spawnX = cx + Math.cos(ang) * 120;
           const spawnY = cy + Math.sin(ang) * 80;
-          const proj = new Projectile(spawnX, spawnY, (cx-spawnX)*0.08, (cy-spawnY)*0.08, 16, fighter, 'paper');
+          const proj = new Projectile(spawnX, spawnY, (cx-spawnX)*0.08, (cy-spawnY)*0.08, fighter, 16, 'paper');
           proj.life = 40; proj.radius = 10; proj.color = '#ffffff';
           projectiles.push(proj);
         }
@@ -2363,7 +2354,7 @@ const DomainManager = (() => {
         if (typeof Projectile === 'undefined' || typeof projectiles === 'undefined') break;
         for (let i = 0; i < 8; i++) {
           const ang = -0.7 + (i / 7) * 1.4 + (f < 0 ? Math.PI : 0);
-          const proj = new Projectile(cx, cy, Math.cos(ang)*15, Math.sin(ang)*15 - 3, 24, fighter, 'boomerang');
+          const proj = new Projectile(cx, cy, Math.cos(ang)*15, Math.sin(ang)*15 - 3, fighter, 24, 'boomerang');
           proj._isBoomerang = true; proj.oneWay = true; proj.life = 55; proj.radius = 11; proj.color = '#cc9944';
           projectiles.push(proj);
         }
@@ -2444,11 +2435,23 @@ const DomainManager = (() => {
                                     && (typeof areAlliedEntities === 'function' ? !areAlliedEntities(fighter, e) : true));
 
     switch (wep) {
+      case 'shuriken': {
+        // Ninja domain passive: a spinning shuriken hurled at the nearest enemy
+        if (typeof Projectile === 'undefined' || typeof projectiles === 'undefined') break;
+        const _sTgt = _enemies.reduce((b, e) => (!b || Math.hypot(e.cx()-cx,e.cy()-cy) < Math.hypot(b.cx()-cx,b.cy()-cy)) ? e : b, null);
+        if (!_sTgt) break;
+        const _sdx = _sTgt.cx()-cx, _sdy = _sTgt.cy()-cy, _sd = Math.hypot(_sdx, _sdy) || 1;
+        const proj = new Projectile(cx, cy, (_sdx/_sd)*13, (_sdy/_sd)*13 - 0.6, fighter, 12, '#ccccee');
+        proj._isShuriken = true; proj.life = 42; proj.radius = 8;
+        projectiles.push(proj);
+        spawnParticles(cx, cy, '#bb44ff', 6);
+        break;
+      }
       case 'sword': {
         if (typeof Projectile === 'undefined' || typeof projectiles === 'undefined') break;
         for (let i = 0; i < 2; i++) {
           const ang = (i - 0.5) * 0.28;
-          const proj = new Projectile(cx, cy, Math.cos(ang) * f * 12, Math.sin(ang) * 12 - 1, 18, fighter, 'sword_slash');
+          const proj = new Projectile(cx, cy, Math.cos(ang) * f * 12, Math.sin(ang) * 12 - 1, fighter, 18, 'sword_slash');
           proj._convictionSlash = true; proj.life = 24; proj.radius = 12; proj.color = '#aaccff';
           projectiles.push(proj);
         }
@@ -2474,7 +2477,7 @@ const DomainManager = (() => {
         const tgt = _enemies.reduce((b, e) => (!b || Math.hypot(e.cx()-cx,e.cy()-cy) < Math.hypot(b.cx()-cx,b.cy()-cy)) ? e : b, null);
         if (!tgt) break;
         const dx = tgt.cx()-cx, dy = tgt.cy()-cy, dist = Math.hypot(dx, dy);
-        const proj = new Projectile(cx, cy, (dx/dist)*15, (dy/dist)*15, 14, fighter, 'gun_bullet');
+        const proj = new Projectile(cx, cy, (dx/dist)*15, (dy/dist)*15, fighter, 14, 'gun_bullet');
         proj.life = 30; proj.radius = 5; proj.color = '#ffcc44';
         projectiles.push(proj);
         break;
@@ -2508,7 +2511,7 @@ const DomainManager = (() => {
         const targetX = tgt2 ? tgt2.cx() : cx;
         for (let i = 0; i < 3; i++) {
           const spawnX = targetX + (i - 1) * 40;
-          const proj2 = new Projectile(spawnX, -20, (i-1)*0.4, 14, 16, fighter, 'bow_arrow');
+          const proj2 = new Projectile(spawnX, -20, (i-1)*0.4, 14, fighter, 16, 'bow_arrow');
           proj2._isArrow = true; proj2.life = 55; proj2.radius = 7; proj2.color = '#44ff88';
           projectiles.push(proj2);
         }
@@ -2577,7 +2580,7 @@ const DomainManager = (() => {
         const tgt3 = _enemies.reduce((b, e) => (!b || Math.hypot(e.cx()-cx,e.cy()-cy) < Math.hypot(b.cx()-cx,b.cy()-cy)) ? e : b, null);
         if (!tgt3) break;
         const dx3 = tgt3.cx()-cx, dy3 = tgt3.cy()-cy, d3 = Math.hypot(dx3, dy3);
-        const proj3 = new Projectile(cx, cy, (dx3/d3)*12, (dy3/d3)*12, 8, fighter, 'peashooter_pea');
+        const proj3 = new Projectile(cx, cy, (dx3/d3)*12, (dy3/d3)*12, fighter, 8, 'peashooter_pea');
         proj3.life = 32; proj3.radius = 7; proj3.color = '#44ff44';
         projectiles.push(proj3);
         break;
@@ -2588,7 +2591,7 @@ const DomainManager = (() => {
         const tx = tgt4 ? tgt4.cx() : cx;
         for (let i = 0; i < 2; i++) {
           const dropX = tx + (i === 0 ? -30 : 30);
-          const proj4 = new Projectile(dropX, -10, 0, 12, 28, fighter, 'stone');
+          const proj4 = new Projectile(dropX, -10, 0, 12, fighter, 28, 'stone');
           proj4.life = 60; proj4.radius = 10; proj4.color = '#aaaaaa';
           projectiles.push(proj4);
         }
@@ -2604,7 +2607,7 @@ const DomainManager = (() => {
           const ang = (i / 3) * Math.PI * 2;
           const spawnX = cx + Math.cos(ang) * 90;
           const spawnY = cy + Math.sin(ang) * 60;
-          const proj5 = new Projectile(spawnX, spawnY, (tCx-spawnX)*0.09, (tCy-spawnY)*0.09, 12, fighter, 'paper');
+          const proj5 = new Projectile(spawnX, spawnY, (tCx-spawnX)*0.09, (tCy-spawnY)*0.09, fighter, 12, 'paper');
           proj5.life = 40; proj5.radius = 9; proj5.color = '#ffffff';
           projectiles.push(proj5);
         }
@@ -2637,7 +2640,7 @@ const DomainManager = (() => {
         if (typeof Projectile === 'undefined' || typeof projectiles === 'undefined') break;
         for (let i = 0; i < 2; i++) {
           const ang = -0.35 + i * 0.7 + (f < 0 ? Math.PI : 0);
-          const proj6 = new Projectile(cx, cy, Math.cos(ang)*13, Math.sin(ang)*13 - 2, 20, fighter, 'boomerang');
+          const proj6 = new Projectile(cx, cy, Math.cos(ang)*13, Math.sin(ang)*13 - 2, fighter, 20, 'boomerang');
           proj6._isBoomerang = true; proj6.oneWay = true; proj6.life = 50; proj6.radius = 10; proj6.color = '#cc9944';
           projectiles.push(proj6);
         }

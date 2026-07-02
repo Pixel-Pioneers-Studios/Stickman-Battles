@@ -1221,6 +1221,14 @@ function checkDeaths() {
             } else {
               setTimeout(endGame, 900);
             }
+          } else if (storyModeActive && p.isStoryAlly) {
+            // Story ally out of lives: stays down — fight continues while the player lives
+            const p1StillAlive = players[0] && players[0].lives > 0;
+            if (p1StillAlive) {
+              p.invincible = 9999; // stay dead, player fights on alone
+            } else {
+              setTimeout(endGame, 900);
+            }
           } else if (storyModeActive && storyTwoEnemies && !p.isAI) {
             // Story two-enemy mode: player just died — always end (player lost)
             setTimeout(endGame, 900);
@@ -1295,6 +1303,8 @@ function endGame() {
   const bossDefeated = isBossModeEnd && bossEntity && bossEntity.health <= 0;
   // In two-enemy story mode, multiple bots may still be alive — the winner is the surviving human
   const _aliveHuman = alive.find(p => !p.isAI && !p.isBoss);
+  // Story ally in match: the ally surviving alongside the player must not block the win check
+  const _allyInMatch = players.some(p => p.isStoryAlly);
   // If nobody is alive and it's not a boss fight, use first-death tracking to pick a winner.
   // A true draw only occurs when both players lost their last life on the exact same frame.
   let _tiebreakWinner = null;
@@ -1308,7 +1318,7 @@ function endGame() {
     ? players[kothWinnerIdx] || null : null;
   const winner = bossDefeated                              ? null   // human win — handled in bossDefeated block
                : _kothWin                                  ? _kothWin
-               : (storyTwoEnemies && _aliveHuman)          ? _aliveHuman
+               : ((storyTwoEnemies || _allyInMatch) && _aliveHuman) ? _aliveHuman
                : alive.length === 1                        ? alive[0]
                : (alive.length === 0 && isBossModeEnd)     ? bossEntity
                : _tiebreakWinner                           ? _tiebreakWinner

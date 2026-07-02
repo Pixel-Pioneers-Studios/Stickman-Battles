@@ -496,7 +496,7 @@ function storyVictoryBackToMenu() {
   storyGauntletState = null;
   storyPendingPhaseConfig = null;
   storyPhaseIndicator = null;
-  storyEnemyArmor = []; storyTwoEnemies = false; storySecondEnemyDef = null;
+  storyEnemyArmor = []; storyTwoEnemies = false; storySecondEnemyDef = null; storyAllyDef = null;
   storyBossType = null;
   if (typeof backToMenu === 'function') backToMenu();
   setTimeout(openStoryMenu, 300);

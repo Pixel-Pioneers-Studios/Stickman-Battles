@@ -41,7 +41,7 @@ STORY_CHAPTER_REGISTRY.push(
     arena: 'void',
     isTrueFormFight: true,
     tokenReward: 300, blueprintDrop: null,
-    postText: 'The True Form unravels. Not destroyed \u2014 resolved. The fracture system loses its anchor. Seventeen dimensions stabilize simultaneously. And you are still standing in the void. The Fourth Architect\'s voice, quiet: "We can bring you back." The compass in your pocket spins once. Settles. Points home. "...Yeah. I know."',
+    postText: 'The True Form unravels. Not destroyed \u2014 resolved. Your fragment pulses outward, involuntary, and finds what five thousand years of corruption had buried: the thing he used to be. For one moment he is the person who stepped through a portal because he believed in something. The outer form collapses around that moment like a building losing its occupant \u2014 and this time, the moment is not taken from him. You reach through it. You hold it open. What walks out of the empty architecture is a man. Diminished. Free. Himself. Far above you, something small and precise hangs in the dark, watching \u2014 then withdraws without descending. You don\'t see it. The man does. He says nothing. The fracture system loses its anchor. Seventeen dimensions stabilize simultaneously. And you are standing in the void next to Axiom.',
   },
 
   // Act VIII bridge (ids 136–139) continues in smb-act5-bridge.js.
