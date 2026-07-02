@@ -787,6 +787,7 @@ const STORY_SKILL_TREE = {
       { id: 'highJump1',      name: 'Stronger Legs',       desc: 'Jump 15% higher',                           expCost: 25,  requires: null },
       { id: 'highJump2',      name: 'Leap Training',        desc: 'Jump 25% higher total',                     expCost: 45,  requires: 'highJump1' },
       { id: 'doubleJump',     name: 'Double Jump',          desc: 'Press W again while airborne',              expCost: 80,  requires: 'highJump2' },
+      { id: 'dodge',          name: 'Dodge Roll',           desc: 'Double-tap ← or → to dodge through attacks', expCost: 70, requires: 'highJump1' },
       { id: 'airDash',        name: 'Air Dash',             desc: 'Double-tap ← or → while airborne to dash',  expCost: 120, requires: 'doubleJump' },
       { id: 'fastFall',       name: 'Fast Fall',            desc: 'Hold S in air to drop fast; cancel lag',    expCost: 55,  requires: 'highJump2' },
     ],
@@ -860,6 +861,7 @@ function _applySkillTreeToPlayer(p) {
   // Jump
   p._storyJumpMult = 1.0 + (sk.highJump2 ? 0.25 : sk.highJump1 ? 0.15 : 0);
   if (p._storyNoDoubleJump !== undefined) p._storyNoDoubleJump = !sk.doubleJump;
+  if (p._storyNoDodge !== undefined) p._storyNoDodge = !sk.dodge;
   // HP bonus (stacking tiers)
   const hpBonus = (sk.tankier3 ? 40 : sk.tankier2 ? 25 : sk.tankier1 ? 15 : 0);
   if (hpBonus > 0) {

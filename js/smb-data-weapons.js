@@ -263,11 +263,11 @@ const WEAPONS = {
     // THE COMBAT FIGHTER: Fast strikes, a read-based counter, and a long-range finisher.
     // Identity: Must get close, but Counter Stance rewards patient reads. Combo Strike finisher punishes at any range.
     name: 'Combat', damage: 11, range: 50, cooldown: 20, endlag: 7,
-    kb: 4,           abilityCooldown: 90, type: 'melee', weaponType: 'light', color: '#ee3333',
+    kb: 4,           abilityCooldown: 180, type: 'melee', weaponType: 'light', color: '#ee3333',
     abilityName: 'Counter',
     ability(user) {
       // Enter a parry window: absorb the next hit, teleport behind the attacker, launcher kick them up.
-      user._counterStance = 45; // 45-frame (~0.75s) window
+      user._counterStance = 20; // 20-frame (~0.33s) window — must be a genuine read
       spawnParticles(user.cx(), user.cy(), '#ff5555', 6);
       spawnParticles(user.cx(), user.cy(), '#ffcc44', 4);
     }
@@ -636,35 +636,35 @@ const WEAPON_KEYS = Object.keys(WEAPONS).filter(k => k !== 'gauntlet' && k !== '
 // Weapons without an entry fall back to the legacy 12-frame diagonal slash.
 const WEAPON_SWINGS = {
   // ── melee ──────────────────────────────────────────────────────────────
-  sword:         { archetype: 'slash',  dur: 11, a0: -0.65, a1: 1.15, ease: 'snap',   tilt: 0.6,  tipLen: 26, trail: { life:  9, cap: 6,  width: 5 } },
-  katana:        { archetype: 'iai',    dur:  9, a0: -0.35, a1: 0.95, ease: 'iai',    tilt: 0.5,  tipLen: 30, trail: { life: 13, cap: 8,  width: 4 },
+  sword:         { archetype: 'slash',  dur:  9, a0: -0.65, a1: 1.15, ease: 'snap',   tilt: 0.6,  tipLen: 26, trail: { life:  9, cap: 6,  width: 5 } },
+  katana:        { archetype: 'iai',    dur:  7, a0: -0.35, a1: 0.95, ease: 'iai',    tilt: 0.5,  tipLen: 30, trail: { life: 13, cap: 8,  width: 4 },
                    hitSound: 'pierce', carry: { arm: 0.80, tilt: 0.45 } },  // held low at the hip, blade angled down — ready stance
-  hammer:        { archetype: 'smash',  dur: 17, a0: -1.85, a1: 0.95, ease: 'heavy',  tilt: 0.7,  tipLen: 30, trail: { life: 14, cap: 9,  width: 10 },
+  hammer:        { archetype: 'smash',  dur: 15, a0: -1.85, a1: 0.95, ease: 'heavy',  tilt: 0.7,  tipLen: 30, trail: { life: 14, cap: 9,  width: 10 },
                    hitSound: 'blunt', carry: { arm: -0.90, tilt: -0.50 } }, // head rested up over the shoulder
-  fryingpan:     { archetype: 'smash',  dur: 14, a0: -1.55, a1: 0.80, ease: 'heavy',  tilt: 0.7,  tipLen: 26, trail: { life: 11, cap: 7,  width: 8 },
+  fryingpan:     { archetype: 'smash',  dur: 12, a0: -1.55, a1: 0.80, ease: 'heavy',  tilt: 0.7,  tipLen: 26, trail: { life: 11, cap: 7,  width: 8 },
                    hitSound: 'clang', carry: { arm: 1.05, tilt: 0.25 } },   // dangling at the side like a skillet
-  axe:           { archetype: 'cleave', dur: 14, a0: -1.05, a1: 1.35, ease: 'snap',   tilt: 0.65, tipLen: 26, trail: { life: 12, cap: 8,  width: 8 },
+  axe:           { archetype: 'cleave', dur: 12, a0: -1.05, a1: 1.35, ease: 'snap',   tilt: 0.65, tipLen: 26, trail: { life: 12, cap: 8,  width: 8 },
                    carry: { arm: 0.95, tilt: -0.20 } },                     // held low at the side
-  scythe:        { archetype: 'sweep',  dur: 16, a0: -1.45, a1: 1.65, ease: 'sweep',  tilt: 0.8,  tipLen: 30, trail: { life: 13, cap: 9,  width: 7 },
+  scythe:        { archetype: 'sweep',  dur: 14, a0: -1.45, a1: 1.65, ease: 'sweep',  tilt: 0.8,  tipLen: 30, trail: { life: 13, cap: 9,  width: 7 },
                    carry: { arm: -1.30, tilt: -0.20 } },                    // upright reaper pose, blade overhead
-  spear:         { archetype: 'thrust', dur: 12, a0:  0.10, a1: 0.02, ease: 'linear', tilt: 0.06, tipLen: 40,
+  spear:         { archetype: 'thrust', dur: 10, a0:  0.10, a1: 0.02, ease: 'linear', tilt: 0.06, tipLen: 40,
                    reach: { r0: 0.45, r1: 1.0, ease: 'thrust' }, hitFracs: [0.45, 0.7, 0.9, 1.0], trail: { life: 8, cap: 6, width: 4 },
                    hitSound: 'pierce', carry: { arm: -1.15, tilt: -0.75 } }, // shouldered, point up-back
-  broomstick:    { archetype: 'poke',   dur: 10, a0:  0.18, a1: -0.06, ease: 'linear', tilt: 0.1, tipLen: 34,
+  broomstick:    { archetype: 'poke',   dur:  8, a0:  0.18, a1: -0.06, ease: 'linear', tilt: 0.1, tipLen: 34,
                    reach: { r0: 0.5, r1: 1.0, ease: 'thrust' }, hitFracs: [0.5, 0.75, 1.0], trail: { life: 7, cap: 5, width: 4 },
                    hitSound: 'pierce', carry: { arm: -1.00, tilt: -0.85 } }, // slung over the shoulder
-  whip:          { archetype: 'crack',  dur: 13, a0: -0.55, a1: 0.35, ease: 'snap',   tilt: 0.15, tipLen: 50,
+  whip:          { archetype: 'crack',  dur: 11, a0: -0.55, a1: 0.35, ease: 'snap',   tilt: 0.15, tipLen: 50,
                    reach: { r0: 0.35, r1: 1.0, ease: 'crack' }, hitFracs: [0.4, 0.65, 0.85, 1.0], trail: { life: 10, cap: 8, width: 3 },
                    hitSound: 'snap', carry: { arm: 1.00, tilt: 0.40 } },     // coiled low at the side
-  combat:  { archetype: 'jab',    dur:  7, a0:  0.12, a1: -0.10, ease: 'linear', tilt: 0.0, tipLen: 16, alternate: true,
+  combat:  { archetype: 'jab',    dur:  5, a0:  0.12, a1: -0.10, ease: 'linear', tilt: 0.0, tipLen: 16, alternate: true,
                    reach: { r0: 0.4, r1: 1.0, ease: 'jab' }, hitFracs: [0.6, 1.0], trail: { life: 6, cap: 4, width: 4 },
-                   hitSound: 'blunt', carry: { arm: -0.35, lArm: -0.60 } },  // boxing guard — both fists up
-  flail:         { archetype: 'whirl',  dur: 18, a0: -2.6,  a1: 1.25, ease: 'heavy',  tilt: 0.55, tipLen: 28, trail: { life: 14, cap: 10, width: 6 },
+                   hitSound: 'blunt', carry: { arm: -0.35, lArm: -0.60 } },  // guard stance — both fists up
+  flail:         { archetype: 'whirl',  dur: 16, a0: -2.6,  a1: 1.25, ease: 'heavy',  tilt: 0.55, tipLen: 28, trail: { life: 14, cap: 10, width: 6 },
                    hitSound: 'blunt', carry: { arm: 1.10, tilt: 0.50 } },    // ball dangling straight down
-  shield:        { archetype: 'bash',   dur: 10, a0:  0.15, a1: -0.05, ease: 'linear', tilt: 0.0, tipLen: 16,
+  shield:        { archetype: 'bash',   dur:  8, a0:  0.15, a1: -0.05, ease: 'linear', tilt: 0.0, tipLen: 16,
                    reach: { r0: 0.5, r1: 1.0, ease: 'jab' }, hitFracs: [0.7, 1.0], trail: { life: 0, cap: 0, width: 0 },
                    hitSound: 'clang', carry: { arm: 0.35, tilt: 0.0 } },     // held braced in front
-  electricstaff: { archetype: 'strike', dur: 13, a0: -0.95, a1: 1.25, ease: 'snap',   tilt: 0.6,  tipLen: 30, trail: { life: 11, cap: 8, width: 6 },
+  electricstaff: { archetype: 'strike', dur: 11, a0: -0.95, a1: 1.25, ease: 'snap',   tilt: 0.6,  tipLen: 30, trail: { life: 11, cap: 8, width: 6 },
                    hitSound: 'zap', carry: { arm: 0.70, tilt: -1.30 } },     // walking-staff, held upright
   // ── enemy-only melee (distinct from sword so duels read differently) ───
   nullblade:     { archetype: 'slash',  dur: 10, a0: -0.85, a1: 1.05, ease: 'snap',   tilt: 0.55, tipLen: 26, trail: { life: 10, cap: 7, width: 5 } },

@@ -12,6 +12,17 @@ class SovereignMK2 extends AdaptiveAI {
     this.aiMemory = { aggression: 0.90, defense: 0.88, spacing: 0.12, reactionSpeed: 0.95 };
     this.isSovereignMK2 = true;
 
+    // Per-FRAME decision cadence (overrides the shared AI_TICK_INTERVAL=15 gate in
+    // Fighter.update). This class's timers are all written in frames — reactFrames,
+    // _telegraphTimer, _shieldHoldFrames, the "180 frames (~3 sec)" observation
+    // window, endlag-punish windows. At the stock 15-frame cadence every behavior
+    // ran 15× slower than designed: 1-2s pre-attack stalls, 30-90 frame reaction
+    // latency, and endlag windows (7-22 frames) that expired between decisions.
+    // Fairness stays with the designed knobs: _reactionMistakeRate, telegraphs,
+    // humanization delays. Stochastic per-decision gates below are rescaled ~÷5
+    // to keep event rates unchanged (decisions run ~5× more often with aiReact≈2).
+    this.aiTickInterval = 1;
+
     // ── Genome: trained decision parameters ─────────────────────────────────
     // Loaded from localStorage champion on construction; defaults to SMK2_DEFAULT_GENOME.
     // Call applyGenome(g) to override (used by SMK2Trainer during self-play matches).
@@ -576,7 +587,10 @@ class SovereignMK2 extends AdaptiveAI {
       if (this._adaptInterval > 4) this._adaptInterval = 4;
       return;
     }
-    if (this._observationFrames < 60) return;
+    // Real warmup before the limiter can break: Sovereign starts near peak
+    // intelligence, so the 'evolution' trigger below would otherwise fire almost
+    // immediately and skip the OBSERVING/READING arc the player is meant to see.
+    if (this._observationFrames < 600) return;
     const recentTaken = this._countRecent('dmg_taken', 180);
     const hpPct = this.health / Math.max(1, this.maxHealth);
     const targetAdv = t && t.health > 0 ? t.health / Math.max(1, this.health) : 1;
@@ -1102,8 +1116,7 @@ class SovereignMK2 extends AdaptiveAI {
         this.vy = -16;
         this.canDoubleJump = false;
       }
-      if (d < weaponRange * 1.25 + 20 && this.cooldown <= 0 && !this.onGround) {
-        this.attack(t);
+      if (d < weaponRange * 1.25 + 20 && this.cooldown <= 0 && !this.onGround && this._strike(t)) {
         this._queueAdaptivePunishOutcome(route, t, d);
         this._adaptivePunishTimer = 0;
       }
@@ -1116,8 +1129,7 @@ class SovereignMK2 extends AdaptiveAI {
         this.vx *= 0.62;
         return true;
       }
-      if (d < atkRange * 1.15 && this.cooldown <= 0) {
-        this.attack(t);
+      if (d < atkRange * 1.15 && this.cooldown <= 0 && this._strike(t)) {
         this._queueAdaptivePunishOutcome(route, t, d);
         return true;
       }
@@ -1125,8 +1137,7 @@ class SovereignMK2 extends AdaptiveAI {
       return true;
     }
 
-    if (d < atkRange * 1.1 && this.cooldown <= 0) {
-      this.attack(t);
+    if (d < atkRange * 1.1 && this.cooldown <= 0 && this._strike(t)) {
       this._queueAdaptivePunishOutcome(route, t, d);
       return true;
     }
@@ -1201,7 +1212,7 @@ class SovereignMK2 extends AdaptiveAI {
     } else {
       // On correct side — press in relentlessly
       if (!this.isEdgeDanger(dir)) this.vx = dir * moveSpd * 1.18;
-      if (this.onGround && t.y < this.y - 45 && Math.random() < 0.20) this.vy = -19;
+      if (this.onGround && t.y < this.y - 45 && Math.random() < 0.05) this.vy = -19;
     }
 
     // Elevated attack rate — cornered player has fewer dodge options
@@ -1213,8 +1224,8 @@ class SovereignMK2 extends AdaptiveAI {
         this._comboFollowTimer = 8;
       }
     }
-    if (this.superReady && t.health < t.maxHealth * 0.38 && Math.random() < 0.55) this.useSuper(t);
-    if (this.abilityCooldown <= 0 && d < 195 && Math.random() < 0.28) this.ability(t);
+    if (this.superReady && t.health < t.maxHealth * 0.38 && Math.random() < 0.12) this.useSuper(t);
+    if (this.abilityCooldown <= 0 && d < 195 && Math.random() < 0.065) this.ability(t);
 
     return true;
   }
@@ -1271,7 +1282,7 @@ class SovereignMK2 extends AdaptiveAI {
       return true;
     }
 
-    if (!selfOnPref && playerApproachingPref && Math.random() < 0.18) {
+    if (!selfOnPref && playerApproachingPref && Math.random() < 0.045) {
       // Race the player to their preferred platform
       const platDir = Math.sign(prefCX - this.cx());
       if (!this.isEdgeDanger(platDir)) this.vx = platDir * moveSpd * 1.0;
@@ -1541,7 +1552,7 @@ class SovereignMK2 extends AdaptiveAI {
     this._humanMissArmed = false;
 
     // Fake-out movement: late-game only — walk wrong way then snap back
-    if (i > 0.62 && this._humanFakeoutTimer <= 0 && this.onGround && Math.random() < 0.008) {
+    if (i > 0.62 && this._humanFakeoutTimer <= 0 && this.onGround && Math.random() < 0.0016) {
       this._humanFakeoutDir   = -dir; // move AWAY from target briefly
       this._humanFakeoutTimer = Math.round(6 + Math.random() * 8);
     }
@@ -1556,6 +1567,16 @@ class SovereignMK2 extends AdaptiveAI {
     const resolved = this.weapon || fallback;
     if (resolved && this.weapon !== resolved) this.weapon = resolved;
     return resolved || { range: 90, damage: 12, cooldown: 32, kb: 12, type: 'melee' };
+  }
+
+  // Attack that reports whether a swing actually started. Fighter.attack() can
+  // silently veto AI melee swings (whiff-guard) — call sites that consume one-shot
+  // state (punish windows, combo counters, rest timers) must know the difference,
+  // otherwise Sovereign burns its best windows on swings that never happened.
+  _strike(t) {
+    const _cd = this.cooldown, _at = this.attackTimer;
+    this.attack(t);
+    return this.attackTimer > _at || this.cooldown > _cd;
   }
 
   // ── Stage 3: single reaction "beatability" knob ──────────────────────
@@ -1668,6 +1689,28 @@ class SovereignMK2 extends AdaptiveAI {
           return;
         }
       }
+    }
+
+    // ── HOP STEERING: mid-air guidance onto a climb platform ─────────────
+    // Set by the elevation-contest block; keeps Sovereign tracking the platform
+    // center through the whole jump instead of drifting off after takeoff.
+    if (this._hopFrames > 0 && this._hopTarget) {
+      this._hopFrames--;
+      const _hp  = this._hopTarget;
+      const _hdx = (_hp.x + _hp.w / 2) - this.cx();
+      if (!this.onGround) {
+        this.vx = Math.sign(_hdx) * Math.min(6, Math.abs(_hdx) / 8 + 1.2);
+        // Burn the double jump if the arc is falling short of the ledge
+        if (this.canDoubleJump && this.vy > 2 && this.y > _hp.y - 24) {
+          this.vy = -15; this.canDoubleJump = false;
+        }
+        this.aiReact = 0;
+        return;
+      }
+      // Grounded again (landed on the platform or fell back) — release the hop
+      if (this._hopFrames < 36) { this._hopTarget = null; this._hopFrames = 0; }
+    } else if (this._hopTarget) {
+      this._hopTarget = null;
     }
 
     if (this._bmActivePunish && typeof frameCount !== 'undefined' &&
@@ -2067,7 +2110,7 @@ class SovereignMK2 extends AdaptiveAI {
         this.attack(t);
       }
       // Use ability to close gap faster (decision, not speed change)
-      if (this.abilityCooldown <= 0 && d < 300 && Math.random() < 0.35) this.ability(t);
+      if (this.abilityCooldown <= 0 && d < 300 && Math.random() < 0.08) this.ability(t);
       this.aiReact = Math.max(1, reactFrames - 1);
       this._updateFearFactor(d, recentLanded, true);
       return;
@@ -2132,22 +2175,23 @@ class SovereignMK2 extends AdaptiveAI {
         const rushVar = 1.25 + Math.random() * 0.35;
         if (!this.isEdgeDanger(dir)) this.vx = dir * moveSpd * rushVar;
         // 30% chance: arm a stop-short pause when entering strike range
-        if (d > weaponRange + 12 && d < weaponRange + 55 && this.cooldown > 3 && Math.random() < 0.30) {
+        if (d > weaponRange + 12 && d < weaponRange + 55 && this.cooldown > 3 && Math.random() < 0.07) {
           this._punishFakeoutTimer = 8;
         }
       }
-      if (this.onGround && t.y < this.y - 100 && d > 100 && !playerAttacking && Math.random() < 0.18) this.vy = -19;
+      if (this.onGround && t.y < this.y - 100 && d > 100 && !playerAttacking && Math.random() < 0.045) this.vy = -19;
       if (this._punishFakeoutTimer === 0 && d < weaponRange + 10 && this.cooldown <= 0) {
-        this.attack(t);
-        const comboHits = Math.floor(this.intelligence * 1.5) + lbCombo;
-        if (comboHits > 0 && this._comboFollowHits === 0) {
-          this._comboFollowHits = comboHits;
-          this._comboFollowTimer = Math.max(10, Math.round(15 - m.reactionSpeed * 4));
+        if (this._strike(t)) {
+          const comboHits = Math.floor(this.intelligence * 1.5) + lbCombo;
+          if (comboHits > 0 && this._comboFollowHits === 0) {
+            this._comboFollowHits = comboHits;
+            this._comboFollowTimer = Math.max(10, Math.round(15 - m.reactionSpeed * 4));
+          }
         }
       }
       // Reduced ability/super spam during punish mode — still aggressive, but not relentless
-      if (this.abilityCooldown <= 0 && d < 220 && Math.random() < 0.20) this.ability(t);
-      if (this.superReady && Math.random() < (finishPush ? 0.55 : 0.25)) this.useSuper(t);
+      if (this.abilityCooldown <= 0 && d < 220 && Math.random() < 0.05) this.ability(t);
+      if (this.superReady && Math.random() < (finishPush ? 0.12 : 0.055)) this.useSuper(t);
       this.aiReact = 2; // small gap even in punish mode — player can see each hit
       this._updateFearFactor(d, recentLanded, true);
       return;
@@ -2322,7 +2366,7 @@ class SovereignMK2 extends AdaptiveAI {
     }
 
     if (heavyThreat && !playerAttacking && d < Math.max(prefDist, 190) && this.shieldCooldown === 0 && this._shieldHoldFrames === 0) {
-      if (Math.random() < 0.02 + this.intelligence * 0.01) {
+      if (Math.random() < 0.004 + this.intelligence * 0.002) {
         this.shielding        = true;
         this.shieldCooldown   = 60;
         this._shieldHoldFrames = 12;
@@ -2363,8 +2407,7 @@ class SovereignMK2 extends AdaptiveAI {
         this.vy = _jumpVy; this._jumpCooldown = 22;
       }
       // Attack the moment range closes — use actual weapon range to avoid whiffs
-      if (this.cooldown <= 0 && d < weaponRange + 10) {
-        this.attack(t);
+      if (this.cooldown <= 0 && d < weaponRange + 10 && this._strike(t)) {
         this._queueAdaptivePunishOutcome(this._adaptivePunishRoute || 'direct', t, d);
         this._counterWindowOpen = false;
       }
@@ -2372,8 +2415,7 @@ class SovereignMK2 extends AdaptiveAI {
         const route = this._adaptivePunishRoute || this._chooseAdaptivePunishRoute(t, dir, d, playerAttacking, currentAction, _bmObs, _bmPred, recentTaken);
         if (this.cooldown <= 0 && d < weaponRange * 1.5 + 35) {
           const handled = this._applyAdaptivePunishRoute(route, t, dir, d, moveSpd, _jumpVy, weaponRange, atkRange);
-          if (!handled) {
-            this.attack(t);
+          if (!handled && this._strike(t)) {
             this._queueAdaptivePunishOutcome(route, t, d);
           }
           this._counterWindowOpen = false;
@@ -2391,8 +2433,9 @@ class SovereignMK2 extends AdaptiveAI {
     // Unlike _counterWindowOpen this window expires after a specific number of frames,
     // so Sovereign must commit immediately — no telegraph, no hesitation.
     if (this._endlagWindow > 0 && !playerAttacking) {
-      if (d < weaponRange + 18 && this.cooldown <= 0) {
-        this.attack(t);
+      // Only consume the window on a swing that actually started — on a
+      // whiff-guard veto fall through to the sprint below and keep the window.
+      if (d < weaponRange + 18 && this.cooldown <= 0 && this._strike(t)) {
         this._endlagWindow      = 0;
         this._postHitLockFrames = Math.max(this._postHitLockFrames, 40);
         if (this.abilityCooldown <= 0 && d < 120) this.ability(t);
@@ -2479,9 +2522,15 @@ class SovereignMK2 extends AdaptiveAI {
         return;
       }
       if (this.cooldown <= 0) {
-        this._comboFollowHits--;
-        this.attack(t);
-        this._comboFollowTimer = Math.max(lb ? 9 : 12, Math.round(13 - m.reactionSpeed * 3));
+        if (this._strike(t)) {
+          this._comboFollowHits--;
+          this._comboFollowTimer = Math.max(lb ? 9 : 12, Math.round(13 - m.reactionSpeed * 3));
+        } else {
+          // Target escaped reach (knockback drift / airborne) — chase, retry soon,
+          // keep the remaining follow-up hits instead of burning them on air.
+          this._comboFollowTimer = 4;
+          if (!this.isEdgeDanger(dir)) this.vx = dir * moveSpd * 1.15;
+        }
         return;
       }
     }
@@ -2531,7 +2580,7 @@ class SovereignMK2 extends AdaptiveAI {
     // Only fires when not in bait/punish/force mode and shield cooldown is ready.
     if (!this._punishModeActive && this._shieldHoldFrames === 0 && this.shieldCooldown === 0
         && this.intelligence > 0.60 && d < 150 && d > prefDist * 0.7
-        && !playerAttacking && Math.random() < (0.010 + this.intelligence * 0.008)) {
+        && !playerAttacking && Math.random() < (0.002 + this.intelligence * 0.0016)) {
       this.shielding        = true;
       this.shieldCooldown   = 60;
       this._shieldHoldFrames = 12; // shorter hold for proactive stance
@@ -2542,7 +2591,7 @@ class SovereignMK2 extends AdaptiveAI {
     const finishMode = finishPush;
     const canBait    = this.intelligence > 0.55 && this._baitCooldown === 0 && !finishMode && d < 140 && d > prefDist * 0.8;
     const baitStyleBoost = (_bmRead.style === 'defensive' || _bmRead.style === 'passive') ? 1.25 : 1.0;
-    if (canBait && this.intelligence > 0.70 && Math.random() < (0.005 + this.intelligence * 0.007) * (_bmBias.baitBoost || 1.0) * baitStyleBoost * memoryBait / (1 + (this._baitIgnoredStreak || 0))) {
+    if (canBait && this.intelligence > 0.70 && Math.random() < (0.001 + this.intelligence * 0.0014) * (_bmBias.baitBoost || 1.0) * baitStyleBoost * memoryBait / (1 + (this._baitIgnoredStreak || 0))) {
       this._baitTimer = Math.round(18 + this.intelligence * 20);
     }
 
@@ -2669,6 +2718,37 @@ class SovereignMK2 extends AdaptiveAI {
       if (!this.isEdgeDanger(dir)) this.vx = dir * moveSpd * 0.65;
     }
 
+    // ── ELEVATION CONTEST: player standing on a platform above ─────────────
+    // The approach jumps only trigger for airborne or far-elevated targets, so a
+    // player camping a platform left Sovereign pacing underneath forever.
+    // Within one jump: go straight up. Higher: climb via the nearest platform
+    // one jump above (repeats naturally each hop until level with the camper).
+    if (this._jumpCooldown <= 0 && this.onGround && t.onGround && t.y < this.y - 50) {
+      const _gapY = this.y - t.y;
+      if (_gapY <= 170 && d < 130) {
+        this.vy = _jumpVy;
+        if (!this.isEdgeDanger(dir)) this.vx = dir * moveSpd * 0.7;
+        this._jumpCooldown = 30;
+      } else if (d < 260 && typeof currentArena !== 'undefined' && currentArena && currentArena.platforms) {
+        let _hop = null, _hopDx = 1e9;
+        for (const p of currentArena.platforms) {
+          if (p.isFloor || p.isFloorDisabled) continue;
+          if (p.y >= this.y - 40 || p.y < this.y - 190) continue; // within one jump above
+          const _pdx = Math.abs((p.x + p.w / 2) - this.cx());
+          if (_pdx < 150 && _pdx < _hopDx) { _hop = p; _hopDx = _pdx; }
+        }
+        if (_hop) {
+          this.vy = _jumpVy;
+          this.vx = (Math.sign(_hop.x + _hop.w / 2 - this.cx()) || dir) * Math.min(moveSpd, Math.max(2, _hopDx / 14));
+          this._jumpCooldown = 34;
+          // Steer toward the platform for the whole ascent (see hop-steering block
+          // near the top of updateAI) — a one-shot vx gets overwritten next frame.
+          this._hopTarget = _hop;
+          this._hopFrames = 40;
+        }
+      }
+    }
+
     // ── ATTACK — telegraph then strike ───────────────────────
     // Each first-strike is preceded by a brief wind-up (visual tell + dodge window).
     // Follow-up combo hits are handled separately by _comboFollowHits.
@@ -2676,29 +2756,40 @@ class SovereignMK2 extends AdaptiveAI {
       this.vx *= 0.28; // near-stop during wind-up — player can read the incoming attack
       this._telegraphTimer--;
       if (this._telegraphTimer === 0 && d < weaponRange + 22 && this.cooldown <= 0) {
-        this.attack(t);
-        this._postHitLockFrames = Math.max(this._postHitLockFrames, 30);
-        if (this.abilityCooldown <= 0 && d < 125) this.ability(t);
-        if (this._comboFollowHits === 0) {
-          const comboHits = Math.floor(this.intelligence * 1.5) + lbCombo;
-          if (comboHits > 0) {
-            this._comboFollowHits  = comboHits;
-            this._comboFollowTimer = Math.max(lb ? 8 : 10, Math.round(14 - m.reactionSpeed * 4));
+        if (this._strike(t)) {
+          this._postHitLockFrames = Math.max(this._postHitLockFrames, 30);
+          if (this.abilityCooldown <= 0 && d < 125) this.ability(t);
+          if (this._comboFollowHits === 0) {
+            const comboHits = Math.floor(this.intelligence * 1.5) + lbCombo;
+            if (comboHits > 0) {
+              this._comboFollowHits  = comboHits;
+              this._comboFollowTimer = Math.max(lb ? 8 : 10, Math.round(14 - m.reactionSpeed * 4));
+            }
           }
-        }
-        // After each strike sequence, count toward a rest period
-        this._aggressionStreak++;
-        if (this._aggressionStreak >= 3 && this._restCooldown <= 0) {
-          this._restTimer    = Math.round(25 + Math.random() * 20);
-          this._restCooldown = 180;
-          this._aggressionStreak = 0;
+          // After each strike sequence, count toward a rest period
+          this._aggressionStreak++;
+          if (this._aggressionStreak >= 3 && this._restCooldown <= 0) {
+            this._restTimer    = Math.round(25 + Math.random() * 20);
+            this._restCooldown = 180;
+            this._aggressionStreak = 0;
+          }
+        } else {
+          // Swing vetoed — target slipped out of true reach during the wind-up.
+          // Commit to a short chase to erase the gap instead of re-arming a
+          // telegraph on the spot (which stalls Sovereign at the range boundary).
+          this._postHitLockFrames = Math.max(this._postHitLockFrames, 10);
         }
       }
-    } else if (d < weaponRange + 10 && this.cooldown <= 0) {
+    } else if (d < weaponRange + 10 && this.cooldown <= 0 &&
+               Math.abs((this.y + this.h / 2) - (t.y + t.h / 2)) <= 70) {
+      // Vertical gate: never wind up under a hovering/elevated player the blade
+      // can't reach — Sovereign used to slow-telegraph endlessly below them.
       // Don't arm the telegraph against a player who just spawned — prevents spawn-kills
       if (t.invincible > 80) { this.aiReact = reactFrames; return; }
       // In range — arm the telegraph (visual tell before striking)
-      this._telegraphTimer = Math.max(lb ? 2 : 4, Math.round(8 - this._evolutionStage * 2 - (lb ? 1 : 0)));
+      // Real frames now (per-frame cadence): 14 → 8 as Sovereign evolves; ~6 after
+      // limiter break. Short enough to pressure, long enough for a human read.
+      this._telegraphTimer = Math.max(lb ? 6 : 8, Math.round(14 - this._evolutionStage * 2 - (lb ? 2 : 0)));
       spawnParticles(this.cx(), this.cy(), '#ffaa00', 4);
       this.vx *= 0.35; // begin slowing as wind-up starts
       // Verbal cue — fires occasionally so the player has a chance to react
@@ -2739,18 +2830,18 @@ class SovereignMK2 extends AdaptiveAI {
     }
 
     // Own ability usage
-    let abiChance  = 0.02 + realAgg * 0.04 * (lb ? 1.2 : 1.0) + (this._predictionBoostFrames > 0 ? 0.08 : 0);
+    let abiChance  = 0.004 + realAgg * 0.008 * (lb ? 1.2 : 1.0) + (this._predictionBoostFrames > 0 ? 0.016 : 0);
     let abiMaxDist = 200;
-    if (t.shielding && d < 150)        { abiChance = 0.55; abiMaxDist = 150; }
-    else if (finishPush && d < 200)    { abiChance = Math.max(abiChance, 0.28); abiMaxDist = 200; }
-    else if (hpPct < 0.25 && d < 200) { abiChance = Math.max(abiChance, 0.22); abiMaxDist = 200; }
+    if (t.shielding && d < 150)        { abiChance = 0.14; abiMaxDist = 150; }
+    else if (finishPush && d < 200)    { abiChance = Math.max(abiChance, 0.07); abiMaxDist = 200; }
+    else if (hpPct < 0.25 && d < 200) { abiChance = Math.max(abiChance, 0.055); abiMaxDist = 200; }
     if (this.abilityCooldown <= 0 && d < abiMaxDist && (!playerAttacking || t.shielding) && Math.random() < abiChance) this.ability(t);
 
     // Own super: prefer contextual use over random timing
-    let superChance = 0.04 + realAgg * 0.08;
-    if (finishMode)                                           superChance = 0.45;
-    else if (this._countRecent('hit_landed', 30) >= 2)       superChance = Math.max(superChance, 0.35);
-    else if (tHpPct < 0.30 && d < 180)                       superChance = Math.max(superChance, 0.25);
+    let superChance = 0.008 + realAgg * 0.016;
+    if (finishMode)                                           superChance = 0.11;
+    else if (this._countRecent('hit_landed', 30) >= 2)       superChance = Math.max(superChance, 0.08);
+    else if (tHpPct < 0.30 && d < 180)                       superChance = Math.max(superChance, 0.06);
     if (this.superReady && Math.random() < superChance) this.useSuper(t);
     if (this.health < 22 && this.superReady) this.useSuper(t);
 

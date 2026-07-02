@@ -400,6 +400,8 @@ function processInput() {
         SoundManager.jump();
       }
     }
+    // --- Story dodge roll (grounded) / air dash (airborne) — double-tap ← / → ---
+    if (storyModeActive && typeof storyHandleDodgeInput === 'function') storyHandleDodgeInput(p);
     // --- S / ArrowDown = shield (degrades per consecutive deployment; re-press required after break) ---
     // Tiers: stacks 1→30HP, 2→15HP, 3→5HP, 4→80% block, 5→50% block, 6→20% block, 7+→no effect
     const _SHIELD_HP_TABLE = [0, 30, 15, 5];
@@ -415,6 +417,11 @@ function processInput() {
       p.shielding       = false;
       p.shieldHoldTimer = 0;
       p.shieldBroken    = false;
+      p._shieldRaiseDelay = 0;
+    } else if (sNewPress && p._domainSlowFactor > 0 && p._domainSlowFactor < 1 &&
+               (p._shieldRaiseDelay || 0) < Math.round(8 / p._domainSlowFactor - 8)) {
+      // Shadow Realm time dilation: the shield comes up late — keep holding through the raise
+      p._shieldRaiseDelay = (p._shieldRaiseDelay || 0) + 1;
     } else if (sNewPress && !(p.weapon && p.weapon.type === 'ranged' && p._rangedCommitTimer > 0)) {
       // New key-press: increment stack tier and activate shield if still effective
       const _newStacks = (p.shieldStacks || 0) + 1;

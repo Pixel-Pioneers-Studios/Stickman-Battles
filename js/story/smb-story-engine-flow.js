@@ -231,15 +231,14 @@ function _launchInterludeChapter(ch) {
   storyBossType   = null;
   storyTwoEnemies = false;
 
-  // Ability override: walking chapters keep base movement unlocked
+  // Ability override: abilities are gated purely by the skill tree
   const _sk = _story2.skillTree || {};
-  const _sa = (typeof storyState !== 'undefined') ? storyState.abilities : {};
   storyPlayerOverride = {
-    noAbility:    !(_sk.weaponAbility || !!_sa.weaponAbility),
+    noAbility:    !_sk.weaponAbility,
     noSuper:      true,    // no combat supers during a walk
     noClass:      !_sk.classUnlock,
-    noDoubleJump: !(_sk.doubleJump || !!_sa.doubleJump),
-    noDodge:      !(_sk.dodge || !!_sa.dodge),
+    noDoubleJump: !_sk.doubleJump,
+    noDodge:      !_sk.dodge,
     dmgMult:      1.0, speedMult: 1.0, jumpMult: 1.0,
   };
 
@@ -389,15 +388,14 @@ function _launchEscortChapter(ch) {
   if (typeof selectLives === 'function') selectLives(ch.playerLives || 3);
   infiniteMode = false;
 
-  // Ability gate (same defaults as fight chapters)
+  // Ability gate (same defaults as fight chapters) — skill tree only
   const _sk = _story2.skillTree || {};
-  const _sa = (typeof storyState !== 'undefined') ? storyState.abilities : {};
   storyPlayerOverride = {
-    noDoubleJump: !(_sk.doubleJump  || !!_sa.doubleJump),
-    noAbility:    !(_sk.weaponAbility || !!_sa.weaponAbility),
-    noSuper:      !(_sk.superMeter  || !!_sa.superMeter),
+    noDoubleJump: !_sk.doubleJump,
+    noAbility:    !_sk.weaponAbility,
+    noSuper:      !_sk.superMeter,
     noClass:      !_sk.classUnlock,
-    noDodge:      !(_sk.dodge || !!_sa.dodge || storyDodgeUnlocked),
+    noDodge:      !_sk.dodge,
     dmgMult:      1.0 + (_sk.heavyHit2 ? 0.25 : _sk.heavyHit1 ? 0.15 : 0),
     speedMult:    1.0 + (_sk.fastMove2 ? 0.20 : _sk.fastMove1 ? 0.10 : 0),
     jumpMult:     1.0 + (_sk.highJump2 ? 0.25 : _sk.highJump1 ? 0.15 : 0),
@@ -590,21 +588,19 @@ function _launchChapter2FightImmediate(ch) {
   if (typeof selectLives === 'function') selectLives((_phase && _phase.playerLives) || ch.playerLives || 3);
   infiniteMode = false;
 
-  // ── Ability progression: gate unlocks by chapter id OR by story events ───
-  // storyState.abilities is the authoritative source; chapter thresholds are
-  // the fallback minimum for players who have already progressed past the unlock point.
+  // ── Ability progression: gated purely by the skill tree ─────────────────
+  // Abilities are no longer granted passively; the player must buy each node.
   const _caps = ch.playerCaps || {};
   const id = ch._origId !== undefined ? ch._origId : ch.id; // use original id for difficulty scaling
-  const _sa = (typeof storyState !== 'undefined') ? storyState.abilities : {};
   const _sk = _story2.skillTree || {};
   storyPlayerOverride = {
     // If chapter not yet beaten, strip ranged weapons from the player too
     weapon:        _caps.weapon !== undefined ? _safeWeapon(_caps.weapon) : (id < 1 ? 'sword' : (_isRanged(document.getElementById('p1Weapon')?.value) ? _RANGED_FALLBACK : null)),
-    noDoubleJump:  _caps.noDoubleJump !== undefined ? _caps.noDoubleJump : !(_sk.doubleJump || !!_sa.doubleJump),
-    noAbility:     _caps.noAbility    !== undefined ? _caps.noAbility    : !(_sk.weaponAbility || !!_sa.weaponAbility),
-    noSuper:       _caps.noSuper      !== undefined ? _caps.noSuper      : !(_sk.superMeter || !!_sa.superMeter),
+    noDoubleJump:  _caps.noDoubleJump !== undefined ? _caps.noDoubleJump : !_sk.doubleJump,
+    noAbility:     _caps.noAbility    !== undefined ? _caps.noAbility    : !_sk.weaponAbility,
+    noSuper:       _caps.noSuper      !== undefined ? _caps.noSuper      : !_sk.superMeter,
     noClass:       _caps.noClass      !== undefined ? _caps.noClass      : !_sk.classUnlock,
-    noDodge:       !(_sk.dodge || !!_sa.dodge || storyDodgeUnlocked),
+    noDodge:       !_sk.dodge,
     dmgMult:       1.0 + (_sk.heavyHit2 ? 0.25 : _sk.heavyHit1 ? 0.15 : 0),
     speedMult:     1.0 + (_sk.fastMove2 ? 0.20 : _sk.fastMove1 ? 0.10 : 0),
     jumpMult:      1.0 + (_sk.highJump2 ? 0.25 : _sk.highJump1 ? 0.15 : 0),
@@ -781,13 +777,12 @@ function _launchAssassinationChapter(ch) {
   infiniteMode = false;
 
   const _sk = _story2.skillTree || {};
-  const _sa = (typeof storyState !== 'undefined') ? storyState.abilities : {};
   storyPlayerOverride = {
-    noDoubleJump: !(_sk.doubleJump  || !!_sa.doubleJump),
-    noAbility:    !(_sk.weaponAbility || !!_sa.weaponAbility),
-    noSuper:      !(_sk.superMeter  || !!_sa.superMeter),
+    noDoubleJump: !_sk.doubleJump,
+    noAbility:    !_sk.weaponAbility,
+    noSuper:      !_sk.superMeter,
     noClass:      !_sk.classUnlock,
-    noDodge:      !(_sk.dodge || !!_sa.dodge || storyDodgeUnlocked),
+    noDodge:      !_sk.dodge,
     dmgMult:      1.0 + (_sk.heavyHit2 ? 0.25 : _sk.heavyHit1 ? 0.15 : 0),
     speedMult:    1.0 + (_sk.fastMove2 ? 0.20 : _sk.fastMove1 ? 0.10 : 0),
     jumpMult:     1.0 + (_sk.highJump2 ? 0.25 : _sk.highJump1 ? 0.15 : 0),
@@ -845,13 +840,12 @@ function _launchGauntletChapter(ch) {
   infiniteMode = false;
 
   const _sk = _story2.skillTree || {};
-  const _sa = (typeof storyState !== 'undefined') ? storyState.abilities : {};
   storyPlayerOverride = {
-    noDoubleJump: !(_sk.doubleJump  || !!_sa.doubleJump),
-    noAbility:    !(_sk.weaponAbility || !!_sa.weaponAbility),
-    noSuper:      !(_sk.superMeter  || !!_sa.superMeter),
+    noDoubleJump: !_sk.doubleJump,
+    noAbility:    !_sk.weaponAbility,
+    noSuper:      !_sk.superMeter,
     noClass:      !_sk.classUnlock,
-    noDodge:      !(_sk.dodge || !!_sa.dodge || storyDodgeUnlocked),
+    noDodge:      !_sk.dodge,
     dmgMult:      1.0 + (_sk.heavyHit2 ? 0.25 : _sk.heavyHit1 ? 0.15 : 0),
     speedMult:    1.0 + (_sk.fastMove2 ? 0.20 : _sk.fastMove1 ? 0.10 : 0),
     jumpMult:     1.0 + (_sk.highJump2 ? 0.25 : _sk.highJump1 ? 0.15 : 0),

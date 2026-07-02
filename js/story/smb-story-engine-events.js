@@ -46,7 +46,7 @@ const storyState = {
   storyState.abilities.doubleJump    = !!sk.doubleJump;
   storyState.abilities.weaponAbility = !!(sk.weaponAbility || sk.weaponAbilityOld);
   storyState.abilities.superMeter    = !!sk.superMeter;
-  storyState.abilities.dodge         = !!sk.dodge || (typeof storyDodgeUnlocked !== 'undefined' && storyDodgeUnlocked);
+  storyState.abilities.dodge         = !!sk.dodge;
   storyDodgeUnlocked                 = storyState.abilities.dodge;
 })();
 
@@ -95,83 +95,30 @@ function _handleBuiltinEvent(name, data) {
 
     // ── Player kills their first enemy ───────────────────────────────────────
     case 'FIRST_KILL': {
-      // Only show the double-jump unlock ceremony if it hasn't been granted yet
-      if (!storyState.abilities.doubleJump && storyState.chapter >= 2) {
-        storyState.abilities.doubleJump = true;
-        _showMidFightUnlock({
-          icon: '⬆',
-          name: 'Double Jump',
-          desc: 'Your body adapted.\nPress W again in the air.',
-          color: '#44ffaa',
-        });
-        // Apply immediately to current player
-        const p1 = players && players[0];
-        if (p1) { p1._storyNoDoubleJump = false; p1._noDoubleJump = false; }
-      }
+      // Abilities are no longer granted passively — Double Jump is bought in
+      // the skill tree (Mobility branch). No unlock ceremony here.
       break;
     }
 
     // ── Player's health drops to 20% or below ────────────────────────────────
     case 'SURVIVAL_EVENT': {
-      // Ch 9+ → unlock dodge if not yet unlocked
-      if (!storyState.abilities.dodge && storyState.chapter >= 9) {
-        storyState.abilities.dodge = true;
-        if (typeof setAccountFlagWithRuntime === 'function') {
-          setAccountFlagWithRuntime(['unlocks', 'storyDodgeUnlocked'], true, function(v) { storyDodgeUnlocked = v; });
-        } else {
-          storyDodgeUnlocked = true;
-        }
-        _showMidFightUnlock({
-          icon: '💨',
-          name: 'Dodge Roll',
-          desc: 'Pure instinct.\nDouble-tap ← or → to dodge through attacks.',
-          color: '#00ddff',
-        });
-        const p1 = players && players[0];
-        if (p1) p1._storyNoDodge = false;
-      }
-      // Also flash the screen red briefly to signal danger
+      // Dodge Roll is no longer granted passively — it is bought in the skill
+      // tree (Mobility branch). Just flash the screen red to signal danger.
       if (typeof hitStopFrames !== 'undefined') hitStopFrames = Math.max(hitStopFrames, 2);
       break;
     }
 
     // ── Weapon ability unlocked (ch 4 first kill with ability available) ─────
     case 'ABILITY_UNLOCK': {
-      if (!storyState.abilities.weaponAbility) {
-        storyState.abilities.weaponAbility = true;
-        _showMidFightUnlock({
-          icon: '⚡',
-          name: 'Weapon Ability',
-          desc: 'You found the rhythm.\nPress Q to activate.',
-          color: '#ffee55',
-        });
-        const p1 = players && players[0];
-        if (p1) p1._storyNoAbility = false;
-      }
+      // Weapon Ability is no longer granted passively — bought in the skill
+      // tree (Combat branch: "Weapon Mastery").
       break;
     }
 
     // ── Super meter unlocked ──────────────────────────────────────────────────
     case 'SUPER_UNLOCK': {
-      if (!storyState.abilities.superMeter) {
-        storyState.abilities.superMeter = true;
-        _showMidFightUnlock({
-          icon: '✦',
-          name: 'Super Meter',
-          desc: 'Power you didn\'t know you had.\nPress E when the meter is full.',
-          color: '#ff88ff',
-        });
-        const p1 = players && players[0];
-        if (p1) p1._storyNoSuper = false;
-      }
-      // Camera + slow-mo for dramatic effect
-      if (typeof setCameraDrama === 'function' && players[0]) {
-        setCameraDrama('focus', 110, players[0], 1.22);
-      }
-      if (typeof slowMotionFor === 'function') slowMotionFor(0.38, 850);
-      // Give the player breathing room — force enemy to hesitate
-      const _surv_p2 = players && players[1];
-      if (_surv_p2 && _surv_p2.isAI) _surv_p2.aiReact = (_surv_p2.aiReact || 0) + 85;
+      // Super Meter is no longer granted passively — bought in the skill tree
+      // (Resilience branch: "Inner Power"). No unlock ceremony here.
       break;
     }
 

@@ -68,6 +68,8 @@ class Fighter {
     this.animTimer    = 0;
     this._speedBuff   = 0;
     this._powerBuff   = 0;
+    this._domainSlowFactor = 1;   // <1 = caught in ninja Shadow Realm time dilation
+    this._domainSlowAccum  = 0;   // fractional-tick accumulator for the slow
     this._maxLives       = chosenLives; // for correct heart display
     this.onePunchMode    = false;       // training: kills anything in one hit
     this.swingHitTargets = new Set();   // tracks targets hit in current swing (multi-hit)
@@ -259,6 +261,8 @@ class Fighter {
     this.lavaBurnTimer   = 0;
     this._speedBuff      = 0;
     this._powerBuff      = 0;
+    this._domainSlowFactor = 1;
+    this._domainSlowAccum  = 0;
     this.classPerkUsed    = false;
     this.spartanRageTimer = 0;
     this._ammo        = this.weapon && this.weapon.clipSize ? this.weapon.clipSize : 0;
@@ -312,6 +316,17 @@ class Fighter {
     if (this.isRemote && onlineMode) {
       this.updateState();
       return;
+    }
+    // Ninja Shadow Realm time dilation: slowed fighters run on a fractional clock.
+    // Skipping whole update frames slows everything uniformly — movement, gravity,
+    // attack swings, cooldowns, shield hold, AI ticks — while draw still runs at 60fps.
+    if (this._domainSlowFactor > 0 && this._domainSlowFactor < 1 && !this._domainRising) {
+      this._domainSlowAccum = (this._domainSlowAccum || 0) + this._domainSlowFactor;
+      if (this._domainSlowAccum < 1) {
+        this.updateState();
+        return;
+      }
+      this._domainSlowAccum -= 1;
     }
     // AI fighters never run processInput (which ticks shieldHoldTimer for
     // humans), so theirs froze at 0 — granting the maximum 65% fresh-shield
@@ -1149,6 +1164,22 @@ class Fighter {
           // Block friendly fire in minigames ONLY for survival team mode
           if (gameMode === 'minigames' && minigameType === 'survival' && !_survFFM && !this.isBoss && !tgt.isBoss && !tgt.isAI && !this.isAI) continue;
           if (!this.swingHitTargets.has(tgt) && arcHits(tgt.x, tgt.y, tgt.w, tgt.h, this.weaponKey === 'whip' ? 10 : 0)) {
+            // ── TRADE PREVENTION ──────────────────────────────────────────────────────
+            // If tgt is also mid-swing with a melee weapon, only the fighter who started
+            // their attack first lands the hit. The later attacker's swing is cancelled.
+            if (!this.isBoss && !tgt.isBoss && tgt.weapon && tgt.weapon.type === 'melee' && tgt.attackTimer > 0) {
+              const _myStart  = this._attackStartFrame  || 0;
+              const _tgtStart = tgt._attackStartFrame   || 0;
+              if (_myStart >= _tgtStart) {
+                // tgt attacked first (or same frame) — cancel our swing so only tgt's hit registers
+                this.attackTimer = 0;
+                this.weaponHit   = false;
+                break;
+              } else {
+                // We attacked first — cancel tgt's pending swing
+                tgt.attackTimer = 0;
+              }
+            }
             dealDamage(this, tgt, this.weapon.damage, this.weapon.kb);
             this.swingHitTargets.add(tgt);
             this.weaponHit = true;
@@ -1276,16 +1307,15 @@ class Fighter {
       }
     }
 
-    // ---- PASSIVE WEAPON CONTACT (melee only, while not mid-swing) ----
-    if (this.weapon && this.weapon.type === 'melee' && this.attackTimer === 0 &&
+    // ---- PASSIVE WEAPON CONTACT (boss weapons only — gauntlet/mkgauntlet intentional) ----
+    if (this.isBoss && this.weapon && this.weapon.contactDmgMult && this.attackTimer === 0 &&
         this.contactDamageCooldown === 0 && this.target) {
       const tgt = this.target;
       if (tgt.health > 0 && dist(this, tgt) < this.weapon.range * 0.62 * (this.drawScale || 1)) {
         const movingToward = (tgt.cx() > this.cx() && this.vx > 0.8) ||
                              (tgt.cx() < this.cx() && this.vx < -0.8);
         if (movingToward) {
-          const contactMult = this.weapon.contactDmgMult !== undefined ? this.weapon.contactDmgMult : 0.25;
-          dealDamage(this, tgt, Math.max(1, Math.floor(this.weapon.damage * contactMult)),
+          dealDamage(this, tgt, Math.max(1, Math.floor(this.weapon.damage * this.weapon.contactDmgMult)),
                                 Math.floor(this.weapon.kb * 0.35));
           this.contactDamageCooldown = 32;
         }
@@ -1300,7 +1330,7 @@ class Fighter {
         !activeCinematic &&
         !(typeof isCutsceneActive === 'function' && isCutsceneActive()) &&
         !(typeof isCombatLocked === 'function' && isCombatLocked('ai')) &&
-        aiTick % AI_TICK_INTERVAL === 0) this.updateAI();
+        aiTick % (this.aiTickInterval || AI_TICK_INTERVAL) === 0) this.updateAI();
 
       // ── Standard game physics ──
       // godmode cheat: free flight for human player
@@ -2150,6 +2180,7 @@ class Fighter {
       this.vx -= this.facing * _recoilPush;
     }
     this.cooldown    = this.attackCooldownMult ? Math.max(1, Math.ceil(this.weapon.cooldown * this.attackCooldownMult)) : this.weapon.cooldown;
+    this._attackStartFrame = (typeof frameCount !== 'undefined' ? frameCount : 0);
     this.attackTimer = this.attackDuration;
     // Affinity feel: low affinity slows movement during attack swing; high affinity lets you stay mobile
     if (!this.isBoss && this.charClass && this.weapon && typeof CLASS_AFFINITY !== 'undefined') {
@@ -5511,29 +5542,20 @@ class Fighter {
       ctx.beginPath(); ctx.moveTo(37,-7); ctx.lineTo(42,7); ctx.stroke();
 
     } else if (k === 'combat') {
-      // Wrist wrap — white band
-      ctx.fillStyle='#eeeeee'; ctx.beginPath(); ctx.roundRect(-4,-4,8,8,2); ctx.fill();
-      ctx.strokeStyle='#cccccc'; ctx.lineWidth=0.8; ctx.stroke();
-      // Velcro strap line
-      ctx.strokeStyle='rgba(0,0,0,0.15)'; ctx.lineWidth=0.9;
-      ctx.beginPath(); ctx.moveTo(-3,-1); ctx.lineTo(3,-1); ctx.stroke();
-      // Main glove body
-      const _bgGrd = ctx.createLinearGradient(2,-9,2,8);
-      _bgGrd.addColorStop(0,'#dd3333'); _bgGrd.addColorStop(0.5,'#bb1111'); _bgGrd.addColorStop(1,'#881111');
-      ctx.fillStyle=_bgGrd; ctx.beginPath(); ctx.roundRect(3,-9,20,18,7); ctx.fill();
-      ctx.strokeStyle='#ee4444'; ctx.lineWidth=1.5; ctx.stroke();
-      // Thumb bump
-      ctx.fillStyle='#cc2222'; ctx.beginPath(); ctx.ellipse(6,-7,4,3,0.5,0,Math.PI*2); ctx.fill();
-      // Knuckle ridge
-      ctx.strokeStyle='#ee7777'; ctx.lineWidth=1.2;
-      ctx.beginPath(); ctx.moveTo(21,-6); ctx.lineTo(21,6); ctx.stroke();
-      // Seam line down center
-      ctx.strokeStyle='rgba(0,0,0,0.2)'; ctx.lineWidth=0.8;
-      ctx.beginPath(); ctx.moveTo(10,-8); ctx.lineTo(10,8); ctx.stroke();
-      // Sheen highlight
-      ctx.globalAlpha=0.25; ctx.fillStyle='#ffffff';
-      ctx.beginPath(); ctx.ellipse(9,-5,5,3,-0.3,0,Math.PI*2); ctx.fill();
-      ctx.globalAlpha=1;
+      // Bare fist — clenched hand in the fighter's own color
+      const _fistColor = this.color || '#cc4444';
+      ctx.fillStyle = _fistColor;
+      ctx.beginPath(); ctx.ellipse(10, 0, 9, 6, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = 'rgba(0,0,0,0.35)'; ctx.lineWidth = 1.2; ctx.stroke();
+      // Knuckle lines
+      ctx.strokeStyle = 'rgba(0,0,0,0.18)'; ctx.lineWidth = 0.8;
+      for (let _ki = 0; _ki < 3; _ki++) {
+        ctx.beginPath(); ctx.moveTo(11 + _ki * 3, -4); ctx.lineTo(11 + _ki * 3, 4); ctx.stroke();
+      }
+      // Sheen
+      ctx.globalAlpha = 0.2; ctx.fillStyle = '#ffffff';
+      ctx.beginPath(); ctx.ellipse(7, -2, 4, 2, -0.3, 0, Math.PI * 2); ctx.fill();
+      ctx.globalAlpha = 1;
 
     } else if (k === 'peashooter') {
       // Stem / body — organic green tube

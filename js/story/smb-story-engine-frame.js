@@ -127,12 +127,14 @@ function resetStoryEventState() {
   storyFreezeTimer = 0;
   _fallenWarrior   = null;
   syncStoryDistortLevel();
-  // Sync ability locks from current chapter
-  const id = storyState.chapter;
-  storyState.abilities.doubleJump    = id >= 1  || storyState.abilities.doubleJump;
-  storyState.abilities.weaponAbility = id >= 3  || storyState.abilities.weaponAbility;
-  storyState.abilities.superMeter    = id >= 5  || storyState.abilities.superMeter;
-  storyState.abilities.dodge         = id >= 9  || storyDodgeUnlocked;
+  // Sync ability locks from the skill tree ONLY — abilities are never granted
+  // passively by chapter progress; the player must buy each node.
+  const sk = (typeof _story2 !== 'undefined' && _story2.skillTree) ? _story2.skillTree : {};
+  storyState.abilities.doubleJump    = !!sk.doubleJump;
+  storyState.abilities.weaponAbility = !!(sk.weaponAbility || sk.weaponAbilityOld);
+  storyState.abilities.superMeter    = !!sk.superMeter;
+  storyState.abilities.dodge         = !!sk.dodge;
+  storyDodgeUnlocked                 = !!sk.dodge; // keep dodge mechanic gate in sync with the tree
 }
 
 // ── Story soft boundary / portal system ───────────────────────────────────────
@@ -353,29 +355,35 @@ function drawStoryWorldDistortion(ctx, cw, ch_h) {
   ctx.restore();
 }
 
-// ── Dodge roll mechanic (gated by storyDodgeUnlocked) ────────────────────────
-// Dodge state is stored on the Fighter instance:
-//   p._dodgeTimer     — frames of active i-frames
-//   p._dodgeCd        — cooldown frames
-//   p._dodgeFacing    — direction of dodge
-//   p._dodgePressed   — true during the frame double-tap is detected
+// ── Dodge roll + Air Dash (shared double-tap ← / → gesture) ──────────────────
+// One gesture, dispatched on grounded state:
+//   • Grounded + dodge unlocked      → Dodge Roll  (i-frame ground roll)
+//   • Airborne + Air Dash skill node → Air Dash    (horizontal burst, once per airtime)
+// State stored on the Fighter instance:
+//   p._dodgeTimer / p._dodgeCd / p._dodgeFacing                   — ground dodge
+//   p._airDashTimer / p._airDashCd / p._airDashDir / p._airDashUsed — air dash
 //
-// processInput() in smc-loop.js will call storyHandleDodgeInput(p, movingLeft, movingRight)
-// to check for double-tap and trigger the roll.
+// Called from processInput() (smb-input.js) for each living non-AI player.
 
 const DODGE_FRAMES   = 14;  // i-frame duration
 const DODGE_SPEED    = 16;  // lateral velocity burst
 const DODGE_CD       = 48;  // cooldown before next dodge
 
+const AIRDASH_FRAMES = 10;  // active dash frames (gravity suspended)
+const AIRDASH_SPEED  = 15;  // horizontal burst velocity
+const AIRDASH_CD     = 40;  // cooldown before next air dash
+
 /**
  * Must be called from processInput() for each non-AI player.
  */
 function storyHandleDodgeInput(p) {
-  if (!storyDodgeUnlocked) return;
-  if (p._storyNoDodge) return;
-  if (p._dodgeCd > 0) { p._dodgeCd--; return; }
+  if (!p) return;
+  const dodgeOK = storyDodgeUnlocked && !p._storyNoDodge;
+  const dashOK  = !!p._skillAirDash;
+  if (!dodgeOK && !dashOK) return;
+
+  // ── Active-frame physics: ground dodge in progress ──────────────────────
   if (p._dodgeTimer > 0) {
-    // Mid-dodge physics: maintain velocity, grant i-frames
     p._dodgeTimer--;
     p.vx = p._dodgeFacing * DODGE_SPEED;
     p.invincible = Math.max(p.invincible || 0, 1); // i-frames
@@ -386,49 +394,60 @@ function storyHandleDodgeInput(p) {
     return;
   }
 
-  // Double-tap detection: key tapped twice within 10 frames
-  const lKey = p.controls.left;
-  const rKey = p.controls.right;
+  // ── Active-frame physics: air dash in progress ──────────────────────────
+  if (p._airDashTimer > 0) {
+    p._airDashTimer--;
+    p.vx = p._airDashDir * AIRDASH_SPEED;
+    p.vy = 0;                                       // suspend gravity — floaty dash
+    p.invincible = Math.max(p.invincible || 0, 1);  // i-frames through the dash
+    if (p._airDashTimer === 0) {
+      p._airDashCd = AIRDASH_CD;
+      p.vx *= 0.4; // soften the exit
+    }
+    return;
+  }
+
+  // Tick cooldowns
+  if (p._dodgeCd   > 0) p._dodgeCd--;
+  if (p._airDashCd > 0) p._airDashCd--;
+  // One air dash per airtime — refresh when grounded
+  if (p.onGround) p._airDashUsed = false;
+
+  // ── Double-tap detection: same direction key twice within 13 frames ─────
   if (!p._tapState) p._tapState = {};
+  const ts    = p._tapState;
+  const lHeld = keyHeldFrames[p.controls.left]  || 0;
+  const rHeld = keyHeldFrames[p.controls.right] || 0;
 
-  const ts = p._tapState;
-  const lHeld = keyHeldFrames[lKey] || 0;
-  const rHeld = keyHeldFrames[rKey] || 0;
-
-  // Rising-edge detection (frame 1 of hold = new press)
   if (lHeld === 1) {
-    ts.lLastTap = frameCount;
+    if (ts.lTapFrame && (frameCount - ts.lTapFrame) < 13) { _storyDashOrDodge(p, -1); ts.lTapFrame = 0; }
+    else ts.lTapFrame = frameCount;
   }
   if (rHeld === 1) {
-    ts.rLastTap = frameCount;
+    if (ts.rTapFrame && (frameCount - ts.rTapFrame) < 13) { _storyDashOrDodge(p, 1); ts.rTapFrame = 0; }
+    else ts.rTapFrame = frameCount;
   }
+}
 
-  // Double-tap = two presses within 12 frames, second press happens now
-  if (lHeld === 1 && ts.lLastTap && (frameCount - ts.lLastTap) <= 12 && lHeld < 2) {
-    // Need two separate press events — detect by checking prev tap was at least 1 frame ago
-    // Simple proxy: if the last tap was this frame, it's the first tap; skip
-    // We use a two-slot buffer approach
-  }
-
-  // Simplified approach: track tap count in short window
-  if (lHeld === 1) {
-    if (ts.lTapFrame && (frameCount - ts.lTapFrame) < 13) {
-      // Second tap — fire dodge left
-      _doDodge(p, -1);
-      ts.lTapFrame = 0;
-    } else {
-      ts.lTapFrame = frameCount;
+// Dispatch a double-tap to an air dash (airborne) or a ground dodge (grounded).
+function _storyDashOrDodge(p, dir) {
+  if (!p.onGround) {
+    // Air Dash — requires the skill node, one use per airtime, off cooldown
+    if (p._skillAirDash && !p._airDashUsed && (p._airDashCd || 0) <= 0 && (p._airDashTimer || 0) <= 0) {
+      p._airDashTimer = AIRDASH_FRAMES;
+      p._airDashDir   = dir;
+      p._airDashUsed  = true;
+      p.facing        = dir;
+      p.vx            = dir * AIRDASH_SPEED;
+      p.vy            = 0;
+      p.invincible    = Math.max(p.invincible || 0, 1);
+      spawnParticles(p.cx(), p.cy(), '#66ccff', 10);
+      SoundManager && SoundManager.jump && SoundManager.jump(); // reuse jump sound
     }
+    return;
   }
-  if (rHeld === 1) {
-    if (ts.rTapFrame && (frameCount - ts.rTapFrame) < 13) {
-      // Second tap — fire dodge right
-      _doDodge(p, 1);
-      ts.rTapFrame = 0;
-    } else {
-      ts.rTapFrame = frameCount;
-    }
-  }
+  // Ground Dodge — requires the dodge unlock
+  if (storyDodgeUnlocked && !p._storyNoDodge) _doDodge(p, dir);
 }
 
 function _doDodge(p, dir) {

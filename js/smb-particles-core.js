@@ -176,6 +176,12 @@ class Projectile {
     }
   }
   update() {
+    // Ninja Shadow Realm time dilation: projectiles fired by slowed fighters crawl
+    if (this.owner && this.owner._domainSlowFactor > 0 && this.owner._domainSlowFactor < 1) {
+      this._domainSlowAccum = (this._domainSlowAccum || 0) + this.owner._domainSlowFactor;
+      if (this._domainSlowAccum < 1) return;
+      this._domainSlowAccum -= 1;
+    }
     if (this._warmupFrames > 0) {
       this._warmupFrames--;
       this.x += this.vx * 0.45;

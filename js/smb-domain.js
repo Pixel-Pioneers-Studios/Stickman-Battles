@@ -31,10 +31,11 @@ const DOMAIN_DEFS = {
     name:       'Shadow Realm',
     color:      '#bb44ff',
     bgTint:     'rgba(8,0,28,0.60)',
-    spawnEvery: 34,
-    hazardType: 'shadow_blade',
-    ownerBuff: { speed: true },
-    announce:   'Darkness consumes all — nowhere to hide!',
+    spawnEvery: 0,            // no hazard rain — the slow IS the domain
+    hazardType: null,
+    ownerBuff: {},            // owner keeps normal speed; everyone else is slowed
+    slowFactor: 0.5,          // victims run at half time (bosses resist: +0.25)
+    announce:   'The shadows drag at your limbs — only one moves free!',
   },
   gunner: {
     name:       'Arsenal Domain',
@@ -326,7 +327,9 @@ const DomainManager = (() => {
       });
     }
 
-    // Ninja + Sword → TWO Shadow Clones: both patrol and lunge independently
+    // Ninja → TWO Shadow Clones: both patrol and lunge independently.
+    // Damage kept modest — the time dilation already stacks the deck; the clones
+    // are pressure, not the kill threat.
     if (domain.defKey === 'ninja') {
       for (let ci = 0; ci < 2; ci++) {
         domain.hazards.push({
@@ -337,7 +340,7 @@ const DomainManager = (() => {
           state:        'patrol',
           patrolTarget: ci === 0 ? GAME_W * 0.15 : GAME_W * 0.85,
           recoverTimer: 0,
-          damage:       50,
+          damage:       35,
           radius:       18,
           hitSet:       new Set(),
         });
@@ -544,7 +547,7 @@ const DomainManager = (() => {
   const _DOMAIN_ENTRY_LINE = {
     thor:       'By Odin\'s command...',
     kratos:     'Feel the rage of Sparta!',
-    ninja:      'Nowhere to hide in the shadows.',
+    ninja:      'Too slow. You were always too slow.',
     paladin:    'The light judges all.',
     gunner:     'Weapons free — open fire!',
     archer:     'The hunt... begins.',
@@ -665,41 +668,62 @@ const DomainManager = (() => {
         break;
       }
 
-      // ── Ninja: vanish → shadow clone burst → reappear → reality slash ──
+      // ── Ninja: vanish → teleport behind each foe → launcher strikes → time dilation ──
       case 'ninja': {
         if (t === 278) { CinFX.bgContrast('#030008', 0.92, 65); }
-        if (t === 265) {
-          CinFX.flash('#660099', 0.70, 6);
-          d.clonePositions = [];
-          for (let i = 0; i < 6; i++) {
-            d.clonePositions.push({
-              x: 80 + Math.random() * (GAME_W - 160),
-              y: GAME_H * 0.25 + Math.random() * GAME_H * 0.4,
-              alpha: 0.7 + Math.random() * 0.3,
-              timer: 30 + Math.floor(Math.random() * 20),
-            });
-          }
-          if (typeof screenShake !== 'undefined') screenShake = Math.max(screenShake, 28);
+        if (t === 268) {
+          // Vanish into the shadows; snapshot victims and build the cut schedule
+          d.vanished = true;
+          d.slashes  = [];
+          CinFX.flash('#660099', 0.55, 6);
+          if (typeof spawnParticles === 'function') spawnParticles(f.cx(), f.cy(), '#bb44ff', 26);
+          if (typeof screenShake !== 'undefined') screenShake = Math.max(screenShake, 18);
+          d.victims  = _getDomainTargets(f).filter(v => !v.isMinion).slice(0, 5);
+          if (d.victims.length === 0) d.victims = _getDomainTargets(f).slice(0, 5);
+          d.cutTimes = d.victims.map((v, i) => 244 - i * 16);
         }
-        if (t === 242) {
-          CinFX.flash('#ffffff', 0.72, 6);
-          d.slashFired = true; d.slashAlpha = 1.0;
-          d.slashX1 = f.cx() - 120; d.slashY1 = f.cy() - 80;
-          d.slashX2 = f.cx() + 140; d.slashY2 = f.cy() + 60;
-          if (typeof screenShake !== 'undefined') screenShake = Math.max(screenShake, 36);
-          if (typeof spawnParticles === 'function') {
-            spawnParticles(f.cx(), f.cy(), '#bb44ff', 28);
-            spawnParticles(f.cx(), f.cy(), '#ffffff', 14);
-          }
-        }
-        if (t === 228) {
+        if (t === 252) {
           CinFX.nameCard('CONVICTION', def.color, { dur: 110 });
-          CinFX.impactFrame(f, { dur: 3 });
           const line = _DOMAIN_ENTRY_LINE[f.charClass];
           if (line && typeof queueAnnouncement === 'function') queueAnnouncement('"' + line + '"', def.color);
+        }
+        // Teleport cuts: appear behind a victim, strike them skyward
+        if (d.cutTimes) {
+          for (let i = 0; i < d.cutTimes.length; i++) {
+            if (t !== d.cutTimes[i]) continue;
+            const v = d.victims[i];
+            if (!v || v.health <= 0) continue;
+            if (!d.slowStarted) { d.slowStarted = true; CinFX.motionTrailOn(f, def.color); }
+            const _behind = -(v.facing || 1);
+            f.x = v.x + _behind * 46;
+            f.y = Math.max(40, v.y);
+            f.facing = -_behind;
+            CinCam.focusPoint(v.cx(), v.cy());
+            CinFX.flash('#ffffff', 0.45, 4);
+            d.slashes.push({ x1: v.cx() - 60, y1: v.cy() + 50, x2: v.cx() + 60, y2: v.cy() - 70, alpha: 1 });
+            _dealDomainDamage(f, v, 18, 0);
+            if (v.health > 0) {
+              v.vy = Math.min(v.vy, -15);   // launcher — slow kicks in while they hang
+              v.vx *= 0.2;
+              v.stunTimer = Math.max(v.stunTimer || 0, 20);
+            }
+            if (typeof screenShake !== 'undefined') screenShake = Math.max(screenShake, 26);
+            if (typeof spawnParticles === 'function') {
+              spawnParticles(v.cx(), v.cy(), '#bb44ff', 20);
+              spawnParticles(v.cx(), v.cy(), '#ffffff', 10);
+            }
+          }
+        }
+        if (t === 168) {
+          // All strikes done — the domain takes hold while victims hang in the air
+          d.vanished = false;
+          d.earlyActivate = true; // announce suppressed — nameCard already shown
           CinFX.shockwave(f.cx(), f.cy(), '#bb44ff', { count: 2, maxR: 320, lw: 5, dur: 45 });
-          CinFX.motionTrailOn(f, def.color);
+          CinFX.flash('#660099', 0.50, 8);
+          CinFX.impactFrame(f, { dur: 3 });
+          CinCam.focusPoint(f.cx(), f.cy());
           CinCam.zoomTo(1.28);
+          if (typeof screenShake !== 'undefined') screenShake = Math.max(screenShake, 30);
         }
         if (t === 160) { CinCam.tilt(0); CinFX.motionTrailOff(f); CinCam.zoomTo(1.18); }
         if (t === 60)  { CinCam.restore(); _domainCinActive = false; _domainCinOwner = null; }
@@ -1632,51 +1656,43 @@ const DomainManager = (() => {
   function _drawNinjaEntry(f, t, now, d) {
     const fx = f.cx(), fy = f.cy();
 
-    // Ghost veil (t=278→265)
-    if (t <= 278 && t > 265) {
-      const phase = (278 - t) / 13;
-      ctx.globalAlpha = phase * 0.40;
-      ctx.fillStyle = '#220044'; ctx.shadowColor = '#bb44ff'; ctx.shadowBlur = 18;
-      ctx.beginPath(); ctx.ellipse(fx, fy, 20, 28, 0, 0, Math.PI * 2); ctx.fill();
-    }
-
-    // Shadow clone silhouettes (t=265→242)
-    if (d.clonePositions) {
-      for (const cl of d.clonePositions) {
-        if (cl.timer <= 0) continue;
-        cl.timer--;
-        ctx.globalAlpha = cl.alpha * (cl.timer / 50) * 0.65;
-        ctx.fillStyle = '#330055'; ctx.shadowColor = '#bb44ff'; ctx.shadowBlur = 12;
-        ctx.beginPath(); ctx.arc(cl.x, cl.y - 22, 9, 0, Math.PI * 2); ctx.fill();
-        ctx.fillRect(cl.x - 6, cl.y - 13, 12, 18);
-        ctx.fillRect(cl.x - 10, cl.y + 5, 7, 14);
-        ctx.fillRect(cl.x + 3,  cl.y + 5, 7, 14);
-        ctx.fillStyle = '#7700cc';
-        ctx.fillRect(cl.x + 7, cl.y - 25, 2.5, 22);
+    // Shadow shroud over the owner while phasing between targets
+    if (d.vanished) {
+      ctx.globalAlpha = 0.75;
+      ctx.fillStyle = '#220044'; ctx.shadowColor = '#bb44ff'; ctx.shadowBlur = 22;
+      ctx.beginPath(); ctx.ellipse(fx, fy, 22, 32, 0, 0, Math.PI * 2); ctx.fill();
+      for (let i = 0; i < 4; i++) {
+        const wa = now / 300 + i * 1.6;
+        ctx.globalAlpha = 0.30 + 0.15 * Math.sin(wa * 2);
+        ctx.beginPath();
+        ctx.arc(fx + Math.cos(wa) * 26, fy + Math.sin(wa * 1.3) * 30, 6, 0, Math.PI * 2);
+        ctx.fill();
       }
     }
 
-    // Reality slash + void tear (t=242→60)
-    if (d.slashFired && d.slashAlpha > 0) {
-      d.slashAlpha = Math.max(0, d.slashAlpha - 0.012);
-      const sa = d.slashAlpha;
-      ctx.globalAlpha = sa * 0.88;
-      ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 3;
-      ctx.shadowColor = '#cc88ff'; ctx.shadowBlur = 18;
-      ctx.beginPath(); ctx.moveTo(d.slashX1, d.slashY1); ctx.lineTo(d.slashX2, d.slashY2); ctx.stroke();
-      ctx.globalAlpha = sa * 0.50;
-      ctx.strokeStyle = '#330066'; ctx.lineWidth = 8;
-      ctx.shadowColor = '#9900cc'; ctx.shadowBlur = 24; ctx.stroke();
-      if (sa > 0.25) {
-        ctx.globalAlpha = sa * 0.35;
-        ctx.strokeStyle = '#bb44ff'; ctx.lineWidth = 2;
-        for (let i = 0; i < 5; i++) {
-          const p = i / 5;
-          const mx = _dLerp(d.slashX1, d.slashX2, p), my = _dLerp(d.slashY1, d.slashY2, p);
-          ctx.beginPath();
-          ctx.moveTo(mx + (Math.random() - 0.5) * 14, my + (Math.random() - 0.5) * 14);
-          ctx.lineTo(mx + (Math.random() - 0.5) * 22, my + (Math.random() - 0.5) * 22);
-          ctx.stroke();
+    // Launcher slash arcs at each strike point
+    if (d.slashes) {
+      for (const s of d.slashes) {
+        if (s.alpha <= 0) continue;
+        s.alpha = Math.max(0, s.alpha - 0.022);
+        ctx.globalAlpha = s.alpha * 0.90;
+        ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 3;
+        ctx.shadowColor = '#cc88ff'; ctx.shadowBlur = 18;
+        ctx.beginPath(); ctx.moveTo(s.x1, s.y1); ctx.lineTo(s.x2, s.y2); ctx.stroke();
+        ctx.globalAlpha = s.alpha * 0.50;
+        ctx.strokeStyle = '#330066'; ctx.lineWidth = 8;
+        ctx.shadowColor = '#9900cc'; ctx.shadowBlur = 24; ctx.stroke();
+        if (s.alpha > 0.25) {
+          ctx.globalAlpha = s.alpha * 0.35;
+          ctx.strokeStyle = '#bb44ff'; ctx.lineWidth = 2;
+          for (let i = 0; i < 4; i++) {
+            const p = i / 4;
+            const mx = _dLerp(s.x1, s.x2, p), my = _dLerp(s.y1, s.y2, p);
+            ctx.beginPath();
+            ctx.moveTo(mx + (Math.random() - 0.5) * 14, my + (Math.random() - 0.5) * 14);
+            ctx.lineTo(mx + (Math.random() - 0.5) * 22, my + (Math.random() - 0.5) * 22);
+            ctx.stroke();
+          }
         }
       }
     }
@@ -2778,15 +2794,42 @@ const DomainManager = (() => {
       // Fire cinematic events tied to the rising phase countdown
       _tickDomainEntry(r);
 
-      // Thor: domain activates at the hammer/weapon slam (t=215), not end of rising
-      if (r.fighter.charClass === 'thor' && r.animData.slamActivate && !r.animData.domainActivated) {
+      // Early activation: Thor activates at the hammer slam (t=215), Ninja once the
+      // launcher strikes land (t=168) — not at the end of rising
+      if ((r.animData.slamActivate || r.animData.earlyActivate) && !r.animData.domainActivated) {
         r.animData.domainActivated = true;
-        _activateDomain(r.fighter, true); // nameCard already shown at t=218
+        _activateDomain(r.fighter, true); // nameCard already shown during entry
       }
 
       if (r.timer <= 0) {
         _endRisingFor(r.fighter);
         if (!r.animData.domainActivated) _activateDomain(r.fighter);
+      }
+    }
+
+    // ── Ninja time dilation: reset then re-apply so it self-clears when domains end ──
+    const _slowPool = []
+      .concat(typeof players !== 'undefined' ? players : [])
+      .concat(typeof minions !== 'undefined' ? minions : [])
+      .concat(typeof trainingDummies !== 'undefined' ? trainingDummies : []);
+    for (const e of _slowPool) {
+      if (e && e._domainSlowFactor !== undefined && e._domainSlowFactor !== 1) e._domainSlowFactor = 1;
+    }
+    const _slowSources = [];
+    for (const dm of _domains) {
+      if (dm.defKey === 'ninja' && dm.owner && dm.owner.health > 0) _slowSources.push(dm.owner);
+    }
+    for (const r of _rising) {
+      // Slow starts at the first launcher strike of the entry, before the domain exists
+      if (r.fighter.charClass === 'ninja' && r.animData && r.animData.slowStarted &&
+          r.fighter.health > 0) _slowSources.push(r.fighter);
+    }
+    for (const src of _slowSources) {
+      const _sf = DOMAIN_DEFS.ninja.slowFactor || 0.5;
+      for (const tgt of _getDomainTargets(src)) {
+        // Bosses/TrueForm resist part of the dilation so boss fights aren't trivialized
+        const _f = (tgt.isBoss || tgt.isTrueForm) ? Math.min(1, _sf + 0.25) : _sf;
+        tgt._domainSlowFactor = Math.min(tgt._domainSlowFactor || 1, _f);
       }
     }
 
@@ -3633,6 +3676,28 @@ const DomainManager = (() => {
     // Entry animations for rising fighters (drawn before active domain hazards)
     for (const r of _rising) _drawDomainEntryAnim(r);
 
+    // Ninja time dilation aura on slowed fighters — ghost shell + drifting ripple ring
+    const _slowDrawPool = []
+      .concat(typeof players !== 'undefined' ? players : [])
+      .concat(typeof minions !== 'undefined' ? minions : [])
+      .concat(typeof trainingDummies !== 'undefined' ? trainingDummies : []);
+    const _slowNow = Date.now();
+    for (const sf of _slowDrawPool) {
+      if (!sf || sf.health <= 0 || !(sf._domainSlowFactor > 0 && sf._domainSlowFactor < 1)) continue;
+      ctx.save();
+      const _pulse = 0.5 + 0.5 * Math.sin(_slowNow / 260 + sf.x * 0.05);
+      ctx.globalAlpha = 0.20 + _pulse * 0.14;
+      ctx.strokeStyle = '#bb44ff'; ctx.lineWidth = 2;
+      ctx.shadowColor = '#bb44ff'; ctx.shadowBlur = 14;
+      ctx.beginPath();
+      ctx.ellipse(sf.cx(), sf.cy(), 26 + _pulse * 8, 34 + _pulse * 8, 0, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.globalAlpha = 0.10 + _pulse * 0.08;
+      ctx.fillStyle = '#330055';
+      ctx.fill();
+      ctx.restore();
+    }
+
     // Draw conviction weapon overlay effects (world-space)
     const _cvFighters = typeof players !== 'undefined' ? players : [];
     for (const fighter of _cvFighters) {
@@ -4329,6 +4394,12 @@ const DomainManager = (() => {
     }
     _domains.length = 0;
     _rising.length  = 0;
+    // Clear any lingering ninja time dilation
+    if (typeof players !== 'undefined') {
+      for (const p of players) {
+        if (p && p._domainSlowFactor !== undefined) { p._domainSlowFactor = 1; p._domainSlowAccum = 0; }
+      }
+    }
     if (_domainCinOwner && typeof CinFX !== 'undefined') CinFX.motionTrailOff(_domainCinOwner);
     if (_domainCinActive && typeof CinCam !== 'undefined') CinCam.restore();
     _domainCinActive = false;

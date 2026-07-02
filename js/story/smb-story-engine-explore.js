@@ -294,17 +294,16 @@ function _launchExplorationChapter(ch) {
   gameMode      = 'exploration';
   p2IsBot       = false;
 
-  // Ability progression (mirror fight chapter logic)
+  // Ability progression (mirror fight chapter logic) — skill tree only
   const id  = ch._origId !== undefined ? ch._origId : ch.id; // use original id for difficulty scaling
-  const _sa = (typeof storyState !== 'undefined') ? storyState.abilities : {};
   const _sk = _story2.skillTree || {};
   storyPlayerOverride = {
     weapon:       null,
-    noDoubleJump: !(_sk.doubleJump || !!_sa.doubleJump),
-    noAbility:    !(_sk.weaponAbility || !!_sa.weaponAbility),
-    noSuper:      !(_sk.superMeter || !!_sa.superMeter),
+    noDoubleJump: !_sk.doubleJump,
+    noAbility:    !_sk.weaponAbility,
+    noSuper:      !_sk.superMeter,
     noClass:      !_sk.classUnlock,
-    noDodge:      !(_sk.dodge || !!_sa.dodge || storyDodgeUnlocked),
+    noDodge:      !_sk.dodge,
     dmgMult:      1.0 + (_sk.heavyHit2 ? 0.25 : _sk.heavyHit1 ? 0.15 : 0),
     speedMult:    1.0 + (_sk.fastMove2 ? 0.20 : _sk.fastMove1 ? 0.10 : 0),
     jumpMult:     1.0 + (_sk.highJump2 ? 0.25 : _sk.highJump1 ? 0.15 : 0),
