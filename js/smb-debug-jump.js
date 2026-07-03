@@ -429,7 +429,21 @@ function _devPreviewDomain(classKey) {
   fighter.charClass    = classKey;
   fighter._domainRising = false;
   DomainManager.triggerExpansion(fighter);
-  setTimeout(() => { fighter.charClass = savedClass; fighter._domainRising = savedRising; }, 80);
+  // The entry cinematic resolves the def from charClass when it FINISHES (~5 s),
+  // so keep the override until the domain is actually active; the active domain
+  // carries its own def/defKey, making the restore safe from then on.
+  // No fixed timeout: rAF throttling (unfocused tab, low fps) stretches the
+  // 300-frame entry arbitrarily, so wait on actual rising/active state instead.
+  let _tries = 0;
+  const _restoreIv = setInterval(() => {
+    const active = DomainManager.domains && DomainManager.domains.some(d => d.owner === fighter);
+    const rising = DomainManager.rising  && DomainManager.rising.some(r => r.fighter === fighter);
+    if (active || (!rising && !active) || fighter.health <= 0 || ++_tries > 300) {
+      clearInterval(_restoreIv);
+      fighter.charClass = savedClass;
+      fighter._domainRising = savedRising;
+    }
+  }, 400);
   _cinViewerStatus('Domain triggered: ' + classKey + '  (5 s entry, 25 s domain)');
 }
 

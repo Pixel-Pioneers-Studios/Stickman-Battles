@@ -89,7 +89,10 @@ const DOMAIN_DEFS = {
     spawnEvery: 0,
     hazardType: null,
     ownerBuff:  { speed: true },
-    announce:   'Time stops for no one — but you.',
+    sheatheEvery: 240,        // frames between iai sheathe detonations
+    cutDamage:    9,          // damage per deferred cut on detonation
+    maxCuts:      5,          // max cut marks per target
+    announce:   'Every cut waits. The sheath decides.',
   },
   reaper: {
     name:       'Eternal Harvest',
@@ -422,6 +425,10 @@ const DomainManager = (() => {
         radius:      18,
         hitSet:      new Set(),
       });
+      // Deferred Cuts: while the flag is set, dealDamage (smb-combat.js) marks
+      // every successful hit by the owner; the sheathe detonates all marks at once.
+      domain.sheatheTimer = domain.def.sheatheEvery || 240;
+      domain.owner._roninCutsActive = true;
     }
 
     // Reaper → Scythe Pendulum: giant spectral scythe swings across the arena
@@ -513,6 +520,7 @@ const DomainManager = (() => {
     delete owner._domainPowerRefresh;
     delete owner._domainDisplayWeapon;
     delete owner._convictionPassive;
+    delete owner._roninCutsActive;
   }
 
   // ── Domain entry cinematic ──────────────────────────────────────────
@@ -926,7 +934,7 @@ const DomainManager = (() => {
         break;
       }
 
-      // ── Ronin: time slows → spirit blade materializes → single slash tears sky ──
+      // ── Ronin: perfect stillness → spirit blade materializes → single slash tears sky ──
       case 'ronin': {
         if (t === 278) {
           CinFX.bgContrast('#050510', 0.92, 60);
@@ -2677,6 +2685,7 @@ const DomainManager = (() => {
   function _removeDomainFor(fighter) {
     const idx = _domains.findIndex(d => d.owner === fighter);
     if (idx === -1) return;
+    if (_domains[idx].defKey === 'ronin') _clearRoninCuts(fighter);
     _clearOwnerBuffs(fighter);
     _domains.splice(idx, 1);
   }
@@ -2718,10 +2727,65 @@ const DomainManager = (() => {
     _removeDomainFor(fighter);
     fighter._domainSuperCount = 0;
     fighter._domainRising = false;
+    // Death clears any deferred cuts on this fighter — marks never survive a respawn
+    fighter._roninCuts = 0;
+    fighter._roninCutOwner = null;
   }
 
   function anyActive() {
     return _domains.length > 0 || _rising.length > 0;
+  }
+
+  // ── Ronin Deferred Cuts (Death's Dojo) ─────────────────────────────
+  // While owner._roninCutsActive is set, dealDamage (smb-combat.js) stores a cut
+  // mark on each target the owner hits (target._roninCuts / _roninCutOwner).
+  // Every sheatheEvery frames the blade "sheathes" and all marks detonate at once.
+  let _iaiFx = []; // detonation slash fans: {x, y, cuts, life, maxLife, angles[]}
+
+  function _roninCutPool() {
+    return []
+      .concat(typeof players !== 'undefined' ? players : [])
+      .concat(typeof minions !== 'undefined' ? minions : [])
+      .concat(typeof trainingDummies !== 'undefined' ? trainingDummies : []);
+  }
+
+  function _clearRoninCuts(owner) {
+    for (const e of _roninCutPool()) {
+      if (e && e._roninCutOwner === owner) { e._roninCuts = 0; e._roninCutOwner = null; }
+    }
+  }
+
+  function _detonateRoninCuts(domain) {
+    const owner = domain.owner;
+    if (!owner || owner.health <= 0) { _clearRoninCuts(owner); return; }
+    const def = domain.def;
+    let hitAny = false;
+    // Guard: detonation damage re-enters dealDamage — must not re-apply marks
+    owner._roninDetonating = true;
+    for (const e of _roninCutPool()) {
+      if (!e || e._roninCutOwner !== owner || !(e._roninCuts > 0)) continue;
+      const cuts = Math.min(e._roninCuts, def.maxCuts || 5);
+      e._roninCuts = 0; e._roninCutOwner = null;
+      if (e.health <= 0) continue;
+      _dealDomainDamage(owner, e, (def.cutDamage || 9) * cuts, 5 + cuts * 2);
+      const angles = [];
+      for (let i = 0; i < cuts; i++) {
+        angles.push(-Math.PI * 0.35 + (i / Math.max(1, cuts - 1)) * Math.PI * 0.7
+                    + (Math.random() - 0.5) * 0.2);
+      }
+      _iaiFx.push({ x: e.cx(), y: e.cy(), cuts, life: 26, maxLife: 26, angles });
+      if (typeof spawnParticles === 'function') {
+        spawnParticles(e.cx(), e.cy(), '#ffffff', 8 + cuts * 3);
+        spawnParticles(e.cx(), e.cy(), '#ccccff', 6);
+      }
+      hitAny = true;
+    }
+    owner._roninDetonating = false;
+    if (hitAny) {
+      if (typeof screenShake !== 'undefined') screenShake = Math.max(screenShake, 14);
+      if (typeof CinFX !== 'undefined' && CinFX.flash) CinFX.flash('#ffffff', 0.30, 4);
+      if (typeof SoundManager !== 'undefined' && SoundManager.iaiSheathe) SoundManager.iaiSheathe();
+    }
   }
 
   // Domain hazards manage hit cadence via hitSet/setTimeout — bypass normal iframes
@@ -2841,6 +2905,7 @@ const DomainManager = (() => {
       const domain = _domains[i];
       const { owner, def } = domain;
       if (!owner || owner.health <= 0) {
+        if (domain.defKey === 'ronin') _clearRoninCuts(owner);
         _clearOwnerBuffs(owner);
         _domains.splice(i, 1);
         continue;
@@ -2853,6 +2918,15 @@ const DomainManager = (() => {
         if (def.ownerBuff.power) owner._powerBuff = Math.max(owner._powerBuff || 0, 10);
         if (def.ownerBuff.healPerFrame) {
           owner.health = Math.min(owner.maxHealth, owner.health + def.ownerBuff.healPerFrame);
+        }
+      }
+
+      // Ronin: sheathe countdown — the click detonates every deferred cut at once
+      if (domain.defKey === 'ronin' && domain.sheatheTimer !== undefined) {
+        domain.sheatheTimer--;
+        if (domain.sheatheTimer <= 0) {
+          _detonateRoninCuts(domain);
+          domain.sheatheTimer = def.sheatheEvery || 240;
         }
       }
 
@@ -3551,12 +3625,22 @@ const DomainManager = (() => {
 
       // Domain expired
       if (domain.timer <= 0) {
+        if (domain.defKey === 'ronin') {
+          // Final sheathe: whatever cuts remain land as the dojo closes
+          _detonateRoninCuts(domain);
+          _clearRoninCuts(owner);
+        }
         _clearOwnerBuffs(owner);
         _domains.splice(i, 1);
         if (typeof queueAnnouncement === 'function') {
           queueAnnouncement(def.name.toUpperCase() + ' FADES', def.color);
         }
       }
+    }
+
+    // Age iai detonation slash fx (independent of domain lifetime)
+    for (let fi = _iaiFx.length - 1; fi >= 0; fi--) {
+      if (--_iaiFx[fi].life <= 0) _iaiFx.splice(fi, 1);
     }
 
     // ── Per-frame Conviction weapon effects ───────────────────────────
@@ -3699,6 +3783,70 @@ const DomainManager = (() => {
       ctx.fillStyle = '#330055';
       ctx.fill();
       ctx.restore();
+    }
+
+    // ── Ronin Deferred Cuts: marks over targets, sheathe glint, detonation fans ──
+    const _roninDomains = _domains.filter(d => d.defKey === 'ronin' && d.owner && d.owner.health > 0);
+    if (_roninDomains.length || _iaiFx.length) {
+      const _rNow = Date.now();
+      for (const rd of _roninDomains) {
+        const _imminent = rd.sheatheTimer !== undefined && rd.sheatheTimer < 45;
+        // Cut marks hovering over each marked target — flash faster as the click nears
+        for (const mf of _roninCutPool()) {
+          if (!mf || mf.health <= 0 || mf._roninCutOwner !== rd.owner || !(mf._roninCuts > 0)) continue;
+          const n = Math.min(mf._roninCuts, rd.def.maxCuts || 5);
+          ctx.save();
+          const _mp = 0.6 + 0.4 * Math.sin(_rNow / (_imminent ? 70 : 200) + mf.x * 0.03);
+          ctx.globalAlpha = (_imminent ? 0.55 : 0.40) + _mp * 0.35;
+          ctx.strokeStyle = _imminent ? '#ffffff' : '#ccccff';
+          ctx.lineWidth = 2; ctx.lineCap = 'round';
+          ctx.shadowColor = '#ccccff'; ctx.shadowBlur = _imminent ? 14 : 8;
+          const _mbx = mf.cx(), _mby = mf.y - 14;
+          for (let mi = 0; mi < n; mi++) {
+            const _mox = (mi - (n - 1) / 2) * 9;
+            ctx.beginPath();
+            ctx.moveTo(_mbx + _mox - 3, _mby + 4);
+            ctx.lineTo(_mbx + _mox + 3, _mby - 4);
+            ctx.stroke();
+          }
+          ctx.restore();
+        }
+        // Sheathe glint on the owner — the tell that every cut is about to land
+        if (_imminent) {
+          const _ro = rd.owner;
+          const _gl = 1 - rd.sheatheTimer / 45;
+          ctx.save();
+          ctx.globalAlpha = 0.25 + _gl * 0.60;
+          ctx.strokeStyle = '#ffffff';
+          ctx.lineWidth = 1.5 + _gl * 1.5; ctx.lineCap = 'round';
+          ctx.shadowColor = '#ccccff'; ctx.shadowBlur = 10 + _gl * 14;
+          ctx.beginPath();
+          ctx.moveTo(_ro.cx() - (_ro.facing || 1) * 6, _ro.cy() + 10);
+          ctx.lineTo(_ro.cx() + (_ro.facing || 1) * (14 + _gl * 10), _ro.cy() + 4);
+          ctx.stroke();
+          ctx.restore();
+        }
+      }
+      // Detonation slash fans — every deferred cut opens at once
+      for (const fx of _iaiFx) {
+        const _fp   = fx.life / fx.maxLife; // 1 → 0
+        const _flen = 26 + (1 - _fp) * 34;
+        ctx.save();
+        ctx.globalAlpha = Math.min(1, _fp * 1.6);
+        ctx.strokeStyle = '#ffffff'; ctx.lineCap = 'round';
+        ctx.shadowColor = '#ccccff'; ctx.shadowBlur = 18;
+        ctx.lineWidth = 3 * _fp + 1;
+        for (const a of fx.angles) {
+          ctx.beginPath();
+          ctx.moveTo(fx.x - Math.cos(a) * _flen, fx.y - Math.sin(a) * _flen);
+          ctx.lineTo(fx.x + Math.cos(a) * _flen, fx.y + Math.sin(a) * _flen);
+          ctx.stroke();
+        }
+        ctx.globalAlpha = _fp * 0.5;
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath(); ctx.arc(fx.x, fx.y, 8 + (1 - _fp) * 10, 0, Math.PI * 2); ctx.fill();
+        ctx.restore();
+      }
     }
 
     // Draw conviction weapon overlay effects (world-space)

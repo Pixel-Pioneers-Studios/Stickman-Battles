@@ -42,11 +42,23 @@ const SERVER_CONFIG = {
 // ============================================================
 const CHANGELOG = [
   {
+    version: '3.9.2',
+    title: 'THE IAIJUTSU UPDATE',
+    date: '2026-07-03',
+    flavor: 'The ronin never rushes. Every wound you take in the dojo is already decided — you just haven\'t heard the click of the sheath yet.',
+    isLatest: true,
+    changes: [
+      { cat: 'Mode', text: 'Ronin Conviction reworked — Death\'s Dojo no longer borrows the time theme (that belongs to the Ninja now); instead it wields Deferred Cuts: every hit the ronin lands inside the dojo leaves a glowing cut mark on the target (up to 5 per enemy, the spirit katana marks too), and every 4 seconds the blade sheathes — all marks on all enemies detonate simultaneously as a fan of white slashes (9 damage per cut, shieldable at the click); watch for the marks flashing faster and the glint on the ronin\'s hip, and the dojo\'s final fade lands one last sheathe' },
+      { cat: 'Audio', text: 'Deferred Cuts are fully audible — each mark lands with a chime that rises in pitch as the count builds, and the sheathe plays its click a heartbeat before every cut releases at once' },
+      { cat: 'Debug', text: 'Cinematic Viewer domain preview fixed — it restored the fighter\'s class 80ms after triggering, but the entry cinematic resolves the domain from the class when it finishes (~5s), so the preview always played the fighter\'s own domain instead of the selected one' },
+    ],
+  },
+  {
     version: '3.9.0',
     title: 'THE SOVEREIGN INTELLIGENCE UPDATE',
     date: '2026-06-26',
     flavor: 'Sovereign spent every fight learning. Now it trains itself when you walk away. And somewhere past Act VII, a final arc opens onto something that has no body and no name.',
-    isLatest: true,
+    isLatest: false,
     changes: [
       { cat: 'Mode',    text: 'Ninja Conviction reworked — Shadow Realm no longer rains shadow blades or buffs the owner\'s speed; instead it dilates time: the entry cinematic teleports the ninja behind every opponent and launches them skyward, then all enemies move, fall, attack, shield, and fire projectiles at half speed for the full 25 seconds while the ninja moves free (bosses partially resist); throughout the domain the ninja hurls spinning shurikens at the nearest foe regardless of equipped weapon' },
       { cat: 'Combat',  text: 'Sword super (Air Slash) now lands all three crescents reliably — slashes no longer waste their single hit on a target\'s invincibility frames, the first two hits hold the target in place (only the final slash launches), and the arcs gently track the nearest enemy\'s height' },
@@ -754,7 +766,7 @@ let _publicRoomCheckTimer = 0;
 // ============================================================
 // VERSION
 // ============================================================
-const GAME_VERSION = '3.9.0';  // bump this when releasing; must match CHANGELOG[0].version
+const GAME_VERSION = '3.9.2';  // bump this when releasing; must match CHANGELOG[0].version
 console.log('[VERSION CHECK]', GAME_VERSION);
 
 // DEBUG / DEVELOPER STATE

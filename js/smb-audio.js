@@ -94,6 +94,11 @@ const SoundManager = (() => {
     hitPierce() { _play(c => { _osc(c,'sine',1100,0.05,0.16); _osc(c,'square',300,0.06,0.10); _noise(c,0.07,0.14,2200); }); }, // sharp needle tick (spear, katana, broomstick)
     hitSnap()   { _play(c => { _noise(c,0.05,0.42,3000); _osc(c,'square',1500,0.03,0.12); _osc(c,'sine',200,0.08,0.10); }); }, // whip crack
     hitZap()    { _play(c => { _osc(c,'sawtooth',880,0.09,0.16); _osc(c,'sawtooth',1320,0.06,0.10); _noise(c,0.08,0.12,1500); }); }, // electric bite (staff)
+    // Ronin Death's Dojo — Deferred Cuts (js/smb-domain.js)
+    iaiMark(n)  { _play(c => { _osc(c,'sine',1400+(n||1)*180,0.05,0.09); _noise(c,0.03,0.05,4000); }); }, // quiet mark chime, pitch rises with cut count
+    iaiSheathe(){ _play(c => { _noise(c,0.03,0.50,4500); _osc(c,'square',2100,0.03,0.14);            // the click of the sheath
+                   setTimeout(()=>{ _noise(c,0.22,0.40,1400); _osc(c,'sine',1300,0.12,0.18);
+                                    _osc(c,'sawtooth',180,0.20,0.22); },70); }); },                  // ...then every cut lands at once
     // Story-scene beat stings (docs/story-cinematics-plan.md Phase 2)
     stingLow()    { _play(c => { _osc(c,'sine',55,0.85,0.20,0.08); _osc(c,'sine',82,0.65,0.09,0.10); }); },              // deep dread swell
     stingImpact() { _play(c => { _osc(c,'sawtooth',58,0.45,0.34); _osc(c,'sine',40,0.55,0.22); _noise(c,0.30,0.22,120); }); }, // dramatic boom

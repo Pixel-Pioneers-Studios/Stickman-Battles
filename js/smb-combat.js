@@ -483,6 +483,18 @@ function dealDamage(attacker, target, dmg, kbForce, stunMult = 1.0, isSplash = f
   target.health    = Math.max(0, target.health - actualDmg);
   if (attacker && actualDmg > 0) attacker.totalDamageDealt = (attacker.totalDamageDealt || 0) + actualDmg;
   if (actualDmg > 0 && !target.isBoss) target._damageAccumThisLife = (target._damageAccumThisLife || 0) + actualDmg;
+  // Ronin Death's Dojo: every successful hit by the domain owner leaves a deferred
+  // cut mark; DomainManager detonates all marks when the blade sheathes.
+  // _roninDetonating guards recursion — detonation damage must not re-mark.
+  if (attacker && attacker._roninCutsActive && !attacker._roninDetonating &&
+      actualDmg > 0 && target.health > 0 && attacker !== target) {
+    if (target._roninCutOwner !== attacker) { target._roninCutOwner = attacker; target._roninCuts = 0; }
+    if ((target._roninCuts || 0) < 5) {
+      target._roninCuts = (target._roninCuts || 0) + 1;
+      spawnParticles(target.cx(), target.y - 10, '#ccccff', 4);
+      if (typeof SoundManager !== 'undefined' && SoundManager.iaiMark) SoundManager.iaiMark(target._roninCuts);
+    }
+  }
   // God Phase 1 crash: fires once on the first successful hit against a human player.
   // Deferred via setTimeout so the current game-loop iteration completes before the
   // overlay halts execution — avoids mid-frame teardown.
