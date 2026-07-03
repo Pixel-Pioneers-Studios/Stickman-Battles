@@ -1,7 +1,7 @@
 // Appends chapters for act4/smb-act4-arc1.js.
 STORY_CHAPTER_REGISTRY.push(
   {
-    id: 122, type: 'exploration', exploreMode: 'traversal', title: 'The Architecture',
+    id: 126, type: 'exploration', exploreMode: 'traversal', title: 'The Architecture',
     world: '🔩 Creator\'s Domain — The Inner Framework',
     narrative: [
       'The Architects waited at the threshold.',
@@ -56,7 +56,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 123, title: 'Architecture Soldiers',
+    id: 127, title: 'Architecture Soldiers',
     world: '🔩 Creator\'s Domain — Inner Corridor',
     narrative: [
       'Two of them.',
@@ -89,7 +89,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 124, title: 'The Offer',
+    id: 128, title: 'The Offer',
     world: '🔩 Creator\'s Domain — Audience Corridor',
     type: 'exploration', exploreMode: 'stealth',
     style: 'void',
@@ -123,7 +123,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 125, title: 'Twin Enforcers',
+    id: 129, title: 'Twin Enforcers',
     world: '🔩 Creator\'s Domain — The Corridor of Forms',
     narrative: [
       'The Enforcers arrived as the architecture shifted.',
@@ -159,7 +159,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 126, title: 'The Architect\'s Message',
+    id: 130, title: 'The Architect\'s Message',
     world: '🔩 Creator\'s Domain — Signal Alcove',
     type: 'exploration', exploreMode: 'escape',
     style: 'void',
@@ -187,7 +187,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 127, title: 'The First Creation',
+    id: 131, title: 'The First Creation',
     world: '🔩 Creator\'s Domain — Memory Chamber',
     type: 'gauntlet',
     preText: 'The Creator tests your resolve with three consecutive rounds of architecture constructs. No breaks. Show it that you\'ve already made your choice.',
@@ -209,7 +209,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 128, title: 'The First Promise',
+    id: 132, title: 'The First Promise',
     world: '🔩 Creator\'s Domain — Memory Vault',
     type: 'exploration', exploreMode: 'puzzle',
     style: 'void',
@@ -240,7 +240,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 129, title: 'Purge Sequence',
+    id: 133, title: 'Purge Sequence',
     world: '🔩 Creator\'s Domain — Purge Zone',
     narrative: [
       'The architecture shook.',
@@ -275,7 +275,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 130, title: 'Blind Spot',
+    id: 134, title: 'Blind Spot',
     world: '🔩 Creator\'s Domain — Maintenance Layer',
     type: 'exploration', exploreMode: 'escape',
     style: 'void',

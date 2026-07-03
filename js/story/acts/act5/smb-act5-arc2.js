@@ -1,7 +1,7 @@
 // Appends chapters for act5/smb-act5-arc2.js.
 STORY_CHAPTER_REGISTRY.push(
   {
-    id: 144, title: 'True Form',
+    id: 148, title: 'True Form',
     world: '\uD83D\uDD73\uFE0F The Void — Final Confrontation',
     narrative: [
       'The True Form arrived without announcement.',

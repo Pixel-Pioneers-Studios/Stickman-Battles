@@ -1,11 +1,11 @@
 // Appends chapters for act4mv/smb-act4mv-thresh.js.
 // The Thresh Arc — a fracture boss who became pure force.
 // They didn't want this. The Collision Realm is grief with nowhere to go.
-// Slots at IDs 104–107 in the multiverse arc, after Fracture Coast.
+// Slots at IDs 117–120 in the multiverse arc, after Fracture Coast (VAEL), before The Betrayal.
 STORY_CHAPTER_REGISTRY.push(
 
   {
-    id: 106, title: 'The Shattered Ground',
+    id: 117, title: 'The Shattered Ground',
     world: '💥 Collision Realm — Impact Field',
     type: 'exploration', exploreMode: 'escape',
     style: 'void',
@@ -36,7 +36,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 107, title: 'What Thresh Kept',
+    id: 118, title: 'What Thresh Kept',
     world: '💥 Collision Realm — Debris Fields',
     type: 'exploration', exploreMode: 'scavenge',
     style: 'void',
@@ -69,7 +69,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 108, title: 'Shockwave Hold',
+    id: 119, title: 'Shockwave Hold',
     world: '💥 Collision Realm — Impact Corridor',
     type: 'exploration', exploreMode: 'defense',
     style: 'void',
@@ -99,34 +99,34 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 109, title: 'Thresh',
+    id: 120, title: 'Thresh',
     world: '💥 Collision Realm — The Weight of Things',
     narrative: [
       '"I remember being strong," Thresh said.',
-      '"Before the void.",',
-      '"It was useful then.",',
+      '"Before the void."',
+      '"It was useful then."',
       '',
-      '"I hit things that needed hitting.",',
-      '"I held a line.",',
-      '"I knew the exact amount of force required",',
-      '"and I used exactly that much.",',
+      '"I hit things that needed hitting."',
+      '"I held a line."',
+      '"I knew the exact amount of force required"',
+      '"and I used exactly that much."',
       '',
-      '"The void didn\'t give me more strength.",',
-      '"It broke the dial.",',
+      '"The void didn\'t give me more strength."',
+      '"It broke the dial."',
       '',
-      '"Everything I\'ve touched since has fractured.",',
-      '"The dimensions.",',
-      '"The others — when we still found each other.",',
-      '"Everything I tried to hold.",',
-      '"Everything I tried to protect.",',
+      '"Everything I\'ve touched since has fractured."',
+      '"The dimensions."',
+      '"The others — when we still found each other."',
+      '"Everything I tried to hold."',
+      '"Everything I tried to protect."',
       '',
-      '"You\'re standing in the middle of what my grief looks like",',
-      '"when it has nowhere to go.",',
+      '"You\'re standing in the middle of what my grief looks like"',
+      '"when it has nowhere to go."',
       '',
-      '"I don\'t want to break you.",',
-      '"But I need to know if you\'re something that holds.",',
-      '"The fragment says maybe.",',
-      '"I need to be sure.",',
+      '"I don\'t want to break you."',
+      '"But I need to know if you\'re something that holds."',
+      '"The fragment says maybe."',
+      '"I need to be sure."',
     ],
     fightScript: [
       { frame: 60,  text: '⚠️ THRESH — every strike carries dimensional weight. Do not absorb direct hits. Move.', color: '#ff4400', timer: 360 },

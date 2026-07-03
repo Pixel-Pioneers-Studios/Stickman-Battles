@@ -762,6 +762,7 @@ function getStoryDataForSave() {
 function restoreStoryDataFromSave(data) {
   if (!data || !data.defeated) return;
   _story2 = _normalizeStory2Progress(data);
+  _migrateStory2ThreshArc(_story2);
   _saveStory2();
 }
 
@@ -925,7 +926,33 @@ function _defaultStory2Progress() {
     actExpanded:       {},      // { actIndex: bool } — user forced an out-of-range act open
     branchFlags:       {},      // { [flagKey]: true } — choices made at branch chapters
     prologueSeen:      false,   // true after the Axiom/multiverse intro plays once
+    migrations:        { threshArc: true }, // one-time save migrations already applied (new saves need none)
   };
+}
+
+// One-time migration for the Thresh arc insertion (pre-expansion ids 117–120, v3.9.3).
+// Saved chapter/defeated values index into the EXPANDED chapter list, so the shift
+// amount is the expanded length of the arc4mv-thresh range. Only valid after
+// _expandStoryChaptersInPlace() has rebuilt STORY_ACT_STRUCTURE chapterRanges
+// (window.__SMB_STORY_EXPANDED). Returns true if it mutated the save.
+function _migrateStory2ThreshArc(p) {
+  if (!p || typeof p !== 'object') return false;
+  if (p.migrations && p.migrations.threshArc) return false;
+  if (!window.__SMB_STORY_EXPANDED || typeof STORY_ACT_STRUCTURE === 'undefined') return false;
+  let range = null;
+  for (const act of STORY_ACT_STRUCTURE) {
+    const arc = act.arcs && act.arcs.find(a => a.id === 'arc4mv-thresh');
+    if (arc) { range = arc.chapterRange; break; }
+  }
+  if (!range) return false;
+  const start = range[0], shift = range[1] - range[0] + 1;
+  if (typeof p.chapter === 'number' && p.chapter >= start) p.chapter += shift;
+  if (Array.isArray(p.defeated)) {
+    p.defeated = p.defeated.map(d => (typeof d === 'number' && d >= start) ? d + shift : d);
+  }
+  if (!p.migrations || typeof p.migrations !== 'object') p.migrations = {};
+  p.migrations.threshArc = true;
+  return true;
 }
 
 function _normalizeStory2Progress(data) {
@@ -947,6 +974,8 @@ function _normalizeStory2Progress(data) {
   if (data.meta && typeof data.meta === 'object') out.meta = Object.assign({}, data.meta);
   if (data.branchFlags && typeof data.branchFlags === 'object') out.branchFlags = Object.assign({}, data.branchFlags);
   if (typeof data.prologueSeen === 'boolean') out.prologueSeen = data.prologueSeen;
+  // Saves predating the migrations field have had no migrations applied — don't inherit the base defaults
+  out.migrations = (data.migrations && typeof data.migrations === 'object') ? Object.assign({}, data.migrations) : {};
   return out;
 }
 

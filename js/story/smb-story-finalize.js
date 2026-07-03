@@ -30,11 +30,11 @@ for (const _ch of STORY_CHAPTERS2) {
 //           III Rifts / Veran      (17–32)
 //           IV  Rural              (33–49)
 //           V   Stickman Universe + Calix (50–69)
-//           VI  Damnation + Fallen God + Multiverse + Betrayal (70–121)
-//           VII Creator            (122–138)
-//           VIII True Form + Aftermath (139–148)
-//           IX  Absolute Axiom     (149–165)
-//           X   The Substrate      (166–179)
+//           VI  Damnation + Fallen God + Multiverse + Betrayal (70–125)
+//           VII Creator            (126–142)
+//           VIII True Form + Aftermath (143–152)
+//           IX  Absolute Axiom     (153–169)
+//           X   The Substrate      (170–183)
 const STORY_ACT_STRUCTURE = [
   {
     id: 'act1', label: 'Act I — Initial Encounter', color: '#88aacc',
@@ -74,7 +74,7 @@ const STORY_ACT_STRUCTURE = [
     ],
   },
   {
-    // Damnation (70–75) + Fallen God (76–85) + multiverse worlds (86–116) + Betrayal (117–121)
+    // Damnation (70–75) + Fallen God (76–85) + multiverse worlds (86–120) + Betrayal (121–125)
     id: 'act6', label: 'Act VI — The Loop & Multiverse', color: '#bb88ff',
     arcs: [
       { id: 'arc5-damnation', label: 'The Damnation Loop',      chapterRange: [70,  75]  },
@@ -84,43 +84,52 @@ const STORY_ACT_STRUCTURE = [
       { id: 'arc4mv-2',       label: 'Null Space',              chapterRange: [102, 106] },
       { id: 'arc4mv-3',       label: 'The Quiet Expanse',       chapterRange: [107, 111] },
       { id: 'arc4mv-4',       label: 'The Fracture Coast',      chapterRange: [112, 116] },
-      { id: 'arc5-betrayal',  label: 'The Betrayal',            chapterRange: [117, 121] },
+      { id: 'arc4mv-thresh',  label: 'The Collision Realm',     chapterRange: [117, 120] },
+      { id: 'arc5-betrayal',  label: 'The Betrayal',            chapterRange: [121, 125] },
     ],
   },
   {
     id: 'act7', label: 'Act VII — Creator\'s Domain', color: '#dd3344',
     arcs: [
-      { id: 'arc4-0', label: 'The Creator\'s Threshold', chapterRange: [122, 130] },
-      { id: 'arc4-1', label: 'The Final Architecture',   chapterRange: [131, 138] },
+      { id: 'arc4-0', label: 'The Creator\'s Threshold', chapterRange: [126, 134] },
+      { id: 'arc4-1', label: 'The Final Architecture',   chapterRange: [135, 142] },
     ],
   },
   {
     id: 'act8', label: 'Act VIII — True Form', color: '#cc44ff',
     arcs: [
-      { id: 'arc5-0',      label: 'Into the Void',        chapterRange: [139, 143] },
-      { id: 'arc5-1',      label: 'Final Confrontation',  chapterRange: [144, 144] },
-      { id: 'arc5-bridge', label: 'The Aftermath',        chapterRange: [145, 148] },
+      { id: 'arc5-0',      label: 'Into the Void',        chapterRange: [143, 147] },
+      { id: 'arc5-1',      label: 'Final Confrontation',  chapterRange: [148, 148] },
+      { id: 'arc5-bridge', label: 'The Aftermath',        chapterRange: [149, 152] },
     ],
   },
   {
     id: 'act9', label: 'Act IX — Absolute Axiom', color: '#ffe8ff',
     arcs: [
-      { id: 'arc7-0', label: 'The Kernel',        chapterRange: [149, 151] },
-      { id: 'arc7-1', label: 'God\'s Domain',      chapterRange: [152, 159] },
-      { id: 'arc7-2', label: 'Absolute Axiom',     chapterRange: [160, 165] },
+      { id: 'arc7-0', label: 'The Kernel',        chapterRange: [153, 155] },
+      { id: 'arc7-1', label: 'God\'s Domain',      chapterRange: [156, 163] },
+      { id: 'arc7-2', label: 'Absolute Axiom',     chapterRange: [164, 169] },
     ],
   },
   {
     id: 'act10', label: 'Act X — The Substrate', color: '#220033',
     arcs: [
-      { id: 'arc-vm-entry',      label: 'Into the Substrate', chapterRange: [166, 166] },
-      { id: 'arc-vm-reckonings', label: 'The Reckonings',     chapterRange: [167, 174] },
-      { id: 'arc-vm-trial',      label: 'The Trial',          chapterRange: [175, 175] },
-      { id: 'arc-vm-after',      label: 'After',              chapterRange: [176, 176] },
-      { id: 'arc-vm-fight',      label: 'The Confrontation',  chapterRange: [177, 179] },
+      { id: 'arc-vm-entry',      label: 'Into the Substrate', chapterRange: [170, 170] },
+      { id: 'arc-vm-reckonings', label: 'The Reckonings',     chapterRange: [171, 178] },
+      { id: 'arc-vm-trial',      label: 'The Trial',          chapterRange: [179, 179] },
+      { id: 'arc-vm-after',      label: 'After',              chapterRange: [180, 180] },
+      { id: 'arc-vm-fight',      label: 'The Confrontation',  chapterRange: [181, 183] },
     ],
   },
 ];
 
 // Step 6: Expand chapters in-place - also rebuilds STORY_ACT_STRUCTURE chapterRanges
 _expandStoryChaptersInPlace();
+
+// Step 7: One-time save migrations that depend on expanded chapter indices.
+//         The initial _story2 loads in smb-story-config.js before expansion runs,
+//         so migrate it here; later restores go through restoreStoryDataFromSave.
+window.__SMB_STORY_EXPANDED = true;
+if (typeof _story2 !== 'undefined' && _migrateStory2ThreshArc(_story2)) {
+  try { _saveStory2(); } catch (e) {}
+}

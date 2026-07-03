@@ -42,11 +42,24 @@ const SERVER_CONFIG = {
 // ============================================================
 const CHANGELOG = [
   {
+    version: '3.9.3',
+    title: 'THE COLLISION REALM UPDATE',
+    date: '2026-07-03',
+    flavor: 'Somewhere in the multiverse there is a realm that never stops shaking. Whatever lives there isn\'t angry. That\'s the unsettling part.',
+    isLatest: true,
+    changes: [
+      { cat: 'Story', text: 'The Collision Realm arc added to the multiverse act — four new chapters (escape, scavenge, anchor defense, and a boss duel) set in a dimension that fractures under its ruler\'s weight; slots between the Fracture Coast and the act finale', spoilerAct: 5 },
+      { cat: 'Story', text: 'Thresh — a fracture boss of pure force who broke their own strength calibration crossing the void; expert-tier duel, 1 life, every strike carries dimensional weight', spoilerAct: 5 },
+      { cat: 'Story', text: 'A new arc opened somewhere in the multiverse — the ground there does not stay still' },
+      { cat: 'Fix',   text: 'Story chapter numbering shifted by 4 past the multiverse act to make room; existing saves migrate automatically — progress and chapter completion are preserved' },
+    ],
+  },
+  {
     version: '3.9.2',
     title: 'THE IAIJUTSU UPDATE',
     date: '2026-07-03',
     flavor: 'The ronin never rushes. Every wound you take in the dojo is already decided — you just haven\'t heard the click of the sheath yet.',
-    isLatest: true,
+    isLatest: false,
     changes: [
       { cat: 'Mode', text: 'Ronin Conviction reworked — Death\'s Dojo no longer borrows the time theme (that belongs to the Ninja now); instead it wields Deferred Cuts: every hit the ronin lands inside the dojo leaves a glowing cut mark on the target (up to 5 per enemy, the spirit katana marks too), and every 4 seconds the blade sheathes — all marks on all enemies detonate simultaneously as a fan of white slashes (9 damage per cut, shieldable at the click); watch for the marks flashing faster and the glint on the ronin\'s hip, and the dojo\'s final fade lands one last sheathe' },
       { cat: 'Audio', text: 'Deferred Cuts are fully audible — each mark lands with a chime that rises in pitch as the count builds, and the sheathe plays its click a heartbeat before every cut releases at once' },
@@ -766,7 +779,7 @@ let _publicRoomCheckTimer = 0;
 // ============================================================
 // VERSION
 // ============================================================
-const GAME_VERSION = '3.9.2';  // bump this when releasing; must match CHANGELOG[0].version
+const GAME_VERSION = '3.9.3';  // bump this when releasing; must match CHANGELOG[0].version
 console.log('[VERSION CHECK]', GAME_VERSION);
 
 // DEBUG / DEVELOPER STATE

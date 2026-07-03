@@ -96,18 +96,17 @@ ARENAS: grass, city, space, lava, forest, ice, ruins, cave, volcano, underwater,
 Use 'arena list' command to see all keys.
 
 ── STORY STRUCTURE ──────────────────────────────────────────────
-Act 0   ch 0–12     Home City — Fragment discovered, Veran met, first collector
-Act 1   ch 13–27    Fracture Network — Rift Entity revealed
-Act 2   ch 28–44    Multiversal Core — All four Architects found, Herald of Nothing (ch. 44)
-Act 3   ch 45–61    Assembly — Third Architect betrayal, Preserved freed, Enforcer
-Act 4A  ch 63–95    Multiverse — Damnation Loop, Fallen God, four world bosses, Betrayal Arc (Veran killed ch. 94)
-Act 4B  ch 96–111   Creator's Domain — Preserved return as guides, Sovereign (controlled), Creator fight, rift closes
-Act 5   ch 112–116  The Void — True Form fight ch. 116, Saving Moment, Sovereign extracts kernel
-Act 6   ch 140–147  God's Domain — God fight, God's form taken by Sovereign
-Lab     ch 148–150  Sovereign fuses kernel + God's form → Absolute Axiom; player fights Awakened Sovereign
-Act 7   ch 151–154  Absolute Axiom fight and fall (ch. 152), kernel + God's essence absorbed, Absolute Kael
-Act X   ch 156–165  The Substrate — Void Mind arc, memory reckonings, After
-Total: 166 chapters (IDs 0–165).
+Act I    ch 0–5     Initial Encounter — the incident, Fracture Point
+Act II   ch 6–16    City — collapse, Fragment Echoes
+Act III  ch 17–32   Rifts / Veran — Fracture Network, the Core, Laboratory Truth
+Act IV   ch 33–49   Rural — Rift Core, Forest & Ice, Ruins & Collapse
+Act V    ch 50–69   Stickman Universe — Assembly, Fracture Within, Calix (67–69)
+Act VI   ch 70–125  Loop & Multiverse — Damnation (70–75), Fallen God (76–85), multiverse worlds (86–120: Null 102–106, Seraph 107–111, VAEL 112–116, Thresh/Collision Realm 117–120), Betrayal (121–125)
+Act VII  ch 126–142 Creator's Domain — Threshold, Final Architecture
+Act VIII ch 143–152 True Form — Into the Void, Final Confrontation (148), Aftermath
+Act IX   ch 153–169 Absolute Axiom — Kernel, God's Domain, Absolute Axiom
+Act X    ch 170–183 The Substrate — Void Mind entry, Reckonings, Trial, After, the Confrontation
+Total: 184 chapters (IDs 0–183).
 
 ── KEY SYSTEMS ──────────────────────────────────────────────────
 COMBAT: all damage via dealDamage(attacker, target, dmg, kbForce). Never direct health mutation. Combo limiter enforced inside dealDamage — no infinite combos.
@@ -212,8 +211,8 @@ Start Absolute Axiom fight:
 Start Damnation mode:
   <cmd>eval if(gameRunning)backToMenu(); selectMode('damnation'); startGame()</cmd>
 
-Jump to a specific story chapter (e.g. ch. 94, Betrayal Arc):
-  <cmd>setchapter 94</cmd>
+Jump to a specific story chapter (e.g. ch. 121, Betrayal Arc):
+  <cmd>setchapter 121</cmd>
 
 Change arena mid-match and heal everyone:
   <cmd>setmap lava</cmd>

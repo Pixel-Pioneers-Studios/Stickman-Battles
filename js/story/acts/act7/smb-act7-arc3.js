@@ -5,7 +5,7 @@
 STORY_CHAPTER_REGISTRY.push(
 
   {
-    id: 160, title: 'The Voice Inside',
+    id: 164, title: 'The Voice Inside',
     world: '🌅 God\'s Domain — Rewritten',
     type: 'branch',
     narrative: [
@@ -72,7 +72,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 161, title: 'Phase One — Axiom\'s Will',
+    id: 165, title: 'Phase One — Axiom\'s Will',
     world: '🌅 God\'s Domain — Rewritten',
     preText: 'Absolute Axiom — Phase One. It does not collapse things onto you; it builds them around you. Paradox stands beside you, spending itself. Your output is diminished while the projection holds. It buys more than it costs. 3 lives.',
     opponentName: 'Absolute Axiom', weaponKey: 'sword', classKey: 'warrior', aiDiff: 'expert', opponentColor: '#ffe8ff',
@@ -93,7 +93,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 162, title: 'God\'s Foundation',
+    id: 166, title: 'God\'s Foundation',
     world: '🌅 God\'s Domain — Actively Reshaping',
     type: 'exploration', exploreMode: 'escape',
     style: 'void',
@@ -120,7 +120,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 163, title: 'Phase Two — God\'s Foundations',
+    id: 167, title: 'Phase Two — God\'s Foundations',
     world: '🌅 God\'s Domain — Fully Rewritten',
     preText: 'Absolute Axiom — Phase Two. God\'s creative force is now a weapon and the domain fights alongside it. Paradox has almost nothing left. There is no margin. 1 life.',
     opponentName: 'Absolute Axiom', weaponKey: 'sword', classKey: 'warrior', aiDiff: 'expert', opponentColor: '#ffe8ff',
@@ -141,7 +141,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 164, title: 'Peak Form',
+    id: 168, title: 'Peak Form',
     world: '🌅 God\'s Domain — Fully Rewritten',
     type: 'branch',
     narrative: [
@@ -193,7 +193,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 165, title: 'After Everything',
+    id: 169, title: 'After Everything',
     world: '🌅 God\'s Domain — Settling',
     type: 'branch',
     narrative: [

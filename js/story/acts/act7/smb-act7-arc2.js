@@ -5,7 +5,7 @@
 STORY_CHAPTER_REGISTRY.push(
 
   {
-    id: 152, title: 'The Architecture',
+    id: 156, title: 'The Architecture',
     world: '🌅 God\'s Domain — The Interior',
     type: 'exploration', exploreMode: 'escape',
     style: 'void',
@@ -34,7 +34,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 153, title: 'What You Are',
+    id: 157, title: 'What You Are',
     world: '🌅 God\'s Domain — The Deep Interior',
     type: 'branch',
     narrative: [
@@ -92,7 +92,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 154, title: 'Before Contact',
+    id: 158, title: 'Before Contact',
     world: '🌅 God\'s Domain — The Convergence Zone',
     type: 'exploration', exploreMode: 'scavenge',
     style: 'void',
@@ -124,7 +124,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 155, title: 'God',
+    id: 159, title: 'God',
     world: '🌅 God\'s Domain — The Center',
     type: 'branch',
     narrative: [
@@ -187,7 +187,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 156, title: 'The Fight with God',
+    id: 160, title: 'The Fight with God',
     world: '🌅 God\'s Domain — The Center',
     preText: 'God. Not an enemy — a refusal ten thousand years old. Axiom fights beside you. Neither of you wins this alone. 1 life.',
     opponentName: 'God', weaponKey: 'sword', classKey: 'warrior', aiDiff: 'expert', opponentColor: '#ffe8aa',
@@ -208,7 +208,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 157, title: 'The Lab',
+    id: 161, title: 'The Lab',
     world: '🏚️ The Lab — Axiom\'s First Room',
     type: 'branch',
     narrative: [
@@ -279,7 +279,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 158, title: 'What It Made',
+    id: 162, title: 'What It Made',
     world: '🏚️ The Lab — The Maker',
     preText: 'Awakened Sovereign. Unconstrained, fully adaptive, every counter-pattern it has ever built. The maker of Absolute Axiom, at full capacity, with nothing left to protect. 3 lives.',
     isSovereignFight: true,
@@ -296,7 +296,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 159, title: 'The Seam',
+    id: 163, title: 'The Seam',
     world: '🏚️ The Lab — Calix\'s Voice',
     noFight: true,
     tokenReward: 0,

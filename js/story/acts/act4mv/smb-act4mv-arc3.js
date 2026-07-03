@@ -5,7 +5,7 @@
 // The player enters the Creator's domain alone, carrying guilt and two unanswered questions.
 STORY_CHAPTER_REGISTRY.push(
   {
-    id: 117, title: 'The Watcher',
+    id: 121, title: 'The Watcher',
     world: '🔩 The Threshold — Fracture Boundary',
     type: 'exploration', exploreMode: 'scavenge',
     style: 'void',
@@ -37,7 +37,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 118, title: 'Everything You Already Know',
+    id: 122, title: 'Everything You Already Know',
     world: '🔩 The Threshold — Ridge Approach',
     type: 'exploration', exploreMode: 'stealth',
     style: 'void',
@@ -69,7 +69,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 119, title: 'The Architecture of the Lie',
+    id: 123, title: 'The Architecture of the Lie',
     world: '🔩 The Threshold — Fracture Boundary',
     type: 'branch',
     narrative: [
@@ -125,7 +125,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 120, title: 'The Weight of a Choice',
+    id: 124, title: 'The Weight of a Choice',
     world: '🔩 The Threshold — Open Ground',
     narrative: [
       'You didn\'t make a decision.',
@@ -202,7 +202,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 121, title: 'Paradox',
+    id: 125, title: 'Paradox',
     world: '🔩 The Threshold — Open Ground',
     type: 'exploration', exploreMode: 'escape',
     style: 'void',

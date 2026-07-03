@@ -5,7 +5,7 @@
 STORY_CHAPTER_REGISTRY.push(
 
   {
-    id: 149, title: 'The Figure on the Ridge',
+    id: 153, title: 'The Figure on the Ridge',
     world: '🕳️ The Void — The Descent',
     type: 'branch',
     narrative: [
@@ -65,7 +65,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 150, title: 'Between Everything',
+    id: 154, title: 'Between Everything',
     world: '✨ The Substrate — Between Worlds',
     type: 'exploration', exploreMode: 'escape',
     style: 'void',
@@ -94,7 +94,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 151, title: 'God\'s Threshold',
+    id: 155, title: 'God\'s Threshold',
     world: '🌅 God\'s Domain — The Outer Edge',
     type: 'branch',
     narrative: [
