@@ -371,3 +371,257 @@ function triggerBossParadoxPunch() {
   if (typeof showBossDialogue === 'function') showBossDialogue('Nothing can save you.', 280);
 }
 
+
+// ============================================================
+// PARADOX MANIFESTATION — Absolute Axiom fight ally (story)
+// Projected by Kael's fragment; fueled by Paradox's remaining energy.
+// The fragment is the projector, Paradox's energy is the fuel:
+//  - every action burns energy; damage taken burns energy instead of form
+//  - holding the projection occupies a slice of the player's output
+//    (attacker._pdxManifestHold → ×0.85 in dealDamage)
+//  - at zero energy the manifestation collapses; it never respawns
+// Spawned from _startGameCore when the story chapter sets paradoxManifest.
+// ============================================================
+class ParadoxManifestation extends Fighter {
+  constructor(x, y, energyMax) {
+    super(x, y, '#aa66ff', 'sword',
+      { left: null, right: null, jump: null, attack: null, shield: null, ability: null, super: null },
+      true, 'hard');
+    this.name      = 'PARADOX';
+    this.isMinion  = true;
+    this.isAlly    = true;
+    this.isParadoxManifest = true;
+    this.w = 32; this.h = 62;
+    this.health = 20000; this.maxHealth = 20000; // damage is converted to energy drain, never death
+    this.lives = 1;
+    this.kbResist = 0.6;
+    this.playerNum = 97;
+    this._teamId   = 1;
+    this.energyMax = energyMax || 100;
+    this.energy    = this.energyMax;
+    this._attackCd   = 40;
+    this._specialCd  = 260;
+    this._wingAngle  = 0;
+    this._auraPhase  = 0;
+    this._hoverTime  = 0;
+    this._flyVy      = 0;
+    this._trailPts   = [];
+    this._trailTimer = 0;
+    this._aaTarget   = null;
+    this._lastHealth = this.health;
+    this._collapsed  = false;
+    this._blastRings = [];
+    // Occupy a slice of the player's fragment output while the projection holds
+    const p1 = (typeof players !== 'undefined' && Array.isArray(players)) ? players[0] : null;
+    if (p1) p1._pdxManifestHold = true;
+  }
+
+  respawn()       { this.health = 0; }
+  useSuper()      {}
+  activateSuper() {}
+  checkPlatform() {} // the manifestation flies — phases through surfaces
+
+  _frac() { return Math.max(0, this.energy / this.energyMax); }
+
+  collapse() {
+    if (this._collapsed) return;
+    this._collapsed = true;
+    this.health = 0;
+    const p1 = (typeof players !== 'undefined' && Array.isArray(players)) ? players[0] : null;
+    if (p1) p1._pdxManifestHold = false;
+    if (typeof spawnParticles === 'function') {
+      spawnParticles(this.cx(), this.y + this.h / 2, '#cc88ff', 26);
+      spawnParticles(this.cx(), this.y + this.h / 2, '#ffffff', 12);
+    }
+    if (typeof screenShake !== 'undefined') screenShake = Math.max(screenShake, 8);
+    if (typeof storyFightSubtitle !== 'undefined' && typeof storyModeActive !== 'undefined' && storyModeActive) {
+      storyFightSubtitle = { text: 'The manifestation collapsed. Your full output returns. Alone — but whole.', timer: 300, maxTimer: 300, color: '#ffffff' };
+    }
+  }
+
+  update() {
+    if (this._collapsed) return;
+    if (this.health <= 0) { this.collapse(); return; }
+    if (typeof activeCinematic !== 'undefined' && activeCinematic) return;
+
+    // Damage taken burns energy instead of form
+    if (this.health < this._lastHealth) {
+      this.energy -= (this._lastHealth - this.health) * 0.003;
+      this.health = this.maxHealth;
+    }
+    this._lastHealth = this.health;
+
+    // Passive projection cost — spending something just by standing there
+    this.energy -= 0.002;
+    if (this.energy <= 0) { this.collapse(); return; }
+
+    this._wingAngle += 0.09;
+    this._auraPhase += 0.04;
+    this._hoverTime += 0.03;
+    if (this._attackCd  > 0) this._attackCd--;
+    if (this._specialCd > 0) this._specialCd--;
+
+    // Trail
+    this._trailTimer++;
+    if (this._trailTimer >= 5) {
+      this._trailTimer = 0;
+      this._trailPts.unshift({ x: this.cx(), y: this.y + this.h * 0.4 });
+      if (this._trailPts.length > 12) this._trailPts.pop();
+    }
+
+    // Interference rings (special)
+    for (let i = this._blastRings.length - 1; i >= 0; i--) {
+      const ring = this._blastRings[i];
+      ring.r    += 8;
+      ring.alpha = Math.max(0, ring.alpha - 0.03);
+      if (!ring._hit && ring.r > 40 && typeof dealDamage === 'function') {
+        ring._hit = true;
+        if (this._aaTarget && this._aaTarget.health > 0 &&
+            Math.hypot(this._aaTarget.cx() - this.cx(), (this._aaTarget.y + this._aaTarget.h / 2) - (this.y + this.h / 2)) < ring.maxR * 0.9) {
+          dealDamage(this, this._aaTarget, 30, 10);
+        }
+      }
+      if (ring.alpha <= 0) this._blastRings.splice(i, 1);
+    }
+
+    // Acquire Absolute Axiom
+    if (!this._aaTarget || this._aaTarget.health <= 0) {
+      this._aaTarget = (typeof minions !== 'undefined' && Array.isArray(minions))
+        ? minions.find(m => m.isAbsoluteAxiom && m.health > 0) || null : null;
+    }
+    if (!this._aaTarget) return;
+
+    this.target = this._aaTarget;
+    this.facing = Math.sign(this._aaTarget.cx() - this.cx()) || 1;
+
+    const dx     = this._aaTarget.cx() - this.cx();
+    const dy     = (this._aaTarget.y + this._aaTarget.h / 2) - (this.y + this.h / 2);
+    const toDist = Math.hypot(dx, dy) || 1;
+    const GW = typeof GAME_W !== 'undefined' ? GAME_W : 900;
+    const GH = typeof GAME_H !== 'undefined' ? GAME_H : 520;
+
+    // Hover orbit around the boss
+    const orbitM = Math.min(1, toDist / 140);
+    const hoverX = this._aaTarget.cx() + Math.sin(this._hoverTime * 0.52) * 66 * orbitM;
+    const hoverY = (this._aaTarget.y + this._aaTarget.h / 2) - 85 + Math.sin(this._hoverTime * 0.76) * 16 * orbitM;
+    const clampX = Math.max(22 + this.w / 2, Math.min(GW - this.w / 2 - 22, hoverX));
+    const clampY = Math.max(8 + this.h / 2, Math.min(GH * 0.88 - this.h / 2, hoverY));
+    const errX   = clampX - this.cx();
+    const errY   = clampY - (this.y + this.h / 2);
+    const eDist  = Math.hypot(errX, errY) || 1;
+    const spd    = Math.min(18, eDist);
+    this.vx     = (errX / eDist) * spd;
+    this._flyVy = (errY / eDist) * spd;
+
+    this.vy = this._flyVy - 0.65;
+    super.update();
+
+    this.y = Math.max(8, Math.min(GH * 0.88 - this.h, this.y));
+    this.x = Math.max(18, Math.min(GW - this.w - 18, this.x));
+
+    // Melee strike — costs energy (the fuel is Paradox's own)
+    if (toDist < 130 && this._attackCd <= 0 && typeof dealDamage === 'function') {
+      dealDamage(this, this._aaTarget, 12, 6);
+      this.energy   -= 0.3;
+      this._attackCd = 46;
+      if (typeof spawnParticles === 'function') spawnParticles(this.cx(), this.y + this.h / 2, '#bb77ff', 8);
+    }
+
+    // Special: interference burst — expensive, big radiation deposit
+    if (this._specialCd <= 0 && this.energy > 15) {
+      this._blastRings.push({ r: 0, maxR: 190, alpha: 1.0, _hit: false });
+      this.energy    -= 2;
+      this._specialCd = 300;
+      if (typeof screenShake !== 'undefined') screenShake = Math.max(screenShake, 5);
+      if (typeof spawnParticles === 'function') spawnParticles(this.cx(), this.y + this.h / 2, '#9944ff', 16);
+    }
+  }
+
+  draw() {
+    if (this._collapsed || this.health <= 0) return;
+    if (typeof ctx === 'undefined') return;
+
+    const frac  = this._frac();
+    const vis   = 0.30 + 0.70 * frac; // the manifestation thins as it spends itself
+    const cx    = this.cx();
+    const headY = this.y + 11;
+    const cy    = this.y + this.h * 0.44;
+    const t     = this._wingAngle;
+
+    ctx.save();
+    ctx.globalAlpha = vis;
+
+    // Interference rings
+    for (const ring of this._blastRings) {
+      ctx.beginPath();
+      ctx.arc(cx, cy, ring.r, 0, Math.PI * 2);
+      ctx.strokeStyle = `rgba(170,100,255,${ring.alpha * 0.6})`;
+      ctx.lineWidth = 3;
+      ctx.stroke();
+    }
+
+    // Movement trail
+    for (let i = 0; i < this._trailPts.length; i++) {
+      const tp = this._trailPts[i];
+      const a  = ((this._trailPts.length - i) / this._trailPts.length) * 0.24 * vis;
+      ctx.beginPath();
+      ctx.arc(tp.x, tp.y, 6 - i * 0.4, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(150,70,255,${a})`;
+      ctx.fill();
+    }
+
+    // Outer aura
+    const farR = 70 + Math.sin(this._auraPhase * 0.4) * 9;
+    const aG = ctx.createRadialGradient(cx, cy, 0, cx, cy, farR);
+    aG.addColorStop(0, `rgba(150,60,255,${0.13 * vis})`);
+    aG.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = aG;
+    ctx.beginPath(); ctx.arc(cx, cy, farR, 0, Math.PI * 2); ctx.fill();
+
+    // Wings — a single translucent pair; less substantial than Paradox in life
+    ctx.fillStyle   = `rgba(140,70,240,${0.5 * vis})`;
+    ctx.strokeStyle = `rgba(190,130,255,${0.45 * vis})`;
+    ctx.lineWidth   = 0.8;
+    ctx.shadowColor = 'rgba(160,80,255,0.6)';
+    ctx.shadowBlur  = 10;
+    const wave = Math.sin(t * 0.9) * 11;
+    for (const side of [-1, 1]) {
+      ctx.beginPath();
+      ctx.ellipse(cx + side * 26, cy - wave * 0.5, 30, 12, side * 0.22, 0, Math.PI * 2);
+      ctx.fill(); ctx.stroke();
+    }
+
+    // Body — glowing purple stickman, translucent at the edges
+    ctx.strokeStyle = '#aa66ff';
+    ctx.lineWidth   = 4.5;
+    ctx.shadowColor = 'rgba(160,80,255,0.9)';
+    ctx.shadowBlur  = 20;
+    ctx.lineCap     = 'round';
+    ctx.lineJoin    = 'round';
+
+    ctx.beginPath(); ctx.arc(cx, headY, 10, 0, Math.PI * 2); ctx.stroke();
+    const torsoY = headY + 10;
+    ctx.beginPath(); ctx.moveTo(cx, torsoY); ctx.lineTo(cx, torsoY + 24); ctx.stroke();
+    const armY  = torsoY + 9;
+    const aWave = Math.sin(t * 0.55) * 5;
+    ctx.beginPath();
+    ctx.moveTo(cx - 20, armY + 5 + aWave); ctx.lineTo(cx, armY); ctx.lineTo(cx + 20, armY + 5 - aWave);
+    ctx.stroke();
+    const legY  = torsoY + 24;
+    const lWave = Math.sin(t * 0.42) * 4;
+    ctx.beginPath();
+    ctx.moveTo(cx - 12, legY + 22 + lWave); ctx.lineTo(cx, legY); ctx.lineTo(cx + 12, legY + 22 - lWave);
+    ctx.stroke();
+
+    ctx.shadowBlur = 0;
+    ctx.globalAlpha = 1;
+
+    // Energy bar — what remains of the fuel
+    const bw = 36, bh = 3;
+    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+    ctx.fillRect(cx - bw / 2, this.y - 10, bw, bh);
+    ctx.fillStyle = '#bb77ff';
+    ctx.fillRect(cx - bw / 2, this.y - 10, bw * frac, bh);
+    ctx.restore();
+  }
+}

@@ -621,7 +621,9 @@ const ARENAS = {
   },
   homeRooftop: {
     name: 'City Rooftop', isStoryOnly: true, earthPhysics: true,
-    worldWidth: 6000, mapLeft: -50, mapRight: 5850, boundaryPortals: true,
+    // Contained to platform extent (last platform ~x3490) so the boundary portals
+    // sit just past the play area instead of 2000px of empty floor beyond it.
+    worldWidth: 3600, mapLeft: -50, mapRight: 3540, boundaryPortals: true,
     sky: ['#0a0d18','#141a28','#1e2538'],
     groundColor: '#1a1a22', platColor: '#252530', platEdge: '#111118',
     hasLava: false, deathY: 640,
@@ -636,7 +638,9 @@ const ARENAS = {
   },
   homeAlley: {
     name: 'City Alley', isStoryOnly: true, earthPhysics: true,
-    worldWidth: 6000, mapLeft: -50, mapRight: 5850, boundaryPortals: true,
+    // Contained to the painted alley (art is GAME_W wide) so the boundary portals
+    // frame the visible scene instead of sitting 5000px out in empty floor.
+    worldWidth: 900, mapLeft: 0, mapRight: 900, boundaryPortals: true,
     sky: ['#1a2030','#2a3040','#3a4050'],
     groundColor: '#222222', platColor: '#303030', platEdge: '#181818',
     hasLava: false, deathY: 640,
@@ -646,7 +650,8 @@ const ARENAS = {
   },
   suburb: {
     name: 'Suburbs', isStoryOnly: true, earthPhysics: true,
-    worldWidth: 6000, mapLeft: -50, mapRight: 5850, boundaryPortals: true,
+    // Contained to the painted scene (art is GAME_W wide).
+    worldWidth: 900, mapLeft: 0, mapRight: 900, boundaryPortals: true,
     sky: ['#87CEEB','#aad8f0','#c8ecff'],
     groundColor: '#5a8a3a', platColor: '#6a9a4a', platEdge: '#3a6020',
     hasLava: false, deathY: 640,
@@ -656,7 +661,8 @@ const ARENAS = {
   },
   rural: {
     name: 'Rural Fields', isStoryOnly: true, earthPhysics: true,
-    worldWidth: 6000, mapLeft: -50, mapRight: 5850, boundaryPortals: true,
+    // Contained to the painted scene (art is GAME_W wide).
+    worldWidth: 900, mapLeft: 0, mapRight: 900, boundaryPortals: true,
     sky: ['#e8a020','#f0b830','#f5c842'],
     groundColor: '#7a5c30', platColor: '#8a6c40', platEdge: '#5c4010',
     hasLava: false, deathY: 640,
@@ -666,7 +672,8 @@ const ARENAS = {
   },
   portalEdge: {
     name: 'Portal Threshold', isStoryOnly: true,
-    worldWidth: 6000, mapLeft: -50, mapRight: 5850, boundaryPortals: true,
+    // Contained just past the last parkour platform (~x5670).
+    worldWidth: 5760, mapLeft: -50, mapRight: 5720, boundaryPortals: true,
     sky: ['#050010','#100030','#1a0050'],
     groundColor: '#100020', platColor: '#200050', platEdge: '#6600aa',
     hasLava: false, deathY: 640,
@@ -703,7 +710,8 @@ const ARENAS = {
   },
   realmEntry: {
     name: 'The New Realm', isStoryOnly: true,
-    worldWidth: 6000, mapLeft: -50, mapRight: 5850, boundaryPortals: true,
+    // Contained just past the last parkour platform (~x5650).
+    worldWidth: 5740, mapLeft: -50, mapRight: 5700, boundaryPortals: true,
     sky: ['#000515','#000e2a','#001845'],
     groundColor: '#000a20', platColor: '#002050', platEdge: '#0066cc',
     hasLava: false, deathY: 640, isLowGravity: true,
@@ -739,7 +747,8 @@ const ARENAS = {
   },
   bossSanctum: {
     name: 'Sanctum of the Ruler', isStoryOnly: true,
-    worldWidth: 6000, mapLeft: -50, mapRight: 5850, boundaryPortals: true,
+    // Contained just past the last platform (~x5785).
+    worldWidth: 5880, mapLeft: -50, mapRight: 5840, boundaryPortals: true,
     sky: ['#080002','#120006','#200010'],
     groundColor: '#100008', platColor: '#2a0018', platEdge: '#aa0044',
     hasLava: false, deathY: 640,

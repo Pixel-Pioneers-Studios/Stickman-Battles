@@ -100,7 +100,11 @@ const DOMAIN_DEFS = {
     bgTint:     'rgba(20,5,20,0.58)',
     spawnEvery: 0,
     hazardType: null,
-    ownerBuff:  { healPerFrame: 0.022 },
+    ownerBuff:  {},           // sustain comes from harvested souls, not a flat drip
+    harvestEvery: 300,        // frames between Reapings — souls launch as homing skulls
+    soulDamage:   11,         // damage per launched soul on impact
+    maxSouls:     8,          // orbiting soul cap
+    healPerSoul:  0.006,      // per-frame heal per orbiting soul (full orbit ≈ 2.9 hp/s)
     announce:   'The harvest never ends — your soul is mine.',
   },
   pugilist: {
@@ -445,6 +449,13 @@ const DomainManager = (() => {
         radius:    22,
         hitCd:     new Map(),
       });
+      // Soul Tithe: while the flag is set, dealDamage (smb-combat.js) rips a soul
+      // wisp from every enemy the owner damages (pendulum hits included); souls
+      // orbit the Reaper and heal them until the Reaping launches them as skulls.
+      domain.harvestTimer = domain.def.harvestEvery || 300;
+      domain.harvestSouls = []; // orbiting souls: {angle, orbitR, bobSeed}
+      domain.owner._soulTitheActive = true;
+      domain.owner._soulTitheCount  = 0;
     }
 
     // Pugilist → Surge Fists: two giant fists punch inward from each side alternately
@@ -521,6 +532,8 @@ const DomainManager = (() => {
     delete owner._domainDisplayWeapon;
     delete owner._convictionPassive;
     delete owner._roninCutsActive;
+    delete owner._soulTitheActive;
+    delete owner._pendingSoulRips;
   }
 
   // ── Domain entry cinematic ──────────────────────────────────────────
@@ -2685,7 +2698,8 @@ const DomainManager = (() => {
   function _removeDomainFor(fighter) {
     const idx = _domains.findIndex(d => d.owner === fighter);
     if (idx === -1) return;
-    if (_domains[idx].defKey === 'ronin') _clearRoninCuts(fighter);
+    if (_domains[idx].defKey === 'ronin')  _clearRoninCuts(fighter);
+    if (_domains[idx].defKey === 'reaper') _clearSoulTithe(fighter);
     _clearOwnerBuffs(fighter);
     _domains.splice(idx, 1);
   }
@@ -2786,6 +2800,51 @@ const DomainManager = (() => {
       if (typeof CinFX !== 'undefined' && CinFX.flash) CinFX.flash('#ffffff', 0.30, 4);
       if (typeof SoundManager !== 'undefined' && SoundManager.iaiSheathe) SoundManager.iaiSheathe();
     }
+  }
+
+  // ── Reaper Soul Tithe (Eternal Harvest) ─────────────────────────────
+  // While owner._soulTitheActive is set, dealDamage (smb-combat.js) queues a soul
+  // rip at each enemy the owner damages. The wisp flies to the Reaper and joins
+  // the orbit; every harvestEvery frames the Reaping launches every orbiting soul
+  // as a homing skull. Skulls and wisps live at module level (like _iaiFx) so the
+  // final Reaping can still land after the domain itself has closed.
+  let _soulWisps  = []; // rip wisps flying to the owner: {x, y, owner, life}
+  let _soulSkulls = []; // launched harvest skulls: {x, y, vx, vy, target, owner, damage, life}
+  let _harvestFx  = []; // reap release rings: {x, y, life, maxLife}
+
+  function _clearSoulTithe(owner) {
+    if (!owner) return;
+    delete owner._soulTitheActive;
+    delete owner._pendingSoulRips;
+    delete owner._soulTitheCount;
+    _soulWisps = _soulWisps.filter(w => w.owner !== owner);
+  }
+
+  function _detonateHarvest(domain) {
+    const owner = domain.owner;
+    const souls = domain.harvestSouls;
+    if (!owner || owner.health <= 0 || !souls || !souls.length) return;
+    const targets = _getDomainTargets(owner);
+    if (!targets.length) return; // nothing to reap — souls keep orbiting
+    const def = domain.def;
+    for (let i = 0; i < souls.length; i++) {
+      const s   = souls[i];
+      const tgt = targets[i % targets.length];
+      const sx  = owner.cx() + Math.cos(s.angle) * s.orbitR;
+      const sy  = owner.cy() - 26 + Math.sin(s.angle) * s.orbitR * 0.6;
+      // Launch outward with scatter, then home in — reads as a burst, not a beam
+      const a = Math.atan2(tgt.cy() - sy, tgt.cx() - sx) + (Math.random() - 0.5) * 1.1;
+      _soulSkulls.push({
+        x: sx, y: sy, vx: Math.cos(a) * 3.5, vy: Math.sin(a) * 3.5,
+        target: tgt, owner, damage: def.soulDamage || 11, life: 140,
+      });
+    }
+    domain.harvestSouls = [];
+    owner._soulTitheCount = 0;
+    _harvestFx.push({ x: owner.cx(), y: owner.cy() - 20, life: 30, maxLife: 30 });
+    if (typeof screenShake !== 'undefined') screenShake = Math.max(screenShake, 10);
+    if (typeof CinFX !== 'undefined' && CinFX.flash) CinFX.flash('#cc44cc', 0.18, 4);
+    if (typeof SoundManager !== 'undefined' && SoundManager.soulHarvest) SoundManager.soulHarvest();
   }
 
   // Domain hazards manage hit cadence via hitSet/setTimeout — bypass normal iframes
@@ -2905,7 +2964,8 @@ const DomainManager = (() => {
       const domain = _domains[i];
       const { owner, def } = domain;
       if (!owner || owner.health <= 0) {
-        if (domain.defKey === 'ronin') _clearRoninCuts(owner);
+        if (domain.defKey === 'ronin')  _clearRoninCuts(owner);
+        if (domain.defKey === 'reaper') _clearSoulTithe(owner);
         _clearOwnerBuffs(owner);
         _domains.splice(i, 1);
         continue;
@@ -2927,6 +2987,26 @@ const DomainManager = (() => {
         if (domain.sheatheTimer <= 0) {
           _detonateRoninCuts(domain);
           domain.sheatheTimer = def.sheatheEvery || 240;
+        }
+      }
+
+      // Reaper: consume queued soul rips, orbit the harvest, count down the Reaping
+      if (domain.defKey === 'reaper' && domain.harvestSouls) {
+        if (owner._pendingSoulRips && owner._pendingSoulRips.length) {
+          for (const rip of owner._pendingSoulRips) {
+            _soulWisps.push({ x: rip.x, y: rip.y, owner, life: 240 });
+          }
+          owner._pendingSoulRips.length = 0;
+        }
+        for (const s of domain.harvestSouls) s.angle += 0.045;
+        if (domain.harvestSouls.length) {
+          owner.health = Math.min(owner.maxHealth,
+            owner.health + (def.healPerSoul || 0.006) * domain.harvestSouls.length);
+        }
+        domain.harvestTimer--;
+        if (domain.harvestTimer <= 0) {
+          _detonateHarvest(domain);
+          domain.harvestTimer = def.harvestEvery || 300;
         }
       }
 
@@ -3630,6 +3710,11 @@ const DomainManager = (() => {
           _detonateRoninCuts(domain);
           _clearRoninCuts(owner);
         }
+        if (domain.defKey === 'reaper') {
+          // Final Reaping: whatever souls remain launch as the harvest closes
+          _detonateHarvest(domain);
+          _clearSoulTithe(owner);
+        }
         _clearOwnerBuffs(owner);
         _domains.splice(i, 1);
         if (typeof queueAnnouncement === 'function') {
@@ -3641,6 +3726,77 @@ const DomainManager = (() => {
     // Age iai detonation slash fx (independent of domain lifetime)
     for (let fi = _iaiFx.length - 1; fi >= 0; fi--) {
       if (--_iaiFx[fi].life <= 0) _iaiFx.splice(fi, 1);
+    }
+
+    // ── Reaper Soul Tithe: rip wisps fly to the owner and join the orbit ──
+    for (let wi = _soulWisps.length - 1; wi >= 0; wi--) {
+      const w = _soulWisps[wi];
+      const o = w.owner;
+      if (!o || o.health <= 0 || --w.life <= 0) { _soulWisps.splice(wi, 1); continue; }
+      const dx = o.cx() - w.x, dy = (o.cy() - 26) - w.y;
+      const dist = Math.hypot(dx, dy) || 1;
+      const sp = Math.min(9, 3 + (240 - w.life) * 0.12); // accelerates toward the Reaper
+      w.x += dx / dist * sp; w.y += dy / dist * sp;
+      if (dist < 16) {
+        _soulWisps.splice(wi, 1);
+        const dm = _domains.find(d => d.defKey === 'reaper' && d.owner === o);
+        if (dm && dm.harvestSouls && dm.harvestSouls.length < (dm.def.maxSouls || 8)) {
+          dm.harvestSouls.push({
+            angle:  Math.random() * Math.PI * 2,
+            orbitR: 34 + Math.random() * 10,
+            bobSeed: Math.random() * 10,
+          });
+          o._soulTitheCount = dm.harvestSouls.length;
+          if (typeof SoundManager !== 'undefined' && SoundManager.soulAbsorb) {
+            SoundManager.soulAbsorb(dm.harvestSouls.length);
+          }
+        } else {
+          // Orbit full (or domain already closed) — the surplus soul is consumed
+          // directly as a small burst heal
+          o.health = Math.min(o.maxHealth, o.health + 2);
+        }
+        if (typeof spawnParticles === 'function') spawnParticles(o.cx(), o.cy() - 20, '#ee88ee', 6);
+      }
+    }
+
+    // ── Reaper harvest skulls: home in, strike, retarget if the mark dies ──
+    for (let si = _soulSkulls.length - 1; si >= 0; si--) {
+      const sk = _soulSkulls[si];
+      if (!sk.owner || sk.owner.health <= 0 || --sk.life <= 0) {
+        if (typeof spawnParticles === 'function') spawnParticles(sk.x, sk.y, '#cc44cc', 5);
+        _soulSkulls.splice(si, 1); continue;
+      }
+      if (!sk.target || sk.target.health <= 0) {
+        const near = _getDomainTargets(sk.owner)
+          .sort((a, b) => Math.hypot(a.cx() - sk.x, a.cy() - sk.y) - Math.hypot(b.cx() - sk.x, b.cy() - sk.y))[0];
+        if (!near) {
+          if (typeof spawnParticles === 'function') spawnParticles(sk.x, sk.y, '#cc44cc', 5);
+          _soulSkulls.splice(si, 1); continue;
+        }
+        sk.target = near;
+      }
+      const tdx = sk.target.cx() - sk.x, tdy = sk.target.cy() - sk.y;
+      const tdist = Math.hypot(tdx, tdy) || 1;
+      sk.vx += tdx / tdist * 0.38; sk.vy += tdy / tdist * 0.38;
+      const spd = Math.hypot(sk.vx, sk.vy);
+      if (spd > 7) { sk.vx *= 7 / spd; sk.vy *= 7 / spd; }
+      sk.x += sk.vx; sk.y += sk.vy;
+      if (tdist < 20) {
+        // Guard recursion: skull impact re-enters dealDamage — must not re-rip a soul
+        sk.owner._soulTitheDetonating = true;
+        _dealDomainDamage(sk.owner, sk.target, sk.damage, 7);
+        sk.owner._soulTitheDetonating = false;
+        if (typeof spawnParticles === 'function') {
+          spawnParticles(sk.x, sk.y, '#ee88ee', 10);
+          spawnParticles(sk.x, sk.y, '#ffffff', 5);
+        }
+        _soulSkulls.splice(si, 1);
+      }
+    }
+
+    // Age harvest release rings
+    for (let hi = _harvestFx.length - 1; hi >= 0; hi--) {
+      if (--_harvestFx[hi].life <= 0) _harvestFx.splice(hi, 1);
     }
 
     // ── Per-frame Conviction weapon effects ───────────────────────────
@@ -3845,6 +4001,84 @@ const DomainManager = (() => {
         ctx.globalAlpha = _fp * 0.5;
         ctx.fillStyle = '#ffffff';
         ctx.beginPath(); ctx.arc(fx.x, fx.y, 8 + (1 - _fp) * 10, 0, Math.PI * 2); ctx.fill();
+        ctx.restore();
+      }
+    }
+
+    // ── Reaper Soul Tithe: orbiting souls, rip wisps, harvest skulls, reap rings ──
+    const _reaperDomains = _domains.filter(d => d.defKey === 'reaper' && d.owner && d.owner.health > 0);
+    if (_reaperDomains.length || _soulWisps.length || _soulSkulls.length || _harvestFx.length) {
+      const _sNow = Date.now();
+      // Orbiting souls around each Reaper — pulse faster as the Reaping nears
+      for (const rd of _reaperDomains) {
+        const souls = rd.harvestSouls || [];
+        const _reapSoon = rd.harvestTimer !== undefined && rd.harvestTimer < 45 && souls.length;
+        const ocx = rd.owner.cx(), ocy = rd.owner.cy() - 26;
+        for (const s of souls) {
+          const bob = Math.sin(_sNow / 300 + s.bobSeed) * 3;
+          const sx = ocx + Math.cos(s.angle) * s.orbitR;
+          const sy = ocy + Math.sin(s.angle) * s.orbitR * 0.6 + bob;
+          const _sp = 0.5 + 0.5 * Math.sin(_sNow / (_reapSoon ? 70 : 240) + s.bobSeed * 3);
+          ctx.save();
+          ctx.shadowColor = '#cc44cc'; ctx.shadowBlur = _reapSoon ? 16 : 10;
+          // Wispy tail trailing against the orbit direction
+          ctx.globalAlpha = (_reapSoon ? 0.45 : 0.30) + _sp * 0.25;
+          ctx.strokeStyle = '#ee88ee'; ctx.lineWidth = 2.5; ctx.lineCap = 'round';
+          ctx.beginPath();
+          ctx.moveTo(sx, sy);
+          ctx.quadraticCurveTo(
+            sx + Math.sin(s.angle) * 7, sy - Math.cos(s.angle) * 4 + 5,
+            sx + Math.sin(s.angle) * 11, sy + 9);
+          ctx.stroke();
+          // Soul core
+          ctx.globalAlpha = (_reapSoon ? 0.75 : 0.55) + _sp * 0.25;
+          ctx.fillStyle = _reapSoon ? '#ffffff' : '#ee88ee';
+          ctx.beginPath(); ctx.arc(sx, sy, 3.4 + _sp * 1.2, 0, Math.PI * 2); ctx.fill();
+          ctx.restore();
+        }
+      }
+      // Rip wisps streaking toward the Reaper
+      for (const w of _soulWisps) {
+        ctx.save();
+        ctx.globalAlpha = Math.min(0.8, w.life / 60);
+        ctx.fillStyle = '#ee88ee';
+        ctx.shadowColor = '#cc44cc'; ctx.shadowBlur = 10;
+        ctx.beginPath(); ctx.arc(w.x, w.y, 3, 0, Math.PI * 2); ctx.fill();
+        ctx.globalAlpha *= 0.5;
+        ctx.beginPath(); ctx.arc(w.x, w.y, 6, 0, Math.PI * 2); ctx.fill();
+        ctx.restore();
+      }
+      // Harvest skulls — glowing head with hollow eyes, facing their travel direction
+      for (const sk of _soulSkulls) {
+        const fdir = sk.vx >= 0 ? 1 : -1;
+        ctx.save();
+        ctx.globalAlpha = Math.min(1, sk.life / 30);
+        ctx.shadowColor = '#cc44cc'; ctx.shadowBlur = 14;
+        // Trail
+        ctx.strokeStyle = '#cc44cc'; ctx.lineWidth = 3; ctx.lineCap = 'round';
+        ctx.globalAlpha *= 0.5;
+        ctx.beginPath();
+        ctx.moveTo(sk.x, sk.y);
+        ctx.lineTo(sk.x - sk.vx * 2.4, sk.y - sk.vy * 2.4);
+        ctx.stroke();
+        ctx.globalAlpha = Math.min(1, sk.life / 30);
+        // Skull
+        ctx.fillStyle = '#eeddee';
+        ctx.beginPath(); ctx.arc(sk.x, sk.y, 6.5, 0, Math.PI * 2); ctx.fill();
+        ctx.fillRect(sk.x - 3.5, sk.y + 3, 7, 4); // jaw
+        ctx.fillStyle = '#440044';
+        ctx.beginPath(); ctx.arc(sk.x + fdir * 2.6, sk.y - 1, 1.7, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(sk.x - fdir * 1.4, sk.y - 1, 1.7, 0, Math.PI * 2); ctx.fill();
+        ctx.restore();
+      }
+      // Reap release rings
+      for (const fx of _harvestFx) {
+        const _fp = fx.life / fx.maxLife; // 1 → 0
+        ctx.save();
+        ctx.globalAlpha = _fp * 0.7;
+        ctx.strokeStyle = '#ee88ee'; ctx.lineWidth = 2 + _fp * 2;
+        ctx.shadowColor = '#cc44cc'; ctx.shadowBlur = 16;
+        ctx.beginPath(); ctx.arc(fx.x, fx.y, 14 + (1 - _fp) * 52, 0, Math.PI * 2); ctx.stroke();
         ctx.restore();
       }
     }

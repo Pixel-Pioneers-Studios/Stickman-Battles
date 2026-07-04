@@ -588,6 +588,14 @@ function _startGameCore() {
       window._absoluteAxiomWasAlive = true;
       if (!storyModeActive && typeof _activateRGSForMatch === 'function') _activateRGSForMatch();
     }
+    // Story: Paradox manifestation ally (ch.paradoxManifest) — the fragment is the
+    // projector, Paradox's remaining energy is the fuel. 'fading' = starts nearly spent.
+    if (storyModeActive && typeof _activeStory2Chapter !== 'undefined' && _activeStory2Chapter &&
+        _activeStory2Chapter.paradoxManifest && typeof ParadoxManifestation !== 'undefined') {
+      const _pmEnergy = _activeStory2Chapter.paradoxManifest === 'fading' ? 45 : 100;
+      const _pm = new ParadoxManifestation(260, 220, _pmEnergy);
+      minions.push(_pm);
+    }
   } else if (isExploreMode) {
     // Exploration: P1 only — enemies are dynamically spawned as minions
     players = [p1];

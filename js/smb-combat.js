@@ -495,6 +495,21 @@ function dealDamage(attacker, target, dmg, kbForce, stunMult = 1.0, isSplash = f
       if (typeof SoundManager !== 'undefined' && SoundManager.iaiMark) SoundManager.iaiMark(target._roninCuts);
     }
   }
+  // Reaper Eternal Harvest: every successful hit by the domain owner rips a soul
+  // wisp from the target; DomainManager flies it to the Reaper's orbiting harvest.
+  // Killing blows still rip — reaping the dying is the point.
+  // _soulTitheDetonating guards recursion — harvest skull impacts must not re-rip.
+  if (attacker && attacker._soulTitheActive && !attacker._soulTitheDetonating &&
+      actualDmg > 0 && attacker !== target) {
+    attacker._pendingSoulRips = attacker._pendingSoulRips || [];
+    if (attacker._pendingSoulRips.length < 12) {
+      attacker._pendingSoulRips.push({ x: target.cx(), y: target.cy() - 8 });
+      spawnParticles(target.cx(), target.y - 10, '#ee88ee', 4);
+      if (typeof SoundManager !== 'undefined' && SoundManager.soulRip) {
+        SoundManager.soulRip((attacker._soulTitheCount || 0) + 1);
+      }
+    }
+  }
   // God Phase 1 crash: fires once on the first successful hit against a human player.
   // Deferred via setTimeout so the current game-loop iteration completes before the
   // overlay halts execution — avoids mid-frame teardown.

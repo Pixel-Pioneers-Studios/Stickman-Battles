@@ -424,8 +424,13 @@ class SovereignMK2 extends AdaptiveAI {
       return true; // consumed movement frame
     }
 
-    // Arm new preemptive action — lower confidence floor means earlier reads
+    // Arm new preemptive action — lower confidence floor means earlier reads.
+    // Re-arm cooldown: without it, sustained high confidence re-arms the 3–5
+    // frame burst back-to-back, strobing Sovereign between pre-dash and normal
+    // movement several times a second.
+    if (this._preemptRearmCd > 0) { this._preemptRearmCd--; return false; }
     if (this._predictConf >= (0.50 - this._evolutionStage * 0.03) && d < 240) {
+      this._preemptRearmCd = 22;
       this._preemptTimer  = Math.max(3, 5 - this._evolutionStage);
       this._preemptTarget = this._predictedNext;
       this._preemptMode   = true;
@@ -1201,9 +1206,17 @@ class SovereignMK2 extends AdaptiveAI {
     // to their RIGHT (positive x) — blocking the path back to center.
     // If player is at the RIGHT edge (_cornerSide=+1), Sovereign should
     // be to their LEFT (negative x).
-    const sovereignBlocksEscape = this._cornerSide < 0
-      ? (this.cx() > t.cx())   // player near left wall  → Sovereign right of them ✓
-      : (this.cx() < t.cx());  // player near right wall → Sovereign left of them ✓
+    // Hysteresis on the side check: at point-blank the raw center comparison
+    // flips sign every frame as Sovereign passes over the player, strobing him
+    // left-right at 1.55× speed (the "freaking out" jitter). Cross until clearly
+    // past (26px), then hold the blocking side until pushed almost fully back.
+    const _sideGap = this._cornerSide < 0
+      ? (this.cx() - t.cx())   // player near left wall  → positive = Sovereign right of them ✓
+      : (t.cx() - this.cx());  // player near right wall → positive = Sovereign left of them ✓
+    if (this._cornerBlocking === undefined) this._cornerBlocking = _sideGap > 0;
+    if (this._cornerBlocking && _sideGap < 2)        this._cornerBlocking = false;
+    else if (!this._cornerBlocking && _sideGap > 26) this._cornerBlocking = true;
+    const sovereignBlocksEscape = this._cornerBlocking;
 
     if (!sovereignBlocksEscape) {
       // Cross to the blocking side
@@ -1215,8 +1228,11 @@ class SovereignMK2 extends AdaptiveAI {
         this.vx = crossDir * moveSpd * 0.7;
       }
     } else {
-      // On correct side — press in relentlessly
-      if (!this.isEdgeDanger(dir)) this.vx = dir * moveSpd * 1.18;
+      // On correct side — press in relentlessly, but hold position once inside
+      // blade range: pressing at full speed from point-blank shoves Sovereign
+      // across the player and restarts the side-crossing loop.
+      if (d > 24) { if (!this.isEdgeDanger(dir)) this.vx = dir * moveSpd * 1.18; }
+      else this.vx *= 0.6;
       if (this.onGround && t.y < this.y - 45 && Math.random() < 0.05) this.vy = -19;
     }
 
@@ -1919,6 +1935,14 @@ class SovereignMK2 extends AdaptiveAI {
     const livesSpacing = livesDisadv >= 2 ? livesDisadv * 5 : (livesAdv >= 2 ? -livesAdv * 4 : 0);
     let prefDist      = Math.max(10, this._genome.prefDistBase + m.spacing * 60 - this._intimidation * 22 - this._evolutionStage * 5 + threatSpacing + thorSpacing + memorySpacing * 80 + openerAggroBias + superCharging + dmgThreat + speedDanger + rageBuff + livesSpacing);
     // (prefDist is already tuned via threatSpacing — no additional floor needed)
+    // Smoothed spacing target: several inputs above (threatSpacing, dmgThreat,
+    // superCharging…) flip with per-frame player state; raw, they jump prefDist
+    // 40–80px between frames and strobe the approach/retreat branches into
+    // visible left-right jitter. ~12-frame EMA keeps reads responsive without
+    // the band teleporting every frame.
+    if (this._prefDistEMA === undefined) this._prefDistEMA = prefDist;
+    this._prefDistEMA += (prefDist - this._prefDistEMA) * 0.15;
+    prefDist = this._prefDistEMA;
     const moveSpd     = Math.min(6.5, this._genome.moveSpdBase + realAgg * 1.5 + memoryReact * 0.25);  // faster than player base (6.5 vs 5.2)
     const atkFreq     = 1.0; // god-tier: always at max attack frequency
     // Always keep a minimum 2-frame reaction gap so the player has a tiny window
@@ -2832,7 +2856,19 @@ class SovereignMK2 extends AdaptiveAI {
       // In range — arm the telegraph (visual tell before striking)
       // Real frames now (per-frame cadence): 14 → 8 as Sovereign evolves; ~6 after
       // limiter break. Short enough to pressure, long enough for a human read.
-      this._telegraphTimer = Math.max(lb ? 6 : 8, Math.round(14 - this._evolutionStage * 2 - (lb ? 2 : 0)));
+      // Trade-read commit: melee trades are first-mover-wins (Fighter trade
+      // prevention cancels the later swing), so a full telegraph here means
+      // losing every near-simultaneous exchange. On a high-confidence read that
+      // the player is ABOUT to swing (but hasn't started — attacking into an
+      // already-started swing still loses on start frame), collapse the wind-up
+      // to 1 frame and beat them to the commit. This is the prediction engine
+      // exploiting the trade rule; normal openers keep the full human-readable tell.
+      const _tradeRead = this._predictedNext === 'attack' &&
+                         this._predictConf >= 0.55 &&
+                         !(t.attackTimer > 0);
+      this._telegraphTimer = _tradeRead
+        ? 1
+        : Math.max(lb ? 6 : 8, Math.round(14 - this._evolutionStage * 2 - (lb ? 2 : 0)));
       spawnParticles(this.cx(), this.cy(), '#ffaa00', 4);
       this.vx *= 0.35; // begin slowing as wind-up starts
       // Verbal cue — fires occasionally so the player has a chance to react

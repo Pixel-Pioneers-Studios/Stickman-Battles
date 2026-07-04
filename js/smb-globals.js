@@ -67,13 +67,26 @@ const CHANGELOG = [
     ],
   },
   {
+    version: '3.9.1',
+    title: 'THE SHADOW REALM UPDATE',
+    date: '2026-07-01',
+    flavor: 'The Ninja stopped fighting faster and started making the world slower. And Sovereign, which had been thinking on a borrowed clock, finally caught up to real time.',
+    isLatest: false,
+    changes: [
+      { cat: 'Mode',    text: 'Ninja Conviction reworked — Shadow Realm no longer rains shadow blades or buffs the owner\'s speed; instead it dilates time: the entry cinematic teleports the ninja behind every opponent and launches them skyward, then all enemies move, fall, attack, shield, and fire projectiles at half speed for the full 25 seconds while the ninja moves free (bosses partially resist); throughout the domain the ninja hurls spinning shurikens at the nearest foe regardless of equipped weapon' },
+      { cat: 'AI',      text: 'Sovereign now fights at its designed speed — a tick-versus-frame units bug had it deliberating on a clock roughly 15× too slow; decisions, strikes, and repositioning now resolve every frame, about 2.5× the pressure and kill throughput in the same match' },
+      { cat: 'AI',      text: 'Sovereign whiff-awareness and platform climbing — it reads its own missed swings before committing follow-ups and climbs to higher platforms to chase aerial or elevated players instead of pacing beneath them' },
+      { cat: 'Story',   text: 'Exploration and per-frame event handling tightened — dodge roll, arena boundary enforcement, and scene-trigger timing refined; chapter launch flow cleaned up' },
+      { cat: 'Tool',    text: 'Headless capture and a Sovereign self-play harness added under tools/ for automated fight validation and difficulty tuning' },
+    ],
+  },
+  {
     version: '3.9.0',
     title: 'THE SOVEREIGN INTELLIGENCE UPDATE',
     date: '2026-06-26',
     flavor: 'Sovereign spent every fight learning. Now it trains itself when you walk away. And somewhere past Act VII, a final arc opens onto something that has no body and no name.',
     isLatest: false,
     changes: [
-      { cat: 'Mode',    text: 'Ninja Conviction reworked — Shadow Realm no longer rains shadow blades or buffs the owner\'s speed; instead it dilates time: the entry cinematic teleports the ninja behind every opponent and launches them skyward, then all enemies move, fall, attack, shield, and fire projectiles at half speed for the full 25 seconds while the ninja moves free (bosses partially resist); throughout the domain the ninja hurls spinning shurikens at the nearest foe regardless of equipped weapon' },
       { cat: 'Combat',  text: 'Sword super (Air Slash) now lands all three crescents reliably — slashes no longer waste their single hit on a target\'s invincibility frames, the first two hits hold the target in place (only the final slash launches), and the arcs gently track the nearest enemy\'s height' },
       { cat: 'AI',      text: 'Sovereign self-play trainer — Sovereign runs evolution matches against randomized bot loadouts when idle, refines its decision genome across three parameters (aggression, spacing, reaction speed), and saves the champion to localStorage; available via console commands sovereign:train, sovereign:stress, sovereign:genome, and sovereign:reset' },
       { cat: 'AI',      text: 'Sovereign ability/super profiling — classifies the player\'s super usage as healer, finisher, opener, or dump and adapts pressure accordingly; profiles are announced in-character via Sovereign dialogue the first time a pattern is confirmed' },
@@ -215,7 +228,7 @@ const CHANGELOG = [
     isLatest: false,
     changes: [
       { cat: 'Mode',    text: 'Added Conviction — once you activate your super 5 times in a match, your class unleashes its personal Conviction: a 25-second environmental takeover that floods the arena with class-specific hazards; each class has a unique named conviction with its own atmosphere, hazard type, and owner buff' },
-      { cat: 'Mode',    text: 'Conviction roster — Thor: Storm Realm (relentless lightning strikes, speed boost); Kratos: Spartan War Domain (debris barrages, power boost); Ninja: Shadow Realm (reworked in 3.9.0 — time dilation); Gunner: Arsenal Domain (bullet storm); Archer: Verdant Hunt (arrow curtain); Paladin: Holy Sanctuary (holy beams, passive heal); Berserker: Blood Arena (speed + power + lifesteal, no environmental hazard — pure stats); further convictions are unlocked through progression' },
+      { cat: 'Mode',    text: 'Conviction roster — Thor: Storm Realm (relentless lightning strikes, speed boost); Kratos: Spartan War Domain (debris barrages, power boost); Ninja: Shadow Realm (reworked in 3.9.1 — time dilation); Gunner: Arsenal Domain (bullet storm); Archer: Verdant Hunt (arrow curtain); Paladin: Holy Sanctuary (holy beams, passive heal); Berserker: Blood Arena (speed + power + lifesteal, no environmental hazard — pure stats); further convictions are unlocked through progression' },
       { cat: 'Mode',    text: 'Conviction entry plays a full cinematic sequence: world darkens, the class name card slams onto screen, a Dutch camera tilt locks in, and the arena atmosphere shifts to match the conviction\'s color and sky; sudden death is suppressed for the full duration' },
       { cat: 'Arena',   text: 'Added Training Grounds — a clean symmetry-balanced stage with 8 platforms across 4 height tiers; designed for combo drills, jump practice, and aerial/edge-guard training; only accessible in Training mode' },
       { cat: 'Visual',  text: 'Added cinematic speed lines — radial and directional burst effects used during finishers, Conviction entry, and heavy cinematic hits; cone, spread, count, and length are fully configurable' },

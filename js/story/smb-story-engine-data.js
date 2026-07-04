@@ -65,7 +65,12 @@ function _phaseToChapter(origCh, phase, newId, pi, isFirst, isFinal, totalTokens
       phaseCh.isBossFight      = !!origCh.isBossFight;
       phaseCh.isTrueFormFight  = !!origCh.isTrueFormFight;
       phaseCh.isSovereignFight = !!origCh.isSovereignFight;
+      phaseCh.isAbsoluteAxiomFight = !!origCh.isAbsoluteAxiomFight;
+      if (origCh.aaStoryHealth)   phaseCh.aaStoryHealth   = origCh.aaStoryHealth;
+      if (origCh.paradoxManifest) phaseCh.paradoxManifest = origCh.paradoxManifest;
     }
+    // Ally fighter accompanies the player through every fight phase of the chapter
+    if (origCh.allyDef) phaseCh.allyDef = origCh.allyDef;
   }
   return phaseCh;
 }
@@ -80,8 +85,11 @@ function _expandStoryChaptersInPlace() {
   for (const origCh of origList) {
     const rangeStart = expanded.length;
 
-    if (origCh.noFight || origCh.isEpilogue || origCh.isDamnationChapter) {
-      // noFight / epilogue / damnation chapters stay as single chapters
+    if (origCh.noFight || origCh.isEpilogue || origCh.isDamnationChapter || origCh.type === 'exploration') {
+      // noFight / epilogue / damnation / exploration chapters stay as single
+      // chapters. Exploration is kept intact (not collapsed to a duel) so its
+      // authored data — exploreMode, stealthGuardDefs, puzzleSwitches,
+      // spawnEnemies, worldLength, sky — survives to reach the real mode engine.
       expanded.push({ ...origCh, id: expanded.length });
     } else {
       // Build phases using the original chapter's id for difficulty scaling

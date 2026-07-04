@@ -148,7 +148,11 @@ function _advanceStoryGauntletPhase(ch) {
 // Boss/special chapters bypass the gauntlet and launch directly.
 // All other fight/exploration chapters go through _startStoryGauntlet so pacing archetypes fire.
 function _launchChapterWithGauntlet(ch) {
-  if (ch.isBossFight || ch.isTrueFormFight || ch.isSovereignFight || ch.isAbsoluteAxiomFight || ch.type === 'interlude') {
+  // Exploration chapters launch through their real (stealth/escape/defense/
+  // scavenge/puzzle/survival/traversal) mode via _directLaunchChapter, NOT the
+  // combat gauntlet — this revives the built-but-dormant exploration engine.
+  // Their authored data is preserved through expansion (see _expandStoryChaptersInPlace).
+  if (ch.type === 'exploration' || ch.isBossFight || ch.isTrueFormFight || ch.isSovereignFight || ch.isAbsoluteAxiomFight || ch.type === 'interlude') {
     _directLaunchChapter(ch);
   } else {
     _startStoryGauntlet(ch);

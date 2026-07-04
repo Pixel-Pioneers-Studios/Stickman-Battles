@@ -212,6 +212,9 @@ function _powerLabel(num) {
   return { text: 'Complete',    color: '#ffaaff' };
 }
 
+// Currently-viewed act index in the act-paged level select (null = default to reached act).
+let _storyViewAct = null;
+
 function _renderChapterList() {
   const list = document.getElementById('storyLevelList');
   if (!list) return;
@@ -235,157 +238,132 @@ function _renderChapterList() {
     `</div>`;
   list.appendChild(progWrap);
 
-  // ── Determine which acts to render fully (current ±1) ─────────────────────
-  let curActIdx = 0;
-  for (let ai = 0; ai < STORY_ACT_STRUCTURE.length; ai++) {
-    for (const arc of STORY_ACT_STRUCTURE[ai].arcs) {
-      if (cur >= arc.chapterRange[0] && cur <= arc.chapterRange[1]) { curActIdx = ai; break; }
+  // ── Act paging ────────────────────────────────────────────────────────────
+  const _actIdxForChapter = (chIdx) => {
+    for (let ai = 0; ai < STORY_ACT_STRUCTURE.length; ai++) {
+      for (const arc of STORY_ACT_STRUCTURE[ai].arcs) {
+        if (chIdx >= arc.chapterRange[0] && chIdx <= arc.chapterRange[1]) return ai;
+      }
+    }
+    return 0;
+  };
+  const curActIdx = _actIdxForChapter(cur);
+  // Furthest act reached = the current pointer's act, OR the highest act that
+  // has ANY cleared chapter. A completed save may reset `cur` to Act I, so the
+  // defeated set is what unlocks paging through the whole story (spoiler-safe).
+  // Scan top-down with the same .includes() predicate the UI uses everywhere —
+  // robust to duplicate / non-numeric junk in the defeated array.
+  let maxAct = curActIdx;
+  for (let ai = STORY_ACT_STRUCTURE.length - 1; ai > maxAct; ai--) {
+    const anyDone = STORY_ACT_STRUCTURE[ai].arcs.some(arc => {
+      for (let i = arc.chapterRange[0]; i <= arc.chapterRange[1]; i++) {
+        if (_story2.defeated.includes(i)) return true;
+      }
+      return false;
+    });
+    if (anyDone) { maxAct = ai; break; }
+  }
+  if (typeof _storyViewAct !== 'number') _storyViewAct = curActIdx;
+  _storyViewAct = Math.max(0, Math.min(maxAct, _storyViewAct));
+
+  const act = STORY_ACT_STRUCTURE[_storyViewAct];
+  const _hex2rgb = hex => {
+    const m = hex.replace('#','').match(/.{2}/g);
+    return m ? m.map(x => parseInt(x,16)).join(',') : '136,136,136';
+  };
+
+  // Act completion tally
+  let actDone = 0, actTotal = 0;
+  for (const arc of act.arcs) {
+    for (let i = arc.chapterRange[0]; i <= arc.chapterRange[1]; i++) {
+      actTotal++;
+      if (_story2.defeated.includes(i)) actDone++;
     }
   }
-  const fullRenderMin = Math.max(0, curActIdx - 1);
-  const fullRenderMax = Math.min(STORY_ACT_STRUCTURE.length - 1, curActIdx + 1);
 
-  // ── Render each act ───────────────────────────────────────────────────────
-  STORY_ACT_STRUCTURE.forEach((act, ai) => {
-    const inAutoRange   = ai >= fullRenderMin && ai <= fullRenderMax;
-    const manualExpanded = !!_story2.actExpanded[ai];
-    const isFullRender  = inAutoRange || manualExpanded;
-
-    // Count act completion
-    let actDone = 0, actTotal = 0;
-    for (const arc of act.arcs) {
-      for (let i = arc.chapterRange[0]; i <= arc.chapterRange[1]; i++) {
-        actTotal++;
-        if (_story2.defeated.includes(i)) actDone++;
-      }
-    }
-    const actComplete = actDone === actTotal;
-
-    // Act header — always clickable to expand/collapse when outside auto range
-    const actHeader = document.createElement('div');
-    actHeader.className = 'story-act-header' + (!inAutoRange ? ' clickable' : '');
-    // Convert hex color to RGB triplet for CSS variable
-    const _hex2rgb = hex => {
-      const m = hex.replace('#','').match(/.{2}/g);
-      return m ? m.map(x => parseInt(x,16)).join(',') : '136,136,136';
-    };
-    actHeader.style.setProperty('--act-color', act.color);
-    actHeader.style.setProperty('--act-rgb', _hex2rgb(act.color));
-    if (!inAutoRange) actHeader.style.cursor = 'pointer';
-    actHeader.innerHTML =
-      (!inAutoRange
-        ? `<span class="story-act-chevron" style="transform:rotate(${(!manualExpanded) ? '0deg' : '90deg'});">▶</span>`
-        : '') +
-      `<span class="story-act-label">${act.label}</span>` +
-      `<span class="story-act-progress${actComplete ? ' done' : ''}">${actDone}/${actTotal}</span>`;
-
-    if (!inAutoRange) {
-      actHeader.addEventListener('click', () => {
-        _story2.actExpanded[ai] = !_story2.actExpanded[ai];
-        _saveStory2();
-        openStoryMenu();
-      });
-    }
-    list.appendChild(actHeader);
-
-    if (!isFullRender) {
-      const summary = document.createElement('div');
-      summary.style.cssText = 'padding:1px 18px 8px;font-size:0.58rem;color:#3a3a52;font-style:italic;';
-      summary.textContent = actComplete ? '✓ Complete' : actDone > 0 ? `${actDone}/${actTotal} done` : 'Locked';
-      list.appendChild(summary);
-      return;
-    }
-
-    // ── Render arcs within this act ─────────────────────────────────────────
-    act.arcs.forEach(arc => {
-      const arcUnlocked  = _isArcUnlocked(arc);
-      const arcComplete  = _isArcComplete(arc);
-      const isCurrentArc = arc.id === curArcId;
-      const { done: arcDone, total: arcTotal } = _getArcProgress(arc);
-      // Default: current arc expanded, others collapsed (unless user toggled)
-      const collapsed = _story2.arcCollapsed.hasOwnProperty(arc.id)
-        ? _story2.arcCollapsed[arc.id]
-        : !isCurrentArc;
-
-      // Arc sub-header
-      const arcRow = document.createElement('div');
-      arcRow.className = 'story-arc-header';
-      if (!arcUnlocked) arcRow.style.opacity = '0.30';
-      arcRow.innerHTML =
-        `<span class="story-act-chevron" style="transform:rotate(${collapsed ? '0' : '90'}deg);">▶</span>` +
-        `<span class="story-arc-label${arcComplete ? ' complete' : isCurrentArc ? ' current' : ''}">${arc.label}</span>` +
-        `<span class="story-arc-count${arcComplete ? ' done' : ''}">${arcDone}/${arcTotal}</span>`;
-
-      if (arcUnlocked) {
-        arcRow.addEventListener('click', () => _toggleArcCollapse(arc.id));
-      }
-      list.appendChild(arcRow);
-
-      if (collapsed) return;
-
-      // ── Chapter rows ──────────────────────────────────────────────────────
-      for (let i = arc.chapterRange[0]; i <= arc.chapterRange[1]; i++) {
-        const ch      = STORY_CHAPTERS2[i];
-        if (!ch) continue;
-        const done    = _story2.defeated.includes(i);
-        const current = i === cur;
-        const locked  = !arcUnlocked || i > cur;
-        const isBoss  = !!(ch.isBossFight || ch.isTrueFormFight);
-
-        const el = document.createElement('div');
-        el.className = 'story-ch-card' +
-          (done ? ' ch-done' : current ? ' ch-current' : '') +
-          (isBoss ? ' ch-boss' : '') +
-          (locked ? ' ch-locked' : '');
-
-        const statusEl = document.createElement('span');
-        statusEl.className = 'story-ch-status';
-        statusEl.textContent = done ? '✓' : locked ? '🔒' : current ? '▶' : String(i + 1);
-        statusEl.style.color = done ? '#66ee99' : current ? '#aacfff' : '#3a3a55';
-
-        const _livesCount = ch.playerLives !== undefined ? ch.playerLives : 3;
-        const _livesLabel = _livesCount === 1 ? '1 life' : `${_livesCount} lives`;
-        const livesTag  = (!locked && !done && !ch.noFight && _livesCount !== undefined)
-          ? `<span class="ch-tag ch-tag-lives-${_livesCount <= 1 ? '1' : _livesCount <= 2 ? '2' : '3'}">${_livesLabel}</span>` : '';
-        const rewardTag = (!done && ch.tokenReward)
-          ? `<span class="ch-tag ch-tag-reward">+${ch.tokenReward}🪙</span>` : '';
-        const bpTag     = (!done && ch.blueprintDrop && STORY_ABILITIES2[ch.blueprintDrop])
-          ? `<span class="ch-tag ch-tag-bp">📋</span>` : '';
-        const replayTag = done
-          ? `<span class="ch-tag ch-tag-replay">replay</span>` : '';
-
-        const isSpoilerChapter = isBoss;
-        const isSpoilerLocked  = locked && !done && isSpoilerChapter;
-        const isDeepLocked     = locked && !done && i > cur + 3 && isSpoilerChapter;
-        let displayTitle = ch.title;
-        let displayWorld = ch.world || '';
-        if (isSpoilerLocked) {
-          displayTitle = ch.isTrueFormFight ? '??? Final Entity' : '??? Boss Encounter';
-          displayWorld = 'Unknown Zone';
-        }
-
-        const infoEl = document.createElement('div');
-        infoEl.className = 'story-ch-info';
-        infoEl.innerHTML =
-          `<div class="story-ch-title-row">` +
-            `<span class="story-ch-title ${done ? 'ch-done' : current ? 'ch-curr' : 'ch-lock'}">${displayTitle}</span>` +
-            (isSpoilerLocked ? '' : livesTag + rewardTag + bpTag) + replayTag +
-          `</div>` +
-          `<div class="story-ch-world">${displayWorld}</div>`;
-
-        if (isSpoilerLocked) infoEl.title = "You're not supposed to see that yet.";
-        if (isDeepLocked)    el.style.filter = 'brightness(0.65)';
-
-        el.appendChild(statusEl);
-        el.appendChild(infoEl);
-
-        if (!locked) {
-          el.style.cursor = 'pointer';
-          el.addEventListener('click', () => _beginChapter2(i));
-        }
-        list.appendChild(el);
-      }
+  // ── Act pager header (◀  ACT N — Name  ▶) ─────────────────────────────────
+  const pager = document.createElement('div');
+  pager.className = 'story-act-pager';
+  pager.style.setProperty('--act-color', act.color);
+  pager.style.setProperty('--act-rgb', _hex2rgb(act.color));
+  const canPrev = _storyViewAct > 0;
+  const canNext = _storyViewAct < maxAct;
+  pager.innerHTML =
+    `<button class="story-act-pager-arrow" data-dir="-1" ${canPrev ? '' : 'disabled'}>◀</button>` +
+    `<div class="story-act-pager-mid">` +
+      `<div class="story-act-pager-title">${act.label}</div>` +
+      `<div class="story-act-pager-sub">${actDone}/${actTotal} levels · Act ${_storyViewAct + 1} of ${maxAct + 1}</div>` +
+    `</div>` +
+    `<button class="story-act-pager-arrow" data-dir="1" ${canNext ? '' : 'disabled'}>▶</button>`;
+  pager.querySelectorAll('.story-act-pager-arrow').forEach(btn => {
+    btn.addEventListener('click', () => {
+      if (btn.disabled) return;
+      _storyViewAct += parseInt(btn.getAttribute('data-dir'), 10);
+      _renderChapterList();
     });
+  });
+  list.appendChild(pager);
+
+  // ── Arcs of this act → grids of numbered level tiles ──────────────────────
+  act.arcs.forEach(arc => {
+    const arcUnlocked = _isArcUnlocked(arc);
+    const { done: arcDone, total: arcTotal } = _getArcProgress(arc);
+    const arcComplete = _isArcComplete(arc);
+
+    const divider = document.createElement('div');
+    divider.className = 'story-arc-divider' + (arcComplete ? ' complete' : '');
+    if (!arcUnlocked) divider.style.opacity = '0.4';
+    divider.innerHTML =
+      `<span class="story-arc-divider-label">${arc.label}</span>` +
+      `<span class="story-arc-divider-count${arcComplete ? ' done' : ''}">${arcDone}/${arcTotal}</span>`;
+    list.appendChild(divider);
+
+    const grid = document.createElement('div');
+    grid.className = 'story-level-grid';
+
+    for (let i = arc.chapterRange[0]; i <= arc.chapterRange[1]; i++) {
+      const ch = STORY_CHAPTERS2[i];
+      if (!ch) continue;
+      const done    = _story2.defeated.includes(i);
+      const current = i === cur;
+      const locked  = !arcUnlocked || i > cur;
+      const isBoss  = !!(ch.isBossFight || ch.isTrueFormFight);
+      const isSpoilerLocked = locked && !done && isBoss;
+
+      let displayTitle = ch.title;
+      let displayWorld = ch.world || '';
+      if (isSpoilerLocked) {
+        displayTitle = ch.isTrueFormFight ? '??? Final Entity' : '??? Boss Encounter';
+        displayWorld = 'Unknown Zone';
+      }
+
+      const tile = document.createElement('div');
+      tile.className = 'story-level-tile' +
+        (done ? ' lvl-done' : current ? ' lvl-current' : locked ? ' lvl-locked' : ' lvl-open') +
+        (isBoss ? ' lvl-boss' : '');
+
+      const badge = done ? '✓' : locked ? '🔒' : current ? '▶' : (i + 1);
+      const _lives = ch.playerLives !== undefined ? ch.playerLives : 3;
+      const tip = isSpoilerLocked
+        ? "You're not supposed to see that yet."
+        : `Level ${i + 1} · ${displayWorld}` +
+          (!ch.noFight ? ` · ${_lives === 1 ? '1 life' : _lives + ' lives'}` : '') +
+          (!done && ch.tokenReward ? ` · +${ch.tokenReward}🪙` : '') +
+          (done ? ' · replay' : '');
+      tile.title = tip;
+
+      tile.innerHTML =
+        `<div class="lvl-num">${badge}</div>` +
+        `<div class="lvl-idx">${i + 1}</div>` +
+        `<div class="lvl-name">${displayTitle}</div>`;
+
+      if (!locked) {
+        tile.style.cursor = 'pointer';
+        tile.addEventListener('click', () => _beginChapter2(i));
+      }
+      grid.appendChild(tile);
+    }
+    list.appendChild(grid);
   });
 }
 
@@ -554,6 +532,45 @@ function _storyBuildPhases(ch) {
     armor: [...new Set([...(baseEnemy.armor || []), 'helmet'])],
     isElite: true,
   });
+
+  // ── PROTOTYPE: GoW-style multi-enemy "rounds of fighters" ────────────────
+  // A small allowlist of crowd-themed chapters gets a curated wave sequence
+  // instead of collapsing to a single duel. If this feels good, widen the set.
+  // The Last Army (47), Rogue Faction (52), Architecture Soldiers (127).
+  //
+  // CRITICAL: gate on `_origId`, which is present ONLY on launch-time chapters
+  // (set by _phaseToChapter). During _expandStoryChaptersInPlace the source
+  // chapter has no _origId, so this stays single-phase there — returning >1
+  // phase at expansion would split the chapter into multiple STORY_CHAPTERS2
+  // entries and desync every downstream id + save. Waves are launch-only.
+  const PROTOTYPE_WAVE_CHAPTERS = new Set([47, 52, 127]);
+  if (ch._origId !== undefined && PROTOTYPE_WAVE_CHAPTERS.has(ch._origId)) {
+    const lives = ch.playerLives || 3;
+    const arena = ch.arena || 'homeAlley';
+    ch.phases = [
+      {
+        type: 'arena_lock', label: 'Wave 1 — First Line', arena, playerLives: lives,
+        opponents: [
+          supportEnemy,
+          _storyCloneEnemyDef(supportEnemy, { name: `${baseEnemy.name} Grunt`, color: '#667788' }),
+        ],
+      },
+      {
+        type: 'elite_wave', label: 'Wave 2 — Heavies', arena, playerLives: lives,
+        opponents: [
+          eliteEnemy,
+          _storyCloneEnemyDef(supportEnemy, { name: `${baseEnemy.name} Skirmisher`, weaponKey: 'spear', classKey: 'assassin', color: '#8855cc' }),
+        ],
+      },
+      {
+        type: 'mini_boss', label: ch.opponentName || 'Commander', finalChapter: true, arena, playerLives: lives,
+        opponents: [
+          _storyCloneEnemyDef(baseEnemy, { name: ch.opponentName || `${baseEnemy.name} Commander`, aiDiff: eliteAI, isElite: true }),
+        ],
+      },
+    ];
+    return ch.phases; // skip the finale collapse — keep all three rounds
+  }
 
   if (ch.type === 'exploration') {
     const worldLen = Math.max(5600, ch.worldLength || 5600);

@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What This Game Is
 
-**Stickman Battles** is a canvas-based 2D action fighting game with:
+**Stickman Evolution** (formerly "Stickman Battles" — the product was renamed but repo folder and `smb-*` filenames are unchanged) is a canvas-based 2D action fighting game with:
 - Local and online (PeerJS/WebRTC) multiplayer
 - 10 character classes and 16 weapons
 - 18 arenas with unique physics and hazards
@@ -51,6 +51,8 @@ Set a flag; trigger at frame start in `gameLoop`.
 ---
 
 ## How Claude Should Behave
+
+Also read `FABLE_BEHAVIOR_PROMPT.md` (repo root) and the memory index at `~/.claude/projects/-Users-aarushgupta-Documents-Stickman-Battles/memory/MEMORY.md` before working — both are treated as binding and cover communication style, when to act vs. report, and current project state.
 
 Before making any change:
 1. **Read the relevant module** — understand what already exists
@@ -234,17 +236,8 @@ Script load order in `Stickman-Battles/index.html` — files may only reference 
 103. `js/smb-attacktest-registry.js` — `ATK_REGISTRY` per-class attack definitions
 104. `js/smb-attacktest-commands.js` — `_atkCommand` router, kit HUD, key handler
 105. `js/smb-attacktest-gui.js` — Visual GUI overlay + console patch
-106. `js/story/smb-story-registry.js` — Story chapter registry
-107. `js/story/acts/` — Per-act story arc files:
-    - act0: arc1, arc2
-    - act1: arc1, arc2
-    - act2: arc1, arc2, arc3
-    - act3: arc1, arc2
-    - act4: arc1, arc2
-    - act4mv: arc1, arc2 (multiverse arcs)
-    - act5: arc1, arc2, arc-damnation
-    - act6: arc1, arc2
-    - side: smb-lab-infiltration
+106. `js/story/smb-story-registry.js` — declares `STORY_CHAPTER_REGISTRY = []`; the arc files below push chapters into it at load time (it is NOT a static literal array)
+107. `js/story/acts/` — Per-act story arc files. Directories: `act0`–`act7`, `act4mv` (multiverse), `actvoidmind`, and `side`. Each `.js` calls `STORY_CHAPTER_REGISTRY.push(...)` with a unique `id:`. There are currently 184 chapters, ids 0–183 contiguous.
 108. `js/story/smb-story-config.js` — Story configuration
 109. `js/story/smb-story-engine-data.js` — Chapter expansion helpers, state vars
 110. `js/story/smb-story-engine-ui.js` — Tab switching, journey/store/skill-tree UI
@@ -264,7 +257,7 @@ Script load order in `Stickman-Battles/index.html` — files may only reference 
 
 Dependencies: GSAP 3.12.5 (CDN), PeerJS 1.5.4 (CDN).
 
-**Cache-busting:** All `<script>` tags use `?v=3.2.0`. When adding a new script to `index.html`, match the current version suffix. Bump the version string across all tags when shipping a breaking change.
+**Cache-busting:** All `<script>` tags use a `?v=` suffix (currently `?v=3.9.3`, with the newest scripts at `?v=3.9.4`). When adding a new script to `index.html`, match the current version suffix. Bump the version string across all tags when shipping a breaking change. Verify the current value with `grep -oE '\?v=[0-9.]+' index.html | sort | uniq -c` rather than trusting this doc.
 
 ---
 
@@ -334,7 +327,15 @@ Boss HP threshold cinematics fire via `_cinematicFired` Set guard in `Boss.updat
 
 ## Story Mode Invariants
 
-Story chapters live in `js/story/acts/` organized by act and arc. After editing any story registry, verify id === index alignment:
+Story chapters live in `js/story/acts/` organized by act and arc, and are pushed into `STORY_CHAPTER_REGISTRY` at load time (the registry file itself is empty). After adding or renumbering chapters, verify the `id:` values are contiguous 0..N with no gaps or duplicates by scanning every arc file (run from the `Stickman-Battles/` dir):
 ```bash
-node -e "const m=require('fs').readFileSync('Stickman-Battles/js/story/smb-story-registry.js','utf8').match(/const STORY_CHAPTERS\s*=\s*\[([\s\S]*?)\];/); if(m){const ids=[...m[1].matchAll(/^\s*id:\s*(\d+),/gm)].map(x=>+x[1]); ids.forEach((id,i)=>id!==i&&console.log(i,id));}"
+node -e '
+const fs=require("fs"),path=require("path");
+function walk(d){let o=[];for(const e of fs.readdirSync(d,{withFileTypes:true})){const p=path.join(d,e.name);e.isDirectory()?o=o.concat(walk(p)):e.name.endsWith(".js")&&o.push(p);}return o;}
+let ids=[];for(const f of walk("js/story/acts")){for(const m of fs.readFileSync(f,"utf8").matchAll(/^\s*id:\s*(\d+),/gm))ids.push(+m[1]);}
+ids.sort((a,b)=>a-b);
+console.log("total",ids.length,"min",ids[0],"max",ids.at(-1));
+const dup=[...new Set(ids.filter((v,i)=>ids[i+1]===v))];if(dup.length)console.log("DUPLICATES",dup);
+for(let i=0;i<=ids.at(-1);i++)if(!ids.includes(i))console.log("GAP at",i);
+'
 ```

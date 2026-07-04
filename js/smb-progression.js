@@ -286,7 +286,7 @@ function _spawnFractureGuardian(fracture, isPreview) {
         const p1 = players[0];
         const spawnX = p1 ? Math.min(GAME_W - 80, p1.x + 300) : GAME_W / 2 + 100;
 
-        const guardian = new Fighter(spawnX, 200, 18, 50, def.color, true, 'hard');
+        const guardian = new Fighter(spawnX, 200, def.color, def.weaponKey, null, true, def.aiDiff);
         guardian.weapon      = WEAPONS[def.weaponKey] || WEAPONS['sword'];
         guardian.hp          = isPreview ? 120 : 250;  // preview guardian has limited HP
         guardian.maxHp       = guardian.hp;

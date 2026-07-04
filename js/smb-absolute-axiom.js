@@ -195,6 +195,12 @@ class AbsoluteAxiom extends God {
     this._checkpointThresholds = [800000, 600000, 400000, 200000, 100000];
     this._checkpointsFired     = new Set();
     this._checkpointQtePending = false;
+    // Story mode: thresholds above are authored for the 1M-HP standalone fight.
+    // With story health (~900) they would ALL be true at spawn, firing a
+    // checkpoint QTE on frame one. Rescale to the same 80/60/40/20/10% beats.
+    if (typeof storyModeActive !== 'undefined' && storyModeActive) {
+      this._checkpointThresholds = [0.8, 0.6, 0.4, 0.2, 0.1].map(f => Math.round(this.maxHealth * f));
+    }
 
     // Portal invincibility: immune once below 100K until 5 portal allies are active.
     // In story mode this fires immediately (story health < 100K) so pre-announce it.
@@ -238,6 +244,7 @@ class AbsoluteAxiom extends God {
     this._voidSpears       = [];
     this._kernelBeam       = null;  // { timer, maxTimer, y }
     this._singularity      = null;  // { x, y, timer, maxTimer, pullPhase }
+    this._genesisStar      = null;  // { x, y, timer, buildTime, burstR, fired, fade } — built star (creation echo)
     this._temporalActive   = false;
     this._temporalTimer    = 0;
     this._absoluteStrike   = null;  // { timer, passCount, vx }
@@ -364,6 +371,7 @@ class AbsoluteAxiom extends God {
     this._updateVoidSpears();
     this._updateKernelBeam();
     this._updateSingularity();
+    this._updateGenesisStar();
     this._updateAbsoluteStrike();
     this._updateColumnBarrage();
     this._updateAANova();
@@ -681,15 +689,17 @@ class AbsoluteAxiom extends God {
     // 40% chance to telegraph with a short dialogue line
     if (Math.random() < 0.40) _aaDialogue(AA_ATTACK_WARN_LINES, 60);
 
-    // Strat-override commitment: base 55%, raised toward 85% when the
-    // BehaviorModel confidently predicts the player's next move, and nudged
-    // by their marginal attack probability when punishing aggression.
-    // No model → exactly the original 0.55 (graceful degradation).
-    let stratChance = 0.55;
+    // Strat-override commitment: base 35%, raised toward 60% when the
+    // BehaviorModel confidently predicts the player's next move.
+    // Deliberately lower than the True Form's read-war: adaptive counter-reading
+    // is the True Form's signature (Axiom's personal cleverness). Absolute Axiom
+    // fights in God's creation vocabulary — its reads land as occasional
+    // inevitability, not as a duel. No model → 0.35 (graceful degradation).
+    let stratChance = 0.35;
     if (this._behaviorModel && this._bmPrediction) {
-      stratChance = Math.min(0.85, 0.55 + (this._bmPrediction.confidence || 0) * 0.30);
+      stratChance = Math.min(0.60, 0.35 + (this._bmPrediction.confidence || 0) * 0.25);
       if (strat === 'punish_attacker' && this._bmBias && this._bmBias.atkProb > 0.40) {
-        stratChance = Math.min(0.90, stratChance + 0.10);
+        stratChance = Math.min(0.65, stratChance + 0.05);
       }
     }
 
@@ -725,7 +735,8 @@ class AbsoluteAxiom extends God {
       else if (r < 0.67) this._doTemporalCrush();
       else if (r < 0.76) this._doSingularity(target);
       else if (r < 0.84) this._doHolySmite();
-      else if (r < 0.92) this._doAerialSlam(target);
+      else if (r < 0.88) this._doAerialSlam(target);
+      else if (r < 0.94) this._doGenesisStar(target);
       else               this._doColumnBarrage(target);
     } else { // phase 3
       if (r < 0.09)      this._doDimensionPunch(target);
@@ -738,7 +749,8 @@ class AbsoluteAxiom extends God {
       else if (r < 0.67) this._doTemporalCrush();
       else if (r < 0.75) this._doVoidRain(target);
       else if (r < 0.83) this._doKernelPulse();
-      else if (r < 0.91) this._doRadiantNova();
+      else if (r < 0.87) this._doRadiantNova();
+      else if (r < 0.94) this._doGenesisStar(target);
       else               this._doAngelFleet(target);
     }
     this._setCd();
@@ -898,6 +910,49 @@ class AbsoluteAxiom extends God {
         }
       }
       if (sp.y > GH + 20 || sp.hit) this._voidSpears.splice(i, 1);
+    }
+  }
+
+  // Genesis Star — a star built, not collapsed: the supernova echo re-expressed
+  // through creation. Assembles above the target's projected position, then ignites.
+  _doGenesisStar(target) {
+    if (this._genesisStar) return;
+    _aaAttackName('GENESIS STAR');
+    const gx = this._bmProjectX(target, 120);
+    this._genesisStar = { x: gx, y: 110, timer: 0, buildTime: 120, burstR: 175, fired: false, fade: 25 };
+    if (typeof showBossDialogue === 'function') showBossDialogue('Built. Not collapsed.', 180);
+    if (typeof screenShake !== 'undefined') screenShake = Math.max(screenShake, 5);
+  }
+
+  _updateGenesisStar() {
+    const gs = this._genesisStar;
+    if (!gs) return;
+    gs.timer++;
+    if (!gs.fired && gs.timer % 6 === 0 && typeof spawnParticles === 'function') {
+      // Matter converging on the assembly point
+      spawnParticles(gs.x + (Math.random() - 0.5) * 220, gs.y + (Math.random() - 0.5) * 160, '#ffeecc', 2);
+    }
+    if (!gs.fired && gs.timer >= gs.buildTime) {
+      gs.fired = true;
+      if (typeof CinFX !== 'undefined' && CinFX.flash) CinFX.flash('#ffeecc', 0.5, 14);
+      if (typeof screenShake !== 'undefined') screenShake = Math.max(screenShake, 14);
+      if (typeof dealDamage === 'function') {
+        for (const p of this._godTargetPool()) {
+          if (p === this || p.health <= 0) continue;
+          if (p._teamId !== undefined && this._teamId !== undefined && p._teamId === this._teamId) continue;
+          if (Math.hypot(p.cx() - gs.x, (p.y + p.h / 2) - gs.y) < gs.burstR) {
+            dealDamage(this, p, 190, 16);
+          }
+        }
+      }
+      if (typeof spawnParticles === 'function') {
+        spawnParticles(gs.x, gs.y, '#ffeecc', 24);
+        spawnParticles(gs.x, gs.y, '#ffaa44', 16);
+      }
+    }
+    if (gs.fired) {
+      gs.fade--;
+      if (gs.fade <= 0) this._genesisStar = null;
     }
   }
 
@@ -1562,6 +1617,43 @@ class AbsoluteAxiom extends God {
       ctx.lineWidth   = 3.5;
       ctx.shadowColor = '#ff8800'; ctx.shadowBlur = 14;
       ctx.beginPath(); ctx.arc(cx, ky, ring.r, 0, Math.PI * 2); ctx.stroke();
+      ctx.restore();
+    }
+
+    // Genesis Star — assembling / igniting
+    if (this._genesisStar) {
+      const gs = this._genesisStar;
+      const bf = Math.min(1, gs.timer / gs.buildTime);
+      ctx.save();
+      if (!gs.fired) {
+        const coreR = 8 + bf * 30;
+        const gGrad = ctx.createRadialGradient(gs.x, gs.y, 0, gs.x, gs.y, coreR * 3);
+        gGrad.addColorStop(0, `rgba(255,240,210,${0.75 * bf})`);
+        gGrad.addColorStop(0.4, `rgba(255,190,90,${0.35 * bf})`);
+        gGrad.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.fillStyle = gGrad;
+        ctx.beginPath(); ctx.arc(gs.x, gs.y, coreR * 3, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = `rgba(255,250,235,${0.5 + 0.5 * bf})`;
+        ctx.shadowColor = '#ffddaa'; ctx.shadowBlur = 30 * bf;
+        ctx.beginPath(); ctx.arc(gs.x, gs.y, coreR, 0, Math.PI * 2); ctx.fill();
+        // Burst-radius warning ring — fades in as the assembly completes
+        ctx.shadowBlur = 0;
+        ctx.globalAlpha = 0.25 * bf;
+        ctx.strokeStyle = '#ffcc88';
+        ctx.setLineDash([6, 8]);
+        ctx.beginPath(); ctx.arc(gs.x, gs.y, gs.burstR, 0, Math.PI * 2); ctx.stroke();
+        ctx.setLineDash([]);
+      } else {
+        const fa = Math.max(0, gs.fade / 25);
+        ctx.globalAlpha = fa;
+        const brR = gs.burstR * (1.15 - fa * 0.15);
+        const bGrad = ctx.createRadialGradient(gs.x, gs.y, 0, gs.x, gs.y, brR);
+        bGrad.addColorStop(0, 'rgba(255,255,240,0.9)');
+        bGrad.addColorStop(0.5, 'rgba(255,190,90,0.45)');
+        bGrad.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.fillStyle = bGrad;
+        ctx.beginPath(); ctx.arc(gs.x, gs.y, brR, 0, Math.PI * 2); ctx.fill();
+      }
       ctx.restore();
     }
 

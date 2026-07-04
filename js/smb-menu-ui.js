@@ -822,12 +822,21 @@ function _homeDrawStick(ctx, cx, cy, color, t, flipped, sc) {
 // Drawn on homeCanvas (z-index 9) so he appears above the game canvas fracture
 // but behind HTML cards. baseY = foot position in screen pixels.
 function _homeDrawKael(ctx, cx, baseY, sc, t) {
-  var bob      = Math.sin(t * 0.9) * 3;
-  var headR    = 15 * sc;
-  var headY    = baseY - 80 * sc + bob * sc;
-  var shouldY  = headY + headR + 6 * sc;
-  var hipY     = shouldY + 36 * sc;
-  var aRaise   = Math.sin(t * 0.9) * 3 * sc;
+  // Grounded "sword-planted" hero: clean stickman silhouette, no cape,
+  // one continuous gradient-faded red scarf as the signature element.
+  var bob      = Math.sin(t * 0.9) * 2 * sc;   // subtle breathing on the torso
+  var headR    = 14 * sc;
+  var hipY     = baseY - 44 * sc;
+  var shouldY  = hipY - 34 * sc + bob;
+  var headY    = shouldY - headR - 6 * sc;
+  var DARK     = '#060309';
+
+  // Sword geometry (planted point-down at his side, clear of the torso)
+  var swX      = cx + 12 * sc;
+  var pommelY  = shouldY + 4 * sc;
+  var gripY    = shouldY + 13 * sc;
+  var guardY   = shouldY + 21 * sc;
+  var tipY     = baseY - 1 * sc;
 
   ctx.save();
   ctx.lineCap = 'round'; ctx.lineJoin = 'round';
@@ -840,72 +849,81 @@ function _homeDrawKael(ctx, cx, baseY, sc, t) {
   ctx.fillStyle = gm;
   ctx.beginPath(); ctx.ellipse(cx, baseY + 5*sc, 65*sc, 16*sc, 0, 0, Math.PI*2); ctx.fill();
 
-  // Dark billowing cape
-  var capeWave  = Math.sin(t * 0.62) * 7 * sc;
-  var capeDroop = Math.sin(t * 0.42 + 0.5) * 4 * sc;
-  var tipX = cx - 52*sc + capeWave * 0.6;
-  var tipY = hipY + 32*sc + bob*sc + capeDroop;
-  ctx.beginPath();
-  ctx.moveTo(cx - 4*sc, shouldY);
-  ctx.bezierCurveTo(
-    cx - 46*sc + capeWave*0.5, shouldY + 12*sc + bob*sc,
-    cx - 66*sc + capeWave*0.8, hipY + bob*sc,
-    tipX, tipY
-  );
-  ctx.bezierCurveTo(
-    cx - 34*sc + capeWave*0.4, hipY - 4*sc + bob*sc,
-    cx - 16*sc + capeWave*0.2, shouldY + 8*sc,
-    cx - 4*sc, shouldY + 12*sc
-  );
-  ctx.closePath();
-  ctx.fillStyle = '#050208'; ctx.globalAlpha = 0.90; ctx.fill();
-  ctx.strokeStyle = 'rgba(55,18,95,0.30)'; ctx.lineWidth = 1.2*sc; ctx.globalAlpha = 1; ctx.stroke();
+  // Faint red bloom where the blade meets the ground
+  var bg = ctx.createRadialGradient(swX, baseY + 2*sc, 1*sc, swX, baseY + 2*sc, 26*sc);
+  bg.addColorStop(0, 'rgba(220,40,40,0.20)');
+  bg.addColorStop(1, 'rgba(220,40,40,0)');
+  ctx.fillStyle = bg;
+  ctx.beginPath(); ctx.ellipse(swX, baseY + 2*sc, 26*sc, 7*sc, 0, 0, Math.PI*2); ctx.fill();
 
   // Void rim light on head (fracture light from above)
   ctx.beginPath(); ctx.arc(cx, headY, headR + 3*sc, 0, Math.PI*2);
   ctx.fillStyle = 'rgba(75,30,165,0.13)'; ctx.fill();
 
-  // Head
+  var RIM = 'rgba(255,255,255,0.6)';   // thin white outline
+
+  // Limb paths (torso, legs, arms) — traced once, stroked twice
+  function limbPaths() {
+    ctx.beginPath();
+    ctx.moveTo(cx, shouldY);              ctx.lineTo(cx, hipY);               // torso
+    ctx.moveTo(cx, hipY);                 ctx.lineTo(cx - 15*sc, baseY);      // left leg
+    ctx.moveTo(cx, hipY);                 ctx.lineTo(cx + 16*sc, baseY);      // right leg
+    ctx.moveTo(cx - 2*sc, shouldY + 3*sc); ctx.lineTo(swX - 2*sc, gripY + 1*sc); // left arm
+    ctx.moveTo(cx + 2*sc, shouldY + 2*sc); ctx.lineTo(swX, gripY - 3*sc);        // right arm
+  }
+  // Sword paths (blade, crossguard, grip)
+  function swordPaths() {
+    ctx.beginPath();
+    ctx.moveTo(swX, guardY);      ctx.lineTo(swX + 1.5*sc, tipY);   // blade
+    ctx.moveTo(swX - 9*sc, guardY); ctx.lineTo(swX + 9*sc, guardY); // crossguard
+    ctx.moveTo(swX, guardY);      ctx.lineTo(swX, pommelY);         // grip
+  }
+
+  // Head — dark fill + thin white outline
   ctx.beginPath(); ctx.arc(cx, headY, headR, 0, Math.PI*2);
-  ctx.fillStyle = '#050208'; ctx.globalAlpha = 0.96; ctx.fill(); ctx.globalAlpha = 1;
+  ctx.fillStyle = DARK; ctx.globalAlpha = 0.97; ctx.fill(); ctx.globalAlpha = 1;
+  ctx.lineWidth = 1.4*sc; ctx.strokeStyle = RIM; ctx.stroke();
 
-  // Limbs (near-black silhouette)
-  ctx.strokeStyle = '#050208'; ctx.lineWidth = 3.5*sc;
-  ctx.beginPath(); ctx.moveTo(cx, shouldY); ctx.lineTo(cx, hipY); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(cx, shouldY + 5*sc); ctx.lineTo(cx - 22*sc, shouldY + 28*sc + aRaise); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(cx, shouldY + 5*sc); ctx.lineTo(cx + 20*sc, shouldY + 24*sc - aRaise); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(cx, hipY); ctx.lineTo(cx - 15*sc, baseY); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(cx, hipY); ctx.lineTo(cx + 15*sc, baseY); ctx.stroke();
+  // Subtle red edge glow on the blade
+  ctx.beginPath(); ctx.moveTo(swX, guardY); ctx.lineTo(swX + 1.5*sc, tipY);
+  ctx.strokeStyle = 'rgba(180,40,40,0.22)'; ctx.lineWidth = 7*sc; ctx.stroke();
 
-  // Sword — dark blade, subtle red glow
-  var hx = cx + 20*sc, hy = shouldY + 24*sc - aRaise;
-  ctx.beginPath(); ctx.moveTo(hx, hy); ctx.lineTo(hx + 48*sc, hy - 58*sc);
-  ctx.strokeStyle = 'rgba(160,35,35,0.20)'; ctx.lineWidth = 8*sc; ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(hx, hy); ctx.lineTo(hx + 48*sc, hy - 58*sc);
-  ctx.strokeStyle = '#040208'; ctx.lineWidth = 2.5*sc; ctx.stroke();
+  // White outline underlay, then near-black body/sword on top
+  limbPaths();  ctx.strokeStyle = RIM;  ctx.lineWidth = 3.5*sc + 1.6*sc; ctx.stroke();
+  swordPaths(); ctx.strokeStyle = RIM;  ctx.lineWidth = 2.6*sc + 1.4*sc; ctx.stroke();
+  limbPaths();  ctx.strokeStyle = DARK; ctx.lineWidth = 3.5*sc; ctx.stroke();
+  swordPaths(); ctx.strokeStyle = DARK; ctx.lineWidth = 2.6*sc; ctx.stroke();
 
-  // Red scarf — the defining element
-  var sw1 = Math.sin(t * 1.05) * 10 * sc;
-  var sw2 = Math.sin(t * 1.05 + 1.3) * 7 * sc;
-  var sw3 = Math.sin(t * 1.05 + 2.1) * 4 * sc;
-  ctx.shadowColor = '#ff2222'; ctx.shadowBlur = 10 * sc;
+  // Pommel — dark bead with thin white rim
+  ctx.beginPath(); ctx.arc(swX, pommelY - 2*sc, 2.4*sc, 0, Math.PI*2);
+  ctx.fillStyle = DARK; ctx.fill();
+  ctx.lineWidth = 1.2*sc; ctx.strokeStyle = RIM; ctx.stroke();
+
+  // Red scarf — one continuous ribbon off the left shoulder, fading at the tail
+  var s1 = Math.sin(t * 1.1)         * 6  * sc;
+  var s2 = Math.sin(t * 1.1 + 1.1)   * 10 * sc;
+  var s3 = Math.sin(t * 1.1 + 2.2)   * 14 * sc;
+  var neckX = cx - 3*sc, neckSY = shouldY - 2*sc;
+  var tipX  = cx - 56*sc + s3, tipSY = shouldY + 74*sc;
+  var scarf = ctx.createLinearGradient(neckX, neckSY, tipX, tipSY);
+  scarf.addColorStop(0,    'rgba(255,58,58,0.98)');
+  scarf.addColorStop(0.55, 'rgba(222,30,30,0.80)');
+  scarf.addColorStop(1,    'rgba(150,20,20,0)');
   ctx.beginPath();
-  ctx.moveTo(cx - 3*sc, shouldY - 2*sc);
+  ctx.moveTo(neckX, neckSY);
   ctx.bezierCurveTo(
-    cx - 16*sc + sw1, shouldY + 16*sc,
-    cx - 32*sc + sw2, shouldY + 36*sc,
-    cx - 52*sc + sw1, shouldY + 60*sc
+    cx - 24*sc + s1, shouldY + 18*sc,
+    cx - 36*sc + s2, shouldY + 40*sc,
+    cx - 46*sc + s2, shouldY + 55*sc
   );
-  ctx.strokeStyle = 'rgba(235,38,38,0.96)'; ctx.lineWidth = 4.5*sc; ctx.lineCap = 'round'; ctx.stroke();
+  ctx.bezierCurveTo(
+    cx - 52*sc + s3, shouldY + 65*sc,
+    cx - 55*sc + s3, shouldY + 70*sc,
+    tipX, tipSY
+  );
+  ctx.shadowColor = '#ff2a2a'; ctx.shadowBlur = 11 * sc;
+  ctx.strokeStyle = scarf; ctx.lineWidth = 4*sc; ctx.lineCap = 'round'; ctx.stroke();
   ctx.shadowBlur = 0;
-  ctx.beginPath();
-  ctx.moveTo(cx - 52*sc + sw1, shouldY + 60*sc);
-  ctx.bezierCurveTo(
-    cx - 64*sc + sw2, shouldY + 75*sc,
-    cx - 72*sc + sw3, shouldY + 90*sc,
-    cx - 78*sc + sw2, shouldY + 104*sc
-  );
-  ctx.strokeStyle = 'rgba(180,22,22,0.52)'; ctx.lineWidth = 3*sc; ctx.stroke();
 
   ctx.restore();
 }

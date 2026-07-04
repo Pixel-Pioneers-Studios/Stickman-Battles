@@ -99,6 +99,17 @@ const SoundManager = (() => {
     iaiSheathe(){ _play(c => { _noise(c,0.03,0.50,4500); _osc(c,'square',2100,0.03,0.14);            // the click of the sheath
                    setTimeout(()=>{ _noise(c,0.22,0.40,1400); _osc(c,'sine',1300,0.12,0.18);
                                     _osc(c,'sawtooth',180,0.20,0.22); },70); }); },                  // ...then every cut lands at once
+    // Reaper Eternal Harvest — Soul Tithe (js/smb-domain.js)
+    soulRip(n)  { _play(c => { const o=c.createOscillator(); const g=c.createGain();                 // faint falling wail as a soul tears loose
+                   o.type='sine'; o.frequency.setValueAtTime(760+(n||1)*45,c.currentTime);
+                   o.frequency.exponentialRampToValueAtTime(320,c.currentTime+0.16);
+                   g.gain.setValueAtTime(_effectiveVol()*0.07,c.currentTime);
+                   g.gain.exponentialRampToValueAtTime(0.001,c.currentTime+0.18);
+                   o.connect(g); g.connect(c.destination); o.start(); o.stop(c.currentTime+0.18);
+                   _noise(c,0.06,0.04,2200); }); },
+    soulAbsorb(n){ _play(c => { _osc(c,'triangle',480+(n||1)*55,0.10,0.08); _osc(c,'sine',960+(n||1)*110,0.06,0.04); }); }, // soft chime, pitch rises with the harvest
+    soulHarvest(){ _play(c => { _noise(c,0.26,0.30,700); _osc(c,'sawtooth',130,0.30,0.18); _osc(c,'sine',65,0.34,0.22);    // deep reap whoosh...
+                   setTimeout(()=>{ _osc(c,'sine',920,0.16,0.10); _noise(c,0.12,0.14,3200); },90); }); },                  // ...then the shriek of release
     // Story-scene beat stings (docs/story-cinematics-plan.md Phase 2)
     stingLow()    { _play(c => { _osc(c,'sine',55,0.85,0.20,0.08); _osc(c,'sine',82,0.65,0.09,0.10); }); },              // deep dread swell
     stingImpact() { _play(c => { _osc(c,'sawtooth',58,0.45,0.34); _osc(c,'sine',40,0.55,0.22); _noise(c,0.30,0.22,120); }); }, // dramatic boom
