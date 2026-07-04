@@ -85,7 +85,11 @@ function _expandStoryChaptersInPlace() {
   for (const origCh of origList) {
     const rangeStart = expanded.length;
 
-    if (origCh.noFight || origCh.isEpilogue || origCh.isDamnationChapter || origCh.type === 'exploration') {
+    if (origCh.noFight || origCh.isEpilogue || origCh.isDamnationChapter || origCh.type === 'exploration'
+        || origCh.type === 'assassination' || origCh.type === 'gauntlet' || origCh.type === 'ship_flight' || origCh.type === 'escort') {
+      // Special-mode chapters stay single & intact so their type + mode data
+      // (assassinationTimer, gauntletRounds, escortNPC, shipFlight) survive to
+      // reach the real mode engine instead of collapsing to a plain duel.
       // noFight / epilogue / damnation / exploration chapters stay as single
       // chapters. Exploration is kept intact (not collapsed to a duel) so its
       // authored data — exploreMode, stealthGuardDefs, puzzleSwitches,

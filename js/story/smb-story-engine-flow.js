@@ -152,7 +152,11 @@ function _launchChapterWithGauntlet(ch) {
   // scavenge/puzzle/survival/traversal) mode via _directLaunchChapter, NOT the
   // combat gauntlet — this revives the built-but-dormant exploration engine.
   // Their authored data is preserved through expansion (see _expandStoryChaptersInPlace).
-  if (ch.type === 'exploration' || ch.isBossFight || ch.isTrueFormFight || ch.isSovereignFight || ch.isAbsoluteAxiomFight || ch.type === 'interlude') {
+  // Special-mode chapters (assassination/gauntlet/ship_flight/escort) also
+  // bypass the gauntlet — otherwise _storyBuildPhases rewrites ch.type to
+  // 'fight' and collapses their authored mode into a plain duel.
+  if (ch.type === 'exploration' || ch.isBossFight || ch.isTrueFormFight || ch.isSovereignFight || ch.isAbsoluteAxiomFight || ch.type === 'interlude'
+      || ch.type === 'assassination' || ch.type === 'gauntlet' || ch.type === 'ship_flight' || ch.type === 'escort') {
     _directLaunchChapter(ch);
   } else {
     _startStoryGauntlet(ch);

@@ -42,11 +42,24 @@ const SERVER_CONFIG = {
 // ============================================================
 const CHANGELOG = [
   {
+    version: '3.9.10',
+    title: 'THE SPECIAL OPERATIONS UPDATE',
+    date: '2026-07-04',
+    flavor: 'Some fights don\'t wait for you to be ready. A target already running. A line of challengers with no rest between them. A sky that wants you gone.',
+    isLatest: true,
+    changes: [
+      { cat: 'Story', text: 'Assassination missions now play as intended — a countdown runs while your target tries to flee the arena; catch them before they slip away or the mission fails' },
+      { cat: 'Story', text: 'Gauntlet missions now run their full multi-round structure — consecutive waves with no healing between them, enemies gaining armor and numbers each round', spoilerAct: 5 },
+      { cat: 'Story', text: 'The ship-flight sequence now launches its own flight mode instead of a standard ground duel', spoilerAct: 5 },
+      { cat: 'Fix',   text: 'Special mission chapters were quietly falling back to plain one-on-one duels — their mission type was lost while the chapter list was being built, so the assassination, gauntlet, and flight modes never engaged; the type now survives and each mission plays its authored mode' },
+    ],
+  },
+  {
     version: '3.9.3',
     title: 'THE COLLISION REALM UPDATE',
     date: '2026-07-03',
     flavor: 'Somewhere in the multiverse there is a realm that never stops shaking. Whatever lives there isn\'t angry. That\'s the unsettling part.',
-    isLatest: true,
+    isLatest: false,
     changes: [
       { cat: 'Story', text: 'The Collision Realm arc added to the multiverse act — four new chapters (escape, scavenge, anchor defense, and a boss duel) set in a dimension that fractures under its ruler\'s weight; slots between the Fracture Coast and the act finale', spoilerAct: 5 },
       { cat: 'Story', text: 'Thresh — a fracture boss of pure force who broke their own strength calibration crossing the void; expert-tier duel, 1 life, every strike carries dimensional weight', spoilerAct: 5 },
@@ -792,7 +805,7 @@ let _publicRoomCheckTimer = 0;
 // ============================================================
 // VERSION
 // ============================================================
-const GAME_VERSION = '3.9.3';  // bump this when releasing; must match CHANGELOG[0].version
+const GAME_VERSION = '3.9.10';  // bump this when releasing; must match CHANGELOG[0].version
 console.log('[VERSION CHECK]', GAME_VERSION);
 
 // DEBUG / DEVELOPER STATE
