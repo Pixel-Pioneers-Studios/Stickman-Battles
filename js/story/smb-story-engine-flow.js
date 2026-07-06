@@ -148,6 +148,9 @@ function _advanceStoryGauntletPhase(ch) {
 // Boss/special chapters bypass the gauntlet and launch directly.
 // All other fight/exploration chapters go through _startStoryGauntlet so pacing archetypes fire.
 function _launchChapterWithGauntlet(ch) {
+  // Walk→fight→walk chapters run through the exploration engine (one continuous
+  // space with a single arena-lock duel at the midpoint) rather than the instant duel.
+  if (ch.walkFight) { _launchExplorationChapter(ch); return; }
   // Exploration chapters launch through their real (stealth/escape/defense/
   // scavenge/puzzle/survival/traversal) mode via _directLaunchChapter, NOT the
   // combat gauntlet — this revives the built-but-dormant exploration engine.
@@ -163,6 +166,13 @@ function _launchChapterWithGauntlet(ch) {
   }
 }
 
+// Cutscenes play once by default; skip the opening narration when replaying an
+// already-beaten chapter, unless the player turned the replay setting on.
+function _cinReplaySkip(ch) {
+  if (typeof settings !== 'undefined' && settings && settings.replayCinematics) return false;
+  return Array.isArray(_story2.defeated) && _story2.defeated.includes(ch.id);
+}
+
 function _beginChapter2(idx) {
   if (_narrativeActive) return;
   const ch = STORY_CHAPTERS2[idx];
@@ -170,7 +180,9 @@ function _beginChapter2(idx) {
   _activeStory2Chapter = ch;
 
   if (ch.type === 'branch') {
-    _showStory2Narrative(ch.narrative, () => _showBranchChoice(ch, () => _completeChapter2(ch)));
+    const _afterBranchNarr = () => _showBranchChoice(ch, () => _completeChapter2(ch));
+    if (_cinReplaySkip(ch)) _afterBranchNarr();
+    else _showStory2Narrative(ch.narrative, _afterBranchNarr);
     return;
   }
 
@@ -192,8 +204,8 @@ function _beginChapter2(idx) {
     return;
   }
 
-  // On retry (narrative already seen this session), skip straight to gauntlet
-  if (_seenNarrativeIds.has(ch.id)) {
+  // On retry (narrative already seen this session) or replay of a beaten chapter, skip to gauntlet
+  if (_seenNarrativeIds.has(ch.id) || _cinReplaySkip(ch)) {
     _launchChapterWithGauntlet(ch);
     return;
   }
@@ -614,6 +626,12 @@ function _launchChapter2FightImmediate(ch) {
     speedMult:     1.0 + (_sk.fastMove2 ? 0.20 : _sk.fastMove1 ? 0.10 : 0),
     jumpMult:      1.0 + (_sk.highJump2 ? 0.25 : _sk.highJump1 ? 0.15 : 0),
   };
+
+  // Per-weapon mastery: fold the equipped weapon's damage bonus into the override
+  if (typeof _weaponMasteryDmgBonus === 'function') {
+    const _eqWeapon = storyPlayerOverride.weapon || document.getElementById('p1Weapon')?.value || 'sword';
+    storyPlayerOverride.dmgMult *= (1 + _weaponMasteryDmgBonus(_eqWeapon));
+  }
 
   // Stripped-powers trial: override all ability gates — only human physicality
   if (ch.strippedPowers) {

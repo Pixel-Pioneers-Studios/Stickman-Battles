@@ -2245,7 +2245,7 @@ class Fighter {
     if (!_safeTarget) return; // no valid target — don't fire ability (avoids null crash in weapon ability functions)
     if (!this.weapon || typeof this.weapon.ability !== 'function') return; // weapon not loaded yet
     this.weapon.ability(this, _safeTarget);
-    this.abilityCooldown = this.weapon.abilityCooldown;
+    this.abilityCooldown = Math.round(this.weapon.abilityCooldown * (this._weaponAbilityCdMult || 1));
     this.attackTimer     = this.attackDuration * 2;
     abilityFlashTimer = 14; abilityFlashPlayer = this;
   }
@@ -2292,7 +2292,7 @@ class Fighter {
       return;
     }
     if (!this.isBoss) {
-      this.health = Math.min(this.maxHealth, this.health + 20);
+      this.health = Math.min(this.maxHealth, this.health + 40);
     }
     this.superMeter  = 0;
     this.superReady  = false;

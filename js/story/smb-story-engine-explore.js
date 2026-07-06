@@ -258,6 +258,34 @@ function _launchExplorationChapter(ch) {
   // New modes: initialise after startGame() via setTimeout
   const _exploreMode = ch.exploreMode;
 
+  // Walk→fight→walk duel wrapper: one checkpoint locks the arena and spawns the
+  // chapter's real opponent; generic pressure/ambush spawns are suppressed.
+  exploreDuelMode = (ch.exploreMode === 'duel' || ch.walkFight === true);
+  exploreDuelOpponent = exploreDuelMode ? {
+    name:      ch.opponentName  || 'Enemy',
+    weaponKey: ch.weaponKey     || 'sword',
+    classKey:  ch.classKey      || 'warrior',
+    aiDiff:    ch.aiDiff        || 'medium',
+    color:     ch.opponentColor || '#cc4444',
+    health:    ch.opponentHealth || 140,
+  } : null;
+
+  // Loot: coins (money), an EXP orb, and a post-fight healing crystal along the walk path.
+  // Persistent health: carry HP from the previous walk→fight chapter (applied on the
+  // first exploration frame, once the player exists — full if none saved).
+  exploreSeedHealth = (exploreDuelMode && _story2.health != null) ? _story2.health : null;
+
+  explorePickups = [];
+  if (exploreDuelMode) {
+    const _cpX = exploreCheckpoints[0] ? exploreCheckpoints[0].x : Math.floor(worldLen / 2);
+    explorePickups.push(
+      { x: Math.floor(worldLen * 0.20), y: 356, type: 'coin', icon: '🪙', value: 6,  collected: false },
+      { x: Math.floor(worldLen * 0.34), y: 356, type: 'xp',   icon: '✦',  value: 10, collected: false },
+      { x: Math.min(worldLen - 220, _cpX + 520), y: 356, type: 'heal', icon: '💠', value: 60, collected: false },
+      { x: Math.floor(worldLen * 0.88), y: 356, type: 'coin', icon: '🪙', value: 6,  collected: false }
+    );
+  }
+
   if (ch.exploreMode === 'survival') {
     // Lock the camera to the compact 900px arena — no scrolling
     ARENAS[arenaKey].mapLeft   = 0;
@@ -286,8 +314,10 @@ function _launchExplorationChapter(ch) {
     };
   }
 
-  const sidePortal = _storyBuildSidePortal(ch);
-  if (sidePortal) exploreSidePortals.push(sidePortal);
+  if (!exploreDuelMode) {
+    const sidePortal = _storyBuildSidePortal(ch);
+    if (sidePortal) exploreSidePortals.push(sidePortal);
+  }
 
   // Game config
   selectedArena = arenaKey;

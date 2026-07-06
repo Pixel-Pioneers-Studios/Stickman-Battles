@@ -936,6 +936,19 @@ function drawExploreGoalObject() {
     ctx.fillText(portal.type === 'distorted_rift' ? 'DISTORTED RIFT' : 'SIDE PORTAL', portal.x, portal.y - 32);
     ctx.restore();
   }
+  for (const it of (explorePickups || [])) {
+    if (it.collected) continue;
+    const bob = Math.sin(frameCount * 0.09 + it.x) * 5;
+    const glow = it.type === 'heal' ? '#66ff88' : it.type === 'coin' ? '#ffcc33' : '#66ccff';
+    ctx.save();
+    ctx.shadowColor = glow;
+    ctx.shadowBlur = 14;
+    ctx.globalAlpha = 0.92;
+    ctx.font = '22px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText(it.icon, it.x, it.y + bob);
+    ctx.restore();
+  }
   if (exploreGoalFound) return;
   const gx = exploreGoalX + 12;
   const gy = 380;

@@ -11,6 +11,9 @@ signal parried(defender, attacker)
 var fighters: Array = []   # Array[Fighter] — untyped so autoload loads before Fighter class
 var round_active := false
 var match_over := false
+# Horde/adventure mode: single deaths don't end the match — the scene owns
+# win/lose (all enemies cleared, or the player is out of lives).
+var horde_mode := false
 
 # Global physics-frame counter (mirrors frameCount in the 2D game).
 var frame_count := 0
@@ -58,6 +61,7 @@ func reset() -> void:
 	fighters.clear()
 	round_active = false
 	match_over = false
+	horde_mode = false
 	hit_stop_frames = 0
 
 func register_fighter(f: Node) -> void:
@@ -177,6 +181,7 @@ func deal_damage(attacker: Node, target: Node, dmg: int, kb_force: float, heavy 
 
 func _on_fighter_died(fighter: Node) -> void:
 	if match_over: return
+	if horde_mode: return   # the adventure scene decides win/lose, not first-death
 
 	if fighter.lives <= 0:
 		# This fighter is eliminated — the other player wins

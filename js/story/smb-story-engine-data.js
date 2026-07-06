@@ -86,7 +86,8 @@ function _expandStoryChaptersInPlace() {
     const rangeStart = expanded.length;
 
     if (origCh.noFight || origCh.isEpilogue || origCh.isDamnationChapter || origCh.type === 'exploration'
-        || origCh.type === 'assassination' || origCh.type === 'gauntlet' || origCh.type === 'ship_flight' || origCh.type === 'escort') {
+        || origCh.type === 'assassination' || origCh.type === 'gauntlet' || origCh.type === 'ship_flight' || origCh.type === 'escort'
+        || origCh.walkFight) {
       // Special-mode chapters stay single & intact so their type + mode data
       // (assassinationTimer, gauntletRounds, escortNPC, shipFlight) survive to
       // reach the real mode engine instead of collapsing to a plain duel.

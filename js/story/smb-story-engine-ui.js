@@ -3,6 +3,7 @@
 // Depends on: smb-globals.js, smb-story-registry.js (and preceding story-engine splits)
 
 let _skillTreeAnimId = null;
+let _masterySelectedWeapon = 'sword';
 
 // ── UI helpers ────────────────────────────────────────────────────────────────
 function _worldIcon(w) {
@@ -646,6 +647,8 @@ function _renderSkillTreeModal() {
   }
   draw();
 
+  _renderWeaponMasterySection(container);
+
   // ── Mouse interaction ────────────────────────────────────────────────────
   function hitNode(e) {
     const rect = canvas.getBoundingClientRect();
@@ -716,6 +719,95 @@ function _renderSkillTreeModal() {
     if (typeof showToast   === 'function') showToast('✓ ' + n.name + ' unlocked!');
     // No full re-render needed — canvas draws live from _story2 state
   });
+}
+
+// ── Per-weapon mastery panel (appended below the skill-tree canvas) ──────────────
+function _meleeWeaponKeys() {
+  if (typeof WEAPON_KEYS === 'undefined' || typeof WEAPONS === 'undefined') return ['sword'];
+  return WEAPON_KEYS.filter(k => WEAPONS[k] && WEAPONS[k].type !== 'ranged');
+}
+
+function _renderWeaponMasterySection(container) {
+  if (!container || typeof STORY_WEAPON_MASTERY === 'undefined') return;
+  const old = container.querySelector('#weaponMasterySection');
+  if (old) old.remove();
+
+  const melee = _meleeWeaponKeys();
+  if (!melee.includes(_masterySelectedWeapon)) _masterySelectedWeapon = melee[0] || 'sword';
+  const wKey = _masterySelectedWeapon;
+  const wm   = (_story2 && _story2.weaponSkills && _story2.weaponSkills[wKey]) || {};
+  const exp  = (_story2 && _story2.exp) || 0;
+
+  const wrap = document.createElement('div');
+  wrap.id = 'weaponMasterySection';
+  wrap.style.cssText = 'margin-top:18px;padding-top:14px;border-top:1px solid rgba(120,120,200,0.18);';
+
+  // Header + weapon selector
+  const head = document.createElement('div');
+  head.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px;flex-wrap:wrap;';
+  head.innerHTML = `<span style="font-size:0.72rem;letter-spacing:2px;text-transform:uppercase;color:#ffcc66;font-weight:700;">⚔️ Weapon Mastery</span>
+    <span style="font-size:0.68rem;color:#aaff88;">${exp} EXP</span>`;
+  const sel = document.createElement('select');
+  sel.style.cssText = 'background:rgba(10,10,26,0.9);color:#dde4ff;border:1px solid rgba(120,120,200,0.35);border-radius:6px;padding:5px 9px;font-size:0.72rem;font-family:inherit;';
+  for (const k of melee) {
+    const opt = document.createElement('option');
+    opt.value = k;
+    opt.textContent = (WEAPONS[k] && WEAPONS[k].name) || k;
+    if (k === wKey) opt.selected = true;
+    sel.appendChild(opt);
+  }
+  sel.addEventListener('change', () => { _masterySelectedWeapon = sel.value; _renderWeaponMasterySection(container); });
+  head.appendChild(sel);
+  wrap.appendChild(head);
+
+  // Node cards
+  const grid = document.createElement('div');
+  grid.style.cssText = 'display:flex;gap:9px;flex-wrap:wrap;';
+  for (const node of STORY_WEAPON_MASTERY) {
+    const owned   = !!wm[node.id];
+    const reqMet  = !node.requires || !!wm[node.requires];
+    const canBuy  = !owned && reqMet && exp >= node.expCost;
+    const locked  = !owned && !reqMet;
+
+    const card = document.createElement('div');
+    card.style.cssText = [
+      'border-radius:9px', 'padding:9px 11px 8px', 'width:150px', 'box-sizing:border-box',
+      `border:1px solid ${owned ? '#ffcc66aa' : canBuy ? '#ffcc6655' : 'rgba(255,255,255,0.07)'}`,
+      `background:${owned ? 'rgba(60,48,20,0.5)' : canBuy ? 'rgba(30,26,50,0.5)' : 'rgba(5,5,18,0.3)'}`,
+      `opacity:${locked ? '0.35' : '1'}`,
+      canBuy ? 'cursor:pointer;' : 'cursor:default;',
+    ].join(';');
+
+    const status = owned
+      ? '<span style="color:#66ee99">✓ Unlocked</span>'
+      : locked
+      ? `<span style="color:#556">🔒 Needs ${((STORY_WEAPON_MASTERY.find(n => n.id === node.requires) || {}).name) || node.requires}</span>`
+      : `<span style="color:${canBuy ? '#ffcc66' : '#556'}">${node.expCost} EXP</span>`;
+
+    card.innerHTML = `<div style="font-size:0.78rem;color:${owned ? '#ffe0a0' : canBuy ? '#dde4ff' : '#556'};font-weight:700;margin-bottom:3px;">${node.name}</div>
+      <div style="font-size:0.62rem;color:#8899bb;line-height:1.35;margin-bottom:5px;">${node.desc}</div>
+      <div style="font-size:0.66rem;">${status}</div>`;
+    if (canBuy) card.addEventListener('click', () => _buyWeaponMasteryNode(wKey, node, container));
+    grid.appendChild(card);
+  }
+  wrap.appendChild(grid);
+  container.appendChild(wrap);
+}
+
+function _buyWeaponMasteryNode(weaponKey, node, container) {
+  const ws = _story2.weaponSkills = _story2.weaponSkills || {};
+  const wm = ws[weaponKey] = ws[weaponKey] || {};
+  const exp = _story2.exp || 0;
+  if (wm[node.id]) return;
+  if (node.requires && !wm[node.requires]) return;
+  if (exp < node.expCost) return;
+  _story2.exp = exp - node.expCost;
+  wm[node.id] = true;
+  if (typeof _saveStory2 === 'function') _saveStory2();
+  const expEl = document.getElementById('skillTreeExpDisplay');
+  if (expEl) expEl.textContent = _story2.exp;
+  _renderWeaponMasterySection(container);
+  if (typeof showToast === 'function') showToast(`✓ ${node.name} — ${(WEAPONS[weaponKey] && WEAPONS[weaponKey].name) || weaponKey}`);
 }
 
 // ── Opening prologue — shown on first play or after save wipe ─────────────────

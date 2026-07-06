@@ -81,6 +81,7 @@ function updateInterlude() {
       maxTimer: dur,
       isCaption: !raw.speaker,
     };
+    if (window.StoryVoice) StoryVoice.speak(_ilActive.text, _ilActive.speaker || 'none');
   }
 
   // Completion check

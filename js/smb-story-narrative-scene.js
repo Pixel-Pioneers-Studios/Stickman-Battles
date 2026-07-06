@@ -1159,6 +1159,8 @@
       else if (sting === 'impact'  && SoundManager.stingImpact) SoundManager.stingImpact();
       else if (sting === 'silence') SoundManager._cosmicSilenceTimer = 50; // anticipation hush
     }
+    var _vb = _beats[_beatIdx];
+    if (_vb && window.StoryVoice) StoryVoice.speak(_vb.lines.join(' '), _vb.speaker);
   }
 
   // ── Advance / finish ───────────────────────────────────────────────────────────

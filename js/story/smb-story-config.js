@@ -107,23 +107,12 @@ function _showStoryPrologue(modalEl) {
   ].join('');
 
   const lines = [
-    { text: 'The multiverse is fracturing.',           delay: 0,    color: '#ffffff', size: '1.15rem', weight: '600' },
-    { text: 'Not slowly. Not naturally.',               delay: 400,  color: '#dddddd', size: '0.92rem' },
-    { text: '',                                          delay: 700  },
-    { text: 'Something is accelerating the collapse.',  delay: 900,  color: '#cc88ff', size: '1rem' },
-    { text: 'Seventeen branches of reality. All dying.', delay: 1400, color: '#cc88ff', size: '1rem' },
+    { text: 'Something is wrong with the world.',        delay: 0,    color: '#ffffff', size: '1.15rem', weight: '600' },
+    { text: 'You can feel it at the edges of things.',   delay: 600,  color: '#dddddd', size: '0.92rem' },
+    { text: '',                                          delay: 1000 },
+    { text: 'No one else seems to notice.',              delay: 1200, color: '#cc88ff', size: '1rem' },
     { text: '',                                          delay: 1700 },
-    { text: 'The entity responsible is called Axiom.',  delay: 1900, color: '#ff6644', size: '1rem', weight: '600' },
-    { text: 'It built the system. It set the rules.',   delay: 2400, color: '#ff8866', size: '0.92rem' },
-    { text: 'It has never lost.',                       delay: 2800, color: '#ff4422', size: '0.92rem' },
-    { text: '',                                          delay: 3100 },
-    { text: 'Across all seventeen fracture branches,',  delay: 3300, color: '#88ccff', size: '1rem' },
-    { text: 'Axiom\'s scouts recognized exactly one person.', delay: 3700, color: '#aaddff', size: '1rem' },
-    { text: '',                                          delay: 4000 },
-    { text: 'You.',                                      delay: 4200, color: '#ffffff', size: '1.4rem', weight: '800' },
-    { text: '',                                          delay: 4500 },
-    { text: 'You don\'t know why. Not yet.',            delay: 4700, color: '#999999', size: '0.88rem' },
-    { text: 'But every fight from here is an answer.',  delay: 5100, color: '#999999', size: '0.88rem' },
+    { text: 'It starts with you.',                       delay: 1900, color: '#ffffff', size: '1.4rem', weight: '800' },
   ];
 
   const textContainer = document.createElement('div');
@@ -152,7 +141,7 @@ function _showStoryPrologue(modalEl) {
     'color:#cc44ff;font-size:0.9rem;font-weight:600;letter-spacing:2px;',
     'border-radius:4px;cursor:pointer;opacity:0;transition:opacity 0.6s ease;',
   ].join('');
-  setTimeout(() => { btn.style.opacity = '1'; }, 5800);
+  setTimeout(() => { btn.style.opacity = '1'; }, 3000);
   btn.onclick = () => { ov.style.opacity = '0'; setTimeout(() => ov.remove(), 400); };
   ov.style.transition = 'opacity 0.4s ease';
 
@@ -872,6 +861,41 @@ const STORY_SKILL_TREE = {
   },
 };
 
+// ── Per-weapon mastery (God of War style) ──────────────────────────────────────
+// One uniform ladder applied per weapon; purchases live in _story2.weaponSkills[weaponKey].
+// EXP is the shared pool (_story2.exp). Effects route through existing hooks:
+// damage → storyPlayerOverride.dmgMult, HP → _applySkillTreeToPlayer, Q cooldown → Fighter.ability().
+const STORY_WEAPON_MASTERY = [
+  { id: 'honed1',     name: 'Honed Edge I',   desc: '+12% damage with this weapon',                expCost: 30,  requires: null },
+  { id: 'honed2',     name: 'Honed Edge II',  desc: '+22% damage total with this weapon',          expCost: 55,  requires: 'honed1' },
+  { id: 'reinforced', name: 'Reinforced',     desc: '+20 max HP while wielding this weapon',        expCost: 45,  requires: 'honed1' },
+  { id: 'swiftdraw',  name: 'Swift Draw',     desc: "This weapon's Q ability cools 25% faster",     expCost: 50,  requires: 'honed1' },
+  { id: 'mastery',    name: 'Weapon Mastery', desc: '+10% damage and Q cools 15% faster (stacks)',  expCost: 110, requires: 'honed2' },
+];
+
+// Damage fraction added by the equipped weapon's mastery (0 = none).
+function _weaponMasteryDmgBonus(weaponKey) {
+  const wm = (_story2 && _story2.weaponSkills && _story2.weaponSkills[weaponKey]) || {};
+  let b = wm.honed2 ? 0.22 : wm.honed1 ? 0.12 : 0;
+  if (wm.mastery) b += 0.10;
+  return b;
+}
+
+// Max-HP added by the equipped weapon's mastery.
+function _weaponMasteryHpBonus(weaponKey) {
+  const wm = (_story2 && _story2.weaponSkills && _story2.weaponSkills[weaponKey]) || {};
+  return wm.reinforced ? 20 : 0;
+}
+
+// Q-ability cooldown multiplier from the equipped weapon's mastery (1 = unchanged).
+function _weaponMasteryCdMult(weaponKey) {
+  const wm = (_story2 && _story2.weaponSkills && _story2.weaponSkills[weaponKey]) || {};
+  let m = 1;
+  if (wm.swiftdraw) m *= 0.75;
+  if (wm.mastery)   m *= 0.85;
+  return m;
+}
+
 // Apply purchased skill tree bonuses to a fighter in story mode
 function _applySkillTreeToPlayer(p) {
   if (!p || !_story2.skillTree) return;
@@ -881,11 +905,14 @@ function _applySkillTreeToPlayer(p) {
   if (p._storyNoDoubleJump !== undefined) p._storyNoDoubleJump = !sk.doubleJump;
   if (p._storyNoDodge !== undefined) p._storyNoDodge = !sk.dodge;
   // HP bonus (stacking tiers)
-  const hpBonus = (sk.tankier3 ? 40 : sk.tankier2 ? 25 : sk.tankier1 ? 15 : 0);
+  const wKey    = p.weaponKey || 'sword';
+  const hpBonus = (sk.tankier3 ? 40 : sk.tankier2 ? 25 : sk.tankier1 ? 15 : 0) + _weaponMasteryHpBonus(wKey);
   if (hpBonus > 0) {
     p.maxHealth = (p.maxHealth || 100) + hpBonus;
     p.health    = Math.min(p.health + hpBonus, p.maxHealth);
   }
+  // Per-weapon Q-ability cooldown scaling (consumed in Fighter.ability())
+  p._weaponAbilityCdMult = _weaponMasteryCdMult(wKey);
   // Speed
   const speedBonus = sk.fastMove3 ? 0.30 : sk.fastMove2 ? 0.20 : sk.fastMove1 ? 0.10 : 0;
   if (speedBonus > 0) p._storySpeedMult = 1.0 + speedBonus;
@@ -931,9 +958,11 @@ function _defaultStory2Progress() {
     chapter:           0,       // index into STORY_CHAPTERS2 (next to play)
     tokens:            0,
     exp:               0,       // EXP earned from kills — used for skill tree
+    health:            null,    // persistent HP carried between walk→fight chapters (null = full)
     blueprints:        [],      // blueprint keys earned
     unlockedAbilities: [],      // ability keys bought from store
     skillTree:         {},      // { nodeId: true } — purchased skill nodes
+    weaponSkills:      {},      // { weaponKey: { nodeId: true } } — per-weapon mastery
     defeated:          [],      // chapter indices completed
     storyComplete:     false,
     runState:          { healthPct: 1, noDeathChain: 0 },
@@ -982,6 +1011,12 @@ function _normalizeStory2Progress(data) {
   if (Array.isArray(data.blueprints)) out.blueprints = data.blueprints.slice();
   if (Array.isArray(data.unlockedAbilities)) out.unlockedAbilities = data.unlockedAbilities.slice();
   if (data.skillTree && typeof data.skillTree === 'object') out.skillTree = Object.assign({}, data.skillTree);
+  if (data.weaponSkills && typeof data.weaponSkills === 'object') {
+    out.weaponSkills = {};
+    for (const wk of Object.keys(data.weaponSkills)) {
+      if (data.weaponSkills[wk] && typeof data.weaponSkills[wk] === 'object') out.weaponSkills[wk] = Object.assign({}, data.weaponSkills[wk]);
+    }
+  }
   if (Array.isArray(data.defeated)) out.defeated = data.defeated.slice();
   if (typeof data.storyComplete === 'boolean') out.storyComplete = data.storyComplete;
   if (data.runState && typeof data.runState === 'object') out.runState = Object.assign({}, base.runState, data.runState);
@@ -1009,6 +1044,7 @@ function _story2Meaningful(data) {
   if (Array.isArray(data.blueprints) && data.blueprints.length > 0) return true;
   if (Array.isArray(data.unlockedAbilities) && data.unlockedAbilities.length > 0) return true;
   if (data.skillTree && Object.keys(data.skillTree).length > 0) return true;
+  if (data.weaponSkills && Object.keys(data.weaponSkills).length > 0) return true;
   if (data.runState && ((typeof data.runState.healthPct === 'number' && data.runState.healthPct !== 1) ||
       (typeof data.runState.noDeathChain === 'number' && data.runState.noDeathChain > 0))) return true;
   if (data.metaUpgrades && ((data.metaUpgrades.damage || 0) > 0 || (data.metaUpgrades.survivability || 0) > 0 || (data.metaUpgrades.healUses || 0) > 0)) return true;

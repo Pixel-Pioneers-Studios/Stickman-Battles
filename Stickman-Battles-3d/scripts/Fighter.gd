@@ -14,6 +14,16 @@ var weapon_key   := "sword"
 var is_ai        := false
 var spawn_pos    := Vector3.ZERO
 
+# ── Adventure mode ────────────────────────────────────────────────────────────
+var control_camera : Node3D = null    # when set, movement is camera-relative
+var lock_target    : Fighter = null   # when set, face/strafe around this target
+var dodge_timer    := 0               # >0 while rolling
+var dodge_cd       := 0               # recovery before another roll
+var _dodge_vel     := Vector3.ZERO
+var _ai_block_frames := 0             # >0 while an AI-driven block is held
+var speed_scale    := 1.0             # enemy-variant move-speed multiplier (brute = slow)
+var stun_scale     := 1.0             # enemy-variant hitstun multiplier (brute = poised)
+
 # ── Physics ───────────────────────────────────────────────────────────────────
 const GRAVITY          := 40.0
 const MOVE_SPEED       := 8.0
@@ -35,6 +45,14 @@ const SUPER_IFRAMES      := 90              # 1.5 s i-frames on activation
 enum AtkPhase { NONE, WINDUP, ACTIVE }
 const ACTIVE_FRAMES_LIGHT := 6
 const ACTIVE_FRAMES_HEAVY := 8
+
+# ── Dodge-roll (adventure evade with i-frames) ────────────────────────────────
+const DODGE_FRAMES  := 16    # roll duration
+const DODGE_IFRAMES := 13    # invincibility window inside the roll
+const DODGE_SPEED   := 15.0  # burst velocity
+const DODGE_CD      := 20    # recovery after the roll before another
+# AI attacks wind up slower than the player's so telegraphs are reactable.
+const AI_WINDUP_MULT := 2.6
 
 # ── State ─────────────────────────────────────────────────────────────────────
 var can_double_jump := false
@@ -205,7 +223,9 @@ func _physics_process(delta: float) -> void:
 		return   # global hit-stop: everyone freezes
 
 	_tick_timers()
-	if not is_ai:
+	if is_ai:
+		_process_ai(delta)
+	else:
 		_process_input(delta)
 	_apply_gravity(delta)
 	_apply_knockback()
@@ -223,28 +243,70 @@ func _action(act: String) -> String:
 func _process_input(delta: float) -> void:
 	var incap := stun_timer > 0
 
-	# ── Movement (world-space, camera is fixed-yaw) ───────────────────────────
-	var move := Vector3.ZERO
-	move.x = Input.get_action_strength(_action("right")) - Input.get_action_strength(_action("left"))
-	move.z = Input.get_action_strength(_action("down"))  - Input.get_action_strength(_action("up"))
+	# ── Movement ──────────────────────────────────────────────────────────────
+	# PvP: world-space (fixed-yaw framing cam). Adventure: camera-relative.
+	var ix := Input.get_action_strength(_action("right")) - Input.get_action_strength(_action("left"))
+	var iz := Input.get_action_strength(_action("down"))  - Input.get_action_strength(_action("up"))
+	var move := Vector3(ix, 0.0, iz)
+	if control_camera != null:
+		var cyaw: float = control_camera.get_yaw() if control_camera.has_method("get_yaw") else 0.0
+		var fwd   := Vector3(sin(cyaw), 0.0, cos(cyaw)) * -1.0   # into the screen
+		var right := Vector3(cos(cyaw), 0.0, -sin(cyaw))         # screen-right
+		move = right * ix + fwd * (-iz)
+
+	# ── Dodge-roll (adventure only): i-frame evade, cancels other actions ──────
+	if dodge_timer > 0:
+		velocity.x = _dodge_vel.x
+		velocity.z = _dodge_vel.z
+		_dodge_vel *= 0.90
+		var ryaw := _facing_yaw
+		if lock_target != null and is_instance_valid(lock_target) and not lock_target._dying:
+			var ld := lock_target.global_position - global_position
+			if Vector2(ld.x, ld.z).length_squared() > 0.01:
+				ryaw = atan2(ld.x, ld.z)
+		elif _dodge_vel.length_squared() > 0.01:
+			ryaw = atan2(_dodge_vel.x, _dodge_vel.z)
+		_facing_yaw = lerp_angle(_facing_yaw, ryaw, TURN_SPEED * delta)
+		rotation.y  = _facing_yaw
+		return
+	if control_camera != null and Input.is_action_just_pressed("dodge") \
+			and dodge_cd <= 0 and not incap and is_on_floor() \
+			and _atk_phase == AtkPhase.NONE:
+		var ddir := move
+		if ddir.length_squared() < 0.01:
+			ddir = -Vector3(sin(_facing_yaw), 0.0, cos(_facing_yaw))   # backstep
+		ddir = ddir.normalized()
+		_dodge_vel   = ddir * DODGE_SPEED
+		dodge_timer  = DODGE_FRAMES
+		dodge_cd     = DODGE_FRAMES + DODGE_CD
+		invincible   = maxi(invincible, DODGE_IFRAMES)
+		is_shielding = false
+		return
 
 	if not incap:
 		var speed_mult := 1.0
 		if _atk_phase != AtkPhase.NONE: speed_mult = 0.5   # slowed while swinging
 		elif is_shielding:              speed_mult = 0.4   # slowed while shielding
-		if move.length_squared() > 0.01:
+		var moving := move.length_squared() > 0.01
+		if moving:
 			move = move.normalized()
 			velocity.x = move.x * MOVE_SPEED * speed_mult
 			velocity.z = move.z * MOVE_SPEED * speed_mult
-			# Rotate character smoothly to face movement direction
-			var target_yaw := atan2(move.x, move.z)
-			_facing_yaw = lerp_angle(_facing_yaw, target_yaw, TURN_SPEED * delta)
-			rotation.y  = _facing_yaw
 		else:
 			velocity.x *= 0.70
 			velocity.z *= 0.70
 			if absf(velocity.x) < 0.05: velocity.x = 0.0
 			if absf(velocity.z) < 0.05: velocity.z = 0.0
+		# Facing: lock-on faces the target (strafe); else face movement direction
+		var target_yaw := _facing_yaw
+		if lock_target != null and is_instance_valid(lock_target) and not lock_target._dying:
+			var ld := lock_target.global_position - global_position
+			if Vector2(ld.x, ld.z).length_squared() > 0.01:
+				target_yaw = atan2(ld.x, ld.z)
+		elif moving:
+			target_yaw = atan2(move.x, move.z)
+		_facing_yaw = lerp_angle(_facing_yaw, target_yaw, TURN_SPEED * delta)
+		rotation.y  = _facing_yaw
 	elif incap:
 		velocity.x *= 0.80
 		velocity.z *= 0.80
@@ -270,6 +332,85 @@ func _process_input(delta: float) -> void:
 		_start_attack(true)
 	elif Input.is_action_just_pressed(_action("super")) and can_act and super_ready:
 		_use_super()
+
+# ── AI brain (adventure enemy): approach the player, strike in range ──────────
+func _ai_find_target() -> Fighter:
+	var best: Fighter = null
+	var best_d := INF
+	for f in GameManager.fighters:
+		if f == self or not (f is Fighter): continue
+		if f.is_ai or f._dying or f.health <= 0: continue
+		var d: float = global_position.distance_to(f.global_position)
+		if d < best_d:
+			best_d = d
+			best   = f
+	return best
+
+func _process_ai(delta: float) -> void:
+	var incap := stun_timer > 0
+	var tgt := _ai_find_target()
+	if tgt == null or incap:
+		velocity.x *= 0.80
+		velocity.z *= 0.80
+		return
+
+	var to := tgt.global_position - global_position
+	to.y = 0.0
+	var dist := to.length()
+	var dir  := to.normalized() if dist > 0.001 else Vector3.ZERO
+
+	# ── Reactive block: raise shield when the player commits to a swing ────────
+	if _ai_block_frames > 0:
+		if not is_shielding:
+			_ai_block_frames = 0                 # shield was broken — resume normal
+		else:
+			_ai_block_frames -= 1
+			shield_hold_timer += 1
+			velocity.x *= 0.60
+			velocity.z *= 0.60
+			if dir.length_squared() > 0.01:
+				_facing_yaw = lerp_angle(_facing_yaw, atan2(dir.x, dir.z), TURN_SPEED * delta)
+				rotation.y  = _facing_yaw
+			if _ai_block_frames <= 0 or shield_hold_timer >= SHIELD_MAX_HOLD:
+				is_shielding = false
+				shield_hold_timer = 0
+			return
+	if dist < 2.6 and tgt._atk_phase != AtkPhase.NONE \
+			and cooldown <= 0 and _atk_phase == AtkPhase.NONE \
+			and not is_shielding and not shield_broken and randf() < 0.4:
+		shield_stacks         = 1
+		shield_recharge_timer = SHIELD_RECHARGE
+		is_shielding          = true
+		shield_hold_timer     = 1
+		shield_hp             = SHIELD_HP_TABLE[1]
+		_ai_block_frames      = 26
+		return
+
+	# Close to within actual melee reach — the light hitbox only extends ~1.35m
+	# in front, so stopping farther out whiffs every swing (only the super's
+	# radial burst would connect). 1.4 sits comfortably inside that reach.
+	const ATK_RANGE := 1.4
+	var speed_mult := 0.5 if _atk_phase != AtkPhase.NONE else 1.0
+	if dist > ATK_RANGE:
+		velocity.x = dir.x * MOVE_SPEED * 0.9 * speed_mult * speed_scale
+		velocity.z = dir.z * MOVE_SPEED * 0.9 * speed_mult * speed_scale
+	else:
+		velocity.x *= 0.60
+		velocity.z *= 0.60
+
+	# Always face the player
+	if dir.length_squared() > 0.01:
+		_facing_yaw = lerp_angle(_facing_yaw, atan2(dir.x, dir.z), TURN_SPEED * delta)
+		rotation.y  = _facing_yaw
+
+	# Strike when in range and free to act
+	var can_act := cooldown <= 0 and attack_endlag <= 0 \
+			and _atk_phase == AtkPhase.NONE and not is_shielding
+	if dist <= ATK_RANGE and can_act:
+		if super_ready and randf() < 0.12:
+			_use_super()
+		else:
+			_start_attack(randf() < 0.35)   # ~35% heavy
 
 func _process_shield_input(incap: bool) -> void:
 	var s_held := Input.is_action_pressed(_action("shield"))
@@ -328,6 +469,8 @@ func _tick_timers() -> void:
 	if hurt_timer    > 0: hurt_timer    -= 1
 	if attack_endlag > 0: attack_endlag -= 1
 	if parry_vuln_frames > 0: parry_vuln_frames -= 1
+	if dodge_timer   > 0: dodge_timer   -= 1
+	if dodge_cd      > 0: dodge_cd      -= 1
 
 	# Passive super trickle — the "slow charge"
 	if not super_active:
@@ -363,6 +506,7 @@ func _start_attack(heavy: bool) -> void:
 
 	var windup: int = _weapon.get("windup", 5)
 	if heavy: windup = int(ceil(windup * 1.6))
+	if is_ai: windup = int(ceil(windup * AI_WINDUP_MULT))   # reactable telegraph
 	_atk_phase   = AtkPhase.WINDUP
 	_phase_total = windup
 	_phase_timer = windup
@@ -509,6 +653,7 @@ func take_damage(attacker: Fighter, dmg: int, kb_force: float) -> void:
 	var stun := int(kb_force * 0.40)
 	if attacker and attacker.combo_hit_count > 1:
 		stun = int(stun * maxf(0.28, 1.0 - (attacker.combo_hit_count - 1) * 0.08))
+	stun = int(stun * stun_scale)
 	stun_timer = maxi(stun_timer, stun)
 
 	# 3D knockback: away from attacker in XZ, with upward pop
@@ -598,6 +743,9 @@ func _update_visuals() -> void:
 	# Colour states
 	if hurt_timer > 0 and hurt_timer % 4 < 2:
 		_body_mat.albedo_color = Color.WHITE
+	elif is_ai and _atk_phase == AtkPhase.WINDUP:
+		# Attack telegraph: red = heavy (dodge it), orange = light
+		_body_mat.albedo_color = Color(1.0, 0.15, 0.1) if _heavy_active else Color(1.0, 0.55, 0.1)
 	elif stun_timer > 0:
 		_body_mat.albedo_color = Color(0.9, 0.8, 0.2)
 	elif parry_vuln_frames > 0 and parry_vuln_frames % 10 < 5:

@@ -621,7 +621,7 @@ let camDramaZoom   = 1.0;
 // SETTINGS & FRAME STATE
 // ============================================================
 // User-configurable settings (toggled from menu)
-const settings = { particles: true, screenShake: true, dmgNumbers: true, landingDust: true, bossAura: true, botPortal: true, phaseFlash: true, ragdollEnabled: (localStorage.getItem('smc_ragdoll') === '1'), finishers: true, view3D: (localStorage.getItem('smc_view3D') === '1'), experimental3D: (localStorage.getItem('smc_experimental3D') === '1'), hideHud: false };
+const settings = { particles: true, screenShake: true, dmgNumbers: true, landingDust: true, bossAura: true, botPortal: true, phaseFlash: true, ragdollEnabled: (localStorage.getItem('smc_ragdoll') === '1'), finishers: true, view3D: (localStorage.getItem('smc_view3D') === '1'), experimental3D: (localStorage.getItem('smc_experimental3D') === '1'), hideHud: false, storyVoice: (localStorage.getItem('smc_storyVoice') !== '0'), replayCinematics: (localStorage.getItem('smc_replayCinematics') === '1') };
 
 // Active finisher state — set by triggerFinisher(), cleared when animation completes or on backToMenu
 let activeFinisher = null;
@@ -1007,6 +1007,10 @@ let exploreSidePortals = [];    // [{ x, y, type, reward, active, entered }]
 let exploreAmbushTimer = 0;
 let exploreCombatQuiet = 0;
 let exploreArenaLock = null;    // { left, right, enemies:[], cleared, label }
+let exploreDuelMode = false;    // true = walk→fight→walk single-duel exploration wrapper
+let exploreDuelOpponent = null; // { name, weaponKey, classKey, aiDiff, color, health } spawned at the duel checkpoint
+let explorePickups = [];        // [{ x, y, type:'coin'|'xp'|'heal', icon, value, collected }] loot in the walk zone
+let exploreSeedHealth = null;   // pending carried-over HP applied on the first exploration frame (null = none)
 let storyChaseTimer    = 0;     // frames remaining in a chase phase (0 = no chase active)
 let storyChaseMaxTimer = 0;     // max frames (used for the HUD progress bar)
 let storeSurvivalState = null;  // { active, state, wave, totalWaves, waveSize, timer, baseEnemy }

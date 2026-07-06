@@ -87,6 +87,7 @@ STORY_CHAPTER_REGISTRY.push(
     opponentName: 'Seam Enforcer', weaponKey: 'axe', classKey: 'berserker', aiDiff: 'medium', opponentColor: '#cc4444',
     playerLives: 2,
     arena: 'ruins',
+    walkFight: true, worldLength: 3000,
     tokenReward: 18, blueprintDrop: null,
     postText: 'You\'re standing in the middle of an invasion. And you\'re still standing.',
   },

@@ -382,6 +382,10 @@ function toggleSettings() {
 function openSettingsModal() {
   const m = document.getElementById('settingsModal');
   if (m) m.style.display = 'flex';
+  const svEl = document.getElementById('settingStoryVoice');
+  if (svEl) svEl.checked = settings.storyVoice !== false;
+  const rcEl = document.getElementById('settingReplayCinematics');
+  if (rcEl) rcEl.checked = !!settings.replayCinematics;
 }
 
 function closeSettingsModal() {
@@ -462,6 +466,17 @@ function updateSettings() {
   if (phaseFlashEl) settings.phaseFlash = phaseFlashEl.checked;
   const finishersEl = document.getElementById('settingFinishers');
   if (finishersEl) settings.finishers = finishersEl.checked;
+  const storyVoiceEl = document.getElementById('settingStoryVoice');
+  if (storyVoiceEl) {
+    settings.storyVoice = storyVoiceEl.checked;
+    localStorage.setItem('smc_storyVoice', settings.storyVoice ? '1' : '0');
+    if (!settings.storyVoice && typeof StoryVoice !== 'undefined') StoryVoice.stop();
+  }
+  const replayCinEl = document.getElementById('settingReplayCinematics');
+  if (replayCinEl) {
+    settings.replayCinematics = replayCinEl.checked;
+    localStorage.setItem('smc_replayCinematics', settings.replayCinematics ? '1' : '0');
+  }
   const hideHudEl = document.getElementById('settingHideHud');
   if (hideHudEl) {
     settings.hideHud = hideHudEl.checked;

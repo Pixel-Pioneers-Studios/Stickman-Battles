@@ -1324,6 +1324,10 @@
           <input type="checkbox" id="settingHideHud" onchange="updateSettings()">
           <span>Hide HUD</span>
         </label>
+        <label class="setting-item" title="Replay story cutscenes when refighting a chapter you've already beaten">
+          <input type="checkbox" id="settingReplayCinematics" onchange="updateSettings()">
+          <span>Replay Cutscenes</span>
+        </label>
       </div>
       <!-- Performance mode -->
       <div style="margin-top:8px;">
@@ -1342,6 +1346,10 @@
         </label>
         <button id="musicMuteBtn" class="btn settings-toggle" onclick="MusicManager.toggle();this.textContent=MusicManager.isMuted()?'&#127925; Music: Off':'&#127925; Music: On'" style="min-width:130px;">&#127925; Music: On</button>
       </div>
+      <label class="setting-item" style="margin-top:8px;">
+        <input type="checkbox" id="settingStoryVoice" checked onchange="updateSettings()">
+        <span>Story Voices</span>
+      </label>
     </div>
 
     <!-- ACCOUNT & DATA -->
@@ -1476,7 +1484,7 @@
   <!-- Error boundary — must be FIRST so it catches all other module errors -->
   <script src="./js/smb-errorboundary.js?v=3.9.8"></script>
   <!-- Global state, canvas setup -->
-  <script src="./js/smb-globals.js?v=3.9.10"></script>
+  <script src="./js/smb-globals.js?v=3.9.11"></script>
   <!-- CrazyGames SDK wrapper — must follow smb-globals.js -->
   <script src="./js/smb-crazygames.js?v=3.9.8"></script>
   <!-- Live ops: remote config, version checks, soft updates (must follow smb-globals.js) -->
@@ -1520,7 +1528,7 @@
   <!-- Platform graph + A* pathfinding (must load before smb-fighter.js) -->
   <script src="./js/smb-pathfinding.js?v=3.9.8"></script>
   <!-- Fighter base class -->
-  <script src="./js/smb-fighter.js?v=3.9.8"></script>
+  <script src="./js/smb-fighter.js?v=3.9.11"></script>
   <!-- Modular combat AI: CombatSystem, MovementSystem, AIController, CombatAIFighter -->
   <script src="./js/smb-combat-ai.js?v=3.9.8"></script>
   <!-- Enemy NPCs, training mode -->
@@ -1574,7 +1582,7 @@
   <script src="./js/smb-trueform-ending-update.js?v=3.9.8"></script>
   <script src="./js/smb-trueform-ending-draw.js?v=3.9.8"></script>
   <!-- Drawing, game state, HUD, visual effects -->
-  <script src="./js/rendering/smb-drawing-arenas.js?v=3.9.8"></script>
+  <script src="./js/rendering/smb-drawing-arenas.js?v=3.9.11"></script>
   <script src="./js/rendering/smb-drawing-bg.js?v=3.9.8"></script>
   <script src="./js/rendering/smb-drawing-effects.js?v=3.9.8"></script>
   <script src="./js/rendering/smb-drawing-scenes.js?v=3.9.8"></script>
@@ -1600,7 +1608,7 @@
   <script src="./js/smb-cheats.js?v=3.9.8"></script>
   <!-- Menu UI, startGame, tutorial -->
   <script src="./js/smb-menu-ui.js?v=3.9.8"></script>
-  <script src="./js/smb-menu-select.js?v=3.9.8"></script>
+  <script src="./js/smb-menu-select.js?v=3.9.11"></script>
   <script src="./js/smb-menu-config.js?v=3.9.8"></script>
   <script src="./js/smb-menu-spawn.js?v=3.9.8"></script>
   <script src="./js/smb-menu-startcore.js?v=3.9.8"></script>
@@ -1636,7 +1644,7 @@
   <script src="./js/smb-attacktest-gui.js?v=3.9.8"></script>
   <!-- Story Mode system -->
   <script src="./js/story/smb-story-registry.js?v=3.9.8"></script>
-  <script src="./js/story/acts/act0/smb-act0-arc1.js?v=3.9.8"></script>
+  <script src="./js/story/acts/act0/smb-act0-arc1.js?v=3.9.11"></script>
   <script src="./js/story/acts/act0/smb-act0-arc2.js?v=3.9.8"></script>
   <script src="./js/story/acts/act1/smb-act1-arc1.js?v=3.9.8"></script>
   <script src="./js/story/acts/act1/smb-act1-arc2.js?v=3.9.8"></script>
@@ -1673,18 +1681,18 @@
   <script src="./js/story/acts/actvoidmind/smb-voidmind-trial.js?v=3.9.8"></script>
   <script src="./js/story/acts/actvoidmind/smb-voidmind-after.js?v=3.9.8"></script>
   <script src="./js/story/acts/actvoidmind/smb-voidmind-fight.js?v=3.9.8"></script>
-  <script src="./js/story/smb-story-config.js?v=3.9.9"></script>
-  <script src="./js/story/smb-story-engine-data.js?v=3.9.10"></script>
+  <script src="./js/story/smb-story-config.js?v=3.9.11"></script>
+  <script src="./js/story/smb-story-engine-data.js?v=3.9.11"></script>
   <script src="./js/story/smb-story-engine-ui.js?v=3.9.8"></script>
   <script src="./js/smb-story-scenes.js?v=3.9.8"></script>
-  <script src="./js/smb-story-narrative-scene.js?v=3.9.8"></script>
-  <script src="./js/story/smb-story-engine-flow.js?v=3.9.10"></script>
+  <script src="./js/smb-story-narrative-scene.js?v=3.9.11"></script>
+  <script src="./js/story/smb-story-engine-flow.js?v=3.9.11"></script>
   <script src="./js/story/smb-story-engine-match.js?v=3.9.8"></script>
   <script src="./js/story/smb-story-engine-events.js?v=3.9.8"></script>
   <script src="./js/story/smb-story-engine-frame.js?v=3.9.8"></script>
-  <script src="./js/story/smb-story-engine-explore.js?v=3.9.8"></script>
-  <script src="./js/story/smb-story-engine-explore2.js?v=3.9.8"></script>
-  <script src="./js/story/smb-story-interlude.js?v=3.9.8"></script>
+  <script src="./js/story/smb-story-engine-explore.js?v=3.9.11"></script>
+  <script src="./js/story/smb-story-engine-explore2.js?v=3.9.11"></script>
+  <script src="./js/story/smb-story-interlude.js?v=3.9.11"></script>
   <script src="./js/story/smb-story-engine-modes.js?v=3.9.8"></script>
   <script src="./js/story/smb-story-finalize.js?v=3.9.8"></script>
   <!-- Escort chapter engine — NPC protection, wave spawning, story integration -->
@@ -1701,6 +1709,8 @@
   <script src="./js/smb-test-tools.js?v=3.9.8"></script>
   <!-- Replay system — recording, IndexedDB storage, download, and viewer -->
   <script src="./js/smb-replay.js?v=3.9.8"></script>
+  <!-- StoryVoice — speaks story dialogue lines via the Web Speech API -->
+  <script src="./js/smb-storyvoice.js?v=3.9.11"></script>
 
   <!-- YouTube IFrame API for background music (HTTP/HTTPS only — skipped on file://) -->
   <div id="ytBossPlayer"    style="position:fixed;width:1px;height:1px;opacity:0;pointer-events:none;left:-9999px;top:-9999px;"></div>

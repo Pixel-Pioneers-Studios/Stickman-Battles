@@ -59,6 +59,12 @@ function updateExploration() {
   if (!exploreActive || !players[0] || !gameRunning) return;
   const p1 = players[0];
 
+  // Apply carried-over HP once, on the first frame the player exists
+  if (exploreSeedHealth != null) {
+    p1.health = Math.max(1, Math.min(p1.maxHealth, exploreSeedHealth));
+    exploreSeedHealth = null;
+  }
+
   // Chase phase: count down the escape timer each frame
   if (storyChaseTimer > 0 && !exploreGoalFound) {
     storyChaseTimer--;
@@ -83,6 +89,8 @@ function updateExploration() {
   if (typeof updateDefenseMode  === 'function' && defenseModeActive)  updateDefenseMode();
   if (typeof updateScavengeMode === 'function' && scavengeModeActive) updateScavengeMode();
   if (typeof updatePuzzleMode   === 'function' && puzzleModeActive)   updatePuzzleMode();
+
+  updateExplorePickups(p1);
 
   const activeEnemyCount = minions.filter(m => m.health > 0).length;
   const inCombat = activeEnemyCount > 0 || !!players.find(p => p !== p1 && p.health > 0 && p.isAI);
@@ -117,6 +125,8 @@ function updateExploration() {
   // Goal reached?
   if (!exploreArenaLock && !exploreGoalFound && p1.x + p1.w >= exploreGoalX && p1.health > 0) {
     exploreGoalFound = true;
+    // Persist current HP so it carries into the next walk→fight chapter
+    if (exploreDuelMode) { _story2.health = Math.round(p1.health); if (typeof _saveStory2 === 'function') _saveStory2(); }
     SoundManager.superActivate();
     spawnParticles(exploreGoalX + 20, 380, '#ffffaa', 40);
     // Show completion subtitle
@@ -145,7 +155,19 @@ function updateExploration() {
       color: '#7dffcc'
     };
     spawnParticles(cp.x, p1.cy(), '#7dffcc', 14);
-    if ((_activeStory2Chapter && _activeStory2Chapter.id >= 8) || (storyGauntletState && storyGauntletState.index > 0)) {
+    if (exploreDuelMode && exploreDuelOpponent) {
+      if (!exploreArenaLock && currentArena) {
+        exploreArenaLock = {
+          left: Math.max(0, cp.x - 260),
+          right: Math.min(exploreWorldLen, cp.x + 340),
+          prevLeft: currentArena.mapLeft,
+          prevRight: currentArena.mapRight,
+          label: exploreDuelOpponent.name,
+        };
+      }
+      _exploreSpawnEnemy({ wx: cp.x + 90, name: exploreDuelOpponent.name, weaponKey: exploreDuelOpponent.weaponKey, classKey: exploreDuelOpponent.classKey, aiDiff: exploreDuelOpponent.aiDiff, color: exploreDuelOpponent.color, health: exploreDuelOpponent.health, isArenaLockEnemy: true }, p1);
+      storyFightSubtitle = { text: `${exploreDuelOpponent.name} blocks your path!`, timer: 180, maxTimer: 180, color: '#ffcc66' };
+    } else if ((_activeStory2Chapter && _activeStory2Chapter.id >= 8) || (storyGauntletState && storyGauntletState.index > 0)) {
       if (!exploreArenaLock && currentArena) {
         exploreArenaLock = {
           left: Math.max(0, cp.x - 240),
@@ -191,7 +213,7 @@ function updateExploration() {
     }
   }
 
-  if (!storeSurvivalState && exploreCombatQuiet > 260 && activeEnemyCount < exploreEnemyCap) {
+  if (!storeSurvivalState && !exploreDuelMode && exploreCombatQuiet > 260 && activeEnemyCount < exploreEnemyCap) {
     const spawnAhead = p1.x + GAME_W * 0.92;
     _exploreSpawnEnemy({
       wx: spawnAhead,
@@ -204,7 +226,7 @@ function updateExploration() {
     exploreCombatQuiet = 120;
   }
 
-  if (!storeSurvivalState && exploreAmbushTimer > 360 && Math.abs(p1.vx) < 1.1 && !inCombat && activeEnemyCount < exploreEnemyCap) {
+  if (!storeSurvivalState && !exploreDuelMode && exploreAmbushTimer > 360 && Math.abs(p1.vx) < 1.1 && !inCombat && activeEnemyCount < exploreEnemyCap) {
     _exploreSpawnEnemy({
       wx: p1.x + 120,
       name: 'Ambush Elite',
@@ -233,6 +255,31 @@ function updateExploration() {
       if (readyToSpawn) {
         exploreSpawnQ.shift();
         _exploreSpawnEnemy(next, p1);
+      }
+    }
+  }
+}
+
+function updateExplorePickups(p1) {
+  if (!explorePickups || !explorePickups.length || !p1) return;
+  for (const it of explorePickups) {
+    if (it.collected) continue;
+    if (Math.abs(p1.cx() - it.x) < 42 && Math.abs(p1.cy() - it.y) < 74) {
+      it.collected = true;
+      const col = it.type === 'heal' ? '#66ff88' : it.type === 'coin' ? '#ffcc33' : '#66ccff';
+      spawnParticles(it.x, it.y, col, 16);
+      if (SoundManager && SoundManager.superActivate) SoundManager.superActivate();
+      if (it.type === 'coin') {
+        _story2.tokens = (_story2.tokens || 0) + it.value;
+        if (typeof _saveStory2 === 'function') _saveStory2();
+        storyFightSubtitle = { text: `+${it.value} 🪙`, timer: 120, maxTimer: 120, color: '#ffcc33' };
+      } else if (it.type === 'xp') {
+        if (typeof _storyAwardKillExp === 'function') _storyAwardKillExp(it.value);
+        else _story2.exp = (_story2.exp || 0) + it.value;
+        storyFightSubtitle = { text: `+${it.value} EXP`, timer: 120, maxTimer: 120, color: '#66ccff' };
+      } else if (it.type === 'heal') {
+        p1.health = Math.min(p1.maxHealth, p1.health + it.value);
+        storyFightSubtitle = { text: `Healing crystal  +${it.value} HP`, timer: 150, maxTimer: 150, color: '#66ff88' };
       }
     }
   }
