@@ -959,6 +959,7 @@ function _defaultStory2Progress() {
     tokens:            0,
     exp:               0,       // EXP earned from kills — used for skill tree
     health:            null,    // persistent HP carried between walk→fight chapters (null = full)
+    lootTaken:         {},      // { 'chapterId:index': 1 } — one-time loot pickups already collected
     blueprints:        [],      // blueprint keys earned
     unlockedAbilities: [],      // ability keys bought from store
     skillTree:         {},      // { nodeId: true } — purchased skill nodes
@@ -1008,6 +1009,8 @@ function _normalizeStory2Progress(data) {
   if (typeof data.chapter === 'number') out.chapter = data.chapter;
   if (typeof data.tokens === 'number') out.tokens = data.tokens;
   if (typeof data.exp === 'number') out.exp = data.exp;
+  if (typeof data.health === 'number') out.health = data.health;
+  if (data.lootTaken && typeof data.lootTaken === 'object') out.lootTaken = Object.assign({}, data.lootTaken);
   if (Array.isArray(data.blueprints)) out.blueprints = data.blueprints.slice();
   if (Array.isArray(data.unlockedAbilities)) out.unlockedAbilities = data.unlockedAbilities.slice();
   if (data.skillTree && typeof data.skillTree === 'object') out.skillTree = Object.assign({}, data.skillTree);

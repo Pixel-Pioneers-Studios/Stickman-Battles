@@ -178,12 +178,7 @@ class AbsoluteAxiom extends God {
     this._specialCd  = 280;
     this._dashCd     = 90;
 
-    // Story mode: scale health down and skip mechanics tied to 1M-HP thresholds
-    if (typeof storyModeActive !== 'undefined' && storyModeActive) {
-      const _stHealth = (typeof window !== 'undefined' && window._aaStoryHealth) || 900;
-      this.health    = _stHealth;
-      this.maxHealth = _stHealth;
-    }
+    // Story mode uses the real, full-power Absolute Axiom (no downscaling) — matches the standalone game mode.
 
     // Internal phase tracking
     this._aaPhase        = 1; // 1→2 at 70%, 2→3 at 35%

@@ -155,7 +155,9 @@ function updateExploration() {
       color: '#7dffcc'
     };
     spawnParticles(cp.x, p1.cy(), '#7dffcc', 14);
-    if (exploreDuelMode && exploreDuelOpponent) {
+    // Replay Mode off + already-beaten chapter → walk through freely, skip the fight entirely
+    const _replaySkip = (typeof _cinReplaySkip === 'function') && _cinReplaySkip(_activeStory2Chapter);
+    if (exploreDuelMode && exploreDuelOpponent && !_replaySkip) {
       if (!exploreArenaLock && currentArena) {
         exploreArenaLock = {
           left: Math.max(0, cp.x - 260),
@@ -165,9 +167,9 @@ function updateExploration() {
           label: exploreDuelOpponent.name,
         };
       }
-      _exploreSpawnEnemy({ wx: cp.x + 90, name: exploreDuelOpponent.name, weaponKey: exploreDuelOpponent.weaponKey, classKey: exploreDuelOpponent.classKey, aiDiff: exploreDuelOpponent.aiDiff, color: exploreDuelOpponent.color, health: exploreDuelOpponent.health, isArenaLockEnemy: true }, p1);
+      _exploreSpawnEnemy({ wx: cp.x + 180, exactX: cp.x + 180, name: exploreDuelOpponent.name, weaponKey: exploreDuelOpponent.weaponKey, classKey: exploreDuelOpponent.classKey, aiDiff: exploreDuelOpponent.aiDiff, color: exploreDuelOpponent.color, health: exploreDuelOpponent.health, isArenaLockEnemy: true }, p1);
       storyFightSubtitle = { text: `${exploreDuelOpponent.name} blocks your path!`, timer: 180, maxTimer: 180, color: '#ffcc66' };
-    } else if ((_activeStory2Chapter && _activeStory2Chapter.id >= 8) || (storyGauntletState && storyGauntletState.index > 0)) {
+    } else if (!_replaySkip && ((_activeStory2Chapter && _activeStory2Chapter.id >= 8) || (storyGauntletState && storyGauntletState.index > 0))) {
       if (!exploreArenaLock && currentArena) {
         exploreArenaLock = {
           left: Math.max(0, cp.x - 240),
@@ -266,6 +268,8 @@ function updateExplorePickups(p1) {
     if (it.collected) continue;
     if (Math.abs(p1.cx() - it.x) < 42 && Math.abs(p1.cy() - it.y) < 74) {
       it.collected = true;
+      // One-time: record this pickup as permanently taken so it never regenerates
+      if (it.key) { _story2.lootTaken = _story2.lootTaken || {}; _story2.lootTaken[it.key] = 1; if (typeof _saveStory2 === 'function') _saveStory2(); }
       const col = it.type === 'heal' ? '#66ff88' : it.type === 'coin' ? '#ffcc33' : '#66ccff';
       spawnParticles(it.x, it.y, col, 16);
       if (SoundManager && SoundManager.superActivate) SoundManager.superActivate();
@@ -287,16 +291,26 @@ function updateExplorePickups(p1) {
 
 function _exploreSpawnEnemy(def, p1) {
   const isGuard = !!def.isGuard;
-  // Guards spawn directly at their post (near the relic), not offset from player
-  const spawnX = isGuard ? def.wx : Math.max(p1.x + GAME_W * 0.7, def.wx);
-  const safeSpawn = typeof pickSafeSpawnNear === 'function'
-    ? pickSafeSpawnNear(spawnX, isGuard ? 'any' : 'right', p1 ? p1.x : undefined)
-    : null;
-  const m = new Minion(safeSpawn ? safeSpawn.x : spawnX, safeSpawn ? safeSpawn.y - 60 : 300, def.color || '#888888', def.weaponKey || 'sword', true, def.aiDiff || 'medium');
+  let mx, my;
+  if (def.exactX != null) {
+    // Contained duel: spawn at an exact X on the ground floor (inside the arena lock, near the player)
+    const floor = ((currentArena && currentArena.platforms) || []).find(pl => pl.isFloor);
+    mx = def.exactX;
+    my = (floor ? floor.y : 440) - 60;
+  } else {
+    // Guards spawn directly at their post (near the relic), not offset from player
+    const spawnX = isGuard ? def.wx : Math.max(p1.x + GAME_W * 0.7, def.wx);
+    const safeSpawn = typeof pickSafeSpawnNear === 'function'
+      ? pickSafeSpawnNear(spawnX, isGuard ? 'any' : 'right', p1 ? p1.x : undefined)
+      : null;
+    mx = safeSpawn ? safeSpawn.x : spawnX;
+    my = safeSpawn ? safeSpawn.y - 60 : 300;
+  }
+  const m = new Minion(mx, my, def.color || '#888888', def.weaponKey || 'sword', true, def.aiDiff || 'medium');
   m.name     = def.name || 'Enemy';
   m.lives    = 1;
-  m.health   = isGuard ? (def.health || 120) : 80;
-  m.maxHealth= isGuard ? (def.health || 120) : 80;
+  m.health   = def.health || (isGuard ? 120 : 80);
+  m.maxHealth= def.health || (isGuard ? 120 : 80);
   m.dmgMult  = isGuard ? 1.2 : 1.0;
   if (isGuard) {
     m.isExploreGuard = true;

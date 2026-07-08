@@ -169,7 +169,8 @@ function _launchChapterWithGauntlet(ch) {
 // Cutscenes play once by default; skip the opening narration when replaying an
 // already-beaten chapter, unless the player turned the replay setting on.
 function _cinReplaySkip(ch) {
-  if (typeof settings !== 'undefined' && settings && settings.replayCinematics) return false;
+  if (!ch) return false;
+  if (typeof settings !== 'undefined' && settings && settings.replayMode) return false;
   return Array.isArray(_story2.defeated) && _story2.defeated.includes(ch.id);
 }
 

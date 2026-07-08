@@ -284,15 +284,8 @@ function _startGameCore() {
       boss.name              = 'CREATOR';
       boss.color             = '#ff00ee';
     }
-    // Story mode: scale boss to be challenging but beatable
-    if (storyModeActive) {
-      boss.health            = 800;
-      boss.maxHealth         = 800;
-      boss.dmgMult           = 0.65;
-      boss.attackCooldownMult = 1.3;
-      boss.kbBonus           = 1.2;
-    }
-    // Fallen God: apply health multiplier on top of story scaling
+    // Story mode uses the real, full-power boss (no downscaling) — matches the standalone game mode.
+    // Fallen God: apply health multiplier on top of base stats
     if (boss.isFallenGod && boss._healthMult) {
       boss.health    = Math.round(boss.health    * boss._healthMult);
       boss.maxHealth = Math.round(boss.maxHealth * boss._healthMult);
@@ -453,13 +446,7 @@ function _startGameCore() {
     p1.isAI = false;
     p1.lives = chosenLives;
     const tf = new TrueForm();
-    // Story mode: scale TrueForm to be challenging but beatable
-    if (storyModeActive) {
-      tf.health            = 1500;
-      tf.maxHealth         = 1500;
-      tf.dmgMult           = 0.65;
-      tf.attackCooldownMult = 1.25;
-    }
+    // Story mode uses the real, full-power True Form (no downscaling) — matches the standalone game mode.
     tf.target = p1;
     p1.target = tf;
     p2 = tf;

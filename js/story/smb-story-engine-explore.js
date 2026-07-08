@@ -278,12 +278,19 @@ function _launchExplorationChapter(ch) {
   explorePickups = [];
   if (exploreDuelMode) {
     const _cpX = exploreCheckpoints[0] ? exploreCheckpoints[0].x : Math.floor(worldLen / 2);
-    explorePickups.push(
-      { x: Math.floor(worldLen * 0.20), y: 356, type: 'coin', icon: '🪙', value: 6,  collected: false },
-      { x: Math.floor(worldLen * 0.34), y: 356, type: 'xp',   icon: '✦',  value: 10, collected: false },
-      { x: Math.min(worldLen - 220, _cpX + 520), y: 356, type: 'heal', icon: '💠', value: 60, collected: false },
-      { x: Math.floor(worldLen * 0.88), y: 356, type: 'coin', icon: '🪙', value: 6,  collected: false }
-    );
+    const _loot = [
+      { x: Math.floor(worldLen * 0.20), y: 356, type: 'coin', icon: '🪙', value: 6 },
+      { x: Math.floor(worldLen * 0.34), y: 356, type: 'xp',   icon: '✦',  value: 10 },
+      { x: Math.min(worldLen - 220, _cpX + 520), y: 356, type: 'heal', icon: '💠', value: 60 },
+      { x: Math.floor(worldLen * 0.88), y: 356, type: 'coin', icon: '🪙', value: 6 }
+    ];
+    // One-time loot: a taken pickup stays gone forever (persisted per chapter+index).
+    _story2.lootTaken = _story2.lootTaken || {};
+    _loot.forEach((it, i) => {
+      it.key = ch.id + ':' + i;
+      it.collected = !!_story2.lootTaken[it.key];
+      explorePickups.push(it);
+    });
   }
 
   if (ch.exploreMode === 'survival') {

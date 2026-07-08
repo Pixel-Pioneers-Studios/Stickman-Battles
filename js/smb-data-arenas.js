@@ -39,7 +39,7 @@ const ARENAS = {
     platEdge:       '#8b3a0f',
     hasLava:        true,
     isHeavyGravity: true,
-    lavaY:       442,
+    lavaY:       490,
     deathY:      580,
     modifiers:   { gravityMult: 1.1, frictionMult: 1.0, hazardFrequency: 1.2 },
     platforms: [
@@ -134,8 +134,11 @@ const ARENAS = {
   },
   sovereign: {
     // Sovereign's personal arena — "The Circuit".
-    // Designed for pure melee: tight platform spacing, no safe ranged distance,
-    // symmetric layout that rewards reading movement over camping.
+    // Single-tier layout: every platform is reachable in one jump from the floor
+    // (a jump's apex lifts the feet to ~310, so decks sit at y≈320-335), and no
+    // deck is stacked over another. This keeps pursuit reliable — no multi-stage
+    // climbs, no solid decks to bonk from below, wide gaps so the AI never wedges
+    // against a platform side while chasing. The duel stays about reading movement.
     name:       'The Circuit',
     sky:         ['#030005', '#0d0010'],
     groundColor: '#0e0008',
@@ -146,12 +149,10 @@ const ARENAS = {
     isSovereignArena: true,
     modifiers:   { gravityMult: 1.0, frictionMult: 1.0, hazardFrequency: 0.0 },
     platforms: [
-      { x: -60, y: 460, w:1020, h: 60, isFloor: true, isFloorDisabled: false }, // index 0 — floor (wider like grass)
-      { x: 300, y: 210, w: 300, h: 16, isFloorDisabled: false },                // index 1 — wide center hub
-      { x:  72, y: 310, w: 145, h: 16, isFloorDisabled: false },                // index 2 — left mid (pushed out)
-      { x: 683, y: 310, w: 145, h: 16, isFloorDisabled: false },                // index 3 — right mid (pushed out)
-      { x: 155, y: 148, w: 115, h: 14, isFloorDisabled: false },                // index 4 — upper left (pushed out)
-      { x: 630, y: 148, w: 115, h: 14, isFloorDisabled: false },                // index 5 — upper right (pushed out)
+      { x: -60, y: 460, w:1020, h: 60, isFloor: true, isFloorDisabled: false }, // index 0 — floor
+      { x:  95, y: 335, w: 165, h: 16, isFloorDisabled: false },                // index 1 — left  (one jump from floor)
+      { x: 368, y: 320, w: 165, h: 16, isFloorDisabled: false },                // index 2 — center (slight high ground)
+      { x: 640, y: 335, w: 165, h: 16, isFloorDisabled: false },                // index 3 — right (one jump from floor)
     ]
   },
   creator: {
@@ -334,7 +335,7 @@ const ARENAS = {
     platEdge:       '#8b3a0f',
     hasLava:        true,
     isHeavyGravity: true,
-    lavaY:          442,
+    lavaY:          490,
     deathY:         580,
     modifiers:      { gravityMult: 1.15, frictionMult: 1.0, hazardFrequency: 1.4 },
     platforms: [
@@ -892,16 +893,6 @@ function randomizeArenaLayout(key) {
   const base  = ARENA_BASE_PLATFORMS[key];
   if (!base) return;
   const arena = ARENAS[key];
-  // Determine the actual x bounds of the arena (wide arenas use worldWidth, not GAME_W)
-  const _xMin = arena.mapLeft  !== undefined ? arena.mapLeft  : 10;
-  const _xMax = arena.mapRight !== undefined ? arena.mapRight : GAME_W - 10;
-  arena.platforms = base.map((p, idx) => {
-    if (idx === 0) return { ...p }; // always keep ground platform fixed
-    // Randomize within ±70px x, ±45px y, clamped to actual arena bounds
-    return {
-      ...p,
-      x: Math.max(_xMin, Math.min(_xMax - p.w, p.x + (Math.random() - 0.5) * 140)),
-      y: Math.max(55, Math.min(420, p.y + (Math.random() - 0.5) * 90))
-    };
-  });
+  // Maps are fixed and identical for everyone — apply the authored base layout unchanged.
+  arena.platforms = base.map(p => ({ ...p }));
 }

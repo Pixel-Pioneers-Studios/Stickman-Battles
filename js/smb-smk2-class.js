@@ -1572,11 +1572,8 @@ class SovereignMK2 extends AdaptiveAI {
     // God-tier: never intentionally miss
     this._humanMissArmed = false;
 
-    // Fake-out movement: late-game only — walk wrong way then snap back
-    if (i > 0.62 && this._humanFakeoutTimer <= 0 && this.onGround && Math.random() < 0.0016) {
-      this._humanFakeoutDir   = -dir; // move AWAY from target briefly
-      this._humanFakeoutTimer = Math.round(6 + Math.random() * 8);
-    }
+    // Fake-out movement: DISABLED (unbeatable tuning) — walking the wrong way
+    // for 6-14 frames was a donated opening, not a mixup that won exchanges.
     if (this._humanFakeoutTimer > 0) {
       this._humanFakeoutTimer--;
       this.vx = this._humanFakeoutDir * moveSpd * 0.55;
@@ -1600,22 +1597,56 @@ class SovereignMK2 extends AdaptiveAI {
     return this.attackTimer > _at || this.cooldown > _cd;
   }
 
+  // Is the target currently unable to fight back? (locked in swing recovery,
+  // stunned, ragdolled, parry-vulnerable, reloading, or guard-broken up close)
+  // These are the engine's hard rules — a helpless target is a FREE punish.
+  _targetHelpless(t) {
+    if (!t) return false;
+    return (t.stunTimer   || 0) > 10 ||
+           (t.ragdollTimer|| 0) > 10 ||
+           (t._parryVulnFrames || 0) > 25 ||
+           (t.attackEndlag || 0) > 6 ||
+           (t._reloadTimer || 0) > 12;
+  }
+
+  // ── SWING DISCIPLINE — mind-level veto layer over Fighter.attack() ────────
+  // Sovereign never donates a swing the engine's rules say cannot pay off:
+  //   • i-frames: dealDamage() hard-returns while target.invincible > 0, so a
+  //     swing whose contact frame lands inside the window hits nothing and
+  //     burns cooldown + stamina. Wait it out (it's ≤16 frames mid-combo).
+  //   • fresh parry window: a shield raised ≤8 frames ago parries 65% (≤15: 30%)
+  //     — a parry means 90 frames stunned + 1.5× damage taken. Never swing into
+  //     it; the guard-break / patience paths handle shields instead.
+  //   • stamina exhaustion: swinging below ~15 stamina inflates own endlag up to
+  //     +40% — a self-inflicted punish window. Hold unless the target is helpless
+  //     (free damage is worth sluggish recovery; an exchange is not).
+  // Decision-layer only: no stats, cooldowns, or damage values are touched.
+  attack(target) {
+    const _t = target || this.target;
+    if (_t && this.weapon && this.weapon.type === 'melee' && _t.health > 0) {
+      const _helpless = this._targetHelpless(_t);
+      // i-frame veto — swing would connect inside invincibility
+      if ((_t.invincible || 0) > this._meleeContactFrames() + 2) return;
+      // fresh-shield parry veto (parry only exists on HP shields, stacks 1).
+      // Note: dealDamage disables parry based on the ATTACKER's stun, not the
+      // target's — a stunned-but-shielding target can still parry us, so no
+      // target-stun exemption here (_targetHelpless already covers stun > 10).
+      if (!_helpless && _t.shielding && (_t.shieldStacks || 1) === 1 &&
+          (_t.shieldHoldTimer || 0) <= 15) return;
+      // own-stamina discipline — don't buy +40% endlag for a contested exchange
+      if (!_helpless && (this.stamina !== undefined) && this.stamina < 15) return;
+    }
+    super.attack(target);
+  }
+
   // ── Stage 3: single reaction "beatability" knob ──────────────────────
   // THE one place defensive difficulty is tuned. Returns the probability that
   // Sovereign FAILS to react to an attack it can see — i.e. the player's reward
-  // window for committing. Replaces the scattered per-site dodge/shield coin-flips
-  // with one legible, tunable number. Starts forgiving (exchanges are winnable),
-  // shrinks as Sovereign evolves / breaks its limiter, and spikes during a stagger
-  // so even a peaked Sovereign always leaves a genuine opening. Lower the base to
-  // make Sovereign harder; raise it to make it more beatable.
+  // window for committing. UNBEATABLE TUNING: locked to 0 — Sovereign reacts to
+  // every attack it can see, always. Every defensive site shares this gate, so
+  // restoring beatability later is a one-line change (raise the return value).
   _reactionMistakeRate() {
-    let rate = 0.18;
-    rate -= this._evolutionStage * 0.035;                    // main progression: 0 → -0.105
-    rate -= Math.max(0, this.intelligence - 0.85) * 0.30;    // slight (Sovereign starts ~0.91)
-    if (this._limiterBroken)                  rate -= 0.06;  // near-perfect after limiter break
-    if (this._limiterStaggerTimer > 0)        rate += 0.42;  // staggered → genuine counter window
-    if (this.health < this.maxHealth * 0.30)  rate += 0.04;  // desperate, a touch sloppier
-    return Math.max(0.03, Math.min(0.55, rate));
+    return 0;
   }
 
   // ══════════════════════════════════════════════════════════════
@@ -1890,15 +1921,10 @@ class SovereignMK2 extends AdaptiveAI {
     const lb       = this._limiterBroken;
     const lbCombo  = lb ? 1    : 0;   // one extra follow-up (was 2); bounded by dealDamage combo limiter
 
-    // Limiter break stagger: if the player lands 3+ hits within 1 sec while LB is active,
-    // Sovereign briefly staggers — reaction delay spikes for ~1.5 sec, giving the player
-    // a window to counter rather than facing permanent superhuman mode.
+    // Limiter break stagger: DISABLED (unbeatable tuning). Getting combo'd no
+    // longer grants the player a slowed-reaction window — the RAPID-HIT ESCAPE
+    // below is the response to being chained, not a donated opening.
     if (this._limiterStaggerCd > 0) this._limiterStaggerCd--;
-    if (lb && this._limiterStaggerTimer <= 0 && this._limiterStaggerCd <= 0 && this._countRecent('dmg_taken', 60) >= 4) {
-      this._limiterStaggerTimer = 90;
-      this._limiterStaggerCd    = 360; // 6-second cooldown — cannot be farmed
-      showBossDialogue('...tch.', 80);
-    }
     if (this._limiterStaggerTimer > 0) {
       this._limiterStaggerTimer--;
       // Stagger window just closed — immediately arm a punish counter
@@ -1945,11 +1971,9 @@ class SovereignMK2 extends AdaptiveAI {
     prefDist = this._prefDistEMA;
     const moveSpd     = Math.min(6.5, this._genome.moveSpdBase + realAgg * 1.5 + memoryReact * 0.25);  // faster than player base (6.5 vs 5.2)
     const atkFreq     = 1.0; // god-tier: always at max attack frequency
-    // Always keep a minimum 2-frame reaction gap so the player has a tiny window
-    // to read each action. Limiter stagger adds extra delay when player combos Sovereign.
-    const reactFrames = (lb && this._limiterStaggerTimer > 0)
-      ? 4
-      : Math.max(2, Math.round(6 - m.reactionSpeed * 3 - memoryReact * 3));
+    // Unbeatable tuning: no artificial minimum gap — Sovereign thinks every frame
+    // his reaction stats allow. (Was a 2-frame floor donated as a read window.)
+    const reactFrames = Math.max(0, Math.round(4 - m.reactionSpeed * 3 - memoryReact * 3));
     const atkRange    = weaponRange * (1.1 + this._intimidation * 0.08) + 20;
 
     const dx  = t.cx() - this.cx();
@@ -2022,6 +2046,14 @@ class SovereignMK2 extends AdaptiveAI {
       memoryGlobalWeight > 0.38
     ));
     if (heavyThreat || memoryForceSuffocate) this._pressureMode = 'suffocate';
+    // Clip-weapon read: a ranged player on their last round is about to hand over
+    // a full reload window (reloadFrames × 1.18, no shooting). Also point-blank
+    // range costs them +35% cooldown and -34% damage. Close NOW, ahead of the
+    // reload, so the free window starts with Sovereign already in reach.
+    if (t.weapon && t.weapon.clipSize && (t._ammo || 0) <= 1) {
+      this._pressureMode      = 'suffocate';
+      this._pressureHoldTimer = Math.max(this._pressureHoldTimer, 40);
+    }
 
     // ── Humanization fakeout movement ─────────────────────────
     this._updateHumanization(dir, moveSpd);
@@ -2071,20 +2103,128 @@ class SovereignMK2 extends AdaptiveAI {
       return;
     }
 
-    // ── Danger: incoming projectiles / sword crescents (kite counter) ──────
-    // A ranged-poking player (crescent spam from 200-400px) chips Sovereign down
-    // while it approaches on the ground. Read the live projectile pools and jump
-    // the incoming shot — mistake-gated so it stays beatable, and on cooldown so
-    // rapid volleys still land some hits.
+    // ── PRIORITY DESCENT — drop to a target fighting a full level below ──────
+    // Standing on a platform directly over a floor-level opponent, Sovereign read
+    // itself as "in range" horizontally, swung down into the solid deck (vertical
+    // whiff-gate vetoes it), and never moved — a dead freeze. Walk off toward the
+    // target (or to the nearest edge when already above it) and fall to its level.
+    if (t.onGround && t.y > this.y + 55 && this.onGround &&
+        typeof currentArena !== 'undefined' && currentArena && currentArena.platforms) {
+      const _cpi2 = this._findCurrentPlatform(this);
+      const _cp2  = _cpi2 >= 0 ? currentArena.platforms[_cpi2] : null;
+      if (_cp2 && !_cp2.isFloor) {
+        // Drop off the edge on the target's side. Basing this on the target vs the
+        // platform CENTER (not vs Sovereign's own x) keeps the direction stable —
+        // deciding relative to our own position flipped every time we crossed over
+        // the target, so Sovereign vibrated in place and never left the deck.
+        const _dropDir = t.cx() <= (_cp2.x + _cp2.w / 2) ? -1 : 1;
+        if (!this.isEdgeDanger(_dropDir)) { this.vx = _dropDir * moveSpd; this.aiReact = 0; return; }
+      }
+    }
+
+    // ── PRIORITY ELEVATION PURSUIT — climb to a platform-camping player ──────
+    // The combat modes below (force, punish, rate-counters) only jump for an
+    // AIRBORNE target, so a player standing on a platform above left Sovereign
+    // pacing the floor beneath them: the whiff-guard vetoes its ground swings
+    // (vertical gap > 60) while every ground-level punish it does land eats the
+    // whiff penalty. This was the dominant loss pattern. Contest the height
+    // FIRST — before any mode can commit. Platforms are solid from below, so a
+    // straight-up jump only bonks the deck's underside; instead walk out past
+    // the nearest edge, then jump inward onto the deck (hop-steering guides the
+    // arc). Suppress attacks until level, where the blade actually connects.
+    // Not gated on _jumpCooldown: a leftover cooldown from the previous hop would
+    // otherwise disable the block right after landing and let other movement walk
+    // Sovereign off the stepping platform before the next stage can fire. The
+    // onGround + precise stand-point requirements already prevent jump spam.
+    if (this.onGround && t.onGround &&
+        t.y < this.y - 55 && !this._hopTarget && d < 340 &&
+        typeof currentArena !== 'undefined' && currentArena && currentArena.platforms) {
+      const _tpi = this._findCurrentPlatform(t);
+      const _tp  = _tpi >= 0 ? currentArena.platforms[_tpi] : null;
+      if (_tp && !_tp.isFloor) {
+        // One jump only lifts the feet ~150px, so a tall deck can't be reached
+        // directly — stage upward one reachable platform at a time. This jump's
+        // target is the HIGHEST platform we can actually reach that still climbs
+        // toward the camper (the camper's own deck when it's within a jump). Each
+        // landing re-runs this block and continues the ascent.
+        const _feet  = this.y + this.h;
+        const _reach = 285; // single jump (~150px) plus the double-jump extension
+        let _step = null;
+        if (_tp.y >= _feet - _reach - 4) {
+          _step = _tp; // camper's own deck is within a single jump — go straight for it
+        } else {
+          // Too high — stage via the highest reachable platform between us and the
+          // camper, biased toward the camper's horizontal position on near-ties.
+          const _tpcx = _tp.x + _tp.w / 2;
+          let _bestY = 1e9, _bestDx = 1e9;
+          for (const p of currentArena.platforms) {
+            if (!p || p.isFloor || p.isFloorDisabled || p === _tp) continue;
+            if (p.y >= _feet - 12)        continue;  // must be above us
+            if (p.y < _tp.y - 4)          continue;  // don't overshoot past the camper
+            if (p.y < _feet - _reach - 4) continue;  // too high for a single jump
+            const _pdx = Math.abs((p.x + p.w / 2) - _tpcx);
+            if (p.y < _bestY - 8 || (Math.abs(p.y - _bestY) <= 8 && _pdx < _bestDx)) {
+              _bestY = p.y; _bestDx = _pdx; _step = p;
+            }
+          }
+          if (!_step) _step = _tp; // nothing staged — attempt the camper deck directly
+        }
+        const _svcx    = this.cx();
+        const _useLeft = Math.abs(_svcx - _step.x) <= Math.abs(_svcx - (_step.x + _step.w));
+        // Stand point fully OUTSIDE the deck's horizontal span — the whole body
+        // (spans [x, x+w]) must clear the solid underside before the jump, or the
+        // trailing half bonks the deck and the climb stalls.
+        const _clearMrg = this.w + 16;
+        let _standX     = _useLeft ? _step.x - _clearMrg : _step.x + _step.w + _clearMrg;
+        // Keep the stand point on the surface we're currently on — when staging up
+        // from a small platform the ideal point lies out in the gap; standing at
+        // our own edge and jumping across (hop-steering carries us) reaches the
+        // next deck without walking off into the void.
+        const _cpi = this._findCurrentPlatform(this);
+        if (_cpi >= 0) {
+          const _cp = currentArena.platforms[_cpi];
+          if (!_cp.isFloor) {
+            const _hb = this.w / 2 + 2;
+            _standX = Math.max(_cp.x + _hb, Math.min(_cp.x + _cp.w - _hb, _standX));
+          }
+        }
+        const _toStand  = _standX - _svcx;
+        if (Math.abs(_toStand) > 16) {
+          // Walk to the edge stand-point before committing the jump. Decelerate on
+          // approach so momentum doesn't carry us off a narrow stepping platform.
+          const _sdir = Math.sign(_toStand);
+          const _apSpd = Math.min(moveSpd, Math.abs(_toStand) * 0.35 + 1.5);
+          if (!this.isEdgeDanger(_sdir)) { this.vx = _sdir * _apSpd; this.aiReact = 0; return; }
+        } else {
+          // Fully clear of the underside — jump inward and drift onto the deck.
+          const _inward = _useLeft ? 1 : -1;
+          this.vy = _jumpVy;
+          this.vx = _inward * moveSpd * 0.75;
+          this._jumpCooldown = 12;
+          this._hopTarget = _step;
+          this._hopFrames = 40;
+          this.aiReact = 0;
+          return;
+        }
+      }
+    }
+
+    // ── Danger: incoming projectiles / sword crescents (dodge) ─────────────
+    // A ranged-poking player (crescent spam from 200-400px) chips Sovereign down.
+    // Read the live projectile pools and evade the incoming shot. Detects earlier
+    // (210px) and over a taller band (covers the full body, not just the centre),
+    // dodges in the AIR too (not only grounded), and re-arms fast so rapid volleys
+    // don't slip through. Near-perfect for an evolved Sovereign — he does not eat
+    // ranged chip the way a human would.
     if (this._projDodgeCd > 0) this._projDodgeCd--;
-    if (this._projDodgeCd <= 0 && this.onGround) {
+    if (this._projDodgeCd <= 0 && this.stunTimer <= 0 && this.ragdollTimer <= 0) {
       let _incoming = null;
       const _scanShots = (arr) => {
         if (!arr || _incoming) return;
         for (const pr of arr) {
           if (!pr || pr.done || pr.dead || pr.life <= 0 || pr.owner === this) continue;
           const _pdx = this.cx() - pr.x;
-          if (Math.abs(_pdx) < 150 && Math.abs((pr.y || 0) - this.cy()) < 55 &&
+          if (Math.abs(_pdx) < 210 && Math.abs((pr.y || 0) - this.cy()) < 72 &&
               Math.abs(pr.vx || 0) > 3 && Math.sign(pr.vx) === Math.sign(_pdx)) {
             _incoming = pr; return;
           }
@@ -2092,9 +2232,11 @@ class SovereignMK2 extends AdaptiveAI {
       };
       if (typeof projectiles !== 'undefined') _scanShots(projectiles);
       _scanShots(t._swordSlashes);
-      if (_incoming && Math.random() >= this._reactionMistakeRate()) {
-        this.vy = _jumpVy * 0.85;
-        this._projDodgeCd = 30;
+      if (_incoming && Math.random() >= this._reactionMistakeRate() * 0.4) {
+        if (this.onGround)            this.vy = _jumpVy;                          // jump the shot
+        else if (this.canDoubleJump) { this.vy = -16; this.canDoubleJump = false; } // air-dodge up over it
+        else                          this.vy = Math.max(this.vy, 9);            // no air option — drop under it
+        this._projDodgeCd = 14;
         this._recordEvent('dodge', 2);
       }
     }
@@ -2141,9 +2283,115 @@ class SovereignMK2 extends AdaptiveAI {
       return;
     }
 
+    // ── GUARANTEED PUNISH — the target literally cannot fight back ──────────
+    // The engine's hard rules create windows where the opponent is locked out of
+    // acting: attackEndlag (cannot attack or ability — worse after a whiff, 2.4×,
+    // and at low stamina, +40%), stunTimer/ragdollTimer (cannot act at all),
+    // _parryVulnFrames (90 frames of 1.5× damage taken), and _reloadTimer (ranged
+    // player cannot shoot). During any of these, defense is unnecessary and every
+    // frame not spent converting is wasted: sprint in, strike with no telegraph,
+    // chain follow-ups, and spend ability/super freely. The attack() override's
+    // i-frame veto keeps the chain timed to invincibility expiry automatically.
+    if (this._targetHelpless(t) && (t.invincible || 0) <= 24) {
+      this._telegraphTimer = 0;                       // no wind-up on a helpless target
+      if (d > weaponRange - 6) {
+        if (!this.isEdgeDanger(dir)) this.vx = dir * moveSpd * 2.2;
+        else if (this.onGround) { this.vy = _jumpVy; this.vx = dir * moveSpd * 0.7; }
+        if (this._jumpCooldown <= 0 && this.onGround && t.y < this.y - 90) {
+          this.vy = _jumpVy; this._jumpCooldown = 20;
+        }
+      } else {
+        this.vx *= 0.6;                               // in reach — stop, convert
+      }
+      if (this.cooldown <= 0 && d < weaponRange + 12 && this._strike(t)) {
+        this._postHitLockFrames = Math.max(this._postHitLockFrames, 40);
+        if (this._comboFollowHits === 0) {
+          this._comboFollowHits  = 1 + lbCombo + ((t._parryVulnFrames || 0) > 25 ? 1 : 0);
+          this._comboFollowTimer = lb ? 8 : 10;
+        }
+      }
+      if (this.abilityCooldown <= 0 && d < 150) this.ability(t);
+      if (this.superReady && ((t._parryVulnFrames || 0) > 25 || finishPush)) this.useSuper(t);
+      this.aiReact = 0;
+      this._updateFearFactor(d, recentLanded, true);
+      return;
+    }
+
+    // ── LANDING PUNISH — airborne target with the double jump spent ─────────
+    // A falling player who has burned their double jump is on rails: their
+    // landing point is deterministic. Pre-position at it so Sovereign is already
+    // in reach on touchdown — the frames right after landing (often + endlag from
+    // an air whiff) are the cleanest punish the movement system offers.
+    if (!t.onGround && !t.canDoubleJump && t.vy > -2 && this.onGround &&
+        d < 320 && !playerAttacking) {
+      const _land   = this._behaviorModel.projectPosition(t, 30);
+      const _lGap   = _land.x - this.cx();
+      const _lDir   = Math.sign(_lGap) || dir;
+      if (Math.abs(_lGap) > 24) {
+        if (!this.isEdgeDanger(_lDir)) { this.vx = _lDir * moveSpd * 1.5; this.aiReact = 0; return; }
+      } else {
+        this.vx *= 0.55;                              // camped under the landing spot
+        if (this.cooldown <= 0 && d < weaponRange + 8 &&
+            Math.abs((this.y + this.h / 2) - (t.y + t.h / 2)) <= 70) {
+          this._strike(t);                            // clip them on the way down
+        }
+        this.aiReact = 0;
+        return;
+      }
+    }
+
     // Kill instinct: when opponent is near death, activate punish mode immediately
     if (tHpPct < this._genome.killInstinctHP && !this._punishModeActive && this.health > 0) {
       this._activatePunishMode('kill');
+    }
+
+    // ── SPAWN-INVINCIBILITY STANDOFF — don't feed a just-respawned target ─────
+    // A target with spawn / super i-frames takes no damage but can still hit us.
+    // Rushing in the instant they respawn means every swing whiffs on the
+    // invincibility while they get free hits — the "runs right into them able to
+    // do nothing" habit. Hold just outside our own reach, coiled, until the
+    // i-frames are nearly gone; normal engagement then resumes and lands the first
+    // blow as they turn vulnerable. Threshold 40 clears normal hit i-frames (≤24)
+    // so combos are untouched, but catches respawn (180) and super (90+) frames.
+    if (t.invincible > 40) {
+      const _coil = weaponRange + 24; // just outside striking range — poised to pounce
+      if (d < _coil) {
+        if (!this.isEdgeDanger(-dir)) this.vx = -dir * moveSpd * 0.8;
+        else this.vx *= 0.7;
+      } else {
+        this.vx *= 0.65; // hold position — do not close until they can be hurt
+      }
+      this.aiReact = 0;
+      return;
+    }
+
+    // ── DOMAIN DENIAL — refuse neutral exchanges while a class domain runs ────
+    // The domain supers are all economies built on connecting with Sovereign:
+    // Ronin's Death's Dojo marks every hit for a sheathe detonation, Reaper's
+    // Soul Tithe converts every hit into orbiting heal-souls, and Ninja's Shadow
+    // Realm time-dilates Sovereign's frames. All are timed. The winning line is
+    // the same for each: give the domain NOTHING — stay out of reach, dodge, and
+    // let it expire. Hard punish windows still convert (the guaranteed-punish
+    // block above runs first), but neutral trades are refused entirely.
+    const _domainThreat = !!(t._roninCutsActive || t._soulTitheActive ||
+                             (this._domainSlowFactor > 0 && this._domainSlowFactor < 1));
+    if (_domainThreat && d < 280) {
+      const _ddDir = (nearLeft && dir < 0) ? 1 : (nearRight && dir > 0) ? -1 : -dir;
+      if (this.onGround && !this.isEdgeDanger(_ddDir)) {
+        this.vx = _ddDir * moveSpd * (d < 150 ? 1.9 : 1.2);
+      } else if (this.onGround) {
+        this.vy = _jumpVy; this.vx = dir * moveSpd * 0.8;   // cornered — jump over
+      } else if (this.canDoubleJump && d < 120) {
+        this.vy = -15; this.canDoubleJump = false;
+        if (!this.isEdgeDanger(_ddDir)) this.vx = _ddDir * moveSpd * 1.5;
+      }
+      // Point-blank with a swing incoming and no lane — shield rather than eat a mark
+      if (playerAttacking && d < 130 && this.shieldCooldown === 0 && this._shieldHoldFrames === 0) {
+        this.shielding = true; this.shieldCooldown = 60; this._shieldHoldFrames = 10;
+      }
+      this._recordEvent('dodge', 3);
+      this.aiReact = 0;
+      return;
     }
 
     // ── FORCE ENGAGEMENT ─────────────────────────────────────────
@@ -2259,7 +2507,7 @@ class SovereignMK2 extends AdaptiveAI {
       // Reduced ability/super spam during punish mode — still aggressive, but not relentless
       if (this.abilityCooldown <= 0 && d < 220 && Math.random() < 0.05) this.ability(t);
       if (this.superReady && Math.random() < (finishPush ? 0.12 : 0.055)) this.useSuper(t);
-      this.aiReact = 2; // small gap even in punish mode — player can see each hit
+      this.aiReact = 1; // unbeatable tuning: near-continuous decisions in punish mode
       this._updateFearFactor(d, recentLanded, true);
       return;
     }
@@ -2768,6 +3016,12 @@ class SovereignMK2 extends AdaptiveAI {
         this.vy = -15; this.canDoubleJump = false;
         this._jumpCooldown = 25;
       }
+    } else if (d < 22 && !finishMode && Math.abs(this.cy() - t.cy()) < 60) {
+      // Settle zone: at contact range, stop micro-correcting horizontal alignment.
+      // Steering toward dead-centre made `dir` flip every time Sovereign overshot
+      // the target by a pixel — the constant left/right vibration. Damp instead;
+      // the attack logic below still fires, so pressure is unchanged.
+      this.vx *= 0.5;
     } else if (d < prefDist - 15) {
       if (this._pressureMode === 'suffocate') {
         if (!this.isEdgeDanger(dir)) this.vx = dir * moveSpd * 0.70;
@@ -2833,13 +3087,9 @@ class SovereignMK2 extends AdaptiveAI {
               this._comboFollowTimer = Math.max(lb ? 8 : 10, Math.round(14 - m.reactionSpeed * 4));
             }
           }
-          // After each strike sequence, count toward a rest period
+          // Breathing-room rest: DISABLED (unbeatable tuning) — Sovereign no
+          // longer backs off after sustained aggression. Pressure never lapses.
           this._aggressionStreak++;
-          if (this._aggressionStreak >= 3 && this._restCooldown <= 0) {
-            this._restTimer    = Math.round(25 + Math.random() * 20);
-            this._restCooldown = 180;
-            this._aggressionStreak = 0;
-          }
         } else {
           // Swing vetoed — target slipped out of true reach during the wind-up.
           // Commit to a short chase to erase the gap instead of re-arming a
@@ -2866,9 +3116,9 @@ class SovereignMK2 extends AdaptiveAI {
       const _tradeRead = this._predictedNext === 'attack' &&
                          this._predictConf >= 0.55 &&
                          !(t.attackTimer > 0);
-      this._telegraphTimer = _tradeRead
-        ? 1
-        : Math.max(lb ? 6 : 8, Math.round(14 - this._evolutionStage * 2 - (lb ? 2 : 0)));
+      // Unbeatable tuning: wind-up collapsed to 1-3 frames (was 6-14). The
+      // particle tell still fires, but the read window is gone.
+      this._telegraphTimer = _tradeRead ? 1 : (lb ? 2 : 3);
       spawnParticles(this.cx(), this.cy(), '#ffaa00', 4);
       this.vx *= 0.35; // begin slowing as wind-up starts
       // Verbal cue — fires occasionally so the player has a chance to react

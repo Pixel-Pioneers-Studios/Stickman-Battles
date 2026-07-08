@@ -384,8 +384,8 @@ function openSettingsModal() {
   if (m) m.style.display = 'flex';
   const svEl = document.getElementById('settingStoryVoice');
   if (svEl) svEl.checked = settings.storyVoice !== false;
-  const rcEl = document.getElementById('settingReplayCinematics');
-  if (rcEl) rcEl.checked = !!settings.replayCinematics;
+  const rcEl = document.getElementById('settingReplayMode');
+  if (rcEl) rcEl.checked = !!settings.replayMode;
 }
 
 function closeSettingsModal() {
@@ -472,10 +472,10 @@ function updateSettings() {
     localStorage.setItem('smc_storyVoice', settings.storyVoice ? '1' : '0');
     if (!settings.storyVoice && typeof StoryVoice !== 'undefined') StoryVoice.stop();
   }
-  const replayCinEl = document.getElementById('settingReplayCinematics');
-  if (replayCinEl) {
-    settings.replayCinematics = replayCinEl.checked;
-    localStorage.setItem('smc_replayCinematics', settings.replayCinematics ? '1' : '0');
+  const replayModeEl = document.getElementById('settingReplayMode');
+  if (replayModeEl) {
+    settings.replayMode = replayModeEl.checked;
+    localStorage.setItem('smc_replayMode', settings.replayMode ? '1' : '0');
   }
   const hideHudEl = document.getElementById('settingHideHud');
   if (hideHudEl) {
