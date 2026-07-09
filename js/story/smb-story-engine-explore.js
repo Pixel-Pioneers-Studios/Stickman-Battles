@@ -91,6 +91,18 @@ function _exploreGenPlatforms(worldLen, seed, ch) {
   return plats;
 }
 
+// Story AI intelligence floor by (original) chapter index — early chapters keep
+// dumb bots, later chapters sharpen toward the dumb-AI ceiling ('expert').
+// Breakpoints mirror the survival-wave _diffTier. Only raises toward the tier;
+// never lowers an author's deliberately-set aiDiff. Elites read one tier sharper.
+const _STORY_AI_RANK = ['easy', 'medium', 'hard', 'expert'];
+function _storyFloorAiDiff(current, chapterId, elite) {
+  const id = chapterId || 0;
+  let tier = (id >= 45 ? 3 : id >= 25 ? 2 : id >= 10 ? 1 : 0) + (elite ? 1 : 0);
+  if (tier > 3) tier = 3;
+  return _STORY_AI_RANK[Math.max(_STORY_AI_RANK.indexOf(current), tier)];
+}
+
 function _storyScaleEnemyUnit(unit, chapterId, opts = {}) {
   if (!unit) return unit;
   const elite = !!opts.elite;
@@ -122,6 +134,7 @@ function _storyScaleEnemyUnit(unit, chapterId, opts = {}) {
 
   // ── Attack speed / AI ────────────────────────────────────────
   unit.attackCooldownMult = Math.max(0.58, (unit.attackCooldownMult || 1) * (elite ? 0.72 : 0.86));
+  unit.aiDiff             = _storyFloorAiDiff(unit.aiDiff, origId, elite);
   unit.aiReact            = elite ? 0 : unit.aiReact;
   unit._storyElite        = elite;
   unit._storyPredict      = 0.10 + Math.min(0.18, origId * 0.0035) + (elite ? 0.12 : 0);

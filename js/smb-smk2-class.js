@@ -210,6 +210,16 @@ class SovereignMK2 extends AdaptiveAI {
     this._adaptiveMemorySession  = null;
     this._adaptiveMemoryPending  = false;
 
+    // ── Null Anchor (Null Blade passive) ─────────────────────────
+    // While grounded on the main floor, Sovereign continuously stakes an anchor
+    // point; a fatal fall (ragdoll ring-out, pit juggle) tethers him back to it.
+    // Real cooldown — sustained timed pressure can still beat it.
+    this._anchorX          = x;
+    this._anchorY          = y;
+    this._anchorCd         = 0;
+    this._anchorFlashTimer = 0;
+    this._anchorTetherFrom = null;
+
     // Post-respawn protection: brief defensive burst so Sovereign doesn't sprint into a
     // hammer swing the instant it spawns. Set by onDeath(), counts down in updateAI().
     this._spawnDefendTimer  = 0;
@@ -289,7 +299,7 @@ class SovereignMK2 extends AdaptiveAI {
     if (_dt && _dt.weapon) {
       this._deathRecord = {
         weaponKey:  _dt.weaponKey || null,
-        isHeavy:    _dt.weapon.kb >= 18,
+        isHeavy:    _dt.weapon.kb >= 16 || _dt.weapon.weaponType === 'heavy',
         isRanged:   _dt.weapon.type === 'ranged' || _dt.weapon.type === 'magic',
         lastAction: this._lastAction || 'attack',
         comboDepth: this._countRecent('dmg_taken', 40),
@@ -1597,6 +1607,125 @@ class SovereignMK2 extends AdaptiveAI {
     return this.attackTimer > _at || this.cooldown > _cd;
   }
 
+  // Estimate the target's CURRENT outgoing damage multiplier from live buff
+  // fields. This is how Sovereign knows a 22-base crescent is about to hit for
+  // the 45%-max-HP cap: Kratos rage (+1.5%/stack), Spartan Rage (+30%), map
+  // power buff (+35%), and any flat dmgMult all compound in dealDamage.
+  _targetDamageMult(t) {
+    if (!t) return 1;
+    let m = (typeof t.dmgMult === 'number' && t.dmgMult > 0) ? t.dmgMult : 1;
+    if (t.charClass === 'kratos' && t.rageStacks > 0) m *= 1 + Math.min(t.rageStacks, 30) * 0.015;
+    if (t.spartanRageTimer > 0) m *= 1.3;
+    if (t._powerBuff > 0)       m *= 1.35;
+    return m;
+  }
+
+  // ── LETHAL VOLLEY DEFENSE — homing crescent fans (sword super / Blade Storm) ──
+  // The sword systems spawn fans of crescents in t._swordSlashes that fly ~340px,
+  // HOME vertically onto their target (±0.35/frame), and deliberately hover
+  // waiting out i-frames so every slash in the fan lands. With ramped damage
+  // multipliers each crescent hits the 45%-max-HP cap — a full fan is a
+  // guaranteed stock loss if the first one connects. This was the replay-proven
+  // kill: chip → launch → the rest of the fan juggles Sovereign to 0 mid-air.
+  // Counters exploit the crescents' own physics: fixed horizontal direction
+  // (they can never turn around) and clamped vertical homing (can't track a
+  // burst at close range). Returns true when it consumed the movement frame.
+  _runVolleyDefense(t, d, dir, moveSpd, jumpVy) {
+    if (!t) return false;
+    // Collect EVERY live traveling melee hazard the target owns. Crescents live
+    // in _swordSlashes (sword super/Blade Storm, katana Iaijutsu, spear Ground
+    // Spike); the flail ball, scythe toss, and hammer shockwave are single
+    // objects in their own fields — invisible to the generic projectile pools,
+    // which is exactly why they must be scanned here.
+    const hazards = [];
+    if (t._swordSlashes) for (const sl of t._swordSlashes) {
+      if (sl && !(sl.life !== undefined && sl.life <= 0)) hazards.push(sl);
+    }
+    for (const hz of [t._flailBall, t._scytheToss, t._hammerShock, t._thrownAxe]) {
+      if (hz && (hz.timer === undefined || hz.timer > 0)) hazards.push(hz);
+    }
+    if (!hazards.length) return false;
+    let near = null, nearDx = 1e9, count = 0;
+    for (const sl of hazards) {
+      const dx = sl.x - this.cx();
+      const dy = (sl.y || 0) - this.cy();
+      if (Math.abs(dx) > 360 || Math.abs(dy) > 150) continue;
+      count++;
+      if (Math.abs(dx) < Math.abs(nearDx)) { near = sl; nearDx = dx; }
+    }
+    if (!near) return false;
+    // Lethal-class gate: multi-slash fans always qualify; a single crescent only
+    // when its capped damage is a real chunk of our health. Vanilla single
+    // crescents (22 dmg, no multipliers) stay with the ordinary projectile dodge.
+    const estRaw  = Math.round(22 * this._targetDamageMult(t));
+    const estHit  = Math.min(estRaw, Math.round(22 * 3.5), Math.floor(this.maxHealth * 0.45));
+    if (count < 2 && estHit < Math.max(30, this.health * 0.28)) return false;
+    // Escape direction = the crescents' own travel direction (they cannot
+    // reverse), falling back to away-from-attacker.
+    const away = Math.abs(near.vx || 0) > 1 ? Math.sign(near.vx) : -dir;
+    const gap  = Math.abs(nearDx);
+    // Slashes hover waiting out INVINCIBILITY, but a shield spends them on
+    // contact (hitSet) with no launch — it defuses the whole fan and breaks the
+    // juggle chain even if the shield cracks. Prefer it whenever the fan is
+    // actually about to connect.
+    const _canShield = this.shieldCooldown === 0 && this._shieldHoldFrames === 0;
+    if (this.onGround) {
+      const _runway = away < 0 ? this.x - 40 : (GAME_W - 40) - (this.x + this.w);
+      if (gap > 95 && _runway > 150 && !this.isEdgeDanger(away)) {
+        // Outrun the fan: crescents fly a fixed 8 px/f and expire in ~42 frames.
+        this.vx = away * moveSpd * 2.2;
+      } else if (gap < 130 && _canShield && count >= 2) {
+        this.shielding = true; this.shieldCooldown = 60; this._shieldHoldFrames = 16;
+      } else if (gap < 90) {
+        // Matador: at close range the homing clamp (±0.35/f) cannot correct onto
+        // a full jump burst. Late-dodge up and across, INWARD off a wall.
+        this.vy = jumpVy;
+        this.vx = (this.isEdgeDanger(away) ? -away : away) * moveSpd * 1.6;
+      } else {
+        // Out of runway, fan still inbound: hold coiled and let it come to
+        // matador range — burning the jump early is what homing punishes.
+        this.vx *= 0.5;
+      }
+    } else if (this.canDoubleJump && gap < 120) {
+      this.vy = -15; this.canDoubleJump = false;
+      this.vx = (this.isEdgeDanger(away) ? -away : away) * moveSpd * 1.8;
+    } else if (!this.onGround && gap < 130 && _canShield && count >= 2) {
+      // Juggle state, no jump left — shield mid-air to spend the hovering fan.
+      this.shielding = true; this.shieldCooldown = 60; this._shieldHoldFrames = 14;
+    } else {
+      // Airborne, jump spent: fast-fall + drift — vertical homing tracks slow
+      // arcs, not a dive.
+      this.vy = Math.max(this.vy, 8);
+      if (!this.isEdgeDanger(away)) this.vx = away * moveSpd * 1.5;
+    }
+    this._recordEvent('dodge', 6);
+    this.aiReact = 0;
+    return true;
+  }
+
+  // ── VOLLEY-CYCLE ENGAGEMENT TIMING ────────────────────────────────────────
+  // A ramped crescent thrower's point-blank fan spawns ON Sovereign with zero
+  // reaction window — no movement answers it. The only counter is to not be in
+  // the blast radius while it is ARMED: hold just outside, force the throw at
+  // range (where volley defense answers it), then all-in during the ~2.5s
+  // ability cooldown. Returns 'standoff' | 'window' | null.
+  _volleyCyclePosture(t) {
+    if (!t || !t.weapon) return null;
+    // Per-weapon burst radius: how far the ARMED ability/super reaches with no
+    // reactable travel time. Standing inside it while armed is donating a stock
+    // once the wielder's damage is ramped. Whip's Lasso auto-yanks from 280px,
+    // so its standoff ring sits outside that.
+    const _burstR = {
+      sword: 185, fryingpan: 195, katana: 175, whip: 305,
+      shield: 150, hammer: 165, flail: 165, scythe: 165, broomstick: 165,
+    }[t.weaponKey];
+    if (!_burstR) return null;
+    if (this._targetDamageMult(t) < 1.25) return null;
+    const armed = (t.abilityCooldown || 0) === 0 || !!t.superReady;
+    this._volleyStandoffR = _burstR;
+    return armed ? 'standoff' : 'window';
+  }
+
   // Is the target currently unable to fight back? (locked in swing recovery,
   // stunned, ragdolled, parry-vulnerable, reloading, or guard-broken up close)
   // These are the engine's hard rules — a helpless target is a FREE punish.
@@ -1633,6 +1762,10 @@ class SovereignMK2 extends AdaptiveAI {
       // target-stun exemption here (_targetHelpless already covers stun > 10).
       if (!_helpless && _t.shielding && (_t.shieldStacks || 1) === 1 &&
           (_t.shieldHoldTimer || 0) <= 15) return;
+      // Counter Stance veto (combat weapon): the stance absorbs our hit and
+      // teleports the player behind us into a launcher. Never feed it — the
+      // stance is a visible 20-frame state; wait it out.
+      if ((_t._counterStance || 0) > 0) return;
       // own-stamina discipline — don't buy +40% endlag for a contested exchange
       if (!_helpless && (this.stamina !== undefined) && this.stamina < 15) return;
     }
@@ -1655,7 +1788,53 @@ class SovereignMK2 extends AdaptiveAI {
 
   update() {
     this._checkLimiterBreak(this.target);
+    this._updateNullAnchor();
     super.update();
+  }
+
+  // ── NULL ANCHOR (Null Blade passive) ─────────────────────────────────────
+  // Runs in update(), not updateAI(): ragdoll/stun gates skip updateAI, and a
+  // ring-out happens precisely while helpless — the one death mode no decision
+  // could act through. Grounded on the main floor → stake the anchor (clamped
+  // 80px inside the floor edges). Falling past the arena's kill line with no
+  // recovery possible → tether back, once per cooldown.
+  _updateNullAnchor() {
+    if (this._anchorCd > 0) this._anchorCd--;
+    if (this.health <= 0) return;
+    if (typeof isCinematic !== 'undefined' && isCinematic) return;
+    if (this.invincible >= 900) return; // finisher/cinematic lock — don't teleport out
+    const _arena = (typeof currentArena !== 'undefined') ? currentArena : null;
+    if (!_arena || !_arena.platforms) return;
+    if (this.onGround) {
+      const _fl = _arena.platforms.find(p => p.isFloor && !p.isFloorDisabled);
+      if (_fl && this.y + this.h >= _fl.y - 14) {
+        this._anchorX = Math.max(_fl.x + 80, Math.min(_fl.x + _fl.w - 80 - this.w, this.x));
+        this._anchorY = _fl.y - this.h - 2;
+      }
+      return;
+    }
+    const _kill = _arena.deathY || (GAME_H + 120);
+    // Fatal fall in progress: below the visible arena, still descending, and the
+    // kill line is close. Fires ragdolled or not — the tether is the blade's, not his.
+    if (this._anchorCd <= 0 && this.vy > 0 && this.y > Math.min(_kill - 80, GAME_H + 20)) {
+      this._anchorTetherFrom = { x: this.cx(), y: this.cy() };
+      this._anchorFlashTimer = 22;
+      this._anchorCd         = 300; // 5s — a re-launch inside this window still kills
+      this.x = this._anchorX; this.y = this._anchorY;
+      this.vx = 0; this.vy = 0;
+      this.ragdollTimer = 0;
+      this.stunTimer    = Math.min(this.stunTimer, 6);
+      this.invincible   = Math.max(this.invincible, 18); // land safely, no anchor-camping
+      if (typeof spawnParticles === 'function') {
+        spawnParticles(this.cx(), this.cy(), '#cc2200', 16);
+        spawnParticles(this.cx(), this.cy(), '#ffffff', 8);
+      }
+      if (typeof screenShake !== 'undefined') screenShake = Math.max(screenShake, 10);
+      if (typeof showBossDialogue === 'function' && Math.random() < 0.4) {
+        const _al = ['The blade remembers where I stood.', 'Not the void. Not today.', 'Anchored.'];
+        showBossDialogue(_al[Math.floor(Math.random() * _al.length)], 90);
+      }
+    }
   }
 
   // ══════════════════════════════════════════════════════════════
@@ -1801,7 +1980,11 @@ class SovereignMK2 extends AdaptiveAI {
         this._lockedCounterStrategy = 'intercept';
         this._adaptLockTimer        = 180;
         this._pressureMode          = 'suffocate';
-      } else if (_owKb >= 18 || _owType === 'heavy' || _owDmg >= 25) {
+      } else if (_owKb >= 16 || (t.weapon && t.weapon.weaponType === 'heavy') || _owDmg >= 22) {
+        // weaponType (light/heavy) is the heavy flag — weapon.type is only ever
+        // melee/ranged/magic, so the old `type === 'heavy'` check silently missed
+        // hammer (kb 16), axe, and frying pan: exactly the launch-chain weapons
+        // that bled stocks in the opening minute before adaptation converged.
         this._lockedCounterStrategy = 'parry';
         this._adaptLockTimer        = 180;
       } else if (t.weaponKey === 'shield' || t.charClass === 'knight') {
@@ -2103,6 +2286,72 @@ class SovereignMK2 extends AdaptiveAI {
       return;
     }
 
+    // ── LETHAL VOLLEY DEFENSE — outranks everything except staying on stage ──
+    // A ramped homing-crescent fan is a one-volley stock loss; no punish window
+    // or pressure plan is worth contesting it (replay-proven loss pattern).
+    if (this._runVolleyDefense(t, d, dir, moveSpd, _jumpVy)) {
+      this._updateFearFactor(d, recentLanded, true);
+      return;
+    }
+
+    // ── VOLLEY-CYCLE TIMING vs a ramped crescent thrower ─────────────────────
+    // Armed: hold outside the point-blank blast radius (a fresh fan there is
+    // unreactable) and stay dodge-primed. Spent: the ~2.5s cooldown is a safe
+    // all-in window — convert it like a punish.
+    // Patience valve: a thrower who HOLDS the armed volley forever cannot be
+    // allowed to freeze Sovereign into permanent standoff. After ~10s of armed
+    // passivity, engage anyway for a stretch (shield stays reserved for the
+    // point-blank throw) before resuming the standoff.
+    const _vPosture = this._volleyCyclePosture(t);
+    if (this._volleyStandoffFrames === undefined) { this._volleyStandoffFrames = 0; this._volleyEngageFrames = 0; }
+    if (_vPosture !== 'standoff') this._volleyStandoffFrames = 0;
+    if (this._volleyEngageFrames > 0) this._volleyEngageFrames--;
+    if (_vPosture === 'standoff' && !this._targetHelpless(t) && this._volleyEngageFrames <= 0) {
+      if (++this._volleyStandoffFrames > 600) {
+        this._volleyStandoffFrames = 0;
+        this._volleyEngageFrames   = 400; // engage window — falls through to normal play
+      } else {
+        if (d < (this._volleyStandoffR || 185)) {
+          // Cornered against our own wall: relocate — jump over the thrower toward
+          // center. Fighting near the floor edge is what converts a capped-KB
+          // launch into a ring-out while ragdolled (the one remaining death mode).
+          const _soCornered = (nearLeft && dir > 0) || (nearRight && dir < 0) ||
+                              this.x < 90 || this.x + this.w > GAME_W - 90;
+          const _soDir = (nearLeft && dir < 0) ? 1 : (nearRight && dir > 0) ? -1 : -dir;
+          if (_soCornered && d < (this._volleyStandoffR || 185) * 0.8 &&
+              this.shieldCooldown === 0 && this._shieldHoldFrames === 0) {
+            // Cornered INSIDE the burst radius: a leap doesn't clear a radial
+            // point-blank AoE (frying pan's pound is a center-distance check —
+            // airborne within 150px still eats it). Shield through the burst.
+            this.shielding = true; this.shieldCooldown = 60; this._shieldHoldFrames = 14;
+          } else if (_soCornered && this.onGround && !playerAttacking) {
+            const _cDir = this.cx() < GAME_W / 2 ? 1 : -1;
+            this.vy = _jumpVy; this.vx = _cDir * moveSpd * 1.6; // leap to center ground
+          } else if (!this.isEdgeDanger(_soDir)) {
+            this.vx = _soDir * moveSpd * 1.5;
+          } else {
+            this.vx *= 0.6;
+            if (playerAttacking && d < 130 && this.shieldCooldown === 0 && this._shieldHoldFrames === 0) { this.shielding = true; this.shieldCooldown = 60; this._shieldHoldFrames = 10; }
+          }
+          this.aiReact = 0;
+          return;
+        }
+        // At range while armed: drift centerward, never parked on a floor edge.
+        if (this.x < 120 || this.x + this.w > GAME_W - 120) {
+          const _cDir = this.cx() < GAME_W / 2 ? 1 : -1;
+          if (!this.isEdgeDanger(_cDir)) this.vx = _cDir * moveSpd * 0.9;
+        } else this.vx *= 0.7;
+        this.aiReact = 0;
+        return;
+      }
+    }
+    if (_vPosture === 'window') {
+      // Fan is spent — free approach for the cooldown's duration.
+      this._pressureMode      = 'suffocate';
+      this._pressureHoldTimer = Math.max(this._pressureHoldTimer, 30);
+      if (this._punishTimer === 0 && d > weaponRange + 10) this._punishTimer = 2; // sprint-convert
+    }
+
     // ── PRIORITY DESCENT — drop to a target fighting a full level below ──────
     // Standing on a platform directly over a floor-level opponent, Sovereign read
     // itself as "in range" horizontally, swung down into the solid deck (vertical
@@ -2373,7 +2622,22 @@ class SovereignMK2 extends AdaptiveAI {
     // the same for each: give the domain NOTHING — stay out of reach, dodge, and
     // let it expire. Hard punish windows still convert (the guaranteed-punish
     // block above runs first), but neutral trades are refused entirely.
-    const _domainThreat = !!(t._roninCutsActive || t._soulTitheActive ||
+    // ── PUGILIST COMBO STRIKE READ ────────────────────────────────────────
+    // The low-HP scripted combo (dash → kick → punch) has NO distance gate — its
+    // hits land unconditionally while it runs. Movement cannot dodge it; a
+    // shield absorbs both hits with zero knockback (which also cancels the
+    // 24-velocity ring-out blast). The state object is visible the frame it arms.
+    if (t._comboSuper && this.shieldCooldown === 0 && this._shieldHoldFrames === 0) {
+      this.shielding = true; this.shieldCooldown = 60; this._shieldHoldFrames = 26;
+      this.aiReact = 0;
+      return;
+    }
+
+    // Every class has a domain (every 5th super triggers an expansion), so read
+    // the DomainManager registry generically rather than per-class flags.
+    const _tOwnsDomain = typeof DomainManager !== 'undefined' && DomainManager.domains &&
+                         DomainManager.domains.some(dm => dm && dm.owner === t);
+    const _domainThreat = !!(t._roninCutsActive || t._soulTitheActive || _tOwnsDomain ||
                              (this._domainSlowFactor > 0 && this._domainSlowFactor < 1));
     if (_domainThreat && d < 280) {
       const _ddDir = (nearLeft && dir < 0) ? 1 : (nearRight && dir > 0) ? -1 : -dir;
@@ -2893,7 +3157,12 @@ class SovereignMK2 extends AdaptiveAI {
     // At close range, occasionally hold shield briefly to bait the player into
     // attacking — shield drops after 17 frames and the counter fires immediately.
     // Only fires when not in bait/punish/force mode and shield cooldown is ready.
+    // Shield reservation: while the target sits on a ready super with ramped
+    // damage multipliers, the shield is earmarked for the incoming volley —
+    // don't spend it on a speculative bait stance.
+    const _shieldReserved = !!t.superReady && this._targetDamageMult(t) >= 1.3;
     if (!this._punishModeActive && this._shieldHoldFrames === 0 && this.shieldCooldown === 0
+        && !_shieldReserved
         && this.intelligence > 0.60 && d < 150 && d > prefDist * 0.7
         && !playerAttacking && Math.random() < (0.002 + this.intelligence * 0.0016)) {
       this.shielding        = true;
@@ -3252,6 +3521,28 @@ class SovereignMK2 extends AdaptiveAI {
         ctx.stroke();
         ctx.restore();
       }
+    }
+
+    // Null Anchor tether flash — red line snapping from the fall point back to
+    // the anchor, fading over ~22 frames.
+    if (this._anchorFlashTimer > 0 && this._anchorTetherFrom) {
+      this._anchorFlashTimer--;
+      const _ta = this._anchorFlashTimer / 22;
+      ctx.save();
+      ctx.strokeStyle = `rgba(255,40,0,${(_ta * 0.8).toFixed(2)})`;
+      ctx.lineWidth   = 1.5 + _ta * 2;
+      ctx.setLineDash([6, 6]);
+      ctx.beginPath();
+      ctx.moveTo(this._anchorTetherFrom.x, this._anchorTetherFrom.y);
+      ctx.lineTo(this.cx(), this.cy());
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.strokeStyle = `rgba(255,255,255,${(_ta * 0.6).toFixed(2)})`;
+      ctx.beginPath();
+      ctx.arc(this.cx(), this.cy(), 18 + (1 - _ta) * 22, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+      if (this._anchorFlashTimer === 0) this._anchorTetherFrom = null;
     }
 
     // Parent draw (aura + fighter body + "ADAPTING" label)
