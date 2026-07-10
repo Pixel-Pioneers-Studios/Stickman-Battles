@@ -167,13 +167,22 @@ function _checkGodDeath() {
 }
 
 function _onGodDefeated() {
-  if (typeof godDefeated !== 'undefined' && godDefeated) return;
-  if (typeof setAccountFlagWithRuntime === 'function') {
-    setAccountFlagWithRuntime(['unlocks', 'godDefeated'], true, v => { godDefeated = v; });
-  } else {
-    godDefeated = true;
+  const _storyGod = typeof storyModeActive !== 'undefined' && storyModeActive &&
+    typeof _activeStory2Chapter !== 'undefined' && _activeStory2Chapter && !!_activeStory2Chapter.isGodFight;
+  // Unlock flag + achievement fire once (first defeat only).
+  if (!(typeof godDefeated !== 'undefined' && godDefeated)) {
+    if (typeof setAccountFlagWithRuntime === 'function') {
+      setAccountFlagWithRuntime(['unlocks', 'godDefeated'], true, v => { godDefeated = v; });
+    } else {
+      godDefeated = true;
+    }
+    if (typeof unlockAchievement === 'function') unlockAchievement('god_slayer');
   }
-  if (typeof unlockAchievement === 'function') unlockAchievement('god_slayer');
+  // Story God fight: complete the chapter via endGame (story2OnMatchEnd handles
+  // victory + postText). Runs regardless of the unlock flag so a replay still completes.
+  if (_storyGod) {
+    setTimeout(() => { if (typeof endGame === 'function') endGame(); }, 900);
+  }
 }
 
 // ── Fake crash screen ──────────────────────────────────────────────────────

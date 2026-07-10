@@ -42,11 +42,37 @@ const SERVER_CONFIG = {
 // ============================================================
 const CHANGELOG = [
   {
+    version: '4.0.0',
+    title: 'THE SOVEREIGN UPDATE',
+    date: '2026-07-10',
+    flavor: 'It stopped pretending to think at your speed. It stopped pretending the arena was neutral ground. And somewhere far past the end of the road, the story found its voice.',
+    isLatest: true,
+    changes: [
+      { cat: 'AI',      text: 'Sovereign no longer holds back — every deliberate mistake, hesitation window, and mercy system has been stripped out; it plays the fight it was always capable of playing' },
+      { cat: 'AI',      text: 'Sovereign reads the rules of the engine itself — it refuses to swing into invincibility frames or a ready parry, holds attacks your stamina can\'t answer, goes all-in the instant you\'re helpless, punishes landings, and counts your reload' },
+      { cat: 'AI',      text: 'Sovereign fights the arena, not just you — it dodges eruptions, meteors, stalactites, cars, and every other live map hazard, corners you inside them, collects or denies pickups and buff pads, and cracks open favorable crates while you\'re out of range' },
+      { cat: 'AI',      text: 'Sovereign abilities and supers are no longer random rolls — every cast is spent on a confirmed window: a guard to crack, a trapped or helpless target, a finish, or its own survival' },
+      { cat: 'AI',      text: 'Sovereign adapts in seconds — observation gates cut across the board and pattern memory now weighs the last few exchanges far above stale match history; the warm-up it used to donate is gone' },
+      { cat: 'AI',      text: 'Sovereign now dodges the full arsenal — paper swarms, boomerangs, pea clusters, gravity stones, flail balls, scythe tosses, hammer shockwaves, and thrown axes all register in its projectile reads' },
+      { cat: 'AI',      text: 'Story opponents grow with you — enemy intelligence now scales with your campaign progression instead of staying frozen at each chapter\'s authored difficulty; late-game enemies fight like they belong there' },
+      { cat: 'Story',   text: 'The story speaks — full voice acting for story dialogue and narration with distinct voices per speaker; toggle it in Audio settings' },
+      { cat: 'Story',   text: 'Cutscenes play in full the first time and stay out of your way after — the new Replay Mode setting controls whether beaten chapters replay their cinematics and fights or let you walk through freely' },
+      { cat: 'Story',   text: 'A new chapter structure debuts in Chapter 2 — walk the world, reach the fight, survive it, and walk out; health carries between these chapters, and the road holds coins, experience, and healing crystals that never respawn once taken' },
+      { cat: 'Story',   text: 'Weapon Mastery — every weapon now levels up individually through the skill tree as you fight with it in the campaign' },
+      { cat: 'Story',   text: 'Level select rebuilt — chapters are numbered and organized into pages per act instead of one endless scroll' },
+      { cat: 'Story',   text: 'The final confrontation is now a true fight — you do not face it alone, and it does not fall easily; 1 life', spoilerLevel: 3 },
+      { cat: 'Class',   text: 'Warrior — a disciplined, no-frills melee class; sturdy fundamentals, no gimmicks' },
+      { cat: 'Fix',     text: 'Dozens of story chapters were quietly collapsing into plain one-on-one duels — exploration levels, special missions, and every decision scene lost their identity while the chapter list was built; all of them now play as authored' },
+      { cat: 'Fix',     text: 'Late-story boss chapters now spawn their true opponents — several were sending a stand-in fighter instead of the entity the chapter promised', spoilerAct: 4 },
+      { cat: 'Fix',     text: 'Story objectives now name the actual target instead of a generic goal, and campaign completion percentage no longer counts past 100%' },
+    ],
+  },
+  {
     version: '3.9.10',
     title: 'THE SPECIAL OPERATIONS UPDATE',
     date: '2026-07-04',
     flavor: 'Some fights don\'t wait for you to be ready. A target already running. A line of challengers with no rest between them. A sky that wants you gone.',
-    isLatest: true,
+    isLatest: false,
     changes: [
       { cat: 'Story', text: 'Assassination missions now play as intended — a countdown runs while your target tries to flee the arena; catch them before they slip away or the mission fails' },
       { cat: 'Story', text: 'Gauntlet missions now run their full multi-round structure — consecutive waves with no healing between them, enemies gaining armor and numbers each round', spoilerAct: 5 },
@@ -805,7 +831,7 @@ let _publicRoomCheckTimer = 0;
 // ============================================================
 // VERSION
 // ============================================================
-const GAME_VERSION = '3.9.10';  // bump this when releasing; must match CHANGELOG[0].version
+const GAME_VERSION = '4.0.0';  // bump this when releasing; must match CHANGELOG[0].version
 console.log('[VERSION CHECK]', GAME_VERSION);
 
 // DEBUG / DEVELOPER STATE

@@ -182,6 +182,7 @@ STORY_CHAPTER_REGISTRY.push(
     armor: ['helmet', 'chestplate'],
     playerLives: 1,
     arena: 'void',
+    walkFight: true, worldLength: 3000,
     tokenReward: 100, blueprintDrop: null,
     postText: 'Null stepped back. "The gap is not an error," it said. "It is the point. You were never meant to fit the pattern." It was quiet for a moment. Then: "Anders would have found that difficult to catalogue." It stepped aside. "Go. You carry something the pattern cannot contain. That makes you the most significant variable I have ever encountered." A pause. "And the one I am least equipped to stop."',
     isMultiverseWorld: true,

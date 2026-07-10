@@ -281,6 +281,16 @@ function _launchExplorationChapter(ch) {
     aiDiff:    ch.aiDiff        || 'medium',
     color:     ch.opponentColor || '#cc4444',
     health:    ch.opponentHealth || 140,
+    armor:     (Array.isArray(ch.armor) && ch.armor.length) ? ch.armor : null,
+    // Two-enemy fight chapters: second opponent spawns alongside at the checkpoint
+    // (mirrors the auto-generate fallback used by the normal fight path in flow.js)
+    second:    ch.twoEnemies ? Object.assign({
+      name:      (ch.opponentName || 'Enemy') + ' II',
+      weaponKey: ch.weaponKey     || 'sword',
+      classKey:  ch.classKey      || 'warrior',
+      aiDiff:    ch.aiDiff        || 'medium',
+      color:     ch.opponentColor || '#cc5500',
+    }, ch.secondEnemy || {}) : null,
   } : null;
 
   // Loot: coins (money), an EXP orb, and a post-fight healing crystal along the walk path.

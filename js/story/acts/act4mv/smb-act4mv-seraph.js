@@ -193,6 +193,7 @@ STORY_CHAPTER_REGISTRY.push(
     armor: ['helmet', 'chestplate'],
     playerLives: 1,
     arena: 'cave',
+    walkFight: true, worldLength: 3000,
     tokenReward: 100, blueprintDrop: null,
     postText: 'Seraph lowered their hands. The absorption field stilled to its lowest in — long. Very long. "You carry something I wanted back for a long time," they said. "The void\'s clean product. Not what it does to things. Just what it makes when nothing is in the way." Quiet. "It chose you. Not me. I understand why." They stepped back, and back, until they were at the center of the expanse again. "That distinction matters more than I expected it to." A last pause. "Go. Whatever you\'re carrying forward — it\'s the right direction."',
     isMultiverseWorld: true,

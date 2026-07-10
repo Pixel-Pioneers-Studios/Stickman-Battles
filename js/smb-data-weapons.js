@@ -745,6 +745,7 @@ function swingPose(weaponKey, atkP, facing, alt) {
 // ============================================================
 const CLASSES = {
   none:      { name: 'None',      desc: 'Standard balanced fighter',            weapon: null,     hp: 150, speedMult: 1.00, perk: null           },
+  warrior:   { name: 'Warrior',   desc: 'Disciplined melee fighter. Sturdy, no frills.', weapon: null, hp: 120, speedMult: 1.00, perk: null   },
   thor:      { name: 'Thor',      desc: 'Hammer master, thunder on dash',       weapon: 'hammer', hp: 140, speedMult: 0.90, perk: 'thunder'      },
   kratos:    { name: 'Kratos',    desc: 'Axe specialist, rage at low HP',       weapon: 'axe',    hp: 145, speedMult: 0.95, perk: 'rage'         },
   ninja:     { name: 'Ninja',     desc: 'Fast sword fighter, quick dash',       weapon: 'sword',  hp: 90,  speedMult: 1.24, perk: 'swift'        },

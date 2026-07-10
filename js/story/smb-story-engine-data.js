@@ -87,6 +87,8 @@ function _expandStoryChaptersInPlace() {
 
     if (origCh.noFight || origCh.isEpilogue || origCh.isDamnationChapter || origCh.type === 'exploration'
         || origCh.type === 'assassination' || origCh.type === 'gauntlet' || origCh.type === 'ship_flight' || origCh.type === 'escort'
+        || origCh.type === 'branch' || origCh.type === 'interlude'
+        || origCh.isBossFight || origCh.isTrueFormFight || origCh.isSovereignFight || origCh.isAbsoluteAxiomFight || origCh.isGodFight
         || origCh.walkFight) {
       // Special-mode chapters stay single & intact so their type + mode data
       // (assassinationTimer, gauntletRounds, escortNPC, shipFlight) survive to

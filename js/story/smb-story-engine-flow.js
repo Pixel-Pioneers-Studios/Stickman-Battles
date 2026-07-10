@@ -158,7 +158,7 @@ function _launchChapterWithGauntlet(ch) {
   // Special-mode chapters (assassination/gauntlet/ship_flight/escort) also
   // bypass the gauntlet — otherwise _storyBuildPhases rewrites ch.type to
   // 'fight' and collapses their authored mode into a plain duel.
-  if (ch.type === 'exploration' || ch.isBossFight || ch.isTrueFormFight || ch.isSovereignFight || ch.isAbsoluteAxiomFight || ch.type === 'interlude'
+  if (ch.type === 'exploration' || ch.isBossFight || ch.isTrueFormFight || ch.isSovereignFight || ch.isAbsoluteAxiomFight || ch.isGodFight || ch.type === 'interlude'
       || ch.type === 'assassination' || ch.type === 'gauntlet' || ch.type === 'ship_flight' || ch.type === 'escort') {
     _directLaunchChapter(ch);
   } else {
@@ -527,6 +527,9 @@ function _launchChapter2FightImmediate(ch) {
     gameMode = 'absoluteaxiom';
     if (typeof selectMode === 'function') selectMode('absoluteaxiom');
     window._aaStoryHealth = ch.aaStoryHealth || 900;
+  } else if (ch.isGodFight) {
+    gameMode = 'god';
+    if (typeof selectMode === 'function') selectMode('god');
   } else if (ch.isDamnationChapter) {
     gameMode = 'damnation';
     p2IsBot  = true;
@@ -554,7 +557,7 @@ function _launchChapter2FightImmediate(ch) {
   const _safeWeapon = key => (_rangedUnlocked || !_isRanged(key)) ? key : _RANGED_FALLBACK;
 
   // Set P2 weapon/class to chapter opponent
-  const _notBossOrTF = !ch.isBossFight && !ch.isTrueFormFight && !ch.isSovereignFight && !ch.isAbsoluteAxiomFight;
+  const _notBossOrTF = !ch.isBossFight && !ch.isTrueFormFight && !ch.isSovereignFight && !ch.isAbsoluteAxiomFight && !ch.isGodFight;
   if (_notBossOrTF && ch.weaponKey) {
     const p2w = document.getElementById('p2Weapon');
     if (p2w) p2w.value = _safeWeapon(ch.weaponKey);
@@ -654,13 +657,15 @@ function _launchChapter2FightImmediate(ch) {
     const _chOrigId = ch._origId !== undefined ? ch._origId : ch.id;
     let _obj;
     if (ch.isTrueFormFight)  _obj = 'Defeat True Form';
-    else if (ch.isBossFight) _obj = 'Defeat the Creator';
+    else if (ch.isBossFight) _obj = ch.bossType === 'fallen_god' ? 'Defeat the Fallen God' : 'Defeat the Creator';
     else if (ch.isSovereignFight) _obj = 'Defeat the Sovereign';
     else if (ch.isAbsoluteAxiomFight) _obj = 'Defeat Absolute Axiom';
+    else if (ch.isGodFight) _obj = 'Defeat God';
     else if (ch.type === 'exploration') _obj = 'Reach ' + (ch.objectName || 'the objective');
     else if (_chOrigId < 8)  _obj = 'Survive the attack — find out why.';
     else if (_chOrigId < 20) _obj = 'Investigate the fractures.';
     else if (_chOrigId < 40) _obj = 'Follow the trail. Someone is coordinating this.';
+    else if (ch.opponentName) _obj = 'Defeat ' + ch.opponentName;
     else if (_chOrigId < 60) _obj = 'Breach the Creator\'s domain.';
     else                     _obj = 'Prepare for the Creator.';
     setObjective(_obj);

@@ -1020,7 +1020,19 @@ function _normalizeStory2Progress(data) {
       if (data.weaponSkills[wk] && typeof data.weaponSkills[wk] === 'object') out.weaponSkills[wk] = Object.assign({}, data.weaponSkills[wk]);
     }
   }
-  if (Array.isArray(data.defeated)) out.defeated = data.defeated.slice();
+  if (Array.isArray(data.defeated)) {
+    // Dedupe + drop stale/out-of-range ids. Past chapter renumberings left
+    // duplicate and beyond-range entries that inflated defeated.length (progress
+    // read 373/184 · 203%; playerPowerLevel also keys off this length).
+    const _maxCh = (typeof STORY_CHAPTERS2 !== 'undefined' && STORY_CHAPTERS2.length) ? STORY_CHAPTERS2.length : Infinity;
+    const _seen = {};
+    out.defeated = data.defeated.filter(function(i) {
+      if (typeof i !== 'number' || !Number.isInteger(i) || i < 0 || i >= _maxCh) return false;
+      if (_seen[i]) return false;
+      _seen[i] = 1;
+      return true;
+    });
+  }
   if (typeof data.storyComplete === 'boolean') out.storyComplete = data.storyComplete;
   if (data.runState && typeof data.runState === 'object') out.runState = Object.assign({}, base.runState, data.runState);
   if (data.metaUpgrades && typeof data.metaUpgrades === 'object') out.metaUpgrades = Object.assign({}, base.metaUpgrades, data.metaUpgrades);

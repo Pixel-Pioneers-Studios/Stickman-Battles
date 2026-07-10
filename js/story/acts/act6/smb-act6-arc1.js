@@ -34,6 +34,7 @@ STORY_CHAPTER_REGISTRY.push(
     armor: ['helmet', 'chestplate'],
     playerLives: 3,
     arena: 'colosseum',
+    walkFight: true, worldLength: 3000,
     tokenReward: 30, blueprintDrop: null,
     postText: 'The guardians stand down. The voice returns — closer now, more present. "You passed the first gate. Four worlds. A loop. You are still intact." A pause. "That matters more than you know."',
   },

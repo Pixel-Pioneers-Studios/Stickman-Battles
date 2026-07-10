@@ -181,6 +181,7 @@ STORY_CHAPTER_REGISTRY.push(
     armor: ['helmet', 'chestplate'],
     playerLives: 1,
     arena: 'underwater',
+    walkFight: true, worldLength: 3000,
     tokenReward: 100, blueprintDrop: null,
     postText: 'VAEL stopped. Stood in the present for a moment — just the present, nothing seen ahead or behind. "I lost," they said. "I knew I would. I didn\'t know it would feel like this." They were quiet. "Like everything was actually happening." They stepped aside. The fracture opened. "You carry a blank future," they said. "I don\'t know what that means for what comes after you." A pause. "But I think it means something good. That is also a first."',
     isMultiverseWorld: true,

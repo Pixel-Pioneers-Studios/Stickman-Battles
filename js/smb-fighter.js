@@ -2039,7 +2039,7 @@ class Fighter {
     // swing's contact frame; if the blade still won't reach, abort WITHOUT
     // consuming the cooldown so the bot keeps closing and only swings when a
     // hit is actually plausible. AI-only; players keep full manual control.
-    if (this.isAI && !this.isBoss && this.weapon.type === 'melee' &&
+    if (this.isAI && !this.isBoss && this.weapon.type === 'melee' && !this._envSwing &&
         (typeof window === 'undefined' || window.AI_WHIFF_GUARD !== false)) {
       const _gT = target || this.target;
       if (_gT && _gT.health > 0) {

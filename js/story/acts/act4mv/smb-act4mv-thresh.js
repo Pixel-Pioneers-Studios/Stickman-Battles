@@ -140,6 +140,7 @@ STORY_CHAPTER_REGISTRY.push(
     armor: ['helmet', 'chestplate', 'leggings'],
     playerLives: 1,
     arena: 'lava',
+    walkFight: true, worldLength: 3000,
     tokenReward: 100, blueprintDrop: null,
     postText: 'Thresh lowered their hands. The Collision Realm went quiet for the first time since it was built. "You hold," they said again. Then slowly: "The note I kept — in someone else\'s handwriting. It says to find the one who holds." They looked at the debris surrounding them — dimensions and years of grief compressed into wreckage. "I don\'t remember who wrote that. I don\'t remember most of before." A pause. "But I think I understand what it meant now." They stepped aside. "Go."',
     isMultiverseWorld: true,

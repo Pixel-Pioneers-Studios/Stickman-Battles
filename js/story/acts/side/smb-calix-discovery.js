@@ -83,6 +83,7 @@ STORY_CHAPTER_REGISTRY.push(
     twoEnemies: true,
     secondEnemy: { weaponKey: 'axe', classKey: 'warrior', aiDiff: 'hard', color: '#334466' },
     arena: 'ruins',
+    walkFight: true, worldLength: 3000,
     playerLives: 3,
     tokenReward: 80, blueprintDrop: null,
     postText: '"Calix." They say it without looking at you, like someone reconfirming something they already established. "You\'re the fragment bearer." Not a question. They recognized it the moment the column opened. "I know what you carry. I know what it means you\'re trying to do." A pause. "I also know you don\'t have the full picture yet. Neither did anyone else who came through this facility." They push to their feet — unsteady for one second, then not. "Come on. Before the secondary response activates."',
@@ -127,6 +128,7 @@ STORY_CHAPTER_REGISTRY.push(
     secondEnemy: { weaponKey: 'sword', classKey: 'warrior', aiDiff: 'hard', color: '#223355' },
     armor: ['helmet'],
     arena: 'ruins',
+    walkFight: true, worldLength: 3000,
     playerLives: 3,
     tokenReward: 80, blueprintDrop: null,
     onComplete() {

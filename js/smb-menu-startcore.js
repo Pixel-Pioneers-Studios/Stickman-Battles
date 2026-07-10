@@ -379,9 +379,13 @@ function _startGameCore() {
     p1.isAI  = false;
     p1.lives = isSovereignMode ? Math.max(chosenLives, 10) : chosenLives;
     // Pick a weapon for the AI — Sovereign always uses nullblade; adaptive uses a random melee set
+    // Story Sovereign chapters use the full SovereignMK2 brain (no-mercy), the same
+    // as the standalone mode — but keep the story's own arena and lives.
+    const _storySovFight = storyModeActive && typeof _activeStory2Chapter !== 'undefined' && _activeStory2Chapter && !!_activeStory2Chapter.isSovereignFight;
+    const _useSovMK2 = isSovereignMode || _storySovFight;
     const _aiWeapons = ['sword','axe','spear','hammer','scythe','voidblade'];
-    const _aiWeapon  = isSovereignMode ? 'nullblade' : _aiWeapons[Math.floor(Math.random() * _aiWeapons.length)];
-    const ai = isSovereignMode
+    const _aiWeapon  = _useSovMK2 ? 'nullblade' : _aiWeapons[Math.floor(Math.random() * _aiWeapons.length)];
+    const ai = _useSovMK2
       ? new SovereignMK2(720, 300, '#ff3311', _aiWeapon)
       : new AdaptiveAI(720, 300, '#9955ee', _aiWeapon);
 
@@ -395,7 +399,7 @@ function _startGameCore() {
     // ── Difficulty boosts applied post-construction ───────────────────────────
     // Sovereign gamemode: start at near-peak intelligence, limiter already broken.
     // The player faces maximum Sovereign from round 1 — no warm-up phase.
-    if (isSovereignMode) {
+    if (_useSovMK2) {
       ai.aiMemory.aggression    = 0.94;
       ai.aiMemory.defense       = 0.90;
       ai.aiMemory.spacing       = 0.08;
@@ -413,7 +417,7 @@ function _startGameCore() {
       ai._updateAuraColor();
     }
     // Story adaptive: start sharper than default so the fight feels earned, not trivial.
-    if (storyModeActive && !isSovereignMode) {
+    if (storyModeActive && !_useSovMK2) {
       ai.aiMemory.aggression    = 0.88;
       ai.aiMemory.defense       = 0.82;
       ai.aiMemory.spacing       = 0.10;
@@ -526,26 +530,53 @@ function _startGameCore() {
     minions.length = 0;
     if (typeof escortCleanup === 'function') escortCleanup(); // reset any prior escort state
   } else if (isGodMode) {
-    // God encounter — P1 vs God (in minions), optional Paradox ally
+    // God encounter — P1 vs God (in minions), optional Paradox ally.
+    // Story God fight (ch.isGodFight): keep the story's lives, story-scale God's HP,
+    // and spawn the story ally (Axiom) instead of the standalone godslayer loadout.
+    const _storyGod = storyModeActive && typeof _activeStory2Chapter !== 'undefined' && _activeStory2Chapter && !!_activeStory2Chapter.isGodFight;
     p1.isAI  = false;
-    p1.lives = 10;
-    p1.armorPieces = ['helmet', 'chestplate', 'leggings'];
-    p1.armorStyle  = 'godslayer';
+    p1.lives = _storyGod ? chosenLives : 10;
     p1._teamId = 1;
-    if (window.GODSLAYER_WEAPON) {
-      p1.weapon    = window.GODSLAYER_WEAPON;
-      p1.weaponKey = '_godslayer';
-      p1._ammo     = 0;
+    if (!_storyGod) {
+      p1.armorPieces = ['helmet', 'chestplate', 'leggings'];
+      p1.armorStyle  = 'godslayer';
+      if (window.GODSLAYER_WEAPON) {
+        p1.weapon    = window.GODSLAYER_WEAPON;
+        p1.weaponKey = '_godslayer';
+        p1._ammo     = 0;
+      }
     }
     players = [p1];
     p1.target = null;
     // Spawn God into minions — spawnGod() enforces singleton and spawns near player
+    let _godRef = null;
     if (typeof spawnGod === 'function') {
-      const _god = spawnGod(false);
-      if (_god && typeof _godWasAlive !== 'undefined') _godWasAlive = true;
+      _godRef = spawnGod(false);
+      if (_godRef && typeof _godWasAlive !== 'undefined') _godWasAlive = true;
+      if (_storyGod && _godRef) {
+        const _gh = _activeStory2Chapter.godStoryHealth || 1400;
+        _godRef.maxHealth = _gh; _godRef.health = _gh;
+        _godRef._storyGod = true;
+        _godRef.target = p1;
+      }
     }
-    // Phase 2: spawn Paradox as ally
-    if (typeof _isGodPhase2 === 'function' && _isGodPhase2() && typeof GodParadoxAlly !== 'undefined') {
+    if (_storyGod) {
+      // Story ally (Axiom) fights beside the player against God
+      if (typeof storyAllyDef !== 'undefined' && storyAllyDef) {
+        const _sad = storyAllyDef;
+        const _spA = pickSafeSpawn('left', p1.x) || { x: 250, y: 300 };
+        const pA = new Fighter(_spA.x, _spA.y, _sad.color || '#ffd27f', _sad.weaponKey || 'sword',
+          { left:'j', right:'l', jump:'i', attack:'u', shield:'k', ability:'o', super:'[' }, true, _sad.aiDiff || 'expert');
+        pA.playerNum = 4; pA.name = _sad.name || 'Ally'; pA.lives = 1;
+        pA.spawnX = _spA.x; pA.spawnY = _spA.y; pA.y = _spA.y - pA.h;
+        if (_sad.classKey) applyClass(pA, _sad.classKey);
+        if (_sad.health) { pA.maxHealth = _sad.health; pA.health = _sad.health; }
+        pA.storyFaction = 'player'; pA._teamId = 1; pA.isStoryAlly = true; pA.isMinion = true;
+        pA.target = _godRef;
+        minions.push(pA);
+      }
+    } else if (typeof _isGodPhase2 === 'function' && _isGodPhase2() && typeof GodParadoxAlly !== 'undefined') {
+      // Phase 2: spawn Paradox as ally
       const _ally = new GodParadoxAlly(300, 200);
       _ally._teamId = 1;
       minions.push(_ally);

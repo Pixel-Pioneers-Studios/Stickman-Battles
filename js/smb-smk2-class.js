@@ -131,8 +131,9 @@ class SovereignMK2 extends AdaptiveAI {
     this._adaptInterval = 5; // ~12×/sec vs inherited 8 (~7.5×/sec)
 
     // ── Observation window + adaptation lock ────────────────────
-    // No adaptation fires until _observationFrames >= 40 (≈0.7 sec)
-    // AND _actionSampleCount >= 2 non-idle actions.
+    // Hard counters are allowed after four decision frames and one meaningful
+    // action. The BehaviorModel still supplies the confidence gate, so this is
+    // fast adaptation rather than an uninformed opening guess.
     this._observationFrames  = 0;   // incremented every AI tick
     this._actionSampleCount  = 0;   // non-idle actions seen
     this._adaptLockTimer     = 0;   // frames remaining on locked strategy
@@ -199,10 +200,16 @@ class SovereignMK2 extends AdaptiveAI {
     this._voidRecoverCd     = 0;      // emergency recovery cooldown after edge launch
     this._heavyThreatCd     = 0;      // short memory for high-knockback weapons
 
-    // Tune BehaviorModel for Sovereign: faster decay so recent patterns dominate
-    // Default 0.993 / 6-frame interval; Sovereign uses 0.988 / 4-frame for quicker adaptation
-    this._behaviorModel._decayRate     = 0.988;
-    this._behaviorModel._decayInterval = 4;
+    // Tune BehaviorModel for Sovereign: sample every decision frame and weight
+    // recent exchanges far more heavily than stale match history. This is purely
+    // a learning/read change; movement, damage, and weapon values stay untouched.
+    this._behaviorModel._decayRate     = 0.990;
+    this._behaviorModel._decayInterval = 1;
+
+    // Tactical orchestration state. The AI refreshes this from live arena and
+    // combat state each decision frame, then spends existing tools only where
+    // the engine says they have value (hazards, resources, recovery windows).
+    this._mapTacticalState = { selfHazard: null, targetHazard: null };
 
     // Adaptive memory bridge state (local session + Supabase priors)
     this._adaptiveMemoryState   = null;
@@ -607,10 +614,9 @@ class SovereignMK2 extends AdaptiveAI {
       if (this._adaptInterval > 4) this._adaptInterval = 4;
       return;
     }
-    // Real warmup before the limiter can break: Sovereign starts near peak
-    // intelligence, so the 'evolution' trigger below would otherwise fire almost
-    // immediately and skip the OBSERVING/READING arc the player is meant to see.
-    if (this._observationFrames < 600) return;
+    // A short read is enough: Sovereign still observes before committing, but
+    // does not donate a long warm-up while the player establishes a winning loop.
+    if (this._observationFrames < 30) return;
     const recentTaken = this._countRecent('dmg_taken', 180);
     const hpPct = this.health / Math.max(1, this.maxHealth);
     const targetAdv = t && t.health > 0 ? t.health / Math.max(1, this.health) : 1;
@@ -746,10 +752,10 @@ class SovereignMK2 extends AdaptiveAI {
   // Returns a strategy string if a confident pattern is detected, else null.
   // Requires minimum observation window to have elapsed.
   _getCounterStrategy() {
-    if (this._observationFrames < 20 || this._actionSampleCount < 1) return null;
+    if (this._observationFrames < 4 || this._actionSampleCount < 1) return null;
 
     const seq = this._actionSeq.filter(a => a !== 'idle');
-    if (seq.length < 4) return null;
+    if (seq.length < 2) return null;
 
     // Use the last 12 non-idle actions for rate calculation
     const recent = seq.slice(-12);
@@ -1620,6 +1626,265 @@ class SovereignMK2 extends AdaptiveAI {
     return m;
   }
 
+  // ── TACTICAL ORCHESTRATION ─────────────────────────────────────────────
+  // These helpers do not grant Sovereign new attacks or alter any physical
+  // value. They turn already-live combat, map, and resource systems into
+  // deterministic decisions, so he stops leaving free advantages unused.
+  _getMapHazardAt(fighter) {
+    if (!fighter || typeof currentArenaKey === 'undefined' ||
+        typeof mapPerkState === 'undefined' || !mapPerkState) return null;
+
+    const state = mapPerkState;
+    const x = fighter.cx();
+    const footY = fighter.y + fighter.h;
+    const lavaY = (typeof currentArena !== 'undefined' && currentArena && currentArena.lavaY) || 442;
+
+    const eruptionSets = [state.eruptions, state.geysers];
+    for (let si = 0; si < eruptionSets.length; si++) {
+      const set = eruptionSets[si];
+      if (!set) continue;
+      for (let i = 0; i < set.length; i++) {
+        const hazard = set[i];
+        if (hazard && hazard.timer > 0 && Math.abs(x - hazard.x) < (si === 0 ? 105 : 95) && footY > lavaY - 285) {
+          return { type: si === 0 ? 'eruption' : 'geyser', x: hazard.x };
+        }
+      }
+    }
+
+    const fallingSets = [state.meteors, state.stalactites];
+    for (let si = 0; si < fallingSets.length; si++) {
+      const set = fallingSets[si];
+      if (!set) continue;
+      for (let i = 0; i < set.length; i++) {
+        const hazard = set[i];
+        if (!hazard) continue;
+        const width = si === 0 ? 62 : 26;
+        const warned = (hazard.warnTimer || 0) > 0 && fighter.onGround;
+        const falling = (hazard.warnTimer || 0) <= 0 &&
+          Math.abs((hazard.y || 0) - fighter.cy()) < 105;
+        if (Math.abs(x - hazard.x) < width && (warned || falling)) {
+          return { type: si === 0 ? 'meteor' : 'stalactite', x: hazard.x };
+        }
+      }
+    }
+
+    const carSets = [state.cars, state.cityCars];
+    for (let si = 0; si < carSets.length; si++) {
+      const set = carSets[si];
+      if (!set) continue;
+      for (let i = 0; i < set.length; i++) {
+        const car = set[i];
+        if (!car || (car.warnTimer || 0) > 0) continue;
+        const carX = car.x + (car.w || 0) * 0.5;
+        if (Math.abs(x - carX) < 72 && Math.abs(footY - car.y) < 76) {
+          return { type: 'car', x: carX };
+        }
+      }
+    }
+
+    if (state.zapActive && fighter.onGround && Math.abs(x - state.zapLine) < 52) {
+      return { type: 'zap', x: state.zapLine };
+    }
+    if (state.ghosts) {
+      for (let i = 0; i < state.ghosts.length; i++) {
+        const ghost = state.ghosts[i];
+        if (ghost && Math.hypot(x - ghost.x, fighter.cy() - ghost.y) < 48) {
+          return { type: 'ghost', x: ghost.x };
+        }
+      }
+    }
+    if (state.blizzardActive && state.blizzardDir &&
+        ((state.blizzardDir > 0 && x > GAME_W - 135) || (state.blizzardDir < 0 && x < 135))) {
+      return { type: 'blizzard', x, escapeDir: -Math.sign(state.blizzardDir) };
+    }
+    return null;
+  }
+
+  _mapItemValue(item) {
+    if (!item || item.collected) return 0;
+    const hpRatio = this.health / Math.max(1, this.maxHealth);
+    if (item.type === 'heal')  return hpRatio < 0.55 ? 120 : hpRatio < 0.80 ? 72 : 20;
+    if (item.type === 'shield') return this.invincible < 20 ? 108 : 36;
+    if (item.type === 'power') return 102;
+    if (item.type === 'speed') return 88;
+    if (item.type === 'maxhp') return 82;
+    return 0; // Curses never become a self-inflicted "advantage."
+  }
+
+  _selectMapResource(t) {
+    if (typeof mapItems === 'undefined' || !mapItems || !mapItems.length) return null;
+    let best = null;
+    let bestScore = 0;
+    for (let i = 0; i < mapItems.length; i++) {
+      const item = mapItems[i];
+      const value = this._mapItemValue(item);
+      if (!value) continue;
+      const selfDist = Math.hypot(this.cx() - item.x, this.cy() - item.y);
+      if (selfDist > 460) continue;
+      const targetDist = t ? Math.hypot(t.cx() - item.x, t.cy() - item.y) : Infinity;
+      // A contested resource is more valuable: taking it also denies a live buff,
+      // heal, shield, or max-health increase to the opponent.
+      const denyBonus = targetDist < selfDist + 44 ? 46 : 0;
+      const score = value + denyBonus - selfDist * 0.14;
+      if (score > bestScore) { best = item; bestScore = score; }
+    }
+    return best;
+  }
+
+  _startTacticalShield(frames) {
+    if (this.shieldCooldown !== 0 || this._shieldHoldFrames > 0) return false;
+    this.shielding = true;
+    this.shieldCooldown = 60;
+    this._shieldHoldFrames = frames;
+    return true;
+  }
+
+  _runMapTactics(t, dir, d, moveSpd, jumpVy, weaponRange) {
+    const selfHazard = this._getMapHazardAt(this);
+    const targetHazard = this._getMapHazardAt(t);
+    this._mapTacticalState = { selfHazard, targetHazard };
+
+    // Let the frame-safe shield timer resolve before a map-control early return.
+    // Otherwise standing near a resource or hazard could accidentally freeze a
+    // shield hold forever, which would violate the normal shield rules.
+    if (this._shieldHoldFrames > 0) return false;
+
+    // Survive guaranteed environmental damage before taking any offensive line.
+    if (selfHazard) {
+      let escapeDir = selfHazard.escapeDir || (this.cx() <= selfHazard.x ? -1 : 1);
+      if (this.isEdgeDanger(escapeDir)) escapeDir = -escapeDir;
+      if (!this.isEdgeDanger(escapeDir)) {
+        this.vx = escapeDir * moveSpd;
+        if (this.onGround && (selfHazard.type === 'car' || selfHazard.type === 'meteor' || selfHazard.type === 'stalactite')) {
+          this.vy = jumpVy;
+        }
+      } else if (this._startTacticalShield(12)) {
+        // No safe lane: spend the existing shield instead of donating the hit.
+      }
+      this._recordEvent('dodge', 4);
+      return true;
+    }
+
+    // A target caught in a live map hazard has reduced escape options. Keep them
+    // there with normal movement/attacks; no hazard damage is fabricated here.
+    if (targetHazard && !t.attackTimer && d < 220) {
+      this._pressureMode = 'suffocate';
+      this._pressureHoldTimer = Math.max(this._pressureHoldTimer, 32);
+      if (d < weaponRange + 12 && this.cooldown <= 0) this._strike(t);
+      else if (!this.isEdgeDanger(dir)) this.vx = dir * moveSpd;
+      return true;
+    }
+
+    // Ruins artifacts are an active resource economy. Route to a useful pickup
+    // only when combat is not already at striking distance.
+    const item = this._selectMapResource(t);
+    if (item && d > weaponRange + 32 && !t.attackTimer) {
+      const itemDir = Math.sign(item.x - this.cx());
+      if (itemDir && !this.isEdgeDanger(itemDir)) {
+        this.vx = itemDir * moveSpd;
+        if (this.onGround && item.y < this.y - 55) this.vy = jumpVy;
+        return true;
+      }
+    }
+
+    // Breakable ruins crates use the same reward table as pickups. Sovereign
+    // opens a favorable crate only while the opponent is safely out of contest
+    // range; the normal attack animation performs the crate hit through the
+    // map-perk system, so no reward state is modified here.
+    const crates = (typeof mapPerkState !== 'undefined' && mapPerkState && mapPerkState.crates) || null;
+    if (crates && d > weaponRange * 1.8 && !t.attackTimer) {
+      let crate = null;
+      let crateScore = 0;
+      for (let i = 0; i < crates.length; i++) {
+        const candidate = crates[i];
+        const value = this._mapItemValue(candidate);
+        if (!value || !candidate || candidate.hp <= 0) continue;
+        const score = value - Math.hypot(this.cx() - candidate.x, this.cy() - candidate.y) * 0.16;
+        if (score > crateScore) { crate = candidate; crateScore = score; }
+      }
+      if (crate) {
+        const crateDir = Math.sign(crate.x - this.cx());
+        const crateDist = Math.abs(crate.x - this.cx());
+        if (crateDist < weaponRange + 18 && this.cooldown <= 0) {
+          // The target is far by this branch's own precondition, so the AI melee
+          // whiff-guard would veto this swing; the environment-swing flag lets
+          // the crate hit through (crate damage is range-checked in updateMapPerks).
+          this._envSwing = true;
+          this._strike(t);
+          this._envSwing = false;
+          return true;
+        }
+        if (crateDir && !this.isEdgeDanger(crateDir)) {
+          this.vx = crateDir * moveSpd;
+          if (this.onGround && crate.y < this.y - 55) this.vy = jumpVy;
+          return true;
+        }
+      }
+    }
+
+    // Forest healing and neon speed pads are existing map systems too. Use them
+    // when there is enough space to convert the resource without yielding a hit.
+    if (typeof currentArenaKey !== 'undefined' && currentArenaKey === 'forest' &&
+        this.onGround && this.health < this.maxHealth * 0.48 && d > weaponRange * 2.2 && !t.attackTimer) {
+      this.vx = 0;
+      return true;
+    }
+    const pads = (typeof mapPerkState !== 'undefined' && mapPerkState && mapPerkState.boostPads) ||
+      (typeof MAP_PERK_DEFS !== 'undefined' && MAP_PERK_DEFS.neonGrid && MAP_PERK_DEFS.neonGrid.boostPads);
+    if (typeof currentArenaKey !== 'undefined' && currentArenaKey === 'neonGrid' && pads &&
+        (this._speedBuff || 0) <= 0 && d > 180 && !t.attackTimer) {
+      let pad = null;
+      let padDist = Infinity;
+      for (let i = 0; i < pads.length; i++) {
+        const pd = Math.abs(pads[i].x - this.cx());
+        if (pd < padDist) { pad = pads[i]; padDist = pd; }
+      }
+      if (pad) {
+        const padDir = Math.sign(pad.x - this.cx());
+        if (padDir && !this.isEdgeDanger(padDir)) {
+          this.vx = padDir * moveSpd;
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  _tryTacticalConversion(t, d, weaponRange) {
+    if (!t || t.health <= 0 || (t.invincible || 0) > 24 ||
+        (typeof isCinematic !== 'undefined' && isCinematic)) return false;
+
+    const targetLocked = this._targetHelpless(t) || (t._parryVulnFrames || 0) > 12;
+    const targetBuffed = !!(t._powerBuff || t._speedBuff || t.spartanRageTimer || t.superReady);
+    const targetCursed = !!(t.curses && t.curses.length);
+    const targetArmored = !!(t.armorPieces && t.armorPieces.length);
+    const targetInHazard = !!(this._mapTacticalState && this._mapTacticalState.targetHazard);
+    const finishable = t.health <= t.maxHealth * 0.30;
+    const selfNeedsSuper = this.health <= this.maxHealth * 0.38;
+    const closeEnough = d < Math.max(180, weaponRange * 2.1);
+
+    // Spend ability first to crack an active guard or convert a recovery/hazard
+    // trap. This avoids the old random casts that often spent it in neutral.
+    const abilityWindow = t.shielding || targetLocked || targetInHazard ||
+      (t._reloadTimer || 0) > 0 || (this.stamina || 0) < 18 || targetBuffed;
+    if (this.abilityCooldown <= 0 && this.attackEndlag <= 0 && !this.shielding &&
+        closeEnough && abilityWindow) {
+      const oldCd = this.abilityCooldown;
+      this.ability(t);
+      if (this.abilityCooldown > oldCd) return true;
+    }
+
+    // Supers heal Sovereign and carry the strongest existing weapon-specific
+    // conversion. Hold them for a concrete close-range payoff, never a coin flip.
+    const superWindow = targetLocked || targetInHazard || finishable || selfNeedsSuper ||
+      targetCursed || (targetArmored && targetBuffed) || this._punishModeActive;
+    if (this.superReady && closeEnough && superWindow && !t.shielding) {
+      this.useSuper(t);
+      if (!this.superReady) return true;
+    }
+    return false;
+  }
+
   // ── LETHAL VOLLEY DEFENSE — homing crescent fans (sword super / Blade Storm) ──
   // The sword systems spawn fans of crescents in t._swordSlashes that fly ~340px,
   // HOME vertically onto their target (±0.35/frame), and deliberately hover
@@ -2034,7 +2299,7 @@ class SovereignMK2 extends AdaptiveAI {
     }
 
     // ── B. Spam/punishment tracking (very short gate — Sovereign reads fast) ──
-    if (this._observationFrames >= 20 && this._actionSampleCount >= 1) {
+    if (this._observationFrames >= 4 && this._actionSampleCount >= 1) {
       this._updateSpamTracker(currentAction);
     }
 
@@ -2471,7 +2736,8 @@ class SovereignMK2 extends AdaptiveAI {
       const _scanShots = (arr) => {
         if (!arr || _incoming) return;
         for (const pr of arr) {
-          if (!pr || pr.done || pr.dead || pr.life <= 0 || pr.owner === this) continue;
+          if (!pr || pr.done || pr.dead || (pr.life !== undefined && pr.life <= 0) ||
+              (pr.timer !== undefined && pr.timer <= 0) || pr.owner === this) continue;
           const _pdx = this.cx() - pr.x;
           if (Math.abs(_pdx) < 210 && Math.abs((pr.y || 0) - this.cy()) < 72 &&
               Math.abs(pr.vx || 0) > 3 && Math.sign(pr.vx) === Math.sign(_pdx)) {
@@ -2481,6 +2747,17 @@ class SovereignMK2 extends AdaptiveAI {
       };
       if (typeof projectiles !== 'undefined') _scanShots(projectiles);
       _scanShots(t._swordSlashes);
+      _scanShots(t._paperSwarm);
+      _scanShots(t._boomerangs);
+      // Several weapon supers own their hazards directly instead of registering a
+      // Projectile. Feed those live objects through the same dodge read.
+      const _scanSingle = (pr) => { if (pr && !_incoming) _scanShots([pr]); };
+      _scanSingle(t._peaCluster);
+      _scanSingle(t._gravityStone);
+      _scanSingle(t._flailBall);
+      _scanSingle(t._scytheToss);
+      _scanSingle(t._hammerShock);
+      _scanSingle(t._thrownAxe);
       if (_incoming && Math.random() >= this._reactionMistakeRate() * 0.4) {
         if (this.onGround)            this.vy = _jumpVy;                          // jump the shot
         else if (this.canDoubleJump) { this.vy = -16; this.canDoubleJump = false; } // air-dodge up over it
@@ -2488,6 +2765,15 @@ class SovereignMK2 extends AdaptiveAI {
         this._projDodgeCd = 14;
         this._recordEvent('dodge', 2);
       }
+    }
+
+    // ── MAP / RESOURCE CONTROL ────────────────────────────────────────
+    // Read live arena events after projectile defense but before any normal
+    // pressure plan. This lets Sovereign avoid every active map threat, hold an
+    // opponent inside one, and collect/deny available map resources naturally.
+    if (this._runMapTactics(t, dir, d, moveSpd, _jumpVy, weaponRange)) {
+      this.aiReact = 0;
+      return;
     }
 
     // Tick frame-safe shield drop (replaces the old setTimeout approach)
@@ -2780,7 +3066,7 @@ class SovereignMK2 extends AdaptiveAI {
     // Sourced from the unified BehaviorModel prediction (see _updatePrediction).
     // One path per predicted action, so the player never eats two conflicting
     // preempt reactions in a tick and every correct read is credited.
-    const adaptReady = this._observationFrames >= 20 && this._actionSampleCount >= 1;
+    const adaptReady = this._observationFrames >= 4 && this._actionSampleCount >= 1;
     if (adaptReady && !this._humanMissArmed && !playerAttacking) {
       // Predicted attack → the authoritative pre-dodge: step back once and commit.
       // Crediting (_preemptMode/_preemptTarget) lets _checkPredictionCorrect reward it,
@@ -2999,10 +3285,9 @@ class SovereignMK2 extends AdaptiveAI {
           }
           this._counterWindowOpen = false;
         }
-        if (this.superReady && Math.random() < (heavyThreat ? 0.88 : 0.55)) this.useSuper(t);
-        // Phase Step is the ideal punish finisher vs heavy weapons — use it aggressively
-        const _abilPunishChance = heavyThreat ? 0.92 : 0.40;
-        if (this.abilityCooldown <= 0 && d < 220 && Math.random() < _abilPunishChance) this.ability(t);
+        // A completed punish is a confirmed resource-conversion window; spend
+        // available ability/super tools because the engine guarantees value here.
+        this._tryTacticalConversion(t, d, weaponRange);
       }
       return;
     }
@@ -3427,21 +3712,14 @@ class SovereignMK2 extends AdaptiveAI {
       if (!this.isEdgeDanger(dir)) this.vx = dir * moveSpd * 1.2;
     }
 
-    // Own ability usage
-    let abiChance  = 0.004 + realAgg * 0.008 * (lb ? 1.2 : 1.0) + (this._predictionBoostFrames > 0 ? 0.016 : 0);
-    let abiMaxDist = 200;
-    if (t.shielding && d < 150)        { abiChance = 0.14; abiMaxDist = 150; }
-    else if (finishPush && d < 200)    { abiChance = Math.max(abiChance, 0.07); abiMaxDist = 200; }
-    else if (hpPct < 0.25 && d < 200) { abiChance = Math.max(abiChance, 0.055); abiMaxDist = 200; }
-    if (this.abilityCooldown <= 0 && d < abiMaxDist && (!playerAttacking || t.shielding) && Math.random() < abiChance) this.ability(t);
-
-    // Own super: prefer contextual use over random timing
-    let superChance = 0.008 + realAgg * 0.016;
-    if (finishMode)                                           superChance = 0.11;
-    else if (this._countRecent('hit_landed', 30) >= 2)       superChance = Math.max(superChance, 0.08);
-    else if (tHpPct < 0.30 && d < 180)                       superChance = Math.max(superChance, 0.06);
-    if (this.superReady && Math.random() < superChance) this.useSuper(t);
-    if (this.health < 22 && this.superReady) this.useSuper(t);
+    // Own ability / super: conversion is deterministic. Sovereign spends an
+    // existing resource only on a guard, recovery, map-trap, finish, or survival
+    // opportunity instead of rolling random neutral casts.
+    if (this._tryTacticalConversion(t, d, weaponRange)) {
+      this._updateFearFactor(d, recentLanded, true);
+      this.aiReact = 0;
+      return;
+    }
 
     this._updateFearFactor(d, recentLanded, false);
 

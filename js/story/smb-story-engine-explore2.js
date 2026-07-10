@@ -167,8 +167,12 @@ function updateExploration() {
           label: exploreDuelOpponent.name,
         };
       }
-      _exploreSpawnEnemy({ wx: cp.x + 180, exactX: cp.x + 180, name: exploreDuelOpponent.name, weaponKey: exploreDuelOpponent.weaponKey, classKey: exploreDuelOpponent.classKey, aiDiff: exploreDuelOpponent.aiDiff, color: exploreDuelOpponent.color, health: exploreDuelOpponent.health, isArenaLockEnemy: true }, p1);
-      storyFightSubtitle = { text: `${exploreDuelOpponent.name} blocks your path!`, timer: 180, maxTimer: 180, color: '#ffcc66' };
+      _exploreSpawnEnemy({ wx: cp.x + 180, exactX: cp.x + 180, name: exploreDuelOpponent.name, weaponKey: exploreDuelOpponent.weaponKey, classKey: exploreDuelOpponent.classKey, aiDiff: exploreDuelOpponent.aiDiff, color: exploreDuelOpponent.color, health: exploreDuelOpponent.health, armor: exploreDuelOpponent.armor, isArenaLockEnemy: true }, p1);
+      const _sec = exploreDuelOpponent.second;
+      if (_sec) {
+        _exploreSpawnEnemy({ wx: cp.x + 300, exactX: cp.x + 300, name: _sec.name, weaponKey: _sec.weaponKey, classKey: _sec.classKey, aiDiff: _sec.aiDiff, color: _sec.color, health: _sec.health || 120, armor: _sec.armor, isElite: true, isArenaLockEnemy: true }, p1);
+      }
+      storyFightSubtitle = { text: `${exploreDuelOpponent.name}${_sec ? ' and ' + _sec.name : ''} blocks your path!`, timer: 180, maxTimer: 180, color: '#ffcc66' };
     } else if (!_replaySkip && ((_activeStory2Chapter && _activeStory2Chapter.id >= 8) || (storyGauntletState && storyGauntletState.index > 0))) {
       if (!exploreArenaLock && currentArena) {
         exploreArenaLock = {

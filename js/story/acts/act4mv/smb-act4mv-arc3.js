@@ -196,6 +196,7 @@ STORY_CHAPTER_REGISTRY.push(
     armor: ['helmet'],
     playerLives: 1,
     arena: 'grass',
+    walkFight: true, worldLength: 3000,
     tokenReward: 0,
     blueprintDrop: null,
     postText: 'She doesn\'t finish. The fragment doesn\'t pulse. The mysterious figure descends from the ridge. In its hands — a cold point of compressed energy, dense and ancient. "The anchor is ready," it says. "You\'ve done the right thing." The words land wrong. You don\'t say anything.',

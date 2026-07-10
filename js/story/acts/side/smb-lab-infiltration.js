@@ -51,6 +51,7 @@ STORY_CHAPTER_REGISTRY.push({
     opponentColor: '#336688',
     playerLives: 3,
     arena: 'ruins',
+    walkFight: true, worldLength: 3000,
     tokenReward: 80,
     blueprintDrop: null,
 
