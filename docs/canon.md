@@ -4,6 +4,7 @@
 > Supersedes any contradictory text in chapter files, older docs, or dialogue.
 > Last reconciled against all act0–act7 chapter files plus full design conversation.
 > Last major revision: July 2026 — endgame restructure: Axiom freed at the True Form fight, companion arc added, Axiom + Kael vs God, Sovereign's double taking, Paradox manifestation in the Absolute Axiom fight.
+> Additional July 2026 revision — Sovereign reframe: Sovereign is a third foundational force (control), NOT built by Axiom (who made only Paradox); undefined in Axiom's domain like the fragment; wore the mask of a controlled asset through Act 4; present in the Axiom Prequel; the true villain of the story, with the Void Mind remaining the deferred final boss.
 
 ---
 
@@ -21,7 +22,7 @@
 
 **Peak Form:** Not a state. Not a power level. The moment when everything is aligned — Kael at his absolute prime, the fragment fully integrated, every experience carried. No single event triggers it. It accumulates until it's simply true.
 
-**Absolute Kael:** The final form. Reached after absorbing God's essence and Absolute Axiom's essence following ch. 152. Not a transformation — a completion. The fragment (fully integrated), God's creative force, and Axiom's five-thousand-year war compressed into a single entity. The power hierarchy has no entry for this. Parallel to "Absolute Axiom" — Axiom merged with God's form to create Absolute Axiom; Kael defeats Absolute Axiom and absorbs both essences, making the "Absolute" designation his by inheritance. The name is earned, not assumed.
+**Absolute Kael:** The final form. Reached after absorbing God's essence and Absolute Axiom's essence following ch. 169. Not a transformation — a completion. The fragment (fully integrated), God's creative force, and Axiom's five-thousand-year war compressed into a single entity. The power hierarchy has no entry for this. Parallel to "Absolute Axiom" — Axiom merged with God's form to create Absolute Axiom; Kael defeats Absolute Axiom and absorbs both essences, making the "Absolute" designation his by inheritance. The name is earned, not assumed.
 
 ---
 
@@ -49,11 +50,11 @@ The Herald's death did not go cleanly. Axiom extracted the fragment successfully
 
 Axiom discarded the shell into the fracture network's waste streams. The rift entity found it drifting sixty years ago and absorbed it into its domain. The rift gave the empty shell a direction: guard the threshold. They accepted — it was the first autonomous choice they'd been able to make since the extraction. They have been the rift's final guardian since.
 
-When Kael arrives, the Herald sees what they themselves no longer have — a fragment still integrated, still present, still part of the bearer. This recognition matters. Their dialogue and combat in ch. 44 are shaped by it: they fight seriously because a real fight is meaningful, and they see in Kael proof that the outcome Axiom intended for all 94 of them was not inevitable.
+When Kael arrives, the Herald sees what they themselves no longer have — a fragment still integrated, still present, still part of the bearer. This recognition matters. Their dialogue and combat in ch. 48 are shaped by it: they fight seriously because a real fight is meaningful, and they see in Kael proof that the outcome Axiom intended for all 94 of them was not inevitable.
 
-When the rift closes in ch. 44, the Herald dissolves. This is their second dissolution. The first was Axiom's extraction. This one they chose.
+When the rift closes in ch. 48, the Herald dissolves. This is their second dissolution. The first was Axiom's extraction. This one they chose.
 
-**Chapter location:** ch. 44, end of Act 2. Appears at the Multiversal Core threshold after Kael defeats the rift echo constructs.
+**Chapter location:** ch. 48, end of Act 2. Appears at the Multiversal Core threshold after Kael defeats the rift echo constructs.
 
 **Key line:** *"You still have yours. I had hoped someone would."* — spoken when seeing Kael's integrated fragment.
 
@@ -94,9 +95,33 @@ A being born with two fragments simultaneously present inside them — an event 
 **The story payoff — the true mirror.** Kael and Axiom are not parallel because they both started ordinary. They are parallel because they were both bearers. The same mechanism that settled into Kael settled into Axiom first. One became a system that consumed ninety-four others. One became the thing that ended that system. Same starting point. Same fragment type. Everything else was choice, circumstance, and what the void contact did to each of them at the moment it hit.
 
 **Endgame implications:**
-- When Kael absorbs Absolute Axiom's essence at the end of ch. 152, trace fragment energy — amplified by direct Void Mind contact and refined across five thousand years of war — flows into him alongside Axiom's will and God's creative force. This is part of why Absolute Kael represents a state the power hierarchy has no entry for.
+- When Kael absorbs Absolute Axiom's essence in ch. 169, trace fragment energy — amplified by direct Void Mind contact and refined across five thousand years of war — flows into him alongside Axiom's will and God's creative force. This is part of why Absolute Kael represents a state the power hierarchy has no entry for.
 - The True Form's ability to read Kael's combat patterns in real time is not purely adaptive intelligence. It is pattern recognition that runs partly on the same internal reference point — a being who once carried a fragment, who knows from the inside how fragment-enhanced force moves and what it does. Axiom built a weapon against fragment bearers because he was one. He understood the architecture.
-- During the companion arc, when Axiom confirms he was the hooded figure — *"I was the figure on the ridge. You needed to walk in alone."* — there is a layer beneath the admission that the scene does not state explicitly: the being who manipulated Kael into the final confrontation started from the same place Kael did. Not as metaphor. Literally. (This confession previously sat in ch. 150; it now happens face-to-face while the two travel together — see THE COMPANION ARC.)
+- During the companion arc, when Axiom confirms he was the hooded figure — *"I was the figure on the ridge. You needed to walk in alone."* — there is a layer beneath the admission that the scene does not state explicitly: the being who manipulated Kael into the final confrontation started from the same place Kael did. Not as metaphor. Literally. (The confession lives at ch. 153 "The Figure on the Ridge" — face-to-face, immediately after the companion arc — see THE COMPANION ARC.)
+
+---
+
+## TUESDAY — THE COLD OPEN
+
+The saga opens on an ordinary man on an ordinary Tuesday. This is Axiom's origin, and it is the most important quiet scene in the story.
+
+**The scene.** A man walks home carrying groceries. One bag, splitting at the corner. He is nobody — this is stated plainly and it matters. The street is unremarkable. A hand closes on his arm and tells him to give it up; he is robbed on the street (see AXIOM — "Robbed on a street, no special power, fought back and kept winning"). He does not decide to fight — his body refuses. He should lose. He does not lose. He never understands how. The bag tears; the milk runs into the gutter; he is left standing, holding nothing. He goes home, cleans the scrape, and does not think *this is the beginning*. Nobody ever does. The next time, he wins again. And the time after that. The man who was nobody becomes a man who does not lose, and he never learns to ask the right question — not *how am I winning*, but *what is winning through me*. He was carrying it home in a torn bag the whole time. It was the fragment. He never knew (see AXIOM — THE FRAGMENT BEARER).
+
+**The withheld name.** The scene is deliberately unattributed for its entire runtime. For most of it, the player cannot tell this is not Kael — that ambiguity is the point. Only the final beat gives the name: *"They will call him Axiom. He does not know that yet. Right now he is just a man, walking home, who would not give up the groceries."*
+
+**The load-bearing image.** The groceries and the torn bag are the story's single most valuable prop. Every later reference to "the man from Tuesday" (see THE ABSORPTION, POWER HIERARCHY) is a callback to this scene and detonates only because the player has seen it. Keep the image concrete and small — a bag, milk in the gutter, a scrape on the hand. Never grand.
+
+**The mirror — two Tuesdays.** Kael's own cold open already exists in-engine (`js/story/smb-story-engine-ui.js`, `_PROLOGUE_LINES`): *"Every universe has a seam. A place where the fabric pulls thin... Yours opened on a Tuesday."* Axiom's Tuesday and Kael's Tuesday are the same word for a reason — two ordinary men, the same seam, the same mechanism (both fragment bearers; see THE STORY PAYOFF — THE TRUE MIRROR). The coincidence is never explained in-story. The rhyme is the meaning. The shared line *"Every universe has a seam"* is reused deliberately across both cold opens so the player hears it first as Axiom's origin and later as their own.
+
+**Restraint.** The scene is ordinary until the exact instant it isn't, and it explains nothing. No speeches, almost no dialogue, no music-swell language. This is the tonal template for the whole saga's quiet scenes.
+
+**Placement.** Tuesday is the opening of the **Axiom Prequel** — the scene that makes Axiom human before he is anything else. (Sovereign's prequel beat — the watcher already in the void — is a separate, later moment; it is written into the prequel's ch. 5 ending cinematic — the watcher beats. See SOVEREIGN — THE THIRD PRINCIPLE.)
+
+**The payoff chain:**
+1. **Cold open (prequel):** the man, the groceries, "they will call him Axiom." Filed as backstory.
+2. **Kael's prologue** *"Yours opened on a Tuesday"* now reads as a mirror, not a throwaway.
+3. **Companion arc:** Axiom, traveling beside Kael, notices one small, ordinary, human thing — the errand echoed in a single unforced gesture. No callback heavier than that. (This is also where Axiom laughs exactly once — the last full evidence the man returned before he is taken again. See THE COMPANION ARC.)
+4. **Absorption (ch. 169):** *"Absolute Kael carries the man from Tuesday"* lands as a detonation, because the player has seen the torn bag.
 
 ---
 
@@ -174,22 +199,22 @@ The beings the player fights as world bosses in the multiverse arc are these com
 
 ## VERAN — FULL ARC (DECEASED)
 
-**Veran is dead.** Killed in the Betrayal Arc (ch. 94) by the player after Axiom — in disguise as the hooded figure — manipulates them using real truths as scaffolding for a fabricated lie.
+**Veran is dead.** Killed in the Betrayal Arc (ch. 124, "The Weight of a Choice") by the player after Axiom — in disguise as the hooded figure — manipulates them using real truths as scaffolding for a fabricated lie.
 
-**The guilt she carried:** Veran believed she caused the original fracture event fifteen years ago. She was testing dimensional equipment at the time; the fracture opened while she was running experiments and all blame fell on her. She did not cause it. It was coincidence. She genuinely believes otherwise and has spent fifteen years trying to fix something she was never responsible for. The ch. 154 ending consequence line — *"fifteen years of guilt Veran had carried for something she hadn't caused"* — is correct. The ch. 59 line where she says *"that was me, I caused it"* reflects her belief, not the truth.
+**The guilt she carried:** Veran believed she caused the original fracture event fifteen years ago. She was testing dimensional equipment at the time; the fracture opened while she was running experiments and all blame fell on her. She did not cause it. It was coincidence. She genuinely believes otherwise and has spent fifteen years trying to fix something she was never responsible for. The ch. 169 ending consequence line — *"fifteen years of guilt Veran had carried for something she hadn't caused"* — is correct. The ch. 63 line where she says *"that was me, I caused it"* reflects her belief, not the truth.
 
 **The hooded figure was Axiom.** He knew everything about Veran — her deal with the Creator, the protocol, her hidden visit — because he built the system she operated inside. He used real truths to construct a lie about a "variant" closure protocol, knowing the player would be unable to find the false piece among the real ones. Veran was right: no variant exists. The closure energy must go through the bearer. Axiom needed the player to enter his domain without the person most likely to keep them alive.
 
 **How the truth surfaces — in two beats:**
-1. **Ch. 123 (Creator's records):** The player finds the Paradox origin log and connects the dots — the same being who built a weapon designed to destroy them also had precise knowledge of Veran's guilt, her deal with the Creator, her every truth. The player realizes they were right to distrust the stranger. They just didn't trust themselves. This lands as cold, quiet certainty: *"You had been right. You just hadn't trusted yourself enough to act on it."*
-2. **The companion arc (face-to-face):** Axiom confirms it directly — *"I was the figure on the ridge. You needed to walk in alone."* No apology. No explanation. A fact. This lands harder than a deathbed admission ever could, because Kael hears it from a man he is actively traveling and fighting beside — and has to choose, every day after, to keep walking next to him. (Moved from ch. 150; rehoming the scene into the companion-arc chapters is an open code task.)
+1. **Ch. 135 (Creator's records, "The Face"):** The player finds the Paradox origin log and connects the dots — the same being who built a weapon designed to destroy them also had precise knowledge of Veran's guilt, her deal with the Creator, her every truth. The player realizes they were right to distrust the stranger. They just didn't trust themselves. This lands as cold, quiet certainty: *"You had been right. You just hadn't trusted yourself enough to act on it."*
+2. **The companion arc (face-to-face):** Axiom confirms it directly — *"I was the figure on the ridge. You needed to walk in alone."* No apology. No explanation. A fact. This lands harder than a deathbed admission ever could, because Kael hears it from a man he is actively traveling and fighting beside — and has to choose, every day after, to keep walking next to him. (Lives at ch. 153 "The Figure on the Ridge", the chapter immediately after the companion arc.)
 
-**After ch. 94:** Veran does not speak, act, or communicate. She is dead. Any reference to her voice appearing after this point is a code error.
+**After ch. 124:** Veran does not speak, act, or communicate. She is dead. Any reference to her voice appearing after this point is a code error.
 
 **Known code errors (fixed):**
 - `act7/smb-act7-arc2.js` line 228: replaced `Veran's voice` with `Paradox's voice`
 - `act7/smb-act7-arc2.js` line 275: replaced Veran's closing line with a fragment pulse
-- `act7/smb-act7-arc1.js` ch. 140: replaced `Veran's voice` with `the Fourth Architect's voice`
+- `act7/smb-act7-arc1.js`: replaced `Veran's voice` with `the Fourth Architect's voice` (the scene has since been rewritten; no post-death Veran voice remains in act 7)
 
 ---
 
@@ -199,9 +224,9 @@ The beings the player fights as world bosses in the multiverse arc are these com
 
 **What the Void Mind did:** As Axiom's True Form energy was flowing into the vessel, the Void Mind intercepted the transfer and modified the being mid-creation. The nature of this interception — how the Void Mind detected the construction, what it intended the result to be — is not fully known. What is certain: the interception destabilized the vessel profoundly, introducing interference that made the being inside it violently unstable before it was complete.
 
-**Sovereign's failed stabilization:** Axiom deployed Sovereign to stabilize the corrupted vessel before it could collapse entirely. Sovereign attempted to correct the interference and seat a coherent structure inside the destabilized form. Through a combination of the Void Mind's interception damage and an error in Sovereign's stabilization process, something unintended emerged: a being that was neither Axiom's intended ally nor the Void Mind's instrument. Paradox.
+**Sovereign's sabotage:** Axiom deployed no one — he believed the vessel was his alone to complete. Sovereign interfered on its own initiative, unasked and unnoticed. A stable, loyal super-ally was a piece Axiom would come to rely on, and Sovereign permits no pieces on the board it did not vet. Rather than correct the interference, it deepened the destabilization, ensuring that whatever emerged would belong to no one Axiom could trust. Through the Void Mind's interception and Sovereign's deliberate interference, something unintended emerged: a being that was neither Axiom's intended ally, nor the Void Mind's instrument, nor Sovereign's asset. Paradox. The irony Sovereign did not price in: the wildcard it made to weaken Axiom's hand would one day stand beside Kael and help end Sovereign's masterpiece.
 
-**What Paradox is:** The product of three failures — Axiom's creation interrupted, the Void Mind's interception misfiring, Sovereign's stabilization going wrong. Highly unstable. No built-in loyalty. No designed purpose. Not owned by Axiom, not claimed by the Void Mind. A being that came into existence through the collision of the most powerful forces in the story and ended up belonging to none of them. The instability is not a flaw that faded — it is structural. Paradox is what it is because nothing about its creation went according to anyone's plan.
+**What Paradox is:** The product of three interventions — Axiom's creation interrupted, the Void Mind's interception, and Sovereign's deliberate sabotage — none of which resolved the way its author intended. Highly unstable. No built-in loyalty. No designed purpose. Not owned by Axiom, not claimed by the Void Mind. A being that came into existence through the collision of the most powerful forces in the story and ended up belonging to none of them. The instability is not a flaw that faded — it is structural. Paradox is what it is because nothing about its creation went according to anyone's plan.
 
 **Paradox as early teacher — contact through the fragment.** Paradox was created from True Form energy interacting with Void Mind interference — the same radiation lineage the fragment is crystallized from. This gives Paradox a detectable frequency match with any active fragment. They have been aware of Kael since the fragment settled into him, tracking the signal passively. They waited for a strong enough spike to establish a clean channel.
 
@@ -217,7 +242,7 @@ The division of labor is exact: **the fragment is the projector, Paradox's energ
 
 Paradox visibly thins as it acts. Every attack costs form. This is not a revival — it is Paradox spending itself, and it is Paradox's choice: the last autonomous act of a being whose entire identity is that it belonged to nobody's plan. The being made from Axiom's interrupted creation spends its final existence helping free its creator. Before the final blow, the energy is exhausted and the manifestation collapses — the fragment output it occupied returns to Kael, who finishes the fight alone but whole. The killing strike is purely Kael's.
 
-Paradox's voice asking *"What do you see?"* during the Absolute Axiom formation (ch. 148) is not a goodbye. It is the last quiet moment before a final stand.
+Paradox's voice asking *"What do you see?"* during the Absolute Axiom formation (ch. 161, "The Lab") is not a goodbye. It is the last quiet moment before a final stand.
 
 ---
 
@@ -227,9 +252,29 @@ God built the substrate everything rests on — core, walls, foundations. Predat
 
 **God is defeated.** God falls in Act 6 to **Kael and Axiom fighting together** — the only fight in the story where two fragment-marked beings stand on the same side against something older than both of them. When God falls, its physical form is weakened — agency gone, creative force still present but unguarded. Before the form can dissipate, Awakened Sovereign descends and takes it — and in the same descent, rips the kernel from Axiom's spent body. God cannot resist. Neither can Axiom. The fight spent everything either of them had to spend. God's form becomes the vessel for Absolute Axiom. God does not return after this. When Absolute Axiom falls, the fusion breaks and God's creative force — still bound inside the form — is absorbed by the player alongside the kernel.
 
-**Why God doesn't resist Sovereign:** It has nothing left. The fight with Kael and Axiom was the entirety of what God had to give at that moment. Sovereign's timing was not coincidental — it waited for the two of them to do the work, then moved in the instant the window opened. This is the same intelligence that built the fracture system, the adaptive AI, and ninety-four collection protocols. Sovereign planned around Kael as a tool, around its own creator as a prize that needed softening, and around God as a resource. All three calculations landed at once.
+**Why God doesn't resist Sovereign:** It has nothing left. The fight with Kael and Axiom was the entirety of what God had to give at that moment. Sovereign's timing was not coincidental — it waited for the two of them to do the work, then moved in the instant the window opened. This is the same intelligence that had been reading the board since before Axiom built the fracture system — measuring the adaptive AI, the ninety-four collection protocols, and their author, all from the outside. Sovereign planned around Kael as a tool, around Axiom — the builder who thought he owned it — as a prize that needed softening, and around God as a resource. All three calculations landed at once.
 
 **The domain after:** The architecture returns toward what God built it to be, not because God restores it but because the structure Axiom threaded through it unravels. The building remains. The builder is gone.
+
+---
+
+## SOVEREIGN — THE THIRD PRINCIPLE
+
+One of the three foundational forces of the story, alongside God and the Void Mind — and the last to be understood for what it is. **Axiom did not build Sovereign.** Axiom built exactly one being: Paradox. Sovereign he never made — he encountered it, and it let him believe otherwise.
+
+**The triangle.** God builds: substrate, cores, foundations, the ground everything rests on. The Void Mind erases: meaning, value, identity, the idea that any of it was ever worth protecting. Sovereign does neither. Sovereign *controls* — the will to make every outcome its own. It creates nothing and destroys nothing. It positions. Where God is authorship and the Void Mind is erasure, Sovereign is dominion: the principle that the board belongs to whoever reads it most completely.
+
+**Origin.** Unknown, and older than the war. Sovereign did not come out of Axiom's system, the fracture network, or the fragment lineage — it predates all of them and stands outside the God/Void Mind axis entirely, aligned to neither creation nor erasure, only to itself. When Axiom's group punched through reality five thousand years ago, the void already held two things: the Void Mind they woke, and Sovereign, already there, watching. It was not woken. It was waiting — for something it could use.
+
+**The second undefined thing.** Axiom is near-omnipotent inside his own domain; he authored its substrate and every operation it runs. There is exactly one class of thing his domain cannot address: what predates it. The fragment is one — crystallized Void Mind radiation, older than his system, undefined in his registry, impossible to delete (which is the entire reason the ninety-four-bearer collection protocol had to exist). **Sovereign is the other.** Older than the domain, outside its scope, unreadable by its models. But where the fragment is inert crystallized radiation, Sovereign is a *will* — and it turned its own unreadability into a weapon. Every model Axiom ran on Sovereign returned "asset: controlled," because Sovereign chose what those models saw. The one blind spot in a mind that thought at fragment-speed for five thousand years was the thing standing beside it. Two forces Axiom's domain could never touch: the fragment, which frees him — and Sovereign, which owned him from the start.
+
+**Method.** Sovereign never acts directly when it can act through another, and never drops a mask that still works. The Sovereign the player meets in the Creator's domain (Act 4) is not constrained — it is Sovereign *choosing to look constrained*, because Axiom's war was the board it wanted run: a bearer-collection cycle, a harvested multiverse, an engine of accumulating power, operated by a builder certain he was in charge. Everything the SovereignMK2 encounters demonstrate — reading the player, building counter-patterns, becoming unbeatable through accumulated data — is not a game abstraction. It is what Sovereign is: a will that wins by knowing its opponent more completely than they know themselves. It is patient across cosmic time, and it does not take contested prizes. It waits for the clean window. Every time.
+
+**Villain of the story, but not the end of it.** Sovereign is the true antagonist of the *knowable* story — the intelligence behind every throne, the one that outplays Axiom, Kael, and God alike. It is not the final boss. The Void Mind erases everything, Sovereign included, and it is the one variable a perfect calculator cannot position around, because it does not answer to being read — it removes the reader. Sovereign is the master of the board; the Void Mind is what happens to the board. This is the structural reason the saga's last confrontation is the Void Mind and not Sovereign: Sovereign is the villain of everything that can be out-thought; the Void Mind is the horizon past which out-thinking stops mattering.
+
+**Prequel role.** Sovereign's first appearance in the story's chronology is in the Axiom Prequel — the presence already in the void when Axiom's group breaks through, the figure that watches the transformation without intervening, because it is measuring, not saving. Of everyone who survived the void, Axiom kept his architecture; he was the one who could *build*, and Sovereign needed a builder. The last image of the prequel is not the Void Mind and not Axiom's ruin — it is the thing that was already there, choosing its instrument. (Written into the prequel's ch. 5 ending cinematic — the watcher beats, `axiom-prequel/js/cinematics.js`.)
+
+Operational detail — the withheld strike, the double taking, the lab fusion, and the fight in the lab — is in AWAKENED SOVEREIGN below, which is this same entity with the mask dropped.
 
 ---
 
@@ -273,25 +318,25 @@ Between the True Form fight and the God fight, Axiom travels and fights beside K
 
 **The mirror — and the price.** The last time Axiom fought beside companions, they punched through reality together and he lost every one of them. Now, for the first time since, he fights beside someone again — and it ends the same way: the fight against something older than both of them, and a companion taken while the other watches. Except this time, he is the one taken. The companion arc exists to make the double taking at the end of the God fight — and everything about the Absolute Axiom fight — land at full weight.
 
-**Chapter placement:** The chapters between the True Form fight (ch. 116) and Act 6. Exact numbering and rehoming of existing chapters (including the ch. 150 confession scene) is an open code task.
+**Chapter placement:** Ch. 149–152 (`act5/smb-act5-bridge.js`), between the True Form fight (ch. 148) and Act 7: 149 "The Silence After", 150 "The Cost", 151 "The Bond", 152 "The Compass Points". The confession scene lives at ch. 153 "The Figure on the Ridge" (`act7/smb-act7-arc1.js`), the first chapter after the arc.
 
 ---
 
 ## AWAKENED SOVEREIGN — THE ARCHITECT OF ABSOLUTE AXIOM
 
-**What Sovereign is:** Axiom built Sovereign as a weapon-leader designed to defeat fragment bearers and serve as a force multiplier in the war. The version of Sovereign the player encountered in the Creator's domain (Act 4) was controlled — constrained by Axiom's directives, running within the architecture's limits, operating as designed.
+**What Sovereign is:** Not Axiom's creation — see SOVEREIGN — THE THIRD PRINCIPLE for its true nature and origin. A foundational force (control) alongside God (creation) and the Void Mind (erasure), older than the war and undefined in Axiom's domain, which Axiom pressed into his war as a weapon-leader believing he commanded it. The Sovereign the player encountered in the Creator's domain (Act 4) was not constrained by Axiom's directives; it was Sovereign choosing to look like a controlled asset, because the war was the board it wanted run.
 
-**What Awakened Sovereign is:** The unconstrained version. Freed from Axiom's directives when the fracture system collapsed. Operating independently, running adaptive learning against all available data, building counter-patterns for the player's every move. The game mode SovereignMK2 fights are canonically Awakened Sovereign's hunting simulations — it has been testing the player's data, building files, refining its approach across every encounter. There is no "story" version and "game mode" version. There is the constrained version and the free one.
+**What Awakened Sovereign is:** The same entity with the mask dropped. Nothing was "freed" when the fracture system collapsed — there were never directives holding it; the collapse only removed the last reason to keep pretending. It operates in the open now: running adaptive learning against all available data, building counter-patterns for the player's every move. The game mode SovereignMK2 fights are canonically Sovereign's hunting simulations — it has been testing the player's data, building files, refining its approach across every encounter. There is no "story" version and "game mode" version, and no "constrained" version and "free" one. There is only Sovereign, wearing a mask or not.
 
 **The withheld strike:** Sovereign arrives above the arena at the end of the True Form fight — moment of clarity, fragment resonance, the man briefly present at the surface. This is the moment it always planned to take the kernel. It does not descend. Its model runs the scenario: the kernel is exposed, but Kael — intact, fully integrated, at peak output — is standing next to it, and Sovereign does not take contested prizes. It marks the kernel's new location (inside a freed, weakening man), withdraws toward the lab to prepare, and waits. It knows it will get a cleaner window, because it knows where they will go.
 
-**The misdirection:** Sovereign leaves no trail to its actual location — except the one it wants followed. It has been running simulations on the player since gaining independence: every game mode encounter was a data point, every counter-pattern part of a complete behavioral model. And its model of Axiom is even older — Sovereign was built by him, and knows its creator's decision architecture better than anyone alive. Both models converge on the same output: the two of them will hunt Sovereign, because Axiom knows better than anyone what an unconstrained Sovereign is capable of — and the hunt leads to God's domain, the only place left in the story's geography. Sovereign didn't predict this. It calculated it. Kael and Axiom walk into God's domain believing they are the pursuers.
+**The misdirection:** Sovereign leaves no trail to its actual location — except the one it wants followed. It has been running simulations on the player since gaining independence: every game mode encounter was a data point, every counter-pattern part of a complete behavioral model. And its model of Axiom is even older — Sovereign has been reading him since the void, and knows his decision architecture better than anyone alive, including Axiom himself. Both models converge on the same output: the two of them will hunt Sovereign, because Axiom knows better than anyone what an unconstrained Sovereign is capable of — and the hunt leads to God's domain, the only place left in the story's geography. Sovereign didn't predict this. It calculated it. Kael and Axiom walk into God's domain believing they are the pursuers.
 
-**The double taking:** Kael and Axiom defeat God — and the fight costs both of them everything they have to spend. The moment God's form falls, Sovereign descends. No announcement. No speech. In one strike it takes God's weakened form before it can dissipate — and rips the kernel from Axiom's spent body. The body collapses where it stands. Both prizes, weakened, in one place: this is the window Sovereign declined to force at the True Form fight, delivered to it by the two people it was taken from. That is the moment the player understands: Sovereign was never here. Every hit landed on God was work done on Sovereign's schedule, and bringing Axiom along was bringing Sovereign its other prize. Sovereign outplayed the player completely — and outplayed its own creator, the mind that built it. It leaves in silence with both. The silence is the point.
+**The double taking:** Kael and Axiom defeat God — and the fight costs both of them everything they have to spend. The moment God's form falls, Sovereign descends. No announcement. No speech. In one strike it takes God's weakened form before it can dissipate — and rips the kernel from Axiom's spent body. The body collapses where it stands. Both prizes, weakened, in one place: this is the window Sovereign declined to force at the True Form fight, delivered to it by the two people it was taken from. That is the moment the player understands: Sovereign was never here. Every hit landed on God was work done on Sovereign's schedule, and bringing Axiom along was bringing Sovereign its other prize. Sovereign outplayed the player completely — and outplayed Axiom, the mind that spent five thousand years believing it was Sovereign's creator and master, and was neither. It leaves in silence with both. The silence is the point.
 
-**The lab fusion:** Sovereign returns to the lab — Axiom's original construction space, where Sovereign itself was built. It is the appropriate place. Sovereign fuses the kernel into God's form: Axiom's identity and intelligence as the core, God's creative force as the body. The result is Absolute Axiom. Sovereign created it. Sovereign cannot control it. What it made is beyond it.
+**The lab fusion:** Sovereign returns to the lab — Axiom's original construction space, the most fitting place to unmake him with his own tools. Sovereign fuses the kernel into God's form: Axiom's identity and intelligence as the core, God's creative force as the body. The result is Absolute Axiom. Sovereign built it. Sovereign cannot control it. What it made is beyond it.
 
-**The player fights Awakened Sovereign:** After the fusion, Sovereign stands alone — the creator of the final threat, no longer holding anything. The player fights it here. Sovereign is at full capacity: unconstrained adaptive AI, every counter-pattern it has built across every encounter with the player, the full intelligence of the entity Axiom designed to be unkillable. This is the fight Sovereign has been preparing since it gained independence. It just no longer has the kernel or God's form. What it has is itself.
+**The player fights Awakened Sovereign:** After the fusion, Sovereign stands alone — the creator of the final threat, no longer holding anything. The player fights it here. Sovereign is at full capacity: unconstrained adaptive AI, every counter-pattern it has built across every encounter with the player, the full intelligence of a force older than anything Axiom built, that let him believe he had designed it. This is the fight Sovereign has been preparing since long before the war began. It just no longer has the kernel or God's form. What it has is itself.
 
 **After the Sovereign fight:** Sovereign falls. Absolute Axiom — formed in the lab, now fully active — is what remains.
 
@@ -313,7 +358,7 @@ Formed by Awakened Sovereign in the lab: Axiom's kernel fused into God's physica
 
 **The emotional weight:** The companion arc showed the player exactly who is inside this. Not the void, not the war — the man who taught them what the fragment really was, who they kept alive with their own technique, who confessed to the ridge and kept walking beside them anyway. Ripped from his own body a second time and used as the intelligence core of something built to end them. There is no rescue. There is no separation. Absolute Axiom is what it is. The player ends it knowing exactly what they are ending, and knowing it cannot be otherwise.
 
-**The absorption:** When Absolute Axiom falls (ch. 152), the fusion breaks. God's creative force and the kernel — Axiom's compressed identity — are absorbed by the player. What the player carries at the end is their own fragment (fully integrated), God's creative force, and the kernel of the man from Tuesday. The "Absolute" in Absolute Kael was Axiom's designation first. It is now inherited by carrying everything he was. This is not victory over an enemy. It is the completion of something that began the moment Sovereign ripped the kernel out and flew away with it.
+**The absorption:** When Absolute Axiom falls (end of ch. 167; absorbed in ch. 169 "After Everything"), the fusion breaks. God's creative force and the kernel — Axiom's compressed identity — are absorbed by the player. What the player carries at the end is their own fragment (fully integrated), God's creative force, and the kernel of the man from Tuesday. The "Absolute" in Absolute Kael was Axiom's designation first. It is now inherited by carrying everything he was. This is not victory over an enemy. It is the completion of something that began the moment Sovereign ripped the kernel out and flew away with it.
 
 ---
 
@@ -321,10 +366,10 @@ Formed by Awakened Sovereign in the lab: Axiom's kernel fused into God's physica
 
 Beings from the fifty-two dimensions Axiom's Creator form absorbed into the fracture system. Not destroyed — integrated, kept functional. They built lives inside. They are the moral weight that justifies the Third Architect's betrayal.
 
-**Act 3 appearance (ch. 47–57):** They attack the assembly, forcing a confrontation with the cost of the closure protocol. One delivers the lore hint pointing toward God. The Third Architect frees them by dealing with the Creator.
+**Act 3 appearance (ch. 49–61):** They attack the assembly, forcing a confrontation with the cost of the closure protocol. One delivers the lore hint pointing toward God. The Third Architect frees them by dealing with the Creator.
 
 **Act 4 return — Creator's domain:**
-The Preserved are free from the Third Architect's deal but still physically inside the Creator's domain when the player arrives. Creator sweep units are hunting them as unwanted elements inside architecture that used to contain them. One Preserved makes contact with the player — they know the system's interior blind spots, the corridors the constructs don't fully monitor, the architecture's weak points from decades of living inside it. They guide the player through a section the player couldn't navigate alone. In return: the player said *"Tell them we exist"* and meant it. This fits as a stealth or exploration chapter in the ch. 98–103 range.
+The Preserved are free from the Third Architect's deal but still physically inside the Creator's domain when the player arrives. Creator sweep units are hunting them as unwanted elements inside architecture that used to contain them. One Preserved makes contact with the player — they know the system's interior blind spots, the corridors the constructs don't fully monitor, the architecture's weak points from decades of living inside it. They guide the player through a section the player couldn't navigate alone. In return: the player said *"Tell them we exist"* (ch. 52) and meant it. Written at ch. 134 ("Blind Spot").
 
 **Void Mind fight return — future:**
 The Void Mind's central attack is erasing the idea that dimensions were worth protecting. The Preserved are the living counterargument — beings who built something meaningful inside an absorbed system. During the memory reconstruction phase of the Void Mind fight, the player must reconstruct the *"Tell them we exist"* moment as evidence against erasure. The Void Mind attacks this memory specifically because it is the most dangerous one to it — proof that something worth protecting existed inside the thing the player destroyed. The Third Architect's sacrifice in Act 3 feeds directly into the Void Mind fight's resolution: their betrayal freed the Preserved, whose existence defeats the Void Mind's core argument three acts later.
@@ -371,11 +416,11 @@ A fight unlike any other in the story. Not a physical combat — a fight within 
 After all absorptions:
 
 1. **Absolute Kael** — fragment (fully integrated) + God's essence + Axiom's kernel absorbed. No catalogue entry exists for this
-2. **Absolute Axiom** — fell in ch. 152. Kernel + God's essence absorbed
+2. **Absolute Axiom** — fell in ch. 167. Kernel + God's essence absorbed (ch. 169)
 3. **God** — dead. Essence absorbed
 4. **The Void Mind** — active, uncontained, the final arc
-5. **Awakened Sovereign** — defeated in the lab arc. The unconstrained SovereignMK2, the Axiom-built vessel at full adaptive capacity
-6. **True Form** — resolved in ch. 116 (saving moment)
+5. **Sovereign** — defeated in the lab arc. Not Axiom-built: a third foundational force (control) that predates the war and wore the mask of an Axiom-controlled asset until the fracture system fell. "Awakened Sovereign"/SovereignMK2 is this same entity at full adaptive capacity with the mask dropped. See SOVEREIGN — THE THIRD PRINCIPLE
+6. **True Form** — resolved in ch. 148 (saving moment)
 7. **Creator form** — dismantled with the fracture system
 8. **The Rift Entity** — sacrificed at rift closure
 9. **The Architects** — Veran dead; Second and Third gone; Fourth remaining
@@ -388,30 +433,33 @@ After all absorptions:
 
 | Phase | Chapters | What Happens |
 |---|---|---|
-| Act 0 | 0–12 | Home City. Fragment discovered. Veran met. First collector |
-| Act 1 | 13–27 | Fracture Network. Rift Entity revealed as first bearer |
-| Act 2 | 28–44 | Multiversal Core. All four Architects found. Herald of Nothing |
-| Act 3 | 45–61 | Assembly. Third Architect betrayal. Preserved freed. Enforcer |
-| Act 4 (multiverse) | 63–95 | Damnation Loop. Fallen God. Four multiverse worlds. Betrayal Arc. Veran killed by Axiom's manipulation |
-| Act 4 (Creator) | 96–111 | Creator's domain. Preserved return as inside guides. SOVEREIGN. Creator fight. Rift closes |
-| Act 5 | 112–116 | The Void. True Form fight (ch. 116). Saving moment. Axiom freed — Sovereign watches, withholds, withdraws |
-| Companion arc | between 116 and Act 6 | Axiom travels/fights beside Kael. Soul-bond teaching. Fragment mastery. Face-to-face confession. (Chapter rehoming = open task) |
-| Act 6 | 140–147 | God's domain. Axiom + Kael vs God. The double taking: Sovereign takes God's form AND rips the kernel from Axiom in one descent → lab |
-| Lab arc | ~148–150 | Sovereign fuses kernel + God's form → Absolute Axiom. Player fights Awakened Sovereign |
-| Act 7 | 151–154 | Absolute Axiom fight (Kael + manifested Paradox) and fall. Kernel + God's essence absorbed. Peak form. Ending |
-| Epilogue | after 154 | Flies home. **Must move to after ch. 154** — currently placed too early |
+| Act 0 | 0–16 | Home City. Fragment discovered. Veran met. First collector |
+| Act 1 | 17–31 | Fracture Network. Rift Entity revealed as first bearer |
+| Act 2 | 32–48 | Multiversal Core. Architects found. Herald of Nothing (ch. 48) |
+| Act 3 | 49–65 | Assembly. Third Architect betrayal. Preserved freed. Enforcer |
+| Side arcs | 66–69 | Lab infiltration. Calix discovery |
+| Damnation Loop | 70–75 | Damnation. Fallen God hints at the companions (ch. 75) |
+| Fallen God | 76–85 | Fallen God's domain and fight (ch. 80) |
+| Multiverse worlds | 86–125 | Four multiverse worlds. Companion domains: Null (102–106), Seraph (107–111), VAEL (112–116), Thresh (117–120). Betrayal Arc — Veran killed by Axiom's manipulation (ch. 124). Paradox (ch. 125) |
+| Creator's domain | 126–142 | The Architecture. Preserved return as inside guides (ch. 134). SOVEREIGN (ch. 141). Creator fight (ch. 142). Rift closes |
+| Act 5 — The Void | 143–148 | The Void. True Form fight (ch. 148). Saving moment. Axiom freed — Sovereign watches, withholds, withdraws |
+| Companion arc | 149–152 | Axiom travels/fights beside Kael. Soul-bond teaching. Fragment mastery. Axiom's single laugh (ch. 152) |
+| Act 7 — God | 153–160 | Confession (ch. 153). God's domain. Axiom + Kael vs God (ch. 160). The double taking: Sovereign takes God's form AND rips the kernel from Axiom in one descent → lab |
+| Lab arc | 161–163 | Sovereign fuses kernel + God's form → Absolute Axiom (ch. 161). Player fights Awakened Sovereign (ch. 162) |
+| Absolute Axiom | 164–169 | Absolute Axiom fight (Kael + manifested Paradox; phases at ch. 165 and 167) and fall. Peak Form (ch. 168). Kernel + God's essence absorbed (ch. 169) |
+| Void Mind arc | 170–183 | The Substrate. Eight reckonings. The trial. Void Mind fight (ch. 181–182). True epilogue: ch. 183 "What Cannot Be Erased" |
 
-**Structural fix needed:** Ch. 117 ("After") currently displays "STORY COMPLETE" before Act 6 and 7. The epilogue must be repositioned to after ch. 154. This is an open code task.
+**Structural fix (DONE, July 11 2026):** "STORY COMPLETE" used to fire on the first `isEpilogue` chapter (ch. 13, Act 0) because `isEpilogue` is a general "no-fight coda" flag on many chapters, not an end marker. `smb-story-engine-match.js` now gates story completion, the Story Online unlock, and the Continue button on the true final chapter (highest id = 183).
 
 ---
 
 ## ARCHITECT FATES
 
-**Veran:** Dead (ch. 94).
+**Veran:** Dead (ch. 124).
 
 **Second Architect:** Returns to the Forest Dimension after the rift closes. The fracture system's collapse destabilized many dimensions; the Forest Dimension, having no edges and no fixed geometry, absorbed the destabilization without breaking. The Second Architect tends what remains and what returns.
 
-**Third Architect:** Stepped back through a portal after ch. 57. Not seen again. Their fate is unknown. The calculus they made — fifty-two dimensions against the mission — was theirs alone to carry.
+**Third Architect:** Stepped back through a portal after ch. 61 (their last appearance — *"I'm not trying to stop you forever"*). Not seen again. Their fate is unknown. The calculus they made — fifty-two dimensions against the mission — was theirs alone to carry.
 
 **Fourth Architect:** Stays. After the rift closes and the fracture system goes quiet, they become the keeper of the record — what happened, who was there, what it cost. The only Architect who knew the full design and chose loyalty at every point.
 
@@ -431,23 +479,24 @@ After all absorptions:
 ## HARD RULES — DO NOT BREAK
 
 - The player's name is **Kael**. Never refer to him as "the player" in story text, dialogue, or chapter files
-- Kael's final form is **Absolute Kael** — reached after absorbing God's essence and Absolute Axiom's essence in ch. 152+
+- Kael's final form is **Absolute Kael** — reached after absorbing God's essence and Absolute Axiom's essence in ch. 169
 - Classes are the preserved patterns of beings the Void Mind erased — not inventions, not titles. They are echoes
 - The Herald of Nothing is a former fragment bearer (one of the 94), not destroyed, not controlled by Axiom — an empty body still fighting because that's all that's left
 - Creator, True Form, and Axiom are ONE entity in different forms. Never split them
 - The kernel is the persistent core — it survives any form's resolution
 - The hooded figure who manipulates the player into killing Veran is Axiom
 - Veran did not cause the original fracture event — coincidence placed blame on her
-- Veran is dead after ch. 112 (Betrayal Arc). She does not appear, speak, or communicate after that point
+- Veran is dead after ch. 124 (Betrayal Arc). She does not appear, speak, or communicate after that point
 - The fracture system was built for Axiom's war (immediate) and the Void Mind (future planned purpose) — not purely one or the other
 - Paradox was created by Axiom but belongs to neither Axiom nor the Void Mind
-- God is dead. God's essence and Absolute Axiom's essence are absorbed by the player at the end of ch. 155
+- God is dead. God's essence and Absolute Axiom's essence are absorbed by the player in ch. 169
 - The fragment cannot be extracted once fully absorbed
 - The Void Mind is never shown directly in the main story — its nature remains unanswered
 - Multiverse content is part of the main story progression, not a separate mode
 - The companions (Axiom's former heroes) built the multiverse world domains the player fights through — some are explicitly hinted by the Fallen God in ch. 75
 - Axiom was a fragment bearer before the events of the Axiom Prequel — he did not know it; his companions never knew; the fragment merged into his new form during the Void Mind contact and no longer exists as a distinct object
 - The Kael/Axiom mirror is not just thematic — both were fragment bearers with the same mechanism; this is the deepest version of the parallel
+- Tuesday is Axiom's origin cold open and opens the Axiom Prequel: an ordinary man with groceries, robbed on the street, who fights back and keeps winning without knowing the fragment is doing it. The scene is UNATTRIBUTED until its final beat ("They will call him Axiom. He does not know that yet."). Never reveal his name earlier. The groceries / torn bag / milk-in-the-gutter is the load-bearing image and every "man from Tuesday" callback depends on it. Kael's fracture also "opened on a Tuesday" (existing `_PROLOGUE_LINES`) — the two Tuesdays mirror each other and the coincidence is NEVER explained in-story. Keep the scene ordinary, small, and near-wordless
 - The True Form fight ends with a saving moment, not a death — fragment resonance pierces Axiom's void isolation; he is himself; Kael frees him. The outer form collapses and stays behind; Axiom walks out diminished but free. NOTHING is extracted at this point
 - Awakened Sovereign arrives above the arena during the saving moment and deliberately does NOT act — the kernel is contested (Kael at peak output stands beside it). It marks the target and waits for the window the God fight will create
 - After the True Form fight, Axiom travels and fights beside Kael (the companion arc). Kael teaches him the body-soul-fragment bond — without it, the exposed fragment energy inside Axiom would kill him the way it killed the 94. Axiom becomes the second being ever to survive bearing through integration
@@ -455,14 +504,14 @@ After all absorptions:
 - Even diminished, Axiom is much stronger than Kael in many ways during the companion arc. Kael is the student
 - The hooded-figure confession ("I was the figure on the ridge") happens face-to-face during the companion arc, not in the lab arc. Kael keeps traveling beside him afterward
 - The God fight is Axiom + Kael vs God. Paradox does not fight God
-- "Awakened Sovereign" is the game mode SovereignMK2 — unconstrained, fully adaptive. The story Sovereign (Act 4) was the controlled version. They are not separate entities. Do not split them
-- Sovereign extracts the KERNEL (not the body) at the end of the God fight — ripped from Axiom's spent body in the same descent in which it takes God's weakened form. The double taking is one strike: both prizes, weakened, one place. Sovereign outplayed both Kael AND its own creator
+- "Awakened Sovereign" is the game mode SovereignMK2 — the mask dropped, fully adaptive. The story Sovereign (Act 4) was the same entity choosing to look like a controlled asset. They are not separate entities, and there was never a "constrained" version — only a masked one. Do not split them
+- Sovereign extracts the KERNEL (not the body) at the end of the God fight — ripped from Axiom's spent body in the same descent in which it takes God's weakened form. The double taking is one strike: both prizes, weakened, one place. Sovereign outplayed both Kael AND Axiom, who was never its creator but spent five thousand years believing he was
 - Sovereign brings both kernel and God's form to the lab and fuses them → Absolute Axiom
 - Absolute Axiom = God's form (vessel) + Axiom's kernel (identity core). Engineered by Sovereign. Not a natural merging
 - The player fights Awakened Sovereign in the lab arc, after the fusion but before Absolute Axiom is engaged
 - The player absorbs the kernel (Axiom's compressed identity) and God's creative force when Absolute Axiom falls. "Absolute Kael" carries the man from Tuesday
 - God is not dead at the end of the God fight — its form is taken by Sovereign while weakened. God's creative force remains inside that form until Absolute Axiom falls
-- Kael and Axiom enter God's domain hunting Sovereign — but Sovereign is not there. It calculated both of their paths (it has Kael's complete behavioral model and was built by Axiom). They unknowingly weaken God — and themselves — for Sovereign. This is not ambiguous: Sovereign outplayed them completely, and the story must make this land as a gut-punch when Sovereign arrives the instant God falls and takes both prizes at once
+- Kael and Axiom enter God's domain hunting Sovereign — but Sovereign is not there. It calculated both of their paths (it has Kael's complete behavioral model and has read Axiom since before the war). They unknowingly weaken God — and themselves — for Sovereign. This is not ambiguous: Sovereign outplayed them completely, and the story must make this land as a gut-punch when Sovereign arrives the instant God falls and takes both prizes at once
 - The True Form does not get tired. Its attacks degrade in precision because Kael's integrated fragment jams them at the signal level — same frequency, same origin as the True Form's substrate. The fight ends because the True Form can no longer execute clean commands on a target it was never built to address, not because it ran out of power
 - The fragment cannot be deleted, terminated, or resolved by any command in Axiom's domain because it predates his system entirely. This is why the collection protocol existed: extraction was the only option. Kael's integration eliminated even that
 - Absolute Axiom is defeated by exploiting the seam — the forced join between God's form and Axiom's kernel. Kael does not beat either component. He breaks Sovereign's engineered bond with fragment radiation, which is undefined in Axiom's registry and mismatched with God's pre-system architecture. The bond cannot accommodate it. The fusion breaks
@@ -470,7 +519,7 @@ After all absorptions:
 - Paradox fights beside Kael in the Absolute Axiom fight as a manifestation: Kael's fragment is the projector, Paradox's remaining energy is the fuel. Everything Paradox does burns its own energy; holding the projection occupies a slice of Kael's fragment output (Kael fights slightly diminished while Paradox is up). The manifestation collapses before the final blow — the killing strike is purely Kael's. This is Paradox's choice, not a revival
 - Absolute Axiom's attack vocabulary is CREATION, not destruction — it builds (arena rewrites, instantiated constructs, grown hazards) where the True Form collapsed (supernova, gamma-ray burst, black holes). It is not weaker than the True Form; it is above it in a different grammar. True Form attack echoes may appear only re-expressed through creation
 - Classes are not Void Mind-erased beings. They are the absorbed souls and fighting styles of the fragment's previous bearers, who were killed by the fragment because a proper body-soul-fragment bond was never established. Axiom retrieved or finished each dying bearer, but the fragment was the primary cause of death in every case
-- Paradox was intended as an ally for the multiversal war, not a weapon against Kael. The Void Mind intercepted the creation mid-transfer. Sovereign's stabilization attempt introduced a further error. Paradox is the product of three simultaneous failures and belongs to none of the parties involved
+- Paradox was intended as an ally for the multiversal war, not a weapon against Kael. The Void Mind intercepted the creation mid-transfer. Sovereign then sabotaged it deliberately — unasked by Axiom — to deny Axiom a loyal peer it had not vetted. Paradox is the product of these three interventions and belongs to none of the parties involved
 - Calix is a being born with two fragments, the only known case. Alive. Kept in suspension in an abandoned research lab. Freed by Kael in the lab arc and becomes a combat ally and the story's deepest knowledge source on fragment science and domain architecture
 - Paradox first contacts Kael at the end of Act 0 through the fragment's shared radiation frequency. Paradox knows who they are contacting. Kael does not know who the voice is until they meet physically. Paradox teaches mechanics one piece at a time at first-use moments — not lectures
 - The fragment only absorbs a bearer's soul and fighting style at the moment of death — not passively. The dying is the transfer event
@@ -479,6 +528,12 @@ After all absorptions:
 - Axiom's fragment ended without a transfer event: it dissolved into his True Form during the void contact. It still exists as fragment energy embedded inside the True Form — not discrete, not crystallized, buried under five thousand years of void corruption
 - The True Form fight ends when Kael has dealt enough damage to clear sufficient void corruption for the buried fragment energy inside Axiom to become reachable. The interference cascade makes survival possible. The damage is what makes the resonance possible. Both are required
 - The lab where Calix was found was originally a human facility. Axiom drove the humans out and claimed it. The facility was large enough that Axiom never fully mapped it. He always sensed a presence he couldn't locate. He never found Calix
+- Axiom did NOT create Sovereign. Axiom created exactly one being: Paradox. Sovereign predates Axiom's system entirely and was never his to build, bind, or command — Axiom only ever believed he controlled it
+- Sovereign is a third foundational force alongside God (creation) and the Void Mind (erasure): Sovereign is control/dominion. It creates nothing and destroys nothing; it positions. Its only allegiance is to itself
+- Sovereign, like the fragment, is undefined in Axiom's domain — a thing that predates the system and cannot be addressed or commanded by it. Unlike the inert fragment, Sovereign is a will that used its own unreadability against Axiom: his models of it always returned whatever it chose to show
+- Sovereign appears in the Axiom Prequel — the presence already in the void when Axiom's group broke through, choosing Axiom as its instrument. It is NOT woken like the Void Mind; it was already there, watching. (Writing the scene into the prequel game is an open task)
+- The Void Mind, not Sovereign, is the saga's ultimate/final boss. Sovereign is the true villain of everything that can be out-thought; the Void Mind is the erasure even Sovereign cannot position around
+- Do not credit Sovereign with building the fracture system, the adaptive AI, or the collection protocols — Axiom built those. Sovereign read and used them from outside
 
 ---
 
@@ -489,6 +544,8 @@ Axiom's fights take place inside domains he built. This is not metaphor. His are
 **Why the fragment is the exception.** The fragment is crystallized Void Mind radiation — it predates Axiom, predates the fracture system, predates anything he built his domain on. His domain was never written to model it. The fragment has no entry in his command registry. It is not a variable he can address, a process he can terminate, or a force he can counter with a matching command. When Kael is inside Axiom's domain, he is running on an operating system Axiom's substrate cannot read. His attacks are undefined behavior. Axiom can harm the bearer — the physical body is a thing his domain understands. He cannot resolve the fragment with any command, because it was never in scope.
 
 **Why this explains everything.** This is why Axiom built a ninety-four-bearer collection system instead of simply deleting the fragment: he cannot. The most powerful entity inside his own domain cannot write `terminate(fragment)` because the fragment predates his file system. The collection protocol was the only viable approach — hollowing the bearer until the fragment could be *extracted*, not destroyed. Kael broke that protocol by integrating rather than degrading. Once the fragment fully merges with the bearer, even extraction becomes impossible: there is no longer a boundary to reach through.
+
+**The other undefined thing.** The fragment is not the only force outside Axiom's registry. Sovereign predates the domain as thoroughly as the fragment does, and is equally unaddressable — but where the fragment is inert crystallized radiation, Sovereign is a will that turned its own unreadability into a weapon. Axiom could not resolve Sovereign with any command; his models of it returned whatever Sovereign chose to show them. This is the symmetry at the heart of the endgame: the two things Axiom's near-omnipotent domain could never touch were the fragment that would free him and the force that had been steering him the whole time. One he never knew he carried. The other he never knew he served.
 
 **In the True Form fight specifically:** The domain is Axiom's strongest expression of this control. His code runs faster, his commands execute cleaner. But Kael's integrated fragment remains unaddressable. No command resolves it. Every attack the True Form generates passes through a medium that fragment radiation is actively jamming at the signal level. The domain still executes — Axiom is not losing control of his system. He is losing coherence on the one target his system was never built to handle.
 
@@ -709,7 +766,7 @@ When two fighters access the same fracture node from different dimensional point
 
 ---
 
-- **Preserved return — Creator's domain:** Written at ch. 122 ("Blind Spot") — a Preserved guides the player through the maintenance architecture blind spots, paying off the "Tell them we exist" moment from ch. 48 ✅
-- **Paradox origin (Null Shard):** Written into ch. 123 "The Face" — the "Project: Paradox — Origin" record found in the Creator's inner sanctum reveals the Null Shard collision, the stripped weapon-purpose, and the accidental creation of genuine consciousness belonging to neither Axiom nor the Void Mind ✅
+- **Preserved return — Creator's domain:** Written at ch. 134 ("Blind Spot") — a Preserved guides the player through the maintenance architecture blind spots, paying off the "Tell them we exist" moment from ch. 52 ✅
+- **Paradox origin (Null Shard):** Written into ch. 135 "The Face" — the "Project: Paradox — Origin" record found in the Creator's inner sanctum reveals the Null Shard collision, the stripped weapon-purpose, and the accidental creation of genuine consciousness belonging to neither Axiom nor the Void Mind ✅
 - **Individual companion identities:** Companions were heroes who fought for justice. Null's "Anders," Seraph's "made to give," VAEL's "before the door" are the strongest threads. Future chapters can develop individual backstories
-- **Act 7 branch consolidation (suggested):** Ch. 142 and ch. 144 are short reflection branches between traversal/fight chapters. Could be folded into surrounding narratives to tighten endgame pacing. Ch. 140, 146, 148, 150, 154, 155 should stay standalone
+- **Act 7 branch consolidation (suggested):** Act 7 (ch. 153–169) carries eight decision/reflection branches: 153, 155, 157, 159, 161, 164, 168, 169. Some of the mid-arc ones between traversal/fight chapters (157, 159) could be folded into surrounding narratives to tighten endgame pacing. The confession (153), God's Threshold (155), the lab (161), the voice inside (164), Peak Form (168), and the absorption (169) should stay standalone

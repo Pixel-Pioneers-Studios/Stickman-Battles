@@ -65,6 +65,12 @@ function updateExploration() {
     exploreSeedHealth = null;
   }
 
+  // Mid-region launch: place the player at their chapter's segment start
+  if (exploreStartX != null) {
+    p1.x = exploreStartX; p1.vx = 0;
+    exploreStartX = null;
+  }
+
   // Chase phase: count down the escape timer each frame
   if (storyChaseTimer > 0 && !exploreGoalFound) {
     storyChaseTimer--;
@@ -122,9 +128,30 @@ function updateExploration() {
     return;
   }
 
+  // One-map region: crossing a segment boundary completes that segment's chapter
+  // in place (rewards + save) without ending the match. The arena lock clamps the
+  // player until the segment's duel is cleared, so a crossed boundary implies a
+  // finished (or replay-skipped) fight.
+  if (exploreRegion && !exploreArenaLock && !exploreGoalFound) {
+    for (const b of exploreRegion.boundaries) {
+      if (!b.done && p1.cx() >= b.x) {
+        b.done = true;
+        _regionCompleteChapter(b.chId);
+      }
+    }
+  }
+
   // Goal reached?
   if (!exploreArenaLock && !exploreGoalFound && p1.x + p1.w >= exploreGoalX && p1.health > 0) {
     exploreGoalFound = true;
+    // Region: the exit belongs to the LAST chapter — the normal victory flow
+    // (rewards, overlay, defeated) must run against it, not the launched one.
+    if (exploreRegion && typeof STORY_CHAPTERS2 !== 'undefined') {
+      const _lastId = exploreRegion.chapters[exploreRegion.chapters.length - 1];
+      if (_activeStory2Chapter && _activeStory2Chapter.id !== _lastId && STORY_CHAPTERS2[_lastId]) {
+        _activeStory2Chapter = STORY_CHAPTERS2[_lastId];
+      }
+    }
     // Persist current HP so it carries into the next walk→fight chapter
     if (exploreDuelMode) { _story2.health = Math.round(p1.health); if (typeof _saveStory2 === 'function') _saveStory2(); }
     SoundManager.superActivate();
@@ -155,24 +182,28 @@ function updateExploration() {
       color: '#7dffcc'
     };
     spawnParticles(cp.x, p1.cy(), '#7dffcc', 14);
+    // Region checkpoints carry their own chapter's opponent; plain walkFight
+    // checkpoints fall back to the launched chapter's duel opponent.
+    const _cpCh = (cp.chId != null && typeof STORY_CHAPTERS2 !== 'undefined') ? STORY_CHAPTERS2[cp.chId] : _activeStory2Chapter;
+    const _opp = cp.opp || exploreDuelOpponent;
     // Replay Mode off + already-beaten chapter → walk through freely, skip the fight entirely
-    const _replaySkip = (typeof _cinReplaySkip === 'function') && _cinReplaySkip(_activeStory2Chapter);
-    if (exploreDuelMode && exploreDuelOpponent && !_replaySkip) {
+    const _replaySkip = (typeof _cinReplaySkip === 'function') && _cinReplaySkip(_cpCh);
+    if (exploreDuelMode && _opp && !_replaySkip) {
       if (!exploreArenaLock && currentArena) {
         exploreArenaLock = {
           left: Math.max(0, cp.x - 260),
           right: Math.min(exploreWorldLen, cp.x + 340),
           prevLeft: currentArena.mapLeft,
           prevRight: currentArena.mapRight,
-          label: exploreDuelOpponent.name,
+          label: _opp.name,
         };
       }
-      _exploreSpawnEnemy({ wx: cp.x + 180, exactX: cp.x + 180, name: exploreDuelOpponent.name, weaponKey: exploreDuelOpponent.weaponKey, classKey: exploreDuelOpponent.classKey, aiDiff: exploreDuelOpponent.aiDiff, color: exploreDuelOpponent.color, health: exploreDuelOpponent.health, armor: exploreDuelOpponent.armor, isArenaLockEnemy: true }, p1);
-      const _sec = exploreDuelOpponent.second;
+      _exploreSpawnEnemy({ wx: cp.x + 180, exactX: cp.x + 180, name: _opp.name, weaponKey: _opp.weaponKey, classKey: _opp.classKey, aiDiff: _opp.aiDiff, color: _opp.color, health: _opp.health, armor: _opp.armor, isArenaLockEnemy: true }, p1);
+      const _sec = _opp.second;
       if (_sec) {
         _exploreSpawnEnemy({ wx: cp.x + 300, exactX: cp.x + 300, name: _sec.name, weaponKey: _sec.weaponKey, classKey: _sec.classKey, aiDiff: _sec.aiDiff, color: _sec.color, health: _sec.health || 120, armor: _sec.armor, isElite: true, isArenaLockEnemy: true }, p1);
       }
-      storyFightSubtitle = { text: `${exploreDuelOpponent.name}${_sec ? ' and ' + _sec.name : ''} blocks your path!`, timer: 180, maxTimer: 180, color: '#ffcc66' };
+      storyFightSubtitle = { text: `${_opp.name}${_sec ? ' and ' + _sec.name : ''} blocks your path!`, timer: 180, maxTimer: 180, color: '#ffcc66' };
     } else if (!_replaySkip && ((_activeStory2Chapter && _activeStory2Chapter.id >= 8) || (storyGauntletState && storyGauntletState.index > 0))) {
       if (!exploreArenaLock && currentArena) {
         exploreArenaLock = {
@@ -290,6 +321,47 @@ function updateExplorePickups(p1) {
         storyFightSubtitle = { text: `Healing crystal  +${it.value} HP`, timer: 150, maxTimer: 150, color: '#66ff88' };
       }
     }
+  }
+}
+
+// Complete a region segment's chapter mid-match: grant the same first-clear
+// rewards the victory flow gives (tokens, blueprint, armor blueprint, defeated,
+// chapter advance — mirrors story2OnMatchEnd's award block in match.js) and
+// save, but keep the match running so the player walks straight on.
+function _regionCompleteChapter(chId) {
+  const ch = (typeof STORY_CHAPTERS2 !== 'undefined') ? STORY_CHAPTERS2[chId] : null;
+  if (!ch || !_story2) return;
+  const _first = !_story2.defeated.includes(ch.id);
+  if (_first) {
+    _story2.tokens += (ch.tokenReward || 0);
+    if (ch.blueprintDrop && !_story2.blueprints.includes(ch.blueprintDrop)) {
+      _story2.blueprints.push(ch.blueprintDrop);
+    }
+    if (ch.armor && ch.armor.length > 0) {
+      if (!_story2.armorBlueprints) _story2.armorBlueprints = [];
+      const _piece = 'armor_' + ch.armor[Math.floor(Math.random() * ch.armor.length)];
+      if (!_story2.armorBlueprints.includes(_piece)) _story2.armorBlueprints.push(_piece);
+    }
+    _story2.defeated.push(ch.id);
+    const _acct = (typeof window !== 'undefined' && window.GameState) ? GameState.getActiveAccount() : null;
+    if (_acct && _acct.data) {
+      if (!_acct.data.story || typeof _acct.data.story !== 'object') _acct.data.story = {};
+      if (!Array.isArray(_acct.data.story.defeated)) _acct.data.story.defeated = [];
+      if (!_acct.data.story.defeated.includes(ch.id)) _acct.data.story.defeated.push(ch.id);
+    }
+  }
+  _story2.chapter = Math.max(_story2.chapter, ch.id + 1);
+  if (players[0]) _story2.health = Math.round(players[0].health);
+  if (typeof _saveStory2 === 'function') _saveStory2();
+  storyFightSubtitle = {
+    text: `✓ ${ch.title} complete${_first && ch.tokenReward ? '  +' + ch.tokenReward + ' 🪙' : ''}`,
+    timer: 260, maxTimer: 260, color: '#88ffcc',
+  };
+  // Objective points at the next segment's chapter
+  if (exploreRegion && typeof setObjective === 'function') {
+    const _idx = exploreRegion.chapters.indexOf(chId);
+    const _next = (typeof STORY_CHAPTERS2 !== 'undefined') ? STORY_CHAPTERS2[exploreRegion.chapters[_idx + 1]] : null;
+    if (_next) setObjective('Continue: ' + _next.title);
   }
 }
 

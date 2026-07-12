@@ -558,6 +558,19 @@ function _startGameCore() {
         _godRef.maxHealth = _gh; _godRef.health = _gh;
         _godRef._storyGod = true;
         _godRef.target = p1;
+        // Always fight God's full phase-2 form here: _phase is normally derived from
+        // the godEncountered/sovereignBeaten unlocks, and phase 1 carries the
+        // standalone easter-egg stats (1e15 HP, 9999x damage) that instantly kill a
+        // 1-life story player. Damage is rescaled for a ~150-HP story hero — the
+        // authored special-attack base values (85–160) stay lethal-but-dodgeable at 1x.
+        _godRef._phase   = 2;
+        _godRef.dmgMult  = 1.0;
+        _godRef.kbBonus  = 1.2;
+        _godRef.kbResist = 0.7;
+        // Apex-scale presentation: godStoryHealth-sized hitbox + uniform draw scale
+        _godRef._scale = 1.6;
+        _godRef.w = Math.round(_godRef.w * 1.6);
+        _godRef.h = Math.round(_godRef.h * 1.6);
       }
     }
     if (_storyGod) {

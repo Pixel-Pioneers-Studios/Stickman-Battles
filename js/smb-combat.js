@@ -513,7 +513,8 @@ function dealDamage(attacker, target, dmg, kbForce, stunMult = 1.0, isSplash = f
   // God Phase 1 crash: fires once on the first successful hit against a human player.
   // Deferred via setTimeout so the current game-loop iteration completes before the
   // overlay halts execution — avoids mid-frame teardown.
-  if (attacker && attacker._isGod && !attacker._consoleSummoned && !attacker._crashFired &&
+  if (attacker && attacker.isGod && attacker._phase === 1 && !attacker._storyGod &&
+      !attacker._consoleSummoned && !attacker._crashFired &&
       target && !target.isMinion && !target.isAI && !target.isBoss && !target.isRemote) {
     attacker._crashFired = true;
     if (typeof godDefeated === 'undefined' || !godDefeated) {

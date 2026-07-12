@@ -1037,6 +1037,8 @@ let exploreDuelMode = false;    // true = walk→fight→walk single-duel explor
 let exploreDuelOpponent = null; // { name, weaponKey, classKey, aiDiff, color, health } spawned at the duel checkpoint
 let explorePickups = [];        // [{ x, y, type:'coin'|'xp'|'heal', icon, value, collected }] loot in the walk zone
 let exploreSeedHealth = null;   // pending carried-over HP applied on the first exploration frame (null = none)
+let exploreRegion = null;       // active one-map region: { name, segLen, chapters:[ids], boundaries:[{x,chId,done}] }
+let exploreStartX = null;       // pending start x applied on the first exploration frame (mid-region launch)
 let storyChaseTimer    = 0;     // frames remaining in a chase phase (0 = no chase active)
 let storyChaseMaxTimer = 0;     // max frames (used for the HUD progress bar)
 let storeSurvivalState = null;  // { active, state, wave, totalWaves, waveSize, timer, baseEnemy }

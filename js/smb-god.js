@@ -259,6 +259,7 @@ class God extends Fighter {
     this.isMinion  = true;
     this.w         = 32;
     this.h         = 62;
+    this._scale    = 1;   // uniform draw scale (story fight renders God larger)
     this.lives     = 1;
     this.spawnX    = x;
     this.spawnY    = y;
@@ -565,8 +566,12 @@ class God extends Fighter {
 
     if (this._phase === 2 && this._specialCd <= 0) this._pickAndFireSpecial(target);
 
-    // Cinematic HP thresholds (Phase 2 only)
-    if (this._phase === 2) {
+    // Cinematic HP thresholds (Phase 2, standalone encounter only).
+    // The story fight (ch.160) is excluded: its 1400 HP sits below both thresholds
+    // so the dialogue would fire on frame one over the chapter's own fightScript,
+    // and the Kernel-merge finale contradicts act-7 canon (Sovereign takes the
+    // Kernel from Axiom after the fight — see ch.160 postText).
+    if (this._phase === 2 && !this._storyGod) {
       if (typeof _tryFireGodDialogueCin === 'function') _tryFireGodDialogueCin(this);
       if (typeof _tryFireGod1000Cin     === 'function') _tryFireGod1000Cin(this);
     }
@@ -599,6 +604,16 @@ class God extends Fighter {
       ctx.arc(tp.x, tp.y, 7 - i * 0.35, 0, Math.PI * 2);
       ctx.fillStyle = p2 ? `rgba(200,150,255,${a})` : `rgba(255,245,130,${a})`;
       ctx.fill();
+    }
+
+    // Apex scale: every layer below is anchored to cx/cy with fixed offsets, so a
+    // uniform transform about the body centre scales the whole form together.
+    // (Trail above stays world-space — its points are historical positions.)
+    const _s = this._scale || 1;
+    if (_s !== 1) {
+      ctx.translate(cx, cy);
+      ctx.scale(_s, _s);
+      ctx.translate(-cx, -cy);
     }
 
     // ── Layer 1: Vast outer radiance ────────────────────────────────────
@@ -927,9 +942,9 @@ class God extends Fighter {
 
     // ── Health bar (Phase 2) ─────────────────────────────────────────────
     if (this._phase === 2 || this._consoleSummoned) {
-      const barW = 82, barH = 7;
+      const barW = Math.round(82 * (this._scale || 1)), barH = 7;
       const bx   = cx - barW / 2;
-      const by   = this.y - 26;
+      const by   = this.y - 26 - ((this._scale || 1) - 1) * 40; // clear the scaled halo
       const pct  = Math.max(0, this.health / this.maxHealth);
 
       ctx.fillStyle = 'rgba(0,0,0,0.65)';

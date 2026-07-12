@@ -197,6 +197,40 @@ function _storyEnterSidePortal(portal, p1, ch) {
   if (!isBossRift) _exploreSpawnEnemy({ ...eliteB, wx: p1.x + 220, health: 160, isElite: true, isSidePortalEnemy: true }, p1);
 }
 
+// ── One-map regions ─────────────────────────────────────────────────────────
+// Consecutive same-world walkFight chapters stitched into a single continuous
+// world. Launching any member chapter builds the whole region; the player
+// starts at that chapter's segment and can see neighbouring segments' terrain.
+// Segment boundaries award the crossed chapter's rewards without ending the
+// match; only the final segment's exit ends the chapter normally.
+const STORY_REGIONS = [
+  { name: 'Multiversal Core', chapters: [32, 33, 34, 35], segLen: 3000 },
+];
+function _storyRegionFor(chId) {
+  for (const r of STORY_REGIONS) if (r.chapters.includes(chId)) return r;
+  return null;
+}
+
+// Build the duel-opponent def for a walkFight chapter (main + optional second).
+function _storyBuildDuelOpponent(ch) {
+  return {
+    name:      ch.opponentName  || 'Enemy',
+    weaponKey: ch.weaponKey     || 'sword',
+    classKey:  ch.classKey      || 'warrior',
+    aiDiff:    ch.aiDiff        || 'medium',
+    color:     ch.opponentColor || '#cc4444',
+    health:    ch.opponentHealth || 140,
+    armor:     (Array.isArray(ch.armor) && ch.armor.length) ? ch.armor : null,
+    second:    ch.twoEnemies ? Object.assign({
+      name:      (ch.opponentName || 'Enemy') + ' II',
+      weaponKey: ch.weaponKey     || 'sword',
+      classKey:  ch.classKey      || 'warrior',
+      aiDiff:    ch.aiDiff        || 'medium',
+      color:     ch.opponentColor || '#cc5500',
+    }, ch.secondEnemy || {}) : null,
+  };
+}
+
 function _launchExplorationChapter(ch) {
   const _storyModal = document.getElementById('storyModal');
   if (_storyModal) _storyModal.style.display = 'none';
@@ -210,9 +244,27 @@ function _launchExplorationChapter(ch) {
   const _arcEx = getStoryArc(ch.id);
   if (_arcEx) storyCurrentArc = _arcEx.id;
 
-  const worldLen = ch.worldLength || 9000;
+  // One-map region: stitch every member chapter's segment into one world
+  const _region = (ch.walkFight === true) ? _storyRegionFor(ch.id) : null;
+  exploreRegion = null;
+  exploreStartX = null;
+
+  const worldLen = _region ? _region.segLen * _region.chapters.length : (ch.worldLength || 9000);
   const goalX    = ch.objectX    || (worldLen - 350);
-  const plats    = _exploreGenPlatforms(worldLen, ch.id, ch);
+  let plats;
+  if (_region) {
+    // Single continuous floor, then each segment's generated platforms offset into place
+    plats = [{ x: 0, y: 440, w: worldLen, h: 80, isFloor: true }];
+    _region.chapters.forEach((cid, i) => {
+      const segCh = STORY_CHAPTERS2[cid] || ch;
+      const off = i * _region.segLen;
+      _exploreGenPlatforms(_region.segLen, cid, segCh).forEach(p => {
+        if (!p.isFloor) plats.push({ ...p, x: p.x + off });
+      });
+    });
+  } else {
+    plats = _exploreGenPlatforms(worldLen, ch.id, ch);
+  }
 
   // Inject exploration arena into ARENAS under temp key
   const arenaKey = '__explore__';
@@ -241,9 +293,34 @@ function _launchExplorationChapter(ch) {
   exploreGoalFound = false;
   exploreCheckpoints = [];
   exploreCheckpointIdx = -1;
-  const checkpointCount = ch.worldLength >= 5200 ? 2 : 1;
-  for (let i = 1; i <= checkpointCount; i++) {
-    exploreCheckpoints.push({ x: Math.floor((worldLen * i) / (checkpointCount + 1)), hit: false });
+  if (_region) {
+    // One duel checkpoint per segment, each carrying its own chapter's opponent.
+    // Checkpoints behind the launched chapter's segment start pre-hit so walking
+    // left through beaten territory never re-fires old duels.
+    const _myIdx = _region.chapters.indexOf(ch.id);
+    _region.chapters.forEach((cid, i) => {
+      const segCh = STORY_CHAPTERS2[cid] || ch;
+      exploreCheckpoints.push({
+        x: i * _region.segLen + Math.floor(_region.segLen / 2),
+        hit: i < _myIdx,
+        chId: cid,
+        opp: _storyBuildDuelOpponent(segCh),
+      });
+    });
+    exploreRegion = {
+      name: _region.name,
+      segLen: _region.segLen,
+      chapters: _region.chapters.slice(),
+      // Boundaries behind the launched segment start done — the player spawns
+      // past them; they must not fire completions on the first frame.
+      boundaries: _region.chapters.slice(0, -1).map((cid, i) => ({ x: (i + 1) * _region.segLen, chId: cid, done: i < _myIdx })),
+    };
+    exploreStartX = _myIdx > 0 ? _myIdx * _region.segLen + 100 : null;
+  } else {
+    const checkpointCount = ch.worldLength >= 5200 ? 2 : 1;
+    for (let i = 1; i <= checkpointCount; i++) {
+      exploreCheckpoints.push({ x: Math.floor((worldLen * i) / (checkpointCount + 1)), hit: false });
+    }
   }
   // Strip ranged weapons from exploration enemies if this chapter hasn't been beaten yet
   const _expBeaten = Array.isArray(_story2.defeated) && _story2.defeated.includes(ch.id);
@@ -274,24 +351,7 @@ function _launchExplorationChapter(ch) {
   // Walk→fight→walk duel wrapper: one checkpoint locks the arena and spawns the
   // chapter's real opponent; generic pressure/ambush spawns are suppressed.
   exploreDuelMode = (ch.exploreMode === 'duel' || ch.walkFight === true);
-  exploreDuelOpponent = exploreDuelMode ? {
-    name:      ch.opponentName  || 'Enemy',
-    weaponKey: ch.weaponKey     || 'sword',
-    classKey:  ch.classKey      || 'warrior',
-    aiDiff:    ch.aiDiff        || 'medium',
-    color:     ch.opponentColor || '#cc4444',
-    health:    ch.opponentHealth || 140,
-    armor:     (Array.isArray(ch.armor) && ch.armor.length) ? ch.armor : null,
-    // Two-enemy fight chapters: second opponent spawns alongside at the checkpoint
-    // (mirrors the auto-generate fallback used by the normal fight path in flow.js)
-    second:    ch.twoEnemies ? Object.assign({
-      name:      (ch.opponentName || 'Enemy') + ' II',
-      weaponKey: ch.weaponKey     || 'sword',
-      classKey:  ch.classKey      || 'warrior',
-      aiDiff:    ch.aiDiff        || 'medium',
-      color:     ch.opponentColor || '#cc5500',
-    }, ch.secondEnemy || {}) : null,
-  } : null;
+  exploreDuelOpponent = exploreDuelMode ? _storyBuildDuelOpponent(ch) : null;
 
   // Loot: coins (money), an EXP orb, and a post-fight healing crystal along the walk path.
   // Persistent health: carry HP from the previous walk→fight chapter (applied on the
@@ -300,19 +360,27 @@ function _launchExplorationChapter(ch) {
 
   explorePickups = [];
   if (exploreDuelMode) {
-    const _cpX = exploreCheckpoints[0] ? exploreCheckpoints[0].x : Math.floor(worldLen / 2);
-    const _loot = [
-      { x: Math.floor(worldLen * 0.20), y: 356, type: 'coin', icon: '🪙', value: 6 },
-      { x: Math.floor(worldLen * 0.34), y: 356, type: 'xp',   icon: '✦',  value: 10 },
-      { x: Math.min(worldLen - 220, _cpX + 520), y: 356, type: 'heal', icon: '💠', value: 60 },
-      { x: Math.floor(worldLen * 0.88), y: 356, type: 'coin', icon: '🪙', value: 6 }
-    ];
     // One-time loot: a taken pickup stays gone forever (persisted per chapter+index).
     _story2.lootTaken = _story2.lootTaken || {};
-    _loot.forEach((it, i) => {
-      it.key = ch.id + ':' + i;
-      it.collected = !!_story2.lootTaken[it.key];
-      explorePickups.push(it);
+    // For regions each segment gets its own chapter-keyed loot run; a plain
+    // walkFight chapter is just a single segment at offset 0.
+    const _segs = exploreRegion
+      ? exploreRegion.chapters.map((cid, i) => ({ cid, off: i * exploreRegion.segLen, len: exploreRegion.segLen }))
+      : [{ cid: ch.id, off: 0, len: worldLen }];
+    _segs.forEach(seg => {
+      const _cpObj = exploreCheckpoints.find(c => c.x >= seg.off && c.x < seg.off + seg.len);
+      const _cpX = _cpObj ? _cpObj.x : seg.off + Math.floor(seg.len / 2);
+      const _loot = [
+        { x: seg.off + Math.floor(seg.len * 0.20), y: 356, type: 'coin', icon: '🪙', value: 6 },
+        { x: seg.off + Math.floor(seg.len * 0.34), y: 356, type: 'xp',   icon: '✦',  value: 10 },
+        { x: Math.min(seg.off + seg.len - 220, _cpX + 520), y: 356, type: 'heal', icon: '💠', value: 60 },
+        { x: seg.off + Math.floor(seg.len * 0.88), y: 356, type: 'coin', icon: '🪙', value: 6 }
+      ];
+      _loot.forEach((it, i) => {
+        it.key = seg.cid + ':' + i;
+        it.collected = !!_story2.lootTaken[it.key];
+        explorePickups.push(it);
+      });
     });
   }
 

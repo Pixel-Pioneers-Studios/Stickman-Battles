@@ -358,7 +358,11 @@ function _completeChapter2(ch) {
   }
   _story2.tokens += ch.tokenReward;
   _story2.chapter = Math.max(_story2.chapter, ch.id + 1);
-  if (ch.isEpilogue) _completeStory2();
+  // isEpilogue marks reflective no-fight codas throughout the story (ch 13-16, 84,
+  // 147, 183), NOT "the end." Only the true final chapter (highest id) completes it.
+  // Fight-chapter completion is handled separately via _lastFightId in story2OnMatchEnd.
+  const _finalChapterId2 = STORY_CHAPTERS2.reduce((m, c) => Math.max(m, c.id), -1);
+  if (ch.isEpilogue && ch.id >= _finalChapterId2) _completeStory2();
   _saveStory2();
   _showStory2Victory(ch);
 }
@@ -400,7 +404,7 @@ function _showStory2Victory(ch) {
       const _pieceNames = { helmet: 'Helmet', chestplate: 'Chestplate', leggings: 'Leggings' };
       html += `<div style="color:#9ab8e8;font-size:0.76rem;margin-top:3px;">🛡️ Armor Blueprint: ${_pieceNames[_piece] || _piece}</div>`;
     }
-    if (ch.isEpilogue || _story2.storyComplete) {
+    if (_story2.storyComplete) {
       html += `<div style="color:#ffaaff;font-size:0.76rem;margin-top:5px;font-style:italic;">🌐⚔️ Story Online mode unlocked!</div>`;
     }
     if (ch.isSovereignFight && sovereignBeaten) {
@@ -410,6 +414,10 @@ function _showStory2Victory(ch) {
     rewardEl.innerHTML = html;
   }
 
+  // The true final chapter is the highest id; only it should read as "the end."
+  // isEpilogue is also used for mid-story reflective codas (see _completeChapter2),
+  // so gate the "no Continue" ending on the real final chapter, not the flag.
+  const _finalChapterId = STORY_CHAPTERS2.reduce((m, c) => Math.max(m, c.id), -1);
   // Find the next VISIBLE chapter for the button label (skip over hidden transition chapters)
   let _nextVisIdx = ch.id + 1;
   while (STORY_CHAPTERS2[_nextVisIdx] && STORY_CHAPTERS2[_nextVisIdx]._menuHidden) _nextVisIdx++;
@@ -433,7 +441,7 @@ function _showStory2Victory(ch) {
         }
         _updateStoryCloseBtn();
       };
-    } else if (nextCh && !ch.isEpilogue) {
+    } else if (nextCh && ch.id < _finalChapterId) {
       nextBtn.style.display = '';
       nextBtn.textContent = '▶ Continue' + (nextVisCh ? ': ' + nextVisCh.title : '');
       nextBtn.style.cssText = 'padding:12px 28px;font-size:1rem;font-weight:800;letter-spacing:1px;background:linear-gradient(135deg,#1a8a44,#22bb66);border:none;border-radius:10px;color:#fff;cursor:pointer;box-shadow:0 4px 20px rgba(0,200,80,0.5);width:100%;margin-top:8px;';
