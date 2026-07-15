@@ -638,7 +638,19 @@ function _startGameCore() {
     players = [p1];
     p1.target = null;
   } else {
-    p2 = new Fighter(720, 300, c2, w2, { left:'j', right:'l', jump:'i', attack:'u', shield:'k', ability:'o', super:'[' }, isBot, diff);
+    // Lever 2: late-game named/elite story opponents get the base AdaptiveAI brain
+    // (real-time player profiling). NEVER SovereignMK2 here — that stays Sovereign-only.
+    // Opt out per chapter with `noAdaptive: true`.
+    const _l2Ctx = (typeof storyChapterCtx !== 'undefined' && storyChapterCtx) ? storyChapterCtx : null;
+    const _l2ElitePhase = typeof storyPendingPhaseConfig !== 'undefined' && storyPendingPhaseConfig
+      && (storyPendingPhaseConfig.type === 'elite_wave' || storyPendingPhaseConfig.type === 'mini_boss');
+    const _storyAdaptiveElite = storyModeActive && isBot
+      && typeof AdaptiveAI === 'function'
+      && _l2Ctx && !_l2Ctx.noAdaptive && _l2Ctx.origId >= 45
+      && (!!storyOpponentName || _l2ElitePhase);
+    p2 = _storyAdaptiveElite
+      ? new AdaptiveAI(720, 300, c2, w2)
+      : new Fighter(720, 300, c2, w2, { left:'j', right:'l', jump:'i', attack:'u', shield:'k', ability:'o', super:'[' }, isBot, diff);
     // In story two-enemy fights, cap p2 lives so total enemy lives ≤ player lives
     const _p2StoryLives = (storyModeActive && storyTwoEnemies) ? Math.max(1, Math.floor(chosenLives / 2)) : chosenLives;
     p2.playerNum = 2; p2.name = p2IsBot ? 'BOT' : 'P2'; p2.lives = _p2StoryLives;

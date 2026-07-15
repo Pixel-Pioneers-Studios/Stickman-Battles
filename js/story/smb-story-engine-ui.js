@@ -409,6 +409,19 @@ function _renderSkillTreeModal() {
     return;
   }
 
+  // Jump link — the mastery panel lives below the tall canvas and was invisible without scrolling
+  const jumpRow = document.createElement('div');
+  jumpRow.style.cssText = 'display:flex;justify-content:flex-end;margin-bottom:6px;';
+  const jumpBtn = document.createElement('button');
+  jumpBtn.textContent = '⚔️ Weapon Mastery ↓';
+  jumpBtn.style.cssText = 'background:rgba(60,48,20,0.5);color:#ffcc66;border:1px solid #ffcc6655;border-radius:6px;padding:4px 10px;font-size:0.68rem;font-family:inherit;cursor:pointer;letter-spacing:1px;';
+  jumpBtn.addEventListener('click', () => {
+    const s = container.querySelector('#weaponMasterySection');
+    if (s) s.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+  jumpRow.appendChild(jumpBtn);
+  container.appendChild(jumpRow);
+
   const CW = 780, CH = 565, R = 20;
   const canvas = document.createElement('canvas');
   canvas.width  = CW;
@@ -724,7 +737,8 @@ function _renderSkillTreeModal() {
 // ── Per-weapon mastery panel (appended below the skill-tree canvas) ──────────────
 function _meleeWeaponKeys() {
   if (typeof WEAPON_KEYS === 'undefined' || typeof WEAPONS === 'undefined') return ['sword'];
-  return WEAPON_KEYS.filter(k => WEAPONS[k] && WEAPONS[k].type !== 'ranged');
+  const _toneOK = k => typeof STORY_TONE_EXCLUDED_WEAPONS === 'undefined' || !STORY_TONE_EXCLUDED_WEAPONS.includes(k);
+  return WEAPON_KEYS.filter(k => WEAPONS[k] && WEAPONS[k].type !== 'ranged' && _toneOK(k));
 }
 
 function _renderWeaponMasterySection(container) {

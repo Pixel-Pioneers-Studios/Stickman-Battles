@@ -938,6 +938,31 @@ function drawExploreGoalObject() {
   }
   for (const it of (explorePickups || [])) {
     if (it.collected) continue;
+    if (it.type === 'chest') {
+      // Underground chests stay invisible while their chamber is fog-covered
+      if (it.underground && (window._ugRevealCur || 0) < 0.5) continue;
+      // Hidden-loot chest on its perch: tier-colored glow, lock icon while guarded
+      const locked = typeof _chestGuardAlive === 'function' && _chestGuardAlive(it);
+      const cGlow = it.tier === 'elite' ? '#ffaa22' : '#88ccff';
+      const pulseC = Math.sin(frameCount * 0.07 + it.x) * 0.25 + 0.75;
+      ctx.save();
+      ctx.shadowColor = cGlow;
+      ctx.shadowBlur = 12 + pulseC * 10;
+      ctx.fillStyle = '#4a3520';
+      ctx.fillRect(it.x - 14, it.y - 2, 28, 18);         // body
+      ctx.fillStyle = it.tier === 'elite' ? '#8a6420' : '#5a4530';
+      ctx.fillRect(it.x - 15, it.y - 9, 30, 8);          // lid
+      ctx.strokeStyle = cGlow;
+      ctx.lineWidth = 1.5;
+      ctx.globalAlpha = 0.9 * pulseC;
+      ctx.strokeRect(it.x - 15, it.y - 9, 30, 25);
+      ctx.globalAlpha = 1;
+      ctx.font = '13px Arial';
+      ctx.textAlign = 'center';
+      ctx.fillText(locked ? '🔒' : '✨', it.x, it.y - 13);
+      ctx.restore();
+      continue;
+    }
     const bob = Math.sin(frameCount * 0.09 + it.x) * 5;
     const glow = it.type === 'heal' ? '#66ff88' : it.type === 'coin' ? '#ffcc33' : '#66ccff';
     ctx.save();
@@ -1653,7 +1678,8 @@ function _resetSdFloor() {
     const _fp = currentArena.platforms && currentArena.platforms.find(p => p.isFloor);
     if (_fp) _fp.isFloorDisabled = false;
   }
-  if (currentArena && _sdFloor.active) currentArena.hasLava = false;
+  // Restore the arena's pre-sudden-death lava state (lava/volcano have real lava)
+  if (currentArena && _sdFloor.active) currentArena.hasLava = !!_sdFloor._prevHasLava;
   _sdFloor.active = false;
   _sdFloor.warned = false;
   _sdFloor.y = GAME_H + 40;
@@ -1663,6 +1689,7 @@ function _resetSdFloor() {
 
 function backToMenu() {
   _cancelRematchCountdown();
+  if (typeof _cancelPendingBossLaunch === 'function') _cancelPendingBossLaunch();
   _resetSdFloor();
   if (typeof ReplaySystem !== 'undefined') ReplaySystem.stopRecording();
   MusicManager.stop();

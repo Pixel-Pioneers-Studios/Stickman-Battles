@@ -85,6 +85,47 @@
                     speed: Math.random()*0.02+0.01 });
   }
 
+  // ── Post-processing helpers ────────────────────────────────────────────────────
+  var _noiseCv = null;
+  function _noisePattern(c) {
+    if (!_noiseCv) {
+      _noiseCv = document.createElement('canvas');
+      _noiseCv.width = 128; _noiseCv.height = 128;
+      var nc = _noiseCv.getContext('2d');
+      var img = nc.createImageData(128, 128);
+      for (var i = 0; i < img.data.length; i += 4) {
+        var v = Math.random() * 255;
+        img.data[i] = img.data[i+1] = img.data[i+2] = v;
+        img.data[i+3] = 34;
+      }
+      nc.putImageData(img, 0, 0);
+    }
+    return c.createPattern(_noiseCv, 'repeat');
+  }
+  var _vig = { grad: null, w: 0, h: 0 };
+  function _drawVignette(c, w, h) {
+    if (!_vig.grad || _vig.w !== w || _vig.h !== h) {
+      var g = c.createRadialGradient(w*0.5, h*0.46, Math.min(w,h)*0.42, w*0.5, h*0.52, Math.max(w,h)*0.74);
+      g.addColorStop(0, 'rgba(0,0,0,0)');
+      g.addColorStop(0.6, 'rgba(0,0,0,0.15)');
+      g.addColorStop(1, 'rgba(0,0,0,0.40)');
+      _vig.grad = g; _vig.w = w; _vig.h = h;
+    }
+    c.save(); c.fillStyle = _vig.grad; c.fillRect(0, 0, w, h); c.restore();
+  }
+  function _drawGrain(c, w, h, t) {
+    c.save();
+    c.globalAlpha = 0.05;
+    var ox = (t * 7) % 128, oy = (t * 13) % 128;
+    c.translate(-ox, -oy);
+    c.fillStyle = _noisePattern(c);
+    c.fillRect(0, 0, w + 128, h + 128);
+    c.restore();
+  }
+  // Horizontal parallax offset for a background layer. depth 0 = glued to the
+  // camera, 1 = fully counteracts camera panning (reads as infinitely far away).
+  function _plx(w, depth) { return (_cam.cx - 0.5) * w * depth; }
+
   // ── Camera system ──────────────────────────────────────────────────────────────
   function _camUpdate(bs, beatT) {
     if (bs && bs.camAnim && bs.camAnim.length) {
@@ -155,21 +196,46 @@
   }
 
   // ── Background renderers ───────────────────────────────────────────────────────
-  function _drawFloor(c, w, h, top, bot) {
-    var g = c.createLinearGradient(0,h*FOOT_YF,0,h);
+  function _drawFloor(c, w, h, top, bot, sheen) {
+    var fy = h * FOOT_YF;
+    var g = c.createLinearGradient(0,fy,0,h);
     g.addColorStop(0,top); g.addColorStop(1,bot);
-    c.fillStyle=g; c.fillRect(0,h*FOOT_YF+2,w,h*(1-FOOT_YF));
+    c.fillStyle=g; c.fillRect(0,fy+2,w,h*(1-FOOT_YF));
+    // Horizon light strip — grounds the scene (replaces the old dashed debug line)
+    c.save();
+    var hg = c.createLinearGradient(0, fy-5, 0, fy+13);
+    hg.addColorStop(0,   'rgba(255,255,255,0)');
+    hg.addColorStop(0.45, sheen || 'rgba(160,190,255,0.16)');
+    hg.addColorStop(1,   'rgba(255,255,255,0)');
+    c.fillStyle = hg; c.fillRect(0, fy-5, w, 18);
+    // Faint wet-surface sheen falling off below the horizon
+    var sg = c.createLinearGradient(0, fy+2, 0, h);
+    sg.addColorStop(0, sheen || 'rgba(150,180,255,0.06)');
+    sg.addColorStop(0.55, 'rgba(0,0,0,0)');
+    c.fillStyle = sg; c.fillRect(0, fy+2, w, h-fy-2);
+    c.restore();
   }
 
   function _drawFractureBg(c, w, h, t) {
     var g = c.createLinearGradient(0,0,0,h);
     g.addColorStop(0,'#07001a'); g.addColorStop(0.55,'#0e002a'); g.addColorStop(1,'#040010');
     c.fillStyle=g; c.fillRect(0,0,w,h);
-    for (var i=0;i<_stars.length;i++) { var s=_stars[i]; c.globalAlpha=Math.max(0,0.35+Math.sin(t*s.speed+s.twinkle)*0.3); c.fillStyle='#ccaaff'; c.beginPath(); c.arc(s.x,s.y,s.r,0,Math.PI*2); c.fill(); }
+    // Nebula blobs — slow-breathing depth behind the starfield
+    var nebs=[[0.24,0.30,0.26,'85,40,190'],[0.72,0.20,0.22,'50,20,140'],[0.50,0.58,0.30,'35,10,95']];
+    var nOff=_plx(w,0.6);
+    for (var ni=0;ni<nebs.length;ni++) {
+      var nb=nebs[ni], nx=nb[0]*w+nOff, ny=nb[1]*h, nr=nb[2]*Math.min(w,h)*1.4;
+      var ng=c.createRadialGradient(nx,ny,0,nx,ny,nr);
+      var na=0.16+Math.sin(t*0.005+ni*2.1)*0.05;
+      ng.addColorStop(0,'rgba('+nb[3]+','+na+')'); ng.addColorStop(1,'rgba('+nb[3]+',0)');
+      c.fillStyle=ng; c.fillRect(nx-nr,ny-nr,nr*2,nr*2);
+    }
+    var fOff=_plx(w,0.8);
+    for (var i=0;i<_stars.length;i++) { var s=_stars[i]; var sx=((s.x+fOff)%w+w)%w; c.globalAlpha=Math.max(0,0.35+Math.sin(t*s.speed+s.twinkle)*0.3); c.fillStyle='#ccaaff'; c.beginPath(); c.arc(sx,s.y,s.r,0,Math.PI*2); c.fill(); }
     c.globalAlpha=1;
     var cracks=[[0.10,0.18,0.38,0.72],[0.60,0.08,0.86,0.62],[0.18,0.50,0.52,0.92],[0.68,0.28,0.96,0.76]];
     c.save(); for (var ci=0;ci<cracks.length;ci++) { var cr=cracks[ci]; c.globalAlpha=0.08+Math.sin(t*0.015+ci)*0.05; c.strokeStyle='#aa44ff'; c.lineWidth=1.2; c.beginPath(); c.moveTo(cr[0]*w,cr[1]*h); c.lineTo(cr[2]*w,cr[3]*h); c.stroke(); } c.restore();
-    _drawFloor(c,w,h,'#06001a','#040010');
+    _drawFloor(c,w,h,'#06001a','#040010','rgba(180,110,255,0.11)');
   }
 
   function _drawCityBg(c, w, h, t, opts) {
@@ -177,29 +243,105 @@
     var g=c.createLinearGradient(0,0,0,h);
     g.addColorStop(0,opts.skyTop||'#08102a'); g.addColorStop(0.5,opts.skyMid||'#0f1a38'); g.addColorStop(1,opts.skyBot||'#0a1020');
     c.fillStyle=g; c.fillRect(0,0,w,h);
+    // Stars (wrapped so parallax panning never empties the sky)
+    var stOff=_plx(w,0.85);
+    for (var si=0;si<_stars.length;si++) { var s2=_stars[si]; if(s2.y>h*0.38)continue; var sx=((s2.x+stOff)%w+w)%w; c.globalAlpha=0.20+Math.sin(t*s2.speed+s2.twinkle)*0.10; c.fillStyle='#ffffff'; c.beginPath(); c.arc(sx,s2.y,s2.r*0.8,0,Math.PI*2); c.fill(); }
+    c.globalAlpha=1;
+    // Moon + halo (key light source)
+    if (!opts.noMoon) {
+      var mx=w*0.16+_plx(w,0.8), my=h*0.15, mCol=opts.moonTint||'#dfe6f5';
+      var mg=c.createRadialGradient(mx,my,6,mx,my,h*0.22);
+      mg.addColorStop(0,'rgba(210,225,255,0.28)'); mg.addColorStop(0.4,'rgba(180,200,255,0.08)'); mg.addColorStop(1,'rgba(180,200,255,0)');
+      c.fillStyle=mg; c.fillRect(mx-h*0.22,my-h*0.22,h*0.44,h*0.44);
+      c.fillStyle=mCol; c.beginPath(); c.arc(mx,my,15,0,Math.PI*2); c.fill();
+      c.fillStyle='rgba(150,170,210,0.5)';
+      c.beginPath(); c.arc(mx-5,my+3,3.2,0,Math.PI*2); c.fill();
+      c.beginPath(); c.arc(mx+6,my-4,2.1,0,Math.PI*2); c.fill();
+      c.beginPath(); c.arc(mx+2,my+7,1.6,0,Math.PI*2); c.fill();
+    }
+    // FAR skyline — hazy, atmospheric-tinted, strong parallax
+    var farBlds=[[0,0.42,0.05],[0.06,0.36,0.06],[0.14,0.44,0.04],[0.20,0.34,0.07],[0.30,0.40,0.05],[0.37,0.31,0.06],[0.46,0.38,0.05],[0.53,0.33,0.07],[0.62,0.41,0.05],[0.70,0.35,0.06],[0.78,0.30,0.07],[0.87,0.38,0.06],[0.94,0.34,0.06]];
+    c.save(); c.translate(_plx(w,0.5),0);
+    c.fillStyle=opts.farColor||'#0d1730';
+    for (var fb=0;fb<farBlds.length;fb++) { var f=farBlds[fb]; c.fillRect(f[0]*w-w*0.05,f[1]*h,f[2]*w,(FOOT_YF-f[1])*h+4); }
+    c.restore();
+    // Horizon haze band — depth separation between skylines
+    var hz=c.createLinearGradient(0,h*0.38,0,h*FOOT_YF+2);
+    hz.addColorStop(0,'rgba(95,125,195,0)'); hz.addColorStop(1,opts.hazeColor||'rgba(95,125,195,0.13)');
+    c.fillStyle=hz; c.fillRect(0,h*0.38,w,h*(FOOT_YF-0.38)+2);
+    // NEAR skyline + deterministic lit windows (stable positions, slow flicker)
     var blds=[[0,0.56,0.06],[0.04,0.44,0.07],[0.09,0.50,0.05],[0.13,0.38,0.07],[0.19,0.48,0.08],[0.25,0.40,0.06],[0.29,0.33,0.08],[0.35,0.44,0.05],[0.38,0.37,0.09],[0.45,0.46,0.05],[0.48,0.30,0.10],[0.56,0.39,0.07],[0.61,0.47,0.06],[0.65,0.35,0.09],[0.72,0.42,0.05],[0.75,0.28,0.10],[0.82,0.40,0.07],[0.87,0.48,0.05],[0.90,0.42,0.07],[0.95,0.50,0.05]];
+    c.save(); c.translate(_plx(w,0.15),0);
     c.fillStyle=opts.bldColor||'#060e1c';
     for (var bi=0;bi<blds.length;bi++) { var b=blds[bi]; c.fillRect(b[0]*w,b[1]*h,b[2]*w,(1-b[1])*h); }
-    for (var wi=0;wi<20;wi++) { var bl=blds[wi%blds.length]; c.globalAlpha=(Math.sin(t*0.06+wi*1.4)>0.2)?0.38:0; c.fillStyle=opts.winColor||'#ffdd88'; c.fillRect(bl[0]*w+Math.random()*bl[2]*w*0.6,bl[1]*h+Math.random()*(1-bl[1])*h*0.4,3,4); }
-    c.globalAlpha=1;
-    for (var si=0;si<_stars.length;si++) { var s2=_stars[si]; if(s2.y>h*0.38)continue; c.globalAlpha=0.20+Math.sin(t*s2.speed+s2.twinkle)*0.10; c.fillStyle='#ffffff'; c.beginPath(); c.arc(s2.x,s2.y,s2.r*0.8,0,Math.PI*2); c.fill(); }
-    c.globalAlpha=1;
-    _drawFloor(c,w,h,'#0c1628','#07101a');
+    for (bi=0;bi<blds.length;bi++) {
+      var b2=blds[bi], bx=b2[0]*w, bw2=b2[2]*w, bty=b2[1]*h;
+      var cols=Math.min(4,Math.max(1,Math.floor(bw2/18))), rows=Math.min(8,Math.max(2,Math.floor((h*FOOT_YF-bty)/30)));
+      for (var wy=0;wy<rows;wy++) for (var wx=0;wx<cols;wx++) {
+        if (bty+10+wy*28 > h*0.60) break;                   // no windows near street level
+        var seed=bi*97+wy*13+wx*7, rr=_mHash(seed);
+        if (rr<0.60) continue;                              // most windows stay dark
+        var flick=Math.sin(t*0.018+seed*2.7)>-0.75?1:0;     // rare slow flicker
+        c.globalAlpha=0.34*flick*(0.55+0.45*_mHash(seed+1));
+        c.fillStyle=opts.winColor||'#ffd9a0';
+        c.fillRect(bx+5+wx*((bw2-10)/cols), bty+10+wy*28, 3.5, 5.5);
+      }
+    }
+    c.globalAlpha=1; c.restore();
+    _drawFloor(c,w,h,'#0c1628','#07101a',opts.sheen);
   }
 
   function _drawForestBg(c,w,h,t) {
     var g=c.createLinearGradient(0,0,0,h); g.addColorStop(0,'#060e08'); g.addColorStop(0.5,'#091608'); g.addColorStop(1,'#050b05'); c.fillStyle=g; c.fillRect(0,0,w,h);
-    for (var si=0;si<_stars.length;si++) { var s=_stars[si]; if(s.y>h*0.38)continue; c.globalAlpha=0.18+Math.sin(t*s.speed+s.twinkle)*0.10; c.fillStyle='#cceecc'; c.beginPath(); c.arc(s.x,s.y,s.r*0.7,0,Math.PI*2); c.fill(); } c.globalAlpha=1;
-    function tree(x,sc) { c.fillStyle='#030805'; c.beginPath(); c.moveTo(x,h*0.79); c.lineTo(x-52*sc,h*0.79); c.lineTo(x-32*sc,h*0.56); c.lineTo(x-22*sc,h*0.56); c.lineTo(x-42*sc,h*0.38); c.lineTo(x-16*sc,h*0.38); c.lineTo(x-26*sc,h*0.20); c.lineTo(x+26*sc,h*0.20); c.lineTo(x+16*sc,h*0.38); c.lineTo(x+42*sc,h*0.38); c.lineTo(x+22*sc,h*0.56); c.lineTo(x+32*sc,h*0.56); c.lineTo(x+52*sc,h*0.79); c.closePath(); c.fill(); }
-    tree(w*0.07,0.72); tree(w*0.20,0.88); tree(w*0.80,0.84); tree(w*0.93,0.74);
-    _drawFloor(c,w,h,'#091408','#050a05');
+    var stOff=_plx(w,0.85);
+    for (var si=0;si<_stars.length;si++) { var s=_stars[si]; if(s.y>h*0.38)continue; var sx=((s.x+stOff)%w+w)%w; c.globalAlpha=0.18+Math.sin(t*s.speed+s.twinkle)*0.10; c.fillStyle='#cceecc'; c.beginPath(); c.arc(sx,s.y,s.r*0.7,0,Math.PI*2); c.fill(); } c.globalAlpha=1;
+    // Moonlight glow filtering through the canopy
+    var mx=w*0.62+_plx(w,0.8), my=h*0.12;
+    var mg=c.createRadialGradient(mx,my,4,mx,my,h*0.30);
+    mg.addColorStop(0,'rgba(200,235,205,0.20)'); mg.addColorStop(1,'rgba(200,235,205,0)');
+    c.fillStyle=mg; c.fillRect(mx-h*0.30,my-h*0.30,h*0.6,h*0.6);
+    function tree(x,sc,col,topY) { c.fillStyle=col; c.beginPath(); c.moveTo(x,h*0.79); c.lineTo(x-52*sc,h*0.79); c.lineTo(x-32*sc,h*0.56); c.lineTo(x-22*sc,h*0.56); c.lineTo(x-42*sc,h*0.38); c.lineTo(x-16*sc,h*0.38); c.lineTo(x-26*sc,h*(topY||0.20)); c.lineTo(x+26*sc,h*(topY||0.20)); c.lineTo(x+16*sc,h*0.38); c.lineTo(x+42*sc,h*0.38); c.lineTo(x+22*sc,h*0.56); c.lineTo(x+32*sc,h*0.56); c.lineTo(x+52*sc,h*0.79); c.closePath(); c.fill(); }
+    // FAR treeline — hazy, blue-shifted, strong parallax
+    c.save(); c.translate(_plx(w,0.5),0);
+    tree(w*0.02,0.42,'#0a1510',0.42); tree(w*0.14,0.5,'#0a1510',0.38); tree(w*0.33,0.46,'#0a1510',0.40); tree(w*0.52,0.52,'#0a1510',0.36); tree(w*0.68,0.44,'#0a1510',0.42); tree(w*0.88,0.5,'#0a1510',0.38);
+    c.restore();
+    // Haze between layers
+    var hz=c.createLinearGradient(0,h*0.40,0,h*FOOT_YF+2);
+    hz.addColorStop(0,'rgba(120,180,140,0)'); hz.addColorStop(1,'rgba(120,180,140,0.09)');
+    c.fillStyle=hz; c.fillRect(0,h*0.40,w,h*(FOOT_YF-0.40)+2);
+    // NEAR trees
+    c.save(); c.translate(_plx(w,0.15),0);
+    tree(w*0.07,0.72,'#030805'); tree(w*0.20,0.88,'#030805'); tree(w*0.80,0.84,'#030805'); tree(w*0.93,0.74,'#030805');
+    c.restore();
+    // Drifting ground mist
+    c.save();
+    for (var mi=0;mi<4;mi++) {
+      var mmx=((_mHash(mi)*w)+t*(0.15+mi*0.06))%(w*1.3)-w*0.15;
+      c.globalAlpha=0.05+Math.sin(t*0.008+mi*1.7)*0.02;
+      c.fillStyle='#aaccaa';
+      c.beginPath(); c.ellipse(mmx,h*FOOT_YF-8,90+mi*35,14,0,0,Math.PI*2); c.fill();
+    }
+    c.restore();
+    _drawFloor(c,w,h,'#091408','#050a05','rgba(140,200,150,0.09)');
   }
 
   function _drawCaveBg(c,w,h,t) {
     var g=c.createLinearGradient(0,0,0,h); g.addColorStop(0,'#030507'); g.addColorStop(1,'#08090d'); c.fillStyle=g; c.fillRect(0,0,w,h);
+    // FAR rock wall — faint stalactites + stalagmites with parallax
+    c.save(); c.translate(_plx(w,0.45),0);
+    c.fillStyle='#0a0d14';
+    for (var fi=0;fi<9;fi++) { var fx=(fi/8)*w+Math.sin(fi*2.3)*30; var fh=h*(0.16+Math.sin(fi*1.7)*0.10); c.beginPath(); c.moveTo(fx-16,0); c.lineTo(fx+16,0); c.lineTo(fx,fh); c.closePath(); c.fill(); }
+    for (var gi=0;gi<7;gi++) { var gx=(gi/6)*w+Math.sin(gi*3.1)*40+w*0.06; var gh=h*(0.10+Math.sin(gi*2.6)*0.06); c.beginPath(); c.moveTo(gx-20,h*FOOT_YF+2); c.lineTo(gx+20,h*FOOT_YF+2); c.lineTo(gx,h*FOOT_YF-gh); c.closePath(); c.fill(); }
+    c.restore();
+    // Depth fog
+    var fg=c.createLinearGradient(0,h*0.35,0,h*FOOT_YF+2);
+    fg.addColorStop(0,'rgba(40,70,120,0)'); fg.addColorStop(1,'rgba(40,70,120,0.10)');
+    c.fillStyle=fg; c.fillRect(0,h*0.35,w,h*(FOOT_YF-0.35)+2);
+    c.save(); c.translate(_plx(w,0.12),0);
     c.fillStyle='#050708'; for (var i=0;i<13;i++) { var sx=(i/12)*w+Math.sin(i*1.8)*18; var sh=h*(0.10+Math.sin(i*2.4)*0.09); c.beginPath(); c.moveTo(sx-11,0); c.lineTo(sx+11,0); c.lineTo(sx,sh); c.closePath(); c.fill(); }
+    c.restore();
     var cCols=['#0044cc','#4400cc','#0077aa']; for (var ci=0;ci<6;ci++) { var cxx=(ci/5)*w*0.78+w*0.11+Math.sin(ci*1.5)*28; var cyy=h*(0.54+Math.sin(ci*2.2)*0.09); c.save(); c.globalAlpha=0.13+Math.sin(t*0.025+ci)*0.07; c.fillStyle=cCols[ci%cCols.length]; c.shadowColor=cCols[ci%cCols.length]; c.shadowBlur=14; c.beginPath(); c.moveTo(cxx,cyy-18); c.lineTo(cxx+7,cyy); c.lineTo(cxx,cyy+9); c.lineTo(cxx-7,cyy); c.closePath(); c.fill(); c.restore(); }
-    _drawFloor(c,w,h,'#050608','#030405');
+    _drawFloor(c,w,h,'#050608','#030405','rgba(80,140,220,0.10)');
   }
 
   // ── Cinematic effect renderers ─────────────────────────────────────────────────
@@ -402,10 +544,21 @@
   }
 
   // ── Stick figure — enhanced ────────────────────────────────────────────────────
+  var _reflPass = false; // true while drawing ground reflections (skips shadow/rim)
   function _drawFigure(c, x, y, color, facing, state, t, alpha, scale, expr) {
     c.save();
-    c.globalAlpha = Math.max(0, alpha !== undefined ? alpha : 1);
+    var _a = Math.max(0, alpha !== undefined ? alpha : 1);
+    c.globalAlpha = _a;
     scale = scale || 1;
+    // Contact shadow — grounds the figure (skipped for reflections + faint ghosts)
+    if (!_reflPass && _a > 0.4) {
+      c.save();
+      var _shFloat = state === 'float';
+      c.globalAlpha = _a * (_shFloat ? 0.12 : 0.26);
+      c.fillStyle = '#000000';
+      c.beginPath(); c.ellipse(x, y + 14, (_shFloat ? 17 : 26) * scale, 4.5 * scale, 0, 0, Math.PI * 2); c.fill();
+      c.restore();
+    }
     if (scale !== 1) { c.translate(x, y); c.scale(scale, scale); c.translate(-x, -y); }
 
     var isTalk   = state === 'talk';
@@ -420,6 +573,8 @@
     var isKneel  = state === 'kneel';
     var isFloat  = state === 'float';
     var isGuard  = state === 'guard';
+    var isListen = state === 'listen'; // idle + occasional nods toward the speaker
+    var isPoint  = state === 'point';  // arm extended toward facing direction
 
     // Body lean: offsets hip from shoulder
     var torsoLen  = 34;
@@ -430,6 +585,7 @@
     if (isFall)   torsoLean = -0.50 * facing;
     if (isReach)  torsoLean =  0.38 * facing;
     if (isTalk)   torsoLean =  0.08 * facing;
+    if (isPoint)  torsoLean =  0.14 * facing;
 
     var floatY  = isFloat ? -16 + Math.sin(t*0.04)*4 : 0;
     var crouchY = isCrouch ? 14 : isKneel ? 18 : 0;
@@ -437,13 +593,17 @@
     var talkBob = isTalk ? Math.sin(t*0.14) * 1.0 : 0;
     var walkBob = (isWalk||isRun) ? Math.abs(Math.sin(t*(isRun?0.28:0.20))) * (isRun?4:3) : 0;
     var hitSnap = isHit ? Math.max(0, 1-_beatT*0.04)*6 : 0; // initial snap on hit
+    // Listener: occasional short nodding bursts, otherwise still
+    var listenNod = (isListen && Math.sin(t*0.011) > 0.55) ? Math.abs(Math.sin(t*0.15))*2.2 : 0;
+    // Idle/listen: slow weight shift so standing figures never look frozen
+    var sway = (state === 'idle' || isListen) ? Math.sin(t*0.016)*1.6 : 0;
 
     var headR  = 13;
-    var offY   = breathY + talkBob + walkBob + floatY - crouchY;
+    var offY   = breathY + talkBob + walkBob + floatY - crouchY + listenNod;
     var headCY = y - 72 + offY;
     var neckY  = headCY + headR + 2;
     var shldrY = neckY + 6;
-    var hipX   = x + Math.sin(torsoLean) * torsoLen - hitSnap * facing;
+    var hipX   = x + Math.sin(torsoLean) * torsoLen - hitSnap * facing + sway;
     var hipY   = shldrY + Math.cos(Math.abs(torsoLean)) * torsoLen;
 
     c.strokeStyle = color; c.lineWidth = 4.5; c.lineCap = 'round'; c.lineJoin = 'round';
@@ -451,6 +611,14 @@
 
     // Head
     c.fillStyle = color; c.beginPath(); c.arc(x, headCY, headR, 0, Math.PI*2); c.fill();
+
+    // Rim light — cool key light catching the upper-left of the head
+    if (!_reflPass) {
+      c.save();
+      c.strokeStyle = 'rgba(235,242,255,0.32)'; c.lineWidth = 1.6; c.shadowBlur = 0;
+      c.beginPath(); c.arc(x, headCY, headR - 0.9, Math.PI * 0.95, Math.PI * 1.55); c.stroke();
+      c.restore();
+    }
 
     // ── FACE ──────────────────────────────────────────────────────
     var _feExpr   = expr || 'neutral';
@@ -460,27 +628,37 @@
     var _feE1x  = x + _feEyeOff * 0.5;           // inner eye
     var _feE2x  = x + _feEyeOff * 0.5 + facing * 5; // outer eye
 
-    // White sclerae
-    c.fillStyle = '#ffffff';
-    c.beginPath(); c.arc(_feE1x, _feEyeY, 2.4, 0, Math.PI*2); c.fill();
-    c.beginPath(); c.arc(_feE2x, _feEyeY, 2.4, 0, Math.PI*2); c.fill();
-
-    // Half-lid: paint head color over the top portion of each eye
-    if (_feExpr === 'cool' || _feExpr === 'serene') {
-      c.fillStyle = color;
-      c.fillRect(_feE1x - 2.6, _feEyeY - 2.4, 5.2, 1.6);
-      c.fillRect(_feE2x - 2.6, _feEyeY - 2.4, 5.2, 1.6);
-    }
-
-    // Pupils
-    if (!isHit) {
-      c.fillStyle = 'rgba(0,0,0,0.88)';
-      c.beginPath(); c.arc(_feE1x + facing * 0.4, _feEyeY, 1.2, 0, Math.PI*2); c.fill();
-      c.beginPath(); c.arc(_feE2x + facing * 0.4, _feEyeY, 1.2, 0, Math.PI*2); c.fill();
+    // Periodic blink (per-figure phase offset so pairs don't blink in sync)
+    var _blink = !isHit && ((t + ((x * 13) | 0)) % 235) < 7;
+    if (_blink) {
+      c.save();
+      c.strokeStyle = 'rgba(0,0,0,0.70)'; c.lineWidth = 1.7; c.shadowBlur = 0; c.lineCap = 'round';
+      c.beginPath(); c.moveTo(_feE1x - 2.2, _feEyeY); c.lineTo(_feE1x + 2.2, _feEyeY); c.stroke();
+      c.beginPath(); c.moveTo(_feE2x - 2.2, _feEyeY); c.lineTo(_feE2x + 2.2, _feEyeY); c.stroke();
+      c.restore();
     } else {
-      c.fillStyle = 'rgba(200,0,0,0.75)';
-      c.beginPath(); c.arc(_feE1x, _feEyeY, 1.5, 0, Math.PI*2); c.fill();
-      c.beginPath(); c.arc(_feE2x, _feEyeY, 1.5, 0, Math.PI*2); c.fill();
+      // White sclerae
+      c.fillStyle = '#ffffff';
+      c.beginPath(); c.arc(_feE1x, _feEyeY, 2.4, 0, Math.PI*2); c.fill();
+      c.beginPath(); c.arc(_feE2x, _feEyeY, 2.4, 0, Math.PI*2); c.fill();
+
+      // Half-lid: paint head color over the top portion of each eye
+      if (_feExpr === 'cool' || _feExpr === 'serene') {
+        c.fillStyle = color;
+        c.fillRect(_feE1x - 2.6, _feEyeY - 2.4, 5.2, 1.6);
+        c.fillRect(_feE2x - 2.6, _feEyeY - 2.4, 5.2, 1.6);
+      }
+
+      // Pupils
+      if (!isHit) {
+        c.fillStyle = 'rgba(0,0,0,0.88)';
+        c.beginPath(); c.arc(_feE1x + facing * 0.4, _feEyeY, 1.2, 0, Math.PI*2); c.fill();
+        c.beginPath(); c.arc(_feE2x + facing * 0.4, _feEyeY, 1.2, 0, Math.PI*2); c.fill();
+      } else {
+        c.fillStyle = 'rgba(200,0,0,0.75)';
+        c.beginPath(); c.arc(_feE1x, _feEyeY, 1.5, 0, Math.PI*2); c.fill();
+        c.beginPath(); c.arc(_feE2x, _feEyeY, 1.5, 0, Math.PI*2); c.fill();
+      }
     }
 
     // Eyebrows — one line above each eye; nose-side lower = determined, higher = worried
@@ -604,12 +782,18 @@
       laAng  = Math.PI*0.40; raAng = -0.30;
     } else if (isLook) {
       laAng  = Math.PI*0.70 + Math.sin(t*0.05)*0.15; raAng = -0.15 + Math.sin(t*0.05)*0.12;
+    } else if (isPoint) {
+      // One arm extended level toward facing, the other resting
+      if (facing > 0) { laAng = Math.PI*0.52 + Math.sin(t*0.03)*0.06; raAng = -0.10 + Math.sin(t*0.045)*0.04; }
+      else            { laAng = 0.10 - Math.sin(t*0.045)*0.04;        raAng = -0.40 + Math.cos(t*0.03)*0.06; }
     } else if (isTalk) {
-      laAng  = Math.PI*0.55 + Math.sin(t*0.12)*0.22; raAng = -0.28 - Math.sin(t*0.12)*0.18;
+      // Layered gesture cycles so speech doesn't loop like a metronome
+      laAng  = Math.PI*0.55 + Math.sin(t*0.12)*0.20 + Math.sin(t*0.027)*0.16;
+      raAng  = -0.28 - Math.sin(t*0.12)*0.16 - Math.sin(t*0.033)*0.13;
     } else if (isRun) {
-      laAng  = Math.PI*0.50 + Math.sin(t*0.28)*0.50; raAng = -0.45 + Math.sin(t*0.28)*0.50;
+      laAng  = Math.PI*0.50 + Math.sin(t*0.28+Math.PI)*0.50; raAng = -0.45 + Math.sin(t*0.28)*0.50;
     } else if (isWalk) {
-      laAng  = Math.PI*0.50 + Math.sin(t*0.20)*0.30; raAng = -0.35 + Math.sin(t*0.20)*0.30;
+      laAng  = Math.PI*0.50 + Math.sin(t*0.20+Math.PI)*0.30; raAng = -0.35 + Math.sin(t*0.20)*0.30;
     } else if (isCrouch) {
       laAng  = Math.PI*0.60; raAng = -0.45;
     } else {
@@ -622,21 +806,43 @@
 
     // Legs
     var legLen  = isKneel ? 22 : (isCrouch ? 20 : 30);
-    var legSwing = isRun    ? Math.sin(t*0.28)*18 :
-                   isWalk   ? Math.sin(t*0.20)*10 :
-                   isHit    ? Math.sin(t*0.15)*8  :
-                   isFall   ? 10 * facing          :
-                   Math.sin(t*0.038)*2.5;
 
     if (isKneel) {
       // One knee down
       c.beginPath(); c.moveTo(hipX,hipY); c.lineTo(hipX-12,hipY+legLen); c.lineTo(hipX+4,hipY+legLen); c.stroke();
       c.beginPath(); c.moveTo(hipX,hipY); c.lineTo(hipX+16,hipY+14); c.lineTo(hipX+20,hipY+legLen); c.stroke();
+    } else if (isWalk || isRun) {
+      // Articulated gait: thigh swings, knee bends through recovery, extends at contact
+      var gaitPhase = t * (isRun ? 0.28 : 0.20);
+      var gaitAmp   = isRun ? 0.85 : 0.50;
+      _drawGaitLeg(c, hipX, hipY, gaitPhase,           facing, legLen, gaitAmp);
+      _drawGaitLeg(c, hipX, hipY, gaitPhase + Math.PI, facing, legLen, gaitAmp);
     } else {
+      var legSwing = isHit  ? Math.sin(t*0.15)*8 :
+                     isFall ? 10 * facing        :
+                     Math.sin(t*0.038)*2.5;
       c.beginPath(); c.moveTo(hipX,hipY); c.lineTo(hipX-9+legSwing,hipY+legLen*0.5); c.lineTo(hipX-11+legSwing,hipY+legLen); c.stroke();
       c.beginPath(); c.moveTo(hipX,hipY); c.lineTo(hipX+9-legSwing,hipY+legLen*0.5); c.lineTo(hipX+11-legSwing,hipY+legLen); c.stroke();
     }
     c.restore();
+  }
+
+  // One leg of a walking/running gait, drawn hip → knee → foot.
+  function _drawGaitLeg(c, hx, hy, phase, facing, legLen, amp) {
+    var thigh = legLen * 0.55, shin = legLen * 0.58;
+    var sw = Math.sin(phase);
+    var thighAng = Math.PI * 0.5 - sw * amp * facing;
+    var kx = hx + Math.cos(thighAng) * thigh;
+    var ky = hy + Math.sin(thighAng) * thigh;
+    // Knee bends hardest while the leg swings forward (recovery), extends at contact
+    var bendK = Math.max(0, Math.cos(phase) * facing);
+    var bend  = (0.12 + bendK * 0.95) * amp * 1.35;
+    var shinAng = thighAng + bend * facing;
+    c.beginPath();
+    c.moveTo(hx, hy);
+    c.lineTo(kx, ky);
+    c.lineTo(kx + Math.cos(shinAng) * shin, ky + Math.sin(shinAng) * shin);
+    c.stroke();
   }
 
   // ── Speech bubble + caption ───────────────────────────────────────────────────
@@ -898,7 +1104,7 @@
           break;
         case 'shockwave': {
           var sp=_clamp((bt-sf)/dur,0,1);
-          if(sp>0) _drawShockwave(c,ef.cx*w,ef.cy*h,sp,ef.color||'#ffffff',(raw)*(1-sp*0.7));
+          if(sp>0&&sp<1) _drawShockwave(c,ef.cx*w,ef.cy*h,sp,ef.color||'#ffffff',(raw)*(1-sp*0.7));
           break;
         }
         case 'impact_sparks': {
@@ -955,7 +1161,7 @@
       case 'city':     _drawCityBg(_ctx,w,h,_t,bs&&bs.cityOpts); break;
       case 'forest':   _drawForestBg(_ctx,w,h,_t); break;
       case 'cave':     _drawCaveBg(_ctx,w,h,_t); break;
-      case 'volcano':  _drawCityBg(_ctx,w,h,_t,{skyTop:'#200400',skyMid:'#300800',skyBot:'#200400'}); _drawFireGlow(_ctx,w,h,0.7,_t); break;
+      case 'volcano':  _drawCityBg(_ctx,w,h,_t,{skyTop:'#200400',skyMid:'#300800',skyBot:'#200400',noMoon:true,farColor:'#2a0a04',hazeColor:'rgba(200,70,20,0.12)',winColor:'#ff9955',sheen:'rgba(255,120,40,0.10)'}); _drawFireGlow(_ctx,w,h,0.7,_t); break;
       default:         _drawFractureBg(_ctx,w,h,_t); break;
     }
     if (bs && bs.warp) _ctx.restore();
@@ -975,13 +1181,19 @@
       }
     }
 
-    // Ground line
-    _ctx.save(); _ctx.globalAlpha=0.22; _ctx.strokeStyle='#ffffff'; _ctx.lineWidth=1; _ctx.setLineDash([7,9]);
-    _ctx.beginPath(); _ctx.moveTo(0,footY+2); _ctx.lineTo(w,footY+2); _ctx.stroke(); _ctx.setLineDash([]); _ctx.restore();
-
     // Resolve figure configs (animated keyframes or static spec)
     var pCfg = _resolveFig('player', bs, beat);
     var nCfg = _resolveFig('npc',    bs, beat);
+
+    // Ground reflections — figures mirrored below the foot line, squashed + faint
+    var _fy2 = footY + 14;
+    _reflPass = true;
+    _ctx.save();
+    _ctx.translate(0, _fy2); _ctx.scale(1, -0.32); _ctx.translate(0, -_fy2);
+    if (pCfg.show) _drawFigure(_ctx, pCfg.x, footY, '#4488ff', pCfg.facing, pCfg.state, _t, pCfg.alpha*0.15, pCfg.scale||1, pCfg.expr);
+    if (nCfg.show) _drawFigure(_ctx, nCfg.x, footY, nCfg.color, nCfg.facing, nCfg.state, _t, nCfg.alpha*0.15, nCfg.scale||1, nCfg.expr);
+    _ctx.restore();
+    _reflPass = false;
 
     if (pCfg.show) _drawFigure(_ctx, pCfg.x, footY, '#4488ff', pCfg.facing, pCfg.state, _t, pCfg.alpha, pCfg.scale||1, pCfg.expr);
     if (nCfg.show) _drawFigure(_ctx, nCfg.x, footY, nCfg.color, nCfg.facing, nCfg.state, _t, nCfg.alpha, nCfg.scale||1, nCfg.expr);
@@ -1007,6 +1219,9 @@
     if (_actStyle && _actStyle.grade) {
       _ctx.save(); _ctx.fillStyle = _actStyle.grade; _ctx.fillRect(0, 0, w, h); _ctx.restore();
     }
+    // Cinematic post pass: vignette + animated film grain
+    _drawVignette(_ctx, w, h);
+    _drawGrain(_ctx, w, h, _t);
     // Letterbox (beat value wins; act style provides the default depth)
     var _lbRaw = (bs && bs.letterbox !== undefined) ? bs.letterbox : (_actStyle && _actStyle.letterbox);
     if (_lbRaw) {
@@ -1112,7 +1327,7 @@
     // Static spec path
     var w = _canvas.width;
     if (isPlayer) {
-      var defState = beat.speaker==='player' ? 'talk' : 'idle';
+      var defState = beat.speaker==='player' ? 'talk' : (beat.speaker==='npc' ? 'listen' : 'idle');
       return {
         x:      (bs && bs.playerX !== undefined) ? w*bs.playerX : w*DEF_LEFT,
         state:  (bs && bs.playerState) || defState,
@@ -1123,7 +1338,7 @@
         expr:   (bs && bs.playerExpr) || 'neutral',
       };
     } else {
-      var defNState = beat.speaker==='npc' ? 'talk' : 'idle';
+      var defNState = beat.speaker==='npc' ? 'talk' : (beat.speaker==='player' ? 'listen' : 'idle');
       var defShow   = beat.speaker !== 'none';
       return {
         x:      (bs && bs.npcX !== undefined) ? w*bs.npcX : w*DEF_RIGHT,

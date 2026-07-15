@@ -96,6 +96,7 @@ class Fighter {
     this._wanderDir    = 1;  // direction for wander state
     this._wanderTimer  = 0;  // frames left in wander state
     this.coyoteFrames  = 0;  // frames after walking off a platform where ground jump is still allowed
+    this._lavaJumpGrace = 0; // frames after a lava bounce where a full ground jump is allowed
     this._prevOnGround = false; // previous frame ground state (for coyote time)
     this._stateChangeCd = 0; // frames before AI can switch aiState again (human-like hesitation)
     this.personality    = null; // 'aggressive'|'defensive'|'trickster'|'sniper' — set when spawned as bot
@@ -1466,6 +1467,7 @@ class Fighter {
       this.canDoubleJump = true;
     }
     if (this.coyoteFrames > 0 && !this.onGround) this.coyoteFrames--;
+    if (this._lavaJumpGrace > 0) { if (this.onGround) this._lavaJumpGrace = 0; else this._lavaJumpGrace--; }
     this._prevOnGround = this.onGround;
 
     // Horizontal clamp — boss arenas with no worldWidth get hard walls at 0/GAME_W;
@@ -1494,6 +1496,7 @@ class Fighter {
         if (this.vy > 0) {
           this.vy = -16; // lava bounce
           this.canDoubleJump = true; // refill double jump on lava bounce
+          this._lavaJumpGrace = 45; // refill ground jump too — lava sits low enough that one jump can't clear it
         }
         this.vx *= 0.88;
         // Apply immediate damage on first contact and every 6 frames thereafter

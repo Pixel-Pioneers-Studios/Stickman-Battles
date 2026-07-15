@@ -424,6 +424,7 @@ function _launchEscortChapter(ch) {
 
   storyBossType       = null;
   storyOpponentName   = null;
+  storyChapterCtx     = null;
   storyEnemyArmor     = [];
   storyTwoEnemies     = false;
   storySecondEnemyDef = null;
@@ -497,6 +498,12 @@ function _launchChapter2Fight(ch) {
 }
 
 let _bossCinLaunchTimer = null;
+// Cancel a pending boss-intro launch. The 7.8s timer above outlives navigation,
+// so leaving to the menu during the intro (pause→menu, error recovery) would
+// otherwise fire _launchChapter2FightImmediate and spawn the boss over the menu.
+function _cancelPendingBossLaunch() {
+  if (_bossCinLaunchTimer) { clearTimeout(_bossCinLaunchTimer); _bossCinLaunchTimer = null; }
+}
 function _launchChapter2FightImmediate(ch) {
   const _phase = storyPendingPhaseConfig;
   // Close the story modal directly — bypass the ch0-lock guard (fight launch is always valid)
@@ -553,8 +560,10 @@ function _launchChapter2FightImmediate(ch) {
   const _chBeaten = Array.isArray(_story2.defeated) && _story2.defeated.includes(ch.id);
   const _RANGED_FALLBACK = 'sword'; // melee substitute when ranged is stripped
   const _isRanged = key => typeof WEAPONS !== 'undefined' && WEAPONS[key] && WEAPONS[key].type === 'ranged';
+  // Tone filter: goofy weapons never appear in story mode (versus/sandbox keep them)
+  const _isToneExcluded = key => typeof STORY_TONE_EXCLUDED_WEAPONS !== 'undefined' && STORY_TONE_EXCLUDED_WEAPONS.includes(key);
   const _rangedUnlocked = _chBeaten || ch.id >= 10;
-  const _safeWeapon = key => (_rangedUnlocked || !_isRanged(key)) ? key : _RANGED_FALLBACK;
+  const _safeWeapon = key => _isToneExcluded(key) ? _RANGED_FALLBACK : ((_rangedUnlocked || !_isRanged(key)) ? key : _RANGED_FALLBACK);
 
   // Set P2 weapon/class to chapter opponent
   const _notBossOrTF = !ch.isBossFight && !ch.isTrueFormFight && !ch.isSovereignFight && !ch.isAbsoluteAxiomFight && !ch.isGodFight;
@@ -620,7 +629,7 @@ function _launchChapter2FightImmediate(ch) {
   const _sk = _story2.skillTree || {};
   storyPlayerOverride = {
     // If chapter not yet beaten, strip ranged weapons from the player too
-    weapon:        _caps.weapon !== undefined ? _safeWeapon(_caps.weapon) : (id < 1 ? 'sword' : (_isRanged(document.getElementById('p1Weapon')?.value) ? _RANGED_FALLBACK : null)),
+    weapon:        _caps.weapon !== undefined ? _safeWeapon(_caps.weapon) : (id < 1 ? 'sword' : ((_w => (_isToneExcluded(_w) || _isRanged(_w)) ? _RANGED_FALLBACK : null)(document.getElementById('p1Weapon')?.value))),
     noDoubleJump:  _caps.noDoubleJump !== undefined ? _caps.noDoubleJump : !_sk.doubleJump,
     noAbility:     _caps.noAbility    !== undefined ? _caps.noAbility    : !_sk.weaponAbility,
     noSuper:       _caps.noSuper      !== undefined ? _caps.noSuper      : !_sk.superMeter,
@@ -680,6 +689,7 @@ function _launchChapter2FightImmediate(ch) {
   storyOpponentName  = ch.opponentName  || null;
   storyOpponentColor = ch.opponentColor || null;
   storyCharId        = _resolveStoryCharId(ch.opponentName || '');
+  storyChapterCtx    = { origId: (ch._origId !== undefined ? ch._origId : ch.id), noAdaptive: !!ch.noAdaptive };
 
   // Armor and multi-enemy setup
   storyEnemyArmor = ch.armor || [];
@@ -838,6 +848,7 @@ function _launchAssassinationChapter(ch) {
   storyOpponentName   = ch.opponentName  || 'Target';
   storyOpponentColor  = ch.opponentColor || null;
   storyCharId         = _resolveStoryCharId(ch.opponentName || '');
+  storyChapterCtx     = { origId: (ch._origId !== undefined ? ch._origId : ch.id), noAdaptive: !!ch.noAdaptive };
   storyEnemyArmor     = ch.armor || [];
   storyTwoEnemies     = false;
   storySecondEnemyDef = null;
@@ -898,6 +909,7 @@ function _launchGauntletChapter(ch) {
   storyOpponentName   = ch.opponentName  || 'Enemy';
   storyOpponentColor  = ch.opponentColor || null;
   storyCharId         = _resolveStoryCharId(ch.opponentName || '');
+  storyChapterCtx     = { origId: (ch._origId !== undefined ? ch._origId : ch.id), noAdaptive: !!ch.noAdaptive };
   storyEnemyArmor     = ch.armor || [];
   storyTwoEnemies     = false;
   storySecondEnemyDef = null;

@@ -1015,8 +1015,8 @@ function _cinViewerOpen() {
     'w:bow':           'Bow -- Arrow Storm',
     'w:combat':        'Combat -- Knockout',
     'w:nullblade':     'Nullblade -- Void Reckoning',
-    'c:thor':          'Thor -- Thunder God',
-    'c:kratos':        'Kratos -- Spartan Rage',
+    'c:thor':          'Torren -- Stormbearer',
+    'c:kratos':        'Varek -- Undying Rage',
     'c:ninja':         'Ninja -- Shadow Strike',
     'c:gunner':        'Gunner -- Execution',
     'c:paladin':       'Paladin -- Holy Judgment',
@@ -1108,8 +1108,8 @@ function _cinViewerOpen() {
   // ── CONVICTION ────────────────────────────────────────────────────────────
   _sec('CONVICTION', 'Auto-starts a VS match if no game is running.');
   _selRow({
-    'thor':       'Thor -- Storm Realm',
-    'kratos':     'Kratos -- Spartan War Domain',
+    'thor':       'Torren -- Storm Realm',
+    'kratos':     'Varek -- Warpath Domain',
     'ninja':      'Ninja -- Shadow Realm',
     'gunner':     'Gunner -- Arsenal Domain',
     'archer':     'Archer -- Verdant Hunt',

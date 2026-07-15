@@ -473,11 +473,15 @@ function storyVictoryNextChapter() {
       const crossingArc = nextArc && curArc && nextArc.id !== curArc.id;
 
       function _doLaunch() {
-        _beginChapter2(nextCh.id);
+        // Reveal the story modal as the backdrop BEFORE launching. If the next
+        // chapter is a fight, _beginChapter2 → _launchChapter2FightImmediate hides
+        // it again; doing this after the launch re-opened the modal on top of the
+        // now-running level (had to close both the level and the modal to play).
         const m = document.getElementById('storyModal');
         if (m) m.style.display = 'flex';
         _renderChapterList();
         _story2TokenDisplay();
+        _beginChapter2(nextCh.id);
       }
 
       if (crossingArc && typeof startMultiverseTravelCinematic === 'function') {

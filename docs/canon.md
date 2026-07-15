@@ -690,7 +690,7 @@ Properties of the dimension **bleeding through into the combat space**. The coll
 
 A class isn't a title. It's a **combat philosophy crystallized into something structurally real** — a fighting approach internalized so completely that it modifies how force literally interacts with the fighter.
 
-A Paladin has spent long enough absorbing punishment and standing firm that incoming force registers differently against them at a structural level. The ×0.85 incoming damage isn't armor. It's who they became. A Berserker has spent so long in kinetic aggression that their speed is a physical fact of how they exist in space, not just effort. A Kratos-type processes damage as fuel rather than depletion — an internal alchemy where pain converts to force. At maximum rage stacks, the alchemy has generated enough output that the damage is structurally enhanced. The lifesteal during Spartan Rage is the same alchemy reversed: force expended returns as restoration.
+A Paladin has spent long enough absorbing punishment and standing firm that incoming force registers differently against them at a structural level. The ×0.85 incoming damage isn't armor. It's who they became. A Berserker has spent so long in kinetic aggression that their speed is a physical fact of how they exist in space, not just effort. A Varek-type processes damage as fuel rather than depletion — an internal alchemy where pain converts to force. At maximum rage stacks, the alchemy has generated enough output that the damage is structurally enhanced. The lifesteal during Undying Rage is the same alchemy reversed: force expended returns as restoration.
 
 The class system shows who this person *became through conflict*. Not what role they were assigned.
 

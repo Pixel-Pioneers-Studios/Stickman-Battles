@@ -71,6 +71,32 @@ function updateExploration() {
     exploreStartX = null;
   }
 
+  // Reverse loading zone: pushing into the LEFT edge of a walk→fight world
+  // backtracks to the previous chapter's world, entering at its exit end.
+  // Only into beaten walkFight chapters — anything else stays a hard wall.
+  if (exploreDuelMode && !exploreGoalFound && !exploreArenaLock && !window._exploreBackPending &&
+      p1.x <= ((currentArena && currentArena.mapLeft) || 0) + 8 &&
+      p1.controls && typeof keysDown !== 'undefined' && keysDown.has(p1.controls.left)) {
+    const _backBase = exploreRegion ? exploreRegion.chapters[0]
+      : (_activeStory2Chapter ? _activeStory2Chapter.id : null);
+    const _prev = (_backBase != null && _backBase > 0 && typeof STORY_CHAPTERS2 !== 'undefined')
+      ? STORY_CHAPTERS2[_backBase - 1] : null;
+    if (_prev && _prev.walkFight === true &&
+        Array.isArray(_story2.defeated) && _story2.defeated.includes(_prev.id)) {
+      window._exploreBackPending = true;
+      _story2.health = Math.round(Math.max(1, p1.health)); // carry HP backward too
+      if (typeof _saveStory2 === 'function') _saveStory2();
+      storyFightSubtitle = { text: '← Returning to ' + (_prev.title || 'the previous area') + '…', timer: 130, maxTimer: 130, color: '#88ccff' };
+      setTimeout(() => {
+        window._exploreBackPending = false;
+        if (!gameRunning) return;
+        _exploreEnterFromRight = true;
+        if (typeof _beginChapter2 === 'function') _beginChapter2(_prev.id);
+      }, 650);
+      return;
+    }
+  }
+
   // Chase phase: count down the escape timer each frame
   if (storyChaseTimer > 0 && !exploreGoalFound) {
     storyChaseTimer--;
@@ -156,9 +182,29 @@ function updateExploration() {
     if (exploreDuelMode) { _story2.health = Math.round(p1.health); if (typeof _saveStory2 === 'function') _saveStory2(); }
     SoundManager.superActivate();
     spawnParticles(exploreGoalX + 20, 380, '#ffffaa', 40);
-    // Show completion subtitle
+
+    // Walk-through transition: when the NEXT chapter is also a walkable world
+    // (walk→fight or any exploration mode), there is NO end screen — the exit IS
+    // the loading zone. Award this chapter in place (same as region boundaries)
+    // and launch the next world directly; its narrative scene (if unseen) plays
+    // as the between-areas cutscene.
+    const _doneCh = _activeStory2Chapter;
+    const _nextCh = (_doneCh && typeof STORY_CHAPTERS2 !== 'undefined')
+      ? STORY_CHAPTERS2[_doneCh.id + 1] : null;
+    const _nextWalkable = _nextCh && (_nextCh.walkFight === true || _nextCh.type === 'exploration');
+    if (_nextWalkable && typeof _regionCompleteChapter === 'function' && typeof _beginChapter2 === 'function') {
+      _regionCompleteChapter(_doneCh.id);
+      storyFightSubtitle = { text: `✨ ${exploreGoalName} found — entering ${_nextCh.title || 'the next area'}…`, timer: 160, maxTimer: 160, color: '#ffffaa' };
+      setTimeout(() => {
+        if (!gameRunning) return;
+        _beginChapter2(_nextCh.id);
+      }, 1100);
+      return;
+    }
+
+    // Otherwise (next chapter is a set-piece fight/scene, or story end):
+    // classic completion with the victory flow.
     storyFightSubtitle = { text: `✨ ${exploreGoalName} found! Moving on...`, timer: 200, maxTimer: 200, color: '#ffffaa' };
-    // Complete chapter after a short delay
     setTimeout(() => {
       if (!gameRunning) return;
       endGame();
@@ -250,7 +296,7 @@ function updateExploration() {
     }
   }
 
-  if (!storeSurvivalState && !exploreDuelMode && exploreCombatQuiet > 260 && activeEnemyCount < exploreEnemyCap) {
+  if (!storeSurvivalState && !exploreDuelMode && !_exploreChapterBeaten && exploreCombatQuiet > 260 && activeEnemyCount < exploreEnemyCap) {
     const spawnAhead = p1.x + GAME_W * 0.92;
     _exploreSpawnEnemy({
       wx: spawnAhead,
@@ -263,7 +309,7 @@ function updateExploration() {
     exploreCombatQuiet = 120;
   }
 
-  if (!storeSurvivalState && !exploreDuelMode && exploreAmbushTimer > 360 && Math.abs(p1.vx) < 1.1 && !inCombat && activeEnemyCount < exploreEnemyCap) {
+  if (!storeSurvivalState && !exploreDuelMode && !_exploreChapterBeaten && exploreAmbushTimer > 360 && Math.abs(p1.vx) < 1.1 && !inCombat && activeEnemyCount < exploreEnemyCap) {
     _exploreSpawnEnemy({
       wx: p1.x + 120,
       name: 'Ambush Elite',
@@ -301,6 +347,10 @@ function updateExplorePickups(p1) {
   if (!explorePickups || !explorePickups.length || !p1) return;
   for (const it of explorePickups) {
     if (it.collected) continue;
+    if (it.type === 'chest') {
+      _updateChestPickup(it, p1);
+      continue;
+    }
     if (Math.abs(p1.cx() - it.x) < 42 && Math.abs(p1.cy() - it.y) < 74) {
       it.collected = true;
       // One-time: record this pickup as permanently taken so it never regenerates
@@ -321,6 +371,70 @@ function updateExplorePickups(p1) {
         storyFightSubtitle = { text: `Healing crystal  +${it.value} HP`, timer: 150, maxTimer: 150, color: '#66ff88' };
       }
     }
+  }
+}
+
+// Hidden-loot chests: minor chests open on touch; elite chests lazily spawn a
+// Vault Warden (a fight as hard as the chapter's duel) when the player closes in,
+// and stay locked until it falls. Entirely optional — off the golden path.
+function _chestGuardAlive(it) {
+  return !!(it.guarded && minions.some(m => m._chestKey === it.key && m.health > 0));
+}
+
+function _updateChestPickup(it, p1) {
+  const dx = Math.abs(p1.cx() - it.x);
+  // Lazy-spawn the guardian as the player closes in. Underground chests only
+  // trigger once the player is actually down in the tunnel (not walking above).
+  const _inReach = it.underground ? (dx < 420 && Math.abs(p1.cy() - it.y) < 170) : dx < 420;
+  if (it.guarded && !it._guardSpawned && _inReach) {
+    it._guardSpawned = true;
+    _exploreSpawnEnemy({
+      wx: it.x, exactX: it.x - 30, exactY: it.underground ? it.y - 30 : undefined,
+      name: 'Vault Warden',
+      weaponKey: 'axe', classKey: 'berserker', aiDiff: 'expert',
+      color: '#cc8833', isElite: true, health: 190,
+      isChestGuardian: true, chestKey: it.key,
+    }, p1);
+    storyFightSubtitle = { text: '⚠ Something guards that cache.', timer: 180, maxTimer: 180, color: '#ffaa44' };
+  }
+  // Leash: the Warden guards its cache — it never chases across the world.
+  if (it.guarded && it._guardSpawned && !it.collected) {
+    const g = minions.find(m => m._chestKey === it.key && m.health > 0);
+    if (g && Math.abs(g.cx() - it.x) > 640) {
+      spawnParticles(g.cx(), g.cy(), '#cc8833', 12);
+      g.x = it.x - 40; g.y = it.y - 60; g.vx = 0; g.vy = 0;
+      g.health = Math.min(g.maxHealth, g.health + 30);
+      spawnParticles(g.cx(), g.cy(), '#cc8833', 14);
+      storyFightSubtitle = { text: 'The Vault Warden returns to its cache.', timer: 150, maxTimer: 150, color: '#ffaa44' };
+    }
+  }
+  if (dx < 46 && Math.abs(p1.cy() - it.y) < 78) {
+    if (_chestGuardAlive(it)) {
+      if (!it._lockNag || frameCount - it._lockNag > 240) {
+        it._lockNag = frameCount;
+        storyFightSubtitle = { text: '🔒 The Vault Warden still stands.', timer: 140, maxTimer: 140, color: '#ff7766' };
+      }
+      return;
+    }
+    // Open the chest
+    it.collected = true;
+    if (it.key) { _story2.lootTaken = _story2.lootTaken || {}; _story2.lootTaken[it.key] = 1; if (typeof _saveStory2 === 'function') _saveStory2(); }
+    const c = it.contents || {};
+    const parts = [];
+    if (c.tokens) { _story2.tokens = (_story2.tokens || 0) + c.tokens; parts.push(`+${c.tokens} 🪙`); }
+    if (c.exp) {
+      if (typeof _storyAwardKillExp === 'function') _storyAwardKillExp(c.exp);
+      else _story2.exp = (_story2.exp || 0) + c.exp;
+      parts.push(`+${c.exp} EXP`);
+    }
+    if (c.heal) { p1.health = Math.min(p1.maxHealth, p1.health + c.heal); parts.push(`+${c.heal} HP`); }
+    if (typeof _saveStory2 === 'function') _saveStory2();
+    spawnParticles(it.x, it.y, it.tier === 'elite' ? '#ffaa22' : '#88ccff', 26);
+    if (SoundManager && SoundManager.superActivate) SoundManager.superActivate();
+    storyFightSubtitle = {
+      text: `${it.tier === 'elite' ? '🗝️ Elite cache' : '🧰 Hidden cache'}  ${parts.join('  ')}`,
+      timer: 190, maxTimer: 190, color: it.tier === 'elite' ? '#ffcc55' : '#aaddff'
+    };
   }
 }
 
@@ -370,17 +484,28 @@ function _exploreSpawnEnemy(def, p1) {
   let mx, my;
   if (def.exactX != null) {
     // Contained duel: spawn at an exact X on the ground floor (inside the arena lock, near the player)
+    // exactY places underground spawns (tunnel chest guardians) below the surface floor
     const floor = ((currentArena && currentArena.platforms) || []).find(pl => pl.isFloor);
     mx = def.exactX;
-    my = (floor ? floor.y : 440) - 60;
+    my = def.exactY != null ? def.exactY : (floor ? floor.y : 440) - 60;
   } else {
     // Guards spawn directly at their post (near the relic), not offset from player
     const spawnX = isGuard ? def.wx : Math.max(p1.x + GAME_W * 0.7, def.wx);
-    const safeSpawn = typeof pickSafeSpawnNear === 'function'
-      ? pickSafeSpawnNear(spawnX, isGuard ? 'any' : 'right', p1 ? p1.x : undefined)
+    // Exploration worlds have one continuous isFloor platform — spawn grounded on it
+    // (pickSafeSpawnNear picks ANY platform incl. high floaters → floating/embedded enemies)
+    const _exFloor = exploreActive
+      ? ((currentArena && currentArena.platforms) || []).find(pl => pl.isFloor)
       : null;
-    mx = safeSpawn ? safeSpawn.x : spawnX;
-    my = safeSpawn ? safeSpawn.y - 60 : 300;
+    if (_exFloor) {
+      mx = spawnX;
+      my = _exFloor.y - 60;
+    } else {
+      const safeSpawn = typeof pickSafeSpawnNear === 'function'
+        ? pickSafeSpawnNear(spawnX, isGuard ? 'any' : 'right', p1 ? p1.x : undefined)
+        : null;
+      mx = safeSpawn ? safeSpawn.x : spawnX;
+      my = safeSpawn ? safeSpawn.y - 60 : 300;
+    }
   }
   const m = new Minion(mx, my, def.color || '#888888', def.weaponKey || 'sword', true, def.aiDiff || 'medium');
   m.name     = def.name || 'Enemy';
@@ -394,6 +519,7 @@ function _exploreSpawnEnemy(def, p1) {
   }
   if (def.isArenaLockEnemy) m.isArenaLockEnemy = true;
   if (def.isSidePortalEnemy) m.isSidePortalEnemy = true;
+  if (def.isChestGuardian) { m.isChestGuardian = true; m._chestKey = def.chestKey; }
   if (def.classKey && def.classKey !== 'none' && typeof applyClass === 'function') {
     applyClass(m, def.classKey);
   }

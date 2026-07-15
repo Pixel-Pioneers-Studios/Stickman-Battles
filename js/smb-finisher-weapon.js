@@ -459,7 +459,7 @@ const WEAPON_FINISHERS = {
 const CLASS_FINISHERS = {
 
   // ── thor ─────────────────────────────────────────────────────
-  thor: _wfDef('THUNDER GOD','rgba(80,160,255,1)',125,
+  thor: _wfDef('STORMBEARER','rgba(80,160,255,1)',125,
     (att,tgt,data)=>{ _wfBaseSetup(att,tgt,data); data.bolts=[];
       data.tl=_makeTimeline([
         {frame:0, fn(){ CinCam.zoomTo(1.3); CinCam.focusMidpoint(att,tgt); CinCam.slowMo(0.25); }},
@@ -484,12 +484,12 @@ const CLASS_FINISHERS = {
       ctx.restore();
       if(timer>=40&&timer<=48) _finFlash(ctx,(48-timer)/8*0.78,80,150,255);
       if(timer>55&&timer<110) _finSubtitle(ctx,'"By the power of the storm."',t);
-      _finTitle(ctx,'THUNDER GOD',t,'rgba(80,160,255,1)');
+      _finTitle(ctx,'STORMBEARER',t,'rgba(80,160,255,1)');
     }
   ),
 
   // ── kratos ───────────────────────────────────────────────────
-  kratos: _wfDef('SPARTAN RAGE','rgba(220,60,60,1)',120,
+  kratos: _wfDef('UNDYING RAGE','rgba(220,60,60,1)',120,
     (att,tgt,data)=>{ _wfBaseSetup(att,tgt,data); data.ragePulse=0;
       data.tl=_makeTimeline([
         {frame:0, fn(){ CinCam.zoomTo(1.3); CinCam.focusMidpoint(att,tgt); CinCam.slowMo(0.25); }},
@@ -512,8 +512,8 @@ const CLASS_FINISHERS = {
       if(data.shockR>0&&data.shockAlpha>0){_finImpactLines(ctx,tgt.cx(),tgt.cy(),16,data.shockR*0.6,'#cc2222',5+data.shockAlpha*3);}
       ctx.restore();
       if(timer>=40&&timer<=48) _finFlash(ctx,(48-timer)/8*0.84,200,50,50);
-      if(timer>54&&timer<106) _finSubtitle(ctx,'"BOY. This ends now."',t);
-      _finTitle(ctx,'SPARTAN RAGE',t,'rgba(220,60,60,1)');
+      if(timer>54&&timer<106) _finSubtitle(ctx,'"The rage never died. It waited."',t);
+      _finTitle(ctx,'UNDYING RAGE',t,'rgba(220,60,60,1)');
     }
   ),
 

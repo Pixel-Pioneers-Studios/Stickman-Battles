@@ -18,6 +18,7 @@ var _e_name   : Label
 var _lock_lbl : Label
 var _count_lbl: Label
 var _center   : Label
+var _sub      : Label
 var _hud_t    := 0.0
 
 func _ready() -> void:
@@ -257,6 +258,18 @@ func _build_hud() -> void:
 	_center.visible = false
 	root.add_child(_center)
 
+	# Post-outcome options, shown under the centre banner
+	_sub = Label.new()
+	_sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_sub.add_theme_font_size_override("font_size", 20)
+	_sub.add_theme_color_override("font_color", Color(0.8, 0.8, 0.95))
+	_sub.add_theme_color_override("font_outline_color", Color.BLACK)
+	_sub.add_theme_constant_override("outline_size", 6)
+	_sub.position = Vector2(340, 370)
+	_sub.custom_minimum_size = Vector2(600, 40)
+	_sub.visible = false
+	root.add_child(_sub)
+
 func _make_bar(size: Vector2, color: Color, max_val: float) -> ProgressBar:
 	var bar := ProgressBar.new()
 	bar.custom_minimum_size = size
@@ -312,8 +325,20 @@ func _process(delta: float) -> void:
 			_outcome = "dead";    _show_center("YOU DIED")
 		elif alive.size() == 0:
 			_outcome = "cleared"; _show_center("AREA CLEARED")
+		if _outcome != "":
+			_sub.text = "Enter — retry      M — title screen"
+			_sub.visible = true
+			Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 
 func _unhandled_input(event: InputEvent) -> void:
+	if _outcome != "" and event is InputEventKey and event.pressed:
+		if event.keycode == KEY_ENTER or event.keycode == KEY_KP_ENTER:
+			GameManager.reset()
+			get_tree().reload_current_scene()
+		elif event.keycode == KEY_M:
+			GameManager.reset()
+			get_tree().change_scene_to_file("res://scenes/Title.tscn")
+		return
 	if event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
 		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE if Input.mouse_mode == Input.MOUSE_MODE_CAPTURED \
 				else Input.MOUSE_MODE_CAPTURED

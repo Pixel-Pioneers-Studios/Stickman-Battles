@@ -35,7 +35,7 @@ dealDamage(attacker, target, dmg, kbForce, stunMult=1.0, isSplash=false, hitInvi
 | `attacker.dmgMult` | Per-entity multiplier (Minion = 0.5) |
 | Story power level | +2% per chapter (max +200%) |
 | `CLASS_AFFINITY[class][weaponType]` | Per-class weapon bonus/penalty |
-| Kratos rage stacks | `1 + stacks × 0.015` (max 30 stacks) |
+| Varek (kratos) rage stacks | `1 + stacks × 0.015` (max 30 stacks) |
 | Spartan Rage | +30% damage + 10% lifesteal |
 | Map perk: power buff | ×1.35 |
 | Curse: `curse_weak` | ×0.5 |

@@ -114,7 +114,7 @@ Each class modifies base `Fighter` stats and optionally overrides ability/super 
 | Archer | Ranged power; penalty on melee |
 | Paladin | Damage reduction passive (×0.85 incoming) |
 | Berserker | Speed +20%; damage taken +15% |
-| Kratos | Rage stacks (max 30); grows per hit taken |
+| Varek (kratos) | Rage stacks (max 30); grows per hit taken |
 | Assassin | Dash-cancel; high burst |
 | Tank | High HP; heavy KB resistance |
 | Mage | Ability spam; low base health |

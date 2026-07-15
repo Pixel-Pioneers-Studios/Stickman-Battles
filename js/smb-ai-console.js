@@ -84,7 +84,7 @@ KEY CHARACTERS:
   • VAEL — Axiom Prequel companion. Scout goggles, fast.
 
 CLASSES — not titles. Preserved patterns of beings the Void Mind consumed over millennia. Each class is a combat philosophy crystallized into something structurally real — it modifies how force literally interacts with the fighter. The fragment carries these as echoes; the bearer resonates with the closest one. Using Conviction against the Void Mind is the thematic completion: the Void Mind's entire history of erasure becomes the weapon that threatens it.
-  thor=storm/lightning | kratos=spartan rage/lifesteal | ninja=shadow/speed | gunner=ranged DPS
+  thor(Torren)=storm/lightning | kratos(Varek)=undying rage/lifesteal | ninja=shadow/speed | gunner=ranged DPS
   archer=verdant/range | paladin=holy/tank/heal | berserker=rage/all-in | megaknight=void strength
   ronin=precision/time | reaper=lifesteal/undying | pugilist=combo/counter | summoner=familiar ally | none=no class bonus
 

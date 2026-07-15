@@ -382,11 +382,13 @@ function processInput() {
       // Megaknight gets higher jump power
       const jumpPower = p.charClass === 'megaknight' ? -22 : -17;
       const dblPower  = p.charClass === 'megaknight' ? -16 : -13;
-      if (p.onGround || (p.coyoteFrames > 0 && !p.canDoubleJump)) {
-        // Ground jump (or coyote jump — briefly after walking off a platform)
+      if (p.onGround || (p.coyoteFrames > 0 && !p.canDoubleJump) || p._lavaJumpGrace > 0) {
+        // Ground jump (or coyote jump — briefly after walking off a platform,
+        // or lava-bounce grace so players can always jump back out of lava)
         p.vy = jumpPower;
         p.canDoubleJump = true; // enable one double-jump after leaving ground
         p.coyoteFrames  = 0;   // consume coyote window
+        p._lavaJumpGrace = 0;  // consume lava-bounce grace
         if (p._rd) PlayerRagdoll.applyJump(p);
         spawnParticles(p.cx(), p.y + p.h, '#ffffff', 5);
         if (p.charClass === 'megaknight') spawnParticles(p.cx(), p.y + p.h, '#8844ff', 5);

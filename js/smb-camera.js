@@ -328,8 +328,11 @@ function updateCamera() {
     // visible area, so we must shift the top clamp down by _hudGU so players on the highest
     // platform aren't hidden behind the HUD bar. Clamping camYTarget alongside camYCur
     // stops the lerp from fighting the boundary each frame (the root cause of vibration).
+    // Arenas with an underground layer set worldBottom so the camera may pan
+    // down into tunnel space; everywhere else the floor stays the hard bottom.
     const floorPl = currentArena.platforms && currentArena.platforms.find(p => p.isFloor);
-    const wBottom = floorPl ? floorPl.y + 80 : GAME_H;
+    const wBottom = currentArena.worldBottom !== undefined ? currentArena.worldBottom
+      : (floorPl ? floorPl.y + 80 : GAME_H);
     const wTop    = 0;
     if (wBottom - wTop > GAME_H / camZoomCur) {
       const _topBound = wTop + hvh + _hudGU;

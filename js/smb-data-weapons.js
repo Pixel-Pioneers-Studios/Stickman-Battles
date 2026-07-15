@@ -623,6 +623,10 @@ const WEAPONS = {
 
 const WEAPON_KEYS = Object.keys(WEAPONS).filter(k => k !== 'gauntlet' && k !== 'mkgauntlet' && !WEAPONS[k].enemyOnly);
 
+// Weapons whose tone doesn't fit Story Mode (kept in versus/sandbox/minigames).
+// Story launch flow and the story mastery panel filter against this list.
+const STORY_TONE_EXCLUDED_WEAPONS = ['paperairplane', 'peashooter', 'fryingpan', 'broomstick', 'slingshot'];
+
 // ============================================================
 // WEAPON SWING GRAMMAR — per-weapon attack identity
 // ============================================================
@@ -746,8 +750,8 @@ function swingPose(weaponKey, atkP, facing, alt) {
 const CLASSES = {
   none:      { name: 'None',      desc: 'Standard balanced fighter',            weapon: null,     hp: 150, speedMult: 1.00, perk: null           },
   warrior:   { name: 'Warrior',   desc: 'Disciplined melee fighter. Sturdy, no frills.', weapon: null, hp: 120, speedMult: 1.00, perk: null   },
-  thor:      { name: 'Thor',      desc: 'Hammer master, thunder on dash',       weapon: 'hammer', hp: 140, speedMult: 0.90, perk: 'thunder'      },
-  kratos:    { name: 'Kratos',    desc: 'Axe specialist, rage at low HP',       weapon: 'axe',    hp: 145, speedMult: 0.95, perk: 'rage'         },
+  thor:      { name: 'Torren',      desc: 'Hammer master, thunder on dash',       weapon: 'hammer', hp: 140, speedMult: 0.90, perk: 'thunder'      },
+  kratos:    { name: 'Varek',    desc: 'Axe specialist, rage at low HP',       weapon: 'axe',    hp: 145, speedMult: 0.95, perk: 'rage'         },
   ninja:     { name: 'Ninja',     desc: 'Fast sword fighter, quick dash',       weapon: 'sword',  hp: 90,  speedMult: 1.24, perk: 'swift'        },
   gunner:    { name: 'Gunner',    desc: 'Dual-shot gunslinger',                 weapon: 'gun',    hp: 110, speedMult: 1.06, perk: 'dual_shot'    },
   archer:    { name: 'Archer',    desc: 'Bow-only. Fast. Auto-backstep at low HP.', weapon: 'bow', hp: 95, speedMult: 1.20, perk: 'backstep'    },
@@ -829,8 +833,8 @@ const WEAPON_DESCS = {
 
 const CLASS_DESCS = {
   none:      { title: 'No Class',   what: 'No class modifier. Full freedom of weapon choice. HP: 150.',                                                                   perk: null,                                                                                                                              how:  'Choose any weapon — pure skill matters.' },
-  thor:      { title: 'Thor',       what: 'Hammer master. Slower movement but powerful strikes. Forces Hammer. HP: 140.',                                                   perk: 'Lightning Storm (≤20% HP, once): Summons 3 lightning bolts — 8 dmg + stun each. Activates automatically.',                        how:  'Tank hits to trigger the lightning perk when low. Then finish with your super.' },
-  kratos:    { title: 'Kratos',     what: 'Axe specialist. More HP, builds rage when hit. Forces Axe. HP: 145.',                                                            perk: 'Spartan Rage (≤15% HP, once): Auto-heals to 30% HP and boosts damage by +30% for 5 seconds.',                                     how:  'Survive the threat threshold — let the rage save you. Strike hard in the buff window.' },
+  thor:      { title: 'Torren',       what: 'Hammer master. Slower movement but powerful strikes. Forces Hammer. HP: 140.',                                                   perk: 'Lightning Storm (≤20% HP, once): Summons 3 lightning bolts — 8 dmg + stun each. Activates automatically.',                        how:  'Tank hits to trigger the lightning perk when low. Then finish with your super.' },
+  kratos:    { title: 'Varek',     what: 'Axe specialist. More HP, builds rage when hit. Forces Axe. HP: 145.',                                                            perk: 'Undying Rage (≤15% HP, once): Auto-heals to 30% HP and boosts damage by +30% for 5 seconds.',                                     how:  'Survive the threat threshold — let the rage save you. Strike hard in the buff window.' },
   ninja:     { title: 'Ninja',      what: 'Extremely fast sword fighter. Fragile but elusive. Forces Sword. HP: 90.',                                                       perk: 'Shadow Step (≤25% HP, once): 2 seconds of full invincibility and all cooldowns reset instantly.',                                  how:  'Use your speed advantage to dodge. The perk buys time to escape and counter.' },
   gunner:    { title: 'Gunner',     what: 'Dual-shot gunslinger — fires 2 bullets every shot. Forces Gun. HP: 110.',                                                         perk: 'Last Stand (≤20% HP, once): Fires 8 bullets in all directions for 3–5 dmg each.',                                                 how:  'Keep distance at all times. The burst perk punishes enemies who close in when you\'re low.' },
   archer:    { title: 'Archer',     what: 'Long-range bow fighter. Fast movement, low HP. Forces Bow. HP: 95.',                                                              perk: 'Back-Step (≤20% HP): Auto-dash backward and reset double jump when threatened.',                                                  how:  'Stay at range. The auto-backstep keeps you alive when pressured.' },

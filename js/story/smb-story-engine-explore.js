@@ -6,6 +6,48 @@
 // EXPLORATION CHAPTER SYSTEM
 // ============================================================
 
+// Hidden-loot chest sites for walk→fight (duel) worlds. Shared by the platform
+// generator (climb stubs + perch / tunnel geometry) and the loot placer (chest
+// coordinates) so the two can never drift apart. Positions are per-segment
+// (caller adds region offset).
+//
+// Earth-like worlds (underground=true) hide each chest in an underground tunnel
+// chamber reached through a shaft in the ground; other worlds keep the sky-perch
+// climb. Geometry constants shared by generator, loot placer, and renderer:
+//   surface top 440, ceiling bottom 528 (surface slab h=88),
+//   tunnel space 528–648, bedrock 648+ (solid — no void underneath).
+const _EXP_SURF_Y  = 440;
+const _EXP_CEIL_B  = 528;
+const _EXP_BED_Y   = 648;
+const _EXP_SHAFT_HALF = 46;
+var _exploreChapterBeaten = false;  // beaten chapter → suppress normal mob spawns
+var _exploreEnterFromRight = false; // backtrack: next exploration launch spawns at the world's exit end
+function _exploreChestSites(segLen, underground) {
+  const sites = [
+    { tier: 'minor', baseX: Math.floor(segLen * 0.30), perchY: 168, dir: -1 },
+    { tier: 'elite', baseX: Math.floor(segLen * 0.78), perchY: 158, dir:  1 },
+  ];
+  if (!underground) return sites;
+  for (const st of sites) {
+    st.underground = true;
+    // Tunnel chamber extends away from the shaft toward a dead end holding the chest
+    st.x0 = st.dir < 0 ? st.baseX - 520 : st.baseX - 60;
+    st.x1 = st.dir < 0 ? st.baseX + 60  : st.baseX + 520;
+    st.chestX = st.dir < 0 ? st.x0 + 56 : st.x1 - 56;
+    st.chestY = _EXP_BED_Y - 30;
+  }
+  return sites;
+}
+
+// Earth-like exploration styles get grounded terrain (plateaus/structures, no
+// floating platforms) and an underground chest layer. Fracture/void/space/lava
+// worlds keep floating geometry — it fits their reality.
+function _exploreIsEarthStyle(ch) {
+  const st = (ch && ch.style) ||
+    (typeof _storyExploreStyleForWorld === 'function' ? _storyExploreStyleForWorld(ch && ch.world) : 'city');
+  return st === 'city' || st === 'forest' || st === 'ruins';
+}
+
 function _exploreGenPlatforms(worldLen, seed, ch) {
   // Deterministic seeded pseudo-random (LCG)
   let s = (seed * 1234567 + 89101) | 0;
@@ -13,9 +55,46 @@ function _exploreGenPlatforms(worldLen, seed, ch) {
 
   const plats = [];
   const mode = ch && ch.exploreMode ? ch.exploreMode : 'exploration';
+  const isEarthDuel = !!(ch && ch.walkFight && _exploreIsEarthStyle(ch));
 
-  // ── Solid floor (no gaps — players should never fall into the void) ──────
-  plats.push({ x: 0, y: 440, w: worldLen, h: 80, isFloor: true });
+  // ── Solid floor ───────────────────────────────────────────────────────────
+  // Earth-like duel worlds: thick surface slabs with shaft gaps down to a tunnel
+  // layer, sealed by full-width bedrock (no void — falling lands in the tunnel).
+  // Everything else: one continuous floor (players never fall into the void).
+  if (isEarthDuel) {
+    const sites = _exploreChestSites(worldLen, true);
+    const gaps = sites
+      .map(st => [st.baseX - _EXP_SHAFT_HALF, st.baseX + _EXP_SHAFT_HALF])
+      .sort((a, b) => a[0] - b[0]);
+    let cur = 0;
+    for (const g of gaps) {
+      plats.push({ x: cur, y: _EXP_SURF_Y, w: g[0] - cur, h: _EXP_CEIL_B - _EXP_SURF_Y, isFloor: true });
+      cur = g[1];
+    }
+    plats.push({ x: cur, y: _EXP_SURF_Y, w: worldLen - cur, h: _EXP_CEIL_B - _EXP_SURF_Y, isFloor: true });
+    plats.push({ x: 0, y: _EXP_BED_Y, w: worldLen, h: 140, isBedrock: true });
+    // Seal the tunnel layer: solid rock everywhere except the chest chambers,
+    // so each chamber is a true dead-end vault (also stops entities being
+    // clamped into dark dead space between chambers).
+    const spans = sites.map(st => [st.x0, st.x1]).sort((a, b) => a[0] - b[0]);
+    let ux = 0;
+    for (const [a, b] of spans) {
+      if (a > ux) plats.push({ x: ux, y: _EXP_CEIL_B, w: a - ux, h: _EXP_BED_Y - _EXP_CEIL_B, isRockFill: true });
+      ux = b;
+    }
+    if (ux < worldLen) plats.push({ x: ux, y: _EXP_CEIL_B, w: worldLen - ux, h: _EXP_BED_Y - _EXP_CEIL_B, isRockFill: true });
+    for (const st of sites) {
+      // Escape stub (bedrock → stub → surface in two jumps) hugs the shaft wall
+      // on the side AWAY from the chamber, leaving a 56px fall gap on the chamber
+      // side. A centred stub seals the hole — the player lands on it and can
+      // neither drop past it nor walk sideways (head still inside the shaft).
+      plats.push(st.dir < 0
+        ? { x: st.baseX + 10, y: 548, w: 36, h: 12 }   // chamber opens left → stub right
+        : { x: st.baseX - 46, y: 548, w: 36, h: 12 }); // chamber opens right → stub left
+    }
+  } else {
+    plats.push({ x: 0, y: 440, w: worldLen, h: 80, isFloor: true });
+  }
 
   if (mode === 'survival') {
     // Compact enclosed arena for wave-defence (worldLen = 900)
@@ -43,6 +122,45 @@ function _exploreGenPlatforms(worldLen, seed, ch) {
           h: 14,
         });
       }
+    }
+  } else if (_exploreIsEarthStyle(ch)) {
+    // ── Grounded terrain: plateaus/structures rising from the ground ────────
+    // No floating platforms in earth-like worlds — everything connects down.
+    // Applies to ALL earth exploration modes (duel/stealth/objective/…), not
+    // just walk→fight. Kept clear of: spawn area, checkpoint/duel zones, shaft
+    // entrances, authored enemy/guard posts, and the goal approach.
+    const chestSites = isEarthDuel ? _exploreChestSites(worldLen, true) : [];
+    const cps = [];
+    if (ch.walkFight === true || ch.exploreMode === 'duel') cps.push(worldLen * 0.5);
+    else {
+      const _n = (ch.worldLength >= 5200 ? 2 : 1);
+      for (let i = 1; i <= _n; i++) cps.push((worldLen * i) / (_n + 1));
+    }
+    const posts = [];
+    (ch.spawnEnemies || []).forEach(e => { if (e.wx) posts.push(e.wx); });
+    (ch.stealthGuardDefs || []).forEach(g => { if (g.wx) posts.push(g.wx); });
+    let sx = 340 + Math.floor(rng() * 220);
+    while (sx < worldLen - 760) {
+      const w = 200 + Math.floor(rng() * 240);
+      const h = 60 + Math.floor(rng() * 62);
+      const blocked = cps.some(c => sx + w > c - 360 && sx < c + 360) ||
+        chestSites.some(st => sx + w > st.baseX - 180 && sx < st.baseX + 180) ||
+        posts.some(px => sx + w > px - 150 && sx < px + 150);
+      if (!blocked) {
+        plats.push({ x: sx, y: _EXP_SURF_Y - h, w, h, isStructure: true });
+        // Wide plateaus sometimes carry a second stepped tier
+        if (w > 300 && rng() < 0.5) {
+          const w2 = 120 + Math.floor(rng() * 90);
+          plats.push({ x: sx + Math.floor(rng() * (w - w2)), y: _EXP_SURF_Y - h - 52, w: w2, h: 52, isStructure: true });
+        }
+      }
+      sx += w + 300 + Math.floor(rng() * 460);
+    }
+    if (mode === 'objective') {
+      // Grounded goal structure (stepped pyramid) instead of floating pads
+      const goalBase = worldLen - 620;
+      plats.push({ x: goalBase,      y: 360, w: 190, h: 80, isStructure: true });
+      plats.push({ x: goalBase + 40, y: 308, w: 110, h: 52, isStructure: true });
     }
   } else {
     const exploreStyle = ch && ch.exploreStyle ? ch.exploreStyle : 'generic';
@@ -85,6 +203,19 @@ function _exploreGenPlatforms(worldLen, seed, ch) {
       plats.push({ x: goalBase, y: 320, w: 180, h: 18 });
       plats.push({ x: goalBase + 70, y: 235, w: 140, h: 16 });
       plats.push({ x: goalBase + 200, y: 285, w: 110, h: 16 });
+    }
+  }
+
+  // ── Hidden-loot chest perches (non-earth walk→fight worlds only) ──────────
+  // Each site is an optional vertical climb off the main corridor ending in a
+  // perch that holds a chest (placed by the loot pass in _launchExplorationChapter).
+  // Earth-like worlds hide chests underground instead (see isEarthDuel above).
+  if (ch && ch.walkFight && !isEarthDuel) {
+    for (const site of _exploreChestSites(worldLen)) {
+      const b = site.baseX;
+      plats.push({ x: b - 95, y: 340, w: 90, h: 14 });
+      plats.push({ x: b + 15, y: 252, w: 90, h: 14 });
+      plats.push({ x: b - 55, y: site.perchY, w: 130, h: 14 }); // perch — chest sits here
     }
   }
 
@@ -139,6 +270,20 @@ function _storyScaleEnemyUnit(unit, chapterId, opts = {}) {
   unit._storyElite        = elite;
   unit._storyPredict      = 0.10 + Math.min(0.18, origId * 0.0035) + (elite ? 0.12 : 0);
   unit._storyDodgeChance  = elite ? 0.14 : 0.05;
+
+  // ── Onboarding mercy band ────────────────────────────────
+  // The first encounters teach controls — they must pressure, not melt, the
+  // player. Softer damage, slower cadence, no prediction. Elites (optional
+  // challenges like the Vault Warden) are exempt.
+  if (!elite && origId < 6) {
+    const gentle = origId < 3;
+    unit.maxHealth = Math.min(unit.maxHealth, gentle ? 120 : 160);
+    unit.health    = unit.maxHealth;
+    unit.dmgMult   = Math.min(unit.dmgMult, (gentle ? 8 : 12) / 12); // ≤8% / ≤12% player HP per hit
+    unit.attackCooldownMult = Math.max(unit.attackCooldownMult, gentle ? 1.25 : 1.05);
+    unit._storyPredict      = gentle ? 0 : Math.min(unit._storyPredict, 0.08);
+    unit._storyDodgeChance  = 0.02;
+  }
   return unit;
 }
 
@@ -151,11 +296,20 @@ function _storyPhaseExploreCap(chId) {
 }
 
 function _storyBuildSidePortal(ch) {
-  if (!ch || ch.id < 6 || Math.random() < 0.45) return null;
-  const type = ch.id >= 22 && Math.random() < 0.35 ? 'distorted_rift'
-    : Math.random() < 0.5 ? 'elite_gauntlet' : 'survival';
+  if (!ch || ch.id < 6) return null;
+  // Seeded per chapter — the world must be identical on every reload (one-map illusion).
+  // Murmur-style hash first: a raw LCG seeded with consecutive ids gives correlated
+  // first draws (whole runs of chapters all with/without portals).
+  let s = ch.id | 0;
+  s = Math.imul(s ^ (s >>> 16), 2246822519);
+  s = Math.imul(s ^ (s >>> 13), 3266489917);
+  s = (s ^ (s >>> 16)) >>> 0 || 1;
+  const rng = () => { s = (Math.imul(s, 1664525) + 1013904223) >>> 0; return s / 4294967296; };
+  if (rng() < 0.45) return null;
+  const type = ch.id >= 22 && rng() < 0.35 ? 'distorted_rift'
+    : rng() < 0.5 ? 'elite_gauntlet' : 'survival';
   return {
-    x: Math.floor((ch.worldLength || 5200) * (0.35 + Math.random() * 0.35)),
+    x: Math.floor((ch.worldLength || 5200) * (0.35 + rng() * 0.35)),
     y: 260,
     type,
     reward: type === 'distorted_rift' ? 55 + ch.id * 3 : 32 + ch.id * 2,
@@ -204,7 +358,7 @@ function _storyEnterSidePortal(portal, p1, ch) {
 // Segment boundaries award the crossed chapter's rewards without ending the
 // match; only the final segment's exit ends the chapter normally.
 const STORY_REGIONS = [
-  { name: 'Multiversal Core', chapters: [32, 33, 34, 35], segLen: 3000 },
+  { name: 'Multiversal Core', chapters: [32, 33, 34, 35], segLen: 6000 },
 ];
 function _storyRegionFor(chId) {
   for (const r of STORY_REGIONS) if (r.chapters.includes(chId)) return r;
@@ -249,17 +403,22 @@ function _launchExplorationChapter(ch) {
   exploreRegion = null;
   exploreStartX = null;
 
-  const worldLen = _region ? _region.segLen * _region.chapters.length : (ch.worldLength || 9000);
+  // Walk→fight worlds get a GoW-scale minimum length; regions stitch N of them.
+  const _earth = (ch.walkFight === true) && _exploreIsEarthStyle(ch);
+  const worldLen = _region ? _region.segLen * _region.chapters.length
+    : (ch.walkFight === true) ? Math.max(ch.worldLength || 5200, 6000)
+    : (ch.worldLength || 9000);
   const goalX    = ch.objectX    || (worldLen - 350);
   let plats;
   if (_region) {
-    // Single continuous floor, then each segment's generated platforms offset into place
-    plats = [{ x: 0, y: 440, w: worldLen, h: 80, isFloor: true }];
+    // Each segment's full generated geometry (floors, bedrock, structures) offset
+    // into place — floors are contiguous across segment boundaries by construction.
+    plats = [];
     _region.chapters.forEach((cid, i) => {
       const segCh = STORY_CHAPTERS2[cid] || ch;
       const off = i * _region.segLen;
       _exploreGenPlatforms(_region.segLen, cid, segCh).forEach(p => {
-        if (!p.isFloor) plats.push({ ...p, x: p.x + off });
+        plats.push({ ...p, x: p.x + off });
       });
     });
   } else {
@@ -273,7 +432,9 @@ function _launchExplorationChapter(ch) {
     groundColor:   ch.groundColor || '#333344',
     platColor:     ch.platColor   || '#445566',
     worldWidth:    worldLen,
-    mapLeft:       GAME_W / 2,
+    // Walk→fight worlds open the left edge — it's the reverse loading zone
+    // (walking off it backtracks to the previous chapter's world)
+    mapLeft:       (ch.walkFight === true) ? 60 : GAME_W / 2,
     mapRight:      worldLen - 50, // let player reach the full world including goalX
     deathY:        640,
     isStoryOnly:   true,
@@ -281,6 +442,25 @@ function _launchExplorationChapter(ch) {
     exploreStyle:  ch.style || 'city',
     platforms:     plats,
   };
+  if (_earth) {
+    // Underground layer: no void beneath earth worlds — bedrock seals the world,
+    // the death plane sits far below as a failsafe, and the camera may pan down
+    // into the tunnel space.
+    ARENAS[arenaKey].deathY = 1600;
+    ARENAS[arenaKey].worldBottom = _EXP_BED_Y + 150;
+    ARENAS[arenaKey].hasUnderground = true;
+    const _ugRects = [];
+    const _ugSegs = _region
+      ? _region.chapters.map((cid, i) => ({ off: i * _region.segLen, len: _region.segLen }))
+      : [{ off: 0, len: worldLen }];
+    for (const sg of _ugSegs) {
+      for (const st of _exploreChestSites(sg.len, true)) {
+        _ugRects.push({ x: sg.off + st.baseX - _EXP_SHAFT_HALF, y: _EXP_SURF_Y, w: _EXP_SHAFT_HALF * 2, h: _EXP_CEIL_B - _EXP_SURF_Y, kind: 'shaft' });
+        _ugRects.push({ x: sg.off + st.x0, y: _EXP_CEIL_B, w: st.x1 - st.x0, h: _EXP_BED_Y - _EXP_CEIL_B, kind: 'chamber' });
+      }
+    }
+    ARENAS[arenaKey].undergroundRects = _ugRects;
+  }
   if (typeof ARENA_BASE_PLATFORMS !== 'undefined') {
     ARENA_BASE_PLATFORMS[arenaKey] = plats.map(p => ({ ...p }));
   }
@@ -317,18 +497,35 @@ function _launchExplorationChapter(ch) {
     };
     exploreStartX = _myIdx > 0 ? _myIdx * _region.segLen + 100 : null;
   } else {
-    const checkpointCount = ch.worldLength >= 5200 ? 2 : 1;
+    // Duel (walk→fight) chapters always get exactly ONE checkpoint — it hosts the
+    // chapter's authored duel; more would replay the same opponent per checkpoint.
+    const checkpointCount = (ch.walkFight === true || ch.exploreMode === 'duel') ? 1
+      : (ch.worldLength >= 5200 ? 2 : 1);
     for (let i = 1; i <= checkpointCount; i++) {
       exploreCheckpoints.push({ x: Math.floor((worldLen * i) / (checkpointCount + 1)), hit: false });
     }
   }
-  // Strip ranged weapons from exploration enemies if this chapter hasn't been beaten yet
+  // Backtrack entry: the player walked off the LEFT edge of the next world, so
+  // spawn them at this world's exit end. Everything behind the spawn point
+  // pre-hits so old duels/boundary completions never re-fire on frame one.
+  if (_exploreEnterFromRight) {
+    _exploreEnterFromRight = false;
+    exploreStartX = worldLen - 620;
+    exploreCheckpoints.forEach(cp => { if (cp.x < worldLen - 620) cp.hit = true; });
+    if (exploreRegion) exploreRegion.boundaries.forEach(b => { b.done = true; });
+  }
+  // Strip ranged weapons from exploration enemies if this chapter hasn't been beaten yet.
+  // On a BEATEN chapter, normal mobs stay gone — only guards and special enemies
+  // (relic guards, chest guardians, stealth sentries) still spawn.
   const _expBeaten = Array.isArray(_story2.defeated) && _story2.defeated.includes(ch.id);
-  exploreSpawnQ = (ch.spawnEnemies || []).map(e => {
-    if (_expBeaten) return e;
-    const isRng = typeof WEAPONS !== 'undefined' && WEAPONS[e.weaponKey] && WEAPONS[e.weaponKey].type === 'ranged';
-    return isRng ? Object.assign({}, e, { weaponKey: 'sword' }) : e;
-  });
+  _exploreChapterBeaten = _expBeaten;
+  exploreSpawnQ = (ch.spawnEnemies || [])
+    .filter(e => !_expBeaten || e.isGuard || e.isElite || ch.exploreMode === 'stealth')
+    .map(e => {
+      if (_expBeaten) return e;
+      const isRng = typeof WEAPONS !== 'undefined' && WEAPONS[e.weaponKey] && WEAPONS[e.weaponKey].type === 'ranged';
+      return isRng ? Object.assign({}, e, { weaponKey: 'sword' }) : e;
+    });
   exploreEnemyCap  = _storyPhaseExploreCap(ch.id);
   exploreCombatQuiet = 0;
   exploreAmbushTimer = 0;
@@ -370,14 +567,28 @@ function _launchExplorationChapter(ch) {
     _segs.forEach(seg => {
       const _cpObj = exploreCheckpoints.find(c => c.x >= seg.off && c.x < seg.off + seg.len);
       const _cpX = _cpObj ? _cpObj.x : seg.off + Math.floor(seg.len / 2);
+      // Hidden-loot pass: treasure lives in CHESTS on optional climb perches off the
+      // golden path (see _exploreChestSites), not handed out on the walk line.
+      // The post-fight healing crystal stays on the path — it's a health resource,
+      // not treasure (death fully heals; crystals + Super are the only other heals).
+      // Key '2' kept for the crystal so pre-chest saves don't regenerate taken ones.
       const _loot = [
-        { x: seg.off + Math.floor(seg.len * 0.20), y: 356, type: 'coin', icon: '🪙', value: 6 },
-        { x: seg.off + Math.floor(seg.len * 0.34), y: 356, type: 'xp',   icon: '✦',  value: 10 },
-        { x: Math.min(seg.off + seg.len - 220, _cpX + 520), y: 356, type: 'heal', icon: '💠', value: 60 },
-        { x: seg.off + Math.floor(seg.len * 0.88), y: 356, type: 'coin', icon: '🪙', value: 6 }
+        { x: Math.min(seg.off + seg.len - 220, _cpX + 520), y: 356, type: 'heal', icon: '💠', value: 60, key: seg.cid + ':2' },
       ];
-      _loot.forEach((it, i) => {
-        it.key = seg.cid + ':' + i;
+      _exploreChestSites(seg.len, _earth).forEach((site, si) => {
+        const elite = site.tier === 'elite';
+        _loot.push({
+          x: seg.off + (site.underground ? site.chestX : site.baseX + 10),
+          y: site.underground ? site.chestY : site.perchY - 30,
+          type: 'chest', tier: site.tier, icon: '🧰',
+          underground: !!site.underground,
+          guarded: elite,
+          contents: elite ? { tokens: 25, exp: 30, heal: 80 } : { tokens: 10, exp: 12 },
+          _guardSpawned: false,
+          key: seg.cid + ':c' + si,
+        });
+      });
+      _loot.forEach(it => {
         it.collected = !!_story2.lootTaken[it.key];
         explorePickups.push(it);
       });

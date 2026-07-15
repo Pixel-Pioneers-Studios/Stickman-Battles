@@ -361,6 +361,10 @@ func _process(delta: float) -> void:
 		GameManager.reset()
 		get_tree().reload_current_scene()
 
+	if Input.is_key_pressed(KEY_ESCAPE):
+		GameManager.reset()
+		get_tree().change_scene_to_file("res://scenes/Title.tscn")
+
 # Framing camera: hovers at a fixed yaw over the midpoint of both fighters,
 # pulling back as they separate so neither leaves the frame.
 func _update_camera(delta: float) -> void:
@@ -391,9 +395,9 @@ func _on_match_won(winner_num: int) -> void:
 	if _game_over: return
 	_game_over = true
 	if winner_num == 0:
-		_show_center_text("DRAW!\nPress T to restart", true)
+		_show_center_text("DRAW!\nT — rematch   Esc — title", true)
 	else:
-		_show_center_text("P%d WINS!\nPress T to restart" % winner_num, true)
+		_show_center_text("P%d WINS!\nT — rematch   Esc — title" % winner_num, true)
 
 func _show_center_text(text: String, persistent: bool) -> void:
 	_center_lbl.text    = text

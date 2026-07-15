@@ -219,6 +219,74 @@ function _drawExploreBgTiles(style) {
   // Subtle ground line across full world
   ctx.strokeStyle = 'rgba(255,255,255,0.08)'; ctx.lineWidth = 1;
   ctx.beginPath(); ctx.moveTo(0, 440); ctx.lineTo(exploreWorldLen, 440); ctx.stroke();
+
+  // Underground layer: carve the shafts and tunnel chambers out of the solid
+  // ground fill so they read as caves, with faint torchlight for visibility.
+  // Chambers stay hidden (covered with solid ground) until the player actually
+  // drops below the surface — chests are meant to be discovered, not spotted
+  // from the walk path. Shaft openings remain visible as the discovery hint.
+  if (currentArena && currentArena.undergroundRects) {
+    const _p1 = (typeof players !== 'undefined') ? players[0] : null;
+    const _tgt = (_p1 && _p1.health > 0 && _p1.y + (_p1.h || 50) > 500) ? 1 : 0;
+    window._ugRevealCur = (window._ugRevealCur || 0) + (_tgt - (window._ugRevealCur || 0)) * 0.10;
+    const reveal = window._ugRevealCur;
+    for (const r of currentArena.undergroundRects) {
+      // Cave interior — near-black with a slight depth gradient
+      const g = ctx.createLinearGradient(0, r.y, 0, r.y + r.h);
+      g.addColorStop(0, '#101018');
+      g.addColorStop(1, '#07070c');
+      ctx.fillStyle = g;
+      ctx.fillRect(r.x, r.y, r.w, r.h);
+      if (r.kind === 'chamber') {
+        // Torch glow spots along the chamber ceiling
+        for (let tx = r.x + 90; tx < r.x + r.w - 60; tx += 190) {
+          const flick = 0.55 + 0.2 * Math.sin(frameCount * 0.11 + tx);
+          const tg = ctx.createRadialGradient(tx, r.y + 24, 0, tx, r.y + 24, 70);
+          tg.addColorStop(0, `rgba(255,170,70,${0.30 * flick})`);
+          tg.addColorStop(1, 'rgba(255,140,40,0)');
+          ctx.fillStyle = tg;
+          ctx.fillRect(tx - 70, r.y, 140, r.h);
+          ctx.fillStyle = `rgba(255,200,110,${0.75 * flick})`;
+          ctx.fillRect(tx - 2, r.y + 16, 4, 10);
+        }
+        // Fog-of-war cover: solid ground look until the player goes underground
+        if (reveal < 0.98) {
+          ctx.globalAlpha = 1 - reveal;
+          ctx.fillStyle = currentArena.groundColor || '#333344';
+          ctx.fillRect(r.x, r.y, r.w, r.h);
+          ctx.globalAlpha = 1;
+        }
+      } else if (reveal < 0.97) {
+        // Shaft camouflage: from the surface it looks like ordinary paving with
+        // hairline cracks and a faint dark patch — the only tell. It opens into
+        // a visible hole only while the player is underground.
+        ctx.globalAlpha = 1 - reveal;
+        ctx.fillStyle = currentArena.platColor || '#445566';
+        ctx.fillRect(r.x, r.y, r.w, r.h);
+        // Continue the floor's top-highlight strip across the cover
+        ctx.fillStyle = 'rgba(255,255,255,0.20)';
+        ctx.fillRect(r.x, r.y, r.w, 3);
+        // Deterministic hairline cracks
+        let cs = (Math.imul(r.x | 0, 2654435761) >>> 0) || 1;
+        const crng = () => { cs = (Math.imul(cs, 1664525) + 1013904223) >>> 0; return cs / 4294967296; };
+        ctx.strokeStyle = 'rgba(0,0,0,0.45)';
+        ctx.lineWidth = 1.2;
+        for (let c = 0; c < 3; c++) {
+          let zx = r.x + 8 + crng() * (r.w - 16), zy = r.y + 2;
+          ctx.beginPath(); ctx.moveTo(zx, zy);
+          while (zy < r.y + r.h - 6) { zx += (crng() - 0.5) * 18; zy += 8 + crng() * 14; ctx.lineTo(zx, zy); }
+          ctx.stroke();
+        }
+        // Subtle sag toward the centre — something is off about this slab
+        const dg = ctx.createRadialGradient(r.x + r.w / 2, r.y + r.h / 2, 4, r.x + r.w / 2, r.y + r.h / 2, r.w * 0.7);
+        dg.addColorStop(0, 'rgba(0,0,0,0.30)');
+        dg.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.fillStyle = dg;
+        ctx.fillRect(r.x, r.y, r.w, r.h);
+        ctx.globalAlpha = 1;
+      }
+    }
+  }
 }
 
 function _expTileCity(i) {

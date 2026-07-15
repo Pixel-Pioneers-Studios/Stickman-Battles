@@ -42,11 +42,46 @@ const SERVER_CONFIG = {
 // ============================================================
 const CHANGELOG = [
   {
+    version: '4.0.6',
+    title: 'THE BURIED ROADS UPDATE',
+    date: '2026-07-14',
+    flavor: 'The world grew roots. The road runs on solid ground now, and beneath it are tunnels worth the descent — if you can get back out of the fire.',
+    isLatest: true,
+    changes: [
+      { cat: 'Story', text: 'Walking chapters now stand on solid, continuous terrain instead of scattered floating platforms — the ground runs unbroken from the start of the road to the fight at its end' },
+      { cat: 'Story', text: 'Bigger worlds — walking stretches are far longer now, and a run of connected chapters plays as one enormous continuous overworld rather than a series of short corridors' },
+      { cat: 'Story', text: 'Underground tunnels — some roads hide a way down into buried chambers where treasure waits in the dark; a Vault Warden guards the deepest cache and will not stray far from what he protects' },
+      { cat: 'Visual', text: 'Every story cutscene was rebuilt — layered parallax backdrops, moonlight and haze, cast shadows and reflections, rim lighting, and characters that actually walk, blink, listen, and gesture instead of standing frozen' },
+      { cat: 'Fix',   text: 'You can escape the lava now — bouncing off a lava surface grants a full jump so you can chain your way back to solid ground instead of dying in a pit you can never climb out of' },
+      { cat: 'Fix',   text: 'Lava no longer vanishes after a sudden-death round — arenas authored with lava keep it for the whole match' },
+    ],
+  },
+  {
+    version: '4.0.2',
+    title: 'THE HIDDEN ROADS UPDATE',
+    date: '2026-07-13',
+    flavor: 'The road keeps what it buried. Some names were never the bearer\'s to keep. And the story now begins where it always began — on an ordinary street, on an ordinary day.',
+    isLatest: false,
+    changes: [
+      { cat: 'Story', text: 'Hidden caches — walking chapters now hide treasure chests off the beaten path; a minor cache sits within reach, while an elite cache waits on a high perch behind a Vault Warden who will not let you open it while he breathes. Loot never respawns once taken' },
+      { cat: 'Story', text: 'Continuous regions — a stretch of the campaign now plays as one unbroken world; crossing a border completes the chapter and the road simply keeps going, no fade, no menu' },
+      { cat: 'Story', text: 'The story opens differently now — an ordinary man, an ordinary Tuesday, and the moment everything after it stopped being ordinary' },
+      { cat: 'Story', text: 'Two classes carry new names — Torren (formerly Thor) and Varek (formerly Kratos); the dead bearers behind them finally have names of their own, and their rage, storms, and domains are renamed to match' },
+      { cat: 'Story', text: 'Joke weapons no longer wander into the campaign — frying pans, peashooters, and paper airplanes stay in versus and sandbox where they belong' },
+      { cat: 'AI',    text: 'Late-campaign named and elite opponents now study you — they profile your habits in real time instead of running fixed scripts' },
+      { cat: 'Fix',   text: 'Stealth chapters actually work now — authored alert zones were being ignored entirely and the alarm timer was so generous you could stand in a spotlight; zones trigger where designed and guards respond in about a second' },
+      { cat: 'Fix',   text: 'The final domain duel was unwinnable — a damage leak reduced every hit to nothing and the fight timed out into a draw; it now fights at full strength and ends the way the story intends', spoilerAct: 6 },
+      { cat: 'Fix',   text: 'The campaign declared itself complete at the end of the first act — the true ending, and everything it unlocks, now waits where it should: at the actual end' },
+      { cat: 'Fix',   text: 'Stealth and exploration enemies no longer spawn floating in the air or buried in the ground' },
+      { cat: 'Polish', text: 'The skill tree now has a Weapon Mastery quick link — the mastery panel was hiding below the tree where nobody scrolled' },
+    ],
+  },
+  {
     version: '4.0.0',
     title: 'THE SOVEREIGN UPDATE',
     date: '2026-07-10',
     flavor: 'It stopped pretending to think at your speed. It stopped pretending the arena was neutral ground. And somewhere far past the end of the road, the story found its voice.',
-    isLatest: true,
+    isLatest: false,
     changes: [
       { cat: 'AI',      text: 'Sovereign no longer holds back — every deliberate mistake, hesitation window, and mercy system has been stripped out; it plays the fight it was always capable of playing' },
       { cat: 'AI',      text: 'Sovereign reads the rules of the engine itself — it refuses to swing into invincibility frames or a ready parry, holds attacks your stamina can\'t answer, goes all-in the instant you\'re helpless, punishes landings, and counts your reload' },
@@ -831,7 +866,7 @@ let _publicRoomCheckTimer = 0;
 // ============================================================
 // VERSION
 // ============================================================
-const GAME_VERSION = '4.0.0';  // bump this when releasing; must match CHANGELOG[0].version
+const GAME_VERSION = '4.0.6';  // bump this when releasing; must match CHANGELOG[0].version
 console.log('[VERSION CHECK]', GAME_VERSION);
 
 // DEBUG / DEVELOPER STATE
@@ -859,6 +894,7 @@ let storyTwoEnemies     = false; // true = spawn a second enemy bot in this chap
 let storySecondEnemyDef = null;  // { weaponKey, classKey, aiDiff, color } for the second enemy
 let storyAllyDef        = null;  // { name, weaponKey, classKey, aiDiff, color, health } — ally fighter on the player's side (ch.allyDef)
 let storyOpponentName   = null;  // display name of the story chapter opponent (shown in HUD)
+let storyChapterCtx     = null;  // { origId, noAdaptive } — set at story fight launch; drives Lever-2 AdaptiveAI selection in _startGameCore
 let storyOpponentColor  = null;  // hex color for the story opponent fighter (applied at spawn)
 let storyCharId         = null;  // named character ID for appearance overlay ('veran','herald', etc.)
 let storyBossType       = null;  // 'fallen_god' | null — overrides which Boss subclass is spawned
@@ -1035,7 +1071,7 @@ let exploreCombatQuiet = 0;
 let exploreArenaLock = null;    // { left, right, enemies:[], cleared, label }
 let exploreDuelMode = false;    // true = walk→fight→walk single-duel exploration wrapper
 let exploreDuelOpponent = null; // { name, weaponKey, classKey, aiDiff, color, health } spawned at the duel checkpoint
-let explorePickups = [];        // [{ x, y, type:'coin'|'xp'|'heal', icon, value, collected }] loot in the walk zone
+let explorePickups = [];        // [{ x, y, type:'coin'|'xp'|'heal'|'chest', icon, value|contents, collected }] walk-zone loot + hidden chests
 let exploreSeedHealth = null;   // pending carried-over HP applied on the first exploration frame (null = none)
 let exploreRegion = null;       // active one-map region: { name, segLen, chapters:[ids], boundaries:[{x,chId,done}] }
 let exploreStartX = null;       // pending start x applied on the first exploration frame (mid-region launch)

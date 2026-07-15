@@ -19,15 +19,23 @@ function _modesGuard() {
 // ============================================================
 
 function initStealthMode(ch) {
-  stealthGuards       = (ch.stealthGuards || []).map(g => Object.assign({
-    radius: 90, alertTimer: 0, maxAlertTimer: 300, alerted: false
+  // Chapters author zones as stealthGuardDefs [{ wx, radius, name }] (world-x form);
+  // legacy stealthGuards [{ x, y, ... }] is also accepted.
+  const _zoneDefs = ch.stealthGuards ||
+    (ch.stealthGuardDefs || []).map(g => {
+      const z = { x: g.wx };
+      if (g.radius != null) z.radius = g.radius;
+      return z;
+    });
+  stealthGuards       = _zoneDefs.map(g => Object.assign({
+    y: 395, radius: 90, alertTimer: 0, maxAlertTimer: 36, alerted: false
   }, g));
   // Default guards if chapter provided none
   if (!stealthGuards.length) {
     const wl = ch.worldLength || 4800;
     const slots = [wl * 0.25, wl * 0.50, wl * 0.72];
     slots.forEach((sx, i) => stealthGuards.push({
-      x: sx, y: 395, radius: 90, alertTimer: 0, maxAlertTimer: 300, alerted: false
+      x: sx, y: 395, radius: 90, alertTimer: 0, maxAlertTimer: 36, alerted: false
     }));
   }
   stealthAlarmed      = false;
@@ -47,7 +55,12 @@ function updateStealthMode() {
     const inZone = (dx * dx + dy * dy) <= guard.radius * guard.radius;
 
     if (inZone && moving) {
-      guard.alertTimer++;
+      // Proximity-scaled: deeper in the zone = spotted faster. Walking straight
+      // through the middle now triggers mid-crossing (~15 frames); skirting the
+      // outer edge stays survivable. (A flat +1 needed 48 frames — more than a
+      // full crossing takes, so zones only fired if you lingered deliberately.)
+      const _d = Math.sqrt(dx * dx + dy * dy);
+      guard.alertTimer += 1 + 2.4 * (1 - _d / guard.radius);
       if (guard.alertTimer >= guard.maxAlertTimer) {
         // Alarm triggered
         guard.alerted   = true;

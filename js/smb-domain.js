@@ -19,13 +19,13 @@ const DOMAIN_DEFS = {
     announce:   'The sky tears open — lightning reigns!',
   },
   kratos: {
-    name:       'Spartan War Domain',
+    name:       'Warpath Domain',
     color:      '#ff5500',
     bgTint:     'rgba(70,15,0,0.52)',
     spawnEvery: 34,           // logs roll in constantly
     hazardType: 'debris',
     ownerBuff: { power: true },
-    announce:   'Rage of Sparta — no mercy, no escape!',
+    announce:   'The rage of a dead bearer — no mercy, no escape!',
   },
   ninja: {
     name:       'Shadow Realm',
@@ -551,8 +551,8 @@ const DomainManager = (() => {
     ronin: '#050510', reaper: '#100510', pugilist: '#120000', none: '#080808',
   };
   const _DOMAIN_ENTRY_LINE = {
-    thor:       'By Odin\'s command...',
-    kratos:     'Feel the rage of Sparta!',
+    thor:       'The storm answers me...',
+    kratos:     'Feel the rage of the fallen!',
     ninja:      'Too slow. You were always too slow.',
     paladin:    'The light judges all.',
     gunner:     'Weapons free — open fire!',

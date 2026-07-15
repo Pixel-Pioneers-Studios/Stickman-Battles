@@ -67,7 +67,7 @@ func reset() -> void:
 func register_fighter(f: Node) -> void:
 	if f not in fighters:
 		fighters.append(f)
-		f.died.connect(_on_fighter_died.bind(f))
+		f.died.connect(_on_fighter_died)   # signal already passes the fighter
 
 func start_round() -> void:
 	round_active = true

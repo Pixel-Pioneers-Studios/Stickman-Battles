@@ -306,6 +306,7 @@ function gameLoop(timestamp) {
     }
     if (!_sdFloor.active && _elapsed >= 90) {
       _sdFloor.active = true;
+      _sdFloor._prevHasLava = !!(currentArena && currentArena.hasLava); // so reset can restore authored lava
       _sdFloor.y = GAME_H + 40;
       if (typeof queueAnnouncement === 'function') queueAnnouncement('SUDDEN DEATH!', '#ff3300');
     }
