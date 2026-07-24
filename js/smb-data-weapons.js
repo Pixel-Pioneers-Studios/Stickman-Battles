@@ -30,7 +30,7 @@ const WEAPONS = {
       spawnParticles(user.cx(), user.cy(), '#88ccff', 18);
       spawnRing(user.cx(), user.cy());
       screenShake = Math.max(screenShake, 14);
-      const _bsAll = [...players, ...trainingDummies];
+      const _bsAll = [...players, ...trainingDummies, ...minions];
       for (const f of _bsAll) {
         if (f === user || f.health <= 0) continue;
         if (dist(user, f) < 95) {
@@ -127,7 +127,7 @@ const WEAPONS = {
           life: 22, maxLife: 22, size: 28, color: '#aaaaff', hitSet: new Set()
         });
       }
-      const _spAll = [...players, ...trainingDummies];
+      const _spAll = [...players, ...trainingDummies, ...minions];
       for (const f of _spAll) {
         if (f === user || f.health <= 0) continue;
         if (dist(user, f) < 130) {
@@ -227,7 +227,7 @@ const WEAPONS = {
       spawnRing(user.cx(), user.y + user.h);
       spawnParticles(user.cx(), user.y + user.h, '#ffdd66', 20);
       spawnParticles(user.cx(), user.cy(), '#ffaa44', 10);
-      const _panAll = [...players, ...trainingDummies];
+      const _panAll = [...players, ...trainingDummies, ...minions];
       for (const f of _panAll) {
         if (f === user || f.health <= 0) continue;
         const _panDist = dist(user, f);
@@ -390,7 +390,7 @@ const WEAPONS = {
     abilityName: 'Lasso',
     ability(user, _target) {
       // Lasso the nearest enemy and yank them directly toward you — stuns on impact
-      const _wAll = [...players, ...trainingDummies];
+      const _wAll = [...players, ...trainingDummies, ...minions];
       let _wTgt = null, _wTgtDist = 999;
       for (const f of _wAll) {
         if (f === user || f.health <= 0) continue;

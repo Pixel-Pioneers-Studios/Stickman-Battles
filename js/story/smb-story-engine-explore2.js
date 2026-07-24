@@ -71,12 +71,19 @@ function updateExploration() {
     exploreStartX = null;
   }
 
-  // Reverse loading zone: pushing into the LEFT edge of a walk→fight world
-  // backtracks to the previous chapter's world, entering at its exit end.
+  // Reverse loading zone: the LEFT edge of a walk→fight world backtracks to
+  // the previous chapter's world, entering at its exit end — the mirror of the
+  // forward walk-through goal: purely positional once armed.
   // Only into beaten walkFight chapters — anything else stays a hard wall.
+  // Arming guard: a fresh spawn near the left edge must not instantly bounce
+  // back — the zone arms only after the player has walked into the world.
+  const _edgeL = (currentArena && currentArena.mapLeft) || 0;
+  if (exploreDuelMode && p1.x > _edgeL + 420) window._exploreBackArmed = true;
+  const _backByWalk = window._exploreBackArmed && p1.x <= _edgeL + 30;
+  const _backByPush = p1.x <= _edgeL + 8 &&
+    p1.controls && typeof keysDown !== 'undefined' && keysDown.has(p1.controls.left);
   if (exploreDuelMode && !exploreGoalFound && !exploreArenaLock && !window._exploreBackPending &&
-      p1.x <= ((currentArena && currentArena.mapLeft) || 0) + 8 &&
-      p1.controls && typeof keysDown !== 'undefined' && keysDown.has(p1.controls.left)) {
+      (_backByWalk || _backByPush)) {
     const _backBase = exploreRegion ? exploreRegion.chapters[0]
       : (_activeStory2Chapter ? _activeStory2Chapter.id : null);
     const _prev = (_backBase != null && _backBase > 0 && typeof STORY_CHAPTERS2 !== 'undefined')
@@ -86,13 +93,16 @@ function updateExploration() {
       window._exploreBackPending = true;
       _story2.health = Math.round(Math.max(1, p1.health)); // carry HP backward too
       if (typeof _saveStory2 === 'function') _saveStory2();
-      storyFightSubtitle = { text: '← Returning to ' + (_prev.title || 'the previous area') + '…', timer: 130, maxTimer: 130, color: '#88ccff' };
+      storyFightSubtitle = { text: '← ' + (_prev.title || 'the previous area'), timer: 90, maxTimer: 90, color: '#88ccff' };
+      // Near-seamless jump: the launch funnel marks the transition seamless
+      // (no loading screen — see _storyMarkTransition), so only a short beat
+      // is needed before the world swap.
       setTimeout(() => {
         window._exploreBackPending = false;
         if (!gameRunning) return;
         _exploreEnterFromRight = true;
         if (typeof _beginChapter2 === 'function') _beginChapter2(_prev.id);
-      }, 650);
+      }, 280);
       return;
     }
   }
@@ -194,11 +204,13 @@ function updateExploration() {
     const _nextWalkable = _nextCh && (_nextCh.walkFight === true || _nextCh.type === 'exploration');
     if (_nextWalkable && typeof _regionCompleteChapter === 'function' && typeof _beginChapter2 === 'function') {
       _regionCompleteChapter(_doneCh.id);
-      storyFightSubtitle = { text: `✨ ${exploreGoalName} found — entering ${_nextCh.title || 'the next area'}…`, timer: 160, maxTimer: 160, color: '#ffffaa' };
+      storyFightSubtitle = { text: `✨ ${exploreGoalName} found — entering ${_nextCh.title || 'the next area'}…`, timer: 110, maxTimer: 110, color: '#ffffaa' };
+      // Near-seamless walk-through: no loading screen (seamless launch funnel),
+      // just a short beat so the subtitle registers before the world swap.
       setTimeout(() => {
         if (!gameRunning) return;
         _beginChapter2(_nextCh.id);
-      }, 1100);
+      }, 450);
       return;
     }
 
@@ -242,6 +254,7 @@ function updateExploration() {
           prevLeft: currentArena.mapLeft,
           prevRight: currentArena.mapRight,
           label: _opp.name,
+          bornFrame: frameCount,
         };
       }
       _exploreSpawnEnemy({ wx: cp.x + 180, exactX: cp.x + 180, name: _opp.name, weaponKey: _opp.weaponKey, classKey: _opp.classKey, aiDiff: _opp.aiDiff, color: _opp.color, health: _opp.health, armor: _opp.armor, isArenaLockEnemy: true }, p1);
@@ -258,6 +271,7 @@ function updateExploration() {
           prevLeft: currentArena.mapLeft,
           prevRight: currentArena.mapRight,
           label: 'Checkpoint Arena',
+          bornFrame: frameCount,
         };
         storyFightSubtitle = { text: 'Arena lock engaged. Clear the wave.', timer: 180, maxTimer: 180, color: '#ffcc66' };
       }
@@ -487,7 +501,7 @@ function _exploreSpawnEnemy(def, p1) {
     // exactY places underground spawns (tunnel chest guardians) below the surface floor
     const floor = ((currentArena && currentArena.platforms) || []).find(pl => pl.isFloor);
     mx = def.exactX;
-    my = def.exactY != null ? def.exactY : (floor ? floor.y : 440) - 60;
+    my = def.exactY != null ? def.exactY : (floor ? floor.y : 440) - 84; // 84 = Minion h — spawn feet exactly on the floor
   } else {
     // Guards spawn directly at their post (near the relic), not offset from player
     const spawnX = isGuard ? def.wx : Math.max(p1.x + GAME_W * 0.7, def.wx);
@@ -498,13 +512,13 @@ function _exploreSpawnEnemy(def, p1) {
       : null;
     if (_exFloor) {
       mx = spawnX;
-      my = _exFloor.y - 60;
+      my = _exFloor.y - 84; // 84 = Minion h — spawn feet exactly on the floor
     } else {
       const safeSpawn = typeof pickSafeSpawnNear === 'function'
         ? pickSafeSpawnNear(spawnX, isGuard ? 'any' : 'right', p1 ? p1.x : undefined)
         : null;
       mx = safeSpawn ? safeSpawn.x : spawnX;
-      my = safeSpawn ? safeSpawn.y - 60 : 300;
+      my = safeSpawn ? safeSpawn.y - 84 : 300;
     }
   }
   const m = new Minion(mx, my, def.color || '#888888', def.weaponKey || 'sword', true, def.aiDiff || 'medium');

@@ -402,6 +402,7 @@ function _launchExplorationChapter(ch) {
   const _region = (ch.walkFight === true) ? _storyRegionFor(ch.id) : null;
   exploreRegion = null;
   exploreStartX = null;
+  window._exploreBackArmed = false; // reverse loading zone re-arms once the player walks in
 
   // Walk→fight worlds get a GoW-scale minimum length; regions stitch N of them.
   const _earth = (ch.walkFight === true) && _exploreIsEarthStyle(ch);

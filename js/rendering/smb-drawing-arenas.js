@@ -918,6 +918,35 @@ function drawStoryPhaseHUD() {
 // Draw goal object in WORLD space (called from gameLoop before HUD reset)
 function drawExploreGoalObject() {
   if (!exploreActive) return;
+  if (exploreArenaLock) {
+    // Rises over ~18 frames so the lock reads as slamming shut rather than blinking on
+    const slam = Math.min(1, (frameCount - (exploreArenaLock.bornFrame || 0)) / 18);
+    const pulseL = Math.sin(frameCount * 0.12) * 0.2 + 0.8;
+    const wallH = GAME_H * slam;
+    for (const wx of [exploreArenaLock.left, exploreArenaLock.right]) {
+      ctx.save();
+      ctx.shadowColor = '#ffaa33';
+      ctx.shadowBlur = 18 + pulseL * 14;
+      const wg = ctx.createLinearGradient(wx - 8, 0, wx + 8, 0);
+      wg.addColorStop(0,   'rgba(255,150,40,0)');
+      wg.addColorStop(0.5, 'rgba(255,195,95,0.85)');
+      wg.addColorStop(1,   'rgba(255,150,40,0)');
+      ctx.fillStyle = wg;
+      ctx.globalAlpha = 0.45 + pulseL * 0.3;
+      ctx.fillRect(wx - 8, GAME_H - wallH, 16, wallH);
+      ctx.strokeStyle = '#ffcc66';
+      ctx.lineWidth = 2;
+      ctx.globalAlpha = 0.55 + pulseL * 0.35;
+      ctx.beginPath();
+      for (let y = GAME_H - wallH; y < GAME_H; y += 26) {
+        const chev = 5 + Math.sin((y + frameCount * 2) * 0.05) * 4;
+        ctx.moveTo(wx - chev, y);
+        ctx.lineTo(wx + chev, y + 13);
+      }
+      ctx.stroke();
+      ctx.restore();
+    }
+  }
   for (const portal of (exploreSidePortals || [])) {
     if (!portal || !portal.active || portal.entered) continue;
     const pulseP = Math.sin(frameCount * 0.1) * 0.35 + 0.65;

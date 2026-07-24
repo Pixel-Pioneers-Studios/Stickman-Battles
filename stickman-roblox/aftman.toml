@@ -1,0 +1,5 @@
+# Toolchain manager: https://github.com/LPGhatguy/aftman
+# Run `aftman install` in this folder to get the pinned tools on PATH.
+# (Rokit users: aftman.toml is also read by rokit.)
+[tools]
+rojo = "rojo-rbx/rojo@7.7.0"

@@ -140,6 +140,7 @@ function _advanceStoryGauntletPhase(ch) {
     const pauseOv = document.getElementById('pauseOverlay');
     if (pauseOv) pauseOv.style.display = 'none';
     storyModeActive = true;
+    window._storySeamlessNext = true; // mid-chapter phase change — never a loading screen
     _launchStoryGauntletPhase(ch);
   }, 420);
   return true;
@@ -147,7 +148,33 @@ function _advanceStoryGauntletPhase(ch) {
 
 // Boss/special chapters bypass the gauntlet and launch directly.
 // All other fight/exploration chapters go through _startStoryGauntlet so pacing archetypes fire.
+// ── Seamless story transitions ────────────────────────────────────────────────
+// Story worlds are pure draw functions — nothing heavy loads between chapters,
+// so story-internal launches skip the loading screen (startGame consumes
+// window._storySeamlessNext). The full loading screen is reserved for:
+//   • the first story launch of a session (loading into the game proper),
+//   • crossing into a new ACT (a deliberate "something big is coming" beat),
+//   • major set-piece boss chapters.
+var _storyLastLoadedActId = null; // act id of the last chapter launched this session
+
+function _storyIsSetPieceChapter(ch) {
+  return !!(ch && (ch.isBossFight || ch.isTrueFormFight || ch.isSovereignFight ||
+                   ch.isAbsoluteAxiomFight || ch.isGodFight));
+}
+
+function _storyMarkTransition(ch) {
+  if (!ch) return;
+  const _act   = (typeof _getActForChapter === 'function') ? _getActForChapter(ch.id) : null;
+  const _actId = _act ? _act.id : null;
+  window._storySeamlessNext =
+    _storyLastLoadedActId !== null &&    // not the first launch of this session
+    _actId === _storyLastLoadedActId &&  // act boundaries keep their loading screen
+    !_storyIsSetPieceChapter(ch);        // big set-pieces keep theirs too
+  _storyLastLoadedActId = _actId;
+}
+
 function _launchChapterWithGauntlet(ch) {
+  _storyMarkTransition(ch);
   // Walk→fight→walk chapters run through the exploration engine (one continuous
   // space with a single arena-lock duel at the midpoint) rather than the instant duel.
   if (ch.walkFight) { _launchExplorationChapter(ch); return; }

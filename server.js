@@ -183,7 +183,8 @@ function _securityHeaders(req, res) {
   res.setHeader('Access-Control-Allow-Methods', 'GET,POST,DELETE,OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Admin-Session');
   res.setHeader('X-Content-Type-Options', 'nosniff');
-  res.setHeader('X-Frame-Options', 'DENY');
+  // No X-Frame-Options: it cannot express an allowlist, and game portals embed
+  // the game in an iframe. Framing is restricted via CSP frame-ancestors below.
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
   res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
   res.setHeader('Cross-Origin-Resource-Policy', 'same-origin');
@@ -192,13 +193,13 @@ function _securityHeaders(req, res) {
   }
   res.setHeader('Content-Security-Policy', [
     "default-src 'self'",
-    "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://esm.sh https://cdnjs.cloudflare.com https://unpkg.com https://www.youtube.com",
+    "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://esm.sh https://cdnjs.cloudflare.com https://unpkg.com https://www.youtube.com https://sdk.crazygames.com",
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data:",
     "media-src 'self'",
     "connect-src 'self' https://*.supabase.co https://esm.sh https://*.peerjs.com wss: https: http://localhost:11434 http://127.0.0.1:11434",
     "frame-src https://www.youtube.com",
-    "frame-ancestors 'none'",
+    "frame-ancestors 'self' https://crazygames.com https://*.crazygames.com https://itch.io https://*.itch.io https://*.itch.zone https://newgrounds.com https://*.newgrounds.com",
     "base-uri 'self'",
     "form-action 'self'",
   ].join('; '));

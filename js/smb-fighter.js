@@ -410,7 +410,7 @@ class Fighter {
     if (this._hammerSpin) {
       this._hammerSpin.timer--;
       if (this._hammerSpin.timer % 8 === 0) {
-        const _hAll = [...players, ...trainingDummies];
+        const _hAll = [...players, ...trainingDummies, ...minions];
         for (const f of _hAll) {
           if (f === this || f.health <= 0 || this._hammerSpin.hitSet.has(f)) continue;
           if (dist(this, f) < 80) {
@@ -435,7 +435,7 @@ class Fighter {
     if (this._spearCharge) {
       this._spearCharge.timer--;
       this.vx = this.facing * 14;
-      const _sAll = [...players, ...trainingDummies];
+      const _sAll = [...players, ...trainingDummies, ...minions];
       for (const f of _sAll) {
         if (f === this || f.health <= 0 || this._spearCharge.hitSet.has(f)) continue;
         if (dist(this, f) < 50) {
@@ -448,7 +448,7 @@ class Fighter {
 
     // ── Axe super: Whirlwind — continuous multi-hit spin ────────────────────────
     if (this._axeWhirl && this.spinning > 0) {
-      const _aAll = [...players, ...trainingDummies];
+      const _aAll = [...players, ...trainingDummies, ...minions];
       for (const f of _aAll) {
         if (f === this || f.health <= 0) continue;
         if (dist(this, f) < 90) {
@@ -497,7 +497,7 @@ class Fighter {
         sl.y += sl.vy;
         sl.vy += 0.08; // slight gravity arc
         sl.life--;
-        const _slAll = [...players, ...trainingDummies];
+        const _slAll = [...players, ...trainingDummies, ...minions];
         // Gentle vertical tracking toward the nearest un-hit enemy ahead of the slash,
         // so the fan doesn't sail over/under the target at range
         let _slHome = null, _slHomeD = 300;
@@ -627,7 +627,7 @@ class Fighter {
       pc.vy += 0.15;
       pc.life--;
       let _pcDetonated = false;
-      const _pcAll = [...players, ...trainingDummies];
+      const _pcAll = [...players, ...trainingDummies, ...minions];
       for (const f of _pcAll) {
         if (f === this || f.health <= 0) continue;
         if (Math.hypot(f.cx() - pc.x, (f.y + f.h * 0.5) - pc.y) < 36) { _pcDetonated = true; break; }
@@ -654,7 +654,7 @@ class Fighter {
       gs.y += gs.vy;
       gs.vy += 0.18;
       gs.life--;
-      const _gsAll = [...players, ...trainingDummies];
+      const _gsAll = [...players, ...trainingDummies, ...minions];
       let _gsHit = false;
       for (const f of _gsAll) {
         if (f === this || f.health <= 0) continue;
@@ -700,7 +700,7 @@ class Fighter {
         pl.x += pl.vx;
         pl.y += pl.vy;
         pl.life--;
-        const _plAll = [...players, ...trainingDummies];
+        const _plAll = [...players, ...trainingDummies, ...minions];
         for (const f of _plAll) {
           if (f === this || f.health <= 0 || pl.hitSet.has(f)) continue;
           if (Math.hypot(f.cx() - pl.x, (f.y + f.h * 0.5) - pl.y) < 22) {
@@ -739,7 +739,7 @@ class Fighter {
       sc.timer--;
       this.vx = this.facing * 27;
       spawnParticles(this.cx() - this.facing * 10, this.cy(), '#4488ff', 3);
-      const _scAll = [...players, ...trainingDummies];
+      const _scAll = [...players, ...trainingDummies, ...minions];
       for (const f of _scAll) {
         if (f === this || f.health <= 0 || sc.hitSet.has(f)) continue;
         if (dist(this, f) < 58) {
@@ -777,7 +777,7 @@ class Fighter {
         fb.y += fb.vy;
         const _fbDmg = fb.returning ? 16 : 26;
         const _fbKb  = fb.returning ? 12 : 18;
-        const _fbAll = [...players, ...trainingDummies];
+        const _fbAll = [...players, ...trainingDummies, ...minions];
         for (const f of _fbAll) {
           if (f === this || f.health <= 0 || fb.hitSet.has(f)) continue;
           if (Math.hypot(f.cx() - fb.x, (f.y + f.h * 0.5) - fb.y) < 30) {
@@ -798,7 +798,7 @@ class Fighter {
       fo.angle = (fo.angle || 0) + 0.22;
       fo.ballX  = this.cx() + Math.cos(fo.angle) * 75;
       fo.ballY  = (this.y + this.h * 0.4) + Math.sin(fo.angle) * 55;
-      const _foAll = [...players, ...trainingDummies];
+      const _foAll = [...players, ...trainingDummies, ...minions];
       for (const f of _foAll) {
         if (f === this || f.health <= 0) continue;
         const _foid = f._id || f.name || 'dummy';
@@ -837,7 +837,7 @@ class Fighter {
         bm.y += bm.vy;
         const _bmHitSet = bm.returning ? bm.hitSetReturn : bm.hitSetGo;
         const _bmDmg    = bm.returning ? 18 : 22;
-        const _bmAll    = [...players, ...trainingDummies];
+        const _bmAll    = [...players, ...trainingDummies, ...minions];
         for (const f of _bmAll) {
           if (f === this || f.health <= 0 || _bmHitSet.has(f)) continue;
           if (Math.hypot(f.cx() - bm.x, (f.y + f.h * 0.5) - bm.y) < 26) {
@@ -861,7 +861,7 @@ class Fighter {
         if (pp.life <= 0 || pp.x < -60 || pp.x > GAME_W + 60 || pp.y > GAME_H + 60) {
           this._paperPlanes.splice(i, 1); continue;
         }
-        const _ppAll = [...players, ...trainingDummies];
+        const _ppAll = [...players, ...trainingDummies, ...minions];
         for (const f of _ppAll) {
           if (f === this || f.health <= 0 || pp.hitSet.has(f)) continue;
           if (pp.x > f.x && pp.x < f.x + f.w && pp.y > f.y - 4 && pp.y < f.y + f.h + 4) {
@@ -886,7 +886,7 @@ class Fighter {
       for (const [_bof, _bocd] of bo.hitCd) {
         if (_bocd <= 1) bo.hitCd.delete(_bof); else bo.hitCd.set(_bof, _bocd - 1);
       }
-      const _boAll = [...players, ...trainingDummies];
+      const _boAll = [...players, ...trainingDummies, ...minions];
       for (const f of _boAll) {
         if (f === this || f.health <= 0 || bo.hitCd.has(f)) continue;
         if (Math.hypot(f.cx() - bo.ballX, (f.y + f.h * 0.5) - bo.ballY) < 30) {
@@ -920,7 +920,7 @@ class Fighter {
         if (_tadd < 32) { this._thrownAxe = null; this.superActive = false; return; }
       }
       // Hit detection — 40px radius, once per target
-      const _taAll = [...players, ...trainingDummies];
+      const _taAll = [...players, ...trainingDummies, ...minions];
       for (const f of _taAll) {
         if (f === this || f.health <= 0 || ta.hitSet.has(f)) continue;
         if (Math.hypot(f.cx() - ta.x, (f.y + f.h * 0.5) - ta.y) < 40) {
@@ -941,7 +941,7 @@ class Fighter {
       const sb = this._shockBolt;
       sb.x += sb.vx; sb.y += sb.vy; sb.vy += 0.06; sb.life--;
       let _sbExplode = sb.life <= 0;
-      const _sbAll = [...players, ...trainingDummies];
+      const _sbAll = [...players, ...trainingDummies, ...minions];
       for (const f of _sbAll) {
         if (f === this || f.health <= 0 || sb.hitSet.has(f)) continue;
         if (Math.hypot(f.cx() - sb.x, (f.y + f.h * 0.3) - sb.y) < 30) {
@@ -967,7 +967,7 @@ class Fighter {
         ez.timer--; ez.tickCd = Math.max(0, ez.tickCd - 1);
         if (ez.timer <= 0) { this._elecZones.splice(_ezi, 1); continue; }
         if (ez.tickCd <= 0) {
-          const _ezAll = [...players, ...trainingDummies];
+          const _ezAll = [...players, ...trainingDummies, ...minions];
           for (const f of _ezAll) {
             if (f === this || f.health <= 0) continue;
             if (Math.hypot(f.cx() - ez.x, (f.y + f.h) - ez.y) < ez.r) {
@@ -989,7 +989,7 @@ class Fighter {
           typeof spawnLightningBolt === 'function' && spawnLightningBolt(ts.x, ts.y);
           spawnParticles(ts.x, ts.y, '#00eeff', 20); spawnParticles(ts.x, ts.y, '#aaeeff', 10);
           screenShake = Math.max(screenShake, 18);
-          const _tsAll = [...players, ...trainingDummies];
+          const _tsAll = [...players, ...trainingDummies, ...minions];
           for (const f of _tsAll) {
             if (f === this || f.health <= 0) continue;
             if (Math.hypot(f.cx() - ts.x, f.cy() - ts.y) < 62) {
@@ -1017,7 +1017,7 @@ class Fighter {
       const hs = this._hammerShock;
       hs.x += hs.vx;
       hs.timer--;
-      const _hsAll = [...players, ...trainingDummies];
+      const _hsAll = [...players, ...trainingDummies, ...minions];
       for (const f of _hsAll) {
         if (f === this || f.health <= 0 || hs.hitSet.has(f)) continue;
         if (Math.hypot(f.cx() - hs.x, (f.y + f.h) - hs.y) < 52) {
@@ -1038,7 +1038,7 @@ class Fighter {
       br.timer--;
       // Spawn sparkle trail every other frame
       if (br.timer % 2 === 0) spawnParticles(this.cx(), this.cy(), '#ddbb88', 3);
-      const _brAll = [...players, ...trainingDummies];
+      const _brAll = [...players, ...trainingDummies, ...minions];
       for (const f of _brAll) {
         if (f === this || f.health <= 0 || br.hitSet.has(f)) continue;
         if (Math.hypot(f.cx() - this.cx(), f.cy() - this.cy()) < 52) {
@@ -1071,7 +1071,7 @@ class Fighter {
         if (_stspd > 14) { st.vx = st.vx / _stspd * 14; st.vy = st.vy / _stspd * 14; }
         if (_stdd < 28) { this._scytheToss = null; return; }
       }
-      const _stAll = [...players, ...trainingDummies];
+      const _stAll = [...players, ...trainingDummies, ...minions];
       for (const f of _stAll) {
         if (f === this || f.health <= 0) continue;
         if (st.returning && st.hitSetReturn.has(f)) continue;
@@ -1216,7 +1216,7 @@ class Fighter {
               typeof spawnLightningBolt === 'function' && spawnLightningBolt(tgt.cx(), tgt.y);
               // Chain to nearest other enemy within 130px
               let _cTgt = null, _cDist = 999;
-              const _cAll = [...players, ...trainingDummies];
+              const _cAll = [...players, ...trainingDummies, ...minions];
               for (const _cf of _cAll) {
                 if (_cf === this || _cf === tgt || _cf.health <= 0) continue;
                 const _cd = Math.hypot(_cf.cx() - tgt.cx(), _cf.cy() - tgt.cy());
@@ -1311,7 +1311,7 @@ class Fighter {
       }
       // Electric Staff overcharge: chain to nearby enemies after each melee swing
       if (this.weaponKey === 'electricstaff' && this._overcharged > 0 && this.weaponHit) {
-        const _ecAll = [...players, ...trainingDummies];
+        const _ecAll = [...players, ...trainingDummies, ...minions];
         for (const f of _ecAll) {
           if (f === this || f.health <= 0) continue;
           if (dist(this, f) < 160) {
@@ -1654,7 +1654,7 @@ class Fighter {
       // PUGILIST: Surge Strike at ≤20% HP — auto-launches Combo Strike for free
       if (this.charClass === 'pugilist' && pct <= 0.20 && !this._comboSuper) {
         this.classPerkUsed = true;
-        const _sfAll = [...players, ...trainingDummies];
+        const _sfAll = [...players, ...trainingDummies, ...minions];
         let _sfTgt = null, _sfDist = 9999;
         for (const f of _sfAll) {
           if (f === this || f.health <= 0) continue;
@@ -2116,7 +2116,7 @@ class Fighter {
       // Slingshot: auto-aim regular shot at nearest enemy (arc adjusted to lead target)
       let _bvx = this.facing * bSpd, _bvy = bVy;
       if (this.weaponKey === 'slingshot') {
-        const _aimPool = [...players, ...trainingDummies].filter(p => p !== this && p.health > 0);
+        const _aimPool = [...players, ...trainingDummies, ...minions].filter(p => p !== this && p.health > 0);
         const _aimT = _aimPool.sort((a,b) => dist(this,a) - dist(this,b))[0];
         if (_aimT) {
           const _adx = _aimT.cx() - this.cx(), _ady = _aimT.cy() - this.cy();
@@ -2421,7 +2421,7 @@ class Fighter {
           });
         }
         let healed = 0;
-        const _scAll = [...players, ...trainingDummies];
+        const _scAll = [...players, ...trainingDummies, ...minions];
         for (const f of _scAll) {
           if (f === this || f.health <= 0) continue;
           if (dist(this, f) < 210) { dealDamage(this, f, 32, 16); healed++; }
@@ -2436,7 +2436,7 @@ class Fighter {
       fryingpan: () => {
         screenShake = Math.max(screenShake, 36);
         this.vy = -6; // user leaps up into the slam
-        const _slAll = [...players, ...trainingDummies];
+        const _slAll = [...players, ...trainingDummies, ...minions];
         for (const f of _slAll) {
           if (f === this || f.health <= 0) continue;
           if (dist(this, f) < 150) {
@@ -2454,7 +2454,7 @@ class Fighter {
       broomstick: () => {
         this.spinning = 90;
         screenShake   = Math.max(screenShake, 28);
-        const _bAll   = [...players, ...trainingDummies];
+        const _bAll   = [...players, ...trainingDummies, ...minions];
         for (const f of _bAll) {
           if (f === this || f.health <= 0) continue;
           if (dist(this, f) < 250) {
@@ -2468,7 +2468,7 @@ class Fighter {
       },
       // ── Combat: Combo Strike — dash → kick up → power punch away ───────────────
       combat: () => {
-        const _csAll = [...players, ...trainingDummies];
+        const _csAll = [...players, ...trainingDummies, ...minions];
         let _csTgt = null, _csDist = 9999;
         for (const f of _csAll) {
           if (f === this || f.health <= 0) continue;
@@ -2546,7 +2546,7 @@ class Fighter {
       },
       // ── Whip: Reel — yank all enemies within 220px toward user ──────────────────
       whip: () => {
-        const _wrAll = [...players, ...trainingDummies];
+        const _wrAll = [...players, ...trainingDummies, ...minions];
         for (const f of _wrAll) {
           if (f === this || f.health <= 0) continue;
           if (dist(this, f) < 220) {
@@ -2591,7 +2591,7 @@ class Fighter {
       },
       // ── Katana: Shadow Step — instant teleport to far side of enemy + slash ──────
       katana: () => {
-        const _kAll = [...players, ...trainingDummies];
+        const _kAll = [...players, ...trainingDummies, ...minions];
         let _kTgt = null, _kDist = 9999;
         for (const f of _kAll) {
           if (f === this || f.health <= 0) continue;
@@ -2643,7 +2643,7 @@ class Fighter {
         this.vx = -this.facing * 26;
         this.vy = -4;
         screenShake = Math.max(screenShake, 28);
-        const _ftAll = [...players, ...trainingDummies];
+        const _ftAll = [...players, ...trainingDummies, ...minions];
         for (const f of _ftAll) {
           if (f === this || f.health <= 0) continue;
           const _ftRelX = f.cx() - this.cx();
@@ -2707,7 +2707,7 @@ class Fighter {
         this.vx = this.facing * 4;
         screenShake = Math.max(screenShake, 10);
         spawnParticles(this.cx(), this.cy(), '#cc2200', 10);
-        const _allTargets = [...players, ...trainingDummies];
+        const _allTargets = [...players, ...trainingDummies, ...minions];
         const _nullHits = [
           { delay: 0,   dmg: 14, kb: 6  },
           { delay: 110, dmg: 14, kb: 6  },
@@ -3597,8 +3597,9 @@ class Fighter {
     // ---- Exploration guard: defend the relic position ----
     if (this.isExploreGuard && typeof exploreGoalX !== 'undefined') {
       const guardX  = this._guardX || exploreGoalX;
-      const guardSpd = (this.aiDiff === 'expert' ? 6.5 : this.aiDiff === 'hard' ? 5.5 : 4.5) * _worldAggro;
-      const atkFreq  = Math.min(1, (this.aiDiff === 'expert' ? 0.35 : this.aiDiff === 'hard' ? 0.25 : 0.16) * _worldAggro);
+      const _guardAggro = Math.max(0.25, this._aggroBoost || 1);
+      const guardSpd = (this.aiDiff === 'expert' ? 6.5 : this.aiDiff === 'hard' ? 5.5 : 4.5) * _guardAggro;
+      const atkFreq  = Math.min(1, (this.aiDiff === 'expert' ? 0.35 : this.aiDiff === 'hard' ? 0.25 : 0.16) * _guardAggro);
       const t2 = this.target || players.find(p => !p.isBoss && p.health > 0);
       const playerNear = t2 && Math.abs(t2.cx() - guardX) < 300; // player within guard radius
       const selfNearPost = Math.abs(this.cx() - guardX) < 120;

@@ -11,8 +11,15 @@ function startGame(_skipVote) {
   const fadeOv = document.getElementById('fadeOverlay');
   const loadOv = document.getElementById('loadOverlay');
 
+  // Seamless story transition: story worlds are pure draw functions — nothing
+  // heavy loads between chapters, so skip the loading screen entirely and cover
+  // the world swap with a quick dip of the fade overlay. The flag is set by the
+  // story launch funnel (see _storyMarkTransition in smb-story-engine-flow.js).
+  const _seamless = !!window._storySeamlessNext;
+  window._storySeamlessNext = false;
+
   // Show loading overlay immediately (no dependency on fadeOv)
-  if (loadOv) {
+  if (loadOv && !_seamless) {
     const info    = _getLoadingInfo();
     const titleEl = document.getElementById('loadModeTitle');
     const subEl   = document.getElementById('loadModeSub');
@@ -30,13 +37,14 @@ function startGame(_skipVote) {
   gameLoading = true; // freeze input/physics until game is fully started
 
   // Hold the loading screen for 800ms so the player can see it
+  // (seamless story transitions skip the hold — just a ~120ms fade dip)
   setTimeout(() => {
     _startGameCore();
-    if (loadOv) setTimeout(() => { loadOv.style.display = 'none'; }, 200);
-    if (fadeOv) setTimeout(() => { fadeOv.style.opacity = '0'; }, 300);
+    if (loadOv && !_seamless) setTimeout(() => { loadOv.style.display = 'none'; }, 200);
+    if (fadeOv) setTimeout(() => { fadeOv.style.opacity = '0'; }, _seamless ? 60 : 300);
     // Unfreeze only after overlays are fully gone (~350ms fade) so bots can't act while loading screen is visible
-    setTimeout(() => { gameLoading = false; }, 480);
-  }, 800);
+    setTimeout(() => { gameLoading = false; }, _seamless ? 220 : 480);
+  }, _seamless ? 120 : 800);
 }
 
 // Pick a safe spawn position on a platform in the preferred half of the arena.

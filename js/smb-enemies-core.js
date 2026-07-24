@@ -14,7 +14,9 @@ class Minion extends Fighter {
     this.name      = 'MINION';
     this.isMinion  = true;
     this.w         = 32;
-    this.h         = 62;
+    // h must match the fixed-size stickman Fighter.draw() renders (~84px from this.y),
+    // or grounded minions stand with their feet inside the floor
+    this.h         = 84;
     this.health    = 150;
     this.maxHealth = 150;
     this.lives     = 1;
