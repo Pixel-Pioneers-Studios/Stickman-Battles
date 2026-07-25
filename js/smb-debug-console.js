@@ -1621,6 +1621,7 @@ function _consoleExec(raw) {
       _consolePrint('failsafeSnaps=' + r.whole_buffer.failsafeSnaps + ' airborneFrames=' + r.whole_buffer.airborneFrames +
         ' zoomReversals=' + r.whole_buffer.zoomReversals + ' modeChanges=' + r.whole_buffer.modeChanges);
       _consolePrint('context: ' + JSON.stringify(r.context_at_worst));
+      _consolePrint('entities: ' + JSON.stringify(r.whole_buffer.entities));
       for (const line of r.sample_rows.slice(0, 12)) _consolePrint(line, '#99aacc');
       _consolePrint('(full JSON also logged to the browser DevTools console)');
       return;

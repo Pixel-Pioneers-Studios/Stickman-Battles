@@ -378,7 +378,14 @@ function updateCamera() {
   // Cooldown prevents repeated snaps each frame (causes shudder when lerp fights snap).
   if (_camSnapCooldown > 0) _camSnapCooldown--;
   if (!cinematicCamOverride && gameRunning && activePlayers.length > 0 && _camSnapCooldown === 0) {
+    // Entities knocked outside the arena bounds are unreachable: the framing is
+    // clamped to the map, so chasing them re-fires this snap every cooldown and
+    // the branch target drags the camera straight back — a tug of war that reads
+    // as the camera lurching sideways. They are also about to die. Skip them.
+    const _fsLeft  = (currentArena && currentArena.mapLeft  !== undefined) ? currentArena.mapLeft  : 0;
+    const _fsRight = (currentArena && currentArena.mapRight !== undefined) ? currentArena.mapRight : GAME_W;
     for (const _fp of activePlayers) {
+      if (_fp.cx() < _fsLeft - 40 || _fp.cx() > _fsRight + 40) continue;
       const _sx    = (_fp.cx() - camXCur) * camZoomCur + GAME_W * 0.5;
       const _syTop = (_fp.y - camYCur) * camZoomCur + GAME_H * 0.5;
       const _syBot = (_fp.y + (_fp.h || 50) - camYCur) * camZoomCur + GAME_H * 0.5;

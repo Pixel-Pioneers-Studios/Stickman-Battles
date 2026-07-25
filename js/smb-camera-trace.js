@@ -115,6 +115,9 @@ var camTrace = (function () {
 
   function analyse(rows) {
     let zoomRev = 0, prevZSign = 0, maxZStep = 0, failsafes = 0, airFrames = 0;
+    // Entity extremes: the failsafe chases whoever leaves the view, so how far
+    // out of bounds anyone got is usually the whole explanation.
+    let eMinX = Infinity, eMaxX = -Infinity, eMinY = Infinity, eMaxY = -Infinity, maxSpread = 0;
     const modeChanges = [];
     for (let i = 1; i < rows.length; i++) {
       const a = rows[i - 1], b = rows[i];
@@ -127,9 +130,29 @@ var camTrace = (function () {
       if (b.snapCd > a.snapCd) failsafes++;
       if (b.onGround === false) airFrames++;
       if (b.mode !== a.mode) modeChanges.push(a.mode + '->' + b.mode + '@' + b.f);
+      for (const e of (b.ents || [])) {
+        if (e.x < eMinX) eMinX = e.x;
+        if (e.x > eMaxX) eMaxX = e.x;
+        if (e.y < eMinY) eMinY = e.y;
+        if (e.y > eMaxY) eMaxY = e.y;
+      }
+      if (b.ents && b.ents.length > 1) {
+        const sp = Math.max(...b.ents.map(e => e.x)) - Math.min(...b.ents.map(e => e.x));
+        if (sp > maxSpread) maxSpread = sp;
+      }
     }
+    const mapL = (typeof currentArena !== 'undefined' && currentArena && currentArena.mapLeft  !== undefined) ? currentArena.mapLeft  : 0;
+    const mapR = (typeof currentArena !== 'undefined' && currentArena && currentArena.mapRight !== undefined) ? currentArena.mapRight : GAME_W;
     return {
       frames: rows.length,
+      entities: isFinite(eMinX) ? {
+        xRange: eMinX + '..' + eMaxX, yRange: eMinY + '..' + eMaxY,
+        maxHorizontalSpread: maxSpread,
+        mapBounds: mapL + '..' + mapR,
+        pxOutsideMapLeft:  Math.max(0, Math.round(mapL - eMinX)),
+        pxOutsideMapRight: Math.max(0, Math.round(eMaxX - mapR)),
+        pxAboveTop: Math.max(0, -eMinY),
+      } : null,
       x: axis(rows, 'cx', 'tx'),
       y: axis(rows, 'cy', 'ty'),
       zoomReversals: zoomRev,
