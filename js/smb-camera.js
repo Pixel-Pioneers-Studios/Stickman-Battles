@@ -384,7 +384,16 @@ function updateCamera() {
     // as the camera lurching sideways. They are also about to die. Skip them.
     const _fsLeft  = (currentArena && currentArena.mapLeft  !== undefined) ? currentArena.mapLeft  : 0;
     const _fsRight = (currentArena && currentArena.mapRight !== undefined) ? currentArena.mapRight : GAME_W;
-    for (const _fp of activePlayers) {
+    // Only the fighters the camera is responsible for. Two fighters further apart
+    // than the viewport can never both be framed, so snapping toward an AI that
+    // is off-screen only undoes the HUD clamp's correct choice — every cooldown,
+    // for as long as the separation lasts. Falls back to everyone when there is
+    // no human to follow (bot-vs-bot demos).
+    const _fsHumans = activePlayers.filter(p => !p.isAI && !p.isBoss);
+    const _fsSubjects = (gameMode === 'online' && typeof localPlayerSlot !== 'undefined' && players[localPlayerSlot] && players[localPlayerSlot].health > 0)
+      ? [players[localPlayerSlot]]
+      : (_fsHumans.length ? _fsHumans : activePlayers);
+    for (const _fp of _fsSubjects) {
       if (_fp.cx() < _fsLeft - 40 || _fp.cx() > _fsRight + 40) continue;
       const _sx    = (_fp.cx() - camXCur) * camZoomCur + GAME_W * 0.5;
       const _syTop = (_fp.y - camYCur) * camZoomCur + GAME_H * 0.5;
