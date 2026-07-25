@@ -257,6 +257,8 @@ function _consoleExec(raw) {
       'version                 — show build/game version info',
       'time                    — show current frame count and game clock',
       'fps                     — show current FPS',
+      'camtrace arm [px]       — record camera, auto-freeze on first jolt',
+      'camtrace report         — print camera diagnosis (arm/start first)',
       'reload                  — reload the page (dev only)',
       '── Combat ───────────────────────────────────────────────────────',
       'heal [p1|p2|p3…|bot|boss|minions|all] — restore health',
@@ -1592,6 +1594,38 @@ function _consoleExec(raw) {
     const displayMsg = raw.slice('NOTIFY_DISPLAY '.length).trim();
     if (typeof _showNotification === 'function') { _showNotification(displayMsg); }
     else if (typeof _adminToast === 'function') { _adminToast(displayMsg); }
+    return;
+  }
+
+  // ---- CAMTRACE ---- camera recorder (see js/smb-camera-trace.js)
+  if (cmd.startsWith('CAMTRACE')) {
+    if (typeof camTrace === 'undefined') { _consoleErr('camTrace not loaded'); return; }
+    if (sub === '' || sub === 'arm') {
+      _consoleOk(camTrace.arm(parts[2] ? parseFloat(parts[2]) : undefined));
+      _consolePrint('Now reproduce the bug, then run: camtrace report');
+      return;
+    }
+    if (sub === 'start') { _consoleOk(camTrace.start()); return; }
+    if (sub === 'stop')  { _consoleOk(camTrace.stop());  return; }
+    if (sub === 'mark')  { camTrace.mark(parts.slice(2).join(' ')); _consoleOk('marked'); return; }
+    if (sub === 'report') {
+      const r = camTrace.report();
+      if (typeof r === 'string') { _consoleErr(r); return; }
+      const c = r.caught_event, y = r.whole_buffer.y, x = r.whole_buffer.x;
+      _consoleOk('camTrace report (' + r.whole_buffer.frames + ' frames) — copy the lines below');
+      _consolePrint('caught: ' + (c ? JSON.stringify(c) : 'nothing tripped the arm threshold'));
+      _consolePrint('Y: maxStep=' + y.maxStepPx + 'px mean=' + y.meanStepPx + ' reversals=' + y.reversals +
+        ' targetFrozen=' + y.pctTargetFrozen + '% maxTargetJump=' + y.maxTargetJumpPx + ' maxLag=' + y.maxLagPx);
+      _consolePrint('X: maxStep=' + x.maxStepPx + 'px mean=' + x.meanStepPx + ' reversals=' + x.reversals +
+        ' targetFrozen=' + x.pctTargetFrozen + '% maxLag=' + x.maxLagPx);
+      _consolePrint('failsafeSnaps=' + r.whole_buffer.failsafeSnaps + ' airborneFrames=' + r.whole_buffer.airborneFrames +
+        ' zoomReversals=' + r.whole_buffer.zoomReversals + ' modeChanges=' + r.whole_buffer.modeChanges);
+      _consolePrint('context: ' + JSON.stringify(r.context_at_worst));
+      for (const line of r.sample_rows.slice(0, 12)) _consolePrint(line, '#99aacc');
+      _consolePrint('(full JSON also logged to the browser DevTools console)');
+      return;
+    }
+    _consoleErr('camtrace: use arm | start | stop | mark | report');
     return;
   }
 
