@@ -42,11 +42,25 @@ const SERVER_CONFIG = {
 // ============================================================
 const CHANGELOG = [
   {
+    version: '4.0.9',
+    title: 'THE OPEN DOOR UPDATE',
+    date: '2026-07-24',
+    flavor: 'The way in is shorter now. Walk straight to a fight if that is what you came for — and when the road closes around you, you will see the walls that closed it.',
+    isLatest: true,
+    changes: [
+      { cat: 'UI',     text: 'Fight Now — a single button on the home screen drops you straight into a match against a bot, no menus, no setup, no unlocks required' },
+      { cat: 'UI',     text: 'The opening can be skipped with any key, and a "just let me fight" option now leads out of it if you would rather start swinging' },
+      { cat: 'UI',     text: 'Cut a redundant second intro screen — the cold open plays once instead of twice' },
+      { cat: 'Visual', text: 'Arena locks are visible — when a walking chapter seals you in for a fight, barriers now rise on both sides instead of an invisible wall you can only discover by walking into it' },
+      { cat: 'Fix',    text: 'The opening cold open no longer renders underneath the chapter list' },
+    ],
+  },
+  {
     version: '4.0.6',
     title: 'THE BURIED ROADS UPDATE',
     date: '2026-07-14',
     flavor: 'The world grew roots. The road runs on solid ground now, and beneath it are tunnels worth the descent — if you can get back out of the fire.',
-    isLatest: true,
+    isLatest: false,
     changes: [
       { cat: 'Story', text: 'Walking chapters now stand on solid, continuous terrain instead of scattered floating platforms — the ground runs unbroken from the start of the road to the fight at its end' },
       { cat: 'Story', text: 'Bigger worlds — walking stretches are far longer now, and a run of connected chapters plays as one enormous continuous overworld rather than a series of short corridors' },
@@ -866,7 +880,7 @@ let _publicRoomCheckTimer = 0;
 // ============================================================
 // VERSION
 // ============================================================
-const GAME_VERSION = '4.0.6';  // bump this when releasing; must match CHANGELOG[0].version
+const GAME_VERSION = '4.0.9';  // bump this when releasing; must match CHANGELOG[0].version
 console.log('[VERSION CHECK]', GAME_VERSION);
 
 // DEBUG / DEVELOPER STATE

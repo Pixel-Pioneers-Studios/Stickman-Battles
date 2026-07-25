@@ -846,7 +846,8 @@ function _showPrologue(onDone) {
     ov = document.createElement('div');
     ov.id = 'prologueOverlay';
     ov.style.cssText = [
-      'position:fixed', 'inset:0', 'z-index:8000',
+      // Above storyModal (9000) — the cold open opens over the chapter list
+      'position:fixed', 'inset:0', 'z-index:9500',
       'background:#000', 'display:flex', 'flex-direction:column',
       'align-items:center', 'justify-content:center',
       'cursor:pointer', 'font-family:"Segoe UI",Arial,sans-serif',
@@ -876,6 +877,24 @@ function _showPrologue(onDone) {
   btn.onmouseout  = () => { btn.style.background = 'linear-gradient(135deg,#3a1a6a,#6a2a9a)'; };
   ov.appendChild(btn);
 
+  const hint = document.createElement('div');
+  hint.textContent = 'press any key to skip';
+  hint.style.cssText = 'position:absolute;bottom:26px;font-size:0.7rem;letter-spacing:1px;color:rgba(200,200,220,0.4);font-family:inherit;';
+  ov.appendChild(hint);
+
+  const bail = document.createElement('button');
+  bail.textContent = 'Just let me fight →';
+  bail.style.cssText = [
+    'position:absolute', 'top:22px', 'right:24px',
+    'padding:7px 16px', 'background:rgba(255,255,255,0.06)',
+    'color:rgba(230,230,245,0.75)', 'border:1px solid rgba(255,255,255,0.18)',
+    'border-radius:6px', 'font-size:0.76rem', 'letter-spacing:0.5px',
+    'cursor:pointer', 'font-family:inherit',
+  ].join(';');
+  bail.onmouseover = () => { bail.style.background = 'rgba(255,255,255,0.14)'; };
+  bail.onmouseout  = () => { bail.style.background = 'rgba(255,255,255,0.06)'; };
+  ov.appendChild(bail);
+
   ov.style.opacity = '0';
   ov.style.display = 'flex';
   requestAnimationFrame(() => { ov.style.opacity = '1'; });
@@ -901,19 +920,30 @@ function _showPrologue(onDone) {
   setTimeout(() => { btn.style.opacity = '1'; }, lastDelay);
 
   let _dismissed = false;
-  function dismiss(e) {
+  function dismiss(e, after) {
     if (e) e.stopPropagation();
     if (_dismissed) return;
     _dismissed = true;
     btn.onclick = null;
     ov.onclick  = null;
+    window.removeEventListener('keydown', onKey, true);
     ov.style.opacity = '0';
     setTimeout(() => {
       ov.style.display = 'none';
-      onDone();
+      (after || onDone)();
     }, 820);
   }
+  // Skippable from the first frame — the Begin button does not appear for ~8.6s,
+  // and a new player must never be trapped watching text they cannot escape.
+  function onKey(e) {
+    if (e.key === 'Tab' || e.altKey || e.ctrlKey || e.metaKey) return;
+    dismiss(e);
+  }
+  window.addEventListener('keydown', onKey, true);
   btn.onclick = dismiss;
+  bail.onclick = (e) => dismiss(e, () => {
+    if (typeof quickFight === 'function') quickFight();
+  });
   // Also allow click anywhere on overlay after button appears
   setTimeout(() => { ov.onclick = dismiss; }, lastDelay);
 }

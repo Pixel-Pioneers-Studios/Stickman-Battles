@@ -89,11 +89,12 @@ function openStoryMenu() {
 
   if (typeof _updateContinueStoryBtn === 'function') _updateContinueStoryBtn();
 
-  // First-time prologue: show purpose screen before player sees chapter list
+  // Flag still tracked for save compatibility, but the purpose screen is no
+  // longer shown: _showPrologue (the "Tuesday" cold open) covers it 300ms later
+  // on first launch, and two text-on-black screens back to back read as a wall.
   if (m && !_story2.prologueSeen) {
     _story2.prologueSeen = true;
     if (typeof saveGame === 'function') saveGame();
-    _showStoryPrologue(m);
   }
 }
 

@@ -579,6 +579,27 @@ function setBossPlayers(n) {
   selectMode('boss'); // refresh UI
 }
 
+// Instant match for first-time visitors: no menus, no unlocks, no story gating.
+// Arenas here are deliberately hazard-free so a first fight reads clearly.
+const _QUICK_FIGHT_ARENAS = ['grass', 'city', 'forest', 'colosseum', 'clouds', 'ruins'];
+
+function quickFight() {
+  // Hides storyModal directly rather than via closeStoryMenu(), which refuses to
+  // close until chapter 0 is beaten. Quick Fight is a deliberate bypass of that gate.
+  const sm = document.getElementById('storyModal');
+  if (sm) sm.style.display = 'none';
+  const ov = document.getElementById('prologueOverlay');
+  if (ov) ov.style.display = 'none';
+  selectMode('2p');
+  p1IsBot = false;
+  p2IsBot = true;
+  p2IsNone = false;
+  const b = document.getElementById('p2BotToggle');
+  if (b) b.textContent = 'Bot';
+  selectArena(_QUICK_FIGHT_ARENAS[Math.floor(Math.random() * _QUICK_FIGHT_ARENAS.length)]);
+  startGame();
+}
+
 function toggleBot(pid) {
   if (pid === 'p1') {
     p1IsBot = !p1IsBot;
