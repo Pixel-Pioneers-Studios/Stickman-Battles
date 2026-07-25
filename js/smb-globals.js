@@ -51,6 +51,7 @@ const CHANGELOG = [
       { cat: 'UI',     text: 'Fight Now — a single button on the home screen drops you straight into a match against a bot, no menus, no setup, no unlocks required' },
       { cat: 'UI',     text: 'The opening can be skipped with any key, and a "just let me fight" option now leads out of it if you would rather start swinging' },
       { cat: 'UI',     text: 'Cut a redundant second intro screen — the cold open plays once instead of twice' },
+      { cat: 'UI',     text: 'Story mode is no longer a one-way door — you can close it and go elsewhere whenever you like, instead of being held there until the first chapter is finished' },
       { cat: 'Visual', text: 'Arena locks are visible — when a walking chapter seals you in for a fight, barriers now rise on both sides instead of an invisible wall you can only discover by walking into it' },
       { cat: 'Fix',    text: 'The opening cold open no longer renders underneath the chapter list' },
     ],

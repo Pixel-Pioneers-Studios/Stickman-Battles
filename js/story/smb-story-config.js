@@ -160,22 +160,19 @@ function startStoryFromMenu(chapterId) {
 }
 
 function closeStoryMenu() {
-  // Block close until chapter 0 is beaten
-  const ch0Beaten = Array.isArray(_story2.defeated) && _story2.defeated.includes(0);
-  if (!ch0Beaten) return; // locked — must complete chapter 1 first
   const m = document.getElementById('storyModal');
   if (m) m.style.display = 'none';
 }
 
-// Update the close button visibility based on whether chapter 0 is beaten
+// Story mode is never a trap: the player can leave at any point, including
+// before chapter 0 is beaten.
 function _updateStoryCloseBtn() {
   const btn = document.querySelector('#storyModal button[onclick="closeStoryMenu()"]');
   if (!btn) return;
-  const ch0Beaten = Array.isArray(_story2.defeated) && _story2.defeated.includes(0);
-  btn.style.opacity      = ch0Beaten ? '1'       : '0.25';
-  btn.style.pointerEvents = ch0Beaten ? 'auto'    : 'none';
-  btn.title               = ch0Beaten ? ''        : 'Complete Chapter 1 to unlock the rest of the game';
-  btn.textContent         = ch0Beaten ? '✕ Close' : '🔒 Complete Chapter 1 First';
+  btn.style.opacity       = '1';
+  btn.style.pointerEvents = 'auto';
+  btn.title               = '';
+  btn.textContent         = '✕ Close';
 }
 
 function storyNewGame() {
