@@ -138,10 +138,26 @@ selectLives(chosenLives);
         if (!ch0Beaten) {
           selectMode('story');
           setTimeout(() => {
-            if (typeof _showPrologue === 'function') {
-              _showPrologue(() => { if (typeof _beginChapter2 === 'function') _beginChapter2(0); });
-            } else if (typeof _beginChapter2 === 'function') {
-              _beginChapter2(0);
+            const _toCh0 = () => { if (typeof _beginChapter2 === 'function') _beginChapter2(0); };
+            const _seamThenCh0 = () => {
+              if (typeof _showPrologue === 'function') _showPrologue(_toCh0);
+              else _toCh0();
+            };
+            // Tuesday plays first — the ordinary man, unattributed. The seam lines
+            // then read as the bridge into the player's own story. Skipping
+            // Tuesday skips straight past the seam text too.
+            // Gated on a localStorage key as well as the save field: this runs
+            // ~800ms after load, which can beat the save finishing, and reading
+            // only _story2 replayed the cold open on every launch.
+            let _tuesSeen = !!_story2.tuesdaySeen;
+            try { if (localStorage.getItem('smb_tuesday_seen') === '1') _tuesSeen = true; } catch (e) {}
+            if (typeof TuesdayPrologue !== 'undefined' && !_tuesSeen) {
+              _story2.tuesdaySeen = true;
+              try { localStorage.setItem('smb_tuesday_seen', '1'); } catch (e) {}
+              if (typeof _saveStory2 === 'function') _saveStory2();
+              TuesdayPrologue.play((skipped) => { if (skipped) _toCh0(); else _seamThenCh0(); });
+            } else {
+              _seamThenCh0();
             }
           }, 300);
         }

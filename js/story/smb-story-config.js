@@ -179,6 +179,8 @@ function storyNewGame() {
   const msg = 'Start a new story?\nProgress will be reset. (Boss/True Form unlocks are kept.)';
   if (!confirm(msg)) return;
   _story2 = _defaultStory2Progress();
+  // A real new game replays the cold open, so drop the out-of-save guard too.
+  try { localStorage.removeItem('smb_tuesday_seen'); } catch (e) {}
   _saveStory2();
   if (typeof saveGame === 'function') saveGame();
   _renderChapterList();
@@ -971,6 +973,7 @@ function _defaultStory2Progress() {
     actExpanded:       {},      // { actIndex: bool } — user forced an out-of-range act open
     branchFlags:       {},      // { [flagKey]: true } — choices made at branch chapters
     prologueSeen:      false,   // true after the Axiom/multiverse intro plays once
+    tuesdaySeen:       false,   // true after the playable Tuesday cold open has run once
     migrations:        { threshArc: true }, // one-time save migrations already applied (new saves need none)
   };
 }
@@ -1039,6 +1042,7 @@ function _normalizeStory2Progress(data) {
   if (data.meta && typeof data.meta === 'object') out.meta = Object.assign({}, data.meta);
   if (data.branchFlags && typeof data.branchFlags === 'object') out.branchFlags = Object.assign({}, data.branchFlags);
   if (typeof data.prologueSeen === 'boolean') out.prologueSeen = data.prologueSeen;
+  if (typeof data.tuesdaySeen  === 'boolean') out.tuesdaySeen  = data.tuesdaySeen;
   // Saves predating the migrations field have had no migrations applied — don't inherit the base defaults
   out.migrations = (data.migrations && typeof data.migrations === 'object') ? Object.assign({}, data.migrations) : {};
   return out;
