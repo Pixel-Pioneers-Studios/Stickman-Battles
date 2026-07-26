@@ -436,6 +436,7 @@ function switchReplayTab(tab) {
 
 function _refreshBossReplayTab() {
   const tfRow   = document.getElementById('replayBossRow_tf');
+  const thRow   = document.getElementById('replayBossTheater');
   const emptyEl = document.getElementById('replayBossEmpty');
 
   const tfSeen = !!(window.GameState &&
@@ -443,6 +444,9 @@ function _refreshBossReplayTab() {
     GameState.getActiveAccount()?.data?.unlocks?.tfEndingSeen);
 
   if (tfRow)   tfRow.style.display   = tfSeen ? 'flex' : 'none';
+  // This tab only ever contained the one row. The theater covers every other
+  // cinematic, so point at it from here rather than leaving the tab looking bare.
+  if (thRow)   thRow.style.display   = tfSeen ? 'flex' : 'none';
   if (emptyEl) emptyEl.style.display = tfSeen ? 'none' : 'block';
 }
 
