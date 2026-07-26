@@ -104,6 +104,18 @@ function refreshMenuFromAccount() {
   const aaCard = document.getElementById('modeAbsoluteAxiom');
   if (aaCard) aaCard.style.display = (typeof absoluteAxiomUnlocked !== 'undefined' && absoluteAxiomUnlocked) ? '' : 'none';
 
+  // Cutscene Theater lists every scene in the game with no per-entry gating, so
+  // it stays hidden until the player has reached the ending it would spoil —
+  // the same flag the boss replay tab uses.
+  const csBtn = document.getElementById('cutsceneTheaterBtn');
+  if (csBtn) {
+    const tfSeen = !!(window.GameState && GameState.getActiveAccount &&
+      GameState.getActiveAccount()?.data?.unlocks?.tfEndingSeen);
+    const dev = (typeof debugMode !== 'undefined' && debugMode) ||
+      (typeof _adminPanelIsAllowed === 'function' && _adminPanelIsAllowed());
+    csBtn.style.display = (tfSeen || dev) ? '' : 'none';
+  }
+
   if (typeof refreshCoinDisplay === 'function') refreshCoinDisplay();
   if (typeof syncCodeInput === 'function') syncCodeInput();
   if (typeof refreshMegaknightClassOption === 'function') refreshMegaknightClassOption();

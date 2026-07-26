@@ -363,7 +363,7 @@
       <button class="home-nav-btn" onclick="openSettingsModal()">&#9881; Settings</button>
       <button class="home-nav-btn" onclick="openCommunityModal()">&#128172; Community</button>
       <button class="home-nav-btn" onclick="openReplayBrowser()" title="Browse and watch saved replays">&#9654; Replays</button>
-      <button class="home-nav-btn" onclick="openCutsceneTheater()" title="Rewatch any cinematic, finisher, or domain">&#127916; Cutscenes</button>
+      <button id="cutsceneTheaterBtn" class="home-nav-btn" style="display:none" onclick="openCutsceneTheater()" title="Rewatch any cinematic, finisher, or domain">&#127916; Cutscenes</button>
     </div>
 
     <!-- TRUE FORM HINT — hidden once unlocked -->
@@ -1639,7 +1639,7 @@
   <script src="./js/smb-trueform-ending-update.js?v=4.0.2"></script>
   <script src="./js/smb-trueform-ending-draw.js?v=4.0.2"></script>
   <!-- Drawing, game state, HUD, visual effects -->
-  <script src="./js/rendering/smb-drawing-arenas.js?v=4.0.21"></script>
+  <script src="./js/rendering/smb-drawing-arenas.js?v=4.0.22"></script>
   <script src="./js/rendering/smb-drawing-bg.js?v=4.0.5"></script>
   <script src="./js/rendering/smb-drawing-effects.js?v=4.0.2"></script>
   <script src="./js/rendering/smb-drawing-scenes.js?v=4.0.2"></script>

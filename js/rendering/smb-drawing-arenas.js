@@ -1659,21 +1659,42 @@ function checkSecretLetterCollect(p) {
   }
 }
 
+function _tfEndingRestartInPlace(boss) {
+  boss._tfEndingPrimed = false;
+  boss.invincible      = 0;
+  boss.health          = Math.floor(boss.maxHealth * 0.05);
+  boss.backstageHiding = false;
+  tfEndingScene        = null;
+  gameRunning          = true;
+  requestAnimationFrame(gameLoop);
+}
+
 function replayTFEnding() {
-  // Restart TF ending cinematic from the game-over screen (only works if a TF boss is present)
-  document.getElementById('gameOverOverlay').style.display = 'none';
-  if (typeof startTFEnding === 'function' && players) {
-    const boss = players.find(p => p.isTrueForm);
-    if (boss) {
-      boss._tfEndingPrimed = false;
-      boss.invincible      = 0;
-      boss.health          = Math.floor(boss.maxHealth * 0.05);
-      boss.backstageHiding = false;
-      tfEndingScene        = null;
-      gameRunning          = true;
-      requestAnimationFrame(gameLoop);
-    }
-  }
+  const ov = document.getElementById('gameOverOverlay');
+  if (ov) ov.style.display = 'none';
+  if (typeof startTFEnding !== 'function') return;
+
+  // Called from two places. On the game-over screen the TrueForm is still in
+  // players[], so the ending restarts in place. From the Replays browser there
+  // is no fight at all — that path used to find no boss and silently do nothing,
+  // which read as a dead button.
+  const live = (typeof players !== 'undefined' && players)
+    ? players.find(p => p.isTrueForm) : null;
+  if (live) { _tfEndingRestartInPlace(live); return; }
+
+  if (typeof _cinViewerLaunch !== 'function') return;
+  _cinViewerLaunch('trueform', () => {
+    const tf = (typeof players !== 'undefined' && players)
+      ? players.find(p => p.isTrueForm) : null;
+    if (!tf) return;
+    if (typeof activeCinematic !== 'undefined' && activeCinematic &&
+        typeof _cinViewerSkipCurrent === 'function') _cinViewerSkipCurrent();
+    setTimeout(() => {
+      const tf2 = (typeof players !== 'undefined' && players)
+        ? players.find(p => p.isTrueForm) : null;
+      if (tf2) startTFEnding(tf2, false);
+    }, 300);
+  }, 1200);
 }
 
 // ── Rematch countdown ────────────────────────────────────────────────────────
