@@ -15,13 +15,31 @@ var cgSdk = (function () {
     } catch(e) { return null; }
   }
 
-  window.addEventListener('load', function () {
+  // v3 requires an explicit awaited init(); until it resolves the SDK reports
+  // itself as undetected and every other call throws. Fired immediately rather
+  // than on window 'load' — the portal watches for the loading-start call while
+  // the game is still loading, and 'load' waits on every asset and pending
+  // request, which can be seconds later or never.
+  (function _cgInit() {
+    var raw = (window.CrazyGames && window.CrazyGames.SDK) || null;
+    if (!raw || typeof raw.init !== 'function') return;
+    Promise.resolve(raw.init()).then(_onSdkReady).catch(function () {});
+  }());
+
+  function _onSdkReady() {
     var s = sdk();
     if (!s) return;
 
-    // SDK v3 auto-initializes — no init() call needed
     try { s.game.sdkGameLoadingStart(); } catch(e) { return; }
-    try { s.game.sdkGameLoadingFinished(); } catch(e) {}
+    // Report loading finished once the page really is done — immediately if it
+    // already is, so the pair is never left unbalanced.
+    if (document.readyState === 'complete') {
+      try { s.game.sdkGameLoadingFinished(); } catch(e) {}
+    } else {
+      window.addEventListener('load', function () {
+        try { s.game.sdkGameLoadingFinished(); } catch(e) {}
+      });
+    }
 
     // CrazyGames can request chat be disabled (parental controls, minors, etc.)
     if (s.game && typeof s.game.addListener === 'function') {
@@ -54,7 +72,7 @@ var cgSdk = (function () {
         }
       }, 400);
     }
-  });
+  }
 
   return {
     gameplayStart: function () {

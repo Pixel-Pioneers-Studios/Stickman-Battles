@@ -9,6 +9,7 @@ const FIN_SKY_EXECUTION = {
   name: 'SKY EXECUTION',
   accentColor: 'rgba(255,120,0,1)',
   duration: 200,
+  impact: 25,
 
   setup(att, tgt, data) {
     data.ax0 = att.x; data.ay0 = att.y;
@@ -201,6 +202,7 @@ const FIN_DARKNESS_FALLS = {
   name: 'DARKNESS FALLS',
   accentColor: 'rgba(200,0,50,1)',
   duration: 130,
+  impact: 22,
 
   setup(att, tgt, data) {
     data.ax0 = att.x; data.ay0 = att.y;
@@ -304,6 +306,8 @@ const FIN_HEROS_TRIUMPH = {
   name: "HERO'S TRIUMPH",
   accentColor: 'rgba(255,210,40,1)',
   duration: 145,
+  swing: { at: 22, dur: 16 },
+  impact: 35,
 
   setup(att, tgt, data) {
     data.ax0=att.x; data.ay0=att.y;

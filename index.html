@@ -9,9 +9,9 @@
   <link rel="canonical" href="https://stickman-battles.onrender.com/">
   <meta name="theme-color" content="#0d0616">
 
-  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
-  <link rel="icon" href="/images/apple-touch-icon.png" sizes="180x180" type="image/png">
-  <link rel="apple-touch-icon" href="/images/apple-touch-icon.png">
+  <link rel="icon" href="./favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="./images/apple-touch-icon.png" sizes="180x180" type="image/png">
+  <link rel="apple-touch-icon" href="./images/apple-touch-icon.png">
 
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="Stickman Evolution">
@@ -29,7 +29,30 @@
   <meta name="twitter:description" content="Ten classes, sixteen weapons, eighteen arenas and a 184-chapter story. Play free in your browser — no download, no sign-up.">
   <meta name="twitter:image" content="https://stickman-battles.onrender.com/images/og-cover.jpg">
 
-  <link rel="stylesheet" href="SMB.css?v=4.0.2">
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "VideoGame",
+    "name": "Stickman Evolution",
+    "url": "https://stickman-battles.onrender.com/",
+    "image": "https://stickman-battles.onrender.com/images/og-cover.jpg",
+    "description": "A fast, brutal stickman action fighter you can play free in your browser. 10 classes, 16 weapons, 18 arenas and a 184-chapter story. No download, no sign-up.",
+    "genre": ["Action", "Fighting", "Browser Game"],
+    "gamePlatform": ["Web Browser", "PC"],
+    "applicationCategory": "GameApplication",
+    "operatingSystem": "Any (HTML5 browser)",
+    "playMode": ["SinglePlayer", "MultiPlayer"],
+    "inLanguage": "en",
+    "offers": {
+      "@type": "Offer",
+      "price": "0",
+      "priceCurrency": "USD",
+      "availability": "https://schema.org/InStock"
+    }
+  }
+  </script>
+
+  <link rel="stylesheet" href="SMB.css?v=4.0.21">
 </head>
 <body>
 
@@ -1517,9 +1540,9 @@
   <!-- Error boundary — must be FIRST so it catches all other module errors -->
   <script src="./js/smb-errorboundary.js?v=4.0.2"></script>
   <!-- Global state, canvas setup -->
-  <script src="./js/smb-globals.js?v=4.0.10"></script>
+  <script src="./js/smb-globals.js?v=4.0.21"></script>
   <!-- CrazyGames SDK wrapper — must follow smb-globals.js -->
-  <script src="./js/smb-crazygames.js?v=4.0.2"></script>
+  <script src="./js/smb-crazygames.js?v=4.0.21"></script>
   <!-- Live ops: remote config, version checks, soft updates (must follow smb-globals.js) -->
   <script src="./js/smb-liveops.js?v=4.0.2"></script>
   <script src="./js/smb-admin-session.js?v=4.0.2"></script>
@@ -1549,19 +1572,19 @@
   <script src="./js/smb-cinematics-multiverse.js?v=4.0.2"></script>
   <!-- Finisher system — killing-blow cinematic animations (split from smb-finishers.js) -->
   <script src="./js/smb-finisher-helpers.js?v=4.0.2"></script>
-  <script src="./js/smb-finisher-void.js?v=4.0.2"></script>
-  <script src="./js/smb-finisher-reality.js?v=4.0.2"></script>
-  <script src="./js/smb-finisher-boss.js?v=4.0.2"></script>
-  <script src="./js/smb-finisher-tf.js?v=4.0.2"></script>
-  <script src="./js/smb-finisher-yeti.js?v=4.0.2"></script>
-  <script src="./js/smb-finisher-beast.js?v=4.0.2"></script>
-  <script src="./js/smb-finisher-weapon.js?v=4.0.6"></script>
-  <script src="./js/smb-finisher-weapon2.js?v=4.0.2"></script>
-  <script src="./js/smb-finisher-engine.js?v=4.0.2"></script>
+  <script src="./js/smb-finisher-void.js?v=4.0.21"></script>
+  <script src="./js/smb-finisher-reality.js?v=4.0.21"></script>
+  <script src="./js/smb-finisher-boss.js?v=4.0.21"></script>
+  <script src="./js/smb-finisher-tf.js?v=4.0.21"></script>
+  <script src="./js/smb-finisher-yeti.js?v=4.0.20"></script>
+  <script src="./js/smb-finisher-beast.js?v=4.0.21"></script>
+  <script src="./js/smb-finisher-weapon.js?v=4.0.21"></script>
+  <script src="./js/smb-finisher-weapon2.js?v=4.0.21"></script>
+  <script src="./js/smb-finisher-engine.js?v=4.0.21"></script>
   <!-- Platform graph + A* pathfinding (must load before smb-fighter.js) -->
   <script src="./js/smb-pathfinding.js?v=4.0.2"></script>
   <!-- Fighter base class -->
-  <script src="./js/smb-fighter.js?v=4.0.7"></script>
+  <script src="./js/smb-fighter.js?v=4.0.21"></script>
   <!-- Modular combat AI: CombatSystem, MovementSystem, AIController, CombatAIFighter -->
   <script src="./js/smb-combat-ai.js?v=4.0.2"></script>
   <!-- Enemy NPCs, training mode -->
@@ -1575,7 +1598,7 @@
   <!-- Divine Summon: H key calls a Herald to clear the level -->
   <script src="./js/smb-divine-summon.js?v=4.0.2"></script>
   <!-- Domain Expansion system -->
-  <script src="./js/smb-domain.js?v=4.0.6"></script>
+  <script src="./js/smb-domain.js?v=4.0.21"></script>
   <!-- Boss and True Form -->
   <script src="./js/boss/smb-boss.js?v=4.0.2"></script>
   <script src="./js/boss/smb-boss-cinematics.js?v=4.0.2"></script>
@@ -1615,11 +1638,11 @@
   <script src="./js/smb-trueform-ending-update.js?v=4.0.2"></script>
   <script src="./js/smb-trueform-ending-draw.js?v=4.0.2"></script>
   <!-- Drawing, game state, HUD, visual effects -->
-  <script src="./js/rendering/smb-drawing-arenas.js?v=4.0.9"></script>
+  <script src="./js/rendering/smb-drawing-arenas.js?v=4.0.21"></script>
   <script src="./js/rendering/smb-drawing-bg.js?v=4.0.5"></script>
   <script src="./js/rendering/smb-drawing-effects.js?v=4.0.2"></script>
   <script src="./js/rendering/smb-drawing-scenes.js?v=4.0.2"></script>
-  <script src="./js/rendering/smb-drawing-hud.js?v=4.0.2"></script>
+  <script src="./js/rendering/smb-drawing-hud.js?v=4.0.21"></script>
   <script src="./js/rendering/smb-drawing-arenas2.js?v=4.0.2"></script>
   <script src="./js/rendering/smb-drawing-arenas3.js?v=4.0.2"></script>
   <!-- Minigame systems -->
@@ -1634,7 +1657,7 @@
   <!-- Deterministic step-based cutscene system -->
   <script src="./js/smb-cutscene.js?v=4.0.2"></script>
   <!-- Camera, screen FX, main game loop, input (split from smb-loop.js) -->
-  <script src="./js/smb-camera.js?v=4.0.12"></script>
+  <script src="./js/smb-camera.js?v=4.0.21"></script>
   <script src="./js/smb-camera-trace.js?v=4.0.11"></script>
   <script src="./js/smb-screenfx.js?v=4.0.2"></script>
   <script src="./js/smb-loop-core.js?v=4.0.5"></script>
@@ -1646,9 +1669,9 @@
   <script src="./js/smb-menu-config.js?v=4.0.2"></script>
   <script src="./js/smb-menu-spawn.js?v=4.0.8"></script>
   <script src="./js/smb-menu-startcore.js?v=4.0.6"></script>
-  <script src="./js/smb-menu-utils.js?v=4.0.13"></script>
+  <script src="./js/smb-menu-utils.js?v=4.0.21"></script>
   <!-- Network / online multiplayer -->
-  <script src="./js/smb-network.js?v=4.0.2"></script>
+  <script src="./js/smb-network.js?v=4.0.21"></script>
   <!-- Centralized runtime state (accounts, admin overrides, online session) -->
   <!-- Must load before smb-online.js, smb-accounts.js, and smb-admin.js -->
   <script src="./js/smb-state.js?v=4.0.2"></script>
@@ -1662,7 +1685,7 @@
   <script src="./js/smb-ai-console.js?v=4.0.6"></script>
   <script src="./js/smb-debug-jump.js?v=4.0.6"></script>
   <!-- Account system — must load before smb-save.js so getSaveKey() works -->
-  <script src="./js/smb-accounts.js?v=4.0.2"></script>
+  <script src="./js/smb-accounts.js?v=4.0.21"></script>
   <!-- Save / Export / Import system -->
   <script src="./js/smb-save.js?v=4.0.6"></script>
   <!-- Admin control panel — F9 to toggle; only visible for accounts in ADMIN_IDS -->
@@ -1726,9 +1749,9 @@
   <script src="./js/story/smb-story-engine-events.js?v=4.0.2"></script>
   <script src="./js/story/smb-story-engine-frame.js?v=4.0.2"></script>
   <script src="./js/story/smb-story-engine-explore.js?v=4.0.8"></script>
-  <script src="./js/story/smb-story-engine-explore2.js?v=4.0.9"></script>
+  <script src="./js/story/smb-story-engine-explore2.js?v=4.0.21"></script>
   <script src="./js/story/smb-story-interlude.js?v=4.0.2"></script>
-  <script src="./js/story/smb-story-engine-modes.js?v=4.0.6"></script>
+  <script src="./js/story/smb-story-engine-modes.js?v=4.0.21"></script>
   <script src="./js/story/smb-story-finalize.js?v=4.0.2"></script>
   <!-- Escort chapter engine — NPC protection, wave spawning, story integration -->
   <script src="./js/smb-escort.js?v=4.0.2"></script>

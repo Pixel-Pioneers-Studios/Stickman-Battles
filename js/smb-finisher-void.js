@@ -5,6 +5,7 @@ const FIN_VOID_SLAM = {
   name: 'VOID SLAM',
   accentColor: 'rgba(140,0,220,1)',
   duration: 185,
+  impact: 20,
 
   setup(att, tgt, data) {
     data.ax0 = att.x; data.ay0 = att.y;

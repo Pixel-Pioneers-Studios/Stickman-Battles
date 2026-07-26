@@ -551,6 +551,10 @@ function _acctRenderList(inner) {
 }
 
 function _acctRenderCloudSection() {
+  // CrazyGames forbids external login options, and email/password sign-in to our
+  // own backend counts. Hide the whole cloud-save block there — local saves and
+  // the local account system are unaffected.
+  if (window.CrazyGames && window.CrazyGames.SDK) return '';
   if (!window.SupabaseBridge) {
     return '<div style="margin:0 0 14px;padding:12px;border:1px solid rgba(100,180,255,0.18);border-radius:8px;background:rgba(255,255,255,0.03);font-size:0.78rem;opacity:0.65;">Cloud saves are not loaded.</div>';
   }

@@ -42,6 +42,82 @@ const _BEAST_KILL_POOL   = [FIN_BEAST_FERAL_TACKLE, FIN_BEAST_NATURE_DEVOUR, FIN
 const _BOSS_KILL_POOL    = [FIN_VOID_SLAM, FIN_REALITY_BREAK, FIN_SKY_EXECUTION, FIN_DARKNESS_FALLS];
 
 // ============================================================
+// SHARED PRESENTATION LAYER
+// ============================================================
+// Every finisher def may opt into these; all fields are optional.
+//   def.face   — false to disable auto-facing, or (att,tgt,timer,data) => [attFacing, tgtFacing]
+//                (return null/undefined for either slot to fall back to the default)
+//   def.swing  — {at, dur} or an array of them: render-only weapon swing windows on the
+//                attacker. Drives the real WEAPON_SWINGS grammar, so the weapon actually
+//                arcs (and leaves its swing-trail ribbon) instead of sitting in idle pose.
+//   def.impact — frame from which the target reads as hurt (grimace + hurt pose).
+//   def.approach — {at, dur, gap}: walk the attacker in to `gap` px from the target's
+//                near edge. For melee finishers whose choreography never closed the
+//                distance, so the killing blow swung through empty air.
+// ============================================================
+
+// Applied after def.update so it wins over the def's own positioning. Only for
+// defs that don't already lunge — never add this on top of an authored dash.
+function _finApplyApproach(att, tgt, def, timer, data) {
+  const ap = def.approach;
+  if (!ap) return;
+  if (timer < ap.at) { data._apFromX = att.x; return; }
+  if (data._apToX === undefined) {
+    const dir = data.dir || (tgt.cx() > att.cx() ? 1 : -1);
+    const gap = (ap.gap === undefined) ? 28 : ap.gap;
+    if (data._apFromX === undefined) data._apFromX = att.x;
+    let to = dir > 0 ? tgt.x - att.w - gap : tgt.x + tgt.w + gap;
+    // Never walk backwards — if we already started inside that gap, stay put
+    if ((dir > 0 && to < data._apFromX) || (dir < 0 && to > data._apFromX)) to = data._apFromX;
+    data._apToX = to;
+  }
+  const p = Math.min(1, (timer - ap.at) / (ap.dur || 12));
+  att.x = data._apFromX + (data._apToX - data._apFromX) * _finEaseOut(p);
+}
+
+// Fighters must always face each other. Without this the attacker keeps whatever
+// facing it had at kill time — commonly its back to the target, with the weapon
+// swinging out the wrong side and clipping through the victim.
+function _finApplyFacing(att, tgt, def, timer, data) {
+  if (def.face === false) return;
+  let fa = null, ft = null;
+  if (typeof def.face === 'function') {
+    let r = null;
+    try { r = def.face(att, tgt, timer, data); } catch (e) { r = null; }
+    if (r) { fa = r[0]; ft = r[1]; }
+  }
+  if (fa === null || fa === undefined) {
+    const dx = tgt.cx() - att.cx();
+    // Deadzone: near-perfect overlap keeps the previous facing rather than flip-flopping
+    if (Math.abs(dx) >= 3) { fa = dx > 0 ? 1 : -1; if (ft === null || ft === undefined) ft = -fa; }
+  }
+  if (fa) att.facing = fa;
+  if (ft) tgt.facing = ft;
+}
+
+// Render-only swing pose. Never writes attackTimer — that would re-arm the melee
+// hit-scan in Fighter.update() and let a finisher damage bystanders.
+function _finApplyPose(att, tgt, def, timer) {
+  att._finPoseP = null;
+  const sw = def.swing;
+  if (sw) {
+    const list = Array.isArray(sw) ? sw : [sw];
+    for (const w of list) {
+      const dur = w.dur || 12;
+      if (timer >= w.at && timer < w.at + dur) { att._finPoseP = (timer - w.at) / dur; break; }
+    }
+  }
+  tgt._finPoseState = (def.impact && timer >= def.impact) ? 'hurt' : null;
+}
+
+function _finClearPose(f) {
+  if (!f) return;
+  f._finPoseP = null;
+  f._finPoseState = null;
+  f._finNoBlink = false;
+}
+
+// ============================================================
 // TRIGGER
 // ============================================================
 function triggerFinisher(attacker, target) {
@@ -89,6 +165,10 @@ function triggerFinisher(attacker, target) {
   target.invincible = 9999;
   target.vx = 0; target.vy = 0;
   attacker.vx = 0; attacker.vy = 0;
+  // The freeze-alive lock is not real i-frames — don't render it as the blink flicker
+  attacker._finNoBlink = true; target._finNoBlink = true;
+  attacker._finPoseP = null;   target._finPoseP = null;
+  attacker._finPoseState = null; target._finPoseState = null;
 
   const data = {};
   if (def.setup) {
@@ -100,6 +180,7 @@ function triggerFinisher(attacker, target) {
       console.error('[finisher] setup threw — aborting finisher:', e);
       target.health = 0;
       target.invincible = 0;
+      _finClearPose(attacker); _finClearPose(target);
       return false;
     }
   }
@@ -148,10 +229,9 @@ function updateFinisher() {
     CinFX.motionTrailOn(attacker, def.accentColor || attacker.color || '#ffffff');
   }
 
-  // Auto name card: slam in at frame 18 using the finisher's name property
-  if (activeFinisher.timer === 18 && def.name && typeof CinFX !== 'undefined') {
-    CinFX.nameCard(def.name, def.accentColor || '#ffffff', { dur: Math.min(90, def.duration - 28) });
-  }
+  // NOTE: no auto name card here. Every finisher def draws its own title via
+  // _finTitle() in its draw(), so slamming a CinFX.nameCard in as well put the
+  // finisher's name on screen twice, in two different styles, at the same time.
 
   // A throwing finisher must never stall the timer at slowMotion=0 forever —
   // force-complete so the normal end path below restores camera/time/locks.
@@ -164,11 +244,17 @@ function updateFinisher() {
     }
   }
 
+  // Shared presentation: run AFTER def.update so it reads the def's final positions
+  _finApplyApproach(attacker, target, def, activeFinisher.timer, data);
+  _finApplyFacing(attacker, target, def, activeFinisher.timer, data);
+  _finApplyPose(attacker, target, def, activeFinisher.timer);
+
   activeFinisher.timer++;
 
   if (activeFinisher.timer >= activeFinisher.totalDuration) {
     // Clean up motion trail on attacker
     if (typeof CinFX !== 'undefined') CinFX.motionTrailOff(activeFinisher.attacker);
+    _finClearPose(attacker); _finClearPose(target);
     // Restore camera / time
     CinCam.restore();
     slowMotion = 1.0; // resume game world

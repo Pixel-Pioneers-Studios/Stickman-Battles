@@ -1106,6 +1106,98 @@ const DomainManager = (() => {
 
   // ── Domain sky effects (world-space; class-specific atmosphere) ────
 
+  // '#44aaff' -> 'rgba(68,170,255,a)'
+  function _dRgba(hex, a) {
+    if (!hex || hex[0] !== '#' || hex.length < 7) return `rgba(255,255,255,${a})`;
+    return `rgba(${parseInt(hex.slice(1, 3), 16)},${parseInt(hex.slice(3, 5), 16)},${parseInt(hex.slice(5, 7), 16)},${a})`;
+  }
+
+  // Horizontal extent of the playable world, so wide (scrolling) arenas don't get a
+  // hard tint edge partway across the map.
+  function _dWorldSpan() {
+    const a = (typeof currentArena !== 'undefined') ? currentArena : null;
+    const left  = a && a.mapLeft  !== undefined ? Math.min(0, a.mapLeft) : 0;
+    const right = a && (a.mapRight !== undefined || a.worldWidth !== undefined)
+      ? Math.max(GAME_W, a.mapRight !== undefined ? a.mapRight : a.worldWidth)
+      : GAME_W;
+    return { left: left - 80, right: right + 80 };
+  }
+
+  // ── Shared domain frame ────────────────────────────────────────────────
+  // Every DOMAIN_DEF has always carried a `bgTint`, but nothing consumed it — so an
+  // expanded domain looked like the ordinary arena with sparkles on top. This is the
+  // layer that makes the arena read as somewhere else: colour grade, horizon glow,
+  // the domain's own walls, drifting motes, and a visible warning as it collapses.
+  function _drawDomainFrame(domain) {
+    const { def, timer } = domain;
+    const now  = performance.now();
+    const seed = domain.owner ? (domain.owner.playerNum || 0) : 0;
+    const fadeIn  = Math.min(1, (DOMAIN_FRAMES - timer) / 45);
+    const fadeOut = Math.min(1, timer / 75);          // recedes as the domain collapses
+    const a = fadeIn * fadeOut;
+    if (a <= 0.01) return;
+
+    const { left, right } = _dWorldSpan();
+    const span = right - left;
+    const col  = def.color || '#ffffff';
+    // Last ~3 s: the walls stutter so the owner can see the domain is about to drop
+    const dying   = timer < 180 ? 1 - timer / 180 : 0;
+    const flicker = dying > 0 ? (0.65 + 0.35 * Math.sin(now / (60 - dying * 38))) : 1;
+
+    ctx.save();
+
+    // 1. Colour grade — the authored bgTint, finally applied
+    if (def.bgTint) {
+      ctx.globalAlpha = a;
+      ctx.fillStyle = def.bgTint;
+      ctx.fillRect(left, -GAME_H, span, GAME_H * 3);
+    }
+
+    // 2. Horizon glow rising off the floor in the domain's colour
+    const _dhGrd = ctx.createLinearGradient(0, GAME_H, 0, GAME_H * 0.42);
+    _dhGrd.addColorStop(0, _dRgba(col, 0.28 * a));
+    _dhGrd.addColorStop(1, _dRgba(col, 0));
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = _dhGrd;
+    ctx.fillRect(left, GAME_H * 0.42, span, GAME_H * 0.58);
+
+    // 3. Domain walls — a hard boundary you can see, with a scan travelling down it
+    ctx.globalAlpha = a * 0.9 * flicker;
+    ctx.shadowColor = col; ctx.shadowBlur = 26;
+    for (const wx of [left + 74, right - 74]) {
+      const _dwGrd = ctx.createLinearGradient(wx, 0, wx + (wx < GAME_W / 2 ? 46 : -46), 0);
+      _dwGrd.addColorStop(0, _dRgba(col, 0.42));
+      _dwGrd.addColorStop(1, _dRgba(col, 0));
+      ctx.fillStyle = _dwGrd;
+      ctx.fillRect(Math.min(wx, wx + (wx < GAME_W / 2 ? 46 : -46)), 0, 46, GAME_H);
+      ctx.strokeStyle = _dRgba(col, 0.55);
+      ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(wx, 0); ctx.lineTo(wx, GAME_H); ctx.stroke();
+      // scan pulse
+      const scanY = ((now / 9 + seed * 130) % (GAME_H + 160)) - 80;
+      ctx.strokeStyle = _dRgba('#ffffff', 0.5);
+      ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.moveTo(wx - 7, scanY); ctx.lineTo(wx + 7, scanY); ctx.stroke();
+    }
+    // Ceiling seam
+    ctx.strokeStyle = _dRgba(col, 0.35);
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(left, 6); ctx.lineTo(right, 6); ctx.stroke();
+    ctx.shadowBlur = 0;
+
+    // 4. Ambient motes drifting through the space
+    ctx.fillStyle = col;
+    ctx.shadowColor = col; ctx.shadowBlur = 8;
+    for (let m = 0; m < 30; m++) {
+      const mx = left + ((m * 137.5 + now * 0.012 * (0.5 + (m % 5) * 0.2)) % span);
+      const my = ((m * 71 + now * 0.02 * (0.4 + (m % 4) * 0.25)) % (GAME_H + 40)) - 20;
+      ctx.globalAlpha = a * (0.10 + 0.16 * Math.sin(now / 420 + m * 0.9));
+      ctx.beginPath(); ctx.arc(mx, my, 1.4 + (m % 3) * 0.9, 0, Math.PI * 2); ctx.fill();
+    }
+
+    ctx.restore();
+  }
+
   function _drawDomainSkyEffects(domain) {
     const { defKey, timer } = domain;
     const now = performance.now();
@@ -4137,6 +4229,7 @@ const DomainManager = (() => {
 
     if (_domains.length === 0) return;
     for (const domain of _domains) {
+      _drawDomainFrame(domain);
       _drawDomainSkyEffects(domain);
       for (const h of domain.hazards) {
         _drawHazard(h, domain.def);

@@ -16,7 +16,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - A declarative cinematic scripting system built on `CinematicManager`
 - No build step — raw HTML5 Canvas + plain JS globals loaded via `<script>` tags
 
-**Active codebase:** `Stickman-Battles/` — do not edit legacy root files (`SMC.html`, `SMC.js`, `SMC.css`, `SMC.js.backup`).
+**Active codebase:** the repo root — `index.html`, `SMB.css`, `js/`, `server.js`. Every `.js` under `js/` is loaded by `index.html`; there are no dead or duplicate script files.
 
 ---
 
@@ -127,9 +127,23 @@ Environment variables:
 
 ---
 
+## Repo Layout
+
+| Path | Contents |
+|------|----------|
+| `index.html`, `SMB.css`, `js/` | The game itself — everything the browser loads |
+| `server.js`, `storage.js`, `data.db`, `supabase/` | Relay + ban API + cloud saves |
+| `docs/` | All design and architecture docs, including `README_ANALYSIS.md` |
+| `images/` | Game art; `images/store/` holds the CrazyGames submission assets |
+| `replays/` | Saved `.smbreplay` capture files — artifacts, nothing loads them |
+| `tools/` | Dev tooling; `tools/tour/` is the trailer capture script, frames, and mp4 |
+| `axiom-prequel/`, `stickman-roblox/`, `Stickman-Battles-3d/` | Separate sibling games, not part of the main build |
+
+---
+
 ## File Structure (Load Order)
 
-Script load order in `Stickman-Battles/index.html` — files may only reference globals from earlier entries:
+Script load order in `index.html` — files may only reference globals from earlier entries:
 
 1. `js/smb-errorboundary.js` — Global error boundary/fallback
 2. `js/smb-globals.js` — ALL global state (canvas, settings, TF state, online state, boss floor state)
@@ -272,8 +286,8 @@ Dependencies: GSAP 3.12.5 (CDN), PeerJS 1.5.4 (CDN).
 | Direct `target.health -=` | Skips multipliers, shields, online sync, hit-stop, achievements |
 | ES module syntax | Breaks all files loaded after it — game goes completely silent |
 | Missing `isFloor: true` platform | `pickSafeSpawn()` returns null → crashes on respawn |
-| Editing files in wrong directory | Legacy root `SMC.*` files are dead code — only edit `Stickman-Battles/` |
-| Editing legacy consolidated files | `js/` contains old pre-split files (`smb-admin.js`, `smb-cinematics.js`, `smb-debug.js`, `smb-enemies.js`, `smb-finishers.js`, `smb-loop.js`, `smb-menu.js`, `smb-paradox.js`, `smb-particles.js`, `smb-qte.js`, etc.) that are NOT loaded by `index.html` — edits have no effect |
+| Editing a sibling project by mistake | `axiom-prequel/`, `stickman-roblox/`, and `Stickman-Battles-3d/` are separate games — the main game is the repo root |
+| Adding a `js/` file without a `<script>` tag | Nothing loads it and the globals it defines are undefined at call sites |
 
 ---
 

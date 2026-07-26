@@ -1,0 +1,10 @@
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /admin/
+Disallow: /socket.io/
+Disallow: /supabase/
+Disallow: /tools/
+Disallow: /replays/
+
+Sitemap: https://stickman-battles.onrender.com/sitemap.xml

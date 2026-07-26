@@ -3032,7 +3032,7 @@ class Fighter {
     }
 
     // Fix 6: debug state display — show current AI state as a small label above bot
-    if (this.isAI && !this.isBoss && settings.dmgNumbers) {
+    if (this.isAI && !this.isBoss && typeof debugMode !== 'undefined' && debugMode) {
       this._debugState = best; // drawn by Fighter.draw() if present
     }
 
@@ -3501,9 +3501,12 @@ class Fighter {
     }
 
     // ---- RANDOM NUDGE: prevents long idle stretches ----
+    // Biased toward the target: a bot stalled against a ledge would otherwise
+    // wander off in a random direction and stay stalled.
     if (!this.isBoss && frameCount % 45 === 0 && Math.abs(this.vx) < 0.5 && this.target) {
       const spd0 = this.aiDiff === 'easy' ? 2.6 : this.aiDiff === 'medium' ? 4.2 : 5.8;
-      this._wanderDir   = (Math.random() < 0.5 ? -1 : 1);
+      const toT  = this.target.cx() > this.cx() ? 1 : -1;
+      this._wanderDir   = this.isEdgeDanger(toT) ? -toT : toT;
       this._wanderTimer = 20;
       this.vx           = this._wanderDir * spd0;
     }
@@ -3791,8 +3794,23 @@ class Fighter {
         }
         if (this.onGround && Math.random() < 0.30) this.vy = -18; // jump away
       } else if (d > _optMax) {
-        // PRESSURE: chase into range, shoot opportunistically
-        if (!this.isEdgeDanger(dir)) this.vx = dir * spd * (_targetIsRanged ? 1.30 : (_isDominating ? 1.20 : 1.00));
+        // PRESSURE: chase into range, shoot opportunistically. Routed through the
+        // platform graph — walking straight at the target stalls forever against a
+        // ledge when the target is standing above.
+        const _rWp = (typeof pfGetNextWaypoint === 'function' && !this.isBoss)
+          ? pfGetNextWaypoint(this, t.cx(), t.y + t.h * 0.5) : null;
+        const _rDir = _rWp ? (_rWp.x > this.cx() ? 1 : -1) : dir;
+        const _rSpd = spd * (_targetIsRanged ? 1.30 : (_isDominating ? 1.20 : 1.00));
+        if (!this.isEdgeDanger(_rDir)) this.vx = _rDir * _rSpd;
+        if (_rWp && (_rWp.action === 'jump' || _rWp.action === 'doubleJump')) {
+          this.vx = _rDir * _rSpd;
+          if (this.onGround) this.vy = -20;
+          else if (_rWp.action === 'doubleJump' && this.canDoubleJump && this.vy >= -2) {
+            this.vy = -17; this.canDoubleJump = false;
+          }
+        } else if (this.onGround && (this.isEdgeDanger(_rDir) || t.y + t.h < this.y - 60)) {
+          this.vy = -19;
+        }
         if (d < this.weapon.range * 1.1 + 20 && this.cooldown <= 0) this.attack(t);
       } else {
         // OPTIMAL RANGE: strafe continuously — never stand still
@@ -3924,15 +3942,19 @@ class Fighter {
       ctx.translate(-pivX, -pivY);
     }
 
-    // Invincibility blink
-    if (this.invincible > 0 && Math.floor(this.invincible / 5) % 2 === 1) {
+    // Invincibility blink — suppressed during a finisher, where both fighters carry
+    // a huge invincible timer purely as a freeze-alive lock (blinking them looks broken).
+    if (this.invincible > 0 && Math.floor(this.invincible / 5) % 2 === 1 && !this._finNoBlink) {
       ctx.globalAlpha = 0.35;
     }
 
     const cx = this.cx();
     const ty = this.y;
     const f  = this.facing;
-    const s  = this.state;
+    // Finisher pose override (render-only — never touches attackTimer, so no hitboxes fire).
+    // _finPoseP = swing progress 0..1; _finPoseState = forced pose state ('hurt' etc).
+    const s  = (this._finPoseP !== null && this._finPoseP !== undefined) ? 'attacking'
+             : (this._finPoseState || this.state);
     const t  = this.animTimer;
 
     // ---- Scripted animation ----
@@ -4157,7 +4179,8 @@ class Fighter {
     ctx.stroke();
 
     // ARM ANGLES
-    const atkProgress = this.attackDuration > 0 ? 1 - this.attackTimer / this.attackDuration : 0;
+    const atkProgress = (this._finPoseP !== null && this._finPoseP !== undefined) ? this._finPoseP
+                      : (this.attackDuration > 0 ? 1 - this.attackTimer / this.attackDuration : 0);
     let rAng, lAng;
 
     if (this._rd && this.spinning <= 0) {
@@ -4494,8 +4517,8 @@ class Fighter {
     ctx.shadowBlur   = 4;
     ctx.fillText(this.name, cx, ty - 5);
     ctx.shadowBlur   = 0;
-    // Fix 6: debug state label — shown only when dmgNumbers is on (dev toggle)
-    if (this._debugState && settings.dmgNumbers) {
+    // AI state label — debug only; dmgNumbers is a player-facing setting
+    if (this._debugState && typeof debugMode !== 'undefined' && debugMode) {
       ctx.font      = 'bold 8px monospace';
       ctx.fillStyle = '#ffee55';
       ctx.fillText(this._debugState, cx, ty - 16);
@@ -5638,63 +5661,120 @@ class Fighter {
       const _ppInAir = (this._paperPlanes && this._paperPlanes.length > 0) ||
                        (this._paperSwarm  && this._paperSwarm.length  > 0);
       if (!_ppInAir) {
-        ctx.fillStyle = '#ddeeff';
-        ctx.beginPath();
-        ctx.moveTo(0, 0); ctx.lineTo(28, -2); ctx.lineTo(0, -10); ctx.closePath(); ctx.fill();
-        ctx.beginPath();
-        ctx.moveTo(0, 0); ctx.lineTo(28, -2); ctx.lineTo(0, 8); ctx.closePath();
-        ctx.fillStyle = '#bbccee'; ctx.fill();
-        ctx.strokeStyle = '#7799bb'; ctx.lineWidth = 0.8; ctx.stroke();
-        ctx.strokeStyle = '#aabbdd'; ctx.lineWidth = 0.5;
-        ctx.beginPath(); ctx.moveTo(0, -1); ctx.lineTo(20, -2); ctx.stroke();
+        // Far wing — shaded, so the fold reads as two sheets meeting at a keel
+        const _ppFarGrd = ctx.createLinearGradient(0, -10, 14, 0);
+        _ppFarGrd.addColorStop(0, '#f2f8ff'); _ppFarGrd.addColorStop(1, '#c3d4ee');
+        ctx.fillStyle = _ppFarGrd;
+        ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(28, -2); ctx.lineTo(0, -10); ctx.closePath(); ctx.fill();
+        ctx.strokeStyle = 'rgba(110,140,180,0.7)'; ctx.lineWidth = 0.7; ctx.stroke();
+        // Near wing — darker underside
+        const _ppNearGrd = ctx.createLinearGradient(0, 8, 16, 0);
+        _ppNearGrd.addColorStop(0, '#93a9cc'); _ppNearGrd.addColorStop(1, '#c9d8f0');
+        ctx.fillStyle = _ppNearGrd;
+        ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(28, -2); ctx.lineTo(0, 8); ctx.closePath(); ctx.fill();
+        ctx.strokeStyle = 'rgba(90,120,165,0.8)'; ctx.lineWidth = 0.8; ctx.stroke();
+        // Centre keel — the sharp spine of the fold
+        ctx.strokeStyle = 'rgba(70,100,150,0.9)'; ctx.lineWidth = 1.1;
+        ctx.beginPath(); ctx.moveTo(0, -1); ctx.lineTo(28, -2); ctx.stroke();
+        // Secondary crease lines running back from the nose
+        ctx.strokeStyle = 'rgba(140,170,210,0.65)'; ctx.lineWidth = 0.5;
+        ctx.beginPath(); ctx.moveTo(26, -2); ctx.lineTo(2, -6.5); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(26, -2); ctx.lineTo(2, 5); ctx.stroke();
+        // Nose highlight
+        ctx.fillStyle = 'rgba(255,255,255,0.85)';
+        ctx.beginPath(); ctx.arc(27, -2, 1.1, 0, Math.PI * 2); ctx.fill();
       }
 
     } else if (k === 'flail') {
-      // Short handle + chain links + ball
-      ctx.strokeStyle = '#555555'; ctx.lineWidth = 3; ctx.lineCap = 'round';
-      ctx.beginPath(); ctx.moveTo(-2, 0); ctx.lineTo(14, 0); ctx.stroke();
-      // Chain links swing outward when attacking
+      // Haft — wrapped wood with a metal collar at the chain mount
+      const _flHfGrd = ctx.createLinearGradient(0, -2.5, 0, 2.5);
+      _flHfGrd.addColorStop(0, '#6b4526'); _flHfGrd.addColorStop(0.5, '#402612'); _flHfGrd.addColorStop(1, '#6b4526');
+      ctx.fillStyle = _flHfGrd;
+      ctx.beginPath(); ctx.roundRect(-4, -2.5, 18, 5, 1.5); ctx.fill();
+      ctx.strokeStyle = 'rgba(0,0,0,0.22)'; ctx.lineWidth = 0.8;
+      for (let _fh = 0; _fh < 3; _fh++) { ctx.beginPath(); ctx.moveTo(0 + _fh * 4, -2.5); ctx.lineTo(0 + _fh * 4, 2.5); ctx.stroke(); }
+      ctx.fillStyle = '#70707e'; ctx.beginPath(); ctx.roundRect(12, -3.2, 3.5, 6.4, 1); ctx.fill();
+      ctx.strokeStyle = '#9a9aa8'; ctx.lineWidth = 0.7; ctx.stroke();
+      // Chain — interlocking links, swung outward mid-strike
       const _flBallOff = attacking ? 10 : 0;
       const _flBallY   = attacking ? -12 : 0;
-      ctx.strokeStyle = '#888888'; ctx.lineWidth = 2;
       for (let _fi = 0; _fi < 3; _fi++) {
         const _flFrac = (_fi + 1) / 3;
-        ctx.beginPath(); ctx.arc(15 + _fi * 5 + _flBallOff * _flFrac, _flBallY * _flFrac, 3, 0, Math.PI * 2); ctx.stroke();
+        const _lx = 17 + _fi * 4.6 + _flBallOff * _flFrac, _ly = _flBallY * _flFrac;
+        ctx.save(); ctx.translate(_lx, _ly); ctx.rotate(_fi % 2 ? Math.PI / 2 : 0);
+        ctx.strokeStyle = '#8e8e9c'; ctx.lineWidth = 1.6;
+        ctx.beginPath(); ctx.ellipse(0, 0, 3.2, 2, 0, 0, Math.PI * 2); ctx.stroke();
+        ctx.strokeStyle = 'rgba(255,255,255,0.35)'; ctx.lineWidth = 0.7;
+        ctx.beginPath(); ctx.ellipse(0, -0.5, 3.2, 2, 0, Math.PI * 1.15, Math.PI * 1.85); ctx.stroke();
+        ctx.restore();
       }
-      ctx.shadowColor = attacking ? '#ffffff' : '#cccccc';
-      ctx.shadowBlur  = attacking ? 14 : 6;
-      ctx.fillStyle   = '#aaaaaa';
-      ctx.beginPath(); ctx.arc(30 + _flBallOff, _flBallY, attacking ? 9 : 7, 0, Math.PI * 2); ctx.fill();
-      ctx.strokeStyle = '#dddddd'; ctx.lineWidth = 1.5; ctx.stroke();
+      // Spiked ball
+      const _flR = attacking ? 9 : 7.5;
+      const _flCx = 32 + _flBallOff, _flCy = _flBallY;
+      ctx.shadowColor = attacking ? '#ffffff' : '#bbbbcc';
+      ctx.shadowBlur  = attacking ? 16 : 6;
+      // Spikes first so they sit behind the ball body
+      ctx.fillStyle = '#8a8a99';
+      for (let _fs = 0; _fs < 8; _fs++) {
+        const _fa = (_fs / 8) * Math.PI * 2 + 0.2;
+        ctx.beginPath();
+        ctx.moveTo(_flCx + Math.cos(_fa) * (_flR + 5.5), _flCy + Math.sin(_fa) * (_flR + 5.5));
+        ctx.lineTo(_flCx + Math.cos(_fa + 0.32) * _flR * 0.9, _flCy + Math.sin(_fa + 0.32) * _flR * 0.9);
+        ctx.lineTo(_flCx + Math.cos(_fa - 0.32) * _flR * 0.9, _flCy + Math.sin(_fa - 0.32) * _flR * 0.9);
+        ctx.closePath(); ctx.fill();
+      }
+      const _flBGrd = ctx.createRadialGradient(_flCx - _flR * 0.4, _flCy - _flR * 0.4, 1, _flCx, _flCy, _flR);
+      _flBGrd.addColorStop(0, '#d8d8e4'); _flBGrd.addColorStop(0.55, '#9a9aa8'); _flBGrd.addColorStop(1, '#4e4e5c');
+      ctx.fillStyle = _flBGrd;
+      ctx.beginPath(); ctx.arc(_flCx, _flCy, _flR, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = 'rgba(255,255,255,0.45)'; ctx.lineWidth = 0.9; ctx.stroke();
       if (attacking) {
-        ctx.globalAlpha = 0.35;
-        ctx.beginPath(); ctx.arc(30 + _flBallOff * 0.6, _flBallY * 0.6, 7, 0, Math.PI * 2); ctx.fill();
+        ctx.globalAlpha = 0.3;
+        ctx.beginPath(); ctx.arc(_flCx - _flBallOff * 0.5, _flCy - _flBallY * 0.5, _flR * 0.85, 0, Math.PI * 2); ctx.fill();
         ctx.globalAlpha = 1;
       }
       ctx.shadowBlur = 0;
 
     } else if (k === 'whip') {
-      // Thin curved whip handle + long lash
-      ctx.fillStyle = '#663311';
-      ctx.beginPath(); ctx.roundRect(-3, -4, 9, 8, 2); ctx.fill();
-      const _whipCp1y = attacking ? 14 : 10;
-      const _whipCp2y = attacking ? -18 : -14;
-      ctx.strokeStyle = '#996622'; ctx.lineWidth = 1.5; ctx.lineCap = 'round';
-      ctx.beginPath();
-      ctx.moveTo(4, 0);
-      ctx.quadraticCurveTo(18, _whipCp1y, 36, _whipCp2y + 9);
-      ctx.quadraticCurveTo(48, _whipCp2y, 56, 2);
-      ctx.stroke();
-      ctx.strokeStyle = '#cc9933'; ctx.lineWidth = 0.8;
-      ctx.beginPath();
-      ctx.moveTo(4, 0);
-      ctx.quadraticCurveTo(18, _whipCp1y, 36, _whipCp2y + 9);
-      ctx.quadraticCurveTo(48, _whipCp2y, 56, 2);
-      ctx.stroke();
+      // Grip — leather-bound handle with a pommel knot
+      const _whGrd = ctx.createLinearGradient(0, -4, 0, 4);
+      _whGrd.addColorStop(0, '#8a4a1c'); _whGrd.addColorStop(0.5, '#552a0c'); _whGrd.addColorStop(1, '#8a4a1c');
+      ctx.fillStyle = _whGrd;
+      ctx.beginPath(); ctx.roundRect(-4, -3.6, 11, 7.2, 2.5); ctx.fill();
+      ctx.strokeStyle = 'rgba(255,220,150,0.28)'; ctx.lineWidth = 0.8;
+      for (let _wg = 0; _wg < 3; _wg++) { ctx.beginPath(); ctx.moveTo(-2 + _wg * 3, -3.6); ctx.lineTo(-1 + _wg * 3, 3.6); ctx.stroke(); }
+      ctx.fillStyle = '#4a2408';
+      ctx.beginPath(); ctx.arc(-4.5, 0, 2.6, 0, Math.PI * 2); ctx.fill();
+      // Lash — a braided thong that TAPERS: drawn as stacked segments of shrinking width
+      const _whCp1y = attacking ? 14 : 10;
+      const _whCp2y = attacking ? -18 : -14;
+      const _whPt = (u) => {
+        // two chained quadratics sampled at u in [0,1]
+        if (u < 0.5) { const q = u / 0.5, m = 1 - q;
+          return [m*m*7 + 2*m*q*18 + q*q*36, m*m*0 + 2*m*q*_whCp1y + q*q*(_whCp2y + 9)]; }
+        const q = (u - 0.5) / 0.5, m = 1 - q;
+        return [m*m*36 + 2*m*q*48 + q*q*56, m*m*(_whCp2y + 9) + 2*m*q*_whCp2y + q*q*2];
+      };
+      ctx.lineCap = 'round';
+      const _whSeg = 14;
+      for (let _wi = 0; _wi < _whSeg; _wi++) {
+        const [x0, y0] = _whPt(_wi / _whSeg), [x1, y1] = _whPt((_wi + 1) / _whSeg);
+        const _wt = 1 - _wi / _whSeg;                       // 1 at the grip, 0 at the tip
+        ctx.strokeStyle = '#7a4a18'; ctx.lineWidth = 1.0 + _wt * 2.6;
+        ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.stroke();
+        // braid highlight, alternating so the cord reads as plaited
+        ctx.strokeStyle = _wi % 2 ? 'rgba(220,170,80,0.75)' : 'rgba(150,100,40,0.7)';
+        ctx.lineWidth = 0.6 + _wt * 1.1;
+        ctx.beginPath(); ctx.moveTo(x0, y0 - 0.5); ctx.lineTo(x1, y1 - 0.5); ctx.stroke();
+      }
+      // Popper (the cracking tip)
+      const [_wtx, _wty] = _whPt(1);
+      ctx.strokeStyle = '#d8b070'; ctx.lineWidth = 1.1;
+      ctx.beginPath(); ctx.moveTo(_wtx - 3, _wty - 1); ctx.lineTo(_wtx + 3, _wty + 1.5); ctx.stroke();
       if (attacking) {
         ctx.shadowColor = '#ffdd44'; ctx.shadowBlur = 18;
         ctx.fillStyle = '#fff099';
-        ctx.beginPath(); ctx.arc(56, 2, 4, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(_wtx, _wty, 4, 0, Math.PI * 2); ctx.fill();
         ctx.shadowBlur = 0;
       }
 
@@ -5720,47 +5800,97 @@ class Fighter {
       }
 
     } else if (k === 'katana') {
-      // Long slim dark blade with guard
-      ctx.strokeStyle = '#333344'; ctx.lineWidth = 3; ctx.lineCap = 'round';
-      ctx.beginPath(); ctx.moveTo(-4, 0); ctx.lineTo(40, 0); ctx.stroke();
-      ctx.strokeStyle = '#999aaa'; ctx.lineWidth = 1;
-      ctx.beginPath(); ctx.moveTo(-2, -1); ctx.lineTo(40, -1); ctx.stroke();
-      ctx.fillStyle = '#888877';
-      ctx.beginPath(); ctx.roundRect(-7, -5, 7, 10, 2); ctx.fill();
-      ctx.strokeStyle = '#aaaaaa'; ctx.lineWidth = 0.8; ctx.stroke();
+      // Kashira (pommel cap)
+      ctx.fillStyle = '#3a3a44';
+      ctx.beginPath(); ctx.roundRect(-9, -3.2, 3, 6.4, 1); ctx.fill();
+      // Tsuka (handle) — dark ray-skin core
+      const _ktTsGrd = ctx.createLinearGradient(0, -3, 0, 3);
+      _ktTsGrd.addColorStop(0, '#4a4450'); _ktTsGrd.addColorStop(0.5, '#2a2630'); _ktTsGrd.addColorStop(1, '#4a4450');
+      ctx.fillStyle = _ktTsGrd;
+      ctx.beginPath(); ctx.roundRect(-6, -3, 14, 6, 1); ctx.fill();
+      // Ito wrap — diamond cross-binding
+      ctx.strokeStyle = 'rgba(200,190,180,0.5)'; ctx.lineWidth = 0.9;
+      for (let _ki = 0; _ki < 4; _ki++) {
+        const _kx = -5 + _ki * 3.4;
+        ctx.beginPath(); ctx.moveTo(_kx, -3); ctx.lineTo(_kx + 2.4, 3); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(_kx + 2.4, -3); ctx.lineTo(_kx, 3); ctx.stroke();
+      }
+      // Tsuba (guard) — oval disc
+      const _ktGdGrd = ctx.createLinearGradient(0, -7, 0, 7);
+      _ktGdGrd.addColorStop(0, '#8a8270'); _ktGdGrd.addColorStop(0.5, '#5a5445'); _ktGdGrd.addColorStop(1, '#3a3628');
+      ctx.fillStyle = _ktGdGrd;
+      ctx.beginPath(); ctx.ellipse(9, 0, 2.6, 7, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = '#a8a08c'; ctx.lineWidth = 0.7; ctx.stroke();
+      // Blade — long, slim, gently curved single edge
+      const _ktBlGrd = ctx.createLinearGradient(0, -2.6, 0, 2.6);
+      _ktBlGrd.addColorStop(0, '#f2f2fa'); _ktBlGrd.addColorStop(0.4, '#c6c6d8'); _ktBlGrd.addColorStop(1, '#6e6e88');
+      ctx.fillStyle = _ktBlGrd;
+      ctx.beginPath();
+      ctx.moveTo(12, -2.4);
+      ctx.quadraticCurveTo(30, -3.4, 44, -1.6);   // spine, curving up
+      ctx.lineTo(47, 0);                          // kissaki (tip)
+      ctx.quadraticCurveTo(30, 1.8, 12, 2.4);     // cutting edge
+      ctx.closePath(); ctx.fill();
+      // Hamon — wavy temper line along the edge
+      ctx.strokeStyle = 'rgba(255,255,255,0.32)'; ctx.lineWidth = 1.1;
+      ctx.beginPath();
+      ctx.moveTo(14, 1.1);
+      for (let _kh = 0; _kh < 5; _kh++) {
+        const _kx0 = 14 + _kh * 6.4;
+        ctx.quadraticCurveTo(_kx0 + 3.2, _kh % 2 ? 1.9 : -0.3, _kx0 + 6.4, 0.8);
+      }
+      ctx.stroke();
+      // Ha (cutting edge) highlight
+      ctx.strokeStyle = 'rgba(255,255,255,0.9)'; ctx.lineWidth = 0.9;
+      ctx.beginPath(); ctx.moveTo(12, 2.4); ctx.quadraticCurveTo(30, 1.8, 47, 0); ctx.stroke();
       if (attacking) {
         ctx.shadowColor = '#aaaaff'; ctx.shadowBlur = 22;
-        // Blade edge gleam line
-        ctx.strokeStyle = '#ccccff'; ctx.lineWidth = 1.5;
-        ctx.globalAlpha = 0.7;
-        ctx.beginPath(); ctx.moveTo(0, -1); ctx.lineTo(40, -1); ctx.stroke();
+        ctx.strokeStyle = '#ddddff'; ctx.lineWidth = 1.6;
+        ctx.globalAlpha = 0.75;
+        ctx.beginPath(); ctx.moveTo(14, 1.6); ctx.quadraticCurveTo(30, 1.2, 47, 0); ctx.stroke();
         ctx.globalAlpha = 1;
-        // Tip flash
+        // Kissaki flash
         ctx.fillStyle = '#ffffff';
-        ctx.beginPath(); ctx.arc(40, 0, 3, 0, Math.PI * 2); ctx.fill();
-        // Short speed-trail dots along blade
-        for (let _ki = 0; _ki < 3; _ki++) {
-          ctx.globalAlpha = 0.25 - _ki * 0.07;
-          ctx.beginPath(); ctx.arc(28 - _ki * 8, _ki * 3, 1.5, 0, Math.PI * 2); ctx.fill();
-        }
-        ctx.globalAlpha = 1;
+        ctx.beginPath(); ctx.arc(47, 0, 3, 0, Math.PI * 2); ctx.fill();
         ctx.shadowBlur = 0;
       }
 
     } else if (k === 'flamethrower') {
-      // Tank body + barrel + nozzle + flame glow
-      ctx.fillStyle = '#554400';
-      ctx.beginPath(); ctx.roundRect(-3, -6, 28, 12, 3); ctx.fill();
-      ctx.fillStyle = '#887700';
-      ctx.beginPath(); ctx.arc(2, 0, 7, 0, Math.PI * 2); ctx.fill();
-      ctx.strokeStyle = '#997700'; ctx.lineWidth = 2.5; ctx.lineCap = 'square';
-      ctx.beginPath(); ctx.moveTo(23, -3); ctx.lineTo(32, -3); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(23,  3); ctx.lineTo(32,  3); ctx.stroke();
       const _ftNow = typeof frameCount !== 'undefined' ? frameCount : 0;
       const _ftPulse = 0.5 + 0.5 * Math.sin(_ftNow * 0.25);
-      ctx.shadowColor = '#ff5500'; ctx.shadowBlur = 8 + _ftPulse * 8;
-      ctx.fillStyle = '#ff7700';
-      ctx.beginPath(); ctx.arc(34, 0, 3 + _ftPulse * 1.5, 0, Math.PI * 2); ctx.fill();
+      // Receiver body — olive-drab casing with a lit top rib
+      const _ftBdGrd = ctx.createLinearGradient(0, -6, 0, 6);
+      _ftBdGrd.addColorStop(0, '#8a7a26'); _ftBdGrd.addColorStop(0.45, '#5c5014'); _ftBdGrd.addColorStop(1, '#332c08');
+      ctx.fillStyle = _ftBdGrd;
+      ctx.beginPath(); ctx.roundRect(-4, -6, 27, 12, 3); ctx.fill();
+      ctx.strokeStyle = 'rgba(255,240,180,0.2)'; ctx.lineWidth = 0.9;
+      ctx.beginPath(); ctx.moveTo(-1, -5); ctx.lineTo(20, -5); ctx.stroke();
+      // Fuel tank — cylinder with band and a pressure gauge
+      const _ftTkGrd = ctx.createLinearGradient(0, -7, 0, 7);
+      _ftTkGrd.addColorStop(0, '#b09a30'); _ftTkGrd.addColorStop(0.5, '#7a6a1a'); _ftTkGrd.addColorStop(1, '#3f3608');
+      ctx.fillStyle = _ftTkGrd;
+      ctx.beginPath(); ctx.ellipse(3, 0, 8, 7, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = '#241d04'; ctx.lineWidth = 1.4;
+      ctx.beginPath(); ctx.moveTo(3, -7); ctx.lineTo(3, 7); ctx.stroke();
+      ctx.fillStyle = '#1a1a1a'; ctx.beginPath(); ctx.arc(-0.5, -3, 2.2, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = '#cc9933'; ctx.lineWidth = 0.7; ctx.stroke();
+      // Fuel line — hose looping under the barrel
+      ctx.strokeStyle = '#2a2a2a'; ctx.lineWidth = 2; ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.moveTo(9, 5); ctx.quadraticCurveTo(18, 11, 25, 4); ctx.stroke();
+      // Barrel with heat shroud (vent slots)
+      ctx.fillStyle = '#4a4a4a';
+      ctx.beginPath(); ctx.roundRect(22, -4, 12, 8, 2); ctx.fill();
+      ctx.strokeStyle = 'rgba(0,0,0,0.5)'; ctx.lineWidth = 1.1;
+      for (let _fv = 0; _fv < 3; _fv++) { ctx.beginPath(); ctx.moveTo(24 + _fv * 3.4, -3.2); ctx.lineTo(24 + _fv * 3.4, 3.2); ctx.stroke(); }
+      // Muzzle ring
+      ctx.strokeStyle = '#7a7a7a'; ctx.lineWidth = 1.6;
+      ctx.beginPath(); ctx.ellipse(34, 0, 1.6, 4, 0, 0, Math.PI * 2); ctx.stroke();
+      // Pilot light — a live flame always burning at the nozzle
+      ctx.shadowColor = '#ff5500'; ctx.shadowBlur = 10 + _ftPulse * 10;
+      const _ftFlGrd = ctx.createRadialGradient(36, 0, 0.5, 36, 0, 5 + _ftPulse * 2);
+      _ftFlGrd.addColorStop(0, '#fff0b0'); _ftFlGrd.addColorStop(0.45, '#ff9922'); _ftFlGrd.addColorStop(1, 'rgba(255,60,0,0)');
+      ctx.fillStyle = _ftFlGrd;
+      ctx.beginPath(); ctx.arc(36, 0, 5 + _ftPulse * 2, 0, Math.PI * 2); ctx.fill();
       ctx.shadowBlur = 0;
 
     } else if (k === 'electricstaff') {

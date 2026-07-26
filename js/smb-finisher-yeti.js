@@ -5,6 +5,7 @@ const FIN_YETI_AVALANCHE = {
   name: 'AVALANCHE CRUSH',
   accentColor: 'rgba(120,200,255,1)',
   duration: 140,
+  impact: 20,
   setup(att, tgt, data) {
     data.ax0=att.x; data.ay0=att.y; data.tx0=tgt.x; data.ty0=tgt.y;
     data.dir=att.x<tgt.x?1:-1; data.bars=0; data.shockR=0; data.shockAlpha=0;
@@ -80,6 +81,7 @@ const FIN_YETI_POLAR_SLAM = {
   name: 'POLAR SLAM',
   accentColor: 'rgba(80,170,255,1)',
   duration: 135,
+  impact: 18,
   setup(att, tgt, data) {
     data.ax0=att.x; data.ay0=att.y; data.tx0=tgt.x; data.ty0=tgt.y;
     data.dir=att.x<tgt.x?1:-1; data.bars=0; data.shockR=0; data.shockAlpha=0;
@@ -158,6 +160,7 @@ const FIN_YETI_ICE_BURIAL = {
   name: 'ICE BURIAL',
   accentColor: 'rgba(180,240,255,1)',
   duration: 138,
+  impact: 55,
   setup(att, tgt, data) {
     data.ax0=att.x; data.ay0=att.y; data.tx0=tgt.x; data.ty0=tgt.y;
     data.dir=att.x<tgt.x?1:-1; data.bars=0; data.freezeAlpha=0; data.shockR=0; data.shockAlpha=0;

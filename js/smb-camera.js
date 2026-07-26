@@ -232,7 +232,9 @@ function updateCamera() {
       const dx2 = targetX2 - camXTarget, dy2 = targetY2 - camYTarget;
       if (Math.hypot(dx2, dy2) > CAMERA_DEAD_ZONE) { camXTarget = targetX2; camYTarget = targetY2; }
       _updateCameraDrama();
-      camZoomCur += (targetZoom2 - camZoomCur) * 0.08;
+      // Lerp toward camZoomTarget, not the local base: the drama cam writes its
+      // pull-back / push-in there and would otherwise be ignored in exploration.
+      camZoomCur += (camZoomTarget - camZoomCur) * 0.08;
       camXCur    += (camXTarget  - camXCur)    * 0.10;
       camYCur    += (camYTarget  - camYCur)    * 0.10;
       return;
@@ -241,18 +243,51 @@ function updateCamera() {
     const _isWide = !!(currentArena && currentArena.worldWidth);
 
     if (!_isWide) {
-      // ── Standard arena: fixed full-map view, nothing clipped by HUD or edges ──
+      // ── Standard arena: frame the fighters, never past the map edges ──
       const _aLeft  = (currentArena && currentArena.mapLeft  !== undefined) ? currentArena.mapLeft  : 0;
       const _aRight = (currentArena && currentArena.mapRight !== undefined) ? currentArena.mapRight : GAME_W;
       const _aW     = _aRight - _aLeft;
       // Available viewport height below the HUD (add a small buffer so floor isn't flush against edge)
       const _safeH  = Math.max(GAME_H - _hudGU * 1.15, GAME_H * 0.72);
-      const _fullZoom = Math.min(GAME_W / (_aW + 16), _safeH / (GAME_H + 8));
-      targetZoom = Math.max(0.72, Math.min(1.0, _fullZoom));
-      targetX    = (_aLeft + _aRight) / 2;
-      targetY    = GAME_H / 2 + _hudShift;
-      // tick camHitZoomTimer without applying the zoom boost (keep view wide)
-      if (camHitZoomTimer > 0) camHitZoomTimer--;
+      const _fullZoom = Math.max(0.72, Math.min(1.0, Math.min(GAME_W / (_aW + 16), _safeH / (GAME_H + 8))));
+
+      // Full-map framing renders fighters as small figures in empty space, so push
+      // in on their bounding box and widen back out only as they separate;
+      // _fullZoom is the floor. The box is clamped to the arena rect because a
+      // fighter launched above the ceiling or knocked past an edge would otherwise
+      // drag the framing into off-map space.
+      let _sMinX = Infinity, _sMaxX = -Infinity, _sMinY = Infinity, _sMaxY = -Infinity;
+      for (const p of activePlayers) {
+        _sMinX = Math.min(_sMinX, Math.max(_aLeft,  p.x));
+        _sMaxX = Math.max(_sMaxX, Math.min(_aRight, p.x + (p.w || 0)));
+        _sMinY = Math.min(_sMinY, Math.max(0,      p.y));
+        _sMaxY = Math.max(_sMaxY, Math.min(GAME_H, p.y + (p.h || 0)));
+      }
+      if (_sMaxX < _sMinX) { _sMinX = _aLeft; _sMaxX = _aRight; }
+      if (_sMaxY < _sMinY) { _sMinY = 0; _sMaxY = GAME_H; }
+      const _sPad  = 190;
+      const _sZoom = Math.min(GAME_W / ((_sMaxX - _sMinX) + _sPad), _safeH / ((_sMaxY - _sMinY) + _sPad));
+      targetZoom = Math.max(_fullZoom, Math.min(1.40, _sZoom));
+      const _sCX = (_sMinX + _sMaxX) / 2;
+      const _sCY = (_sMinY + _sMaxY) / 2;
+      // Blend toward the map centre as the view widens, so a full-map framing is
+      // still centred on the arena rather than on whichever fighter drifted.
+      const _sTight = Math.max(0, Math.min(1, (targetZoom - _fullZoom) / Math.max(0.001, 1.40 - _fullZoom)));
+      targetX = (_aLeft + _aRight) / 2 * (1 - _sTight) + _sCX * _sTight;
+      targetY = (GAME_H / 2) * (1 - _sTight) + _sCY * _sTight + _hudShift;
+      // The shared world clamp further down only engages when the world is taller
+      // than the viewport, which is false for standard arenas — clamp here instead.
+      {
+        const _sHvw = GAME_W / (2 * targetZoom);
+        const _sHvh = GAME_H / (2 * targetZoom);
+        if (_aRight - _aLeft > 2 * _sHvw) targetX = Math.max(_aLeft + _sHvw, Math.min(_aRight - _sHvw, targetX));
+        else                              targetX = (_aLeft + _aRight) / 2;
+        if (GAME_H > 2 * _sHvh)           targetY = Math.max(_sHvh + _hudGU, Math.min(GAME_H - _sHvh, targetY));
+      }
+      if (camHitZoomTimer > 0) {
+        camHitZoomTimer--;
+        targetZoom += 0.10 * (camHitZoomTimer / 15);
+      }
     } else {
       // ── Wide/scrolling arena: bounding-box tracking to follow players ──────
       let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;

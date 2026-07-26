@@ -1810,9 +1810,16 @@ function updateHUD() {
     : ((gameMode === 'boss' && bossPlayerCount === 2) ? nonBoss[1] : (boss || nonBoss[1]));
   const hudPlayers = [hudP1, hudP2];
 
-  // Hide the p2 HUD panel whenever there is no second entity to display
+  // Hide the p2 HUD panel whenever there is no second entity to display.
+  // Story mode also hides it: those levels are one continuous map with several
+  // enemies, so a fixed second panel describes the wrong one — the on-canvas
+  // opponent banner (drawStoryOpponentHUD) tracks the live enemy instead.
+  // Boss fights keep it: the boss is the one enemy that matters.
+  const _storyHidesP2 = (typeof storyModeActive !== 'undefined' && storyModeActive) && !boss;
+  // visibility (not display) keeps the flex slot, so the centre Menu button
+  // stays centred on screen instead of sliding to the right edge.
   const hudP2El = document.getElementById('hud-p2');
-  if (hudP2El) hudP2El.style.display = !hudP2 ? 'none' : '';
+  if (hudP2El) hudP2El.style.visibility = (!hudP2 || _storyHidesP2) ? 'hidden' : '';
 
   for (let i = 0; i < 2; i++) {
     const p = hudPlayers[i];

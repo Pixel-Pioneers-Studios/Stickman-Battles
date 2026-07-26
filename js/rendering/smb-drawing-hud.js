@@ -208,24 +208,55 @@ function endCinematicMode() {
   }
 }
 
+// Picks the hostile the story banner should describe: the living enemy nearest
+// the player, across both the players[] slots and the minion pool (one-map story
+// levels spawn most of their enemies as minions, so players[1] alone is wrong).
+function _storyBannerTarget() {
+  const hero = players && players[0];
+  if (!hero) return null;
+  const pool = [];
+  if (players) for (let i = 1; i < players.length; i++) pool.push(players[i]);
+  if (typeof minions !== 'undefined' && minions) pool.push(...minions);
+  let best = null, bestD = Infinity;
+  for (const e of pool) {
+    if (!e || e.health <= 0 || e.isAlly || e.isDummy) continue;
+    if (typeof areAlliedEntities === 'function' && areAlliedEntities(hero, e)) continue;
+    const d = Math.abs(e.cx() - hero.cx());
+    if (d < bestD) { bestD = d; best = e; }
+  }
+  // Hysteresis: with two enemies at similar range the raw nearest-check would
+  // strobe between them every few frames. Hold the current target until a rival
+  // is clearly closer (or the current one dies / leaves the fight).
+  const held = _storyBannerTarget._held;
+  if (held && held !== best && held.health > 0 && pool.indexOf(held) !== -1) {
+    const heldD = Math.abs(held.cx() - hero.cx());
+    if (heldD < bestD + 90) return held;
+  }
+  _storyBannerTarget._held = best;
+  return best;
+}
+
 // ── Story opponent name HUD — small banner at top-right during story fights ───
 function drawStoryOpponentHUD() {
-  if (!storyModeActive || !storyOpponentName || gameMode === 'exploration') return;
-  const p2 = players && players[1];
-  if (!p2 || p2.health <= 0) return;
+  if (!storyModeActive) return;
+  const p2 = _storyBannerTarget();
+  if (!p2 || !p2.maxHealth) return;
 
   const cw = canvas.width;
   ctx.save();
   ctx.setTransform(1, 0, 0, 1, 0, 0);
 
   const fontSize = Math.round(cw * 0.018);
-  const label    = storyOpponentName;
+  // Named chapter opponent wins; otherwise fall back to whatever the enemy calls itself.
+  const label    = (p2 === (players && players[1]) && storyOpponentName)
+    ? storyOpponentName
+    : (p2.name || storyOpponentName || 'Enemy');
   ctx.font = `bold ${fontSize}px "Segoe UI", Arial, sans-serif`;
   ctx.textAlign    = 'right';
   ctx.textBaseline = 'middle';
   const tw  = ctx.measureText(label).width;
-  // py must sit below the DOM HUD bar (which has an opaque background covering ~120–130px).
-  // _hudBottom() reads the actual rendered height so this stays correct if HUD ever resizes.
+  // py sits below the DOM HUD bar; _hudBottom() reads the actual rendered height
+  // so this stays correct if the HUD ever resizes.
   const px  = cw - 16, py = _hudBottom() + fontSize + 6;
   const padX = 10, padH = fontSize + 10;
 
@@ -255,7 +286,7 @@ function drawStoryOpponentHUD() {
   ctx.fillText(label, px - padX, py + 1);
 
   // Class label (small, below name pill)
-  if (p2.charClass) {
+  if (p2.charClass && p2.charClass !== 'none') {
     const clsName = (typeof CLASSES !== 'undefined' && CLASSES[p2.charClass])
       ? (CLASSES[p2.charClass].name || p2.charClass)
       : p2.charClass;

@@ -158,12 +158,83 @@ const NetworkManager = (() => {
     if (el) el.textContent = msg;
   }
 
+  // ── Chat moderation ────────────────────────────────────────────────────────
+  // Portals hosting the game (CrazyGames among them) require moderated chat.
+  // Extend CHAT_BLOCKLIST with the platform's published word sheet; matching is
+  // done on a de-obfuscated copy so l33t-speak and padding still get caught.
+  const CHAT_BLOCKLIST = [
+    'fuck', 'shit', 'bitch', 'cunt', 'asshole', 'bastard', 'dick', 'piss',
+    'whore', 'slut', 'fag', 'nigger', 'nigga', 'retard', 'rape', 'kys'
+  ];
+  const _CHAT_LEET = { '0': 'o', '1': 'i', '3': 'e', '4': 'a', '5': 's', '7': 't', '@': 'a', '$': 's', '!': 'i' };
+
+  function _chatNormalize(text) {
+    let out = String(text).toLowerCase();
+    out = out.replace(/[013457@$!]/g, c => _CHAT_LEET[c] || c);
+    return out.replace(/[^a-z]/g, '');
+  }
+
+  // Ordinary words that contain a blocked word as a substring.
+  const CHAT_ALLOWLIST = ['grape', 'grapes', 'scrape', 'scraped', 'scraper', 'drape', 'drapes', 'therapist', 'therapy'];
+
+  function _chatIsBlocked(norm) {
+    if (!norm || CHAT_ALLOWLIST.indexOf(norm) !== -1) return false;
+    return CHAT_BLOCKLIST.some(bad => norm.indexOf(bad) !== -1);
+  }
+
+  // Self-censored spellings ("f*ck") lose the masked letter entirely once
+  // stripped, so treat '*' as a single-character wildcard.
+  function _chatStarMatch(word) {
+    const s = String(word).toLowerCase().replace(/[^a-z*]/g, '');
+    if (s.indexOf('*') === -1) return false;
+    const re = new RegExp('^' + s.replace(/\*/g, '[a-z]') + '$');
+    return CHAT_BLOCKLIST.some(bad => re.test(bad));
+  }
+
+  function _chatHasSpacedEvasion(raw) {
+    const toks = String(raw).split(/\s+/).map(_chatNormalize).filter(Boolean);
+    const runs = [];
+    let run = [];
+    for (const t of toks) {
+      if (t.length <= 2) { run.push(t); continue; }
+      if (run.length >= 3) runs.push(run.join(''));
+      run = [];
+    }
+    if (run.length >= 3) runs.push(run.join(''));
+    return runs.some(r => CHAT_BLOCKLIST.some(bad => r.indexOf(bad) !== -1));
+  }
+
+  // Returns the message with blocked words masked, or '' if nothing is left.
+  function _chatModerate(text) {
+    const raw = String(text);
+    // Spaced-out evasion ("f u c k") survives per-word checks. Only runs of
+    // single letters are rejoined — collapsing the whole message instead makes
+    // ordinary sentences collide ("i love grapes" contains a blocked word).
+    if (_chatHasSpacedEvasion(raw)) return '';
+
+    const words = raw.split(/(\s+)/);
+    let blocked = 0;
+    const cleaned = words.map(w => {
+      if (!w.trim()) return w;
+      const norm = _chatNormalize(w);
+      if (!norm) return w;
+      if (_chatIsBlocked(norm) || _chatStarMatch(w)) { blocked++; return '*'.repeat(Math.max(3, w.length)); }
+      return w;
+    }).join('');
+    // A message that was nothing but blocked words is dropped outright.
+    return blocked && !cleaned.replace(/[\s*]/g, '') ? '' : cleaned;
+  }
+
   function _appendChatMsg(sender, text) {
     const el = document.getElementById('chatMessages');
     if (!el) return;
+    // Filter on render so remote messages are moderated too — a modified peer
+    // must not be able to push raw text onto another player's screen.
+    const clean = _chatModerate(text);
+    if (!clean) return;
     const d = document.createElement('div');
     d.style.cssText = 'padding:2px 0;font-size:13px;color:#ddd;';
-    d.textContent = sender + ': ' + text;
+    d.textContent = sender + ': ' + clean;
     el.appendChild(d);
     el.scrollTop = el.scrollHeight;
   }
@@ -685,8 +756,9 @@ const NetworkManager = (() => {
     if (window._cgChatDisabled) return;
     const inp = document.getElementById('chatInput');
     if (!inp || !inp.value.trim()) return;
-    const text = inp.value.trim();
+    const text = _chatModerate(inp.value.trim());
     inp.value = '';
+    if (!text) return;
     const sender = 'P' + (_localSlot + 1);
     _appendChatMsg(sender, text);
     sendGameEvent('chat', { sender, text });

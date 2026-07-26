@@ -15,8 +15,20 @@
 // All finishers include weapon-flavored subtitles.
 // ============================================================
 
-function _wfDef(name, accent, dur, setupFn, updateFn, drawFn) {
-  return { name, accentColor: accent, duration: dur, setup: setupFn, update: updateFn, draw: drawFn };
+// opts (all optional) are merged verbatim and consumed by the finisher engine's shared
+// presentation layer: { swing, impact, face } — see smb-finisher-engine.js.
+function _wfDef(name, accent, dur, setupFn, updateFn, drawFn, opts) {
+  return Object.assign(
+    { name, accentColor: accent, duration: dur, setup: setupFn, update: updateFn, draw: drawFn },
+    opts || {}
+  );
+}
+
+// Both fighters end up facing the same way — used by the pass-through finishers
+// (ghost step / iaijutsu) so the attacker lands with its back to the victim.
+function _wfPassThroughFace(passFrame) {
+  return (att, tgt, timer, data) =>
+    timer < passFrame ? null : [data.dir, data.dir];
 }
 
 // ── Shared helpers ───────────────────────────────────────────
@@ -55,7 +67,7 @@ const WEAPON_FINISHERS = {
   sword: _wfDef('GHOST STEP','rgba(100,160,255,1)',122,
     (att,tgt,data)=>{ _wfBaseSetup(att,tgt,data); data.slashLines=[]; data.ghostTrail=[];
       // Attacker appears on the OPPOSITE side of the target after the pass-through
-      data.otherSideX = data.dir>0 ? data.tx0+tgt.w+16 : data.tx0-att.w-16;
+      data.otherSideX = data.dir>0 ? data.tx0+tgt.w+46 : data.tx0-att.w-46;
       data.tl=_makeTimeline([
         {frame:0, fn(){ CinCam.zoomTo(1.3); CinCam.focusMidpoint(att,tgt); CinCam.slowMo(0.25); }},
         {frame:12,fn(){ CinCam.focusOn(att); }},
@@ -134,6 +146,7 @@ const WEAPON_FINISHERS = {
       if(timer>52&&timer<108) _finSubtitle(ctx,'"You cannot block what passes through you."',t);
       _finTitle(ctx,'GHOST STEP',t,'rgba(100,160,255,1)');
     }
+    , { swing:{at:26,dur:16}, impact:38, face:_wfPassThroughFace(38) }
   ),
 
   // ── hammer ───────────────────────────────────────────────────
@@ -165,6 +178,7 @@ const WEAPON_FINISHERS = {
       if(timer>55&&timer<110) _finSubtitle(ctx,'"Feel the weight of the earth."',t);
       _finTitle(ctx,'EARTH SHATTER',t,'rgba(200,140,40,1)');
     }
+    , { swing:{at:26,dur:20}, impact:42 , approach:{ at:12, dur:14, gap:26 } }
   ),
 
   // ── gun ──────────────────────────────────────────────────────
@@ -203,6 +217,7 @@ const WEAPON_FINISHERS = {
       if(timer>52&&timer<105) _finSubtitle(ctx,'"One shot. One ending."',t);
       _finTitle(ctx,'BULLET TIME',t,'rgba(220,220,60,1)');
     }
+    , { swing:{at:28,dur:12}, impact:40 }
   ),
 
   // ── axe ──────────────────────────────────────────────────────
@@ -233,6 +248,7 @@ const WEAPON_FINISHERS = {
       if(timer>53&&timer<108) _finSubtitle(ctx,'"You cannot stop the spin."',t);
       _finTitle(ctx,'SPINNING FURY',t,'rgba(255,80,40,1)');
     }
+    , { swing:{at:22,dur:20}, impact:40 , approach:{ at:10, dur:12, gap:24 } }
   ),
 
   // ── spear ────────────────────────────────────────────────────
@@ -333,6 +349,7 @@ const WEAPON_FINISHERS = {
       if(timer>90&&timer<122) _finSubtitle(ctx,'"Pinned to the earth by heaven itself."',t);
       _finTitle(ctx,'CELESTIAL IMPALE',t,'rgba(40,200,255,1)');
     }
+    , { swing:{at:26,dur:14}, impact:38 }
   ),
 
   // ── scythe ───────────────────────────────────────────────────
@@ -364,6 +381,7 @@ const WEAPON_FINISHERS = {
       if(timer>53&&timer<108) _finSubtitle(ctx,'"The harvest is complete."',t);
       _finTitle(ctx,"REAPER'S SWEEP",t,'rgba(80,255,120,1)');
     }
+    , { swing:{at:20,dur:22}, impact:40 , approach:{ at:10, dur:10, gap:34 } }
   ),
 
   // ── fryingpan ────────────────────────────────────────────────
@@ -392,6 +410,7 @@ const WEAPON_FINISHERS = {
       if(timer>50&&timer<100) _finSubtitle(ctx,'"Nighty night."',t);
       _finTitle(ctx,'SWEET DREAMS',t,'rgba(255,180,220,1)');
     }
+    , { swing:{at:20,dur:20}, impact:38 }
   ),
 
   // ── bow ──────────────────────────────────────────────────────
@@ -422,6 +441,7 @@ const WEAPON_FINISHERS = {
       if(timer>52&&timer<106) _finSubtitle(ctx,'"Every arrow finds its mark."',t);
       _finTitle(ctx,'ARROW STORM',t,'rgba(160,220,80,1)');
     }
+    , { swing:{at:24,dur:14}, impact:40 }
   ),
 
   // ── combat ─────────────────────────────────────────────
@@ -450,6 +470,7 @@ const WEAPON_FINISHERS = {
       if(timer>50&&timer<105) _finSubtitle(ctx,'"Lights out."',t);
       _finTitle(ctx,'KNOCKOUT',t,'rgba(255,80,80,1)');
     }
+    , { swing:[{at:20,dur:9},{at:30,dur:10}], impact:38 }
   ),
 };
 
@@ -486,6 +507,7 @@ const CLASS_FINISHERS = {
       if(timer>55&&timer<110) _finSubtitle(ctx,'"By the power of the storm."',t);
       _finTitle(ctx,'STORMBEARER',t,'rgba(80,160,255,1)');
     }
+    , { swing:{at:24,dur:18}, impact:40 , approach:{ at:12, dur:12, gap:26 } }
   ),
 
   // ── kratos ───────────────────────────────────────────────────
@@ -515,6 +537,7 @@ const CLASS_FINISHERS = {
       if(timer>54&&timer<106) _finSubtitle(ctx,'"The rage never died. It waited."',t);
       _finTitle(ctx,'UNDYING RAGE',t,'rgba(220,60,60,1)');
     }
+    , { swing:{at:22,dur:20}, impact:40 }
   ),
 
   // ── ninja ────────────────────────────────────────────────────
@@ -545,6 +568,7 @@ const CLASS_FINISHERS = {
       if(timer>50&&timer<104) _finSubtitle(ctx,'"You never even saw me coming."',t);
       _finTitle(ctx,'SHADOW STRIKE',t,'rgba(100,100,200,1)');
     }
+    , { swing:{at:26,dur:14}, impact:38 , approach:{ at:12, dur:14, gap:22 } }
   ),
 
   // ── gunner ───────────────────────────────────────────────────
@@ -578,6 +602,7 @@ const CLASS_FINISHERS = {
       if(timer>52&&timer<104) _finSubtitle(ctx,'"Dead on arrival."',t);
       _finTitle(ctx,'EXECUTION',t,'rgba(255,200,50,1)');
     }
+    , { swing:{at:28,dur:12}, impact:40 }
   ),
 
   // ── paladin ──────────────────────────────────────────────────
@@ -609,6 +634,7 @@ const CLASS_FINISHERS = {
       if(timer>56&&timer<112) _finSubtitle(ctx,'"Divine justice is absolute."',t);
       _finTitle(ctx,'HOLY JUDGMENT',t,'rgba(255,240,120,1)');
     }
+    , { swing:{at:28,dur:16}, impact:42 , approach:{ at:12, dur:16, gap:18 } }
   ),
 
   // ── berserker ────────────────────────────────────────────────
@@ -638,6 +664,7 @@ const CLASS_FINISHERS = {
       if(timer>52&&timer<106) _finSubtitle(ctx,'"Pain is the point."',t);
       _finTitle(ctx,'BLOOD FRENZY',t,'rgba(200,0,60,1)');
     }
+    , { swing:[{at:20,dur:9},{at:29,dur:11}], impact:38 , approach:{ at:10, dur:10, gap:20 } }
   ),
 
   // ── archer ───────────────────────────────────────────────────
@@ -672,6 +699,7 @@ const CLASS_FINISHERS = {
       if(timer>53&&timer<107) _finSubtitle(ctx,'"Rain of arrows. No escape."',t);
       _finTitle(ctx,'VOLLEY',t,'rgba(120,200,80,1)');
     }
+    , { swing:{at:24,dur:14}, impact:40 }
   ),
 
   // ── megaknight ───────────────────────────────────────────────
@@ -705,6 +733,7 @@ const CLASS_FINISHERS = {
       if(timer>58&&timer<114) _finSubtitle(ctx,'"Kneel before the knight eternal."',t);
       _finTitle(ctx,'FINAL JUDGMENT',t,'rgba(220,180,40,1)');
     }
+    , { swing:{at:28,dur:18}, impact:44 }
   ),
 
   // ── nullblade (Sovereign's signature weapon) ─────────────────
@@ -763,5 +792,6 @@ const CLASS_FINISHERS = {
       if(timer>60&&timer<116) _finSubtitle(ctx,'"There was never any other outcome."',t);
       _finTitle(ctx,'VOID RECKONING',t,'rgba(220,40,0,1)');
     }
+    , { swing:{at:24,dur:16}, impact:38 }
   ),
 };

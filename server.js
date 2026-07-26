@@ -54,6 +54,24 @@ const storage          = require('./storage');
 
 const STATIC_ROOT = __dirname;
 
+// Paths under STATIC_ROOT that must never be served to the browser.
+// Matched against the URL path with a leading slash, case-insensitively.
+const PRIVATE_PATH_PATTERNS = [
+  /^\/(?:server|storage)\.js$/i,          // server source
+  /^\/package(?:-lock)?\.json$/i,
+  /^\/render\.yaml$/i,
+  /^\/Procfile$/i,
+  /\.(?:db|sqlite3?|env|log|pem|key)$/i,  // databases, env files, credentials
+  /^\/\./,                                // dotfiles: .env, .git, .DS_Store
+  /^\/(?:node_modules|supabase|data|docs|tools|replays)\//i,
+  /^\/(?:stickman-roblox|Stickman-Battles-3d)\//i,
+  /\.(?:md|smbreplay)$/i,                 // design docs, replay captures
+];
+
+function _isPrivatePath(urlPath) {
+  return PRIVATE_PATH_PATTERNS.some(re => re.test(urlPath));
+}
+
 const PORT = process.env.PORT || 3001;
 const ADMIN_SESSION_SECRET = process.env.ADMIN_SESSION_SECRET || process.env.ADMIN_KEY || '';
 const ADMIN_SESSION_TTL_MS = Math.max(5 * 60 * 1000, Number(process.env.ADMIN_SESSION_TTL_MS || 30 * 60 * 1000));
@@ -820,7 +838,15 @@ function _handleRequest(req, res) {
   // CORS pre-flight — browsers send this before cross-origin writes
   if (req.method === 'OPTIONS') { res.writeHead(204); res.end(); return; }
 
-  const url      = new URL(req.url, 'http://localhost');
+  // A protocol-relative request target ("//") makes `new URL` throw, which would
+  // otherwise take down the whole process — treat anything unparseable as 400.
+  let url;
+  try {
+    url = new URL(req.url, 'http://localhost');
+  } catch {
+    _json(res, 400, { error: 'Bad request' });
+    return;
+  }
   const pathname = url.pathname;
 
   // ── GET /api/status ─────────────────────────────────────────────────────────
@@ -1457,6 +1483,15 @@ function _handleRequest(req, res) {
   // Prevent directory traversal outside STATIC_ROOT.
   if (!filePath.startsWith(STATIC_ROOT + path.sep) && filePath !== STATIC_ROOT) {
     _json(res, 403, { error: 'Forbidden' });
+    return;
+  }
+
+  // STATIC_ROOT is the repo root, so everything not on this denylist is public.
+  // Blocks server source, the ban database, env/config, docs and sibling projects.
+  // Anything the browser actually loads (index.html, SMB.css, js/, images/,
+  // favicon.svg, live-config.json, the audio file, axiom-prequel/) stays served.
+  if (_isPrivatePath(safePath)) {
+    _json(res, 404, { error: 'Not found' });
     return;
   }
 

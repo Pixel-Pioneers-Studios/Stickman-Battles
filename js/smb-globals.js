@@ -42,11 +42,30 @@ const SERVER_CONFIG = {
 // ============================================================
 const CHANGELOG = [
   {
+    version: '4.0.21',
+    title: 'THE KILLING BLOW UPDATE',
+    date: '2026-07-25',
+    flavor: 'A finish should look like one. The blade turns, the arc lands, and the world takes on the colour of whoever is winning.',
+    isLatest: true,
+    changes: [
+      { cat: 'Visual', text: 'Finishers land properly — the attacker now turns to face their victim and the weapon actually swings through the blow, instead of the killer standing backwards with the blade sitting idle in their hands' },
+      { cat: 'Visual', text: 'Domains now recolour the arena while they are open — every domain was authored with its own colour grade and none of it was ever being drawn' },
+      { cat: 'Visual', text: 'The top HUD is a translucent scrim instead of a solid black bar, so you can see the arena behind it; names, bars, and counters carry their own shadow to stay readable' },
+      { cat: 'Fix',    text: 'The story opponent banner now names the enemy you are actually fighting — on one-map chapters most enemies spawn as minions, and the banner only ever watched a single slot, so it sat blank or showed the wrong name' },
+      { cat: 'Fix',    text: 'Ambush timing is fair now — the passivity clock used to run during fights, so a long brawl left it fully primed and dropped an elite on you the moment the last enemy fell; it only counts genuine idling' },
+      { cat: 'Fix',    text: 'Ambient pressure spawns stay out of scripted beats — a tripped stealth alarm, an arena lock, or an escape objective no longer gets an unannounced elite stacked on top of it' },
+      { cat: 'Fix',    text: 'The camera obeys dramatic pull-backs and push-ins during walking chapters again, and holds steady when a fighter is knocked out of bounds or spends a long time airborne' },
+      { cat: 'Fix',    text: 'Fixed a first-launch crash on slow connections — the opening could run before the story data finished loading' },
+      { cat: 'Polish', text: 'Arena locks get a camera beat: the gate slams, the view pushes in on whoever is blocking the road, and releases when the way is clear' },
+      { cat: 'Polish', text: 'Portal builds now moderate chat and hide external sign-in, per host requirements; local and cloud saves are unaffected everywhere else' },
+    ],
+  },
+  {
     version: '4.0.9',
     title: 'THE OPEN DOOR UPDATE',
     date: '2026-07-24',
     flavor: 'The way in is shorter now. Walk straight to a fight if that is what you came for — and when the road closes around you, you will see the walls that closed it.',
-    isLatest: true,
+    isLatest: false,
     changes: [
       { cat: 'UI',     text: 'Fight Now — a single button on the home screen drops you straight into a match against a bot, no menus, no setup, no unlocks required' },
       { cat: 'UI',     text: 'The opening can be skipped with any key, and a "just let me fight" option now leads out of it if you would rather start swinging' },
@@ -881,7 +900,7 @@ let _publicRoomCheckTimer = 0;
 // ============================================================
 // VERSION
 // ============================================================
-const GAME_VERSION = '4.0.9';  // bump this when releasing; must match CHANGELOG[0].version
+const GAME_VERSION = '4.0.21';  // bump this when releasing; must match CHANGELOG[0].version
 console.log('[VERSION CHECK]', GAME_VERSION);
 
 // DEBUG / DEVELOPER STATE

@@ -16,6 +16,20 @@ function _spawnSurvivalWave(ss, p1) {
   }
 }
 
+// True while a SCRIPTED pressure beat already owns the fight — a tripped stealth
+// alarm, an arena lock, or an escape/defense objective. The ambient pressure
+// spawners (Pressure Stalker / Ambush Elite) must stay out of the way there:
+// stacking an unannounced elite on top of an alarm wave is what made a failed
+// stealth run unwinnable.
+function _storyPressureScripted() {
+  if (exploreArenaLock) return true;
+  if (typeof stealthModeActive !== 'undefined' && stealthModeActive &&
+      typeof stealthAlarmed !== 'undefined' && stealthAlarmed) return true;
+  if (typeof escapeModeActive  !== 'undefined' && escapeModeActive)  return true;
+  if (typeof defenseModeActive !== 'undefined' && defenseModeActive) return true;
+  return false;
+}
+
 function _updateSurvivalWave(p1) {
   const ss = storeSurvivalState;
   if (!ss || !ss.active || exploreGoalFound) return;
@@ -137,12 +151,25 @@ function updateExploration() {
   const activeEnemyCount = minions.filter(m => m.health > 0).length;
   const inCombat = activeEnemyCount > 0 || !!players.find(p => p !== p1 && p.health > 0 && p.isAI);
   exploreCombatQuiet = inCombat ? 0 : (exploreCombatQuiet + 1);
-  exploreAmbushTimer++;
+  // The passivity clock must measure genuine idling, nothing else. It used to
+  // free-run through fights, so a long brawl left it fully primed and an Ambush
+  // Elite dropped the frame the last enemy died — punishing the player for
+  // fighting, which is the opposite of the intent. Combat, taking a hit, and
+  // swinging all reset it.
+  if (inCombat || p1.hurtTimer > 0 || p1.attackTimer > 0 || p1.attackEndlag > 0) exploreAmbushTimer = 0;
+  else exploreAmbushTimer++;
   if (exploreArenaLock) {
     p1.x = clamp(p1.x, exploreArenaLock.left, exploreArenaLock.right - p1.w);
     if (currentArena) {
       currentArena.mapLeft = exploreArenaLock.left;
       currentArena.mapRight = exploreArenaLock.right;
+    }
+    // Camera beat: the gate slams (pull back, set at lock creation), then the
+    // camera pushes in on whoever is blocking the way, then releases on the clear.
+    const _lockAge = frameCount - (exploreArenaLock.bornFrame || 0);
+    if (_lockAge === 46 && typeof setCameraDrama === 'function') {
+      const _lockFoe = minions.find(m => m.health > 0 && m.isArenaLockEnemy);
+      if (_lockFoe) setCameraDrama('focus', 70, _lockFoe, 1.16);
     }
     const lockAlive = minions.some(m => m.health > 0 && m.isArenaLockEnemy);
     if (!lockAlive) {
@@ -152,6 +179,7 @@ function updateExploration() {
       }
       storyFightSubtitle = { text: `${exploreArenaLock.label || 'Arena lock'} cleared. Move.`, timer: 150, maxTimer: 150, color: '#88ffcc' };
       exploreArenaLock = null;
+      if (typeof setCameraDrama === 'function') setCameraDrama('impact', 34);
     }
   }
 
@@ -263,6 +291,7 @@ function updateExploration() {
         _exploreSpawnEnemy({ wx: cp.x + 300, exactX: cp.x + 300, name: _sec.name, weaponKey: _sec.weaponKey, classKey: _sec.classKey, aiDiff: _sec.aiDiff, color: _sec.color, health: _sec.health || 120, armor: _sec.armor, isElite: true, isArenaLockEnemy: true }, p1);
       }
       storyFightSubtitle = { text: `${_opp.name}${_sec ? ' and ' + _sec.name : ''} blocks your path!`, timer: 180, maxTimer: 180, color: '#ffcc66' };
+      if (typeof setCameraDrama === 'function') setCameraDrama('wideshot', 46);
     } else if (!_replaySkip && ((_activeStory2Chapter && _activeStory2Chapter.id >= 8) || (storyGauntletState && storyGauntletState.index > 0))) {
       if (!exploreArenaLock && currentArena) {
         exploreArenaLock = {
@@ -274,6 +303,7 @@ function updateExploration() {
           bornFrame: frameCount,
         };
         storyFightSubtitle = { text: 'Arena lock engaged. Clear the wave.', timer: 180, maxTimer: 180, color: '#ffcc66' };
+        if (typeof setCameraDrama === 'function') setCameraDrama('wideshot', 46);
       }
       _exploreSpawnEnemy({ wx: cp.x + 80, name: 'Checkpoint Hunter', weaponKey: 'spear', classKey: 'warrior', aiDiff: 'hard', color: '#886644', isElite: true, health: 150, isArenaLockEnemy: true }, p1);
       if ((_activeStory2Chapter && _activeStory2Chapter.id >= 18) || exploreEnemyCap >= 4) {
@@ -310,7 +340,8 @@ function updateExploration() {
     }
   }
 
-  if (!storeSurvivalState && !exploreDuelMode && !_exploreChapterBeaten && exploreCombatQuiet > 260 && activeEnemyCount < exploreEnemyCap) {
+  if (!storeSurvivalState && !exploreDuelMode && !_exploreChapterBeaten && !_storyPressureScripted() &&
+      exploreCombatQuiet > 260 && activeEnemyCount < exploreEnemyCap) {
     const spawnAhead = p1.x + GAME_W * 0.92;
     _exploreSpawnEnemy({
       wx: spawnAhead,
@@ -323,19 +354,29 @@ function updateExploration() {
     exploreCombatQuiet = 120;
   }
 
-  if (!storeSurvivalState && !exploreDuelMode && !_exploreChapterBeaten && exploreAmbushTimer > 360 && Math.abs(p1.vx) < 1.1 && !inCombat && activeEnemyCount < exploreEnemyCap) {
+  // Anti-idle prod. 360 frames (6s) fired on any brief pause; with the timer now
+  // reset by combat it measures real standing-around, so the window is a full
+  // 15s. Early chapters get a plain ambusher — a scaled elite is a boss-tier
+  // wall when the player is still on starting gear.
+  const _ambushChId  = _activeStory2Chapter ? _activeStory2Chapter.id : 0;
+  const _ambushElite = _ambushChId >= 10;
+  if (!storeSurvivalState && !exploreDuelMode && !_exploreChapterBeaten && !_storyPressureScripted() &&
+      exploreAmbushTimer > 900 && Math.abs(p1.vx) < 1.1 && !inCombat && activeEnemyCount < exploreEnemyCap) {
     _exploreSpawnEnemy({
       wx: p1.x + 120,
-      name: 'Ambush Elite',
+      name: _ambushElite ? 'Ambush Elite' : 'Ambusher',
       weaponKey: 'axe',
-      classKey: 'berserker',
-      aiDiff: _activeStory2Chapter && _activeStory2Chapter.id >= 25 ? 'expert' : 'hard',
+      classKey: _ambushElite ? 'berserker' : 'warrior',
+      aiDiff: _ambushChId >= 25 ? 'expert' : _ambushElite ? 'hard' : 'medium',
       color: '#994444',
-      isElite: true,
-      health: 165
+      isElite: _ambushElite,
+      health: _ambushElite ? 165 : 110
     }, p1);
     exploreAmbushTimer = 0;
-    storyFightSubtitle = { text: 'Passive too long. An elite found you.', timer: 170, maxTimer: 170, color: '#ff7766' };
+    storyFightSubtitle = {
+      text: _ambushElite ? 'Passive too long. An elite found you.' : 'You stood still too long. Someone found you.',
+      timer: 170, maxTimer: 170, color: '#ff7766'
+    };
   }
 
   // Spawn enemies from queue as player advances
@@ -522,6 +563,15 @@ function _exploreSpawnEnemy(def, p1) {
     }
   }
   const m = new Minion(mx, my, def.color || '#888888', def.weaponKey || 'sword', true, def.aiDiff || 'medium');
+  // Minion's constructor only takes (x, y) — it hardcodes purple, a coin-flip
+  // axe/sword, and 'hard' AI, silently dropping the args above. Every other
+  // `new Minion()` call site relies on that, so the authored values are applied
+  // here instead. Without this, a chapter's `aiDiff: 'easy'` scout fought at
+  // 'hard' and the difficulty floor in _storyScaleEnemyUnit had nothing to do.
+  m.color     = def.color || '#888888';
+  m.weaponKey = def.weaponKey || 'sword';
+  m.weapon    = (typeof WEAPONS !== 'undefined' && WEAPONS[m.weaponKey]) || m.weapon;
+  m.aiDiff    = def.aiDiff || 'medium';
   m.name     = def.name || 'Enemy';
   m.lives    = 1;
   m.health   = def.health || (isGuard ? 120 : 80);

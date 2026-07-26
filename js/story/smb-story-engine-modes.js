@@ -71,16 +71,24 @@ function updateStealthMode() {
         // Remove all guard zones; spawn 3 enemies
         stealthGuards.forEach(g => { g.alerted = true; });
         const ch = _activeStory2Chapter;
-        for (let i = 0; i < 3; i++) {
+        // Failing stealth should mean "now you fight your way out", not "restart".
+        // The response scales with the chapter: the earliest infiltrations send a
+        // pair of plain scouts, and the elite leader only appears once the player
+        // has gear and levels behind them. The chapter's own patrol queue keeps
+        // feeding after this, so the opening wave doesn't need to be the beating.
+        const _alertElite = ch && ch.id >= 6;
+        const _alertCount = _alertElite ? 3 : 2;
+        for (let i = 0; i < _alertCount; i++) {
+          const _lead = _alertElite && i === 0;
           _exploreSpawnEnemy({
             wx: p1.x + 150 + i * 80,
-            name: 'Alerted Scout',
+            name: _lead ? 'Alerted Enforcer' : 'Alerted Scout',
             weaponKey: ch && ch.weaponKey ? ch.weaponKey : 'sword',
             classKey:  'warrior',
             aiDiff:    ch && ch.aiDiff ? ch.aiDiff : 'medium',
             color:     '#cc2222',
-            isElite:   i === 0,
-            health:    i === 0 ? 150 : 100,
+            isElite:   _lead,
+            health:    _lead ? 150 : 100,
           }, p1);
         }
         return;

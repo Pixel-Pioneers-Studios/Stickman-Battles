@@ -8,7 +8,7 @@ Object.assign(WEAPON_FINISHERS, {
   katana: _wfDef('IAIJUTSU','rgba(200,225,255,1)',128,
     (att,tgt,data)=>{ _wfBaseSetup(att,tgt,data); data.cutA=0; data.splitA=0; data.clickF=0;
       // Attacker ends up behind the target (opposite side), sheathing
-      data.behindX = data.dir>0 ? data.tx0+tgt.w+18 : data.tx0-att.w-18;
+      data.behindX = data.dir>0 ? data.tx0+tgt.w+48 : data.tx0-att.w-48;
       data.tl=_makeTimeline([
         {frame:0, fn(){ CinCam.zoomTo(1.3); CinCam.focusMidpoint(att,tgt); CinCam.slowMo(0.25); }},
         {frame:12,fn(){ CinCam.focusOn(att); }},
@@ -85,6 +85,7 @@ Object.assign(WEAPON_FINISHERS, {
       if(timer>58&&timer<112) _finSubtitle(ctx,'"You were already cut before you saw me move."',t);
       _finTitle(ctx,'IAIJUTSU',t,'rgba(200,225,255,1)');
     }
+    , { swing:{at:34,dur:12}, impact:44, face:_wfPassThroughFace(44) }
   ),
 
   // ── whip ─────────────────────────────────────────────────────
@@ -163,6 +164,7 @@ Object.assign(WEAPON_FINISHERS, {
       if(timer>56&&timer<112) _finSubtitle(ctx,'"Down on your knees. Justice is loud."',t);
       _finTitle(ctx,'JUDGMENT LASH',t,'rgba(255,190,60,1)');
     }
+    , { swing:[{at:48,dur:9},{at:56,dur:9},{at:64,dur:9},{at:72,dur:12}], impact:82 }
   ),
 
   // ── flail ────────────────────────────────────────────────────
@@ -230,6 +232,7 @@ Object.assign(WEAPON_FINISHERS, {
       if(timer>56&&timer<108) _finSubtitle(ctx,'"Nothing left standing."',t);
       _finTitle(ctx,'WRECKING BALL',t,'rgba(170,175,185,1)');
     }
+    , { swing:{at:24,dur:22}, impact:44 , approach:{ at:10, dur:14, gap:40 } }
   ),
 
   // ── electricstaff ────────────────────────────────────────────
@@ -299,6 +302,7 @@ Object.assign(WEAPON_FINISHERS, {
       if(timer>54&&timer<110) _finSubtitle(ctx,'"Too much current for one body."',t);
       _finTitle(ctx,'OVERLOAD',t,'rgba(60,220,255,1)');
     }
+    , { swing:{at:32,dur:18}, impact:48 , approach:{ at:14, dur:18, gap:30 } }
   ),
 
   // ── shield ───────────────────────────────────────────────────
@@ -385,6 +389,7 @@ Object.assign(WEAPON_FINISHERS, {
       if(timer>58&&timer<110) _finSubtitle(ctx,'"A shield is only a wall you carry."',t);
       _finTitle(ctx,'AEGIS BREAK',t,'rgba(90,150,255,1)');
     }
+    , { swing:[{at:28,dur:14},{at:42,dur:14}], impact:54 , approach:{ at:12, dur:16, gap:18 } }
   ),
 
   // ── broomstick ───────────────────────────────────────────────
@@ -457,6 +462,7 @@ Object.assign(WEAPON_FINISHERS, {
       if(timer>54&&timer<108) _finSubtitle(ctx,'"Time to sweep up the trash."',t);
       _finTitle(ctx,'CLEAN SWEEP',t,'rgba(210,170,110,1)');
     }
+    , { swing:{at:36,dur:14}, impact:48 , approach:{ at:16, dur:20, gap:44 } }
   ),
 
   // ── peashooter ───────────────────────────────────────────────
@@ -524,6 +530,7 @@ Object.assign(WEAPON_FINISHERS, {
       if(timer>52&&timer<104) _finSubtitle(ctx,'"Hope you like your greens."',t);
       _finTitle(ctx,'FULL BLOOM',t,'rgba(90,210,90,1)');
     }
+    , { swing:{at:26,dur:10}, impact:40 }
   ),
 
   // ── slingshot ────────────────────────────────────────────────
@@ -603,6 +610,7 @@ Object.assign(WEAPON_FINISHERS, {
       if(timer>52&&timer<114) _finSubtitle(ctx,'"What goes up... lands on you."',t);
       _finTitle(ctx,'ORBITAL STONE',t,'rgba(255,150,40,1)');
     }
+    , { swing:{at:22,dur:12}, impact:74 }
   ),
 
   // ── paperairplane ────────────────────────────────────────────
@@ -668,6 +676,7 @@ Object.assign(WEAPON_FINISHERS, {
       if(timer>52&&timer<110) _finSubtitle(ctx,'"A thousand cuts, all at once."',t);
       _finTitle(ctx,'A THOUSAND FOLDS',t,'rgba(190,215,255,1)');
     }
+    , { swing:{at:20,dur:12}, impact:56 }
   ),
 
   // ── boomerang ────────────────────────────────────────────────
@@ -730,6 +739,7 @@ Object.assign(WEAPON_FINISHERS, {
       if(timer>52&&timer<110) _finSubtitle(ctx,'"It always comes back around."',t);
       _finTitle(ctx,'INFINITE RETURN',t,'rgba(220,175,70,1)');
     }
+    , { swing:{at:18,dur:12}, impact:58 }
   ),
 
   // ── flamethrower ─────────────────────────────────────────────
@@ -806,6 +816,7 @@ Object.assign(WEAPON_FINISHERS, {
       if(timer>54&&timer<112) _finSubtitle(ctx,'"Burn bright. Then burn out."',t);
       _finTitle(ctx,'INCINERATE',t,'rgba(255,110,30,1)');
     }
+    , { swing:{at:26,dur:32}, impact:58 }
   ),
 
 });

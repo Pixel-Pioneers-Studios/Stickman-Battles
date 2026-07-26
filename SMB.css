@@ -1000,11 +1000,28 @@ body.depth-phase-active {
   z-index: 10;
   justify-content: space-between;
   align-items: flex-start;
-  padding: 5px 12px 4px;
-  background: rgba(4,4,12,0.94);
-  border-bottom: 1px solid rgba(255,255,255,0.14);
+  padding: 5px 12px 10px;
+  /* Translucent scrim instead of a solid bar — the arena stays visible behind it.
+     Fades to fully transparent at the bottom so there is no hard edge. */
+  background: linear-gradient(180deg, rgba(4,4,12,0.62) 0%, rgba(4,4,12,0.34) 55%, rgba(4,4,12,0) 100%);
   gap: 8px;
   pointer-events: none;
+}
+
+/* Legibility pass — HUD text/bars sit over live gameplay now, so they carry
+   their own shadow instead of relying on an opaque backdrop. */
+#hud .hud-name,
+#hud .hud-weapon,
+#hud .hp-text,
+#hud .super-label,
+#hud .cd-label,
+#hud .lives-display {
+  text-shadow: 0 1px 3px rgba(0,0,0,0.95), 0 0 8px rgba(0,0,0,0.7);
+}
+#hud .health-bar-wrap,
+#hud .super-bar-track,
+#hud .cd-bar-track {
+  box-shadow: 0 1px 4px rgba(0,0,0,0.7);
 }
 
 .hud-side {
@@ -1047,7 +1064,7 @@ body.depth-phase-active {
   position: relative;
   width: 100%;
   height: 12px;
-  background: rgba(255,255,255,0.08);
+  background: rgba(0,0,0,0.45);
   border-radius: 6px;
   overflow: visible;
   border: 1px solid var(--border);
@@ -1111,7 +1128,7 @@ body.depth-phase-active {
 .super-bar-track, .cd-bar-track {
   flex: 1;
   height: 5px;
-  background: rgba(255,255,255,0.07);
+  background: rgba(0,0,0,0.45);
   border-radius: 4px;
   overflow: hidden;
   border: 1px solid rgba(255,255,255,0.1);

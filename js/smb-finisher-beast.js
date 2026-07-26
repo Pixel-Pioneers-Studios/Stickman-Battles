@@ -5,6 +5,7 @@ const FIN_BEAST_FERAL_TACKLE = {
   name: 'FERAL TACKLE',
   accentColor: 'rgba(80,200,60,1)',
   duration: 130,
+  impact: 38,
   setup(att, tgt, data) {
     data.ax0=att.x; data.ay0=att.y; data.tx0=tgt.x; data.ty0=tgt.y;
     data.dir=att.x<tgt.x?1:-1; data.bars=0; data.shockR=0; data.shockAlpha=0;
@@ -88,6 +89,7 @@ const FIN_BEAST_NATURE_DEVOUR = {
   name: 'NATURE DEVOUR',
   accentColor: 'rgba(40,160,40,1)',
   duration: 145,
+  impact: 22,
   setup(att, tgt, data) {
     data.ax0=att.x; data.ay0=att.y; data.tx0=tgt.x; data.ty0=tgt.y;
     data.dir=att.x<tgt.x?1:-1; data.bars=0; data.shockR=0; data.shockAlpha=0;
@@ -175,6 +177,7 @@ const FIN_BEAST_SAVAGE_LAUNCH = {
   name: 'SAVAGE LAUNCH',
   accentColor: 'rgba(160,230,60,1)',
   duration: 150,
+  impact: 20,
   setup(att, tgt, data) {
     data.ax0=att.x; data.ay0=att.y; data.tx0=tgt.x; data.ty0=tgt.y;
     data.dir=att.x<tgt.x?1:-1; data.bars=0; data.shockR=0; data.shockAlpha=0;

@@ -5,6 +5,7 @@ const FIN_TF_ERASURE = {
   name: 'ERASURE',
   accentColor: 'rgba(180,180,255,1)',
   duration: 150,
+  impact: 18,
   setup(att, tgt, data) {
     data.ax0=att.x; data.ay0=att.y; data.tx0=tgt.x; data.ty0=tgt.y;
     data.dir=att.x<tgt.x?1:-1; data.bars=0; data.glitch=0; data.eraseAlpha=0;
@@ -76,6 +77,7 @@ const FIN_TF_PHASE_SHIFT = {
   name: 'PHASE SHIFT',
   accentColor: 'rgba(80,60,200,1)',
   duration: 155,
+  impact: 55,
   setup(att, tgt, data) {
     data.ax0=att.x; data.ay0=att.y; data.tx0=tgt.x; data.ty0=tgt.y;
     data.dir=att.x<tgt.x?1:-1; data.bars=0; data.shockR=0; data.shockAlpha=0;
@@ -158,6 +160,7 @@ const FIN_CR_CODE_DELETION = {
   name: 'CODE DELETION',
   accentColor: 'rgba(0,200,100,1)',
   duration: 140,
+  impact: 25,
   setup(att, tgt, data) {
     data.ax0=att.x; data.ay0=att.y; data.tx0=tgt.x; data.ty0=tgt.y;
     data.dir=att.x<tgt.x?1:-1; data.bars=0; data.codeAlpha=0;

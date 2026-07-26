@@ -12,6 +12,7 @@ const FIN_REALITY_BREAK = {
   name: 'DIMENSIONAL PUNCH',
   accentColor: 'rgba(0,220,180,1)',
   duration: 270,
+  impact: 16,
 
   setup(att, tgt, data) {
     data.ax0 = att.x; data.ay0 = att.y;

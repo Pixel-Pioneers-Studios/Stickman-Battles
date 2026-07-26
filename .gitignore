@@ -1,6 +1,7 @@
 .env
 CLAUDE.md
-README_ANALYSIS.md
+docs/README_ANALYSIS.md
 .claude
 SMB.env
 .mov
+.DS_Store

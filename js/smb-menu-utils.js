@@ -129,8 +129,20 @@ selectLives(chosenLives);
 
 // First-time visit (or chapter 0 not yet beaten): open Story Mode and force Chapter 1
 (function() {
+  // _story2 is declared in smb-story-config.js, ~70 script tags after this file.
+  // A fixed timer started here can fire before those have evaluated on a slow
+  // connection, and a bare reference to a not-yet-created binding throws
+  // ReferenceError rather than reading as undefined. Wait for it instead.
+  var _s2Waits = 0;
+  function _whenStory2Ready(fn) {
+    var ready = false;
+    try { ready = typeof _story2 !== 'undefined' && !!_story2; } catch (e) {}
+    if (ready) { setTimeout(fn, 500); return; }
+    if (_s2Waits++ > 100) return; // never arrived — skip the hook, don't crash
+    setTimeout(function () { _whenStory2Ready(fn); }, 100);
+  }
   try {
-    setTimeout(() => {
+    _whenStory2Ready(() => {
       try {
         const ch0Beaten = (typeof _story2 !== 'undefined')
           ? (Array.isArray(_story2.defeated) && _story2.defeated.includes(0))
@@ -149,10 +161,10 @@ selectLives(chosenLives);
             // Gated on a localStorage key as well as the save field: this runs
             // ~800ms after load, which can beat the save finishing, and reading
             // only _story2 replayed the cold open on every launch.
-            let _tuesSeen = !!_story2.tuesdaySeen;
+            let _tuesSeen = !!(typeof _story2 !== 'undefined' && _story2 && _story2.tuesdaySeen);
             try { if (localStorage.getItem('smb_tuesday_seen') === '1') _tuesSeen = true; } catch (e) {}
             if (typeof TuesdayPrologue !== 'undefined' && !_tuesSeen) {
-              _story2.tuesdaySeen = true;
+              if (typeof _story2 !== 'undefined' && _story2) _story2.tuesdaySeen = true;
               try { localStorage.setItem('smb_tuesday_seen', '1'); } catch (e) {}
               if (typeof _saveStory2 === 'function') _saveStory2();
               TuesdayPrologue.play((skipped) => { if (skipped) _toCh0(); else _seamThenCh0(); });
@@ -162,7 +174,7 @@ selectLives(chosenLives);
           }, 300);
         }
       } catch(e) {}
-    }, 500);
+    });
   } catch(e) {}
 })();
 
