@@ -42,11 +42,26 @@ const SERVER_CONFIG = {
 // ============================================================
 const CHANGELOG = [
   {
+    version: '4.0.22',
+    title: 'THE SCREEN UPDATE',
+    date: '2026-07-26',
+    flavor: 'It starts on an ordinary street and ends where you are standing now. The way in is a door, not a corridor — you pick where it leads.',
+    isLatest: true,
+    changes: [
+      { cat: 'UI',     text: 'The opening no longer drops you into the campaign. It ends on the home screen, and the story is a choice you make from there instead of a room you wake up locked inside' },
+      { cat: 'Visual', text: 'The cold open ends on the phone from the torn bag — it lands face-up, wakes, and the camera pushes into the screen until the screen is the menu you are looking at' },
+      { cat: 'UI',     text: 'Cutscene Theater — rewatch any cinematic, finisher, or class domain from the home screen; unlocks once you have reached the end of the story' },
+      { cat: 'Fix',    text: 'The ending replay in the Replays browser did nothing at all — it was written for the game-over screen and quietly gave up when opened from the menu', spoilerLevel: 3 },
+      { cat: 'Fix',    text: 'Finishers no longer get their victim knocked out of position by the same hit that starts them, so the sequence opens on the pose it staged' },
+      { cat: 'Polish', text: 'The opening says how to skip it from the very first frame, instead of waiting until you had already walked to mention it' },
+    ],
+  },
+  {
     version: '4.0.21',
     title: 'THE KILLING BLOW UPDATE',
     date: '2026-07-25',
     flavor: 'A finish should look like one. The blade turns, the arc lands, and the world takes on the colour of whoever is winning.',
-    isLatest: true,
+    isLatest: false,
     changes: [
       { cat: 'Visual', text: 'Finishers land properly — the attacker now turns to face their victim and the weapon actually swings through the blow, instead of the killer standing backwards with the blade sitting idle in their hands' },
       { cat: 'Visual', text: 'Domains now recolour the arena while they are open — every domain was authored with its own colour grade and none of it was ever being drawn' },
@@ -900,7 +915,7 @@ let _publicRoomCheckTimer = 0;
 // ============================================================
 // VERSION
 // ============================================================
-const GAME_VERSION = '4.0.21';  // bump this when releasing; must match CHANGELOG[0].version
+const GAME_VERSION = '4.0.22';  // bump this when releasing; must match CHANGELOG[0].version
 console.log('[VERSION CHECK]', GAME_VERSION);
 
 // DEBUG / DEVELOPER STATE

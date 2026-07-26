@@ -522,8 +522,11 @@ function dealDamage(attacker, target, dmg, kbForce, stunMult = 1.0, isSplash = f
     }
   }
   // Finisher intercept: if this is a killing blow, try to trigger a finisher animation
+  let _finisherFired = false;
   if (target.health <= 0 && attacker && typeof triggerFinisher === 'function') {
-    triggerFinisher(attacker, target); // sets health=1 + invincible=9999 internally if it fires
+    // Returns false on every bail path, true only when a finisher actually takes
+    // over. Sets health=1 + invincible=9999 internally when it fires.
+    _finisherFired = !!triggerFinisher(attacker, target);
   }
   // True Form combo damage tracking
   if (attacker && attacker.isTrueForm && !target.isBoss) {
@@ -563,7 +566,10 @@ function dealDamage(attacker, target, dmg, kbForce, stunMult = 1.0, isSplash = f
   }
   target.invincible = target.invincible > hitInvincibleFrames ? target.invincible : hitInvincibleFrames; // preserve finisher lock
   const dir        = attacker ? (target.cx() > attacker.cx() ? 1 : -1) : 1;
-  if (!target.godmode) {
+  // A finisher stages both fighters itself — approach, facing, pose. Applying the
+  // killing blow's knockback here yanks the victim out of that staging on the
+  // frame the sequence starts.
+  if (!target.godmode && !_finisherFired) {
     target.vx      = dir * actualKb;
     target.vy      = -actualKb * 0.55;
     if (currentArena && currentArena.isLowGravity)  target.vy = -actualKb * 0.25;
