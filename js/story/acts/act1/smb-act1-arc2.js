@@ -51,7 +51,7 @@ STORY_CHAPTER_REGISTRY.push(
       { wx: 1600, name: 'Purge Unit',       weaponKey: 'spear',  classKey: 'warrior',  aiDiff: 'medium', color: '#4466bb' },
       { wx: 2500, name: 'Purge Unit',       weaponKey: 'axe',    classKey: 'berserker',aiDiff: 'hard',   color: '#3355aa' },
       { wx: 3500, name: 'Terminal Guard',   weaponKey: 'spear',  classKey: 'warrior',  aiDiff: 'hard',   color: '#2244aa', isGuard: true, health: 120 },
-      { wx: 4400, name: 'Core Sentinel',    weaponKey: 'hammer', classKey: 'tank',     aiDiff: 'hard',   color: '#112299', isGuard: true, health: 140 },
+      { wx: 4400, name: 'Core Sentinel',    weaponKey: 'hammer', classKey: 'thor',     aiDiff: 'hard',   color: '#112299', isGuard: true, health: 140 },
     ],
     fightScript: [
       { frame: 40,  text: 'Access all five data caches. Network enforcers are purging them — move fast.', color: '#44aaff', timer: 270 },
@@ -91,7 +91,7 @@ STORY_CHAPTER_REGISTRY.push(
       { frame: 580, text: 'You can feel the fragment inside you responding. Let it.', color: '#aa66ff', timer: 250 },
     ],
     preText: 'The Fragment Guardian — the rift entity\'s body-double. Consumed dozens of fragment-bearers. 2 lives.',
-    opponentName: 'Fragment Guardian', weaponKey: 'hammer', classKey: 'tank', aiDiff: 'expert', opponentColor: '#6600aa',
+    opponentName: 'Fragment Guardian', weaponKey: 'hammer', classKey: 'thor', aiDiff: 'expert', opponentColor: '#6600aa',
     armor: ['helmet', 'chestplate', 'leggings'],
     playerLives: 2,
     arena: 'colosseum',
@@ -117,8 +117,8 @@ STORY_CHAPTER_REGISTRY.push(
     spawnEnemies: [
       { wx: 900,  name: 'Threshold Guard',  weaponKey: 'sword',  classKey: 'warrior', aiDiff: 'hard',   color: '#446688' },
       { wx: 1600, name: 'Threshold Guard',  weaponKey: 'spear',  classKey: 'warrior', aiDiff: 'hard',   color: '#335577' },
-      { wx: 2400, name: 'Threshold Elite',  weaponKey: 'hammer', classKey: 'tank',    aiDiff: 'hard',   color: '#224466' },
-      { wx: 3200, name: 'Seal Keeper',      weaponKey: 'spear',  classKey: 'assassin',aiDiff: 'expert', color: '#113355', isGuard: true, health: 150 },
+      { wx: 2400, name: 'Threshold Elite',  weaponKey: 'hammer', classKey: 'thor',    aiDiff: 'hard',   color: '#224466' },
+      { wx: 3200, name: 'Seal Keeper',      weaponKey: 'spear',  classKey: 'ninja',aiDiff: 'expert', color: '#113355', isGuard: true, health: 150 },
     ],
     fightScript: [
       { frame: 40,  text: 'Activate the mechanisms in order. Wrong sequence resets progress.', color: '#99ffcc', timer: 270 },
@@ -149,7 +149,7 @@ STORY_CHAPTER_REGISTRY.push(
       { wx: 800,  name: 'Crucible Scout',   weaponKey: 'axe',    classKey: 'berserker',aiDiff: 'hard',   color: '#880044' },
       { wx: 1600, name: 'Crucible Scout',   weaponKey: 'sword',  classKey: 'ninja',    aiDiff: 'hard',   color: '#770033' },
       { wx: 2400, name: 'Crucible Guard',   weaponKey: 'spear',  classKey: 'warrior',  aiDiff: 'hard',   color: '#660022' },
-      { wx: 3100, name: 'Entry Sentinel',   weaponKey: 'hammer', classKey: 'tank',     aiDiff: 'expert', color: '#550011', isGuard: true, health: 120 },
+      { wx: 3100, name: 'Entry Sentinel',   weaponKey: 'hammer', classKey: 'thor',     aiDiff: 'expert', color: '#550011', isGuard: true, health: 120 },
     ],
     fightScript: [
       { frame: 40,  text: 'Collect the bearer records. Crucible scouts are purging them.', color: '#cc88ff', timer: 270 },
@@ -270,7 +270,7 @@ STORY_CHAPTER_REGISTRY.push(
       { frame: 780, text: 'The door is almost open. One more push.', color: '#ffffff', timer: 240 },
     ],
     preText: 'The Core\'s Eye — the gate to the rift entity itself. A manifestation that tests intent. Mini-boss. 1 life.',
-    opponentName: 'The Eye', weaponKey: 'hammer', classKey: 'tank', aiDiff: 'expert', opponentColor: '#6633cc',
+    opponentName: 'The Eye', weaponKey: 'hammer', classKey: 'thor', aiDiff: 'expert', opponentColor: '#6633cc',
     armor: ['helmet', 'chestplate'],
     playerLives: 1,
     arena: 'underwater',

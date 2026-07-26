@@ -24,8 +24,8 @@ STORY_CHAPTER_REGISTRY.push(
       { wx: 600,  name: 'Void Construct',  weaponKey: 'sword',  classKey: 'warrior',  aiDiff: 'hard',   color: '#007788' },
       { wx: 1200, name: 'Void Construct',  weaponKey: 'spear',  classKey: 'ninja',    aiDiff: 'hard',   color: '#006677' },
       { wx: 1900, name: 'Hollow Sentinel', weaponKey: 'axe',    classKey: 'warrior',  aiDiff: 'expert', color: '#005566' },
-      { wx: 2700, name: 'Hollow Sentinel', weaponKey: 'sword',  classKey: 'assassin', aiDiff: 'expert', color: '#004455' },
-      { wx: 3400, name: 'Drain Warden',    weaponKey: 'hammer', classKey: 'tank',     aiDiff: 'expert', color: '#003344', isGuard: true, health: 120 },
+      { wx: 2700, name: 'Hollow Sentinel', weaponKey: 'sword',  classKey: 'ninja', aiDiff: 'expert', color: '#004455' },
+      { wx: 3400, name: 'Drain Warden',    weaponKey: 'hammer', classKey: 'thor',     aiDiff: 'expert', color: '#003344', isGuard: true, health: 120 },
     ],
     fightScript: [
       { frame: 30,  text: '🌫️ QUIET EXPANSE — Seraph senses energy output. Stay in the drain gaps. Do not engage unless cornered.', color: '#44ccdd', timer: 280 },
@@ -58,7 +58,7 @@ STORY_CHAPTER_REGISTRY.push(
     spawnEnemies: [
       { wx: 800,  name: 'Memory Construct', weaponKey: 'sword',  classKey: 'warrior', aiDiff: 'hard',   color: '#006677' },
       { wx: 1700, name: 'Memory Construct', weaponKey: 'spear',  classKey: 'ninja',   aiDiff: 'hard',   color: '#005566' },
-      { wx: 2600, name: 'Core Sentinel',    weaponKey: 'hammer', classKey: 'tank',    aiDiff: 'expert', color: '#003344', isGuard: true, health: 130 },
+      { wx: 2600, name: 'Core Sentinel',    weaponKey: 'hammer', classKey: 'thor',    aiDiff: 'expert', color: '#003344', isGuard: true, health: 130 },
     ],
     fightScript: [
       { frame: 40,  text: 'Restore the conduits in order. Each one shows a moment of what the expanse once held.', color: '#44ccdd', timer: 270 },

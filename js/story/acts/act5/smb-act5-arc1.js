@@ -12,7 +12,7 @@ STORY_CHAPTER_REGISTRY.push(
       { wx: 700,  name: 'Void Shard',    weaponKey: 'sword',  classKey: 'none',    aiDiff: 'hard',   color: '#cc44ff' },
       { wx: 1500, name: 'Void Shard',    weaponKey: 'axe',    classKey: 'berserker',aiDiff: 'hard',  color: '#bb33ee' },
       { wx: 2400, name: 'Fracture Form', weaponKey: 'spear',  classKey: 'warrior', aiDiff: 'expert', color: '#aa22dd' },
-      { wx: 3200, name: 'True Echo',     weaponKey: 'hammer', classKey: 'tank',    aiDiff: 'expert', color: '#9911cc', isGuard: true, health: 130 },
+      { wx: 3200, name: 'True Echo',     weaponKey: 'hammer', classKey: 'thor',    aiDiff: 'expert', color: '#9911cc', isGuard: true, health: 130 },
     ],
     fightScript: [
       { frame: 20,  text: '⚠️ VOID BREACH — the True Form is stirring. Keep moving RIGHT.', color: '#ff44ff', timer: 290 },
@@ -68,7 +68,7 @@ STORY_CHAPTER_REGISTRY.push(
     rounds: [
       { weaponKey: 'sword',  classKey: 'warrior',  aiDiff: 'hard',   opponentColor: '#8811bb', armor: ['helmet'] },
       { weaponKey: 'spear',  classKey: 'ninja',    aiDiff: 'expert', opponentColor: '#9922cc', armor: ['helmet', 'chestplate'] },
-      { weaponKey: 'hammer', classKey: 'tank',     aiDiff: 'expert', opponentColor: '#aa33dd', armor: ['helmet', 'chestplate', 'leggings'] },
+      { weaponKey: 'hammer', classKey: 'thor',     aiDiff: 'expert', opponentColor: '#aa33dd', armor: ['helmet', 'chestplate', 'leggings'] },
     ],
     fightScript: [
       { frame: 60,  text: 'These were fragment bearers once. The True Form kept what it needed and discarded the rest.', color: '#cc44ff', timer: 290 },

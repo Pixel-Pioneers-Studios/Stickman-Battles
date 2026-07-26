@@ -42,11 +42,23 @@ const SERVER_CONFIG = {
 // ============================================================
 const CHANGELOG = [
   {
+    version: '4.0.23',
+    title: 'THE MISSING CLASSES UPDATE',
+    date: '2026-07-26',
+    flavor: 'They were written as soldiers and they have been fighting as strangers. Everyone on the road is who they were meant to be now — expect the campaign to push back harder.',
+    isLatest: true,
+    changes: [
+      { cat: 'Fix', text: 'Over a hundred campaign opponents have been fighting with no class at all. Two class names used all through the story were never real classes, so the game quietly gave those enemies no kit, no health profile and no speed profile — they fought as blank defaults. Every one of them now fights as the class they were written as' },
+      { cat: 'Fix', text: 'The affected fights include Vault Wardens, checkpoint elites and several named opponents, all of which were meant to be heavier and slower or faster and frailer than the fighters you were actually meeting' },
+      { cat: 'AI',  text: 'Expect the campaign to be harder as a result — this restores intended difficulty rather than adding new difficulty on top of it' },
+    ],
+  },
+  {
     version: '4.0.22',
     title: 'THE SCREEN UPDATE',
     date: '2026-07-26',
     flavor: 'It starts on an ordinary street and ends where you are standing now. The way in is a door, not a corridor — you pick where it leads.',
-    isLatest: true,
+    isLatest: false,
     changes: [
       { cat: 'UI',     text: 'The opening no longer drops you into the campaign. It ends on the home screen, and the story is a choice you make from there instead of a room you wake up locked inside' },
       { cat: 'Visual', text: 'The cold open ends on the phone from the torn bag — it lands face-up, wakes, and the camera pushes into the screen until the screen is the menu you are looking at' },
@@ -915,7 +927,7 @@ let _publicRoomCheckTimer = 0;
 // ============================================================
 // VERSION
 // ============================================================
-const GAME_VERSION = '4.0.22';  // bump this when releasing; must match CHANGELOG[0].version
+const GAME_VERSION = '4.0.23';  // bump this when releasing; must match CHANGELOG[0].version
 console.log('[VERSION CHECK]', GAME_VERSION);
 
 // DEBUG / DEVELOPER STATE

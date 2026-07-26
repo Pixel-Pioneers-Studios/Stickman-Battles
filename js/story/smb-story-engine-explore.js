@@ -335,7 +335,7 @@ function _storyEnterSidePortal(portal, p1, ch) {
   const eliteB = _storyCloneEnemyDef(eliteA, {
     name: isBossRift ? 'Fracture Warden' : 'Elite Reinforcement',
     weaponKey: 'hammer',
-    classKey: 'tank',
+    classKey: 'thor',
     color: '#665577',
     isElite: true,
   });

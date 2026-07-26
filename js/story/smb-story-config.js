@@ -551,7 +551,7 @@ function _storyBuildPhases(ch) {
         type: 'elite_wave', label: 'Wave 2 — Heavies', arena, playerLives: lives,
         opponents: [
           eliteEnemy,
-          _storyCloneEnemyDef(supportEnemy, { name: `${baseEnemy.name} Skirmisher`, weaponKey: 'spear', classKey: 'assassin', color: '#8855cc' }),
+          _storyCloneEnemyDef(supportEnemy, { name: `${baseEnemy.name} Skirmisher`, weaponKey: 'spear', classKey: 'ninja', color: '#8855cc' }),
         ],
       },
       {
@@ -578,7 +578,7 @@ function _storyBuildPhases(ch) {
         type: 'arena_lock',
         label: 'Hold The Route',
         arena: ch.arena || 'homeAlley',
-        opponents: [supportEnemy, _storyCloneEnemyDef(supportEnemy, { name: 'Lockdown Guard', weaponKey: 'hammer', classKey: 'tank', color: '#556677' })],
+        opponents: [supportEnemy, _storyCloneEnemyDef(supportEnemy, { name: 'Lockdown Guard', weaponKey: 'hammer', classKey: 'thor', color: '#556677' })],
         playerLives: ch.playerLives || 3,
       },
       {

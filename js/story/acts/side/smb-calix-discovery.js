@@ -30,8 +30,8 @@ STORY_CHAPTER_REGISTRY.push(
     spawnEnemies: [
       { wx: 500,  name: 'Facility Drone',   weaponKey: 'spear',  classKey: 'warrior', aiDiff: 'hard',   color: '#446688' },
       { wx: 1100, name: 'Facility Drone',   weaponKey: 'sword',  classKey: 'warrior', aiDiff: 'hard',   color: '#445577' },
-      { wx: 1800, name: 'Containment Unit', weaponKey: 'axe',    classKey: 'tank',    aiDiff: 'hard',   color: '#334466', armor: ['helmet'] },
-      { wx: 2500, name: 'Containment Unit', weaponKey: 'hammer', classKey: 'tank',    aiDiff: 'expert', color: '#223355', armor: ['helmet', 'chestplate'], isGuard: true, health: 120 },
+      { wx: 1800, name: 'Containment Unit', weaponKey: 'axe',    classKey: 'thor',    aiDiff: 'hard',   color: '#334466', armor: ['helmet'] },
+      { wx: 2500, name: 'Containment Unit', weaponKey: 'hammer', classKey: 'thor',    aiDiff: 'expert', color: '#223355', armor: ['helmet', 'chestplate'], isGuard: true, health: 120 },
     ],
     fightScript: [
       { frame: 30,  text: 'Automated systems — active and hostile. The facility is still running.', color: '#88bbdd', timer: 270 },
@@ -123,7 +123,7 @@ STORY_CHAPTER_REGISTRY.push(
       { frame: 620, text: '"The fragment is the passport. Both domains recognize its structure. That\'s why Axiom built it that way — not just a key. A passport."', color: '#88ccff', timer: 320 },
     ],
     preText: 'Facility lockdown — secondary security sweep. Calix is with you. 3 lives.',
-    opponentName: 'Lockdown Enforcer', weaponKey: 'hammer', classKey: 'tank', aiDiff: 'hard', opponentColor: '#334466',
+    opponentName: 'Lockdown Enforcer', weaponKey: 'hammer', classKey: 'thor', aiDiff: 'hard', opponentColor: '#334466',
     twoEnemies: true,
     secondEnemy: { weaponKey: 'sword', classKey: 'warrior', aiDiff: 'hard', color: '#223355' },
     armor: ['helmet'],

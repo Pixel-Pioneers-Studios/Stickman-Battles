@@ -233,7 +233,7 @@ STORY_CHAPTER_REGISTRY.push(
     spawnEnemies: [
       { wx: 900,  name: 'Flux Drifter',    weaponKey: 'sword',  classKey: 'ninja',   aiDiff: 'hard',   color: '#4488ff' },
       { wx: 1800, name: 'Flux Drifter',    weaponKey: 'axe',    classKey: 'berserker',aiDiff: 'hard',  color: '#3377ee' },
-      { wx: 2800, name: 'Axis Keeper',     weaponKey: 'hammer', classKey: 'tank',    aiDiff: 'expert', color: '#2266dd', isGuard: true, health: 130 },
+      { wx: 2800, name: 'Axis Keeper',     weaponKey: 'hammer', classKey: 'thor',    aiDiff: 'expert', color: '#2266dd', isGuard: true, health: 130 },
     ],
     fightScript: [
       { frame: 40,  text: 'Activate flux nodes in sequence. Wrong order resets the inversion cycle.', color: '#88aaff', timer: 270 },

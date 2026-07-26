@@ -44,7 +44,7 @@ STORY_CHAPTER_REGISTRY.push(
     spawnEnemies: [
       { wx: 900,  name: 'Threshold Guard', weaponKey: 'sword',  classKey: 'warrior', aiDiff: 'hard',   color: '#ccaa44' },
       { wx: 1800, name: 'Threshold Guard', weaponKey: 'spear',  classKey: 'warrior', aiDiff: 'expert', color: '#aa8822' },
-      { wx: 2700, name: 'Seal Keeper',     weaponKey: 'hammer', classKey: 'tank',    aiDiff: 'expert', color: '#997711', isGuard: true, health: 140 },
+      { wx: 2700, name: 'Seal Keeper',     weaponKey: 'hammer', classKey: 'thor',    aiDiff: 'expert', color: '#997711', isGuard: true, health: 140 },
     ],
     fightScript: [
       { frame: 40,  text: 'Activate memory locks in order. The Fallen God is watching.', color: '#ffcc44', timer: 270 },

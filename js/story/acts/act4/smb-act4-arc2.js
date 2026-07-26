@@ -18,7 +18,7 @@ STORY_CHAPTER_REGISTRY.push(
       { wx: 800,  name: 'Sanctum Guard',  weaponKey: 'sword',  classKey: 'warrior',  aiDiff: 'hard',   color: '#334455' },
       { wx: 1600, name: 'Sanctum Guard',  weaponKey: 'spear',  classKey: 'warrior',  aiDiff: 'expert', color: '#2a3a4a' },
       { wx: 2400, name: 'Core Sentinel',  weaponKey: 'axe',    classKey: 'berserker',aiDiff: 'expert', color: '#3a4a5a' },
-      { wx: 3200, name: 'Record Keeper',  weaponKey: 'hammer', classKey: 'tank',     aiDiff: 'expert', color: '#445566', isGuard: true, health: 140 },
+      { wx: 3200, name: 'Record Keeper',  weaponKey: 'hammer', classKey: 'thor',     aiDiff: 'expert', color: '#445566', isGuard: true, health: 140 },
     ],
     fightScript: [
       { frame: 40,  text: 'Collect all four records before the architecture purges them.', color: '#cc6600', timer: 270 },
@@ -75,7 +75,7 @@ STORY_CHAPTER_REGISTRY.push(
     opponentName: 'Residual Construct',
     rounds: [
       { weaponKey: 'sword',  classKey: 'warrior',  aiDiff: 'hard',   opponentColor: '#334455', armor: ['helmet'] },
-      { weaponKey: 'spear',  classKey: 'assassin', aiDiff: 'expert', opponentColor: '#2a3a4a', armor: ['helmet', 'chestplate'] },
+      { weaponKey: 'spear',  classKey: 'ninja', aiDiff: 'expert', opponentColor: '#2a3a4a', armor: ['helmet', 'chestplate'] },
       { weaponKey: 'axe',    classKey: 'berserker', aiDiff: 'expert', opponentColor: '#445566', armor: ['helmet', 'chestplate'] },
     ],
     fightScript: [
@@ -167,7 +167,7 @@ STORY_CHAPTER_REGISTRY.push(
     guardDefs: [
       { name: 'Threshold Guard', weaponKey: 'spear',  classKey: 'warrior',  aiDiff: 'hard',   color: '#334455' },
       { name: 'Threshold Guard', weaponKey: 'axe',    classKey: 'berserker',aiDiff: 'expert', color: '#2a3a4a' },
-      { name: 'Gate Sentinel',   weaponKey: 'sword',  classKey: 'assassin', aiDiff: 'expert', color: '#3a4a5a' },
+      { name: 'Gate Sentinel',   weaponKey: 'sword',  classKey: 'ninja', aiDiff: 'expert', color: '#3a4a5a' },
     ],
     fightScript: [
       { frame: 60,  text: 'Overseer is jamming the rift entity\'s signal. Eliminate the target.', color: '#ff6600', timer: 290 },

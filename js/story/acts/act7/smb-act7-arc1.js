@@ -76,7 +76,7 @@ STORY_CHAPTER_REGISTRY.push(
       { wx: 800,  name: 'Residual Echo',    weaponKey: 'sword',  classKey: 'warrior',  aiDiff: 'hard',   color: '#aaaacc' },
       { wx: 1700, name: 'Residual Echo',    weaponKey: 'spear',  classKey: 'warrior',  aiDiff: 'hard',   color: '#9999bb' },
       { wx: 2700, name: 'Fracture Remnant', weaponKey: 'axe',    classKey: 'berserker',aiDiff: 'expert', color: '#8888aa' },
-      { wx: 3600, name: 'Fracture Remnant', weaponKey: 'hammer', classKey: 'tank',     aiDiff: 'expert', color: '#777799' },
+      { wx: 3600, name: 'Fracture Remnant', weaponKey: 'hammer', classKey: 'thor',     aiDiff: 'expert', color: '#777799' },
       { wx: 4400, name: 'Deep Remnant',     weaponKey: 'spear',  classKey: 'warrior',  aiDiff: 'expert', color: '#666688', isGuard: true, health: 120 },
     ],
     fightScript: [

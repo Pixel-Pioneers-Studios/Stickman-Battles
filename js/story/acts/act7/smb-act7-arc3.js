@@ -104,7 +104,7 @@ STORY_CHAPTER_REGISTRY.push(
       { wx: 700,  name: 'Reshaped Construct', weaponKey: 'sword',  classKey: 'warrior',  aiDiff: 'expert', color: '#ddbcff' },
       { wx: 1500, name: 'Reshaped Construct', weaponKey: 'spear',  classKey: 'warrior',  aiDiff: 'expert', color: '#ccaaee' },
       { wx: 2400, name: 'Foundation Echo',    weaponKey: 'axe',    classKey: 'berserker',aiDiff: 'expert', color: '#bb99dd' },
-      { wx: 3300, name: 'Foundation Echo',    weaponKey: 'hammer', classKey: 'tank',     aiDiff: 'expert', color: '#aa88cc', isGuard: true, health: 130 },
+      { wx: 3300, name: 'Foundation Echo',    weaponKey: 'hammer', classKey: 'thor',     aiDiff: 'expert', color: '#aa88cc', isGuard: true, health: 130 },
     ],
     fightScript: [
       { frame: 20,  text: '⚠️ The domain is closing in. The kernel has learned how God\'s architecture works. It is building it against you. Keep moving RIGHT.', color: '#ff8844', timer: 290 },

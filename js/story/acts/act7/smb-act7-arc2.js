@@ -16,7 +16,7 @@ STORY_CHAPTER_REGISTRY.push(
       { wx: 900,  name: 'Domain Construct', weaponKey: 'sword',  classKey: 'warrior',  aiDiff: 'expert', color: '#ddcc88' },
       { wx: 1800, name: 'Domain Construct', weaponKey: 'spear',  classKey: 'warrior',  aiDiff: 'expert', color: '#ccbb77' },
       { wx: 2800, name: 'Structural Echo',  weaponKey: 'axe',    classKey: 'berserker',aiDiff: 'expert', color: '#bbaa66' },
-      { wx: 3700, name: 'Structural Echo',  weaponKey: 'hammer', classKey: 'tank',     aiDiff: 'expert', color: '#aa9955' },
+      { wx: 3700, name: 'Structural Echo',  weaponKey: 'hammer', classKey: 'thor',     aiDiff: 'expert', color: '#aa9955' },
       { wx: 4400, name: 'Core Warden',      weaponKey: 'spear',  classKey: 'warrior',  aiDiff: 'expert', color: '#998844', isGuard: true, health: 130 },
     ],
     fightScript: [
@@ -109,7 +109,7 @@ STORY_CHAPTER_REGISTRY.push(
       { wx: 800,  name: 'Convergence Shard', weaponKey: 'sword',  classKey: 'warrior',  aiDiff: 'expert', color: '#ddcc88' },
       { wx: 1600, name: 'Convergence Shard', weaponKey: 'spear',  classKey: 'ninja',    aiDiff: 'expert', color: '#ccbb77' },
       { wx: 2500, name: 'Core Disturbance',  weaponKey: 'axe',    classKey: 'berserker',aiDiff: 'expert', color: '#bb9944' },
-      { wx: 3200, name: 'Core Disturbance',  weaponKey: 'hammer', classKey: 'tank',     aiDiff: 'expert', color: '#aa8833', isGuard: true, health: 120 },
+      { wx: 3200, name: 'Core Disturbance',  weaponKey: 'hammer', classKey: 'thor',     aiDiff: 'expert', color: '#aa8833', isGuard: true, health: 120 },
     ],
     fightScript: [
       { frame: 40,  text: 'The domain is remembering things it has held for a long time. Some of them are about the man beside you.', color: '#eedd99', timer: 280 },

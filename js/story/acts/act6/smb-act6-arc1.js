@@ -56,7 +56,7 @@ STORY_CHAPTER_REGISTRY.push(
     spawnEnemies: [
       { wx: 750,  name: 'Remnant Construct', weaponKey: 'sword',  classKey: 'warrior',  aiDiff: 'hard',   color: '#667788' },
       { wx: 1450, name: 'Remnant Construct', weaponKey: 'axe',    classKey: 'berserker',aiDiff: 'hard',   color: '#556677' },
-      { wx: 2200, name: 'Void Residue',      weaponKey: 'hammer', classKey: 'tank',     aiDiff: 'expert', color: '#445566', isGuard: true, health: 120 },
+      { wx: 2200, name: 'Void Residue',      weaponKey: 'hammer', classKey: 'thor',     aiDiff: 'expert', color: '#445566', isGuard: true, health: 120 },
     ],
     fightScript: [
       { frame: 40,  text: 'These are the remains of a dimension whose wall fell. Collect what\'s left.', color: '#ffcc44', timer: 270 },
@@ -88,7 +88,7 @@ STORY_CHAPTER_REGISTRY.push(
       { wx: 600,  name: 'Observer',      weaponKey: 'sword',  classKey: 'ninja',   aiDiff: 'hard',   color: '#ccaa44' },
       { wx: 1300, name: 'Observer',      weaponKey: 'spear',  classKey: 'ninja',   aiDiff: 'hard',   color: '#bbaa33' },
       { wx: 2000, name: 'Silent Warden', weaponKey: 'axe',    classKey: 'warrior', aiDiff: 'expert', color: '#aa9922' },
-      { wx: 2800, name: 'Silent Warden', weaponKey: 'hammer', classKey: 'tank',    aiDiff: 'expert', color: '#998811', isGuard: true, health: 120 },
+      { wx: 2800, name: 'Silent Warden', weaponKey: 'hammer', classKey: 'thor',    aiDiff: 'expert', color: '#998811', isGuard: true, health: 120 },
     ],
     fightScript: [
       { frame: 30,  text: 'Observers monitoring. Reach the voice\'s source without drawing attention.', color: '#ffcc44', timer: 270 },
@@ -119,7 +119,7 @@ STORY_CHAPTER_REGISTRY.push(
     spawnEnemies: [
       { wx: 800,  name: 'Vault Guardian',   weaponKey: 'sword',  classKey: 'warrior', aiDiff: 'hard',   color: '#ccaa44' },
       { wx: 1600, name: 'Vault Guardian',   weaponKey: 'spear',  classKey: 'warrior', aiDiff: 'hard',   color: '#bb9933' },
-      { wx: 2400, name: 'Origin Warden',    weaponKey: 'hammer', classKey: 'tank',    aiDiff: 'expert', color: '#aa8822' },
+      { wx: 2400, name: 'Origin Warden',    weaponKey: 'hammer', classKey: 'thor',    aiDiff: 'expert', color: '#aa8822' },
       { wx: 3100, name: 'First Keeper',     weaponKey: 'axe',    classKey: 'berserker',aiDiff: 'expert', color: '#997711', isGuard: true, health: 130 },
     ],
     fightScript: [

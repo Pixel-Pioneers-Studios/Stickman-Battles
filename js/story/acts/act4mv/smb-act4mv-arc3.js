@@ -22,7 +22,7 @@ STORY_CHAPTER_REGISTRY.push(
       { wx: 800,  name: 'Threshold Scout',  weaponKey: 'sword',  classKey: 'warrior',  aiDiff: 'hard',   color: '#445566' },
       { wx: 1600, name: 'Threshold Scout',  weaponKey: 'spear',  classKey: 'ninja',    aiDiff: 'hard',   color: '#334455' },
       { wx: 2500, name: 'Boundary Guard',   weaponKey: 'axe',    classKey: 'berserker',aiDiff: 'expert', color: '#223344' },
-      { wx: 3200, name: 'Fracture Warden',  weaponKey: 'hammer', classKey: 'tank',     aiDiff: 'expert', color: '#112233', isGuard: true, health: 120 },
+      { wx: 3200, name: 'Fracture Warden',  weaponKey: 'hammer', classKey: 'thor',     aiDiff: 'expert', color: '#112233', isGuard: true, health: 120 },
     ],
     fightScript: [
       { frame: 40,  text: 'Collect all four traces before they dissipate. Someone was here — and knew exactly when to leave.', color: '#cc88ff', timer: 270 },
@@ -53,8 +53,8 @@ STORY_CHAPTER_REGISTRY.push(
     spawnEnemies: [
       { wx: 600,  name: 'Signal Drone', weaponKey: 'sword',  classKey: 'warrior',  aiDiff: 'hard',   color: '#4488dd' },
       { wx: 1300, name: 'Signal Drone', weaponKey: 'spear',  classKey: 'warrior',  aiDiff: 'hard',   color: '#3377cc' },
-      { wx: 2000, name: 'Scan Unit',    weaponKey: 'axe',    classKey: 'assassin', aiDiff: 'expert', color: '#2266bb' },
-      { wx: 2900, name: 'Scan Unit',    weaponKey: 'sword',  classKey: 'assassin', aiDiff: 'expert', color: '#1155aa', isGuard: true, health: 120 },
+      { wx: 2000, name: 'Scan Unit',    weaponKey: 'axe',    classKey: 'ninja', aiDiff: 'expert', color: '#2266bb' },
+      { wx: 2900, name: 'Scan Unit',    weaponKey: 'sword',  classKey: 'ninja', aiDiff: 'expert', color: '#1155aa', isGuard: true, health: 120 },
     ],
     fightScript: [
       { frame: 30,  text: 'Signal drones are sweeping the ridge. Don\'t let Veran know you\'re here.', color: '#ffcc44', timer: 270 },

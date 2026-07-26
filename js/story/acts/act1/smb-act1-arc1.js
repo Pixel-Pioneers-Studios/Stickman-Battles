@@ -128,9 +128,9 @@ STORY_CHAPTER_REGISTRY.push(
     spawnEnemies: [
       { wx: 700,  name: 'Sentinel',       weaponKey: 'spear',  classKey: 'warrior',  aiDiff: 'medium', color: '#3355aa' },
       { wx: 1300, name: 'Sentinel',       weaponKey: 'sword',  classKey: 'warrior',  aiDiff: 'medium', color: '#2244bb' },
-      { wx: 2000, name: 'Void Sentinel',  weaponKey: 'spear',  classKey: 'assassin', aiDiff: 'hard',   color: '#112299' },
-      { wx: 2800, name: 'Void Sentinel',  weaponKey: 'sword',  classKey: 'assassin', aiDiff: 'hard',   color: '#001188' },
-      { wx: 3500, name: 'Arena Guard',    weaponKey: 'hammer', classKey: 'tank',     aiDiff: 'hard',   color: '#334466', isGuard: true, health: 150 },
+      { wx: 2000, name: 'Void Sentinel',  weaponKey: 'spear',  classKey: 'ninja', aiDiff: 'hard',   color: '#112299' },
+      { wx: 2800, name: 'Void Sentinel',  weaponKey: 'sword',  classKey: 'ninja', aiDiff: 'hard',   color: '#001188' },
+      { wx: 3500, name: 'Arena Guard',    weaponKey: 'hammer', classKey: 'thor',     aiDiff: 'hard',   color: '#334466', isGuard: true, health: 150 },
     ],
     fightScript: [
       { frame: 30,  text: 'Sentinels everywhere. Stay out of their detection zones.', color: '#ffcc44', timer: 270 },
@@ -166,7 +166,7 @@ STORY_CHAPTER_REGISTRY.push(
       { frame: 580, text: '"You are stronger than I expected." Then hit harder.', color: '#cc88ff', timer: 240 },
     ],
     preText: 'The Void Collector — a veteran fragment extractor from the rift entity. Boss-tier threat. Two lives.',
-    opponentName: 'Void Collector', weaponKey: 'hammer', classKey: 'tank', aiDiff: 'hard', opponentColor: '#7700cc',
+    opponentName: 'Void Collector', weaponKey: 'hammer', classKey: 'thor', aiDiff: 'hard', opponentColor: '#7700cc',
     armor: ['helmet', 'chestplate'],
     playerLives: 2,
     arena: 'clouds',

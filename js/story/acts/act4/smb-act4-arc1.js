@@ -39,16 +39,16 @@ STORY_CHAPTER_REGISTRY.push(
     spawnEnemies: [
       { wx: 500,  name: 'Architecture Soldier', weaponKey: 'spear',  classKey: 'warrior',   aiDiff: 'hard',   color: '#334455', armor: ['helmet'] },
       { wx: 900,  name: 'Grid Enforcer',        weaponKey: 'sword',  classKey: 'warrior',   aiDiff: 'hard',   color: '#2a3a4a', armor: ['helmet'] },
-      { wx: 1300, name: 'Lattice Guard',        weaponKey: 'axe',    classKey: 'tank',      aiDiff: 'hard',   color: '#3a4a5a', armor: ['helmet', 'chestplate'] },
+      { wx: 1300, name: 'Lattice Guard',        weaponKey: 'axe',    classKey: 'thor',      aiDiff: 'hard',   color: '#3a4a5a', armor: ['helmet', 'chestplate'] },
       { wx: 1700, name: 'Frame Knight',         weaponKey: 'spear',  classKey: 'warrior',   aiDiff: 'expert', color: '#445566', armor: ['helmet', 'chestplate'] },
       { wx: 2100, name: 'System Sentinel',      weaponKey: 'sword',  classKey: 'ninja',     aiDiff: 'expert', color: '#334455' },
-      { wx: 2500, name: 'Logic Warden',         weaponKey: 'hammer', classKey: 'tank',      aiDiff: 'expert', color: '#4a5a6a', armor: ['helmet', 'chestplate'] },
+      { wx: 2500, name: 'Logic Warden',         weaponKey: 'hammer', classKey: 'thor',      aiDiff: 'expert', color: '#4a5a6a', armor: ['helmet', 'chestplate'] },
       { wx: 2900, name: 'Precision Guard',      weaponKey: 'axe',    classKey: 'berserker', aiDiff: 'expert', color: '#556677' },
       { wx: 3400, name: 'Deep Frame Soldier',   weaponKey: 'spear',  classKey: 'warrior',   aiDiff: 'expert', color: '#3a4f60', armor: ['helmet', 'chestplate', 'leggings'] },
       { wx: 3900, name: 'Inner Guard',          weaponKey: 'sword',  classKey: 'ninja',     aiDiff: 'expert', color: '#2a3a4a' },
-      { wx: 4400, name: 'Anchor Sentinel',      weaponKey: 'axe',    classKey: 'tank',      aiDiff: 'expert', color: '#334455', isGuard: true, health: 150, armor: ['helmet', 'chestplate'] },
+      { wx: 4400, name: 'Anchor Sentinel',      weaponKey: 'axe',    classKey: 'thor',      aiDiff: 'expert', color: '#334455', isGuard: true, health: 150, armor: ['helmet', 'chestplate'] },
       { wx: 4520, name: 'Core Construct',       weaponKey: 'spear',  classKey: 'warrior',   aiDiff: 'expert', color: '#2a3a50', isGuard: true, health: 130, armor: ['helmet', 'chestplate', 'leggings'] },
-      { wx: 4620, name: 'Node Keeper',          weaponKey: 'hammer', classKey: 'tank',      aiDiff: 'expert', color: '#445566', isGuard: true, health: 120, armor: ['helmet', 'chestplate'] },
+      { wx: 4620, name: 'Node Keeper',          weaponKey: 'hammer', classKey: 'thor',      aiDiff: 'expert', color: '#445566', isGuard: true, health: 120, armor: ['helmet', 'chestplate'] },
     ],
     playerLives: 3,
     tokenReward: 120, blueprintDrop: null,
@@ -107,9 +107,9 @@ STORY_CHAPTER_REGISTRY.push(
     spawnEnemies: [
       { wx: 600,  name: 'Architecture Scout', weaponKey: 'sword',  classKey: 'warrior',  aiDiff: 'hard',   color: '#334455' },
       { wx: 1300, name: 'Architecture Scout', weaponKey: 'spear',  classKey: 'warrior',  aiDiff: 'hard',   color: '#2a3a4a' },
-      { wx: 2000, name: 'Grid Sentinel',      weaponKey: 'axe',    classKey: 'assassin', aiDiff: 'expert', color: '#3a4a5a' },
-      { wx: 2700, name: 'Grid Sentinel',      weaponKey: 'sword',  classKey: 'assassin', aiDiff: 'expert', color: '#2a3a50' },
-      { wx: 3400, name: 'Sanctum Guard',      weaponKey: 'hammer', classKey: 'tank',     aiDiff: 'expert', color: '#334466', isGuard: true, health: 150 },
+      { wx: 2000, name: 'Grid Sentinel',      weaponKey: 'axe',    classKey: 'ninja', aiDiff: 'expert', color: '#3a4a5a' },
+      { wx: 2700, name: 'Grid Sentinel',      weaponKey: 'sword',  classKey: 'ninja', aiDiff: 'expert', color: '#2a3a50' },
+      { wx: 3400, name: 'Sanctum Guard',      weaponKey: 'hammer', classKey: 'thor',     aiDiff: 'expert', color: '#334466', isGuard: true, health: 150 },
     ],
     fightScript: [
       { frame: 30,  text: 'Architecture constructs everywhere. The Creator is watching this chamber directly.', color: '#ffcc44', timer: 270 },
@@ -173,7 +173,7 @@ STORY_CHAPTER_REGISTRY.push(
       { wx: 1500, name: 'Signal Hunter',   weaponKey: 'spear',  classKey: 'warrior', aiDiff: 'hard',   color: '#2a3a4a' },
       { wx: 2300, name: 'Frame Enforcer',  weaponKey: 'axe',    classKey: 'berserker',aiDiff: 'expert', color: '#3a4a5a' },
       { wx: 3100, name: 'Frame Enforcer',  weaponKey: 'hammer', classKey: 'warrior', aiDiff: 'expert', color: '#445566' },
-      { wx: 3900, name: 'Relay Warden',    weaponKey: 'spear',  classKey: 'assassin',aiDiff: 'expert', color: '#2a3a50', isGuard: true, health: 130 },
+      { wx: 3900, name: 'Relay Warden',    weaponKey: 'spear',  classKey: 'ninja',aiDiff: 'expert', color: '#2a3a50', isGuard: true, health: 130 },
     ],
     fightScript: [
       { frame: 20,  text: '⚠️ SIGNAL DETECTED — constructs closing from behind. Keep moving RIGHT.', color: '#ff4422', timer: 290 },
@@ -197,7 +197,7 @@ STORY_CHAPTER_REGISTRY.push(
     rounds: [
       { weaponKey: 'spear',  classKey: 'warrior',  aiDiff: 'hard',   opponentColor: '#334455', armor: ['helmet'] },
       { weaponKey: 'axe',    classKey: 'berserker', aiDiff: 'expert', opponentColor: '#3a4a5a', armor: ['helmet', 'chestplate'] },
-      { weaponKey: 'hammer', classKey: 'tank',      aiDiff: 'expert', opponentColor: '#445566', armor: ['helmet', 'chestplate'] },
+      { weaponKey: 'hammer', classKey: 'thor',      aiDiff: 'expert', opponentColor: '#445566', armor: ['helmet', 'chestplate'] },
     ],
     fightScript: [
       { frame: 60,  text: '"I was the first thing the Creator made. Designed to feel." Round 1. Keep going.', color: '#aaccff', timer: 290 },
@@ -227,7 +227,7 @@ STORY_CHAPTER_REGISTRY.push(
     spawnEnemies: [
       { wx: 900,  name: 'Memory Guard',   weaponKey: 'sword',  classKey: 'warrior', aiDiff: 'hard',   color: '#334455' },
       { wx: 1700, name: 'Memory Guard',   weaponKey: 'spear',  classKey: 'warrior', aiDiff: 'hard',   color: '#2a3a4a' },
-      { wx: 2500, name: 'Vault Sentinel', weaponKey: 'hammer', classKey: 'tank',    aiDiff: 'expert', color: '#3a4a5a', isGuard: true, health: 140 },
+      { wx: 2500, name: 'Vault Sentinel', weaponKey: 'hammer', classKey: 'thor',    aiDiff: 'expert', color: '#3a4a5a', isGuard: true, health: 140 },
     ],
     fightScript: [
       { frame: 40,  text: 'Activate vault locks in order. The Creator\'s oldest memory is here.', color: '#99ffcc', timer: 270 },
@@ -289,7 +289,7 @@ STORY_CHAPTER_REGISTRY.push(
       { wx: 700,  name: 'Sweep Unit',    weaponKey: 'sword',  classKey: 'warrior',   aiDiff: 'hard',   color: '#334455' },
       { wx: 1500, name: 'Sweep Unit',    weaponKey: 'spear',  classKey: 'warrior',   aiDiff: 'hard',   color: '#2a3a4a' },
       { wx: 2300, name: 'Erasure Drone', weaponKey: 'axe',    classKey: 'berserker', aiDiff: 'expert', color: '#3a4a5a' },
-      { wx: 3100, name: 'Lockdown Unit', weaponKey: 'hammer', classKey: 'tank',      aiDiff: 'expert', color: '#445566', isGuard: true, health: 120 },
+      { wx: 3100, name: 'Lockdown Unit', weaponKey: 'hammer', classKey: 'thor',      aiDiff: 'expert', color: '#445566', isGuard: true, health: 120 },
     ],
     fightScript: [
       { frame: 20,  text: '⚠️ SWEEP ACTIVE — constructs closing from behind. Keep moving RIGHT.', color: '#ff4422', timer: 290 },

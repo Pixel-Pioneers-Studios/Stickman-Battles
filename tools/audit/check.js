@@ -244,6 +244,58 @@ for (const [f, src] of srcOf) {
   });
 }
 
+// ── 10. Authored keys must exist ─────────────────────────────────────────────
+// classKey/weaponKey/arena are looked up by string. applyClass() bails silently
+// on an unknown key, so a typo does not throw — the enemy just spawns with no
+// class at all. 'tank' and 'assassin' shipped this way across 104 sites.
+{
+  // Depth-1 property names of a top-level object literal, brace-walked.
+  function topKeys(src, declRe) {
+    const m = src.match(declRe);
+    if (!m) return null;
+    const open = src.indexOf('{', m.index);
+    if (open === -1) return null;
+    const keys = new Set();
+    let depth = 0;
+    for (let i = open; i < src.length; i++) {
+      const c = src[i];
+      if (c === '{' || c === '[') depth++;
+      else if (c === '}' || c === ']') { depth--; if (depth === 0) break; }
+      else if (depth === 1 && /[A-Za-z_$]/.test(c)) {
+        const rest = src.slice(i);
+        const k = rest.match(/^([A-Za-z_$][\w$]*)\s*:/);
+        if (k) { keys.add(k[1]); i += k[1].length; }
+      }
+    }
+    return keys.size ? keys : null;
+  }
+
+  const dataW = srcOf.get('js/smb-data-weapons.js') || '';
+  const dataA = srcOf.get('js/smb-data-arenas.js')  || '';
+  const known = {
+    classKey:  topKeys(dataW, /const\s+CLASSES\s*=/),
+    weaponKey: topKeys(dataW, /const\s+WEAPONS\s*=/),
+    arena:     topKeys(dataA, /const\s+ARENAS\s*=/),
+  };
+
+  for (const [field, valid] of Object.entries(known)) {
+    if (!valid) continue;
+    for (const [f, src] of srcOf) {
+      // The definition files themselves, and the menus that enumerate options.
+      if (f === 'js/smb-data-weapons.js' || f === 'js/smb-data-arenas.js') continue;
+      src.split('\n').forEach((line, i) => {
+        const m = line.match(new RegExp(field + "\\s*:\\s*'([a-zA-Z_$][\\w$]*)'"));
+        if (!m) return;
+        const key = m[1];
+        if (key === 'none' || key === 'random' || valid.has(key)) return;
+        report('ERROR', 'unknown-key',
+          `${field}: '${key}' is not defined in ${field === 'arena' ? 'ARENAS' : field === 'classKey' ? 'CLASSES' : 'WEAPONS'}`,
+          `${f}:${i + 1}`);
+      });
+    }
+  }
+}
+
 // ── Output ───────────────────────────────────────────────────────────────────
 const order = { ERROR: 0, WARN: 1, ACCEPTED: 2 };
 findings.sort((a, b) => order[a.level] - order[b.level] || a.rule.localeCompare(b.rule));

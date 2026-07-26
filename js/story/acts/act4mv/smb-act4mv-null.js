@@ -18,7 +18,7 @@ STORY_CHAPTER_REGISTRY.push(
       { wx: 1500, name: 'Pattern Construct', weaponKey: 'spear',  classKey: 'ninja',     aiDiff: 'hard',   color: '#6600aa' },
       { wx: 2300, name: 'Form Enforcer',     weaponKey: 'axe',    classKey: 'berserker', aiDiff: 'expert', color: '#5500aa' },
       { wx: 3100, name: 'Form Enforcer',     weaponKey: 'spear',  classKey: 'warrior',   aiDiff: 'expert', color: '#4400aa' },
-      { wx: 3800, name: 'Null Sentinel',     weaponKey: 'hammer', classKey: 'tank',      aiDiff: 'expert', color: '#330099', isGuard: true, health: 130 },
+      { wx: 3800, name: 'Null Sentinel',     weaponKey: 'hammer', classKey: 'thor',      aiDiff: 'expert', color: '#330099', isGuard: true, health: 130 },
     ],
     fightScript: [
       { frame: 20,  text: '⚠️ ARCHITECTURE IN FLUX — the world rearranges itself. Keep moving RIGHT.', color: '#aa44ff', timer: 290 },
@@ -52,7 +52,7 @@ STORY_CHAPTER_REGISTRY.push(
     spawnEnemies: [
       { wx: 800,  name: 'Archive Guard', weaponKey: 'sword',  classKey: 'warrior', aiDiff: 'hard',   color: '#6600bb' },
       { wx: 1700, name: 'Archive Guard', weaponKey: 'spear',  classKey: 'warrior', aiDiff: 'hard',   color: '#5500aa' },
-      { wx: 2600, name: 'Vault Keeper',  weaponKey: 'hammer', classKey: 'tank',    aiDiff: 'expert', color: '#440099', isGuard: true, health: 140 },
+      { wx: 2600, name: 'Vault Keeper',  weaponKey: 'hammer', classKey: 'thor',    aiDiff: 'expert', color: '#440099', isGuard: true, health: 140 },
     ],
     fightScript: [
       { frame: 40,  text: 'Null catalogued 847 beings. Find what they kept.', color: '#aa44ff', timer: 270 },

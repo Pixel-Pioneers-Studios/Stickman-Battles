@@ -13,11 +13,11 @@ STORY_CHAPTER_REGISTRY.push(
     objectName: 'Stable Core',
     preText: 'The Collision Realm fractures constantly under Thresh\'s weight. Navigate through active impact zones and cascading debris. The ground is unreliable. The air isn\'t much better.',
     spawnEnemies: [
-      { wx: 600,  name: 'Debris Soldier',  weaponKey: 'hammer', classKey: 'tank',      aiDiff: 'hard',   color: '#884422' },
+      { wx: 600,  name: 'Debris Soldier',  weaponKey: 'hammer', classKey: 'thor',      aiDiff: 'hard',   color: '#884422' },
       { wx: 1300, name: 'Debris Soldier',  weaponKey: 'axe',    classKey: 'berserker', aiDiff: 'hard',   color: '#774411' },
-      { wx: 2100, name: 'Impact Enforcer', weaponKey: 'hammer', classKey: 'tank',      aiDiff: 'expert', color: '#663300' },
+      { wx: 2100, name: 'Impact Enforcer', weaponKey: 'hammer', classKey: 'thor',      aiDiff: 'expert', color: '#663300' },
       { wx: 2900, name: 'Impact Enforcer', weaponKey: 'axe',    classKey: 'berserker', aiDiff: 'expert', color: '#552200' },
-      { wx: 3700, name: 'Collision Guard', weaponKey: 'hammer', classKey: 'tank',      aiDiff: 'expert', color: '#441100', isGuard: true, health: 140 },
+      { wx: 3700, name: 'Collision Guard', weaponKey: 'hammer', classKey: 'thor',      aiDiff: 'expert', color: '#441100', isGuard: true, health: 140 },
       { wx: 4400, name: 'Collision Guard', weaponKey: 'axe',    classKey: 'berserker', aiDiff: 'expert', color: '#330000' },
     ],
     fightScript: [
@@ -50,9 +50,9 @@ STORY_CHAPTER_REGISTRY.push(
       { wx: 3000, y: 335, name: 'A Note in Someone Else\'s Hand',   icon: '✉️' },
     ],
     spawnEnemies: [
-      { wx: 700,  name: 'Debris Guard',  weaponKey: 'hammer', classKey: 'tank',     aiDiff: 'hard',   color: '#774422' },
+      { wx: 700,  name: 'Debris Guard',  weaponKey: 'hammer', classKey: 'thor',     aiDiff: 'hard',   color: '#774422' },
       { wx: 1600, name: 'Debris Guard',  weaponKey: 'axe',    classKey: 'berserker',aiDiff: 'hard',   color: '#663311' },
-      { wx: 2500, name: 'Relic Warden',  weaponKey: 'hammer', classKey: 'tank',     aiDiff: 'expert', color: '#552200', isGuard: true, health: 140 },
+      { wx: 2500, name: 'Relic Warden',  weaponKey: 'hammer', classKey: 'thor',     aiDiff: 'expert', color: '#552200', isGuard: true, health: 140 },
     ],
     fightScript: [
       { frame: 40,  text: 'Thresh preserved these. Not as trophies. As evidence that something existed before the void.', color: '#ff8833', timer: 280 },
@@ -80,7 +80,7 @@ STORY_CHAPTER_REGISTRY.push(
     waveSize: 2,
     opponentName: 'Impact Construct',
     weaponKey: 'hammer',
-    classKey: 'tank',
+    classKey: 'thor',
     aiDiff: 'expert',
     opponentColor: '#cc4400',
     fightScript: [
@@ -136,7 +136,7 @@ STORY_CHAPTER_REGISTRY.push(
       { frame: 800, text: '"You hold." Almost a whisper for something that large. "You actually hold."', color: '#ffffff', timer: 280 },
     ],
     preText: 'Thresh — every strike fractures the space around it. They\'re trying to hold back. Expert. 1 life. Do not stand still.',
-    opponentName: 'Thresh', weaponKey: 'hammer', classKey: 'tank', aiDiff: 'expert', opponentColor: '#ff4400',
+    opponentName: 'Thresh', weaponKey: 'hammer', classKey: 'thor', aiDiff: 'expert', opponentColor: '#ff4400',
     armor: ['helmet', 'chestplate', 'leggings'],
     playerLives: 1,
     arena: 'lava',

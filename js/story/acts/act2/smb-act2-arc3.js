@@ -25,7 +25,7 @@ STORY_CHAPTER_REGISTRY.push(
     groundColor: '#3a2e20',
     platColor: '#4a3e30',
     spawnEnemies: [
-      { wx: 700,  name: 'Stone Warden',    weaponKey: 'hammer', classKey: 'tank',    aiDiff: 'hard',   color: '#776655', armor: ['helmet'] },
+      { wx: 700,  name: 'Stone Warden',    weaponKey: 'hammer', classKey: 'thor',    aiDiff: 'hard',   color: '#776655', armor: ['helmet'] },
       { wx: 1100, name: 'Rubble Crawler',  weaponKey: 'sword',  classKey: 'ninja',   aiDiff: 'medium', color: '#887766' },
       { wx: 1500, name: 'Ruin Guardian',   weaponKey: 'axe',    classKey: 'warrior', aiDiff: 'hard',   color: '#998866', armor: ['helmet', 'chestplate'] },
       { wx: 1900, name: 'Shard Stalker',   weaponKey: 'spear',  classKey: 'ninja',   aiDiff: 'hard',   color: '#776644' },
@@ -33,9 +33,9 @@ STORY_CHAPTER_REGISTRY.push(
       { wx: 2700, name: 'Tomb Knight',     weaponKey: 'axe',    classKey: 'warrior', aiDiff: 'expert', color: '#998877', armor: ['helmet'] },
       { wx: 3000, name: 'Relic Knight',    weaponKey: 'spear',  classKey: 'warrior', aiDiff: 'expert', color: '#aa9977', armor: ['helmet', 'chestplate'] },
       { wx: 3400, name: 'Dust Wraith',     weaponKey: 'sword',  classKey: 'ninja',   aiDiff: 'expert', color: '#665544' },
-      { wx: 3800, name: 'Keeper',          weaponKey: 'hammer', classKey: 'tank',    aiDiff: 'expert', color: '#998844', armor: ['helmet', 'chestplate', 'leggings'] },
+      { wx: 3800, name: 'Keeper',          weaponKey: 'hammer', classKey: 'thor',    aiDiff: 'expert', color: '#998844', armor: ['helmet', 'chestplate', 'leggings'] },
       // Diagram guardians — hold the fracture diagram location
-      { wx: 4300, name: 'Diagram Sentinel', weaponKey: 'axe',   classKey: 'tank',    aiDiff: 'expert', color: '#776644', isGuard: true, health: 140, armor: ['helmet', 'chestplate'] },
+      { wx: 4300, name: 'Diagram Sentinel', weaponKey: 'axe',   classKey: 'thor',    aiDiff: 'expert', color: '#776644', isGuard: true, health: 140, armor: ['helmet', 'chestplate'] },
       { wx: 4380, name: 'Vault Warden',     weaponKey: 'hammer',classKey: 'warrior', aiDiff: 'expert', color: '#887755', isGuard: true, health: 120, armor: ['helmet', 'chestplate', 'leggings'] },
       { wx: 4450, name: 'Last Keeper',      weaponKey: 'spear', classKey: 'ninja',   aiDiff: 'expert', color: '#665533', isGuard: true, health: 100 },
     ],

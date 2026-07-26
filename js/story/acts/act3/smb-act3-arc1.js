@@ -18,9 +18,9 @@ STORY_CHAPTER_REGISTRY.push(
     spawnEnemies: [
       { wx: 600,  name: 'Creator Scout',    weaponKey: 'sword',  classKey: 'warrior',  aiDiff: 'medium', color: '#9999cc' },
       { wx: 1200, name: 'Creator Scout',    weaponKey: 'sword',  classKey: 'warrior',  aiDiff: 'medium', color: '#8888bb' },
-      { wx: 1900, name: 'Probe',            weaponKey: 'spear',  classKey: 'assassin', aiDiff: 'hard',   color: '#7777aa' },
-      { wx: 2600, name: 'Probe',            weaponKey: 'sword',  classKey: 'assassin', aiDiff: 'hard',   color: '#6666aa' },
-      { wx: 3200, name: 'Perimeter Guard',  weaponKey: 'hammer', classKey: 'tank',     aiDiff: 'hard',   color: '#555599', isGuard: true, health: 140 },
+      { wx: 1900, name: 'Probe',            weaponKey: 'spear',  classKey: 'ninja', aiDiff: 'hard',   color: '#7777aa' },
+      { wx: 2600, name: 'Probe',            weaponKey: 'sword',  classKey: 'ninja', aiDiff: 'hard',   color: '#6666aa' },
+      { wx: 3200, name: 'Perimeter Guard',  weaponKey: 'hammer', classKey: 'thor',     aiDiff: 'hard',   color: '#555599', isGuard: true, health: 140 },
     ],
     fightScript: [
       { frame: 30,  text: 'Creator scouts are patrolling. Stay out of their detection zones.', color: '#ffcc44', timer: 270 },
@@ -139,7 +139,7 @@ STORY_CHAPTER_REGISTRY.push(
     preText: 'The Preserved — beings who live inside the Creator\'s absorbed dimensions. Two fighters. 2 lives.',
     opponentName: 'Preserved Vanguard', weaponKey: 'axe', classKey: 'berserker', aiDiff: 'hard', opponentColor: '#cc8833',
     twoEnemies: true,
-    secondEnemy: { weaponKey: 'hammer', classKey: 'tank', aiDiff: 'hard', color: '#aa6622' },
+    secondEnemy: { weaponKey: 'hammer', classKey: 'thor', aiDiff: 'hard', color: '#aa6622' },
     playerLives: 2,
     arena: 'grass',
     walkFight: true, worldLength: 3000,
@@ -240,7 +240,7 @@ STORY_CHAPTER_REGISTRY.push(
     spawnEnemies: [
       { wx: 900,  name: 'Archive Sentinel', weaponKey: 'sword',  classKey: 'warrior', aiDiff: 'medium', color: '#557799' },
       { wx: 1800, name: 'Archive Sentinel', weaponKey: 'spear',  classKey: 'warrior', aiDiff: 'hard',   color: '#446688' },
-      { wx: 2800, name: 'Vault Keeper',     weaponKey: 'hammer', classKey: 'tank',    aiDiff: 'expert', color: '#335577', isGuard: true, health: 130 },
+      { wx: 2800, name: 'Vault Keeper',     weaponKey: 'hammer', classKey: 'thor',    aiDiff: 'expert', color: '#335577', isGuard: true, health: 130 },
     ],
     fightScript: [
       { frame: 40,  text: 'Activate the sequence locks in order to access the vault memory.', color: '#99ffcc', timer: 270 },
