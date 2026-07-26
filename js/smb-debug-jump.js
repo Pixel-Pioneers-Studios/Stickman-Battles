@@ -336,8 +336,15 @@ function forceBossFight(bossId) {
 // always have a live game world to render over.
 // ============================================================
 
+// Set once the player has opened the theater from the home screen and accepted
+// the spoiler warning. The viewer itself is unchanged — this only widens who is
+// allowed through the door.
+var _cinTheaterUnlocked = false;
+var _cinViewerPlayerMode = false;
+
 function _cinViewerAllowed() {
-  return (typeof debugMode !== 'undefined' && debugMode) ||
+  return _cinTheaterUnlocked ||
+         (typeof debugMode !== 'undefined' && debugMode) ||
          (typeof _adminPanelIsAllowed === 'function' && _adminPanelIsAllowed());
 }
 
@@ -464,7 +471,7 @@ function _cinViewerOpen() {
   const hdr = document.createElement('div');
   hdr.style.cssText = 'font-size:1rem;font-weight:bold;letter-spacing:2px;margin-bottom:6px;' +
     'border-bottom:1px solid #0a0;padding-bottom:8px;display:flex;align-items:center;justify-content:space-between;';
-  hdr.innerHTML = '<span>CINEMATIC VIEWER</span>';
+  hdr.innerHTML = '<span>' + (_cinViewerPlayerMode ? 'CUTSCENE THEATER' : 'CINEMATIC VIEWER') + '</span>';
   const closeBtn = document.createElement('button');
   closeBtn.textContent = 'x';
   closeBtn.style.cssText = 'background:none;border:1px solid #0a0;color:#0f0;cursor:pointer;' +
@@ -475,9 +482,11 @@ function _cinViewerOpen() {
 
   const hint = document.createElement('div');
   hint.style.cssText = 'font-size:0.69rem;color:#446644;margin-bottom:10px;line-height:1.55;';
-  hint.textContent =
-    'dev + admin only  |  F8 menu  |  admin panel (F9)\n' +
-    'Auto-launch buttons start the right fight automatically.';
+  hint.textContent = _cinViewerPlayerMode
+    ? 'Auto-launch buttons start the right fight and play the scene.\n'
+      + 'Some entries drop you into the encounter rather than a standalone cutscene.'
+    : 'dev + admin only  |  F8 menu  |  admin panel (F9)\n'
+      + 'Auto-launch buttons start the right fight automatically.';
   ov.appendChild(hint);
 
   // ── Helpers ──────────────────────────────────────────────────────────────
@@ -1137,5 +1146,90 @@ function _cinViewerOpen() {
   statusDiv.textContent = 'Ready.';
   ov.appendChild(statusDiv);
 
+  document.body.appendChild(ov);
+}
+
+// ============================================================
+// CUTSCENE THEATER — the player-facing door to the viewer above
+// Same panel, reached from the home screen instead of F8 + debugMode. Gated once
+// behind a spoiler confirm, because the list names endings and late bosses and
+// must not be stumbled into blind.
+// ============================================================
+
+const _CIN_THEATER_KEY = 'smb_cutscene_spoiler_ok';
+
+function openCutsceneTheater() {
+  let accepted = false;
+  try { accepted = localStorage.getItem(_CIN_THEATER_KEY) === '1'; } catch (e) {}
+  if (accepted) { _cinTheaterEnter(); return; }
+  _cinTheaterConfirm(() => {
+    try { localStorage.setItem(_CIN_THEATER_KEY, '1'); } catch (e) {}
+    _cinTheaterEnter();
+  });
+}
+
+function _cinTheaterEnter() {
+  _cinTheaterUnlocked = true;
+  _cinViewerPlayerMode = true;
+  if (typeof _cinViewerOpen === 'function') _cinViewerOpen();
+}
+
+function _cinTheaterConfirm(onAccept) {
+  const old = document.getElementById('_cinTheaterWarn');
+  if (old) old.remove();
+
+  const ov = document.createElement('div');
+  ov.id = '_cinTheaterWarn';
+  ov.style.cssText = [
+    'position:fixed', 'inset:0', 'z-index:9995',
+    'background:rgba(4,4,12,0.88)', 'display:flex',
+    'align-items:center', 'justify-content:center',
+    'font-family:"Segoe UI",Arial,sans-serif',
+  ].join(';');
+
+  const box = document.createElement('div');
+  box.style.cssText = [
+    'max-width:420px', 'padding:26px 28px', 'text-align:center',
+    'background:linear-gradient(160deg,#120e22,#0a0a16)',
+    'border:1px solid rgba(180,100,255,0.35)', 'border-radius:12px',
+    'box-shadow:0 20px 60px rgba(0,0,0,0.6)',
+  ].join(';');
+
+  const h = document.createElement('div');
+  h.textContent = '🎬  Cutscene Theater';
+  h.style.cssText = 'font-size:1.15rem;letter-spacing:1px;color:#e8e2ff;margin-bottom:12px;';
+  box.appendChild(h);
+
+  const p = document.createElement('p');
+  p.textContent = 'Every cinematic in the game is listed here — including bosses '
+    + 'you have not met and the endings. Nothing is hidden by story progress.';
+  p.style.cssText = 'margin:0 0 20px;font-size:0.9rem;line-height:1.5;color:rgba(220,220,240,0.78);';
+  box.appendChild(p);
+
+  const row = document.createElement('div');
+  row.style.cssText = 'display:flex;gap:10px;justify-content:center;';
+
+  const yes = document.createElement('button');
+  yes.textContent = 'Show me anyway';
+  yes.style.cssText = [
+    'padding:10px 20px', 'background:linear-gradient(135deg,#3a1a6a,#6a2a9a)',
+    'color:#fff', 'border:1px solid rgba(180,100,255,0.4)', 'border-radius:8px',
+    'font-size:0.88rem', 'cursor:pointer', 'font-family:inherit',
+  ].join(';');
+  yes.onclick = () => { ov.remove(); if (typeof onAccept === 'function') onAccept(); };
+
+  const no = document.createElement('button');
+  no.textContent = 'Not yet';
+  no.style.cssText = [
+    'padding:10px 20px', 'background:rgba(255,255,255,0.06)',
+    'color:rgba(230,230,245,0.8)', 'border:1px solid rgba(255,255,255,0.18)',
+    'border-radius:8px', 'font-size:0.88rem', 'cursor:pointer', 'font-family:inherit',
+  ].join(';');
+  no.onclick = () => ov.remove();
+
+  row.appendChild(yes); row.appendChild(no);
+  box.appendChild(row);
+  ov.appendChild(box);
+  ov.onclick = (e) => { if (e.target === ov) ov.remove(); };
   document.body.appendChild(ov);
 }
