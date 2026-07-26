@@ -89,12 +89,15 @@ function openStoryMenu() {
 
   if (typeof _updateContinueStoryBtn === 'function') _updateContinueStoryBtn();
 
-  // Flag still tracked for save compatibility, but the purpose screen is no
-  // longer shown: _showPrologue (the "Tuesday" cold open) covers it 300ms later
-  // on first launch, and two text-on-black screens back to back read as a wall.
+  // The seam text — the bridge from the cold open into the player's own story.
+  // It used to run on first launch, chained straight off Tuesday; the cold open
+  // now ends on the home screen instead, so it plays here, the first time the
+  // player chooses Story of their own accord. Its own "Just let me fight" exit
+  // still leads out to a quick match.
   if (m && !_story2.prologueSeen) {
     _story2.prologueSeen = true;
     if (typeof saveGame === 'function') saveGame();
+    if (typeof _showPrologue === 'function') setTimeout(() => _showPrologue(() => {}), 260);
   }
 }
 

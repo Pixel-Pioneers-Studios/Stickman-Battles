@@ -127,7 +127,7 @@ selectLives(chosenLives);
   // Also auto-refresh room list when Online mode is opened
 })();
 
-// First-time visit (or chapter 0 not yet beaten): open Story Mode and force Chapter 1
+// First-time visit: play the Tuesday cold open over the home screen, once ever.
 (function() {
   // _story2 is declared in smb-story-config.js, ~70 script tags after this file.
   // A fixed timer started here can fire before those have evaluated on a slow
@@ -144,35 +144,22 @@ selectLives(chosenLives);
   try {
     _whenStory2Ready(() => {
       try {
-        const ch0Beaten = (typeof _story2 !== 'undefined')
-          ? (Array.isArray(_story2.defeated) && _story2.defeated.includes(0))
-          : false;
-        if (!ch0Beaten) {
-          selectMode('story');
-          setTimeout(() => {
-            const _toCh0 = () => { if (typeof _beginChapter2 === 'function') _beginChapter2(0); };
-            const _seamThenCh0 = () => {
-              if (typeof _showPrologue === 'function') _showPrologue(_toCh0);
-              else _toCh0();
-            };
-            // Tuesday plays first — the ordinary man, unattributed. The seam lines
-            // then read as the bridge into the player's own story. Skipping
-            // Tuesday skips straight past the seam text too.
-            // Gated on a localStorage key as well as the save field: this runs
-            // ~800ms after load, which can beat the save finishing, and reading
-            // only _story2 replayed the cold open on every launch.
-            let _tuesSeen = !!(typeof _story2 !== 'undefined' && _story2 && _story2.tuesdaySeen);
-            try { if (localStorage.getItem('smb_tuesday_seen') === '1') _tuesSeen = true; } catch (e) {}
-            if (typeof TuesdayPrologue !== 'undefined' && !_tuesSeen) {
-              if (typeof _story2 !== 'undefined' && _story2) _story2.tuesdaySeen = true;
-              try { localStorage.setItem('smb_tuesday_seen', '1'); } catch (e) {}
-              if (typeof _saveStory2 === 'function') _saveStory2();
-              TuesdayPrologue.play((skipped) => { if (skipped) _toCh0(); else _seamThenCh0(); });
-            } else {
-              _seamThenCh0();
-            }
-          }, 300);
-        }
+        // Gated on a localStorage key as well as the save field: this runs
+        // ~800ms after load, which can beat the save finishing, and reading
+        // only _story2 replayed the cold open on every launch.
+        let _tuesSeen = !!(typeof _story2 !== 'undefined' && _story2 && _story2.tuesdaySeen);
+        try { if (localStorage.getItem('smb_tuesday_seen') === '1') _tuesSeen = true; } catch (e) {}
+        if (_tuesSeen || typeof TuesdayPrologue === 'undefined') return;
+
+        if (typeof _story2 !== 'undefined' && _story2) _story2.tuesdaySeen = true;
+        try { localStorage.setItem('smb_tuesday_seen', '1'); } catch (e) {}
+        if (typeof _saveStory2 === 'function') _saveStory2();
+
+        // The cold open ends by pushing into the phone, whose screen is the home
+        // screen already sitting underneath — so there is nothing to launch here.
+        // Story is a choice the player makes from that menu, not a room they wake
+        // up locked inside; the seam text moved to the first Story open.
+        setTimeout(() => { TuesdayPrologue.play(null); }, 300);
       } catch(e) {}
     });
   } catch(e) {}
