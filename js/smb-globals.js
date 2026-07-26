@@ -51,6 +51,7 @@ const CHANGELOG = [
       { cat: 'Fix', text: 'Over a hundred campaign opponents have been fighting with no class at all. Two class names used all through the story were never real classes, so the game quietly gave those enemies no kit, no health profile and no speed profile — they fought as blank defaults. Every one of them now fights as the class they were written as' },
       { cat: 'Fix', text: 'The affected fights include Vault Wardens, checkpoint elites and several named opponents, all of which were meant to be heavier and slower or faster and frailer than the fighters you were actually meeting' },
       { cat: 'AI',  text: 'Expect the campaign to be harder as a result — this restores intended difficulty rather than adding new difficulty on top of it' },
+      { cat: 'Fix', text: 'Enemies written with a specific health value keep it now. Applying a class was overwriting that authored number with the class default, so hand-tuned guards and elites were quietly reverting to stock toughness' },
     ],
   },
   {

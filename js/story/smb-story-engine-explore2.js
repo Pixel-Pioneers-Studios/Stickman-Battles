@@ -586,6 +586,11 @@ function _exploreSpawnEnemy(def, p1) {
   if (def.isChestGuardian) { m.isChestGuardian = true; m._chestKey = def.chestKey; }
   if (def.classKey && def.classKey !== 'none' && typeof applyClass === 'function') {
     applyClass(m, def.classKey);
+    // applyClass overwrites maxHealth with the class's base HP. An explicitly
+    // authored health is a deliberate per-enemy value and outranks that default,
+    // so it is restored here; when the chapter did not specify one, the class HP
+    // is the better number and stands.
+    if (def.health) { m.maxHealth = def.health; m.health = def.health; }
   }
   _storyScaleEnemyUnit(m, _activeStory2Chapter ? _activeStory2Chapter.id : 1, { elite: !!def.isElite });
   if (def.armor && typeof storyApplyArmor === 'function') {
