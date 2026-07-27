@@ -178,32 +178,173 @@ function enterFracturePreview(id) {
     _saveFractureState();
 }
 
+// ============================================================
+// FULL BRANCH ARCS
+// ============================================================
+// Each branch is a three-stage run inside the current arena: two guardian
+// waves, then the named ruler. It reuses the existing Fighter/applyClass
+// spawn path (same as the preview guardian) so no new entity type is needed.
+// State lives here and is ticked by updateFractureBranch() from the game loop.
+
+let fractureBranchActive = false;   // true while a full branch run is in progress
+let fractureBranchId     = null;    // fracture id being run
+let fractureBranchStage  = 0;       // 0/1 = guardian waves, 2 = ruler
+let _fractureBranchDelay = 0;       // frames to wait before the next stage spawns
+
+// Per-branch ruler definitions. Taunt keys map into LORE_LINES below.
+const BRANCH_RULERS = {
+    branch_alpha:   { name: 'Vael', weaponKey: 'sword',   classKey: 'warrior',   color: '#aa66ff', taunt: 'vael_taunt', hp: 900 },
+    branch_null:    { name: 'Kael', weaponKey: 'scythe',  classKey: 'reaper',    color: '#3366aa', taunt: 'kael_taunt', hp: 900 },
+    branch_crimson: { name: 'Sora', weaponKey: 'axe',     classKey: 'berserker', color: '#ff3344', taunt: 'sora_taunt', hp: 950 }
+};
+
 /**
- * Enter a full branch after the ship is built.
- * This is a stub that can be expanded into a full arc later.
+ * Enter a full branch after the ship is built. Starts the wave run;
+ * completion is handled by updateFractureBranch().
  */
 function enterFullBranch(id) {
     const f = FRACTURES.find(f => f.id === id);
-    if (!f) return;
+    if (!f || fractureBranchActive) return;
 
-    // Placeholder: show a "coming soon" toast via the lore subtitle system
+    fractureBranchActive = true;
+    fractureBranchId     = id;
+    fractureBranchStage  = 0;
+    _fractureBranchDelay = 0;
+
     if (typeof storyFightSubtitle !== 'undefined') {
         storyFightSubtitle = {
-            text:     `Entering ${f.name} — Ruler: ${f.rulerName} · Full branch content unlocked`,
+            text:     `${f.name.toUpperCase()} — Ruler: ${f.rulerName}`,
             color:    '#88ffcc',
-            timer:    300,
-            maxTimer: 300
+            timer:    260,
+            maxTimer: 260
         };
     }
-
     if (typeof showBossDialogue === 'function') {
-        showBossDialogue(`Entering ${f.name}. Expect resistance.`, 200);
+        showBossDialogue(`"${f.rulerLore}"`, 220);
+    }
+    if (typeof cinScreenFlash !== 'undefined') {
+        cinScreenFlash = { color: '#66ffcc', alpha: 0.6, timer: 28, maxTimer: 28 };
     }
 
-    // Future: launch a dedicated arc for this branch.
-    // For now, mark as entered so hooks can key off it.
+    _spawnFractureGuardian(f, /*isPreview=*/false);
+}
+
+/**
+ * Tick the full branch run. Call once per game frame (alongside
+ * updateFracturePreview). Advances a stage whenever every spawned branch
+ * enemy is dead.
+ */
+function updateFractureBranch() {
+    if (!fractureBranchActive) return;
+
+    const f = FRACTURES.find(x => x.id === fractureBranchId);
+    if (!f) { _endFractureBranch(false); return; }
+
+    // Bail out if the player died or the match ended under us.
+    if (!Array.isArray(players) || !players[0] || players[0].health <= 0 || !gameRunning) {
+        _endFractureBranch(false);
+        return;
+    }
+
+    if (_fractureBranchDelay > 0) { _fractureBranchDelay--; return; }
+
+    // checkDeaths() flags branch entities isDead instead of respawning them.
+    const alive = players.some(p => p && (p._isFractureGuardian || p._isBranchRuler) &&
+                                    p.health > 0 && !p.isDead);
+    if (alive) return;
+
+    // Stage cleared.
+    if (fractureBranchStage >= 2) { _endFractureBranch(true); return; }
+
+    // Clear out the corpses before the next wave so players[] doesn't grow.
+    for (let i = players.length - 1; i >= 0; i--) {
+        const p = players[i];
+        if (p && (p._isFractureGuardian || p._isBranchRuler)) players.splice(i, 1);
+    }
+
+    fractureBranchStage++;
+    _fractureBranchDelay = 90; // ~1.5s breather between stages
+
+    if (fractureBranchStage === 2) {
+        _spawnBranchRuler(f);
+    } else {
+        if (typeof storyFightSubtitle !== 'undefined') {
+            storyFightSubtitle = {
+                text:     `Wave ${fractureBranchStage + 1} — the branch pushes back`,
+                color:    '#88ffcc',
+                timer:    150,
+                maxTimer: 150
+            };
+        }
+        _spawnFractureGuardian(f, /*isPreview=*/false);
+    }
+}
+
+/** Spawn the named ruler as the branch's final fight. */
+function _spawnBranchRuler(f) {
+    const def = BRANCH_RULERS[f.id];
+    if (!def || typeof Fighter === 'undefined') return;
+
+    if (typeof storyFightSubtitle !== 'undefined') {
+        storyFightSubtitle = { text: `${def.name.toUpperCase()} — Ruler of ${f.name}`, color: '#ffcc55', timer: 240, maxTimer: 240 };
+    }
+    if (typeof showBossDialogue === 'function' && typeof LORE_LINES !== 'undefined') {
+        showBossDialogue(LORE_LINES[def.taunt] || `"${def.name} stands."`, 220);
+    }
+
+    storyOpponentName = def.name;
+
+    const p1 = players[0];
+    const spawnX = p1 ? clamp(p1.x + 320, 60, GAME_W - 80) : GAME_W / 2 + 120;
+    const ruler = new Fighter(spawnX, 180, def.color, def.weaponKey, null, true, 'hard');
+    ruler.weapon     = WEAPONS[def.weaponKey] || WEAPONS['sword'];
+    ruler.hp         = def.hp;
+    ruler.maxHp      = def.hp;
+    ruler.health     = def.hp;
+    ruler.maxHealth  = def.hp;
+    ruler.lives      = 1;
+    ruler.aiDiff     = 'hard';
+    ruler.name       = def.name;
+    ruler._isBranchRuler = true;
+    if (typeof applyClass === 'function') applyClass(ruler, def.classKey);
+    // applyClass can overwrite authored health — restore the ruler's HP after it.
+    ruler.hp = ruler.maxHp = ruler.health = ruler.maxHealth = def.hp;
+
+    players.push(ruler);
+}
+
+/** Tear down a branch run. `won` marks the fracture completed and rewards it. */
+function _endFractureBranch(won) {
+    const f = FRACTURES.find(x => x.id === fractureBranchId);
+
+    fractureBranchActive = false;
+    fractureBranchId     = null;
+    fractureBranchStage  = 0;
+    _fractureBranchDelay = 0;
+
+    // Clear any branch entities still standing (e.g. player died mid-run).
+    if (Array.isArray(players)) {
+        for (let i = players.length - 1; i >= 0; i--) {
+            const p = players[i];
+            if (p && (p._isFractureGuardian || p._isBranchRuler)) players.splice(i, 1);
+        }
+    }
+
+    if (!won || !f) return;
+
     f.completed = true;
     _saveFractureState();
+
+    if (typeof storyFightSubtitle !== 'undefined') {
+        storyFightSubtitle = { text: `${f.name} CLEARED — ${f.rulerName} has fallen`, color: '#88ffcc', timer: 300, maxTimer: 300 };
+    }
+    if (typeof cinScreenFlash !== 'undefined') {
+        cinScreenFlash = { color: '#ffffff', alpha: 0.8, timer: 34, maxTimer: 34 };
+    }
+    if (typeof unlockAchievement === 'function') {
+        unlockAchievement('fracture_explorer');
+        if (FRACTURES.every(x => x.completed)) unlockAchievement('branch_conqueror');
+    }
 }
 
 /**
@@ -294,6 +435,7 @@ function _spawnFractureGuardian(fracture, isPreview) {
         guardian.maxHealth   = guardian.maxHp;
         guardian.lives       = 1;
         guardian.aiDiff      = def.aiDiff;
+        guardian.name        = def.name;   // was unset — the HUD rendered a blank nameplate
         guardian._isFractureGuardian = true;
 
         if (typeof applyClass === 'function') applyClass(guardian, def.classKey);

@@ -1383,7 +1383,8 @@ class Fighter {
         return; // skip normal physics this frame
       }
       const _chaosMoon = gameMode === 'minigames' && currentChaosModifiers.has('moon');
-      const _arenaModGrav = (currentArena.modifiers && currentArena.modifiers.gravityMult) || 1.0;
+      const _arenaModGrav = ((currentArena.modifiers && currentArena.modifiers.gravityMult) || 1.0) *
+        (gameMode === 'minigames' && typeof chaosGravityMult === 'number' ? chaosGravityMult : 1.0);
       const arenaGravity = (_chaosMoon ? 0.18 : (currentArena.isLowGravity ? 0.28 : (currentArena.isHeavyGravity ? 0.95 : (currentArena.earthPhysics ? 0.88 : 0.65)))) * _arenaModGrav;
       const gravDir = ((gameMode === 'trueform' || gameMode === 'story') && tfGravityInverted && !this.isBoss) ? -1 : 1;
       const _sm = slowMotion; // cinematic slow-motion time scale

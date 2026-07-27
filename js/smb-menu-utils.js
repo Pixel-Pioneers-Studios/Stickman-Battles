@@ -116,6 +116,9 @@ function refreshMenuFromAccount() {
     csBtn.style.display = (tfSeen || dev) ? '' : 'none';
   }
 
+  // First-run tutorial offer — no-op once the player has played or dismissed it.
+  if (typeof maybeOfferTutorial === 'function') maybeOfferTutorial();
+
   if (typeof refreshCoinDisplay === 'function') refreshCoinDisplay();
   if (typeof syncCodeInput === 'function') syncCodeInput();
   if (typeof refreshMegaknightClassOption === 'function') refreshMegaknightClassOption();
@@ -180,8 +183,63 @@ selectLives(chosenLives);
 // ============================================================
 // EDGE PLAYER INDICATORS
 // ============================================================
+// Marks the strip past each end of the floor where there is no ground left —
+// the stage's actual kill boundary. On arenas whose floor is wider than the
+// viewport (The Circuit's floor runs x -60..960 against a 900-wide screen) that
+// boundary sits off-screen, so players lose stocks at full HP to geometry they
+// were never shown. This draws the lip, and flares when someone is over it.
+function drawStageBoundary(scX, scY, camCX, camCY) {
+  if (!gameRunning || typeof currentArena === 'undefined' || !currentArena) return;
+  const floor = (currentArena.platforms || []).find(pl => pl && pl.isFloor);
+  if (!floor) return;
+  const minX = floor.x, maxX = floor.x + floor.w;
+  const toScreenX = gx => (gx - camCX) * scX + canvas.width / 2;
+
+  // How close is the nearest LOCAL fighter to each end of the ground? The
+  // warning has to key off proximity rather than the boundary's screen position:
+  // the camera routinely zooms past 1.9x, which pushes the real edge hundreds of
+  // pixels off-canvas precisely when a player is about to be launched over it.
+  const WARN_DIST = 210;
+  let nearL = Infinity, nearR = Infinity;
+  for (const p of players) {
+    if (!p || p.health <= 0 || p.isAI) continue;   // warn the human, not the bot
+    nearL = Math.min(nearL, p.cx() - minX);
+    nearR = Math.min(nearR, maxX - p.cx());
+  }
+
+  ctx.save();
+  // Screen-space overlay — the caller's game transform is still live here.
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  for (const side of [-1, 1]) {
+    const dist = side < 0 ? nearL : nearR;
+    if (!isFinite(dist) || dist > WARN_DIST) continue;
+    // 0 at the warning threshold, 1 at the lip, and past it stays pinned at 1.
+    const t     = Math.max(0, Math.min(1, 1 - dist / WARN_DIST));
+    const flash = dist < 0 ? 0.12 + Math.sin(frameCount * 0.3) * 0.06 : 0;
+    const peak  = t * 0.34 + flash;
+    const bandW = Math.min(canvas.width * 0.22, 190);
+    const x0    = side < 0 ? 0 : canvas.width - bandW;
+    const g = ctx.createLinearGradient(side < 0 ? 0 : canvas.width, 0,
+                                       side < 0 ? bandW : canvas.width - bandW, 0);
+    g.addColorStop(0, `rgba(255,45,30,${peak})`);
+    g.addColorStop(1, 'rgba(255,45,30,0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(x0, 0, bandW, canvas.height);
+
+    // The exact lip, when it happens to be on-screen.
+    const edgeX = side < 0 ? toScreenX(minX) : toScreenX(maxX);
+    if (edgeX > 0 && edgeX < canvas.width) {
+      ctx.strokeStyle = `rgba(255,100,70,${Math.min(0.85, peak + 0.4)})`;
+      ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(edgeX, 0); ctx.lineTo(edgeX, canvas.height); ctx.stroke();
+    }
+  }
+  ctx.restore();
+}
+
 function drawEdgeIndicators(scX, scY, camCX, camCY) {
   if (!gameRunning) return;
+  drawStageBoundary(scX, scY, camCX, camCY);
   const MARGIN = 40; // px from screen edge before indicator shows
   const ARROW  = 14; // arrow half-size
   const allP   = [...players, ...minions].filter(p => p.health > 0 && !p.isBoss);

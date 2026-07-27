@@ -35,8 +35,14 @@ const CHAOS_MODS = [
   { id: 'speedy',       label: '⚡ SPEEDY',          desc: 'Everyone moves faster' },
   { id: 'slippery',     label: '🧊 SLIPPERY',        desc: 'Ice-like floor friction' },
   { id: 'weapon_swap',  label: '🔀 WEAPON SWAP',    desc: 'Random weapon each wave' },
+  { id: 'grav_storm',   label: '🌀 GRAVITY STORM',  desc: 'Gravity surges and drops' },
 ];
 let currentChaosModifiers = new Set(); // active modifier ids this wave
+
+// Gravity Storm: a smooth oscillating gravity multiplier read by Fighter physics.
+// Stays exactly 1.0 whenever the modifier is off so no other mode is affected.
+let chaosGravityMult  = 1.0;
+let _chaosGravPhase   = 0;
 
 // --- Nexus Defense ---
 const DEFENSE_WAVE_GOAL = 10;
@@ -45,10 +51,15 @@ let defenseNexusMaxHp = 100;
 let defenseWave       = 0;
 let defenseEnemies    = [];
 let defenseWaveDelay  = 0;
+// Every minigame that actually has a card and a system behind it. selectMinigame
+// is reachable from the network layer (a host can broadcast a type), so unknown
+// values are rejected here rather than setting minigameType to something no
+// update/draw path handles.
+const MINIGAME_TYPES = ['survival', 'koth', 'chaos', 'soccer', 'defense'];
+
 function selectMinigame(type) {
-  if (type === 'coins') {
-    if (typeof showToast === 'function') showToast('Coins minigame is not available yet.');
-    console.warn('[Minigames] Coins minigame is not implemented yet.');
+  if (!MINIGAME_TYPES.includes(type)) {
+    console.warn('[Minigames] Unknown minigame type:', type);
     return;
   }
   minigameType = type;
@@ -112,6 +123,16 @@ function addOneChaosModifier() {
 function updateChaosMatch() {
   if (minigameType !== 'chaos') return;
   chaosMatchTimer++;
+
+  // Gravity Storm swings between light (0.45x) and crushing (1.6x) on a ~7s cycle.
+  if (currentChaosModifiers.has('grav_storm')) {
+    _chaosGravPhase += 0.015;
+    chaosGravityMult = 1.02 + Math.sin(_chaosGravPhase) * 0.58;
+  } else {
+    chaosGravityMult = 1.0;
+    _chaosGravPhase  = 0;
+  }
+
   if (chaosMatchTimer % 900 === 0 || chaosMatchTimer === 1) {
     addOneChaosModifier();
   }
@@ -156,6 +177,8 @@ function clearChaosModifiers() {
     if (p._chaosOrigDrawScale !== undefined) { p.drawScale = p._chaosOrigDrawScale; delete p._chaosOrigDrawScale; }
   });
   currentChaosModifiers.clear();
+  chaosGravityMult = 1.0;
+  _chaosGravPhase  = 0;
   updateChaosModIcons();
 }
 

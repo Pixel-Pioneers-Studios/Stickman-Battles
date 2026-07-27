@@ -40,8 +40,8 @@ function applyMapPerk(player, type) {
 }
 
 function drawMapPerks() {
-  // ---- RUINS artifacts ----
-  if (currentArenaKey === 'ruins') {
+  // ---- RUINS artifacts (also The Circuit — see arenaRunsPerk) ----
+  if (arenaRunsPerk('ruins', 'items')) {
     // Breakable crates
     if (mapPerkState.crates) {
       for (const crate of mapPerkState.crates) {
@@ -149,8 +149,8 @@ function drawMapPerks() {
     }
   }
 
-  // ---- SPACE: Draw meteors + warning ----
-  if (currentArenaKey === 'space' && mapPerkState.meteors) {
+  // ---- SPACE: Draw meteors + warning (also The Circuit — see arenaRunsPerk) ----
+  if (arenaRunsPerk('space', 'meteors') && mapPerkState.meteors) {
     for (const m of mapPerkState.meteors) {
       ctx.save();
       if (m.warnTimer > 0) {
@@ -210,14 +210,15 @@ function drawMapPerks() {
     }
   }
 
-  // ---- ICE: Blizzard overlay ----
-  if (currentArenaKey === 'ice' && mapPerkState.blizzardActive) {
+  // ---- ICE: Blizzard overlay (also The Circuit — see arenaRunsPerk) ----
+  if (arenaRunsPerk('ice', 'blizzard') && mapPerkState.blizzardActive) {
+    const _galeSov = currentArenaKey === 'sovereign';
     ctx.save();
     const windAlpha = Math.min(1, (180 - mapPerkState.blizzardTimer) / 60) * 0.18;
-    ctx.fillStyle = `rgba(180,220,255,${windAlpha})`;
+    ctx.fillStyle = _galeSov ? `rgba(255,60,40,${windAlpha})` : `rgba(180,220,255,${windAlpha})`;
     ctx.fillRect(0, 0, GAME_W, GAME_H);
     // Wind lines
-    ctx.strokeStyle = 'rgba(200,240,255,0.35)';
+    ctx.strokeStyle = _galeSov ? 'rgba(255,90,60,0.35)' : 'rgba(200,240,255,0.35)';
     ctx.lineWidth = 1.5;
     for (let li = 0; li < 12; li++) {
       const lx = ((frameCount * 6 * mapPerkState.blizzardDir + li * 80) % (GAME_W + 60)) - 30;

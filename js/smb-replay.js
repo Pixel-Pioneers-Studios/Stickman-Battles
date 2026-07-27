@@ -39,6 +39,8 @@ const ReplaySystem = (() => {
   let _pbPlaying = false;
   let _pbRaf     = 0;
   let _pbLastTs  = 0;
+  // Eased camera position, persisted across rendered frames (null = needs snap).
+  let _pbCam     = { x: null, y: null };
 
   // ── Arena background palette (approximations) ───────────────────────────────
   const ARENA_BG = {
@@ -49,6 +51,7 @@ const ReplaySystem = (() => {
     damnation:  '#160606', code:       '#060e06', god_domain: '#140820',
     training:   '#0f1520', soccer:     '#0b2209', void:       '#040410',
     crystal:    '#0a1428', circuit:    '#0c1010', castle:     '#12100a',
+    sovereign:  '#0d0008', ruins:      '#1a1408', ice:        '#101c26',
   };
 
   // ════════════════════════════════════════════════════════════════════════════
@@ -140,7 +143,100 @@ const ReplaySystem = (() => {
       wk:    p.weaponKey || 'sword',
       ai:    p.isAI   ? 1 : 0,
       boss:  p.isBoss ? 1 : 0,
+      // ── Added fields ──────────────────────────────────────────────────────
+      // Without these a reader cannot tell a death-freeze from a real pose, an
+      // i-frame whiff from a miss, or a hitstun lock from a deliberate stand.
+      // Analysing a match without them means inferring state from hp/lives
+      // deltas, which misreads the ~14-frame death freeze as a real position.
+      g:     p.onGround ? 1 : 0,
+      inv:   Math.round(p.invincible   || 0),
+      stn:   Math.round(p.stunTimer    || 0),
+      rag:   Math.round(p.ragdollTimer || 0),
+      el:    Math.round(p.attackEndlag || 0),
+      sm:    Math.round(p.superMeter   || 0),
+      cls:   p.charClass || 'none',
     }));
+  }
+
+  // ── Event log ───────────────────────────────────────────────────────────────
+  // Detected every game frame (before the sampling gate) by diffing fighter
+  // state, so events carry the frame they actually happened on rather than the
+  // frame a 20fps sample happened to catch. Nothing here mutates game state and
+  // dealDamage() is untouched — this is pure observation.
+  let _events   = [];
+  let _prevSnap = null;   // [{hp, lives, x, y}] from the previous game frame
+  let _bounds   = null;   // { minX, maxX, deathY } — the stage's kill boundary
+
+  function _computeBounds() {
+    // Finite fallbacks on purpose: JSON.stringify turns Infinity into null, which
+    // would silently make every out-of-bounds test fail on a reloaded replay.
+    let minX = -1e6, maxX = 1e6, deathY = GAME_H + 180;
+    try {
+      if (currentArena) {
+        if (typeof currentArena.deathY === 'number') deathY = currentArena.deathY;
+        const floor = (currentArena.platforms || []).find(pl => pl && pl.isFloor);
+        if (floor) { minX = floor.x; maxX = floor.x + floor.w; }
+      }
+    } catch (e) { /* defaults stand */ }
+    return { minX, maxX, deathY };
+  }
+
+  function _outOfBounds(e) {
+    if (!_bounds) return false;
+    return e.x < _bounds.minX || e.x > _bounds.maxX || e.y > _bounds.deathY;
+  }
+
+  // Attacker attribution is inferred, not authoritative: the nearest OTHER
+  // fighter that is mid-swing. Recorded as `byGuess` so a reader never mistakes
+  // it for engine-reported credit.
+  function _guessAttacker(list, victimIdx) {
+    const v = list[victimIdx];
+    let best = null, bestD = Infinity;
+    for (let i = 0; i < list.length; i++) {
+      if (i === victimIdx) continue;
+      const o = list[i];
+      if (!o || o.hp <= 0) continue;
+      const d = Math.hypot(o.x - v.x, o.y - v.y);
+      if ((o.attackTimer || 0) > 0 && d < bestD) { bestD = d; best = i; }
+    }
+    return best;
+  }
+
+  function _detectEvents(rawFc) {
+    if (typeof players === 'undefined' || !Array.isArray(players)) return;
+    const live = players.filter(Boolean);
+    const cur  = live.map(p => ({
+      hp: Math.round(p.health || 0), lives: p.lives || 0,
+      x: p.x, y: p.y, attackTimer: p.attackTimer || 0, name: p.name || 'P',
+    }));
+    if (_prevSnap && _prevSnap.length === cur.length) {
+      for (let i = 0; i < cur.length; i++) {
+        const a = _prevSnap[i], b = cur[i];
+        const fi = (rawFc / RECORD_EVERY_N);
+        // Damage: hp fell while still alive on both sides of the frame.
+        if (b.hp < a.hp && b.hp > 0) {
+          _events.push({ t: 'dmg', fi: Math.round(fi * 10) / 10, fc: rawFc, p: i,
+                         v: a.hp - b.hp, hp: b.hp, byGuess: _guessAttacker(cur, i) });
+        }
+        // KO: hp crossed to zero. Cause is read from position AT the crossing,
+        // before the death freeze and ragdoll move the body somewhere misleading.
+        if (a.hp > 0 && b.hp <= 0) {
+          _events.push({ t: 'ko', fi: Math.round(fi * 10) / 10, fc: rawFc, p: i,
+                         cause: _outOfBounds(b) ? 'ringout' : 'damage',
+                         x: Math.round(b.x), y: Math.round(b.y),
+                         byGuess: _guessAttacker(cur, i) });
+        }
+        // Stock lost / respawn are separate from the KO by the freeze duration.
+        if (b.lives < a.lives) {
+          _events.push({ t: 'stock', fi: Math.round(fi * 10) / 10, fc: rawFc, p: i, lives: b.lives });
+        }
+        if (b.hp > a.hp && a.hp <= 0) {
+          _events.push({ t: 'respawn', fi: Math.round(fi * 10) / 10, fc: rawFc, p: i,
+                         x: Math.round(b.x), y: Math.round(b.y) });
+        }
+      }
+    }
+    _prevSnap = cur;
   }
 
   function _snapPlatforms() {
@@ -166,12 +262,21 @@ const ReplaySystem = (() => {
     _frames     = [];
     _platFrames = {};
     _lastReplay = null;
+    _events     = [];
+    _prevSnap   = null;
+    _bounds     = _computeBounds();
     _startFC    = typeof frameCount !== 'undefined' ? frameCount : 0;
     _meta = {
       version:  GAME_VERSION,
       mode:     typeof gameMode       !== 'undefined' ? gameMode       : 'unknown',
       arenaKey: typeof currentArenaKey !== 'undefined' ? currentArenaKey : 'grass',
       date:     Date.now(),
+      // Stage kill boundary, so a reader never has to guess where "off the map"
+      // is. Ring-out vs damage is unrecoverable after the fact without this.
+      bounds:   _bounds,
+      gameW:    typeof GAME_W !== 'undefined' ? GAME_W : 900,
+      gameH:    typeof GAME_H !== 'undefined' ? GAME_H : 520,
+      recordEveryN: RECORD_EVERY_N,
     };
     _platFrames[0] = _snapPlatforms();
   }
@@ -179,6 +284,9 @@ const ReplaySystem = (() => {
   function recordFrame() {
     if (!_recording) return;
     const fc  = (typeof frameCount !== 'undefined' ? frameCount : 0) - _startFC;
+    // Events are detected at FULL frame rate — above the sampling gate — so a
+    // KO lands on the frame it happened rather than the next 3-frame sample.
+    _detectEvents(fc);
     if (fc % RECORD_EVERY_N !== 0) return;
 
     const idx = Math.floor(fc / RECORD_EVERY_N);
@@ -207,12 +315,23 @@ const ReplaySystem = (() => {
     _meta.frameCount = _frames.length;
     _meta.durationSec = Math.round(_frames.length / PLAYBACK_FPS);
 
+    // Pre-tallied summary so a match can be read without replaying every frame.
+    const tally = {};
+    for (const ev of _events) {
+      const k = ev.p;
+      tally[k] = tally[k] || { dmgTaken: 0, hitsTaken: 0, kos: 0, ringouts: 0 };
+      if (ev.t === 'dmg') { tally[k].dmgTaken += ev.v; tally[k].hitsTaken++; }
+      if (ev.t === 'ko')  { tally[k].kos++; if (ev.cause === 'ringout') tally[k].ringouts++; }
+    }
+    _meta.tally = tally;
+
     _lastReplay = {
       smb_replay: true,
       version:    GAME_VERSION,
       meta:       _meta,
       frames:     _frames,
       platFrames: _platFrames,
+      events:     _events,
     };
     _persist(_lastReplay);
   }
@@ -415,7 +534,7 @@ const ReplaySystem = (() => {
         _pbPlaying = false;
         cancelAnimationFrame(_pbRaf);
         _pbFrame = parseFloat(scrubber.value);
-        _renderFrame(Math.floor(_pbFrame));
+        _renderFrame(_pbFrame);
         _syncUI();
       };
     }
@@ -438,21 +557,47 @@ const ReplaySystem = (() => {
 
   // ─── Stickman renderer ────────────────────────────────────────────────────
 
-  function _renderFrame(frameIdx) {
+  // Blend two recorded snapshots into an in-between pose. Recording runs at
+  // ~20fps; rendering runs at display rate, so without this every frame is held
+  // 3x and the result reads as a slideshow. Discrete fields (facing, attacking,
+  // name…) always come from the earlier frame — only continuous ones are blended.
+  const _TELEPORT_DIST = 150;   // beyond this a "move" is a respawn, not motion
+  function _lerpSnaps(a, b, t) {
+    if (!a) return b || [];
+    if (!b || t <= 0) return a;
+    return a.map((pa, i) => {
+      const pb = b[i];
+      if (!pb) return pa;
+      // A respawn or portal jump must not be interpolated into a glide.
+      if (Math.hypot(pb.x - pa.x, pb.y - pa.y) > _TELEPORT_DIST) return pa;
+      return Object.assign({}, pa, {
+        x:  pa.x  + (pb.x  - pa.x)  * t,
+        y:  pa.y  + (pb.y  - pa.y)  * t,
+        hp: pa.hp + (pb.hp - pa.hp) * t,
+      });
+    });
+  }
+
+  function _renderFrame(frameFloat) {
     const c = document.getElementById('replayCanvas');
     if (!c) return;
     const rctx = c.getContext('2d');
     const W = c.width, H = c.height;
 
-    const snaps  = (_pbData && _pbData.frames[frameIdx]) || [];
-    const plats  = _platsAt(frameIdx);
-    const aKey   = (_pbData && _pbData.meta && _pbData.meta.arenaKey) || 'grass';
+    const frameIdx = Math.floor(frameFloat);
+    const frac     = frameFloat - frameIdx;
+    const rawA     = (_pbData && _pbData.frames[frameIdx])     || [];
+    const rawB     = (_pbData && _pbData.frames[frameIdx + 1]) || null;
+    const snaps    = _lerpSnaps(rawA, rawB, frac);
+    const plats    = _platsAt(frameIdx);
+    const aKey     = (_pbData && _pbData.meta && _pbData.meta.arenaKey) || 'grass';
 
     rctx.clearRect(0, 0, W, H);
     rctx.fillStyle = ARENA_BG[aKey] || '#111';
     rctx.fillRect(0, 0, W, H);
 
-    // Camera: centroid of all active players, clamped to game world
+    // Camera: centroid of all active players, eased rather than snapped. The raw
+    // centroid jumps hard whenever a fighter dies or respawns.
     let cx = GAME_W / 2, cy = GAME_H / 2;
     if (snaps.length) {
       const alive = snaps.filter(p => p.hp > 0);
@@ -460,6 +605,13 @@ const ReplaySystem = (() => {
       cx = src.reduce((s, p) => s + p.x, 0) / src.length;
       cy = src.reduce((s, p) => s + p.y, 0) / src.length;
     }
+    if (_pbCam.x === null || Math.hypot(cx - _pbCam.x, cy - _pbCam.y) > 400) {
+      _pbCam.x = cx; _pbCam.y = cy;              // first frame or a scrub — snap
+    } else {
+      _pbCam.x += (cx - _pbCam.x) * 0.18;
+      _pbCam.y += (cy - _pbCam.y) * 0.18;
+    }
+    cx = _pbCam.x; cy = _pbCam.y;
 
     const scale = Math.min(W / GAME_W, H / GAME_H) * 0.85;
     const offX  = W / 2 - cx * scale;
@@ -477,6 +629,41 @@ const ReplaySystem = (() => {
 
     // Stickmen
     for (const p of snaps) _drawStickman(rctx, p, scale, offX, offY);
+
+    // Event popups — damage numbers and KO callouts float for ~1s of replay time
+    // after the frame they occurred on, so the viewer can see what landed.
+    const evs = (_pbData && _pbData.events) || [];
+    for (const ev of evs) {
+      const age = frameFloat - ev.fi;
+      if (age < 0 || age > 20) continue;
+      const src = snaps[ev.p] || rawA[ev.p];
+      if (!src) continue;
+      let ex = src.x * scale + offX;
+      let ey = src.y * scale + offY - 60 * scale - age * 1.6;
+      // A ring-out happens by definition off the side of the stage, so the
+      // victim is off-canvas and an un-clamped callout draws into the void.
+      // Pin it to the edge it left through instead of dropping it.
+      if (ev.t === 'ko') {
+        const M = 54;
+        ex = Math.max(M, Math.min(W - M, ex));
+        ey = Math.max(M, Math.min(H - M, ey));
+      } else if (ex < 0 || ex > W || ey < 0 || ey > H) {
+        continue;   // damage numbers off-screen are just noise
+      }
+      rctx.save();
+      rctx.globalAlpha = Math.max(0, 1 - age / 20);
+      rctx.textAlign   = 'center';
+      if (ev.t === 'dmg') {
+        rctx.fillStyle = '#ffdd55';
+        rctx.font      = `bold ${Math.max(10, Math.round(13 * scale))}px sans-serif`;
+        rctx.fillText(`-${ev.v}`, ex, ey);
+      } else if (ev.t === 'ko') {
+        rctx.fillStyle = ev.cause === 'ringout' ? '#66ccff' : '#ff5544';
+        rctx.font      = `bold ${Math.max(12, Math.round(17 * scale))}px sans-serif`;
+        rctx.fillText(ev.cause === 'ringout' ? 'RING OUT' : 'KO', ex, ey);
+      }
+      rctx.restore();
+    }
 
     // Timestamp overlay
     const total = Math.round((_pbData ? _pbData.frames.length : 0) / PLAYBACK_FPS);
@@ -607,7 +794,7 @@ const ReplaySystem = (() => {
       _pbPlaying = false;
     }
 
-    _renderFrame(Math.floor(_pbFrame));
+    _renderFrame(_pbFrame);
     _syncUI();
 
     if (_pbPlaying) _pbRaf = requestAnimationFrame(_pbTick);
@@ -632,7 +819,7 @@ const ReplaySystem = (() => {
     _pbPlaying = false;
     cancelAnimationFrame(_pbRaf);
     _pbFrame = Math.min(Math.floor(_pbFrame) + PLAYBACK_FPS * 5, _pbData.frames.length - 1);
-    _renderFrame(Math.floor(_pbFrame));
+    _renderFrame(_pbFrame);
     _syncUI();
   }
 
@@ -641,7 +828,7 @@ const ReplaySystem = (() => {
     _pbPlaying = false;
     cancelAnimationFrame(_pbRaf);
     _pbFrame = Math.max(Math.floor(_pbFrame) - PLAYBACK_FPS * 5, 0);
-    _renderFrame(Math.floor(_pbFrame));
+    _renderFrame(_pbFrame);
     _syncUI();
   }
 

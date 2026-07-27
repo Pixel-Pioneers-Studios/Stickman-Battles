@@ -50,6 +50,8 @@ const ACHIEVEMENTS = [
   // Progression
   { id: 'fracture_explorer',   title: 'Fracture Explorer',    desc: 'Enter a Fracture for the first time',       icon: '🔮', hint: 'Find an unlocked Fracture portal and enter it' },
   { id: 'ship_builder',        title: 'Axiom Ship Complete',  desc: 'Build the complete Axiom Ship',             icon: '🚀', hint: 'Collect all ship parts: Hull x5, Engine, Core, and Crystal' },
+  { id: 'tutorial_done',       title: 'First Steps',          desc: 'Complete the tutorial',                     icon: '🎓', hint: 'Run the tutorial from the home screen' },
+  { id: 'branch_conqueror',    title: 'Branch Conqueror',     desc: 'Clear all three Fracture branches',         icon: '👑', hint: 'Build the ship, then defeat Vael, Kael and Sora in their own branches' },
 ];
 
 // Hydrated by _refreshRuntimeFromSave(); never read directly from localStorage

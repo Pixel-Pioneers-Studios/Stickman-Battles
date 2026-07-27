@@ -1,5 +1,5 @@
 // Void Mind arc — Reckoning I: "What You Know"
-// id 157 — The first test. Memory Reconstruction.
+// id 171 — The first test. Memory Reconstruction.
 //
 // The Void Mind does not announce itself. It was here before the fracture system
 // and the fracture system existed, in part, to slow its access to structured reality.
@@ -11,9 +11,11 @@
 // to accommodate the false version with perfect internal consistency.
 // Correct answers cost something. They require the player to own what happened.
 //
-// Placement note: this arc runs ids 157–164. The true epilogue ('After', id 165)
-// follows. The current epilogue placeholder at id 156 should be renumbered to 165
-// before wiring this arc into index.html. See smb-story-finalize.js for act structure.
+// Placement note (updated): this arc is WIRED and lives at ids 171+. The old note
+// here described a pre-wiring plan (arc at 157–164, renumber "the epilogue
+// placeholder at id 156") — do NOT follow it. Id 156 is now 'The Architecture' and
+// renumbering it would break the contiguous 0–183 registry. See the id-contiguity
+// check in CLAUDE.md before moving any chapter.
 STORY_CHAPTER_REGISTRY.push(
 
   {

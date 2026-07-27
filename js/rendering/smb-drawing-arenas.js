@@ -1089,6 +1089,19 @@ function checkDeaths() {
         continue;
       }
 
+      // Fracture branch death: mark dead and freeze — updateFractureBranch()
+      // handles wave progression and cleanup. These must NOT respawn, or the
+      // run's "wave cleared" check never fires and the branch can't complete.
+      if (fractureBranchActive && !p.isBoss && (p._isFractureGuardian || p._isBranchRuler)) {
+        addKillFeed(p);
+        spawnParticles(p.cx(), p.cy(), p.color, 20);
+        if (!p.ragdollTimer) { p.ragdollTimer = 45; p.ragdollSpin = (Math.random() - 0.5) * 0.25; }
+        if (p._rd) PlayerRagdoll.collapse(p);
+        p.isDead = true;
+        p.invincible = 9999; // prevent re-trigger
+        continue;
+      }
+
       // Damnation echo death: drop anchor orb, advance wave — do NOT trigger cinematic death scenes
       if (damnationActive && p.isBoss && p.isEcho && p.invincible === 0) {
         spawnParticles(p.cx(), p.cy(), p.color, 30);
@@ -1751,6 +1764,7 @@ function backToMenu() {
   trainingChaosMode = false;
   trainingPlayerOnly = true;
   tutorialMode = false;
+  if (typeof tutorialActive !== 'undefined') tutorialActive = false;
   // After boss fights, reset mode to 1v1 so player config is fully visible again
   if (gameMode === 'trueform' || gameMode === 'boss') gameMode = '2p';
   // Deactivate multiverse state on menu return

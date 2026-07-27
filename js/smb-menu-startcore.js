@@ -178,8 +178,13 @@ function _startGameCore() {
   bossDeathScene     = null;
   fakeDeath          = { triggered: false, active: false, timer: 0, player: null };
   if (typeof resetParadoxState === 'function') resetParadoxState();
-  mapItems           = [];
-  mapPerkState       = {};
+  // Re-seed rather than blank-wipe. initMapPerks() clears both globals itself and
+  // then re-spawns the arena's pickups; a bare `mapItems = []` here ran AFTER the
+  // initMapPerks() call above and left every pickup arena (ruins, and now The
+  // Circuit) permanently item-less — crates/meteors/gusts only survived because
+  // their update blocks lazily re-seed their own state, and pickups have no such path.
+  if (typeof initMapPerks === 'function') initMapPerks(currentArenaKey);
+  else { mapItems = []; mapPerkState = {}; }
   winsP1             = 0;
   winsP2             = 0;
   screenShake     = 0;

@@ -246,8 +246,11 @@ function closeTheGrid() {
   if (simPanel) simPanel.style.display = '';
 }
 
+// Back-compat alias — the real implementation is the cutscene theater
+// (smb-debug-jump.js). Kept so any older call site still lands somewhere real.
 function openCutsceneViewer() {
-  if (typeof showToast === 'function') showToast('Cutscene viewer — coming soon.');
+  if (typeof openCutsceneTheater === 'function') { openCutsceneTheater(); return; }
+  if (typeof showToast === 'function') showToast('Cutscene theater unavailable.');
 }
 
 // ── Simulator fight launchers (formerly Boss Rush) ────────────────────────────

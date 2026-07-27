@@ -274,6 +274,16 @@ class SovereignMK2 extends AdaptiveAI {
     // ── Endlag Punish Window ───────────────────────────────────────
     this._endlagWindow        = 0;    // frames remaining in opponent's post-swing recovery
 
+    // ── Combo conversion ───────────────────────────────────────────
+    // A string that keeps LANDING earns extra hits; a string that whiffs ends.
+    // Raises damage per opening without raising swing volume. Hard-capped, and
+    // dealDamage's own limiter (hitstun decay, forced launcher at 7 hits, air
+    // escape at 5) still breaks the string — this cannot become an infinite.
+    this._comboPrevTgtHp  = Infinity;
+    this._comboLandedLast = false;
+    this._comboExtensions = 0;
+    this._COMBO_EXT_MAX   = 2;
+
     // ── Reaction mistake-rate latch (Stage 3) ──────────────────────
     // One defensive read decision per player attack instance, latched on the
     // attack's rising edge so a multi-frame swing is a single read (not a fresh
@@ -2271,6 +2281,19 @@ class SovereignMK2 extends AdaptiveAI {
     this._bmPrevSnap = { onGround: t.onGround, vx: t.vx, vy: t.vy };
     const _bmPred = this._behaviorModel.predictNext(_bmObs.action, _bmObs.context);
 
+    // ── Swing-confirm tracker ────────────────────────────────────────────
+    // _strike() reports that a swing STARTED, not that it connected, so a combo
+    // string used to spend its follow-up hits on air. Replay-measured, this is
+    // Sovereign's real weakness: 155 swings for 1385 damage (8.94/swing) against
+    // a human's 119 for 1562 (13.13/swing) at an almost identical hit rate — a
+    // conversion gap, not a decision gap. A live HP drop is the ground truth for
+    // "that landed", so it gates whether a string earns the right to continue.
+    this._comboLandedLast = (t.health < this._comboPrevTgtHp - 0.5);
+    this._comboPrevTgtHp  = t.health;
+    // Reset the extension budget whenever no string is running — covers every
+    // site that starts one without having to patch each individually.
+    if (this._comboFollowHits === 0) this._comboExtensions = 0;
+
     // ── A. Action tracking + prediction (sourced from the BehaviorModel) ──
     const currentAction = _smk2ClassifyAction(t, this._prevT2state);
     if (currentAction !== 'idle') {
@@ -3387,7 +3410,14 @@ class SovereignMK2 extends AdaptiveAI {
       }
       if (this.cooldown <= 0) {
         if (this._strike(t)) {
-          this._comboFollowHits--;
+          // Confirmed connect → refund this hit instead of spending it, up to the
+          // cap. A landing string converts into real damage; a whiffing one still
+          // runs down and ends, so swing volume does not inflate.
+          if (this._comboLandedLast && this._comboExtensions < this._COMBO_EXT_MAX) {
+            this._comboExtensions++;
+          } else {
+            this._comboFollowHits--;
+          }
           this._comboFollowTimer = Math.max(lb ? 9 : 12, Math.round(13 - m.reactionSpeed * 3));
         } else {
           // Target escaped reach (knockback drift / airborne) — chase, retry soon,
@@ -3624,6 +3654,14 @@ class SovereignMK2 extends AdaptiveAI {
       }
     }
 
+    // Reach at which Sovereign is willing to OPEN a string this frame. A real
+    // opening earns full reach; a cold neutral read has to be paid for with
+    // actual distance rather than a tip-range fish.
+    const _openCommitted = playerAttacking || (t.attackEndlag || 0) > 0 ||
+                           (t.stunTimer || 0) > 0 || this._punishModeActive ||
+                           this._endlagWindow > 0 || this._predictConf >= 0.50;
+    const _openReach     = _openCommitted ? weaponRange + 10 : weaponRange - 10;
+
     // ── ATTACK — telegraph then strike ───────────────────────
     // Each first-strike is preceded by a brief wind-up (visual tell + dodge window).
     // Follow-up combo hits are handled separately by _comboFollowHits.
@@ -3651,7 +3689,10 @@ class SovereignMK2 extends AdaptiveAI {
           this._postHitLockFrames = Math.max(this._postHitLockFrames, 10);
         }
       }
-    } else if (d < weaponRange + 10 && this.cooldown <= 0 &&
+    // Opening-range gate (see _openReach): at the very tip of reach a cold swing
+    // is the highest whiff-risk, lowest-value commitment there is, and it was a
+    // large share of the 155-swing / 1385-damage profile.
+    } else if (d < _openReach && this.cooldown <= 0 &&
                Math.abs((this.y + this.h / 2) - (t.y + t.h / 2)) <= 70) {
       // Vertical gate: never wind up under a hovering/elevated player the blade
       // can't reach — Sovereign used to slow-telegraph endlessly below them.
@@ -3680,6 +3721,14 @@ class SovereignMK2 extends AdaptiveAI {
         if (typeof showBossDialogue === 'function')
           showBossDialogue(SMK2_ATTACK_WARN_LINES[Math.floor(Math.random() * SMK2_ATTACK_WARN_LINES.length)], 60);
       }
+
+    } else if (!_openCommitted && d < weaponRange + 14 && d >= _openReach) {
+      // Declining the tip-range fish must mean CLOSING, never hovering. Without
+      // this the gate above just parks Sovereign a few pixels outside his own
+      // reach and he stops attacking altogether — the dead-end state machine
+      // that leaves a boss visibly idle. Pay the distance, then swing for real.
+      if (!this.isEdgeDanger(dir)) this.vx = dir * moveSpd * 0.9;
+      else if (this.onGround) { this.vy = _jumpVy; this.vx = dir * moveSpd * 0.5; }
     }
 
     // ── ABILITY / SUPER ───────────────────────────────────────────

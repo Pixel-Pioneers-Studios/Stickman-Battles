@@ -43,8 +43,33 @@ const MAP_PERK_DEFS = {
   },
   neonGrid: {
     boostPads: [{ x: 180, y: 478 }, { x: 540, y: 478 }, { x: 750, y: 478 }]
+  },
+  sovereign: {
+    // The Circuit borrows three existing perk systems so Sovereign's map-tactics
+    // layer (_getMapHazardAt / _selectMapResource / _runMapTactics) has something
+    // to read on his own arena — it was previously inert there.
+    // One pickup per deck; deck tops are y=335 / 320 / 335 (see ARENAS.sovereign).
+    items: [
+      { baseX: 177, baseY: 335 },  // left deck
+      { baseX: 450, baseY: 320 },  // center deck
+      { baseX: 722, baseY: 335 },  // right deck
+    ],
+    // Same pool as ruins, curses included: Sovereign's _mapItemValue() scores
+    // curses at 0 and never takes one, so the pool is an asymmetry in his favour.
+    types: ['speed','power','heal','shield','maxhp','curse_slow','curse_weak','curse_fragile','curse_maxhp_perm']
   }
 };
+
+// Perk systems The Circuit opts into. Keyed by system rather than arena so the
+// existing per-arena blocks stay untouched and nothing else inherits them.
+const SOVEREIGN_PERK_SYSTEMS = { items: true, blizzard: true, meteors: true };
+
+// True when the current arena runs `system`, either as its own arena or because
+// The Circuit borrows it. `key` is the arena that natively owns the system.
+function arenaRunsPerk(key, system) {
+  if (currentArenaKey === key) return true;
+  return currentArenaKey === 'sovereign' && !!SOVEREIGN_PERK_SYSTEMS[system];
+}
 
 let mapPerkState = {};  // runtime state per arena
 
@@ -62,6 +87,25 @@ function initMapPerks(key) {
     }
     mapPerkState.crates       = [];
     mapPerkState.crateCooldown = 300; // first crate after 5s
+  }
+  if (key === 'sovereign') {
+    const def = MAP_PERK_DEFS.sovereign;
+    for (const pos of def.items) {
+      mapItems.push({
+        x: pos.baseX, y: pos.baseY - 22,
+        type: def.types[Math.floor(Math.random() * def.types.length)],
+        collected: false, respawnIn: 0, radius: 14, animPhase: Math.random() * Math.PI * 2
+      });
+    }
+    mapPerkState.crates        = [];
+    mapPerkState.crateCooldown = 300;
+    // Meteors and the gale both start on a long fuse — the opening exchange stays
+    // clean so the fight reads as a duel before the arena starts asserting itself.
+    mapPerkState.meteors        = [];
+    mapPerkState.meteorCooldown = 1500;
+    mapPerkState.blizzardTimer  = 1500;
+    mapPerkState.blizzardActive = false;
+    mapPerkState.blizzardDir    = 1;
   }
   if (key === 'city') {
     mapPerkState.carCooldown = MAP_PERK_DEFS.city.carCooldown;
@@ -145,15 +189,17 @@ function updateMapPerks() {
   if (!currentArena || !gameRunning) return;
 
 
-  // ---- RUINS: Artifact pickups ----
-  if (currentArenaKey === 'ruins') {
+  // ---- RUINS: Artifact pickups (also The Circuit — see arenaRunsPerk) ----
+  if (arenaRunsPerk('ruins', 'items')) {
+    // Pull the type pool from whichever arena owns the pickups this match.
+    const _itemDef = MAP_PERK_DEFS[currentArenaKey] || MAP_PERK_DEFS.ruins;
     for (const item of mapItems) {
       item.animPhase += 0.06;
       if (item.collected) {
         item.respawnIn--;
         if (item.respawnIn <= 0) {
           item.collected = false;
-          item.type = MAP_PERK_DEFS.ruins.types[Math.floor(Math.random() * MAP_PERK_DEFS.ruins.types.length)];
+          item.type = _itemDef.types[Math.floor(Math.random() * _itemDef.types.length)];
         }
         continue;
       }
@@ -192,7 +238,7 @@ function updateMapPerks() {
           // Avoid stacking on existing crates
           const occupied = mapPerkState.crates.some(c => Math.abs(c.x - cx) < 50 && Math.abs(c.y - cy) < 40);
           if (!occupied) {
-            const t = MAP_PERK_DEFS.ruins.types[Math.floor(Math.random() * MAP_PERK_DEFS.ruins.types.length)];
+            const t = _itemDef.types[Math.floor(Math.random() * _itemDef.types.length)];
             mapPerkState.crates.push({ x: cx, y: cy, hp: 50, maxHp: 50, type: t, hitShake: 0, lastHitFrame: -30 });
           }
         }
@@ -330,8 +376,9 @@ function updateMapPerks() {
     }
   }
 
-  // ---- SPACE: Falling meteorites ----
-  if (currentArenaKey === 'space') {
+  // ---- SPACE: Falling meteorites (also The Circuit — see arenaRunsPerk) ----
+  if (arenaRunsPerk('space', 'meteors')) {
+    const _sovMeteors = currentArenaKey === 'sovereign';
     if (!mapPerkState.meteors)         mapPerkState.meteors        = [];
     if (!mapPerkState.meteorCooldown)  mapPerkState.meteorCooldown = 1800;
     mapPerkState.meteorCooldown--;
@@ -351,7 +398,12 @@ function updateMapPerks() {
         if (p.health <= 0 || p.invincible > 0) continue;
         if (Math.hypot(p.cx() - m.x, p.cy() - m.y) < 55) {
           spawnParticles(m.x, m.y, '#ff8844', 14);
-          dealDamage(players[1] || players[0], p, 28, 22);
+          // The Circuit: meteors pressure position, they never close out a stock.
+          // A hazard kill would hand the loser a life neither fighter earned and
+          // would cut short the punish conversions the duel is built around.
+          let _mDmg = 28;
+          if (_sovMeteors) _mDmg = Math.max(0, Math.min(_mDmg, p.health - 1));
+          if (_mDmg > 0) dealDamage(players[1] || players[0], p, _mDmg, 22);
           mapPerkState.meteors.splice(mi, 1);
           if (settings.screenShake) screenShake = Math.max(screenShake, 18);
           break;
@@ -428,8 +480,9 @@ function updateMapPerks() {
     }
   }
 
-  // ---- ICE/SNOW: Blizzard wind gusts ----
-  if (currentArenaKey === 'ice') {
+  // ---- ICE/SNOW: Blizzard wind gusts (also The Circuit — see arenaRunsPerk) ----
+  if (arenaRunsPerk('ice', 'blizzard')) {
+    const _sovGale = currentArenaKey === 'sovereign';
     if (mapPerkState.blizzardTimer === undefined) mapPerkState.blizzardTimer = 1200;
     if (mapPerkState.blizzardActive === undefined) mapPerkState.blizzardActive = false;
     if (mapPerkState.blizzardDir    === undefined) mapPerkState.blizzardDir    = 1;
@@ -438,15 +491,29 @@ function updateMapPerks() {
       mapPerkState.blizzardActive = true;
       mapPerkState.blizzardDir    = Math.random() < 0.5 ? 1 : -1;
       mapPerkState.blizzardTimer  = 180; // gust lasts 3 seconds
-      if (settings.dmgNumbers) damageTexts.push(new DamageText(GAME_W / 2, 80, 'BLIZZARD!', '#88ccff'));
+      if (settings.dmgNumbers) damageTexts.push(new DamageText(GAME_W / 2, 80,
+        _sovGale ? 'NULL GALE!' : 'BLIZZARD!', _sovGale ? '#ff4422' : '#88ccff'));
     } else if (mapPerkState.blizzardActive && mapPerkState.blizzardTimer <= 0) {
       mapPerkState.blizzardActive = false;
       mapPerkState.blizzardTimer  = 1200 + Math.floor(Math.random() * 600);
     }
     if (mapPerkState.blizzardActive) {
-      const pushForce = 1.2 * mapPerkState.blizzardDir;
+      // The Circuit: ring-outs are already the dominant kill mechanic there
+      // (replay-measured), so a full-strength horizontal gust would be the
+      // strongest thing on the map rather than a flavour hazard. Cut the force,
+      // and refuse to push anyone who is already out past the ground — the gale
+      // pressures position, it never lands the stock.
+      const _galeFloor = _sovGale ? (currentArena.platforms || []).find(pl => pl && pl.isFloor) : null;
+      const pushForce = (_sovGale ? 0.34 : 1.2) * mapPerkState.blizzardDir;
       for (const p of players) {
         if (p.health <= 0) continue;
+        if (_galeFloor) {
+          const c = p.cx();
+          const outward = (mapPerkState.blizzardDir > 0)
+            ? c > _galeFloor.x + _galeFloor.w - 150
+            : c < _galeFloor.x + 150;
+          if (outward) continue;   // never shove someone toward the drop they're on
+        }
         p.vx += pushForce;
         // Spawn snow particles
         if (Math.random() < 0.25 && particles.length < MAX_PARTICLES) {
@@ -454,7 +521,8 @@ function updateMapPerks() {
           _p.x = Math.random() * GAME_W; _p.y = -5;
           _p.vx = -2 * mapPerkState.blizzardDir + (Math.random()-0.5)*2;
           _p.vy = 2 + Math.random() * 2;
-          _p.color = 'rgba(200,230,255,0.7)'; _p.size = 2 + Math.random() * 2;
+          _p.color = _sovGale ? 'rgba(255,80,50,0.65)' : 'rgba(200,230,255,0.7)';
+          _p.size = 2 + Math.random() * 2;
           _p.life = 50; _p.maxLife = 50;
           particles.push(_p);
         }

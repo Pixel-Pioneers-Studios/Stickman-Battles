@@ -1006,6 +1006,8 @@ function gameLoop(timestamp) {
   if (gameMode === 'gauntlet' && typeof updateGauntletMode === 'function') updateGauntletMode();
   // Ship & Fracture progression — tick preview timer each frame
   if (typeof updateFracturePreview === 'function') updateFracturePreview();
+  if (typeof updateFractureBranch === 'function') updateFractureBranch();
+  if (typeof updateTutorial === 'function') updateTutorial();
   if (gameMode === 'trueform' && !tfAbsorptionScene && typeof updateQTE === 'function') updateQTE();
 
   // TrueForm: record player position history for multiverse lag-echo
@@ -1082,6 +1084,7 @@ function gameLoop(timestamp) {
   if (typeof drawCutscene === 'function') drawCutscene(ctx, canvas.width, canvas.height);
   if (typeof drawFinisher === 'function') drawFinisher(ctx); // finisher overlay (topmost)
   if (typeof drawCinNameCard === 'function') drawCinNameCard(canvas.width, canvas.height);
+  if (typeof drawTutorial === 'function') drawTutorial(ctx);
   // Absolute Axiom: RGS HUD + Dimension Punch overlay (topmost — must draw after finisher)
   if (typeof _drawRGSHud === 'function') _drawRGSHud(canvas.width, canvas.height);
   if (typeof _drawDimPunchOverlay === 'function') _drawDimPunchOverlay(canvas.width, canvas.height);
