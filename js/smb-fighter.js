@@ -355,12 +355,35 @@ class Fighter {
 
     // ── Anti-kite timer (human players — 1v1, minigames, story; not boss/TF) ───
     if (!this.isAI && !this.isBoss) {
-      const _kiteMode   = gameMode === '2p' || gameMode === 'minigames' || storyModeActive;
+      // Kiting only means something when a living hostile is actually chasing.
+      // The old check keyed off `this.target`, which is often null while simply
+      // traversing a story exploration map — so plain walking across a 6000px
+      // world drained move speed to the 0.65 floor with no enemy in sight.
+      let _foe = null;
+      let _foeDist = Infinity;
+      const _scanFoes = (list) => {
+        if (!list) return;
+        for (const f of list) {
+          if (!f || f === this || f.health <= 0) continue;
+          if (f.isAlly || f._isAlly) continue;
+          if (typeof areAlliedEntities === 'function' && areAlliedEntities(this, f)) continue;
+          const d = Math.abs(f.cx() - this.cx());
+          if (d < _foeDist) { _foeDist = d; _foe = f; }
+        }
+      };
+      _scanFoes(players);
+      if (typeof minions !== 'undefined') _scanFoes(minions);
+      // Only engaged when the hostile is roughly on-screen — beyond that you are
+      // travelling, not running away from a fight.
+      const _engaged    = !!_foe && _foeDist < 620;
+      const _kiteMode   = (gameMode === '2p' || gameMode === 'minigames' || storyModeActive) && _engaged;
       const _movingFast = Math.abs(this.vx) > 3.8;
       const _inCombat   = this.hurtTimer > 0 || this.attackTimer > 0 || this.attackEndlag > 0;
-      const _nearEnemy  = this.target && Math.abs(this.target.cx() - this.cx()) < 140;
+      const _nearEnemy  = _foeDist < 140;
       // Increment while actively running away from combat; decay 3× faster when not kiting
-      if (!_kiteMode || !_movingFast || _inCombat || _nearEnemy) {
+      if (!_engaged) {
+        this._kiteTimer = 0; // nothing to kite — restore full speed immediately
+      } else if (!_kiteMode || !_movingFast || _inCombat || _nearEnemy) {
         this._kiteTimer = Math.max(0, this._kiteTimer - 3);
       } else {
         this._kiteTimer++;
@@ -717,7 +740,7 @@ class Fighter {
             pl.life = 0;
           }
         }
-        if (pl.life <= 0 || pl.x < -60 || pl.x > GAME_W + 60 || pl.y > GAME_H + 60) {
+        if (pl.life <= 0 || pl.x < worldLeftBound() - 60 || pl.x > worldRightBound() + 60 || pl.y > GAME_H + 60) {
           this._paperSwarm.splice(i, 1);
         }
       }
@@ -794,7 +817,7 @@ class Fighter {
             screenShake = Math.max(screenShake, 10);
           }
         }
-        if (fb.x < -100 || fb.x > GAME_W + 100) this._flailBall = null;
+        if (fb.x < worldLeftBound() - 100 || fb.x > worldRightBound() + 100) this._flailBall = null;
       }
     }
 
@@ -853,7 +876,7 @@ class Fighter {
             spawnParticles(bm.x, bm.y, '#cc9944', 8);
           }
         }
-        if (bm.x < -100 || bm.x > GAME_W + 100 || bm.y > GAME_H + 100) {
+        if (bm.x < worldLeftBound() - 100 || bm.x > worldRightBound() + 100 || bm.y > GAME_H + 100) {
           this._boomerangs.splice(i, 1);
         }
       }
@@ -865,7 +888,7 @@ class Fighter {
         const pp = this._paperPlanes[i];
         pp.x += pp.vx; pp.y += pp.vy; pp.vy += 0.06;
         pp.life--;
-        if (pp.life <= 0 || pp.x < -60 || pp.x > GAME_W + 60 || pp.y > GAME_H + 60) {
+        if (pp.life <= 0 || pp.x < worldLeftBound() - 60 || pp.x > worldRightBound() + 60 || pp.y > GAME_H + 60) {
           this._paperPlanes.splice(i, 1); continue;
         }
         const _ppAll = [...players, ...trainingDummies, ...minions];
@@ -1047,7 +1070,7 @@ class Fighter {
           screenShake = Math.max(screenShake, 16);
         }
       }
-      if (hs.timer <= 0 || hs.x < -60 || hs.x > GAME_W + 60) this._hammerShock = null;
+      if (hs.timer <= 0 || hs.x < worldLeftBound() - 60 || hs.x > worldRightBound() + 60) this._hammerShock = null;
     }
 
     // ── Broomstick Q: Broom Ride — aerial body-check while flying ────────────────
@@ -2377,11 +2400,18 @@ class Fighter {
 
   activateSuper(target) {
     // ── Conviction: every 5th super triggers conviction instead of normal super ──
-    this._domainSuperCount = (this._domainSuperCount || 0) + 1;
+    // Supers spent inside your own domain don't advance the next one. The domain
+    // buffs you and its hazards credit you super meter, so counting them let a
+    // domain pay for its own successor.
+    const _inOwnDomain = typeof DomainManager !== 'undefined'
+      && typeof DomainManager.ownsDomain === 'function' && DomainManager.ownsDomain(this);
+    if (!_inOwnDomain) this._domainSuperCount = (this._domainSuperCount || 0) + 1;
+    const _domKey = (typeof DomainManager !== 'undefined' && DomainManager.domainKeyOf)
+      ? DomainManager.domainKeyOf(this) : this.charClass;
     if (this._domainSuperCount >= 5
-        && this.charClass && this.charClass !== 'none'
+        && _domKey && _domKey !== 'none'
         && typeof DomainManager !== 'undefined'
-        && typeof DOMAIN_DEFS !== 'undefined' && DOMAIN_DEFS[this.charClass]) {
+        && typeof DOMAIN_DEFS !== 'undefined' && DOMAIN_DEFS[_domKey]) {
       this._domainSuperCount = 0;
       this.superMeter = 0;
       this.superReady = false;

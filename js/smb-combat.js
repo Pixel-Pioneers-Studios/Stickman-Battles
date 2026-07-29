@@ -11,6 +11,36 @@ function lerp(a, b, t)   { return a + (b - a) * t; }
 function clamp(v, mn, mx){ return Math.max(mn, Math.min(mx, v)); }
 function dist(a, b)      { return Math.hypot(a.cx() - b.cx(), (a.y + a.h/2) - (b.y + b.h/2)); }
 
+// ── World / viewport horizontal bounds ────────────────────────────────────────
+// Ability entities (shockwaves, thrown weapons, homing swarms) used to despawn
+// against GAME_W, which is the VIEWPORT width — correct only in 900px arenas.
+// Story exploration worlds are thousands of px wide, so anything spawned past
+// x≈960 was culled on its first update frame. Mirrors the fighter clamp in
+// Fighter.update() so entities live exactly as far as a fighter can walk.
+function worldLeftBound() {
+  if (typeof currentArena === 'undefined' || !currentArena || !currentArena.worldWidth) return 0;
+  return currentArena.mapLeft !== undefined
+    ? currentArena.mapLeft
+    : -(currentArena.worldWidth - GAME_W) / 2;
+}
+function worldRightBound() {
+  if (typeof currentArena === 'undefined' || !currentArena || !currentArena.worldWidth) return GAME_W;
+  return currentArena.mapRight !== undefined
+    ? currentArena.mapRight
+    : (currentArena.worldWidth + GAME_W) / 2;
+}
+// Viewport edges in world coords — for effects that are authored to enter from
+// off-SCREEN (domain hazards) rather than off-map. In a 900px arena these are
+// 0 and GAME_W, so behaviour there is unchanged.
+function viewLeftEdge()  {
+  const c = (typeof camXCur !== 'undefined' && isFinite(camXCur)) ? camXCur : GAME_W / 2;
+  return c - GAME_W / 2;
+}
+function viewRightEdge() {
+  const c = (typeof camXCur !== 'undefined' && isFinite(camXCur)) ? camXCur : GAME_W / 2;
+  return c + GAME_W / 2;
+}
+
 function areAlliedEntities(a, b) {
   if (!a || !b || a === b) return false;
   if (a._teamId !== undefined && b._teamId !== undefined) return a._teamId === b._teamId;

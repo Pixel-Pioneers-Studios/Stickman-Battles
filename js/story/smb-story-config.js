@@ -956,6 +956,19 @@ function _storyUpdateExpDisplay() {
   if (el) el.textContent = `${_story2.exp || 0} EXP`;
 }
 
+// ── Core moves are never locked ───────────────────────────────────────────────
+// These used to be gated behind skill-tree purchases, so early chapters played
+// without Q, E, double jump, dodge or a class. That only made returning players
+// re-clearing a chapter for loot fight with half a moveset — the nodes are all
+// buyable anyway, so locking them added hassle and nothing else. They are now
+// granted on every save (old and new); the tree still renders them, marked owned.
+const STORY_CORE_UNLOCKS = ['weaponAbility', 'superMeter', 'doubleJump', 'dodge', 'classUnlock'];
+function _applyStoryCoreUnlocks(sk) {
+  if (!sk || typeof sk !== 'object') return sk;
+  for (const id of STORY_CORE_UNLOCKS) sk[id] = true;
+  return sk;
+}
+
 function _defaultStory2Progress() {
   return {
     chapter:           0,       // index into STORY_CHAPTERS2 (next to play)
@@ -965,7 +978,7 @@ function _defaultStory2Progress() {
     lootTaken:         {},      // { 'chapterId:index': 1 } — one-time loot pickups already collected
     blueprints:        [],      // blueprint keys earned
     unlockedAbilities: [],      // ability keys bought from store
-    skillTree:         {},      // { nodeId: true } — purchased skill nodes
+    skillTree:         _applyStoryCoreUnlocks({}), // { nodeId: true } — purchased skill nodes (core moves pre-granted)
     weaponSkills:      {},      // { weaponKey: { nodeId: true } } — per-weapon mastery
     defeated:          [],      // chapter indices completed
     storyComplete:     false,
@@ -1018,6 +1031,7 @@ function _normalizeStory2Progress(data) {
   if (Array.isArray(data.blueprints)) out.blueprints = data.blueprints.slice();
   if (Array.isArray(data.unlockedAbilities)) out.unlockedAbilities = data.unlockedAbilities.slice();
   if (data.skillTree && typeof data.skillTree === 'object') out.skillTree = Object.assign({}, data.skillTree);
+  _applyStoryCoreUnlocks(out.skillTree); // never locked, on old saves too
   if (data.weaponSkills && typeof data.weaponSkills === 'object') {
     out.weaponSkills = {};
     for (const wk of Object.keys(data.weaponSkills)) {
@@ -1063,7 +1077,8 @@ function _story2Meaningful(data) {
   if (Array.isArray(data.defeated) && data.defeated.length > 0) return true;
   if (Array.isArray(data.blueprints) && data.blueprints.length > 0) return true;
   if (Array.isArray(data.unlockedAbilities) && data.unlockedAbilities.length > 0) return true;
-  if (data.skillTree && Object.keys(data.skillTree).length > 0) return true;
+  // Core moves are granted to every save, so they are not evidence of progress.
+  if (data.skillTree && Object.keys(data.skillTree).some(k => !STORY_CORE_UNLOCKS.includes(k))) return true;
   if (data.weaponSkills && Object.keys(data.weaponSkills).length > 0) return true;
   if (data.runState && ((typeof data.runState.healthPct === 'number' && data.runState.healthPct !== 1) ||
       (typeof data.runState.noDeathChain === 'number' && data.runState.noDeathChain > 0))) return true;

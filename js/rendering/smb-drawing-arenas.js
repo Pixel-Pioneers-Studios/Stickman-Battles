@@ -484,11 +484,234 @@ function drawRuins() {
   ctx.globalAlpha = 1;
 }
 
+// ============================================================
+// TERRAIN HELPERS — platforms drawn as connected ground, not blocks
+// ============================================================
+// Platforms are authored as plain rects. Drawing each rect with its own full
+// outline is what makes them read as "blocks": a crate resting on the floor
+// shows a seam where it meets the ground, and two touching ledges look like
+// two objects instead of one shelf. These helpers work out which parts of each
+// platform edge are actually exposed to open air, so only those get an outline,
+// a rounded corner, or a top surface layer.
+
+const _PLAT_EPS = 1.5;   // slop for "these two rects are touching"
+
+function _platRGB(hex) {
+  let h = String(hex || '#888888').replace('#', '');
+  if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2];
+  const n = parseInt(h, 16);
+  if (!isFinite(n)) return { r: 136, g: 136, b: 136 };
+  return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 };
+}
+
+// amt > 0 lightens toward white, amt < 0 darkens toward black
+function _platShade(hex, amt, alpha) {
+  const c = _platRGB(hex);
+  const t = amt >= 0 ? 255 : 0;
+  const k = Math.min(1, Math.abs(amt));
+  const r = Math.round(c.r + (t - c.r) * k);
+  const g = Math.round(c.g + (t - c.g) * k);
+  const b = Math.round(c.b + (t - c.b) * k);
+  return alpha === undefined ? `rgb(${r},${g},${b})` : `rgba(${r},${g},${b},${alpha})`;
+}
+
+// Deterministic 0..1 hash so surface texture never crawls between frames
+function _platNoise(a, b) {
+  const s = Math.sin(a * 12.9898 + b * 78.233) * 43758.5453;
+  return s - Math.floor(s);
+}
+
+// Subtract covered ranges from [lo,hi]; returns the exposed [start,end] spans
+function _platSpans(lo, hi, covers) {
+  let spans = [[lo, hi]];
+  for (const cv of covers) {
+    const next = [];
+    for (const sp of spans) {
+      if (cv[1] <= sp[0] || cv[0] >= sp[1]) { next.push(sp); continue; }
+      if (cv[0] > sp[0]) next.push([sp[0], cv[0]]);
+      if (cv[1] < sp[1]) next.push([cv[1], sp[1]]);
+    }
+    spans = next;
+    if (!spans.length) break;
+  }
+  return spans.filter(sp => sp[1] - sp[0] > 1.5);
+}
+
+// Cached per-arena; rebuilt only when a platform actually moves.
+function _platBuildSeams(pls) {
+  let key = (currentArena.name || '') + '|' + pls.length + '|';
+  for (const p of pls) key += `${p.x | 0},${p.y | 0},${p.w | 0},${p.h | 0},${p.isFloorDisabled ? 1 : 0};`;
+  if (currentArena._platSeamKey === key) return;
+  currentArena._platSeamKey = key;
+
+  const live = pls.filter(p => !p.isFloorDisabled);
+  const near = (v, t) => Math.abs(v - t) < 2;
+  for (const a of live) {
+    const ax2 = a.x + a.w, ay2 = a.y + a.h;
+    const topC = [], botC = [], leftC = [], rightC = [];
+    for (const b of live) {
+      if (b === a) continue;
+      const bx2 = b.x + b.w, by2 = b.y + b.h;
+      // horizontal edges: does b's body straddle this y line?
+      if (b.y <= a.y + _PLAT_EPS && by2 >= a.y - _PLAT_EPS) topC.push([b.x, bx2]);
+      if (b.y <= ay2 + _PLAT_EPS && by2 >= ay2 - _PLAT_EPS) botC.push([b.x, bx2]);
+      // vertical edges: does b's body straddle this x line?
+      if (b.x <= a.x + _PLAT_EPS && bx2 >= a.x - _PLAT_EPS) leftC.push([b.y, by2]);
+      if (b.x <= ax2 + _PLAT_EPS && bx2 >= ax2 - _PLAT_EPS) rightC.push([b.y, by2]);
+    }
+    a._segTop   = _platSpans(a.x, ax2, topC);
+    a._segBot   = _platSpans(a.x, ax2, botC);
+    a._segLeft  = _platSpans(a.y, ay2, leftC);
+    a._segRight = _platSpans(a.y, ay2, rightC);
+
+    // A corner only rounds when both of its edges run out to open air there
+    const startsAt = (segs, v) => segs.some(sp => near(sp[0], v));
+    const endsAt   = (segs, v) => segs.some(sp => near(sp[1], v));
+    a._rnTL = startsAt(a._segTop, a.x)  && startsAt(a._segLeft,  a.y);
+    a._rnTR = endsAt(a._segTop, ax2)    && startsAt(a._segRight, a.y);
+    a._rnBR = endsAt(a._segBot, ax2)    && endsAt(a._segRight, ay2);
+    a._rnBL = startsAt(a._segBot, a.x)  && endsAt(a._segLeft,  ay2);
+  }
+}
+
+function _platPath(x, y, w, h, rad) {
+  ctx.beginPath();
+  if (ctx.roundRect) ctx.roundRect(x, y, w, h, rad);
+  else ctx.rect(x, y, w, h);
+}
+
+// Draws one platform as a chunk of terrain: gradient body, exposed-only top
+// surface layer, bevels and outline. Seam data must already be built.
+function _platDrawTerrain(pl, baseColor, edgeColor) {
+  const segTop   = pl._segTop   || [[pl.x, pl.x + pl.w]];
+  const segBot   = pl._segBot   || [[pl.x, pl.x + pl.w]];
+  const segLeft  = pl._segLeft  || [[pl.y, pl.y + pl.h]];
+  const segRight = pl._segRight || [[pl.y, pl.y + pl.h]];
+  const x2 = pl.x + pl.w, y2 = pl.y + pl.h;
+  const r  = Math.max(2, Math.min(7, pl.h * 0.42, pl.w * 0.42));
+  const rad = [pl._rnTL ? r : 0, pl._rnTR ? r : 0, pl._rnBR ? r : 0, pl._rnBL ? r : 0];
+  const capH = Math.max(3, Math.min(7, pl.h * 0.42));
+
+  // Contact shadow (skipped on moving platforms — avoids ghost trails)
+  if (!pl.ox && !pl.oy) {
+    ctx.save();
+    ctx.globalAlpha = 0.26;
+    ctx.fillStyle   = '#000';
+    _platPath(pl.x + 3, pl.y + 5, pl.w, pl.h, rad);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  // Body — light near the surface, dark underside so it reads as depth
+  const gKey = `${pl.y | 0},${pl.h | 0},${baseColor}`;
+  if (!pl._terrGrad || pl._terrGradKey !== gKey) {
+    pl._terrGrad = ctx.createLinearGradient(0, pl.y, 0, y2);
+    pl._terrGrad.addColorStop(0,    _platShade(baseColor, 0.20));
+    pl._terrGrad.addColorStop(0.34, baseColor);
+    pl._terrGrad.addColorStop(1,    _platShade(baseColor, -0.42));
+    pl._terrGradKey = gKey;
+  }
+  _platPath(pl.x, pl.y, pl.w, pl.h, rad);
+  ctx.fillStyle = pl._terrGrad;
+  ctx.fill();
+
+  ctx.save();
+  ctx.clip();   // everything below stays inside the body silhouette
+
+  // Speckled mineral texture — deterministic, so it sits still
+  const grains = Math.max(4, Math.round(pl.w / 22));
+  for (let i = 0; i < grains; i++) {
+    const nx = _platNoise(pl.x + i * 3.7, pl.y);
+    const ny = _platNoise(i * 5.3, pl.y + pl.w);
+    ctx.globalAlpha = 0.05 + nx * 0.07;
+    ctx.fillStyle   = ny > 0.5 ? '#ffffff' : '#000000';
+    ctx.beginPath();
+    ctx.arc(pl.x + nx * pl.w, pl.y + capH + ny * Math.max(1, pl.h - capH - 2), 1 + ny * 2.2, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+
+  // Top surface layer — only where nothing is resting on this platform.
+  // The lower boundary waves slightly so the cap isn't a straight band.
+  for (const sp of segTop) {
+    ctx.beginPath();
+    ctx.moveTo(sp[0], pl.y - 1);
+    ctx.lineTo(sp[1], pl.y - 1);
+    for (let px = sp[1]; px >= sp[0]; px -= 6) {
+      ctx.lineTo(px, pl.y + capH + Math.sin(px * 0.085) * 1.6);
+    }
+    ctx.lineTo(sp[0], pl.y + capH);
+    ctx.closePath();
+    ctx.fillStyle = _platShade(baseColor, 0.26);
+    ctx.fill();
+    // gleam along the very top
+    ctx.fillStyle = _platShade(baseColor, 0.62, 0.55);
+    ctx.fillRect(sp[0], pl.y, sp[1] - sp[0], 1.6);
+  }
+
+  // Bevels on exposed sides / underside
+  for (const sp of segLeft) {
+    ctx.fillStyle = _platShade(baseColor, 0.34, 0.35);
+    ctx.fillRect(pl.x, sp[0], 1.8, sp[1] - sp[0]);
+  }
+  for (const sp of segRight) {
+    ctx.fillStyle = _platShade(baseColor, -0.5, 0.4);
+    ctx.fillRect(x2 - 1.8, sp[0], 1.8, sp[1] - sp[0]);
+  }
+  for (const sp of segBot) {
+    ctx.fillStyle = _platShade(baseColor, -0.6, 0.45);
+    ctx.fillRect(sp[0], y2 - 2.2, sp[1] - sp[0], 2.2);
+  }
+  ctx.restore();
+
+  // Small nubs breaking the top silhouette — kills the flat-rect read.
+  // Purely decorative: they sit above pl.y and are never collided with.
+  for (const sp of segTop) {
+    const span = sp[1] - sp[0];
+    const nubs = Math.floor(span / 46);
+    for (let i = 0; i < nubs; i++) {
+      const t  = _platNoise(sp[0] + i * 9.1, pl.y + i);
+      const nx = sp[0] + 8 + t * Math.max(1, span - 16);
+      const nh = 2 + _platNoise(nx, pl.y) * 2.5;
+      const nw = 4 + _platNoise(pl.y, nx) * 5;
+      ctx.fillStyle = _platShade(baseColor, 0.26);
+      _platPath(nx, pl.y - nh, nw, nh + 2, [nh, nh, 0, 0]);
+      ctx.fill();
+    }
+  }
+
+  // Outline — clipped to the exposed edges only. A platform sitting flush on
+  // the floor gets no line where the two meet, so they read as one mass.
+  ctx.save();
+  ctx.beginPath();
+  for (const sp of segTop)   ctx.rect(sp[0], pl.y - 4, sp[1] - sp[0], 8);
+  for (const sp of segBot)   ctx.rect(sp[0], y2 - 4,  sp[1] - sp[0], 8);
+  for (const sp of segLeft)  ctx.rect(pl.x - 4, sp[0], 8, sp[1] - sp[0]);
+  for (const sp of segRight) ctx.rect(x2 - 4,   sp[0], 8, sp[1] - sp[0]);
+  if (pl._rnTL) ctx.rect(pl.x - 4, pl.y - 4, r + 8, r + 8);
+  if (pl._rnTR) ctx.rect(x2 - r - 4, pl.y - 4, r + 8, r + 8);
+  if (pl._rnBR) ctx.rect(x2 - r - 4, y2 - r - 4, r + 8, r + 8);
+  if (pl._rnBL) ctx.rect(pl.x - 4, y2 - r - 4, r + 8, r + 8);
+  ctx.clip();
+  _platPath(pl.x, pl.y, pl.w, pl.h, rad);
+  ctx.strokeStyle = edgeColor;
+  ctx.lineWidth   = 2;
+  ctx.lineJoin    = 'round';
+  ctx.stroke();
+  ctx.restore();
+}
+
 function drawPlatforms() {
   const isBoss    = !!currentArena.isBossArena;
   const isVoid    = !!currentArena.isVoidArena;
   const isGodArea = !!currentArena.isGodArena;
-  for (const pl of currentArena.platforms) {
+
+  _platBuildSeams(currentArena.platforms);
+  // Bottom-most first, so anything resting on the floor paints over its seam
+  const drawOrder = currentArena.platforms.slice()
+    .sort((a, b) => (b.y + b.h) - (a.y + a.h));
+
+  for (const pl of drawOrder) {
     if (pl.isFloorDisabled) continue;
 
     if (isVoid) {
@@ -586,21 +809,7 @@ function drawPlatforms() {
       continue;
     }
 
-    // shadow (skip for moving boss platforms — cheaper and avoids ghost trails)
-    if (!pl.ox && !pl.oy) {
-      ctx.fillStyle = 'rgba(0,0,0,0.22)';
-      ctx.fillRect(pl.x + 4, pl.y + 4, pl.w, pl.h);
-    }
-    // body
-    ctx.fillStyle = currentArena.platColor;
-    ctx.fillRect(pl.x, pl.y, pl.w, pl.h);
-    // top highlight
-    ctx.fillStyle = 'rgba(255,255,255,0.22)';
-    ctx.fillRect(pl.x, pl.y, pl.w, 3);
-    // border
-    ctx.strokeStyle = currentArena.platEdge;
-    ctx.lineWidth   = 1.5;
-    ctx.strokeRect(pl.x, pl.y, pl.w, pl.h);
+    _platDrawTerrain(pl, currentArena.platColor, currentArena.platEdge);
 
     // Boss arena: purple glow on moving platforms
     if (isBoss && (pl.ox !== undefined || pl.oy !== undefined)) {

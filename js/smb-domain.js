@@ -139,6 +139,21 @@ const DOMAIN_DEFS = {
     swarmDamage: 16,          // per familiar — it dies on contact
     announce:   'They never stopped answering. They never will.',
   },
+  // Sovereign has no class — this domain is reached through `_domainKey`, not
+  // `charClass` (see _domainKeyOf). Keyed 'sovereign' so nothing a player can
+  // equip resolves to it.
+  sovereign: {
+    name:       'Absolute Dominion',
+    color:      '#ff3311',
+    bgTint:     'rgba(30,0,0,0.56)',
+    spawnEvery: 0,            // the closing corridor IS the domain — no hazard rain
+    hazardType: 'null_wall',
+    ownerBuff:  { power: true },
+    wallStart:  400,          // corridor half-width at expansion
+    wallEnd:    155,          // half-width it closes to over the domain's life
+    wallDamage: 17,
+    announce:   'The field is mine. You fight where I allow.',
+  },
   none: {
     name:       'Primal Surge',
     color:      '#cccccc',
@@ -178,10 +193,43 @@ const DomainManager = (() => {
   let _domainCinActive = false;
   let _domainCinOwner  = null;
 
+  // ── Domain play region ──────────────────────────────────────────────
+  // Every hazard position below was authored in 0..GAME_W screen space, but
+  // hazard.x is compared against fighter.cx() — WORLD space. In a 900px arena
+  // those coincide; in a scrolling story world (worldWidth 3600+) the whole
+  // domain anchored itself to world x 0..900 no matter where the fight was, so
+  // hazards spawned off in the far left of the map and never reached anyone.
+  //
+  // _dAnchorOrigin picks the left edge of a GAME_W-wide region around the owner,
+  // clamped inside the world. It is resolved ONCE at expansion and stored on the
+  // domain, so hazards already in flight never shift when the camera moves.
+  // In a 900px arena it returns 0 and every offset below is unchanged.
+  function _dAnchorOrigin(fighter) {
+    const wl = (typeof worldLeftBound  === 'function') ? worldLeftBound()  : 0;
+    const wr = (typeof worldRightBound === 'function') ? worldRightBound() : GAME_W;
+    if (wr - wl <= GAME_W) return wl;
+    const c = (fighter && typeof fighter.cx === 'function') ? fighter.cx() : (wl + wr) / 2;
+    return Math.max(wl, Math.min(wr - GAME_W, c - GAME_W / 2));
+  }
+  // Origin of a live domain's region. Defensive default keeps legacy behaviour.
+  function _dOX(domain) {
+    return (domain && isFinite(domain.originX)) ? domain.originX : 0;
+  }
+
+  // Which DOMAIN_DEFS entry a fighter expands into. Classed fighters use their
+  // class; `_domainKey` lets a classless entity (Sovereign) own a domain without
+  // being given a charClass, which would pull in CLASSES/CLASS_AFFINITY lookups
+  // and class rendering it was never built for.
+  function _domainKeyOf(fighter) {
+    if (!fighter) return null;
+    return fighter._domainKey || fighter.charClass;
+  }
+
   // ── Hazard spawning ─────────────────────────────────────────────────
 
   function _spawnHazard(domain) {
     const { def } = domain;
+    const OX = _dOX(domain);
     switch (def.hazardType) {
       case 'lightning': {
         // 2 bolts every interval — dense pressure; first bolt aimed at an enemy
@@ -195,9 +243,9 @@ const DomainManager = (() => {
             const _tgt = _enemies[Math.floor(Math.random() * _enemies.length)];
             x = _tgt.cx() + (Math.random() - 0.5) * 80;
           } else {
-            x = 50 + Math.random() * (GAME_W - 100);
+            x = OX + 50 + Math.random() * (GAME_W - 100);
           }
-          x = Math.max(50, Math.min(GAME_W - 50, x));
+          x = Math.max(OX + 50, Math.min(OX + GAME_W - 50, x));
           domain.hazards.push({
             type: 'lightning', x, y: 0,
             damage: 26, radius: 52,
@@ -211,7 +259,7 @@ const DomainManager = (() => {
         // Logs from both sides — staggered heights, deadly speed
         for (let side = 0; side < 2; side++) {
           const left = side === 0;
-          const x    = left ? -40 : GAME_W + 40;
+          const x    = OX + (left ? -40 : GAME_W + 40);
           // Band widened downward: the old 0.35±0.20 spread sat entirely above a
           // grounded fighter, so logs flew harmlessly overhead almost every time.
           const y    = GAME_H * 0.45 + (Math.random() - 0.5) * GAME_H * 0.50;
@@ -229,7 +277,7 @@ const DomainManager = (() => {
         for (let i = 0; i < 5; i++) {
           domain.hazards.push({
             type: 'shadow_blade',
-            x: 30 + Math.random() * (GAME_W - 60), y: -40,
+            x: OX + 30 + Math.random() * (GAME_W - 60), y: -40,
             vx: (Math.random() - 0.5) * 8,
             vy: 16 + Math.random() * 7,
             angle: Math.random() * Math.PI * 2,
@@ -243,7 +291,7 @@ const DomainManager = (() => {
         for (let side = 0; side < 2; side++) {
           const left = side === 0;
           for (let i = 0; i < 5; i++) {
-            const x  = left ? -10 : GAME_W + 10;
+            const x  = OX + (left ? -10 : GAME_W + 10);
             const y  = GAME_H * 0.15 + Math.random() * GAME_H * 0.62;
             const vx = left ? 24 + Math.random() * 5 : -(24 + Math.random() * 5);
             domain.hazards.push({
@@ -260,7 +308,7 @@ const DomainManager = (() => {
           const spread = (i / 6) * (GAME_W - 80) + 40;
           domain.hazards.push({
             type: 'arrow',
-            x: spread, y: -25,
+            x: OX + spread, y: -25,
             vx: (Math.random() - 0.5) * 5,
             vy: 17 + Math.random() * 6,
             damage: 24, radius: 10, hitSet: new Set(),
@@ -292,11 +340,11 @@ const DomainManager = (() => {
         const _foes = _getDomainTargets(domain.owner);
         const _spots = [];
         for (const t of _foes.slice(0, 3)) _spots.push(t.cx() + (Math.random() - 0.5) * 70);
-        if (_spots.length === 0) _spots.push(80 + Math.random() * (GAME_W - 160));
+        if (_spots.length === 0) _spots.push(OX + 80 + Math.random() * (GAME_W - 160));
         for (const sx of _spots) {
           domain.hazards.push({
             type: 'blade_wall',
-            x: Math.max(40, Math.min(GAME_W - 40, sx)),
+            x: Math.max(OX + 40, Math.min(OX + GAME_W - 40, sx)),
             warningTimer: 44, riseTimer: 0, risen: false,
             damage: 16,              // owner has _powerBuff (×1.35) → ~22 felt
             radius: 34, height: 96,
@@ -309,7 +357,7 @@ const DomainManager = (() => {
       // Summoner: familiars peel off the sigil and drift toward whoever is closest.
       // Slow and killable-by-dodging — they expire on contact or when life runs out.
       case 'spirit_swarm': {
-        const _cx0 = GAME_W / 2, _cy0 = GAME_H * 0.40;
+        const _cx0 = OX + GAME_W / 2, _cy0 = GAME_H * 0.40;
         const count = 2 + (Math.random() < 0.4 ? 1 : 0);
         for (let i = 0; i < count; i++) {
           const ang = Math.random() * Math.PI * 2;
@@ -329,9 +377,9 @@ const DomainManager = (() => {
 
       case 'holy_beam': {
         // Three beams — impossible to dodge all, must pick which to take
-        const x1 = 60  + Math.random() * (GAME_W * 0.28);
-        const x2 = GAME_W * 0.40 + Math.random() * (GAME_W * 0.20);
-        const x3 = GAME_W * 0.65 + Math.random() * (GAME_W * 0.28);
+        const x1 = OX + 60  + Math.random() * (GAME_W * 0.28);
+        const x2 = OX + GAME_W * 0.40 + Math.random() * (GAME_W * 0.20);
+        const x3 = OX + GAME_W * 0.65 + Math.random() * (GAME_W * 0.28);
         for (const x of [x1, x2, x3]) {
           domain.hazards.push({
             type: 'holy_beam', x, y: 0,
@@ -345,8 +393,26 @@ const DomainManager = (() => {
     }
   }
 
+  // Sovereign: two null walls bounding a corridor that closes over the domain's
+  // life and re-centres on Sovereign himself. The arena stops being neutral
+  // ground — he decides where the fight happens. Contact costs a tick and shoves
+  // the target back inward, so the walls confine rather than ring out.
+  function _createNullWalls(domain) {
+    const cx = domain.owner.cx();
+    for (const side of [-1, 1]) {
+      domain.hazards.push({
+        type:   'null_wall',
+        side,
+        x:      cx + side * (domain.def.wallStart || 400),
+        centre: cx,
+        damage: domain.def.wallDamage || 17,
+      });
+    }
+  }
+
   function _createVoidRocks(domain) {
     // Three rocks at different radii — inner, mid, and outer ring
+    const OX     = _dOX(domain);
     const orbits = [120, 200, 280];
     for (let i = 0; i < 3; i++) {
       const orbitR = orbits[i];
@@ -357,7 +423,7 @@ const DomainManager = (() => {
         damage:  26,
         radius:  22,
         hitSet:  new Set(),
-        get x() { return GAME_W / 2 + Math.cos(this.angle) * this.orbitR; },
+        get x() { return OX + GAME_W / 2 + Math.cos(this.angle) * this.orbitR; },
         get y() { return GAME_H * 0.58 + Math.sin(this.angle) * this.orbitR * 0.52; },
       });
     }
@@ -367,6 +433,7 @@ const DomainManager = (() => {
 
   function _createWeaponHazards(domain) {
     const wk = domain.owner.weaponKey;
+    const OX = _dOX(domain);
 
     // Thor + Hammer → Mjolnir roams the arena freely, periodically dart-strikes an enemy
     if (domain.defKey === 'thor') {
@@ -391,7 +458,7 @@ const DomainManager = (() => {
     if (domain.defKey === 'kratos') {
       domain.hazards.push({
         type:       'blades_of_chaos',
-        x:          GAME_W / 2,
+        x:          OX + GAME_W / 2,
         y:          GAME_H * 0.52,
         angle:      -Math.PI * 0.80, // start at left edge of sweep
         sweepDir:   1,
@@ -414,7 +481,7 @@ const DomainManager = (() => {
       for (let side = 0; side < 2; side++) {
         domain.hazards.push({
           type:      'turret',
-          x:         side === 0 ? 18 : GAME_W - 18,
+          x:         OX + (side === 0 ? 18 : GAME_W - 18),
           y:         GAME_H * 0.50,
           facing:    side === 0 ? 1 : -1,
           fireTimer: 40 + side * 55,  // stagger so salvos don't overlap
@@ -430,7 +497,7 @@ const DomainManager = (() => {
     if (domain.defKey === 'archer') {
       domain.hazards.push({
         type:       'giant_arrow',
-        x:          -80,
+        x:          OX - 80,
         y:          GAME_H * 0.38,
         vx:         0, vy: 0,
         fromLeft:   true,
@@ -474,7 +541,7 @@ const DomainManager = (() => {
     if (domain.defKey === 'megaknight') {
       domain.hazards.push({
         type:   'gravity_vortex',
-        x:      GAME_W / 2,
+        x:      OX + GAME_W / 2,
         y:      GAME_H * 0.44,
         pull:   0.85,
         radius: 0,
@@ -509,7 +576,7 @@ const DomainManager = (() => {
     if (domain.defKey === 'reaper') {
       domain.hazards.push({
         type:      'scythe_pendulum',
-        anchorX:   GAME_W / 2,
+        anchorX:   OX + GAME_W / 2,
         anchorY:   -28,
         angle:     -Math.PI * 0.38,
         angleVel:  0.016,
@@ -533,7 +600,7 @@ const DomainManager = (() => {
       domain.hazards.push({
         type:       'surge_fist',
         fromLeft:   true,
-        x:          -70,
+        x:          OX - 70,
         y:          GAME_H * 0.44,
         vx:         0,
         phase:      'cooldown',
@@ -545,7 +612,7 @@ const DomainManager = (() => {
       domain.hazards.push({
         type:       'surge_fist',
         fromLeft:   false,
-        x:          GAME_W + 70,
+        x:          OX + GAME_W + 70,
         y:          GAME_H * 0.52,
         vx:         0,
         phase:      'cooldown',
@@ -576,7 +643,7 @@ const DomainManager = (() => {
     if (domain.defKey === 'summoner') {
       domain.hazards.push({
         type:      'summon_circle',
-        x:         GAME_W / 2,
+        x:         OX + GAME_W / 2,
         y:         GAME_H * 0.40,
         angle:     0,
         pulse:     0,
@@ -595,16 +662,16 @@ const DomainManager = (() => {
       const _arcWeapons     = ['slingshot', 'boomerang', 'paperairplane'];
       if (_bladedWeapons.includes(wk)) {
         domain.hazards.push({
-          type: 'blood_blade', x: -40, y: GAME_H * 0.42, fromLeft: true,
+          type: 'blood_blade', x: OX - 40, y: GAME_H * 0.42, fromLeft: true,
           phase: 'cooldown', phaseTimer: 80, damage: 16, radius: 14, hitSet: new Set(),
         });
       } else if (_heavyWeapons.includes(wk)) {
-        domain.hazards.push({ type: 'debris', x: -60, y: GAME_H * 0.38, vx: 11,  vy: -1, damage: 16, radius: 18, hitSet: new Set() });
-        domain.hazards.push({ type: 'debris', x: GAME_W + 60, y: GAME_H * 0.52, vx: -11, vy: -1, damage: 16, radius: 18, hitSet: new Set() });
+        domain.hazards.push({ type: 'debris', x: OX - 60, y: GAME_H * 0.38, vx: 11,  vy: -1, damage: 16, radius: 18, hitSet: new Set() });
+        domain.hazards.push({ type: 'debris', x: OX + GAME_W + 60, y: GAME_H * 0.52, vx: -11, vy: -1, damage: 16, radius: 18, hitSet: new Set() });
       } else if (_sprayWeapons.includes(wk)) {
         // Floating rotating turret that sweeps the arena with rapid fire
         domain.hazards.push({
-          type: 'rage_spray', x: GAME_W / 2, y: GAME_H * 0.34,
+          type: 'rage_spray', x: OX + GAME_W / 2, y: GAME_H * 0.34,
           angle: 0, fireTimer: 0, damage: 8, radius: 7,
         });
       } else if (_arcWeapons.includes(wk)) {
@@ -616,7 +683,7 @@ const DomainManager = (() => {
         // Two electric pillars periodically arc chain lightning across the arena
         domain.hazards.push({
           type: 'elec_pulse',
-          pillarX1: GAME_W * 0.22, pillarX2: GAME_W * 0.78,
+          pillarX1: OX + GAME_W * 0.22, pillarX2: OX + GAME_W * 0.78,
           arcTimer: 45, arcEvery: 55, damage: 12, radius: 48, hitSet: new Set(),
         });
       }
@@ -643,14 +710,14 @@ const DomainManager = (() => {
     paladin: 2.5, gunner: -2, archer: 3,
     berserker: 5, megaknight: -4,
     ronin: -4.5, reaper: 3.5, pugilist: -3,
-    warrior: 3, summoner: -3.5, none: 0,
+    warrior: 3, summoner: -3.5, sovereign: -2.5, none: 0,
   };
   const _DOMAIN_DARK_COLOR = {
     thor: '#000a1a', kratos: '#1a0500', ninja: '#030008',
     paladin: '#1a1800', gunner: '#1a0e00', archer: '#001a05',
     berserker: '#1a0000', megaknight: '#050013',
     ronin: '#050510', reaper: '#100510', pugilist: '#120000',
-    warrior: '#1a1000', summoner: '#001a18', none: '#080808',
+    warrior: '#1a1000', summoner: '#001a18', sovereign: '#1a0200', none: '#080808',
   };
   const _DOMAIN_ENTRY_LINE = {
     thor:       'The storm answers me...',
@@ -666,19 +733,33 @@ const DomainManager = (() => {
     pugilist:   'Get up. I\'m not done yet.',
     warrior:    'Step into the ring.',
     summoner:   'You are outnumbered. You always were.',
+    sovereign:  'You never chose the ground. You only thought you did.',
     none:       'No class. No rules. Just power.',
   };
 
+  // Hand the camera back — only the riser that took it may release it, so a
+  // clashing second expansion can't cut the first one's framing short.
+  function _releaseDomainCin(f) {
+    if (_domainCinOwner && _domainCinOwner !== f) return;
+    if (typeof CinCam !== 'undefined') CinCam.restore();
+    _domainCinActive = false;
+    _domainCinOwner  = null;
+  }
+
   function _tickDomainEntry(r) {
     const f   = r.fighter;
-    const def = DOMAIN_DEFS[f.charClass];
+    const _dk = _domainKeyOf(f);
+    const def = DOMAIN_DEFS[_dk];
     if (!def) return;
     if (typeof CinCam === 'undefined' || typeof CinFX === 'undefined') return;
     const t = r.timer; // counts DOWN from RISE_FRAMES (300)
     const d = r.animData || (r.animData = {});
 
     // Common: entry setup — no tilt (tilt can clip name card text)
-    if (t === RISE_FRAMES - 5) {
+    // Two fighters can expand within the same 5 s rise (a clash). The camera is a
+    // single global, so only the first riser takes it; the second still gets its
+    // full entry animation and domain, just without stealing the framing.
+    if (t === RISE_FRAMES - 5 && (!_domainCinActive || _domainCinOwner === f)) {
       _domainCinActive = true;
       _domainCinOwner  = f;
       CinCam.zoomTo(1.65);
@@ -686,7 +767,7 @@ const DomainManager = (() => {
       if (typeof screenShake !== 'undefined') screenShake = Math.max(screenShake, 18);
     }
 
-    switch (f.charClass) {
+    switch (_dk) {
 
       // ── Thor: hammer raised → lightning strikes → supercharge → ground slam ──
       case 'thor': {
@@ -732,7 +813,7 @@ const DomainManager = (() => {
           CinCam.zoomTo(1.28);
         }
         if (t === 160) { CinCam.tilt(0); CinFX.motionTrailOff(f); CinCam.zoomTo(1.18); }
-        if (t === 60)  { CinCam.restore(); _domainCinActive = false; _domainCinOwner = null; }
+        if (t === 60)  _releaseDomainCin(f);
         break;
       }
 
@@ -774,7 +855,7 @@ const DomainManager = (() => {
           }
         }
         if (t === 160) { CinCam.tilt(0); CinFX.motionTrailOff(f); CinCam.zoomTo(1.18); }
-        if (t === 60)  { CinCam.restore(); _domainCinActive = false; _domainCinOwner = null; }
+        if (t === 60)  _releaseDomainCin(f);
         break;
       }
 
@@ -836,7 +917,7 @@ const DomainManager = (() => {
           if (typeof screenShake !== 'undefined') screenShake = Math.max(screenShake, 30);
         }
         if (t === 160) { CinCam.tilt(0); CinFX.motionTrailOff(f); CinCam.zoomTo(1.18); }
-        if (t === 60)  { CinCam.restore(); _domainCinActive = false; _domainCinOwner = null; }
+        if (t === 60)  _releaseDomainCin(f);
         break;
       }
 
@@ -875,7 +956,7 @@ const DomainManager = (() => {
           CinCam.zoomTo(1.28);
         }
         if (t === 160) { CinCam.tilt(0); CinFX.motionTrailOff(f); CinCam.zoomTo(1.18); }
-        if (t === 60)  { CinCam.restore(); _domainCinActive = false; _domainCinOwner = null; }
+        if (t === 60)  _releaseDomainCin(f);
         break;
       }
 
@@ -920,7 +1001,7 @@ const DomainManager = (() => {
           CinCam.zoomTo(1.28);
         }
         if (t === 160) { CinCam.tilt(0); CinFX.motionTrailOff(f); CinCam.zoomTo(1.18); }
-        if (t === 60)  { CinCam.restore(); _domainCinActive = false; _domainCinOwner = null; }
+        if (t === 60)  _releaseDomainCin(f);
         break;
       }
 
@@ -964,7 +1045,7 @@ const DomainManager = (() => {
           CinCam.zoomTo(1.28);
         }
         if (t === 160) { CinCam.tilt(0); CinFX.motionTrailOff(f); CinCam.zoomTo(1.18); }
-        if (t === 60)  { CinCam.restore(); _domainCinActive = false; _domainCinOwner = null; }
+        if (t === 60)  _releaseDomainCin(f);
         break;
       }
 
@@ -1003,7 +1084,7 @@ const DomainManager = (() => {
           CinCam.zoomTo(1.28);
         }
         if (t === 160) { CinCam.tilt(0); CinFX.motionTrailOff(f); CinCam.zoomTo(1.18); }
-        if (t === 60)  { CinCam.restore(); _domainCinActive = false; _domainCinOwner = null; }
+        if (t === 60)  _releaseDomainCin(f);
         break;
       }
 
@@ -1047,7 +1128,7 @@ const DomainManager = (() => {
           CinCam.zoomTo(1.28);
         }
         if (t === 160) { CinCam.tilt(0); CinFX.motionTrailOff(f); CinCam.zoomTo(1.18); }
-        if (t === 60)  { CinCam.restore(); _domainCinActive = false; _domainCinOwner = null; }
+        if (t === 60)  _releaseDomainCin(f);
         break;
       }
 
@@ -1086,7 +1167,7 @@ const DomainManager = (() => {
           CinCam.zoomTo(1.28);
         }
         if (t === 160) { CinCam.tilt(0); CinFX.motionTrailOff(f); CinCam.zoomTo(1.18); }
-        if (t === 60)  { CinCam.restore(); _domainCinActive = false; _domainCinOwner = null; }
+        if (t === 60)  _releaseDomainCin(f);
         // Animate spirit blade alpha
         if (d.spiritBladeActive) {
           if (d.spiritBladeFade === 'in')  d.spiritBladeAlpha = Math.min(1, d.spiritBladeAlpha + 0.04);
@@ -1132,7 +1213,7 @@ const DomainManager = (() => {
           CinCam.zoomTo(1.28);
         }
         if (t === 160) { CinCam.tilt(0); CinFX.motionTrailOff(f); CinCam.zoomTo(1.18); }
-        if (t === 60)  { CinCam.restore(); _domainCinActive = false; _domainCinOwner = null; }
+        if (t === 60)  _releaseDomainCin(f);
         // Animate souls drifting upward
         if (d.souls) for (const s of d.souls) { s.y += s.vy; s.alpha = Math.max(0, s.alpha - 0.005); }
         break;
@@ -1173,7 +1254,7 @@ const DomainManager = (() => {
           CinCam.zoomTo(1.28);
         }
         if (t === 160) { CinCam.tilt(0); CinFX.motionTrailOff(f); CinCam.zoomTo(1.18); }
-        if (t === 60)  { CinCam.restore(); _domainCinActive = false; _domainCinOwner = null; }
+        if (t === 60)  _releaseDomainCin(f);
         // Animate fist drop during entry
         if (d.fistDropL) d.fistLY = Math.min(GAME_H * 0.38, d.fistLY + 14);
         if (d.fistDropR) d.fistRY = Math.min(GAME_H * 0.38, d.fistRY + 14);
@@ -1208,7 +1289,7 @@ const DomainManager = (() => {
           CinCam.zoomTo(1.28);
         }
         if (t === 160) { CinCam.tilt(0); CinFX.motionTrailOff(f); CinCam.zoomTo(1.18); }
-        if (t === 60)  { CinCam.restore(); _domainCinActive = false; _domainCinOwner = null; }
+        if (t === 60)  _releaseDomainCin(f);
         if (d.swordsPlanted) d.swordRise = Math.min(1, (d.swordRise || 0) + 0.06);
         if (d.ringDraw) d.ringR = Math.max(210, d.ringR - 5);
         break;
@@ -1244,7 +1325,7 @@ const DomainManager = (() => {
           CinCam.zoomTo(1.28);
         }
         if (t === 160) { CinCam.tilt(0); CinFX.motionTrailOff(f); CinCam.zoomTo(1.18); }
-        if (t === 60)  { CinCam.restore(); _domainCinActive = false; _domainCinOwner = null; }
+        if (t === 60)  _releaseDomainCin(f);
         if (d.sigilDraw) d.sigilProg = Math.min(1, (d.sigilProg || 0) + 0.035);
         if (d.familiars) {
           for (const fam of d.familiars) {
@@ -1256,9 +1337,45 @@ const DomainManager = (() => {
         break;
       }
 
+      // ── Sovereign: the arena is claimed — rails slam in, the lock ring seals ──
+      case 'sovereign': {
+        if (t === 278) {
+          CinFX.bgContrast('#1a0200', 0.90, 60);
+          CinCam.directionalShake(18, 0, -1);
+        }
+        if (t === 262) {
+          d.railProg = 0;
+          if (typeof spawnParticles === 'function') spawnParticles(f.cx(), f.cy(), '#ff3311', 18);
+        }
+        if (t === 240) {
+          d.ringProg = 0;
+          CinFX.flash('#ff5533', 0.55, 6);
+          if (typeof screenShake !== 'undefined') screenShake = Math.max(screenShake, 34);
+        }
+        if (t === 224) {
+          CinFX.nameCard('DOMAIN EXPANSION', def.color, { dur: 110 });
+          CinFX.impactFrame(f, { dur: 3 });
+          const line = _DOMAIN_ENTRY_LINE.sovereign;
+          if (line && typeof queueAnnouncement === 'function') queueAnnouncement('"' + line + '"', def.color);
+        }
+        if (t === 206) {
+          d.lockFlash = 14;
+          CinFX.shockwave(f.cx(), f.cy(), '#ff3311', { count: 3, maxR: 340, lw: 6, dur: 52 });
+          CinFX.motionTrailOn(f, def.color);
+          CinCam.zoomTo(1.26);
+          if (typeof screenShake !== 'undefined') screenShake = Math.max(screenShake, 42);
+        }
+        if (t === 160) { CinCam.tilt(0); CinFX.motionTrailOff(f); CinCam.zoomTo(1.18); }
+        if (t === 60)  _releaseDomainCin(f);
+        if (d.railProg !== undefined) d.railProg = Math.min(1, d.railProg + 0.045);
+        if (d.ringProg !== undefined) d.ringProg = Math.min(1, d.ringProg + 0.030);
+        if (d.lockFlash > 0) d.lockFlash--;
+        break;
+      }
+
       default: {
         if (t === 275) {
-          CinFX.bgContrast(_DOMAIN_DARK_COLOR[f.charClass] || '#0a0a0a', 0.88, 55);
+          CinFX.bgContrast(_DOMAIN_DARK_COLOR[_dk] || '#0a0a0a', 0.88, 55);
           CinFX.shockwave(f.cx(), f.cy(), def.color, { count: 2, maxR: 320, lw: 5, dur: 45 });
           CinCam.directionalShake(30, 0, -1);
         }
@@ -1268,7 +1385,7 @@ const DomainManager = (() => {
             spawnParticles(f.cx(), f.y + f.h, def.color, 22);
             spawnParticles(f.cx(), f.y + f.h, '#ffffff', 10);
           }
-          const line = _DOMAIN_ENTRY_LINE[f.charClass];
+          const line = _DOMAIN_ENTRY_LINE[_dk];
           if (line && typeof queueAnnouncement === 'function') queueAnnouncement('"' + line + '"', def.color);
         }
         if (t === 235) { CinFX.nameCard('DOMAIN EXPANSION', def.color, { dur: 100 });
@@ -1279,7 +1396,7 @@ const DomainManager = (() => {
           CinCam.zoomTo(1.2);
         }
         if (t === 160) { CinCam.tilt(0); CinFX.motionTrailOff(f); CinCam.zoomTo(1.18); }
-        if (t === 60)  { CinCam.restore(); _domainCinActive = false; _domainCinOwner = null; }
+        if (t === 60)  _releaseDomainCin(f);
       }
     }
   }
@@ -1642,6 +1759,23 @@ const DomainManager = (() => {
           ctx.beginPath();
           ctx.ellipse(wx, GAME_H - 20, 80, 20, 0, 0, Math.PI * 2);
           ctx.fill();
+        }
+        break;
+      }
+
+      case 'sovereign': {
+        // Command grid — a lattice of scan lines that reads as the arena being run
+        ctx.strokeStyle = '#ff3311';
+        ctx.lineWidth = 1;
+        for (let i = 0; i < 9; i++) {
+          const gx = ((i * 104 + now * 0.018) % (GAME_W + 104)) - 52;
+          ctx.globalAlpha = fadeIn * 0.10;
+          ctx.beginPath(); ctx.moveTo(gx, 0); ctx.lineTo(gx - 30, GAME_H); ctx.stroke();
+        }
+        for (let i = 0; i < 5; i++) {
+          const gy = ((i * 118 + now * 0.032) % (GAME_H + 118)) - 59;
+          ctx.globalAlpha = fadeIn * (0.06 + 0.05 * Math.sin(now / 400 + i));
+          ctx.beginPath(); ctx.moveTo(0, gy); ctx.lineTo(GAME_W, gy); ctx.stroke();
         }
         break;
       }
@@ -2473,16 +2607,64 @@ const DomainManager = (() => {
     }
   }
 
+  function _drawSovereignEntry(f, t, now, d) {
+    const cx = f.cx(), cy = f.cy();
+    const top = GAME_H - 470, bot = GAME_H - 40;
+
+    // Rails slamming in from off-screen to the corridor's opening width
+    if (d.railProg !== undefined) {
+      const e = _dEaseOut(d.railProg);
+      ctx.shadowColor = '#ff3311'; ctx.shadowBlur = 22;
+      ctx.strokeStyle = '#ff3311';
+      for (const side of [-1, 1]) {
+        const rx = cx + side * _dLerp(GAME_W * 0.85, 400, e);
+        ctx.globalAlpha = 0.35 + 0.55 * e;
+        ctx.lineWidth = 3 + (1 - e) * 5;
+        ctx.beginPath(); ctx.moveTo(rx, top); ctx.lineTo(rx, bot); ctx.stroke();
+        ctx.globalAlpha = 0.20 * e;
+        ctx.fillStyle = '#ff3311';
+        ctx.fillRect(rx - (side < 0 ? 0 : 26), top, 26, bot - top);
+      }
+    }
+
+    // Lock ring sealing behind him — brackets closing onto a full circle
+    if (d.ringProg !== undefined) {
+      const e = _dSmooth(d.ringProg);
+      const R = _dLerp(190, 96, e);
+      ctx.shadowColor = '#ff5533'; ctx.shadowBlur = 18;
+      ctx.strokeStyle = '#ff5533';
+      ctx.globalAlpha = 0.30 + 0.55 * e;
+      ctx.lineWidth = 4;
+      for (let q = 0; q < 4; q++) {
+        const a0 = q * Math.PI / 2 + Math.PI / 4 - _dLerp(0.10, 0.72, e);
+        const a1 = q * Math.PI / 2 + Math.PI / 4 + _dLerp(0.10, 0.72, e);
+        ctx.beginPath(); ctx.arc(cx, cy, R, a0, a1); ctx.stroke();
+      }
+      ctx.globalAlpha = 0.22 * e;
+      ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.arc(cx, cy, R * 0.62, 0, Math.PI * 2); ctx.stroke();
+    }
+
+    if (d.lockFlash > 0) {
+      ctx.globalAlpha = d.lockFlash / 14 * 0.8;
+      ctx.strokeStyle = '#ffffff';
+      ctx.shadowColor = '#ff3311'; ctx.shadowBlur = 30;
+      ctx.lineWidth = 6;
+      ctx.beginPath(); ctx.arc(cx, cy, 96 + (14 - d.lockFlash) * 9, 0, Math.PI * 2); ctx.stroke();
+    }
+  }
+
   function _drawDomainEntryAnim(r) {
     if (!r.animData) return;
     const f = r.fighter;
     if (!f || f.health <= 0) return;
-    const def = DOMAIN_DEFS[f.charClass];
+    const _dk = _domainKeyOf(f);
+    const def = DOMAIN_DEFS[_dk];
     if (!def) return;
     const t = r.timer, d = r.animData, now = performance.now();
     ctx.save();
     ctx.globalAlpha = 1;
-    switch (f.charClass) {
+    switch (_dk) {
       case 'thor':       _drawThorEntry(f, t, now, d);       break;
       case 'kratos':     _drawKratosEntry(f, t, now, d);     break;
       case 'ninja':      _drawNinjaEntry(f, t, now, d);      break;
@@ -2496,12 +2678,13 @@ const DomainManager = (() => {
       case 'pugilist':   _drawPugilistEntry(f, t, now, d);   break;
       case 'warrior':    _drawWarriorEntry(f, t, now, d);    break;
       case 'summoner':   _drawSummonerEntry(f, t, now, d);   break;
+      case 'sovereign':  _drawSovereignEntry(f, t, now, d);  break;
     }
     ctx.restore();
   }
 
   function _activateDomain(fighter, suppressAnnounce = false) {
-    const defKey = fighter.charClass;
+    const defKey = _domainKeyOf(fighter);
     if (!defKey || defKey === 'none') return;
     const def = DOMAIN_DEFS[defKey];
     if (!def) return;
@@ -2514,9 +2697,13 @@ const DomainManager = (() => {
       timer: DOMAIN_FRAMES,
       hazards: [],
       spawnCooldown: 30, // first hazard after 0.5 s
+      // Left edge of this domain's GAME_W-wide region, in world coords. Resolved
+      // once here so the region can't drift under hazards that are already live.
+      originX: _dAnchorOrigin(fighter),
     };
 
     if (def.hazardType === 'void_rock') _createVoidRocks(domain);
+    if (def.hazardType === 'null_wall') _createNullWalls(domain);
     _createWeaponHazards(domain);
 
     // Thor holds Mjolnir during domain when hammer-equipped; otherwise holds equipped weapon.
@@ -2527,7 +2714,10 @@ const DomainManager = (() => {
     _domains.push(domain);
 
     if (!suppressAnnounce && typeof queueAnnouncement === 'function') {
-      queueAnnouncement('CONVICTION — ' + def.name.toUpperCase(), def.color);
+      // Conviction is the class-bearer name for the system; Sovereign is not a
+      // bearer and never earned one.
+      const _label = defKey === 'sovereign' ? 'DOMAIN EXPANSION' : 'CONVICTION';
+      queueAnnouncement(_label + ' — ' + def.name.toUpperCase(), def.color);
     }
     if (typeof screenShake !== 'undefined') screenShake = Math.max(screenShake, 28);
     if (typeof spawnParticles === 'function') {
@@ -2542,6 +2732,13 @@ const DomainManager = (() => {
     // passives (energy slashes, bullets, arrows) don't fit the Shadow Realm theme
     if (defKey === 'ninja') {
       fighter._convictionPassive = { key: 'shuriken', timer: DOMAIN_FRAMES, cd: _PASSIVE_CDS.shuriken };
+    }
+
+    // Sovereign wields the nullblade, which has no entry in _PASSIVE_CDS or the
+    // Conviction bonus table — without this the domain would hold the corridor
+    // and fire nothing. Sword slashes are the closest existing passive.
+    if (defKey === 'sovereign') {
+      fighter._convictionPassive = { key: 'sword', timer: DOMAIN_FRAMES, cd: _PASSIVE_CDS.sword };
     }
   }
 
@@ -3124,8 +3321,10 @@ const DomainManager = (() => {
   // ── Public API ─────────────────────────────────────────────────────
 
   function triggerExpansion(fighter) {
-    if (!fighter || fighter.health <= 0 || !fighter.charClass || fighter.charClass === 'none') return;
-    if (!DOMAIN_DEFS[fighter.charClass]) return;
+    if (!fighter || fighter.health <= 0) return;
+    const _key = _domainKeyOf(fighter);
+    if (!_key || _key === 'none') return;
+    if (!DOMAIN_DEFS[_key]) return;
     if (_rising.some(r => r.fighter === fighter)) return;
     if (_domains.some(d => d.owner === fighter)) return;
 
@@ -3151,6 +3350,14 @@ const DomainManager = (() => {
 
   function anyActive() {
     return _domains.length > 0 || _rising.length > 0;
+  }
+
+  // True while this fighter's own domain is expanding or live. Supers spent in
+  // that window do not advance the counter toward the next domain — a domain
+  // that charges its own successor compounds instead of costing anything.
+  function ownsDomain(fighter) {
+    if (!fighter) return false;
+    return _domains.some(d => d.owner === fighter) || _rising.some(r => r.fighter === fighter);
   }
 
   // ── Ronin Deferred Cuts (Death's Dojo) ─────────────────────────────
@@ -3448,6 +3655,10 @@ const DomainManager = (() => {
       // Domains useful in boss/minion/training modes without hitting teammates.
       const targets = _getDomainTargets(owner);
 
+      // Left edge of this domain's region — bounds and respawn positions below are
+      // authored in 0..GAME_W and must be offset into world space (see _dAnchorOrigin).
+      const OX = _dOX(domain);
+
       // Update individual hazards
       for (let j = domain.hazards.length - 1; j >= 0; j--) {
         const h = domain.hazards[j];
@@ -3485,7 +3696,7 @@ const DomainManager = (() => {
             if (h.type === 'shadow_blade' || h.type === 'arrow') h.vy += 0.18;
             if (h.type === 'shadow_blade') h.angle += 0.12;
             // Out-of-bounds cleanup
-            if (h.x < -80 || h.x > GAME_W + 80 || h.y > GAME_H + 80) {
+            if (h.x < OX - 80 || h.x > OX + GAME_W + 80 || h.y > GAME_H + 80) {
               remove = true; break;
             }
             // Collision
@@ -3571,6 +3782,30 @@ const DomainManager = (() => {
             break;
           }
 
+          // Sovereign: the corridor walls track him and close. Damage is gated by
+          // the shared _DOMAIN_HIT_CD, and the shove is always inward so the walls
+          // can never push a target off the stage.
+          case 'null_wall': {
+            const _ws = def.wallStart || 400, _we = def.wallEnd || 155;
+            const _prog = 1 - Math.max(0, domain.timer) / DOMAIN_FRAMES;
+            const half  = _ws + (_we - _ws) * _prog;
+            const _lo = OX + half + 24, _hi = OX + GAME_W - half - 24;
+            let centre = owner.cx();
+            if (_lo <= _hi) centre = Math.max(_lo, Math.min(_hi, centre));
+            else            centre = OX + GAME_W / 2;
+            h.centre = h.centre === undefined ? centre : h.centre + (centre - h.centre) * 0.05;
+            h.x = h.centre + h.side * half;
+            for (const t of targets) {
+              const past = h.side < 0 ? (t.cx() < h.x) : (t.cx() > h.x);
+              if (!past) continue;
+              _dealDomainDamage(owner, t, h.damage, 0);
+              t.vx = -h.side * 9;
+              if (typeof spawnParticles === 'function')
+                spawnParticles(h.x, t.cy(), '#ff3311', 6);
+            }
+            break;
+          }
+
           // Summoner: familiars home in slowly and expire on contact.
           case 'spirit_swarm': {
             const _sm = (typeof slowMotion !== 'undefined' ? slowMotion : 1);
@@ -3639,9 +3874,9 @@ const DomainManager = (() => {
               h.vx = Math.sign(dx) * 5.0;
               h.x += h.vx;
               if (Math.abs(dx) < 8) {
-                h.patrolTarget = h.patrolTarget < GAME_W / 2
-                  ? 60  + Math.random() * (GAME_W * 0.55)
-                  : GAME_W * 0.1 + Math.random() * (GAME_W * 0.4);
+                h.patrolTarget = h.patrolTarget < OX + GAME_W / 2
+                  ? OX + 60  + Math.random() * (GAME_W * 0.55)
+                  : OX + GAME_W * 0.1 + Math.random() * (GAME_W * 0.4);
               }
               // Lunge from 240 px — very hard to maintain safe distance
               const nearest = targets.reduce((best, t) => {
@@ -3672,8 +3907,8 @@ const DomainManager = (() => {
                   setTimeout(() => h.hitSet.delete(t), 1000);
                 }
               }
-              if (h.x < -20 || h.x > GAME_W + 20 || h.y > GAME_H + 60) {
-                h.x = GAME_W / 2 + (Math.random() - 0.5) * 180;
+              if (h.x < OX - 20 || h.x > OX + GAME_W + 20 || h.y > GAME_H + 60) {
+                h.x = OX + GAME_W / 2 + (Math.random() - 0.5) * 180;
                 h.y = GAME_H * 0.48;
                 h.vx = 0; h.vy = 0;
                 h.state = 'recover';
@@ -3727,7 +3962,7 @@ const DomainManager = (() => {
                 h.phase = 'warning';
                 h.phaseTimer = 72; // 1.2 s warning — shorter reaction window
                 h.fromLeft = Math.random() < 0.5;
-                h.x = h.fromLeft ? -60 : GAME_W + 60;
+                h.x = OX + (h.fromLeft ? -60 : GAME_W + 60);
                 h.y = GAME_H * 0.22 + Math.random() * GAME_H * 0.35;
               }
             } else if (h.phase === 'warning') {
@@ -3753,7 +3988,7 @@ const DomainManager = (() => {
                   if (typeof screenShake !== 'undefined') screenShake = Math.max(screenShake, 22);
                 }
               }
-              if (h.x < -120 || h.x > GAME_W + 120) {
+              if (h.x < OX - 120 || h.x > OX + GAME_W + 120) {
                 h.phase = 'cooldown';
                 h.phaseTimer = 210; // 3.5 s until next
                 h.vx = 0;
@@ -3831,7 +4066,7 @@ const DomainManager = (() => {
               if (!h.roamTarget ||
                   Math.hypot(h.x - h.roamTarget.x, h.y - h.roamTarget.y) < 38) {
                 h.roamTarget = {
-                  x: 70 + Math.random() * (GAME_W - 140),
+                  x: OX + 70 + Math.random() * (GAME_W - 140),
                   y: GAME_H * 0.12 + Math.random() * (GAME_H * 0.58),
                 };
               }
@@ -3909,7 +4144,7 @@ const DomainManager = (() => {
               }
               // After hit, timer expired, or off-screen — resume roaming
               if (h.stateTimer <= 0 || h.hitSet.size > 0 ||
-                  h.x < -120 || h.x > GAME_W + 120 || h.y > GAME_H + 120) {
+                  h.x < OX - 120 || h.x > OX + GAME_W + 120 || h.y > GAME_H + 120) {
                 // Shield recently-struck targets from roam pass-through damage
                 for (const struck of h.hitSet) {
                   h.orbitHitSet.add(struck);
@@ -3918,7 +4153,7 @@ const DomainManager = (() => {
                 h.state = 'roam';
                 h.stateTimer = 110;
                 h.roamTarget = {
-                  x: 70 + Math.random() * (GAME_W - 140),
+                  x: OX + 70 + Math.random() * (GAME_W - 140),
                   y: GAME_H * 0.12 + Math.random() * (GAME_H * 0.58),
                 };
               }
@@ -3973,7 +4208,7 @@ const DomainManager = (() => {
                   if (typeof screenShake !== 'undefined') screenShake = Math.max(screenShake, 16);
                 }
               }
-              if (h.x < -60 || h.x > GAME_W + 60 || h.y < -60 || h.y > GAME_H + 60 || h.stateTimer <= 0) {
+              if (h.x < OX - 60 || h.x > OX + GAME_W + 60 || h.y < -60 || h.y > GAME_H + 60 || h.stateTimer <= 0) {
                 h.state = 'orbit';
                 h.x = owner.cx(); h.y = owner.cy();
                 h.stateTimer = 90;
@@ -4027,7 +4262,7 @@ const DomainManager = (() => {
               h.phaseTimer--;
               if (h.phaseTimer <= 0) {
                 h.phase = 'flying';
-                h.x = h.fromLeft ? -70 : GAME_W + 70;
+                h.x = OX + (h.fromLeft ? -70 : GAME_W + 70);
                 h.vx = h.fromLeft ? 14 : -14;
                 h.hitSet.clear();
               }
@@ -4044,7 +4279,7 @@ const DomainManager = (() => {
                   if (typeof screenShake !== 'undefined') screenShake = Math.max(screenShake, 22);
                 }
               }
-              if (h.x < -120 || h.x > GAME_W + 120) {
+              if (h.x < OX - 120 || h.x > OX + GAME_W + 120) {
                 h.phase = 'cooldown';
                 h.phaseTimer = 150;
                 h.vx = 0;
@@ -4056,7 +4291,7 @@ const DomainManager = (() => {
           case 'chaos_bolt': {
             // Moves like a bullet — reuse bullet movement + out-of-bounds cleanup
             h.x += h.vx; h.y += h.vy;
-            if (h.x < -60 || h.x > GAME_W + 60 || h.y < -60 || h.y > GAME_H + 60) {
+            if (h.x < OX - 60 || h.x > OX + GAME_W + 60 || h.y < -60 || h.y > GAME_H + 60) {
               remove = true; break;
             }
             for (const t of targets) {
@@ -4138,7 +4373,7 @@ const DomainManager = (() => {
               if (h.phaseTimer <= 0) {
                 h.phase = 'flying';
                 h.fromLeft = Math.random() < 0.5;
-                h.x = h.fromLeft ? -40 : GAME_W + 40;
+                h.x = OX + (h.fromLeft ? -40 : GAME_W + 40);
                 h.y = GAME_H * 0.25 + Math.random() * GAME_H * 0.42;
                 h.vx = h.fromLeft ? 16 : -16;
                 h.vy = (Math.random() - 0.5) * 3;
@@ -4153,7 +4388,7 @@ const DomainManager = (() => {
                   if (typeof spawnParticles === 'function') spawnParticles(h.x, h.y, '#ff2222', 14);
                 }
               }
-              if (h.x < -80 || h.x > GAME_W + 80 || h.y > GAME_H + 80) {
+              if (h.x < OX - 80 || h.x > OX + GAME_W + 80 || h.y > GAME_H + 80) {
                 h.phase = 'cooldown';
                 h.phaseTimer = 90 + Math.floor(Math.random() * 40);
                 h.vx = 0;
@@ -4405,12 +4640,16 @@ const DomainManager = (() => {
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     const cW = canvas.width, cH = canvas.height;
 
-    for (const domain of _domains) {
-      ctx.fillStyle = domain.def.bgTint;
+    // Clashing domains each tint the screen. Two tints at full strength stack to
+    // near-black, so only the first pays full price; the rest read as a wash over it.
+    for (let i = 0; i < _domains.length; i++) {
+      ctx.globalAlpha = i === 0 ? 1 : 0.45;
+      ctx.fillStyle = _domains[i].def.bgTint;
       ctx.fillRect(0, 0, cW, cH);
     }
+    ctx.globalAlpha = 1;
     for (const r of _rising) {
-      const def = DOMAIN_DEFS[r.fighter.charClass];
+      const def = DOMAIN_DEFS[_domainKeyOf(r.fighter)];
       if (!def) continue;
       ctx.globalAlpha = 0.22 * (1 - r.timer / RISE_FRAMES);
       ctx.fillStyle = def.bgTint;
@@ -4646,13 +4885,20 @@ const DomainManager = (() => {
     for (const domain of _domains) {
       _drawDomainFrame(domain);
       _drawDomainSkyEffects(domain);
+      const _hOX = _dOX(domain);
       for (const h of domain.hazards) {
-        _drawHazard(h, domain.def);
+        _drawHazard(h, domain.def, _hOX, domain.owner);
       }
     }
   }
 
-  function _drawHazard(h, def) {
+  // ox = left edge of the owning domain's region (see _dAnchorOrigin). Only the
+  // few screen-space telegraphs below need it; hazard h.x is already world-space.
+  // `owner` was referenced by the rage_pulse case but never bound in this scope,
+  // so drawing a Berserker conviction threw ReferenceError every frame and tripped
+  // the error boundary. It is now passed in explicitly.
+  function _drawHazard(h, def, ox, owner) {
+    const OX = isFinite(ox) ? ox : 0;
     ctx.save();
     ctx.globalAlpha = 1;
     switch (h.type) {
@@ -4716,6 +4962,33 @@ const DomainManager = (() => {
           ctx.closePath(); ctx.fill();
           ctx.fillStyle = '#8a6a3a';
           ctx.fillRect(h.x - 13, _gy - 4, 26, 6);
+        }
+        break;
+      }
+
+      case 'null_wall': {
+        const now = performance.now();
+        const top = GAME_H - 470, bot = GAME_H - 40;
+        const grad = ctx.createLinearGradient(h.x - h.side * 26, 0, h.x + h.side * 10, 0);
+        grad.addColorStop(0, 'rgba(255,51,17,0)');
+        grad.addColorStop(1, 'rgba(255,51,17,0.34)');
+        ctx.globalAlpha = 0.85;
+        ctx.fillStyle = grad;
+        ctx.fillRect(Math.min(h.x - h.side * 26, h.x + h.side * 10), top, 36, bot - top);
+        ctx.globalAlpha = 0.6 + 0.2 * Math.sin(now / 160);
+        ctx.strokeStyle = '#ff3311';
+        ctx.lineWidth = 3;
+        ctx.shadowColor = '#ff3311'; ctx.shadowBlur = 20;
+        ctx.beginPath(); ctx.moveTo(h.x, top); ctx.lineTo(h.x, bot); ctx.stroke();
+        // Rungs scrolling down the face so the wall reads as a moving boundary
+        ctx.globalAlpha = 0.45;
+        ctx.lineWidth = 2;
+        for (let i = 0; i < 14; i++) {
+          const ry = top + (((i * 34) + now * 0.06) % (bot - top));
+          ctx.beginPath();
+          ctx.moveTo(h.x, ry);
+          ctx.lineTo(h.x - h.side * 14, ry + 7);
+          ctx.stroke();
         }
         break;
       }
@@ -4914,11 +5187,11 @@ const DomainManager = (() => {
           ctx.strokeStyle = '#44ff88';
           ctx.lineWidth = 2;
           ctx.setLineDash([10, 8]);
-          ctx.beginPath(); ctx.moveTo(h.fromLeft ? 0 : GAME_W, h.y); ctx.lineTo(h.fromLeft ? GAME_W : 0, h.y); ctx.stroke();
+          ctx.beginPath(); ctx.moveTo(OX + (h.fromLeft ? 0 : GAME_W), h.y); ctx.lineTo(OX + (h.fromLeft ? GAME_W : 0), h.y); ctx.stroke();
           ctx.setLineDash([]);
           // Chevron at entry side
           ctx.fillStyle = '#44ff88';
-          const ex = h.fromLeft ? 14 : GAME_W - 14;
+          const ex = OX + (h.fromLeft ? 14 : GAME_W - 14);
           ctx.beginPath();
           ctx.moveTo(ex, h.y - 12);
           ctx.lineTo(h.fromLeft ? ex + 18 : ex - 18, h.y);
@@ -4982,6 +5255,7 @@ const DomainManager = (() => {
       }
 
       case 'rage_pulse': {
+        if (!owner) break;
         // Draw the expanding ring when active
         if (h.ringActive && h.ringRadius > 0) {
           const alpha = Math.max(0, 1 - h.ringRadius / (h.radius + 40));
@@ -5280,7 +5554,7 @@ const DomainManager = (() => {
   function drawSpeechBubbles() {
     for (const r of _rising) {
       const f   = r.fighter;
-      const def = DOMAIN_DEFS[f.charClass];
+      const def = DOMAIN_DEFS[_domainKeyOf(f)];
       if (!def) continue;
 
       const progress = 1 - r.timer / RISE_FRAMES;
@@ -5292,7 +5566,7 @@ const DomainManager = (() => {
 
       const bx    = f.cx();
       const by    = f.y - 14;
-      const line1 = 'CONVICTION';
+      const line1 = _domainKeyOf(f) === 'sovereign' ? 'DOMAIN EXPANSION' : 'CONVICTION';
       const line2 = def.name;
 
       ctx.font = 'bold 13px Arial';
@@ -5409,6 +5683,8 @@ const DomainManager = (() => {
 
   return {
     triggerExpansion,
+    domainKeyOf: _domainKeyOf,
+    ownsDomain,
     onFighterDied,
     anyActive,
     reset,

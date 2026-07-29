@@ -686,8 +686,11 @@ function _renderSkillTreeModal() {
     const locked = !owned && !reqMet;
     canvas.style.cursor = canBuy ? 'pointer' : 'default';
 
+    const _core = typeof STORY_CORE_UNLOCKS !== 'undefined' && STORY_CORE_UNLOCKS.includes(n.id);
+
     let st;
-    if (owned)       st = `<span style="color:#66ee99">✓ Unlocked</span>`;
+    if (_core)       st = `<span style="color:#66ee99">✓ Unlocked — core move, free from the start</span>`;
+    else if (owned)  st = `<span style="color:#66ee99">✓ Unlocked</span>`;
     else if (canBuy) st = `<span style="color:${n.branchColor}">${n.expCost} EXP — click to unlock</span>`;
     else if (locked) {
       const need = n.requiresAny

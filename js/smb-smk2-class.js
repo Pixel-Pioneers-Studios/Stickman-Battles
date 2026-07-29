@@ -52,10 +52,16 @@ class SovereignMK2 extends AdaptiveAI {
     this.aiMemory = { aggression: 0.90, defense: 0.88, spacing: 0.12, reactionSpeed: 0.95 };
     this.isSovereignMK2 = true;
 
+    // Sovereign has no charClass, so DomainManager reaches his domain through
+    // this key instead (DOMAIN_DEFS.sovereign — Absolute Dominion). Same cost as
+    // the player's: five supers on one life.
+    this._domainKey = 'sovereign';
+
     // Platform-hop steering + projectile-dodge state
     this._hopTarget   = null;
     this._hopFrames   = 0;
     this._projDodgeCd = 0;
+    this._itemRunTimer = 0;   // frames left committed to a map pickup
 
     // Per-FRAME decision cadence (overrides the shared AI_TICK_INTERVAL=15 gate in
     // Fighter.update). This class's timers are all written in frames — reactFrames,
@@ -1084,9 +1090,10 @@ class SovereignMK2 extends AdaptiveAI {
   // than approach bias. Here a read becomes a move — he puts a void where the
   // player has demonstrated they want to be.
   //
-  // Priority is deliberate: a committed airborne player is the highest-value read
-  // (they cannot change their landing spot mid-arc), a camped zone is the fallback.
-  // Everything is gated on EARNED data — he never moves the plate on a cold read,
+  // Both routes require an established zone read; a committed airborne player is
+  // then the higher-value one, because they cannot change their landing spot
+  // mid-arc. Everything is gated on EARNED data — he never moves the plate on a
+  // cold read,
   // so a player who varies their footing is never touched by this system. That is
   // the intended counterplay, and it is the same contract as the rest of his kit:
   // he only knows what you have shown him.
@@ -1102,26 +1109,31 @@ class SovereignMK2 extends AdaptiveAI {
 
     let wantX = null, why = null;
 
-    // 1. Player is airborne and falling — deny the landing. Predict where the arc
-    //    puts them rather than where they are now.
+    // The zone read is the gate on BOTH routes, not just the second one. Deny-landing
+    // used to fire on any falling target, and a fighter is airborne constantly, so it
+    // won the priority check nearly every time the cooldown lapsed — the plate moved
+    // on a schedule rather than on a profile, and the zone route below almost never
+    // got a turn. Needs both a real sample size and a real skew; an even spread is
+    // not a read, and a player who varies their footing is never touched by this.
+    const zTotal = this._zoneVisits[0] + this._zoneVisits[1] + this._zoneVisits[2];
+    const zPref  = this._zoneVisits[this._prefZone] || 0;
+    if (zTotal <= 200 || zPref / zTotal <= 0.52) return;
+    const zoneCX = [GAME_W / 6, GAME_W / 2, GAME_W * 5 / 6][this._prefZone];
+
+    // 1. Player is airborne and falling back into the zone they favour — deny the
+    //    landing. Predict where the arc puts them rather than where they are now.
     if (!t.onGround && t.vy > 0.8) {
       const framesToFloor = Math.min(45, Math.max(0, (460 - (t.y + t.h)) / Math.max(0.8, t.vy)));
-      wantX = t.cx() + t.vx * framesToFloor;
-      why   = 'deny-landing';
-    }
-    // 2. Otherwise punish a camped zone, but only once it is genuinely established.
-    else {
-      const zTotal = this._zoneVisits[0] + this._zoneVisits[1] + this._zoneVisits[2];
-      const zPref  = this._zoneVisits[this._prefZone] || 0;
-      // Needs both a real sample size and a real skew — an even spread is not a read.
-      if (zTotal > 200 && zPref / zTotal > 0.52) {
-        const zoneCX = [GAME_W / 6, GAME_W / 2, GAME_W * 5 / 6][this._prefZone];
-        // Only worth doing if they are actually in that zone right now.
-        if (Math.abs(t.cx() - zoneCX) < GAME_W / 5) {
-          wantX = t.cx();
-          why   = 'deny-zone';
-        }
+      const landX = t.cx() + t.vx * framesToFloor;
+      if (Math.abs(landX - zoneCX) < GAME_W / 5) {
+        wantX = landX;
+        why   = 'deny-landing';
       }
+    }
+    // 2. Otherwise punish the camped zone directly, if they are standing in it now.
+    else if (Math.abs(t.cx() - zoneCX) < GAME_W / 5) {
+      wantX = t.cx();
+      why   = 'deny-zone';
     }
 
     if (wantX === null) return;
@@ -1946,8 +1958,11 @@ class SovereignMK2 extends AdaptiveAI {
       const item = mapItems[i];
       const value = this._mapItemValue(item);
       if (!value) continue;
+      // 460 was under half the arena, so on a 900px stage he could not see a
+      // pickup on the far side at all. The distance penalty below already prices
+      // travel in; the cull only exists to stop cross-map runs in story worlds.
       const selfDist = Math.hypot(this.cx() - item.x, this.cy() - item.y);
-      if (selfDist > 460) continue;
+      if (selfDist > 900) continue;
       const targetDist = t ? Math.hypot(t.cx() - item.x, t.cy() - item.y) : Infinity;
       // A contested resource is more valuable: taking it also denies a live buff,
       // heal, shield, or max-health increase to the opponent.
@@ -2002,14 +2017,33 @@ class SovereignMK2 extends AdaptiveAI {
       return true;
     }
 
-    // Ruins artifacts are an active resource economy. Route to a useful pickup
-    // only when combat is not already at striking distance.
+    // Map pickups are a real economy — three on The Circuit, curses included.
+    // The old gate (out of weapon range AND target not swinging) was never true
+    // in suffocate pressure, where Sovereign closes the distance himself, so the
+    // branch was dead code on his own arena. Commitment is priced instead: a heal
+    // he needs is worth breaking off the fight for, a spare buff is not. The
+    // swing check now only blocks while a swing can actually reach him — being
+    // mid-attack at range is the safest moment to leave, not the worst.
+    if (this._itemRunTimer > 0) this._itemRunTimer--;
     const item = this._selectMapResource(t);
-    if (item && d > weaponRange + 32 && !t.attackTimer) {
-      const itemDir = Math.sign(item.x - this.cx());
-      if (itemDir && !this.isEdgeDanger(itemDir)) {
-        this.vx = itemDir * moveSpd;
-        if (this.onGround && item.y < this.y - 55) this.vy = jumpVy;
+    if (item) {
+      const value    = this._mapItemValue(item);
+      const breakOff = value >= 100 ? weaponRange * 0.55
+                     : value >= 80  ? weaponRange + 20
+                     :                weaponRange * 2;
+      const swingReaches = d < weaponRange + 24 && t.attackTimer > 0;
+      if (!swingReaches && (d > breakOff || this._itemRunTimer > 0)) {
+        // Hold the line to the pickup for a beat. Re-deciding every frame made
+        // him oscillate between item and target and reach neither.
+        this._itemRunTimer = Math.max(this._itemRunTimer, 24);
+        const dx      = item.x - this.cx();
+        const itemDir = Math.abs(dx) > 10 ? Math.sign(dx) : 0;
+        if (itemDir && !this.isEdgeDanger(itemDir)) this.vx = itemDir * moveSpd;
+        else if (!itemDir)                          this.vx *= 0.6;
+        // The Circuit's decks are passUnder and a jump clears 268px, so rising
+        // into one from below lands on top. Commit the jump on approach, not on
+        // departure, so the arc ends at the pickup.
+        if (this.onGround && item.y < this.y - 55 && Math.abs(dx) < 190) this.vy = jumpVy;
         return true;
       }
     }
@@ -2103,8 +2137,12 @@ class SovereignMK2 extends AdaptiveAI {
 
     // Supers heal Sovereign and carry the strongest existing weapon-specific
     // conversion. Hold them for a concrete close-range payoff, never a coin flip.
+    // Within two supers of Absolute Dominion, holding for a perfect window costs
+    // more than the window is worth — the domain is the bigger payoff, and the
+    // counter is wiped by death, so banking supers can lose it outright.
+    const domainPush = (this._domainSuperCount || 0) >= 3;
     const superWindow = targetLocked || targetInHazard || finishable || selfNeedsSuper ||
-      targetCursed || (targetArmored && targetBuffed) || this._punishModeActive;
+      targetCursed || (targetArmored && targetBuffed) || this._punishModeActive || domainPush;
     if (this.superReady && closeEnough && superWindow && !t.shielding) {
       this.useSuper(t);
       if (!this.superReady) return true;
@@ -2648,10 +2686,23 @@ class SovereignMK2 extends AdaptiveAI {
     const _kill = _arena.deathY || (GAME_H + 120);
     // Fatal fall in progress: below the visible arena, still descending, and the
     // kill line is close. Fires ragdolled or not — the tether is the blade's, not his.
-    if (this._anchorCd <= 0 && this.vy > 0 && this.y > Math.min(_kill - 80, GAME_H + 20)) {
+    //
+    // The save is not free. It costs the whole super bar and sits on a 60s cooldown:
+    // a replay showed it erasing three ring-outs in one match at no price, which was
+    // the real reason he ring-out out once to the player's five. Spending the bar
+    // trades directly against Absolute Dominion — surviving the launch or expanding,
+    // not both — and the player can now drain him and then kill him.
+    const _anchorCost = 50;
+    if (this._anchorCd <= 0 && (this.superMeter || 0) >= _anchorCost &&
+        this.vy > 0 && this.y > Math.min(_kill - 80, GAME_H + 20)) {
+      this.superMeter = 0;
+      this.superReady = false;
       this._anchorTetherFrom = { x: this.cx(), y: this.cy() };
       this._anchorFlashTimer = 22;
-      this._anchorCd         = 300; // 5s — a re-launch inside this window still kills
+      this._anchorCd         = 3600; // 60s — a re-launch inside this window still kills
+      if (typeof queueAnnouncement === 'function') {
+        queueAnnouncement('NULL ANCHOR — SUPER SPENT', '#cc2200');
+      }
       this.x = this._anchorX; this.y = this._anchorY;
       this.vx = 0; this.vy = 0;
       this.ragdollTimer = 0;

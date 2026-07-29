@@ -97,6 +97,18 @@ function _cheatUnlockAll() {
       }
     }
 
+    // Max out per-weapon mastery — lives in _story2.weaponSkills, a SEPARATE
+    // structure from skillTree, so the loop above does not cover it.
+    if (typeof STORY_WEAPON_MASTERY !== 'undefined' && typeof WEAPON_KEYS !== 'undefined') {
+      if (!_story2.weaponSkills) _story2.weaponSkills = {};
+      for (const wKey of WEAPON_KEYS) {
+        if (!_story2.weaponSkills[wKey]) _story2.weaponSkills[wKey] = {};
+        for (const node of STORY_WEAPON_MASTERY) {
+          _story2.weaponSkills[wKey][node.id] = true;
+        }
+      }
+    }
+
     if (typeof _saveStory2 === 'function') _saveStory2();
     if (typeof _updateStoryCloseBtn === 'function') _updateStoryCloseBtn();
     // Reveal story online card if present

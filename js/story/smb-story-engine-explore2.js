@@ -88,22 +88,20 @@ function updateExploration() {
   // Reverse loading zone: the LEFT edge of a walk→fight world backtracks to
   // the previous chapter's world, entering at its exit end — the mirror of the
   // forward walk-through goal: purely positional once armed.
-  // Only into beaten walkFight chapters — anything else stays a hard wall.
+  // Works out of every walkable world (walk→fight duels AND exploration modes);
+  // the target is resolved at launch by _storyBackChapterFor (null = hard wall).
   // Arming guard: a fresh spawn near the left edge must not instantly bounce
   // back — the zone arms only after the player has walked into the world.
+  const _hasBack = (typeof exploreBackChapter !== 'undefined' && exploreBackChapter != null);
   const _edgeL = (currentArena && currentArena.mapLeft) || 0;
-  if (exploreDuelMode && p1.x > _edgeL + 420) window._exploreBackArmed = true;
+  if (_hasBack && p1.x > _edgeL + 420) window._exploreBackArmed = true;
   const _backByWalk = window._exploreBackArmed && p1.x <= _edgeL + 30;
   const _backByPush = p1.x <= _edgeL + 8 &&
     p1.controls && typeof keysDown !== 'undefined' && keysDown.has(p1.controls.left);
-  if (exploreDuelMode && !exploreGoalFound && !exploreArenaLock && !window._exploreBackPending &&
+  if (_hasBack && !exploreGoalFound && !exploreArenaLock && !window._exploreBackPending &&
       (_backByWalk || _backByPush)) {
-    const _backBase = exploreRegion ? exploreRegion.chapters[0]
-      : (_activeStory2Chapter ? _activeStory2Chapter.id : null);
-    const _prev = (_backBase != null && _backBase > 0 && typeof STORY_CHAPTERS2 !== 'undefined')
-      ? STORY_CHAPTERS2[_backBase - 1] : null;
-    if (_prev && _prev.walkFight === true &&
-        Array.isArray(_story2.defeated) && _story2.defeated.includes(_prev.id)) {
+    const _prev = (typeof STORY_CHAPTERS2 !== 'undefined') ? STORY_CHAPTERS2[exploreBackChapter] : null;
+    if (_prev) {
       window._exploreBackPending = true;
       _story2.health = Math.round(Math.max(1, p1.health)); // carry HP backward too
       if (typeof _saveStory2 === 'function') _saveStory2();

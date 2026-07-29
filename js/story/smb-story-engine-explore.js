@@ -22,6 +22,31 @@ const _EXP_BED_Y   = 648;
 const _EXP_SHAFT_HALF = 46;
 var _exploreChapterBeaten = false;  // beaten chapter → suppress normal mob spawns
 var _exploreEnterFromRight = false; // backtrack: next exploration launch spawns at the world's exit end
+var exploreBackChapter = null;      // chapter id the LEFT edge backtracks into (null = hard wall)
+
+// Any chapter that generates a walkable world — walk→fight duels and every
+// exploration mode alike. Both are launched by _launchExplorationChapter, so
+// both can be walked into from the right.
+function _storyChapterIsWalkable(ch) {
+  return !!ch && (ch.walkFight === true || ch.type === 'exploration');
+}
+
+// Resolve the backtrack target for a chapter: the nearest earlier chapter that
+// has a walkable world and has been beaten. Pure narrative/branch chapters have
+// no world of their own, so they are stepped over rather than blocking the way
+// back; a set-piece arena fight is a real wall and stops the search.
+function _storyBackChapterFor(chId) {
+  if (chId == null || typeof STORY_CHAPTERS2 === 'undefined') return null;
+  const beaten = Array.isArray(_story2 && _story2.defeated) ? _story2.defeated : [];
+  for (let i = chId - 1; i >= 0; i--) {
+    const prev = STORY_CHAPTERS2[i];
+    if (!prev) return null;
+    if (_storyChapterIsWalkable(prev)) return beaten.includes(prev.id) ? prev.id : null;
+    if (prev.noFight || prev.type === 'branch') continue; // scene — step over it
+    return null;                                          // arena set-piece — hard wall
+  }
+  return null;
+}
 function _exploreChestSites(segLen, underground) {
   const sites = [
     { tier: 'minor', baseX: Math.floor(segLen * 0.30), perchY: 168, dir: -1 },
@@ -403,6 +428,8 @@ function _launchExplorationChapter(ch) {
   exploreRegion = null;
   exploreStartX = null;
   window._exploreBackArmed = false; // reverse loading zone re-arms once the player walks in
+  // Reverse loading zone target: a region backtracks out of its FIRST chapter.
+  exploreBackChapter = _storyBackChapterFor(_storyRegionFor(ch.id) ? _storyRegionFor(ch.id).chapters[0] : ch.id);
 
   // Walk→fight worlds get a GoW-scale minimum length; regions stitch N of them.
   const _earth = (ch.walkFight === true) && _exploreIsEarthStyle(ch);
@@ -433,9 +460,10 @@ function _launchExplorationChapter(ch) {
     groundColor:   ch.groundColor || '#333344',
     platColor:     ch.platColor   || '#445566',
     worldWidth:    worldLen,
-    // Walk→fight worlds open the left edge — it's the reverse loading zone
-    // (walking off it backtracks to the previous chapter's world)
-    mapLeft:       (ch.walkFight === true) ? 60 : GAME_W / 2,
+    // Worlds with a backtrack target open the left edge — it's the reverse
+    // loading zone (walking off it returns to the previous chapter's world).
+    // With nowhere to go back to, the edge stays a wall.
+    mapLeft:       (ch.walkFight === true || exploreBackChapter != null) ? 60 : GAME_W / 2,
     mapRight:      worldLen - 50, // let player reach the full world including goalX
     deathY:        640,
     isStoryOnly:   true,
@@ -511,8 +539,10 @@ function _launchExplorationChapter(ch) {
   // pre-hits so old duels/boundary completions never re-fire on frame one.
   if (_exploreEnterFromRight) {
     _exploreEnterFromRight = false;
-    exploreStartX = worldLen - 620;
-    exploreCheckpoints.forEach(cp => { if (cp.x < worldLen - 620) cp.hit = true; });
+    // Stay clear of the exit itself — re-entering on top of the goal would
+    // instantly re-complete the chapter and bounce the player forward again.
+    exploreStartX = Math.max(120, Math.min(worldLen - 620, goalX - 260));
+    exploreCheckpoints.forEach(cp => { if (cp.x < exploreStartX) cp.hit = true; });
     if (exploreRegion) exploreRegion.boundaries.forEach(b => { b.done = true; });
   }
   // Strip ranged weapons from exploration enemies if this chapter hasn't been beaten yet.

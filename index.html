@@ -9,6 +9,12 @@
   <link rel="canonical" href="https://stickman-battles.onrender.com/">
   <meta name="theme-color" content="#0d0616">
 
+  <!-- Display + UI typefaces (self-hosted in fonts/ — the CSP is 'self' only,
+       and self-hosting also keeps the menus correct offline). @font-face
+       declarations live at the top of SMB.css. -->
+  <link rel="preload" href="./fonts/russoone-400.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="./fonts/rajdhani-700.woff2" as="font" type="font/woff2" crossorigin>
+
   <link rel="icon" href="./favicon.svg" type="image/svg+xml">
   <link rel="icon" href="./images/apple-touch-icon.png" sizes="180x180" type="image/png">
   <link rel="apple-touch-icon" href="./images/apple-touch-icon.png">
@@ -52,7 +58,7 @@
   }
   </script>
 
-  <link rel="stylesheet" href="SMB.css?v=4.0.41">
+  <link rel="stylesheet" href="SMB.css?v=4.0.56">
 </head>
 <body>
 
@@ -1572,16 +1578,16 @@
   <!-- Achievement system -->
   <script src="./js/smb-achievements.js?v=4.0.2"></script>
   <!-- Arena, weapon, class data (split from smb-data.js) -->
-  <script src="./js/smb-data-arenas.js?v=4.0.39"></script>
+  <script src="./js/smb-data-arenas.js?v=4.0.47"></script>
   <!-- The Circuit's sliding plate. Must load after smb-data-arenas.js (owns the
        authoring fields it drives) and before smb-loop-core.js (which ticks it). -->
-  <script src="./js/smb-circuit.js?v=4.0.36"></script>
+  <script src="./js/smb-circuit.js?v=4.0.47"></script>
   <script src="./js/smb-data-mapperks.js?v=4.0.26"></script>
   <script src="./js/smb-data-mapperks-draw.js?v=4.0.24"></script>
   <script src="./js/smb-data-weapons.js?v=4.0.31"></script>
   <script src="./js/smb-map-analyzer.js?v=4.0.2"></script>
   <!-- Combat pipeline, particles, heatmap, ragdoll (split from smb-particles.js) -->
-  <script src="./js/smb-combat.js?v=4.0.40"></script>
+  <script src="./js/smb-combat.js?v=4.0.45"></script>
   <script src="./js/smb-particles-core.js?v=4.0.2"></script>
   <script src="./js/smb-heatmap.js?v=4.0.2"></script>
   <script src="./js/smb-verlet.js?v=4.0.2"></script>
@@ -1608,7 +1614,7 @@
   <!-- Fragment weapon manifestation + sprint escalation (must load before smb-fighter.js) -->
   <script src="./js/smb-fragment-manifest.js?v=4.0.41"></script>
   <!-- Fighter base class -->
-  <script src="./js/smb-fighter.js?v=4.0.43"></script>
+  <script src="./js/smb-fighter.js?v=4.0.55"></script>
   <!-- Modular combat AI: CombatSystem, MovementSystem, AIController, CombatAIFighter -->
   <script src="./js/smb-combat-ai.js?v=4.0.2"></script>
   <!-- Enemy NPCs, training mode -->
@@ -1622,7 +1628,7 @@
   <!-- Divine Summon: H key calls a Herald to clear the level -->
   <script src="./js/smb-divine-summon.js?v=4.0.2"></script>
   <!-- Domain Expansion system -->
-  <script src="./js/smb-domain.js?v=4.0.39"></script>
+  <script src="./js/smb-domain.js?v=4.0.55"></script>
   <!-- Boss and True Form -->
   <script src="./js/boss/smb-boss.js?v=4.0.2"></script>
   <script src="./js/boss/smb-boss-cinematics.js?v=4.0.2"></script>
@@ -1654,7 +1660,7 @@
   <script src="./js/smb-adaptive-ai.js?v=4.0.2"></script>
   <!-- SOVEREIGN Ω — upgraded adaptive AI with prediction/punishment/limiter break -->
   <script src="./js/smb-smk2-data.js?v=4.0.2"></script>
-  <script src="./js/smb-smk2-class.js?v=4.0.39"></script>
+  <script src="./js/smb-smk2-class.js?v=4.0.57"></script>
   <script src="./js/smb-smk2-training.js?v=4.0.2"></script>
   <script src="./js/smb-absolute-axiom.js?v=4.0.2"></script>
   <!-- TrueForm ending cinematic -->
@@ -1662,7 +1668,7 @@
   <script src="./js/smb-trueform-ending-update.js?v=4.0.2"></script>
   <script src="./js/smb-trueform-ending-draw.js?v=4.0.2"></script>
   <!-- Drawing, game state, HUD, visual effects -->
-  <script src="./js/rendering/smb-drawing-arenas.js?v=4.0.35"></script>
+  <script src="./js/rendering/smb-drawing-arenas.js?v=4.0.48"></script>
   <script src="./js/rendering/smb-drawing-bg.js?v=4.0.5"></script>
   <script src="./js/rendering/smb-drawing-effects.js?v=4.0.2"></script>
   <script src="./js/rendering/smb-drawing-scenes.js?v=4.0.2"></script>
@@ -1686,7 +1692,7 @@
   <script src="./js/smb-screenfx.js?v=4.0.2"></script>
   <script src="./js/smb-loop-core.js?v=4.0.35"></script>
   <script src="./js/smb-input.js?v=4.0.5"></script>
-  <script src="./js/smb-cheats.js?v=4.0.2"></script>
+  <script src="./js/smb-cheats.js?v=4.0.45"></script>
   <!-- Menu UI, startGame, tutorial -->
   <script src="./js/smb-menu-ui.js?v=4.0.41"></script>
   <script src="./js/smb-menu-select.js?v=4.0.23"></script>
@@ -1763,9 +1769,9 @@
   <script src="./js/story/acts/actvoidmind/smb-voidmind-trial.js?v=4.0.2"></script>
   <script src="./js/story/acts/actvoidmind/smb-voidmind-after.js?v=4.0.2"></script>
   <script src="./js/story/acts/actvoidmind/smb-voidmind-fight.js?v=4.0.2"></script>
-  <script src="./js/story/smb-story-config.js?v=4.0.23"></script>
+  <script src="./js/story/smb-story-config.js?v=4.0.46"></script>
   <script src="./js/story/smb-story-engine-data.js?v=4.0.2"></script>
-  <script src="./js/story/smb-story-engine-ui.js?v=4.0.9"></script>
+  <script src="./js/story/smb-story-engine-ui.js?v=4.0.46"></script>
   <script src="./js/story/smb-story-prologue-tuesday.js?v=4.0.41"></script>
   <script src="./js/smb-story-scenes.js?v=4.0.2"></script>
   <script src="./js/smb-story-narrative-scene.js?v=4.0.3"></script>
@@ -1773,8 +1779,8 @@
   <script src="./js/story/smb-story-engine-match.js?v=4.0.6"></script>
   <script src="./js/story/smb-story-engine-events.js?v=4.0.2"></script>
   <script src="./js/story/smb-story-engine-frame.js?v=4.0.2"></script>
-  <script src="./js/story/smb-story-engine-explore.js?v=4.0.23"></script>
-  <script src="./js/story/smb-story-engine-explore2.js?v=4.0.23"></script>
+  <script src="./js/story/smb-story-engine-explore.js?v=4.0.49"></script>
+  <script src="./js/story/smb-story-engine-explore2.js?v=4.0.49"></script>
   <script src="./js/story/smb-story-interlude.js?v=4.0.2"></script>
   <script src="./js/story/smb-story-engine-modes.js?v=4.0.21"></script>
   <script src="./js/story/smb-story-finalize.js?v=4.0.2"></script>
@@ -1794,6 +1800,7 @@
   <script src="./js/smb-tutorial.js?v=4.0.23"></script>
   <!-- Replay system — recording, IndexedDB storage, download, and viewer -->
   <script src="./js/smb-replay.js?v=4.0.36"></script>
+  <script src="./js/smb-ui-controls.js?v=4.0.56"></script>
   <!-- StoryVoice — speaks story dialogue lines via the Web Speech API -->
   <script src="./js/smb-storyvoice.js?v=4.0.2"></script>
 

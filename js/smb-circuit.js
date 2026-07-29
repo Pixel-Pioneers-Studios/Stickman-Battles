@@ -34,7 +34,7 @@ const CIRCUIT_TUNE = {
   ease:        0.055,  // lerp rate once sliding (a full 130px throw takes ~1.2s)
   minGapFrames: 150,   // cooldown after a slide settles, so it never feels strobed
   minTravel:     34,   // ignore slide requests smaller than this — no twitching
-  autoDrift:   true,   // idle heartbeat when nothing is driving the plate
+  autoDrift:  false,   // idle heartbeat — off: every slide must come from a read
   driftGap:     420,   // frames between idle drifts
   ownerSafe:   true,   // never park a void under Sovereign's own feet
 };
@@ -220,9 +220,12 @@ const CircuitPlate = (function () {
         cooldown = CIRCUIT_TUNE.minGapFrames;
       }
     } else if (CIRCUIT_TUNE.autoDrift && typeof gameRunning !== 'undefined' && gameRunning) {
-      // Heartbeat so the plate is alive even before Sovereign is wired to drive it.
-      // Once his platform-denial owns the plate this mostly stops firing, because
-      // his requests reset driftTick.
+      // Scaffolding from before Sovereign drove the plate, kept behind a flag that
+      // now ships off. It was predicted to stop firing on its own once his
+      // platform-denial owned the plate; it did not, because his own cooldown is
+      // longer than driftGap, so the two simply alternated and most plate movement
+      // the player saw carried no read behind it. The arena then reads as a stage
+      // hazard instead of as him. Do not re-enable to make the stage "feel alive".
       driftTick++;
       if (driftTick >= CIRCUIT_TUNE.driftGap && cooldown <= 0) {
         driftTick = 0;

@@ -2,6 +2,44 @@
    STICKMAN CLASH — Full Theme
    ============================================================ */
 
+/* Self-hosted display/UI typefaces (latin subset). Kept local because the
+   server's CSP is default-src 'self' and the game must survive offline. */
+@font-face {
+  font-family: 'Russo One';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('./fonts/russoone-400.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Baloo 2';
+  font-style: normal;
+  font-weight: 800;
+  font-display: swap;
+  src: url('./fonts/baloo2-800.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Rajdhani';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('./fonts/rajdhani-500.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Rajdhani';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('./fonts/rajdhani-600.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Rajdhani';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('./fonts/rajdhani-700.woff2') format('woff2');
+}
+
 :root {
   --bg:       #04040b;
   --bg2:      #08091a;
@@ -2886,4 +2924,864 @@ body.depth-phase-active {
   .mc-pad { bottom: max(16px, env(safe-area-inset-bottom)); }
   #mc-p1  { left:   max(12px, env(safe-area-inset-left)); }
   #mc-p2  { right:  max(12px, env(safe-area-inset-right)); }
+}
+
+/* ============================================================
+   GAME-FEEL THEME LAYER
+   ------------------------------------------------------------
+   Appended last on purpose: everything here is an override of the
+   base rules above, applied in one place so it can be tuned or
+   lifted without touching the layout CSS. The goal is to stop the
+   UI reading as a styled web page — display typefaces instead of
+   the system stack, buttons with real physical depth that press
+   down instead of scaling, and thicker inset-lit panel edges.
+   ============================================================ */
+
+:root {
+  --font-display: 'Russo One', 'Segoe UI', Impact, sans-serif;
+  --font-ui:      'Rajdhani', 'Segoe UI', Arial, sans-serif;
+  /* Button face: heavy, rounded, leaned forward — mobile-game lettering */
+  --font-btn:     'Baloo 2', 'Russo One', 'Segoe UI', sans-serif;
+
+  /* Every button is drawn as a physical object: a saturated body inside a
+     near-black frame, glossy on the top half, sitting on a hard lip. The
+     frame colour doubles as the text outline, which is what stops the
+     lettering reading as ordinary web text. */
+  --ink: #0e1130;
+
+  --txt-outline:
+    -2px -2px 0 var(--ink),  2px -2px 0 var(--ink),
+    -2px  2px 0 var(--ink),  2px  2px 0 var(--ink),
+     0   -2px 0 var(--ink),  0    2px 0 var(--ink),
+    -2px  0   0 var(--ink),  2px  0   0 var(--ink),
+     0    3px 0 rgba(0,0,0,0.38);
+
+  /* Small controls need a tighter ring and no offset shadow — at tab/pill
+     sizes an offset drop shadow separates far enough to read as a second,
+     ghosted copy of the word. */
+  --txt-outline-sm:
+    -1.5px -1.5px 0 var(--ink),  1.5px -1.5px 0 var(--ink),
+    -1.5px  1.5px 0 var(--ink),  1.5px  1.5px 0 var(--ink),
+     0     -1.5px 0 var(--ink),  0      1.5px 0 var(--ink),
+    -1.5px  0     0 var(--ink),  1.5px  0     0 var(--ink);
+
+  --lip:      0 6px 0 var(--ink), 0 11px 18px rgba(0,0,0,0.55);
+  --lip-up:   0 8px 0 var(--ink), 0 15px 24px rgba(0,0,0,0.6);
+  --lip-down: 0 2px 0 var(--ink), 0 3px 7px rgba(0,0,0,0.5);
+}
+
+body { font-family: var(--font-ui); font-size: 16px; }
+
+.game-title,
+.section-label,
+.story-modal-title,
+.story-act-label,
+.overlay-box h2 {
+  font-family: var(--font-display);
+  font-weight: 400;
+}
+
+.game-title { letter-spacing: 3px; }
+.game-subtitle, .path-card-desc, .mode-desc, .sel-card-tag { font-family: var(--font-ui); font-weight: 600; }
+.config-header, .config-row label { font-family: var(--font-ui); font-weight: 700; }
+
+/* ── Buttons ────────────────────────────────────────────────
+   The old rules dressed a web button up with a border and a glow. These
+   rebuild it: opaque body, dark frame, gloss on the top half, outlined
+   white lettering, and a lip it presses down onto. */
+.btn, .btn-start, .training-btn, .home-nav-btn, #quickFightBtn {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  font-family: var(--font-btn);
+  font-weight: 800;
+  font-style: oblique 8deg;
+  color: #ffffff;
+  text-shadow: var(--txt-outline);
+  text-transform: uppercase;
+  border: 3px solid var(--ink);
+  border-radius: 14px;
+  box-shadow: var(--lip);
+  transition: transform 0.09s ease-out, box-shadow 0.09s ease-out, filter 0.14s;
+  will-change: transform;
+}
+
+/* Gloss: a hard-edged highlight across the top half, not a soft glow.
+   ::before so it never collides with the ::after gloss on .path-card. */
+.btn::before, .btn-start::before, .training-btn::before,
+.home-nav-btn::before, #quickFightBtn::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 52% 0;
+  border-radius: 11px 11px 40% 40% / 11px 11px 22px 22px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.34) 0%, rgba(255,255,255,0.06) 100%);
+  pointer-events: none;
+  z-index: -1;
+}
+
+.btn:hover, .btn-start:hover, .training-btn:hover,
+.home-nav-btn:hover, #quickFightBtn:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--lip-up);
+  filter: brightness(1.12) saturate(1.08);
+}
+.btn:active, .btn-start:active, .training-btn:active,
+.home-nav-btn:active, #quickFightBtn:active {
+  transform: translateY(5px);
+  box-shadow: var(--lip-down);
+  filter: brightness(0.92);
+}
+
+/* Bodies — opaque and saturated. Translucent fills over a dark page are
+   what made these read as web panels. */
+.btn {
+  background: linear-gradient(180deg, #7a68ff 0%, #5137d8 52%, #3a24aa 100%);
+  padding: 11px 24px;
+  font-size: 0.95rem;
+  letter-spacing: 0.8px;
+}
+.btn.active {
+  background: linear-gradient(180deg, #9b8bff 0%, #6a4ef0 52%, #4a2fc8 100%);
+  border-color: var(--ink);
+}
+
+.training-btn {
+  background: linear-gradient(180deg, #c65cff 0%, #8a1fe0 52%, #5c11a4 100%);
+  padding: 9px 16px;
+  font-size: 0.86rem;
+}
+.training-btn.training-active {
+  background: linear-gradient(180deg, #e08cff 0%, #a53df5 52%, #7016c4 100%);
+}
+
+/* Neutral slate for the home row — colour belongs to the primary actions */
+.home-nav-btn {
+  background: linear-gradient(180deg, #4a5a8c 0%, #2c3760 52%, #1e2646 100%);
+  padding: 10px 16px;
+  font-size: 0.86rem;
+  letter-spacing: 0.6px;
+}
+
+/* index.html styles this one inline (including font-family:inherit), so the
+   overrides here have to be !important to land. */
+#quickFightBtn {
+  font-family: var(--font-btn) !important;
+  background: linear-gradient(180deg, #ffb045 0%, #f4761e 50%, #c93d0c 100%) !important;
+  border: 3px solid var(--ink) !important;
+  border-radius: 18px !important;
+  padding: 15px 46px 17px !important;
+  font-size: 1.3rem !important;
+  letter-spacing: 1.5px !important;
+  box-shadow: 0 7px 0 var(--ink), 0 14px 26px rgba(0,0,0,0.6),
+              0 0 34px rgba(255,140,40,0.35) !important;
+}
+#quickFightBtn:hover { box-shadow: 0 9px 0 var(--ink), 0 18px 32px rgba(0,0,0,0.65), 0 0 44px rgba(255,150,50,0.5) !important; }
+#quickFightBtn:active { box-shadow: 0 2px 0 var(--ink), 0 4px 9px rgba(0,0,0,0.55) !important; }
+/* The sub-label is a caption, not part of the shout */
+#quickFightBtn span {
+  font-family: var(--font-ui) !important;
+  font-weight: 700;
+  font-style: normal;
+  text-transform: none;
+  font-size: 0.72rem !important;
+  letter-spacing: 0.4px !important;
+  text-shadow: 0 2px 0 rgba(0,0,0,0.5);
+  opacity: 0.95;
+}
+
+.btn-start {
+  background: linear-gradient(180deg, #5cf07a 0%, #17b03f 50%, #0b7a2b 100%);
+  border-radius: 20px;
+  padding: 16px 56px 18px;
+  font-size: 1.35rem;
+  letter-spacing: 1.5px;
+  border-width: 4px;
+}
+/* Keep the attract-loop pulse, but as an outer halo — the lip stays solid
+   so the button never looks like it is floating. */
+.btn-start, .btn-start:hover, .btn-start:active { animation: none; }
+.btn-start {
+  box-shadow: 0 8px 0 var(--ink), 0 16px 28px rgba(0,0,0,0.6), 0 0 30px rgba(0,220,90,0.45);
+  animation: startHalo 2.5s ease-in-out infinite;
+}
+@keyframes startHalo {
+  0%, 100% { box-shadow: 0 8px 0 var(--ink), 0 16px 28px rgba(0,0,0,0.6), 0 0 30px rgba(0,220,90,0.45); }
+  50%      { box-shadow: 0 8px 0 var(--ink), 0 16px 28px rgba(0,0,0,0.6), 0 0 58px rgba(40,255,120,0.85); }
+}
+.btn-start:active { animation: none; box-shadow: 0 2px 0 var(--ink), 0 4px 9px rgba(0,0,0,0.55); }
+
+/* Card titles get the same lettering so buttons and tiles read as one kit */
+.path-card-title, .mode-name {
+  font-family: var(--font-btn);
+  font-weight: 800;
+  font-style: oblique 8deg;
+  text-shadow: var(--txt-outline);
+}
+.sel-card-name {
+  font-family: var(--font-btn);
+  font-weight: 800;
+  color: #fff;
+  text-shadow: -1px -1px 0 var(--ink), 1px -1px 0 var(--ink),
+               -1px 1px 0 var(--ink), 1px 1px 0 var(--ink), 0 2px 0 rgba(0,0,0,0.4);
+}
+
+/* ── Cards: chunky, lit from above, pressable ───────────── */
+.path-card, .mode-card, .arena-card, .sel-card, .story-level-tile {
+  border-width: 3px;
+  transition: transform 0.11s ease-out, box-shadow 0.11s ease-out,
+              background 0.15s, border-color 0.15s;
+}
+.path-card {
+  border-radius: 18px;
+  box-shadow: var(--lip);
+}
+.path-card::after {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 42%;
+  background: linear-gradient(180deg, rgba(255,255,255,0.10), rgba(255,255,255,0));
+  pointer-events: none;
+}
+.path-card:hover  { transform: translateY(-4px); box-shadow: var(--lip-up); }
+.path-card:active { transform: translateY(3px); box-shadow: var(--lip-down); }
+
+.mode-card { border-radius: 14px; box-shadow: var(--lip); }
+.mode-card:hover  { transform: translateY(-3px); box-shadow: var(--lip-up); }
+.mode-card:active { transform: translateY(3px); box-shadow: var(--lip-down); }
+
+.sel-card { border-radius: 12px; box-shadow: 0 3px 0 rgba(0,0,0,0.45); }
+.sel-card:hover  { transform: translateY(-2px); box-shadow: 0 5px 0 rgba(0,0,0,0.45); }
+.sel-card:active { transform: translateY(2px); box-shadow: 0 1px 0 rgba(0,0,0,0.45); }
+.sel-card.active { transform: translateY(-1px) scale(1.04); }
+
+.arena-card { border-radius: 22px; box-shadow: 0 4px 0 rgba(0,0,0,0.45); }
+.arena-card:hover  { transform: translateY(-2px); }
+.arena-card:active { transform: translateY(3px); box-shadow: 0 1px 0 rgba(0,0,0,0.45); }
+
+/* ── Panels: thicker rims, warmer inner light ───────────── */
+.player-config, .selection-desc, .settings-panel, .nexus-panel,
+.story-modal-box, .overlay-box, .story-ch-card {
+  border-radius: 16px;
+}
+.player-config, .story-modal-box, .overlay-box, .nexus-panel {
+  border-width: 3px;
+}
+
+/* ── Dropdowns: stop looking like form controls ─────────── */
+#arenaSelect, #livesSelect {
+  border-width: 3px;
+  border-radius: 12px;
+  padding: 11px 34px 11px 14px;
+  font-family: var(--font-ui);
+  font-weight: 700;
+  font-size: 0.95rem;
+  letter-spacing: 0.5px;
+  background-color: rgba(10, 14, 34, 0.98);
+  box-shadow: 0 4px 0 rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.10);
+}
+#arenaSelect:active, #livesSelect:active { transform: translateY(2px); box-shadow: 0 2px 0 rgba(0,0,0,0.45); }
+
+.code-input, input[type="text"], input[type="color"] {
+  border-radius: 10px;
+  font-family: var(--font-ui);
+  font-weight: 700;
+}
+
+/* ── Scrollbars: chunky rails, not hairlines ────────────── */
+* { scrollbar-width: thin; scrollbar-color: rgba(120,100,230,0.55) rgba(0,0,0,0.35); }
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: rgba(0,0,0,0.35); border-radius: 10px; }
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, rgba(150,125,255,0.75), rgba(80,55,180,0.75));
+  border-radius: 10px;
+  border: 2px solid rgba(0,0,0,0.35);
+}
+::-webkit-scrollbar-thumb:hover { background: linear-gradient(180deg, rgba(180,155,255,0.95), rgba(105,75,220,0.95)); }
+.menu-center::-webkit-scrollbar { width: 10px; }
+.menu-center::-webkit-scrollbar-thumb { background: linear-gradient(180deg, rgba(150,125,255,0.75), rgba(80,55,180,0.75)); }
+
+/* ── Labels: HUD-style tracking ─────────────────────────── */
+.section-label, .nexus-section-label, .story-act-label {
+  letter-spacing: 4px;
+  text-shadow: 0 2px 0 rgba(0,0,0,0.5), 0 0 10px rgba(100,180,255,0.45);
+}
+.mode-name, .path-card-title { text-shadow: 0 2px 0 rgba(0,0,0,0.5); }
+
+/* Rajdhani runs small at these sizes — nudge the dense config text back up */
+.mode-desc, .path-card-desc, .sel-card-tag { font-size: 0.74rem; }
+/* Break between words only — Rajdhani is condensed enough that "Broomstick"
+   fits on one line, and break-word was splitting it mid-word. */
+.sel-card-name { font-size: 0.72rem; word-break: normal; overflow-wrap: break-word; }
+.controls-hint, .desc-tip { font-size: 0.78rem; }
+
+/* ── Modal buttons ──────────────────────────────────────────
+   Most modal buttons are inline-styled in index.html with their own
+   colours, so this only takes over shape, typeface and press feel.
+   !important is required to beat those inline declarations. Tabs and
+   pager arrows keep their own hover treatment. */
+#storyModal button, #shopModal button, #settingsModal button,
+#communityModal button, #achievementsModal button, #guidebookModal button,
+#changelogModal button, #skillTreeModal button, #replayBrowserModal button,
+#saveProgressModal button, #statsLogModal button, #importSaveModal button,
+.overlay-box button, .story-modal-box button {
+  font-family: var(--font-btn) !important;
+  font-weight: 800;
+  font-style: oblique 8deg;
+  letter-spacing: 0.4px;
+  border-radius: 12px !important;
+  border-width: 3px !important;
+  border-color: var(--ink) !important;
+  text-shadow: var(--txt-outline);
+  transition: transform 0.09s ease-out, filter 0.12s, box-shadow 0.09s ease-out;
+}
+#storyModal button:not(.story-tab):not(.story-act-pager-arrow):hover,
+#shopModal button:hover, #settingsModal button:hover,
+#communityModal button:hover, #achievementsModal button:hover,
+#guidebookModal button:hover, #changelogModal button:hover,
+#skillTreeModal button:hover, #replayBrowserModal button:hover,
+#saveProgressModal button:hover, #statsLogModal button:hover,
+#importSaveModal button:hover, .overlay-box button:hover {
+  transform: translateY(-2px);
+  filter: brightness(1.15);
+}
+#storyModal button:not(.story-tab):not(.story-act-pager-arrow):active,
+#shopModal button:active, #settingsModal button:active,
+#communityModal button:active, #achievementsModal button:active,
+#guidebookModal button:active, #changelogModal button:active,
+#skillTreeModal button:active, #replayBrowserModal button:active,
+#saveProgressModal button:active, #statsLogModal button:active,
+#importSaveModal button:active, .overlay-box button:active {
+  transform: translateY(3px);
+  filter: brightness(0.88);
+}
+
+/* Modal shells: deeper rims so they sit above the menu as objects */
+#storyModal .story-modal-box, .overlay-box {
+  box-shadow: 0 24px 70px rgba(0,0,0,0.85), 0 0 0 1px rgba(255,255,255,0.06),
+              inset 0 1px 0 rgba(255,255,255,0.10);
+}
+
+/* ── Form controls: the last obviously-browser widgets ──────
+   Native checkboxes and range sliders read as OS chrome no matter what
+   surrounds them, so they get replaced outright. */
+input[type="checkbox"] {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 20px;
+  height: 20px;
+  flex: 0 0 20px;
+  border: 2px solid rgba(140,165,235,0.55);
+  border-radius: 7px;
+  background: linear-gradient(180deg, rgba(28,34,66,0.95), rgba(10,13,32,0.95));
+  box-shadow: 0 3px 0 rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.12);
+  cursor: pointer;
+  position: relative;
+  vertical-align: middle;
+  transition: transform 0.09s ease-out, box-shadow 0.09s ease-out,
+              background 0.15s, border-color 0.15s;
+}
+input[type="checkbox"]:hover { border-color: rgba(180,205,255,0.9); }
+input[type="checkbox"]:active { transform: translateY(2px); box-shadow: 0 1px 0 rgba(0,0,0,0.5); }
+input[type="checkbox"]:checked {
+  border-color: rgba(0,229,255,0.95);
+  background: linear-gradient(180deg, #23c8f0, #0a7fae);
+  box-shadow: 0 3px 0 rgba(0,0,0,0.5), 0 0 12px rgba(0,200,255,0.55),
+              inset 0 1px 0 rgba(255,255,255,0.35);
+}
+input[type="checkbox"]:checked::after {
+  content: '';
+  position: absolute;
+  left: 5.5px;
+  top: 1.5px;
+  width: 4px;
+  height: 9px;
+  border: solid #fff;
+  border-width: 0 2.5px 2.5px 0;
+  transform: rotate(42deg);
+}
+
+input[type="range"] {
+  appearance: none;
+  -webkit-appearance: none;
+  height: 20px;
+  background: transparent;
+  cursor: pointer;
+}
+input[type="range"]::-webkit-slider-runnable-track {
+  height: 8px;
+  border-radius: 6px;
+  background: linear-gradient(180deg, rgba(8,10,26,0.95), rgba(22,26,58,0.95));
+  border: 2px solid rgba(120,140,215,0.45);
+  box-shadow: inset 0 2px 4px rgba(0,0,0,0.6);
+}
+input[type="range"]::-moz-range-track {
+  height: 8px;
+  border-radius: 6px;
+  background: linear-gradient(180deg, rgba(8,10,26,0.95), rgba(22,26,58,0.95));
+  border: 2px solid rgba(120,140,215,0.45);
+}
+input[type="range"]::-webkit-slider-thumb {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 18px;
+  height: 18px;
+  margin-top: -7px;
+  border-radius: 50%;
+  border: 2px solid rgba(220,235,255,0.9);
+  background: radial-gradient(circle at 35% 30%, #b39cff, #6a3fe0);
+  box-shadow: 0 3px 0 rgba(0,0,0,0.5), 0 0 12px rgba(150,110,255,0.6);
+}
+input[type="range"]::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid rgba(220,235,255,0.9);
+  background: radial-gradient(circle at 35% 30%, #b39cff, #6a3fe0);
+  box-shadow: 0 3px 0 rgba(0,0,0,0.5), 0 0 12px rgba(150,110,255,0.6);
+}
+
+/* Colour swatch inputs read as terminal chips rather than OS pickers */
+input[type="color"] {
+  appearance: none;
+  -webkit-appearance: none;
+  border: 3px solid rgba(255,255,255,0.35);
+  border-radius: 10px;
+  padding: 0;
+  cursor: pointer;
+  box-shadow: 0 3px 0 rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.25);
+}
+input[type="color"]::-webkit-color-swatch-wrapper { padding: 3px; }
+input[type="color"]::-webkit-color-swatch { border: none; border-radius: 6px; }
+
+/* Phones: the 16px base and the taller button padding above cost vertical
+   room the small-screen layouts don't have. Give it back. */
+@media (max-width: 600px) {
+  body { font-size: 15px; }
+  .btn, .btn-start, .training-btn, .home-nav-btn, #quickFightBtn {
+    border-width: 2px;
+    box-shadow: 0 3px 0 rgba(0,0,0,0.55), 0 5px 10px rgba(0,0,0,0.5);
+  }
+  #quickFightBtn { padding: 12px 30px !important; font-size: 1rem !important; }
+  .btn-start { padding: 11px 34px; font-size: 0.95rem; letter-spacing: 2.5px; }
+  .path-card, .mode-card, .sel-card, .arena-card, .story-level-tile { border-width: 2px; }
+}
+
+/* ── Menu cards as objects ──────────────────────────────────
+   The path and mode tiles are the main menu's buttons, so they get the
+   same construction: an opaque saturated body in a dark frame with a
+   gloss band, rather than a tinted overlay on the page background. */
+/* Default body, so any variant added later is an object by default rather
+   than falling back to a translucent panel. */
+.path-card, .path-card:hover {
+  background: linear-gradient(180deg, #6f7fc0 0%, #38427a 55%, #232a52 100%);
+  border-color: var(--ink);
+}
+.path-card.path-story,    .path-card.path-story:hover,
+.path-card.path-chapters, .path-card.path-chapters:hover {
+  background: linear-gradient(180deg, #ffab42 0%, #e2660f 55%, #a63a05 100%);
+}
+.path-card.path-nexus, .path-card.path-nexus:hover,
+.path-card.path-grid,  .path-card.path-grid:hover {
+  background: linear-gradient(180deg, #5cdcff 0%, #1a8fd0 55%, #0c5590 100%);
+}
+.path-card.path-shop, .path-card.path-shop:hover {
+  background: linear-gradient(180deg, #6ce77f 0%, #1ea347 55%, #0e6b2c 100%);
+}
+.path-card.path-skills,    .path-card.path-skills:hover,
+.path-card.path-skilltree, .path-card.path-skilltree:hover {
+  background: linear-gradient(180deg, #c084ff 0%, #7c2ee0 55%, #4f1499 100%);
+}
+.path-card.path-refight,  .path-card.path-refight:hover,
+.path-card.path-gauntlet, .path-card.path-gauntlet:hover {
+  background: linear-gradient(180deg, #ff7a6b 0%, #d62a20 55%, #8f1410 100%);
+}
+.path-card.path-boss, .path-card.path-boss:hover {
+  background: linear-gradient(180deg, #e56cff 0%, #a012d8 55%, #650a8c 100%);
+}
+.path-card.path-cutscene, .path-card.path-cutscene:hover {
+  background: linear-gradient(180deg, #5ce6d0 0%, #12a394 55%, #0a6a60 100%);
+}
+.path-card.locked, .path-card[disabled] { filter: grayscale(0.75) brightness(0.6); }
+.path-card::after {
+  inset: 0 0 58% 0;
+  background: linear-gradient(180deg, rgba(255,255,255,0.30), rgba(255,255,255,0.04));
+}
+.path-card .path-card-title,
+.path-card[class*="path-"] .path-card-title {
+  color: #ffffff;
+  letter-spacing: 2px;
+}
+.path-card .path-card-desc,
+.path-card[class*="path-"] .path-card-desc {
+  color: rgba(255,255,255,0.92);
+  opacity: 1;
+  text-shadow: 0 2px 0 rgba(0,0,0,0.45);
+}
+.path-card-icon { filter: drop-shadow(0 3px 0 rgba(0,0,0,0.45)); }
+
+/* `.nexus-grid .mode-card` and the per-mode `[data-mode].active` rules both
+   out-specify a bare `.mode-card`, so these have to match their weight. The
+   `.active` rules still supply the per-mode border colour and glow — the hue
+   moves to the rim while the body stays a consistent slate. */
+.mode-card,
+.nexus-grid .mode-card,
+.mode-cards .mode-card {
+  /* The shorthand already clears the base rule's noise background-image —
+     do not re-declare background-image here, it would cancel the gradient. */
+  background: linear-gradient(180deg, #41507f 0%, #262f55 55%, #171d3a 100%);
+  border-color: var(--ink);
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+.mode-card:hover,
+.nexus-grid .mode-card:hover,
+.mode-cards .mode-card:hover {
+  background: linear-gradient(180deg, #5f70ab 0%, #3a4679 55%, #262f57 100%);
+}
+.nexus-grid .mode-card.active,
+.mode-cards .mode-card.active,
+.mode-card.active {
+  background: linear-gradient(180deg, #7386c4 0%, #45538f 55%, #2c3766 100%);
+}
+.mode-card::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 56% 0;
+  background: linear-gradient(180deg, rgba(255,255,255,0.28), rgba(255,255,255,0.03));
+  pointer-events: none;
+  z-index: -1;
+}
+.mode-name { color: #ffffff; letter-spacing: 0.6px; }
+.mode-desc { color: rgba(255,255,255,0.80); text-shadow: 0 2px 0 rgba(0,0,0,0.4); }
+
+/* ── Vertical fit ───────────────────────────────────────────
+   The heavier buttons above cost enough height to push the home nav row
+   below the fold on a laptop viewport. Claw it back on the home screen. */
+.home-char-stage { height: clamp(40px, 29vh, 205px); }
+#quickFightBtn {
+  padding: 12px 40px 14px !important;
+  font-size: 1.15rem !important;
+  margin-bottom: 10px !important;
+}
+.path-card { padding: 18px 16px 16px; }
+.path-card-icon { font-size: 2.1rem; }
+.path-card-title { font-size: 1.2rem; }
+
+/* Back / tab controls joined the button kit — they were the last web-chrome
+   holdouts sitting next to fully rebuilt buttons. */
+.nexus-back, .story-tab, .story-act-pager-arrow {
+  font-family: var(--font-btn);
+  font-weight: 800;
+  font-style: oblique 8deg;
+  text-transform: uppercase;
+  color: #fff;
+  text-shadow: var(--txt-outline);
+  background: linear-gradient(180deg, #4a5a8c 0%, #2c3760 55%, #1e2646 100%);
+  border: 3px solid var(--ink);
+  border-radius: 12px;
+  padding: 7px 15px;
+  font-size: 0.8rem;
+  box-shadow: 0 4px 0 var(--ink), 0 8px 14px rgba(0,0,0,0.5);
+  transition: transform 0.09s ease-out, box-shadow 0.09s ease-out, filter 0.14s;
+}
+.nexus-back:hover, .story-tab:hover, .story-act-pager-arrow:hover:not([disabled]) {
+  transform: translateY(-2px);
+  filter: brightness(1.14);
+  box-shadow: 0 6px 0 var(--ink), 0 11px 18px rgba(0,0,0,0.55);
+  background: linear-gradient(180deg, #5b6da4 0%, #354372 55%, #242d55 100%);
+  color: #fff;
+}
+.nexus-back:active, .story-tab:active, .story-act-pager-arrow:active:not([disabled]) {
+  transform: translateY(3px);
+  box-shadow: 0 1px 0 var(--ink), 0 2px 5px rgba(0,0,0,0.5);
+}
+.story-tab.active {
+  background: linear-gradient(180deg, #ffab42 0%, #e2660f 55%, #a63a05 100%);
+  color: #fff;
+}
+.story-act-pager-arrow { padding: 7px 13px; }
+.story-act-pager-arrow[disabled] { filter: grayscale(0.8) brightness(0.55); box-shadow: 0 4px 0 var(--ink); }
+
+/* Footer pills stay secondary, but join the kit — smaller, flatter versions
+   of the same object rather than text links with a border. */
+.footer-pill {
+  font-family: var(--font-btn);
+  font-weight: 800;
+  font-style: oblique 8deg;
+  text-transform: uppercase;
+  font-size: 0.72rem;
+  letter-spacing: 0.4px;
+  color: #dfe6ff;
+  background: linear-gradient(180deg, #38446e 0%, #232c4e 55%, #171d38 100%);
+  border: 2px solid var(--ink);
+  border-radius: 10px;
+  padding: 6px 12px;
+  text-shadow: 0 2px 0 rgba(0,0,0,0.5);
+  box-shadow: 0 3px 0 var(--ink), 0 6px 10px rgba(0,0,0,0.45);
+  transition: transform 0.09s ease-out, box-shadow 0.09s ease-out, filter 0.14s;
+}
+.footer-pill:hover {
+  transform: translateY(-2px);
+  filter: brightness(1.18);
+  box-shadow: 0 5px 0 var(--ink), 0 9px 14px rgba(0,0,0,0.5);
+  color: #fff;
+}
+.footer-pill:active {
+  transform: translateY(2px);
+  box-shadow: 0 1px 0 var(--ink), 0 2px 4px rgba(0,0,0,0.45);
+}
+
+/* ============================================================
+   GAME SELECT — replacement for native <select>
+   ============================================================
+   Built by js/smb-ui-controls.js. The native element stays in the DOM as
+   the source of truth and is hidden here. */
+.gs-native-hidden {
+  position: absolute !important;
+  width: 1px; height: 1px;
+  opacity: 0;
+  pointer-events: none;
+  clip: rect(0 0 0 0);
+}
+
+.game-select {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  gap: 6px;
+  min-width: 0;
+}
+
+.gs-arrow, .gs-face {
+  font-family: var(--font-btn);
+  font-weight: 800;
+  font-style: oblique 8deg;
+  color: #fff;
+  text-shadow: var(--txt-outline-sm);
+  background: linear-gradient(180deg, #41507f 0%, #262f55 55%, #171d3a 100%);
+  border: 3px solid var(--ink);
+  border-radius: 12px;
+  box-shadow: 0 4px 0 var(--ink), 0 8px 14px rgba(0,0,0,0.5);
+  cursor: pointer;
+  transition: transform 0.09s ease-out, box-shadow 0.09s ease-out, filter 0.14s;
+}
+.gs-arrow:hover, .gs-face:hover { filter: brightness(1.18); }
+.gs-arrow:active, .gs-face:active {
+  transform: translateY(3px);
+  box-shadow: 0 1px 0 var(--ink), 0 2px 5px rgba(0,0,0,0.5);
+}
+
+.gs-arrow {
+  flex: 0 0 auto;
+  width: 38px;
+  font-size: 0.85rem;
+  font-style: normal;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+.gs-face {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 12px 11px;
+  font-size: 0.92rem;
+  letter-spacing: 0.4px;
+  text-align: left;
+}
+.gs-label {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.gs-caret { flex: 0 0 auto; font-style: normal; opacity: 0.75; }
+.game-select.gs-open .gs-caret { transform: rotate(180deg); }
+
+.gs-panel {
+  display: none;
+  position: absolute;
+  z-index: 60;
+  top: calc(100% + 8px);
+  left: 0;
+  right: 0;
+  max-height: 260px;
+  overflow-y: auto;
+  padding: 8px;
+  background: linear-gradient(180deg, #1d2547 0%, #131934 100%);
+  border: 3px solid var(--ink);
+  border-radius: 14px;
+  box-shadow: 0 10px 0 var(--ink), 0 18px 34px rgba(0,0,0,0.7);
+  text-align: left;
+}
+.gs-panel[data-open="1"] { display: block; }
+
+.gs-group {
+  font-family: var(--font-display);
+  font-size: 0.6rem;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: #7d8dc4;
+  padding: 8px 6px 4px;
+}
+
+.gs-option {
+  display: block;
+  width: 100%;
+  text-align: left;
+  font-family: var(--font-btn);
+  font-weight: 800;
+  font-style: oblique 8deg;
+  font-size: 0.86rem;
+  color: #fff;
+  text-shadow: var(--txt-outline-sm);
+  background: linear-gradient(180deg, #46568a 0%, #2a3460 100%);
+  border: 2px solid var(--ink);
+  border-radius: 10px;
+  padding: 8px 11px 9px;
+  margin-bottom: 6px;
+  cursor: pointer;
+  box-shadow: 0 3px 0 var(--ink);
+  transition: transform 0.08s ease-out, filter 0.12s, box-shadow 0.08s ease-out;
+}
+.gs-option:hover { filter: brightness(1.2); transform: translateY(-1px); box-shadow: 0 4px 0 var(--ink); }
+.gs-option:active { transform: translateY(2px); box-shadow: 0 1px 0 var(--ink); }
+.gs-option.active {
+  background: linear-gradient(180deg, #ffab42 0%, #d55f0d 100%);
+}
+
+/* Small controls use the tight ring — see --txt-outline-sm. */
+.story-tab, .story-act-pager-arrow, .footer-pill, .nexus-back {
+  text-shadow: var(--txt-outline-sm);
+}
+
+/* ============================================================
+   STORY MODE PANEL
+   ------------------------------------------------------------
+   The chapter browser was the last screen still built like a web
+   document: a hairline progress bar, flat bordered list rows and a
+   text-link act pager. Same object grammar as the buttons.
+   ============================================================ */
+
+.story-modal-box {
+  background: linear-gradient(180deg, #1a2144 0%, #10152e 55%, #0a0e22 100%);
+  border: 4px solid var(--ink);
+  border-radius: 22px;
+}
+.story-modal-title { letter-spacing: 2px; }
+
+/* Progress: a chunky inset trough with a lit fill, not a 3px rule */
+.story-progress-bar-bg {
+  height: 18px;
+  border-radius: 10px;
+  background: linear-gradient(180deg, #0a0d1e 0%, #141a36 100%);
+  border: 3px solid var(--ink);
+  box-shadow: inset 0 3px 6px rgba(0,0,0,0.7);
+  overflow: hidden;
+}
+.story-progress-bar-fill {
+  border-radius: 6px;
+  background: linear-gradient(180deg, #7ddc4a 0%, #34a52a 55%, #1c7a1c 100%);
+  box-shadow: inset 0 2px 0 rgba(255,255,255,0.4), 0 0 12px rgba(90,220,80,0.5);
+}
+.story-progress-row {
+  font-family: var(--font-btn);
+  font-weight: 800;
+  font-size: 0.8rem;
+  color: #cfe0ff;
+  text-shadow: 0 2px 0 rgba(0,0,0,0.5);
+}
+
+/* Act header reads as a banner plate */
+.story-act-pager {
+  background: linear-gradient(180deg, #3a4878 0%, #232c52 55%, #161c38 100%);
+  border: 3px solid var(--ink);
+  border-radius: 16px;
+  box-shadow: 0 5px 0 var(--ink), 0 10px 20px rgba(0,0,0,0.5);
+  padding: 10px 10px 12px;
+}
+.story-act-pager-title {
+  font-family: var(--font-btn);
+  font-weight: 800;
+  font-style: oblique 8deg;
+  color: #fff;
+  text-shadow: var(--txt-outline);
+  font-size: 1.15rem;
+  letter-spacing: 0.5px;
+}
+.story-act-pager-sub {
+  font-family: var(--font-ui);
+  font-weight: 700;
+  color: rgba(215,228,255,0.85);
+  text-shadow: 0 2px 0 rgba(0,0,0,0.5);
+}
+
+.story-arc-divider, .story-act-label, .story-arc-label {
+  font-family: var(--font-display);
+  letter-spacing: 3px;
+}
+
+/* Level tiles: pressable objects, state carried by body colour */
+.story-level-tile {
+  border: 3px solid var(--ink);
+  border-radius: 14px;
+  background: linear-gradient(180deg, #39456f 0%, #222a4c 55%, #151a34 100%);
+  box-shadow: 0 4px 0 var(--ink), 0 8px 14px rgba(0,0,0,0.45);
+  font-family: var(--font-btn);
+  font-weight: 800;
+  color: #fff;
+  text-shadow: var(--txt-outline-sm);
+  transition: transform 0.09s ease-out, box-shadow 0.09s ease-out, filter 0.14s;
+}
+.story-level-tile.lvl-done {
+  background: linear-gradient(180deg, #4fc768 0%, #1f8b38 55%, #116024 100%);
+}
+.story-level-tile.lvl-current,
+.story-level-tile.lvl-open {
+  background: linear-gradient(180deg, #5ea8ff 0%, #2360c8 55%, #133e8c 100%);
+}
+.story-level-tile.lvl-locked {
+  background: linear-gradient(180deg, #2b3151 0%, #1a1f38 55%, #121628 100%);
+  filter: grayscale(0.5) brightness(0.75);
+}
+.story-level-tile:hover.lvl-open,
+.story-level-tile:hover.lvl-done,
+.story-level-tile:hover.lvl-current {
+  transform: translateY(-3px);
+  border-color: var(--ink);
+  box-shadow: 0 7px 0 var(--ink), 0 12px 20px rgba(0,0,0,0.5);
+  filter: brightness(1.14);
+  background-color: transparent;
+}
+.story-level-tile:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--ink); }
+
+/* Chapter list rows get the same body so list and grid views match */
+.story-ch-card {
+  border: 3px solid var(--ink);
+  border-radius: 14px;
+  background: linear-gradient(180deg, #39456f 0%, #222a4c 55%, #151a34 100%);
+  box-shadow: 0 4px 0 var(--ink);
+}
+.story-ch-card.ch-locked { filter: grayscale(0.5) brightness(0.7); }
+.story-ch-title {
+  font-family: var(--font-btn);
+  font-weight: 800;
+  color: #fff;
+  text-shadow: var(--txt-outline-sm);
+}
+.story-ch-num { font-family: var(--font-display); }
+
+.story-journey-card {
+  border: 3px solid var(--ink);
+  border-radius: 14px;
+  background: linear-gradient(180deg, #39456f 0%, #222a4c 55%, #151a34 100%);
+  box-shadow: 0 4px 0 var(--ink);
 }

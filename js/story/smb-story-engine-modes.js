@@ -347,12 +347,20 @@ function drawDefenseNexus() {
 // ============================================================
 
 function initScavengeMode(ch) {
-  scavengeItems = (ch.scavengeItems || []).map(item => Object.assign({ collected: false }, item));
+  // Chapters author their pickups as `scavengeItemDefs` with world-x under `wx`.
+  // Accept both that and the older `scavengeItems`/`x` shape.
+  const defs = (ch.scavengeItems && ch.scavengeItems.length) ? ch.scavengeItems
+             : (ch.scavengeItemDefs || []);
+  scavengeItems = defs.map(item => Object.assign(
+    { collected: false }, item, { x: (item.x != null ? item.x : item.wx) }
+  ));
   // Default items if not provided
   if (!scavengeItems.length) {
     const wl     = ch.worldLength || 4800;
     const count  = ch.scavengeCount || 4;
-    const icon   = ch.scavengeIcon || '⬡';
+    // No icon by default — drawScavengeItems() renders the crate sprite unless
+    // a chapter explicitly authors a glyph via scavengeIcon.
+    const icon   = ch.scavengeIcon || null;
     for (let i = 0; i < count; i++) {
       scavengeItems.push({
         x:    Math.floor(wl * (0.15 + (i / count) * 0.70)),
@@ -396,6 +404,65 @@ function updateScavengeMode() {
   }
 }
 
+// Drawn supply-crate sprite for a scavenge pickup. Centered on (x, y).
+// Geometry only — no image assets, matches the hidden-loot chest style.
+// `icon` (optional) is stamped on the crate face in place of the lit core panel.
+function _drawCacheCrate(x, y, glow, icon) {
+  const w = 26, h = 24;
+
+  // Hover glow pooled behind the crate
+  const g = ctx.createRadialGradient(x, y, 0, x, y, 26);
+  g.addColorStop(0, `rgba(255,255,170,${0.28 * glow})`);
+  g.addColorStop(1, 'rgba(255,255,170,0)');
+  ctx.fillStyle = g;
+  ctx.beginPath();
+  ctx.arc(x, y, 26, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.shadowColor = '#ffffaa';
+  ctx.shadowBlur  = 10 + glow * 8;
+
+  // Crate body + darker inset
+  ctx.fillStyle = '#3b3a2c';
+  ctx.fillRect(x - w / 2, y - h / 2, w, h);
+  ctx.fillStyle = '#2a2a20';
+  ctx.fillRect(x - w / 2 + 3, y - h / 2 + 3, w - 6, h - 6);
+
+  // Cross braces
+  ctx.strokeStyle = '#7a7350';
+  ctx.lineWidth   = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(x - w / 2 + 3, y - h / 2 + 3); ctx.lineTo(x + w / 2 - 3, y + h / 2 - 3);
+  ctx.moveTo(x + w / 2 - 3, y - h / 2 + 3); ctx.lineTo(x - w / 2 + 3, y + h / 2 - 3);
+  ctx.stroke();
+
+  if (icon) {
+    // Authored glyph stamped on the crate face
+    ctx.shadowBlur = 4;
+    ctx.font       = '14px Arial';
+    ctx.textAlign  = 'center';
+    ctx.fillStyle  = '#ffffaa';
+    ctx.fillText(icon, x, y + 5);
+    ctx.shadowBlur = 10 + glow * 8;
+  } else {
+    // Lit core panel — pulses with the glow
+    ctx.fillStyle = `rgba(255,255,170,${0.55 + 0.45 * glow})`;
+    ctx.fillRect(x - 3, y - 3, 6, 6);
+  }
+
+  // Frame + corner brackets
+  ctx.strokeStyle = `rgba(255,255,170,${0.85 * glow})`;
+  ctx.lineWidth   = 1.5;
+  ctx.strokeRect(x - w / 2, y - h / 2, w, h);
+  ctx.beginPath();
+  for (const [sx, sy] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) {
+    const cx = x + sx * (w / 2 + 2), cy = y + sy * (h / 2 + 2);
+    ctx.moveTo(cx, cy); ctx.lineTo(cx - sx * 5, cy);
+    ctx.moveTo(cx, cy); ctx.lineTo(cx, cy - sy * 5);
+  }
+  ctx.stroke();
+}
+
 function drawScavengeItems() {
   if (!exploreActive) return;
   const ch = _activeStory2Chapter;
@@ -408,12 +475,8 @@ function drawScavengeItems() {
     const glow  = 0.6 + 0.4 * Math.sin(t / 300);
     ctx.save();
     ctx.globalAlpha = 0.95;
-    ctx.shadowColor = '#ffffaa';
-    ctx.shadowBlur  = 12 * glow;
-    ctx.font        = '20px monospace';
     ctx.textAlign   = 'center';
-    ctx.fillStyle   = '#ffffaa';
-    ctx.fillText(item.icon || '⬡', item.x, item.y + bob);
+    _drawCacheCrate(item.x, item.y + bob - 6, glow, item.icon);
     ctx.font        = '8px monospace';
     ctx.fillStyle   = '#ffffaa';
     ctx.shadowBlur  = 0;
