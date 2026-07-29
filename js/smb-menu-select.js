@@ -17,14 +17,17 @@ function _buildSelCardGrid(gridId, selectId, cardData, pid, type) {
   grid.innerHTML = '';
   [...sel.options].forEach(opt => {
     const val  = opt.value;
-    const info = cardData[val] || { icon: '❓', tag: '' };
+    const info = cardData[val] || { tag: '' };
+    // Icons come from SMB_WEAPON_ICONS / SMB_CLASS_ICONS (smb-icons.js) rather
+    // than a per-entry emoji, so custom weapons fall back to a drawn glyph.
+    const iconSvg = type === 'weapon' ? smbWeaponIcon(val) : smbClassIcon(val);
     // Strip class-lock annotations from display name
     const name = opt.text.replace(/\s*⚔\s*.*/,'');
     const card = document.createElement('div');
     card.className = 'sel-card' + (val === sel.value ? ' active' : '');
     card.dataset.val = val;
     card.innerHTML =
-      `<span class="sel-card-icon">${info.icon}</span>` +
+      `<span class="sel-card-icon">${iconSvg}</span>` +
       `<span class="sel-card-name">${name}</span>` +
       `<span class="sel-card-tag">${info.tag}</span>`;
     card.addEventListener('click', () => {
@@ -122,33 +125,41 @@ function classSel_wasLocked(el, val) { /* no-op — bidirectional locking remove
 
 const _ARENA_GIMMICKS = {
   grass:      '',
-  city:       '🚗 Cars race across the rooftop floor',
-  space:      '🌌 Low gravity — big air time',
-  lava:       '🔥 Heavy gravity · lava floor burns',
-  forest:     '🐾 A forest beast roams · passive healing',
-  ice:        '❄️ Icy friction · a yeti stalks the tundra',
-  ruins:      '📦 Artifact pickups scattered around',
-  cave:       '🦇 Stalactites fall from the ceiling',
-  volcano:    '🌋 Lava geysers erupt from the floor · heavy gravity',
-  underwater: '🌊 Slow movement · water currents shift',
-  colosseum:  '⚔️ Stone pillars · crowd cheers on big hits',
-  clouds:     '☁️ Low gravity · cloud platforms slowly shrink',
-  mushroom:   '🍄 Bouncy platforms launch you skyward',
-  haunted:    '👻 Ghosts drift across and deal damage',
-  cyberpunk:  '⚡ Electric floor hazard periodically zaps',
-  neonGrid:   '💾 Speed boost pads on the floor',
-  mirror:     '🪞 Platforms drift and reality warps',
-  desert:     '🏜️ Quicksand pit slows movement in the center',
-  random:     '🎲 A random arena is chosen each match',
+  city:       'Cars race across the rooftop floor',
+  space:      'Low gravity — big air time',
+  lava:       'Heavy gravity · lava floor burns',
+  forest:     'A forest beast roams · passive healing',
+  ice:        'Icy friction · a yeti stalks the tundra',
+  ruins:      'Artifact pickups scattered around',
+  cave:       'Stalactites fall from the ceiling',
+  volcano:    'Lava geysers erupt from the floor · heavy gravity',
+  underwater: 'Slow movement · water currents shift',
+  colosseum:  'Stone pillars · crowd cheers on big hits',
+  clouds:     'Low gravity · cloud platforms slowly shrink',
+  mushroom:   'Bouncy platforms launch you skyward',
+  haunted:    'Ghosts drift across and deal damage',
+  cyberpunk:  'Electric floor hazard periodically zaps',
+  neonGrid:   'Speed boost pads on the floor',
+  mirror:     'Platforms drift and reality warps',
+  desert:     'Quicksand pit slows movement in the center',
+  random:     'A random arena is chosen each match',
 };
 
 // ── Arena Vote Screen (2P local only) ────────────────────────────────────────
-const _ARENA_ICONS = {
-  grass:'🌿', city:'🚗', space:'🌌', lava:'🔥', forest:'🐾', ice:'❄️',
-  ruins:'📦', cave:'🦇', volcano:'🌋', underwater:'🌊', colosseum:'⚔️',
-  clouds:'☁️', mushroom:'🍄', haunted:'👻', cyberpunk:'⚡', neonGrid:'💾',
-  mirror:'🪞', desert:'🏜️', random:'🎲',
-};
+// Arenas identify themselves with a chip of their own sky/platform palette
+// rather than an emoji, matching the chips in the arena picker.
+function _arenaChip(key) {
+  const a = (typeof ARENAS !== 'undefined') ? ARENAS[key] : null;
+  if (!a) {
+    return '<i style="display:inline-block;width:26px;height:26px;border-radius:7px;' +
+      'border:2px solid #0e1130;background:conic-gradient(#ff5a4a,#ffc23c,#58e06a,#45b6ff,#b06bff,#ff5a4a)"></i>';
+  }
+  const sky  = (a.sky && a.sky[0]) || a.platColor || '#666';
+  const land = a.platColor || sky;
+  return '<i style="display:inline-block;width:26px;height:26px;border-radius:7px;' +
+    'border:2px solid #0e1130;box-shadow:inset 0 1px 0 rgba(255,255,255,0.4);' +
+    'background:linear-gradient(160deg,' + sky + ' 0 52%,' + land + ' 52% 100%)"></i>';
+}
 const _VOTE_COLS = 4;
 
 function _showArenaVoteScreen(onResolve) {
@@ -189,7 +200,7 @@ function _showArenaVoteScreen(onResolve) {
       else            { border = '1px solid rgba(255,255,255,0.1)'; bg = 'rgba(255,255,255,0.04)'; }
       el.style.cssText = 'border:' + border + ';background:' + bg + ';border-radius:8px;' +
         'padding:10px 6px;text-align:center;cursor:pointer;';
-      el.innerHTML = '<div style="font-size:1.25rem">' + (_ARENA_ICONS[key] || '🗺️') + '</div>' +
+      el.innerHTML = '<div style="line-height:1">' + _arenaChip(key) + '</div>' +
         '<div style="font-size:0.7rem;font-weight:700;margin-top:3px;letter-spacing:0.5px">' +
         key.toUpperCase() + '</div>';
       el.onclick = () => {

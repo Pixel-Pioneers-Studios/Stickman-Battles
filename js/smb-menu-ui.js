@@ -44,7 +44,7 @@ function selectMode(mode) {
   if (crRow) crRow.style.display = mode === '2p' ? 'flex' : 'none';
   const crBtn = document.getElementById('completeRandomBtn');
   if (crBtn) {
-    crBtn.textContent = `🎲 Complete Random: ${isCompleteRandom ? 'ON' : 'OFF'}`;
+    crBtn.textContent = ` Complete Random: ${isCompleteRandom ? 'ON' : 'OFF'}`;
     crBtn.classList.toggle('active', isCompleteRandom);
   }
   // Show/hide online connection panel
@@ -74,6 +74,13 @@ function selectMode(mode) {
   document.getElementById('p2ColorRow').style.display     = hideP2 ? 'none' : 'flex';
   document.getElementById('p2WeaponRow').style.display    = hideP2 ? 'none' : 'flex';
   document.getElementById('p2ClassRow').style.display     = hideP2 ? 'none' : 'flex';
+  // Hat/Cape live beside the preview now, so they hide with the rest of the
+  // P2 form; the panel then shows the opponent's portrait full-height instead
+  // of two orphaned dropdowns over an empty column.
+  const _p2Stage = document.getElementById('p2HatRow');
+  if (_p2Stage) _p2Stage.style.display = hideP2 ? 'none' : 'flex';
+  const _p2Panel = document.getElementById('p2Config');
+  if (_p2Panel) _p2Panel.classList.toggle('p2-locked', hideP2);
   const p1BotToggle = document.getElementById('p1BotToggle');
   if (p1BotToggle) p1BotToggle.style.display = (isMinigames || isTrueForm || isAdaptive) ? 'none' : '';
   const p2BotToggleEl = document.getElementById('p2BotToggle');
@@ -97,7 +104,7 @@ function selectMode(mode) {
     if (!showChaos && typeof chaosMode !== 'undefined' && chaosMode) {
       chaosMode = false;
       const btn = document.getElementById('chaosModeBtn');
-      if (btn) { btn.textContent = '⚡ Chaos Mode: OFF'; btn.style.borderColor = 'rgba(160,60,255,0.4)'; btn.style.color = '#cc88ff'; btn.style.boxShadow = ''; }
+      if (btn) { btn.textContent = ' Chaos Mode: OFF'; btn.style.borderColor = 'rgba(160,60,255,0.4)'; btn.style.color = '#cc88ff'; btn.style.boxShadow = ''; }
     }
   }
   // Custom weapons: allowed in offline 1v1/training, or online when host enables the checkbox
@@ -211,7 +218,7 @@ function _setRefightCardLock(id, locked) {
   if (locked) {
     el.classList.add('refight-locked');
     el.onclick = function() {
-      if (typeof showToast === 'function') showToast('&#128274; Complete this fight in Story Mode first.');
+      if (typeof showToast === 'function') showToast(' Complete this fight in Story Mode first.');
     };
   } else {
     el.classList.remove('refight-locked');
@@ -291,7 +298,7 @@ function bossRushAdvance() {
   } else {
     _clearBossRushGauntlet();
     if (typeof backToMenu === 'function') backToMenu();
-    if (typeof showToast === 'function') showToast('&#127942; Gauntlet Complete — you are unstoppable.');
+    if (typeof showToast === 'function') showToast(' Gauntlet Complete — you are unstoppable.');
   }
 }
 
@@ -354,7 +361,7 @@ function refreshCustomWeaponOptions() {
       const w = customWeapons[key];
       const opt = document.createElement('option');
       opt.value = key;
-      opt.textContent = '🔧 ' + (w.name || key);
+      opt.textContent = ' ' + (w.name || key);
       grp.appendChild(opt);
     });
     sel.appendChild(grp);
@@ -633,43 +640,45 @@ function toggleBot(pid) {
 // WEAPON / CLASS CARD GRIDS
 // ============================================================
 const _WEAPON_CARD_DATA = {
-  random:        { icon: '🎲', tag: 'Chaos' },
-  sword:         { icon: '⚔️',  tag: 'Fast' },
-  hammer:        { icon: '🔨', tag: 'Heavy' },
-  gun:           { icon: '🔫', tag: 'Ranged' },
-  axe:           { icon: '🪓', tag: 'Splash' },
-  spear:         { icon: '🗡️', tag: 'Reach' },
-  bow:           { icon: '🏹', tag: 'Archer' },
-  shield:        { icon: '🛡️', tag: 'Paladin' },
-  scythe:        { icon: '💀', tag: 'Lifesteal' },
-  fryingpan:     { icon: '🍳', tag: 'Stun' },
-  broomstick:    { icon: '🧹', tag: 'Push' },
-  combat:        { icon: '👊', tag: 'Combo' },
-  peashooter:    { icon: '🌿', tag: 'Rapid' },
-  slingshot:     { icon: '🪃', tag: 'Arc' },
-  paperairplane: { icon: '✈️', tag: 'Curve' },
-  flail:         { icon: '⛓️', tag: 'Return' },
-  whip:          { icon: '〰️', tag: 'Zone' },
-  boomerang:     { icon: '🪃', tag: 'Returner' },
-  katana:        { icon: '🗡️', tag: 'Precise' },
-  flamethrower:  { icon: '🔥', tag: 'Suppress' },
-  electricstaff: { icon: '⚡', tag: 'Chain' },
+  random:        { tag: 'Chaos' },
+  sword:         { tag: 'Fast' },
+  hammer:        { tag: 'Heavy' },
+  gun:           { tag: 'Ranged' },
+  axe:           { tag: 'Splash' },
+  spear:         { tag: 'Reach' },
+  bow:           { tag: 'Archer' },
+  shield:        { tag: 'Paladin' },
+  scythe:        { tag: 'Lifesteal' },
+  fryingpan:     { tag: 'Stun' },
+  broomstick:    { tag: 'Push' },
+  combat:        { tag: 'Combo' },
+  peashooter:    { tag: 'Rapid' },
+  slingshot:     { tag: 'Arc' },
+  paperairplane: { tag: 'Curve' },
+  flail:         { tag: 'Return' },
+  whip:          { tag: 'Zone' },
+  boomerang:     { tag: 'Returner' },
+  katana:        { tag: 'Precise' },
+  flamethrower:  { tag: 'Suppress' },
+  electricstaff: { tag: 'Chain' },
 };
 
 const _CLASS_CARD_DATA = {
-  random:      { icon: '🎲', tag: 'Surprise' },
-  none:        { icon: '⬜', tag: 'Free' },
-  thor:        { icon: '⚡', tag: 'Tank' },
-  kratos:      { icon: '🔴', tag: 'Rage' },
-  ninja:       { icon: '💨', tag: 'Speed' },
-  gunner:      { icon: '🔵', tag: 'Double' },
-  archer:      { icon: '🏹', tag: 'Evasive' },
-  paladin:     { icon: '🛡️', tag: 'Holy' },
-  berserker:   { icon: '💢', tag: 'Frenzy' },
-  megaknight:  { icon: '⚔️', tag: 'Legend' },
-  pugilist:    { icon: '🥊', tag: 'Brawler' },
-  ronin:       { icon: '🗡️', tag: 'Precision' },
-  reaper:      { icon: '💀', tag: 'Undying' },
+  random:      { tag: 'Surprise' },
+  none:        { tag: 'Free' },
+  warrior:     { tag: 'Balanced' },
+  thor:        { tag: 'Tank' },
+  kratos:      { tag: 'Rage' },
+  ninja:       { tag: 'Speed' },
+  gunner:      { tag: 'Double' },
+  archer:      { tag: 'Evasive' },
+  paladin:     { tag: 'Holy' },
+  berserker:   { tag: 'Frenzy' },
+  megaknight:  { tag: 'Legend' },
+  pugilist:    { tag: 'Brawler' },
+  ronin:       { tag: 'Precision' },
+  reaper:      { tag: 'Undying' },
+  summoner:    { tag: 'Swarm' },
 };
 
 // ── Home Screen Canvas Animation ──────────────────────────────────────────────

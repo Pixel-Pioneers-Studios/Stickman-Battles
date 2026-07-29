@@ -140,7 +140,10 @@ input, textarea, [contenteditable] {
   position: relative;
   z-index: 10;
   display: grid;
-  grid-template-columns: 362px 1fr 362px;
+  /* Side columns grow inward off the screen edges so the weapon/class grids
+     get room for 5 columns instead of 4 (less vertical scrolling). The center
+     column keeps whatever is left — its content is only ~420px wide. */
+  grid-template-columns: clamp(300px, 25vw, 450px) 1fr clamp(300px, 25vw, 450px);
   grid-template-rows: 1fr;
   align-items: stretch;
   padding: 14px;
@@ -199,7 +202,9 @@ input, textarea, [contenteditable] {
 .menu-side.right {
   background: rgba(5, 6, 18, 0.98);
   border-color: rgba(255,255,255,0.18);
-  padding: 8px 10px 10px;
+  /* Same padding as .menu-side — a 2px difference here cost the right panel a
+     whole grid column, so P2's weapon list ran a row longer than P1's. */
+  padding: 10px 9px 8px;
   background-image: var(--panel-noise);
   background-blend-mode: overlay;
 }
@@ -3785,3 +3790,509 @@ input[type="color"]::-webkit-color-swatch { border: none; border-radius: 6px; }
   background: linear-gradient(180deg, #39456f 0%, #222a4c 55%, #151a34 100%);
   box-shadow: 0 4px 0 var(--ink);
 }
+
+.gs-arrow { width: 32px; }
+.game-select { min-width: 140px; }
+
+/* Level tiles: state now lives in the body colour, so the inner text can be
+   plain white everywhere instead of a different dim tint per state. The old
+   `opacity: 0.5` on locked tiles faded the label past legibility — dim the
+   body instead and keep the text solid. */
+.story-level-tile { min-height: 96px; padding: 10px 6px 9px; }
+.story-level-tile .lvl-num,
+.story-level-tile.lvl-done .lvl-num,
+.story-level-tile.lvl-current .lvl-num,
+.story-level-tile.lvl-locked .lvl-num {
+  font-size: 1.5rem;
+  color: #ffffff;
+}
+.story-level-tile .lvl-name,
+.story-level-tile.lvl-current .lvl-name,
+.story-level-tile.lvl-locked .lvl-name {
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: #ffffff;
+  margin-top: 5px;
+}
+.story-level-tile.lvl-locked {
+  opacity: 1;
+  filter: none;
+  background: linear-gradient(180deg, #2b3151 0%, #1a1f38 55%, #121628 100%);
+}
+.story-level-tile.lvl-locked .lvl-num,
+.story-level-tile.lvl-locked .lvl-name { color: #8792b8; }
+
+/* Chapter number as a corner badge rather than faint superscript text */
+.story-level-tile .lvl-idx,
+.story-level-tile.lvl-locked .lvl-idx {
+  top: -3px;
+  left: -3px;
+  opacity: 1;
+  font-family: var(--font-display);
+  font-size: 0.58rem;
+  color: #fff;
+  background: var(--ink);
+  border-radius: 9px 0 9px 0;
+  padding: 2px 7px 3px;
+  text-shadow: none;
+}
+
+/* Section rules and the modal interior needed contrast to match */
+.story-modal-box { background: linear-gradient(180deg, #171d3d 0%, #0d1226 55%, #070a1a 100%); }
+.story-arc-divider, .story-arc-label, .story-arc-count {
+  color: #9fb0dc;
+  font-size: 0.7rem;
+}
+.story-arc-divider { text-shadow: 0 2px 0 rgba(0,0,0,0.6); }
+
+/* ============================================================
+   PLAYER CONFIG — game lettering
+   ------------------------------------------------------------
+   These panels were the last place still using thin, low-contrast
+   body copy for labels. Nothing structural changes; the text just
+   stops reading as web UI copy and starts reading as game type.
+   ============================================================ */
+
+/* Standalone captions above a control */
+.modifier-label {
+  font-family: var(--font-display);
+  font-size: 0.62rem;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: #ffc27a;
+  text-shadow: 0 2px 0 rgba(0,0,0,0.6), 0 0 10px rgba(255,150,60,0.35);
+}
+
+/* Panel header reads as a title strip, not a heading + form control */
+.config-header {
+  padding: 7px 9px;
+  margin: -2px -2px 6px;
+  border-radius: 12px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.10) 0%, rgba(0,0,0,0.35) 100%);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.14), 0 2px 0 rgba(0,0,0,0.4);
+}
+.player-config h3 {
+  font-family: var(--font-btn);
+  font-weight: 800;
+  font-style: oblique 8deg;
+  font-size: 0.95rem;
+  letter-spacing: 1.5px;
+  text-shadow: var(--txt-outline-sm);
+}
+
+/* Human/Bot switch is a control — make it look like one */
+.bot-toggle {
+  font-family: var(--font-btn);
+  font-weight: 800;
+  font-style: oblique 8deg;
+  text-transform: uppercase;
+  font-size: 0.72rem;
+  letter-spacing: 0.4px;
+  color: #fff;
+  text-shadow: var(--txt-outline-sm);
+  padding: 6px 13px 7px;
+  border: 3px solid var(--ink);
+  border-radius: 11px;
+  background: linear-gradient(180deg, #8a6cff 0%, #5535d6 55%, #3a1f9e 100%);
+  box-shadow: 0 4px 0 var(--ink), 0 7px 12px rgba(0,0,0,0.5);
+  transition: transform 0.09s ease-out, box-shadow 0.09s ease-out, filter 0.14s;
+}
+.bot-toggle:hover {
+  transform: translateY(-2px);
+  filter: brightness(1.16);
+  box-shadow: 0 6px 0 var(--ink), 0 10px 16px rgba(0,0,0,0.55);
+  color: #fff;
+}
+.bot-toggle:active {
+  transform: translateY(3px);
+  box-shadow: 0 1px 0 var(--ink), 0 2px 5px rgba(0,0,0,0.5);
+}
+
+.expand-arrow {
+  font-size: 0.8rem;
+  color: #dce6ff;
+  text-shadow: 0 2px 0 rgba(0,0,0,0.6);
+  background: var(--ink);
+  border-radius: 8px;
+  padding: 1px 8px 3px;
+}
+
+/* Row labels: display type at caption scale instead of grey body copy */
+.config-row label {
+  font-family: var(--font-display);
+  font-size: 0.6rem;
+  letter-spacing: 2.5px;
+  text-transform: uppercase;
+  color: #b9c8ee;
+  text-shadow: 0 2px 0 rgba(0,0,0,0.55);
+}
+#p1Config .config-row label { color: #8fd8ff; }
+#p2Config .config-row label { color: #ffa0a8; }
+
+/* Section headers above the weapon/class grids read as dividers */
+.config-card-section > label {
+  align-self: center;
+  font-size: 0.62rem;
+  letter-spacing: 4px;
+  color: #cdd9f5;
+  padding-bottom: 2px;
+}
+
+/* Cosmetic swatches become pressable chips rather than bare colour dots */
+.skin-swatch, .wskin-swatch {
+  width: 25px; height: 25px;
+  border: 3px solid var(--ink);
+  box-shadow: 0 3px 0 var(--ink), inset 0 2px 0 rgba(255,255,255,0.35);
+  transition: transform 0.09s ease-out, box-shadow 0.09s ease-out, filter 0.14s;
+}
+.wskin-swatch { border-radius: 5px; }
+.skin-swatch:hover, .wskin-swatch:hover { filter: brightness(1.2); }
+.skin-swatch:active { transform: translateY(2px); box-shadow: 0 1px 0 var(--ink); }
+.wskin-swatch:active { transform: rotate(45deg) scale(0.8) translateY(2px); box-shadow: 0 1px 0 var(--ink); }
+.skin-swatch.active {
+  border-color: #fff;
+  box-shadow: 0 3px 0 var(--ink), 0 0 12px rgba(255,255,255,0.6), inset 0 2px 0 rgba(255,255,255,0.4);
+}
+.wskin-swatch.active {
+  border-color: #fff;
+  box-shadow: 0 3px 0 var(--ink), 0 0 12px rgba(255,255,255,0.6);
+}
+
+/* Descriptions and hints: keep them readable prose, just less washed out */
+.selection-desc, .desc-what, .controls-hint {
+  color: #ccd7f2;
+}
+.desc-title {
+  font-family: var(--font-btn);
+  font-weight: 800;
+  font-style: oblique 8deg;
+  text-shadow: var(--txt-outline-sm);
+}
+
+/* Remaining captions that were still set in plain body copy. Both of these
+   carry inline styles in index.html, so the overrides need !important. */
+#configModeLabel {
+  font-family: var(--font-btn) !important;
+  font-weight: 800;
+  font-style: oblique 8deg;
+  font-size: 1.15rem !important;
+  color: #fff !important;
+  letter-spacing: 1px !important;
+  text-shadow: var(--txt-outline);
+}
+#arenaGimmickHint {
+  font-family: var(--font-ui) !important;
+  font-weight: 700;
+  font-size: 0.76rem !important;
+  color: #a9bce4 !important;
+  text-shadow: 0 2px 0 rgba(0,0,0,0.55);
+}
+.controls-info, .settings-toggle {
+  font-family: var(--font-display);
+  letter-spacing: 2.5px;
+}
+
+/* ============================================================
+   ICONS — inline SVG replacing emoji (see js/smb-icons.js)
+   ============================================================ */
+.smb-icon {
+  width: 1em;
+  height: 1em;
+  display: inline-block;
+  vertical-align: -0.14em;
+  flex: 0 0 auto;
+  fill: currentColor;
+  filter: drop-shadow(0 2px 0 rgba(0,0,0,0.45));
+}
+/* Secondary pass — the part of a shape that should sit back */
+.smb-icon .a { opacity: 0.82; }
+
+/* Buttons put a little air between glyph and label */
+.btn .smb-icon, .home-nav-btn .smb-icon, .footer-pill .smb-icon,
+.training-btn .smb-icon, .mode-name .smb-icon, #quickFightBtn .smb-icon {
+  margin-right: 0.42em;
+}
+
+.path-card-icon .smb-icon { width: 2.1rem; height: 2.1rem; }
+.sel-card-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+.sel-card-icon .smb-icon { width: 1.55rem; height: 1.55rem; }
+
+/* Arena palette chip in the select widget */
+.gs-chip {
+  display: inline-block;
+  width: 15px;
+  height: 15px;
+  flex: 0 0 auto;
+  margin-right: 8px;
+  border-radius: 5px;
+  border: 2px solid var(--ink);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.4);
+  vertical-align: -0.2em;
+}
+.gs-chip-any {
+  background: conic-gradient(#ff5a4a, #ffc23c, #58e06a, #45b6ff, #b06bff, #ff5a4a);
+}
+.gs-label { display: flex; align-items: center; }
+
+/* ============================================================
+   PLAYER CONFIG — depth pass
+   ============================================================ */
+
+/* The preview sits in a recessed window rather than floating on the panel */
+.player-preview-canvas {
+  border-radius: 14px;
+  border: 3px solid var(--ink);
+  background: radial-gradient(ellipse at 50% 35%, rgba(255,255,255,0.09), rgba(0,0,0,0.55) 72%);
+  box-shadow: inset 0 4px 12px rgba(0,0,0,0.7), 0 2px 0 rgba(255,255,255,0.06);
+}
+
+/* Rows read as stacked slats with a lit top edge */
+.config-row {
+  border-radius: 11px;
+  padding: 8px 10px;
+  border: 2px solid rgba(0,0,0,0.5);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.09), 0 2px 0 rgba(0,0,0,0.32);
+}
+#p1Config .config-row { background: linear-gradient(180deg, rgba(0,70,120,0.42), rgba(0,16,42,0.72)); }
+#p2Config .config-row { background: linear-gradient(180deg, rgba(120,20,26,0.42), rgba(42,4,6,0.72)); }
+
+/* Grid section gets its own recessed well so it separates from the rows */
+.config-card-section {
+  background: rgba(0,0,0,0.35);
+  border: 2px solid rgba(0,0,0,0.55);
+  box-shadow: inset 0 3px 8px rgba(0,0,0,0.55);
+  padding: 8px 7px 9px;
+}
+
+/* Selected weapon/class reads as lit, not just outlined */
+#p1Config .sel-card.active {
+  background: linear-gradient(180deg, #3fd4ff 0%, #0a86c4 55%, #05537f 100%);
+  border-color: var(--ink);
+  box-shadow: 0 4px 0 var(--ink), 0 0 16px rgba(0,200,255,0.55);
+}
+#p2Config .sel-card.active {
+  background: linear-gradient(180deg, #ff6a75 0%, #cf1f31 55%, #8a0d1a 100%);
+  border-color: var(--ink);
+  box-shadow: 0 4px 0 var(--ink), 0 0 16px rgba(255,60,80,0.55);
+}
+.sel-card {
+  border-color: var(--ink);
+  background: linear-gradient(180deg, #39456f 0%, #222a4c 55%, #151a34 100%);
+  box-shadow: 0 3px 0 var(--ink);
+}
+.sel-card:hover {
+  border-color: var(--ink);
+  background: linear-gradient(180deg, #47558a 0%, #2b355e 55%, #1b2140 100%);
+}
+
+/* Panel shells: thicker rim + lip, identity colour kept on the border */
+.player-config {
+  border-width: 3px;
+  border-radius: 18px;
+}
+
+/* Cosmetic pickers sit in a tight row — a compact variant of the plate */
+#p1Hat + .game-select, .config-row .game-select { min-width: 132px; }
+.config-row .gs-arrow { width: 27px; font-size: 0.72rem; }
+.config-row .gs-face { padding: 7px 9px 8px; font-size: 0.8rem; }
+.config-row .gs-panel { max-height: 190px; }
+
+/* ============================================================
+   PLAYER CONFIG — WIDE, NON-CLIPPING, LESS SCROLL
+   ------------------------------------------------------------
+   The 4-column grid used `repeat(4, 1fr)`, and `1fr` is
+   `minmax(auto, 1fr)` — so a long card name ("Flamethrower")
+   pushed the track past its share and the grid overflowed its
+   panel. Because `.config-body` sets `overflow-y: auto`, the
+   computed `overflow-x` became `auto` too, so scrolling the
+   active card into view left-clipped the first column.
+   Fix: floor the tracks at 0 and wrap names instead.
+   ============================================================ */
+
+/* Nothing in these panels may scroll sideways, ever. */
+.menu-side,
+.menu-side .player-config,
+.config-body,
+.config-card-section { overflow-x: hidden; }
+
+.sel-card-grid {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 5px;
+  padding: 0;
+  width: 100%;
+}
+
+/* Compact card: icon + name + tag in ~56px so 21 weapons take 5 rows */
+.sel-card {
+  padding: 6px 3px 5px;
+  gap: 1px;
+  min-width: 0;
+  border-radius: 9px;
+  justify-content: center;
+}
+.sel-card-icon { font-size: 1.15rem; }
+.sel-card-icon svg { width: 17px; height: 17px; }
+.sel-card-name {
+  font-size: 0.58rem;
+  line-height: 1.15;
+  overflow-wrap: anywhere;
+  hyphens: auto;
+  max-width: 100%;
+}
+.sel-card-tag { font-size: 0.48rem; letter-spacing: 0.2px; }
+.sel-card.active { transform: none; }          /* scale(1.05) clipped edge cards */
+.sel-card.active:hover { transform: translateY(-1px); }
+
+/* Tighter shell so the whole panel fits without a scrollbar on 1080p */
+.menu-side { padding: 10px 9px 8px; }
+.player-config { padding: 9px 8px 8px; gap: 6px; }
+.config-body { gap: 6px; }
+.player-preview-canvas { height: 88px; margin-bottom: 2px; }
+.player-config .config-row { padding: 5px 8px; }
+.config-card-section { padding: 6px 6px 7px; }
+.config-card-section > label { padding-bottom: 1px; }
+
+/* Hat + Cape share one row (see index.html .config-row.dual) */
+.config-row.dual { gap: 10px; }
+.config-row.dual > .dual-cell {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex: 1;
+  min-width: 0;
+}
+.config-row.dual .game-select { min-width: 0; flex: 1; }
+
+/* Flex children were shrinking, which chopped the last grid row in half.
+   Nothing in the config body may shrink; the body itself scrolls if needed. */
+.config-body > * { flex-shrink: 0; }
+
+/* Card count adapts to the panel width — 5 columns on a narrow window,
+   7 on a wide one, so the weapon list loses rows instead of scrolling. */
+.sel-card-grid { grid-template-columns: repeat(auto-fill, minmax(56px, 1fr)); }
+
+/* Final density pass: ~6 cards per row on a wide window, so the 21 weapons
+   fit in 4 rows and the whole panel lands on one screen with no scrolling. */
+.sel-card-grid { grid-template-columns: repeat(auto-fill, minmax(58px, 1fr)); }
+.sel-card { padding: 4px 3px; }
+.sel-card-icon { height: 18px; }
+.sel-card-icon svg { width: 18px !important; height: 18px !important; display: block; }
+.player-preview-canvas { height: 76px; }
+
+/* The colour picker now lives inline at the head of the skin swatch strip */
+.config-row input[type="color"] { flex-shrink: 0; }
+
+/* Reserve two lines for every card name. Grid rows are sized by their tallest
+   card, so mixed 1- and 2-line names made every row as tall as the tallest
+   anyway — reserving the space just stops the icons from sitting at different
+   heights from column to column. */
+.sel-card-name {
+  min-height: 2.3em;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+.player-preview-canvas { height: 68px; }
+.player-config .config-row { padding: 4px 8px; }
+.sel-card { padding: 3px 3px 4px; }
+.config-body { gap: 5px; }
+
+/* The weapon-skin swatches used to sit in their own row labelled "Weapon",
+   directly above a weapon grid also labelled "Weapon". They now ride on the
+   grid's header line — one label, one row saved. */
+.config-card-section > .section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  padding-bottom: 3px;
+}
+.config-card-section > .section-head > label {
+  align-self: center;
+  font-size: 0.62rem;
+  letter-spacing: 4px;
+  color: #cdd9f5;
+}
+.wskin-strip { display: flex; gap: 5px; flex-shrink: 0; }
+.wskin-strip .wskin-swatch { width: 19px; height: 19px; }
+.player-preview-canvas { height: 60px; }
+.config-card-section { padding: 5px 5px 6px; }
+.config-card-section > .section-head { padding-bottom: 2px; }
+/* Preview stage: tall enough for a proportionate figure now that
+   _drawPlayerPreview() scales into its real box instead of stretching. */
+.player-preview-canvas { height: 84px; }
+
+/* Character stage: the preview canvas was a wide empty band, so the Hat and
+   Cape pickers now sit beside it instead of eating two more rows below. */
+.preview-stage {
+  display: flex;
+  align-items: stretch;
+  gap: 7px;
+}
+.preview-stage .player-preview-canvas {
+  flex: 1;
+  min-width: 0;
+  height: auto;
+  margin-bottom: 0;
+}
+.stage-side {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 5px;
+  width: 152px;
+  flex-shrink: 0;
+}
+.stage-side .dual-cell {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.stage-side .dual-cell label { flex-shrink: 0; }
+.stage-side .game-select { min-width: 0; flex: 1; }
+.stage-side .gs-face { padding: 5px 7px 6px; font-size: 0.72rem; }
+.stage-side .gs-arrow { width: 22px; font-size: 0.66rem; }
+/* Give the stage a stable height now that the canvas stretches to fill it */
+.preview-stage { height: 84px; }
+
+/* `overflow-wrap: anywhere` was snapping names mid-letter ("Boomeran g").
+   Break on syllables instead and let the word overflow-hyphenate. */
+.sel-card-name {
+  font-size: 0.56rem;
+  word-break: normal;
+  overflow-wrap: break-word;
+  hyphens: auto;
+}
+.stage-side { width: 168px; }
+
+/* Column count is stepped off the viewport rather than auto-filled, because
+   auto-fill would hand a wide panel 7 narrow columns and wrap every name. */
+.sel-card-grid { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+@media (max-width: 1500px) {
+  .sel-card-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+}
+@media (max-width: 1150px) {
+  .sel-card-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+
+/* Skin swatches share their row with the colour picker now, so on a narrow
+   panel the strip wraps to a second line instead of running off the edge. */
+.config-row .swatch-strip {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  min-width: 0;
+  flex: 1;
+}
+
+/* Boss / TrueForm / training: P2 has no editable config, so the preview
+   becomes a full-height portrait of the opponent instead of a blank column. */
+#p2Config.p2-locked .preview-stage { height: 100%; min-height: 260px; }
+#p2Config.p2-locked .config-body { height: 100%; }

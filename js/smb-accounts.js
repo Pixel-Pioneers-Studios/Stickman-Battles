@@ -539,7 +539,7 @@ function _acctRenderList(inner) {
     ? '<button onclick="_acctLogout()" style="' + _acctBtnStyle('orange') + ';flex:1;">🔒 Log Out</button>'
     : '';
 
-  inner.innerHTML = '<h3 style="margin:0 0 16px;font-size:1.1rem;color:#88ccff;">👤 Account &amp; Saves</h3>'
+  inner.innerHTML = '<h3 style="margin:0 0 16px;font-size:1.1rem;color:#88ccff;">Account &amp; Saves</h3>'
     + cloudSection
     + '<div style="max-height:300px;overflow-y:auto;margin-bottom:14px;">' + rows + '</div>'
     + '<div style="display:flex;gap:8px;flex-wrap:wrap;">'

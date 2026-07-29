@@ -36,11 +36,11 @@ const SupabaseBridge = (() => {
   }
 
   function _menuButtonLabel() {
-    if (!isAvailable()) return '👤 Account & Saves';
-    if (!_ready) return '👤 Account & Saves...';
-    if (!_session || !_user) return '👤 Account & Saves';
+    if (!isAvailable()) return 'Account & Saves';
+    if (!_ready) return 'Account & Saves...';
+    if (!_session || !_user) return 'Account & Saves';
     const label = _user.email || _user.user_metadata?.full_name || _user.id.slice(0, 8);
-    return '👤 ' + String(label).split('@')[0].slice(0, 18);
+    return String(label).split('@')[0].slice(0, 18);
   }
 
   function _saveRuntimeReady() {
@@ -54,7 +54,11 @@ const SupabaseBridge = (() => {
   function _updateMenuButton() {
     const btn = document.getElementById('accountsSavesBtn') || document.getElementById('cloudAuthBtn');
     if (!btn) return;
-    btn.textContent = _menuButtonLabel();
+    // Rebuild rather than setting textContent — that would wipe the inline
+    // SVG icon that lives inside this button.
+    const icon = typeof smbIcon === 'function' ? smbIcon('user') : '';
+    btn.innerHTML = icon + ' ' + _menuButtonLabel()
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;');
     btn.title = _session
       ? ('Signed in as ' + (_user?.email || 'cloud user'))
       : (isAvailable() ? 'Open account, local save, and cloud sync settings' : 'Supabase config missing');

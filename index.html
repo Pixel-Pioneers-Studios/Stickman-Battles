@@ -58,7 +58,7 @@
   }
   </script>
 
-  <link rel="stylesheet" href="SMB.css?v=4.0.56">
+  <link rel="stylesheet" href="SMB.css?v=4.0.67">
 </head>
 <body>
 
@@ -78,14 +78,34 @@
         <span class="expand-arrow">▾</span>
       </div>
       <div class="config-body">
-        <canvas id="p1Preview" class="player-preview-canvas" width="120" height="110"></canvas>
-        <div class="config-row">
-          <label>Color</label>
-          <input type="color" id="p1Color" value="#00d4ff">
+        <div class="preview-stage">
+          <canvas id="p1Preview" class="player-preview-canvas" width="120" height="110"></canvas>
+          <div class="stage-side">
+          <div class="dual-cell">
+            <label>Hat</label>
+            <select id="p1Hat">
+              <option value="none">None</option>
+              <option value="cap">Cap</option>
+              <option value="crown">Crown</option>
+              <option value="wizard">Wizard</option>
+              <option value="headband">Headband</option>
+            </select>
+          </div>
+          <div class="dual-cell">
+            <label>Cape</label>
+            <select id="p1Cape">
+              <option value="none">None</option>
+              <option value="short">Short</option>
+              <option value="long">Long</option>
+              <option value="royal">Royal</option>
+            </select>
+          </div>
+          </div>
         </div>
         <div class="config-row" style="align-items:center; gap:6px;">
           <label>Skin</label>
-          <div style="display:flex; gap:5px;">
+          <input type="color" id="p1Color" value="#00d4ff">
+          <div class="swatch-strip" style="display:flex; gap:5px;">
             <button class="skin-swatch active" data-pid="p1" data-skin="default" data-cosid="skin_default" onclick="setSkin('p1','default',this)" style="background:#00d4ff" title="Default"></button>
             <button class="skin-swatch" data-pid="p1" data-skin="fire"   data-cosid="skin_fire"   onclick="setSkin('p1','fire',this)"   style="background:#ff4400" title="Fire"></button>
             <button class="skin-swatch" data-pid="p1" data-skin="ice"    data-cosid="skin_ice"    onclick="setSkin('p1','ice',this)"    style="background:#44aaff" title="Ice"></button>
@@ -95,9 +115,10 @@
             <button class="skin-swatch" data-pid="p1" data-skin="neon"   data-cosid="skin_neon"   onclick="if(isCosmeticUnlocked('skin_neon'))setSkin('p1','neon',this);else openStore()" style="background:#00ff88" title="Neon (100⬡)"></button>
           </div>
         </div>
-        <div class="config-row" style="align-items:center; gap:6px;">
-          <label>Weapon</label>
-          <div style="display:flex; gap:5px;">
+        <div class="config-row config-card-section" id="p1WeaponRow">
+          <div class="section-head">
+            <label>Weapon</label>
+            <div class="wskin-strip">
             <button class="wskin-swatch active" data-pid="p1" data-wskin="default" data-cosid="wskin_default" onclick="setWeaponSkin('p1','default',this)" style="background:#888" title="Default"></button>
             <button class="wskin-swatch" data-pid="p1" data-wskin="fire"   data-cosid="wskin_fire"   onclick="if(isCosmeticUnlocked('wskin_fire'))setWeaponSkin('p1','fire',this);else openStore()"   style="background:#ff5500" title="Inferno (50⬡)"></button>
             <button class="wskin-swatch" data-pid="p1" data-wskin="ice"    data-cosid="wskin_ice"    onclick="if(isCosmeticUnlocked('wskin_ice'))setWeaponSkin('p1','ice',this);else openStore()"    style="background:#44aaff" title="Glacier (50⬡)"></button>
@@ -105,10 +126,8 @@
             <button class="wskin-swatch" data-pid="p1" data-wskin="gold"   data-cosid="wskin_gold"   onclick="if(isCosmeticUnlocked('wskin_gold'))setWeaponSkin('p1','gold',this);else openStore()"   style="background:#ffaa00" title="Gilded (75⬡)"></button>
             <button class="wskin-swatch" data-pid="p1" data-wskin="void"   data-cosid="wskin_void"   onclick="if(isCosmeticUnlocked('wskin_void'))setWeaponSkin('p1','void',this);else openStore()"   style="background:#aa00ff" title="Void (200⬡)"></button>
             <button class="wskin-swatch" data-pid="p1" data-wskin="neon"   data-cosid="wskin_neon"   onclick="if(isCosmeticUnlocked('wskin_neon'))setWeaponSkin('p1','neon',this);else openStore()"   style="background:#00ff88" title="Neon (125⬡)"></button>
+            </div>
           </div>
-        </div>
-        <div class="config-row config-card-section" id="p1WeaponRow">
-          <label>Weapon</label>
           <select id="p1Weapon" onchange="showDesc('p1','weapon',this.value); onWeaponChange('p1');" style="display:none">
             <option value="random">Random</option>
             <option value="sword">Sword</option>
@@ -155,25 +174,6 @@
           </select>
           <div class="sel-card-grid" id="p1ClassCards"></div>
         </div>
-        <div class="config-row">
-          <label>Hat</label>
-          <select id="p1Hat">
-            <option value="none">None</option>
-            <option value="cap">Cap</option>
-            <option value="crown">Crown</option>
-            <option value="wizard">Wizard</option>
-            <option value="headband">Headband</option>
-          </select>
-        </div>
-        <div class="config-row">
-          <label>Cape</label>
-          <select id="p1Cape">
-            <option value="none">None</option>
-            <option value="short">Short</option>
-            <option value="long">Long</option>
-            <option value="royal">Royal</option>
-          </select>
-        </div>
         <div class="config-row" id="p1DifficultyRow" style="display:none">
           <label>Difficulty</label>
           <select id="p1Difficulty">
@@ -204,19 +204,19 @@
     <!-- Instant-play entry point: first-time visitors should be able to fight
          without passing through story gating or the mode menus. -->
     <button id="quickFightBtn" onclick="quickFight()" style="display:block;margin:0 auto 14px;padding:13px 40px;background:linear-gradient(135deg,#c9411f,#f0842a);color:#fff;border:1px solid rgba(255,190,120,0.55);border-radius:9px;font-size:1.05rem;font-weight:800;letter-spacing:1.5px;cursor:pointer;box-shadow:0 4px 18px rgba(240,132,42,0.3);font-family:inherit;">
-      &#9876; FIGHT NOW
+      <svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-crossedswords"/></svg> FIGHT NOW
       <span style="display:block;font-size:0.62rem;font-weight:400;letter-spacing:0.5px;opacity:0.85;margin-top:3px;">instant match &mdash; no setup</span>
     </button>
 
     <!-- PATH SELECTION: two entry points -->
     <div class="path-cards" id="pathCards">
       <div class="path-card path-story" onclick="openStoryPath()">
-        <div class="path-card-icon">&#128214;</div>
+        <div class="path-card-icon"><svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-book"/></svg></div>
         <div class="path-card-title">Story</div>
         <div class="path-card-desc">Follow the fracture across worlds.<br>Chapters &middot; Skill Tree &middot; Shop</div>
       </div>
       <div class="path-card path-nexus" onclick="openSimulator()">
-        <div class="path-card-icon">&#9889;</div>
+        <div class="path-card-icon"><svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-bolt"/></svg></div>
         <div class="path-card-title">The Simulator</div>
         <div class="path-card-desc">Refight &middot; Versus &middot; Minigames &middot; More</div>
       </div>
@@ -227,17 +227,17 @@
       <button class="nexus-back" onclick="closeStoryPath()">&#8592; Back</button>
       <div class="path-cards path-cards-3">
         <div class="path-card path-chapters" onclick="openStoryMenuChapters()">
-          <div class="path-card-icon">&#128214;</div>
+          <div class="path-card-icon"><svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-book"/></svg></div>
           <div class="path-card-title">Chapters</div>
           <div class="path-card-desc">Continue your journey</div>
         </div>
         <div class="path-card path-shop" onclick="openStoryMenuShop()">
-          <div class="path-card-icon">&#127819;</div>
+          <div class="path-card-icon"><svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-coin"/></svg></div>
           <div class="path-card-title">Shop</div>
           <div class="path-card-desc">Spend tokens on abilities</div>
         </div>
         <div class="path-card path-skilltree" onclick="openSkillTreeModal()">
-          <div class="path-card-icon">&#127807;</div>
+          <div class="path-card-icon"><svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-sprout"/></svg></div>
           <div class="path-card-title">Skill Tree</div>
           <div class="path-card-desc">Spend EXP to grow stronger</div>
         </div>
@@ -253,12 +253,12 @@
       </div>
       <div class="path-cards">
         <div class="path-card path-refight" onclick="openRefight()">
-          <div class="path-card-icon">&#9876;</div>
+          <div class="path-card-icon"><svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-crossedswords"/></svg></div>
           <div class="path-card-title">Refight</div>
           <div class="path-card-desc">Boss encounters &middot; Cutscene viewer</div>
         </div>
         <div class="path-card path-grid" onclick="openTheGrid()">
-          <div class="path-card-icon">&#9889;</div>
+          <div class="path-card-icon"><svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-bolt"/></svg></div>
           <div class="path-card-title">The Grid</div>
           <div class="path-card-desc">Versus &middot; Online &middot; Minigames &middot; Arcade</div>
         </div>
@@ -271,12 +271,12 @@
       <p style="font-size:0.68rem;color:#553322;letter-spacing:1px;margin:0 0 10px;text-align:center;">Beat each encounter in Story Mode to unlock it here.</p>
       <div class="nexus-grid">
         <div class="path-card path-boss-fight" id="refight-creator">
-          <div class="path-card-icon">&#128293;</div>
+          <div class="path-card-icon"><svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-flame"/></svg></div>
           <div class="path-card-title">Creator</div>
           <div class="path-card-desc">Three-phase battle against the Creator</div>
         </div>
         <div class="path-card path-boss-fight" id="refight-trueform">
-          <div class="path-card-icon">&#9889;</div>
+          <div class="path-card-icon"><svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-bolt"/></svg></div>
           <div class="path-card-title">True Form</div>
           <div class="path-card-desc">Face what lies beneath the Creator</div>
         </div>
@@ -286,12 +286,12 @@
           <div class="path-card-desc">No limits. No mercy. No escape.</div>
         </div>
         <div class="path-card path-boss-fight path-axiom" id="modeAbsoluteAxiom" data-mode="absoluteaxiom" style="display:none">
-          <div class="path-card-icon">&#9888;</div>
+          <div class="path-card-icon"><svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-burst"/></svg></div>
           <div class="path-card-title" style="color:#ff6600;">ABSOLUTE AXIOM</div>
           <div class="path-card-desc">God. Architect. The Kernel.</div>
         </div>
         <div class="path-card path-gauntlet" id="refight-gauntlet">
-          <div class="path-card-icon">&#127942;</div>
+          <div class="path-card-icon"><svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-trophy"/></svg></div>
           <div class="path-card-title">Full Gauntlet</div>
           <div class="path-card-desc">Creator &rarr; True Form &rarr; Sovereign. All three. Back to back.</div>
         </div>
@@ -301,7 +301,7 @@
       </div>
       <!-- Unlockable: Boss Rush shortcut (shown by cheat/progression) -->
       <div class="mode-card nexus-bossrush-card" id="modeBossRush" style="display:none" onclick="startSimFight('boss')">
-        <div class="mode-name" style="color:#ff7744;">&#128293; Boss Rush</div>
+        <div class="mode-name" style="color:#ff7744;"><svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-flame"/></svg> Boss Rush</div>
         <div class="mode-desc" style="color:#884422;">Jump straight into the fire</div>
       </div>
       <!-- Hidden data-mode anchors so selectMode() can toggle active class -->
@@ -322,15 +322,15 @@
             <div class="mode-desc">Local or vs bot</div>
           </div>
           <div class="mode-card" id="modeOnline" data-mode="online" onclick="selectMode('online')">
-            <div class="mode-name" style="color:#00eeff">&#127760; Online</div>
+            <div class="mode-name" style="color:#00eeff"><svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-globe"/></svg> Online</div>
             <div class="mode-desc">Play against others</div>
           </div>
           <div class="mode-card" data-mode="battleroyale" onclick="selectMode('battleroyale')" style="border-color:rgba(255,160,50,0.4);">
-            <div class="mode-name" style="color:#ffaa33;">&#127942; Battle Royale</div>
+            <div class="mode-name" style="color:#ffaa33;"><svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-trophy"/></svg> Battle Royale</div>
             <div class="mode-desc" style="color:#aa6622;">100 players · zone · loot</div>
           </div>
           <div class="mode-card" id="modeStoryOnline" data-mode="storyonline" onclick="selectMode('storyonline')" style="display:none">
-            <div class="mode-name" style="color:#ffdd88">&#127760; Story Online</div>
+            <div class="mode-name" style="color:#ffdd88"><svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-globe"/></svg> Story Online</div>
             <div class="mode-desc" style="color:#aa9944">Cross-world multiplayer</div>
           </div>
         </div>
@@ -347,11 +347,11 @@
             <div class="mode-desc">Survival · KotH · Chaos</div>
           </div>
           <div class="mode-card" onclick="openDesigner()" style="border-color:rgba(100,200,255,0.25);">
-            <div class="mode-name" style="color:#88ccff;">&#128295; Creator</div>
+            <div class="mode-name" style="color:#88ccff;"><svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-wrench"/></svg> Creator</div>
             <div class="mode-desc">Map &amp; Weapon Studio</div>
           </div>
           <div class="mode-card" id="modeCompleteRandom" data-mode="completerandom" onclick="selectMode('completerandom')" style="display:none">
-            <div class="mode-name" style="color:#ff9944">&#127922; Complete Random</div>
+            <div class="mode-name" style="color:#ff9944"><svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-dice"/></svg> Complete Random</div>
             <div class="mode-desc" style="color:#aa7733">New weapon &amp; class every death</div>
           </div>
         </div>
@@ -363,24 +363,24 @@
     <!-- FIRST-RUN TUTORIAL OFFER — shown once, dismissed forever after -->
     <div id="tutorialPrompt" style="display:none;align-items:center;justify-content:center;gap:12px;flex-wrap:wrap;margin:10px auto 4px;max-width:560px;padding:12px 16px;background:rgba(10,30,55,0.85);border:1px solid #3fb6ff;border-radius:10px;">
       <span style="color:#e8f4ff;font-size:0.86rem;">New here? Learn the controls in about a minute.</span>
-      <button class="home-nav-btn" style="border-color:#3fb6ff;color:#9fe0ff;" onclick="startTutorial()">&#127891; Play Tutorial</button>
+      <button class="home-nav-btn" style="border-color:#3fb6ff;color:#9fe0ff;" onclick="startTutorial()"><svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-cap"/></svg> Play Tutorial</button>
       <button class="home-nav-btn" style="opacity:0.7;" onclick="skipTutorial()">No thanks</button>
     </div>
 
     <!-- HOME QUICK NAV -->
     <div class="home-quicknav">
-      <button class="home-nav-btn" onclick="startTutorial()" title="Learn movement, attacking, blocking, abilities and supers">&#127891; Tutorial</button>
-      <button id="accountsSavesBtn" class="home-nav-btn" onclick="openAccountsModal()" title="Open account, local save, and cloud sync settings">&#9729; Account &amp; Saves</button>
-      <button class="home-nav-btn" onclick="openStore()">&#127811; Store <span id="coinDisplay" style="color:#ffdd44;font-weight:bold;font-size:0.8em;"></span></button>
-      <button class="home-nav-btn" onclick="openSettingsModal()">&#9881; Settings</button>
-      <button class="home-nav-btn" onclick="openCommunityModal()">&#128172; Community</button>
-      <button class="home-nav-btn" onclick="openReplayBrowser()" title="Browse and watch saved replays">&#9654; Replays</button>
-      <button id="cutsceneTheaterBtn" class="home-nav-btn" style="display:none" onclick="openCutsceneTheater()" title="Rewatch any cinematic, finisher, or domain">&#127916; Cutscenes</button>
+      <button class="home-nav-btn" onclick="startTutorial()" title="Learn movement, attacking, blocking, abilities and supers"><svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-cap"/></svg> Tutorial</button>
+      <button id="accountsSavesBtn" class="home-nav-btn" onclick="openAccountsModal()" title="Open account, local save, and cloud sync settings"><svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-user"/></svg> Account &amp; Saves</button>
+      <button class="home-nav-btn" onclick="openStore()"><svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-coin"/></svg> Store <span id="coinDisplay" style="color:#ffdd44;font-weight:bold;font-size:0.8em;"></span></button>
+      <button class="home-nav-btn" onclick="openSettingsModal()"><svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-gear"/></svg> Settings</button>
+      <button class="home-nav-btn" onclick="openCommunityModal()"><svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-chat"/></svg> Community</button>
+      <button class="home-nav-btn" onclick="openReplayBrowser()" title="Browse and watch saved replays"><svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-play"/></svg> Replays</button>
+      <button id="cutsceneTheaterBtn" class="home-nav-btn" style="display:none" onclick="openCutsceneTheater()" title="Rewatch any cinematic, finisher, or domain"><svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-film"/></svg> Cutscenes</button>
     </div>
 
     <!-- TRUE FORM HINT — hidden once unlocked -->
     <div id="trueFormHint" style="text-align:center;margin:0;font-size:0.68rem;color:#886699;letter-spacing:1px;opacity:0.8;overflow:visible;">
-      &#128274; <em>A secret power lies dormant... beat the boss to uncover it.</em>
+      <svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-lock"/></svg> <em>A secret power lies dormant... beat the boss to uncover it.</em>
     </div>
     </div><!-- /#menuHomeContent -->
 
@@ -396,19 +396,19 @@
         <button id="bpBtn2" class="btn" onclick="setBossPlayers(2)">2 Players</button>
       </div>
       <div id="completeRandomRow" style="display:none; gap:8px; align-items:center; margin-top:8px;">
-        <span style="color:#ffbb66; font-size:0.78rem;">1v1 Modifier:</span>
-        <button id="completeRandomBtn" class="btn" onclick="toggleCompleteRandom()">🎲 Complete Random: OFF</button>
+        <span class="modifier-label">1v1 Modifier</span>
+        <button id="completeRandomBtn" class="btn" onclick="toggleCompleteRandom()"><svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-dice"/></svg> Complete Random: OFF</button>
       </div>
       <!-- Online multiplayer connection panel (PeerJS — no server required) -->
       <div id="onlinePanel" style="display:none; flex-direction:column; gap:8px; margin-top:10px; padding:10px; background:rgba(0,100,200,0.15); border-radius:8px; border:1px solid rgba(0,150,255,0.3);">
         <div style="color:#88ccff; font-size:0.72rem; line-height:1.4;">
-          🌐 <b>Cross-network play</b> — pick any room code, share it with your opponent. First to join is P1.
+          <svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-globe"/></svg> <b>Cross-network play</b> — pick any room code, share it with your opponent. First to join is P1.
         </div>
         <!-- Room type toggle: Public vs Private -->
         <div style="display:flex; gap:6px; align-items:center;">
           <span style="color:#88ccff; font-size:0.75rem;">Room Type:</span>
-          <button id="roomTypePublicBtn" class="btn active" onclick="setRoomType('public')" style="font-size:0.70rem;padding:3px 10px;">🌍 Public</button>
-          <button id="roomTypePrivateBtn" class="btn" onclick="setRoomType('private')" style="font-size:0.70rem;padding:3px 10px;">🔒 Private</button>
+          <button id="roomTypePublicBtn" class="btn active" onclick="setRoomType('public')" style="font-size:0.70rem;padding:3px 10px;"><svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-globe"/></svg> Public</button>
+          <button id="roomTypePrivateBtn" class="btn" onclick="setRoomType('private')" style="font-size:0.70rem;padding:3px 10px;"><svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-lock"/></svg> Private</button>
         </div>
         <div style="display:flex; gap:6px; align-items:center;">
           <label style="color:#88ccff; font-size:0.78rem; white-space:nowrap;">Room Code</label>
@@ -455,8 +455,8 @@
               <button class="btn active" data-onlinemg="survival" onclick="setOnlineMinigame('survival')" style="font-size:0.72rem;padding:3px 9px;">Survival</button>
               <button class="btn" data-onlinemg="koth" onclick="setOnlineMinigame('koth')" style="font-size:0.72rem;padding:3px 9px;">King of the Hill</button>
               <button class="btn" data-onlinemg="chaos" onclick="setOnlineMinigame('chaos')" style="font-size:0.72rem;padding:3px 9px;">Chaos Match</button>
-              <button class="btn" data-onlinemg="soccer" onclick="setOnlineMinigame('soccer')" style="font-size:0.72rem;padding:3px 9px;">⚽ Soccer</button>
-              <button class="btn" data-onlinemg="defense" onclick="setOnlineMinigame('defense')" style="font-size:0.72rem;padding:3px 9px;">🔷 Nexus Defense</button>
+              <button class="btn" data-onlinemg="soccer" onclick="setOnlineMinigame('soccer')" style="font-size:0.72rem;padding:3px 9px;"><svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-target"/></svg> Soccer</button>
+              <button class="btn" data-onlinemg="defense" onclick="setOnlineMinigame('defense')" style="font-size:0.72rem;padding:3px 9px;"><svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-target"/></svg> Nexus Defense</button>
             </div>
           </div>
           <!-- Lives selector -->
@@ -505,7 +505,7 @@
         <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
           <button class="btn" onclick="networkJoinRoom()" style="padding:6px 18px; font-size:0.8rem;">Connect</button>
           <button id="onlineStartBtn" class="btn" onclick="networkStartGame()" style="display:none; padding:6px 18px; font-size:0.8rem; background:rgba(0,200,80,0.25); border-color:rgba(0,255,100,0.5); color:#afffca;">▶ Start Game</button>
-          <button id="cgInviteBtn" class="btn" onclick="cgSdk.showInviteButton()" style="display:none; padding:6px 14px; font-size:0.8rem; background:rgba(0,150,255,0.2); border-color:rgba(0,180,255,0.5); color:#88ccff;">👥 Invite Friends</button>
+          <button id="cgInviteBtn" class="btn" onclick="cgSdk.showInviteButton()" style="display:none; padding:6px 14px; font-size:0.8rem; background:rgba(0,150,255,0.2); border-color:rgba(0,180,255,0.5); color:#88ccff;"><svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-users"/></svg> Invite Friends</button>
           <button class="btn" onclick="NetworkManager.disconnect()" style="padding:6px 12px; font-size:0.75rem; opacity:0.7;">Disconnect</button>
         </div>
       </div>
@@ -526,18 +526,18 @@
             <div class="mode-desc" style="font-size:0.72rem">1v1 with wild modifiers</div>
           </div>
           <div class="mode-card" id="mgCardSoccer" onclick="selectMinigame('soccer')" style="padding:8px 10px;font-size:0.82rem;">
-            <div class="mode-name" style="font-size:0.95rem">⚽ Soccer</div>
+            <div class="mode-name" style="font-size:0.95rem"><svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-target"/></svg> Soccer</div>
             <div class="mode-desc" style="font-size:0.72rem">Score goals, not damage</div>
           </div>
           <div class="mode-card" id="mgCardDefense" onclick="selectMinigame('defense')" style="padding:8px 10px;font-size:0.82rem;">
-            <div class="mode-name" style="font-size:0.95rem">🔷 Nexus Defense</div>
+            <div class="mode-name" style="font-size:0.95rem"><svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-target"/></svg> Nexus Defense</div>
             <div class="mode-desc" style="font-size:0.72rem">Protect the crystal from waves</div>
           </div>
         </div>
         <!-- Survival sub-options (only shown when survival is selected) -->
         <div id="survivalOptions" style="display:flex;flex-direction:column;gap:6px;margin-top:6px;padding:8px;background:rgba(255,255,255,0.05);border-radius:6px;border:1px solid rgba(255,255,255,0.1);">
           <div style="display:flex;gap:6px;flex-wrap:wrap;">
-            <button id="survModeTeam" class="btn active" style="flex:1;font-size:0.73rem;padding:4px 8px;" onclick="setSurvivalMode(true)">🤝 Team</button>
+            <button id="survModeTeam" class="btn active" style="flex:1;font-size:0.73rem;padding:4px 8px;" onclick="setSurvivalMode(true)"><svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-users"/></svg> Team</button>
             <button id="survModeComp" class="btn" style="flex:1;font-size:0.73rem;padding:4px 8px;" onclick="setSurvivalMode(false)">⚔ Competitive</button>
           </div>
           <div id="survTeamOptions" style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
@@ -561,29 +561,29 @@
       <div style="display:flex;gap:6px;align-items:center;">
         <select id="arenaSelect" onchange="selectArena(this.value)" style="flex:1;background:rgba(10,10,30,0.85);color:#c8d8ff;border:1px solid rgba(100,140,255,0.35);border-radius:8px;padding:6px 10px;font-size:0.82rem;outline:none;cursor:pointer;">
           <optgroup label="─── Classic ───────────">
-            <option value="grass">🌿 Grass Plains</option>
-            <option value="city">🌆 City Rooftops</option>
-            <option value="space">🌌 Outer Space</option>
-            <option value="lava">🌋 Lava Fields</option>
-            <option value="forest">🌲 Forest</option>
-            <option value="ice">❄️ Ice Tundra</option>
-            <option value="ruins">🏛 Ancient Ruins</option>
+            <option value="grass">Grass Plains</option>
+            <option value="city">City Rooftops</option>
+            <option value="space">Outer Space</option>
+            <option value="lava">Lava Fields</option>
+            <option value="forest">Forest</option>
+            <option value="ice">Ice Tundra</option>
+            <option value="ruins">Ancient Ruins</option>
           </optgroup>
           <optgroup label="─── New ────────────────">
-            <option value="cave">🕯 Crystal Cave</option>
-            <option value="volcano">🌋 Volcano Core</option>
-            <option value="underwater">🌊 Ocean Floor</option>
-            <option value="colosseum">⚔️ Roman Colosseum</option>
-            <option value="clouds">☁️ Cloud Kingdom</option>
-            <option value="mushroom">🍄 Mushroom Realm</option>
-            <option value="haunted">👻 Haunted Mansion</option>
-            <option value="cyberpunk">⚡ Cyberpunk City</option>
-            <option value="neonGrid">💾 Neon Grid</option>
-            <option value="mirror">🪞 Mirror Dimension</option>
-            <option value="desert">🏜️ Desert Dunes</option>
+            <option value="cave">Crystal Cave</option>
+            <option value="volcano">Volcano Core</option>
+            <option value="underwater">Ocean Floor</option>
+            <option value="colosseum">Roman Colosseum</option>
+            <option value="clouds">Cloud Kingdom</option>
+            <option value="mushroom">Mushroom Realm</option>
+            <option value="haunted">Haunted Mansion</option>
+            <option value="cyberpunk">Cyberpunk City</option>
+            <option value="neonGrid">Neon Grid</option>
+            <option value="mirror">Mirror Dimension</option>
+            <option value="desert">Desert Dunes</option>
           </optgroup>
           <optgroup label="─── Special ────────────">
-            <option value="random">🎲 Random</option>
+            <option value="random">Random</option>
           </optgroup>
         </select>
       </div>
@@ -626,7 +626,7 @@
     <div id="chaosModeRow" style="display:none;align-items:center;gap:10px;width:100%;max-width:600px;">
       <button id="chaosModeBtn" class="btn" onclick="toggleChaosMode()"
         style="flex:1;background:rgba(20,10,40,0.85);border:1px solid rgba(160,60,255,0.4);color:#cc88ff;font-size:0.8rem;padding:6px 10px;border-radius:8px;cursor:pointer;transition:all 0.2s;">
-        ⚡ Chaos Mode: OFF
+        <svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-bolt"/></svg> Chaos Mode: OFF
       </button>
       <label style="color:#9988bb;font-size:0.75rem;white-space:nowrap;">Kill Target:
         <input id="chaosKillTargetInput" type="number" min="5" max="100" value="15"
@@ -637,7 +637,7 @@
 
     <!-- SETTINGS shortcut — opens the settings modal -->
     <div class="settings-section">
-      <button class="btn settings-toggle" onclick="openSettingsModal()">&#9881; Settings <span id="settingsVersionLabel" style="font-size:0.65rem;color:#334488;letter-spacing:1px;"></span></button>
+      <button class="btn settings-toggle" onclick="openSettingsModal()"><svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-gear"/></svg> Settings <span id="settingsVersionLabel" style="font-size:0.65rem;color:#334488;letter-spacing:1px;"></span></button>
     </div>
 
     <!-- START + FULLSCREEN row -->
@@ -664,16 +664,16 @@
     <!-- Footer row — condensed -->
     <div class="menu-footer-row">
       <button onclick="showAchievementsModal()" id="homeAchievementsBtn" class="footer-pill">
-        &#127942; Achievements
+        <svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-trophy"/></svg> Achievements
       </button>
       <button onclick="showChangelogModal()" class="footer-pill">
-        &#128203; Updates <span id="homeVersionBadge" style="font-size:0.65rem;color:#4466bb;"></span>
+        <svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-clipboard"/></svg> Updates <span id="homeVersionBadge" style="font-size:0.65rem;color:#4466bb;"></span>
       </button>
       <button onclick="openCommunityModal()" class="footer-pill" style="color:#9bb0ff;border-color:rgba(88,101,242,0.35);">
-        &#128172; Community
+        <svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-chat"/></svg> Community
       </button>
       <button onclick="openGuidebook()" class="footer-pill" style="color:#88ffcc;border-color:rgba(80,255,180,0.35);" title="Guidebook — controls, tips, and Fighters Log">
-        &#128218; Guidebook
+        <svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-bookopen"/></svg> Guidebook
       </button>
     </div>
   </div><!-- /.menu-center -->
@@ -687,14 +687,34 @@
         <span class="expand-arrow">▾</span>
       </div>
       <div class="config-body">
-        <canvas id="p2Preview" class="player-preview-canvas" width="120" height="110"></canvas>
-        <div class="config-row" id="p2ColorRow">
-          <label>Color</label>
-          <input type="color" id="p2Color" value="#ff4455">
+        <div class="preview-stage">
+          <canvas id="p2Preview" class="player-preview-canvas" width="120" height="110"></canvas>
+          <div class="stage-side" id="p2HatRow">
+          <div class="dual-cell">
+            <label>Hat</label>
+            <select id="p2Hat">
+              <option value="none">None</option>
+              <option value="cap">Cap</option>
+              <option value="crown">Crown</option>
+              <option value="wizard">Wizard</option>
+              <option value="headband">Headband</option>
+            </select>
+          </div>
+          <div class="dual-cell">
+            <label>Cape</label>
+            <select id="p2Cape">
+              <option value="none">None</option>
+              <option value="short">Short</option>
+              <option value="long">Long</option>
+              <option value="royal">Royal</option>
+            </select>
+          </div>
+          </div>
         </div>
-        <div class="config-row" id="p2SkinRow" style="align-items:center; gap:6px;">
+        <div class="config-row" id="p2ColorRow" style="align-items:center; gap:6px;">
           <label>Skin</label>
-          <div style="display:flex; gap:5px;">
+          <input type="color" id="p2Color" value="#ff4455">
+          <div id="p2SkinRow" class="swatch-strip" style="display:flex; gap:5px;">
             <button class="skin-swatch active" data-pid="p2" data-skin="default" data-cosid="skin_default" onclick="setSkin('p2','default',this)" style="background:#ff4455" title="Default"></button>
             <button class="skin-swatch" data-pid="p2" data-skin="fire"   data-cosid="skin_fire"   onclick="setSkin('p2','fire',this)"   style="background:#ff4400" title="Fire"></button>
             <button class="skin-swatch" data-pid="p2" data-skin="ice"    data-cosid="skin_ice"    onclick="setSkin('p2','ice',this)"    style="background:#44aaff" title="Ice"></button>
@@ -704,9 +724,10 @@
             <button class="skin-swatch" data-pid="p2" data-skin="neon"   data-cosid="skin_neon"   onclick="if(isCosmeticUnlocked('skin_neon'))setSkin('p2','neon',this);else openStore()" style="background:#00ff88" title="Neon (100⬡)"></button>
           </div>
         </div>
-        <div class="config-row" id="p2WeaponSkinRow" style="align-items:center; gap:6px;">
-          <label>Weapon</label>
-          <div style="display:flex; gap:5px;">
+        <div class="config-row config-card-section" id="p2WeaponRow">
+          <div class="section-head">
+            <label>Weapon</label>
+            <div class="wskin-strip">
             <button class="wskin-swatch active" data-pid="p2" data-wskin="default" data-cosid="wskin_default" onclick="setWeaponSkin('p2','default',this)" style="background:#888" title="Default"></button>
             <button class="wskin-swatch" data-pid="p2" data-wskin="fire"   data-cosid="wskin_fire"   onclick="if(isCosmeticUnlocked('wskin_fire'))setWeaponSkin('p2','fire',this);else openStore()"   style="background:#ff5500" title="Inferno (50⬡)"></button>
             <button class="wskin-swatch" data-pid="p2" data-wskin="ice"    data-cosid="wskin_ice"    onclick="if(isCosmeticUnlocked('wskin_ice'))setWeaponSkin('p2','ice',this);else openStore()"    style="background:#44aaff" title="Glacier (50⬡)"></button>
@@ -714,10 +735,8 @@
             <button class="wskin-swatch" data-pid="p2" data-wskin="gold"   data-cosid="wskin_gold"   onclick="if(isCosmeticUnlocked('wskin_gold'))setWeaponSkin('p2','gold',this);else openStore()"   style="background:#ffaa00" title="Gilded (75⬡)"></button>
             <button class="wskin-swatch" data-pid="p2" data-wskin="void"   data-cosid="wskin_void"   onclick="if(isCosmeticUnlocked('wskin_void'))setWeaponSkin('p2','void',this);else openStore()"   style="background:#aa00ff" title="Void (200⬡)"></button>
             <button class="wskin-swatch" data-pid="p2" data-wskin="neon"   data-cosid="wskin_neon"   onclick="if(isCosmeticUnlocked('wskin_neon'))setWeaponSkin('p2','neon',this);else openStore()"   style="background:#00ff88" title="Neon (125⬡)"></button>
+            </div>
           </div>
-        </div>
-        <div class="config-row config-card-section" id="p2WeaponRow">
-          <label>Weapon</label>
           <select id="p2Weapon" onchange="showDesc('p2','weapon',this.value); onWeaponChange('p2');" style="display:none">
             <option value="random">Random</option>
             <option value="sword">Sword</option>
@@ -767,25 +786,6 @@
         <div class="selection-desc" id="p2Desc" style="display:none">
           <div class="desc-title" id="p2DescTitle"></div>
           <div class="desc-body"  id="p2DescBody"></div>
-        </div>
-        <div class="config-row" id="p2HatRow">
-          <label>Hat</label>
-          <select id="p2Hat">
-            <option value="none">None</option>
-            <option value="cap">Cap</option>
-            <option value="crown">Crown</option>
-            <option value="wizard">Wizard</option>
-            <option value="headband">Headband</option>
-          </select>
-        </div>
-        <div class="config-row" id="p2CapeRow">
-          <label>Cape</label>
-          <select id="p2Cape">
-            <option value="none">None</option>
-            <option value="short">Short</option>
-            <option value="long">Long</option>
-            <option value="royal">Royal</option>
-          </select>
         </div>
         <div class="config-row" id="p2DifficultyRow" style="display:none">
           <label>Difficulty</label>
@@ -943,8 +943,8 @@
     <button class="btn training-btn" onclick="trainingCmd('giveSuper')" title="Give Super">Super</button>
     <button class="btn training-btn" onclick="trainingCmd('clearEnemies')" title="Clear enemies">Clear</button>
     <div style="width:1px; background:rgba(255,255,255,0.18); align-self:stretch; margin:0 2px;"></div>
-    <button class="btn training-btn" onclick="trainingDesignerOpen?closeTrainingDesigner():openTrainingDesigner()" title="Live Map Editor (F4)" style="font-size:0.75rem; padding:4px 9px;">🛠 Map</button>
-    <button class="btn training-btn" onclick="toggleTrainingPanel()" title="All commands" style="font-size:1rem; padding:4px 9px; letter-spacing:0;">⚙</button>
+    <button class="btn training-btn" onclick="trainingDesignerOpen?closeTrainingDesigner():openTrainingDesigner()" title="Live Map Editor (F4)" style="font-size:0.75rem; padding:4px 9px;"><svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-wrench"/></svg> Map</button>
+    <button class="btn training-btn" onclick="toggleTrainingPanel()" title="All commands" style="font-size:1rem; padding:4px 9px; letter-spacing:0;"><svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-gear"/></svg></button>
   </div>
 </div>
 
@@ -1002,7 +1002,7 @@
       <button id="replayTabBossBtn"
         onclick="switchReplayTab('boss')"
         style="background:none;border:1px solid rgba(80,100,140,0.3);border-radius:6px;color:#556677;padding:4px 14px;cursor:pointer;font-size:11px;letter-spacing:.5px">
-        &#9888; Boss Fights
+        <svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-burst"/></svg> Boss Fights
       </button>
     </div>
 
@@ -1041,7 +1041,7 @@
         </div>
         <button onclick="closeReplayBrowser(); openCutsceneTheater();"
           style="flex-shrink:0;background:rgba(0,90,200,0.2);border:1px solid rgba(80,160,255,0.5);border-radius:6px;color:#88bbff;padding:5px 14px;cursor:pointer;font-size:11px;letter-spacing:.5px">
-          &#127916; Open
+          <svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-film"/></svg> Open
         </button>
       </div>
 
@@ -1108,13 +1108,13 @@
 <div id="achievementsModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.92); z-index:9999; align-items:center; justify-content:center; font-family:'Segoe UI',Arial,sans-serif; color:#dde4ff;">
   <div style="width:min(900px,96vw); height:min(560px,92vh); display:flex; flex-direction:column; background:#08061a; border:1px solid rgba(255,200,0,0.3); border-radius:14px; overflow:hidden; box-shadow:0 0 60px rgba(255,200,0,0.08);">
     <div style="display:flex; justify-content:space-between; align-items:center; padding:11px 18px; border-bottom:1px solid rgba(255,200,0,0.18); flex-shrink:0;">
-      <h2 style="color:#ffcc00; margin:0; font-size:1rem; letter-spacing:1px;">🏆 ACHIEVEMENTS &nbsp;<span id="achCount" style="font-size:0.7rem; color:#666; font-weight:normal;"></span></h2>
+      <h2 style="color:#ffcc00; margin:0; font-size:1rem; letter-spacing:1px;"><svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-trophy"/></svg> ACHIEVEMENTS &nbsp;<span id="achCount" style="font-size:0.7rem; color:#666; font-weight:normal;"></span></h2>
       <button onclick="document.getElementById('achievementsModal').style.display='none'" style="background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.15);border-radius:7px;color:#dde4ff;padding:4px 14px;cursor:pointer;font-size:0.8rem;">Close</button>
     </div>
     <div style="display:flex; flex:1; overflow:hidden;">
       <div id="achievementsGrid" style="width:54%; padding:10px; display:grid; grid-template-columns:repeat(8,1fr); gap:5px; align-content:start; overflow-y:auto; border-right:1px solid rgba(255,200,0,0.1);"></div>
       <div id="achDetail" style="flex:1; padding:24px 20px; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; gap:10px;">
-        <div id="achDetailIcon" style="font-size:52px; line-height:1;">🏆</div>
+        <div id="achDetailIcon" style="font-size:52px; line-height:1;"><svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-trophy"/></svg></div>
         <div id="achDetailTitle" style="font-size:1.05rem; font-weight:700; color:#ffcc00;">Select an achievement</div>
         <div id="achDetailDesc" style="font-size:0.78rem; color:#aaa; line-height:1.4;"></div>
         <div id="achDetailHint" style="font-size:0.73rem; color:#7799bb; font-style:italic; line-height:1.4;"></div>
@@ -1303,13 +1303,13 @@
   <div class="smb-modal-box" style="width:min(640px,97vw);max-height:90vh;overflow-y:auto;padding:0;">
     <!-- Header -->
     <div style="display:flex;align-items:center;justify-content:space-between;padding:18px 22px 12px;border-bottom:1px solid rgba(255,255,255,0.1);">
-      <span style="font-size:1.2rem;font-weight:700;letter-spacing:2px;color:#88ffcc;">&#128218; GUIDEBOOK</span>
+      <span style="font-size:1.2rem;font-weight:700;letter-spacing:2px;color:#88ffcc;"><svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-bookopen"/></svg> GUIDEBOOK</span>
       <button onclick="closeGuidebook()" style="background:none;border:none;color:#aaa;font-size:1.3rem;cursor:pointer;line-height:1;">&times;</button>
     </div>
     <!-- Tab bar -->
     <div style="display:flex;gap:0;border-bottom:1px solid rgba(255,255,255,0.1);">
-      <button id="gbTab1" onclick="switchGbTab(1)" class="gb-tab gb-tab-active">&#127918; How to Play</button>
-      <button id="gbTab2" onclick="switchGbTab(2)" class="gb-tab">&#128196; Fighters Log</button>
+      <button id="gbTab1" onclick="switchGbTab(1)" class="gb-tab gb-tab-active"><svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-target"/></svg> How to Play</button>
+      <button id="gbTab2" onclick="switchGbTab(2)" class="gb-tab"><svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-clipboard"/></svg> Fighters Log</button>
     </div>
     <!-- How to Play section -->
     <div id="gbSection1" style="padding:18px 22px 22px;">
@@ -1373,7 +1373,7 @@
 <div id="settingsModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.88);z-index:10000;align-items:center;justify-content:center;" onclick="if(event.target===this)closeSettingsModal()">
   <div class="smb-modal-box" style="width:min(560px,96vw);max-height:90vh;overflow-y:auto;">
     <div class="smb-modal-header">
-      <span>&#9881; SETTINGS</span>
+      <span><svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-gear"/></svg> SETTINGS</span>
       <button class="smb-modal-close" onclick="closeSettingsModal()">&#x2715;</button>
     </div>
 
@@ -1412,7 +1412,7 @@
       </div>
       <!-- Performance mode -->
       <div style="margin-top:8px;">
-        <button id="perfModeBtn" class="btn settings-toggle" onclick="togglePerformanceMode()" style="color:#88ffaa;border-color:rgba(80,255,120,0.4);" title="Disable all visual effects for max FPS">&#9889; Performance Mode: Off</button>
+        <button id="perfModeBtn" class="btn settings-toggle" onclick="togglePerformanceMode()" style="color:#88ffaa;border-color:rgba(80,255,120,0.4);" title="Disable all visual effects for max FPS"><svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-bolt"/></svg> Performance Mode: Off</button>
       </div>
     </div>
 
@@ -1420,12 +1420,12 @@
     <div class="settings-modal-section">
       <div class="settings-modal-label">Audio</div>
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-        <button id="sfxMuteBtn" class="btn settings-toggle" onclick="toggleSfxMute()" style="min-width:130px;">&#128266; Sound: On</button>
+        <button id="sfxMuteBtn" class="btn settings-toggle" onclick="toggleSfxMute()" style="min-width:130px;"><svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-chat"/></svg> Sound: On</button>
         <label style="font-size:0.78rem;color:#aaa;display:flex;align-items:center;gap:6px;">
           Vol <input type="range" min="0" max="1" step="0.05" value="0.35" style="width:80px;accent-color:#8866ff;"
             oninput="setSfxVolume(parseFloat(this.value))">
         </label>
-        <button id="musicMuteBtn" class="btn settings-toggle" onclick="MusicManager.toggle();this.textContent=MusicManager.isMuted()?'&#127925; Music: Off':'&#127925; Music: On'" style="min-width:130px;">&#127925; Music: On</button>
+        <button id="musicMuteBtn" class="btn settings-toggle" onclick="MusicManager.toggle();this.textContent=MusicManager.isMuted()?'<svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-play"/></svg> Music: Off':'<svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-play"/></svg> Music: On'" style="min-width:130px;"><svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-play"/></svg> Music: On</button>
       </div>
       <label class="setting-item" style="margin-top:8px;">
         <input type="checkbox" id="settingStoryVoice" checked onchange="updateSettings()">
@@ -1437,13 +1437,13 @@
     <div class="settings-modal-section">
       <div class="settings-modal-label">Account &amp; Data</div>
       <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px;">
-        <button class="btn settings-toggle" onclick="showAchievementsModal()" style="color:#ffcc00;border-color:rgba(255,200,0,0.4);">&#127942; Achievements</button>
+        <button class="btn settings-toggle" onclick="showAchievementsModal()" style="color:#ffcc00;border-color:rgba(255,200,0,0.4);"><svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-trophy"/></svg> Achievements</button>
         <button class="btn settings-toggle" onclick="toggleStatsLog()">Stats Log</button>
       </div>
       <div style="display:flex;gap:6px;flex-wrap:wrap;">
-        <button class="btn settings-toggle" onclick="exportSave()" style="color:#88ffcc;border-color:rgba(80,255,180,0.4);" title="Copy save to clipboard">&#128203; Copy Save</button>
-        <button class="btn settings-toggle" onclick="downloadSave()" style="color:#88ffcc;border-color:rgba(80,255,180,0.4);" title="Download save as file">&#128190; Download Save</button>
-        <button class="btn settings-toggle" onclick="openImportSaveModal()" style="color:#88ccff;border-color:rgba(80,160,255,0.4);" title="Paste a save string">&#128194; Import Save</button>
+        <button class="btn settings-toggle" onclick="exportSave()" style="color:#88ffcc;border-color:rgba(80,255,180,0.4);" title="Copy save to clipboard"><svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-clipboard"/></svg> Copy Save</button>
+        <button class="btn settings-toggle" onclick="downloadSave()" style="color:#88ffcc;border-color:rgba(80,255,180,0.4);" title="Download save as file"><svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-clipboard"/></svg> Download Save</button>
+        <button class="btn settings-toggle" onclick="openImportSaveModal()" style="color:#88ccff;border-color:rgba(80,160,255,0.4);" title="Paste a save string"><svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-book"/></svg> Import Save</button>
       </div>
     </div>
 
@@ -1493,13 +1493,13 @@
 <div id="communityModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.88);z-index:10000;align-items:center;justify-content:center;" onclick="if(event.target===this)closeCommunityModal()">
   <div class="smb-modal-box" style="width:min(480px,96vw);">
     <div class="smb-modal-header">
-      <span>&#128172; COMMUNITY</span>
+      <span><svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-chat"/></svg> COMMUNITY</span>
       <button class="smb-modal-close" onclick="closeCommunityModal()">&#x2715;</button>
     </div>
 
     <!-- Discord -->
     <div class="community-card" style="background:rgba(88,101,242,0.15);border-color:rgba(88,101,242,0.45);">
-      <div class="community-card-icon" style="color:#7289da;">&#128172;</div>
+      <div class="community-card-icon" style="color:#7289da;"><svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-chat"/></svg></div>
       <div class="community-card-body">
         <div class="community-card-title">Join the Discord</div>
         <div class="community-card-desc">Chat with other players, share clips, report bugs, and get early patch notes.</div>
@@ -1509,7 +1509,7 @@
 
     <!-- Patch Notes -->
     <div class="community-card" style="margin-top:10px;background:rgba(0,212,255,0.08);border-color:rgba(0,212,255,0.25);">
-      <div class="community-card-icon" style="color:#00d4ff;">&#128203;</div>
+      <div class="community-card-icon" style="color:#00d4ff;"><svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-clipboard"/></svg></div>
       <div class="community-card-body">
         <div class="community-card-title">Patch Notes</div>
         <div class="community-card-desc">See what changed in the latest update.</div>
@@ -1519,7 +1519,7 @@
 
     <!-- Events / Suggest -->
     <div class="community-card" style="margin-top:10px;background:rgba(255,200,0,0.07);border-color:rgba(255,200,0,0.2);">
-      <div class="community-card-icon" style="color:#ffcc00;">&#128640;</div>
+      <div class="community-card-icon" style="color:#ffcc00;"><svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-bolt"/></svg></div>
       <div class="community-card-body">
         <div class="community-card-title">Suggest a Feature</div>
         <div class="community-card-desc">Have an idea? Send it our way and help shape the game.</div>
@@ -1529,7 +1529,7 @@
 
     <!-- Bug Report -->
     <div class="community-card" style="margin-top:10px;background:rgba(255,80,80,0.07);border-color:rgba(255,80,80,0.2);">
-      <div class="community-card-icon" style="color:#ff6666;">&#128027;</div>
+      <div class="community-card-icon" style="color:#ff6666;"><svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-wrench"/></svg></div>
       <div class="community-card-body">
         <div class="community-card-title">Report a Bug</div>
         <div class="community-card-desc">Found a problem? Let us know so we can fix it fast.</div>
@@ -1544,12 +1544,12 @@
      ============================================================ -->
 <div id="saveProgressModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.92);z-index:10001;align-items:center;justify-content:center;">
   <div class="smb-modal-box save-progress-box">
-    <div style="font-size:2rem;margin-bottom:6px;">&#127381;</div>
+    <div style="font-size:2rem;margin-bottom:6px;"><svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-burst"/></svg></div>
     <div class="save-progress-title">Chapter 1 Complete!</div>
     <div class="save-progress-sub">Save Your Progress Forever</div>
     <div class="save-progress-body">Create a free account to keep your saves, unlocks, and story progress across every device — no download needed.</div>
     <div style="display:flex;flex-direction:column;gap:10px;margin-top:20px;">
-      <button class="btn btn-start" onclick="closeSaveProgressModal();openAccountsModal();" style="font-size:0.95rem;padding:12px 24px;letter-spacing:2px;">&#9729; Create Free Account</button>
+      <button class="btn btn-start" onclick="closeSaveProgressModal();openAccountsModal();" style="font-size:0.95rem;padding:12px 24px;letter-spacing:2px;"><svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-user"/></svg> Create Free Account</button>
       <button class="btn" onclick="closeSaveProgressModal();" style="background:rgba(255,255,255,0.06);border-color:rgba(255,255,255,0.15);color:#9aa0c0;font-size:0.8rem;padding:8px 20px;">Continue as Guest</button>
     </div>
     <div style="margin-top:12px;font-size:0.65rem;color:rgba(150,160,200,0.4);letter-spacing:1px;">Your local progress is always saved. An account adds cloud backup.</div>
@@ -1565,6 +1565,7 @@
   <!-- Error boundary — must be FIRST so it catches all other module errors -->
   <script src="./js/smb-errorboundary.js?v=4.0.2"></script>
   <!-- Global state, canvas setup -->
+  <script src="./js/smb-icons.js?v=4.0.66"></script>
   <script src="./js/smb-globals.js?v=4.0.39"></script>
   <!-- CrazyGames SDK wrapper — must follow smb-globals.js -->
   <script src="./js/smb-crazygames.js?v=4.0.21"></script>
@@ -1668,7 +1669,7 @@
   <script src="./js/smb-trueform-ending-update.js?v=4.0.2"></script>
   <script src="./js/smb-trueform-ending-draw.js?v=4.0.2"></script>
   <!-- Drawing, game state, HUD, visual effects -->
-  <script src="./js/rendering/smb-drawing-arenas.js?v=4.0.48"></script>
+  <script src="./js/rendering/smb-drawing-arenas.js?v=4.0.67"></script>
   <script src="./js/rendering/smb-drawing-bg.js?v=4.0.5"></script>
   <script src="./js/rendering/smb-drawing-effects.js?v=4.0.2"></script>
   <script src="./js/rendering/smb-drawing-scenes.js?v=4.0.2"></script>
@@ -1694,8 +1695,8 @@
   <script src="./js/smb-input.js?v=4.0.5"></script>
   <script src="./js/smb-cheats.js?v=4.0.45"></script>
   <!-- Menu UI, startGame, tutorial -->
-  <script src="./js/smb-menu-ui.js?v=4.0.41"></script>
-  <script src="./js/smb-menu-select.js?v=4.0.23"></script>
+  <script src="./js/smb-menu-ui.js?v=4.0.67"></script>
+  <script src="./js/smb-menu-select.js?v=4.0.62"></script>
   <script src="./js/smb-menu-config.js?v=4.0.2"></script>
   <script src="./js/smb-menu-spawn.js?v=4.0.8"></script>
   <script src="./js/smb-menu-startcore.js?v=4.0.24"></script>
@@ -1706,7 +1707,7 @@
   <!-- Must load before smb-online.js, smb-accounts.js, and smb-admin.js -->
   <script src="./js/smb-state.js?v=4.0.2"></script>
   <!-- Supabase auth + cloud save bridge -->
-  <script src="./js/smb-supabase.js?v=4.0.2"></script>
+  <script src="./js/smb-supabase.js?v=4.0.62"></script>
   <!-- Lobby presence layer — wraps NetworkManager with lobby API + UI -->
   <script src="./js/smb-online.js?v=4.0.2"></script>
   <!-- Developer debug toolkit (loaded last so all systems exist) -->
@@ -1716,7 +1717,7 @@
   <script src="./js/smb-sov-advisor.js?v=4.0.30"></script>
   <script src="./js/smb-debug-jump.js?v=4.0.22"></script>
   <!-- Account system — must load before smb-save.js so getSaveKey() works -->
-  <script src="./js/smb-accounts.js?v=4.0.21"></script>
+  <script src="./js/smb-accounts.js?v=4.0.62"></script>
   <!-- Save / Export / Import system -->
   <script src="./js/smb-save.js?v=4.0.6"></script>
   <!-- Admin control panel — F9 to toggle; only visible for accounts in ADMIN_IDS -->
@@ -1800,7 +1801,7 @@
   <script src="./js/smb-tutorial.js?v=4.0.23"></script>
   <!-- Replay system — recording, IndexedDB storage, download, and viewer -->
   <script src="./js/smb-replay.js?v=4.0.36"></script>
-  <script src="./js/smb-ui-controls.js?v=4.0.56"></script>
+  <script src="./js/smb-ui-controls.js?v=4.0.66"></script>
   <!-- StoryVoice — speaks story dialogue lines via the Web Speech API -->
   <script src="./js/smb-storyvoice.js?v=4.0.2"></script>
 
@@ -1879,7 +1880,7 @@
         </button>
         <a id="crashBugLink" href="#" target="_blank" rel="noopener"
           style="background:#1a1a2e;color:#ffcc66;border:1px solid #554400;border-radius:6px;padding:10px 22px;font-size:0.85rem;cursor:pointer;font-family:monospace;text-decoration:none;display:inline-flex;align-items:center;">
-          🐛 Report this Bug
+          <svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-wrench"/></svg> Report this Bug
         </a>
       </div>
       <p style="font-size:0.7rem;color:#555;margin-top:20px;">
@@ -2348,10 +2349,10 @@ function _renderFightersLog() {
       toggleBtn.id = 'mobileModeToggle';
       toggleBtn.className = 'btn mobileModeToggle';
       toggleBtn.style.cssText = 'font-size:0.75rem;padding:5px 12px;margin-top:8px;background:rgba(0,180,255,0.15);border-color:rgba(0,200,255,0.35);color:#88ddff;';
-      toggleBtn.textContent = mobileEnabled ? '📱 Mobile Controls: ON' : '📱 Mobile Controls: OFF';
+      toggleBtn.textContent = mobileEnabled ? '<svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-target"/></svg> Mobile Controls: ON' : '<svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-target"/></svg> Mobile Controls: OFF';
       toggleBtn.onclick = function() {
         mobileEnabled = !mobileEnabled;
-        toggleBtn.textContent = mobileEnabled ? '📱 Mobile Controls: ON' : '📱 Mobile Controls: OFF';
+        toggleBtn.textContent = mobileEnabled ? '<svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-target"/></svg> Mobile Controls: ON' : '<svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-target"/></svg> Mobile Controls: OFF';
         if (!mobileEnabled) hideMobileControls();
       };
       settingsPanel.appendChild(toggleBtn);
@@ -2558,7 +2559,7 @@ function _renderFightersLog() {
       <div style="display:flex;gap:5px;">
         <button id="storyTabChapters"   class="story-tab active" onclick="switchStoryTab('chapters')">Chapters</button>
       </div>
-      <span style="font-size:0.76rem;color:#776633;letter-spacing:0.04em;"><span style="color:#b89930;font-weight:600;">🪙 <span id="storyTokenDisplay">0</span></span></span>
+      <span style="font-size:0.76rem;color:#776633;letter-spacing:0.04em;"><span style="color:#b89930;font-weight:600;"><svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-coin"/></svg> <span id="storyTokenDisplay">0</span></span></span>
     </div>
 
     <!-- TAB: Chapters (existing level list) -->
@@ -2587,8 +2588,8 @@ function _renderFightersLog() {
 <div id="skillTreeModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.92);z-index:9050;align-items:center;justify-content:center;">
   <div class="smb-modal-box" style="width:min(840px,96vw);max-height:88vh;display:flex;flex-direction:column;gap:0;padding:22px 24px 18px;">
     <div class="smb-modal-header" style="margin-bottom:14px;">
-      <span>&#127807; SKILL TREE</span>
-      <span style="color:#aaff88;font-size:0.82rem;">&#11088; <span id="skillTreeExpDisplay">0</span> EXP</span>
+      <span><svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-sprout"/></svg> SKILL TREE</span>
+      <span style="color:#aaff88;font-size:0.82rem;"><svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-burst"/></svg> <span id="skillTreeExpDisplay">0</span> EXP</span>
       <button class="smb-modal-close" onclick="closeSkillTreeModal()">&#10005; Close</button>
     </div>
     <div id="skillTreeModalContent" style="overflow-y:auto;flex:1;padding-right:4px;"></div>
@@ -2598,8 +2599,8 @@ function _renderFightersLog() {
 <div id="shopModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.92);z-index:9050;align-items:center;justify-content:center;">
   <div class="smb-modal-box" style="width:min(620px,96vw);max-height:88vh;display:flex;flex-direction:column;gap:0;padding:22px 24px 18px;">
     <div class="smb-modal-header" style="margin-bottom:14px;">
-      <span>&#127819; ABILITY SHOP</span>
-      <span style="color:#d4a830;font-size:0.82rem;">&#129395; <span id="shopModalTokenDisplay">0</span> tokens</span>
+      <span><svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-coin"/></svg> ABILITY SHOP</span>
+      <span style="color:#d4a830;font-size:0.82rem;"><svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-trophy"/></svg> <span id="shopModalTokenDisplay">0</span> tokens</span>
       <button class="smb-modal-close" onclick="closeShopModal()">&#10005; Close</button>
     </div>
     <p style="margin:0 0 12px;font-size:0.72rem;color:#886644;line-height:1.5;">Spend tokens to unlock abilities for story fights. Blueprints drop from chapters.</p>
@@ -2610,7 +2611,7 @@ function _renderFightersLog() {
 <!-- STORY VICTORY / POST-FIGHT OVERLAY (tokens + blueprint reveal) -->
 <div id="storyVictoryOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.88);z-index:9250;align-items:center;justify-content:center;">
   <div style="background:rgba(6,6,20,0.98);border:1px solid rgba(255,200,100,0.30);border-radius:14px;padding:32px 36px 26px;width:min(400px,88vw);color:#dde4ff;font-family:'Segoe UI',Arial,sans-serif;text-align:center;box-shadow:0 0 50px rgba(180,130,0,0.18);">
-    <div style="font-size:2.5rem;margin-bottom:6px;">🏆</div>
+    <div style="font-size:2.5rem;margin-bottom:6px;"><svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-trophy"/></svg></div>
     <div id="storyVictoryChTitle" style="font-size:1.1rem;color:#ffcc88;font-weight:bold;margin-bottom:4px;"></div>
     <div id="storyVictoryPostText" style="font-size:0.82rem;color:#aab;margin-bottom:14px;line-height:1.6;font-style:italic;"></div>
     <div id="storyVictoryRewards" style="background:rgba(255,200,0,0.08);border:1px solid rgba(255,200,0,0.20);border-radius:8px;padding:10px 14px;margin-bottom:16px;text-align:left;"></div>
@@ -2641,7 +2642,7 @@ function _renderFightersLog() {
 <!-- IMPORT SAVE MODAL -->
 <div id="importSaveModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.88);z-index:10000;align-items:center;justify-content:center;">
   <div style="background:#0b0b1e;border:1px solid rgba(100,180,255,0.3);border-radius:12px;padding:28px 28px 22px;width:min(480px,90vw);color:#dde4ff;font-family:'Segoe UI',Arial,sans-serif;box-shadow:0 0 40px rgba(0,100,255,0.18);">
-    <h3 style="margin:0 0 10px;font-size:1.05rem;color:#88ccff;">📂 Import Save</h3>
+    <h3 style="margin:0 0 10px;font-size:1.05rem;color:#88ccff;"><svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-book"/></svg> Import Save</h3>
     <p style="margin:0 0 12px;font-size:0.8rem;opacity:0.7;">Upload a save file or paste a save string. This will overwrite your current progress.</p>
     <label style="display:block;margin-bottom:10px;">
       <span style="font-size:0.8rem;opacity:0.7;">Upload file:</span><br>
@@ -2670,7 +2671,7 @@ function _renderFightersLog() {
 <div id="cosmeticStore" style="display:none;position:fixed;inset:0;z-index:700;align-items:center;justify-content:center;background:rgba(0,0,0,0.75);">
   <div style="background:#0d0d1a;border:1px solid rgba(255,180,0,0.4);border-radius:14px;padding:20px 24px;max-width:520px;width:92%;max-height:80vh;overflow-y:auto;box-shadow:0 0 40px rgba(255,180,0,0.15);">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
-      <h2 style="color:#ffcc66;font-size:1.1rem;margin:0;">🏪 Cosmetic Store</h2>
+      <h2 style="color:#ffcc66;font-size:1.1rem;margin:0;"><svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-coin"/></svg> Cosmetic Store</h2>
       <div style="display:flex;align-items:center;gap:12px;">
         <span id="storeCoinBalance" style="color:#ffdd44;font-weight:bold;font-size:0.9rem;">0 ⬡</span>
         <button onclick="closeStore()" style="background:none;border:none;color:#888;font-size:1.2rem;cursor:pointer;">✕</button>

@@ -2523,8 +2523,23 @@ function _drawPlayerPreview(pid, frame) {
   const pc = cvs.getContext('2d');
   if (!pc) return;
 
-  const W = cvs.width, H = cvs.height;
-  pc.clearRect(0, 0, W, H);
+  // The canvas is laid out by CSS (100% wide, fixed height) but the figure
+  // below is drawn in absolute pixels against a 110px-tall design space. Match
+  // the backing store to the real box and scale into that design space, or the
+  // stickman stretches horizontally and squashes vertically with the panel.
+  const dpr = window.devicePixelRatio || 1;
+  const cw  = cvs.clientWidth  || 120;
+  const ch  = cvs.clientHeight || 110;
+  const bw  = Math.max(1, Math.round(cw * dpr));
+  const bh  = Math.max(1, Math.round(ch * dpr));
+  if (cvs.width !== bw)  cvs.width  = bw;
+  if (cvs.height !== bh) cvs.height = bh;
+  pc.setTransform(1, 0, 0, 1, 0, 0);
+  pc.clearRect(0, 0, bw, bh);
+  const DESIGN_H = 110;
+  const scale = (ch / DESIGN_H) * dpr;
+  pc.setTransform(scale, 0, 0, scale, 0, 0);
+  const H = DESIGN_H, W = cw / (ch / DESIGN_H);
 
   // Read config values
   const color     = (document.getElementById(pid + 'Color') || {}).value || '#ffffff';

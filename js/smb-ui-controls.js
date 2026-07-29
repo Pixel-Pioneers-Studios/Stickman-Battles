@@ -13,9 +13,18 @@
 //
 // Depends on: nothing. Loaded last, after the menu DOM exists.
 
-const GAME_SELECT_IDS = ['arenaSelect', 'livesSelect'];
+const GAME_SELECT_IDS = [
+  'arenaSelect', 'livesSelect',
+  'p1Hat', 'p1Cape', 'p2Hat', 'p2Cape',
+];
 
 const _gameSelects = [];
+
+function _gsEsc(str) {
+  return String(str).replace(/[&<>"]/g, c => (
+    { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]
+  ));
+}
 
 // Flat list of {value, label, group} in document order, skipping hidden options
 function _gsOptions(sel) {
@@ -28,6 +37,19 @@ function _gsOptions(sel) {
     out.push({ value: opt.value, label: opt.textContent.trim(), group: grp });
   }
   return out;
+}
+
+// Arena rows get a two-tone chip built from that arena's own sky and platform
+// colours. It identifies the map the way the emoji used to, but it is the
+// map's actual palette rather than a stand-in glyph.
+function _gsSwatch(w, value) {
+  if (w.sel.id !== 'arenaSelect') return '';
+  if (typeof ARENAS === 'undefined') return '';
+  const a = ARENAS[value];
+  if (!a) return '<i class="gs-chip gs-chip-any"></i>';
+  const sky  = (a.sky && a.sky[0]) || a.platColor || '#666';
+  const land = a.platColor || sky;
+  return `<i class="gs-chip" style="background:linear-gradient(160deg,${sky} 0 52%,${land} 52% 100%)"></i>`;
 }
 
 function _gsCommit(w, value) {
@@ -46,7 +68,7 @@ function _gsSync(w) {
   const idx = opts.findIndex(o => o.value === w.sel.value);
   w.index = idx < 0 ? 0 : idx;
   const cur = opts[w.index];
-  w.label.textContent = cur ? cur.label : '';
+  w.label.innerHTML = cur ? _gsSwatch(w, cur.value) + _gsEsc(cur.label) : '';
   if (w.panel.dataset.open === '1') _gsRenderPanel(w);
 }
 
@@ -70,7 +92,7 @@ function _gsRenderPanel(w) {
     const tile = document.createElement('button');
     tile.type = 'button';
     tile.className = 'gs-option' + (o.value === w.sel.value ? ' active' : '');
-    tile.textContent = o.label;
+    tile.innerHTML = _gsSwatch(w, o.value) + _gsEsc(o.label);
     tile.addEventListener('click', (e) => {
       e.stopPropagation();
       _gsCommit(w, o.value);
@@ -130,11 +152,12 @@ function _gsBuild(sel) {
   root.appendChild(next);
   root.appendChild(panel);
 
-  // Carry the select's own flex sizing onto the widget so the surrounding
-  // grid keeps the layout it was authored with.
+  // Carry the select's flex sizing across, but deliberately NOT its width:
+  // the widget adds two arrow buttons, so an authored width sized for a bare
+  // dropdown (livesSelect is 100px) would clip it. The surrounding grid's
+  // auto column sizes it correctly on its own.
   const cs = getComputedStyle(sel);
   if (cs.flex && cs.flex !== '0 1 auto') root.style.flex = cs.flex;
-  if (sel.style.width) root.style.width = sel.style.width;
 
   sel.parentElement.insertBefore(root, sel);
   sel.classList.add('gs-native-hidden');
