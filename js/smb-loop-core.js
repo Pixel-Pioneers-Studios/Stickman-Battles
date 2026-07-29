@@ -128,6 +128,10 @@ function gameLoop(timestamp) {
   frameCount++;
   aiTick++;
   if (typeof ReplaySystem !== 'undefined') ReplaySystem.recordFrame();
+  // Strategic advisor sampling. Cheap per frame; the network call it may schedule
+  // is fully async and never awaited here, so a slow or absent Ollama cannot
+  // stall the loop.
+  if (typeof SovereignAdvisor !== 'undefined') SovereignAdvisor.tick();
   // Once-per-second God encounter roll
   if (frameCount % 60 === 0 && typeof updateGodEncounterTick === 'function') {
     updateGodEncounterTick();
@@ -178,6 +182,11 @@ function gameLoop(timestamp) {
 
   applyWorldModifiers();
   processInput(); // updateInput
+
+  // ---------- Phase: updateCircuitPlate (The Circuit — Sovereign's sliding plate) ----------
+  // Must run before fighters update so collision reads this frame's plate position.
+  // No-ops on every arena but The Circuit.
+  if (typeof CircuitPlate !== 'undefined') CircuitPlate.update();
 
   // ---------- Phase: updateBossArena (platforms, floor hazard) ----------
   if (currentArena && currentArena.isBossArena) {
@@ -419,6 +428,9 @@ function gameLoop(timestamp) {
   if (typeof drawCinBgContrast   === 'function') drawCinBgContrast();
   if (typeof drawCinImpactFrame  === 'function') drawCinImpactFrame();
   drawPlatforms();
+  // Circuit void lips + slide telegraph — must sit ABOVE the plate so the warning
+  // is drawn on the ground the player is standing on, not hidden under it.
+  if (typeof CircuitPlate !== 'undefined') CircuitPlate.drawOverlay();
   // Domain hazards (world-space, above platforms, below entities)
   if (typeof DomainManager !== 'undefined') DomainManager.drawHazards();
   if (typeof drawSuddenDeathFloor === 'function') drawSuddenDeathFloor();

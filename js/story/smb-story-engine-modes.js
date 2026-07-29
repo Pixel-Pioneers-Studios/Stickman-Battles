@@ -412,6 +412,7 @@ function drawScavengeItems() {
     ctx.shadowBlur  = 12 * glow;
     ctx.font        = '20px monospace';
     ctx.textAlign   = 'center';
+    ctx.fillStyle   = '#ffffaa';
     ctx.fillText(item.icon || '⬡', item.x, item.y + bob);
     ctx.font        = '8px monospace';
     ctx.fillStyle   = '#ffffaa';

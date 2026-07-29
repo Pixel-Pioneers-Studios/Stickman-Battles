@@ -42,11 +42,27 @@ const SERVER_CONFIG = {
 // ============================================================
 const CHANGELOG = [
   {
+    version: '4.0.24',
+    title: 'THE CONVICTION PASS',
+    date: '2026-07-27',
+    flavor: 'Two classes never had a Conviction of their own. They do now — and every other Conviction has stopped trying to delete you in three seconds.',
+    isLatest: true,
+    changes: [
+      { cat: 'Mode',   text: 'Warrior Conviction added — The Proving Grounds: swords erupt out of the floor under whoever is standing still, and a bronze duel ring closes around the warrior over the full 25 seconds; anyone outside the ring bleeds a small tick every two-thirds of a second, so the domain forces the fight instead of chipping you down from across the arena' },
+      { cat: 'Mode',   text: 'Summoner Conviction added — Endless Menagerie: a summoning sigil anchors the arena and streams spectral familiars that home in slowly on the nearest enemy and burst on contact; they are capped in speed and expire on their own, so they can be outrun, baited into a wall, or simply walked away from' },
+      { cat: 'Visual', text: 'Both new Convictions have their own entry cinematic, sky atmosphere and hazard art — the warrior plants a ring of swords as the duel ring snaps shut, the summoner inscribes the sigil while six familiars converge out of the dark' },
+      { cat: 'Mode',   text: 'Conviction damage rebalanced across every class — the domains were killing a full health bar in a couple of unlucky seconds. Single-hit damage is down roughly 40-50% on lightning, logs, arrows, holy beams, void rocks, bullets, blades, fists, pendulums and pulses; the archer\'s giant arrow is still the heaviest hit in any domain but no longer takes half a health bar in one shot' },
+      { cat: 'Mode',   text: 'Convictions can no longer land several hazards on you in the same instant — a target now takes domain damage at most four times a second. Standing in a bullet wall, the three holy beams, or the void rocks while the vortex drags you through them is still fatal, it just gives you frames to react instead of deleting you' },
+      { cat: 'Mode',   text: 'Lightning and holy beams warn for longer before they land, and the Blades of Chaos sweep a little slower, so all three can actually be read and jumped' },
+      { cat: 'Fix',    text: 'Warpath Domain logs were spawning in a band that sat entirely above a standing fighter, so they flew harmlessly overhead almost every time. They now cross at body height and are a real hazard again at their new lower damage' },
+    ],
+  },
+  {
     version: '4.0.23',
     title: 'THE MISSING CLASSES UPDATE',
     date: '2026-07-26',
     flavor: 'They were written as soldiers and they have been fighting as strangers. Everyone on the road is who they were meant to be now — expect the campaign to push back harder.',
-    isLatest: true,
+    isLatest: false,
     changes: [
       { cat: 'Fix', text: 'Over a hundred campaign opponents have been fighting with no class at all. Two class names used all through the story were never real classes, so the game quietly gave those enemies no kit, no health profile and no speed profile — they fought as blank defaults. Every one of them now fights as the class they were written as' },
       { cat: 'Fix', text: 'The affected fights include Vault Wardens, checkpoint elites and several named opponents, all of which were meant to be heavier and slower or faster and frailer than the fighters you were actually meeting' },
@@ -928,7 +944,7 @@ let _publicRoomCheckTimer = 0;
 // ============================================================
 // VERSION
 // ============================================================
-const GAME_VERSION = '4.0.23';  // bump this when releasing; must match CHANGELOG[0].version
+const GAME_VERSION = '4.0.24';  // bump this when releasing; must match CHANGELOG[0].version
 console.log('[VERSION CHECK]', GAME_VERSION);
 
 // DEBUG / DEVELOPER STATE

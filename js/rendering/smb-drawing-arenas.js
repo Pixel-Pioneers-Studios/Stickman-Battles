@@ -183,6 +183,10 @@ function drawSovereignArena() {
   ctx.stroke();
   ctx.setLineDash([]);
   ctx.restore();
+
+  // The voids in the plate — drawn as background so the platform pass paints over
+  // the standable spans and leaves the shafts showing through.
+  if (typeof CircuitPlate !== 'undefined') CircuitPlate.draw();
 }
 
 function drawCreatorArena() {

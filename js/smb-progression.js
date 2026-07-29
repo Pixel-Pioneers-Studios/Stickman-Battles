@@ -427,18 +427,22 @@ function _spawnFractureGuardian(fracture, isPreview) {
         const p1 = players[0];
         const spawnX = p1 ? Math.min(GAME_W - 80, p1.x + 300) : GAME_W / 2 + 100;
 
+        const guardianHp = isPreview ? 120 : 250;  // preview guardian has limited HP
         const guardian = new Fighter(spawnX, 200, def.color, def.weaponKey, null, true, def.aiDiff);
         guardian.weapon      = WEAPONS[def.weaponKey] || WEAPONS['sword'];
-        guardian.hp          = isPreview ? 120 : 250;  // preview guardian has limited HP
-        guardian.maxHp       = guardian.hp;
-        guardian.health      = guardian.hp;
-        guardian.maxHealth   = guardian.maxHp;
+        guardian.hp          = guardianHp;
+        guardian.maxHp       = guardianHp;
+        guardian.health      = guardianHp;
+        guardian.maxHealth   = guardianHp;
         guardian.lives       = 1;
         guardian.aiDiff      = def.aiDiff;
         guardian.name        = def.name;   // was unset — the HUD rendered a blank nameplate
         guardian._isFractureGuardian = true;
 
         if (typeof applyClass === 'function') applyClass(guardian, def.classKey);
+        // applyClass can overwrite authored health — restore the guardian's HP after it,
+        // the same way the ruler spawn does.
+        guardian.hp = guardian.maxHp = guardian.health = guardian.maxHealth = guardianHp;
 
         players.push(guardian);
     }

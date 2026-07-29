@@ -90,7 +90,7 @@ const DOMAIN_DEFS = {
     hazardType: null,
     ownerBuff:  { speed: true },
     sheatheEvery: 240,        // frames between iai sheathe detonations
-    cutDamage:    9,          // damage per deferred cut on detonation
+    cutDamage:    7,          // damage per deferred cut on detonation
     maxCuts:      5,          // max cut marks per target
     announce:   'Every cut waits. The sheath decides.',
   },
@@ -102,7 +102,7 @@ const DOMAIN_DEFS = {
     hazardType: null,
     ownerBuff:  {},           // sustain comes from harvested souls, not a flat drip
     harvestEvery: 300,        // frames between Reapings — souls launch as homing skulls
-    soulDamage:   11,         // damage per launched soul on impact
+    soulDamage:   9,          // damage per launched soul on impact
     maxSouls:     8,          // orbiting soul cap
     healPerSoul:  0.006,      // per-frame heal per orbiting soul (full orbit ≈ 2.9 hp/s)
     announce:   'The harvest never ends — your soul is mine.',
@@ -115,6 +115,29 @@ const DOMAIN_DEFS = {
     hazardType: null,
     ownerBuff:  { power: true },
     announce:   'Nobody leaves the iron arena standing.',
+  },
+  warrior: {
+    name:       'The Proving Grounds',
+    color:      '#e0b070',
+    bgTint:     'rgba(42,28,8,0.50)',
+    spawnEvery: 46,           // sword eruptions, telegraphed
+    hazardType: 'blade_wall',
+    ownerBuff:  { power: true },
+    ringStart:  300,          // duel ring radius at expansion
+    ringEnd:    170,          // radius it closes to
+    ringDamage: 12,           // per tick to anyone outside the ring
+    ringEvery:  40,           // frames between ring ticks
+    announce:   'Step into the ring. No one leaves untested.',
+  },
+  summoner: {
+    name:       'Endless Menagerie',
+    color:      '#66ffcc',
+    bgTint:     'rgba(0,34,32,0.50)',
+    spawnEvery: 58,           // familiars stream in
+    hazardType: 'spirit_swarm',
+    ownerBuff:  { healPerFrame: 0.010 },
+    swarmDamage: 16,          // per familiar — it dies on contact
+    announce:   'They never stopped answering. They never will.',
   },
   none: {
     name:       'Primal Surge',
@@ -131,6 +154,10 @@ const DOMAIN_DEFS = {
 const DomainManager = (() => {
   const RISE_FRAMES   = 300; // 5 s at 60 fps
   const DOMAIN_FRAMES = 25 * 60; // 25 s
+  // Minimum frames between two domain-hazard hits on the same target (see
+  // _dealDomainDamage). 15 frames = 4 hits/s ceiling — still lethal if you stand
+  // still, but it guarantees a reaction window instead of instant deletion.
+  const _DOMAIN_HIT_CD = 15;
 
   // Frames between passive-weapon fires during active domain
   const _PASSIVE_CDS = {
@@ -173,8 +200,8 @@ const DomainManager = (() => {
           x = Math.max(50, Math.min(GAME_W - 50, x));
           domain.hazards.push({
             type: 'lightning', x, y: 0,
-            damage: 35, radius: 52,
-            warningTimer: 26, strikeTimer: 0, struck: false,
+            damage: 26, radius: 52,
+            warningTimer: 36, strikeTimer: 0, struck: false,
             hitSet: new Set(),
           });
         }
@@ -185,13 +212,15 @@ const DomainManager = (() => {
         for (let side = 0; side < 2; side++) {
           const left = side === 0;
           const x    = left ? -40 : GAME_W + 40;
-          const y    = GAME_H * 0.35 + (Math.random() - 0.5) * GAME_H * 0.40;
+          // Band widened downward: the old 0.35±0.20 spread sat entirely above a
+          // grounded fighter, so logs flew harmlessly overhead almost every time.
+          const y    = GAME_H * 0.45 + (Math.random() - 0.5) * GAME_H * 0.50;
           const spd  = 20 + Math.random() * 8;
           domain.hazards.push({
             type: 'debris', x, y,
             vx: left ? spd : -spd,
             vy: (Math.random() - 0.5) * 4,
-            damage: 48, radius: 24, hitSet: new Set(),
+            damage: 21, radius: 24, hitSet: new Set(),   // owner has _powerBuff (×1.35) → ~28 felt
           });
         }
         break;
@@ -204,7 +233,7 @@ const DomainManager = (() => {
             vx: (Math.random() - 0.5) * 8,
             vy: 16 + Math.random() * 7,
             angle: Math.random() * Math.PI * 2,
-            damage: 40, radius: 14, hitSet: new Set(),
+            damage: 26, radius: 14, hitSet: new Set(),
           });
         }
         break;
@@ -219,7 +248,7 @@ const DomainManager = (() => {
             const vx = left ? 24 + Math.random() * 5 : -(24 + Math.random() * 5);
             domain.hazards.push({
               type: 'bullet', x, y, vx, vy: (Math.random() - 0.5) * 5,
-              damage: 22, radius: 7, hitSet: new Set(),
+              damage: 13, radius: 7, hitSet: new Set(),
             });
           }
         }
@@ -234,7 +263,7 @@ const DomainManager = (() => {
             x: spread, y: -25,
             vx: (Math.random() - 0.5) * 5,
             vy: 17 + Math.random() * 6,
-            damage: 42, radius: 10, hitSet: new Set(),
+            damage: 24, radius: 10, hitSet: new Set(),
           });
         }
         break;
@@ -249,11 +278,52 @@ const DomainManager = (() => {
             type: 'chaos_bolt',
             x: _cx, y: _cy,
             vx: Math.cos(ang) * spd, vy: Math.sin(ang) * spd,
-            damage: 22, radius: 9, hitSet: new Set(),
+            damage: 12, radius: 9, hitSet: new Set(),   // owner has _powerBuff (×1.35) → ~16 felt
           });
         }
         if (typeof spawnParticles === 'function') spawnParticles(_cx, _cy, '#cccccc', 16);
         if (typeof screenShake !== 'undefined') screenShake = Math.max(screenShake, 10);
+        break;
+      }
+
+      // Warrior: swords erupt out of the ground under each enemy's feet. Long
+      // telegraph, tight radius — pure "read it and move" pressure.
+      case 'blade_wall': {
+        const _foes = _getDomainTargets(domain.owner);
+        const _spots = [];
+        for (const t of _foes.slice(0, 3)) _spots.push(t.cx() + (Math.random() - 0.5) * 70);
+        if (_spots.length === 0) _spots.push(80 + Math.random() * (GAME_W - 160));
+        for (const sx of _spots) {
+          domain.hazards.push({
+            type: 'blade_wall',
+            x: Math.max(40, Math.min(GAME_W - 40, sx)),
+            warningTimer: 44, riseTimer: 0, risen: false,
+            damage: 16,              // owner has _powerBuff (×1.35) → ~22 felt
+            radius: 34, height: 96,
+            hitSet: new Set(),
+          });
+        }
+        break;
+      }
+
+      // Summoner: familiars peel off the sigil and drift toward whoever is closest.
+      // Slow and killable-by-dodging — they expire on contact or when life runs out.
+      case 'spirit_swarm': {
+        const _cx0 = GAME_W / 2, _cy0 = GAME_H * 0.40;
+        const count = 2 + (Math.random() < 0.4 ? 1 : 0);
+        for (let i = 0; i < count; i++) {
+          const ang = Math.random() * Math.PI * 2;
+          domain.hazards.push({
+            type: 'spirit_swarm',
+            x: _cx0 + Math.cos(ang) * 40,
+            y: _cy0 + Math.sin(ang) * 30,
+            vx: Math.cos(ang) * 3, vy: Math.sin(ang) * 3,
+            wobble: Math.random() * Math.PI * 2,
+            damage: (domain.def.swarmDamage || 16),
+            radius: 13, life: 300,
+            hitSet: new Set(),
+          });
+        }
         break;
       }
 
@@ -265,8 +335,8 @@ const DomainManager = (() => {
         for (const x of [x1, x2, x3]) {
           domain.hazards.push({
             type: 'holy_beam', x, y: 0,
-            damage: 54, radius: 32,
-            warningTimer: 40, activeTimer: 0,
+            damage: 30, radius: 32,
+            warningTimer: 48, activeTimer: 0,
             hitSet: new Set(),
           });
         }
@@ -284,7 +354,7 @@ const DomainManager = (() => {
         type:    'void_rock',
         angle:   (Math.PI * 2 * i / 3),  // 120° apart
         orbitR,
-        damage:  48,
+        damage:  26,
         radius:  22,
         hitSet:  new Set(),
         get x() { return GAME_W / 2 + Math.cos(this.angle) * this.orbitR; },
@@ -309,8 +379,8 @@ const DomainManager = (() => {
         roamTarget:  null,    // picked each frame when roaming
         state:       'roam',  // 'roam' | 'strike'
         stateTimer:  90,      // 1.5 s before first strike
-        damage:      20,      // strike-hit damage
-        orbitDamage: 32,      // damage on contact while roaming
+        damage:      16,      // strike-hit damage
+        orbitDamage: 20,      // damage on contact while roaming
         radius:      22,
         hitSet:      new Set(),
         orbitHitSet: new Set(),
@@ -325,11 +395,11 @@ const DomainManager = (() => {
         y:          GAME_H * 0.52,
         angle:      -Math.PI * 0.80, // start at left edge of sweep
         sweepDir:   1,
-        sweepSpeed: 0.068,           // faster arc — harder to dodge
+        sweepSpeed: 0.055,           // fast arc, but readable enough to jump
         armLength:  200,             // longer reach
         phase:      'sweep',
         resetTimer: 0,
-        damage:     58,
+        damage:     26,              // owner has _powerBuff (×1.35) → ~35 felt
         radius:     20,
         hitSet:     new Set(),
       });
@@ -366,7 +436,7 @@ const DomainManager = (() => {
         fromLeft:   true,
         phase:      'cooldown',
         phaseTimer: 90,     // 1.5 s cooldown before first shot
-        damage:     100,    // devastating — a single hit is half a health bar
+        damage:     44,     // the single biggest domain hit — but heavily telegraphed
         radius:     28,
         hitSet:     new Set(),
       });
@@ -378,7 +448,7 @@ const DomainManager = (() => {
         type:   'divine_shield',
         angle:  0,
         orbitR: 78,
-        damage: 52,
+        damage: 26,
         radius: 22,
         hitSet: new Set(),
         get x() { return domain.owner.cx() + Math.cos(this.angle) * this.orbitR; },
@@ -391,11 +461,11 @@ const DomainManager = (() => {
       domain.hazards.push({
         type:       'rage_pulse',
         pulseTimer: 70,
-        pulseEvery: 100,   // pulse every 1.6 s — relentless
+        pulseEvery: 110,   // pulse every ~1.8 s — relentless
         ringRadius: 0,
         ringActive: false,
-        damage:     48,
-        radius:     115,   // covers most of the arena
+        damage:     22,    // owner has _powerBuff (×1.35) → ~30 felt
+        radius:     105,   // covers most of the arena
         hitSet:     new Set(),
       });
     }
@@ -425,7 +495,7 @@ const DomainManager = (() => {
         stateTimer:  80,
         launchVx:    0,
         launchVy:    0,
-        damage:      40,
+        damage:      28,
         radius:      18,
         hitSet:      new Set(),
       });
@@ -445,7 +515,7 @@ const DomainManager = (() => {
         angleVel:  0.016,
         armLength: GAME_H * 0.86,
         swingDir:  1,
-        damage:    28,
+        damage:    20,
         radius:    22,
         hitCd:     new Map(),
       });
@@ -468,7 +538,7 @@ const DomainManager = (() => {
         vx:         0,
         phase:      'cooldown',
         phaseTimer: 65,
-        damage:     45,
+        damage:     24,    // owner has _powerBuff (×1.35) → ~32 felt
         radius:     28,
         hitSet:     new Set(),
       });
@@ -480,9 +550,39 @@ const DomainManager = (() => {
         vx:         0,
         phase:      'cooldown',
         phaseTimer: 135,
-        damage:     45,
+        damage:     24,    // owner has _powerBuff (×1.35) → ~32 felt
         radius:     28,
         hitSet:     new Set(),
+      });
+    }
+
+    // Warrior → Duel Ring: a closing ring centred on the owner. Anyone outside it
+    // is bleeding out slowly — the domain forces the fight instead of chip-damaging
+    // you to death, so a skilled player just has to hold the middle and duel.
+    if (domain.defKey === 'warrior') {
+      domain.hazards.push({
+        type:      'duel_ring',
+        radius:    domain.def.ringStart || 300,
+        tickTimer: domain.def.ringEvery || 40,
+        damage:    domain.def.ringDamage || 12,
+        hitSet:    new Set(),
+        get x() { return domain.owner.cx(); },
+        get y() { return domain.owner.cy(); },
+      });
+    }
+
+    // Summoner → Summoning Sigil: the anchor the familiars stream out of. Harmless
+    // on its own; it pulses brighter right before each wave so the wave is readable.
+    if (domain.defKey === 'summoner') {
+      domain.hazards.push({
+        type:      'summon_circle',
+        x:         GAME_W / 2,
+        y:         GAME_H * 0.40,
+        angle:     0,
+        pulse:     0,
+        damage:    0,
+        radius:    0,
+        hitSet:    new Set(),
       });
     }
 
@@ -496,28 +596,28 @@ const DomainManager = (() => {
       if (_bladedWeapons.includes(wk)) {
         domain.hazards.push({
           type: 'blood_blade', x: -40, y: GAME_H * 0.42, fromLeft: true,
-          phase: 'cooldown', phaseTimer: 80, damage: 32, radius: 14, hitSet: new Set(),
+          phase: 'cooldown', phaseTimer: 80, damage: 16, radius: 14, hitSet: new Set(),
         });
       } else if (_heavyWeapons.includes(wk)) {
-        domain.hazards.push({ type: 'debris', x: -60, y: GAME_H * 0.38, vx: 11,  vy: -1, damage: 30, radius: 18, hitSet: new Set() });
-        domain.hazards.push({ type: 'debris', x: GAME_W + 60, y: GAME_H * 0.52, vx: -11, vy: -1, damage: 30, radius: 18, hitSet: new Set() });
+        domain.hazards.push({ type: 'debris', x: -60, y: GAME_H * 0.38, vx: 11,  vy: -1, damage: 16, radius: 18, hitSet: new Set() });
+        domain.hazards.push({ type: 'debris', x: GAME_W + 60, y: GAME_H * 0.52, vx: -11, vy: -1, damage: 16, radius: 18, hitSet: new Set() });
       } else if (_sprayWeapons.includes(wk)) {
         // Floating rotating turret that sweeps the arena with rapid fire
         domain.hazards.push({
           type: 'rage_spray', x: GAME_W / 2, y: GAME_H * 0.34,
-          angle: 0, fireTimer: 0, damage: 14, radius: 7,
+          angle: 0, fireTimer: 0, damage: 8, radius: 7,
         });
       } else if (_arcWeapons.includes(wk)) {
         // Periodic salvo of 4 projectiles arcing outward from owner
         domain.hazards.push({
-          type: 'arc_salvo', fireTimer: 55, fireEvery: 70, damage: 26, radius: 12,
+          type: 'arc_salvo', fireTimer: 55, fireEvery: 70, damage: 13, radius: 12,
         });
       } else if (wk === 'electricstaff') {
         // Two electric pillars periodically arc chain lightning across the arena
         domain.hazards.push({
           type: 'elec_pulse',
           pillarX1: GAME_W * 0.22, pillarX2: GAME_W * 0.78,
-          arcTimer: 45, arcEvery: 55, damage: 22, radius: 48, hitSet: new Set(),
+          arcTimer: 45, arcEvery: 55, damage: 12, radius: 48, hitSet: new Set(),
         });
       }
     }
@@ -542,13 +642,15 @@ const DomainManager = (() => {
     thor: -3.5, kratos: 4, ninja: -5,
     paladin: 2.5, gunner: -2, archer: 3,
     berserker: 5, megaknight: -4,
-    ronin: -4.5, reaper: 3.5, pugilist: -3, none: 0,
+    ronin: -4.5, reaper: 3.5, pugilist: -3,
+    warrior: 3, summoner: -3.5, none: 0,
   };
   const _DOMAIN_DARK_COLOR = {
     thor: '#000a1a', kratos: '#1a0500', ninja: '#030008',
     paladin: '#1a1800', gunner: '#1a0e00', archer: '#001a05',
     berserker: '#1a0000', megaknight: '#050013',
-    ronin: '#050510', reaper: '#100510', pugilist: '#120000', none: '#080808',
+    ronin: '#050510', reaper: '#100510', pugilist: '#120000',
+    warrior: '#1a1000', summoner: '#001a18', none: '#080808',
   };
   const _DOMAIN_ENTRY_LINE = {
     thor:       'The storm answers me...',
@@ -562,6 +664,8 @@ const DomainManager = (() => {
     ronin:      'One strike. One kill.',
     reaper:     'Your soul belongs to me now.',
     pugilist:   'Get up. I\'m not done yet.',
+    warrior:    'Step into the ring.',
+    summoner:   'You are outnumbered. You always were.',
     none:       'No class. No rules. Just power.',
   };
 
@@ -1076,6 +1180,82 @@ const DomainManager = (() => {
         break;
       }
 
+      // ── Warrior: plant the stance → swords ring the ground → the duel ring closes ──
+      case 'warrior': {
+        if (t === 278) {
+          CinFX.bgContrast('#1a1000', 0.88, 60);
+          CinCam.directionalShake(20, 0, -1);
+        }
+        if (t === 262) {
+          CinFX.flash('#e0b070', 0.55, 7);
+          CinFX.groundCrack(f.cx(), GAME_H - 80, { count: 9, color: '#8a6a3a' });
+          if (typeof screenShake !== 'undefined') screenShake = Math.max(screenShake, 34);
+          if (typeof spawnParticles === 'function') spawnParticles(f.cx(), f.y + f.h, '#e0b070', 22);
+          d.swordsPlanted = true; d.swordRise = 0;
+        }
+        if (t === 240) {
+          CinFX.shockwave(f.cx(), f.cy(), '#e0b070', { count: 2, maxR: 300, lw: 5, dur: 50 });
+          d.ringDraw = true; d.ringR = 380;
+        }
+        if (t === 228) {
+          CinFX.nameCard('CONVICTION', def.color, { dur: 110 });
+          CinFX.impactFrame(f, { dur: 3 });
+          const line = _DOMAIN_ENTRY_LINE[f.charClass];
+          if (line && typeof queueAnnouncement === 'function') queueAnnouncement('"' + line + '"', def.color);
+        }
+        if (t === 212) {
+          CinFX.motionTrailOn(f, def.color);
+          CinCam.zoomTo(1.28);
+        }
+        if (t === 160) { CinCam.tilt(0); CinFX.motionTrailOff(f); CinCam.zoomTo(1.18); }
+        if (t === 60)  { CinCam.restore(); _domainCinActive = false; _domainCinOwner = null; }
+        if (d.swordsPlanted) d.swordRise = Math.min(1, (d.swordRise || 0) + 0.06);
+        if (d.ringDraw) d.ringR = Math.max(210, d.ringR - 5);
+        break;
+      }
+
+      // ── Summoner: the sigil is drawn → familiars answer one by one → menagerie ──
+      case 'summoner': {
+        if (t === 278) {
+          CinFX.bgContrast('#001a18', 0.90, 62);
+          CinCam.directionalShake(16, 0, -1);
+        }
+        if (t === 266) {
+          d.sigilDraw = true; d.sigilProg = 0;
+          if (typeof spawnParticles === 'function') spawnParticles(f.cx(), f.cy(), '#66ffcc', 20);
+        }
+        if (t === 244) {
+          d.familiars = [];
+          for (let i = 0; i < 6; i++) {
+            d.familiars.push({ ang: (i / 6) * Math.PI * 2, r: 190, delay: i * 5 });
+          }
+          CinFX.flash('#66ffcc', 0.45, 6);
+          if (typeof screenShake !== 'undefined') screenShake = Math.max(screenShake, 26);
+        }
+        if (t === 226) {
+          CinFX.nameCard('CONVICTION', def.color, { dur: 110 });
+          CinFX.impactFrame(f, { dur: 3 });
+          const line = _DOMAIN_ENTRY_LINE[f.charClass];
+          if (line && typeof queueAnnouncement === 'function') queueAnnouncement('"' + line + '"', def.color);
+        }
+        if (t === 212) {
+          CinFX.shockwave(f.cx(), f.cy(), '#66ffcc', { count: 3, maxR: 320, lw: 4, dur: 55 });
+          CinFX.motionTrailOn(f, def.color);
+          CinCam.zoomTo(1.28);
+        }
+        if (t === 160) { CinCam.tilt(0); CinFX.motionTrailOff(f); CinCam.zoomTo(1.18); }
+        if (t === 60)  { CinCam.restore(); _domainCinActive = false; _domainCinOwner = null; }
+        if (d.sigilDraw) d.sigilProg = Math.min(1, (d.sigilProg || 0) + 0.035);
+        if (d.familiars) {
+          for (const fam of d.familiars) {
+            if (fam.delay > 0) { fam.delay--; continue; }
+            fam.r = Math.max(52, fam.r - 4.5);
+            fam.ang += 0.05;
+          }
+        }
+        break;
+      }
+
       default: {
         if (t === 275) {
           CinFX.bgContrast(_DOMAIN_DARK_COLOR[f.charClass] || '#0a0a0a', 0.88, 55);
@@ -1366,6 +1546,56 @@ const DomainManager = (() => {
           const sy = (s * 28 + 15) % GAME_H;
           ctx.globalAlpha = fadeIn * (0.28 + 0.22 * Math.sin(now / 300 + s * 0.7));
           ctx.beginPath(); ctx.arc(sx, sy, 1.5, 0, Math.PI * 2); ctx.fill();
+        }
+        break;
+      }
+
+      case 'warrior': {
+        // Colosseum banners hanging above, and dust drifting through the light
+        ctx.globalAlpha = fadeIn * 0.20;
+        ctx.fillStyle = '#8a6a3a';
+        for (let b = 0; b < 6; b++) {
+          const bx = 70 + b * ((GAME_W - 140) / 5);
+          const sway = Math.sin(now / 900 + b) * 5;
+          ctx.beginPath();
+          ctx.moveTo(bx - 16, 0);
+          ctx.lineTo(bx + 16, 0);
+          ctx.lineTo(bx + 16 + sway, 88);
+          ctx.lineTo(bx + sway, 76);
+          ctx.lineTo(bx - 16 + sway, 88);
+          ctx.closePath(); ctx.fill();
+        }
+        ctx.shadowColor = '#e0b070'; ctx.shadowBlur = 6;
+        ctx.fillStyle = '#e0b070';
+        for (let dst = 0; dst < 20; dst++) {
+          const dx = (dst * 61 + now * 0.014 * (1 + dst * 0.05)) % GAME_W;
+          const dy = GAME_H - ((dst * 39 + now * 0.020 * (0.6 + dst * 0.04)) % (GAME_H * 0.8));
+          ctx.globalAlpha = fadeIn * (0.10 + 0.12 * Math.sin(now / 340 + dst));
+          ctx.beginPath(); ctx.arc(dx, dy, 1.6, 0, Math.PI * 2); ctx.fill();
+        }
+        break;
+      }
+
+      case 'summoner': {
+        // Dormant familiar eyes blinking open in the dark, and rune motes rising
+        ctx.shadowColor = '#66ffcc'; ctx.shadowBlur = 14;
+        for (let e = 0; e < 10; e++) {
+          const ex = (e * 97 + 40) % GAME_W;
+          const ey = 40 + ((e * 53) % Math.floor(GAME_H * 0.55));
+          const blink = Math.sin(now / 700 + e * 1.7);
+          if (blink < 0.35) continue;
+          ctx.globalAlpha = fadeIn * 0.28 * blink;
+          ctx.fillStyle = '#66ffcc';
+          ctx.beginPath(); ctx.ellipse(ex - 6, ey, 4, 2.2, 0, 0, Math.PI * 2); ctx.fill();
+          ctx.beginPath(); ctx.ellipse(ex + 6, ey, 4, 2.2, 0, 0, Math.PI * 2); ctx.fill();
+        }
+        ctx.shadowBlur = 8;
+        ctx.fillStyle = '#ccfff0';
+        for (let m = 0; m < 16; m++) {
+          const mx = (m * 71 + Math.sin(now / 800 + m) * 24 + 30) % GAME_W;
+          const my = GAME_H - ((m * 47 + now * 0.030 * (0.7 + m * 0.05)) % (GAME_H + 40));
+          ctx.globalAlpha = fadeIn * (0.14 + 0.14 * Math.sin(now / 300 + m));
+          ctx.beginPath(); ctx.arc(mx, my, 2, 0, Math.PI * 2); ctx.fill();
         }
         break;
       }
@@ -2164,6 +2394,85 @@ const DomainManager = (() => {
     }
   }
 
+  function _drawWarriorEntry(f, t, now, d) {
+    // Ring of planted swords rising around the owner
+    if (d.swordsPlanted) {
+      const rise = d.swordRise || 0;
+      ctx.save();
+      ctx.shadowColor = '#e0b070'; ctx.shadowBlur = 16;
+      for (let i = 0; i < 8; i++) {
+        const a  = (i / 8) * Math.PI * 2 + now / 2600;
+        const sx = f.cx() + Math.cos(a) * 130;
+        const sy = (GAME_H - 62) + Math.sin(a) * 26;
+        const hgt = 54 * rise;
+        ctx.fillStyle = '#d8d0c0';
+        ctx.beginPath();
+        ctx.moveTo(sx - 4, sy);
+        ctx.lineTo(sx - 3, sy - hgt + 9);
+        ctx.lineTo(sx, sy - hgt);
+        ctx.lineTo(sx + 3, sy - hgt + 9);
+        ctx.lineTo(sx + 4, sy);
+        ctx.closePath(); ctx.fill();
+        ctx.fillStyle = '#8a6a3a';
+        ctx.fillRect(sx - 9, sy - 10 * rise, 18, 4);
+      }
+      ctx.restore();
+    }
+    // The duel ring snapping shut
+    if (d.ringDraw) {
+      ctx.save();
+      ctx.globalAlpha = 0.55;
+      ctx.strokeStyle = '#e0b070'; ctx.lineWidth = 4;
+      ctx.shadowColor = '#e0b070'; ctx.shadowBlur = 22;
+      ctx.beginPath();
+      ctx.ellipse(f.cx(), f.cy(), d.ringR, d.ringR * 0.72, 0, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+    }
+  }
+
+  function _drawSummonerEntry(f, t, now, d) {
+    // Sigil inscribing itself on the floor
+    if (d.sigilDraw) {
+      const p = d.sigilProg || 0;
+      ctx.save();
+      ctx.globalAlpha = 0.35 + 0.4 * p;
+      ctx.strokeStyle = '#66ffcc'; ctx.lineWidth = 2.5;
+      ctx.shadowColor = '#66ffcc'; ctx.shadowBlur = 20;
+      const sy = GAME_H - 56;
+      ctx.beginPath();
+      ctx.ellipse(f.cx(), sy, 120 * p, 44 * p, 0, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.ellipse(f.cx(), sy, 78 * p, 28 * p, 0, 0, Math.PI * 2);
+      ctx.stroke();
+      for (let i = 0; i < 6; i++) {
+        const a = (i / 6) * Math.PI * 2 + now / 2000;
+        ctx.beginPath();
+        ctx.moveTo(f.cx() + Math.cos(a) * 78 * p, sy + Math.sin(a) * 28 * p);
+        ctx.lineTo(f.cx() + Math.cos(a) * 120 * p, sy + Math.sin(a) * 44 * p);
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+    // Familiars converging on the summoner
+    if (d.familiars) {
+      ctx.save();
+      ctx.shadowColor = '#66ffcc'; ctx.shadowBlur = 18;
+      for (const fam of d.familiars) {
+        if (fam.delay > 0) continue;
+        const fx = f.cx() + Math.cos(fam.ang) * fam.r;
+        const fy = f.cy() + Math.sin(fam.ang) * fam.r * 0.7;
+        ctx.globalAlpha = 0.75;
+        ctx.fillStyle = 'rgba(102,255,204,0.4)';
+        ctx.beginPath(); ctx.arc(fx, fy, 18, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#ccfff0';
+        ctx.beginPath(); ctx.arc(fx, fy, 7, 0, Math.PI * 2); ctx.fill();
+      }
+      ctx.restore();
+    }
+  }
+
   function _drawDomainEntryAnim(r) {
     if (!r.animData) return;
     const f = r.fighter;
@@ -2185,6 +2494,8 @@ const DomainManager = (() => {
       case 'ronin':      _drawRoninEntry(f, t, now, d);      break;
       case 'reaper':     _drawReaperEntry(f, t, now, d);     break;
       case 'pugilist':   _drawPugilistEntry(f, t, now, d);   break;
+      case 'warrior':    _drawWarriorEntry(f, t, now, d);    break;
+      case 'summoner':   _drawSummonerEntry(f, t, now, d);   break;
     }
     ctx.restore();
   }
@@ -2941,11 +3252,20 @@ const DomainManager = (() => {
 
   // Domain hazards manage hit cadence via hitSet/setTimeout — bypass normal iframes
   // so that being in combat doesn't permanently shield players from the domain.
+  //
+  // Anti-burst floor: because the normal iframe window is zeroed below, a dense
+  // hazard set (a bullet wall, the three holy beams, orbiting void rocks with the
+  // vortex pulling you through them) could land several full hits on the same
+  // frame — which is what made domains read as unsurvivable rather than hard.
+  // A target now takes domain-hazard damage at most once every _DOMAIN_HIT_CD
+  // frames; regular attacks from the owner are unaffected.
   function _dealDomainDamage(owner, target, dmg, kbForce) {
     if (!target || target.health <= 0 || !owner || owner.health <= 0) return;
     // Respect the finisher lock (invincible=9999): domain hazards must never
     // damage/kill a target mid-finisher cinematic.
     if (target.invincible > 1000) return;
+    if ((target._domainHitCd || 0) > 0) return;
+    target._domainHitCd = _DOMAIN_HIT_CD;
     const scaledDmg = (target.isBoss || target.isTrueForm)
       ? Math.max(1, Math.round(dmg * 0.35))
       : dmg;
@@ -3031,7 +3351,10 @@ const DomainManager = (() => {
       .concat(typeof minions !== 'undefined' ? minions : [])
       .concat(typeof trainingDummies !== 'undefined' ? trainingDummies : []);
     for (const e of _slowPool) {
-      if (e && e._domainSlowFactor !== undefined && e._domainSlowFactor !== 1) e._domainSlowFactor = 1;
+      if (!e) continue;
+      if (e._domainSlowFactor !== undefined && e._domainSlowFactor !== 1) e._domainSlowFactor = 1;
+      // Tick down the per-target domain hazard damage cooldown
+      if (e._domainHitCd > 0) e._domainHitCd--;
     }
     const _slowSources = [];
     for (const dm of _domains) {
@@ -3196,6 +3519,98 @@ const DomainManager = (() => {
               }
             } else {
               if (--h.activeTimer <= 0) remove = true;
+            }
+            break;
+          }
+
+          // Warrior: telegraphed ground sword. Warns, erupts once, retracts.
+          case 'blade_wall': {
+            if (h.warningTimer > 0) {
+              h.warningTimer--;
+              if (h.warningTimer === 0) {
+                if (typeof screenShake !== 'undefined') screenShake = Math.max(screenShake, 8);
+                if (typeof spawnParticles === 'function')
+                  spawnParticles(h.x, GAME_H - 70, '#e0b070', 12);
+              }
+            } else if (!h.risen) {
+              h.risen = true;
+              h.riseTimer = 30;
+              for (const t of targets) {
+                if (h.hitSet.has(t)) continue;
+                if (Math.abs(t.cx() - h.x) < h.radius + t.w / 2
+                    && t.cy() > GAME_H - h.height - 120) {
+                  h.hitSet.add(t);
+                  _dealDomainDamage(owner, t, h.damage, 11);
+                  if (typeof spawnParticles === 'function')
+                    spawnParticles(h.x, t.cy(), '#ffe0a0', 12);
+                }
+              }
+            } else if (--h.riseTimer <= 0) {
+              remove = true;
+            }
+            break;
+          }
+
+          // Warrior: the duel ring closes over the domain's life; standing outside
+          // it costs you a small, regular tick. Walking back in stops it entirely.
+          case 'duel_ring': {
+            const _rs = def.ringStart || 300, _re = def.ringEnd || 170;
+            const _prog = 1 - Math.max(0, domain.timer) / DOMAIN_FRAMES;
+            h.radius = _rs + (_re - _rs) * _prog;
+            if (--h.tickTimer <= 0) {
+              h.tickTimer = def.ringEvery || 40;
+              for (const t of targets) {
+                const dx = t.cx() - h.x, dy = (t.cy() - h.y) * 0.75;
+                if (Math.hypot(dx, dy) > h.radius) {
+                  _dealDomainDamage(owner, t, h.damage, 0);
+                  if (typeof spawnParticles === 'function')
+                    spawnParticles(t.cx(), t.cy(), '#e0b070', 6);
+                }
+              }
+            }
+            break;
+          }
+
+          // Summoner: familiars home in slowly and expire on contact.
+          case 'spirit_swarm': {
+            const _sm = (typeof slowMotion !== 'undefined' ? slowMotion : 1);
+            let near = null, nd = Infinity;
+            for (const t of targets) {
+              const d = Math.hypot(t.cx() - h.x, t.cy() - h.y);
+              if (d < nd) { nd = d; near = t; }
+            }
+            if (near) {
+              const ang = Math.atan2(near.cy() - h.y, near.cx() - h.x);
+              h.vx += Math.cos(ang) * 0.22;
+              h.vy += Math.sin(ang) * 0.22;
+            }
+            // Cap speed so they can always be outrun / baited into a wall
+            const sp = Math.hypot(h.vx, h.vy), MAXSP = 4.6;
+            if (sp > MAXSP) { h.vx = h.vx / sp * MAXSP; h.vy = h.vy / sp * MAXSP; }
+            h.wobble += 0.18;
+            h.x += (h.vx + Math.cos(h.wobble) * 0.6) * _sm;
+            h.y += (h.vy + Math.sin(h.wobble) * 0.6) * _sm;
+            if (--h.life <= 0) { remove = true; break; }
+            for (const t of targets) {
+              if (Math.hypot(h.x - t.cx(), h.y - t.cy()) < h.radius + t.w / 2) {
+                _dealDomainDamage(owner, t, h.damage, 7);
+                if (typeof spawnParticles === 'function')
+                  spawnParticles(h.x, h.y, '#66ffcc', 12);
+                remove = true;
+                break;
+              }
+            }
+            break;
+          }
+
+          // Summoner: the sigil is pure telegraph — it brightens as the next wave nears.
+          case 'summon_circle': {
+            h.angle += 0.014;
+            h.pulse = Math.max(0, (h.pulse || 0) - 1);
+            if (domain.spawnCooldown <= 6 && h.pulse === 0) {
+              h.pulse = 20;
+              if (typeof spawnParticles === 'function')
+                spawnParticles(h.x, h.y, '#66ffcc', 10);
             }
             break;
           }
@@ -4263,6 +4678,114 @@ const DomainManager = (() => {
           ctx.fillStyle = '#aaddff';
           ctx.beginPath(); ctx.arc(h.x, GAME_H - 8, 30, 0, Math.PI * 2); ctx.fill();
         }
+        break;
+      }
+
+      case 'blade_wall': {
+        const _gy = GAME_H - 60;
+        if (h.warningTimer > 0) {
+          // Telegraph: a widening crack in the floor, brightening as the sword nears
+          const w = 1 - h.warningTimer / 44;
+          ctx.globalAlpha = 0.30 + 0.35 * w;
+          ctx.strokeStyle = '#e0b070';
+          ctx.lineWidth = 2 + w * 3;
+          ctx.shadowColor = '#ffcc77'; ctx.shadowBlur = 14;
+          ctx.beginPath();
+          ctx.moveTo(h.x - h.radius * w, _gy + 10);
+          ctx.lineTo(h.x, _gy - 6);
+          ctx.lineTo(h.x + h.radius * w, _gy + 10);
+          ctx.stroke();
+          ctx.globalAlpha = 0.15 + 0.25 * w;
+          ctx.fillStyle = '#ffcc77';
+          ctx.beginPath();
+          ctx.ellipse(h.x, _gy + 8, h.radius * (0.4 + w * 0.7), 8, 0, 0, Math.PI * 2);
+          ctx.fill();
+        } else {
+          // Erupted blade
+          const up = Math.min(1, (30 - h.riseTimer) / 6);
+          const top = _gy - h.height * up;
+          ctx.globalAlpha = Math.min(1, h.riseTimer / 12);
+          ctx.shadowColor = '#ffcc77'; ctx.shadowBlur = 18;
+          ctx.fillStyle = '#d8d0c0';
+          ctx.beginPath();
+          ctx.moveTo(h.x - 9, _gy + 8);
+          ctx.lineTo(h.x - 5, top + 14);
+          ctx.lineTo(h.x, top);
+          ctx.lineTo(h.x + 5, top + 14);
+          ctx.lineTo(h.x + 9, _gy + 8);
+          ctx.closePath(); ctx.fill();
+          ctx.fillStyle = '#8a6a3a';
+          ctx.fillRect(h.x - 13, _gy - 4, 26, 6);
+        }
+        break;
+      }
+
+      case 'duel_ring': {
+        const now = performance.now();
+        ctx.globalAlpha = 0.42 + 0.12 * Math.sin(now / 220);
+        ctx.strokeStyle = '#e0b070';
+        ctx.lineWidth = 3;
+        ctx.shadowColor = '#e0b070'; ctx.shadowBlur = 18;
+        ctx.beginPath();
+        ctx.ellipse(h.x, h.y, h.radius, h.radius * 0.75, 0, 0, Math.PI * 2);
+        ctx.stroke();
+        // Ring notches so the boundary reads at a glance
+        ctx.globalAlpha = 0.55;
+        ctx.lineWidth = 2;
+        for (let i = 0; i < 16; i++) {
+          const a = (i / 16) * Math.PI * 2 + now / 3000;
+          const rx = Math.cos(a) * h.radius, ry = Math.sin(a) * h.radius * 0.75;
+          ctx.beginPath();
+          ctx.moveTo(h.x + rx * 0.95, h.y + ry * 0.95);
+          ctx.lineTo(h.x + rx * 1.05, h.y + ry * 1.05);
+          ctx.stroke();
+        }
+        break;
+      }
+
+      case 'spirit_swarm': {
+        const now = performance.now();
+        const pr = h.radius * (0.85 + 0.15 * Math.sin(now / 90 + h.wobble));
+        ctx.globalAlpha = Math.min(1, h.life / 45);
+        ctx.shadowColor = '#66ffcc'; ctx.shadowBlur = 16;
+        ctx.fillStyle = 'rgba(102,255,204,0.35)';
+        ctx.beginPath(); ctx.arc(h.x, h.y, pr * 1.5, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#ccfff0';
+        ctx.beginPath(); ctx.arc(h.x, h.y, pr * 0.55, 0, Math.PI * 2); ctx.fill();
+        // Trailing wisp tail
+        ctx.globalAlpha *= 0.4;
+        ctx.fillStyle = '#66ffcc';
+        ctx.beginPath(); ctx.arc(h.x - h.vx * 2.2, h.y - h.vy * 2.2, pr * 0.5, 0, Math.PI * 2); ctx.fill();
+        break;
+      }
+
+      case 'summon_circle': {
+        const now = performance.now();
+        const glow = 0.35 + (h.pulse || 0) / 20 * 0.5;
+        ctx.globalAlpha = glow;
+        ctx.strokeStyle = '#66ffcc';
+        ctx.shadowColor = '#66ffcc'; ctx.shadowBlur = 22;
+        for (let r = 0; r < 3; r++) {
+          const rr = 46 + r * 26;
+          ctx.lineWidth = r === 1 ? 3 : 1.5;
+          ctx.beginPath();
+          ctx.ellipse(h.x, h.y, rr, rr * 0.42, 0, 0, Math.PI * 2);
+          ctx.stroke();
+        }
+        // Rotating sigil spokes
+        ctx.lineWidth = 2;
+        for (let i = 0; i < 6; i++) {
+          const a = h.angle + (i / 6) * Math.PI * 2;
+          ctx.beginPath();
+          ctx.moveTo(h.x + Math.cos(a) * 46, h.y + Math.sin(a) * 46 * 0.42);
+          ctx.lineTo(h.x + Math.cos(a) * 98, h.y + Math.sin(a) * 98 * 0.42);
+          ctx.stroke();
+        }
+        ctx.globalAlpha = glow * 0.5;
+        ctx.fillStyle = '#66ffcc';
+        ctx.beginPath();
+        ctx.arc(h.x, h.y, 10 + 4 * Math.sin(now / 260), 0, Math.PI * 2);
+        ctx.fill();
         break;
       }
 

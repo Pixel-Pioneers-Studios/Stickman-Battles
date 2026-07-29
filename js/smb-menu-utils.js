@@ -142,43 +142,39 @@ selectLives(chosenLives);
   // Also auto-refresh room list when Online mode is opened
 })();
 
-// First-time visit: play the Tuesday cold open over the home screen, once ever.
-(function() {
-  // _story2 is declared in smb-story-config.js, ~70 script tags after this file.
-  // A fixed timer started here can fire before those have evaluated on a slow
-  // connection, and a bare reference to a not-yet-created binding throws
-  // ReferenceError rather than reading as undefined. Wait for it instead.
-  var _s2Waits = 0;
-  function _whenStory2Ready(fn) {
-    var ready = false;
-    try { ready = typeof _story2 !== 'undefined' && !!_story2; } catch (e) {}
-    if (ready) { setTimeout(fn, 500); return; }
-    if (_s2Waits++ > 100) return; // never arrived — skip the hook, don't crash
-    setTimeout(function () { _whenStory2Ready(fn); }, 100);
-  }
+// Tuesday cold open — plays once ever, on the player's first Story open.
+//
+// It used to auto-play ~800ms after load, over the home screen. That made a dark,
+// slow walking scene the first thing every visitor saw, including portal players
+// who arrived for a fight and never opted into the narrative. It is a story
+// opening, so it now gates the story: openStoryPath() calls this, and the panel
+// opens when the scene finishes. Anyone who plays a chapter still sees it, since
+// Story is the only route to the chapters.
+//
+// Returns true if the prologue took over (caller should defer its own UI to the
+// callback), false if it was already seen or is unavailable (open UI normally).
+function maybePlayTuesdayPrologue(onDone) {
+  var seen = false;
+  try { seen = !!(typeof _story2 !== 'undefined' && _story2 && _story2.tuesdaySeen); } catch (e) {}
+  try { if (localStorage.getItem('smb_tuesday_seen') === '1') seen = true; } catch (e) {}
+  if (seen || typeof TuesdayPrologue === 'undefined' || !TuesdayPrologue.play) return false;
+  if (TuesdayPrologue.isRunning && TuesdayPrologue.isRunning()) return false;
+
+  // Mark seen up front: if anything below throws, the scene must not re-arm and
+  // trap the player behind it on every subsequent Story open.
+  try { if (typeof _story2 !== 'undefined' && _story2) _story2.tuesdaySeen = true; } catch (e) {}
+  try { localStorage.setItem('smb_tuesday_seen', '1'); } catch (e) {}
+  try { if (typeof _saveStory2 === 'function') _saveStory2(); } catch (e) {}
+
   try {
-    _whenStory2Ready(() => {
-      try {
-        // Gated on a localStorage key as well as the save field: this runs
-        // ~800ms after load, which can beat the save finishing, and reading
-        // only _story2 replayed the cold open on every launch.
-        let _tuesSeen = !!(typeof _story2 !== 'undefined' && _story2 && _story2.tuesdaySeen);
-        try { if (localStorage.getItem('smb_tuesday_seen') === '1') _tuesSeen = true; } catch (e) {}
-        if (_tuesSeen || typeof TuesdayPrologue === 'undefined') return;
-
-        if (typeof _story2 !== 'undefined' && _story2) _story2.tuesdaySeen = true;
-        try { localStorage.setItem('smb_tuesday_seen', '1'); } catch (e) {}
-        if (typeof _saveStory2 === 'function') _saveStory2();
-
-        // The cold open ends by pushing into the phone, whose screen is the home
-        // screen already sitting underneath — so there is nothing to launch here.
-        // Story is a choice the player makes from that menu, not a room they wake
-        // up locked inside; the seam text moved to the first Story open.
-        setTimeout(() => { TuesdayPrologue.play(null); }, 300);
-      } catch(e) {}
+    return !!TuesdayPrologue.play(function () {
+      if (typeof onDone === 'function') onDone();
     });
-  } catch(e) {}
-})();
+  } catch (e) {
+    if (typeof onDone === 'function') onDone();
+    return false;
+  }
+}
 
 // ============================================================
 // EDGE PLAYER INDICATORS
@@ -190,9 +186,16 @@ selectLives(chosenLives);
 // were never shown. This draws the lip, and flares when someone is over it.
 function drawStageBoundary(scX, scY, camCX, camCY) {
   if (!gameRunning || typeof currentArena === 'undefined' || !currentArena) return;
-  const floor = (currentArena.platforms || []).find(pl => pl && pl.isFloor);
-  if (!floor) return;
-  const minX = floor.x, maxX = floor.x + floor.w;
+  // Union of every live floor segment, not just the first. The Circuit's plate is
+  // several isFloor segments with voids between them, so `.find()` would have
+  // reported only the leftmost segment's edge and flared the wrong boundary.
+  let minX = Infinity, maxX = -Infinity;
+  for (const pl of (currentArena.platforms || [])) {
+    if (!pl || !pl.isFloor || pl.isFloorDisabled) continue;
+    if (pl.x < minX) minX = pl.x;
+    if (pl.x + pl.w > maxX) maxX = pl.x + pl.w;
+  }
+  if (!isFinite(minX) || !isFinite(maxX)) return;
   const toScreenX = gx => (gx - camCX) * scX + canvas.width / 2;
 
   // How close is the nearest LOCAL fighter to each end of the ground? The

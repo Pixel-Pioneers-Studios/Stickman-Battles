@@ -52,7 +52,7 @@
   }
   </script>
 
-  <link rel="stylesheet" href="SMB.css?v=4.0.21">
+  <link rel="stylesheet" href="SMB.css?v=4.0.41">
 </head>
 <body>
 
@@ -134,8 +134,8 @@
             <option value="random">Random</option>
             <option value="none">None</option>
             <option value="warrior">Warrior</option>
-            <option value="thor">Thor</option>
-            <option value="kratos">Kratos</option>
+            <option value="thor">Torren</option>
+            <option value="kratos">Varek</option>
             <option value="ninja">Ninja</option>
             <option value="gunner">Gunner</option>
             <option value="archer">Archer</option>
@@ -743,8 +743,8 @@
             <option value="random">Random</option>
             <option value="none">None</option>
             <option value="warrior">Warrior</option>
-            <option value="thor">Thor</option>
-            <option value="kratos">Kratos</option>
+            <option value="thor">Torren</option>
+            <option value="kratos">Varek</option>
             <option value="ninja">Ninja</option>
             <option value="gunner">Gunner</option>
             <option value="archer">Archer</option>
@@ -1559,7 +1559,7 @@
   <!-- Error boundary — must be FIRST so it catches all other module errors -->
   <script src="./js/smb-errorboundary.js?v=4.0.2"></script>
   <!-- Global state, canvas setup -->
-  <script src="./js/smb-globals.js?v=4.0.23"></script>
+  <script src="./js/smb-globals.js?v=4.0.39"></script>
   <!-- CrazyGames SDK wrapper — must follow smb-globals.js -->
   <script src="./js/smb-crazygames.js?v=4.0.21"></script>
   <!-- Live ops: remote config, version checks, soft updates (must follow smb-globals.js) -->
@@ -1572,13 +1572,16 @@
   <!-- Achievement system -->
   <script src="./js/smb-achievements.js?v=4.0.2"></script>
   <!-- Arena, weapon, class data (split from smb-data.js) -->
-  <script src="./js/smb-data-arenas.js?v=4.0.2"></script>
+  <script src="./js/smb-data-arenas.js?v=4.0.39"></script>
+  <!-- The Circuit's sliding plate. Must load after smb-data-arenas.js (owns the
+       authoring fields it drives) and before smb-loop-core.js (which ticks it). -->
+  <script src="./js/smb-circuit.js?v=4.0.36"></script>
   <script src="./js/smb-data-mapperks.js?v=4.0.26"></script>
   <script src="./js/smb-data-mapperks-draw.js?v=4.0.24"></script>
-  <script src="./js/smb-data-weapons.js?v=4.0.7"></script>
+  <script src="./js/smb-data-weapons.js?v=4.0.31"></script>
   <script src="./js/smb-map-analyzer.js?v=4.0.2"></script>
   <!-- Combat pipeline, particles, heatmap, ragdoll (split from smb-particles.js) -->
-  <script src="./js/smb-combat.js?v=4.0.22"></script>
+  <script src="./js/smb-combat.js?v=4.0.40"></script>
   <script src="./js/smb-particles-core.js?v=4.0.2"></script>
   <script src="./js/smb-heatmap.js?v=4.0.2"></script>
   <script src="./js/smb-verlet.js?v=4.0.2"></script>
@@ -1602,12 +1605,14 @@
   <script src="./js/smb-finisher-engine.js?v=4.0.21"></script>
   <!-- Platform graph + A* pathfinding (must load before smb-fighter.js) -->
   <script src="./js/smb-pathfinding.js?v=4.0.2"></script>
+  <!-- Fragment weapon manifestation + sprint escalation (must load before smb-fighter.js) -->
+  <script src="./js/smb-fragment-manifest.js?v=4.0.41"></script>
   <!-- Fighter base class -->
-  <script src="./js/smb-fighter.js?v=4.0.21"></script>
+  <script src="./js/smb-fighter.js?v=4.0.43"></script>
   <!-- Modular combat AI: CombatSystem, MovementSystem, AIController, CombatAIFighter -->
   <script src="./js/smb-combat-ai.js?v=4.0.2"></script>
   <!-- Enemy NPCs, training mode -->
-  <script src="./js/smb-enemies-core.js?v=4.0.7"></script>
+  <script src="./js/smb-enemies-core.js?v=4.0.42"></script>
   <script src="./js/smb-enemies-creatures.js?v=4.0.2"></script>
   <script src="./js/smb-enemies-training.js?v=4.0.2"></script>
   <script src="./js/smb-enemies-class.js?v=4.0.2"></script>
@@ -1617,7 +1622,7 @@
   <!-- Divine Summon: H key calls a Herald to clear the level -->
   <script src="./js/smb-divine-summon.js?v=4.0.2"></script>
   <!-- Domain Expansion system -->
-  <script src="./js/smb-domain.js?v=4.0.21"></script>
+  <script src="./js/smb-domain.js?v=4.0.39"></script>
   <!-- Boss and True Form -->
   <script src="./js/boss/smb-boss.js?v=4.0.2"></script>
   <script src="./js/boss/smb-boss-cinematics.js?v=4.0.2"></script>
@@ -1649,7 +1654,7 @@
   <script src="./js/smb-adaptive-ai.js?v=4.0.2"></script>
   <!-- SOVEREIGN Ω — upgraded adaptive AI with prediction/punishment/limiter break -->
   <script src="./js/smb-smk2-data.js?v=4.0.2"></script>
-  <script src="./js/smb-smk2-class.js?v=4.0.27"></script>
+  <script src="./js/smb-smk2-class.js?v=4.0.39"></script>
   <script src="./js/smb-smk2-training.js?v=4.0.2"></script>
   <script src="./js/smb-absolute-axiom.js?v=4.0.2"></script>
   <!-- TrueForm ending cinematic -->
@@ -1657,7 +1662,7 @@
   <script src="./js/smb-trueform-ending-update.js?v=4.0.2"></script>
   <script src="./js/smb-trueform-ending-draw.js?v=4.0.2"></script>
   <!-- Drawing, game state, HUD, visual effects -->
-  <script src="./js/rendering/smb-drawing-arenas.js?v=4.0.22"></script>
+  <script src="./js/rendering/smb-drawing-arenas.js?v=4.0.35"></script>
   <script src="./js/rendering/smb-drawing-bg.js?v=4.0.5"></script>
   <script src="./js/rendering/smb-drawing-effects.js?v=4.0.2"></script>
   <script src="./js/rendering/smb-drawing-scenes.js?v=4.0.2"></script>
@@ -1679,16 +1684,16 @@
   <script src="./js/smb-camera.js?v=4.0.21"></script>
   <script src="./js/smb-camera-trace.js?v=4.0.11"></script>
   <script src="./js/smb-screenfx.js?v=4.0.2"></script>
-  <script src="./js/smb-loop-core.js?v=4.0.5"></script>
+  <script src="./js/smb-loop-core.js?v=4.0.35"></script>
   <script src="./js/smb-input.js?v=4.0.5"></script>
   <script src="./js/smb-cheats.js?v=4.0.2"></script>
   <!-- Menu UI, startGame, tutorial -->
-  <script src="./js/smb-menu-ui.js?v=4.0.9"></script>
+  <script src="./js/smb-menu-ui.js?v=4.0.41"></script>
   <script src="./js/smb-menu-select.js?v=4.0.23"></script>
   <script src="./js/smb-menu-config.js?v=4.0.2"></script>
   <script src="./js/smb-menu-spawn.js?v=4.0.8"></script>
   <script src="./js/smb-menu-startcore.js?v=4.0.24"></script>
-  <script src="./js/smb-menu-utils.js?v=4.0.26"></script>
+  <script src="./js/smb-menu-utils.js?v=4.0.41"></script>
   <!-- Network / online multiplayer -->
   <script src="./js/smb-network.js?v=4.0.21"></script>
   <!-- Centralized runtime state (accounts, admin overrides, online session) -->
@@ -1702,6 +1707,7 @@
   <script src="./js/smb-debug-overlay.js?v=4.0.2"></script>
   <script src="./js/smb-debug-console.js?v=4.0.11"></script>
   <script src="./js/smb-ai-console.js?v=4.0.6"></script>
+  <script src="./js/smb-sov-advisor.js?v=4.0.30"></script>
   <script src="./js/smb-debug-jump.js?v=4.0.22"></script>
   <!-- Account system — must load before smb-save.js so getSaveKey() works -->
   <script src="./js/smb-accounts.js?v=4.0.21"></script>
@@ -1721,7 +1727,7 @@
   <!-- Story Mode system -->
   <script src="./js/story/smb-story-registry.js?v=4.0.2"></script>
   <script src="./js/story/acts/act0/smb-act0-arc1.js?v=4.0.2"></script>
-  <script src="./js/story/acts/act0/smb-act0-arc2.js?v=4.0.23"></script>
+  <script src="./js/story/acts/act0/smb-act0-arc2.js?v=4.0.42"></script>
   <script src="./js/story/acts/act1/smb-act1-arc1.js?v=4.0.23"></script>
   <script src="./js/story/acts/act1/smb-act1-arc2.js?v=4.0.23"></script>
   <script src="./js/story/acts/act2/smb-act2-arc1.js?v=4.0.23"></script>
@@ -1760,7 +1766,7 @@
   <script src="./js/story/smb-story-config.js?v=4.0.23"></script>
   <script src="./js/story/smb-story-engine-data.js?v=4.0.2"></script>
   <script src="./js/story/smb-story-engine-ui.js?v=4.0.9"></script>
-  <script src="./js/story/smb-story-prologue-tuesday.js?v=4.0.22"></script>
+  <script src="./js/story/smb-story-prologue-tuesday.js?v=4.0.41"></script>
   <script src="./js/smb-story-scenes.js?v=4.0.2"></script>
   <script src="./js/smb-story-narrative-scene.js?v=4.0.3"></script>
   <script src="./js/story/smb-story-engine-flow.js?v=4.0.8"></script>
@@ -1775,7 +1781,7 @@
   <!-- Escort chapter engine — NPC protection, wave spawning, story integration -->
   <script src="./js/smb-escort.js?v=4.0.2"></script>
   <!-- Ship & Fracture Progression (lore: Axiom, the war, branch rulers, True Form) -->
-  <script src="./js/smb-progression.js?v=4.0.2"></script>
+  <script src="./js/smb-progression.js?v=4.0.28"></script>
   <!-- Multiverse Progression System -->
   <script src="./js/smb-multiverse.js?v=4.0.23"></script>
   <!-- Chaos Multiplayer system — events, mutations, item drops, kill streaks, spectator -->
@@ -1787,7 +1793,7 @@
   <!-- Guided onboarding tutorial — runs on top of training mode -->
   <script src="./js/smb-tutorial.js?v=4.0.23"></script>
   <!-- Replay system — recording, IndexedDB storage, download, and viewer -->
-  <script src="./js/smb-replay.js?v=4.0.24"></script>
+  <script src="./js/smb-replay.js?v=4.0.36"></script>
   <!-- StoryVoice — speaks story dialogue lines via the Web Speech API -->
   <script src="./js/smb-storyvoice.js?v=4.0.2"></script>
 
@@ -2243,7 +2249,10 @@ function _renderFightersLog() {
 
     btn.addEventListener('pointerdown', e => {
       e.preventDefault();
-      btn.setPointerCapture(e.pointerId);
+      // Guarded: setPointerCapture throws if the pointer is already released or
+      // captured elsewhere. It ran before pressKey(), so a throw here silently
+      // swallowed the input and the button did nothing.
+      try { btn.setPointerCapture(e.pointerId); } catch (err) {}
       btn.classList.add('pressed');
       pressKey(key);
     }, { passive: false });
@@ -2278,6 +2287,8 @@ function _renderFightersLog() {
     const p2Bot = (typeof p2IsBot !== 'undefined' && p2IsBot) ||
                   (typeof p2IsNone !== 'undefined' && p2IsNone);
     if (p2Pad) p2Pad.style.display = p2Bot ? 'none' : 'flex';
+    // Solo: split P1's controls across both thumbs (see .solo rules in SMB.css).
+    mc.classList.toggle('solo', !!p2Bot);
   }
 
   function hideMobileControls() {
@@ -2370,6 +2381,34 @@ function _renderFightersLog() {
     var hudBtn = document.getElementById('hudFullscreenBtn');
     if (hudBtn) hudBtn.textContent = inFS ? '✕ Exit FS' : '⛶';
   }
+  // CrazyGames forbids custom fullscreen buttons — the portal supplies its own
+  // chrome. Hide ours when embedded there; keep them everywhere else (itch,
+  // direct hosting) where nothing else offers fullscreen.
+  function _hideFSBtnsOnPortal() {
+    // NOT `!!window.CrazyGames` — the SDK script is in this page unconditionally
+    // and initializes fine off-portal, so its mere presence hides nothing.
+    // SDK.environment reports 'local' when self-hosted, 'crazygames' when embedded.
+    var onPortal = false;
+    try {
+      var _sdk = window.CrazyGames && window.CrazyGames.SDK;
+      onPortal = (_sdk && _sdk.environment === 'crazygames') ||
+                 /(^|\.)crazygames\.(com|co\.uk)$/i.test(location.hostname);
+    } catch (e) {}
+    if (!onPortal) return false;
+    ['fullscreenBtn', 'hudFullscreenBtn'].forEach(function (id) {
+      var b = document.getElementById(id);
+      if (b) b.style.display = 'none';
+    });
+    return true;
+  }
+  // The SDK script loads async, so re-check for a few seconds before giving up.
+  if (!_hideFSBtnsOnPortal()) {
+    var _fsTries = 0;
+    var _fsPoll = setInterval(function () {
+      if (_hideFSBtnsOnPortal() || ++_fsTries > 20) clearInterval(_fsPoll);
+    }, 250);
+  }
+
   document.addEventListener('fullscreenchange',       _updateFSBtns);
   document.addEventListener('webkitfullscreenchange', _updateFSBtns);
   document.addEventListener('mozfullscreenchange',    _updateFSBtns);

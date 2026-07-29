@@ -67,6 +67,14 @@ class ForestBeast extends Fighter {
     this._burstCd     = 0;
   }
 
+  // Vertical gap between this beast's feet and a target's feet.
+  // The slam and leap shockwaves travel along the ground, so they must only reach
+  // targets standing on (roughly) the same surface — without this, a beast on the
+  // floor hits a player on the top platform 400px above it.
+  _feetGap(p) {
+    return Math.abs((p.y + (p.h || 0)) - (this.y + this.h));
+  }
+
   update() {
     super.update();
 
@@ -98,12 +106,13 @@ class ForestBeast extends Fighter {
         screenShake = Math.max(screenShake, 10);
         spawnParticles(this.cx(), this.y + this.h, '#553300', 20);
         spawnParticles(this.cx(), this.y + this.h, '#aa6600', 10);
-        // Damage any target standing close on the ground
+        // Damage any target standing close on the ground.
+        // dmgMult is applied centrally by dealDamage() — do NOT pre-multiply here.
         for (const p of players) {
           if (p === this || p.health <= 0) continue;
           const dist = Math.abs(p.cx() - this.cx());
-          if (dist < 90 && p.onGround) {
-            dealDamage(this, p, Math.round(32 * this.dmgMult), 8);
+          if (dist < 90 && p.onGround && this._feetGap(p) < 40) {
+            dealDamage(this, p, 24, 8);
             p.vy = -10; // launch up
           }
         }
@@ -125,7 +134,7 @@ class ForestBeast extends Fighter {
         for (const p of players) {
           if (p === this || p.health <= 0) continue;
           const dist = Math.abs(p.cx() - this.cx());
-          if (dist < 70) dealDamage(this, p, Math.round(22 * this.dmgMult), 12);
+          if (dist < 70 && this._feetGap(p) < 50) dealDamage(this, p, 16, 12);
         }
         this._leapCd = this.isRaged ? 220 : 340;
       }
@@ -138,8 +147,12 @@ class ForestBeast extends Fighter {
     this._fbRetargetCd = (this._fbRetargetCd || 0) - 1;
     if (this._fbRetargetCd <= 0) {
       const _pool = players.filter(p => p !== this && p.health > 0 && !p.godmode && !areAlliedEntities(this, p));
-      if (_pool.length > 0)
-        this.target = _pool.reduce((a, b) => Math.abs(b.cx() - this.cx()) < Math.abs(a.cx() - this.cx()) ? b : a);
+      // True 2D distance — a horizontal-only comparison makes a player parked directly
+      // overhead read as "nearest" and locks the beast onto a target it cannot reach.
+      if (_pool.length > 0) {
+        const _d2 = (p) => Math.hypot(p.cx() - this.cx(), p.cy() - this.cy());
+        this.target = _pool.reduce((a, b) => _d2(b) < _d2(a) ? b : a);
+      }
       this._fbRetargetCd = 30;
     }
 
@@ -148,8 +161,11 @@ class ForestBeast extends Fighter {
     const dx  = tgt.cx() - this.cx();
     const dist = Math.abs(dx);
 
-    // ── Ground slam: use when target is close ───────────────────
-    if (this._slamCd <= 0 && dist < 100 && this.onGround && this._slamPhase === 'none') {
+    // ── Ground slam: use when target is close AND on our level ──
+    // The vertical gate keeps the beast from burning its slam on an unreachable target
+    // overhead — it leaps instead, which is the move that actually closes that gap.
+    if (this._slamCd <= 0 && dist < 100 && this._feetGap(tgt) < 60 &&
+        this.onGround && this._slamPhase === 'none') {
       this._slamPhase = 'windup';
       this._slamTimer = this.isRaged ? 18 : 26;
       // Warning circle on ground

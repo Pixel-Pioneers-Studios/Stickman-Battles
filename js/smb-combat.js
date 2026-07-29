@@ -18,6 +18,35 @@ function areAlliedEntities(a, b) {
   return false;
 }
 
+// True when `f` is a legal victim for an offensive ability owned by `self`.
+// Ability entities (orbs, discs, waves, spin hitboxes) own their own contact
+// logic — they consume themselves / add to a hitSet the moment they overlap a
+// body. dealDamage() refuses allies, but that refusal happens too late: the
+// ally has already eaten the orb for zero damage. Every bespoke hit loop must
+// filter with this BEFORE running its contact logic, so allied bodies are
+// transparent instead of absorbent. (Summoner familiar, story allies, co-op
+// teammates — anything sharing _teamId / storyFaction.)
+function isHostileTarget(self, f) {
+  if (!f || f === self || f.health <= 0) return false;
+  if (areAlliedEntities(self, f)) return false;
+  return !_isCoopTeammate(self, f);
+}
+
+// Mirrors the friendly-fire policy the Projectile and melee-swing paths already
+// enforce inline: in co-op-shaped modes two player-slot fighters never damage
+// each other, even when nothing stamped _teamId on them.
+function _isCoopTeammate(a, b) {
+  if (a.isBoss || b.isBoss || a.isMinion || b.isMinion || a.isDummy || b.isDummy) return false;
+  if (typeof players === 'undefined' || !players.includes(a) || !players.includes(b)) return false;
+  const _mode = typeof gameMode !== 'undefined' ? gameMode : '';
+  const _mgT  = typeof minigameType !== 'undefined' ? minigameType : '';
+  if (_mode === 'minigames' && _mgT === 'survival' &&
+      typeof survivalFriendlyFire !== 'undefined' && survivalFriendlyFire) return false;
+  if (_mode === 'boss') return true;
+  if (_mode === 'minigames' && !a.isAI && !b.isAI) return true;
+  return false;
+}
+
 // Hook for future class-weapon special interactions. Called after affinity multiplier is applied.
 function applyClassWeaponInteraction(attacker, target, dmg) {
   // placeholder for future logic
@@ -456,6 +485,20 @@ function dealDamage(attacker, target, dmg, kbForce, stunMult = 1.0, isSplash = f
     actualKb = Math.min(actualKb, 20);
   }
 
+  // ── FAMILIAR JUGGLE GUARD ─────────────────────────────────────────────────
+  // A Summoner and their familiar standing on opposite sides could volley a victim
+  // between them indefinitely: each hit relaunched the target toward the other
+  // attacker, so they never touched the ground and never got an input. None of the
+  // anti-lockout systems above can see this — hitstun decay, the combo KB ramp and
+  // the auto-launch all key off attacker._comboHitCount, and two attackers each
+  // keep their own counter, so neither side's ever climbs.
+  // Fix at the source rather than in the shared lockout code: a familiar's hit
+  // cannot keep an airborne target airborne, which guarantees a landing every time.
+  // Damage is untouched — the familiar still chips, it just cannot juggle.
+  if (attacker && attacker._isFamiliar && !target.onGround && !target.isBoss) {
+    actualKb = 0;
+  }
+
   // One-punch mode: training only — instantly kills on hit
   if (trainingMode && attacker && attacker.onePunchMode && !target.shielding) {
     actualDmg = target.health; // always lethal
@@ -563,6 +606,16 @@ function dealDamage(attacker, target, dmg, kbForce, stunMult = 1.0, isSplash = f
       spawnParticles(target.cx(), target.cy(), '#ffffff', 20);
       spawnParticles(target.cx(), target.cy(), '#aa00ff', 14);
     }
+  }
+  // ── ATTRIBUTION STAMP ─────────────────────────────────────────────────────
+  // Record who last hurt this fighter and when. Nothing here reads it; it exists
+  // so an AI can answer "who is actually hurting me" instead of only "who is
+  // nearest" — in a 2v1 those are routinely different fighters. Purely
+  // informational: no damage, knockback or timing depends on it.
+  if (attacker && attacker !== target && actualDmg > 0 && typeof frameCount !== 'undefined') {
+    target._lastAttacker      = attacker;
+    target._lastAttackerFrame = frameCount;
+    target._lastAttackerDmg   = actualDmg;
   }
   target.invincible = target.invincible > hitInvincibleFrames ? target.invincible : hitInvincibleFrames; // preserve finisher lock
   const dir        = attacker ? (target.cx() > attacker.cx() ? 1 : -1) : 1;
@@ -678,7 +731,57 @@ function dealDamage(attacker, target, dmg, kbForce, stunMult = 1.0, isSplash = f
       target.stunTimer    = Math.max(8, Math.floor(target.stunTimer * _decayFactor));
       if (target.ragdollTimer > 0)
         target.ragdollTimer = Math.max(6, Math.floor(target.ragdollTimer * _decayFactor));
+
+    // ── SUSTAINED-PRESSURE DECAY ──────────────────────────────────────────────
+    // The decay above only fires inside the 45-frame combo window. An attacker
+    // who lands steadily but slightly slower than that — Sovereign's measured
+    // median gap is 86 frames — resets the combo counter between hits, so every
+    // single hit arrives with FULL, undecayed hitstun and the anti-lockout system
+    // never engages. Replay-measured result: the target spent 20.7% of its living
+    // frames unable to act, across 22 separate lockouts of a second or more.
+    // This covers that gap with a slower, gentler taper over a longer memory.
+    // Damage and knockback are untouched — only the length of the lockout.
+    } else if (attacker && !attacker.isBoss && !attacker.isTrueForm && target.stunTimer > 0 &&
+               typeof frameCount !== 'undefined' &&
+               !(typeof SMK2_TUNE !== 'undefined' && SMK2_TUNE && SMK2_TUNE.pressureDecay === false)) {
+      const _PRESSURE_WINDOW = 190;   // ~3s of "still under pressure"
+      if (frameCount - (target._stunPressureLast || -9999) > _PRESSURE_WINDOW) target._stunPressure = 0;
+      target._stunPressure     = (target._stunPressure || 0) + 1;
+      target._stunPressureLast = frameCount;
+      if (target._stunPressure > 1) {
+        // Gentler than the in-combo taper and floored higher: sustained pressure
+        // should still hurt, it just must not read as an unbreakable lock.
+        const _pf = Math.max(0.50, 1 - (target._stunPressure - 1) * 0.10);
+        target.stunTimer = Math.max(8, Math.floor(target.stunTimer * _pf));
+        if (target.ragdollTimer > 0)
+          target.ragdollTimer = Math.max(6, Math.floor(target.ragdollTimer * _pf));
+      }
     }
+    // ── LOCKOUT CEILING ───────────────────────────────────────────────────────
+    // A hard bound on how long a fighter can be held unable to act by chained
+    // hits, whatever the cause — combo length, weapon matchup, or AI cadence.
+    // The two decay systems above shorten INDIVIDUAL stuns but neither bounds the
+    // TOTAL: hits landing ~28 frames apart re-stun before the previous expires,
+    // so a 6-hit chain measured 192 continuous frames (3.2s) with no input.
+    // This caps the run rather than zeroing it mid-hit, then grants a short
+    // invincible beat so the very next hit cannot immediately re-lock.
+    if (target && !target.isBoss && !target.isTrueForm && typeof frameCount !== 'undefined' &&
+        !(typeof SMK2_TUNE !== 'undefined' && SMK2_TUNE && SMK2_TUNE.lockCeiling === false)) {
+      const _LOCK_CEIL = 105;   // ~1.75s of continuous lock
+      const _wasLocked = (target._lockPrevFrame || -99) >= frameCount - 4;
+      if (!_wasLocked) target._lockStart = frameCount;
+      target._lockPrevFrame = frameCount;
+      const _held = frameCount - (target._lockStart || frameCount);
+      if (_held + (target.stunTimer || 0) > _LOCK_CEIL) {
+        target.stunTimer = Math.max(0, _LOCK_CEIL - _held);
+        if (target.ragdollTimer > 0) target.ragdollTimer = Math.min(target.ragdollTimer, 10);
+        if (target.stunTimer === 0) {
+          target.invincible = Math.max(target.invincible || 0, 12); // one beat to act
+          target._lockStart = frameCount;
+        }
+      }
+    }
+
     // ── AIR ESCAPE WINDOW: high combo + airborne → reduce invincibility frames ─
     // Gives the defending player an earlier escape window while airborne.
     if (attacker && attacker._comboHitCount >= 5 && !target.onGround && !target.isBoss) {

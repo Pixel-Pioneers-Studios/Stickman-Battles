@@ -2,6 +2,46 @@
 // smb-smk2-class.js — SovereignMK2 class (extends AdaptiveAI) + debug/console API
 // Depends on: smb-globals.js, smb-adaptive-ai.js
 
+// Tuning switches for controlled A/B measurement. Defaults are the shipping
+// behaviour; flipping one at runtime changes only the flagged branch so two runs
+// differ by exactly that branch and nothing else.
+// voidBoostMax: hard budget on recovery boosts per airborne stint (resets on landing).
+// Set very high to restore the old unbounded behaviour for an A/B — but note the old
+// behaviour is what let him climb to y=-2765 and take the camera with him.
+window.SMK2_TUNE = window.SMK2_TUNE || { openGate: true, pressureDecay: true, lockCeiling: true, voidBoostMax: 3 };
+
+// ── Owner-attached hazard registry ───────────────────────────────────────────
+// Several weapon abilities/supers store their live hazard directly on the wielder
+// instead of registering a Projectile, so the generic projectile pools never see
+// them. Sovereign's threat scans previously hardcoded this list in TWO places and
+// both had drifted out of date — the Electric Staff's Shock Bolt was absent from
+// both, which is why he ate 28 of them in one match without a single dodge: not a
+// reaction failure, he could not perceive the orb at all.
+// One list, read by every scan. Adding a weapon hazard here makes Sovereign see it.
+const SMK2_OWNED_HAZARDS = [
+  '_swordSlashes', '_paperSwarm', '_paperPlanes', '_boomerangs',
+  '_peaCluster', '_gravityStone', '_flailBall', '_scytheToss',
+  '_hammerShock', '_thrownAxe', '_shockBolt',
+];
+
+// Yields every live hazard object the target owns, flattening arrays and singles.
+function _smk2OwnedHazards(t) {
+  const out = [];
+  if (!t) return out;
+  for (const key of SMK2_OWNED_HAZARDS) {
+    const v = t[key];
+    if (!v) continue;
+    const list = Array.isArray(v) ? v : [v];
+    for (const hz of list) {
+      if (!hz || hz.done || hz.dead) continue;
+      if (hz.life !== undefined && hz.life <= 0) continue;
+      if (hz.timer !== undefined && hz.timer <= 0) continue;
+      out.push(hz);
+    }
+  }
+  return out;
+}
+
 class SovereignMK2 extends AdaptiveAI {
   constructor(x, y, color, weaponKey) {
     super(x, y, color, weaponKey);
@@ -143,6 +183,22 @@ class SovereignMK2 extends AdaptiveAI {
     this._strategyFail       = {};  // { strategy: failCount }
     this._lockScored         = true; // has the current lock been scored for success/failure?
 
+    // ── Multi-opponent targeting + per-opponent memory ───────────
+    // updateAI() below fully replaces Fighter.updateAI(), which means it also
+    // skipped that method's target validation and its 25-tick nearest-enemy
+    // re-evaluation. Sovereign therefore kept whatever target was assigned at
+    // spawn for the whole match: in a 2v1 the second player could hit him
+    // indefinitely and he would never turn, and if his one target died and did
+    // not respawn the `!t || t.health <= 0` guard returned every frame and he
+    // stopped acting entirely. These drive a threat-weighted choice instead.
+    this._threatLedger   = new Map(); // fighter -> { dmg, lastFrame } decaying damage tally
+    this._retargetDwell  = 0;         // frames on the current target (hysteresis floor)
+    this._threatSeenFrame = -1;       // last attribution stamp already folded in
+    // One BehaviorModel per opponent. A single shared model blended two players'
+    // habits into one set of matrices, so reads learned from one were applied to
+    // the other. Saved and restored on every switch so each profile survives.
+    this._oppMemory      = new Map(); // fighter -> saved profile bundle
+
     // ── Force Engagement System ──────────────────────────────────
     // Tracks how long the player has stayed distant AND avoided attacking.
     // When both thresholds are exceeded, Sovereign enters FORCE MODE and
@@ -174,6 +230,13 @@ class SovereignMK2 extends AdaptiveAI {
     this._zoneVisits = [0, 0, 0];   // [left, center, right] visit counts (decaying)
     this._prefZone   = 1;           // 0=left, 1=center, 2=right
 
+    // ── Board Control (The Circuit only) ───────────────────────────
+    // On his own arena the stage is a plate he can slide, so a spatial read stops
+    // being advisory and becomes an action: he moves the voids to where the player
+    // has shown they like to stand. Inert on every other arena.
+    this._plateCd       = 0;        // frames until he may move the plate again
+    this._plateRequests = 0;        // accepted slides this match (debug/telemetry)
+
     // ── Corner Pressure System ─────────────────────────────────────
     // When the player is near an edge, Sovereign switches to corner-exploit:
     //   • positions on the STAGE SIDE of the player (cuts off center escape)
@@ -198,6 +261,8 @@ class SovereignMK2 extends AdaptiveAI {
     // ── Own-corner escape ──────────────────────────────────────────
     this._sovereignEscapeCd = 0;      // cooldown: jump over player to reverse corner
     this._voidRecoverCd     = 0;      // emergency recovery cooldown after edge launch
+    this._voidBoosts        = 0;      // recovery boosts used this airborne stint (resets on landing)
+    this._voidHopCd         = 0;      // cooldown on the gap-hop the void-step veto issues
     this._heavyThreatCd     = 0;      // short memory for high-knockback weapons
 
     // Tune BehaviorModel for Sovereign: sample every decision frame and weight
@@ -282,13 +347,36 @@ class SovereignMK2 extends AdaptiveAI {
     this._comboPrevTgtHp  = Infinity;
     this._comboLandedLast = false;
     this._comboExtensions = 0;
-    this._COMBO_EXT_MAX   = 2;
+    // Replay-measured: at 2 this produced a cluster of 4-hit chains (base 2 +
+    // 2 refunds) and tripled the number of 3+ chains, which reads as an
+    // unbreakable combo. 1 keeps the conversion gain without the lock.
+    this._COMBO_EXT_MAX   = 1;
 
     // ── Reaction mistake-rate latch (Stage 3) ──────────────────────
     // One defensive read decision per player attack instance, latched on the
     // attack's rising edge so a multi-frame swing is a single read (not a fresh
     // coin-flip every frame). Cleared when the player isn't attacking.
     this._reactLatch          = null; // { react: bool } | null
+
+    // ── Blind threat learning ──────────────────────────────────────
+    // Perception used to be a whitelist: a hazard the scans didn't name was not
+    // merely missed, it was imperceptible, so every new ability created a fresh
+    // permanent blind spot. This learns the SHAPE of an unseen threat instead of
+    // its identity — "I lost health at range 300 about 20 frames after they
+    // pressed their ability" is enough to start evading, without ever knowing
+    // what an Electric Staff or a Shock Bolt is. It generalises to weapons that
+    // do not exist yet.
+    this._selfPrevHp      = null;
+    this._tAbilityFiredAt = -9999;
+    this._tSuperFiredAt   = -9999;
+    this._unknownThreat   = {
+      viaAbility: 0, viaSuper: 0, viaNeither: 0, total: 0,
+      delaySum: 0, delayN: 0,      // frames between their button and my damage
+      distSum: 0,  distN: 0,       // how far away they were when it landed
+    };
+    this._blindEvadeUntil = 0;
+    this._blindEvadeSrc   = null;
+    this._blindLineCd     = 0;
 
     // ── Ability / super profile observation ──────────────────────
     this._prevTAbilityCd  = 0;
@@ -764,6 +852,18 @@ class SovereignMK2 extends AdaptiveAI {
   _getCounterStrategy() {
     if (this._observationFrames < 4 || this._actionSampleCount < 1) return null;
 
+    // Strategic advisor (smb-sov-advisor.js) gets first refusal on the NEXT lock.
+    // It reasons over ~15s of fight history, which is a horizon the per-frame
+    // engine below structurally cannot see. It only proposes a strategy the
+    // engine already implements, and only when its own read hasn't just failed —
+    // so a bad suggestion costs one lock and is then scored and discarded like
+    // any other. If the advisor is absent or off, this is a no-op.
+    if (this._advisorStrategy && !(this._strategyFail || {})[this._advisorStrategy]) {
+      const _adv = this._advisorStrategy;
+      this._advisorStrategy = null;   // consume — one lock per advisory
+      return _adv;
+    }
+
     const seq = this._actionSeq.filter(a => a !== 'idle');
     if (seq.length < 2) return null;
 
@@ -973,6 +1073,78 @@ class SovereignMK2 extends AdaptiveAI {
 
   // Call once per AI tick (after _updateAntiExploit) to track where the player
   // tends to fight and which platforms they favour.
+  // ══════════════════════════════════════════════════════════════
+  // BOARD CONTROL — Move the stage, not the fighter
+  // ══════════════════════════════════════════════════════════════
+  //
+  // The Circuit is a perforated plate over void, and Sovereign can slide it (see
+  // js/smb-circuit.js). This is where his spatial profile finally does something:
+  // three symmetric decks and one unbroken floor gave _prefPlatIdx / _prefZone
+  // nothing worth acting on, so the reads accumulated and were spent on little more
+  // than approach bias. Here a read becomes a move — he puts a void where the
+  // player has demonstrated they want to be.
+  //
+  // Priority is deliberate: a committed airborne player is the highest-value read
+  // (they cannot change their landing spot mid-arc), a camped zone is the fallback.
+  // Everything is gated on EARNED data — he never moves the plate on a cold read,
+  // so a player who varies their footing is never touched by this system. That is
+  // the intended counterplay, and it is the same contract as the rest of his kit:
+  // he only knows what you have shown him.
+  //
+  // No-ops entirely off The Circuit. CircuitPlate rejects requests during its own
+  // telegraph/slide/cooldown and refuses any throw that would drop Sovereign
+  // himself, so this cannot strobe the stage or self-inflict.
+  _runPlateControl(t) {
+    if (typeof CircuitPlate === 'undefined' || !CircuitPlate) return;
+    if (this._plateCd > 0) { this._plateCd--; return; }
+    if (!t || t.health <= 0 || this.health <= 0) return;
+    if (typeof isCinematic !== 'undefined' && isCinematic) return;
+
+    let wantX = null, why = null;
+
+    // 1. Player is airborne and falling — deny the landing. Predict where the arc
+    //    puts them rather than where they are now.
+    if (!t.onGround && t.vy > 0.8) {
+      const framesToFloor = Math.min(45, Math.max(0, (460 - (t.y + t.h)) / Math.max(0.8, t.vy)));
+      wantX = t.cx() + t.vx * framesToFloor;
+      why   = 'deny-landing';
+    }
+    // 2. Otherwise punish a camped zone, but only once it is genuinely established.
+    else {
+      const zTotal = this._zoneVisits[0] + this._zoneVisits[1] + this._zoneVisits[2];
+      const zPref  = this._zoneVisits[this._prefZone] || 0;
+      // Needs both a real sample size and a real skew — an even spread is not a read.
+      if (zTotal > 200 && zPref / zTotal > 0.52) {
+        const zoneCX = [GAME_W / 6, GAME_W / 2, GAME_W * 5 / 6][this._prefZone];
+        // Only worth doing if they are actually in that zone right now.
+        if (Math.abs(t.cx() - zoneCX) < GAME_W / 5) {
+          wantX = t.cx();
+          why   = 'deny-zone';
+        }
+      }
+    }
+
+    if (wantX === null) return;
+    if (CircuitPlate.slideVoidToward(wantX, why)) {
+      this._plateRequests++;
+      // Long gap between board moves. The plate is a pressure tool, not a spam
+      // one — and the player needs uncontested ground to fight on in between.
+      this._plateCd = 260;
+      if (typeof showBossDialogue === 'function' && Math.random() < 0.30) {
+        showBossDialogue(why === 'deny-landing'
+          ? randChoice(['You chose where to land. I chose what is there.',
+                        'Committed. Predictable.',
+                        'The ground was never the constant here.'])
+          : randChoice(['You like it there. I noticed.',
+                        'You keep standing in the same place.',
+                        'I did not remove it. I moved it.']), 150);
+      }
+    } else {
+      // Rejected (cooldown, trivial travel, or would drop him) — retry soon.
+      this._plateCd = 45;
+    }
+  }
+
   _updateSpatialProfile(t) {
     // ── Zone tracking ─────────────────────────────────────────
     const zone = t.cx() < GAME_W / 3 ? 0 : t.cx() < GAME_W * 2 / 3 ? 1 : 2;
@@ -1406,15 +1578,59 @@ class SovereignMK2 extends AdaptiveAI {
 
     const centerDir = this.cx() < GAME_W / 2 ? 1 : -1;
     const retreatDir = (offLeft || (nearLedge && this.cx() < GAME_W / 2)) ? 1 : -1;
-    const escapeDir = offLeft ? 1 : offRight ? -1 : centerDir;
+    let   escapeDir = offLeft ? 1 : offRight ? -1 : centerDir;
+
+    // ── Recovery boost budget ────────────────────────────────────────────────
+    // The cooldown below is a RATE limit, not a budget, and that distinction is
+    // what broke a live match. A -14 impulse every 12 frames against gravity
+    // (~0.8/frame) is a net CLIMB, and the `this.vy > 0` term re-arms the branch the
+    // instant he starts falling — so any state that holds inVoidRisk true keeps
+    // boosting him forever. He reached y = -2765 (~3300px above the stage) and
+    // dragged the camera with him.
+    //
+    // It could not run away while the ledge zone sat over unbroken floor: he always
+    // landed, and landing reset the state. The Circuit's plate put voids INSIDE the
+    // stage, so "no ground below me" became a condition he can hold indefinitely at
+    // a fixed x. The geometry was hiding the bug; it was never bounded.
+    //
+    // Two hard stops, both required. The budget resets on landing, so genuine
+    // multi-stage recoveries still work exactly as before.
+    if (this.onGround) this._voidBoosts = 0;
+    const RECOVER_CEIL = -60;                       // above the top of the play area
+    const _boostMax    = (typeof SMK2_TUNE !== 'undefined' && SMK2_TUNE &&
+                          typeof SMK2_TUNE.voidBoostMax === 'number') ? SMK2_TUNE.voidBoostMax : 3;
+    const boostsLeft   = (this._voidBoosts || 0) < _boostMax;
+    const underCeiling = this.y > RECOVER_CEIL;
+    const mayBoost     = boostsLeft && underCeiling;
+
+    // When he is out of boosts, stop trying to climb and start trying to LAND:
+    // steer toward the nearest solid platform he could actually come down on. Over
+    // The Circuit's voids the old code pogo'd in place because escapeDir only ever
+    // pointed at the arena centre, which is not necessarily standable.
+    if (!mayBoost && !this.onGround && typeof currentArena !== 'undefined' &&
+        currentArena && currentArena.platforms) {
+      const footY = this.y + this.h;
+      let bestX = null, bestD = Infinity;
+      for (const pl of currentArena.platforms) {
+        if (!pl || pl.isFloorDisabled) continue;
+        if (pl.y < footY - 40) continue;            // must be at or below him
+        const cx    = this.cx();
+        const inSpan = cx > pl.x && cx < pl.x + pl.w;
+        const tx    = inSpan ? cx : (cx < pl.x ? pl.x + 12 : pl.x + pl.w - 12);
+        const dd    = Math.abs(tx - cx);
+        if (dd < bestD) { bestD = dd; bestX = tx; }
+      }
+      if (bestX !== null && bestD > 4) escapeDir = Math.sign(bestX - this.cx()) || escapeDir;
+    }
 
     if (this.onGround || this.canDoubleJump || this.vy > 0 || offBottom) {
       this.vx = escapeDir * moveSpd * (heavyThreat ? 1.02 : 0.90);
       // Gate the jump behind the cooldown — prevents the trampoline pogo-stick
       // that fires when the arena floor is below the GAME_H-180 threshold.
-      if (this._voidRecoverCd <= 0) {
+      if (this._voidRecoverCd <= 0 && (this.onGround || mayBoost)) {
         this._voidRecoverCd = heavyThreat ? 16 : 12;
         this.vy = this.onGround ? jumpVy : (offBottom ? -16 : -14);
+        if (!this.onGround) this._voidBoosts = (this._voidBoosts || 0) + 1;
         if (this.canDoubleJump && !this.onGround) this.canDoubleJump = false;
         if (typeof showBossDialogue === 'function' && Math.random() < 0.15) {
           showBossDialogue('Not yet.', 70);
@@ -1423,10 +1639,11 @@ class SovereignMK2 extends AdaptiveAI {
       return true;
     }
 
-    if (this._voidRecoverCd <= 0) {
+    if (this._voidRecoverCd <= 0 && mayBoost) {
       this._voidRecoverCd = heavyThreat ? 14 : 10;
       this.vx = retreatDir * moveSpd * (heavyThreat ? 0.96 : 0.84);
       this.vy = -12;
+      this._voidBoosts = (this._voidBoosts || 0) + 1;
     } else {
       this.vx = escapeDir * moveSpd * 0.85;
       if (this.vy > 0) this.vy = Math.max(this.vy, 3);
@@ -1905,6 +2122,290 @@ class SovereignMK2 extends AdaptiveAI {
   // Counters exploit the crescents' own physics: fixed horizontal direction
   // (they can never turn around) and clamped vertical homing (can't track a
   // burst at close range). Returns true when it consumed the movement frame.
+  // ── Always-on perception (runs even while mid-reaction) ────────────────────
+  // Timestamps the opponent's button presses and learns from damage nothing
+  // visible explains. Uses its own prev-state fields because the decision-layer
+  // copies below are only updated on frames Sovereign actually acts.
+  // ── Per-opponent profile bundle ───────────────────────────────────────────
+  // The fields that describe THIS opponent rather than Sovereign's own state.
+  // Everything else (health, cooldowns, stage, limiter) is his and stays put.
+  _captureOppProfile() {
+    return {
+      behaviorModel:    this._behaviorModel,
+      bmPrevSnap:       this._bmPrevSnap,
+      prevT2state:      this._prevT2state,
+      actionSampleCount: this._actionSampleCount,
+      habitStats:       this._habitStats,
+      unknownThreat:    this._unknownThreat,
+      comboPrevTgtHp:   this._comboPrevTgtHp,
+      obsPrevAbilityCd: this._obsPrevAbilityCd,
+      obsPrevSuperReady: this._obsPrevSuperReady,
+      dominantHabit:    this._dominantHabit,
+      dominantHabitScore: this._dominantHabitScore,
+      lastHabitAction:  this._lastHabitAction,
+    };
+  }
+
+  _applyOppProfile(p) {
+    if (p) {
+      this._behaviorModel      = p.behaviorModel;
+      this._bmPrevSnap         = p.bmPrevSnap;
+      this._prevT2state        = p.prevT2state;
+      this._actionSampleCount  = p.actionSampleCount;
+      this._habitStats         = p.habitStats;
+      this._unknownThreat      = p.unknownThreat;
+      this._comboPrevTgtHp     = p.comboPrevTgtHp;
+      this._obsPrevAbilityCd   = p.obsPrevAbilityCd;
+      this._obsPrevSuperReady  = p.obsPrevSuperReady;
+      this._dominantHabit      = p.dominantHabit;
+      this._dominantHabitScore = p.dominantHabitScore;
+      this._lastHabitAction    = p.lastHabitAction;
+      return;
+    }
+    // First time meeting this opponent — a blank profile, not the last one's.
+    this._behaviorModel      = new BehaviorModel();
+    this._bmPrevSnap         = null;
+    this._prevT2state        = null;
+    this._actionSampleCount  = 0;
+    this._habitStats = {
+      jump:   { count: 0, streak: 0, timer: 0, total: 0 },
+      dodge:  { count: 0, streak: 0, timer: 0, total: 0 },
+      attack: { count: 0, streak: 0, timer: 0, total: 0 },
+      shield: { count: 0, streak: 0, timer: 0, total: 0 },
+    };
+    this._unknownThreat = {
+      viaAbility: 0, viaSuper: 0, viaNeither: 0, total: 0,
+      delaySum: 0, delayN: 0,
+      distSum: 0,  distN: 0,
+    };
+    this._comboPrevTgtHp     = Infinity;
+    this._obsPrevAbilityCd   = 0;
+    this._obsPrevSuperReady  = false;
+    this._dominantHabit      = null;
+    this._dominantHabitScore = 0;
+    this._lastHabitAction    = 'idle';
+  }
+
+  // ── Threat score ──────────────────────────────────────────────────────────
+  // "Who deserves my attention" — damage dealt to me dominates, proximity and
+  // helplessness break ties. Nearest-only was the old implicit answer and it is
+  // exactly what lets a ranged second player farm him from across the arena.
+  _smk2ThreatScore(c) {
+    if (!c || typeof frameCount === 'undefined') return -Infinity;
+    const led   = this._threatLedger.get(c);
+    // Damage decays over ~8s, so an opponent who stops fighting stops being the
+    // priority, but a burst of damage outweighs a body standing closer.
+    let recent  = 0;
+    if (led) {
+      const age = frameCount - led.lastFrame;
+      if (age < 480) recent = led.dmg * (1 - age / 480);
+    }
+    const d     = Math.hypot(c.cx() - this.cx(), c.cy() - this.cy());
+    let score   = recent * 2.2 + Math.max(0, 60 - d / 12);
+    // A helpless opponent is a free punish — the engine's own rule, reused here.
+    if (this._targetHelpless(c)) score += 30;
+    // Finish what is nearly dead rather than resetting onto a full-health body.
+    const hpPct = c.maxHealth > 0 ? c.health / c.maxHealth : 1;
+    if (hpPct < 0.25) score += 22;
+    // Summons and minions are attention sinks. Worth turning on when they are
+    // genuinely the threat, but never at the same weight as the player driving them.
+    if (!(Array.isArray(players) && players.includes(c))) score -= 45;
+    return score;
+  }
+
+  // ── Threat-weighted retarget, with hysteresis ─────────────────────────────
+  // Runs before perception so observation is always attributed to the fighter
+  // Sovereign is actually engaging. The dwell floor and the challenger margin
+  // exist to stop the two-candidate strobe that pure per-frame scoring produces
+  // when both opponents sit at a similar distance.
+  _updateTargetSelection() {
+    if (typeof players === 'undefined') return;
+    this._retargetDwell++;
+
+    const pool = [...players, ...(typeof minions !== 'undefined' ? minions : [])];
+    const live = pool.filter(c => !this._isInvalidAITarget(c));
+    if (!live.length) { this.target = null; return; }
+
+    const cur     = this._isInvalidAITarget(this.target) ? null : this.target;
+    let best      = null, bestScore = -Infinity;
+    for (const c of live) {
+      const s = this._smk2ThreatScore(c);
+      if (s > bestScore) { bestScore = s; best = c; }
+    }
+    if (!best || best === cur) return;
+
+    // No current target (dead, gone, or first frame): take the best one now.
+    // This is also what stops him freezing when his only opponent dies.
+    if (!cur) { this._switchTarget(best); return; }
+
+    // Otherwise a challenger must clearly beat the incumbent AND the incumbent
+    // must have been held long enough to have been given a fair chance.
+    if (this._retargetDwell < 45) return;
+    const curScore = this._smk2ThreatScore(cur);
+    if (bestScore > curScore * 1.35 + 12) this._switchTarget(best);
+  }
+
+  _switchTarget(next) {
+    const prev = this.target;
+    if (prev && !this._isInvalidAITarget(prev)) {
+      this._oppMemory.set(prev, this._captureOppProfile());
+    }
+    this.target = next;
+    this._retargetDwell = 0;
+    this._applyOppProfile(this._oppMemory.get(next) || null);
+    // Short-horizon state that describes the OLD engagement and would read as
+    // garbage against the new one on the first tick.
+    this._comboFollowHits = 0;
+    this._comboExtensions = 0;
+    this._comboLandedLast = false;
+    this._reactLatch      = null;
+    this._counterWindowOpen = false;
+    this._prevPlayerAtk   = 0;
+    this._endlagWindow    = 0;
+    this._blindEvadeUntil = 0;
+  }
+
+  // Fold damage taken into the ledger. Reads the attribution stamp dealDamage()
+  // leaves on every hit; no hook into the damage path itself.
+  _updateThreatLedger() {
+    if (typeof frameCount === 'undefined') return;
+    const a = this._lastAttacker;
+    if (!a || this._lastAttackerFrame === this._threatSeenFrame) return;
+    this._threatSeenFrame = this._lastAttackerFrame;
+    const led = this._threatLedger.get(a) || { dmg: 0, lastFrame: frameCount };
+    // Decay the running tally toward the newest hit so old damage fades.
+    const age = frameCount - led.lastFrame;
+    if (age > 480) led.dmg = 0;
+    led.dmg      += (this._lastAttackerDmg || 0);
+    led.lastFrame = this._lastAttackerFrame;
+    this._threatLedger.set(a, led);
+  }
+
+  _observeAlways() {
+    const t = this.target;
+    if (!t || t.health <= 0 || typeof frameCount === 'undefined') return;
+    const d = Math.abs(t.cx() - this.cx());
+
+    const cd = t.abilityCooldown || 0;
+    const sr = !!t.superReady;
+    if (this._obsPrevAbilityCd === 0 && cd > 0) {
+      this._tAbilityFiredAt = frameCount;
+      this._armBlindEvade('ability', d);
+    }
+    if (this._obsPrevSuperReady && !sr) {
+    }
+    this._obsPrevAbilityCd  = cd;
+    this._obsPrevSuperReady = sr;
+
+    // Unexplained damage → learn the precondition, not the projectile.
+    if (this._selfPrevHp !== null && this.health < this._selfPrevHp - 0.5 && this.health > 0) {
+      const reach = (t.weapon ? (t.weapon.range || 60) : 60) + 55;
+      const meleeExplains = d < reach && ((t.attackTimer || 0) > 0 || (t.attackEndlag || 0) > 0);
+      let seenNear = false;
+      for (const hz of _smk2OwnedHazards(t)) {
+        if (Math.abs((hz.x || 0) - this.cx()) < 90 && Math.abs((hz.y || 0) - this.cy()) < 90) { seenNear = true; break; }
+      }
+      if (!meleeExplains && !seenNear) {
+        const u = this._unknownThreat;
+        u.total++; u.distSum += d; u.distN++;
+        const sinceA = frameCount - this._tAbilityFiredAt;
+        const sinceS = frameCount - this._tSuperFiredAt;
+        if (sinceS >= 0 && sinceS < 110)      { u.viaSuper++;   u.delaySum += sinceS; u.delayN++; }
+        else if (sinceA >= 0 && sinceA < 110) { u.viaAbility++; u.delaySum += sinceA; u.delayN++; }
+        else                                   { u.viaNeither++; }
+      }
+    }
+    this._selfPrevHp = this.health;
+  }
+
+  // ── Blind threat: arm an evasion window from a learned precondition ────────
+  // Called on the opponent's ability/super press. If unexplained damage has
+  // followed that press before, and from about this range, treat the press itself
+  // as the telegraph. Requires 2 prior burns so one freak hit can't make him
+  // flinch at everything, and the window is sized from the observed delay.
+  _armBlindEvade(src, dist) {
+    const u = this._unknownThreat;
+    if (!u || u.total < 2) return;
+    const hits = src === 'super' ? u.viaSuper : u.viaAbility;
+    if (hits < 2) return;
+    // Only if the press happens at a range comparable to where it burned us —
+    // a point-blank ability is a melee problem the normal systems already handle.
+    const avgDist = u.distN ? u.distSum / u.distN : 0;
+    if (avgDist > 90 && dist < avgDist * 0.45) return;
+    const avgDelay = u.delayN ? Math.round(u.delaySum / u.delayN) : 24;
+    this._blindEvadeUntil = frameCount + Math.max(14, Math.min(75, avgDelay + 16));
+    this._blindEvadeSrc   = src;
+    if (this._blindLineCd <= 0 && typeof showBossDialogue === 'function') {
+      this._blindLineCd = 420;
+      showBossDialogue(src === 'super' ? 'That again. I felt it the first time.'
+                                       : 'I do not need to see it.', 110);
+    }
+  }
+
+  // Evade a threat that has never been perceived — pure learned response.
+  _runBlindEvasion(t, dir, moveSpd, jumpVy) {
+    if (this._blindLineCd > 0) this._blindLineCd--;
+    if (frameCount >= this._blindEvadeUntil) return false;
+    // Break the firing line: move off the axis and change height. No target to
+    // dodge, so the goal is simply to not be where we were when they committed.
+    let away = -dir || 1;
+    if (this.isEdgeDanger(away)) away = -away;
+    if (!this.isEdgeDanger(away)) this.vx = away * moveSpd * 1.3;
+    if (this.onGround && this._jumpCooldown <= 0) {
+      this.vy = jumpVy; this._jumpCooldown = 16;
+    }
+    this._recordEvent('dodge', 2);
+    this.aiReact = 0;
+    return true;
+  }
+
+  // ── Telegraphed ground-strike + lingering-zone evasion ─────────────────────
+  // Two threat shapes the projectile scan structurally cannot handle:
+  //   • Thunderstrike marks a ground position and drops a bolt there after a
+  //     delay. It has no velocity, so a vx-based scan never sees it — yet it is
+  //     the single most punishing thing in the game (4 bolts, AoE, stun each) and
+  //     it renders a flickering warning marker the whole time it is pending.
+  //   • Shock Bolt leaves a crackling zone that ticks damage to anyone standing
+  //     in it. Static, so again invisible to a velocity scan.
+  // Both are read here and answered by MOVING OFF THE MARK, which is exactly what
+  // a good human does. Returns true when it consumed the movement frame.
+  _runTelegraphedEvasion(t, dir, moveSpd, jumpVy) {
+    if (!t) return false;
+    const myX = this.cx(), myY = this.cy();
+    let threatX = null, urgency = 0;
+
+    // Pending sky strikes — treat the marked spot as lethal ground.
+    if (t._thunderStrikes) {
+      for (const ts of t._thunderStrikes) {
+        if (!ts || ts.fired) continue;
+        if (Math.abs(myX - ts.x) < 78 && Math.abs(myY - ts.y) < 150) {
+          threatX = ts.x; urgency = 2; break;
+        }
+      }
+    }
+    // Lingering damage zones — standing in one is free chip.
+    if (threatX === null && t._elecZones) {
+      for (const z of t._elecZones) {
+        if (!z || (z.timer !== undefined && z.timer <= 0)) continue;
+        const r = (z.r || 62) + 16;
+        if (Math.abs(myX - z.x) < r && Math.abs(myY - z.y) < r + 30) {
+          threatX = z.x; urgency = 1; break;
+        }
+      }
+    }
+    if (threatX === null) return false;
+
+    // Step off the marked x, preferring the side that keeps us on stage and, all
+    // else equal, the side the target is on — evading must not concede the fight.
+    let away = Math.sign(myX - threatX) || (this.facing ? -this.facing : 1);
+    if (this.isEdgeDanger(away)) away = -away;
+    if (!this.isEdgeDanger(away)) this.vx = away * moveSpd * (urgency > 1 ? 1.45 : 1.0);
+    else if (this.onGround && urgency > 1) { this.vy = jumpVy; this.vx = dir * moveSpd * 0.5; }
+    this._recordEvent('dodge', urgency > 1 ? 3 : 1);
+    this.aiReact = 0;
+    return true;
+  }
+
   _runVolleyDefense(t, d, dir, moveSpd, jumpVy) {
     if (!t) return false;
     // Collect EVERY live traveling melee hazard the target owns. Crescents live
@@ -1912,13 +2413,7 @@ class SovereignMK2 extends AdaptiveAI {
     // Spike); the flail ball, scythe toss, and hammer shockwave are single
     // objects in their own fields — invisible to the generic projectile pools,
     // which is exactly why they must be scanned here.
-    const hazards = [];
-    if (t._swordSlashes) for (const sl of t._swordSlashes) {
-      if (sl && !(sl.life !== undefined && sl.life <= 0)) hazards.push(sl);
-    }
-    for (const hz of [t._flailBall, t._scytheToss, t._hammerShock, t._thrownAxe]) {
-      if (hz && (hz.timer === undefined || hz.timer > 0)) hazards.push(hz);
-    }
+    const hazards = _smk2OwnedHazards(t);
     if (!hazards.length) return false;
     let near = null, nearDx = 1e9, count = 0;
     for (const sl of hazards) {
@@ -2064,7 +2559,69 @@ class SovereignMK2 extends AdaptiveAI {
   update() {
     this._checkLimiterBreak(this.target);
     this._updateNullAnchor();
+    this._vetoVoidStep();
     super.update();
+  }
+
+  // ── VOID STEP VETO ───────────────────────────────────────────────────────
+  // He walked into his own voids and ring-outed three times in fifteen seconds
+  // without taking a single hit. isEdgeDanger() was not the culprit — it correctly
+  // reports a Circuit void as danger — but roughly forty movement paths in this
+  // class write this.vx directly and only some of them consult it. Auditing every
+  // call site would be a large change with a large blast radius, and any new
+  // movement path added later would reintroduce the same bug.
+  //
+  // So this is a single choke point instead: it runs in update(), after every AI
+  // path has had its say and immediately before physics consumes vx. Whatever
+  // decided to move him, he does not get to walk off a ledge into nothing.
+  //
+  // Deliberately narrow. It only vetoes SELF-PROPELLED grounded movement — being
+  // knocked into a void is a legitimate ring-out the player earned, and stun and
+  // ragdoll are left alone entirely. When the far side is jumpable he jumps it
+  // rather than stopping, because a boss frozen at a gap edge is the idle-boss
+  // failure mode this arena was explicitly designed to avoid.
+  _vetoVoidStep() {
+    // Tick the hop cooldown FIRST, unconditionally. Decrementing it inside the
+    // fall-through branch meant it never ticked while he was airborne, so he landed
+    // still on cooldown, got pinned by the vx=0 branch for the remainder, hopped,
+    // and repeated — 75% of frames standing still, which is the idle-boss mode this
+    // arena exists to avoid.
+    if (this._voidHopCd > 0) this._voidHopCd--;
+
+    if (!this.onGround || this.health <= 0) return;
+    if ((this.stunTimer || 0) > 0 || (this.ragdollTimer || 0) > 0) return;
+    const dir = Math.sign(this.vx);
+    if (!dir) return;
+    // Anything this fast is knockback or a dash, not a walk — do not fight it.
+    if (Math.abs(this.vx) > 12) return;
+    if (typeof currentArena === 'undefined' || !currentArena || !currentArena.platforms) return;
+    if (!this.isEdgeDanger(dir)) return;
+
+    // Ground ahead is missing. Is there a landing on the far side worth jumping to?
+    const footY = this.y + this.h;
+    const fromX = dir > 0 ? this.x + this.w : this.x;
+    let nearestEdge = null;
+    for (const pl of currentArena.platforms) {
+      if (!pl || pl.isFloorDisabled) continue;
+      if (Math.abs(pl.y - footY) > 34) continue;          // must be about level with him
+      const edge = dir > 0 ? pl.x : pl.x + pl.w;          // the side facing him
+      const gap  = (edge - fromX) * dir;
+      if (gap <= 2) continue;                             // behind him or underfoot
+      if (nearestEdge === null || gap < nearestEdge) nearestEdge = gap;
+    }
+
+    const JUMPABLE = 190;   // comfortably clears the widest void (80px) with margin
+    if (nearestEdge !== null && nearestEdge < JUMPABLE && (this._voidHopCd || 0) <= 0) {
+      const jv = (currentArena.isLowGravity)   ? -14
+               : (currentArena.isHeavyGravity) ? -22
+               : -19;
+      this.vy = jv;
+      // Short: leaving the ground is its own rate limit, this only stops a
+      // double-fire on consecutive frames before onGround clears.
+      this._voidHopCd = 8;
+      return;                                             // keep vx — carry across
+    }
+    this.vx = 0;                                          // nothing to reach: hold the ledge
   }
 
   // ── NULL ANCHOR (Null Blade passive) ─────────────────────────────────────
@@ -2117,6 +2674,20 @@ class SovereignMK2 extends AdaptiveAI {
   // ══════════════════════════════════════════════════════════════
 
   updateAI() {
+    // PERCEPTION RUNS BEFORE THE ACT GATE. Everything below the aiReact check is
+    // skipped while Sovereign is mid-reaction, which silently meant he stopped
+    // OBSERVING during exactly the windows he was being punished in — measured:
+    // only 1 of 3 unexplained hits got attributed to the ability press that caused
+    // them, because the presses landed on skipped frames. Watching is not acting.
+    // TARGETING RUNS BEFORE PERCEPTION, for the same reason perception runs
+    // before the act gate: observation must be attributed to the fighter he is
+    // actually engaging, and both must keep working while he is mid-reaction or
+    // his only opponent has just died.
+    this._updateThreatLedger();
+    this._updateTargetSelection();
+
+    this._observeAlways();
+
     // Inherited guard checks
     if (this.aiReact > 0) { this.aiReact--; return; }
     if (this.ragdollTimer > 0 || this.stunTimer > 0) return;
@@ -2329,6 +2900,7 @@ class SovereignMK2 extends AdaptiveAI {
     // ── D. Anti-exploit tracking ─────────────────────────────
     this._updateAntiExploit(t);
     this._updateSpatialProfile(t);   // platform + zone + post-KB tracking
+    this._runPlateControl(t);        // The Circuit: act on that read by moving the stage
     this._updateEvolutionState();
 
     // Whiff window carry-over
@@ -2431,6 +3003,9 @@ class SovereignMK2 extends AdaptiveAI {
     const livesAdv     = Math.max(0, (this.lives || 0) - (t.lives || 0));
     const livesSpacing = livesDisadv >= 2 ? livesDisadv * 5 : (livesAdv >= 2 ? -livesAdv * 4 : 0);
     let prefDist      = Math.max(10, this._genome.prefDistBase + m.spacing * 60 - this._intimidation * 22 - this._evolutionStage * 5 + threatSpacing + thorSpacing + memorySpacing * 80 + openerAggroBias + superCharging + dmgThreat + speedDanger + rageBuff + livesSpacing);
+    // Advisor spacing bias (±26px max) — a nudge on the engagement band, not a
+    // takeover. Added before the EMA below so it smooths in like every other input.
+    prefDist += (this._advisorSpacing || 0);
     // (prefDist is already tuned via threatSpacing — no additional floor needed)
     // Smoothed spacing target: several inputs above (threatSpacing, dmgThreat,
     // superCharging…) flip with per-frame player state; raw, they jump prefDist
@@ -2450,6 +3025,8 @@ class SovereignMK2 extends AdaptiveAI {
     const dx  = t.cx() - this.cx();
     const d   = Math.abs(dx);
     const dir = Math.sign(dx);
+
+    // (unexplained-damage learning now lives in _observeAlways, above the act gate)
 
     // ── Ability / super observation ───────────────────────────────
     // Rising-edge detect: ability fired when cooldown was 0 and is now > 0.
@@ -2578,6 +3155,22 @@ class SovereignMK2 extends AdaptiveAI {
     // A ramped homing-crescent fan is a one-volley stock loss; no punish window
     // or pressure plan is worth contesting it (replay-proven loss pattern).
     if (this._runVolleyDefense(t, d, dir, moveSpd, _jumpVy)) {
+      this._updateFearFactor(d, recentLanded, true);
+      return;
+    }
+
+    // Telegraphed sky strikes and lingering zones — same priority tier as the
+    // volley read: no punish window is worth eating a 4-bolt AoE super.
+    if (this._runTelegraphedEvasion(t, dir, moveSpd, _jumpVy)) {
+      this._updateFearFactor(d, recentLanded, true);
+      return;
+    }
+
+    // Learned evasion of a threat he has never been able to see. Runs last of the
+    // three so anything actually perceptible is answered precisely first; this is
+    // the fallback for the unknown, and it is the only one that covers a weapon
+    // shipped after this code was written.
+    if (this._runBlindEvasion(t, dir, moveSpd, _jumpVy)) {
       this._updateFearFactor(d, recentLanded, true);
       return;
     }
@@ -2769,18 +3362,9 @@ class SovereignMK2 extends AdaptiveAI {
         }
       };
       if (typeof projectiles !== 'undefined') _scanShots(projectiles);
-      _scanShots(t._swordSlashes);
-      _scanShots(t._paperSwarm);
-      _scanShots(t._boomerangs);
-      // Several weapon supers own their hazards directly instead of registering a
-      // Projectile. Feed those live objects through the same dodge read.
-      const _scanSingle = (pr) => { if (pr && !_incoming) _scanShots([pr]); };
-      _scanSingle(t._peaCluster);
-      _scanSingle(t._gravityStone);
-      _scanSingle(t._flailBall);
-      _scanSingle(t._scytheToss);
-      _scanSingle(t._hammerShock);
-      _scanSingle(t._thrownAxe);
+      // Every owner-attached hazard, from the single registry — no per-weapon list
+      // to forget to update when a new ability ships.
+      _scanShots(_smk2OwnedHazards(t));
       if (_incoming && Math.random() >= this._reactionMistakeRate() * 0.4) {
         if (this.onGround)            this.vy = _jumpVy;                          // jump the shot
         else if (this.canDoubleJump) { this.vy = -16; this.canDoubleJump = false; } // air-dodge up over it
@@ -3657,10 +4241,14 @@ class SovereignMK2 extends AdaptiveAI {
     // Reach at which Sovereign is willing to OPEN a string this frame. A real
     // opening earns full reach; a cold neutral read has to be paid for with
     // actual distance rather than a tip-range fish.
+    // Behind a toggle so it can be A/B measured against the same opponent — two
+    // live matches used different player weapons (katana vs hammer), and hammer's
+    // kb 16 alone moves Sovereign's whiff rate enough to swamp this effect.
+    const _gateOn = !(typeof SMK2_TUNE !== 'undefined' && SMK2_TUNE && SMK2_TUNE.openGate === false);
     const _openCommitted = playerAttacking || (t.attackEndlag || 0) > 0 ||
                            (t.stunTimer || 0) > 0 || this._punishModeActive ||
                            this._endlagWindow > 0 || this._predictConf >= 0.50;
-    const _openReach     = _openCommitted ? weaponRange + 10 : weaponRange - 10;
+    const _openReach     = (_openCommitted || !_gateOn) ? weaponRange + 10 : weaponRange - 10;
 
     // ── ATTACK — telegraph then strike ───────────────────────
     // Each first-strike is preceded by a brief wind-up (visual tell + dodge window).
@@ -3722,7 +4310,7 @@ class SovereignMK2 extends AdaptiveAI {
           showBossDialogue(SMK2_ATTACK_WARN_LINES[Math.floor(Math.random() * SMK2_ATTACK_WARN_LINES.length)], 60);
       }
 
-    } else if (!_openCommitted && d < weaponRange + 14 && d >= _openReach) {
+    } else if (_gateOn && !_openCommitted && d < weaponRange + 14 && d >= _openReach) {
       // Declining the tip-range fish must mean CLOSING, never hovering. Without
       // this the gate above just parks Sovereign a few pixels outside his own
       // reach and he stops attacking altogether — the dead-end state machine
@@ -4027,6 +4615,8 @@ function resetSovereignMK2() {
   ai._prevTgtOnGnd  = false;
   ai._zoneVisits    = [0, 0, 0];
   ai._prefZone      = 1;
+  ai._plateCd       = 0;
+  ai._plateRequests = 0;
   ai._cornerPressure = 0;
   ai._cornerMode     = false;
   ai._cornerSide     = 0;
@@ -4039,6 +4629,8 @@ function resetSovereignMK2() {
   ai._postKBLineCd   = 0;
   ai._sovereignEscapeCd = 0;
   ai._voidRecoverCd     = 0;
+  ai._voidBoosts        = 0;
+  ai._voidHopCd         = 0;
   ai._heavyThreatCd     = 0;
   ai._adaptiveMemoryState  = null;
   ai._adaptiveMemoryKey    = null;

@@ -296,6 +296,36 @@ for (const [f, src] of srcOf) {
   }
 }
 
+// ── 11. applyClass() overwrites an authored health ───────────────────────────
+// applyClass() assigns maxHealth and health from the class table unconditionally.
+// A spawn that sets a deliberate per-entity health first and never restores it
+// afterwards silently gets the class default instead — the entity is a different
+// fighter than the one that was authored, and nothing throws.
+{
+  const LOOK_BACK    = 16;   // spawn blocks set health well above the applyClass line
+  const LOOK_FORWARD = 6;    // a restore, if there is one, follows immediately
+
+  for (const [f, src] of srcOf) {
+    if (f === 'js/smb-enemies-class.js') continue;
+    const lines = src.split('\n');
+    lines.forEach((line, i) => {
+      const call = line.match(/\bapplyClass\s*\(\s*([A-Za-z_$][\w$]*)\s*,/);
+      if (!call) return;
+      const v    = call[1].replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const setRe = new RegExp(`\\b${v}\\.(?:max)?[Hh]ealth\\s*=[^=]`);
+
+      const before = lines.slice(Math.max(0, i - LOOK_BACK), i).some(l => setRe.test(l));
+      if (!before) return;
+      const after = lines.slice(i + 1, i + 1 + LOOK_FORWARD).some(l => setRe.test(l));
+      if (after) return;
+
+      report('ERROR', 'class-clobbers-health',
+        `${call[1]}.health is set before applyClass() and never restored — the class default wins`,
+        `${f}:${i + 1}`);
+    });
+  }
+}
+
 // ── Output ───────────────────────────────────────────────────────────────────
 const order = { ERROR: 0, WARN: 1, ACCEPTED: 2 };
 findings.sort((a, b) => order[a.level] - order[b.level] || a.rule.localeCompare(b.rule));

@@ -174,8 +174,17 @@ const ReplaySystem = (() => {
     try {
       if (currentArena) {
         if (typeof currentArena.deathY === 'number') deathY = currentArena.deathY;
-        const floor = (currentArena.platforms || []).find(pl => pl && pl.isFloor);
-        if (floor) { minX = floor.x; maxX = floor.x + floor.w; }
+        // Union of every live floor segment. `.find()` returned only the first one,
+        // which on The Circuit's segmented plate recorded bounds of -60..150 (the
+        // left anchor) instead of the real -60..960, so _outOfBounds() treated most
+        // of the stage as off-map.
+        let lo = Infinity, hi = -Infinity;
+        for (const pl of (currentArena.platforms || [])) {
+          if (!pl || !pl.isFloor || pl.isFloorDisabled) continue;
+          if (pl.x < lo) lo = pl.x;
+          if (pl.x + pl.w > hi) hi = pl.x + pl.w;
+        }
+        if (isFinite(lo) && isFinite(hi)) { minX = lo; maxX = hi; }
       }
     } catch (e) { /* defaults stand */ }
     return { minX, maxX, deathY };

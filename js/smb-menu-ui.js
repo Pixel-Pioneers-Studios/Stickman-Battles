@@ -314,11 +314,20 @@ function _updateBossRushNextBtn(playerWon) {
   }
 }
 
-function openStoryPath() {
+function _openStoryPathPanel() {
   const pathCards = document.getElementById('pathCards');
   const storyPathPanel = document.getElementById('storyPathPanel');
   if (pathCards) pathCards.style.display = 'none';
   if (storyPathPanel) storyPathPanel.style.display = '';
+}
+
+function openStoryPath() {
+  // First Story open ever plays the Tuesday cold open, then reveals the panel
+  // underneath it. maybePlayTuesdayPrologue() lives in smb-menu-utils.js, which
+  // loads after this file — fine at click time, guarded anyway.
+  if (typeof maybePlayTuesdayPrologue === 'function' &&
+      maybePlayTuesdayPrologue(_openStoryPathPanel)) return;
+  _openStoryPathPanel();
 }
 
 function closeStoryPath() {

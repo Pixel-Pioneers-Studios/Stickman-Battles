@@ -134,11 +134,36 @@ const ARENAS = {
   },
   sovereign: {
     // Sovereign's personal arena — "The Circuit".
-    // Single-tier layout: every platform is reachable in one jump from the floor
-    // (a jump's apex lifts the feet to ~310, so decks sit at y≈320-335), and no
-    // deck is stacked over another. This keeps pursuit reliable — no multi-stage
-    // climbs, no solid decks to bonk from below, wide gaps so the AI never wedges
-    // against a platform side while chasing. The duel stays about reading movement.
+    //
+    // THE PLATE. There is no floor here in the ordinary sense. The Circuit is void
+    // with a single perforated plate laid across it, and the voids in that plate are
+    // a fixed property of the substrate — Sovereign never opens or closes one. What
+    // he does is slide the whole plate, so the voids travel under whoever is standing
+    // on it. He creates nothing and destroys nothing; he positions. (canon.md — THE
+    // THIRD PRINCIPLE: God builds, the Void Mind erases, Sovereign controls.)
+    //
+    // Voids are expressed as GAPS BETWEEN REAL PLATFORM SEGMENTS rather than as one
+    // disabled floor, and that is load-bearing: cliff detection (smb-fighter.js
+    // ~2769), lethal-fall recovery (~2983) and pathfinding all walk the platform list
+    // and already read gaps correctly. Segments cost zero new AI work; a hole punched
+    // in a single wide floor would have needed all of it rewritten.
+    //
+    // KILL BOUNDARY IS FIXED. The two outer segments are ANCHORS: their outer edges
+    // are pinned at x -60 and x 960 and never move, so the stage's real extent — and
+    // the ~60px invisible killing lip past each screen edge that drawStageBoundary()
+    // flares — is exactly what it was before the plate existed. Anchors stretch and
+    // shrink as the plate slides; only the interior segments translate. Sovereign
+    // already wins edge conversion 4-0, so he does not get to move the lip. He gets
+    // to move the voids, which are visible and telegraphed.
+    //
+    // Decks now sit at THREE different heights (350 / 318 / 334). The symmetric
+    // same-height layout gave SovereignMK2's platform-denial system (_prefPlatIdx)
+    // nothing to distinguish, so a preference read carried no information. All three
+    // remain one jump from the plate (apex lifts the feet to ~310) and none is stacked
+    // over another — the no-wedge, no-multi-stage-climb rule still holds.
+    //
+    // Geometry is driven by CircuitPlate (js/smb-circuit.js), which owns pl.x every
+    // frame. px/plateF/anchor fields below are the authoring source; x/w are outputs.
     name:       'The Circuit',
     sky:         ['#030005', '#0d0010'],
     groundColor: '#0e0008',
@@ -147,12 +172,45 @@ const ARENAS = {
     hasLava:     false,
     deathY:      640,
     isSovereignArena: true,
+    isCircuitPlate:   true,
+    // Plate travel, in px each way from neutral. Chosen so the widest void (80px)
+    // sweeps a full deck-width across the stage without any anchor going degenerate.
+    plateRange: 130,
     modifiers:   { gravityMult: 1.0, frictionMult: 1.0, hazardFrequency: 0.0 },
+    // Plate-space layout at offset 0 (voids: 150-228, 478-558, 712-790):
+    //   [anchorL -60..150][void][228..478][void][558..712][void][790..960 anchorR]
     platforms: [
-      { x: -60, y: 460, w:1020, h: 60, isFloor: true, isFloorDisabled: false }, // index 0 — floor
-      { x:  95, y: 335, w: 165, h: 16, isFloorDisabled: false },                // index 1 — left  (one jump from floor)
-      { x: 368, y: 320, w: 165, h: 16, isFloorDisabled: false },                // index 2 — center (slight high ground)
-      { x: 640, y: 335, w: 165, h: 16, isFloorDisabled: false },                // index 3 — right (one jump from floor)
+      // index 0 — LEFT ANCHOR. Outer edge pinned at -60; inner edge rides the plate.
+      { x: -60, y: 460, w: 210, h: 60, isFloor: true, isFloorDisabled: false,
+        px: -60, pxInner: 150, anchor: 'left',  plateF: 1 },
+      // index 1 — interior segment (translates with the plate)
+      { x: 228, y: 460, w: 250, h: 60, isFloor: true, isFloorDisabled: false,
+        px: 228, plateF: 1 },
+      // index 2 — interior segment
+      { x: 558, y: 460, w: 154, h: 60, isFloor: true, isFloorDisabled: false,
+        px: 558, plateF: 1 },
+      // index 3 — RIGHT ANCHOR. Inner edge rides the plate; outer edge pinned at 960.
+      { x: 790, y: 460, w: 170, h: 60, isFloor: true, isFloorDisabled: false,
+        px: 790, pxOuter: 960, anchor: 'right', plateF: 1 },
+      // Decks — ride a FRACTION of the plate offset, so deck-over-void alignment keeps
+      // changing instead of the whole stage moving as one rigid picture.
+      // Heights sit in the 312-322 band: high enough that a fighter standing on the
+      // plate has 38-48px of headroom under every deck, low enough that all three are
+      // still one jump from the plate (apex lifts the feet to ~310). The first pass
+      // put the left deck at y 350 — 10px of clearance over a standing fighter's head
+      // — which made upward knockback bonk into it constantly. The height SPREAD was
+      // over-valued in that pass: _prefPlatIdx keys off per-platform visit counts, not
+      // heights, and resolved a clear preference in testing regardless. Player headroom
+      // is worth more than the extra 20px of variation.
+      //
+      // passUnder: ONE-WAY DECKS. Raising the decks did not fix "people get slammed
+      // into the platforms from below", because the fix was aimed at the wrong thing:
+      // a jump rises 268px (feet 460 -> apex 192), far above any deck in this band, so
+      // a jump from under a deck always bonked and lost 220px of height. These three
+      // are the only passUnder platforms in the game — see Fighter.checkPlatform().
+      { x:  95, y: 322, w: 165, h: 16, isFloorDisabled: false, px:  95, plateF: 0.45, passUnder: true }, // index 4 — left  (lowest, 38px headroom)
+      { x: 368, y: 312, w: 165, h: 16, isFloorDisabled: false, px: 368, plateF: 0.45, passUnder: true }, // index 5 — center (high ground, 48px)
+      { x: 640, y: 318, w: 165, h: 16, isFloorDisabled: false, px: 640, plateF: 0.45, passUnder: true }, // index 6 — right (mid, 42px)
     ]
   },
   creator: {
@@ -247,9 +305,12 @@ const ARENAS = {
     deathY:      640,
     modifiers:   { gravityMult: 1.05, frictionMult: 1.0, hazardFrequency: 0.9 },
     platforms: [
+      // All three slabs are ground. The right two were missing isFloor, which made
+      // drawStageBoundary() read the stage as only x 0-260 and flare a fake ring-out
+      // lip in the middle of the map (and hid the slabs from spawn/floor lookups).
       { x:   0, y: 440, w: 260, h: 80, isFloor: true },
-      { x: 320, y: 440, w: 260, h: 80 },
-      { x: 640, y: 440, w: 260, h: 80 },
+      { x: 320, y: 440, w: 260, h: 80, isFloor: true },
+      { x: 640, y: 440, w: 260, h: 80, isFloor: true },
       { x:  90, y: 255, w: 145, h: 18 },
       { x: 665, y: 255, w: 145, h: 18 },
       { x: 360, y: 182, w: 180, h: 18 },

@@ -80,9 +80,13 @@ var TuesdayPrologue = (function () {
 
   function onKeyDown(e) {
     keys[e.code] = true;
-    if (e.code === 'Escape') { finish(true); return; }
+    // Escape alone is not enough: CrazyGames' guidelines call out keys with
+    // default browser behaviour, and a portal reviewer will reach for a click
+    // before a hotkey. Enter/Space and a click on the overlay all skip too.
+    if (e.code === 'Escape' || e.code === 'Enter' || e.code === 'NumpadEnter') { finish(true); return; }
     if (['ArrowLeft', 'ArrowRight', 'Space', 'ArrowUp', 'ArrowDown'].includes(e.code)) e.preventDefault();
   }
+  function onSkipClick() { finish(true); }
   function onKeyUp(e) { keys[e.code] = false; }
 
   function say(text) { caption = text; capT = 0; }
@@ -315,7 +319,7 @@ var TuesdayPrologue = (function () {
       cx.font = '11px "Segoe UI", Arial, sans-serif';
       cx.textAlign = 'center';
       cx.fillText(
-        (phase === 'walk' && px < 160) ? 'hold  D  or  →  to walk        esc to skip' : 'esc to skip',
+        (phase === 'walk' && px < 160) ? 'hold  D  or  →  to walk        click to skip' : 'click to skip',
         TUES_W / 2, TUES_H - 22);
     }
 
@@ -360,6 +364,7 @@ var TuesdayPrologue = (function () {
     cancelAnimationFrame(raf);
     window.removeEventListener('keydown', onKeyDown, true);
     window.removeEventListener('keyup', onKeyUp, true);
+    if (cv) cv.removeEventListener('pointerdown', onSkipClick);
     if (cv && cv.parentNode) cv.parentNode.removeChild(cv);
     cv = null; cx = null;
     if (!skipped) bezelDissolve();
@@ -387,6 +392,8 @@ var TuesdayPrologue = (function () {
       cx = cv.getContext('2d');
       window.addEventListener('keydown', onKeyDown, true);
       window.addEventListener('keyup', onKeyUp, true);
+      cv.style.cursor = 'pointer';
+      cv.addEventListener('pointerdown', onSkipClick);
       running = true;
       frame();
       return true;

@@ -75,5 +75,5 @@ Changes to core architecture. High risk; requires careful migration.
 - `checkDeaths()` and `endGame()` live in `js/rendering/smb-drawing-arenas.js` — logically they belong in the loop or a dedicated game-state module
 - Arena hazard logic (cars, eruptions, ghosts) is scattered inline in `drawBackground()`; extract into per-arena update hooks
 - Story chapter id contiguity is checked by a manual command (see `CLAUDE.md`), not a runtime assertion
-- `js/smb-progression.js` `_spawnFractureGuardian()` sets HP before `applyClass()`, which overwrites it; the ruler spawn restores HP afterward, the guardian does not
+- ~~`js/smb-progression.js` `_spawnFractureGuardian()` sets HP before `applyClass()`~~ — fixed; `tools/audit/check.js` rule `class-clobbers-health` now catches the pattern anywhere it reappears
 - `?v=` cache-bust suffixes are not uniform across `index.html` (several versions coexist); unify on the next breaking ship

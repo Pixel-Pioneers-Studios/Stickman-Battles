@@ -40,6 +40,24 @@ This is what the Act 0 line means: *"Something in your hands knows what to do. Y
 
 ---
 
+## THE MANIFESTED ARM
+
+**A bearer does not carry a weapon.** The weapon is part of the pattern, not separate from it. When a dead bearer's fighting style surfaces, it brings everything that style contained — the stance, the timing, and the thing their hands were shaped around. The weapon crystallizes out of the fragment at the moment the pattern asserts itself, and disperses when there is nothing left to kill.
+
+This is the literal reading of the Act 0 line. *"Something in your hands knows what to do. You don't."* His hands are empty until they aren't. He does not draw, unsheathe, or reach for anything, because there is nothing to reach for — the weapon is not stored, it is *recalled*. What arrives is the shape a dead stranger's muscle memory expects to be holding.
+
+**Why it appears before the fight rather than during it.** The pattern does not wait for Kael to decide. It reads threat before he consciously does — a hostile closing distance is enough. This is why bearers describe the sensation as the body moving first: by the time Kael has understood that a fight is starting, his hand is already full. He is not summoning it. It is answering.
+
+**Why it disperses.** Holding the pattern open costs something. The fragment does not idle in an armed state any more than a muscle idles clenched. When the threat is gone and stays gone, the pattern releases and the weapon goes back to being potential. Kael walks away empty-handed not by choice but because there is nothing to hold.
+
+**What it looks like.** Crystallization, not materialization — shards of fragment-light converging inward along the line of the grip, resolving into solid form. Dispersal runs the same process backward and slower; the pattern is reluctant to let go. The light is the fragment's own colour, not the weapon's.
+
+**Other bearers.** Calix manifests too, but badly — two competing fragments means two sets of patterns reaching for the grip at once, and what forms is often not what they intended, sometimes changing mid-fight. Axiom manifested before the void contact, though he had no idea that was what he was doing; he assumed he was simply always armed and never questioned why he could never remember picking anything up. After the contact there was nothing left to manifest — the fragment had dissolved into the Creator form, and the weapons he uses across the main story are constructions, not recollections.
+
+**The tell.** An empty-handed bearer is not an unarmed one. Anyone who understands what the fragment is knows that a bearer walking toward you with nothing in his hands is the most dangerous configuration, because it means the pattern has not yet decided you are worth answering.
+
+---
+
 ## HERALD OF NOTHING
 
 A former fragment bearer. One of the 94 who came before Kael.

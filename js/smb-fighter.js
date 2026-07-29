@@ -130,6 +130,8 @@ class Fighter {
     // null between ticks (AI cleared it) or { vx, vy, jump } when pending.
     this._aiIntent = null;
     this._damageAccumThisLife = 0; // cumulative damage taken since last respawn — drives degradation visuals
+    this._degradeVisual       = 0; // eased mirror of the accumulator — what draw() actually renders
+    this._lastHealthSeen      = this.health; // per-frame health watcher; any rise = a heal, which closes wounds
     this._boomOrbit      = null;
     this._thrownAxe      = null;
     this._shockBolt      = null;
@@ -240,7 +242,10 @@ class Fighter {
     this._scytheToss         = null;
     this._paperPlanes        = [];
     this._shieldCharge       = null;
-    this._familiar           = null;
+    // Nulling the reference alone orphaned the live familiar: it stayed in
+    // minions[] and kept fighting while the next life spawned a fresh one, so a
+    // Summoner accumulated one permanent extra body per death. Retire it first.
+    this._despawnFamiliar();
     this._familiarTimer      = 0;
     this._familiarRespawn    = 0;
     this._whipSlow           = 0;
@@ -274,6 +279,8 @@ class Fighter {
     this._reloadInterrupted = false;
     this._rangedRecoilKick = 0;
     this._damageAccumThisLife = 0;
+    this._degradeVisual       = 0;
+    this._lastHealthSeen      = this.health;
     this.invincible = 180; // 3 s of spawn protection — enough for a stable landing
     // Megaknight spawn animation: fall from sky
     if (this.charClass === 'megaknight') {
@@ -412,7 +419,7 @@ class Fighter {
       if (this._hammerSpin.timer % 8 === 0) {
         const _hAll = [...players, ...trainingDummies, ...minions];
         for (const f of _hAll) {
-          if (f === this || f.health <= 0 || this._hammerSpin.hitSet.has(f)) continue;
+          if (!isHostileTarget(this, f) || this._hammerSpin.hitSet.has(f)) continue;
           if (dist(this, f) < 80) {
             dealDamage(this, f, 10, 8);
             this._hammerSpin.hitSet.delete(f); // allow re-hit after interval
@@ -437,7 +444,7 @@ class Fighter {
       this.vx = this.facing * 14;
       const _sAll = [...players, ...trainingDummies, ...minions];
       for (const f of _sAll) {
-        if (f === this || f.health <= 0 || this._spearCharge.hitSet.has(f)) continue;
+        if (!isHostileTarget(this, f) || this._spearCharge.hitSet.has(f)) continue;
         if (dist(this, f) < 50) {
           dealDamage(this, f, 28, 18);
           this._spearCharge.hitSet.add(f);
@@ -450,7 +457,7 @@ class Fighter {
     if (this._axeWhirl && this.spinning > 0) {
       const _aAll = [...players, ...trainingDummies, ...minions];
       for (const f of _aAll) {
-        if (f === this || f.health <= 0) continue;
+        if (!isHostileTarget(this, f)) continue;
         if (dist(this, f) < 90) {
           this._axeWhirl.hitCd[f._id || f.name] = (this._axeWhirl.hitCd[f._id || f.name] || 0) - 1;
           if ((this._axeWhirl.hitCd[f._id || f.name] || 0) <= 0) {
@@ -502,7 +509,7 @@ class Fighter {
         // so the fan doesn't sail over/under the target at range
         let _slHome = null, _slHomeD = 300;
         for (const f of _slAll) {
-          if (f === this || f.health <= 0 || sl.hitSet.has(f)) continue;
+          if (!isHostileTarget(this, f) || sl.hitSet.has(f)) continue;
           if (typeof areAlliedEntities === 'function' && areAlliedEntities(this, f)) continue;
           const dx = (f.cx() - sl.x) * sl.facing;
           if (dx < -20 || dx > _slHomeD) continue;
@@ -511,7 +518,7 @@ class Fighter {
         if (_slHome) sl.vy += clamp(((_slHome.y + _slHome.h * 0.5) - sl.y) * 0.02, -0.35, 0.35);
         // damage check — short invincibility window (8 frames) so all 3 staggered slashes can land
         for (const f of _slAll) {
-          if (f === this || f.health <= 0 || sl.hitSet.has(f)) continue;
+          if (!isHostileTarget(this, f) || sl.hitSet.has(f)) continue;
           // Don't spend the slash's single hit while the target is in i-frames
           // (dealDamage would silently no-op) — keep overlapping until they expire
           if (f.invincible > 0) continue;
@@ -629,7 +636,7 @@ class Fighter {
       let _pcDetonated = false;
       const _pcAll = [...players, ...trainingDummies, ...minions];
       for (const f of _pcAll) {
-        if (f === this || f.health <= 0) continue;
+        if (!isHostileTarget(this, f)) continue;
         if (Math.hypot(f.cx() - pc.x, (f.y + f.h * 0.5) - pc.y) < 36) { _pcDetonated = true; break; }
       }
       if (_pcDetonated || pc.life <= 0) {
@@ -657,12 +664,12 @@ class Fighter {
       const _gsAll = [...players, ...trainingDummies, ...minions];
       let _gsHit = false;
       for (const f of _gsAll) {
-        if (f === this || f.health <= 0) continue;
+        if (!isHostileTarget(this, f)) continue;
         if (Math.hypot(f.cx() - gs.x, (f.y + f.h * 0.5) - gs.y) < 44) { _gsHit = true; break; }
       }
       if (_gsHit || gs.life <= 0) {
         for (const f of _gsAll) {
-          if (f === this || f.health <= 0) continue;
+          if (!isHostileTarget(this, f)) continue;
           const _gdx = gs.x - f.cx();
           const _gdy = gs.y - (f.y + f.h * 0.5);
           const _gd  = Math.hypot(_gdx, _gdy) || 1;
@@ -702,7 +709,7 @@ class Fighter {
         pl.life--;
         const _plAll = [...players, ...trainingDummies, ...minions];
         for (const f of _plAll) {
-          if (f === this || f.health <= 0 || pl.hitSet.has(f)) continue;
+          if (!isHostileTarget(this, f) || pl.hitSet.has(f)) continue;
           if (Math.hypot(f.cx() - pl.x, (f.y + f.h * 0.5) - pl.y) < 22) {
             dealDamage(this, f, 22, 9);
             pl.hitSet.add(f);
@@ -741,7 +748,7 @@ class Fighter {
       spawnParticles(this.cx() - this.facing * 10, this.cy(), '#4488ff', 3);
       const _scAll = [...players, ...trainingDummies, ...minions];
       for (const f of _scAll) {
-        if (f === this || f.health <= 0 || sc.hitSet.has(f)) continue;
+        if (!isHostileTarget(this, f) || sc.hitSet.has(f)) continue;
         if (dist(this, f) < 58) {
           dealDamage(this, f, 32, 40);
           f.vx        = this.facing * 24;
@@ -779,7 +786,7 @@ class Fighter {
         const _fbKb  = fb.returning ? 12 : 18;
         const _fbAll = [...players, ...trainingDummies, ...minions];
         for (const f of _fbAll) {
-          if (f === this || f.health <= 0 || fb.hitSet.has(f)) continue;
+          if (!isHostileTarget(this, f) || fb.hitSet.has(f)) continue;
           if (Math.hypot(f.cx() - fb.x, (f.y + f.h * 0.5) - fb.y) < 30) {
             dealDamage(this, f, _fbDmg, _fbKb);
             fb.hitSet.add(f);
@@ -800,7 +807,7 @@ class Fighter {
       fo.ballY  = (this.y + this.h * 0.4) + Math.sin(fo.angle) * 55;
       const _foAll = [...players, ...trainingDummies, ...minions];
       for (const f of _foAll) {
-        if (f === this || f.health <= 0) continue;
+        if (!isHostileTarget(this, f)) continue;
         const _foid = f._id || f.name || 'dummy';
         fo.hitCd[_foid] = (fo.hitCd[_foid] || 0) - 1;
         if ((fo.hitCd[_foid] || 0) <= 0 && Math.hypot(f.cx() - fo.ballX, (f.y + f.h * 0.5) - fo.ballY) < 26) {
@@ -839,7 +846,7 @@ class Fighter {
         const _bmDmg    = bm.returning ? 18 : 22;
         const _bmAll    = [...players, ...trainingDummies, ...minions];
         for (const f of _bmAll) {
-          if (f === this || f.health <= 0 || _bmHitSet.has(f)) continue;
+          if (!isHostileTarget(this, f) || _bmHitSet.has(f)) continue;
           if (Math.hypot(f.cx() - bm.x, (f.y + f.h * 0.5) - bm.y) < 26) {
             dealDamage(this, f, _bmDmg, 12);
             _bmHitSet.add(f);
@@ -863,7 +870,7 @@ class Fighter {
         }
         const _ppAll = [...players, ...trainingDummies, ...minions];
         for (const f of _ppAll) {
-          if (f === this || f.health <= 0 || pp.hitSet.has(f)) continue;
+          if (!isHostileTarget(this, f) || pp.hitSet.has(f)) continue;
           if (pp.x > f.x && pp.x < f.x + f.w && pp.y > f.y - 4 && pp.y < f.y + f.h + 4) {
             const _ppDmg = this.weapon && this.weapon.damageFunc ? this.weapon.damageFunc() : 10;
             dealDamage(this, f, _ppDmg, 6);
@@ -888,7 +895,7 @@ class Fighter {
       }
       const _boAll = [...players, ...trainingDummies, ...minions];
       for (const f of _boAll) {
-        if (f === this || f.health <= 0 || bo.hitCd.has(f)) continue;
+        if (!isHostileTarget(this, f) || bo.hitCd.has(f)) continue;
         if (Math.hypot(f.cx() - bo.ballX, (f.y + f.h * 0.5) - bo.ballY) < 30) {
           dealDamage(this, f, 15, 9);
           bo.hitCd.set(f, 20);
@@ -922,7 +929,7 @@ class Fighter {
       // Hit detection — 40px radius, once per target
       const _taAll = [...players, ...trainingDummies, ...minions];
       for (const f of _taAll) {
-        if (f === this || f.health <= 0 || ta.hitSet.has(f)) continue;
+        if (!isHostileTarget(this, f) || ta.hitSet.has(f)) continue;
         if (Math.hypot(f.cx() - ta.x, (f.y + f.h * 0.5) - ta.y) < 40) {
           dealDamage(this, f, 38, 18);
           f.vy = -10;
@@ -943,9 +950,14 @@ class Fighter {
       let _sbExplode = sb.life <= 0;
       const _sbAll = [...players, ...trainingDummies, ...minions];
       for (const f of _sbAll) {
-        if (f === this || f.health <= 0 || sb.hitSet.has(f)) continue;
+        if (!isHostileTarget(this, f) || sb.hitSet.has(f)) continue;
         if (Math.hypot(f.cx() - sb.x, (f.y + f.h * 0.3) - sb.y) < 30) {
-          dealDamage(this, f, 20, 9);
+          // Was 20 — MORE than the staff's own 14-damage melee swing, on a safe
+          // ranged orb. Replay-measured it was 25.7% of the wielder's entire
+          // output (28 landed bolts). 13 puts it below the basic attack so it
+          // reads as the zoning/utility tool it's described as, not the win
+          // condition. The lingering ground zone it leaves is untouched.
+          dealDamage(this, f, 13, 9);
           f.stunTimer = Math.max(f.stunTimer || 0, 12);
           sb.hitSet.add(f); _sbExplode = true;
         }
@@ -969,7 +981,7 @@ class Fighter {
         if (ez.tickCd <= 0) {
           const _ezAll = [...players, ...trainingDummies, ...minions];
           for (const f of _ezAll) {
-            if (f === this || f.health <= 0) continue;
+            if (!isHostileTarget(this, f)) continue;
             if (Math.hypot(f.cx() - ez.x, (f.y + f.h) - ez.y) < ez.r) {
               dealDamage(this, f, 5, 3);
               spawnParticles(f.cx(), f.cy(), '#00eeff', 3);
@@ -991,9 +1003,15 @@ class Fighter {
           screenShake = Math.max(screenShake, 18);
           const _tsAll = [...players, ...trainingDummies, ...minions];
           for (const f of _tsAll) {
-            if (f === this || f.health <= 0) continue;
+            if (!isHostileTarget(this, f)) continue;
             if (Math.hypot(f.cx() - ts.x, f.cy() - ts.y) < 62) {
-              dealDamage(this, f, 32, 14);
+              // Was 32/bolt = 128 total — 85% of a 150 HP bar, from any range, on
+              // a 62px AoE that also stuns. Replay-measured, Thunderstrike plus
+              // Shock Bolt carried the staff's whole damage profile while its own
+              // 14-damage melee swing landed once in a 302-second match.
+              // 20/bolt = 80 total keeps it a fight-ending super without being a
+              // near-guaranteed stock from full health at zero risk.
+              dealDamage(this, f, 20, 14);
               f.stunTimer = Math.max(f.stunTimer || 0, 10);
             }
           }
@@ -1019,7 +1037,7 @@ class Fighter {
       hs.timer--;
       const _hsAll = [...players, ...trainingDummies, ...minions];
       for (const f of _hsAll) {
-        if (f === this || f.health <= 0 || hs.hitSet.has(f)) continue;
+        if (!isHostileTarget(this, f) || hs.hitSet.has(f)) continue;
         if (Math.hypot(f.cx() - hs.x, (f.y + f.h) - hs.y) < 52) {
           dealDamage(this, f, 28, 14);
           f.vy = -16;
@@ -1040,7 +1058,7 @@ class Fighter {
       if (br.timer % 2 === 0) spawnParticles(this.cx(), this.cy(), '#ddbb88', 3);
       const _brAll = [...players, ...trainingDummies, ...minions];
       for (const f of _brAll) {
-        if (f === this || f.health <= 0 || br.hitSet.has(f)) continue;
+        if (!isHostileTarget(this, f) || br.hitSet.has(f)) continue;
         if (Math.hypot(f.cx() - this.cx(), f.cy() - this.cy()) < 52) {
           dealDamage(this, f, 16, 20);
           f.vx += this.facing * 16;
@@ -1073,7 +1091,7 @@ class Fighter {
       }
       const _stAll = [...players, ...trainingDummies, ...minions];
       for (const f of _stAll) {
-        if (f === this || f.health <= 0) continue;
+        if (!isHostileTarget(this, f)) continue;
         if (st.returning && st.hitSetReturn.has(f)) continue;
         if (!st.returning && st.hitSetGo.has(f)) continue;
         if (Math.hypot(f.cx() - st.x, f.cy() - st.y) < 24) {
@@ -1171,7 +1189,10 @@ class Fighter {
 
         // All players in range (multi-target — not locked to primary target)
         for (const tgt of players) {
-          if (tgt === this || !tgt || tgt.health <= 0) continue;
+          // Allies are transparent to the swing: without this they get added to
+          // swingHitTargets, set weaponHit, and can even cancel our attack via the
+          // trade-prevention branch below — all for zero damage.
+          if (!isHostileTarget(this, tgt)) continue;
           // Vertical separation guard: require meaningful bounding-box overlap (~55px center gap)
           if (Math.abs((this.y + this.h / 2) - (tgt.y + tgt.h / 2)) > 55) continue;
           // Block friendly fire unless survival competitive mode explicitly enables it
@@ -1218,7 +1239,7 @@ class Fighter {
               let _cTgt = null, _cDist = 999;
               const _cAll = [...players, ...trainingDummies, ...minions];
               for (const _cf of _cAll) {
-                if (_cf === this || _cf === tgt || _cf.health <= 0) continue;
+                if (_cf === tgt || !isHostileTarget(this, _cf)) continue;
                 const _cd = Math.hypot(_cf.cx() - tgt.cx(), _cf.cy() - tgt.cy());
                 if (_cd < 130 && _cd < _cDist) { _cTgt = _cf; _cDist = _cd; }
               }
@@ -1313,7 +1334,7 @@ class Fighter {
       if (this.weaponKey === 'electricstaff' && this._overcharged > 0 && this.weaponHit) {
         const _ecAll = [...players, ...trainingDummies, ...minions];
         for (const f of _ecAll) {
-          if (f === this || f.health <= 0) continue;
+          if (!isHostileTarget(this, f)) continue;
           if (dist(this, f) < 160) {
             dealDamage(this, f, 10, 5);
             spawnParticles(f.cx(), f.cy(), '#00ddff', 6);
@@ -1407,6 +1428,10 @@ class Fighter {
         this.vx = 0;
       }
       this.x  += this.vx * _sm;
+      // Exact pre-integration foot position, for one-way (passUnder) platforms.
+      // Reconstructing this from vy inside checkPlatform() is unreliable — vy is
+      // clamped and re-written after integration — so record it here instead.
+      this._passPrevBottom = this.y + this.h;
       this.y  += this.vy * _sm;
       const _chaosSlip = gameMode === 'minigames' && currentChaosModifiers.has('slippery');
       const _arenaModFric = (currentArena.modifiers && currentArena.modifiers.frictionMult) || 1.0;
@@ -1658,7 +1683,7 @@ class Fighter {
         const _sfAll = [...players, ...trainingDummies, ...minions];
         let _sfTgt = null, _sfDist = 9999;
         for (const f of _sfAll) {
-          if (f === this || f.health <= 0) continue;
+          if (!isHostileTarget(this, f)) continue;
           const _d = Math.hypot(f.cx() - this.cx(), f.cy() - this.cy());
           if (_d < _sfDist) { _sfTgt = f; _sfDist = _d; }
         }
@@ -1691,8 +1716,16 @@ class Fighter {
         this.classPerkUsed = true;
         if (!this._familiar || this._familiar.health <= 0) this._spawnFamiliar();
         if (this._familiar && this._familiar.health > 0) {
-          this._familiar.dmgMult   = 1.2;
-          this._familiar._powerBuff = 600;
+          // Desperate Bond is advertised as a 10s empowerment, but dmgMult was set
+          // permanently and nothing ever restored it — the familiar kept the buff
+          // for the rest of the match, stacking with the +35% _powerBuff already
+          // grants. Drive the boost off a timer that restores the base value.
+          const _fam = this._familiar;
+          _fam._baseDmgMult   = _fam._baseDmgMult != null ? _fam._baseDmgMult : _fam.dmgMult;
+          _fam.dmgMult        = _fam._baseDmgMult * 1.7;
+          // No _powerBuff here: that is a separate +35% in dealDamage() and stacking
+          // it on top of the 1.7x made the real figure +130%, not the advertised +70%.
+          _fam._empowerFrames = 600;
           spawnParticles(this._familiar.cx(), this._familiar.cy(), '#44ccff', 24);
           spawnParticles(this._familiar.cx(), this._familiar.cy(), '#ffffff', 10);
         }
@@ -1703,21 +1736,43 @@ class Fighter {
 
     // SUMMONER: passive familiar timer (outside HP-perk block so it ticks every frame)
     if (this.charClass === 'summoner' && gameRunning && this.health > 0 && !isCinematic) {
+      // Desperate Bond empowerment expiry — restore the familiar's base damage.
+      if (this._familiar && this._familiar._empowerFrames > 0) {
+        if (--this._familiar._empowerFrames <= 0 && this._familiar._baseDmgMult != null) {
+          this._familiar.dmgMult = this._familiar._baseDmgMult;
+        }
+      }
       if (this._familiar && this._familiar.health <= 0) {
         this._familiar = null;
-        this._familiarRespawn = 300;
+        // Killing the familiar has to buy real time or it is not worth attacking.
+        this._familiarRespawn = 600;
       }
       if (this._familiarRespawn > 0) {
         this._familiarRespawn--;
       } else if (!this._familiar) {
         this._familiarTimer = (this._familiarTimer || 0) + 1;
-        if (this._familiarTimer >= 600) this._spawnFamiliar();
+        if (this._familiarTimer >= 900) this._spawnFamiliar();
       }
+    }
+  }
+
+  // Retire the current familiar, if any. health = 0 is enough — gameLoop culls
+  // minions[] every frame (smb-loop-core.js) — but the reference must be cleared
+  // here too so the passive timer does not treat it as still alive.
+  _despawnFamiliar() {
+    const fam = this._familiar;
+    this._familiar = null;
+    if (!fam) return;
+    if (fam.health > 0) {
+      fam.health = 0;
+      if (typeof spawnParticles === 'function') spawnParticles(fam.cx(), fam.cy(), '#44ccff', 14);
     }
   }
 
   _spawnFamiliar() {
     if (!gameRunning || typeof Minion === 'undefined') return;
+    // Hard cap of one: any earlier familiar is retired before a new one appears.
+    if (this._familiar) this._despawnFamiliar();
     const fam = new Minion(this.cx() - 20 * this.facing, this.y);
     const famTeamId   = 'fam_' + this.playerNum + '_' + Date.now();
     fam._teamId       = famTeamId;
@@ -1725,10 +1780,19 @@ class Fighter {
     fam.color         = '#44ccff';
     fam.name          = 'FAMILIAR';
     fam._isFamiliar   = true;
-    fam.health        = 80;
-    fam.maxHealth     = 80;
-    fam.dmgMult       = 0.7;
-    fam.kbResist      = 0.15;
+    fam.health        = 65;
+    fam.maxHealth     = 65;
+    fam.dmgMult       = 0.45;
+    // kbResist 0.15 made the familiar almost impossible to displace, so the only
+    // counterplay to a permanent second body was killing it. 0.5 lets it be swatted
+    // away — repositioning it is now a real answer.
+    fam.kbResist      = 0.5;
+    // The familiar is a chip/pressure unit, not a launcher. Low KB output is what
+    // stops it feeding a juggle to its owner (see FAMILIAR JUGGLE GUARD in
+    // dealDamage() for the airborne case this pairs with).
+    fam.kbBonus       = 0.3;
+    fam._baseDmgMult  = fam.dmgMult;
+    fam._empowerFrames = 0;
     this._familiar    = fam;
     this._familiarTimer = 0;
     if (typeof minions !== 'undefined') minions.push(fam);
@@ -1741,6 +1805,24 @@ class Fighter {
     // Broad-phase: skip if no overlap at all
     if (this.x + this.w <= pl.x || this.x >= pl.x + pl.w ||
         this.y + this.h <= pl.y || this.y >= pl.y + pl.h) return;
+
+    // ── ONE-WAY / PASS-UNDER PLATFORMS ──────────────────────────────────────
+    // Set per-platform via `passUnder: true` (currently The Circuit's three decks
+    // and nothing else — every other arena keeps fully solid platforms).
+    // Such a platform exists only as a surface to LAND on: a fighter rising into
+    // it passes straight through instead of bonking. Returning here leaves only
+    // the dTop branch reachable, so landing keeps its full behaviour (edge grip,
+    // squash, dust, megaknight fall damage) while the underside and BOTH side
+    // faces stop resolving. Dropping the side faces is deliberate — otherwise a
+    // fighter rising past the deck's edge column gets ejected sideways instead of
+    // passing through, and a horizontally sliding deck (CircuitPlate) would shove
+    // anyone standing next to it.
+    if (pl.passUnder) {
+      if (this.vy < 0) return;                                          // rising
+      const _prevBottom = (this._passPrevBottom !== undefined) ? this._passPrevBottom
+                                                               : (this.y + this.h);
+      if (_prevBottom > pl.y + 2) return;   // feet were already at/below the surface
+    }
 
     // Penetration depth on each side
     const dTop    = (this.y + this.h) - pl.y;      // player bottom into platform top
@@ -1796,7 +1878,7 @@ class Fighter {
           const _allF = [...players, ...minions, ...trainingDummies];
           let hitAny = false;
           for (const f of _allF) {
-            if (f === this || f.health <= 0) continue;
+            if (!isHostileTarget(this, f)) continue;
             const _d = Math.hypot(f.cx() - this.cx(), f.cy() - this.cy());
             if (_d < 100) {
               dealDamage(this, f, Math.round(dmg * (1 - _d/100)), Math.round(20 * (1 - _d/100)));
@@ -1823,7 +1905,7 @@ class Fighter {
         spawnParticles(this.cx(), pl.y, '#ffffff', 14);
         const _allF = [...players, ...minions, ...trainingDummies];
         for (const f of _allF) {
-          if (f === this || f.health <= 0) continue;
+          if (!isHostileTarget(this, f)) continue;
           const _d = Math.hypot(f.cx() - this.cx(), f.cy() - this.cy());
           if (_d < 220) {
             const _pct = 1 - _d / 220;
@@ -1845,7 +1927,7 @@ class Fighter {
         camHitZoomTimer = 20;
         const _allFS = [...players, ...minions, ...trainingDummies];
         for (const f of _allFS) {
-          if (f === this || f.health <= 0) continue;
+          if (!isHostileTarget(this, f)) continue;
           const _d = Math.hypot(f.cx() - this.cx(), f.cy() - this.cy());
           if (_d < 200) {
             const _p = 1 - _d / 200;
@@ -1863,15 +1945,18 @@ class Fighter {
       // Hit right face of platform (player moving right)
       this.x  = pl.x - this.w;
       this.vx = Math.min(this.vx, 0);
+      this._wallHitT = 8; // breaks a sprint — see updateFragmentManifest()
     } else if (minPen === dRight) {
       // Hit left face of platform (player moving left)
       this.x  = pl.x + pl.w;
       this.vx = Math.max(this.vx, 0);
+      this._wallHitT = 8;
     }
   }
 
   // Player state machine: idle | run | jump | fall | attack | stunned | ragdoll | dead
   updateState() {
+    this._updateDegradation();
     if (this.health <= 0)              this.state = 'dead';
     else if (this.ragdollTimer > 0)     this.state = 'ragdoll';
     else if (this.hurtTimer > 0)       this.state = 'hurt';
@@ -1881,6 +1966,34 @@ class Fighter {
     else if (!this.onGround)           this.state = this.vy < 0 ? 'jumping' : 'falling';
     else if (Math.abs(this.vx) > 0.7)  this.state = 'walking';
     else                               this.state = 'idle';
+    // Fragment weapon manifestation + walk→sprint escalation (smb-fragment-manifest.js).
+    // Runs after state is resolved because both read this.state.
+    if (typeof updateFragmentManifest === 'function') updateFragmentManifest(this);
+  }
+
+  // ── Degradation bookkeeping (cuts / bruises / blood) ──────────────────────
+  // dealDamage() only ever ADDS to _damageAccumThisLife, so before this existed a
+  // fighter could be healed back to full HP and still be visibly bleeding for the
+  // rest of the life. Healing is the reverse of damage: any rise in health closes
+  // an equal amount of accumulated damage, and reaching full HP clears it outright.
+  // Single central watcher — no need to touch the ~30 scattered heal call sites.
+  _updateDegradation() {
+    const hp   = this.health;
+    const prev = (typeof this._lastHealthSeen === 'number') ? this._lastHealthSeen : hp;
+    if (hp > prev) {
+      this._damageAccumThisLife = Math.max(0, (this._damageAccumThisLife || 0) - (hp - prev));
+    }
+    // Fully restored = fully mended, regardless of how the accumulator got there.
+    if (this.maxHealth > 0 && hp >= this.maxHealth) this._damageAccumThisLife = 0;
+    this._lastHealthSeen = hp;
+
+    // Ease the rendered value: wounds appear the instant they land, but close over
+    // ~1s after a heal instead of popping off mid-frame.
+    const target = this._damageAccumThisLife || 0;
+    let   vis    = this._degradeVisual || 0;
+    if (target >= vis) vis = target;
+    else               vis = Math.max(target, vis - 2.5);
+    this._degradeVisual = vis;
   }
 
   // Returns weapon-tip world position during a melee swing, or null if not attacking.
@@ -2012,7 +2125,7 @@ class Fighter {
       SoundManager.heavyHit && SoundManager.heavyHit();
       const _allF = [...players, ...minions, ...trainingDummies];
       for (const f of _allF) {
-        if (f === this || f.health <= 0) continue;
+        if (!isHostileTarget(this, f)) continue;
         const relX = f.cx() - this.cx();
         const relY = f.cy() - this.cy();
         // Wide upward arc in front — 185px range, generous vertical tolerance
@@ -2117,7 +2230,7 @@ class Fighter {
       // Slingshot: auto-aim regular shot at nearest enemy (arc adjusted to lead target)
       let _bvx = this.facing * bSpd, _bvy = bVy;
       if (this.weaponKey === 'slingshot') {
-        const _aimPool = [...players, ...trainingDummies, ...minions].filter(p => p !== this && p.health > 0);
+        const _aimPool = [...players, ...trainingDummies, ...minions].filter(p => isHostileTarget(this, p));
         const _aimT = _aimPool.sort((a,b) => dist(this,a) - dist(this,b))[0];
         if (_aimT) {
           const _adx = _aimT.cx() - this.cx(), _ady = _aimT.cy() - this.cy();
@@ -2229,7 +2342,7 @@ class Fighter {
       const _allF = [...players, ...minions, ...trainingDummies];
       let hitCount = 0;
       for (const f of _allF) {
-        if (f === this || f.health <= 0) continue;
+        if (!isHostileTarget(this, f)) continue;
         const _d = Math.hypot(f.cx() - this.cx(), f.cy() - this.cy());
         if (_d < 160) {
           const _pct = 1 - _d / 160;
@@ -2424,7 +2537,7 @@ class Fighter {
         let healed = 0;
         const _scAll = [...players, ...trainingDummies, ...minions];
         for (const f of _scAll) {
-          if (f === this || f.health <= 0) continue;
+          if (!isHostileTarget(this, f)) continue;
           if (dist(this, f) < 210) { dealDamage(this, f, 32, 16); healed++; }
         }
         if (healed > 0) {
@@ -2439,7 +2552,7 @@ class Fighter {
         this.vy = -6; // user leaps up into the slam
         const _slAll = [...players, ...trainingDummies, ...minions];
         for (const f of _slAll) {
-          if (f === this || f.health <= 0) continue;
+          if (!isHostileTarget(this, f)) continue;
           if (dist(this, f) < 150) {
             dealDamage(this, f, 45, 8);
             f.vy = -32;  // launched straight up
@@ -2457,7 +2570,7 @@ class Fighter {
         screenShake   = Math.max(screenShake, 28);
         const _bAll   = [...players, ...trainingDummies, ...minions];
         for (const f of _bAll) {
-          if (f === this || f.health <= 0) continue;
+          if (!isHostileTarget(this, f)) continue;
           if (dist(this, f) < 250) {
             const dir = f.cx() > this.cx() ? 1 : -1;
             dealDamage(this, f, 38, 16);
@@ -2472,7 +2585,7 @@ class Fighter {
         const _csAll = [...players, ...trainingDummies, ...minions];
         let _csTgt = null, _csDist = 9999;
         for (const f of _csAll) {
-          if (f === this || f.health <= 0) continue;
+          if (!isHostileTarget(this, f)) continue;
           const _d = Math.hypot(f.cx() - this.cx(), f.cy() - this.cy());
           if (_d < _csDist) { _csTgt = f; _csDist = _d; }
         }
@@ -2549,7 +2662,7 @@ class Fighter {
       whip: () => {
         const _wrAll = [...players, ...trainingDummies, ...minions];
         for (const f of _wrAll) {
-          if (f === this || f.health <= 0) continue;
+          if (!isHostileTarget(this, f)) continue;
           if (dist(this, f) < 220) {
             const _wdx = this.cx() - f.cx();
             const _wdy = (this.y + this.h * 0.5) - (f.y + f.h * 0.5);
@@ -2595,7 +2708,7 @@ class Fighter {
         const _kAll = [...players, ...trainingDummies, ...minions];
         let _kTgt = null, _kDist = 9999;
         for (const f of _kAll) {
-          if (f === this || f.health <= 0) continue;
+          if (!isHostileTarget(this, f)) continue;
           const _kd = dist(this, f);
           if (_kd < _kDist) { _kTgt = f; _kDist = _kd; }
         }
@@ -2646,7 +2759,7 @@ class Fighter {
         screenShake = Math.max(screenShake, 28);
         const _ftAll = [...players, ...trainingDummies, ...minions];
         for (const f of _ftAll) {
-          if (f === this || f.health <= 0) continue;
+          if (!isHostileTarget(this, f)) continue;
           const _ftRelX = f.cx() - this.cx();
           const _ftRelY = Math.abs((f.y + f.h * 0.5) - this.cy());
           if (Math.abs(_ftRelX) < 150 && _ftRelY < 80 && (_ftRelX * this.facing > -20)) {
@@ -2718,7 +2831,7 @@ class Fighter {
           setTimeout(() => {
             if (!gameRunning || this.health <= 0) return;
             for (const f of _allTargets) {
-              if (f === this || f.health <= 0) continue;
+              if (!isHostileTarget(this, f)) continue;
               if (dist(this, f) < 110) {
                 dealDamage(this, f, hit.dmg, hit.kb);
                 spawnParticles(f.cx(), f.cy(), hit.kb >= 16 ? '#ff3300' : '#cc2200', hit.kb >= 16 ? 12 : 6);
@@ -4010,13 +4123,24 @@ class Fighter {
     const headR     = 11;
     // Head bob: discrete step phases (every 8 frames) so it dips once per stride like the prequel
     const _walkStepPhase = Math.floor(t / 8) % 4;
-    const headBob   = (s === 'walking') ? Math.abs(Math.sin(_walkStepPhase * Math.PI / 2)) * 2.2 : 0;
-    const headCY    = ty + headR + 1 + animOffY + headBob;
+    // Sprint blend: 0 = walk, 1 = full run. Ramps in after sustained movement
+    // (see updateFragmentManifest) so a stroll and a committed run read apart.
+    // A jump is part of the run, not a break in it — the sprint blend carries
+    // through the air so he launches and lands still running. Only a wall kills
+    // it (see _wallHitT in updateFragmentManifest).
+    const _inAir    = (s === 'jumping' || s === 'falling');
+    const _spr      = ((s === 'walking' || _inAir) && this._sprintAmt) ? this._sprintAmt : 0;
+    const headBob   = (s === 'walking') ? Math.abs(Math.sin(_walkStepPhase * Math.PI / 2)) * (2.2 + _spr * 1.6) : 0;
+    const headCY    = ty + headR + 1 + animOffY + headBob + _spr * 2.5; // head drops as he commits
     const neckY     = headCY + headR + 1;
     const shoulderY = neckY + 5;
     const hipY      = shoulderY + 30;
-    // Body lean forward when walking/running (more deliberate stride lean like the prequel)
-    const hipX      = cx + (s === 'walking' ? f * 2.5 : 0);
+    // Torso pitch. The body line runs neck(cx) → hip(hipX), so a POSITIVE hipX
+    // offset puts the hips ahead of the shoulders — that leans him backward.
+    // Sprinting drives the hips behind the shoulders instead, pitching the chest
+    // out over trailing legs (the anime dash silhouette).
+    const hipX      = cx + (s === 'walking' ? f * (2.5 - _spr * 22)
+                          : (_inAir ? f * (-_spr * 22) : 0));
     const armLen    = 24;
     const legLen    = 27;
     // Inline helper: 2-segment limb joint via midpoint offset
@@ -4184,6 +4308,12 @@ class Fighter {
                       : (this.attackDuration > 0 ? 1 - this.attackTimer / this.attackDuration : 0);
     let rAng, lAng;
 
+    // Empty-handed sprint blend, shared by the ground and air poses. Arms only
+    // stream back when the fragment weapon is actually gone — a runner holding a
+    // hammer behind his back looks broken, so an armed sprint keeps the carry pose.
+    const _armed = (this._fragArm === undefined) ? 1 : this._fragArm;
+    const _blade = _spr * (1 - Math.min(1, _armed * 1.6));
+
     if (this._rd && this.spinning <= 0) {
       rAng = this._rd.rArm.angle;
       lAng = this._rd.lArm.angle;
@@ -4210,10 +4340,18 @@ class Fighter {
       }
       lAng = f > 0 ? lerp(Math.PI*0.8, Math.PI*0.55, atkProgress) : lerp(Math.PI*0.2, Math.PI*0.45, atkProgress);
     } else if (s === 'walking') {
-      const sw = Math.sin(t * 0.24) * 0.52;
+      const sw = Math.sin(t * (0.24 + _spr * 0.20)) * (0.52 + _spr * 0.22);
       // Carry pose: weapon arm holds its carry stance while the off arm keeps swinging
       const _cw = (!this.isBoss && typeof WEAPON_SWINGS !== 'undefined' && WEAPON_SWINGS[this.weaponKey]) ? WEAPON_SWINGS[this.weaponKey].carry : null;
-      if (_cw) {
+      if (_blade > 0.05) {
+        // Both arms straight back and a touch ABOVE horizontal, streaming behind
+        // him. Canvas angles: 0 = +X, PI/2 = down. Facing right (f>0) the arms
+        // must point past PI to sit above the horizontal, not below it.
+        const back = f > 0 ? Math.PI * 1.04 : -Math.PI * 0.04;
+        const rest = f > 0 ? Math.PI * 0.58 : Math.PI * 0.42;
+        rAng = lerp(rest, back + sw * 0.06, _blade);
+        lAng = lerp(Math.PI * 0.42 - sw, back + f * 0.10 - sw * 0.06, _blade);
+      } else if (_cw) {
         rAng = (f > 0 ? _cw.arm : Math.PI - _cw.arm) + sw * 0.06; // tiny bob so the carry isn't frozen
         lAng = _cw.lArm !== undefined ? (f > 0 ? _cw.lArm : Math.PI - _cw.lArm) : Math.PI * 0.42 - sw;
       } else {
@@ -4221,7 +4359,18 @@ class Fighter {
         lAng = Math.PI * 0.42 - sw;
       }
     } else if (s === 'jumping' || s === 'falling') {
-      rAng = -0.25; lAng = Math.PI + 0.25;
+      // Drive the pose off vertical speed: arms sweep up on the launch and
+      // settle out as he tops the arc and starts to drop.
+      const _rise = Math.max(-1, Math.min(1, -this.vy / 9));
+      rAng = -0.25 - _rise * 0.55;
+      lAng = Math.PI + 0.25 + _rise * 0.55;
+      if (_blade > 0.05) {
+        // Running jump: keep the arms trailing so the sprint reads through the
+        // whole arc instead of snapping to a neutral jump and back.
+        const back = f > 0 ? Math.PI * 1.04 : -Math.PI * 0.04;
+        rAng = lerp(rAng, back, _blade);
+        lAng = lerp(lAng, back + f * 0.12, _blade);
+      }
     } else if (s === 'shielding') {
       rAng = f > 0 ? -0.25 : Math.PI + 0.25;
       lAng = f > 0 ? -0.55 : Math.PI + 0.55;
@@ -4254,9 +4403,44 @@ class Fighter {
 
     // WEAPON in right hand (boss draws gauntlet on both hands for visual flair)
     const weapScale = this.isBoss ? 1.0 : 1.5;
-    this.drawWeapon(rEx, rEy, rAng, s === 'attacking', this._domainDisplayWeapon || null, weapScale);
+    // Fragment bearers hold nothing until the pattern surfaces — _fragV is null
+    // for everyone else, so their weapon draws exactly as before.
+    const _fragV = (typeof fragmentWeaponVisual === 'function') ? fragmentWeaponVisual(this) : null;
+    if (_fragV && typeof drawFragmentArmSurge === 'function') {
+      // Light feeds up the arm first — the surge precedes the shape.
+      drawFragmentArmSurge(this, cx, shoulderY, rElbX, rElbY, rEx, rEy);
+    }
+    if (!_fragV || _fragV.grow > 0.02) {
+      ctx.save();
+      if (_fragV) {
+        ctx.globalAlpha *= _fragV.alpha;
+        // Scale about the hand along the weapon's own axis so it extrudes out of
+        // the fist rather than inflating uniformly.
+        ctx.translate(rEx, rEy);
+        ctx.rotate(rAng);
+        ctx.scale(_fragV.grow, _fragV.taper);
+        ctx.rotate(-rAng);
+        ctx.translate(-rEx, -rEy);
+      }
+      this.drawWeapon(rEx, rEy, rAng, s === 'attacking', this._domainDisplayWeapon || null, weapScale);
+      ctx.restore();
+    }
+    if (_fragV && typeof drawFragmentManifest === 'function') {
+      drawFragmentManifest(this, rEx, rEy, rAng, weapScale);
+    }
     if (this.isBoss && this.weaponKey === 'gauntlet') {
       this.drawWeapon(lEx, lEy, lAng + Math.PI, s === 'attacking', 'gauntlet', weapScale);
+    }
+    // Combat brawler fights bare-handed — give the off-hand a matching fist so the
+    // guard stance reads as two fists instead of one hand and one bare arm stub.
+    if (!this.isBoss && this.weaponKey === 'combat' && !this._domainDisplayWeapon) {
+      ctx.save();
+      ctx.fillStyle   = this.color;
+      ctx.beginPath(); ctx.arc(lEx, lEy, 4.4, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = 'rgba(0,0,0,0.28)'; ctx.lineWidth = 0.9; ctx.stroke();
+      ctx.globalAlpha = 0.2; ctx.fillStyle = '#ffffff';
+      ctx.beginPath(); ctx.arc(lEx - 1.2, lEy - 1.4, 2.0, 0, Math.PI * 2); ctx.fill();
+      ctx.restore();
     }
 
     // LEGS
@@ -4266,12 +4450,28 @@ class Fighter {
       lLeg = this._rd.lLeg.angle;
     } else if (s === 'stunned') {
       rLeg = Math.PI * 0.6; lLeg = Math.PI * 0.4;
-    } else if (s === 'jumping')      { rLeg = Math.PI*0.65; lLeg = Math.PI*0.35; }
-    else if (s === 'falling') { rLeg = Math.PI*0.56; lLeg = Math.PI*0.44; }
+    } else if (s === 'jumping' || s === 'falling') {
+      // Tuck on the way up, extend to meet the ground on the way down.
+      const _rise = Math.max(-1, Math.min(1, -this.vy / 9));
+      const _tuck = Math.max(0, _rise);
+      const _reach = Math.max(0, -_rise);
+      rLeg = Math.PI * (0.62 - _tuck * 0.14 + _reach * 0.04);
+      lLeg = Math.PI * (0.38 + _tuck * 0.10 - _reach * 0.03);
+      if (_spr > 0.05) {
+        // Running jump: legs split front-to-back mid-stride rather than tucking
+        // symmetrically, and the whole cycle pitches out behind him.
+        const split = _spr * f * 0.20;
+        rLeg += split;
+        lLeg -= split * 0.55;
+      }
+    }
     else if (s === 'walking') {
-      const sw = Math.sin(t * 0.24) * 0.44;
-      rLeg = Math.PI * 0.5 + sw;
-      lLeg = Math.PI * 0.5 - sw;
+      // Sprint drives the stride faster and wider, and pitches the whole cycle
+      // forward so the legs are driving behind him rather than stepping under.
+      const sw = Math.sin(t * (0.24 + _spr * 0.22)) * (0.44 + _spr * 0.30);
+      const pitch = _spr * f * 0.24; // drives the whole leg cycle out behind him
+      rLeg = Math.PI * 0.5 + sw + pitch;
+      lLeg = Math.PI * 0.5 - sw + pitch;
     } else { rLeg = Math.PI*0.62; lLeg = Math.PI*0.38; }
 
     // 2-segment legs: knees bend forward (in facing direction)
@@ -4516,7 +4716,10 @@ class Fighter {
     ctx.textAlign    = 'center';
     ctx.shadowColor  = 'rgba(0,0,0,0.8)';
     ctx.shadowBlur   = 4;
-    ctx.fillText(this.name, cx, ty - 5);
+    // Legacy world-space name tag. drawEntityOverlays() draws the screen-space
+    // label + health bar for every live entity and is called unconditionally
+    // from gameLoop, so drawing here too rendered every name twice per frame.
+    if (typeof drawEntityOverlays !== 'function') ctx.fillText(this.name, cx, ty - 5);
     ctx.shadowBlur   = 0;
     // AI state label — debug only; dmgNumbers is a player-facing setting
     if (this._debugState && typeof debugMode !== 'undefined' && debugMode) {
@@ -4530,7 +4733,8 @@ class Fighter {
 
     // ── DAMAGE DEGRADATION VISUALS ───────────────────────────────────────────────────
     // Tier 1 (>25): sweat. Tier 2 (>60): bruise + fine scratches. Tier 3 (>110): black eye + blood drip.
-    const _dAccum = this._damageAccumThisLife || 0;
+    // Uses the eased mirror, not the raw accumulator, so heals visibly close wounds.
+    const _dAccum = this._degradeVisual || 0;
     if (_dAccum > 25 && !this.isBoss && !this.isDummy) {
       const _dTier = _dAccum < 60 ? 1 : _dAccum < 110 ? 2 : 3;
       const _dseed = (this.playerNum || 1);
@@ -5595,20 +5799,41 @@ class Fighter {
       ctx.beginPath(); ctx.moveTo(37,-7); ctx.lineTo(42,7); ctx.stroke();
 
     } else if (k === 'combat') {
-      // Bare fist — clenched hand in the fighter's own color
+      // Bare hands — no weapon object at all. Draw a compact clenched fist that
+      // sits ON the hand joint (small enough to read as part of the arm, not a
+      // held item). Everything is in the fighter's own colour so it reads as skin.
       const _fistColor = this.color || '#cc4444';
+      // No weapon halo on a bare hand (a cosmetic weapon theme still glows)
+      if (!this.weaponTheme) ctx.shadowBlur = 0;
+      // Wrist tape — two wraps just behind the hand
+      ctx.strokeStyle = 'rgba(255,255,255,0.5)'; ctx.lineWidth = 1.4;
+      ctx.beginPath(); ctx.moveTo(-2.5, -2.6); ctx.lineTo(-2.5, 2.6); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(-0.4, -3.0); ctx.lineTo(-0.4, 3.0); ctx.stroke();
+      // Fist mass
       ctx.fillStyle = _fistColor;
-      ctx.beginPath(); ctx.ellipse(10, 0, 9, 6, 0, 0, Math.PI * 2); ctx.fill();
-      ctx.strokeStyle = 'rgba(0,0,0,0.35)'; ctx.lineWidth = 1.2; ctx.stroke();
-      // Knuckle lines
-      ctx.strokeStyle = 'rgba(0,0,0,0.18)'; ctx.lineWidth = 0.8;
+      ctx.beginPath(); ctx.ellipse(3.2, 0, 5.0, 4.4, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = 'rgba(0,0,0,0.30)'; ctx.lineWidth = 0.9; ctx.stroke();
+      // Thumb folded across the front-bottom
+      ctx.fillStyle = _fistColor;
+      ctx.beginPath(); ctx.ellipse(5.2, 2.0, 2.4, 1.5, -0.35, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = 'rgba(0,0,0,0.22)'; ctx.lineWidth = 0.7; ctx.stroke();
+      // Knuckle ridge — three short creases on the striking face
+      ctx.strokeStyle = 'rgba(0,0,0,0.22)'; ctx.lineWidth = 0.7; ctx.lineCap = 'round';
       for (let _ki = 0; _ki < 3; _ki++) {
-        ctx.beginPath(); ctx.moveTo(11 + _ki * 3, -4); ctx.lineTo(11 + _ki * 3, 4); ctx.stroke();
+        const _ky = -2.2 + _ki * 2.0;
+        ctx.beginPath(); ctx.moveTo(5.4, _ky); ctx.lineTo(7.2, _ky); ctx.stroke();
       }
-      // Sheen
-      ctx.globalAlpha = 0.2; ctx.fillStyle = '#ffffff';
-      ctx.beginPath(); ctx.ellipse(7, -2, 4, 2, -0.3, 0, Math.PI * 2); ctx.fill();
+      // Top-light highlight
+      ctx.globalAlpha = 0.22; ctx.fillStyle = '#ffffff';
+      ctx.beginPath(); ctx.ellipse(2.4, -1.9, 2.6, 1.3, -0.3, 0, Math.PI * 2); ctx.fill();
       ctx.globalAlpha = 1;
+      // Impact flare — only while the punch is actually swinging
+      if (attacking) {
+        ctx.globalAlpha = 0.45; ctx.shadowColor = '#ffddaa'; ctx.shadowBlur = 10;
+        ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 1.1;
+        ctx.beginPath(); ctx.arc(3.2, 0, 6.6, -0.9, 0.9); ctx.stroke();
+        ctx.globalAlpha = 1; ctx.shadowBlur = 0;
+      }
 
     } else if (k === 'peashooter') {
       // Stem / body — organic green tube

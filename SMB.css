@@ -33,6 +33,16 @@ body {
   font-family: 'Segoe UI', Arial, sans-serif;
   font-size: 15px;
   text-align: center;
+  /* Required by CrazyGames: prevents text-selection artifacts from drag/touch
+     input on mobile. Inputs re-enable selection below. */
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+input, textarea, [contenteditable] {
+  user-select: text;
+  -webkit-user-select: text;
 }
 
 /* ============================================================
@@ -1605,6 +1615,23 @@ body.depth-phase-active {
   max-width: 180px;
 }
 #mc-p2 .mc-actions { justify-content: flex-end; }
+
+/* Single-player: split P1's pad across both thumbs. The stacked layout above is
+   for local 2P (P1 left, P2 right); inheriting it solo put movement AND all four
+   actions in one bottom-left column, so you could not move and attack at once
+   and the right half of the screen went unused. Only applies when #mc-p2 is
+   hidden — see showMobileControls(). */
+#mobileControls.solo #mc-p1 {
+  left: 12px;
+  right: 12px;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: flex-end;
+}
+#mobileControls.solo #mc-p1 .mc-actions {
+  justify-content: flex-end;
+  max-width: 140px;
+}
 
 .mc-btn {
   pointer-events: auto;
