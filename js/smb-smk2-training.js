@@ -46,7 +46,39 @@ const SMK2Trainer = (() => {
     { w: 'scythe', c: 'berserker'  },
     { w: 'axe',    c: 'ronin'      },
     { w: 'katana', c: 'kratos'     },
+    // ── Coverage gaps (added 2026-08-23) ──────────────────────────────────
+    // Several melee weapons were missing despite the pool being documented as
+    // melee-only — you cannot adapt to a pattern you never see.
+    //
+    // Megaknight is deliberately NOT here. It is a troll class with intentionally
+    // absurd stats, and it is barred from boss fights entirely (see
+    // _rerollTrollClass in smb-menu-spawn.js). Training against a joke loadout
+    // would drag the genome toward countering something Sovereign never faces.
+    { w: 'spear',      c: 'none'       },
+    { w: 'spear',      c: 'kratos'     },
+    { w: 'flail',      c: 'berserker'  },
+    { w: 'whip',       c: 'none'       },
+    { w: 'electricstaff', c: 'none'    },
+    { w: 'fryingpan',  c: 'none'       },
+    { w: 'combat',     c: 'ninja'      },
   ];
+
+  // Duel-mode pool: the loadouts that actually threaten him 1v1. Deliberately
+  // narrower and nastier than the crowd pool — duel training is about surviving
+  // a strong single opponent, not managing a swarm.
+  const _DUEL_LOADOUTS = [
+    { w: 'hammer', c: 'thor'       },
+    { w: 'katana', c: 'ronin'      },
+    { w: 'scythe', c: 'reaper'     },
+    { w: 'axe',    c: 'kratos'     },
+    { w: 'sword',  c: 'ninja'      },
+    { w: 'combat', c: 'pugilist'   },
+    { w: 'flail',  c: 'berserker'  },
+  ];
+
+  // Duel opponent calibration — see the note at the bot-construction site.
+  // Exposed on the API so it can be retuned without editing the file.
+  const DUEL_BUFF = { dmg: 2.2, hp: 1.6 };
 
   // Fixed spawn positions per number of bots (spread across arena)
   const _BOT_SPAWNS = [
@@ -231,8 +263,11 @@ const SMK2Trainer = (() => {
   // Sovereign (genome) vs numBots melee bots (unlimited lives — bots respawn).
   // Matches always run MAX_FRAMES so fitness is kill throughput, not a win/loss.
   // seed controls loadout picks — same seed = same opponents for fair comparison.
-  function _runMatch(genome, numBots, seed) {
+  function _runMatch(genome, numBots, seed, opts) {
+    const _o    = opts || {};
+    const duel  = !!_o.duel;
     const SOV_LIVES  = 5;
+    const OPP_LIVES  = 5;    // duel only — crowd bots keep unlimited lives
     const MAX_FRAMES = 7200; // ~2 min sim time with full-rate AI
     const matchId    = ++_matchSeq;
     // Full sim-env reset every match — guards against game-loop interference
@@ -257,14 +292,46 @@ const SMK2Trainer = (() => {
     const colors = ['#4488ff', '#44dd44', '#dd44dd', '#44dddd', '#dddd44', '#ff8844'];
     const bots   = [];
 
+    const pool = duel ? _DUEL_LOADOUTS : _LOADOUTS;
     for (let i = 0; i < numBots; i++) {
-      const ld  = _LOADOUTS[Math.floor(rng() * _LOADOUTS.length)];
-      const bot = new Fighter(spawns[i] || 300 + i * 120, SPAWN_Y, colors[i % colors.length], ld.w);
+      const ld  = pool[Math.floor(rng() * pool.length)];
+      const _bx = duel ? 700 : (spawns[i] || 300 + i * 120);
+      // ── Duel opponent strength ────────────────────────────────────────────
+      // The sim's core problem, measured 2026-08-23: no AI opponent available
+      // here comes close to a real player. A real Megaknight match did 1210
+      // damage to Sovereign and locked him 32% of the time. The sim's best
+      // efforts: expert Fighter duel 192 damage / 1.9% locked; 50 crowd bots
+      // 268 damage and LESS lockout than 3 bots; AdaptiveAI duel opponent a
+      // mere 19 damage (it baits — stands still to invite a punish — which is
+      // free damage against a Sovereign who never hesitates).
+      //
+      // Since no available brain supplies the pressure, it is supplied by
+      // stats instead. DUEL_BUFF is a calibration knob, not a fantasy: it
+      // exists purely to drag sim damage-taken and lockout toward what a human
+      // actually inflicts, so the fitness terms measuring those have something
+      // to select against. Tune it against real-match numbers, not vibes.
+      const bot = new Fighter(_bx, SPAWN_Y, colors[i % colors.length], ld.w);
       bot.isAI         = true;
-      bot.aiDiff       = 'hard'; // Fighter AI keys off aiDiff (not intelligence)
-      bot.intelligence = 0.92;   // near peak Fighter AI
+      bot.aiDiff       = duel ? 'expert' : 'hard';
+      bot.intelligence = duel ? 0.99 : 0.92;
+      if (duel) {
+        bot.dmgMult = DUEL_BUFF.dmg;
+        bot.maxHealth = Math.round(bot.maxHealth * DUEL_BUFF.hp);
+        bot.health    = bot.maxHealth;
+        // THE important one. Stat buffs barely moved lockout (5.7% -> 4.1% as
+        // damage went 2.2x -> 5x) because lockout comes from CHAINED hits, not
+        // big ones — and the AI whiff-guard makes bots hold their swing unless a
+        // hit is plausible, so they never chain. A human does. Removing the
+        // guard for the opponent alone roughly doubled lockout. Per-fighter, so
+        // Sovereign keeps his own guard intact.
+        bot._noWhiffGuard = true;
+      }
       bot._teamId      = 'sim_bots'; // shared team → areAlliedEntities() blocks bot-vs-bot damage
+      // AdaptiveAI names itself 'SOVEREIGN' in its constructor — rename so match
+      // logs don't show two of him.
+      bot.name         = duel ? ('DUEL:' + ld.c) : ('BOT' + (i + 1));
       bot.target       = sov;
+      if (duel) bot.lives = OPP_LIVES;
       _applyBotClass(bot, ld.c);
       bots.push(bot);
     }
@@ -274,12 +341,25 @@ const SMK2Trainer = (() => {
 
     let kills      = 0;
     let _errSample = null;
+    // ── Outcome tracking ────────────────────────────────────────────────────
+    // lockedFrames is the important one. A full-match measurement on 2026-08-23
+    // showed it predicting both results cleanly: 32% locked -> Sovereign lost
+    // 10-8; 11.9% locked -> he won 10-0. The old fitness could not see it at all,
+    // so the GA had no way to select against being juggled.
+    let lockedFrames = 0;
+    let dmgTaken     = 0;
+    let dmgDealt     = 0;
+    let oppDeaths    = 0;
+    let prevSovHp    = sov.health;
+    const prevBotHp  = new Map(bots.map(b => [b, b.health]));
+    let framesRun    = 0;
 
-    for (let f = 0; f < MAX_FRAMES; f++) {   // always runs full duration
+    for (let f = 0; f < MAX_FRAMES; f++) {   // crowd mode always runs full duration
       hitStopFrames = 0;
       slowMotion    = 1;
       aiTick        = f;   // REAL cadence: AI re-decides every AI_TICK_INTERVAL frames (was 0 = every frame)
       frameCount    = f;
+      framesRun     = f + 1;
 
       // Sovereign re-targets nearest living bot each frame
       const living = bots.filter(b => b.health > 0);
@@ -291,6 +371,17 @@ const SMK2Trainer = (() => {
       try { sov.update(); } catch (e) { if (!_errSample) _errSample = 'sov:' + e.message; }
       for (const b of bots) {
         try { b.update(); } catch (e) { if (!_errSample) _errSample = 'bot:' + e.message; }
+      }
+
+      // Sample AFTER the updates so timers reflect this frame's hits.
+      if (sov.stunTimer > 0 || sov.ragdollTimer > 0) lockedFrames++;
+      // Health deltas, ignoring the jump back up on respawn.
+      if (sov.health < prevSovHp) dmgTaken += prevSovHp - sov.health;
+      prevSovHp = sov.health;
+      for (const b of bots) {
+        const ph = prevBotHp.get(b);
+        if (b.health < ph) dmgDealt += ph - b.health;
+        prevBotHp.set(b, b.health);
       }
 
       // Sovereign death — respawn, limited lives
@@ -305,10 +396,17 @@ const SMK2Trainer = (() => {
         sov.shielding = false; sov.state = 'idle';
       }
 
-      // Bot deaths — always respawn (unlimited lives), count each kill
+      // Bot deaths. Crowd mode: unlimited lives, respawn forever (kill throughput).
+      // Duel mode: finite stocks, so the match is a real win/loss like the game.
+      let _duelOver = false;
       for (const b of bots) {
         if (b.health <= 0) {
           kills++;
+          if (duel) {
+            b.lives--;
+            oppDeaths++;
+            if (b.lives <= 0) { _duelOver = true; break; }
+          }
           try { b.onDeath(); } catch (_) {}
           b.health = b.maxHealth;
           // Respawn on opposite side from Sovereign to maintain pressure
@@ -322,18 +420,48 @@ const SMK2Trainer = (() => {
           b.target = sov;
         }
       }
+      if (_duelOver) break;
     }
 
     players.length = 0;   // clear lexical `players` (final restore happens in _restoreEnv)
     gameRunning    = false;
 
-    // Fitness = kill throughput over fixed duration.
-    // Bots have unlimited lives so every match runs MAX_FRAMES.
-    // Kills dominate; partial damage is a weak tiebreaker for zero-kill gens.
-    // Dying costs Sovereign lives — mild penalty so it doesn't play suicidally.
-    const partialDmg   = bots.reduce((sum, b) => sum + (b.maxHealth - b.health), 0);
+    // ── FITNESS ─────────────────────────────────────────────────────────────
+    // The old function was `kills * 200 + partialDmg * 0.1 - sovLivesLost * 20`,
+    // which made one kill worth TEN of Sovereign's own deaths. Against bots with
+    // unlimited lives that is coherent, but the real fight is stock-based, where
+    // dying is precisely how he loses — so the GA was being rewarded for exactly
+    // the behaviour that loses real matches.
+    //
+    // Three corrections:
+    //   · deaths are now expensive enough to actually constrain the search
+    //   · damage TAKEN is counted, not just damage dealt
+    //   · lockedFrames enters the score, so "don't get juggled" is finally
+    //     something the GA can select for. It could not see this before.
+    //
+    // Scale note: over a 7200-frame match dmgDealt lands ~500-2000 and
+    // lockedFrames ~500-2500, so the 0.25 weight keeps lockout meaningful
+    // without letting a purely evasive genome outscore one that fights.
     const sovLivesLost = SOV_LIVES - sov.lives;
-    const fitness      = kills * 200 + partialDmg * 0.1 - sovLivesLost * 20;
+    const lockedPct    = framesRun > 0 ? lockedFrames / framesRun : 0;
+
+    let fitness;
+    if (duel) {
+      // Duel: stock differential is the match result, so it dominates. Damage
+      // and lockout break ties between genomes that go the same stocks.
+      const stockDiff = oppDeaths - sovLivesLost;
+      fitness = stockDiff * 400
+              + dmgDealt * 0.5
+              - dmgTaken * 0.5
+              - lockedFrames * 0.25;
+    } else {
+      // Crowd: kill throughput still leads, but survival now genuinely competes.
+      fitness = kills * 120
+              + dmgDealt * 0.3
+              - dmgTaken * 0.6
+              - lockedFrames * 0.25
+              - sovLivesLost * 250;
+    }
 
     if (matchId <= 12 && _errSample) {
       console.warn(`[sim #${matchId}] ERR: ${_errSample}`);
@@ -343,6 +471,12 @@ const SMK2Trainer = (() => {
       kills,
       fitness,
       sovLivesLeft: sov.lives,
+      // Surfaced so training output can show WHY a genome scored what it did.
+      lockedPct: Math.round(lockedPct * 1000) / 10,
+      dmgDealt:  Math.round(dmgDealt),
+      dmgTaken:  Math.round(dmgTaken),
+      oppDeaths,
+      duel,
     };
   }
 
@@ -351,16 +485,29 @@ const SMK2Trainer = (() => {
   // variable is the genome. Returns summed fitness/kills plus per-match win
   // counts — the win count is a variance-robust signal (a genome that wins on
   // lucky seeds by a huge margin doesn't dominate the tally).
+  // Half the seeds are evaluated as 1v1 duels against the strong pool and half as
+  // crowd fights, so a promoted genome has to be good at BOTH. Training purely on
+  // swarms is what produced a champion tuned for farming weak respawning bots —
+  // a different skill from surviving one strong opponent, which is the real fight.
   function _evalPair(gA, gB, numBots, seeds) {
     let aFit = 0, bFit = 0, aKills = 0, bKills = 0, aWins = 0, bWins = 0;
-    for (const seed of seeds) {
-      const ra = _runMatch(gA, numBots, seed);
-      const rb = _runMatch(gB, numBots, seed);
+    let aLock = 0, bLock = 0;
+    for (let i = 0; i < seeds.length; i++) {
+      const seed = seeds[i];
+      const asDuel = (i % 2 === 1);
+      const opts = asDuel ? { duel: true } : null;
+      const n    = asDuel ? 1 : numBots;
+      const ra = _runMatch(gA, n, seed, opts);
+      const rb = _runMatch(gB, n, seed, opts);
       aFit += ra.fitness; bFit += rb.fitness;
       aKills += ra.kills; bKills += rb.kills;
+      aLock += ra.lockedPct; bLock += rb.lockedPct;
       if (ra.fitness > rb.fitness) aWins++; else if (rb.fitness > ra.fitness) bWins++;
     }
-    return { aFit, bFit, aKills, bKills, aWins, bWins, n: seeds.length };
+    const n = seeds.length;
+    return { aFit, bFit, aKills, bKills, aWins, bWins, n,
+             aLock: Math.round(aLock / n * 10) / 10,
+             bLock: Math.round(bLock / n * 10) / 10 };
   }
 
   // A challenger is "better" only if it wins clearly MORE individual (paired)
@@ -442,7 +589,8 @@ const SMK2Trainer = (() => {
       } else {
         const why = r2 ? 'confirmation failed' : 'below margin';
         console.log(`[SMK2Trainer] Gen ${gen + 1}: holds (${why})  ` +
-          `champ ${Math.round(r1.aFit)} vs chal ${Math.round(r1.bFit)} (wins ${r1.aWins}-${r1.bWins}, kills ${r1.aKills}/${r1.bKills})`);
+          `champ ${Math.round(r1.aFit)} vs chal ${Math.round(r1.bFit)} (wins ${r1.aWins}-${r1.bWins}, ` +
+          `kills ${r1.aKills}/${r1.bKills}, locked ${r1.aLock}%/${r1.bLock}%)`);
       }
 
       gen++;
@@ -570,5 +718,16 @@ const SMK2Trainer = (() => {
     console.log('[SMK2Trainer] Genome reset to defaults.');
   }
 
-  return { run, stop, stressTest, evalVsDefault, mutate, saveChampion, loadChampion, resetChampion };
+  // runMatch is exported so a single match can be inspected directly — the per-gen
+  // log only shows aggregates, and diagnosing "is the duel path even running"
+  // otherwise means editing the file.
+  //   SMK2Trainer.runMatch(SMK2Trainer.loadChampion(), 1, 12345, { duel: true })
+  function runMatch(genome, numBots, seed, opts) {
+    _stubEnv();
+    try { return _runMatch(genome || loadChampion(), numBots || 1, seed || (Math.random() * 1e9 | 0), opts); }
+    finally { _restoreEnv(); }
+  }
+
+  return { run, stop, stressTest, evalVsDefault, mutate, saveChampion, loadChampion, resetChampion, runMatch,
+           DUEL_BUFF };
 })();

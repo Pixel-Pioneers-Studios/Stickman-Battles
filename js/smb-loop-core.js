@@ -1198,6 +1198,11 @@ function gameLoop(timestamp) {
   // Always tick FPS so console 'fps' command works without debug overlay open
   if (typeof _dbgTickFps === 'function' && !debugMode) _dbgTickFps();
 
+  // Training lab measurement HUD (screen-space). Called unconditionally in
+  // training mode — it ticks the rolling lockout stats every frame, so gating it
+  // on the panel being visible would only count frames you happened to be watching.
+  if (trainingMode && typeof renderTrainingLab === 'function') renderTrainingLab(ctx);
+
   // Debug overlay (drawn last, in screen-space)
   if (debugMode) {
     runSanityChecks();

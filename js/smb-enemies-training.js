@@ -2,6 +2,10 @@
 // smb-enemies-training.js — Training mode commands, training panel UI, map creator tool, custom weapon creator
 // Depends on: smb-globals.js, smb-fighter.js, smb-data-weapons.js
 
+// Dummy behaviour: 'stand' | 'block' | 'jump' | 'counter'. See Dummy._dummyBehave().
+let dummyBehavior     = 'stand';
+let dummyCounterDelay = 20;   // frames after being hit before a counter swing
+
 // ============================================================
 // DUMMY  (training-mode target — stands still, auto-heals)
 // ============================================================
@@ -32,6 +36,11 @@ class Dummy extends Fighter {
     if (this.invincible > 0)       this.invincible--;
     if (this.hurtTimer > 0)        this.hurtTimer--;
     if (this.stunTimer > 0)        this.stunTimer--;
+    // Swing timers — Dummy overrides Fighter.update() wholesale, so these were
+    // never ticked. Harmless while it was inert, but counter mode leaves
+    // attackEndlag pinned above 0 forever and the dummy would swing exactly once.
+    if (this.attackTimer > 0)      this.attackTimer--;
+    if (this.attackEndlag > 0)     this.attackEndlag--;
     if (this.ragdollTimer > 0) {
       this.ragdollTimer--;
       this.ragdollAngle += this.ragdollSpin;
@@ -59,8 +68,54 @@ class Dummy extends Fighter {
       this.invincible = 120;
       spawnParticles(this.cx(), this.cy(), this.color, 12);
     }
+    this._dummyBehave();
     this.animTimer++;
     this.updateState();
+  }
+
+  // ── CONFIGURABLE BEHAVIOUR ────────────────────────────────────────────────
+  // The dummy used to be completely inert: updateAI() was an empty function and
+  // update() never acted, so it could only ever be hit. That makes it useless for
+  // the three things a training target actually exists to test — whether a mixup
+  // beats a guard, whether a string is safe on block, and whether you can escape
+  // pressure. Each mode below answers one of those.
+  _dummyBehave() {
+    const mode = (typeof dummyBehavior !== 'undefined') ? dummyBehavior : 'stand';
+    if (mode === 'stand') { this.shielding = false; return; }
+
+    // Face the player so blocks actually register (shields are directional).
+    const p = players[0];
+    if (p) this.facing = (p.cx() >= this.cx()) ? 1 : -1;
+
+    const locked = this.stunTimer > 0 || this.ragdollTimer > 0;
+
+    if (mode === 'block') {
+      this.shielding = !locked;
+      return;
+    }
+    this.shielding = false;
+
+    if (mode === 'jump') {
+      if (this.onGround && !locked) this.vy = -13;
+      return;
+    }
+
+    if (mode === 'counter') {
+      // Retaliate on a fixed delay after the last hit taken. A predictable timer
+      // is deliberate — it is what makes a punish window measurable rather than
+      // a coin flip against live AI.
+      if (locked) return;
+      const fc = (typeof frameCount !== 'undefined') ? frameCount : 0;
+      const hitAt = this._lastAttackerFrame;
+      if (hitAt == null || fc - hitAt > 90) return;
+      if (fc - hitAt < (typeof dummyCounterDelay !== 'undefined' ? dummyCounterDelay : 20)) return;
+      if (this._dummyCounteredFor === hitAt) return;
+      this._dummyCounteredFor = hitAt;
+      if (p && p.health > 0 && dist(this, p) < 140) {
+        this.facing = (p.cx() >= this.cx()) ? 1 : -1;
+        this.attack(p);
+      }
+    }
   }
 
   respawn() { this.health = this.maxHealth; }
@@ -235,6 +290,26 @@ function trainingCmd(cmd) {
     trainingChaosMode = !trainingChaosMode;
     document.getElementById('tBtnChaos')?.classList.toggle('training-active', trainingChaosMode);
   }
+  if (cmd === 'dummyBehavior') {
+    const order = ['stand', 'block', 'jump', 'counter'];
+    dummyBehavior = order[(order.indexOf(dummyBehavior) + 1) % order.length];
+    const btn = document.getElementById('tBtnBehavior');
+    if (btn) {
+      btn.textContent = 'Dummy: ' + dummyBehavior;
+      btn.classList.toggle('training-active', dummyBehavior !== 'stand');
+    }
+  }
+  if (cmd === 'lab') {
+    if (typeof tlabCycle === 'function') {
+      const name = tlabCycle();
+      const btn = document.getElementById('tBtnLab');
+      if (btn) {
+        btn.textContent = 'Lab: ' + (tlabMode === 0 ? 'off' : tlabMode);
+        btn.classList.toggle('training-active', tlabMode !== 0);
+      }
+    }
+  }
+  if (cmd === 'labReset') { if (typeof tlabReset === 'function') tlabReset(); }
   if (cmd === 'playerOnly') {
     trainingPlayerOnly = !trainingPlayerOnly;
     const btn = document.getElementById('tBtnPlayerOnly');
@@ -457,3 +532,196 @@ canvas.addEventListener('mouseup', () => {
   }
 });
 
+
+// ============================================================
+// TRAINING LAB — measurement HUD
+// ============================================================
+// Everything below exists because the sandbox could spawn a boss but could not
+// tell you why you were losing to it. The balance bugs found on 2026-08-23 —
+// a launcher that skipped every knockback guard, a lockout ceiling that had
+// never once fired, a weapon shipping with no recovery frames at all — were all
+// invisible in-game and had to be found with hand-written browser instrumentation.
+// These panels surface exactly those numbers.
+//
+// Panels (F5 cycles): off -> frame data -> +lockout -> +hit log -> off
+let tlabMode      = 0;                 // 0 = off, 1 = frames, 2 = +lockout, 3 = +hitlog
+let tlabHits      = [];                // recent hits, newest last
+let tlabLaunches  = [];                // recent governed launches
+const TLAB_MAX_HITS = 7;
+
+// Per-fighter rolling lockout stats, keyed by fighter object.
+const tlabLock = new WeakMap();
+
+function _tlabStats(f) {
+  let s = tlabLock.get(f);
+  if (!s) { s = { frames: 0, locked: 0, curRun: 0, maxRun: 0, airborne: 0 }; tlabLock.set(f, s); }
+  return s;
+}
+
+// Called from dealDamage() AFTER all scaling and caps. The raw-vs-applied pairing
+// is the useful part: "22 -> 22" and "16 -> 20 (capped)" tell very different stories.
+function _tlabRecordHit(attacker, target, rawDmg, dmg, rawKb, kb) {
+  if (!target) return;
+  tlabHits.push({
+    t:    (typeof frameCount !== 'undefined') ? frameCount : 0,
+    from: attacker ? (attacker.name || '?') : 'world',
+    to:   target.name || '?',
+    rawDmg: Math.round(rawDmg || 0), dmg: Math.round(dmg || 0),
+    rawKb:  Math.round(rawKb  || 0), kb:  Math.round(kb  || 0),
+    combo:  attacker ? (attacker._comboHitCount || 0) : 0,
+    launch: null,
+  });
+  if (tlabHits.length > TLAB_MAX_HITS) tlabHits.shift();
+}
+
+// Attaches to the most recent hit when a launch follows it in the same frame, so
+// the log reads as one event rather than two.
+function _tlabRecordLaunch(target, requested, granted, n) {
+  const fc = (typeof frameCount !== 'undefined') ? frameCount : 0;
+  const last = tlabHits[tlabHits.length - 1];
+  if (last && last.t === fc && last.to === (target.name || '?')) {
+    last.launch = { requested: Math.round(requested), granted: Math.round(granted), n };
+    return;
+  }
+  tlabLaunches.push({ t: fc, to: target.name || '?', requested: Math.round(requested), granted: Math.round(granted), n });
+  if (tlabLaunches.length > 4) tlabLaunches.shift();
+}
+
+// Classifies where the fighter is in its attack, using the same fields the
+// combat code reads. "recovery" is the punish window — the number that was
+// missing entirely from the Megaknight.
+function _tlabPhase(f) {
+  if (!f) return '-';
+  if (f.stunTimer   > 0) return 'STUNNED';
+  if (f.ragdollTimer> 0) return 'RAGDOLL';
+  if (f.attackTimer > 0) {
+    const contact = (typeof f._meleeContactFrames === 'function') ? f._meleeContactFrames() : 0;
+    const elapsed = (f.attackDuration || 0) - f.attackTimer;
+    return elapsed < contact ? 'startup' : 'active';
+  }
+  if (f.attackEndlag > 0) return 'RECOVERY';
+  if (f.cooldown     > 0) return 'cooldown';
+  return 'idle';
+}
+
+function _tlabPanel(ctx, x, y, w, lines, title) {
+  const lh = 13, pad = 8;
+  const h = lines.length * lh + pad * 2 + 15;
+  ctx.fillStyle = 'rgba(8,8,16,0.86)';
+  ctx.fillRect(x, y, w, h);
+  ctx.strokeStyle = 'rgba(180,130,255,0.35)';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(x, y, w, h);
+  ctx.font = 'bold 9px monospace';
+  ctx.fillStyle = '#bb88ff';
+  ctx.textAlign = 'left';
+  ctx.fillText(title, x + pad, y + pad + 8);
+  ctx.font = '10px monospace';
+  for (let i = 0; i < lines.length; i++) {
+    const ln = lines[i];
+    ctx.fillStyle = ln.c || '#ddd';
+    ctx.fillText(ln.s, x + pad, y + pad + 22 + i * lh);
+  }
+  return h;
+}
+
+// Ticks the rolling stats and draws the panels. One per-frame hook, called from
+// gameLoop — the tracking has to run every frame even when a panel is hidden or
+// the percentages would only count frames you were looking at.
+function renderTrainingLab(ctx) {
+  if (!gameRunning || !trainingMode) return;
+
+  const p    = players[0];
+  const foes = [...trainingDummies, ...players.slice(1)].filter(f => f && f.health > 0);
+  const foe  = foes[0] || null;
+
+  for (const f of [p, foe]) {
+    if (!f) continue;
+    const s = _tlabStats(f);
+    s.frames++;
+    if (!f.onGround) s.airborne++;
+    const lk = (f.stunTimer > 0 || f.ragdollTimer > 0);
+    if (lk) { s.locked++; s.curRun++; if (s.curRun > s.maxRun) s.maxRun = s.curRun; }
+    else s.curRun = 0;
+  }
+
+  if (tlabMode === 0) return;
+
+  ctx.save();
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  let y = 88;   // clears the super/Q/S meter bars stacked at the top of the HUD
+  const X = 8, W = 232;
+
+  // ---- Frame data (always shown when the lab is on) ----
+  if (p) {
+    const wp = p.weapon || {};
+    const ph = _tlabPhase(p);
+    const phC = ph === 'RECOVERY' ? '#ff8844' : ph === 'active' ? '#44ff88'
+              : ph === 'startup'  ? '#ffdd44' : ph.match(/STUN|RAG/) ? '#ff4444' : '#888';
+    y += _tlabPanel(ctx, X, y, W, [
+      { s: `${(wp.name||'-')}  ${p.charClass||'none'}`, c: '#aaccff' },
+      { s: `phase    ${ph}`, c: phC },
+      { s: `dmg ${wp.damage ?? '-'}   kb ${wp.kb ?? '-'}   rng ${wp.range ?? '-'}` },
+      { s: `cooldown ${p.cooldown|0}/${wp.cooldown ?? '-'}` },
+      { s: `endlag   ${p.attackEndlag|0}/${wp.endlag ?? 0}`,
+        c: (wp.endlag == null || wp.endlag === 0) ? '#ff8844' : '#ddd' },
+      { s: `stamina  ${Math.round(p.stamina||0)}/${p.maxStamina||100}` },
+      { s: `super    ${Math.round(p.superMeter||0)}%${p.superReady ? '  READY' : ''}`,
+        c: p.superReady ? '#ffdd44' : '#ddd' },
+    ], 'FRAME DATA — P1');
+    y += 6;
+  }
+
+  // ---- Lockout (the number that predicts oppressive matchups) ----
+  if (tlabMode >= 2 && foe) {
+    const s = _tlabStats(foe);
+    const pctL = s.frames ? (s.locked / s.frames * 100) : 0;
+    const pctA = s.frames ? (s.airborne / s.frames * 100) : 0;
+    const lc = pctL > 30 ? '#ff4444' : pctL > 18 ? '#ffaa44' : '#44ff88';
+    y += _tlabPanel(ctx, X, y, W, [
+      { s: `target   ${foe.name || '?'}`, c: '#aaccff' },
+      { s: `locked   ${pctL.toFixed(1)}%  of ${s.frames}f`, c: lc },
+      { s: `longest  ${s.maxRun}f  (${(s.maxRun/62).toFixed(1)}s)`,
+        c: s.maxRun > 105 ? '#ff4444' : '#ddd' },
+      { s: `now      ${foe.stunTimer|0} stun / ${foe.ragdollTimer|0} rag` },
+      { s: `airborne ${pctA.toFixed(1)}%` },
+      { s: `launches ${foe._launchCount || 0} in window` },
+    ], 'LOCKOUT — how much they can act');
+    y += 6;
+  }
+
+  // ---- Hit log: requested vs actually applied ----
+  if (tlabMode >= 3) {
+    const lines = [];
+    if (!tlabHits.length) lines.push({ s: '(no hits yet)', c: '#666' });
+    for (let i = tlabHits.length - 1; i >= 0; i--) {
+      const h = tlabHits[i];
+      const capped = h.kb < h.rawKb;
+      lines.push({
+        s: `${h.dmg}dmg kb ${h.rawKb}->${h.kb}${capped ? '*' : ''}${h.combo > 1 ? ` c${h.combo}` : ''}`,
+        c: capped ? '#ffaa44' : '#ddd',
+      });
+      if (h.launch) lines.push({
+        s: `   launch ${h.launch.requested}->${h.launch.granted} (#${h.launch.n})`,
+        c: h.launch.granted > h.launch.requested ? '#ffaa44' : '#88ccff',
+      });
+    }
+    _tlabPanel(ctx, X, y, W, lines, 'HIT LOG — requested -> applied');
+  }
+
+  ctx.restore();
+}
+
+function tlabReset() {
+  tlabHits = []; tlabLaunches = [];
+  for (const f of [players[0], ...trainingDummies, ...players.slice(1)]) {
+    if (f) tlabLock.delete(f);
+  }
+}
+
+function tlabCycle() {
+  tlabMode = (tlabMode + 1) % 4;
+  const names = ['off', 'frame data', 'frame data + lockout', 'frame data + lockout + hit log'];
+  if (typeof queueAnnouncement === 'function') queueAnnouncement('LAB: ' + names[tlabMode], '#bb88ff');
+  return names[tlabMode];
+}

@@ -258,6 +258,34 @@ input, textarea, [contenteditable] {
   50%       { filter: drop-shadow(0 0 80px rgba(255,160,0,1.0)) drop-shadow(0 0 36px rgba(255,220,0,0.90)); }
 }
 
+/* Title mark — the subtitle half of "Stickman Evolution: The 95th".
+   Sits between the wordmark and the feature line, flanked by hairlines. */
+.game-titlemark {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin: 7px 0 0;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 7px;
+  text-transform: uppercase;
+  color: rgba(255,200,120,0.82);
+  text-shadow: 0 0 14px rgba(255,140,0,0.45);
+}
+.game-titlemark::before,
+.game-titlemark::after {
+  content: '';
+  width: 42px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255,150,40,0.55), transparent);
+}
+.game-titlemark span { text-indent: 7px; }  /* re-centre against the trailing letter-space */
+
+/* The feature line's -8px pull is tuned to sit under the wordmark; with the
+   title mark between them it needs its own spacing instead. */
+.game-titlemark + .game-subtitle { margin-top: 7px; }
+
 .game-subtitle {
   background: linear-gradient(90deg, #7c3aed, #00d4ff);
   -webkit-background-clip: text;
@@ -2840,7 +2868,9 @@ body.depth-phase-active {
 
   #menuHomeContent { gap: 12px; }
 
-  .game-title    { font-size: 2rem; letter-spacing: 3px; }
+  .game-title     { font-size: 2rem; letter-spacing: 3px; }
+  .game-titlemark { font-size: 0.68rem; letter-spacing: 5px; }
+  .game-titlemark::before, .game-titlemark::after { width: 28px; }
   .game-subtitle { font-size: 0.70rem; letter-spacing: 3px; }
 
   .home-quicknav {
@@ -2875,8 +2905,10 @@ body.depth-phase-active {
   html, body { overflow: hidden; }
 
   /* Compact header so more menu fits */
-  .game-title    { font-size: 1.5rem; letter-spacing: 2px; line-height: 1.1; }
-  .game-subtitle { display: none; }
+  .game-title     { font-size: 1.5rem; letter-spacing: 2px; line-height: 1.1; }
+  .game-titlemark { font-size: 0.62rem; letter-spacing: 4px; margin: 2px 0 0; }
+  .game-titlemark::before, .game-titlemark::after { width: 22px; }
+  .game-subtitle  { display: none; }
   #gameVersionLabel { display: none; }
   #trueFormHint { display: none; }
 

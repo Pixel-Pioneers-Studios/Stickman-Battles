@@ -1063,7 +1063,10 @@ class Fighter {
         if (!isHostileTarget(this, f) || hs.hitSet.has(f)) continue;
         if (Math.hypot(f.cx() - hs.x, (f.y + f.h) - hs.y) < 52) {
           dealDamage(this, f, 28, 14);
-          f.vy = -16;
+          // Was a bare `f.vy = -16` assignment — not even Math.min, so it set
+          // upward velocity unconditionally and bypassed the launch governor
+          // entirely. Same class of bug as the Megaknight uppercut.
+          applyLaunch(this, f, -16);
           hs.hitSet.add(f);
           spawnParticles(f.cx(), f.cy(), '#ffcc44', 14);
           spawnRing(f.cx(), f.cy());
@@ -1933,7 +1936,9 @@ class Fighter {
           if (_d < 220) {
             const _pct = 1 - _d / 220;
             dealDamage(this, f, Math.round(62 * _pct), Math.round(72 * _pct));
-            f.vy = Math.min(f.vy, -28 * _pct);
+            // Mega Jump is the super — it keeps its full launch regardless of the
+            // decay chain, since it is spent from the meter, not spammable.
+            applyLaunch(this, f, -28 * _pct, { ignoreAirGuard: true });
             f.vx += Math.sign(f.cx() - this.cx()) * 14 * _pct;
           }
         }
@@ -1955,7 +1960,7 @@ class Fighter {
           if (_d < 200) {
             const _p = 1 - _d / 200;
             dealDamage(this, f, Math.round(35 * _p), 50 * _p);
-            f.vy = Math.min(f.vy, -18 * _p);
+            applyLaunch(this, f, -18 * _p, { ignoreAirGuard: true }); // once-per-spawn entrance
           }
         }
         SoundManager.explosion && SoundManager.explosion();
@@ -2151,14 +2156,22 @@ class Fighter {
         if (!isHostileTarget(this, f)) continue;
         const relX = f.cx() - this.cx();
         const relY = f.cy() - this.cy();
-        // Wide upward arc in front — 185px range, generous vertical tolerance
+        // Wide upward arc in front — 185px range, generous vertical tolerance.
+        // Deliberately absurd: Megaknight is a troll class, not a balance target.
         if (Math.hypot(relX, relY) < 185 && (relX * this.facing > -50)) {
           dealDamage(this, f, this.weapon.damage, this.weapon.kb);
-          f.vy  = Math.min(f.vy, -26);      // strong upward launch
+          // Governed launch — repeated uppercuts inside the window decay so the
+          // target always gets back to the floor. See applyLaunch() in smb-combat.js.
+          applyLaunch(this, f, -26);
           f.vx += this.facing * 5;           // slight forward push, mostly vertical
           this.weaponHit = true;
         }
       }
+      // NOTE: this branch deliberately returns before the shared swing-recovery
+      // block, so Uppercut Slam has no endlag and no stamina cost. That is not an
+      // oversight — Megaknight is a joke class and is barred from boss fights
+      // (see the troll-class bar in _startGameCore). Do not "fix" it.
+
       // Upward arc particle burst
       spawnParticles(this.cx() + this.facing * 35, this.y,      '#8844ff', 18);
       spawnParticles(this.cx() + this.facing * 35, this.y - 20, '#cc88ff', 10);
@@ -2180,6 +2193,11 @@ class Fighter {
     // consuming the cooldown so the bot keeps closing and only swings when a
     // hit is actually plausible. AI-only; players keep full manual control.
     if (this.isAI && !this.isBoss && this.weapon.type === 'melee' && !this._envSwing &&
+        // _noWhiffGuard is a PER-FIGHTER opt-out. The global AI_WHIFF_GUARD flag
+        // cannot be used to make one combatant swing freely, because this guard
+        // applies to every `isAI && !isBoss` fighter — Sovereign included — so
+        // flipping it globally degrades both sides of a training match at once.
+        !this._noWhiffGuard &&
         (typeof window === 'undefined' || window.AI_WHIFF_GUARD !== false)) {
       const _gT = target || this.target;
       if (_gT && _gT.health > 0) {
@@ -2370,7 +2388,7 @@ class Fighter {
         if (_d < 160) {
           const _pct = 1 - _d / 160;
           dealDamage(this, f, Math.round(38 * _pct + 12), 28);
-          f.vy = Math.min(f.vy, -36);  // massive upward launch
+          applyLaunch(this, f, -36);   // massive upward launch (governed)
           f.vx += (f.cx() > this.cx() ? 1 : -1) * 8;
           hitCount++;
         }

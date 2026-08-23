@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What This Game Is
 
-**Stickman Evolution** (formerly "Stickman Battles" — the product was renamed but repo folder and `smb-*` filenames are unchanged) is a canvas-based 2D action fighting game with:
+**Stickman Evolution: The 95th** (formerly "Stickman Battles" — the product was renamed but repo folder and `smb-*` filenames are unchanged; "Stickman Evolution" alone is the accepted short form in body copy) is a canvas-based 2D action fighting game with:
 - Local and online (PeerJS/WebRTC) multiplayer
 - 10 character classes and 16 weapons
 - 18 arenas with unique physics and hazards

@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="google-site-verification" content="iwcbMpdrwVAhovl4yB-gh1x6n4IU_J-maaA7QZTqzms" />
-  <title>Stickman Evolution — Free Browser Action Fighter</title>
+  <title>Stickman Evolution: The 95th — Free Browser Action Fighter</title>
   <meta name="description" content="A fast, brutal stickman action fighter you can play free in your browser. 10 classes, 16 weapons, 18 arenas and a 184-chapter story. No download, no sign-up.">
   <link rel="canonical" href="https://stickman-battles.onrender.com/">
   <meta name="theme-color" content="#0d0616">
@@ -20,9 +20,9 @@
   <link rel="apple-touch-icon" href="./images/apple-touch-icon.png">
 
   <meta property="og:type" content="website">
-  <meta property="og:site_name" content="Stickman Evolution">
+  <meta property="og:site_name" content="Stickman Evolution: The 95th">
   <meta property="og:url" content="https://stickman-battles.onrender.com/">
-  <meta property="og:title" content="Stickman Evolution — Free Browser Action Fighter">
+  <meta property="og:title" content="Stickman Evolution: The 95th — Free Browser Action Fighter">
   <meta property="og:description" content="Ten classes, sixteen weapons, eighteen arenas and a 184-chapter story. Play free in your browser — no download, no sign-up.">
   <meta property="og:image" content="https://stickman-battles.onrender.com/images/og-cover.jpg">
   <meta property="og:image:type" content="image/jpeg">
@@ -31,7 +31,7 @@
   <meta property="og:image:alt" content="A lone stickman with a glowing blue sword faces a towering reality-warping figure.">
 
   <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="Stickman Evolution — Free Browser Action Fighter">
+  <meta name="twitter:title" content="Stickman Evolution: The 95th — Free Browser Action Fighter">
   <meta name="twitter:description" content="Ten classes, sixteen weapons, eighteen arenas and a 184-chapter story. Play free in your browser — no download, no sign-up.">
   <meta name="twitter:image" content="https://stickman-battles.onrender.com/images/og-cover.jpg">
 
@@ -39,7 +39,8 @@
   {
     "@context": "https://schema.org",
     "@type": "VideoGame",
-    "name": "Stickman Evolution",
+    "name": "Stickman Evolution: The 95th",
+    "alternateName": "Stickman Evolution",
     "url": "https://stickman-battles.onrender.com/",
     "image": "https://stickman-battles.onrender.com/images/og-cover.jpg",
     "description": "A fast, brutal stickman action fighter you can play free in your browser. 10 classes, 16 weapons, 18 arenas and a 184-chapter story. No download, no sign-up.",
@@ -58,7 +59,7 @@
   }
   </script>
 
-  <link rel="stylesheet" href="SMB.css?v=4.0.67">
+  <link rel="stylesheet" href="SMB.css?v=4.0.68">
 </head>
 <body>
 
@@ -195,6 +196,7 @@
     <!-- HOME VIEW: shown by default, hidden when a mode is selected -->
     <div id="menuHomeContent">
     <h1 class="game-title">STICKMAN EVOLUTION</h1>
+    <p class="game-titlemark"><span>The 95th</span></p>
     <p class="game-subtitle">Action Fighter &middot; 10 Classes &middot; 16 Weapons &middot; 184 Chapters</p>
     <p id="gameVersionLabel" style="font-size:0.65rem;color:rgba(255,255,255,0.25);letter-spacing:1px;margin:-6px 0 4px;text-align:center;">v4.0.0</p>
 
@@ -931,6 +933,12 @@
       <button id="tBtnChaos" class="btn training-btn" onclick="trainingCmd('chaosMode')" title="All entities attack nearest">Chaos</button>
       <button class="btn training-btn" onclick="trainingCmd('clearEnemies')" title="Remove all enemies" style="grid-column:1/-1; background:rgba(180,40,40,0.3);">Clear All Enemies</button>
     </div>
+    <!-- Lab: measurement panels + dummy behaviour -->
+    <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:5px; margin-top:6px; padding-top:8px; border-top:1px solid rgba(255,255,255,0.08);">
+      <button id="tBtnBehavior" class="btn training-btn" onclick="trainingCmd('dummyBehavior')" title="Cycle dummy behaviour: stand / block / jump / counter">Dummy: stand</button>
+      <button id="tBtnLab" class="btn training-btn" onclick="trainingCmd('lab')" title="Cycle measurement panels (F5): frame data / lockout / hit log">Lab: off</button>
+      <button class="btn training-btn" onclick="trainingCmd('labReset')" title="Reset lockout percentages and hit log">Lab Reset</button>
+    </div>
     <!-- Key reference -->
     <div style="margin-top:10px; padding-top:8px; border-top:1px solid rgba(255,255,255,0.08); font-size:0.69rem; color:#777; line-height:1.7;">
       <b style="color:#bbb;">God</b> — blocks all damage &nbsp;·&nbsp; <b style="color:#bbb;">Chaos</b> — every entity attacks nearest<br>
@@ -1566,7 +1574,7 @@
   <script src="./js/smb-errorboundary.js?v=4.0.2"></script>
   <!-- Global state, canvas setup -->
   <script src="./js/smb-icons.js?v=4.0.66"></script>
-  <script src="./js/smb-globals.js?v=4.0.39"></script>
+  <script src="./js/smb-globals.js?v=4.0.70"></script>
   <!-- CrazyGames SDK wrapper — must follow smb-globals.js -->
   <script src="./js/smb-crazygames.js?v=4.0.21"></script>
   <!-- Live ops: remote config, version checks, soft updates (must follow smb-globals.js) -->
@@ -1585,10 +1593,10 @@
   <script src="./js/smb-circuit.js?v=4.0.47"></script>
   <script src="./js/smb-data-mapperks.js?v=4.0.26"></script>
   <script src="./js/smb-data-mapperks-draw.js?v=4.0.24"></script>
-  <script src="./js/smb-data-weapons.js?v=4.0.31"></script>
+  <script src="./js/smb-data-weapons.js?v=4.0.70"></script>
   <script src="./js/smb-map-analyzer.js?v=4.0.2"></script>
   <!-- Combat pipeline, particles, heatmap, ragdoll (split from smb-particles.js) -->
-  <script src="./js/smb-combat.js?v=4.0.45"></script>
+  <script src="./js/smb-combat.js?v=4.0.70"></script>
   <script src="./js/smb-particles-core.js?v=4.0.2"></script>
   <script src="./js/smb-heatmap.js?v=4.0.2"></script>
   <script src="./js/smb-verlet.js?v=4.0.2"></script>
@@ -1615,13 +1623,13 @@
   <!-- Fragment weapon manifestation + sprint escalation (must load before smb-fighter.js) -->
   <script src="./js/smb-fragment-manifest.js?v=4.0.41"></script>
   <!-- Fighter base class -->
-  <script src="./js/smb-fighter.js?v=4.0.55"></script>
+  <script src="./js/smb-fighter.js?v=4.0.70"></script>
   <!-- Modular combat AI: CombatSystem, MovementSystem, AIController, CombatAIFighter -->
   <script src="./js/smb-combat-ai.js?v=4.0.2"></script>
   <!-- Enemy NPCs, training mode -->
   <script src="./js/smb-enemies-core.js?v=4.0.42"></script>
   <script src="./js/smb-enemies-creatures.js?v=4.0.2"></script>
-  <script src="./js/smb-enemies-training.js?v=4.0.2"></script>
+  <script src="./js/smb-enemies-training.js?v=4.0.70"></script>
   <script src="./js/smb-enemies-class.js?v=4.0.2"></script>
   <!-- God entity and encounter system -->
   <script src="./js/smb-god.js?v=4.0.2"></script>
@@ -1661,8 +1669,8 @@
   <script src="./js/smb-adaptive-ai.js?v=4.0.2"></script>
   <!-- SOVEREIGN Ω — upgraded adaptive AI with prediction/punishment/limiter break -->
   <script src="./js/smb-smk2-data.js?v=4.0.2"></script>
-  <script src="./js/smb-smk2-class.js?v=4.0.57"></script>
-  <script src="./js/smb-smk2-training.js?v=4.0.2"></script>
+  <script src="./js/smb-smk2-class.js?v=4.0.70"></script>
+  <script src="./js/smb-smk2-training.js?v=4.0.70"></script>
   <script src="./js/smb-absolute-axiom.js?v=4.0.2"></script>
   <!-- TrueForm ending cinematic -->
   <script src="./js/smb-trueform-ending-data.js?v=4.0.2"></script>
@@ -1691,7 +1699,7 @@
   <script src="./js/smb-camera.js?v=4.0.21"></script>
   <script src="./js/smb-camera-trace.js?v=4.0.11"></script>
   <script src="./js/smb-screenfx.js?v=4.0.2"></script>
-  <script src="./js/smb-loop-core.js?v=4.0.35"></script>
+  <script src="./js/smb-loop-core.js?v=4.0.70"></script>
   <script src="./js/smb-input.js?v=4.0.5"></script>
   <script src="./js/smb-cheats.js?v=4.0.45"></script>
   <!-- Menu UI, startGame, tutorial -->
@@ -1699,7 +1707,7 @@
   <script src="./js/smb-menu-select.js?v=4.0.62"></script>
   <script src="./js/smb-menu-config.js?v=4.0.2"></script>
   <script src="./js/smb-menu-spawn.js?v=4.0.8"></script>
-  <script src="./js/smb-menu-startcore.js?v=4.0.24"></script>
+  <script src="./js/smb-menu-startcore.js?v=4.0.70"></script>
   <script src="./js/smb-menu-utils.js?v=4.0.41"></script>
   <!-- Network / online multiplayer -->
   <script src="./js/smb-network.js?v=4.0.21"></script>
@@ -1711,8 +1719,8 @@
   <!-- Lobby presence layer — wraps NetworkManager with lobby API + UI -->
   <script src="./js/smb-online.js?v=4.0.2"></script>
   <!-- Developer debug toolkit (loaded last so all systems exist) -->
-  <script src="./js/smb-debug-overlay.js?v=4.0.2"></script>
-  <script src="./js/smb-debug-console.js?v=4.0.11"></script>
+  <script src="./js/smb-debug-overlay.js?v=4.0.70"></script>
+  <script src="./js/smb-debug-console.js?v=4.0.70"></script>
   <script src="./js/smb-ai-console.js?v=4.0.6"></script>
   <script src="./js/smb-sov-advisor.js?v=4.0.30"></script>
   <script src="./js/smb-debug-jump.js?v=4.0.22"></script>
@@ -1723,6 +1731,7 @@
   <!-- Admin control panel — F9 to toggle; only visible for accounts in ADMIN_IDS -->
   <script src="./js/smb-admin-core.js?v=4.0.2"></script>
   <script src="./js/smb-admin-panels.js?v=4.0.2"></script>
+  <script src="./js/smb-sovereign-control.js?v=4.0.69"></script>
   <!-- Comprehensive live-service admin dashboard — F10 to toggle -->
   <script src="./js/smb-admin-liveops-panel.js?v=4.0.2"></script>
   <!-- Attack Test Sandbox — dev tool (type "atk help" in the game console) -->
@@ -1930,7 +1939,7 @@
 
         const ver = (typeof GAME_VERSION !== 'undefined') ? GAME_VERSION : '?';
         document.getElementById('crashVersion').textContent =
-          'Stickman Evolution ' + ver + '  |  ' + new Date().toLocaleString();
+          'Stickman Evolution: The 95th ' + ver + '  |  ' + new Date().toLocaleString();
 
         // "Script error." means the browser sanitized the real error (cross-origin
         // script policy or internal re-throw). Show the captured console output instead.
@@ -2446,7 +2455,7 @@ function _renderFightersLog() {
 <div id="splashOverlay" style="position:fixed;inset:0;z-index:10000;background:#000;cursor:pointer;transition:opacity 0.6s ease;"
      onclick="dismissSplash()">
   <img id="splashImg" src="images/Game-Page.png"
-       alt="Stickman Evolution"
+       alt="Stickman Evolution: The 95th"
        style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;">
   <!-- Subtle click-to-continue hint -->
   <div id="splashHint" style="position:absolute;bottom:7%;left:50%;transform:translateX(-50%);

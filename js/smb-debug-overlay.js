@@ -325,6 +325,13 @@ document.addEventListener('keydown', e => {
   if (e.key === 'F2') { e.preventDefault(); showCollisionBoxes = !showCollisionBoxes; if (!debugMode) debugMode = true; return; }
   // F3: toggle physics info (velocity vectors + ground state)
   if (e.key === 'F3') { e.preventDefault(); showPhysicsInfo = !showPhysicsInfo; if (!debugMode) debugMode = true; return; }
+  // F5: cycle the training lab measurement panels (training mode only)
+  if (e.key === 'F5') {
+    e.preventDefault();
+    if (!gameRunning || !trainingMode) return;
+    if (typeof tlabCycle === 'function') tlabCycle();
+    return;
+  }
   // F4: toggle in-game live map editor (training mode only)
   if (e.key === 'F4') {
     e.preventDefault();

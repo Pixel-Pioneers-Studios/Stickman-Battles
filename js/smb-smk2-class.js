@@ -297,6 +297,12 @@ class SovereignMK2 extends AdaptiveAI {
     this._anchorCd         = 0;
     this._anchorFlashTimer = 0;
     this._anchorTetherFrom = null;
+    // Null Recoil — juggle break. See _updateNullRecoil().
+    this._recoilCd         = 0;
+    this._recoilHits       = 0;
+    this._recoilLastFrame  = -9999;
+    this._recoilSeenFrame  = -9999;
+    this._recoilFlash      = 0;
 
     // Post-respawn protection: brief defensive burst so Sovereign doesn't sprint into a
     // hammer swing the instant it spawns. Set by onDeath(), counts down in updateAI().
@@ -2141,8 +2147,15 @@ class SovereignMK2 extends AdaptiveAI {
     // more than the window is worth — the domain is the bigger payoff, and the
     // counter is wiped by death, so banking supers can lose it outright.
     const domainPush = (this._domainSuperCount || 0) >= 3;
+
+    // Stale-bank release is handled in _updateSuperBank(), which runs every frame
+    // from update(). This function turned out to be reached only ~15 times a
+    // minute and never once while superReady, so it is the wrong home for it.
+    const _bankStale = !!this._bankStale;
+
     const superWindow = targetLocked || targetInHazard || finishable || selfNeedsSuper ||
-      targetCursed || (targetArmored && targetBuffed) || this._punishModeActive || domainPush;
+      targetCursed || (targetArmored && targetBuffed) || this._punishModeActive || domainPush ||
+      _bankStale;
     if (this.superReady && closeEnough && superWindow && !t.shielding) {
       this.useSuper(t);
       if (!this.superReady) return true;
@@ -2596,6 +2609,8 @@ class SovereignMK2 extends AdaptiveAI {
 
   update() {
     this._checkLimiterBreak(this.target);
+    this._updateSuperBank();
+    this._updateNullRecoil();
     this._updateNullAnchor();
     this._vetoVoidStep();
     super.update();
@@ -2660,6 +2675,155 @@ class SovereignMK2 extends AdaptiveAI {
       return;                                             // keep vx — carry across
     }
     this.vx = 0;                                          // nothing to reach: hold the ledge
+  }
+
+  // ── STALE-BANK RELEASE ───────────────────────────────────────────────────
+  // The 2026-07-30 replay measured Sovereign sitting at a full, UNSPENT super bar
+  // for 27% of a match he lost 10 stocks to 2. Every spend condition in
+  // _tryTacticalConversion is a window the opponent has to open for him — target
+  // locked, target cursed, target in a hazard — and a relentless aggressor simply
+  // never opens one.
+  //
+  // This first lived in that function. Instrumenting the live match showed why
+  // that failed: _tryTacticalConversion was reached about 15 times a minute and
+  // NEVER ONCE while superReady was true, so the release could not fire no matter
+  // how it was tuned. It belongs somewhere unconditional, so it runs here, from
+  // update(), every frame — the same reasoning that puts Null Anchor and Null
+  // Recoil here rather than in the AI tick.
+  //
+  // A super he never fires is not patience, it is a wasted resource. Worse, it
+  // starves Absolute Dominion: the domain counter only advances on spends, and
+  // death wipes it, so hoarding can lose him the domain outright.
+  _updateSuperBank() {
+    if (this.health <= 0) { this._superFullSince = 0; this._bankStale = false; return; }
+    if (typeof isCinematic !== 'undefined' && isCinematic) return;
+    const _fc = (typeof frameCount !== 'undefined') ? frameCount : 0;
+
+    if (!this.superReady) { this._superFullSince = 0; this._bankStale = false; return; }
+    if (!this._superFullSince) this._superFullSince = _fc;
+
+    // Full and unspent for ~6s. Below that he still gets to hold for a real read.
+    this._bankStale = (_fc - this._superFullSince) > 380;
+    if (!this._bankStale) return;
+
+    // Don't fire it into nothing — it still has to be able to connect.
+    const t = this.target;
+    if (!t || t.health <= 0 || t.shielding) return;
+    if (this.stunTimer > 0 || this.ragdollTimer > 0) return;
+    if ((this.attackEndlag || 0) > 0) return;
+    const d = Math.hypot(t.cx() - this.cx(), t.cy() - this.cy());
+    if (d > 240) return;
+
+    this.useSuper(t);
+    if (!this.superReady) this._superFullSince = 0;
+  }
+
+  // ── NULL RECOIL (juggle break) ───────────────────────────────────────────
+  // Replay evidence (2026-07-30, lost 10 stocks to 2): Sovereign spent 21% of the
+  // match stunned and a further 14% ragdolled — over a THIRD of the fight unable
+  // to take a single action. Not because the AI chose badly: updateAI() is gated
+  // off entirely by stun and ragdoll, so during those frames there was no decision
+  // to make. He was not outplayed, he was removed from the match.
+  //
+  // The generic lockout systems in dealDamage() do fire, but they only bound how
+  // long a single chain of STUN can run. They cannot see a fighter who is merely
+  // held airborne, and they hand back control in place with no space and no
+  // options — straight back into the next hit.
+  //
+  // Null Recoil is the answer he was missing: a break he earns by being juggled.
+  // Take enough hits in quick succession while genuinely helpless and the blade
+  // discharges — stun and ragdoll clear, the attacker is thrown off him, and he
+  // gets a brief beat of invincibility to re-establish. Runs in update() rather
+  // than updateAI() for the same reason Null Anchor does: the exact state it
+  // exists to escape is the one where updateAI() never runs.
+  //
+  // Priced so it is a break, not immunity. Four hits to charge, a ~9s cooldown,
+  // and it grants no damage and no meter. Sustained pressure still beats him —
+  // it just has to be paid for more than once.
+  _updateNullRecoil() {
+    if (this._recoilCd > 0)    this._recoilCd--;
+    if (this._recoilFlash > 0) this._recoilFlash--;
+    if (this.health <= 0) return;
+    if (typeof isCinematic !== 'undefined' && isCinematic) return;
+    if (this.invincible >= 900) return; // finisher/cinematic lock
+
+    const _fc = (typeof frameCount !== 'undefined') ? frameCount : 0;
+
+    // Trigger on TIME REMOVED FROM THE MATCH, not on hit spacing.
+    //
+    // The first version of this counted hits landed while helpless and needed 4
+    // inside 150 frames. Instrumented against a live Megaknight it fired exactly
+    // zero times in 8000 frames — because the incoming hits alternate between
+    // landing while he is stunned and landing in the beat right after he recovers,
+    // so the "helpless hit" counter reset before it ever reached the threshold,
+    // even while he was measurably incapacitated a third of the match.
+    //
+    // Measuring the lockout directly avoids that entire class of tuning problem:
+    // it does not care how the pressure is spaced, only how much of the recent
+    // past he spent unable to do anything. Being juggled, chain-stunned, or held
+    // airborne all read the same way here, which is correct — they are the same
+    // experience from inside the fight.
+    // Stun and ragdoll are unambiguous — he is not in control. Being airborne is
+    // NOT, on its own: he jumps constantly of his own accord, and instrumenting an
+    // early build showed him charging the meter to 119 in a stretch where he took
+    // zero damage. Airborne only counts as helpless when it was inflicted, i.e.
+    // when a hit landed recently enough to be what put him up there and kept him.
+    const _recentHit = (this._lastAttackerFrame != null) && (_fc - this._lastAttackerFrame < 45);
+    const _helpless = (this.stunTimer > 0) || (this.ragdollTimer > 0) ||
+                      (!this.onGround && _recentHit);
+    const _WINDOW = 180;  // ~3s of recent history
+    if (_fc - this._recoilLastFrame > _WINDOW) this._recoilHits = 0; // decayed to nothing
+    if (_helpless) {
+      this._recoilHits = Math.min(_WINDOW, (this._recoilHits || 0) + 1);
+      this._recoilLastFrame = _fc;
+    } else if (this._recoilHits > 0) {
+      // Free frames pay the meter back down at double rate — a brief stumble must
+      // never accumulate into a break across an otherwise even fight.
+      this._recoilHits = Math.max(0, this._recoilHits - 2);
+    }
+
+    // He must also actually be under fire. Without this a long fall or a jump he
+    // chose to take would charge the escape.
+    const _underFire = (this._lastAttackerFrame != null) && (_fc - this._lastAttackerFrame < _WINDOW);
+
+    // ~1.75s of the last ~3s spent unable to act, while being hit. That is not a
+    // fight he is losing, it is a fight he is not in.
+    if (this._recoilHits < 105 || !_underFire || this._recoilCd > 0) return;
+
+    // ── DISCHARGE ──
+    this._recoilHits      = 0;
+    this._recoilLastFrame = -9999;
+    this._recoilCd   = 540;  // ~9s
+    this._recoilFlash = 20;
+    this.stunTimer    = 0;
+    this.ragdollTimer = 0;
+    this.ragdollSpin  = 0;
+    if (this.state === 'stunned' || this.state === 'ragdoll') this.state = 'idle';
+    this.invincible   = Math.max(this.invincible || 0, 26); // one clean beat, not a reset
+    // Kill the juggle's own upward velocity so he actually returns to the floor,
+    // and reset the launch chain that put him there.
+    if (this.vy < 0) this.vy = 0;
+    this._launchCount = 0;
+
+    // Throw the attacker off — space is the whole point of the break.
+    const _a = this._lastAttacker;
+    if (_a && _a.health > 0 && _a !== this &&
+        Math.hypot(_a.cx() - this.cx(), _a.cy() - this.cy()) < 220) {
+      const _dir = (_a.cx() >= this.cx()) ? 1 : -1;
+      _a.vx = _dir * 15;
+      if (typeof applyLaunch === 'function') applyLaunch(this, _a, -9);
+      _a.stunTimer = Math.max(_a.stunTimer || 0, 14);
+      // No damage on purpose: this is an escape, not a punish. It buys him the
+      // neutral back and nothing else, so it can never itself become the kill.
+    }
+
+    if (typeof queueAnnouncement === 'function') queueAnnouncement('NULL RECOIL', '#cc2200');
+    if (typeof spawnParticles === 'function') {
+      spawnParticles(this.cx(), this.cy(), '#cc2200', 22);
+      spawnParticles(this.cx(), this.cy(), '#ffffff', 12);
+    }
+    if (typeof screenShake !== 'undefined') screenShake = Math.max(screenShake, 14);
+    if (typeof SoundManager !== 'undefined' && SoundManager.explosion) SoundManager.explosion();
   }
 
   // ── NULL ANCHOR (Null Blade passive) ─────────────────────────────────────

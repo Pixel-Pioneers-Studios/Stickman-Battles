@@ -597,7 +597,21 @@ function _consoleExec(raw) {
       bot.playerNum = _num;
       bot.name      = 'BOT' + _num;
       bot.lives     = 3;
-      bot.target    = players[0] || null;
+      // Target the nearest LIVING, NON-GODMODED fighter rather than always
+      // players[0]. The old behaviour made the classic "watch a boss fight a
+      // bot" setup fail quietly: you godmode yourself and spawn a bot, and the
+      // bot locks onto invincible you instead of the boss — so it flees toward
+      // you while the boss chases it, and (because bosses like Sovereign are
+      // counter-punchers whose conversions need the opponent to commit) it
+      // never opens a single punish window. The fight crawls.
+      bot.target = (() => {
+        const _cands = [...players, ...(typeof minions !== 'undefined' ? minions : [])]
+          .filter(f => f && f !== bot && f.health > 0 && f.godmode !== true);
+        if (!_cands.length) return players[0] || null;
+        return _cands.reduce((best, f) =>
+          Math.hypot(f.cx() - bot.cx(), f.cy() - bot.cy()) <
+          Math.hypot(best.cx() - bot.cx(), best.cy() - bot.cy()) ? f : best);
+      })();
       if (_botCKey && typeof CLASSES !== 'undefined' && CLASSES[_botCKey] && typeof applyClass === 'function') {
         applyClass(bot, _botCKey);
       }

@@ -132,7 +132,7 @@ const WEAPONS = {
         if (f === user || f.health <= 0) continue;
         if (dist(user, f) < 130) {
           dealDamage(user, f, 20, 6);
-          f.vy = -20;
+          applyLaunch(user, f, -20); // governed — was a raw assignment
           spawnParticles(f.cx(), f.cy(), '#aaaaff', 10);
         }
       }
@@ -235,7 +235,7 @@ const WEAPONS = {
           dealDamage(user, f, 24, 10);
           const _panDir = f.cx() > user.cx() ? 1 : -1;
           f.vx += _panDir * 6; // gentle radial push
-          f.vy = -18;          // launched straight UP
+          applyLaunch(user, f, -18); // launched straight UP — governed
           f.stunTimer = Math.max(f.stunTimer || 0, 20);
           spawnParticles(f.cx(), f.cy(), '#ffdd66', 12);
         }

@@ -42,11 +42,28 @@ const SERVER_CONFIG = {
 // ============================================================
 const CHANGELOG = [
   {
+    version: '4.0.25',
+    title: 'THE GROUNDED UPDATE',
+    date: '2026-08-23',
+    flavor: 'Some hits used to put you in the air and keep you there. However hard you get hit now, you come back down — and you get a moment to do something about it.',
+    isLatest: true,
+    changes: [
+      { cat: 'Fix',    text: 'Being launched into the air no longer locks you out of the fight. Every anti-combo protection in the game only ever limited horizontal knockback, so attacks that throw you straight UP slipped past all of it — a fighter held above the floor could be re-launched forever without ever touching ground. Repeated launches now weaken, so you always land' },
+      { cat: 'Fix',    text: 'The safeguard that caps how long you can be stun-locked had never once activated. It only recognised a chain if hits landed within four frames of each other, but real attack speeds are closer to thirty — so it saw every hit as a fresh start and never triggered. It now measures against when your last stun was due to end, which is what it was always meant to do' },
+      { cat: 'Combat', text: 'Hammer\'s Ground Shockwave, Spear\'s Ground Spike and Frying Pan\'s Ground Pound set your upward speed directly, ignoring every launch protection. All three now go through the shared system — they hit exactly as hard, they just cannot juggle you indefinitely' },
+      { cat: 'Fix',    text: 'Megaknight is barred from boss encounters. It is a joke class with deliberately silly numbers, and it trivialised fights that are meant to be the hardest in the game. Pick it for a boss and you will be handed a random real class instead — it is untouched everywhere else' },
+      { cat: 'AI',     text: 'The Sovereign no longer sits on a full super bar waiting for a perfect opening that never comes, and can break out of being juggled once his blade discharges — he pays for it with a long cooldown, so sustained pressure still beats him', spoilerLevel: 3 },
+      { cat: 'Mode',   text: 'Training mode gained a measurement lab (F5, or the Lab button): live frame data for your current weapon — startup, active, recovery and cooldown — plus a readout of how much of the fight your opponent has spent unable to act, and a hit log showing the damage and knockback actually applied after every cap and scaling rule' },
+      { cat: 'Mode',   text: 'Training dummies do something now. They can stand, block, jump or counter-attack on a fixed delay, so you can practise against a guard, test whether a string is safe, and measure your own punish windows' },
+      { cat: 'Fix',    text: 'Spawning a bot from the developer console while invincible made it chase you instead of the boss — it now targets the nearest fighter that can actually be hurt' },
+    ],
+  },
+  {
     version: '4.0.24',
     title: 'THE CONVICTION PASS',
     date: '2026-07-27',
     flavor: 'Two classes never had a Conviction of their own. They do now — and every other Conviction has stopped trying to delete you in three seconds.',
-    isLatest: true,
+    isLatest: false,
     changes: [
       { cat: 'Mode',   text: 'Warrior Conviction added — The Proving Grounds: swords erupt out of the floor under whoever is standing still, and a bronze duel ring closes around the warrior over the full 25 seconds; anyone outside the ring bleeds a small tick every two-thirds of a second, so the domain forces the fight instead of chipping you down from across the arena' },
       { cat: 'Mode',   text: 'Summoner Conviction added — Endless Menagerie: a summoning sigil anchors the arena and streams spectral familiars that home in slowly on the nearest enemy and burst on contact; they are capped in speed and expire on their own, so they can be outrun, baited into a wall, or simply walked away from' },
@@ -944,7 +961,7 @@ let _publicRoomCheckTimer = 0;
 // ============================================================
 // VERSION
 // ============================================================
-const GAME_VERSION = '4.0.24';  // bump this when releasing; must match CHANGELOG[0].version
+const GAME_VERSION = '4.0.25';  // bump this when releasing; must match CHANGELOG[0].version
 console.log('[VERSION CHECK]', GAME_VERSION);
 
 // DEBUG / DEVELOPER STATE

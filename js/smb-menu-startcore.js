@@ -138,8 +138,49 @@ function _startGameCore() {
     if (_isRanged(w1)) w1 = 'sword';
   }
   // Store resolved class keys so applyClass calls below use the coordinated result
-  const _p1ResolvedClass = _p1Resolved.classKey;
-  const _p2ResolvedClass = _p2Resolved.classKey;
+  let _p1ResolvedClass = _p1Resolved.classKey;
+  let _p2ResolvedClass = _p2Resolved.classKey;
+
+  // ── TROLL CLASS BAR (boss fights) ───────────────────────────────────────
+  // Megaknight is a joke class with deliberately absurd stats — a 30-damage
+  // launcher on a 22-frame cooldown, a free AoE on every landing, and a super
+  // that grants 2s of invincibility. That is fine as a toy in versus and
+  // training, and completely trivialises a boss fight: it beat Sovereign 10-8
+  // in a measured full match while every other loadout tested lost badly.
+  // Rather than balance the joke into something it was never meant to be, it is
+  // simply barred from boss encounters and rerolled to an ordinary class.
+  const _isBossFight = isBossMode || isTrueFormMode || isGodMode ||
+                       isAbsoluteAxiomMode || isDamnationMode || isSovereignMode;
+  if (_isBossFight) {
+    const _reroll = (cls) => {
+      if (cls !== 'megaknight') return cls;
+      const _pool = (typeof CLASSES !== 'undefined')
+        ? Object.keys(CLASSES).filter(k => k !== 'megaknight' && k !== 'random')
+        : ['none'];
+      const _pick = _pool.length ? _pool[Math.floor(Math.random() * _pool.length)] : 'none';
+      if (typeof queueAnnouncement === 'function') {
+        queueAnnouncement('MEGAKNIGHT BARRED — REROLLED', '#cc88ff');
+      }
+      return _pick;
+    };
+    _p1ResolvedClass = _reroll(_p1ResolvedClass);
+    _p2ResolvedClass = _reroll(_p2ResolvedClass);
+    // The class selector locks the weapon to mkgauntlet while Megaknight is
+    // picked, so rerolling the class alone would leave the player holding a
+    // 30-damage 22-frame gauntlet under an ordinary class — the stats that made
+    // it a problem, minus the identity. Reroll the weapon with it.
+    const _rerollW = (wk) => {
+      if (wk !== 'mkgauntlet' && wk !== 'gauntlet') return wk;
+      const _wp = (typeof WEAPON_KEYS !== 'undefined' && WEAPON_KEYS.length)
+        ? WEAPON_KEYS.filter(k => isSovereignMode
+            ? !(WEAPONS[k] && WEAPONS[k].type === 'ranged')
+            : true)
+        : ['sword'];
+      return _wp.length ? _wp[Math.floor(Math.random() * _wp.length)] : 'sword';
+    };
+    w1 = _rerollW(w1);
+    w2 = _rerollW(w2);
+  }
   const c1   = document.getElementById('p1Color').value;
   const c2   = document.getElementById('p2Color').value;
   const p1Diff = (document.getElementById('p1Difficulty')?.value) || 'hard';

@@ -186,6 +186,88 @@ function _spawnWeaponHitFX(attacker, target, dmg) {
   }
 }
 
+// ── VERTICAL LAUNCH GOVERNOR ─────────────────────────────────────────────────
+// Every anti-juggle system in dealDamage() below regulates `actualKb` — the
+// HORIZONTAL impulse. Nothing ever policed vertical displacement, and ~37 call
+// sites across the codebase launch a target by writing `t.vy = Math.min(t.vy, -N)`
+// directly, after dealDamage() has already returned. Those writes are invisible
+// to the combo KB ramp, the per-frame impulse limit, the hard KB cap and the
+// familiar juggle guard alike.
+//
+// That is the whole Megaknight problem. Its basic attack pins the target at
+// vy=-26 on EVERY hit at a 22-frame cooldown, so the victim is re-launched long
+// before they can fall back to the floor. The lockout ceiling further down does
+// still fire and does still clear their stun — but it hands them "one beat to
+// act" while they are 200px in the air with no ground under them, which is worth
+// nothing. A fighter held permanently airborne is locked out just as completely
+// as one held permanently stunned; the existing suite simply could not see it.
+//
+// So: one choke point that gives vertical launches the same diminishing returns
+// horizontal knockback has always had. Route launches through this instead of
+// writing .vy directly, and repeated launches decay toward a floor, guaranteeing
+// the target reaches the ground and gets a real input.
+//
+// Deliberately NOT a flat nerf. The first launch of a chain lands at full
+// strength — the uppercut still sends people flying, which is the fantasy. It is
+// only the second, third and fourth inside the same window that shrink.
+function applyLaunch(attacker, target, launchVy, opts) {
+  if (!target || target.health <= 0) return 0;
+  if (!(launchVy < 0)) return 0; // upward launches only (negative vy)
+  const _o = opts || {};
+
+  let vy = launchVy;
+  if (target.kbResist) vy *= target.kbResist;
+
+  if (typeof frameCount !== 'undefined') {
+    // Window is wider than the 45-frame combo window on purpose. The Megaknight's
+    // measured re-launch cadence is ~75 frames — slow enough to reset the combo
+    // counter between hits, which is exactly how it slipped every existing guard.
+    const _WINDOW = 130;
+    // Explicit null check, not `||` — frameCount 0 is falsy and would silently
+    // discard a launch recorded on the very first frame of a match.
+    const _lastF = (target._launchLastFrame == null) ? -9999 : target._launchLastFrame;
+    if (frameCount - _lastF > _WINDOW) target._launchCount = 0;
+    target._launchCount     = (target._launchCount || 0) + 1;
+    target._launchLastFrame = frameCount;
+
+    const _n = target._launchCount;
+    if (_n > 1) {
+      // 1.0 → 0.66 → 0.44 → 0.29 → floor 0.22. By the third launch the target is
+      // rising slowly enough that gravity returns them to the floor between hits.
+      vy *= Math.max(0.22, Math.pow(0.66, _n - 1));
+    }
+
+    // Multiple launch sources in a single frame (AoE overlap) must not stack.
+    if (target._launchAppliedFrame === frameCount) vy *= 0.4;
+    else target._launchAppliedFrame = frameCount;
+  }
+
+  // AIRBORNE RE-LAUNCH GUARD — the hard guarantee.
+  // Once a target is off the ground and already rising, a further launch may not
+  // add height. Without this, decayed-but-still-negative launches applied via
+  // Math.min() every ~1s could still hold someone aloft indefinitely. Mirrors the
+  // familiar juggle guard's philosophy: chip freely, but a hit cannot keep an
+  // airborne target airborne. Damage is untouched.
+  if (!target.onGround && !_o.ignoreAirGuard) {
+    const _n2 = target._launchCount || 1;
+    if (_n2 >= 2) {
+      // Allowed launch shrinks with each airborne re-hit and can never exceed the
+      // upward speed they already have — so their arc only ever gets shorter.
+      const _ceil = -6 - Math.max(0, 10 - _n2 * 3);
+      vy = Math.max(vy, _ceil);
+      if (target.vy < 0) vy = Math.max(vy, target.vy * 0.85);
+    }
+  }
+
+  vy = Math.round(vy * 100) / 100;
+  target.vy = Math.min(target.vy, vy);
+  if (typeof trainingMode !== 'undefined' && trainingMode &&
+      typeof _tlabRecordLaunch === 'function') {
+    _tlabRecordLaunch(target, launchVy, vy, target._launchCount || 1);
+  }
+  return vy;
+}
+
 function dealDamage(attacker, target, dmg, kbForce, stunMult = 1.0, isSplash = false, hitInvincibleFrames = 16) {
   if (activeCinematic) return; // no damage during cinematic pauses
   if (!target || target.invincible > 0 || target.health <= 0) return;
@@ -553,6 +635,13 @@ function dealDamage(attacker, target, dmg, kbForce, stunMult = 1.0, isSplash = f
   if (onlineMode && attacker && !attacker.isRemote && target && target.isRemote) {
     NetworkManager.sendHit(actualDmg, actualKb, actualKb > 0 ? (target.cx() > attacker.cx() ? 1 : -1) : 0);
   }
+  // Training lab hit log — records the values AFTER all scaling/caps, which is the
+  // whole point: the raw dmg/kb passed in tell you nothing about what the pipeline
+  // actually applied. Gated on trainingMode so it costs nothing in a real match.
+  if (typeof trainingMode !== 'undefined' && trainingMode &&
+      typeof _tlabRecordHit === 'function') {
+    _tlabRecordHit(attacker, target, dmg, actualDmg, kbForce, actualKb);
+  }
   target.health    = Math.max(0, target.health - actualDmg);
   if (attacker && actualDmg > 0) attacker.totalDamageDealt = (attacker.totalDamageDealt || 0) + actualDmg;
   if (actualDmg > 0 && !target.isBoss) target._damageAccumThisLife = (target._damageAccumThisLife || 0) + actualDmg;
@@ -798,9 +887,24 @@ function dealDamage(attacker, target, dmg, kbForce, stunMult = 1.0, isSplash = f
     if (target && !target.isBoss && !target.isTrueForm && typeof frameCount !== 'undefined' &&
         !(typeof SMK2_TUNE !== 'undefined' && SMK2_TUNE && SMK2_TUNE.lockCeiling === false)) {
       const _LOCK_CEIL = 105;   // ~1.75s of continuous lock
-      const _wasLocked = (target._lockPrevFrame || -99) >= frameCount - 4;
+      // A lock RUN continues when the new hit lands while the previous hit's
+      // stun is still ticking — that is the definition of "never got an input".
+      //
+      // This used to test `_lockPrevFrame >= frameCount - 4`, i.e. it only joined
+      // two hits into a run if they landed within 4 frames of each other. But the
+      // failure mode described directly above is hits ~28 frames apart, so the run
+      // was restarted by every single hit, `_held` was permanently 0, and the
+      // ceiling never once engaged. Measured against a Megaknight juggle the
+      // target got 0% actionable frames with this block "active".
+      //
+      // Compare against when the last lock was due to EXPIRE instead. A grace of a
+      // few frames covers a hit that lands just as stun runs out — still a lock in
+      // every sense that matters to the person holding the controller.
+      const _prevLockUntil = (target._lockUntil == null) ? -9999 : target._lockUntil;
+      const _wasLocked = frameCount <= _prevLockUntil + 6;
       if (!_wasLocked) target._lockStart = frameCount;
       target._lockPrevFrame = frameCount;
+      target._lockUntil = frameCount + Math.max(target.stunTimer || 0, target.ragdollTimer || 0);
       const _held = frameCount - (target._lockStart || frameCount);
       if (_held + (target.stunTimer || 0) > _LOCK_CEIL) {
         target.stunTimer = Math.max(0, _LOCK_CEIL - _held);
@@ -808,6 +912,11 @@ function dealDamage(attacker, target, dmg, kbForce, stunMult = 1.0, isSplash = f
         if (target.stunTimer === 0) {
           target.invincible = Math.max(target.invincible || 0, 12); // one beat to act
           target._lockStart = frameCount;
+          target._lockUntil = -9999; // run is over — the next hit starts a fresh one
+        } else {
+          // Keep the expiry in sync with the truncated stun, or the run would be
+          // measured against a lock that is no longer running.
+          target._lockUntil = frameCount + Math.max(target.stunTimer, target.ragdollTimer || 0);
         }
       }
     }
