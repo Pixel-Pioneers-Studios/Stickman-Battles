@@ -45,6 +45,53 @@ function _buildSelCardGrid(gridId, selectId, cardData, pid, type) {
   });
 }
 
+// ── Boss-fight ranged bar (menu side) ────────────────────────────────────────
+// _startGameCore enforces the melee-only rule at spawn, but the picker should not
+// offer a loadout it is going to silently overwrite. In any boss mode, grey out
+// every ranged weapon card and the two classes that lock a ranged weapon
+// (Gunner → gun, Archer → bow), and pull the current selection off any of them.
+const _BOSS_RANGED_MODES = ['boss', 'trueform', 'god', 'absoluteaxiom', 'damnation', 'sovereign'];
+const _BOSS_RANGED_CLASSES = ['gunner', 'archer'];
+
+function _isRangedWeaponKey(key) {
+  const def = (key && String(key).startsWith('_custom_') && window.CUSTOM_WEAPONS)
+    ? window.CUSTOM_WEAPONS[key]
+    : (typeof WEAPONS !== 'undefined' ? WEAPONS[key] : null);
+  return !!def && def.type === 'ranged';
+}
+
+function applyBossRangedLock(mode) {
+  const barred = _BOSS_RANGED_MODES.includes(mode);
+  ['p1', 'p2'].forEach(pid => {
+    const wSel = document.getElementById(pid + 'Weapon');
+    const cSel = document.getElementById(pid + 'Class');
+    const wGrid = document.getElementById(pid + 'WeaponCards');
+    const cGrid = document.getElementById(pid + 'ClassCards');
+    if (wGrid) {
+      wGrid.querySelectorAll('.sel-card').forEach(c => {
+        c.classList.toggle('card-barred', barred && _isRangedWeaponKey(c.dataset.val));
+      });
+    }
+    if (cGrid) {
+      cGrid.querySelectorAll('.sel-card').forEach(c => {
+        c.classList.toggle('card-barred', barred && _BOSS_RANGED_CLASSES.includes(c.dataset.val));
+      });
+    }
+    if (!barred) return;
+    // Pull the live selection off anything now barred, then resync the cards.
+    if (cSel && _BOSS_RANGED_CLASSES.includes(cSel.value)) {
+      cSel.value = 'none';
+      _syncSelCards(pid + 'ClassCards', 'none');
+      if (typeof showDesc === 'function') showDesc(pid, 'class', 'none');
+    }
+    if (wSel && _isRangedWeaponKey(wSel.value)) {
+      wSel.value = 'sword';
+      _syncSelCards(pid + 'WeaponCards', 'sword');
+      if (typeof showDesc === 'function') showDesc(pid, 'weapon', 'sword');
+    }
+  });
+}
+
 function _initSelCardGrids() {
   refreshCustomWeaponOptions(); // inject any saved custom weapons first
   _buildSelCardGrid('p1WeaponCards', 'p1Weapon', _WEAPON_CARD_DATA, 'p1', 'weapon');

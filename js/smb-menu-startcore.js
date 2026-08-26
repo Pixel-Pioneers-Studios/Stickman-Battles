@@ -131,11 +131,27 @@ function _startGameCore() {
     if (_isMeleeOnly(w1)) w1 = 'sword';
     if (_isMeleeOnly(w2)) w2 = 'sword';
   }
-  // Sovereign mode: ban ranged weapons for the player — Sovereign is a pure melee read-and-punish
-  // fighter; ranged weapons allow kiting that bypasses all of his adaptation systems.
-  if (isSovereignMode) {
-    const _isRanged = (key) => typeof WEAPONS !== 'undefined' && WEAPONS[key] && WEAPONS[key].type === 'ranged';
+  // ── RANGED BAN (all boss fights) ────────────────────────────────────────
+  // Every boss encounter is melee-only for the player side. Ranged weapons let
+  // the player kite from outside the boss's engage range, which bypasses the
+  // read-and-punish adaptation systems (Sovereign) and the telegraph/counter
+  // design of the phase bosses. Substitute a sword for any ranged pick.
+  // Boss entities themselves are constructed separately and are unaffected.
+  const _isBossFight = isBossMode || isTrueFormMode || isGodMode ||
+                       isAbsoluteAxiomMode || isDamnationMode || isSovereignMode;
+  if (_isBossFight) {
+    // Custom weapons are keyed '_custom_*' and live in CUSTOM_WEAPONS, not WEAPONS —
+    // resolve both so a hand-built ranged weapon can't slip past the ban.
+    const _wDef = (key) => (key && String(key).startsWith('_custom_') && window.CUSTOM_WEAPONS)
+      ? window.CUSTOM_WEAPONS[key]
+      : (typeof WEAPONS !== 'undefined' ? WEAPONS[key] : null);
+    const _isRanged = (key) => { const d = _wDef(key); return !!d && d.type === 'ranged'; };
+    const _banned = _isRanged(w1) || _isRanged(w2);
     if (_isRanged(w1)) w1 = 'sword';
+    if (_isRanged(w2)) w2 = 'sword';
+    if (_banned && typeof queueAnnouncement === 'function') {
+      queueAnnouncement('RANGED BARRED — MELEE ONLY', '#ffcc44');
+    }
   }
   // Store resolved class keys so applyClass calls below use the coordinated result
   let _p1ResolvedClass = _p1Resolved.classKey;
@@ -149,8 +165,6 @@ function _startGameCore() {
   // in a measured full match while every other loadout tested lost badly.
   // Rather than balance the joke into something it was never meant to be, it is
   // simply barred from boss encounters and rerolled to an ordinary class.
-  const _isBossFight = isBossMode || isTrueFormMode || isGodMode ||
-                       isAbsoluteAxiomMode || isDamnationMode || isSovereignMode;
   if (_isBossFight) {
     const _reroll = (cls) => {
       if (cls !== 'megaknight') return cls;
@@ -172,9 +186,7 @@ function _startGameCore() {
     const _rerollW = (wk) => {
       if (wk !== 'mkgauntlet' && wk !== 'gauntlet') return wk;
       const _wp = (typeof WEAPON_KEYS !== 'undefined' && WEAPON_KEYS.length)
-        ? WEAPON_KEYS.filter(k => isSovereignMode
-            ? !(WEAPONS[k] && WEAPONS[k].type === 'ranged')
-            : true)
+        ? WEAPON_KEYS.filter(k => !(WEAPONS[k] && WEAPONS[k].type === 'ranged'))
         : ['sword'];
       return _wp.length ? _wp[Math.floor(Math.random() * _wp.length)] : 'sword';
     };

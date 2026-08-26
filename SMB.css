@@ -647,6 +647,26 @@ input, textarea, [contenteditable] {
   position: relative;
 }
 
+/* Ranged weapons are barred from boss fights — the card stays visible so the
+   player can see what exists, but it cannot be picked. */
+.sel-card.card-barred {
+  pointer-events: none;
+  opacity: 0.32;
+  filter: grayscale(1);
+  position: relative;
+}
+/* The bar label takes the tag's slot — otherwise it overlaps on two-line names. */
+.sel-card.card-barred .sel-card-tag { visibility: hidden; }
+.sel-card.card-barred::after {
+  content: 'BOSS: NO RANGED';
+  position: absolute;
+  left: 0; right: 0; bottom: 2px;
+  font-size: 0.44rem;
+  letter-spacing: 0.3px;
+  color: #ff8866;
+  font-weight: 800;
+}
+
 .sel-card {
   background: rgba(255,255,255,0.04);
   border: 1.5px solid rgba(255,255,255,0.1);

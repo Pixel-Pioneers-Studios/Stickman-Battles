@@ -121,6 +121,9 @@ function selectMode(mode) {
       sel.value = 'sword';
     }
   }
+  // Boss fights are melee-only — grey the ranged cards out rather than letting the
+  // player pick one and have _startGameCore swap it for a sword at spawn.
+  if (typeof applyBossRangedLock === 'function') applyBossRangedLock(mode);
   // Enter config view if this was a user-initiated mode selection (home content currently visible)
   if (mode !== 'story') {
     const _hc = document.getElementById('menuHomeContent');

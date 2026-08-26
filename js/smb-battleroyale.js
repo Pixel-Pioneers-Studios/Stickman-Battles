@@ -118,6 +118,8 @@ function _makeBRArena() {
     bg: '#05050e',
     sky: ['#05050e', '#08081a'],
     groundColor: '#10101e',
+    platColor:   '#3d4855',
+    platEdge:    '#202734',
     worldWidth: BR_WORLD_W,
     mapLeft: 0,
     mapRight: BR_WORLD_W,

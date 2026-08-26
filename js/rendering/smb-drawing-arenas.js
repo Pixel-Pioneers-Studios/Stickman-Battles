@@ -193,7 +193,11 @@ function drawCreatorArena() {
   // Dramatic purple lightning during phase 2 and 3
   const boss = players.find(p => p.isBoss);
   if (boss && boss.health > 0) {
-    const bPhase = boss.health > 2000 ? 1 : boss.health > 1000 ? 2 : 3;
+    // Ask the boss for its phase rather than re-deriving it from absolute HP —
+    // this copy of the 2000/1000 thresholds only agreed with Boss.getPhase() at
+    // exactly 3000 max HP, so on True Creator (4500) the storm visuals came in at
+    // a different point than the actual phase change they are meant to signal.
+    const bPhase = typeof boss.getPhase === 'function' ? boss.getPhase() : 1;
     if (bPhase >= 2) {
       // Each lightning bolt: random jagged line from top to mid-screen
       const boltCount = bPhase === 3 ? 3 : 1;
@@ -583,7 +587,11 @@ function _platPath(x, y, w, h, rad) {
 // Draws one platform as a chunk of terrain: gradient body, exposed-only top
 // surface layer, bevels and outline. Seam data must already be built.
 function _platDrawTerrain(pl, baseColor, edgeColor) {
-  const segTop   = pl._segTop   || [[pl.x, pl.x + pl.w]];
+  // Runtime-built arenas (battle royale, custom maps) may omit platColor/platEdge.
+  // addColorStop/strokeStyle throw on undefined, so fall back to neutral stone.
+  if (typeof baseColor !== 'string') baseColor = '#5a6070';
+  if (typeof edgeColor !== 'string') edgeColor = _platShade(baseColor, -0.45);
+  const segTop  = pl._segTop   || [[pl.x, pl.x + pl.w]];
   const segBot   = pl._segBot   || [[pl.x, pl.x + pl.w]];
   const segLeft  = pl._segLeft  || [[pl.y, pl.y + pl.h]];
   const segRight = pl._segRight || [[pl.y, pl.y + pl.h]];

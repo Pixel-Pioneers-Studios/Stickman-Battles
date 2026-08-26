@@ -164,7 +164,19 @@ class Fighter {
     const pool = (trainingMode && players.includes(this))
       ? [...players]
       : [...players, ...trainingDummies, ...minions];
-    const living = pool.filter(q => !this._isInvalidAITarget(q));
+    // Never acquire an ally. This filter is what stops a boss and the minions it
+    // summoned from turning on each other during the player's respawn window: the
+    // pool is "everything alive", so with the player gone the nearest entity to a
+    // minion is the boss that spawned it. areAlliedEntities() reads the same
+    // _teamId / storyFaction stamps dealDamage() already honours, so nothing that
+    // was previously a legal target stops being one.
+    // The rule is absolute: no fallback to an ally when nothing else is alive.
+    // A "don't strand the AI" fallback here would re-select the boss for its own
+    // minion during the player's respawn window — exactly the case this filter
+    // exists to fix. A minion standing still for two seconds is correct; a minion
+    // duelling the boss that summoned it is not.
+    const living = pool.filter(q => !this._isInvalidAITarget(q) &&
+      !(typeof areAlliedEntities === 'function' && areAlliedEntities(this, q)));
     if (!living.length) { this.target = null; return this.target; }
 
     // Player-priority: if any player is within 350 px, always pick the nearest one.

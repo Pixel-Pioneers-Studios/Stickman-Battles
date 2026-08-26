@@ -62,9 +62,19 @@ class Boss extends Fighter {
   }
 
   getPhase() {
-    if (this.health > 2000) return 1;   // > 66% HP (>2000 of 3000)
-    if (this.health > 1000) return 2;   // 33–66% HP (1000–2000)
-    return 3;                            // < 33% HP (<1000)
+    // Thresholds are PROPORTIONAL, which is what the original comments describe
+    // ("> 66% HP", "33-66% HP"). They used to be the absolute numbers 2000/1000,
+    // which only match those percentages at exactly 3000 max HP — and the boss is
+    // routinely not 3000. True Creator is 4500, and the 2-player boss multiplies
+    // health by another 1.5. At 4500 the old numbers made phase 1 last from 100%
+    // down to 44% — over half the fight spent in the phase with no beams, no
+    // minions and no spikes, which is why the opening drags and beams often never
+    // appeared at all. At the 2P value (6750) phase 1 covered 70% of the bar.
+    const max = this.maxHealth > 0 ? this.maxHealth : 3000;
+    const pct = this.health / max;
+    if (pct > 2 / 3) return 1;
+    if (pct > 1 / 3) return 2;
+    return 3;
   }
 
   // Override attack: gauntlet melee only, half cooldowns
@@ -367,6 +377,13 @@ class Boss extends Fighter {
         const spawnX = Math.random() < 0.5 ? 60 : 840;
         const spawnY = 200;
         const mn     = new Minion(spawnX, spawnY);
+        // Stamp the boss's faction on the minion it just summoned. Without this the
+        // minion has no allegiance at all, so the moment the player dies
+        // _acquireAITarget() picks the nearest living entity — the boss — and the
+        // two spend the respawn window fighting each other. Same `_teamId`
+        // convention God's angels and Axiom's sentinels already use.
+        if (this._teamId === undefined) this._teamId = 51;
+        mn._teamId   = this._teamId;
         mn.target    = players.find(p => !p.isBoss && p.health > 0 && !p.godmode) || players.find(p => !p.isBoss) || players[0];
         minions.push(mn);
         spawnParticles(spawnX, spawnY, '#bb00ee', 24);

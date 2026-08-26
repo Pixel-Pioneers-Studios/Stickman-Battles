@@ -4,9 +4,11 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "build": "node --check server.js && node --check js/smb-save.js && node --check js/smb-supabase.js && node --check js/smb-behavior-model.js && node --check js/smb-replay.js && node --check js/smb-smk2-class.js && node --check js/rendering/smb-drawing-arenas.js",
+    "globals": "node tools/audit/gen-globals.js",
+    "lint": "npm run globals && eslint js/ server.js storage.js tools/",
+    "build": "node --check server.js && node --check storage.js && find js -name '*.js' -print0 | xargs -0 -n1 -P8 node --check",
     "audit": "node tools/audit/check.js",
-    "check": "npm run build && npm run audit"
+    "check": "npm run build && npm run audit && npm run lint"
   },
   "engines": {
     "node": "22.x"
@@ -15,5 +17,10 @@
     "better-sqlite3": "^12.9.0",
     "puppeteer": "^25.2.1",
     "socket.io": "^4"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.9.0",
+    "globals": "^17.11.0"
   }
 }

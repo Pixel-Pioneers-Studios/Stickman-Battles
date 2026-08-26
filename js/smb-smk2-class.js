@@ -8,7 +8,11 @@
 // voidBoostMax: hard budget on recovery boosts per airborne stint (resets on landing).
 // Set very high to restore the old unbounded behaviour for an A/B — but note the old
 // behaviour is what let him climb to y=-2765 and take the camera with him.
-window.SMK2_TUNE = window.SMK2_TUNE || { openGate: true, pressureDecay: true, lockCeiling: true, voidBoostMax: 3 };
+// recoverCeilAboveDeck: how far above the floor deck a recovery boost may still
+// fire, in px. Set very high to restore the old effectively-unbounded behaviour
+// for an A/B — the old constant was -60 (above the top of the screen), which is
+// what let him ladder off the top of the arena.
+window.SMK2_TUNE = window.SMK2_TUNE || { openGate: true, pressureDecay: true, lockCeiling: true, voidBoostMax: 3, recoverCeilAboveDeck: 200 };
 
 // ── Owner-attached hazard registry ───────────────────────────────────────────
 // Several weapon abilities/supers store their live hazard directly on the wielder
@@ -42,6 +46,26 @@ function _smk2OwnedHazards(t) {
   return out;
 }
 
+// Every owner-attached hazard in the match that is not Sovereign's own.
+// The scans used to read only `this.target`'s hazards, which is correct in a 1v1
+// and blind everywhere else: in battle royale or any 3+ fight, the three fighters
+// he is NOT currently targeting can throw whatever they like at him for free.
+function _smk2AllOwnedHazards(self) {
+  const out = [];
+  const pools = [];
+  if (typeof players  !== 'undefined' && Array.isArray(players))  pools.push(players);
+  if (typeof minions  !== 'undefined' && Array.isArray(minions))  pools.push(minions);
+  for (const pool of pools) {
+    for (const f of pool) {
+      if (!f || f === self || f.health <= 0) continue;
+      if (typeof areAlliedEntities === 'function' && areAlliedEntities(self, f)) continue;
+      const owned = _smk2OwnedHazards(f);
+      for (const hz of owned) out.push(hz);
+    }
+  }
+  return out;
+}
+
 class SovereignMK2 extends AdaptiveAI {
   constructor(x, y, color, weaponKey) {
     super(x, y, color, weaponKey);
@@ -62,6 +86,8 @@ class SovereignMK2 extends AdaptiveAI {
     this._hopFrames   = 0;
     this._projDodgeCd = 0;
     this._itemRunTimer = 0;   // frames left committed to a map pickup
+    this._recoverJumps = 0;   // off-stage recovery jumps used this airborne stint
+    this._areaDodgeCd  = 0;   // re-arm gate on area-hazard evasion
 
     // Per-FRAME decision cadence (overrides the shared AI_TICK_INTERVAL=15 gate in
     // Fighter.update). This class's timers are all written in frames — reactFrames,
@@ -269,6 +295,7 @@ class SovereignMK2 extends AdaptiveAI {
     this._voidRecoverCd     = 0;      // emergency recovery cooldown after edge launch
     this._voidBoosts        = 0;      // recovery boosts used this airborne stint (resets on landing)
     this._voidHopCd         = 0;      // cooldown on the gap-hop the void-step veto issues
+    this._floorHopCd        = 0;      // cooldown on the boss-floor evacuation hop
     this._heavyThreatCd     = 0;      // short memory for high-knockback weapons
 
     // Tune BehaviorModel for Sovereign: sample every decision frame and weight
@@ -1562,6 +1589,113 @@ class SovereignMK2 extends AdaptiveAI {
     return true;
   }
 
+  // ── BOSS FLOOR HAZARD — evacuate the deck before it is deleted ───────────
+  // The Creator and TrueForm arenas periodically remove the floor. The state
+  // machine in smb-loop-core.js runs 'normal' → 'warning' (3 s telegraph, with a
+  // screen banner) → 'hazard', and 'hazard' sets isFloorDisabled on the floor
+  // platform and either drops deathY to 530 (void) or floods it with lava at
+  // y = 462.
+  //
+  // Nothing in this class read bossFloorState. Fighter's own handling for it does
+  // exist, but it lives inside Fighter.updateAI(), which this class replaces
+  // wholesale — so Sovereign never inherited any of it. The only piece that still
+  // reached him was _voidSafetyFrame(), which fires from Fighter.update() and
+  // only once he is ALREADY falling. Measured over a live Creator refight: at the
+  // frame the warning went up he was standing on the floor, and he was still
+  // standing on the floor when it vanished underneath him.
+  //
+  // Treat the warning exactly like the hazard. A three-second telegraph exists to
+  // be read, and Sovereign is meant to be the opponent who never wastes one.
+  // Returns true when it has taken the frame.
+  _runFloorHazard(moveSpd, jumpVy) {
+    if (typeof bossFloorState === 'undefined' || bossFloorState === 'normal') return false;
+    if (this.health <= 0 || (this.stunTimer || 0) > 0 || (this.ragdollTimer || 0) > 0) return false;
+    if (typeof currentArena === 'undefined' || !currentArena || !currentArena.platforms) return false;
+    const floorPl = currentArena.platforms.find(p => p.isFloor);
+    if (!floorPl) return false;
+
+    // Already standing on something that is not the doomed floor — nothing to do,
+    // hand the frame back to combat so this never reads as a fight-stopping panic.
+    const _cpi = this._findCurrentPlatform(this);
+    const _cp  = _cpi >= 0 ? currentArena.platforms[_cpi] : null;
+    if (this.onGround && _cp && !_cp.isFloor) return false;
+
+    // Airborne and already climbing toward a safe deck: let the hop steering and
+    // _voidSafetyFrame finish the job rather than fighting them for vx.
+    if (!this.onGround && this._hopFrames > 0 && this._hopTarget) return false;
+
+    // Pick the safest deck: nearest non-floor platform we can actually reach.
+    // Single jump lifts the feet ~150px; the double-jump extension takes it to
+    // ~285, matching the reach constant the elevation-pursuit block uses.
+    const feet  = this.y + this.h;
+    const REACH = 285;
+    let best = null, bestScore = Infinity;
+    for (const pl of currentArena.platforms) {
+      if (!pl || pl.isFloor || pl.isFloorDisabled) continue;
+      if (pl.y > feet + 40) continue;              // below us — falling to it is not an escape
+      if (pl.y < feet - REACH) continue;           // out of jump range from here
+      const cx2 = pl.x + pl.w / 2;
+      const score = Math.abs(cx2 - this.cx()) + (feet - pl.y) * 0.35;
+      if (score < bestScore) { bestScore = score; best = pl; }
+    }
+    if (!best) return false;                        // nowhere better — keep fighting
+
+    // Platforms are SOLID FROM BELOW. The first version of this jumped as soon as
+    // he was near the deck horizontally, which meant it jumped while he was under
+    // it — he slammed his head into the underside, dropped, and re-fired the same
+    // decision on landing, over and over, until the floor went and the loop killed
+    // him. Stage it the way the elevation-pursuit block does instead: walk out past
+    // the deck's nearer EDGE first, and only jump once clear of the underside, then
+    // let the hop steering carry the arc back inward onto the deck.
+    const _bcx     = best.x + best.w / 2;
+    const _clearOf = best.w / 2 + 22;                 // outside this, nothing overhead
+    const _fromLeft = this.cx() <= _bcx;              // which side we're approaching from
+    const _standX  = _fromLeft ? best.x - 34 : best.x + best.w + 34;
+
+    if (this._floorHopCd > 0) this._floorHopCd--;
+
+    if (this.onGround) {
+      if (Math.abs(this.cx() - _bcx) < _clearOf) {
+        // Under the deck — walk OUT to the stand point, never jump from here.
+        const _outDir = _fromLeft ? -1 : 1;
+        if (!this.isEdgeDanger(_outDir)) this.vx = _outDir * moveSpd;
+        else this.vx = -_outDir * moveSpd;            // that side is a drop; go around
+        this.shielding = false;
+        return true;
+      }
+      // Clear of the underside. Close the last of the gap, then jump inward.
+      const _toStand = _standX - this.cx();
+      if (Math.abs(_toStand) > 14) {
+        const _sdir = Math.sign(_toStand);
+        if (!this.isEdgeDanger(_sdir)) { this.vx = _sdir * moveSpd; this.shielding = false; return true; }
+      }
+      if (this._floorHopCd <= 0) {
+        this.vy = jumpVy;
+        this.vx = (_fromLeft ? 1 : -1) * moveSpd * 0.75;   // inward, onto the deck
+        this._floorHopCd = 14;
+        this._hopTarget  = best;
+        this._hopFrames  = 40;
+      }
+    } else {
+      // Airborne: steer toward the deck's centre so the arc lands on it.
+      this.vx = Math.sign(_bcx - this.cx()) * Math.min(moveSpd, Math.abs(_bcx - this.cx()) / 8 + 1.2);
+      if (this.canDoubleJump && this.vy > 0 && this.y + this.h > best.y) {
+        // Caught airborne when the state flipped — measured at 36 frames inside the
+        // kill band on a lava cycle, because steering alone cannot gain height and
+        // he simply fell back onto the deck that was no longer there. Spend the
+        // double jump to actually reach the deck he is steering toward.
+        this.vy = -16;
+        this.canDoubleJump = false;
+        this._hopTarget = best;
+        this._hopFrames = 40;
+      }
+    }
+    // Do not swing while evacuating — the blade cannot reach anything useful from
+    // here and a committed swing's endlag is what leaves him on the deck too long.
+    this.shielding = false;
+    return true;
+  }
+
   _runVoidRecovery(t, dir, moveSpd, jumpVy) {
     if (this._voidRecoverCd > 0) this._voidRecoverCd--;
 
@@ -1614,7 +1748,37 @@ class SovereignMK2 extends AdaptiveAI {
     // Two hard stops, both required. The budget resets on landing, so genuine
     // multi-stage recoveries still work exactly as before.
     if (this.onGround) this._voidBoosts = 0;
-    const RECOVER_CEIL = -60;                       // above the top of the play area
+    // ── The ceiling has to mean something ────────────────────────────────────
+    // RECOVER_CEIL was -60: above the TOP of the play area. That reads as a safety
+    // net and is not a bound at all — it licenses a 400px climb over the deck, and
+    // measured in a live match that is exactly what he did, topping out at y = -117
+    // on a stage whose floor is at y = 438. Combined with the boost budget it looks
+    // bounded on paper while still letting him leave the screen; what the player
+    // sees is three jumps in a row and a Sovereign who beat gravity.
+    //
+    // Recovery is a BELOW-the-stage concept. Once he is back up to roughly deck
+    // level he is not recovering any more, he is just gaining altitude — the
+    // horizontal steer above is what actually returns him, and gravity does the
+    // rest. So the ceiling is measured from the floor platform, with ~200px of
+    // headroom so genuine recoveries can still clear a ledge lip.
+    //
+    // The lookup deliberately does NOT filter on isFloorDisabled. It used to, and
+    // that put the -60 fallback back in play for exactly the window it matters
+    // most: the boss floor hazard disables the floor platform, the find() returned
+    // null, and RECOVER_CEIL silently reverted to above-the-screen — the original
+    // bug, re-armed by the one event in the fight that removes the floor. A
+    // disabled floor still marks where the deck IS, which is all this needs.
+    const _rcPlats = (typeof currentArena !== 'undefined' && currentArena && currentArena.platforms)
+      ? currentArena.platforms : null;
+    let _rcFloor = _rcPlats ? _rcPlats.find(p => p.isFloor) : null;
+    if (!_rcFloor && _rcPlats && _rcPlats.length) {
+      // No floor platform at all (some arenas are pure platform fields) — use the
+      // lowest deck as the reference so the ceiling still means something.
+      for (const p of _rcPlats) if (p && (!_rcFloor || p.y > _rcFloor.y)) _rcFloor = p;
+    }
+    const _rcHead = (typeof SMK2_TUNE !== 'undefined' && SMK2_TUNE &&
+                     typeof SMK2_TUNE.recoverCeilAboveDeck === 'number') ? SMK2_TUNE.recoverCeilAboveDeck : 200;
+    const RECOVER_CEIL = _rcFloor ? _rcFloor.y - _rcHead : -60;
     const _boostMax    = (typeof SMK2_TUNE !== 'undefined' && SMK2_TUNE &&
                           typeof SMK2_TUNE.voidBoostMax === 'number') ? SMK2_TUNE.voidBoostMax : 3;
     const boostsLeft   = (this._voidBoosts || 0) < _boostMax;
@@ -2260,7 +2424,16 @@ class SovereignMK2 extends AdaptiveAI {
     if (hpPct < 0.25) score += 22;
     // Summons and minions are attention sinks. Worth turning on when they are
     // genuinely the threat, but never at the same weight as the player driving them.
-    if (!(Array.isArray(players) && players.includes(c))) score -= 45;
+    //
+    // The penalty is conditional, though. A flat -45 meant a minion standing right
+    // on top of him swinging freely could never out-score a boss he was already
+    // locked onto — which is precisely the "second enemy hits him for free" case.
+    // A summon that is in his face AND actually committing attacks has earned the
+    // attention; one loitering across the arena has not.
+    if (!(Array.isArray(players) && players.includes(c))) {
+      const _inFace = d < 90 && ((c.attackTimer || 0) > 0 || (c.cooldown || 0) > 0);
+      score -= _inFace ? 12 : 45;
+    }
     return score;
   }
 
@@ -2608,12 +2781,48 @@ class SovereignMK2 extends AdaptiveAI {
   // ══════════════════════════════════════════════════════════════
 
   update() {
+    // Recovery-jump budget is per airborne stint, so it refills on contact with
+    // the ground and nowhere else.
+    if (this.onGround) this._recoverJumps = 0;
     this._checkLimiterBreak(this.target);
     this._updateSuperBank();
     this._updateNullRecoil();
     this._updateNullAnchor();
     this._vetoVoidStep();
+    this._vetoSkyClimb();
     super.update();
+  }
+
+  // ── SKY CEILING ──────────────────────────────────────────────────────────
+  // RECOVER_CEIL bounds the void-recovery boosts, but nothing bounded an ORDINARY
+  // jump. Against the Creator that gap is reachable: the boss spends the fight
+  // airborne and high, force mode jumps for any target more than 130px overhead
+  // (see the `t.y < this.y - 130 && !t.onGround` branch), and the arena's top deck
+  // already sits at y = 82 — so a -19 jump from up there, plus the double jump,
+  // measured him at y = -396 on a 520px-tall stage. Roughly two body-heights of
+  // empty space above the screen, with the camera dragged along after him.
+  //
+  // A soft ceiling, not a clamp on position: he keeps every jump he decides to
+  // make, he just stops CLIMBING once his head reaches the top of the play area
+  // and gravity takes him back. The ceiling is measured from the highest deck so
+  // that every platform stays reachable — he still needs to get above y = 82 to
+  // land on that deck. Stun and ragdoll are exempt: being launched off the top of
+  // the screen is a hit the opponent earned, and this is only about his own
+  // decisions.
+  _vetoSkyClimb() {
+    if (this.health <= 0 || this.vy >= 0) return;
+    if ((this.stunTimer || 0) > 0 || (this.ragdollTimer || 0) > 0) return;
+    if (typeof currentArena === 'undefined' || !currentArena || !currentArena.platforms) return;
+    let topY = Infinity;
+    for (const pl of currentArena.platforms) {
+      if (!pl || pl.isFloorDisabled) continue;
+      if (pl.y < topY) topY = pl.y;
+    }
+    if (!isFinite(topY)) return;
+    // One jump's worth of headroom over the highest deck, but never further than
+    // a body-height above the screen edge.
+    const SKY_CEIL = Math.max(-40, topY - 165);
+    if (this.y <= SKY_CEIL) this.vy = Math.max(this.vy, -1.5);
   }
 
   // ── VOID STEP VETO ───────────────────────────────────────────────────────
@@ -2884,6 +3093,202 @@ class SovereignMK2 extends AdaptiveAI {
     }
   }
 
+  // ── AREA-THREAT PERCEPTION (boss & arena set-piece hazards) ──────────────
+  // Sovereign had no real-time danger assessment against a boss, and the reason
+  // was perception, not judgement. His threat scan reads exactly two things: the
+  // `projectiles` pool, and owner-attached weapon hazards from the registry at
+  // the top of this file. A boss produces neither. Everything the Creator throws
+  // lives in its own global array — bossWarnings, bossSpikes, bossBeams,
+  // bossMetSafeZones, tfShockwaves, tfGravityWells — none of them Projectiles,
+  // most with no velocity at all, so nothing in the old scan could represent
+  // them. In a refight he walked into rising spikes and stood inside slam
+  // circles because as far as his senses reached, the arena was empty.
+  //
+  // These are zones, not shots, so the reaction is different from the projectile
+  // dodge below: leave the area, don't sidestep a trajectory. bossWarnings is
+  // the most valuable input because it is the TELEGRAPH layer — reading it is
+  // what makes this avoidance rather than after-the-fact damage reaction.
+  //
+  // Ordered by how little choice he has: get inside a meteor safe ring, clear a
+  // floor column, hop an expanding ring, then walk out of a radius. Returns true
+  // when it has spent the frame, which caller treats as a consumed decision.
+  _scanAreaThreats(moveSpd, jumpVy) {
+    if (this.health <= 0 || this.stunTimer > 0 || this.ragdollTimer > 0) {
+      this._hazEscFrames = 0; return false;
+    }
+    if (typeof isCinematic !== 'undefined' && isCinematic) return false;
+
+    // ── ESCAPES MUST BE COMMITTED, NOT RE-DECIDED ──────────────────────────
+    // `_areaDodgeCd` used to blind this whole function ("if cd > 0 return false"),
+    // which made every escape exactly ONE frame long: he set vx away from the
+    // hazard, then went deaf for six frames while the combat logic below drove him
+    // straight back at the boss — through the beam he had just stepped out of.
+    // That is why he read as having no beam awareness at all: he saw them fine, he
+    // just never got to finish leaving. A boss beam is 24px either side of its
+    // centre and a spike field spans ~160px, so clearing one takes 8-15 frames of
+    // sustained movement, not one.
+    //
+    // So the cooldown now gates only NEW decisions, while an in-flight escape keeps
+    // driving movement and keeps being re-validated against the ledge each frame.
+    if (this._areaDodgeCd > 0) this._areaDodgeCd--;
+    if ((this._hazEscFrames || 0) > 0) {
+      this._hazEscFrames--;
+      let d = this._hazEscDir || 1;
+      if (this.isEdgeDanger(d)) d = -d;
+      if (!this.isEdgeDanger(d)) { this.vx = d * moveSpd * 2.0; this._hazEscDir = d; return true; }
+      this._hazEscFrames = 0;   // boxed in — drop the commitment, re-decide below
+    }
+
+    const cx = this.cx(), cy = this.cy();
+    // Same fairness knob the projectile dodge uses — he is not frame-perfect, and
+    // a slip here means he genuinely eats the hit.
+    if (this._areaDodgeCd > 0) return false;
+    if (Math.random() < this._reactionMistakeRate() * 0.4) return false;
+    const act = (frames) => {
+      this._areaDodgeCd = frames;
+      if (typeof this._recordEvent === 'function') this._recordEvent('dodge', 2);
+      return true;
+    };
+
+    // 1. METEOR STORM — the floor is lethal EXCEPT inside a safe ring. Fleeing a
+    //    danger zone is exactly wrong here; the only survivable move is to get in.
+    if (typeof bossMetSafeZones !== 'undefined' && Array.isArray(bossMetSafeZones) && bossMetSafeZones.length) {
+      let inside = false, best = null, bestD = Infinity;
+      for (const z of bossMetSafeZones) {
+        if (!z || (z.timer !== undefined && z.timer <= 0)) continue;
+        const dz = Math.hypot(z.x - cx, z.y - cy);
+        if (dz < (z.r || 0) * 0.8) { inside = true; break; }
+        if (dz < bestD) { bestD = dz; best = z; }
+      }
+      if (!inside && best) {
+        const zDir = Math.sign(best.x - cx) || 1;
+        if (!this.isEdgeDanger(zDir)) this.vx = zDir * moveSpd * 1.9;
+        if (this.onGround && best.y < cy - 45) this.vy = jumpVy;
+        return act(5);
+      }
+    }
+
+    // 2. FLOOR COLUMNS — spikes and beams occupy a vertical strip. Jumping keeps
+    //    him over the strip, so the answer is always sideways, and never sideways
+    //    off the stage.
+    const columns = [];
+    if (typeof bossSpikes !== 'undefined' && Array.isArray(bossSpikes)) {
+      // Carry the spike's height: whether jumping is a real escape depends on it.
+      for (const s of bossSpikes) {
+        if (!s || s.done) continue;
+        columns.push({ x: s.x, half: 22, spikeH: s.h || 0, rising: s.phase === 'rising' });
+      }
+    }
+    if (typeof bossBeams !== 'undefined' && Array.isArray(bossBeams)) {
+      for (const b of bossBeams) {
+        if (!b || b.done) continue;
+        // A beam telegraphs for 300 frames (5s) before it fires. Treating warning
+        // and active alike meant five seconds of backing away from a harmless
+        // marker every time the boss cast — so he gave up all his pressure and
+        // was often drifting back in by the time it actually turned on. React in
+        // the last second of the warning, and for the whole 110-frame active burn.
+        if (b.phase === 'warning' && (b.warningTimer || 0) > 60) continue;
+        columns.push({ x: b.x, half: 32 });
+      }
+    }
+    if (typeof bossWarnings !== 'undefined' && Array.isArray(bossWarnings)) {
+      for (const w of bossWarnings) {
+        if (!w || (w.timer !== undefined && w.timer <= 0)) continue;
+        if (w.type === 'spike_warn') columns.push({ x: w.x, half: 22 });
+      }
+    }
+    //    Columns must be merged into FIELDS before escaping, because a single
+    //    column is almost never what he is standing in. Boss.updateAI() spawns
+    //    spikes five at a time, 40px apart, centred on the TARGET's cx — i.e.
+    //    directly on top of him, spanning ~160px. Escaping the nearest column
+    //    alone moved him 40px sideways, which is exactly the spacing: he stepped
+    //    out of one spike and into the next, over and over, which is what "runs
+    //    into the spikes" looks like from outside. Merge overlapping columns and
+    //    leave the whole cluster.
+    if (columns.length) {
+      columns.sort((a, b) => a.x - b.x);
+      const fields = [];
+      for (const col of columns) {
+        const last = fields[fields.length - 1];
+        // 26px of body margin on each side, matching the single-column threshold.
+        if (last && col.x - col.half - 26 <= last.hi) {
+          last.hi = Math.max(last.hi, col.x + col.half);
+          last.tallest = Math.max(last.tallest, col.spikeH || 0);
+          last.allRising = last.allRising && !!col.rising;
+        } else {
+          fields.push({ lo: col.x - col.half, hi: col.x + col.half,
+                        tallest: col.spikeH || 0, allRising: !!col.rising });
+        }
+      }
+      for (const f of fields) {
+        if (cx < f.lo - 26 || cx > f.hi + 26) continue;
+        const outLeft  = cx - (f.lo - 30);   // distance to walk clear on the left
+        const outRight = (f.hi + 30) - cx;   // …and on the right
+        let outDir = outLeft <= outRight ? -1 : 1;
+        if (this.isEdgeDanger(outDir)) outDir = -outDir;
+        if (this.isEdgeDanger(outDir)) return false;   // boxed in — no safe escape
+        this.vx = outDir * moveSpd * 2.0;
+        // Commit for as long as it actually takes to clear the field, so combat
+        // logic cannot drag him back into it mid-exit.
+        const _span = Math.min(outLeft, outRight);
+        this._hazEscDir    = outDir;
+        // Commit for the whole walk-out. The second spike source (the ground-slam
+        // volley in smb-boss-tf-attacks1.js) lays SIX spikes 55px apart centred on
+        // the boss — a 275px field, so an exit can be ~165px and the old 30-frame
+        // cap expired mid-field and let combat pull him back in.
+        this._hazEscFrames = Math.min(48, Math.ceil(_span / (moveSpd * 2.0)) + 4);
+        // Jumping is only an escape while the spikes are still SHORT. They gain 8px
+        // a frame and then sit at full height for 180 frames — far longer than any
+        // jump — so hopping a full-grown field just lands him back inside it. Hop
+        // the nubs while they are still rising and low; otherwise walk, and only
+        // walk.
+        if (this.onGround && f.allRising && f.tallest < 40 && _span > moveSpd * 2.0 * 10) {
+          this.vy = jumpVy;
+        }
+        return act(6);
+      }
+    }
+
+    // 3. EXPANDING RINGS — a shockwave passes along the ground; the counter is to
+    //    be off the ground as it arrives, not to outrun it.
+    if (typeof tfShockwaves !== 'undefined' && Array.isArray(tfShockwaves)) {
+      for (const w of tfShockwaves) {
+        if (!w || (w.timer !== undefined && w.timer <= 0)) continue;
+        const gap = Math.abs(Math.abs(cx - w.x) - (w.r || 0));
+        if (gap < 70 && this.onGround) { this.vy = jumpVy; return act(10); }
+      }
+    }
+
+    // 4. RADIUS ZONES — slam circles, gravity wells, cones. Walk out the short way.
+    const zones = [];
+    if (typeof bossWarnings !== 'undefined' && Array.isArray(bossWarnings)) {
+      for (const w of bossWarnings) {
+        if (!w || (w.timer !== undefined && w.timer <= 0)) continue;
+        if (w.type === 'spike_warn') continue;        // handled as a column above
+        if (w.r) zones.push({ x: w.x, y: w.y, r: w.r });
+      }
+    }
+    if (typeof tfGravityWells !== 'undefined' && Array.isArray(tfGravityWells)) {
+      for (const g of tfGravityWells) {
+        if (!g || (g.timer !== undefined && g.timer <= 0)) continue;
+        if (g.r) zones.push({ x: g.x, y: g.y, r: g.r });
+      }
+    }
+    for (const z of zones) {
+      if (Math.hypot(z.x - cx, z.y - cy) >= z.r) continue;
+      let outDir = Math.sign(cx - z.x) || (cx < GAME_W / 2 ? 1 : -1);
+      if (this.isEdgeDanger(outDir)) outDir = -outDir;
+      if (this.isEdgeDanger(outDir)) return false;
+      this.vx = outDir * moveSpd * 1.85;
+      // A circle centred above him is an air attack — leaving sideways is enough.
+      // One centred on the deck is a slam; get airborne as well as clear.
+      if (this.onGround && z.y > cy - 20) this.vy = jumpVy;
+      return act(8);
+    }
+
+    return false;
+  }
+
   // ══════════════════════════════════════════════════════════════
   // OVERRIDE: updateAI() — full enhanced AI loop
   // ══════════════════════════════════════════════════════════════
@@ -2976,7 +3381,32 @@ class SovereignMK2 extends AdaptiveAI {
         if ((this.cx() < _rL || this.cx() > _rR) && this.vy > -4) {
           const _backDir = this.cx() < _rL ? 1 : -1;
           this.vx = _backDir * 7;
-          if (this.canDoubleJump && this.vy > 5) { this.vy = -15; this.canDoubleJump = false; }
+          // ── The recovery jump is for RECOVERING, and only for that ──────────
+          // This block used to ask one question — "am I horizontally outside the
+          // floor span and falling?" — and jump on a yes. Above the stage the
+          // answer is yes too, and up there it is the wrong question: gravity is
+          // already returning him and the inward steer above is doing the work.
+          //
+          // Instrumented in a live match, this single line was the whole "he
+          // learned to fly" bug. Off the side of the deck he jumps; leaving the
+          // ground with vy <= -5 refills canDoubleJump (smb-fighter.js:1517,
+          // which refills for ALL entities); on any arena with platforms outside
+          // the floor span he clips one on the way up, which refills it again —
+          // and the condition is still true, so he jumps again. He laddered up
+          // the outer clouds and left the top of the screen at y = -164. What the
+          // player sees is three jumps in a row and a Sovereign who beat gravity.
+          //
+          // Two bounds fix it. He must actually be at or below the deck — the
+          // state recovery exists for — and he gets a budget per airborne stint,
+          // because platform contact can refill the double jump faster than one
+          // fall. Note the vx steer above is deliberately left unbounded: steering
+          // back toward the stage is always correct and never gains height.
+          const _belowDeck = (this.y + this.h) > (_rfl.y - 8);
+          if (this.canDoubleJump && this.vy > 5 && _belowDeck &&
+              (this._recoverJumps || 0) < 2) {
+            this._recoverJumps = (this._recoverJumps || 0) + 1;
+            this.vy = -15; this.canDoubleJump = false;
+          }
           this.aiReact = 0;
           return;
         }
@@ -3453,7 +3883,18 @@ class SovereignMK2 extends AdaptiveAI {
     // itself as "in range" horizontally, swung down into the solid deck (vertical
     // whiff-gate vetoes it), and never moved — a dead freeze. Walk off toward the
     // target (or to the nearest edge when already above it) and fall to its level.
-    if (t.onGround && t.y > this.y + 55 && this.onGround &&
+    //
+    // The `t.onGround` term was too narrow. It reads as "target is standing a
+    // level below", but the Creator spends most of the fight airborne — jumping,
+    // hovering, mid-attack — so against a boss the gate almost never opened.
+    // Measured over a live Creator refight: 60% of Sovereign's attack() calls were
+    // silently vetoed by the whiff-guard's vertical gate, 58% of them with a solid
+    // platform between him and the boss, in unbroken per-frame runs at a vertical
+    // gap of 250px. The whiff-guard returns WITHOUT consuming the cooldown, so
+    // there is no self-correcting pressure: he just re-swings at nothing forever.
+    // What actually matters is the geometry — he is on a deck, the target is a
+    // level below it — and that is true whether or not the target's feet are down.
+    if (t.y > this.y + 55 && this.onGround &&
         typeof currentArena !== 'undefined' && currentArena && currentArena.platforms) {
       const _cpi2 = this._findCurrentPlatform(this);
       const _cp2  = _cpi2 >= 0 ? currentArena.platforms[_cpi2] : null;
@@ -3464,6 +3905,52 @@ class SovereignMK2 extends AdaptiveAI {
         // the target, so Sovereign vibrated in place and never left the deck.
         const _dropDir = t.cx() <= (_cp2.x + _cp2.w / 2) ? -1 : 1;
         if (!this.isEdgeDanger(_dropDir)) { this.vx = _dropDir * moveSpd; this.aiReact = 0; return; }
+      }
+    }
+
+    // ── PRIORITY AIR DESCENT — stop swinging at a target far below ───────────
+    // `d` in this function is Math.abs(dx) — HORIZONTAL distance only. Every
+    // range test in the class ("d < atkRange", "d < weaponRange + 12", ~40 of
+    // them) therefore reads a target 250px straight down as "in range" and swings.
+    // Fighter.attack()'s whiff-guard catches it and returns without consuming the
+    // cooldown, which means there is nothing to break the loop: the same decision
+    // is retaken and re-vetoed every single frame. In a measured Creator refight
+    // that produced unbroken per-frame runs of futile swings at a vertical gap of
+    // 245-284px, with a platform in between, while the boss took no damage.
+    //
+    // The grounded case is handled by PRIORITY DESCENT above, which walks off the
+    // deck. This is its airborne counterpart: commit to falling to the target's
+    // level and steer toward it, rather than flailing on the way down. Bounded by
+    // the same 55px gap the descent block uses, so ordinary above/below scuffles
+    // and anti-air are untouched.
+    // The `vy > -2` term is deliberately NOT the whole gate. Re-measured after the
+    // first pass, 100% of the vetoed swings had the boss BELOW him, and the gap in
+    // each run grew monotonically (-173 → -413) — he was still RISING through the
+    // arc, swinging downward the whole way up. Gating on "already falling" left
+    // exactly the frames that matter uncovered. So: while the gap is merely
+    // awkward, wait until the arc turns over; once it is unrecoverable, kill the
+    // climb and commit down. Every hazard scan runs earlier in this function and
+    // returns, so a jump that exists to dodge something has already taken its
+    // frame before this can override it.
+    if (!this.onGround && t.y > this.y + 55 && (this.vy > -2 || t.y > this.y + 120)) {
+      // …but never dive into nothing. During a floor hazard the target can be
+      // BELOW the deleted deck (the boss is airborne over the void), and a
+      // fast-fall toward it is a ring-out, not a punish. Only commit the descent
+      // when something down there will actually catch us.
+      let _catch = false;
+      if (typeof currentArena !== 'undefined' && currentArena && currentArena.platforms) {
+        const _fx = this.cx();
+        for (const pl of currentArena.platforms) {
+          if (!pl || pl.isFloorDisabled) continue;
+          if (pl.y <= this.y + this.h) continue;                 // must be below us
+          if (_fx > pl.x - 30 && _fx < pl.x + pl.w + 30) { _catch = true; break; }
+        }
+      }
+      if (_catch) {
+        this.vx = dir * moveSpd * 0.9;
+        this.vy = Math.max(this.vy, 8);   // fast-fall to their level
+        this.aiReact = 0;
+        return;
       }
     }
 
@@ -3481,11 +3968,29 @@ class SovereignMK2 extends AdaptiveAI {
     // otherwise disable the block right after landing and let other movement walk
     // Sovereign off the stepping platform before the next stage can fire. The
     // onGround + precise stand-point requirements already prevent jump spam.
-    if (this.onGround && t.onGround &&
+    //
+    // `t.onGround` was dropped here for the same reason it was dropped from
+    // PRIORITY DESCENT: the Creator is airborne most of the fight, so against a
+    // boss the gate never opened and he simply could not climb — he paced the deck
+    // below while the boss sat above him. When the target has no platform of its
+    // own (airborne), aim for the highest reachable deck under it instead, which
+    // is where it will come down and is the right staging post either way.
+    if (this.onGround &&
         t.y < this.y - 55 && !this._hopTarget && d < 340 &&
         typeof currentArena !== 'undefined' && currentArena && currentArena.platforms) {
       const _tpi = this._findCurrentPlatform(t);
-      const _tp  = _tpi >= 0 ? currentArena.platforms[_tpi] : null;
+      let  _tp   = _tpi >= 0 ? currentArena.platforms[_tpi] : null;
+      if (!_tp) {
+        // Airborne target: the deck it is above, i.e. the highest non-floor
+        // platform spanning its x that still sits below it.
+        const _tfeet = t.y + t.h;
+        for (const p of currentArena.platforms) {
+          if (!p || p.isFloor || p.isFloorDisabled) continue;
+          if (t.cx() < p.x - 40 || t.cx() > p.x + p.w + 40) continue;
+          if (p.y < _tfeet - 30) continue;                       // above the target
+          if (!_tp || p.y < _tp.y) _tp = p;                      // highest such deck
+        }
+      }
       if (_tp && !_tp.isFloor) {
         // One jump only lifts the feet ~150px, so a tall deck can't be reached
         // directly — stage upward one reachable platform at a time. This jump's
@@ -3554,6 +4059,45 @@ class SovereignMK2 extends AdaptiveAI {
       }
     }
 
+    // ── SECOND ATTACKER GUARD ──────────────────────────────────────────────
+    // Every defensive read in this class is keyed on `this.target`:
+    // `playerAttacking` is literally `t.attackTimer > 0`. So a boss minion walking
+    // up behind him while he is locked onto the boss is invisible to his shield,
+    // his counter windows and his evade — it swings for free, forever, and no
+    // amount of retargeting tuning fixes that because turning to face the minion
+    // is usually the WRONG call in a boss fight.
+    //
+    // So: keep the target, but stop being blind. Anything hostile that is inside
+    // its own reach and mid-swing gets the guard up. Defence only — no counter is
+    // launched from here, because the counter machinery below aims at `t` and
+    // would fire at the wrong body.
+    if (this._shieldHoldFrames <= 0 && (this.stunTimer || 0) <= 0 &&
+        (this.ragdollTimer || 0) <= 0 && this.attackTimer <= 0) {
+      const _others = [...(Array.isArray(players) ? players : []),
+                       ...(typeof minions !== 'undefined' && Array.isArray(minions) ? minions : [])];
+      for (const o of _others) {
+        if (!o || o === this || o === t || o.health <= 0) continue;
+        if (typeof areAlliedEntities === 'function' && areAlliedEntities(this, o)) continue;
+        if ((o.attackTimer || 0) <= 0) continue;
+        const _reach = (o.weapon && o.weapon.range ? o.weapon.range : 80) + 26;
+        if (Math.hypot(o.cx() - this.cx(), o.cy() - this.cy()) > _reach) continue;
+        if (Math.random() < this._reactionMistakeRate()) break;   // he is not perfect
+        this._startTacticalShield(14);
+        break;
+      }
+    }
+
+    // ── Danger: the floor itself is being deleted ──────────────────────────
+    // Highest hazard priority: every other threat here can be traded with, and
+    // this one cannot — when the deck goes there is no ground to fight on. See
+    // _runFloorHazard().
+    if (this._runFloorHazard(moveSpd, _jumpVy)) { this.aiReact = 0; return; }
+
+    // ── Danger: boss / arena set-piece hazards (leave the zone) ────────────
+    // Runs before the projectile scan because these hit harder and telegraph
+    // longer. See _scanAreaThreats().
+    if (this._scanAreaThreats(moveSpd, _jumpVy)) { this.aiReact = 0; return; }
+
     // ── Danger: incoming projectiles / sword crescents (dodge) ─────────────
     // A ranged-poking player (crescent spam from 200-400px) chips Sovereign down.
     // Read the live projectile pools and evade the incoming shot. Detects earlier
@@ -3578,8 +4122,9 @@ class SovereignMK2 extends AdaptiveAI {
       };
       if (typeof projectiles !== 'undefined') _scanShots(projectiles);
       // Every owner-attached hazard, from the single registry — no per-weapon list
-      // to forget to update when a new ability ships.
-      _scanShots(_smk2OwnedHazards(t));
+      // to forget to update when a new ability ships — and from every hostile in
+      // the match, not just the one he happens to be targeting.
+      _scanShots(_smk2AllOwnedHazards(this));
       if (_incoming && Math.random() >= this._reactionMistakeRate() * 0.4) {
         if (this.onGround)            this.vy = _jumpVy;                          // jump the shot
         else if (this.canDoubleJump) { this.vy = -16; this.canDoubleJump = false; } // air-dodge up over it
