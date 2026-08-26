@@ -447,9 +447,15 @@ function _startGameCore() {
       ? new SovereignMK2(720, 300, '#ff3311', _aiWeapon)
       : new AdaptiveAI(720, 300, '#9955ee', _aiWeapon);
 
-    // Belt-and-suspenders weapon lock: Fighter constructor resolves WEAPONS[weaponKey],
-    // but set it explicitly here too so any hot-reload or edge-case fallback is overridden.
-    if (isSovereignMode && typeof WEAPONS !== 'undefined' && WEAPONS.nullblade) {
+    // Opening kit. He starts on his signature loadout — nullblade, which is what
+    // he has always opened on — but now as a real LOADOUT rather than a bare
+    // weaponKey, so life 1 also carries the class identity and the authored
+    // nullblade finisher. From the first respawn onward _pickLoadout takes over
+    // and he counter-picks against what the player is actually running.
+    if (_useSovMK2 && typeof SMK2_LOADOUTS !== 'undefined' && ai._applyLoadout) {
+      const _sig = SMK2_LOADOUTS.find(l => l.key === 'signature');
+      if (_sig) ai._applyLoadout(_sig);
+    } else if (isSovereignMode && typeof WEAPONS !== 'undefined' && WEAPONS.nullblade) {
       ai.weapon    = WEAPONS.nullblade;
       ai.weaponKey = 'nullblade';
     }

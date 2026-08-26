@@ -12,7 +12,10 @@
 // fire, in px. Set very high to restore the old effectively-unbounded behaviour
 // for an A/B — the old constant was -60 (above the top of the screen), which is
 // what let him ladder off the top of the arena.
-window.SMK2_TUNE = window.SMK2_TUNE || { openGate: true, pressureDecay: true, lockCeiling: true, voidBoostMax: 3, recoverCeilAboveDeck: 200 };
+// jumpEconomy: enforce the player's 1 ground + 1 air jump rule on every path in
+// this class (see _vetoExtraJump). Set false to restore the old unbounded
+// behaviour for an A/B — the old behaviour is the triple-jump bug.
+window.SMK2_TUNE = window.SMK2_TUNE || { openGate: true, pressureDecay: true, lockCeiling: true, voidBoostMax: 3, recoverCeilAboveDeck: 200, jumpEconomy: true };
 
 // ── Owner-attached hazard registry ───────────────────────────────────────────
 // Several weapon abilities/supers store their live hazard directly on the wielder
@@ -66,6 +69,40 @@ function _smk2AllOwnedHazards(self) {
   return out;
 }
 
+// ── Sovereign's loadout pool ────────────────────────────────────────────────
+// He is designed as a very strong PLAYER, so he gets a player's kit choice and
+// nothing a player cannot have. Three hard exclusions, each measured:
+//   - ranged (gun/bow + gunner/archer): 33 dealt/1k against katana's 244. Ranged
+//     does not work for him at all; handing him a gun is a 7x self-nerf.
+//   - mkgauntlet/megaknight: admin-only, hard-filtered out of WEAPON_KEYS.
+//   - shield/paladin: no offence, and he already over-blocks (7.6% of live frames).
+// `prior` is replay-measured damage dealt per 1000 frames, used to seed the
+// bandit in _pickLoadout so his first picks are informed rather than random.
+// `cls` must be a class whose CLASSES[].weapon is null or equals `wk`, or the
+// class finisher will not fire (see _pickFinisher's classWeaponMatch).
+const SMK2_LOADOUTS = [
+  { key: 'signature', wk: 'nullblade', cls: 'berserker', fin: 'nullblade', prior: 150, light: 1 },
+  { key: 'ronin',     wk: 'katana',    cls: 'ronin',     fin: null,        prior: 244, light: 1 },
+  { key: 'ninja',     wk: 'sword',     cls: 'ninja',     fin: null,        prior: 214, light: 1 },
+  { key: 'reaper',    wk: 'scythe',    cls: 'reaper',    fin: null,        prior: 146, light: 0 },
+  { key: 'torren',    wk: 'hammer',    cls: 'thor',      fin: null,        prior: 139, light: 0 },
+  { key: 'varek',     wk: 'axe',       cls: 'kratos',    fin: null,        prior: 139, light: 0 },
+  { key: 'pugilist',  wk: 'combat',    cls: 'pugilist',  fin: null,        prior: 138, light: 1 },
+];
+
+// Counter prior: how much a candidate is favoured against what the PLAYER holds.
+// Heavy, slow weapons are answered by light ones that punish endlag; light,
+// fast weapons are answered by reach and knockback. Deliberately small (±18%)
+// so it biases the bandit's opening picks without overriding what he measures.
+function _smk2CounterBonus(lo, tgt) {
+  if (!lo || !tgt || typeof WEAPONS === 'undefined') return 1;
+  const tw = WEAPONS[tgt.weaponKey];
+  if (!tw) return 1;
+  const tgtHeavy = tw.weaponType === 'heavy' || (tw.cooldown || 30) >= 34;
+  if (tgtHeavy) return lo.light ? 1.18 : 0.92;   // punish endlag with speed
+  return lo.light ? 0.92 : 1.18;                 // out-range and out-knockback speed
+}
+
 class SovereignMK2 extends AdaptiveAI {
   constructor(x, y, color, weaponKey) {
     super(x, y, color, weaponKey);
@@ -80,6 +117,18 @@ class SovereignMK2 extends AdaptiveAI {
     // this key instead (DOMAIN_DEFS.sovereign — Absolute Dominion). Same cost as
     // the player's: five supers on one life.
     this._domainKey = 'sovereign';
+
+    // ── Loadout state (see SMK2_LOADOUTS / _pickLoadout) ────────────────────
+    // He is built to play like a very strong PLAYER, not a boss — so the one
+    // thing a strong player always does and he never did is pick his kit. His
+    // own stat line is authoritative: a class contributes its identity (perks,
+    // abilities, finisher) but never its hp/speed, or picking a class would
+    // silently rebalance him.
+    this._loadout       = null;   // active SMK2_LOADOUTS entry
+    this._loadoutStats  = {};     // key -> { lives, dealt } bandit record
+    this._loadoutDealt0 = 0;      // totalDamageDealt at the start of this life
+    this._baseMaxHealth = this.maxHealth;   // construction-time reference only
+    this._baseSpeedMult = this.classSpeedMult || 1;
 
     // Platform-hop steering + projectile-dodge state
     this._hopTarget   = null;
@@ -2796,7 +2845,107 @@ class SovereignMK2 extends AdaptiveAI {
     this._updateNullAnchor();
     this._vetoVoidStep();
     this._vetoSkyClimb();
+    this._vetoExtraJump();
     super.update();
+  }
+
+  // ══════════════════════════════════════════════════════════════
+  // LOADOUT SELECTION — the adaptation he never had
+  // ══════════════════════════════════════════════════════════════
+  // Replay-measured, three matches: he out-swings, out-blocks and out-survives
+  // the player on every process metric and still loses, because he converts
+  // 8.0 damage per swing against the player's 12.6. He was locked to
+  // nullblade (damage 15, below the starter sword's 16) with charClass 'none',
+  // so he gave up the weapon table's largest effect (eta^2 = 0.358) AND every
+  // class perk, for the whole match, with no way to change it.
+  //
+  // This is a bandit over SMK2_LOADOUTS, not a lookup table: the counter prior
+  // only biases his opening picks, and from there he keeps what actually earns
+  // damage against THIS player. Ten lives is enough to converge.
+
+  // Damage this life, banked against the loadout that earned it.
+  _recordLoadoutResult() {
+    if (!this._loadout) return;
+    const rec = this._loadoutStats[this._loadout.key] ||
+                (this._loadoutStats[this._loadout.key] = { lives: 0, dealt: 0 });
+    const gained = Math.max(0, (this.totalDamageDealt || 0) - (this._loadoutDealt0 || 0));
+    rec.lives += 1;
+    rec.dealt += gained;
+  }
+
+  // Epsilon-greedy over measured damage-per-life, seeded with the replay priors
+  // as a single pseudo-observation so an untried kit is neither ignored nor
+  // blindly trusted. Priors are per-1000-frames; a life measured ~400 frames,
+  // hence the 0.4 scale to put both on the same footing.
+  _pickLoadout() {
+    const pool = SMK2_LOADOUTS.filter(lo =>
+      typeof WEAPONS !== 'undefined' && WEAPONS[lo.wk] &&
+      lo.wk !== 'gauntlet' && lo.wk !== 'mkgauntlet');
+    if (!pool.length) return null;
+
+    const tried = pool.reduce((n, lo) =>
+      n + ((this._loadoutStats[lo.key] && this._loadoutStats[lo.key].lives) ? 1 : 0), 0);
+    const eps = tried < 3 ? 0.30 : 0.10;
+    if (Math.random() < eps) return pool[Math.floor(Math.random() * pool.length)];
+
+    // Put the priors on the same scale as what he is actually measuring. They are
+    // damage per 1000 frames; a life is some unknown fraction of that, and a fixed
+    // guess gets it wrong in a way that matters: measured at 0.4, an untried kit
+    // seeds at ~98 while a tried one reads ~250, so the first kit that does well
+    // is never challenged and he stops counter-picking. Rescaling by the observed
+    // mean keeps the priors' RELATIVE ordering — which is the part worth knowing —
+    // without pretending to know the absolute magnitude.
+    let obsD = 0, obsL = 0;
+    for (const lo of pool) {
+      const r = this._loadoutStats[lo.key];
+      if (r && r.lives) { obsD += r.dealt; obsL += r.lives; }
+    }
+    const priorMean = pool.reduce((a, lo) => a + lo.prior, 0) / pool.length;
+    const scale = (obsL > 0 && priorMean > 0) ? (obsD / obsL) / priorMean : 0.4;
+
+    let best = null, bestScore = -Infinity;
+    for (const lo of pool) {
+      const rec  = this._loadoutStats[lo.key] || { lives: 0, dealt: 0 };
+      const seed = lo.prior * scale;
+      const mean = (seed + rec.dealt) / (1 + rec.lives);
+      const score = mean * _smk2CounterBonus(lo, this.target);
+      if (score > bestScore) { bestScore = score; best = lo; }
+    }
+    return best;
+  }
+
+  // Equip a loadout. The class contributes identity only — applyClass overwrites
+  // maxHealth/health/classSpeedMult, which would silently rebalance him, so his
+  // own stat line is restored immediately afterwards.
+  _applyLoadout(lo) {
+    if (!lo || typeof WEAPONS === 'undefined' || !WEAPONS[lo.wk]) return;
+    this._loadout   = lo;
+    this.weapon     = WEAPONS[lo.wk];
+    this.weaponKey  = lo.wk;
+    this._ammo      = 0;
+    if (lo.cls && typeof applyClass === 'function') {
+      // Snapshot LIVE, not from the constructor: startGame applies difficulty
+      // boosts after construction (measured 150 -> 165 maxHealth), so a
+      // constructor-time snapshot would silently nerf him ~9% on every respawn.
+      const _hp  = this.maxHealth;
+      const _spd = this.classSpeedMult || 1;
+      applyClass(this, lo.cls);
+      this.maxHealth      = _hp;
+      this.health         = _hp;
+      this.classSpeedMult = _spd;
+    }
+    // Signature kit routes to his own authored finisher, which is keyed in
+    // CLASS_FINISHERS under 'nullblade' and was unreachable while he had no
+    // charClass. Mirrors the _domainKey escape hatch.
+    this._finisherKey = lo.fin || null;
+    this._loadoutDealt0 = this.totalDamageDealt || 0;
+  }
+
+  respawn() {
+    this._recordLoadoutResult();
+    super.respawn();
+    const lo = this._pickLoadout();
+    if (lo) this._applyLoadout(lo);
   }
 
   // ── SKY CEILING ──────────────────────────────────────────────────────────
@@ -2815,6 +2964,44 @@ class SovereignMK2 extends AdaptiveAI {
   // land on that deck. Stun and ragdoll are exempt: being launched off the top of
   // the screen is a hit the opponent earned, and this is only about his own
   // decisions.
+  // ── JUMP ECONOMY VETO ────────────────────────────────────────────────────
+  // He is meant to read as a very strong PLAYER, and a player gets exactly one
+  // ground jump and one air jump. Roughly thirty paths in this class write
+  // `this.vy = -N` directly and only about half of them check `onGround` or
+  // spend `canDoubleJump`; the unguarded ones let him gain height indefinitely,
+  // which is the triple-jump and the "he beat gravity" reports. Auditing every
+  // site has the same problem _vetoVoidStep describes: a large blast radius, and
+  // any movement path added later reintroduces the bug.
+  //
+  // So this is the same single choke point, applied to the jump budget. It does
+  // not fight the AI's intent — if he has an air jump available, an unguarded
+  // launch simply SPENDS it and stands. Only a launch he cannot pay for is
+  // cancelled. That is precisely the player's rule, applied uniformly.
+  //
+  // Deliberately narrow: knockback must still throw him (stun and ragdoll are
+  // exempt), and anything faster than his hardest authored jump is a launcher,
+  // super or dash rather than a jump, so it passes untouched.
+  _vetoExtraJump() {
+    const prev = this._jumpVyPrev;
+    this._jumpVyPrev = this.vy;
+    if (typeof SMK2_TUNE !== 'undefined' && SMK2_TUNE && SMK2_TUNE.jumpEconomy === false) return;
+    if (prev === undefined || this.health <= 0) return;
+    if (this.onGround || this._prevOnGround) return;
+    if ((this.stunTimer || 0) > 0 || (this.ragdollTimer || 0) > 0) return;
+    // Upward acceleration this frame, beyond what gravity could ever produce.
+    const gained = prev - this.vy;
+    if (gained < 6) return;
+    const HARDEST_JUMP = 21;          // his strongest authored jump is -20
+    if (this.vy < -HARDEST_JUMP) return;   // launcher/super/dash, not a jump
+    if (this.canDoubleJump) {
+      this.canDoubleJump = false;     // legitimate air jump — make him pay for it
+      this._jumpVyPrev   = this.vy;
+      return;
+    }
+    this.vy = prev;                   // unpaid: he does not get this one
+    this._jumpVyPrev = prev;
+  }
+
   _vetoSkyClimb() {
     if (this.health <= 0 || this.vy >= 0) return;
     if ((this.stunTimer || 0) > 0 || (this.ragdollTimer || 0) > 0) return;

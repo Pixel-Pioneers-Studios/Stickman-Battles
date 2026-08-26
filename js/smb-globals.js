@@ -42,11 +42,25 @@ const SERVER_CONFIG = {
 // ============================================================
 const CHANGELOG = [
   {
+    version: '4.0.26',
+    title: 'THE CHOSEN KIT UPDATE',
+    date: '2026-08-26',
+    flavor: 'The hardest opponent in the game had been fighting with a weapon he never chose. He chooses now — and he changes his mind between lives, based on what has been working on you.',
+    isLatest: true,
+    changes: [
+      { cat: 'AI',      text: 'The Sovereign picks his own weapon and class now. He was locked to one kit for an entire match with no way to change it, which meant the single biggest factor in how much damage anyone does was decided for him before the fight started and never revisited', spoilerLevel: 3 },
+      { cat: 'AI',      text: 'He starts on his own blade and re-picks every time he loses a life, keeping whatever has actually been earning damage against you and counter-picking your weapon — light kits to punish a slow swing, heavy ones to out-reach a fast one. Beat one kit and you have not beaten him; you have taught him to bring a different one', spoilerLevel: 3 },
+      { cat: 'Balance', text: 'His signature blade hit for less than the sword you start the game with, and he fought with no class at all — so he was giving up his class perks, his class damage and his own finishing move for the whole fight while you kept all of yours', spoilerLevel: 3 },
+      { cat: 'Fix',     text: 'A finishing move written for a fighter with no class could never play, because the game only ever looked one up by class. One had been written and had never once been seen. It plays now' },
+      { cat: 'Fix',     text: 'The Sovereign could chain a third and fourth jump out of thin air and climb clean off the top of the arena. He now lives by the same one-ground-jump-and-one-air-jump rule you do — being knocked upward still throws him as far as it ever did', spoilerLevel: 3 },
+    ],
+  },
+  {
     version: '4.0.25',
     title: 'THE GROUNDED UPDATE',
     date: '2026-08-23',
     flavor: 'Some hits used to put you in the air and keep you there. However hard you get hit now, you come back down — and you get a moment to do something about it.',
-    isLatest: true,
+    isLatest: false,
     changes: [
       { cat: 'Fix',    text: 'Being launched into the air no longer locks you out of the fight. Every anti-combo protection in the game only ever limited horizontal knockback, so attacks that throw you straight UP slipped past all of it — a fighter held above the floor could be re-launched forever without ever touching ground. Repeated launches now weaken, so you always land' },
       { cat: 'Fix',    text: 'The safeguard that caps how long you can be stun-locked had never once activated. It only recognised a chain if hits landed within four frames of each other, but real attack speeds are closer to thirty — so it saw every hit as a fresh start and never triggered. It now measures against when your last stun was due to end, which is what it was always meant to do' },
@@ -961,7 +975,7 @@ let _publicRoomCheckTimer = 0;
 // ============================================================
 // VERSION
 // ============================================================
-const GAME_VERSION = '4.0.25';  // bump this when releasing; must match CHANGELOG[0].version
+const GAME_VERSION = '4.0.26';  // bump this when releasing; must match CHANGELOG[0].version
 console.log('[VERSION CHECK]', GAME_VERSION);
 
 // DEBUG / DEVELOPER STATE

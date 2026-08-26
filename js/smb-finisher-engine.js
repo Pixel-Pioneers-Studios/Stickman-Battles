@@ -6,6 +6,15 @@
 // FINISHER PICKER
 // ============================================================
 function _pickFinisher(attacker) {
+  // A classless entity (Sovereign) reaches an authored class finisher through
+  // `_finisherKey` — the same escape hatch DomainManager uses via `_domainKey`.
+  // CLASS_FINISHERS.nullblade was written for him and could never fire: the
+  // lookup below needs a charClass, and his is 'none', so both haW and haC
+  // missed and every one of his kills fell through without a finisher while
+  // the player got FIN_HEROS_TRIUMPH on all ten of theirs.
+  const _fk = attacker._finisherKey;
+  if (_fk && CLASS_FINISHERS[_fk]) return { key: 'class_' + _fk, def: CLASS_FINISHERS[_fk] };
+
   const wKey = attacker.weaponKey;
   const cKey = attacker.charClass;
   const haW  = !!(WEAPON_FINISHERS[wKey]);
