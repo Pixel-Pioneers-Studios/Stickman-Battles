@@ -772,7 +772,13 @@ class SovereignMK2 extends AdaptiveAI {
     if (this.intelligence >= 0.82 && (this._predCorrect >= 4 || this._punishModeCount >= 2 || ratio >= 0.55)) nextStage = 2;
     if (this._limiterBroken || (this.intelligence >= 0.91 && (this._predCorrect >= 6 || this._punishModeCount >= 4 || ratio >= 0.65))) nextStage = 3;
 
-    if (nextStage !== this._evolutionStage) {
+    // Stage is a RATCHET, deliberately, even though the dials feeding it are no
+    // longer one-way. Now that aiMemory breathes instead of pinning, `intelligence`
+    // rises and falls through the fight, and a stage derived directly from it would
+    // flip 3 -> 2 -> 3 repeatedly — each flip firing a dialogue line, a particle
+    // burst and a screen shake. Escalation should still only ever go one way on
+    // screen; the adaptation underneath is what varies.
+    if (nextStage > this._evolutionStage) {
       this._evolutionStage = nextStage;
       this._evolutionPulse = 30;
       screenShake = Math.max(screenShake, 8 + nextStage * 3);

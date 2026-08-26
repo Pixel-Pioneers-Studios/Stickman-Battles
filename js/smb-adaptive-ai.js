@@ -137,14 +137,19 @@ class AdaptiveAI extends Fighter {
       const curTgtHp = t.health;
       if (curTgtHp < this._prevTargetHealth && this._prevTargetHealth < Infinity) {
         this._recordEvent('hit_landed', 10);
-        // Instant reward: more aggression, fight even closer
-        this.aiMemory.aggression = Math.min(1, this.aiMemory.aggression + 0.015);
-        this.aiMemory.spacing    = Math.max(0, this.aiMemory.spacing    - 0.012);
+        // Instant reward: more aggression, fight even closer.
+        // Steps are deliberately ~4x smaller than the originals (0.015/0.012).
+        // Starting values are 0.78-0.90, so the old steps plus the batch rates
+        // below pinned every dial at its limit within about six seconds of any
+        // fight, after which nothing could change and his behaviour became a
+        // constant. Small steps leave room for the fight to actually move them.
+        this.aiMemory.aggression = Math.min(1, this.aiMemory.aggression + 0.004);
+        this.aiMemory.spacing    = Math.max(0, this.aiMemory.spacing    - 0.003);
         if (this._comboTimer > 0) {
           this._comboCount++;
           if (this._comboCount >= 2) {
             this._recordEvent('combo_landed', 15);
-            this.aiMemory.aggression = Math.min(1, this.aiMemory.aggression + 0.020);
+            this.aiMemory.aggression = Math.min(1, this.aiMemory.aggression + 0.006);
           }
         } else {
           this._comboCount = 1;
@@ -161,13 +166,18 @@ class AdaptiveAI extends Fighter {
     if (curHp < this._prevHealth && this._prevHealth > 0) {
       this._recordEvent('dmg_taken', -10);
       // Instant: sharpen reaction, NOT increase spacing
-      this.aiMemory.reactionSpeed = Math.min(1, this.aiMemory.reactionSpeed + 0.018);
-      this.aiMemory.defense       = Math.min(1, this.aiMemory.defense       + 0.012);
+      this.aiMemory.reactionSpeed = Math.min(1, this.aiMemory.reactionSpeed + 0.005);
+      this.aiMemory.defense       = Math.min(1, this.aiMemory.defense       + 0.004);
+      // Taking hits while committed forward is evidence the current aggression
+      // level is too high for this opponent. Nothing used to push aggression DOWN
+      // on a per-event basis at all, which is half of why it sat at 1.0.
+      this.aiMemory.aggression    = Math.max(0.35, this.aiMemory.aggression - 0.006);
       if (this._countRecent('dmg_taken', 90) >= 3) {
         this._recordEvent('being_comboed', -15);
         // Getting comboed → spike reaction speed and slightly pull back spacing
-        this.aiMemory.reactionSpeed = Math.min(1, this.aiMemory.reactionSpeed + 0.030);
-        this.aiMemory.defense       = Math.min(1, this.aiMemory.defense       + 0.025);
+        this.aiMemory.reactionSpeed = Math.min(1, this.aiMemory.reactionSpeed + 0.010);
+        this.aiMemory.defense       = Math.min(1, this.aiMemory.defense       + 0.009);
+        this.aiMemory.spacing       = Math.min(0.55, this.aiMemory.spacing    + 0.012);
       }
     }
     this._prevHealth = curHp >= 0 ? curHp : 0;
@@ -201,27 +211,70 @@ class AdaptiveAI extends Fighter {
     const deaths       = recent.filter(e => e.type === 'death').length;
     const dodges       = recent.filter(e => e.type === 'dodge').length;
 
-    const R = 0.32; // faster learning rate (was 0.22)
+    // ── Learning rate ────────────────────────────────────────────────────────
+    // R was 0.32, which is not a learning rate — it is a jump to the limit. One
+    // landed hit moved aggression by 0.448 from a 0.78 start, and reactionSpeed
+    // was raised by R*0.45 EVERY cycle unconditionally regardless of evidence.
+    // Measured live: aggression, defense, reactionSpeed and spacing all reached
+    // their caps 5.6 seconds into a fight, and evolution stage went 0 -> 3 in the
+    // same window. From that point on nothing about him could change, which is
+    // exactly why he repeats himself.
+    //
+    // With R = 0.05 a strong signal moves a dial by ~0.07 per cycle, so a read
+    // takes several seconds of consistent evidence to establish and can be undone
+    // by several seconds of contrary evidence. That is what makes the adaptation
+    // legible: you can out-play a read and watch it change.
+    // ── Converge toward a target, do not accumulate ─────────────────────────
+    // This is the structural fix, and it matters more than the rate. The batch
+    // runs every _adaptInterval = 8 frames but scores a 180-frame window, so ONE
+    // landed hit is re-counted by ~22 consecutive cycles. Any `m.x += k` rule is
+    // therefore multiplied by 22 no matter how small k is, which is why every dial
+    // hit its cap ~6 seconds into a fight (measured) and stayed there.
+    //
+    // So each cycle now derives a TARGET from the current evidence and eases
+    // toward it. Easing is idempotent under repeated evaluation: re-running it 22
+    // times converges to the target instead of blowing past it, and when the
+    // evidence changes the dial moves back the other way at the same rate. That
+    // is what makes the adaptation both stable and reversible.
+    const RATE = 0.05;                 // ~2.7s to close most of a gap at 7.5 cyc/s
 
-    // Aggression: always trends up; only minor dip when outright destroyed
-    if (hitsLanded   >= 1) m.aggression = Math.min(1, m.aggression + R * 1.4);
-    if (combosLanded >= 1) m.aggression = Math.min(1, m.aggression + R * 1.0);
-    if (dmgTaken     >= 5) m.aggression = Math.max(ADAPTIVE_DEFAULTS.aggression * 0.92,
-                                                    m.aggression - R * 0.15);
+    // ── Per-instance baseline ────────────────────────────────────────────────
+    // The rest-point each dial returns to must be THIS fighter's own starting
+    // profile, not the module defaults. _startGameCore deliberately boosts
+    // Sovereign above them ("maximum Sovereign from round 1" — aggression 0.94,
+    // defense 0.90), and easing toward the shared 0.78/0.70 defaults would quietly
+    // undo that within seconds. Captured lazily on the first cycle, which is after
+    // those post-construction boosts have been applied.
+    if (!this._memBaseline) this._memBaseline = { ...m };
+    const B = this._memBaseline;
 
-    // Defense: rapidly reads timing after taking damage or being comboed
-    if (dmgTaken     >= 1) m.defense = Math.min(1, m.defense + R * 1.0);
-    if (beingComboed >= 1) m.defense = Math.min(1, m.defense + R * 2.0);
-    if (dodges       >= 1) m.defense = Math.min(1, m.defense + R * 0.8);
-    if (hitsLanded   >= 3) m.defense = Math.min(1, m.defense + R * 0.4);
+    const ease = (k, target, lo, hi) => {
+      const tgt = Math.max(lo, Math.min(hi, target));
+      m[k] += (tgt - m[k]) * RATE;
+    };
 
-    // Spacing: always closes in; only briefly resets on death
-    if (hitsLanded >= 1) m.spacing = Math.max(0, m.spacing - R * 1.0);
-    if (deaths >= 1)     m.spacing = Math.min(0.35, m.spacing + R * 0.4);
+    // Evidence, as signed pressures rather than one-way triggers.
+    const winning = hitsLanded + combosLanded * 1.5;
+    const losing  = dmgTaken + beingComboed * 2 + deaths * 3;
+    const net     = winning - losing;
 
-    // Reaction speed: passive improvement each cycle + spike when being comboed
-    m.reactionSpeed = Math.min(1, m.reactionSpeed + R * 0.45);
-    if (beingComboed >= 1) m.reactionSpeed = Math.min(1, m.reactionSpeed + R * 1.4);
+    // Aggression: closing works -> press harder; getting punished -> back off.
+    // Baseline is the default, so with no evidence at all he sits where he started
+    // instead of drifting to an extreme.
+    ease('aggression', B.aggression + net * 0.06, 0.35, 1);
+
+    // Defense: bought when he is being hit, relaxed when he is not. A fighter
+    // taking nothing has no reason to keep paying for guard.
+    ease('defense', B.defense + losing * 0.10 - (dmgTaken === 0 ? 0.12 : 0)
+                    + dodges * 0.02, 0.30, 1);
+
+    // Spacing: tightens while pressure is working, opens when it is being punished.
+    ease('spacing', B.spacing - winning * 0.04 + losing * 0.06, 0, 0.55);
+
+    // Reaction speed: EVIDENCE-driven only. The old unconditional
+    // `reactionSpeed += R * 0.45` every cycle is gone — it alone pinned this dial
+    // at 1.0 within two cycles of every fight regardless of what happened.
+    ease('reactionSpeed', B.reactionSpeed + losing * 0.05, 0.45, 1);
 
     // Clamp all to [0, 1]
     for (const k of Object.keys(m)) m[k] = Math.max(0, Math.min(1, m[k]));
