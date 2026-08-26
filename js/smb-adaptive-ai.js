@@ -165,13 +165,21 @@ class AdaptiveAI extends Fighter {
     const curHp = this.health;
     if (curHp < this._prevHealth && this._prevHealth > 0) {
       this._recordEvent('dmg_taken', -10);
+      // ── Was this hit a PUNISH, or just a hit? ──────────────────────────────
+      // The distinction decides whether aggression is the thing at fault, and
+      // getting it wrong is what made a previous version of this back off from
+      // bosses it was beating. Damage taken while mid-swing or in swing recovery
+      // is evidence that committing is being punished. Damage taken while neutral
+      // is just the opponent landing something — a boss deals damage on its own
+      // schedule no matter how far away he stands, so retreating from it costs
+      // offence and buys nothing.
+      const _committed = this.attackTimer > 0 || this.attackEndlag > 0;
+      if (_committed) this._recordEvent('dmg_punished', -12);
       // Instant: sharpen reaction, NOT increase spacing
       this.aiMemory.reactionSpeed = Math.min(1, this.aiMemory.reactionSpeed + 0.005);
       this.aiMemory.defense       = Math.min(1, this.aiMemory.defense       + 0.004);
-      // Taking hits while committed forward is evidence the current aggression
-      // level is too high for this opponent. Nothing used to push aggression DOWN
-      // on a per-event basis at all, which is half of why it sat at 1.0.
-      this.aiMemory.aggression    = Math.max(0.35, this.aiMemory.aggression - 0.006);
+      // Only a punish argues for less aggression.
+      if (_committed) this.aiMemory.aggression = Math.max(0.35, this.aiMemory.aggression - 0.006);
       if (this._countRecent('dmg_taken', 90) >= 3) {
         this._recordEvent('being_comboed', -15);
         // Getting comboed → spike reaction speed and slightly pull back spacing
@@ -254,22 +262,39 @@ class AdaptiveAI extends Fighter {
     };
 
     // Evidence, as signed pressures rather than one-way triggers.
-    const winning = hitsLanded + combosLanded * 1.5;
-    const losing  = dmgTaken + beingComboed * 2 + deaths * 3;
-    const net     = winning - losing;
+    const punished = recent.filter(e => e.type === 'dmg_punished').length;
+    const winning  = hitsLanded + combosLanded * 1.5;
+    const losing   = dmgTaken + beingComboed * 2 + deaths * 3;
 
-    // Aggression: closing works -> press harder; getting punished -> back off.
-    // Baseline is the default, so with no evidence at all he sits where he started
-    // instead of drifting to an extreme.
-    ease('aggression', B.aggression + net * 0.06, 0.35, 1);
+    // ── Aggression is driven by PUNISHMENT, not by scoreline ─────────────────
+    // The previous version used `winning - losing`, and that was wrong in a way
+    // the telemetry made obvious. Getting hit knocks him back, so the window
+    // containing a hit almost always contains ZERO hits landed by him — which
+    // made net negative, lowered aggression, opened spacing, slowed his
+    // re-engagement, and so produced another window with no hits. A
+    // self-reinforcing retreat, triggered by the CONSEQUENCE of being hit rather
+    // than by any evidence that pressing was the mistake. Measured mid-fight: when
+    // net went negative his spacing nearly tripled (0.047 -> 0.133) while he was
+    // comfortably ahead on damage, 1172 dealt to 154 taken.
+    //
+    // The honest signal is whether his COMMITMENTS are being punished — damage
+    // taken while mid-swing or in recovery. That is the only thing that actually
+    // argues "you are attacking too much". A boss that hits him in neutral is not
+    // evidence about his aggression at all, and backing off it just donates
+    // damage. Deaths still count: dying is always a reason to reconsider.
+    const pressure = punished * 1.6 + deaths * 2.5;
+    ease('aggression', B.aggression + winning * 0.05 - pressure * 0.09, 0.55, 1);
 
     // Defense: bought when he is being hit, relaxed when he is not. A fighter
     // taking nothing has no reason to keep paying for guard.
     ease('defense', B.defense + losing * 0.10 - (dmgTaken === 0 ? 0.12 : 0)
                     + dodges * 0.02, 0.30, 1);
 
-    // Spacing: tightens while pressure is working, opens when it is being punished.
-    ease('spacing', B.spacing - winning * 0.04 + losing * 0.06, 0, 0.55);
+    // Spacing: tightens while pressure is working, and opens only when his
+    // APPROACH is what is being punished — same reasoning as aggression above.
+    // Keyed on raw damage it produced the retreat spiral described there, and the
+    // ceiling is lower now (0.34) so even a bad read never turns him passive.
+    ease('spacing', B.spacing - winning * 0.03 + pressure * 0.05, 0, 0.34);
 
     // Reaction speed: EVIDENCE-driven only. The old unconditional
     // `reactionSpeed += R * 0.45` every cycle is gone — it alone pinned this dial
