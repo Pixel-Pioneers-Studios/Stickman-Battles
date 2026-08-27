@@ -1,0 +1,362 @@
+{
+ "turtle": [
+  {
+   "kills": 5,
+   "fitness": 2320.25,
+   "sovLivesLeft": 5,
+   "lockedPct": 10.5,
+   "dmgDealt": 750,
+   "dmgTaken": 48,
+   "framesRun": 1172,
+   "oppDeaths": 5,
+   "duel": true
+  },
+  {
+   "kills": 1,
+   "fitness": 453.5,
+   "sovLivesLeft": 5,
+   "lockedPct": 0.9,
+   "dmgDealt": 188,
+   "dmgTaken": 48,
+   "framesRun": 7200,
+   "oppDeaths": 1,
+   "duel": true
+  },
+  {
+   "kills": 5,
+   "fitness": 2310.5,
+   "sovLivesLeft": 5,
+   "lockedPct": 3.2,
+   "dmgDealt": 750,
+   "dmgTaken": 80,
+   "framesRun": 3081,
+   "oppDeaths": 5,
+   "duel": true
+  },
+  {
+   "kills": 5,
+   "fitness": 2375,
+   "sovLivesLeft": 5,
+   "lockedPct": 0,
+   "dmgDealt": 750,
+   "dmgTaken": 0,
+   "framesRun": 5703,
+   "oppDeaths": 5,
+   "duel": true
+  },
+  {
+   "kills": 5,
+   "fitness": 2291.25,
+   "sovLivesLeft": 5,
+   "lockedPct": 23,
+   "dmgDealt": 750,
+   "dmgTaken": 16,
+   "framesRun": 1318,
+   "oppDeaths": 5,
+   "duel": true
+  },
+  {
+   "kills": 5,
+   "fitness": 2328.5,
+   "sovLivesLeft": 5,
+   "lockedPct": 8.3,
+   "dmgDealt": 750,
+   "dmgTaken": 16,
+   "framesRun": 1855,
+   "oppDeaths": 5,
+   "duel": true
+  },
+  {
+   "kills": 5,
+   "fitness": 2255.5,
+   "sovLivesLeft": 5,
+   "lockedPct": 26.3,
+   "dmgDealt": 750,
+   "dmgTaken": 48,
+   "framesRun": 1454,
+   "oppDeaths": 5,
+   "duel": true
+  },
+  {
+   "kills": 5,
+   "fitness": 2282.25,
+   "sovLivesLeft": 5,
+   "lockedPct": 18.2,
+   "dmgDealt": 750,
+   "dmgTaken": 64,
+   "framesRun": 1332,
+   "oppDeaths": 5,
+   "duel": true
+  }
+ ],
+ "rusher": [
+  {
+   "kills": 5,
+   "fitness": 2170.75,
+   "sovLivesLeft": 5,
+   "lockedPct": 11.9,
+   "dmgDealt": 750,
+   "dmgTaken": 256,
+   "framesRun": 2566,
+   "oppDeaths": 5,
+   "duel": true
+  },
+  {
+   "kills": 4,
+   "fitness": 1265,
+   "sovLivesLeft": 4,
+   "lockedPct": 5.8,
+   "dmgDealt": 720,
+   "dmgTaken": 382,
+   "framesRun": 7200,
+   "oppDeaths": 4,
+   "duel": true
+  },
+  {
+   "kills": 4,
+   "fitness": 1299.25,
+   "sovLivesLeft": 4,
+   "lockedPct": 3.7,
+   "dmgDealt": 720,
+   "dmgTaken": 390,
+   "framesRun": 7200,
+   "oppDeaths": 4,
+   "duel": true
+  },
+  {
+   "kills": 4,
+   "fitness": 1250,
+   "sovLivesLeft": 4,
+   "lockedPct": 5.7,
+   "dmgDealt": 718,
+   "dmgTaken": 414,
+   "framesRun": 7200,
+   "oppDeaths": 4,
+   "duel": true
+  },
+  {
+   "kills": 5,
+   "fitness": 1697.25,
+   "sovLivesLeft": 4,
+   "lockedPct": 13.5,
+   "dmgDealt": 750,
+   "dmgTaken": 350,
+   "framesRun": 3043,
+   "oppDeaths": 5,
+   "duel": true
+  },
+  {
+   "kills": 4,
+   "fitness": 881,
+   "sovLivesLeft": 3,
+   "lockedPct": 4.8,
+   "dmgDealt": 748,
+   "dmgTaken": 412,
+   "framesRun": 7200,
+   "oppDeaths": 4,
+   "duel": true
+  },
+  {
+   "kills": 4,
+   "fitness": 808.75,
+   "sovLivesLeft": 3,
+   "lockedPct": 6.6,
+   "dmgDealt": 722,
+   "dmgTaken": 468,
+   "framesRun": 7200,
+   "oppDeaths": 4,
+   "duel": true
+  },
+  {
+   "kills": 5,
+   "fitness": 1750.25,
+   "sovLivesLeft": 4,
+   "lockedPct": 11.6,
+   "dmgDealt": 750,
+   "dmgTaken": 278,
+   "framesRun": 2967,
+   "oppDeaths": 5,
+   "duel": true
+  }
+ ],
+ "zoner": [
+  {
+   "kills": 5,
+   "fitness": 2297.5,
+   "sovLivesLeft": 5,
+   "lockedPct": 3.8,
+   "dmgDealt": 750,
+   "dmgTaken": 128,
+   "framesRun": 1424,
+   "oppDeaths": 5,
+   "duel": true
+  },
+  {
+   "kills": 5,
+   "fitness": 2259.75,
+   "sovLivesLeft": 5,
+   "lockedPct": 9.9,
+   "dmgDealt": 750,
+   "dmgTaken": 144,
+   "framesRun": 1753,
+   "oppDeaths": 5,
+   "duel": true
+  },
+  {
+   "kills": 5,
+   "fitness": 2352.75,
+   "sovLivesLeft": 5,
+   "lockedPct": 2.1,
+   "dmgDealt": 750,
+   "dmgTaken": 32,
+   "framesRun": 1170,
+   "oppDeaths": 5,
+   "duel": true
+  },
+  {
+   "kills": 5,
+   "fitness": 2343.75,
+   "sovLivesLeft": 5,
+   "lockedPct": 5,
+   "dmgDealt": 750,
+   "dmgTaken": 32,
+   "framesRun": 1218,
+   "oppDeaths": 5,
+   "duel": true
+  },
+  {
+   "kills": 5,
+   "fitness": 2297,
+   "sovLivesLeft": 5,
+   "lockedPct": 11.3,
+   "dmgDealt": 750,
+   "dmgTaken": 80,
+   "framesRun": 1347,
+   "oppDeaths": 5,
+   "duel": true
+  },
+  {
+   "kills": 5,
+   "fitness": 2280,
+   "sovLivesLeft": 5,
+   "lockedPct": 8,
+   "dmgDealt": 750,
+   "dmgTaken": 112,
+   "framesRun": 1940,
+   "oppDeaths": 5,
+   "duel": true
+  },
+  {
+   "kills": 5,
+   "fitness": 2344.5,
+   "sovLivesLeft": 5,
+   "lockedPct": 7.3,
+   "dmgDealt": 750,
+   "dmgTaken": 16,
+   "framesRun": 1227,
+   "oppDeaths": 5,
+   "duel": true
+  },
+  {
+   "kills": 3,
+   "fitness": 1430.5,
+   "sovLivesLeft": 5,
+   "lockedPct": 0.4,
+   "dmgDealt": 474,
+   "dmgTaken": 0,
+   "framesRun": 7200,
+   "oppDeaths": 3,
+   "duel": true
+  }
+ ],
+ "aerial": [
+  {
+   "kills": 4,
+   "fitness": 754.75,
+   "sovLivesLeft": 3,
+   "lockedPct": 6.6,
+   "dmgDealt": 702,
+   "dmgTaken": 556,
+   "framesRun": 7200,
+   "oppDeaths": 4,
+   "duel": true
+  },
+  {
+   "kills": 4,
+   "fitness": 321.5,
+   "sovLivesLeft": 2,
+   "lockedPct": 7.1,
+   "dmgDealt": 726,
+   "dmgTaken": 626,
+   "framesRun": 7200,
+   "oppDeaths": 4,
+   "duel": true
+  },
+  {
+   "kills": 5,
+   "fitness": 1254,
+   "sovLivesLeft": 3,
+   "lockedPct": 9,
+   "dmgDealt": 750,
+   "dmgTaken": 436,
+   "framesRun": 4561,
+   "oppDeaths": 5,
+   "duel": true
+  },
+  {
+   "kills": 4,
+   "fitness": 285,
+   "sovLivesLeft": 2,
+   "lockedPct": 9.6,
+   "dmgDealt": 726,
+   "dmgTaken": 610,
+   "framesRun": 7200,
+   "oppDeaths": 4,
+   "duel": true
+  },
+  {
+   "kills": 4,
+   "fitness": 790.25,
+   "sovLivesLeft": 3,
+   "lockedPct": 5.4,
+   "dmgDealt": 748,
+   "dmgTaken": 572,
+   "framesRun": 7200,
+   "oppDeaths": 4,
+   "duel": true
+  },
+  {
+   "kills": 4,
+   "fitness": 1210.75,
+   "sovLivesLeft": 4,
+   "lockedPct": 7.6,
+   "dmgDealt": 694,
+   "dmgTaken": 398,
+   "framesRun": 7200,
+   "oppDeaths": 4,
+   "duel": true
+  },
+  {
+   "kills": 5,
+   "fitness": 1219.5,
+   "sovLivesLeft": 3,
+   "lockedPct": 13.3,
+   "dmgDealt": 750,
+   "dmgTaken": 460,
+   "framesRun": 3780,
+   "oppDeaths": 5,
+   "duel": true
+  },
+  {
+   "kills": 4,
+   "fitness": 799.75,
+   "sovLivesLeft": 3,
+   "lockedPct": 5.6,
+   "dmgDealt": 718,
+   "dmgTaken": 516,
+   "framesRun": 7200,
+   "oppDeaths": 4,
+   "duel": true
+  }
+ ]
+}

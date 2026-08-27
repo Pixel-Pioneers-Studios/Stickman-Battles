@@ -1,0 +1,80 @@
+{
+ "rows": [
+  {
+   "file": "smb_replay_sovereign_2026-07-27.smbreplay",
+   "date": "2026-07-27",
+   "winner": "P1",
+   "liveGameFrames": 15558,
+   "humanDmgPer1k": 140.05656254017225,
+   "sovDmgPer1k": 108.8828898315979,
+   "sovLockPct": 15.368299267258003,
+   "humanLockPct": 22.657153875819514,
+   "guessPct": 57.84313725490196,
+   "hw": "electricstaff",
+   "hc": "kratos",
+   "sw": "nullblade"
+  },
+  {
+   "file": "smb_replay_sovereign_2026-07-28.smbreplay",
+   "date": "2026-07-29",
+   "winner": "P1",
+   "liveGameFrames": 20541,
+   "humanDmgPer1k": 100.53064602502313,
+   "sovDmgPer1k": 96.83072878632979,
+   "sovLockPct": 13.24667737695341,
+   "humanLockPct": 27.10676208558493,
+   "guessPct": 55.51470588235294,
+   "hw": "sword",
+   "hc": "paladin",
+   "sw": "nullblade"
+  },
+  {
+   "file": "smb_replay_sovereign_2026-07-30.smbreplay",
+   "date": "2026-07-30",
+   "winner": "P1",
+   "liveGameFrames": 8547,
+   "humanDmgPer1k": 178.3081783081783,
+   "sovDmgPer1k": 43.29004329004329,
+   "sovLockPct": 21.2004212004212,
+   "humanLockPct": 15.373815373815374,
+   "guessPct": 25,
+   "hw": "mkgauntlet",
+   "hc": "megaknight",
+   "sw": "nullblade"
+  },
+  {
+   "file": "smb_replay_sovereign_2026-08-23.smbreplay",
+   "date": "2026-08-24",
+   "winner": "P1",
+   "liveGameFrames": 10560,
+   "humanDmgPer1k": 164.29924242424244,
+   "sovDmgPer1k": 110.98484848484848,
+   "sovLockPct": 14.744318181818182,
+   "humanLockPct": 24.0625,
+   "guessPct": 44.973544973544975,
+   "hw": "sword",
+   "hc": "warrior",
+   "sw": "nullblade"
+  }
+ ],
+ "targets": {
+  "humanDmgPer1k": {
+   "med": 164.29924242424244,
+   "min": 100.53064602502313,
+   "max": 178.3081783081783,
+   "mean": 145.79865732440402
+  },
+  "sovDmgPer1k": {
+   "med": 108.8828898315979,
+   "min": 43.29004329004329,
+   "max": 110.98484848484848,
+   "mean": 89.99712759820487
+  },
+  "sovLockPct": {
+   "med": 15.368299267258003,
+   "min": 13.24667737695341,
+   "max": 21.2004212004212,
+   "mean": 16.1399290066127
+  }
+ }
+}

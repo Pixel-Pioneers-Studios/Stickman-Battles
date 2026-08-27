@@ -564,6 +564,11 @@ const SMK2Trainer = (() => {
       lockedPct: Math.round(lockedPct * 1000) / 10,
       dmgDealt:  Math.round(dmgDealt),
       dmgTaken:  Math.round(dmgTaken),
+      // Surfaced so sim damage can be expressed per-1000-frames and compared
+      // against real replay numbers. Match length varies a lot between
+      // archetypes (a turtle match runs far longer than a rusher match), so
+      // raw dmgDealt/dmgTaken totals are not comparable across the panel.
+      framesRun,
       oppDeaths,
       duel,
     };

@@ -92,12 +92,52 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
       `          ${Math.round(mean(rows.map(r => r.dmgDealt)))} / ${Math.round(mean(rows.map(r => r.dmgTaken)))}` +
       `        ${mean(rows.map(r => r.lockedPct)).toFixed(1)}%` + (draws ? `   (${draws} draw)` : ''));
   }
+  // Calibration block. The panel's job is to stand in for a human, so the
+  // question that decides whether DUEL_BUFF is set correctly is not "does
+  // Sovereign win" but "does the panel opponent pressure him the way a human
+  // does". Targets come from tools/sov-calibrate-buff.js over the four
+  // measurable human-vs-Sovereign replays.
+  const TGT = { dmgInto: 164.3, lock: 15.4 };   // median of real human matches
+  console.log(`\n  --- CALIBRATION vs REAL HUMAN REPLAYS (target ${TGT.dmgInto} dmg/1k into him, ${TGT.lock}% locked) ---`);
+  console.log('  archetype   dmg/1k into Sov   ratio-to-human   locked%   ratio-to-human');
+  const ratios = [], locks = [];
+  for (const name of Object.keys(out)) {
+    const rows = out[name].filter(r => r.framesRun > 0);
+    if (!rows.length) { console.log(`  ${name.padEnd(10)}  no framesRun — is smb-smk2-training.js current?`); continue; }
+    const per1k = mean(rows.map(r => 1000 * r.dmgTaken / r.framesRun));
+    const lock  = mean(rows.map(r => r.lockedPct));
+    ratios.push(per1k / TGT.dmgInto); locks.push(lock / TGT.lock);
+    console.log(`  ${name.padEnd(10)} ${per1k.toFixed(1).padStart(12)}   ${(per1k / TGT.dmgInto).toFixed(2).padStart(12)}x   ` +
+      `${lock.toFixed(1).padStart(6)}%   ${(lock / TGT.lock).toFixed(2).padStart(12)}x`);
+  }
+  if (ratios.length) {
+    const rMean = ratios.reduce((a, b) => a + b, 0) / ratios.length;
+    const lMean = locks.reduce((a, b) => a + b, 0) / locks.length;
+    console.log(`\n  Panel inflicts ${rMean.toFixed(2)}x a human's damage and ${lMean.toFixed(2)}x a human's lockout.`);
+    console.log(`  Both below 1.0 means the panel is SOFTER than a real player${args.nobuff ? '' : ' even WITH the buff on'}.`);
+    console.log('');
+    console.log('  Do NOT just scale DUEL_BUFF.dmg by 1/ratio to close this. That arithmetic');
+    console.log('  is wrong for the lockout half, and lockout is the half we can actually');
+    console.log('  trust. Measured previously (see the note at the bot-construction site in');
+    console.log('  smb-smk2-training.js): taking damage 2.2x -> 5x moved lockout 5.7% -> 4.1%,');
+    console.log('  i.e. DOWN. Lockout comes from CHAINED hits, not big ones — bigger hits end');
+    console.log('  the exchange sooner. The damage gap is a stat knob; the lockout gap is a');
+    console.log('  panel-policy problem (how often an archetype re-engages and strings hits).');
+    console.log('');
+    console.log('  Caveat: replay damage attribution is ~46% inferred (event.byGuess), so the');
+    console.log('  dmg/1k column carries real error. The locked% column is read directly from');
+    console.log('  per-frame stn/rag and does not — prefer it when the two disagree.');
+  }
+
   console.log(`\n  WORST CASE: ${worstWin.toFixed(0)}% vs ${worstName}`);
   console.log('  Worst case is the number that matters. "Beats everyone" is a worst-case');
   console.log('  property — a strong mean with one bad matchup is exactly the profile that');
   console.log('  loses to the one player who fights that way.');
-  fs.writeFileSync(path.join(ROOT, 'tools', 'sov-winrate-results.json'), JSON.stringify(out, null, 1));
-  console.log(`\nwrote tools/sov-winrate-results.json  |  page errors: ${errs.length}`);
+  // Buffed and noBuff runs used to write the same path, so whichever ran last
+  // silently replaced the other — and the two are not interchangeable.
+  const outName = args.nobuff ? 'sov-winrate-results-nobuff.json' : 'sov-winrate-results.json';
+  fs.writeFileSync(path.join(ROOT, 'tools', outName), JSON.stringify(out, null, 1));
+  console.log(`\nwrote tools/${outName}  |  page errors: ${errs.length}`);
   if (errs.length) console.log('  ' + [...new Set(errs)].slice(0, 4).join('\n  '));
   await browser.close(); server.close();
 })();

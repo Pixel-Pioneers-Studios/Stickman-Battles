@@ -86,7 +86,17 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
         tvx: t.vx || 0, tground: !!t.onGround, tshield: !!t.shielding,
       } : null;
       const r = origAttack.apply(this, arguments);
-      const started = (this.attackTimer || 0) > before || (this.weapon && this.weapon.type === 'melee' && this.attackTimer > 0);
+      // A swing started IFF attackTimer rose. The old test also accepted
+      // `melee && attackTimer > 0`, which is true on EVERY frame of an
+      // in-progress swing: the AI re-calls attack() each frame, Fighter.attack
+      // bails at `if (this.cooldown > 0) return` without touching attackTimer,
+      // and the still-running timer from the previous frame read as a fresh
+      // commit. One real swing was logged as ~4 swings, 3 of them permanently
+      // unhittable, which is why this tool reported 13.9% accuracy against a
+      // replay-measured 58%. It also swallowed genuine whiff-guard aborts into
+      // the swing count. attackTimer is assigned at fighter.js:2369 for melee
+      // AND ranged alike, so clause 1 alone is sufficient.
+      const started = (this.attackTimer || 0) > before;
       if (!started) { R.aborts++; return r; }
       if (snap && t) {
         R.pending.push({ f: frameCount, tgt: t, commit: snap, hit: false,
@@ -123,7 +133,12 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
         if (!p.hit && t) {
           const gap  = Math.abs(t.cx() - R.host.cx());
           const vgap = Math.abs((R.host.y + R.host.h / 2) - (t.y + t.h / 2));
-          const reach = (R.host.weapon && R.host.weapon.range || 90) * (R.host.drawScale || 1);
+          // weapon.range is the loose commit band, not the blade's real sweep —
+          // fighter.js:2199 says so explicitly. Using it here made walked_out
+          // almost never fire and dumped those misses into `unknown`.
+          const reach = typeof R.host._meleeReachDist === 'function'
+            ? R.host._meleeReachDist(t)
+            : (R.host.weapon && R.host.weapon.range || 90) * (R.host.drawScale || 1);
           if (t.shielding)                                       out.cause = 'blocked';
           else if (p.commit.tground && !t.onGround)               out.cause = 'jumped_out';
           else if (Math.sign(t.vx || 0) && Math.sign(t.vx) !== Math.sign(p.commit.tvx) && p.commit.tvx) out.cause = 'reversed';
@@ -151,6 +166,13 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
     const eng = await page.evaluate(() => {
       const R = window.__conv;
       players[1].aiDifficulty = 'expert';
+      // Pin the opponent's kit. startGame() hands out a random weapon, so reps
+      // were not comparable and a ranged draw silently changed the question
+      // being asked. Same fix as tools/sov-recall.js. (p2Weapon is a DOM element
+      // id, not a global — set it on the fighter after spawn.)
+      if (typeof WEAPONS !== 'undefined' && WEAPONS.sword) {
+        players[1].weapon = WEAPONS.sword; players[1].weaponKey = 'sword'; players[1]._ammo = 0;
+      }
       // Keep the match alive for the whole measurement window. Both fighters
       // default to a handful of lives, so a trial ended as soon as one side ran
       // out — measured at 746 of a requested 1800 frames, and one trial was

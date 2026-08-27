@@ -75,9 +75,9 @@ confident wrong numbers.
   overlapped almost completely on attack rate (0.02–0.09), air share (0.22–0.87)
   and close share (0.53–0.94) — one AI holding three weapons. Nothing about
   behaviour can be validated against them, which is why the scripted panel exists.
-- **`tools/sov-conversion.js` should not be trusted.** It reports 13.9% accuracy
-  against a replay-measured 58%, and one rep recorded zero swings. The
-  instrumentation has a flaw I did not chase. Left in the tree, flagged here.
+- ~~**`tools/sov-conversion.js` should not be trusted.**~~ **FIXED — see §8.**
+  It reported 13.9% accuracy against a replay-measured 58%. Three defects,
+  chased down and corrected; it now reports 59.6% against that same 58%.
 
 ## 3. What was built
 
@@ -210,3 +210,174 @@ The brief asked for certainty that he adapts to anyone and beats every player.
   errors**, HUD reads "NULL BLADE · BERSERKER", limiter break / TYRANT / pressure
   staging all fire, dossier live with 3 records, dials moved off baseline.
 - **Uncommitted.**
+
+
+---
+
+# Addendum — Aug 27 2026, later session
+
+Two follow-ups, both measurement rather than behaviour: the tool I had flagged
+as untrustworthy, and the calibration knob that was making the panel win rate
+mean less than it appeared to.
+
+## 8. `tools/sov-conversion.js` — fixed and now cross-validated
+
+Three defects, in order of size.
+
+**1. Every swing was counted about three times.** The commit hook decided a
+swing had started with
+
+```js
+const started = (this.attackTimer || 0) > before ||
+                (this.weapon && this.weapon.type === 'melee' && this.attackTimer > 0);
+```
+
+The second clause is true on *every frame of an in-progress swing*. The AI
+re-calls `attack()` each frame; `Fighter.attack` bails at `if (this.cooldown > 0)
+return` (fighter.js:2154) without touching `attackTimer`; the still-running timer
+from the previous frame then read as a fresh commit. One real swing became ~3
+logged swings, 2 of them structurally unable to record a hit — which is exactly
+how a true 58% prints as 13.9%. It also swallowed genuine whiff-guard aborts into
+the swing count, so `aborts` was undercounted at the same time.
+
+`attackTimer` is assigned at fighter.js:2369 for melee **and** ranged alike, so
+clause 1 alone was always sufficient. Clause 2 deleted.
+
+**2. Miss attribution used the wrong reach.** `weapon.range` is the loose commit
+band the AI aims with, not the blade's swept arc — fighter.js:2199 says so in as
+many words. So `walked_out` almost never fired and its misses fell through to
+`unknown`. Now uses `_meleeReachDist(t)`, the same function the whiff guard uses.
+
+**3. The opponent's weapon was random per rep.** Same defect the recall probe
+had. Pinned to sword post-spawn, as `tools/sov-recall.js:104` does. (`p2Weapon`
+is a DOM element id, not a global — setting it as a variable silently does
+nothing.)
+
+Result, 3 reps × 2200 frames, sword opponent:
+
+```
+accuracy      59.6%        (replay-measured: 58%)
+dmg per hit   15.5
+dmg per swing  9.3         (replay-measured: 8.0)
+guard aborts   173         vs 52 actual swings — he wants to swing 4x as often as he does
+
+misses:  unknown 42.9% | walked_out 33.3% | vertical 14.3% | reversed 9.5%
+commit gap: median 40px when it hit, 73px when it missed
+```
+
+Two independent instruments now agree to within 1.6 points, which is the first
+time any conversion number here has been corroborated. The tool is usable.
+
+The standout finding is the one the old numbers hid: **173 guard aborts against
+52 swings.** He wants to attack more than three times as often as he does, and
+the whiff guard vetoes most of it. That is the guard working as designed — but
+it is also where his damage output actually goes, and it is a much bigger effect
+than anything in the miss breakdown.
+
+## 9. `DUEL_BUFF` calibrated against real human matches
+
+`DUEL_BUFF = { dmg: 2.2, hp: 1.6 }` is **not game balance** — it lives in the
+training harness and never touches shipped gameplay. Its only job is to make a
+sim opponent pressure Sovereign the way a human does, so the fitness terms
+measuring damage-taken and lockout have something honest to select against. The
+comment at its definition says "tune it against real-match numbers, not vibes."
+It never had been. New `tools/sov-calibrate-buff.js` produces those numbers.
+
+**There is more human data than §6 credits.** Not five replays — **nine** distinct
+human-vs-Sovereign matches are tracked, spanning May 21 to Aug 23. Six of them,
+however, predate the damage-event log and carry `events: []`. Those look exactly
+like a perfectly quiet match (0 damage both ways) and dragged the pooled median
+to 0.0 on the first run; a match with no event log is unmeasurable, not calm.
+The tool now skips and names them. **Four matches are actually measurable.**
+
+| date | human kit | frames | human dmg/1k | sov dmg/1k | sov locked% |
+|---|---|---:|---:|---:|---:|
+| 07-27 | electricstaff/kratos | 15558 | 140.1 | 108.9 | 15.4% |
+| 07-29 | sword/paladin | 20541 | 100.5 | 96.8 | 13.2% |
+| 07-30 | mkgauntlet/megaknight | 8547 | 178.3 | 43.3 | 21.2% |
+| 08-24 | sword/warrior | 10560 | 164.3 | 111.0 | 14.7% |
+
+**Calibration targets: 164.3 damage per 1000 live frames into Sovereign, and
+15.4% of live frames locked.** Finisher-lock frames (`hp === 1 && inv > 500`) and
+dead/respawning frames are excluded, and everything is scaled by
+`meta.recordEveryN` — without that scaling every per-1000 figure is 3x too big.
+
+**Caveat, stated up front: ~46% of replay damage events are attributed by guess**
+(`event.byGuess`), so the per-side damage columns carry real attribution error.
+The lockout column is read directly from per-frame `stn`/`rag` and does not.
+Prefer it when the two disagree.
+
+`runMatch` now returns `framesRun` (it was computed and thrown away), and
+`tools/sov-winrate.js` prints a calibration block comparing each archetype's
+pressure against these targets in matching units. Match length varies enormously
+across the panel — a turtle match runs far longer than a rusher match — so the
+raw `dmgDealt/dmgTaken` totals in §5 were never comparable across rows.
+
+### 10. The result reverses §5 — the buff is too WEAK, not too strong
+
+I expected the buff to be inflating difficulty. It is doing the opposite.
+**Every archetype under-pressures a real human, even with `DUEL_BUFF` on.**
+
+Buffed, 8 matches each (two independent runs, r1 / r2):
+
+| archetype | win% | dmg/1k into Sov | vs human | locked% | vs human |
+|---|---:|---:|---:|---:|---:|
+| turtle | 100 / 100 | 33.4 / 45.8 | 0.20x / 0.28x | 9.9 / 9.7 | 0.64x / 0.63x |
+| zoner | 100 / 88 | 36.8 / 42.6 | 0.22x / 0.26x | 4.1 / 4.7 | 0.27x / 0.31x |
+| rusher | 13 / 13 | 108.0 / 127.8 | 0.66x / 0.78x | 9.6 / 10.3 | 0.63x / 0.67x |
+| aerial | 0 / 0 | 144.5 / 123.1 | 0.88x / 0.75x | 11.7 / 10.4 | 0.76x / 0.68x |
+
+Pooled: the buffed panel inflicts **0.49x–0.62x** a human's damage and
+**0.57x–0.63x** a human's lockout. Unbuffed it is **0.34x / 0.54x**.
+
+**The win rates are almost entirely explained by pressure, not by behaviour.**
+Correlation between an archetype's pressure ratio and Sovereign's win rate
+against it: **r = −0.985 (run 1), −0.981 (run 2)**, n = 4 each. The two he sweeps
+are the two that barely touch him; the two he loses to are the only two that get
+anywhere near a human's pressure — and even those top out around 0.8x.
+
+So "he loses to aggressive archetypes" is better stated as **"he loses to whoever
+actually hits him, and no scripted archetype yet hits him as hard as a person
+does."** The most likely extrapolation is that a real player at 1.0x beats him
+in all four styles. That is the opposite of the reassuring reading of §5.
+
+### What this changes about §5
+
+§5's noBuff row is labelled "**this is the important row**". On this evidence it
+is the *least* human-like configuration in the document — 0.34x a human's damage
+— and the clean 100% sweep there is close to meaningless as evidence about human
+opponents. The buffed rows, the ones that look like failures, are the ones
+standing closest to reality.
+
+The §5 numbers are not wrong. The inference drawn from them was.
+
+### Do not "fix" this by scaling DUEL_BUFF.dmg
+
+The arithmetic (2.2 / 0.49 ≈ 4.5) is right for the damage half and **wrong for
+the lockout half**, and lockout is the half that is measured rather than
+inferred. The note at the bot-construction site records the direct measurement:
+taking damage 2.2x → 5x moved lockout 5.7% → **4.1%**, i.e. *down*. Lockout comes
+from chained hits, not big ones — bigger hits end the exchange sooner.
+
+The damage gap is a stat knob. The lockout gap is a **panel-policy** problem: how
+often an archetype re-engages and strings hits together. `_noWhiffGuard` was the
+lever that actually moved it before, and it is already on. Closing the remaining
+gap means writing archetypes that chain, which belongs with §7 item 1 (widen the
+panel) rather than with the buff constant.
+
+I have deliberately **not** retuned `DUEL_BUFF`. Raising it changes what
+`evolvePanel` selects for, and the correction factor differs by a factor of ~1.5
+depending on which metric you trust. That is a judgement call about what the
+harness is for, and it should be made deliberately rather than as a side effect
+of this measurement. `sov-winrate.js` now prints the gap every run, so it cannot
+quietly drift again.
+
+### Files
+
+| file | change |
+|---|---|
+| `tools/sov-conversion.js` | 3 fixes (§8); now agrees with replays to 1.6 points |
+| `tools/sov-calibrate-buff.js` | **NEW.** Extracts human pressure targets from tracked replays |
+| `tools/sov-winrate.js` | Calibration block; buffed/noBuff results no longer overwrite each other |
+| `js/smb-smk2-training.js` | `runMatch` returns `framesRun` (was computed and discarded) |
+| `index.html` | `?v=4.0.86` on `smb-smk2-training.js` |
