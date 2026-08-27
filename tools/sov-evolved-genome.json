@@ -1,0 +1,22 @@
+{
+ "genome": {
+  "aggression": 0.9503743252384134,
+  "spacing": 0.18813240023867273,
+  "reactionSpeed": 0.9493644273919828,
+  "prefDistBase": 27.934490928262633,
+  "adaptLockDuration": 253.6616601446149,
+  "killInstinctHP": 0.2010529606827385,
+  "superChargeWeight": 0.43982263757462,
+  "moveSpdBase": 4.5804633838562685,
+  "oppKitGain": 0.8563765287036728,
+  "oppThreatGain": 1.407422478186487,
+  "oppBehaviorGain": 1.547512283828211
+ },
+ "vec": {
+  "turtle": 2520.375,
+  "rusher": -243.625,
+  "zoner": 1501.125,
+  "aerial": -131.875
+ },
+ "worst": -243.625
+}

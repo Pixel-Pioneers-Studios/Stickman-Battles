@@ -199,6 +199,22 @@ const SMK2_DEFAULT_GENOME = Object.freeze({
   killInstinctHP:    0.15,  // HP% for kill-instinct         range [0.05, 0.30]
   superChargeWeight: 0.50,  // super meter spacing ramp      range [0.15, 0.80]
   moveSpdBase:       4.5,   // base movement speed           range [3.5,  5.5 ]
+
+  // ── Opponent-adaptation gains ────────────────────────────────────────────
+  // These scale the opponent-conditioned offsets in _oppAdaptTerms(): how hard
+  // his dials swing in response to the opponent's reach and endlag, to how hard
+  // the opponent hits, and to the opponent's measured BEHAVIOUR (guard share,
+  // attack share, spacing, airborne share).
+  //
+  // Putting them in the genome is the point, not a convenience. Until now the
+  // genome held only Sovereign's own baseline, so evolution could breed a fighter
+  // but never breed the ADAPTATION — the reactive coefficients were hardcoded
+  // constants no amount of training could reach. With these here, crossover can
+  // combine a genome that reads heavy weapons well with one that reads rushdown
+  // well, which is the entire reason to have crossover.
+  oppKitGain:        1.00,  // reach/endlag response         range [0.00, 2.50]
+  oppThreatGain:     1.00,  // damage/knockback response     range [0.00, 2.50]
+  oppBehaviorGain:   1.00,  // measured-behaviour response   range [0.00, 2.50]
 });
 
 const SMK2_GENOME_RANGES = Object.freeze({
@@ -210,5 +226,8 @@ const SMK2_GENOME_RANGES = Object.freeze({
   killInstinctHP:    [0.05, 0.30],
   superChargeWeight: [0.15, 0.80],
   moveSpdBase:       [3.5,  5.5 ],
+  oppKitGain:        [0.00, 2.50],
+  oppThreatGain:     [0.00, 2.50],
+  oppBehaviorGain:   [0.00, 2.50],
 });
 

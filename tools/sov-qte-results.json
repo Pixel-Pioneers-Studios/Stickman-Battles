@@ -1,0 +1,66 @@
+{
+  "opts": {
+    "mistakeRate": 0,
+    "reactionFrames": 10,
+    "readMirror": false,
+    "log": false
+  },
+  "log": [
+    {
+      "phase": 1,
+      "name": "REALITY FLICKER",
+      "lastStage": "outro_success",
+      "attempts": 0,
+      "completed": 4,
+      "fails": 0,
+      "resolved": "PASS",
+      "queued": 4,
+      "presses": 3
+    },
+    {
+      "phase": 2,
+      "name": "MULTIVERSAL OVERLOAD",
+      "lastStage": "outro_success",
+      "attempts": 0,
+      "completed": 4,
+      "fails": 3,
+      "resolved": "PASS",
+      "queued": 7,
+      "presses": 10
+    },
+    {
+      "phase": 3,
+      "name": "COSMIC ERASURE",
+      "lastStage": "outro_fail",
+      "attempts": 2,
+      "completed": 4,
+      "fails": 0,
+      "resolved": "fail-round",
+      "queued": 6,
+      "presses": 16
+    },
+    {
+      "phase": 4,
+      "name": "TRUE-FORM COLLAPSE",
+      "lastStage": "prompts",
+      "attempts": 1,
+      "completed": 1,
+      "fails": 0,
+      "resolved": "fail-round",
+      "queued": 9,
+      "presses": 19
+    }
+  ],
+  "stats": {
+    "hits": 3,
+    "misses": 0,
+    "mistakes": 0,
+    "presses": 19,
+    "phases": [
+      1,
+      2,
+      3,
+      4
+    ]
+  }
+}

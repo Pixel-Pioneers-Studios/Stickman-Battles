@@ -283,23 +283,40 @@ class AdaptiveAI extends Fighter {
     // evidence about his aggression at all, and backing off it just donates
     // damage. Deaths still count: dying is always a reason to reconsider.
     const pressure = punished * 1.6 + deaths * 2.5;
-    ease('aggression', B.aggression + winning * 0.05 - pressure * 0.09, 0.55, 1);
+
+    // ── Opponent-conditioned offsets ─────────────────────────────────────────
+    // Everything above is SELF-referential: hits he landed, damage he took,
+    // whether his commitments were punished. None of it contains one bit of
+    // information about WHO he is fighting, and that is not a subtle flaw — it is
+    // mathematically decisive. Measured over 9 trials (tools/sov-adapt-probe.js),
+    // his four dials converged to the same endpoint against a hammer berserker, a
+    // katana assassin and a spear zoner: between-opponent SD was SMALLER than
+    // rep-to-rep noise on all four. A target function with no opponent term
+    // cannot produce an opponent-specific answer no matter how well it is tuned.
+    //
+    // `_oppAdaptTerms()` supplies signed, bounded offsets derived from the
+    // opponent's measured reach, speed, endlag and action mix. Subclasses that do
+    // not model their opponent return nothing and behave exactly as before.
+    const O = (typeof this._oppAdaptTerms === 'function' && this._oppAdaptTerms()) || null;
+    const OT = k => (O && typeof O[k] === 'number' && isFinite(O[k])) ? Math.max(-0.35, Math.min(0.35, O[k])) : 0;
+
+    ease('aggression', B.aggression + winning * 0.05 - pressure * 0.09 + OT('aggression'), 0.55, 1);
 
     // Defense: bought when he is being hit, relaxed when he is not. A fighter
     // taking nothing has no reason to keep paying for guard.
     ease('defense', B.defense + losing * 0.10 - (dmgTaken === 0 ? 0.12 : 0)
-                    + dodges * 0.02, 0.30, 1);
+                    + dodges * 0.02 + OT('defense'), 0.30, 1);
 
     // Spacing: tightens while pressure is working, and opens only when his
     // APPROACH is what is being punished — same reasoning as aggression above.
     // Keyed on raw damage it produced the retreat spiral described there, and the
     // ceiling is lower now (0.34) so even a bad read never turns him passive.
-    ease('spacing', B.spacing - winning * 0.03 + pressure * 0.05, 0, 0.34);
+    ease('spacing', B.spacing - winning * 0.03 + pressure * 0.05 + OT('spacing'), 0, 0.34);
 
     // Reaction speed: EVIDENCE-driven only. The old unconditional
     // `reactionSpeed += R * 0.45` every cycle is gone — it alone pinned this dial
     // at 1.0 within two cycles of every fight regardless of what happened.
-    ease('reactionSpeed', B.reactionSpeed + losing * 0.05, 0.45, 1);
+    ease('reactionSpeed', B.reactionSpeed + losing * 0.05 + OT('reactionSpeed'), 0.45, 1);
 
     // Clamp all to [0, 1]
     for (const k of Object.keys(m)) m[k] = Math.max(0, Math.min(1, m[k]));

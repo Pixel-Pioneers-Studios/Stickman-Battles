@@ -15,7 +15,7 @@
 // jumpEconomy: enforce the player's 1 ground + 1 air jump rule on every path in
 // this class (see _vetoExtraJump). Set false to restore the old unbounded
 // behaviour for an A/B — the old behaviour is the triple-jump bug.
-window.SMK2_TUNE = window.SMK2_TUNE || { openGate: true, pressureDecay: true, lockCeiling: true, voidBoostMax: 3, recoverCeilAboveDeck: 200, jumpEconomy: true };
+window.SMK2_TUNE = window.SMK2_TUNE || { openGate: true, pressureDecay: true, lockCeiling: true, voidBoostMax: 3, recoverCeilAboveDeck: 200, jumpEconomy: true, edgePressure: true };
 
 // ── Owner-attached hazard registry ───────────────────────────────────────────
 // Several weapon abilities/supers store their live hazard directly on the wielder
@@ -482,6 +482,10 @@ class SovereignMK2 extends AdaptiveAI {
   // ══════════════════════════════════════════════════════════════
 
   onDeath() {
+    // Commit BEFORE super.onDeath() runs the base _applyAdaptation(): the dials as
+    // they stood when the life ended are the read that was actually being used,
+    // and the post-death cycle would fold a death penalty into them first.
+    try { this._commitDossier('death'); } catch (e) {}
     super.onDeath();
     this._deathCount++;
     this._spawnDefendTimer  = 45; // ~0.75 sec of defensive jump-back before engaging
@@ -722,6 +726,196 @@ class SovereignMK2 extends AdaptiveAI {
     if (stat.streak > 0) stat.streak = Math.max(0, stat.streak - 1);
   }
 
+  // ── Dossier: recall what he already knows about this opponent ─────────────
+  // `_oppMemory` is keyed on the fighter OBJECT, so it dies with the match — the
+  // same human returning for round 2 arrives as a stranger. The dossier is keyed
+  // on kit + behavioural archetype and persists, which is what turns "he adapts
+  // during a fight" into "he already knows what you do".
+  //
+  // Deliberately conservative: priors seed the BASELINE the dials rest at, they
+  // do not overwrite live state, and they are blended by confidence rather than
+  // assigned. A wrong recollection costs him a few seconds of ease(), not a match.
+  _seedFromDossier(t, kitOnly) {
+    if (typeof SovDossier === 'undefined') return;
+    const keys = this._dossierKeys(t, kitOnly);
+    if (!keys.length) return;
+    this._dossierKeysCache = keys;
+
+    const prior = SovDossier.dialPrior(keys);
+    if (prior && this.aiMemory) {
+      const c = Math.min(0.65, prior._confidence || 0);   // never fully surrender the baseline
+      const B = this._memBaseline || (this._memBaseline = { ...this.aiMemory });
+      const map = { aggression: 'agg', defense: 'def', spacing: 'spc', reactionSpeed: 'rxn' };
+      for (const k of Object.keys(map)) {
+        const v = prior[map[k]];
+        if (typeof v !== 'number' || !isFinite(v)) continue;
+        B[k] = B[k] + (v - B[k]) * c;
+        this.aiMemory[k] = this.aiMemory[k] + (v - this.aiMemory[k]) * c;
+      }
+      this._dossierRecall = c;
+    }
+
+    // Strategies with a proven track record of leaking against this opponent
+    // start pre-discredited, so he does not spend the first minute of every
+    // rematch re-learning the same lesson.
+    this._strategyFail = this._strategyFail || {};
+    for (const st of ['anti-air', 'parry', 'guard-break', 'intercept', 'pressure']) {
+      const bias = SovDossier.strategyBias(keys, st);
+      if (bias > 0.25) this._strategyFail[st] = Math.max(this._strategyFail[st] || 0, 2);
+    }
+    this._dossierBest = SovDossier.bestStrategy(keys, ['anti-air', 'parry', 'guard-break', 'intercept', 'pressure']);
+  }
+
+  // Commit what this engagement taught. Called on death and on match end — both,
+  // because a match can end without him dying and a life can end without the
+  // match ending, and losing either sample throws away most of the evidence.
+  _commitDossier(reason) {
+    if (typeof SovDossier === 'undefined') return;
+    const keys = (this._dossierKeys() || []);
+    if (!keys.length) return;
+    const obs = this._oppObsFrames || 0;
+    if (obs < 240) return;                       // too short to have learned anything
+    const m = this.aiMemory;
+    if (m) SovDossier.recordDials(keys, { agg: m.aggression, def: m.defense, spc: m.spacing, rxn: m.reactionSpeed },
+                                  Math.min(3, obs / 900));
+    if (this._loadout && this._loadout.key) {
+      const gained = Math.max(0, (this.totalDamageDealt || 0) - (this._loadoutDealt0 || 0));
+      SovDossier.recordLoadout(keys, this._loadout.key, gained);
+    }
+    SovDossier.save();
+    if (this._sovDossierDebug) console.log('[SovDossier] commit', reason, keys.join(','), 'obs', obs);
+  }
+
+  // ══ OPPONENT MODELLING — the part that makes adaptation opponent-SPECIFIC ══
+  //
+  // Prior to this, every learning signal in the class was self-referential (did I
+  // land, did I get hit, was my commitment punished). Measured consequence: his
+  // dials converged to the same endpoint against three deliberately opposite
+  // opponents, with between-opponent SD BELOW rep-to-rep noise. He was adapting
+  // to the scoreline, not to the person. These methods supply the missing term.
+
+  // Normalized behaviour rates for the current target. Shares of observed
+  // non-idle actions, plus frame shares for airborne/close.
+  _oppRates() {
+    const obs = this._oppObsFrames || 0;
+    if (obs < 180) return null;                // ~3s before any read is asserted
+    return {
+      attack:     (this._oppAtkFrames      || 0) / obs,
+      shield:     (this._oppShieldFrames   || 0) / obs,
+      dodge:      (this._oppDodgeFrames    || 0) / obs,
+      air:        (this._oppAirFrames      || 0) / obs,
+      closeShare: (this._oppCloseFrames    || 0) / obs,
+      approach:   (this._oppApproachFrames || 0) / obs,
+      retreat:    (this._oppRetreatFrames  || 0) / obs,
+      avgDist:    (this._oppDistSum        || 0) / obs,
+      samples: obs, frames: obs,
+    };
+  }
+
+  // Stable fingerprint keys for the current target: exact kit AND behavioural
+  // archetype. See the header of smb-sov-dossier.js for why both are needed —
+  // the kit key is precise, the archetype key is what lets anything he learned
+  // transfer to an opponent he has never met.
+  _dossierKeys(t, kitOnly) {
+    if (typeof SovDossier === 'undefined') return [];
+    const tgt = t || this.target;
+    if (!tgt) return [];
+    const keys = [SovDossier.kitKey(tgt)];
+    if (kitOnly) return keys;
+    const r = this._oppRates();
+    // Only assert a behavioural key once there is behaviour to read. Before that
+    // _oppRates() returns null, archetype() answers 'mixed' for everyone, and
+    // filing under 'beh:mixed' would both pollute that record and hand back a
+    // recollection averaged over every opponent he has ever met.
+    if (!r) return keys;
+    const arch = SovDossier.archetype(r);
+    this._oppArchetype = arch;
+    keys.push(SovDossier.behKey(arch));
+    return keys;
+  }
+
+  // ── The opponent-conditioned adaptation term ──────────────────────────────
+  // Returns signed offsets applied to the dial TARGETS in
+  // AdaptiveAI._applyAdaptation. Every term answers "what does fighting THIS
+  // person specifically demand", and each is derived from a measured property of
+  // the opponent rather than from Sovereign's own scoreline. Offsets are clamped
+  // to +/-0.35 by the caller, so a wrong read shades his behaviour without ever
+  // flipping him into a different fighter.
+  _oppAdaptTerms() {
+    const t = this.target;
+    if (!t || t.health <= 0) return null;
+    const r = this._oppRates();
+    if (!r) return null;
+
+    const w      = t.weapon || {};
+    const reach  = (w.range || 60) / 90;            // 1.0 == sword
+    const endlag = (w.cooldown || 30) / 30;         // >1 == slow, punishable
+    const hurt   = (w.damage || 12) / 16;           // >1 == hits harder than a sword
+    const spd    = (t.classSpeedMult || 1);
+
+    let agg = 0, def = 0, spc = 0, rxn = 0;
+    // Evolvable response gains. Fall back to 1.0 for any genome saved before these
+    // genes existed — applyGenome() merges over SMK2_DEFAULT_GENOME, so an old
+    // champion simply reads the defaults rather than NaN.
+    const G   = this._genome || {};
+    const gKit = (typeof G.oppKitGain      === 'number') ? G.oppKitGain      : 1;
+    const gThr = (typeof G.oppThreatGain   === 'number') ? G.oppThreatGain   : 1;
+    const gBeh = (typeof G.oppBehaviorGain === 'number') ? G.oppBehaviorGain : 1;
+
+    // Reach. Losing the spacing war to a longer weapon is not solved by respecting
+    // it — every frame spent at their optimal range is a frame he is donating. He
+    // presses IN against reach and can afford to sit out against a shorter one.
+    agg += (reach - 1) * 0.16 * gKit;
+    spc -= (reach - 1) * 0.10 * gKit;
+
+    // Endlag. A slow weapon is a standing invitation: bait the swing, punish the
+    // recovery. That is a spacing game, not a rushdown, so this pulls the opposite
+    // way from reach on purpose.
+    spc += (endlag - 1) * 0.14 * gKit;
+    agg -= (endlag - 1) * 0.06 * gKit;
+
+    // Damage AND knockback. Trading is only good arithmetic when his hit is worth
+    // more than theirs — but raw damage alone gave a spread of just 0.09 across
+    // hammer/katana/spear, well under defense's own 0.053 rep-to-rep noise, so it
+    // never surfaced as a measurable read. Knockback is the other half of what a
+    // hit actually costs him: it ends his pressure, throws him off the platform,
+    // and is the mechanism behind most of his ringout deaths.
+    const kb = (w.kb || 10) / 10;
+    def += ((hurt - 1) * 0.18 + (kb - 1) * 0.12) * gThr;
+    agg -= (hurt - 1) * 0.10 * gThr;
+
+    // Reaction. Cheap to hold high, so it had NO kit term at all and never
+    // separated. It should: a 75-frame-cooldown hammer gives him three quarters of
+    // a second of forewarning per swing, and paying for hair-trigger reads against
+    // it buys nothing he cannot get from standing in the right place. A fast blade
+    // is the opposite — the read has to happen or it does not happen at all.
+    rxn += (1 - endlag) * 0.10 * gKit;
+
+    // Speed. He cannot dictate range against someone faster; he holds a pocket and
+    // makes THEM enter it.
+    spc += Math.max(0, spd - 1) * 0.18 * gKit;
+
+    // ── Behaviour, not kit ────────────────────────────────────────────────────
+    // A turtle must be opened, not out-waited: spacing against a shield is a
+    // stalemate he loses on the clock. A rusher must be met with guard and
+    // reaction, not with a race. A zoner has to be closed. An aerial player is
+    // punished on landing, which means holding position rather than chasing up.
+    // Thresholds are FRAME shares and are calibrated against measured play, not
+    // guessed: across 18 trials an opponent spends ~0.10-0.16 of frames mid-swing,
+    // ~0.30-0.55 airborne and ~0.60-0.75 within 150px. Cuts sit outside those
+    // bands so an ordinary opponent trips none of them and only a genuinely
+    // lopsided one does.
+    if (r.shield + r.dodge > 0.18) { agg += 0.14 * gBeh; spc -= 0.12 * gBeh; def -= 0.06 * gBeh; }
+    if (r.attack > 0.20)           { def += 0.16 * gBeh; rxn += 0.10 * gBeh; agg -= 0.05 * gBeh; }
+    if (r.retreat > r.approach * 1.6 && r.avgDist > 170) { agg += 0.18 * gBeh; spc -= 0.16 * gBeh; }
+    if (r.air > 0.55)              { rxn += 0.12 * gBeh; spc += 0.06 * gBeh; agg -= 0.04 * gBeh; }
+
+    // Reads are asserted in proportion to how much of the fight has been seen —
+    // a 3-second read should not move him as far as a 40-second one.
+    const conf = Math.min(1, r.frames / 900);
+    return { aggression: agg * conf, defense: def * conf, spacing: spc * conf, reactionSpeed: rxn * conf };
+  }
+
   _updateHabitTracker(action, t) {
     for (const stat of Object.values(this._habitStats)) this._tickHabitStat(stat);
     if (this._counterCueCd > 0) this._counterCueCd--;
@@ -958,6 +1152,26 @@ class SovereignMK2 extends AdaptiveAI {
       return _adv;
     }
 
+    // ── Frame-share reads first ──────────────────────────────────────────────
+    // The rate logic below scores the last 12 non-idle ACTION TAGS, and those
+    // tags are far too sparse to see a committed airborne opponent. 'jump' is a
+    // rising edge (`!onGround && prevT.onGround`), so a player who re-jumps the
+    // instant they land emits ONE tag per jump while spending nearly the whole
+    // fight in the air — and 'attack' is tested first in the classifier, so their
+    // aerial swings are logged as attacks instead. Measured consequence: against
+    // an opponent airborne 75-98% of the time he selected 'pressure' 86% of the
+    // time and 'anti-air' almost never, and lost 0 of 10 matches to that
+    // archetype while sweeping the other three 10-0.
+    //
+    // The airborne frame share is the same fact measured over thousands of
+    // samples instead of twelve. Reading it here is not a new heuristic; it is
+    // the existing anti-air heuristic finally receiving evidence it can see.
+    const _fr = this._oppRates && this._oppRates();
+    if (_fr) {
+      if (_fr.air >= 0.55)                     return 'anti-air';
+      if (_fr.shield >= 0.35)                  return 'guard-break';
+    }
+
     const seq = this._actionSeq.filter(a => a !== 'idle');
     if (seq.length < 2) return null;
 
@@ -998,9 +1212,19 @@ class SovereignMK2 extends AdaptiveAI {
         } else if (_hitsUnderLock <= 1) {
           this._strategyFail[this._lockedCounterStrategy] = Math.max(0, (this._strategyFail[this._lockedCounterStrategy] || 0) - 1);
         }
+        // Same verdict, filed permanently and against WHO it was learned from.
+        // `_strategyFail` is rebuilt every match; this is not.
+        if (typeof SovDossier !== 'undefined') {
+          try { SovDossier.recordStrategy(this._dossierKeys(t), this._lockedCounterStrategy, _hitsUnderLock); } catch (e) {}
+        }
       }
 
       let strategy = this._getCounterStrategy();
+      // Recalled counter: something that has demonstrably WORKED against this
+      // opponent before outranks a fresh guess, but never outranks a live read —
+      // a player who changed their habits since last time must still be able to
+      // shake him, or this stops being adaptation and becomes a lookup table.
+      if (!strategy && this._dossierBest) strategy = this._dossierBest;
       if (!strategy && this._observationFrames >= 180) {
         // No strong rate pattern — try post-KB dominant behavior as a counter strategy
         const kbHint = this._getPostKBCounterHint();
@@ -2417,6 +2641,12 @@ class SovereignMK2 extends AdaptiveAI {
   }
 
   _applyOppProfile(p) {
+    // Frame-share counters are per-opponent and are NOT part of the saved bundle
+    // (they describe an engagement, not a person). Zero them on every switch so a
+    // new opponent is not read through the last one's positioning.
+    this._oppObsFrames = 0; this._oppAirFrames = 0; this._oppCloseFrames = 0; this._oppDistSum = 0;
+    this._oppAtkFrames = 0; this._oppShieldFrames = 0; this._oppDodgeFrames = 0;
+    this._oppApproachFrames = 0; this._oppRetreatFrames = 0;
     if (p) {
       this._behaviorModel      = p.behaviorModel;
       this._bmPrevSnap         = p.bmPrevSnap;
@@ -2532,6 +2762,7 @@ class SovereignMK2 extends AdaptiveAI {
     this.target = next;
     this._retargetDwell = 0;
     this._applyOppProfile(this._oppMemory.get(next) || null);
+    this._seedFromDossier(next);
     // Short-horizon state that describes the OLD engagement and would read as
     // garbage against the new one on the first tick.
     this._comboFollowHits = 0;
@@ -2846,7 +3077,62 @@ class SovereignMK2 extends AdaptiveAI {
     this._vetoVoidStep();
     this._vetoSkyClimb();
     this._vetoExtraJump();
+    this._edgePressure();
     super.update();
+  }
+
+  // ── EDGE GAME ─────────────────────────────────────────────────────────────
+  // Measured across three replays: Sovereign scored ONE ringout per match while
+  // the player threw 4-7 of their own lives into the death plane unassisted, at
+  // 94-112 HP, from ordinary 12-damage hits. The ledge is where the player is
+  // demonstrably fragile and he applies no pressure to it at all.
+  //
+  // The design constraint is as important as the feature. Given a dedicated
+  // ringout tool he would start hunting for it, and hunting a low-probability
+  // finish means declining ordinary damage — the exact failure the owner called
+  // out. So this adds NO new action, NO new attack, and never redirects a swing.
+  // It changes ONE thing: which SIDE of the opponent he stands on.
+  //
+  // Knockback in dealDamage() runs along the attacker-to-target axis, so simply
+  // taking the inside position — putting himself between the opponent and the
+  // stage centre — makes every hit he was already going to throw point outward.
+  // The ringouts come free, as a property of good positioning, and if the read is
+  // wrong he has still just walked a few pixels while attacking normally.
+  _edgePressure() {
+    if (!SMK2_TUNE.edgePressure) return;
+    const t = this.target;
+    if (!t || t.health <= 0 || !this.onGround) return;
+    // Never while committed: a swing in flight, a locked counter, or a super is
+    // worth more than position, and interrupting one to reposition is precisely
+    // the "leaves out free hits" trade this is designed not to make.
+    if (this.attackTimer > 0 || this.stunTimer > 0 || this.ragdollTimer > 0) return;
+    if (this._counterLockTimer > 0 || this._preemptMode) return;
+
+    const cx = this.cx(), tx = t.cx();
+    const centre = (typeof GAME_W !== 'undefined' ? GAME_W : 900) / 2;
+    const outward = tx >= centre ? 1 : -1;            // away from stage centre
+    // Is the opponent actually near a ledge on that side? Ask the same helper the
+    // AI uses on itself rather than guessing at arena geometry — it already
+    // accounts for lava, disabled boss floors and safe landings below.
+    let atEdge;
+    try { atEdge = !!t.isEdgeDanger(outward); } catch (e) { return; }
+    if (!atEdge) { this._edgeInsideFrames = 0; return; }
+
+    // Already inside (between them and the centre)? Nothing to do — his next hit
+    // is pointing the right way on its own.
+    const inside = (outward > 0) ? (cx < tx) : (cx > tx);
+    if (inside) { this._edgeInsideFrames = (this._edgeInsideFrames || 0) + 1; return; }
+    this._edgeInsideFrames = 0;
+
+    // Outside: rotate around, but only a nudge, and only when it costs nothing.
+    // Bounded to a fraction of his speed so it shades an approach he is already
+    // making instead of overriding the movement system.
+    if (Math.abs(tx - cx) > 200) return;              // too far for this to be the plan
+    const around = -outward;
+    if (this.isEdgeDanger(around)) return;            // never walk himself off
+    this.vx += around * 0.55;
+    const cap = (this.classSpeedMult || 1) * 6.5;
+    if (Math.abs(this.vx) > cap) this.vx = Math.sign(this.vx) * cap;
   }
 
   // ══════════════════════════════════════════════════════════════
@@ -2903,12 +3189,22 @@ class SovereignMK2 extends AdaptiveAI {
     const priorMean = pool.reduce((a, lo) => a + lo.prior, 0) / pool.length;
     const scale = (obsL > 0 && priorMean > 0) ? (obsD / obsL) / priorMean : 0.4;
 
+    // Per-opponent history folded in as additional pseudo-observations. The
+    // in-match stats above only exist from life 2 onward and are wiped every
+    // match; the dossier is what lets him open a REMATCH already holding the kit
+    // that beat this person last time instead of rediscovering it over ten lives.
+    const _dkeys = (typeof SovDossier !== 'undefined') ? this._dossierKeys() : [];
+
     let best = null, bestScore = -Infinity;
     for (const lo of pool) {
       const rec  = this._loadoutStats[lo.key] || { lives: 0, dealt: 0 };
       const seed = lo.prior * scale;
-      const mean = (seed + rec.dealt) / (1 + rec.lives);
-      const score = mean * _smk2CounterBonus(lo, this.target);
+      let num = seed + rec.dealt, den = 1 + rec.lives;
+      if (_dkeys.length) {
+        const dp = SovDossier.loadoutPrior(_dkeys, lo.key);
+        if (dp) { num += dp.mean * dp.weight; den += dp.weight; }
+      }
+      const score = (num / den) * _smk2CounterBonus(lo, this.target);
       if (score > bestScore) { bestScore = score; best = lo; }
     }
     return best;
@@ -2946,6 +3242,10 @@ class SovereignMK2 extends AdaptiveAI {
     super.respawn();
     const lo = this._pickLoadout();
     if (lo) this._applyLoadout(lo);
+    // Re-seed after the kit changes: the dossier prior is keyed on the OPPONENT,
+    // but _applyLoadout resets the memory baseline via applyClass, so the recall
+    // has to be re-applied on top of the new profile or it is silently discarded.
+    try { this._seedFromDossier(this.target); } catch (e) {}
   }
 
   // ── SKY CEILING ──────────────────────────────────────────────────────────
@@ -3652,6 +3952,74 @@ class SovereignMK2 extends AdaptiveAI {
     // Sovereign must observe for at least 180 frames (~3 sec) and see
     // at least 6 non-idle player actions before adapting.
     this._observationFrames++;
+
+    // ── Opponent observation for the dossier ─────────────────────────────────
+    // Cheap per-tick counters that feed _oppRates()/_oppAdaptTerms(). Kept here
+    // rather than in the habit tracker because they are FRAME shares (how much of
+    // the fight the opponent spent airborne / in his face), not action counts.
+    // FRAME shares, not action tags. The habit tracker's counts are the obvious
+    // source and they are unusable for this: measured across whole fights it
+    // logged 9-26 non-idle actions total, `shield` was identically zero, and the
+    // resulting rates swung 0.11-0.55 between two runs of the SAME opponent. A
+    // classifier built on ~12 samples is a random number generator. These counters
+    // sample every frame, so a 30-second read carries ~1800 observations.
+    this._oppObsFrames = (this._oppObsFrames || 0) + 1;
+    if (!t.onGround)        this._oppAirFrames    = (this._oppAirFrames    || 0) + 1;
+    if (t.attackTimer > 0)  this._oppAtkFrames    = (this._oppAtkFrames    || 0) + 1;
+    if (t.shielding)        this._oppShieldFrames = (this._oppShieldFrames || 0) + 1;
+    // Fighter has NO dodge/roll timer — evasion is expressed as movement, so the
+    // obvious `t.dodgeTimer > 0` would have been silently zero forever. The honest
+    // measure is retreating while HE is committed to a swing: that is a read on
+    // him, not just walking.
+    if (this.attackTimer > 0 && Math.abs(t.vx) > 1.2 &&
+        Math.sign(t.cx() - this.cx()) === Math.sign(t.vx)) {
+      this._oppDodgeFrames = (this._oppDodgeFrames || 0) + 1;
+    }
+    {
+      const _dx = Math.abs(t.cx() - this.cx());
+      if (_dx < 150) this._oppCloseFrames = (this._oppCloseFrames || 0) + 1;
+      this._oppDistSum = (this._oppDistSum || 0) + _dx;
+      // Closing INTENT: which way is the opponent's own velocity pointing? This is
+      // what separates a rusher from a zoner — not the gap itself, which Sovereign
+      // controls by chasing.
+      //
+      // The first version gated on `|t.vx| > |this.vx| * 0.8` and compared frame-
+      // to-frame distance, which measured almost nothing: he is the faster fighter
+      // by design, so the gate failed on most frames and a puppet scripted to
+      // charge him every single frame registered approach on only 8.6% of them
+      // (and retreat on 7.4% — indistinguishable). Reading the sign of THEIR
+      // velocity against THEIR bearing to him is independent of his own movement,
+      // which is the whole point.
+      if (Math.abs(t.vx) > 0.4) {
+        if (Math.sign(t.vx) === Math.sign(this.cx() - t.cx())) this._oppApproachFrames = (this._oppApproachFrames || 0) + 1;
+        else                                                   this._oppRetreatFrames  = (this._oppRetreatFrames  || 0) + 1;
+      }
+    }
+
+    // Re-seed once the archetype read is real. The seed at target acquisition
+    // happens on frame 1, when _oppRates() has nothing and every opponent
+    // classifies as 'mixed' — so the behavioural half of the fingerprint is
+    // guaranteed wrong at exactly the moment it is first used. Re-run it when
+    // enough has been seen to classify honestly, and again if the read later
+    // CHANGES: a player who switches from zoning to rushing is a different
+    // opponent as far as anything he has learned is concerned.
+    // ── Seed on the FIRST observed frame, not only on a target switch ─────────
+    // _seedFromDossier used to be reachable only from _switchTarget(), and in the
+    // 1v1 he is actually fought in that never fires: the fighter already has a
+    // target when the match starts, so _updateTargetSelection() finds `best ===
+    // cur` and returns before switching. Measured end to end, recall was 0.00 in
+    // every rematch and the archetype was still null 60 frames in — the dossier
+    // was being WRITTEN correctly and never once READ. The kit key needs no
+    // observation, so the opening recall can happen immediately; the behavioural
+    // half arrives at 180 frames when there is something real to classify.
+    if (this._oppObsFrames === 1)   { try { this._seedFromDossier(t, true); } catch (e) {} }
+    if (this._oppObsFrames === 180) { try { this._seedFromDossier(t); } catch (e) {} }
+    else if (this._oppObsFrames > 180 && this._oppObsFrames % 300 === 0) {
+      const _prevArch = this._oppArchetype;
+      try { this._dossierKeys(t); } catch (e) {}
+      if (this._oppArchetype !== _prevArch) { try { this._seedFromDossier(t); } catch (e) {} }
+    }
+    if (typeof SovDossier !== 'undefined') SovDossier.tick();
 
     // ── OPENING WEAPON PRIOR — read weapon class on frame 1 and lock a counter ──
     // Fires once per match; skipped when a death record is already active (that takes priority).

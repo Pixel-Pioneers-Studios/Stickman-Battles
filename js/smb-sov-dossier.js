@@ -1,0 +1,287 @@
+// ============================================================
+// SOVEREIGN DOSSIER — persistent, generalizing opponent memory
+// ============================================================
+// Why this exists:
+//
+// SovereignMK2 already reads his opponent well (`_getCounterStrategy` scores
+// jump/attack/shield/dodge rates; `_strategyFail` scores whether the counter he
+// picked actually stopped the bleeding). None of that survived contact with
+// reality, for three separate reasons:
+//
+//   1. `_oppMemory` is a Map keyed on the FIGHTER OBJECT. Every match builds new
+//      Fighter instances, so the same human returning for round 2 is a total
+//      stranger. In a 1v1 `_switchTarget` also fires exactly once — at spawn,
+//      from a null target — so the map is written to zero times in the mode he
+//      is actually fought in.
+//   2. `_strategyFail` — the only genuinely learned counter-knowledge in the
+//      class — is a bare object rebuilt per match and never keyed to WHO it was
+//      learned against.
+//   3. Measured (tools/sov-adapt-probe.js, 9 trials): his four aiMemory dials
+//      converge to the same endpoint against a hammer berserker, a katana
+//      assassin and a spear zoner. Between-opponent SD was SMALLER than
+//      rep-to-rep noise on all four. He was adapting to the scoreline, never to
+//      the person.
+//
+// This module is the persistent half of the fix. It files what he learns under a
+// STABLE fingerprint that survives match restarts and page reloads, and — more
+// importantly — under a behavioural archetype as well as an exact kit, so an
+// opponent he has never seen still inherits what he learned from opponents who
+// FOUGHT like them. That generalization is the whole point: "adapts to anyone"
+// is not achievable by memorizing individuals.
+//
+// Globals-based, no modules. Loaded before smb-smk2-class.js.
+
+const SOV_DOSSIER_KEY     = 'sov_dossier_v1';
+const SOV_DOSSIER_MAX     = 64;      // records before the coldest are evicted
+const SOV_DOSSIER_DECAY   = 0.94;    // applied to counts on load — old reads fade
+const SOV_ARCHETYPES      = ['rusher', 'turtle', 'zoner', 'aerial', 'mixed'];
+
+const SovDossier = (() => {
+  let _store = null;    // { [key]: record }
+  let _dirty = false;
+  let _saveTimer = 0;
+
+  function _blank(key) {
+    return {
+      key,
+      n: 0,              // engagements filed under this record
+      frames: 0,         // live frames observed
+      strat: {},         // strategy -> { used, leaked, stopped }
+      dials: null,       // { agg, def, spc, rxn } running mean of endpoints
+      loadout: {},       // loadoutKey -> { n, dmg } running mean of damage/life
+      lastSeen: 0,
+    };
+  }
+
+  function load() {
+    if (_store) return _store;
+    _store = {};
+    try {
+      const raw = localStorage.getItem(SOV_DOSSIER_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed && typeof parsed === 'object') {
+          for (const k of Object.keys(parsed)) {
+            const r = parsed[k];
+            if (!r || typeof r !== 'object') continue;
+            // Decay on load, not on write: a record that keeps being confirmed
+            // stays sharp, one that is never revisited quietly loses authority
+            // instead of asserting a stale read forever.
+            r.n = (r.n || 0) * SOV_DOSSIER_DECAY;
+            for (const s of Object.keys(r.strat || {})) {
+              const e = r.strat[s];
+              e.used = (e.used || 0) * SOV_DOSSIER_DECAY;
+              e.leaked = (e.leaked || 0) * SOV_DOSSIER_DECAY;
+              e.stopped = (e.stopped || 0) * SOV_DOSSIER_DECAY;
+            }
+            _store[k] = r;
+          }
+        }
+      }
+    } catch (e) { _store = {}; }
+    return _store;
+  }
+
+  function save() {
+    if (!_dirty) return;
+    try {
+      const s = load();
+      // Evict the coldest records rather than growing without bound.
+      const keys = Object.keys(s);
+      if (keys.length > SOV_DOSSIER_MAX) {
+        keys.sort((a, b) => (s[a].lastSeen || 0) - (s[b].lastSeen || 0));
+        for (const k of keys.slice(0, keys.length - SOV_DOSSIER_MAX)) delete s[k];
+      }
+      localStorage.setItem(SOV_DOSSIER_KEY, JSON.stringify(s));
+      _dirty = false;
+    } catch (e) { /* quota / private mode — memory-only is a valid degrade */ }
+  }
+
+  // ── Fingerprinting ────────────────────────────────────────────────────────
+  // TWO keys per opponent, deliberately.
+  //
+  // `kit:<weapon>/<class>` is exact and high-confidence but only matches someone
+  // holding the identical loadout. `beh:<archetype>` is coarse and matches anyone
+  // who FIGHTS the same way regardless of kit. Reads blend them weighted by
+  // sample count, so a familiar kit dominates when he has seen it and the
+  // behavioural record carries him against a stranger. Without the second key he
+  // would be helpless against every unseen loadout, which is precisely the
+  // "adapts to anyone" requirement.
+  function kitKey(f) {
+    if (!f) return 'kit:unknown/none';
+    return 'kit:' + (f.weaponKey || 'none') + '/' + (f.charClass || 'none');
+  }
+
+  // Archetype from measured behaviour, not from kit. Rates are 0..1 shares of
+  // observed non-idle actions; `air` is the share of frames spent off the ground.
+  // Cut points are calibrated against measured frame shares, not guessed, and the
+  // ORDER matters as much as the values. Measured across scripted opponents:
+  //
+  //   turtle  shield 0.30  air 0.13  close 0.37  dist 185  attack 0.00
+  //   rusher  shield 0.00  air 0.35  close 0.66  dist 131  attack 0.07  appr>>retr
+  //   zoner   shield 0.00  air 0.20  close 0.55  dist 190  attack low
+  //   aerial  shield 0.00  air 0.83  close 0.84  dist  92  attack 0.05
+  //
+  // The first version tested `air > 0.42` first and classified EVERY opponent as
+  // aerial, including a turtle holding shield 30% of the fight — ordinary play
+  // spends more time off the ground than the guess assumed. Guard is checked
+  // first now because it is the least ambiguous signal a fighter emits: nothing
+  // except a turtle holds block.
+  function archetype(rates) {
+    if (!rates) return 'mixed';
+    const { attack = 0, shield = 0, dodge = 0, air = 0, closeShare = 0,
+            approach = 0, retreat = 0, avgDist = 0 } = rates;
+    if (shield + dodge * 0.5 > 0.20)                       return 'turtle';
+    if (air > 0.65)                                        return 'aerial';
+    if (avgDist > 175 && retreat >= approach * 0.9)        return 'zoner';
+    if (approach > retreat * 1.4 && closeShare > 0.55 && attack > 0.035) return 'rusher';
+    return 'mixed';
+  }
+
+  function behKey(arch) { return 'beh:' + (SOV_ARCHETYPES.includes(arch) ? arch : 'mixed'); }
+
+  function get(key) {
+    const s = load();
+    if (!s[key]) s[key] = _blank(key);
+    return s[key];
+  }
+
+  // ── Strategy scoring ──────────────────────────────────────────────────────
+  // Called when a locked counter-strategy expires. `leaked` is how many hits got
+  // through while it was held — the same signal `_strategyFail` already used, now
+  // recorded permanently and per-opponent.
+  function recordStrategy(keys, strategy, leaked) {
+    if (!strategy) return;
+    for (const key of keys) {
+      const r = get(key);
+      const e = r.strat[strategy] || (r.strat[strategy] = { used: 0, leaked: 0, stopped: 0 });
+      e.used++;
+      if (leaked >= 3) e.leaked++;
+      else if (leaked <= 1) e.stopped++;
+      r.lastSeen = Date.now();
+    }
+    _dirty = true;
+  }
+
+  // Prior failure weight for a strategy against this opponent: >0 means it has a
+  // track record of leaking. Blended across the two keys by sample count so the
+  // exact-kit record outvotes the archetype record once it has evidence.
+  function strategyBias(keys, strategy) {
+    let num = 0, den = 0;
+    for (const key of keys) {
+      const r = get(key);
+      const e = r.strat[strategy];
+      if (!e || e.used < 2) continue;
+      const w = Math.min(8, e.used);
+      num += w * ((e.leaked - e.stopped) / e.used);
+      den += w;
+    }
+    return den ? num / den : 0;
+  }
+
+  // Best-known strategy against this opponent, or null when nothing is proven.
+  function bestStrategy(keys, candidates) {
+    let best = null, bestScore = 0.15;   // require a real edge, not noise
+    for (const c of candidates) {
+      const s = -strategyBias(keys, c);
+      if (s > bestScore) { bestScore = s; best = c; }
+    }
+    return best;
+  }
+
+  // ── Dial endpoints ────────────────────────────────────────────────────────
+  // The place a fight drove his dials to IS the learned answer to that opponent.
+  // Storing it lets the next fight START there instead of spending 40 seconds
+  // rediscovering it — which is what makes the adaptation visible within one life
+  // rather than across ten.
+  function recordDials(keys, dials, weight) {
+    const w = Math.max(0.1, Math.min(3, weight || 1));
+    for (const key of keys) {
+      const r = get(key);
+      if (!r.dials) { r.dials = { ...dials }; r.n = w; }
+      else {
+        const a = Math.min(0.5, w / (r.n + w));   // running mean, capped step
+        for (const k of Object.keys(dials)) {
+          if (typeof r.dials[k] !== 'number') r.dials[k] = dials[k];
+          else r.dials[k] += (dials[k] - r.dials[k]) * a;
+        }
+        r.n += w;
+      }
+      r.lastSeen = Date.now();
+    }
+    _dirty = true;
+  }
+
+  function dialPrior(keys) {
+    let acc = null, den = 0;
+    for (const key of keys) {
+      const r = get(key);
+      if (!r.dials || r.n < 0.75) continue;
+      const w = Math.min(6, r.n);
+      if (!acc) acc = { agg: 0, def: 0, spc: 0, rxn: 0 };
+      for (const k of Object.keys(acc)) acc[k] += w * (r.dials[k] || 0);
+      den += w;
+    }
+    if (!acc || !den) return null;
+    for (const k of Object.keys(acc)) acc[k] /= den;
+    acc._confidence = Math.min(1, den / 6);
+    return acc;
+  }
+
+  // ── Loadout results, keyed by opponent ────────────────────────────────────
+  // The bandit added in 4.0.26 learns damage-per-life globally. Against a real
+  // person the right kit is a function of THEIR kit, so the record is filed per
+  // opponent and read back as a prior on the next encounter.
+  function recordLoadout(keys, loadoutKey, dmg) {
+    if (!loadoutKey) return;
+    for (const key of keys) {
+      const r = get(key);
+      const e = r.loadout[loadoutKey] || (r.loadout[loadoutKey] = { n: 0, dmg: 0 });
+      e.n++;
+      e.dmg += (dmg - e.dmg) / e.n;
+      r.lastSeen = Date.now();
+    }
+    _dirty = true;
+  }
+
+  function loadoutPrior(keys, loadoutKey) {
+    let num = 0, den = 0;
+    for (const key of keys) {
+      const r = get(key);
+      const e = r.loadout[loadoutKey];
+      if (!e || !e.n) continue;
+      const w = Math.min(5, e.n);
+      num += w * e.dmg; den += w;
+    }
+    return den ? { mean: num / den, weight: den } : null;
+  }
+
+  function tick() {
+    if (++_saveTimer >= 600) { _saveTimer = 0; save(); }   // ~10s
+  }
+
+  function reset() {
+    _store = {}; _dirty = true;
+    try { localStorage.removeItem(SOV_DOSSIER_KEY); } catch (e) {}
+    console.log('[SovDossier] cleared.');
+  }
+
+  function dump() {
+    const s = load();
+    console.log('[SovDossier]', Object.keys(s).length, 'records');
+    for (const k of Object.keys(s)) {
+      const r = s[k];
+      console.log(` ${k}  n=${(r.n || 0).toFixed(1)}  dials=${r.dials ?
+        Object.keys(r.dials).filter(x => x[0] !== '_').map(x => x + ':' + r.dials[x].toFixed(2)).join(' ') : '—'}`);
+      for (const st of Object.keys(r.strat)) {
+        const e = r.strat[st];
+        console.log(`    ${st}: used ${e.used.toFixed(1)} stopped ${e.stopped.toFixed(1)} leaked ${e.leaked.toFixed(1)}`);
+      }
+    }
+    return s;
+  }
+
+  return { load, save, kitKey, behKey, archetype, get, recordStrategy, strategyBias,
+           bestStrategy, recordDials, dialPrior, recordLoadout, loadoutPrior,
+           tick, reset, dump, _raw: () => load() };
+})();

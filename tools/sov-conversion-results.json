@@ -1,0 +1,2094 @@
+[
+ {
+  "swings": [
+   {
+    "hit": true,
+    "dmg": 15,
+    "commit": {
+     "gap": 37.585334461261255,
+     "vgap": 21.349999999999994,
+     "tvx": 4.935840000000001,
+     "tground": true,
+     "tshield": false
+    },
+    "cause": null
+   },
+   {
+    "hit": true,
+    "dmg": 15,
+    "commit": {
+     "gap": 41.882320956363856,
+     "vgap": 53,
+     "tvx": 0.3743711656409217,
+     "tground": true,
+     "tshield": false
+    },
+    "cause": null
+   },
+   {
+    "hit": true,
+    "dmg": 15,
+    "commit": {
+     "gap": 62.43489671788723,
+     "vgap": 19.45000000000013,
+     "tvx": 0.845292843087731,
+     "tground": false,
+     "tshield": false
+    },
+    "cause": null
+   },
+   {
+    "hit": false,
+    "dmg": 0,
+    "commit": {
+     "gap": 42.68859286500219,
+     "vgap": 121.80000000000001,
+     "tvx": -1.250469314875015,
+     "tground": false,
+     "tshield": false
+    },
+    "cause": "unknown",
+    "gap": 117,
+    "vgap": 13
+   },
+   {
+    "hit": false,
+    "dmg": 0,
+    "commit": {
+     "gap": 43.67075310284292,
+     "vgap": 123,
+     "tvx": -0.8490186460275402,
+     "tground": false,
+     "tshield": false
+    },
+    "cause": "unknown",
+    "gap": 121,
+    "vgap": 14
+   },
+   {
+    "hit": true,
+    "dmg": 22,
+    "commit": {
+     "gap": 44.320879406337326,
+     "vgap": 120.87,
+     "tvx": -0.5764496999068586,
+     "tground": false,
+     "tshield": false
+    },
+    "cause": null
+   },
+   {
+    "hit": false,
+    "dmg": 0,
+    "commit": {
+     "gap": 79.94027565424551,
+     "vgap": 37.75,
+     "tvx": -8.2977602688,
+     "tground": false,
+     "tshield": false
+    },
+    "cause": "unknown",
+    "gap": 120,
+    "vgap": 25
+   },
+   {
+    "hit": false,
+    "dmg": 0,
+    "commit": {
+     "gap": 86.51238990381103,
+     "vgap": 21.063439999999957,
+     "tvx": -5.6338473121044474,
+     "tground": false,
+     "tshield": false
+    },
+    "cause": "unknown",
+    "gap": 123,
+    "vgap": 26
+   },
+   {
+    "hit": false,
+    "dmg": 0,
+    "commit": {
+     "gap": 92.48443107105697,
+     "vgap": 4.3768799999999715,
+     "tvx": -5.312718015314494,
+     "tground": false,
+     "tshield": false
+    },
+    "cause": "unknown",
+    "gap": 125,
+    "vgap": 28
+   },
+   {
+    "hit": false,
+    "dmg": 0,
+    "commit": {
+     "gap": 97.98849916961058,
+     "vgap": 6.709679999999992,
+     "tvx": -5.009893088441568,
+     "tground": false,
+     "tshield": false
+    },
+    "cause": "unknown",
+    "gap": 114,
+    "vgap": 24
+   },
+   {
+    "hit": false,
+    "dmg": 0,
+    "commit": {
+     "gap": 103.10665813514879,
+     "vgap": 8.216240000000028,
+     "tvx": -4.724329182400398,
+     "tground": false,
+     "tshield": false
+    },
+    "cause": "unknown",
+    "gap": 109,
+    "vgap": 13
+   },
+   {
+    "hit": false,
+    "dmg": 0,
+    "commit": {
+     "gap": 125.2036973422895,
+     "vgap": 27.80152000000004,
+     "tvx": -2.2028866773672346,
+     "tground": false,
+     "tshield": false
+    },
+    "cause": "unknown",
+    "gap": 124,
+    "vgap": 0
+   },
+   {
+    "hit": false,
+    "dmg": 0,
+    "commit": {
+     "gap": 125.86862951272519,
+     "vgap": 0,
+     "tvx": 0.23423692528937756,
+     "tground": true,
+     "tshield": false
+    },
+    "cause": "unknown",
+    "gap": 59,
+    "vgap": 0
+   },
+   {
+    "hit": true,
+    "dmg": 15,
+    "commit": {
+     "gap": 10.527368274682885,
+     "vgap": 0,
+     "tvx": -0.00001980003513902746,
+     "tground": true,
+     "tshield": false
+    },
+    "cause": null
+   },
+   {
+    "hit": true,
+    "dmg": 15,
+    "commit": {
+     "gap": 50.72678242683514,
+     "vgap": 0,
+     "tvx": -0.0100915959175319,
+     "tground": true,
+     "tshield": false
+    },
+    "cause": null
+   },
+   {
+    "hit": true,
+    "dmg": 15,
+    "commit": {
+     "gap": 104.16169630558173,
+     "vgap": 0,
+     "tvx": -0.18528140790389766,
+     "tground": true,
+     "tshield": false
+    },
+    "cause": null
+   },
+   {
+    "hit": true,
+    "dmg": 15,
+    "commit": {
+     "gap": 20.959620504562594,
+     "vgap": 14.310000000000002,
+     "tvx": 2.7445933109422063,
+     "tground": false,
+     "tshield": false
+    },
+    "cause": null
+   },
+   {
+    "hit": false,
+    "dmg": 0,
+    "commit": {
+     "gap": 32.11144656035776,
+     "vgap": 0,
+     "tvx": -1.2809115561179862,
+     "tground": true,
+     "tshield": false
+    },
+    "cause": "unknown",
+    "gap": 102,
+    "vgap": 42
+   },
+   {
+    "hit": true,
+    "dmg": 15,
+    "commit": {
+     "gap": 37.262761102356706,
+     "vgap": 0,
+     "tvx": -0.23423692528937756,
+     "tground": true,
+     "tshield": false
+    },
+    "cause": null
+   },
+   {
+    "hit": true,
+    "dmg": 15,
+    "commit": {
+     "gap": 2.3346358984691733,
+     "vgap": 55.599999999999966,
+     "tvx": 4.137770879561505,
+     "tground": false,
+     "tshield": false
+    },
+    "cause": null
+   },
+   {
+    "hit": false,
+    "dmg": 0,
+    "commit": {
+     "gap": 7.141932422216314,
+     "vgap": 29.30000000000001,
+     "tvx": 1.2089823877152703,
+     "tground": true,
+     "tshield": false
+    },
+    "cause": "reversed",
+    "gap": 9,
+    "vgap": 20
+   },
+   {
+    "hit": false,
+    "dmg": 0,
+    "commit": {
+     "gap": 1.263112165685925,
+     "vgap": 87,
+     "tvx": -4.3878800419528154,
+     "tground": false,
+     "tshield": false
+    },
+    "cause": "vertical",
+    "gap": 54,
+    "vgap": 138
+   },
+   {
+    "hit": false,
+    "dmg": 0,
+    "commit": {
+     "gap": 14.70996745750432,
+     "vgap": 87.55000000000001,
+     "tvx": -3.9019179394264993,
+     "tground": false,
+     "tshield": false
+    },
+    "cause": "vertical",
+    "gap": 52,
+    "vgap": 139
+   },
+   {
+    "hit": false,
+    "dmg": 0,
+    "commit": {
+     "gap": 13.691885396930786,
+     "vgap": 86.85000000000002,
+     "tvx": -3.679508616879189,
+     "tground": false,
+     "tshield": false
+    },
+    "cause": "vertical",
+    "gap": 51,
+    "vgap": 138
+   },
+   {
+    "hit": false,
+    "dmg": 0,
+    "commit": {
+     "gap": 38.68638124355846,
+     "vgap": 56.94999999999999,
+     "tvx": -5.54891376,
+     "tground": false,
+     "tshield": false
+    },
+    "cause": "unknown",
+    "gap": 22,
+    "vgap": 1
+   },
+   {
+    "hit": true,
+    "dmg": 15,
+    "commit": {
+     "gap": 21.13168321080076,
+     "vgap": 0,
+     "tvx": -4.935840000000001,
+     "tground": true,
+     "tshield": false
+    },
+    "cause": null
+   },
+   {
+    "hit": true,
+    "dmg": 15,
+    "commit": {
+     "gap": 119.26438356563119,
+     "vgap": 0,
+     "tvx": 0.5983419116785098,
+     "tground": true,
+     "tshield": false
+    },
+    "cause": null
+   },
+   {
+    "hit": true,
+    "dmg": 15,
+    "commit": {
+     "gap": 29.391847842181875,
+     "vgap": 15.120000000000005,
+     "tvx": 3.679508616879189,
+     "tground": false,
+     "tshield": false
+    },
+    "cause": null
+   }
+  ],
+  "aborts": 76,
+  "scored": 3013,
+  "weapon": "spear"
+ },
+ {
+  "swings": [
+   {
+    "hit": false,
+    "dmg": 0,
+    "commit": {
+     "gap": 10.814304318198765,
+     "vgap": 46.64999999999998,
+     "tvx": 0.15017707110019568,
+     "tground": true,
+     "tshield": false
+    },
+    "cause": "vertical",
+    "gap": 6,
+    "vgap": 105
+   },
+   {
+    "hit": true,
+    "dmg": 10,
+    "commit": {
+     "gap": 6.208397761659626,
+     "vgap": 0,
+     "tvx": -0.4057188812579283,
+     "tground": true,
+     "tshield": false
+    },
+    "cause": null
+   },
+   {
+    "hit": true,
+    "dmg": 10,
+    "commit": {
+     "gap": 10.396156780032015,
+     "vgap": 54.02999999999997,
+     "tvx": 1.4052455083929603,
+     "tground": true,
+     "tshield": false
+    },
+    "cause": null
+   },
+   {
+    "hit": true,
+    "dmg": 10,
+    "commit": {
+     "gap": 6.1213205307590215,
+     "vgap": 16.954999999999984,
+     "tvx": -4.8672,
+     "tground": false,
+     "tshield": false
+    },
+    "cause": null
+   },
+   {
+    "hit": true,
+    "dmg": 10,
+    "commit": {
+     "gap": 2.385600467798781,
+     "vgap": 0,
+     "tvx": -0.015063680823235063,
+     "tground": true,
+     "tshield": false
+    },
+    "cause": null
+   },
+   {
+    "hit": true,
+    "dmg": 10,
+    "commit": {
+     "gap": 5.450499588291223,
+     "vgap": 0,
+     "tvx": -0.5201524118691389,
+     "tground": true,
+     "tshield": false
+    },
+    "cause": null
+   },
+   {
+    "hit": true,
+    "dmg": 10,
+    "commit": {
+     "gap": 14.338252861489877,
+     "vgap": 17.954999999999984,
+     "tvx": 0.031742950874161444,
+     "tground": true,
+     "tshield": false
+    },
+    "cause": null
+   },
+   {
+    "hit": false,
+    "dmg": 0,
+    "commit": {
+     "gap": 100.21736402451336,
+     "vgap": 92,
+     "tvx": 0,
+     "tground": true,
+     "tshield": false
+    },
+    "cause": "vertical",
+    "gap": 120,
+    "vgap": 92
+   },
+   {
+    "hit": false,
+    "dmg": 0,
+    "commit": {
+     "gap": 100.21736402451336,
+     "vgap": 92,
+     "tvx": 0,
+     "tground": true,
+     "tshield": false
+    },
+    "cause": "vertical",
+    "gap": 122,
+    "vgap": 92
+   },
+   {
+    "hit": false,
+    "dmg": 0,
+    "commit": {
+     "gap": 100.21736402451336,
+     "vgap": 92,
+     "tvx": 0,
+     "tground": true,
+     "tshield": false
+    },
+    "cause": "vertical",
+    "gap": 124,
+    "vgap": 92
+   },
+   {
+    "hit": false,
+    "dmg": 0,
+    "commit": {
+     "gap": 100.21736402451336,
+     "vgap": 92,
+     "tvx": 0,
+     "tground": true,
+     "tshield": false
+    },
+    "cause": "vertical",
+    "gap": 125,
+    "vgap": 92
+   },
+   {
+    "hit": false,
+    "dmg": 0,
+    "commit": {
+     "gap": 100.21736402451336,
+     "vgap": 92,
+     "tvx": 0,
+     "tground": true,
+     "tshield": false
+    },
+    "cause": "vertical",
+    "gap": 126,
+    "vgap": 92
+   },
+   {
+    "hit": false,
+    "dmg": 0,
+    "commit": {
+     "gap": 100.21736402451336,
+     "vgap": 92,
+     "tvx": 0,
+     "tground": true,
+     "tshield": false
+    },
+    "cause": "vertical",
+    "gap": 126,
+    "vgap": 92
+   },
+   {
+    "hit": false,
+    "dmg": 0,
+    "commit": {
+     "gap": 100.21736402451336,
+     "vgap": 92,
+     "tvx": 0,
+     "tground": true,
+     "tshield": false
+    },
+    "cause": "vertical",
+    "gap": 127,
+    "vgap": 92
+   },
+   {
+    "hit": false,
+    "dmg": 0,
+    "commit": {
+     "gap": 100.21736402451336,
+     "vgap": 92,
+     "tvx": 0,
+     "tground": true,
+     "tshield": false
+    },
+    "cause": "vertical",
+    "gap": 127,
+    "vgap": 92
+   },
+   {
+    "hit": false,
+    "dmg": 0,
+    "commit": {
+     "gap": 100.21736402451336,
+     "vgap": 92,
+     "tvx": 0,
+     "tground": true,
+     "tshield": false
+    },
+    "cause": "vertical",
+    "gap": 127,
+    "vgap": 92
+   },
+   {
+    "hit": false,
+    "dmg": 0,
+    "commit": {
+     "gap": 100.21736402451336,
+     "vgap": 92,
+     "tvx": 0,
+     "tground": true,
+     "tshield": false
+    },
+    "cause": "vertical",
+    "gap": 128,
+    "vgap": 92
+   },
+   {
+    "hit": false,
+    "dmg": 0,
+    "commit": {
+     "gap": 100.21736402451336,
+     "vgap": 92,
+     "tvx": 0,
+     "tground": true,
+     "tshield": false
+    },
+    "cause": "vertical",
+    "gap": 128,
+    "vgap": 92
+   },
+   {
+    "hit": false,
+    "dmg": 0,
+    "commit": {
+     "gap": 82.11092124455945,
+     "vgap": 92,
+     "tvx": 0,
+     "tground": true,
+     "tshield": false
+    },
+    "cause": "vertical",
+    "gap": 97,
+    "vgap": 92
+   },
+   {
+    "hit": false,
+    "dmg": 0,
+    "commit": {
+     "gap": 82.11092124455945,
+     "vgap": 92,
+     "tvx": 0,
+     "tground": true,
+     "tshield": false
+    },
+    "cause": "vertical",
+    "gap": 100,
+    "vgap": 92
+   },
+   {
+    "hit": false,
+    "dmg": 0,
+    "commit": {
+     "gap": 82.11092124455945,
+     "vgap": 92,
+     "tvx": 0,
+     "tground": true,
+     "tshield": false
+    },
+    "cause": "vertical",
+    "gap": 102,
+    "vgap": 92
+   },
+   {
+    "hit": false,
+    "dmg": 0,
+    "commit": {
+     "gap": 82.11092124455945,
+     "vgap": 92,
+     "tvx": 0,
+     "tground": true,
+     "tshield": false
+    },
+    "cause": "vertical",
+    "gap": 102,
+    "vgap": 92
+   },
+   {
+    "hit": false,
+    "dmg": 0,
+    "commit": {
+     "gap": 82.11092124455945,
+     "vgap": 92,
+     "tvx": 0,
+     "tground": true,
+     "tshield": false
+    },
+    "cause": "vertical",
+    "gap": 102,
+    "vgap": 92
+   },
+   {
+    "hit": false,
+    "dmg": 0,
+    "commit": {
+     "gap": 82.11092124455945,
+     "vgap": 92,
+     "tvx": 0,
+     "tground": true,
+     "tshield": false
+    },
+    "cause": "vertical",
+    "gap": 102,
+    "vgap": 92
+   },
+   {
+    "hit": false,
+    "dmg": 0,
+    "commit": {
+     "gap": 82.11092124455945,
+     "vgap": 92,
+     "tvx": 0,
+     "tground": true,
+     "tshield": false
+    },
+    "cause": "vertical",
+    "gap": 102,
+    "vgap": 92
+   },
+   {
+    "hit": false,
+    "dmg": 0,
+    "commit": {
+     "gap": 82.11092124455945,
+     "vgap": 92,
+     "tvx": 0,
+     "tground": true,
+     "tshield": false
+    },
+    "cause": "vertical",
+    "gap": 102,
+    "vgap": 92
+   },
+   {
+    "hit": false,
+    "dmg": 0,
+    "commit": {
+     "gap": 82.11092124455945,
+     "vgap": 92,
+     "tvx": 0,
+     "tground": true,
+     "tshield": false
+    },
+    "cause": "vertical",
+    "gap": 102,
+    "vgap": 92
+   },
+   {
+    "hit": false,
+    "dmg": 0,
+    "commit": {
+     "gap": 82.11092124455945,
+     "vgap": 92,
+     "tvx": 0,
+     "tground": true,
+     "tshield": false
+    },
+    "cause": "vertical",
+    "gap": 102,
+    "vgap": 92
+   },
+   {
+    "hit": true,
+    "dmg": 12,
+    "commit": {
+     "gap": 82.11092124455945,
+     "vgap": 92,
+     "tvx": 0,
+     "tground": true,
+     "tshield": false
+    },
+    "cause": null
+   },
+   {
+    "hit": false,
+    "dmg": 0,
+    "commit": {
+     "gap": 108.5254812189595,
+     "vgap": 92,
+     "tvx": 4.8672,
+     "tground": true,
+     "tshield": false
+    },
+    "cause": "vertical",
+    "gap": 141,
+    "vgap": 92
+   },
+   {
+    "hit": false,
+    "dmg": 0,
+    "commit": {
+     "gap": 113.39268121895952,
+     "vgap": 92,
+     "tvx": 3.7964160000000002,
+     "tground": true,
+     "tshield": false
+    },
+    "cause": "vertical",
+    "gap": 145,
+    "vgap": 92
+   },
+   {
+    "hit": false,
+    "dmg": 0,
+    "commit": {
+     "gap": 117.18909721895955,
+     "vgap": 92,
+     "tvx": 2.96120448,
+     "tground": true,
+     "tshield": false
+    },
+    "cause": "vertical",
+    "gap": 148,
+    "vgap": 92
+   },
+   {
+    "hit": false,
+    "dmg": 0,
+    "commit": {
+     "gap": 120.15030169895954,
+     "vgap": 92,
+     "tvx": 2.3097394944,
+     "tground": true,
+     "tshield": false
+    },
+    "cause": "walked_out",
+    "gap": 150,
+    "vgap": 92
+   },
+   {
+    "hit": false,
+    "dmg": 0,
+    "commit": {
+     "gap": 122.46004119335953,
+     "vgap": 92,
+     "tvx": 1.8015968056320002,
+     "tground": true,
+     "tshield": false
+    },
+    "cause": "walked_out",
+    "gap": 152,
+    "vgap": 92
+   },
+   {
+    "hit": false,
+    "dmg": 0,
+    "commit": {
+     "gap": 124.26163799899155,
+     "vgap": 92,
+     "tvx": 1.4052455083929603,
+     "tground": true,
+     "tshield": false
+    },
+    "cause": "walked_out",
+    "gap": 153,
+    "vgap": 92
+   },
+   {
+    "hit": false,
+    "dmg": 0,
+    "commit": {
+     "gap": 125.66688350738445,
+     "vgap": 92,
+     "tvx": 1.096091496546509,
+     "tground": true,
+     "tshield": false
+    },
+    "cause": "walked_out",
+    "gap": 154,
+    "vgap": 92
+   },
+   {
+    "hit": false,
+    "dmg": 0,
+    "commit": {
+     "gap": 126.76297500393093,
+     "vgap": 92,
+     "tvx": 0.854951367306277,
+     "tground": true,
+     "tshield": false
+    },
+    "cause": "walked_out",
+    "gap": 155,
+    "vgap": 92
+   },
+   {
+    "hit": false,
+    "dmg": 0,
+    "commit": {
+     "gap": 127.61792637123722,
+     "vgap": 92,
+     "tvx": 0.666862066498896,
+     "tground": true,
+     "tshield": false
+    },
+    "cause": "walked_out",
+    "gap": 156,
+    "vgap": 92
+   },
+   {
+    "hit": false,
+    "dmg": 0,
+    "commit": {
+     "gap": 128.2847884377361,
+     "vgap": 92,
+     "tvx": 0.5201524118691389,
+     "tground": true,
+     "tshield": false
+    },
+    "cause": "walked_out",
+    "gap": 156,
+    "vgap": 92
+   },
+   {
+    "hit": false,
+    "dmg": 0,
+    "commit": {
+     "gap": 128.80494084960526,
+     "vgap": 92,
+     "tvx": 0.4057188812579283,
+     "tground": true,
+     "tshield": false
+    },
+    "cause": "walked_out",
+    "gap": 157,
+    "vgap": 92
+   },
+   {
+    "hit": false,
+    "dmg": 0,
+    "commit": {
+     "gap": 129.2106597308632,
+     "vgap": 92,
+     "tvx": 0.3164607273811841,
+     "tground": true,
+     "tshield": false
+    },
+    "cause": "walked_out",
+    "gap": 157,
+    "vgap": 92
+   },
+   {
+    "hit": false,
+    "dmg": 0,
+    "commit": {
+     "gap": 129.52712045824444,
+     "vgap": 92,
+     "tvx": 0.2468393673573236,
+     "tground": true,
+     "tshield": false
+    },
+    "cause": "walked_out",
+    "gap": 157,
+    "vgap": 92
+   },
+   {
+    "hit": false,
+    "dmg": 0,
+    "commit": {
+     "gap": 129.77395982560176,
+     "vgap": 92,
+     "tvx": 0.1925347065387124,
+     "tground": true,
+     "tshield": false
+    },
+    "cause": "walked_out",
+    "gap": 158,
+    "vgap": 92
+   },
+   {
+    "hit": false,
+    "dmg": 0,
+    "commit": {
+     "gap": 129.96649453214047,
+     "vgap": 92,
+     "tvx": 0.15017707110019568,
+     "tground": true,
+     "tshield": false
+    },
+    "cause": "reversed",
+    "gap": 151,
+    "vgap": 92
+   },
+   {
+    "hit": false,
+    "dmg": 0,
+    "commit": {
+     "gap": 136.20649453214048,
+     "vgap": 92,
+     "tvx": 4.8672,
+     "tground": true,
+     "tshield": false
+    },
+    "cause": "reversed",
+    "gap": 147,
+    "vgap": 92
+   },
+   {
+    "hit": false,
+    "dmg": 0,
+    "commit": {
+     "gap": 141.0736945321405,
+     "vgap": 92,
+     "tvx": 3.7964160000000002,
+     "tground": true,
+     "tshield": false
+    },
+    "cause": "reversed",
+    "gap": 143,
+    "vgap": 92
+   },
+   {
+    "hit": false,
+    "dmg": 0,
+    "commit": {
+     "gap": 144.87011053214053,
+     "vgap": 92,
+     "tvx": 2.96120448,
+     "tground": true,
+     "tshield": false
+    },
+    "cause": "reversed",
+    "gap": 140,
+    "vgap": 92
+   },
+   {
+    "hit": false,
+    "dmg": 0,
+    "commit": {
+     "gap": 147.83131501214052,
+     "vgap": 92,
+     "tvx": 2.3097394944,
+     "tground": true,
+     "tshield": false
+    },
+    "cause": "reversed",
+    "gap": 137,
+    "vgap": 92
+   },
+   {
+    "hit": false,
+    "dmg": 0,
+    "commit": {
+     "gap": 150.1410545065405,
+     "vgap": 92,
+     "tvx": 1.8015968056320002,
+     "tground": true,
+     "tshield": false
+    },
+    "cause": "reversed",
+    "gap": 136,
+    "vgap": 92
+   },
+   {
+    "hit": false,
+    "dmg": 0,
+    "commit": {
+     "gap": 151.94265131217253,
+     "vgap": 92,
+     "tvx": 1.4052455083929603,
+     "tground": true,
+     "tshield": false
+    },
+    "cause": "reversed",
+    "gap": 134,
+    "vgap": 92
+   },
+   {
+    "hit": false,
+    "dmg": 0,
+    "commit": {
+     "gap": 153.34789682056544,
+     "vgap": 92,
+     "tvx": 1.096091496546509,
+     "tground": true,
+     "tshield": false
+    },
+    "cause": "reversed",
+    "gap": 133,
+    "vgap": 92
+   },
+   {
+    "hit": false,
+    "dmg": 0,
+    "commit": {
+     "gap": 75.75044458433922,
+     "vgap": 92,
+     "tvx": 0,
+     "tground": true,
+     "tshield": false
+    },
+    "cause": "vertical",
+    "gap": 76,
+    "vgap": 92
+   },
+   {
+    "hit": false,
+    "dmg": 0,
+    "commit": {
+     "gap": 75.75044458433922,
+     "vgap": 92,
+     "tvx": 0,
+     "tground": true,
+     "tshield": false
+    },
+    "cause": "vertical",
+    "gap": 76,
+    "vgap": 92
+   },
+   {
+    "hit": false,
+    "dmg": 0,
+    "commit": {
+     "gap": 75.75044458433922,
+     "vgap": 92,
+     "tvx": 0,
+     "tground": true,
+     "tshield": false
+    },
+    "cause": "vertical",
+    "gap": 76,
+    "vgap": 92
+   },
+   {
+    "hit": false,
+    "dmg": 0,
+    "commit": {
+     "gap": 75.75044458433922,
+     "vgap": 92,
+     "tvx": 0,
+     "tground": true,
+     "tshield": false
+    },
+    "cause": "vertical",
+    "gap": 76,
+    "vgap": 92
+   },
+   {
+    "hit": false,
+    "dmg": 0,
+    "commit": {
+     "gap": 75.75044458433922,
+     "vgap": 92,
+     "tvx": 0,
+     "tground": true,
+     "tshield": false
+    },
+    "cause": "vertical",
+    "gap": 76,
+    "vgap": 92
+   },
+   {
+    "hit": false,
+    "dmg": 0,
+    "commit": {
+     "gap": 75.75044458433922,
+     "vgap": 92,
+     "tvx": 0,
+     "tground": true,
+     "tshield": false
+    },
+    "cause": "vertical",
+    "gap": 76,
+    "vgap": 92
+   },
+   {
+    "hit": false,
+    "dmg": 0,
+    "commit": {
+     "gap": 75.75044458433922,
+     "vgap": 92,
+     "tvx": 0,
+     "tground": true,
+     "tshield": false
+    },
+    "cause": "vertical",
+    "gap": 82,
+    "vgap": 92
+   },
+   {
+    "hit": false,
+    "dmg": 0,
+    "commit": {
+     "gap": 75.75044458433922,
+     "vgap": 92,
+     "tvx": 0,
+     "tground": true,
+     "tshield": false
+    },
+    "cause": "vertical",
+    "gap": 87,
+    "vgap": 92
+   },
+   {
+    "hit": false,
+    "dmg": 0,
+    "commit": {
+     "gap": 75.75044458433922,
+     "vgap": 92,
+     "tvx": 0,
+     "tground": true,
+     "tshield": false
+    },
+    "cause": "vertical",
+    "gap": 91,
+    "vgap": 92
+   },
+   {
+    "hit": false,
+    "dmg": 0,
+    "commit": {
+     "gap": 75.75044458433922,
+     "vgap": 92,
+     "tvx": 0,
+     "tground": true,
+     "tshield": false
+    },
+    "cause": "vertical",
+    "gap": 94,
+    "vgap": 92
+   },
+   {
+    "hit": false,
+    "dmg": 0,
+    "commit": {
+     "gap": 75.75044458433922,
+     "vgap": 92,
+     "tvx": 0,
+     "tground": true,
+     "tshield": false
+    },
+    "cause": "vertical",
+    "gap": 96,
+    "vgap": 92
+   },
+   {
+    "hit": false,
+    "dmg": 0,
+    "commit": {
+     "gap": 102.66504875144562,
+     "vgap": 92,
+     "tvx": 0,
+     "tground": true,
+     "tshield": false
+    },
+    "cause": "vertical",
+    "gap": 121,
+    "vgap": 92
+   },
+   {
+    "hit": false,
+    "dmg": 0,
+    "commit": {
+     "gap": 102.66504875144562,
+     "vgap": 92,
+     "tvx": 0,
+     "tground": true,
+     "tshield": false
+    },
+    "cause": "vertical",
+    "gap": 122,
+    "vgap": 92
+   },
+   {
+    "hit": false,
+    "dmg": 0,
+    "commit": {
+     "gap": 102.66504875144562,
+     "vgap": 92,
+     "tvx": 0,
+     "tground": true,
+     "tshield": false
+    },
+    "cause": "vertical",
+    "gap": 122,
+    "vgap": 92
+   },
+   {
+    "hit": false,
+    "dmg": 0,
+    "commit": {
+     "gap": 102.66504875144562,
+     "vgap": 92,
+     "tvx": 0,
+     "tground": true,
+     "tshield": false
+    },
+    "cause": "vertical",
+    "gap": 122,
+    "vgap": 92
+   },
+   {
+    "hit": false,
+    "dmg": 0,
+    "commit": {
+     "gap": 102.66504875144562,
+     "vgap": 92,
+     "tvx": 0,
+     "tground": true,
+     "tshield": false
+    },
+    "cause": "vertical",
+    "gap": 122,
+    "vgap": 92
+   },
+   {
+    "hit": false,
+    "dmg": 0,
+    "commit": {
+     "gap": 102.66504875144562,
+     "vgap": 92,
+     "tvx": 0,
+     "tground": true,
+     "tshield": false
+    },
+    "cause": "vertical",
+    "gap": 122,
+    "vgap": 92
+   },
+   {
+    "hit": false,
+    "dmg": 0,
+    "commit": {
+     "gap": 102.66504875144562,
+     "vgap": 92,
+     "tvx": 0,
+     "tground": true,
+     "tshield": false
+    },
+    "cause": "vertical",
+    "gap": 122,
+    "vgap": 92
+   },
+   {
+    "hit": false,
+    "dmg": 0,
+    "commit": {
+     "gap": 102.66504875144562,
+     "vgap": 92,
+     "tvx": 0,
+     "tground": true,
+     "tshield": false
+    },
+    "cause": "vertical",
+    "gap": 129,
+    "vgap": 92
+   },
+   {
+    "hit": false,
+    "dmg": 0,
+    "commit": {
+     "gap": 108.90504875144563,
+     "vgap": 92,
+     "tvx": 4.8672,
+     "tground": true,
+     "tshield": false
+    },
+    "cause": "vertical",
+    "gap": 134,
+    "vgap": 92
+   },
+   {
+    "hit": false,
+    "dmg": 0,
+    "commit": {
+     "gap": 112.89615275144558,
+     "vgap": 92,
+     "tvx": 3.1130611200000002,
+     "tground": true,
+     "tshield": false
+    },
+    "cause": "vertical",
+    "gap": 137,
+    "vgap": 92
+   },
+   {
+    "hit": false,
+    "dmg": 0,
+    "commit": {
+     "gap": 115.44886286984558,
+     "vgap": 92,
+     "tvx": 1.991113892352,
+     "tground": true,
+     "tshield": false
+    },
+    "cause": "vertical",
+    "gap": 140,
+    "vgap": 92
+   },
+   {
+    "hit": false,
+    "dmg": 0,
+    "commit": {
+     "gap": 75.92052683838313,
+     "vgap": 92,
+     "tvx": 0,
+     "tground": true,
+     "tshield": false
+    },
+    "cause": "vertical",
+    "gap": 87,
+    "vgap": 92
+   },
+   {
+    "hit": false,
+    "dmg": 0,
+    "commit": {
+     "gap": 75.92052683838313,
+     "vgap": 92,
+     "tvx": 0,
+     "tground": true,
+     "tshield": false
+    },
+    "cause": "vertical",
+    "gap": 91,
+    "vgap": 92
+   },
+   {
+    "hit": false,
+    "dmg": 0,
+    "commit": {
+     "gap": 75.92052683838313,
+     "vgap": 92,
+     "tvx": 0,
+     "tground": true,
+     "tshield": false
+    },
+    "cause": "vertical",
+    "gap": 94,
+    "vgap": 92
+   },
+   {
+    "hit": false,
+    "dmg": 0,
+    "commit": {
+     "gap": 75.92052683838313,
+     "vgap": 92,
+     "tvx": 0,
+     "tground": true,
+     "tshield": false
+    },
+    "cause": "vertical",
+    "gap": 96,
+    "vgap": 92
+   },
+   {
+    "hit": false,
+    "dmg": 0,
+    "commit": {
+     "gap": 75.92052683838313,
+     "vgap": 92,
+     "tvx": 0,
+     "tground": true,
+     "tshield": false
+    },
+    "cause": "vertical",
+    "gap": 98,
+    "vgap": 92
+   },
+   {
+    "hit": false,
+    "dmg": 0,
+    "commit": {
+     "gap": 75.92052683838313,
+     "vgap": 92,
+     "tvx": 0,
+     "tground": true,
+     "tshield": false
+    },
+    "cause": "vertical",
+    "gap": 99,
+    "vgap": 92
+   },
+   {
+    "hit": false,
+    "dmg": 0,
+    "commit": {
+     "gap": 75.92052683838313,
+     "vgap": 92,
+     "tvx": 0,
+     "tground": true,
+     "tshield": false
+    },
+    "cause": "vertical",
+    "gap": 100,
+    "vgap": 92
+   },
+   {
+    "hit": false,
+    "dmg": 0,
+    "commit": {
+     "gap": 75.92052683838313,
+     "vgap": 92,
+     "tvx": 0,
+     "tground": true,
+     "tshield": false
+    },
+    "cause": "vertical",
+    "gap": 101,
+    "vgap": 92
+   },
+   {
+    "hit": false,
+    "dmg": 0,
+    "commit": {
+     "gap": 75.92052683838313,
+     "vgap": 92,
+     "tvx": 0,
+     "tground": true,
+     "tshield": false
+    },
+    "cause": "vertical",
+    "gap": 102,
+    "vgap": 92
+   },
+   {
+    "hit": false,
+    "dmg": 0,
+    "commit": {
+     "gap": 75.92052683838313,
+     "vgap": 92,
+     "tvx": 0,
+     "tground": true,
+     "tshield": false
+    },
+    "cause": "vertical",
+    "gap": 102,
+    "vgap": 92
+   },
+   {
+    "hit": false,
+    "dmg": 0,
+    "commit": {
+     "gap": 75.92052683838313,
+     "vgap": 92,
+     "tvx": 0,
+     "tground": true,
+     "tshield": false
+    },
+    "cause": "vertical",
+    "gap": 103,
+    "vgap": 92
+   },
+   {
+    "hit": false,
+    "dmg": 0,
+    "commit": {
+     "gap": 98.8784226672019,
+     "vgap": 289.49899999999997,
+     "tvx": 10.56,
+     "tground": false,
+     "tshield": false
+    },
+    "cause": "vertical",
+    "gap": 102,
+    "vgap": 225
+   },
+   {
+    "hit": false,
+    "dmg": 0,
+    "commit": {
+     "gap": 107.53762266720196,
+     "vgap": 274.544,
+     "tvx": 8.139648,
+     "tground": false,
+     "tshield": false
+    },
+    "cause": "reversed",
+    "gap": 114,
+    "vgap": 234
+   },
+   {
+    "hit": false,
+    "dmg": 0,
+    "commit": {
+     "gap": 119.35684738348994,
+     "vgap": 247.76899999999995,
+     "tvx": 4.836030554910718,
+     "tground": false,
+     "tshield": false
+    },
+    "cause": "reversed",
+    "gap": 114,
+    "vgap": 254
+   },
+   {
+    "hit": false,
+    "dmg": 0,
+    "commit": {
+     "gap": 126.37903456693141,
+     "vgap": 225.17399999999998,
+     "tvx": 2.8732436007097695,
+     "tground": false,
+     "tshield": false
+    },
+    "cause": "reversed",
+    "gap": 114,
+    "vgap": 279
+   },
+   {
+    "hit": false,
+    "dmg": 0,
+    "commit": {
+     "gap": 130.55114517680363,
+     "vgap": 206.75899999999996,
+     "tvx": 1.7070878058528007,
+     "tground": false,
+     "tshield": false
+    },
+    "cause": "vertical",
+    "gap": 102,
+    "vgap": 295
+   },
+   {
+    "hit": false,
+    "dmg": 0,
+    "commit": {
+     "gap": 133.02993226781905,
+     "vgap": 194,
+     "tvx": -12,
+     "tground": false,
+     "tshield": false
+    },
+    "cause": "reversed",
+    "gap": 123,
+    "vgap": 266
+   },
+   {
+    "hit": false,
+    "dmg": 0,
+    "commit": {
+     "gap": 11.426510219008037,
+     "vgap": 252.88400000000001,
+     "tvx": 8.770967039999999,
+     "tground": false,
+     "tshield": false
+    },
+    "cause": "reversed",
+    "gap": 14,
+    "vgap": 234
+   },
+   {
+    "hit": true,
+    "dmg": 10,
+    "commit": {
+     "gap": 28.442186276608027,
+     "vgap": 230.28900000000004,
+     "tvx": 7.750026476543998,
+     "tground": false,
+     "tshield": false
+    },
+    "cause": null
+   },
+   {
+    "hit": false,
+    "dmg": 0,
+    "commit": {
+     "gap": 9.737013723392124,
+     "vgap": 272.809,
+     "tvx": -8.139648,
+     "tground": false,
+     "tshield": false
+    },
+    "cause": "reversed",
+    "gap": 3,
+    "vgap": 159
+   },
+   {
+    "hit": false,
+    "dmg": 0,
+    "commit": {
+     "gap": 6.934485375703616,
+     "vgap": 213.709,
+     "tvx": -2.21469616742709,
+     "tground": false,
+     "tshield": false
+    },
+    "cause": "vertical",
+    "gap": 9,
+    "vgap": 102
+   },
+   {
+    "hit": false,
+    "dmg": 0,
+    "commit": {
+     "gap": 10.150348233793125,
+     "vgap": 197.38400000000001,
+     "tvx": -1.3158232807513386,
+     "tground": false,
+     "tshield": false
+    },
+    "cause": "reversed",
+    "gap": 12,
+    "vgap": 107
+   },
+   {
+    "hit": false,
+    "dmg": 0,
+    "commit": {
+     "gap": 12.060997323547781,
+     "vgap": 185.23899999999998,
+     "tvx": -0.7817735595662538,
+     "tground": false,
+     "tshield": false
+    },
+    "cause": "reversed",
+    "gap": 12,
+    "vgap": 116
+   },
+   {
+    "hit": false,
+    "dmg": 0,
+    "commit": {
+     "gap": 14.39372599332637,
+     "vgap": 268.26,
+     "tvx": 10.34,
+     "tground": false,
+     "tshield": false
+    },
+    "cause": "vertical",
+    "gap": 107,
+    "vgap": 248
+   },
+   {
+    "hit": false,
+    "dmg": 0,
+    "commit": {
+     "gap": 25.069852598547186,
+     "vgap": 218.89,
+     "tvx": 8.072944246399999,
+     "tground": false,
+     "tshield": false
+    },
+    "cause": "reversed",
+    "gap": 119,
+    "vgap": 286
+   },
+   {
+    "hit": false,
+    "dmg": 0,
+    "commit": {
+     "gap": 40.731364436563126,
+     "vgap": 200.47499999999997,
+     "tvx": 7.133253536119038,
+     "tground": false,
+     "tshield": false
+    },
+    "cause": "reversed",
+    "gap": 98,
+    "vgap": 257
+   },
+   {
+    "hit": false,
+    "dmg": 0,
+    "commit": {
+     "gap": 59.86461797268214,
+     "vgap": 195.80900000000003,
+     "tvx": 12,
+     "tground": false,
+     "tshield": false
+    },
+    "cause": "reversed",
+    "gap": 80,
+    "vgap": 232
+   },
+   {
+    "hit": false,
+    "dmg": 0,
+    "commit": {
+     "gap": 83.86461797268214,
+     "vgap": 202.562,
+     "tvx": 12,
+     "tground": false,
+     "tshield": false
+    },
+    "cause": "reversed",
+    "gap": 64,
+    "vgap": 212
+   },
+   {
+    "hit": false,
+    "dmg": 0,
+    "commit": {
+     "gap": 107.86461797268214,
+     "vgap": 213.495,
+     "tvx": 12,
+     "tground": false,
+     "tshield": false
+    },
+    "cause": "reversed",
+    "gap": 50,
+    "vgap": 195
+   },
+   {
+    "hit": false,
+    "dmg": 0,
+    "commit": {
+     "gap": 107.86461797268214,
+     "vgap": 228.608,
+     "tvx": 12,
+     "tground": false,
+     "tshield": false
+    },
+    "cause": "reversed",
+    "gap": 42,
+    "vgap": 196
+   },
+   {
+    "hit": false,
+    "dmg": 0,
+    "commit": {
+     "gap": 106.86461797268214,
+     "vgap": 247.901,
+     "tvx": 12,
+     "tground": false,
+     "tshield": false
+    },
+    "cause": "reversed",
+    "gap": 21,
+    "vgap": 202
+   },
+   {
+    "hit": false,
+    "dmg": 0,
+    "commit": {
+     "gap": 106.86461797268214,
+     "vgap": 271.374,
+     "tvx": 12,
+     "tground": false,
+     "tshield": false
+    },
+    "cause": "vertical",
+    "gap": 15,
+    "vgap": 213
+   },
+   {
+    "hit": false,
+    "dmg": 0,
+    "commit": {
+     "gap": 118.86461797268214,
+     "vgap": 285.723,
+     "tvx": -10.56,
+     "tground": false,
+     "tshield": false
+    },
+    "cause": "reversed",
+    "gap": 15,
+    "vgap": 228
+   },
+   {
+    "hit": false,
+    "dmg": 0,
+    "commit": {
+     "gap": 99.76112493199116,
+     "vgap": 269.66499999999996,
+     "tvx": -8.139648,
+     "tground": false,
+     "tshield": false
+    },
+    "cause": "vertical",
+    "gap": 116,
+    "vgap": 234
+   },
+   {
+    "hit": false,
+    "dmg": 0,
+    "commit": {
+     "gap": 93.08661357199117,
+     "vgap": 255.75499999999994,
+     "tvx": -6.274040678399999,
+     "tground": false,
+     "tshield": false
+    },
+    "cause": "reversed",
+    "gap": 105,
+    "vgap": 244
+   },
+   {
+    "hit": false,
+    "dmg": 0,
+    "commit": {
+     "gap": 87.94190021570319,
+     "vgap": 242.88999999999993,
+     "tvx": -4.836030554910718,
+     "tground": false,
+     "tshield": false
+    },
+    "cause": "vertical",
+    "gap": 117,
+    "vgap": 254
+   },
+   {
+    "hit": false,
+    "dmg": 0,
+    "commit": {
+     "gap": 83.97635516067635,
+     "vgap": 231.06999999999994,
+     "tvx": -3.7276123517251816,
+     "tground": false,
+     "tshield": false
+    },
+    "cause": "reversed",
+    "gap": 105,
+    "vgap": 266
+   },
+   {
+    "hit": false,
+    "dmg": 0,
+    "commit": {
+     "gap": 80.91971303226171,
+     "vgap": 220.29499999999996,
+     "tvx": -2.8732436007097695,
+     "tground": false,
+     "tshield": false
+    },
+    "cause": "vertical",
+    "gap": 117,
+    "vgap": 279
+   },
+   {
+    "hit": false,
+    "dmg": 0,
+    "commit": {
+     "gap": 78.56365327967967,
+     "vgap": 210.56499999999994,
+     "tvx": -2.21469616742709,
+     "tground": false,
+     "tshield": false
+    },
+    "cause": "vertical",
+    "gap": 105,
+    "vgap": 293
+   },
+   {
+    "hit": false,
+    "dmg": 0,
+    "commit": {
+     "gap": 76.74760242238949,
+     "vgap": 201.87999999999994,
+     "tvx": -1.7070878058528007,
+     "tground": false,
+     "tshield": false
+    },
+    "cause": "reversed",
+    "gap": 105,
+    "vgap": 295
+   },
+   {
+    "hit": false,
+    "dmg": 0,
+    "commit": {
+     "gap": 75.34779042159016,
+     "vgap": 194.23999999999995,
+     "tvx": -1.3158232807513386,
+     "tground": false,
+     "tshield": false
+    },
+    "cause": "reversed",
+    "gap": 115,
+    "vgap": 280
+   },
+   {
+    "hit": false,
+    "dmg": 0,
+    "commit": {
+     "gap": 74.26881533137407,
+     "vgap": 194,
+     "tvx": 12,
+     "tground": false,
+     "tshield": false
+    },
+    "cause": "vertical",
+    "gap": 125,
+    "vgap": 266
+   },
+   {
+    "hit": false,
+    "dmg": 0,
+    "commit": {
+     "gap": 84.1088153313741,
+     "vgap": 194,
+     "tvx": 12,
+     "tground": false,
+     "tshield": false
+    },
+    "cause": "vertical",
+    "gap": 135,
+    "vgap": 253
+   },
+   {
+    "hit": false,
+    "dmg": 0,
+    "commit": {
+     "gap": 93.94881533137413,
+     "vgap": 196.5405,
+     "tvx": 12,
+     "tground": false,
+     "tshield": false
+    },
+    "cause": "vertical",
+    "gap": 143,
+    "vgap": 241
+   },
+   {
+    "hit": false,
+    "dmg": 0,
+    "commit": {
+     "gap": 110.36230287472063,
+     "vgap": 287.85999999999996,
+     "tvx": -10.56,
+     "tground": false,
+     "tshield": false
+    },
+    "cause": "reversed",
+    "gap": 107,
+    "vgap": 225
+   },
+   {
+    "hit": false,
+    "dmg": 0,
+    "commit": {
+     "gap": 101.70310287472057,
+     "vgap": 272.905,
+     "tvx": -8.139648,
+     "tground": false,
+     "tshield": false
+    },
+    "cause": "vertical",
+    "gap": 119,
+    "vgap": 234
+   },
+   {
+    "hit": false,
+    "dmg": 0,
+    "commit": {
+     "gap": 89.8838781584326,
+     "vgap": 246.12999999999994,
+     "tvx": -4.836030554910718,
+     "tground": false,
+     "tshield": false
+    },
+    "cause": "vertical",
+    "gap": 119,
+    "vgap": 254
+   },
+   {
+    "hit": false,
+    "dmg": 0,
+    "commit": {
+     "gap": 82.86169097499112,
+     "vgap": 223.53499999999997,
+     "tvx": -2.8732436007097695,
+     "tground": false,
+     "tshield": false
+    },
+    "cause": "vertical",
+    "gap": 119,
+    "vgap": 279
+   },
+   {
+    "hit": false,
+    "dmg": 0,
+    "commit": {
+     "gap": 78.6895803651189,
+     "vgap": 205.11999999999995,
+     "tvx": -1.7070878058528007,
+     "tground": false,
+     "tshield": false
+    },
+    "cause": "reversed",
+    "gap": 107,
+    "vgap": 295
+   },
+   {
+    "hit": false,
+    "dmg": 0,
+    "commit": {
+     "gap": 76.21079327410348,
+     "vgap": 194,
+     "tvx": 12,
+     "tground": false,
+     "tshield": false
+    },
+    "cause": "vertical",
+    "gap": 127,
+    "vgap": 266
+   }
+  ],
+  "aborts": 963,
+  "scored": 3012,
+  "weapon": "whip"
+ },
+ {
+  "swings": [],
+  "aborts": 0,
+  "scored": 3043,
+  "weapon": "sword"
+ }
+]

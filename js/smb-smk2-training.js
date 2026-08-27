@@ -257,6 +257,82 @@ const SMK2Trainer = (() => {
   }
 
   // ── Diagnostic match counter (shared across all _runMatch calls) ─────────
+  // ── SCRIPTED ARCHETYPE PANEL ────────────────────────────────────────────
+  // Why this exists: the trainer's duel opponent is one Fighter AI holding a
+  // random weapon, and measurement showed those opponents are behaviourally
+  // IDENTICAL to each other — across 12 trials their attack rate (0.02-0.09),
+  // airborne share (0.22-0.87) and close share (0.53-0.94) overlapped almost
+  // completely. A genome trained against them can only learn "beat the bot",
+  // which is why the champion generalizes to nothing. Real opponents differ by
+  // BEHAVIOUR, so the panel supplies behaviour directly.
+  //
+  // Physics, damage, collision and every combat rule still run normally — only
+  // the decision function is replaced, so each panel member is a real fighter
+  // that happens to be predictable in a specific, nameable way.
+  // EVERY panel member carries the SAME kit. The first version varied weapon and
+  // class alongside policy, which made the panel measure nothing cleanly — and it
+  // shipped a live bug while doing so: `assassin` is not a key in CLASSES, so
+  // applyClass() bailed silently (the same silent-bail that once left 104 story
+  // enemies classless) and that puppet kept default 150 HP against the
+  // berserker's 130. After the 1.6x duel buff that is 240 vs 208, so the
+  // archetype that "beat" Sovereign 10-0 was also the one carrying 15% more
+  // health. Holding the kit fixed is what makes a difference in win rate
+  // attributable to BEHAVIOUR, which is the only thing this panel is for.
+  const SMK2_PANEL = [
+    { name: 'turtle', w: 'sword', c: 'none', policy: 'turtle' },
+    { name: 'rusher', w: 'sword', c: 'none', policy: 'rusher' },
+    { name: 'zoner',  w: 'sword', c: 'none', policy: 'zoner'  },
+    { name: 'aerial', w: 'sword', c: 'none', policy: 'aerial' },
+  ];
+
+  function _applyPolicy(f, policy) {
+    if (!f || !policy) return;
+    f._policy = policy;
+    f.updateAI = function () {
+      const t = this.target;
+      if (!t || t.health <= 0) return;
+      const dx = t.cx() - this.cx();
+      const d  = Math.abs(dx);
+      const dir = Math.sign(dx) || 1;
+      this.facing = dir;
+      const spd = 4.6;
+      // Every policy can recover from a launch. Without this a single knockback
+      // strands the puppet airborne for the rest of the match and the sample is
+      // worthless (measured: one trial spent 100% of its frames off the ground).
+      if (!this.onGround && this.canDoubleJump && this.vy > 2) { this.vy = -12; this.canDoubleJump = false; }
+      switch (policy) {
+        case 'turtle':
+          this.shielding = d < 170;
+          if (d < 130) this.vx = -dir * spd * 0.8; else this.vx *= 0.8;
+          if (d < 85 && this.cooldown <= 0 && Math.random() < 0.25) { this.shielding = false; this.attack(t); }
+          break;
+        case 'rusher':
+          this.shielding = false;
+          this.vx = dir * spd * 1.15;
+          if (this.onGround && Math.random() < 0.02) this.vy = -13;
+          if (d < 95 && this.cooldown <= 0) this.attack(t);
+          break;
+        case 'zoner':
+          // Band is tied to the weapon's own reach rather than to fixed pixels, so
+          // the policy still means "stay at the edge of my range" whatever kit the
+          // panel holds.
+          this.shielding = false;
+          { const R = (this.weapon && this.weapon.range) || 90;
+            if (d < R * 0.95) this.vx = -dir * spd;
+            else if (d > R * 1.9) this.vx = dir * spd * 0.6;
+            else this.vx *= 0.7;
+            if (d < R * 1.05 && this.cooldown <= 0) this.attack(t); }
+          break;
+        case 'aerial':
+          this.shielding = false;
+          this.vx = dir * spd * 0.9;
+          if (this.onGround) this.vy = -15;
+          if (d < 110 && this.cooldown <= 0) this.attack(t);
+          break;
+      }
+    };
+  }
+
   let _matchSeq = 0;
 
   // ── Single headless match ───────────────────────────────────────────────
@@ -293,8 +369,11 @@ const SMK2Trainer = (() => {
     const bots   = [];
 
     const pool = duel ? _DUEL_LOADOUTS : _LOADOUTS;
+    // Panel mode: one scripted opponent of a named archetype, instead of a
+    // seeded random loadout. Implies duel.
+    const panel = _o.panel || null;
     for (let i = 0; i < numBots; i++) {
-      const ld  = pool[Math.floor(rng() * pool.length)];
+      const ld  = (panel && i === 0) ? { w: panel.w, c: panel.c } : pool[Math.floor(rng() * pool.length)];
       const _bx = duel ? 700 : (spawns[i] || 300 + i * 120);
       // ── Duel opponent strength ────────────────────────────────────────────
       // The sim's core problem, measured 2026-08-23: no AI opponent available
@@ -315,8 +394,15 @@ const SMK2Trainer = (() => {
       bot.aiDiff       = duel ? 'expert' : 'hard';
       bot.intelligence = duel ? 0.99 : 0.92;
       if (duel) {
-        bot.dmgMult = DUEL_BUFF.dmg;
-        bot.maxHealth = Math.round(bot.maxHealth * DUEL_BUFF.hp);
+        // `noBuff` exists as a CONTROL, not a convenience. The panel archetypes
+        // differ in how often they attack, and DUEL_BUFF multiplies every attack
+        // by 2.2 — so "Sovereign loses to aggressive archetypes" and "Sovereign
+        // loses to whichever archetype cashes in the damage buff most often" are
+        // the same measurement unless the buff can be switched off. Any claim
+        // about a behavioural weakness has to survive this control.
+        const _bf = _o.noBuff ? { dmg: 1, hp: 1 } : DUEL_BUFF;
+        bot.dmgMult = _bf.dmg;
+        bot.maxHealth = Math.round(bot.maxHealth * _bf.hp);
         bot.health    = bot.maxHealth;
         // THE important one. Stat buffs barely moved lockout (5.7% -> 4.1% as
         // damage went 2.2x -> 5x) because lockout comes from CHAINED hits, not
@@ -324,15 +410,18 @@ const SMK2Trainer = (() => {
         // hit is plausible, so they never chain. A human does. Removing the
         // guard for the opponent alone roughly doubled lockout. Per-fighter, so
         // Sovereign keeps his own guard intact.
-        bot._noWhiffGuard = true;
+        bot._noWhiffGuard = !_o.noBuff;
       }
       bot._teamId      = 'sim_bots'; // shared team → areAlliedEntities() blocks bot-vs-bot damage
       // AdaptiveAI names itself 'SOVEREIGN' in its constructor — rename so match
       // logs don't show two of him.
-      bot.name         = duel ? ('DUEL:' + ld.c) : ('BOT' + (i + 1));
+      bot.name         = (panel && i === 0) ? ('PANEL:' + panel.name) : (duel ? ('DUEL:' + ld.c) : ('BOT' + (i + 1)));
       bot.target       = sov;
       if (duel) bot.lives = OPP_LIVES;
       _applyBotClass(bot, ld.c);
+      // Applied AFTER class setup: _applyBotClass can touch stats but never the
+      // decision function, and the policy must be the last word on updateAI.
+      if (panel && i === 0) _applyPolicy(bot, panel.policy);
       bots.push(bot);
     }
 
@@ -728,6 +817,147 @@ const SMK2Trainer = (() => {
     finally { _restoreEnv(); }
   }
 
-  return { run, stop, stressTest, evalVsDefault, mutate, saveChampion, loadChampion, resetChampion, runMatch,
+  // ══ PANEL EVOLUTION — crossover over a behavioural opponent panel ══════════
+  //
+  // The existing run() is a (1+1) hill-climber: one champion, one mutated
+  // challenger, promote or hold. It has no population and no crossover, so the
+  // only way it can combine two good ideas is to stumble on both in the same
+  // random mutation. And it evaluates against a single opponent pool, so what it
+  // selects for is "beats this bot" rather than "beats anyone".
+  //
+  // This is the other thing. Each genome is scored against EVERY panel archetype
+  // and carries a fitness VECTOR. Two facts follow from that, and both matter:
+  //
+  //   • Ranking is by WORST-CASE panel score, not the mean. "Beats everyone" is a
+  //     worst-case property. A genome that dismantles three archetypes and folds
+  //     to the fourth has an excellent mean and is exactly the genome that loses
+  //     to the one player who happens to fight that way.
+  //
+  //   • Parents are chosen to be COMPLEMENTARY — one strong where the other is
+  //     weak — and crossed gene by gene. That is the "pair a Sovereign adapted to
+  //     one opponent with a Sovereign adapted to another" idea: the pairing is
+  //     what lets a strength discovered against a turtle combine with one
+  //     discovered against a rusher, instead of the two competing.
+  //
+  // Honest limits, stated up front: the panel is four scripted policies, not four
+  // humans. Selecting for worst-case over THIS panel proves robustness across
+  // these four behaviours and nothing wider. A human who fights in a way the
+  // panel does not contain is outside what this measures.
+
+  function crossover(a, b, rng) {
+    const R = rng || Math.random;
+    const out = {};
+    for (const key of Object.keys(SMK2_DEFAULT_GENOME)) {
+      const [lo, hi] = SMK2_GENOME_RANGES[key];
+      // Blend crossover (BLX): sample between the parents with a little overshoot
+      // so the child can land just outside the segment they span. Pure gene-swap
+      // uniform crossover can only ever produce corners of the box the parents
+      // define, which stalls the moment the population converges on each axis.
+      const t = R() * 1.4 - 0.2;
+      out[key] = Math.max(lo, Math.min(hi, a[key] + (b[key] - a[key]) * t));
+    }
+    return out;
+  }
+
+  // Score one genome against the whole panel. Returns { vec, worst, mean }.
+  function _evalPanel(genome, seeds) {
+    const vec = {};
+    for (const p of SMK2_PANEL) {
+      let sum = 0;
+      for (const seed of seeds) {
+        const r = _runMatch(genome, 1, seed, { duel: true, panel: p });
+        sum += r.fitness;
+      }
+      vec[p.name] = sum / seeds.length;
+    }
+    const vals = Object.values(vec);
+    return { vec, worst: Math.min(...vals), mean: vals.reduce((a, b) => a + b, 0) / vals.length };
+  }
+
+  // Pick two parents that cover for each other: the best overall, then whoever is
+  // strongest on the panel member the first one is WORST against.
+  function _pickComplementaryParents(scored) {
+    const a = scored[0];
+    let weakest = null, weakestVal = Infinity;
+    for (const k of Object.keys(a.score.vec)) {
+      if (a.score.vec[k] < weakestVal) { weakestVal = a.score.vec[k]; weakest = k; }
+    }
+    let b = null, bestOnWeak = -Infinity;
+    for (const c of scored.slice(1)) {
+      if (c.score.vec[weakest] > bestOnWeak) { bestOnWeak = c.score.vec[weakest]; b = c; }
+    }
+    return { a, b: b || scored[1] || scored[0], weakest };
+  }
+
+  function evolvePanel(gens = 8, matchesPer = 2, popSize = 6) {
+    if (_running) { console.warn('[SMK2Trainer] Already running.'); return; }
+    _running = true; _matchSeq = 0; _stubEnv();
+
+    const start = loadChampion();
+    let pop = [start, ...Array.from({ length: popSize - 1 }, () => mutate(start, 0.12))];
+    let gen = 0;
+    let best = { g: start, score: null };
+
+    console.log(`[SMK2Trainer] PANEL evolution: ${gens} gen x pop ${popSize} x ${matchesPer} matches x ${SMK2_PANEL.length} archetypes`);
+    console.log(`[SMK2Trainer] = ${gens * popSize * matchesPer * SMK2_PANEL.length} sim matches. Ranking by WORST-CASE panel score.`);
+
+    function _tick() {
+      if (!_running || gen >= gens) {
+        _restoreEnv(); _running = false;
+        if (best.score) {
+          console.log('[SMK2Trainer] Panel evolution done. Best worst-case:', Math.round(best.score.worst));
+          console.log('  per-archetype:', Object.entries(best.score.vec).map(([k, v]) => `${k} ${Math.round(v)}`).join('  '));
+          console.log('  genome:', JSON.stringify(best.g));
+          console.log('  NOT saved as champion — call SMK2Trainer.saveChampion(g) to adopt it.');
+        }
+        _panelResult = best;
+        // Surfaced for the headless driver (tools/sov-evolve.js) to read.
+        try { window.__sovEvolveBest = best.score ? { genome: best.g, vec: best.score.vec, worst: best.score.worst } : null;
+              window.__sovEvolveDone = true; } catch (e) {}
+        return;
+      }
+      const seeds = Array.from({ length: matchesPer }, () => Math.random() * 1e9 | 0);
+      const scored = pop.map(g => ({ g, score: _evalPanel(g, seeds) }))
+                        .sort((x, y) => y.score.worst - x.score.worst);
+
+      if (!best.score || scored[0].score.worst > best.score.worst) best = scored[0];
+
+      const { a, b, weakest } = _pickComplementaryParents(scored);
+      console.log(`[SMK2Trainer] Gen ${gen + 1}: worst-case ${Math.round(scored[0].score.worst)} ` +
+        `(${Object.entries(scored[0].score.vec).map(([k, v]) => `${k} ${Math.round(v)}`).join(' ')})  ` +
+        `| pairing best with strongest-vs-${weakest}`);
+
+      // Next generation: both parents survive intact (elitism — a crossover can
+      // be worse than either parent and losing them to it wastes the generation),
+      // plus crossed children, plus one fresh mutant for diversity.
+      const next = [a.g, b.g];
+      while (next.length < popSize - 1) next.push(mutate(crossover(a.g, b.g), 0.05));
+      next.push(mutate(start, 0.15));
+      pop = next;
+      gen++;
+      setTimeout(_tick, 0);
+    }
+    setTimeout(_tick, 0);
+  }
+
+  let _panelResult = null;
+
+  // Adopt the last panel-evolution winner as champion, but only after it beats
+  // the incumbent on a fresh panel batch. Same discipline as run()'s final
+  // gatekeeper: training must never regress what is saved.
+  function adoptPanelWinner(matchesPer = 3) {
+    if (!_panelResult || !_panelResult.g) { console.warn('[SMK2Trainer] No panel result — run evolvePanel() first.'); return false; }
+    _stubEnv();
+    const seeds = Array.from({ length: matchesPer }, () => Math.random() * 1e9 | 0);
+    const inc = _evalPanel(loadChampion(), seeds);
+    const chal = _evalPanel(_panelResult.g, seeds);
+    _restoreEnv();
+    console.log(`[SMK2Trainer] adopt check — incumbent worst ${Math.round(inc.worst)}, challenger worst ${Math.round(chal.worst)}`);
+    if (chal.worst > inc.worst) { saveChampion(_panelResult.g); console.log('[SMK2Trainer] ADOPTED.'); return true; }
+    console.log('[SMK2Trainer] rejected — incumbent keeps the slot.');
+    return false;
+  }
+
+  return { run, stop, stressTest, evalVsDefault, mutate, saveChampion, loadChampion, resetChampion, runMatch, evolvePanel, adoptPanelWinner, crossover, SMK2_PANEL,
            DUEL_BUFF };
 })();
