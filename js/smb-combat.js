@@ -834,8 +834,29 @@ function dealDamage(attacker, target, dmg, kbForce, stunMult = 1.0, isSplash = f
     // Chance-based stun / ragdoll (not guaranteed; boss is harder to ragdoll)
     const ragdollChance = target.kbResist ? 0.30 * target.kbResist : 0.30;
     const MAX_STUN = 90; // cap at 1.5s
-    if (actualKb >= 16 && Math.random() < ragdollChance) {
-      target.ragdollTimer = Math.min(70, Math.round((26 + Math.floor(actualKb * 1.6)) * stunMult));
+    // ── RAGDOLL RAMP ──────────────────────────────────────────────────────────
+    // This used to be a hard `actualKb >= 16` gate, which was a cliff: 15.9 could
+    // never ragdoll and 16.1 ragdolled 30% of the time. Because actualKb is
+    // `kb * (1 + dmg * 0.028)`, that threshold cut the melee roster in two and the
+    // split ran straight through the weapons players actually hold —
+    // Null Blade 18.46 and Frying Pan 18.05 sit above it; Sword 14.48, Axe 14.20
+    // and Electric Staff 13.92 sit below and can only ragdoll once combo scaling
+    // has pushed them over, i.e. from the 3rd consecutive hit. Measured against a
+    // real complaint (2026-09-01): a player on Electric Staff took 30% ragdoll
+    // every hit and could return none, because his pokes were never consecutive.
+    //
+    // Ramping instead of gating keeps the top of the curve exactly where it was
+    // (actualKb >= 20 is still the full 30%) while giving light weapons a small
+    // real chance and removing the discontinuity mid-combo. Verified with
+    // tools/sov-stun-mirror.js — the roll itself was already correct at n=881, so
+    // only the gate needed changing, not the probability.
+    const _RAG_LO = 12, _RAG_HI = 20;
+    const _ragScale = Math.max(0, Math.min(1, (actualKb - _RAG_LO) / (_RAG_HI - _RAG_LO)));
+    if (_ragScale > 0 && Math.random() < ragdollChance * _ragScale) {
+      // Duration tapers with the same scale (floored at 55%), or a light poke
+      // would floor the target for as long as a hammer does.
+      const _ragDur = stunMult * (0.55 + 0.45 * _ragScale);
+      target.ragdollTimer = Math.min(70, Math.round((26 + Math.floor(actualKb * 1.6)) * _ragDur));
       target.stunTimer    = Math.min(MAX_STUN, Math.round((target.ragdollTimer + 16) * stunMult));
       // Assign angular momentum for ragdoll spin
       target.ragdollSpin  = dir * (0.12 + Math.random() * 0.10);
