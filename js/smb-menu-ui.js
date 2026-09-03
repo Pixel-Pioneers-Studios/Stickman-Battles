@@ -13,6 +13,12 @@ function selectMode(mode) {
   if (mode === 'completerandom') {
     mode = '2p';
     completeRandomizer = true;
+  } else if (mode !== '2p') {
+    // The flag is only meaningful in 2P (see isCompleteRandMode in
+    // smb-menu-startcore.js) and was previously only cleared by backToMenu, so
+    // picking Complete Randomizer and then any other card left it set — which
+    // dragged the randomizer's on-death arena/loadout swap into that mode.
+    completeRandomizer = false;
   }
   // 'story' opens the story modal instead of changing menu layout
   if (mode === 'story') {

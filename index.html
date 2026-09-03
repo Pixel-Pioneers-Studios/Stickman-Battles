@@ -372,6 +372,7 @@
     <!-- HOME QUICK NAV -->
     <div class="home-quicknav">
       <button class="home-nav-btn" onclick="startTutorial()" title="Learn movement, attacking, blocking, abilities and supers"><svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-cap"/></svg> Tutorial</button>
+      <button id="cloudLoginBtn" class="home-nav-btn" style="display:none" onclick="toggleCloudLoginNav()" title="Log in with a username to carry your progress between computers"><svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-user"/></svg> Log In</button>
       <button id="accountsSavesBtn" class="home-nav-btn" onclick="openAccountsModal()" title="Open account, local save, and cloud sync settings"><svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-user"/></svg> Account &amp; Saves</button>
       <button class="home-nav-btn" onclick="openStore()"><svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-coin"/></svg> Store <span id="coinDisplay" style="color:#ffdd44;font-weight:bold;font-size:0.8em;"></span></button>
       <button class="home-nav-btn" onclick="openSettingsModal()"><svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-gear"/></svg> Settings</button>
@@ -1439,6 +1440,10 @@
         <input type="checkbox" id="settingStoryVoice" checked onchange="updateSettings()">
         <span>Story Voices</span>
       </label>
+      <label class="setting-item">
+        <input type="checkbox" id="settingAnimQuality" checked onchange="updateSettings()">
+        <span>High-Detail Animation</span>
+      </label>
     </div>
 
     <!-- ACCOUNT & DATA -->
@@ -1574,7 +1579,7 @@
   <script src="./js/smb-errorboundary.js?v=4.0.2"></script>
   <!-- Global state, canvas setup -->
   <script src="./js/smb-icons.js?v=4.0.66"></script>
-  <script src="./js/smb-globals.js?v=4.0.84"></script>
+  <script src="./js/smb-globals.js?v=4.0.90"></script>
   <!-- CrazyGames SDK wrapper — must follow smb-globals.js -->
   <script src="./js/smb-crazygames.js?v=4.0.21"></script>
   <!-- Live ops: remote config, version checks, soft updates (must follow smb-globals.js) -->
@@ -1596,12 +1601,19 @@
   <script src="./js/smb-data-weapons.js?v=4.0.70"></script>
   <script src="./js/smb-map-analyzer.js?v=4.0.2"></script>
   <!-- Combat pipeline, particles, heatmap, ragdoll (split from smb-particles.js) -->
-  <script src="./js/smb-combat.js?v=4.0.87"></script>
+  <script src="./js/smb-combat.js?v=4.0.90"></script>
   <script src="./js/smb-particles-core.js?v=4.0.2"></script>
   <script src="./js/smb-heatmap.js?v=4.0.2"></script>
-  <script src="./js/smb-verlet.js?v=4.0.2"></script>
+  <script src="./js/smb-verlet.js?v=4.0.90"></script>
+  <!-- Animation substrate + death animation (docs/animation-quality-plan.md) -->
+  <script src="./js/smb-anim-core.js?v=4.0.90"></script>
+  <script src="./js/smb-anim-fighter.js?v=4.0.90"></script>
+  <script src="./js/smb-cin-figure.js?v=4.0.90"></script>
+  <script src="./js/smb-cin-perf.js?v=4.0.90"></script>
+  <script src="./js/smb-transition.js?v=4.0.90"></script>
+  <script src="./js/smb-death-anim.js?v=4.0.90"></script>
   <!-- Cinematic scripting system (split from smb-cinematics.js) -->
-  <script src="./js/smb-cinematics-core.js?v=4.0.2"></script>
+  <script src="./js/smb-cinematics-core.js?v=4.0.90"></script>
   <script src="./js/smb-anime-fx.js?v=4.0.2"></script>
   <script src="./js/smb-cinematics-backstory.js?v=4.0.2"></script>
   <script src="./js/smb-cinematics-boss-thresh.js?v=4.0.2"></script>
@@ -1617,13 +1629,13 @@
   <script src="./js/smb-finisher-beast.js?v=4.0.21"></script>
   <script src="./js/smb-finisher-weapon.js?v=4.0.21"></script>
   <script src="./js/smb-finisher-weapon2.js?v=4.0.21"></script>
-  <script src="./js/smb-finisher-engine.js?v=4.0.84"></script>
+  <script src="./js/smb-finisher-engine.js?v=4.0.90"></script>
   <!-- Platform graph + A* pathfinding (must load before smb-fighter.js) -->
   <script src="./js/smb-pathfinding.js?v=4.0.2"></script>
   <!-- Fragment weapon manifestation + sprint escalation (must load before smb-fighter.js) -->
   <script src="./js/smb-fragment-manifest.js?v=4.0.41"></script>
   <!-- Fighter base class -->
-  <script src="./js/smb-fighter.js?v=4.0.80"></script>
+  <script src="./js/smb-fighter.js?v=4.0.90"></script>
   <!-- Modular combat AI: CombatSystem, MovementSystem, AIController, CombatAIFighter -->
   <script src="./js/smb-combat-ai.js?v=4.0.2"></script>
   <!-- Enemy NPCs, training mode -->
@@ -1637,7 +1649,7 @@
   <!-- Divine Summon: H key calls a Herald to clear the level -->
   <script src="./js/smb-divine-summon.js?v=4.0.2"></script>
   <!-- Domain Expansion system -->
-  <script src="./js/smb-domain.js?v=4.0.55"></script>
+  <script src="./js/smb-domain.js?v=4.0.90"></script>
   <!-- Boss and True Form -->
   <script src="./js/boss/smb-boss.js?v=4.0.81"></script>
   <script src="./js/boss/smb-boss-cinematics.js?v=4.0.2"></script>
@@ -1670,7 +1682,7 @@
   <!-- SOVEREIGN Ω — upgraded adaptive AI with prediction/punishment/limiter break -->
   <script src="./js/smb-smk2-data.js?v=4.0.85"></script>
   <script src="./js/smb-sov-dossier.js?v=4.0.85"></script>
-  <script src="./js/smb-smk2-class.js?v=4.0.85"></script>
+  <script src="./js/smb-smk2-class.js?v=4.0.88"></script>
   <script src="./js/smb-smk2-training.js?v=4.0.86"></script>
   <script src="./js/smb-absolute-axiom.js?v=4.0.2"></script>
   <!-- TrueForm ending cinematic -->
@@ -1678,9 +1690,9 @@
   <script src="./js/smb-trueform-ending-update.js?v=4.0.2"></script>
   <script src="./js/smb-trueform-ending-draw.js?v=4.0.2"></script>
   <!-- Drawing, game state, HUD, visual effects -->
-  <script src="./js/rendering/smb-drawing-arenas.js?v=4.0.81"></script>
+  <script src="./js/rendering/smb-drawing-arenas.js?v=4.0.90"></script>
   <script src="./js/rendering/smb-drawing-bg.js?v=4.0.5"></script>
-  <script src="./js/rendering/smb-drawing-effects.js?v=4.0.2"></script>
+  <script src="./js/rendering/smb-drawing-effects.js?v=4.0.90"></script>
   <script src="./js/rendering/smb-drawing-scenes.js?v=4.0.2"></script>
   <script src="./js/rendering/smb-drawing-hud.js?v=4.0.21"></script>
   <script src="./js/rendering/smb-drawing-arenas2.js?v=4.0.2"></script>
@@ -1700,15 +1712,15 @@
   <script src="./js/smb-camera.js?v=4.0.21"></script>
   <script src="./js/smb-camera-trace.js?v=4.0.11"></script>
   <script src="./js/smb-screenfx.js?v=4.0.2"></script>
-  <script src="./js/smb-loop-core.js?v=4.0.70"></script>
+  <script src="./js/smb-loop-core.js?v=4.0.90"></script>
   <script src="./js/smb-input.js?v=4.0.5"></script>
   <script src="./js/smb-cheats.js?v=4.0.45"></script>
   <!-- Menu UI, startGame, tutorial -->
-  <script src="./js/smb-menu-ui.js?v=4.0.74"></script>
-  <script src="./js/smb-menu-select.js?v=4.0.74"></script>
+  <script src="./js/smb-menu-ui.js?v=4.0.88"></script>
+  <script src="./js/smb-menu-select.js?v=4.0.90"></script>
   <script src="./js/smb-menu-config.js?v=4.0.2"></script>
-  <script src="./js/smb-menu-spawn.js?v=4.0.8"></script>
-  <script src="./js/smb-menu-startcore.js?v=4.0.84"></script>
+  <script src="./js/smb-menu-spawn.js?v=4.0.90"></script>
+  <script src="./js/smb-menu-startcore.js?v=4.0.88"></script>
   <script src="./js/smb-menu-utils.js?v=4.0.41"></script>
   <!-- Network / online multiplayer -->
   <script src="./js/smb-network.js?v=4.0.21"></script>
@@ -1716,7 +1728,7 @@
   <!-- Must load before smb-online.js, smb-accounts.js, and smb-admin.js -->
   <script src="./js/smb-state.js?v=4.0.2"></script>
   <!-- Supabase auth + cloud save bridge -->
-  <script src="./js/smb-supabase.js?v=4.0.62"></script>
+  <script src="./js/smb-supabase.js?v=4.0.89"></script>
   <!-- Lobby presence layer — wraps NetworkManager with lobby API + UI -->
   <script src="./js/smb-online.js?v=4.0.2"></script>
   <!-- Developer debug toolkit (loaded last so all systems exist) -->
@@ -1726,13 +1738,13 @@
   <script src="./js/smb-sov-advisor.js?v=4.0.30"></script>
   <script src="./js/smb-debug-jump.js?v=4.0.22"></script>
   <!-- Account system — must load before smb-save.js so getSaveKey() works -->
-  <script src="./js/smb-accounts.js?v=4.0.62"></script>
+  <script src="./js/smb-accounts.js?v=4.0.89"></script>
   <!-- Save / Export / Import system -->
   <script src="./js/smb-save.js?v=4.0.6"></script>
   <!-- Admin control panel — F9 to toggle; only visible for accounts in ADMIN_IDS -->
   <script src="./js/smb-admin-core.js?v=4.0.2"></script>
   <script src="./js/smb-admin-panels.js?v=4.0.2"></script>
-  <script src="./js/smb-sovereign-control.js?v=4.0.69"></script>
+  <script src="./js/smb-sovereign-control.js?v=4.0.89"></script>
   <!-- Comprehensive live-service admin dashboard — F10 to toggle -->
   <script src="./js/smb-admin-liveops-panel.js?v=4.0.2"></script>
   <!-- Attack Test Sandbox — dev tool (type "atk help" in the game console) -->
@@ -1786,7 +1798,7 @@
   <script src="./js/story/smb-story-prologue-tuesday.js?v=4.0.41"></script>
   <script src="./js/smb-story-scenes.js?v=4.0.2"></script>
   <script src="./js/smb-story-narrative-scene.js?v=4.0.3"></script>
-  <script src="./js/story/smb-story-engine-flow.js?v=4.0.8"></script>
+  <script src="./js/story/smb-story-engine-flow.js?v=4.0.90"></script>
   <script src="./js/story/smb-story-engine-match.js?v=4.0.6"></script>
   <script src="./js/story/smb-story-engine-events.js?v=4.0.2"></script>
   <script src="./js/story/smb-story-engine-frame.js?v=4.0.2"></script>

@@ -447,11 +447,12 @@ function _startGameCore() {
       ? new SovereignMK2(720, 300, '#ff3311', _aiWeapon)
       : new AdaptiveAI(720, 300, '#9955ee', _aiWeapon);
 
-    // Opening kit. He starts on his signature loadout — nullblade, which is what
-    // he has always opened on — but now as a real LOADOUT rather than a bare
-    // weaponKey, so life 1 also carries the class identity and the authored
-    // nullblade finisher. From the first respawn onward _pickLoadout takes over
-    // and he counter-picks against what the player is actually running.
+    // Opening kit — his signature loadout (nullblade), as a real LOADOUT rather
+    // than a bare weaponKey so it carries the class identity and the authored
+    // nullblade finisher. It is also the fallback: _ensureMatchLoadout replaces
+    // it with a counter-pick on the first frame he has a target (the pick needs
+    // an opponent to score against, which does not exist yet here), and that kit
+    // is then locked for the whole match.
     if (_useSovMK2 && typeof SMK2_LOADOUTS !== 'undefined' && ai._applyLoadout) {
       const _sig = SMK2_LOADOUTS.find(l => l.key === 'signature');
       if (_sig) ai._applyLoadout(_sig);
@@ -463,22 +464,10 @@ function _startGameCore() {
     // ── Difficulty boosts applied post-construction ───────────────────────────
     // Sovereign gamemode: start at near-peak intelligence, limiter already broken.
     // The player faces maximum Sovereign from round 1 — no warm-up phase.
-    if (_useSovMK2) {
-      ai.aiMemory.aggression    = 0.94;
-      ai.aiMemory.defense       = 0.90;
-      ai.aiMemory.spacing       = 0.08;
-      ai.aiMemory.reactionSpeed = 0.98;
-      ai.intelligence           = 0.97;
-      ai._limiterBroken         = true;
-      ai._limiterBreakDialogue  = true;  // suppress opening "limiters withdrawn" line
-      ai._adaptInterval         = 4;
-      ai._pressureMode          = 'suffocate';
-      ai._evolutionStage        = 2;     // start at DOMINATING; earns TYRANT through play
-      ai._intimidation          = 0.60;
-      // Skip the observation warmup — Sovereign fights at full intelligence from frame 1
-      ai._observationFrames     = 120;
-      ai._actionSampleCount     = 10;
-      ai._updateAuraColor();
+    // The numbers live in applySovereignPeakTuning (smb-smk2-class.js) so the
+    // possession spirit runs the identical Sovereign — see SovereignControl.
+    if (_useSovMK2 && typeof applySovereignPeakTuning === 'function') {
+      applySovereignPeakTuning(ai);
     }
     // Story adaptive: start sharper than default so the fight feels earned, not trivial.
     if (storyModeActive && !_useSovMK2) {

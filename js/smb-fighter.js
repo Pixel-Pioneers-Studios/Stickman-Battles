@@ -214,6 +214,11 @@ class Fighter {
         this.spawnY = GAME_H * 0.38;
       }
     }
+    // Cancel any authored death performance before the body is reused
+    if (typeof DeathAnim !== 'undefined') DeathAnim.clear(this);
+    this._hideWeapon = false;
+    if (typeof animStrideReset === 'function') animStrideReset(this);
+    this._smearPrev = null;
     this.x  = this.spawnX;
     this.y  = this.spawnY - this.h; // use actual height so spawn lands on platform regardless of scale
     this.vx = 0; this.vy = 0;
@@ -4103,7 +4108,11 @@ class Fighter {
   // ---- DRAW ----
   draw() {
     if (this.backstageHiding) return;
-    if (this.health <= 0 && !this.isBoss && !this.isDummy) return; // ragdolls handle dead fighter visuals; dummies always draw
+    if (this._cinPerf && typeof CinPerf !== 'undefined' && CinPerf.draw(this)) return;
+    // A running DeathAnim owns the body for its authored beats; once it hands off
+    // to the verlet corpse it sets _death.hidden and this guard resumes.
+    const _dth = this._death;
+    if (this.health <= 0 && !this.isBoss && !this.isDummy && !(_dth && !_dth.hidden)) return; // ragdolls handle dead fighter visuals; dummies always draw
 
     ctx.save();
 
@@ -4118,7 +4127,7 @@ class Fighter {
 
     // Invincibility blink — suppressed during a finisher, where both fighters carry
     // a huge invincible timer purely as a freeze-alive lock (blinking them looks broken).
-    if (this.invincible > 0 && Math.floor(this.invincible / 5) % 2 === 1 && !this._finNoBlink) {
+    if (this.invincible > 0 && Math.floor(this.invincible / 5) % 2 === 1 && !this._finNoBlink && !_dth) {
       ctx.globalAlpha = 0.35;
     }
 
@@ -4157,6 +4166,21 @@ class Fighter {
       ctx.translate(-cx, -(ty + this.h * 0.45));
     }
 
+    // Death fold: the torso scalar the ragdoll already computes is otherwise
+    // unread by draw() — only the four limb angles are. Applying it as a body
+    // rotation about the hips is what turns the death beats from "the figure
+    // translates" into "the figure gives way". Gated to a running DeathAnim;
+    // the general rig gains this in Phase 2 of the animation plan.
+    if (_dth && !_dth.hidden && this._rd) {
+      const _dTorso = this._rd.torso.angle;
+      if (_dTorso) {
+        const _hipY = ty + this.h * 0.62;
+        ctx.translate(cx, _hipY);
+        ctx.rotate(_dTorso);
+        ctx.translate(-cx, -_hipY);
+      }
+    }
+
     // Squash / stretch / idle breath
     let animScaleX = 1, animScaleY = 1, animOffY = 0;
     if (!this.isBoss) {
@@ -4173,6 +4197,12 @@ class Fighter {
         // Idle breath
         animOffY = Math.sin(t * 0.04) * 1;
       }
+      // Impact squash from knockback, on top of the landing squash above.
+      if (typeof animHitSquash === 'function') {
+        const _hq = animHitSquash(this);
+        if (_hq) { animScaleX *= _hq.x; animScaleY *= _hq.y; }
+      }
+      if (this._finSquash) { animScaleX *= this._finSquash.x; animScaleY *= this._finSquash.y; }
       if (animScaleX !== 1 || animScaleY !== 1) {
         ctx.translate(cx, ty + this.h);
         ctx.scale(animScaleX, animScaleY);
@@ -4199,12 +4229,23 @@ class Fighter {
     // offset puts the hips ahead of the shoulders — that leans him backward.
     // Sprinting drives the hips behind the shoulders instead, pitching the chest
     // out over trailing legs (the anime dash silhouette).
-    const hipX      = cx + (s === 'walking' ? f * (2.5 - _spr * 22)
+    // Pelvis/shoulder counter-rotation: during a stride the hips swing one way
+    // and the shoulders the other. One extra scalar, and the walk stops reading
+    // as a rigid board sliding along.
+    const _pelvis = ((typeof animHiQ === 'function') && animHiQ() && !this.isBoss && s === 'walking')
+      ? Math.sin(t * (0.24 + _spr * 0.22)) * (2.0 + _spr * 2.2) : 0;
+    const hipX      = cx + _pelvis + (s === 'walking' ? f * (2.5 - _spr * 22)
                           : (_inAir ? f * (-_spr * 22) : 0));
+    const shoulderX = cx - _pelvis * 0.8;
     const armLen    = 24;
     const legLen    = 27;
-    // Inline helper: 2-segment limb joint via midpoint offset
+    // Inline helper: 2-segment limb joint via midpoint offset (classic rig)
     const _lj = (ax, ay, bx, by, ox, oy) => [(ax+bx)*0.5 + ox, (ay+by)*0.5 + oy];
+    // High-quality rig: the joint falls out of two-bone IK instead, so the bend
+    // responds to the pose. See animIK() in js/smb-anim-fighter.js.
+    const _hiQ = (typeof animHiQ === 'function') && animHiQ() && !this.isBoss;
+    const _armBone = armLen * 0.60;   // each of the two arm bones
+    const _legBone = legLen * 0.58;   // each of the two leg bones
 
     // Speed cached for motion trail and speed lines (used in two places below)
     const _spdAbs = Math.abs(this.vx);
@@ -4234,20 +4275,23 @@ class Fighter {
     ctx.lineCap     = 'round';
     ctx.lineJoin    = 'round';
 
-    // HEAD
+    // HEAD — drags a few frames behind the torso's lean (overlap/follow-through).
+    // Scoped to the head + face block; the torso line and limbs still use cx.
+    const headCX = (typeof animHeadLag === 'function' && !this.isBoss)
+      ? cx + animHeadLag(this, (hipX - cx) * -0.35, 4, 2) : cx;
     ctx.beginPath();
-    ctx.arc(cx, headCY, headR, 0, Math.PI * 2);
+    ctx.arc(headCX, headCY, headR, 0, Math.PI * 2);
     ctx.fillStyle = this.color;
     ctx.fill();
     // Soft underside shading — gives the head volume instead of a flat disc
     ctx.fillStyle = 'rgba(0,0,0,0.10)';
     ctx.beginPath();
-    ctx.arc(cx, headCY + 2.2, headR - 1.6, Math.PI * 0.12, Math.PI * 0.88);
+    ctx.arc(headCX, headCY + 2.2, headR - 1.6, Math.PI * 0.12, Math.PI * 0.88);
     ctx.fill();
     // Top-light sheen on the facing side
     ctx.fillStyle = 'rgba(255,255,255,0.13)';
     ctx.beginPath();
-    ctx.ellipse(cx + f * 3.0, headCY - 5.2, 4.6, 2.6, f * 0.5, 0, Math.PI * 2);
+    ctx.ellipse(headCX + f * 3.0, headCY - 5.2, 4.6, 2.6, f * 0.5, 0, Math.PI * 2);
     ctx.fill();
 
     // ── FACE ──────────────────────────────────────────────────
@@ -4255,10 +4299,10 @@ class Fighter {
     // anchored just above each eye (the old single brow floated at the very
     // top of the head and read as detached marks).
     const _expr = this.expressionState || 'neutral';
-    const _eyeX  = cx + f * 4.2;   // near eye
+    const _eyeX  = headCX + f * 4.2;   // near eye
     const _eyeY  = headCY - 3.2;
     const _eyeR  = 2.6;
-    const _eye2X = cx - f * 1.8;   // far eye (smaller — perspective)
+    const _eye2X = headCX - f * 1.8;   // far eye (smaller — perspective)
     const _eye2R = 2.1;
 
     // Scleras
@@ -4275,18 +4319,35 @@ class Fighter {
       ctx.fillRect(_eye2X - _eye2R - 0.5, _eyeY - _eye2R, _eye2R * 2 + 1, _eye2R * 0.65);
     }
 
-    // Pupils — centered in the sclera with a slight look toward facing
+    // Pupils — track the nearest opponent instead of staring straight ahead.
+    // The look offset is tiny (the sclera is 2.6px) but it is what makes the
+    // fighter read as watching the fight rather than facing a direction.
+    const _look = (typeof animEyeTarget === 'function' && !this.isBoss)
+      ? animEyeTarget(this) : { x: 0, y: 0 };
+    const _lookX = f * 0.8 + _look.x * 1.15;
+    const _lookY = 0.2 + _look.y * 0.9;
     ctx.fillStyle = s === 'hurt' ? '#ff0000' : '#111';
     ctx.beginPath();
-    ctx.arc(_eyeX  + f * 0.8, _eyeY + 0.2, 1.25, 0, Math.PI * 2);
-    ctx.arc(_eye2X + f * 0.7, _eyeY + 0.2, 1.05, 0, Math.PI * 2);
+    ctx.arc(_eyeX  + _lookX, _eyeY + _lookY, 1.25, 0, Math.PI * 2);
+    ctx.arc(_eye2X + _lookX * 0.88, _eyeY + _lookY, 1.05, 0, Math.PI * 2);
     ctx.fill();
     // Catchlight on the near pupil
     if (s !== 'hurt') {
       ctx.fillStyle = 'rgba(255,255,255,0.85)';
       ctx.beginPath();
-      ctx.arc(_eyeX + f * 0.8 - 0.45, _eyeY - 0.3, 0.5, 0, Math.PI * 2);
+      ctx.arc(_eyeX + _lookX - 0.45, _eyeY - 0.3 + _lookY, 0.5, 0, Math.PI * 2);
       ctx.fill();
+    }
+
+    // Blink — a lid of head colour sweeps down over both eyes. Each fighter has
+    // its own phase offset so a crowd never blinks in unison.
+    const _blink = (typeof animBlink === 'function' && !this.isBoss && s !== 'hurt')
+      ? animBlink(this) : 0;
+    if (_blink > 0.01) {
+      ctx.fillStyle = this.color;
+      const _lid = (_eyeR + 0.6) * 2 * _blink;
+      ctx.fillRect(_eyeX  - _eyeR  - 0.6, _eyeY - _eyeR  - 0.6, _eyeR  * 2 + 1.2, _lid);
+      ctx.fillRect(_eye2X - _eye2R - 0.6, _eyeY - _eye2R - 0.6, _eye2R * 2 + 1.2, _lid);
     }
 
     // Eyebrows — short arcs hugging each eye; expression tilts the inner end
@@ -4318,33 +4379,33 @@ class Fighter {
     if (s === 'hurt') {
       ctx.strokeStyle = '#ff3333';
       ctx.beginPath();
-      ctx.arc(cx + f * 3.5, headCY + 5, 2.5, 0, Math.PI, true); // ∩ frown
+      ctx.arc(headCX + f * 3.5, headCY + 5, 2.5, 0, Math.PI, true); // ∩ frown
       ctx.stroke();
     } else if (_expr === 'cool' || _expr === 'serene') {
       // Smirk: rises toward the ear side
       ctx.strokeStyle = 'rgba(0,0,0,0.6)';
       ctx.beginPath();
-      ctx.moveTo(cx + f * 0.5, headCY + 5);
-      ctx.quadraticCurveTo(cx + f * 3.5, headCY + 5.5, cx + f * 6.5, headCY + 3.5);
+      ctx.moveTo(headCX + f * 0.5, headCY + 5);
+      ctx.quadraticCurveTo(headCX + f * 3.5, headCY + 5.5, headCX + f * 6.5, headCY + 3.5);
       ctx.stroke();
     } else if (_expr === 'intense') {
       // Grim tight line
       ctx.strokeStyle = '#ff3333';
       ctx.beginPath();
-      ctx.moveTo(cx + f * 1.0, headCY + 5.5);
-      ctx.lineTo(cx + f * 6.0, headCY + 5.5);
+      ctx.moveTo(headCX + f * 1.0, headCY + 5.5);
+      ctx.lineTo(headCX + f * 6.0, headCY + 5.5);
       ctx.stroke();
     } else if (s === 'attacking') {
       ctx.strokeStyle = '#ff3333';
       ctx.beginPath();
-      ctx.arc(cx + f * 3.5, headCY + 5, 2.5, 0, Math.PI, true); // ∩ grit/shout
+      ctx.arc(headCX + f * 3.5, headCY + 5, 2.5, 0, Math.PI, true); // ∩ grit/shout
       ctx.stroke();
     } else {
       // neutral — subtle smirk, ear side lifts slightly
       ctx.strokeStyle = 'rgba(0,0,0,0.6)';
       ctx.beginPath();
-      ctx.moveTo(cx - f * 0.5, headCY + 5.2);
-      ctx.quadraticCurveTo(cx + f * 2.0, headCY + 5.6, cx + f * 4.5, headCY + 4.0);
+      ctx.moveTo(headCX - f * 0.5, headCY + 5.2);
+      ctx.quadraticCurveTo(headCX + f * 2.0, headCY + 5.6, headCX + f * 4.5, headCY + 4.0);
       ctx.stroke();
     }
 
@@ -4400,7 +4461,12 @@ class Fighter {
       }
       lAng = f > 0 ? lerp(Math.PI*0.8, Math.PI*0.55, atkProgress) : lerp(Math.PI*0.2, Math.PI*0.45, atkProgress);
     } else if (s === 'walking') {
-      const sw = Math.sin(t * (0.24 + _spr * 0.20)) * (0.52 + _spr * 0.22);
+      // Arms swing in antiphase to the legs off the same distance-driven gait
+      // phase (one frame stale, since the legs are solved below — which is free
+      // overlap, not a bug). Falls back to the animTimer cycle in classic mode.
+      const sw = (_hiQ && this._gaitPhase !== undefined)
+        ? -Math.sin(this._gaitPhase) * (0.52 + _spr * 0.22)
+        : Math.sin(t * (0.24 + _spr * 0.20)) * (0.52 + _spr * 0.22);
       // Carry pose: weapon arm holds its carry stance while the off arm keeps swinging
       const _cw = (!this.isBoss && typeof WEAPON_SWINGS !== 'undefined' && WEAPON_SWINGS[this.weaponKey]) ? WEAPON_SWINGS[this.weaponKey].carry : null;
       if (_blade > 0.05) {
@@ -4446,20 +4512,59 @@ class Fighter {
       }
     }
 
-    const _rArmLen = (s === 'attacking' && this._swingArmStretch) ? armLen * this._swingArmStretch : armLen;
-    const rEx = cx + Math.cos(rAng) * _rArmLen;
+    // Finisher wind-up: counter-motion applied on top of the swing pose, since
+    // swingPose() clamps progress and cannot express angles before the swing.
+    if (this._finAnticip) {
+      rAng -= this._finAnticip * f;
+      lAng += this._finAnticip * f * 0.35;
+    }
+    let _rArmLen = (s === 'attacking' && this._swingArmStretch) ? armLen * this._swingArmStretch : armLen;
+    if (this._finStretch) _rArmLen *= this._finStretch;
+    const rEx = shoulderX + Math.cos(rAng) * _rArmLen;
     const rEy = shoulderY + Math.sin(rAng) * _rArmLen;
-    const lEx = cx + Math.cos(lAng) * armLen;
+    const lEx = shoulderX + Math.cos(lAng) * armLen;
     const lEy = shoulderY + Math.sin(lAng) * armLen;
 
     // 2-segment arms: elbows bend outward (in facing direction) and slightly up
     const elbowOut = f * 5;
-    const [rElbX, rElbY] = _lj(cx, shoulderY, rEx, rEy, elbowOut, -3);
-    const [lElbX, lElbY] = _lj(cx, shoulderY, lEx, lEy, elbowOut, -3);
+    const [rElbX, rElbY] = _hiQ
+      ? animIK(shoulderX, shoulderY, rEx, rEy, _armBone, -f)
+      : _lj(shoulderX, shoulderY, rEx, rEy, elbowOut, -3);
+    const [lElbX, lElbY] = _hiQ
+      ? animIK(shoulderX, shoulderY, lEx, lEy, _armBone, -f)
+      : _lj(shoulderX, shoulderY, lEx, lEy, elbowOut, -3);
     ctx.strokeStyle = this.color;
     ctx.lineWidth   = 5;
-    ctx.beginPath(); ctx.moveTo(cx, shoulderY); ctx.lineTo(rElbX, rElbY); ctx.lineTo(rEx, rEy); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(cx, shoulderY); ctx.lineTo(lElbX, lElbY); ctx.lineTo(lEx, lEy); ctx.stroke();
+    // ── LIMB SMEAR ──────────────────────────────────────────────────────────
+    // A fast weapon arm draws as a few trailing ghosts along its own arc rather
+    // than one crisp stick. Driven off the arm's angular velocity frame to
+    // frame, so it costs nothing when the arm is not moving.
+    // Only committed motion smears — a walk cycle's arm swing must not, or every
+    // step trails ghosts.
+    const _canSmear = (s === 'attacking' || s === 'ragdoll' || this.spinning > 0);
+    if (_hiQ && _canSmear && typeof animSmear === 'function') {
+      const _pv = this._smearPrev;
+      this._smearPrev = { x: rEx, y: rEy, ex: rElbX, ey: rElbY };
+      const _dsp = _pv ? Math.hypot(rEx - _pv.x, rEy - _pv.y) : 0;
+      if (_dsp > 11) {
+        // animSmear applies the offset via ctx.translate, so drawFn just draws
+        // the arm where it is now; the path runs from last frame's hand back to
+        // this one, which puts the ghosts along the swing.
+        animSmear(() => {
+          ctx.strokeStyle = this.color;
+          ctx.lineWidth   = 5;
+          ctx.beginPath();
+          ctx.moveTo(shoulderX, shoulderY);
+          ctx.lineTo(rElbX, rElbY);
+          ctx.lineTo(rEx, rEy);
+          ctx.stroke();
+        }, _pv.x - rEx, _pv.y - rEy, 0, 0, 4, 0.34);
+      }
+    } else {
+      this._smearPrev = { x: rEx, y: rEy, ex: rElbX, ey: rElbY };
+    }
+    ctx.beginPath(); ctx.moveTo(shoulderX, shoulderY); ctx.lineTo(rElbX, rElbY); ctx.lineTo(rEx, rEy); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(shoulderX, shoulderY); ctx.lineTo(lElbX, lElbY); ctx.lineTo(lEx, lEy); ctx.stroke();
 
     // WEAPON in right hand (boss draws gauntlet on both hands for visual flair)
     const weapScale = this.isBoss ? 1.0 : 1.5;
@@ -4482,7 +4587,7 @@ class Fighter {
         ctx.rotate(-rAng);
         ctx.translate(-rEx, -rEy);
       }
-      this.drawWeapon(rEx, rEy, rAng, s === 'attacking', this._domainDisplayWeapon || null, weapScale);
+      if (!this._hideWeapon) this.drawWeapon(rEx, rEy, rAng, s === 'attacking', this._domainDisplayWeapon || null, weapScale);
       ctx.restore();
     }
     if (_fragV && typeof drawFragmentManifest === 'function') {
@@ -4528,18 +4633,29 @@ class Fighter {
     else if (s === 'walking') {
       // Sprint drives the stride faster and wider, and pitches the whole cycle
       // forward so the legs are driving behind him rather than stepping under.
-      const sw = Math.sin(t * (0.24 + _spr * 0.22)) * (0.44 + _spr * 0.30);
+      const _amp   = 0.44 + _spr * 0.30;
+      // Stride phase from distance travelled, not from animTimer — see
+      // animStridePhase(). This is what stops the feet skating.
+      const _phase = (_hiQ && typeof animStridePhase === 'function')
+        ? animStridePhase(this, legLen, _amp, t * (0.24 + _spr * 0.22))
+        : t * (0.24 + _spr * 0.22);
+      const sw = Math.sin(_phase) * _amp;
       const pitch = _spr * f * 0.24; // drives the whole leg cycle out behind him
       rLeg = Math.PI * 0.5 + sw + pitch;
       lLeg = Math.PI * 0.5 - sw + pitch;
+      this._gaitPhase = _phase;   // arms read this so they swing with the legs
     } else { rLeg = Math.PI*0.62; lLeg = Math.PI*0.38; }
 
     // 2-segment legs: knees bend forward (in facing direction)
-    const rFootX = hipX + Math.cos(rLeg)*legLen, rFootY = hipY + Math.sin(rLeg)*legLen;
-    const lFootX = hipX + Math.cos(lLeg)*legLen, lFootY = hipY + Math.sin(lLeg)*legLen;
+    let rFootX = hipX + Math.cos(rLeg)*legLen, rFootY = hipY + Math.sin(rLeg)*legLen;
+    let lFootX = hipX + Math.cos(lLeg)*legLen, lFootY = hipY + Math.sin(lLeg)*legLen;
     const kneeOut = f * 5;
-    const [rKneeX, rKneeY] = _lj(hipX, hipY, rFootX, rFootY, kneeOut, 0);
-    const [lKneeX, lKneeY] = _lj(hipX, hipY, lFootX, lFootY, kneeOut, 0);
+    const [rKneeX, rKneeY] = _hiQ
+      ? animIK(hipX, hipY, rFootX, rFootY, _legBone, -f)
+      : _lj(hipX, hipY, rFootX, rFootY, kneeOut, 0);
+    const [lKneeX, lKneeY] = _hiQ
+      ? animIK(hipX, hipY, lFootX, lFootY, _legBone, -f)
+      : _lj(hipX, hipY, lFootX, lFootY, kneeOut, 0);
     ctx.beginPath(); ctx.moveTo(hipX, hipY); ctx.lineTo(rKneeX, rKneeY); ctx.lineTo(rFootX, rFootY); ctx.stroke();
     ctx.beginPath(); ctx.moveTo(hipX, hipY); ctx.lineTo(lKneeX, lKneeY); ctx.lineTo(lFootX, lFootY); ctx.stroke();
 

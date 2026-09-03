@@ -38,6 +38,51 @@ class VerletStick {
   }
 }
 
+// Joint angle limit. VerletStick only enforces distance, so a 17-stick rig with
+// no angle limits has nothing stopping a knee bending backwards through the hip —
+// seven solver iterations then compress it into a tangle. That is the "flops into
+// a ball" failure mode, and it is structural, not a tuning issue.
+//
+// The limit is on the MAGNITUDE of the bend at `pivot` (|angle(a) - angle(b)|),
+// which is handedness-agnostic: a corpse that tumbles over and mirrors itself is
+// still constrained. Straight = PI, folded = 0.
+class VerletAngleConstraint {
+  constructor(a, pivot, b, minAng, maxAng, strength = 0.35) {
+    this.a = a; this.pivot = pivot; this.b = b;
+    this.min = minAng; this.max = maxAng;
+    this.strength = strength;
+  }
+  constrain() {
+    const p = this.pivot;
+    const a1 = Math.atan2(this.a.y - p.y, this.a.x - p.x);
+    const a2 = Math.atan2(this.b.y - p.y, this.b.x - p.x);
+    let d = a2 - a1;
+    while (d >  Math.PI) d -= Math.PI * 2;
+    while (d < -Math.PI) d += Math.PI * 2;
+    const sign = d < 0 ? -1 : 1;
+    const mag  = Math.abs(d);
+    let want;
+    if (mag < this.min) want = this.min;
+    else if (mag > this.max) want = this.max;
+    else return;                       // inside the allowed cone — nothing to do
+    // Rotate the far point around the pivot by half the correction, and the near
+    // point by the other half, so the joint doesn't drag the whole rig one way.
+    const corr = (want - mag) * sign * this.strength;
+    VerletAngleConstraint._rotate(this.b, p,  corr * 0.5);
+    VerletAngleConstraint._rotate(this.a, p, -corr * 0.5);
+  }
+  static _rotate(pt, pivot, ang) {
+    if (pt.pinned || !ang) return;
+    const c = Math.cos(ang), s = Math.sin(ang);
+    const dx = pt.x - pivot.x, dy = pt.y - pivot.y;
+    const nx = pivot.x + dx * c - dy * s;
+    const ny = pivot.y + dx * s + dy * c;
+    // Move the old position with it so the rotation adds no spurious velocity
+    pt.ox += nx - pt.x; pt.oy += ny - pt.y;
+    pt.x = nx; pt.y = ny;
+  }
+}
+
 class VerletRagdoll {
   constructor(fighter) {
     const f = fighter;
@@ -89,6 +134,21 @@ class VerletRagdoll {
       new VerletStick(this.neck,     this.rHip),       // diagonal stabilizer
     ];
 
+    // Joint angle limits — without these the rig tangles (see VerletAngleConstraint).
+    // PI = fully straight, 0 = folded shut.
+    const P = Math.PI;
+    this.angles = [
+      new VerletAngleConstraint(this.lHip,  this.lKnee, this.lFoot, P * 0.45, P),  // knee: no back-bend
+      new VerletAngleConstraint(this.rHip,  this.rKnee, this.rFoot, P * 0.45, P),
+      new VerletAngleConstraint(this.lShoulder, this.lElbow, this.lHand, P * 0.35, P), // elbow
+      new VerletAngleConstraint(this.rShoulder, this.rElbow, this.rHand, P * 0.35, P),
+      new VerletAngleConstraint(this.head,  this.neck,  this.lHip,  P * 0.61, P),  // neck ~±70deg
+      new VerletAngleConstraint(this.head,  this.neck,  this.rHip,  P * 0.61, P),
+      new VerletAngleConstraint(this.neck,  this.lHip,  this.lKnee, P * 0.39, P),  // hip ~110deg
+      new VerletAngleConstraint(this.neck,  this.rHip,  this.rKnee, P * 0.39, P),
+      new VerletAngleConstraint(this.neck,  this.lHip,  this.rHip,  P * 0.28, P),  // spine ~±50deg
+    ];
+
     // Apply initial death impulse from the fighter's current velocity
     const ivx = (f.vx || 0) * 0.6;
     const ivy = (f.vy || 0) * 0.5 - 2;
@@ -101,6 +161,10 @@ class VerletRagdoll {
     });
 
     this.color  = f.color || '#aaaaaa';
+    // Corpse fidelity: match the fighter's own line weight and head size so the
+    // body on the ground reads as the character that just died, not a grey twig.
+    this.headR  = f.headR || 11;
+    this.limbW  = f.isBoss ? 7 : 5;
     const RAGDOLL_LIFETIME_FRAMES = 240; // despawn after ~4s to prevent accumulation
     this.timer  = RAGDOLL_LIFETIME_FRAMES;
     this.alpha  = 1;
@@ -117,6 +181,7 @@ class VerletRagdoll {
     // Constraint iterations (7 per frame prevents collapse)
     for (let iter = 0; iter < 7; iter++) {
       this.sticks.forEach(s => s.constrain());
+      if (this.angles) this.angles.forEach(a => a.constrain());
       this._groundCollide();
     }
   }
@@ -152,20 +217,49 @@ class VerletRagdoll {
     ctx.strokeStyle = this.color;
     ctx.lineCap = 'round';
 
-    // Draw bones (sticks)
+    ctx.lineJoin = 'round';
+
+    // Draw bones (sticks). The three diagonal stabilizers and the shoulder
+    // girdle are internal structure, not silhouette — skip them.
+    const hidden = this.sticks.slice(-3);
     for (const s of this.sticks) {
-      ctx.lineWidth = s === this.sticks[0] ? 3.5 : 2;
+      if (hidden.includes(s)) continue;
+      ctx.lineWidth = s === this.sticks[0] ? this.limbW + 1 : this.limbW;
       ctx.beginPath();
       ctx.moveTo(s.a.x, s.a.y);
       ctx.lineTo(s.b.x, s.b.y);
       ctx.stroke();
     }
-
-    // Head circle
+    // Torso slab between the shoulder girdle and the pelvis, so the corpse has
+    // a body rather than a gap where the chest should be.
     ctx.beginPath();
-    ctx.arc(this.head.x, this.head.y, 7, 0, Math.PI * 2);
+    ctx.moveTo(this.lShoulder.x, this.lShoulder.y);
+    ctx.lineTo(this.rShoulder.x, this.rShoulder.y);
+    ctx.lineTo(this.rHip.x, this.rHip.y);
+    ctx.lineTo(this.lHip.x, this.lHip.y);
+    ctx.closePath();
+    ctx.fillStyle = this.color;
+    ctx.globalAlpha = this.alpha * 0.9;
+    ctx.fill();
+    ctx.globalAlpha = this.alpha;
+
+    // Head circle at the fighter's real head radius
+    ctx.beginPath();
+    ctx.arc(this.head.x, this.head.y, this.headR, 0, Math.PI * 2);
     ctx.fillStyle = this.color;
     ctx.fill();
+    // X eyes — reads as dead at a glance, and costs four lines
+    ctx.strokeStyle = 'rgba(0,0,0,0.75)';
+    ctx.lineWidth   = 2;
+    const _hr = this.headR * 0.34;
+    for (const ex of [-this.headR * 0.36, this.headR * 0.36]) {
+      ctx.beginPath();
+      ctx.moveTo(this.head.x + ex - _hr * 0.5, this.head.y - _hr * 0.5);
+      ctx.lineTo(this.head.x + ex + _hr * 0.5, this.head.y + _hr * 0.5);
+      ctx.moveTo(this.head.x + ex + _hr * 0.5, this.head.y - _hr * 0.5);
+      ctx.lineTo(this.head.x + ex - _hr * 0.5, this.head.y + _hr * 0.5);
+      ctx.stroke();
+    }
 
     ctx.restore();
   }
@@ -268,6 +362,10 @@ class PlayerRagdoll {
     const t    = f.animTimer;
     const face = f.facing;
     const rd   = f._rd;
+
+    // Authored death beats own the pose outright (smb-death-anim.js). Without
+    // this the collapsed branch below drags every death back to one silhouette.
+    if (f._death && f._death.pose) return f._death.pose;
 
     // Collapsed (dead / knocked out): fully limp on the ground
     if (rd && rd.collapsed) {

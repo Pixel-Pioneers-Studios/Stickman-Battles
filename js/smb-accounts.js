@@ -551,10 +551,10 @@ function _acctRenderList(inner) {
 }
 
 function _acctRenderCloudSection() {
-  // CrazyGames forbids external login options, and email/password sign-in to our
-  // own backend counts. Hide the whole cloud-save block there — local saves and
-  // the local account system are unaffected.
-  if (window.CrazyGames && window.CrazyGames.SDK) return '';
+  // CrazyGames forbids external login options, and username/password sign-in to
+  // our own backend counts. Hide the whole cloud-save block there — local saves
+  // and the local account system are unaffected.
+  if (_acctOnCrazyGamesPortal()) return '';
   if (!window.SupabaseBridge) {
     return '<div style="margin:0 0 14px;padding:12px;border:1px solid rgba(100,180,255,0.18);border-radius:8px;background:rgba(255,255,255,0.03);font-size:0.78rem;opacity:0.65;">Cloud saves are not loaded.</div>';
   }
@@ -563,11 +563,13 @@ function _acctRenderCloudSection() {
   const user = st.user;
   const signedIn = !!(session && user);
   const title = signedIn ? '☁️ Cloud Save Connected' : (st.available ? '☁️ Connect Cloud Save' : '☁️ Cloud Save Unavailable');
+  const cloudName = (typeof SupabaseBridge.getDisplayName === 'function' && SupabaseBridge.getDisplayName())
+    || (user && (user.email || user.id)) || 'cloud user';
   const status = signedIn
-    ? ('Signed in as <strong style="color:#dde4ff;">' + _acctEscHtml(user.email || user.id) + '</strong>')
-    : (st.available ? 'Sign in to sync progress across browsers and devices.' : 'Add Supabase config to enable cloud sync.');
+    ? ('Signed in as <strong style="color:#dde4ff;">' + _acctEscHtml(cloudName) + '</strong>')
+    : (st.available ? 'Sign in with a username to sync progress across browsers and devices.' : 'Add Supabase config to enable cloud sync.');
   // Hide Google login on CrazyGames — external OAuth providers are not permitted
-  const _onCrazyGames = !!(window.CrazyGames && window.CrazyGames.SDK);
+  const _onCrazyGames = _acctOnCrazyGamesPortal();
   const googleBtn = (!signedIn && st.available && !_onCrazyGames)
     ? '<button onclick="_acctCloudSignInGoogle()" style="' + _acctBtnStyle('blue') + ';display:flex;align-items:center;gap:5px;"><img src="https://www.google.com/favicon.ico" style="width:13px;height:13px;"> Google</button>'
     : '';
@@ -575,8 +577,8 @@ function _acctRenderCloudSection() {
     ? '<button onclick="_acctCloudSyncNow()" style="' + _acctBtnStyle('green') + '">Sync Now</button>'
       + '<button onclick="_acctCloudLogOut()" style="' + _acctBtnStyle('orange') + '">Sign Out</button>'
     : googleBtn
-      + '<button onclick="_acctCloudSignIn()" style="' + _acctBtnStyle('blue') + '">Email Login</button>'
-      + '<button onclick="_acctCloudSignUp()" style="' + _acctBtnStyle('purple') + '">Sign Up</button>';
+      + '<button onclick="_acctCloudSignIn()" style="' + _acctBtnStyle('blue') + '">Log In</button>'
+      + '<button onclick="_acctCloudSignUp()" style="' + _acctBtnStyle('purple') + '">Create Account</button>';
 
   return '<div style="margin:0 0 14px;padding:12px;border:1px solid rgba(100,180,255,0.18);border-radius:8px;background:rgba(255,255,255,0.03);">'
     + '<div style="display:flex;justify-content:space-between;gap:8px;align-items:flex-start;flex-wrap:wrap;">'
@@ -588,11 +590,11 @@ function _acctRenderCloudSection() {
     + '</div>'
     + (signedIn ? ''
       : '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px;">'
-        + '<input id="_acctCloudEmail" type="email" placeholder="Email" autocomplete="email" style="' + _acctInputStyle() + '">'
-        + '<input id="_acctCloudPassword" type="password" placeholder="Password" autocomplete="current-password" style="' + _acctInputStyle() + '">'
+        + '<input id="_acctCloudEmail" type="text" placeholder="Username" autocomplete="username" style="' + _acctInputStyle() + '" onkeydown="if(event.key===\'Enter\')_acctCloudSignIn()">'
+        + '<input id="_acctCloudPassword" type="password" placeholder="Password" autocomplete="current-password" style="' + _acctInputStyle() + '" onkeydown="if(event.key===\'Enter\')_acctCloudSignIn()">'
         + '</div>'
         + '<div id="_acctCloudMsg" style="min-height:18px;margin-top:6px;font-size:0.76rem;opacity:0.72;"></div>')
-    + '<div style="margin-top:6px;font-size:0.72rem;opacity:0.5;line-height:1.4;">Cloud auth uses Supabase sessions. A successful login keeps progress synced on GitHub Pages, itch.io, and Render.</div>'
+    + '<div style="margin-top:6px;font-size:0.72rem;opacity:0.5;line-height:1.4;">Log in with the same username and password on any computer to pick your progress back up. An email address works too if you already made an account that way.</div>'
     + '<div style="margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,0.08);display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;">'
     + '<div style="font-size:0.72rem;opacity:0.58;">Community</div>'
     + '<button onclick="window.open(\'https://discord.gg/dgmhj33a5H\',\'_blank\',\'noopener\')" style="' + _acctBtnStyle('blue') + '">💬 Discord</button>'
@@ -762,57 +764,57 @@ async function _acctCloudSignInGoogle() {
 }
 
 async function _acctCloudSignIn() {
-  if (!window.SupabaseBridge || typeof SupabaseBridge.signInAndLoad !== 'function') return;
-  const email = ((document.getElementById('_acctCloudEmail') || {}).value || '').trim();
+  if (!window.SupabaseBridge || typeof SupabaseBridge.signInWithUsername !== 'function') return;
+  const username = ((document.getElementById('_acctCloudEmail') || {}).value || '').trim();
   const password = ((document.getElementById('_acctCloudPassword') || {}).value || '');
   const msg = document.getElementById('_acctCloudMsg');
-  if (!email || !password) {
-    if (msg) msg.textContent = 'Enter email and password.';
+  if (!username || !password) {
+    if (msg) msg.textContent = 'Enter username and password.';
     return;
   }
   if (msg) msg.textContent = 'Signing in...';
-  const res = await SupabaseBridge.signInAndLoad(email, password);
+  let res;
+  try { res = await SupabaseBridge.signInWithUsername(username, password); }
+  catch (e) { res = { error: e }; }
   if (res && res.error) {
-    if (msg) msg.textContent = res.error.message || 'Login failed.';
+    if (msg) msg.textContent = _acctAuthErrorText(res.error);
     return;
   }
   if (msg) msg.textContent = '';
   _acctRender();
-  _acctToast('Cloud session restored.');
+  _acctRefreshCloudNavBtn();
+  _acctToast('Logged in as ' + (SupabaseBridge.getDisplayName() || 'player') + '.');
 }
 
 async function _acctCloudSignUp() {
-  if (!window.SupabaseBridge || typeof SupabaseBridge.signUpAndLoad !== 'function') return;
-  const email = ((document.getElementById('_acctCloudEmail') || {}).value || '').trim();
+  if (!window.SupabaseBridge || typeof SupabaseBridge.signUpWithUsername !== 'function') return;
+  const username = ((document.getElementById('_acctCloudEmail') || {}).value || '').trim();
   const password = ((document.getElementById('_acctCloudPassword') || {}).value || '');
   const msg = document.getElementById('_acctCloudMsg');
-  if (!email || !password) {
-    if (msg) msg.textContent = 'Enter email and password.';
-    return;
-  }
-  if (password.length < 6) {
-    if (msg) msg.textContent = 'Password should be at least 6 characters.';
+  if (!username || !password) {
+    if (msg) msg.textContent = 'Pick a username and password.';
     return;
   }
   if (msg) msg.textContent = 'Creating account...';
-  const res = await SupabaseBridge.signUpAndLoad(email, password);
+  let res;
+  try { res = await SupabaseBridge.signUpWithUsername(username, password); }
+  catch (e) { res = { error: e }; }
   if (res && res.error) {
-    if (msg) msg.textContent = res.error.message || 'Signup failed.';
+    if (msg) msg.textContent = _acctAuthErrorText(res.error);
     return;
   }
-  if (msg) {
-    msg.textContent = (res && res.data && res.data.session)
-      ? 'Cloud account created and signed in.'
-      : 'Account created. Check your email to confirm, then return to sign in.';
-  }
+  if (msg) msg.textContent = '';
   _acctRender();
+  _acctRefreshCloudNavBtn();
+  _acctToast('Account created — you are logged in.');
 }
 
 async function _acctCloudLogOut() {
   if (!window.SupabaseBridge || typeof SupabaseBridge.signOut !== 'function') return;
   await SupabaseBridge.signOut().catch(function(e) { console.warn('[accounts] cloud signout failed:', e); });
   _acctRender();
-  _acctToast('Cloud session signed out.');
+  _acctRefreshCloudNavBtn();
+  _acctToast('Logged out.');
 }
 
 async function _acctCloudSyncNow() {
@@ -1066,3 +1068,158 @@ function _acctToast(msg) {
   clearTimeout(t._hideTimer);
   t._hideTimer = setTimeout(function() { t.style.opacity = '0'; }, 2200);
 }
+
+// ── Quick cloud login ─────────────────────────────────────────────────────────
+// A one-step username/password box reachable straight from the home nav, so
+// signing in or out on another computer does not mean digging through the full
+// Account & Saves modal.
+
+function _acctAuthErrorText(err) {
+  const raw = String((err && err.message) || 'Something went wrong.');
+  const low = raw.toLowerCase();
+  if (low.indexOf('invalid login') !== -1) return 'Wrong username or password.';
+  if (low.indexOf('already registered') !== -1) return 'That username is taken. Pick another one.';
+  if (low.indexOf('invalid') !== -1 && low.indexOf('email') !== -1) return 'That username has characters the server rejects — use letters, numbers, dots, dashes or underscores.';
+  if (low.indexOf('failed to fetch') !== -1 || low.indexOf('network') !== -1) return 'Could not reach the server. Check your connection and try again.';
+  if (low.indexOf('not confirmed') !== -1) return 'This account still needs email confirmation before it can sign in.';
+  return raw;
+}
+
+// True only when actually embedded on the CrazyGames portal. NOT `!!window.CrazyGames`
+// — the SDK script is in index.html unconditionally and initializes fine off-portal,
+// so its mere presence must not hide anything.
+function _acctOnCrazyGamesPortal() {
+  try {
+    const sdk = window.CrazyGames && window.CrazyGames.SDK;
+    if (sdk && sdk.environment === 'crazygames') return true;
+  } catch (e) {}
+  return /(^|\.)crazygames\.(com|co\.uk)$/i.test(location.hostname);
+}
+
+function _acctCloudAvailable() {
+  if (_acctOnCrazyGamesPortal()) return false;   // external logins are not permitted there
+  if (!window.SupabaseBridge || typeof SupabaseBridge.signInWithUsername !== 'function') return false;
+  return typeof SupabaseBridge.isAvailable !== 'function' || SupabaseBridge.isAvailable();
+}
+
+function _acctCloudSignedIn() {
+  return !!(window.SupabaseBridge && typeof SupabaseBridge.isSignedIn === 'function' && SupabaseBridge.isSignedIn());
+}
+
+function _acctRefreshCloudNavBtn() {
+  const btn = document.getElementById('cloudLoginBtn');
+  if (!btn) return;
+  if (!_acctCloudAvailable()) { btn.style.display = 'none'; return; }
+  btn.style.display = '';
+  const icon = btn.querySelector('svg');
+  const iconHtml = icon ? icon.outerHTML : '';
+  if (_acctCloudSignedIn()) {
+    const name = (typeof SupabaseBridge.getDisplayName === 'function' && SupabaseBridge.getDisplayName()) || 'player';
+    btn.innerHTML = iconHtml + ' Log Out';
+    btn.title = 'Signed in as ' + name + ' — click to log out';
+  } else {
+    btn.innerHTML = iconHtml + ' Log In';
+    btn.title = 'Log in with a username to carry your progress between computers';
+  }
+}
+
+function toggleCloudLoginNav() {
+  if (_acctCloudSignedIn()) {
+    const name = (typeof SupabaseBridge.getDisplayName === 'function' && SupabaseBridge.getDisplayName()) || 'this account';
+    if (!confirm('Log out of ' + name + '? Your progress stays saved in the cloud.')) return;
+    void _acctCloudLogOut();
+    return;
+  }
+  openLoginModal();
+}
+
+function _acctEnsureLoginModal() {
+  if (document.getElementById('cloudLoginModal')) return;
+  const m = document.createElement('div');
+  m.id = 'cloudLoginModal';
+  m.style.cssText = 'display:none;position:fixed;inset:0;background:rgba(0,0,0,0.88);z-index:10010;align-items:center;justify-content:center;';
+  m.addEventListener('click', function(e) { if (e.target === m) closeLoginModal(); });
+  const inner = document.createElement('div');
+  inner.id = 'cloudLoginInner';
+  inner.style.cssText = [
+    'background:#0b0b1e',
+    'border:1px solid rgba(100,180,255,0.3)',
+    'border-radius:12px',
+    'padding:26px',
+    'width:min(400px,92vw)',
+    'color:#dde4ff',
+    "font-family:'Segoe UI',Arial,sans-serif",
+    'box-shadow:0 0 40px rgba(0,100,255,0.18)',
+  ].join(';');
+  m.appendChild(inner);
+  document.body.appendChild(m);
+}
+
+function openLoginModal() {
+  if (!_acctCloudAvailable()) { openAccountsModal(); return; }
+  _acctEnsureLoginModal();
+  if (window.SupabaseBridge && typeof SupabaseBridge.bootstrap === 'function') {
+    SupabaseBridge.bootstrap().catch(function(e) { console.warn('[accounts] cloud bootstrap failed:', e); });
+  }
+  const inner = document.getElementById('cloudLoginInner');
+  if (!inner) return;
+  inner.innerHTML = '<h3 style="margin:0 0 6px;font-size:1.1rem;color:#88ccff;">Log In</h3>'
+    + '<p style="margin:0 0 16px;font-size:0.8rem;opacity:0.6;line-height:1.45;">Use the same username and password on any computer and your progress comes with you. No email needed.</p>'
+    + '<input id="_acctQuickUser" type="text" placeholder="Username" autocomplete="username" spellcheck="false"'
+    + ' style="' + _acctInputStyle() + ';margin-bottom:8px;" onkeydown="if(event.key===\'Enter\')_acctQuickAuth(\'in\')">'
+    + '<input id="_acctQuickPw" type="password" placeholder="Password" autocomplete="current-password"'
+    + ' style="' + _acctInputStyle() + ';margin-bottom:4px;" onkeydown="if(event.key===\'Enter\')_acctQuickAuth(\'in\')">'
+    + '<div id="_acctQuickMsg" style="min-height:20px;font-size:0.78rem;color:#ff9999;line-height:1.35;"></div>'
+    + '<div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;">'
+    + '<button onclick="_acctQuickAuth(\'in\')" style="' + _acctBtnStyle('blue') + ';flex:1;">Log In</button>'
+    + '<button onclick="_acctQuickAuth(\'up\')" style="' + _acctBtnStyle('purple') + '">Create Account</button>'
+    + '<button onclick="closeLoginModal()" style="' + _acctBtnStyle('dim') + '">Cancel</button>'
+    + '</div>';
+  document.getElementById('cloudLoginModal').style.display = 'flex';
+  setTimeout(function() { const i = document.getElementById('_acctQuickUser'); if (i) i.focus(); }, 50);
+}
+
+function closeLoginModal() {
+  const m = document.getElementById('cloudLoginModal');
+  if (m) m.style.display = 'none';
+}
+
+async function _acctQuickAuth(mode) {
+  if (!_acctCloudAvailable()) return;
+  const user = ((document.getElementById('_acctQuickUser') || {}).value || '').trim();
+  const pw   = ((document.getElementById('_acctQuickPw')   || {}).value || '');
+  const msg  = document.getElementById('_acctQuickMsg');
+  if (!user || !pw) {
+    if (msg) msg.textContent = mode === 'up' ? 'Pick a username and password.' : 'Enter your username and password.';
+    return;
+  }
+  if (msg) { msg.style.color = '#aabbcc'; msg.textContent = mode === 'up' ? 'Creating account...' : 'Signing in...'; }
+  let res;
+  try {
+    res = (mode === 'up')
+      ? await SupabaseBridge.signUpWithUsername(user, pw)
+      : await SupabaseBridge.signInWithUsername(user, pw);
+  } catch (e) {
+    res = { error: e };
+  }
+  if (res && res.error) {
+    if (msg) { msg.style.color = '#ff9999'; msg.textContent = _acctAuthErrorText(res.error); }
+    return;
+  }
+  closeLoginModal();
+  _acctRefreshCloudNavBtn();
+  const name = (typeof SupabaseBridge.getDisplayName === 'function' && SupabaseBridge.getDisplayName()) || user;
+  _acctToast(mode === 'up' ? ('Account created — logged in as ' + name + '.') : ('Logged in as ' + name + '.'));
+  const am = document.getElementById('accountsModal');
+  if (am && am.style.display === 'flex') _acctRender();
+}
+
+// Keep the nav button in step with the session, including the async bootstrap
+// that restores a saved login on page load.
+(function _acctInstallCloudNavSync() {
+  const refresh = function() { try { _acctRefreshCloudNavBtn(); } catch (e) {} };
+  if (window.SupabaseBridge && typeof SupabaseBridge.onChange === 'function') SupabaseBridge.onChange(refresh);
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', refresh);
+  else refresh();
+  setTimeout(refresh, 1200);
+})();

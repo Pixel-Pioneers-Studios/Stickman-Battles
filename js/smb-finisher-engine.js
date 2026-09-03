@@ -65,6 +65,13 @@ const _BOSS_KILL_POOL    = [FIN_VOID_SLAM, FIN_REALITY_BREAK, FIN_SKY_EXECUTION,
 //                distance, so the killing blow swung through empty air.
 // ============================================================
 
+const FIN_ANTIC_FRAMES = 5;    // wind-up frames inserted before each def.swing
+const FIN_ANTIC_AMOUNT = 0.62; // radians of counter-motion at the peak
+const FIN_HOLD_FRAMES  = 5;
+const FIN_BRACE_FRAMES = 4;
+const FIN_HURT_FRAMES  = 10;
+const FIN_SQUASH_FRAMES = 7;
+
 // Applied after def.update so it wins over the def's own positioning. Only for
 // defs that don't already lunge — never add this on top of an authored dash.
 function _finApplyApproach(att, tgt, def, timer, data) {
@@ -108,21 +115,94 @@ function _finApplyFacing(att, tgt, def, timer, data) {
 // hit-scan in Fighter.update() and let a finisher damage bystanders.
 function _finApplyPose(att, tgt, def, timer) {
   att._finPoseP = null;
+  att._finAnticip = 0;
   const sw = def.swing;
   if (sw) {
     const list = Array.isArray(sw) ? sw : [sw];
     for (const w of list) {
       const dur = w.dur || 12;
       if (timer >= w.at && timer < w.at + dur) { att._finPoseP = (timer - w.at) / dur; break; }
+      // swingPose() clamps progress to 0..1, so wind-up cannot be expressed
+      // through _finPoseP — it needs its own channel.
+      const anT = (w.antic === undefined) ? FIN_ANTIC_FRAMES : w.antic;
+      if (anT > 0 && timer >= w.at - anT && timer < w.at) {
+        att._finPoseP   = 0;
+        att._finAnticip = Math.sin(((timer - (w.at - anT)) / anT) * Math.PI * 0.5) *
+                          (w.anticAmt === undefined ? FIN_ANTIC_AMOUNT : w.anticAmt);
+        break;
+      }
     }
   }
-  tgt._finPoseState = (def.impact && timer >= def.impact) ? 'hurt' : null;
+  tgt._finPoseState = _finVictimBeat(def, timer);
+  _finApplyDeform(att, tgt, def, timer);
+}
+
+// Shape deformation across the beats. Fighter.draw() has fixed bone lengths for
+// every gameplay reason, so this is the only place the finisher rig is allowed
+// to stretch and compress.
+function _finApplyDeform(att, tgt, def, timer) {
+  att._finStretch = 1;
+  att._finSquash  = null;
+  tgt._finSquash  = null;
+
+  if (att._finAnticip) {
+    const u = att._finAnticip / FIN_ANTIC_AMOUNT;
+    att._finSquash = { x: 1 + u * 0.09, y: 1 - u * 0.09 };
+  } else if (att._finPoseP !== null && att._finPoseP !== undefined) {
+    const p = att._finPoseP;
+    const drive = Math.sin(Math.min(1, p) * Math.PI);
+    att._finStretch = 1 + drive * 0.42;
+    att._finSquash  = { x: 1 - drive * 0.07, y: 1 + drive * 0.10 };
+  }
+
+  const imp = def.impact;
+  if (!imp) return;
+  const dt = timer - imp;
+  if (dt >= 0 && dt < FIN_SQUASH_FRAMES) {
+    const k = 1 - dt / FIN_SQUASH_FRAMES;
+    tgt._finSquash = { x: 1 + k * 0.24, y: 1 - k * 0.20 };
+  }
+}
+
+// Victim beat track. Without this the target's entire performance is a single
+// 'hurt' pose held from def.impact to the end of the sequence.
+function _finVictimBeat(def, timer) {
+  const imp = def.impact;
+  if (!imp) return null;
+  if (timer < imp - FIN_BRACE_FRAMES) return null;
+  if (timer < imp) return 'shielding';
+  if (timer < imp + FIN_HURT_FRAMES) return 'hurt';
+  return 'ragdoll';
+}
+
+// Impact freezes. Defaults to one hold on def.impact so every existing def gains
+// a beat without being edited; def.holds overrides.
+function _finApplyHolds(att, tgt, def, timer, data) {
+  const list = def.holds || (def.impact ? [{ at: def.impact, frames: FIN_HOLD_FRAMES }] : null);
+  if (!list) return;
+  if (!data._finHeld) data._finHeld = {};
+  for (let i = 0; i < list.length; i++) {
+    const h = list[i];
+    if (timer !== h.at || data._finHeld[i]) continue;
+    data._finHeld[i] = true;
+    if (typeof animHold === 'function') animHold(h.frames || FIN_HOLD_FRAMES);
+    if (h.shake !== false && typeof screenShake !== 'undefined' && typeof settings !== 'undefined' && settings.screenShake) {
+      screenShake = Math.max(screenShake, h.shake || 16);
+    }
+    if (typeof CinCam !== 'undefined' && CinCam.zoomTo && h.zoom !== false) {
+      CinCam.zoomTo((h.zoom || 1.34));
+      if (att) CinCam.focusPoint((att.cx() + tgt.cx()) / 2, (att.cy() + tgt.cy()) / 2);
+    }
+  }
 }
 
 function _finClearPose(f) {
   if (!f) return;
   f._finPoseP = null;
   f._finPoseState = null;
+  f._finAnticip = 0;
+  f._finStretch = 1;
+  f._finSquash = null;
   f._finNoBlink = false;
 }
 
@@ -257,6 +337,7 @@ function updateFinisher() {
   _finApplyApproach(attacker, target, def, activeFinisher.timer, data);
   _finApplyFacing(attacker, target, def, activeFinisher.timer, data);
   _finApplyPose(attacker, target, def, activeFinisher.timer);
+  _finApplyHolds(attacker, target, def, activeFinisher.timer, data);
 
   activeFinisher.timer++;
 

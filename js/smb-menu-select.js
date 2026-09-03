@@ -316,7 +316,12 @@ function selectArena(name) {
   if (hint) hint.textContent = _ARENA_GIMMICKS[name] || '';
 }
 
-// Called between random-mode fights: fades to black, switches arena + rerolls weapons/classes, fades back
+// Called between lives in Complete Randomizer: fades to black, switches arena, fades back.
+// It used to reroll weapons + classes here too, but that ran on every DEATH while
+// the mode is documented (and named) as randomizing the loadout every MATCH — and
+// it also overwrote the loadout Sovereign had picked for himself that life,
+// leaving his _loadout bookkeeping pointing at a weapon he was no longer holding.
+// Loadouts are now resolved once, in _startGameCore.
 function switchArenaWithTransition(newArenaKey, callback) {
   const fade = document.getElementById('fadeOverlay');
   if (fade) { fade.style.transition = 'opacity 0.28s'; fade.style.opacity = '1'; }
@@ -326,28 +331,6 @@ function switchArenaWithTransition(newArenaKey, callback) {
       return;
     }
     if (typeof switchArena === 'function') switchArena(newArenaKey);
-    // Reroll weapons + classes for each non-boss player:
-    //   - always when completeRandomizer is active
-    //   - otherwise only when the dropdown is set to 'random'
-    players.forEach(p => {
-      if (p.isBoss) return;
-      const isP1 = p === players[0];
-      const wSel = isP1 ? 'p1Weapon' : 'p2Weapon';
-      const cSel = isP1 ? 'p1Class'  : 'p2Class';
-      const wVal = document.getElementById(wSel)?.value;
-      const cVal = document.getElementById(cSel)?.value;
-      if (!completeRandomizer && wVal !== 'random' && cVal !== 'random') return;
-      const resolved = completeRandomizer
-        ? resolveWeaponAndClassValues('random', 'random')
-        : resolveWeaponAndClass(wSel, cSel);
-      if (resolved.weaponKey && typeof WEAPONS !== 'undefined' && WEAPONS[resolved.weaponKey]) {
-        p.weaponKey = resolved.weaponKey;
-        p.weapon    = WEAPONS[resolved.weaponKey];
-        p._ammo     = p.weapon.clipSize || 0;
-        p._reloadTimer = 0;
-      }
-      if (typeof applyClass === 'function') applyClass(p, resolved.classKey);
-    });
     if (typeof callback === 'function') callback();
     setTimeout(() => {
       if (fade) { fade.style.transition = 'opacity 0.38s'; fade.style.opacity = '0'; }
@@ -444,6 +427,8 @@ function openSettingsModal() {
   if (svEl) svEl.checked = settings.storyVoice !== false;
   const rcEl = document.getElementById('settingReplayMode');
   if (rcEl) rcEl.checked = !!settings.replayMode;
+  const aqEl = document.getElementById('settingAnimQuality');
+  if (aqEl) aqEl.checked = settings.animQuality !== 'classic';
 }
 
 function closeSettingsModal() {
@@ -533,6 +518,11 @@ function updateSettings() {
     settings.storyVoice = storyVoiceEl.checked;
     localStorage.setItem('smc_storyVoice', settings.storyVoice ? '1' : '0');
     if (!settings.storyVoice && typeof StoryVoice !== 'undefined') StoryVoice.stop();
+  }
+  const animQualityEl = document.getElementById('settingAnimQuality');
+  if (animQualityEl) {
+    settings.animQuality = animQualityEl.checked ? 'high' : 'classic';
+    localStorage.setItem('smc_animQuality', settings.animQuality);
   }
   const replayModeEl = document.getElementById('settingReplayMode');
   if (replayModeEl) {

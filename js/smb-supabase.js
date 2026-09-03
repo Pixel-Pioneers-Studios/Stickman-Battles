@@ -9,6 +9,9 @@ window.SMB_SUPABASE_CONFIG = window.SMB_SUPABASE_CONFIG || {
   url: 'https://cpqlqaynealpilmvollv.supabase.co',
   anonKey: 'sb_publishable_kGUxVfyEd6i4UeLPDBb_Ag_6jEYsZvh',
   authStorageKey: 'smc_supabase_auth_v1',
+  // Supabase Auth is email-keyed. Usernames are mapped onto a stable synthetic
+  // address under this domain so players never have to type an email.
+  usernameDomain: 'players.stickmanevolution.net',
 };
 
 const SupabaseBridge = (() => {
@@ -39,7 +42,7 @@ const SupabaseBridge = (() => {
     if (!isAvailable()) return 'Account & Saves';
     if (!_ready) return 'Account & Saves...';
     if (!_session || !_user) return 'Account & Saves';
-    const label = _user.email || _user.user_metadata?.full_name || _user.id.slice(0, 8);
+    const label = getDisplayName() || _user.user_metadata?.full_name || _user.id.slice(0, 8);
     return String(label).split('@')[0].slice(0, 18);
   }
 
@@ -60,7 +63,7 @@ const SupabaseBridge = (() => {
     btn.innerHTML = icon + ' ' + _menuButtonLabel()
       .replace(/&/g, '&amp;').replace(/</g, '&lt;');
     btn.title = _session
-      ? ('Signed in as ' + (_user?.email || 'cloud user'))
+      ? ('Signed in as ' + (getDisplayName() || 'cloud user'))
       : (isAvailable() ? 'Open account, local save, and cloud sync settings' : 'Supabase config missing');
   }
 
@@ -205,6 +208,90 @@ const SupabaseBridge = (() => {
     _lastStatus = 'signed_out';
     _emit('signed_out', res);
     return res;
+  }
+
+  // ── Username auth ───────────────────────────────────────────────────────────
+  // Players sign in with a plain username. Supabase Auth still keys on email, so
+  // a username is stored in user_metadata and mapped onto a stable synthetic
+  // address. Anything containing '@' is treated as a real email and passed
+  // through untouched, so existing email accounts keep working unchanged.
+
+  function _usernameDomain() {
+    return String(_cfg().usernameDomain || 'players.stickmanevolution.net').replace(/^@/, '');
+  }
+
+  function normalizeUsername(name) {
+    return String(name || '').trim().toLowerCase()
+      .replace(/\s+/g, '_')
+      .replace(/[^a-z0-9._-]/g, '');
+  }
+
+  function validateUsername(name) {
+    const u = normalizeUsername(name);
+    if (u.length < 3)  return { ok: false, username: u, reason: 'Username must be at least 3 characters.' };
+    if (u.length > 20) return { ok: false, username: u, reason: 'Username must be 20 characters or fewer.' };
+    if (!/^[a-z0-9]/.test(u)) return { ok: false, username: u, reason: 'Username must start with a letter or number.' };
+    return { ok: true, username: u, reason: '' };
+  }
+
+  function usernameToEmail(name) {
+    const raw = String(name || '').trim();
+    if (raw.indexOf('@') !== -1) return raw;
+    return normalizeUsername(raw) + '@' + _usernameDomain();
+  }
+
+  function isSyntheticEmail(email) {
+    return String(email || '').toLowerCase().endsWith('@' + _usernameDomain());
+  }
+
+  // What to show the player: their username if we have one, otherwise the local
+  // part of their email so a legacy email account still reads sensibly.
+  function getDisplayName() {
+    if (!_user) return '';
+    const meta = _user.user_metadata || {};
+    if (meta.username) return String(meta.username);
+    if (_user.email) return String(_user.email).split('@')[0];
+    return String(_user.id).slice(0, 8);
+  }
+
+  async function signInWithUsername(name, password) {
+    const res = await signIn(usernameToEmail(name), password);
+    if (res && !res.error) await reconcileActiveSave();
+    return res;
+  }
+
+  async function signUpWithUsername(name, password) {
+    const looksLikeEmail = String(name || '').indexOf('@') !== -1;
+    const v = validateUsername(name);
+    if (!looksLikeEmail && !v.ok) return { data: null, error: { message: v.reason } };
+    if (String(password || '').length < 6) {
+      return { data: null, error: { message: 'Password must be at least 6 characters.' } };
+    }
+
+    const email = usernameToEmail(name);
+    const client = await getClient();
+    const res = await client.auth.signUp({
+      email: email,
+      password: String(password || ''),
+      options: { data: { username: looksLikeEmail ? String(name).trim() : v.username } },
+    });
+    if (res && res.error) return res;
+    if (res && res.data && res.data.session) {
+      await reconcileActiveSave();
+      return res;
+    }
+
+    // No session came back, which means the project has email confirmation on.
+    // A synthetic address can never be confirmed, so try signing straight in and
+    // surface an actionable message if that is genuinely the blocker.
+    const direct = await signIn(email, password);
+    if (direct && !direct.error) {
+      await reconcileActiveSave();
+      return direct;
+    }
+    return { data: null, error: { message: looksLikeEmail
+      ? 'Account created. Check your email to confirm it, then sign in.'
+      : 'Account created, but this project requires email confirmation, which username logins cannot satisfy. Turn off "Confirm email" in Supabase Auth settings.' } };
   }
 
   function _localSaveTimestamp(save) {
@@ -456,7 +543,7 @@ const SupabaseBridge = (() => {
       : null;
     const profileName = active && active.username
       ? active.username
-      : (save && save.profile && save.profile.displayName) || (_user.email ? _user.email.split('@')[0] : 'Player');
+      : (save && save.profile && save.profile.displayName) || getDisplayName() || 'Player';
     return {
       user_id: _user.id,
       email: _user.email || '',
@@ -829,6 +916,13 @@ const SupabaseBridge = (() => {
     claimMatchRewards,
     signInAndLoad,
     signUpAndLoad,
+    normalizeUsername,
+    validateUsername,
+    usernameToEmail,
+    isSyntheticEmail,
+    getDisplayName,
+    signInWithUsername,
+    signUpWithUsername,
     fetchRemoteSave,
     reconcileActiveSave,
     queueSyncFromRuntime,

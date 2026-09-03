@@ -16,7 +16,24 @@ function startGame(_skipVote) {
   // the world swap with a quick dip of the fade overlay. The flag is set by the
   // story launch funnel (see _storyMarkTransition in smb-story-engine-flow.js).
   const _seamless = !!window._storySeamlessNext;
+  const _tKind    = window._storyTransitionKind || null;
   window._storySeamlessNext = false;
+  window._storyTransitionKind = null;
+
+  if (_seamless && _tKind && typeof StoryTransition !== 'undefined' && StoryTransition.available()) {
+    gameLoading = true;
+    if (fadeOv) fadeOv.style.opacity = '0';
+    StoryTransition.play({
+      kind:     _tKind,
+      title:    window._storyTransitionTitle || '',
+      subtitle: window._storyTransitionSub || '',
+      accent:   window._storyTransitionAccent || '#5cc8ff',
+      holdMs:   _tKind === 'act' ? 900 : 120,
+      onCovered: () => { _startGameCore(); if (loadOv) loadOv.style.display = 'none'; },
+      onDone:    () => { gameLoading = false; },
+    });
+    return;
+  }
 
   // Show loading overlay immediately (no dependency on fadeOv)
   if (loadOv && !_seamless) {

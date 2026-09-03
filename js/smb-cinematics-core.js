@@ -773,6 +773,9 @@ function updateCinematicEnhancements() {
   for (let i = cinMotionTrails.length - 1; i >= 0; i--) {
     const t = cinMotionTrails[i];
     if (!t.enabled || !t.entity || t.entity.health <= 0) continue;
+    // A near-stationary entity would otherwise stack nine ghosts on one spot
+    const last = t.positions[t.positions.length - 1];
+    if (last && Math.hypot(t.entity.x - last.x, t.entity.y - last.y) < 4) continue;
     t.positions.push({ x: t.entity.x, y: t.entity.y });
     if (t.positions.length > 9) t.positions.shift();
   }
@@ -830,7 +833,11 @@ function drawCinMotionTrails() {
       ctx.globalAlpha = Math.max(0, alpha);
       ctx.fillStyle   = t.color || '#ffffff';
       ctx.shadowColor = t.color || '#ffffff';
-      ctx.fillRect(pos.x + 4, pos.y + 4, ent.w - 8, ent.h - 8);
+      if (ent._cinPerf && typeof CinPerf !== 'undefined' && typeof CinRig !== 'undefined') {
+        CinPerf.drawGhost(ent, pos, t.color, alpha);
+      } else {
+        ctx.fillRect(pos.x + 4, pos.y + 4, ent.w - 8, ent.h - 8);
+      }
     }
   }
   ctx.shadowBlur  = 0;

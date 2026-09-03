@@ -767,6 +767,18 @@ const DomainManager = (() => {
       if (typeof screenShake !== 'undefined') screenShake = Math.max(screenShake, 18);
     }
 
+    if (typeof CinPerf !== 'undefined') {
+      if (t === RISE_FRAMES - 1) {
+        CinPerf.begin(f, 'domainEntry', {
+          frames: RISE_FRAMES,
+          color: def.color,
+          gesture: CinPerf.domainGesture(_dk),
+          smearFrom: 95, smearTo: 112,
+        });
+      }
+      if (f._cinPerf) CinPerf.tick(f, RISE_FRAMES - t);
+    }
+
     switch (_dk) {
 
       // ── Thor: hammer raised → lightning strikes → supercharge → ground slam ──
@@ -3309,6 +3321,7 @@ const DomainManager = (() => {
     if (idx !== -1) _rising.splice(idx, 1);
     if (!fighter) return;
     fighter._domainRising = false;
+    if (typeof CinPerf !== 'undefined') CinPerf.end(fighter);
     // Clean up any in-progress domain entry cinematic for this fighter
     if (_domainCinOwner === fighter) {
       if (typeof CinCam !== 'undefined') CinCam.restore();
@@ -5665,6 +5678,7 @@ const DomainManager = (() => {
       if (!r || !r.fighter) continue;
       r.fighter._domainRising    = false;
       r.fighter._domainRiseTimer = 0;
+      if (typeof CinPerf !== 'undefined') CinPerf.end(r.fighter);
       delete r.fighter._domainSuperCount;
     }
     _domains.length = 0;

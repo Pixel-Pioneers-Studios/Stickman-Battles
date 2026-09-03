@@ -39,9 +39,31 @@
 //   * showBossDialogue() is stubbed for exactly the window in which the host's
 //     own update runs, so his 36 taunt lines are dropped while every other
 //     entity's dialogue still works normally.
-//   * Null Anchor and Null Recoil are disabled outright — they are
-//     Sovereign-exclusive powers with screen shake, particles and a
-//     queueAnnouncement() banner, and the player has not earned them.
+//   * queueAnnouncement() is stubbed for the same window, so Null Anchor's and
+//     Null Recoil's banners never name him. The powers themselves RUN — see
+//     below; only their captions are suppressed.
+//
+// PARITY WITH THE FIGHT (why the spirit is not a weaker Sovereign)
+// ----------------------------------------------------------------
+// Everything the boss-path Sovereign gets after construction must also be
+// applied here, or possession silently ships a nerfed brain:
+//   * applySovereignPeakTuning() — the shared peak numbers (see below).
+//   * aiDiff = 'hard'. AdaptiveAI passes 'hard' to the Fighter constructor; a
+//     human fighter was built with the default 'medium'. It is not cosmetic:
+//     Fighter.attack()'s AI whiff-guard projects the swing forward at a
+//     difficulty-scaled pursuit speed (medium 4.4 vs hard 5.0), so a possessed
+//     host VETOED swings the real Sovereign commits to, and the whiff-guard is
+//     the single largest consumer of his attack() calls.
+//   * Null Recoil and Null Anchor. These used to be stubbed out here on the
+//     grounds that they are loud. They are also the two systems that keep him
+//     alive: Recoil is his only escape from a juggle, Anchor his only answer to
+//     a ring-out — and a ring-out at healthy HP is how the player loses most of
+//     their own lives in this matchup. Without them the spirit was juggled and
+//     ringed out in fights the real Sovereign survives. They now run, silently.
+//
+// Still deliberately NOT shared: his loadout. _applyLoadout / _ensureMatchLoadout
+// both refuse to fire on a possessed host, because the human picked their own
+// weapon and class and the contract is that the body stays theirs.
 //
 // Load order: must come after smb-smk2-class.js (SovereignMK2) and
 // smb-admin-core.js (_adminPanelIsAllowed).
@@ -99,6 +121,20 @@ const SovereignControl = {
       return false;
     }
 
+    // 1b. Bring the brain up to the strength of the Sovereign you actually
+    //     fight. The constructor alone is NOT that Sovereign: _startGameCore
+    //     applies a peak-tuning pass after construction (limiter broken,
+    //     'suffocate' pressure, no observation warmup), and possession used to
+    //     skip it entirely — so the spirit playing for you was measurably weaker
+    //     than the one across the arena. Tuning the TEMPLATE rather than the
+    //     host keeps every field on the normal graft path, so release() still
+    //     removes all of it. `silent` starts him at the evolution stage the boss
+    //     version reaches on his first tick, which is what keeps the escalation
+    //     shake / particles / dialogue from ever firing on the player's body.
+    if (typeof applySovereignPeakTuning === 'function') {
+      try { applySovereignPeakTuning(template, { silent: true }); } catch (e) {}
+    }
+
     // 2. Graft AI state — host's own properties always win.
     const grafted = [];
     for (const k of Object.keys(template)) {
@@ -112,6 +148,7 @@ const SovereignControl = {
     const proto = Object.getPrototypeOf(host);
     const saved = {
       isAI:              host.isAI,
+      aiDiff:            host.aiDiff,
       target:            host.target,
       aiTickInterval:    Object.prototype.hasOwnProperty.call(host, 'aiTickInterval') ? host.aiTickInterval : undefined,
       hadTickInterval:   Object.prototype.hasOwnProperty.call(host, 'aiTickInterval'),
@@ -126,6 +163,19 @@ const SovereignControl = {
     //    decision cadence, not the shared 15-frame AI gate.
     host.aiTickInterval = 1;
     host.isAI = true;
+    // AdaptiveAI's own constructor passes 'hard' to Fighter; a player fighter was
+    // built 'medium'. Several inherited paths Sovereign still routes through read
+    // it — most importantly attack()'s whiff guard.
+    host.aiDiff = 'hard';
+
+    // Null Anchor stakes its tether at construction (this._anchorX = x), and the
+    // template was constructed off-screen at -99999. Re-home it on the host or the
+    // first save teleports the player into the void the tether exists to prevent.
+    host._anchorX = host.x;
+    host._anchorY = host.y;
+    // Loadout bookkeeping references the host's real stat line, not the template's.
+    host._baseMaxHealth = host.maxHealth;
+    host._baseSpeedMult = host.classSpeedMult || 1;
 
     // Fighter.update() only calls updateAI() when a target already exists, and
     // Sovereign's own retargeting lives inside updateAI() — so without a seed he
@@ -133,12 +183,6 @@ const SovereignControl = {
     if (!host.target || host.target.health <= 0) {
       try { host._acquireAITarget(); } catch (e) {}
     }
-
-    // Own-property no-ops shadow the prototype methods. Sovereign-exclusive
-    // survival powers, and both are loud on screen.
-    host._updateNullAnchor = function () {};
-    host._updateNullRecoil = function () {};
-    grafted.push('_updateNullAnchor', '_updateNullRecoil');
 
     // Keep rendering exactly as the host's real class renders — no aura layer.
     const origDraw = proto.draw;
@@ -181,7 +225,8 @@ const SovereignControl = {
       if (saved.hadTickInterval) host.aiTickInterval = saved.aiTickInterval;
       else delete host.aiTickInterval;
 
-      host.isAI  = saved.isAI;
+      host.isAI   = saved.isAI;
+      host.aiDiff = saved.aiDiff;
       host.target = saved.target;
 
       // Hand back a clean fighter: no half-finished Sovereign swing, no held shield.
@@ -216,6 +261,23 @@ const SovereignControl = {
   };
   _wrapped._sovCtlWrapped = true;
   window.showBossDialogue = _wrapped;
+})();
+
+// ── Announcement suppression ───────────────────────────────────────────────
+// Same contract as the dialogue stub above, and the reason the restored survival
+// powers can run silently: Null Recoil banners 'NULL RECOIL' and Null Anchor
+// banners 'NULL ANCHOR — SUPER SPENT'. Both would name him on the player's own
+// body. Scoped to _inside, so every other entity's announcements still show.
+(function () {
+  if (typeof window === 'undefined' || typeof window.queueAnnouncement !== 'function') return;
+  if (window.queueAnnouncement._sovCtlWrapped) return;
+  const _orig = window.queueAnnouncement;
+  const _wrapped = function () {
+    if (SovereignControl.active && SovereignControl._inside) return;
+    return _orig.apply(this, arguments);
+  };
+  _wrapped._sovCtlWrapped = true;
+  window.queueAnnouncement = _wrapped;
 })();
 
 // ── The button ─────────────────────────────────────────────────────────────

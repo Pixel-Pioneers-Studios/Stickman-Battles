@@ -192,10 +192,17 @@ function drawAccessory(fighter, cx, headCY, shoulderY, hipY, facing, headR) {
   // --- CAPE (ribbon bezier — draw behind body) ---
   if (cape !== 'none') {
     const _capeT  = (typeof frameCount !== 'undefined' ? frameCount : 0);
-    const _cd     = -facing;  // trails opposite to facing
+    // Velocity drive: the cape previously waved on a sine of frameCount and the
+    // fighter's position alone, so a sprint and a standstill looked identical.
+    // animCapeDrive gives it the fighter's motion to react to — and a LAGGED
+    // trail direction, so it whips through a turn instead of snapping.
+    const _cdv    = (typeof animCapeDrive === 'function') ? animCapeDrive(fighter)
+                                                          : { dir: -facing, sweep: 0, lift: 0 };
+    const _cd     = _cdv.dir;  // trails opposite to facing, a few frames late
     const _wv     = Math.sin(_capeT * 0.13 + fighter.x * 0.04) * 4
-                  + Math.sin(_capeT * 0.07 + fighter.y * 0.03) * 2;
-    const _drp    = Math.sin(_capeT * 0.10) * 1.5;
+                  + Math.sin(_capeT * 0.07 + fighter.y * 0.03) * 2
+                  + _cdv.sweep;
+    const _drp    = Math.sin(_capeT * 0.10) * 1.5 + _cdv.lift;
 
     // Short: tip just below hips; long/royal: extends well below hips
     const _tipDrop = cape === 'short' ? 8 : 26;

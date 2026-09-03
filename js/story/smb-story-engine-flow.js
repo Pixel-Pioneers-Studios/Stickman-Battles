@@ -166,10 +166,27 @@ function _storyMarkTransition(ch) {
   if (!ch) return;
   const _act   = (typeof _getActForChapter === 'function') ? _getActForChapter(ch.id) : null;
   const _actId = _act ? _act.id : null;
-  window._storySeamlessNext =
-    _storyLastLoadedActId !== null &&    // not the first launch of this session
-    _actId === _storyLastLoadedActId &&  // act boundaries keep their loading screen
-    !_storyIsSetPieceChapter(ch);        // big set-pieces keep theirs too
+  const _sameAct  = _actId === _storyLastLoadedActId;
+  const _setPiece = _storyIsSetPieceChapter(ch);
+  const _first    = _storyLastLoadedActId === null;
+
+  window._storySeamlessNext = !_first && _sameAct && !_setPiece;
+
+  // An act change is a title card rather than a loading screen; everything else
+  // that stays seamless gets the ink wipe.
+  if (!_first && !_sameAct && !_setPiece) {
+    window._storySeamlessNext   = true;
+    window._storyTransitionKind = 'act';
+    // Act labels read "Act III — The Fracture"; the card splits them.
+    const _parts = String((_act && _act.label) || 'New Act').split('—');
+    window._storyTransitionTitle  = _parts[0].trim().toUpperCase();
+    window._storyTransitionSub    = (_parts[1] || '').trim();
+    window._storyTransitionAccent = (_act && _act.color) || '#5cc8ff';
+  } else if (window._storySeamlessNext) {
+    window._storyTransitionKind = 'ink';
+  } else {
+    window._storyTransitionKind = null;
+  }
   _storyLastLoadedActId = _actId;
 }
 

@@ -656,6 +656,8 @@ function gameLoop(timestamp) {
 
   // Draw Verlet death ragdolls (behind living players)
   verletRagdolls.forEach(vr => vr.draw());
+  // Dropped weapons left behind by deaths — behind the living fighters
+  if (typeof DeathAnim !== 'undefined') DeathAnim.drawProps();
 
   // Safety: clamp any Infinity/NaN velocities before physics update (avoids teleport bugs)
   for (const p of players) {
@@ -671,6 +673,9 @@ function gameLoop(timestamp) {
   // Players — skip physics update for remote (network-driven) players; also skip during hard freeze or absorption cinematic
   if (!gameFrozen && !tfAbsorptionScene) {
     players.forEach(p => { if ((p.health > 0 || p.invincible > 0) && !p.isRemote) p.update(); });
+    // Authored death beats run AFTER physics so they can override the pose and
+    // read the body's real landing velocity (see docs/animation-quality-plan.md).
+    if (typeof DeathAnim !== 'undefined') DeathAnim.update();
   }
   // Passive super charge: every player (non-boss) gains a small amount of super each frame
   if (!isCinematic && !paused) {

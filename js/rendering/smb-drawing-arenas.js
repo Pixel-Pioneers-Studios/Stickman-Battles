@@ -1276,15 +1276,11 @@ function checkDeaths() {
         if (typeof chaosModeRecordKill === 'function') chaosModeRecordKill(p);
         spawnParticles(p.cx(), p.cy(), p.color, 20);
         if (!p.ragdollTimer) { p.ragdollTimer = 45; p.ragdollSpin = (Math.random() - 0.5) * 0.25; }
-        if (typeof VerletRagdoll !== 'undefined') {
-          const vr = new VerletRagdoll(p);
-          if (currentArena) {
-            const floor = currentArena.platforms.find(pl => pl.isFloor && !pl.isFloorDisabled);
-            if (floor) vr.floorY = floor.y;
-          }
-          verletRagdolls.push(vr);
-        }
-        if (p._rd) PlayerRagdoll.collapse(p);
+        // Authored death: three beats, then the beats hand off to the (now
+        // angle-constrained) verlet corpse. Spawning a collapsed pose AND a
+        // skeleton here is what used to draw two overlapping bodies.
+        if (typeof DeathAnim !== 'undefined') DeathAnim.begin(p);
+        else if (p._rd) PlayerRagdoll.collapse(p);
         p.invincible = 999;
         respawnCountdowns.push({ color: p.color, x: p.spawnX, y: p.spawnY - 80, framesLeft: 66 });
         setTimeout(() => { if (gameRunning) p.respawn(); }, 1100);
@@ -1296,15 +1292,11 @@ function checkDeaths() {
         addKillFeed(p);
         spawnParticles(p.cx(), p.cy(), p.color, 20);
         if (!p.ragdollTimer) { p.ragdollTimer = 45; p.ragdollSpin = (Math.random() - 0.5) * 0.25; }
-        if (typeof VerletRagdoll !== 'undefined') {
-          const vr = new VerletRagdoll(p);
-          if (currentArena) {
-            const floor = currentArena.platforms.find(pl => pl.isFloor && !pl.isFloorDisabled);
-            if (floor) vr.floorY = floor.y;
-          }
-          verletRagdolls.push(vr);
-        }
-        if (p._rd) PlayerRagdoll.collapse(p);
+        // Authored death: three beats, then the beats hand off to the (now
+        // angle-constrained) verlet corpse. Spawning a collapsed pose AND a
+        // skeleton here is what used to draw two overlapping bodies.
+        if (typeof DeathAnim !== 'undefined') DeathAnim.begin(p);
+        else if (p._rd) PlayerRagdoll.collapse(p);
         p.isDead = true;
         p.invincible = 9999; // prevent re-trigger; Minion.update() guards health<=0 after super.update()
         continue;
@@ -1317,7 +1309,10 @@ function checkDeaths() {
         addKillFeed(p);
         spawnParticles(p.cx(), p.cy(), p.color, 20);
         if (!p.ragdollTimer) { p.ragdollTimer = 45; p.ragdollSpin = (Math.random() - 0.5) * 0.25; }
-        if (p._rd) PlayerRagdoll.collapse(p);
+        // Branch rulers stay on the field for the wave logic — animate the death
+        // but keep the body, so no verlet corpse handoff here.
+        if (typeof DeathAnim !== 'undefined') DeathAnim.begin(p, { verlet: false });
+        else if (p._rd) PlayerRagdoll.collapse(p);
         p.isDead = true;
         p.invincible = 9999; // prevent re-trigger
         continue;
@@ -1419,21 +1414,17 @@ function checkDeaths() {
         addKillFeed(p);
         spawnParticles(p.cx(), p.cy(), p.color, 20);
         if (!p.ragdollTimer) { p.ragdollTimer = 45; p.ragdollSpin = (Math.random() - 0.5) * 0.25; }
-        if (typeof VerletRagdoll !== 'undefined') {
-          const vr = new VerletRagdoll(p);
-          if (currentArena) {
-            const floor = currentArena.platforms.find(pl => pl.isFloor && !pl.isFloorDisabled);
-            if (floor) vr.floorY = floor.y;
-          }
-          verletRagdolls.push(vr);
-        }
-        if (p._rd) PlayerRagdoll.collapse(p);
+        // Authored death: three beats, then the beats hand off to the (now
+        // angle-constrained) verlet corpse. Spawning a collapsed pose AND a
+        // skeleton here is what used to draw two overlapping bodies.
+        if (typeof DeathAnim !== 'undefined') DeathAnim.begin(p);
+        else if (p._rd) PlayerRagdoll.collapse(p);
         p.invincible = 999;
         p.vy = -10; p.vx = (Math.random() - 0.5) * 14;
         respawnCountdowns.push({ color: p.color, x: p.spawnX, y: p.spawnY - 80, framesLeft: 66 });
         setTimeout(() => {
           if (!gameRunning) return;
-          if (completeRandomizer && gameMode !== 'boss' && gameMode !== 'trueform') {
+          if (completeRandomizer && gameMode === '2p') {
             const arenaPool = ARENA_KEYS_ORDERED.filter(k => ARENAS[k] && !ARENAS[k].isStoryOnly);
             switchArenaWithTransition(randChoice(arenaPool), () => p.respawn());
           } else {
@@ -1447,20 +1438,16 @@ function checkDeaths() {
         addKillFeed(p);
         spawnParticles(p.cx(), p.cy(), p.color, 20);
         if (!p.ragdollTimer) { p.ragdollTimer = 45; p.ragdollSpin = (Math.random() - 0.5) * 0.25; }
-        if (typeof VerletRagdoll !== 'undefined') {
-          const vr = new VerletRagdoll(p);
-          if (currentArena) {
-            const floor = currentArena.platforms.find(pl => pl.isFloor && !pl.isFloorDisabled);
-            if (floor) vr.floorY = floor.y;
-          }
-          verletRagdolls.push(vr);
-        }
-        if (p._rd) PlayerRagdoll.collapse(p);
+        // Authored death: three beats, then the beats hand off to the (now
+        // angle-constrained) verlet corpse. Spawning a collapsed pose AND a
+        // skeleton here is what used to draw two overlapping bodies.
+        if (typeof DeathAnim !== 'undefined') DeathAnim.begin(p);
+        else if (p._rd) PlayerRagdoll.collapse(p);
         p.invincible = 999;
         respawnCountdowns.push({ color: p.color, x: p.spawnX, y: p.spawnY - 80, framesLeft: 66 });
         setTimeout(() => {
           if (!gameRunning) return;
-          if (completeRandomizer && gameMode !== 'boss' && gameMode !== 'trueform') {
+          if (completeRandomizer && gameMode === '2p') {
             const arenaPool = ARENA_KEYS_ORDERED.filter(k => ARENAS[k] && !ARENAS[k].isStoryOnly);
             switchArenaWithTransition(randChoice(arenaPool), () => p.respawn());
           } else {
@@ -1484,20 +1471,16 @@ function checkDeaths() {
         addKillFeed(p);
         spawnParticles(p.cx(), p.cy(), p.color, 20);
         if (!p.ragdollTimer) { p.ragdollTimer = 45; p.ragdollSpin = (Math.random() - 0.5) * 0.25; }
-        if (typeof VerletRagdoll !== 'undefined') {
-          const vr = new VerletRagdoll(p);
-          if (currentArena) {
-            const floor = currentArena.platforms.find(pl => pl.isFloor && !pl.isFloorDisabled);
-            if (floor) vr.floorY = floor.y;
-          }
-          verletRagdolls.push(vr);
-        }
-        if (p._rd) PlayerRagdoll.collapse(p);
+        // Authored death: three beats, then the beats hand off to the (now
+        // angle-constrained) verlet corpse. Spawning a collapsed pose AND a
+        // skeleton here is what used to draw two overlapping bodies.
+        if (typeof DeathAnim !== 'undefined') DeathAnim.begin(p);
+        else if (p._rd) PlayerRagdoll.collapse(p);
         if (p.lives > 0) {
           respawnCountdowns.push({ color: p.color, x: p.spawnX, y: p.spawnY - 80, framesLeft: 66 });
           setTimeout(() => {
             if (!gameRunning) return;
-            if (completeRandomizer && gameMode !== 'boss' && gameMode !== 'trueform') {
+            if (completeRandomizer && gameMode === '2p') {
               const arenaPool = ARENA_KEYS_ORDERED.filter(k => ARENAS[k] && !ARENAS[k].isStoryOnly);
               switchArenaWithTransition(randChoice(arenaPool), () => p.respawn());
             } else {

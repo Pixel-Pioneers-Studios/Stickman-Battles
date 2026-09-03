@@ -738,6 +738,17 @@ function dealDamage(attacker, target, dmg, kbForce, stunMult = 1.0, isSplash = f
   }
   target.invincible = target.invincible > hitInvincibleFrames ? target.invincible : hitInvincibleFrames; // preserve finisher lock
   const dir        = attacker ? (target.cx() > attacker.cx() ? 1 : -1) : 1;
+  // Informational stamp for the death animation: which way the blow pushed, how
+  // hard, and whether it was splash or a finisher. Read by DeathAnim.begin() to
+  // pick a death; nothing about damage, knockback or timing depends on it.
+  target._lastHitCtx = {
+    dir, kb: actualKb, dmg: actualDmg, splash: !!isSplash,
+    finisher: !!_finisherFired,
+    fromBoss: !!(attacker && (attacker.isBoss || attacker.isTrueForm)),
+    hx: attacker ? attacker.cx() : target.cx(),
+    hy: attacker ? attacker.cy() : target.cy(),
+    frame: (typeof frameCount !== 'undefined') ? frameCount : 0,
+  };
   // A finisher stages both fighters itself — approach, facing, pose. Applying the
   // killing blow's knockback here yanks the victim out of that staging on the
   // frame the sequence starts.
@@ -754,6 +765,10 @@ function dealDamage(attacker, target, dmg, kbForce, stunMult = 1.0, isSplash = f
     // Purely visual — does not affect hitboxes, physics, or online sync.
     if (!target.shielding) {
       target._hitNudge = { x: dir * Math.min(4, 2 + Math.floor(actualDmg / 15)), t: 4 };
+      // Impact squash — scale of the deformation tracks the scale of the blow.
+      // Render-only; consumed by animHitSquash() in Fighter.draw().
+      const _sqAmt = Math.min(0.22, 0.05 + actualKb * 0.011);
+      target._hitSquash = { amt: _sqAmt, t: 10, max: 10 };
     }
   }
   if (settings.screenShake) {

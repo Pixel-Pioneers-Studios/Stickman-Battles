@@ -125,6 +125,7 @@ class SovereignMK2 extends AdaptiveAI {
     // abilities, finisher) but never its hp/speed, or picking a class would
     // silently rebalance him.
     this._loadout       = null;   // active SMK2_LOADOUTS entry
+    this._loadoutLocked = false;  // true once the match's kit is chosen (see _ensureMatchLoadout)
     this._loadoutStats  = {};     // key -> { lives, dealt } bandit record
     this._loadoutDealt0 = 0;      // totalDamageDealt at the start of this life
     this._baseMaxHealth = this.maxHealth;   // construction-time reference only
@@ -3215,6 +3216,12 @@ class SovereignMK2 extends AdaptiveAI {
   // own stat line is restored immediately afterwards.
   _applyLoadout(lo) {
     if (!lo || typeof WEAPONS === 'undefined' || !WEAPONS[lo.wk]) return;
+    // Possession runs this whole class ON THE PLAYER'S OWN FIGHTER, so an
+    // unguarded kit change here rewrote the human's weapon and class out from
+    // under them. SovereignControl's contract is that the host keeps its own
+    // body, weapon and class — the brain is the only thing borrowed.
+    if (typeof SovereignControl !== 'undefined' && SovereignControl.active
+        && SovereignControl._host === this) return;
     this._loadout   = lo;
     this.weapon     = WEAPONS[lo.wk];
     this.weaponKey  = lo.wk;
@@ -3237,14 +3244,36 @@ class SovereignMK2 extends AdaptiveAI {
     this._loadoutDealt0 = this.totalDamageDealt || 0;
   }
 
+  // The kit is chosen ONCE PER MATCH, not once per life. Re-picking on every
+  // respawn meant his weapon and class changed at every death — visible as a
+  // reroll mid-fight — and under possession it rerolled the PLAYER's kit ten
+  // times a match. Cross-match learning is untouched: _recordLoadoutResult below
+  // still banks the life's damage, and _ensureMatchLoadout counter-picks at the
+  // start of the next match off exactly those stats plus the dossier.
   respawn() {
     this._recordLoadoutResult();
+    // The bank is per-life, so the next life must start from the current total
+    // or one life's damage would be counted again on every subsequent death.
+    this._loadoutDealt0 = this.totalDamageDealt || 0;
     super.respawn();
+    // The dossier prior is keyed on the OPPONENT, and super.respawn() may have
+    // disturbed the memory baseline, so the recall is re-applied each life.
+    try { this._seedFromDossier(this.target); } catch (e) {}
+  }
+
+  // Pick the match's kit the first frame he actually has an opponent to counter.
+  // It cannot happen at construction: _pickLoadout scores against this.target
+  // (_smk2CounterBonus, _dossierKeys) and no target exists yet when startGame
+  // builds him — that is why the pick used to live on respawn, one death late.
+  _ensureMatchLoadout() {
+    if (this._loadoutLocked) return;
+    // Possession: the human picked their own kit — never spend a pick on them.
+    if (typeof SovereignControl !== 'undefined' && SovereignControl.active
+        && SovereignControl._host === this) { this._loadoutLocked = true; return; }
+    if (!this.target || this.target.health <= 0) return;
+    this._loadoutLocked = true;
     const lo = this._pickLoadout();
     if (lo) this._applyLoadout(lo);
-    // Re-seed after the kit changes: the dossier prior is keyed on the OPPONENT,
-    // but _applyLoadout resets the memory baseline via applyClass, so the recall
-    // has to be re-applied on top of the new profile or it is silently discarded.
     try { this._seedFromDossier(this.target); } catch (e) {}
   }
 
@@ -3798,6 +3827,7 @@ class SovereignMK2 extends AdaptiveAI {
     // his only opponent has just died.
     this._updateThreatLedger();
     this._updateTargetSelection();
+    this._ensureMatchLoadout();
 
     this._observeAlways();
 
@@ -5965,4 +5995,39 @@ function resetSovereignMK2() {
   ai.intelligence = (_m.aggression + _m.defense + _m.spacing + _m.reactionSpeed) / 4;
   ai._updateAuraColor();
   console.log('[SovereignMK2] Full reset.');
+}
+
+
+// ── PEAK TUNING ────────────────────────────────────────────────────────────
+// The single definition of "the strongest Sovereign currently shipping". It
+// used to live inline in _startGameCore, which meant the possession spirit
+// (SovereignControl) — built straight from the constructor — silently ran a
+// WEAKER Sovereign than the one you fight: limiter unbroken, pressure mode
+// still 'study', evolution stage 0, and gated behind the observation warmup.
+// Both callers now share this, so the two can no longer drift apart.
+//
+// `silent` skips the on-screen escalation the boss version is allowed to have.
+// Possession must show no indicator, so it starts already AT the stage the real
+// Sovereign reaches on his first tick (limiterBroken forces nextStage = 3),
+// which keeps _updateEvolutionState's ratchet from ever firing its screen shake,
+// particle burst and dialogue line.
+function applySovereignPeakTuning(ai, opts) {
+  if (!ai || !ai.aiMemory) return ai;
+  const silent = !!(opts && opts.silent);
+  ai.aiMemory.aggression    = 0.94;
+  ai.aiMemory.defense       = 0.90;
+  ai.aiMemory.spacing       = 0.08;
+  ai.aiMemory.reactionSpeed = 0.98;
+  ai.intelligence           = 0.97;
+  ai._limiterBroken         = true;
+  ai._limiterBreakDialogue  = true;  // suppress opening "limiters withdrawn" line
+  ai._adaptInterval         = 4;
+  ai._pressureMode          = 'suffocate';
+  ai._evolutionStage        = silent ? 3 : 2; // boss earns TYRANT on screen; possession starts there
+  ai._intimidation          = 0.60;
+  // Skip the observation warmup — Sovereign fights at full intelligence from frame 1
+  ai._observationFrames     = 120;
+  ai._actionSampleCount     = 10;
+  if (typeof ai._updateAuraColor === 'function') ai._updateAuraColor();
+  return ai;
 }
