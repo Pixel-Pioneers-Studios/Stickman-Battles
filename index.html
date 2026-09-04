@@ -59,7 +59,7 @@
   }
   </script>
 
-  <link rel="stylesheet" href="SMB.css?v=4.0.74">
+  <link rel="stylesheet" href="SMB.css?v=4.0.91">
 </head>
 <body>
 
@@ -371,14 +371,14 @@
 
     <!-- HOME QUICK NAV -->
     <div class="home-quicknav">
-      <button class="home-nav-btn" onclick="startTutorial()" title="Learn movement, attacking, blocking, abilities and supers"><svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-cap"/></svg> Tutorial</button>
-      <button id="cloudLoginBtn" class="home-nav-btn" style="display:none" onclick="toggleCloudLoginNav()" title="Log in with a username to carry your progress between computers"><svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-user"/></svg> Log In</button>
-      <button id="accountsSavesBtn" class="home-nav-btn" onclick="openAccountsModal()" title="Open account, local save, and cloud sync settings"><svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-user"/></svg> Account &amp; Saves</button>
-      <button class="home-nav-btn" onclick="openStore()"><svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-coin"/></svg> Store <span id="coinDisplay" style="color:#ffdd44;font-weight:bold;font-size:0.8em;"></span></button>
-      <button class="home-nav-btn" onclick="openSettingsModal()"><svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-gear"/></svg> Settings</button>
-      <button class="home-nav-btn" onclick="openCommunityModal()"><svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-chat"/></svg> Community</button>
-      <button class="home-nav-btn" onclick="openReplayBrowser()" title="Browse and watch saved replays"><svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-play"/></svg> Replays</button>
-      <button id="cutsceneTheaterBtn" class="home-nav-btn" style="display:none" onclick="openCutsceneTheater()" title="Rewatch any cinematic, finisher, or domain"><svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-film"/></svg> Cutscenes</button>
+      <button class="home-nav-btn" onclick="startTutorial()" title="Learn movement, attacking, blocking, abilities and supers"><svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-cap"/></svg><span class="nav-label"> Tutorial</span></button>
+      <button id="cloudLoginBtn" class="home-nav-btn" style="display:none" onclick="toggleCloudLoginNav()" title="Log in with a username to carry your progress between computers"><svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-globe"/></svg><span class="nav-label"> Log In</span></button>
+      <button id="accountsSavesBtn" class="home-nav-btn" onclick="openAccountsModal()" title="Open account, local save, and cloud sync settings"><svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-user"/></svg><span class="nav-label"> Account &amp; Saves</span></button>
+      <button class="home-nav-btn" onclick="openStore()" title="Buy cosmetics and unlocks with coins"><svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-coin"/></svg><span class="nav-label"> Store</span> <span id="coinDisplay" style="color:#ffdd44;font-weight:bold;font-size:0.8em;"></span></button>
+      <button class="home-nav-btn" onclick="openSettingsModal()" title="Audio, controls, graphics and gameplay options"><svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-gear"/></svg><span class="nav-label"> Settings</span></button>
+      <button class="home-nav-btn" onclick="openCommunityModal()" title="Discord, feedback and community links"><svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-chat"/></svg><span class="nav-label"> Community</span></button>
+      <button class="home-nav-btn" onclick="openReplayBrowser()" title="Browse and watch saved replays"><svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-play"/></svg><span class="nav-label"> Replays</span></button>
+      <button id="cutsceneTheaterBtn" class="home-nav-btn" style="display:none" onclick="openCutsceneTheater()" title="Rewatch any cinematic, finisher, or domain"><svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-film"/></svg><span class="nav-label"> Cutscenes</span></button>
     </div>
 
     <!-- TRUE FORM HINT — hidden once unlocked -->
@@ -1438,16 +1438,18 @@
           Vol <input type="range" min="0" max="1" step="0.05" value="0.35" style="width:80px;accent-color:#8866ff;"
             oninput="setSfxVolume(parseFloat(this.value))">
         </label>
-        <button id="musicMuteBtn" class="btn settings-toggle" onclick="MusicManager.toggle();this.textContent=MusicManager.isMuted()?'<svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-play"/></svg> Music: Off':'<svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-play"/></svg> Music: On'" style="min-width:130px;"><svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-play"/></svg> Music: On</button>
+        <button id="musicMuteBtn" class="btn settings-toggle" onclick="_toggleMusicBtn(this)" style="min-width:130px;"><svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-play"/></svg> Music: On</button>
       </div>
-      <label class="setting-item" style="margin-top:8px;">
-        <input type="checkbox" id="settingStoryVoice" checked onchange="updateSettings()">
-        <span>Story Voices</span>
-      </label>
-      <label class="setting-item">
-        <input type="checkbox" id="settingAnimQuality" checked onchange="updateSettings()">
-        <span>High-Detail Animation</span>
-      </label>
+      <div class="settings-grid" style="margin-top:8px;">
+        <label class="setting-item">
+          <input type="checkbox" id="settingStoryVoice" checked onchange="updateSettings()">
+          <span>Story Voices</span>
+        </label>
+        <label class="setting-item">
+          <input type="checkbox" id="settingAnimQuality" checked onchange="updateSettings()">
+          <span>High-Detail Animation</span>
+        </label>
+      </div>
     </div>
 
     <!-- ACCOUNT & DATA -->
@@ -1583,7 +1585,7 @@
   <script src="./js/smb-errorboundary.js?v=4.0.2"></script>
   <!-- Global state, canvas setup -->
   <script src="./js/smb-icons.js?v=4.0.66"></script>
-  <script src="./js/smb-globals.js?v=4.0.90"></script>
+  <script src="./js/smb-globals.js?v=4.0.91"></script>
   <!-- CrazyGames SDK wrapper — must follow smb-globals.js -->
   <script src="./js/smb-crazygames.js?v=4.0.21"></script>
   <!-- Live ops: remote config, version checks, soft updates (must follow smb-globals.js) -->
@@ -1608,7 +1610,7 @@
   <script src="./js/smb-combat.js?v=4.0.90"></script>
   <script src="./js/smb-particles-core.js?v=4.0.2"></script>
   <script src="./js/smb-heatmap.js?v=4.0.2"></script>
-  <script src="./js/smb-verlet.js?v=4.0.90"></script>
+  <script src="./js/smb-verlet.js?v=4.0.91"></script>
   <!-- Animation substrate + death animation (docs/animation-quality-plan.md) -->
   <script src="./js/smb-anim-core.js?v=4.0.90"></script>
   <script src="./js/smb-anim-fighter.js?v=4.0.90"></script>
@@ -1618,7 +1620,7 @@
   <script src="./js/smb-death-anim.js?v=4.0.90"></script>
   <!-- Cinematic scripting system (split from smb-cinematics.js) -->
   <script src="./js/smb-cinematics-core.js?v=4.0.90"></script>
-  <script src="./js/smb-anime-fx.js?v=4.0.2"></script>
+  <script src="./js/smb-anime-fx.js?v=4.0.91"></script>
   <script src="./js/smb-cinematics-backstory.js?v=4.0.2"></script>
   <script src="./js/smb-cinematics-boss-thresh.js?v=4.0.2"></script>
   <script src="./js/smb-cinematics-tf-thresh.js?v=4.0.2"></script>
@@ -1639,7 +1641,7 @@
   <!-- Fragment weapon manifestation + sprint escalation (must load before smb-fighter.js) -->
   <script src="./js/smb-fragment-manifest.js?v=4.0.41"></script>
   <!-- Fighter base class -->
-  <script src="./js/smb-fighter.js?v=4.0.90"></script>
+  <script src="./js/smb-fighter.js?v=4.0.91"></script>
   <!-- Modular combat AI: CombatSystem, MovementSystem, AIController, CombatAIFighter -->
   <script src="./js/smb-combat-ai.js?v=4.0.2"></script>
   <!-- Enemy NPCs, training mode -->
@@ -1695,7 +1697,7 @@
   <script src="./js/smb-trueform-ending-draw.js?v=4.0.2"></script>
   <!-- Drawing, game state, HUD, visual effects -->
   <script src="./js/rendering/smb-drawing-arenas.js?v=4.0.90"></script>
-  <script src="./js/rendering/smb-drawing-bg.js?v=4.0.5"></script>
+  <script src="./js/rendering/smb-drawing-bg.js?v=4.0.91"></script>
   <script src="./js/rendering/smb-drawing-effects.js?v=4.0.90"></script>
   <script src="./js/rendering/smb-drawing-scenes.js?v=4.0.2"></script>
   <script src="./js/rendering/smb-drawing-hud.js?v=4.0.21"></script>
@@ -1725,14 +1727,14 @@
   <script src="./js/smb-menu-config.js?v=4.0.2"></script>
   <script src="./js/smb-menu-spawn.js?v=4.0.90"></script>
   <script src="./js/smb-menu-startcore.js?v=4.0.88"></script>
-  <script src="./js/smb-menu-utils.js?v=4.0.41"></script>
+  <script src="./js/smb-menu-utils.js?v=4.0.91"></script>
   <!-- Network / online multiplayer -->
   <script src="./js/smb-network.js?v=4.0.21"></script>
   <!-- Centralized runtime state (accounts, admin overrides, online session) -->
   <!-- Must load before smb-online.js, smb-accounts.js, and smb-admin.js -->
   <script src="./js/smb-state.js?v=4.0.2"></script>
   <!-- Supabase auth + cloud save bridge -->
-  <script src="./js/smb-supabase.js?v=4.0.89"></script>
+  <script src="./js/smb-supabase.js?v=4.0.91"></script>
   <!-- Lobby presence layer — wraps NetworkManager with lobby API + UI -->
   <script src="./js/smb-online.js?v=4.0.2"></script>
   <!-- Developer debug toolkit (loaded last so all systems exist) -->
@@ -1742,7 +1744,7 @@
   <script src="./js/smb-sov-advisor.js?v=4.0.30"></script>
   <script src="./js/smb-debug-jump.js?v=4.0.22"></script>
   <!-- Account system — must load before smb-save.js so getSaveKey() works -->
-  <script src="./js/smb-accounts.js?v=4.0.89"></script>
+  <script src="./js/smb-accounts.js?v=4.0.91"></script>
   <!-- Save / Export / Import system -->
   <script src="./js/smb-save.js?v=4.0.6"></script>
   <!-- Admin control panel — F9 to toggle; only visible for accounts in ADMIN_IDS -->
@@ -1826,7 +1828,7 @@
   <!-- Guided onboarding tutorial — runs on top of training mode -->
   <script src="./js/smb-tutorial.js?v=4.0.23"></script>
   <!-- Replay system — recording, IndexedDB storage, download, and viewer -->
-  <script src="./js/smb-replay.js?v=4.0.36"></script>
+  <script src="./js/smb-replay.js?v=4.0.91"></script>
   <script src="./js/smb-ui-controls.js?v=4.0.66"></script>
   <!-- StoryVoice — speaks story dialogue lines via the Web Speech API -->
   <script src="./js/smb-storyvoice.js?v=4.0.2"></script>
@@ -2377,10 +2379,10 @@ function _renderFightersLog() {
       toggleBtn.id = 'mobileModeToggle';
       toggleBtn.className = 'btn mobileModeToggle';
       toggleBtn.style.cssText = 'font-size:0.75rem;padding:5px 12px;margin-top:8px;background:rgba(0,180,255,0.15);border-color:rgba(0,200,255,0.35);color:#88ddff;';
-      toggleBtn.textContent = mobileEnabled ? '<svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-target"/></svg> Mobile Controls: ON' : '<svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-target"/></svg> Mobile Controls: OFF';
+      toggleBtn.innerHTML = mobileEnabled ? '<svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-target"/></svg> Mobile Controls: ON' : '<svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-target"/></svg> Mobile Controls: OFF';
       toggleBtn.onclick = function() {
         mobileEnabled = !mobileEnabled;
-        toggleBtn.textContent = mobileEnabled ? '<svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-target"/></svg> Mobile Controls: ON' : '<svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-target"/></svg> Mobile Controls: OFF';
+        toggleBtn.innerHTML = mobileEnabled ? '<svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-target"/></svg> Mobile Controls: ON' : '<svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-target"/></svg> Mobile Controls: OFF';
         if (!mobileEnabled) hideMobileControls();
       };
       settingsPanel.appendChild(toggleBtn);
@@ -2417,31 +2419,49 @@ function _renderFightersLog() {
     var hudBtn = document.getElementById('hudFullscreenBtn');
     if (hudBtn) hudBtn.textContent = inFS ? '✕ Exit FS' : '⛶';
   }
-  // CrazyGames forbids custom fullscreen buttons — the portal supplies its own
-  // chrome. Hide ours when embedded there; keep them everywhere else (itch,
-  // direct hosting) where nothing else offers fullscreen.
-  function _hideFSBtnsOnPortal() {
-    // NOT `!!window.CrazyGames` — the SDK script is in this page unconditionally
-    // and initializes fine off-portal, so its mere presence hides nothing.
-    // SDK.environment reports 'local' when self-hosted, 'crazygames' when embedded.
-    var onPortal = false;
+  // Music label carries an inline SVG, so it must be set as HTML, not text, and
+  // cannot live in an onclick="" attribute — the icon's own double quotes would
+  // close the attribute early.
+  function _toggleMusicBtn(btn) {
+    MusicManager.toggle();
+    var icon = (typeof smbIcon === 'function') ? smbIcon('play') : '';
+    btn.innerHTML = icon + (MusicManager.isMuted() ? ' Music: Off' : ' Music: On');
+  }
+  window._toggleMusicBtn = _toggleMusicBtn;
+
+  // NOT `!!window.CrazyGames` — the SDK script is in this page unconditionally
+  // and initializes fine off-portal, so its mere presence proves nothing.
+  // SDK.environment reports 'local' when self-hosted, 'crazygames' when embedded.
+  function _smbOnCrazyGamesPortal() {
     try {
       var _sdk = window.CrazyGames && window.CrazyGames.SDK;
-      onPortal = (_sdk && _sdk.environment === 'crazygames') ||
-                 /(^|\.)crazygames\.(com|co\.uk)$/i.test(location.hostname);
-    } catch (e) {}
-    if (!onPortal) return false;
+      return !!((_sdk && _sdk.environment === 'crazygames') ||
+                /(^|\.)crazygames\.(com|co\.uk)$/i.test(location.hostname));
+    } catch (e) { return false; }
+  }
+  // Two pieces of chrome belong to the portal and nowhere else:
+  //   - CrazyGames forbids custom fullscreen buttons (it supplies its own), but
+  //     itch and direct hosting offer nothing, so ours must stay there.
+  //   - The CrazyGames Terms/Privacy notice governs crazygames.com only. Showing
+  //     it on itch or our own domain would point players at terms that do not
+  //     apply to the site they are on.
+  // The notice therefore defaults to hidden in CSS and is revealed only here, so
+  // a detection miss fails safe (no notice) rather than showing the wrong one.
+  function _applyPortalChrome() {
+    if (!_smbOnCrazyGamesPortal()) return false;
     ['fullscreenBtn', 'hudFullscreenBtn'].forEach(function (id) {
       var b = document.getElementById(id);
       if (b) b.style.display = 'none';
     });
+    var consent = document.getElementById('cgConsentNotice');
+    if (consent) consent.style.display = 'block';
     return true;
   }
   // The SDK script loads async, so re-check for a few seconds before giving up.
-  if (!_hideFSBtnsOnPortal()) {
+  if (!_applyPortalChrome()) {
     var _fsTries = 0;
     var _fsPoll = setInterval(function () {
-      if (_hideFSBtnsOnPortal() || ++_fsTries > 20) clearInterval(_fsPoll);
+      if (_applyPortalChrome() || ++_fsTries > 20) clearInterval(_fsPoll);
     }, 250);
   }
 

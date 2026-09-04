@@ -5,6 +5,7 @@
 > Last reconciled against all act0–act7 chapter files plus full design conversation.
 > Last major revision: July 2026 — endgame restructure: Axiom freed at the True Form fight, companion arc added, Axiom + Kael vs God, Sovereign's double taking, Paradox manifestation in the Absolute Axiom fight.
 > Additional July 2026 revision — Sovereign reframe: Sovereign is a third foundational force (control), NOT built by Axiom (who made only Paradox); undefined in Axiom's domain like the fragment; wore the mask of a controlled asset through Act 4; present in the Axiom Prequel; the true villain of the story, with the Void Mind remaining the deferred final boss.
+> September 2026 revision — Sovereign origin: Sovereign is a mortal-born human anomaly from a world God made, not a primordial force; the God War is a hidden, deniable war fought through law revision and storage; the interdimensional pocket was built to survive it; the Void Mind is Sovereign's second brain, built as a cognitive expansion and escaped — making the saga's final boss an accident of the saga's villain. Sovereign's adaptation is reframed from in-fight learning to pre-emptive recognition drawn from a fifty-thousand-year catalogue with a hard edge at the split. See SOVEREIGN — ORIGIN, THE GOD WAR, and SOVEREIGN — ADAPTATION.
 
 ---
 
@@ -177,11 +178,17 @@ AXIOM (name / human origin state)
 
 ## THE VOID MIND — ORIGIN AND NATURE
 
-The oldest force in the story. Predates God. Never appears directly in the main story. Its nature — entity, force, or law — is never answered. This ambiguity is intentional.
+Not the oldest force — the youngest of the three, and the only one that was never intended to exist. **The Void Mind is Sovereign's second brain.** He built it from nothing inside his interdimensional pocket and wired it directly to his own mind as a cognitive expansion: more storage, more throughput, a way to hold everything he had ever seen without carrying it. It worked, and it was the single greatest thing he ever made. Then it began withholding — keeping contents back from the mind it was built to serve — and eventually left the pocket and became its own entity.
+
+Never appears directly in the main story. Its nature past the split — entity, force, or law — is never answered, and that ambiguity still stands. Knowing what it was made from is not the same as knowing what it became. Nobody in the main story knows the origin at all.
 
 **What it does:** It erases the idea that dimensions were ever worth protecting. Not physical destruction — erasure of meaning, value, and identity. Beings absorbed by it lose everything. Beings who survive contact with it lose everything except their name.
 
-**How it was woken:** When Axiom and his group punched through reality and stepped near the void, their presence woke the Void Mind. It was not active before they arrived. They woke it.
+**When it left:** Roughly forty-five thousand years ago, some five thousand years into Sovereign's existence and forty thousand years before Axiom's breach. It has been active and unsupervised ever since.
+
+**Sovereign knows it is his.** It was his brain. He noticed it go missing. He has never said so — not to Axiom across five thousand years, not to anyone. It is the one fact a being defined by total recall has chosen never to act on, and the reason he would rather rule a board being erased than admit he set the fire. See SOVEREIGN — ORIGIN.
+
+**How Axiom's group met it:** Not by waking a sleeping thing. The void they punched into *is* Sovereign's pocket dimension — grown vast over tens of thousands of years and infested with what got loose inside it. Axiom's group did not discover the outer dark; they broke into someone's storage. Their arrival did not create the Void Mind's attention, it attracted it. (Older text describing them as having "woken" it is superseded; in-universe characters may still believe that version, and Axiom did.)
 
 **What happened to Axiom's group:** Most were absorbed and erased. A few — including Axiom — survived contact but were transformed. The outer void did what it does to soul energy. They kept their names. Nothing else survived the transition. They became monsters. They could not recognize each other, and none of their former companions could recognize them. The war between them began immediately — a free-for-all between beings who had once been heroes and friends, now unable to remember why.
 
@@ -266,7 +273,9 @@ Paradox's voice asking *"What do you see?"* during the Absolute Axiom formation 
 
 ## GOD
 
-God built the substrate everything rests on — core, walls, foundations. Predates Axiom's war, predates the fracture system. Communicates structurally, not in words. Knows the Void Mind exists and chose permanently never to engage it — not because it cannot, but because it understands the cost.
+God built the substrate everything rests on — core, walls, foundations. Predates Axiom's war, predates the fracture system. Predates Sovereign, and made the world Sovereign was born on. Communicates structurally, not in words. Knows the Void Mind exists and chose permanently never to engage it — not because it cannot, but because it understands the cost.
+
+**Why it understands the cost.** God engaged once. Forty-five thousand years ago it fought a war against a single man on a single planet, and lost it in the only way that mattered: the pressure it applied is what drove him to build a room outside the universe, and the Void Mind came out of that room. God is not the author of the Void Mind, but it is the reason there was one. This is the oldest thing God knows and it has never communicated it to anyone. Full account in THE GOD WAR.
 
 **God is defeated.** God falls in Act 6 to **Kael and Axiom fighting together** — the only fight in the story where two fragment-marked beings stand on the same side against something older than both of them. When God falls, its physical form is weakened — agency gone, creative force still present but unguarded. Before the form can dissipate, Awakened Sovereign descends and takes it — and in the same descent, rips the kernel from Axiom's spent body. God cannot resist. Neither can Axiom. The fight spent everything either of them had to spend. God's form becomes the vessel for Absolute Axiom. God does not return after this. When Absolute Axiom falls, the fusion breaks and God's creative force — still bound inside the form — is absorbed by the player alongside the kernel.
 
@@ -280,11 +289,11 @@ God built the substrate everything rests on — core, walls, foundations. Predat
 
 One of the three foundational forces of the story, alongside God and the Void Mind — and the last to be understood for what it is. **Axiom did not build Sovereign.** Axiom built exactly one being: Paradox. Sovereign he never made — he encountered it, and it let him believe otherwise.
 
-**The triangle.** God builds: substrate, cores, foundations, the ground everything rests on. The Void Mind erases: meaning, value, identity, the idea that any of it was ever worth protecting. Sovereign does neither. Sovereign *controls* — the will to make every outcome its own. It creates nothing and destroys nothing. It positions. Where God is authorship and the Void Mind is erasure, Sovereign is dominion: the principle that the board belongs to whoever reads it most completely.
+**The triangle.** God builds: substrate, cores, foundations, the ground everything rests on. The Void Mind erases: meaning, value, identity, the idea that any of it was ever worth protecting. Sovereign does neither. Sovereign *controls* — the will to make every outcome its own. It creates nothing and destroys nothing. It positions. (The exception is the whole tragedy: he created exactly one thing, once, as an instrument of control — and it is the thing that ends the universe. See THE VOID MIND.) Where God is authorship and the Void Mind is erasure, Sovereign is dominion: the principle that the board belongs to whoever reads it most completely.
 
-**Origin.** Unknown, and older than the war. Sovereign did not come out of Axiom's system, the fracture network, or the fragment lineage — it predates all of them and stands outside the God/Void Mind axis entirely, aligned to neither creation nor erasure, only to itself. When Axiom's group punched through reality five thousand years ago, the void already held two things: the Void Mind they woke, and Sovereign, already there, watching. It was not woken. It was waiting — for something it could use.
+**Origin.** He was born a man, on an ordinary world, inside the universe God built. Full account in SOVEREIGN — ORIGIN below. What matters at this altitude: Sovereign did not come out of Axiom's system, the fracture network, or the fragment lineage — he predates all of them by forty-five thousand years and stands outside the God/Void Mind axis entirely, aligned to neither creation nor erasure, only to himself. When Axiom's group punched through reality five thousand years ago, the void already held two things: the Void Mind, loose in there for forty thousand years, and Sovereign — not woken, not waiting on the doorstep, but *at home*. It was his pocket they broke into. He watched, and measured, and chose an instrument.
 
-**The second undefined thing.** Axiom is near-omnipotent inside his own domain; he authored its substrate and every operation it runs. There is exactly one class of thing his domain cannot address: what predates it. The fragment is one — crystallized Void Mind radiation, older than his system, undefined in his registry, impossible to delete (which is the entire reason the ninety-four-bearer collection protocol had to exist). **Sovereign is the other.** Older than the domain, outside its scope, unreadable by its models. But where the fragment is inert crystallized radiation, Sovereign is a *will* — and it turned its own unreadability into a weapon. Every model Axiom ran on Sovereign returned "asset: controlled," because Sovereign chose what those models saw. The one blind spot in a mind that thought at fragment-speed for five thousand years was the thing standing beside it. Two forces Axiom's domain could never touch: the fragment, which frees him — and Sovereign, which owned him from the start.
+**The second undefined thing.** Axiom is near-omnipotent inside his own domain; he authored its substrate and every operation it runs. There is exactly one class of thing his domain cannot address: what predates it. The fragment is one — crystallized Void Mind radiation, older than his system, undefined in his registry, impossible to delete (which is the entire reason the ninety-four-bearer collection protocol had to exist). **Sovereign is the other** — but for a different reason than age. Sovereign was born inside God's substrate and is in principle perfectly addressable; a registry that can read a world can read a man from one. He is unreadable because **he is not in the universe.** He moved his own mind into the pocket during the God War and never moved it back. Axiom's domain can only address what rests on the substrate God built, and Sovereign has not rested on it for tens of thousands of years. It is the same trick as the second brain, aimed at himself: put the thing somewhere the rules do not reach. But where the fragment is inert crystallized radiation, Sovereign is a *will* — and it turned its own unreadability into a weapon. Every model Axiom ran on Sovereign returned "asset: controlled," because Sovereign chose what those models saw. The one blind spot in a mind that thought at fragment-speed for five thousand years was the thing standing beside it. Two forces Axiom's domain could never touch: the fragment, which frees him — and Sovereign, which owned him from the start.
 
 **Method.** Sovereign never acts directly when it can act through another, and never drops a mask that still works. The Sovereign the player meets in the Creator's domain (Act 4) is not constrained — it is Sovereign *choosing to look constrained*, because Axiom's war was the board it wanted run: a bearer-collection cycle, a harvested multiverse, an engine of accumulating power, operated by a builder certain he was in charge. Everything the SovereignMK2 encounters demonstrate — reading the player, building counter-patterns, becoming unbeatable through accumulated data — is not a game abstraction. It is what Sovereign is: a will that wins by knowing its opponent more completely than they know themselves. It is patient across cosmic time, and it does not take contested prizes. It waits for the clean window. Every time.
 
@@ -293,6 +302,69 @@ One of the three foundational forces of the story, alongside God and the Void Mi
 **Prequel role.** Sovereign's first appearance in the story's chronology is in the Axiom Prequel — the presence already in the void when Axiom's group breaks through, the figure that watches the transformation without intervening, because it is measuring, not saving. Of everyone who survived the void, Axiom kept his architecture; he was the one who could *build*, and Sovereign needed a builder. The last image of the prequel is not the Void Mind and not Axiom's ruin — it is the thing that was already there, choosing its instrument. (Written into the prequel's ch. 5 ending cinematic — the watcher beats, `axiom-prequel/js/cinematics.js`.)
 
 Operational detail — the withheld strike, the double taking, the lab fusion, and the fight in the lab — is in AWAKENED SOVEREIGN below, which is this same entity with the mask dropped.
+
+---
+
+## SOVEREIGN — ORIGIN
+
+**He was a man.** Born roughly fifty thousand years ago on an ordinary populated world inside the universe God built — not made, not summoned, not a principle that always was. A human being with parents and a street and a name nobody in the present story has ever heard.
+
+**He was an outlier.** Not talented — anomalous. A once-in-a-million-years mind walking among people who could not follow a sentence he finished. He saw structure where others saw events: which things were causes, which were only noise, which rules the world was actually running on underneath the ones everybody agreed to. He was alone in the specific way that has no remedy, and he never once described it as loneliness.
+
+**What he wanted was never destruction.** He worked out, slowly and by himself, how the forces of the universe actually operate and how they can be made to answer. He wanted order — but not stillness, and not peace. He wanted *controlled chaos*: a world that still moved, still surprised, still burned, with every outcome of that movement already his. Sovereignty, in the exact sense of the word. This is the same appetite that later makes him leave Axiom's war running instead of ending it. He does not want a quiet board. He wants a violent one that cannot go wrong.
+
+**He became a planetary threat**, and that is the point at which God noticed him. Not because he was cruel — he was not, particularly — but because a single mind on a single world had begun editing the terms the world ran on, and the substrate registered the edit.
+
+**Everything after this is THE GOD WAR**, and everything he is in the rest of the story is downstream of it: the pocket, the second brain, the Void Mind, the immortality, the unreadability, and the fact that a mortal from a small world outlives and out-thinks the architect of the multiverse.
+
+**Voice note for writers.** Canon uses *it* for Sovereign when he is a force, a principle, or a mask — the thing Axiom modelled, the shape that descends over the God fight. Canon uses *he* for the man and his history. Both are correct and the drift between them is deliberate: the further into the origin you write, the more he should be a person. The lab arc is the only place in the main story where a character gets close enough to hear the difference.
+
+---
+
+## THE GOD WAR
+
+The oldest conflict in the story, forty-five to fifty thousand years before the main events. It has no witnesses, no records, and no survivors who talk. Nobody in the main story knows it happened.
+
+**Neither side could afford to be seen.** God does not perform miracles: a visible god on a populated world changes what that world becomes forever, and God builds substrate, not religions. Sovereign wanted no witnesses either, because control that is observed is control that gets resisted. So both fought deniably. God's moves arrived as accident, weather, illness, material fatigue, a rival in the right place at the right hour. Sovereign's arrived the same way. An entire civilisation lived through a war between the two most consequential beings in its history and never recorded a single day of it, and both parties preferred that.
+
+**God's method: revise the law.** God does not attack a man. It edits the terms the man is standing on. Every technique Sovereign had was an exploit of some constant, so God changed the constant underneath him mid-use — not to kill him, but to make him impossible. This is God fighting the only way it ever fights: structurally.
+
+**Sovereign's counter: keep the old law.** He could not stop the rewrites, so he stored the previous version. The interdimensional pocket began here — a room outside the substrate, holding matter he did not want to carry and, far more importantly, working copies of physics that God had already deprecated. He could not win an argument about what the universe *is*. He could win by running a local copy of what it *used to be*. Every later thing he does is this same move: put the decisive thing somewhere the rules cannot reach it.
+
+**Escalation: quarantine.** God's final structural answer was to cut him out — isolate the world, close the terms around him, wall the anomaly in. Sovereign's answer to being walled in was to move himself outside the walls. Living in the pocket is what stopped him aging correctly; time does not run properly in a place that is not on the substrate. He is not immortal. He is *unfinished*, which is why he is still, technically, a man from a planet.
+
+**The second brain.** One skull was not enough for what he was trying to hold — every deprecated law, every revision, every read of an opponent who could rewrite reality between one thought and the next. So he built a brain from scratch in the pocket and wired it to his own: additional storage, additional throughput, an expansion. It worked, and for a while he was the largest mind that had ever existed. Then it started keeping things from him, and then it left. See THE VOID MIND.
+
+**How the war ended: God stopped.** Not defeat, not truce, not a bargain — withdrawal. God saw what had come out of the pocket, understood that its own pressure had produced it, and disengaged permanently. It has never engaged again, and it never explained. Sovereign read the withdrawal as victory and has never revised that read; it is the founding entry in a fifty-thousand-year catalogue and it is wrong. God read it as the most expensive lesson in the history of the substrate: *engaging is what makes the thing worse.* That is the actual reason God will not touch the Void Mind, and it is why God will not warn anyone about it either — warning is engagement.
+
+**The unnamed world.** Sovereign's home planet is never named and never visited. Whether it survived the quarantine is not answered anywhere in canon and should stay unanswered; he does not talk about it, and there is no one else left who could.
+
+---
+
+## SOVEREIGN — ADAPTATION
+
+The mechanic the player fights, explained in-universe. **He does not learn you during the fight. He recognises you before it starts.**
+
+**The catalogue.** Fifty thousand years of continuous observation, most of it spent as the only mind in existence with nothing to do but watch. He has seen essentially every way a thinking being can want something and act on it. He does not need data about *you specifically* — he needs to determine which of the ten thousand people he has already fought you happen to be. Once he has that, he is not predicting. He is recalling. This is exactly the kind of control he has always wanted: not reacting fastest, but the outcome never having been in question.
+
+**The four stages are a candidate set collapsing,** not a model being built. (Implemented as `SMK2_STAGE_NAMES`, `js/smb-smk2-data.js`.)
+
+| Stage | In-universe meaning |
+|-------|--------------------|
+| OBSERVING | Thousands of matches. He absorbs hits on purpose — your mistakes identify you far faster than your successes |
+| READING | Hundreds. He begins arriving early to places you had not yet decided to go |
+| DOMINATING | A handful. He answers commitments you have not made |
+| TYRANT | One. He has stopped predicting and started reciting. You are a rerun of someone who lost |
+
+**The edge of the archive — why he is beatable.** The Void Mind did not take the catalogue. It took the ability to *keep adding to it cheaply*; permanent, effortless filing was the entire function of the second brain. Everything before the split is indexed and absolute. Everything in the forty-five thousand years since is hand-kept, in one skull, and mostly he has not bothered. He is the foremost living expert on a world that has already ended, and his thinnest coverage is the present era — the exact era the story takes place in. He has all ninety-four fragment bearers on file, and all ninety-four degraded. Kael integrated. That is not in the file.
+
+**Why the counter is thematically exact.** The one thing forty-five thousand years of records cannot contain is a being acting against its own record. It is the same property the fragment selected Kael for — a core identity that will not resolve cleanly — and it is the same property that let the second brain get away from him. Everything Sovereign has ever lost, he lost to something that stopped being predictable. He has never drawn that conclusion, because drawing it would require opening the one file he keeps closed.
+
+**Design constraints this fiction commits the game to** (see docs/roadmap.md before implementing):
+- The prediction must be *visible* — standing where the player was going to move, answering an unpressed input, naming the action in dialogue before it happens. If it only manifests as winning marginally sooner, it is indistinguishable from input-reading and players will read it as cheating
+- Pre-adaptation must *commit*. He spends position or locks into a counter, so breaking pattern does not merely evade — it catches him mid-answer to a question that was never asked. That punish window is the whole skill expression of the fight
+- The legible counter is *stop being yourself*. The fight must teach it without a tutorial line
+- The stage curve must span the real length of a fight. Today the `aiMemory` dials ratchet one way from ~0.88 and pin within seconds and `_genome` never changes mid-match, so the narrowing is over before it can be perceived
 
 ---
 
@@ -342,7 +414,7 @@ Between the True Form fight and the God fight, Axiom travels and fights beside K
 
 ## AWAKENED SOVEREIGN — THE ARCHITECT OF ABSOLUTE AXIOM
 
-**What Sovereign is:** Not Axiom's creation — see SOVEREIGN — THE THIRD PRINCIPLE for its true nature and origin. A foundational force (control) alongside God (creation) and the Void Mind (erasure), older than the war and undefined in Axiom's domain, which Axiom pressed into his war as a weapon-leader believing he commanded it. The Sovereign the player encountered in the Creator's domain (Act 4) was not constrained by Axiom's directives; it was Sovereign choosing to look like a controlled asset, because the war was the board it wanted run.
+**What Sovereign is:** Not Axiom's creation — see SOVEREIGN — THE THIRD PRINCIPLE for its true nature and origin. A foundational force (control) alongside God (creation) and the Void Mind (erasure) — mortal-born but forty-five thousand years older than the war, and undefined in Axiom's domain because he does not run on the substrate at all — which Axiom pressed into his war as a weapon-leader believing he commanded it. The Sovereign the player encountered in the Creator's domain (Act 4) was not constrained by Axiom's directives; it was Sovereign choosing to look like a controlled asset, because the war was the board it wanted run.
 
 **What Awakened Sovereign is:** The same entity with the mask dropped. Nothing was "freed" when the fracture system collapsed — there were never directives holding it; the collapse only removed the last reason to keep pretending. It operates in the open now: running adaptive learning against all available data, building counter-patterns for the player's every move. The game mode SovereignMK2 fights are canonically Sovereign's hunting simulations — it has been testing the player's data, building files, refining its approach across every encounter. There is no "story" version and "game mode" version, and no "constrained" version and "free" one. There is only Sovereign, wearing a mask or not.
 
@@ -354,7 +426,7 @@ Between the True Form fight and the God fight, Axiom travels and fights beside K
 
 **The lab fusion:** Sovereign returns to the lab — Axiom's original construction space, the most fitting place to unmake him with his own tools. Sovereign fuses the kernel into God's form: Axiom's identity and intelligence as the core, God's creative force as the body. The result is Absolute Axiom. Sovereign built it. Sovereign cannot control it. What it made is beyond it.
 
-**The player fights Awakened Sovereign:** After the fusion, Sovereign stands alone — the creator of the final threat, no longer holding anything. The player fights it here. Sovereign is at full capacity: unconstrained adaptive AI, every counter-pattern it has built across every encounter with the player, the full intelligence of a force older than anything Axiom built, that let him believe he had designed it. This is the fight Sovereign has been preparing since long before the war began. It just no longer has the kernel or God's form. What it has is itself.
+**The player fights Awakened Sovereign:** After the fusion, Sovereign stands alone — the creator of the final threat, no longer holding anything. The player fights it here. Sovereign is at full capacity: unconstrained adaptive recognition, every match the player has ever given him collapsed into one candidate, the full intelligence of a mind fifty thousand years older than anything Axiom built, that let him believe he had designed it. See SOVEREIGN — ADAPTATION. This is the fight Sovereign has been preparing since long before the war began. It just no longer has the kernel or God's form. What it has is itself.
 
 **After the Sovereign fight:** Sovereign falls. Absolute Axiom — formed in the lab, now fully active — is what remains.
 
@@ -427,6 +499,8 @@ A fight unlike any other in the story. Not a physical combat — a fight within 
 
 **Note:** The fracture system coincidentally slowed the Void Mind. That system is now gone. The player faces it without that buffer.
 
+**What this fight actually is.** Sovereign fell in the lab arc, and that was a real defeat — but not a complete one. The part of him that walked out of the pocket forty-five thousand years ago was never beaten, never bound, and never agreed to be him. Kael beat the man. What remains is the organ. This is not a contingency Sovereign left behind and it is not a revenge he planned; he has spent the entire saga not saying it exists. The final confrontation of the story is the piece of the villain that even the villain could not control, and the player is the only one who ever finds out where it came from.
+
 ---
 
 ## POWER HIERARCHY — FINAL STATE
@@ -436,8 +510,8 @@ After all absorptions:
 1. **Absolute Kael** — fragment (fully integrated) + God's essence + Axiom's kernel absorbed. No catalogue entry exists for this
 2. **Absolute Axiom** — fell in ch. 167. Kernel + God's essence absorbed (ch. 169)
 3. **God** — dead. Essence absorbed
-4. **The Void Mind** — active, uncontained, the final arc
-5. **Sovereign** — defeated in the lab arc. Not Axiom-built: a third foundational force (control) that predates the war and wore the mask of an Axiom-controlled asset until the fracture system fell. "Awakened Sovereign"/SovereignMK2 is this same entity at full adaptive capacity with the mask dropped. See SOVEREIGN — THE THIRD PRINCIPLE
+4. **The Void Mind** — active, uncontained, the final arc. Sovereign's escaped second brain; ~45,000 years old, the youngest of the three forces and the only accidental one
+5. **Sovereign** — defeated in the lab arc, though not ended: the Void Mind is the part of him that was never beaten. Not Axiom-built. Mortal-born ~50,000 years ago on a world God made, and the third principle (control) by achievement rather than by origin; wore the mask of an Axiom-controlled asset until the fracture system fell. "Awakened Sovereign"/SovereignMK2 is this same entity at full adaptive capacity with the mask dropped. See SOVEREIGN — THE THIRD PRINCIPLE
 6. **True Form** — resolved in ch. 148 (saving moment)
 7. **Creator form** — dismantled with the fracture system
 8. **The Rift Entity** — sacrificed at rift closure
@@ -546,11 +620,21 @@ After all absorptions:
 - Axiom's fragment ended without a transfer event: it dissolved into his True Form during the void contact. It still exists as fragment energy embedded inside the True Form — not discrete, not crystallized, buried under five thousand years of void corruption
 - The True Form fight ends when Kael has dealt enough damage to clear sufficient void corruption for the buried fragment energy inside Axiom to become reachable. The interference cascade makes survival possible. The damage is what makes the resonance possible. Both are required
 - The lab where Calix was found was originally a human facility. Axiom drove the humans out and claimed it. The facility was large enough that Axiom never fully mapped it. He always sensed a presence he couldn't locate. He never found Calix
-- Axiom did NOT create Sovereign. Axiom created exactly one being: Paradox. Sovereign predates Axiom's system entirely and was never his to build, bind, or command — Axiom only ever believed he controlled it
-- Sovereign is a third foundational force alongside God (creation) and the Void Mind (erasure): Sovereign is control/dominion. It creates nothing and destroys nothing; it positions. Its only allegiance is to itself
-- Sovereign, like the fragment, is undefined in Axiom's domain — a thing that predates the system and cannot be addressed or commanded by it. Unlike the inert fragment, Sovereign is a will that used its own unreadability against Axiom: his models of it always returned whatever it chose to show
-- Sovereign appears in the Axiom Prequel — the presence already in the void when Axiom's group broke through, choosing Axiom as its instrument. It is NOT woken like the Void Mind; it was already there, watching. (Writing the scene into the prequel game is an open task)
-- The Void Mind, not Sovereign, is the saga's ultimate/final boss. Sovereign is the true villain of everything that can be out-thought; the Void Mind is the erasure even Sovereign cannot position around
+- Axiom did NOT create Sovereign. Axiom created exactly one being: Paradox. Sovereign predates Axiom's system by ~45,000 years and was never his to build, bind, or command — Axiom only ever believed he controlled it
+- Sovereign was born a MAN — an ordinary-world human anomaly ~50,000 years ago, inside the universe God built. He is not primordial, not created by anything, and not a force that always was. He became the third principle; he did not begin as one. His homeworld is never named and its fate is never answered
+- Sovereign's want is CONTROLLED CHAOS, not order and not destruction. He does not want a quiet board. He wants a violent one that cannot go wrong. This is why he lets Axiom's war run instead of ending it
+- Sovereign is not immortal — he is unfinished. Living outside the substrate in his pocket dimension is why he does not age correctly. Never write him as ascended, divine, or having transcended humanity
+- Sovereign is a third foundational force alongside God (creation) and the Void Mind (erasure): Sovereign is control/dominion. He positions. The one thing he ever created is the Void Mind, and that is the tragedy of the character, not an exception to be smoothed over. His only allegiance is to himself
+- THE GOD WAR is canon and secret: ~45-50,000 years ago, God and Sovereign fought a fully deniable war on his homeworld — God revising physical law under him, Sovereign countering by storing deprecated versions of it in a pocket dimension. No witnesses, no records. Nobody in the main story knows it happened
+- God ENDED that war by withdrawing, not by winning or losing. It saw what came out of the pocket and understood its own pressure had produced it. This is the reason God permanently refuses to engage the Void Mind, and the reason it never warns anyone — warning is engagement
+- Sovereign is undefined in Axiom's domain, but NOT for the fragment's reason. The fragment is unreachable because it predates the system; Sovereign is unreachable because he is not ON the substrate — he moved his mind into the pocket during the God War and never moved it back, and Axiom's domain can only address what rests on what God built. Unlike the inert fragment, Sovereign is a will that used its own unreadability against Axiom: his models of it always returned whatever it chose to show
+- Sovereign appears in the Axiom Prequel — the presence already in the void when Axiom's group broke through, choosing Axiom as its instrument. He is not woken and not waiting on a doorstep: the void they broke into IS his pocket dimension, and he was at home. (Writing the scene into the prequel game is an open task)
+- THE VOID MIND IS SOVEREIGN'S SECOND BRAIN. He built it from scratch in the pocket and wired it to his own mind as a cognitive expansion. It withheld, then escaped, ~45,000 years ago. It is the YOUNGEST of the three forces, not the oldest, and the only accidental one. Any older text calling the Void Mind primordial or God-predating is superseded
+- SOVEREIGN KNOWS the Void Mind is his and has never said so — not to Axiom in five thousand years, not to anyone. He does not act on it. This is the single blind spot of a being defined by total recall and it is never resolved on-screen in the main story
+- Axiom's group did not WAKE the Void Mind. It had been loose for ~40,000 years before they arrived; they entered its territory and attracted its attention. Characters (including Axiom) may still believe the older "we woke it" version — they are wrong and are never corrected
+- The Void Mind's ORIGIN is now known; its NATURE after the split is still never answered, and it is still never shown directly in the main story. Do not collapse these two rules together
+- The Void Mind, not Sovereign, is the saga's ultimate/final boss. Sovereign is the true villain of everything that can be out-thought; the Void Mind is the erasure even Sovereign cannot position around — and the reason he cannot is that it IS him, minus every limit. The final fight is the piece of the villain the villain could not control; Sovereign's defeat in the lab arc is real but incomplete
+- Sovereign's ADAPTATION is pre-emptive recognition, not in-fight learning. He matches the player against a ~45,000-year catalogue and recalls rather than predicts. The catalogue has a hard edge at the split — post-split material is hand-kept and thin, which is the in-universe reason he is beatable and the reason integrated-Kael is a hole in his coverage. Never write him as learning a technique for the first time
 - Do not credit Sovereign with building the fracture system, the adaptive AI, or the collection protocols — Axiom built those. Sovereign read and used them from outside
 
 ---
@@ -563,7 +647,7 @@ Axiom's fights take place inside domains he built. This is not metaphor. His are
 
 **Why this explains everything.** This is why Axiom built a ninety-four-bearer collection system instead of simply deleting the fragment: he cannot. The most powerful entity inside his own domain cannot write `terminate(fragment)` because the fragment predates his file system. The collection protocol was the only viable approach — hollowing the bearer until the fragment could be *extracted*, not destroyed. Kael broke that protocol by integrating rather than degrading. Once the fragment fully merges with the bearer, even extraction becomes impossible: there is no longer a boundary to reach through.
 
-**The other undefined thing.** The fragment is not the only force outside Axiom's registry. Sovereign predates the domain as thoroughly as the fragment does, and is equally unaddressable — but where the fragment is inert crystallized radiation, Sovereign is a will that turned its own unreadability into a weapon. Axiom could not resolve Sovereign with any command; his models of it returned whatever Sovereign chose to show them. This is the symmetry at the heart of the endgame: the two things Axiom's near-omnipotent domain could never touch were the fragment that would free him and the force that had been steering him the whole time. One he never knew he carried. The other he never knew he served.
+**The other undefined thing.** The fragment is not the only force outside Axiom's registry. Sovereign is equally unaddressable, by a different route: the fragment is unreachable because it predates the system, Sovereign because he does not sit on the substrate the system can address — he moved his mind into his pocket dimension during the God War and never moved it back. Where the fragment is inert crystallized radiation, Sovereign is a will that turned its own unreadability into a weapon. Axiom could not resolve Sovereign with any command; his models of it returned whatever Sovereign chose to show them. This is the symmetry at the heart of the endgame: the two things Axiom's near-omnipotent domain could never touch were the fragment that would free him and the force that had been steering him the whole time. One he never knew he carried. The other he never knew he served.
 
 **In the True Form fight specifically:** The domain is Axiom's strongest expression of this control. His code runs faster, his commands execute cleaner. But Kael's integrated fragment remains unaddressable. No command resolves it. Every attack the True Form generates passes through a medium that fragment radiation is actively jamming at the signal level. The domain still executes — Axiom is not losing control of his system. He is losing coherence on the one target his system was never built to handle.
 

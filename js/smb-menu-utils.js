@@ -19,34 +19,27 @@ function toggleChaosMode() {
 // FULLSCREEN / RESIZE
 // ============================================================
 function resizeGame() {
-  const hud   = document.getElementById('hud');
-  const hudH  = (hud && hud.offsetHeight) || 0;
-  const avW   = window.innerWidth;
-  const avH   = window.innerHeight - hudH;
-  const isMob = avW < 900 || avH < 600;
+  // The canvas CSS box must match the backing store (canvas.width/height =
+  // window.innerWidth/innerHeight, see resizeCanvas in smb-globals.js) 1:1 —
+  // drawStorySubtitle() and the HUD camera clamp in smb-camera.js both map
+  // getBoundingClientRect() CSS pixels straight to canvas coordinates.
+  //
+  // Do NOT letterbox here and do NOT subtract the HUD height: #hud is
+  // position:fixed with a translucent scrim, so it floats over the canvas and
+  // takes no layout space. Shrinking the box below the viewport exposed the
+  // page background as black bars — 32% of the frame at a 1216x684 iframe and
+  // 41% at 907x510, both sizes CrazyGames lists as primary.
+  //
+  // Aspect ratio is already preserved inside the frame: gameLoop fit-scales the
+  // GAME_W x GAME_H world by min(canvas.width/GAME_W, canvas.height/GAME_H) and
+  // centres it, painting the surround with the arena sky gradient.
+  const w = window.innerWidth;
+  const h = window.innerHeight;
 
-  let w, h, ml = 0, mt = 0;
-  if (isMob) {
-    // Letterbox: fit inside available space while keeping 900×520 ratio
-    const aspect = GAME_W / GAME_H;
-    if (avW / avH > aspect) {
-      h  = avH;
-      w  = Math.round(h * aspect);
-      ml = Math.round((avW - w) / 2);
-    } else {
-      w  = avW;
-      h  = Math.round(w / aspect);
-      mt = Math.round((avH - h) / 2);
-    }
-  } else {
-    w = avW;
-    h = avH;
-  }
-
-  canvas.style.width      = w  + 'px';
-  canvas.style.height     = h  + 'px';
-  canvas.style.marginLeft = ml + 'px';
-  canvas.style.marginTop  = mt + 'px';
+  canvas.style.width      = w + 'px';
+  canvas.style.height     = h + 'px';
+  canvas.style.marginLeft = '0px';
+  canvas.style.marginTop  = '0px';
 }
 
 window.addEventListener('resize', resizeGame);

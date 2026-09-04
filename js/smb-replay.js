@@ -700,7 +700,7 @@ const ReplaySystem = (() => {
     rctx.lineCap     = 'round';
 
     // Anatomical anchor: feet are at p.y; head rises above
-    const headR   = 11 * sc;
+    const headR   = FIG_HEAD_R * sc;
     const neckLen = 5  * sc;
     const bodyLen = 30 * sc;
     const footY   = wy;

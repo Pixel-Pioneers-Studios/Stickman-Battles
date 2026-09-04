@@ -163,7 +163,7 @@ class VerletRagdoll {
     this.color  = f.color || '#aaaaaa';
     // Corpse fidelity: match the fighter's own line weight and head size so the
     // body on the ground reads as the character that just died, not a grey twig.
-    this.headR  = f.headR || 11;
+    this.headR  = f.headR || FIG_HEAD_R;
     this.limbW  = f.isBoss ? 7 : 5;
     const RAGDOLL_LIFETIME_FRAMES = 240; // despawn after ~4s to prevent accumulation
     this.timer  = RAGDOLL_LIFETIME_FRAMES;

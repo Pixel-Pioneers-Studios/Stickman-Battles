@@ -60,8 +60,9 @@ const SupabaseBridge = (() => {
     // Rebuild rather than setting textContent — that would wipe the inline
     // SVG icon that lives inside this button.
     const icon = typeof smbIcon === 'function' ? smbIcon('user') : '';
-    btn.innerHTML = icon + ' ' + _menuButtonLabel()
-      .replace(/&/g, '&amp;').replace(/</g, '&lt;');
+    // Label lives in .nav-label so the home corner cluster can render icon-only.
+    btn.innerHTML = icon + '<span class="nav-label"> ' + _menuButtonLabel()
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;') + '</span>';
     btn.title = _session
       ? ('Signed in as ' + (getDisplayName() || 'cloud user'))
       : (isAvailable() ? 'Open account, local save, and cloud sync settings' : 'Supabase config missing');

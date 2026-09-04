@@ -1115,10 +1115,10 @@ function _acctRefreshCloudNavBtn() {
   const iconHtml = icon ? icon.outerHTML : '';
   if (_acctCloudSignedIn()) {
     const name = (typeof SupabaseBridge.getDisplayName === 'function' && SupabaseBridge.getDisplayName()) || 'player';
-    btn.innerHTML = iconHtml + ' Log Out';
+    btn.innerHTML = iconHtml + '<span class="nav-label"> Log Out</span>';
     btn.title = 'Signed in as ' + name + ' — click to log out';
   } else {
-    btn.innerHTML = iconHtml + ' Log In';
+    btn.innerHTML = iconHtml + '<span class="nav-label"> Log In</span>';
     btn.title = 'Log in with a username to carry your progress between computers';
   }
 }

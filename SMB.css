@@ -4348,3 +4348,197 @@ input[type="color"]::-webkit-color-swatch { border: none; border-radius: 6px; }
    becomes a full-height portrait of the opponent instead of a blank column. */
 #p2Config.p2-locked .preview-stage { height: 100%; min-height: 260px; }
 #p2Config.p2-locked .config-body { height: 100%; }
+
+/* ============================================================
+   SHORT-VIEWPORT HOME SCREEN
+   CrazyGames' primary desktop iframes are 907x510, 821x462,
+   1077x606, 1216x684 and 1366x768. #menu is height:100vh with
+   overflow:hidden and no scrolling, so at those heights the path
+   cards, tutorial prompt and quick-nav row fell past the fold and
+   became unreachable. Compress the home column to fit instead of
+   clipping it. tutorialPrompt and trueFormHint are styled inline
+   in index.html, hence !important.
+   ============================================================ */
+@media (max-height: 860px) {
+  #menuHomeContent { gap: 3px; }
+  .home-char-stage { height: clamp(36px, 30vh, 210px); }
+  #quickFightBtn   { padding: 12px 38px 14px !important; font-size: 1.15rem !important; }
+  .path-card       { padding: 16px 16px 14px; gap: 5px; }
+  .path-card-icon  { font-size: 2rem; }
+  #tutorialPrompt  { margin: 6px auto 3px !important; padding: 9px 14px !important; }
+  .home-quicknav   { margin: 5px 0 0; }
+}
+
+@media (max-height: 700px) {
+  #menuHomeContent { gap: 1px; }
+  .home-char-stage { height: clamp(32px, 22vh, 140px); }
+  .game-title      { font-size: 1.75rem; letter-spacing: 3px; }
+  .game-titlemark  { margin: 3px 0 0; font-size: 0.66rem; letter-spacing: 5px; }
+  .game-subtitle   { font-size: 0.6rem; letter-spacing: 3px; }
+  #quickFightBtn   { padding: 9px 30px 11px !important; font-size: 1.02rem !important; }
+  .path-cards      { gap: 10px; max-width: 500px; }
+  .path-card       { padding: 11px 12px 10px; gap: 3px; }
+  .path-card-icon  { font-size: 1.6rem; }
+  .path-card-title { font-size: 1rem; letter-spacing: 3px; }
+  #tutorialPrompt  { margin: 3px auto 1px !important; padding: 6px 10px !important; gap: 8px !important; }
+  .home-quicknav   { margin: 3px 0 0; gap: 4px; }
+}
+
+@media (max-height: 560px) {
+  #menuHomeContent { gap: 0; }
+  .home-char-stage { height: clamp(40px, 22vh, 130px); }
+  .game-title      { font-size: 1.35rem; letter-spacing: 2px; }
+  .game-titlemark  { display: none; }
+  .game-subtitle   { font-size: 0.52rem; letter-spacing: 2px; }
+  #quickFightBtn   { padding: 7px 24px 9px !important; font-size: 0.9rem !important; }
+  .path-cards      { gap: 7px; max-width: 440px; }
+  .path-card       { padding: 7px 9px 6px; gap: 1px; }
+  .path-card-icon  { font-size: 1.2rem; }
+  .path-card-title { font-size: 0.88rem; letter-spacing: 2px; }
+  .path-card-desc  { font-size: 0.58rem; }
+  #tutorialPrompt  { margin: 1px auto 0 !important; padding: 4px 8px !important; gap: 6px !important; }
+  .home-quicknav   { margin: 1px 0 0; gap: 3px; }
+  .home-nav-btn    { padding: 4px 8px; font-size: 0.66rem; }
+  #trueFormHint    { display: none !important; }
+}
+
+/* Narrow viewports (phone portrait): the column overflows on width-driven
+   wrapping rather than height, so the max-height tiers above never apply. */
+@media (max-width: 560px) {
+  #menuHomeContent { gap: 2px; }
+  .home-char-stage { height: clamp(28px, 12vh, 100px); }
+  .game-title      { font-size: 1.5rem; letter-spacing: 2px; }
+  .game-titlemark  { display: none; }
+  .game-subtitle   { font-size: 0.55rem; letter-spacing: 2px; }
+  #quickFightBtn   { padding: 10px 28px 12px !important; font-size: 1rem !important; }
+  .path-cards      { gap: 8px; }
+  .path-card       { padding: 10px 10px 9px; gap: 3px; }
+  .path-card-icon  { font-size: 1.5rem; }
+  .path-card-title { font-size: 0.95rem; letter-spacing: 2px; }
+  .path-card-desc  { font-size: 0.6rem; }
+  #tutorialPrompt  { margin: 3px auto 1px !important; padding: 6px 10px !important; }
+  .home-quicknav   { margin: 3px 0 0; gap: 3px; }
+  .home-nav-btn    { padding: 4px 8px; font-size: 0.66rem; }
+}
+
+/* ============================================================
+   HOME SCREEN — GAME FEEL PASS
+   The home screen read as a web page: a labelled nav strip, a
+   banner, a legal footer with underlined links, and marketing
+   body copy. Those four co-occur on web pages and nowhere else.
+   Nothing here removes functionality — the nav buttons keep all
+   their actions and gain tooltips; only their presentation and
+   the surrounding copy change.
+   ============================================================ */
+
+/* --- 1. Nav strip -> corner icon cluster ------------------- */
+.home-quicknav {
+  position: fixed;
+  top: 10px;
+  right: 12px;
+  z-index: 40;
+  margin: 0;
+  width: auto;
+  gap: 6px;
+  flex-wrap: nowrap;
+}
+.home-quicknav .nav-label { display: none; }   /* icon-only; title= carries the name */
+.home-quicknav .home-nav-btn {
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  border: 2px solid var(--ink);
+  background: linear-gradient(180deg, rgba(58,66,120,0.95), rgba(30,34,72,0.95));
+  box-shadow: 0 3px 0 var(--ink), 0 6px 12px rgba(0,0,0,0.45);
+  color: rgba(215, 228, 255, 0.9);
+}
+.home-quicknav .home-nav-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 5px 0 var(--ink), 0 9px 16px rgba(0,0,0,0.5);
+  color: #fff;
+}
+.home-quicknav .home-nav-btn:active {
+  transform: translateY(2px);
+  box-shadow: 0 1px 0 var(--ink), 0 3px 7px rgba(0,0,0,0.45);
+}
+.home-quicknav .home-nav-btn .smb-icon { width: 17px; height: 17px; }
+/* Coin count still reads next to the store icon */
+.home-quicknav #coinDisplay {
+  position: absolute;
+  transform: translate(15px, -13px);
+  font-size: 0.58rem !important;
+  text-shadow: 0 1px 2px #000;
+  pointer-events: none;
+}
+
+/* --- 2. Drop the marketing copy ---------------------------- */
+.game-subtitle,
+#gameVersionLabel      { display: none; }
+#pathCards .path-card-desc { display: none; }   /* sub-panels keep theirs */
+
+/* --- 3. Legal line: present, but not a web footer ---------- */
+#cgConsentNotice {
+  /* Revealed by _applyPortalChrome() in index.html only when embedded on
+     CrazyGames — these terms do not govern itch or our own domain. */
+  display: none;
+  position: fixed;
+  left: 0; right: 0; bottom: 4px;
+  margin: 0;
+  font-size: 0.55rem;
+  color: rgba(180, 195, 225, 0.30);
+  pointer-events: auto;
+}
+#cgConsentNotice a {
+  color: rgba(180, 195, 225, 0.45) !important;
+  text-decoration: none;
+}
+#cgConsentNotice a:hover { color: rgba(210, 225, 255, 0.75) !important; }
+
+/* --- 4. Path cards: chunky game plates, not web cards ------ */
+#pathCards .path-card {
+  border: 3px solid var(--ink);
+  border-radius: 16px;
+  box-shadow: 0 6px 0 var(--ink), 0 12px 22px rgba(0,0,0,0.55);
+  transition: transform 0.12s, box-shadow 0.12s;
+}
+#pathCards .path-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 9px 0 var(--ink), 0 16px 28px rgba(0,0,0,0.6);
+}
+#pathCards .path-card:active {
+  transform: translateY(4px);
+  box-shadow: 0 2px 0 var(--ink), 0 5px 12px rgba(0,0,0,0.5);
+}
+#pathCards .path-card-title {
+  font-family: var(--font-btn);
+  text-shadow: 0 2px 0 rgba(0,0,0,0.45);
+}
+
+/* --- 5. Tutorial offer: a hint, not a cookie banner -------- */
+#tutorialPrompt {
+  background: none !important;
+  border: none !important;
+  border-radius: 0 !important;
+}
+
+/* Tutorial offer stays one compact row — it wrapped once the buttons
+   picked up the chunky plate styling, which read as a stacked banner. */
+#tutorialPrompt {
+  flex-wrap: nowrap !important;
+  max-width: none !important;
+  gap: 10px !important;
+}
+#tutorialPrompt .home-nav-btn { padding: 6px 14px; font-size: 0.7rem; }
+#tutorialPrompt > span { font-size: 0.78rem; opacity: 0.75; }
+
+/* The canvas hero is drawn by _drawFractureScene in fixed GAME_W x GAME_H
+   space and never reads the DOM, so the column's vertical rhythm is tuned
+   against it. Removing the subtitle and version line pulled the title down
+   into the hero's head; this restores the offset those two lines occupied
+   without bringing the copy back. Do not centre this column — that decouples
+   it from the canvas art entirely. */
+.game-titlemark { margin-bottom: 30px !important; }

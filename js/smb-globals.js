@@ -21,6 +21,26 @@ resizeCanvas();
 window.addEventListener('resize', resizeCanvas);
 
 // ============================================================
+// FIGHTER FIGURE PROPORTIONS
+// ============================================================
+// These were duplicated as literals across draw(), the melee-arc geometry,
+// the ragdoll rig, the replay viewer and the anime FX — five copies that had
+// to agree by hand, with only a comment holding them together. They live here
+// so a proportion change cannot silently desync hit detection from the figure
+// you can actually see.
+//
+// The vertical budget is load-bearing: head top sits at y+1, shoulders at
+// y + FIG_SHOULDER_DY, hips 30 below that, feet at hips + FIG_LEG_LEN. That
+// must land at ~y+86 against a 84px collision box or the fighter floats above
+// the floor or sinks into it.
+const FIG_HEAD_R  = 9;    // was 11 — a 22px head on an 85px figure read bobble-headed
+const FIG_NECK    = 5;
+const FIG_ARM_LEN = 24;   // drives melee reach — do not retune for looks alone
+const FIG_LEG_LEN = 31;   // was 27; +4 exactly offsets the smaller head, keeping feet at y+86
+const FIG_SHOULDER_DY = FIG_HEAD_R * 2 + 2 + FIG_NECK;   // head top -> shoulder
+const FIG_LINE_W  = 6;    // was 5 — thicker limbs hold up against detailed backgrounds
+
+// ============================================================
 // SERVER SYNC CONFIGURATION
 // ============================================================
 // Set `url` to your server address so bans are enforced cross-device.

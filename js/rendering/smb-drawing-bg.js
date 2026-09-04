@@ -57,7 +57,22 @@ function drawBackground() {
   if (a.groundColor) {
     const floorPl = a.platforms && a.platforms.find(pl => pl.isFloor);
     const groundTop = floorPl ? floorPl.y : GAME_H - 60;
-    ctx.fillStyle = a.groundColor;
+
+    // Depth layers sit between the sky and the ground plane, so ridges are
+    // occluded by the ground rather than floating over it.
+    if (typeof drawArenaDepth === 'function') drawArenaDepth(a, _bgX, _bgW, _bgH, groundTop);
+
+    // A flat fill put the ground on the same plane as everything else. Grade it
+    // so the surface catches light and falls off with depth.
+    if (!drawBackground._groundGradCache || drawBackground._groundGradKey !== currentArenaKey) {
+      const g = ctx.createLinearGradient(0, groundTop, 0, groundTop + 260);
+      g.addColorStop(0,    _dpMix(a.groundColor, '#ffffff', 0.16));
+      g.addColorStop(0.14, a.groundColor);
+      g.addColorStop(1,    _dpMix(a.groundColor, '#000000', 0.42));
+      drawBackground._groundGradCache = g;
+      drawBackground._groundGradKey   = currentArenaKey;
+    }
+    ctx.fillStyle = drawBackground._groundGradCache;
     ctx.fillRect(_bgX, groundTop, _bgW, _bgH - groundTop);
   }
 
@@ -359,3 +374,118 @@ function _expTileRuins(i) {
   }
 }
 
+
+// ============================================================
+// SHARED ARENA DEPTH LAYERS
+// ============================================================
+// Reference games read as "real games" largely because their backgrounds have
+// DEPTH: far ridges, an atmospheric haze band at the horizon, and a shaded
+// ground plane. Our arenas were a flat sky gradient plus one bespoke
+// decoration pass, so every element sat on the same visual plane.
+//
+// This layer runs between the sky fill and the per-arena decoration and
+// derives all of its colours from that arena's OWN palette, so every outdoor
+// arena gains depth without 18 bespoke rewrites. Indoor/abstract arenas
+// (void, cave, space, the domains) are deliberately absent from the table —
+// ridges under a cave ceiling would read as a bug.
+const ARENA_DEPTH = {
+  grass:      { hills: 3 }, clouds:   { hills: 2 }, ice:      { hills: 3 },
+  forest:     { hills: 3 }, ruins:    { hills: 2 }, soccer:   { hills: 2 },
+  colosseum:  { hills: 2 }, colosseum10: { hills: 2 }, desert: { hills: 3 },
+  mushroom:   { hills: 3 }, suburb:   { hills: 2 }, rural:    { hills: 3 },
+  homeYard:   { hills: 2 }, homeRooftop: { hills: 2 }, homeAlley: { hills: 1 },
+  city:       { hills: 2 }, megacity: { hills: 2 }, volcano:  { hills: 3 },
+  haunted:    { hills: 2 },
+};
+
+// Accepts '#rgb', '#rrggbb' AND 'rgb(r,g,b)' — _dpMix returns the rgb() form,
+// so without this a nested _dpMix() parses garbage, yields NaN channels, and
+// canvas silently keeps the previous fill/stroke (which rendered hill crests
+// as hard black lines instead of a light lift).
+function _dpRgb(col) {
+  const s = String(col || '#000').trim();
+  const m = s.match(/^rgba?\(\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)/i);
+  if (m) return { r: +m[1], g: +m[2], b: +m[3] };
+  const h = s.replace('#', '');
+  const n = h.length === 3
+    ? h.split('').map(c => c + c).join('')
+    : h.padEnd(6, '0').slice(0, 6);
+  return { r: parseInt(n.slice(0,2),16) || 0, g: parseInt(n.slice(2,4),16) || 0, b: parseInt(n.slice(4,6),16) || 0 };
+}
+function _dpMix(c1, c2, t) {
+  const a = _dpRgb(c1), b = _dpRgb(c2), k = Math.max(0, Math.min(1, t));
+  return 'rgb(' + Math.round(a.r + (b.r - a.r) * k) + ',' +
+                  Math.round(a.g + (b.g - a.g) * k) + ',' +
+                  Math.round(a.b + (b.b - a.b) * k) + ')';
+}
+function _dpHash(str) {
+  let h = 2166136261;
+  for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); }
+  return (h >>> 0) / 4294967295;
+}
+
+// Ridge silhouettes are static geometry — build the point list once per
+// arena+layer and reuse it, or a 6000px-wide sine sum runs every frame.
+function _dpRidge(key, layer, bgX, bgW, baseY, amp) {
+  _dpRidge._cache = _dpRidge._cache || {};
+  const ck = key + '|' + layer + '|' + Math.round(bgX) + '|' + Math.round(bgW) + '|' + Math.round(baseY);
+  if (_dpRidge._cache[ck]) return _dpRidge._cache[ck];
+  const seed = _dpHash(key + layer) * 100;
+  const pts = [];
+  for (let x = bgX; x <= bgX + bgW; x += 34) {
+    const y = baseY
+      - Math.sin((x * 0.0031) + seed) * amp
+      - Math.sin((x * 0.0087) + seed * 2.3) * amp * 0.42
+      - Math.sin((x * 0.019)  + seed * 4.1) * amp * 0.16;
+    pts.push({ x, y });
+  }
+  _dpRidge._cache[ck] = pts;
+  return pts;
+}
+
+function drawArenaDepth(a, bgX, bgW, bgH, groundTop) {
+  const cfg = ARENA_DEPTH[currentArenaKey];
+  if (!cfg) return;
+  const skyLow = a.sky[a.sky.length - 1];
+  const ground = a.groundColor || skyLow;
+  const n = cfg.hills;
+
+  // Atmospheric haze: distance desaturates toward the sky colour, which is what
+  // separates "far" from "near" more than the shapes themselves do.
+  const hazeTop = Math.max(0, groundTop - 150);
+  const haze = ctx.createLinearGradient(0, hazeTop, 0, groundTop);
+  haze.addColorStop(0, _dpMix(skyLow, '#ffffff', 0.0).replace('rgb', 'rgba').replace(')', ',0)'));
+  haze.addColorStop(1, _dpMix(skyLow, '#ffffff', 0.38).replace('rgb', 'rgba').replace(')', ',0.55)'));
+  ctx.fillStyle = haze;
+  ctx.fillRect(bgX, hazeTop, bgW, groundTop - hazeTop);
+
+  // Ridges, far to near. Farther layers sit higher, are flatter, and are mixed
+  // further toward the sky; nearer layers approach the ground colour.
+  for (let i = 0; i < n; i++) {
+    const t     = n === 1 ? 1 : (i / (n - 1));       // 0 = farthest
+    const baseY = groundTop - 96 + t * 74;
+    const amp   = 30 - t * 17;
+    const par   = 0.05 + t * 0.10;                    // nearer parallaxes more
+    const shift = -(typeof camXCur === 'number' ? camXCur - 450 : 0) * par;
+
+    ctx.save();
+    ctx.translate(shift, 0);
+    ctx.fillStyle = _dpMix(skyLow, ground, 0.30 + t * 0.55);
+    ctx.beginPath();
+    const pts = _dpRidge(currentArenaKey, i, bgX - 400, bgW + 800, baseY, amp);
+    ctx.moveTo(pts[0].x, pts[0].y);
+    for (let p = 1; p < pts.length; p++) ctx.lineTo(pts[p].x, pts[p].y);
+    ctx.lineTo(pts[pts.length - 1].x, bgH);
+    ctx.lineTo(pts[0].x, bgH);
+    ctx.closePath();
+    ctx.fill();
+    // Sunlit crest — a hairline of lift along the top edge reads as form.
+    ctx.strokeStyle = _dpMix(_dpMix(skyLow, ground, 0.3 + t * 0.55), '#ffffff', 0.22);
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(pts[0].x, pts[0].y);
+    for (let p = 1; p < pts.length; p++) ctx.lineTo(pts[p].x, pts[p].y);
+    ctx.stroke();
+    ctx.restore();
+  }
+}

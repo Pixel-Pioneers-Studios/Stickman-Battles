@@ -14,7 +14,7 @@ function _cinWorldToScreen(wx, wy) {
 
 // Stickman silhouette for afterimage rendering (screen-space coords, sy = foot)
 function _drawAfterSilhouette(rctx, sx, sy, sc, color) {
-  const headR  = 11 * sc;
+  const headR  = FIG_HEAD_R * sc;
   const neckL  = 5  * sc;
   const bodyL  = 30 * sc;
   const footY  = sy;

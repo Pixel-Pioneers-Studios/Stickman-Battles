@@ -7,6 +7,8 @@ class Fighter {
   constructor(x, y, color, weaponKey, controls, isAI, aiDifficulty) {
     this.x = x; this.y = y;
     this.w = 34; this.h = 84;
+    // Read by VerletRagdoll (smb-verlet.js) so the death rig matches the figure.
+    this.headR = FIG_HEAD_R;
     this.vx = 0; this.vy = 0;
     this.color       = color;
     this.weaponKey   = weaponKey;
@@ -2045,10 +2047,10 @@ class Fighter {
   getWeaponTipPos() {
     if (this.attackTimer <= 0) return null;
     const cx         = this.cx();
-    // Must match draw() layout: headR(11) + 1 + headR(11) + 1 + neckLen(5) = 29
-    const shoulderY  = this.y + 29;
+    // Shared with draw() via FIG_* in smb-globals.js so this cannot drift.
+    const shoulderY  = this.y + FIG_SHOULDER_DY;
     const _sc        = this.drawScale || 1;
-    const armLen     = 24 * _sc; // matches draw() armLen, scaled by size
+    const armLen     = FIG_ARM_LEN * _sc;
     const atkP       = 1 - this.attackTimer / this.attackDuration;
     // Megaknight: upward arc — fist sweeps from low to high
     let ang, reachFrac = 1;
@@ -2077,9 +2079,9 @@ class Fighter {
   _getMeleeArcPoints() {
     if (this.attackTimer < 0) return [];
     const cx        = this.cx();
-    const shoulderY = this.y + 29;
+    const shoulderY = this.y + FIG_SHOULDER_DY;
     const _sc2      = this.drawScale || 1;
-    const armLen    = 24 * _sc2;
+    const armLen    = FIG_ARM_LEN * _sc2;
     const atkP      = 1 - this.attackTimer / this.attackDuration;
     const tipLens = { sword: 26, hammer: 30, axe: 23, spear: 40, gauntlet: 22, mkgauntlet: 30, whip: 50, flail: 28 };
     const _swg2   = (typeof WEAPON_SWINGS !== 'undefined') ? WEAPON_SWINGS[this.weaponKey] : null;
@@ -2133,7 +2135,7 @@ class Fighter {
     const _tl = { sword: 26, hammer: 30, axe: 23, spear: 40, gauntlet: 22, mkgauntlet: 30, whip: 50, flail: 28 };
     const _swg = (typeof WEAPON_SWINGS !== 'undefined') ? WEAPON_SWINGS[this.weaponKey] : null;
     const wLen = ((_swg && _swg.tipLen) || _tl[this.weaponKey] || 23) * sc;
-    const armLen = 24 * sc;
+    const armLen = FIG_ARM_LEN * sc;
     const tgtHalf = tgt ? tgt.w * 0.5 : 14;
     return (armLen + wLen) + tgtHalf + 8; // +8 ≈ hitPad + arc-forgiveness slack
   }
@@ -4210,7 +4212,7 @@ class Fighter {
       }
     }
 
-    const headR     = 11;
+    const headR     = FIG_HEAD_R;
     // Head bob: discrete step phases (every 8 frames) so it dips once per stride like the prequel
     const _walkStepPhase = Math.floor(t / 8) % 4;
     // Sprint blend: 0 = walk, 1 = full run. Ramps in after sustained movement
@@ -4223,7 +4225,7 @@ class Fighter {
     const headBob   = (s === 'walking') ? Math.abs(Math.sin(_walkStepPhase * Math.PI / 2)) * (2.2 + _spr * 1.6) : 0;
     const headCY    = ty + headR + 1 + animOffY + headBob + _spr * 2.5; // head drops as he commits
     const neckY     = headCY + headR + 1;
-    const shoulderY = neckY + 5;
+    const shoulderY = neckY + FIG_NECK;
     const hipY      = shoulderY + 30;
     // Torso pitch. The body line runs neck(cx) → hip(hipX), so a POSITIVE hipX
     // offset puts the hips ahead of the shoulders — that leans him backward.
@@ -4237,8 +4239,8 @@ class Fighter {
     const hipX      = cx + _pelvis + (s === 'walking' ? f * (2.5 - _spr * 22)
                           : (_inAir ? f * (-_spr * 22) : 0));
     const shoulderX = cx - _pelvis * 0.8;
-    const armLen    = 24;
-    const legLen    = 27;
+    const armLen    = FIG_ARM_LEN;
+    const legLen    = FIG_LEG_LEN;
     // Inline helper: 2-segment limb joint via midpoint offset (classic rig)
     const _lj = (ax, ay, bx, by, ox, oy) => [(ax+bx)*0.5 + ox, (ay+by)*0.5 + oy];
     // High-quality rig: the joint falls out of two-bone IK instead, so the bend
@@ -4271,7 +4273,7 @@ class Fighter {
     }
 
     ctx.strokeStyle = this.color;
-    ctx.lineWidth   = 5;
+    ctx.lineWidth   = FIG_LINE_W;
     ctx.lineCap     = 'round';
     ctx.lineJoin    = 'round';
 
