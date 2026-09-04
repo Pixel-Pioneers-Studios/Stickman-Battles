@@ -147,6 +147,9 @@ const GameState = (() => {
     try {
       localStorage.setItem('smb_state', JSON.stringify(_state.persistent));
     } catch (e) {}
+    if (typeof cgSdk !== 'undefined' && cgSdk.saveProgress) {
+      try { cgSdk.saveProgress(JSON.stringify(_state.persistent)); } catch (e) {}
+    }
   }
 
   /**

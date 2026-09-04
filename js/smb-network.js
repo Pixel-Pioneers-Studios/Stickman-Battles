@@ -71,7 +71,7 @@ const NetworkManager = (() => {
       slot: _localSlot,
       peerId: (_peer && _peer.id) ? _peer.id : null,
       accountId: acct ? acct.id : null,
-      username: acct ? acct.username : null,
+      username: acct ? acct.username : ((window._cgUser && window._cgUser.username) || null),
       deviceId: _ensureDeviceId(),
       role: acct ? acct.role : null,
     };
@@ -594,6 +594,7 @@ const NetworkManager = (() => {
       _setSlotMeta(0, _getLocalIdentity());
       _setupHostListeners();
       _setStatus('Hosting \u2022 Players: 1/' + _maxPlayers);
+      if (typeof cgSdk !== 'undefined') cgSdk.updateRoom(_roomCode, true);
       showToast('Room created! Share code: ' + _roomCode);
       if (typeof cgSdk !== 'undefined') cgSdk.showInviteBtn();
       if (_roomType === 'public') _advertisePublicRoom();
@@ -630,6 +631,7 @@ const NetworkManager = (() => {
             _setSlotMeta(_localSlot, _getLocalIdentity());
             _sendClientHello(conn);
             _setStatus('Joined as P' + (_localSlot + 1) + ' \u2022 Waiting for host to start...');
+            if (typeof cgSdk !== 'undefined') cgSdk.updateRoom(_roomCode, true);
             showToast('You are Player ' + (_localSlot + 1) + ' — wait for host to start');
             // Hide the Connect button, show a waiting indicator
             const startBtn = document.getElementById('onlineStartBtn');
@@ -686,6 +688,7 @@ const NetworkManager = (() => {
     _disconnectReason = null;
     _connected = false;
     onlineMode = false;
+    if (typeof cgSdk !== 'undefined') cgSdk.leftRoom();
     _setStatus('Disconnected');
     _unAdvertisePublicRoom();
     const startBtn = document.getElementById('onlineStartBtn');
@@ -1010,6 +1013,7 @@ function networkStartGame() {
     NetworkManager.showToast('Not connected — click Connect first');
     return;
   }
+  if (typeof cgSdk !== 'undefined') cgSdk.updateRoom(NetworkManager.room, false);
   // Broadcast current arena + mode so guests match
   NetworkManager.sendGameEvent('startGame', {
     arena:        typeof selectedArena  !== 'undefined' ? selectedArena  : 'random',

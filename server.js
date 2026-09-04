@@ -106,6 +106,7 @@ const ALLOWED_ORIGINS = new Set(String(process.env.ALLOWED_ORIGINS || 'https://s
   .split(',')
   .map(v => v.trim())
   .filter(Boolean));
+const CRAZYGAMES_ORIGIN = /^https:\/\/[a-z0-9-]+\.game-files\.crazygames\.com$/i;
 const BUILD_VERSION = process.env.RENDER_GIT_COMMIT || process.env.npm_package_version || 'dev';
 
 if (!ADMIN_SESSION_SECRET || ADMIN_SESSION_SECRET.length < 32) {
@@ -189,7 +190,7 @@ function _recordMatchesIdentity(rec, id) {
 
 function _originAllowed(origin) {
   if (!origin) return true;
-  return ALLOWED_ORIGINS.has(origin);
+  return ALLOWED_ORIGINS.has(origin) || CRAZYGAMES_ORIGIN.test(origin);
 }
 
 function _securityHeaders(req, res) {
@@ -205,7 +206,7 @@ function _securityHeaders(req, res) {
   // the game in an iframe. Framing is restricted via CSP frame-ancestors below.
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
   res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
-  res.setHeader('Cross-Origin-Resource-Policy', 'same-origin');
+  res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
   if (req.headers['x-forwarded-proto'] === 'https' || req.socket.encrypted) {
     res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
   }

@@ -172,9 +172,11 @@ SoundManager.loadAudio('megaknight', 'mega-knight-evolution.mp3');
 const MusicManager = (() => {
   // Detect file:// context — YouTube API cannot work here
   const _isLocal = (location.protocol === 'file:');
-  if (_isLocal) {
+  const _isCrazyGames = /(^|\.)crazygames\.(com|co\.uk)$/i.test(location.hostname)
+    || (window.CrazyGames && window.CrazyGames.SDK && window.CrazyGames.SDK.environment === 'crazygames');
+  if (_isLocal || _isCrazyGames) {
     // Suppress YouTube script loading and return no-op stub
-    console.info('[MusicManager] Running on file://, YouTube music disabled. Use a local server for music.');
+    console.info('[MusicManager] External music disabled in this environment.');
     return { playBoss(){}, playNormal(){}, stop(){}, setMuted(){}, isMuted(){ return true; }, toggle(){} };
   }
 
@@ -239,7 +241,7 @@ const MusicManager = (() => {
       try { _normalPlayer.pauseVideo(); } catch(e) {}
     },
     setMuted(m) {
-      _muted = m;
+      _muted = !!m || !!window._cgAudioMuted;
       localStorage.setItem('smc_musicMute', m ? '1' : '0');
       if (m) { try { _bossPlayer.pauseVideo();   } catch(e) {} try { _normalPlayer.pauseVideo(); } catch(e) {} }
       else if (_current) _tryPlay(_current);
@@ -250,6 +252,7 @@ const MusicManager = (() => {
 })();
 
 function toggleSfxMute() {
+  if (window._cgAudioMuted) return;
   const m = !SoundManager.isMuted();
   SoundManager.setMuted(m);
   localStorage.setItem('smc_sfxMute', m ? '1' : '0');

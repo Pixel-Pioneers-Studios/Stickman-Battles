@@ -30,35 +30,85 @@ var cgSdk = (function () {
     var s = sdk();
     if (!s) return;
 
-    try { s.game.sdkGameLoadingStart(); } catch(e) { return; }
+    try { s.game.loadingStart(); } catch(e) { return; }
     // Report loading finished once the page really is done — immediately if it
     // already is, so the pair is never left unbalanced.
     if (document.readyState === 'complete') {
-      try { s.game.sdkGameLoadingFinished(); } catch(e) {}
+      try { s.game.loadingStop(); } catch(e) {}
     } else {
       window.addEventListener('load', function () {
-        try { s.game.sdkGameLoadingFinished(); } catch(e) {}
+        try { s.game.loadingStop(); } catch(e) {}
       });
     }
 
-    // CrazyGames can request chat be disabled (parental controls, minors, etc.)
-    if (s.game && typeof s.game.addListener === 'function') {
-      s.game.addListener('disableChat', function () {
+    // Use the platform profile when available; guests remain supported.
+    if (s.user && typeof s.user.getUser === 'function') {
+      Promise.resolve(s.user.getUser()).then(function (user) {
+        window._cgUser = user || null;
+      }).catch(function () { window._cgUser = null; });
+    }
+
+    if (s.data && typeof s.data.getItem === 'function') {
+      Promise.resolve(s.data.getItem('smb_state')).then(function (raw) {
+        window._cgRemoteSave = raw || null;
+        if (raw && !localStorage.getItem('smb_state')) {
+          try {
+            JSON.parse(raw);
+            localStorage.setItem('smb_state', raw);
+            location.reload();
+          } catch (e) {}
+        }
+      }).catch(function () { window._cgRemoteSave = null; });
+    }
+
+    function _applySettings(settings) {
+      settings = settings || {};
+      if (settings.disableChat) {
         window._cgChatDisabled = true;
         var chatEl = document.getElementById('onlineChat');
         if (chatEl) chatEl.style.display = 'none';
+      }
+      if (settings.muteAudio !== undefined) {
+        window._cgAudioMuted = !!settings.muteAudio;
+        if (typeof SoundManager !== 'undefined' && SoundManager.setMuted) {
+          SoundManager.setMuted(window._cgAudioMuted);
+        }
+        if (typeof MusicManager !== 'undefined' && MusicManager.setMuted) {
+          MusicManager.setMuted(window._cgAudioMuted);
+        }
+      }
+    }
+    _applySettings(s.game.settings);
+    if (s.game && typeof s.game.addSettingsChangeListener === 'function') {
+      s.game.addSettingsChangeListener(_applySettings);
+    }
+
+    if (s.game && typeof s.game.addJoinRoomListener === 'function') {
+      s.game.addJoinRoomListener(function (params) {
+        var roomCode = params && (params.roomName || params.roomId || params.code);
+        if (!roomCode) return;
+        var inp = document.getElementById('onlineRoomCode');
+        if (inp) inp.value = String(roomCode).toUpperCase();
+        if (typeof selectMode === 'function') selectMode('online');
+        if (typeof networkJoinRoom === 'function') networkJoinRoom();
       });
     }
 
     // If opened via an invite link or as instant multiplayer, auto-navigate to online mode
     var inviteCode = null;
     try {
-      var params = s.game && s.game.inviteLinkParams;
-      if (params && params.code) inviteCode = String(params.code).toUpperCase().trim();
+      var params = s.game && (s.game.inviteParams || s.game.inviteLinkParams);
+      var roomName = params && (params.roomName || params.roomId || params.code);
+      if (!roomName && s.game && typeof s.game.getInviteParam === 'function') {
+        roomName = s.game.getInviteParam('roomName');
+      }
+      if (roomName) inviteCode = String(roomName).toUpperCase().trim();
     } catch (e) {}
 
     var isInstant = false;
-    try { isInstant = !!(s.game && s.game.isInstantMultiplayer); } catch (e) {}
+    try {
+      isInstant = !!(s.game && (s.game.isInstantMultiplayer || s.game.isInstantJoin));
+    } catch (e) {}
 
     if (inviteCode || isInstant) {
       setTimeout(function () {
@@ -81,6 +131,35 @@ var cgSdk = (function () {
     gameplayStop: function () {
       var s = sdk(); if (s) s.game.gameplayStop();
     },
+    updateRoom: function (roomId, isJoinable) {
+      var s = sdk();
+      if (!s || !s.game || typeof s.game.updateRoom !== 'function') return;
+      try {
+        var result = s.game.updateRoom({
+          roomId: String(roomId || ''),
+          isJoinable: !!isJoinable,
+          inviteParams: { roomName: String(roomId || '') }
+        });
+        if (result && typeof result.catch === 'function') result.catch(function () {});
+      } catch (e) {}
+    },
+    leftRoom: function () {
+      var s = sdk();
+      if (!s || !s.game || typeof s.game.leftRoom !== 'function') return;
+      try {
+        var result = s.game.leftRoom();
+        if (result && typeof result.catch === 'function') result.catch(function () {});
+      } catch (e) {}
+    },
+    saveProgress: function (serialized) {
+      var s = sdk();
+      if (!s || !s.data || typeof s.data.setItem !== 'function') return;
+      try {
+        var result = s.data.setItem('smb_state', String(serialized || ''));
+        if (result && typeof result.catch === 'function') result.catch(function () {});
+      } catch (e) {}
+    },
+    isAudioMuted: function () { return !!window._cgAudioMuted; },
 
     // Called after host room is created — shows the Invite Friends button.
     showInviteBtn: function () {
@@ -93,17 +172,18 @@ var cgSdk = (function () {
     showInviteButton: function () {
       var s = sdk();
       var roomCode = (window.NetworkManager && NetworkManager.room) ? NetworkManager.room : '';
-      var params = { code: roomCode };
+      var params = { roomName: roomCode };
 
       if (s && s.game) {
         // Try native invite button (SDK v3)
-        if (typeof s.game.inviteButton === 'function') {
-          try { s.game.inviteButton({ params: params }); return; } catch (e) {}
+        if (typeof s.game.showInviteButton === 'function') {
+          try { s.game.showInviteButton(params); return; } catch (e) {}
         }
         // Fallback: generate invite link and copy to clipboard
         if (typeof s.game.inviteLink === 'function') {
           try {
-            s.game.inviteLink({ params: params }).then(function (url) {
+            var link = s.game.inviteLink(params);
+            Promise.resolve(link).then(function (url) {
               if (url && navigator.clipboard) {
                 navigator.clipboard.writeText(url).then(function () {
                   if (typeof showToast === 'function') showToast('Invite link copied!');

@@ -1827,9 +1827,10 @@
   <!-- StoryVoice — speaks story dialogue lines via the Web Speech API -->
   <script src="./js/smb-storyvoice.js?v=4.0.2"></script>
 
-  <!-- YouTube IFrame API for background music (HTTP/HTTPS only — skipped on file://) -->
+  <!-- YouTube IFrame API for background music (disabled by MusicManager on CrazyGames) -->
   <div id="ytBossPlayer"    style="position:fixed;width:1px;height:1px;opacity:0;pointer-events:none;left:-9999px;top:-9999px;"></div>
   <div id="ytNormalPlayer"  style="position:fixed;width:1px;height:1px;opacity:0;pointer-events:none;left:-9999px;top:-9999px;"></div>
+
   <!-- In-game console overlay (activated by typing GAMECONSOLE) -->
   <div id="gameConsoleOverlay" style="display:none;position:fixed;bottom:0;left:0;right:0;height:260px;background:rgba(8,8,18,0.96);border-top:2px solid #3366ff;z-index:9999;font-family:'Courier New',monospace;flex-direction:column;">
     <div id="gameConsoleTitleBar" style="display:flex;align-items:center;padding:4px 10px;background:rgba(20,30,80,0.95);border-bottom:1px solid #3366ff;">
@@ -1848,6 +1849,7 @@
   </div>
 
   <script>
+    // MusicManager disables external music on CrazyGames to keep startup light.
     // Make console overlay use flex when shown
     (function() {
       const ov = document.getElementById('gameConsoleOverlay');
