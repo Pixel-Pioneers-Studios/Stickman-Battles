@@ -383,17 +383,30 @@ const WEAPONS = {
   },
 
   whip: {
-    // THE ZONER: Extreme melee reach. Low damage but Crack stuns and Reel pulls enemies in.
-    // Identity: Control spacing from afar. Nobody gets close without paying for it.
-    name: 'Whip',    damage: 10, range: 150, cooldown: 40, endlag: 15,
-    kb: 6,           abilityCooldown: 150, type: 'melee', weaponType: 'light', color: '#cc8833',
+    // THE ZONER: extreme reach with a real sweet spot. The lash only bites hard at
+    // the CRACK POINT — the last third of the cord, where it breaks the sound barrier.
+    // Land the tip and you hit harder than a sword and open a bleed; let them inside
+    // your reach and you are poking with a rope for chip damage.
+    // Identity: spacing IS the damage stat. Q hooks one target, E is a long-range barrage.
+    name: 'Whip',    damage: 12, range: 150, cooldown: 36, endlag: 13,
+    kb: 7,           abilityCooldown: 150, type: 'melee', weaponType: 'light', color: '#cc8833',
+    // Sweet-spot tuning — read by the whip branch of the melee hit resolver in smb-fighter.js
+    // Max center-to-center melee reach here is FIG_ARM_LEN(24) + tipLen(50) + half a
+    // target(~14) + 8 pad ≈ 96, so 70 makes the outer quarter of the range the sweet spot.
+    crackDist: 70,   // horizontal gap (px) at/past which a hit counts as a tip crack
+    crackMult: 1.55, // damage multiplier on a crack hit (12 → 19)
+    hookMult:  1.25, // extra multiplier while the target is Hooked by Lasso
+    bleedDmg:  2,    // damage per bleed tick
+    bleedTicks: 3,   // ticks applied by a body hit (a crack applies 5)
     abilityName: 'Lasso',
     ability(user, _target) {
-      // Lasso the nearest enemy and yank them directly toward you — stuns on impact
+      // Lasso the nearest enemy, yank them in, stun — and leave them HOOKED, so every
+      // whip hit that lands on them counts as a crack until the hook wears off.
       const _wAll = [...players, ...trainingDummies, ...minions];
       let _wTgt = null, _wTgtDist = 999;
       for (const f of _wAll) {
         if (f === user || f.health <= 0) continue;
+        if (typeof isHostileTarget === 'function' && !isHostileTarget(user, f)) continue;
         const _wd = dist(user, f);
         if (_wd < 280 && _wd < _wTgtDist) { _wTgt = f; _wTgtDist = _wd; }
       }
@@ -405,14 +418,17 @@ const WEAPONS = {
         _wTgt.vy = (_wdy / _wlen) * 18;
         _wTgt.stunTimer = Math.max(_wTgt.stunTimer || 0, 22);
         _wTgt._whipSlow = 22;
-        dealDamage(user, _wTgt, 10, 0);
+        _wTgt._whipHooked = 150;          // 2.5s window where every lash crits
+        _wTgt._whipHookSrc = user;
+        dealDamage(user, _wTgt, 15, 0);
         spawnParticles(_wTgt.cx(), _wTgt.cy(), '#cc8833', 14);
-        user._whipCrack = { x: _wTgt.cx(), y: _wTgt.cy(), timer: 20 };
+        spawnParticles(_wTgt.cx(), _wTgt.cy(), '#ffcc44', 8);
+        user._whipCrack = { x: _wTgt.cx(), y: _wTgt.cy(), timer: 16, big: true };
         user._whipRope  = { tx: _wTgt.cx(), ty: _wTgt.cy(), timer: 18, isLasso: true };
         screenShake = Math.max(screenShake, 10);
       } else {
         const _tipX = user.cx() + user.facing * 220;
-        user._whipCrack = { x: _tipX, y: user.cy(), timer: 14 };
+        user._whipCrack = { x: _tipX, y: user.cy(), timer: 8 };
         spawnParticles(_tipX, user.cy(), '#cc8833', 8);
       }
     }
@@ -659,6 +675,9 @@ const WEAPON_SWINGS = {
                    hitSound: 'pierce', carry: { arm: -1.00, tilt: -0.85 } }, // slung over the shoulder
   whip:          { archetype: 'crack',  dur: 11, a0: -0.55, a1: 0.35, ease: 'snap',   tilt: 0.15, tipLen: 50,
                    reach: { r0: 0.35, r1: 1.0, ease: 'crack' }, hitFracs: [0.4, 0.65, 0.85, 1.0], trail: { life: 10, cap: 8, width: 3 },
+                   // Alternating lash: odd swings crack DOWN from overhead, even swings
+                   // sweep UP off the floor. Same reach, visibly different attack.
+                   alternate: true, altOff: [-0.58, 0.42],
                    hitSound: 'snap', carry: { arm: 1.00, tilt: 0.40 } },     // coiled low at the side
   combat:  { archetype: 'jab',    dur:  5, a0:  0.12, a1: -0.10, ease: 'linear', tilt: 0.0, tipLen: 16, alternate: true,
                    reach: { r0: 0.4, r1: 1.0, ease: 'jab' }, hitFracs: [0.6, 1.0], trail: { life: 6, cap: 4, width: 4 },
@@ -734,7 +753,9 @@ function swingPose(weaponKey, atkP, facing, alt) {
   let ang, reachFrac = 1;
   if (g) {
     let a0 = g.a0, a1 = g.a1;
-    if (g.alternate) { const off = alt ? 0.30 : -0.12; a0 += off; a1 += off; }
+    // altOff lets a weapon define its own two-pose alternation (whip: overhead
+    // crack vs. floor sweep); weapons without it keep the boxing-glove offsets.
+    if (g.alternate) { const off = alt ? (g.altOff ? g.altOff[0] : 0.30) : (g.altOff ? g.altOff[1] : -0.12); a0 += off; a1 += off; }
     ang = a0 + (a1 - a0) * swingEase(p, g.ease);
     if (g.reach) reachFrac = g.reach.r0 + (g.reach.r1 - g.reach.r0) * swingEase(p, g.reach.ease);
   } else {
@@ -824,7 +845,7 @@ const WEAPON_DESCS = {
   slingshot:    { title: 'Slingshot',      what: 'Ranged weapon with arc trajectory. Moderate damage (10-14). Slow fire rate.',     ability: 'Q — Mortar Stone: steep upward arc falls DOWN from above (65px splash, 28 dmg).', super: 'E — Gravity Stone: slow boulder; detonates with a 220px gravity pull for 52 dmg.', how: 'Mortar Stone bypasses shields by dropping from above. Gravity Stone pulls victims into it.' },
   paperairplane: { title: 'Paper Airplane',  what: 'Very slow curving projectile. Low damage (9-13) but unpredictable arc.',          ability: 'Q — Barrage: 5 airplanes at staggered angles.',                   super: 'E — Origami Swarm: 8 homing planes that chase and track enemies.',    how:  'Confuse enemies with the arc. Swarm corners enemies with nowhere to run.' },
   flail:         { title: 'Flail',           what: 'Heavy melee with a swinging chain ball. Damage: 21.',                              ability: 'Q — Chain Yank: fire ball forward (26 dmg), returns for 16 dmg.',  super: 'E — Orbit Storm: ball orbits at high speed, 12 dmg per contact.',    how:  'Commit hard or miss hard. Stay close during the return to land both hits.' },
-  whip:          { title: 'Whip',            what: 'Longest melee reach. Low damage but great control. Damage: 10.',            ability: 'Q — Lasso: yank ONE enemy forcefully toward you (10 dmg, stun 22 frames).', super: 'E — Reel: yanks ALL enemies within 220px toward you for 12 dmg.',    how:  'Base = long forward poke. Q = single-target hard pull + stun. E = mass crowd yank.' },
+  whip:          { title: 'Whip',            what: 'Longest melee reach, with a sweet spot. The tip of the lash hits for 18 and opens a bleed; up close it only chips for 12. Swings alternate overhead crack / floor sweep.', ability: 'Q — Lasso: yank ONE enemy in (15 dmg, stun 22) and HOOK them — for 2.5s every lash on them counts as a tip crack.', super: 'E — Serpent\'s Coil: three extending lashes out to 430px, 13 dmg each + bleed; the third one launches everything it touches.', how:  'Fight at the very edge of your range. Q hooks a target so your chip hits become crits. E is a long-range barrage, not a pull.' },
   boomerang:     { title: 'Boomerang',       what: 'Ranged weapon. Normal throw: 11-15 dmg. Q/E have returning throws.',             ability: 'Q — Orbit Guard: boomerang circles you as a spinning shield, hitting nearby enemies.',  super: 'E — Boomerang Blitz: 4-way 360° burst — forward, backward, and two arcing up. All return.', how: 'Use Orbit Guard defensively when enemies rush. Blitz covers all directions at once.' },
   katana:        { title: 'Katana',          what: 'Fast precise melee weapon. Damage: 14.',                                           ability: 'Q — Iaijutsu: standing still = 28 dmg, no dash. Moving = 22 dmg + forward dash.', super: 'E — Shadow Step: instantly teleport to the far side of the nearest enemy (≤450px), 38 dmg + 3 slash arcs.', how:  'Q rewards patience — stand still for burst damage. E repositions you for the kill.' },
   flamethrower:  { title: 'Flamethrower',    what: 'Rapid-fire 25-shot clip. Short range. Low damage per shot (3-4).',                ability: 'Q — Napalm Spit: fireball with 75px splash for 24 dmg. Pushes you back.', super: 'E — Backdraft: reverse launch + 40 dmg AoE burst in front.',    how:  'Suppress with rapid fire. Backdraft punishes enemies who rush you.' },

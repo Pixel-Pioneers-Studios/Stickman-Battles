@@ -310,8 +310,20 @@ function updateCamera() {
       const _humanPlayers = activePlayers.filter(p => !p.isAI && !p.isBoss);
       const _wideLead = (_humanPlayers.length === 1)
         ? humanP.facing * (20 + Math.min(55, Math.abs(humanP.vx) * 12)) : 0;
-      targetX = rawCX * 0.72 + (humanP.cx() + _wideLead) * 0.28;
-      targetY = rawCY * 0.62 + humanP.cy() * 0.38 + _hudShift;
+      // Bias toward the human as the fighters separate. Framing the midpoint is
+      // worth it only while both fighters actually fit on screen; on a huge map
+      // (megacity is 3600 wide) a far-off opponent otherwise drags the camera
+      // hundreds of units behind the player they are controlling, which reads as
+      // the camera lagging and then snapping. _spread is 0 while the pair frames
+      // comfortably and ramps to 1 once the box outgrows the viewport.
+      const _viewW  = GAME_W / Math.max(0.05, targetZoom);
+      const _spread = Math.max(0, Math.min(1, ((maxX - minX) - _viewW * 0.55) / (_viewW * 0.45)));
+      const _humanW = 0.28 + 0.72 * _spread;
+      targetX = rawCX * (1 - _humanW) + (humanP.cx() + _wideLead) * _humanW;
+      const _viewH   = _safeH / Math.max(0.05, targetZoom);
+      const _spreadY = Math.max(0, Math.min(1, ((maxY - minY) - _viewH * 0.55) / (_viewH * 0.45)));
+      const _humanWY = 0.38 + 0.62 * _spreadY;
+      targetY = rawCY * (1 - _humanWY) + humanP.cy() * _humanWY + _hudShift;
       // Brief hit-zoom pulse for wide arenas
       if (camHitZoomTimer > 0) {
         camHitZoomTimer--;
@@ -331,9 +343,14 @@ function updateCamera() {
 
   {
     camZoomTarget = targetZoom;
+    // Soft dead zone: hold the target still for small jitter, but once the dead zone
+    // is exceeded track continuously from its edge. The old form snapped the target
+    // all the way to `targetX`, which froze it again until the next 28-unit breach —
+    // a staircase that reads as the camera stuttering behind a walking player.
     const dx = targetX - camXTarget, dy = targetY - camYTarget;
-    if (Math.abs(dx) > 28) camXTarget = targetX;
-    if (Math.abs(dy) > 16) camYTarget = targetY;
+    const _DZ_X = 28, _DZ_Y = 16;
+    if (Math.abs(dx) > _DZ_X) camXTarget = targetX - Math.sign(dx) * _DZ_X;
+    if (Math.abs(dy) > _DZ_Y) camYTarget = targetY - Math.sign(dy) * _DZ_Y;
 
     // Drama cam (zoom-in effects) only on wide/scrolling arenas; standard arenas stay wide
     const _isWideApply = !!(currentArena && currentArena.worldWidth);
@@ -345,6 +362,10 @@ function updateCamera() {
   }
 
   // ── Clamp camera to world bounds so we never show empty space past map edges ──
+  // Published so the HUD clamp below can respect it: a clamp that pushes the
+  // camera past this bound is immediately undone here next frame, and the two
+  // fighting each frame is exactly what reads as camera vibration.
+  let _camWorldTopBound = -Infinity;
   if (currentArena && !cinematicCamOverride) {
     // Half-viewport in world units at current zoom
     const hvw = GAME_W / (2 * camZoomCur);  // half viewport width  (world units)
@@ -368,10 +389,22 @@ function updateCamera() {
     const floorPl = currentArena.platforms && currentArena.platforms.find(p => p.isFloor);
     const wBottom = currentArena.worldBottom !== undefined ? currentArena.worldBottom
       : (floorPl ? floorPl.y + 80 : GAME_H);
-    const wTop    = 0;
+    // The playable ceiling is not y=0: arenas stack platforms near the top of the
+    // screen and low-gravity arenas (space) throw fighters well above them. Pinning
+    // the ceiling at 0 leaves a vertical window too small to both show the floor and
+    // clear the HUD, so this clamp and the HUD clamp below end up demanding opposite
+    // camera positions on alternate frames. Open the ceiling to the highest platform
+    // plus a jump's worth of headroom; this only *permits* panning up, it never forces
+    // it, so arenas whose action stays low are unaffected.
+    let _topPlatY = GAME_H;
+    if (currentArena.platforms) {
+      for (const _pl of currentArena.platforms) if (_pl.y < _topPlatY) _topPlatY = _pl.y;
+    }
+    const wTop    = Math.min(0, _topPlatY - 140);
     if (wBottom - wTop > GAME_H / camZoomCur) {
       const _topBound = wTop + hvh + _hudGU;
       const _botBound = wBottom - hvh;
+      _camWorldTopBound = Math.min(_topBound, _botBound);
       camYCur    = Math.max(_topBound, Math.min(_botBound, camYCur));
       camYTarget = Math.max(_topBound, Math.min(_botBound, camYTarget));
     }
@@ -394,16 +427,28 @@ function updateCamera() {
     // For the topmost player at world-Y = _topmostY we need:
     //   (_topmostY - camYCur) * finalScY + canvas.height/2  >=  _hudBufLimit
     // →  camYCur  <=  _topmostY + (canvas.height/2 - _hudBufLimit) / finalScY
+    // A fighter launched above the arena ceiling cannot be framed at all — the
+    // world clamp forbids panning up there — so treat everything above the top
+    // of the map as sitting at the ceiling. Low-gravity arenas (space) send bots
+    // hundreds of units above y=0, which would otherwise demand an impossible
+    // camera position every frame.
     let _topmostY = Infinity;
-    for (const _hap of activePlayers) { if (_hap.y < _topmostY) _topmostY = _hap.y; }
+    for (const _hap of activePlayers) {
+      const _hy = Math.max(_hap.y, 0);
+      if (_hy < _topmostY) _topmostY = _hy;
+    }
     if (isFinite(_topmostY)) {
       const _bSc = Math.min(canvas.width / GAME_W, canvas.height / GAME_H);
       const _fSc = _bSc * camZoomCur;
       if (_fSc > 0) {
         const _hudCamMax = _topmostY + (canvas.height / 2 - _hudBufLimit) / _fSc;
-        if (camYCur > _hudCamMax) {
-          camYCur    = _hudCamMax;
-          camYTarget = Math.min(camYTarget, _hudCamMax);
+        // Never pan above the world's top bound to satisfy the HUD gap: the world
+        // clamp would just undo it on the next frame, and the resulting per-frame
+        // tug of war is the camera vibration seen on tall/low-gravity arenas.
+        const _hudCamY = Math.max(_hudCamMax, _camWorldTopBound);
+        if (camYCur > _hudCamY) {
+          camYCur    = _hudCamY;
+          camYTarget = Math.min(camYTarget, _hudCamY);
         }
       }
     }

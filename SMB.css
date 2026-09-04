@@ -4405,6 +4405,14 @@ input[type="color"]::-webkit-color-swatch { border: none; border-radius: 6px; }
 /* Narrow viewports (phone portrait): the column overflows on width-driven
    wrapping rather than height, so the max-height tiers above never apply. */
 @media (max-width: 560px) {
+  /* The corner icon cluster is ~274px wide (7 x 34 + gaps). On a 390px phone
+     that overlapped the centred logo and made the title unreadable. Shrink the
+     icons and start the column below the cluster. */
+  .home-quicknav .home-nav-btn { width: 28px; height: 28px; border-radius: 8px; }
+  .home-quicknav .home-nav-btn .smb-icon { width: 14px; height: 14px; }
+  .home-quicknav { gap: 4px; top: 8px; right: 8px; }
+  #menuHomeContent { padding-top: 44px; }
+
   #menuHomeContent { gap: 2px; }
   .home-char-stage { height: clamp(28px, 12vh, 100px); }
   .game-title      { font-size: 1.5rem; letter-spacing: 2px; }
@@ -4542,3 +4550,10 @@ input[type="color"]::-webkit-color-swatch { border: none; border-radius: 6px; }
    without bringing the copy back. Do not centre this column — that decouples
    it from the canvas art entirely. */
 .game-titlemark { margin-bottom: 30px !important; }
+
+/* The nowrap rule above keeps the tutorial offer on one line on desktop, but at
+   phone widths that row overflows and clips the button labels. Let it wrap. */
+@media (max-width: 560px) {
+  #tutorialPrompt { flex-wrap: wrap !important; justify-content: center; }
+  #tutorialPrompt > span { flex: 1 0 100%; text-align: center; }
+}

@@ -4,83 +4,573 @@
 
 // ─── ONLINE-ONLY LARGE ARENA DRAW FUNCTIONS ─────────────────────────────────
 
-function drawMegacityArena() {
-  const W = 1800, H = GAME_H;
-  const grad = ctx.createLinearGradient(0, 0, 0, H);
-  grad.addColorStop(0, '#0a0a1a');
-  grad.addColorStop(1, '#1a0a2e');
-  ctx.fillStyle = grad;
-  ctx.fillRect(0, 0, W, H);
-  // Buildings
-  for (let i = 0; i < 30; i++) {
-    const bx = (i * 62) % W;
-    const bh = 120 + ((i * 137) % 200);
-    const bw = 40 + ((i * 53) % 50);
-    ctx.fillStyle = '#1a1a3e';
-    ctx.fillRect(bx, H - bh - 40, bw, bh);
-    // Windows
-    for (let wy = 0; wy < bh - 20; wy += 16) {
-      for (let wx = 6; wx < bw - 6; wx += 14) {
-        const lit = ((frameCount + i * 7 + wy + wx) % 60) < 30;
-        ctx.fillStyle = 'rgba(255,220,80,' + (lit ? '0.7' : '0.1') + ')';
-        ctx.fillRect(bx + wx, H - bh - 40 + wy + 8, 8, 8);
+// ── Shared helpers for the large online arenas ────────────────────────────
+// These maps span mapLeft..mapRight (-900..2700 for the 3600-wide set), but the
+// original draw functions all hardcoded `W = 1800` starting at x=0, so the whole
+// left half of every one of them had no art at all. _arenaSpan returns the real
+// world extent, and _arenaVis the slice the camera can actually see so wide maps
+// don't pay to draw thousands of off-screen windows.
+function _arenaSpan(pad) {
+  const a  = currentArena || {};
+  const x0 = (a.mapLeft !== undefined ? a.mapLeft : 0) - (pad || 0);
+  const x1 = (a.mapRight !== undefined ? a.mapRight
+             : (a.worldWidth ? x0 + a.worldWidth : GAME_W)) + (pad || 0);
+  return { x0, x1, w: x1 - x0 };
+}
+function _arenaVis(margin) {
+  const c = (typeof camXCur === 'number') ? camXCur : GAME_W / 2;
+  const m = margin || 700;
+  return { lo: c - GAME_W - m, hi: c + GAME_W + m };
+}
+
+// ── Mega City ─────────────────────────────────────────────────────────────
+function _megacityBg() {
+  if (_megacityBg._c) return _megacityBg._c;
+  const sp = _arenaSpan(400);
+  const rnd = (a, b) => a + Math.random() * (b - a);
+  // Three parallax skyline layers, far to near
+  const layers = [
+    { par: 0.05, step: 74, hMin:  90, hMax: 190, fill: '#141430', win: 'rgba(180,200,255,',  winStep: 22, alpha: 0.30, base: 0 },
+    { par: 0.12, step: 88, hMin: 140, hMax: 280, fill: '#101028', win: 'rgba(255,220,120,',  winStep: 18, alpha: 0.55, base: 18 },
+    { par: 0.22, step: 116, hMin: 190, hMax: 380, fill: '#0a0a1c', win: 'rgba(255,225,140,', winStep: 16, alpha: 0.75, base: 40 },
+  ];
+  for (const L of layers) {
+    L.blds = [];
+    for (let x = sp.x0; x < sp.x1; x += L.step) {
+      const w = L.step * rnd(0.62, 0.92);
+      const h = rnd(L.hMin, L.hMax);
+      const wins = [];
+      for (let wy = 10; wy < h - 12; wy += L.winStep) {
+        for (let wx = 6; wx < w - 8; wx += L.winStep * 0.8) {
+          if (Math.random() < 0.34) continue;              // dark units
+          wins.push({ x: wx, y: wy, seed: Math.random() * 100 });
+        }
       }
+      L.blds.push({
+        x: x + rnd(-6, 6), w, h, wins,
+        mast:   Math.random() < 0.30,
+        holo:   Math.random() < 0.14,
+        hue:    [190, 300, 340, 165][(Math.random() * 4) | 0],
+      });
     }
   }
+  // Flying traffic on two lanes
+  const cars = Array.from({ length: 14 }, () => ({
+    y:    rnd(60, 230),
+    x:    rnd(sp.x0, sp.x1),
+    spd:  rnd(0.9, 2.4) * (Math.random() < 0.5 ? -1 : 1),
+    len:  rnd(14, 34),
+    warm: Math.random() < 0.5,
+  }));
+  // Rain
+  const rain = Array.from({ length: 90 }, () => ({
+    x: rnd(-100, GAME_W + 100), y: rnd(-40, 560),
+    len: rnd(9, 22), spd: rnd(7, 13), slant: rnd(1.4, 2.6),
+  }));
+  _megacityBg._c = { layers, cars, rain, sp };
+  return _megacityBg._c;
+}
+
+function drawMegacityArena() {
+  const bg = _megacityBg();
+  const f  = frameCount;
+  const sp = bg.sp;
+  const vis = _arenaVis();
+  const camOff = (typeof camXCur === 'number' ? camXCur - 450 : 0);
+  const H = 600;                                 // floor sits at y560 on this map
+
+  ctx.save();
+
+  // ── Sky: smog gradient plus light pollution rising off the city ───────────
+  const sky = ctx.createLinearGradient(0, -120, 0, H);
+  sky.addColorStop(0,    '#05060f');
+  sky.addColorStop(0.55, '#0e0b26');
+  sky.addColorStop(1,    '#2a1140');
+  ctx.fillStyle = sky;
+  ctx.fillRect(sp.x0, -300, sp.w, H + 320);
+
+  // ── Moon low over the skyline ─────────────────────────────────────────────
+  const mx = 380 - camOff * 0.02, my = 92;
+  const mg = ctx.createRadialGradient(mx, my, 6, mx, my, 96);
+  mg.addColorStop(0,   'rgba(255,238,210,0.30)');
+  mg.addColorStop(1,   'rgba(255,238,210,0)');
+  ctx.fillStyle = mg; ctx.fillRect(mx - 100, my - 100, 200, 200);
+  ctx.fillStyle = 'rgba(248,240,222,0.88)';
+  ctx.beginPath(); ctx.arc(mx, my, 26, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = 'rgba(200,190,175,0.30)';
+  ctx.beginPath(); ctx.arc(mx - 8, my - 6, 6, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(mx + 9, my + 7, 4, 0, Math.PI * 2); ctx.fill();
+
+  // ── Searchlights sweeping the sky ─────────────────────────────────────────
+  for (let i = 0; i < 3; i++) {
+    const bx = sp.x0 + sp.w * (0.22 + i * 0.28);
+    if (bx < vis.lo || bx > vis.hi) continue;
+    const ang = -Math.PI / 2 + Math.sin(f * 0.006 + i * 2.1) * 0.55;
+    ctx.save();
+    ctx.translate(bx, H - 40);
+    ctx.rotate(ang);
+    const lg = ctx.createLinearGradient(0, 0, 0, -520);
+    lg.addColorStop(0, 'rgba(160,200,255,0.16)');
+    lg.addColorStop(1, 'rgba(160,200,255,0)');
+    ctx.fillStyle = lg;
+    ctx.beginPath(); ctx.moveTo(-7, 0); ctx.lineTo(7, 0); ctx.lineTo(52, -520); ctx.lineTo(-52, -520);
+    ctx.closePath(); ctx.fill();
+    ctx.restore();
+  }
+
+  // ── Skyline layers ────────────────────────────────────────────────────────
+  for (const L of bg.layers) {
+    ctx.save();
+    ctx.translate(-camOff * L.par, 0);
+    const shift = camOff * L.par;
+    for (const b of L.blds) {
+      if (b.x + shift < vis.lo || b.x + shift > vis.hi) continue;   // cull off-screen
+      const top = H - L.base - b.h;
+      ctx.fillStyle = L.fill;
+      ctx.fillRect(b.x, top, b.w, b.h + L.base);
+      // roof edge catches the sky glow
+      ctx.fillStyle = 'rgba(120,140,220,0.18)';
+      ctx.fillRect(b.x, top, b.w, 2);
+      // windows — precomputed positions, lit state cycles per unit
+      for (const w of b.wins) {
+        const lit = ((f * 0.012 + w.seed) % 3) < 1.9;
+        ctx.fillStyle = L.win + (lit ? L.alpha : 0.06) + ')';
+        ctx.fillRect(b.x + w.x, top + w.y, 5, 6);
+      }
+      // antenna with a blinking aircraft warning light
+      if (b.mast) {
+        ctx.fillStyle = '#2a2a48';
+        ctx.fillRect(b.x + b.w * 0.5 - 1, top - 26, 2, 26);
+        if (Math.sin(f * 0.09 + b.x) > 0.4) {
+          ctx.fillStyle = 'rgba(255,60,60,0.95)';
+          ctx.beginPath(); ctx.arc(b.x + b.w * 0.5, top - 28, 2.4, 0, Math.PI * 2); ctx.fill();
+        }
+      }
+      // holographic billboard on the building face
+      if (b.holo) {
+        const hh = Math.min(b.h * 0.42, 84), hw = b.w * 0.72;
+        const hx = b.x + b.w * 0.14, hy = top + 16;
+        ctx.globalAlpha = 0.42 + Math.sin(f * 0.05 + b.x) * 0.10;
+        ctx.fillStyle = `hsla(${b.hue},85%,55%,0.30)`;
+        ctx.fillRect(hx, hy, hw, hh);
+        ctx.strokeStyle = `hsla(${b.hue},90%,68%,0.75)`;
+        ctx.lineWidth = 1.4;
+        ctx.strokeRect(hx, hy, hw, hh);
+        // scan bands travelling down the panel
+        ctx.fillStyle = `hsla(${b.hue},90%,72%,0.35)`;
+        for (let k = 0; k < 4; k++) {
+          const sy = hy + ((f * 0.9 + k * hh / 4) % hh);
+          ctx.fillRect(hx, sy, hw, 2.5);
+        }
+        ctx.globalAlpha = 1;
+      }
+    }
+    ctx.restore();
+  }
+
+  // ── Flying traffic ────────────────────────────────────────────────────────
+  ctx.save();
+  ctx.translate(-camOff * 0.16, 0);
+  for (const c of bg.cars) {
+    const span = sp.w + 200;
+    const cx = sp.x0 - 100 + (((c.x - sp.x0 + f * c.spd) % span) + span) % span;
+    if (cx + camOff * 0.16 < vis.lo || cx + camOff * 0.16 > vis.hi) continue;
+    const dir = c.spd > 0 ? 1 : -1;
+    const col = c.warm ? '255,190,90' : '120,210,255';
+    const tg = ctx.createLinearGradient(cx, c.y, cx - dir * c.len, c.y);
+    tg.addColorStop(0, `rgba(${col},0.85)`);
+    tg.addColorStop(1, `rgba(${col},0)`);
+    ctx.fillStyle = tg;
+    ctx.fillRect(Math.min(cx, cx - dir * c.len), c.y, c.len, 2);
+  }
+  ctx.restore();
+
+  // ── Street-level glow haze under the skyline ──────────────────────────────
+  const haze = ctx.createLinearGradient(0, H - 150, 0, H);
+  haze.addColorStop(0, 'rgba(120,60,180,0)');
+  haze.addColorStop(1, 'rgba(150,70,200,0.30)');
+  ctx.fillStyle = haze;
+  ctx.fillRect(sp.x0, H - 150, sp.w, 150);
+
+  // ── Rain, drawn in screen space so it stays even on a panning map ─────────
+  ctx.strokeStyle = 'rgba(170,190,240,0.20)';
+  ctx.lineWidth   = 1;
+  ctx.save();
+  ctx.translate(camOff, 0);
+  for (const r of bg.rain) {
+    const ry = ((r.y + f * r.spd) % 640 + 640) % 640 - 60;
+    ctx.beginPath();
+    ctx.moveTo(r.x, ry);
+    ctx.lineTo(r.x - r.slant * (r.len / 6), ry + r.len);
+    ctx.stroke();
+  }
+  ctx.restore();
+
+  ctx.restore();
+}
+
+// ── Warp Zone ─────────────────────────────────────────────────────────────
+function _warpBg() {
+  if (_warpBg._c) return _warpBg._c;
+  const sp = _arenaSpan(400);
+  const rnd = (a, b) => a + Math.random() * (b - a);
+  _warpBg._c = {
+    sp,
+    stars: Array.from({ length: 300 }, () => ({
+      x: rnd(sp.x0, sp.x1), y: rnd(-40, 560), r: rnd(0.5, 2.0),
+      a: rnd(0.2, 0.9), ph: rnd(0, Math.PI * 2),
+    })),
+    // Rifts the map is named for — each a stack of concentric ellipses
+    rifts: Array.from({ length: 7 }, (_, i) => ({
+      x: sp.x0 + 260 + i * ((sp.w - 460) / 6),
+      y: 110 + (i % 3) * 105,
+      rx: rnd(48, 92), ry: rnd(26, 50),
+      hue: [278, 300, 195, 320][(Math.random() * 4) | 0],
+      spin: rnd(0.010, 0.026) * (Math.random() < 0.5 ? -1 : 1),
+      ph: rnd(0, Math.PI * 2),
+    })),
+    // Tumbling debris pulled toward the rifts
+    debris: Array.from({ length: 26 }, () => ({
+      x: rnd(sp.x0, sp.x1), y: rnd(0, 540),
+      s: rnd(4, 13), spd: rnd(0.3, 1.1), spin: rnd(-0.03, 0.03),
+      n: 3 + ((Math.random() * 3) | 0),
+    })),
+    // Streaks radiating from the vanishing point
+    streaks: Array.from({ length: 40 }, () => ({
+      a: rnd(0, Math.PI * 2), r0: rnd(40, 260), len: rnd(30, 120),
+      spd: rnd(0.9, 2.6), w: rnd(1, 2.6), hue: rnd(255, 320),
+    })),
+  };
+  return _warpBg._c;
 }
 
 function drawWarpzoneArena() {
-  const W = 1800, H = GAME_H;
-  const grad = ctx.createLinearGradient(0, 0, 0, H);
-  grad.addColorStop(0, '#0d0024');
-  grad.addColorStop(1, '#00001a');
-  ctx.fillStyle = grad;
-  ctx.fillRect(0, 0, W, H);
-  // Stars
-  for (let i = 0; i < 80; i++) {
-    const sx = (i * 223) % W, sy = (i * 139) % Math.floor(H * 0.7);
-    ctx.fillStyle = 'rgba(200,150,255,' + (0.3 + (i % 3) * 0.2) + ')';
-    ctx.fillRect(sx, sy, 2, 2);
+  const bg = _warpBg();
+  const sp = bg.sp;
+  const f  = frameCount;
+  const vis = _arenaVis();
+  const camOff = (typeof camXCur === 'number' ? camXCur - 450 : 0);
+  const H = 600;
+
+  ctx.save();
+
+  // ── Void backdrop with a colour-shifting nebula wash ──────────────────────
+  const g = ctx.createLinearGradient(0, -200, 0, H);
+  g.addColorStop(0, '#0d0024');
+  g.addColorStop(0.6, '#12003a');
+  g.addColorStop(1, '#00001a');
+  ctx.fillStyle = g;
+  ctx.fillRect(sp.x0, -300, sp.w, H + 320);
+
+  for (let i = 0; i < 4; i++) {
+    const nx = sp.x0 + sp.w * (0.12 + i * 0.26) - camOff * 0.02;
+    if (nx < vis.lo - 400 || nx > vis.hi + 400) continue;
+    const ny = 120 + (i % 2) * 190;
+    const hue = (250 + i * 26 + Math.sin(f * 0.004 + i) * 20) | 0;
+    const ng = ctx.createRadialGradient(nx, ny, 10, nx, ny, 330);
+    ng.addColorStop(0, `hsla(${hue},85%,55%,0.13)`);
+    ng.addColorStop(1, `hsla(${hue},85%,45%,0)`);
+    ctx.fillStyle = ng;
+    ctx.fillRect(nx - 340, ny - 340, 680, 680);
   }
-  // Decorative warp portals
-  for (let i = 0; i < 5; i++) {
-    const px = 180 + i * 350, py = 200 + (i % 2) * 100;
-    const phase = (frameCount * 0.03 + i) % (Math.PI * 2);
+
+  // ── Star field ────────────────────────────────────────────────────────────
+  ctx.save();
+  ctx.translate(-camOff * 0.04, 0);
+  for (const st of bg.stars) {
+    if (st.x + camOff * 0.04 < vis.lo || st.x + camOff * 0.04 > vis.hi) continue;
+    ctx.globalAlpha = st.a * (0.55 + Math.abs(Math.sin(f * 0.03 + st.ph)) * 0.45);
+    ctx.fillStyle = '#dcc8ff';
+    ctx.fillRect(st.x, st.y, st.r, st.r);
+  }
+  ctx.globalAlpha = 1;
+  ctx.restore();
+
+  // ── Hyperspace streaks radiating from the centre of the view ─────────────
+  ctx.save();
+  ctx.translate(450 + camOff * 0.02, 270);
+  for (const s of bg.streaks) {
+    const r = s.r0 + ((f * s.spd) % 300);
+    const a = s.a + f * 0.0009;
+    ctx.strokeStyle = `hsla(${s.hue},90%,72%,${Math.max(0, 0.30 - r / 1900)})`;
+    ctx.lineWidth = s.w;
     ctx.beginPath();
-    ctx.ellipse(px, py, 60 + Math.sin(phase) * 10, 30 + Math.sin(phase) * 5, 0, 0, Math.PI * 2);
-    ctx.strokeStyle = 'rgba(136,0,255,' + (0.5 + Math.sin(phase) * 0.3) + ')';
-    ctx.lineWidth = 3;
+    ctx.moveTo(Math.cos(a) * r, Math.sin(a) * r * 0.62);
+    ctx.lineTo(Math.cos(a) * (r + s.len), Math.sin(a) * (r + s.len) * 0.62);
     ctx.stroke();
   }
+  ctx.restore();
+
+  // ── Warp rifts: nested rotating rings with a dark core ───────────────────
+  ctx.save();
+  ctx.translate(-camOff * 0.10, 0);
+  for (const rf of bg.rifts) {
+    if (rf.x + camOff * 0.10 < vis.lo || rf.x + camOff * 0.10 > vis.hi) continue;
+    const puls = Math.sin(f * 0.03 + rf.ph);
+    ctx.save();
+    ctx.translate(rf.x, rf.y);
+    // event-horizon core
+    const cg = ctx.createRadialGradient(0, 0, 2, 0, 0, rf.rx);
+    cg.addColorStop(0,   'rgba(0,0,0,0.85)');
+    cg.addColorStop(0.6, `hsla(${rf.hue},90%,45%,0.35)`);
+    cg.addColorStop(1,   `hsla(${rf.hue},90%,60%,0)`);
+    ctx.fillStyle = cg;
+    ctx.beginPath(); ctx.ellipse(0, 0, rf.rx, rf.ry, 0, 0, Math.PI * 2); ctx.fill();
+    // rings
+    for (let k = 0; k < 4; k++) {
+      const t = k / 4;
+      ctx.rotate(f * rf.spin * (1 - t * 0.5));
+      ctx.strokeStyle = `hsla(${rf.hue + k * 12},95%,${62 + k * 6}%,${(0.55 - t * 0.10) + puls * 0.18})`;
+      ctx.lineWidth = 3 - t * 1.4;
+      ctx.beginPath();
+      ctx.ellipse(0, 0, rf.rx * (1 + t * 0.28) + puls * 5, rf.ry * (1 + t * 0.28) + puls * 3,
+                  t * 0.5, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    // arcs jumping across the mouth
+    ctx.strokeStyle = `hsla(${rf.hue},100%,84%,${0.30 + puls * 0.25})`;
+    ctx.lineWidth = 1.4;
+    for (let k = 0; k < 3; k++) {
+      const a0 = f * 0.05 + k * 2.1 + rf.ph;
+      ctx.beginPath();
+      ctx.moveTo(Math.cos(a0) * rf.rx, Math.sin(a0) * rf.ry);
+      ctx.quadraticCurveTo(0, 0,
+        Math.cos(a0 + 2.4) * rf.rx, Math.sin(a0 + 2.4) * rf.ry);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+  ctx.restore();
+
+  // ── Tumbling debris ───────────────────────────────────────────────────────
+  ctx.save();
+  ctx.translate(-camOff * 0.14, 0);
+  for (const d of bg.debris) {
+    const span = sp.w + 200;
+    const dx = sp.x0 - 100 + (((d.x - sp.x0 + f * d.spd) % span) + span) % span;
+    if (dx + camOff * 0.14 < vis.lo || dx + camOff * 0.14 > vis.hi) continue;
+    ctx.save();
+    ctx.translate(dx, d.y + Math.sin(f * 0.01 + d.x) * 12);
+    ctx.rotate(f * d.spin);
+    ctx.fillStyle = 'rgba(80,40,140,0.75)';
+    ctx.strokeStyle = 'rgba(200,150,255,0.55)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    for (let k = 0; k < d.n; k++) {
+      const a = (k / d.n) * Math.PI * 2;
+      const x = Math.cos(a) * d.s, y = Math.sin(a) * d.s;
+      k === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    }
+    ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.restore();
+  }
+  ctx.restore();
+
+  // ── Energy grid floor glow ────────────────────────────────────────────────
+  const fg = ctx.createLinearGradient(0, H - 130, 0, H);
+  fg.addColorStop(0, 'rgba(136,0,255,0)');
+  fg.addColorStop(1, 'rgba(136,0,255,0.32)');
+  ctx.fillStyle = fg;
+  ctx.fillRect(sp.x0, H - 130, sp.w, 130);
+  ctx.strokeStyle = 'rgba(180,110,255,0.20)';
+  ctx.lineWidth = 1;
+  for (let i = 0; i < 26; i++) {
+    const gx = sp.x0 + ((i * 150 + f * 0.6) % sp.w);
+    ctx.beginPath();
+    ctx.moveTo(gx, H - 130);
+    ctx.lineTo(gx + 70, H);
+    ctx.stroke();
+  }
+  for (let i = 1; i < 6; i++) {
+    const gy = H - 130 + i * 26;
+    ctx.beginPath(); ctx.moveTo(sp.x0, gy); ctx.lineTo(sp.x1, gy); ctx.stroke();
+  }
+
+  ctx.restore();
+}
+
+// ── Grand Colosseum ───────────────────────────────────────────────────────
+function _colo10Bg() {
+  if (_colo10Bg._c) return _colo10Bg._c;
+  const sp = _arenaSpan(400);
+  const rnd = (a, b) => a + Math.random() * (b - a);
+  const robes = ['#c8a06a', '#b0603a', '#8a4a3a', '#d8c090', '#7a5a48', '#a08050'];
+  const crowd = [];
+  for (let tier = 0; tier < 2; tier++) {
+    const rows = tier === 0 ? 5 : 6;
+    for (let row = 0; row < rows; row++) {
+      const y = (tier === 0 ? 236 : 152) + row * 12;
+      for (let x = sp.x0; x < sp.x1; x += 11) {
+        if (Math.random() < 0.14) continue;
+        crowd.push({
+          x: x + rnd(-2, 2), y: y + rnd(-1.5, 1.5), r: 2.5 + rnd(0, 1.1),
+          c: robes[(Math.random() * robes.length) | 0], ph: rnd(0, Math.PI * 2),
+        });
+      }
+    }
+  }
+  // Dust motes hanging in the sun shafts
+  const motes = Array.from({ length: 60 }, () => ({
+    x: rnd(-100, GAME_W + 100), y: rnd(120, 560),
+    r: rnd(0.7, 2.2), spd: rnd(0.06, 0.24), drift: rnd(0.004, 0.013),
+    amp: rnd(8, 30), ph: rnd(0, Math.PI * 2), a: rnd(0.10, 0.34),
+  }));
+  _colo10Bg._c = { sp, crowd, motes };
+  return _colo10Bg._c;
 }
 
 function drawColosseum10Arena() {
-  const W = 1800, H = GAME_H;
-  const grad = ctx.createLinearGradient(0, 0, 0, H);
-  grad.addColorStop(0, '#1a0800');
-  grad.addColorStop(1, '#3d1a00');
-  ctx.fillStyle = grad;
-  ctx.fillRect(0, 0, W, H);
-  // Stone arches
-  ctx.fillStyle = '#4a2808';
-  for (let i = 0; i < 12; i++) {
-    const ax = i * 155, aw = 100, ah = 180;
-    ctx.fillRect(ax, H - ah - 40, 20, ah);
-    ctx.fillRect(ax + aw - 20, H - ah - 40, 20, ah);
+  const bg = _colo10Bg();
+  const sp = bg.sp;
+  const f  = frameCount;
+  const vis = _arenaVis();
+  const camOff = (typeof camXCur === 'number' ? camXCur - 450 : 0);
+  const H = 600;
+
+  ctx.save();
+
+  // ── Dusk sky over the open roof ───────────────────────────────────────────
+  const sky = ctx.createLinearGradient(0, -200, 0, 200);
+  sky.addColorStop(0,   '#160600');
+  sky.addColorStop(0.6, '#3a1400');
+  sky.addColorStop(1,   '#7a3208');
+  ctx.fillStyle = sky;
+  ctx.fillRect(sp.x0, -300, sp.w, 500);
+
+  // ── Velarium: the awning ring around the top of the bowl ──────────────────
+  ctx.fillStyle = '#2a1206';
+  ctx.fillRect(sp.x0, 96, sp.w, 22);
+  for (let x = sp.x0; x < sp.x1; x += 74) {
+    if (x < vis.lo || x > vis.hi) continue;
+    const sag = 16 + Math.sin(x * 0.02 + f * 0.01) * 2.5;
+    ctx.fillStyle = ((x / 74) | 0) % 2 ? 'rgba(180,60,30,0.72)' : 'rgba(210,150,70,0.72)';
     ctx.beginPath();
-    ctx.arc(ax + aw / 2, H - ah - 40, aw / 2, Math.PI, 0);
+    ctx.moveTo(x, 118);
+    ctx.quadraticCurveTo(x + 37, 118 + sag, x + 74, 118);
+    ctx.lineTo(x + 74, 118); ctx.lineTo(x, 118);
+    ctx.closePath();
     ctx.fill();
   }
-  // Torches (flickering)
-  for (let i = 0; i < 8; i++) {
-    const tx = 100 + i * 220, ty = H - 180;
-    const flicker = Math.sin(frameCount * 0.2 + i) * 0.3;
-    const g = 120 + Math.floor(flicker * 80);
-    ctx.fillStyle = 'rgba(255,' + g + ',0,' + (0.7 + flicker * 0.3) + ')';
+
+  // ── Stands ────────────────────────────────────────────────────────────────
+  ctx.fillStyle = '#3a1c08'; ctx.fillRect(sp.x0, 140, sp.w, 88);   // upper tier
+  ctx.fillStyle = '#2e1506'; ctx.fillRect(sp.x0, 228, sp.w, 12);   // walkway
+  ctx.fillStyle = '#432008'; ctx.fillRect(sp.x0, 240, sp.w, 78);   // lower tier
+
+  // ── Crowd — sways constantly, erupts on a big hit ─────────────────────────
+  const hype = screenShake > 4 ? 1 : 0;
+  ctx.globalAlpha = 0.62;
+  for (const c of bg.crowd) {
+    if (c.x < vis.lo || c.x > vis.hi) continue;
+    const bob = Math.sin(f * 0.05 + c.ph) * 1.2 + hype * Math.abs(Math.sin(f * 0.38 + c.ph)) * 6;
+    ctx.fillStyle = c.c;
     ctx.beginPath();
-    ctx.arc(tx, ty, 8 + flicker * 4, 0, Math.PI * 2);
+    ctx.arc(c.x, c.y - bob, c.r, 0, Math.PI * 2);
     ctx.fill();
   }
+  ctx.globalAlpha = 1;
+
+  // ── Arcade of stone arches below the stands ───────────────────────────────
+  ctx.save();
+  ctx.translate(-camOff * 0.05, 0);
+  for (let x = sp.x0; x < sp.x1; x += 155) {
+    if (x + camOff * 0.05 < vis.lo || x + camOff * 0.05 > vis.hi) continue;
+    const ax = x, aw = 118, ah = 190, top = H - ah - 40;
+    ctx.fillStyle = '#4a2808';
+    ctx.fillRect(ax, top, 22, ah);
+    ctx.fillRect(ax + aw - 22, top, 22, ah);
+    ctx.beginPath();
+    ctx.arc(ax + aw / 2, top, aw / 2, Math.PI, 0);
+    ctx.fill();
+    // shadowed void inside the arch
+    ctx.fillStyle = 'rgba(12,4,0,0.72)';
+    ctx.beginPath();
+    ctx.arc(ax + aw / 2, top + 4, aw / 2 - 22, Math.PI, 0);
+    ctx.fill();
+    ctx.fillRect(ax + 22, top + 4, aw - 44, ah - 4);
+    // capital + base highlights
+    ctx.fillStyle = 'rgba(200,150,80,0.20)';
+    ctx.fillRect(ax, top, 22, 4);
+    ctx.fillRect(ax + aw - 22, top, 22, 4);
+  }
+  ctx.restore();
+
+  // ── Banners hung between the arches ───────────────────────────────────────
+  for (let x = sp.x0 + 60; x < sp.x1; x += 310) {
+    if (x < vis.lo || x > vis.hi) continue;
+    const sway = Math.sin(f * 0.018 + x * 0.01) * 4;
+    ctx.fillStyle = 'rgba(150,30,25,0.80)';
+    ctx.beginPath();
+    ctx.moveTo(x, 320);
+    ctx.lineTo(x + 44, 320);
+    ctx.lineTo(x + 44 + sway, 420);
+    ctx.lineTo(x + 22 + sway, 408);
+    ctx.lineTo(x + sway, 420);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = 'rgba(225,190,90,0.75)';
+    ctx.beginPath();
+    ctx.arc(x + 22 + sway * 0.5, 362, 9, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // ── Torches on the arcade piers, each with a glow pool ────────────────────
+  for (let x = sp.x0 + 100; x < sp.x1; x += 155) {
+    if (x < vis.lo || x > vis.hi) continue;
+    const ty = H - 210;
+    const flick = Math.sin(f * 0.2 + x) * 0.3 + Math.sin(f * 0.53 + x * 0.4) * 0.15;
+    ctx.fillStyle = '#2a1a0c';
+    ctx.fillRect(x - 2, ty, 4, 22);
+    const tg = ctx.createRadialGradient(x, ty, 2, x, ty, 54 + flick * 14);
+    tg.addColorStop(0,   `rgba(255,${170 + flick * 60},60,0.55)`);
+    tg.addColorStop(0.4, 'rgba(255,120,20,0.16)');
+    tg.addColorStop(1,   'rgba(255,120,20,0)');
+    ctx.fillStyle = tg;
+    ctx.fillRect(x - 70, ty - 70, 140, 140);
+    ctx.fillStyle = `rgba(255,${190 + flick * 50},80,${0.8 + flick * 0.2})`;
+    ctx.beginPath();
+    ctx.ellipse(x, ty - 4, 5 + flick * 2, 9 + flick * 4, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // ── Sun shafts raking in over the rim ─────────────────────────────────────
+  ctx.save();
+  ctx.globalAlpha = 0.09;
+  for (let i = 0; i < 5; i++) {
+    const bx = sp.x0 + sp.w * (0.12 + i * 0.19) - camOff * 0.05;
+    if (bx < vis.lo - 300 || bx > vis.hi + 300) continue;
+    const shg = ctx.createLinearGradient(bx, 130, bx + 150, H);
+    shg.addColorStop(0, 'rgba(255,200,120,1)');
+    shg.addColorStop(1, 'rgba(255,200,120,0)');
+    ctx.fillStyle = shg;
+    ctx.beginPath();
+    ctx.moveTo(bx - 30, 130); ctx.lineTo(bx + 40, 130);
+    ctx.lineTo(bx + 230, H);  ctx.lineTo(bx + 110, H);
+    ctx.closePath(); ctx.fill();
+  }
+  ctx.restore();
+
+  // ── Sand haze at the arena floor ──────────────────────────────────────────
+  const hz = ctx.createLinearGradient(0, H - 150, 0, H);
+  hz.addColorStop(0, 'rgba(190,140,70,0)');
+  hz.addColorStop(1, 'rgba(190,140,70,0.26)');
+  ctx.fillStyle = hz;
+  ctx.fillRect(sp.x0, H - 150, sp.w, 150);
+
+  // ── Dust motes drifting in the shafts (screen space) ──────────────────────
+  ctx.save();
+  ctx.translate(camOff, 0);
+  ctx.fillStyle = '#e8cf9a';
+  for (const m of bg.motes) {
+    const my = ((m.y - f * m.spd) % 620 + 620) % 620 - 40;
+    const mx = m.x + Math.sin(f * m.drift + m.ph) * m.amp;
+    ctx.globalAlpha = m.a;
+    ctx.beginPath(); ctx.arc(mx, my, m.r, 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+  ctx.restore();
+
+  ctx.restore();
 }
 
 // ── Home world: Backyard ───────────────────────────────────────────────────────
@@ -506,35 +996,204 @@ function drawPortalEdgeArena() {
   ctx.fillStyle = gGlow; ctx.fillRect(0,440,W,40);
 }
 
+// ── The New Realm ─────────────────────────────────────────────────────────
+// This map is 5740px wide but the original draw painted only GAME_W (900), so
+// ~85% of it was bare sky. Everything below spans mapLeft..mapRight.
+function _realmBg() {
+  if (_realmBg._c) return _realmBg._c;
+  const sp = _arenaSpan(300);
+  const rnd = (a, b) => a + Math.random() * (b - a);
+  const mono = (step, hMin, hMax, par) => {
+    const out = [];
+    for (let x = sp.x0; x < sp.x1; x += step) {
+      out.push({ x: x + rnd(-step * 0.2, step * 0.2), w: rnd(26, 70),
+                 h: rnd(hMin, hMax), lean: rnd(-0.10, 0.10), lit: Math.random() < 0.5 });
+    }
+    return { par, blds: out };
+  };
+  _realmBg._c = {
+    sp,
+    // Two ranges of crystal monoliths
+    far:  mono(150, 90, 210, 0.05),
+    near: mono(210, 140, 300, 0.12),
+    stars: Array.from({ length: 260 }, () => ({
+      x: rnd(sp.x0, sp.x1), y: rnd(-20, 430), r: rnd(0.5, 1.8),
+      a: rnd(0.15, 0.8), ph: rnd(0, Math.PI * 2),
+    })),
+    // Floating islands drifting slowly
+    isles: Array.from({ length: 14 }, () => ({
+      x: rnd(sp.x0, sp.x1), y: rnd(90, 300), w: rnd(50, 140),
+      h: rnd(16, 34), bob: rnd(0, Math.PI * 2), spd: rnd(0.004, 0.012),
+    })),
+    // Motes of light rising off the ground
+    motes: Array.from({ length: 70 }, () => ({
+      x: rnd(-100, GAME_W + 100), y: rnd(0, 520), r: rnd(0.8, 2.4),
+      spd: rnd(0.12, 0.5), drift: rnd(0.004, 0.014), amp: rnd(6, 26),
+      ph: rnd(0, Math.PI * 2), a: rnd(0.2, 0.7),
+    })),
+    curtains: Array.from({ length: 3 }, (_, i) => ({
+      y: 50 + i * 42, amp: 22 + i * 10, freq: 0.0016 + i * 0.0007,
+      spd: 0.004 + i * 0.0015, hue: [190, 210, 165][i], alpha: 0.13 - i * 0.028,
+    })),
+  };
+  return _realmBg._c;
+}
+
 function drawRealmEntryArena() {
-  const W = GAME_W, H = GAME_H;
-  const sky = ctx.createLinearGradient(0,0,0,H);
-  sky.addColorStop(0,'#000820'); sky.addColorStop(1,'#003060');
-  ctx.fillStyle = sky; ctx.fillRect(0,0,W,H);
-  for (let i=0; i<4; i++) {
-    const nx=(i*230+100)%W, ny=60+i*80;
-    const nr=100+i*30;
-    const ng = ctx.createRadialGradient(nx,ny,0,nx,ny,nr);
-    ng.addColorStop(0,`rgba(0,${80+i*30},${180+i*20},0.07)`);
-    ng.addColorStop(1,'rgba(0,0,0,0)');
-    ctx.fillStyle=ng; ctx.fillRect(0,0,W,H);
+  const bg = _realmBg();
+  const sp = bg.sp;
+  const f  = frameCount;
+  const vis = _arenaVis();
+  const camOff = (typeof camXCur === 'number' ? camXCur - 450 : 0);
+  const groundY = 480;
+
+  ctx.save();
+
+  // ── Sky ───────────────────────────────────────────────────────────────────
+  const sky = ctx.createLinearGradient(0, -200, 0, groundY);
+  sky.addColorStop(0,   '#000410');
+  sky.addColorStop(0.55,'#000e2a');
+  sky.addColorStop(1,   '#012a5c');
+  ctx.fillStyle = sky;
+  ctx.fillRect(sp.x0, -300, sp.w, groundY + 300);
+
+  // ── Star field ────────────────────────────────────────────────────────────
+  ctx.save();
+  ctx.translate(-camOff * 0.02, 0);
+  for (const st of bg.stars) {
+    if (st.x + camOff * 0.02 < vis.lo || st.x + camOff * 0.02 > vis.hi) continue;
+    ctx.globalAlpha = st.a * (0.5 + Math.abs(Math.sin(f * 0.035 + st.ph)) * 0.5);
+    ctx.fillStyle = '#bfe4ff';
+    ctx.fillRect(st.x, st.y, st.r, st.r);
   }
-  ctx.fillStyle = 'rgba(0,60,120,0.6)';
-  for (let i=0; i<5; i++) {
-    const bx=i*185+30, bh=60+i%3*40;
-    ctx.fillRect(bx, 380-bh, 60, bh);
-    ctx.fillRect(bx-10, 380-bh-20, 80, 20);
+  ctx.globalAlpha = 1;
+  ctx.restore();
+
+  // ── Aurora curtains — these DO read here, unlike on the daylit ice map ────
+  for (const cu of bg.curtains) {
+    ctx.save();
+    ctx.globalAlpha = cu.alpha;
+    const cg = ctx.createLinearGradient(0, cu.y - cu.amp - 40, 0, cu.y + cu.amp + 70);
+    cg.addColorStop(0,   `hsla(${cu.hue},85%,65%,0)`);
+    cg.addColorStop(0.5, `hsla(${cu.hue},85%,65%,1)`);
+    cg.addColorStop(1,   `hsla(${cu.hue},85%,65%,0)`);
+    ctx.fillStyle = cg;
+    ctx.beginPath();
+    const lo = Math.max(sp.x0, vis.lo), hi = Math.min(sp.x1, vis.hi);
+    ctx.moveTo(lo, cu.y);
+    for (let x = lo; x <= hi; x += 26) ctx.lineTo(x, cu.y + Math.sin(x * cu.freq + f * cu.spd) * cu.amp);
+    for (let x = hi; x >= lo; x -= 26) ctx.lineTo(x, cu.y + 54 + Math.sin(x * cu.freq + f * cu.spd) * cu.amp);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
   }
-  for (let i=0; i<80; i++) {
-    const sx=(i*211)%W, sy=(i*137)%(H*0.9);
-    const br = 0.3+Math.sin(frameCount*0.04+i*0.7)*0.3;
-    ctx.fillStyle=`rgba(100,200,255,${br})`; ctx.fillRect(sx,sy,1.5,1.5);
+
+  // ── The gate: a vast ring standing on the horizon ────────────────────────
+  const gx = sp.x0 + sp.w * 0.5 - camOff * 0.03, gy = groundY - 150;
+  if (gx > vis.lo - 400 && gx < vis.hi + 400) {
+    const pulse = 0.6 + Math.sin(f * 0.02) * 0.4;
+    ctx.save();
+    ctx.strokeStyle = `rgba(60,150,255,${0.18 + pulse * 0.14})`;
+    ctx.lineWidth = 14;
+    ctx.beginPath(); ctx.arc(gx, gy, 190, 0, Math.PI * 2); ctx.stroke();
+    ctx.strokeStyle = `rgba(150,215,255,${0.20 + pulse * 0.18})`;
+    ctx.lineWidth = 4;
+    ctx.beginPath(); ctx.arc(gx, gy, 205, 0, Math.PI * 2); ctx.stroke();
+    const ig = ctx.createRadialGradient(gx, gy, 20, gx, gy, 186);
+    ig.addColorStop(0, `rgba(20,80,180,${0.14 * pulse})`);
+    ig.addColorStop(1, 'rgba(20,80,180,0)');
+    ctx.fillStyle = ig;
+    ctx.beginPath(); ctx.arc(gx, gy, 186, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
   }
-  ctx.fillStyle='#001030'; ctx.fillRect(0,480,W,H-480);
-  const reGlow = ctx.createLinearGradient(0,460,0,480);
-  reGlow.addColorStop(0,`rgba(0,100,255,${0.3+Math.sin(frameCount*0.04)*0.1})`);
-  reGlow.addColorStop(1,'rgba(0,100,255,0)');
-  ctx.fillStyle = reGlow; ctx.fillRect(0,440,W,40);
+
+  // ── Crystal monolith ranges ───────────────────────────────────────────────
+  for (const R of [bg.far, bg.near]) {
+    const isNear = R === bg.near;
+    ctx.save();
+    ctx.translate(-camOff * R.par, 0);
+    for (const b2 of R.blds) {
+      if (b2.x + camOff * R.par < vis.lo || b2.x + camOff * R.par > vis.hi) continue;
+      const top = groundY - b2.h;
+      const tipX = b2.x + b2.lean * b2.h;
+      ctx.fillStyle = isNear ? 'rgba(0,26,66,0.95)' : 'rgba(0,34,80,0.72)';
+      ctx.beginPath();
+      ctx.moveTo(b2.x - b2.w * 0.5, groundY);
+      ctx.lineTo(tipX - b2.w * 0.16, top);
+      ctx.lineTo(tipX + b2.w * 0.16, top);
+      ctx.lineTo(b2.x + b2.w * 0.5, groundY);
+      ctx.closePath();
+      ctx.fill();
+      // lit edge — the crystals glow along one face
+      ctx.strokeStyle = isNear ? 'rgba(0,140,255,0.50)' : 'rgba(0,120,220,0.30)';
+      ctx.lineWidth = isNear ? 2 : 1.4;
+      ctx.beginPath();
+      ctx.moveTo(b2.x + b2.w * 0.5, groundY);
+      ctx.lineTo(tipX + b2.w * 0.16, top);
+      ctx.stroke();
+      // a few carry a bright vein
+      if (b2.lit) {
+        const vp = 0.5 + Math.sin(f * 0.03 + b2.x * 0.05) * 0.5;
+        ctx.strokeStyle = `rgba(120,210,255,${0.18 + vp * 0.28})`;
+        ctx.lineWidth = 1.6;
+        ctx.beginPath();
+        ctx.moveTo(tipX, top + b2.h * 0.12);
+        ctx.lineTo(tipX - b2.w * 0.14, top + b2.h * 0.55);
+        ctx.lineTo(tipX + b2.w * 0.08, groundY);
+        ctx.stroke();
+      }
+    }
+    ctx.restore();
+  }
+
+  // ── Floating islands ──────────────────────────────────────────────────────
+  ctx.save();
+  ctx.translate(-camOff * 0.09, 0);
+  for (const il of bg.isles) {
+    if (il.x + camOff * 0.09 < vis.lo || il.x + camOff * 0.09 > vis.hi) continue;
+    const iy = il.y + Math.sin(f * il.spd + il.bob) * 7;
+    ctx.fillStyle = 'rgba(0,40,90,0.85)';
+    ctx.beginPath();
+    ctx.moveTo(il.x - il.w * 0.5, iy);
+    ctx.lineTo(il.x + il.w * 0.5, iy);
+    ctx.lineTo(il.x + il.w * 0.16, iy + il.h);
+    ctx.lineTo(il.x - il.w * 0.10, iy + il.h * 0.7);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = 'rgba(0,110,200,0.40)';        // lit top plate
+    ctx.fillRect(il.x - il.w * 0.5, iy - 2, il.w, 3);
+    ctx.strokeStyle = 'rgba(90,190,255,0.22)';     // glow under the rock
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(il.x - il.w * 0.10, iy + il.h * 0.7);
+    ctx.lineTo(il.x + il.w * 0.16, iy + il.h);
+    ctx.stroke();
+  }
+  ctx.restore();
+
+  // ── Horizon glow along the ground plane ───────────────────────────────────
+  const hg = ctx.createLinearGradient(0, groundY - 70, 0, groundY);
+  hg.addColorStop(0, 'rgba(0,90,200,0)');
+  hg.addColorStop(1, `rgba(0,110,240,${0.24 + Math.sin(f * 0.04) * 0.06})`);
+  ctx.fillStyle = hg;
+  ctx.fillRect(sp.x0, groundY - 70, sp.w, 70);
+  ctx.fillStyle = '#001030';
+  ctx.fillRect(sp.x0, groundY, sp.w, GAME_H + 200 - groundY);
+
+  // ── Rising motes (screen space) ───────────────────────────────────────────
+  ctx.save();
+  ctx.translate(camOff, 0);
+  ctx.fillStyle = '#9fd8ff';
+  for (const m of bg.motes) {
+    const my = ((m.y - f * m.spd) % 560 + 560) % 560 - 20;
+    const mx = m.x + Math.sin(f * m.drift + m.ph) * m.amp;
+    ctx.globalAlpha = m.a * 0.7;
+    ctx.beginPath(); ctx.arc(mx, my, m.r, 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+  ctx.restore();
+
+  ctx.restore();
 }
 
 function drawBossSanctumArena() {

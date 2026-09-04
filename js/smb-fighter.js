@@ -270,6 +270,10 @@ class Fighter {
     this._whipSlow           = 0;
     this._whipCrack          = null;
     this._whipRope           = null;
+    this._whipBleed          = null;
+    this._whipHooked         = 0;
+    this._whipHookSrc        = null;
+    this._whipCoil           = null;
     this._overcharged        = 0;
     this._counterStance      = 0;   // frames remaining in counter window
     this._counterAttacker    = null;
@@ -772,6 +776,69 @@ class Fighter {
       this.vx *= 0.82;
     }
 
+    // ── Whip lacerate bleed: DoT left by a lash; crack hits cut deeper ───────────
+    if (this._whipBleed) {
+      const wb = this._whipBleed;
+      if (--wb.timer <= 0) {
+        wb.timer = 26;
+        wb.ticks--;
+        if (this.health > 0 && wb.src && wb.src !== this) {
+          dealDamage(wb.src, this, wb.dmg, 0);
+          spawnParticles(this.cx(), this.cy() + 6, '#aa2222', 4);
+        }
+      }
+      if (wb.ticks <= 0 || this.health <= 0) this._whipBleed = null;
+    }
+
+    // ── Whip hook mark from Lasso: every lash on a hooked target counts as a crack ─
+    if (this._whipHooked > 0) {
+      this._whipHooked--;
+      if (this._whipHooked <= 0) this._whipHookSrc = null;
+    }
+
+    // ── Whip super: Serpent's Coil — three extending long-range lashes ────────────
+    if (this._whipCoil) {
+      const wc = this._whipCoil;
+      wc.t++;
+      const LASH = 22;                       // frames per lash (extend + recoil)
+      const p    = (wc.t % LASH) / LASH;
+      // reach ramps out over the first 40% of the lash, then snaps back
+      wc.reach = p < 0.4 ? (p / 0.4) * wc.maxReach
+                         : wc.maxReach * (1 - Math.pow((p - 0.4) / 0.6, 2));
+      wc.tipX  = this.cx() + wc.dir * wc.reach;
+      wc.tipY  = this.cy() - 4 + Math.sin(wc.t * 0.5) * 10;
+      const _lashIdx = Math.floor(wc.t / LASH);
+      if (_lashIdx !== wc.lash) {            // new lash begins
+        wc.lash = _lashIdx;
+        wc.hitSet = new Set();
+        if (typeof SoundManager !== 'undefined' && SoundManager.hitSnap) SoundManager.hitSnap();
+        screenShake = Math.max(screenShake, 10);
+      }
+      if (wc.lash >= 3) {
+        this._whipCoil = null;
+        this.superActive = false;
+      } else {
+        const _final = wc.lash === 2;
+        const _wcAll = [...players, ...trainingDummies, ...minions];
+        for (const f of _wcAll) {
+          if (!isHostileTarget(this, f) || wc.hitSet.has(f) || f.health <= 0) continue;
+          const _fdx = (f.cx() - this.cx()) * wc.dir;
+          if (_fdx < 0 || _fdx > wc.reach) continue;            // behind us or past the tip
+          if (Math.abs(f.cy() - this.cy()) > 62) continue;      // horizontal band
+          wc.hitSet.add(f);
+          dealDamage(this, f, _final ? 16 : 13, _final ? 12 : 5);
+          this._whipApplyBleed(f, true);
+          f._whipSlow = Math.max(f._whipSlow || 0, 16);
+          spawnParticles(f.cx(), f.cy(), '#ffcc55', _final ? 16 : 9);
+          if (_final) {
+            f.vy = Math.min(f.vy, -13);
+            f.stunTimer = Math.max(f.stunTimer || 0, 18);
+            screenShake = Math.max(screenShake, 20);
+          }
+        }
+      }
+    }
+
     // ── Whip crack visual timer ───────────────────────────────────────────────────
     if (this._whipCrack) {
       this._whipCrack.timer--;
@@ -1262,7 +1329,7 @@ class Fighter {
                 tgt.attackTimer = 0;
               }
             }
-            dealDamage(this, tgt, this.weapon.damage, this.weapon.kb);
+            dealDamage(this, tgt, this._swingDamage(tgt), this.weapon.kb);
             this.swingHitTargets.add(tgt);
             this.weaponHit = true;
             if (this.weaponKey === 'katana') {
@@ -1275,8 +1342,19 @@ class Fighter {
               screenShake = Math.max(screenShake, 8);
             } else if (this.weaponKey === 'whip') {
               const _wt = this._weaponTip;
-              this._whipCrack = { x: _wt ? _wt.x : tgt.cx(), y: _wt ? _wt.y : tgt.cy(), timer: 11 };
-              this._whipRope  = { tx: tgt.cx(), ty: tgt.cy(), timer: 8 }; // brief rope visual on hit
+              const _wCrack = this._whipLastCrack;
+              // A crack reads loud: bigger burst, longer rope, screen shake and a
+              // brief stagger. A body hit is a dull slap with none of that.
+              this._whipCrack = { x: _wt ? _wt.x : tgt.cx(), y: _wt ? _wt.y : tgt.cy(),
+                                  timer: _wCrack ? 16 : 8, big: _wCrack };
+              this._whipRope  = { tx: tgt.cx(), ty: tgt.cy(), timer: _wCrack ? 12 : 8 };
+              this._whipApplyBleed(tgt, _wCrack);
+              if (_wCrack) {
+                tgt.stunTimer = Math.max(tgt.stunTimer || 0, 11);
+                tgt._whipSlow = Math.max(tgt._whipSlow || 0, 14);
+                spawnParticles(this._whipCrack.x, this._whipCrack.y, '#ffee99', 12);
+                screenShake = Math.max(screenShake, 9);
+              }
             } else if (this.weaponKey === 'electricstaff') {
               spawnParticles(tgt.cx(), tgt.cy(), '#00eeff', 12);
               typeof spawnLightningBolt === 'function' && spawnLightningBolt(tgt.cx(), tgt.y);
@@ -1302,7 +1380,8 @@ class Fighter {
         if (!this.isMinion && !(this instanceof Boss)) {
           for (const mn of minions) {
             if (!this.swingHitTargets.has(mn) && mn.health > 0 && arcHits(mn.x, mn.y, mn.w, mn.h, 4)) {
-              dealDamage(this, mn, this.weapon.damage, this.weapon.kb);
+              dealDamage(this, mn, this._swingDamage(mn), this.weapon.kb);
+              if (this.weaponKey === 'whip') this._whipApplyBleed(mn, this._whipLastCrack);
               this.swingHitTargets.add(mn);
               this.weaponHit = true;
             }
@@ -1313,7 +1392,8 @@ class Fighter {
           for (const dum of trainingDummies) {
             if (dum === this) continue; // prevent ForestBeast (stored in trainingDummies) from hitting itself
             if (!this.swingHitTargets.has(dum) && dum.health > 0 && arcHits(dum.x, dum.y, dum.w, dum.h, 0)) {
-              dealDamage(this, dum, this.weapon.damage, this.weapon.kb);
+              dealDamage(this, dum, this._swingDamage(dum), this.weapon.kb);
+              if (this.weaponKey === 'whip') this._whipApplyBleed(dum, this._whipLastCrack);
               this.swingHitTargets.add(dum);
               this.weaponHit = true;
             }
@@ -1372,7 +1452,7 @@ class Fighter {
           !this._comboSuper && !this._peaCluster && !this._gravityStone &&
           !(this._paperSwarm && this._paperSwarm.length) &&
           !this._shieldCharge && !this._thrownAxe && !this._thunderStrikes &&
-          !this._flailOrbit && !(this._boomerangs && this._boomerangs.length)) {
+          !this._flailOrbit && !this._whipCoil && !(this._boomerangs && this._boomerangs.length)) {
         this.superActive = false;
       }
       // Electric Staff overcharge: chain to nearby enemies after each melee swing
@@ -2140,6 +2220,43 @@ class Fighter {
     return (armLen + wLen) + tgtHalf + 8; // +8 ≈ hitPad + arc-forgiveness slack
   }
 
+  // ── WHIP SWEET SPOT ───────────────────────────────────────────────────────────
+  // The whip is the only melee weapon whose damage depends on WHERE on the cord the
+  // hit lands. Past `crackDist` horizontally the lash is at the crack point and hits
+  // for crackMult; inside that it is a slack rope and only chips. A target Hooked by
+  // Lasso always counts as a crack and takes an extra multiplier on top.
+  // Returns the damage for this swing and records the result on _whipLastCrack so the
+  // post-hit branch can pick the right VFX/bleed without recomputing.
+  _swingDamage(tgt) {
+    const w = this.weapon;
+    const base = w ? (w.damage || 0) : 0;
+    if (this.weaponKey !== 'whip' || !tgt) { this._whipLastCrack = false; return base; }
+    const gap    = Math.abs(tgt.cx() - this.cx());
+    const hooked = (tgt._whipHooked > 0) && (!tgt._whipHookSrc || tgt._whipHookSrc === this);
+    const crack  = hooked || gap >= (w.crackDist || 96) * (this.drawScale || 1);
+    this._whipLastCrack = crack;
+    let dmg = base;
+    if (crack)  dmg *= (w.crackMult || 1.55);
+    if (hooked) dmg *= (w.hookMult  || 1.35);
+    return Math.round(dmg);
+  }
+
+  // Apply the lacerate bleed left by a whip hit. Refreshes rather than stacking, so
+  // repeated pokes can't multiply the DoT — the crack simply leaves a deeper cut.
+  _whipApplyBleed(tgt, crack) {
+    if (!tgt || tgt.health <= 0) return;
+    const w = this.weapon || {};
+    const ticks = crack ? ((w.bleedTicks || 3) + 2) : (w.bleedTicks || 3);
+    const dmg   = w.bleedDmg || 2;
+    const cur   = tgt._whipBleed;
+    tgt._whipBleed = {
+      ticks: Math.max(ticks, cur ? cur.ticks : 0),
+      dmg,
+      timer: 26,          // frames until the next tick
+      src:   this,
+    };
+  }
+
   // Approx frames into the swing when the blade reaches max forward extension
   // (i.e. when contact is most likely). Used to lead the target: project our
   // closing + the target's drift to this frame before deciding to swing.
@@ -2725,24 +2842,17 @@ class Fighter {
         spawnParticles(this.cx(), this.cy(), '#aaaaaa', 18);
         screenShake = Math.max(screenShake, 18);
       },
-      // ── Whip: Reel — yank all enemies within 220px toward user ──────────────────
+      // ── Whip: Serpent's Coil — three extending lashes out to 430px ──────────────
+      // Deliberately NOT another pull: Q already yanks. This is the zoner's reach
+      // turned into a barrage — it hits from further than any other melee super and
+      // the third lash launches, so it opens the air game instead of closing distance.
       whip: () => {
-        const _wrAll = [...players, ...trainingDummies, ...minions];
-        for (const f of _wrAll) {
-          if (!isHostileTarget(this, f)) continue;
-          if (dist(this, f) < 220) {
-            const _wdx = this.cx() - f.cx();
-            const _wdy = (this.y + this.h * 0.5) - (f.y + f.h * 0.5);
-            const _wd  = Math.hypot(_wdx, _wdy) || 1;
-            f.vx += (_wdx / _wd) * 24;
-            f.vy += (_wdy / _wd) * 16;
-            dealDamage(this, f, 12, 0);
-            spawnParticles(f.cx(), f.cy(), '#cc8833', 8);
-          }
-        }
-        screenShake = Math.max(screenShake, 22);
-        spawnRing(this.cx(), this.cy());
-        spawnParticles(this.cx(), this.cy(), '#cc8833', 22);
+        this._whipCoil = {
+          t: 0, lash: -1, dir: this.facing, maxReach: 430,
+          reach: 0, tipX: this.cx(), tipY: this.cy(), hitSet: new Set(),
+        };
+        spawnParticles(this.cx(), this.cy(), '#ffcc55', 18);
+        screenShake = Math.max(screenShake, 14);
       },
       // ── Boomerang: Boomerang Blitz — 4-way 360° burst; all return ───────────────
       boomerang: () => {
@@ -5091,25 +5201,81 @@ class Fighter {
     }
 
     // ── Whip crack snap burst ─────────────────────────────────────────────────────
+    // A tip crack (wc.big) gets a sonic-boom ring and a wider star; a slack body hit
+    // gets a small dull puff, so the sweet spot is readable without a damage number.
     if (this._whipCrack) {
       const wc = this._whipCrack;
-      const _wcFade = wc.timer / 11;
+      const _wcMax  = wc.big ? 16 : 8;
+      const _wcFade = Math.max(0, wc.timer / _wcMax);
+      const _wcBig  = !!wc.big;
       ctx.save();
-      ctx.globalAlpha = _wcFade * 0.92;
-      ctx.shadowColor = '#ffdd44';
-      ctx.shadowBlur  = 14;
-      ctx.strokeStyle = '#ffcc55';
-      ctx.lineWidth   = 2.5;
-      for (let _wi = 0; _wi < 8; _wi++) {
-        const _wAngle = (_wi / 8) * Math.PI * 2;
-        const _wOuter = 12 + (1 - _wcFade) * 20;
+      ctx.globalAlpha = _wcFade * (_wcBig ? 0.95 : 0.6);
+      ctx.shadowColor = _wcBig ? '#ffdd44' : '#996633';
+      ctx.shadowBlur  = _wcBig ? 18 : 6;
+      ctx.strokeStyle = _wcBig ? '#ffee88' : '#bb9955';
+      ctx.lineWidth   = _wcBig ? 3 : 1.8;
+      const _wcN = _wcBig ? 10 : 6;
+      for (let _wi = 0; _wi < _wcN; _wi++) {
+        const _wAngle = (_wi / _wcN) * Math.PI * 2 + (_wcBig ? 0.2 : 0);
+        const _wOuter = (_wcBig ? 16 : 8) + (1 - _wcFade) * (_wcBig ? 34 : 12);
         const _wInner = _wOuter * 0.3;
         ctx.beginPath();
         ctx.moveTo(wc.x + Math.cos(_wAngle) * _wInner, wc.y + Math.sin(_wAngle) * _wInner);
         ctx.lineTo(wc.x + Math.cos(_wAngle) * _wOuter, wc.y + Math.sin(_wAngle) * _wOuter);
         ctx.stroke();
       }
+      if (_wcBig) {
+        // expanding shock ring — the sound-barrier pop at the crack point
+        ctx.globalAlpha = _wcFade * 0.5;
+        ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(wc.x, wc.y, 8 + (1 - _wcFade) * 40, 0, Math.PI * 2);
+        ctx.stroke();
+      }
       ctx.shadowBlur = 0; ctx.globalAlpha = 1;
+      ctx.restore();
+    }
+
+    // ── Whip: Hooked marker — a golden noose ring over a Lasso-marked target ──────
+    if (this._whipHooked > 0) {
+      const _hkFade = Math.min(1, this._whipHooked / 30);
+      const _hkNow  = typeof frameCount !== 'undefined' ? frameCount : 0;
+      ctx.save();
+      ctx.globalAlpha = _hkFade * 0.8;
+      ctx.strokeStyle = '#ffcc44'; ctx.lineWidth = 2;
+      ctx.setLineDash([5, 4]); ctx.lineDashOffset = -_hkNow * 0.6;
+      ctx.beginPath();
+      ctx.ellipse(this.cx(), this.y - 8, 15, 5, 0, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.globalAlpha = 1;
+      ctx.restore();
+    }
+
+    // ── Whip super: Serpent's Coil — the extending lash ───────────────────────────
+    if (this._whipCoil) {
+      const co = this._whipCoil;
+      const _coHx = this.cx() + co.dir * 10, _coHy = this.cy() - 2;
+      const _coNow = typeof frameCount !== 'undefined' ? frameCount : 0;
+      ctx.save();
+      ctx.lineCap = 'round';
+      ctx.shadowColor = '#ffcc55'; ctx.shadowBlur = 12;
+      const _coSeg = 20;
+      for (let _ci = 0; _ci < _coSeg; _ci++) {
+        const u0 = _ci / _coSeg, u1 = (_ci + 1) / _coSeg;
+        // travelling sine so the cord reads as a snapping serpent, not a straight line
+        const _cy0 = _coHy + (co.tipY - _coHy) * u0 + Math.sin(u0 * 7 - _coNow * 0.55) * 13 * u0;
+        const _cy1 = _coHy + (co.tipY - _coHy) * u1 + Math.sin(u1 * 7 - _coNow * 0.55) * 13 * u1;
+        const _cx0 = _coHx + (co.tipX - _coHx) * u0;
+        const _cx1 = _coHx + (co.tipX - _coHx) * u1;
+        ctx.strokeStyle = _ci % 2 ? '#ffdd77' : '#cc8833';
+        ctx.lineWidth = 4.5 * (1 - u0 * 0.8);
+        ctx.beginPath(); ctx.moveTo(_cx0, _cy0); ctx.lineTo(_cx1, _cy1); ctx.stroke();
+      }
+      // glowing tip
+      ctx.fillStyle = '#ffffcc';
+      ctx.beginPath(); ctx.arc(co.tipX, co.tipY, 4.5, 0, Math.PI * 2); ctx.fill();
+      ctx.shadowBlur = 0;
       ctx.restore();
     }
 
@@ -5572,8 +5738,8 @@ class Fighter {
 
     // --- Weapon glow: stronger when swinging (prevents clipping into background) ---
     const _glowColors = {
-      sword: '#c8e8ff', hammer: '#ffaa44', gun: '#ff4444', axe: '#ff6633',
-      spear: '#8888ff', bow: '#aadd88', shield: '#4488ff', scythe: '#aabbcc',
+      sword: '#c8e8ff', hammer: '#ffaa44', gun: '#ff4444', axe: '#66dde8',
+      spear: '#8888ff', bow: '#aadd88', shield: '#4488ff', scythe: '#ffcc33',
       fryingpan: '#ffcc44', broomstick: '#ddbb44', combat: '#ff3333',
       peashooter: '#44ff66', slingshot: '#cc8844', paperairplane: '#aaccff',
       flail: '#cccccc', whip: '#cc8833', boomerang: '#cc9944',
@@ -5617,7 +5783,27 @@ class Fighter {
       while (this._swingTrail.length > _stCap) this._swingTrail.shift();
     }
 
-    if (k === 'sword') {
+    // ── Facing mirror ─────────────────────────────────────────────────────────
+    // The arm angle mirrors ABOUT VERTICAL with facing (theta -> PI - theta) rather
+    // than rotating through PI. Working through it: for the weapon to land correctly
+    // mirrored in world space, the local frame also has to flip in y. Without that,
+    // rotate(PI - theta) sends local +y (the grip/underside) to world UP — so a
+    // left-facing fighter holds the art upside down. It's invisible on weapons whose
+    // silhouette is symmetric about the shaft (sword, katana, spear, hammer...) and
+    // obvious on ones that aren't (scythe blade, flail head, whip lash, gun grip).
+    // Scoped to the art chain only: the ranged cooldown bar below uses world coords.
+    ctx.save();
+    if (this.facing < 0) ctx.scale(1, -1);
+
+    // ── Hand-drawn sprite art (falls through to the vector version if unloaded) ──
+    const _wSpr = (typeof WEAPON_SPRITES !== 'undefined') ? WEAPON_SPRITES[k] : null;
+    if (_wSpr && _wSpr.ready && _wSpr.img) {
+      const _wsW = _wSpr.len;
+      const _wsH = _wSpr.img.height * (_wsW / _wSpr.img.width);
+      // Facing is handled by the shared mirror above.
+      ctx.drawImage(_wSpr.img, -_wsW * _wSpr.anchor, -_wsH * _wSpr.shaftY, _wsW, _wsH);
+
+    } else if (k === 'sword') {
       // Pommel
       const _swPomGrd = ctx.createRadialGradient(-7,0,0,-7,0,4);
       _swPomGrd.addColorStop(0,'#e0e0e0'); _swPomGrd.addColorStop(1,'#888888');
@@ -5690,9 +5876,10 @@ class Fighter {
       }
 
     } else if (k === 'gun') {
-      // _gSide mirrors the grip direction with facing so it always hangs visually downward
-      // after arm rotation (at carry angle >π/2, local +y inverts in canvas space)
-      const _gSide = this.facing;
+      // Grip side is now handled by the shared facing mirror above — this used to be
+      // `this.facing`, which would double-flip against it. Kept as a named constant so
+      // the grip/trigger-guard geometry below reads unchanged.
+      const _gSide = 1;
       // Slide / upper frame
       const _gnSldGrd = ctx.createLinearGradient(0,-5,0,4);
       _gnSldGrd.addColorStop(0,'#666666'); _gnSldGrd.addColorStop(1,'#333333');
@@ -6186,21 +6373,31 @@ class Fighter {
       // Hide while a thrown boomerang is in flight
       const _bmInAir = this._boomerangs && this._boomerangs.some(b => b.oneWay);
       if (!_bmInAir) {
+        // The arc is centred on (0,0) — the HAND — so drawn raw it hovers a full
+        // 19px radius away on every side and nothing is actually gripped. Shift it
+        // so the lower arm's tip sits in the fist and the rest sweeps up and
+        // forward, the way you'd hold one ready to throw.
+        const _bmA    = Math.PI * 0.65;
+        const _bmTipX = 19 * Math.cos(_bmA), _bmTipY = 19 * Math.sin(_bmA);
+        ctx.save();
+        ctx.translate(-_bmTipX, -_bmTipY);
         // Outer arm — layered for depth
         ctx.strokeStyle='#8b5e22'; ctx.lineWidth=6; ctx.lineCap='round';
-        ctx.beginPath(); ctx.arc(0,0,19,-Math.PI*0.65,Math.PI*0.65); ctx.stroke();
+        ctx.beginPath(); ctx.arc(0,0,19,-_bmA,_bmA); ctx.stroke();
         // Mid layer — warm wood tone
         ctx.strokeStyle='#cc9944'; ctx.lineWidth=4;
-        ctx.beginPath(); ctx.arc(0,0,19,-Math.PI*0.65,Math.PI*0.65); ctx.stroke();
+        ctx.beginPath(); ctx.arc(0,0,19,-_bmA,_bmA); ctx.stroke();
         // Highlight stripe — leading edge
         ctx.strokeStyle='#eecc66'; ctx.lineWidth=1.8;
         ctx.beginPath(); ctx.arc(0,0,19,-Math.PI*0.55,Math.PI*0.55); ctx.stroke();
         // Inner dark edge — trailing edge shadow
         ctx.strokeStyle='rgba(0,0,0,0.25)'; ctx.lineWidth=1.2;
         ctx.beginPath(); ctx.arc(0,0,16,-Math.PI*0.6,Math.PI*0.6); ctx.stroke();
-        // End caps
-        ctx.fillStyle='#cc9944'; ctx.beginPath(); ctx.arc(0,-19*Math.sin(0.65*Math.PI),3,0,Math.PI*2); ctx.fill();
-        ctx.beginPath(); ctx.arc(0,19*Math.sin(0.65*Math.PI),3,0,Math.PI*2); ctx.fill();
+        // End caps — on the arc's real endpoints (x was pinned to 0, off by _bmTipX)
+        ctx.fillStyle='#cc9944';
+        ctx.beginPath(); ctx.arc(_bmTipX,-_bmTipY,3,0,Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(_bmTipX, _bmTipY,3,0,Math.PI*2); ctx.fill();
+        ctx.restore();
       }
 
     } else if (k === 'katana') {
@@ -6522,6 +6719,16 @@ class Fighter {
       ctx.restore();
     }
 
+    ctx.restore();   // ends the facing mirror opened before the art chain
+    ctx.restore();   // ends the weapon transform (translate to hand + arm rotation)
+
+    // Everything below is a fighter overlay in WORLD coordinates (this.cx(), this.y).
+    // It used to sit inside the weapon transform above, which rotated and translated
+    // it by the arm — e.g. the bow's ammo dots asked for (317, 288) and landed near
+    // (132, 953), off the bottom of the canvas. That silently hid the ammo dots, the
+    // ranged cooldown bar, the invincibility ring, the echo tint and the Damnation
+    // scar trail. Keep these after the restore above.
+
     // ── Ranged cooldown bar (ranged weapons WITHOUT clipSize) ─────────────────
     if (this.weapon && this.weapon.type === 'ranged' && !this.weapon.clipSize &&
         this.state !== 'dead' && this.state !== 'ragdoll') {
@@ -6642,7 +6849,5 @@ class Fighter {
       ctx.fillRect(this.x - 3, this.y - 3, this.w + 6, this.h + 6);
       ctx.restore();
     }
-
-    ctx.restore();
   }
 }

@@ -107,6 +107,14 @@ const ALLOWED_ORIGINS = new Set(String(process.env.ALLOWED_ORIGINS || 'https://s
   .map(v => v.trim())
   .filter(Boolean));
 const CRAZYGAMES_ORIGIN = /^https:\/\/[a-z0-9-]+\.game-files\.crazygames\.com$/i;
+// Portal origins that iframe the game from their own CDN. Newgrounds serves
+// HTML5 uploads from uploads.ungrounded.net; Game Jolt from gamejolt.net.
+const PORTAL_ORIGINS = [
+  /^https:\/\/(?:[a-z0-9-]+\.)?ungrounded\.net$/i,
+  /^https:\/\/(?:[a-z0-9-]+\.)?newgrounds\.com$/i,
+  /^https:\/\/(?:[a-z0-9-]+\.)?gamejolt\.net$/i,
+  /^https:\/\/(?:[a-z0-9-]+\.)?gamejolt\.com$/i,
+];
 const BUILD_VERSION = process.env.RENDER_GIT_COMMIT || process.env.npm_package_version || 'dev';
 
 if (!ADMIN_SESSION_SECRET || ADMIN_SESSION_SECRET.length < 32) {
@@ -190,7 +198,8 @@ function _recordMatchesIdentity(rec, id) {
 
 function _originAllowed(origin) {
   if (!origin) return true;
-  return ALLOWED_ORIGINS.has(origin) || CRAZYGAMES_ORIGIN.test(origin);
+  if (ALLOWED_ORIGINS.has(origin) || CRAZYGAMES_ORIGIN.test(origin)) return true;
+  return PORTAL_ORIGINS.some(re => re.test(origin));
 }
 
 function _securityHeaders(req, res) {

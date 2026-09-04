@@ -38,16 +38,191 @@ function drawSuddenDeathFloor() {
   ctx.restore();
 }
 
-function drawSoccerArena() {
-  // Green field with vertical stripe pattern
-  ctx.fillStyle = '#2d6b1e';
-  ctx.fillRect(0, 0, GAME_W, GAME_H);
-  for (let i = 0; i < 9; i++) {
-    if (i % 2 === 0) {
-      ctx.fillStyle = 'rgba(0,0,0,0.06)';
-      ctx.fillRect(i * 100, 0, 100, GAME_H);
+// ── Stadium background ────────────────────────────────────────────────────
+// The old version filled the ENTIRE screen with flat green, sky included, so the
+// map read as a solid colour swatch. The pitch is now the lower band and the
+// stadium bowl sits above it.
+//
+// Every Y is derived from the floor platform, not hardcoded: this arena renders
+// under a live camera (zoom ~1.15, camY ~307), so absolute screen constants put
+// the roof and floodlights outside the visible crop.
+const _SOC = {
+  roof:      -352,   // offsets from the floor line
+  upperTop:  -340, upperH: 102,
+  lowerTop:  -224, lowerH:  80,
+  wallTop:   -144, wallH:   26,
+  pitchTop:  -118,
+};
+
+function _soccerBg(groundY) {
+  if (_soccerBg._c && _soccerBg._g === groundY) return _soccerBg._c;
+  const rnd = (a, b) => a + Math.random() * (b - a);
+  const shirts = ['#d94f4f', '#4f7fd9', '#e0d24f', '#e8e8e8', '#4fd98a', '#b06fd9'];
+  const crowd = [];
+  const tiers = [
+    { top: groundY + _SOC.upperTop + 8, rows: 8, gap: 12 },
+    { top: groundY + _SOC.lowerTop + 8, rows: 6, gap: 12 },
+  ];
+  for (const t of tiers) {
+    for (let row = 0; row < t.rows; row++) {
+      const y = t.top + row * t.gap;
+      for (let x = -30; x < GAME_W + 30; x += 10) {
+        if (Math.random() < 0.12) continue;               // empty seats
+        crowd.push({
+          x: x + rnd(-2, 2), y: y + rnd(-1.5, 1.5), r: 2.5 + rnd(0, 1.0),
+          c: shirts[(Math.random() * shirts.length) | 0],
+          phase: rnd(0, Math.PI * 2),
+        });
+      }
     }
   }
+  _soccerBg._c = { crowd };
+  _soccerBg._g = groundY;
+  return _soccerBg._c;
+}
+
+function drawSoccerArena() {
+  const floorPl = currentArena.platforms.find(pl => pl.isFloor);
+  const groundY = floorPl ? floorPl.y : 460;
+  const bg = _soccerBg(groundY);
+  const f  = frameCount;
+  const X0 = -60, XW = GAME_W + 120;
+
+  const roofY   = groundY + _SOC.roof;
+  const upperY  = groundY + _SOC.upperTop;
+  const lowerY  = groundY + _SOC.lowerTop;
+  const wallY   = groundY + _SOC.wallTop;
+  const pitchY  = groundY + _SOC.pitchTop;
+
+  ctx.save();
+
+  // ── Night sky through the open roof ───────────────────────────────────────
+  const skyG = ctx.createLinearGradient(0, roofY - 220, 0, roofY + 14);
+  skyG.addColorStop(0, '#070b1c');
+  skyG.addColorStop(1, '#1b2447');
+  ctx.fillStyle = skyG;
+  ctx.fillRect(X0, roofY - 260, XW, 274);
+
+  // ── Bowl structure ────────────────────────────────────────────────────────
+  ctx.fillStyle = '#0d1020';  ctx.fillRect(X0, roofY, XW, 14);                 // roof lip
+  ctx.fillStyle = '#171c30';  ctx.fillRect(X0, upperY, XW, _SOC.upperH);       // upper tier
+  ctx.fillStyle = '#10142a';  ctx.fillRect(X0, upperY + _SOC.upperH, XW, 14);  // concourse gap
+  ctx.fillStyle = '#1e2440';  ctx.fillRect(X0, lowerY, XW, _SOC.lowerH);       // lower tier
+  ctx.fillStyle = '#12162a';  ctx.fillRect(X0, wallY, XW, _SOC.wallH);         // front wall
+
+  // Advertising hoardings — cycle hue so the ring reads as lit signage
+  for (let i = 0; i < 16; i++) {
+    const hx  = X0 + 4 + i * 64;
+    const hue = (i * 47 + Math.floor(f * 0.5)) % 360;
+    ctx.fillStyle = `hsla(${hue},55%,42%,0.60)`;
+    ctx.fillRect(hx, wallY + 4, 56, 18);
+    ctx.fillStyle = 'rgba(255,255,255,0.10)';
+    ctx.fillRect(hx, wallY + 4, 56, 5);
+  }
+
+  // ── Crowd — idle bob, and it jumps on a big hit (the cue drawColosseumArena
+  //    already uses), so the stands react to the fight instead of sitting still
+  const hype = screenShake > 4 ? 1 : 0;
+  ctx.globalAlpha = 0.58;
+  for (const c of bg.crowd) {
+    const bob = Math.sin(f * 0.06 + c.phase) * 1.1 + hype * Math.abs(Math.sin(f * 0.4 + c.phase)) * 5;
+    ctx.fillStyle = c.c;
+    ctx.beginPath();
+    ctx.arc(c.x, c.y - bob, c.r, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+
+  // ── Floodlight pylons on the roof line, beams raking the pitch ────────────
+  for (const lx of [110, 360, 540, 790]) {
+    ctx.fillStyle = '#0a0d18';
+    ctx.fillRect(lx - 3, roofY - 26, 6, 28);
+    ctx.fillRect(lx - 28, roofY - 38, 56, 14);
+    for (let i = 0; i < 6; i++) {
+      ctx.fillStyle = 'rgba(255,250,215,0.92)';
+      ctx.beginPath();
+      ctx.arc(lx - 22 + i * 8.8, roofY - 31, 2.9, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    const beam = ctx.createLinearGradient(lx, roofY - 24, lx, groundY + 40);
+    beam.addColorStop(0, 'rgba(255,250,215,0.15)');
+    beam.addColorStop(1, 'rgba(255,250,215,0)');
+    ctx.fillStyle = beam;
+    ctx.beginPath();
+    ctx.moveTo(lx - 24, roofY - 24);
+    ctx.lineTo(lx + 24, roofY - 24);
+    ctx.lineTo(lx + 200, groundY + 40);
+    ctx.lineTo(lx - 200, groundY + 40);
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  // ── Scoreboard hung on the upper tier ─────────────────────────────────────
+  const sbY = upperY + 16;
+  ctx.fillStyle = '#080b16';
+  ctx.fillRect(374, sbY, 152, 58);
+  ctx.strokeStyle = '#2b3355'; ctx.lineWidth = 2;
+  ctx.strokeRect(374, sbY, 152, 58);
+  for (let gy = 0; gy < 5; gy++) {
+    for (let gx = 0; gx < 17; gx++) {
+      const on = Math.sin(gx * 0.7 - f * 0.05 + gy * 0.9) > 0.25;
+      ctx.fillStyle = on ? 'rgba(255,170,40,0.85)' : 'rgba(255,170,40,0.07)';
+      ctx.fillRect(380 + gx * 8.5, sbY + 7 + gy * 9.5, 6, 6.5);
+    }
+  }
+
+  // ── Pitch — recedes from the hoardings down to the player plane ───────────
+  ctx.fillStyle = '#2d6b1e';
+  ctx.fillRect(X0, pitchY, XW, GAME_H - pitchY + 80);
+  // Mowed stripes, slightly splayed so the field reads as receding
+  for (let i = 0; i < 11; i++) {
+    if (i % 2 === 0) continue;
+    const topX = X0 + i * (XW / 11), botX = X0 + (i - 0.35) * (XW / 10.4);
+    ctx.fillStyle = 'rgba(0,0,0,0.07)';
+    ctx.beginPath();
+    ctx.moveTo(topX, pitchY);
+    ctx.lineTo(topX + XW / 11, pitchY);
+    ctx.lineTo(botX + XW / 10.4, GAME_H + 80);
+    ctx.lineTo(botX, GAME_H + 80);
+    ctx.closePath();
+    ctx.fill();
+  }
+  // Markings foreshortened into the ground plane
+  ctx.strokeStyle = 'rgba(255,255,255,0.28)';
+  ctx.lineWidth   = 2;
+  ctx.beginPath(); ctx.moveTo(GAME_W / 2, pitchY); ctx.lineTo(GAME_W / 2, GAME_H); ctx.stroke();
+  ctx.beginPath(); ctx.ellipse(GAME_W / 2, pitchY + 46, 96, 24, 0, 0, Math.PI * 2); ctx.stroke();
+  ctx.beginPath(); ctx.ellipse(GAME_W / 2, pitchY + 46, 4, 2, 0, 0, Math.PI * 2); ctx.stroke();
+  ctx.strokeRect(X0 + 10, pitchY + 12, 168, 74);
+  ctx.strokeRect(GAME_W - 118, pitchY + 12, 168, 74);
+  // touchline along the top of the pitch
+  ctx.beginPath(); ctx.moveTo(X0, pitchY + 2); ctx.lineTo(X0 + XW, pitchY + 2); ctx.stroke();
+
+  // ── Goals standing on the pitch at both ends ──────────────────────────────
+  for (const side of [0, 1]) {
+    const gx  = side ? GAME_W - 8 : 8;
+    const dir = side ? -1 : 1;
+    const gTop = groundY - 92, gH = 92, gW = 36;
+    ctx.save();
+    ctx.strokeStyle = 'rgba(255,255,255,0.30)';   // net mesh first
+    ctx.lineWidth   = 1;
+    for (let i = 1; i < 6; i++) {
+      const nx = gx + dir * i * (gW / 6);
+      ctx.beginPath(); ctx.moveTo(nx, gTop); ctx.lineTo(nx, groundY); ctx.stroke();
+    }
+    for (let i = 1; i < 8; i++) {
+      const ny = gTop + i * (gH / 8);
+      ctx.beginPath(); ctx.moveTo(gx, ny); ctx.lineTo(gx + dir * gW, ny); ctx.stroke();
+    }
+    ctx.strokeStyle = '#f2f2f2';                  // frame on top of the net
+    ctx.lineWidth   = 3;
+    ctx.beginPath();
+    ctx.moveTo(gx, groundY); ctx.lineTo(gx, gTop); ctx.lineTo(gx + dir * gW, gTop);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  ctx.restore();
 }
 
 function drawVoidArena() {
@@ -271,16 +446,198 @@ function drawCreatorArena() {
   ctx.restore();
 }
 
+// ── Deep Space background ─────────────────────────────────────────────────
+// bgStars alone left the middle of the map as empty black. Everything added here
+// is behind the platforms and purely decorative. Cached like _lavaBg/_iceBg.
+function _spaceBg() {
+  if (_spaceBg._c) return _spaceBg._c;
+  const rnd = (a, b) => a + Math.random() * (b - a);
+  const c = {
+    // A dim far layer behind bgStars, so the field has depth rather than one plane
+    dust: Array.from({ length: 130 }, () => ({
+      x: rnd(-40, 960), y: rnd(0, 520), r: rnd(0.25, 0.8), a: rnd(0.10, 0.34),
+    })),
+    // Soft nebula blooms
+    nebulae: [
+      { x: 170, y: 150, r: 260, h: 275, a: 0.16 },   // violet
+      { x: 720, y: 300, r: 300, h: 205, a: 0.13 },   // blue
+      { x: 470, y:  70, r: 190, h: 330, a: 0.09 },   // magenta
+    ],
+    // Drifting asteroids: irregular polygons, precomputed
+    rocks: Array.from({ length: 9 }, () => {
+      const n = 6 + Math.floor(Math.random() * 3);
+      return {
+        x: rnd(-40, 960), y: rnd(40, 470),
+        s: rnd(3, 11), spd: rnd(0.05, 0.22), spin: rnd(-0.006, 0.006),
+        pts: Array.from({ length: n }, (_, i) => ({
+          a: (i / n) * Math.PI * 2, r: 0.65 + Math.random() * 0.45,
+        })),
+      };
+    }),
+    shoot: { x: 0, y: 0, vx: 0, vy: 0, life: 0, next: 90 },
+  };
+  _spaceBg._c = c;
+  return c;
+}
+
 function drawStars() {
+  const bg = _spaceBg();
+  const f  = frameCount;
+  const camOff = (typeof camXCur === 'number' ? camXCur - 450 : 0);
+
   ctx.save();
+
+  // ── Nebula blooms ─────────────────────────────────────────────────────────
+  ctx.save();
+  ctx.translate(-camOff * 0.02, 0);
+  for (const nb of bg.nebulae) {
+    const breathe = 1 + Math.sin(f * 0.004 + nb.x) * 0.06;
+    const g = ctx.createRadialGradient(nb.x, nb.y, 8, nb.x, nb.y, nb.r * breathe);
+    g.addColorStop(0,    `hsla(${nb.h},80%,62%,${nb.a})`);
+    g.addColorStop(0.45, `hsla(${nb.h},80%,50%,${nb.a * 0.45})`);
+    g.addColorStop(1,    `hsla(${nb.h},80%,40%,0)`);
+    ctx.fillStyle = g;
+    ctx.fillRect(nb.x - nb.r, nb.y - nb.r, nb.r * 2, nb.r * 2);
+  }
+  ctx.restore();
+
+  // ── Far dust layer (behind bgStars) ───────────────────────────────────────
+  ctx.save();
+  ctx.translate(-camOff * 0.03, 0);
+  ctx.fillStyle = '#ffffff';
+  for (const d of bg.dust) {
+    ctx.globalAlpha = d.a;
+    ctx.fillRect(d.x, d.y, d.r * 2, d.r * 2);
+  }
+  ctx.globalAlpha = 1;
+  ctx.restore();
+
+  // ── Ringed planet ─────────────────────────────────────────────────────────
+  ctx.save();
+  ctx.translate(-camOff * 0.06, 0);
+  const px = 774, py = 106, pr = 45;
+  // back half of the ring, drawn before the body so the planet occludes it
+  ctx.strokeStyle = 'rgba(190,170,220,0.42)';
+  ctx.lineWidth   = 7;
+  ctx.beginPath();
+  ctx.ellipse(px, py, pr * 1.85, pr * 0.42, -0.34, Math.PI, Math.PI * 2);
+  ctx.stroke();
+  // body with a terminator: lit from the upper left
+  const pg = ctx.createRadialGradient(px - pr * 0.42, py - pr * 0.42, pr * 0.1, px, py, pr);
+  pg.addColorStop(0,   '#8f7fc4');
+  pg.addColorStop(0.5, '#5b4d8c');
+  pg.addColorStop(1,   '#221b3c');
+  ctx.fillStyle = pg;
+  ctx.beginPath(); ctx.arc(px, py, pr, 0, Math.PI * 2); ctx.fill();
+  // banding
+  ctx.save();
+  ctx.beginPath(); ctx.arc(px, py, pr, 0, Math.PI * 2); ctx.clip();
+  ctx.globalAlpha = 0.16;
+  ctx.fillStyle = '#c9b7f0';
+  for (let bnd = 0; bnd < 5; bnd++) {
+    const by = py - pr + 14 + bnd * 22;
+    ctx.beginPath();
+    ctx.ellipse(px, by, pr * 1.1, 4 + (bnd % 2) * 3, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.restore();
+  // front half of the ring
+  ctx.strokeStyle = 'rgba(210,192,240,0.60)';
+  ctx.lineWidth   = 7;
+  ctx.beginPath();
+  ctx.ellipse(px, py, pr * 1.85, pr * 0.42, -0.34, 0, Math.PI);
+  ctx.stroke();
+  // small moon on a slow orbit
+  const ma = f * 0.0032;
+  const mx = px + Math.cos(ma) * pr * 2.5, my = py + Math.sin(ma) * pr * 0.72;
+  ctx.fillStyle = '#9a94b4';
+  ctx.beginPath(); ctx.arc(mx, my, 7, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = 'rgba(0,0,0,0.30)';
+  ctx.beginPath(); ctx.arc(mx + 2.5, my + 1, 6, 0, Math.PI * 2); ctx.fill();
+  ctx.restore();
+
+  // ── Distant spiral galaxy ─────────────────────────────────────────────────
+  ctx.save();
+  ctx.translate(176, 316);
+  ctx.rotate(-0.42);
+  ctx.scale(1, 0.38);
+  for (let arm = 0; arm < 2; arm++) {
+    ctx.strokeStyle = arm ? 'rgba(180,200,255,0.20)' : 'rgba(230,205,255,0.22)';
+    ctx.lineWidth = 6;
+    ctx.beginPath();
+    for (let t = 0; t < 34; t++) {
+      const a = arm * Math.PI + t * 0.20, r = t * 2.3;
+      t === 0 ? ctx.moveTo(Math.cos(a) * r, Math.sin(a) * r)
+              : ctx.lineTo(Math.cos(a) * r, Math.sin(a) * r);
+    }
+    ctx.stroke();
+  }
+  const cg = ctx.createRadialGradient(0, 0, 1, 0, 0, 30);
+  cg.addColorStop(0, 'rgba(255,246,220,0.55)');
+  cg.addColorStop(1, 'rgba(255,246,220,0)');
+  ctx.fillStyle = cg;
+  ctx.beginPath(); ctx.arc(0, 0, 30, 0, Math.PI * 2); ctx.fill();
+  ctx.restore();
+
+  // ── Existing twinkling star field ─────────────────────────────────────────
   for (const s of bgStars) {
-    const alpha = 0.3 + Math.abs(Math.sin(frameCount * s.speed + s.phase)) * 0.7;
+    const alpha = 0.3 + Math.abs(Math.sin(f * s.speed + s.phase)) * 0.7;
     ctx.globalAlpha = alpha;
     ctx.fillStyle   = s.r < 1 ? '#ffffff' : '#aabbff';
     ctx.beginPath();
     ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
     ctx.fill();
   }
+  ctx.globalAlpha = 1;
+
+  // ── Drifting asteroids ────────────────────────────────────────────────────
+  ctx.save();
+  ctx.translate(-camOff * 0.09, 0);
+  for (const rk of bg.rocks) {
+    const rx = ((rk.x - f * rk.spd) % 1040 + 1040) % 1040 - 70;
+    ctx.save();
+    ctx.translate(rx, rk.y);
+    ctx.rotate(f * rk.spin);
+    ctx.fillStyle = '#4a4763';
+    ctx.beginPath();
+    rk.pts.forEach((pt, i) => {
+      const x = Math.cos(pt.a) * rk.s * pt.r, y = Math.sin(pt.a) * rk.s * pt.r;
+      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    });
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(180,190,230,0.30)';
+    ctx.lineWidth   = 1;
+    ctx.stroke();
+    ctx.restore();
+  }
+  ctx.restore();
+
+  // ── Occasional shooting star ──────────────────────────────────────────────
+  const sh = bg.shoot;
+  if (sh.life > 0) {
+    sh.life--;
+    sh.x += sh.vx; sh.y += sh.vy;
+    ctx.globalAlpha = Math.min(1, sh.life / 12) * 0.9;
+    const tg = ctx.createLinearGradient(sh.x, sh.y, sh.x - sh.vx * 11, sh.y - sh.vy * 11);
+    tg.addColorStop(0, 'rgba(255,255,255,1)');
+    tg.addColorStop(1, 'rgba(160,190,255,0)');
+    ctx.strokeStyle = tg;
+    ctx.lineWidth   = 2;
+    ctx.beginPath();
+    ctx.moveTo(sh.x, sh.y);
+    ctx.lineTo(sh.x - sh.vx * 11, sh.y - sh.vy * 11);
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+  } else if (--sh.next <= 0) {
+    sh.next = 200 + Math.floor(Math.random() * 320);
+    sh.life = 34 + Math.floor(Math.random() * 20);
+    sh.x    = -60 + Math.random() * 300;
+    sh.y    = 20 + Math.random() * 180;
+    sh.vx   = 6 + Math.random() * 4;
+    sh.vy   = 1.6 + Math.random() * 2.2;
+  }
+
   ctx.restore();
 }
 
@@ -352,8 +709,325 @@ function _drawLavaFloor(ly, glowAlpha, glowBlur) {
   ctx.restore();
 }
 
+// ── Lava Fields background ────────────────────────────────────────────────
+// Was a bare call to _drawLavaFloor(), which left the whole middle of the map as
+// flat dark brown. Everything below is BEHIND the platforms (drawBackground runs
+// before drawPlatforms) and is purely decorative — no hitboxes, no state.
+//
+// Random data is generated ONCE and cached, the same way bgStars is, because
+// re-rolling per frame makes the whole field strobe.
+function _lavaBg() {
+  if (_lavaBg._c) return _lavaBg._c;
+  const rnd = (a, b) => a + Math.random() * (b - a);
+  const c = {
+    // Rising embers — the main "this place is alive" layer
+    embers: Array.from({ length: 46 }, () => ({
+      x:     rnd(-40, 960),
+      y:     rnd(0, 520),
+      r:     rnd(0.8, 2.6),
+      spd:   rnd(0.22, 0.75),
+      drift: rnd(0.004, 0.014),
+      amp:   rnd(6, 26),
+      phase: rnd(0, Math.PI * 2),
+      warm:  Math.random() < 0.35,       // a third burn yellow-white, rest deep orange
+    })),
+    // Ash flecks falling the other way — the counter-motion is what sells depth
+    ash: Array.from({ length: 30 }, () => ({
+      x:     rnd(-40, 960),
+      y:     rnd(0, 520),
+      r:     rnd(0.6, 1.7),
+      spd:   rnd(0.10, 0.30),
+      drift: rnd(0.003, 0.010),
+      amp:   rnd(4, 16),
+      phase: rnd(0, Math.PI * 2),
+    })),
+    // Far volcano cones: [centre x, base y, half-width, height, erupting]
+    cones: [
+      { x: 118, w:  92, h:  84, smoke: true,  glow: 0.55 },
+      { x: 352, w:  64, h:  54, smoke: false, glow: 0.30 },
+      { x: 640, w: 112, h: 104, smoke: true,  glow: 0.80 },
+      { x: 838, w:  70, h:  62, smoke: false, glow: 0.38 },
+    ],
+    // Mid-ground basalt spires, and which of them bleed a lava vein
+    spires: Array.from({ length: 15 }, (_, i) => ({
+      x:    -30 + i * 68 + rnd(-12, 12),
+      w:    rnd(20, 44),
+      h:    rnd(24, 62),
+      lean: rnd(-0.16, 0.16),
+      vein: Math.random() < 0.45,
+    })),
+    // Cracks glowing through the back wall — fills the dead space above the ridge
+    fissures: Array.from({ length: 9 }, () => {
+      const x = rnd(-20, 940), y = rnd(70, 300);
+      const segs = [{ x, y }];
+      for (let k = 0; k < 4; k++) {
+        segs.push({ x: segs[k].x + rnd(-34, 34), y: segs[k].y + rnd(22, 46) });
+      }
+      return { segs, w: rnd(1.1, 2.6), phase: rnd(0, Math.PI * 2) };
+    }),
+    // Obsidian teeth hanging from the top of the cavern
+    teeth: Array.from({ length: 11 }, (_, i) => ({
+      x: -10 + i * 88 + rnd(-18, 18),
+      w: rnd(16, 40),
+      h: rnd(26, 78),
+    })),
+  };
+  _lavaBg._c = c;
+  return c;
+}
+
 function drawLava() {
-  _drawLavaFloor(currentArena.lavaY);
+  const ly  = currentArena.lavaY;
+  const bg  = _lavaBg();
+  const f   = frameCount;
+  // Mild parallax off the camera when there is one; static maps just get 0.
+  const camOff = (typeof camXCur === 'number' ? camXCur - 450 : 0);
+
+  ctx.save();
+
+  // ── 1. Horizon glow — a sea of lava beyond the ridges lighting the sky ──────
+  const glowTop = ly - 300;
+  const hg = ctx.createLinearGradient(0, glowTop, 0, ly);
+  hg.addColorStop(0,    'rgba(120,20,0,0)');
+  hg.addColorStop(0.55, 'rgba(170,38,0,0.30)');
+  hg.addColorStop(1,    'rgba(255,110,20,0.55)');
+  ctx.fillStyle = hg;
+  ctx.fillRect(-200, glowTop, GAME_W + 400, ly - glowTop);
+
+  // ── 1b. Back wall: glowing fissures in the rock the arena is carved out of ──
+  // The dead black band between the platforms and the ridge was the whole reason
+  // this map read as unfinished. These are slow-pulsing cracks, no motion.
+  ctx.save();
+  ctx.translate(-camOff * 0.03, 0);
+  for (const fs of bg.fissures) {
+    const pulse = 0.45 + Math.sin(f * 0.021 + fs.phase) * 0.35;
+    ctx.strokeStyle = `rgba(200,52,0,${0.16 + pulse * 0.20})`;
+    ctx.lineWidth   = fs.w;
+    ctx.shadowColor = '#ff4400';
+    ctx.shadowBlur  = 10;
+    ctx.beginPath();
+    ctx.moveTo(fs.segs[0].x, fs.segs[0].y);
+    for (let k = 1; k < fs.segs.length; k++) ctx.lineTo(fs.segs[k].x, fs.segs[k].y);
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+  }
+  ctx.restore();
+
+  // ── 1c. Cavern ceiling with obsidian teeth ─────────────────────────────────
+  ctx.save();
+  ctx.translate(-camOff * 0.03, 0);
+  ctx.fillStyle = '#150502';
+  ctx.fillRect(-200, -40, GAME_W + 400, 68);
+  for (const t of bg.teeth) {
+    ctx.beginPath();
+    ctx.moveTo(t.x - t.w * 0.5, 26);
+    ctx.lineTo(t.x, 26 + t.h);
+    ctx.lineTo(t.x + t.w * 0.5, 26);
+    ctx.closePath();
+    ctx.fill();
+    // hot underlit edge — the lava below is the light source
+    ctx.strokeStyle = 'rgba(255,90,20,0.20)';
+    ctx.lineWidth   = 1.3;
+    ctx.beginPath();
+    ctx.moveTo(t.x + t.w * 0.5, 26);
+    ctx.lineTo(t.x, 26 + t.h);
+    ctx.stroke();
+  }
+  ctx.restore();
+
+  // ── 2. Far volcano cones ────────────────────────────────────────────────────
+  ctx.save();
+  ctx.translate(-camOff * 0.05, 0);
+  const coneBase = ly - 30;
+  for (const c of bg.cones) {
+    const peakY = coneBase - c.h;
+    ctx.fillStyle = '#2a0c04';
+    ctx.beginPath();
+    ctx.moveTo(c.x - c.w, coneBase);
+    ctx.lineTo(c.x - c.w * 0.16, peakY);
+    ctx.lineTo(c.x + c.w * 0.16, peakY);
+    ctx.lineTo(c.x + c.w, coneBase);
+    ctx.closePath();
+    ctx.fill();
+    // Crater glow — pulses so the mountains read as active, not scenery
+    const pulse = 0.72 + Math.sin(f * 0.03 + c.x) * 0.28;
+    ctx.save();
+    ctx.shadowColor = '#ff5500';
+    ctx.shadowBlur  = 18;
+    ctx.fillStyle   = `rgba(255,${100 + Math.floor(pulse * 60)},20,${c.glow * pulse})`;
+    ctx.beginPath();
+    ctx.ellipse(c.x, peakY + 1, c.w * 0.17, 3.5, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+    // Lava streaks running down the flank from the crater
+    if (c.glow > 0.4) {
+      ctx.strokeStyle = `rgba(255,90,10,${0.30 * pulse})`;
+      ctx.lineWidth = 2;
+      for (const side of [-1, 1]) {
+        ctx.beginPath();
+        ctx.moveTo(c.x + side * c.w * 0.10, peakY + 3);
+        ctx.quadraticCurveTo(c.x + side * c.w * 0.42, peakY + c.h * 0.45,
+                             c.x + side * c.w * 0.72, coneBase);
+        ctx.stroke();
+      }
+    }
+    // Smoke plume drifting off the big cones
+    if (c.smoke) {
+      for (let i = 0; i < 7; i++) {
+        const t  = ((f * 0.006) + i * 0.143) % 1;
+        const py = peakY - t * 150;
+        const px = c.x + Math.sin(t * 3.2 + c.x) * 34 * t;
+        ctx.fillStyle = `rgba(60,40,36,${0.30 * (1 - t)})`;
+        ctx.beginPath();
+        ctx.arc(px, py, 9 + t * 26, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+  }
+  ctx.restore();
+
+  // ── 2b. Basalt shore shelf ──────────────────────────────────────────────────
+  // drawBackground fills groundColor ('#ff4500') from y460 down, which put a flat
+  // bright slab right where the shoreline should be. Cover it with rock so the
+  // lava sea starts at lavaY and the spires have something to stand on.
+  const shelfTop = ly - 42;
+  const sg = ctx.createLinearGradient(0, shelfTop, 0, ly + 10);
+  sg.addColorStop(0,   '#3a1608');
+  sg.addColorStop(0.6, '#260e05');
+  sg.addColorStop(1,   '#160702');
+  ctx.fillStyle = sg;
+  ctx.beginPath();
+  ctx.moveTo(-200, ly + 12);
+  for (let x = -200; x <= GAME_W + 200; x += 26) {
+    ctx.lineTo(x, shelfTop + Math.sin(x * 0.017) * 7 + Math.sin(x * 0.051) * 3);
+  }
+  ctx.lineTo(GAME_W + 200, ly + 12);
+  ctx.closePath();
+  ctx.fill();
+  // hot rim where the rock meets the lava light
+  ctx.strokeStyle = 'rgba(255,110,25,0.30)';
+  ctx.lineWidth   = 2;
+  ctx.beginPath();
+  for (let x = -200; x <= GAME_W + 200; x += 26) {
+    const y = shelfTop + Math.sin(x * 0.017) * 7 + Math.sin(x * 0.051) * 3;
+    x === -200 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+  }
+  ctx.stroke();
+
+  // ── 3. Mid-ground basalt spires with hot backlit rims ───────────────────────
+  ctx.save();
+  ctx.translate(-camOff * 0.12, 0);
+  const spBase = ly + 4;
+  for (const sp of bg.spires) {
+    const topY = spBase - sp.h;
+    const tipX = sp.x + sp.lean * sp.h;
+    ctx.fillStyle = '#2b1008';
+    ctx.beginPath();
+    ctx.moveTo(sp.x - sp.w * 0.5, spBase);
+    ctx.lineTo(tipX - sp.w * 0.12, topY);
+    ctx.lineTo(tipX + sp.w * 0.12, topY);
+    ctx.lineTo(sp.x + sp.w * 0.5, spBase);
+    ctx.closePath();
+    ctx.fill();
+    // Rim light on the lit edge — the single cheapest thing that makes a
+    // silhouette read as a solid object instead of a hole in the screen.
+    ctx.strokeStyle = 'rgba(255,110,25,0.42)';
+    ctx.lineWidth   = 1.6;
+    ctx.beginPath();
+    ctx.moveTo(sp.x + sp.w * 0.5, spBase);
+    ctx.lineTo(tipX + sp.w * 0.12, topY);
+    ctx.stroke();
+    // A glowing crack down the rock face
+    if (sp.vein) {
+      const vp = 0.55 + Math.sin(f * 0.045 + sp.x * 0.1) * 0.45;
+      ctx.strokeStyle = `rgba(255,70,0,${0.30 + vp * 0.30})`;
+      ctx.lineWidth   = 1.4;
+      ctx.beginPath();
+      ctx.moveTo(tipX, topY + sp.h * 0.18);
+      ctx.lineTo(tipX - sp.w * 0.16, topY + sp.h * 0.52);
+      ctx.lineTo(tipX + sp.w * 0.10, spBase);
+      ctx.stroke();
+    }
+  }
+  ctx.restore();
+
+  // ── 4. Lava falls pouring off the ridge into the sea ────────────────────────
+  ctx.save();
+  ctx.translate(-camOff * 0.12, 0);
+  for (const lf of [{ x: 196, top: ly - 40 }, { x: 704, top: ly - 46 }]) {
+    const fg = ctx.createLinearGradient(lf.x, lf.top, lf.x, ly);
+    fg.addColorStop(0, 'rgba(255,190,60,0.75)');
+    fg.addColorStop(1, 'rgba(255,60,0,0.30)');
+    ctx.fillStyle   = fg;
+    ctx.shadowColor = '#ff6600';
+    ctx.shadowBlur  = 16;
+    const wob = Math.sin(f * 0.09 + lf.x) * 2.2;
+    ctx.beginPath();
+    ctx.moveTo(lf.x - 5, lf.top);
+    ctx.lineTo(lf.x + 5, lf.top);
+    ctx.lineTo(lf.x + 9 + wob, ly);
+    ctx.lineTo(lf.x - 9 + wob, ly);
+    ctx.closePath();
+    ctx.fill();
+    // splash bloom where it lands
+    ctx.fillStyle = `rgba(255,150,40,${0.20 + Math.abs(Math.sin(f * 0.11 + lf.x)) * 0.18})`;
+    ctx.beginPath();
+    ctx.ellipse(lf.x + wob, ly, 20, 6, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.shadowBlur = 0;
+  }
+  ctx.restore();
+
+  // ── 5. The lava sea itself (unchanged shared helper) ────────────────────────
+  _drawLavaFloor(ly);
+
+  // ── 6. Heat shimmer sitting on the surface ─────────────────────────────────
+  ctx.globalAlpha = 0.16;
+  ctx.strokeStyle = '#ffbb55';
+  ctx.lineWidth   = 2;
+  for (let b = 0; b < 3; b++) {
+    ctx.beginPath();
+    for (let x = -20; x <= GAME_W + 20; x += 12) {
+      const y = ly - 14 - b * 13 + Math.sin(x * 0.045 + f * (0.05 + b * 0.012)) * (3 + b * 2);
+      x === -20 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+
+  // ── 7. Rising embers ────────────────────────────────────────────────────────
+  for (const e of bg.embers) {
+    // loop upward through the full height, so they never pop in mid-screen
+    const ey = ((e.y - f * e.spd) % 560 + 560) % 560 - 40;
+    const ex = e.x + Math.sin(f * e.drift + e.phase) * e.amp;
+    const fade = ey < 60 ? Math.max(0, ey / 60) : (ey > ly - 20 ? 1 : 1);
+    const flick = 0.55 + Math.abs(Math.sin(f * 0.08 + e.phase)) * 0.45;
+    ctx.globalAlpha = 0.85 * flick * fade;
+    ctx.fillStyle   = e.warm ? '#ffdd88' : '#ff6a12';
+    ctx.beginPath();
+    ctx.arc(ex, ey, e.r, 0, Math.PI * 2);
+    ctx.fill();
+    // faint trailing streak behind the bigger ones
+    if (e.r > 1.8) {
+      ctx.globalAlpha = 0.22 * flick * fade;
+      ctx.fillRect(ex - e.r * 0.35, ey, e.r * 0.7, e.r * 4);
+    }
+  }
+  ctx.globalAlpha = 1;
+
+  // ── 8. Falling ash ──────────────────────────────────────────────────────────
+  ctx.fillStyle = '#6b5a52';
+  for (const a of bg.ash) {
+    const ay = ((a.y + f * a.spd) % 560 + 560) % 560 - 20;
+    const ax = a.x + Math.sin(f * a.drift + a.phase) * a.amp;
+    ctx.globalAlpha = 0.34;
+    ctx.beginPath();
+    ctx.arc(ax, ay, a.r, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+
+  ctx.restore();
 }
 
 function drawCityBuildings() {
@@ -422,19 +1096,166 @@ function drawForest() {
   ctx.restore();
 }
 
+// ── Frozen Peaks background ───────────────────────────────────────────────
+// The generic ARENA_DEPTH ridges are invisible here because the sky (#cce8f8)
+// and the ground (#b8d8ee) are nearly the same value, so this map needs its own
+// silhouettes with real contrast. Cached like _lavaBg — no per-frame rerolling.
+function _iceBg() {
+  if (_iceBg._c) return _iceBg._c;
+  const rnd = (a, b) => a + Math.random() * (b - a);
+  const c = {
+    // Snow, in three depth bands: far/small/slow through near/large/fast
+    flakes: Array.from({ length: 70 }, () => {
+      const depth = Math.random();
+      return {
+        x:     rnd(-40, 960),
+        y:     rnd(0, 520),
+        r:     0.9 + depth * 2.4,
+        spd:   0.35 + depth * 1.25,
+        drift: rnd(0.006, 0.020),
+        amp:   rnd(6, 30) * (0.4 + depth),
+        phase: rnd(0, Math.PI * 2),
+        a:     0.22 + depth * 0.55,
+      };
+    }),
+    // Fir tree line along the horizon
+    firs: Array.from({ length: 26 }, (_, i) => ({
+      x: -20 + i * 37 + rnd(-9, 9),
+      h: rnd(20, 46),
+      w: rnd(9, 17),
+    })),
+    // High cirrus bands. An aurora was tried here first and is simply invisible
+    // against a #cce8f8 daylit sky; white-on-pale-blue is what actually reads.
+    cirrus: Array.from({ length: 4 }, (_, i) => ({
+      y:     44 + i * 34,
+      amp:   9 + i * 5,
+      freq:  0.005 + i * 0.0019,
+      spd:   0.10 + i * 0.045,
+      thick: 7 + i * 4,
+      alpha: 0.30 - i * 0.045,
+    })),
+  };
+  _iceBg._c = c;
+  return c;
+}
+
 function drawIce() {
-  // Snow particles falling
-  for (let i = 0; i < 12; i++) {
-    const sx = ((frameCount * (0.6 + i * 0.1) + i * 75) % 930) - 15;
-    const sy = ((frameCount * (1.2 + i * 0.08) + i * 42) % 520);
-    const sa = 0.3 + (i % 3) * 0.2;
-    ctx.globalAlpha = sa;
+  const bg = _iceBg();
+  const f  = frameCount;
+  const camOff = (typeof camXCur === 'number' ? camXCur - 450 : 0);
+  const horizon = 460;   // the isFloor platform sits at y460
+
+  ctx.save();
+
+  // ── Pale low sun + its glow ────────────────────────────────────────────────
+  const sunX = 690, sunY = 96;
+  const sunG = ctx.createRadialGradient(sunX, sunY, 4, sunX, sunY, 130);
+  sunG.addColorStop(0,   'rgba(255,252,240,0.85)');
+  sunG.addColorStop(0.25,'rgba(255,246,225,0.30)');
+  sunG.addColorStop(1,   'rgba(255,246,225,0)');
+  ctx.fillStyle = sunG;
+  ctx.fillRect(sunX - 140, sunY - 140, 280, 280);
+  ctx.fillStyle = 'rgba(255,255,250,0.9)';
+  ctx.beginPath(); ctx.arc(sunX, sunY, 15, 0, Math.PI * 2); ctx.fill();
+
+  // ── High cirrus drifting across the sky ───────────────────────────────────
+  for (const ci of bg.cirrus) {
+    const slide = (f * ci.spd) % 1200;
+    ctx.save();
+    ctx.globalAlpha = ci.alpha;
     ctx.fillStyle   = '#ffffff';
     ctx.beginPath();
-    ctx.arc(sx, sy, 1.5 + (i % 3), 0, Math.PI * 2);
+    ctx.moveTo(-260, ci.y);
+    for (let x = -260; x <= GAME_W + 260; x += 20) {
+      ctx.lineTo(x, ci.y + Math.sin((x + slide) * ci.freq) * ci.amp);
+    }
+    for (let x = GAME_W + 260; x >= -260; x -= 20) {
+      const taper = ci.thick * (0.35 + 0.65 * Math.abs(Math.sin((x + slide) * ci.freq * 1.7)));
+      ctx.lineTo(x, ci.y + taper + Math.sin((x + slide) * ci.freq) * ci.amp);
+    }
+    ctx.closePath();
     ctx.fill();
+    ctx.restore();
   }
-  // Ice crystals on ground
+
+  // ── Two mountain ranges: far hazy, near sharper, both snow-capped ─────────
+  const ranges = [
+    { base: horizon - 34, amp: 74, seed: 1.7, fill: 'rgba(150,178,204,0.55)', cap: 'rgba(255,255,255,0.60)', par: 0.04, step: 150 },
+    { base: horizon - 10, amp: 52, seed: 4.3, fill: 'rgba(112,146,180,0.72)', cap: 'rgba(255,255,255,0.80)', par: 0.09, step: 110 },
+  ];
+  for (const rg of ranges) {
+    ctx.save();
+    ctx.translate(-camOff * rg.par, 0);
+    const pts = [];
+    for (let x = -260; x <= GAME_W + 260; x += rg.step) {
+      pts.push({ x, y: rg.base - Math.abs(Math.sin(x * 0.004 + rg.seed)) * rg.amp
+                              - Math.abs(Math.sin(x * 0.011 + rg.seed * 2)) * rg.amp * 0.35 });
+    }
+    ctx.fillStyle = rg.fill;
+    ctx.beginPath();
+    ctx.moveTo(pts[0].x, rg.base + 80);
+    for (const p of pts) ctx.lineTo(p.x, p.y);
+    ctx.lineTo(pts[pts.length - 1].x, rg.base + 80);
+    ctx.closePath();
+    ctx.fill();
+    // Snow caps. These must be derived from the ACTUAL neighbouring ridge points —
+    // a fixed-size wedge hung off the peak detaches from the slope and reads as a
+    // white flag floating in the sky, because the segment step here is 110-150px.
+    ctx.fillStyle = rg.cap;
+    for (let i = 1; i < pts.length - 1; i++) {
+      if (!(pts[i].y < pts[i - 1].y && pts[i].y < pts[i + 1].y)) continue;
+      const pk = pts[i], lf = pts[i - 1], rt = pts[i + 1];
+      const k  = 0.34;                                  // how far down each flank
+      const lx = pk.x + (lf.x - pk.x) * k, lyy = pk.y + (lf.y - pk.y) * k;
+      const rx = pk.x + (rt.x - pk.x) * k, ryy = pk.y + (rt.y - pk.y) * k;
+      ctx.beginPath();
+      ctx.moveTo(lx, lyy);
+      ctx.lineTo(pk.x, pk.y);
+      ctx.lineTo(rx, ryy);
+      // ragged snow line back across the face
+      ctx.lineTo(rx - (rx - pk.x) * 0.35, ryy - 5);
+      ctx.lineTo(pk.x + (rx - pk.x) * 0.10, ryy - 1);
+      ctx.lineTo(pk.x - (pk.x - lx) * 0.22, lyy - 6);
+      ctx.closePath();
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  // ── Fir tree line at the horizon ──────────────────────────────────────────
+  ctx.save();
+  ctx.translate(-camOff * 0.13, 0);
+  ctx.fillStyle = 'rgba(56,86,92,0.62)';
+  for (const t of bg.firs) {
+    for (let tier = 0; tier < 3; tier++) {
+      const ty = horizon - 4 - tier * (t.h * 0.26);
+      const tw = t.w * (1 - tier * 0.22);
+      ctx.beginPath();
+      ctx.moveTo(t.x, ty - t.h * (0.42 + tier * 0.2));
+      ctx.lineTo(t.x - tw * 0.5, ty);
+      ctx.lineTo(t.x + tw * 0.5, ty);
+      ctx.closePath();
+      ctx.fill();
+    }
+  }
+  ctx.restore();
+
+  // ── Wind gusts skimming the snow ──────────────────────────────────────────
+  ctx.globalAlpha = 0.18;
+  ctx.strokeStyle = '#ffffff';
+  ctx.lineWidth   = 2;
+  for (let g = 0; g < 4; g++) {
+    const gy = horizon - 8 - g * 9;
+    const gx = ((f * (1.7 + g * 0.5) + g * 260) % 1300) - 200;
+    ctx.beginPath();
+    ctx.moveTo(gx, gy);
+    ctx.quadraticCurveTo(gx + 55, gy - 7, gx + 118, gy - 2);
+    ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+  ctx.lineWidth   = 1;
+
+  // ── Ice crystals on the ground (kept from the original pass) ──────────────
   ctx.globalAlpha = 0.55;
   ctx.strokeStyle = '#aaddff';
   ctx.lineWidth   = 1.5;
@@ -455,6 +1276,20 @@ function drawIce() {
   }
   ctx.globalAlpha = 1;
   ctx.lineWidth   = 1;
+
+  // ── Snow — was 12 flakes, which read as a rendering glitch rather than weather
+  ctx.fillStyle = '#ffffff';
+  for (const fl of bg.flakes) {
+    const fy = ((fl.y + f * fl.spd) % 560 + 560) % 560 - 20;
+    const fx = fl.x + Math.sin(f * fl.drift + fl.phase) * fl.amp;
+    ctx.globalAlpha = fl.a;
+    ctx.beginPath();
+    ctx.arc(fx, fy, fl.r, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+
+  ctx.restore();
 }
 
 function drawRuins() {
