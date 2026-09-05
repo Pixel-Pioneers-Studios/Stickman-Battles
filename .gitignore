@@ -1,7 +1,28 @@
+# ── Dependencies ─────────────────────────────────────────────────────────────
+# Render's buildCommand is `npm ci`, which wipes and reinstalls node_modules on
+# every deploy — committing it added ~60MB and 4000 files for nothing.
+node_modules/
+
+# ── Runtime data ─────────────────────────────────────────────────────────────
+# storage.js creates data.db on first run; it holds live ban records, so a
+# committed copy just fights whatever the server writes.
+data.db
+data.db-shm
+data.db-wal
+
+# ── Secrets / local config ───────────────────────────────────────────────────
 .env
+SMB.env
+.claude
+
+# ── Generated output ─────────────────────────────────────────────────────────
+# tools/tour/tour-capture.js regenerates these frames on demand.
+tools/tour/tour-frames/
+
+# ── OS / editor cruft ────────────────────────────────────────────────────────
+.DS_Store
+*.mov
+
+# ── Not for the public repo ──────────────────────────────────────────────────
 CLAUDE.md
 docs/README_ANALYSIS.md
-.claude
-SMB.env
-.mov
-.DS_Store
