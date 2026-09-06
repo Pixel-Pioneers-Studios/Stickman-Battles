@@ -7,7 +7,7 @@
 STORY_CHAPTER_REGISTRY.push(
 
   {
-    id: 149, title: 'The Silence After',
+    id: 151, title: 'The Silence After',
     world: '🌌 Void — Aftermath',
     type: 'branch',
     narrative: [
@@ -66,7 +66,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 150, title: 'The Cost',
+    id: 152, title: 'The Cost',
     world: '🌌 Void — Aftermath',
     type: 'branch',
     narrative: [
@@ -126,7 +126,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 151, title: 'The Bond',
+    id: 153, title: 'The Bond',
     world: '🌌 Void — The Teaching',
     type: 'branch',
     narrative: [
@@ -191,7 +191,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 152, title: 'The Compass Points',
+    id: 154, title: 'The Compass Points',
     world: '🌌 Void — The Trail',
     type: 'branch',
     narrative: [

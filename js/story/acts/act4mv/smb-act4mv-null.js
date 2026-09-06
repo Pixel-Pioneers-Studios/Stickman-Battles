@@ -148,7 +148,62 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 106, title: 'Null',
+    // ── THE TRIAL OF SENSE — see docs/TRIALS_DESIGN.md ──────────────────────
+    // Placed immediately before the Null duel so it gates it. Null's whole
+    // problem with Kael is that it cannot model him; the trial is Null removing
+    // the one channel every one of its 847 catalogued fighters relied on.
+    // Deliberately a plain arena duel, NOT walkFight: the lantern sweep is tuned
+    // to a 900px arena (400px/s leading edge, 0.75s gap), and a 3000px explore
+    // world makes the reveal band narrower than the space it has to search.
+    id: 106, title: 'The Unseen Pattern',
+    world: '\ud83c\udf00 Null Space \u2014 The Blind Vault',
+    narrative: [
+      '"Every being I have catalogued fought with their eyes."',
+      '"All 847.",',
+      '"It is the first thing they trust and the last thing they question.",',
+      '',
+      '"I am going to take it from you.",',
+      '',
+      '"Not as cruelty. As method.",',
+      '"If your pattern only exists because you can see,",',
+      '"then it is not a gap in my model.",',
+      '"It is a habit, and I have catalogued every habit there is.",',
+      '',
+      'Null placed something on the ground between you. A lantern.',
+      '',
+      '"This does not harm what it finds.",',
+      '"It sweeps the space and shows you where the space is wrong.",',
+      '"Not where the shape is. Where it was.",',
+      '',
+      '"The information will be old the moment you have it.",',
+      '"Every being I have catalogued treated that as a failure.",',
+      '',
+      '"Show me what you treat it as.",',
+    ],
+    fightScript: [
+      { frame: 60,  text: 'You cannot see it. The lantern sweep (ability) shows you where it WAS \u2014 not where it is.', color: '#aa44ff', timer: 320 },
+      { frame: 300, text: 'It swings, it lands, it takes a hit \u2014 those you can still see. Everything between is yours to guess.', color: '#cc66ff', timer: 290 },
+      { frame: 560, text: '"You are not waiting for the sweep." Null sounds unsettled. "You are moving before it returns."', color: '#9933ff', timer: 270 },
+      { frame: 820, text: '"None of the 847 did that." Keep going.', color: '#ffffff', timer: 260 },
+    ],
+    preText: 'Null\'s pattern construct is invisible. You carry the Lantern \u2014 its ability sweeps the space and marks where a body WAS, held three seconds and already stale. Its swing, its footfalls and its flinch are the only live signals. 2 lives.',
+    trial: 'sense',
+    // Forced through the existing playerCaps path \u2014 the lantern is trialOnly, so
+    // it is never in the random pool and has to be granted here. noAbility must be
+    // false explicitly or the skill tree can gate away the only sense you have.
+    playerCaps: { weapon: 'lantern', noAbility: false },
+    opponentName: 'Pattern Construct', weaponKey: 'sword', classKey: 'ninja',
+    aiDiff: 'expert', opponentColor: '#6600aa',
+    playerLives: 2,
+    arena: 'void',
+    tokenReward: 55, blueprintDrop: null,
+    postText: '"You located it four times," Null said. "Two of those were before the sweep returned." A pause that was not calculation. "You were not reading where it had been. You were reading where it would have to go." The vault stopped shifting. "That is not a habit. A habit would have needed the eyes." It stepped back from the lantern. "Keep it. I have no further use for a thing that measures what I cannot model."',
+    isMultiverseWorld: true,
+    multiverseWorldId: 'null_space',
+  },
+
+  {
+    id: 107, title: 'Null',
     world: '🌀 Null Space — Pattern Zero',
     narrative: [
       '"You fight in ways that contradict your own previous data."',

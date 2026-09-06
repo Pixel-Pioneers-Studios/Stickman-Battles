@@ -505,6 +505,9 @@ function trialMirrorRecord(p1) {
   if (!p1 || trialActive !== 'selfknowledge') return;
   if (!p1._trialTape) p1._trialTape = [];
   p1._trialTape.push({ vx: p1.vx, jump: !p1.onGround && p1.vy < 0, atk: p1.attackTimer > 0, face: p1.facing });
+  // Record and playback both run once per frame, so the tape self-limits at the
+  // delay length and index 0 slides forward at exactly 1 frame per frame. The
+  // +4 is slack for the frames where one side is skipped (hitstop, ragdoll).
   if (p1._trialTape.length > TRIAL_MIRROR_DELAY + 4) p1._trialTape.shift();
 }
 
@@ -522,7 +525,11 @@ function trialMirrorAI(f) {
   f.vx = -frame.vx;
   f.facing = -frame.face;
   if (frame.jump && f.onGround) f.vy = -17;
-  if (frame.atk) f.attack();
+  // Swing on the RISING edge only. `atk` is true for every frame the player's
+  // attackTimer is running, so re-reading it per frame would spam attack() for
+  // the whole swing instead of mirroring one swing.
+  if (frame.atk && !f._mirrorPrevAtk) f.attack();
+  f._mirrorPrevAtk = frame.atk;
 }
 
 // ============================================================
@@ -562,6 +569,18 @@ function _trialApplyPending() {
     foe._trialMirror  = true;
     foe._mirrorSource = p1;
     p1._trialTape     = [];
+    // A copy has to hold what the player holds. The chapter cannot author this:
+    // the player brings whatever loadout they picked in the menu, so a fixed
+    // authored weaponKey means the "copy" replays your inputs through a
+    // different weapon's reach and timing and stops reading as a mirror at all.
+    // Colour is deliberately NOT copied — two identically coloured fighters
+    // running the same inputs are impossible to tell apart mid-fight.
+    if (p1.weapon) {
+      foe.weapon    = p1.weapon;
+      foe.weaponKey = p1.weaponKey;
+      foe.attackCooldown = 0;
+      foe.abilityCooldown = 0;
+    }
   }
 }
 
@@ -570,7 +589,16 @@ function updateTrials() {
   if (!trialActive) return;
   if (trialActive === 'sense') { updateTrialSweeps(); updateTrialCues(); }
   if (trialActive === 'control') updateTrialControl();
-  if (trialActive === 'selfknowledge' && typeof players !== 'undefined') trialMirrorRecord(players[0]);
+  if (trialActive === 'selfknowledge' && typeof players !== 'undefined') {
+    trialMirrorRecord(players[0]);
+    // Driven from here, NOT from Fighter.updateAI: AI_TICK_INTERVAL is 15, so a
+    // copy dispatched from updateAI consumed one tape frame per 15 recorded and
+    // played back at 1/15 speed, visibly choppy and drifting further behind the
+    // player every second. Playback has to be per-frame to match the recording.
+    for (const f of players) {
+      if (f && f._trialMirror && f.health > 0 && typeof trialMirrorAI === 'function') trialMirrorAI(f);
+    }
+  }
 }
 
 function drawTrials() {

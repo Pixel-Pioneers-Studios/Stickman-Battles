@@ -17,7 +17,7 @@ STORY_CHAPTER_REGISTRY.push(
   // Not with erasure — with argument. The argument is more dangerous.
   // ────────────────────────────────────────────────────────────────────────────
   {
-    id: 181, title: 'The Verdict',
+    id: 183, title: 'The Verdict',
     world: '⬛ The Substrate — The Decision',
     type: 'branch',
     narrative: [
@@ -124,7 +124,7 @@ STORY_CHAPTER_REGISTRY.push(
   //   — Kael's counter (via the fragment, the classes, the Preserved) in amber
   // ────────────────────────────────────────────────────────────────────────────
   {
-    id: 182, title: 'Against Erasure',
+    id: 184, title: 'Against Erasure',
     world: '⬛ The Substrate — The Confrontation',
     preText: 'The Void Mind cannot manifest a body. What it sends is the argument made physical — an erasure construct shaped from everything it has absorbed across longer than Axiom has existed. You carry everything you carried in. This is what the fragment was building toward. 2 lives.',
     fightScript: [
@@ -161,7 +161,7 @@ STORY_CHAPTER_REGISTRY.push(
   // The Void Mind cannot erase what was built from its own failures.
   // ────────────────────────────────────────────────────────────────────────────
   {
-    id: 183, title: 'What Cannot Be Erased',
+    id: 185, title: 'What Cannot Be Erased',
     world: '⬛ The Substrate — The Threshold',
     type: 'branch',
     isEpilogue: true,

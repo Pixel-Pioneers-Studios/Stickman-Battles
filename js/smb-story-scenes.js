@@ -5351,8 +5351,8 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
   };
 
 
-  // ─── Chapter 108 — Second Form ────────────────────────────────────────────
-  S[108] = {
+  // ─── Chapter 109 — Second Form ────────────────────────────────────────────
+  S[109] = {
     bg: 'city',
     npcColor: '#ff4400',
     beats: [
@@ -5443,8 +5443,8 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
     ],
   };
 
-  // ─── Chapter 110 — SOVEREIGN ─────────────────────────────────────────────
-  S[110] = {
+  // ─── Chapter 111 — SOVEREIGN ─────────────────────────────────────────────
+  S[111] = {
     bg: 'city',
     npcColor: '#cc44ff',
     beats: [
@@ -5538,8 +5538,8 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
     ],
   };
 
-  // ─── Chapter 111 — The Creator's Gate ────────────────────────────────────
-  S[111] = {
+  // ─── Chapter 112 — The Creator's Gate ────────────────────────────────────
+  S[112] = {
     bg: 'city',
     npcColor: '#ff8822',
     beats: [
@@ -5632,8 +5632,8 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
     ],
   };
 
-  // ─── Chapter 115 — Before the End ────────────────────────────────────────
-  S[115] = {
+  // ─── Chapter 116 — Before the End ────────────────────────────────────────
+  S[116] = {
     bg: 'fracture',
     npcColor: '#cc44ff',
     beats: [
@@ -5735,8 +5735,8 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
     ],
   };
 
-  // ─── Chapter 116 — True Form ──────────────────────────────────────────────
-  S[116] = {
+  // ─── Chapter 118 — True Form ──────────────────────────────────────────────
+  S[118] = {
     bg: 'fracture',
     npcColor: '#cc44ff',
     beats: [

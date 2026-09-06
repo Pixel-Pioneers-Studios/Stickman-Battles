@@ -11,7 +11,7 @@
 //
 // Bounds are keyed on ARC IDS, never chapter numbers: _expandStoryChaptersInPlace()
 // rewrites every chapterRange to expanded indices, and although that is currently a
-// no-op (184 authored -> 184 runtime), adding a single plain-duel chapter re-enables
+// no-op (186 authored -> 186 runtime), adding a single plain-duel chapter re-enables
 // it. Arc ids are stable across expansion; chapter numbers are not.
 'use strict';
 

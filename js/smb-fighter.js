@@ -368,7 +368,21 @@ class Fighter {
     // AI fighters never run processInput (which ticks shieldHoldTimer for
     // humans), so theirs froze at 0 — granting the maximum 65% fresh-shield
     // parry chance for an AI shield's entire duration.
-    if (this.isAI && this.shielding) this.shieldHoldTimer = (this.shieldHoldTimer || 0) + 1;
+    //
+    // The counter means "frames held THIS activation" (smb-combat.js reads it for
+    // the parry window), and nothing was restarting it: processInput resets on a
+    // fresh press, but the AI paths drop a shield without touching it. So an AI's
+    // timer accumulated across every block of its life — measured on Sovereign at
+    // 15 -> 29 -> 43 over three ordinary blocks — and past 15 the parry chance is
+    // zero. After his first block he could never parry anything again. Restart it
+    // on the raising edge, which is exactly what a fresh press does for a human.
+    if (this.isAI) {
+      if (this.shielding) {
+        if (!this._prevShieldingAI) this.shieldHoldTimer = 0;
+        this.shieldHoldTimer = (this.shieldHoldTimer || 0) + 1;
+      }
+      this._prevShieldingAI = this.shielding;
+    }
     if (this.cooldown > 0)         this.cooldown--;
     if (this.cooldown2 > 0)        this.cooldown2--;
     if (this.abilityCooldown > 0)  this.abilityCooldown--;
@@ -3805,7 +3819,10 @@ class Fighter {
     // an invisible fighter running standard aggression simply deletes the
     // player. Each does its own target validation (see smb-trials.js).
     if (this._trialStalker && typeof trialStalkAI === 'function') { trialStalkAI(this); return; }
-    if (this._trialMirror  && typeof trialMirrorAI === 'function') { trialMirrorAI(this); return; }
+    // The mirror copy is driven per-frame from updateTrials(), not here — this
+    // brain only runs every AI_TICK_INTERVAL (15) frames, which played the input
+    // tape back at 1/15 speed. All this does is suppress the normal AI.
+    if (this._trialMirror) return;
     if (this.aiReact > 0) { this.aiReact--; return; }
     if (this.ragdollTimer > 0 || this.stunTimer > 0) return;
 

@@ -21,9 +21,17 @@ act1-arc1 / act2-arc1, and findings in `server.js` / `tools/`).
 
 | Trial | Mechanic | Placed on a chapter? |
 |---|---|---|
-| **Control** | gravity / controls invert on a readable tell | **Yes — ch119 "Shockwave Hold"**, verified in-chapter |
-| **Sense** | invisible opponent + lantern reveal sweep | No — built and verified in isolation |
-| **Self-knowledge** | copy replays your inputs on a delay | No — built and verified in isolation |
+| **Sense** | invisible opponent + lantern reveal sweep | **Yes — ch106 "The Unseen Pattern"** (Null Space) |
+| **Self-knowledge** | copy replays your inputs on a delay | **Yes — ch117 "Thirty-Four Frames"** (Fracture Coast) |
+| **Control** | gravity / controls invert on a readable tell | **Yes — ch121 "Shockwave Hold"** (was ch119; +2 from the insertions) |
+
+All three are placed and browser-verified. The registry is now
+**186 chapters, ids 0–185**.
+
+> **Session 2 (Sep 6) — uncommitted.** Everything below the line in Part 4 was
+> done in a second session and is **in the working tree, not committed**. The
+> unrelated `js/smb-domain.js` hazard-knockback tweak (18 → 10) was already
+> uncommitted when this session started and was left alone.
 
 ---
 
@@ -193,56 +201,124 @@ effective, which is why the stalker needs 7.6 authored to actually close.
 
 ## Part 4 — What is left
 
-### A. Place the sense and self-knowledge trials
+### A. Place the sense and self-knowledge trials — **DONE**
 
-The user chose **"scatter across companion worlds"**. Control is done (ch119).
-The other two need **new chapters inserted**, which shifts ids. Full checklist:
+Both inserted as new chapters immediately before their companion duel, so each
+trial gates the fight it belongs to:
 
-1. Insert the chapters. Suggested homes, immediately *before* each companion
-   duel so the trial gates it:
-   - Null Space — Trial of **Sense** before ch106 "Null". Flat floor arena
-     (`void` works, and is that world's theme).
-   - Fracture Coast — Trial of **Self-knowledge** before ch116 "VAEL"
-     (`underwater`).
-   - Leave ch105 / ch115 alone. Their narrative is the *setup* for these.
-2. Renumber `id:` across `js/story/acts/`. With 2 insertions the mapping is
-   old `106..115` → +1, old `116..183` → +2.
-3. Update **34** `chapterRange:` values in `js/story/smb-story-finalize.js`.
-4. Write the save migration. Pattern:
-   `_migrateStory2ThreshArc` at `js/story/smb-story-config.js:1033`, with a new
-   `p.migrations.<name>` key.
-5. Update the hardcoded id literals:
-   - `PROTOTYPE_WAVE_CHAPTERS = new Set([47, 52, 127])` —
-     `smb-story-config.js:569` (note: known dead code, but keep it honest).
-   - `id < 120` / `id < 180` — `smb-story-config.js:1554-1555`.
-   - `STORY_REGIONS` — `smb-story-engine-explore.js:385`.
-6. Re-verify contiguity (recipe in `docs/SAGA_SPLIT_PLAN.md`) — expect
-   `total 186 range 0-185 dups 0 gaps 0`.
-7. Saga bounds in `js/story/smb-saga-structure.js` are **arc-keyed** and need no
-   change. Do not key anything new on chapter numbers.
+- **ch106 "The Unseen Pattern"** — Null Space, `arena: 'void'`, before Null
+  (now ch107). Null removes the one channel all 847 of its catalogued fighters
+  relied on. `playerCaps: { weapon: 'lantern', noAbility: false }`.
+- **ch117 "Thirty-Four Frames"** — Fracture Coast, `arena: 'underwater'`, before
+  VAEL (now ch118). VAEL stops looking forward and plays back Kael's own last
+  half-second instead.
 
-### B. Polish the two unplaced mechanics
+Both are **plain arena duels, deliberately not walkFight**. The lantern sweep is
+tuned to a 900px arena, and the mirror copy reflects about the arena — in a
+3000px explore world the sweep is narrower than the space it has to search and
+the reflection stops reading as one. Do not convert these to walkFight.
 
-- **Trial 3's mirror samples at the AI tick**, so the copy is choppy. It needs
-  to consume the tape per-frame rather than per-AI-tick.
-- **The stalker fires ~2 strikes per 18s and both whiffed** against an idle
-  player, with `adxMin` down to 23 (right on top of them). The AI whiff-guard in
-  `Fighter.attack()` is the likely vetoer. Needs a real playtest, not a scripted
-  one — a scripted idle target is exactly the case the whiff-guard is tuned
-  against.
+ch105 / ch115 were left alone, as the previous session concluded — their
+`branchPrompt` narrative is the *setup* for these two trials.
+
+The renumber that followed, all applied and verified:
+
+| Step | Result |
+|---|---|
+| `id:` shift across `js/story/acts/` (old 106–115 → +1, old 116–183 → +2) | 20 files |
+| `chapterRange:` in `smb-story-finalize.js` | 34 arcs, tile 0–185 contiguously |
+| `PROTOTYPE_WAVE_CHAPTERS` 127 → 129 | `smb-story-config.js` |
+| `getWorldForChapter` `id < 120/180` → `122/182` | `smb-story-config.js` |
+| `STORY_SCENE_SPECS` keys (see landmine 7) | 66 keys shifted |
+| Save migration `_migrateStory2TrialChapters` | `smb-story-config.js`, runs after the Thresh one |
+| Registry contiguity | `total 186 range 0-185 dups 0 gaps 0` |
+
+`STORY_REGIONS` needed no change (chapters 32–35, all below the shift) and the
+saga bounds are arc-keyed as documented.
+
+**The save migration is a two-step shift, not a range shift.** Two separate
+insertion points mean it is not expressible the way `_migrateStory2ThreshArc`
+does it. It also shifts **`lootTaken`**, which is keyed `'chapterId:index'` —
+the Thresh migration does not, so one-time pickups were left on the wrong
+chapters by that earlier renumber. Unit-checked:
+
+```
+{chapter:130, defeated:[100,105,106,115,116,120,183], lootTaken:{'105:0','116:2','50:1'}}
+  → {chapter:132, defeated:[100,105,107,116,118,122,185], lootTaken:{'105:0','118:2','50:1'}}
+```
+
+### B. Polish the two unplaced mechanics — mirror **DONE**, stalker still open
+
+- **Trial 3's per-AI-tick playback is fixed.** `trialMirrorAI` was dispatched
+  from `Fighter.updateAI`, which runs once every `AI_TICK_INTERVAL` (15) frames,
+  while `trialMirrorRecord` recorded every frame — so the copy consumed one tape
+  frame per 15 recorded and played back at 1/15 speed. It is now driven
+  per-frame from `updateTrials()`; `updateAI` only suppresses the normal brain.
+  Attacks fire on the **rising edge** of the taped `atk` flag, because `atk` is
+  true for every frame of the player's swing and a per-frame read would spam
+  `attack()` for the whole swing. Measured after the fix: best-fit lag 38 frames
+  and **140 distinct copy velocities over 201 frames** (≈14 before).
+- **The copy now takes the player's weapon** (`_trialApplyPending`). A chapter
+  cannot author this — the player brings whatever loadout they picked in the
+  menu, so the authored `weaponKey: 'sword'` meant the "copy" replayed your
+  inputs through a different weapon's reach and timing. Observed live: player on
+  `hammer`, copy on `sword`. Colour is deliberately **not** copied — two
+  identically coloured fighters running the same inputs cannot be told apart.
+- **The stalker's whiff rate is still unmeasured against a real player.** ~2
+  strikes per 18s, both whiffing against a scripted idle target, is exactly the
+  case the `Fighter.attack()` AI whiff-guard is tuned to veto. Still needs a
+  human playtest, not a scripted one.
 
 ### C. Still open from the design doc
 
-- What is the thing Kael needs? Undecided. Only matters if the gauntlet framing
-  (Fourth Architect gatekeeper) is ever revived — the scatter approach does not
-  need it.
-- Nexus Defense and the reframed Battle Royale ("the field is the 94 prior
-  bearers") are approved in the doc but unbuilt.
+Unchanged: the "thing Kael needs" is undecided and only matters if the gauntlet
+framing is revived; Nexus Defense and the reframed Battle Royale are approved but
+unbuilt.
 
 ### D. Unrelated but pending
 
-`docs/SAGA_SPLIT_PLAN.md` Phase 4 — the cold opens — is still the only content
-work blocking three standalone saga builds.
+`docs/SAGA_SPLIT_PLAN.md` Phase 4 — the cold opens — still blocks three
+standalone saga builds.
+
+---
+
+## Part 5 — Landmines found in session 2
+
+### 7. `STORY_SCENE_SPECS` is keyed by chapter id and is badly misaligned
+
+`js/smb-story-scenes.js` sets `S[<chapterId>]` and
+`smb-story-narrative-scene.js` looks specs up as
+`STORY_SCENE_SPECS[chId]` — so it is a **hard id dependency the earlier handoff
+did not list**. Its 66 keys were shifted with everything else.
+
+**Separately, and pre-existing: only the first ~12 entries still match the
+chapter they land on.** From id 13 up the specs are bound to a numbering that no
+longer exists — `S[116]` was a "True Form" spec sitting on the VAEL chapter, and
+after the shift it sits on ch118, equally wrong. This was NOT introduced here and
+was NOT fixed here; shifting preserves current behaviour exactly rather than
+changing 50+ chapters' staging in a renumber commit.
+
+Severity is moderate, not critical: a spec carries only `bg`, `npcColor`, camera
+moves, poses and effects — **no dialogue** (that comes from the chapter's
+`narrative`). So the symptom is a wrong backdrop and palette on a narrative
+scene, not wrong words. Worth a dedicated pass; it is real content debt.
+
+### 8. Invisibility leaked through `AdaptiveAI.draw()`
+
+The Trial of Sense opponent is an `expert` story enemy, which the Lever-2 story
+scaling promotes to `AdaptiveAI`. `AdaptiveAI.draw()` paints its aura **before**
+`super.draw()` and its `◈ ADAPTING` label **after** — both outside
+`Fighter.draw()`, where the invisibility check lives. The invisible opponent was
+therefore broadcasting its exact position through an orange glow and a floating
+label every frame, which defeats the entire trial. Caught only by looking at a
+screenshot; every state assertion passed.
+
+This is the **same class of bug as the floating nameplate** the previous session
+fixed. The lesson generalises: `_trialInvisible` only suppresses the body, so
+**anything drawn outside `Fighter.draw()` that is positioned on a fighter leaks
+position.** `SovereignMK2.draw()` has more of these (intimidation tether, anchor
+flash) — harmless today because Sovereign is never a trial opponent, but it is
+the next thing to break if that ever changes.
 
 ---
 
@@ -285,5 +361,6 @@ additive residue blows out to solid white.
 
 ## Cache-busting
 
-Current tags are mixed `4.1.0`–`4.1.18`. Bump the files you touch; verify with
+Session 2 bumped all 30 files it touched to `?v=4.1.19`. Tags remain mixed
+below that. Bump the files you touch; verify with
 `grep -oE '\?v=[0-9.]+' index.html | sort | uniq -c`.

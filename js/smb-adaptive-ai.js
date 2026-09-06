@@ -674,6 +674,12 @@ class AdaptiveAI extends Fighter {
 
   // ─── Draw override: aura behind fighter ──────────────────────
   draw() {
+    // The aura and the ADAPTING label are drawn OUTSIDE Fighter.draw(), so the
+    // Trial of Sense invisibility (which only skips the body) left an adaptive
+    // opponent broadcasting its exact position through a glow and a floating
+    // label — the same class of leak as the floating nameplate. Hand off to the
+    // base draw, which does its own invisibility check, and skip both.
+    if (this._trialInvisible) { super.draw(); return; }
     this._auraPhase = (this._auraPhase + 0.055) % (Math.PI * 2);
 
     if (this.intelligence > 0.04 && this.health > 0) {

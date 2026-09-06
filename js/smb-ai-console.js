@@ -106,7 +106,7 @@ Act VII  ch 126–142 Creator's Domain — Threshold, Final Architecture
 Act VIII ch 143–152 True Form — Into the Void, Final Confrontation (148), Aftermath
 Act IX   ch 153–169 Absolute Axiom — Kernel, God's Domain, Absolute Axiom
 Act X    ch 170–183 The Substrate — Void Mind entry, Reckonings, Trial, After, the Confrontation
-Total: 184 chapters (IDs 0–183).
+Total: 186 chapters (IDs 0–185).
 
 ── KEY SYSTEMS ──────────────────────────────────────────────────
 COMBAT: all damage via dealDamage(attacker, target, dmg, kbForce). Never direct health mutation. Combo limiter enforced inside dealDamage — no infinite combos.

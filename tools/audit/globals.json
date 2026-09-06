@@ -1037,6 +1037,7 @@
     "_meleeWeaponKeys",
     "_migrateSave",
     "_migrateStory2ThreshArc",
+    "_migrateStory2TrialChapters",
     "_mirrorBg",
     "_modesGuard",
     "_msToFrames",

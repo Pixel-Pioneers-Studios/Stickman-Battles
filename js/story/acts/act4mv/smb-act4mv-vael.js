@@ -6,7 +6,7 @@
 STORY_CHAPTER_REGISTRY.push(
 
   {
-    id: 112, title: 'The Fracture Coast',
+    id: 113, title: 'The Fracture Coast',
     world: '🌊 Fracture Coast — Temporal Approach',
     type: 'ship_flight',
     preText: 'The Fracture Coast splits time into visible layers — objects ahead show their future positions before they arrive. Fly through what is and what was at the same time.',
@@ -33,7 +33,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 113, title: 'The Foreseen Path',
+    id: 114, title: 'The Foreseen Path',
     world: '🌊 Fracture Coast — Arranged Ground',
     type: 'exploration', exploreMode: 'puzzle',
     style: 'void',
@@ -66,7 +66,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 114, title: 'What VAEL Saw Before',
+    id: 115, title: 'What VAEL Saw Before',
     world: '🌊 Fracture Coast — Memory Tides',
     type: 'exploration', exploreMode: 'scavenge',
     style: 'void',
@@ -99,7 +99,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 115, title: 'The Blind Spot',
+    id: 116, title: 'The Blind Spot',
     world: '🌊 Fracture Coast — The Overlap',
     type: 'branch',
     narrative: [
@@ -149,7 +149,54 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 116, title: 'VAEL',
+    // ── THE TRIAL OF SELF-KNOWLEDGE — see docs/TRIALS_DESIGN.md ─────────────
+    // Placed immediately before the VAEL duel so it gates it. VAEL sees three
+    // seconds ahead and sees nothing when it looks at Kael; the copy is VAEL
+    // running the only prediction it has left \u2014 Kael's own last half-second,
+    // played back at him. Reflexes cannot win it, only breaking your own pattern.
+    // This also quietly foreshadows Sovereign, whose entire design is habit-reading.
+    // Plain arena duel, not walkFight: the copy mirrors about the arena, which
+    // only reads as a reflection inside a single screen.
+    id: 117, title: 'Thirty-Four Frames',
+    world: '\ud83c\udf0a Fracture Coast \u2014 The Standing Tide',
+    narrative: [
+      '"I cannot see your future," VAEL said. "I have accepted this."',
+      '"So I stopped looking forward.",',
+      '',
+      '"I looked back instead. Half a second. That is all I need.",',
+      '"Your future is blank. Your past is not.",',
+      '',
+      'The water in front of you stood up and took your shape.',
+      '',
+      '"It does not predict you. It repeats you.",',
+      '"Everything you do, it will do, a heartbeat later, reversed.",',
+      '',
+      '"If you have a pattern, it will find you with it.",',
+      '"You cannot be faster than this. It is already as fast as you are.",',
+      '"You can only be someone you were not, half a second ago.",',
+      '',
+      '"I have never watched anyone try.",',
+    ],
+    fightScript: [
+      { frame: 60,  text: 'It is you, half a second late and mirrored. Reflex loses. Change what you are doing.', color: '#4488ff', timer: 320 },
+      { frame: 320, text: 'Whatever you just did, it is about to do. Fight the version of you from a moment ago.', color: '#88aaff', timer: 290 },
+      { frame: 600, text: '"You broke rhythm." VAEL, quiet. "Not once. Continuously." That is the answer.', color: '#aaccff', timer: 280 },
+      { frame: 860, text: '"It is running out of you to copy." Keep changing.', color: '#ffffff', timer: 260 },
+    ],
+    preText: 'A copy of you, delayed and mirrored. It has your speed and your habits, so speed and habit cannot beat it. Break your own pattern. 2 lives.',
+    trial: 'selfknowledge',
+    opponentName: 'Standing Tide', weaponKey: 'sword', classKey: 'ninja',
+    aiDiff: 'expert', opponentColor: '#2266cc',
+    playerLives: 2,
+    arena: 'underwater',
+    tokenReward: 55, blueprintDrop: null,
+    postText: 'The copy came apart into water and did not reform. "You changed eleven times," VAEL said. "I counted. None of them were a technique. They were all just \u2014 different." They were quiet for a while. "I have spent my existence certain that a being is the sum of what it repeats." The tide went still. "You do not repeat." A pause. "I do not know what that makes you the sum of. I would like to find out before you go."',
+    isMultiverseWorld: true,
+    multiverseWorldId: 'fracture_coast',
+  },
+
+  {
+    id: 118, title: 'VAEL',
     world: '🌊 Fracture Coast — The Outcome',
     narrative: [
       '"I can see three seconds into every fight I have ever had.",',

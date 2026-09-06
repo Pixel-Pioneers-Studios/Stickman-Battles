@@ -1,7 +1,7 @@
 // Appends chapters for act5/smb-act5-arc1.js.
 STORY_CHAPTER_REGISTRY.push(
   {
-    id: 143, title: 'What Remains',
+    id: 145, title: 'What Remains',
     world: '🕳️ The Void — Breach',
     type: 'exploration', exploreMode: 'escape',
     style: 'void',
@@ -28,7 +28,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 144, title: 'What It Built Here',
+    id: 146, title: 'What It Built Here',
     world: '🕳️ The Void — True Form\'s Domain',
     type: 'exploration', exploreMode: 'scavenge',
     style: 'void',
@@ -60,7 +60,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 145, title: 'The Constructs',
+    id: 147, title: 'The Constructs',
     world: '🕳️ The Void — Construct Layer',
     type: 'gauntlet',
     preText: 'The True Form\'s void constructs stand between you and its core — echoes of absorbed fragment bearers, reshaped into something that serves the Void. Three waves. No rest.',
@@ -82,7 +82,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 146, title: 'Before the End',
+    id: 148, title: 'Before the End',
     world: '🕳️ The Void — True Form\'s Threshold',
     type: 'branch',
     narrative: [
@@ -129,7 +129,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 147, title: 'Same Frequency',
+    id: 149, title: 'Same Frequency',
     world: '🕳️ The Void — True Form\'s Threshold',
     isEpilogue: true,
     noFight: true,

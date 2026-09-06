@@ -1,7 +1,7 @@
 // Appends chapters for act4/smb-act4-arc2.js.
 STORY_CHAPTER_REGISTRY.push(
   {
-    id: 135, title: 'The Face',
+    id: 137, title: 'The Face',
     world: '🔩 Creator\'s Domain — Inner Sanctum Approach',
     type: 'exploration', exploreMode: 'scavenge',
     style: 'void',
@@ -35,7 +35,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 136, title: 'First Form',
+    id: 138, title: 'First Form',
     world: '🔩 Creator\'s Domain — Combat Space',
     narrative: [
       '"I will not make this easy," the Creator said.',
@@ -68,7 +68,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 137, title: 'Between Forms',
+    id: 139, title: 'Between Forms',
     world: '🔩 Creator\'s Domain — Recalibration Chamber',
     type: 'gauntlet',
     preText: 'While the Creator recalibrates, its domain floods with residual constructs. Defeat three waves — no rest between them.',
@@ -90,7 +90,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 138, title: 'The Cost',
+    id: 140, title: 'The Cost',
     world: '🔩 Creator\'s Domain — Gate Approach',
     type: 'exploration', exploreMode: 'defense',
     style: 'void',
@@ -118,7 +118,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 139, title: 'Second Form',
+    id: 141, title: 'Second Form',
     world: '🔩 Creator\'s Domain — Final Combat Space',
     narrative: [
       'The Creator\'s second form was everything the first one had learned.',
@@ -154,7 +154,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 140, title: 'The Last Request',
+    id: 142, title: 'The Last Request',
     world: '🔩 Creator\'s Domain — Gate Threshold',
     type: 'assassination',
     preText: 'A Creator overseer is broadcasting a jamming signal that prevents the rift entity from transmitting the final message. Eliminate it before the gate locks permanently.',
@@ -181,7 +181,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 141, title: 'SOVEREIGN',
+    id: 143, title: 'SOVEREIGN',
     world: '⚡ Creator\'s Proving Ground',
     narrative: [
       'The gate demanded a proof.',
@@ -227,7 +227,7 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    id: 142, title: 'The Creator\'s Gate',
+    id: 144, title: 'The Creator\'s Gate',
     world: '⚛️ Multiversal Core — Creator\'s Domain',
     narrative: [
       'The rift was open.',

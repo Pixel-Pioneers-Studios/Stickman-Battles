@@ -220,7 +220,7 @@ function _renderChapterList() {
   const curArcId   = _getCurrentArcId();
 
   // ── Overall progress bar ──────────────────────────────────────────────────
-  // Saga builds report progress through THIS game, not through all 184 chapters.
+  // Saga builds report progress through THIS game, not through all 186 chapters.
   // Both helpers return the whole story on a 'full' build (docs/SAGA_SPLIT_PLAN.md).
   const _sagaScoped = typeof activeSagaChapterCount === 'function'
                    && typeof isChapterInActiveSaga === 'function';
@@ -566,7 +566,7 @@ function _storyBuildPhases(ch) {
   // chapter has no _origId, so this stays single-phase there — returning >1
   // phase at expansion would split the chapter into multiple STORY_CHAPTERS2
   // entries and desync every downstream id + save. Waves are launch-only.
-  const PROTOTYPE_WAVE_CHAPTERS = new Set([47, 52, 127]);
+  const PROTOTYPE_WAVE_CHAPTERS = new Set([47, 52, 129]);
   if (ch._origId !== undefined && PROTOTYPE_WAVE_CHAPTERS.has(ch._origId)) {
     const lives = ch.playerLives || 3;
     const arena = ch.arena || 'homeAlley';
@@ -803,6 +803,8 @@ function restoreStoryDataFromSave(data) {
   if (!data || !data.defeated) return;
   _story2 = _normalizeStory2Progress(data);
   _migrateStory2ThreshArc(_story2);
+  // Must follow the Thresh migration — see the note on that function.
+  _migrateStory2TrialChapters(_story2);
   _saveStory2();
 }
 
@@ -1021,7 +1023,7 @@ function _defaultStory2Progress() {
     branchFlags:       {},      // { [flagKey]: true } — choices made at branch chapters
     prologueSeen:      false,   // true after the Axiom/multiverse intro plays once
     tuesdaySeen:       false,   // true after the playable Tuesday cold open has run once
-    migrations:        { threshArc: true }, // one-time save migrations already applied (new saves need none)
+    migrations:        { threshArc: true, trialChapters: true }, // one-time save migrations already applied (new saves need none)
   };
 }
 
@@ -1047,6 +1049,44 @@ function _migrateStory2ThreshArc(p) {
   }
   if (!p.migrations || typeof p.migrations !== 'object') p.migrations = {};
   p.migrations.threshArc = true;
+  return true;
+}
+
+// One-time migration for the two Trial chapters inserted into the multiverse arcs:
+// the Trial of Sense at id 106 (Null Space, before the Null duel) and the Trial of
+// Self-knowledge at id 117 (Fracture Coast, before the VAEL duel). Two separate
+// insertion points, so this is a two-step shift and NOT expressible as the single
+// contiguous-range shift _migrateStory2ThreshArc uses.
+//
+// Order matters: this must run AFTER _migrateStory2ThreshArc, because the
+// thresholds below (106 / 116) are post-Thresh-arc ids. A save old enough to need
+// both is brought into post-Thresh numbering first, then shifted again here.
+//
+// Trial chapters stay intact through expansion (origCh.trial takes the stay-intact
+// branch), so each adds exactly one entry and the shift is +1 / +2 flat.
+function _migrateStory2TrialChapters(p) {
+  if (!p || typeof p !== 'object') return false;
+  if (p.migrations && p.migrations.trialChapters) return false;
+  // Unlike the Thresh migration this needs no expanded-structure lookup — the
+  // insertion points are fixed and each contributes exactly one chapter.
+  const shift = id => (id >= 116 ? id + 2 : (id >= 106 ? id + 1 : id));
+
+  if (typeof p.chapter === 'number') p.chapter = shift(p.chapter);
+  if (Array.isArray(p.defeated)) {
+    p.defeated = p.defeated.map(d => (typeof d === 'number' ? shift(d) : d));
+  }
+  // lootTaken is keyed 'chapterId:index', so its chapter half shifts too or
+  // one-time pickups silently re-arm (or stay taken) on the wrong chapters.
+  if (p.lootTaken && typeof p.lootTaken === 'object') {
+    const next = {};
+    for (const k of Object.keys(p.lootTaken)) {
+      const m = /^(\d+):(.*)$/.exec(k);
+      next[m ? (shift(+m[1]) + ':' + m[2]) : k] = p.lootTaken[k];
+    }
+    p.lootTaken = next;
+  }
+  if (!p.migrations || typeof p.migrations !== 'object') p.migrations = {};
+  p.migrations.trialChapters = true;
   return true;
 }
 
@@ -1551,8 +1591,8 @@ const STORY_WORLDS = {
 
 function getWorldForChapter(id) {
   if (id < 60)  return 'fracture';
-  if (id < 120) return 'war';
-  if (id < 180) return 'mirror';
+  if (id < 122) return 'war';    // +2: the two trial chapters (106, 117)
+  if (id < 182) return 'mirror'; // +2: same
   if (id < 240) return 'godfall';
   return 'code';
 }
