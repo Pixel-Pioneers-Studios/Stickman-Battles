@@ -6008,5 +6008,3313 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
     ],
   };
 
-})(window.STORY_SCENE_SPECS);
 
+  // ══════════════════════════════════════════════════════════════════════════
+  // COVERAGE PASS — chapters that carried a `narrative` but no staging.
+  // These fell back to generic act style, which renders correctly but stages
+  // nothing. Beat counts below are the runtime's own parse of each chapter's
+  // narrative (blank-line groups, split on narrator-vs-quote); where a chapter
+  // has more beats than spec entries the LAST entry holds, so these are sized
+  // to the chapter's shape rather than padded out one-to-one.
+  // ══════════════════════════════════════════════════════════════════════════
+
+  // ── Chapter 13 — Resonance (5 beats) ────────────────────────────────────────
+  // First uncontrolled discharge. The voice reaches him for the first time.
+  S[13] = {
+    bg: 'city',
+    npcColor: '#88aacc',
+    beats: [
+      {
+        // The discharge itself — he is the source, so the camera is thrown back.
+        letterbox: true,
+        camAnim: [
+          { at: 0,  zoom: 1.30, cx: 0.42, cy: 0.52 },
+          { at: 14, zoom: 1.05, cx: 0.48, cy: 0.50 },
+        ],
+        camShake: [{ at: 8, strength: 16, dur: 26 }],
+        playerPos: [
+          { at: 0,  x: 0.44, state: 'attack', facing: 1 },
+          { at: 14, x: 0.42, state: 'hit',    facing: 1 },
+          { at: 48, x: 0.43, state: 'idle',   facing: 1 },
+        ],
+        npcPos: [{ at: 0, x: 0.70, state: 'idle', facing: -1, alpha: 0, show: false }],
+        effectsBehind: [
+          { type: 'fragment_pulse', color: '#66ccff', alpha: 0.75, fadeIn: 6 },
+        ],
+        effects: [
+          { type: 'screen_flash',  color: '#88ddff', startFrame: 8,  duration: 16, alpha: 0.7 },
+          { type: 'shockwave',     cx: 0.44, cy: 0.60, color: '#66ccff', startFrame: 8, duration: 40 },
+          { type: 'impact_sparks', cx: 0.44, cy: 0.52, count: 20, color: '#aaeeff', startFrame: 10, duration: 30 },
+        ],
+      },
+      {
+        // "You didn't know you could do that." — he looks at his own hands.
+        letterbox: true,
+        camAnim: [
+          { at: 0,  zoom: 1.05, cx: 0.48, cy: 0.50 },
+          { at: 40, zoom: 1.28, cx: 0.44, cy: 0.48 },
+        ],
+        playerPos: [
+          { at: 0,  x: 0.43, state: 'idle',   facing: 1 },
+          { at: 22, x: 0.43, state: 'reach',  facing: 1 },
+          { at: 60, x: 0.43, state: 'look',   facing: 1 },
+        ],
+        effectsBehind: [{ type: 'fragment_pulse', color: '#66ccff', alpha: 0.30 }],
+      },
+      {
+        // The voice arrives through the fragment — no body to look at.
+        letterbox: true,
+        camAnim: [
+          { at: 0,  zoom: 1.28, cx: 0.44, cy: 0.48 },
+          { at: 50, zoom: 1.12, cx: 0.46, cy: 0.50 },
+        ],
+        playerPos: [{ at: 0, x: 0.43, state: 'listen', facing: 1 }],
+        effectsBehind: [
+          { type: 'fragment_pulse', color: '#88aacc', alpha: 0.45, fadeIn: 20 },
+          { type: 'static_noise', alpha: 0.16, fadeIn: 25 },
+        ],
+      },
+      {
+        // The speaker. Still bodiless — kept as an echo, not a figure.
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.12, cx: 0.46, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.43, state: 'listen', facing: 1 }],
+        effectsBehind: [
+          { type: 'fragment_pulse', color: '#88aacc', alpha: 0.55 },
+          { type: 'echo_text', color: '#88aacc', alpha: 0.35 },
+        ],
+      },
+      {
+        // "Then nothing." — the contact drops out.
+        letterbox: true,
+        camAnim: [
+          { at: 0,  zoom: 1.12, cx: 0.46, cy: 0.50 },
+          { at: 45, zoom: 1.00, cx: 0.50, cy: 0.50 },
+        ],
+        playerPos: [{ at: 0, x: 0.43, state: 'idle', facing: 1 }],
+        effectsBehind: [{ type: 'fragment_pulse', color: '#446677', alpha: 0.16 }],
+      },
+    ],
+  };
+
+  // ── Chapter 14 — Coherence (5 beats) ────────────────────────────────────────
+  // The fragment flickers mid-fight; the voice explains he is not dying.
+  S[14] = {
+    bg: 'city',
+    npcColor: '#88aacc',
+    beats: [
+      {
+        letterbox: true,
+        camAnim: [
+          { at: 0,  zoom: 1.00, cx: 0.50, cy: 0.50 },
+          { at: 55, zoom: 1.16, cx: 0.46, cy: 0.50 },
+        ],
+        playerPos: [
+          { at: 0,  x: 0.40, state: 'guard',  facing: 1 },
+          { at: 35, x: 0.42, state: 'attack', facing: 1 },
+          { at: 60, x: 0.41, state: 'idle',   facing: 1 },
+        ],
+        effectsBehind: [{ type: 'fragment_pulse', color: '#66ccff', alpha: 0.40 }],
+      },
+      {
+        // The flicker — the light goes out of him for a moment.
+        letterbox: true,
+        camAnim: [
+          { at: 0,  zoom: 1.16, cx: 0.46, cy: 0.50 },
+          { at: 30, zoom: 1.34, cx: 0.44, cy: 0.49 },
+        ],
+        camShake: [{ at: 26, strength: 7, dur: 14 }],
+        playerPos: [
+          { at: 0,  x: 0.41, state: 'idle',   facing: 1 },
+          { at: 26, x: 0.41, state: 'crouch', facing: 1 },
+          { at: 58, x: 0.41, state: 'kneel',  facing: 1 },
+        ],
+        effectsBehind: [{ type: 'fragment_pulse', color: '#335566', alpha: 0.22 }],
+        effects: [{ type: 'static_noise', alpha: 0.24, startFrame: 24, duration: 40 }],
+      },
+      {
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.34, cx: 0.44, cy: 0.49 }],
+        playerPos: [{ at: 0, x: 0.41, state: 'kneel', facing: 1 }],
+        effectsBehind: [
+          { type: 'fragment_pulse', color: '#88aacc', alpha: 0.42, fadeIn: 18 },
+          { type: 'static_noise', alpha: 0.14 },
+        ],
+      },
+      {
+        // "You're not bleeding out."
+        letterbox: true,
+        camAnim: [
+          { at: 0,  zoom: 1.34, cx: 0.44, cy: 0.49 },
+          { at: 60, zoom: 1.18, cx: 0.46, cy: 0.50 },
+        ],
+        playerPos: [
+          { at: 0,  x: 0.41, state: 'kneel',  facing: 1 },
+          { at: 40, x: 0.41, state: 'listen', facing: 1 },
+        ],
+        effectsBehind: [{ type: 'echo_text', color: '#88aacc', alpha: 0.32 }],
+      },
+      {
+        // "You stood up."
+        letterbox: true,
+        camAnim: [
+          { at: 0,  zoom: 1.18, cx: 0.46, cy: 0.50 },
+          { at: 50, zoom: 1.02, cx: 0.50, cy: 0.48 },
+        ],
+        playerPos: [
+          { at: 0,  x: 0.41, state: 'kneel', facing: 1 },
+          { at: 30, x: 0.41, state: 'idle',  facing: 1 },
+          { at: 60, x: 0.44, state: 'walk',  facing: 1 },
+        ],
+        effectsBehind: [{ type: 'fragment_pulse', color: '#66ccff', alpha: 0.50, fadeIn: 22 }],
+      },
+    ],
+  };
+
+  // ── Chapter 15 — Phase (4 beats) ────────────────────────────────────────────
+  // A blow passes through him. The voice, third contact, still unnamed.
+  S[15] = {
+    bg: 'city',
+    npcColor: '#88aacc',
+    beats: [
+      {
+        // The impact that does not land — the arm is up, nothing arrives.
+        letterbox: true,
+        camAnim: [
+          { at: 0,  zoom: 1.20, cx: 0.46, cy: 0.50 },
+          { at: 30, zoom: 1.40, cx: 0.44, cy: 0.50 },
+        ],
+        camShake: [{ at: 28, strength: 5, dur: 10 }],
+        playerPos: [
+          { at: 0,  x: 0.42, state: 'guard', facing: 1 },
+          { at: 28, x: 0.42, state: 'reach', facing: 1, alpha: 0.45 },
+          { at: 52, x: 0.42, state: 'idle',  facing: 1, alpha: 1.0 },
+        ],
+        effectsBehind: [{ type: 'static_noise', alpha: 0.20, startFrame: 24 }],
+        effects: [{ type: 'screen_flash', color: '#88ccee', startFrame: 28, duration: 10, alpha: 0.32 }],
+      },
+      {
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.40, cx: 0.44, cy: 0.50 }, { at: 45, zoom: 1.20, cx: 0.46, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.42, state: 'listen', facing: 1 }],
+        effectsBehind: [{ type: 'fragment_pulse', color: '#88aacc', alpha: 0.44, fadeIn: 16 }],
+      },
+      {
+        // "You shifted."
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.20, cx: 0.46, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.42, state: 'listen', facing: 1 }],
+        effectsBehind: [
+          { type: 'echo_text', color: '#88aacc', alpha: 0.34 },
+          { type: 'fragment_pulse', color: '#88aacc', alpha: 0.40 },
+        ],
+      },
+      {
+        // He still does not know whether to be afraid of the voice.
+        letterbox: true,
+        camAnim: [
+          { at: 0,  zoom: 1.20, cx: 0.46, cy: 0.50 },
+          { at: 55, zoom: 1.06, cx: 0.50, cy: 0.50 },
+        ],
+        playerPos: [
+          { at: 0,  x: 0.42, state: 'look', facing: 1 },
+          { at: 40, x: 0.42, state: 'idle', facing: -1 },
+        ],
+        effectsBehind: [{ type: 'static_noise', alpha: 0.10 }],
+      },
+    ],
+  };
+
+  // ── Chapter 16 — The Weight of Other Hands (9 beats) ────────────────────────
+  // Veran explains the classes; the fragment-voice interrupts her for the first
+  // time to correct her. Two speakers, so this one is staged as a real two-shot.
+  S[16] = {
+    bg: 'city',
+    npcColor: '#cc99dd',
+    beats: [
+      {
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.04, cx: 0.50, cy: 0.50 }, { at: 60, zoom: 1.14, cx: 0.50, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.36, state: 'talk', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.62, state: 'listen', facing: -1 }],
+      },
+      {
+        // Veran answering — "It's an archetype."
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.14, cx: 0.54, cy: 0.50 }, { at: 50, zoom: 1.24, cx: 0.58, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.36, state: 'listen', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.62, state: 'talk',   facing: -1 }],
+      },
+      {
+        // The interruption. It had never done this before — hard cut to nobody.
+        letterbox: true,
+        camAnim: [
+          { at: 0,  zoom: 1.24, cx: 0.58, cy: 0.50 },
+          { at: 10, zoom: 1.34, cx: 0.40, cy: 0.48 },
+        ],
+        camShake: [{ at: 8, strength: 9, dur: 16 }],
+        playerPos: [{ at: 0, x: 0.36, state: 'hit',  facing: 1 }, { at: 24, x: 0.36, state: 'look', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.62, state: 'look', facing: -1 }],
+        effectsBehind: [{ type: 'fragment_pulse', color: '#88aacc', alpha: 0.70, fadeIn: 5 }],
+        effects: [{ type: 'screen_flash', color: '#aaccee', startFrame: 8, duration: 12, alpha: 0.38 }],
+      },
+      {
+        // "A long pause."
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.34, cx: 0.40, cy: 0.48 }, { at: 70, zoom: 1.26, cx: 0.46, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.36, state: 'idle',   facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.62, state: 'idle',   facing: -1 }],
+        effectsBehind: [{ type: 'fragment_pulse', color: '#88aacc', alpha: 0.30 }],
+      },
+      {
+        // The correction: the classes are not templates.
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.26, cx: 0.44, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.36, state: 'listen', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.62, state: 'listen', facing: -1 }],
+        effectsBehind: [
+          { type: 'echo_text', color: '#88aacc', alpha: 0.38 },
+          { type: 'fragment_pulse', color: '#88aacc', alpha: 0.52 },
+        ],
+      },
+      {
+        // The line about every prior bearer dying. The heaviest beat here.
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.26, cx: 0.44, cy: 0.50 }, { at: 80, zoom: 1.42, cx: 0.40, cy: 0.49 }],
+        camShake: [{ at: 40, strength: 4, dur: 30 }],
+        playerPos: [{ at: 0, x: 0.36, state: 'listen', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.62, state: 'idle',   facing: -1 }],
+        effectsBehind: [
+          { type: 'fragment_pulse', color: '#6688aa', alpha: 0.60 },
+          { type: 'static_noise', alpha: 0.12 },
+        ],
+      },
+      {
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.42, cx: 0.52, cy: 0.50 }, { at: 50, zoom: 1.28, cx: 0.58, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.36, state: 'idle',   facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.62, state: 'look',   facing: -1 }],
+      },
+      {
+        // "I didn't know that," she said.
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.28, cx: 0.58, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.36, state: 'listen', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.62, state: 'talk',   facing: -1 }],
+      },
+      {
+        // "Neither did you." — pull out, leave them both standing in it.
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.28, cx: 0.58, cy: 0.50 }, { at: 70, zoom: 0.98, cx: 0.50, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.36, state: 'idle', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.62, state: 'idle', facing: -1 }],
+        effectsBehind: [{ type: 'fragment_pulse', color: '#6688aa', alpha: 0.20 }],
+      },
+    ],
+  };
+
+  // ── Chapter 67 — The Sealed Section (6 beats) ───────────────────────────────
+  // Nineteen listed subjects, seventeen cells. He goes through the back door.
+  S[67] = {
+    bg: 'cave',
+    npcColor: '#446688',
+    beats: [
+      {
+        // Empty cells. Wide and still.
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 0.96, cx: 0.50, cy: 0.50 }, { at: 70, zoom: 1.08, cx: 0.46, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.30, state: 'walk', facing: 1 }, { at: 60, x: 0.38, state: 'look', facing: 1 }],
+        effectsBehind: [{ type: 'static_noise', alpha: 0.10 }],
+      },
+      {
+        // The terminal. The count does not match the room.
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.08, cx: 0.46, cy: 0.50 }, { at: 45, zoom: 1.30, cx: 0.42, cy: 0.48 }],
+        playerPos: [{ at: 0, x: 0.38, state: 'reach', facing: 1 }, { at: 50, x: 0.38, state: 'look', facing: 1 }],
+        effectsBehind: [{ type: 'static_noise', alpha: 0.18 }],
+        effects: [{ type: 'echo_text', color: '#88bbcc', alpha: 0.30, startFrame: 30 }],
+      },
+      {
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.30, cx: 0.42, cy: 0.48 }, { at: 55, zoom: 1.10, cx: 0.54, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.38, state: 'idle', facing: 1 }],
+      },
+      {
+        // The door at the back of the corridor.
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.10, cx: 0.54, cy: 0.50 }, { at: 60, zoom: 1.22, cx: 0.66, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.38, state: 'walk', facing: 1 }, { at: 60, x: 0.46, state: 'idle', facing: 1 }],
+        effectsBehind: [{ type: 'door', xf: 0.72, yf: 0.52, color: '#446688', alpha: 0.85 }],
+      },
+      {
+        // Axiom's sweep logs stop here. Nobody has been past this point.
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.22, cx: 0.66, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.46, state: 'look', facing: 1 }],
+        effectsBehind: [
+          { type: 'door', xf: 0.72, yf: 0.52, color: '#446688', alpha: 0.85 },
+          { type: 'static_noise', alpha: 0.14 },
+        ],
+      },
+      {
+        // "You go in anyway."
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.22, cx: 0.66, cy: 0.50 }, { at: 70, zoom: 1.34, cx: 0.72, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.46, state: 'walk', facing: 1 }, { at: 70, x: 0.62, state: 'walk', facing: 1 }],
+        effectsBehind: [{ type: 'door_opening', xf: 0.72, yf: 0.52, color: '#66aacc', alpha: 0.9, startFrame: 20 }],
+        effects: [{ type: 'screen_flash', color: '#88ccee', startFrame: 62, duration: 18, alpha: 0.30 }],
+      },
+    ],
+  };
+
+  // ── Chapter 68 — Awakening (12 beats) ───────────────────────────────────────
+  // Calix is decanted from the last intact column. Two voices arguing in one head.
+  S[68] = {
+    bg: 'cave',
+    npcColor: '#446688',
+    beats: [
+      {
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.06, cx: 0.50, cy: 0.50 }, { at: 50, zoom: 1.24, cx: 0.44, cy: 0.48 }],
+        playerPos: [{ at: 0, x: 0.34, state: 'reach', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.64, state: 'float', facing: -1, alpha: 0.35 }],
+        effectsBehind: [{ type: 'static_noise', alpha: 0.16 }],
+      },
+      {
+        // The column drains.
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.24, cx: 0.56, cy: 0.50 }, { at: 60, zoom: 1.30, cx: 0.62, cy: 0.50 }],
+        camShake: [{ at: 20, strength: 5, dur: 26 }],
+        playerPos: [{ at: 0, x: 0.34, state: 'look',  facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.64, state: 'float', facing: -1, alpha: 0.55 }],
+        effects: [{ type: 'smoke', cx: 0.64, cy: 0.62, color: '#557788', startFrame: 15, duration: 60 }],
+      },
+      {
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.30, cx: 0.62, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.34, state: 'idle',  facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.64, state: 'kneel', facing: -1, alpha: 0.85 }],
+      },
+      {
+        // They look up.
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.30, cx: 0.62, cy: 0.50 }, { at: 30, zoom: 1.44, cx: 0.64, cy: 0.47 }],
+        playerPos: [{ at: 0, x: 0.34, state: 'idle', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.64, state: 'kneel', facing: -1, alpha: 1.0 }, { at: 30, x: 0.64, state: 'look', facing: -1, alpha: 1.0 }],
+        effects: [{ type: 'screen_flash', color: '#88bbdd', startFrame: 28, duration: 10, alpha: 0.26 }],
+      },
+      {
+        // "How long."
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.44, cx: 0.64, cy: 0.47 }],
+        playerPos: [{ at: 0, x: 0.34, state: 'listen', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.64, state: 'talk',   facing: -1 }],
+      },
+      {
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.44, cx: 0.64, cy: 0.47 }, { at: 50, zoom: 1.26, cx: 0.52, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.34, state: 'idle', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.64, state: 'idle', facing: -1 }],
+      },
+      {
+        // The player answers.
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.26, cx: 0.44, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.34, state: 'talk',   facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.64, state: 'listen', facing: -1 }],
+      },
+      {
+        // They look at their hands.
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.26, cx: 0.58, cy: 0.50 }, { at: 55, zoom: 1.40, cx: 0.64, cy: 0.52 }],
+        playerPos: [{ at: 0, x: 0.34, state: 'idle',  facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.64, state: 'reach', facing: -1 }],
+      },
+      {
+        // "Both of them are still arguing."
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.40, cx: 0.64, cy: 0.52 }],
+        playerPos: [{ at: 0, x: 0.34, state: 'listen', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.64, state: 'talk',   facing: -1 }],
+        effectsBehind: [{ type: 'static_noise', alpha: 0.13 }],
+      },
+      {
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.40, cx: 0.64, cy: 0.52 }, { at: 60, zoom: 1.28, cx: 0.56, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.34, state: 'idle', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.64, state: 'idle', facing: -1 }],
+      },
+      {
+        // "It means neither won."
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.28, cx: 0.56, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.34, state: 'listen', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.64, state: 'talk',   facing: -1 }],
+      },
+      {
+        // The alarm. Everything changes register.
+        letterbox: true,
+        camAnim: [
+          { at: 0,  zoom: 1.28, cx: 0.56, cy: 0.50 },
+          { at: 12, zoom: 1.06, cx: 0.50, cy: 0.50 },
+        ],
+        camShake: [{ at: 10, strength: 12, dur: 40 }],
+        playerPos: [{ at: 0, x: 0.34, state: 'hit',   facing: 1 }, { at: 30, x: 0.34, state: 'guard', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.64, state: 'look',  facing: -1 }, { at: 30, x: 0.62, state: 'guard', facing: -1 }],
+        effects: [
+          { type: 'screen_flash', color: '#ff5544', startFrame: 10, duration: 16, alpha: 0.50 },
+          { type: 'static_noise', alpha: 0.22, startFrame: 10, duration: 70 },
+        ],
+      },
+    ],
+  };
+
+  // ── Chapter 69 — What the Lab Taught (15 beats) ─────────────────────────────
+  // Saga I's finale. Calix explains domain seams, then Kael turns back to burn
+  // the facility rather than walk out of it.
+  S[69] = {
+    bg: 'cave',
+    npcColor: '#334466',
+    beats: [
+      {
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.02, cx: 0.50, cy: 0.50 }, { at: 60, zoom: 1.16, cx: 0.48, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.36, state: 'walk',   facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.58, state: 'walk',   facing: 1 }],
+      },
+      {
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.16, cx: 0.52, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.36, state: 'listen', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.58, state: 'talk',   facing: -1 }],
+      },
+      {
+        // Eighteen months of structured trials — the reason the lab must go.
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.16, cx: 0.52, cy: 0.50 }, { at: 70, zoom: 1.30, cx: 0.56, cy: 0.49 }],
+        playerPos: [{ at: 0, x: 0.36, state: 'listen', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.58, state: 'talk',   facing: -1 }],
+        effectsBehind: [{ type: 'static_noise', alpha: 0.12 }],
+      },
+      {
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.30, cx: 0.56, cy: 0.49 }],
+        playerPos: [{ at: 0, x: 0.36, state: 'listen', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.58, state: 'talk',   facing: -1 }],
+        effectsBehind: [{ type: 'fragment_pulse', color: '#6699bb', alpha: 0.34 }],
+      },
+      {
+        // "Then they stopped walking."
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.30, cx: 0.56, cy: 0.49 }, { at: 40, zoom: 1.14, cx: 0.50, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.36, state: 'walk', facing: 1 }, { at: 30, x: 0.38, state: 'idle', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.58, state: 'walk', facing: 1 }, { at: 24, x: 0.58, state: 'idle', facing: -1 }],
+      },
+      {
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.14, cx: 0.52, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.38, state: 'listen', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.58, state: 'talk',   facing: -1 }],
+      },
+      {
+        // They nod back down the corridor — the camera goes with the look.
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.14, cx: 0.52, cy: 0.50 }, { at: 55, zoom: 1.04, cx: 0.30, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.38, state: 'look',  facing: -1 }],
+        npcPos:    [{ at: 0, x: 0.58, state: 'point', facing: -1 }],
+        effectsBehind: [{ type: 'door', xf: 0.16, yf: 0.52, color: '#334466', alpha: 0.7 }],
+      },
+      {
+        // "This place still works."
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.04, cx: 0.30, cy: 0.50 }, { at: 60, zoom: 1.18, cx: 0.46, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.38, state: 'idle',   facing: -1 }],
+        npcPos:    [{ at: 0, x: 0.58, state: 'talk',   facing: -1 }],
+        effectsBehind: [{ type: 'static_noise', alpha: 0.14 }],
+      },
+      {
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.18, cx: 0.52, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.38, state: 'listen', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.58, state: 'talk',   facing: -1 }],
+      },
+      {
+        // "You thought about ninety-four people." The chapter's centre of gravity.
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.18, cx: 0.44, cy: 0.50 }, { at: 90, zoom: 1.40, cx: 0.40, cy: 0.48 }],
+        camShake: [{ at: 46, strength: 3, dur: 40 }],
+        playerPos: [{ at: 0, x: 0.38, state: 'idle', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.58, state: 'idle', facing: -1 }],
+        effectsBehind: [
+          { type: 'fragment_pulse', color: '#6688aa', alpha: 0.55 },
+          { type: 'echo_text', color: '#8899aa', alpha: 0.30 },
+        ],
+      },
+      {
+        // "That did not happen out there." — it happened in rooms.
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.40, cx: 0.40, cy: 0.48 }],
+        playerPos: [{ at: 0, x: 0.38, state: 'idle', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.58, state: 'idle', facing: -1 }],
+        effectsBehind: [{ type: 'static_noise', alpha: 0.18 }],
+      },
+      {
+        // Lockdown units arrive.
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.40, cx: 0.40, cy: 0.48 }, { at: 14, zoom: 1.02, cx: 0.54, cy: 0.50 }],
+        camShake: [{ at: 12, strength: 10, dur: 28 }],
+        playerPos: [{ at: 0, x: 0.38, state: 'guard', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.58, state: 'guard', facing: 1 }],
+        extraFigures: [
+          { xf: 0.86, color: '#334466', facing: -1, state: 'walk', alpha: 0.55 },
+          { xf: 0.94, color: '#2b3a55', facing: -1, state: 'walk', alpha: 0.45 },
+        ],
+        effects: [{ type: 'screen_flash', color: '#ff5544', startFrame: 12, duration: 14, alpha: 0.40 }],
+      },
+      {
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.02, cx: 0.54, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.38, state: 'guard', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.56, state: 'talk',  facing: 1 }],
+        extraFigures: [{ xf: 0.88, color: '#334466', facing: -1, state: 'guard', alpha: 0.55 }],
+      },
+      {
+        // "And after," you said — the decision to go back for the facility.
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.02, cx: 0.48, cy: 0.50 }, { at: 55, zoom: 1.24, cx: 0.42, cy: 0.49 }],
+        playerPos: [{ at: 0, x: 0.38, state: 'talk',   facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.56, state: 'listen', facing: -1 }],
+        effectsBehind: [{ type: 'fragment_pulse', color: '#88bbdd', alpha: 0.45, fadeIn: 20 }],
+      },
+      {
+        // "Calix did not argue."
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.24, cx: 0.42, cy: 0.49 }, { at: 60, zoom: 1.06, cx: 0.50, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.38, state: 'idle', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.56, state: 'idle', facing: -1 }],
+        effectsBehind: [{ type: 'fire_glow', alpha: 0.20, fadeIn: 40 }],
+      },
+    ],
+  };
+
+  // ── Chapter 82 — The First Heroes (21 beats) ────────────────────────────────
+  // The Fallen God tells Axiom's origin: an ordinary man who won once too often.
+  // Long monologue — staged as a slow, near-static push so the words carry it,
+  // with the register changing only where the story turns.
+  S[82] = {
+    bg: 'space',
+    npcColor: '#ddaa44',
+    beats: [
+      {
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 0.98, cx: 0.50, cy: 0.50 }, { at: 80, zoom: 1.10, cx: 0.54, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.32, state: 'listen', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.66, state: 'talk',   facing: -1, scale: 1.15 }],
+        effectsBehind: [{ type: 'fragment_pulse', color: '#ddaa44', alpha: 0.22 }],
+      },
+      {
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.10, cx: 0.60, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.32, state: 'listen', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.66, state: 'talk',   facing: -1, scale: 1.15 }],
+      },
+      {
+        // "He was ordinary once." — the memory takes over the frame.
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.10, cx: 0.60, cy: 0.50 }, { at: 90, zoom: 1.02, cx: 0.44, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.32, state: 'listen', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.66, state: 'talk',   facing: -1, scale: 1.15, alpha: 0.85 }],
+        effectsBehind: [{ type: 'echo_text', color: '#ddaa44', alpha: 0.26 }],
+      },
+      {
+        // Robbed on a street. No power, no significance.
+        letterbox: true,
+        bg: 'city',
+        camAnim: [{ at: 0, zoom: 1.02, cx: 0.44, cy: 0.50 }, { at: 70, zoom: 1.18, cx: 0.50, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.32, state: 'idle',  facing: 1, alpha: 0.5 }],
+        npcPos:    [{ at: 0, x: 0.66, state: 'idle',  facing: -1, alpha: 0.4 }],
+        extraFigures: [{ xf: 0.50, color: '#775544', facing: 1, state: 'walk', alpha: 0.45 }],
+        effectsBehind: [{ type: 'static_noise', alpha: 0.16 }],
+      },
+      {
+        // "He won."
+        letterbox: true,
+        bg: 'city',
+        camAnim: [{ at: 0, zoom: 1.18, cx: 0.50, cy: 0.50 }, { at: 20, zoom: 1.34, cx: 0.50, cy: 0.48 }],
+        camShake: [{ at: 16, strength: 8, dur: 18 }],
+        playerPos: [{ at: 0, x: 0.32, state: 'idle',   facing: 1, alpha: 0.5 }],
+        npcPos:    [{ at: 0, x: 0.66, state: 'attack', facing: -1, alpha: 0.7 }],
+        effects: [{ type: 'impact_sparks', cx: 0.56, cy: 0.52, count: 14, color: '#ffcc66', startFrame: 16, duration: 26 }],
+      },
+      {
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.20, cx: 0.56, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.32, state: 'listen', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.66, state: 'talk',   facing: -1, scale: 1.15 }],
+      },
+      {
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.20, cx: 0.56, cy: 0.50 }, { at: 70, zoom: 1.06, cx: 0.50, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.32, state: 'listen', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.66, state: 'talk',   facing: -1, scale: 1.15 }],
+      },
+      {
+        // He found others. The company of heroes.
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.06, cx: 0.50, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.30, state: 'listen', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.68, state: 'talk',   facing: -1, scale: 1.15 }],
+        extraFigures: [
+          { xf: 0.44, color: '#997744', facing: 1, state: 'idle', alpha: 0.30 },
+          { xf: 0.52, color: '#886644', facing: 1, state: 'idle', alpha: 0.26 },
+          { xf: 0.58, color: '#aa8855', facing: 1, state: 'idle', alpha: 0.22 },
+        ],
+      },
+      {
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.06, cx: 0.50, cy: 0.50 }, { at: 80, zoom: 1.16, cx: 0.52, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.30, state: 'listen', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.68, state: 'talk',   facing: -1, scale: 1.15 }],
+        extraFigures: [
+          { xf: 0.44, color: '#997744', facing: 1, state: 'idle', alpha: 0.30 },
+          { xf: 0.54, color: '#886644', facing: 1, state: 'idle', alpha: 0.26 },
+        ],
+      },
+      {
+        // The thing the world could not handle.
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.16, cx: 0.52, cy: 0.50 }, { at: 60, zoom: 0.94, cx: 0.50, cy: 0.44 }],
+        camShake: [{ at: 30, strength: 6, dur: 40 }],
+        playerPos: [{ at: 0, x: 0.30, state: 'listen', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.68, state: 'talk',   facing: -1, scale: 1.15 }],
+        effectsBehind: [{ type: 'sky_cracks', color: '#ffaa44', alpha: 0.30, fadeIn: 30 }],
+      },
+      {
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 0.94, cx: 0.50, cy: 0.44 }, { at: 50, zoom: 1.10, cx: 0.56, cy: 0.48 }],
+        camShake: [{ at: 20, strength: 9, dur: 26 }],
+        playerPos: [{ at: 0, x: 0.30, state: 'listen', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.68, state: 'talk',   facing: -1, scale: 1.15 }],
+        effects: [{ type: 'shockwave', cx: 0.50, cy: 0.50, color: '#ffbb55', startFrame: 18, duration: 44 }],
+      },
+      {
+        // "They all stepped through."
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.10, cx: 0.56, cy: 0.48 }, { at: 70, zoom: 1.00, cx: 0.50, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.30, state: 'listen', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.68, state: 'talk',   facing: -1, scale: 1.15 }],
+        effectsBehind: [{ type: 'portal', xf: 0.50, yf: 0.46, height: 0.42, color: '#ffbb55', alpha: 0.5, fadeIn: 24 }],
+      },
+      {
+        // The tear closes. Nothing to look at any more.
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.00, cx: 0.50, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.30, state: 'idle', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.68, state: 'idle', facing: -1, scale: 1.15 }],
+        effectsBehind: [{ type: 'static_noise', alpha: 0.18 }],
+      },
+      {
+        // "I watched from outside."
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.00, cx: 0.62, cy: 0.50 }, { at: 70, zoom: 1.22, cx: 0.68, cy: 0.49 }],
+        playerPos: [{ at: 0, x: 0.30, state: 'listen', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.68, state: 'talk',   facing: -1, scale: 1.15 }],
+      },
+      {
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.22, cx: 0.68, cy: 0.49 }],
+        playerPos: [{ at: 0, x: 0.30, state: 'listen', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.68, state: 'talk',   facing: -1, scale: 1.15 }],
+        effectsBehind: [{ type: 'fragment_pulse', color: '#8844aa', alpha: 0.30 }],
+      },
+      {
+        // "What came back was not what went in."
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.22, cx: 0.68, cy: 0.49 }, { at: 80, zoom: 1.04, cx: 0.50, cy: 0.50 }],
+        camShake: [{ at: 30, strength: 4, dur: 44 }],
+        playerPos: [{ at: 0, x: 0.30, state: 'listen', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.68, state: 'talk',   facing: -1, scale: 1.15 }],
+        effectsBehind: [
+          { type: 'fragment_pulse', color: '#aa44cc', alpha: 0.45 },
+          { type: 'static_noise', alpha: 0.14 },
+        ],
+      },
+      {
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.04, cx: 0.50, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.30, state: 'listen', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.68, state: 'talk',   facing: -1, scale: 1.15 }],
+      },
+      {
+        // The others did not keep even their names.
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.04, cx: 0.50, cy: 0.50 }, { at: 80, zoom: 0.96, cx: 0.50, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.30, state: 'listen', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.68, state: 'talk',   facing: -1, scale: 1.15 }],
+        extraFigures: [
+          { xf: 0.42, color: '#553366', facing: 1, state: 'float', alpha: 0.20 },
+          { xf: 0.52, color: '#4a2d5c', facing: 1, state: 'float', alpha: 0.16 },
+          { xf: 0.60, color: '#5c3a70', facing: 1, state: 'float', alpha: 0.12 },
+        ],
+        effectsBehind: [{ type: 'echo_text', color: '#8866aa', alpha: 0.24 }],
+      },
+      {
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 0.96, cx: 0.50, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.30, state: 'idle', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.68, state: 'talk', facing: -1, scale: 1.15 }],
+        effectsBehind: [{ type: 'multi_portals', color: '#8866aa', alpha: 0.28, count: 5 }],
+      },
+      {
+        // Some of the worlds he has already walked through.
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 0.96, cx: 0.50, cy: 0.50 }, { at: 70, zoom: 1.14, cx: 0.44, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.30, state: 'look', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.68, state: 'talk', facing: -1, scale: 1.15 }],
+        effectsBehind: [{ type: 'multi_portals', color: '#8866aa', alpha: 0.34, count: 5 }],
+      },
+      {
+        // "That is the being you are walking toward."
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.14, cx: 0.44, cy: 0.50 }, { at: 80, zoom: 1.36, cx: 0.36, cy: 0.48 }],
+        camShake: [{ at: 40, strength: 5, dur: 40 }],
+        playerPos: [{ at: 0, x: 0.30, state: 'idle', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.68, state: 'idle', facing: -1, scale: 1.15, alpha: 0.8 }],
+        effectsBehind: [{ type: 'fragment_pulse', color: '#cc44ff', alpha: 0.50, fadeIn: 26 }],
+        effects: [{ type: 'screen_flash', color: '#cc44ff', startFrame: 70, duration: 18, alpha: 0.30 }],
+      },
+    ],
+  };
+
+  // ── Chapter 84 — Unregistered (8 beats) ─────────────────────────────────────
+  // Why Axiom needed ninety-four collection attempts: delete was never available.
+  S[84] = {
+    bg: 'space',
+    npcColor: '#ddaa44',
+    beats: [
+      {
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.00, cx: 0.50, cy: 0.50 }, { at: 70, zoom: 1.12, cx: 0.58, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.32, state: 'listen', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.66, state: 'talk',   facing: -1, scale: 1.15 }],
+      },
+      {
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.12, cx: 0.58, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.32, state: 'idle', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.66, state: 'idle', facing: -1, scale: 1.15 }],
+      },
+      {
+        // The domain — near-omnipotent inside it.
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.12, cx: 0.58, cy: 0.50 }, { at: 80, zoom: 0.96, cx: 0.50, cy: 0.46 }],
+        playerPos: [{ at: 0, x: 0.32, state: 'listen', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.66, state: 'talk',   facing: -1, scale: 1.15 }],
+        effectsBehind: [{ type: 'sky_bleed', color: '#cc44ff', alpha: 0.22, fadeIn: 30 }],
+      },
+      {
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 0.96, cx: 0.50, cy: 0.46 }, { at: 60, zoom: 1.10, cx: 0.54, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.32, state: 'listen', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.66, state: 'talk',   facing: -1, scale: 1.15 }],
+      },
+      {
+        // Ninety-four attempts. The number lands here.
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.10, cx: 0.44, cy: 0.50 }, { at: 90, zoom: 1.34, cx: 0.36, cy: 0.48 }],
+        camShake: [{ at: 40, strength: 4, dur: 44 }],
+        playerPos: [{ at: 0, x: 0.32, state: 'idle', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.66, state: 'talk', facing: -1, scale: 1.15 }],
+        effectsBehind: [
+          { type: 'echo_text', color: '#ddaa44', alpha: 0.30 },
+          { type: 'fragment_pulse', color: '#8899aa', alpha: 0.40 },
+        ],
+      },
+      {
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.34, cx: 0.36, cy: 0.48 }, { at: 60, zoom: 1.14, cx: 0.52, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.32, state: 'listen', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.66, state: 'talk',   facing: -1, scale: 1.15 }],
+      },
+      {
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.14, cx: 0.52, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.32, state: 'listen', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.66, state: 'talk',   facing: -1, scale: 1.15 }],
+      },
+      {
+        // Full integration removed even extraction — he is unregistered.
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.14, cx: 0.44, cy: 0.50 }, { at: 70, zoom: 1.28, cx: 0.36, cy: 0.49 }],
+        playerPos: [{ at: 0, x: 0.32, state: 'idle', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.66, state: 'idle', facing: -1, scale: 1.15 }],
+        effectsBehind: [{ type: 'fragment_pulse', color: '#66ccff', alpha: 0.55, fadeIn: 24 }],
+        effects: [{ type: 'screen_flash', color: '#88ddff', startFrame: 60, duration: 16, alpha: 0.26 }],
+      },
+    ],
+  };
+
+  // ── Chapter 85 — The Shape Beyond (8 beats) ─────────────────────────────────
+  // The first mention of the thing under everything — and that it is not an enemy.
+  S[85] = {
+    bg: 'space',
+    npcColor: '#ddaa44',
+    beats: [
+      {
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.02, cx: 0.50, cy: 0.50 }, { at: 60, zoom: 1.14, cx: 0.58, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.32, state: 'listen', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.66, state: 'talk',   facing: -1, scale: 1.15 }],
+      },
+      {
+        // "Beyond the Creator — there is something older."
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.14, cx: 0.58, cy: 0.50 }, { at: 90, zoom: 0.90, cx: 0.50, cy: 0.40 }],
+        playerPos: [{ at: 0, x: 0.32, state: 'listen', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.66, state: 'talk',   facing: -1, scale: 1.15 }],
+        effectsBehind: [{ type: 'sky_bleed', color: '#220033', alpha: 0.30, fadeIn: 40 }],
+      },
+      {
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 0.90, cx: 0.50, cy: 0.40 }, { at: 70, zoom: 1.00, cx: 0.50, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.32, state: 'listen', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.66, state: 'talk',   facing: -1, scale: 1.15 }],
+        effectsBehind: [{ type: 'sky_bleed', color: '#220033', alpha: 0.34 }],
+      },
+      {
+        // The core, the walls, the foundations.
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.00, cx: 0.50, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.32, state: 'idle', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.66, state: 'idle', facing: -1, scale: 1.15 }],
+        effectsBehind: [
+          { type: 'sky_bleed', color: '#220033', alpha: 0.34 },
+          { type: 'static_noise', alpha: 0.12 },
+        ],
+      },
+      {
+        // "It knows the Void Mind exists."
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.00, cx: 0.50, cy: 0.50 }, { at: 60, zoom: 1.24, cx: 0.62, cy: 0.49 }],
+        camShake: [{ at: 30, strength: 5, dur: 34 }],
+        playerPos: [{ at: 0, x: 0.32, state: 'listen', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.66, state: 'talk',   facing: -1, scale: 1.15 }],
+        effectsBehind: [{ type: 'fragment_pulse', color: '#220033', alpha: 0.45 }],
+      },
+      {
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.24, cx: 0.62, cy: 0.49 }, { at: 70, zoom: 1.10, cx: 0.50, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.32, state: 'listen', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.66, state: 'talk',   facing: -1, scale: 1.15 }],
+      },
+      {
+        // "and you will find it —"
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.10, cx: 0.44, cy: 0.50 }, { at: 60, zoom: 1.26, cx: 0.38, cy: 0.49 }],
+        playerPos: [{ at: 0, x: 0.32, state: 'look', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.66, state: 'idle', facing: -1, scale: 1.15 }],
+      },
+      {
+        // "It is not your enemy."
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.26, cx: 0.50, cy: 0.50 }, { at: 80, zoom: 1.00, cx: 0.50, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.32, state: 'idle', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.66, state: 'talk', facing: -1, scale: 1.15 }],
+        effectsBehind: [{ type: 'fragment_pulse', color: '#664488', alpha: 0.26 }],
+      },
+    ],
+  };
+
+  // ── Chapter 93 — Flux Guardian (4 beats) ────────────────────────────────────
+  // "You are the fourteenth fragment bearer to reach this axis." Then gravity flips.
+  S[93] = {
+    bg: 'space',
+    npcColor: '#00aaff',
+    beats: [
+      {
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 0.96, cx: 0.50, cy: 0.50 }, { at: 70, zoom: 1.14, cx: 0.60, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.30, state: 'walk', facing: 1 }, { at: 60, x: 0.36, state: 'idle', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.68, state: 'float', facing: -1, scale: 1.08 }],
+        effectsBehind: [{ type: 'speedlines', cx: 0.68, cy: 0.50, count: 16, color: '#00aaff', alpha: 0.28 }],
+      },
+      {
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.14, cx: 0.60, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.36, state: 'look',  facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.68, state: 'float', facing: -1, scale: 1.08 }],
+        effectsBehind: [{ type: 'static_noise', alpha: 0.10 }],
+      },
+      {
+        // "the fourteenth" — he is a number to it, the way he was to the lab.
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.14, cx: 0.60, cy: 0.50 }, { at: 70, zoom: 1.30, cx: 0.52, cy: 0.49 }],
+        playerPos: [{ at: 0, x: 0.36, state: 'listen', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.68, state: 'talk',   facing: -1, scale: 1.08 }],
+        effectsBehind: [{ type: 'echo_text', color: '#00aaff', alpha: 0.30 }],
+      },
+      {
+        // "The world flipped." — the camera inverts with it.
+        letterbox: true,
+        warp: 3,
+        camAnim: [
+          { at: 0,  zoom: 1.30, cx: 0.52, cy: 0.49 },
+          { at: 18, zoom: 1.04, cx: 0.50, cy: 0.62 },
+          { at: 50, zoom: 1.10, cx: 0.50, cy: 0.38 },
+        ],
+        camShake: [{ at: 16, strength: 15, dur: 32 }],
+        playerPos: [
+          { at: 0,  x: 0.36, state: 'idle',  facing: 1 },
+          { at: 18, x: 0.36, state: 'fall',  facing: 1 },
+          { at: 55, x: 0.36, state: 'float', facing: 1 },
+        ],
+        npcPos:    [{ at: 0, x: 0.68, state: 'float', facing: -1, scale: 1.08 }],
+        effects: [
+          { type: 'screen_flash', color: '#00aaff', startFrame: 16, duration: 16, alpha: 0.45 },
+          { type: 'speedlines', cx: 0.50, cy: 0.50, count: 26, color: '#00aaff', alpha: 0.55, startFrame: 16 },
+        ],
+      },
+    ],
+  };
+
+  // ── Chapter 105 — The Pattern Gap (7 beats) ─────────────────────────────────
+  // Null: 847 catalogued beings, 4,200 years, and Kael is the first structural
+  // error. Staged flat and symmetrical — it is a machine describing a fault.
+  S[105] = {
+    bg: 'space',
+    npcColor: '#9900cc',
+    beats: [
+      {
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 0.94, cx: 0.50, cy: 0.50 }, { at: 70, zoom: 1.08, cx: 0.58, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.32, state: 'idle',  facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.66, state: 'float', facing: -1, alpha: 0, fadeIn: 40 }],
+        effectsBehind: [{ type: 'static_noise', alpha: 0.14 }],
+      },
+      {
+        // No face, no features.
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.08, cx: 0.62, cy: 0.50 }, { at: 60, zoom: 1.30, cx: 0.66, cy: 0.49 }],
+        playerPos: [{ at: 0, x: 0.32, state: 'look',  facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.66, state: 'float', facing: -1 }],
+        effectsBehind: [{ type: 'static_noise', alpha: 0.20 }],
+      },
+      {
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.30, cx: 0.66, cy: 0.49 }],
+        playerPos: [{ at: 0, x: 0.32, state: 'listen', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.66, state: 'talk',   facing: -1 }],
+        effectsBehind: [{ type: 'echo_text', color: '#9900cc', alpha: 0.28 }],
+      },
+      {
+        // "my model began producing errors"
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.30, cx: 0.66, cy: 0.49 }, { at: 70, zoom: 1.12, cx: 0.50, cy: 0.50 }],
+        camShake: [{ at: 30, strength: 3, dur: 30 }],
+        playerPos: [{ at: 0, x: 0.32, state: 'idle', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.66, state: 'talk', facing: -1 }],
+        effectsBehind: [{ type: 'static_noise', alpha: 0.26 }],
+      },
+      {
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.12, cx: 0.50, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.32, state: 'listen', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.66, state: 'talk',   facing: -1 }],
+      },
+      {
+        // "The fragment you carry is the source."
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.12, cx: 0.42, cy: 0.50 }, { at: 60, zoom: 1.34, cx: 0.36, cy: 0.49 }],
+        playerPos: [{ at: 0, x: 0.32, state: 'idle', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.66, state: 'point', facing: -1 }],
+        effectsBehind: [{ type: 'fragment_pulse', color: '#66ccff', alpha: 0.50, fadeIn: 20 }],
+      },
+      {
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.34, cx: 0.36, cy: 0.49 }, { at: 70, zoom: 1.00, cx: 0.50, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.32, state: 'idle',  facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.66, state: 'float', facing: -1 }],
+        effectsBehind: [{ type: 'static_noise', alpha: 0.16 }],
+      },
+    ],
+  };
+
+  // ── Chapter 106 — The Unseen Pattern (7 beats) — TRIAL OF SENSE ─────────────
+  // Null takes sight and hands over the lantern. The lantern beat is the one
+  // that has to read, because the whole trial is about what it does.
+  S[106] = {
+    bg: 'space',
+    npcColor: '#6600aa',
+    beats: [
+      {
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.06, cx: 0.56, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.32, state: 'listen', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.66, state: 'talk',   facing: -1 }],
+      },
+      {
+        // "I am going to take it from you."
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.06, cx: 0.56, cy: 0.50 }, { at: 40, zoom: 1.32, cx: 0.62, cy: 0.49 }],
+        camShake: [{ at: 34, strength: 6, dur: 20 }],
+        playerPos: [{ at: 0, x: 0.32, state: 'idle', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.66, state: 'talk', facing: -1 }],
+        effects: [{ type: 'screen_flash', color: '#220033', startFrame: 34, duration: 20, alpha: 0.55 }],
+      },
+      {
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.32, cx: 0.62, cy: 0.49 }],
+        playerPos: [{ at: 0, x: 0.32, state: 'listen', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.66, state: 'talk',   facing: -1 }],
+        effectsBehind: [{ type: 'static_noise', alpha: 0.24 }],
+      },
+      {
+        // The lantern is set down between them.
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.32, cx: 0.50, cy: 0.52 }, { at: 60, zoom: 1.46, cx: 0.50, cy: 0.58 }],
+        playerPos: [{ at: 0, x: 0.34, state: 'look',  facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.64, state: 'reach', facing: -1 }, { at: 40, x: 0.64, state: 'idle', facing: -1 }],
+        effects: [
+          { type: 'objective_marker', cx: 0.50, cy: 0.62, color: '#ffcc66', startFrame: 30, duration: 90 },
+          { type: 'fire_glow', alpha: 0.26, fadeIn: 40 },
+        ],
+      },
+      {
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.46, cx: 0.50, cy: 0.58 }, { at: 60, zoom: 1.20, cx: 0.52, cy: 0.52 }],
+        playerPos: [{ at: 0, x: 0.34, state: 'reach', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.64, state: 'talk',  facing: -1 }],
+        effectsBehind: [{ type: 'fire_glow', alpha: 0.22 }],
+      },
+      {
+        // "The information will be old the moment you have it."
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.20, cx: 0.52, cy: 0.52 }],
+        playerPos: [{ at: 0, x: 0.34, state: 'idle', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.64, state: 'talk', facing: -1 }],
+        effectsBehind: [{ type: 'echo_text', color: '#6600aa', alpha: 0.26 }],
+      },
+      {
+        // "Show me what you treat it as." Null goes out.
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.20, cx: 0.52, cy: 0.52 }, { at: 70, zoom: 1.02, cx: 0.44, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.34, state: 'guard', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.64, state: 'float', facing: -1, alpha: 1.0 }, { at: 60, x: 0.64, state: 'float', facing: -1, alpha: 0.0 }],
+        effects: [{ type: 'screen_flash', color: '#220033', startFrame: 58, duration: 22, alpha: 0.42 }],
+      },
+    ],
+  };
+
+  // ── Chapter 107 — Null (5 beats) ────────────────────────────────────────────
+  S[107] = {
+    bg: 'space',
+    npcColor: '#9900cc',
+    beats: [
+      {
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.04, cx: 0.54, cy: 0.50 }, { at: 60, zoom: 1.18, cx: 0.60, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.32, state: 'guard', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.66, state: 'talk',  facing: -1 }],
+      },
+      {
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.18, cx: 0.60, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.32, state: 'listen', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.66, state: 'talk',   facing: -1 }],
+        effectsBehind: [{ type: 'static_noise', alpha: 0.16 }],
+      },
+      {
+        // "You do not return to anything." The one thing it cannot model.
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.18, cx: 0.42, cy: 0.50 }, { at: 70, zoom: 1.36, cx: 0.36, cy: 0.49 }],
+        camShake: [{ at: 34, strength: 4, dur: 30 }],
+        playerPos: [{ at: 0, x: 0.32, state: 'idle', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.66, state: 'talk', facing: -1 }],
+        effectsBehind: [{ type: 'fragment_pulse', color: '#66ccff', alpha: 0.42 }],
+      },
+      {
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.36, cx: 0.50, cy: 0.50 }, { at: 60, zoom: 1.14, cx: 0.56, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.32, state: 'idle', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.66, state: 'talk', facing: -1 }],
+      },
+      {
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.14, cx: 0.56, cy: 0.50 }, { at: 50, zoom: 1.00, cx: 0.50, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.32, state: 'guard', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.66, state: 'guard', facing: -1 }],
+        effects: [{ type: 'impact_sparks', cx: 0.50, cy: 0.52, count: 12, color: '#9900cc', startFrame: 45, duration: 24 }],
+      },
+    ],
+  };
+
+  // ── Chapter 110 — The Pull (6 beats) ────────────────────────────────────────
+  // The fragment leans toward Seraph like water toward a drain.
+  S[110] = {
+    bg: 'ice',
+    npcColor: '#00aacc',
+    beats: [
+      {
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.10, cx: 0.40, cy: 0.50 }, { at: 70, zoom: 1.28, cx: 0.36, cy: 0.49 }],
+        playerPos: [{ at: 0, x: 0.32, state: 'idle', facing: 1 }, { at: 50, x: 0.34, state: 'reach', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.68, state: 'idle', facing: -1, alpha: 0.9 }],
+        effectsBehind: [{ type: 'fragment_pulse', color: '#66ccff', alpha: 0.50 }],
+      },
+      {
+        // Not toward danger — toward Seraph.
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.28, cx: 0.36, cy: 0.49 }, { at: 70, zoom: 1.02, cx: 0.56, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.34, state: 'look', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.68, state: 'idle', facing: -1 }],
+        effectsBehind: [
+          { type: 'fragment_pulse', color: '#00aacc', alpha: 0.40 },
+          { type: 'speedlines', cx: 0.68, cy: 0.52, count: 14, color: '#00aacc', alpha: 0.30 },
+        ],
+      },
+      {
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.02, cx: 0.60, cy: 0.50 }, { at: 55, zoom: 1.22, cx: 0.66, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.34, state: 'listen', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.68, state: 'talk',   facing: -1 }],
+      },
+      {
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.22, cx: 0.66, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.34, state: 'listen', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.68, state: 'talk',   facing: -1 }],
+        effectsBehind: [{ type: 'echo_text', color: '#00aacc', alpha: 0.24 }],
+      },
+      {
+        // "I am not going to take it from you."
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.22, cx: 0.66, cy: 0.50 }, { at: 60, zoom: 1.36, cx: 0.68, cy: 0.48 }],
+        playerPos: [{ at: 0, x: 0.34, state: 'idle', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.68, state: 'talk', facing: -1 }],
+        effectsBehind: [{ type: 'fragment_pulse', color: '#00aacc', alpha: 0.30 }],
+      },
+      {
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.36, cx: 0.68, cy: 0.48 }, { at: 80, zoom: 0.98, cx: 0.50, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.34, state: 'idle', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.68, state: 'idle', facing: -1 }],
+        effectsBehind: [{ type: 'static_noise', alpha: 0.10 }],
+      },
+    ],
+  };
+
+  // ── Chapter 112 — Seraph (4 beats) ──────────────────────────────────────────
+  // "I keep taking things." The duel offered as the only thanks they know.
+  S[112] = {
+    bg: 'ice',
+    npcColor: '#00aacc',
+    beats: [
+      {
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.08, cx: 0.60, cy: 0.50 }, { at: 60, zoom: 1.28, cx: 0.66, cy: 0.49 }],
+        playerPos: [{ at: 0, x: 0.32, state: 'listen', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.68, state: 'talk',   facing: -1 }],
+        effectsBehind: [{ type: 'static_noise', alpha: 0.10 }],
+      },
+      {
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.28, cx: 0.66, cy: 0.49 }],
+        playerPos: [{ at: 0, x: 0.32, state: 'listen', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.68, state: 'talk',   facing: -1 }],
+      },
+      {
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.28, cx: 0.50, cy: 0.50 }, { at: 60, zoom: 1.10, cx: 0.46, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.32, state: 'idle', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.68, state: 'talk', facing: -1 }],
+        effectsBehind: [{ type: 'fragment_pulse', color: '#66ccff', alpha: 0.34 }],
+      },
+      {
+        // "I want to see that up close." Both take guard.
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.10, cx: 0.46, cy: 0.50 }, { at: 55, zoom: 1.00, cx: 0.50, cy: 0.50 }],
+        camShake: [{ at: 48, strength: 5, dur: 18 }],
+        playerPos: [{ at: 0, x: 0.32, state: 'guard', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.68, state: 'guard', facing: -1 }],
+        effects: [{ type: 'shockwave', cx: 0.50, cy: 0.60, color: '#00aacc', startFrame: 48, duration: 32 }],
+      },
+    ],
+  };
+
+  // ── Chapter 116 — The Blind Spot (6 beats) ──────────────────────────────────
+  // VAEL has been first through every door — and cannot see Kael at all.
+  S[116] = {
+    bg: 'ice',
+    npcColor: '#0055ff',
+    beats: [
+      {
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 0.96, cx: 0.50, cy: 0.50 }, { at: 70, zoom: 1.12, cx: 0.62, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.30, state: 'walk', facing: 1 }, { at: 60, x: 0.34, state: 'idle', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.68, state: 'idle', facing: -1 }],
+        effectsBehind: [{ type: 'multi_portals', color: '#0055ff', alpha: 0.22, count: 3 }],
+      },
+      {
+        // Someone who had been waiting.
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.12, cx: 0.62, cy: 0.50 }, { at: 60, zoom: 1.32, cx: 0.68, cy: 0.49 }],
+        playerPos: [{ at: 0, x: 0.34, state: 'look', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.68, state: 'idle', facing: -1 }],
+        effectsBehind: [{ type: 'static_noise', alpha: 0.12 }],
+      },
+      {
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.32, cx: 0.68, cy: 0.49 }],
+        playerPos: [{ at: 0, x: 0.34, state: 'listen', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.68, state: 'talk',   facing: -1 }],
+        effectsBehind: [{ type: 'echo_text', color: '#0055ff', alpha: 0.26 }],
+      },
+      {
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.32, cx: 0.68, cy: 0.49 }, { at: 70, zoom: 1.10, cx: 0.50, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.34, state: 'idle', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.68, state: 'talk', facing: -1 }],
+      },
+      {
+        // "The fragment is why."
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.10, cx: 0.42, cy: 0.50 }, { at: 60, zoom: 1.34, cx: 0.36, cy: 0.49 }],
+        playerPos: [{ at: 0, x: 0.34, state: 'idle',  facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.68, state: 'point', facing: -1 }],
+        effectsBehind: [{ type: 'fragment_pulse', color: '#66ccff', alpha: 0.48 }],
+      },
+      {
+        // First through every door — until now.
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.34, cx: 0.56, cy: 0.50 }, { at: 80, zoom: 1.00, cx: 0.50, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.34, state: 'idle', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.68, state: 'talk', facing: -1 }],
+        effectsBehind: [{ type: 'multi_portals', color: '#0055ff', alpha: 0.26, count: 4 }],
+      },
+    ],
+  };
+
+  // ── Chapter 117 — Thirty-Four Frames (6 beats) — TRIAL OF SELF-KNOWLEDGE ────
+  // The water stands up and takes his shape. The mirror beat has to sell it.
+  S[117] = {
+    bg: 'ice',
+    npcColor: '#2266cc',
+    beats: [
+      {
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.08, cx: 0.60, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.32, state: 'listen', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.68, state: 'talk',   facing: -1 }],
+      },
+      {
+        // "I looked back instead. Half a second."
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.08, cx: 0.60, cy: 0.50 }, { at: 60, zoom: 1.24, cx: 0.64, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.32, state: 'listen', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.68, state: 'talk',   facing: -1 }],
+        effectsBehind: [{ type: 'echo_text', color: '#2266cc', alpha: 0.28 }],
+      },
+      {
+        // The copy rises out of the water in his own shape.
+        letterbox: true,
+        camAnim: [
+          { at: 0,  zoom: 1.24, cx: 0.64, cy: 0.50 },
+          { at: 20, zoom: 1.10, cx: 0.44, cy: 0.52 },
+          { at: 70, zoom: 1.30, cx: 0.46, cy: 0.50 },
+        ],
+        camShake: [{ at: 22, strength: 8, dur: 24 }],
+        playerPos: [{ at: 0, x: 0.32, state: 'idle', facing: 1 }, { at: 30, x: 0.30, state: 'hit', facing: 1 }, { at: 60, x: 0.31, state: 'guard', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.68, state: 'idle', facing: -1, alpha: 0.7 }],
+        extraFigures: [{ xf: 0.52, color: '#2266cc', facing: -1, state: 'idle', alpha: 0.55 }],
+        effects: [
+          { type: 'shockwave',   cx: 0.52, cy: 0.62, color: '#2266cc', startFrame: 20, duration: 40 },
+          { type: 'screen_flash', color: '#88bbff', startFrame: 20, duration: 14, alpha: 0.34 },
+        ],
+      },
+      {
+        // "It does not predict you. It repeats you."
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.30, cx: 0.46, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.31, state: 'guard', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.68, state: 'talk',  facing: -1 }],
+        extraFigures: [{ xf: 0.52, color: '#2266cc', facing: -1, state: 'guard', alpha: 0.62 }],
+      },
+      {
+        // "If you have a pattern, it will find you with it."
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.30, cx: 0.46, cy: 0.50 }, { at: 70, zoom: 1.12, cx: 0.50, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.31, state: 'idle', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.68, state: 'talk', facing: -1 }],
+        extraFigures: [{ xf: 0.52, color: '#2266cc', facing: -1, state: 'idle', alpha: 0.62 }],
+      },
+      {
+        // "I have never watched anyone try."
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.12, cx: 0.50, cy: 0.50 }, { at: 60, zoom: 1.00, cx: 0.50, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.31, state: 'guard', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.68, state: 'idle',  facing: -1, alpha: 0.6 }],
+        extraFigures: [{ xf: 0.52, color: '#2266cc', facing: -1, state: 'guard', alpha: 0.70 }],
+      },
+    ],
+  };
+
+  // ── Chapter 118 — VAEL (4 beats) ────────────────────────────────────────────
+  // Three seconds of foresight against the one person who returns nothing.
+  S[118] = {
+    bg: 'ice',
+    npcColor: '#0055ff',
+    beats: [
+      {
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.06, cx: 0.60, cy: 0.50 }, { at: 60, zoom: 1.22, cx: 0.66, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.32, state: 'listen', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.68, state: 'talk',   facing: -1 }],
+        effectsBehind: [{ type: 'multi_portals', color: '#0055ff', alpha: 0.20, count: 3 }],
+      },
+      {
+        // "Against you — I see nothing."
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.22, cx: 0.66, cy: 0.50 }, { at: 40, zoom: 1.40, cx: 0.68, cy: 0.48 }],
+        camShake: [{ at: 34, strength: 4, dur: 24 }],
+        playerPos: [{ at: 0, x: 0.32, state: 'idle', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.68, state: 'talk', facing: -1 }],
+        effects: [{ type: 'static_noise', alpha: 0.24, startFrame: 30, duration: 60 }],
+      },
+      {
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.40, cx: 0.68, cy: 0.48 }, { at: 70, zoom: 1.12, cx: 0.52, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.32, state: 'idle', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.68, state: 'talk', facing: -1 }],
+      },
+      {
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.12, cx: 0.52, cy: 0.50 }, { at: 55, zoom: 1.00, cx: 0.50, cy: 0.50 }],
+        camShake: [{ at: 48, strength: 5, dur: 18 }],
+        playerPos: [{ at: 0, x: 0.32, state: 'guard', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.68, state: 'guard', facing: -1 }],
+        effects: [{ type: 'impact_sparks', cx: 0.50, cy: 0.52, count: 14, color: '#0055ff', startFrame: 46, duration: 26 }],
+      },
+    ],
+  };
+
+  // ── Chapter 122 — Thresh (6 beats) ──────────────────────────────────────────
+  // Grief that fractures everything it touches. Ground cracks carry this one.
+  S[122] = {
+    bg: 'lava',
+    npcColor: '#ff4400',
+    beats: [
+      {
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.04, cx: 0.58, cy: 0.50 }, { at: 60, zoom: 1.22, cx: 0.64, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.32, state: 'listen', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.68, state: 'talk',   facing: -1, scale: 1.10 }],
+        effectsBehind: [{ type: 'fire_glow', alpha: 0.24 }],
+      },
+      {
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.22, cx: 0.64, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.32, state: 'listen', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.68, state: 'talk',   facing: -1, scale: 1.10 }],
+      },
+      {
+        // "The void didn't give me more strength."
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.22, cx: 0.64, cy: 0.50 }, { at: 70, zoom: 1.38, cx: 0.68, cy: 0.49 }],
+        camShake: [{ at: 30, strength: 5, dur: 34 }],
+        playerPos: [{ at: 0, x: 0.32, state: 'idle', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.68, state: 'talk', facing: -1, scale: 1.10 }],
+        effectsBehind: [{ type: 'ground_crack', color: '#ff4400', alpha: 0.40, fadeIn: 24 }],
+      },
+      {
+        // Everything he has touched since has fractured.
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.38, cx: 0.68, cy: 0.49 }, { at: 60, zoom: 1.00, cx: 0.50, cy: 0.52 }],
+        camShake: [{ at: 20, strength: 8, dur: 40 }],
+        playerPos: [{ at: 0, x: 0.32, state: 'idle', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.68, state: 'idle', facing: -1, scale: 1.10 }],
+        effectsBehind: [{ type: 'ground_crack', color: '#ff4400', alpha: 0.60 }],
+        effects: [{ type: 'shockwave', cx: 0.68, cy: 0.62, color: '#ff4400', startFrame: 18, duration: 46 }],
+      },
+      {
+        // "You're standing in the middle of what my grief looks like."
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.00, cx: 0.50, cy: 0.52 }, { at: 80, zoom: 0.92, cx: 0.50, cy: 0.48 }],
+        playerPos: [{ at: 0, x: 0.32, state: 'look', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.68, state: 'talk', facing: -1, scale: 1.10 }],
+        effectsBehind: [
+          { type: 'ground_crack', color: '#ff4400', alpha: 0.55 },
+          { type: 'fire_glow', alpha: 0.30 },
+        ],
+      },
+      {
+        // "I don't want to break you." He guards anyway.
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 0.92, cx: 0.50, cy: 0.48 }, { at: 60, zoom: 1.06, cx: 0.50, cy: 0.50 }],
+        camShake: [{ at: 52, strength: 6, dur: 20 }],
+        playerPos: [{ at: 0, x: 0.32, state: 'guard', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.68, state: 'guard', facing: -1, scale: 1.10 }],
+        effects: [{ type: 'impact_sparks', cx: 0.50, cy: 0.54, count: 16, color: '#ff6622', startFrame: 50, duration: 28 }],
+      },
+    ],
+  };
+
+  // ── Chapter 149 — Same Frequency (6 beats) ──────────────────────────────────
+  // Paradox explains the mechanism: same radiation, same frequency, interference.
+  // Paradox has no body here — it comes through the fragment, so no npc figure.
+  S[149] = {
+    bg: 'fracture',
+    npcColor: '#cc44ff',
+    beats: [
+      {
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.00, cx: 0.50, cy: 0.50 }, { at: 70, zoom: 1.24, cx: 0.42, cy: 0.49 }],
+        playerPos: [{ at: 0, x: 0.40, state: 'idle', facing: 1 }, { at: 50, x: 0.40, state: 'listen', facing: 1 }],
+        effectsBehind: [{ type: 'fragment_pulse', color: '#cc44ff', alpha: 0.40, fadeIn: 26 }],
+      },
+      {
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.24, cx: 0.42, cy: 0.49 }],
+        playerPos: [{ at: 0, x: 0.40, state: 'listen', facing: 1 }],
+        effectsBehind: [{ type: 'echo_text', color: '#cc44ff', alpha: 0.30 }],
+      },
+      {
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.24, cx: 0.42, cy: 0.49 }, { at: 50, zoom: 1.12, cx: 0.46, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.40, state: 'idle', facing: 1 }],
+        effectsBehind: [{ type: 'fragment_pulse', color: '#cc44ff', alpha: 0.26 }],
+      },
+      {
+        // Same radiation, same origin — two pulses beating against each other.
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.12, cx: 0.46, cy: 0.50 }, { at: 80, zoom: 1.30, cx: 0.44, cy: 0.48 }],
+        camShake: [{ at: 40, strength: 3, dur: 40 }],
+        playerPos: [{ at: 0, x: 0.40, state: 'listen', facing: 1 }],
+        effectsBehind: [
+          { type: 'fragment_pulse', color: '#66ccff', alpha: 0.50 },
+          { type: 'static_noise', alpha: 0.16 },
+        ],
+      },
+      {
+        // None of the ninety-four could sustain it.
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.30, cx: 0.44, cy: 0.48 }, { at: 90, zoom: 1.02, cx: 0.50, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.40, state: 'idle', facing: 1 }],
+        extraFigures: [
+          { xf: 0.62, color: '#443355', facing: -1, state: 'float', alpha: 0.16 },
+          { xf: 0.72, color: '#3d2d4a', facing: -1, state: 'float', alpha: 0.12 },
+          { xf: 0.82, color: '#352640', facing: -1, state: 'float', alpha: 0.09 },
+        ],
+        effectsBehind: [{ type: 'echo_text', color: '#8866aa', alpha: 0.22 }],
+      },
+      {
+        // "One more thing." The damage clears corruption.
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.02, cx: 0.50, cy: 0.50 }, { at: 70, zoom: 1.18, cx: 0.44, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.40, state: 'listen', facing: 1 }],
+        effectsBehind: [{ type: 'fragment_pulse', color: '#66ccff', alpha: 0.45, fadeIn: 30 }],
+      },
+    ],
+  };
+
+  // ── Chapter 151 — The Silence After (11 beats) ──────────────────────────────
+  // Saga III's opening. The network has stopped humming and the man who built it
+  // is standing next to you. Wide, still, almost no camera movement.
+  S[151] = {
+    bg: 'fracture',
+    npcColor: '#bb99cc',
+    beats: [
+      {
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 0.90, cx: 0.50, cy: 0.50 }, { at: 90, zoom: 0.96, cx: 0.50, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.42, state: 'idle', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.56, state: 'idle', facing: 1, alpha: 0, show: false }],
+      },
+      {
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 0.96, cx: 0.50, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.42, state: 'idle', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.56, state: 'idle', facing: 1, alpha: 0, show: false }],
+        effectsBehind: [{ type: 'static_noise', alpha: 0.06 }],
+      },
+      {
+        // The hum stops. Absence, rendered as the pulse going out.
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 0.96, cx: 0.50, cy: 0.50 }, { at: 80, zoom: 1.04, cx: 0.50, cy: 0.48 }],
+        playerPos: [{ at: 0, x: 0.42, state: 'look', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.56, state: 'idle', facing: 1, alpha: 0, show: false }],
+        effectsBehind: [{ type: 'fragment_pulse', color: '#332244', alpha: 0.16 }],
+      },
+      {
+        // Seventeen dimensions still standing.
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.04, cx: 0.50, cy: 0.48 }, { at: 90, zoom: 0.88, cx: 0.50, cy: 0.44 }],
+        playerPos: [{ at: 0, x: 0.42, state: 'idle', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.56, state: 'idle', facing: 1, alpha: 0, show: false }],
+        effectsBehind: [{ type: 'multi_portals', color: '#5566aa', alpha: 0.20, count: 6 }],
+      },
+      {
+        // He is revealed standing beside you — no fanfare, just there.
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 0.88, cx: 0.50, cy: 0.44 }, { at: 70, zoom: 1.06, cx: 0.50, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.42, state: 'idle', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.58, state: 'idle', facing: 1, alpha: 0.0 }, { at: 40, x: 0.58, state: 'idle', facing: 1, alpha: 1.0 }],
+      },
+      {
+        // Not the Creator. Not the True Form. A man.
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.06, cx: 0.54, cy: 0.50 }, { at: 80, zoom: 1.30, cx: 0.58, cy: 0.49 }],
+        playerPos: [{ at: 0, x: 0.42, state: 'look', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.58, state: 'idle', facing: 1 }],
+      },
+      {
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.30, cx: 0.58, cy: 0.49 }, { at: 60, zoom: 1.10, cx: 0.50, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.42, state: 'listen', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.58, state: 'idle',   facing: 1 }],
+        effectsBehind: [{ type: 'static_noise', alpha: 0.10 }],
+      },
+      {
+        // "Your signal reads two people."
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.10, cx: 0.50, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.42, state: 'idle', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.58, state: 'idle', facing: 1 }],
+        effectsBehind: [{ type: 'echo_text', color: '#7788aa', alpha: 0.24 }],
+      },
+      {
+        // He looks up at the room he built, from inside it.
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.10, cx: 0.58, cy: 0.50 }, { at: 90, zoom: 0.92, cx: 0.58, cy: 0.40 }],
+        playerPos: [{ at: 0, x: 0.42, state: 'idle', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.58, state: 'look', facing: 1 }],
+      },
+      {
+        // "Five thousand years."
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 0.92, cx: 0.58, cy: 0.40 }, { at: 80, zoom: 1.24, cx: 0.58, cy: 0.49 }],
+        playerPos: [{ at: 0, x: 0.42, state: 'listen', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.58, state: 'talk',   facing: 1 }],
+      },
+      {
+        // "It wasn't an apology. It was a measurement."
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.24, cx: 0.58, cy: 0.49 }, { at: 90, zoom: 0.90, cx: 0.50, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.42, state: 'idle', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.58, state: 'idle', facing: 1 }],
+      },
+    ],
+  };
+
+  // ── Chapter 152 — The Cost (13 beats) ───────────────────────────────────────
+  // Axiom is dying of the same corruption he watched ninety-four people die of.
+  S[152] = {
+    bg: 'fracture',
+    npcColor: '#bb99cc',
+    beats: [
+      {
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 0.96, cx: 0.50, cy: 0.50 }, { at: 80, zoom: 1.06, cx: 0.50, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.42, state: 'idle', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.58, state: 'idle', facing: 1 }],
+        effectsBehind: [{ type: 'static_noise', alpha: 0.08 }],
+      },
+      {
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.06, cx: 0.50, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.42, state: 'listen', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.58, state: 'idle',   facing: 1 }],
+      },
+      {
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.06, cx: 0.50, cy: 0.50 }, { at: 60, zoom: 1.16, cx: 0.46, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.42, state: 'idle', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.58, state: 'idle', facing: 1 }],
+      },
+      {
+        // The account you couldn't stop running was standing next to you.
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.16, cx: 0.54, cy: 0.50 }, { at: 80, zoom: 1.34, cx: 0.58, cy: 0.49 }],
+        playerPos: [{ at: 0, x: 0.42, state: 'look', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.58, state: 'idle', facing: 1 }],
+        effectsBehind: [{ type: 'fragment_pulse', color: '#aa66cc', alpha: 0.30 }],
+      },
+      {
+        // The excavation cut both ways.
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.34, cx: 0.58, cy: 0.49 }],
+        playerPos: [{ at: 0, x: 0.42, state: 'idle', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.58, state: 'idle', facing: 1 }],
+        effectsBehind: [{ type: 'static_noise', alpha: 0.16 }],
+      },
+      {
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.34, cx: 0.58, cy: 0.49 }, { at: 70, zoom: 1.12, cx: 0.50, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.42, state: 'idle', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.58, state: 'idle', facing: 1 }],
+      },
+      {
+        // "You had seen this before." — the fragment recognises the pattern.
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.12, cx: 0.44, cy: 0.50 }, { at: 70, zoom: 1.28, cx: 0.40, cy: 0.49 }],
+        playerPos: [{ at: 0, x: 0.42, state: 'look', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.58, state: 'idle', facing: 1 }],
+        effectsBehind: [{ type: 'fragment_pulse', color: '#66ccff', alpha: 0.34 }],
+      },
+      {
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.28, cx: 0.52, cy: 0.50 }, { at: 60, zoom: 1.18, cx: 0.58, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.42, state: 'idle', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.58, state: 'idle', facing: 1 }],
+      },
+      {
+        // "I watched every one of them die of this."
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.18, cx: 0.58, cy: 0.50 }, { at: 90, zoom: 1.36, cx: 0.58, cy: 0.48 }],
+        camShake: [{ at: 44, strength: 3, dur: 44 }],
+        playerPos: [{ at: 0, x: 0.42, state: 'listen', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.58, state: 'talk',   facing: 1 }],
+        effectsBehind: [{ type: 'echo_text', color: '#8866aa', alpha: 0.26 }],
+      },
+      {
+        // He wasn't looking at you.
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.36, cx: 0.58, cy: 0.48 }],
+        playerPos: [{ at: 0, x: 0.42, state: 'idle', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.58, state: 'look', facing: 1 }],
+      },
+      {
+        // "I arrived at the end and collected what was left."
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.36, cx: 0.58, cy: 0.48 }, { at: 70, zoom: 1.20, cx: 0.54, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.42, state: 'listen', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.58, state: 'talk',   facing: 1 }],
+        effectsBehind: [{ type: 'static_noise', alpha: 0.14 }],
+      },
+      {
+        // He closed the hand.
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.20, cx: 0.58, cy: 0.52 }, { at: 60, zoom: 1.42, cx: 0.60, cy: 0.54 }],
+        playerPos: [{ at: 0, x: 0.42, state: 'idle',  facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.58, state: 'reach', facing: 1 }, { at: 40, x: 0.58, state: 'idle', facing: 1 }],
+        effectsBehind: [{ type: 'fragment_pulse', color: '#aa66cc', alpha: 0.36 }],
+      },
+      {
+        // "It does not feel slow."
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.42, cx: 0.60, cy: 0.54 }, { at: 90, zoom: 0.94, cx: 0.50, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.42, state: 'idle', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.58, state: 'talk', facing: 1 }],
+      },
+    ],
+  };
+
+  // ── Chapter 153 — The Bond (12 beats) ───────────────────────────────────────
+  // Kael teaches the man who built the fracture system how to stop building.
+  S[153] = {
+    bg: 'fracture',
+    npcColor: '#bb99cc',
+    beats: [
+      {
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.00, cx: 0.50, cy: 0.50 }, { at: 80, zoom: 1.10, cx: 0.46, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.40, state: 'idle', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.60, state: 'idle', facing: -1 }],
+      },
+      {
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.10, cx: 0.46, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.40, state: 'idle', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.60, state: 'idle', facing: -1 }],
+        effectsBehind: [{ type: 'fragment_pulse', color: '#66ccff', alpha: 0.30 }],
+      },
+      {
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.10, cx: 0.50, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.40, state: 'talk',   facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.60, state: 'listen', facing: -1 }],
+      },
+      {
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.10, cx: 0.50, cy: 0.50 }, { at: 60, zoom: 1.20, cx: 0.54, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.40, state: 'talk',   facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.60, state: 'listen', facing: -1 }],
+      },
+      {
+        // His first attempts are walls. The energy goes straight through.
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.20, cx: 0.58, cy: 0.50 }, { at: 70, zoom: 1.32, cx: 0.62, cy: 0.49 }],
+        camShake: [{ at: 40, strength: 5, dur: 22 }],
+        playerPos: [{ at: 0, x: 0.40, state: 'look',  facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.60, state: 'reach', facing: -1 }, { at: 46, x: 0.60, state: 'hit', facing: -1 }],
+        effects: [
+          { type: 'energy_burst', cx: 0.62, cy: 0.52, color: '#aa66cc', startFrame: 38, duration: 30 },
+          { type: 'screen_flash', color: '#cc99ee', startFrame: 40, duration: 12, alpha: 0.28 },
+        ],
+      },
+      {
+        // "Stop building."
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.32, cx: 0.46, cy: 0.50 }, { at: 50, zoom: 1.22, cx: 0.44, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.40, state: 'talk',   facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.60, state: 'listen', facing: -1 }],
+      },
+      {
+        // Like being asked to stop breathing.
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.22, cx: 0.56, cy: 0.50 }, { at: 70, zoom: 1.38, cx: 0.60, cy: 0.49 }],
+        playerPos: [{ at: 0, x: 0.40, state: 'idle', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.60, state: 'look', facing: -1 }],
+      },
+      {
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.38, cx: 0.48, cy: 0.50 }, { at: 60, zoom: 1.18, cx: 0.48, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.40, state: 'talk',   facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.60, state: 'listen', facing: -1 }],
+      },
+      {
+        // Part of what you already are.
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.18, cx: 0.48, cy: 0.50 }, { at: 80, zoom: 1.04, cx: 0.50, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.40, state: 'idle', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.60, state: 'idle', facing: -1 }],
+        effectsBehind: [{ type: 'fragment_pulse', color: '#66ccff', alpha: 0.42 }],
+      },
+      {
+        // Five thousand years of engineering, set down.
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.04, cx: 0.58, cy: 0.50 }, { at: 90, zoom: 1.24, cx: 0.60, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.40, state: 'idle',  facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.60, state: 'kneel', facing: -1 }],
+        effectsBehind: [{ type: 'static_noise', alpha: 0.10 }],
+      },
+      {
+        // Underneath it: the man from before.
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.24, cx: 0.60, cy: 0.50 }, { at: 70, zoom: 1.36, cx: 0.60, cy: 0.48 }],
+        playerPos: [{ at: 0, x: 0.40, state: 'idle', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.60, state: 'idle', facing: -1 }],
+      },
+      {
+        // The light under his skin steadies.
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.36, cx: 0.60, cy: 0.48 }, { at: 90, zoom: 1.00, cx: 0.50, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.40, state: 'idle', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.60, state: 'idle', facing: -1 }],
+        effectsBehind: [{ type: 'fragment_pulse', color: '#bb99cc', alpha: 0.46, fadeIn: 40 }],
+      },
+    ],
+  };
+
+  // ── Chapter 154 — The Compass Points (long) ─────────────────────────────────
+  // The trail points down. Held wide — this is a chapter of decision, not action.
+  S[154] = {
+    bg: 'fracture',
+    npcColor: '#bb99cc',
+    beats: [
+      {
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 0.94, cx: 0.50, cy: 0.50 }, { at: 90, zoom: 1.06, cx: 0.50, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.40, state: 'idle', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.60, state: 'idle', facing: -1 }],
+      },
+      {
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.06, cx: 0.50, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.40, state: 'listen', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.60, state: 'talk',   facing: -1 }],
+      },
+      {
+        // The trail points down.
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.06, cx: 0.50, cy: 0.50 }, { at: 80, zoom: 0.90, cx: 0.50, cy: 0.66 }],
+        playerPos: [{ at: 0, x: 0.40, state: 'look',  facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.60, state: 'point', facing: -1 }],
+        effectsBehind: [{ type: 'sky_bleed', color: '#220033', alpha: 0.24, fadeIn: 40 }],
+      },
+      {
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 0.90, cx: 0.50, cy: 0.66 }, { at: 90, zoom: 1.10, cx: 0.50, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.40, state: 'idle', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.60, state: 'idle', facing: -1 }],
+        effectsBehind: [{ type: 'sky_bleed', color: '#220033', alpha: 0.28 }],
+      },
+      {
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.10, cx: 0.50, cy: 0.50 }, { at: 90, zoom: 0.96, cx: 0.50, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.40, state: 'idle', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.60, state: 'idle', facing: -1 }],
+        effectsBehind: [{ type: 'fragment_pulse', color: '#66ccff', alpha: 0.28 }],
+      },
+    ],
+  };
+
+  // ── Chapter 155 — The Figure on the Ridge (12 beats) ────────────────────────
+  // Sparring on the descent, and the admission: he was the figure on the ridge.
+  S[155] = {
+    bg: 'ruins',
+    npcColor: '#bb99cc',
+    beats: [
+      {
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.00, cx: 0.50, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.38, state: 'guard', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.62, state: 'guard', facing: -1 }],
+      },
+      {
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.00, cx: 0.56, cy: 0.50 }, { at: 60, zoom: 1.16, cx: 0.60, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.38, state: 'listen', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.62, state: 'talk',   facing: -1 }],
+      },
+      {
+        // "It is a second nervous system."
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.16, cx: 0.60, cy: 0.50 }, { at: 70, zoom: 1.28, cx: 0.44, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.38, state: 'idle', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.62, state: 'talk', facing: -1 }],
+        effectsBehind: [{ type: 'fragment_pulse', color: '#66ccff', alpha: 0.38 }],
+      },
+      {
+        // Eleven losses in a row.
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.28, cx: 0.50, cy: 0.50 }, { at: 40, zoom: 1.02, cx: 0.50, cy: 0.52 }],
+        camShake: [{ at: 20, strength: 9, dur: 26 }],
+        playerPos: [{ at: 0, x: 0.40, state: 'hit',   facing: 1 }, { at: 40, x: 0.38, state: 'kneel', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.60, state: 'attack', facing: -1 }, { at: 40, x: 0.60, state: 'idle', facing: -1 }],
+        effects: [{ type: 'impact_sparks', cx: 0.46, cy: 0.52, count: 16, color: '#cc99ee', startFrame: 18, duration: 28 }],
+      },
+      {
+        // "Perception first," pulling you up off the ground.
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.02, cx: 0.50, cy: 0.52 }, { at: 60, zoom: 1.22, cx: 0.52, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.38, state: 'kneel', facing: 1 }, { at: 45, x: 0.40, state: 'idle', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.60, state: 'reach', facing: -1 }, { at: 45, x: 0.58, state: 'talk', facing: -1 }],
+      },
+      {
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.22, cx: 0.52, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.40, state: 'listen', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.58, state: 'talk',   facing: -1 }],
+        effectsBehind: [{ type: 'fragment_pulse', color: '#66ccff', alpha: 0.30 }],
+      },
+      {
+        // By the fourth day he takes a round.
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.22, cx: 0.50, cy: 0.50 }, { at: 40, zoom: 1.06, cx: 0.50, cy: 0.50 }],
+        camShake: [{ at: 26, strength: 7, dur: 20 }],
+        playerPos: [{ at: 0, x: 0.40, state: 'attack', facing: 1 }, { at: 40, x: 0.42, state: 'idle', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.58, state: 'hit',    facing: -1 }, { at: 40, x: 0.60, state: 'idle', facing: -1 }],
+        effects: [{ type: 'impact_sparks', cx: 0.52, cy: 0.52, count: 14, color: '#88ddff', startFrame: 24, duration: 26 }],
+      },
+      {
+        // That night, looking down the descent route.
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.06, cx: 0.50, cy: 0.50 }, { at: 90, zoom: 0.90, cx: 0.52, cy: 0.58 }],
+        playerPos: [{ at: 0, x: 0.42, state: 'idle', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.60, state: 'look', facing: 1 }],
+        effectsBehind: [{ type: 'sky_bleed', color: '#220033', alpha: 0.20 }],
+      },
+      {
+        // "I was the figure on the ridge."
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 0.90, cx: 0.52, cy: 0.58 }, { at: 60, zoom: 1.34, cx: 0.60, cy: 0.48 }],
+        camShake: [{ at: 30, strength: 4, dur: 30 }],
+        playerPos: [{ at: 0, x: 0.42, state: 'idle', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.60, state: 'talk', facing: 1 }],
+        effectsBehind: [{ type: 'echo_text', color: '#8866aa', alpha: 0.28 }],
+      },
+      {
+        // No apology. No explanation.
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.34, cx: 0.60, cy: 0.48 }],
+        playerPos: [{ at: 0, x: 0.42, state: 'look', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.60, state: 'idle', facing: 1 }],
+      },
+      {
+        // Veran.
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.34, cx: 0.44, cy: 0.48 }, { at: 70, zoom: 1.46, cx: 0.40, cy: 0.47 }],
+        camShake: [{ at: 10, strength: 6, dur: 30 }],
+        playerPos: [{ at: 0, x: 0.42, state: 'idle', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.60, state: 'idle', facing: 1 }],
+        effectsBehind: [{ type: 'static_noise', alpha: 0.18 }],
+        effects: [{ type: 'screen_flash', color: '#cc99ee', startFrame: 8, duration: 14, alpha: 0.24 }],
+      },
+      {
+        // The man teaching you.
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.46, cx: 0.40, cy: 0.47 }, { at: 90, zoom: 0.94, cx: 0.50, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.42, state: 'idle', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.60, state: 'idle', facing: 1 }],
+      },
+    ],
+  };
+
+  // ── Chapter 157 — God's Threshold (14 beats) ────────────────────────────────
+  // The domain is BUILT, not void. It acknowledges Kael and refuses to see Axiom.
+  S[157] = {
+    bg: 'ruins',
+    npcColor: '#ffe8bb',
+    beats: [
+      {
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 0.88, cx: 0.50, cy: 0.46 }, { at: 90, zoom: 0.98, cx: 0.50, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.36, state: 'walk', facing: 1 }, { at: 70, x: 0.40, state: 'idle', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.56, state: 'walk', facing: 1 }, { at: 70, x: 0.58, state: 'idle', facing: 1 }],
+      },
+      {
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 0.98, cx: 0.50, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.40, state: 'look', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.58, state: 'idle', facing: 1 }],
+      },
+      {
+        // "It was built." Pull way out — the architecture is the point.
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 0.98, cx: 0.50, cy: 0.50 }, { at: 90, zoom: 0.82, cx: 0.50, cy: 0.38 }],
+        playerPos: [{ at: 0, x: 0.40, state: 'idle', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.58, state: 'idle', facing: 1 }],
+        effectsBehind: [{ type: 'sky_bleed', color: '#ffcc88', alpha: 0.20, fadeIn: 40 }],
+      },
+      {
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 0.82, cx: 0.50, cy: 0.38 }, { at: 80, zoom: 1.00, cx: 0.50, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.40, state: 'idle', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.58, state: 'idle', facing: 1 }],
+      },
+      {
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.00, cx: 0.50, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.40, state: 'listen', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.58, state: 'idle',   facing: 1 }],
+        effectsBehind: [{ type: 'echo_text', color: '#ddaa44', alpha: 0.24 }],
+      },
+      {
+        // Something noticed you had arrived.
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.00, cx: 0.50, cy: 0.50 }, { at: 30, zoom: 1.18, cx: 0.44, cy: 0.48 }],
+        camShake: [{ at: 24, strength: 7, dur: 26 }],
+        playerPos: [{ at: 0, x: 0.40, state: 'idle', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.58, state: 'look', facing: 1 }],
+        effects: [{ type: 'screen_flash', color: '#ffdd99', startFrame: 24, duration: 16, alpha: 0.34 }],
+      },
+      {
+        // "You, it acknowledged. The watched variable."
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.18, cx: 0.40, cy: 0.48 }, { at: 70, zoom: 1.34, cx: 0.38, cy: 0.48 }],
+        playerPos: [{ at: 0, x: 0.40, state: 'idle', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.58, state: 'idle', facing: 1, alpha: 0.75 }],
+        effectsBehind: [{ type: 'fragment_pulse', color: '#ffcc88', alpha: 0.42 }],
+      },
+      {
+        // Axiom, it did not acknowledge. He dims.
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.34, cx: 0.52, cy: 0.48 }, { at: 70, zoom: 1.20, cx: 0.58, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.40, state: 'look', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.58, state: 'idle', facing: 1, alpha: 0.45 }],
+        effectsBehind: [{ type: 'static_noise', alpha: 0.16 }],
+      },
+      {
+        // It turned toward him.
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.20, cx: 0.58, cy: 0.50 }, { at: 60, zoom: 1.38, cx: 0.60, cy: 0.49 }],
+        camShake: [{ at: 30, strength: 5, dur: 30 }],
+        playerPos: [{ at: 0, x: 0.40, state: 'idle', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.58, state: 'guard', facing: 1, alpha: 0.85 }],
+        effectsBehind: [{ type: 'sky_bleed', color: '#ffcc88', alpha: 0.30 }],
+      },
+      {
+        // The architecture reorganises — not hostile, not yet.
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.38, cx: 0.60, cy: 0.49 }, { at: 90, zoom: 0.86, cx: 0.50, cy: 0.44 }],
+        camShake: [{ at: 20, strength: 6, dur: 50 }],
+        playerPos: [{ at: 0, x: 0.40, state: 'guard', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.58, state: 'guard', facing: 1 }],
+        effectsBehind: [
+          { type: 'sky_cracks', color: '#ffcc88', alpha: 0.30, fadeIn: 30 },
+          { type: 'multi_portals', color: '#ffddaa', alpha: 0.22, count: 5 },
+        ],
+      },
+    ],
+  };
+
+  // ── Chapter 159 — What You Are (9 beats) ────────────────────────────────────
+  // God speaks structurally, not in words. Wide and low — the domain is talking.
+  S[159] = {
+    bg: 'ruins',
+    npcColor: '#ffe8bb',
+    beats: [
+      {
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 0.86, cx: 0.50, cy: 0.42 }, { at: 90, zoom: 0.94, cx: 0.50, cy: 0.48 }],
+        camShake: [{ at: 0, strength: 3, dur: 90 }],
+        playerPos: [{ at: 0, x: 0.40, state: 'idle', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.58, state: 'idle', facing: 1 }],
+        effectsBehind: [{ type: 'sky_bleed', color: '#ffcc88', alpha: 0.22 }],
+      },
+      {
+        // Felt in the foundation rather than heard.
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 0.94, cx: 0.50, cy: 0.48 }, { at: 80, zoom: 0.88, cx: 0.50, cy: 0.60 }],
+        camShake: [{ at: 20, strength: 5, dur: 60 }],
+        playerPos: [{ at: 0, x: 0.40, state: 'idle', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.58, state: 'idle', facing: 1 }],
+        effectsBehind: [{ type: 'ground_crack', color: '#ffcc88', alpha: 0.30, fadeIn: 30 }],
+      },
+      {
+        // Watching since before he had the fragment.
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 0.88, cx: 0.50, cy: 0.60 }, { at: 80, zoom: 1.20, cx: 0.40, cy: 0.49 }],
+        playerPos: [{ at: 0, x: 0.40, state: 'look', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.58, state: 'idle', facing: 1, alpha: 0.7 }],
+        effectsBehind: [{ type: 'fragment_pulse', color: '#ffcc88', alpha: 0.36 }],
+      },
+      {
+        // The variable nothing accounted for.
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.20, cx: 0.40, cy: 0.49 }, { at: 80, zoom: 1.34, cx: 0.38, cy: 0.48 }],
+        playerPos: [{ at: 0, x: 0.40, state: 'idle', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.58, state: 'idle', facing: 1, alpha: 0.55 }],
+        effectsBehind: [{ type: 'echo_text', color: '#ddaa44', alpha: 0.26 }],
+      },
+      {
+        // It had not opened its door for him.
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.34, cx: 0.52, cy: 0.48 }, { at: 70, zoom: 1.16, cx: 0.58, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.40, state: 'idle', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.58, state: 'idle', facing: 1, alpha: 0.5 }],
+        effectsBehind: [{ type: 'static_noise', alpha: 0.14 }],
+      },
+      {
+        // Him, it had carried.
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.16, cx: 0.58, cy: 0.50 }, { at: 80, zoom: 1.30, cx: 0.60, cy: 0.49 }],
+        playerPos: [{ at: 0, x: 0.40, state: 'look', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.58, state: 'idle', facing: 1, alpha: 0.8 }],
+      },
+      {
+        // Distance was the tolerance.
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.30, cx: 0.60, cy: 0.49 }, { at: 90, zoom: 0.92, cx: 0.50, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.38, state: 'idle', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.64, state: 'idle', facing: 1 }],
+      },
+      {
+        // He was not on the roof anymore.
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 0.92, cx: 0.50, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.38, state: 'idle', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.64, state: 'idle', facing: 1 }],
+        effectsBehind: [{ type: 'static_noise', alpha: 0.10 }],
+      },
+      {
+        // The foundations narrow toward the centre.
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 0.92, cx: 0.50, cy: 0.50 }, { at: 90, zoom: 0.84, cx: 0.50, cy: 0.40 }],
+        playerPos: [{ at: 0, x: 0.38, state: 'walk', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.64, state: 'walk', facing: 1 }],
+        effectsBehind: [{ type: 'sky_bleed', color: '#ffcc88', alpha: 0.26 }],
+      },
+    ],
+  };
+
+  // ── Chapter 161 — God (14 beats) ────────────────────────────────────────────
+  // God places itself between Axiom and the far side. Kael steps forward and
+  // stands with him — the beat the whole companion arc has been building to.
+  S[161] = {
+    bg: 'ruins',
+    npcColor: '#ffe8bb',
+    beats: [
+      {
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 0.82, cx: 0.50, cy: 0.42 }, { at: 90, zoom: 0.92, cx: 0.50, cy: 0.48 }],
+        playerPos: [{ at: 0, x: 0.34, state: 'idle', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.50, state: 'idle', facing: 1 }],
+        effectsBehind: [{ type: 'sky_bleed', color: '#ffcc88', alpha: 0.26 }],
+      },
+      {
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 0.92, cx: 0.50, cy: 0.48 }],
+        playerPos: [{ at: 0, x: 0.34, state: 'idle', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.50, state: 'idle', facing: 1 }],
+      },
+      {
+        // Sovereign's trail runs past it.
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 0.92, cx: 0.50, cy: 0.48 }, { at: 80, zoom: 1.00, cx: 0.72, cy: 0.52 }],
+        playerPos: [{ at: 0, x: 0.34, state: 'look', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.50, state: 'look', facing: 1 }],
+        effectsBehind: [{ type: 'objective_marker', cx: 0.84, cy: 0.56, color: '#8888ff', startFrame: 30, duration: 90 }],
+      },
+      {
+        // God moves.
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.00, cx: 0.72, cy: 0.52 }, { at: 24, zoom: 0.86, cx: 0.56, cy: 0.44 }],
+        camShake: [{ at: 18, strength: 14, dur: 40 }],
+        playerPos: [{ at: 0, x: 0.34, state: 'guard', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.50, state: 'guard', facing: 1 }],
+        effects: [
+          { type: 'screen_flash', color: '#ffdd99', startFrame: 18, duration: 20, alpha: 0.50 },
+          { type: 'shockwave',    cx: 0.62, cy: 0.56, color: '#ffcc88', startFrame: 18, duration: 50 },
+        ],
+      },
+      {
+        // It places itself, precisely.
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 0.86, cx: 0.56, cy: 0.44 }, { at: 80, zoom: 0.94, cx: 0.58, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.34, state: 'idle', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.50, state: 'idle', facing: 1 }],
+        effectsBehind: [{ type: 'sky_cracks', color: '#ffcc88', alpha: 0.28 }],
+      },
+      {
+        // "No further."
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 0.94, cx: 0.58, cy: 0.50 }, { at: 60, zoom: 1.10, cx: 0.62, cy: 0.50 }],
+        camShake: [{ at: 10, strength: 6, dur: 30 }],
+        playerPos: [{ at: 0, x: 0.34, state: 'idle', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.50, state: 'idle', facing: 1 }],
+        effectsBehind: [{ type: 'echo_text', color: '#ddaa44', alpha: 0.30 }],
+      },
+      {
+        // "I am not what I was."
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.10, cx: 0.50, cy: 0.50 }, { at: 70, zoom: 1.28, cx: 0.50, cy: 0.49 }],
+        playerPos: [{ at: 0, x: 0.34, state: 'listen', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.50, state: 'talk',   facing: 1 }],
+      },
+      {
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.28, cx: 0.50, cy: 0.49 }],
+        playerPos: [{ at: 0, x: 0.34, state: 'idle', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.50, state: 'idle', facing: 1 }],
+      },
+      {
+        // The domain does not process corrections.
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.28, cx: 0.50, cy: 0.49 }, { at: 80, zoom: 0.90, cx: 0.54, cy: 0.46 }],
+        camShake: [{ at: 20, strength: 7, dur: 50 }],
+        playerPos: [{ at: 0, x: 0.34, state: 'idle', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.50, state: 'idle', facing: 1, alpha: 0.7 }],
+        effectsBehind: [{ type: 'static_noise', alpha: 0.20 }],
+      },
+      {
+        // He looks at the trail running out the far side.
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 0.90, cx: 0.54, cy: 0.46 }, { at: 80, zoom: 1.04, cx: 0.70, cy: 0.52 }],
+        playerPos: [{ at: 0, x: 0.34, state: 'idle', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.50, state: 'look', facing: 1 }],
+      },
+      {
+        // "I cannot turn around."
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.04, cx: 0.56, cy: 0.50 }, { at: 70, zoom: 1.32, cx: 0.52, cy: 0.49 }],
+        playerPos: [{ at: 0, x: 0.34, state: 'listen', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.50, state: 'talk',   facing: 1 }],
+        effectsBehind: [{ type: 'fragment_pulse', color: '#bb99cc', alpha: 0.30 }],
+      },
+      {
+        // To God. To you. To no one.
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.32, cx: 0.52, cy: 0.49 }],
+        playerPos: [{ at: 0, x: 0.34, state: 'idle', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.50, state: 'idle', facing: 1 }],
+      },
+      {
+        // Ten thousand years of neutrality.
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.32, cx: 0.52, cy: 0.49 }, { at: 90, zoom: 0.86, cx: 0.52, cy: 0.44 }],
+        camShake: [{ at: 30, strength: 4, dur: 60 }],
+        playerPos: [{ at: 0, x: 0.34, state: 'idle', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.50, state: 'idle', facing: 1 }],
+        effectsBehind: [{ type: 'sky_cracks', color: '#ffcc88', alpha: 0.32 }],
+      },
+      {
+        // You stepped forward, and stood with him.
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 0.86, cx: 0.52, cy: 0.44 }, { at: 70, zoom: 1.10, cx: 0.46, cy: 0.50 }],
+        playerPos: [
+          { at: 0,  x: 0.34, state: 'idle', facing: 1 },
+          { at: 30, x: 0.42, state: 'walk', facing: 1 },
+          { at: 60, x: 0.44, state: 'guard', facing: 1 },
+        ],
+        npcPos:    [{ at: 0, x: 0.50, state: 'idle', facing: 1 }, { at: 60, x: 0.52, state: 'guard', facing: 1 }],
+        effectsBehind: [{ type: 'fragment_pulse', color: '#66ccff', alpha: 0.50, fadeIn: 30 }],
+        effects: [{ type: 'screen_flash', color: '#88ddff', startFrame: 58, duration: 18, alpha: 0.26 }],
+      },
+    ],
+  };
+
+  // ── Chapter 163 — The Lab (15 beats) ────────────────────────────────────────
+  // Three minutes too late. The fusion completes as he comes through the door.
+  S[163] = {
+    bg: 'cave',
+    npcColor: '#cc99ff',
+    beats: [
+      {
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.00, cx: 0.50, cy: 0.50 }, { at: 70, zoom: 0.92, cx: 0.50, cy: 0.42 }],
+        playerPos: [{ at: 0, x: 0.36, state: 'walk', facing: 1 }],
+        effectsBehind: [{ type: 'static_noise', alpha: 0.12 }],
+      },
+      {
+        // Up and out, through Sovereign's prepared geometry.
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 0.92, cx: 0.50, cy: 0.42 }, { at: 80, zoom: 1.04, cx: 0.56, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.36, state: 'run', facing: 1 }],
+        effectsBehind: [{ type: 'multi_portals', color: '#8888ff', alpha: 0.24, count: 4 }],
+      },
+      {
+        // "The lab."
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.04, cx: 0.56, cy: 0.50 }, { at: 60, zoom: 0.88, cx: 0.50, cy: 0.46 }],
+        playerPos: [{ at: 0, x: 0.36, state: 'idle', facing: 1 }],
+        effectsBehind: [{ type: 'door', xf: 0.66, yf: 0.52, color: '#886699', alpha: 0.8 }],
+      },
+      {
+        // Three minutes too late.
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 0.88, cx: 0.50, cy: 0.46 }, { at: 50, zoom: 1.22, cx: 0.40, cy: 0.49 }],
+        camShake: [{ at: 30, strength: 5, dur: 26 }],
+        playerPos: [{ at: 0, x: 0.36, state: 'idle', facing: 1 }, { at: 40, x: 0.36, state: 'hit', facing: 1 }],
+        effectsBehind: [{ type: 'static_noise', alpha: 0.20 }],
+      },
+      {
+        // The oldest workshop in existence.
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.22, cx: 0.40, cy: 0.49 }, { at: 80, zoom: 0.86, cx: 0.56, cy: 0.46 }],
+        playerPos: [{ at: 0, x: 0.36, state: 'look', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.64, state: 'float', facing: -1, alpha: 0.5, scale: 1.2 }],
+        effectsBehind: [{ type: 'cache_items', color: '#886699', alpha: 0.30 }],
+      },
+      {
+        // The fusion completes.
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 0.86, cx: 0.56, cy: 0.46 }, { at: 30, zoom: 1.14, cx: 0.64, cy: 0.48 }],
+        camShake: [{ at: 22, strength: 16, dur: 44 }],
+        playerPos: [{ at: 0, x: 0.36, state: 'guard', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.64, state: 'float', facing: -1, alpha: 0.85, scale: 1.25 }],
+        effects: [
+          { type: 'screen_flash',  color: '#ddaaff', startFrame: 22, duration: 24, alpha: 0.65 },
+          { type: 'energy_burst',  cx: 0.64, cy: 0.50, color: '#cc99ff', startFrame: 22, duration: 46 },
+          { type: 'shockwave',     cx: 0.64, cy: 0.54, color: '#cc99ff', startFrame: 24, duration: 54 },
+        ],
+      },
+      {
+        // Paradox, from very far beneath.
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.14, cx: 0.64, cy: 0.48 }, { at: 70, zoom: 1.00, cx: 0.50, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.36, state: 'idle',  facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.64, state: 'float', facing: -1, scale: 1.25 }],
+        effectsBehind: [{ type: 'echo_text', color: '#cc44ff', alpha: 0.26 }],
+      },
+      {
+        // "What do you see?"
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.00, cx: 0.44, cy: 0.50 }, { at: 60, zoom: 1.20, cx: 0.40, cy: 0.49 }],
+        playerPos: [{ at: 0, x: 0.36, state: 'listen', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.64, state: 'float',  facing: -1, scale: 1.25 }],
+      },
+      {
+        // "You had a name."
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.20, cx: 0.40, cy: 0.49 }],
+        playerPos: [{ at: 0, x: 0.36, state: 'idle',  facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.64, state: 'float', facing: -1, scale: 1.25 }],
+      },
+      {
+        // Absolute Axiom.
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.20, cx: 0.56, cy: 0.48 }, { at: 60, zoom: 0.84, cx: 0.62, cy: 0.42 }],
+        camShake: [{ at: 10, strength: 10, dur: 44 }],
+        playerPos: [{ at: 0, x: 0.36, state: 'idle',  facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.64, state: 'float', facing: -1, scale: 1.35 }],
+        effectsBehind: [{ type: 'sky_bleed', color: '#cc99ff', alpha: 0.34 }],
+        effects: [{ type: 'screen_flash', color: '#ddaaff', startFrame: 10, duration: 18, alpha: 0.34 }],
+      },
+      {
+        // It looks at him, through the fusion.
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 0.84, cx: 0.62, cy: 0.42 }, { at: 80, zoom: 1.30, cx: 0.60, cy: 0.48 }],
+        playerPos: [{ at: 0, x: 0.36, state: 'idle',  facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.64, state: 'float', facing: -1, scale: 1.35 }],
+        effectsBehind: [{ type: 'fragment_pulse', color: '#cc99ff', alpha: 0.44 }],
+      },
+      {
+        // It turns and leaves, back down.
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.30, cx: 0.60, cy: 0.48 }, { at: 90, zoom: 0.92, cx: 0.50, cy: 0.52 }],
+        playerPos: [{ at: 0, x: 0.36, state: 'idle',  facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.64, state: 'float', facing: 1, scale: 1.35, alpha: 1.0 }, { at: 70, x: 0.86, state: 'float', facing: 1, scale: 1.35, alpha: 0.0 }],
+      },
+      {
+        // Sovereign did not leave.
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 0.92, cx: 0.50, cy: 0.52 }, { at: 70, zoom: 1.10, cx: 0.60, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.36, state: 'idle', facing: 1 }],
+        extraFigures: [{ xf: 0.66, color: '#8888ff', facing: -1, state: 'idle', alpha: 0.75 }],
+      },
+      {
+        // Standing in the wreck of its own work.
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.10, cx: 0.60, cy: 0.50 }, { at: 80, zoom: 0.90, cx: 0.56, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.36, state: 'idle', facing: 1 }],
+        extraFigures: [{ xf: 0.66, color: '#8888ff', facing: -1, state: 'idle', alpha: 0.70 }],
+        effectsBehind: [{ type: 'static_noise', alpha: 0.16 }],
+      },
+      {
+        // "Yours."
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 0.90, cx: 0.56, cy: 0.50 }, { at: 60, zoom: 1.36, cx: 0.40, cy: 0.48 }],
+        camShake: [{ at: 50, strength: 5, dur: 24 }],
+        playerPos: [{ at: 0, x: 0.36, state: 'idle', facing: 1 }],
+        extraFigures: [{ xf: 0.66, color: '#8888ff', facing: -1, state: 'point', alpha: 0.75 }],
+        effectsBehind: [{ type: 'fragment_pulse', color: '#66ccff', alpha: 0.40 }],
+      },
+    ],
+  };
+
+  // ── Chapter 165 — The Seam (9 beats) ────────────────────────────────────────
+  // Calix through the compass: you cannot beat God's form — find the seam.
+  // Calix is a voice at extreme range, so no figure; the compass carries it.
+  S[165] = {
+    bg: 'ruins',
+    npcColor: '#66ccaa',
+    beats: [
+      {
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.10, cx: 0.44, cy: 0.50 }, { at: 70, zoom: 1.24, cx: 0.42, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.40, state: 'idle', facing: 1 }, { at: 40, x: 0.40, state: 'listen', facing: 1 }],
+        effectsBehind: [{ type: 'static_noise', alpha: 0.22 }],
+      },
+      {
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.24, cx: 0.42, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.40, state: 'listen', facing: 1 }],
+        effectsBehind: [{ type: 'echo_text', color: '#66ccaa', alpha: 0.26 }],
+      },
+      {
+        // "You cannot beat God's form."
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.24, cx: 0.42, cy: 0.50 }, { at: 70, zoom: 0.88, cx: 0.50, cy: 0.44 }],
+        playerPos: [{ at: 0, x: 0.40, state: 'idle', facing: 1 }],
+        effectsBehind: [{ type: 'sky_bleed', color: '#ffcc88', alpha: 0.26 }],
+      },
+      {
+        // "Find the seam."
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 0.88, cx: 0.50, cy: 0.44 }, { at: 60, zoom: 1.18, cx: 0.52, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.40, state: 'listen', facing: 1 }],
+        effects: [{ type: 'objective_marker', cx: 0.62, cy: 0.48, color: '#66ccaa', startFrame: 24, duration: 80 }],
+      },
+      {
+        // Every hit deposits radiation — fight, and you are finding it.
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.18, cx: 0.52, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.40, state: 'guard', facing: 1 }],
+        effectsBehind: [{ type: 'fragment_pulse', color: '#66ccff', alpha: 0.42 }],
+      },
+      {
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.18, cx: 0.52, cy: 0.50 }, { at: 50, zoom: 1.30, cx: 0.44, cy: 0.49 }],
+        playerPos: [{ at: 0, x: 0.40, state: 'idle', facing: 1 }],
+        effectsBehind: [{ type: 'static_noise', alpha: 0.16 }],
+      },
+      {
+        // The energy Paradox left has thinned.
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.30, cx: 0.44, cy: 0.49 }],
+        playerPos: [{ at: 0, x: 0.40, state: 'listen', facing: 1 }],
+        effectsBehind: [{ type: 'fragment_pulse', color: '#446688', alpha: 0.24 }],
+      },
+      {
+        // Holding the projection will cost you.
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.30, cx: 0.44, cy: 0.49 }, { at: 70, zoom: 1.12, cx: 0.48, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.40, state: 'idle', facing: 1 }],
+        effectsBehind: [{ type: 'static_noise', alpha: 0.18 }],
+      },
+      {
+        // "I think it knows that."
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.12, cx: 0.48, cy: 0.50 }, { at: 80, zoom: 0.94, cx: 0.50, cy: 0.48 }],
+        playerPos: [{ at: 0, x: 0.40, state: 'guard', facing: 1 }],
+        effectsBehind: [{ type: 'sky_bleed', color: '#ffcc88', alpha: 0.22 }],
+      },
+    ],
+  };
+
+  // ── Chapter 166 — The Voice Inside (14 beats) ───────────────────────────────
+  // The domain rewritten and improved. Axiom's cadence with everything alive
+  // pressed out of it — and the real him breaking through underneath.
+  S[166] = {
+    bg: 'ruins',
+    npcColor: '#cc99ff',
+    beats: [
+      {
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 0.84, cx: 0.50, cy: 0.42 }, { at: 90, zoom: 0.94, cx: 0.50, cy: 0.48 }],
+        playerPos: [{ at: 0, x: 0.36, state: 'walk', facing: 1 }],
+        effectsBehind: [{ type: 'sky_bleed', color: '#cc99ff', alpha: 0.26 }],
+      },
+      {
+        // Not collapsed — improved.
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 0.94, cx: 0.50, cy: 0.48 }, { at: 80, zoom: 0.86, cx: 0.50, cy: 0.40 }],
+        playerPos: [{ at: 0, x: 0.36, state: 'look', facing: 1 }],
+        effectsBehind: [{ type: 'multi_portals', color: '#cc99ff', alpha: 0.22, count: 5 }],
+      },
+      {
+        // And it was building.
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 0.86, cx: 0.50, cy: 0.40 }, { at: 90, zoom: 1.00, cx: 0.56, cy: 0.50 }],
+        camShake: [{ at: 30, strength: 4, dur: 60 }],
+        playerPos: [{ at: 0, x: 0.36, state: 'idle', facing: 1 }],
+        effectsBehind: [{ type: 'sky_cracks', color: '#cc99ff', alpha: 0.30 }],
+      },
+      {
+        // It had collapsed stars onto him before.
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.00, cx: 0.56, cy: 0.50 }, { at: 70, zoom: 1.16, cx: 0.62, cy: 0.49 }],
+        playerPos: [{ at: 0, x: 0.36, state: 'guard', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.66, state: 'float', facing: -1, scale: 1.3, alpha: 0.85 }],
+        effectsBehind: [{ type: 'fragment_pulse', color: '#cc99ff', alpha: 0.40 }],
+      },
+      {
+        // It spoke, and the voice was wrong.
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.16, cx: 0.62, cy: 0.49 }, { at: 60, zoom: 1.34, cx: 0.66, cy: 0.48 }],
+        camShake: [{ at: 20, strength: 6, dur: 30 }],
+        playerPos: [{ at: 0, x: 0.36, state: 'idle',  facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.66, state: 'float', facing: -1, scale: 1.3 }],
+        effectsBehind: [{ type: 'static_noise', alpha: 0.24 }],
+      },
+      {
+        // "You should not have followed."
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.34, cx: 0.66, cy: 0.48 }],
+        playerPos: [{ at: 0, x: 0.36, state: 'listen', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.66, state: 'talk',   facing: -1, scale: 1.3 }],
+        effectsBehind: [{ type: 'echo_text', color: '#cc99ff', alpha: 0.30 }],
+      },
+      {
+        // Flat, even — his cadence with the life pressed out.
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.34, cx: 0.66, cy: 0.48 }, { at: 80, zoom: 1.10, cx: 0.52, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.36, state: 'idle',  facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.66, state: 'float', facing: -1, scale: 1.3 }],
+        effectsBehind: [{ type: 'static_noise', alpha: 0.20 }],
+      },
+      {
+        // Underneath, in fragments — the real voice breaking through.
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.10, cx: 0.52, cy: 0.50 }, { at: 70, zoom: 1.40, cx: 0.64, cy: 0.48 }],
+        camShake: [{ at: 20, strength: 8, dur: 40 }],
+        playerPos: [{ at: 0, x: 0.36, state: 'look',  facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.66, state: 'float', facing: -1, scale: 1.3, alpha: 0.7 }],
+        effectsBehind: [
+          { type: 'fragment_pulse', color: '#bb99cc', alpha: 0.44 },
+          { type: 'static_noise', alpha: 0.26 },
+        ],
+        effects: [{ type: 'screen_flash', color: '#bb99cc', startFrame: 20, duration: 14, alpha: 0.28 }],
+      },
+    ],
+  };
+
+  // ── Chapter 170 — Peak Form (22 lines) ──────────────────────────────────────
+  S[170] = {
+    bg: 'ruins',
+    npcColor: '#cc99ff',
+    beats: [
+      {
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.06, cx: 0.46, cy: 0.50 }, { at: 80, zoom: 1.24, cx: 0.42, cy: 0.49 }],
+        playerPos: [{ at: 0, x: 0.40, state: 'idle', facing: 1 }],
+        effectsBehind: [{ type: 'fragment_pulse', color: '#66ccff', alpha: 0.46 }],
+      },
+      {
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.24, cx: 0.42, cy: 0.49 }, { at: 80, zoom: 0.90, cx: 0.50, cy: 0.46 }],
+        camShake: [{ at: 20, strength: 5, dur: 50 }],
+        playerPos: [{ at: 0, x: 0.40, state: 'guard', facing: 1 }],
+        effectsBehind: [{ type: 'sky_cracks', color: '#cc99ff', alpha: 0.30 }],
+      },
+      {
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 0.90, cx: 0.50, cy: 0.46 }, { at: 90, zoom: 1.14, cx: 0.46, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.40, state: 'idle', facing: 1 }],
+        effectsBehind: [{ type: 'fragment_pulse', color: '#66ccff', alpha: 0.52 }],
+        effects: [{ type: 'energy_burst', cx: 0.44, cy: 0.52, color: '#88ddff', startFrame: 40, duration: 40 }],
+      },
+    ],
+  };
+
+  // ── Chapter 171 — After Everything (39 lines) ───────────────────────────────
+  S[171] = {
+    bg: 'ruins',
+    npcColor: '#bb99cc',
+    beats: [
+      {
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 0.88, cx: 0.50, cy: 0.46 }, { at: 90, zoom: 0.98, cx: 0.50, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.42, state: 'idle', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.58, state: 'idle', facing: 1 }],
+        effectsBehind: [{ type: 'static_noise', alpha: 0.08 }],
+      },
+      {
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 0.98, cx: 0.50, cy: 0.50 }, { at: 80, zoom: 1.18, cx: 0.54, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.42, state: 'listen', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.58, state: 'talk',   facing: 1 }],
+      },
+      {
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.18, cx: 0.46, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.42, state: 'talk',   facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.58, state: 'listen', facing: 1 }],
+      },
+      {
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.18, cx: 0.50, cy: 0.50 }, { at: 90, zoom: 0.88, cx: 0.50, cy: 0.48 }],
+        playerPos: [{ at: 0, x: 0.42, state: 'idle', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.58, state: 'idle', facing: 1 }],
+        effectsBehind: [{ type: 'fragment_pulse', color: '#66ccff', alpha: 0.26 }],
+      },
+    ],
+  };
+
+  // ── Chapter 172 — Into the Substrate (13 beats) ─────────────────────────────
+  // Below all dimensions. No figure to face — the Substrate is not a character,
+  // it is an attention. Staged almost entirely as stillness and scale.
+  S[172] = {
+    bg: 'space',
+    npcColor: '#220033',
+    beats: [
+      {
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.10, cx: 0.46, cy: 0.50 }, { at: 90, zoom: 0.96, cx: 0.50, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.42, state: 'idle', facing: 1 }],
+        effectsBehind: [{ type: 'static_noise', alpha: 0.10 }],
+      },
+      {
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 0.96, cx: 0.50, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.42, state: 'idle', facing: 1 }],
+      },
+      {
+        // The quiet underneath.
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 0.96, cx: 0.50, cy: 0.50 }, { at: 90, zoom: 0.80, cx: 0.50, cy: 0.44 }],
+        playerPos: [{ at: 0, x: 0.42, state: 'idle', facing: 1 }],
+        effectsBehind: [{ type: 'sky_bleed', color: '#220033', alpha: 0.34, fadeIn: 50 }],
+      },
+      {
+        // The fragment still for the first time in the story.
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 0.80, cx: 0.50, cy: 0.44 }, { at: 80, zoom: 1.30, cx: 0.42, cy: 0.49 }],
+        playerPos: [{ at: 0, x: 0.42, state: 'idle', facing: 1 }],
+        effectsBehind: [{ type: 'fragment_pulse', color: '#334455', alpha: 0.18 }],
+      },
+      {
+        // You became aware of something.
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.30, cx: 0.42, cy: 0.49 }, { at: 60, zoom: 1.14, cx: 0.50, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.42, state: 'look', facing: 1 }],
+        effectsBehind: [{ type: 'static_noise', alpha: 0.14 }],
+      },
+      {
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.14, cx: 0.50, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.42, state: 'idle', facing: 1 }],
+      },
+      {
+        // An attention.
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.14, cx: 0.50, cy: 0.50 }, { at: 90, zoom: 0.76, cx: 0.50, cy: 0.42 }],
+        camShake: [{ at: 40, strength: 3, dur: 50 }],
+        playerPos: [{ at: 0, x: 0.42, state: 'idle', facing: 1 }],
+        effectsBehind: [
+          { type: 'sky_bleed', color: '#220033', alpha: 0.40 },
+          { type: 'echo_text', color: '#553377', alpha: 0.20 },
+        ],
+      },
+      {
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 0.76, cx: 0.50, cy: 0.42 }, { at: 90, zoom: 0.90, cx: 0.50, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.42, state: 'idle', facing: 1 }],
+        effectsBehind: [{ type: 'sky_bleed', color: '#220033', alpha: 0.36 }],
+      },
+      {
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 0.90, cx: 0.50, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.42, state: 'idle', facing: 1 }],
+        effectsBehind: [{ type: 'static_noise', alpha: 0.12 }],
+      },
+      {
+        // "Not against you."
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 0.90, cx: 0.50, cy: 0.50 }, { at: 70, zoom: 1.20, cx: 0.44, cy: 0.49 }],
+        playerPos: [{ at: 0, x: 0.42, state: 'idle', facing: 1 }],
+        effectsBehind: [{ type: 'fragment_pulse', color: '#553377', alpha: 0.26 }],
+      },
+      {
+        // The Substrate does not speak.
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.20, cx: 0.44, cy: 0.49 }, { at: 90, zoom: 0.84, cx: 0.50, cy: 0.46 }],
+        playerPos: [{ at: 0, x: 0.42, state: 'idle', facing: 1 }],
+        effectsBehind: [{ type: 'sky_bleed', color: '#220033', alpha: 0.42 }],
+      },
+      {
+        // Something begins.
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 0.84, cx: 0.50, cy: 0.46 }, { at: 90, zoom: 1.00, cx: 0.50, cy: 0.50 }],
+        camShake: [{ at: 60, strength: 4, dur: 30 }],
+        playerPos: [{ at: 0, x: 0.42, state: 'idle', facing: 1 }],
+        effects: [{ type: 'screen_flash', color: '#553377', startFrame: 60, duration: 22, alpha: 0.24 }],
+      },
+    ],
+  };
+
+  // ── Chapter 173 — What You Know (Reckoning) ─────────────────────────────────
+  // One of the eight reckonings. They share a deliberate visual language —
+  // no opposing figure, a slowly tightening frame and a rising accent — so the
+  // sequence reads as one continuous interrogation rather than eight scenes.
+  S[173] = {
+    bg: 'space',
+    npcColor: '#332244',
+    beats: [
+      {
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.02, cx: 0.48, cy: 0.50 }, { at: 90, zoom: 1.16, cx: 0.44, cy: 0.49 }],
+        playerPos: [{ at: 0, x: 0.42, state: 'idle', facing: 1 }, { at: 50, x: 0.42, state: 'listen', facing: 1 }],
+        effectsBehind: [
+          { type: 'sky_bleed', color: '#220033', alpha: 0.34 },
+          { type: 'static_noise', alpha: 0.10 },
+        ],
+      },
+      {
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.16, cx: 0.44, cy: 0.49 }],
+        playerPos: [{ at: 0, x: 0.42, state: 'listen', facing: 1 }],
+        effectsBehind: [
+          { type: 'echo_text', color: '#332244', alpha: 0.24 },
+          { type: 'sky_bleed', color: '#220033', alpha: 0.34 },
+        ],
+      },
+      {
+        // The question lands and the frame gives him nowhere to stand.
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.16, cx: 0.44, cy: 0.49 }, { at: 90, zoom: 0.82, cx: 0.50, cy: 0.44 }],
+        camShake: [{ at: 40, strength: 3, dur: 44 }],
+        playerPos: [{ at: 0, x: 0.42, state: 'idle', facing: 1 }],
+        effectsBehind: [{ type: 'sky_bleed', color: '#220033', alpha: 0.42 }],
+      },
+      {
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 0.82, cx: 0.50, cy: 0.44 }, { at: 90, zoom: 1.02, cx: 0.46, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.42, state: 'idle', facing: 1 }],
+        effectsBehind: [{ type: 'fragment_pulse', color: '#332244', alpha: 0.28 }],
+      },
+    ],
+  };
+
+  // ── Chapter 174 — The Work They Left (Reckoning) ─────────────────────────────────
+  // One of the eight reckonings. They share a deliberate visual language —
+  // no opposing figure, a slowly tightening frame and a rising accent — so the
+  // sequence reads as one continuous interrogation rather than eight scenes.
+  S[174] = {
+    bg: 'space',
+    npcColor: '#33254a',
+    beats: [
+      {
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.04, cx: 0.48, cy: 0.50 }, { at: 90, zoom: 1.18, cx: 0.44, cy: 0.49 }],
+        playerPos: [{ at: 0, x: 0.42, state: 'idle', facing: 1 }, { at: 50, x: 0.42, state: 'listen', facing: 1 }],
+        effectsBehind: [
+          { type: 'sky_bleed', color: '#220033', alpha: 0.34 },
+          { type: 'static_noise', alpha: 0.10 },
+        ],
+      },
+      {
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.18, cx: 0.44, cy: 0.49 }],
+        playerPos: [{ at: 0, x: 0.42, state: 'listen', facing: 1 }],
+        effectsBehind: [
+          { type: 'echo_text', color: '#33254a', alpha: 0.24 },
+          { type: 'sky_bleed', color: '#220033', alpha: 0.34 },
+        ],
+      },
+      {
+        // The question lands and the frame gives him nowhere to stand.
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.18, cx: 0.44, cy: 0.49 }, { at: 90, zoom: 0.82, cx: 0.50, cy: 0.44 }],
+        camShake: [{ at: 40, strength: 3, dur: 44 }],
+        playerPos: [{ at: 0, x: 0.42, state: 'idle', facing: 1 }],
+        effectsBehind: [{ type: 'sky_bleed', color: '#220033', alpha: 0.42 }],
+      },
+      {
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 0.82, cx: 0.50, cy: 0.44 }, { at: 90, zoom: 1.04, cx: 0.46, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.42, state: 'idle', facing: 1 }],
+        effectsBehind: [{ type: 'fragment_pulse', color: '#33254a', alpha: 0.28 }],
+      },
+    ],
+  };
+
+  // ── Chapter 175 — What Was Left (Reckoning) ─────────────────────────────────
+  // One of the eight reckonings. They share a deliberate visual language —
+  // no opposing figure, a slowly tightening frame and a rising accent — so the
+  // sequence reads as one continuous interrogation rather than eight scenes.
+  S[175] = {
+    bg: 'space',
+    npcColor: '#2e2246',
+    beats: [
+      {
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.06, cx: 0.48, cy: 0.50 }, { at: 90, zoom: 1.20, cx: 0.44, cy: 0.49 }],
+        playerPos: [{ at: 0, x: 0.42, state: 'idle', facing: 1 }, { at: 50, x: 0.42, state: 'listen', facing: 1 }],
+        effectsBehind: [
+          { type: 'sky_bleed', color: '#220033', alpha: 0.34 },
+          { type: 'static_noise', alpha: 0.10 },
+        ],
+      },
+      {
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.20, cx: 0.44, cy: 0.49 }],
+        playerPos: [{ at: 0, x: 0.42, state: 'listen', facing: 1 }],
+        effectsBehind: [
+          { type: 'echo_text', color: '#2e2246', alpha: 0.24 },
+          { type: 'sky_bleed', color: '#220033', alpha: 0.34 },
+        ],
+      },
+      {
+        // The question lands and the frame gives him nowhere to stand.
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.20, cx: 0.44, cy: 0.49 }, { at: 90, zoom: 0.82, cx: 0.50, cy: 0.44 }],
+        camShake: [{ at: 40, strength: 3, dur: 44 }],
+        playerPos: [{ at: 0, x: 0.42, state: 'idle', facing: 1 }],
+        effectsBehind: [{ type: 'sky_bleed', color: '#220033', alpha: 0.42 }],
+      },
+      {
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 0.82, cx: 0.50, cy: 0.44 }, { at: 90, zoom: 1.06, cx: 0.46, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.42, state: 'idle', facing: 1 }],
+        effectsBehind: [{ type: 'fragment_pulse', color: '#2e2246', alpha: 0.28 }],
+      },
+    ],
+  };
+
+  // ── Chapter 176 — Their Names (Reckoning) ─────────────────────────────────
+  // One of the eight reckonings. They share a deliberate visual language —
+  // no opposing figure, a slowly tightening frame and a rising accent — so the
+  // sequence reads as one continuous interrogation rather than eight scenes.
+  S[176] = {
+    bg: 'space',
+    npcColor: '#3a2850',
+    beats: [
+      {
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.08, cx: 0.48, cy: 0.50 }, { at: 90, zoom: 1.24, cx: 0.44, cy: 0.49 }],
+        playerPos: [{ at: 0, x: 0.42, state: 'idle', facing: 1 }, { at: 50, x: 0.42, state: 'listen', facing: 1 }],
+        effectsBehind: [
+          { type: 'sky_bleed', color: '#220033', alpha: 0.34 },
+          { type: 'static_noise', alpha: 0.10 },
+        ],
+      },
+      {
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.24, cx: 0.44, cy: 0.49 }],
+        playerPos: [{ at: 0, x: 0.42, state: 'listen', facing: 1 }],
+        effectsBehind: [
+          { type: 'echo_text', color: '#3a2850', alpha: 0.24 },
+          { type: 'sky_bleed', color: '#220033', alpha: 0.34 },
+        ],
+      },
+      {
+        // The question lands and the frame gives him nowhere to stand.
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.24, cx: 0.44, cy: 0.49 }, { at: 90, zoom: 0.82, cx: 0.50, cy: 0.44 }],
+        camShake: [{ at: 40, strength: 3, dur: 44 }],
+        playerPos: [{ at: 0, x: 0.42, state: 'idle', facing: 1 }],
+        effectsBehind: [{ type: 'sky_bleed', color: '#220033', alpha: 0.42 }],
+      },
+      {
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 0.82, cx: 0.50, cy: 0.44 }, { at: 90, zoom: 1.08, cx: 0.46, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.42, state: 'idle', facing: 1 }],
+        effectsBehind: [{ type: 'fragment_pulse', color: '#3a2850', alpha: 0.28 }],
+      },
+    ],
+  };
+
+  // ── Chapter 177 — The Line You Drew (Reckoning) ─────────────────────────────────
+  // One of the eight reckonings. They share a deliberate visual language —
+  // no opposing figure, a slowly tightening frame and a rising accent — so the
+  // sequence reads as one continuous interrogation rather than eight scenes.
+  S[177] = {
+    bg: 'space',
+    npcColor: '#402a58',
+    beats: [
+      {
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.10, cx: 0.48, cy: 0.50 }, { at: 90, zoom: 1.26, cx: 0.44, cy: 0.49 }],
+        playerPos: [{ at: 0, x: 0.42, state: 'idle', facing: 1 }, { at: 50, x: 0.42, state: 'listen', facing: 1 }],
+        effectsBehind: [
+          { type: 'sky_bleed', color: '#220033', alpha: 0.34 },
+          { type: 'static_noise', alpha: 0.10 },
+        ],
+      },
+      {
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.26, cx: 0.44, cy: 0.49 }],
+        playerPos: [{ at: 0, x: 0.42, state: 'listen', facing: 1 }],
+        effectsBehind: [
+          { type: 'echo_text', color: '#402a58', alpha: 0.24 },
+          { type: 'sky_bleed', color: '#220033', alpha: 0.34 },
+        ],
+      },
+      {
+        // The question lands and the frame gives him nowhere to stand.
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.26, cx: 0.44, cy: 0.49 }, { at: 90, zoom: 0.82, cx: 0.50, cy: 0.44 }],
+        camShake: [{ at: 40, strength: 3, dur: 44 }],
+        playerPos: [{ at: 0, x: 0.42, state: 'idle', facing: 1 }],
+        effectsBehind: [{ type: 'sky_bleed', color: '#220033', alpha: 0.42 }],
+      },
+      {
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 0.82, cx: 0.50, cy: 0.44 }, { at: 90, zoom: 1.10, cx: 0.46, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.42, state: 'idle', facing: 1 }],
+        effectsBehind: [{ type: 'fragment_pulse', color: '#402a58', alpha: 0.28 }],
+      },
+    ],
+  };
+
+  // ── Chapter 178 — What God Built (Reckoning) ─────────────────────────────────
+  // One of the eight reckonings. They share a deliberate visual language —
+  // no opposing figure, a slowly tightening frame and a rising accent — so the
+  // sequence reads as one continuous interrogation rather than eight scenes.
+  S[178] = {
+    bg: 'space',
+    npcColor: '#452c5e',
+    beats: [
+      {
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.12, cx: 0.48, cy: 0.50 }, { at: 90, zoom: 1.30, cx: 0.44, cy: 0.49 }],
+        playerPos: [{ at: 0, x: 0.42, state: 'idle', facing: 1 }, { at: 50, x: 0.42, state: 'listen', facing: 1 }],
+        effectsBehind: [
+          { type: 'sky_bleed', color: '#220033', alpha: 0.34 },
+          { type: 'static_noise', alpha: 0.10 },
+        ],
+      },
+      {
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.30, cx: 0.44, cy: 0.49 }],
+        playerPos: [{ at: 0, x: 0.42, state: 'listen', facing: 1 }],
+        effectsBehind: [
+          { type: 'echo_text', color: '#452c5e', alpha: 0.24 },
+          { type: 'sky_bleed', color: '#220033', alpha: 0.34 },
+        ],
+      },
+      {
+        // The question lands and the frame gives him nowhere to stand.
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.30, cx: 0.44, cy: 0.49 }, { at: 90, zoom: 0.82, cx: 0.50, cy: 0.44 }],
+        camShake: [{ at: 40, strength: 3, dur: 44 }],
+        playerPos: [{ at: 0, x: 0.42, state: 'idle', facing: 1 }],
+        effectsBehind: [{ type: 'sky_bleed', color: '#220033', alpha: 0.42 }],
+      },
+      {
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 0.82, cx: 0.50, cy: 0.44 }, { at: 90, zoom: 1.12, cx: 0.46, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.42, state: 'idle', facing: 1 }],
+        effectsBehind: [{ type: 'fragment_pulse', color: '#452c5e', alpha: 0.28 }],
+      },
+    ],
+  };
+
+  // ── Chapter 179 — What You Carried (Reckoning) ─────────────────────────────────
+  // One of the eight reckonings. They share a deliberate visual language —
+  // no opposing figure, a slowly tightening frame and a rising accent — so the
+  // sequence reads as one continuous interrogation rather than eight scenes.
+  S[179] = {
+    bg: 'space',
+    npcColor: '#4a2e64',
+    beats: [
+      {
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.14, cx: 0.48, cy: 0.50 }, { at: 90, zoom: 1.32, cx: 0.44, cy: 0.49 }],
+        playerPos: [{ at: 0, x: 0.42, state: 'idle', facing: 1 }, { at: 50, x: 0.42, state: 'listen', facing: 1 }],
+        effectsBehind: [
+          { type: 'sky_bleed', color: '#220033', alpha: 0.34 },
+          { type: 'static_noise', alpha: 0.10 },
+        ],
+      },
+      {
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.32, cx: 0.44, cy: 0.49 }],
+        playerPos: [{ at: 0, x: 0.42, state: 'listen', facing: 1 }],
+        effectsBehind: [
+          { type: 'echo_text', color: '#4a2e64', alpha: 0.24 },
+          { type: 'sky_bleed', color: '#220033', alpha: 0.34 },
+        ],
+      },
+      {
+        // The question lands and the frame gives him nowhere to stand.
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.32, cx: 0.44, cy: 0.49 }, { at: 90, zoom: 0.82, cx: 0.50, cy: 0.44 }],
+        camShake: [{ at: 40, strength: 3, dur: 44 }],
+        playerPos: [{ at: 0, x: 0.42, state: 'idle', facing: 1 }],
+        effectsBehind: [{ type: 'sky_bleed', color: '#220033', alpha: 0.42 }],
+      },
+      {
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 0.82, cx: 0.50, cy: 0.44 }, { at: 90, zoom: 1.14, cx: 0.46, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.42, state: 'idle', facing: 1 }],
+        effectsBehind: [{ type: 'fragment_pulse', color: '#4a2e64', alpha: 0.28 }],
+      },
+    ],
+  };
+
+  // ── Chapter 180 — What Remains (Reckoning) ─────────────────────────────────
+  // One of the eight reckonings. They share a deliberate visual language —
+  // no opposing figure, a slowly tightening frame and a rising accent — so the
+  // sequence reads as one continuous interrogation rather than eight scenes.
+  S[180] = {
+    bg: 'space',
+    npcColor: '#50306a',
+    beats: [
+      {
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.16, cx: 0.48, cy: 0.50 }, { at: 90, zoom: 1.36, cx: 0.44, cy: 0.49 }],
+        playerPos: [{ at: 0, x: 0.42, state: 'idle', facing: 1 }, { at: 50, x: 0.42, state: 'listen', facing: 1 }],
+        effectsBehind: [
+          { type: 'sky_bleed', color: '#220033', alpha: 0.34 },
+          { type: 'static_noise', alpha: 0.10 },
+        ],
+      },
+      {
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.36, cx: 0.44, cy: 0.49 }],
+        playerPos: [{ at: 0, x: 0.42, state: 'listen', facing: 1 }],
+        effectsBehind: [
+          { type: 'echo_text', color: '#50306a', alpha: 0.24 },
+          { type: 'sky_bleed', color: '#220033', alpha: 0.34 },
+        ],
+      },
+      {
+        // The question lands and the frame gives him nowhere to stand.
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.36, cx: 0.44, cy: 0.49 }, { at: 90, zoom: 0.82, cx: 0.50, cy: 0.44 }],
+        camShake: [{ at: 40, strength: 3, dur: 44 }],
+        playerPos: [{ at: 0, x: 0.42, state: 'idle', facing: 1 }],
+        effectsBehind: [{ type: 'sky_bleed', color: '#220033', alpha: 0.42 }],
+      },
+      {
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 0.82, cx: 0.50, cy: 0.44 }, { at: 90, zoom: 1.16, cx: 0.46, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.42, state: 'idle', facing: 1 }],
+        effectsBehind: [{ type: 'fragment_pulse', color: '#50306a', alpha: 0.28 }],
+      },
+    ],
+  };
+
+  // ── Chapter 181 — What Is Yours (Trial, 54 lines) ───────────────────────────
+  // The Void Vessel: the trial made a body to argue with.
+  S[181] = {
+    bg: 'space',
+    npcColor: '#553377',
+    beats: [
+      {
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 0.88, cx: 0.50, cy: 0.46 }, { at: 90, zoom: 1.00, cx: 0.50, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.38, state: 'idle', facing: 1 }],
+        effectsBehind: [{ type: 'sky_bleed', color: '#220033', alpha: 0.40 }],
+      },
+      {
+        // The vessel forms.
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.00, cx: 0.56, cy: 0.50 }, { at: 70, zoom: 1.22, cx: 0.62, cy: 0.49 }],
+        camShake: [{ at: 26, strength: 8, dur: 34 }],
+        playerPos: [{ at: 0, x: 0.38, state: 'guard', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.66, state: 'float', facing: -1, alpha: 0.0 }, { at: 60, x: 0.66, state: 'float', facing: -1, alpha: 0.95 }],
+        effects: [
+          { type: 'energy_burst', cx: 0.66, cy: 0.52, color: '#553377', startFrame: 24, duration: 44 },
+          { type: 'screen_flash', color: '#7744aa', startFrame: 24, duration: 18, alpha: 0.34 },
+        ],
+      },
+      {
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.22, cx: 0.62, cy: 0.49 }],
+        playerPos: [{ at: 0, x: 0.38, state: 'listen', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.66, state: 'talk',   facing: -1 }],
+        effectsBehind: [{ type: 'echo_text', color: '#553377', alpha: 0.26 }],
+      },
+      {
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.22, cx: 0.50, cy: 0.50 }, { at: 80, zoom: 1.02, cx: 0.50, cy: 0.50 }],
+        camShake: [{ at: 60, strength: 6, dur: 26 }],
+        playerPos: [{ at: 0, x: 0.38, state: 'guard', facing: 1 }],
+        npcPos:    [{ at: 0, x: 0.66, state: 'guard', facing: -1 }],
+        effectsBehind: [{ type: 'fragment_pulse', color: '#66ccff', alpha: 0.44 }],
+        effects: [{ type: 'impact_sparks', cx: 0.52, cy: 0.52, count: 16, color: '#7744aa', startFrame: 58, duration: 28 }],
+      },
+    ],
+  };
+
+  // ── Chapter 182 — After (50 lines) ──────────────────────────────────────────
+  S[182] = {
+    bg: 'space',
+    npcColor: '#553377',
+    beats: [
+      {
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.06, cx: 0.46, cy: 0.50 }, { at: 90, zoom: 0.90, cx: 0.50, cy: 0.48 }],
+        playerPos: [{ at: 0, x: 0.42, state: 'idle', facing: 1 }],
+        effectsBehind: [{ type: 'sky_bleed', color: '#220033', alpha: 0.36 }],
+      },
+      {
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 0.90, cx: 0.50, cy: 0.48 }, { at: 90, zoom: 1.18, cx: 0.44, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.42, state: 'idle', facing: 1 }],
+        effectsBehind: [{ type: 'fragment_pulse', color: '#66ccff', alpha: 0.24 }],
+      },
+      {
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.18, cx: 0.44, cy: 0.50 }, { at: 90, zoom: 0.86, cx: 0.50, cy: 0.46 }],
+        playerPos: [{ at: 0, x: 0.42, state: 'idle', facing: 1 }],
+        effectsBehind: [{ type: 'static_noise', alpha: 0.10 }],
+      },
+    ],
+  };
+
+  // ── Chapter 183 — The Verdict (20 beats) ────────────────────────────────────
+  // Eight reckonings assembled into a judgement, and the fragment answering it.
+  S[183] = {
+    bg: 'space',
+    npcColor: '#553377',
+    beats: [
+      {
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 0.94, cx: 0.50, cy: 0.50 }, { at: 90, zoom: 1.06, cx: 0.46, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.42, state: 'idle', facing: 1 }],
+        effectsBehind: [{ type: 'sky_bleed', color: '#220033', alpha: 0.40 }],
+      },
+      {
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.06, cx: 0.46, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.42, state: 'listen', facing: 1 }],
+        effectsBehind: [{ type: 'static_noise', alpha: 0.12 }],
+      },
+      {
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.06, cx: 0.46, cy: 0.50 }, { at: 80, zoom: 0.84, cx: 0.50, cy: 0.44 }],
+        playerPos: [{ at: 0, x: 0.42, state: 'idle', facing: 1 }],
+        effectsBehind: [{ type: 'sky_bleed', color: '#220033', alpha: 0.44 }],
+      },
+      {
+        // Eight reckonings' worth of record.
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 0.84, cx: 0.50, cy: 0.44 }, { at: 90, zoom: 1.00, cx: 0.50, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.42, state: 'idle', facing: 1 }],
+        effectsBehind: [{ type: 'echo_text', color: '#553377', alpha: 0.28 }],
+      },
+      {
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.00, cx: 0.50, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.42, state: 'listen', facing: 1 }],
+      },
+      {
+        // The Substrate shifts.
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.00, cx: 0.50, cy: 0.50 }, { at: 60, zoom: 0.80, cx: 0.50, cy: 0.42 }],
+        camShake: [{ at: 20, strength: 6, dur: 50 }],
+        playerPos: [{ at: 0, x: 0.42, state: 'idle', facing: 1 }],
+        effectsBehind: [{ type: 'sky_cracks', color: '#553377', alpha: 0.30, fadeIn: 30 }],
+      },
+      {
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 0.80, cx: 0.50, cy: 0.42 }, { at: 90, zoom: 1.12, cx: 0.46, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.42, state: 'idle', facing: 1 }],
+      },
+      {
+        // "I have the complete record."
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.12, cx: 0.46, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.42, state: 'listen', facing: 1 }],
+        effectsBehind: [{ type: 'echo_text', color: '#553377', alpha: 0.32 }],
+      },
+      {
+        // "The dimensions were not worth protecting."
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.12, cx: 0.46, cy: 0.50 }, { at: 70, zoom: 1.34, cx: 0.42, cy: 0.49 }],
+        camShake: [{ at: 30, strength: 4, dur: 40 }],
+        playerPos: [{ at: 0, x: 0.42, state: 'idle', facing: 1 }],
+        effectsBehind: [
+          { type: 'sky_bleed', color: '#220033', alpha: 0.48 },
+          { type: 'static_noise', alpha: 0.16 },
+        ],
+      },
+      {
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.34, cx: 0.42, cy: 0.49 }, { at: 80, zoom: 1.06, cx: 0.50, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.42, state: 'idle', facing: 1 }],
+      },
+      {
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.06, cx: 0.50, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.42, state: 'listen', facing: 1 }],
+        effectsBehind: [{ type: 'echo_text', color: '#553377', alpha: 0.26 }],
+      },
+      {
+        // "You won. The system is gone."
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.06, cx: 0.50, cy: 0.50 }, { at: 80, zoom: 0.88, cx: 0.50, cy: 0.46 }],
+        playerPos: [{ at: 0, x: 0.42, state: 'idle', facing: 1 }],
+        effectsBehind: [{ type: 'sky_bleed', color: '#220033', alpha: 0.44 }],
+      },
+      {
+        // "This is not an accusation."
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 0.88, cx: 0.50, cy: 0.46 }, { at: 90, zoom: 1.20, cx: 0.44, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.42, state: 'listen', facing: 1 }],
+      },
+      {
+        // The Substrate stilled.
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.20, cx: 0.44, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.42, state: 'idle', facing: 1 }],
+        effectsBehind: [{ type: 'static_noise', alpha: 0.06 }],
+      },
+      {
+        // The fragment burned. In answer.
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.20, cx: 0.44, cy: 0.50 }, { at: 60, zoom: 1.40, cx: 0.42, cy: 0.48 }],
+        camShake: [{ at: 30, strength: 7, dur: 44 }],
+        playerPos: [{ at: 0, x: 0.42, state: 'guard', facing: 1 }],
+        effectsBehind: [{ type: 'fragment_pulse', color: '#66ccff', alpha: 0.70, fadeIn: 20 }],
+        effects: [
+          { type: 'screen_flash', color: '#88ddff', startFrame: 30, duration: 22, alpha: 0.40 },
+          { type: 'energy_burst', cx: 0.44, cy: 0.52, color: '#88ddff', startFrame: 30, duration: 50 },
+        ],
+      },
+    ],
+  };
+
+  // ── Chapter 185 — What Cannot Be Erased (18 beats) ──────────────────────────
+  // The last chapter in the game. The attention withdraws; the fragment goes
+  // still — not against a threat, but in answer to him. Ends on open sky.
+  S[185] = {
+    bg: 'space',
+    npcColor: '#553377',
+    beats: [
+      {
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.00, cx: 0.50, cy: 0.50 }, { at: 90, zoom: 0.92, cx: 0.50, cy: 0.48 }],
+        playerPos: [{ at: 0, x: 0.42, state: 'idle', facing: 1 }],
+        effectsBehind: [{ type: 'sky_bleed', color: '#220033', alpha: 0.40 }],
+      },
+      {
+        // The attention withdraws.
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 0.92, cx: 0.50, cy: 0.48 }, { at: 90, zoom: 0.80, cx: 0.50, cy: 0.42 }],
+        playerPos: [{ at: 0, x: 0.42, state: 'idle', facing: 1 }],
+        effectsBehind: [{ type: 'sky_bleed', color: '#220033', alpha: 0.30 }],
+      },
+      {
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 0.80, cx: 0.50, cy: 0.42 }, { at: 90, zoom: 1.00, cx: 0.48, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.42, state: 'idle', facing: 1 }],
+        effectsBehind: [{ type: 'static_noise', alpha: 0.08 }],
+      },
+      {
+        // The hypothesis, stated plainly.
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.00, cx: 0.48, cy: 0.50 }, { at: 90, zoom: 1.16, cx: 0.44, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.42, state: 'listen', facing: 1 }],
+        effectsBehind: [{ type: 'echo_text', color: '#553377', alpha: 0.24 }],
+      },
+      {
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.16, cx: 0.44, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.42, state: 'idle', facing: 1 }],
+        effectsBehind: [{ type: 'sky_bleed', color: '#220033', alpha: 0.34 }],
+      },
+      {
+        // The fragment found Kael because his identity resists dissolution.
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.16, cx: 0.44, cy: 0.50 }, { at: 90, zoom: 1.34, cx: 0.42, cy: 0.49 }],
+        playerPos: [{ at: 0, x: 0.42, state: 'idle', facing: 1 }],
+        effectsBehind: [{ type: 'fragment_pulse', color: '#66ccff', alpha: 0.44 }],
+      },
+      {
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.34, cx: 0.42, cy: 0.49 }, { at: 90, zoom: 0.94, cx: 0.50, cy: 0.48 }],
+        playerPos: [{ at: 0, x: 0.42, state: 'idle', facing: 1 }],
+      },
+      {
+        // The Preserved.
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 0.94, cx: 0.50, cy: 0.48 }],
+        playerPos: [{ at: 0, x: 0.42, state: 'idle', facing: 1 }],
+        extraFigures: [
+          { xf: 0.62, color: '#445577', facing: -1, state: 'idle', alpha: 0.18 },
+          { xf: 0.72, color: '#3d4a68', facing: -1, state: 'idle', alpha: 0.14 },
+          { xf: 0.82, color: '#36405a', facing: -1, state: 'idle', alpha: 0.10 },
+        ],
+      },
+      {
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 0.94, cx: 0.50, cy: 0.48 }, { at: 90, zoom: 1.10, cx: 0.46, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.42, state: 'idle', facing: 1 }],
+        effectsBehind: [{ type: 'static_noise', alpha: 0.10 }],
+      },
+      {
+        // The record said:
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.10, cx: 0.46, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.42, state: 'listen', facing: 1 }],
+        effectsBehind: [{ type: 'echo_text', color: '#553377', alpha: 0.26 }],
+      },
+      {
+        // The fragment was still.
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.10, cx: 0.44, cy: 0.50 }, { at: 90, zoom: 1.30, cx: 0.42, cy: 0.49 }],
+        playerPos: [{ at: 0, x: 0.42, state: 'idle', facing: 1 }],
+        effectsBehind: [{ type: 'fragment_pulse', color: '#66ccff', alpha: 0.36 }],
+      },
+      {
+        // Not responding to a threat. Still.
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.30, cx: 0.42, cy: 0.49 }],
+        playerPos: [{ at: 0, x: 0.42, state: 'idle', facing: 1 }],
+        effectsBehind: [{ type: 'fragment_pulse', color: '#66ccff', alpha: 0.42 }],
+      },
+      {
+        // For the first time since the first alley — it was responding to you.
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.30, cx: 0.42, cy: 0.49 }, { at: 90, zoom: 1.06, cx: 0.48, cy: 0.50 }],
+        playerPos: [{ at: 0, x: 0.42, state: 'idle', facing: 1 }],
+        effectsBehind: [{ type: 'fragment_pulse', color: '#88ddff', alpha: 0.55, fadeIn: 30 }],
+      },
+      {
+        // Something that had been travelling a very long time.
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 1.06, cx: 0.48, cy: 0.50 }, { at: 90, zoom: 0.86, cx: 0.50, cy: 0.44 }],
+        playerPos: [{ at: 0, x: 0.42, state: 'idle', facing: 1 }],
+        effectsBehind: [{ type: 'fragment_pulse', color: '#88ddff', alpha: 0.40 }],
+      },
+      {
+        // Not because the journey was over. Open out and end.
+        letterbox: true,
+        camAnim: [{ at: 0, zoom: 0.86, cx: 0.50, cy: 0.44 }, { at: 120, zoom: 0.74, cx: 0.50, cy: 0.38 }],
+        playerPos: [{ at: 0, x: 0.42, state: 'idle', facing: 1 }],
+        effectsBehind: [
+          { type: 'sky_bleed', color: '#112244', alpha: 0.26 },
+          { type: 'fragment_pulse', color: '#88ddff', alpha: 0.30 },
+        ],
+        effects: [{ type: 'screen_flash', color: '#aaddff', startFrame: 90, duration: 40, alpha: 0.18 }],
+      },
+    ],
+  };
+
+})(window.STORY_SCENE_SPECS);

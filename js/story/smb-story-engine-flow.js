@@ -203,11 +203,47 @@ function _launchChapterWithGauntlet(ch) {
   // bypass the gauntlet — otherwise _storyBuildPhases rewrites ch.type to
   // 'fight' and collapses their authored mode into a plain duel.
   if (ch.type === 'exploration' || ch.isBossFight || ch.isTrueFormFight || ch.isSovereignFight || ch.isAbsoluteAxiomFight || ch.isGodFight || ch.type === 'interlude'
-      || ch.type === 'assassination' || ch.type === 'gauntlet' || ch.type === 'ship_flight' || ch.type === 'escort') {
+      || ch.type === 'assassination' || ch.type === 'gauntlet' || ch.type === 'ship_flight' || ch.type === 'escort'
+      || ch.type === 'battleroyale') {
     _directLaunchChapter(ch);
   } else {
     _startStoryGauntlet(ch);
   }
+}
+
+// ── Saga cold opens ───────────────────────────────────────────────────────────
+// Mirror of `sagaFinaleText` (see _showStory2Victory): a chapter that opens the
+// ACTIVE saga can carry a `sagaColdOpen` line array that is prepended to its
+// narrative, re-establishing the protagonist, what he carries and who he is
+// walking towards for a player who has never played the earlier sagas.
+//
+// It must never fire on the combined build — there the story already opened at
+// ch. 0 and a mid-story recap would be a regression. On 'full', _sagaFirstId()
+// resolves to the story's own first chapter, so the `<=` test below is false for
+// every chapter that carries the field; the explicit sagaIsFullBuild() guard
+// states that intent rather than relying on it.
+//
+// smb-saga-structure.js loads AFTER this file, so both helpers guard on presence.
+function _sagaFirstId() {
+  if (typeof activeSagaFirstChapterId === 'function') return activeSagaFirstChapterId();
+  return STORY_CHAPTERS2.reduce((m, c) => Math.min(m, c.id), Infinity);
+}
+function _isSagaOpener(ch) {
+  if (!ch || !Array.isArray(ch.sagaColdOpen) || !ch.sagaColdOpen.length) return false;
+  if (typeof sagaIsFullBuild === 'function' && sagaIsFullBuild()) return false;
+  // Membership is load-bearing, not belt-and-braces: `id <= firstId` alone is true
+  // for EVERY earlier saga's opener (ch. 70 qualifies on a saga3 build). Those
+  // chapters are out of range and unreachable today, so the bug would only surface
+  // the day one became reachable. Both tests together mean "the chapter this build
+  // starts on".
+  if (typeof isChapterInActiveSaga === 'function' && !isChapterInActiveSaga(ch.id)) return false;
+  return ch.id <= _sagaFirstId();
+}
+// The narrative lines a chapter actually plays in this build.
+function _sagaChapterNarrative(ch) {
+  const base = (ch && ch.narrative) || [];
+  if (!_isSagaOpener(ch)) return base;
+  return [...ch.sagaColdOpen, '', ...base];
 }
 
 // Cutscenes play once by default; skip the opening narration when replaying an
@@ -227,12 +263,12 @@ function _beginChapter2(idx) {
   if (ch.type === 'branch') {
     const _afterBranchNarr = () => _showBranchChoice(ch, () => _completeChapter2(ch));
     if (_cinReplaySkip(ch)) _afterBranchNarr();
-    else _showStory2Narrative(ch.narrative, _afterBranchNarr);
+    else _showStory2Narrative(_sagaChapterNarrative(ch), _afterBranchNarr);
     return;
   }
 
   if (ch.noFight) {
-    _showStory2Narrative(ch.narrative, () => {
+    _showStory2Narrative(_sagaChapterNarrative(ch), () => {
       if (ch._menuHidden) {
         // Silent completion — no victory screen. Mark done and chain to the next chapter.
         if (!_story2.defeated.includes(ch.id)) _story2.defeated.push(ch.id);
@@ -256,7 +292,7 @@ function _beginChapter2(idx) {
   }
 
   _seenNarrativeIds.add(ch.id);
-  const allLines = [...(ch.narrative || [])];
+  const allLines = [..._sagaChapterNarrative(ch)];
   if (ch.preText) allLines.push(ch.preText);
   _showStory2Narrative(allLines, () => {
     _showPreFightStoreNag(ch, () => _launchChapterWithGauntlet(ch));
@@ -588,6 +624,12 @@ function _launchChapter2Fight(ch) {
   // Gauntlet chapter: consecutive rounds without healing
   if (ch.type === 'gauntlet') {
     _launchGauntletChapter(ch);
+    return;
+  }
+
+  // Battle royale chapter: the field is the 94 bearers who came before Kael
+  if (ch.type === 'battleroyale') {
+    _launchBattleRoyaleChapter(ch);
     return;
   }
 
@@ -1044,6 +1086,44 @@ function _launchGauntletChapter(ch) {
     if (players[0]) _applySkillTreeToPlayer(players[0]);
     if (typeof initGauntletMode === 'function') initGauntletMode(ch);
   }, 80);
+}
+
+// ── Battle Royale chapter — the 94 bearers ────────────────────────────────────
+// The reframe docs/TRIALS_DESIGN.md asked for: the field is not anonymous bots,
+// it is every fragment bearer who came before Kael, all at once. The bearer
+// field itself is built in initBattleRoyale() / _brSpawnBots(), which DERIVE it
+// from this chapter's type rather than reading a flag set here — see
+// smb-battleroyale.js. Nothing here needs a post-startGame() timer: BR's own
+// init runs inside _startGameCore with players[] already rebuilt.
+function _launchBattleRoyaleChapter(ch) {
+  if (!ch) return;
+  const _storyModal = document.getElementById('storyModal');
+  if (_storyModal) _storyModal.style.display = 'none';
+
+  worldId        = getWorldForChapter(ch.id);
+  currentWorld   = STORY_WORLDS[worldId] || null;
+  worldModifiers = currentWorld ? currentWorld.modifier : null;
+
+  storyBossType       = null;
+  storyOpponentName   = ch.opponentName || 'Bearer';
+  storyOpponentColor  = ch.opponentColor || null;
+  storyCharId         = null;
+  storyChapterCtx     = { origId: (ch._origId !== undefined ? ch._origId : ch.id), noAdaptive: !!ch.noAdaptive };
+  storyEnemyArmor     = [];
+  storyTwoEnemies     = false;
+  storySecondEnemyDef = null;
+  storyAllyDef        = null;
+  storyModeActive     = true;
+  storyCurrentLevel   = Math.min(8, Math.floor(ch.id / 5) + 1);
+  // BR builds its own 9000x2800 arena in _makeBRArena(), so the chapter's
+  // `arena:` is deliberately not applied.
+  gameMode            = 'battleroyale';
+  p2IsBot             = true;
+
+  if (typeof selectMode === 'function') selectMode('battleroyale');
+  if (typeof setObjective === 'function') setObjective('Outlast all 94');
+
+  if (typeof startGame === 'function') startGame();
 }
 
 // ── World Boss variants ────────────────────────────────────────────────────────

@@ -62,23 +62,29 @@ STORY_CHAPTER_REGISTRY.push(
   {
     id: 147, title: 'The Constructs',
     world: '🕳️ The Void — Construct Layer',
-    type: 'gauntlet',
-    preText: 'The True Form\'s void constructs stand between you and its core — echoes of absorbed fragment bearers, reshaped into something that serves the Void. Three waves. No rest.',
-    opponentName: 'Fragment Construct',
-    rounds: [
-      { weaponKey: 'sword',  classKey: 'warrior',  aiDiff: 'hard',   opponentColor: '#8811bb', armor: ['helmet'] },
-      { weaponKey: 'spear',  classKey: 'ninja',    aiDiff: 'expert', opponentColor: '#9922cc', armor: ['helmet', 'chestplate'] },
-      { weaponKey: 'hammer', classKey: 'thor',     aiDiff: 'expert', opponentColor: '#aa33dd', armor: ['helmet', 'chestplate', 'leggings'] },
-    ],
+    // Converted from a 3-round gauntlet to the bearer battle royale — the
+    // reframe docs/TRIALS_DESIGN.md asked for ("include only if reframed: if the
+    // field is the 94 bearers who came before Kael"). The chapter already said
+    // exactly that in prose — "echoes of absorbed fragment bearers", "they fight
+    // like you" — it just staged it as three constructs in a row. Now it is all
+    // ninety-four at once, which is the only staging that earns the line.
+    //
+    // CONVERTED, not inserted: the registry stays contiguous 0-185 and no save
+    // migration is needed. The field itself is built by _brSpawnBots(), which
+    // derives bearer mode from this `type`.
+    type: 'battleroyale',
+    preText: 'The True Form kept every bearer it ever took. Ninety-four of them stand between you and its core — not three, not in waves. All of them, at once. Only one thing walks out of the construct layer.',
+    opponentName: 'Fragment Bearer',
     fightScript: [
-      { frame: 60,  text: 'These were fragment bearers once. The True Form kept what it needed and discarded the rest.', color: '#cc44ff', timer: 290 },
-      { frame: 300, text: 'Round 2. They fight like you — because they were made from people who fought like you.', color: '#aa22dd', timer: 270 },
-      { frame: 560, text: 'Final round. This one lasted the longest before the True Form took it. You are about to pass that record.', color: '#ffffff', timer: 260 },
+      { frame: 60,   text: 'These were fragment bearers once. The True Form kept what it needed and discarded the rest.', color: '#cc44ff', timer: 290 },
+      { frame: 420,  text: 'They fight like you — because they were made from people who fought like you.', color: '#aa22dd', timer: 270 },
+      { frame: 1200, text: 'Ninety-four people carried what you carry. This is what the Void did with all of them.', color: '#bb33ee', timer: 280 },
+      { frame: 2400, text: 'The lower numbers go down easily. They were taken early. The last ones held out longest.', color: '#ffffff', timer: 260 },
     ],
     arena: 'void',
-    playerLives: 2,
+    playerLives: 1,
     tokenReward: 80, blueprintDrop: null,
-    postText: 'The constructs dissolve. The True Form\'s presence is everywhere now — not hiding, not approaching. Just present. It has been watching since you entered the void. It was watching ninety-four times before that.',
+    postText: 'The last construct dissolves and the count stops at one. You are the only bearer who has ever walked out of the construct layer — not because you are stronger than the ninety-four, but because you are the one still standing at the end of them. The True Form\'s presence is everywhere now — not hiding, not approaching. Just present. It has been watching since you entered the void. It was watching ninety-four times before that.',
   },
 
   {

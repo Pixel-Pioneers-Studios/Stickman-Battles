@@ -10,6 +10,40 @@ STORY_CHAPTER_REGISTRY.push(
     id: 151, title: 'The Silence After',
     world: '🌌 Void — Aftermath',
     type: 'branch',
+    // Saga III opens here. The companion arc is already a strong re-establishing
+    // opener — the antagonist of the previous saga standing beside you, changed —
+    // but it assumes you watched True Form resolve one chapter earlier. This makes
+    // the RELATIONSHIP legible without the fight that produced it, which is the
+    // whole load-bearing requirement of a cold open here.
+    // Never plays on the combined build; see _isSagaOpener in smb-story-engine-flow.js.
+    sagaColdOpen: [
+      'You came out of the void with your hands still shaking.',
+      '',
+      'Not from the fight. From after it.',
+      '',
+      'A year ago — longer, maybe; the loops made it hard to keep count —',
+      'you were an ordinary man with an ordinary walk home,',
+      'and something buried itself in your chest and stayed.',
+      '',
+      'Ninety-four people carried it before you. None of them are alive.',
+      'For a long time that was the entire sum of what you knew about yourself:',
+      'that you were the ninety-fifth, and that you were still standing.',
+      '',
+      'The rest you learned the hard way.',
+      'That the tears opening in the sky were not weather.',
+      'That they were built.',
+      'That the man who built them had stopped being a man in order to do it,',
+      'and had been running the thing for five thousand years without sleeping once.',
+      '',
+      'You went in there to kill him.',
+      '',
+      'You did not kill him.',
+      'You took the thing off him —',
+      'and what was left underneath was a man,',
+      'and he walked out of it beside you.',
+      '',
+      'Neither of you had said anything yet.',
+    ],
     narrative: [
       'It was quiet.',
       '',

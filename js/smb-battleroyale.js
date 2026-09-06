@@ -16,6 +16,36 @@ const BR_PLANE_SPEED  = 14;     // px/frame (crosses 9000 units in ~640 frames �
 const BR_ZONE_WAIT_F  = 1800;   // 30s wait between zone moves
 const BR_ZONE_CLOSE_F = 600;    // 10s linear close duration
 
+// ── Story reframe: the field is the 94 bearers who came before Kael ───────────
+// docs/TRIALS_DESIGN.md judges Battle Royale worth including "only if reframed":
+// anonymous bots make it a mode, not a story beat, but if the field is the 94
+// prior fragment bearers it becomes the thing Kael refuses to be, made literal
+// and all at once. Chapter 147 "The Constructs" already described exactly that
+// ("echoes of absorbed fragment bearers", "they fight like you"), so it is the
+// chapter that carries it.
+//
+// 94 bearers + Kael = 95, which is the game's title.
+const BR_BEARER_COUNT = 94;
+
+// Field size is a VARIABLE, not BR_TOTAL, because the story field is 95 and the
+// casual field is 100. Everything that reported "/ 100" reads this instead.
+var brFieldTotal   = BR_TOTAL;
+// DERIVED in initBattleRoyale(), never latched by a caller — a leaked `true`
+// here would silently turn a casual Battle Royale into the story field.
+var brStoryBearers = false;
+
+// 1 -> "1st", 12 -> "12th", 94 -> "94th".
+function _brOrdinal(n) {
+  var rem100 = n % 100;
+  if (rem100 >= 11 && rem100 <= 13) return n + 'th';
+  switch (n % 10) {
+    case 1:  return n + 'st';
+    case 2:  return n + 'nd';
+    case 3:  return n + 'rd';
+    default: return n + 'th';
+  }
+}
+
 // Zone target boundaries (left/right/top/bottom) — timing is always 30s wait + 10s close
 const BR_ZONE_PHASES = [
   { left: 0,    right: 9000, top: 0,    bottom: 2800 }, // 0 — full map (initial state)
@@ -132,8 +162,16 @@ function _makeBRArena() {
 // INIT
 // ============================================================
 function initBattleRoyale() {
+  // Derived, not passed in: a story bearer field is exactly "the active story
+  // chapter is a battleroyale chapter". Deriving it means the flag cannot leak
+  // into the next casual match the way a latched boolean would.
+  brStoryBearers = !!(typeof storyModeActive !== 'undefined' && storyModeActive
+                      && typeof _activeStory2Chapter !== 'undefined' && _activeStory2Chapter
+                      && _activeStory2Chapter.type === 'battleroyale');
+  brFieldTotal   = brStoryBearers ? BR_BEARER_COUNT + 1 : BR_TOTAL;
+
   brActive       = true;
-  brAlive        = BR_TOTAL;
+  brAlive        = brFieldTotal;
   brZonePhase    = 0;
   brZoneState    = 'wait';
   brZoneTimer    = BR_ZONE_WAIT_F;
@@ -180,6 +218,14 @@ function initBattleRoyale() {
     p1._brOnPlane = true;
   }
 
+  // Skill tree is applied HERE, not from a timer after startGame(). startGame()
+  // can defer _startGameCore() behind a StoryTransition, so a fixed-delay hook
+  // races it and lands on the previous match's fighter (handoff landmine 3).
+  // initBattleRoyale runs inside _startGameCore with players[] freshly built.
+  if (brStoryBearers && p1 && typeof _applySkillTreeToPlayer === 'function') {
+    _applySkillTreeToPlayer(p1);
+  }
+
   _brSpawnBots();
   _brSpawnLoot();
 }
@@ -190,15 +236,38 @@ function initBattleRoyale() {
 function _brSpawnBots() {
   minions.length = 0;
   var humanCount = players.filter(function(p) { return !p.isAI; }).length;
-  var botCount   = BR_TOTAL - humanCount;
+  var botCount   = brFieldTotal - humanCount;
   var palette    = ['#ff4444','#44aaff','#44ff88','#ffaa22','#cc44ff','#ff88cc','#22ddff','#ffff44','#ff8800','#00ffcc'];
+  // The bearers must read as one lineage, so they share the construct palette
+  // ch147 already used (#8811bb / #9922cc / #aa33dd) instead of the arcade
+  // colours. Still ten distinct values — 94 identical silhouettes are unreadable.
+  var bearerPalette = ['#8811bb','#9922cc','#aa33dd','#7a0fa8','#b944e8','#6d0d96','#a02ad0','#c455f0','#5f0b84','#8f1fc0'];
+  // The joke weapons are wrong in the void; same standard STORY_TONE_EXCLUDED_WEAPONS
+  // already applies everywhere else in story mode.
+  var pool = WEAPON_KEYS;
+  if (brStoryBearers && typeof STORY_TONE_EXCLUDED_WEAPONS !== 'undefined') {
+    pool = WEAPON_KEYS.filter(function(k) { return STORY_TONE_EXCLUDED_WEAPONS.indexOf(k) === -1; });
+    if (!pool.length) pool = WEAPON_KEYS;
+  }
 
   for (var i = 0; i < botCount; i++) {
-    var wk   = WEAPON_KEYS[Math.floor(Math.random() * WEAPON_KEYS.length)];
+    var wk   = pool[Math.floor(Math.random() * pool.length)];
     var diff = i < 30 ? 'easy' : i < 70 ? 'medium' : 'hard';
-    var bot  = new Fighter(brPlaneX, BR_PLANE_Y, palette[i % palette.length], wk,
-      { left: null, right: null, jump: null, attack: null, ability: null, super: null }, true, diff);
-    bot.name       = 'P' + (i + 2);
+    var bot;
+    if (brStoryBearers) {
+      // i=0 is the 1st bearer (longest ago, weakest echo); i=93 is the 94th, the
+      // most recent — ch147's own fight script says the last one held out longest.
+      var bearerNo = i + 1;
+      diff = bearerNo <= 30 ? 'easy' : bearerNo <= 70 ? 'medium' : bearerNo <= 88 ? 'hard' : 'expert';
+      bot = new Fighter(brPlaneX, BR_PLANE_Y, bearerPalette[i % bearerPalette.length], wk,
+        { left: null, right: null, jump: null, attack: null, ability: null, super: null }, true, diff);
+      bot.name        = 'The ' + _brOrdinal(bearerNo);
+      bot._brBearerNo = bearerNo;
+    } else {
+      bot = new Fighter(brPlaneX, BR_PLANE_Y, palette[i % palette.length], wk,
+        { left: null, right: null, jump: null, attack: null, ability: null, super: null }, true, diff);
+      bot.name = 'P' + (i + 2);
+    }
     bot.lives      = 1;
     bot.playerNum  = 2 + (i % 4);
     bot._brBot     = true;
@@ -730,7 +799,15 @@ function _brCheckWin() {
 
   if (brAlive <= 1 && !brWinner && gameRunning) {
     brWinner = all.find(function(f) { return f.health > 0; }) || null;
-    var msg  = brWinner ? '#1  ' + (brWinner.name || 'P1') + '  WINS!' : 'DRAW!';
+    var msg;
+    if (brStoryBearers) {
+      // The point of the chapter is the count, not a scoreboard placing: he is
+      // the only one of ninety-five still standing.
+      msg = (brWinner && !brWinner.isAI) ? 'THE 95TH  —  LAST STANDING'
+                                         : (brWinner ? (brWinner.name || 'A BEARER') + '  REMAINS' : 'NOTHING REMAINS');
+    } else {
+      msg = brWinner ? '#1  ' + (brWinner.name || 'P1') + '  WINS!' : 'DRAW!';
+    }
     if (typeof DamageText !== 'undefined') damageTexts.push(new DamageText(GAME_W / 2, GAME_H / 2 - 50, msg, '#ffdd00'));
     screenShake = Math.max(screenShake, 20);
     if (typeof endGame === 'function') setTimeout(endGame, 3500);
@@ -978,7 +1055,9 @@ function drawBattleRoyaleHUD() {
 
   // ── Player count badge (top centre) ──────────────────────
   ctx.font = 'bold 15px Arial'; ctx.textAlign = 'center';
-  var cStr = '🏆 ' + brAlive + ' / ' + BR_TOTAL;
+  var cStr = brStoryBearers
+    ? '◈ ' + brAlive + ' / ' + brFieldTotal + '  BEARERS'
+    : '🏆 ' + brAlive + ' / ' + brFieldTotal;
   var cW   = ctx.measureText(cStr).width + 24;
   ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(GAME_W / 2 - cW / 2, _brTopY, cW, 26);
   ctx.fillStyle = '#fff'; ctx.shadowColor = '#000'; ctx.shadowBlur = 4;

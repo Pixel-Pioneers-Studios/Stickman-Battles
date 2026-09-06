@@ -15,6 +15,8 @@ function _phaseToChapter(origCh, phase, newId, pi, isFirst, isFinal, totalTokens
     title:       origCh.title + (numPhases > 1 ? ' — ' + (phase.label || _storyPhaseName(phase.type)) : ''),
     world:       origCh.world,
     narrative:   isFirst ? (origCh.narrative || []) : [],
+    // Saga cold open rides with the narrative it prepends (see _sagaChapterNarrative).
+    sagaColdOpen: isFirst ? (origCh.sagaColdOpen || null) : null,
     preText:     phase.label || _storyPhaseName(phase.type),
     fightScript: isFirst ? (origCh.fightScript || []) : [],
     tokenReward: isFinal
@@ -92,6 +94,7 @@ function _expandStoryChaptersInPlace() {
 
     if (origCh.noFight || origCh.isEpilogue || origCh.isDamnationChapter || origCh.type === 'exploration'
         || origCh.type === 'assassination' || origCh.type === 'gauntlet' || origCh.type === 'ship_flight' || origCh.type === 'escort'
+        || origCh.type === 'battleroyale'
         || origCh.type === 'branch' || origCh.type === 'interlude'
         || origCh.trial
         || origCh.isBossFight || origCh.isTrueFormFight || origCh.isSovereignFight || origCh.isAbsoluteAxiomFight || origCh.isGodFight

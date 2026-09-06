@@ -1,12 +1,13 @@
 # Saga Split — one codebase, three standalone games
 
-**Status:** the mechanism is built and verified. The game is **not** three games
-yet — it ships as one until Phase 4 is written and three deploys exist.
+**Status:** all content and engine work is done and verified. The game is **not**
+three games yet — it ships as one until three deploys exist, which is a set of
+decisions (store listings, sitelock hosts, manual pushes), not code.
 
 | | |
 |---|---|
-| **Done** | Phases 1, 2, 3, 5, 6, 7 — the whole engine side |
-| **Remaining** | **Phase 4** (cold opens — writing) and **shipping** (deploy — decisions) |
+| **Done** | Phases 1–7 — the whole engine side and the cold opens |
+| **Remaining** | **Shipping only** (deploy — decisions, no code) |
 | **Default** | `ACTIVE_SAGA = 'full'`, so the live game is unchanged |
 | **Committed** | No. Everything is uncommitted. |
 
@@ -34,8 +35,13 @@ Boundaries are **arc ids**, never chapter numbers — see [Landmines](#landmines
 | Saga | Title | Arcs | Chapters | N |
 |---|---|---|---|---|
 | `saga1` | The Fragment | `arc0-0` → `arc3-calix` | 0–69 | 70 |
-| `saga2` | The Multiverse War | `arc5-damnation` → `arc5-1` | 70–148 | 79 |
-| `saga3` | The Substrate | `arc5-bridge` → `arc-vm-fight` | 149–183 | 35 |
+| `saga2` | The Multiverse War | `arc5-damnation` → `arc5-1` | 70–150 | 81 |
+| `saga3` | The Substrate | `arc5-bridge` → `arc-vm-fight` | 151–185 | 35 |
+
+> Chapter numbers in this table are **derived output, not configuration** — the
+> registry has grown from 184 to 186 since the split was designed and the bounds
+> absorbed it with no edit, which is the arc-keying invariant paying for itself.
+> Re-derive them with `activeSagaRange()`; never hand-copy them into code.
 
 **Saga I — The Fragment.** An ordinary man learns what he carries, and that 94
 carried it before him and none survived. Antagonist is Axiom's *system* —
@@ -47,18 +53,18 @@ True Form. Ends on the saving moment.
 
 **Saga III — The Substrate.** Opens on the companion arc — Axiom fighting
 *beside* Kael. Then God, Absolute Axiom, Awakened Sovereign, the reckonings, and
-ch. 183 "What Cannot Be Erased."
+ch. 185 "What Cannot Be Erased."
 
 **Why the saga2/saga3 boundary is mid-act.** It falls *inside* Act VIII: the
-companion arc (`arc5-bridge`, ch. 149–152) is Saga III's cold open, not Saga II's
+companion arc (`arc5-bridge`, ch. 151–154) is Saga III's cold open, not Saga II's
 denouement. That is the entire reason bounds are arc-level and not act-level.
 
 **Why these three and not others.** Per `docs/canon.md`'s own act table the story
 is one **escalation ladder** — collectors → Architects → Creator → True Form →
 God → Absolute Axiom → Void Mind. Every antagonist exists to reveal a bigger one,
 and a ladder does not cut into sagas because every rung ends on "there is
-something above this." Scanning all 184 chapters, exactly one point *concludes*
-rather than escalates: **ch. 148, the saving moment**, where the fracture system
+something above this." Scanning every chapter, exactly one point *concludes*
+rather than escalates: **the saving moment at the end of `arc5-1`** (ch. 150 today), where the fracture system
 is dismantled and Axiom is freed rather than killed. Saga I had no ending at all
 until Phase 3 wrote one.
 
@@ -144,7 +150,7 @@ Things a future session must not break:
 pager in `_renderChapterList`; `_lastFightId` in `story2OnMatchEnd`;
 `_finalChapterId2` in `_completeChapter2`; `_finalChapterId` in
 `_showStory2Victory`. Plus three per-saga achievements (`saga1_complete` …),
-awarded on boundary crossing rather than only at ch. 183.
+awarded on boundary crossing rather than only at the final chapter.
 
 **Phase 3 — Saga I's ending.** The original plan said "Kael breaks the collection
 apparatus," which **contradicts canon** — the fracture system survives to ch. 142.
@@ -174,33 +180,63 @@ by saga1 chapters. Plus carry-forward recognition.
 
 ## What's left
 
-### Phase 4 — cold opens (writing)
+### Phase 4 — cold opens — **DONE**
 
-**The only remaining content work, and the one that decides whether the split
-actually works.** Each saga must be playable by someone who has never heard the
-word "fragment."
+Each saga now opens on a chapter that establishes its own premise. "Fragment" and
+"fracture system" are never load-bearing vocabulary in the first minutes of any
+build; prior-saga knowledge is texture, never a prerequisite.
 
-**Rule of thumb:** "fragment" and "fracture system" must not need a glossary in
-the first twenty minutes. Prior-game knowledge is *texture for veterans, mystery
-for newcomers* — the Blades of Chaos in the basement, never a prerequisite.
+**Mechanism — `sagaColdOpen`.** A chapter carries an optional line array that is
+prepended to its `narrative` **only when that chapter opens the active saga**. It
+is the deliberate mirror of Phase 3's `sagaFinaleText`, so one chapter can read as
+a mid-story beat in the combined game and as an opening in a saga build.
 
-**Saga II is the harder one.** It opens at ch. 70 mid-Damnation with no
-introduction at all — no re-establishment of who Kael is, what he carries, who
-Axiom is, or why any of it matters. Needs an opening beat that re-establishes all
-four without recapping Saga I.
+| Piece | Where |
+|---|---|
+| `_sagaFirstId`, `_isSagaOpener`, `_sagaChapterNarrative` | `js/story/smb-story-engine-flow.js` |
+| Applied on all three narrative paths (branch / `noFight` / normal) | same file |
+| Field preserved through expansion | `_phaseToChapter`, `smb-story-engine-data.js` |
 
-**Saga III is half-solved.** The companion arc (149–152) is already a strong
-re-establishing opener — Axiom fighting *beside* Kael is exactly the
-Faye's-funeral move, a changed protagonist and a reframed relationship. But it
-assumes you watched True Form resolve at ch. 148. It needs the *relationship* to
-be legible without the fight that produced it.
+**`_isSagaOpener` needs BOTH tests, and this is a real trap.** `id <= firstId`
+alone is true for *every earlier saga's* opener — ch. 70 qualifies on a saga3
+build. Those chapters are out of range and unreachable today, so the bug would
+only surface the day one became reachable. The membership test
+(`isChapterInActiveSaga`) is what makes it mean "the chapter this build starts
+on". Verified: each build fires exactly its own opener, `full` and `saga1` fire
+none.
 
-**Saga I needs nothing** — it is the original opening.
+**Saga II — ch. 70 `The Weight of What's Coming`.** The hard one: it opened mid-
+Damnation with no re-establishment at all. The cold open runs before the existing
+first line and lands the four missing pieces — Kael as an ordinary man a year ago,
+the thing in his chest, the ninety-four before him, and a built machinery someone
+is still running — then hands off to the authored `'You step through the dimension
+wall.'` It never names the fragment; the collectors' word for it is described
+rather than defined.
 
-Mechanically this is authoring `narrative` text on existing chapters, or at most
-one new chapter per saga. If new chapters are inserted, ids shift and a save
-migration is required (pattern: the Thresh arc, v3.9.3). Converting existing
-chapters avoids that entirely and is what Phase 3 did.
+**Saga III — ch. 151 `The Silence After`.** The companion arc was already a strong
+re-establishing opener, but assumed you watched True Form resolve one chapter
+earlier. The cold open makes the *relationship* legible without the fight that
+produced it: you went in to kill him, you didn't, you took the thing off him, and
+what walked out beside you was a man. It then flows into the authored `'It was
+quiet.'`
+
+**Saga I needed nothing** — it is the original opening.
+
+**The Tuesday prologue is a shared asset, not a conflict.** `maybePlayTuesday-
+Prologue()` gates on `smb_tuesday_seen`, not on chapter or saga, so it plays once
+on the first Story open of *every* build. In saga2 and saga3 it lands as an origin
+cold open immediately before the chapter cold open, and the two dovetail rather
+than repeat. Left as is deliberately.
+
+**Also fixed: the story modal advertised the wrong size.** `.story-modal-subtitle`
+is authored in `index.html` as "ten acts to the truth" — correct for the combined
+build, wrong for every saga build (three acts each). A newcomer opening a
+standalone saga must not be told the story is three times the size it is. Now
+relabelled at runtime from `activeSagaActView().length` in `smb-story-config.js`;
+the full build keeps its authored copy verbatim.
+
+No chapters were inserted. The registry stays contiguous and **no save migration
+is required.**
 
 ### Shipping the three games
 
@@ -226,10 +262,17 @@ Verified — each `dist/` stage served in a browser, zero page errors:
 
 | Build | Chapters | Final id | Playable on fresh save | Power on carried save |
 |---|---|---|---|---|
-| full | 184 | 183 | 1 (ch. 0) | 3.0 |
+| full | 186 | 185 | 1 (ch. 0) | 3.0 |
 | saga1 | 70 | 69 | 1 (ch. 0) | — |
-| saga2 | 79 | **148** | 1 (ch. 70) | — |
-| saga3 | 35 | 183 | 1 (ch. 149) | 1.0 |
+| saga2 | 81 | **150** | 1 (ch. 70) | — |
+| saga3 | 35 | 185 | 1 (ch. 151) | 1.0 |
+
+Re-verified after the Phase 4 pass by serving `dist/saga2-*` and `dist/saga3-*`
+and driving them in a real browser: each build's cold open renders on its own
+first chapter with the correct act view (`Act I — …`) and subtitle, pages through
+into the authored narrative, and reports zero page errors. The `full` build was
+re-checked in the same pass and is byte-identical in behaviour — no opener fires,
+both carrier chapters return their base narrative unchanged.
 
 **Before three listings can go live:**
 
@@ -247,7 +290,7 @@ Verified — each `dist/` stage served in a browser, zero page errors:
 5. **Decide the store names.** Currently "Stickman Evolution: The Fragment" /
    "The Multiverse War" / "The Substrate", set in the build script's `case`.
 
-**Open decision:** does the full 184-chapter build stay published alongside the
+**Open decision:** does the full 186-chapter build stay published alongside the
 three, or is it retired once they exist? Nothing in the code assumes either.
 
 ---
@@ -257,7 +300,7 @@ three, or is it retired once they exist? Nothing in the code assumes either.
 Hard-won; do not rediscover these.
 
 - **`_expandStoryChaptersInPlace()` rewrites every `chapterRange`** to expanded
-  indices. It is currently *count-preserving* (184 → 184) because every chapter
+  indices. It is currently *count-preserving* (186 → 186) because every chapter
   hits the "stay intact" branch — but adding one plain-duel chapter re-enables
   real expansion. It is **not** a pure no-op: some chapters still pass through
   `_phaseToChapter` and gain `_origId`. **Key on arc ids, never chapter numbers.**
@@ -281,8 +324,14 @@ Hard-won; do not rediscover these.
   code** — it gates on `ch._origId !== undefined`, but those are `walkFight`
   chapters that stay intact through expansion and never receive `_origId`. Every
   chapter's `.phases` collapses to a single `mini_boss` entry.
+- **A saga-boundary test needs a membership test, not just a comparison.** `id <=
+  activeSagaFirstChapterId()` is true for every EARLIER saga's opener, and
+  `id >= activeSagaFinalChapterId()` has the mirror hazard for later ones. Both
+  are currently masked by the offending chapters being out of range and therefore
+  unreachable — the bug appears the day one is reachable. Pair every such
+  comparison with `isChapterInActiveSaga()`. See `_isSagaOpener`.
 - **`type: 'branch'` chapters carry only a `narrative` array** — pure text, no
-  fight, no exploration. 34 of 184, and 23 of Saga III's 35.
+  fight, no exploration. 34 of them, and 23 of Saga III's 35.
 
 ---
 
@@ -290,7 +339,7 @@ Hard-won; do not rediscover these.
 
 Re-run these after any change here.
 
-**Registry contiguity** (must print `total 184 range 0-183 dups 0 gaps 0`):
+**Registry contiguity** (must print `total 186 range 0-185 dups 0 gaps 0`):
 
 ```bash
 node -e '
@@ -318,7 +367,7 @@ and `tools/`.
 
 ## Appendix — pacing balance pass
 
-Measured across all 184 chapters before touching anything.
+Measured across every chapter before touching anything.
 
 **Findings.** Saga I had **no boss or mini-boss entity at all** — the first in the
 game was ch. 70 — though its 4–6 combat chapters per 10 were the most *even*
@@ -341,7 +390,7 @@ enemies hard→expert and lives 3→2; ch. 179 and ch. 182 `aiDiff` fixed.
 
 **Bug: numeric `aiDiff` de-tuned the game's last two fights.** ch. 179 (The
 Trial) was `8.5` and ch. 182 (the final Void Mind fight) was `9` — the only two
-numeric values in 184 chapters. Numbers match no string branch, so speed,
+numeric values in the whole registry. Numbers match no string branch, so speed,
 aggression and miss-chance landed on expert while `tacticW` fell to the
 easy-tier `0.18`, **7.8× below expert**. Both now `'expert'`.
 

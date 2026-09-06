@@ -2590,6 +2590,11 @@ function drawPlatforms() {
 // ============================================================
 function drawStoryVoidFog() {
   if (!storyModeActive || !currentArena) return;
+  // Battle Royale builds its own 9000x2800 arena with no `deathY` — it uses
+  // BR_DEATH_Y and its own closing zone instead. Without this the fog maths
+  // below went NaN and createLinearGradient threw, taking the whole game loop
+  // down through the error boundary.
+  if (gameMode === 'battleroyale') return;
 
   // Find floor top: prefer isFloor-tagged platform, fall back to lowest platform
   let floorTopY = currentArena.deathY - 60;
@@ -2607,7 +2612,9 @@ function drawStoryVoidFog() {
   const fogStartY = floorTopY;
   const fogEndY   = currentArena.deathY + 80;
   const fogHeight = fogEndY - fogStartY;
-  if (fogHeight <= 0) return;
+  // A custom arena without deathY makes every one of these NaN. Bail rather
+  // than throw — one bad arena field must not be able to kill the frame.
+  if (!Number.isFinite(fogStartY) || !Number.isFinite(fogEndY) || !(fogHeight > 0)) return;
 
   // Cover full world width — no void peeks through on wide maps
   const fogX = currentArena.mapLeft !== undefined ? currentArena.mapLeft - 200 : -200;
@@ -2627,6 +2634,10 @@ function drawStoryVoidFog() {
 // ── Story boundary proximity warning (edge vignette, world-space) ────────
 function drawStoryBoundaryWarning() {
   if (!storyModeActive || !currentArena || gameMode === 'exploration') return;
+  // Same reason as the fog: this compares world-space x against GAME_W, so in
+  // BR's 9000px world every fighter reads as past the right edge and the
+  // vignette pins at full strength for the whole match.
+  if (gameMode === 'battleroyale') return;
   const worldW = currentArena.worldWidth || GAME_W;
   // Check if any non-boss player is close to the soft boundary zone
   let leftIntensity = 0, rightIntensity = 0;
@@ -3261,8 +3272,15 @@ function checkDeaths() {
               _firstDeathPlayer = p;
             }
             if (gameMode === 'battleroyale') {
-              // Enter spectate instead of ending — game continues until 1 survivor
-              if (typeof _brEnterSpectate === 'function') _brEnterSpectate(p);
+              if (typeof brStoryBearers !== 'undefined' && brStoryBearers) {
+                // Story bearer field: dying IS the chapter failing, so go to the
+                // retry screen promptly. Spectating ninety-odd bearers fight it
+                // out is a casual-mode pleasure and a story-mode punishment.
+                setTimeout(endGame, 900);
+              } else {
+                // Enter spectate instead of ending — game continues until 1 survivor
+                if (typeof _brEnterSpectate === 'function') _brEnterSpectate(p);
+              }
             } else if (gameMode === 'trueform') {
               showBossDialogue('That was always how this ended.', 220);
               setTimeout(endGame, 1400);

@@ -12,6 +12,39 @@ STORY_CHAPTER_REGISTRY.push(
     opponentName: 'Axiom',
     playerLives:  1,
     arena:        'void',
+    // Saga II opens here. On a saga2 build this is the player's first chapter, so
+    // it has to establish Kael, the thing in his chest, the ninety-four and the
+    // scale of what he is walking towards — without recapping Saga I, and without
+    // making "fragment" or "fracture system" words you need a glossary for.
+    // Never plays on the combined build; see _isSagaOpener in smb-story-engine-flow.js.
+    sagaColdOpen: [
+      'A year ago you were nobody.',
+      '',
+      'You had a job. You had a street you walked home on.',
+      'Then something came down out of a sky that had opened where no sky opens,',
+      'and it went into your chest, and it did not come out.',
+      '',
+      'It is still there. A weight just under the sternum.',
+      'Not quite warm. Not quite still.',
+      '',
+      'You never found a word for it. The people who came looking for it had one,',
+      'and they said it the way you read a serial number off a crate.',
+      '',
+      'Ninety-four people carried it before you.',
+      'You know the number because you found it written down,',
+      'in a room that had been built for keeping them.',
+      'You do not know what happened to any of them.',
+      'You have a guess.',
+      '',
+      'Everything since has been a line pointing somewhere.',
+      'The ones who hunted you. The tears opening in the air above cities.',
+      'The machinery humming behind all of it,',
+      'in a register you feel in your teeth before you hear it.',
+      '',
+      'Someone built that. Someone is still running it.',
+      '',
+      'Today the line ends.',
+    ],
     narrative: [
       'You step through the dimension wall.',
       '',

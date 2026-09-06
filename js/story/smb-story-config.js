@@ -260,6 +260,20 @@ function _renderChapterList() {
   const _acts = (typeof activeSagaActView === 'function')
     ? activeSagaActView()
     : STORY_ACT_STRUCTURE;
+
+  // The modal subtitle is authored in index.html as "ten acts to the truth" —
+  // true for the combined build and wrong for every saga build, which presents
+  // three acts (saga1/saga2) or two (saga3). A newcomer opening a standalone saga
+  // must not be told the story is twice the size it is. Full build keeps its
+  // authored copy verbatim.
+  if (typeof sagaIsFullBuild === 'function' && !sagaIsFullBuild()) {
+    const _sub = document.querySelector('.story-modal-subtitle');
+    if (_sub) {
+      const _words = ['zero','one','two','three','four','five','six','seven','eight','nine','ten'];
+      const _n = _words[_acts.length] || String(_acts.length);
+      _sub.textContent = 'A world unraveling \u2014 ' + _n + ' act' + (_acts.length === 1 ? '' : 's') + ' to the truth';
+    }
+  }
   const _actIdxForChapter = (chIdx) => {
     for (let ai = 0; ai < _acts.length; ai++) {
       for (const arc of _acts[ai].arcs) {
@@ -1666,7 +1680,7 @@ function _storyPassiveEnemyDefs(ch, variant) {
   return [walker, hunter, { wx: 2050, name: 'Pursuer', weaponKey: id >= 22 ? 'axe' : 'sword', classKey: 'warrior', aiDiff: tier, color: baseColor }];
 }
 
-const _NEW_CHAPTER_TYPES = new Set(['stealth','escape','defense','scavenge','puzzle','assassination','gauntlet','ship_flight','escort']);
+const _NEW_CHAPTER_TYPES = new Set(['stealth','escape','defense','scavenge','puzzle','assassination','gauntlet','ship_flight','escort','battleroyale']);
 
 function _promotePassiveStoryChapters() {
   for (const ch of STORY_CHAPTERS2) {
