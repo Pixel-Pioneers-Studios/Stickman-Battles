@@ -212,13 +212,23 @@ function _renderChapterList() {
   if (!list) return;
   list.innerHTML = '';
 
-  const cur        = _story2.chapter;
+  // Clamp into the active saga: a fresh save's chapter 0 would otherwise lock
+  // every tile on a Saga II/III build (`locked = ... || i > cur`). The saved
+  // value itself is never mutated. No-op on a 'full' build.
+  const cur        = (typeof sagaClampChapter === 'function')
+    ? sagaClampChapter(_story2.chapter) : _story2.chapter;
   const curArcId   = _getCurrentArcId();
 
   // ── Overall progress bar ──────────────────────────────────────────────────
-  const totalCh  = STORY_CHAPTERS2.length;
-  const doneCh   = _story2.defeated.length;
-  const pct      = Math.round((doneCh / totalCh) * 100);
+  // Saga builds report progress through THIS game, not through all 184 chapters.
+  // Both helpers return the whole story on a 'full' build (docs/SAGA_SPLIT_PLAN.md).
+  const _sagaScoped = typeof activeSagaChapterCount === 'function'
+                   && typeof isChapterInActiveSaga === 'function';
+  const totalCh  = _sagaScoped ? activeSagaChapterCount() : STORY_CHAPTERS2.length;
+  const doneCh   = _sagaScoped
+    ? _story2.defeated.filter(i => isChapterInActiveSaga(i)).length
+    : _story2.defeated.length;
+  const pct      = totalCh > 0 ? Math.round((doneCh / totalCh) * 100) : 0;
   const progWrap = document.createElement('div');
   progWrap.className = 'story-progress-wrap';
   progWrap.innerHTML =
@@ -230,10 +240,29 @@ function _renderChapterList() {
     `</div>`;
   list.appendChild(progWrap);
 
+  // Carry-forward acknowledgment — recognition only, gates nothing.
+  if (typeof sagaCarryForward === 'function') {
+    const _carried = sagaCarryForward(_story2.defeated);
+    if (_carried.length) {
+      const cf = document.createElement('div');
+      cf.className = 'story-carry-forward';
+      cf.style.cssText = 'margin:6px 0 2px;font-size:0.72rem;letter-spacing:0.5px;'
+        + 'opacity:0.75;font-style:italic;color:#8fa8b8;';
+      cf.textContent = 'Continued from ' + _carried.map(s => s.title).join(' \u00b7 ');
+      list.appendChild(cf);
+    }
+  }
+
   // ── Act paging ────────────────────────────────────────────────────────────
+  // The act list this build presents. On a 'full' build this IS
+  // STORY_ACT_STRUCTURE; on a saga build it is that list trimmed to the saga's
+  // arcs, with act numbering restarted (Saga III opens on "Act I", not "Act IX").
+  const _acts = (typeof activeSagaActView === 'function')
+    ? activeSagaActView()
+    : STORY_ACT_STRUCTURE;
   const _actIdxForChapter = (chIdx) => {
-    for (let ai = 0; ai < STORY_ACT_STRUCTURE.length; ai++) {
-      for (const arc of STORY_ACT_STRUCTURE[ai].arcs) {
+    for (let ai = 0; ai < _acts.length; ai++) {
+      for (const arc of _acts[ai].arcs) {
         if (chIdx >= arc.chapterRange[0] && chIdx <= arc.chapterRange[1]) return ai;
       }
     }
@@ -246,8 +275,8 @@ function _renderChapterList() {
   // Scan top-down with the same .includes() predicate the UI uses everywhere —
   // robust to duplicate / non-numeric junk in the defeated array.
   let maxAct = curActIdx;
-  for (let ai = STORY_ACT_STRUCTURE.length - 1; ai > maxAct; ai--) {
-    const anyDone = STORY_ACT_STRUCTURE[ai].arcs.some(arc => {
+  for (let ai = _acts.length - 1; ai > maxAct; ai--) {
+    const anyDone = _acts[ai].arcs.some(arc => {
       for (let i = arc.chapterRange[0]; i <= arc.chapterRange[1]; i++) {
         if (_story2.defeated.includes(i)) return true;
       }
@@ -258,7 +287,8 @@ function _renderChapterList() {
   if (typeof _storyViewAct !== 'number') _storyViewAct = curActIdx;
   _storyViewAct = Math.max(0, Math.min(maxAct, _storyViewAct));
 
-  const act = STORY_ACT_STRUCTURE[_storyViewAct];
+  const act = _acts[_storyViewAct];
+  if (!act) return;
   const _hex2rgb = hex => {
     const m = hex.replace('#','').match(/.{2}/g);
     return m ? m.map(x => parseInt(x,16)).join(',') : '136,136,136';
@@ -1179,6 +1209,15 @@ function _isArcUnlocked(arc) {
   const firstArc = STORY_ACT_STRUCTURE[0].arcs[0];
   if (arc.id === firstArc.id) return true;
 
+  // ── Saga builds ───────────────────────────────────────────────────────────
+  // The active saga's opening arc is always unlocked too. Its predecessor lives
+  // in the PREVIOUS saga and can never be cleared in this build, so without this
+  // a saga build has no reachable first chapter at all. No-ops on 'full'.
+  if (typeof sagaFirstArc === 'function' && !sagaIsFullBuild()) {
+    const sFirst = sagaFirstArc();
+    if (sFirst && arc.id === sFirst.id) return true;
+  }
+
   // Fallen God arc unlocks directly from Act V completion (not multiverse).
   // This ensures the revelation lore fires before the Creator domain,
   // removing the postgame/multiverse-completion dependency.
@@ -1191,19 +1230,32 @@ function _isArcUnlocked(arc) {
   // Multiverse arcs (arc4mv-*) additionally require the Axiom Ship to be built.
   // The trials were designed for a traveler with a stable vessel — not before.
   if (arc.id && arc.id.startsWith('arc4mv')) {
-    if (!window.SHIP || !SHIP.built) return false;
+    // Every ship part is awarded by saga1 chapters (first hull at ch. 5). On a
+    // build that does not contain them the ship can never be built, which would
+    // lock the multiverse arcs forever — so the gate only applies when those
+    // chapters are actually reachable in this build.
+    const _shipReachable = (typeof isChapterInActiveSaga !== 'function')
+                        || isChapterInActiveSaga(5);
+    if (_shipReachable && (!window.SHIP || !SHIP.built)) return false;
   }
 
   // An arc is unlocked if all chapters in the previous arc are complete
+  // An arc is unlocked if all chapters in the previous arc are complete. A
+  // predecessor outside the active saga is unreachable in this build, so it
+  // gates nothing — treat it as satisfied.
+  const _prevOk = (prevArc) => {
+    if (typeof sagaArcInActive === 'function' && !sagaArcInActive(prevArc)) return true;
+    return _isArcComplete(prevArc);
+  };
   for (let ai = 0; ai < STORY_ACT_STRUCTURE.length; ai++) {
     const act = STORY_ACT_STRUCTURE[ai];
     for (let ri = 0; ri < act.arcs.length; ri++) {
       if (act.arcs[ri].id === arc.id) {
         // get previous arc
-        if (ri > 0) return _isArcComplete(act.arcs[ri - 1]);
+        if (ri > 0) return _prevOk(act.arcs[ri - 1]);
         if (ai > 0) {
           const prevAct = STORY_ACT_STRUCTURE[ai - 1];
-          return _isArcComplete(prevAct.arcs[prevAct.arcs.length - 1]);
+          return _prevOk(prevAct.arcs[prevAct.arcs.length - 1]);
         }
       }
     }

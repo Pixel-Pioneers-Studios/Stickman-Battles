@@ -209,6 +209,50 @@ class ForestBeast extends Fighter {
   activateSuper() {}
   respawn() { this.health = 0; }
 
+  // ── Shaggy silhouette helper ──────────────────────────────────────────────
+  // A blob built from an ellipse with deterministic radial noise, so the beast
+  // has a fur outline instead of the smooth vector egg it used to be. The noise
+  // is keyed on the point index (never on Math.random) so it cannot crawl
+  // between frames; `wob` is the only animated term.
+  _furPath(cx, cy, rx, ry, seed, n, spike, wob) {
+    ctx.beginPath();
+    for (let i = 0; i <= n; i++) {
+      const a  = (i / n) * Math.PI * 2;
+      const h  = Math.sin(i * 12.9898 + seed * 78.233) * 43758.5453;
+      const r  = 1 + (h - Math.floor(h)) * spike + Math.sin(a * 3 + wob) * 0.035;
+      const px = cx + Math.cos(a) * rx * r;
+      const py = cy + Math.sin(a) * ry * r;
+      if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+    }
+    ctx.closePath();
+  }
+
+  // One tapered limb: hip -> knee -> paw, with claws at the paw.
+  _drawLimb(hx, hy, kx, ky, px, py, f, thick, dark, clr, claws) {
+    ctx.strokeStyle = dark;
+    ctx.lineCap     = 'round';
+    ctx.lineJoin    = 'round';
+    ctx.lineWidth   = thick;
+    ctx.beginPath(); ctx.moveTo(hx, hy); ctx.lineTo(kx, ky); ctx.lineTo(px, py); ctx.stroke();
+    ctx.lineWidth   = thick * 0.62;
+    ctx.strokeStyle = clr;
+    ctx.beginPath(); ctx.moveTo(hx, hy); ctx.lineTo(kx, ky); ctx.lineTo(px, py); ctx.stroke();
+    // Paw
+    ctx.fillStyle = dark;
+    ctx.beginPath(); ctx.ellipse(px, py, thick * 0.55, thick * 0.4, 0, 0, Math.PI * 2); ctx.fill();
+    if (claws) {
+      ctx.strokeStyle = '#ffeecc';
+      ctx.lineWidth   = 1.6;
+      for (let i = -1; i <= 1; i++) {
+        ctx.beginPath();
+        ctx.moveTo(px + f * thick * 0.3, py);
+        ctx.lineTo(px + f * (thick * 0.3 + 6), py + 3 + i * 3.5);
+        ctx.stroke();
+      }
+    }
+    ctx.lineCap = 'butt';
+  }
+
   draw() {
     if (this.health <= 0) return;
     ctx.save();
@@ -216,98 +260,198 @@ class ForestBeast extends Fighter {
     if (this.invincible > 0 && Math.floor(this.invincible / 5) % 2 === 1) ctx.globalAlpha = 0.35;
 
     const cx = this.cx(), ty = this.y, f = this.facing;
-    const clr = this.isRaged ? '#cc1100' : '#1a6622';
-    const darkClr = this.isRaged ? '#880800' : '#0d3d14';
+    const gy = ty + this.h;                       // ground line under the paws
+    const t  = this.animTimer || 0;
+    const raged = this.isRaged;
 
-    // Shadow
-    ctx.fillStyle = 'rgba(0,0,0,0.25)';
-    ctx.beginPath(); ctx.ellipse(cx, ty + this.h + 4, this.w * 0.7, 6, 0, 0, Math.PI * 2); ctx.fill();
+    const clr   = raged ? '#c0180c' : '#256b28';
+    const mid   = raged ? '#8e1006' : '#1a5220';
+    const dark  = raged ? '#4d0602' : '#0d3316';
+    const belly = raged ? '#e0603c' : '#4f9a49';
 
-    // Body — hunched quadruped torso
+    // Stride phase from distance travelled, not from a free-running timer, so
+    // the paws track the ground instead of skating under a moving body.
+    this._gait = (this._gait || 0) + Math.abs(this.vx) * 0.085;
+    const moving = Math.abs(this.vx) > 0.4 && this.onGround;
+    const stride = this._gait;
+    const breathe = Math.sin(t * 0.05) * 0.9;
+
+    // Pose: crouch on the slam wind-up, stretch out in the air on a leap
+    const windup = this._slamPhase === 'windup';
+    const impact = this._slamPhase === 'impact';
+    const air    = !this.onGround;
+    const crouch = windup ? 7 : (impact ? -3 : 0);
+    const lunge  = air ? f * 5 : 0;
+
+    const bodyY = ty + this.h * 0.56 + crouch + breathe * 0.4;
+    const bodyX = cx + lunge;
+    const rx    = this.w * 0.98, ry = this.h * 0.27;
+
+    // Shadow — tightens as the beast leaves the ground
+    const lift = Math.max(0, Math.min(1, (gy - (this.onGround ? gy : this.y + this.h)) / 60));
+    ctx.fillStyle = `rgba(0,0,0,${air ? 0.12 : 0.28})`;
+    ctx.beginPath();
+    ctx.ellipse(cx, gy + 3, this.w * (air ? 0.5 : 0.78), 6, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // ── Rear legs (behind the body) ───────────────────────────────────────────
+    const swing = moving ? Math.sin(stride) * 11 : (air ? -7 : Math.sin(t * 0.04) * 1.4);
+    const swing2 = moving ? Math.sin(stride + Math.PI) * 11 : (air ? -4 : -Math.sin(t * 0.04) * 1.4);
+    const rearX  = bodyX - f * this.w * 0.62;
+    const frontX = bodyX + f * this.w * 0.52;
+    const hipY   = bodyY + ry * 0.42;
+    this._drawLimb(rearX, hipY, rearX - f * 8 + swing2 * 0.4, hipY + 16,
+                   rearX - f * 4 + swing2, gy - Math.max(0, swing2) * 0.35, f, 10, dark, mid, false);
+    this._drawLimb(frontX, hipY - 2, frontX + f * 4 + swing2 * 0.3, hipY + 15,
+                   frontX + f * 7 + swing2 * 0.8, gy - Math.max(0, swing2) * 0.3, f, 9, dark, mid, true);
+
+    // ── Tail ──────────────────────────────────────────────────────────────────
+    const tailBase = bodyX - f * rx * 0.92;
+    const tSway = Math.sin(t * 0.06) * 8 + (moving ? Math.sin(stride) * 4 : 0);
+    ctx.strokeStyle = mid;
+    ctx.lineCap     = 'round';
+    ctx.lineWidth   = 7;
+    ctx.beginPath();
+    ctx.moveTo(tailBase, bodyY - 2);
+    ctx.quadraticCurveTo(tailBase - f * 20, bodyY - 12 + tSway * 0.5, tailBase - f * 30, bodyY + 4 + tSway);
+    ctx.stroke();
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(tailBase - f * 26, bodyY + tSway * 0.8);
+    ctx.lineTo(tailBase - f * 38, bodyY + 2 + tSway * 1.2);
+    ctx.stroke();
+    ctx.lineCap = 'butt';
+
+    // ── Torso ─────────────────────────────────────────────────────────────────
+    const seed = (this._furSeed || (this._furSeed = ((this.spawnX | 0) % 97) + 3));
+    const bodyGrad = ctx.createLinearGradient(0, bodyY - ry, 0, bodyY + ry);
+    bodyGrad.addColorStop(0,    clr);
+    bodyGrad.addColorStop(0.55, mid);
+    bodyGrad.addColorStop(1,    dark);
+    ctx.fillStyle   = bodyGrad;
+    ctx.strokeStyle = dark;
+    ctx.lineWidth   = 2;
+    this._furPath(bodyX, bodyY, rx, ry, seed, 30, 0.14, t * 0.05);
+    ctx.fill(); ctx.stroke();
+
+    // Shoulder hump — the mass that makes it read as a predator, not a barrel
     ctx.fillStyle = clr;
-    ctx.strokeStyle = darkClr;
-    ctx.lineWidth = 2;
-    // Main body blob (wide, low-slung)
-    ctx.beginPath();
-    ctx.ellipse(cx, ty + this.h * 0.58, this.w * 0.72, this.h * 0.38, 0, 0, Math.PI * 2);
+    this._furPath(bodyX + f * rx * 0.30, bodyY - ry * 0.62, rx * 0.42, ry * 0.72, seed + 11, 20, 0.18, t * 0.05 + 1);
     ctx.fill(); ctx.stroke();
 
-    // Hump / back
+    // Belly highlight
+    ctx.fillStyle = belly;
+    ctx.globalAlpha = (ctx.globalAlpha) * 0.35;
     ctx.beginPath();
-    ctx.ellipse(cx - f * 4, ty + this.h * 0.38, this.w * 0.48, this.h * 0.28, 0, 0, Math.PI * 2);
-    ctx.fill(); ctx.stroke();
-
-    // Head (large, low, forward-leaning)
-    const headX = cx + f * (this.w * 0.38);
-    const headY = ty + this.h * 0.3;
-    ctx.beginPath();
-    ctx.ellipse(headX, headY, this.w * 0.38, this.w * 0.32, f > 0 ? -0.3 : 0.3, 0, Math.PI * 2);
-    ctx.fillStyle = clr; ctx.fill(); ctx.stroke();
-
-    // Snout / maw
-    ctx.fillStyle = darkClr;
-    ctx.beginPath();
-    ctx.ellipse(headX + f * (this.w * 0.22), headY + 4, this.w * 0.18, this.w * 0.12, 0, 0, Math.PI * 2);
+    ctx.ellipse(bodyX - f * rx * 0.1, bodyY + ry * 0.45, rx * 0.55, ry * 0.34, 0, 0, Math.PI * 2);
     ctx.fill();
+    ctx.globalAlpha = (this.invincible > 0 && Math.floor(this.invincible / 5) % 2 === 1) ? 0.35 : 1;
 
-    // Fangs
-    ctx.fillStyle = '#ffffcc';
-    ctx.beginPath();
-    ctx.moveTo(headX + f * (this.w * 0.26), headY + 7);
-    ctx.lineTo(headX + f * (this.w * 0.30), headY + 16);
-    ctx.lineTo(headX + f * (this.w * 0.22), headY + 7);
-    ctx.fill();
-    ctx.beginPath();
-    ctx.moveTo(headX + f * (this.w * 0.34), headY + 6);
-    ctx.lineTo(headX + f * (this.w * 0.38), headY + 14);
-    ctx.lineTo(headX + f * (this.w * 0.30), headY + 6);
-    ctx.fill();
-
-    // Eyes — glowing red
-    ctx.fillStyle = this.isRaged ? '#ffff00' : '#ff2200';
-    ctx.shadowColor = ctx.fillStyle; ctx.shadowBlur = 8;
-    ctx.beginPath(); ctx.arc(headX + f * 8, headY - 4, 4, 0, Math.PI * 2); ctx.fill();
-    ctx.shadowBlur = 0;
-
-    // Front claws (arm)
-    ctx.strokeStyle = darkClr; ctx.lineWidth = 4;
-    const armX = cx + f * (this.w * 0.4);
-    ctx.beginPath(); ctx.moveTo(armX, ty + this.h * 0.52); ctx.lineTo(armX + f * 14, ty + this.h * 0.72); ctx.stroke();
-    // Claw tips
-    ctx.strokeStyle = '#ffddaa'; ctx.lineWidth = 2;
-    for (let i = -1; i <= 1; i++) {
+    // Dorsal spines, tallest over the hump
+    ctx.fillStyle = dark;
+    for (let i = 0; i < 7; i++) {
+      const p  = i / 6;
+      const sx = bodyX - f * rx * 0.85 + f * p * rx * 1.7;
+      const sy = bodyY - ry * (0.72 + Math.sin(p * Math.PI) * 0.42);
+      const sh = 7 + Math.sin(p * Math.PI) * 11;
       ctx.beginPath();
-      ctx.moveTo(armX + f * 14, ty + this.h * 0.72);
-      ctx.lineTo(armX + f * 14 + i * 6, ty + this.h * 0.72 + 10);
-      ctx.stroke();
-    }
-
-    // Back legs
-    ctx.strokeStyle = darkClr; ctx.lineWidth = 4;
-    const legX = cx - f * (this.w * 0.3);
-    ctx.beginPath(); ctx.moveTo(legX, ty + this.h * 0.72); ctx.lineTo(legX - f * 8, ty + this.h + 2); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(cx, ty + this.h * 0.76); ctx.lineTo(cx + f * 4, ty + this.h + 2); ctx.stroke();
-
-    // Fur spikes on back
-    ctx.fillStyle = darkClr;
-    for (let i = 0; i < 5; i++) {
-      const sx = cx - f * 18 + i * f * 9;
-      const sy = ty + this.h * 0.25 - i * 2;
-      ctx.beginPath();
-      ctx.moveTo(sx, sy);
-      ctx.lineTo(sx - f * 3, sy - 12);
-      ctx.lineTo(sx + f * 3, sy);
+      ctx.moveTo(sx - f * 4, sy + 4);
+      ctx.lineTo(sx + f * 3, sy - sh);
+      ctx.lineTo(sx + f * 6, sy + 3);
+      ctx.closePath();
       ctx.fill();
     }
 
-    // Raged: fire aura
-    if (this.isRaged && settings.particles && this.animTimer % 3 === 0) {
-      spawnParticles(cx, ty + this.h * 0.4, '#ff4400', 2);
+    // ── Neck + head ───────────────────────────────────────────────────────────
+    const headX = bodyX + f * (rx * 0.92);
+    const headY = bodyY - ry * (windup ? 0.28 : 0.55) + (air ? -4 : 0);
+    ctx.strokeStyle = mid;
+    ctx.lineWidth   = 19;
+    ctx.lineCap     = 'round';
+    ctx.beginPath();
+    ctx.moveTo(bodyX + f * rx * 0.42, bodyY - ry * 0.5);
+    ctx.lineTo(headX - f * 6, headY + 4);
+    ctx.stroke();
+    ctx.lineCap = 'butt';
+
+    ctx.fillStyle   = clr;
+    ctx.strokeStyle = dark;
+    ctx.lineWidth   = 2;
+    this._furPath(headX, headY, this.w * 0.52, this.w * 0.40, seed + 5, 18, 0.12, t * 0.05);
+    ctx.fill(); ctx.stroke();
+
+    // Muzzle + jaw. The jaw drops on the wind-up and on a leap — this is the
+    // whole reason the head is a separate piece from the skull.
+    const gape = windup ? 11 : (air ? 8 : 2 + Math.sin(t * 0.07) * 0.8);
+    const snoutX = headX + f * this.w * 0.34;
+    ctx.fillStyle = mid;
+    ctx.beginPath();
+    ctx.ellipse(snoutX, headY + 2, this.w * 0.24, this.w * 0.15, f > 0 ? 0.12 : -0.12, 0, Math.PI * 2);
+    ctx.fill(); ctx.stroke();
+    // Open maw
+    ctx.fillStyle = '#3a0808';
+    ctx.beginPath();
+    ctx.moveTo(headX + f * this.w * 0.12, headY + 4);
+    ctx.quadraticCurveTo(snoutX + f * 6, headY + 4 + gape * 0.2, snoutX + f * this.w * 0.2, headY + 3 + gape * 0.5);
+    ctx.quadraticCurveTo(snoutX, headY + 6 + gape, headX + f * this.w * 0.14, headY + 5 + gape * 0.8);
+    ctx.closePath();
+    ctx.fill();
+    // Fangs, upper and lower
+    ctx.fillStyle = '#fffbe0';
+    for (const fg of [[0.16, 1], [0.30, 1], [0.22, -1]]) {
+      const fx = headX + f * this.w * fg[0] + (fg[1] < 0 ? f * 4 : 0);
+      const fy = fg[1] > 0 ? headY + 4 : headY + 4 + gape * 0.8;
+      ctx.beginPath();
+      ctx.moveTo(fx - 2.4, fy);
+      ctx.lineTo(fx + 1.2, fy + fg[1] * 8);
+      ctx.lineTo(fx + 3.2, fy);
+      ctx.closePath();
+      ctx.fill();
+    }
+    // Nostril
+    ctx.fillStyle = dark;
+    ctx.beginPath(); ctx.arc(snoutX + f * this.w * 0.16, headY - 2, 1.8, 0, Math.PI * 2); ctx.fill();
+
+    // Ears pinned back
+    ctx.fillStyle = mid;
+    for (const s of [-1, 1]) {
+      ctx.beginPath();
+      ctx.moveTo(headX - f * 4, headY - this.w * 0.2 + s * 3);
+      ctx.lineTo(headX - f * 16, headY - this.w * 0.44 + s * 5);
+      ctx.lineTo(headX - f * 4, headY - this.w * 0.08 + s * 3);
+      ctx.closePath();
+      ctx.fill();
+    }
+
+    // Brow + eye. The brow ridge is what makes it read as angry rather than cute.
+    const eyeX = headX + f * 7, eyeY = headY - 5;
+    ctx.fillStyle = raged ? '#ffe14a' : '#ff3a10';
+    ctx.shadowColor = ctx.fillStyle; ctx.shadowBlur = 10;
+    ctx.beginPath(); ctx.ellipse(eyeX, eyeY, 4.6, 3.4, f > 0 ? -0.3 : 0.3, 0, Math.PI * 2); ctx.fill();
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = '#150000';
+    ctx.beginPath(); ctx.ellipse(eyeX + f * 1.2, eyeY, 1.5, 3, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = dark; ctx.lineWidth = 3.4;
+    ctx.beginPath();
+    ctx.moveTo(eyeX - f * 8, eyeY - 7);
+    ctx.lineTo(eyeX + f * 6, eyeY - 4);
+    ctx.stroke();
+
+    // ── Near-side legs (in front of the body) ────────────────────────────────
+    this._drawLimb(rearX + f * 5, hipY, rearX - f * 3 + swing * 0.4, hipY + 17,
+                   rearX + f * 1 + swing, gy - Math.max(0, swing) * 0.35, f, 11, dark, clr, false);
+    this._drawLimb(frontX + f * 4, hipY - 3,
+                   frontX + f * 6 + swing * 0.3, hipY + 16 - (windup ? 8 : 0),
+                   frontX + f * 10 + swing, gy - Math.max(0, swing) * 0.3 - (windup ? 16 : 0), f, 10, dark, clr, true);
+
+    // Raged: embers rolling off the back
+    if (raged && settings.particles && t % 3 === 0) {
+      spawnParticles(bodyX, bodyY - ry * 0.6, '#ff4400', 2);
     }
 
     // Name tag
     ctx.globalAlpha = 1;
-    ctx.fillStyle = this.isRaged ? '#ff6600' : '#aaffaa';
+    ctx.fillStyle = raged ? '#ff6600' : '#aaffaa';
     ctx.font = 'bold 11px Arial';
     ctx.textAlign = 'center';
     ctx.fillText(this.name, cx, ty - 10);

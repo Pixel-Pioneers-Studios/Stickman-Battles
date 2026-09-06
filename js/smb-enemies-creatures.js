@@ -200,13 +200,34 @@ class Yeti extends Fighter {
     spawnParticles(this.cx() + this.facing * 24, this.cy(), '#aaddff', 10);
   }
 
+  // Shaggy silhouette: an ellipse with deterministic radial noise so the yeti
+  // has a fur outline rather than the smooth vector egg it used to be. The
+  // noise is keyed on the point index (never Math.random), so it cannot crawl
+  // between frames; `wob` is the only animated term.
+  _fur(cx, cy, rx, ry, seed, n, spike, wob) {
+    ctx.beginPath();
+    for (let i = 0; i <= n; i++) {
+      const a = (i / n) * Math.PI * 2;
+      const h = Math.sin(i * 12.9898 + seed * 78.233) * 43758.5453;
+      const r = 1 + (h - Math.floor(h)) * spike + Math.sin(a * 3 + wob) * 0.03;
+      const px = cx + Math.cos(a) * rx * r;
+      const py = cy + Math.sin(a) * ry * r;
+      if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+    }
+    ctx.closePath();
+  }
+
   draw() {
     if (this.health <= 0) return;
     ctx.save();
     if (this.invincible > 0 && Math.floor(this.invincible / 5) % 2 === 1) ctx.globalAlpha = 0.35;
 
-    const cx = this.cx(), ty = this.y;
-    const clr = '#c8e8ff', dark = '#4477aa';
+    const cx = this.cx(), ty = this.y, f = this.facing;
+    const gy = ty + this.h;
+    const t  = this.animTimer || 0;
+    // Pale-on-pale vanished into the ice arena and read as a snowman; this
+    // palette keeps the fur a shade or two below the snow with white highlights.
+    const clr = '#cfe2f0', mid = '#8fb3cf', dark = '#2f5b7c', deep = '#1d3f5c';
 
     // Draw freeze zones on ground
     for (const z of this._freezeZones) {
@@ -231,7 +252,8 @@ class Yeti extends Fighter {
     }
 
     // Charged heavy smash wind-up indicator
-    if (this._heavyPhase === 'windup') {
+    const windup = this._heavyPhase === 'windup';
+    if (windup) {
       const chargeP = 1 - this._heavyTimer / (this.health < this.maxHealth * 0.5 ? 30 : 45);
       ctx.save();
       ctx.globalAlpha = 0.7 * chargeP;
@@ -259,56 +281,245 @@ class Yeti extends Fighter {
       ctx.fill();
     }
 
+    // ── Pose ──────────────────────────────────────────────────────────────────
+    // Stride phase from distance travelled, not a free-running timer, or the
+    // feet skate under a body that moves at a different rate.
+    this._gait = (this._gait || 0) + Math.abs(this.vx) * 0.10;
+    const moving  = Math.abs(this.vx) > 0.4 && this.onGround;
+    const swing   = moving ? Math.sin(this._gait) * 8 : Math.sin(t * 0.035) * 1.0;
+    const breathe = Math.sin(t * 0.045) * 1.2;
+    const attacking = this.state === 'attacking' || windup;
+    const crouch  = windup ? 6 : 0;
+    const seed    = (this._furSeed || (this._furSeed = ((this.spawnX | 0) % 89) + 7));
+
+    // Ape proportions: a tall shaggy trunk, a small head sunk into the shoulders,
+    // short bowed legs and very long arms that reach the floor on the knuckles.
+    // The previous build was a wide noisy ellipse under a ball head, which read
+    // as a snowman in a poncho.
+    const shY   = ty + this.h * 0.24 + crouch;
+    const hipY  = ty + this.h * 0.70 + crouch;
+    const shHW  = this.w * 0.80;
+    const hipHW = this.w * 0.56;
+
     // Shadow
-    ctx.fillStyle = 'rgba(0,0,0,0.22)';
-    ctx.beginPath(); ctx.ellipse(cx, ty + this.h + 5, this.w * 0.75, 7, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = 'rgba(0,0,0,0.24)';
+    ctx.beginPath(); ctx.ellipse(cx, gy + 4, this.w * 0.85, 7, 0, 0, Math.PI * 2); ctx.fill();
 
-    // Body — large bulky torso
-    ctx.fillStyle = clr; ctx.strokeStyle = dark; ctx.lineWidth = 2.5;
+    // Shaggy trunk outline: a rounded trapezoid walked point-by-point with
+    // triangular tufts hung off it. Tuft size is index-hashed so the coat is
+    // ragged but never crawls between frames.
+    const trunkPath = () => {
+      const pts = [];
+      const push = (x, y) => pts.push([x, y]);
+      for (let i = 0; i <= 8; i++) {                    // right flank, down
+        const p = i / 8;
+        push(cx + shHW + (hipHW - shHW) * p + Math.sin(p * 3.1) * 2,
+             shY + (hipY - shY) * p);
+      }
+      for (let i = 0; i <= 5; i++) {                    // hips, across
+        const p = i / 5;
+        push(cx + hipHW - hipHW * 2 * p, hipY + Math.sin(p * Math.PI) * 5);
+      }
+      for (let i = 0; i <= 8; i++) {                    // left flank, up
+        const p = i / 8;
+        push(cx - hipHW + (shHW - hipHW) * p - Math.sin((1 - p) * 3.1) * 2,
+             hipY + (shY - hipY) * p);
+      }
+      for (let i = 0; i <= 6; i++) {                    // shoulders, across
+        const p = i / 6;
+        push(cx - shHW + shHW * 2 * p, shY - Math.sin(p * Math.PI) * 7);
+      }
+      ctx.beginPath();
+      for (let i = 0; i < pts.length; i++) {
+        const [x, y] = pts[i];
+        const [nx, ny] = pts[(i + 1) % pts.length];
+        if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+        // Tuft: a spike pushed out along the edge normal
+        const hsh = Math.sin(i * 12.9898 + seed * 78.233) * 43758.5453;
+        const amt = 2 + (hsh - Math.floor(hsh)) * 6;
+        const ex = nx - x, ey = ny - y, el = Math.hypot(ex, ey) || 1;
+        ctx.lineTo((x + nx) * 0.5 + (ey / el) * amt, (y + ny) * 0.5 - (ex / el) * amt);
+      }
+      ctx.closePath();
+    };
+
+    // ── Far arm (behind the trunk) ────────────────────────────────────────────
+    const farShX  = cx - f * shHW * 0.82;
+    const farHndX = farShX - f * 8 - swing * 0.6;
+    const farHndY = attacking ? shY + this.h * 0.30 : gy - 8 - Math.abs(swing) * 0.4;
+    ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    ctx.strokeStyle = dark; ctx.lineWidth = 13;
     ctx.beginPath();
-    ctx.ellipse(cx, ty + this.h * 0.55, this.w * 0.62, this.h * 0.36, 0, 0, Math.PI * 2);
+    ctx.moveTo(farShX, shY + 6);
+    ctx.quadraticCurveTo(farShX - f * 16, shY + this.h * 0.32, farHndX, farHndY);
+    ctx.stroke();
+    ctx.strokeStyle = mid; ctx.lineWidth = 8;
+    ctx.beginPath();
+    ctx.moveTo(farShX, shY + 6);
+    ctx.quadraticCurveTo(farShX - f * 16, shY + this.h * 0.32, farHndX, farHndY);
+    ctx.stroke();
+    ctx.fillStyle = mid; ctx.strokeStyle = dark; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(farHndX, farHndY, 7.5, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+
+    // ── Legs — short, thick, bowed, planted wide ─────────────────────────────
+    ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    for (const s of [-1, 1]) {
+      const off = s === 1 ? swing : -swing;
+      const hx  = cx + s * hipHW * 0.62;
+      const kx  = cx + s * (hipHW * 0.95) + off * 0.3;
+      const fx  = cx + s * (hipHW * 0.82) + off;
+      const fy  = gy - 5 - Math.max(0, off) * 0.3;
+      ctx.strokeStyle = deep; ctx.lineWidth = 21;
+      ctx.beginPath(); ctx.moveTo(hx, hipY - 4); ctx.lineTo(kx, hipY + this.h * 0.13); ctx.lineTo(fx, fy); ctx.stroke();
+      ctx.strokeStyle = mid;  ctx.lineWidth = 14;
+      ctx.beginPath(); ctx.moveTo(hx, hipY - 4); ctx.lineTo(kx, hipY + this.h * 0.13); ctx.lineTo(fx, fy); ctx.stroke();
+      // Broad flat foot with toes
+      ctx.fillStyle = deep;
+      ctx.beginPath(); ctx.ellipse(fx + f * 4, fy + 3, 14, 5.5, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#eef7ff';
+      for (let i = -1; i <= 1; i++) {
+        ctx.beginPath(); ctx.arc(fx + f * 12, fy + 2 + i * 3.2, 1.8, 0, Math.PI * 2); ctx.fill();
+      }
+    }
+    ctx.lineCap = 'butt';
+
+    // ── Trunk ─────────────────────────────────────────────────────────────────
+    const bodyGrad = ctx.createLinearGradient(cx - shHW, 0, cx + shHW, 0);
+    bodyGrad.addColorStop(0,    mid);
+    bodyGrad.addColorStop(0.40, clr);
+    bodyGrad.addColorStop(1,    dark);
+    ctx.fillStyle   = bodyGrad;
+    ctx.strokeStyle = deep;
+    ctx.lineWidth   = 2.5;
+    ctx.lineJoin    = 'round';
+    trunkPath(); ctx.fill(); ctx.stroke();
+
+    // Chest plate — lighter, narrow, so the trunk reads as a torso not a barrel
+    ctx.fillStyle = 'rgba(255,255,255,0.42)';
+    ctx.beginPath();
+    ctx.ellipse(cx + f * 3, (shY + hipY) * 0.5 + breathe * 0.5, shHW * 0.40, (hipY - shY) * 0.34, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Fur lay — short strokes fanning down and out from the spine
+    ctx.strokeStyle = 'rgba(60,110,155,0.30)';
+    ctx.lineWidth = 1.5;
+    for (let i = 0; i < 10; i++) {
+      const p  = i / 9;
+      const lx = cx - shHW * 0.7 + p * shHW * 1.4;
+      const ly = shY + 10 + Math.sin(p * Math.PI) * 5;
+      const dir = lx < cx ? -1 : 1;
+      ctx.beginPath();
+      ctx.moveTo(lx, ly);
+      ctx.quadraticCurveTo(lx + dir * 3, ly + 12, lx + dir * 7, ly + 24);
+      ctx.stroke();
+    }
+
+    // Frost crusting the shoulders — this is a yeti, the arena should be on it
+    ctx.fillStyle = 'rgba(224,244,255,0.75)';
+    for (const s of [-1, 1]) {
+      const sx = cx + s * shHW * 0.68;
+      ctx.beginPath();
+      ctx.moveTo(sx - 9, shY + 4);
+      ctx.lineTo(sx - 3, shY - 8);
+      ctx.lineTo(sx + 2, shY - 1);
+      ctx.lineTo(sx + 8, shY - 9);
+      ctx.lineTo(sx + 10, shY + 5);
+      ctx.closePath();
+      ctx.fill();
+    }
+
+    // ── Head — small, sunk between the shoulders ─────────────────────────────
+    const headY = ty + this.h * 0.155 + crouch + breathe * 0.4;
+    const headR = this.w * 0.29;
+    ctx.fillStyle   = clr;
+    ctx.strokeStyle = deep;
+    ctx.lineWidth   = 2.5;
+    this._fur(cx + f * 2, headY, headR, headR * 0.98, seed + 9, 22, 0.22, t * 0.045);
     ctx.fill(); ctx.stroke();
-
-    // Arms — outstretched (idle) or raised
-    const armRaise = this.state === 'attacking' ? -20 : 0;
-    ctx.strokeStyle = dark; ctx.lineWidth = 7;
-    ctx.beginPath(); ctx.moveTo(cx - this.w * 0.44, ty + this.h * 0.38); ctx.lineTo(cx - this.w * 0.7, ty + this.h * 0.52 + armRaise); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(cx + this.w * 0.44, ty + this.h * 0.38); ctx.lineTo(cx + this.w * 0.7, ty + this.h * 0.52 + armRaise); ctx.stroke();
-
-    // Fists / paws
-    ctx.fillStyle = clr;
-    ctx.beginPath(); ctx.arc(cx - this.w * 0.7, ty + this.h * 0.52 + armRaise, 10, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-    ctx.beginPath(); ctx.arc(cx + this.w * 0.7, ty + this.h * 0.52 + armRaise, 10, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-
-    // Legs
-    ctx.lineWidth = 8;
-    ctx.beginPath(); ctx.moveTo(cx - 14, ty + this.h * 0.78); ctx.lineTo(cx - 18, ty + this.h + 2); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(cx + 14, ty + this.h * 0.78); ctx.lineTo(cx + 18, ty + this.h + 2); ctx.stroke();
-
-    // Head — round, prominent
-    ctx.lineWidth = 2.5;
-    ctx.fillStyle = clr;
-    ctx.beginPath(); ctx.arc(cx, ty + this.h * 0.22, this.w * 0.4, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-
-    // Ears
-    ctx.beginPath(); ctx.arc(cx - this.w * 0.32, ty + this.h * 0.08, 8, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-    ctx.beginPath(); ctx.arc(cx + this.w * 0.32, ty + this.h * 0.08, 8, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-
-    // Glowing blue eyes
-    ctx.fillStyle = '#0066ff'; ctx.shadowColor = '#0099ff'; ctx.shadowBlur = 10;
-    ctx.beginPath(); ctx.arc(cx - 9, ty + this.h * 0.2, 5, 0, Math.PI * 2); ctx.fill();
-    ctx.beginPath(); ctx.arc(cx + 9, ty + this.h * 0.2, 5, 0, Math.PI * 2); ctx.fill();
+    // Face — a muzzle patch low on the skull, under the brow
+    ctx.fillStyle = '#eef7ff';
+    ctx.beginPath();
+    ctx.ellipse(cx + f * 3, headY + headR * 0.46, headR * 0.46, headR * 0.34, 0, 0, Math.PI * 2);
+    ctx.fill();
+    // Heavy brow ridge
+    ctx.fillStyle = dark;
+    ctx.beginPath();
+    ctx.moveTo(cx + f * 2 - headR * 0.62, headY - headR * 0.02);
+    ctx.quadraticCurveTo(cx + f * 2, headY - headR * 0.40, cx + f * 2 + headR * 0.62, headY - headR * 0.02);
+    ctx.quadraticCurveTo(cx + f * 2, headY + headR * 0.12, cx + f * 2 - headR * 0.62, headY - headR * 0.02);
+    ctx.closePath();
+    ctx.fill();
+    // Small eyes glowing out from under it
+    ctx.fillStyle = '#2aa8ff'; ctx.shadowColor = '#66ccff'; ctx.shadowBlur = 10;
+    for (const s of [-1, 1]) {
+      ctx.beginPath();
+      ctx.ellipse(cx + f * 2 + s * headR * 0.33, headY + headR * 0.02, 2.2, 1.7, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
     ctx.shadowBlur = 0;
+    // Snarl + tusks
+    const gape = attacking ? 6 : 1.5;
+    ctx.strokeStyle = deep; ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(cx + f * 3 - headR * 0.34, headY + headR * 0.44);
+    ctx.quadraticCurveTo(cx + f * 3, headY + headR * 0.44 + gape, cx + f * 3 + headR * 0.34, headY + headR * 0.44);
+    ctx.stroke();
+    ctx.fillStyle = '#fffdf0';
+    for (const s of [-1, 1]) {
+      const tx = cx + f * 3 + s * headR * 0.30;
+      ctx.beginPath();
+      ctx.moveTo(tx - 2.2, headY + headR * 0.46);
+      ctx.lineTo(tx, headY + headR * 0.46 - 7 - gape * 0.4);
+      ctx.lineTo(tx + 2.2, headY + headR * 0.46);
+      ctx.closePath();
+      ctx.fill();
+    }
+    // Frost breath on the exhale
+    if ((t % 150) < 34) {
+      const bp = ((t % 150) / 34);
+      const inv = (this.invincible > 0 && Math.floor(this.invincible / 5) % 2 === 1) ? 0.35 : 1;
+      ctx.globalAlpha = inv * (1 - bp) * 0.5;
+      ctx.fillStyle = '#dff2ff';
+      ctx.beginPath();
+      ctx.ellipse(cx + f * (headR + 6 + bp * 22), headY + headR * 0.5 + bp * 4,
+                  6 + bp * 13, 4 + bp * 8, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.globalAlpha = inv;
+    }
 
-    // Mouth (angry)
-    ctx.strokeStyle = dark; ctx.lineWidth = 2;
-    ctx.beginPath(); ctx.arc(cx, ty + this.h * 0.26, 10, 0.2, Math.PI - 0.2); ctx.stroke();
-
-    // Fur texture lines
-    ctx.strokeStyle = 'rgba(100,150,220,0.3)'; ctx.lineWidth = 1;
-    for (let i = 0; i < 6; i++) {
-      const lx = cx - 18 + i * 7; const ly = ty + this.h * 0.4;
-      ctx.beginPath(); ctx.moveTo(lx, ly); ctx.lineTo(lx - 3, ly + 14); ctx.stroke();
+    // ── Near arm (over the trunk) — long enough to knuckle the floor ─────────
+    const shX   = cx + f * shHW * 0.86;
+    const hndX  = attacking ? shX + f * 4  : shX + f * 10 + swing * 0.6;
+    const hndY  = attacking ? headY - headR - 14 : gy - 8 - Math.abs(swing) * 0.4;
+    ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    ctx.strokeStyle = deep; ctx.lineWidth = 15;
+    ctx.beginPath();
+    ctx.moveTo(shX, shY + 6);
+    ctx.quadraticCurveTo(shX + f * 20, attacking ? shY + this.h * 0.10 : shY + this.h * 0.40, hndX, hndY);
+    ctx.stroke();
+    ctx.strokeStyle = clr; ctx.lineWidth = 9;
+    ctx.beginPath();
+    ctx.moveTo(shX, shY + 6);
+    ctx.quadraticCurveTo(shX + f * 20, attacking ? shY + this.h * 0.10 : shY + this.h * 0.40, hndX, hndY);
+    ctx.stroke();
+    ctx.lineCap = 'butt';
+    // Fist
+    ctx.fillStyle = clr; ctx.strokeStyle = deep; ctx.lineWidth = 2.5;
+    ctx.beginPath(); ctx.arc(hndX, hndY, 8.5, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    // Knuckles
+    ctx.fillStyle = deep;
+    for (let i = -1; i <= 1; i++) {
+      ctx.beginPath(); ctx.arc(hndX + f * 6, hndY + i * 4.5, 2, 0, Math.PI * 2); ctx.fill();
+    }
+    // Frost gathering on the raised fist while charging
+    if (windup) {
+      ctx.fillStyle = 'rgba(170,221,255,0.7)';
+      for (let i = 0; i < 4; i++) {
+        const a = t * 0.15 + i * Math.PI / 2;
+        ctx.beginPath();
+        ctx.arc(hndX + Math.cos(a) * 17, hndY + Math.sin(a) * 17, 2.4, 0, Math.PI * 2);
+        ctx.fill();
+      }
     }
 
     // Name tag

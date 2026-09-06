@@ -44,12 +44,15 @@ function drawBackground() {
   // Solid base fill first (gradient fallback for bottom overflow area)
   ctx.fillStyle = a.sky[a.sky.length - 1];
   ctx.fillRect(_bgX, 0, _bgW, _bgH);
-  // Gradient layer over the visible game area — cached per arena key
-  if (!drawBackground._skyGradCache || drawBackground._skyGradKey !== currentArenaKey) {
+  // Gradient layer over the visible game area — cached per arena key.
+  // Explore worlds all share the key '__explore__', so the palette has to be
+  // part of the cache key or one chapter's sky leaks into the next one's.
+  const _gradKey = currentArenaKey + '|' + (a.themeKey || '') + '|' + a.sky.join(',') + '|' + (a.groundColor || '');
+  if (!drawBackground._skyGradCache || drawBackground._skyGradKey !== _gradKey) {
     drawBackground._skyGradCache = ctx.createLinearGradient(0, 0, 0, GAME_H);
     drawBackground._skyGradCache.addColorStop(0, a.sky[0]);
     drawBackground._skyGradCache.addColorStop(1, a.sky[a.sky.length - 1]);
-    drawBackground._skyGradKey = currentArenaKey;
+    drawBackground._skyGradKey = _gradKey;
   }
   ctx.fillStyle = drawBackground._skyGradCache;
   ctx.fillRect(_bgX, 0, _bgW, GAME_H);
@@ -64,18 +67,35 @@ function drawBackground() {
 
     // A flat fill put the ground on the same plane as everything else. Grade it
     // so the surface catches light and falls off with depth.
-    if (!drawBackground._groundGradCache || drawBackground._groundGradKey !== currentArenaKey) {
+    if (!drawBackground._groundGradCache || drawBackground._groundGradKey !== _gradKey) {
       const g = ctx.createLinearGradient(0, groundTop, 0, groundTop + 260);
       g.addColorStop(0,    _dpMix(a.groundColor, '#ffffff', 0.16));
       g.addColorStop(0.14, a.groundColor);
       g.addColorStop(1,    _dpMix(a.groundColor, '#000000', 0.42));
       drawBackground._groundGradCache = g;
-      drawBackground._groundGradKey   = currentArenaKey;
+      drawBackground._groundGradKey   = _gradKey;
     }
     ctx.fillStyle = drawBackground._groundGradCache;
     ctx.fillRect(_bgX, groundTop, _bgW, _bgH - groundTop);
   }
 
+  _drawArenaThemeArt(currentArenaKey);
+
+  // Exploration: tile the style-appropriate background across world width
+  if (currentArena && currentArena.isExploreArena) {
+    _drawExploreThemeArt(currentArena);
+  }
+
+  // Boundary portals: visible warp rifts at map edges for large story maps
+  if (currentArena && currentArena.boundaryPortals) {
+    _drawBoundaryPortals(currentArena);
+  }
+}
+
+// Bespoke per-arena backdrop art. Split out of drawBackground so explore worlds
+// can render an authored arena's look without being that arena — see
+// _drawExploreThemeArt.
+function _drawArenaThemeArt(currentArenaKey) {
   if (currentArenaKey === 'space')      drawStars();
   if (currentArenaKey === 'grass')      drawClouds();
   if (currentArenaKey === 'lava')       drawLava();
@@ -103,6 +123,7 @@ function drawBackground() {
   if (currentArenaKey === 'colosseum10') drawColosseum10Arena();
   if (currentArenaKey === 'homeYard')    drawHomeYardArena();
   if (currentArenaKey === 'homeAlley')   drawHomeAlleyArena();
+  if (currentArenaKey === 'homeRooftop') drawHomeRooftopArena();
   if (currentArenaKey === 'suburb')      drawSuburbArena();
   if (currentArenaKey === 'rural')       drawRuralArena();
   if (currentArenaKey === 'portalEdge')  drawPortalEdgeArena();
@@ -111,15 +132,90 @@ function drawBackground() {
   if (currentArenaKey === 'god_domain')  drawGodDomainArena();
   if (currentArenaKey === 'absolute_axiom_domain') drawAbsoluteAxiomArena();
   if (currentArenaKey === 'studio')               drawStudioArena();
+}
 
-  // Exploration: tile the style-appropriate background across world width
-  if (currentArena && currentArena.isExploreArena) {
-    _drawExploreBgTiles(currentArena.exploreStyle);
+// Arenas whose bespoke art is a full backdrop worth inheriting into an explore
+// world. Excluded: arenas whose drawer is a thin overlay that reads as nothing
+// on its own, and the training/studio utility arenas.
+const EXPLORE_THEME_ARENAS = new Set([
+  'space', 'grass', 'lava', 'city', 'creator', 'forest', 'ice', 'ruins', 'void',
+  'sovereign', 'cave', 'mirror', 'underwater', 'volcano', 'colosseum',
+  'cyberpunk', 'haunted', 'clouds', 'neonGrid', 'mushroom', 'desert',
+  'megacity', 'warpzone', 'colosseum10', 'homeYard', 'homeAlley', 'homeRooftop',
+  'suburb', 'rural', 'portalEdge', 'realmEntry', 'bossSanctum', 'god_domain',
+  'absolute_axiom_domain',
+]);
+
+// Explore worlds are 5000-9000px wide; bespoke arena art is authored for a
+// single 900x520 screen. Rather than stretching it (unreadable) or tiling it in
+// world space (the 900px-art-in-a-6000px-world mismatch that broke the boundary
+// portals), draw it in VIEWPORT space with slow parallax: two adjacent 900px
+// panels covering the visible screen, each clipped to its own band so
+// full-screen tints inside a drawer cannot stack.
+const _EXPLORE_THEME_PARALLAX = 0.28;
+const _EXPLORE_THEME_EDGE = 44;   // px cropped from each side of a 900px panel
+
+function _drawExploreThemeArt(a) {
+  const key = a.themeKey;
+  if (!key || !EXPLORE_THEME_ARENAS.has(key)) {
+    _drawExploreBgTiles(a.exploreStyle);
+    return;
   }
 
-  // Boundary portals: visible warp rifts at map edges for large story maps
-  if (currentArena && currentArena.boundaryPortals) {
-    _drawBoundaryPortals(currentArena);
+  // Recover the visible world rect from the live transform — the camera locals
+  // that produced it live in gameLoop and are not reachable from here.
+  const m = (typeof ctx.getTransform === 'function') ? ctx.getTransform() : null;
+  if (!m || !m.a || !m.d) { _drawExploreBgTiles(a.exploreStyle); return; }
+  const viewW = canvas.width  / m.a;
+  const viewH = canvas.height / m.d;
+  const viewX = -m.e / m.a;
+  const viewY = -m.f / m.d;
+  // A zero/NaN camera scale for a frame (mid-transition) would make every panel
+  // coordinate non-finite and throw inside the theme drawer.
+  if (![viewW, viewH, viewX, viewY].every(Number.isFinite)) { _drawExploreBgTiles(a.exploreStyle); return; }
+
+  // Horizon match: shift the panel so the authored arena's floor line lands on
+  // the explore world's floor line instead of 40px above or below it.
+  const floorPl = (a.platforms || []).find(pl => pl.isFloor);
+  const dy = (floorPl && a.themeFloorY != null) ? (floorPl.y - a.themeFloorY) : 0;
+
+  const scX = viewW / GAME_W;
+  const scY = viewH / GAME_H;
+
+  // Enclosed arenas draw hard boundary art at their own map edges — suburb's
+  // picket-fence walls, void's and the god domain's side energy barriers. Those
+  // are the edge of a 900px arena, not scenery, and mid-world they read as fake
+  // walls. Crop _EXPLORE_THEME_EDGE off each side and lay panels at the cropped
+  // pitch so the walls are never drawn.
+  const pitch = GAME_W - _EXPLORE_THEME_EDGE * 2;
+  const scroll = viewX * _EXPLORE_THEME_PARALLAX;
+  const k0 = Math.floor(scroll / pitch);
+  const off = scroll - k0 * pitch;
+  const panels = Math.ceil(GAME_W / pitch) + 1;
+
+  // Backdrop art must never paint below the explore world's floor line — the
+  // ground fill and platforms own everything under it, and an arena's own
+  // below-floor decoration (seabed coral, lava pools) is authored against a
+  // different floor height and reads as a second world floating under this one.
+  const clipTop = -dy;
+  const clipBot = (floorPl ? ((floorPl.y - viewY) / viewH) * GAME_H - dy : GAME_H);
+
+  for (let i = 0; i < panels; i++) {
+    const L = i * pitch - off;
+    // Odd panels are mirrored so the art meets itself at every seam — a plain
+    // repeat cuts hard through whatever sits at the crop edge. Mirroring also
+    // doubles the repeat period.
+    const mirrored = (((k0 + i) % 2) + 2) % 2 === 1;
+    ctx.save();
+    ctx.translate(viewX, viewY);
+    ctx.scale(scX, scY);
+    if (mirrored) { ctx.translate(L + GAME_W - _EXPLORE_THEME_EDGE, dy); ctx.scale(-1, 1); }
+    else          { ctx.translate(L - _EXPLORE_THEME_EDGE, dy); }
+    ctx.beginPath();
+    ctx.rect(_EXPLORE_THEME_EDGE, clipTop, pitch, Math.max(0, clipBot - clipTop));
+    ctx.clip();
+    _drawArenaThemeArt(key);
+    ctx.restore();
   }
 }
 
@@ -235,11 +331,16 @@ function _drawExploreBgTiles(style) {
   ctx.strokeStyle = 'rgba(255,255,255,0.08)'; ctx.lineWidth = 1;
   ctx.beginPath(); ctx.moveTo(0, 440); ctx.lineTo(exploreWorldLen, 440); ctx.stroke();
 
-  // Underground layer: carve the shafts and tunnel chambers out of the solid
-  // ground fill so they read as caves, with faint torchlight for visibility.
-  // Chambers stay hidden (covered with solid ground) until the player actually
-  // drops below the surface — chests are meant to be discovered, not spotted
-  // from the walk path. Shaft openings remain visible as the discovery hint.
+  _drawExploreUnderground();
+}
+
+// Underground layer: carve the shafts and tunnel chambers out of the solid
+// ground fill so they read as caves, with faint torchlight for visibility.
+// Chambers stay hidden (covered with solid ground) until the player actually
+// drops below the surface — chests are meant to be discovered, not spotted
+// from the walk path. Shaft openings remain visible as the discovery hint.
+// Kept out of the tile pass so a themed explore world still carves its tunnels.
+function _drawExploreUnderground() {
   if (currentArena && currentArena.undergroundRects) {
     const _p1 = (typeof players !== 'undefined') ? players[0] : null;
     const _tgt = (_p1 && _p1.health > 0 && _p1.y + (_p1.h || 50) > 500) ? 1 : 0;
@@ -388,14 +489,16 @@ function _expTileRuins(i) {
 // arena gains depth without 18 bespoke rewrites. Indoor/abstract arenas
 // (void, cave, space, the domains) are deliberately absent from the table —
 // ridges under a cave ceiling would read as a bug.
+// forest / ruins / colosseum / mushroom were removed after they got bespoke
+// backdrops: a rolling hill crest drawn behind a dense treeline or an arcade
+// wall reads as a stray pale line across the scene, not as depth.
 const ARENA_DEPTH = {
   grass:      { hills: 3 }, clouds:   { hills: 2 }, ice:      { hills: 3 },
-  forest:     { hills: 3 }, ruins:    { hills: 2 }, soccer:   { hills: 2 },
-  colosseum:  { hills: 2 }, colosseum10: { hills: 2 }, desert: { hills: 3 },
-  mushroom:   { hills: 3 }, suburb:   { hills: 2 }, rural:    { hills: 3 },
-  homeYard:   { hills: 2 }, homeRooftop: { hills: 2 }, homeAlley: { hills: 1 },
-  city:       { hills: 2 }, megacity: { hills: 2 }, volcano:  { hills: 3 },
-  haunted:    { hills: 2 },
+  soccer:     { hills: 2 },
+  colosseum10: { hills: 2 },
+  suburb:     { hills: 2 }, rural:    { hills: 3 },
+  homeYard:   { hills: 2 }, homeAlley: { hills: 1 },
+  city:       { hills: 2 }, megacity: { hills: 2 },
 };
 
 // Accepts '#rgb', '#rrggbb' AND 'rgb(r,g,b)' — _dpMix returns the rgb() form,

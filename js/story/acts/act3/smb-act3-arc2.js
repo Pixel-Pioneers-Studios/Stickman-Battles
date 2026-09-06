@@ -339,7 +339,7 @@ STORY_CHAPTER_REGISTRY.push(
     opponentName: 'The Enforcer', weaponKey: 'axe', classKey: 'berserker', aiDiff: 'expert', opponentColor: '#cc0044',
     armor: ['helmet', 'chestplate', 'leggings'],
     playerLives: 1,
-    arena: 'cyberpunk',
+    arena: 'megacity',
     walkFight: true, worldLength: 3000,
     tokenReward: 140, blueprintDrop: 'architects_resolve2',
     postText: 'The Enforcer collapses completely. No reset, no transmission — gone. The Second Architect: "The Creator didn\'t pull it back." The Fourth Architect: "Or it wanted to see if we could do this."',

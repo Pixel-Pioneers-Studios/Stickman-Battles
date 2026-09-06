@@ -24,7 +24,7 @@
     if (typeof SERVER_CONFIG !== 'undefined' && SERVER_CONFIG.url) {
       return SERVER_CONFIG.url + '/api/live-config';
     }
-    return '/live-config.json';
+    return './live-config.json';
   }
 
   const DEFAULT_CONFIG = {

@@ -110,37 +110,73 @@ STORY_CHAPTER_REGISTRY.push(
       '"I know what two do.",',
       '"Which is different.",',
       '',
+      'Then they stopped walking.',
+      '',
+      '"Before we leave."',
+      '',
+      'They nodded back down the corridor.',
+      'At the empty cells. At the seventeen you counted',
+      'when the terminal said nineteen.',
+      '',
+      '"This place still works."',
+      '"The stasis columns. The intake protocol."',
+      '"The trial rig that processed me is two rooms back",',
+      '"and it is still powered.",',
+      '',
+      '"Axiom swept it and left it standing."',
+      '"Because it was still useful to him."',
+      '',
+      'You thought about ninety-four people.',
+      'You thought about how each one of them',
+      'had to be turned into something that could be collected',
+      'before they could be collected.',
+      '',
+      'That did not happen out there.',
+      'It happened in rooms like this one.',
+      '',
       'The facility\'s secondary lockdown units are already in the corridor.',
       'Calix reads the formation in a second and a half.',
       '"Secondary flank, three o\'clock.",',
       '"They trained these things to handle group subjects.",',
       '"So we\'re a group.",',
+      '',
+      '"And after," you said,',
+      '"we burn it."',
+      '',
+      'Calix did not argue.',
     ],
     fightScript: [
       { frame: 30,  text: '⚠️ Secondary lockdown — final facility sweep.', color: '#ff6644', timer: 280 },
       { frame: 160, text: 'Calix shifts between two fighting styles mid-exchange. No hesitation. No confusion. Two patterns competing for the same moment.', color: '#88ccff', timer: 300 },
       { frame: 400, text: '"Seams are where two dying domain architectures press against each other. Both read you as intrusion." — Calix, mid-fight, not slowing down.', color: '#aaddff', timer: 310 },
       { frame: 620, text: '"The fragment is the passport. Both domains recognize its structure. That\'s why Axiom built it that way — not just a key. A passport."', color: '#88ccff', timer: 320 },
+      { frame: 860, text: 'The lockdown is not defending an exit. It is defending the trial wing. Everything this facility did is behind these two.', color: '#ff8866', timer: 320 },
+      { frame: 1080, text: 'Calix, flat: "Ninety-four. Then the columns. Then me." No inflection at all. "Finish it."', color: '#aaddff', timer: 330 },
     ],
     preText: 'Facility lockdown — secondary security sweep. Calix is with you. 3 lives.',
-    opponentName: 'Lockdown Enforcer', weaponKey: 'hammer', classKey: 'thor', aiDiff: 'hard', opponentColor: '#334466',
+    opponentName: 'Lockdown Enforcer', weaponKey: 'hammer', classKey: 'thor', aiDiff: 'expert', opponentColor: '#334466',
     twoEnemies: true,
-    secondEnemy: { weaponKey: 'sword', classKey: 'warrior', aiDiff: 'hard', color: '#223355' },
+    secondEnemy: { weaponKey: 'sword', classKey: 'warrior', aiDiff: 'expert', color: '#223355' },
     armor: ['helmet'],
     arena: 'ruins',
     walkFight: true, worldLength: 3000,
-    playerLives: 3,
+    playerLives: 2,   // saga finale — its hardest fight, two expert enemies
     tokenReward: 80, blueprintDrop: null,
     onComplete() {
       if (typeof setStoryFlag === 'function') {
         setStoryFlag('calix_found');
         setStoryFlag('domain_seam_known');
+        setStoryFlag('lab_destroyed');
       }
       if (typeof fireLoreMoment === 'function') {
         fireLoreMoment('dual_fragment_existence');
         fireLoreMoment('domain_seam_mechanics');
       }
     },
-    postText: '"When a domain\'s architect dies, the domain persists," Calix said. "Not forever. But long enough. It runs on the residual structural will of whoever built it." They checked the corridor. Clear. "The seam is where two of those architectures press together. Most bearers hit one and both sides read them as foreign matter — conflicting intrusion signals. But the fragment reads as structurally similar to domain architecture. Both sides recognize it. You move through." They paused. "That\'s why Axiom built the fragment system the way he did. Not just a key. A passport — something both sides of any seam accept as compatible structure." They looked at their hands for a moment. At the two signatures still arguing. "I know because the lab tested it on me. With both of mine. Twice." They looked up. "So. Where are you going?" You told them. "Right," they said. "I\'m coming."',
+    // Shown INSTEAD of postText when this chapter ends the active saga (a Saga I
+    // build). On the full game this chapter is a transition into the Damnation
+    // Loop and the normal postText runs, so the combined story is unchanged.
+    sagaFinaleText: 'It took eleven minutes. Calix walked you through it in order — intake, the columns, the rig, the data core last — because they knew the order, because they had been moved through it in that order. Nothing about it was dramatic. It was a room with equipment in it, and then it was a room. You came out into open air with the facility going dark behind you, one wing at a time. Ninety-four people were made collectable before they were collected. Not out here. In there — in rooms with intake protocols and stasis columns and eighteen months of structured trials, run by people who wrote all of it down. That machinery does not exist any more. The war does. Axiom does. The fracture system is still turning somewhere above all of this and you have not touched it, and you know you have not touched it. But the thing that turned people into something that could be taken — the process, the rooms, the paperwork — is ash, and it is ash because you went back for it instead of walking out. Calix stood beside you and counted the wings going dark. "Nineteen names in that terminal," they said. "Seventeen cells." They did not explain the gap. They did not need to. Somewhere in Axiom\'s records there is an entry for a ninety-fifth bearer, and beside it: retrieval pending. It will stay pending. Not because you are stronger than him. You are not, and you know exactly how much you are not. Because the room he meant to do it in is gone, and you are the one who burned it. You are not the ninety-fifth of anything. "So," Calix said. "Where are you going?" You told them. "Right," they said. "I\'m coming."',
+    postText: '"When a domain\'s architect dies, the domain persists," Calix said. "Not forever. But long enough. It runs on the residual structural will of whoever built it." They checked the corridor. Clear. "The seam is where two of those architectures press together. Most bearers hit one and both sides read them as foreign matter — conflicting intrusion signals. But the fragment reads as structurally similar to domain architecture. Both sides recognize it. You move through." They paused. "That\'s why Axiom built the fragment system the way he did. Not just a key. A passport — something both sides of any seam accept as compatible structure." They looked at their hands for a moment. At the two signatures still arguing. "I know because the lab tested it on me. With both of mine. Twice." Then you went back for the trial wing. It took eleven minutes — intake, the columns, the rig, the data core last, in the order Calix knew by heart because they had been moved through it in that order. The facility went dark behind you one wing at a time. "Nineteen names in that terminal," Calix said, watching it go. "Seventeen cells. That gap is the whole story of this place." They turned away first. "So. Where are you going?" You told them. "Right," they said. "I\'m coming."',
   },
 );

@@ -26,3 +26,4 @@ tools/tour/tour-frames/
 # ── Not for the public repo ──────────────────────────────────────────────────
 CLAUDE.md
 docs/README_ANALYSIS.md
+dist/

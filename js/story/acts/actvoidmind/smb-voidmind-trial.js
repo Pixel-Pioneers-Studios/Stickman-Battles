@@ -110,7 +110,8 @@ STORY_CHAPTER_REGISTRY.push(
     opponentSuffix: '— an imitation, limited to raw capacity',
     weaponKey:   'combat',
     classKey:    null,
-    aiDiff:      8.5,
+    aiDiff:      'expert',   // was 8.5 — numeric never matches the string checks
+                             // in Fighter, which dropped tacticW to the easy-tier 0.18
     playerLives: 1,
     arena:       'void',
     strippedPowers: true,

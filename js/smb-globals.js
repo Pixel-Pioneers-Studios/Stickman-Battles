@@ -829,6 +829,14 @@ let _firstDeathFrame   = -1;   // frame when first player's lives hit 0
 let _firstDeathPlayer  = null; // that player ref (to find the opponent)
 let aiTick             = 0;    // AI update runs every N frames (see AI_TICK_INTERVAL)
 const AI_TICK_INTERVAL = 15;
+
+// ── Combat class super: Combo Strike (see Fighter.update) ────────────────────
+// The move used to land its opening hit from anywhere on the map. REACH is the
+// horizontal gap the dash must actually close for the combo to confirm; miss it
+// and the super is spent. AIM_RATE/AIM_FRAMES govern the aimed-kick window.
+const COMBO_SUPER_REACH      = 78;   // px — dash must close to this to connect
+const COMBO_SUPER_AIM_RATE   = 0.052; // rad/frame while a direction key is held
+const COMBO_SUPER_AIM_FRAMES = 110;  // auto-fire if the player never commits
 let currentArena    = null;    // the arena data object
 let currentArenaKey = 'grass';
 

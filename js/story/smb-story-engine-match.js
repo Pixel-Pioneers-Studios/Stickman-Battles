@@ -1,6 +1,19 @@
 'use strict';
+
 // smb-story-engine-match.js — spawnWorldBoss, story2OnMatchEnd, _completeChapter2, storyVictory, story2Init
 // Depends on: smb-globals.js, smb-story-registry.js (and preceding story-engine splits)
+
+// ── Saga scoping ──────────────────────────────────────────────────────────────
+// On a 'full' build these resolve to the whole story, so behaviour is unchanged.
+// smb-saga-structure.js loads AFTER this file, so both guard on its presence.
+function _sagaFinalId() {
+  if (typeof activeSagaFinalChapterId === 'function') return activeSagaFinalChapterId();
+  return STORY_CHAPTERS2.reduce((m, c) => Math.max(m, c.id), -1);
+}
+function _sagaInRange(chId) {
+  if (typeof isChapterInActiveSaga === 'function') return isChapterInActiveSaga(chId);
+  return true;
+}
 
 // Patches the freshly-spawned Boss instance with world-specific stat/behaviour
 // tweaks.  Keep these as simple property overrides — do NOT rebuild Boss logic.
@@ -228,7 +241,8 @@ function story2OnMatchEnd(playerWon) {
   const _firstClear = !_story2.defeated.includes(ch.id);
   if (_firstClear) {
     _story2.defeated.push(ch.id);
-    if (typeof playerPowerLevel !== 'undefined') playerPowerLevel = Math.min(3.0, playerPowerLevel + 0.02);
+    // Recompute rather than increment — saga-scoped and idempotent.
+    if (typeof _storyRecomputePowerLevel === 'function') _storyRecomputePowerLevel();
     if (typeof unlockAchievement === 'function') unlockAchievement('story_begin');
     // Immediately commit defeated list to account.data so it survives before saveGame flushes
     const _acctD = window.GameState ? GameState.getActiveAccount() : null;
@@ -280,7 +294,11 @@ function story2OnMatchEnd(playerWon) {
   }
 
   // Check story completion (trigger on last non-epilogue chapter win)
-  const _lastFightId = STORY_CHAPTERS2.filter(c => !c.noFight && !c.isEpilogue && !c.isDamnationChapter).reduce((m,c)=>Math.max(m,c.id),-1);
+  // Saga builds end at their own last fight, not the full story's (see
+  // docs/SAGA_SPLIT_PLAN.md). _sagaInRange() is the whole story on a 'full' build.
+  const _lastFightId = STORY_CHAPTERS2
+    .filter(c => !c.noFight && !c.isEpilogue && !c.isDamnationChapter && _sagaInRange(c.id))
+    .reduce((m,c)=>Math.max(m,c.id),-1);
   if (ch.id >= _lastFightId && !_story2.storyComplete) {
     _completeStory2();
   }
@@ -354,22 +372,41 @@ function _completeChapter2(ch) {
   storyPhaseIndicator = null;
   if (!_story2.defeated.includes(ch.id)) {
     _story2.defeated.push(ch.id);
-    if (typeof playerPowerLevel !== 'undefined') playerPowerLevel = Math.min(3.0, playerPowerLevel + 0.02);
+    // Recompute rather than increment — saga-scoped and idempotent.
+    if (typeof _storyRecomputePowerLevel === 'function') _storyRecomputePowerLevel();
   }
   _story2.tokens += ch.tokenReward;
   _story2.chapter = Math.max(_story2.chapter, ch.id + 1);
   // isEpilogue marks reflective no-fight codas throughout the story (ch 13-16, 84,
   // 147, 183), NOT "the end." Only the true final chapter (highest id) completes it.
   // Fight-chapter completion is handled separately via _lastFightId in story2OnMatchEnd.
-  const _finalChapterId2 = STORY_CHAPTERS2.reduce((m, c) => Math.max(m, c.id), -1);
+  const _finalChapterId2 = _sagaFinalId();
   if (ch.isEpilogue && ch.id >= _finalChapterId2) _completeStory2();
+  _awardSagaCompletion();
   _saveStory2();
   _showStory2Victory(ch);
+}
+
+// Award the completion achievement for every saga fully cleared. Called on story
+// completion and after each chapter clear, so a 'full' build hands out saga1/saga2
+// as the player passes those boundaries rather than only at ch. 183.
+function _awardSagaCompletion() {
+  if (typeof SAGA_STRUCTURE === 'undefined' || typeof unlockAchievement !== 'function') return;
+  if (!_story2 || !Array.isArray(_story2.defeated)) return;
+  for (const saga of SAGA_STRUCTURE) {
+    const [lo, hi] = sagaChapterRange(saga.id);
+    let all = true;
+    for (let i = lo; i <= hi; i++) {
+      if (!_story2.defeated.includes(i)) { all = false; break; }
+    }
+    if (all) unlockAchievement(saga.id + '_complete');
+  }
 }
 
 function _completeStory2() {
   _story2.storyComplete = true;
   if (typeof unlockAchievement === 'function') unlockAchievement('story_complete');
+  _awardSagaCompletion();
   if (typeof setAccountFlagWithRuntime === 'function') {
     setAccountFlagWithRuntime(['unlocks', 'storyOnline'], true, function(v) { storyOnline = v; });
   } else {
@@ -391,7 +428,12 @@ function _showStory2Victory(ch) {
   const nextBtn   = document.getElementById('storyVictoryNextBtn');
 
   if (titleEl) titleEl.textContent = ch.title;
-  if (postEl)  postEl.textContent  = ch.postText || 'Victory!';
+  // A chapter that ends the ACTIVE saga can close differently from the same
+  // chapter read mid-story: `sagaFinaleText` replaces postText only when this
+  // build stops here. On a 'full' build a saga-boundary chapter is a transition
+  // and keeps its normal postText, so the combined story reads unchanged.
+  const _isSagaFinale = ch.sagaFinaleText && ch.id >= _sagaFinalId();
+  if (postEl)  postEl.textContent  = (_isSagaFinale ? ch.sagaFinaleText : ch.postText) || 'Victory!';
 
   if (rewardEl) {
     let html = `<div style="color:#ffd700;font-size:0.80rem;margin-bottom:5px;">Rewards earned:</div>`;
@@ -417,7 +459,7 @@ function _showStory2Victory(ch) {
   // The true final chapter is the highest id; only it should read as "the end."
   // isEpilogue is also used for mid-story reflective codas (see _completeChapter2),
   // so gate the "no Continue" ending on the real final chapter, not the flag.
-  const _finalChapterId = STORY_CHAPTERS2.reduce((m, c) => Math.max(m, c.id), -1);
+  const _finalChapterId = _sagaFinalId();
   // Find the next VISIBLE chapter for the button label (skip over hidden transition chapters)
   let _nextVisIdx = ch.id + 1;
   while (STORY_CHAPTERS2[_nextVisIdx] && STORY_CHAPTERS2[_nextVisIdx]._menuHidden) _nextVisIdx++;

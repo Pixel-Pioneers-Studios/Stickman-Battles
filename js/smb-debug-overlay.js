@@ -320,30 +320,31 @@ document.addEventListener('keydown', e => {
   // Don't intercept keys when any other text input is focused (chat, room code, etc.)
   if (_ae && (_ae.tagName === 'INPUT' || _ae.tagName === 'TEXTAREA' || _ae.isContentEditable)) return;
   // F1: toggle hitboxes (fighter body + weapon tip)
-  if (e.key === 'F1') { e.preventDefault(); showHitboxes = !showHitboxes; if (!debugMode) debugMode = true; return; }
+  if (e.key === 'F1' && debugMode) { e.preventDefault(); showHitboxes = !showHitboxes; return; }
   // F2: toggle collision boxes (platforms + hazard lines)
-  if (e.key === 'F2') { e.preventDefault(); showCollisionBoxes = !showCollisionBoxes; if (!debugMode) debugMode = true; return; }
+  if (e.key === 'F2' && debugMode) { e.preventDefault(); showCollisionBoxes = !showCollisionBoxes; return; }
   // F3: toggle physics info (velocity vectors + ground state)
-  if (e.key === 'F3') { e.preventDefault(); showPhysicsInfo = !showPhysicsInfo; if (!debugMode) debugMode = true; return; }
+  if (e.key === 'F3' && debugMode) { e.preventDefault(); showPhysicsInfo = !showPhysicsInfo; return; }
   // F5: cycle the training lab measurement panels (training mode only)
   if (e.key === 'F5') {
-    e.preventDefault();
+    // Only claim F5 inside the training lab — elsewhere it stays browser refresh.
     if (!gameRunning || !trainingMode) return;
+    e.preventDefault();
     if (typeof tlabCycle === 'function') tlabCycle();
     return;
   }
   // F4: toggle in-game live map editor (training mode only)
   if (e.key === 'F4') {
-    e.preventDefault();
     if (!gameRunning || !trainingMode) return;
+    e.preventDefault();
     if (trainingDesignerOpen) closeTrainingDesigner();
     else openTrainingDesigner();
     return;
   }
   // F8: open developer jump menu (debug mode only)
   if (e.key === 'F8') {
-    e.preventDefault();
     if (!debugMode) return;
+    e.preventDefault();
     if (document.getElementById('_dbgJumpPanel')) { _dbgJumpMenuClose(); return; }
     _dbgJumpMenuOpen();
     return;

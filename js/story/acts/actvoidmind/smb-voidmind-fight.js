@@ -144,7 +144,8 @@ STORY_CHAPTER_REGISTRY.push(
     opponentColor:  '#220033',
     weaponKey:  'combat',
     classKey:   null,
-    aiDiff:     9,
+    aiDiff:     'expert',   // was 9 — see ch179; numeric aiDiff silently
+                            // de-tuned the final fight's tactical weighting
     playerLives: 2,
     arena:      'void',
     tokenReward:    200,

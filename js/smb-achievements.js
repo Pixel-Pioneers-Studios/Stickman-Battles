@@ -43,6 +43,11 @@ const ACHIEVEMENTS = [
   // Story Mode
   { id: 'story_begin',         title: 'The Journey Begins',   desc: 'Complete your first Story chapter',         icon: '📖', hint: 'Win any fight in Story Mode' },
   { id: 'story_complete',      title: 'End of the Line',      desc: 'Complete the full Story Mode',              icon: '📕', hint: 'Reach and win the final chapter of Story Mode' },
+  // Per-saga completion. On a 'full' build all three are reachable in one run;
+  // a saga build awards only its own. See docs/SAGA_SPLIT_PLAN.md.
+  { id: 'saga1_complete',      title: 'Not the Ninety-Fifth',  desc: 'Finish The Fragment',                      icon: '🔹', hint: 'Complete every chapter of the first saga' },
+  { id: 'saga2_complete',      title: 'The Man Who Built It',  desc: 'Finish The Multiverse War',                icon: '🔷', hint: 'Complete every chapter of the second saga' },
+  { id: 'saga3_complete',      title: 'What Cannot Be Erased', desc: 'Finish The Substrate',                     icon: '🔵', hint: 'Complete every chapter of the third saga' },
   { id: 'lab_infiltrator',     title: 'Lab Infiltrator',      desc: 'Complete the Laboratory Infiltration',      icon: '🧪', hint: 'Find and finish the Laboratory side mission' },
   // Multiverse
   { id: 'multiverse_warrior',  title: 'Multiverse Warrior',   desc: 'Conquer your first Multiverse world',       icon: '🌍', hint: 'Defeat the boss champion of any Multiverse dimension' },

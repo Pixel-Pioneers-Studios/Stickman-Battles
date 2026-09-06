@@ -641,34 +641,219 @@ function drawStars() {
   ctx.restore();
 }
 
+// ── Meadow (the `grass` arena's decoration layer) ─────────────────────────
+// Was three 3-arc puffs and a row of grass blades. The arcs overlapped into a
+// visible notch and the sky was otherwise empty. This makes it a summer
+// meadow: a sun, three parallax depths of cumulus, a hedgerow and treeline on
+// the hills, wildflowers, butterflies, birds, and the grass tufts kept.
+function _meadowBg() {
+  if (_meadowBg._c) return _meadowBg._c;
+  const rnd = (a, b) => a + Math.random() * (b - a);
+  const puff = (scale) => Array.from({ length: 5 + Math.floor(Math.random() * 3) }, () => ({
+    dx: rnd(-1, 1) * 42 * scale,
+    dy: rnd(-0.45, 0.3) * 18 * scale,
+    r:  rnd(15, 30) * scale,
+  }));
+  const band = (n, y0, y1, scale, alpha, spd) => ({
+    alpha, spd,
+    clouds: Array.from({ length: n }, (_, i) => ({
+      lobes: puff(scale * rnd(0.8, 1.25)),
+      x: -60 + i * (1120 / n) + rnd(-40, 40),
+      y: rnd(y0, y1),
+      off: rnd(0, 1000),
+    })),
+  });
+  _meadowBg._c = {
+    bands: [band(6, 130, 190, 0.5, 0.5, 0.04), band(5, 70, 140, 0.8, 0.75, 0.07), band(4, 30, 95, 1.15, 0.95, 0.11)],
+    // Treeline on the far hills
+    trees: Array.from({ length: 26 }, (_, i) => ({
+      x: -30 + i * 38 + rnd(-12, 12),
+      r: rnd(10, 22),
+      h: rnd(6, 20),
+    })),
+    // Hedgerow bushes closer in
+    bushes: Array.from({ length: 14 }, (_, i) => ({
+      x: -20 + i * 70 + rnd(-22, 22),
+      r: rnd(14, 30),
+    })),
+    flowers: Array.from({ length: 34 }, () => ({
+      x: rnd(-10, 910), y: rnd(452, 476), h: rnd(6, 14),
+      col: ['#ffe14a', '#ff7ab0', '#ffffff', '#b98bff'][Math.floor(Math.random() * 4)],
+      phase: rnd(0, 6.28),
+    })),
+    butterflies: Array.from({ length: 5 }, () => ({
+      x: rnd(60, 840), y: rnd(360, 450), rx: rnd(30, 90), ry: rnd(14, 44),
+      spd: rnd(0.008, 0.02), phase: rnd(0, 6.28), flap: rnd(0.3, 0.55),
+      col: ['#ffd24a', '#ff8fc4', '#8fd8ff'][Math.floor(Math.random() * 3)],
+    })),
+    flocks: Array.from({ length: 2 }, () => ({
+      y: rnd(80, 200), spd: rnd(0.3, 0.7) * (Math.random() < 0.5 ? 1 : -1),
+      off: rnd(0, 1400), n: 4 + Math.floor(Math.random() * 3), s: rnd(0.6, 1),
+      flap: rnd(0.12, 0.22),
+    })),
+  };
+  return _meadowBg._c;
+}
+
 function drawClouds() {
-  const offsets = [100, 420, 700];
-  const speeds  = [0.18, 0.12, 0.22];
-  const sizes   = [30, 24, 36];
-  const ys      = [55, 88, 45];
-  ctx.fillStyle = 'rgba(255,255,255,0.72)';
-  for (let i = 0; i < 3; i++) {
-    const cx = ((frameCount * speeds[i] + offsets[i]) % 1000) - 60;
-    const cy = ys[i];
-    const r  = sizes[i];
+  const bg = _meadowBg();
+  const f  = frameCount;
+  const camOff = (typeof camXCur === 'number' ? camXCur - 450 : 0);
+  const groundY = 460;
+
+  ctx.save();
+
+  // ── Sun ──────────────────────────────────────────────────────────────────
+  const sunX = 764, sunY = 74;
+  ctx.save();
+  ctx.globalCompositeOperation = 'lighter';
+  const sg = ctx.createRadialGradient(sunX, sunY, 6, sunX, sunY, 170);
+  sg.addColorStop(0,    'rgba(255,252,225,0.85)');
+  sg.addColorStop(0.18, 'rgba(255,240,175,0.28)');
+  sg.addColorStop(1,    'rgba(255,232,150,0)');
+  ctx.fillStyle = sg;
+  ctx.fillRect(sunX - 180, sunY - 180, 360, 360);
+  ctx.restore();
+  ctx.fillStyle = 'rgba(255,253,238,0.95)';
+  ctx.beginPath(); ctx.arc(sunX, sunY, 22, 0, Math.PI * 2); ctx.fill();
+
+  // ── Treeline and hedgerow on the hills ───────────────────────────────────
+  ctx.save();
+  ctx.translate(-camOff * 0.06, 0);
+  // A band first, then overlapping crowns on top of it. Free-floating pale
+  // ellipses read as a row of eggs hovering over the hills, not as woodland.
+  ctx.fillStyle = 'rgba(62,104,66,0.6)';
+  ctx.fillRect(-60, 396, GAME_W + 120, 60);
+  for (const t of bg.trees) {
+    ctx.fillStyle = 'rgba(56,96,60,0.75)';
     ctx.beginPath();
-    ctx.arc(cx,         cy,       r,       0, Math.PI*2);
-    ctx.arc(cx + r*0.8, cy - r*0.3, r*0.7, 0, Math.PI*2);
-    ctx.arc(cx - r*0.6, cy - r*0.2, r*0.6, 0, Math.PI*2);
+    ctx.ellipse(t.x, 398 - t.h * 0.25, t.r, t.r * 0.7 + t.h * 0.25, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = 'rgba(88,138,84,0.5)';        // sunlit side of each crown
+    ctx.beginPath();
+    ctx.ellipse(t.x - t.r * 0.28, 396 - t.h * 0.35, t.r * 0.55, (t.r * 0.7 + t.h * 0.25) * 0.55, 0, 0, Math.PI * 2);
     ctx.fill();
   }
-  // Swaying grass tufts along the ground — tapered filled blades with color variation
-  const groundY = 460;
+  ctx.restore();
+  ctx.save();
+  ctx.translate(-camOff * 0.11, 0);
+  for (const b of bg.bushes) {
+    ctx.fillStyle = 'rgba(58,104,52,0.75)';
+    ctx.beginPath();
+    ctx.arc(b.x, 442, b.r, Math.PI, 0);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(b.x - b.r * 0.6, 442, b.r * 0.62, Math.PI, 0);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(b.x + b.r * 0.6, 442, b.r * 0.58, Math.PI, 0);
+    ctx.fill();
+    ctx.fillStyle = 'rgba(120,180,96,0.35)';   // sunlit tops
+    ctx.beginPath();
+    ctx.arc(b.x - b.r * 0.2, 440 - b.r * 0.2, b.r * 0.5, Math.PI, 0);
+    ctx.fill();
+  }
+  ctx.restore();
+
+  // ── Cumulus banks, far to near ───────────────────────────────────────────
+  for (const bd of bg.bands) {
+    for (const cl of bd.clouds) {
+      const cx2 = (((cl.x + cl.off + f * bd.spd) % 1200) + 1200) % 1200 - 160;
+      const bob = Math.sin(f * 0.006 + cl.off) * 2.5;
+      ctx.globalAlpha = bd.alpha * 0.5;
+      ctx.fillStyle = '#c4d6ee';                       // shadowed base
+      for (const lo of cl.lobes) {
+        ctx.beginPath();
+        ctx.arc(cx2 + lo.dx, cl.y + lo.dy + bob + lo.r * 0.28, lo.r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.globalAlpha = bd.alpha;
+      ctx.fillStyle = '#ffffff';
+      for (const lo of cl.lobes) {
+        ctx.beginPath();
+        ctx.arc(cx2 + lo.dx, cl.y + lo.dy + bob, lo.r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.globalAlpha = bd.alpha * 0.55;
+      ctx.fillStyle = '#fffbee';                       // sunlit cap
+      for (const lo of cl.lobes) {
+        ctx.beginPath();
+        ctx.arc(cx2 + lo.dx + lo.r * 0.10, cl.y + lo.dy + bob - lo.r * 0.32, lo.r * 0.5, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+  }
+  ctx.globalAlpha = 1;
+
+  // ── Birds ────────────────────────────────────────────────────────────────
+  ctx.strokeStyle = 'rgba(52,66,90,0.55)';
+  ctx.lineWidth = 1.8;
+  ctx.lineCap = 'round';
+  for (const fl of bg.flocks) {
+    const span = 1500;
+    const raw  = ((f * Math.abs(fl.spd) + fl.off) % span + span) % span;
+    const lead = fl.spd > 0 ? raw - 250 : GAME_W + 250 - raw;
+    for (let i = 0; i < fl.n; i++) {
+      const side = i % 2 ? 1 : -1;
+      const rank = i === 0 ? 0 : Math.floor(i / 2) + 1;
+      const bx = lead - (fl.spd > 0 ? 1 : -1) * rank * 15 * fl.s;
+      const by = fl.y + side * rank * 8 * fl.s;
+      const w  = Math.sin(f * fl.flap + i * 0.7);
+      const s  = fl.s * 6;
+      ctx.beginPath();
+      ctx.moveTo(bx - s, by + w * s * 0.45);
+      ctx.quadraticCurveTo(bx - s * 0.4, by - w * s * 0.4, bx, by);
+      ctx.quadraticCurveTo(bx + s * 0.4, by - w * s * 0.4, bx + s, by + w * s * 0.45);
+      ctx.stroke();
+    }
+  }
+  ctx.lineCap = 'butt';
+
+  // ── Wildflowers ──────────────────────────────────────────────────────────
+  for (const fw of bg.flowers) {
+    const sway = Math.sin(f * 0.02 + fw.phase) * 2;
+    ctx.strokeStyle = 'rgba(46,98,34,0.8)';
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.moveTo(fw.x, fw.y);
+    ctx.quadraticCurveTo(fw.x + sway * 0.5, fw.y - fw.h * 0.6, fw.x + sway, fw.y - fw.h);
+    ctx.stroke();
+    ctx.fillStyle = fw.col;
+    for (let k = 0; k < 5; k++) {
+      const a = (k / 5) * Math.PI * 2;
+      ctx.beginPath();
+      ctx.arc(fw.x + sway + Math.cos(a) * 2, fw.y - fw.h + Math.sin(a) * 2, 1.6, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.fillStyle = '#ffd24a';
+    ctx.beginPath(); ctx.arc(fw.x + sway, fw.y - fw.h, 1.3, 0, Math.PI * 2); ctx.fill();
+  }
+
+  // ── Butterflies ──────────────────────────────────────────────────────────
+  for (const bf of bg.butterflies) {
+    const a2 = f * bf.spd + bf.phase;
+    const bx = bf.x + Math.cos(a2) * bf.rx;
+    const by = bf.y + Math.sin(a2 * 1.7) * bf.ry;
+    const w  = Math.abs(Math.sin(f * bf.flap + bf.phase));
+    ctx.fillStyle = bf.col;
+    for (const s of [-1, 1]) {
+      ctx.beginPath();
+      ctx.ellipse(bx + s * 3.5 * (0.25 + w), by, 3.4 * (0.25 + w), 4.2, s * 0.4, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.fillStyle = 'rgba(40,32,20,0.8)';
+    ctx.fillRect(bx - 0.7, by - 2.5, 1.4, 5);
+  }
+
+  // ── Grass tufts along the ground (kept) ──────────────────────────────────
   for (let i = 0; i < 40; i++) {
-    const tx   = 8 + i * 23 + Math.sin(i * 73.1) * 6;  // slight jitter in x
-    const sway = Math.sin(frameCount * 0.022 + i * 1.1) * 4.5;
-    const h    = 7 + Math.abs(Math.sin(i * 29.3)) * 6;  // 7–13 px
-    const bw   = 0.7 + Math.abs(Math.sin(i * 17.7)) * 0.9; // base half-width
-    // Subtle tone shift: yellow-green to forest green
-    const t  = Math.sin(i * 43.1) * 0.5 + 0.5;
-    ctx.fillStyle   = `rgb(${Math.floor(35+t*55)},${Math.floor(105+t*70)},${Math.floor(18+t*20)})`;
+    const tx   = 8 + i * 23 + Math.sin(i * 73.1) * 6;
+    const sway = Math.sin(f * 0.022 + i * 1.1) * 4.5;
+    const h    = 7 + Math.abs(Math.sin(i * 29.3)) * 6;
+    const bw   = 0.7 + Math.abs(Math.sin(i * 17.7)) * 0.9;
+    const t    = Math.sin(i * 43.1) * 0.5 + 0.5;
+    ctx.fillStyle   = `rgb(${Math.floor(35 + t * 55)},${Math.floor(105 + t * 70)},${Math.floor(18 + t * 20)})`;
     ctx.globalAlpha = 0.62 + Math.abs(Math.sin(i * 61.3)) * 0.28;
-    // Filled tapered blade — wide at root, pointed at tip
     ctx.beginPath();
     ctx.moveTo(tx - bw, groundY);
     ctx.quadraticCurveTo(tx - bw * 0.2 + sway * 0.4, groundY - h * 0.6, tx + sway, groundY - h);
@@ -677,6 +862,8 @@ function drawClouds() {
     ctx.fill();
   }
   ctx.globalAlpha = 1;
+
+  ctx.restore();
 }
 
 // ── Shared lava-floor helper ──────────────────────────────────────────────
@@ -777,7 +964,9 @@ function _lavaBg() {
 }
 
 function drawLava() {
-  const ly  = currentArena.lavaY;
+  // Fallback matches the volcano drawer: an arena inheriting the lava look
+  // (explore worlds) carries the palette but not the hazard's lavaY.
+  const ly  = currentArena.lavaY || 442;
   const bg  = _lavaBg();
   const f   = frameCount;
   // Mild parallax off the camera when there is one; static maps just get 0.
@@ -1030,22 +1219,151 @@ function drawLava() {
   ctx.restore();
 }
 
+// ── City skyline ──────────────────────────────────────────────────────────
+// `bgBuildings` (from generateBgElements) is one flat band of towers. This adds
+// what a night skyline needs around it: a moon and its glow, a dim far band of
+// towers behind, rooftop clutter — water tanks, AC units, antennas with warning
+// lamps — on the near band, a couple of aircraft, and haze at street level.
+function _cityBg() {
+  if (_cityBg._c) return _cityBg._c;
+  const rnd = (a, b) => a + Math.random() * (b - a);
+  _cityBg._c = {
+    far: Array.from({ length: 16 }, (_, i) => ({
+      x: -40 + i * 62 + rnd(-14, 14),
+      w: rnd(38, 74),
+      h: rnd(120, 300),
+      lit: Array.from({ length: 90 }, () => Math.random() < 0.3),
+    })),
+    // Rooftop clutter, keyed to a building index so it stays put
+    roof: Array.from({ length: 40 }, () => ({
+      kind: Math.floor(Math.random() * 3),      // 0 tank, 1 AC unit, 2 antenna
+      u:    Math.random(),                      // position across the roof
+      s:    rnd(0.7, 1.4),
+      blink: rnd(0, 6.28),
+    })),
+    planes: Array.from({ length: 2 }, () => ({
+      y: rnd(60, 150), spd: rnd(0.28, 0.6) * (Math.random() < 0.5 ? 1 : -1),
+      off: rnd(0, 1600), blink: rnd(0, 6.28),
+    })),
+    stars: Array.from({ length: 70 }, () => ({
+      x: rnd(-20, 920), y: rnd(0, 220), r: rnd(0.4, 1.3), phase: rnd(0, 6.28),
+    })),
+  };
+  return _cityBg._c;
+}
+
 function drawCityBuildings() {
+  const bg = _cityBg();
+  const f  = frameCount;
+  const camOff = (typeof camXCur === 'number' ? camXCur - 450 : 0);
+
+  ctx.save();
+
+  // ── Stars, thinned out toward the light dome ─────────────────────────────
+  for (const st of bg.stars) {
+    ctx.globalAlpha = (0.15 + Math.abs(Math.sin(f * 0.03 + st.phase)) * 0.45) * (1 - st.y / 300);
+    ctx.fillStyle = '#cfe0ff';
+    ctx.beginPath(); ctx.arc(st.x, st.y, st.r, 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+
+  // ── Moon ─────────────────────────────────────────────────────────────────
+  const mX = 178, mY = 82;
+  const mg = ctx.createRadialGradient(mX, mY, 6, mX, mY, 140);
+  mg.addColorStop(0,   'rgba(190,206,244,0.32)');
+  mg.addColorStop(0.3, 'rgba(140,160,214,0.10)');
+  mg.addColorStop(1,   'rgba(110,130,190,0)');
+  ctx.fillStyle = mg;
+  ctx.fillRect(mX - 150, mY - 150, 300, 300);
+  ctx.fillStyle = '#dfe6fb';
+  ctx.beginPath(); ctx.arc(mX, mY, 26, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = 'rgba(158,168,206,0.45)';
+  ctx.beginPath(); ctx.arc(mX - 8, mY - 6, 6, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(mX + 7, mY + 5, 4.5, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(mX + 1, mY - 13, 3, 0, Math.PI * 2); ctx.fill();
+
+  // ── Aircraft crossing high up ────────────────────────────────────────────
+  for (const pl of bg.planes) {
+    const span = 1600;
+    const raw = ((f * Math.abs(pl.spd) + pl.off) % span + span) % span;
+    const px = pl.spd > 0 ? raw - 350 : GAME_W + 350 - raw;
+    ctx.fillStyle = `rgba(255,80,70,${0.25 + Math.abs(Math.sin(f * 0.08 + pl.blink)) * 0.75})`;
+    ctx.beginPath(); ctx.arc(px, pl.y, 1.8, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = 'rgba(220,235,255,0.25)';
+    ctx.fillRect(px - (pl.spd > 0 ? 16 : 0), pl.y - 0.5, 16, 1);
+  }
+
+  // ── Far band of towers ───────────────────────────────────────────────────
+  ctx.save();
+  ctx.translate(-camOff * 0.04, 0);
+  for (const b of bg.far) {
+    const top = GAME_H - b.h;
+    ctx.fillStyle = 'rgba(16,18,32,0.9)';
+    ctx.fillRect(b.x, top, b.w, b.h);
+    const cols = Math.max(2, Math.floor(b.w / 10));
+    const rows = Math.max(3, Math.floor(b.h / 16));
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        if (!b.lit[(r * cols + c) % b.lit.length]) continue;
+        ctx.fillStyle = 'rgba(190,205,255,0.14)';
+        ctx.fillRect(b.x + 3 + c * 10, top + 5 + r * 16, 4, 6);
+      }
+    }
+  }
+  ctx.restore();
+
+  // ── Near band (bgBuildings) with rooftop clutter ─────────────────────────
+  let ri = 0;
   for (const b of bgBuildings) {
     const shade = 14 + Math.floor(b.h / 20);
-    ctx.fillStyle = `rgb(${shade},${shade},${shade+12})`;
-    ctx.fillRect(b.x, GAME_H - b.h, b.w, b.h);
-    // windows
+    const top = GAME_H - b.h;
+    ctx.fillStyle = `rgb(${shade},${shade},${shade + 12})`;
+    ctx.fillRect(b.x, top, b.w, b.h);
+    // Lit face down one edge so the towers aren't flat slabs
+    ctx.fillStyle = 'rgba(255,255,255,0.035)';
+    ctx.fillRect(b.x, top, Math.min(8, b.w * 0.16), b.h);
     for (const w of b.wins) {
       ctx.fillStyle = w.on ? 'rgba(255,245,160,0.65)' : 'rgba(40,40,60,0.5)';
       ctx.fillRect(w.x, w.y, 7, 9);
     }
-    // Neon sign flicker on top edge of taller buildings
+    // Rooftop clutter — two items per building, taken off a fixed list
+    for (let k = 0; k < 2; k++) {
+      const it = bg.roof[(ri * 2 + k) % bg.roof.length];
+      const ix = b.x + 8 + it.u * Math.max(4, b.w - 20);
+      ctx.fillStyle = `rgb(${shade + 6},${shade + 6},${shade + 18})`;
+      if (it.kind === 0) {                         // water tank on legs
+        const tw = 13 * it.s, th = 15 * it.s;
+        ctx.fillRect(ix - tw * 0.5, top - th - 5, tw, th);
+        ctx.beginPath();
+        ctx.moveTo(ix - tw * 0.5, top - th - 5);
+        ctx.lineTo(ix, top - th - 11);
+        ctx.lineTo(ix + tw * 0.5, top - th - 5);
+        ctx.closePath();
+        ctx.fill();
+        ctx.fillRect(ix - tw * 0.4, top - 5, 2, 5);
+        ctx.fillRect(ix + tw * 0.4 - 2, top - 5, 2, 5);
+      } else if (it.kind === 1) {                  // AC unit
+        ctx.fillRect(ix - 9 * it.s, top - 8 * it.s, 18 * it.s, 8 * it.s);
+        ctx.fillStyle = `rgb(${shade + 14},${shade + 14},${shade + 26})`;
+        ctx.fillRect(ix - 6 * it.s, top - 10 * it.s, 12 * it.s, 2 * it.s);
+      } else {                                     // antenna mast + warning lamp
+        const mh = 26 * it.s;
+        ctx.fillRect(ix - 1, top - mh, 2, mh);
+        ctx.fillRect(ix - 5, top - mh * 0.6, 10, 1.5);
+        ctx.fillRect(ix - 3.5, top - mh * 0.85, 7, 1.5);
+        const blip = 0.25 + Math.abs(Math.sin(f * 0.05 + it.blink)) * 0.75;
+        ctx.fillStyle = `rgba(255,70,60,${blip})`;
+        ctx.shadowColor = '#ff4638'; ctx.shadowBlur = 7;
+        ctx.beginPath(); ctx.arc(ix, top - mh, 2, 0, Math.PI * 2); ctx.fill();
+        ctx.shadowBlur = 0;
+      }
+    }
+    ri++;
+    // Neon sign flicker on the taller buildings (kept)
     if (b.h > 120) {
-      const neonPhase = Math.sin(frameCount * 0.07 + b.x * 0.03);
-      const flicker   = neonPhase > 0.85 ? 0 : (0.5 + neonPhase * 0.5); // occasional off flicker
+      const neonPhase = Math.sin(f * 0.07 + b.x * 0.03);
+      const flicker   = neonPhase > 0.85 ? 0 : (0.5 + neonPhase * 0.5);
       const neonAlpha = Math.max(0, flicker);
-      // Alternate neon colors per building based on position
       const neonColor = (Math.floor(b.x / 80) % 3 === 0) ? `rgba(255,20,100,${neonAlpha})`
                       : (Math.floor(b.x / 80) % 3 === 1) ? `rgba(0,200,255,${neonAlpha})`
                       :                                     `rgba(180,0,255,${neonAlpha})`;
@@ -1055,44 +1373,346 @@ function drawCityBuildings() {
       ctx.strokeStyle = neonColor;
       ctx.lineWidth   = 2;
       ctx.beginPath();
-      ctx.moveTo(b.x + 4, GAME_H - b.h - 1);
-      ctx.lineTo(b.x + b.w - 4, GAME_H - b.h - 1);
+      ctx.moveTo(b.x + 4, top - 1);
+      ctx.lineTo(b.x + b.w - 4, top - 1);
       ctx.stroke();
       ctx.restore();
     }
   }
+
+  // ── Street-level light haze, so the towers sit in air ────────────────────
+  const haze = ctx.createLinearGradient(0, GAME_H - 220, 0, GAME_H);
+  haze.addColorStop(0, 'rgba(90,80,150,0)');
+  haze.addColorStop(1, 'rgba(120,96,170,0.20)');
+  ctx.fillStyle = haze;
+  ctx.fillRect(-200, GAME_H - 220, GAME_W + 400, 220);
+
+  ctx.restore();
+}
+
+// ── Deep Woodland background ──────────────────────────────────────────────
+// The old version was 7 circle-stack "trees" on a flat green wash, which read
+// as clip art next to drawIce(). This builds the same kind of layered depth:
+// three parallaxed trunk bands, a canopy ceiling that actually occludes the
+// sky, god rays through the gaps, undergrowth on the horizon, and weather
+// (falling leaves + fireflies + pollen). Cached like _iceBg — the geometry is
+// static, only the sway/drift phases move.
+function _forestBg() {
+  if (_forestBg._c) return _forestBg._c;
+  const rnd = (a, b) => a + Math.random() * (b - a);
+  // Three trunk bands: 0 = far/thin/hazy, 2 = near/thick/dark
+  const bands = [
+    { n: 16, par: 0.05, wMin: 5,  wMax: 10, tint: 'rgba(28,62,34,0.55)', bark: 'rgba(18,44,24,0.45)', spread: 62 },
+    { n: 11, par: 0.11, wMin: 11, wMax: 19, tint: 'rgba(34,26,16,0.72)', bark: 'rgba(20,15,9,0.55)',  spread: 92 },
+    { n: 6,  par: 0.20, wMin: 24, wMax: 40, tint: 'rgba(26,18,11,0.88)', bark: 'rgba(12,8,4,0.6)',    spread: 175 },
+  ];
+  const c = {
+    bands: bands.map((b, bi) => ({
+      ...b,
+      trees: Array.from({ length: b.n }, (_, i) => ({
+        x:     -70 + i * b.spread + rnd(-b.spread * 0.3, b.spread * 0.3),
+        w:     rnd(b.wMin, b.wMax),
+        lean:  rnd(-0.06, 0.06),
+        // Root flare width multiplier and how high the buttress climbs
+        flare: rnd(1.5, 2.4),
+        rootH: rnd(24, 52),
+        phase: rnd(0, Math.PI * 2),
+        // Bark striations, as fractions of trunk width
+        bark:  Array.from({ length: 3 + (bi > 0 ? 2 : 0) }, () => ({ o: rnd(-0.34, 0.34), y0: rnd(0, 0.5), y1: rnd(0.55, 1) })),
+        // Branch stubs, only on the near bands
+        limbs: bi === 0 ? [] : Array.from({ length: bi }, () => ({ y: rnd(0.12, 0.5), dir: Math.random() < 0.5 ? -1 : 1, len: rnd(28, 70), drop: rnd(-14, 6) })),
+      })),
+    })),
+    // Canopy ceiling: overlapping leaf lobes hanging off the top edge
+    canopy: Array.from({ length: 34 }, (_, i) => ({
+      x:     -50 + i * 30 + rnd(-14, 14),
+      y:     rnd(-34, 44),
+      r:     rnd(34, 74),
+      a:     rnd(0.5, 0.9),
+      shade: Math.floor(rnd(0, 3)),
+      phase: rnd(0, Math.PI * 2),
+      spd:   rnd(0.004, 0.011),
+    })),
+    // Ferns / bushes along the ground line
+    under: Array.from({ length: 22 }, (_, i) => ({
+      x:     -40 + i * 46 + rnd(-16, 16),
+      w:     rnd(26, 58),
+      h:     rnd(14, 34),
+      a:     rnd(0.35, 0.7),
+      phase: rnd(0, Math.PI * 2),
+    })),
+    // Hanging vines from the canopy
+    vines: Array.from({ length: 9 }, () => ({
+      x:     rnd(-20, 920),
+      len:   rnd(70, 210),
+      w:     rnd(1.5, 3),
+      phase: rnd(0, Math.PI * 2),
+      spd:   rnd(0.008, 0.018),
+      leaves: Math.floor(rnd(2, 6)),
+    })),
+    // Light shafts angling down from upper-right
+    rays: Array.from({ length: 5 }, (_, i) => ({
+      x:     120 + i * 175 + rnd(-40, 40),
+      w:     rnd(26, 62),
+      a:     rnd(0.05, 0.12),
+      phase: rnd(0, Math.PI * 2),
+    })),
+    leaves: Array.from({ length: 26 }, () => {
+      const depth = Math.random();
+      return {
+        x:     rnd(-40, 960),
+        y:     rnd(-120, 520),
+        r:     2.2 + depth * 3.4,
+        spd:   0.22 + depth * 0.75,
+        drift: rnd(0.008, 0.024),
+        amp:   rnd(14, 52),
+        spin:  rnd(0.02, 0.07) * (Math.random() < 0.5 ? -1 : 1),
+        phase: rnd(0, Math.PI * 2),
+        a:     0.28 + depth * 0.42,
+        col:   ['#6aa63c', '#b8873a', '#8fbe45', '#c8a24a'][Math.floor(Math.random() * 4)],
+      };
+    }),
+    flies: Array.from({ length: 14 }, () => ({
+      x:     rnd(-20, 920),
+      y:     rnd(180, 470),
+      rx:    rnd(30, 120),
+      ry:    rnd(14, 55),
+      spd:   rnd(0.006, 0.017),
+      blink: rnd(0.03, 0.09),
+      phase: rnd(0, Math.PI * 2),
+    })),
+    motes: Array.from({ length: 30 }, () => ({
+      x:     rnd(-20, 920),
+      y:     rnd(60, 500),
+      r:     rnd(0.7, 2.1),
+      spd:   rnd(0.05, 0.22),
+      drift: rnd(0.004, 0.014),
+      amp:   rnd(8, 30),
+      phase: rnd(0, Math.PI * 2),
+      a:     rnd(0.10, 0.30),
+    })),
+  };
+  _forestBg._c = c;
+  return c;
 }
 
 function drawForest() {
-  // Animated trees in background
-  const treeXs = [45, 140, 280, 480, 620, 760, 860];
-  for (let i = 0; i < treeXs.length; i++) {
-    const tx   = treeXs[i];
-    const sway = Math.sin(frameCount * 0.008 + i * 1.2) * 3;
-    // trunk
-    ctx.fillStyle = '#3a2010';
-    ctx.fillRect(tx - 5, 400, 10, 80);
-    // canopy layers
-    const shades = ['rgba(30,90,30,0.7)', 'rgba(45,120,40,0.65)', 'rgba(60,150,50,0.6)'];
-    for (let j = 0; j < 3; j++) {
-      ctx.fillStyle = shades[j];
+  const bg = _forestBg();
+  const f  = frameCount;
+  const camOff = (typeof camXCur === 'number' ? camXCur - 450 : 0);
+  const groundY = 480;   // top of the isFloor platform
+
+  ctx.save();
+
+  // ── Light pouring in from above, before anything else, so the sky between
+  //    the trunks glows rather than sitting flat.
+  const sky = ctx.createRadialGradient(660, -60, 20, 660, -60, 520);
+  sky.addColorStop(0,   'rgba(206,238,150,0.34)');
+  sky.addColorStop(0.4, 'rgba(140,196,96,0.13)');
+  sky.addColorStop(1,   'rgba(140,196,96,0)');
+  ctx.fillStyle = sky;
+  ctx.fillRect(-200, -120, GAME_W + 400, 520);
+
+  // ── Trunk bands, far to near ──────────────────────────────────────────────
+  const CANOPY_SHADES = ['rgba(22,54,26,0.95)', 'rgba(30,74,34,0.9)', 'rgba(40,96,42,0.85)'];
+  for (let bi = 0; bi < bg.bands.length; bi++) {
+    const band = bg.bands[bi];
+    ctx.save();
+    ctx.translate(-camOff * band.par, 0);
+    for (const t of band.trees) {
+      const sway = Math.sin(f * 0.006 + t.phase) * (1 + bi * 1.4);
+      const topX = t.x + t.lean * 260 + sway;
+      const halfB = t.w * 0.5 * t.flare;      // base half-width (root flare)
+      const halfT = t.w * 0.35;               // half-width at the top of frame
+
+      // Trunk body — tapered, flared at the base
+      ctx.fillStyle = band.tint;
       ctx.beginPath();
-      ctx.arc(tx + sway, 380 - j * 28, 32 - j * 4, 0, Math.PI * 2);
+      ctx.moveTo(t.x - halfB, groundY + 6);
+      ctx.quadraticCurveTo(t.x - t.w * 0.55, groundY - t.rootH, topX - halfT, -60);
+      ctx.lineTo(topX + halfT, -60);
+      ctx.quadraticCurveTo(t.x + t.w * 0.55, groundY - t.rootH, t.x + halfB, groundY + 6);
+      ctx.closePath();
+      ctx.fill();
+
+      // Bark striations — vertical shadow lines give the cylinder its round
+      ctx.strokeStyle = band.bark;
+      ctx.lineWidth   = Math.max(1, t.w * 0.09);
+      for (const b of t.bark) {
+        ctx.beginPath();
+        ctx.moveTo(t.x + b.o * t.w * 1.6, groundY - b.y0 * (groundY + 40));
+        ctx.lineTo(topX + b.o * t.w * 1.1, groundY - b.y1 * (groundY + 60));
+        ctx.stroke();
+      }
+
+      // Root buttresses splaying into the ground
+      ctx.fillStyle = band.tint;
+      for (const s of [-1, 1]) {
+        ctx.beginPath();
+        ctx.moveTo(t.x + s * halfB * 0.6, groundY - t.rootH);
+        ctx.quadraticCurveTo(t.x + s * halfB * 1.5, groundY - t.rootH * 0.25,
+                             t.x + s * halfB * 2.1, groundY + 6);
+        ctx.lineTo(t.x, groundY + 6);
+        ctx.closePath();
+        ctx.fill();
+      }
+
+      // Branch stubs reaching toward the canopy
+      ctx.strokeStyle = band.tint;
+      ctx.lineCap     = 'round';
+      for (const lm of t.limbs) {
+        const ly = -60 + lm.y * (groundY + 60);
+        const lx = t.x + (topX - t.x) * (1 - lm.y);
+        ctx.lineWidth = Math.max(2, t.w * 0.3);
+        ctx.beginPath();
+        ctx.moveTo(lx, ly);
+        ctx.quadraticCurveTo(lx + lm.dir * lm.len * 0.6, ly + lm.drop,
+                             lx + lm.dir * lm.len, ly + lm.drop - 16);
+        ctx.stroke();
+      }
+      ctx.lineCap = 'butt';
+    }
+    ctx.restore();
+  }
+
+  // ── God rays angling down through the canopy gaps ─────────────────────────
+  ctx.save();
+  ctx.translate(-camOff * 0.08, 0);
+  ctx.globalCompositeOperation = 'lighter';
+  for (const ry of bg.rays) {
+    const pulse = 0.7 + Math.sin(f * 0.011 + ry.phase) * 0.3;
+    const g = ctx.createLinearGradient(ry.x, 0, ry.x - 150, groundY);
+    g.addColorStop(0,   `rgba(226,246,168,${ry.a * pulse})`);
+    g.addColorStop(0.6, `rgba(200,236,140,${ry.a * pulse * 0.35})`);
+    g.addColorStop(1,   'rgba(180,220,120,0)');
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.moveTo(ry.x - ry.w * 0.35, -20);
+    ctx.lineTo(ry.x + ry.w * 0.35, -20);
+    ctx.lineTo(ry.x - 150 + ry.w * 1.5, groundY);
+    ctx.lineTo(ry.x - 150 - ry.w * 1.5, groundY);
+    ctx.closePath();
+    ctx.fill();
+  }
+  ctx.restore();
+
+  // ── Undergrowth along the horizon ─────────────────────────────────────────
+  ctx.save();
+  ctx.translate(-camOff * 0.16, 0);
+  for (const u of bg.under) {
+    const sw = Math.sin(f * 0.012 + u.phase) * 2.5;
+    ctx.globalAlpha = u.a;
+    ctx.fillStyle   = '#1d4a22';
+    // Fan of fronds rather than a blob
+    for (let k = -2; k <= 2; k++) {
+      const ang = k * 0.28;
+      ctx.beginPath();
+      ctx.moveTo(u.x - u.w * 0.12, groundY + 4);
+      ctx.quadraticCurveTo(u.x + Math.sin(ang) * u.w * 0.7 + sw, groundY - u.h * 0.8,
+                           u.x + Math.sin(ang) * u.w + sw * 1.6, groundY - u.h);
+      ctx.quadraticCurveTo(u.x + Math.sin(ang) * u.w * 0.5 + sw, groundY - u.h * 0.5,
+                           u.x + u.w * 0.12, groundY + 4);
+      ctx.closePath();
       ctx.fill();
     }
   }
-  // Fireflies / floating particles
+  ctx.globalAlpha = 1;
+  ctx.restore();
+
+  // ── Canopy ceiling — leaf lobes hanging off the top edge ──────────────────
   ctx.save();
-  for (let i = 0; i < 6; i++) {
-    const fx = (frameCount * (0.4 + i * 0.15) + i * 150) % 920 - 10;
-    const fy = 200 + Math.sin(frameCount * 0.02 + i * 2.1) * 80;
-    const fa = 0.4 + Math.sin(frameCount * 0.08 + i) * 0.4;
-    ctx.globalAlpha = Math.max(0, fa);
-    ctx.fillStyle   = '#ccff44';
+  ctx.translate(-camOff * 0.06, 0);
+  for (const cp of bg.canopy) {
+    const sw = Math.sin(f * cp.spd + cp.phase) * 4;
+    ctx.globalAlpha = cp.a;
+    ctx.fillStyle   = CANOPY_SHADES[cp.shade];
     ctx.beginPath();
-    ctx.arc(fx, fy, 2.5, 0, Math.PI * 2);
+    ctx.ellipse(cp.x + sw, cp.y, cp.r, cp.r * 0.72, 0, 0, Math.PI * 2);
     ctx.fill();
   }
+  ctx.globalAlpha = 1;
+  ctx.restore();
+
+  // ── Hanging vines ─────────────────────────────────────────────────────────
+  ctx.save();
+  ctx.translate(-camOff * 0.09, 0);
+  ctx.strokeStyle = 'rgba(38,84,38,0.75)';
+  ctx.lineCap     = 'round';
+  for (const v of bg.vines) {
+    const sw = Math.sin(f * v.spd + v.phase) * 12;
+    ctx.lineWidth = v.w;
+    ctx.beginPath();
+    ctx.moveTo(v.x, 10);
+    ctx.quadraticCurveTo(v.x + sw * 0.5, 10 + v.len * 0.55, v.x + sw, 10 + v.len);
+    ctx.stroke();
+    ctx.fillStyle = 'rgba(52,110,46,0.7)';
+    for (let k = 1; k <= v.leaves; k++) {
+      const tt = k / (v.leaves + 1);
+      const lx = v.x + sw * tt * tt;
+      const ly = 10 + v.len * tt;
+      ctx.beginPath();
+      ctx.ellipse(lx + (k % 2 ? 5 : -5), ly, 6, 3, k % 2 ? 0.5 : -0.5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+  ctx.lineCap = 'butt';
+  ctx.restore();
+
+  // ── Pollen motes drifting in the light ────────────────────────────────────
+  ctx.fillStyle = '#e6f7b8';
+  for (const m of bg.motes) {
+    const my = ((m.y - f * m.spd) % 560 + 560) % 560 - 20;
+    const mx = m.x + Math.sin(f * m.drift + m.phase) * m.amp;
+    ctx.globalAlpha = m.a;
+    ctx.beginPath();
+    ctx.arc(mx, my, m.r, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+
+  // ── Falling leaves — tumbling, not just translating ───────────────────────
+  for (const lf of bg.leaves) {
+    const ly = ((lf.y + f * lf.spd) % 660 + 660) % 660 - 130;
+    const lx = lf.x + Math.sin(f * lf.drift + lf.phase) * lf.amp;
+    ctx.save();
+    ctx.translate(lx, ly);
+    ctx.rotate(f * lf.spin + lf.phase);
+    ctx.globalAlpha = lf.a;
+    ctx.fillStyle   = lf.col;
+    ctx.beginPath();
+    // Leaf: two arcs meeting at a point, squashed by the tumble
+    ctx.ellipse(0, 0, lf.r, lf.r * (0.35 + 0.45 * Math.abs(Math.cos(f * lf.spin))), 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+  ctx.globalAlpha = 1;
+
+  // ── Fireflies — orbiting, with a real glow rather than a flat dot ─────────
+  ctx.save();
+  ctx.globalCompositeOperation = 'lighter';
+  for (const fl of bg.flies) {
+    const t  = f * fl.spd + fl.phase;
+    const fx = fl.x + Math.cos(t) * fl.rx;
+    const fy = fl.y + Math.sin(t * 1.7) * fl.ry;
+    const a  = Math.max(0, 0.25 + Math.sin(f * fl.blink + fl.phase) * 0.75);
+    const g  = ctx.createRadialGradient(fx, fy, 0, fx, fy, 11);
+    g.addColorStop(0,   `rgba(226,255,150,${a})`);
+    g.addColorStop(0.3, `rgba(170,240,70,${a * 0.35})`);
+    g.addColorStop(1,   'rgba(140,220,50,0)');
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.arc(fx, fy, 11, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = `rgba(240,255,200,${a})`;
+    ctx.beginPath(); ctx.arc(fx, fy, 1.7, 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.restore();
+
+  // ── Forest floor darkening — the ground plane should fall into shade ──────
+  const flr = ctx.createLinearGradient(0, groundY - 70, 0, groundY + 30);
+  flr.addColorStop(0, 'rgba(6,20,8,0)');
+  flr.addColorStop(1, 'rgba(6,20,8,0.42)');
+  ctx.fillStyle = flr;
+  ctx.fillRect(-200, groundY - 70, GAME_W + 400, 100);
+
   ctx.restore();
 }
 
@@ -1292,35 +1912,308 @@ function drawIce() {
   ctx.restore();
 }
 
+// ── Sunken Ruins background ───────────────────────────────────────────────
+// Was six grey rectangles and five dust dots. This gives the map its subject:
+// a ruined temple facade in parallax behind fluted columns with real cracks,
+// broken tops and ivy, rubble on the slabs, warm light through the collapsed
+// roof, and dark chasms in the two floor gaps (the arena's slabs stop at
+// x260-320 and x580-640, but drawBackground fills the ground flat across the
+// whole width, so the gaps only read as pits if this layer digs them back out).
+function _ruinsBg() {
+  if (_ruinsBg._c) return _ruinsBg._c;
+  const rnd = (a, b) => a + Math.random() * (b - a);
+  const c = {
+    // Far temple facade silhouette
+    facade: Array.from({ length: 9 }, (_, i) => ({
+      x: 20 + i * 108, w: rnd(26, 40), h: rnd(150, 250), broken: Math.random() < 0.45,
+    })),
+    // Foreground columns
+    cols: [50, 200, 360, 540, 700, 850].map((x, i) => ({
+      x,
+      h:      i % 3 === 0 ? rnd(170, 235) : rnd(250, 300),
+      w:      rnd(19, 26),
+      broken: i % 3 === 0,
+      flutes: Math.random() < 0.5 ? 3 : 4,
+      cracks: Array.from({ length: 2 + Math.floor(Math.random() * 3) }, () => ({
+        y: rnd(0.15, 0.9), dx: rnd(-1, 1), len: rnd(14, 40), tilt: rnd(-0.5, 0.5),
+      })),
+      ivy: Array.from({ length: 2 + Math.floor(Math.random() * 3) }, () => ({
+        y: rnd(0.1, 0.7), side: Math.random() < 0.5 ? -1 : 1, len: rnd(30, 90), phase: rnd(0, 6.28),
+      })),
+      // Rubble at the base of broken columns
+      chunks: Array.from({ length: 3 }, () => ({ dx: rnd(-34, 34), w: rnd(10, 26), h: rnd(7, 15), rot: rnd(-0.4, 0.4) })),
+    })),
+    // Fallen column drums lying on the slabs
+    drums: Array.from({ length: 7 }, () => ({
+      x: rnd(10, 880), y: 440 - rnd(0, 6), w: rnd(28, 62), h: rnd(13, 20), rot: rnd(-0.12, 0.12),
+    })),
+    // Warm shafts through the collapsed roof
+    rays: [ { x: 210, w: 46, a: 0.09 }, { x: 470, w: 66, a: 0.12 }, { x: 730, w: 38, a: 0.08 } ],
+    motes: Array.from({ length: 26 }, () => ({
+      x: rnd(-20, 920), y: rnd(60, 460), r: rnd(0.8, 2.4), spd: rnd(0.04, 0.20),
+      drift: rnd(0.005, 0.017), amp: rnd(8, 30), phase: rnd(0, 6.28), a: rnd(0.06, 0.22),
+    })),
+  };
+  _ruinsBg._c = c;
+  return c;
+}
+
 function drawRuins() {
-  // Stone columns / pillars in background
-  const cols = [50, 200, 360, 540, 700, 850];
-  for (let i = 0; i < cols.length; i++) {
-    const cx2 = cols[i];
-    const broken = i % 3 === 0;
-    const colH   = broken ? 180 + (i % 2) * 60 : 260;
-    // Column body
-    ctx.fillStyle = `rgba(80,65,48,0.55)`;
-    ctx.fillRect(cx2 - 10, GAME_H - colH, 20, colH);
-    // Column cap
-    ctx.fillStyle = `rgba(100,82,58,0.65)`;
-    ctx.fillRect(cx2 - 14, GAME_H - colH, 28, 12);
-    // Column base
-    ctx.fillStyle = `rgba(100,82,58,0.65)`;
-    ctx.fillRect(cx2 - 14, GAME_H - 16, 28, 16);
+  const bg = _ruinsBg();
+  const f  = frameCount;
+  const camOff = (typeof camXCur === 'number' ? camXCur - 450 : 0);
+  const groundY = 440;
+
+  ctx.save();
+
+  // ── Collapsed vault overhead ──────────────────────────────────────────────
+  // The top third of this map was an empty brown field and the light shafts
+  // below arrived from nowhere. This is a solid ceiling with holes punched
+  // through it — an earlier version drew the ceiling as a dark band with a
+  // ragged BOTTOM edge and bright sky under it, which read as a mountain range.
+  ctx.save();
+  ctx.translate(-camOff * 0.04, 0);
+
+  const vaultBot = 104;
+  const vaultG = ctx.createLinearGradient(0, -20, 0, vaultBot);
+  vaultG.addColorStop(0, '#2b1c11');
+  vaultG.addColorStop(1, '#160d06');
+  ctx.fillStyle = vaultG;
+  ctx.beginPath();
+  ctx.moveTo(-260, -20);
+  ctx.lineTo(GAME_W + 260, -20);
+  ctx.lineTo(GAME_W + 260, vaultBot);
+  // Ragged, crumbling underside
+  for (let x = GAME_W + 240; x >= -260; x -= 40) {
+    ctx.lineTo(x, vaultBot + Math.sin(x * 0.031) * 7 + Math.sin(x * 0.077) * 4);
   }
-  // Ambient dust motes
-  for (let i = 0; i < 5; i++) {
-    const dx  = ((frameCount * (0.18 + i * 0.06) + i * 180) % 960) - 30;
-    const dy  = 200 + ((frameCount * (0.22 + i * 0.04) + i * 90) % 280);
-    const da  = 0.08 + Math.sin(frameCount * 0.03 + i) * 0.06;
-    ctx.globalAlpha = Math.max(0, da);
-    ctx.fillStyle   = '#c8a86a';
+  ctx.closePath();
+  ctx.fill();
+
+  // Broken holes, one per light shaft
+  for (const ry of bg.rays) {
+    const hw = ry.w * 0.6, hh = 21, hy = 48;
+    // Sky beyond
+    const hg = ctx.createRadialGradient(ry.x, hy, 2, ry.x, hy, hw * 1.7);
+    hg.addColorStop(0,   'rgba(255,246,220,0.92)');
+    hg.addColorStop(0.5, 'rgba(252,222,166,0.7)');
+    hg.addColorStop(1,   'rgba(240,200,138,0)');
+    ctx.fillStyle = hg;
     ctx.beginPath();
-    ctx.arc(dx, dy, 3, 0, Math.PI * 2);
+    ctx.moveTo(ry.x - hw,        hy + hh * 0.2);
+    ctx.lineTo(ry.x - hw * 0.45, hy - hh);
+    ctx.lineTo(ry.x + hw * 0.3,  hy - hh * 0.75);
+    ctx.lineTo(ry.x + hw,        hy + hh * 0.35);
+    ctx.lineTo(ry.x + hw * 0.2,  hy + hh);
+    ctx.lineTo(ry.x - hw * 0.5,  hy + hh * 0.8);
+    ctx.closePath();
+    ctx.fill();
+    // Lit stone rim on the underside of the break
+    ctx.strokeStyle = 'rgba(206,170,116,0.6)';
+    ctx.lineWidth   = 2;
+    ctx.stroke();
+  }
+
+  // Broken ribs hanging off the ceiling
+  ctx.fillStyle = 'rgba(38,25,15,0.95)';
+  for (const rb of [[80, 30], [340, 22], [618, 34], [830, 26]]) {
+    ctx.beginPath();
+    ctx.moveTo(rb[0] - 14, vaultBot - 4);
+    ctx.lineTo(rb[0], vaultBot + rb[1]);
+    ctx.lineTo(rb[0] + 14, vaultBot - 4);
+    ctx.closePath();
     ctx.fill();
   }
+  ctx.restore();
+
+  // ── Far temple facade ─────────────────────────────────────────────────────
+  ctx.save();
+  ctx.translate(-camOff * 0.05, 0);
+  for (const fc of bg.facade) {
+    const top = groundY - fc.h;
+    ctx.fillStyle = 'rgba(58,44,32,0.5)';
+    if (fc.broken) {
+      // The snapped top has to be part of the SHAFT path. Painting a wedge of
+      // flat background colour over a graded sky left dark arrowheads hanging
+      // in mid-air wherever the two didn't match.
+      ctx.beginPath();
+      ctx.moveTo(fc.x, groundY);
+      ctx.lineTo(fc.x, top + 4);
+      ctx.lineTo(fc.x + fc.w * 0.45, top + 17);
+      ctx.lineTo(fc.x + fc.w, top);
+      ctx.lineTo(fc.x + fc.w, groundY);
+      ctx.closePath();
+      ctx.fill();
+    } else {
+      ctx.fillRect(fc.x, top, fc.w, fc.h);
+      // Intact columns still carry a length of entablature
+      ctx.fillStyle = 'rgba(66,50,36,0.5)';
+      ctx.fillRect(fc.x - 12, top - 16, fc.w + 24, 16);
+    }
+  }
+  ctx.restore();
+
+  // ── Light shafts through the collapsed roof ───────────────────────────────
+  ctx.save();
+  ctx.translate(-camOff * 0.09, 0);
+  ctx.globalCompositeOperation = 'lighter';
+  for (const ry of bg.rays) {
+    const pulse = 0.75 + Math.sin(f * 0.008 + ry.x) * 0.25;
+    const g = ctx.createLinearGradient(ry.x, 54, ry.x - 90, groundY + 40);
+    g.addColorStop(0, `rgba(255,226,158,${ry.a * pulse})`);
+    g.addColorStop(1, 'rgba(255,200,120,0)');
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.moveTo(ry.x - ry.w * 0.3, 54);
+    ctx.lineTo(ry.x + ry.w * 0.3, 54);
+    ctx.lineTo(ry.x - 90 + ry.w * 1.4, groundY + 40);
+    ctx.lineTo(ry.x - 90 - ry.w * 1.4, groundY + 40);
+    ctx.closePath();
+    ctx.fill();
+  }
+  ctx.restore();
+
+  // ── Foreground columns ────────────────────────────────────────────────────
+  ctx.save();
+  ctx.translate(-camOff * 0.14, 0);
+  for (const cl of bg.cols) {
+    const base = groundY + 4;          // sit on the slab line, not GAME_H
+    const top  = base - cl.h;
+    const hw   = cl.w * 0.5;
+
+    // Shaft, graded left-to-right so it reads round instead of flat
+    const sg = ctx.createLinearGradient(cl.x - hw, 0, cl.x + hw, 0);
+    sg.addColorStop(0,    'rgba(64,52,38,0.85)');
+    sg.addColorStop(0.34, 'rgba(112,94,68,0.85)');
+    sg.addColorStop(1,    'rgba(56,44,32,0.85)');
+    ctx.fillStyle = sg;
+    if (cl.broken) {
+      ctx.beginPath();
+      ctx.moveTo(cl.x - hw, base);
+      ctx.lineTo(cl.x - hw, top);
+      ctx.lineTo(cl.x - hw * 0.3, top + 14);
+      ctx.lineTo(cl.x + hw * 0.4, top + 4);
+      ctx.lineTo(cl.x + hw, top + 17);
+      ctx.lineTo(cl.x + hw, base);
+      ctx.closePath();
+      ctx.fill();
+    } else {
+      ctx.fillRect(cl.x - hw, top, cl.w, cl.h);
+    }
+
+    // Flutes
+    ctx.strokeStyle = 'rgba(40,30,20,0.35)';
+    ctx.lineWidth   = 1.4;
+    for (let k = 1; k <= cl.flutes; k++) {
+      const fx = cl.x - hw + (cl.w * k) / (cl.flutes + 1);
+      ctx.beginPath(); ctx.moveTo(fx, top + 20); ctx.lineTo(fx, base - 14); ctx.stroke();
+    }
+
+    // Cracks
+    ctx.strokeStyle = 'rgba(28,18,10,0.6)';
+    ctx.lineWidth   = 1.2;
+    for (const ck of cl.cracks) {
+      const cy = top + 18 + ck.y * (cl.h - 30);
+      ctx.beginPath();
+      ctx.moveTo(cl.x + ck.dx * hw, cy);
+      ctx.lineTo(cl.x + ck.dx * hw + ck.tilt * 8, cy + ck.len * 0.5);
+      ctx.lineTo(cl.x + ck.dx * hw - ck.tilt * 5, cy + ck.len);
+      ctx.stroke();
+    }
+
+    if (cl.broken) {
+      // Rubble scattered at its foot, on the slab
+      ctx.fillStyle = 'rgba(96,80,58,0.7)';
+      for (const ch of cl.chunks) {
+        ctx.save();
+        ctx.translate(cl.x + ch.dx, base - 3 - ch.h * 0.5);
+        ctx.rotate(ch.rot);
+        ctx.fillRect(-ch.w * 0.5, -ch.h * 0.5, ch.w, ch.h);
+        ctx.restore();
+      }
+    } else {
+      // Capital + abacus
+      ctx.fillStyle = 'rgba(120,100,72,0.85)';
+      ctx.fillRect(cl.x - hw - 5, top + 6, cl.w + 10, 9);
+      ctx.fillRect(cl.x - hw - 9, top - 4, cl.w + 18, 11);
+    }
+
+    // Base plinth
+    ctx.fillStyle = 'rgba(118,98,70,0.85)';
+    ctx.fillRect(cl.x - hw - 7, base - 14, cl.w + 14, 14);
+
+    // Ivy trailing down the shaft
+    ctx.strokeStyle = 'rgba(52,92,44,0.55)';
+    ctx.lineWidth   = 2;
+    for (const iv of cl.ivy) {
+      const iy = top + iv.y * cl.h;
+      const sw = Math.sin(f * 0.01 + iv.phase) * 3;
+      ctx.beginPath();
+      ctx.moveTo(cl.x + iv.side * hw, iy);
+      ctx.quadraticCurveTo(cl.x + iv.side * (hw + 6) + sw, iy + iv.len * 0.5,
+                           cl.x + iv.side * hw + sw, iy + iv.len);
+      ctx.stroke();
+      ctx.fillStyle = 'rgba(64,112,52,0.5)';
+      for (let k = 1; k <= 3; k++) {
+        const tt = k / 4;
+        ctx.beginPath();
+        ctx.arc(cl.x + iv.side * (hw + 4 * Math.sin(tt * 3)) + sw * tt, iy + iv.len * tt, 3.2, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+  }
+  ctx.restore();
+
+  // ── Chasms in the two floor gaps ──────────────────────────────────────────
+  for (const gap of [{ x: 260, w: 60 }, { x: 580, w: 60 }]) {
+    const pg = ctx.createLinearGradient(0, groundY, 0, groundY + 130);
+    pg.addColorStop(0,   'rgba(10,5,2,0.95)');
+    pg.addColorStop(0.5, 'rgba(6,3,1,1)');
+    pg.addColorStop(1,   'rgba(0,0,0,1)');
+    ctx.fillStyle = pg;
+    ctx.fillRect(gap.x, groundY, gap.w, GAME_H + 200 - groundY);
+    // Crumbled lip so the edge isn't a ruler-straight cut
+    ctx.fillStyle = 'rgba(122,100,69,0.9)';
+    for (let k = 0; k < 6; k++) {
+      const bx = gap.x + (k < 3 ? -5 + k * 5 : gap.w - 10 + (k - 3) * 5);
+      ctx.fillRect(bx, groundY + Math.abs(Math.sin(k * 2.1)) * 7, 6, 5);
+    }
+    // Mist welling up out of the pit
+    ctx.globalAlpha = 0.10 + Math.sin(f * 0.014 + gap.x) * 0.05;
+    ctx.fillStyle   = '#9ec0d8';
+    ctx.beginPath();
+    ctx.ellipse(gap.x + gap.w * 0.5, groundY + 6 + Math.sin(f * 0.02 + gap.x) * 4, gap.w * 0.75, 12, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+  }
+
+  // ── Fallen drums resting on the slabs ─────────────────────────────────────
+  for (const d of bg.drums) {
+    // Skip anything that would float over a chasm
+    if ((d.x > 240 && d.x < 340) || (d.x > 560 && d.x < 660)) continue;
+    ctx.save();
+    ctx.translate(d.x, d.y - d.h * 0.5);
+    ctx.rotate(d.rot);
+    ctx.fillStyle = 'rgba(126,104,74,0.55)';
+    ctx.fillRect(-d.w * 0.5, -d.h * 0.5, d.w, d.h);
+    ctx.fillStyle = 'rgba(150,126,92,0.5)';
+    ctx.beginPath();
+    ctx.ellipse(-d.w * 0.5, 0, 3.5, d.h * 0.5, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  // ── Dust hanging in the shafts ────────────────────────────────────────────
+  ctx.fillStyle = '#d8b878';
+  for (const m of bg.motes) {
+    const my = ((m.y - f * m.spd) % 520 + 520) % 520;
+    const mx = m.x + Math.sin(f * m.drift + m.phase) * m.amp;
+    ctx.globalAlpha = m.a;
+    ctx.beginPath(); ctx.arc(mx, my, m.r, 0, Math.PI * 2); ctx.fill();
+  }
   ctx.globalAlpha = 1;
+
+  ctx.restore();
 }
 
 // ============================================================
@@ -2410,7 +3303,11 @@ function addKillFeed(loser) {
 
 function endGame() {
   if (typeof ReplaySystem !== 'undefined') ReplaySystem.stopRecording();
-  if (typeof cgSdk !== 'undefined') cgSdk.gameplayStop();
+  if (typeof cgSdk !== 'undefined') {
+    cgSdk.gameplayStop();
+    // Portal ad break — self-guarded: no-op off CrazyGames, online, or on cooldown.
+    cgSdk.adBreak();
+  }
   gameRunning = false;
   exploreActive = false;
   if (typeof saveGame === 'function') saveGame();

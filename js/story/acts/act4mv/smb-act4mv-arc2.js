@@ -274,7 +274,7 @@ STORY_CHAPTER_REGISTRY.push(
     opponentName: 'Titan King', weaponKey: 'hammer', classKey: 'thor', aiDiff: 'expert', opponentColor: '#ffaa00',
     armor: ['helmet', 'chestplate', 'leggings'],
     playerLives: 1,
-    arena: 'sovereign',
+    arena: 'bossSanctum',
     walkFight: true, worldLength: 3000,
     tokenReward: 80,
     blueprintDrop: null,

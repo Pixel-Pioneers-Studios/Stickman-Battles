@@ -17,6 +17,20 @@ function _normKey(k) {
   return (k.length === 1 && k >= 'A' && k <= 'Z') ? k.toLowerCase() : k;
 }
 
+// Letter bindings resolve by PHYSICAL key position, not by the character the
+// layout prints. e.code is layout-independent, so WASD lands on the same three
+// keys an AZERTY player calls ZQSD and a QWERTZ player calls WASD — required by
+// portals that serve every European locale. Non-letter keys (Space, Arrow*,
+// digits) are unaffected and still come from e.key.
+function _eventKey(e) {
+  const c = e.code;
+  if (c && c.length === 4 && c.slice(0, 3) === 'Key') {
+    const ch = c.charAt(3);
+    if (ch >= 'A' && ch <= 'Z') return ch.toLowerCase();
+  }
+  return _normKey(e.key);
+}
+
 document.addEventListener('keydown', e => {
   // Don't intercept keys when typing in any text input (chat, console, etc.)
   const ae = document.activeElement;
@@ -119,7 +133,7 @@ document.addEventListener('keydown', e => {
       }
     }
   }
-  const _nk = _normKey(e.key);
+  const _nk = _eventKey(e);
   if (SCROLL_BLOCK.has(_nk)) e.preventDefault();
   if (keysDown.has(_nk)) return; // already tracked — let held-frame counter run
   keysDown.add(_nk);
@@ -154,6 +168,10 @@ document.addEventListener('keydown', e => {
     if (p._fusionAIOverride) return;
     if (_nk === p.controls.attack) {
       e.preventDefault();
+      // Combo Strike aim window: the attack key COMMITS the kick instead of
+      // starting a normal swing. Without this the same press would queue an
+      // ordinary attack that fires the instant the super releases.
+      if (p._comboSuper && p._comboSuper.phase === 3) { p._comboSuper.fire = true; return; }
       if (!incapacitated) { p.attack(other); }
       else { p._inputBuffer = { action: 'attack', frame: frameCount }; }
     }
@@ -192,9 +210,13 @@ document.addEventListener('keydown', e => {
 });
 
 document.addEventListener('keyup', e => {
-  const _nk = _normKey(e.key);
+  const _nk = _eventKey(e);
   keysDown.delete(_nk);
   delete keyHeldFrames[_nk];
+  // Layout-shifted duplicate: release the printed character too, so a key that
+  // another listener tracked under e.key can never stick down.
+  const _pk = _normKey(e.key);
+  if (_pk !== _nk) { keysDown.delete(_pk); delete keyHeldFrames[_pk]; }
 });
 
 // When the tab loses focus, clear all held keys so players can't exploit

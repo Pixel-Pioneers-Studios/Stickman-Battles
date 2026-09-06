@@ -262,6 +262,7 @@ function _startGameCore() {
   camXCur = GAME_W / 2; camYCur = GAME_H / 2;
   camXTarget = GAME_W / 2; camYTarget = GAME_H / 2;
   camHitZoomTimer = 0;
+  if (typeof resetCameraMotion === 'function') resetCameraMotion();
   // Reset duel-cam state so it doesn't carry stale midpoint from previous match
   if (typeof _duelMidX !== 'undefined') { _duelMidX = GAME_W / 2; _duelMidY = GAME_H / 2; _duelFallDelay = 0; }
   aiTick = 0;

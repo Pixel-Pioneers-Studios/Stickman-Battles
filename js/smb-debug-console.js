@@ -663,9 +663,18 @@ function _consoleExec(raw) {
 
   // ---- SETMAP ----
   if (cmd.startsWith('SETMAP')) {
-    const mapKey = sub;
-    if (!mapKey || typeof ARENAS === 'undefined' || !ARENAS[mapKey]) {
-      _consoleErr('Unknown arena. Try: grass lava space city forest ice ruins'); return;
+    // Arena keys are camelCase (homeYard, bossSanctum) but `sub` is lowercased,
+    // so resolve case-insensitively against both keys and display names.
+    let mapKey = null;
+    if (typeof ARENAS !== 'undefined' && sub) {
+      const norm = v => String(v || '').toLowerCase().replace(/[\s_-]/g, '');
+      const want = norm(parts.slice(1).join(' '));
+      mapKey = Object.keys(ARENAS).find(k =>
+        norm(k) === want || norm(ARENAS[k] && ARENAS[k].name) === want
+      ) || null;
+    }
+    if (!mapKey) {
+      _consoleErr('Unknown arena. Use `arena list` for keys (e.g. grass lava homeYard bossSanctum)'); return;
     }
     if (typeof gameRunning !== 'undefined' && gameRunning) {
       currentArenaKey = mapKey;

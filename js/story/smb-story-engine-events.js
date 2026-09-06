@@ -9,10 +9,35 @@
   }
   // Restore hidden power level from completed chapter count so returning
   // players don't lose their accumulated scaling on page reload.
-  if (typeof playerPowerLevel !== 'undefined' && Array.isArray(_story2.defeated)) {
-    playerPowerLevel = Math.min(3.0, 1.0 + _story2.defeated.length * 0.02);
-  }
+  _storyRecomputePowerLevel();
 })();
+
+// ── Hidden power level ────────────────────────────────────────────────────────
+// +2% damage per cleared chapter, capped at 3.0 (= +200% power level, which
+// smb-combat.js scales to +30% damage). Derived from the cleared-chapter COUNT
+// rather than incremented, so it is idempotent and self-healing.
+//
+// Saga builds count only chapters inside the active saga, so each saga re-runs
+// the ramp from its own baseline. Without this a Saga III build loaded with a
+// carried save would start at the 3.0 cap — Kael at full Absolute-Kael power in
+// the opening chapter. On a 'full' build the saga scope IS the whole story, so
+// this is identical to the old behaviour.
+//
+// smb-saga-structure.js loads AFTER this file, so the saga helpers are absent
+// during the load-time call above; it falls back to the global count and the
+// saga file re-runs this once its own definitions exist.
+function _storyRecomputePowerLevel() {
+  if (typeof playerPowerLevel === 'undefined') return;
+  if (!_story2 || !Array.isArray(_story2.defeated)) return;
+
+  let cleared = _story2.defeated.length;
+  let baseline = 1.0;
+  if (typeof isChapterInActiveSaga === 'function') {
+    cleared = _story2.defeated.filter(i => isChapterInActiveSaga(i)).length;
+    if (typeof activeSagaPowerBaseline === 'function') baseline = activeSagaPowerBaseline();
+  }
+  playerPowerLevel = Math.min(3.0, baseline + cleared * 0.02);
+}
 
 
 // ╔══════════════════════════════════════════════════════════════════╗

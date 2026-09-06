@@ -154,7 +154,7 @@ STORY_CHAPTER_REGISTRY.push(
     secondEnemy: { weaponKey: 'sword', classKey: 'berserker', aiDiff: 'expert', color: '#aa1133' },
     armor: ['helmet', 'chestplate'],
     playerLives: 1,
-    arena: 'colosseum',
+    arena: 'colosseum10',
     walkFight: true, worldLength: 3000,
     tokenReward: 130, blueprintDrop: 'void_pulse2',
     postText: 'Both dissolve. The architecture trembles once. The Creator is recalculating. You keep moving.',

@@ -491,6 +491,55 @@ function _launchEscortChapter(ch) {
   }, 120);
 }
 
+// ── Story mini-boss peaks ─────────────────────────────────────────────────────
+// A chapter may declare `miniBoss: 'forestBeast' | 'yeti'` to add a creature-tier
+// encounter on top of its normal fight. These reuse the Director's existing
+// spawners (smb-data-mapperks.js), which push into minions[] and pick their own
+// target, so nothing else needs wiring. Optional `miniBossHealth` scales it.
+//
+// Called AFTER startGame() and after players[] is populated — the spawners read
+// players[] to choose a target and currentArena to choose a platform.
+function _storySpawnMiniBoss(ch, _tries) {
+  if (!ch || !ch.miniBoss) return;
+  const tries = _tries || 0;
+
+  // The explore world finishes building several frames AFTER startGame(), so the
+  // launch-site hook fires too early on exploration/walkFight chapters. Retry on
+  // a short budget rather than guessing a single magic delay. Bail if the player
+  // left the chapter in the meantime so a stale timer can't spawn into the menu
+  // or into the next chapter.
+  if (typeof _activeStory2Chapter !== 'undefined' && _activeStory2Chapter !== ch) return;
+  const ready = (typeof gameRunning !== 'undefined' && gameRunning)
+             && (typeof currentArena !== 'undefined' && currentArena)
+             && (typeof players !== 'undefined' && players && players.length > 0);
+  if (!ready) {
+    if (tries < 20) setTimeout(() => _storySpawnMiniBoss(ch, tries + 1), 120);
+    return;
+  }
+
+  let spawned = null;
+  if (ch.miniBoss === 'forestBeast' && typeof spawnForestBeastNow === 'function') {
+    if (typeof forestBeast !== 'undefined' && forestBeast) return; // one at a time
+    forestBeastCooldown = 0;
+    spawnForestBeastNow();
+    spawned = (typeof forestBeast !== 'undefined') ? forestBeast : null;
+  } else if (ch.miniBoss === 'yeti' && typeof spawnYetiNow === 'function') {
+    if (typeof yeti !== 'undefined' && yeti) return;
+    yetiCooldown = 0;
+    spawnYetiNow();
+    spawned = (typeof yeti !== 'undefined') ? yeti : null;
+  }
+  if (!spawned) return;
+
+  // Story mini-bosses are a pacing peak, not a random roadside encounter, so
+  // they take an authored HP bump. Everything else stays at creature defaults.
+  if (ch.miniBossHealth) {
+    spawned.health    = ch.miniBossHealth;
+    spawned.maxHealth = ch.miniBossHealth;
+  }
+  if (ch.miniBossName) spawned.name = ch.miniBossName;
+}
+
 function _launchChapter2Fight(ch) {
   if (!ch) return;
 
@@ -827,6 +876,11 @@ function _launchChapter2FightImmediate(ch) {
   // World boss variant: patch the boss after players[] is populated
   if (ch.isWorldBoss) {
     setTimeout(() => spawnWorldBoss(worldId), 100);
+  }
+
+  // Creature mini-boss peak (see _storySpawnMiniBoss).
+  if (ch.miniBoss) {
+    setTimeout(() => _storySpawnMiniBoss(ch), 120);
   }
 
   // Axiom teaser (ch63): patch the Boss entity color + suppress all threshold cinematics + reset player to 1 life

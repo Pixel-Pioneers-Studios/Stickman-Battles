@@ -3,6 +3,10 @@
 // Wraps all SDK calls with null checks so the game runs identically outside CrazyGames.
 
 var cgSdk = (function () {
+  var MIN_AD_GAP_MS = 180000;   // >= 3 minutes between midgame ads
+  var _lastAdAt   = 0;
+  var _breaksSeen = 0;
+
   // Returns the SDK only when it is fully initialized (i.e. on CrazyGames).
   // On other hosts the SDK object may exist but throws on property access.
   function sdk() {
@@ -202,6 +206,57 @@ var cgSdk = (function () {
           if (typeof showToast === 'function') showToast('Invite link copied!');
         }).catch(function () {});
       }
+    },
+
+    // ── Ad breaks ─────────────────────────────────────────────────────────────
+    // Midgame ads are only allowed between matches, never during gameplay, and
+    // CrazyGames asks for a comfortable gap between them. The first break of a
+    // session is skipped so a new player reaches a second match before seeing
+    // an ad. Always calls onDone(), including when no ad is shown at all.
+    adBreak: function (onDone) {
+      function done() { if (onDone) { try { onDone(); } catch (e) {} } }
+      var s = sdk();
+      if (!s || !s.ad || typeof s.ad.requestAd !== 'function') { done(); return; }
+      // Never interrupt an online match — the other peers keep playing.
+      if (typeof onlineMode !== 'undefined' && onlineMode) { done(); return; }
+      // Never interrupt a cinematic.
+      if (typeof activeCinematic !== 'undefined' && activeCinematic) { done(); return; }
+      _breaksSeen++;
+      var now = Date.now();
+      if (_breaksSeen < 2 || (now - _lastAdAt) < MIN_AD_GAP_MS) { done(); return; }
+      _lastAdAt = now;
+      var finished = false;
+      function settle() { if (finished) return; finished = true; done(); }
+      try {
+        s.game.gameplayStop();
+        s.ad.requestAd('midgame', {
+          adStarted:  function () {},
+          adFinished: settle,
+          adError:    settle
+        });
+      } catch (e) { settle(); }
+    },
+
+    // Rewarded ad — call from an explicit player-initiated button only.
+    // onReward() runs when the ad completed; onSkip() when it did not.
+    requestRewardedAd: function (onReward, onSkip) {
+      var s = sdk();
+      if (!s || !s.ad || typeof s.ad.requestAd !== 'function') { if (onSkip) onSkip(); return; }
+      var wasRunning = (typeof gameRunning !== 'undefined' && gameRunning);
+      var settled = false;
+      function fin(ok) {
+        if (settled) return; settled = true;
+        if (wasRunning) { try { s.game.gameplayStart(); } catch (e) {} }
+        if (ok) { if (onReward) onReward(); } else if (onSkip) onSkip();
+      }
+      try {
+        s.game.gameplayStop();
+        s.ad.requestAd('rewarded', {
+          adStarted:  function () {},
+          adFinished: function () { fin(true); },
+          adError:    function () { fin(false); }
+        });
+      } catch (e) { fin(false); }
     },
 
     // Call between matches. onDone() fires when the ad finishes (or if no ad available).

@@ -275,6 +275,7 @@ class SovereignMK2 extends AdaptiveAI {
     // stopped acting entirely. These drive a threat-weighted choice instead.
     this._threatLedger   = new Map(); // fighter -> { dmg, lastFrame } decaying damage tally
     this._retargetDwell  = 0;         // frames on the current target (hysteresis floor)
+    this._peripheralCd   = 0;         // gate on off-target punish swings (see PERIPHERAL PUNISH)
     this._threatSeenFrame = -1;       // last attribution stamp already folded in
     // One BehaviorModel per opponent. A single shared model blended two players'
     // habits into one set of matrices, so reads learned from one were applied to
@@ -2718,7 +2719,15 @@ class SovereignMK2 extends AdaptiveAI {
     // attention; one loitering across the arena has not.
     if (!(Array.isArray(players) && players.includes(c))) {
       const _inFace = d < 90 && ((c.attackTimer || 0) > 0 || (c.cooldown || 0) > 0);
-      score -= _inFace ? 12 : 45;
+      let _pen = _inFace ? 12 : 45;
+      // Even the reduced -12 was a flat number, so a summon that had been chipping
+      // him for twenty seconds scored the same as one that had never landed a hit.
+      // Fade the penalty out against what it has ACTUALLY taken off him: a summon
+      // doing real damage earns the target slot, and one that is only present does
+      // not. Full fade at 60 recent damage — a summon that has done that much is
+      // no longer a distraction, it is the fight.
+      _pen *= 1 - Math.min(1, recent / 60);
+      score -= _pen;
     }
     return score;
   }
@@ -4675,6 +4684,63 @@ class SovereignMK2 extends AdaptiveAI {
         if (Math.random() < this._reactionMistakeRate()) break;   // he is not perfect
         this._startTacticalShield(14);
         break;
+      }
+    }
+
+    // ── PERIPHERAL PUNISH ──────────────────────────────────────────────────
+    // The guard above is defence only, and defence alone still lets a summon farm
+    // him: it shields the swing, the summon backs off, swings again, forever. A
+    // second body has to be answerable, not just survivable.
+    //
+    // The rule is deliberately narrow so it splits attention rather than losing
+    // it. He swings at an off-target attacker ONLY in the window where doing so
+    // costs him nothing against `t`: his primary is out of his own reach, so the
+    // swing he is holding has no better home this frame. Whoever is standing on
+    // him eats it. `this.target` is never reassigned here — the duel continues on
+    // the next frame the player is reachable — and _peripheralCd stops this from
+    // degenerating into him fighting the add instead of the player.
+    if (this._peripheralCd > 0) this._peripheralCd--;
+    if (this._peripheralCd <= 0 && this.cooldown <= 0 && this.attackTimer <= 0 &&
+        (this.stunTimer || 0) <= 0 && (this.ragdollTimer || 0) <= 0 && !this.shielding &&
+        this.weapon && this.weapon.type === 'melee') {
+      const _primaryInReach = !!(t && Math.hypot(t.cx() - this.cx(), t.cy() - this.cy())
+                                      <= this._meleeReachDist(t) * 1.15);
+      const _adds = [...(Array.isArray(players) ? players : []),
+                     ...(typeof minions !== 'undefined' && Array.isArray(minions) ? minions : [])];
+      let _best = null, _bestD = Infinity;
+      for (const o of _adds) {
+        if (!o || o === this || o === t || o.health <= 0) continue;
+        if (typeof areAlliedEntities === 'function' && areAlliedEntities(this, o)) continue;
+        const _d = Math.hypot(o.cx() - this.cx(), o.cy() - this.cy());
+        // Filter on the weapon's committal band, not on _meleeReachDist(). The
+        // latter is the blade-tip arc — 50-60px — and a summon poking from its
+        // own 88px axe range never enters it, which is why the first version of
+        // this fired 1.0 times a match. Commit at the same band the AI commits
+        // to its primary at and let the whiff-guard arbitrate; a vetoed swing
+        // costs nothing here because _peripheralCd is only charged below when
+        // attackTimer actually came up.
+        if (_d > ((this.weapon && this.weapon.range) || 90) * 1.15 + 20) continue;
+        if (Math.abs((o.y + (o.h || 0) / 2) - this.cy()) > 60) continue;
+        // When the player IS in reach, the swing he is holding already has a
+        // better home, so he only turns on the add for cause: it has actually
+        // been taking health off him. Gating on "primary out of reach" alone was
+        // measured at 1.0 peripheral swings a match — it excluded the exact case
+        // this exists for, because a Sovereign pressuring his target is almost
+        // never out of range of it, which is precisely when a summon farms him.
+        if (_primaryInReach) {
+          const _led = this._threatLedger && this._threatLedger.get(o);
+          if (!_led || _led.dmg < 8) continue;   // one clean hit off him is cause enough
+        }
+        if (_d < _bestD) { _bestD = _d; _best = o; }
+      }
+      if (_best) {
+        this.facing = _best.cx() >= this.cx() ? 1 : -1;
+        this.attack(_best);
+        // Only charge the cooldown if the swing actually went out — the melee
+        // whiff-guard aborts without consuming `cooldown`, and paying the
+        // peripheral cooldown for a vetoed swing would blind him for 50 frames
+        // for free (the same silent-veto trap the boss range tests fell into).
+        if (this.attackTimer > 0) this._peripheralCd = 50;
       }
     }
 

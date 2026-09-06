@@ -106,7 +106,10 @@ const ALLOWED_ORIGINS = new Set(String(process.env.ALLOWED_ORIGINS || 'https://s
   .split(',')
   .map(v => v.trim())
   .filter(Boolean));
-const CRAZYGAMES_ORIGIN = /^https:\/\/[a-z0-9-]+\.game-files\.crazygames\.com$/i;
+// CrazyGames serves games and its apps from many hosts: the game-files CDN, the
+// regional portals (crazygames.fr, crazygames.com.br, ...) and the mobile apps.
+// https://docs.crazygames.com/resources/html5/sitelock/
+const CRAZYGAMES_ORIGIN = /^(?:https:\/\/(?:[a-z0-9-]+\.)*crazygames\.(?:com|com\.[a-z]{2}|co\.[a-z]{2}|[a-z]{2,3})|capacitor:\/\/app\.crazygames\.com)$/i;
 // Portal origins that iframe the game from their own CDN. Newgrounds serves
 // HTML5 uploads from uploads.ungrounded.net; Game Jolt from gamejolt.net.
 const PORTAL_ORIGINS = [
@@ -227,7 +230,7 @@ function _securityHeaders(req, res) {
     "media-src 'self'",
     "connect-src 'self' https://*.supabase.co https://esm.sh https://*.peerjs.com wss: https: http://localhost:11434 http://127.0.0.1:11434",
     "frame-src https://www.youtube.com",
-    "frame-ancestors 'self' https://crazygames.com https://*.crazygames.com https://itch.io https://*.itch.io https://*.itch.zone https://newgrounds.com https://*.newgrounds.com",
+    "frame-ancestors 'self' https://crazygames.com https://*.crazygames.com https://*.crazygames.fr https://*.crazygames.pl https://*.crazygames.com.br https://*.crazygames.jp https://*.crazygames.co.kr https://app.crazygames.com capacitor://app.crazygames.com https://itch.io https://*.itch.io https://*.itch.zone https://newgrounds.com https://*.newgrounds.com",
     "base-uri 'self'",
     "form-action 'self'",
   ].join('; '));

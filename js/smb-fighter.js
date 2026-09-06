@@ -148,6 +148,7 @@ class Fighter {
     this._familiar        = null;
     this._familiarTimer   = 0;
     this._familiarRespawn = 0;
+    this._familiarEverSpawned = false;
   }
 
   cx() { return this.x + this.w / 2; }
@@ -267,6 +268,11 @@ class Fighter {
     this._despawnFamiliar();
     this._familiarTimer      = 0;
     this._familiarRespawn    = 0;
+    // The familiar comes back with its summoner. Losing a stock is already the
+    // punishment; making the class play its next 15 seconds with no perk at all
+    // stacked a second one on top. `_familiarRespawn` is deliberately NOT cleared
+    // here, so dying does not wash out the 10s an opponent earned by killing it.
+    this._familiarEverSpawned = false;
     this._whipSlow           = 0;
     this._whipCrack          = null;
     this._whipRope           = null;
@@ -607,62 +613,113 @@ class Fighter {
       }
     }
 
-    // ── Combat super: Combo Strike — dash → kick up → power punch ───────────────
+    // ── Combat super: Combo Strike — dash → uppercut → aimed kick ──────────────
+    // Redesigned 2026-09-05. The old version was four unconditional phases: the
+    // kick's dealDamage() had NO range test at all, so firing E from the far side
+    // of the arena connected anyway and the super was a guaranteed 56 damage plus
+    // a launch from any distance. It is now a read: the dash has to CONNECT, and
+    // if it does the reward is a combo the victim genuinely cannot escape — but
+    // the payoff angle is the player's to aim, so a bad aim wastes the launch.
     if (this._comboSuper) {
       const cs = this._comboSuper;
       cs.timer++;
       const t = cs.target;
+      const _csDead = !t || t.health <= 0;
 
-      if (cs.phase === 0) {
-        // Phase 0 (frames 0-13): dash toward target
-        if (t && t.health > 0) {
+      // Losing the victim mid-combo (ring-out, another player's kill, respawn)
+      // must not strand the attacker in the aim phase forever.
+      if (_csDead && cs.phase >= 1) {
+        this._comboSuper = null;
+        this.superActive = false;
+      } else if (cs.phase === 0) {
+        // ── Phase 0: DASH. This is the whiff-able half of the move. ───────────
+        if (!_csDead) {
           const _csDx = t.cx() - this.cx();
           this.facing = _csDx > 0 ? 1 : -1;
           this.vx = this.vx * 0.5 + this.facing * 18 * 0.5;
+          const _gap  = Math.abs(t.cx() - this.cx());
+          const _vGap = Math.abs(t.cy() - this.cy());
+          if (_gap <= COMBO_SUPER_REACH && _vGap <= 70) { cs.phase = 1; cs.timer = 0; this.vx *= 0.3; }
         }
-        if (cs.timer >= 14) { cs.phase = 1; cs.timer = 0; this.vx = 0; }
+        // Ran out of dash without touching anything: the super is spent. That is
+        // the cost that makes the confirmed version fair.
+        if (cs.phase === 0 && cs.timer >= 26) {
+          this._comboSuper = null;
+          this.superActive = false;
+          this.cooldown = Math.max(this.cooldown, 22);   // visible whiff endlag
+          spawnParticles(this.cx(), this.cy(), '#886644', 10);
+        }
       } else if (cs.phase === 1) {
-        // Phase 1 (frames 0-9): kick — launch target upward
+        // ── Phase 1: UPPERCUT. Confirmed hit — launches the victim straight up.
         this.vx *= 0.55;
-        if (cs.timer === 5 && !cs.kickDone) {
+        if (cs.timer === 3 && !cs.kickDone) {
           cs.kickDone = true;
-          if (t && t.health > 0) {
-            dealDamage(this, t, 22, 6);
-            t.vy = -20;
-            t.vx = this.facing * 5;
-            cs.impactX    = t.cx();
-            cs.impactY    = t.cy();
-            cs.impactFlash = 12;
-            spawnParticles(t.cx(), t.cy(), '#ff4444', 16);
-            spawnParticles(t.cx(), t.cy(), '#ffffff', 8);
-            spawnRing(t.cx(), t.cy());
-            screenShake = Math.max(screenShake, 14);
-          }
+          dealDamage(this, t, 20, 6);
+          t.vy = -21;
+          t.vx = this.facing * 3;
+          cs.impactX = t.cx(); cs.impactY = t.cy(); cs.impactFlash = 12;
+          spawnParticles(t.cx(), t.cy(), '#ff4444', 16);
+          spawnParticles(t.cx(), t.cy(), '#ffffff', 8);
+          spawnRing(t.cx(), t.cy());
+          screenShake = Math.max(screenShake, 14);
+          this.vy = -13;   // follow them up
         }
         if (cs.impactFlash > 0) cs.impactFlash--;
-        if (cs.timer >= 10) { cs.phase = 2; cs.timer = 0; }
+        if (cs.timer >= 16) { cs.phase = 2; cs.timer = 0; }
       } else if (cs.phase === 2) {
-        // Phase 2 (frames 0-14): brief pause, jump up to follow target
+        // ── Phase 2: FALL BACK. They peak and drop; he tracks under them. ─────
         this.vx *= 0.7;
-        if (cs.timer === 3) this.vy = -12;
-        if (cs.timer >= 15) { cs.phase = 3; cs.timer = 0; }
+        if (cs.timer >= 22) {
+          cs.phase = 3; cs.timer = 0;
+          // Aim opens pointing where the uppercut was already going, so a player
+          // who does nothing still gets a sane (if unoptimised) launch.
+          cs.aim = this.facing > 0 ? -0.55 : Math.PI + 0.55;
+          // Pin the attacker's height for the window. Zeroing vy is not enough:
+          // gravity is applied later in this same update(), so he would sink a
+          // couple of hundred pixels across a 110-frame aim.
+          cs.holdY = this.y;
+        }
       } else if (cs.phase === 3) {
-        // Phase 3 (frames 0-13): power punch — blast target sideways
+        // ── Phase 3: AIM. Both bodies are suspended; the kick angle is an input.
+        // The victim CANNOT escape — velocity is zeroed and re-stunned every
+        // frame — which is the whole promise of the move. What is not free is
+        // where they go: that is the player's decision, under a clock.
+        this.vx = 0; this.vy = 0;
+        if (cs.holdY != null) this.y = cs.holdY;
+        t.vx = 0; t.vy = 0;
+        t.stunTimer = Math.max(t.stunTimer || 0, 12);
+        t.attackTimer = 0;
+        // Park them just in front of and slightly above him — a readable pose to
+        // aim off, and it stops a drifting body leaving the kick's reach.
+        t.x = this.cx() + this.facing * 44 - (t.w || 30) / 2;
+        t.y = this.cy() - 40;
+
+        if (this.isAI) {
+          // Bots aim at the nearest blast-off: whichever side wall is closer.
+          const _outLeft = this.cx() < GAME_W / 2;
+          cs.aim = _outLeft ? Math.PI + 0.35 : -0.35;
+          if (cs.timer >= 18) { cs.phase = 4; cs.timer = 0; }
+        } else {
+          const _cL = this.controls || {};
+          if (keysDown.has(_cL.left))  cs.aim -= COMBO_SUPER_AIM_RATE;
+          if (keysDown.has(_cL.right)) cs.aim += COMBO_SUPER_AIM_RATE;
+          if (cs.fire || cs.timer >= COMBO_SUPER_AIM_FRAMES) { cs.phase = 4; cs.timer = 0; }
+        }
+      } else if (cs.phase === 4) {
+        // ── Phase 4: KICK. Fires along the aimed vector. ──────────────────────
         this.vx *= 0.65;
-        if (cs.timer === 4 && !cs.punchDone) {
+        if (cs.timer === 3 && !cs.punchDone) {
           cs.punchDone = true;
-          if (t && t.health > 0) {
-            dealDamage(this, t, 34, 28);
-            t.vx = this.facing * 24;
-            t.vy = 3;
-            cs.impactX    = t.cx();
-            cs.impactY    = t.cy();
-            cs.impactFlash = 18;
-            spawnParticles(t.cx(), t.cy(), '#ff2222', 22);
-            spawnParticles(t.cx(), t.cy(), '#ffcc44', 10);
-            spawnRing(t.cx(), t.cy());
-            screenShake = Math.max(screenShake, 22);
-          }
+          const _a = cs.aim || 0;
+          this.facing = Math.cos(_a) >= 0 ? 1 : -1;
+          dealDamage(this, t, 34, 28);
+          t.vx = Math.cos(_a) * 26;
+          t.vy = Math.sin(_a) * 26;
+          cs.impactX = t.cx(); cs.impactY = t.cy(); cs.impactFlash = 18;
+          spawnParticles(t.cx(), t.cy(), '#ff2222', 22);
+          spawnParticles(t.cx(), t.cy(), '#ffcc44', 10);
+          spawnRing(t.cx(), t.cy());
+          screenShake = Math.max(screenShake, 22);
         }
         if (cs.impactFlash > 0) cs.impactFlash--;
         if (cs.timer >= 14) {
@@ -1487,12 +1544,23 @@ class Fighter {
     // AI: only update every AI_TICK_INTERVAL frames (smoother movement, less CPU)
     // _fusionAIOverride is handled by paradoxFusionUpdateAI() in the game loop — do NOT run stock AI
     // combatLock.blocks.ai gates the whole update during finishers, QTEs, and cinematics
-    if (this.isAI && !this._fusionAIOverride && this.target &&
+    // The `this.target` term used to sit at the front of this gate, which made it
+    // a deadlock: updateAI() is the ONLY routine caller of _acquireAITarget(), so
+    // an AI fighter that came into the world without a target could never run the
+    // code that would have found it one. Anything whose spawner remembered to
+    // assign `.target` (boss minions, trainer bots) was fine; the Summoner's
+    // familiar was not, and stood motionless for entire matches — measured at
+    // 0 swings across 7200 frames with 60% uptime.
+    // Acquisition is folded into the gate AFTER the aiTick check so it still only
+    // runs on this fighter's own AI ticks, and _acquireAITarget() returns null
+    // when nothing legal is alive — a targetless AI stays idle, as before.
+    if (this.isAI && !this._fusionAIOverride &&
         !this._domainRising &&
         !activeCinematic &&
         !(typeof isCutsceneActive === 'function' && isCutsceneActive()) &&
         !(typeof isCombatLocked === 'function' && isCombatLocked('ai')) &&
-        aiTick % (this.aiTickInterval || AI_TICK_INTERVAL) === 0) this.updateAI();
+        aiTick % (this.aiTickInterval || AI_TICK_INTERVAL) === 0 &&
+        (this.target || this._acquireAITarget())) this.updateAI();
 
       // ── Standard game physics ──
       // godmode cheat: free flight for human player
@@ -1816,6 +1884,7 @@ class Fighter {
           phase: 0, timer: 0, target: _sfTgt,
           kickDone: false, punchDone: false,
           impactX: 0, impactY: 0, impactFlash: 0,
+          aim: 0, fire: false,
         };
         if (_sfTgt) this.facing = _sfTgt.cx() > this.cx() ? 1 : -1;
         this.invincible = Math.max(this.invincible || 0, 55);
@@ -1875,8 +1944,17 @@ class Fighter {
       if (this._familiarRespawn > 0) {
         this._familiarRespawn--;
       } else if (!this._familiar) {
-        this._familiarTimer = (this._familiarTimer || 0) + 1;
-        if (this._familiarTimer >= 900) this._spawnFamiliar();
+        // The FIRST familiar arrives immediately. Waiting 900 frames for it meant
+        // the opening fifteen seconds of every match were played by a 120 HP
+        // fighter with no class perk at all — the Summoner's entire kit is the
+        // second body, so until it exists the class is strictly worse than none.
+        // Subsequent spawns keep the 15s cadence (and a kill still costs 10s on
+        // top of it, via _familiarRespawn).
+        if (!this._familiarEverSpawned) { this._spawnFamiliar(); }
+        else {
+          this._familiarTimer = (this._familiarTimer || 0) + 1;
+          if (this._familiarTimer >= 900) this._spawnFamiliar();
+        }
       }
     }
   }
@@ -1899,15 +1977,28 @@ class Fighter {
     // Hard cap of one: any earlier familiar is retired before a new one appears.
     if (this._familiar) this._despawnFamiliar();
     const fam = new Minion(this.cx() - 20 * this.facing, this.y);
+    // Minion's constructor difficulty ('hard') is tuned for the story swarm, where
+    // a minion only has to be a body. A familiar fighting a single evasive opponent
+    // at that setting connected with 11% of the swings it was allowed to take —
+    // 13 damage across a two-minute match. Expert pursuit speed is what lets the
+    // whiff-guard clear a swing at all against a target that moves.
+    fam.aiDiff        = 'expert';
+    fam.intelligence  = 0.85;
     const famTeamId   = 'fam_' + this.playerNum + '_' + Date.now();
     fam._teamId       = famTeamId;
     this._teamId      = famTeamId;
     fam.color         = '#44ccff';
     fam.name          = 'FAMILIAR';
     fam._isFamiliar   = true;
-    fam.health        = 65;
-    fam.maxHealth     = 65;
-    fam.dmgMult       = 0.45;
+    // 65 HP put the familiar inside two Sovereign swings, so the answer to a
+    // Summoner was "swat it once on the way past" and the class had no second
+    // body for most of the fight. 110 is still fragile — a committed pass still
+    // kills it — but it has to be a committed pass.
+    fam.health        = 110;
+    fam.maxHealth     = 110;
+    // 0.45 on a 15-damage axe is ~7 a hit. It is a chip unit, not a damage
+    // dealer, but chip has to be legible or the class reads as broken.
+    fam.dmgMult       = 0.6;
     // kbResist 0.15 made the familiar almost impossible to displace, so the only
     // counterplay to a permanent second body was killing it. 0.5 lets it be swatted
     // away — repositioning it is now a real answer.
@@ -1920,7 +2011,14 @@ class Fighter {
     fam._empowerFrames = 0;
     this._familiar    = fam;
     this._familiarTimer = 0;
+    this._familiarEverSpawned = true;
     if (typeof minions !== 'undefined') minions.push(fam);
+    // Engage on frame one. The gate in update() can now acquire for itself, but
+    // that costs an AI tick of standing still, and inheriting the summoner's own
+    // target is a better first guess than "nearest body" for a unit whose whole
+    // job is to pressure whoever the summoner is fighting.
+    fam.target = (this.target && this.target.health > 0 && !areAlliedEntities(fam, this.target))
+      ? this.target : fam._acquireAITarget();
     spawnParticles(this.cx(), this.cy(), '#44ccff', 20);
     spawnParticles(this.cx(), this.cy(), '#aaeeff', 10);
   }
@@ -2774,7 +2872,7 @@ class Fighter {
           if (_d < _csDist) { _csTgt = f; _csDist = _d; }
         }
         this._comboSuper = {
-          phase:     0,   // 0=dash 1=kick 2=pause 3=punch
+          phase:     0,   // 0=dash 1=uppercut 2=fall-back 3=aim 4=kick
           timer:     0,
           target:    _csTgt,
           kickDone:  false,
@@ -2782,6 +2880,8 @@ class Fighter {
           impactX:   0,
           impactY:   0,
           impactFlash: 0,
+          aim:       0,      // kick angle, radians — set when the aim window opens
+          fire:      false,  // set by the attack key (smb-input.js) to commit early
         };
         if (_csTgt) this.facing = _csTgt.cx() > this.cx() ? 1 : -1;
         this.invincible = Math.max(this.invincible || 0, 55);
@@ -5588,6 +5688,49 @@ class Fighter {
       ctx.arc(this.cx(), this.cy(), 28 + _pulse * 6, 0, Math.PI * 2);
       ctx.fill();
       ctx.shadowBlur  = 0;
+      ctx.restore();
+    }
+
+    // ── Combat super: Combo Strike aim indicator ─────────────────────────────────
+    // The aimed kick is only a decision if the player can see what they are
+    // choosing. Drawn for the human only — a bot aiming needs no reticle.
+    if (this._comboSuper && this._comboSuper.phase === 3 && !this.isAI) {
+      const cs  = this._comboSuper;
+      const _a  = cs.aim || 0;
+      const ox  = this.cx() + Math.cos(_a) * 30;
+      const oy  = this.cy() - 18 + Math.sin(_a) * 30;
+      // Charge ring: how much of the aim window is left before it auto-fires.
+      const _left = Math.max(0, 1 - cs.timer / COMBO_SUPER_AIM_FRAMES);
+      ctx.save();
+      ctx.globalAlpha = 0.85;
+      ctx.strokeStyle = '#ffcc44';
+      ctx.lineWidth   = 3;
+      ctx.shadowColor = '#ff8800';
+      ctx.shadowBlur  = 12;
+      // Dashed trajectory out along the kick vector
+      ctx.setLineDash([9, 7]);
+      ctx.beginPath();
+      ctx.moveTo(ox, oy);
+      ctx.lineTo(ox + Math.cos(_a) * 150, oy + Math.sin(_a) * 150);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      // Arrowhead at the far end
+      const hx = ox + Math.cos(_a) * 150, hy = oy + Math.sin(_a) * 150;
+      ctx.fillStyle = '#ffee66';
+      ctx.beginPath();
+      ctx.moveTo(hx + Math.cos(_a) * 14, hy + Math.sin(_a) * 14);
+      ctx.lineTo(hx + Math.cos(_a + 2.5) * 13, hy + Math.sin(_a + 2.5) * 13);
+      ctx.lineTo(hx + Math.cos(_a - 2.5) * 13, hy + Math.sin(_a - 2.5) * 13);
+      ctx.closePath();
+      ctx.fill();
+      // Timer ring around the pivot
+      ctx.globalAlpha = 0.7;
+      ctx.strokeStyle = _left < 0.3 ? '#ff4433' : '#ffcc44';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.arc(this.cx(), this.cy() - 18, 26, -Math.PI / 2, -Math.PI / 2 + _left * Math.PI * 2);
+      ctx.stroke();
+      ctx.shadowBlur = 0;
       ctx.restore();
     }
 

@@ -453,12 +453,28 @@ function _launchExplorationChapter(ch) {
     plats = _exploreGenPlatforms(worldLen, ch.id, ch);
   }
 
+  // Theme inheritance: the chapter's authored `arena:` used to be discarded
+  // entirely once the world became an explore world, so all 55 walkFight
+  // chapters rendered the same fallback navy sky + generic city tiles. Adopt
+  // that arena's palette (and hand its key to the renderer as `themeKey`) so
+  // the authored look survives the one-map conversion. Explicit per-chapter
+  // sky/groundColor/platColor still win over the inherited palette.
+  const _theme = (typeof ARENAS !== 'undefined' && ch.arena && ARENAS[ch.arena]) ? ARENAS[ch.arena] : null;
+
   // Inject exploration arena into ARENAS under temp key
   const arenaKey = '__explore__';
   ARENAS[arenaKey] = {
-    sky:           ch.sky         || ['#0a0a1e', '#1a1a2e'],
-    groundColor:   ch.groundColor || '#333344',
-    platColor:     ch.platColor   || '#445566',
+    sky:           ch.sky         || (_theme && _theme.sky)         || ['#0a0a1e', '#1a1a2e'],
+    groundColor:   ch.groundColor || (_theme && _theme.groundColor) || '#333344',
+    platColor:     ch.platColor   || (_theme && _theme.platColor)   || '#445566',
+    platEdge:      ch.platEdge    || (_theme && _theme.platEdge)    || null,
+    themeKey:      (_theme && ch.arena) || null,
+    // Render-only: the lava drawer needs a surface height. hasLava is NOT
+    // inherited — that is a damage hazard, not part of the look.
+    lavaY:         (_theme && _theme.lavaY) || null,
+    // Horizon alignment: bespoke arena art is authored against that arena's own
+    // floor height; the explore world's floor sits at _EXP_SURF_Y (440).
+    themeFloorY:   _theme ? ((_theme.platforms || []).find(pl => pl.isFloor) || {}).y ?? null : null,
     worldWidth:    worldLen,
     // Worlds with a backtrack target open the left edge — it's the reverse
     // loading zone (walking off it returns to the previous chapter's world).
@@ -706,6 +722,8 @@ function _launchExplorationChapter(ch) {
     if (_exploreMode === 'defense'  && typeof initDefenseMode  === 'function') initDefenseMode(ch);
     if (_exploreMode === 'scavenge' && typeof initScavengeMode === 'function') initScavengeMode(ch);
     if (_exploreMode === 'puzzle'   && typeof initPuzzleMode   === 'function') initPuzzleMode(ch);
+    // Creature mini-boss peak — walkFight and exploration chapters both land here.
+    if (ch.miniBoss && typeof _storySpawnMiniBoss === 'function') _storySpawnMiniBoss(ch);
   }, 80);
 }
 

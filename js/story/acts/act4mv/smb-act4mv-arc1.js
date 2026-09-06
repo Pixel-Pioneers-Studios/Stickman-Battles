@@ -171,7 +171,7 @@ STORY_CHAPTER_REGISTRY.push(
     twoEnemies: true,
     secondEnemy: { weaponKey: 'sword', classKey: 'warrior', aiDiff: 'hard', color: '#3366cc' },
     playerLives: 3,
-    arena: 'mushroom',
+    arena: 'realmEntry',
     walkFight: true, worldLength: 3000,
     tokenReward: 15, blueprintDrop: null,
     postText: 'By the third inversion you stopped fighting it and started using it. The Fallen God said nothing. It didn\'t need to.',

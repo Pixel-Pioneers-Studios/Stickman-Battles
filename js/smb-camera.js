@@ -25,6 +25,28 @@ const _DUEL_SPEED_SCALE = 0.10; // proportional factor (speed = dist * scale, th
 // How many frames to delay following a fast-falling entity (cinematic drop feel)
 let _duelFallDelay = 0;
 
+// ── Motion smoothing state ────────────────────────────────────────────────────
+// The camera has many writers (mode lerp rates, drama cam, boss bias, spread
+// weighting, failsafe) and several of them switch on/off between one frame and
+// the next. Any of those produces a step change in the *target*, which a plain
+// `cur += (target-cur)*k` converts straight into a visible jerk — the bigger the
+// standing error (i.e. the wider the map), the bigger the lurch. So the final
+// integrator is velocity-based and acceleration-limited: the lerp only sets a
+// DESIRED velocity, and actual velocity is allowed to change by a bounded amount
+// per frame. Every discontinuity upstream then ramps in over ~10 frames instead
+// of teleporting the view. Explicit snaps (cinematics, failsafe) reset velocity.
+let _camVX = 0, _camVY = 0;
+const _CAM_MAX_ACCEL = 1.35;  // world units / frame^2
+const _CAM_MAX_SPEED = 34;    // world units / frame
+// Mode changes swap the lerp rate by >2x in one frame (gameplay 0.062 -> combat
+// 0.130), which dumps the accumulated tracking error at double speed the instant
+// anyone throws a punch. Ease the rate itself instead of stepping it.
+let _camLerpPos = 0.062, _camLerpZoom = 0.045;
+// Smoothed 0..1 weight for the wide-arena boss-attack bias (hard on/off otherwise)
+let _camBossBias = 0;
+
+function resetCameraMotion() { _camVX = 0; _camVY = 0; _camBossBias = 0; }
+
 // Per-mode lerp speeds
 const _CAM_LERP = {
   gameplay:  { pos: 0.062, zoom: 0.045 },
@@ -172,7 +194,16 @@ function updateCamera() {
   if (_camSeq) { _tickCameraSequence(1 / 60); return; }
   _updateCamMode();
 
-  const lerp = _CAM_LERP[_camMode] || _CAM_LERP.gameplay;
+  const _lerpRaw = _CAM_LERP[_camMode] || _CAM_LERP.gameplay;
+  // Cinematic modes take their rate immediately (they are deliberate cuts);
+  // gameplay/combat/duel ease so the transition isn't itself a lurch.
+  if (_camMode === 'cinematic' || _camMode === 'cinematic_snap') {
+    _camLerpPos = _lerpRaw.pos; _camLerpZoom = _lerpRaw.zoom;
+  } else {
+    _camLerpPos  += (_lerpRaw.pos  - _camLerpPos)  * 0.07;
+    _camLerpZoom += (_lerpRaw.zoom - _camLerpZoom) * 0.07;
+  }
+  const lerp = { pos: _camLerpPos, zoom: _camLerpZoom };
   const activePlayers = [...players, ...trainingDummies, ...minions].filter(p => p.health > 0 && !p.backstageHiding);
 
   // ── HUD safe-area offset ──────────────────────────────────────────────────
@@ -331,13 +362,20 @@ function updateCamera() {
       }
       // Boss attack: bias camera toward boss on wide maps
       if (!cinematicCamOverride && gameRunning) {
-        const attackingBoss = players.find(p => p.isBoss && p.attackTimer > 0 && p.health > 0);
-        if (attackingBoss) {
-          targetZoom = Math.max(targetZoom, 1.08);
-          targetX = targetX * 0.6 + attackingBoss.cx() * 0.4;
-          targetY = targetY * 0.6 + attackingBoss.cy() * 0.4;
+        // attackTimer flips on and off between frames; on a 3600-wide map a hard
+        // 0.4 pull toward the boss is a several-hundred-unit target step every
+        // swing and back again. Ramp the weight instead.
+        const attackingBoss = players.find(p => p.isBoss && p.attackTimer > 0 && p.health > 0)
+          || players.find(p => p.isBoss && p.health > 0 && _camBossBias > 0.01);
+        const _bossWant = (attackingBoss && attackingBoss.attackTimer > 0) ? 1 : 0;
+        _camBossBias += (_bossWant - _camBossBias) * 0.08;
+        if (attackingBoss && _camBossBias > 0.01) {
+          const _bw = 0.4 * _camBossBias;
+          targetZoom = Math.max(targetZoom, 1.0 + 0.08 * _camBossBias);
+          targetX = targetX * (1 - _bw) + attackingBoss.cx() * _bw;
+          targetY = targetY * (1 - _bw) + attackingBoss.cy() * _bw;
         }
-      }
+      } else { _camBossBias = 0; }
     }
   }
 
@@ -357,8 +395,19 @@ function updateCamera() {
     if (_isWideApply) _updateCameraDrama();
 
     camZoomCur += (camZoomTarget - camZoomCur) * lerp.zoom;
-    camXCur    += (camXTarget    - camXCur)    * lerp.pos;
-    camYCur    += (camYTarget    - camYCur)    * lerp.pos;
+
+    // Acceleration-limited follow (see _CAM_MAX_ACCEL note at top of file).
+    const _wantVX = (camXTarget - camXCur) * lerp.pos;
+    const _wantVY = (camYTarget - camYCur) * lerp.pos;
+    _camVX += Math.max(-_CAM_MAX_ACCEL, Math.min(_CAM_MAX_ACCEL, _wantVX - _camVX));
+    _camVY += Math.max(-_CAM_MAX_ACCEL, Math.min(_CAM_MAX_ACCEL, _wantVY - _camVY));
+    // Never let the limiter overshoot the target it is chasing.
+    if (Math.abs(_camVX) > Math.abs(camXTarget - camXCur)) _camVX = camXTarget - camXCur;
+    if (Math.abs(_camVY) > Math.abs(camYTarget - camYCur)) _camVY = camYTarget - camYCur;
+    _camVX = Math.max(-_CAM_MAX_SPEED, Math.min(_CAM_MAX_SPEED, _camVX));
+    _camVY = Math.max(-_CAM_MAX_SPEED, Math.min(_CAM_MAX_SPEED, _camVY));
+    camXCur += _camVX;
+    camYCur += _camVY;
   }
 
   // ── Clamp camera to world bounds so we never show empty space past map edges ──
@@ -366,6 +415,7 @@ function updateCamera() {
   // camera past this bound is immediately undone here next frame, and the two
   // fighting each frame is exactly what reads as camera vibration.
   let _camWorldTopBound = -Infinity;
+  let _camWorldBotBound = Infinity;
   if (currentArena && !cinematicCamOverride) {
     // Half-viewport in world units at current zoom
     const hvw = GAME_W / (2 * camZoomCur);  // half viewport width  (world units)
@@ -376,7 +426,11 @@ function updateCamera() {
 
     // Only clamp if the world is wider than the viewport (otherwise centering is fine)
     if (wRight - wLeft > GAME_W / camZoomCur) {
-      camXCur = Math.max(wLeft  + hvw, Math.min(wRight - hvw, camXCur));
+      const _cxClamped = Math.max(wLeft + hvw, Math.min(wRight - hvw, camXCur));
+      // Zero the velocity pushing into the edge, otherwise it keeps building
+      // against the wall and releases as a lurch the moment the clamp lets go.
+      if (_cxClamped !== camXCur) _camVX = 0;
+      camXCur = _cxClamped;
     }
 
     // Vertical: clamp so floor is always visible (don't pan above top or below floor+margin).
@@ -405,7 +459,10 @@ function updateCamera() {
       const _topBound = wTop + hvh + _hudGU;
       const _botBound = wBottom - hvh;
       _camWorldTopBound = Math.min(_topBound, _botBound);
-      camYCur    = Math.max(_topBound, Math.min(_botBound, camYCur));
+      _camWorldBotBound = Math.max(_topBound, _botBound);
+      const _cyClamped = Math.max(_topBound, Math.min(_botBound, camYCur));
+      if (_cyClamped !== camYCur) _camVY = 0;
+      camYCur    = _cyClamped;
       camYTarget = Math.max(_topBound, Math.min(_botBound, camYTarget));
     }
   }
@@ -449,6 +506,7 @@ function updateCamera() {
         if (camYCur > _hudCamY) {
           camYCur    = _hudCamY;
           camYTarget = Math.min(camYTarget, _hudCamY);
+          _camVY     = 0;
         }
       }
     }
@@ -469,10 +527,16 @@ function updateCamera() {
     // is off-screen only undoes the HUD clamp's correct choice — every cooldown,
     // for as long as the separation lasts. Falls back to everyone when there is
     // no human to follow (bot-vs-bot demos).
+    // ONE subject only. Two humans on a 3600-wide arena are routinely further
+    // apart than any viewport, so a list here makes the loop snap to whichever is
+    // off-screen, break, and then snap to the other 10 frames later — a 600-1100
+    // world-unit ping-pong that is exactly what reads as "the camera snaps on long
+    // maps". The framing logic above already biases toward the local human as the
+    // pair separates; the failsafe only needs to rescue that one fighter.
     const _fsHumans = activePlayers.filter(p => !p.isAI && !p.isBoss);
     const _fsSubjects = (gameMode === 'online' && typeof localPlayerSlot !== 'undefined' && players[localPlayerSlot] && players[localPlayerSlot].health > 0)
       ? [players[localPlayerSlot]]
-      : (_fsHumans.length ? _fsHumans : activePlayers);
+      : (_fsHumans.length ? [_fsHumans[0]] : activePlayers.slice(0, 1));
     for (const _fp of _fsSubjects) {
       if (_fp.cx() < _fsLeft - 40 || _fp.cx() > _fsRight + 40) continue;
       const _sx    = (_fp.cx() - camXCur) * camZoomCur + GAME_W * 0.5;
@@ -480,14 +544,42 @@ function updateCamera() {
       const _syBot = (_fp.y + (_fp.h || 50) - camYCur) * camZoomCur + GAME_H * 0.5;
       const _hudTopPx = _hudGU * camZoomCur; // HUD occupies this many px at top
       const _margin = 40;
-      if (_sx < -_margin || _sx > GAME_W + _margin ||
+      // A fighter standing on the arena's highest platform sits behind the HUD and
+      // cannot be pulled out from under it: the world clamp already holds the
+      // camera at its top bound. Snapping up anyway is undone by that clamp on the
+      // next frame and re-fires every cooldown — a 10-frame oscillation that reads
+      // as the camera vibrating while the player just stands there. Only treat the
+      // HUD overlap as a failsafe trigger when there is room left to pan up.
+      const _canPanUp = camYCur > _camWorldTopBound + 1;
+      const _lost = (_sx < -_margin || _sx > GAME_W + _margin ||
           _syBot < -_margin || _syTop > GAME_H + _margin ||
-          _syTop < _hudTopPx - _margin) {
+          (_syTop < _hudTopPx - _margin && _canPanUp));
+      // The failsafe is for "the framing logic has lost this fighter", NOT for
+      // "the camera hasn't finished getting there". During a big zoom-out (0.97 ->
+      // 0.32 on a wide arena takes ~60 frames) everyone is briefly off-screen, and
+      // firing here just fights the pending framing every cooldown. Re-run the same
+      // test against where the camera is HEADING; only a fighter off-screen there
+      // too is genuinely lost.
+      let _lostAtTarget = _lost;
+      if (_lost) {
+        const _tz    = Math.max(0.05, camZoomTarget);
+        const _tsx   = (_fp.cx() - camXTarget) * _tz + GAME_W * 0.5;
+        const _tsyT  = (_fp.y - camYTarget) * _tz + GAME_H * 0.5;
+        const _tsyB  = (_fp.y + (_fp.h || 50) - camYTarget) * _tz + GAME_H * 0.5;
+        _lostAtTarget = (_tsx < -_margin || _tsx > GAME_W + _margin ||
+                         _tsyB < -_margin || _tsyT > GAME_H + _margin ||
+                         (_tsyT < _hudGU * _tz - _margin && _canPanUp));
+      }
+      if (_lostAtTarget) {
         // Snap once, then disable lerp conflict for 10 frames
         camXCur    += (_fp.cx() - camXCur) * 0.50;
         camYCur    += (_fp.cy() + _hudShift - camYCur) * 0.50;
+        // Keep the snap inside the same world bounds the clamp above enforces,
+        // so the two can never demand opposite camera positions on alternate frames.
+        camYCur     = Math.max(_camWorldTopBound, Math.min(_camWorldBotBound, camYCur));
         camXTarget  = camXCur;
         camYTarget  = camYCur;
+        _camVX = 0; _camVY = 0;
         _camSnapCooldown = 10;
         break;
       }

@@ -37,6 +37,10 @@ STORY_CHAPTER_REGISTRY.push(
       { wx: 4080, name: 'Elder Protector',weaponKey: 'hammer', classKey: 'warrior',   aiDiff: 'expert', color: '#223322', isGuard: true, health: 110 },
       { wx: 4160, name: 'Root Keeper',    weaponKey: 'spear',  classKey: 'ninja',     aiDiff: 'hard',   color: '#334422', isGuard: true, health: 90  },
     ],
+    // Pacing peak: the canopy's resident predator roams this traversal.
+    // ForestBeast is already mini-boss tier (300 HP) — no scaling needed.
+    miniBoss: 'forestBeast',
+    storeNag: '\u26a0\ufe0f Something large hunts the canopy. Spend tokens first.',
     playerLives: 3,
     tokenReward: 80, blueprintDrop: null,
     postText: 'The sanctum. Hidden in ash and roots. The second Architect is inside — and from the sounds of it, not alone.',
@@ -129,6 +133,10 @@ STORY_CHAPTER_REGISTRY.push(
     opponentName: 'Ice Dimension Elite', weaponKey: 'sword', classKey: 'warrior', aiDiff: 'hard', opponentColor: '#4488cc',
     playerLives: 2,
     arena: 'ice',
+    // Pacing peak: the ice dimension's resident predator fights alongside the
+    // Architect's guard. Yeti is already mini-boss tier (200 HP) — no scaling.
+    miniBoss: 'yeti',
+    storeNag: '\u26a0\ufe0f A YETI hunts this dimension. Two enemies. Spend tokens first.',
     walkFight: true, worldLength: 3000,
     tokenReward: 90, blueprintDrop: null,
     postText: 'The guard falls. The third Architect watches from above. "Come up here," they call. "And fight me yourself. If you can."',
