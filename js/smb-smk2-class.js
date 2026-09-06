@@ -15,7 +15,7 @@
 // jumpEconomy: enforce the player's 1 ground + 1 air jump rule on every path in
 // this class (see _vetoExtraJump). Set false to restore the old unbounded
 // behaviour for an A/B — the old behaviour is the triple-jump bug.
-window.SMK2_TUNE = window.SMK2_TUNE || { openGate: true, pressureDecay: true, lockCeiling: true, voidBoostMax: 3, recoverCeilAboveDeck: 200, jumpEconomy: true, edgePressure: true };
+window.SMK2_TUNE = window.SMK2_TUNE || { openGate: true, pressureDecay: true, lockCeiling: true, voidBoostMax: 3, recoverCeilAboveDeck: 200, jumpEconomy: true, edgePressure: true, ringoutGuard: true };
 
 // ── Owner-attached hazard registry ───────────────────────────────────────────
 // Several weapon abilities/supers store their live hazard directly on the wielder
@@ -975,7 +975,7 @@ class SovereignMK2 extends AdaptiveAI {
       // lightning is aimed at his own x and has no vertical test. Backing off pays
       // nothing; ending the owner does. This is the read that the blanket domain
       // retreat used to get exactly backwards.
-      if (hazard > 0.25) { agg += 0.16 * hazard; spc -= 0.14 * hazard; }
+      if (hazard > 0.25) { agg += 0.09 * hazard; spc -= 0.08 * hazard; }
       // Being out-traded in melee is the one case where guard is worth paying for.
       if (melee > 0.55)  { def += 0.14 * melee; }
       // Chip from outside his reach is a spacing problem, not a guard problem.
@@ -989,7 +989,7 @@ class SovereignMK2 extends AdaptiveAI {
     // field belonging to someone — and every one of them ends when its owner does,
     // so the answer is never to sit further away and wait it out.
     const amb = (typeof this._ambientThreat === 'function') ? this._ambientThreat() : 0;
-    if (amb > 0.3) { agg += 0.18 * amb; spc -= 0.16 * amb; }
+    if (amb > 0.3) { agg += 0.10 * amb; spc -= 0.09 * amb; }
 
     // ── 2. Where he is actually profitable ──────────────────────────────────
     // The strongest single lever in the telemetry: across replays his damage rate
@@ -1004,8 +1004,8 @@ class SovereignMK2 extends AdaptiveAI {
     }
     if (bestBand && bestNet > 0) {
       // spacing feeds prefDist directly (see _genome.prefDistBase + m.spacing * 60)
-      if (bestBand === 'close')     { spc -= 0.16; agg += 0.10; }
-      else if (bestBand === 'far')  { spc += 0.14; agg -= 0.06; }
+      if (bestBand === 'close')     { spc -= 0.09; agg += 0.05; }
+      else if (bestBand === 'far')  { spc += 0.08; agg -= 0.04; }
       else                          { spc += 0.04; }
     }
 
@@ -1026,7 +1026,8 @@ class SovereignMK2 extends AdaptiveAI {
 
     // Bounded, and asserted in proportion to how much match he has actually seen.
     const conf = Math.min(1, S.frames / 1800);          // full weight at ~30s
-    const cap  = v => Math.max(-0.20, Math.min(0.20, v)) * conf;
+    // Cap was 0.20 and measured too hot in play — see the coefficient note above.
+    const cap  = v => Math.max(-0.13, Math.min(0.13, v)) * conf;
     return { aggression: cap(agg), defense: cap(def), spacing: cap(spc), reactionSpeed: cap(rxn) };
   }
 
@@ -3346,8 +3347,69 @@ class SovereignMK2 extends AdaptiveAI {
     this._vetoVoidStep();
     this._vetoSkyClimb();
     this._vetoExtraJump();
+    this._ringoutGuard();
     this._edgePressure();
     super.update();
+  }
+
+  // ── RINGOUT GUARD — the defensive half of the edge game ───────────────────
+  // _edgePressure below is offence: stand inside the opponent so his hits point
+  // outward. Nothing ever did the same job for HIM, and the measurement is
+  // lopsided enough to be the single clearest thing wrong with his positioning:
+  // across four replays he spends 7.0 / 8.3 / 10.3% of frames within 60px of the
+  // floor's edge against the player's 1.8-3.7%, and in 2026-09-06 he lost two
+  // stocks to ringouts at 98/120 and 109/135 HP. Those are not attrition deaths,
+  // they are position deaths — he was healthy, got launched from a spot he had no
+  // reason to be standing in, and could not act during the flight.
+  //
+  // isEdgeDanger does NOT cover this. It asks "is there floor under the next step",
+  // and on a full-floor stage the answer at x=938 of a 960-wide floor is yes. The
+  // thing that kills him is horizontal distance to the floor's END combined with
+  // someone else's knockback, which nothing measured.
+  //
+  // Preventative, not reactive: once he is stunned and airborne it is already over,
+  // so this only nudges a grounded, uncommitted fighter back toward the middle.
+  // A bias on vx rather than an early return, so it shades movement he is already
+  // making instead of costing him a decision frame.
+  _floorExtent() {
+    if (typeof currentArena === 'undefined' || !currentArena || !currentArena.platforms) return null;
+    if (this._floorExtCache && this._floorExtFrame === frameCount) return this._floorExtCache;
+    let lo = Infinity, hi = -Infinity;
+    for (const pl of currentArena.platforms) {
+      if (!pl || !pl.isFloor || pl.isFloorDisabled) continue;
+      if (pl.x < lo) lo = pl.x;
+      if (pl.x + pl.w > hi) hi = pl.x + pl.w;
+    }
+    if (!isFinite(lo) || !isFinite(hi) || hi - lo < 200) return null;
+    this._floorExtCache = { lo, hi };
+    this._floorExtFrame = frameCount;
+    return this._floorExtCache;
+  }
+
+  _ringoutGuard() {
+    if (!SMK2_TUNE || SMK2_TUNE.ringoutGuard === false) return;
+    if (!this.onGround || this.health <= 0) return;
+    if ((this.stunTimer || 0) > 0 || (this.ragdollTimer || 0) > 0) return;
+    if (this.attackTimer > 0 || this._counterLockTimer > 0) return;   // never interrupt a commitment
+    const ext = this._floorExtent();
+    if (!ext) return;
+    const cx = this.cx();
+    const marginL = cx - ext.lo, marginR = ext.hi - cx;
+    const m = Math.min(marginL, marginR);
+    // Scale the danger zone with what the opponent can actually launch him for —
+    // a 16-kb hammer threatens from much further in than a 7-kb spear.
+    const t  = this.target;
+    const kb = (t && t.weapon && t.weapon.kb) ? t.weapon.kb : 10;
+    const DANGER = 110 + kb * 5;                       // ~145px vs spear, ~190 vs hammer
+    if (m > DANGER) { this._ringoutRisk = 0; return; }
+    const inward = marginL < marginR ? 1 : -1;
+    const risk   = 1 - m / DANGER;                     // 0 at the threshold, 1 at the lip
+    this._ringoutRisk = risk;
+    // Never push him off the OTHER side, and never override a real hazard escape.
+    if (this.isEdgeDanger(inward)) return;
+    this.vx += inward * (0.30 + risk * 0.85);
+    const cap = (this.classSpeedMult || 1) * 6.5;
+    if (Math.abs(this.vx) > cap) this.vx = Math.sign(this.vx) * cap;
   }
 
   // ── EDGE GAME ─────────────────────────────────────────────────────────────
@@ -3946,7 +4008,20 @@ class SovereignMK2 extends AdaptiveAI {
           if (Math.abs(dx) >= R) continue;
           const tti  = h.warningTimer || 0;
           const need = (R - Math.abs(dx) + 12) / Math.max(0.1, moveSpd);
-          const dir  = (dx >= 0 ? 1 : -1);
+          let dir    = (dx >= 0 ? 1 : -1);
+          // Leaving a column outward is how he walked himself into a ringout in
+          // 2026-09-06: the bolt is aimed at his own x, so it re-spawns on him and
+          // he flees the same way again until the floor runs out. Pick the side
+          // with room, and when there is none, eat it behind the shield — a 26
+          // bolt is fully absorbed by a stack-1 shield (30 HP) and a ringout is not.
+          const ext = this._floorExtent();
+          if (ext) {
+            const roomThis  = dir > 0 ? (ext.hi - cx) : (cx - ext.lo);
+            const roomOther = dir > 0 ? (cx - ext.lo) : (ext.hi - cx);
+            if (roomThis < 150 && roomOther > roomThis + 120) dir = -dir;
+            const room = dir > 0 ? (ext.hi - cx) : (cx - ext.lo);
+            if (room < 120) { if (tti < shieldTti) shieldTti = tti; continue; }
+          }
           if (need < tti - 2 && !this.isEdgeDanger(dir)) {
             if (!escape || tti < escape.tti) escape = { dir, tti };
           } else if (tti < shieldTti) {
@@ -3991,8 +4066,20 @@ class SovereignMK2 extends AdaptiveAI {
       }
     }
 
-    // Leaving costs nothing, so it outranks spending a shield — but only when the
-    // thing he would otherwise shield is not landing sooner than he can walk.
+    // A fresh shield is not merely cheaper than walking, it is better: stack 1
+    // carries 30 shield HP, which absorbs a 26-damage bolt or a 16 Mjolnir strike
+    // whole, and inside the 8-frame window it parries 65% of the time — stunning
+    // the DOMAIN'S OWNER for 90 frames and leaving them at 1.5x damage taken.
+    // Walking out of a column concedes the exchange; parrying wins it. So the
+    // shield takes priority whenever it is off cooldown, and the escape is the
+    // fallback for when it is not.
+    const canShield = this.shieldCooldown === 0 && this._shieldHoldFrames === 0;
+    if (canShield && shieldTti <= PARRY_AT && this._startTacticalShield(14)) {
+      this._domHazCd = 20;
+      if (typeof this._recordEvent === 'function') this._recordEvent('dodge', 2);
+      return true;
+    }
+
     if (escape && !(shieldTti <= PARRY_AT + 2)) {
       this.vx = escape.dir * moveSpd * 1.9;
       this._domHazDir = escape.dir;
