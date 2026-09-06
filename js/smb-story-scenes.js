@@ -830,11 +830,11 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
   };
 
 
-  // ── Chapter 13 — Between Worlds ──────────────────────────────────────────────
+  // ── Chapter 17 — Between Worlds ──────────────────────────────────────────────
   // Beat 0: "The primary fracture swallowed you whole." (narrator)
   // Beat 1: "There was no up. No down. Just space folding…" (narrator)
   // Beat 2: "Veran: 'Fracture space has laws…'" (NPC comms)
-  S[13] = {
+  S[17] = {
     bg: 'fracture',
     npcColor: '#4488dd',
     beats: [
@@ -908,11 +908,11 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
     ],
   };
 
-  // ── Chapter 15 — Mirror Fracture ─────────────────────────────────────────────
+  // ── Chapter 19 — Mirror Fracture ─────────────────────────────────────────────
   // Beat 0: "The compass led you into a mirror pocket…" (narrator)
   // Beat 1: "And in this mirror world: a version of you. Or something wearing your shape." (narrator)
   // Beat 2: "'You shouldn't be here… This is where the fragment leads you.'" (NPC — the echo)
-  S[15] = {
+  S[19] = {
     bg: 'city',
     npcColor: '#cc66cc',
     beats: [
@@ -983,12 +983,12 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
     ],
   };
 
-  // ── Chapter 18 — The Void Arena ──────────────────────────────────────────────
+  // ── Chapter 22 — The Void Arena ──────────────────────────────────────────────
   // Beat 0: "A collapsed dimension. No sky. No ground…" (narrator)
   // Beat 1: "Here, something had set up camp. A collector — much larger…" (narrator)
   // Beat 2: "'The fragment… Give it to me and your universe survives.'" (NPC)
   // Beat 3: "You don't negotiate with things that threaten your world." (narrator)
-  S[18] = {
+  S[22] = {
     bg: 'fracture',
     npcColor: '#7700cc',
     beats: [
@@ -1065,11 +1065,11 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
     ],
   };
 
-  // ── Chapter 20 — Army of Echoes ──────────────────────────────────────────────
+  // ── Chapter 24 — Army of Echoes ──────────────────────────────────────────────
   // Beat 0: "Veran wasn't exaggerating. The echo corridor… All of them had the same hollow eyes." (narrator)
   // Beat 1: "All of them were pointed at you." (narrator)
   // Beat 2: "'Fragment detected. Engage.'" (NPC)
-  S[20] = {
+  S[24] = {
     bg: 'fracture',
     npcColor: '#9955cc',
     beats: [
@@ -1137,12 +1137,12 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
     ],
   };
 
-  // ── Chapter 22 — The Gate ────────────────────────────────────────────────────
+  // ── Chapter 26 — The Gate ────────────────────────────────────────────────────
   // Beat 0: "The rift entity felt you coming." (narrator)
   // Beat 1: "It sent its best." (narrator)
   // Beat 2: "A fragment guardian… barely recognizable as a fighter." (narrator)
   // Beat 3: "'Veran cannot help you here… You walk in alone.'" (NPC)
-  S[22] = {
+  S[26] = {
     bg: 'fracture',
     npcColor: '#6600aa',
     beats: [
@@ -1227,12 +1227,12 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
     ],
   };
 
-  // ── Chapter 25 — Deep Fragment ───────────────────────────────────────────────
+  // ── Chapter 29 — Deep Fragment ───────────────────────────────────────────────
   // Beat 0: "The Crucible." (narrator — title card moment)
   // Beat 1: "Where the rift entity tested… The last forty-seven had failed here." (narrator)
   // Beat 2: "The Crucible's champion had absorbed… Each one a memory…" (narrator)
   // Beat 3: "It looked at you. 'Forty-eight,' it said." (NPC)
-  S[25] = {
+  S[29] = {
     bg: 'fracture',
     npcColor: '#880044',
     beats: [
@@ -1313,7 +1313,7 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
     ],
   };
 
-  // ── Chapter 26 — The Weight of It (branch) ───────────────────────────────────
+  // ── Chapter 30 — The Weight of It (branch) ───────────────────────────────────
   // Beat 0: "Before the Core's Eye: a chamber of silence." (narrator)
   // Beat 1: "Just you and Veran." (narrator)
   // Beat 2: "'I need to tell you something I've been putting off.'" (Veran — NPC)
@@ -1322,7 +1322,7 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
   // Beat 5: "'I'm not telling you it's certain death… you deserve to know.'" (Veran)
   // Beat 6: "A long silence." (narrator)
   // Beat 7: "'Death can have me when it earns me,' you said. 'Let's go.'" (PLAYER — bubble from player)
-  S[26] = {
+  S[30] = {
     bg: 'fracture',
     npcColor: '#4488dd',
     beats: [
@@ -1439,14 +1439,14 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
     ],
   };
 
-  // ── Chapter 27 — Core Entry ──────────────────────────────────────────────────
+  // ── Chapter 31 — Core Entry ──────────────────────────────────────────────────
   // Beat 0: "The Eye of the Core." (narrator)
   // Beat 1: "Not the rift entity itself… to engage you on terms you'd understand." (narrator)
   // Beat 2: "'I am not your enemy… Every fragment bearer who came here wanted something.'" (NPC — The Eye)
   // Beat 3: "'Power. Safety. Revenge.'" (NPC)
   // Beat 4: "'What do you want?'" (NPC)
   // Beat 5: "You didn't answer. You fought." (narrator)
-  S[27] = {
+  S[31] = {
     bg: 'fracture',
     npcColor: '#6633cc',
     beats: [
@@ -1568,8 +1568,8 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
   };
 
 
-  // ── Chapter 28 — Gravity Anomaly ────────────────────────────────────────────
-  S[28] = {
+  // ── Chapter 32 — Gravity Anomaly ────────────────────────────────────────────
+  S[32] = {
     bg: 'fracture',
     npcColor: '#ff8800',
     beats: [
@@ -1643,8 +1643,8 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
     ],
   };
 
-  // ── Chapter 29 — The Orbital Duel ────────────────────────────────────────────
-  S[29] = {
+  // ── Chapter 33 — The Orbital Duel ────────────────────────────────────────────
+  S[33] = {
     bg: 'space',
     npcColor: '#9944cc',
     beats: [
@@ -1737,8 +1737,8 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
     ],
   };
 
-  // ── Chapter 30 — Echo Storm ──────────────────────────────────────────────────
-  S[30] = {
+  // ── Chapter 34 — Echo Storm ──────────────────────────────────────────────────
+  S[34] = {
     bg: 'fracture',
     npcColor: '#ff66ff',
     beats: [
@@ -1805,8 +1805,8 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
     ],
   };
 
-  // ── Chapter 31 — The Core's Eye ──────────────────────────────────────────────
-  S[31] = {
+  // ── Chapter 35 — The Core's Eye ──────────────────────────────────────────────
+  S[35] = {
     bg: 'space',
     npcColor: '#8844ff',
     beats: [
@@ -1922,8 +1922,8 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
   };
 
 
-  // ── Chapter 33 — Resonance Spike ────────────────────────────────────────────
-  S[33] = {
+  // ── Chapter 37 — Resonance Spike ────────────────────────────────────────────
+  S[37] = {
     bg: 'fracture',
     npcColor: '#cc44ff',
     beats: [
@@ -2021,8 +2021,8 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
     ],
   };
 
-  // ── Chapter 35 — Into the Green (exploration with narrative) ─────────────────
-  S[35] = {
+  // ── Chapter 39 — Into the Green (exploration with narrative) ─────────────────
+  S[39] = {
     bg: 'forest',
     npcColor: '#88aaff',
     beats: [
@@ -2108,8 +2108,8 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
     ],
   };
 
-  // ── Chapter 36 — The Second Architect ────────────────────────────────────────
-  S[36] = {
+  // ── Chapter 40 — The Second Architect ────────────────────────────────────────
+  S[40] = {
     bg: 'forest',
     npcColor: '#33aa44',
     beats: [
@@ -2221,8 +2221,8 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
   };
 
 
-  // ── Chapter 38 — The Ice Dimension ──────────────────────────────────────────
-  S[38] = {
+  // ── Chapter 42 — The Ice Dimension ──────────────────────────────────────────
+  S[42] = {
     bg: 'ice',
     npcColor: '#4488cc',
     beats: [
@@ -2324,8 +2324,8 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
     ],
   };
 
-  // ── Chapter 39 — The Pessimist ──────────────────────────────────────────────
-  S[39] = {
+  // ── Chapter 43 — The Pessimist ──────────────────────────────────────────────
+  S[43] = {
     bg: 'ice',
     npcColor: '#2266bb',
     beats: [
@@ -2458,8 +2458,8 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
     ],
   };
 
-  // ── Chapter 42 — What the Ancients Left (exploration with narrative) ──────────
-  S[42] = {
+  // ── Chapter 46 — What the Ancients Left (exploration with narrative) ──────────
+  S[46] = {
     bg: 'ruins',
     npcColor: '#887766',
     beats: [
@@ -2548,8 +2548,8 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
   };
 
 
-  // ── Chapter 43 — The Last Army ──────────────────────────────────────────────
-  S[43] = {
+  // ── Chapter 47 — The Last Army ──────────────────────────────────────────────
+  S[47] = {
     bg: 'ruins',
     npcColor: '#aa00ff',
     beats: [
@@ -2652,8 +2652,8 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
     ],
   };
 
-  // ── Chapter 44 — The Herald of Nothing ──────────────────────────────────────
-  S[44] = {
+  // ── Chapter 48 — The Herald of Nothing ──────────────────────────────────────
+  S[48] = {
     bg: 'ruins',
     npcColor: '#ffffff',
     beats: [
@@ -2752,8 +2752,8 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
   };
 
 
-  // ── Chapter 46 — The Probe ──────────────────────────────────────────────────
-  S[46] = {
+  // ── Chapter 50 — The Probe ──────────────────────────────────────────────────
+  S[50] = {
     bg: 'fracture',
     npcColor: '#bbbbdd',
     beats: [
@@ -2870,8 +2870,8 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
     ],
   };
 
-  // ── Chapter 47 — The Split (branch) ─────────────────────────────────────────
-  S[47] = {
+  // ── Chapter 51 — The Split (branch) ─────────────────────────────────────────
+  S[51] = {
     bg: 'fracture',
     npcColor: '#2266bb',
     beats: [
@@ -2958,8 +2958,8 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
     ],
   };
 
-  // ── Chapter 48 — Rogue Faction ──────────────────────────────────────────────
-  S[48] = {
+  // ── Chapter 52 — Rogue Faction ──────────────────────────────────────────────
+  S[52] = {
     bg: 'city',
     npcColor: '#cc8833',
     beats: [
@@ -3045,8 +3045,8 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
     ],
   };
 
-  // ── Chapter 49 — What Veran Didn't Say (branch) ─────────────────────────────
-  S[49] = {
+  // ── Chapter 53 — What Veran Didn't Say (branch) ─────────────────────────────
+  S[53] = {
     bg: 'fracture',
     npcColor: '#88aaff',
     beats: [
@@ -3161,8 +3161,8 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
     ],
   };
 
-  // ── Chapter 50 — The Upload ──────────────────────────────────────────────────
-  S[50] = {
+  // ── Chapter 54 — The Upload ──────────────────────────────────────────────────
+  S[54] = {
     bg: 'fracture',
     npcColor: '#88aaff',
     beats: [
@@ -3255,8 +3255,8 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
   };
 
 
-  // ── Chapter 52 — Signal Maze (exploration with narrative) ───────────────────
-  S[52] = {
+  // ── Chapter 56 — Signal Maze (exploration with narrative) ───────────────────
+  S[56] = {
     bg: 'city',
     npcColor: '#8844ff',
     beats: [
@@ -3330,8 +3330,8 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
     ],
   };
 
-  // ── Chapter 54 — Converted ──────────────────────────────────────────────────
-  S[54] = {
+  // ── Chapter 58 — Converted ──────────────────────────────────────────────────
+  S[58] = {
     bg: 'forest',
     npcColor: '#557799',
     beats: [
@@ -3402,8 +3402,8 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
     ],
   };
 
-  // ── Chapter 57 — Against the Architect ──────────────────────────────────────
-  S[57] = {
+  // ── Chapter 61 — Against the Architect ──────────────────────────────────────
+  S[61] = {
     bg: 'ice',
     npcColor: '#2266bb',
     beats: [
@@ -3508,8 +3508,8 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
     ],
   };
 
-  // ── Chapter 60 — The Enforcer ────────────────────────────────────────────────
-  S[60] = {
+  // ── Chapter 64 — The Enforcer ────────────────────────────────────────────────
+  S[64] = {
     bg: 'ruins',
     npcColor: '#cc0044',
     beats: [
@@ -3609,8 +3609,8 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
   };
 
 
-  // ─── Chapter 62 — Laboratory Infiltration ────────────────────────────────
-  S[62] = {
+  // ─── Chapter 66 — Laboratory Infiltration ────────────────────────────────
+  S[66] = {
     bg: 'ruins',
     npcColor: '#336688',
     beats: [
@@ -3695,8 +3695,8 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
     ],
   };
 
-  // ─── Chapter 63 — The Weight of What's Coming ──────────────────────────
-  S[63] = {
+  // ─── Chapter 70 — The Weight of What's Coming ──────────────────────────
+  S[70] = {
     bg: 'fracture',
     npcColor: '#cc44ff',
     beats: [
@@ -3816,8 +3816,8 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
     ],
   };
 
-  // ─── Chapter 65 — What Axiom Wants ───────────────────────────────────────
-  S[65] = {
+  // ─── Chapter 72 — What Axiom Wants ───────────────────────────────────────
+  S[72] = {
     bg: 'fracture',
     npcColor: '#cc44ff',
     beats: [
@@ -3933,8 +3933,8 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
   };
 
 
-  // ─── Chapter 69 — The First Gate ─────────────────────────────────────────
-  S[69] = {
+  // ─── Chapter 76 — The First Gate ─────────────────────────────────────────
+  S[76] = {
     bg: 'space',
     npcColor: '#ccaa44',
     beats: [
@@ -4019,8 +4019,8 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
     ],
   };
 
-  // ─── Chapter 73 — Proof of Understanding ─────────────────────────────────
-  S[73] = {
+  // ─── Chapter 80 — Proof of Understanding ─────────────────────────────────
+  S[80] = {
     bg: 'space',
     npcColor: '#ccaa44',
     beats: [
@@ -4110,8 +4110,8 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
   };
 
 
-  // ─── Chapter 75 — A World at War ─────────────────────────────────────────
-  S[75] = {
+  // ─── Chapter 86 — A World at War ─────────────────────────────────────────
+  S[86] = {
     bg: 'ruins',
     npcColor: '#aa3311',
     beats: [
@@ -4207,8 +4207,8 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
     ],
   };
 
-  // ─── Chapter 76 — The War Camp ────────────────────────────────────────────
-  S[76] = {
+  // ─── Chapter 87 — The War Camp ────────────────────────────────────────────
+  S[87] = {
     bg: 'city',
     npcColor: '#cc3311',
     beats: [
@@ -4299,8 +4299,8 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
   };
 
 
-  // ─── Chapter 78 — War Champion ────────────────────────────────────────────
-  S[78] = {
+  // ─── Chapter 89 — War Champion ────────────────────────────────────────────
+  S[89] = {
     bg: 'city',
     npcColor: '#ff2200',
     beats: [
@@ -4403,8 +4403,8 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
     ],
   };
 
-  // ─── Chapter 79 — Into the Flux ──────────────────────────────────────────
-  S[79] = {
+  // ─── Chapter 90 — Into the Flux ──────────────────────────────────────────
+  S[90] = {
     bg: 'space',
     npcColor: '#2255aa',
     beats: [
@@ -4477,8 +4477,8 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
     ],
   };
 
-  // ─── Chapter 80 — Drifters in the Flux ───────────────────────────────────
-  S[80] = {
+  // ─── Chapter 91 — Drifters in the Flux ───────────────────────────────────
+  S[91] = {
     bg: 'space',
     npcColor: '#3366cc',
     beats: [
@@ -4561,8 +4561,8 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
   };
 
 
-  // ─── Chapter 83 — Into the Dark ──────────────────────────────────────────
-  S[83] = {
+  // ─── Chapter 94 — Into the Dark ──────────────────────────────────────────
+  S[94] = {
     bg: 'space',
     npcColor: '#550077',
     beats: [
@@ -4636,8 +4636,8 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
     ],
   };
 
-  // ─── Chapter 84 — The Unseen Court ───────────────────────────────────────
-  S[84] = {
+  // ─── Chapter 95 — The Unseen Court ───────────────────────────────────────
+  S[95] = {
     bg: 'space',
     npcColor: '#7700cc',
     beats: [
@@ -4708,8 +4708,8 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
     ],
   };
 
-  // ─── Chapter 86 — Shadow Warden ───────────────────────────────────────────
-  S[86] = {
+  // ─── Chapter 97 — Shadow Warden ───────────────────────────────────────────
+  S[97] = {
     bg: 'space',
     npcColor: '#9900ff',
     beats: [
@@ -4782,8 +4782,8 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
     ],
   };
 
-  // ─── Chapter 88 — The Outer Throne ───────────────────────────────────────
-  S[88] = {
+  // ─── Chapter 99 — The Outer Throne ───────────────────────────────────────
+  S[99] = {
     bg: 'lava',
     npcColor: '#cc7700',
     beats: [
@@ -4857,8 +4857,8 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
     ],
   };
 
-  // ─── Chapter 90 — Titan King ──────────────────────────────────────────────
-  S[90] = {
+  // ─── Chapter 101 — Titan King ──────────────────────────────────────────────
+  S[101] = {
     bg: 'lava',
     npcColor: '#ffaa00',
     beats: [
@@ -4961,8 +4961,8 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
   };
 
 
-  // ─── Chapter 96 — The Architecture ───────────────────────────────────────
-  S[96] = {
+  // ─── Chapter 128 — The Architecture ───────────────────────────────────────
+  S[128] = {
     bg: 'city',
     npcColor: '#334455',
     beats: [
@@ -5048,8 +5048,8 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
     ],
   };
 
-  // ─── Chapter 97 — Architecture Soldiers ──────────────────────────────────
-  S[97] = {
+  // ─── Chapter 129 — Architecture Soldiers ──────────────────────────────────
+  S[129] = {
     bg: 'city',
     npcColor: '#336688',
     beats: [
@@ -5120,8 +5120,8 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
     ],
   };
 
-  // ─── Chapter 99 — Twin Enforcers ──────────────────────────────────────────
-  S[99] = {
+  // ─── Chapter 131 — Twin Enforcers ──────────────────────────────────────────
+  S[131] = {
     bg: 'city',
     npcColor: '#cc2244',
     beats: [
@@ -5194,8 +5194,8 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
     ],
   };
 
-  // ─── Chapter 103 — Purge Sequence ─────────────────────────────────────────
-  S[103] = {
+  // ─── Chapter 135 — Purge Sequence ─────────────────────────────────────────
+  S[135] = {
     bg: 'city',
     npcColor: '#336688',
     beats: [
@@ -5269,8 +5269,8 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
     ],
   };
 
-  // ─── Chapter 105 — First Form ─────────────────────────────────────────────
-  S[105] = {
+  // ─── Chapter 138 — First Form ─────────────────────────────────────────────
+  S[138] = {
     bg: 'city',
     npcColor: '#ff8822',
     beats: [
@@ -5351,8 +5351,8 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
   };
 
 
-  // ─── Chapter 109 — Second Form ────────────────────────────────────────────
-  S[109] = {
+  // ─── Chapter 141 — Second Form ────────────────────────────────────────────
+  S[141] = {
     bg: 'city',
     npcColor: '#ff4400',
     beats: [
@@ -5443,8 +5443,8 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
     ],
   };
 
-  // ─── Chapter 111 — SOVEREIGN ─────────────────────────────────────────────
-  S[111] = {
+  // ─── Chapter 143 — SOVEREIGN ─────────────────────────────────────────────
+  S[143] = {
     bg: 'city',
     npcColor: '#cc44ff',
     beats: [
@@ -5538,8 +5538,8 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
     ],
   };
 
-  // ─── Chapter 112 — The Creator's Gate ────────────────────────────────────
-  S[112] = {
+  // ─── Chapter 144 — The Creator's Gate ────────────────────────────────────
+  S[144] = {
     bg: 'city',
     npcColor: '#ff8822',
     beats: [
@@ -5632,8 +5632,8 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
     ],
   };
 
-  // ─── Chapter 116 — Before the End ────────────────────────────────────────
-  S[116] = {
+  // ─── Chapter 148 — Before the End ────────────────────────────────────────
+  S[148] = {
     bg: 'fracture',
     npcColor: '#cc44ff',
     beats: [
@@ -5735,8 +5735,8 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
     ],
   };
 
-  // ─── Chapter 118 — True Form ──────────────────────────────────────────────
-  S[118] = {
+  // ─── Chapter 150 — True Form ──────────────────────────────────────────────
+  S[150] = {
     bg: 'fracture',
     npcColor: '#cc44ff',
     beats: [
@@ -5826,8 +5826,8 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
     ],
   };
 
-  // ── Chapter 93: The Architecture of the Lie ─────────────────────────────────
-  S[93] = {
+  // ── Chapter 125: The Architecture of the Lie ─────────────────────────────────
+  S[125] = {
     bg: 'fracture',
     npcColor: '#8855aa',
     beats: [
@@ -5915,8 +5915,8 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
     ],
   };
 
-  // ── Chapter 94: The Weight of a Choice ──────────────────────────────────────
-  S[94] = {
+  // ── Chapter 126: The Weight of a Choice ──────────────────────────────────────
+  S[126] = {
     bg: 'ruins',
     npcColor: '#4488dd',
     beats: [
