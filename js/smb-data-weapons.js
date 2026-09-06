@@ -635,10 +635,27 @@ const WEAPONS = {
       spawnBullet(user, 18, '#0099bb', 11);
       spawnParticles(user.cx(), user.cy(), '#00ddff', 6);
     }
+  },
+
+  lantern: {
+    // THE LANTERN: the Trial of Sense weapon. Ordinary attack and super; its
+    // ABILITY DEALS NO DAMAGE — it fires a reveal sweep instead (smb-trials.js).
+    // Identity: you cannot see your opponent. This is how you find them, and the
+    // information it gives you is already stale when you get it.
+    name: 'Lantern', damage: 0, range: 78, cooldown: 34, endlag: 10,
+    damageFunc: () => 12 + Math.floor(Math.random() * 4),
+    kb: 9, abilityCooldown: 600, type: 'melee', weaponType: 'melee', color: '#ffcc66',
+    trialOnly: true,
+    abilityName: 'Reveal Sweep',
+    ability(user, _target) {
+      if (typeof trialLanternSweep === 'function') trialLanternSweep(user);
+    }
   }
 };
 
-const WEAPON_KEYS = Object.keys(WEAPONS).filter(k => k !== 'gauntlet' && k !== 'mkgauntlet' && !WEAPONS[k].enemyOnly);
+// `trialOnly` keeps a weapon out of random rolls, chaos swaps, battle royale and
+// training — it is granted by a chapter's playerCaps, never drawn from the pool.
+const WEAPON_KEYS = Object.keys(WEAPONS).filter(k => k !== 'gauntlet' && k !== 'mkgauntlet' && !WEAPONS[k].enemyOnly && !WEAPONS[k].trialOnly);
 
 // Weapons whose tone doesn't fit Story Mode (kept in versus/sandbox/minigames).
 // Story launch flow and the story mastery panel filter against this list.

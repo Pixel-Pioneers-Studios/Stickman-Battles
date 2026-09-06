@@ -549,8 +549,13 @@ function pfGetNextWaypoint(bot, targetX, targetY) {
     const step = bot._pfPath[idx];
     const node = graph.getNode(step.nodeId);
     if (!node) { idx++; continue; }
-    const dx = Math.abs(bot.cx()              - node.x);
-    const dy = Math.abs((bot.y + bot.h * 0.5) - node.y);
+    // Node y is the platform SURFACE, so the bot's feet are what should be
+    // compared to it — not its mid-height. With mid-height the gap is always
+    // h/2, which for the current 84px fighter is 42 against a tolerance of 38:
+    // the pointer could never advance while grounded, so every bot walked to
+    // the first node of its path and stopped there.
+    const dx = Math.abs(bot.cx()          - node.x);
+    const dy = Math.abs((bot.y + bot.h)   - node.y);
     if (dx < 30 && dy < 38) { idx++; continue; }
     break;
   }

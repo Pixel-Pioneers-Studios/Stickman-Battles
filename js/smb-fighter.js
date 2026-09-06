@@ -3801,6 +3801,11 @@ class Fighter {
   }
 
   updateAI() {
+    // Trial controllers are purpose-built and fully replace the normal brain —
+    // an invisible fighter running standard aggression simply deletes the
+    // player. Each does its own target validation (see smb-trials.js).
+    if (this._trialStalker && typeof trialStalkAI === 'function') { trialStalkAI(this); return; }
+    if (this._trialMirror  && typeof trialMirrorAI === 'function') { trialMirrorAI(this); return; }
     if (this.aiReact > 0) { this.aiReact--; return; }
     if (this.ragdollTimer > 0 || this.stunTimer > 0) return;
 
@@ -4320,6 +4325,10 @@ class Fighter {
   // ---- DRAW ----
   draw() {
     if (this.backstageHiding) return;
+    // Trial of Sense: the body is not rendered, but everything else about it —
+    // hitbox, physics, AI — is untouched. Perception cues are drawn separately
+    // by smb-trials.js so the fight still has feedback once engaged.
+    if (this._trialInvisible && this.health > 0) return;
     if (this._cinPerf && typeof CinPerf !== 'undefined' && CinPerf.draw(this)) return;
     // A running DeathAnim owns the body for its authored beats; once it hands off
     // to the verlet corpse it sets _death.hidden and this guard resumes.

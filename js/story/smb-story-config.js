@@ -415,6 +415,7 @@ function storyOnBackToMenu() {
   if (!storyModeActive) return;
   storyModeActive     = false;
   storyPlayerOverride = null;
+  if (typeof resetTrialState === 'function') resetTrialState();
   storyFightSubtitle  = null;
   storyFightScript    = [];
   storyPhaseIndicator = null;

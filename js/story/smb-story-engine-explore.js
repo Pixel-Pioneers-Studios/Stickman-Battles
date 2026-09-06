@@ -724,6 +724,9 @@ function _launchExplorationChapter(ch) {
     if (_exploreMode === 'puzzle'   && typeof initPuzzleMode   === 'function') initPuzzleMode(ch);
     // Creature mini-boss peak — walkFight and exploration chapters both land here.
     if (ch.miniBoss && typeof _storySpawnMiniBoss === 'function') _storySpawnMiniBoss(ch);
+    // The Trials — armed once the world and both fighters exist.
+    if (ch.trial && typeof _storyArmTrial === 'function') _storyArmTrial(ch);
+    else if (!ch.trial && typeof resetTrialState === 'function') resetTrialState();
   }, 80);
 }
 

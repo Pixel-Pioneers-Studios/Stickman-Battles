@@ -802,6 +802,10 @@ function gameLoop(timestamp) {
       ctx.restore();
     }
   });
+  // The Trials: reveal sweep, distortion band, perception cues, inversion tell.
+  // Above the fighters so a cue is never hidden behind a body, and inert unless
+  // a trial is armed (smb-trials.js).
+  if (typeof drawTrials === 'function') drawTrials();
   // Chaos system: world-space draw (item drops, effect badges, platform effects)
   if (typeof chaosMode !== 'undefined' && chaosMode && typeof drawChaosWorldSpace === 'function') drawChaosWorldSpace();
   drawSpartanRageEffects();
@@ -870,6 +874,8 @@ function gameLoop(timestamp) {
   if (tfEndingScene)  drawTFEnding();
   if (typeof godCinematicScene !== 'undefined' && godCinematicScene) drawGodCinematic();
   updateMapPerks();
+  // Trials tick after combat so cue detection reads settled per-frame state.
+  if (typeof updateTrials === 'function') updateTrials();
   updateMirrorGimmick();
   drawMirrorGimmickOverlay();
   // Paradox revive system (screen-space overlay — replaces fake-death visually)

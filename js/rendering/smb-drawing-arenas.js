@@ -3904,6 +3904,9 @@ function drawEntityOverlays(scX, scY, camX, camY) {
 
   for (const ent of all) {
     if (ent.backstageHiding) continue;
+    // Trial of Sense: a floating nameplate over an invisible body is a marker,
+    // and a marker is the wallhack the reveal sweep exists to not be.
+    if (ent._trialInvisible && ent.health > 0) continue;
     const sx = canvas.width / 2 + (ent.cx() - camX) * scX;
     const syRaw = canvas.height / 2 + ((ent.y - 22) - camY) * scY;
     const sy = Math.max(hudFloor, syRaw);
