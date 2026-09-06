@@ -4147,7 +4147,10 @@ const DomainManager = (() => {
                 if (h.hitSet.has(t)) continue;
                 if (Math.hypot(h.x - t.cx(), h.y - t.cy()) < h.radius + t.w / 2) {
                   h.hitSet.add(t);
-                  _dealDomainDamage(owner, t, h.damage, 18);
+                  // kb was 18 (hardest of any domain hazard): a strike near the
+                  // edge stunned for 62 frames and ring-out killed outright, so
+                  // the sure-hit was taking whole stocks on 16 damage.
+                  _dealDomainDamage(owner, t, h.damage, 10);
                   if (typeof spawnParticles === 'function') {
                     spawnParticles(h.x, h.y, '#ffee44', 26);
                     spawnParticles(h.x, h.y, '#aaddff', 18);

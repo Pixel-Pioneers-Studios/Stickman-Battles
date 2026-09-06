@@ -98,9 +98,30 @@ function _smk2CounterBonus(lo, tgt) {
   if (!lo || !tgt || typeof WEAPONS === 'undefined') return 1;
   const tw = WEAPONS[tgt.weaponKey];
   if (!tw) return 1;
-  const tgtHeavy = tw.weaponType === 'heavy' || (tw.cooldown || 30) >= 34;
-  if (tgtHeavy) return lo.light ? 1.18 : 0.92;   // punish endlag with speed
-  return lo.light ? 0.92 : 1.18;                 // out-range and out-knockback speed
+  // weaponType is authored on every weapon, but the old `|| cooldown >= 34` ran
+  // as an OR and silently overrode it: spear (light, cd 44), scythe (light, 44)
+  // and katana (light, 40) all read as HEAVY. Cooldown is not the punishable
+  // window in any case — endlag is, and spear recovers in 12 frames. Trust the
+  // authored type; fall back on endlag only where none is declared.
+  const tgtHeavy = tw.weaponType ? tw.weaponType === 'heavy'
+                                 : (tw.endlag || 10) >= 16;
+  // Speed prior applies only when there is real endlag to punish. Against a
+  // fast target the old branch prescribed "out-range and out-knockback", which
+  // is right for a short brawler (combat, reach 50) and exactly wrong for a
+  // poker (spear, reach 130) — the reach term below reads that difference
+  // directly instead of inferring it from weapon class.
+  let bonus = tgtHeavy ? (lo.light ? 1.18 : 0.92) : 1;
+  // Reach: nothing here looked at range, so he would counter-pick an 80-reach
+  // hammer into a 130-reach spear and spend the match walking into pokes —
+  // replay 2026-09-05(1), ten stocks dropped on that matchup, against a near-win
+  // the same day on katana. Melee-vs-melee only; ranged targets are a different
+  // problem that the movement AI already handles.
+  const lw = WEAPONS[lo.wk];
+  if (lw && lw.range && tw.range && tw.range < 300) {
+    const reach = (lw.range - tw.range) / 100;
+    bonus *= 1 + Math.max(-0.20, Math.min(0.20, reach * 0.4));
+  }
+  return bonus;
 }
 
 class SovereignMK2 extends AdaptiveAI {
@@ -138,6 +159,10 @@ class SovereignMK2 extends AdaptiveAI {
     this._itemRunTimer = 0;   // frames left committed to a map pickup
     this._recoverJumps = 0;   // off-stage recovery jumps used this airborne stint
     this._areaDodgeCd  = 0;   // re-arm gate on area-hazard evasion
+    this._domHazCd     = 0;   // re-arm gate on domain-hazard evasion (_scanDomainHazards)
+    this._domHazDir    = 0;
+    this._ambientLevel      = 0;  // 0..1 unattributable-damage pressure (_ambientThreat)
+    this._ambientArmedUntil = 0;
 
     // Per-FRAME decision cadence (overrides the shared AI_TICK_INTERVAL=15 gate in
     // Fighter.update). This class's timers are all written in frames — reactFrames,
@@ -461,6 +486,7 @@ class SovereignMK2 extends AdaptiveAI {
     this._tSuperFiredAt   = -9999;
     this._unknownThreat   = {
       viaAbility: 0, viaSuper: 0, viaNeither: 0, total: 0,
+      neither: [],                 // frames of unattributable damage (ambient threat)
       delaySum: 0, delayN: 0,      // frames between their button and my damage
       distSum: 0,  distN: 0,       // how far away they were when it landed
     };
@@ -843,6 +869,167 @@ class SovereignMK2 extends AdaptiveAI {
   // the opponent rather than from Sovereign's own scoreline. Offsets are clamped
   // to +/-0.35 by the caller, so a wrong read shades his behaviour without ever
   // flipping him into a different fighter.
+  // ══ STRATEGIC LAYER ════════════════════════════════════════════════════════
+  // Everything above this is TACTICAL. _applyAdaptation scores a 180-frame window
+  // and _oppAdaptTerms reads the opponent's kit plus frame shares that are wiped
+  // on every target switch. Neither carries the match. So he cannot answer the
+  // three questions that actually decided the 2026-09-05 replays:
+  //
+  //   "what is killing me?"      — 142 of his damage came from a domain he had no
+  //                                perception of, and nothing in his adaptation
+  //                                could tell that apart from being out-fought.
+  //   "where do I win?"          — his per-swing quality beat the player's in both
+  //                                matches (74-77% land rate vs 65-73%); he lost on
+  //                                which RANGE he spent the match at.
+  //   "has this held all match?" — a habit seen across nine lives is a different
+  //                                claim from one seen in the last three seconds.
+  //
+  // This reads all three at match scope and returns signed offsets that ride the
+  // same _oppAdaptTerms channel the kit read uses, so it BIASES the dials that
+  // already work rather than seizing control from them. Every term is bounded and
+  // confidence-scaled; it can lean him, never lock him.
+  _strategicInit() {
+    this._strat = {
+      frames: 0, lives: 0,
+      // "what is killing me" — his HP by source, and the total he returns
+      taken: { melee: 0, ability: 0, hazard: 0, other: 0 },
+      dealt: 0,
+      // "where do I win" — net damage per range band, plus time spent in each
+      band: { close: { d: 0, t: 0, f: 0 }, mid: { d: 0, t: 0, f: 0 }, far: { d: 0, t: 0, f: 0 } },
+      // "has this held all match" — habit frames that SURVIVE respawns, unlike
+      // the _opp* counters which _applyOppProfile zeroes on every switch
+      habit: { approach: 0, retreat: 0, air: 0, attack: 0, shield: 0, frames: 0 },
+      lastTakenFrame: -1, prevSelfHp: this.health, prevTgtHp: 0,
+    };
+  }
+
+  _bandOf(dx) { return dx < 90 ? 'close' : dx < 200 ? 'mid' : 'far'; }
+
+  // One cheap pass per frame. Damage is attributed off the stamp dealDamage
+  // already writes (_lastAttacker / _lastAttackerFrame / _lastAttackerDmg), so
+  // nothing in the combat pipeline has to change to feed this.
+  _strategicObserve(t, d) {
+    if (!this._strat) this._strategicInit();
+    const S = this._strat;
+    if (!t || t.health <= 0) return;
+    S.frames++;
+
+    const band = this._bandOf(d);
+    S.band[band].f++;
+
+    // ── What is hurting him, and by what means ──────────────────────────────
+    const stampFrame = this._lastAttackerFrame || -1;
+    if (stampFrame > S.lastTakenFrame && this._lastAttacker === t) {
+      S.lastTakenFrame = stampFrame;
+      const dmg = this._lastAttackerDmg || 0;
+      S.band[band].t += dmg;
+      // Classify by what was true at the moment of the hit. A domain hazard is
+      // the owner's damage arriving without the owner: their domain is open, they
+      // are not mid-swing, and they are nowhere near him.
+      let kind = 'other';
+      const ownsDomain = typeof DomainManager !== 'undefined' && DomainManager.domains &&
+                         DomainManager.domains.some(dm => dm && dm.owner === t);
+      const reach = ((t.weapon && t.weapon.range) || 90) + 40;
+      if (t.attackTimer > 0 || d <= reach)      kind = 'melee';
+      else if (ownsDomain)                      kind = 'hazard';
+      else if (d > reach)                       kind = 'ability';
+      S.taken[kind] += dmg;
+    }
+
+    // ── What he is getting back, and from where ─────────────────────────────
+    if (S.prevTgtHp > 0 && t.health < S.prevTgtHp) {
+      const got = S.prevTgtHp - t.health;
+      S.dealt += got;
+      S.band[band].d += got;
+    }
+    S.prevTgtHp = t.health;
+
+    // ── Habits that outlive a life ──────────────────────────────────────────
+    const H = S.habit;
+    H.frames++;
+    if (!t.onGround)       H.air++;
+    if (t.attackTimer > 0) H.attack++;
+    if (t.shielding)       H.shield++;
+    if (Math.abs(t.vx) > 0.4) {
+      if (Math.sign(t.vx) === Math.sign(this.cx() - t.cx())) H.approach++;
+      else                                                   H.retreat++;
+    }
+  }
+
+  // Signed offsets on the same scale as the kit terms. Deliberately smaller than
+  // the kit read: this is a lean applied to a working adaptation, not a rewrite
+  // of it, and a match-scope read that overpowered the live one would make him
+  // slower to respond to a player who changes plan mid-fight.
+  _strategicTerms() {
+    const S = this._strat;
+    if (!S || S.frames < 240) return null;              // ~4s before it says anything
+    let agg = 0, def = 0, spc = 0, rxn = 0;
+
+    // ── 1. Damage-source shares ─────────────────────────────────────────────
+    const totalTaken = S.taken.melee + S.taken.ability + S.taken.hazard + S.taken.other;
+    if (totalTaken > 40) {
+      const melee  = S.taken.melee  / totalTaken;
+      const hazard = S.taken.hazard / totalTaken;
+      const rangedAbility = S.taken.ability / totalTaken;
+      // Hazards run on a timer and do not care where he stands — the Storm Realm
+      // lightning is aimed at his own x and has no vertical test. Backing off pays
+      // nothing; ending the owner does. This is the read that the blanket domain
+      // retreat used to get exactly backwards.
+      if (hazard > 0.25) { agg += 0.16 * hazard; spc -= 0.14 * hazard; }
+      // Being out-traded in melee is the one case where guard is worth paying for.
+      if (melee > 0.55)  { def += 0.14 * melee; }
+      // Chip from outside his reach is a spacing problem, not a guard problem.
+      if (rangedAbility > 0.30) { spc += 0.12 * rangedAbility; rxn += 0.08 * rangedAbility; }
+    }
+
+    // ── 1b. Damage he cannot attribute at all ───────────────────────────────
+    // The source-share read above can only classify what it can name. Ambient
+    // pressure is the residue: damage arriving with no attacker, no press and
+    // nothing visible. Almost everything shaped like that in this game is a timed
+    // field belonging to someone — and every one of them ends when its owner does,
+    // so the answer is never to sit further away and wait it out.
+    const amb = (typeof this._ambientThreat === 'function') ? this._ambientThreat() : 0;
+    if (amb > 0.3) { agg += 0.18 * amb; spc -= 0.16 * amb; }
+
+    // ── 2. Where he is actually profitable ──────────────────────────────────
+    // The strongest single lever in the telemetry: across replays his damage rate
+    // tracks how much of the match he spends in the band that suits him, and the
+    // band that suits him is NOT always the one his weapon nominally wants.
+    let bestBand = null, bestNet = -Infinity;
+    for (const k of ['close', 'mid', 'far']) {
+      const b = S.band[k];
+      if (b.f < 120) continue;                          // 2s minimum before it counts
+      const net = (b.d - b.t) / (b.f / 60);             // net damage per second there
+      if (net > bestNet) { bestNet = net; bestBand = k; }
+    }
+    if (bestBand && bestNet > 0) {
+      // spacing feeds prefDist directly (see _genome.prefDistBase + m.spacing * 60)
+      if (bestBand === 'close')     { spc -= 0.16; agg += 0.10; }
+      else if (bestBand === 'far')  { spc += 0.14; agg -= 0.06; }
+      else                          { spc += 0.04; }
+    }
+
+    // ── 3. Habits that have held all match ──────────────────────────────────
+    // Same shape as the behaviour cuts in _oppAdaptTerms, but over every life
+    // instead of the current engagement — a read this stable is worth asserting
+    // harder than a three-second one, and it is the half that survives a player
+    // resetting the neutral by dying.
+    const H = S.habit;
+    if (H.frames > 900) {
+      const air = H.air / H.frames, atk = H.attack / H.frames, sh = H.shield / H.frames;
+      const app = H.approach / H.frames, ret = H.retreat / H.frames;
+      if (sh > 0.16)            { agg += 0.10; spc -= 0.08; }   // persistent turtle
+      if (atk > 0.18)           { def += 0.10; rxn += 0.06; }   // persistent swinger
+      if (ret > app * 1.5)      { agg += 0.12; spc -= 0.10; }   // persistent zoner
+      if (air > 0.58)           { rxn += 0.08; spc += 0.05; }   // persistent floater
+    }
+
+    // Bounded, and asserted in proportion to how much match he has actually seen.
+    const conf = Math.min(1, S.frames / 1800);          // full weight at ~30s
+    const cap  = v => Math.max(-0.20, Math.min(0.20, v)) * conf;
+    return { aggression: cap(agg), defense: cap(def), spacing: cap(spc), reactionSpeed: cap(rxn) };
+  }
+
   _oppAdaptTerms() {
     const t = this.target;
     if (!t || t.health <= 0) return null;
@@ -915,7 +1102,18 @@ class SovereignMK2 extends AdaptiveAI {
     // Reads are asserted in proportion to how much of the fight has been seen —
     // a 3-second read should not move him as far as a 40-second one.
     const conf = Math.min(1, r.frames / 900);
-    return { aggression: agg * conf, defense: def * conf, spacing: spc * conf, reactionSpeed: rxn * conf };
+    // The strategic layer rides the same channel: match-scope damage sources,
+    // range profitability and persistent habits, summed on top of the kit read.
+    // _applyAdaptation clamps the merged result to +/-0.35 per dial, so the two
+    // reads can reinforce or cancel but neither can run away with him.
+    const ST = (typeof this._strategicTerms === 'function' && this._strategicTerms()) || null;
+    const S_ = k => (ST && isFinite(ST[k])) ? ST[k] : 0;
+    return {
+      aggression:    agg * conf + S_('aggression'),
+      defense:       def * conf + S_('defense'),
+      spacing:       spc * conf + S_('spacing'),
+      reactionSpeed: rxn * conf + S_('reactionSpeed'),
+    };
   }
 
   _updateHabitTracker(action, t) {
@@ -2677,6 +2875,7 @@ class SovereignMK2 extends AdaptiveAI {
     };
     this._unknownThreat = {
       viaAbility: 0, viaSuper: 0, viaNeither: 0, total: 0,
+      neither: [],                 // frames of unattributable damage (ambient threat)
       delaySum: 0, delayN: 0,
       distSum: 0,  distN: 0,
     };
@@ -2813,6 +3012,15 @@ class SovereignMK2 extends AdaptiveAI {
       this._armBlindEvade('ability', d);
     }
     if (this._obsPrevSuperReady && !sr) {
+      // This block was EMPTY, and _tSuperFiredAt is initialised to -9999 and
+      // assigned nowhere else — so `sinceS` was always ~9999, `u.viaSuper` could
+      // never increment, and _armBlindEvade('super', ...) was never once called.
+      // The entire super half of blind learning was unreachable. It is also the
+      // half that matters most here: a domain expansion is a super, so the one
+      // mechanism built to learn from damage he cannot see was structurally
+      // incapable of firing for the exact thing that was killing him.
+      this._tSuperFiredAt = frameCount;
+      this._armBlindEvade('super', d);
     }
     this._obsPrevAbilityCd  = cd;
     this._obsPrevSuperReady = sr;
@@ -2832,10 +3040,23 @@ class SovereignMK2 extends AdaptiveAI {
         const sinceS = frameCount - this._tSuperFiredAt;
         if (sinceS >= 0 && sinceS < 110)      { u.viaSuper++;   u.delaySum += sinceS; u.delayN++; }
         else if (sinceA >= 0 && sinceA < 110) { u.viaAbility++; u.delaySum += sinceA; u.delayN++; }
-        else                                   { u.viaNeither++; }
+        else {
+          // ── AMBIENT THREAT ───────────────────────────────────────────────
+          // Damage with no press to blame and nothing visible near him. This
+          // counter existed and was READ BY NOTHING, which is the whole reason a
+          // domain could delete him without his behaviour changing: adaptation
+          // that only fires on a recognised precondition is not adaptation, it is
+          // a lookup. Learning from consequences must not require identifying the
+          // cause — "I keep losing HP standing here" is sufficient evidence to
+          // stop standing here, whether or not he can name what is doing it.
+          u.viaNeither++;
+          u.neither.push(frameCount);
+          if (u.neither.length > 12) u.neither.shift();
+        }
       }
     }
     this._selfPrevHp = this.health;
+    this._updateAmbientResponse();
   }
 
   // ── Blind threat: arm an evasion window from a learned precondition ────────
@@ -2859,6 +3080,44 @@ class SovereignMK2 extends AdaptiveAI {
       this._blindLineCd = 420;
       showBossDialogue(src === 'super' ? 'That again. I felt it the first time.'
                                        : 'I do not need to see it.', 110);
+    }
+  }
+
+  // ── AMBIENT THREAT PRESSURE ───────────────────────────────────────────────
+  // 0..1: how heavily he is being hurt by things he can neither see nor blame on
+  // a button. Deliberately source-agnostic — it does not know or care whether the
+  // cause is a domain, an off-screen shooter, a floor hazard or a bug. It is the
+  // model-free half of his learning: consequences without a cause model.
+  _ambientThreat() {
+    const u = this._unknownThreat;
+    if (!u || !u.neither || !u.neither.length) return 0;
+    if (typeof frameCount === 'undefined') return 0;
+    // Hits inside the last ~8 seconds, weighted so the newest count most.
+    let w = 0;
+    for (const f of u.neither) {
+      const age = frameCount - f;
+      if (age < 0 || age > 480) continue;
+      w += 1 - age / 480;
+    }
+    return Math.min(1, w / 4);          // 4 recent unexplained hits == saturated
+  }
+
+  // Standing still is the one response that is always wrong to an unseen source,
+  // so a sustained ambient read re-arms the same evasion window the press-driven
+  // path uses. He does not learn WHAT is hitting him; he learns that where he is
+  // standing is losing him the fight, which is the part that changes behaviour.
+  _updateAmbientResponse() {
+    if (typeof frameCount === 'undefined') return;
+    const a = this._ambientThreat();
+    this._ambientLevel = a;
+    if (a < 0.5) return;
+    if (frameCount < (this._ambientArmedUntil || 0)) return;
+    this._ambientArmedUntil = frameCount + 90;
+    this._blindEvadeUntil   = Math.max(this._blindEvadeUntil || 0, frameCount + 26);
+    this._blindEvadeSrc     = 'ambient';
+    if (this._blindLineCd <= 0 && typeof showBossDialogue === 'function') {
+      this._blindLineCd = 420;
+      showBossDialogue('Something in this place is biting me. It changes nothing.', 110);
     }
   }
 
@@ -3643,6 +3902,118 @@ class SovereignMK2 extends AdaptiveAI {
   // Ordered by how little choice he has: get inside a meteor safe ring, clear a
   // floor column, hop an expanding ring, then walk out of a radius. Returns true
   // when it has spent the frame, which caller treats as a consumed decision.
+  // ── DOMAIN HAZARD PERCEPTION ─────────────────────────────────────────────
+  // Nothing in this class ever read DomainManager's hazards. _scanAreaThreats
+  // knows bossSpikes, bossBeams, bossWarnings and bossMetSafeZones — all boss
+  // globals — so every class domain was invisible to him: Storm Realm's lightning
+  // columns, Mjolnir, Arsenal's turret fire, Verdant Hunt's giant arrow. He was
+  // not choosing to tank them, he had no input saying they existed. Same shape as
+  // the Electric Staff orb he could not see.
+  //
+  // Both answers are already legal against these: hazards call dealDamage() with
+  // the domain OWNER as attacker, so a raised shield absorbs them normally and a
+  // FRESH shield parries — 65% within 8 frames, which stuns the domain's owner for
+  // 90 frames and leaves them taking 1.5x damage. Parrying Mjolnir is the single
+  // biggest swing available to him inside someone else's domain.
+  //
+  // Order of preference: step out of what can be stepped out of (free), shield
+  // what cannot (cheap), and time the raise late so it lands inside the parry
+  // window rather than early where it is only a block.
+  _scanDomainHazards(moveSpd, jumpVy) {
+    if (this.health <= 0 || (this.stunTimer || 0) > 0 || (this.ragdollTimer || 0) > 0) return false;
+    if (typeof isCinematic !== 'undefined' && isCinematic) return false;
+    if (typeof DomainManager === 'undefined' || !DomainManager.domains || !DomainManager.domains.length) return false;
+    if (this._domHazCd > 0) { this._domHazCd--; return false; }
+    // Same fairness knob every other perception path uses — he is not frame-perfect.
+    if (Math.random() < this._reactionMistakeRate() * 0.4) return false;
+
+    const cx = this.cx(), cy = this.cy(), half = this.w / 2;
+    const PARRY_AT = 7;          // raise inside the 8-frame fresh-shield window
+    let shieldTti = Infinity;    // soonest unavoidable impact
+    let escape    = null;        // { dir, tti } for something he can simply leave
+
+    for (const dm of DomainManager.domains) {
+      if (!dm || dm.owner === this || !dm.hazards) continue;
+      for (const h of dm.hazards) {
+        if (!h) continue;
+        const R = (h.radius || 20) + half;
+
+        // Lightning: a full-height column with no vertical test at all, so jumping
+        // is never an escape and sideways always is — if the warning leaves time.
+        if (h.type === 'lightning') {
+          if (h.struck) continue;
+          const dx = cx - h.x;
+          if (Math.abs(dx) >= R) continue;
+          const tti  = h.warningTimer || 0;
+          const need = (R - Math.abs(dx) + 12) / Math.max(0.1, moveSpd);
+          const dir  = (dx >= 0 ? 1 : -1);
+          if (need < tti - 2 && !this.isEdgeDanger(dir)) {
+            if (!escape || tti < escape.tti) escape = { dir, tti };
+          } else if (tti < shieldTti) {
+            shieldTti = tti;
+          }
+          continue;
+        }
+
+        // Mjolnir's dash homes at up to speed 22 and only ends on contact, so it
+        // cannot be outrun — it is the parry target, not a dodge target. While
+        // roaming it is an ordinary mover and falls through to the branch below.
+        if (h.type === 'mjolnir' && h.state === 'strike') {
+          const sp   = Math.hypot(h.vx || 0, h.vy || 0) || 1;
+          const dist = Math.hypot(h.x - cx, h.y - cy) - R;
+          const tti  = dist / sp;
+          if (tti >= 0 && tti < shieldTti) shieldTti = tti;
+          continue;
+        }
+
+        // Anything with a velocity: solve for closest approach and only react to
+        // what actually intersects him. Static owner-anchored hazards (orbiting
+        // shields, rage pulses) have no velocity and are handled by spacing.
+        if (typeof h.vx === 'number' || typeof h.vy === 'number') {
+          const vx = h.vx || 0, vy = h.vy || 0;
+          const sp2 = vx * vx + vy * vy;
+          if (sp2 < 0.01) continue;
+          const rx = cx - h.x, ry = cy - h.y;
+          const tti = (rx * vx + ry * vy) / sp2;          // time of closest approach
+          if (tti < 0 || tti > 45) continue;               // behind him, or too far out
+          const missX = rx - vx * tti, missY = ry - vy * tti;
+          if (Math.hypot(missX, missY) >= R) continue;     // it misses on its own
+          // A mostly-horizontal mover is escaped vertically; otherwise sideways.
+          if (Math.abs(vy) < Math.abs(vx) * 0.6 && this.onGround && tti > 6) {
+            this.vy = jumpVy;
+            this._domHazCd = 10;
+            if (typeof this._recordEvent === 'function') this._recordEvent('dodge', 2);
+            return true;
+          }
+          if (tti < shieldTti) shieldTti = tti;
+          continue;
+        }
+      }
+    }
+
+    // Leaving costs nothing, so it outranks spending a shield — but only when the
+    // thing he would otherwise shield is not landing sooner than he can walk.
+    if (escape && !(shieldTti <= PARRY_AT + 2)) {
+      this.vx = escape.dir * moveSpd * 1.9;
+      this._domHazDir = escape.dir;
+      this._domHazCd  = 6;
+      if (typeof this._recordEvent === 'function') this._recordEvent('dodge', 2);
+      return true;
+    }
+
+    if (shieldTti <= PARRY_AT) {
+      if (this._startTacticalShield(14)) {
+        this._domHazCd = 20;
+        if (typeof this._recordEvent === 'function') this._recordEvent('dodge', 2);
+        return true;
+      }
+      // Shield unavailable (cooldown) — take the hit moving rather than standing.
+      const away = (this.cx() <= GAME_W / 2) ? 1 : -1;
+      if (!this.isEdgeDanger(away)) { this.vx = away * moveSpd * 1.6; this._domHazCd = 8; return true; }
+    }
+    return false;
+  }
+
   _scanAreaThreats(moveSpd, jumpVy) {
     if (this.health <= 0 || this.stunTimer > 0 || this.ragdollTimer > 0) {
       this._hazEscFrames = 0; return false;
@@ -3991,6 +4362,11 @@ class SovereignMK2 extends AdaptiveAI {
     // Sovereign must observe for at least 180 frames (~3 sec) and see
     // at least 6 non-idle player actions before adapting.
     this._observationFrames++;
+
+    // Match-scope strategic read (damage sources, range profitability, persistent
+    // habits). Separate from the counters below because those are wiped on every
+    // target switch by _applyOppProfile — this ledger must outlive that.
+    this._strategicObserve(t, Math.abs(t.cx() - this.cx()));
 
     // ── Opponent observation for the dossier ─────────────────────────────────
     // Cheap per-tick counters that feed _oppRates()/_oppAdaptTerms(). Kept here
@@ -4753,6 +5129,7 @@ class SovereignMK2 extends AdaptiveAI {
     // ── Danger: boss / arena set-piece hazards (leave the zone) ────────────
     // Runs before the projectile scan because these hit harder and telegraph
     // longer. See _scanAreaThreats().
+    if (this._scanDomainHazards(moveSpd, _jumpVy)) { this.aiReact = 0; return; }
     if (this._scanAreaThreats(moveSpd, _jumpVy)) { this.aiReact = 0; return; }
 
     // ── Danger: incoming projectiles / sword crescents (dodge) ─────────────
@@ -4945,8 +5322,22 @@ class SovereignMK2 extends AdaptiveAI {
 
     // Every class has a domain (every 5th super triggers an expansion), so read
     // the DomainManager registry generically rather than per-class flags.
+    // Retreat only beats CONTACT-ECONOMY domains — the ones whose payout requires
+    // Sovereign to touch the owner (Ronin's marks, Reaper's souls, Ninja's slow,
+    // Berserker/Pugilist owner buffs, Megaknight's rift). Those have spawnEvery 0:
+    // nothing comes looking for him, so distance genuinely starves them.
+    //
+    // Hazard-RAIN domains are the opposite. Storm Realm's lightning is aimed at an
+    // enemy's own cx() and its hit test is horizontal-only (no vertical term at
+    // all), and Mjolnir homes on the nearest enemy at speed 22. Arsenal's turrets
+    // aim, Verdant Hunt's arrow crosses the whole arena, Warpath's logs fly the
+    // full width. Backing off buys nothing and costs him his entire offense:
+    // in replay 2026-09-05(1) he spent the Storm Realm at 0% attack uptime and
+    // 40% stunned, took 142 damage and dealt none, and lost two stocks doing it.
+    // So deny only what denial actually denies.
     const _tOwnsDomain = typeof DomainManager !== 'undefined' && DomainManager.domains &&
-                         DomainManager.domains.some(dm => dm && dm.owner === t);
+                         DomainManager.domains.some(dm => dm && dm.owner === t &&
+                           !(dm.def && dm.def.hazardType && dm.def.spawnEvery > 0));
     const _domainThreat = !!(t._roninCutsActive || t._soulTitheActive || _tOwnsDomain ||
                              (this._domainSlowFactor > 0 && this._domainSlowFactor < 1));
     if (_domainThreat && d < 280) {
