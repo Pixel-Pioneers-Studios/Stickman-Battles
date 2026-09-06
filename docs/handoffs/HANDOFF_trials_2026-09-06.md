@@ -40,6 +40,34 @@ Working tree is clean. Registry verifies `total 186 range 0-185 dups 0 gaps 0`,
 all 199 js files pass `node --check`, and eslint on the changed files reports
 only the documented pre-existing findings.
 
+**Session 3 (Sep 6, later).** Everything above plus the batch below is now
+**PUSHED** (`b16252c..573b4ed`), clearing the whole backlog:
+
+| Commit | What |
+|---|---|
+| `e76142c` | Sovereign hazard/ambient aggression softened + `ringoutGuard` — again **not authored or playtested here**, arrived in the working tree from another session |
+| `573b4ed` | Bearer battle royale on ch147, saga Phase 4 cold opens, and scene-spec coverage for all 47 remaining narrated chapters |
+
+Registry still `total 186 range 0-185 dups 0 gaps 0`; all 200 js files pass
+`node --check`; eslint unchanged at 72 pre-existing problems, none new.
+
+### Two harness traps that cost real time (Sep 6)
+
+Both are the test rig, not the game, and both produce convincing false results:
+
+1. **Chrome throttles `requestAnimationFrame` in a tab that is not foregrounded.**
+   Symptom: `gameRunning === true` but `frameCount` frozen at 0, so a mode looks
+   dead when it is fine. `page.bringToFront()` alone is NOT enough — launch Chrome
+   with `--disable-background-timer-throttling --disable-renderer-backgrounding
+   --disable-backgrounding-occluded-windows`.
+2. **Chrome's disk cache serves stale JS despite a bumped `?v=`.** Symptom: a
+   newly added `STORY_SCENE_SPECS` key reads as absent while a manual `fetch()`
+   of the same URL shows it present. Always `await page.setCacheEnabled(false)`.
+
+Also: **story narrative is canvas-drawn.** Scraping the DOM for a "Next" button
+finds the *menu* sitting behind the overlay, and clicking it derails the launch.
+Advance narrative with key presses and read the result from screenshots.
+
 ---
 
 ## Part 1 — What shipped in the arena pass (`2b359bd`)
@@ -277,11 +305,36 @@ chapters by that earlier renumber. Unit-checked:
   inputs through a different weapon's reach and timing. Observed live: player on
   `hammer`, copy on `sword`. Colour is deliberately **not** copied — two
   identically coloured fighters running the same inputs cannot be told apart.
-- **The stalker's whiff rate is still unmeasured against a real player, and
-  no human has played any of the three trials yet.** ~2
-  strikes per 18s, both whiffing against a scripted idle target, is exactly the
-  case the `Fighter.attack()` AI whiff-guard is tuned to veto. Still needs a
-  human playtest, not a scripted one.
+- **The stalker's whiff rate is MEASURED — and the concern inverts.** Sep 6:
+  driven in a real browser on ch106 with the player under pseudo-random input
+  (move + lantern) rather than standing still. Three runs:
+
+  | Target | attack() calls | committed | vetoed | hits | damage | outcome |
+  |---|---|---|---|---|---|---|
+  | idle, 38.8s   | 173 | 15 | **158 (91%)** | **0** | 0   | player untouched (145 HP) |
+  | moving, 17.4s |  21 |  8 | 13 (62%)      | 9 | 150 | **player killed** |
+  | moving, 24.1s |  15 |  7 | 8 (53%)       | 7 | 124 | **player killed** |
+
+  **Committed swings land essentially 100% of the time against a target that
+  moves.** The stalker is not lobotomised and does not need whiff tuning. The
+  "~2 strikes per 18s, both whiffing" reading was entirely an artifact of the
+  idle dummy: against a stationary target the guard vetoes 91% of attempts and
+  the handful that commit miss anyway. **Never tune the stalker against an idle
+  target** — that configuration is pathological, not conservative.
+
+  **The real risk is the opposite one: the Trial of Sense may be too lethal.**
+  The player died in BOTH moving runs, in 17.4s and 24.1s, taking 124–150 damage
+  — roughly one landed hit every 2–3.5s at ~17 damage each, from an opponent
+  that cannot be seen. The input driving was semi-random rather than skilled, so
+  a real player will do better; but "dies in under 25 seconds" is a strong signal
+  for a trial whose point is disorientation. Levers, in order of bluntness:
+  `spawnEnemies` health/`aiDiff` on ch106 (currently `expert`), the stalker's
+  strike→retreat cadence in `trialStalkAI()`, and the 600-frame lantern cooldown.
+  **This is a design call on an unplayed trial, so nothing was changed.**
+
+- **No human has played any of the three trials, or the bearer battle royale.**
+  Whether the sweep's ~22% uptime is readable, whether 34 frames is the right
+  mirror delay, and whether the control tells land mid-fight are all still open.
 
 ### C. What is actually left
 
@@ -299,12 +352,30 @@ chapters by that earlier renumber. Unit-checked:
 
 **Content work.**
 
-- **47 narrated chapters have no scene spec** (landmine 7). Act-style fallback
-  covers them, but it is generic.
-- **Nexus Defense** and the reframed Battle Royale ("the field is the 94 prior
-  bearers") — approved in `docs/TRIALS_DESIGN.md`, unbuilt.
-- `docs/SAGA_SPLIT_PLAN.md` **Phase 4, the cold opens** — still the only content
-  work blocking three standalone saga builds.
+- ~~47 narrated chapters have no scene spec~~ — **DONE (573b4ed).** All 111
+  narrated chapters now carry staging (was 64/111).
+- ~~The reframed Battle Royale ("the field is the 94 prior bearers")~~ —
+  **DONE (573b4ed).** ch147 "The Constructs" converted from a 3-round gauntlet
+  to `type: 'battleroyale'`; the field is 94 named bearers plus Kael. Converted,
+  not inserted, so no renumber and no save migration.
+- **Nexus Defense is smaller than this doc implied.** The MODE already exists
+  (`exploreMode: 'defense'` → `initDefenseMode`) and is already used by eight
+  story chapters. Only a *trial-framed placement* is missing — and note that all
+  four companion arcs already have a faculty test, including Seraph's, whose
+  ch108 is a stealth chapter ("do not engage unless cornered"). Whether a fifth
+  trial is wanted at all is still the doc's own open question.
+- ~~`docs/SAGA_SPLIT_PLAN.md` Phase 4, the cold opens~~ — **DONE (573b4ed).**
+  The saga split is content-complete; only shipping decisions remain.
+- **Saga III pacing — examined and deliberately NOT changed.** It is 35 chapters,
+  10 playable, 25 pure text, with one 11-chapter zero-combat run (170–180)
+  immediately before the finale. Every chapter in that run carries `branchPrompt`
+  (landmine 1), so it cannot be converted without destroying interactive content,
+  and inserting would force a renumber plus save migration. More to the point,
+  reading them, the eight Reckonings are deliberate dialectic — "The Void Mind
+  does not argue. It presents the version." Forcing combat into them would damage
+  the strongest writing in the game to fix a metric. If this is ever revisited,
+  the additive option is to let a `branch` chapter also carry a fight (the choice
+  is recorded first, then the fight launches) — that needs no renumber.
 - "What is the thing Kael needs?" is still undecided, and still only matters if
   the Fourth Architect gatekeeper framing is revived. The scatter approach that
   shipped does not need it.
