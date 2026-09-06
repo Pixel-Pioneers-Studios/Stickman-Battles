@@ -19,6 +19,24 @@
   var _shakeStr = 0, _shakeDecay = 0;
   var _flashAlpha = 0, _flashColor = '#ffffff', _flashDecay = 0;
 
+  // ── Cinematic mode ─────────────────────────────────────────────────────────────
+  // Off by default: with _cinMode false every path below behaves exactly as it did
+  // before, so the 113 existing STORY_SCENE_SPECS entries are untouched.
+  //
+  // On, the scene stops being a click-through reader and becomes a film: beats
+  // auto-advance once the line has finished typing and held, the camera keeps
+  // drifting so a frame is never static, the per-beat "Next" button and the beat
+  // dots (useless at 100+ beats) are replaced by a thin progress bar, and a real
+  // SKIP appears — skipping the whole sequence, not advancing one beat.
+  var _cinMode    = false;
+  var _cinHold    = 80;     // frames to hold a finished line before auto-advancing
+  var _autoT      = 0;      // frames since this line finished typing
+  var _onSkip     = null;   // called instead of _callback when the viewer skips
+  var _skipRect   = null;   // hit box for the on-screen SKIP control
+  var _cinLabel   = null;   // overrides the chapter title (a sequence spans chapters)
+  var _cinProg    = null;   // {done, total} across a multi-chapter sequence
+  var _driftSeed  = 0;
+
   // ── Math helpers ───────────────────────────────────────────────────────────────
   function _ease(t)         { return t < 0.5 ? 2*t*t : -1+(4-2*t)*t; }
   function _lerp(a, b, t)   { return a + (b - a) * t; }
@@ -163,6 +181,16 @@
     }
     if (_shakeStr > 0) _shakeStr = Math.max(0, _shakeStr - _shakeDecay);
     if (_flashAlpha > 0) _flashAlpha = Math.max(0, _flashAlpha - _flashDecay);
+
+    // Cinematic drift: a slow, never-repeating breath on top of whatever the beat
+    // asked for. Authored camAnim still reads exactly as written — this only stops
+    // long holds from looking like a frozen still.
+    if (_cinMode) {
+      var d = _t * 0.0031 + _driftSeed;
+      _cam.cx   += Math.sin(d) * 0.0045 + Math.sin(d * 0.37) * 0.0022;
+      _cam.cy   += Math.cos(d * 0.83) * 0.0030;
+      _cam.zoom *= 1 + Math.sin(d * 0.61) * 0.0035;
+    }
   }
 
   function _camBegin(c, w, h) {
@@ -1002,27 +1030,98 @@
     c.restore();
   }
 
+  // Parse an 'rgba(r,g,b,a)' / 'rgb(...)' tint into parts so the scrim can fade
+  // the SAME colour out to transparent instead of stopping at a hard edge.
+  function _tintParts(css) {
+    var m = /rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*(?:,\s*([\d.]+))?\s*\)/.exec(css || '');
+    if (!m) return { r: 0, g: 0, b: 0, a: 0.72 };
+    return { r: +m[1], g: +m[2], b: +m[3], a: m[4] !== undefined ? +m[4] : 1 };
+  }
+
   function _drawCaption(c, w, h, text, typedLen) {
-    var shown=text.slice(0,typedLen); var pad=22,fSize=16,lineH=25,maxW=w*0.74;
-    c.font='italic '+fSize+'px \'Segoe UI\', Georgia, serif';
-    var words=shown.split(' '),wrLines=[],cur='';
-    for (var wi=0;wi<words.length;wi++) { var test=cur?cur+' '+words[wi]:words[wi]; if(c.measureText(test).width>maxW){if(cur)wrLines.push(cur);cur=words[wi];}else{cur=test;} }
-    if(cur)wrLines.push(cur);
-    var totalH=wrLines.length*lineH+pad*2,by=h*FOOT_YF-totalH-12;
+    var shown = text.slice(0, typedLen);
+    // Scale with viewport rather than a fixed 16px — on a 1440p screen the old
+    // caption was tiny relative to the frame.
+    var fSize = Math.max(16, Math.round(h * 0.0225));
+    var lineH = Math.round(fSize * 1.55);
+    var pad   = Math.round(fSize * 1.4);
+    // Shorter measure reads better than the old 0.74; long lines were the main
+    // reason this looked like a subtitle track rather than a title card.
+    var maxW  = Math.min(w * 0.66, 980);
+
     c.save();
-    // Narrator restyle (plan Phase 2): bar fades in on beat entry, act-colored
-    // accent rule, slight letter tracking — visually distinct from dialogue bubbles
-    var _capA = Math.min(1, _beatT / 12);
+    c.font = 'italic ' + fSize + 'px \'Segoe UI\', Georgia, serif';
+    var words = shown.split(' '), wrLines = [], cur = '';
+    for (var wi = 0; wi < words.length; wi++) {
+      var test = cur ? cur + ' ' + words[wi] : words[wi];
+      if (c.measureText(test).width > maxW) { if (cur) wrLines.push(cur); cur = words[wi]; }
+      else cur = test;
+    }
+    if (cur) wrLines.push(cur);
+
+    var totalH = wrLines.length * lineH + pad * 2;
+    // Placement. In cinematic mode the caption sits just above the lower
+    // letterbox, the way film subtitles do — the old FOOT_YF anchor put it
+    // straight through the subject's head, which only worked while the caption
+    // was an opaque bar hiding him. In the standard reader it stays where it was
+    // (the Next button owns the bottom of the frame there).
+    var by;
+    if (_cinMode) {
+      var _bsL  = _getBeatSpec();
+      var _lbF  = (_bsL && _bsL.letterbox !== undefined) ? _bsL.letterbox : (_actStyle && _actStyle.letterbox);
+      var _lbPx = _lbF ? (typeof _lbF === 'number' ? _lbF : 0.085) * h : 0;
+      by = h - _lbPx - totalH - Math.round(h * 0.045);
+    } else {
+      by = h * FOOT_YF - totalH - 12;
+    }
+    var _capA  = Math.min(1, _beatT / 12);
+
+    // ── Scrim ───────────────────────────────────────────────────────────────
+    // A flat filled rectangle is what made this read as a cheap subtitle bar.
+    // Use a vertical gradient of the act's own tint that fades to nothing above
+    // the text and carries down past the baseline, so the type sits in shadow
+    // rather than in a box.
+    var tp   = _tintParts((_actStyle && _actStyle.captionTint) || 'rgba(0,0,0,0.72)');
+    var top  = by - fSize * 2.6;
+    var bot  = Math.min(h, by + totalH + fSize * 2.2);
+    var grd  = c.createLinearGradient(0, top, 0, bot);
+    var rgb  = tp.r + ',' + tp.g + ',' + tp.b;
+    // The reader still has to MASK the figure standing behind the text, so it
+    // keeps a near-solid core; the cinematic caption sits below him and can stay
+    // airy. Both fade to nothing at the edges — that is what kills the "bar" look.
+    var _core = _cinMode ? 0.82 : 1.0;
+    grd.addColorStop(0,    'rgba(' + rgb + ',0)');
+    grd.addColorStop(0.30, 'rgba(' + rgb + ',' + (tp.a * 0.78 * _core).toFixed(3) + ')');
+    grd.addColorStop(0.72, 'rgba(' + rgb + ',' + (tp.a * _core).toFixed(3) + ')');
+    grd.addColorStop(1,    'rgba(' + rgb + ',0)');
     c.globalAlpha = _capA;
+    c.fillStyle = grd;
+    c.fillRect(0, top, w, bot - top);
+
+    // Act-coloured hairline rule, now with a soft falloff at both ends.
+    var ruleG = c.createLinearGradient(w * 0.5 - 90, 0, w * 0.5 + 90, 0);
+    var rc = (_actStyle && _actStyle.motifColor) || '#8899bb';
+    ruleG.addColorStop(0, 'rgba(0,0,0,0)');
+    ruleG.addColorStop(0.5, rc);
+    ruleG.addColorStop(1, 'rgba(0,0,0,0)');
+    c.globalAlpha = _capA * 0.5;
+    c.fillStyle = ruleG;
+    c.fillRect(w * 0.5 - 90, by - 2, 180, 1.2);
+
+    // ── Type ────────────────────────────────────────────────────────────────
     if ('letterSpacing' in c) c.letterSpacing = '0.6px';
-    c.fillStyle=(_actStyle && _actStyle.captionTint) || 'rgba(0,0,0,0.72)'; c.fillRect(0,by,w,totalH);
-    c.globalAlpha = _capA * 0.55;
-    c.fillStyle = (_actStyle && _actStyle.motifColor) || '#8899bb';
-    c.fillRect(w*0.5 - 70, by, 140, 1.5);
     c.globalAlpha = _capA;
-    c.fillStyle='#dde4ff'; c.textAlign='center';
-    for (var li=0;li<wrLines.length;li++) { c.fillText(wrLines[li],w*0.5,by+pad+fSize+li*lineH); }
-    c.textAlign='left'; c.restore();
+    c.textAlign = 'center';
+    c.shadowColor = 'rgba(0,0,0,0.85)';
+    c.shadowBlur  = Math.round(fSize * 0.55);
+    c.shadowOffsetY = 1;
+    c.fillStyle = '#e6ecff';
+    for (var li = 0; li < wrLines.length; li++) {
+      c.fillText(wrLines[li], w * 0.5, by + pad + fSize + li * lineH);
+    }
+    c.shadowBlur = 0; c.shadowOffsetY = 0;
+    c.textAlign = 'left';
+    c.restore();
   }
 
   function _drawBtn(c, w, h, label) {
@@ -1221,12 +1320,42 @@
     }
     // Cinematic post pass: vignette + animated film grain
     _drawVignette(_ctx, w, h);
+    if (_cinMode) {
+      // Second, tighter vignette + a low horizon bloom. Cheap, and it is most of
+      // the difference between "a drawing" and "a shot" — the eye gets pushed to
+      // the middle of the frame and the ground plane picks up some air.
+      _ctx.save();
+      var vg2 = _ctx.createRadialGradient(w*0.5, h*0.46, Math.min(w,h)*0.30,
+                                          w*0.5, h*0.46, Math.max(w,h)*0.78);
+      vg2.addColorStop(0, 'rgba(0,0,0,0)');
+      vg2.addColorStop(1, 'rgba(0,0,0,0.42)');
+      _ctx.fillStyle = vg2; _ctx.fillRect(0,0,w,h);
+      var bloom = _ctx.createLinearGradient(0, h*FOOT_YF - h*0.16, 0, h*FOOT_YF + h*0.05);
+      var bc = (_actStyle && _actStyle.motifColor) || '#8899bb';
+      bloom.addColorStop(0, 'rgba(0,0,0,0)');
+      bloom.addColorStop(1, bc);
+      _ctx.globalAlpha = 0.055; _ctx.globalCompositeOperation = 'lighter';
+      _ctx.fillStyle = bloom; _ctx.fillRect(0, h*FOOT_YF - h*0.16, w, h*0.21);
+      _ctx.restore();
+    }
     _drawGrain(_ctx, w, h, _t);
     // Letterbox (beat value wins; act style provides the default depth)
     var _lbRaw = (bs && bs.letterbox !== undefined) ? bs.letterbox : (_actStyle && _actStyle.letterbox);
     if (_lbRaw) {
       var lbh = (typeof _lbRaw === 'number' ? _lbRaw : 0.085) * h;
-      _ctx.fillStyle='#000000'; _ctx.fillRect(0,0,w,lbh); _ctx.fillRect(0,h-lbh,w,lbh);
+      // In cinematic mode the bars slide in over the first ~0.4s rather than
+      // being present on frame 1 — the frame opening up is what reads as "a film
+      // is starting" instead of "a text box appeared".
+      if (_cinMode) lbh *= _ease(_clamp(_t / 26, 0, 1));
+      _ctx.fillStyle='#000000';
+      _ctx.fillRect(0,0,w,lbh); _ctx.fillRect(0,h-lbh,w,lbh);
+      // A hairline of light along the inner edge stops the bars reading as
+      // "canvas ends here" and gives the frame a defined edge.
+      if (lbh > 1) {
+        _ctx.save(); _ctx.globalAlpha = 0.10; _ctx.fillStyle = '#ffffff';
+        _ctx.fillRect(0, lbh - 1, w, 1); _ctx.fillRect(0, h - lbh, w, 1);
+        _ctx.restore();
+      }
     }
     // Beat transition overlay: fade = from black, slam = white flash-cut
     if (_trans && (_trans.type === 'fade' || _trans.type === 'slam')) {
@@ -1276,18 +1405,72 @@
     // Chapter label
     _ctx.save(); _ctx.globalAlpha=0.65; _ctx.fillStyle='#8899bb'; _ctx.font='11px \'Segoe UI\', Arial, sans-serif';
     _ctx.fillText((_chapter&&_chapter.world)||'',18,26); _ctx.fillStyle='#ffcc88'; _ctx.font='bold 14px \'Segoe UI\', Arial, sans-serif';
-    _ctx.fillText((_chapter&&_chapter.title)||'',18,44); _ctx.restore();
+    _ctx.fillText(_cinLabel || (_chapter&&_chapter.title) || '',18,44); _ctx.restore();
 
-    // Progress dots
-    if (_beats.length > 1) {
-      var dotR=4,dotGap=12,dotY=30,totalDW=_beats.length*(dotR*2+dotGap)-dotGap,dotX0=w-18-totalDW;
-      for (var di=0;di<_beats.length;di++) { _ctx.beginPath(); _ctx.arc(dotX0+di*(dotR*2+dotGap)+dotR,dotY,dotR,0,Math.PI*2); _ctx.fillStyle=di===_beatIdx?'#ffcc88':'rgba(255,200,100,0.28)'; _ctx.fill(); }
-    }
-
-    // Button
     var done = _typedLen >= totalText.length;
-    if (done) { var isLast=_beatIdx>=_beats.length-1; _drawBtn(_ctx,w,h,isLast?(_chapter&&_chapter.noFight?'Continue →':'⚔️  Fight!'):'Next →'); }
-    else { _ctx.save(); _ctx.globalAlpha=0.30; _ctx.fillStyle='#aabbcc'; _ctx.font='11px \'Segoe UI\', Arial, sans-serif'; _ctx.textAlign='center'; _ctx.fillText('click or press any key to skip',w*0.5,h*0.97); _ctx.textAlign='left'; _ctx.restore(); }
+
+    if (_cinMode) {
+      // ── Cinematic chrome ────────────────────────────────────────────────────
+      // Auto-advance once the line has finished and held. Longer lines hold
+      // longer, so a one-word beat does not flash past at the same rate as a
+      // four-line one.
+      if (done) {
+        _autoT++;
+        var hold = _cinHold + Math.min(150, totalText.length * 1.1);
+        if (_autoT >= hold) {
+          _autoT = 0;
+          _advance();
+          // _advance can end the scene (last beat -> _finish -> _cleanup), which
+          // nulls _ctx and cancels the rAF. Unlike the click path, we are INSIDE
+          // _render here, so the rest of this frame would draw into a dead
+          // context. Bail out of the frame instead.
+          if (!_canvas || !_ctx) return;
+        }
+      } else {
+        _autoT = 0;
+      }
+
+      // Progress bar across the whole sequence (beat dots are unreadable at
+      // 100+ beats). _cinProg is supplied by the multi-chapter runner.
+      var frac;
+      if (_cinProg && _cinProg.total > 0) {
+        frac = (_cinProg.done + (_beatIdx + 1) / Math.max(1, _beats.length)) / _cinProg.total;
+      } else {
+        frac = (_beatIdx + 1) / Math.max(1, _beats.length);
+      }
+      frac = _clamp(frac, 0, 1);
+      _ctx.save();
+      var barW = w * 0.34, barX = w * 0.5 - barW / 2, barY = h - 26;
+      _ctx.fillStyle = 'rgba(255,255,255,0.12)'; _ctx.fillRect(barX, barY, barW, 2);
+      _ctx.fillStyle = 'rgba(255,204,136,0.75)'; _ctx.fillRect(barX, barY, barW * frac, 2);
+      _ctx.restore();
+
+      // SKIP control — the only thing that ends the sequence. A click anywhere
+      // else still nudges to the next beat, so impatience and exit are separate.
+      _ctx.save();
+      var sw2 = 92, sh2 = 30, sx2 = w - sw2 - 22, sy2 = h - sh2 - 22;
+      _skipRect = { x: sx2, y: sy2, w: sw2, h: sh2 };
+      _ctx.globalAlpha = 0.72;
+      _ctx.fillStyle = 'rgba(0,0,0,0.45)'; _rrect(_ctx, sx2, sy2, sw2, sh2, 7); _ctx.fill();
+      _ctx.strokeStyle = 'rgba(255,204,136,0.45)'; _ctx.lineWidth = 1; _rrect(_ctx, sx2, sy2, sw2, sh2, 7); _ctx.stroke();
+      _ctx.fillStyle = '#ffcc88'; _ctx.font = '12px \'Segoe UI\', Arial, sans-serif'; _ctx.textAlign = 'center';
+      _ctx.fillText('Skip  ▸▸', sx2 + sw2 / 2, sy2 + 19);
+      _ctx.globalAlpha = 0.26; _ctx.fillStyle = '#aabbcc'; _ctx.font = '10px \'Segoe UI\', Arial, sans-serif';
+      _ctx.fillText('Esc', sx2 + sw2 / 2, sy2 - 6);
+      _ctx.textAlign = 'left'; _ctx.restore();
+    } else {
+      // ── Standard reader chrome (unchanged) ──────────────────────────────────
+      _skipRect = null;
+      // Progress dots
+      if (_beats.length > 1) {
+        var dotR=4,dotGap=12,dotY=30,totalDW=_beats.length*(dotR*2+dotGap)-dotGap,dotX0=w-18-totalDW;
+        for (var di=0;di<_beats.length;di++) { _ctx.beginPath(); _ctx.arc(dotX0+di*(dotR*2+dotGap)+dotR,dotY,dotR,0,Math.PI*2); _ctx.fillStyle=di===_beatIdx?'#ffcc88':'rgba(255,200,100,0.28)'; _ctx.fill(); }
+      }
+
+      // Button
+      if (done) { var isLast=_beatIdx>=_beats.length-1; _drawBtn(_ctx,w,h,isLast?(_chapter&&_chapter.noFight?'Continue →':'⚔️  Fight!'):'Next →'); }
+      else { _ctx.save(); _ctx.globalAlpha=0.30; _ctx.fillStyle='#aabbcc'; _ctx.font='11px \'Segoe UI\', Arial, sans-serif'; _ctx.textAlign='center'; _ctx.fillText('click or press any key to skip',w*0.5,h*0.97); _ctx.textAlign='left'; _ctx.restore(); }
+    }
 
     _raf = requestAnimationFrame(_render);
   }
@@ -1401,15 +1584,57 @@
     }
     _spec=null; _beatT=0; _cam.zoom=1; _cam.cx=0.5; _cam.cy=0.5;
     _shakeStr=0; _flashAlpha=0; _trans=null;
+    // Cinematic flags are per-invocation: a leaked _cinMode would turn every
+    // ordinary chapter narrative into an auto-advancing reel.
+    _cinMode=false; _autoT=0; _onSkip=null; _skipRect=null; _cinLabel=null; _cinProg=null;
   }
 
-  function _onInteract(e) { if(e&&e.type==='keydown'&&(e.key==='Tab'||e.key==='Escape'))return; _advance(); }
+  // Skipping ends the WHOLE sequence, which is different from advancing a beat.
+  // The caller gets onSkip if it supplied one (so a multi-chapter runner can jump
+  // to the end state and still award/complete everything it was going to), else
+  // the normal callback so the flow continues exactly as if it had played out.
+  function _skipAll() {
+    var skip = _onSkip, cb = _callback;
+    _onSkip = null; _callback = null;
+    _cleanup();
+    if (skip) skip(); else if (cb) cb();
+  }
+
+  function _onInteract(e) {
+    if (e && e.type === 'keydown') {
+      if (e.key === 'Tab') return;
+      if (e.key === 'Escape') { if (_cinMode) { e.preventDefault(); _skipAll(); } return; }
+    }
+    // Click on the SKIP control exits; a click anywhere else is just impatience.
+    if (_cinMode && e && e.type === 'click' && _skipRect && _canvas) {
+      var r = _canvas.getBoundingClientRect();
+      var mx = (e.clientX - r.left) * (_canvas.width / r.width);
+      var my = (e.clientY - r.top)  * (_canvas.height / r.height);
+      if (mx >= _skipRect.x && mx <= _skipRect.x + _skipRect.w &&
+          my >= _skipRect.y && my <= _skipRect.y + _skipRect.h) { _skipAll(); return; }
+    }
+    _advance();
+  }
 
   // ── Public API ─────────────────────────────────────────────────────────────────
-  function showNarrativeScene(lines, chapter, callback) {
+  // opts (all optional, all inert when omitted):
+  //   cinematic : play as a film — auto-advance, drift, progress bar, real skip
+  //   hold      : frames to hold a finished line before advancing (default 80)
+  //   onSkip    : called instead of `callback` if the viewer skips
+  //   label     : overrides the chapter title (a sequence spans several chapters)
+  //   progress  : {done, total} so the bar reflects the sequence, not one chapter
+  function showNarrativeScene(lines, chapter, callback, opts) {
     if (!lines || !lines.length) { if(callback)callback(); return; }
     _cleanup();
     _chapter=chapter||null; _callback=callback||null;
+    opts = opts || {};
+    _cinMode  = !!opts.cinematic;
+    _cinHold  = opts.hold || 80;
+    _onSkip   = opts.onSkip || null;
+    _cinLabel = opts.label || null;
+    _cinProg  = opts.progress || null;
+    _autoT    = 0;
+    _driftSeed = Math.random() * 100;
     _beats=_parseBeats(lines); _beatIdx=0; _typedLen=0; _t=0; _beatT=0;
     _lastTypeTime=performance.now();
     if (!_beats.length) { if(_callback){var cb=_callback;_callback=null;cb();}return; }

@@ -260,6 +260,15 @@ function _beginChapter2(idx) {
   if (!ch) return;
   _activeStory2Chapter = ch;
 
+  // A declared cinematic run starts here: play the whole stretch as one film
+  // rather than as N click-through chapters. Guarded on the helper's presence
+  // (smb-story-cinematic-sequence.js loads after this file) and self-disabling
+  // if the run's chapters have drifted — see _resolveRun.
+  if (typeof isStoryCinematicRunStart === 'function' && isStoryCinematicRunStart(ch.id) &&
+      typeof playStoryCinematicRun === 'function') {
+    if (playStoryCinematicRun(ch.id)) return;
+  }
+
   if (ch.type === 'branch') {
     const _afterBranchNarr = () => _showBranchChoice(ch, () => _completeChapter2(ch));
     if (_cinReplaySkip(ch)) _afterBranchNarr();
