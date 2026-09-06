@@ -78,6 +78,12 @@ STORY_CHAPTER_REGISTRY.push(
     preText: 'A dimensional anchor — the only stable ground in the Collision Realm. Thresh\'s impact constructs are incoming. Three waves. Hold it.',
     survivalWaves: 3,
     waveSize: 2,
+    // THE TRIAL OF CONTROL — see docs/TRIALS_DESIGN.md. Layered ON TOP of the
+    // existing defence hold rather than replacing it: Thresh's own line is that
+    // the constructs are "testing whether you hold still when the world tries to
+    // move", so the world moves. Gravity and the controls invert on a readable
+    // tell (horizontal violet = gravity, vertical amber = controls).
+    trial: 'control',
     opponentName: 'Impact Construct',
     weaponKey: 'hammer',
     classKey: 'thor',
@@ -87,6 +93,7 @@ STORY_CHAPTER_REGISTRY.push(
       { frame: 30,  text: 'Impact constructs incoming. They hit like Thresh trained them to. Hold this ground.', color: '#ff6600', timer: 270 },
       { frame: 350, text: '"They\'re not attacking you. They\'re testing whether you hold still when the world tries to move." — Thresh', color: '#ffaa44', timer: 290 },
       { frame: 600, text: 'Final wave. Thresh is watching this directly. Don\'t move from this spot.', color: '#ff8833', timer: 250 },
+      { frame: 180, text: 'The Collision Realm does not hold still either. Read the bands \u2014 they tell you which rule is about to change.', color: '#ffcc66', timer: 300 },
     ],
     sky: ['#100400', '#1a0600'],
     groundColor: '#180800',

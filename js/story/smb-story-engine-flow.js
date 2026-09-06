@@ -504,39 +504,14 @@ function _launchEscortChapter(ch) {
 // budget as _storySpawnMiniBoss and for the same reason: the explore world is
 // not finished until several frames after startGame(), so a fixed delay
 // silently no-ops. Spec: docs/TRIALS_DESIGN.md.
-function _storyArmTrial(ch, _tries) {
-  if (!ch || !ch.trial || typeof trialActive === 'undefined') return;
-  const tries = _tries || 0;
-  if (typeof _activeStory2Chapter !== 'undefined' && _activeStory2Chapter !== ch) return;
-
-  const ready = (typeof gameRunning !== 'undefined' && gameRunning)
-             && (typeof players !== 'undefined' && players && players.length > 1)
-             && players[0] && players[1];
-  if (!ready) {
-    if (tries < 20) setTimeout(() => _storyArmTrial(ch, tries + 1), 120);
-    return;
-  }
-
+function _storyArmTrial(ch) {
+  if (!ch || !ch.trial || typeof trialPending === 'undefined') return;
   if (typeof resetTrialState === 'function') resetTrialState();
-  trialActive = ch.trial;
-
-  const foe = players.find(p => p && p !== players[0] && !p.isRemote);
-  if (!foe) return;
-
-  if (ch.trial === 'sense') {
-    // Invisible: the draw is skipped, the hitbox is not. The stalking AI is
-    // purpose-built — an expert bot with the draw call removed deletes the
-    // player outright.
-    foe._trialInvisible = true;
-    foe._trialStalker   = true;
-    foe._trialLastHp    = foe.health;
-  } else if (ch.trial === 'control') {
-    if (typeof startTrialControl === 'function') startTrialControl();
-  } else if (ch.trial === 'selfknowledge') {
-    foe._trialMirror   = true;
-    foe._mirrorSource  = players[0];
-    players[0]._trialTape = [];
-  }
+  // A request, not an application. updateTrials() applies it on the first frame
+  // the real fighters exist — a delayed hook would set its flags on the previous
+  // match's fighter objects, because startGame() rebuilds players[] a few frames
+  // after this returns.
+  trialPending = { kind: ch.trial };
 }
 
 function _storySpawnMiniBoss(ch, _tries) {
@@ -924,11 +899,8 @@ function _launchChapter2FightImmediate(ch) {
   }
 
   // The Trials (see _storyArmTrial).
-  if (ch.trial) {
-    setTimeout(() => _storyArmTrial(ch), 120);
-  } else if (typeof resetTrialState === 'function') {
-    resetTrialState();
-  }
+  if (ch.trial) _storyArmTrial(ch);
+  else if (typeof resetTrialState === 'function') resetTrialState();
 
   // Axiom teaser (ch63): patch the Boss entity color + suppress all threshold cinematics + reset player to 1 life
   if (ch._axiomTeaser) {

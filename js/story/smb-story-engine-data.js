@@ -71,6 +71,11 @@ function _phaseToChapter(origCh, phase, newId, pi, isFirst, isFinal, totalTokens
     }
     // Ally fighter accompanies the player through every fight phase of the chapter
     if (origCh.allyDef) phaseCh.allyDef = origCh.allyDef;
+    // Trial fields must survive expansion. A trial chapter takes the stay-intact
+    // branch above so this is a backstop, but dropping them here is exactly how
+    // bossType/type went missing before (v3.9.18) — the failure is silent.
+    if (origCh.trial)      phaseCh.trial      = origCh.trial;
+    if (origCh.playerCaps) phaseCh.playerCaps = origCh.playerCaps;
   }
   return phaseCh;
 }
@@ -88,6 +93,7 @@ function _expandStoryChaptersInPlace() {
     if (origCh.noFight || origCh.isEpilogue || origCh.isDamnationChapter || origCh.type === 'exploration'
         || origCh.type === 'assassination' || origCh.type === 'gauntlet' || origCh.type === 'ship_flight' || origCh.type === 'escort'
         || origCh.type === 'branch' || origCh.type === 'interlude'
+        || origCh.trial
         || origCh.isBossFight || origCh.isTrueFormFight || origCh.isSovereignFight || origCh.isAbsoluteAxiomFight || origCh.isGodFight
         || origCh.walkFight) {
       // Special-mode chapters stay single & intact so their type + mode data

@@ -22,6 +22,7 @@ var trialSweeps     = [];     // active reveal sweeps
 var trialEchoes     = [];     // time-stamped residue left where the band crossed something
 var trialCues       = [];     // transient perception cues (swing arc, footfall, hit)
 var trialInvert     = null;   // Trial 2 tell/inversion state
+var trialPending    = null;   // { kind } — armed on the first frame the fighters exist
 
 // Sweep tuning. Anchored to arena width, not to the clock — see the design doc's
 // "the one genuinely hard number". 900px arena: a 3s ring gap makes the band
@@ -34,6 +35,7 @@ const TRIAL_ECHO_LIFE   = 180;   // frames a crossing residue lingers (3s dwell)
 
 function resetTrialState() {
   trialActive = null;
+  trialPending = null;
   trialSweeps.length = 0;
   trialEchoes.length = 0;
   trialCues.length   = 0;
@@ -526,7 +528,45 @@ function trialMirrorAI(f) {
 // ============================================================
 // PER-FRAME ENTRY POINTS (called from gameLoop)
 // ============================================================
+// Applying the trial on a timer races startGame(): the fighters are rebuilt a
+// few frames in, so a delayed hook sets its flags on the PREVIOUS match's
+// fighter objects and they are silently discarded. Arming is therefore a
+// request, applied on the first frame the real fighters exist.
+function _trialApplyPending() {
+  if (!trialPending) return;
+  if (typeof gameRunning === 'undefined' || !gameRunning) return;
+  if (typeof players === 'undefined' || !players || !players.length) return;
+  const p1 = players[0];
+  if (!p1) return;
+  const foe = players.find(p => p && p !== p1 && !p.isRemote);
+  // Only the trials that possess an opponent need one. The control trial inverts
+  // the rules of the space and arms on wave-defence chapters, where the enemies
+  // are minions and players[] holds the player alone.
+  const kind = trialPending.kind;
+  if ((kind === 'sense' || kind === 'selfknowledge') && !foe) return;
+
+  trialPending = null;
+  trialActive = kind;
+
+  if (kind === 'sense') {
+    // Invisible: the draw is skipped, the hitbox is not. The stalking AI is
+    // purpose-built — an expert bot with the draw call removed deletes the
+    // player outright.
+    foe._trialInvisible = true;
+    foe._trialStalker   = true;
+    foe._trialLastHp    = foe.health;
+    foe._stalkPhase     = undefined;
+  } else if (kind === 'control') {
+    startTrialControl();
+  } else if (kind === 'selfknowledge') {
+    foe._trialMirror  = true;
+    foe._mirrorSource = p1;
+    p1._trialTape     = [];
+  }
+}
+
 function updateTrials() {
+  _trialApplyPending();
   if (!trialActive) return;
   if (trialActive === 'sense') { updateTrialSweeps(); updateTrialCues(); }
   if (trialActive === 'control') updateTrialControl();
