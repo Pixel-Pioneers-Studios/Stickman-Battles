@@ -28,10 +28,17 @@ act1-arc1 / act2-arc1, and findings in `server.js` / `tools/`).
 All three are placed and browser-verified. The registry is now
 **186 chapters, ids 0–185**.
 
-> **Session 2 (Sep 6) — uncommitted.** Everything below the line in Part 4 was
-> done in a second session and is **in the working tree, not committed**. The
-> unrelated `js/smb-domain.js` hazard-knockback tweak (18 → 10) was already
-> uncommitted when this session started and was left alone.
+**Session 2 (Sep 6).** Three further commits on `main`, still nothing pushed:
+
+| Commit | What |
+|---|---|
+| `c547ae8` | Trials: Sense and Self-knowledge placed, mirror playback fixed, invisibility leak closed |
+| `cee0148` | `STORY_SCENE_SPECS` realigned with the chapters they were authored for |
+| `9d2bce7` | Sovereign counter-pick / domain-retreat tuning + domain hazard knockback — **not authored or playtested in this session**, it arrived in the working tree from another session and was committed on request |
+
+Working tree is clean. Registry verifies `total 186 range 0-185 dups 0 gaps 0`,
+all 199 js files pass `node --check`, and eslint on the changed files reports
+only the documented pre-existing findings.
 
 ---
 
@@ -104,9 +111,15 @@ one is. Reuses `tfGravityInverted` / `tfControlsInverted`.
 
 ### Trial 3 — Self-knowledge
 
-`TRIAL_MIRROR_DELAY = 34` frames (`smb-trials.js:502`). The copy replays the
-player's inputs mirrored on a delay. **Functional but coarse** — it samples at
-the AI tick, so the copy is choppier than intended.
+`TRIAL_MIRROR_DELAY = 34` frames. The copy replays the player's inputs mirrored
+on a delay, and takes the player's weapon at arm time (see Part 4B — a chapter
+cannot author that, because the player brings their own loadout).
+
+Recording and playback both run once per frame from `updateTrials()`, so the tape
+self-limits at the delay length and index 0 slides forward at exactly one frame
+per frame. **Do not move playback back into `Fighter.updateAI`** — that is the
+15x-too-slow bug fixed in `c547ae8` (landmine 5). Attacks fire on the *rising
+edge* of the taped `atk` flag, which is true for every frame of a swing.
 
 ### Wiring
 
@@ -264,44 +277,77 @@ chapters by that earlier renumber. Unit-checked:
   inputs through a different weapon's reach and timing. Observed live: player on
   `hammer`, copy on `sword`. Colour is deliberately **not** copied — two
   identically coloured fighters running the same inputs cannot be told apart.
-- **The stalker's whiff rate is still unmeasured against a real player.** ~2
+- **The stalker's whiff rate is still unmeasured against a real player, and
+  no human has played any of the three trials yet.** ~2
   strikes per 18s, both whiffing against a scripted idle target, is exactly the
   case the `Fighter.attack()` AI whiff-guard is tuned to veto. Still needs a
   human playtest, not a scripted one.
 
-### C. Still open from the design doc
+### C. What is actually left
 
-Unchanged: the "thing Kael needs" is undecided and only matters if the gauntlet
-framing is revived; Nexus Defense and the reframed Battle Royale are approved but
-unbuilt.
+**Needs a human, not a script.**
 
-### D. Unrelated but pending
+- **Nobody has played any of the three Trials.** They arm, render and behave
+  correctly, and that is all that has been established. Whether the sweep's ~22%
+  uptime is readable, whether 34 frames is the right mirror delay, and whether
+  the control tells land mid-fight are all open questions.
+- **The stalker's whiff rate**, as above — a scripted idle target cannot answer
+  it, because that is the case the whiff-guard is tuned against.
+- **The Sovereign tuning in `9d2bce7` is unverified.** It passes `node --check`
+  and eslint and nothing more. It is counter-pick and retreat behaviour, which
+  can only be judged by watching a fight.
 
-`docs/SAGA_SPLIT_PLAN.md` Phase 4 — the cold opens — still blocks three
-standalone saga builds.
+**Content work.**
+
+- **47 narrated chapters have no scene spec** (landmine 7). Act-style fallback
+  covers them, but it is generic.
+- **Nexus Defense** and the reframed Battle Royale ("the field is the 94 prior
+  bearers") — approved in `docs/TRIALS_DESIGN.md`, unbuilt.
+- `docs/SAGA_SPLIT_PLAN.md` **Phase 4, the cold opens** — still the only content
+  work blocking three standalone saga builds.
+- "What is the thing Kael needs?" is still undecided, and still only matters if
+  the Fourth Architect gatekeeper framing is revived. The scatter approach that
+  shipped does not need it.
 
 ---
 
 ## Part 5 — Landmines found in session 2
 
-### 7. `STORY_SCENE_SPECS` is keyed by chapter id and is badly misaligned
+### 7. `STORY_SCENE_SPECS` is keyed by chapter id — **found here, fixed in `cee0148`**
 
-`js/smb-story-scenes.js` sets `S[<chapterId>]` and
-`smb-story-narrative-scene.js` looks specs up as
-`STORY_SCENE_SPECS[chId]` — so it is a **hard id dependency the earlier handoff
-did not list**. Its 66 keys were shifted with everything else.
+`js/smb-story-scenes.js` sets `S[<chapterId>]` and `smb-story-narrative-scene.js`
+looks specs up as `STORY_SCENE_SPECS[chapter.id]` — a **hard id dependency the
+first handoff did not list**. Anything that renumbers chapters must shift these.
 
-**Separately, and pre-existing: only the first ~12 entries still match the
-chapter they land on.** From id 13 up the specs are bound to a numbering that no
-longer exists — `S[116]` was a "True Form" spec sitting on the VAEL chapter, and
-after the shift it sits on ch118, equally wrong. This was NOT introduced here and
-was NOT fixed here; shifting preserves current behaviour exactly rather than
-changing 50+ chapters' staging in a renumber commit.
+It had already drifted badly before this session: only **10 of 66** specs were
+still on the chapter they were authored for, and **25 were sitting on chapters
+with no `narrative` at all**, doing nothing. `S[116]` was a "True Form" spec
+staging the VAEL chapter; the "Titan King" lava spec was on "Into the Flux".
 
-Severity is moderate, not critical: a spec carries only `bg`, `npcColor`, camera
-moves, poses and effects — **no dialogue** (that comes from the chapter's
-`narrative`). So the symptom is a wrong backdrop and palette on a narrative
-scene, not wrong words. Worth a dedicated pass; it is real content debt.
+**How it was repaired, in case it ever drifts again.** Every spec is preceded by
+a comment header naming the chapter it was authored for, so the specs were
+re-keyed by matching that title against the registry, with *"does the target
+chapter have a `narrative` array"* as the tiebreak. That tiebreak matters — two
+different chapters are titled "The Architecture", and it caught the false match.
+Note the headers use both `—` and `:` as separators; a regex that assumes one
+silently mis-pairs the specs that use the other.
+
+What made the result trustworthy rather than 66 lucky guesses: it is a
+**bijection** (66 headers, 66 specs, 66 distinct targets, nothing unresolved) and
+it is **strictly monotonic**, with drift in clean plateaus of 0, +4, +7, +11 and
++32/+33 — the signature of successive insertions. Title matching independently
+recovering a monotonic step function across 66 entries is not a coincidence.
+
+    on their authored chapter   10/66 -> 66/66
+    on a narrated chapter       41/66 -> 65/66
+
+The one spec still on a non-narrated chapter is `S[3]`, which never moved and was
+already like that. No spec *content* was edited — only keys and headers.
+
+**Still open, and it is content work, not a bug:** 112 chapters carry a
+`narrative` array and only 65 have staging, so **47 narrated chapters have no
+scene spec**. They fall back to act style, which renders correctly (verified on
+ch13 "Resonance") but is generic.
 
 ### 8. Invisibility leaked through `AdaptiveAI.draw()`
 
@@ -361,6 +407,7 @@ additive residue blows out to solid white.
 
 ## Cache-busting
 
-Session 2 bumped all 30 files it touched to `?v=4.1.19`. Tags remain mixed
+Session 2 bumped the 30 files of the Trials batch to `?v=4.1.19`, and
+`smb-story-scenes.js` to `?v=4.1.20` with the spec realignment. Tags remain mixed
 below that. Bump the files you touch; verify with
 `grep -oE '\?v=[0-9.]+' index.html | sort | uniq -c`.
