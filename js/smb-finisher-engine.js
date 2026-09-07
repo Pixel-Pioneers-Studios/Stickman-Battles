@@ -71,6 +71,13 @@ const FIN_HOLD_FRAMES  = 5;
 const FIN_BRACE_FRAMES = 4;
 const FIN_HURT_FRAMES  = 10;
 const FIN_SQUASH_FRAMES = 7;
+// Limb smear during a finisher swing. Fighter.draw() only smears when the state
+// is 'attacking'/'ragdoll'/spinning, and _finApplyPose deliberately never writes
+// attackTimer (that would re-arm the melee hit-scan and let a finisher damage
+// bystanders) — so the biggest swing in the game was the one swing that never
+// trailed. These drive an opt-out smear over every def.swing window.
+const FIN_SMEAR_SAMPLES = 5;
+const FIN_SMEAR_ALPHA   = 0.30;
 
 // Applied after def.update so it wins over the def's own positioning. Only for
 // defs that don't already lunge — never add this on top of an authored dash.
@@ -134,7 +141,32 @@ function _finApplyPose(att, tgt, def, timer) {
     }
   }
   tgt._finPoseState = _finVictimBeat(def, timer);
+  att._finSmear     = _finSmearAt(def, timer);
   _finApplyDeform(att, tgt, def, timer);
+}
+
+// Which smear window, if any, covers this frame.
+//
+// Defaults to every def.swing window so all existing defs gain smear without
+// being edited — the same opt-out shape as def.holds defaulting from def.impact.
+// `def.smear` overrides: pass an array of {at, dur, samples, alpha} to place the
+// smear somewhere other than the swing, or `def.smear = false` to disable it for
+// a finisher whose presentation does not want trails (a slow crush, a hold).
+function _finSmearAt(def, timer) {
+  if (def.smear === false) return null;
+  const src = def.smear
+    ? (Array.isArray(def.smear) ? def.smear : [def.smear])
+    : (def.swing ? (Array.isArray(def.swing) ? def.swing : [def.swing]) : null);
+  if (!src) return null;
+  for (const w of src) {
+    if (w.at === undefined) continue;
+    const dur = w.dur || 12;
+    if (timer >= w.at && timer < w.at + dur) {
+      return { samples: w.samples || FIN_SMEAR_SAMPLES,
+               alpha:   w.alpha   === undefined ? FIN_SMEAR_ALPHA : w.alpha };
+    }
+  }
+  return null;
 }
 
 // Shape deformation across the beats. Fighter.draw() has fixed bone lengths for
@@ -203,6 +235,7 @@ function _finClearPose(f) {
   f._finAnticip = 0;
   f._finStretch = 1;
   f._finSquash = null;
+  f._finSmear = null;
   f._finNoBlink = false;
 }
 
