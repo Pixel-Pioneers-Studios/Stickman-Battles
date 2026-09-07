@@ -3,6 +3,73 @@
 Upgrade plan for the inter-chapter narrative scenes (June 2026). Goal: every story
 sequence unique, visually strong, and well-told — without hand-animating 158 chapters.
 
+## Status — reconciled against shipped code, Sep 7 2026
+
+The June 2026 audit below is **superseded**; its counts predate ~28 chapters of new
+content, the act renumbering, and the Sep 6 coverage pass. Numbers re-measured from
+source on Sep 7 2026:
+
+| June 2026 claim | Actual, Sep 7 2026 |
+|---|---|
+| 158 chapters | **186** (`STORY_CHAPTER_REGISTRY`, ids 0–185, contiguous) |
+| 83 have `narrative` text | **110** |
+| 66 have scene specs | **113** specs in `js/smb-story-scenes.js`, ids 0–185 |
+| "~75 chapters drop into a fight with no framing" | **0 narrative chapters lack a spec** — coverage is complete |
+| "no per-act visual style" | `STORY_ACT_STYLES` exists in `smb-story-narrative-scene.js` — **Phase 1 shipped** |
+
+**Phase 1 — SHIPPED.** **Phase 2 — SHIPPED** (already marked). **Phase 3 — the Tier
+B/C backlog it describes no longer exists**; every narrated chapter has a spec, so
+what remains is quality tiering of existing specs, not coverage. **Phase 4's
+continuity checks are resolved**: the epilogue ordering bug was fixed at
+`smb-story-engine-match.js:384`, which gates on `ch.isEpilogue && ch.id >=
+_sagaFinalId()` rather than on the overloaded `isEpilogue` flag alone. Note the
+bound is computed per saga rather than hardcoded, so it stays correct across the
+saga split. The act4mv id collision was cleared by the renumber.
+
+Since this plan was written, story segments also became **cutscenes rather than
+click-through readers** — `_showStory2Narrative` passes `{cinematic: true}` for every
+chapter, beats hold on a reading-rate budget (`CIN_CPS = 24`), and the figures are
+driven by the keyframed `js/smb-figure-rig.js`. The "Beats are expensive" principle
+now has teeth it did not have when beats were self-paced clicks: a padded beat costs
+real seconds of someone's time.
+
+### Two of these were closed on Sep 7 2026
+
+- **Per-act split — DONE.** `js/smb-story-scenes.js` had grown to 9,320 lines (the
+  plan flagged it at 6,012). The 113 specs now live in `js/story/scenes/<act>.js`,
+  one file per act directory, mirroring `js/story/acts/`: act0 14, act1 8, act2 12,
+  act3 9, act4 8, act4mv 22, act5 9, act6 5, act7 9, actvoidmind 13, side 4.
+  Spec content is unchanged. `smb-story-scenes.js` is kept, and kept first in load
+  order, as a documented stub that declares the shared table and points at the new
+  files. Each scenes/ file also declares the table defensively, so order among them
+  does not matter — only that all load before `smb-story-narrative-scene.js`.
+
+  Verified lossless by snapshotting `STORY_SCENE_SPECS` in the browser before and
+  after with sorted keys: **byte-identical, 267,700 bytes, 113 specs**. Chapters 0
+  (act0), 106 (act4mv) and 180 (actvoidmind) were then rendered from three different
+  split files with zero page errors.
+
+- **Spec coverage validator — DONE.** Added to `tools/audit/check.js`, so it runs in
+  `npm run check` rather than only warning at runtime. Two rules:
+  `scene-coverage` (a chapter with `narrative:` but no spec — it would play as bare
+  captions) and `scene-orphan` (a spec whose chapter id no longer exists). The second
+  is the one that has actually bitten: commit `cee0148` existed to realign specs after
+  a renumber moved ids underneath them. Both rules were proven to fire by
+  temporarily renaming a spec, and the messages name the exact file to fix.
+
+  One trap worth recording: the first version of the rule matched chapter heads as
+  `{ id: N,` and reported ch106 and ch117 as having **no chapter at all**. Many
+  chapters open with comment lines between the brace and the `id`. The rule now
+  anchors on the `id:` line, the same form as the registry contiguity scan in
+  CLAUDE.md.
+
+### Still open from this plan
+
+- Phase 3's Tier S bespoke-spectacle pass is not done — coverage is universal, but
+  quality is not yet tiered.
+
+---
+
 ## Current state (verified June 2026)
 
 - **Engine** (`js/smb-story-narrative-scene.js`, specs in `js/smb-story-scenes.js`):

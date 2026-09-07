@@ -1,0 +1,242 @@
+[
+ {
+  "arena": "grass",
+  "ww": null,
+  "frames": 1316,
+  "clampPct": 2.7,
+  "sepMean": 162,
+  "sepMax": 744,
+  "zoomMin": 0.89,
+  "errs": 0
+ },
+ {
+  "arena": "lava",
+  "ww": null,
+  "frames": 1319,
+  "clampPct": 0,
+  "sepMean": 498,
+  "sepMax": 623,
+  "zoomMin": 0.93,
+  "errs": 0
+ },
+ {
+  "arena": "space",
+  "ww": null,
+  "frames": 1174,
+  "clampPct": 0.3,
+  "sepMean": 238,
+  "sepMax": 775,
+  "zoomMin": 0.82,
+  "errs": 0
+ },
+ {
+  "arena": "city",
+  "ww": null,
+  "frames": 1319,
+  "clampPct": 0.1,
+  "sepMean": 136,
+  "sepMax": 540,
+  "zoomMin": 0.82,
+  "errs": 0
+ },
+ {
+  "arena": "void",
+  "ww": null,
+  "frames": 1264,
+  "clampPct": 0.1,
+  "sepMean": 173,
+  "sepMax": 788,
+  "zoomMin": 0.83,
+  "errs": 0
+ },
+ {
+  "arena": "sovereign",
+  "ww": null,
+  "frames": 1252,
+  "clampPct": 0.2,
+  "sepMean": 281,
+  "sepMax": 716,
+  "zoomMin": 0.9,
+  "errs": 0
+ },
+ {
+  "arena": "forest",
+  "ww": null,
+  "frames": 1320,
+  "clampPct": 0,
+  "sepMean": 194,
+  "sepMax": 856,
+  "zoomMin": 0.82,
+  "errs": 0
+ },
+ {
+  "arena": "ice",
+  "ww": null,
+  "frames": 1190,
+  "clampPct": 0.3,
+  "sepMean": 228,
+  "sepMax": 628,
+  "zoomMin": 0.82,
+  "errs": 0
+ },
+ {
+  "arena": "ruins",
+  "ww": null,
+  "frames": 1319,
+  "clampPct": 0.2,
+  "sepMean": 227,
+  "sepMax": 563,
+  "zoomMin": 0.95,
+  "errs": 0
+ },
+ {
+  "arena": "soccer",
+  "ww": null,
+  "frames": 1320,
+  "clampPct": 0,
+  "sepMean": 162,
+  "sepMax": 662,
+  "zoomMin": 0.9,
+  "errs": 0
+ },
+ {
+  "arena": "cave",
+  "ww": null,
+  "frames": 1252,
+  "clampPct": 0.1,
+  "sepMean": 83,
+  "sepMax": 730,
+  "zoomMin": 0.82,
+  "errs": 0
+ },
+ {
+  "arena": "mirror",
+  "ww": null,
+  "frames": 1319,
+  "clampPct": 0,
+  "sepMean": 106,
+  "sepMax": 740,
+  "zoomMin": 0.82,
+  "errs": 0
+ },
+ {
+  "arena": "underwater",
+  "ww": null,
+  "frames": 1312,
+  "clampPct": 0.1,
+  "sepMean": 214,
+  "sepMax": 761,
+  "zoomMin": 0.87,
+  "errs": 0
+ },
+ {
+  "arena": "volcano",
+  "ww": null,
+  "frames": 1319,
+  "clampPct": 0,
+  "sepMean": 173,
+  "sepMax": 505,
+  "zoomMin": 0.97,
+  "errs": 0
+ },
+ {
+  "arena": "colosseum",
+  "ww": null,
+  "frames": 1252,
+  "clampPct": 0.1,
+  "sepMean": 148,
+  "sepMax": 725,
+  "zoomMin": 0.84,
+  "errs": 0
+ },
+ {
+  "arena": "cyberpunk",
+  "ww": null,
+  "frames": 1251,
+  "clampPct": 0,
+  "sepMean": 152,
+  "sepMax": 734,
+  "zoomMin": 0.88,
+  "errs": 0
+ },
+ {
+  "arena": "haunted",
+  "ww": null,
+  "frames": 1319,
+  "clampPct": 0.1,
+  "sepMean": 147,
+  "sepMax": 741,
+  "zoomMin": 0.84,
+  "errs": 0
+ },
+ {
+  "arena": "clouds",
+  "ww": null,
+  "frames": 1252,
+  "clampPct": 0.6,
+  "sepMean": 280,
+  "sepMax": 1184,
+  "zoomMin": 0.82,
+  "errs": 0
+ },
+ {
+  "arena": "neonGrid",
+  "ww": null,
+  "frames": 1252,
+  "clampPct": 0,
+  "sepMean": 155,
+  "sepMax": 761,
+  "zoomMin": 0.92,
+  "errs": 0
+ },
+ {
+  "arena": "mushroom",
+  "ww": null,
+  "frames": 1253,
+  "clampPct": 0.6,
+  "sepMean": 192,
+  "sepMax": 872,
+  "zoomMin": 0.82,
+  "errs": 0
+ },
+ {
+  "arena": "desert",
+  "ww": null,
+  "frames": 1319,
+  "clampPct": 0,
+  "sepMean": 96,
+  "sepMax": 754,
+  "zoomMin": 0.96,
+  "errs": 0
+ },
+ {
+  "arena": "megacity",
+  "ww": 3600,
+  "frames": 1319,
+  "clampPct": 0,
+  "sepMean": 542,
+  "sepMax": 2319,
+  "zoomMin": 0.39,
+  "errs": 0
+ },
+ {
+  "arena": "warpzone",
+  "ww": 3600,
+  "frames": 1319,
+  "clampPct": 0,
+  "sepMean": 773,
+  "sepMax": 2319,
+  "zoomMin": 0.39,
+  "errs": 0
+ },
+ {
+  "arena": "colosseum10",
+  "ww": 3600,
+  "frames": 1319,
+  "clampPct": 0,
+  "sepMean": 633,
+  "sepMax": 2326,
+  "zoomMin": 0.4,
+  "errs": 0
+ }
+]

@@ -160,6 +160,10 @@ structure is the right thing to drive that when the art exists.
 
 ## 3. Stray items — the point of this doc
 
+> **Update, Sep 7 2026 (later session).** §3b is **done** and most of §3c is
+> **done**; §3a was reviewed, verified and left uncommitted. See §5 at the bottom.
+
+
 ### 3a. In the working tree, NOT mine, NOT committed
 Another session has been writing into this tree. Left untouched:
 
@@ -235,3 +239,155 @@ on `set`, overwrite the wrong chapter. Caught before any damage.
 ### Dev hooks left in (nothing in the game calls them)
 - `window._sceneDrawFigure` — render the rig in isolation for contact sheets
 - `window._sceneSetBeatT(v)` — scrub the beat clock to step `attack`/`hit` frames
+
+---
+
+## 5. Follow-up session — Sep 7 2026
+
+### Closed
+
+- **§3a reviewed and one real bug fixed.** The other session's seven-file boss batch
+  was read end to end and verified rather than merely left alone. It is sound. But it
+  bumped six `?v=` tags in `index.html` and **missed the seventh**:
+  `js/smb-smk2-class.js` was modified (the largest diff in the batch, 73 lines) while
+  its tag stayed at `?v=4.1.21`. Chrome would have served the old file from disk
+  cache and the Sovereign changes would silently not have applied. Bumped to
+  `4.1.22` at `index.html:1695`. Also corrected a stale comment at
+  `smb-smk2-class.js:4225` that still described beams as telegraphing 300 frames —
+  the same batch cut that to 110 (150 in the meteor storm).
+
+  Batch verified in a live headless browser, cache disabled, 45s of phase-3 boss
+  fight: zero page errors; 12 beams and 17 spikes fired; `spike_warn` telegraphs
+  visible for 794 frames and `circle` for 355; recovery split 43% pause / 51%
+  pressure window, matching the intended 3–4 : 6 tick ratio; 38 hits on the player
+  with max damage 22 and the new gravity-pulse crush landing in its 6–16 band. The
+  TrueForm half was exercised separately by driving `_doSpecial` directly — the
+  chain-slam grab pushes its `GRAB!` cross plus the 260px reach circle and lands;
+  yanking the target out of reach mid-wind-up nulls `tfChainSlam` for **zero**
+  damage; `calcStrike` pushes its `STRIKE!` cross at the predicted point; the meteor
+  blast warning is `r=280`, matching the blast rather than the old `r=60` shadow.
+
+  Two things that look like bugs and are not, recorded so they are not re-chased:
+  `postSpecialPause` reaching 16 is the HP-threshold cinematic pauses at
+  `smb-boss.js:181-197`, not `_chargeRecovery` misbehaving; and an apparent
+  3,740-damage hit was a *test-harness* artifact from inflating `maxHealth` to 99999,
+  which scales percent-based damage. At the real `maxHealth` of 160, nothing exceeds
+  22. Also confirmed `dist()` (`smb-combat.js:12`) is true 2D, so the chain-slam
+  reach check is not subject to the horizontal-only trap that bit `SMK2.updateAI`.
+
+  **Still uncommitted**, all eight files together, deliberately.
+
+- **§3b done.** All five `.smbreplay` captures moved from the repo root into
+  `replays/`. Filenames kept byte-exact, including the awkward `(2)` / `(3)`
+  suffixes, because the batch's code comments cite them by name as provenance.
+  Note `replays/` is *tracked* (25 files before, 30 now), so this adds ~14MB of
+  binaries to history when staged — worth a decision, given `b16252c` was
+  specifically about shrinking the repo. A `.gitignore` entry is the alternative.
+
+- **§3c, the two plan docs — reconciled.** Both now carry a status section measured
+  against source rather than against the docs' own claims. Findings worth knowing:
+  - `animation-quality-plan.md`: Phases **0, 1 and 5 have shipped**
+    (`smb-anim-core.js`, `smb-death-anim.js` + `VerletAngleConstraint`,
+    `smb-transition.js`). **Phase 2 is shipped too** — see the correction below.
+    Phase 3 is mostly shipped (`def.holds`, `_finVictimBeat`, and the
+    `executeDeath` hand-off); only `def.smear`, automatic anticipation and
+    `_finApplyCam` remain. **Phase 4's premise is false**: it claims domain
+    expansion has no entry cutscene, but `_tickDomainEntry` is ~650 lines of
+    per-class choreography. **Phase 6's first bullet is false too**: the three
+    `worldWidth: 900` arenas (`homeAlley`, `suburb`, `rural`) are deliberately
+    contained to their painted art so the boundary portals frame the visible
+    scene — the Jul 2026 boundary-portal fix, and each carries a comment saying
+    so. Do not "fix" either one.
+  - **Correction to my own first pass.** I initially recorded Phase 2 as NOT
+    SHIPPED. That was wrong, and it is the kind of wrong that causes a rebuild of
+    working code. I concluded it from `_lj` still existing in `smb-fighter.js` and
+    from grepping that file for the plan's *proposed* names (`_footPlant`,
+    `animQuality`). The work is real and complete, in `js/smb-anim-fighter.js`
+    (184L, loaded at `index.html:1620`): `animIK` two-bone IK, `animStridePhase`
+    /`_fp` foot planting, `animHeadLag` overlap, `animHitSquash` squash & stretch,
+    `animEyeTarget`/`animBlink` face, `animCapeDrive` cape (called from
+    `smb-drawing-effects.js:199`), `animSmear` on fast limbs, and the `animHiQ()`
+    gate on `settings.animQuality`. `_lj` survives only as the classic fallback.
+    **Search for what implements a behaviour, not for the names a plan guessed.**
+  - The two rigs are independent substrates: `smb-anim-fighter.js` drives the
+    gameplay fighter, `smb-figure-rig.js` the narrative figure; they share no code.
+    The plan's advice to port the bezier cape into `drawAccessory` is also stale —
+    the cape was later turned off by default for flattening the silhouette.
+  - `story-cinematics-plan.md`: every count in it was stale. 186 chapters not 158,
+    110 narratives not 83, 113 scene specs not 66, and **zero** narrated chapters
+    lack a spec — the Tier B/C coverage backlog it plans for no longer exists.
+    Phase 1 (`STORY_ACT_STYLES`) shipped. Its continuity blockers are resolved.
+
+### Still open
+
+- ~~Phase 1's own verification was never done~~ — **DONE Sep 7 2026**, though not
+  as the plan specified. The before/after `.smbreplay` A/B is unrecoverable (a
+  "before" means reverting shipped code), so Phase 1 was verified against its own
+  spec in a live browser instead: no double corpse, the full
+  `impact→stagger→fall→settle` beat track, all 7 death-kind selections correct, and
+  the weapon leaving the hand on every kind. The corpse lies extended rather than
+  curled — the exact failure finding 1(a) described. Details in
+  `docs/animation-quality-plan.md`.
+- **Phase 6's gating measurement is done, and it kills the plan's widening bullet.**
+  24 arenas, 30,850 frames: the horizontal camera clamp fires 0.23% of frames on
+  average and above 1% in exactly one arena. The camera never reaches the bounds
+  that widening would relieve. What the data shows instead is that the three wide
+  (3600) arenas resolve separation by zooming out to 0.39 with fighters ~2,320px
+  apart, while the 21 single-screen arenas never go below 0.82 — so a wider map
+  makes legibility worse, not better. Raw data in `docs/cam-measure-2026-09-07.json`.
+- ~~`STORY_SCENE_SPECS` is still one file~~ — **DONE**, split into
+  `js/story/scenes/<act>.js`, 11 files mirroring `js/story/acts/`. Proven lossless:
+  the `STORY_SCENE_SPECS` object snapshotted before and after is byte-identical
+  (267,700 bytes, 113 specs), and chapters from three different split files render
+  with no page errors. `smb-story-scenes.js` is kept as a documented stub that
+  declares the shared table and points at the new files.
+- ~~No spec coverage validator~~ — **DONE**, two rules in `tools/audit/check.js` so
+  it gates `npm run check`: `scene-coverage` (narrative with no spec) and
+  `scene-orphan` (spec with no chapter — the failure that produced `cee0148`). Both
+  proven to fire. `npm run check` still reports the same 72-problem lint baseline,
+  and the audit itself is clean apart from one pre-existing `no-floor` warning.
+- **Nothing is pushed, and Render still does not auto-deploy.**
+
+---
+
+## 6. Final state of the animation plan (Sep 7 2026)
+
+After verifying every phase against source rather than against the plan's own text:
+
+| Phase | State |
+|---|---|
+| 0 substrate | done (`smb-anim-core.js`) |
+| 1 death | done + **verified** this session |
+| 2 player model | done (`smb-anim-fighter.js`) — I had this wrong first, see §5 |
+| 3 finishers | **complete** — `def.smear` added this session; the camera-grammar bullet dropped on evidence |
+| 4 domain | 4 of 5 beats already exist; only the "freeze" beat is missing. Do NOT create `smb-domain-cinematic.js` |
+| 5 transitions | done (`smb-transition.js`) |
+| 6 maps & camera | the only phase with real scope left — but its widening bullet is disproven |
+
+**Four of this plan's findings turned out to be false**, and each would have caused
+a rebuild of working code:
+1. Phase 4's "domain expansion has no cutscene" — it has 665 lines of it.
+2. Phase 6's "three fake-scroll arenas" — they are deliberately single-screen.
+3. Phase 6's "widen 3600 → 4800 where the camera hits its bounds" — measured at
+   0.23% of frames; the camera does not hit its bounds.
+4. Phase 2 read as unshipped — it shipped, under different names in another file
+   (my error, not the plan's).
+
+Phase 3's camera-grammar bullet was dropped on the same basis: the defs already
+make **310 `CinCam` calls** of their own, so a shared always-on camera layer would
+be a second writer to a global the defs already drive.
+
+### What is actually left, and who has to decide it
+
+- **Phase 4's freeze beat** — one addition to the common setup block at the top of
+  `_tickDomainEntry`. Small, and the only mechanical work left in that plan.
+- **Phase 6** — needs a *design* call, not tuning: what should the camera do when
+  two fighters are ~2,300px apart on a 3600-wide arena? Today it zooms to 0.39.
+  Split screen, a leash, or off-screen indicators (`drawEdgeIndicators` exists).
+- **`story-cinematics-plan.md` Phase 3 Tier S** — quality tiering of the 113
+  existing specs. Coverage is complete; this is authoring judgement, not a
+  mechanical pass, so it needs your taste rather than my sweep.
+- **`replays/` is tracked** — the 5 moved captures add ~14MB to history when
+  staged. Track them or gitignore them; that is your call.
+- **Nothing is committed or pushed, and Render does not auto-deploy.**
+
