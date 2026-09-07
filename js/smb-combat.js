@@ -319,9 +319,11 @@ function dealDamage(attacker, target, dmg, kbForce, stunMult = 1.0, isSplash = f
     return;
   }
   // Combat weapon counter stance: absorb the hit, teleport behind attacker next frame.
-  // Bosses and TrueForm bypass the counter (unavoidable by design).
-  if (target._counterStance > 0 && attacker && attacker !== target &&
-      !attacker.isBoss && !attacker.isTrueForm) {
+  // Bosses and TrueForm used to bypass this entirely, which made the Combat Q read
+  // as broken against the Creator: the stance lit up and then nothing happened, with
+  // no feedback distinguishing it from a missed read. Bosses are countered like any
+  // other attacker now; the retaliation launch still respects their kbResist.
+  if (target._counterStance > 0 && attacker && attacker !== target) {
     target._counterStance    = 0;
     target._counterAttacker  = attacker;
     spawnParticles(target.cx(), target.cy(), '#ff4444', 14);
@@ -976,9 +978,22 @@ function dealDamage(attacker, target, dmg, kbForce, stunMult = 1.0, isSplash = f
   }
   // Super charges for the attacker; gun charges faster via superRateBonus
   // Super move itself doesn't charge the next super (prevents instant refill)
-  if (attacker && !attacker.superActive) {
+  // A domain must not pay for its own successor. Damage dealt while you own an
+  // active domain charges nothing: the domain already buffs you, regenerates you
+  // and (for several classes) its hazards credit you meter, so a domain fight
+  // used to refill the bar faster than a neutral one. Measured in
+  // smb_replay_creator_2026-09-07: a full super every 9s, and every super heals
+  // +40 (Fighter.activateSuper), i.e. ~4.4 hp/s of free healing against a boss
+  // dealing ~4.1 hp/s — the player literally out-healed the fight.
+  const _attInOwnDomain = attacker && typeof DomainManager !== 'undefined'
+    && typeof DomainManager.ownsDomain === 'function' && DomainManager.ownsDomain(attacker);
+  if (attacker && !attacker.superActive && !_attInOwnDomain) {
     const superRate = (attacker.superChargeRate || 1) * (attacker.weapon && attacker.weapon.superRateBonus || 1);
     let _superGain = Math.floor(actualDmg * 0.70 * superRate);
+    // Minions are not a fair meter source. The creator fight ships a constant
+    // stream of them, which is why it charged twice as fast as the TrueForm
+    // fight (a super every 9s vs every 18s) for the same player skill.
+    if (target && target.isMinion) _superGain = Math.floor(_superGain * 0.35);
     // Q-ability super cap: max 28 meter points per Q activation (≈28% super)
     if (attacker._qSuperCapRemaining !== undefined) {
       _superGain = Math.min(_superGain, Math.max(0, attacker._qSuperCapRemaining));
@@ -992,7 +1007,9 @@ function dealDamage(attacker, target, dmg, kbForce, stunMult = 1.0, isSplash = f
     }
   }
   // Target also gains super from taking damage (half of what attacker gained)
-  if (target && !target.superActive && !target.isBoss) {
+  const _tgtInOwnDomain = target && typeof DomainManager !== 'undefined'
+    && typeof DomainManager.ownsDomain === 'function' && DomainManager.ownsDomain(target);
+  if (target && !target.superActive && !target.isBoss && !_tgtInOwnDomain) {
     const _targetSuperGain = Math.floor(actualDmg * 0.35);
     const _tPrev = target.superReady;
     target.superMeter = Math.min(100, target.superMeter + _targetSuperGain);

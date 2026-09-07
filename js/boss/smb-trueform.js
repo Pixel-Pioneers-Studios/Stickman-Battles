@@ -15,6 +15,13 @@ class TrueForm extends Fighter {
     this.h             = 50;
     this.isBoss        = true;
     this.isTrueForm    = true;
+    // Damage trim. Applied centrally in dealDamage (attacker.dmgMult) rather than
+    // by editing 26 separate call sites, so every attack scales together and no
+    // single move silently keeps its old value. Measured over
+    // smb_replay_void_2026-09-07: 95 hits on the player for 1481 total, mean 15.6
+    // and a 36 peak, against a 140-170 hp bar — a fight the player only survived
+    // by out-healing it. Trim the input, then fix the healing that hid it.
+    this.dmgMult       = 0.85;
     this.lives         = 1;
     this.spawnX        = 450;
     this.spawnY        = 350;

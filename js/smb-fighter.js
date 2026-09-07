@@ -206,6 +206,22 @@ class Fighter {
       this.tfDrawScale = 1;
       this.drawScale   = 1;
     }
+    // Death clears the debuffs the boss put ON you. Size already restores above,
+    // but control/gravity inversion live in GLOBALS rather than on the fighter, so
+    // nothing was clearing them: you respawned still mirrored, from a hit you had
+    // already paid for with a life. Only a human death clears them — an AI death
+    // must not wipe an arena-wide state mid-fight.
+    if (!this.isAI && !this.isBoss) {
+      if (typeof tfControlsInverted !== 'undefined' && tfControlsInverted) {
+        tfControlsInverted = false;
+        if (typeof tfControlsInvertTimer !== 'undefined') tfControlsInvertTimer = 0;
+      }
+      if (typeof tfGravityInverted !== 'undefined' && tfGravityInverted) {
+        tfGravityInverted = false;
+        if (typeof forceResetGravity === 'function') forceResetGravity();
+      }
+      this._domainSlowFactor = 1;
+    }
     // Always re-pick a safe platform — this handles moving/disappearing boss floor
     if (currentArena && typeof pickSafeSpawn === 'function') {
       const sideHint = this.playerNum === 2 ? 'right' : 'left';
@@ -621,8 +637,11 @@ class Fighter {
         screenShake = Math.max(screenShake, 12);
         // Launcher kick: knock them upward
         dealDamage(this, atk, 18, 12);
-        atk.vy = Math.min(atk.vy, -16);
-        atk.vx = this.facing * 6;
+        // Raw launch site: dealDamage's knockback scaling does not cover these two
+        // direct writes, so apply kbResist here or a countered boss flies like a minion.
+        const _kbR = atk.kbResist || 1;
+        atk.vy = Math.min(atk.vy, -16 * _kbR);
+        atk.vx = this.facing * 6 * _kbR;
         spawnParticles(atk.cx(), atk.cy(), '#ff6644', 16);
       }
     }

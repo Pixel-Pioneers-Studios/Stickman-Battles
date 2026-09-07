@@ -68,6 +68,7 @@ const _BOSS_KILL_POOL    = [FIN_VOID_SLAM, FIN_REALITY_BREAK, FIN_SKY_EXECUTION,
 const FIN_ANTIC_FRAMES = 5;    // wind-up frames inserted before each def.swing
 const FIN_ANTIC_AMOUNT = 0.62; // radians of counter-motion at the peak
 const FIN_HOLD_FRAMES  = 5;
+const FIN_RECOVER_IFRAMES = 48;  // 0.8s of i-frames when a finisher hands control back
 const FIN_BRACE_FRAMES = 4;
 const FIN_HURT_FRAMES  = 10;
 const FIN_SQUASH_FRAMES = 7;
@@ -387,6 +388,14 @@ function updateFinisher() {
     }
     isCinematic = false;
     if (typeof clearCombatLock === 'function') clearCombatLock('finisher');
+    // Recovery i-frames for the attacker. A finisher locks you in place for its
+    // whole duration and hands control back mid-crowd; without this, a player who
+    // executes one enemy while swarmed eats free hits on the frame the lock ends
+    // and is punished for using the move. Short enough not to be an escape tool:
+    // it covers the hand-back, not a reposition.
+    if (attacker && attacker.health > 0) {
+      attacker.invincible = Math.max(attacker.invincible || 0, FIN_RECOVER_IFRAMES);
+    }
     // Let normal death logic take over
     target.health    = 0;
     target.invincible = 0;

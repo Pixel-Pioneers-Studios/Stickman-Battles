@@ -3343,7 +3343,10 @@ class SovereignMK2 extends AdaptiveAI {
     this._checkLimiterBreak(this.target);
     this._updateSuperBank();
     this._updateNullRecoil();
-    this._updateNullAnchor();
+    // Null Anchor removed Sep 7 2026 — see _updateNullAnchor()'s note. The method
+    // is kept (unreferenced) so the behaviour can be restored by re-adding this
+    // one call, rather than by rewriting it.
+    // this._updateNullAnchor();
     this._vetoVoidStep();
     this._vetoSkyClimb();
     this._vetoExtraJump();
@@ -3944,6 +3947,19 @@ class SovereignMK2 extends AdaptiveAI {
   // could act through. Grounded on the main floor → stake the anchor (clamped
   // 80px inside the floor edges). Falling past the arena's kill line with no
   // recovery possible → tether back, once per cooldown.
+  // ── Null Anchor — DISABLED Sep 7 2026, no longer called from updateAI() ──────
+  // Removed on request. Worth recording what the measurement actually said, since
+  // the stated reason and the real one differ:
+  //
+  //   The premise was that the super it spends would have reset on death anyway,
+  //   making the save free. That is NOT how the code behaves — neither
+  //   `superMeter` nor `_domainSuperCount` is reset on respawn anywhere, so the
+  //   50 meter was a real, persistent cost.
+  //
+  //   The removal is still nearly free, for a different reason: the anchor only
+  //   saves RING-OUTS, and in smb_replay_sovereign_2026-09-07 exactly 1 of his 10
+  //   deaths was a ring-out. It was never what kept him alive, so taking it away
+  //   is not what will make him lose — nor was it what made him win.
   _updateNullAnchor() {
     if (this._anchorCd > 0) this._anchorCd--;
     if (this.health <= 0) return;
