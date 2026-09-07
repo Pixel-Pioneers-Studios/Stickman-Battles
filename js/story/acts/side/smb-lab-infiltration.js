@@ -19,7 +19,7 @@ STORY_CHAPTER_REGISTRY.push({
         'Whatever it was built for, it was never meant to be found.',
         '',
         '"Axiom." Veran\'s voice on the comm. Strained.',
-        '"That facility is on every restricted list I have access to."',
+        '"That facility is on every restricted list I have."',
         '"It predates the fractures. Which means someone was studying them"',
         '"before they were supposed to exist."',
         '',
@@ -30,11 +30,10 @@ STORY_CHAPTER_REGISTRY.push({
         '',
         'This wasn\'t an accident.',
         'The fractures were built as weapons.',
-        'And this facility was where Axiom\'s war started.',
         '',
         'The door was already open.',
         'Something was inside, waiting.',
-    ],
+      ],
 
     fightScript: [
         { frame: 60,  text: 'Lab security — automated, hostile, no hesitation.', color: '#88ccff', timer: 260 },

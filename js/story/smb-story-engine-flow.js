@@ -371,10 +371,18 @@ function _showStory2Narrative(lines, callback) {
   _narrativeActive = true;
 
   if (typeof showNarrativeScene === 'function') {
+    // Every between-chapter segment plays as a cutscene, not a click-through
+    // reader: beats auto-advance on a reading-rate budget, the camera keeps
+    // drifting, and holding click/Space scrubs. holdLastBeat stops the film on
+    // its final beat and shows the ordinary Fight!/Continue button, so the
+    // player still chooses the moment the match starts.
+    //
+    // A multi-chapter run (smb-story-cinematic-sequence.js) does NOT come
+    // through here — it calls showNarrativeScene itself so it can span chapters.
     showNarrativeScene(lines, _activeStory2Chapter, function () {
       _narrativeActive = false;
       if (callback) callback();
-    });
+    }, { cinematic: true, holdLastBeat: true });
   } else {
     // Fallback: legacy DOM panel if scene renderer not loaded
     const panel   = document.getElementById('storyDialoguePanel');

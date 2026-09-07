@@ -53,7 +53,7 @@ STORY_CHAPTER_REGISTRY.push(
       '"I know why you\'re here," the second Architect said.',
       '"Veran sent you. And the rift entity briefed you."',
       '',
-      '"We built those portals together, you know.",',
+      '"We built those portals together, you know."',
       '"To contain a rift. To seal it. And then something went wrong."',
       '"Something got out."',
       '"And now it\'s in you."',
