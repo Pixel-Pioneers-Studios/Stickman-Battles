@@ -151,7 +151,14 @@ TrueForm.prototype._doSpecial = function(move, target) {
         this.postSpecialPause = 9;
         screenShake = Math.max(screenShake, 18);
         showBossDialogue('Don\'t stop. Neither will I.', 160);
-        tfChainSlam = { stage: 0, timer: 0, target };
+        // The grab teleports the target to the boss, so without a reach limit and
+        // a warning it read as a 76-damage combo landing out of nowhere from
+        // across the arena. `reach` is re-checked when the grab actually fires.
+        bossWarnings.push({ type: 'cross', x: target.cx(), y: target.cy(), r: 46,
+          color: '#8800ff', timer: 20, maxTimer: 20, label: 'GRAB!' });
+        bossWarnings.push({ type: 'circle', x: this.cx(), y: this.cy(), r: 260,
+          color: '#8800ff', timer: 20, maxTimer: 20 });
+        tfChainSlam = { stage: 0, timer: 0, target, reach: 260 };
         break;
       }
       case 'gravity':
@@ -360,6 +367,11 @@ TrueForm.prototype._doSpecial = function(move, target) {
           ],
         };
         const strikeDelay = 38;
+        // The ghost paths draw at 0.22/0.85 alpha and are easy to miss, but the
+        // strike lands for 34 with hitInvincibleFrames 0 after a teleport onto the
+        // target — loud enough damage to deserve the loud telegraph vocabulary.
+        bossWarnings.push({ type: 'cross', x: predictX, y: predictY, r: 44,
+          color: '#aaddff', timer: strikeDelay, maxTimer: strikeDelay, label: 'STRIKE!' });
         tfMathBubble = { text: bubbleText, timer: 0, maxTimer: 38, x: this.cx(), y: this.y - 18 };
         tfCalcStrike = { timer: 0, maxTimer: Math.max(strikeDelay + 14, 55), predictX, predictY,
                          fired: false, strikeDelay, targetRef: target };

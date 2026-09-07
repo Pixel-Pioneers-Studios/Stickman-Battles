@@ -487,6 +487,7 @@ function gameLoop(timestamp) {
     const bossRef = players.find(p => p.isBoss) || trainingDummies.find(d => d.isBoss);
     for (const sp of bossSpikes) {
       if (sp.done) continue;
+      if (sp.delay > 0) { sp.delay--; continue; } // telegraph window, spike not yet out of the floor
       if (sp.phase === 'rising') {
         sp.h += 8;
         if (sp.h >= sp.maxH) { sp.h = sp.maxH; sp.phase = 'staying'; sp.stayTimer = 180; }
@@ -503,7 +504,9 @@ function gameLoop(timestamp) {
         const spikeTargets = trainingMode ? players : players.filter(p => !p.isBoss);
         for (const p of spikeTargets) {
           if (p.health <= 0 || p.invincible > 0) continue;
-          if (Math.abs(p.cx() - sp.x) < 9 && p.y + p.h > spikeTopY) {
+          // 9px was narrower than the spike is drawn and narrower than a fighter,
+          // so a five-spike volley covered ~10% of the stage and almost never hit.
+          if (Math.abs(p.cx() - sp.x) < 20 && p.y + p.h > spikeTopY) {
             dealDamage(bossRef || players.find(q => q.isBoss) || null, p, 14, 14, 1.0, false, 20);
             // Bounce player upward so they can escape
             if (p.vy >= 0) {

@@ -3105,7 +3105,9 @@ class Fighter {
           if (d.health <= 0) continue;
           if (dist(this, d) < 280) dealDamage(this, d, 15, 50);
         }
-        if (this.isBoss) this.postSpecialPause = 90; // 1.5s pause after super
+        // postSpecialPause is counted in AI ticks, not frames — 90 was 22.5s of
+        // total silence, the single largest cause of the boss's dead stretches.
+        if (this.isBoss) this.postSpecialPause = 6; // 6 ticks = 90 frames = 1.5s
       },
       // ── Nullblade: Null Sequence — 3-hit combo extender, low KB to keep target in range ──
       nullblade: () => {
@@ -4779,12 +4781,21 @@ class Fighter {
     // frame, so it costs nothing when the arm is not moving.
     // Only committed motion smears — a walk cycle's arm swing must not, or every
     // step trails ghosts.
-    const _canSmear = (s === 'attacking' || s === 'ragdoll' || this.spinning > 0);
+    // _finSmear is set by the finisher engine across its swing windows. A
+    // finisher never sets state 'attacking' (writing attackTimer would re-arm the
+    // melee hit-scan), so without this the game's biggest swing was the only one
+    // that never trailed.
+    const _canSmear = (s === 'attacking' || s === 'ragdoll' || this.spinning > 0 ||
+                       !!this._finSmear);
     if (_hiQ && _canSmear && typeof animSmear === 'function') {
       const _pv = this._smearPrev;
       this._smearPrev = { x: rEx, y: rEy, ex: rElbX, ey: rElbY };
       const _dsp = _pv ? Math.hypot(rEx - _pv.x, rEy - _pv.y) : 0;
-      if (_dsp > 11) {
+      // The 11px gate exists so a walk cycle's arm swing does not ghost every
+      // step. A finisher has no walk cycle — the pose is authored and the swing
+      // IS the showcase — so it gets a lower bar, or only the two fastest frames
+      // of the whole sequence trail.
+      if (_dsp > (this._finSmear ? 6 : 11)) {
         // animSmear applies the offset via ctx.translate, so drawFn just draws
         // the arm where it is now; the path runs from last frame's hand back to
         // this one, which puts the ghosts along the swing.
@@ -4796,7 +4807,9 @@ class Fighter {
           ctx.lineTo(rElbX, rElbY);
           ctx.lineTo(rEx, rEy);
           ctx.stroke();
-        }, _pv.x - rEx, _pv.y - rEy, 0, 0, 4, 0.34);
+        }, _pv.x - rEx, _pv.y - rEy, 0, 0,
+           this._finSmear ? this._finSmear.samples : 4,
+           this._finSmear ? this._finSmear.alpha   : 0.34);
       }
     } else {
       this._smearPrev = { x: rEx, y: rEy, ex: rElbX, ey: rElbY };

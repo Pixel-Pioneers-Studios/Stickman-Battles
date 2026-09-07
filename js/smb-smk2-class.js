@@ -3403,11 +3403,32 @@ class SovereignMK2 extends AdaptiveAI {
     const DANGER = 110 + kb * 5;                       // ~145px vs spear, ~190 vs hammer
     if (m > DANGER) { this._ringoutRisk = 0; return; }
     const inward = marginL < marginR ? 1 : -1;
-    const risk   = 1 - m / DANGER;                     // 0 at the threshold, 1 at the lip
+    let   risk   = 1 - m / DANGER;                     // 0 at the threshold, 1 at the lip
+
+    // THE CORNER IS ALSO WHERE HE CONVERTS. This guard is a blanket "walk to the
+    // middle" and it fires on geometry alone, so it pulled him off the one
+    // position his kills come from: measured over the 2026-09-06 replays, while
+    // the player was inside the same danger band he was moving AWAY from them on
+    // 38% / 48% of frames and swinging on 6-15%, and his stock count tracked it
+    // exactly — 5 ringouts in the match where he stayed, 0 in the one where he
+    // did not. Knockback has a DIRECTION: when the target is on the outward side
+    // of him, their hits push him toward centre and the near edge is not a threat
+    // at all, it is the wall he is pressing them into. Fade the guard out across
+    // that read rather than switching it off, so a target level with him still
+    // registers and only a genuinely cornered one frees him to commit.
+    const _tgt = this.target;
+    if (_tgt && _tgt.health > 0) {
+      // >0 when the target is further out toward the near edge than he is.
+      const outward = (this.cx() - _tgt.cx()) * inward;
+      if (outward > 0) risk *= Math.max(0, 1 - outward / 90);
+    }
     this._ringoutRisk = risk;
+    if (risk <= 0.01) return;
     // Never push him off the OTHER side, and never override a real hazard escape.
     if (this.isEdgeDanger(inward)) return;
-    this.vx += inward * (0.30 + risk * 0.85);
+    // Scaled by risk end-to-end (the 0.30 term used to be a floor). Identical at
+    // the lip, where it matters; continuous as the corner-press read fades it out.
+    this.vx += inward * risk * 1.15;
     const cap = (this.classSpeedMult || 1) * 6.5;
     if (Math.abs(this.vx) > cap) this.vx = Math.sign(this.vx) * cap;
   }
@@ -3500,10 +3521,24 @@ class SovereignMK2 extends AdaptiveAI {
       lo.wk !== 'gauntlet' && lo.wk !== 'mkgauntlet');
     if (!pool.length) return null;
 
-    const tried = pool.reduce((n, lo) =>
-      n + ((this._loadoutStats[lo.key] && this._loadoutStats[lo.key].lives) ? 1 : 0), 0);
+    // EXPLORATION COUNT MUST COME FROM THE DOSSIER, NOT FROM _loadoutStats.
+    // _loadoutStats is built in the constructor and _pickLoadout is called EXACTLY
+    // ONCE, from _ensureMatchLoadout, on the first frame he has a target — before
+    // any life has been banked. So `tried` was structurally always 0 and eps was
+    // always the 0.30 branch: 30% of all matches opened on a uniformly random kit,
+    // and because the pick is locked for the match (see _ensureMatchLoadout) he
+    // could never correct it. Measured in 2026-09-06 replay (3): opened on hammer
+    // (reach 80, cooldown 75) against a spear (reach 130, cooldown 44) and lost
+    // 10-2 without ever re-picking, while the counter-informed score would have
+    // handed him katana by a factor of ~2. The dossier is the only loadout memory
+    // that survives a match, so it is the only thing that can honestly say how
+    // much he has already explored.
+    const _dk0 = (typeof SovDossier !== 'undefined') ? this._dossierKeys() : [];
+    const tried = _dk0.length
+      ? pool.reduce((n, lo) => n + (SovDossier.loadoutPrior(_dk0, lo.key) ? 1 : 0), 0)
+      : 0;
     const eps = tried < 3 ? 0.30 : 0.10;
-    if (Math.random() < eps) return pool[Math.floor(Math.random() * pool.length)];
+    const explore = Math.random() < eps;
 
     // Put the priors on the same scale as what he is actually measuring. They are
     // damage per 1000 frames; a life is some unknown fraction of that, and a fixed
@@ -3524,9 +3559,10 @@ class SovereignMK2 extends AdaptiveAI {
     // in-match stats above only exist from life 2 onward and are wiped every
     // match; the dossier is what lets him open a REMATCH already holding the kit
     // that beat this person last time instead of rediscovering it over ten lives.
-    const _dkeys = (typeof SovDossier !== 'undefined') ? this._dossierKeys() : [];
+    const _dkeys = _dk0;
 
-    let best = null, bestScore = -Infinity;
+    // Scored first, chosen second — the exploration draw needs the scores too.
+    const scored = [];
     for (const lo of pool) {
       const rec  = this._loadoutStats[lo.key] || { lives: 0, dealt: 0 };
       const seed = lo.prior * scale;
@@ -3535,10 +3571,25 @@ class SovereignMK2 extends AdaptiveAI {
         const dp = SovDossier.loadoutPrior(_dkeys, lo.key);
         if (dp) { num += dp.mean * dp.weight; den += dp.weight; }
       }
-      const score = (num / den) * _smk2CounterBonus(lo, this.target);
-      if (score > bestScore) { bestScore = score; best = lo; }
+      scored.push({ lo, score: (num / den) * _smk2CounterBonus(lo, this.target) });
     }
-    return best;
+    scored.sort((a, b) => b.score - a.score);
+
+    // EXPLORATION DRAWS FROM THE TOP OF THE LIST, NOT FROM THE WHOLE POOL.
+    // The first pass at this filtered the explore pool on _smk2CounterBonus >= 1
+    // and that filter is inert where it is needed most: the counter prior is
+    // deliberately capped at +-18%, and against a 130-reach spear NOTHING in the
+    // pool clears 1.0 (best is katana at 0.87), so every kit stayed eligible and
+    // the coin flip was unchanged. The score is the only quantity with enough
+    // dynamic range to separate them — vs spear it spreads 85 (katana) to 44
+    // (hammer). So he still explores, but among kits that can actually win:
+    // trying katana instead of sword is exploration, opening on the worst kit in
+    // the pool and being locked into it for ten lives is not.
+    if (explore && scored.length > 1) {
+      const k = Math.min(3, scored.length);
+      return scored[Math.floor(Math.random() * k)].lo;
+    }
+    return scored.length ? scored[0].lo : null;
   }
 
   // Equip a loadout. The class contributes identity only — applyClass overwrites
@@ -4171,8 +4222,9 @@ class SovereignMK2 extends AdaptiveAI {
     if (typeof bossBeams !== 'undefined' && Array.isArray(bossBeams)) {
       for (const b of bossBeams) {
         if (!b || b.done) continue;
-        // A beam telegraphs for 300 frames (5s) before it fires. Treating warning
-        // and active alike meant five seconds of backing away from a harmless
+        // A beam telegraphs before it fires (110 frames, 150 in the meteor storm;
+        // it was 300 when this was written). Treating warning
+        // and active alike meant seconds of backing away from a harmless
         // marker every time the boss cast — so he gave up all his pressure and
         // was often drifting back in by the time it actually turned on. React in
         // the last second of the warning, and for the whole 110-frame active burn.

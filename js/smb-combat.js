@@ -296,6 +296,11 @@ function dealDamage(attacker, target, dmg, kbForce, stunMult = 1.0, isSplash = f
     );
     if (_gd > 160) return;
   }
+  // Backstage gate — a boss mid-portal sits at (-2000,-2000) invulnerable for up
+  // to 2.5s, but the hazards it spawned earlier keep ticking. That damage arrives
+  // with no visible source and nothing to punish: measured in
+  // smb_replay_void_2026-09-06 as 39 damage delivered from 2280px away.
+  if (attacker && attacker.backstageHiding && target && !target.isBoss) return;
   // TF opening cinematic: TrueForm cannot hurt players — fight is fully scripted
   if (typeof tfOpeningFightActive !== 'undefined' && tfOpeningFightActive &&
       attacker && attacker.isTrueForm && target && !target.isBoss) return;

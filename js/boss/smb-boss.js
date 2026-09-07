@@ -41,6 +41,9 @@ class Boss extends Fighter {
     this.spikeCooldown  = 24;   // 24 ticks = 360 frames = ~6 s initial
     // Post-special pause (in AI ticks; 1 tick ≈ 0.25 s)
     this.postSpecialPause = 0;
+    // Melee pressure window opened when a recovery ends — no further special may
+    // be queued until it runs out, so recoveries can never chain back to back.
+    this._pressureTicks   = 0;
     // Monologue tracking
     this.phaseDialogueFired = new Set();
     this._maxLives          = 1; // boss shows phase indicator, not hearts
@@ -77,6 +80,17 @@ class Boss extends Fighter {
     return 3;
   }
 
+  // Recovery after a special, in AI ticks. Phase 3 buys roughly twice as many
+  // specials as phase 1 (cdScale 0.55, plus spikes and double-rate beams), so a
+  // flat cost meant the later the phase the less the boss could do: measured off
+  // smb_replay_creator_2026-09-06 its melee fell from 25 to 11 swings/min and its
+  // damage output peaked in phase 2. The cost now shrinks as the cadence rises.
+  _chargeRecovery(ticks) {
+    const phase = this.getPhase();
+    const scale = phase === 3 ? 0.55 : phase === 2 ? 0.8 : 1;
+    this.postSpecialPause = Math.max(this.postSpecialPause, Math.max(1, Math.round(ticks * scale)));
+  }
+
   // Override attack: gauntlet melee only, half cooldowns
   attack(target) {
     if (this.backstageHiding) return;
@@ -95,7 +109,7 @@ class Boss extends Fighter {
     this.weapon.ability(this, target);
     this.abilityCooldown  = Math.max(1, Math.ceil(this.weapon.abilityCooldown * (this.attackCooldownMult || 0.5)));
     this.attackTimer      = this.attackDuration * 2;
-    this.postSpecialPause = 3; // 3 ticks = 45 frames = 0.75s pause after void slam ability
+    this._chargeRecovery(3); // 3 ticks = 45 frames = 0.75s pause after void slam ability
   }
 
   // Override AI: phase-based, more aggressive, respects shield cooldown
@@ -123,9 +137,17 @@ class Boss extends Fighter {
     if (this.aiReact > 0) { this.aiReact--; return; }
     if (this.ragdollTimer > 0 || this.stunTimer > 0) return;
     if (bossStaggerTimer > 0) return; // stunned — vulnerability window
-    // Post-special pause: boss moves but doesn't attack for 1.5s after specials
-    if (this.postSpecialPause > 0) this.postSpecialPause--;
-    const canAct = this.postSpecialPause <= 0;
+    // Post-special pause: boss moves but doesn't attack for 1.5s after specials.
+    // When one ends, a melee pressure window opens that blocks the next special,
+    // so recovery can never occupy more than pause/(pause+pressure) of the fight.
+    if (this.postSpecialPause > 0) {
+      this.postSpecialPause--;
+      if (this.postSpecialPause <= 0) this._pressureTicks = 6; // 6 ticks = 90 frames = 1.5s
+    } else if (this._pressureTicks > 0) {
+      this._pressureTicks--;
+    }
+    const canAct     = this.postSpecialPause <= 0;
+    const canSpecial = canAct && this._pressureTicks <= 0;
 
     if (this.target && !activeCinematic && typeof this._dominanceMoment === 'function') {
       this._dominanceMoment(this.target);
@@ -248,9 +270,9 @@ class Boss extends Fighter {
     const cdScale      = phase === 3 ? 0.55 : phase === 2 ? 0.75 : 1.0;
     const specialFreq  = phase === 3 ? 0.10 : phase === 2 ? 0.055 : 0.025;
     const fullD_pre    = dist(this, t);
-    if (canAct && (this._idleTicks >= 8 || Math.random() < specialFreq)) {
+    if (canSpecial && (this._idleTicks >= 8 || Math.random() < specialFreq)) {
       const fired = this._bossFireSpecial(phase, t, d, fullD_pre, cdScale);
-      if (fired) { this._idleTicks = 0; this.postSpecialPause = Math.max(this.postSpecialPause, 3); return; }
+      if (fired) { this._idleTicks = 0; this._chargeRecovery(3); return; }
       if (this._idleTicks >= 12) this._idleTicks = 8; // nothing available yet — back off slightly
     }
 
@@ -357,14 +379,16 @@ class Boss extends Fighter {
     if (phase >= 3) {
       if (this.spikeCooldown > 0) {
         this.spikeCooldown--;
-      } else if (canAct && t) {
+      } else if (canSpecial && t) {
         const numSpikes = 5;
         for (let i = 0; i < numSpikes; i++) {
           const sx = clamp(t.cx() + (i - Math.floor(numSpikes / 2)) * 40, 20, 880);
-          bossSpikes.push({ x: sx, maxH: 90 + Math.random() * 50, h: 0, phase: 'rising', stayTimer: 0, done: false });
+          bossWarnings.push({ type: 'spike_warn', x: sx, y: 460, r: 12,
+            color: '#ff6600', timer: 40, maxTimer: 40 });
+          bossSpikes.push({ x: sx, maxH: 90 + Math.random() * 50, h: 0, delay: 40, phase: 'rising', stayTimer: 0, done: false });
         }
         this.spikeCooldown = 24; // in AI ticks
-        this.postSpecialPause = 4;
+        this._chargeRecovery(4);
         showBossDialogue(randChoice(['The floor has opinions.', 'Watch what\'s beneath you.', 'Everything rises at my word.', 'Below.']));
       }
     }
@@ -397,15 +421,18 @@ class Boss extends Fighter {
     if (phase >= 2) {
       if (this.beamCooldown > 0) {
         this.beamCooldown--;
-      } else if (canAct && t) {
+      } else if (canSpecial && t) {
         const numBeams = phase === 3 ? 4 : 2;
+        // 300 frames of warning is five seconds — long enough that the player has
+        // walked out and come back before the beam lands, which is why the volley
+        // never connected. 110 still clears the ~0.7s a full-stage reposition needs.
         for (let i = 0; i < numBeams; i++) {
           const spread = (i - Math.floor(numBeams / 2)) * 95;
           const bx = clamp(t.cx() + spread + (Math.random() - 0.5) * 70, 40, 860);
-          bossBeams.push({ x: bx, warningTimer: 300, activeTimer: 0, phase: 'warning', done: false });
+          bossBeams.push({ x: bx, warningTimer: 110, activeTimer: 0, phase: 'warning', done: false });
         }
         this.beamCooldown = phase === 3 ? 16 : 28; // in AI ticks
-        this.postSpecialPause = 4;
+        this._chargeRecovery(4);
         showBossDialogue(randChoice(['The arena remembers where you stood.', 'Light doesn\'t miss.', 'I\'m everywhere you aren\'t.', 'This is what \'nowhere\' looks like.']));
       }
     }
@@ -491,11 +518,11 @@ class Boss extends Fighter {
         // Avoid placing beams on safe zones
         do { bx = 60 + Math.random() * (GAME_W - 120); }
         while (safePositions.some(sx => Math.abs(bx - sx) < 80));
-        bossBeams.push({ x: bx, warningTimer: 240, activeTimer: 0, phase: 'warning', done: false });
+        bossBeams.push({ x: bx, warningTimer: 150, activeTimer: 0, phase: 'warning', done: false });
       }
       // Register safe zones so beam damage is skipped inside them
       for (const sx of safePositions) {
-        bossMetSafeZones.push({ x: sx, y: 380, r: 70, timer: 240 + 110, maxTimer: 240 + 110 });
+        bossMetSafeZones.push({ x: sx, y: 380, r: 70, timer: 150 + 110, maxTimer: 150 + 110 });
       }
       screenShake = Math.max(screenShake, 14);
       showBossDialogue(randChoice(['Every corner belongs to me.', 'Let it rain.', 'I own the sky too.', 'Nowhere safe. I checked.']), 220);
