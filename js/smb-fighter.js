@@ -312,6 +312,17 @@ class Fighter {
     this.lavaBurnTimer   = 0;
     this._speedBuff      = 0;
     this._powerBuff      = 0;
+    // Map perks are a per-life economy. Buffs were already cleared here, but
+    // curses had no clear at all and maxHealth deltas never rolled back, so a
+    // death wiped everything you had earned and kept everything you had been
+    // punished with. Both sides now end with the life.
+    this.curses          = [];
+    if (this._perkMaxHpDelta) {
+      this.maxHealth      -= this._perkMaxHpDelta;
+      this._perkMaxHpDelta = 0;
+      // health was already refilled to the pre-rollback maxHealth further up.
+      this.health          = this.maxHealth;
+    }
     this._domainSlowFactor = 1;
     this._domainSlowAccum  = 0;
     this.classPerkUsed    = false;

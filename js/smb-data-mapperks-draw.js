@@ -14,7 +14,9 @@ function applyMapPerk(player, type) {
     player.invincible = Math.max(player.invincible, 180);
     spawnParticles(player.cx(), player.cy(), '#88ddff', 20);
   } else if (type === 'maxhp') {
+    const before = player.maxHealth;
     player.maxHealth = Math.min(250, player.maxHealth + 15);
+    player._perkMaxHpDelta = (player._perkMaxHpDelta || 0) + (player.maxHealth - before);
     player.health    = Math.min(player.maxHealth, player.health + 15);
     spawnParticles(player.cx(), player.cy(), '#ff88ff', 20);
   } else if (type === 'curse_slow') {
@@ -33,7 +35,12 @@ function applyMapPerk(player, type) {
     player.curses.push({ type: 'curse_fragile', timer: 25 * 60 }); // 25s
     spawnParticles(player.cx(), player.cy(), '#ff8800', 14);
   } else if (type === 'curse_maxhp_perm') {
+    // "perm" means for the rest of THIS life. respawn() rolls _perkMaxHpDelta
+    // back, so a curse can no longer compound across a ten-life fight into an
+    // unrecoverable health floor while every buff is wiped on death.
+    const before = player.maxHealth;
     player.maxHealth = Math.max(50, player.maxHealth - 15);
+    player._perkMaxHpDelta = (player._perkMaxHpDelta || 0) + (player.maxHealth - before);
     if (player.health > player.maxHealth) player.health = player.maxHealth;
     spawnParticles(player.cx(), player.cy(), '#880000', 18);
   }

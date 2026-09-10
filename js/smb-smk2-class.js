@@ -2790,7 +2790,22 @@ class SovereignMK2 extends AdaptiveAI {
     // Within two supers of Absolute Dominion, holding for a perfect window costs
     // more than the window is worth — the domain is the bigger payoff, and the
     // counter is wiped by death, so banking supers can lose it outright.
-    const domainPush = (this._domainSuperCount || 0) >= 3;
+    //
+    // Gate was `>= 3`. Measured across the eight September replays: Sovereign
+    // reached 3 spends in a life in roughly a third of his lives, so the
+    // accelerator meant to carry him to Absolute Dominion almost never engaged —
+    // he took ZERO domains in all eight matches, including the two he won, with
+    // a best-ever life of 3 against a threshold of 5. The player took one in
+    // four matches and won every one of those. At `>= 1` the push is live for
+    // almost the whole life, which is the only way the counter reaches 5 before
+    // a death resets it.
+    const domainPush = (this._domainSuperCount || 0) >= 1;
+
+    // The super is also a combo STARTER, not only a reward for a window someone
+    // else opens. In swing range, with the opponent not mid-swing and not
+    // guarding, opening with it is a real line — every other term in
+    // `superWindow` waits on the opponent to make a mistake first.
+    const comboOpener = d < weaponRange + 40 && !t.attackTimer && (this.attackEndlag || 0) <= 0;
 
     // Stale-bank release is handled in _updateSuperBank(), which runs every frame
     // from update(). This function turned out to be reached only ~15 times a
@@ -2799,7 +2814,7 @@ class SovereignMK2 extends AdaptiveAI {
 
     const superWindow = targetLocked || targetInHazard || finishable || selfNeedsSuper ||
       targetCursed || (targetArmored && targetBuffed) || this._punishModeActive || domainPush ||
-      _bankStale;
+      _bankStale || comboOpener;
     if (this.superReady && closeEnough && superWindow && !t.shielding) {
       this.useSuper(t);
       if (!this.superReady) return true;
@@ -3817,17 +3832,33 @@ class SovereignMK2 extends AdaptiveAI {
     if (!this.superReady) { this._superFullSince = 0; this._bankStale = false; return; }
     if (!this._superFullSince) this._superFullSince = _fc;
 
-    // Full and unspent for ~6s. Below that he still gets to hold for a real read.
-    this._bankStale = (_fc - this._superFullSince) > 380;
+    // Was ~6s (380 frames). Frame-by-frame `sm` across the eight September
+    // replays measured the cost of that hold: he sat on a full, unspent bar for
+    // 20-36% of every match against the player's 6-14%, which capped him at
+    // 2-3 spends per life no matter how long he lived, while the player's
+    // spends scaled with life length (8-11 in a long life). The domain counter
+    // only advances on spends, so the hold — not his charge rate, which matches
+    // the player's — is what put Absolute Dominion out of reach. ~1.5s still
+    // buys a real read; it just no longer buys a hoard.
+    const _held = _fc - this._superFullSince;
+    this._bankStale = _held > 90;
     if (!this._bankStale) return;
 
     // Don't fire it into nothing — it still has to be able to connect.
     const t = this.target;
-    if (!t || t.health <= 0 || t.shielding) return;
+    if (!t || t.health <= 0) return;
+    // A guard normally makes the spend worthless, but a player who simply holds
+    // shield would otherwise freeze the bar for the rest of the life. Past ~8s
+    // the pressure is worth more than the perfect window: shields have finite
+    // stacks and the super is how he breaks one.
+    if (t.shielding && _held < 500) return;
     if (this.stunTimer > 0 || this.ragdollTimer > 0) return;
     if ((this.attackEndlag || 0) > 0) return;
     const d = Math.hypot(t.cx() - this.cx(), t.cy() - this.cy());
-    if (d > 240) return;
+    // 240 was under half the stage. He closes distance himself, so a slightly
+    // wider gate lets the release fire on approach instead of waiting out the
+    // gap at a full bar.
+    if (d > 300) return;
 
     this.useSuper(t);
     if (!this.superReady) this._superFullSince = 0;

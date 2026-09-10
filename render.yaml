@@ -23,4 +23,43 @@ services:
       - key: SUPABASE_SERVICE_ROLE_KEY
         sync: false
       - key: ALLOWED_ORIGINS
-        value: https://stickman-battles.onrender.com,http://localhost:3001,http://localhost:5173,http://127.0.0.1:3001
+        value: https://stickman-battles.onrender.com,https://stickman-evolution-saga1.onrender.com,https://stickman-evolution-saga2.onrender.com,https://stickman-evolution-saga3.onrender.com,http://localhost:3001,http://localhost:5173,http://127.0.0.1:3001
+
+  # ── Standalone saga games ───────────────────────────────────────────────────
+  # Each saga is the SAME codebase with a different ACTIVE_SAGA stamped in by
+  # tools/split-saga.js at build time. They are pure static bundles: the relay,
+  # ban API and Supabase reward writes all live on the Node service above, which
+  # every build already calls via SERVER_CONFIG.url in js/smb-globals.js.
+  #
+  # Static sites are free and never sleep, so this is both cheaper and more
+  # available than running a Node service per saga — and it keeps ONE ban
+  # database and ONE lobby pool instead of three partitioned copies.
+  #
+  # split-saga.js uses only Node builtins, so no install step is needed.
+
+  - type: web
+    name: stickman-evolution-saga1
+    runtime: static
+    plan: free
+    branch: main
+    buildCommand: node tools/split-saga.js saga1
+    staticPublishPath: ./dist/saga1-the-fragment
+    autoDeploy: true
+
+  - type: web
+    name: stickman-evolution-saga2
+    runtime: static
+    plan: free
+    branch: main
+    buildCommand: node tools/split-saga.js saga2
+    staticPublishPath: ./dist/saga2-the-multiverse-war
+    autoDeploy: true
+
+  - type: web
+    name: stickman-evolution-saga3
+    runtime: static
+    plan: free
+    branch: main
+    buildCommand: node tools/split-saga.js saga3
+    staticPublishPath: ./dist/saga3-the-substrate
+    autoDeploy: true
