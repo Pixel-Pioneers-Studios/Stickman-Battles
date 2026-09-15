@@ -253,11 +253,12 @@ function triggerFinisher(attacker, target) {
   if (!attacker || !target) return false;
   if (trainingMode || tutorialMode) return false;
   if (onlineMode)          return false;
-  // In BR (or any mode with many bot-vs-bot fights) only show finishers the local player is part of
-  if (gameMode === 'battleroyale') {
-    var _localP = players[0];
-    if (!_localP || (attacker !== _localP && target !== _localP)) return false;
-  }
+  // Battle Royale runs no finishers at all. Restricting them to the local
+  // player's own kills was not enough: a finisher takes over the stage and
+  // freezes the world, and in a 100-player match with a closing storm that is
+  // several seconds of standing still inside a ring that does not stop moving —
+  // it gets you killed for winning a fight.
+  if (gameMode === 'battleroyale') return false;
 
   let def = null;
 

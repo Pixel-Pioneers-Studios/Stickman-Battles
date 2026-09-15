@@ -30,6 +30,13 @@ const ACHIEVEMENTS = [
   { id: 'chaos_survivor',      title: 'Chaos Agent',          desc: 'Survive a wave with 3 chaos mods',          icon: '🌀' },
   { id: 'chaos_all',           title: 'Pure Chaos',           desc: 'Activate all 8 chaos modifiers at once',    icon: '🔥', hint: 'Toggle all chaos modifiers on before starting a match' },
   { id: 'nexus_defender',      title: 'Nexus Defender',       desc: 'Survive 5 waves in Nexus Defense',          icon: '🔷', hint: 'Protect the Nexus from 5 waves of attackers' },
+  // Battle Royale — all four of these are single-match feats, deliberately steep.
+  { id: 'br_victory',          title: 'Last One Standing',    desc: 'Win a Battle Royale',                       icon: '🥇', hint: 'Outlive all 99 other fighters in a single Battle Royale match' },
+  { id: 'br_kills_10',         title: 'Ten Down',             desc: '10 eliminations in one Battle Royale',      icon: '🔟', hint: 'Land the killing blow on 10 fighters in a single match' },
+  { id: 'br_kills_25',         title: 'Rampage',              desc: '25 eliminations in one Battle Royale',      icon: '💢', hint: 'A quarter of the field, in one match, by your hand' },
+  { id: 'br_kills_50',         title: 'Half the Field',       desc: '50 eliminations in one Battle Royale',      icon: '☠️', hint: 'Fifty of them. One match. Yes, really.' },
+  { id: 'br_cartographer',     title: 'Cartographer',         desc: 'Visit every zone in one Battle Royale',     icon: '🧭', hint: 'All fifteen named bands — including Cloud Kingdom and Volcano Depths, which need the rifts' },
+  { id: 'br_scavenger',        title: 'Scavenger',            desc: 'Open 20 crates in one Battle Royale',       icon: '📦', hint: 'Break twenty loot crates yourself in a single match' },
   // Online
   { id: 'online_winner',       title: 'Connected',            desc: 'Win your first online match',               icon: '🌐', hint: 'Beat a real player in an online PvP session' },
   // Bosses & Enemies

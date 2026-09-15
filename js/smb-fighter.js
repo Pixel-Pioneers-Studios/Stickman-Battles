@@ -1,5 +1,16 @@
 'use strict';
 
+// ── CLASH ─────────────────────────────────────────────────────────────────
+// Two melee swings starting within CLASH_WINDOW frames of each other cancel
+// out instead of one silently losing the race. See Fighter._resolveClash().
+const CLASH_WINDOW    = 6;   // frames apart to still count as simultaneous
+const CLASH_KNOCKBACK = 6.5; // horizontal push applied to BOTH fighters
+const CLASH_ENDLAG    = 16;  // recovery before either may swing again
+const CLASH_COOLDOWN  = 20;  // re-clash guard, so a trade can't loop
+const CLASH_HITSTOP   = 8;   // freeze frames on the exchange
+const CLASH_STREAK_MAX   = 2;   // consecutive clashes allowed per pair
+const CLASH_STREAK_RESET = 120; // frames of no clashing that clears the streak
+
 // ============================================================
 // FIGHTER
 // ============================================================
@@ -82,6 +93,8 @@ class Fighter {
     this.aiState     = 'chase';
     this.aiReact     = 0;
     this.squashTimer   = 0;  // frames of landing squash animation
+    this._wallSlamCd   = 0;  // re-fire guard for _wallSlam()
+    this._clashCd      = 0;  // re-fire guard for _resolveClash()
     this.aiNoHitTimer  = 0;  // frames bot has been attacking without landing a hit
     // ---- NO-IDLE SYSTEM ----
     this.intent          = 'pressure'; // 'pressure'|'reposition'|'bait'|'retreat'
@@ -153,6 +166,34 @@ class Fighter {
 
   cx() { return this.x + this.w / 2; }
   cy() { return this.y + this.h / 2; }
+
+  // The walls the AI should treat as the end of the world. In a normal arena that
+  // is the screen; in an arena that declares a worldWidth (Battle Royale's is
+  // 12000) the screen is a viewport, not a boundary, and reading GAME_W here made
+  // every bot past x=850 behave as though it were pinned against the right wall.
+  _aiWorldBounds() {
+    const a = (typeof currentArena !== 'undefined') ? currentArena : null;
+    if (a && a.worldWidth) {
+      return {
+        left:  a.mapLeft  !== undefined ? a.mapLeft  : -(a.worldWidth - GAME_W) / 2,
+        right: a.mapRight !== undefined ? a.mapRight : (a.worldWidth + GAME_W) / 2,
+      };
+    }
+    return { left: 0, right: GAME_W };
+  }
+
+  // Where "the middle, away from the corners" actually is. In Battle Royale the
+  // meaningful centre is the inside of the storm ring, not the middle of a
+  // 12000px world — repositioning toward x=6000 while the ring sits at x=1500 is
+  // a walk into the storm.
+  _aiSafeCenterX() {
+    if (typeof brActive !== 'undefined' && brActive &&
+        typeof brZoneLeft !== 'undefined' && typeof brZoneRight !== 'undefined') {
+      return (brZoneLeft + brZoneRight) / 2;
+    }
+    const b = this._aiWorldBounds();
+    return (b.left + b.right) / 2;
+  }
 
   _isInvalidAITarget(candidate) {
     return !candidate || candidate === this || candidate.health <= 0 ||
@@ -1420,6 +1461,28 @@ class Fighter {
             if (!this.isBoss && !tgt.isBoss && tgt.weapon && tgt.weapon.type === 'melee' && tgt.attackTimer > 0) {
               const _myStart  = this._attackStartFrame  || 0;
               const _tgtStart = tgt._attackStartFrame   || 0;
+              // ── CLASH ────────────────────────────────────────────────────
+              // Two melee swings that began within a few frames of each other
+              // are a genuine trade, not a race one side quietly lost. Neither
+              // lands: both are thrown back and have to re-commit. Outside the
+              // window the original first-wins rule still applies, so existing
+              // tuning is untouched — this only replaces the silent cancel in
+              // the case where the timing really was simultaneous.
+              if (Math.abs(_myStart - _tgtStart) <= CLASH_WINDOW &&
+                  !this._clashCd && !tgt._clashCd && !isCinematic &&
+                  // At least one side must be human. Two AI on matched weapons
+                  // swing on a shared tick with identical cooldowns, so they
+                  // re-clash indefinitely: measured 0 damage dealt across 382
+                  // frames at 6px apart, against 42 damage in 191 frames with
+                  // clashing disabled. The streak cap alone did not break it.
+                  // A clash is a player-facing flourish anyway — two bots
+                  // deadlocking off-screen serves nobody.
+                  (!this.isAI || !tgt.isAI) &&
+                  this._clashStreakOk(tgt) && tgt._clashStreakOk(this)) {
+                this._resolveClash(tgt);
+                this.swingHitTargets.add(tgt);
+                break;
+              }
               if (_myStart >= _tgtStart) {
                 // tgt attacked first (or same frame) — cancel our swing so only tgt's hit registers
                 this.attackTimer = 0;
@@ -1619,7 +1682,10 @@ class Fighter {
         this.y += this.vy * slowMotion;
         this.vx *= 0.72;
         this.vx = clamp(this.vx, -13, 13);
-        this.y = clamp(this.y, -200, GAME_H + 100);
+        // GAME_H+100 is the right floor for a 520-tall arena, but Battle Royale's
+        // world is 1900 tall with terrain below y=620, so a fixed clamp pinned a
+        // free-flying player to the sky and made the underground unreachable.
+        this.y = clamp(this.y, -200, (currentArena && currentArena.mapBottom) || GAME_H + 100);
         this._prevOnGround = true;
         return;
       }
@@ -1729,6 +1795,8 @@ class Fighter {
     if (this._prevOnGround && !this.onGround && this.vy <= -5) {
       this.canDoubleJump = true;
     }
+    if (this._wallSlamCd > 0) this._wallSlamCd--;
+    if (this._clashCd > 0) this._clashCd--;
     if (this.coyoteFrames > 0 && !this.onGround) this.coyoteFrames--;
     if (this._lavaJumpGrace > 0) { if (this.onGround) this._lavaJumpGrace = 0; else this._lavaJumpGrace--; }
     this._prevOnGround = this.onGround;
@@ -2124,6 +2192,15 @@ class Fighter {
       }
       // Landing squash animation trigger
       if (!this.isBoss && landVy > 5) this.squashTimer = 4;
+      // Heavy landings crack the surface. Cosmetic only — the slab is untouched.
+      if (landVy > 11 && typeof spawnImpact === 'function') {
+        spawnImpact(this.cx(), pl.y, Math.min(1.1, 0.35 + (landVy - 11) / 16), {
+          pl,
+          shake:  this.isBoss ? 8 : 0,
+          chunks: this.isBoss ? 7 : 4,
+          noScar: landVy < 15,
+        });
+      }
       // Clear pending double-jump intent on landing
       if (this.isAI) this._pfDoubleJumpPending = false;
       // Landing dust — harder landing = more particles
@@ -2212,15 +2289,126 @@ class Fighter {
       this.vy = Math.abs(this.vy) * 0.1; // small bounce so gravity takes over
     } else if (minPen === dLeft) {
       // Hit right face of platform (player moving right)
+      const _slamVx = this.vx;
       this.x  = pl.x - this.w;
       this.vx = Math.min(this.vx, 0);
       this._wallHitT = 8; // breaks a sprint — see updateFragmentManifest()
+      this._wallSlam(pl, _slamVx, 1);
     } else if (minPen === dRight) {
       // Hit left face of platform (player moving left)
+      const _slamVx = this.vx;
       this.x  = pl.x + pl.w;
       this.vx = Math.max(this.vx, 0);
       this._wallHitT = 8;
+      this._wallSlam(pl, _slamVx, -1);
     }
+  }
+
+  // Being launched into a wall used to end in silence — vx was simply zeroed.
+  // This gives that moment a bounce, a body deformation, and a cracked wall.
+  // dir: +1 = was travelling right (wall on the right), -1 = travelling left.
+  // Cosmetic apart from the bounce, which is a fraction of speed the fighter
+  // already had, so it cannot add energy to a juggle.
+  _wallSlam(pl, vx, dir) {
+    const spd = Math.abs(vx);
+    // Walking into a wall stays silent — this is for being THROWN into one.
+    if (spd < 9) return;
+    if (this._wallSlamCd > 0) return;   // don't re-fire while grinding the wall
+    if (this.health <= 0) return;
+    this._wallSlamCd = 14;
+
+    const power = Math.min(1.6, 0.5 + (spd - 9) / 9);
+
+    // Bounce off the wall — a fraction of the speed that was already there.
+    this.vx = -dir * spd * 0.30;
+
+    // Body compresses along the axis it hit on.
+    this._hitSquash = { amt: Math.min(0.26, 0.08 + spd * 0.012), t: 12, max: 12, axis: 'x' };
+
+    // Crack the wall face at the point of contact.
+    if (typeof spawnImpact === 'function') {
+      spawnImpact(dir > 0 ? pl.x : pl.x + pl.w, this.cy(), power, {
+        pl, axis: 'v', eject: -dir, shake: 0,
+        chunks: Math.round(3 + power * 5),
+      });
+    }
+
+    if (settings.screenShake) {
+      screenShake = Math.max(screenShake, Math.min(15, Math.round(4 + spd * 0.7)));
+    }
+    if (typeof SoundManager !== 'undefined' && SoundManager.explosion && spd > 14) {
+      SoundManager.explosion();
+    }
+  }
+
+  // Two AI on the same weapon re-swing in LOCKSTEP: the cadence is set by the
+  // weapon cooldown (sword is 30 frames) on a shared global aiTick, identical
+  // for both, so every exchange lands inside CLASH_WINDOW and they clash
+  // forever. Measured: two 'hard' swordfighters clashed on an exact 30-frame
+  // period for 263 frames and neither lost a single point of health.
+  // Jittering the recovery does not fix it — endlag expires well before the
+  // cooldown does, so it never governs the re-swing. Instead, cap how many
+  // times a PAIR may clash in a row; past the cap the exchange falls through
+  // to the first-wins rule and someone actually connects, which breaks the
+  // symmetry for free.
+  _clashStreakOk(other) {
+    const f = (typeof frameCount !== 'undefined') ? frameCount : 0;
+    if (this._clashStreakWith !== other || (f - (this._clashStreakAt || 0)) > CLASH_STREAK_RESET) {
+      this._clashStreak = 0;
+      this._clashStreakWith = other;
+    }
+    if ((this._clashStreak || 0) >= CLASH_STREAK_MAX) {
+      this._clashStreak = 0;   // let a real hit land, then clashes may resume
+      return false;
+    }
+    return true;
+  }
+
+  // Both fighters lose the exchange: swings cancelled, both knocked back, no
+  // damage dealt. Deliberately routes NO damage, so dealDamage() is not the
+  // right channel — the only state touched is velocity and swing timers, the
+  // same as a wall bounce. Horizontal only: vertical impulses here would slip
+  // past the launch governors that regulate juggles.
+  _resolveClash(other) {
+    if (!other || other.health <= 0 || this.health <= 0) return;
+    // Both fighters detect the same exchange, so this is reached twice per
+    // clash — once from each side's swing loop. The cooldown set below makes
+    // the second call a no-op, which keeps the streak count, the particle
+    // burst and the sound to one per exchange rather than two.
+    if (this._clashCd || other._clashCd) return;
+
+    this.attackTimer  = 0;  this.weaponHit  = false;
+    other.attackTimer = 0;  other.weaponHit = false;
+
+    // Re-commit cost — neither fighter gets a free instant re-swing.
+    this.attackEndlag  = Math.max(this.attackEndlag  || 0, CLASH_ENDLAG);
+    other.attackEndlag = Math.max(other.attackEndlag || 0, CLASH_ENDLAG);
+    this._clashCd = other._clashCd = CLASH_COOLDOWN;
+
+    // Streak bookkeeping — see _clashStreakOk() for why this is load bearing.
+    const _cf = (typeof frameCount !== 'undefined') ? frameCount : 0;
+    this._clashStreak  = (this._clashStreakWith  === other ? (this._clashStreak  || 0) : 0) + 1;
+    other._clashStreak = (other._clashStreakWith === this  ? (other._clashStreak || 0) : 0) + 1;
+    this._clashStreakWith  = other; this._clashStreakAt  = _cf;
+    other._clashStreakWith = this;  other._clashStreakAt = _cf;
+
+    const d = Math.sign(this.cx() - other.cx()) || (this.facing ? -this.facing : 1);
+    this.vx  =  d * CLASH_KNOCKBACK;
+    other.vx = -d * CLASH_KNOCKBACK;
+
+    const mx = (this.cx() + other.cx()) / 2;
+    const my = (this.cy() + other.cy()) / 2;
+    if (settings.particles) {
+      spawnParticles(mx, my, '#ffffff', 14);
+      spawnParticles(mx, my, '#ffee88', 10);
+      if (typeof spawnRing === 'function') spawnRing(mx, my);
+    }
+    if (typeof DamageText !== 'undefined' && typeof damageTexts !== 'undefined') {
+      damageTexts.push(new DamageText(mx, my - 18, 'CLASH', '#ffee88'));
+    }
+    hitStopFrames = Math.max(hitStopFrames, CLASH_HITSTOP);
+    if (settings.screenShake) screenShake = Math.max(screenShake, 11);
+    SoundManager.heavyHit && SoundManager.heavyHit();
   }
 
   // Player state machine: idle | run | jump | fall | attack | stunned | ragdoll | dead
@@ -2633,6 +2821,22 @@ class Fighter {
     this.cooldown    = this.attackCooldownMult ? Math.max(1, Math.ceil(this.weapon.cooldown * this.attackCooldownMult)) : this.weapon.cooldown;
     this._attackStartFrame = (typeof frameCount !== 'undefined' ? frameCount : 0);
     this.attackTimer = this.attackDuration;
+
+    // ── MELEE LUNGE ────────────────────────────────────────────────────────
+    // Ranged weapons already push the shooter back (_recoilPush above); melee
+    // had no equivalent, so a swing read as an arm animation on a body bolted
+    // to the floor. A small forward carry makes it read as committed weight.
+    // Grounded only — in the air this would be free horizontal control — and
+    // never over a ledge, since the AI is required not to walk off the map.
+    if (this.weapon && this.weapon.type === 'melee' && this.onGround &&
+        !this.isBoss && !this.isEdgeDanger(this.facing)) {
+      const _heavy = this.weapon.weaponType === 'heavy';
+      const _lunge = _heavy ? 2.6 : 1.4;
+      // Only ADD toward the swing; never brake a fighter already moving faster
+      // than the lunge would carry them, so it can't fight player input.
+      const _fwd = this.vx * this.facing;
+      if (_fwd < _lunge) this.vx = this.facing * Math.min(_lunge, _fwd + _lunge);
+    }
     // Affinity feel: low affinity slows movement during attack swing; high affinity lets you stay mobile
     if (!this.isBoss && this.charClass && this.weapon && typeof CLASS_AFFINITY !== 'undefined') {
       const _aff2 = CLASS_AFFINITY[this.charClass];
@@ -2704,7 +2908,13 @@ class Fighter {
     if (!_inOwnDomain) this._domainSuperCount = (this._domainSuperCount || 0) + 1;
     const _domKey = (typeof DomainManager !== 'undefined' && DomainManager.domainKeyOf)
       ? DomainManager.domainKeyOf(this) : this.charClass;
-    if (this._domainSuperCount >= 5
+    // Battle Royale never expands a domain. A domain is a duel-scale set piece:
+    // it freezes the field, reframes the camera and rewrites the arena, none of
+    // which survives contact with a 12000px world, a closing storm and 99 other
+    // fighters. The super itself still fires — only the every-fifth upgrade is
+    // suppressed, and the counter keeps ticking so nothing else desyncs.
+    const _brNoDomain = (typeof brActive !== 'undefined' && brActive);
+    if (!_brNoDomain && this._domainSuperCount >= 5
         && _domKey && _domKey !== 'none'
         && typeof DomainManager !== 'undefined'
         && typeof DOMAIN_DEFS !== 'undefined' && DOMAIN_DEFS[_domKey]) {
@@ -3493,9 +3703,11 @@ class Fighter {
     const fwd      = this.raycastForward(dir);
     const pathSafe = fwd.heat < 0.55 && !fwd.cliff;
 
-    // Screen-edge guard (50px — reduced from 120px to avoid huge dead zones)
-    const nearLeftEdge  = this.x < 50 && !this.isBoss;
-    const nearRightEdge = this.x + this.w > GAME_W - 50 && !this.isBoss;
+    // World-edge guard (50px — reduced from 120px to avoid huge dead zones).
+    // World, not screen: see _aiWorldBounds().
+    const _uB = this._aiWorldBounds();
+    const nearLeftEdge  = this.x < _uB.left + 50 && !this.isBoss;
+    const nearRightEdge = this.x + this.w > _uB.right - 50 && !this.isBoss;
     const towardEdge    = (nearLeftEdge && dir < 0) || (nearRightEdge && dir > 0);
 
     switch (best) {
@@ -3595,7 +3807,7 @@ class Fighter {
 
       // ---- REPOSITION: move toward map center to avoid corner traps ----
       case 'reposition': {
-        const toCenter = GAME_W / 2 - this.cx();
+        const toCenter = this._aiSafeCenterX() - this.cx();
         if (Math.abs(toCenter) > 30) {
           const rDir = Math.sign(toCenter);
           if (!this.isEdgeDanger(rDir)) this.vx = rDir * spd;
@@ -3807,7 +4019,12 @@ class Fighter {
         if (pl.isFloorDisabled) continue;
         if (lookX > pl.x && lookX < pl.x + pl.w && pl.y > footY - 8) return false;
       }
-      return this.y + this.h < GAME_H + 40;
+      // Same defect as the edge clamp above, on the vertical axis: GAME_H is 520,
+      // so in a tall world (BR's is 1900) every fighter standing below y=560 read
+      // "no drop below me is dangerous" and every fighter above it read the
+      // opposite. mapBottom is the world's own floor when the arena declares one.
+      const _worldBottom = (currentArena && currentArena.mapBottom) || GAME_H;
+      return this.y + this.h < _worldBottom + 40;
     }
 
     // ── Airborne check: would continuing in 'dir' lead to a void? ──
@@ -3858,15 +4075,28 @@ class Fighter {
     if (this.aiReact > 0) { this.aiReact--; return; }
     if (this.ragdollTimer > 0 || this.stunTimer > 0) return;
 
+    // Battle Royale travel. A nav-locked BR bot has been handed a destination, not
+    // an opponent, and the duelling brain below has no concept of one: it would
+    // walk at the waypoint's X in a straight line and swing at it on arrival.
+    // _brNavStep owns movement for exactly as long as the lock is set; BR clears
+    // it the moment the bot has something real to fight.
+    if (this._brNavLock && typeof _brNavStep === 'function') { _brNavStep(this); return; }
+
     // ---- TARGET VALIDATION: reassign if current target is dead/invalid ----
     if (this._isInvalidAITarget(this.target)) this._acquireAITarget();
 
     // ---- DYNAMIC RETARGETING: re-evaluate closest enemy every 25 ticks ----
     // Prevents bots from tunnel-visioning a far target while a closer one is adjacent.
-    this._targetRetargetCd = (this._targetRetargetCd || 0) - 1;
-    if (this._targetRetargetCd <= 0) {
-      this._acquireAITarget();
-      this._targetRetargetCd = 25;
+    // _brNavLock is Battle Royale's navigation hold: BR hands the bot a positional
+    // waypoint (a chest, a rift, the inside of the ring) dressed as a target, and
+    // re-acquiring "nearest living thing" here threw that waypoint away mid-route.
+    // BR clears the flag itself the moment it wants the bot fighting again.
+    if (!this._brNavLock) {
+      this._targetRetargetCd = (this._targetRetargetCd || 0) - 1;
+      if (this._targetRetargetCd <= 0) {
+        this._acquireAITarget();
+        this._targetRetargetCd = 25;
+      }
     }
 
     // ---- DANGER AVOIDANCE: boss beams ----
@@ -4182,8 +4412,15 @@ class Fighter {
     // ---- DANGER: map screen edges (avoid falling off) ----
     // Story mode uses wider margin so bots never drift near soft boundary
     const _edgeMargin = (storyModeActive && gameMode !== 'exploration') ? 110 : 50;
-    const nearLeftEdge  = this.x < _edgeMargin && !this.isBoss;
-    const nearRightEdge = this.x + this.w > GAME_W - _edgeMargin && !this.isBoss;
+    // These are the WORLD's walls, not the screen's. Read against GAME_W (900) in
+    // a wide arena — Battle Royale's world is 12000 wide — every bot past x=850
+    // permanently believed it was standing at the right-hand edge of the map and
+    // had its rightward velocity zeroed on every AI tick. The whole field could
+    // only ever walk left. currentArena.worldWidth is the same source
+    // Fighter.update()'s own horizontal clamp uses, so the two now agree.
+    const _wb = this._aiWorldBounds();
+    const nearLeftEdge  = this.x < _wb.left + _edgeMargin && !this.isBoss;
+    const nearRightEdge = this.x + this.w > _wb.right - _edgeMargin && !this.isBoss;
     if (this.onGround) {
       if (nearLeftEdge  && dir < 0) { this.vx = 0; }
       if (nearRightEdge && dir > 0) { this.vx = 0; }
@@ -4357,7 +4594,7 @@ class Fighter {
             if (!this.isEdgeDanger(-dir)) this.vx = -dir * spd * 0.30;
             break;
           case 'reposition': {
-            const toCenter = GAME_W / 2 - this.cx();
+            const toCenter = this._aiSafeCenterX() - this.cx();
             const rDir2 = Math.sign(toCenter);
             if (Math.abs(toCenter) > 40 && !this.isEdgeDanger(rDir2)) this.vx = rDir2 * spd * 0.55;
             break;

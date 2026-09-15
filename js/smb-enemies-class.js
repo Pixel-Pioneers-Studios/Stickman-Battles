@@ -53,6 +53,9 @@ function showDesc(player, type, key) {
     return;
   }
   title.textContent = data.title;
+  // NOTE: this function is SHADOWED — smb-menu-select.js defines showDesc() again
+  // and loads later, so that one is what actually runs. Left intact rather than
+  // deleted, but do not edit this copy expecting to see a change.
   let html = `<span class="desc-what">${data.what}</span>`;
   if (data.ability) html += `<br><span class="desc-ability">${data.ability}</span>`;
   if (data.super)   html += `<br><span class="desc-super">${data.super}</span>`;

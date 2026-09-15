@@ -4,15 +4,21 @@
 // Must load AFTER smb-menu-spawn.js, BEFORE smb-menu-utils.js
 
 function _startGameCore() {
+  // Stale online state must never leak into an offline match. Leaving a room
+  // without reloading the page used to leave onlineMode true, which forced
+  // training2P on and flagged a fighter isRemote with nothing driving it: an
+  // invulnerable, motionless clone of the last online opponent, plus the online
+  // chat log floating over a solo session.
+  if (onlineMode && !(typeof NetworkManager !== 'undefined' && NetworkManager.connected)) {
+    onlineMode = false;
+    onlineLocalSlot = 0;
+    if (typeof localPlayerSlot !== 'undefined') localPlayerSlot = 0;
+  }
   document.getElementById('menu').style.display            = 'none';
   document.getElementById('gameOverOverlay').style.display  = 'none';
   document.getElementById('pauseOverlay').style.display     = 'none';
   canvas.style.display = 'block';
   document.getElementById('hud').style.display = (settings && settings.hideHud) ? 'none' : 'flex';
-
-  // Show chat widget if online
-  const chatEl = document.getElementById('onlineChat');
-  if (chatEl) chatEl.style.display = onlineMode ? 'flex' : 'none';
 
   // Resolve arena
   const isBossMode         = gameMode === 'boss';
@@ -22,8 +28,19 @@ function _startGameCore() {
   const isDamnationMode    = gameMode === 'damnation';
   const isTrainingMode     = gameMode === 'training';
   // Online: force 2P-compatible variants so guest doesn't get assigned to boss/dummy
-  if (onlineMode && isBossMode && bossPlayerCount !== 2) bossPlayerCount = 2;
-  if (onlineMode && isTrainingMode) training2P = true;
+  // A hosted room with nobody in it is NOT a multiplayer match. Both the forced
+  // 2P layout and the isRemote hand-off below have to key off a real peer, or an
+  // empty room produces a second fighter with no driver: the motionless,
+  // damage-proof clone players saw after a friend left.
+  const _onlinePeerPresent = onlineMode
+    && typeof NetworkManager !== 'undefined' && NetworkManager.connected
+    && (typeof NetworkManager.getSlotCount !== 'function' || NetworkManager.getSlotCount() > 1);
+  // The chat widget is an in-match overlay and only earns its screen space when
+  // there is somebody to talk to.
+  const chatEl = document.getElementById('onlineChat');
+  if (chatEl) chatEl.style.display = _onlinePeerPresent ? 'flex' : 'none';
+  if (_onlinePeerPresent && isBossMode && bossPlayerCount !== 2) bossPlayerCount = 2;
+  if (_onlinePeerPresent && isTrainingMode) training2P = true;
   const isMinigamesMode      = gameMode === 'minigames';
   const isBattleRoyaleMode   = gameMode === 'battleroyale';
   const isEscortMode         = gameMode === 'escort';
@@ -208,6 +225,7 @@ function _startGameCore() {
   frameCount         = 0; // reset per-game frame counter (used for yeti min-spawn delay)
   projectiles        = [];
   particles          = [];
+  if (typeof resetDestruction === 'function') resetDestruction();
   bloodStains        = [];
   verletRagdolls     = [];
   damageTexts        = [];
@@ -327,7 +345,7 @@ function _startGameCore() {
   // Player 2 / Bot / Boss / Training Dummy
   let p2;
   if (isBossMode) {
-    const _guestOnline = typeof onlineMode !== 'undefined' && onlineMode
+    const _guestOnline = _onlinePeerPresent
       && typeof NetworkManager !== 'undefined' && !NetworkManager.isHost();
     const boss = (storyBossType === 'fallen_god' && typeof FallenGod !== 'undefined') ? new FallenGod() : new Boss();
     // Online guests: mark boss as remote so loop skips its AI
@@ -805,8 +823,13 @@ function _startGameCore() {
     }
   }
 
+  // Offline safety net: nothing may stay flagged network-driven once the session
+  // is gone (entities carried over from a previous online match, etc.).
+  if (!_onlinePeerPresent) {
+    for (const p of players) { if (p && p.isRemote) p.isRemote = false; }
+  }
   // Online mode: mark which player is remote so gameLoop applies network state
-  if (onlineMode && NetworkManager.connected) {
+  if (_onlinePeerPresent) {
     // Only remap human (non-boss, non-trueform) players — boss/TrueForm always stay AI
     const humanPlayers = players.filter(p => p && !p.isBoss && !p.isTrueForm);
     const localIdx  = onlineLocalSlot;  // 0 = host, 1 = guest

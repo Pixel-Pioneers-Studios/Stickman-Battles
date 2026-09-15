@@ -91,96 +91,109 @@ function _spawnWeaponHitFX(attacker, target, dmg) {
   const tx = target.cx(), ty = target.cy();
   const wk = attacker && attacker.weaponKey ? attacker.weaponKey : null;
   const heavy = dmg >= 22;
+  // Sprays read as FORCE when they follow the blow. Direction is the line from
+  // attacker to target, falling back to facing when they are stacked exactly.
+  let _fxdx = target.cx() - (attacker ? attacker.cx() : target.cx());
+  let _fxdy = target.cy() - (attacker ? attacker.cy() : target.cy());
+  if (Math.abs(_fxdx) < 0.01 && Math.abs(_fxdy) < 0.01) { _fxdx = (attacker && attacker.facing) || 1; _fxdy = 0; }
+  const _fxlen = Math.hypot(_fxdx, _fxdy) || 1;
+  _fxdx /= _fxlen; _fxdy /= _fxlen;
+  // Local shim: every burst below sprays along the hit instead of as a ball.
+  // spawnRing() calls are left radial on purpose — a ring is not a spray.
+  const sp = (x, y, color, count, spread) =>
+    (typeof spawnParticlesDir === 'function'
+      ? spawnParticlesDir(x, y, color, count, _fxdx, _fxdy, spread)
+      : spawnParticles(x, y, color, count));
   switch (wk) {
     case 'sword':
       // Metallic sparks: white core + light-blue scatter
-      spawnParticles(tx, ty, '#d4eeff', heavy ? 14 : 8);
-      spawnParticles(tx, ty, '#ffffff', heavy ? 8 : 4);
-      if (heavy) spawnParticles(tx, ty, '#88ccff', 6);
+      sp(tx, ty, '#d4eeff', heavy ? 14 : 8);
+      sp(tx, ty, '#ffffff', heavy ? 8 : 4);
+      if (heavy) sp(tx, ty, '#88ccff', 6);
       break;
     case 'hammer':
       // Dusty orange shockwave chunks + ground dust ring (smash archetype)
-      spawnParticles(tx, ty, '#cc5500', heavy ? 16 : 10);
-      spawnParticles(tx, ty, '#ffaa44', heavy ? 10 : 5);
-      spawnParticles(tx, target.y + target.h - 4, '#887766', heavy ? 10 : 5); // ground dust at feet
+      sp(tx, ty, '#cc5500', heavy ? 16 : 10);
+      sp(tx, ty, '#ffaa44', heavy ? 10 : 5);
+      sp(tx, target.y + target.h - 4, '#887766', heavy ? 10 : 5); // ground dust at feet
       if (heavy) spawnRing(tx, target.y + target.h - 4);
       break;
     case 'axe':
       // Chunky red/orange shards
-      spawnParticles(tx, ty, '#ff4400', heavy ? 14 : 9);
-      spawnParticles(tx, ty, '#cc2200', heavy ? 8 : 4);
+      sp(tx, ty, '#ff4400', heavy ? 14 : 9);
+      sp(tx, ty, '#cc2200', heavy ? 8 : 4);
       break;
     case 'scythe':
       // Dark purple reaping wisps
-      spawnParticles(tx, ty, '#9900cc', heavy ? 14 : 8);
-      spawnParticles(tx, ty, '#440066', heavy ? 8 : 5);
-      if (heavy) spawnParticles(tx, ty, '#cc88ff', 6);
+      sp(tx, ty, '#9900cc', heavy ? 14 : 8);
+      sp(tx, ty, '#440066', heavy ? 8 : 5);
+      if (heavy) sp(tx, ty, '#cc88ff', 6);
       break;
     case 'spear': {
       // Pierce flash: sparks streak along the thrust line (thrust archetype)
       const _spDir = attacker.facing || 1;
-      spawnParticles(tx, ty, '#00ccbb', heavy ? 10 : 6);
-      spawnParticles(tx + _spDir * 10, ty, '#ffffff', heavy ? 6 : 3);
-      spawnParticles(tx + _spDir * 20, ty, '#aaffee', heavy ? 4 : 2);
+      sp(tx, ty, '#00ccbb', heavy ? 10 : 6);
+      sp(tx + _spDir * 10, ty, '#ffffff', heavy ? 6 : 3);
+      sp(tx + _spDir * 20, ty, '#aaffee', heavy ? 4 : 2);
       break;
     }
     case 'fryingpan':
       // Bright yellow/gold clang burst + comic impact ring
-      spawnParticles(tx, ty, '#ffdd00', heavy ? 16 : 10);
-      spawnParticles(tx, ty, '#ffffff', heavy ? 10 : 5);
+      sp(tx, ty, '#ffdd00', heavy ? 16 : 10);
+      sp(tx, ty, '#ffffff', heavy ? 10 : 5);
       if (heavy) spawnRing(tx, ty);
       break;
     case 'broomstick': {
       // Poke streak: scatter trails along the jab line (thrust archetype)
       const _bsDir = attacker.facing || 1;
-      spawnParticles(tx, ty, '#cc44ff', heavy ? 10 : 6);
-      spawnParticles(tx + _bsDir * 12, ty, '#ffee44', heavy ? 6 : 3);
+      sp(tx, ty, '#cc44ff', heavy ? 10 : 6);
+      sp(tx + _bsDir * 12, ty, '#ffee44', heavy ? 6 : 3);
       break;
     }
     case 'katana':
       // Clean cut: sparse thin white/steel flash (iai archetype — less is more)
-      spawnParticles(tx, ty, '#ffffff', heavy ? 8 : 5);
-      spawnParticles(tx, ty, '#aaaadd', heavy ? 5 : 3);
+      sp(tx, ty, '#ffffff', heavy ? 8 : 5);
+      sp(tx, ty, '#aaaadd', heavy ? 5 : 3);
       break;
     case 'whip': {
       // Snap burst at the crack point (the weapon tip, not the target center)
       const _wt = attacker._weaponTip;
       const _wx = _wt ? _wt.x : tx, _wy = _wt ? _wt.y : ty;
-      spawnParticles(_wx, _wy, '#ffffff', heavy ? 10 : 7);
-      spawnParticles(_wx, _wy, '#ffcc88', heavy ? 6 : 3);
+      sp(_wx, _wy, '#ffffff', heavy ? 10 : 7);
+      sp(_wx, _wy, '#ffcc88', heavy ? 6 : 3);
       break;
     }
     case 'flail':
       // Heavy iron chunks (whirl archetype)
-      spawnParticles(tx, ty, '#bbbbbb', heavy ? 14 : 9);
-      spawnParticles(tx, ty, '#777788', heavy ? 8 : 4);
-      if (heavy) spawnParticles(tx, ty, '#ffffff', 6);
+      sp(tx, ty, '#bbbbbb', heavy ? 14 : 9);
+      sp(tx, ty, '#777788', heavy ? 8 : 4);
+      if (heavy) sp(tx, ty, '#ffffff', 6);
       break;
     case 'electricstaff':
       // Crackling cyan discharge (zap archetype)
-      spawnParticles(tx, ty, '#00eeff', heavy ? 14 : 9);
-      spawnParticles(tx, ty, '#ffffff', heavy ? 7 : 4);
+      sp(tx, ty, '#00eeff', heavy ? 14 : 9);
+      sp(tx, ty, '#ffffff', heavy ? 7 : 4);
       break;
     case 'combat':
       // Red/white punch burst with extra count on heavy
-      spawnParticles(tx, ty, '#ff2233', heavy ? 18 : 10);
-      spawnParticles(tx, ty, '#ffffff', heavy ? 10 : 5);
+      sp(tx, ty, '#ff2233', heavy ? 18 : 10);
+      sp(tx, ty, '#ffffff', heavy ? 10 : 5);
       break;
     case 'shield':
       // Gold/blue blocking-style burst (attacker hitting with shield bash)
-      spawnParticles(tx, ty, '#4488ff', heavy ? 12 : 7);
-      spawnParticles(tx, ty, '#ffdd88', heavy ? 8 : 4);
+      sp(tx, ty, '#4488ff', heavy ? 12 : 7);
+      sp(tx, ty, '#ffdd88', heavy ? 8 : 4);
       break;
     case 'gun': case 'peashooter': case 'slingshot': case 'bow': case 'paperairplane':
       // Ranged: particles are spawned by Projectile on hit, nothing extra needed here
-      spawnParticles(tx, ty, target.color, 8);
+      sp(tx, ty, target.color, 8);
       break;
     default:
       // Generic fallback
-      spawnParticles(tx, ty, target.color, 12);
+      sp(tx, ty, target.color, 12);
       if (heavy) {
-        spawnParticles(tx, ty, '#ffffff', 8);
-        spawnParticles(tx, ty, dmg >= 34 ? '#ff8844' : '#ffee88', dmg >= 34 ? 12 : 7);
+        sp(tx, ty, '#ffffff', 8);
+        sp(tx, ty, dmg >= 34 ? '#ff8844' : '#ffee88', dmg >= 34 ? 12 : 7);
       }
       break;
   }
@@ -450,6 +463,10 @@ function dealDamage(attacker, target, dmg, kbForce, stunMult = 1.0, isSplash = f
   if (typeof directorAddIntensity === 'function') {
     directorAddIntensity(actualDmg * 0.02);
   }
+  // Sampled before the block below, which clears `shielding` on an overflow
+  // break: a hit that broke the guard is still a hit the guard was up for, and
+  // the KB immunity further down has to see it that way.
+  const _shieldedHit = !!target.shielding;
   if (target.shielding) {
     const _stacks = Math.max(1, target.shieldStacks || 1);
     // Parry: only on fresh HP shield (stack 1); fires before damage absorption
@@ -504,11 +521,26 @@ function dealDamage(attacker, target, dmg, kbForce, stunMult = 1.0, isSplash = f
     target.hurtTimer = 8;
     // Hit confirmation flash: brief white overlay drawn over the target in the render loop
     target._hitFlashTimer = actualDmg >= 22 ? 5 : 3;
+    // ── Impact juice scope ────────────────────────────────────────────────────
+    // Everything below this line (hitstop, screen shake, camera punch, slow-mo)
+    // is a WORLD-WIDE global. Battle Royale runs up to 100 fighters spread over
+    // 12000px, and every off-screen bot skirmish, storm tick and crate break was
+    // driving all of them at once. hitStopFrames is the worst of it: gameLoop
+    // returns before the draw call when it is set (smb-loop-core.js), so dozens
+    // of unrelated hits per second made the screen render in bursts — a visible
+    // strobe, and a photosensitivity hazard.
+    // In BR, global feedback belongs to the local player's own hits only. Other
+    // fighters keep their per-fighter feedback (hurt flash, particles, damage
+    // numbers), which is local to them and costs nothing.
+    const _juiceOK = (typeof gameMode === 'undefined' || gameMode !== 'battleroyale')
+      || (typeof _brIsLocalPlayerHit === 'function' && _brIsLocalPlayerHit(attacker, target));
     // Variable hitstop: light 2-4f, medium 4-7f, heavy 8-11f, cosmic(boss) 11-14f
     // ±2 frame variance keeps each impact feeling distinct rather than metronomic.
     const _isCosmicHit = attacker && (attacker.isBoss || attacker.isTrueForm);
     const _hsVar = Math.round((Math.random() - 0.5) * 4); // ±2 frames
-    if (!target.isBoss) {
+    if (!_juiceOK) {
+      // BR: off-screen/AI-vs-AI hit — no global freeze.
+    } else if (!target.isBoss) {
       // Merge with any hitstop already set this frame (Math.max, not =) so a weak
       // simultaneous hit (splash/AoE) can't truncate a heavy hit's freeze.
       if (_isCosmicHit && actualDmg >= 20) {
@@ -525,11 +557,11 @@ function dealDamage(attacker, target, dmg, kbForce, stunMult = 1.0, isSplash = f
       if (actualDmg >= 30) hitStopFrames = Math.max(hitStopFrames, 1, Math.min(5, Math.floor(actualDmg / 22) + (_hsVar > 1 ? 1 : 0)));
       else if (actualDmg >= 15) hitStopFrames = Math.max(hitStopFrames, _hsVar > 1 ? 3 : 2);
     }
-    if (typeof setCameraDrama === 'function' && actualDmg > 22) {
+    if (_juiceOK && typeof setCameraDrama === 'function' && actualDmg > 22) {
       setCameraDrama('impact', 18);
     }
     // Slow-motion: cosmic hits always trigger; heavy hits on players trigger too
-    if (!target.isBoss && slowMotion >= 0.9) {
+    if (_juiceOK && !target.isBoss && slowMotion >= 0.9) {
       if (_isCosmicHit && actualDmg >= 22) {
         slowMotion = 0.25;
         hitSlowTimer = 18;
@@ -539,7 +571,7 @@ function dealDamage(attacker, target, dmg, kbForce, stunMult = 1.0, isSplash = f
       }
     }
     // Camera zoom-in on heavy/cosmic hits
-    if (actualDmg >= 18) camHitZoomTimer = _isCosmicHit ? 22 : 15;
+    if (_juiceOK && actualDmg >= 18) camHitZoomTimer = _isCosmicHit ? 22 : 15;
     // Red vignette flash when a human player takes a heavy hit
     if (!target.isAI && !target.isBoss && actualDmg >= 15) {
       hitVignetteTimer = _isCosmicHit ? 28 : 18;
@@ -617,6 +649,14 @@ function dealDamage(attacker, target, dmg, kbForce, stunMult = 1.0, isSplash = f
   if (attacker && attacker._isFamiliar && !target.onGround && !target.isBoss) {
     actualKb = 0;
   }
+
+  // ── SHIELD KB IMMUNITY ────────────────────────────────────────────────────
+  // A blocked hit does not move the defender. Being pushed off a ledge by the
+  // residual knockback of a hit you blocked is the single outcome a guard exists
+  // to prevent, and the degraded tiers and the break already charge for holding
+  // it in damage. Applied last so the combo ramp, the per-frame impulse limit
+  // and the hard cap above cannot re-introduce a push.
+  if (_shieldedHit) actualKb = 0;
 
   // One-punch mode: training only — instantly kills on hit
   if (trainingMode && attacker && attacker.onePunchMode && !target.shielding) {
@@ -742,6 +782,15 @@ function dealDamage(attacker, target, dmg, kbForce, stunMult = 1.0, isSplash = f
     target._lastAttacker      = attacker;
     target._lastAttackerFrame = frameCount;
     target._lastAttackerDmg   = actualDmg;
+  }
+  // Battle Royale elimination credit. It has to be taken HERE, on the killing
+  // blow, and not by a later sweep for corpses: the main loop prunes minions with
+  // `minions.filter(m => m.health > 0)` in the draw phase, which runs before
+  // updateBattleRoyale(), so by the time BR's own update sees the world the
+  // fighter that just died is already gone from the array. Counting only — the
+  // BR side decides what, if anything, it means.
+  if (target.health <= 0 && typeof _brCreditElimination === 'function') {
+    _brCreditElimination(attacker, target);
   }
   target.invincible = target.invincible > hitInvincibleFrames ? target.invincible : hitInvincibleFrames; // preserve finisher lock
   const dir        = attacker ? (target.cx() > attacker.cx() ? 1 : -1) : 1;

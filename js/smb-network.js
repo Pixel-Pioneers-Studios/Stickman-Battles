@@ -31,6 +31,7 @@ const NetworkManager = (() => {
   let _ownDeviceId = null;
   let _forcedCloseSlots = {}; // slot -> reason key used to suppress win popups
   let _disconnectReason = null;
+  let _onlineArenaKey = 'random';
 
   function _log(msg) { console.log('[Net]', msg); }
 
@@ -233,10 +234,28 @@ const NetworkManager = (() => {
     const clean = _chatModerate(text);
     if (!clean) return;
     const d = document.createElement('div');
-    d.style.cssText = 'padding:2px 0;font-size:13px;color:#ddd;';
-    d.textContent = sender + ': ' + clean;
+    d.className = 'chat-line';
+    const who = document.createElement('span');
+    who.className = 'chat-who';
+    // Own messages get the P1 accent, everyone else the neutral peer colour.
+    if (sender === 'P' + (_localSlot + 1)) who.classList.add('chat-me');
+    who.textContent = sender;
+    d.appendChild(who);
+    d.appendChild(document.createTextNode(clean));
     el.appendChild(d);
     el.scrollTop = el.scrollHeight;
+  }
+
+  function _clearChat() {
+    const el = document.getElementById('chatMessages');
+    if (el) el.innerHTML = '';
+    const inp = document.getElementById('chatInput');
+    if (inp) inp.value = '';
+  }
+
+  function _setChatVisible(on) {
+    const el = document.getElementById('onlineChat');
+    if (el) el.style.display = on ? 'flex' : 'none';
   }
 
   function _initPeer(peerId) {
@@ -281,6 +300,17 @@ const NetworkManager = (() => {
         _setStatus('Players: ' + _slotCount + '/' + _maxPlayers);
         showToast('Player ' + (guestSlot + 1) + ' joined!');
         _broadcast({ type: 'playerCount', count: _slotCount });
+        _renderLobbySettings();
+        // Bring the new guest immediately in line with the host's current picks
+        // so they never sit in the lobby showing stale defaults.
+        conn.send({
+          type: 'gameEvent', event: 'startGameSettings',
+          arena: typeof selectedArena !== 'undefined' ? selectedArena : 'random',
+          mode:  typeof gameMode !== 'undefined' ? gameMode : '2p',
+          lives: typeof chosenLives !== 'undefined' ? chosenLives : 3,
+          minigameType: typeof minigameType !== 'undefined' ? minigameType : 'survival',
+          allowCustomWeapons: typeof onlineAllowCustomWeapons !== 'undefined' ? onlineAllowCustomWeapons : false,
+        });
         // Late-join: send full story state so guest can reconstruct current scene
         if (typeof storyModeActive !== 'undefined' && storyModeActive && typeof _story2 !== 'undefined') {
           const _bossEntity = typeof players !== 'undefined' && players.find(p => p && p.isBoss);
@@ -312,6 +342,7 @@ const NetworkManager = (() => {
           players[guestSlot]._disconnected = true;
         }
         _setStatus('Players: ' + _slotCount + '/' + _maxPlayers);
+        _renderLobbySettings();
         if (!forced) _handleOpponentLeft(guestSlot);
       });
     });
@@ -344,6 +375,7 @@ const NetworkManager = (() => {
           _disconnectBannedConnection(fromConn, ban, 'client', fromSlot);
           return;
         }
+        _renderLobbySettings();
         break;
       }
 
@@ -393,7 +425,12 @@ const NetworkManager = (() => {
         break;
 
       case 'playerCount':
+        // Guests never tracked this, so _slotCount stayed 1 on their side for
+        // the whole session — anything asking "is anyone else here?" got the
+        // wrong answer on every client except the host.
+        if (!_isHost && typeof msg.count === 'number') _slotCount = msg.count;
         _setStatus('Players: ' + msg.count + '/' + _maxPlayers);
+        _renderLobbySettings();
         break;
 
       case 'roomFull':
@@ -456,6 +493,36 @@ const NetworkManager = (() => {
     return msg.event === 'chat';
   }
 
+  // Apply a host-authored match setting bundle on a guest.
+  //
+  // ORDER MATTERS. selectMinigame() internally calls selectMode('minigames'),
+  // so applying minigameType after the mode used to overwrite gameMode: a host
+  // on 1v1 shipped its default minigameType 'survival' and every guest booted
+  // into Survival. Minigame selection is now only routed through selectMinigame
+  // when the mode actually is 'minigames', and gameMode is stamped LAST so it
+  // is always the host's value.
+  function _applyHostSettings(msg) {
+    if (!msg) return;
+    if (msg.arena && typeof selectArena === 'function') selectArena(msg.arena);
+    if (msg.lives !== undefined && typeof chosenLives !== 'undefined') {
+      chosenLives = msg.lives;
+      if (typeof selectLives === 'function') selectLives(msg.lives);
+    }
+    const mode = msg.mode || (typeof gameMode !== 'undefined' ? gameMode : '2p');
+    if (msg.minigameType) {
+      if (typeof minigameType !== 'undefined') minigameType = msg.minigameType;
+      if (mode === 'minigames' && typeof selectMinigame === 'function') selectMinigame(msg.minigameType);
+    }
+    if (msg.allowCustomWeapons !== undefined && typeof onlineAllowCustomWeapons !== 'undefined') {
+      onlineAllowCustomWeapons = !!msg.allowCustomWeapons;
+    }
+    if (msg.chaosMode !== undefined && typeof chaosMode !== 'undefined') chaosMode = !!msg.chaosMode;
+    // Stamp the mode last — nothing above may be allowed to override it.
+    gameMode = mode;
+    if (typeof selectMode === 'function') selectMode(mode);
+    gameMode = mode;
+  }
+
   function _handleGameEvent(msg, fromSlot) {
     const isHostOrigin = fromSlot === 0;
     if (!isHostOrigin && msg.event !== 'chat') {
@@ -470,25 +537,37 @@ const NetworkManager = (() => {
       if (typeof unlockAchievement === 'function') unlockAchievement(msg.id);
     } else if (msg.event === 'gameModeSelected') {
       _onlineGameMode = msg.data && msg.data.mode ? msg.data.mode : (msg.mode || '2p');
-      gameMode = _onlineGameMode;
-      if (typeof selectMode === 'function') selectMode(gameMode);
+      if (!_isHost) _applyHostSettings({ mode: _onlineGameMode, minigameType: msg.minigameType });
+      _renderLobbySettings();
     } else if (msg.event === 'minigameSelected') {
-      if (!_isHost && msg.minigameType && typeof minigameType !== 'undefined') minigameType = msg.minigameType;
-      if (!_isHost && msg.minigameType && typeof selectMinigame === 'function') selectMinigame(msg.minigameType);
+      if (!_isHost && msg.minigameType) {
+        _applyHostSettings({ mode: _onlineGameMode || 'minigames', minigameType: msg.minigameType });
+      }
+      _renderLobbySettings();
     } else if (msg.event === 'livesSelected') {
-      if (!_isHost && msg.lives !== undefined && typeof chosenLives !== 'undefined') chosenLives = msg.lives;
-      if (!_isHost && msg.lives !== undefined && typeof selectLives === 'function') selectLives(msg.lives);
+      if (!_isHost && msg.lives !== undefined) _applyHostSettings({ lives: msg.lives, mode: _onlineGameMode });
+      _renderLobbySettings();
     } else if (msg.event === 'arenaSelected') {
       if (!_isHost && msg.arena && typeof selectArena === 'function') selectArena(msg.arena);
+      if (!_isHost && msg.arena) _onlineArenaKey = msg.arena;
+      _renderLobbySettings();
+    } else if (msg.event === 'customWeaponsToggled') {
+      if (!_isHost && typeof onlineAllowCustomWeapons !== 'undefined') {
+        onlineAllowCustomWeapons = !!msg.allowCustomWeapons;
+        if (typeof selectMode === 'function') selectMode(typeof gameMode !== 'undefined' ? gameMode : 'online');
+      }
+      _renderLobbySettings();
+    } else if (msg.event === 'startGameSettings') {
+      // Lobby-time settings snapshot. Same payload as 'startGame' but does NOT launch.
+      if (!_isHost) _applyHostSettings(msg);
+      _renderLobbySettings();
     } else if (msg.event === 'startGame') {
       // Guest receives host's start signal — sync settings then launch
       if (!_isHost) {
-        if (msg.arena  && typeof selectArena === 'function') selectArena(msg.arena);
-        if (msg.mode   && typeof selectMode  === 'function') { gameMode = msg.mode; selectMode(msg.mode); }
-        if (msg.lives  !== undefined && typeof chosenLives !== 'undefined') chosenLives = msg.lives;
-        if (msg.minigameType && typeof minigameType !== 'undefined') minigameType = msg.minigameType;
-        if (msg.minigameType && typeof selectMinigame === 'function') selectMinigame(msg.minigameType);
-        if (typeof startGame === 'function') startGame();
+        _applyHostSettings(msg);
+        window._onlineLaunchInProgress = true;
+        try { if (typeof startGame === 'function') startGame(); }
+        finally { window._onlineLaunchInProgress = false; }
       }
     } else if (msg.event === 'playerLeft') {
       _handleOpponentLeft(msg.slot !== undefined ? msg.slot : undefined);
@@ -600,10 +679,11 @@ const NetworkManager = (() => {
       if (_roomType === 'public') _advertisePublicRoom();
       const modeRow = document.getElementById('onlineGameModeRow');
       if (modeRow) modeRow.style.display = 'flex';
-      const chatEl = document.getElementById('onlineChat');
-      if (chatEl) chatEl.style.display = 'flex';
-      const startBtn = document.getElementById('onlineStartBtn');
-      if (startBtn) startBtn.style.display = 'inline-block';
+      _clearChat();
+      // The chat widget is a floating in-match overlay — showing it on the
+      // lobby screen just covered the player-config panels.
+      _setChatVisible(typeof gameRunning !== 'undefined' && gameRunning);
+      _renderLobbySettings();
     } catch (err) {
       if (err.type === 'unavailable-id') {
         // Room exists — join as GUEST
@@ -628,16 +708,16 @@ const NetworkManager = (() => {
             localPlayerSlot = msg.slot;
             onlineLocalSlot = msg.slot;
             _maxPlayers = msg.maxPlayers || _maxPlayers;
+            _slotCount = Math.max(2, _localSlot + 1);
             _setSlotMeta(_localSlot, _getLocalIdentity());
             _sendClientHello(conn);
             _setStatus('Joined as P' + (_localSlot + 1) + ' \u2022 Waiting for host to start...');
             if (typeof cgSdk !== 'undefined') cgSdk.updateRoom(_roomCode, true);
             showToast('You are Player ' + (_localSlot + 1) + ' — wait for host to start');
             // Hide the Connect button, show a waiting indicator
-            const startBtn = document.getElementById('onlineStartBtn');
-            if (startBtn) startBtn.style.display = 'none'; // guests never see Start
-            const chatEl = document.getElementById('onlineChat');
-            if (chatEl) chatEl.style.display = 'flex';
+            _clearChat();
+            _setChatVisible(typeof gameRunning !== 'undefined' && gameRunning);
+            _renderLobbySettings();
           } else if (msg.type === 'requestHello') {
             _sendClientHello(conn);
           } else if (msg.type === 'playerState') {
@@ -670,6 +750,10 @@ const NetworkManager = (() => {
     }
   }
 
+  // Full teardown of the online session. Every trace of the room has to go:
+  // leaving one used to leave onlineMode true, which made the NEXT offline match
+  // (training especially) spawn a frozen "remote" opponent nobody drove, and
+  // re-showed the online chat log over it.
   function disconnect() {
     _disconnectReason = 'manual';
     _broadcast({ type: 'gameEvent', event: 'playerLeft', slot: _localSlot });
@@ -681,20 +765,139 @@ const NetworkManager = (() => {
     _remoteStates = {};
     _stateBuffers = {};
     _forcedCloseSlots = {};
+    _latencies = {};
+    _pingTimers = {};
     _slotCount = 1;
     _nextGuestSlot = 1;
     _isHost = false;
     _localSlot = 0;
     _disconnectReason = null;
     _connected = false;
+    _onlineGameMode = '2p';
     onlineMode = false;
+    onlineLocalSlot = 0;
+    if (typeof localPlayerSlot !== 'undefined') localPlayerSlot = 0;
+    // Any fighter still flagged as network-driven has no driver now. Retire it
+    // rather than leaving an invulnerable, motionless clone on the field.
+    if (typeof players !== 'undefined' && Array.isArray(players)) {
+      for (const p of players) {
+        if (p && p.isRemote) {
+          p.isRemote = false;
+          p._disconnected = true;
+          p.health = 0;
+          p.lives = 0;
+        }
+      }
+    }
+    if (window._voiceChat && typeof window._voiceChat.destroy === 'function') {
+      try { window._voiceChat.destroy(); } catch (e) {}
+    }
+    _clearChat();
+    _setChatVisible(false);
     if (typeof cgSdk !== 'undefined') cgSdk.leftRoom();
-    _setStatus('Disconnected');
+    _setStatus('');
     _unAdvertisePublicRoom();
-    const startBtn = document.getElementById('onlineStartBtn');
-    if (startBtn) startBtn.style.display = 'none';
-    const modeRow = document.getElementById('onlineGameModeRow');
-    if (modeRow) modeRow.style.display = 'none';
+    _renderLobbySettings();
+  }
+
+  // ─── LOBBY PANEL STATE ────────────────────────────────────────────────────
+  // One function owns the whole panel's appearance so host/guest/disconnected
+  // states can never disagree. Guests see the host's picks read-only instead of
+  // buttons that silently no-op.
+  function _renderLobbySettings() {
+    const panel = document.getElementById('onlinePanel');
+    if (!panel) return;
+    panel.classList.toggle('is-connected', _connected);
+    panel.classList.toggle('is-host', _connected && _isHost);
+    panel.classList.toggle('is-guest', _connected && !_isHost);
+
+    const show = (id, on, disp) => {
+      const el = document.getElementById(id);
+      if (el) el.style.display = on ? (disp || 'flex') : 'none';
+    };
+    show('onlineGameModeRow', _connected, 'flex');
+    show('onlineStartBtn', _connected && _isHost, 'inline-flex');
+    show('onlineLeaveBtn', _connected, 'inline-flex');
+    show('onlineConnectRow', !_connected, 'flex');
+    show('onlineGuestNote', _connected && !_isHost, 'block');
+
+    // Host-only controls become inert (and visibly so) for guests.
+    const settingsWrap = document.getElementById('onlineGameModeRow');
+    if (settingsWrap) settingsWrap.classList.toggle('read-only', _connected && !_isHost);
+
+    const roomLabel = document.getElementById('onlineRoomLabel');
+    if (roomLabel) {
+      roomLabel.textContent = _connected ? _roomCode : '';
+      roomLabel.parentElement && (roomLabel.parentElement.style.display = _connected ? 'flex' : 'none');
+    }
+    const roleLabel = document.getElementById('onlineRoleLabel');
+    if (roleLabel) {
+      roleLabel.textContent = !_connected ? ''
+        : (_isHost ? 'HOST · P1' : 'GUEST · P' + (_localSlot + 1));
+      roleLabel.className = 'online-role ' + (_isHost ? 'is-host' : 'is-guest');
+    }
+    _renderRoster();
+    _syncSettingButtons();
+  }
+
+  function _renderRoster() {
+    const el = document.getElementById('onlineRoster');
+    if (!el) return;
+    if (!_connected) { el.style.display = 'none'; el.innerHTML = ''; return; }
+    el.style.display = 'flex';
+    el.innerHTML = '';
+    const slots = [];
+    if (_isHost) {
+      slots.push({ slot: 0, self: _localSlot === 0 });
+      for (const k of Object.keys(_slotConnections)) slots.push({ slot: +k, self: false });
+    } else {
+      slots.push({ slot: 0, self: false });
+      slots.push({ slot: _localSlot, self: true });
+    }
+    slots.sort((a, b) => a.slot - b.slot);
+    for (const it of slots) {
+      const meta = _slotMeta[it.slot];
+      const chip = document.createElement('span');
+      chip.className = 'online-chip' + (it.self ? ' is-self' : '') + (it.slot === 0 ? ' is-host' : '');
+      const name = (meta && meta.username) ? meta.username : ('Player ' + (it.slot + 1));
+      chip.textContent = 'P' + (it.slot + 1) + ' · ' + name + (it.slot === 0 ? ' ★' : '');
+      el.appendChild(chip);
+    }
+    // One summary chip rather than nine identical "open" pills.
+    const empty = Math.max(0, _maxPlayers - slots.length);
+    if (empty > 0) {
+      const chip = document.createElement('span');
+      chip.className = 'online-chip is-empty';
+      chip.textContent = empty + ' slot' + (empty === 1 ? '' : 's') + ' open';
+      el.appendChild(chip);
+    }
+  }
+
+  // Reflect the live values onto the buttons — guests need this because their
+  // settings arrive over the wire, not from a click.
+  function _syncSettingButtons() {
+    const mode = (typeof gameMode !== 'undefined' && _connected) ? gameMode : _onlineGameMode;
+    document.querySelectorAll('#onlineGameModeRow [data-onlinemode]').forEach(b => {
+      b.classList.toggle('active', b.dataset.onlinemode === mode);
+    });
+    const mgRow = document.getElementById('onlineMinigameRow');
+    if (mgRow) mgRow.style.display = mode === 'minigames' ? 'flex' : 'none';
+    if (typeof minigameType !== 'undefined') {
+      document.querySelectorAll('#onlineMinigameRow [data-onlinemg]').forEach(b => {
+        b.classList.toggle('active', b.dataset.onlinemg === minigameType);
+      });
+    }
+    if (typeof chosenLives !== 'undefined') {
+      document.querySelectorAll('[data-onlinelives]').forEach(b => {
+        b.classList.toggle('active', parseInt(b.dataset.onlinelives, 10) === chosenLives);
+      });
+    }
+    const arenaKey = (typeof selectedArena !== 'undefined' && _connected) ? selectedArena : _onlineArenaKey;
+    document.querySelectorAll('[data-onlinearena]').forEach(b => {
+      b.classList.toggle('active', b.dataset.onlinearena === arenaKey);
+    });
+    const cw = document.getElementById('onlineCustomWeaponsCheck');
+    if (cw && typeof onlineAllowCustomWeapons !== 'undefined') cw.checked = !!onlineAllowCustomWeapons;
   }
 
   function sendState() {
@@ -797,7 +1000,12 @@ const NetworkManager = (() => {
   function isHost() { return _isHost; }
   function isConnected() { return _connected; }
   function getLocalSlot() { return _localSlot; }
-  function getSlotCount() { return _slotCount; }
+  function getSlotCount() {
+    // A connected guest always has at least the host plus itself, even if no
+    // playerCount broadcast has arrived yet.
+    if (!_isHost && _connected) return Math.max(2, _slotCount);
+    return _slotCount;
+  }
   function getLatency(slot) { return _latencies[slot] || 0; }
   function getOwnPeerId() { return _peer ? _peer.id : null; }
   function getOwnDeviceId() { return _ensureDeviceId(); }
@@ -871,80 +1079,135 @@ const NetworkManager = (() => {
     const privBtn = document.getElementById('roomTypePrivateBtn');
     if (pubBtn) pubBtn.classList.toggle('active', type === 'public');
     if (privBtn) privBtn.classList.toggle('active', type === 'private');
-    const browser = document.getElementById('publicRoomBrowser');
-    if (browser) browser.style.display = type === 'public' ? 'flex' : 'none';
+    // The room list stays up either way: "Private" controls whether YOUR room
+    // is advertised, not whether you may look at other people's.
+    
     if (_isHost && type === 'public') _advertisePublicRoom();
     if (type === 'private') _unAdvertisePublicRoom();
   }
 
+  // The panel's single list of joinable rooms. Two sources feed it: rooms
+  // advertised by this module's own host flow ('smcpub_' keys) and lobbies
+  // registered by LobbyManager. They used to be rendered as two separate
+  // browsers stacked on top of each other.
   function refreshPublicRooms() {
     const list = document.getElementById('publicRoomList');
     if (!list) return;
     list.innerHTML = '';
     const now = Date.now();
     let found = 0;
+    const seen = {};
+    // LobbyManager rooms first — the shared Public Server belongs at the top.
+    if (window.LobbyManager && typeof LobbyManager.listLobbies === 'function') {
+      let lobbies = [];
+      try { lobbies = LobbyManager.listLobbies() || []; } catch (e) {}
+      for (const lob of lobbies) {
+        if (!lob || !lob.id || seen[lob.id]) continue;
+        // The persistent public server has its own dedicated button right
+        // above this list — listing it here too was the same door twice.
+        if (lob.persistent) { seen[lob.id] = true; continue; }
+        seen[lob.id] = true;
+        found++;
+        const row = document.createElement('div');
+        row.className = 'online-list-row' + (lob.persistent ? ' is-public' : '');
+        const name = document.createElement('span');
+        name.textContent = lob.persistent ? '\u{1F310} Public Server' : lob.id;
+        const count = document.createElement('span');
+        count.className = 'online-count';
+        count.textContent = (lob.players ? lob.players.length : 0) + '/' + lob.maxPlayers;
+        const btn = document.createElement('button');
+        btn.className = 'online-chip-btn';
+        btn.textContent = 'Join';
+        btn.onclick = () => { LobbyManager.joinLobby(lob.id); };
+        row.appendChild(name);
+        row.appendChild(count);
+        row.appendChild(btn);
+        list.appendChild(row);
+      }
+    }
     for (let i = 0; i < localStorage.length; i++) {
       const k = localStorage.key(i);
       if (!k || !k.startsWith('smcpub_')) continue;
       try {
         const d = JSON.parse(localStorage.getItem(k));
         if (now - d.ts > 120000) { localStorage.removeItem(k); continue; }
+        if (seen[d.code]) continue;
+        seen[d.code] = true;
         found++;
+        const row = document.createElement('div');
+        row.className = 'online-list-row';
+        const name = document.createElement('span');
+        name.textContent = d.code;
+        const count = document.createElement('span');
+        count.className = 'online-count';
+        count.textContent = d.players + '/' + d.max;
         const btn = document.createElement('button');
-        btn.className = 'btn pub-room-btn';
-        btn.style.cssText = 'width:100%;margin:2px 0;font-size:13px;';
-        btn.textContent = d.code + '  (' + d.players + '/' + d.max + ' players)';
+        btn.className = 'online-chip-btn';
+        btn.textContent = 'Join';
+        // Fill the code AND connect — filling the field alone left people
+        // staring at a populated input wondering what to press next.
         btn.onclick = () => {
           const inp = document.getElementById('onlineRoomCode');
           if (inp) inp.value = d.code;
+          if (typeof networkJoinRoom === 'function') networkJoinRoom();
         };
-        list.appendChild(btn);
+        row.appendChild(name);
+        row.appendChild(count);
+        row.appendChild(btn);
+        list.appendChild(row);
       } catch(e) {}
     }
-    if (!found) list.innerHTML = '<div style="color:#aaa;font-size:13px;padding:4px;">No public rooms found</div>';
+    if (!found) list.innerHTML = '<span class="online-empty">No open rooms right now.</span>';
+  }
+
+  // Host-only setters. Each one mutates local state, tells every guest, then
+  // hands the panel's appearance back to _renderLobbySettings() — no setter
+  // touches button classes itself any more, so the panel cannot drift.
+  function _hostOnly() {
+    if (_connected && !_isHost) { showToast('Only the host can change match settings'); return false; }
+    return true;
   }
 
   function setOnlineGameMode(mode) {
-    if (!_isHost) return;
+    if (!_hostOnly()) return;
     _onlineGameMode = mode;
     gameMode = mode;
     if (typeof selectMode === 'function') selectMode(mode);
-    document.querySelectorAll('#onlineGameModeRow [data-onlinemode]').forEach(b => {
-      b.classList.toggle('active', b.dataset.onlinemode === mode);
-    });
-    // Show/hide minigame type row
-    const mgRow = document.getElementById('onlineMinigameRow');
-    if (mgRow) mgRow.style.display = mode === 'minigames' ? 'flex' : 'none';
-    sendGameEvent('gameModeSelected', { mode });
+    gameMode = mode;
+    // Minigames mode needs minigameType applied through selectMinigame; every
+    // other mode must NOT touch it (selectMinigame forces gameMode='minigames').
+    if (mode === 'minigames' && typeof selectMinigame === 'function' && typeof minigameType !== 'undefined') {
+      selectMinigame(minigameType);
+      gameMode = 'minigames';
+    }
+    sendGameEvent('gameModeSelected', { mode, minigameType: typeof minigameType !== 'undefined' ? minigameType : undefined });
+    _renderLobbySettings();
   }
 
   function setOnlineMinigame(type) {
-    if (!_isHost) return;
+    if (!_hostOnly()) return;
     if (typeof minigameType !== 'undefined') minigameType = type;
+    _onlineGameMode = 'minigames';
     if (typeof selectMinigame === 'function') selectMinigame(type);
-    document.querySelectorAll('#onlineMinigameRow [data-onlinemg]').forEach(b => {
-      b.classList.toggle('active', b.dataset.onlinemg === type);
-    });
+    gameMode = 'minigames';
     sendGameEvent('minigameSelected', { minigameType: type });
+    _renderLobbySettings();
   }
 
   function setOnlineLives(n) {
-    if (!_isHost) return;
+    if (!_hostOnly()) return;
     if (typeof chosenLives !== 'undefined') chosenLives = n;
     if (typeof selectLives === 'function') selectLives(n);
-    document.querySelectorAll('[data-onlinelives]').forEach(b => {
-      b.classList.toggle('active', parseInt(b.dataset.onlinelives) === n);
-    });
     sendGameEvent('livesSelected', { lives: n });
+    _renderLobbySettings();
   }
 
   function selectOnlineArenaLocal(arenaKey) {
-    if (!_isHost) return;
+    if (!_hostOnly()) return;
+    _onlineArenaKey = arenaKey;
     if (typeof selectArena === 'function') selectArena(arenaKey);
-    document.querySelectorAll('[data-onlinearena]').forEach(b => {
-      b.classList.toggle('active', b.dataset.onlinearena === arenaKey);
-    });
     sendGameEvent('arenaSelected', { arena: arenaKey });
+    _renderLobbySettings();
   }
 
   // Legacy sendGameStateSync for compatibility
@@ -960,6 +1223,7 @@ const NetworkManager = (() => {
     getLocalSlot, getSlotCount, isHost, isConnected, getLatency,
     getOwnPeerId, getOwnDeviceId, getLocalIdentity, getPeerMeta, getPeerRoster, getSlotByAccountId, getSlotByPeerId, getSlotByDeviceId,
     setRoomType, refreshPublicRooms, setOnlineGameMode, setOnlineMinigame, setOnlineLives, selectOnlineArenaLocal, showToast,
+    renderLobby: _renderLobbySettings, clearChat: _clearChat, setChatVisible: _setChatVisible,
     sendGameStateSync,
     get connected() { return _connected; },
     get slot() { return _localSlot; },
@@ -968,9 +1232,23 @@ const NetworkManager = (() => {
   };
 })();
 
+// Top-level `const` does not become a window property, so the ~40
+// `window.NetworkManager && …` guards scattered across the admin, lobby,
+// CrazyGames and console modules were all silently falsy — every branch behind
+// one of them (the whole LobbyManager → NetworkManager.connect path included)
+// was dead code. Publish the singleton so those guards mean what they say.
+window.NetworkManager = NetworkManager;
+
 // ============================================================
 // STANDALONE FUNCTIONS (called from HTML onclick, etc.)
 // ============================================================
+// Leaving the room from the menu — full teardown so no online state survives
+// into the next offline match.
+function networkLeaveRoom() {
+  if (window.NetworkManager) NetworkManager.disconnect();
+  NetworkManager.showToast('Left the room');
+}
+
 function networkJoinRoom() {
   const code = ((document.getElementById('onlineRoomCode') || {}).value || '').trim();
   const maxEl = document.getElementById('onlineMaxPlayers');
@@ -1020,10 +1298,14 @@ function networkStartGame() {
     mode:         typeof gameMode       !== 'undefined' ? gameMode       : '2p',
     lives:        typeof chosenLives    !== 'undefined' ? chosenLives    : 3,
     minigameType: typeof minigameType   !== 'undefined' ? minigameType   : 'survival',
+    allowCustomWeapons: typeof onlineAllowCustomWeapons !== 'undefined' ? onlineAllowCustomWeapons : false,
+    chaosMode:    typeof chaosMode      !== 'undefined' ? !!chaosMode    : false,
   });
   // Small delay so the network message reaches guests before host starts
   setTimeout(() => {
-    if (typeof startGame === 'function') startGame();
+    window._onlineLaunchInProgress = true;
+    try { if (typeof startGame === 'function') startGame(); }
+    finally { window._onlineLaunchInProgress = false; }
   }, 120);
 }
 
@@ -1119,4 +1401,13 @@ window._voiceChat = (function() {
   }
 
   return { init, destroy, answerIncoming };
+})();
+
+// ── Boot: put the online panel into its disconnected state ───────────────────
+// Guarantees the panel's host/guest/connected classes exist before any click,
+// so step 2 can never render before there is a room to configure.
+(function () {
+  const _boot = () => { try { NetworkManager.renderLobby(); } catch (e) {} };
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', _boot);
+  else _boot();
 })();

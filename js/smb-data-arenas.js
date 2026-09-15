@@ -293,6 +293,57 @@ const ARENAS = {
   // ----------------------------------------------------------------
   // NEW ARENAS
   // ----------------------------------------------------------------
+  // ── The Sewer ──────────────────────────────────────────────────────────────
+  // A moving map with no platforms in it. Everything you can stand on is waste
+  // floating IN the sewage — rafts of garbage riding one shared current. They all
+  // move together at exactly `flowSpeed`; nothing here drifts at its own rate.
+  //
+  // The static list below is only the starting raft set. smb-sewer.js recycles
+  // it continuously: rafts that leave downstream are respawned upstream, so the
+  // river never runs out of ground behind you.
+  //
+  // `isFloor` is on one raft rather than on the sewage, because pickSafeSpawn()
+  // returns null without an isFloor platform and every respawn then crashes. The
+  // floor here is simply a floor that floats.
+  //
+  // Every raft is `passUnder`: a fighter rising out of the sewage passes through
+  // and lands on top instead of being walled out by its edge. That is what makes
+  // falling in escapable.
+  sewer: {
+    sky:         ['#0d1410', '#1a241c'],
+    groundColor: '#241f14',
+    platColor:   '#5a5340',
+    platEdge:    '#7d6f4e',
+    hasLava:     false,
+    deathY:      900,
+    isSewer:     true,
+    // The floor here floats and recycles, so the union of isFloor platforms is
+    // not a kill boundary — the ring-out flare in drawStageBoundary() would sit
+    // on screen permanently. The boundary that matters is the sewage line.
+    noStageBoundary: true,
+    sewageY:     470,          // surface of the flow
+    flowSpeed:   1.05,         // px/frame — ONE current, shared by everything
+    worldWidth:  1800,
+    mapLeft:     0,
+    mapRight:    1800,
+    modifiers:   { gravityMult: 1.0, frictionMult: 0.94, hazardFrequency: 1.0 },
+    // raft: y is the standing surface; the body is drawn from there down into the
+    // water, so a tall one reads as a heaped pile rather than a floating ledge.
+    // Decks ride ~40px clear of the waterline. At 8px a swimmer bobbing at the
+    // surface could never get their feet above the deck to land on it — they
+    // washed straight past every raft. The freeboard IS the escape.
+    platforms: [
+      { x:  -60, y: 430, w: 200, h: 18, raft: true, passUnder: true },
+      { x:  210, y: 398, w: 150, h: 18, raft: true, passUnder: true },
+      { x:  430, y: 430, w: 230, h: 18, raft: true, passUnder: true, isFloor: true },
+      { x:  720, y: 372, w: 140, h: 18, raft: true, passUnder: true },
+      { x:  920, y: 430, w: 190, h: 18, raft: true, passUnder: true },
+      { x: 1170, y: 394, w: 160, h: 18, raft: true, passUnder: true },
+      { x: 1390, y: 430, w: 210, h: 18, raft: true, passUnder: true },
+      { x: 1660, y: 380, w: 150, h: 18, raft: true, passUnder: true },
+    ]
+  },
+
   cave: {
     sky:         ['#0a0608', '#1a0e10'],
     groundColor: '#2a1a10',

@@ -225,10 +225,20 @@ function _renderChapterList() {
   const _sagaScoped = typeof activeSagaChapterCount === 'function'
                    && typeof isChapterInActiveSaga === 'function';
   const totalCh  = _sagaScoped ? activeSagaChapterCount() : STORY_CHAPTERS2.length;
-  const doneCh   = _sagaScoped
-    ? _story2.defeated.filter(i => isChapterInActiveSaga(i)).length
-    : _story2.defeated.length;
-  const pct      = totalCh > 0 ? Math.round((doneCh / totalCh) * 100) : 0;
+  // `defeated` can hold DUPLICATES, and it mixes two key spaces: chapters are
+  // recorded by ch.id (smb-story-engine-flow.js) but tested by array index
+  // here. A finished save was reading 373 defeated against 186 chapters, i.e.
+  // 201% progress. Counting distinct entries that are actually in range keeps
+  // the bar honest. This is a DISPLAY guard only — it deliberately does not
+  // touch the unlock tests below, which still use .includes() as before.
+  const _seen = new Set(
+    (Array.isArray(_story2.defeated) ? _story2.defeated : [])
+      .filter(i => Number.isInteger(i) && i >= 0 && i < STORY_CHAPTERS2.length)
+  );
+  const doneCh   = Math.min(totalCh, _sagaScoped
+    ? [..._seen].filter(i => isChapterInActiveSaga(i)).length
+    : _seen.size);
+  const pct      = totalCh > 0 ? Math.min(100, Math.round((doneCh / totalCh) * 100)) : 0;
   const progWrap = document.createElement('div');
   progWrap.className = 'story-progress-wrap';
   progWrap.innerHTML =

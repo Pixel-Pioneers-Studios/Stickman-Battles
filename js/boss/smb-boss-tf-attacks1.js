@@ -7,6 +7,12 @@
 function triggerPhaseTransition(entity, phase) {
   // Reset stagger accumulator so TrueForm doesn't inherit boss-phase stagger state
   bossStaggerDmg = 0; bossStaggerDecay = 0;
+  // Battle Royale has no room for a phase cutscene. The beast and the yeti are
+  // ambient wildlife there, not the event of the match, and a cinematic freezes
+  // all 100 fighters and the closing storm for several seconds because someone
+  // three landmarks away chipped a beast to half health. Their phase STATS still
+  // apply — only the cutscene is skipped.
+  if (typeof gameMode !== 'undefined' && gameMode === 'battleroyale') return;
   if (entity.isTrueForm) {
     startCinematic(phase === 2 ? _makeTFPhase2Cinematic(entity) : _makeTFPhase3Cinematic(entity));
   } else if (entity.isBeast) {

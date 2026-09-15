@@ -35,6 +35,29 @@ function spawnParticles(x, y, color, count) {
   }
 }
 
+// Directional burst — sprays into a cone around (dirX, dirY) instead of a ball.
+// Same pool, cap and settings gate as spawnParticles(); `spread` is the half
+// angle of the cone in radians (default ~50 degrees).
+function spawnParticlesDir(x, y, color, count, dirX, dirY, spread) {
+  if (!settings.particles) return;
+  if (particles.length >= MAX_PARTICLES) return;
+  const toSpawn = Math.min(count, MAX_PARTICLES - particles.length);
+  const base = Math.atan2(dirY || 0, dirX || 1);
+  const half = spread == null ? 0.9 : spread;
+  for (let i = 0; i < toSpawn; i++) {
+    const a = base + (Math.random() - 0.5) * 2 * half;
+    const sp = 2.0 + Math.random() * 5.5;
+    const p = _getParticle();
+    p.x = x; p.y = y;
+    p.vx = Math.cos(a) * sp; p.vy = Math.sin(a) * sp;
+    p.color = color;
+    p.size = 1.5 + Math.random() * 2.5;
+    p.life = 16 + Math.random() * 20;
+    p.maxLife = 36;
+    particles.push(p);
+  }
+}
+
 // Directional blood spray — sprays away from attacker, falls with gravity
 // dir: 1 = blood sprays right (attacker on left), -1 = sprays left
 function spawnBlood(x, y, dir, dmg) {

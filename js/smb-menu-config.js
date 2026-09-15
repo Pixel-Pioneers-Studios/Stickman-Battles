@@ -347,21 +347,40 @@ function toggleRandomPool(type, key) {
 // START GAME
 // ============================================================
 // Returns mode-specific loading screen info: { title, subtitle, image }
+// Loading-screen copy + which LoadScene to run behind it.
+// `scene` keys are defined in js/smb-loadscreen.js. The old `image` field is
+// gone: three AI stills used to cover six modes, and battleroyale/online fell
+// through to the generic one. Subtitles say what the player is walking into
+// rather than shouting the game's name back at them.
 function _getLoadingInfo() {
-  const mgNames = { survival: 'SURVIVAL', koth: 'KING OF THE HILL', chaos: 'CHAOS MATCH', soccer: 'SOCCER' };
+  const mgNames = {
+    survival: 'SURVIVAL', koth: 'KING OF THE HILL', chaos: 'CHAOS MATCH', soccer: 'SOCCER'
+  };
+  const mgSubs = {
+    survival: 'WAVE AFTER WAVE — LAST AS LONG AS YOU CAN',
+    koth:     'HOLD THE ZONE. THEY WILL NOT LET YOU',
+    chaos:    'EVERY RULE IS NEGOTIABLE',
+    soccer:   'FIRST TO SCORE. NOBODY SAID NO WEAPONS'
+  };
   switch (gameMode) {
     case 'boss':
-      return { title: 'BOSS FIGHT',  subtitle: 'FACE THE CREATOR',    image: 'images/Boss-Page.png' };
+      return { title: 'BOSS FIGHT', subtitle: 'IT HAS BEEN WAITING', scene: 'boss' };
     case 'trueform':
-      return { title: 'TRUE FORM',   subtitle: 'BEYOND YOUR LIMITS',  image: 'images/True-Form.png' };
+      return { title: 'TRUE FORM',  subtitle: 'THE RULES STOP APPLYING', scene: 'trueform' };
     case 'story':
-      return { title: 'STORY MODE',  subtitle: 'YOUR JOURNEY BEGINS', image: 'images/Boss-Page.png' };
+      return { title: 'STORY MODE', subtitle: 'THE 95TH BEARER', scene: 'story' };
+    case 'battleroyale':
+      return { title: 'BATTLE ROYALE', subtitle: '94 BEARERS. ONE SURVIVOR', scene: 'battleroyale' };
     case 'minigames':
-      return { title: mgNames[minigameType] || 'MINIGAME', subtitle: 'GET READY', image: 'images/Game-Page.png' };
+      return { title: mgNames[minigameType] || 'MINIGAME',
+               subtitle: mgSubs[minigameType] || 'GET READY', scene: 'minigames' };
     case 'training':
-      return { title: 'TRAINING',    subtitle: 'SHARPEN YOUR SKILLS', image: 'images/Game-Page.png' };
+      return { title: 'TRAINING',   subtitle: 'NO STAKES. NO MERCY EITHER', scene: 'training' };
+    case 'online':
+    case 'storyonline':
+      return { title: 'ONLINE MATCH', subtitle: 'SOMEONE ELSE IS AT THE OTHER END', scene: 'online' };
     default:
-      return { title: 'BATTLE',      subtitle: 'STICKMAN BATTLES',    image: 'images/Game-Page.png' };
+      return { title: 'VERSUS',     subtitle: 'SETTLE IT', scene: 'versus' };
   }
 }
 

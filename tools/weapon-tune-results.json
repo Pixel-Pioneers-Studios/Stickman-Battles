@@ -1,0 +1,191 @@
+{
+ "when": "2026-09-14T22:39:35.572Z",
+ "rounds": 1,
+ "matches": 32,
+ "final": {
+  "sword": {
+   "base": {
+    "damage": 17,
+    "range": 90,
+    "cooldown": 28,
+    "endlag": 7,
+    "kb": 10
+   },
+   "m": 1,
+   "damage": 17,
+   "range": 90,
+   "cooldown": 28
+  },
+  "hammer": {
+   "base": {
+    "damage": 14,
+    "range": 58,
+    "cooldown": 108,
+    "endlag": 25,
+    "kb": 16
+   },
+   "m": 1,
+   "damage": 14,
+   "range": 58,
+   "cooldown": 108
+  },
+  "axe": {
+   "base": {
+    "damage": 22,
+    "range": 98,
+    "cooldown": 36,
+    "endlag": 13,
+    "kb": 10
+   },
+   "m": 1,
+   "damage": 22,
+   "range": 98,
+   "cooldown": 36
+  },
+  "spear": {
+   "base": {
+    "damage": 19,
+    "range": 130,
+    "cooldown": 33,
+    "endlag": 11,
+    "kb": 7
+   },
+   "m": 1,
+   "damage": 19,
+   "range": 130,
+   "cooldown": 33
+  },
+  "shield": {
+   "base": {
+    "damage": 14,
+    "range": 68,
+    "cooldown": 31,
+    "endlag": 9,
+    "kb": 26
+   },
+   "m": 1,
+   "damage": 14,
+   "range": 68,
+   "cooldown": 31
+  },
+  "scythe": {
+   "base": {
+    "damage": 12,
+    "range": 100,
+    "cooldown": 44,
+    "endlag": 13,
+    "kb": 8
+   },
+   "m": 1,
+   "damage": 12,
+   "range": 100,
+   "cooldown": 44
+  },
+  "fryingpan": {
+   "base": {
+    "damage": 16,
+    "range": 65,
+    "cooldown": 61,
+    "endlag": 20,
+    "kb": 12
+   },
+   "m": 1,
+   "damage": 16,
+   "range": 65,
+   "cooldown": 61
+  },
+  "broomstick": {
+   "base": {
+    "damage": 13,
+    "range": 105,
+    "cooldown": 30,
+    "endlag": 8,
+    "kb": 22
+   },
+   "m": 1,
+   "damage": 13,
+   "range": 105,
+   "cooldown": 30
+  },
+  "combat": {
+   "base": {
+    "damage": 17,
+    "range": 60,
+    "cooldown": 16,
+    "endlag": 7,
+    "kb": 4
+   },
+   "m": 1,
+   "damage": 17,
+   "range": 60,
+   "cooldown": 16
+  },
+  "flail": {
+   "base": {
+    "damage": 10,
+    "range": 56,
+    "cooldown": 112,
+    "endlag": 24,
+    "kb": 18
+   },
+   "m": 1,
+   "damage": 10,
+   "range": 56,
+   "cooldown": 112
+  },
+  "whip": {
+   "base": {
+    "damage": 11,
+    "range": 150,
+    "cooldown": 38,
+    "endlag": 13,
+    "kb": 7
+   },
+   "m": 1,
+   "damage": 11,
+   "range": 150,
+   "cooldown": 38
+  },
+  "katana": {
+   "base": {
+    "damage": 12,
+    "range": 98,
+    "cooldown": 44,
+    "endlag": 11,
+    "kb": 8
+   },
+   "m": 1,
+   "damage": 12,
+   "range": 98,
+   "cooldown": 44
+  },
+  "electricstaff": {
+   "base": {
+    "damage": 19,
+    "range": 112,
+    "cooldown": 31,
+    "endlag": 12,
+    "kb": 10
+   },
+   "m": 1,
+   "damage": 19,
+   "range": 112,
+   "cooldown": 31
+  }
+ },
+ "winPct": {
+  "sword": 49.739583333333336,
+  "hammer": 60.9375,
+  "axe": 43.489583333333336,
+  "spear": 42.708333333333336,
+  "shield": 41.40625,
+  "scythe": 72.13541666666667,
+  "fryingpan": 47.916666666666664,
+  "broomstick": 53.385416666666664,
+  "combat": 42.96875,
+  "flail": 61.71875,
+  "whip": 55.208333333333336,
+  "katana": 56.770833333333336,
+  "electricstaff": 21.614583333333332
+ }
+}

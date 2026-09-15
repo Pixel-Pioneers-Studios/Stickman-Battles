@@ -2545,7 +2545,11 @@ function drawPlatforms() {
       continue;
     }
 
-    _platDrawTerrain(pl, currentArena.platColor, currentArena.platEdge);
+    // Per-platform colour override. Nothing in ARENAS sets `color` on a platform,
+    // so every authored arena is unchanged; Battle Royale uses it to give each
+    // landmark band its own terrain (volcanic rock, cave stone, ice) instead of
+    // painting the whole 12000px world in one arena's palette.
+    _platDrawTerrain(pl, pl.color || currentArena.platColor, pl.edge || currentArena.platEdge);
 
     // Boss arena: purple glow on moving platforms
     if (isBoss && (pl.ox !== undefined || pl.oy !== undefined)) {
@@ -3735,6 +3739,18 @@ function backToMenu() {
   document.getElementById('hud').style.display            = 'none';
   const chatElBTM = document.getElementById('onlineChat');
   if (chatElBTM) chatElBTM.style.display = 'none';
+  // Online: the chat widget only belongs to a live match. If the room is already
+  // gone (peer dropped, host closed, kicked) tear the rest of the session down
+  // here — otherwise onlineMode stays true and poisons the next offline match.
+  if (typeof NetworkManager !== 'undefined') {
+    if (typeof onlineMode !== 'undefined' && onlineMode && !NetworkManager.connected) {
+      NetworkManager.disconnect();
+    } else if (NetworkManager.connected) {
+      // Still in the room: reopen the lobby so the session is never invisible.
+      gameMode = 'online';
+      if (typeof NetworkManager.renderLobby === 'function') NetworkManager.renderLobby();
+    }
+  }
   document.getElementById('pauseOverlay').style.display    = 'none';
   document.getElementById('gameOverOverlay').style.display = 'none';
   document.getElementById('menu').style.display            = 'grid';

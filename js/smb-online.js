@@ -324,11 +324,14 @@ function _lobbyUiRefresh() {
     if (lob) {
       const role  = isHost ? 'Hosting' : 'Joined';
       const label = lob.persistent ? 'Public Server' : lob.id;
+      statusEl.style.display = '';
       statusEl.textContent = role + ' \u2022 ' + label + ' \u2022 ' + lob.players.length + '/' + lob.maxPlayers + ' players';
       statusEl.style.color = isHost ? '#88ffaa' : (inPub ? '#88eeff' : '#88ccff');
     } else {
-      statusEl.textContent = 'Not in a lobby';
-      statusEl.style.color = 'rgba(180,200,255,0.45)';
+      // Nothing to report when not in a lobby — the panel's own status line
+      // and room chip already say where you are.
+      statusEl.textContent = '';
+      statusEl.style.display = 'none';
     }
   }
 
@@ -342,12 +345,9 @@ function _lobbyUiRefresh() {
           && typeof NetworkManager.getLocalSlot === 'function'
           && NetworkManager.getLocalSlot() === p.slot;
         return [
-          '<span style="font-size:0.72rem;padding:2px 7px;border-radius:4px;',
-            'background:rgba(255,255,255,0.06);border:1px solid rgba(',
-            isLocal ? '100,255,200,0.55' : '100,180,255,0.2',
-            ');color:', isLocal ? '#88ffcc' : '#aac', ';">',
-            (i === 0 ? '\u2605 ' : ''),
+          '<span class="online-chip', isLocal ? ' is-self' : (i === 0 ? ' is-host' : ''), '">',
             _lobEsc(p.name || ('P' + (p.slot + 1))),
+            (i === 0 ? ' \u2605' : ''),
           '</span>',
         ].join('');
       }).join('');
@@ -375,52 +375,11 @@ function _lobbyUiRefresh() {
 }
 
 function _lobbyRefreshList() {
-  const list = document.getElementById('lobbyList');
-  if (!list) return;
-
-  const lobbies = LobbyManager.listLobbies();
-  list.innerHTML = '';
-
-  if (!lobbies.length) {
-    list.innerHTML = '<span style="color:rgba(150,170,220,0.45);font-size:0.72rem;">No open lobbies found.</span>';
-    return;
-  }
-
-  lobbies.forEach(function(lob) {
-    const isPub = lob.persistent;
-    const row   = document.createElement('div');
-    row.style.cssText = [
-      'display:flex','align-items:center','gap:6px',
-      'padding:4px 6px','border-radius:5px','margin:1px 0',
-      'background:' + (isPub ? 'rgba(0,160,255,0.08)' : 'rgba(255,255,255,0.03)'),
-      'border:1px solid ' + (isPub ? 'rgba(0,200,255,0.3)' : 'rgba(100,180,255,0.12)'),
-    ].join(';');
-
-    const label = isPub
-      ? '<span style="font-size:0.72rem;color:#88eeff;flex:1;">' +
-          '&#127760; Public Server' +
-          '<span style="font-size:0.65rem;opacity:0.55;margin-left:5px;">' +
-            '(' + lob.players.length + '/' + lob.maxPlayers + ')</span>' +
-        '</span>'
-      : '<span style="font-size:0.72rem;color:#aac;flex:1;">' +
-          _lobEsc(lob.id) +
-          '<span style="font-size:0.65rem;opacity:0.5;margin-left:5px;">' +
-            '(' + lob.players.length + '/' + lob.maxPlayers + ')</span>' +
-        '</span>';
-
-    const joinBtn = document.createElement('button');
-    joinBtn.className = 'btn';
-    joinBtn.style.cssText = [
-      'font-size:0.68rem','padding:2px 8px',
-      isPub ? 'color:#88eeff;border-color:rgba(0,200,255,0.4)' : '',
-    ].join(';');
-    joinBtn.textContent = 'Join';
-    joinBtn.onclick = function() { LobbyManager.joinLobby(lob.id); };
-
-    row.innerHTML = label;
-    row.appendChild(joinBtn);
-    list.appendChild(row);
-  });
+  // The panel keeps ONE list of joinable rooms (#publicRoomList, owned by
+  // refreshPublicRooms in smb-network.js) and it already folds in
+  // LobbyManager.listLobbies(). A second list here only ever confused people
+  // about which one was real.
+  if (typeof refreshPublicRooms === 'function') refreshPublicRooms();
 }
 
 // ── Public functions called from button onclicks ──────────────────────────────
@@ -444,94 +403,36 @@ function lobbyLeave() {
   LobbyManager.leaveLobby();
 }
 
+window.LobbyManager = LobbyManager;
+
 // ── Inject lobby section into #onlinePanel ────────────────────────────────────
 function _lobbyInjectUI() {
-  const panel = document.getElementById('onlinePanel');
-  if (!panel || document.getElementById('lobbySection')) return;
+  // Mount inside the panel's own step-1 block. The old version injected a
+  // second, complete room UI (its own create/join/max-players/private/leave
+  // widgets) above the panel's — two parallel ways to do the same thing, which
+  // was the single biggest source of confusion on this screen. What is left
+  // here is only what the panel does NOT already offer: the shared public
+  // server and the list of open lobbies.
+  const mount = document.getElementById('lobbyMount') || document.getElementById('onlinePanel');
+  if (!mount || document.getElementById('lobbySection')) return;
 
   const sec = document.createElement('div');
   sec.id = 'lobbySection';
-  sec.style.cssText = [
-    'display:flex','flex-direction:column','gap:7px',
-    'padding-bottom:10px','margin-bottom:4px',
-    'border-bottom:1px solid rgba(100,180,255,0.2)',
-  ].join(';');
-
   sec.innerHTML = [
-    // ── Header row ────────────────────────────────────────────────────────────
-    '<div style="display:flex;align-items:center;justify-content:space-between;">',
-      '<span style="font-size:0.78rem;font-weight:700;color:#88ccff;letter-spacing:0.5px;">',
-        '&#127760; Lobby',
-      '</span>',
-      '<button class="btn" onclick="_lobbyRefreshList();_lobbyUiRefresh()" ',
-        'style="font-size:0.65rem;padding:2px 8px;opacity:0.7;">Refresh</button>',
+    '<div class="online-browser-head">',
+      '<span class="online-label">Open rooms</span>',
+      '<button class="online-chip-btn online-chip-quiet" ',
+        'onclick="_lobbyRefreshList();_lobbyUiRefresh()">Refresh</button>',
     '</div>',
-
-    // ── Public Server button — always visible ─────────────────────────────────
-    '<button id="lobbyBtnPublic" class="btn" ',
-      'style="font-size:0.78rem;padding:6px 14px;font-weight:600;',
-      'background:rgba(0,160,255,0.15);border-color:rgba(0,200,255,0.5);color:#88eeff;" ',
-      'onclick="LobbyManager.joinPublicLobby()">',
-      '&#127760; Public Server',
+    '<button id="lobbyBtnPublic" onclick="LobbyManager.joinPublicLobby()">',
+      '&#127760; Join the Public Server',
     '</button>',
-
-    // ── Status ────────────────────────────────────────────────────────────────
-    '<div id="lobbyStatus" style="font-size:0.72rem;color:rgba(180,200,255,0.45);">Not in a lobby</div>',
-
-    // ── Player roster ─────────────────────────────────────────────────────────
-    '<div id="lobbyRoster" style="display:none;flex-wrap:wrap;gap:4px;"></div>',
-
-    // ── Create row ────────────────────────────────────────────────────────────
-    '<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">',
-      '<select id="lobbyMaxSel" ',
-        'style="background:#0d0d22;color:#cce;border:1px solid rgba(100,180,255,0.35);',
-        'border-radius:5px;padding:3px 6px;font-size:0.72rem;">',
-        '<option value="2">2 players</option>',
-        '<option value="3">3 players</option>',
-        '<option value="4">4 players</option>',
-        '<option value="6">6 players</option>',
-        '<option value="8">8 players</option>',
-        '<option value="10">10 players</option>',
-      '</select>',
-      '<label id="lobbyPrivChkWrap" ',
-        'style="display:flex;align-items:center;gap:4px;font-size:0.72rem;color:#aac;cursor:pointer;">',
-        '<input type="checkbox" id="lobbyPrivChk" style="cursor:pointer;">',
-        'Private',
-      '</label>',
-      '<button id="lobbyBtnCreate" class="btn" onclick="lobbyCreate()" ',
-        'style="font-size:0.75rem;padding:4px 12px;',
-        'background:rgba(0,200,80,0.15);border-color:rgba(0,255,100,0.4);color:#afffca;">',
-        '+ Create Lobby',
-      '</button>',
-      '<button id="lobbyBtnLeave" class="btn" onclick="lobbyLeave()" ',
-        'style="display:none;font-size:0.75rem;padding:4px 12px;',
-        'background:rgba(255,80,80,0.12);border-color:rgba(255,80,80,0.4);color:#ff9999;">',
-        'Leave Lobby',
-      '</button>',
-    '</div>',
-
-    // ── Join row ──────────────────────────────────────────────────────────────
-    '<div id="lobbyJoinRow" style="display:flex;gap:6px;align-items:center;">',
-      '<input id="lobbyJoinInput" type="text" maxlength="10" placeholder="Lobby code" ',
-        'style="flex:1;padding:4px 7px;background:rgba(0,0,0,0.4);',
-        'border:1px solid rgba(100,180,255,0.4);border-radius:5px;',
-        'color:#cce;font-size:0.75rem;text-transform:uppercase;" ',
-        'onkeydown="if(event.key===\'Enter\')lobbyJoin();">',
-      '<button class="btn" onclick="lobbyJoin()" ',
-        'style="font-size:0.75rem;padding:4px 12px;">Join</button>',
-    '</div>',
-
-    // ── Lobby browser ─────────────────────────────────────────────────────────
-    '<div id="lobbyListWrap" style="display:flex;flex-direction:column;gap:3px;">',
-      '<div style="font-size:0.7rem;color:rgba(150,180,240,0.5);">Open lobbies</div>',
-      '<div id="lobbyList" style="max-height:100px;overflow-y:auto;',
-        'background:rgba(0,0,0,0.25);border-radius:5px;padding:4px;">',
-        '<span style="color:rgba(150,170,220,0.45);font-size:0.72rem;">Loading…</span>',
-      '</div>',
-    '</div>',
+    '<div id="lobbyStatus" style="display:none;"></div>',
+    '<div id="lobbyRoster" class="online-roster" style="display:none;"></div>',
   ].join('');
 
-  panel.insertBefore(sec, panel.firstChild);
+  if (mount.id === 'lobbyMount') mount.appendChild(sec);
+  else mount.insertBefore(sec, mount.firstChild);
 
   _lobbyRefreshList();
   _lobbyUiRefresh();

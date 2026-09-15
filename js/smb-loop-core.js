@@ -428,6 +428,11 @@ function gameLoop(timestamp) {
   if (typeof drawCinBgContrast   === 'function') drawCinBgContrast();
   if (typeof drawCinImpactFrame  === 'function') drawCinImpactFrame();
   drawPlatforms();
+  // The Sewer: the flow is drawn AFTER the platforms so a trash barge sits IN the
+  // sewage rather than on a painted strip behind it. Inert on every other arena.
+  if (typeof drawSewerFlow === 'function') drawSewerFlow();
+  // Cosmetic impact scars ride on top of the slabs they were cut into.
+  if (typeof drawSurfaceScars === 'function') drawSurfaceScars();
   // Circuit void lips + slide telegraph — must sit ABOVE the plate so the warning
   // is drawn on the ground the player is standing on, not hidden under it.
   if (typeof CircuitPlate !== 'undefined') CircuitPlate.drawOverlay();
@@ -576,6 +581,9 @@ function gameLoop(timestamp) {
   if (gameMode === 'minigames') updateMinigame();
   // Battle Royale update
   if (gameMode === 'battleroyale' && typeof updateBattleRoyale === 'function') updateBattleRoyale();
+  // The Sewer: drift the barges, carry their riders, burn and sweep anything in
+  // the flow. Returns immediately on every other arena.
+  if (typeof updateSewer === 'function') updateSewer();
   // Eternal Damnation arc update
   if (damnationActive && typeof updateDamnation === 'function') updateDamnation();
   // True Form special updates (also active when a trueform admin kit is equipped, or FORCE_ATTACK_MODE has active TF effects)
@@ -958,6 +966,9 @@ function gameLoop(timestamp) {
   }
   particles = _liveParticles; // keep only live (life > 0) to prevent leak
   ctx.globalAlpha = 1;
+
+  // ---------- Destruction debris (cosmetic — no collision, no sync) ----------
+  if (typeof updateDestruction === 'function') { updateDestruction(); drawDebrisChunks(); }
 
   // Domain speech bubbles (world-space, above entities)
   if (typeof DomainManager !== 'undefined') DomainManager.drawSpeechBubbles();

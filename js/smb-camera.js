@@ -189,6 +189,127 @@ function _updateCamMode() {
 }
 
 // ============================================================
+// ── Framing core ─────────────────────────────────────────────────────────────
+// One solver, used by every gameplay framing path. Its contract is simple and
+// was the thing the old code did not actually guarantee: EVERY entity handed to
+// it ends up inside the safe viewport, unless the zoom floor makes that
+// impossible.
+//
+// The old wide-arena path computed the zoom from the bounding box but then slid
+// the CENTRE toward the local human as the pair separated (`_humanW` ramped to
+// 1.0). So the zoom was wide enough to hold both fighters and the camera pointed
+// somewhere else anyway — which is exactly "player 2 is off screen and the camera
+// doesn't zoom out". Zoom and centre have to be solved together.
+
+// An AI further than this from the humans is not part of the shot. Dropping it
+// from the framing is correct — sliding the camera off the humans to chase it is
+// not. Humans are never dropped: in local 2P both fighters are someone's hands.
+const CAM_TRACK_RADIUS_X = 1700;
+const CAM_TRACK_RADIUS_Y = 1100;
+
+function _camTrackedSet(activePlayers) {
+  if (!activePlayers.length) return activePlayers;
+  const humans = activePlayers.filter(p => !p.isAI && !p.isBoss && !p._brOnPlane);
+  if (!humans.length) return activePlayers.filter(p => !p._brOnPlane);
+  let hx = 0, hy = 0;
+  for (const h of humans) { hx += h.cx(); hy += h.cy(); }
+  hx /= humans.length; hy /= humans.length;
+  const others = activePlayers.filter(p => {
+    if (!p.isAI && !p.isBoss) return false;          // already in `humans`
+    if (p._brOnPlane) return false;
+    return Math.abs(p.cx() - hx) <= CAM_TRACK_RADIUS_X
+        && Math.abs(p.cy() - hy) <= CAM_TRACK_RADIUS_Y;
+  });
+  return humans.concat(others);
+}
+
+// Solve zoom + centre so every entity in `list` is contained.
+//   o = { zMin, zMax, padX, padY, safeH, hudGU, hudShift, wL, wR, wT, wB,
+//         biasX, biasY, biasW }
+// biasX/biasY is a preferred look point (facing lead, boss emphasis); biasW is
+// how far to honour it. It only moves the DESIRED centre — containment still
+// wins, so a bias can never push a tracked fighter off screen.
+function _camSolveFrame(list, o) {
+  // Extents are clamped into the reachable world rect. A fighter launched above
+  // the ceiling or knocked past an edge cannot be framed — the world clamp
+  // forbids the camera going there — so letting them drag the bounding box just
+  // pushes everyone ELSE out of frame to chase someone unreachable.
+  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+  for (const p of list) {
+    const px0 = Math.max(o.wL, Math.min(o.wR, p.x));
+    const px1 = Math.max(o.wL, Math.min(o.wR, p.x + (p.w || 0)));
+    const py0 = Math.max(o.wT, Math.min(o.wB, p.y));
+    const py1 = Math.max(o.wT, Math.min(o.wB, p.y + (p.h || 0)));
+    if (px0 < minX) minX = px0;
+    if (px1 > maxX) maxX = px1;
+    if (py0 < minY) minY = py0;
+    if (py1 > maxY) maxY = py1;
+  }
+  if (!isFinite(minX) || !isFinite(minY)) {
+    minX = o.wL; maxX = o.wR; minY = o.wT; maxY = o.wB;
+  }
+
+  const safeH = Math.max(40, o.safeH);
+  let z = Math.min(GAME_W / Math.max(1, (maxX - minX) + o.padX),
+                   safeH   / Math.max(1, (maxY - minY) + o.padY));
+  z = Math.max(o.zMin, Math.min(o.zMax, z));
+
+  let wantX = (minX + maxX) / 2;
+  let wantY = (minY + maxY) / 2 + (o.hudShift || 0);
+  if (o.biasW) {
+    wantX = wantX * (1 - o.biasW) + o.biasX * o.biasW;
+    wantY = wantY * (1 - o.biasW) + o.biasY * o.biasW;
+  }
+
+  let outX = wantX, outY = wantY;
+  // Fixed-point: clamp the centre into the world, measure the worst overflow,
+  // widen by exactly that factor, repeat. Converges in 2-3 passes.
+  for (let i = 0; i < 6; i++) {
+    const hvw = GAME_W / (2 * z);
+    const hvh = safeH   / (2 * z);
+    outX = (o.wR - o.wL > 2 * hvw)
+      ? Math.max(o.wL + hvw, Math.min(o.wR - hvw, wantX))
+      : (o.wL + o.wR) / 2;
+    outY = (o.wB - o.wT > 2 * hvh)
+      ? Math.max(o.wT + hvh + (o.hudGU || 0), Math.min(o.wB - hvh, wantY))
+      : wantY;
+
+    if (z <= o.zMin + 1e-5) break;
+    // Usable half-extents, keeping a fighter off the very edge of the frame.
+    const usableX = Math.max(1, hvw - 34);
+    const usableY = Math.max(1, hvh - 34);
+    let worst = 1;
+    for (const p of list) {
+      const px0 = Math.max(o.wL, Math.min(o.wR, p.x));
+      const px1 = Math.max(o.wL, Math.min(o.wR, p.x + (p.w || 0)));
+      const py0 = Math.max(o.wT, Math.min(o.wB, p.y));
+      const py1 = Math.max(o.wT, Math.min(o.wB, p.y + (p.h || 0)));
+      const dx = Math.max(Math.abs(px0 - outX), Math.abs(px1 - outX));
+      const dy = Math.max(Math.abs(py0 - outY), Math.abs(py1 - outY));
+      const r = Math.max(dx / usableX, dy / usableY);
+      if (r > worst) worst = r;
+    }
+    if (worst <= 1.0005) break;
+    z = Math.max(o.zMin, z / worst);
+  }
+  return { x: outX, y: outY, zoom: z };
+}
+
+// World rect the camera may show, shared by the solver and the hard clamp below.
+function _camWorldRect() {
+  const a = currentArena;
+  const wL = (a && a.mapLeft  !== undefined) ? a.mapLeft  : 0;
+  const wR = (a && a.mapRight !== undefined) ? a.mapRight : ((a && a.worldWidth) || GAME_W);
+  let topPlat = GAME_H;
+  if (a && a.platforms) for (const pl of a.platforms) if (pl.y < topPlat) topPlat = pl.y;
+  const wT = Math.min(0, topPlat - 140);
+  const floorPl = a && a.platforms && a.platforms.find(pl => pl.isFloor);
+  const wB = (a && a.mapBottom !== undefined) ? a.mapBottom
+           : (a && a.worldBottom !== undefined) ? a.worldBottom
+           : (floorPl ? floorPl.y + 80 : GAME_H);
+  return { wL, wR, wT, wB };
+}
+
 function updateCamera() {
   // Camera keyframe sequence: runs at 60fps (dt = 1/60s per frame)
   if (_camSeq) { _tickCameraSequence(1 / 60); return; }
@@ -241,7 +362,12 @@ function updateCamera() {
       : (players[0] && players[0].health > 0 ? players[0] : null);
     if (brCamTarget) {
       camXTarget = brCamTarget.cx();
-      camYTarget = brCamTarget.cy() + _hudShift;
+      // Bias the framing upward. The old shaft map was open air in every
+      // direction so a centred camera was right; on a grounded world, centring
+      // on the fighter spends the bottom 40% of the screen on solid dirt below
+      // the floor. Lifting the target puts the ground line at ~3/4 height and
+      // gives the sky — where the fighting actually happens — the space.
+      camYTarget = brCamTarget.cy() + _hudShift - 80;
       camZoomTarget = 1.0;
       camZoomCur += (camZoomTarget - camZoomCur) * lerp.zoom;
       camXCur    += (camXTarget - camXCur) * lerp.pos;
@@ -271,111 +397,74 @@ function updateCamera() {
       return;
     }
 
+    // ── Gameplay framing ──────────────────────────────────────────────────────
+    // Both arena kinds go through the same solver now. The difference is only
+    // taste: a standard 900px arena sits closer and drifts toward the map centre
+    // when the pair is tight, a wide arena tracks the action and allows a wider
+    // pull-back. Containment is the solver's job in both cases.
     const _isWide = !!(currentArena && currentArena.worldWidth);
+    const _wr = _camWorldRect();
+    const _tracked = _camTrackedSet(activePlayers);
+    const _safeH   = Math.max(GAME_H - _hudGU * 1.15, GAME_H * 0.70);
 
+    // Zoom floor is a flat limit, NOT "whatever keeps the viewport inside the
+    // world". That constraint is what broke the sewer: its world is only 510
+    // units tall, so requiring the viewport to fit vertically pinned the floor at
+    // 0.8 and the camera could never widen enough to hold a 1700-unit horizontal
+    // spread — the second player simply left the frame. Showing a little past the
+    // world edge costs nothing (drawBackground fills well beyond it); losing a
+    // player costs the match.
+    const _zMin = _isWide ? 0.30 : 0.42;
+    const _zMax = _isWide ? 1.18 : 1.40;
+
+    // Look-ahead and boss emphasis are *preferences*, folded in as a weighted
+    // look point. The solver still guarantees everyone stays framed, so neither
+    // can push a fighter off screen the way the old human-bias did.
+    let _biasX = 0, _biasY = 0, _biasW = 0;
+    const _humans = activePlayers.filter(p => !p.isAI && !p.isBoss);
+    if (_humans.length === 1) {
+      const h = _humans[0];
+      _biasX = h.cx() + h.facing * (18 + Math.min(48, Math.abs(h.vx) * 11));
+      _biasY = h.cy();
+      _biasW = _isWide ? 0.30 : 0.16;
+    }
+    if (!cinematicCamOverride && gameRunning) {
+      const attackingBoss = players.find(p => p.isBoss && p.attackTimer > 0 && p.health > 0)
+        || players.find(p => p.isBoss && p.health > 0 && _camBossBias > 0.01);
+      const _bossWant = (attackingBoss && attackingBoss.attackTimer > 0) ? 1 : 0;
+      _camBossBias += (_bossWant - _camBossBias) * 0.08;
+      if (attackingBoss && _camBossBias > 0.01) {
+        const _bw = 0.35 * _camBossBias;
+        _biasX = _biasX * (1 - _bw) + attackingBoss.cx() * _bw;
+        _biasY = _biasY * (1 - _bw) + attackingBoss.cy() * _bw;
+        _biasW = Math.max(_biasW, _bw);
+      }
+    } else { _camBossBias = 0; }
+
+    const _sol = _camSolveFrame(_tracked, {
+      zMin: _zMin, zMax: _zMax,
+      padX: _isWide ? 220 : 190,
+      padY: _isWide ? 200 : 190,
+      safeH: _safeH, hudGU: _hudGU, hudShift: _hudShift,
+      wL: _wr.wL, wR: _wr.wR, wT: _wr.wT, wB: _wr.wB,
+      biasX: _biasX, biasY: _biasY, biasW: _biasW,
+    });
+    targetZoom = _sol.zoom;
+    targetX    = _sol.x;
+    targetY    = _sol.y;
+
+    // Standard arenas: when the pair is tight the framing pushes in, and a
+    // pushed-in shot centred on two fighters standing off to one side reads as
+    // lopsided. Drift toward the map centre as the view widens.
     if (!_isWide) {
-      // ── Standard arena: frame the fighters, never past the map edges ──
-      const _aLeft  = (currentArena && currentArena.mapLeft  !== undefined) ? currentArena.mapLeft  : 0;
-      const _aRight = (currentArena && currentArena.mapRight !== undefined) ? currentArena.mapRight : GAME_W;
-      const _aW     = _aRight - _aLeft;
-      // Available viewport height below the HUD (add a small buffer so floor isn't flush against edge)
-      const _safeH  = Math.max(GAME_H - _hudGU * 1.15, GAME_H * 0.72);
-      const _fullZoom = Math.max(0.72, Math.min(1.0, Math.min(GAME_W / (_aW + 16), _safeH / (GAME_H + 8))));
+      const _tight = Math.max(0, Math.min(1, (targetZoom - _zMin) / Math.max(0.001, _zMax - _zMin)));
+      targetX = ((_wr.wL + _wr.wR) / 2) * (1 - _tight) + targetX * _tight;
+    }
 
-      // Full-map framing renders fighters as small figures in empty space, so push
-      // in on their bounding box and widen back out only as they separate;
-      // _fullZoom is the floor. The box is clamped to the arena rect because a
-      // fighter launched above the ceiling or knocked past an edge would otherwise
-      // drag the framing into off-map space.
-      let _sMinX = Infinity, _sMaxX = -Infinity, _sMinY = Infinity, _sMaxY = -Infinity;
-      for (const p of activePlayers) {
-        _sMinX = Math.min(_sMinX, Math.max(_aLeft,  p.x));
-        _sMaxX = Math.max(_sMaxX, Math.min(_aRight, p.x + (p.w || 0)));
-        _sMinY = Math.min(_sMinY, Math.max(0,      p.y));
-        _sMaxY = Math.max(_sMaxY, Math.min(GAME_H, p.y + (p.h || 0)));
-      }
-      if (_sMaxX < _sMinX) { _sMinX = _aLeft; _sMaxX = _aRight; }
-      if (_sMaxY < _sMinY) { _sMinY = 0; _sMaxY = GAME_H; }
-      const _sPad  = 190;
-      const _sZoom = Math.min(GAME_W / ((_sMaxX - _sMinX) + _sPad), _safeH / ((_sMaxY - _sMinY) + _sPad));
-      targetZoom = Math.max(_fullZoom, Math.min(1.40, _sZoom));
-      const _sCX = (_sMinX + _sMaxX) / 2;
-      const _sCY = (_sMinY + _sMaxY) / 2;
-      // Blend toward the map centre as the view widens, so a full-map framing is
-      // still centred on the arena rather than on whichever fighter drifted.
-      const _sTight = Math.max(0, Math.min(1, (targetZoom - _fullZoom) / Math.max(0.001, 1.40 - _fullZoom)));
-      targetX = (_aLeft + _aRight) / 2 * (1 - _sTight) + _sCX * _sTight;
-      targetY = (GAME_H / 2) * (1 - _sTight) + _sCY * _sTight + _hudShift;
-      // The shared world clamp further down only engages when the world is taller
-      // than the viewport, which is false for standard arenas — clamp here instead.
-      {
-        const _sHvw = GAME_W / (2 * targetZoom);
-        const _sHvh = GAME_H / (2 * targetZoom);
-        if (_aRight - _aLeft > 2 * _sHvw) targetX = Math.max(_aLeft + _sHvw, Math.min(_aRight - _sHvw, targetX));
-        else                              targetX = (_aLeft + _aRight) / 2;
-        if (GAME_H > 2 * _sHvh)           targetY = Math.max(_sHvh + _hudGU, Math.min(GAME_H - _sHvh, targetY));
-      }
-      if (camHitZoomTimer > 0) {
-        camHitZoomTimer--;
-        targetZoom += 0.10 * (camHitZoomTimer / 15);
-      }
-    } else {
-      // ── Wide/scrolling arena: bounding-box tracking to follow players ──────
-      let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
-      for (const p of activePlayers) {
-        minX = Math.min(minX, p.x);
-        maxX = Math.max(maxX, p.x + (p.w || 0));
-        minY = Math.min(minY, p.y);
-        maxY = Math.max(maxY, p.y + (p.h || 0));
-      }
-      const PAD      = 220;
-      const zoomX    = GAME_W / ((maxX - minX) + PAD);
-      const _safeH   = Math.max(GAME_H - _hudGU, GAME_H * 0.7);
-      const zoomY    = _safeH / ((maxY - minY) + PAD);
-      const minZoom  = Math.max(0.30, GAME_W / (currentArena.worldWidth + 200));
-      targetZoom = Math.min(1.18, Math.max(minZoom, Math.min(zoomX, zoomY)));
-      const rawCX  = (minX + maxX) / 2;
-      const rawCY  = (minY + maxY) / 2;
-      const humanP = activePlayers.find(p => !p.isAI && !p.isBoss) || activePlayers[0];
-      // Facing look-ahead: only when there is exactly one human player (avoids fighting in local co-op)
-      const _humanPlayers = activePlayers.filter(p => !p.isAI && !p.isBoss);
-      const _wideLead = (_humanPlayers.length === 1)
-        ? humanP.facing * (20 + Math.min(55, Math.abs(humanP.vx) * 12)) : 0;
-      // Bias toward the human as the fighters separate. Framing the midpoint is
-      // worth it only while both fighters actually fit on screen; on a huge map
-      // (megacity is 3600 wide) a far-off opponent otherwise drags the camera
-      // hundreds of units behind the player they are controlling, which reads as
-      // the camera lagging and then snapping. _spread is 0 while the pair frames
-      // comfortably and ramps to 1 once the box outgrows the viewport.
-      const _viewW  = GAME_W / Math.max(0.05, targetZoom);
-      const _spread = Math.max(0, Math.min(1, ((maxX - minX) - _viewW * 0.55) / (_viewW * 0.45)));
-      const _humanW = 0.28 + 0.72 * _spread;
-      targetX = rawCX * (1 - _humanW) + (humanP.cx() + _wideLead) * _humanW;
-      const _viewH   = _safeH / Math.max(0.05, targetZoom);
-      const _spreadY = Math.max(0, Math.min(1, ((maxY - minY) - _viewH * 0.55) / (_viewH * 0.45)));
-      const _humanWY = 0.38 + 0.62 * _spreadY;
-      targetY = rawCY * (1 - _humanWY) + humanP.cy() * _humanWY + _hudShift;
-      // Brief hit-zoom pulse for wide arenas
-      if (camHitZoomTimer > 0) {
-        camHitZoomTimer--;
-        targetZoom = Math.max(targetZoom, 1.0 + 0.22 * (camHitZoomTimer / 15));
-      }
-      // Boss attack: bias camera toward boss on wide maps
-      if (!cinematicCamOverride && gameRunning) {
-        // attackTimer flips on and off between frames; on a 3600-wide map a hard
-        // 0.4 pull toward the boss is a several-hundred-unit target step every
-        // swing and back again. Ramp the weight instead.
-        const attackingBoss = players.find(p => p.isBoss && p.attackTimer > 0 && p.health > 0)
-          || players.find(p => p.isBoss && p.health > 0 && _camBossBias > 0.01);
-        const _bossWant = (attackingBoss && attackingBoss.attackTimer > 0) ? 1 : 0;
-        _camBossBias += (_bossWant - _camBossBias) * 0.08;
-        if (attackingBoss && _camBossBias > 0.01) {
-          const _bw = 0.4 * _camBossBias;
-          targetZoom = Math.max(targetZoom, 1.0 + 0.08 * _camBossBias);
-          targetX = targetX * (1 - _bw) + attackingBoss.cx() * _bw;
-          targetY = targetY * (1 - _bw) + attackingBoss.cy() * _bw;
-        }
-      } else { _camBossBias = 0; }
+    if (camHitZoomTimer > 0) {
+      camHitZoomTimer--;
+      // A pulse, never a pull-IN past what containment allows.
+      targetZoom = Math.min(_zMax, targetZoom + 0.09 * (camHitZoomTimer / 15));
     }
   }
 
@@ -404,8 +493,14 @@ function updateCamera() {
     // Never let the limiter overshoot the target it is chasing.
     if (Math.abs(_camVX) > Math.abs(camXTarget - camXCur)) _camVX = camXTarget - camXCur;
     if (Math.abs(_camVY) > Math.abs(camYTarget - camYCur)) _camVY = camYTarget - camYCur;
-    _camVX = Math.max(-_CAM_MAX_SPEED, Math.min(_CAM_MAX_SPEED, _camVX));
-    _camVY = Math.max(-_CAM_MAX_SPEED, Math.min(_CAM_MAX_SPEED, _camVY));
+    // Speed ceiling scales with how far behind the camera is. A flat 34/frame cap
+    // means a 3000-unit jump (a story portal, a teleport attack) takes 90 frames
+    // during which everyone is off screen. Past ~700 units the camera is not
+    // "following" any more, it is catching up, and it should be allowed to.
+    const _gap = Math.hypot(camXTarget - camXCur, camYTarget - camYCur);
+    const _spd = _gap > 700 ? _CAM_MAX_SPEED * Math.min(4, _gap / 700) : _CAM_MAX_SPEED;
+    _camVX = Math.max(-_spd, Math.min(_spd, _camVX));
+    _camVY = Math.max(-_spd, Math.min(_spd, _camVY));
     camXCur += _camVX;
     camYCur += _camVY;
   }
@@ -502,7 +597,21 @@ function updateCamera() {
         // Never pan above the world's top bound to satisfy the HUD gap: the world
         // clamp would just undo it on the next frame, and the resulting per-frame
         // tug of war is the camera vibration seen on tall/low-gravity arenas.
-        const _hudCamY = Math.max(_hudCamMax, _camWorldTopBound);
+        //
+        // And never pan up so far that the LOWEST fighter drops out of the bottom
+        // of the frame. Clearing the HUD for the top fighter by losing the bottom
+        // one is not a fix, it is the same bug pointed the other way — measured on
+        // grass with one fighter launched above the ceiling and the other on the
+        // floor, where this clamp was chasing an unreachable fighter at y=0 and
+        // pushing the live one off the bottom.
+        let _lowestY = -Infinity;
+        for (const _lap of activePlayers) {
+          const _ly = _lap.y + (_lap.h || 0);
+          if (_ly > _lowestY) _lowestY = _ly;
+        }
+        const _halfH = GAME_H / (2 * Math.max(0.05, camZoomCur));
+        const _camYMinForBottom = isFinite(_lowestY) ? (_lowestY - _halfH + 30) : -Infinity;
+        const _hudCamY = Math.max(_hudCamMax, _camWorldTopBound, _camYMinForBottom);
         if (camYCur > _hudCamY) {
           camYCur    = _hudCamY;
           camYTarget = Math.min(camYTarget, _hudCamY);
@@ -533,12 +642,28 @@ function updateCamera() {
     // world-unit ping-pong that is exactly what reads as "the camera snaps on long
     // maps". The framing logic above already biases toward the local human as the
     // pair separates; the failsafe only needs to rescue that one fighter.
+    // The framing solver now guarantees containment, so this is a genuine
+    // last-resort net rather than the thing that keeps fighters on screen — and
+    // because the test below re-checks against where the camera is HEADING, a
+    // correct solve never fires it. That means it is finally safe to watch EVERY
+    // human instead of only the first: the old one-subject rule existed purely
+    // because the framing deliberately abandoned the second player, and rescuing
+    // them alternately was the 600-1100 unit ping-pong on long maps.
     const _fsHumans = activePlayers.filter(p => !p.isAI && !p.isBoss);
     const _fsSubjects = (gameMode === 'online' && typeof localPlayerSlot !== 'undefined' && players[localPlayerSlot] && players[localPlayerSlot].health > 0)
       ? [players[localPlayerSlot]]
-      : (_fsHumans.length ? [_fsHumans[0]] : activePlayers.slice(0, 1));
+      : (_fsHumans.length ? _fsHumans : activePlayers.slice(0, 1));
+    // Vertically unreachable fighters are skipped for the same reason horizontally
+    // unreachable ones are. A fighter launched above the arena ceiling trips the
+    // HUD-overlap test forever — the camera is not allowed to pan up there — and
+    // the resulting snap yanks the camera off the fighter who IS framed, every
+    // cooldown. Measured on grass: target y 278 (correct), snapped to -14, back to
+    // 278, forever, with the live fighter off the bottom of the screen half the time.
+    const _fsRect = _camWorldRect();
     for (const _fp of _fsSubjects) {
       if (_fp.cx() < _fsLeft - 40 || _fp.cx() > _fsRight + 40) continue;
+      if (_fp.y + (_fp.h || 0) < _fsRect.wT) continue;   // above the ceiling
+      if (_fp.y > _fsRect.wB) continue;                  // below the floor
       const _sx    = (_fp.cx() - camXCur) * camZoomCur + GAME_W * 0.5;
       const _syTop = (_fp.y - camYCur) * camZoomCur + GAME_H * 0.5;
       const _syBot = (_fp.y + (_fp.h || 50) - camYCur) * camZoomCur + GAME_H * 0.5;
@@ -569,6 +694,20 @@ function updateCamera() {
         _lostAtTarget = (_tsx < -_margin || _tsx > GAME_W + _margin ||
                          _tsyB < -_margin || _tsyT > GAME_H + _margin ||
                          (_tsyT < _hudGU * _tz - _margin && _canPanUp));
+      }
+      // The framing solver contains everyone, so a fighter can now be off screen
+      // for exactly one reason: the camera has not physically arrived yet (a
+      // teleport, a portal, a 3000-unit knockback). That is not a framing failure
+      // and must not be "rescued" by snapping somewhere else — it just needs the
+      // remaining distance closed faster. Jump most of the way to the KNOWN-GOOD
+      // target rather than toward the fighter.
+      if (_lost && !_lostAtTarget) {
+        camXCur += (camXTarget - camXCur) * 0.45;
+        camYCur += (camYTarget - camYCur) * 0.45;
+        camYCur  = Math.max(_camWorldTopBound, Math.min(_camWorldBotBound, camYCur));
+        _camVX = 0; _camVY = 0;
+        _camSnapCooldown = 4;
+        break;
       }
       if (_lostAtTarget) {
         // Snap once, then disable lerp conflict for 10 frames

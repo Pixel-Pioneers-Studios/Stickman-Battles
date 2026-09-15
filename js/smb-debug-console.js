@@ -439,7 +439,33 @@ function _consoleExec(raw) {
     _consolePrint('  isTrueForm:   ' + !!p.isTrueForm);
     _consolePrint('  godMode:      ' + !!p.godMode);
     _consolePrint('  onGround:     ' + !!p.onGround);
-    _consolePrint('  shielding:    ' + !!p.shielding);
+    _consolePrint('  shielding:    ' + !!p.shielding +
+                  '  stacks=' + (p.shieldStacks || 0) + '  shieldHP=' + Math.round(p.shieldHP || 0));
+    if (p._tacticGrid) {
+      const SITN = { c: 'close', m: 'mid', f: 'far' }, HN = { a: 'above', l: 'level', b: 'below' };
+      const sits = Object.keys(p._tacticGrid);
+      _consolePrint('  tactic grid:  ' + (sits.length ? '' : '(nothing booked yet)'));
+      for (const sit of sits.sort()) {
+        const row = p._tacticGrid[sit];
+        const cells = Object.keys(row).sort().map(a => {
+          const e = row[a];
+          const v = e.tries >= 3 ? ((e.dealt - e.taken) / e.tries).toFixed(1) : '?';
+          return a + ' ' + v + '(' + e.tries.toFixed(0) + ')';
+        });
+        _consolePrint('    ' + (SITN[sit[0]] + '/' + HN[sit[1]]).padEnd(12) + cells.join('  '));
+      }
+      const here = p._situationKey && p._situationKey();
+      if (here) {
+        const best = p._bestAction && p._bestAction(here);
+        _consolePrint('    now: ' + SITN[here[0]] + '/' + HN[here[1]] +
+                      '  best=' + (best ? best.action + ' (' + best.value.toFixed(1) + ')' : 'no opinion yet'));
+      }
+      const ap = p._approachStat;
+      if (ap) _consolePrint('    air approach (drives the guard): tries=' + ap.tries.toFixed(1) +
+                            '  net/try=' + (ap.tries >= 4 ? ((ap.dealt - ap.taken) / ap.tries).toFixed(1) : 'n/a'));
+      if (p._airDenyTimer > 0) _consolePrint('    (air approach vetoed, ' + p._airDenyTimer + 'f left)');
+      if (p._swingGated)       _consolePrint('    (swings turned into guards: ' + p._swingGated + ')');
+    }
     _consolePrint('  inQuicksand:  ' + !!p._inQuicksand);
     _consolePrint('  storyCharId:  ' + (p.storyCharId || 'none'));
     _consolePrint('  pos:          x=' + Math.round(p.x) + ' y=' + Math.round(p.y));

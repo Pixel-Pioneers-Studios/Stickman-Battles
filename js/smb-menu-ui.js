@@ -53,10 +53,18 @@ function selectMode(mode) {
     crBtn.textContent = ` Complete Random: ${isCompleteRandom ? 'ON' : 'OFF'}`;
     crBtn.classList.toggle('active', isCompleteRandom);
   }
-  // Show/hide online connection panel
+  // Show/hide online connection panel.
+  // While a session is live the panel STAYS open: the host picks the match mode
+  // from inside it, and selectMode('2p') used to close the very panel that was
+  // driving it — which read as the Online screen vanishing on the first click.
+  const _sessionLive = !!(window.NetworkManager && NetworkManager.connected);
   const onlinePanel = document.getElementById('onlinePanel');
-  if (onlinePanel) onlinePanel.style.display = isOnline ? 'flex' : 'none';
-  if (isOnline && typeof refreshPublicRooms === 'function') refreshPublicRooms();
+  if (onlinePanel) onlinePanel.style.display = (isOnline || _sessionLive) ? 'flex' : 'none';
+  if (_sessionLive) {
+    const _onlineCard = document.querySelector('[data-mode="online"]');
+    if (_onlineCard) _onlineCard.classList.add('active');
+  }
+  if ((isOnline || _sessionLive) && typeof refreshPublicRooms === 'function') refreshPublicRooms();
   // Show/hide minigame selection panel; sync card active state and survivalOptions on re-entry
   const mgPanel = document.getElementById('minigamePanel');
   if (mgPanel) mgPanel.style.display = isMinigames ? 'block' : 'none';
@@ -382,9 +390,20 @@ function refreshCustomWeaponOptions() {
 
 // Called by the "Custom Weapons" checkbox in #onlineGameModeRow
 function toggleOnlineCustomWeapons(checked) {
+  // Guests cannot change match rules — bounce the checkbox back.
+  if (window.NetworkManager && NetworkManager.connected && !NetworkManager.isHost()) {
+    NetworkManager.showToast('Only the host can change match settings');
+    const el = document.getElementById('onlineCustomWeaponsCheck');
+    if (el) el.checked = !!onlineAllowCustomWeapons;
+    return;
+  }
   onlineAllowCustomWeapons = !!checked;
   // Re-run selectMode so weapon dropdowns update immediately
   if (typeof selectMode === 'function') selectMode(gameMode || 'online');
+  if (window.NetworkManager && NetworkManager.connected) {
+    NetworkManager.sendGameEvent('customWeaponsToggled', { allowCustomWeapons: onlineAllowCustomWeapons });
+    NetworkManager.renderLobby();
+  }
 }
 
 function toggleCompleteRandom(forceValue) {
@@ -446,8 +465,11 @@ function _syncCoinDisplay() {
     storeBal.classList.add('coin-pop');
     setTimeout(() => storeBal.classList.remove('coin-pop'), 500);
   }
+  // Nav chip is a corner badge on a 34px plate — the number alone fits, and
+  // the plate's own coin icon already says what it counts. The store panel
+  // balance above keeps the glyph.
   const coinEl = document.getElementById('coinDisplay');
-  if (coinEl) coinEl.textContent = coinBalance + ' ⬡';
+  if (coinEl) coinEl.textContent = coinBalance;
 }
 
 function getCoinBalance() {
@@ -979,6 +1001,269 @@ function _homeDrawKael(ctx, cx, baseY, sc, t) {
   ctx.restore();
 }
 
+
+// ── HOME HERO SCENE ─────────────────────────────────────────────────────────
+// A story beat instead of a portrait. Kael comes through the rift on the left,
+// caught mid-dash across the sky, with hunters converging from the right.
+//
+// Composition rule: everything lives in the upper band (~0.10H to 0.36H). The
+// title sits above it and the hub cards start around 0.38H, so the art has its
+// own lane and never fights either. The closing vignette darkens the lower half
+// so card text stays readable over whatever the game canvas draws underneath.
+//
+// Units: `u` is a single scale factor (1 at a 900px-tall window), and every
+// offset below is written in those units, so the whole scene rescales together.
+
+// The rift Kael came through — a vertical tear, brightest at its seam.
+function _homeRift(ctx, x, y, h, u, t) {
+  var w = h * 0.085;   // a TEAR, not a lozenge — it was far too wide before
+  var flick = 0.86 + Math.sin(t * 2.3) * 0.08 + Math.sin(t * 5.7) * 0.04;
+
+  ctx.save();
+
+  // Outer bloom
+  var bloom = ctx.createRadialGradient(x, y, 0, x, y, h * 0.62);
+  bloom.addColorStop(0,    'rgba(150,60,255,' + (0.30 * flick) + ')');
+  bloom.addColorStop(0.45, 'rgba(90,30,180,0.10)');
+  bloom.addColorStop(1,    'rgba(40,10,90,0)');
+  ctx.fillStyle = bloom;
+  ctx.beginPath(); ctx.ellipse(x, y, h * 0.62, h * 0.66, 0, 0, Math.PI * 2); ctx.fill();
+
+  // The tear itself: a tall lens with a ragged edge, not a clean ellipse.
+  ctx.beginPath();
+  var N = 26;
+  for (var i = 0; i <= N; i++) {
+    var a = (i / N) * Math.PI * 2;
+    var jag = 1 + Math.sin(a * 7 + t * 1.6) * 0.07 + Math.sin(a * 13 - t * 2.1) * 0.04;
+    var px = x + Math.sin(a) * w * jag;
+    var py = y - Math.cos(a) * h * 0.5 * jag;
+    if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+  }
+  ctx.closePath();
+  var core = ctx.createLinearGradient(x - w, y, x + w, y);
+  core.addColorStop(0,    'rgba(40,8,90,0.0)');
+  core.addColorStop(0.32, 'rgba(120,45,220,0.75)');
+  core.addColorStop(0.5,  'rgba(244,226,255,' + (0.98 * flick) + ')');
+  core.addColorStop(0.68, 'rgba(120,45,220,0.75)');
+  core.addColorStop(1,    'rgba(40,8,90,0.0)');
+  ctx.fillStyle = core; ctx.fill();
+  ctx.strokeStyle = 'rgba(214,170,255,0.55)'; ctx.lineWidth = 1.2 * u; ctx.stroke();
+
+  // Hot seam down the middle — this is what sells it as an opening rather than
+  // a shape: a hard white line the fill blooms away from.
+  var seam = ctx.createLinearGradient(x, y - h * 0.5, x, y + h * 0.5);
+  seam.addColorStop(0,   'rgba(255,255,255,0)');
+  seam.addColorStop(0.5, 'rgba(255,245,255,' + (0.92 * flick) + ')');
+  seam.addColorStop(1,   'rgba(255,255,255,0)');
+  ctx.strokeStyle = seam; ctx.lineWidth = 2.2 * u;
+  ctx.beginPath(); ctx.moveTo(x, y - h * 0.47); ctx.lineTo(x, y + h * 0.47); ctx.stroke();
+
+  // Hairline fractures radiating off the seam
+  ctx.strokeStyle = 'rgba(180,110,255,0.34)';
+  ctx.lineWidth = 1.2 * u;
+  for (var k = 0; k < 7; k++) {
+    var ang = -1.5 + k * 0.48 + Math.sin(t * 0.7 + k) * 0.05;
+    var len = h * (0.30 + (k % 3) * 0.13);
+    var sx  = x + Math.sin(ang) * w * 0.8;
+    var sy  = y - Math.cos(ang) * h * 0.34;
+    ctx.beginPath();
+    ctx.moveTo(sx, sy);
+    ctx.lineTo(sx + Math.cos(ang * 1.7) * len * 0.5, sy + Math.sin(ang * 1.7) * len);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+// One stickman. Shared by the hero and the hunters — only the pose constants,
+// colours and weapon differ, so they read as the same species of figure.
+// o = { face, u, dark, rim, weapon, alpha, scarf, t, lean }
+function _homeStickman(ctx, hx, hy, o) {
+  var u = o.u, f = o.face || 1, t = o.t || 0;
+  var DARK = o.dark || '#07040d';
+  var RIM  = o.rim  || 'rgba(255,255,255,0.62)';
+
+  // Mid-dash pose, measured from the HIP at (0,0). Proportions matter more than
+  // the pose here: a ~92-unit figure with a 34-unit torso, 60 units of leg below
+  // the hip and a head that touches the shoulder. The first pass used 20 units
+  // of leg and left a gap between head and neck, which is why the figures read
+  // as spiders rather than people.
+  // x grows along the direction of travel; y grows downward.
+  var P = function (dx, dy) { return [hx + dx * f * u, hy + dy * u]; };
+  var sh   = P(8,  -34);                    // shoulder (torso pitched forward)
+  var head = P(14, -48);                    // head centre, r 10 -> meets the neck
+  var lk   = P(22,  10), lf = P(34, 26);    // lead leg  — knee up, foot tucked
+  var tk   = P(-16, 18), tf = P(-34, 34);   // trail leg — thrown back
+  var le   = P(26, -26), lh = P(40, -34);   // lead arm  — reaching ahead
+  var te   = P(-14,-22), th = P(-26,-14);   // trail arm — loaded behind
+
+  var hr = 11 * u;                                   // head radius
+  // Point on the head's edge facing the shoulder — where the neck should end.
+  var ndx = head[0] - sh[0], ndy = head[1] - sh[1];
+  var nlen = Math.sqrt(ndx * ndx + ndy * ndy) || 1;
+  var neck = [head[0] - (ndx / nlen) * hr, head[1] - (ndy / nlen) * hr];
+
+  ctx.save();
+  ctx.globalAlpha = (o.alpha === undefined) ? 1 : o.alpha;
+  ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+
+  function body() {
+    ctx.beginPath();
+    ctx.moveTo(hx, hy);        ctx.lineTo(sh[0], sh[1]);                       // torso
+    // Neck stops ON THE HEAD'S CIRCUMFERENCE. Running it to the head's centre
+    // draws the line straight across the face, and because the body is stroked
+    // after the head is filled, that line sits on top of it.
+    ctx.moveTo(sh[0], sh[1]);  ctx.lineTo(neck[0], neck[1]);                   // neck
+    ctx.moveTo(hx, hy);        ctx.lineTo(lk[0], lk[1]); ctx.lineTo(lf[0], lf[1]);
+    ctx.moveTo(hx, hy);        ctx.lineTo(tk[0], tk[1]); ctx.lineTo(tf[0], tf[1]);
+    ctx.moveTo(sh[0], sh[1]);  ctx.lineTo(le[0], le[1]); ctx.lineTo(lh[0], lh[1]);
+    ctx.moveTo(sh[0], sh[1]);  ctx.lineTo(te[0], te[1]); ctx.lineTo(th[0], th[1]);
+  }
+
+  // Weapon, held in the trailing hand and swept back.
+  function weapon() {
+    if (!o.weapon) return;
+    ctx.beginPath();
+    if (o.weapon === 'sword') {
+      var tip = P(-64, -40);
+      ctx.moveTo(th[0], th[1]); ctx.lineTo(tip[0], tip[1]);
+      var g1 = P(-30, -26), g2 = P(-38, -12);
+      ctx.moveTo(g1[0], g1[1]); ctx.lineTo(g2[0], g2[1]);            // crossguard
+    } else if (o.weapon === 'axe') {
+      var ah = P(-56, -38);
+      ctx.moveTo(th[0], th[1]); ctx.lineTo(ah[0], ah[1]);
+      var b1 = P(-48, -50), b2 = P(-62, -30);
+      ctx.moveTo(b1[0], b1[1]); ctx.lineTo(ah[0], ah[1]); ctx.lineTo(b2[0], b2[1]);
+    } else if (o.weapon === 'spear') {
+      var s1 = P(-70, -44), s2 = P(16, -4);
+      ctx.moveTo(s2[0], s2[1]); ctx.lineTo(s1[0], s1[1]);
+    }
+  }
+
+  // Outline underlay, then the near-black body over it — the silhouette reads
+  // against both the dark sky and the rift's glare this way.
+  body();   ctx.strokeStyle = RIM;  ctx.lineWidth = 5.4 * u; ctx.stroke();
+  weapon(); ctx.strokeStyle = RIM;  ctx.lineWidth = 4.0 * u; ctx.stroke();
+  body();   ctx.strokeStyle = DARK; ctx.lineWidth = 4.2 * u; ctx.stroke();
+  weapon(); ctx.strokeStyle = DARK; ctx.lineWidth = 2.8 * u; ctx.stroke();
+
+  // Head LAST, opaque, so it covers the neck join cleanly whatever the pose.
+  ctx.beginPath(); ctx.arc(head[0], head[1], hr, 0, Math.PI * 2);
+  ctx.fillStyle = DARK; ctx.fill();
+  ctx.lineWidth = 1.6 * u; ctx.strokeStyle = RIM; ctx.stroke();
+
+  // Hunters get an eye glint instead of a scarf — one red pinpoint each.
+  if (o.eye) {
+    ctx.beginPath();
+    ctx.arc(head[0] + 3 * f * u, head[1] - 1 * u, 1.7 * u, 0, Math.PI * 2);
+    ctx.fillStyle = '#ff3b30';
+    ctx.shadowColor = '#ff3b30'; ctx.shadowBlur = 7 * u;
+    ctx.fill(); ctx.shadowBlur = 0;
+  }
+
+  // Kael's scarf, streaming back along the dash.
+  if (o.scarf) {
+    var w1 = Math.sin(t * 2.2)       * 5 * u;
+    var w2 = Math.sin(t * 2.2 + 1.2) * 9 * u;
+    var nk = P(6, -38);
+    var tipX = hx - 86 * f * u, tipY = hy - 34 * u + w2;
+    var g = ctx.createLinearGradient(nk[0], nk[1], tipX, tipY);
+    g.addColorStop(0,    'rgba(255,58,58,0.98)');
+    g.addColorStop(0.55, 'rgba(222,30,30,0.72)');
+    g.addColorStop(1,    'rgba(150,20,20,0)');
+    ctx.beginPath();
+    ctx.moveTo(nk[0], nk[1]);
+    ctx.bezierCurveTo(
+      hx - 28 * f * u,      hy - 34 * u + w1,
+      hx - 58 * f * u,      hy - 40 * u + w2,
+      tipX, tipY
+    );
+    ctx.strokeStyle = g; ctx.lineWidth = 3.8 * u;
+    ctx.shadowColor = '#ff2a2a'; ctx.shadowBlur = 9 * u;
+    ctx.stroke(); ctx.shadowBlur = 0;
+  }
+  ctx.restore();
+}
+
+function _homeDrawHeroScene(ctx, W, H, t) {
+  var u  = Math.min(W, H) / 900;       // 1 at a 900px-tall window
+  var bandY = H * 0.24;                // the action's eye line
+
+  var riftX = W * 0.17, riftY = bandY + 8 * u, riftH = H * 0.30;
+  var heroX = W * 0.36, heroY = bandY + 26 * u;
+  var hu    = 1.75 * u;                // hero unit — biggest figure on screen
+
+  // Stage wash — the game canvas underneath draws a bright fracture burst around
+  // the centre, which cut straight through the figures. This sits behind them.
+  var stage = ctx.createLinearGradient(0, bandY - H * 0.20, 0, bandY + H * 0.20);
+  stage.addColorStop(0,   'rgba(5,4,14,0)');
+  stage.addColorStop(0.5, 'rgba(5,4,14,0.55)');
+  stage.addColorStop(1,   'rgba(5,4,14,0)');
+  ctx.fillStyle = stage;
+  ctx.fillRect(0, bandY - H * 0.20, W, H * 0.40);
+
+  _homeRift(ctx, riftX, riftY, riftH, u, t);
+
+  // Speed streaks pulled out of the rift along Kael's line of travel.
+  ctx.save();
+  for (var i = 0; i < 9; i++) {
+    var ph  = (t * 0.55 + i * 0.111) % 1;
+    var sx  = riftX + (heroX - riftX) * ph * 1.05;
+    var sy  = riftY - 34 * u + i * 9 * u + Math.sin(i * 2.1) * 6 * u;
+    var len = (42 + (i % 3) * 30) * u;
+    var a   = 0.30 * Math.sin(Math.PI * ph);
+    var lg  = ctx.createLinearGradient(sx - len, sy, sx, sy);
+    lg.addColorStop(0, 'rgba(190,140,255,0)');
+    lg.addColorStop(1, 'rgba(210,170,255,' + a.toFixed(3) + ')');
+    ctx.strokeStyle = lg; ctx.lineWidth = 1.6 * u; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(sx - len, sy); ctx.lineTo(sx, sy); ctx.stroke();
+  }
+  ctx.restore();
+
+  // Afterimages: Kael's dash, trailing back toward the tear he came out of.
+  for (var k = 3; k >= 1; k--) {
+    _homeStickman(ctx, heroX - k * 34 * u, heroY + k * 5 * u, {
+      u: hu, face: 1, t: t, weapon: 'sword', alpha: 0.10 * (4 - k) * 0.5,
+      dark: 'rgba(120,70,200,0.55)', rim: 'rgba(190,150,255,0.30)'
+    });
+  }
+
+  // Kael himself — a slow hover so the held pose still breathes.
+  var bob = Math.sin(t * 1.15) * 4 * u;
+  _homeStickman(ctx, heroX, heroY + bob, {
+    u: hu, face: 1, t: t, weapon: 'sword', scarf: true
+  });
+
+  // Where the two sides are about to meet — a charged seam, not a flash. It
+  // gives the frame a centre of gravity between hero and hunters.
+  var clashX = W * 0.52, clashY = bandY + 10 * u;
+  var puls   = 0.5 + Math.sin(t * 1.7) * 0.5;
+  var cg = ctx.createRadialGradient(clashX, clashY, 0, clashX, clashY, 150 * u);
+  cg.addColorStop(0,   'rgba(255,120,60,' + (0.16 + puls * 0.10).toFixed(3) + ')');
+  cg.addColorStop(0.5, 'rgba(180,60,120,0.05)');
+  cg.addColorStop(1,   'rgba(120,40,160,0)');
+  ctx.fillStyle = cg;
+  ctx.beginPath(); ctx.ellipse(clashX, clashY, 150 * u, 88 * u, 0, 0, Math.PI * 2); ctx.fill();
+
+  // The hunters closing from the right: four figures at different depths, each
+  // drifting in and easing back on its own cycle so the line never marches in
+  // lockstep. Smaller and dimmer with distance.
+  var foes = [
+    { x: 0.64, y: -0.050, s: 1.55, w: 'axe',   sp: 0.85, ph: 0.0 },
+    { x: 0.755, y: 0.055, s: 1.25, w: 'sword', sp: 1.05, ph: 1.7 },
+    { x: 0.855, y:-0.015, s: 1.00, w: 'spear', sp: 0.75, ph: 3.1 },
+    { x: 0.945, y: 0.080, s: 0.78, w: 'sword', sp: 0.95, ph: 4.4 }
+  ];
+  for (var n = 0; n < foes.length; n++) {
+    var fo = foes[n];
+    var drift = Math.sin(t * fo.sp + fo.ph) * 11 * u;
+    var fade  = Math.min(1, 0.46 + fo.s * 0.40);
+    _homeStickman(ctx, W * fo.x - drift, bandY + H * fo.y + Math.sin(t * fo.sp * 1.3 + fo.ph) * 4 * u, {
+      u: u * fo.s, face: -1, t: t, weapon: fo.w, eye: true, alpha: fade,
+      dark: '#04020a', rim: 'rgba(255,72,58,0.72)'
+    });
+  }
+}
+
 function _initHomeCanvas() {
   var canvas = document.getElementById('homeCanvas');
   if (!canvas) return;
@@ -1016,10 +1301,19 @@ function _initHomeCanvas() {
     ctx.fillStyle = cvig;
     ctx.fillRect(0, 0, W, H);
 
-    // Kael — large dark hero silhouette, alone before the fracture
-    var sc  = Math.min(W, H) / 420;
-    var ksc = sc * 1.35;
-    _homeDrawKael(ctx, W * 0.50, H * 0.41, ksc, t);
+    // The story beat: Kael through the rift, hunters closing in.
+    // (_homeDrawKael below is the previous standing portrait — kept, unused,
+    // so the old composition can be restored without rewriting it.)
+    _homeDrawHeroScene(ctx, W, H, t);
+
+    // Lower-half scrim, drawn LAST so it sits over the art rather than under
+    // it — the hub cards start around 0.38H and their text has to stay legible
+    // whatever the scene and the game canvas are doing behind them.
+    var scrim = ctx.createLinearGradient(0, H * 0.30, 0, H * 0.62);
+    scrim.addColorStop(0, 'rgba(4,4,11,0)');
+    scrim.addColorStop(1, 'rgba(4,4,11,0.72)');
+    ctx.fillStyle = scrim;
+    ctx.fillRect(0, H * 0.30, W, H * 0.70);
 
     _homeCanvasRAF = requestAnimationFrame(frame);
   }

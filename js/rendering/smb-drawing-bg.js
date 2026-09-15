@@ -86,6 +86,11 @@ function drawBackground() {
     _drawExploreThemeArt(currentArena);
   }
 
+  // Battle Royale: one authored arena backdrop per landmark band.
+  if (currentArena && currentArena.isBRBanded) {
+    _drawBRBandArt();
+  }
+
   // Boundary portals: visible warp rifts at map edges for large story maps
   if (currentArena && currentArena.boundaryPortals) {
     _drawBoundaryPortals(currentArena);
@@ -132,6 +137,7 @@ function _drawArenaThemeArt(currentArenaKey) {
   if (currentArenaKey === 'god_domain')  drawGodDomainArena();
   if (currentArenaKey === 'absolute_axiom_domain') drawAbsoluteAxiomArena();
   if (currentArenaKey === 'studio')               drawStudioArena();
+  if (currentArenaKey === 'sewer')      drawSewerArena();
 }
 
 // Arenas whose bespoke art is a full backdrop worth inheriting into an explore
@@ -216,6 +222,88 @@ function _drawExploreThemeArt(a) {
     ctx.clip();
     _drawArenaThemeArt(key);
     ctx.restore();
+  }
+}
+
+// Battle Royale's world is a left-to-right sequence of landmark bands, each one
+// rendered with a real base-game arena's authored backdrop. Unlike the explore
+// tiler above (which repeats ONE theme across a wide world in viewport space),
+// each BR band is anchored to its own world rect, because its identity is its
+// location: the volcano has to be at the volcano.
+//
+// Band widths (800-1200) were chosen close to the authored 900px arena width, so
+// each panel is drawn near 1:1 and the art is not visibly stretched.
+const _BR_ART_VSCALE = 1.55;   // authored 480px-tall art -> 744px of world sky
+
+// Vertical band each layer owns. Art is clipped to its own layer so the cloud
+// kingdom's sky and the ruins' backdrop directly beneath it cannot paint over
+// one another, and the caverns' rock stays underground.
+function _brLayerRect(layer) {
+  if (layer === 'sky')   return { top: -600,                        bot: BR_SKY_FLOOR_Y + 200 };
+  if (layer === 'under') return { top: BR_GROUND_Y + BR_CRUST_H,    bot: BR_CAVE_FLOOR_Y };
+  return { top: BR_SKY_FLOOR_Y + 200, bot: BR_GROUND_Y };
+}
+
+function _drawBRBandArt() {
+  if (typeof BR_LANDMARKS === 'undefined' || typeof BR_GROUND_Y === 'undefined') return;
+
+  // Visible world rect, recovered from the live transform (same approach as
+  // _drawExploreThemeArt — the camera locals are not reachable from here).
+  const m = (typeof ctx.getTransform === 'function') ? ctx.getTransform() : null;
+  if (!m || !m.a || !m.d) return;
+  const viewW = canvas.width / m.a;
+  const viewX = -m.e / m.a;
+  if (![viewW, viewX].every(Number.isFinite)) return;
+
+  // Every authored drawer applies its OWN camXCur parallax internally. Those
+  // offsets are written for a 900px arena and reach thousands of pixels here,
+  // which would slide a band's art clean out of its own band. Neutralise the
+  // camera for the duration: the bands are already world-anchored, so they
+  // parallax correctly just by being drawn in world space.
+  const _camSave = camXCur;
+  camXCur = 450;
+
+  try {
+    for (let i = 0; i < BR_LANDMARKS.length; i++) {
+      const L = BR_LANDMARKS[i];
+      // Cull bands outside the view (+ a margin for the seam haze).
+      if (L.x + L.w < viewX - 200 || L.x > viewX + viewW + 200) continue;
+      if (!EXPLORE_THEME_ARENAS.has(L.themeKey)) continue;
+
+      const rect = _brLayerRect(L.layer);
+      // The art's own floor line (authored y=480) lands on this layer's floor.
+      const artTop = rect.bot - 480 * _BR_ART_VSCALE;
+      const clipTop = Math.max(artTop - 400, rect.top);
+
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(L.x, clipTop, L.w, Math.max(0, rect.bot - clipTop));
+      ctx.clip();
+      ctx.translate(L.x, artTop);
+      ctx.scale(L.w / GAME_W, _BR_ART_VSCALE);
+      _drawArenaThemeArt(L.themeKey);
+      ctx.restore();
+    }
+  } finally {
+    camXCur = _camSave;
+  }
+
+  // Seam haze: a soft curtain over each band join within a layer. A hard cut
+  // between the dunes and the volcano reads as a rendering error; a band of
+  // atmosphere reads as distance. Cheap, and it needs no offscreen compositing.
+  for (let i = 0; i < BR_LANDMARKS.length; i++) {
+    const L = BR_LANDMARKS[i];
+    if (L.x <= 0) continue;
+    if (L.x < viewX - 200 || L.x > viewX + viewW + 200) continue;
+    const rect = _brLayerRect(L.layer);
+    const top  = Math.max(rect.bot - 480 * _BR_ART_VSCALE, rect.top);
+    const hz = 150;
+    const g = ctx.createLinearGradient(L.x - hz, 0, L.x + hz, 0);
+    g.addColorStop(0,   'rgba(150,170,195,0)');
+    g.addColorStop(0.5, 'rgba(150,170,195,0.26)');
+    g.addColorStop(1,   'rgba(150,170,195,0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(L.x - hz, top, hz * 2, Math.max(0, rect.bot - top));
   }
 }
 
