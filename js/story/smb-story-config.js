@@ -855,7 +855,6 @@ const STORY_SKILL_TREE = {
       { id: 'highJump2',      name: 'Leap Training',        desc: 'Jump 25% higher total',                     expCost: 45,  requires: 'highJump1' },
       { id: 'doubleJump',     name: 'Double Jump',          desc: 'Press W again while airborne',              expCost: 80,  requires: 'highJump2' },
       { id: 'dodge',          name: 'Dodge Roll',           desc: 'Double-tap ← or → to dodge through attacks', expCost: 70, requires: 'highJump1' },
-      { id: 'airDash',        name: 'Air Dash',             desc: 'Double-tap ← or → while airborne to dash',  expCost: 120, requires: 'doubleJump' },
       { id: 'fastFall',       name: 'Fast Fall',            desc: 'Hold S in air to drop fast; cancel lag',    expCost: 55,  requires: 'highJump2' },
     ],
   },
@@ -980,7 +979,6 @@ function _applySkillTreeToPlayer(p) {
   const dmgBonus = sk.heavyHit2 ? 0.25 : sk.heavyHit1 ? 0.15 : 0;
   if (dmgBonus > 0) p._storyDmgMult = 1.0 + dmgBonus;
   // Skill flags (consumed by game systems already checking _story2.skillTree)
-  p._skillAirDash        = !!sk.airDash;
   p._skillImpactShield   = !!sk.impactShield;
   p._skillDimensionalPatch = !!sk.dimensionalPatch;
   p._skillVoidStep       = !!sk.voidStep;
@@ -993,7 +991,7 @@ function _applySkillTreeToPlayer(p) {
   p._skillLastStrike     = !!sk.lastStrike;
   p._skillTemporalBreak  = !!sk.temporalBreak;
   p._skillCriticalEdge   = !!sk.criticalEdge;
-  p._skillCooldownReduction = !!sk.masterRoot ? 0.15 : 0;
+  p._skillCooldownReduction = sk.masterRoot ? 0.15 : 0;
 }
 
 // Award EXP to the player for a story kill
@@ -1126,6 +1124,12 @@ function _normalizeStory2Progress(data) {
   if (Array.isArray(data.blueprints)) out.blueprints = data.blueprints.slice();
   if (Array.isArray(data.unlockedAbilities)) out.unlockedAbilities = data.unlockedAbilities.slice();
   if (data.skillTree && typeof data.skillTree === 'object') out.skillTree = Object.assign({}, data.skillTree);
+  // Air Dash was removed from the tree. Drop the stale node from old saves and
+  // refund what it cost so the EXP isn't silently lost.
+  if (out.skillTree && out.skillTree.airDash) {
+    delete out.skillTree.airDash;
+    out.exp = (out.exp || 0) + 120;
+  }
   _applyStoryCoreUnlocks(out.skillTree); // never locked, on old saves too
   if (data.weaponSkills && typeof data.weaponSkills === 'object') {
     out.weaponSkills = {};

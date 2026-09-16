@@ -355,13 +355,11 @@ function drawStoryWorldDistortion(ctx, cw, ch_h) {
   ctx.restore();
 }
 
-// ── Dodge roll + Air Dash (shared double-tap ← / → gesture) ──────────────────
-// One gesture, dispatched on grounded state:
-//   • Grounded + dodge unlocked      → Dodge Roll  (i-frame ground roll)
-//   • Airborne + Air Dash skill node → Air Dash    (horizontal burst, once per airtime)
+// ── Dodge roll (double-tap ← / → while grounded) ─────────────────────────────
+// Grounded + dodge unlocked → Dodge Roll (i-frame ground roll). There is no
+// airborne variant — the double-tap does nothing in the air.
 // State stored on the Fighter instance:
-//   p._dodgeTimer / p._dodgeCd / p._dodgeFacing                   — ground dodge
-//   p._airDashTimer / p._airDashCd / p._airDashDir / p._airDashUsed — air dash
+//   p._dodgeTimer / p._dodgeCd / p._dodgeFacing — ground dodge
 //
 // Called from processInput() (smb-input.js) for each living non-AI player.
 
@@ -369,18 +367,13 @@ const DODGE_FRAMES   = 14;  // i-frame duration
 const DODGE_SPEED    = 16;  // lateral velocity burst
 const DODGE_CD       = 48;  // cooldown before next dodge
 
-const AIRDASH_FRAMES = 10;  // active dash frames (gravity suspended)
-const AIRDASH_SPEED  = 15;  // horizontal burst velocity
-const AIRDASH_CD     = 40;  // cooldown before next air dash
-
 /**
  * Must be called from processInput() for each non-AI player.
  */
 function storyHandleDodgeInput(p) {
   if (!p) return;
   const dodgeOK = storyDodgeUnlocked && !p._storyNoDodge;
-  const dashOK  = !!p._skillAirDash;
-  if (!dodgeOK && !dashOK) return;
+  if (!dodgeOK) return;
 
   // ── Active-frame physics: ground dodge in progress ──────────────────────
   if (p._dodgeTimer > 0) {
@@ -394,24 +387,8 @@ function storyHandleDodgeInput(p) {
     return;
   }
 
-  // ── Active-frame physics: air dash in progress ──────────────────────────
-  if (p._airDashTimer > 0) {
-    p._airDashTimer--;
-    p.vx = p._airDashDir * AIRDASH_SPEED;
-    p.vy = 0;                                       // suspend gravity — floaty dash
-    p.invincible = Math.max(p.invincible || 0, 1);  // i-frames through the dash
-    if (p._airDashTimer === 0) {
-      p._airDashCd = AIRDASH_CD;
-      p.vx *= 0.4; // soften the exit
-    }
-    return;
-  }
-
   // Tick cooldowns
-  if (p._dodgeCd   > 0) p._dodgeCd--;
-  if (p._airDashCd > 0) p._airDashCd--;
-  // One air dash per airtime — refresh when grounded
-  if (p.onGround) p._airDashUsed = false;
+  if (p._dodgeCd > 0) p._dodgeCd--;
 
   // ── Double-tap detection: same direction key twice within 13 frames ─────
   if (!p._tapState) p._tapState = {};
@@ -420,33 +397,18 @@ function storyHandleDodgeInput(p) {
   const rHeld = keyHeldFrames[p.controls.right] || 0;
 
   if (lHeld === 1) {
-    if (ts.lTapFrame && (frameCount - ts.lTapFrame) < 13) { _storyDashOrDodge(p, -1); ts.lTapFrame = 0; }
+    if (ts.lTapFrame && (frameCount - ts.lTapFrame) < 13) { _storyTryDodge(p, -1); ts.lTapFrame = 0; }
     else ts.lTapFrame = frameCount;
   }
   if (rHeld === 1) {
-    if (ts.rTapFrame && (frameCount - ts.rTapFrame) < 13) { _storyDashOrDodge(p, 1); ts.rTapFrame = 0; }
+    if (ts.rTapFrame && (frameCount - ts.rTapFrame) < 13) { _storyTryDodge(p, 1); ts.rTapFrame = 0; }
     else ts.rTapFrame = frameCount;
   }
 }
 
-// Dispatch a double-tap to an air dash (airborne) or a ground dodge (grounded).
-function _storyDashOrDodge(p, dir) {
-  if (!p.onGround) {
-    // Air Dash — requires the skill node, one use per airtime, off cooldown
-    if (p._skillAirDash && !p._airDashUsed && (p._airDashCd || 0) <= 0 && (p._airDashTimer || 0) <= 0) {
-      p._airDashTimer = AIRDASH_FRAMES;
-      p._airDashDir   = dir;
-      p._airDashUsed  = true;
-      p.facing        = dir;
-      p.vx            = dir * AIRDASH_SPEED;
-      p.vy            = 0;
-      p.invincible    = Math.max(p.invincible || 0, 1);
-      spawnParticles(p.cx(), p.cy(), '#66ccff', 10);
-      SoundManager && SoundManager.jump && SoundManager.jump(); // reuse jump sound
-    }
-    return;
-  }
-  // Ground Dodge — requires the dodge unlock
+// Dispatch a double-tap to a ground dodge. Airborne double-taps do nothing.
+function _storyTryDodge(p, dir) {
+  if (!p.onGround) return;
   if (storyDodgeUnlocked && !p._storyNoDodge) _doDodge(p, dir);
 }
 

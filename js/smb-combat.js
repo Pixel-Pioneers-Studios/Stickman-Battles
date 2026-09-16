@@ -200,6 +200,22 @@ function _spawnWeaponHitFX(attacker, target, dmg) {
 }
 
 // ── VERTICAL LAUNCH GOVERNOR ─────────────────────────────────────────────────
+// The walls a fighter can actually be pinned against, in world coordinates. An
+// arena lock is checked first because those are the walls that spring up during
+// a story fight and make a corner available in the middle of an open world;
+// otherwise the arena's own map edges stand. GAME_W is the screen, never the
+// world, so it is only the last resort.
+function _wallBounds() {
+  if (typeof exploreArenaLock !== 'undefined' && exploreArenaLock) {
+    return { left: exploreArenaLock.left, right: exploreArenaLock.right };
+  }
+  if (typeof currentArena !== 'undefined' && currentArena &&
+      currentArena.mapLeft != null && currentArena.mapRight != null) {
+    return { left: currentArena.mapLeft, right: currentArena.mapRight };
+  }
+  return { left: 0, right: GAME_W };
+}
+
 // Every anti-juggle system in dealDamage() below regulates `actualKb` — the
 // HORIZONTAL impulse. Nothing ever policed vertical displacement, and ~37 call
 // sites across the codebase launch a target by writing `t.vy = Math.min(t.vy, -N)`
@@ -745,32 +761,51 @@ function dealDamage(attacker, target, dmg, kbForce, stunMult = 1.0, isSplash = f
     target._antiRangedStats = target._antiRangedStats || { projectiles: 0, rangedDamage: 0, farTicks: 0 };
     target._antiRangedStats.rangedDamage = Math.min(999, (target._antiRangedStats.rangedDamage || 0) + actualDmg);
   }
-  // Wall-combo escape: if TrueForm is hit 3+ times quickly while near a boundary, trigger escape
-  if (target && target.isTrueForm && attacker && !attacker.isBoss && !attacker.isTrueForm &&
-      target.invincible <= 0 && !target.godmode) {
+  // ── WALL-COMBO ESCAPE ─────────────────────────────────────────────────────
+  // Three fast hits with your back to a wall and you get out, with i-frames on
+  // the way. This used to be TrueForm's alone, which left every player, bot and
+  // story enemy with no answer to being pinned — and the walls that spring up
+  // mid-level made a corner available anywhere. It also measured the wrong wall:
+  // `GAME_W` is the 900px SCREEN, so in a 6000px walking world the left test only
+  // fired at the world origin and the right test fired at an arbitrary midpoint.
+  // _wallBounds() reads the walls that are actually live: an arena lock first
+  // (those ARE the springing walls), then the arena's own map edges.
+  if (target && attacker && attacker !== target && !attacker.isBoss &&
+      target.invincible <= 0 && !target.godmode && !target.isDead) {
+    const _wb = _wallBounds();
     target._wallComboTimer = target._wallComboTimer || 0;
     target._wallComboHits  = target._wallComboHits  || 0;
     // Reset counter when the window expires (90 frames ≈ 1.5 s)
     if (target._wallComboTimer <= 0) target._wallComboHits = 0;
     target._wallComboHits++;
     target._wallComboTimer = 90; // refresh window
-    const _nearLeft  = target.x < 80;
-    const _nearRight = target.x + target.w > GAME_W - 80;
+    const _nearLeft  = target.x < _wb.left + 80;
+    const _nearRight = target.x + target.w > _wb.right - 80;
     if (target._wallComboHits >= 3 && (_nearLeft || _nearRight)) {
-      // Trigger escape: teleport to center + brief invulnerability
       target._wallComboHits  = 0;
       target._wallComboTimer = 0;
-      // Choose escape destination: center of arena, with slight vertical lift
-      const _escX = GAME_W / 2 - target.w / 2 + (Math.random() - 0.5) * 120;
-      const _escY  = GAME_H * 0.35;
-      target.x  = Math.max(20, Math.min(GAME_W - target.w - 20, _escX));
-      target.y  = _escY;
-      target.vx = 0;
-      target.vy = -6;
+      // The burst itself is deferred: the knockback below runs AFTER this point
+      // and would overwrite any velocity set here, which is exactly how the
+      // original read as "fires but does nothing".
+      target._wallEscape = { dir: _nearLeft ? 1 : -1 };
+      if (target.isTrueForm) {
+        // TrueForm keeps its own answer: it leaves entirely and reappears in the
+        // middle of the fight. On a boss that reads as a phase beat, which is
+        // why it stays exclusive to it.
+        const _escX = (_wb.left + _wb.right) / 2 - target.w / 2 + (Math.random() - 0.5) * 120;
+        target.x  = Math.max(_wb.left + 20, Math.min(_wb.right - target.w - 20, _escX));
+        target.y  = GAME_H * 0.35;
+        target.vx = 0;
+        target.vy = -6;
+        spawnParticles(target.cx(), target.cy(), '#aa00ff', 14);
+      }
+      // (non-TrueForm: the pop-out is applied below, after knockback)
       // Brief invulnerability (~0.4 s = 24 frames at 60 fps)
       target.invincible = Math.max(target.invincible, 24);
       spawnParticles(target.cx(), target.cy(), '#ffffff', 20);
-      spawnParticles(target.cx(), target.cy(), '#aa00ff', 14);
+      if (typeof SoundManager !== 'undefined' && typeof SoundManager.shieldBlock === 'function') {
+        SoundManager.shieldBlock();
+      }
     }
   }
   // ── ATTRIBUTION STAMP ─────────────────────────────────────────────────────
@@ -825,6 +860,17 @@ function dealDamage(attacker, target, dmg, kbForce, stunMult = 1.0, isSplash = f
       // Render-only; consumed by animHitSquash() in Fighter.draw().
       const _sqAmt = Math.min(0.22, 0.05 + actualKb * 0.011);
       target._hitSquash = { amt: _sqAmt, t: 10, max: 10 };
+    }
+  }
+  // Wall-combo escape burst, applied after the knockback that would otherwise
+  // overwrite it: the point of the escape is to leave the wall, so it has to win
+  // over the hit that is driving the victim into it.
+  if (target._wallEscape) {
+    const _we = target._wallEscape;
+    target._wallEscape = null;
+    if (!target.isTrueForm) {
+      target.vx = _we.dir * 9;
+      target.vy = -5;
     }
   }
   if (settings.screenShake) {

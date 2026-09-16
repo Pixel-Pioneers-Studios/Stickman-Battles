@@ -448,7 +448,11 @@ function updateMinigame() {
   }
 }
 
-function drawDefenseNexus() {
+// Renamed off `drawDefenseNexus` — smb-story-engine-modes.js defines that name
+// too and loads LATER, so this body never ran and the Defense minigame drew no
+// nexus at all. The two are not interchangeable: this one reads defenseNexusHp,
+// the story one reads defenseNexusHP.
+function drawMinigameDefenseNexus() {
   if (!gameRunning || minigameType !== 'defense') return;
   var _cx = defenseNexusX, _cy = defenseNexusY;
   var _hpFrac = Math.max(0, defenseNexusHp / defenseNexusMaxHp);

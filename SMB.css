@@ -1139,6 +1139,10 @@ body.depth-phase-active {
   flex-direction: column;
   gap: 4px;
   min-width: 200px;
+  /* Capped. Unbounded, each side's bars stretched to ~45% of a 1440px screen,
+     which reads as a debug readout rather than a designed HUD — and a 650px
+     health bar makes a 10-damage hit look like nothing happened. */
+  max-width: 340px;
 }
 
 .hud-side.right {
@@ -1173,10 +1177,12 @@ body.depth-phase-active {
   position: relative;
   width: 100%;
   height: 12px;
-  background: rgba(0,0,0,0.45);
+  /* A recess the bar sits in, rather than a flat black rectangle behind it. */
+  background: rgba(6,8,16,0.62);
   border-radius: 6px;
   overflow: visible;
   border: 1px solid var(--border);
+  box-shadow: inset 0 1px 2px rgba(0,0,0,0.6);
 }
 
 .hp-text {
@@ -1196,7 +1202,13 @@ body.depth-phase-active {
 
 .health-bar {
   height: 100%;
-  background: #44dd44;
+  /* Was a flat #44dd44. A pure lime slab is the loudest cartoon note on the
+     screen and it competes with the fighters for attention; a desaturated
+     field green with a lit top edge reads as an instrument instead. The hue is
+     unchanged, so "green = fine, red = trouble" still reads instantly. */
+  background: linear-gradient(180deg, #86cb80 0%, #6bb268 45%, #47854e 100%);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.28),
+              inset 0 -1px 0 rgba(0,0,0,0.25);
   border-radius: 6px;
   overflow: hidden;
   transition: width 0.12s ease, background 0.3s ease;
@@ -1205,6 +1217,30 @@ body.depth-phase-active {
 .lives-display {
   font-size: 0.85rem;
   letter-spacing: 1px;
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  min-height: 10px;
+}
+
+.hud-side.right .lives-display { justify-content: flex-end; }
+
+/* One life. An angular token rather than a heart glyph: it is drawn by the
+   stylesheet so it looks identical on every machine, and it reads as a counter
+   rather than as storybook decoration. */
+.life-pip {
+  width: 7px;
+  height: 7px;
+  transform: rotate(45deg);
+  background: linear-gradient(135deg, #e8dcc6 0%, #b9a887 100%);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.8), inset 0 0 0 1px rgba(0,0,0,0.30);
+  border-radius: 1px;
+  flex: none;
+}
+
+.life-pip.spent {
+  background: none;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.22);
 }
 
 /* ============================================================
@@ -1241,23 +1277,29 @@ body.depth-phase-active {
 .super-bar-track, .cd-bar-track {
   flex: 1;
   height: 5px;
-  background: rgba(0,0,0,0.45);
+  background: rgba(6,8,16,0.62);
   border-radius: 4px;
   overflow: hidden;
-  border: 1px solid rgba(255,255,255,0.1);
+  border: 1px solid rgba(255,255,255,0.09);
+  box-shadow: inset 0 1px 2px rgba(0,0,0,0.55);
 }
 
 .super-bar-fill {
   height: 100%;
   width: 0%;
-  background: linear-gradient(90deg, #ffd700, #ff8800);
+  /* Gold stays gold — it is a semantic read — but pulled off full chroma so it
+     sits in the same material world as the weapons and the terrain. */
+  background: linear-gradient(90deg, #d8ac3e, #c9762f);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.22);
   border-radius: 4px;
   transition: width 0.12s ease;
 }
 
 .super-bar-fill.ready {
   width: 100% !important;
-  background: linear-gradient(90deg, #ffd700, #ffffff, #ffd700);
+  /* READY is the one place full chroma is earned: it has to shout. */
+  background: linear-gradient(90deg, #ffd700, #fff6d8, #ffd700);
+  box-shadow: 0 0 8px rgba(255,200,60,0.55), inset 0 1px 0 rgba(255,255,255,0.4);
   animation: superPulse 0.5s ease-in-out infinite;
 }
 
@@ -1269,7 +1311,10 @@ body.depth-phase-active {
 .cd-bar-fill {
   height: 100%;
   width: 100%;
-  background: linear-gradient(90deg, var(--accent), var(--p1));
+  /* Was full-neon purple -> cyan. Cooldowns are ambient information, not an
+     alert; at full saturation two of them out-shouted the health bar. */
+  background: linear-gradient(90deg, #6f4f9e, #3f8fa6);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.16);
   border-radius: 4px;
   transition: width 0.08s ease;
 }

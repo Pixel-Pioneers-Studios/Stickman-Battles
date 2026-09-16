@@ -142,7 +142,19 @@ const CinRig = {
     ctx.lineCap = 'round'; ctx.lineJoin = 'round';
     if (o.glow) { ctx.shadowColor = o.glow === true ? color : o.glow; ctx.shadowBlur = o.glowBlur || 10; }
 
-    const bone = (a, b, wa, wb) => CinRig._capsule(ctx, a, b, wa, wb);
+    // ── ONE BODY, NOT A PILE OF BONES ──────────────────────────────────────
+    // Each bone used to be filled on its own, which puts a visible edge at every
+    // joint and lights each limb separately — the cutscene figures had exactly
+    // the assembled-components problem the gameplay figure had. Bones are now
+    // COLLECTED and painted together, the same recipe as smb-figure-skin.js:
+    // stroke the compound path at double width, then fill every part with one
+    // shared OPAQUE gradient so overlaps overpaint identically and vanish.
+    //
+    // Filling per part (rather than one compound 'nonzero' fill) is deliberate:
+    // subpaths that wind opposite ways cancel and punch holes through the body,
+    // and an ellipse winds the other way from a capsule.
+    const parts = [];
+    const bone = (a, b, wa, wb) => parts.push(CinRig._capsule(a, b, wa, wb));
 
     // Legs first so the torso and arms read in front
     bone(J.hip, J.rKnee, w * p.rLegW, w * p.rLegW * 0.92);
@@ -157,29 +169,80 @@ const CinRig = {
     bone(J.shoulder, J.rElbow, w * p.rArmW, w * p.rArmW * 0.9);
     bone(J.rElbow, J.rHand, w * p.rArmW * 0.9, w * p.rArmW * 0.72);
     // Head
-    ctx.beginPath();
-    ctx.ellipse(J.head.x, J.head.y, J.headR, J.headR * (o.headSquash || 1), p.headTilt, 0, Math.PI * 2);
-    ctx.fill();
+    const _hp = new Path2D();
+    _hp.ellipse(J.head.x, J.head.y, J.headR, J.headR * (o.headSquash || 1), p.headTilt, 0, Math.PI * 2);
+    parts.push(_hp);
+
+    CinRig._paintBody(ctx, parts, J, color, o);
     if (o.face !== false) CinRig._face(ctx, J, p, o);
     ctx.restore();
     return J;
   },
 
-  /** Tapered capsule between two points — the deformable bone primitive. */
-  _capsule(ctx, a, b, wa, wb) {
+  /**
+   * Tapered capsule between two points — the deformable bone primitive.
+   * BUILDS geometry; it no longer paints. See the collection note in draw().
+   */
+  _capsule(a, b, wa, wb) {
+    const P = new Path2D();
     const dx = b.x - a.x, dy = b.y - a.y;
     const d = Math.hypot(dx, dy);
-    if (d < 0.01) return;
+    if (d < 0.01) return P;
     const nx = -dy / d, ny = dx / d;
     const ra = Math.max(0.4, wa * 0.5), rb = Math.max(0.4, wb * 0.5);
-    ctx.beginPath();
-    ctx.moveTo(a.x + nx * ra, a.y + ny * ra);
-    ctx.lineTo(b.x + nx * rb, b.y + ny * rb);
-    ctx.arc(b.x, b.y, rb, Math.atan2(ny, nx), Math.atan2(-ny, -nx), false);
-    ctx.lineTo(a.x - nx * ra, a.y - ny * ra);
-    ctx.arc(a.x, a.y, ra, Math.atan2(-ny, -nx), Math.atan2(ny, nx), false);
-    ctx.closePath();
-    ctx.fill();
+    // Both caps sweep ANTICLOCKWISE. With `false` each arc took the long way
+    // round — the far cap bulged backwards along the bone instead of forwards —
+    // so the outline crossed itself and a 'nonzero' fill cancelled the overlap,
+    // punching a hole at every elbow, knee and shoulder. Let theta be the bone
+    // direction: the outline leaves at theta+90 and must rejoin at theta-90 by
+    // DECREASING through theta, which is what anticlockwise means here.
+    P.moveTo(a.x + nx * ra, a.y + ny * ra);
+    P.lineTo(b.x + nx * rb, b.y + ny * rb);
+    P.arc(b.x, b.y, rb, Math.atan2(ny, nx), Math.atan2(-ny, -nx), true);
+    P.lineTo(a.x - nx * ra, a.y - ny * ra);
+    P.arc(a.x, a.y, ra, Math.atan2(-ny, -nx), Math.atan2(ny, nx), true);
+    P.closePath();
+    return P;
+  },
+
+  /** Rim + one shared light across the whole collected body. */
+  _paintBody(ctx, parts, J, color, o) {
+    const pal = (typeof FigureSkin !== 'undefined') ? FigureSkin.pal(color) : null;
+    if (!pal) {                                  // safety: never lose the figure
+      ctx.fillStyle = color;
+      for (const q of parts) ctx.fill(q);
+      return;
+    }
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    for (const k of ['hip','rKnee','rFoot','lKnee','lFoot','neck','shoulder',
+                     'lElbow','lHand','rElbow','rHand','head']) {
+      const j = J[k]; if (!j) continue;
+      const r = (k === 'head') ? J.headR : 0;
+      if (j.x - r < x0) x0 = j.x - r;
+      if (j.y - r < y0) y0 = j.y - r;
+      if (j.x + r > x1) x1 = j.x + r;
+      if (j.y + r > y1) y1 = j.y + r;
+    }
+    const compound = new Path2D();
+    for (const q of parts) compound.addPath(q);
+    ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+    const _a = ctx.globalAlpha;
+    ctx.globalAlpha = _a * 0.75;
+    ctx.strokeStyle = pal.rim;
+    ctx.lineWidth   = 2.6;
+    ctx.stroke(compound);
+    ctx.globalAlpha = _a;
+
+    const w = Math.max(1, x1 - x0), h = Math.max(1, y1 - y0);
+    const g = ctx.createLinearGradient(x0, y0, x0 + w * 0.90, y1);
+    g.addColorStop(0,    pal.lite);
+    g.addColorStop(0.22, pal.liteMid);
+    g.addColorStop(0.44, pal.base);
+    g.addColorStop(0.66, pal.base);
+    g.addColorStop(0.85, pal.darkMid);
+    g.addColorStop(1,    pal.dark);
+    ctx.fillStyle = g;
+    for (const q of parts) ctx.fill(q);
   },
 
   /** Minimal expressive face — eyes + brow + mouth, driven by opts.expr. */
@@ -195,22 +258,32 @@ const CinRig = {
       return;
     }
     const sb = ctx.shadowBlur; ctx.shadowBlur = 0;
-    ctx.fillStyle = '#fff';
-    ctx.beginPath();
-    ctx.arc(ex, ey, R * 0.20, 0, Math.PI * 2);
-    ctx.arc(e2x, ey, R * 0.17, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = expr === 'hurt' ? '#e03030' : '#111';
+    // Dark almond eyes with a single catchlight, matching the gameplay figure.
+    // The white sclera + pupil pair this replaces reads as an emoji at any size
+    // a cutscene actually plays at, and it was the loudest cartoon mark left in
+    // the cinematics. See FigureSkin.face() for the reasoning.
     const lx = (o.look && o.look.x || 0) * R * 0.09, ly = (o.look && o.look.y || 0) * R * 0.07;
+    const _open = expr === 'hurt' ? 0.5 : (expr === 'angry' || expr === 'intense') ? 0.62 : 0.82;
+    ctx.fillStyle = expr === 'hurt' ? '#7c2420' : 'rgba(16,20,28,0.92)';
     ctx.beginPath();
-    ctx.arc(ex + f * R * 0.05 + lx, ey + ly, R * 0.10, 0, Math.PI * 2);
-    ctx.arc(e2x + f * R * 0.045 + lx, ey + ly, R * 0.085, 0, Math.PI * 2);
+    ctx.ellipse(ex + lx,  ey + ly, R * 0.19, R * 0.19 * _open, f * -0.26, 0, Math.PI * 2);
     ctx.fill();
+    ctx.globalAlpha *= 0.72;
+    ctx.beginPath();
+    ctx.ellipse(e2x + lx * 0.85, ey + ly, R * 0.145, R * 0.145 * _open, f * -0.26, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha /= 0.72;
+    if (_open > 0.6) {
+      ctx.fillStyle = 'rgba(255,255,255,0.65)';
+      ctx.beginPath();
+      ctx.arc(ex + lx + f * R * 0.05, ey + ly - R * 0.05, R * 0.045, 0, Math.PI * 2);
+      ctx.fill();
+    }
     // Brow — the single strongest expression cue on a stick figure
     const browIn = expr === 'angry' || expr === 'intense' ? 1.7
                  : expr === 'hurt' || expr === 'afraid' ? -1.7 : 0;
     if (browIn) {
-      ctx.strokeStyle = 'rgba(0,0,0,0.75)'; ctx.lineWidth = 1.8;
+      ctx.strokeStyle = 'rgba(14,18,26,0.72)'; ctx.lineWidth = 1.8;
       ctx.beginPath();
       ctx.moveTo(ex + f * R * 0.26, ey - R * 0.36 - browIn * 0.4);
       ctx.lineTo(ex - f * R * 0.24, ey - R * 0.36 + browIn);

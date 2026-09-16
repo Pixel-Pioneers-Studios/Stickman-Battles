@@ -59,7 +59,7 @@
   }
   </script>
 
-  <link rel="stylesheet" href="SMB.css?v=4.3.0">
+  <link rel="stylesheet" href="SMB.css?v=4.3.6">
 </head>
 <body>
 
@@ -1647,283 +1647,285 @@
   <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
   <!-- Error boundary — must be FIRST so it catches all other module errors -->
   <!-- Host allowlist — must be the first game script -->
-  <script src="./js/smb-sitelock.js?v=4.3.0"></script>
-  <script src="./js/smb-errorboundary.js?v=4.3.0"></script>
+  <script src="./js/smb-sitelock.js?v=4.3.6"></script>
+  <script src="./js/smb-errorboundary.js?v=4.3.6"></script>
   <!-- Global state, canvas setup -->
-  <script src="./js/smb-icons.js?v=4.3.0"></script>
-  <script src="./js/smb-globals.js?v=4.3.0"></script>
+  <script src="./js/smb-icons.js?v=4.3.6"></script>
+  <script src="./js/smb-globals.js?v=4.3.6"></script>
+  <script src="./js/smb-palette.js?v=4.3.6"></script>
   <!-- Hand-drawn weapon sprite art (must follow smb-globals.js, precede smb-fighter.js) -->
-  <script src="./js/smb-weapon-sprites.js?v=4.3.0"></script>
+  <script src="./js/smb-weapon-sprites.js?v=4.3.6"></script>
   <!-- CrazyGames SDK wrapper — must follow smb-globals.js -->
-  <script src="./js/smb-crazygames.js?v=4.3.0"></script>
+  <script src="./js/smb-crazygames.js?v=4.3.6"></script>
   <!-- Live ops: remote config, version checks, soft updates (must follow smb-globals.js) -->
-  <script src="./js/smb-liveops.js?v=4.3.0"></script>
-  <script src="./js/smb-admin-session.js?v=4.3.0"></script>
+  <script src="./js/smb-liveops.js?v=4.3.6"></script>
+  <script src="./js/smb-admin-session.js?v=4.3.6"></script>
   <!-- Sound system -->
-  <script src="./js/smb-audio.js?v=4.3.0"></script>
+  <script src="./js/smb-audio.js?v=4.3.6"></script>
   <!-- Game Director: pacing, intensity, dynamic events -->
-  <script src="./js/smb-director.js?v=4.3.0"></script>
+  <script src="./js/smb-director.js?v=4.3.6"></script>
   <!-- Achievement system -->
-  <script src="./js/smb-achievements.js?v=4.3.0"></script>
+  <script src="./js/smb-achievements.js?v=4.3.6"></script>
   <!-- Arena, weapon, class data (split from smb-data.js) -->
-  <script src="./js/smb-data-arenas.js?v=4.3.0"></script>
+  <script src="./js/smb-data-arenas.js?v=4.3.6"></script>
   <!-- The Circuit's sliding plate. Must load after smb-data-arenas.js (owns the
        authoring fields it drives) and before smb-loop-core.js (which ticks it). -->
-  <script src="./js/smb-circuit.js?v=4.3.0"></script>
-  <script src="./js/smb-data-mapperks.js?v=4.3.0"></script>
-  <script src="./js/smb-data-mapperks-draw.js?v=4.3.0"></script>
-  <script src="./js/smb-data-weapons.js?v=4.3.0"></script>
-  <script src="./js/smb-map-analyzer.js?v=4.3.0"></script>
+  <script src="./js/smb-circuit.js?v=4.3.6"></script>
+  <script src="./js/smb-data-mapperks.js?v=4.3.6"></script>
+  <script src="./js/smb-data-mapperks-draw.js?v=4.3.6"></script>
+  <script src="./js/smb-data-weapons.js?v=4.3.6"></script>
+  <script src="./js/smb-map-analyzer.js?v=4.3.6"></script>
   <!-- Combat pipeline, particles, heatmap, ragdoll (split from smb-particles.js) -->
-  <script src="./js/smb-combat.js?v=4.3.0"></script>
-  <script src="./js/smb-particles-core.js?v=4.3.0"></script>
-  <script src="./js/smb-destruction.js?v=4.3.0"></script>
-  <script src="./js/smb-heatmap.js?v=4.3.0"></script>
-  <script src="./js/smb-verlet.js?v=4.3.0"></script>
+  <script src="./js/smb-combat.js?v=4.3.6"></script>
+  <script src="./js/smb-particles-core.js?v=4.3.6"></script>
+  <script src="./js/smb-destruction.js?v=4.3.6"></script>
+  <script src="./js/smb-heatmap.js?v=4.3.6"></script>
+  <script src="./js/smb-verlet.js?v=4.3.6"></script>
   <!-- Animation substrate + death animation (docs/animation-quality-plan.md) -->
-  <script src="./js/smb-anim-core.js?v=4.3.0"></script>
-  <script src="./js/smb-anim-fighter.js?v=4.3.0"></script>
-  <script src="./js/smb-cin-figure.js?v=4.3.0"></script>
-  <script src="./js/smb-cin-perf.js?v=4.3.0"></script>
-  <script src="./js/smb-transition.js?v=4.3.0"></script>
-  <script src="./js/smb-death-anim.js?v=4.3.0"></script>
+  <script src="./js/smb-anim-core.js?v=4.3.6"></script>
+  <script src="./js/smb-anim-fighter.js?v=4.3.6"></script>
+  <script src="./js/smb-figure-skin.js?v=4.3.6"></script>
+  <script src="./js/smb-cin-figure.js?v=4.3.6"></script>
+  <script src="./js/smb-cin-perf.js?v=4.3.6"></script>
+  <script src="./js/smb-transition.js?v=4.3.6"></script>
+  <script src="./js/smb-death-anim.js?v=4.3.6"></script>
   <!-- Cinematic scripting system (split from smb-cinematics.js) -->
-  <script src="./js/smb-cinematics-core.js?v=4.3.0"></script>
-  <script src="./js/smb-anime-fx.js?v=4.3.0"></script>
-  <script src="./js/smb-cinematics-backstory.js?v=4.3.0"></script>
-  <script src="./js/smb-cinematics-boss-thresh.js?v=4.3.0"></script>
-  <script src="./js/smb-cinematics-tf-thresh.js?v=4.3.0"></script>
-  <script src="./js/smb-cinematics-multiverse.js?v=4.3.0"></script>
+  <script src="./js/smb-cinematics-core.js?v=4.3.6"></script>
+  <script src="./js/smb-anime-fx.js?v=4.3.6"></script>
+  <script src="./js/smb-cinematics-backstory.js?v=4.3.6"></script>
+  <script src="./js/smb-cinematics-boss-thresh.js?v=4.3.6"></script>
+  <script src="./js/smb-cinematics-tf-thresh.js?v=4.3.6"></script>
+  <script src="./js/smb-cinematics-multiverse.js?v=4.3.6"></script>
   <!-- Finisher system — killing-blow cinematic animations (split from smb-finishers.js) -->
-  <script src="./js/smb-finisher-helpers.js?v=4.3.0"></script>
-  <script src="./js/smb-finisher-void.js?v=4.3.0"></script>
-  <script src="./js/smb-finisher-reality.js?v=4.3.0"></script>
-  <script src="./js/smb-finisher-boss.js?v=4.3.0"></script>
-  <script src="./js/smb-finisher-tf.js?v=4.3.0"></script>
-  <script src="./js/smb-finisher-yeti.js?v=4.3.0"></script>
-  <script src="./js/smb-finisher-beast.js?v=4.3.0"></script>
-  <script src="./js/smb-finisher-weapon.js?v=4.3.0"></script>
-  <script src="./js/smb-finisher-weapon2.js?v=4.3.0"></script>
-  <script src="./js/smb-finisher-engine.js?v=4.3.0"></script>
+  <script src="./js/smb-finisher-helpers.js?v=4.3.6"></script>
+  <script src="./js/smb-finisher-void.js?v=4.3.6"></script>
+  <script src="./js/smb-finisher-reality.js?v=4.3.6"></script>
+  <script src="./js/smb-finisher-boss.js?v=4.3.6"></script>
+  <script src="./js/smb-finisher-tf.js?v=4.3.6"></script>
+  <script src="./js/smb-finisher-yeti.js?v=4.3.6"></script>
+  <script src="./js/smb-finisher-beast.js?v=4.3.6"></script>
+  <script src="./js/smb-finisher-weapon.js?v=4.3.6"></script>
+  <script src="./js/smb-finisher-weapon2.js?v=4.3.6"></script>
+  <script src="./js/smb-finisher-engine.js?v=4.3.6"></script>
   <!-- Platform graph + A* pathfinding (must load before smb-fighter.js) -->
-  <script src="./js/smb-pathfinding.js?v=4.3.0"></script>
+  <script src="./js/smb-pathfinding.js?v=4.3.6"></script>
   <!-- Fragment weapon manifestation + sprint escalation (must load before smb-fighter.js) -->
-  <script src="./js/smb-fragment-manifest.js?v=4.3.0"></script>
+  <script src="./js/smb-fragment-manifest.js?v=4.3.6"></script>
   <!-- Fighter base class -->
-  <script src="./js/smb-fighter.js?v=4.3.0"></script>
+  <script src="./js/smb-fighter.js?v=4.3.6"></script>
   <!-- Modular combat AI: CombatSystem, MovementSystem, AIController, CombatAIFighter -->
-  <script src="./js/smb-combat-ai.js?v=4.3.0"></script>
+  <script src="./js/smb-combat-ai.js?v=4.3.6"></script>
   <!-- Enemy NPCs, training mode -->
-  <script src="./js/smb-enemies-core.js?v=4.3.0"></script>
-  <script src="./js/smb-enemies-creatures.js?v=4.3.0"></script>
-  <script src="./js/smb-enemies-training.js?v=4.3.0"></script>
-  <script src="./js/smb-enemies-class.js?v=4.3.0"></script>
+  <script src="./js/smb-enemies-core.js?v=4.3.6"></script>
+  <script src="./js/smb-enemies-creatures.js?v=4.3.6"></script>
+  <script src="./js/smb-enemies-training.js?v=4.3.6"></script>
+  <script src="./js/smb-enemies-class.js?v=4.3.6"></script>
   <!-- God entity and encounter system -->
-  <script src="./js/smb-god.js?v=4.3.0"></script>
-  <script src="./js/smb-god-cinematics.js?v=4.3.0"></script>
+  <script src="./js/smb-god.js?v=4.3.6"></script>
+  <script src="./js/smb-god-cinematics.js?v=4.3.6"></script>
   <!-- Divine Summon: H key calls a Herald to clear the level -->
-  <script src="./js/smb-divine-summon.js?v=4.3.0"></script>
+  <script src="./js/smb-divine-summon.js?v=4.3.6"></script>
   <!-- Domain Expansion system -->
-  <script src="./js/smb-domain.js?v=4.3.0"></script>
+  <script src="./js/smb-domain.js?v=4.3.6"></script>
   <!-- Boss and True Form -->
-  <script src="./js/boss/smb-boss.js?v=4.3.0"></script>
-  <script src="./js/boss/smb-boss-cinematics.js?v=4.3.0"></script>
-  <script src="./js/boss/smb-boss-tf-misc.js?v=4.3.0"></script>
-  <script src="./js/boss/smb-boss-phase-cin.js?v=4.3.0"></script>
-  <script src="./js/boss/smb-boss-tf-legacy.js?v=4.3.0"></script>
-  <script src="./js/boss/smb-boss-tf-attacks1.js?v=4.3.0"></script>
-  <script src="./js/boss/smb-boss-tf-attacks2.js?v=4.3.0"></script>
-  <script src="./js/boss/smb-boss-tf-visuals1.js?v=4.3.0"></script>
-  <script src="./js/boss/smb-boss-tf-visuals2.js?v=4.3.0"></script>
-  <script src="./js/boss/smb-boss-helpers.js?v=4.3.0"></script>
-  <script src="./js/boss/smb-trueform.js?v=4.3.0"></script>
-  <script src="./js/boss/smb-trueform-attacks.js?v=4.3.0"></script>
+  <script src="./js/boss/smb-boss.js?v=4.3.6"></script>
+  <script src="./js/boss/smb-boss-cinematics.js?v=4.3.6"></script>
+  <script src="./js/boss/smb-boss-tf-misc.js?v=4.3.6"></script>
+  <script src="./js/boss/smb-boss-phase-cin.js?v=4.3.6"></script>
+  <script src="./js/boss/smb-boss-tf-legacy.js?v=4.3.6"></script>
+  <script src="./js/boss/smb-boss-tf-attacks1.js?v=4.3.6"></script>
+  <script src="./js/boss/smb-boss-tf-attacks2.js?v=4.3.6"></script>
+  <script src="./js/boss/smb-boss-tf-visuals1.js?v=4.3.6"></script>
+  <script src="./js/boss/smb-boss-tf-visuals2.js?v=4.3.6"></script>
+  <script src="./js/boss/smb-boss-helpers.js?v=4.3.6"></script>
+  <script src="./js/boss/smb-trueform.js?v=4.3.6"></script>
+  <script src="./js/boss/smb-trueform-attacks.js?v=4.3.6"></script>
   <!-- Paradox entity: multiversal being, revive system, TF damage lock, foreshadowing -->
-  <script src="./js/smb-paradox-class.js?v=4.3.0"></script>
-  <script src="./js/smb-paradox-opening.js?v=4.3.0"></script>
-  <script src="./js/smb-paradox-return-cin.js?v=4.3.0"></script>
-  <script src="./js/smb-paradox-absorption-update.js?v=4.3.0"></script>
-  <script src="./js/smb-paradox-absorption-draw.js?v=4.3.0"></script>
-  <script src="./js/smb-paradox-kills-cin.js?v=4.3.0"></script>
-  <script src="./js/smb-paradox-revive.js?v=4.3.0"></script>
-  <script src="./js/smb-paradox-intro-cin.js?v=4.3.0"></script>
-  <script src="./js/smb-paradox-cin2.js?v=4.3.0"></script>
-  <script src="./js/smb-paradox-effects.js?v=4.3.0"></script>
-  <script src="./js/smb-paradox-ai.js?v=4.3.0"></script>
+  <script src="./js/smb-paradox-class.js?v=4.3.6"></script>
+  <script src="./js/smb-paradox-opening.js?v=4.3.6"></script>
+  <script src="./js/smb-paradox-return-cin.js?v=4.3.6"></script>
+  <script src="./js/smb-paradox-absorption-update.js?v=4.3.6"></script>
+  <script src="./js/smb-paradox-absorption-draw.js?v=4.3.6"></script>
+  <script src="./js/smb-paradox-kills-cin.js?v=4.3.6"></script>
+  <script src="./js/smb-paradox-revive.js?v=4.3.6"></script>
+  <script src="./js/smb-paradox-intro-cin.js?v=4.3.6"></script>
+  <script src="./js/smb-paradox-cin2.js?v=4.3.6"></script>
+  <script src="./js/smb-paradox-effects.js?v=4.3.6"></script>
+  <script src="./js/smb-paradox-ai.js?v=4.3.6"></script>
   <!-- BehaviorModel — player fingerprinting / prediction / punish ledger -->
-  <script src="./js/smb-behavior-model.js?v=4.3.0"></script>
+  <script src="./js/smb-behavior-model.js?v=4.3.6"></script>
   <!-- Adaptive AI — learning opponent for Adaptive AI mode (story) -->
-  <script src="./js/smb-adaptive-ai.js?v=4.3.0"></script>
+  <script src="./js/smb-adaptive-ai.js?v=4.3.6"></script>
   <!-- SOVEREIGN Ω — upgraded adaptive AI with prediction/punishment/limiter break -->
-  <script src="./js/smb-smk2-data.js?v=4.3.0"></script>
-  <script src="./js/smb-sov-dossier.js?v=4.3.0"></script>
-  <script src="./js/smb-smk2-class.js?v=4.3.0"></script>
-  <script src="./js/smb-smk2-training.js?v=4.3.0"></script>
-  <script src="./js/smb-absolute-axiom.js?v=4.3.0"></script>
+  <script src="./js/smb-smk2-data.js?v=4.3.6"></script>
+  <script src="./js/smb-sov-dossier.js?v=4.3.6"></script>
+  <script src="./js/smb-smk2-class.js?v=4.3.6"></script>
+  <script src="./js/smb-smk2-training.js?v=4.3.6"></script>
+  <script src="./js/smb-absolute-axiom.js?v=4.3.6"></script>
   <!-- TrueForm ending cinematic -->
-  <script src="./js/smb-trueform-ending-data.js?v=4.3.0"></script>
-  <script src="./js/smb-trueform-ending-update.js?v=4.3.0"></script>
-  <script src="./js/smb-trueform-ending-draw.js?v=4.3.0"></script>
+  <script src="./js/smb-trueform-ending-data.js?v=4.3.6"></script>
+  <script src="./js/smb-trueform-ending-update.js?v=4.3.6"></script>
+  <script src="./js/smb-trueform-ending-draw.js?v=4.3.6"></script>
   <!-- Drawing, game state, HUD, visual effects -->
-  <script src="./js/rendering/smb-drawing-arenas.js?v=4.3.0"></script>
-  <script src="./js/rendering/smb-drawing-bg.js?v=4.3.0"></script>
-  <script src="./js/rendering/smb-drawing-effects.js?v=4.3.0"></script>
-  <script src="./js/rendering/smb-drawing-scenes.js?v=4.3.0"></script>
-  <script src="./js/rendering/smb-drawing-hud.js?v=4.3.0"></script>
-  <script src="./js/rendering/smb-drawing-arenas2.js?v=4.3.0"></script>
-  <script src="./js/rendering/smb-drawing-arenas3.js?v=4.3.0"></script>
+  <script src="./js/rendering/smb-drawing-arenas.js?v=4.3.6"></script>
+  <script src="./js/rendering/smb-drawing-bg.js?v=4.3.6"></script>
+  <script src="./js/rendering/smb-drawing-effects.js?v=4.3.6"></script>
+  <script src="./js/rendering/smb-drawing-scenes.js?v=4.3.6"></script>
+  <script src="./js/rendering/smb-drawing-hud.js?v=4.3.6"></script>
+  <script src="./js/rendering/smb-drawing-arenas2.js?v=4.3.6"></script>
+  <script src="./js/rendering/smb-drawing-arenas3.js?v=4.3.6"></script>
   <!-- Minigame systems -->
-  <script src="./js/smb-minigames.js?v=4.3.0"></script>
-  <script src="./js/smb-trials.js?v=4.3.0"></script>
-  <script src="./js/smb-battleroyale.js?v=4.3.0"></script>
-  <script src="./js/smb-sewer.js?v=4.3.0"></script>
+  <script src="./js/smb-minigames.js?v=4.3.6"></script>
+  <script src="./js/smb-trials.js?v=4.3.6"></script>
+  <script src="./js/smb-battleroyale.js?v=4.3.6"></script>
+  <script src="./js/smb-sewer.js?v=4.3.6"></script>
   <!-- True-Form QTE system -->
-  <script src="./js/smb-qte-core.js?v=4.3.0"></script>
-  <script src="./js/smb-qte-engine.js?v=4.3.0"></script>
-  <script src="./js/smb-qte-draw.js?v=4.3.0"></script>
+  <script src="./js/smb-qte-core.js?v=4.3.6"></script>
+  <script src="./js/smb-qte-engine.js?v=4.3.6"></script>
+  <script src="./js/smb-qte-draw.js?v=4.3.6"></script>
   <!-- Impact cinematic system: playCinematicAttack, CINEMATIC_PRESETS, updateCinematicSystem -->
-  <script src="./js/smb-cinematic.js?v=4.3.0"></script>
+  <script src="./js/smb-cinematic.js?v=4.3.6"></script>
   <!-- Deterministic step-based cutscene system -->
-  <script src="./js/smb-cutscene.js?v=4.3.0"></script>
+  <script src="./js/smb-cutscene.js?v=4.3.6"></script>
   <!-- Camera, screen FX, main game loop, input (split from smb-loop.js) -->
-  <script src="./js/smb-camera.js?v=4.3.0"></script>
-  <script src="./js/smb-camera-trace.js?v=4.3.0"></script>
-  <script src="./js/smb-screenfx.js?v=4.3.0"></script>
-  <script src="./js/smb-loop-core.js?v=4.3.0"></script>
-  <script src="./js/smb-input.js?v=4.3.0"></script>
-  <script src="./js/smb-cheats.js?v=4.3.0"></script>
+  <script src="./js/smb-camera.js?v=4.3.6"></script>
+  <script src="./js/smb-camera-trace.js?v=4.3.6"></script>
+  <script src="./js/smb-screenfx.js?v=4.3.6"></script>
+  <script src="./js/smb-loop-core.js?v=4.3.6"></script>
+  <script src="./js/smb-input.js?v=4.3.6"></script>
+  <script src="./js/smb-cheats.js?v=4.3.6"></script>
   <!-- Menu UI, startGame, tutorial -->
-  <script src="./js/smb-menu-ui.js?v=4.3.0"></script>
-  <script src="./js/smb-menu-select.js?v=4.3.0"></script>
-  <script src="./js/smb-menu-config.js?v=4.3.0"></script>
-  <script src="./js/smb-loadscreen.js?v=4.3.0"></script>
-  <script src="./js/smb-menu-spawn.js?v=4.3.0"></script>
-  <script src="./js/smb-menu-startcore.js?v=4.3.0"></script>
-  <script src="./js/smb-menu-utils.js?v=4.3.0"></script>
+  <script src="./js/smb-menu-ui.js?v=4.3.6"></script>
+  <script src="./js/smb-menu-select.js?v=4.3.6"></script>
+  <script src="./js/smb-menu-config.js?v=4.3.6"></script>
+  <script src="./js/smb-loadscreen.js?v=4.3.6"></script>
+  <script src="./js/smb-menu-spawn.js?v=4.3.6"></script>
+  <script src="./js/smb-menu-startcore.js?v=4.3.6"></script>
+  <script src="./js/smb-menu-utils.js?v=4.3.6"></script>
   <!-- Network / online multiplayer -->
-  <script src="./js/smb-network.js?v=4.3.0"></script>
+  <script src="./js/smb-network.js?v=4.3.6"></script>
   <!-- Centralized runtime state (accounts, admin overrides, online session) -->
   <!-- Must load before smb-online.js, smb-accounts.js, and smb-admin.js -->
-  <script src="./js/smb-state.js?v=4.3.0"></script>
+  <script src="./js/smb-state.js?v=4.3.6"></script>
   <!-- Supabase auth + cloud save bridge -->
-  <script src="./js/smb-supabase.js?v=4.3.0"></script>
+  <script src="./js/smb-supabase.js?v=4.3.6"></script>
   <!-- Lobby presence layer — wraps NetworkManager with lobby API + UI -->
-  <script src="./js/smb-online.js?v=4.3.0"></script>
+  <script src="./js/smb-online.js?v=4.3.6"></script>
   <!-- Developer debug toolkit (loaded last so all systems exist) -->
-  <script src="./js/smb-debug-overlay.js?v=4.3.0"></script>
-  <script src="./js/smb-debug-console.js?v=4.3.0"></script>
-  <script src="./js/smb-ai-console.js?v=4.3.0"></script>
-  <script src="./js/smb-sov-advisor.js?v=4.3.0"></script>
-  <script src="./js/smb-debug-jump.js?v=4.3.0"></script>
+  <script src="./js/smb-debug-overlay.js?v=4.3.6"></script>
+  <script src="./js/smb-debug-console.js?v=4.3.6"></script>
+  <script src="./js/smb-ai-console.js?v=4.3.6"></script>
+  <script src="./js/smb-sov-advisor.js?v=4.3.6"></script>
+  <script src="./js/smb-debug-jump.js?v=4.3.6"></script>
   <!-- Account system — must load before smb-save.js so getSaveKey() works -->
-  <script src="./js/smb-accounts.js?v=4.3.0"></script>
+  <script src="./js/smb-accounts.js?v=4.3.6"></script>
   <!-- Save / Export / Import system -->
-  <script src="./js/smb-save.js?v=4.3.0"></script>
+  <script src="./js/smb-save.js?v=4.3.6"></script>
   <!-- Admin control panel — F9 to toggle; only visible for accounts in ADMIN_IDS -->
-  <script src="./js/smb-admin-core.js?v=4.3.0"></script>
-  <script src="./js/smb-admin-panels.js?v=4.3.0"></script>
-  <script src="./js/smb-sovereign-control.js?v=4.3.0"></script>
+  <script src="./js/smb-admin-core.js?v=4.3.6"></script>
+  <script src="./js/smb-admin-panels.js?v=4.3.6"></script>
+  <script src="./js/smb-sovereign-control.js?v=4.3.6"></script>
   <!-- Comprehensive live-service admin dashboard — F10 to toggle -->
-  <script src="./js/smb-admin-liveops-panel.js?v=4.3.0"></script>
+  <script src="./js/smb-admin-liveops-panel.js?v=4.3.6"></script>
   <!-- Attack Test Sandbox — dev tool (type "atk help" in the game console) -->
-  <script src="./js/smb-attacktest-core.js?v=4.3.0"></script>
-  <script src="./js/smb-attacktest-exec.js?v=4.3.0"></script>
-  <script src="./js/smb-attacktest-registry.js?v=4.3.0"></script>
-  <script src="./js/smb-attacktest-commands.js?v=4.3.0"></script>
-  <script src="./js/smb-attacktest-gui.js?v=4.3.0"></script>
+  <script src="./js/smb-attacktest-core.js?v=4.3.6"></script>
+  <script src="./js/smb-attacktest-exec.js?v=4.3.6"></script>
+  <script src="./js/smb-attacktest-registry.js?v=4.3.6"></script>
+  <script src="./js/smb-attacktest-commands.js?v=4.3.6"></script>
+  <script src="./js/smb-attacktest-gui.js?v=4.3.6"></script>
   <!-- Story Mode system -->
-  <script src="./js/story/smb-story-registry.js?v=4.3.0"></script>
-  <script src="./js/story/acts/act0/smb-act0-arc1.js?v=4.3.0"></script>
-  <script src="./js/story/acts/act0/smb-act0-arc2.js?v=4.3.0"></script>
-  <script src="./js/story/acts/act1/smb-act1-arc1.js?v=4.3.0"></script>
-  <script src="./js/story/acts/act1/smb-act1-arc2.js?v=4.3.0"></script>
-  <script src="./js/story/acts/act2/smb-act2-arc1.js?v=4.3.0"></script>
-  <script src="./js/story/acts/act2/smb-act2-arc2.js?v=4.3.0"></script>
-  <script src="./js/story/acts/act2/smb-act2-arc3.js?v=4.3.0"></script>
-  <script src="./js/story/acts/act3/smb-act3-arc1.js?v=4.3.0"></script>
-  <script src="./js/story/acts/act3/smb-act3-arc2.js?v=4.3.0"></script>
-  <script src="./js/story/acts/side/smb-lab-infiltration.js?v=4.3.0"></script>
-  <script src="./js/story/acts/side/smb-calix-discovery.js?v=4.3.0"></script>
-  <script src="./js/story/acts/act5/smb-act5-arc-damnation.js?v=4.3.0"></script>
-  <script src="./js/story/acts/act6/smb-act6-arc1.js?v=4.3.0"></script>
-  <script src="./js/story/acts/act6/smb-act6-arc2.js?v=4.3.0"></script>
-  <script src="./js/story/acts/act6/smb-act6-arc3.js?v=4.3.0"></script>
-  <script src="./js/story/acts/act4mv/smb-act4mv-arc1.js?v=4.3.0"></script>
-  <script src="./js/story/acts/act4mv/smb-act4mv-arc2.js?v=4.3.0"></script>
-  <script src="./js/story/acts/act4mv/smb-act4mv-null.js?v=4.3.0"></script>
-  <script src="./js/story/acts/act4mv/smb-act4mv-seraph.js?v=4.3.0"></script>
-  <script src="./js/story/acts/act4mv/smb-act4mv-vael.js?v=4.3.0"></script>
-  <script src="./js/story/acts/act4mv/smb-act4mv-thresh.js?v=4.3.0"></script>
-  <script src="./js/story/acts/act4mv/smb-act4mv-arc3.js?v=4.3.0"></script>
-  <script src="./js/story/acts/act4/smb-act4-arc1.js?v=4.3.0"></script>
-  <script src="./js/story/acts/act4/smb-act4-arc2.js?v=4.3.0"></script>
-  <script src="./js/story/acts/act5/smb-act5-arc1.js?v=4.3.0"></script>
-  <script src="./js/story/acts/act5/smb-act5-arc2.js?v=4.3.0"></script>
-  <script src="./js/story/acts/act5/smb-act5-bridge.js?v=4.3.0"></script>
-  <script src="./js/story/acts/act7/smb-act7-arc1.js?v=4.3.0"></script>
-  <script src="./js/story/acts/act7/smb-act7-arc2.js?v=4.3.0"></script>
-  <script src="./js/story/acts/act7/smb-act7-arc3.js?v=4.3.0"></script>
-  <script src="./js/story/acts/actvoidmind/smb-voidmind-entry.js?v=4.3.0"></script>
-  <script src="./js/story/acts/actvoidmind/smb-voidmind-reckoning1.js?v=4.3.0"></script>
-  <script src="./js/story/acts/actvoidmind/smb-voidmind-reckonings2-4.js?v=4.3.0"></script>
-  <script src="./js/story/acts/actvoidmind/smb-voidmind-reckonings5-8.js?v=4.3.0"></script>
-  <script src="./js/story/acts/actvoidmind/smb-voidmind-trial.js?v=4.3.0"></script>
-  <script src="./js/story/acts/actvoidmind/smb-voidmind-after.js?v=4.3.0"></script>
-  <script src="./js/story/acts/actvoidmind/smb-voidmind-fight.js?v=4.3.0"></script>
-  <script src="./js/story/smb-story-config.js?v=4.3.0"></script>
-  <script src="./js/story/smb-story-engine-data.js?v=4.3.0"></script>
-  <script src="./js/story/smb-story-engine-ui.js?v=4.3.0"></script>
-  <script src="./js/story/smb-story-prologue-tuesday.js?v=4.3.0"></script>
-  <script src="./js/smb-story-scenes.js?v=4.3.0"></script>
+  <script src="./js/story/smb-story-registry.js?v=4.3.6"></script>
+  <script src="./js/story/acts/act0/smb-act0-arc1.js?v=4.3.6"></script>
+  <script src="./js/story/acts/act0/smb-act0-arc2.js?v=4.3.6"></script>
+  <script src="./js/story/acts/act1/smb-act1-arc1.js?v=4.3.6"></script>
+  <script src="./js/story/acts/act1/smb-act1-arc2.js?v=4.3.6"></script>
+  <script src="./js/story/acts/act2/smb-act2-arc1.js?v=4.3.6"></script>
+  <script src="./js/story/acts/act2/smb-act2-arc2.js?v=4.3.6"></script>
+  <script src="./js/story/acts/act2/smb-act2-arc3.js?v=4.3.6"></script>
+  <script src="./js/story/acts/act3/smb-act3-arc1.js?v=4.3.6"></script>
+  <script src="./js/story/acts/act3/smb-act3-arc2.js?v=4.3.6"></script>
+  <script src="./js/story/acts/side/smb-lab-infiltration.js?v=4.3.6"></script>
+  <script src="./js/story/acts/side/smb-calix-discovery.js?v=4.3.6"></script>
+  <script src="./js/story/acts/act5/smb-act5-arc-damnation.js?v=4.3.6"></script>
+  <script src="./js/story/acts/act6/smb-act6-arc1.js?v=4.3.6"></script>
+  <script src="./js/story/acts/act6/smb-act6-arc2.js?v=4.3.6"></script>
+  <script src="./js/story/acts/act6/smb-act6-arc3.js?v=4.3.6"></script>
+  <script src="./js/story/acts/act4mv/smb-act4mv-arc1.js?v=4.3.6"></script>
+  <script src="./js/story/acts/act4mv/smb-act4mv-arc2.js?v=4.3.6"></script>
+  <script src="./js/story/acts/act4mv/smb-act4mv-null.js?v=4.3.6"></script>
+  <script src="./js/story/acts/act4mv/smb-act4mv-seraph.js?v=4.3.6"></script>
+  <script src="./js/story/acts/act4mv/smb-act4mv-vael.js?v=4.3.6"></script>
+  <script src="./js/story/acts/act4mv/smb-act4mv-thresh.js?v=4.3.6"></script>
+  <script src="./js/story/acts/act4mv/smb-act4mv-arc3.js?v=4.3.6"></script>
+  <script src="./js/story/acts/act4/smb-act4-arc1.js?v=4.3.6"></script>
+  <script src="./js/story/acts/act4/smb-act4-arc2.js?v=4.3.6"></script>
+  <script src="./js/story/acts/act5/smb-act5-arc1.js?v=4.3.6"></script>
+  <script src="./js/story/acts/act5/smb-act5-arc2.js?v=4.3.6"></script>
+  <script src="./js/story/acts/act5/smb-act5-bridge.js?v=4.3.6"></script>
+  <script src="./js/story/acts/act7/smb-act7-arc1.js?v=4.3.6"></script>
+  <script src="./js/story/acts/act7/smb-act7-arc2.js?v=4.3.6"></script>
+  <script src="./js/story/acts/act7/smb-act7-arc3.js?v=4.3.6"></script>
+  <script src="./js/story/acts/actvoidmind/smb-voidmind-entry.js?v=4.3.6"></script>
+  <script src="./js/story/acts/actvoidmind/smb-voidmind-reckoning1.js?v=4.3.6"></script>
+  <script src="./js/story/acts/actvoidmind/smb-voidmind-reckonings2-4.js?v=4.3.6"></script>
+  <script src="./js/story/acts/actvoidmind/smb-voidmind-reckonings5-8.js?v=4.3.6"></script>
+  <script src="./js/story/acts/actvoidmind/smb-voidmind-trial.js?v=4.3.6"></script>
+  <script src="./js/story/acts/actvoidmind/smb-voidmind-after.js?v=4.3.6"></script>
+  <script src="./js/story/acts/actvoidmind/smb-voidmind-fight.js?v=4.3.6"></script>
+  <script src="./js/story/smb-story-config.js?v=4.3.6"></script>
+  <script src="./js/story/smb-story-engine-data.js?v=4.3.6"></script>
+  <script src="./js/story/smb-story-engine-ui.js?v=4.3.6"></script>
+  <script src="./js/story/smb-story-prologue-tuesday.js?v=4.3.6"></script>
+  <script src="./js/smb-story-scenes.js?v=4.3.6"></script>
   <!-- Per-act scene specs (split out of smb-story-scenes.js). Order among these
        does not matter; all must load before smb-story-narrative-scene.js. -->
-  <script src="./js/story/scenes/act0.js?v=4.3.0"></script>
-  <script src="./js/story/scenes/act1.js?v=4.3.0"></script>
-  <script src="./js/story/scenes/act2.js?v=4.3.0"></script>
-  <script src="./js/story/scenes/act3.js?v=4.3.0"></script>
-  <script src="./js/story/scenes/act4.js?v=4.3.0"></script>
-  <script src="./js/story/scenes/act4mv.js?v=4.3.0"></script>
-  <script src="./js/story/scenes/act5.js?v=4.3.0"></script>
-  <script src="./js/story/scenes/act6.js?v=4.3.0"></script>
-  <script src="./js/story/scenes/act7.js?v=4.3.0"></script>
-  <script src="./js/story/scenes/actvoidmind.js?v=4.3.0"></script>
-  <script src="./js/story/scenes/side.js?v=4.3.0"></script>
-  <script src="./js/smb-figure-rig.js?v=4.3.0"></script>
-  <script src="./js/smb-story-narrative-scene.js?v=4.3.0"></script>
-  <script src="./js/story/smb-story-engine-flow.js?v=4.3.0"></script>
-  <script src="./js/story/smb-story-engine-match.js?v=4.3.0"></script>
-  <script src="./js/story/smb-story-engine-events.js?v=4.3.0"></script>
-  <script src="./js/story/smb-story-engine-frame.js?v=4.3.0"></script>
-  <script src="./js/story/smb-story-engine-explore.js?v=4.3.0"></script>
-  <script src="./js/story/smb-story-engine-explore2.js?v=4.3.0"></script>
-  <script src="./js/story/smb-story-interlude.js?v=4.3.0"></script>
-  <script src="./js/story/smb-story-engine-modes.js?v=4.3.0"></script>
-  <script src="./js/story/smb-story-finalize.js?v=4.3.0"></script>
-  <script src="./js/story/smb-saga-structure.js?v=4.3.0"></script>
-  <script src="./js/smb-story-cinematic-sequence.js?v=4.3.0"></script>
+  <script src="./js/story/scenes/act0.js?v=4.3.6"></script>
+  <script src="./js/story/scenes/act1.js?v=4.3.6"></script>
+  <script src="./js/story/scenes/act2.js?v=4.3.6"></script>
+  <script src="./js/story/scenes/act3.js?v=4.3.6"></script>
+  <script src="./js/story/scenes/act4.js?v=4.3.6"></script>
+  <script src="./js/story/scenes/act4mv.js?v=4.3.6"></script>
+  <script src="./js/story/scenes/act5.js?v=4.3.6"></script>
+  <script src="./js/story/scenes/act6.js?v=4.3.6"></script>
+  <script src="./js/story/scenes/act7.js?v=4.3.6"></script>
+  <script src="./js/story/scenes/actvoidmind.js?v=4.3.6"></script>
+  <script src="./js/story/scenes/side.js?v=4.3.6"></script>
+  <script src="./js/smb-figure-rig.js?v=4.3.6"></script>
+  <script src="./js/smb-story-narrative-scene.js?v=4.3.6"></script>
+  <script src="./js/story/smb-story-engine-flow.js?v=4.3.6"></script>
+  <script src="./js/story/smb-story-engine-match.js?v=4.3.6"></script>
+  <script src="./js/story/smb-story-engine-events.js?v=4.3.6"></script>
+  <script src="./js/story/smb-story-engine-frame.js?v=4.3.6"></script>
+  <script src="./js/story/smb-story-engine-explore.js?v=4.3.6"></script>
+  <script src="./js/story/smb-story-engine-explore2.js?v=4.3.6"></script>
+  <script src="./js/story/smb-story-interlude.js?v=4.3.6"></script>
+  <script src="./js/story/smb-story-engine-modes.js?v=4.3.6"></script>
+  <script src="./js/story/smb-story-finalize.js?v=4.3.6"></script>
+  <script src="./js/story/smb-saga-structure.js?v=4.3.6"></script>
+  <script src="./js/smb-story-cinematic-sequence.js?v=4.3.6"></script>
   <!-- Escort chapter engine — NPC protection, wave spawning, story integration -->
-  <script src="./js/smb-escort.js?v=4.3.0"></script>
+  <script src="./js/smb-escort.js?v=4.3.6"></script>
   <!-- Ship & Fracture Progression (lore: Axiom, the war, branch rulers, True Form) -->
-  <script src="./js/smb-progression.js?v=4.3.0"></script>
+  <script src="./js/smb-progression.js?v=4.3.6"></script>
   <!-- Multiverse Progression System -->
-  <script src="./js/smb-multiverse.js?v=4.3.0"></script>
+  <script src="./js/smb-multiverse.js?v=4.3.6"></script>
   <!-- Chaos Multiplayer system — events, mutations, item drops, kill streaks, spectator -->
-  <script src="./js/smb-multiplayer-chaos.js?v=4.3.0"></script>
+  <script src="./js/smb-multiplayer-chaos.js?v=4.3.6"></script>
   <!-- Map & Weapon Designer (standalone tool) -->
-  <script src="./js/smb-designer.js?v=4.3.0"></script>
+  <script src="./js/smb-designer.js?v=4.3.6"></script>
   <!-- Test harness — only active when window.DEBUG_MODE = true -->
-  <script src="./js/smb-test-tools.js?v=4.3.0"></script>
+  <script src="./js/smb-test-tools.js?v=4.3.6"></script>
   <!-- Guided onboarding tutorial — runs on top of training mode -->
-  <script src="./js/smb-tutorial.js?v=4.3.0"></script>
+  <script src="./js/smb-tutorial.js?v=4.3.6"></script>
   <!-- Replay system — recording, IndexedDB storage, download, and viewer -->
-  <script src="./js/smb-replay.js?v=4.3.0"></script>
+  <script src="./js/smb-replay.js?v=4.3.6"></script>
   <!-- Dev: "test the latest update" panel (F6). Data file is generated by
        tools/whatsnew/gen.js via `npm run whatsnew`; both are optional at runtime. -->
-  <script src="./js/smb-whatsnew-data.js?v=4.3.0"></script>
-  <script src="./js/smb-whatsnew.js?v=4.3.0"></script>
-  <script src="./js/smb-ui-controls.js?v=4.3.0"></script>
+  <script src="./js/smb-whatsnew-data.js?v=4.3.6"></script>
+  <script src="./js/smb-whatsnew.js?v=4.3.6"></script>
+  <script src="./js/smb-ui-controls.js?v=4.3.6"></script>
   <!-- StoryVoice — speaks story dialogue lines via the Web Speech API -->
-  <script src="./js/smb-storyvoice.js?v=4.3.0"></script>
+  <script src="./js/smb-storyvoice.js?v=4.3.6"></script>
 
   <!-- YouTube IFrame API for background music (disabled by MusicManager on CrazyGames) -->
   <div id="ytBossPlayer"    style="position:fixed;width:1px;height:1px;opacity:0;pointer-events:none;left:-9999px;top:-9999px;"></div>

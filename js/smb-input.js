@@ -36,6 +36,11 @@ document.addEventListener('keydown', e => {
   const ae = document.activeElement;
   const inputFocused = ae && (ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA' || ae.isContentEditable);
   if (inputFocused) return; // let the input receive all keystrokes unmodified
+  // A between-level narrative scene owns the keyboard: its own handler runs the
+  // beat advance / fast-forward / skip. Without this, Escape both skipped the
+  // scene AND opened the pause menu underneath it, and movement keys queued up
+  // to fire the instant the match resumed.
+  if (window._storySceneHold) return;
   if (tfEndingScene && tfEndingScene.skippable && tfEndingScene.phase === 'powers') { trySkipTFEnding(); return; }
   if (e.key === 'Escape' || e.key === 'p' || e.key === 'P') { pauseGame(); return; }
   // Cheat code: type TRUEFORM anywhere in menu to unlock True Form
@@ -424,7 +429,7 @@ function processInput() {
         SoundManager.jump();
       }
     }
-    // --- Story dodge roll (grounded) / air dash (airborne) — double-tap ← / → ---
+    // --- Story dodge roll (grounded only) — double-tap ← / → ---
     if (storyModeActive && typeof storyHandleDodgeInput === 'function') storyHandleDodgeInput(p);
     // --- S / ArrowDown = shield (degrades per consecutive deployment; re-press required after break) ---
     // Tiers: stacks 1→30HP, 2→15HP, 3→5HP, 4→80% block, 5→50% block, 6→20% block, 7+→no effect

@@ -1960,7 +1960,25 @@
 
   function _finish() { _cleanup(); if(_callback){var cb=_callback;_callback=null;cb();} }
 
+  // ── Gameplay hold ──────────────────────────────────────────────────────────
+  // Paired with gameLoop()'s `_storySceneHold` check. Held keys are dropped on
+  // both edges: a key pressed to advance a beat must not also be down when the
+  // match resumes, and a key held when the scene opened must not resume live.
+  function _holdBegin() {
+    if (typeof storyHoldGameplay === 'function') storyHoldGameplay(true);
+    else window._storySceneHold = true;
+  }
+  function _holdEnd() {
+    if (!window._storySceneHold) return;
+    if (typeof storyHoldGameplay === 'function') storyHoldGameplay(false);
+    else window._storySceneHold = false;
+    // No loop restart here on purpose: gameLoop parks by re-queueing itself (the
+    // same way `paused` does), so the rAF chain is never broken and a second
+    // chain can never be started by a scene that opens on top of another.
+  }
+
   function _cleanup() {
+    _holdEnd();
     if(_raf){cancelAnimationFrame(_raf);_raf=null;}
     if(_canvas){
       _canvas.removeEventListener('click',_onInteract);
@@ -2061,6 +2079,13 @@
     _actStyle = _getActStyle(chId);
     // Coverage drift check (docs/story-cinematics-plan.md): narrated but no visual spec
     if (chId !== undefined && !_spec) console.info('[StoryScene] chapter', chId, 'has narrative but no STORY_SCENE_SPECS entry — rendering with act style only');
+
+    // Freeze the match underneath. These scenes play BETWEEN levels while the
+    // game loop is still running, so without this the world kept simulating
+    // behind the overlay — enemies fought, timers ran, the player could be
+    // killed by a fight nobody could see. gameLoop() parks on this flag and
+    // smb-input.js stops feeding it keys.
+    _holdBegin();
 
     _canvas = document.createElement('canvas');
     _canvas.width = window.innerWidth; _canvas.height = window.innerHeight;

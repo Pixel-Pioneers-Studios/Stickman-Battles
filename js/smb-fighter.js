@@ -3,13 +3,30 @@
 // ── CLASH ─────────────────────────────────────────────────────────────────
 // Two melee swings starting within CLASH_WINDOW frames of each other cancel
 // out instead of one silently losing the race. See Fighter._resolveClash().
-const CLASH_WINDOW    = 6;   // frames apart to still count as simultaneous
+//
+// A clash is a precision beat, not a default outcome. Three things must all be
+// true: the swings began within CLASH_WINDOW frames, both fighters are swinging
+// INTO each other (opposed facing), and both blades actually reach — our arc
+// hits them and theirs hits us. Miss any one and the exchange falls through to
+// the ordinary first-wins rule.
+//
+// Strength also has to match. Every attacking action carries a tier (normal
+// swing / ability / super); only equal tiers can meet. A weaker action thrown
+// into a stronger one does not trade — it breaks outright and the stronger
+// action lands, which is what _resolveOverpower() handles.
+const CLASH_WINDOW    = 3;   // frames apart to still count as simultaneous
+const CLASH_REACH_PAD = 8;   // slack on the mutual-reach test, px
 const CLASH_KNOCKBACK = 6.5; // horizontal push applied to BOTH fighters
 const CLASH_ENDLAG    = 16;  // recovery before either may swing again
 const CLASH_COOLDOWN  = 20;  // re-clash guard, so a trade can't loop
 const CLASH_HITSTOP   = 8;   // freeze frames on the exchange
 const CLASH_STREAK_MAX   = 2;   // consecutive clashes allowed per pair
 const CLASH_STREAK_RESET = 120; // frames of no clashing that clears the streak
+// Attack strength tiers — only equal tiers may clash.
+const CLASH_TIER_ATTACK  = 0;
+const CLASH_TIER_ABILITY = 1;
+const CLASH_TIER_SUPER   = 2;
+const CLASH_BREAK_ENDLAG = 22; // recovery the overpowered fighter eats
 
 // ============================================================
 // FIGHTER
@@ -95,6 +112,7 @@ class Fighter {
     this.squashTimer   = 0;  // frames of landing squash animation
     this._wallSlamCd   = 0;  // re-fire guard for _wallSlam()
     this._clashCd      = 0;  // re-fire guard for _resolveClash()
+    this._attackKindTier = CLASH_TIER_ATTACK; // strength tier of the current action
     this.aiNoHitTimer  = 0;  // frames bot has been attacking without landing a hit
     // ---- NO-IDLE SYSTEM ----
     this.intent          = 'pressure'; // 'pressure'|'reposition'|'bait'|'retreat'
@@ -1461,6 +1479,20 @@ class Fighter {
             if (!this.isBoss && !tgt.isBoss && tgt.weapon && tgt.weapon.type === 'melee' && tgt.attackTimer > 0) {
               const _myStart  = this._attackStartFrame  || 0;
               const _tgtStart = tgt._attackStartFrame   || 0;
+              // ── STRENGTH MISMATCH ────────────────────────────────────────
+              // Only equal-strength actions may meet. A weaker action thrown
+              // into a stronger one breaks outright — no trade, no first-wins
+              // race — and the stronger one carries through to its damage.
+              const _myTier  = this._clashTier();
+              const _tgtTier = tgt._clashTier();
+              if (_myTier !== _tgtTier) {
+                if (_myTier < _tgtTier) {
+                  this._resolveOverpower(tgt, this);  // ours breaks
+                  break;
+                }
+                this._resolveOverpower(this, tgt);    // theirs breaks
+                // fall through — our stronger action lands below
+              } else {
               // ── CLASH ────────────────────────────────────────────────────
               // Two melee swings that began within a few frames of each other
               // are a genuine trade, not a race one side quietly lost. Neither
@@ -1470,6 +1502,9 @@ class Fighter {
               // the case where the timing really was simultaneous.
               if (Math.abs(_myStart - _tgtStart) <= CLASH_WINDOW &&
                   !this._clashCd && !tgt._clashCd && !isCinematic &&
+                  // Precision: both must swing into each other and both blades
+                  // must actually reach, or one swing simply landed first.
+                  this._clashArcsMeet(tgt) &&
                   // At least one side must be human. Two AI on matched weapons
                   // swing on a shared tick with identical cooldowns, so they
                   // re-clash indefinitely: measured 0 damage dealt across 382
@@ -1491,6 +1526,7 @@ class Fighter {
               } else {
                 // We attacked first — cancel tgt's pending swing
                 tgt.attackTimer = 0;
+              }
               }
             }
             dealDamage(this, tgt, this._swingDamage(tgt), this.weapon.kb);
@@ -2351,6 +2387,58 @@ class Fighter {
   // times a PAIR may clash in a row; past the cap the exchange falls through
   // to the first-wins rule and someone actually connects, which breaks the
   // symmetry for free.
+  // Strength tier of whatever this fighter is doing right now. A super in
+  // flight outranks everything (superActive stays true for the whole move, not
+  // just its opening frames); otherwise the tag set by attack()/ability()/
+  // activateSuper() stands for the action currently driving attackTimer.
+  _clashTier() {
+    if (this.superActive) return CLASH_TIER_SUPER;
+    return this._attackKindTier || CLASH_TIER_ATTACK;
+  }
+
+  // Precision gate for a clash: both fighters must be swinging INTO each other,
+  // and both blades must reach. The caller has already established that OUR arc
+  // reaches them; this adds the opposed facing and the return half of the reach,
+  // so a clash only fires when the two weapons genuinely meet in the middle.
+  _clashArcsMeet(other) {
+    if (!other) return false;
+    const _dir = Math.sign(other.cx() - this.cx());
+    if (_dir !== 0 && (this.facing !== _dir || other.facing !== -_dir)) return false;
+    if (typeof other._getMeleeArcPoints !== 'function') return false;
+    const pts = other._getMeleeArcPoints();
+    if (!pts || !pts.length) return false;
+    const pad = CLASH_REACH_PAD;
+    for (const pt of pts) {
+      if (pt.x > this.x - pad && pt.x < this.x + this.w + pad &&
+          pt.y > this.y - pad && pt.y < this.y + this.h + pad) return true;
+    }
+    return false;
+  }
+
+  // A weaker action met a stronger one. The weaker one breaks outright: its
+  // swing is cancelled with real recovery on it, and the stronger action is
+  // left completely untouched so it lands as though nothing interrupted it.
+  // No damage is routed here — the winner's own dealDamage() call follows.
+  _resolveOverpower(winner, loser) {
+    if (!winner || !loser || loser.health <= 0) return;
+    loser.attackTimer = 0;
+    loser.weaponHit   = false;
+    loser.attackEndlag = Math.max(loser.attackEndlag || 0, CLASH_BREAK_ENDLAG);
+    // One flourish per break, not one per side detecting it.
+    if (loser._clashCd) return;
+    loser._clashCd = CLASH_COOLDOWN;
+    const bx = (winner.cx() + loser.cx()) / 2;
+    const by = (winner.cy() + loser.cy()) / 2;
+    if (settings.particles) {
+      spawnParticles(bx, by, '#ffffff', 8);
+      spawnParticles(bx, by, '#ff8844', 6);
+    }
+    if (typeof DamageText !== 'undefined' && typeof damageTexts !== 'undefined') {
+      damageTexts.push(new DamageText(bx, by - 18, 'BREAK', '#ff8844'));
+    }
+    if (settings.screenShake) screenShake = Math.max(screenShake, 5);
+  }
+
   _clashStreakOk(other) {
     const f = (typeof frameCount !== 'undefined') ? frameCount : 0;
     if (this._clashStreakWith !== other || (f - (this._clashStreakAt || 0)) > CLASH_STREAK_RESET) {
@@ -2820,6 +2908,7 @@ class Fighter {
     }
     this.cooldown    = this.attackCooldownMult ? Math.max(1, Math.ceil(this.weapon.cooldown * this.attackCooldownMult)) : this.weapon.cooldown;
     this._attackStartFrame = (typeof frameCount !== 'undefined' ? frameCount : 0);
+    this._attackKindTier   = CLASH_TIER_ATTACK; // see _clashTier()
     this.attackTimer = this.attackDuration;
 
     // ── MELEE LUNGE ────────────────────────────────────────────────────────
@@ -2856,6 +2945,9 @@ class Fighter {
     if (this.abilityCooldown > 0 || this.health <= 0 || this.stunTimer > 0 || this.ragdollTimer > 0) return;
     if (!this.isBoss && this.attackEndlag > 0) return; // can't ability during swing recovery
     if (this.shielding) return;
+    // Abilities out-rank ordinary swings in a clash — see _clashTier().
+    this._attackKindTier   = CLASH_TIER_ABILITY;
+    this._attackStartFrame = (typeof frameCount !== 'undefined' ? frameCount : 0);
     // MEGAKNIGHT class override: Q = Grand Slam — spinning slam that craters nearby enemies upward
     if (this.charClass === 'megaknight') {
       this.abilityCooldown  = 80;
@@ -2899,6 +2991,9 @@ class Fighter {
   }
 
   activateSuper(target) {
+    // Supers out-rank abilities and swings in a clash — see _clashTier().
+    this._attackKindTier   = CLASH_TIER_SUPER;
+    this._attackStartFrame = (typeof frameCount !== 'undefined' ? frameCount : 0);
     // ── Conviction: every 5th super triggers conviction instead of normal super ──
     // Supers spent inside your own domain don't advance the next one. The domain
     // buffs you and its hazards credit you super meter, so counting them let a
@@ -4757,6 +4852,18 @@ class Fighter {
     // Speed cached for motion trail and speed lines (used in two places below)
     const _spdAbs = Math.abs(this.vx);
 
+    // Material palette for this fighter — the whole body is painted from a value
+    // ramp derived from `this.color` rather than from the flat colour itself.
+    const _pal = FigureSkin.pal(this.color);
+    FigureSkin.setCrowd(typeof players !== 'undefined' ? players.length : 2);
+
+    // Contact shadow. Fades out as he leaves the ground so a jump reads as a
+    // jump instead of the figure dragging its shadow into the air with it.
+    if (!this.isBoss && this.ragdollTimer <= 0) {
+      const _gsH = this.onGround ? 0 : Math.min(1, Math.abs(this.vy) / 14);
+      FigureSkin.groundShadow(cx, this.y + this.h + 1, 15 - _gsH * 5, 1 - _gsH * 0.55);
+    }
+
     // ── MOTION AFTERIMAGE ───────────────────────────────────────────────────
     // Ghosted head+body copies trail behind the fighter when moving fast.
     if (_spdAbs > 3.0 && !this.isBoss && !this.squashTimer && this.ragdollTimer <= 0) {
@@ -4766,8 +4873,8 @@ class Fighter {
         const _gOff   = -Math.sign(this.vx) * _gi * 7;
         ctx.save();
         ctx.globalAlpha = _gAlpha;
-        ctx.strokeStyle = this.color;
-        ctx.fillStyle   = this.color;
+        ctx.strokeStyle = _pal.base;
+        ctx.fillStyle   = _pal.base;
         ctx.lineWidth   = 5;
         ctx.lineCap     = 'round';
         const _gcx = cx + _gOff;
@@ -4777,7 +4884,7 @@ class Fighter {
       }
     }
 
-    ctx.strokeStyle = this.color;
+    ctx.strokeStyle = _pal.base;
     ctx.lineWidth   = FIG_LINE_W;
     ctx.lineCap     = 'round';
     ctx.lineJoin    = 'round';
@@ -4786,135 +4893,43 @@ class Fighter {
     // Scoped to the head + face block; the torso line and limbs still use cx.
     const headCX = (typeof animHeadLag === 'function' && !this.isBoss)
       ? cx + animHeadLag(this, (hipX - cx) * -0.35, 4, 2) : cx;
-    ctx.beginPath();
-    ctx.arc(headCX, headCY, headR, 0, Math.PI * 2);
-    ctx.fillStyle = this.color;
-    ctx.fill();
-    // Soft underside shading — gives the head volume instead of a flat disc
-    ctx.fillStyle = 'rgba(0,0,0,0.10)';
-    ctx.beginPath();
-    ctx.arc(headCX, headCY + 2.2, headR - 1.6, Math.PI * 0.12, Math.PI * 0.88);
-    ctx.fill();
-    // Top-light sheen on the facing side
-    ctx.fillStyle = 'rgba(255,255,255,0.13)';
-    ctx.beginPath();
-    ctx.ellipse(headCX + f * 3.0, headCY - 5.2, 4.6, 2.6, f * 0.5, 0, Math.PI * 2);
-    ctx.fill();
+
+    // ── ONE BODY, NOT A PILE OF PARTS ───────────────────────────────────────
+    // Nothing below paints. Every piece of the figure is accumulated into two
+    // silhouettes — the far-side limbs, and everything else — which are then
+    // filled and lit ONCE each, further down. Painting parts individually is
+    // what made the figure read as assembled components. See smb-figure-skin.js.
+    const _near = FigureSkin.begin();
+    const _far  = FigureSkin.begin();
+
+    // Neck — a short column between jaw and shoulders. Without it the head is a
+    // ball balanced on a stick and the upper body has no direction.
+    FigureSkin.segment(_near,
+      [{ x: headCX, y: headCY + headR * 0.55 }, { x: shoulderX, y: shoulderY - 1 }],
+      // Narrower than the jaw above it, so the chin reads as an overhang. At
+      // equal widths the head, neck and chest merge into one tapered column.
+      [FIG_LINE_W * 0.55, FIG_LINE_W * 0.92]);
+
+    FigureSkin.head(_near, headCX, headCY, headR, f);
 
     // ── FACE ──────────────────────────────────────────────────
-    // 3/4-view face: large near eye toward facing + smaller far eye, brows
-    // anchored just above each eye (the old single brow floated at the very
-    // top of the head and read as detached marks).
-    const _expr = this.expressionState || 'neutral';
-    const _eyeX  = headCX + f * 4.2;   // near eye
-    const _eyeY  = headCY - 3.2;
-    const _eyeR  = 2.6;
-    const _eye2X = headCX - f * 1.8;   // far eye (smaller — perspective)
-    const _eye2R = 2.1;
-
-    // Scleras
-    ctx.fillStyle = '#fff';
-    ctx.beginPath();
-    ctx.arc(_eyeX,  _eyeY, _eyeR,  0, Math.PI * 2);
-    ctx.arc(_eye2X, _eyeY, _eye2R, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Half-lid: paint a sliver of head color back over the top of both eyes
-    if (_expr === 'cool' || _expr === 'serene') {
-      ctx.fillStyle = this.color;
-      ctx.fillRect(_eyeX  - _eyeR  - 0.5, _eyeY - _eyeR,  _eyeR  * 2 + 1, _eyeR  * 0.65);
-      ctx.fillRect(_eye2X - _eye2R - 0.5, _eyeY - _eye2R, _eye2R * 2 + 1, _eye2R * 0.65);
-    }
-
-    // Pupils — track the nearest opponent instead of staring straight ahead.
-    // The look offset is tiny (the sclera is 2.6px) but it is what makes the
-    // fighter read as watching the fight rather than facing a direction.
+    // Lit eyes in a shadowed socket, brow-driven expression, no drawn mouth
+    // outside of a grimace. See FigureSkin.face() for why the old sclera +
+    // pupil + smile face had to go.
     const _look = (typeof animEyeTarget === 'function' && !this.isBoss)
       ? animEyeTarget(this) : { x: 0, y: 0 };
-    const _lookX = f * 0.8 + _look.x * 1.15;
-    const _lookY = 0.2 + _look.y * 0.9;
-    ctx.fillStyle = s === 'hurt' ? '#ff0000' : '#111';
-    ctx.beginPath();
-    ctx.arc(_eyeX  + _lookX, _eyeY + _lookY, 1.25, 0, Math.PI * 2);
-    ctx.arc(_eye2X + _lookX * 0.88, _eyeY + _lookY, 1.05, 0, Math.PI * 2);
-    ctx.fill();
-    // Catchlight on the near pupil
-    if (s !== 'hurt') {
-      ctx.fillStyle = 'rgba(255,255,255,0.85)';
-      ctx.beginPath();
-      ctx.arc(_eyeX + _lookX - 0.45, _eyeY - 0.3 + _lookY, 0.5, 0, Math.PI * 2);
-      ctx.fill();
-    }
-
-    // Blink — a lid of head colour sweeps down over both eyes. Each fighter has
-    // its own phase offset so a crowd never blinks in unison.
     const _blink = (typeof animBlink === 'function' && !this.isBoss && s !== 'hurt')
       ? animBlink(this) : 0;
-    if (_blink > 0.01) {
-      ctx.fillStyle = this.color;
-      const _lid = (_eyeR + 0.6) * 2 * _blink;
-      ctx.fillRect(_eyeX  - _eyeR  - 0.6, _eyeY - _eyeR  - 0.6, _eyeR  * 2 + 1.2, _lid);
-      ctx.fillRect(_eye2X - _eye2R - 0.6, _eyeY - _eye2R - 0.6, _eye2R * 2 + 1.2, _lid);
-    }
-
-    // Eyebrows — short arcs hugging each eye; expression tilts the inner end
-    let _browIn = 0, _browOut = 0, _browLift = 0;  // y-offsets: inner end, outer end, mid peak
-    if (s === 'hurt') {
-      _browIn = -1.5; _browOut = 0.5; _browLift = -0.5;  // worried ↗
-    } else if (s === 'attacking' || _expr === 'focused' || _expr === 'intense') {
-      _browIn = 1.5; _browOut = -0.5; _browLift = 0.8;   // determined ↘
-    } else if (_expr === 'cool') {
-      _browIn = 0.5; _browOut = -0.5; _browLift = 0.3;   // cool slight ↘
-    }
-    const _browY = _eyeY - 4.4;
-    ctx.strokeStyle = 'rgba(0,0,0,0.7)';
-    ctx.lineWidth   = 1.6;
-    ctx.beginPath();
-    ctx.moveTo(_eyeX + f * 2.9, _browY + _browOut);
-    ctx.quadraticCurveTo(_eyeX, _browY - 1.6 + _browLift, _eyeX - f * 2.6, _browY + _browIn);
-    ctx.stroke();
-    // Far brow — shorter and fainter
-    ctx.strokeStyle = 'rgba(0,0,0,0.45)';
-    ctx.lineWidth   = 1.4;
-    ctx.beginPath();
-    ctx.moveTo(_eye2X + f * 2.2, _browY + _browOut * 0.7);
-    ctx.quadraticCurveTo(_eye2X, _browY - 1.3 + _browLift * 0.7, _eye2X - f * 1.9, _browY + _browIn * 0.7);
-    ctx.stroke();
-
-    // Mouth — canvas y-down: arc(…,0,π,false)=∪=smile; arc(…,0,π,true)=∩=frown
-    ctx.lineWidth = 1.5;
-    if (s === 'hurt') {
-      ctx.strokeStyle = '#ff3333';
-      ctx.beginPath();
-      ctx.arc(headCX + f * 3.5, headCY + 5, 2.5, 0, Math.PI, true); // ∩ frown
-      ctx.stroke();
-    } else if (_expr === 'cool' || _expr === 'serene') {
-      // Smirk: rises toward the ear side
-      ctx.strokeStyle = 'rgba(0,0,0,0.6)';
-      ctx.beginPath();
-      ctx.moveTo(headCX + f * 0.5, headCY + 5);
-      ctx.quadraticCurveTo(headCX + f * 3.5, headCY + 5.5, headCX + f * 6.5, headCY + 3.5);
-      ctx.stroke();
-    } else if (_expr === 'intense') {
-      // Grim tight line
-      ctx.strokeStyle = '#ff3333';
-      ctx.beginPath();
-      ctx.moveTo(headCX + f * 1.0, headCY + 5.5);
-      ctx.lineTo(headCX + f * 6.0, headCY + 5.5);
-      ctx.stroke();
-    } else if (s === 'attacking') {
-      ctx.strokeStyle = '#ff3333';
-      ctx.beginPath();
-      ctx.arc(headCX + f * 3.5, headCY + 5, 2.5, 0, Math.PI, true); // ∩ grit/shout
-      ctx.stroke();
-    } else {
-      // neutral — subtle smirk, ear side lifts slightly
-      ctx.strokeStyle = 'rgba(0,0,0,0.6)';
-      ctx.beginPath();
-      ctx.moveTo(headCX - f * 0.5, headCY + 5.2);
-      ctx.quadraticCurveTo(headCX + f * 2.0, headCY + 5.6, headCX + f * 4.5, headCY + 4.0);
-      ctx.stroke();
-    }
+    // Deferred: the face has to land on top of the painted body, but the
+    // expression inputs are only in scope here.
+    const _paintFace = () => FigureSkin.face(_pal, headCX, headCY, headR, f, {
+      expr:      this.expressionState || 'neutral',
+      hurt:      s === 'hurt',
+      attacking: s === 'attacking',
+      lookX:     f * 0.6 + _look.x * 1.4,
+      lookY:     0.2 + _look.y * 1.1,
+      blink:     _blink,
+    });
 
     // ACCESSORIES (hat, cape)
     drawAccessory(this, cx, headCY, shoulderY, hipY, f, headR);
@@ -4923,13 +4938,17 @@ class Fighter {
       drawStoryCharacterOverlay(this, cx, headCY, shoulderY, hipY, f, headR);
     }
 
-    // BODY (leans forward when walking)
-    ctx.strokeStyle = this.color;
-    ctx.lineWidth   = 6;
-    ctx.beginPath();
-    ctx.moveTo(cx, neckY);
-    ctx.lineTo(hipX, hipY);
-    ctx.stroke();
+    // BODY — painted further down, once the arm angles are solved, so the
+    // far-side arm can be layered BEHIND the chest. The geometry is settled
+    // here; only the paint order moved.
+    const _torsoPts = [
+      { x: shoulderX,                   y: neckY },
+      { x: (shoulderX + hipX) * 0.5,    y: (neckY + hipY) * 0.5 },
+      { x: hipX,                        y: hipY },
+    ];
+    // Chest wider than waist — the taper is what turns the torso from a drawn
+    // line into a ribcage over a pelvis.
+    const _torsoW = [FIG_LINE_W * 1.85, FIG_LINE_W * 1.45, FIG_LINE_W * 1.30];
 
     // ARM ANGLES
     const atkProgress = (this._finPoseP !== null && this._finPoseP !== undefined) ? this._finPoseP
@@ -5040,7 +5059,7 @@ class Fighter {
     const [lElbX, lElbY] = _hiQ
       ? animIK(shoulderX, shoulderY, lEx, lEy, _armBone, -f)
       : _lj(shoulderX, shoulderY, lEx, lEy, elbowOut, -3);
-    ctx.strokeStyle = this.color;
+    ctx.strokeStyle = _pal.base;
     ctx.lineWidth   = 5;
     // ── LIMB SMEAR ──────────────────────────────────────────────────────────
     // A fast weapon arm draws as a few trailing ghosts along its own arc rather
@@ -5067,7 +5086,7 @@ class Fighter {
         // the arm where it is now; the path runs from last frame's hand back to
         // this one, which puts the ghosts along the swing.
         animSmear(() => {
-          ctx.strokeStyle = this.color;
+          ctx.strokeStyle = _pal.base;
           ctx.lineWidth   = 5;
           ctx.beginPath();
           ctx.moveTo(shoulderX, shoulderY);
@@ -5081,14 +5100,39 @@ class Fighter {
     } else {
       this._smearPrev = { x: rEx, y: rEy, ex: rElbX, ey: rElbY };
     }
-    ctx.beginPath(); ctx.moveTo(shoulderX, shoulderY); ctx.lineTo(rElbX, rElbY); ctx.lineTo(rEx, rEy); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(shoulderX, shoulderY); ctx.lineTo(lElbX, lElbY); ctx.lineTo(lEx, lEy); ctx.stroke();
+    // ── ACCUMULATE: arms + torso ────────────────────────────────────────────
+    // Widths taper shoulder -> elbow -> wrist. The off-hand arm goes into the
+    // FAR silhouette: one shadowed mass behind one lit mass is the whole depth
+    // cue, and without it a single merged body is a blob.
+    const _armW  = [FIG_LINE_W * 1.15, FIG_LINE_W * 0.92, FIG_LINE_W * 0.70];
+    const _farW  = [FIG_LINE_W * 1.02, FIG_LINE_W * 0.82, FIG_LINE_W * 0.62];
+    // Back limbs are nudged AGAINST facing so they clear the torso silhouette.
+    const _bOff  = -f * 1.6;
+    FigureSkin.segment(_far, [
+      { x: shoulderX + _bOff, y: shoulderY },
+      { x: lElbX + _bOff,     y: lElbY },
+      { x: lEx + _bOff,       y: lEy },
+    ], _farW);
+    if (!this._hideWeapon) FigureSkin.hand(_far, lEx + _bOff, lEy, lAng, f, 0.85);
 
-    // WEAPON in right hand (boss draws gauntlet on both hands for visual flair)
+    FigureSkin.segment(_near, _torsoPts, _torsoW);
+    // `true` = also feed the internal form shadow. The near arm hangs against
+    // the torso and the union would otherwise absorb it completely.
+    FigureSkin.segment(_near, [
+      { x: shoulderX, y: shoulderY },
+      { x: rElbX,     y: rElbY },
+      { x: rEx,       y: rEy },
+    ], _armW, true);
+    FigureSkin.hand(_near, rEx, rEy, rAng, f, 1);
+
+    // WEAPON in right hand (boss draws gauntlet on both hands for visual flair).
+    // Deferred: the body is now painted in one pass AFTER the legs are solved,
+    // so drawing the weapon here would put it underneath the fighter holding it.
     const weapScale = this.isBoss ? 1.0 : 1.5;
     // Fragment bearers hold nothing until the pattern surfaces — _fragV is null
     // for everyone else, so their weapon draws exactly as before.
     const _fragV = (typeof fragmentWeaponVisual === 'function') ? fragmentWeaponVisual(this) : null;
+    const _paintWeapon = () => {
     if (_fragV && typeof drawFragmentArmSurge === 'function') {
       // Light feeds up the arm first — the surge precedes the shape.
       drawFragmentArmSurge(this, cx, shoulderY, rElbX, rElbY, rEx, rEy);
@@ -5118,13 +5162,14 @@ class Fighter {
     // guard stance reads as two fists instead of one hand and one bare arm stub.
     if (!this.isBoss && this.weaponKey === 'combat' && !this._domainDisplayWeapon) {
       ctx.save();
-      ctx.fillStyle   = this.color;
+      ctx.fillStyle   = _pal.far;
       ctx.beginPath(); ctx.arc(lEx, lEy, 4.4, 0, Math.PI * 2); ctx.fill();
-      ctx.strokeStyle = 'rgba(0,0,0,0.28)'; ctx.lineWidth = 0.9; ctx.stroke();
-      ctx.globalAlpha = 0.2; ctx.fillStyle = '#ffffff';
+      ctx.strokeStyle = _pal.farRim; ctx.globalAlpha = 0.5; ctx.lineWidth = 1.1; ctx.stroke();
+      ctx.globalAlpha = 0.14; ctx.fillStyle = '#ffffff';
       ctx.beginPath(); ctx.arc(lEx - 1.2, lEy - 1.4, 2.0, 0, Math.PI * 2); ctx.fill();
       ctx.restore();
     }
+    };   // end _paintWeapon — invoked after the body paint, below
 
     // LEGS
     let rLeg, lLeg;
@@ -5174,8 +5219,32 @@ class Fighter {
     const [lKneeX, lKneeY] = _hiQ
       ? animIK(hipX, hipY, lFootX, lFootY, _legBone, -f)
       : _lj(hipX, hipY, lFootX, lFootY, kneeOut, 0);
-    ctx.beginPath(); ctx.moveTo(hipX, hipY); ctx.lineTo(rKneeX, rKneeY); ctx.lineTo(rFootX, rFootY); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(hipX, hipY); ctx.lineTo(lKneeX, lKneeY); ctx.lineTo(lFootX, lFootY); ctx.stroke();
+    // ── ACCUMULATE: legs ────────────────────────────────────────────────────
+    // Thigh -> knee -> ankle taper, plus an actual boot at each ankle. The old
+    // rig ended both legs in a round line cap, which is why the figure never
+    // looked planted on the floor it was standing on.
+    const _legW    = [FIG_LINE_W * 1.30, FIG_LINE_W * 1.00, FIG_LINE_W * 0.76];
+    const _legFarW = [FIG_LINE_W * 1.16, FIG_LINE_W * 0.90, FIG_LINE_W * 0.68];
+    const _lOff    = -f * 1.6;
+    FigureSkin.segment(_far, [
+      { x: hipX + _lOff,   y: hipY },
+      { x: lKneeX + _lOff, y: lKneeY },
+      { x: lFootX + _lOff, y: lFootY },
+    ], _legFarW);
+    FigureSkin.foot(_far, lFootX + _lOff, lFootY + 1.2, lLeg, f);
+
+    FigureSkin.segment(_near, [
+      { x: hipX,   y: hipY },
+      { x: rKneeX, y: rKneeY },
+      { x: rFootX, y: rFootY },
+    ], _legW, true);   // detail: separates the near leg from the far one
+    FigureSkin.foot(_near, rFootX, rFootY + 1.2, rLeg, f);
+
+    // ── PAINT: two silhouettes, then the face on top ────────────────────────
+    FigureSkin.paint(_far,  _pal, true);
+    FigureSkin.paint(_near, _pal, false);
+    _paintFace();
+    _paintWeapon();
 
     // ── SPEED LINES ─────────────────────────────────────────────────────────
     // Horizontal streaks on the trailing side of the fighter when running fast.
@@ -5207,24 +5276,40 @@ class Fighter {
         ctx.save();
         ctx.translate(shX, shY);
         ctx.scale(1.8, 1.8);
-        ctx.fillStyle = '#4466cc';
+        // Kite shield as a lit metal face rather than two flat colours: a
+        // value ramp down the plate, a rolled rim, and the boss at the centre.
+        // Matches the weapon sprites it is carried alongside.
+        const _shG = ctx.createLinearGradient(-10, -14, 10, 16);
+        _shG.addColorStop(0,    '#6d7f9e');
+        _shG.addColorStop(0.42, '#4a5872');
+        _shG.addColorStop(1,    '#2c3549');
         ctx.beginPath();
         ctx.moveTo(-8, -14); ctx.lineTo(8, -14);
         ctx.lineTo(12, 4); ctx.lineTo(0, 16); ctx.lineTo(-12, 4);
-        ctx.closePath(); ctx.fill();
-        ctx.strokeStyle = '#aabbff'; ctx.lineWidth = 1.5; ctx.stroke();
-        ctx.strokeStyle = '#ffee88'; ctx.lineWidth = 1;
-        ctx.beginPath(); ctx.moveTo(0, -8); ctx.lineTo(0, 10); ctx.stroke();
-        ctx.beginPath(); ctx.moveTo(-7, -2); ctx.lineTo(7, -2); ctx.stroke();
+        ctx.closePath();
+        ctx.fillStyle = _shG; ctx.fill();
+        ctx.strokeStyle = 'rgba(12,16,24,0.85)'; ctx.lineWidth = 1.6; ctx.stroke();
+        // Rolled edge catching the key light on the upper left.
+        ctx.strokeStyle = 'rgba(214,226,244,0.42)'; ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(-11.4, 3.4); ctx.lineTo(-7.6, -13.2); ctx.lineTo(7.6, -13.2);
+        ctx.stroke();
+        // Boss (the central dome) — the one bright note.
+        ctx.fillStyle = 'rgba(196,166,96,0.9)';
+        ctx.beginPath(); ctx.ellipse(0, -1, 3.4, 3.8, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = 'rgba(255,240,206,0.5)';
+        ctx.beginPath(); ctx.ellipse(-1, -2.2, 1.5, 1.6, 0, 0, Math.PI * 2); ctx.fill();
         ctx.restore();
       } else {
         const _shStacks = this.shieldStacks || 1;
         // Color shifts from blue → yellow → orange → red as shield degrades
         let _shStroke, _shFill;
-        if      (_shStacks <= 1) { _shStroke = 'rgba(100,210,255,0.88)'; _shFill = 'rgba(100,210,255,0.14)'; }
-        else if (_shStacks === 2) { _shStroke = 'rgba(255,210,60,0.88)';  _shFill = 'rgba(255,210,60,0.14)'; }
-        else if (_shStacks === 3) { _shStroke = 'rgba(255,140,50,0.88)';  _shFill = 'rgba(255,140,50,0.14)'; }
-        else                      { _shStroke = 'rgba(255,70,40,0.88)';   _shFill = 'rgba(255,70,40,0.10)'; }
+        // Degradation still reads blue -> amber -> red, one step off full chroma
+        // so the bubble does not out-glow the fighter inside it.
+        if      (_shStacks <= 1) { _shStroke = 'rgba(126,196,228,0.82)'; _shFill = 'rgba(126,196,228,0.13)'; }
+        else if (_shStacks === 2) { _shStroke = 'rgba(222,190,92,0.82)';  _shFill = 'rgba(222,190,92,0.13)'; }
+        else if (_shStacks === 3) { _shStroke = 'rgba(220,142,72,0.82)';  _shFill = 'rgba(220,142,72,0.13)'; }
+        else                      { _shStroke = 'rgba(214,88,64,0.82)';   _shFill = 'rgba(214,88,64,0.10)'; }
         ctx.beginPath();
         ctx.arc(cx + f * 15, shoulderY + 12, 23, 0, Math.PI * 2);
         ctx.strokeStyle = _shStroke;
@@ -5250,8 +5335,8 @@ class Fighter {
       ctx.save();
       const isGodslayer = this.armorStyle === 'godslayer';
       const gsPulse    = isGodslayer ? (0.5 + 0.5 * Math.sin(t * 0.08)) : 0;
-      const armorCol   = isGodslayer ? '#c09018' : '#9ab8e8';
-      const armorEdge  = isGodslayer ? '#ffe060' : '#cde0ff';
+      const armorCol   = isGodslayer ? '#b08a24' : '#7d93b4';
+      const armorEdge  = isGodslayer ? '#e8cc72' : '#aec3dd';
       if (isGodslayer) {
         ctx.shadowColor = '#ffe840';
         ctx.shadowBlur  = 7 + gsPulse * 9;
@@ -5341,7 +5426,7 @@ class Fighter {
             ctx.restore();
           }
         } else {
-          ctx.strokeStyle = '#7090c0'; ctx.lineWidth = 1;
+          ctx.strokeStyle = 'rgba(30,40,58,0.7)'; ctx.lineWidth = 1;
           ctx.beginPath(); ctx.moveTo(cx, neckY + 4); ctx.lineTo(cx, neckY + 18); ctx.stroke();
         }
       }
@@ -5373,18 +5458,34 @@ class Fighter {
       ctx.restore();
     }
 
-    // Stun stars orbiting head
+    // Stun — orbiting sparks. Drawn as four-point glints rather than the old
+    // '★' text glyph, which rendered in the system font and was the last piece
+    // of literal emoji on the fighter.
     if (this.stunTimer > 0) {
       ctx.save();
       ctx.globalAlpha = Math.min(1, this.stunTimer / 15);
       for (let i = 0; i < 3; i++) {
-        const starA  = t * 0.14 + (i * Math.PI * 2 / 3);
-        const starX  = cx  + Math.cos(starA) * 15;
-        const starY  = ty  - 4 + Math.sin(starA * 2) * 5;
-        ctx.fillStyle   = i % 2 === 0 ? '#ffdd00' : '#ffffff';
-        ctx.font        = '10px Arial';
-        ctx.textAlign   = 'center';
-        ctx.fillText('★', starX, starY);
+        const starA = t * 0.14 + (i * Math.PI * 2 / 3);
+        const starX = cx + Math.cos(starA) * 15;
+        const starY = ty - 4 + Math.sin(starA * 2) * 5;
+        // Depth: a spark on the far side of the orbit is smaller and dimmer.
+        const depth = 0.68 + 0.32 * Math.sin(starA);
+        const rad   = (3.4 + i * 0.5) * depth;
+        ctx.save();
+        ctx.translate(starX, starY);
+        ctx.rotate(t * 0.06 + i);
+        ctx.globalAlpha *= depth;
+        ctx.fillStyle   = '#ffe9a8';
+        ctx.shadowColor = '#ffb020';
+        ctx.shadowBlur  = 6;
+        ctx.beginPath();
+        ctx.moveTo(0, -rad);
+        ctx.quadraticCurveTo(0.6, -0.6, rad, 0);
+        ctx.quadraticCurveTo(0.6, 0.6, 0, rad);
+        ctx.quadraticCurveTo(-0.6, 0.6, -rad, 0);
+        ctx.quadraticCurveTo(-0.6, -0.6, 0, -rad);
+        ctx.fill();
+        ctx.restore();
       }
       ctx.restore();
     }

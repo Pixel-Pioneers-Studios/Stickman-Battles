@@ -126,9 +126,22 @@ function updateEscortMode() {
   // Keep enemies targeting NPC
   enemies.forEach(function(e) { if (e.target !== escortNPC) e.target = escortNPC; });
 
-  // Win condition: NPC reached goal
+  // Win condition: NPC reached goal. Delivery is the objective, but the level is
+  // only finished when the area is clear too — see storyLevelClearBlocker().
   if (escortNPC.cx() >= escortGoalX) {
-    _escortSuccess();
+    var _blk = (typeof storyLevelClearBlocker === 'function' && typeof exploreActive !== 'undefined' && exploreActive)
+      ? storyLevelClearBlocker() : null;
+    if (_blk) {
+      if (!escortNPC._safeNag || frameCount - escortNPC._safeNag > 260) {
+        escortNPC._safeNag = frameCount;
+        storyFightSubtitle = {
+          text: `${escortNPC.name || 'Your escort'} is safe — but ${_blk.reason}`,
+          timer: 190, maxTimer: 190, color: '#ffcc44'
+        };
+      }
+    } else {
+      _escortSuccess();
+    }
   }
 }
 

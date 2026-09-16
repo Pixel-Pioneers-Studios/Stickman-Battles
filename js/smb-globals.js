@@ -64,10 +64,25 @@ const CHANGELOG = [
   {
     version: '4.3.0',
     title: 'THE SHARPENED EDGE UPDATE',
-    date: '2026-09-15',
-    flavor: 'Thirteen weapons measured against each other until none of them was the obvious answer, and a front door worth walking through.',
+    date: '2026-09-16',
+    flavor: 'Thirteen weapons measured against each other until none of them was the obvious answer, a front door worth walking through, and levels that expect you to actually finish them.',
     isLatest: true,
     changes: [
+      // ── Story levels ──────────────────────────────────────────────────────
+      { cat: 'Story',  text: 'Reaching the exit no longer finishes a level. Every enemy in the area has to be down first, and the exit marker burns red until they are — running the length of a world past everything that lived in it was, until now, a complete clear' },
+      { cat: 'Story',  text: 'A level\'s objective is a requirement rather than decoration. Caches have to be recovered, mechanisms thrown, an escort actually delivered — and finishing the objective no longer ends the level on its own while enemies are still standing' },
+      { cat: 'Story',  text: 'Optional fights stay optional. Guardians posted on hidden caches and the elites behind side portals are off the required list, so nothing off the main path can hold a level open' },
+      { cat: 'Story',  text: 'The objective bar carries a live count of what is left, and a straggler who ends up somewhere you would never think to look comes to find you instead of hiding. Enemies you outran are spawned in rather than left queued where they can never be fought' },
+      { cat: 'Story',  text: 'On the long one-map regions, each stretch is sealed by the same rule — you can no longer bank chapter after chapter by walking past their fights' },
+      { cat: 'Fix',    text: 'Scenes between levels played on top of a live match. The world underneath kept running for the whole cutscene — enemies fought, timers ran, and you could take damage from a fight nobody could see. Everything stops now while a scene, or a branching choice, is on screen' },
+      { cat: 'Fix',    text: 'Escape during a between-level scene both skipped the scene and opened the pause menu underneath it' },
+
+      // ── Combat ────────────────────────────────────────────────────────────
+      { cat: 'Combat', text: 'Clashes are a precision beat now, not a default outcome. Two blades only ring off each other if the swings began within three frames, both fighters are swinging into each other, and both weapons actually reach — miss any of those and someone simply gets hit' },
+      { cat: 'Combat', text: 'Strength has to match. A swing meets a swing, an ability meets an ability, a super meets a super — bring the weaker action into a stronger one and it breaks outright: your swing is cancelled with real recovery on it and their attack lands untouched' },
+      { cat: 'Combat', text: 'Three fast hits with your back to a wall and you get out of it, with invulnerability on the way. This existed but belonged to one boss alone, so no player, bot or story enemy had any answer to being pinned — and the walls that spring up mid-level put a corner anywhere. It was also measuring the wrong wall: it tested the edges of the screen rather than of the world, so in a walking world it could not fire where you were actually trapped. It now reads the walls that are really there, the spring-up ones first' },
+      { cat: 'Balance', text: 'Air Dash is gone. Two very different moves were sharing one double-tap — a ground roll and an air burst — and the airborne half turned spacing into a non-question. The skill node is removed and the 120 EXP it cost is refunded to saves that had bought it' },
+
       // ── Balance ───────────────────────────────────────────────────────────
       { cat: 'Balance', text: 'Every melee weapon rebalanced against measurement rather than feel. A headless harness fought all thirteen against each other, 384 matches per weapon per round, and the spread between the best and worst weapon fell from 95 points of win rate to 51 — the imbalance, measured as distance from an even 50%, roughly halved' },
       { cat: 'Balance', text: 'The flail and the hammer were the two genuinely broken weapons, winning 100% and 92% of their matchups. Both are now near the middle of the field, still the heaviest and slowest things you can carry — the per-hit weight is the point, and it stayed' },
@@ -76,6 +91,12 @@ const CHANGELOG = [
       { cat: 'Fix',    text: 'Ranged weapons were deliberately left alone. They come last in every simulated table, but that is the bots refusing to keep their distance rather than the weapons being weak — a bow with 700 range was fighting at a median gap of 130 pixels, inside the band where its own damage is penalised. Buffing the numbers would have broken them for anyone who actually kites' },
 
       // ── The shell ─────────────────────────────────────────────────────────
+      { cat: 'Visual', text: 'The in-game HUD was reading as a debug readout. Health bars stretched to nearly half the screen on a wide display — which also made a 10-damage hit look like nothing had happened — so they are capped, set into a recess, and pulled off full saturation. Lives are drawn pips now instead of characters that landed differently on every machine' },
+      { cat: 'Visual', text: 'Damage numbers no longer out-shout the fight. They appear on every hit, and at full chroma a normal exchange was a confetti spray over the fighters throwing the punches — the damage tier still reads at a glance' },
+      { cat: 'Fix',    text: 'A clash printed itself as "-CLASH". The floating-number code assumed it was always given a number, so it prefixed the label with a minus sign and picked its colour by comparing text against damage thresholds' },
+      { cat: 'Visual', text: 'Fighters are drawn as one figure instead of a set of separately painted parts. The old build read as segments bolted together; the body is now a single silhouette under one light' },
+      { cat: 'Visual', text: 'Arena colour reworked across the board — grounded materials and real value steps instead of flat bright fills' },
+      { cat: 'Fix',    text: 'The Defense minigame never drew its nexus. Two different functions were competing for the same name, and the one that won belonged to the story mode and quietly did nothing here' },
       { cat: 'Visual', text: 'The whole menu was running three different button designs at once — flat glass pills, a gradient-and-bevel set, and a hand-styled one-off on the main button — and whichever loaded last won. There are three roles now: one filled button for the single thing to press, an outline for alternatives, and quiet text for utilities' },
       { cat: 'Visual', text: 'Ten card designs, each with its own colour and glow, collapsed onto one surface. A row of them used to read as unrelated products' },
       { cat: 'UI',     text: 'The home screen opens on your own progress — your name, level, coins, and the chapter you stopped on, with one button to resume it. Every mode is visible as a tile instead of hidden two clicks behind a pair of cards, and the first-run tutorial offer no longer sits in the middle of the screen as an accept-or-dismiss bar' },
@@ -1282,12 +1303,28 @@ let unlockedCosmetics  = [];    // cosmetic IDs; hydrated per account
 // ── Ability unlock toast ─────────────────────────────────────────────────
 let abilityUnlockToast = null;  // { text, icon, timer, maxTimer }
 
+// ── Between-level overlay hold ────────────────────────────────────────────
+// Narrative scenes and branch prompts are fullscreen overlays that open while a
+// match is still running. gameLoop() parks on this flag (and smb-input.js stops
+// feeding it keys) so the world underneath stops instead of simulating out of
+// sight. Held keys are dropped on both edges.
+function storyHoldGameplay(on) {
+  window._storySceneHold = !!on;
+  if (typeof _clearAllKeys === 'function') _clearAllKeys();
+}
+
 // ── Exploration chapter state ─────────────────────────────────────────────
 let exploreActive    = false;   // true while exploration chapter is running
 let exploreWorldLen  = 4200;    // total world length in game px (set per chapter)
 let exploreGoalX     = 3800;    // world x of goal object
 let exploreGoalName  = '';      // display name of the goal object
 let exploreGoalFound = false;   // true when player reaches the goal
+// Clear-the-area gate: the exit stays sealed while the level's objective is
+// unfinished or a required enemy is alive. Set by storyLevelClearBlocker()
+// consumers; read by the exploration HUD to explain WHY the mark won't take.
+let exploreGoalBlocked     = 0;  // count of required enemies still standing (0 = clear)
+let exploreGoalBlockReason = ''; // player-facing reason the exit is sealed
+let exploreFoesRemaining   = 0;  // required enemies left (alive + queued), for the HUD
 let exploreSpawnQ    = [];      // [{wx, def}] enemies to spawn as player passes wx
 let exploreEnemyCap  = 2;       // max concurrent exploration enemies alive at once
 let exploreCheckpoints = [];    // [{ x, hit }]

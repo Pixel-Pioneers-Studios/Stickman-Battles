@@ -393,12 +393,17 @@ function updateScavengeMode() {
         timer: 160, maxTimer: 160, color: '#ffffaa'
       };
       if (collected >= scavengeTotal) {
-        exploreGoalFound = true;
-        storyFightSubtitle = {
-          text: `All ${scavengeTotal} items collected! Mission complete.`,
-          timer: 240, maxTimer: 240, color: '#ffffaa'
-        };
-        setTimeout(() => { if (!gameRunning) return; endGame(); }, 2200);
+        // Collecting the last cache is the objective, not the whole level — the
+        // clear-the-area rule still applies, so the win is ARMED here and fires
+        // once storyLevelClearBlocker() comes back clean.
+        storyArmLevelWin(`All ${scavengeTotal} items recovered`, () => {
+          exploreGoalFound = true;
+          storyFightSubtitle = {
+            text: `All ${scavengeTotal} items collected! Mission complete.`,
+            timer: 240, maxTimer: 240, color: '#ffffaa'
+          };
+          setTimeout(() => { if (!gameRunning) return; endGame(); }, 2200);
+        });
       }
     }
   }
@@ -548,12 +553,14 @@ function updatePuzzleMode() {
           timer: 150, maxTimer: 150, color: '#44ffcc'
         };
         if (puzzleStep >= puzzleSwitches.length) {
-          exploreGoalFound = true;
-          storyFightSubtitle = {
-            text: 'All mechanisms activated — path unlocked!',
-            timer: 240, maxTimer: 240, color: '#44ffcc'
-          };
-          setTimeout(() => { if (!gameRunning) return; endGame(); }, 2200);
+          storyArmLevelWin('All mechanisms activated', () => {
+            exploreGoalFound = true;
+            storyFightSubtitle = {
+              text: 'All mechanisms activated — path unlocked!',
+              timer: 240, maxTimer: 240, color: '#44ffcc'
+            };
+            setTimeout(() => { if (!gameRunning) return; endGame(); }, 2200);
+          });
         }
       } else {
         // Wrong order — shock flash, spawn enemy, reset
@@ -1103,11 +1110,15 @@ function _launchShipFlightChapter(ch) {
 }
 
 // ============================================================
-// ESCORT MODE  (gameMode: 'escort')
-// initEscortMode is called by _launchEscortChapter (smb-story-engine-flow.js)
+// ESCORT MODE — SUPERSEDED, kept for reference
+// js/smb-escort.js loads AFTER this file and defines the same four names, so IT
+// is the live implementation and these bodies never run. The two do not share
+// state either (that one drives `escortNPC`, this one `escortNPCTarget`), so
+// they are not interchangeable — patch smb-escort.js, not this block. Renamed
+// with a _legacy suffix so the collision cannot mislead the next edit.
 // ============================================================
 
-function initEscortMode(ch) {
+function initEscortMode_legacy(ch) {
   if (!players[0]) return;
   const p1   = players[0];
   const npc  = ch.escortNPC || {};
@@ -1143,7 +1154,7 @@ function initEscortMode(ch) {
   };
 }
 
-function updateEscortMode() {
+function updateEscortMode_legacy() {
   if (!gameRunning || !players[0] || !escortNPCTarget) return;
   const p1  = players[0];
   const npc = escortNPCTarget;
@@ -1159,8 +1170,24 @@ function updateEscortMode() {
     return;
   }
 
-  // Win condition
+  // Win condition — delivery is the objective; the level still has to be cleared.
   if (npc.x >= escortGoalX) {
+    npc.x = escortGoalX;
+    npc.vx = 0;
+    if (typeof storyArmLevelWin === 'function' && typeof storyLevelClearBlocker === 'function'
+        && storyLevelClearBlocker()) {
+      if (!npc._safeAnnounced) {
+        npc._safeAnnounced = true;
+        storyFightSubtitle = { text: `${npc.name} is safe — now clear the area.`, timer: 200, maxTimer: 200, color: '#88ccff' };
+      }
+      storyArmLevelWin(`${npc.name} reached safety`, () => {
+        storyFightSubtitle = { text: `${npc.name} reached safety!`, timer: 240, maxTimer: 240, color: '#ffffaa' };
+        SoundManager && typeof SoundManager.superActivate === 'function' && SoundManager.superActivate();
+        escortNPCTarget = null;
+        setTimeout(() => { if (!gameRunning) return; endGame(); }, 2200);
+      });
+      return;
+    }
     storyFightSubtitle = { text: `${npc.name} reached safety!`, timer: 240, maxTimer: 240, color: '#ffffaa' };
     SoundManager && typeof SoundManager.superActivate === 'function' && SoundManager.superActivate();
     escortNPCTarget = null;
@@ -1211,7 +1238,7 @@ function updateEscortMode() {
   }
 }
 
-function drawEscortNPC() {
+function drawEscortNPC_legacy() {
   if (!escortNPCTarget) return;
   const npc  = escortNPCTarget;
   const pct  = npc.health / npc.maxHealth;
@@ -1273,7 +1300,7 @@ function drawEscortNPC() {
   ctx.restore();
 }
 
-function drawEscortHUD() {
+function drawEscortHUD_legacy() {
   if (!escortNPCTarget) return;
   const npc = escortNPCTarget;
   const pct = npc.health / npc.maxHealth;

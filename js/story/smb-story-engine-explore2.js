@@ -2,6 +2,172 @@
 // smb-story-engine-explore2.js — updateExploration, _exploreSpawnEnemy, triggerScene, drawFallenWarriorMemory
 // Depends on: smb-globals.js, smb-story-registry.js (and preceding story-engine splits)
 
+// ── Clear-the-area gate ───────────────────────────────────────────────────────
+// A level is only finished when every enemy in it is down: the exit stays sealed
+// while a hostile still stands. Optional foes that live off the golden path are
+// exempt — vault wardens guarding hidden caches and side-portal elites were never
+// part of the required fight, so they can be walked past forever.
+function _exploreOptionalFoe(o) {
+  return !!(o && (o.isChestGuardian || o.isSidePortalEnemy || o.isOptionalEnemy || o.isHiddenEnemy));
+}
+function _exploreHostile(m) {
+  return !!(m && m.health > 0 && !m.isStoryAlly && m.storyFaction !== 'player' && m._teamId !== 1);
+}
+// Living + still-queued mandatory enemies, plus the nearest one so the HUD can
+// point at it. Queued defs count: an authored enemy the player outran is still
+// part of the level, and _exploreForceSpawnAll drains the queue at the exit so
+// the count can actually reach zero.
+function _exploreRemainingFoes() {
+  const p1 = players && players[0];
+  let count = 0, nearest = null, nd = Infinity;
+  const consider = (m) => {
+    if (!_exploreHostile(m) || _exploreOptionalFoe(m)) return;
+    count++;
+    if (!p1) return;
+    const d = Math.abs(m.cx() - p1.cx());
+    if (d < nd) { nd = d; nearest = m; }
+  };
+  if (typeof minions !== 'undefined' && minions) minions.forEach(consider);
+  if (typeof players !== 'undefined' && players) {
+    for (const p of players) { if (p !== p1 && p.storyFaction === 'enemy') consider(p); }
+  }
+  let queued = 0;
+  if (typeof exploreSpawnQ !== 'undefined' && exploreSpawnQ) {
+    for (const d of exploreSpawnQ) if (!_exploreOptionalFoe(d)) queued++;
+  }
+  return { count: count + queued, alive: count, queued, nearest, nearestDist: nd };
+}
+// The level's own stated objective, when it has one and it is not finished yet.
+// Returns a player-facing reason string, or null when nothing is outstanding.
+// This is what makes "retrieve the caches" a real requirement instead of set
+// dressing the player can run past on the way to the exit.
+function _exploreObjectivePending() {
+  if (typeof scavengeModeActive !== 'undefined' && scavengeModeActive &&
+      typeof scavengeItems !== 'undefined' && scavengeItems && scavengeItems.length) {
+    const left = scavengeItems.filter(s => !s.collected).length;
+    if (left > 0) return `${left} ${left === 1 ? 'cache' : 'caches'} still out there`;
+  }
+  if (typeof puzzleModeActive !== 'undefined' && puzzleModeActive &&
+      typeof puzzleSwitches !== 'undefined' && puzzleSwitches && puzzleSwitches.length) {
+    const left = puzzleSwitches.length - (typeof puzzleStep !== 'undefined' ? puzzleStep : 0);
+    if (left > 0) return `${left} ${left === 1 ? 'mechanism' : 'mechanisms'} still inactive`;
+  }
+  if (typeof gauntletActive !== 'undefined' && gauntletActive) {
+    return `gauntlet round ${gauntletRound}/${gauntletTotalRounds} unfinished`;
+  }
+  // The live escort is smb-escort.js's `escortNPC` (it loads after, and shadows
+  // the modes.js implementation that drives `escortNPCTarget`). Both are checked
+  // so this keeps working whichever one a chapter ends up running.
+  const _esc = (typeof escortNPC !== 'undefined' && escortNPC) ? escortNPC
+             : (typeof escortNPCTarget !== 'undefined' ? escortNPCTarget : null);
+  if (_esc && _esc.health > 0 && typeof escortGoalX !== 'undefined' &&
+      (typeof _esc.cx === 'function' ? _esc.cx() : _esc.x) < escortGoalX) {
+    return `${_esc.name || escortNPCName || 'your escort'} is not safe yet`;
+  }
+  return null;
+}
+
+// The single "can this level be completed right now?" test. Objective first (it
+// is the point of the level), then the clear-the-area rule. Returns null when
+// the level is genuinely finished.
+function storyLevelClearBlocker() {
+  const obj = _exploreObjectivePending();
+  if (obj) return { kind: 'objective', reason: obj, count: 0 };
+  const rem = _exploreRemainingFoes();
+  if (rem.count > 0) {
+    const p1 = players && players[0];
+    let where = '';
+    if (rem.nearest && rem.alive > 0 && p1) {
+      where = rem.nearest.cx() < p1.cx() ? ' — back the way you came' : ' — ahead of you';
+    }
+    return {
+      kind: 'enemies',
+      reason: `${rem.count} enem${rem.count === 1 ? 'y' : 'ies'} still standing${where}`,
+      count: rem.count,
+      rem,
+    };
+  }
+  return null;
+}
+
+// Deferred completion. A mode's own win condition (last cache picked up, last
+// mechanism thrown, escort delivered) arms the win here instead of ending the
+// match outright, so it still has to pass storyLevelClearBlocker(). It fires the
+// frame the final requirement falls.
+let _pendingLevelWin = null;
+let _exploreGoalNag  = 0;
+function storyArmLevelWin(label, onWin) {
+  if (_pendingLevelWin) return;
+  _pendingLevelWin = { label: label || 'Objective complete', onWin: onWin || null, nagAt: 0 };
+}
+function _storyResetLevelWin() { _pendingLevelWin = null; _exploreGoalNag = 0; _recallTimer = 0; exploreFoesRemaining = 0; }
+function _updatePendingLevelWin() {
+  if (!_pendingLevelWin || exploreGoalFound) return;
+  const blocker = storyLevelClearBlocker();
+  if (blocker) {
+    window._exploreForceSpawnAll = true;
+    exploreGoalBlocked      = blocker.count;
+    exploreGoalBlockReason  = blocker.reason;
+    if (frameCount - _pendingLevelWin.nagAt > 260) {
+      _pendingLevelWin.nagAt = frameCount;
+      storyFightSubtitle = {
+        text: `${_pendingLevelWin.label} — but ${blocker.reason}`,
+        timer: 190, maxTimer: 190, color: '#ffcc44'
+      };
+    }
+    return;
+  }
+  const win = _pendingLevelWin;
+  _pendingLevelWin = null;
+  exploreGoalBlocked     = 0;
+  exploreGoalBlockReason = '';
+  window._exploreForceSpawnAll = false;
+  if (win.onWin) win.onWin();
+}
+
+// Straggler recall. Once the exit is sealed, a required enemy that is far away
+// and not fighting anyone becomes a search problem across a 6000px world — and
+// worlds with shaft gaps can drop one into a tunnel chamber the player has no
+// reason to revisit. After RECALL_DELAY of that, the straggler is pulled to the
+// player instead, which turns a hunt back into a fight. Same leash pattern the
+// Vault Warden already uses; optional foes are never recalled because nothing
+// forces the player to fight them.
+const _RECALL_DELAY = 300;  // 5s of a sealed exit with nobody in reach
+const _RECALL_NEAR  = 900;  // a foe closer than this is findable on your own
+let _recallTimer = 0;
+function _updateStragglerRecall(p1) {
+  if (!p1 || exploreGoalFound || exploreArenaLock) { _recallTimer = 0; return; }
+  if (!exploreGoalBlocked) { _recallTimer = 0; return; }
+  const rem = _exploreRemainingFoes();
+  // Nothing spawned yet (all still queued) — the drain handles that case.
+  if (!rem.alive || !rem.nearest) { _recallTimer = 0; return; }
+  if (rem.nearestDist < _RECALL_NEAR) { _recallTimer = 0; return; }
+  if (++_recallTimer < _RECALL_DELAY) return;
+  _recallTimer = 0;
+  const foe = rem.nearest;
+  const dir = foe.cx() < p1.cx() ? -1 : 1;
+  const spot = (typeof pickSafeSpawnNear === 'function')
+    ? pickSafeSpawnNear(p1.cx() + dir * 260, 'any', p1.x) : null;
+  spawnParticles(foe.cx(), foe.cy(), '#ff7766', 14);
+  foe.x = spot ? spot.x : (p1.x + dir * 260);
+  foe.y = spot ? spot.y - foe.h : p1.y;
+  foe.vx = 0; foe.vy = 0;
+  foe.target = p1;
+  spawnParticles(foe.cx(), foe.cy(), '#ff7766', 18);
+  storyFightSubtitle = {
+    text: `${foe.name || 'A straggler'} finds you.`,
+    timer: 160, maxTimer: 160, color: '#ff9977'
+  };
+  if (typeof setCameraDrama === 'function') setCameraDrama('impact', 26);
+}
+
+// True once the player is close enough to the exit that the gate is in play.
+// The ambient pressure spawners stand down inside this zone — an endless drip of
+// new stalkers at the exit would make "clear them all" unfinishable.
+function _exploreNearGoal(p1) {
+  return !!(p1 && typeof exploreGoalX !== 'undefined' && p1.x > exploreGoalX - 900);
+}
+
 function _spawnSurvivalWave(ss, p1) {
   const count   = ss.waveSize + Math.floor((ss.wave - 1) / 2); // waves grow slightly
   const isElite = ss.wave >= ss.totalWaves; // final wave is elite
@@ -145,6 +311,22 @@ function updateExploration() {
   if (typeof updatePuzzleMode   === 'function' && puzzleModeActive)   updatePuzzleMode();
 
   updateExplorePickups(p1);
+  _updatePendingLevelWin();
+  // Keep the sealed-exit banner honest — it appears as the player nears the exit
+  // and clears the frame the last requirement is met, wherever they are standing.
+  if (!exploreGoalFound && (exploreGoalBlockReason || _exploreNearGoal(p1))) {
+    const _b = storyLevelClearBlocker();
+    exploreGoalBlocked     = _b ? _b.count  : 0;
+    exploreGoalBlockReason = _b ? _b.reason : '';
+  }
+  // HUD count, refreshed every 10 frames — the player needs to see the rule from
+  // the start of the level, not discover it at a sealed door.
+  if (!exploreGoalFound && frameCount % 10 === 0) {
+    exploreFoesRemaining = _exploreRemainingFoes().count;
+  } else if (exploreGoalFound) {
+    exploreFoesRemaining = 0;
+  }
+  _updateStragglerRecall(p1);
 
   const activeEnemyCount = minions.filter(m => m.health > 0).length;
   const inCombat = activeEnemyCount > 0 || !!players.find(p => p !== p1 && p.health > 0 && p.isAI);
@@ -191,20 +373,64 @@ function updateExploration() {
   }
 
   // One-map region: crossing a segment boundary completes that segment's chapter
-  // in place (rewards + save) without ending the match. The arena lock clamps the
-  // player until the segment's duel is cleared, so a crossed boundary implies a
-  // finished (or replay-skipped) fight.
+  // in place (rewards + save) without ending the match. A region segment IS a
+  // level — it awards tokens, blueprints and a `defeated` entry — so the boundary
+  // is sealed by exactly the same rule as the world exit. Without this the gate
+  // only covered the final exit and a region map could still be banked chapter by
+  // chapter at a dead run.
   if (exploreRegion && !exploreArenaLock && !exploreGoalFound) {
     for (const b of exploreRegion.boundaries) {
-      if (!b.done && p1.cx() >= b.x) {
-        b.done = true;
-        _regionCompleteChapter(b.chId);
+      if (b.done || p1.cx() < b.x) continue;
+      const _bBlock = storyLevelClearBlocker();
+      if (_bBlock) {
+        window._exploreForceSpawnAll = true;
+        exploreGoalBlocked     = _bBlock.count;
+        exploreGoalBlockReason = _bBlock.reason;
+        // Hold the line rather than bounce the player backwards — the boundary is
+        // mid-world, so a shove would fight whatever they were doing.
+        p1.x = Math.min(p1.x, b.x - p1.w / 2 - 2);
+        if (p1.vx > 0) p1.vx = 0;
+        if (!_exploreGoalNag || frameCount - _exploreGoalNag > 200) {
+          _exploreGoalNag = frameCount;
+          storyFightSubtitle = {
+            text: `🔒 Sealed — ${_bBlock.reason}`,
+            timer: 170, maxTimer: 170, color: '#ff7766'
+          };
+          if (SoundManager && typeof SoundManager.shieldBlock === 'function') SoundManager.shieldBlock();
+        }
+        break;
       }
+      b.done = true;
+      _regionCompleteChapter(b.chId);
     }
   }
 
   // Goal reached?
   if (!exploreArenaLock && !exploreGoalFound && p1.x + p1.w >= exploreGoalX && p1.health > 0) {
+    // Sealed exit: reaching the mark used to BE the win condition, so any level
+    // could be skipped at a dead run. The exit now only opens once the level's
+    // objective is done and every required enemy is down. Hidden/optional foes
+    // (vault wardens, side-portal elites) are exempt — see _exploreOptionalFoe.
+    const _blocker = storyLevelClearBlocker();
+    if (_blocker) {
+      window._exploreForceSpawnAll = true;
+      exploreGoalBlocked     = _blocker.count;
+      exploreGoalBlockReason = _blocker.reason;
+      // Nudge the player back off the mark so the check re-arms cleanly.
+      p1.x = Math.min(p1.x, exploreGoalX - p1.w - 4);
+      if (p1.vx > 0) p1.vx = 0;
+      if (!_exploreGoalNag || frameCount - _exploreGoalNag > 200) {
+        _exploreGoalNag = frameCount;
+        storyFightSubtitle = {
+          text: `🔒 Sealed — ${_blocker.reason}`,
+          timer: 170, maxTimer: 170, color: '#ff7766'
+        };
+        if (SoundManager && typeof SoundManager.shieldBlock === 'function') SoundManager.shieldBlock();
+      }
+    } else {
+    exploreGoalBlocked     = 0;
+    exploreGoalBlockReason = '';
+    window._exploreForceSpawnAll = false;
     exploreGoalFound = true;
     // Region: the exit belongs to the LAST chapter — the normal victory flow
     // (rewards, overlay, defeated) must run against it, not the launched one.
@@ -247,6 +473,7 @@ function updateExploration() {
       if (!gameRunning) return;
       endGame();
     }, 2200);
+    }
   }
 
   for (let i = 0; i < exploreCheckpoints.length; i++) {
@@ -339,6 +566,7 @@ function updateExploration() {
   }
 
   if (!storeSurvivalState && !exploreDuelMode && !_exploreChapterBeaten && !_storyPressureScripted() &&
+      !_exploreNearGoal(p1) &&
       exploreCombatQuiet > 260 && activeEnemyCount < exploreEnemyCap) {
     const spawnAhead = p1.x + GAME_W * 0.92;
     _exploreSpawnEnemy({
@@ -359,6 +587,7 @@ function updateExploration() {
   const _ambushChId  = _activeStory2Chapter ? _activeStory2Chapter.id : 0;
   const _ambushElite = _ambushChId >= 10;
   if (!storeSurvivalState && !exploreDuelMode && !_exploreChapterBeaten && !_storyPressureScripted() &&
+      !_exploreNearGoal(p1) &&
       exploreAmbushTimer > 900 && Math.abs(p1.vx) < 1.1 && !inCombat && activeEnemyCount < exploreEnemyCap) {
     _exploreSpawnEnemy({
       wx: p1.x + 120,
@@ -385,9 +614,13 @@ function updateExploration() {
     const next = exploreSpawnQ[0];
     if (next) {
       const isGuard = !!next.isGuard;
+      // At the sealed exit the distance window no longer applies: an enemy the
+      // player outran must still be spawned, or the clear-the-area gate waits on
+      // a foe that never exists.
+      const _drain = !!window._exploreForceSpawnAll;
       const readyToSpawn = isGuard
         ? !minions.some(m => m.isExploreGuard && m._guardX === next.wx) // guard not yet spawned
-        : (activeRegularCount < exploreEnemyCap && p1.x + GAME_W * 0.8 >= next.wx);
+        : (activeRegularCount < exploreEnemyCap && (_drain || p1.x + GAME_W * 0.8 >= next.wx));
       if (readyToSpawn) {
         exploreSpawnQ.shift();
         _exploreSpawnEnemy(next, p1);

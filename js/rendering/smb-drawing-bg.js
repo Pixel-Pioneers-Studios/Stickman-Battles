@@ -42,7 +42,7 @@ function drawBackground() {
   const _bgW = a.worldWidth ? a.worldWidth + 6000 : GAME_W + 6000;
   const _bgH = GAME_H + 3000; // extend well below floor to cover zoom-out void
   // Solid base fill first (gradient fallback for bottom overflow area)
-  ctx.fillStyle = a.sky[a.sky.length - 1];
+  ctx.fillStyle = SMBPal.grade(a.sky[a.sky.length - 1], 0.45);
   ctx.fillRect(_bgX, 0, _bgW, _bgH);
   // Gradient layer over the visible game area — cached per arena key.
   // Explore worlds all share the key '__explore__', so the palette has to be
@@ -50,8 +50,11 @@ function drawBackground() {
   const _gradKey = currentArenaKey + '|' + (a.themeKey || '') + '|' + a.sky.join(',') + '|' + (a.groundColor || '');
   if (!drawBackground._skyGradCache || drawBackground._skyGradKey !== _gradKey) {
     drawBackground._skyGradCache = ctx.createLinearGradient(0, 0, 0, GAME_H);
-    drawBackground._skyGradCache.addColorStop(0, a.sky[0]);
-    drawBackground._skyGradCache.addColorStop(1, a.sky[a.sky.length - 1]);
+    // Skies get a LIGHTER grade than terrain. A sky genuinely is a saturated
+    // colour, so a full grade turns every arena overcast; this only takes the
+    // edge off the crayon-blue and the hottest neon skies.
+    drawBackground._skyGradCache.addColorStop(0, SMBPal.grade(a.sky[0], 0.45));
+    drawBackground._skyGradCache.addColorStop(1, SMBPal.grade(a.sky[a.sky.length - 1], 0.45));
     drawBackground._skyGradKey = _gradKey;
   }
   ctx.fillStyle = drawBackground._skyGradCache;
@@ -68,10 +71,14 @@ function drawBackground() {
     // A flat fill put the ground on the same plane as everything else. Grade it
     // so the surface catches light and falls off with depth.
     if (!drawBackground._groundGradCache || drawBackground._groundGradKey !== _gradKey) {
+      // Graded to the same material range as the platforms standing on it —
+      // an ungraded ground fill under graded terrain reads as two different
+      // games sharing a screen. See SMBPal.grade().
+      const _gc = SMBPal.gradeHex(a.groundColor);
       const g = ctx.createLinearGradient(0, groundTop, 0, groundTop + 260);
-      g.addColorStop(0,    _dpMix(a.groundColor, '#ffffff', 0.16));
-      g.addColorStop(0.14, a.groundColor);
-      g.addColorStop(1,    _dpMix(a.groundColor, '#000000', 0.42));
+      g.addColorStop(0,    _dpMix(_gc, '#ffffff', 0.16));
+      g.addColorStop(0.14, _gc);
+      g.addColorStop(1,    _dpMix(_gc, '#000000', 0.42));
       drawBackground._groundGradCache = g;
       drawBackground._groundGradKey   = _gradKey;
     }

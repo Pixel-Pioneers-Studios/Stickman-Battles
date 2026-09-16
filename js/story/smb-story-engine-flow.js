@@ -389,10 +389,13 @@ function _showStory2Narrative(lines, callback) {
     const bodyEl  = document.getElementById('storyDialogueBody');
     const btn     = document.getElementById('storyDialogueFightBtn');
     if (!panel) { _narrativeActive = false; if (callback) callback(); return; }
+    // Same hold as the canvas scene: this panel also opens over a live match.
+    if (typeof storyHoldGameplay === 'function') storyHoldGameplay(true);
     let idx = 0;
     function showLine() {
       if (idx >= lines.length) {
         panel.style.display = 'none';
+        if (typeof storyHoldGameplay === 'function') storyHoldGameplay(false);
         _narrativeActive = false;
         if (callback) callback();
         return;
@@ -463,10 +466,15 @@ function _showBranchChoice(ch, onComplete) {
         const contBtn = document.createElement('button');
         contBtn.textContent = 'Continue →';
         contBtn.style.cssText = btn.style.cssText;
-        contBtn.onclick = () => { document.body.removeChild(overlay); onComplete(); };
+        contBtn.onclick = () => {
+          document.body.removeChild(overlay);
+          if (typeof storyHoldGameplay === 'function') storyHoldGameplay(false);
+          onComplete();
+        };
         overlay.appendChild(contBtn);
       } else {
         document.body.removeChild(overlay);
+        if (typeof storyHoldGameplay === 'function') storyHoldGameplay(false);
         onComplete();
       }
     };
@@ -476,6 +484,8 @@ function _showBranchChoice(ch, onComplete) {
 
   overlay.appendChild(btnRow);
   document.body.appendChild(overlay);
+  // A branch prompt is a between-level overlay too — hold the match under it.
+  if (typeof storyHoldGameplay === 'function') storyHoldGameplay(true);
 }
 
 // ── Escort chapter launch ─────────────────────────────────────────────────────
