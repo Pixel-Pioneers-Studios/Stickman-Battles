@@ -76,6 +76,7 @@ function applyWorldModifiers() {
   }
 }
 
+let _sceneHoldOrphan = 0; // frames parked on a hold with no overlay on screen
 function gameLoop(timestamp) {
   if (!gameRunning) return;
   // Frame rate cap: skip this frame if called too soon after the last one
@@ -85,6 +86,26 @@ function gameLoop(timestamp) {
   }
   _lastFrameTime = timestamp;
   if (paused || gameLoading) { requestAnimationFrame(gameLoop); return; }
+  // Between-level narrative scene: the overlay owns the screen, so the match
+  // underneath must stop rather than keep simulating out of sight. Park the same
+  // way `paused` does — the rAF chain stays alive, nothing else restarts it.
+  if (window._storySceneHold) {
+    // Watchdog: a hold whose overlay is gone would park the match forever, so it
+    // is released after ~2s with nothing on screen to justify it.
+    const _ovl = document.querySelector('canvas[style*="9100"]')
+              || document.getElementById('_storyBranchOverlay')
+              || (function(){ const d=document.getElementById('storyDialoguePanel'); return d && d.style.display !== 'none' ? d : null; })();
+    if (_ovl) { _sceneHoldOrphan = 0; }
+    else if (++_sceneHoldOrphan > 120) {
+      _sceneHoldOrphan = 0;
+      console.warn('[storyHold] released an orphaned scene hold — no overlay on screen');
+      if (typeof storyHoldGameplay === 'function') storyHoldGameplay(false);
+      else window._storySceneHold = false;
+    }
+    requestAnimationFrame(gameLoop);
+    return;
+  }
+  _sceneHoldOrphan = 0;
   // Hitstop: freeze gameplay for a few frames on strong hits
   if (hitStopFrames > 0) {
     hitStopFrames--;
@@ -428,6 +449,11 @@ function gameLoop(timestamp) {
   if (typeof drawCinBgContrast   === 'function') drawCinBgContrast();
   if (typeof drawCinImpactFrame  === 'function') drawCinImpactFrame();
   drawPlatforms();
+  // The Sewer: the flow is drawn AFTER the platforms so a trash barge sits IN the
+  // sewage rather than on a painted strip behind it. Inert on every other arena.
+  if (typeof drawSewerFlow === 'function') drawSewerFlow();
+  // Cosmetic impact scars ride on top of the slabs they were cut into.
+  if (typeof drawSurfaceScars === 'function') drawSurfaceScars();
   // Circuit void lips + slide telegraph — must sit ABOVE the plate so the warning
   // is drawn on the ground the player is standing on, not hidden under it.
   if (typeof CircuitPlate !== 'undefined') CircuitPlate.drawOverlay();
@@ -437,7 +463,7 @@ function gameLoop(timestamp) {
   if (typeof drawDepthFloorGrid === 'function') drawDepthFloorGrid();
   if (typeof drawCinematicImpactWorldEffects === 'function') drawCinematicImpactWorldEffects();
   if (gameMode === 'minigames' && minigameType === 'soccer') drawSoccer();
-  if (gameMode === 'minigames' && minigameType === 'defense' && typeof drawDefenseNexus === 'function') drawDefenseNexus();
+  if (gameMode === 'minigames' && minigameType === 'defense' && typeof drawMinigameDefenseNexus === 'function') drawMinigameDefenseNexus();
   if (gameMode === 'battleroyale' && typeof drawBattleRoyaleWorld === 'function') drawBattleRoyaleWorld();
   if (gameMode === 'escort' && typeof drawEscortNPC === 'function') drawEscortNPC();
   if (gameMode === 'shipflight' && typeof drawShipFlight === 'function') drawShipFlight();
@@ -487,6 +513,7 @@ function gameLoop(timestamp) {
     const bossRef = players.find(p => p.isBoss) || trainingDummies.find(d => d.isBoss);
     for (const sp of bossSpikes) {
       if (sp.done) continue;
+      if (sp.delay > 0) { sp.delay--; continue; } // telegraph window, spike not yet out of the floor
       if (sp.phase === 'rising') {
         sp.h += 8;
         if (sp.h >= sp.maxH) { sp.h = sp.maxH; sp.phase = 'staying'; sp.stayTimer = 180; }
@@ -503,7 +530,9 @@ function gameLoop(timestamp) {
         const spikeTargets = trainingMode ? players : players.filter(p => !p.isBoss);
         for (const p of spikeTargets) {
           if (p.health <= 0 || p.invincible > 0) continue;
-          if (Math.abs(p.cx() - sp.x) < 9 && p.y + p.h > spikeTopY) {
+          // 9px was narrower than the spike is drawn and narrower than a fighter,
+          // so a five-spike volley covered ~10% of the stage and almost never hit.
+          if (Math.abs(p.cx() - sp.x) < 20 && p.y + p.h > spikeTopY) {
             dealDamage(bossRef || players.find(q => q.isBoss) || null, p, 14, 14, 1.0, false, 20);
             // Bounce player upward so they can escape
             if (p.vy >= 0) {
@@ -573,6 +602,9 @@ function gameLoop(timestamp) {
   if (gameMode === 'minigames') updateMinigame();
   // Battle Royale update
   if (gameMode === 'battleroyale' && typeof updateBattleRoyale === 'function') updateBattleRoyale();
+  // The Sewer: drift the barges, carry their riders, burn and sweep anything in
+  // the flow. Returns immediately on every other arena.
+  if (typeof updateSewer === 'function') updateSewer();
   // Eternal Damnation arc update
   if (damnationActive && typeof updateDamnation === 'function') updateDamnation();
   // True Form special updates (also active when a trueform admin kit is equipped, or FORCE_ATTACK_MODE has active TF effects)
@@ -943,18 +975,55 @@ function gameLoop(timestamp) {
         if (p.life <= 0) { _recycleParticle(p); continue; }
       }
       _liveParticles.push(p);
-      const a = p.life / p.maxLife;
-      ctx.globalAlpha = Math.max(0, a);
-      ctx.fillStyle   = p.color;
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, Math.max(0.01, p.size * a), 0, Math.PI * 2);
-      ctx.fill();
     } else {
       _recycleParticle(p);
     }
   }
   particles = _liveParticles; // keep only live (life > 0) to prevent leak
+
+  // ---------- Phase: drawParticles ----------
+  // Two passes rather than drawing inside the update loop, so the composite
+  // mode is set twice per frame instead of once per particle.
+  //
+  // Pass 1: heavy matter (blood, debris, smoke) — round, normal blending.
+  // Pass 2: sparks — STREAKED along their own velocity and drawn additively.
+  //   A spark is a moving hot point; rendering it as a static dot is what made
+  //   every impact read as a puff of confetti. Stretching it along its travel
+  //   and letting overlaps bloom is most of the difference between "particles"
+  //   and "an impact".
+  ctx.save();
+  for (let i = 0; i < _liveParticles.length; i++) {
+    const p = _liveParticles[i];
+    if (!p.isBlood && (p.vx * p.vx + p.vy * p.vy) > 4.8) continue;   // spark: pass 2
+    const a = p.life / p.maxLife;
+    ctx.globalAlpha = Math.max(0, a);
+    ctx.fillStyle   = p.color;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, Math.max(0.01, p.size * a), 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.globalCompositeOperation = 'lighter';
+  ctx.lineCap = 'round';
+  for (let i = 0; i < _liveParticles.length; i++) {
+    const p = _liveParticles[i];
+    const sq = p.vx * p.vx + p.vy * p.vy;
+    if (p.isBlood || sq <= 4.8) continue;
+    const a   = p.life / p.maxLife;
+    const spd = Math.sqrt(sq);
+    const len = Math.min(10, spd * 1.25);
+    ctx.globalAlpha = Math.max(0, a) * 0.85;
+    ctx.strokeStyle = p.color;
+    ctx.lineWidth   = Math.max(0.4, p.size * a * 1.5);
+    ctx.beginPath();
+    ctx.moveTo(p.x, p.y);
+    ctx.lineTo(p.x - (p.vx / spd) * len, p.y - (p.vy / spd) * len);
+    ctx.stroke();
+  }
+  ctx.restore();
   ctx.globalAlpha = 1;
+
+  // ---------- Destruction debris (cosmetic — no collision, no sync) ----------
+  if (typeof updateDestruction === 'function') { updateDestruction(); drawDebrisChunks(); }
 
   // Domain speech bubbles (world-space, above entities)
   if (typeof DomainManager !== 'undefined') DomainManager.drawSpeechBubbles();
@@ -971,7 +1040,7 @@ function gameLoop(timestamp) {
     const a   = Math.min(1, cd.framesLeft / 18) * (1 - Math.max(0, (22 - cd.framesLeft % 22) / 22) * 0.3);
     ctx.save();
     ctx.globalAlpha = Math.max(0, a);
-    ctx.font        = 'bold 32px Arial';
+    ctx.font        = '800 32px "Segoe UI", Roboto, Helvetica, Arial, sans-serif';
     ctx.fillStyle   = cd.color;
     ctx.textAlign   = 'center';
     ctx.shadowColor = 'rgba(0,0,0,0.9)';

@@ -36,7 +36,10 @@ const STORY_CINEMATIC_RUNS = [
     from:      170, fromTitle: 'Peak Form',
     to:        180, toTitle:   'What Remains',
     label:     'The Reckonings',
-    hold:      70,
+    // Minimum hold only — the real pacing is the reading-rate budget in
+    // smb-story-narrative-scene.js (CIN_CPS). This is the floor that keeps a
+    // one-word beat ("An attention.") from flashing past.
+    hold:      45,
   },
 ];
 

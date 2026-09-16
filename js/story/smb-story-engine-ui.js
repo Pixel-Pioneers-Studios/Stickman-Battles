@@ -333,7 +333,6 @@ const _ST_POS = {
   highJump1:        { x: 82,  y: 105 },
   highJump2:        { x: 82,  y: 185 },
   doubleJump:       { x: 52,  y: 265 },
-  airDash:          { x: 52,  y: 345 },
   fastFall:         { x: 122, y: 265 },
   // RESILIENCE
   tankier1:         { x: 210, y: 105 },

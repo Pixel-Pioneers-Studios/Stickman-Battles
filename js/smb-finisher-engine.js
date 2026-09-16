@@ -68,9 +68,17 @@ const _BOSS_KILL_POOL    = [FIN_VOID_SLAM, FIN_REALITY_BREAK, FIN_SKY_EXECUTION,
 const FIN_ANTIC_FRAMES = 5;    // wind-up frames inserted before each def.swing
 const FIN_ANTIC_AMOUNT = 0.62; // radians of counter-motion at the peak
 const FIN_HOLD_FRAMES  = 5;
+const FIN_RECOVER_IFRAMES = 48;  // 0.8s of i-frames when a finisher hands control back
 const FIN_BRACE_FRAMES = 4;
 const FIN_HURT_FRAMES  = 10;
 const FIN_SQUASH_FRAMES = 7;
+// Limb smear during a finisher swing. Fighter.draw() only smears when the state
+// is 'attacking'/'ragdoll'/spinning, and _finApplyPose deliberately never writes
+// attackTimer (that would re-arm the melee hit-scan and let a finisher damage
+// bystanders) — so the biggest swing in the game was the one swing that never
+// trailed. These drive an opt-out smear over every def.swing window.
+const FIN_SMEAR_SAMPLES = 5;
+const FIN_SMEAR_ALPHA   = 0.30;
 
 // Applied after def.update so it wins over the def's own positioning. Only for
 // defs that don't already lunge — never add this on top of an authored dash.
@@ -134,7 +142,32 @@ function _finApplyPose(att, tgt, def, timer) {
     }
   }
   tgt._finPoseState = _finVictimBeat(def, timer);
+  att._finSmear     = _finSmearAt(def, timer);
   _finApplyDeform(att, tgt, def, timer);
+}
+
+// Which smear window, if any, covers this frame.
+//
+// Defaults to every def.swing window so all existing defs gain smear without
+// being edited — the same opt-out shape as def.holds defaulting from def.impact.
+// `def.smear` overrides: pass an array of {at, dur, samples, alpha} to place the
+// smear somewhere other than the swing, or `def.smear = false` to disable it for
+// a finisher whose presentation does not want trails (a slow crush, a hold).
+function _finSmearAt(def, timer) {
+  if (def.smear === false) return null;
+  const src = def.smear
+    ? (Array.isArray(def.smear) ? def.smear : [def.smear])
+    : (def.swing ? (Array.isArray(def.swing) ? def.swing : [def.swing]) : null);
+  if (!src) return null;
+  for (const w of src) {
+    if (w.at === undefined) continue;
+    const dur = w.dur || 12;
+    if (timer >= w.at && timer < w.at + dur) {
+      return { samples: w.samples || FIN_SMEAR_SAMPLES,
+               alpha:   w.alpha   === undefined ? FIN_SMEAR_ALPHA : w.alpha };
+    }
+  }
+  return null;
 }
 
 // Shape deformation across the beats. Fighter.draw() has fixed bone lengths for
@@ -203,6 +236,7 @@ function _finClearPose(f) {
   f._finAnticip = 0;
   f._finStretch = 1;
   f._finSquash = null;
+  f._finSmear = null;
   f._finNoBlink = false;
 }
 
@@ -219,11 +253,12 @@ function triggerFinisher(attacker, target) {
   if (!attacker || !target) return false;
   if (trainingMode || tutorialMode) return false;
   if (onlineMode)          return false;
-  // In BR (or any mode with many bot-vs-bot fights) only show finishers the local player is part of
-  if (gameMode === 'battleroyale') {
-    var _localP = players[0];
-    if (!_localP || (attacker !== _localP && target !== _localP)) return false;
-  }
+  // Battle Royale runs no finishers at all. Restricting them to the local
+  // player's own kills was not enough: a finisher takes over the stage and
+  // freezes the world, and in a 100-player match with a closing storm that is
+  // several seconds of standing still inside a ring that does not stop moving —
+  // it gets you killed for winning a fight.
+  if (gameMode === 'battleroyale') return false;
 
   let def = null;
 
@@ -354,6 +389,14 @@ function updateFinisher() {
     }
     isCinematic = false;
     if (typeof clearCombatLock === 'function') clearCombatLock('finisher');
+    // Recovery i-frames for the attacker. A finisher locks you in place for its
+    // whole duration and hands control back mid-crowd; without this, a player who
+    // executes one enemy while swarmed eats free hits on the frame the lock ends
+    // and is punished for using the move. Short enough not to be an escape tool:
+    // it covers the hand-back, not a reposition.
+    if (attacker && attacker.health > 0) {
+      attacker.invincible = Math.max(attacker.invincible || 0, FIN_RECOVER_IFRAMES);
+    }
     // Let normal death logic take over
     target.health    = 0;
     target.invincible = 0;

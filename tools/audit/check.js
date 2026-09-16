@@ -326,6 +326,71 @@ for (const [f, src] of srcOf) {
   }
 }
 
+// ── Story scene spec coverage ────────────────────────────────────────────────
+// A chapter with narrative text but no scene spec plays as bare captions with no
+// staging; a spec whose chapter id no longer exists is dead weight that also
+// signals a renumber went through without the specs following it. The second
+// case has actually shipped — commit cee0148 existed to realign STORY_SCENE_SPECS
+// with the chapters they were authored for after ids moved underneath them.
+//
+// Specs live in js/story/scenes/<act>.js, chapters in js/story/acts/<act>/*.js.
+{
+  const chapterIds  = new Set();
+  const narrativeOf = new Map();   // id -> act dir, for chapters carrying narrative
+
+  for (const [f, src] of srcOf) {
+    const m = f.match(/^js\/story\/acts\/([^/]+)\//);
+    if (!m) continue;
+    const act = m[1];
+    // Chapters are object literals pushed into the registry. Anchor on the `id:`
+    // LINE, not on `{ id:` adjacency — many chapters open with comment lines
+    // between the brace and the id, and matching the brace form silently misses
+    // them (it reported ch106 and ch117 as having no chapter at all). This is the
+    // same line-anchored form as the registry contiguity scan in CLAUDE.md.
+    const idLine = /^[ \t]*id:\s*(\d+),/gm;
+    const hits = [...src.matchAll(idLine)];
+    hits.forEach((h, k) => {
+      const id  = +h[1];
+      const blk = src.slice(h.index, k + 1 < hits.length ? hits[k + 1].index : src.length);
+      chapterIds.add(id);
+      if (/^[ \t]*narrative:\s*\[/m.test(blk)) narrativeOf.set(id, act);
+    });
+  }
+
+  const specOf = new Map();        // id -> file that defines it
+  for (const [f, src] of srcOf) {
+    if (!/^js\/story\/scenes\//.test(f)) continue;
+    const lines = src.split('\n');
+    lines.forEach((line, i) => {
+      const sm = line.match(/^\s*S\[(\d+)\]\s*=/);
+      if (sm) specOf.set(+sm[1], `${f}:${i + 1}`);
+    });
+  }
+
+  // The rule is only meaningful once both tables have been found. If a future
+  // reorganisation moves either one, say so rather than silently passing.
+  if (!chapterIds.size || !specOf.size) {
+    report('WARN', 'scene-coverage',
+      `could not locate ${!chapterIds.size ? 'chapters in js/story/acts/' : 'specs in js/story/scenes/'} — this rule is not checking anything`,
+      'tools/audit/check.js');
+  } else {
+    for (const [id, act] of [...narrativeOf].sort((a, b) => a[0] - b[0])) {
+      if (!specOf.has(id)) {
+        report('WARN', 'scene-coverage',
+          `chapter ${id} has narrative text but no scene spec — it plays as bare captions; add S[${id}] to js/story/scenes/${act}.js`,
+          `js/story/acts/${act}`);
+      }
+    }
+    for (const [id, where] of [...specOf].sort((a, b) => a[0] - b[0])) {
+      if (!chapterIds.has(id)) {
+        report('WARN', 'scene-orphan',
+          `scene spec S[${id}] has no chapter with that id — dead spec, or a renumber the specs did not follow`,
+          where);
+      }
+    }
+  }
+}
+
 // ── Output ───────────────────────────────────────────────────────────────────
 const order = { ERROR: 0, WARN: 1, ACCEPTED: 2 };
 findings.sort((a, b) => order[a.level] - order[b.level] || a.rule.localeCompare(b.rule));

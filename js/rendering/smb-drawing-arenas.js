@@ -645,7 +645,7 @@ function drawStars() {
 // Was three 3-arc puffs and a row of grass blades. The arcs overlapped into a
 // visible notch and the sky was otherwise empty. This makes it a summer
 // meadow: a sun, three parallax depths of cumulus, a hedgerow and treeline on
-// the hills, wildflowers, butterflies, birds, and the grass tufts kept.
+// the hills, wildflowers, pollen motes, birds, and the grass tufts kept.
 function _meadowBg() {
   if (_meadowBg._c) return _meadowBg._c;
   const rnd = (a, b) => a + Math.random() * (b - a);
@@ -676,15 +676,20 @@ function _meadowBg() {
       x: -20 + i * 70 + rnd(-22, 22),
       r: rnd(14, 30),
     })),
-    flowers: Array.from({ length: 34 }, () => ({
-      x: rnd(-10, 910), y: rnd(452, 476), h: rnd(6, 14),
-      col: ['#ffe14a', '#ff7ab0', '#ffffff', '#b98bff'][Math.floor(Math.random() * 4)],
+    // Wildflowers: fewer and muted. The old set was 34 candy-bright blooms
+    // (hot pink, violet, saturated yellow) which read as a children's level.
+    // A real meadow is overwhelmingly green with sparse, desaturated colour.
+    flowers: Array.from({ length: 16 }, () => ({
+      x: rnd(-10, 910), y: rnd(452, 476), h: rnd(5, 11),
+      col: ['#d8c97e', '#c9a2ac', '#e2e0d4', '#b0a8c0'][Math.floor(Math.random() * 4)],
       phase: rnd(0, 6.28),
     })),
-    butterflies: Array.from({ length: 5 }, () => ({
-      x: rnd(60, 840), y: rnd(360, 450), rx: rnd(30, 90), ry: rnd(14, 44),
-      spd: rnd(0.008, 0.02), phase: rnd(0, 6.28), flap: rnd(0.3, 0.55),
-      col: ['#ffd24a', '#ff8fc4', '#8fd8ff'][Math.floor(Math.random() * 3)],
+    // Drifting pollen/seed motes replace the butterflies. Same job — keeping
+    // the world alive with small motion — without the saturated cartoon insect.
+    motes: Array.from({ length: 18 }, () => ({
+      x: rnd(0, 900), y: rnd(300, 458), rx: rnd(16, 52), ry: rnd(10, 30),
+      spd: rnd(0.004, 0.011), phase: rnd(0, 6.28), r: rnd(0.8, 1.9),
+      a: rnd(0.16, 0.42),
     })),
     flocks: Array.from({ length: 2 }, () => ({
       y: rnd(80, 200), spd: rnd(0.3, 0.7) * (Math.random() < 0.5 ? 1 : -1),
@@ -693,6 +698,22 @@ function _meadowBg() {
     })),
   };
   return _meadowBg._c;
+}
+
+// Trace a set of lobes as ONE compound path.
+//
+// This is the whole trick behind the clouds and the treeline. Filling lobes
+// individually — at any alpha, with any gradient — always shows each lobe,
+// because every overlap blends twice and every rim is a visible arc. A single
+// compound path fills the UNION once, so the shape reads as one mass and the
+// only edge in it is the outer silhouette.
+function _lobeUnion(lobes, ox, oy, k) {
+  ctx.beginPath();
+  for (const lo of lobes) {
+    const r = lo.r * k;
+    ctx.moveTo(ox + lo.dx + r, oy + lo.dy);   // without moveTo the subpaths join up
+    ctx.arc(ox + lo.dx, oy + lo.dy, r, 0, Math.PI * 2);
+  }
 }
 
 function drawClouds() {
@@ -722,65 +743,101 @@ function drawClouds() {
   ctx.translate(-camOff * 0.06, 0);
   // A band first, then overlapping crowns on top of it. Free-floating pale
   // ellipses read as a row of eggs hovering over the hills, not as woodland.
-  ctx.fillStyle = 'rgba(62,104,66,0.6)';
-  ctx.fillRect(-60, 396, GAME_W + 120, 60);
+  // AERIAL PERSPECTIVE. The far treeline used to be DARKER and more saturated
+  // than the hedgerow in front of it, which is backwards: air between the
+  // viewer and a distant object washes it toward the sky, lowering contrast and
+  // chroma. Getting this the right way round is most of why the hills now read
+  // as being a long way off rather than as a green stripe.
+  // Understorey band behind the crowns. Feathered at the top — a flat fillRect
+  // left a hard horizontal rule running the width of the screen.
+  const _ub = ctx.createLinearGradient(0, 394, 0, 440);
+  _ub.addColorStop(0,    'rgba(104,134,118,0)');
+  _ub.addColorStop(0.35, 'rgba(104,134,118,0.55)');
+  _ub.addColorStop(1,    'rgba(98,128,112,0.66)');
+  ctx.fillStyle = _ub;
+  ctx.fillRect(-60, 394, GAME_W + 120, 62);
+  // The whole treeline as ONE compound path — a distant wood is a single ragged
+  // mass, not thirty individually readable crowns. Drawing each tree separately
+  // is what produced the row of green circles. See _lobeUnion().
+  ctx.beginPath();
   for (const t of bg.trees) {
-    ctx.fillStyle = 'rgba(56,96,60,0.75)';
-    ctx.beginPath();
-    ctx.ellipse(t.x, 398 - t.h * 0.25, t.r, t.r * 0.7 + t.h * 0.25, 0, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = 'rgba(88,138,84,0.5)';        // sunlit side of each crown
-    ctx.beginPath();
-    ctx.ellipse(t.x - t.r * 0.28, 396 - t.h * 0.35, t.r * 0.55, (t.r * 0.7 + t.h * 0.25) * 0.55, 0, 0, Math.PI * 2);
-    ctx.fill();
+    const ch = t.r * 0.7 + t.h * 0.25;
+    for (const [ox, oy, sx, sy] of [[0, -t.h * 0.25, 1, 1],
+                                    [-t.r * 0.62, -t.h * 0.12 + 2, 0.62, 0.70],
+                                    [ t.r * 0.58, -t.h * 0.18 + 1, 0.56, 0.76]]) {
+      ctx.moveTo(t.x + ox + t.r * sx, 398 + oy);
+      ctx.ellipse(t.x + ox, 398 + oy, t.r * sx, ch * sy, 0, 0, Math.PI * 2);
+    }
   }
+  ctx.fillStyle = 'rgba(92,122,106,0.82)';
+  ctx.fill();
+  // Sunlit tops, also unioned, riding above the mass.
+  ctx.beginPath();
+  for (const t of bg.trees) {
+    const ch = t.r * 0.7 + t.h * 0.25;
+    ctx.moveTo(t.x - t.r * 0.28 + t.r * 0.55, 396 - t.h * 0.35);
+    ctx.ellipse(t.x - t.r * 0.28, 396 - t.h * 0.35, t.r * 0.55, ch * 0.5, 0, 0, Math.PI * 2);
+  }
+  ctx.fillStyle = 'rgba(134,160,140,0.34)';
+  ctx.fill();
+  // Haze band sitting ON the treeline, thickest at its base — the standard
+  // landscape-painting cue for distance.
+  const _hz = ctx.createLinearGradient(0, 388, 0, 452);
+  _hz.addColorStop(0,   'rgba(196,216,228,0)');
+  _hz.addColorStop(0.5, 'rgba(196,216,228,0.17)');
+  _hz.addColorStop(1,   'rgba(196,216,228,0.03)');
+  ctx.fillStyle = _hz;
+  ctx.fillRect(-60, 388, GAME_W + 120, 64);
   ctx.restore();
   ctx.save();
   ctx.translate(-camOff * 0.11, 0);
+  // Hedgerow, same treatment — one mass, nearer so it keeps more contrast and
+  // chroma than the treeline behind it.
+  ctx.beginPath();
   for (const b of bg.bushes) {
-    ctx.fillStyle = 'rgba(58,104,52,0.75)';
-    ctx.beginPath();
-    ctx.arc(b.x, 442, b.r, Math.PI, 0);
-    ctx.fill();
-    ctx.beginPath();
-    ctx.arc(b.x - b.r * 0.6, 442, b.r * 0.62, Math.PI, 0);
-    ctx.fill();
-    ctx.beginPath();
-    ctx.arc(b.x + b.r * 0.6, 442, b.r * 0.58, Math.PI, 0);
-    ctx.fill();
-    ctx.fillStyle = 'rgba(120,180,96,0.35)';   // sunlit tops
-    ctx.beginPath();
-    ctx.arc(b.x - b.r * 0.2, 440 - b.r * 0.2, b.r * 0.5, Math.PI, 0);
-    ctx.fill();
+    for (const [ox, k] of [[0, 1], [-b.r * 0.6, 0.62], [b.r * 0.6, 0.58]]) {
+      ctx.moveTo(b.x + ox + b.r * k, 442);
+      ctx.arc(b.x + ox, 442, b.r * k, Math.PI, 0);
+    }
   }
+  ctx.fillStyle = 'rgba(62,88,60,0.85)';
+  ctx.fill();
+  ctx.beginPath();
+  for (const b of bg.bushes) {
+    ctx.moveTo(b.x - b.r * 0.2 + b.r * 0.5, 440 - b.r * 0.2);
+    ctx.arc(b.x - b.r * 0.2, 440 - b.r * 0.2, b.r * 0.5, Math.PI, 0);
+  }
+  ctx.fillStyle = 'rgba(114,140,98,0.30)';   // sunlit tops
+  ctx.fill();
   ctx.restore();
 
   // ── Cumulus banks, far to near ───────────────────────────────────────────
+  // Each lobe is a radial gradient that fades out at its own rim, not a hard
+  // filled circle. Hard-edged white discs stacked together is exactly the
+  // "bubble cloud" look; a real cloud has no outline anywhere on it.
   for (const bd of bg.bands) {
     for (const cl of bd.clouds) {
       const cx2 = (((cl.x + cl.off + f * bd.spd) % 1200) + 1200) % 1200 - 160;
       const bob = Math.sin(f * 0.006 + cl.off) * 2.5;
-      ctx.globalAlpha = bd.alpha * 0.5;
-      ctx.fillStyle = '#c4d6ee';                       // shadowed base
-      for (const lo of cl.lobes) {
-        ctx.beginPath();
-        ctx.arc(cx2 + lo.dx, cl.y + lo.dy + bob + lo.r * 0.28, lo.r, 0, Math.PI * 2);
-        ctx.fill();
+      // Far bands sit closer to the sky value — aerial perspective again, so a
+      // distant bank does not punch out brighter than a near one.
+      const depth = bd.alpha;
+      const cy2 = cl.y + bob;
+      // Shadowed underside, offset down.
+      ctx.globalAlpha = depth * 0.45;
+      ctx.fillStyle   = '#b3c3d6';
+      _lobeUnion(cl.lobes, cx2, cy2 + 6, 0.97); ctx.fill();
+      // Body, in three union passes of decreasing radius. Stacking the union
+      // rather than blurring gives a soft rim with no internal seams at all.
+      ctx.fillStyle = '#f3f7fc';
+      for (const [k, a2] of [[1.00, 0.26], [0.955, 0.40], [0.90, 1.00]]) {
+        ctx.globalAlpha = depth * a2;
+        _lobeUnion(cl.lobes, cx2, cy2, k); ctx.fill();
       }
-      ctx.globalAlpha = bd.alpha;
-      ctx.fillStyle = '#ffffff';
-      for (const lo of cl.lobes) {
-        ctx.beginPath();
-        ctx.arc(cx2 + lo.dx, cl.y + lo.dy + bob, lo.r, 0, Math.PI * 2);
-        ctx.fill();
-      }
-      ctx.globalAlpha = bd.alpha * 0.55;
-      ctx.fillStyle = '#fffbee';                       // sunlit cap
-      for (const lo of cl.lobes) {
-        ctx.beginPath();
-        ctx.arc(cx2 + lo.dx + lo.r * 0.10, cl.y + lo.dy + bob - lo.r * 0.32, lo.r * 0.5, 0, Math.PI * 2);
-        ctx.fill();
-      }
+      // Sunlit cap riding the top of the mass.
+      ctx.globalAlpha = depth * 0.42;
+      ctx.fillStyle   = '#fffdf3';
+      _lobeUnion(cl.lobes, cx2 + 2, cy2 - 7, 0.62); ctx.fill();
     }
   }
   ctx.globalAlpha = 1;
@@ -812,38 +869,37 @@ function drawClouds() {
   // ── Wildflowers ──────────────────────────────────────────────────────────
   for (const fw of bg.flowers) {
     const sway = Math.sin(f * 0.02 + fw.phase) * 2;
-    ctx.strokeStyle = 'rgba(46,98,34,0.8)';
-    ctx.lineWidth = 1.2;
+    ctx.strokeStyle = 'rgba(62,84,52,0.65)';
+    ctx.lineWidth = 1.1;
     ctx.beginPath();
     ctx.moveTo(fw.x, fw.y);
     ctx.quadraticCurveTo(fw.x + sway * 0.5, fw.y - fw.h * 0.6, fw.x + sway, fw.y - fw.h);
     ctx.stroke();
+    ctx.globalAlpha = 0.72;
     ctx.fillStyle = fw.col;
     for (let k = 0; k < 5; k++) {
       const a = (k / 5) * Math.PI * 2;
       ctx.beginPath();
-      ctx.arc(fw.x + sway + Math.cos(a) * 2, fw.y - fw.h + Math.sin(a) * 2, 1.6, 0, Math.PI * 2);
+      ctx.arc(fw.x + sway + Math.cos(a) * 1.5, fw.y - fw.h + Math.sin(a) * 1.5, 1.15, 0, Math.PI * 2);
       ctx.fill();
     }
-    ctx.fillStyle = '#ffd24a';
-    ctx.beginPath(); ctx.arc(fw.x + sway, fw.y - fw.h, 1.3, 0, Math.PI * 2); ctx.fill();
+    ctx.globalAlpha = 1;
   }
 
-  // ── Butterflies ──────────────────────────────────────────────────────────
-  for (const bf of bg.butterflies) {
-    const a2 = f * bf.spd + bf.phase;
-    const bx = bf.x + Math.cos(a2) * bf.rx;
-    const by = bf.y + Math.sin(a2 * 1.7) * bf.ry;
-    const w  = Math.abs(Math.sin(f * bf.flap + bf.phase));
-    ctx.fillStyle = bf.col;
-    for (const s of [-1, 1]) {
-      ctx.beginPath();
-      ctx.ellipse(bx + s * 3.5 * (0.25 + w), by, 3.4 * (0.25 + w), 4.2, s * 0.4, 0, Math.PI * 2);
-      ctx.fill();
-    }
-    ctx.fillStyle = 'rgba(40,32,20,0.8)';
-    ctx.fillRect(bx - 0.7, by - 2.5, 1.4, 5);
+  // ── Drifting pollen ──────────────────────────────────────────────────────
+  // Backlit motes catching the sun. Same liveliness the butterflies gave, with
+  // none of the saturated storybook read.
+  ctx.save();
+  ctx.globalCompositeOperation = 'lighter';
+  for (const mo of bg.motes) {
+    const a2 = f * mo.spd + mo.phase;
+    const mx = mo.x + Math.cos(a2) * mo.rx;
+    const my = mo.y + Math.sin(a2 * 1.6) * mo.ry;
+    ctx.globalAlpha = mo.a * (0.55 + 0.45 * Math.sin(a2 * 2.3));
+    ctx.fillStyle   = 'rgba(255,248,222,0.9)';
+    ctx.beginPath(); ctx.arc(mx, my, mo.r, 0, Math.PI * 2); ctx.fill();
   }
+  ctx.restore();
 
   // ── Grass tufts along the ground (kept) ──────────────────────────────────
   for (let i = 0; i < 40; i++) {
@@ -852,7 +908,7 @@ function drawClouds() {
     const h    = 7 + Math.abs(Math.sin(i * 29.3)) * 6;
     const bw   = 0.7 + Math.abs(Math.sin(i * 17.7)) * 0.9;
     const t    = Math.sin(i * 43.1) * 0.5 + 0.5;
-    ctx.fillStyle   = `rgb(${Math.floor(35 + t * 55)},${Math.floor(105 + t * 70)},${Math.floor(18 + t * 20)})`;
+    ctx.fillStyle   = `rgb(${Math.floor(48 + t * 44)},${Math.floor(92 + t * 52)},${Math.floor(38 + t * 24)})`;
     ctx.globalAlpha = 0.62 + Math.abs(Math.sin(i * 61.3)) * 0.28;
     ctx.beginPath();
     ctx.moveTo(tx - bw, groundY);
@@ -2229,6 +2285,13 @@ function drawRuins() {
 const _PLAT_EPS = 1.5;   // slop for "these two rects are touching"
 
 function _platRGB(hex) {
+  // rgb()/rgba() must be handled explicitly: parseInt() on one returns NaN and
+  // the fallback below is a neutral grey, so an unparsed colour repaints the
+  // whole platform set grey without any error. Use SMBPal.gradeHex() upstream,
+  // but accept the other form here too rather than fail silently.
+  const _rgbm = (typeof hex === 'string' && hex[0] === 'r')
+    ? hex.match(/(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/) : null;
+  if (_rgbm) return { r: +_rgbm[1], g: +_rgbm[2], b: +_rgbm[3] };
   let h = String(hex || '#888888').replace('#', '');
   if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2];
   const n = parseInt(h, 16);
@@ -2319,6 +2382,23 @@ function _platDrawTerrain(pl, baseColor, edgeColor) {
   // addColorStop/strokeStyle throw on undefined, so fall back to neutral stone.
   if (typeof baseColor !== 'string') baseColor = '#5a6070';
   if (typeof edgeColor !== 'string') edgeColor = _platShade(baseColor, -0.45);
+
+  // ── GROUNDED GRADE ────────────────────────────────────────────────────────
+  // Authored arena colours are poster-saturated, which is what made the terrain
+  // look cheap next to the shaded figures and weapons. Grading here rather than
+  // rewriting ~80 hex literals in ARENAS also covers Battle Royale and custom
+  // maps, which build their palettes at runtime and have no authored colours to
+  // edit. See SMBPal.grade().
+  const _emissive = SMBPal.isEmissiveEdge(edgeColor, baseColor);
+  baseColor = SMBPal.gradeHex(baseColor);
+  // A neon rim is an authored light source (cyberpunk, matrix, void, Circuit),
+  // not a keyline — grade it only lightly or those levels lose their identity.
+  // A dark rim IS a keyline, and a hard black keyline around every platform is
+  // the cartoon tell; pull it toward the body so it reads as a shadowed edge.
+  edgeColor = _emissive ? SMBPal.gradeHex(edgeColor, 0.30)
+                        : _platShade(baseColor, -0.34);
+  const _edgeW = _emissive ? 2 : 1.2;
+  const _edgeA = _emissive ? 1 : 0.55;
   const segTop  = pl._segTop   || [[pl.x, pl.x + pl.w]];
   const segBot   = pl._segBot   || [[pl.x, pl.x + pl.w]];
   const segLeft  = pl._segLeft  || [[pl.y, pl.y + pl.h]];
@@ -2430,8 +2510,9 @@ function _platDrawTerrain(pl, baseColor, edgeColor) {
   if (pl._rnBL) ctx.rect(pl.x - 4, y2 - r - 4, r + 8, r + 8);
   ctx.clip();
   _platPath(pl.x, pl.y, pl.w, pl.h, rad);
+  ctx.globalAlpha = _edgeA;
   ctx.strokeStyle = edgeColor;
-  ctx.lineWidth   = 2;
+  ctx.lineWidth   = _edgeW;
   ctx.lineJoin    = 'round';
   ctx.stroke();
   ctx.restore();
@@ -2545,7 +2626,11 @@ function drawPlatforms() {
       continue;
     }
 
-    _platDrawTerrain(pl, currentArena.platColor, currentArena.platEdge);
+    // Per-platform colour override. Nothing in ARENAS sets `color` on a platform,
+    // so every authored arena is unchanged; Battle Royale uses it to give each
+    // landmark band its own terrain (volcanic rock, cave stone, ice) instead of
+    // painting the whole 12000px world in one arena's palette.
+    _platDrawTerrain(pl, pl.color || currentArena.platColor, pl.edge || currentArena.platEdge);
 
     // Boss arena: purple glow on moving platforms
     if (isBoss && (pl.ox !== undefined || pl.oy !== undefined)) {
@@ -2758,6 +2843,17 @@ function drawExploreHUD() {
   ctx.textAlign = 'left';
   ctx.textBaseline = 'top';
   ctx.fillText(`FIND: ${exploreGoalName}`, barX, barY + barH + 4);
+  // Clear-the-area counter. The rule has to be visible from the START of the
+  // level — learning about it by bouncing off the exit turns it into a hunt
+  // across the whole world. Edge arrows (drawEdgeIndicators) already point at
+  // offscreen minions, so the count is the only missing half.
+  if (!exploreGoalFound && typeof exploreFoesRemaining !== 'undefined' && exploreFoesRemaining > 0) {
+    // Appended to the FIND label rather than centred on the same line — the bar
+    // is only 280px and the phase indicator already owns the right end.
+    const _lw = ctx.measureText(`FIND: ${exploreGoalName}`).width;
+    ctx.fillStyle = exploreGoalBlockReason ? '#ff9977' : '#ffcc88';
+    ctx.fillText(`  ·  ⚔ ${exploreFoesRemaining}`, barX + _lw, barY + barH + 4);
+  }
   if (storyPhaseIndicator) {
     ctx.fillStyle = '#9fd4ff';
     ctx.textAlign = 'right';
@@ -2829,6 +2925,26 @@ function drawExploreHUD() {
     ctx.fillStyle = flash ? '#ff4422' : '#ffcc44';
     ctx.textAlign = 'right';
     ctx.fillText(`${secsLeft}s`, barX + barW, cbY + barH + 4);
+  }
+
+  // Sealed-exit banner: why the mark is not taking. Sits where the distance
+  // arrow would be so the player reads it at the moment they bounce off.
+  if (!exploreGoalFound && typeof exploreGoalBlockReason !== 'undefined' && exploreGoalBlockReason) {
+    ctx.globalAlpha = 1;
+    ctx.font = 'bold 13px Arial';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    const _msg = '🔒 ' + exploreGoalBlockReason.toUpperCase();
+    const _tw  = ctx.measureText(_msg).width;
+    // Sits just below the objective bar — overlapping it hid the very counter
+    // the player needs to read.
+    const _bx  = cw / 2, _by = ch * 0.245;
+    ctx.fillStyle = 'rgba(30,8,6,0.78)';
+    ctx.beginPath(); ctx.roundRect(_bx - _tw / 2 - 14, _by - 14, _tw + 28, 28, 7); ctx.fill();
+    ctx.strokeStyle = 'rgba(255,110,80,0.55)'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.roundRect(_bx - _tw / 2 - 14, _by - 14, _tw + 28, 28, 7); ctx.stroke();
+    ctx.fillStyle = '#ff9977';
+    ctx.fillText(_msg, _bx, _by);
   }
 
   // Distance hint (arrow on right side of screen when goal is ahead)
@@ -2967,28 +3083,32 @@ function drawExploreGoalObject() {
   const gx = exploreGoalX + 12;
   const gy = 380;
   const pulse = Math.sin(frameCount * 0.08) * 0.4 + 0.6;
+  // Sealed exit: the beacon reads red while the level still has work left, so
+  // the player can see at a glance that the mark will not take them.
+  const _sealed = (typeof exploreGoalBlocked !== 'undefined' && exploreGoalBlocked > 0)
+               || (typeof exploreGoalBlockReason !== 'undefined' && !!exploreGoalBlockReason);
 
   // Glow
   ctx.save();
-  ctx.shadowColor = '#ffffaa';
+  ctx.shadowColor = _sealed ? '#ff6644' : '#ffffaa';
   ctx.shadowBlur  = 20 + pulse * 15;
   ctx.globalAlpha = pulse;
 
   // Beacon pillar
-  ctx.fillStyle = '#ffffcc';
+  ctx.fillStyle = _sealed ? '#ffbbaa' : '#ffffcc';
   ctx.fillRect(gx - 4, gy - 50, 8, 50);
 
   // Beacon orb
   ctx.beginPath();
   ctx.arc(gx, gy - 54, 14, 0, Math.PI * 2);
   const og = ctx.createRadialGradient(gx, gy - 54, 0, gx, gy - 54, 14);
-  og.addColorStop(0, 'rgba(255,255,200,1)');
-  og.addColorStop(1, 'rgba(200,180,50,0)');
+  og.addColorStop(0, _sealed ? 'rgba(255,150,120,1)' : 'rgba(255,255,200,1)');
+  og.addColorStop(1, _sealed ? 'rgba(180,50,30,0)'     : 'rgba(200,180,50,0)');
   ctx.fillStyle = og;
   ctx.fill();
 
   // Outer ring
-  ctx.strokeStyle = `rgba(255,240,100,${0.6 * pulse})`;
+  ctx.strokeStyle = _sealed ? `rgba(255,110,80,${0.6 * pulse})` : `rgba(255,240,100,${0.6 * pulse})`;
   ctx.lineWidth = 2;
   ctx.beginPath();
   ctx.arc(gx, gy - 54, 20 + pulse * 6, 0, Math.PI * 2);
@@ -3735,6 +3855,18 @@ function backToMenu() {
   document.getElementById('hud').style.display            = 'none';
   const chatElBTM = document.getElementById('onlineChat');
   if (chatElBTM) chatElBTM.style.display = 'none';
+  // Online: the chat widget only belongs to a live match. If the room is already
+  // gone (peer dropped, host closed, kicked) tear the rest of the session down
+  // here — otherwise onlineMode stays true and poisons the next offline match.
+  if (typeof NetworkManager !== 'undefined') {
+    if (typeof onlineMode !== 'undefined' && onlineMode && !NetworkManager.connected) {
+      NetworkManager.disconnect();
+    } else if (NetworkManager.connected) {
+      // Still in the room: reopen the lobby so the session is never invisible.
+      gameMode = 'online';
+      if (typeof NetworkManager.renderLobby === 'function') NetworkManager.renderLobby();
+    }
+  }
   document.getElementById('pauseOverlay').style.display    = 'none';
   document.getElementById('gameOverOverlay').style.display = 'none';
   document.getElementById('menu').style.display            = 'grid';
@@ -3821,8 +3953,14 @@ function updateHUD() {
     const sEl  = document.getElementById(`p${n}Super`);
     const cdEl = document.getElementById(`p${n}CdBar`);
     if (hEl) {
-      hEl.style.width      = pct + '%';
-      hEl.style.background = `hsl(${pct * 1.2},100%,44%)`;
+      hEl.style.width = pct + '%';
+      // Hue still runs red -> green with health, but at 100% saturation this
+      // inline style was overriding the stylesheet and painting a pure lime
+      // slab — the single loudest cartoon note on the screen. Same hue ramp,
+      // material chroma, and a lit top edge so it reads as an instrument.
+      const _hHue = pct * 1.2;
+      hEl.style.background =
+        `linear-gradient(180deg, hsl(${_hHue},38%,62%) 0%, hsl(${_hHue},36%,52%) 45%, hsl(${_hHue},40%,34%) 100%)`;
     }
     const htEl = document.getElementById(`p${n}HealthText`);
     if (htEl) htEl.textContent = Math.ceil(p.health) + '/' + p.maxHealth;
@@ -3837,8 +3975,11 @@ function updateHUD() {
       } else {
         const capped    = Math.min(p.lives, 10);
         const cappedMax = Math.min(p._maxLives !== undefined ? p._maxLives : chosenLives, 10);
-        const full  = '\u2665'.repeat(Math.max(0, capped));
-        const empty = '<span style="opacity:0.18">\u2665</span>'.repeat(Math.max(0, cappedMax - capped));
+        // Drawn pips rather than '\u2665' text. The heart glyph rendered in
+        // whatever the system font felt like, which is both inconsistent across
+        // machines and the most storybook mark in the HUD.
+        const full  = '<i class="life-pip"></i>'.repeat(Math.max(0, capped));
+        const empty = '<i class="life-pip spent"></i>'.repeat(Math.max(0, cappedMax - capped));
         lEl.innerHTML = full + empty;
       }
     }
@@ -3866,9 +4007,12 @@ function updateHUD() {
         ? Math.max(0, 100 - (p.shieldCooldown / 180) * 100)
         : 100;
       shEl.style.width = shPct + '%';
+      // Recharging stays a dim blue; ready brightens to near-white. Both were a
+      // full step hotter than everything else in the HUD, so "shield is up"
+      // read as the most urgent thing on screen even at rest.
       shEl.style.background = p.shieldCooldown > 0
-        ? 'linear-gradient(90deg, #4488ff, #88ccff)'
-        : 'linear-gradient(90deg, #44ddff, #ffffff)';
+        ? 'linear-gradient(90deg, #3a5f8c, #5f87ad)'
+        : 'linear-gradient(90deg, #6fa8bf, #cfe2ea)';
     }
     const wEl = document.getElementById(`p${n}WeaponHud`);
     if (wEl) {
@@ -3931,32 +4075,78 @@ function drawEntityOverlays(scX, scY, camX, camY) {
     if (sx < -80 || sx > canvas.width + 80 || sy > canvas.height + 80) continue;
 
     const barW = Math.max(36, Math.min(82, ent.w * scX * 1.35));
-    const barH = 7;
+    const barH = 6;
     const pct = Math.max(0, Math.min(1, ent.health / Math.max(1, ent.maxHealth)));
     const label = _entityOverlayLabel(ent);
-    const labelY = sy - 11;
+    const labelY = sy - 12;
     const ammoY = sy + 12;
+    const bx = sx - barW / 2, by = sy - barH / 2;
 
-    ctx.font = 'bold 11px Arial';
-    ctx.lineWidth = 3;
-    ctx.strokeStyle = 'rgba(0,0,0,0.85)';
-    ctx.strokeText(label, sx, labelY);
+    // ── DELAYED-DAMAGE GHOST ────────────────────────────────────────────────
+    // The classic fighting-game trailing bar: the real value snaps, a pale
+    // ghost drains down to meet it over the next half second. It is the single
+    // cheapest way to make a hit read as a hit — you SEE how much that cost
+    // instead of comparing two bar lengths across a frame.
+    if (ent._hpGhost === undefined || pct > ent._hpGhost) ent._hpGhost = pct;  // heal / respawn snaps up
+    else if (pct < ent._hpGhost) ent._hpGhost = Math.max(pct, ent._hpGhost - 0.012);
+
+    // Name — a soft drop shadow rather than a 3px black keyline around every
+    // glyph, which was the chunkiest thing on screen.
+    ctx.font = '600 10px "Segoe UI", Roboto, Helvetica, Arial, sans-serif';
+    ctx.shadowColor = 'rgba(0,0,0,0.9)';
+    ctx.shadowBlur = 4;
+    ctx.shadowOffsetY = 1;
+    ctx.fillStyle = 'rgba(255,255,255,0.35)';
+    ctx.fillText(label, sx, labelY);           // shadow pass
+    ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
     ctx.fillStyle = ent.color || '#ffffff';
     ctx.fillText(label, sx, labelY);
 
-    ctx.fillStyle = 'rgba(0,0,0,0.72)';
-    ctx.fillRect(sx - barW / 2 - 1, sy - barH / 2 - 1, barW + 2, barH + 2);
-    ctx.fillStyle = 'rgba(255,255,255,0.18)';
-    ctx.fillRect(sx - barW / 2, sy - barH / 2, barW, barH);
-    ctx.fillStyle = pct > 0.6 ? '#44dd66' : pct > 0.3 ? '#ffcc33' : '#ff5533';
-    ctx.fillRect(sx - barW / 2, sy - barH / 2, barW * pct, barH);
+    const _round = (x, y, w, h, r) => {
+      ctx.beginPath();
+      if (ctx.roundRect) ctx.roundRect(x, y, w, h, r);
+      else ctx.rect(x, y, w, h);
+    };
+
+    // Trough — a recess, not a black box.
+    ctx.shadowColor = 'rgba(0,0,0,0.75)';
+    ctx.shadowBlur  = 4;
+    ctx.shadowOffsetY = 1;
+    ctx.fillStyle = 'rgba(8,10,18,0.82)';
+    _round(bx - 1, by - 1, barW + 2, barH + 2, (barH + 2) / 2); ctx.fill();
+    ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
+
+    // Ghost, then the live fill.
+    if (ent._hpGhost > pct) {
+      ctx.fillStyle = 'rgba(232,214,196,0.55)';
+      _round(bx, by, barW * ent._hpGhost, barH, barH / 2); ctx.fill();
+    }
+    // Desaturated states — a pure lime bar is the loudest cartoon note in the
+    // frame, and it competes with the fighters for attention.
+    const hpTop = pct > 0.55 ? '#7ec27a' : pct > 0.28 ? '#d7b35c' : '#d8705e';
+    const hpBot = pct > 0.55 ? '#4a8a52' : pct > 0.28 ? '#a07a32' : '#933f36';
+    const hg = ctx.createLinearGradient(0, by, 0, by + barH);
+    hg.addColorStop(0, hpTop);
+    hg.addColorStop(1, hpBot);
+    ctx.fillStyle = hg;
+    _round(bx, by, Math.max(0, barW * pct), barH, barH / 2); ctx.fill();
+    // Thin gleam along the top of the fill — reads as a lit surface.
+    if (pct > 0.02) {
+      ctx.fillStyle = 'rgba(255,255,255,0.22)';
+      _round(bx + 1, by + 0.8, Math.max(0, barW * pct - 2), 1.4, 0.7); ctx.fill();
+    }
+    // Hairline containing edge.
+    ctx.strokeStyle = 'rgba(255,255,255,0.14)';
+    ctx.lineWidth = 1;
+    _round(bx - 0.5, by - 0.5, barW + 1, barH + 1, (barH + 1) / 2); ctx.stroke();
 
     if (ent.weapon && ent.weapon.clipSize) {
-      ctx.font = 'bold 10px Arial';
-      ctx.strokeStyle = 'rgba(0,0,0,0.80)';
-      ctx.strokeText(`${ent._ammo}/${ent.weapon.clipSize}`, sx, ammoY);
-      ctx.fillStyle = ent._ammo <= 0 ? '#ff6666' : '#ddeeff';
+      ctx.font = '600 9px "Segoe UI", Roboto, Helvetica, Arial, sans-serif';
+      ctx.shadowColor = 'rgba(0,0,0,0.9)';
+      ctx.shadowBlur  = 3;
+      ctx.fillStyle = ent._ammo <= 0 ? '#d8705e' : 'rgba(216,224,238,0.88)';
       ctx.fillText(`${ent._ammo}/${ent.weapon.clipSize}`, sx, ammoY);
+      ctx.shadowBlur = 0;
     }
   }
 

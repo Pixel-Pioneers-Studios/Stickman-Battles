@@ -35,6 +35,29 @@ function spawnParticles(x, y, color, count) {
   }
 }
 
+// Directional burst — sprays into a cone around (dirX, dirY) instead of a ball.
+// Same pool, cap and settings gate as spawnParticles(); `spread` is the half
+// angle of the cone in radians (default ~50 degrees).
+function spawnParticlesDir(x, y, color, count, dirX, dirY, spread) {
+  if (!settings.particles) return;
+  if (particles.length >= MAX_PARTICLES) return;
+  const toSpawn = Math.min(count, MAX_PARTICLES - particles.length);
+  const base = Math.atan2(dirY || 0, dirX || 1);
+  const half = spread == null ? 0.9 : spread;
+  for (let i = 0; i < toSpawn; i++) {
+    const a = base + (Math.random() - 0.5) * 2 * half;
+    const sp = 2.0 + Math.random() * 5.5;
+    const p = _getParticle();
+    p.x = x; p.y = y;
+    p.vx = Math.cos(a) * sp; p.vy = Math.sin(a) * sp;
+    p.color = color;
+    p.size = 1.5 + Math.random() * 2.5;
+    p.life = 16 + Math.random() * 20;
+    p.maxLife = 36;
+    particles.push(p);
+  }
+}
+
 // Directional blood spray — sprays away from attacker, falls with gravity
 // dir: 1 = blood sprays right (attacker on left), -1 = sprays left
 function spawnBlood(x, y, dir, dmg) {
@@ -81,6 +104,11 @@ function checkWeaponSparks() {
       const a = all[i], b = all[j];
       if (!a.tip.attacking || !b.tip.attacking) continue;
       if ((a.f._weaponClashCd || 0) > 0 || (b.f._weaponClashCd || 0) > 0) continue;
+      // Sparks are the visual half of a clash, so they follow the same rule the
+      // real one does: only equal-strength actions ring off each other. A swing
+      // crossing a super does not spark — it breaks (Fighter._resolveOverpower).
+      if (typeof a.f._clashTier === 'function' && typeof b.f._clashTier === 'function'
+          && a.f._clashTier() !== b.f._clashTier()) continue;
       const dx = a.tip.x - b.tip.x;
       const dy = a.tip.y - b.tip.y;
       if (dx * dx + dy * dy < 28 * 28) {
@@ -453,31 +481,43 @@ class DamageText {
   update() { this.y -= 1.1; this.x += this.vx; this.life--; }
   draw() {
     const a = Math.min(1, this.life / 20);
+    // A string amount is a LABEL, not a number — CLASH / BREAK and friends.
+    // Without this branch the numeric path prefixed them with a minus sign and
+    // picked their colour off a damage comparison that a string always fails.
+    const _label = (typeof this.amount === 'string');
     // Font size scales more aggressively with damage for better readability
-    const fs = this.amount >= 40 ? 24
+    const fs = _label       ? 19
+             : this.amount >= 40 ? 24
              : this.amount >= 25 ? 20
              : this.amount >= 12 ? 16
              : 13;
-    // Color-code by damage tier: low=white, medium=yellow, high=orange, massive=red
-    const col = this.amount >= 40 ? '#ff4422'
-              : this.amount >= 25 ? '#ff9900'
-              : this.amount >= 12 ? '#ffee44'
-              : this.color;
+    // Colour-coded by tier, but pulled off full chroma. These numbers appear on
+    // every single hit, so at #ffee44 / #ff9900 they were a constant confetti
+    // spray over the fight — the TIER still reads, it just no longer out-shouts
+    // the fighters throwing the punches.
+    const col = _label       ? (this.color || '#f2ede2')
+              : this.amount >= 40 ? '#e0563c'
+              : this.amount >= 25 ? '#dd9440'
+              : this.amount >= 12 ? '#e3cf72'
+              : (this.color || '#efe9dc');
+    const txt = _label ? this.amount : '-' + this.amount;
     ctx.save();
     ctx.globalAlpha   = a;
     ctx.textAlign     = 'center';
-    ctx.font          = `bold ${fs}px Arial`;
-    // Stronger outline improves readability on all backgrounds
-    ctx.strokeStyle   = 'rgba(0,0,0,0.95)';
-    ctx.lineWidth     = fs >= 20 ? 4 : 3;
-    ctx.strokeText('-' + this.amount, this.x, this.y);
+    ctx.font          = `800 ${fs}px "Segoe UI", Roboto, Helvetica, Arial, sans-serif`;
+    // A soft drop shadow rather than a 4px black keyline traced around every
+    // glyph. The keyline is what made these read as sticker art; a shadow keeps
+    // them legible over any arena without drawing a cartoon outline.
+    ctx.shadowColor   = 'rgba(0,0,0,0.92)';
+    ctx.shadowBlur    = fs >= 20 ? 7 : 5;
+    ctx.shadowOffsetY = 1.5;
     ctx.fillStyle     = col;
-    // Glow on heavy hits
-    if (this.amount >= 25) {
-      ctx.shadowColor = col;
-      ctx.shadowBlur  = 6;
+    ctx.fillText(txt, this.x, this.y);
+    // Heavy hits get one extra pass to thicken the read, not a coloured glow.
+    if (_label || this.amount >= 25) {
+      ctx.shadowBlur = 3;
+      ctx.fillText(txt, this.x, this.y);
     }
-    ctx.fillText('-'  + this.amount, this.x, this.y);
     ctx.restore();
   }
 }

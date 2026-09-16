@@ -216,7 +216,7 @@ STORY_CHAPTER_REGISTRY.push(
       '"You were always going to be standing here, and I was always going to say',
       '"I don\'t regret it."',
       '',
-      '"The Preserved are free. Fifty-two absorbed dimensions.",',
+      '"The Preserved are free. Fifty-two absorbed dimensions."',
       '"That is an outcome the original protocol couldn\'t provide."',
       '',
       'The Creator\'s construct stood beside them.',
@@ -224,8 +224,7 @@ STORY_CHAPTER_REGISTRY.push(
       '"Just long enough for the trade to finalize."',
       '',
       '"After that, do what you need to do."',
-      '"I hope you succeed."',
-      '"I mean that."',
+      '"I hope you succeed. I mean that."',
     ],
     storeNag: '⚠️ Against the Third Architect + Creator construct. Expert. 2 lives. They know your style.',
     fightScript: [

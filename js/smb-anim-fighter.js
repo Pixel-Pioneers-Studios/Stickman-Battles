@@ -118,7 +118,10 @@ function animHitSquash(f) {
   const u = hs.t / hs.max;                      // 1 → 0
   const e = (typeof animEase !== 'undefined') ? animEase.outElastic(1 - u) : 1 - u;
   const amt = hs.amt * (1 - e);
-  return { x: 1 + amt, y: 1 - amt };
+  // axis 'x' = compressed ALONG the horizontal (slammed into a wall); the
+  // default is a vertical blow, which widens the body and flattens it.
+  return hs.axis === 'x' ? { x: 1 - amt, y: 1 + amt }
+                         : { x: 1 + amt, y: 1 - amt };
 }
 
 // ── Eyes ────────────────────────────────────────────────────────────────────

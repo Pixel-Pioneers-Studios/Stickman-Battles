@@ -15,7 +15,15 @@
 // jumpEconomy: enforce the player's 1 ground + 1 air jump rule on every path in
 // this class (see _vetoExtraJump). Set false to restore the old unbounded
 // behaviour for an A/B — the old behaviour is the triple-jump bug.
-window.SMK2_TUNE = window.SMK2_TUNE || { openGate: true, pressureDecay: true, lockCeiling: true, voidBoostMax: 3, recoverCeilAboveDeck: 200, jumpEconomy: true, edgePressure: true, ringoutGuard: true };
+window.SMK2_TUNE = window.SMK2_TUNE || { openGate: true, pressureDecay: true, lockCeiling: true, voidBoostMax: 3, recoverCeilAboveDeck: 200, jumpEconomy: true, edgePressure: true, ringoutGuard: true,
+  // Tactic ledger (see _airApproachGuard). tacticLedger:false restores the old
+  // unconditional air approach. airDenyAt is net health per attempt — the
+  // approach is vetoed once it costs him more than this.
+  tacticLedger: true, airDenyAt: -4, tacticExplore: 0.2,
+  // swingGate stays OFF: across six measured runs it fired zero times, because it
+  // needs an attack cell AND a shield cell populated in the SAME situation and the
+  // grid never gets there. Shipping it on would be shipping something inert.
+  swingGate: false };
 
 // ── Owner-attached hazard registry ───────────────────────────────────────────
 // Several weapon abilities/supers store their live hazard directly on the wielder
@@ -451,6 +459,31 @@ class SovereignMK2 extends AdaptiveAI {
     // ── Opening Weapon Prior ───────────────────────────────────────
     this._openingPriorApplied = false; // fires once per match on first full observation tick
 
+    // ── Tactic ledger ──────────────────────────────────────────────
+    // Every other adaptive channel in this class is a DIAL: aggression, defense,
+    // spacing, reactionSpeed, evolution stage. Dials say how hard he fights. None
+    // of them can represent "this particular decision loses", which is why he
+    // repeats a losing approach until the match ends — replay 2026-09-10 measured
+    // 56 jumps onto the platform the player was standing on with the punish rate
+    // RISING from 10/31 to 15/25 across the fight.
+    //
+    // The ledger is the missing representation: decisions keyed by name, scored by
+    // measured consequence. Generalises the one outcome check that already existed
+    // (AdaptiveAI._bmActivePunish, which books a single punish route the same way).
+    this._tacticGrid    = {};    // sit -> action -> { tries, taken, dealt }
+    this._pendingTactic = null;  // open booking: { sit, action, frame, hp, lives, ... }
+    this._prevAtkSample    = 0;     // rising-edge trackers for the decision sampler
+    this._prevShieldSample = false;
+    this._prevSuperSample  = 0;
+    this._prevMoveSample   = null;
+    this._swingGated       = 0;     // swings the grid turned into guards (debug)
+    this._approachStat  = { tries: 0, taken: 0, dealt: 0 };  // drives the air guard
+    this._pendingApproach = null;
+    this._airDenyTimer  = 0;     // frames the air approach stays vetoed
+    this._airDenyX      = null;  // redirect landing x, null = no redirect available
+    this._armorApproach = false; // raise the guard on this descent
+    this._armorHold     = 0;     // frames to keep it up through landing recovery
+
     // ── Endlag Punish Window ───────────────────────────────────────
     this._endlagWindow        = 0;    // frames remaining in opponent's post-swing recovery
 
@@ -769,6 +802,23 @@ class SovereignMK2 extends AdaptiveAI {
     if (!keys.length) return;
     this._dossierKeysCache = keys;
 
+    // The grid is seeded WHOLE rather than blended: its cells are already counts,
+    // so merging is addition, and a cell he has never filled this match is the one
+    // place recollection is unambiguously better than nothing. Seeded once — a
+    // re-seed mid-match would overwrite what this fight has been teaching him.
+    if (!this._gridSeeded && typeof SovDossier.gridPrior === 'function') {
+      this._gridSeeded = true;
+      const g = SovDossier.gridPrior(keys);
+      if (g) for (const sit of Object.keys(g)) {
+        const dst = this._tacticGrid[sit] || (this._tacticGrid[sit] = {});
+        for (const act of Object.keys(g[sit])) {
+          if (dst[act]) continue;
+          const a = g[sit][act];
+          dst[act] = { tries: a.tries, taken: a.taken, dealt: a.dealt };
+        }
+      }
+    }
+
     const prior = SovDossier.dialPrior(keys);
     if (prior && this.aiMemory) {
       const c = Math.min(0.65, prior._confidence || 0);   // never fully surrender the baseline
@@ -810,6 +860,7 @@ class SovereignMK2 extends AdaptiveAI {
       const gained = Math.max(0, (this.totalDamageDealt || 0) - (this._loadoutDealt0 || 0));
       SovDossier.recordLoadout(keys, this._loadout.key, gained);
     }
+    if (typeof SovDossier.recordGrid === 'function') SovDossier.recordGrid(keys, this._tacticGrid);
     SovDossier.save();
     if (this._sovDossierDebug) console.log('[SovDossier] commit', reason, keys.join(','), 'obs', obs);
   }
@@ -2790,7 +2841,22 @@ class SovereignMK2 extends AdaptiveAI {
     // Within two supers of Absolute Dominion, holding for a perfect window costs
     // more than the window is worth — the domain is the bigger payoff, and the
     // counter is wiped by death, so banking supers can lose it outright.
-    const domainPush = (this._domainSuperCount || 0) >= 3;
+    //
+    // Gate was `>= 3`. Measured across the eight September replays: Sovereign
+    // reached 3 spends in a life in roughly a third of his lives, so the
+    // accelerator meant to carry him to Absolute Dominion almost never engaged —
+    // he took ZERO domains in all eight matches, including the two he won, with
+    // a best-ever life of 3 against a threshold of 5. The player took one in
+    // four matches and won every one of those. At `>= 1` the push is live for
+    // almost the whole life, which is the only way the counter reaches 5 before
+    // a death resets it.
+    const domainPush = (this._domainSuperCount || 0) >= 1;
+
+    // The super is also a combo STARTER, not only a reward for a window someone
+    // else opens. In swing range, with the opponent not mid-swing and not
+    // guarding, opening with it is a real line — every other term in
+    // `superWindow` waits on the opponent to make a mistake first.
+    const comboOpener = d < weaponRange + 40 && !t.attackTimer && (this.attackEndlag || 0) <= 0;
 
     // Stale-bank release is handled in _updateSuperBank(), which runs every frame
     // from update(). This function turned out to be reached only ~15 times a
@@ -2799,7 +2865,7 @@ class SovereignMK2 extends AdaptiveAI {
 
     const superWindow = targetLocked || targetInHazard || finishable || selfNeedsSuper ||
       targetCursed || (targetArmored && targetBuffed) || this._punishModeActive || domainPush ||
-      _bankStale;
+      _bankStale || comboOpener;
     if (this.superReady && closeEnough && superWindow && !t.shielding) {
       this.useSuper(t);
       if (!this.superReady) return true;
@@ -3343,13 +3409,33 @@ class SovereignMK2 extends AdaptiveAI {
     this._checkLimiterBreak(this.target);
     this._updateSuperBank();
     this._updateNullRecoil();
-    this._updateNullAnchor();
+    // Null Anchor removed Sep 7 2026 — see _updateNullAnchor()'s note. The method
+    // is kept (unreferenced) so the behaviour can be restored by re-adding this
+    // one call, rather than by rewriting it.
+    // this._updateNullAnchor();
     this._vetoVoidStep();
     this._vetoSkyClimb();
     this._vetoExtraJump();
     this._ringoutGuard();
     this._edgePressure();
     super.update();
+    this._resolveTactic();
+    this._resolveApproach();
+    this._airApproachGuard();
+    this._airDenyTrack();
+    // Before _sampleDecision, which owns the same rising edge: a swing the gate
+    // converts is a GUARD he chose, and that is what the grid must be told he did.
+    this._swingGate();
+    this._sampleDecision();
+    // Last, and after super.update(): every shield site lives in updateAI() which
+    // runs inside it, and _airDenyTrack raises one of its own. Provisioning has to
+    // see the frame's final guard state, while still landing before the frame's
+    // attack hitboxes resolve.
+    this._provisionShield();
+    // Own ground tracker: Fighter.update() re-stamps _prevOnGround to the CURRENT
+    // frame before returning, so by here it can no longer answer "was he standing
+    // last frame" — which is the whole edge _airApproachGuard keys on.
+    this._airGuardPrevGround = this.onGround;
   }
 
   // ── RINGOUT GUARD — the defensive half of the edge game ───────────────────
@@ -3403,11 +3489,32 @@ class SovereignMK2 extends AdaptiveAI {
     const DANGER = 110 + kb * 5;                       // ~145px vs spear, ~190 vs hammer
     if (m > DANGER) { this._ringoutRisk = 0; return; }
     const inward = marginL < marginR ? 1 : -1;
-    const risk   = 1 - m / DANGER;                     // 0 at the threshold, 1 at the lip
+    let   risk   = 1 - m / DANGER;                     // 0 at the threshold, 1 at the lip
+
+    // THE CORNER IS ALSO WHERE HE CONVERTS. This guard is a blanket "walk to the
+    // middle" and it fires on geometry alone, so it pulled him off the one
+    // position his kills come from: measured over the 2026-09-06 replays, while
+    // the player was inside the same danger band he was moving AWAY from them on
+    // 38% / 48% of frames and swinging on 6-15%, and his stock count tracked it
+    // exactly — 5 ringouts in the match where he stayed, 0 in the one where he
+    // did not. Knockback has a DIRECTION: when the target is on the outward side
+    // of him, their hits push him toward centre and the near edge is not a threat
+    // at all, it is the wall he is pressing them into. Fade the guard out across
+    // that read rather than switching it off, so a target level with him still
+    // registers and only a genuinely cornered one frees him to commit.
+    const _tgt = this.target;
+    if (_tgt && _tgt.health > 0) {
+      // >0 when the target is further out toward the near edge than he is.
+      const outward = (this.cx() - _tgt.cx()) * inward;
+      if (outward > 0) risk *= Math.max(0, 1 - outward / 90);
+    }
     this._ringoutRisk = risk;
+    if (risk <= 0.01) return;
     // Never push him off the OTHER side, and never override a real hazard escape.
     if (this.isEdgeDanger(inward)) return;
-    this.vx += inward * (0.30 + risk * 0.85);
+    // Scaled by risk end-to-end (the 0.30 term used to be a floor). Identical at
+    // the lip, where it matters; continuous as the corner-press read fades it out.
+    this.vx += inward * risk * 1.15;
     const cap = (this.classSpeedMult || 1) * 6.5;
     if (Math.abs(this.vx) > cap) this.vx = Math.sign(this.vx) * cap;
   }
@@ -3500,10 +3607,24 @@ class SovereignMK2 extends AdaptiveAI {
       lo.wk !== 'gauntlet' && lo.wk !== 'mkgauntlet');
     if (!pool.length) return null;
 
-    const tried = pool.reduce((n, lo) =>
-      n + ((this._loadoutStats[lo.key] && this._loadoutStats[lo.key].lives) ? 1 : 0), 0);
+    // EXPLORATION COUNT MUST COME FROM THE DOSSIER, NOT FROM _loadoutStats.
+    // _loadoutStats is built in the constructor and _pickLoadout is called EXACTLY
+    // ONCE, from _ensureMatchLoadout, on the first frame he has a target — before
+    // any life has been banked. So `tried` was structurally always 0 and eps was
+    // always the 0.30 branch: 30% of all matches opened on a uniformly random kit,
+    // and because the pick is locked for the match (see _ensureMatchLoadout) he
+    // could never correct it. Measured in 2026-09-06 replay (3): opened on hammer
+    // (reach 80, cooldown 75) against a spear (reach 130, cooldown 44) and lost
+    // 10-2 without ever re-picking, while the counter-informed score would have
+    // handed him katana by a factor of ~2. The dossier is the only loadout memory
+    // that survives a match, so it is the only thing that can honestly say how
+    // much he has already explored.
+    const _dk0 = (typeof SovDossier !== 'undefined') ? this._dossierKeys() : [];
+    const tried = _dk0.length
+      ? pool.reduce((n, lo) => n + (SovDossier.loadoutPrior(_dk0, lo.key) ? 1 : 0), 0)
+      : 0;
     const eps = tried < 3 ? 0.30 : 0.10;
-    if (Math.random() < eps) return pool[Math.floor(Math.random() * pool.length)];
+    const explore = Math.random() < eps;
 
     // Put the priors on the same scale as what he is actually measuring. They are
     // damage per 1000 frames; a life is some unknown fraction of that, and a fixed
@@ -3524,9 +3645,10 @@ class SovereignMK2 extends AdaptiveAI {
     // in-match stats above only exist from life 2 onward and are wiped every
     // match; the dossier is what lets him open a REMATCH already holding the kit
     // that beat this person last time instead of rediscovering it over ten lives.
-    const _dkeys = (typeof SovDossier !== 'undefined') ? this._dossierKeys() : [];
+    const _dkeys = _dk0;
 
-    let best = null, bestScore = -Infinity;
+    // Scored first, chosen second — the exploration draw needs the scores too.
+    const scored = [];
     for (const lo of pool) {
       const rec  = this._loadoutStats[lo.key] || { lives: 0, dealt: 0 };
       const seed = lo.prior * scale;
@@ -3535,10 +3657,25 @@ class SovereignMK2 extends AdaptiveAI {
         const dp = SovDossier.loadoutPrior(_dkeys, lo.key);
         if (dp) { num += dp.mean * dp.weight; den += dp.weight; }
       }
-      const score = (num / den) * _smk2CounterBonus(lo, this.target);
-      if (score > bestScore) { bestScore = score; best = lo; }
+      scored.push({ lo, score: (num / den) * _smk2CounterBonus(lo, this.target) });
     }
-    return best;
+    scored.sort((a, b) => b.score - a.score);
+
+    // EXPLORATION DRAWS FROM THE TOP OF THE LIST, NOT FROM THE WHOLE POOL.
+    // The first pass at this filtered the explore pool on _smk2CounterBonus >= 1
+    // and that filter is inert where it is needed most: the counter prior is
+    // deliberately capped at +-18%, and against a 130-reach spear NOTHING in the
+    // pool clears 1.0 (best is katana at 0.87), so every kit stayed eligible and
+    // the coin flip was unchanged. The score is the only quantity with enough
+    // dynamic range to separate them — vs spear it spreads 85 (katana) to 44
+    // (hammer). So he still explores, but among kits that can actually win:
+    // trying katana instead of sword is exploration, opening on the worst kit in
+    // the pool and being locked into it for ten lives is not.
+    if (explore && scored.length > 1) {
+      const k = Math.min(3, scored.length);
+      return scored[Math.floor(Math.random() * k)].lo;
+    }
+    return scored.length ? scored[0].lo : null;
   }
 
   // Equip a loadout. The class contributes identity only — applyClass overwrites
@@ -3677,6 +3814,388 @@ class SovereignMK2 extends AdaptiveAI {
     if (this.y <= SKY_CEIL) this.vy = Math.max(this.vy, -1.5);
   }
 
+  // ── TACTIC GRID — situation x action, scored by consequence ──────────────
+  // The ledger this replaces scored ONE decision globally. That was enough to
+  // prove the idea (it took the platform trap from 32.0 to 21.3 hp/1000f and his
+  // deaths from 5 to 0 across three runs) and not enough to be intelligence: a
+  // single number per decision says "jumping at them is bad", never "jumping at
+  // them is bad WHEN THEY ARE ABOVE ME AND CLOSE, and fine from range".
+  //
+  // The bottleneck was never data. SovDossier already remembers opponents across
+  // page reloads and generalises them by archetype; smb-behavior-model.js
+  // fingerprints how they play; smb-sov-advisor.js reasons over 15s of history.
+  // All of it drained into _getCounterStrategy, which can return exactly five
+  // words. He observed in detail and could then say one of five things.
+  //
+  // A grid is what lets him compose an answer instead of picking one. 9 situations
+  // x 6 actions is 54 cells — coarse on purpose, because a five-minute match
+  // produces maybe 200 bookings and a finer grid would never fill. Cells that do
+  // fill are persisted per-opponent, so the grid arrives pre-warmed next time.
+  _situationKey(t) {
+    const tgt = t || this.target;
+    if (!tgt) return null;
+    const d  = Math.abs(tgt.cx() - this.cx());
+    const dy = tgt.cy() - this.cy();
+    const D = d < 90 ? 'c' : d < 220 ? 'm' : 'f';           // close / mid / far
+    const H = dy < -40 ? 'a' : dy > 40 ? 'b' : 'l';          // above / below / level
+    return D + H;
+  }
+
+  // Book a decision, resolve it by what it cost. Opened with _markTactic at the
+  // moment he commits, closed 30 frames later with the health delta on both
+  // sides. One booking open at a time: overlapping windows would credit the same
+  // damage to two decisions, and a cell's number only means something if exactly
+  // one decision is answerable for it. The cost is that a frequent action is
+  // under-sampled relative to a rare one — acceptable, and visible in `tries`.
+  _markTactic(action, t, prio) {
+    if (this.health <= 0) return;
+    const _fc = (typeof frameCount !== 'undefined') ? frameCount : 0;
+    const P = prio || 0;
+    // Priority preemption. Movement edges fire far more often than swings, so a
+    // single first-come slot let walking monopolise it: measured in a live fight
+    // the grid filled with retreat/approach_ground and the attack and shield cells
+    // stayed empty — which starves _swingGate, the one gate that needs both.
+    // A committing swing may therefore evict a movement booking still in its first
+    // few frames. The evicted booking is discarded, not counted: a partial window
+    // is worse than no data.
+    if (this._pendingTactic) {
+      const open = this._pendingTactic;
+      if (!(P > (open.prio || 0) && _fc - open.frame <= 10)) return;
+    }
+    // Movement is also rate-limited on its own account, so a fighter who paces
+    // cannot bury the informative cells under a hundred identical bookings.
+    if (P === 0 && _fc - (this._lastMoveBook || -999) < 45) return;
+    const tgt = t || this.target;
+    const sit = this._situationKey(tgt);
+    if (!sit) return;
+    if (P === 0) this._lastMoveBook = _fc;
+    this._pendingTactic = {
+      sit, action, prio: P, frame: _fc,
+      hp: this.health, lives: this.lives,
+      tHp: tgt ? tgt.health : 0, tLives: tgt ? tgt.lives : 0,
+    };
+  }
+
+  _resolveTactic() {
+    const P = this._pendingTactic;
+    if (!P) return;
+    const _fc = (typeof frameCount !== 'undefined') ? frameCount : 0;
+    if (_fc - P.frame < 30) return;
+    this._pendingTactic = null;
+    const t = this.target;
+    // A death inside the window is the maximum price a decision can carry, and
+    // health is already back at full by the time this reads it — so price it from
+    // the snapshot plus a surcharge rather than from the (meaningless) delta.
+    const died  = this.lives !== P.lives;
+    const taken = died ? P.hp + 40 : Math.max(0, P.hp - this.health);
+    // Same problem mirrored: if THEY died or respawned, the delta is garbage.
+    const dealt = (t && t.lives === P.tLives) ? Math.max(0, P.tHp - t.health) : 0;
+    const row = this._tacticGrid[P.sit] || (this._tacticGrid[P.sit] = {});
+    const e   = row[P.action] || (row[P.action] = { tries: 0, taken: 0, dealt: 0 });
+    e.tries++; e.taken += taken; e.dealt += dealt;
+    // Rolling window. Without decay a cell averages the whole match and an answer
+    // that stopped working in the first minute can never come back.
+    if (e.tries > 10) { e.tries *= 0.75; e.taken *= 0.75; e.dealt *= 0.75; }
+  }
+
+  // Net health per attempt. Negative means the decision loses him the exchange.
+  //
+  // Cell first, MARGINAL second. The first build of this returned null whenever a
+  // cell was thin, and measured against the single-key ledger it replaced that was
+  // a straight regression: 7 deaths against 0, damage taken 78.3 against 56.4,
+  // exchange 1.63 against 3.23. The cause was dilution, not the idea. Splitting
+  // one well-populated statistic across nine cells — while five other action types
+  // compete for the same booking slot — meant approach_air reached the 3-try
+  // threshold in almost no cell, the guard fired 1-9 times a match instead of
+  // 5-17, and _swingGate never fired once in six runs.
+  //
+  // So a thin cell falls back to the action's average across every situation,
+  // which is exactly the single-key number that worked. He starts with the general
+  // answer and specialises only where he has earned the right to, instead of
+  // having no opinion until every cell is full.
+  _tacticValue(sit, action) {
+    const e = this._tacticGrid[sit] && this._tacticGrid[sit][action];
+    if (e && e.tries >= 3) return (e.dealt - e.taken) / e.tries;
+    let tries = 0, taken = 0, dealt = 0;
+    for (const s2 of Object.keys(this._tacticGrid)) {
+      const c = this._tacticGrid[s2][action];
+      if (c) { tries += c.tries; taken += c.taken; dealt += c.dealt; }
+    }
+    if (tries < 4) return null;
+    return (dealt - taken) / tries;
+  }
+
+  // The argmax that makes this a composed counter rather than a chosen one: his
+  // best-scoring action in THIS situation, which can differ in every cell.
+  _bestAction(sit) {
+    const acts = new Set();
+    for (const s2 of Object.keys(this._tacticGrid)) {
+      for (const a of Object.keys(this._tacticGrid[s2])) acts.add(a);
+    }
+    if (!acts.size) return null;
+    let best = null, bestVal = -Infinity;
+    for (const a of acts) {
+      const v = this._tacticValue(sit, a);
+      if (v === null) continue;
+      if (v > bestVal) { bestVal = v; best = a; }
+    }
+    return best === null ? null : { action: best, value: bestVal };
+  }
+
+  // ── AIR APPROACH CHANNEL — its own slot, deliberately ────────────────────
+  // This statistic drives the only gate with a measured win, so it does not share
+  // the grid's single booking slot. It used to, and that is what broke it: with
+  // movement, swings, guards and supers all competing for one slot, the approach
+  // was booked perhaps a quarter as often, the guard fired 0-2 times a match
+  // instead of 5-17, and two successive grid builds measured WORSE than the plain
+  // ledger they replaced (7 deaths each against 0, exchange 1.63 and 1.04 against
+  // 3.23). Sampling pressure was the whole difference. A signal that drives a
+  // decision gets its own channel.
+  _markApproach(t) {
+    if (this._pendingApproach || this.health <= 0 || !t) return;
+    this._pendingApproach = {
+      frame: (typeof frameCount !== 'undefined') ? frameCount : 0,
+      hp: this.health, lives: this.lives, tHp: t.health, tLives: t.lives,
+    };
+  }
+
+  _resolveApproach() {
+    const P = this._pendingApproach;
+    if (!P) return;
+    const _fc = (typeof frameCount !== 'undefined') ? frameCount : 0;
+    if (_fc - P.frame < 45) return;
+    this._pendingApproach = null;
+    const t = this.target;
+    const died  = this.lives !== P.lives;
+    const taken = died ? P.hp + 40 : Math.max(0, P.hp - this.health);
+    const dealt = (t && t.lives === P.tLives) ? Math.max(0, P.tHp - t.health) : 0;
+    const e = this._approachStat;
+    e.tries++; e.taken += taken; e.dealt += dealt;
+    if (e.tries > 12) { e.tries *= 0.75; e.taken *= 0.75; e.dealt *= 0.75; }
+  }
+
+  _approachValue() {
+    const e = this._approachStat;
+    if (!e || e.tries < 4) return null;
+    return (e.dealt - e.taken) / e.tries;
+  }
+
+  // ── DECISION SAMPLER ─────────────────────────────────────────────────────
+  // Books what he actually did, by watching state rather than by editing the ~40
+  // paths that decide it — the choke-point rule this class already lives by (see
+  // _vetoExtraJump, _vetoVoidStep). Rising edges only: a decision is the frame he
+  // commits to it, not every frame he is still doing it.
+  _sampleDecision() {
+    const t = this.target;
+    if (!t || t.health <= 0 || this.health <= 0) return;
+    if ((this.stunTimer || 0) > 0 || (this.ragdollTimer || 0) > 0) return;
+    const wasGrounded = this._airGuardPrevGround;
+
+    // Swing committed this frame.
+    if ((this.attackTimer || 0) > (this._prevAtkSample || 0) && !this._prevAtkSample) {
+      this._markTactic('attack', t, 1);
+    }
+    this._prevAtkSample = this.attackTimer || 0;
+
+    // Guard raised this frame. (_provisionShield owns the same edge for stacks.)
+    if (this.shielding && !this._prevShieldSample) this._markTactic('shield', t, 1);
+    this._prevShieldSample = !!this.shielding;
+
+    // Super spent this frame.
+    const sm = this.superMeter || 0;
+    if (this._prevSuperSample - sm > 25) this._markTactic('super', t, 2);
+    this._prevSuperSample = sm;
+
+    // Grounded movement, committed — toward or away.
+    if (this.onGround && wasGrounded && Math.abs(this.vx) > 1.5) {
+      const toward = Math.sign(t.cx() - this.cx()) === Math.sign(this.vx);
+      const key = toward ? 'approach_ground' : 'retreat';
+      if (this._prevMoveSample !== key) this._markTactic(key, t, 0);
+      this._prevMoveSample = key;
+    } else if (this.onGround) {
+      this._prevMoveSample = null;
+    }
+  }
+
+  // ── AIR APPROACH GUARD — the veto the grid feeds ─────────────────────────
+  // Roughly thirty paths in this class jump at a target that is above them, each
+  // deciding alone, none of them aware of what the last one cost. Auditing all
+  // thirty has the blast radius _vetoVoidStep describes, and any path added later
+  // reintroduces it — so this is the same single choke point: watch the launch,
+  // not the launcher.
+  //
+  // One in five attempts is let through regardless. A veto keyed on a grid its own
+  // veto stops updating is a one-way door: he could never find out the approach
+  // had become good again.
+  _airApproachGuard() {
+    if (this._airDenyTimer > 0) this._airDenyTimer--;
+    const t = this.target;
+    const wasGrounded = this._airGuardPrevGround;
+    if (!t || t.health <= 0 || this.health <= 0) return;
+    if ((this.stunTimer || 0) > 0 || (this.ragdollTimer || 0) > 0) return;
+
+    // A fresh ground launch, this frame, at a target holding higher ground.
+    const launching = wasGrounded && !this.onGround && this.vy < -8;
+    if (!launching) return;
+    const dx = Math.abs(t.cx() - this.cx());
+    const occupiedHighGround = t.onGround && t.y < this.y - 40 && dx < 220;
+    if (!occupiedHighGround) return;
+
+    const TUNE = (typeof SMK2_TUNE !== 'undefined' && SMK2_TUNE) || {};
+    if (TUNE.tacticLedger === false) return;
+    const val = this._approachValue();
+    const denyAt  = (typeof TUNE.airDenyAt === 'number') ? TUNE.airDenyAt : -4;
+    const explore = (typeof TUNE.tacticExplore === 'number') ? TUNE.tacticExplore : 0.2;
+    if (val !== null && val < denyAt && Math.random() > explore) {
+      // What costs him is not the approach, it is ARRIVING NEUTRAL INSIDE THEIR
+      // SWING — of the 127 hits he took in replay 2026-09-10, 126 landed either
+      // airborne or within 0.6 s of touching down. So the response changes how he
+      // arrives before it changes whether he goes:
+      //
+      //   1. Land on the lip of their platform instead of on top of them.
+      //   2. Go anyway, but arrive behind a guard. A fresh guard is also a 65%
+      //      parry for its first 8 frames, so their landing punish becomes a
+      //      90-frame stun on THEM. Only possible now that _provisionShield gives
+      //      his guard real HP.
+      //   3. Only with no guard left to raise does he concede the platform and
+      //      hold the ground beneath them.
+      //
+      // Cancelling first would have been the obvious build and it is the wrong
+      // one: measured against a platform camper it cut the approach's cost by 63%
+      // and he died MORE, because a boss that answers a camper with passivity
+      // loses on the clock. Saving health is not the objective.
+      this._airDenyX = this._approachLip(t);
+      if (this._airDenyX === null) {
+        if ((this.shieldStacks || 0) < 4) {
+          this._armorApproach = true;
+        } else {
+          // Damp vx with the cancel: a cancelled launch that keeps its horizontal
+          // carry can walk him off the lip he was standing on, which trades a
+          // landing punish for a self-ringout.
+          this.vy = 0; this.vx *= 0.3; this._jumpVyPrev = 0;
+        }
+      }
+      this._airDenyTimer = 90;
+      // Still booked. An armoured or redirected approach is a different decision
+      // with a different price, and the grid only stays honest if it keeps reading
+      // the consequence of what he actually did.
+      if (this._airDenyX !== null || this._armorApproach) { this._markApproach(t); this._markTactic('approach_air', t, 1); }
+      return;
+    }
+    this._airDenyX = null;
+    this._armorApproach = false;
+    this._markApproach(t);
+    this._markTactic('approach_air', t, 1);
+  }
+
+  // ── SWING GATE — the second composed counter ─────────────────────────────
+  // The air guard changes how he MOVES. This changes how he FIGHTS, off the same
+  // grid: if swinging in this exact situation has been losing him health and
+  // guarding in it has been winning it, the swing becomes a guard.
+  //
+  // That sentence is the thing five preset strategy words could never say. It is
+  // situation-local, it is learned rather than authored, and against a player who
+  // baits swings at close range it is the correct read — which is why the gate is
+  // deliberately narrow: it needs BOTH halves of the evidence, not just a bad
+  // swing, or he would simply stop attacking and lose on the clock.
+  _swingGate() {
+    const TUNE = (typeof SMK2_TUNE !== 'undefined' && SMK2_TUNE) || {};
+    if (TUNE.tacticLedger === false || TUNE.swingGate === false) return;
+    const t = this.target;
+    if (!t || t.health <= 0 || this.health <= 0) return;
+    if ((this.attackTimer || 0) <= 0 || this._prevAtkSample > 0) return;  // swing's first frame only
+    if ((this.shieldStacks || 0) >= 4) return;      // no guard worth raising
+    const sit = this._situationKey(t);
+    const swing = this._tacticValue(sit, 'attack');
+    const guard = this._tacticValue(sit, 'shield');
+    if (swing === null || guard === null) return;
+    const explore = (typeof TUNE.tacticExplore === 'number') ? TUNE.tacticExplore : 0.2;
+    if (swing < -3 && guard > swing + 6 && Math.random() > explore) {
+      this.attackTimer = 0;
+      this.cooldown    = Math.max(this.cooldown || 0, 10);
+      this.shielding   = true;
+      this._armorHold  = Math.max(this._armorHold || 0, 12);
+      this._swingGated = (this._swingGated || 0) + 1;
+    }
+  }
+
+  // The landing spot on their platform that is NOT inside their swing: the lip on
+  // his own approach side. Returns null when they are already standing on that lip
+  // and there is no room to land clear — the one case where cancelling is right.
+  _approachLip(t) {
+    if (typeof currentArena === 'undefined' || !currentArena || !currentArena.platforms) return null;
+    const plat = currentArena.platforms.find(p =>
+      p && !p.isFloor && !p.isFloorDisabled &&
+      t.cx() > p.x - 20 && t.cx() < p.x + p.w + 20 && Math.abs((t.y + t.h) - p.y) < 18);
+    if (!plat) return null;
+    const lip = (t.cx() > this.cx()) ? plat.x + 22 : plat.x + plat.w - 22;
+    return Math.abs(lip - t.cx()) > 120 ? lip : null;
+  }
+
+  // Steering only — nudges vx, never seizes the fighter, so every other system
+  // still runs underneath. Airborne he flies to the lip; grounded (the cancelled
+  // case) he holds the ground under them and takes them on the way down, which is
+  // the read _readOpponentKit already names and has never acted on.
+  _airDenyTrack() {
+    // Raise the guard on descent, not at launch: held from the top of the arc it
+    // would be stale by the time he lands, and the parry window is the first 8
+    // frames of a FRESH raise.
+    if (this._armorApproach) {
+      if (this.onGround) {
+        this._armorApproach = false;
+        this._armorHold = 14;             // cover the landing recovery too
+      } else if (this.vy > 1) {
+        this.shielding = true;
+      }
+    }
+    if (this._armorHold > 0) {
+      this._armorHold--;
+      this.shielding = true;
+      if (this._armorHold === 0) this.shielding = false;
+    }
+    if (this._airDenyTimer <= 0) return;
+    const t = this.target;
+    if (!t || t.health <= 0) return;
+    if (!this.onGround && this._airDenyX !== null && this._airDenyX !== undefined) {
+      const dx = this._airDenyX - this.cx();
+      this.vx = Math.sign(dx) * Math.min(6, Math.max(2, Math.abs(dx) * 0.11));
+      return;
+    }
+    if (!this.onGround) return;
+    this._airDenyX = null;
+    const dx = t.cx() - this.cx();
+    if (Math.abs(dx) > 24) this.vx = Math.sign(dx) * Math.min(4.2, Math.abs(dx) * 0.09);
+  }
+
+  // ── SHIELD PROVISIONING ──────────────────────────────────────────────────
+  // Eight paths in this class raise a guard with a bare `this.shielding = true`.
+  // None of them touch `shieldStacks` or `shieldHP`, and the only code that ever
+  // gives an AI a positive shieldHP lives in Fighter.updateAI(), which this class
+  // replaces. So dealDamage() read him as stack 1 holding 0 HP: every hit cleared
+  // the `actualDmg >= _shHP` test, broke the guard on contact and passed the full
+  // damage through. His block was a parry roll or nothing.
+  //
+  // Same choke point as _vetoExtraJump rather than eight edits: watch the rising
+  // edge and provision exactly what processInput gives a human on a fresh press,
+  // including the degradation ladder and the recharge window. He blocks under the
+  // player's rules, not under his own.
+  _provisionShield() {
+    const up = !!this.shielding;
+    const wasUp = !!this._prevShieldProvision;
+    if (up && !wasUp && this.health > 0) {
+      const stacks = (this.shieldStacks || 0) + 1;
+      this.shieldStacks        = stacks;
+      this.shieldRechargeTimer = 180;
+      this.shieldHP = stacks <= 3 ? [30, 15, 5][stacks - 1] : 0;  // 4-6 are % tiers
+      if (stacks > 6) this.shielding = false;   // depleted — the wall the player hits
+    }
+    // Stamped last, after a depletion may have forced the guard back down: a raise
+    // he was refused must not read as "already holding" next frame, or the frame
+    // after that would skip provisioning and hand him a 0 HP guard again — exactly
+    // the bug this method exists to remove.
+    this._prevShieldProvision = !!this.shielding;
+  }
+
   // ── VOID STEP VETO ───────────────────────────────────────────────────────
   // He walked into his own voids and ring-outed three times in fifteen seconds
   // without taking a single hit. isEdgeDanger() was not the culprit — it correctly
@@ -3763,17 +4282,33 @@ class SovereignMK2 extends AdaptiveAI {
     if (!this.superReady) { this._superFullSince = 0; this._bankStale = false; return; }
     if (!this._superFullSince) this._superFullSince = _fc;
 
-    // Full and unspent for ~6s. Below that he still gets to hold for a real read.
-    this._bankStale = (_fc - this._superFullSince) > 380;
+    // Was ~6s (380 frames). Frame-by-frame `sm` across the eight September
+    // replays measured the cost of that hold: he sat on a full, unspent bar for
+    // 20-36% of every match against the player's 6-14%, which capped him at
+    // 2-3 spends per life no matter how long he lived, while the player's
+    // spends scaled with life length (8-11 in a long life). The domain counter
+    // only advances on spends, so the hold — not his charge rate, which matches
+    // the player's — is what put Absolute Dominion out of reach. ~1.5s still
+    // buys a real read; it just no longer buys a hoard.
+    const _held = _fc - this._superFullSince;
+    this._bankStale = _held > 90;
     if (!this._bankStale) return;
 
     // Don't fire it into nothing — it still has to be able to connect.
     const t = this.target;
-    if (!t || t.health <= 0 || t.shielding) return;
+    if (!t || t.health <= 0) return;
+    // A guard normally makes the spend worthless, but a player who simply holds
+    // shield would otherwise freeze the bar for the rest of the life. Past ~8s
+    // the pressure is worth more than the perfect window: shields have finite
+    // stacks and the super is how he breaks one.
+    if (t.shielding && _held < 500) return;
     if (this.stunTimer > 0 || this.ragdollTimer > 0) return;
     if ((this.attackEndlag || 0) > 0) return;
     const d = Math.hypot(t.cx() - this.cx(), t.cy() - this.cy());
-    if (d > 240) return;
+    // 240 was under half the stage. He closes distance himself, so a slightly
+    // wider gate lets the release fire on approach instead of waiting out the
+    // gap at a full bar.
+    if (d > 300) return;
 
     this.useSuper(t);
     if (!this.superReady) this._superFullSince = 0;
@@ -3893,6 +4428,19 @@ class SovereignMK2 extends AdaptiveAI {
   // could act through. Grounded on the main floor → stake the anchor (clamped
   // 80px inside the floor edges). Falling past the arena's kill line with no
   // recovery possible → tether back, once per cooldown.
+  // ── Null Anchor — DISABLED Sep 7 2026, no longer called from updateAI() ──────
+  // Removed on request. Worth recording what the measurement actually said, since
+  // the stated reason and the real one differ:
+  //
+  //   The premise was that the super it spends would have reset on death anyway,
+  //   making the save free. That is NOT how the code behaves — neither
+  //   `superMeter` nor `_domainSuperCount` is reset on respawn anywhere, so the
+  //   50 meter was a real, persistent cost.
+  //
+  //   The removal is still nearly free, for a different reason: the anchor only
+  //   saves RING-OUTS, and in smb_replay_sovereign_2026-09-07 exactly 1 of his 10
+  //   deaths was a ring-out. It was never what kept him alive, so taking it away
+  //   is not what will make him lose — nor was it what made him win.
   _updateNullAnchor() {
     if (this._anchorCd > 0) this._anchorCd--;
     if (this.health <= 0) return;
@@ -4171,8 +4719,9 @@ class SovereignMK2 extends AdaptiveAI {
     if (typeof bossBeams !== 'undefined' && Array.isArray(bossBeams)) {
       for (const b of bossBeams) {
         if (!b || b.done) continue;
-        // A beam telegraphs for 300 frames (5s) before it fires. Treating warning
-        // and active alike meant five seconds of backing away from a harmless
+        // A beam telegraphs before it fires (110 frames, 150 in the meteor storm;
+        // it was 300 when this was written). Treating warning
+        // and active alike meant seconds of backing away from a harmless
         // marker every time the boss cast — so he gave up all his pressure and
         // was often drifting back in by the time it actually turned on. React in
         // the last second of the warning, and for the whole 110-frame active burn.

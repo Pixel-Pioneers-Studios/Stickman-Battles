@@ -10,6 +10,210 @@ files with new load-order slots; existing files gain call sites, not rewrites.
 
 ---
 
+## Status — reconciled against shipped code, Sep 7 2026
+
+This plan was written before Phases 0/1/5 landed and before the story figure rig
+existed. The "what's wrong" section below is preserved as the original diagnosis;
+several of its findings have since been fixed, and **one premise is simply wrong**
+(Phase 4 — see the table). Verified by reading source, not by trusting this doc.
+
+**Bottom line after this pass: Phases 0, 1, 2, 3 and 5 are done; Phase 4 is one
+beat short of done; Phase 6 is the only phase with real scope left, and its largest
+bullet was disproven by measurement.** Three of the plan's original findings were
+false (4, 6's first bullet, and 2 by the time it was re-read) — every one of them
+would have caused a rebuild of working code. Verify before building.
+
+| Phase | Status | Evidence in the tree |
+|---|---|---|
+| 0 — shared substrate | **SHIPPED** | `js/smb-anim-core.js` (163L): `animEase`, `AnimSpring`, `animSmear`, `animHold`, `animArc`, `animDust`, `animScuff` all present as specified |
+| 1 — death & knockout | **SHIPPED** | `js/smb-death-anim.js` (455L) with `DEATH_BEATS` + `DeathAnim`; `VerletAngleConstraint` now exists in `smb-verlet.js` (13 refs), closing finding 1(b) |
+| 2 — player model | **SHIPPED** | Implemented in `js/smb-anim-fighter.js` (184L), loaded at `index.html:1620`. `animIK()` is the law-of-cosines two-bone solve; `animStridePhase()`/`f._fp` is foot planting; `animHeadLag()` overlap/drag; `animHitSquash()` squash & stretch; `animEyeTarget()`/`animBlink()` face and eye tracking; `animCapeDrive()` cape secondary motion (called from `smb-drawing-effects.js:199`); `animSmear` on fast limbs at `smb-fighter.js:4785`; pelvis counter-rotation at `:4475`. Gated by `animHiQ()` on `settings.animQuality !== 'classic'`, exactly as the phase required. `_lj` still exists but is now only the CLASSIC fallback path. |
+| 3 — finishers | **COMPLETE** (camera-grammar bullet dropped — see below) | `def.holds` defaults from `def.impact`; automatic anticipation is in as `FIN_ANTIC_FRAMES`/`_finAnticip` (applied in `_finApplyPose`, so no def needed editing); the victim beat track is `_finVictimBeat()`; the death hand-off is the `executeDeath` kind (`smb-death-anim.js:158`). **`def.smear` added Sep 7 2026** — see below. Only the full `_finApplyCam` camera grammar remains. |
+| 4 — domain expansion | **PREMISE FALSE — 4 of its 5 beats already exist** | `_tickDomainEntry` (`smb-domain.js:749-1414`) is 665 lines covering all 14 real domains: 49 `CinCam` calls, 27 flashes, 24 shockwaves, 15 background dims, plus a `CinPerf` figure performance with per-domain gestures. Only the "freeze" beat (slowMo + desaturate) is genuinely absent. Do **not** create `js/smb-domain-cinematic.js`. Rewritten below. |
+| 5 — chapter transitions | **SHIPPED** | `js/smb-transition.js` (`StoryTransition`); `_storyMarkTransition` (`smb-story-engine-flow.js:165`) now returns act-title-card vs ink-wipe vs seamless, not a boolean |
+| 6 — maps & camera | **NOT SHIPPED; first bullet FALSE, widening bullet DISPROVEN by measurement** | The `worldWidth: 900` arenas at `smb-data-arenas.js:664, 675, 686` (`homeAlley`, `suburb`, `rural`) are **deliberate**, not fake-scroll. Each carries a comment: they are contained to the painted art, which is `GAME_W` wide, so the boundary portals frame the visible scene instead of sitting thousands of px out in empty floor. This is the Jul 2026 boundary-portal fix. **Do not "fix" them.** The rest of Phase 6 (launch zoom-out, dynamic framing, parallax in arena backgrounds) is untouched and still stands — but it opens with "measure first", and that measurement has not been done. |
+
+> **Correction, same day.** An earlier pass of this table recorded Phase 2 as NOT
+> SHIPPED. That was wrong. It was concluded from `_lj` still being present in
+> `smb-fighter.js` and from grepping that file for the phase's *proposed* names
+> (`_footPlant`, `animQuality`). The work exists under different names in a
+> different file — `js/smb-anim-fighter.js` — and `_lj` survives only as the
+> classic fallback. The lesson generalises: **search for what implements the
+> behaviour, not for the names the plan guessed it would use.** Phase 3 was
+> understated for the same reason.
+
+### Phase 4 — rewritten Sep 7 2026, because the phase as written should not be built
+
+Finding 4 below says `triggerExpansion()` is "fifteen lines", the `announce` field is
+"a bare string", and there is "no camera move, no time freeze, no name card
+choreography, no cinScript". Measured against the file, that is wrong on nearly
+every count. `_tickDomainEntry` (`js/smb-domain.js:749-1414`) is **665 lines** of
+per-class entry choreography, and **all 14 real domains have a case** (the 15th
+`DOMAIN_DEFS` key, `none`, is a sentinel). Inside it: 49 `CinCam` calls, 27
+`CinFX.flash`, 24 shockwaves, 15 `bgContrast` background dims, and a `CinPerf`
+figure performance with per-domain gestures and an authored smear window.
+
+Against the phase's own five beats:
+
+| Beat | State |
+|---|---|
+| 1. Freeze — slowMo 0.05, desaturate, dim all but the owner | **The only genuinely missing piece.** No `slowMotion` write and no desaturation/vignette in the entry; `CinFX.bgContrast` does a background dim, which is adjacent but not the same |
+| 2. Anticipation — crouch, inward energy, camera push, ground cracks | Present, per class |
+| 3. The gesture — hands snap apart, smear, flash, shake, shockwave | Present — this is what `CinPerf.begin(..., {gesture, smearFrom, smearTo})` drives |
+| 4. Barrier closes | Present |
+| 5. Name card | Present as `CinFX.nameCard(...)`, plus the domain's real name via `queueAnnouncement(_label + ' — ' + def.name.toUpperCase())` (`:2732`) |
+
+So the correct scope for Phase 4 is **one beat, not a new file**. Do not create
+`js/smb-domain-cinematic.js`; do not route `triggerExpansion()` through a new
+`cinScript`. If the freeze is wanted, it is an addition to the existing common
+setup block at the top of `_tickDomainEntry`, where the camera is already claimed.
+
+**Not a defect, recorded so it is not "fixed":** 13 name cards read `CONVICTION`
+and 2 read `DOMAIN EXPANSION`. Both of the latter are Sovereign's. Sovereign is a
+separate foundational force in canon and is not part of the Conviction framing, so
+the split is characterisation, not drift.
+
+### Phase 6 — the measurement it asked for, done Sep 7 2026 (and it kills the widening bullet)
+
+Phase 6 opens with "Measure first: instrument `updateCamera` for one session and log
+clamp frequency per arena. Widening every map costs traversal time for nothing."
+That measurement now exists. 24 combat arenas, bot-vs-bot at `hard`, 22s each,
+**30,850 sampled frames**. Raw data: `docs/cam-measure-2026-09-07.json`.
+
+| Measure | Result |
+|---|---|
+| Horizontal clamp frequency | **0.23% of frames on average**, max **2.7%** (grass) |
+| Arenas clamping >1% of frames | **one** — grass |
+| Arenas with a `worldWidth` at all | **3 of 24** (megacity, warpzone, colosseum10 — all 3600) |
+| Clamp on those three wide arenas | **0.0%** |
+| Zoom floor reached on the wide three | **0.39 / 0.39 / 0.40** |
+| Peak fighter separation there | ~2,320px |
+
+**The "widen 3600 → 4800" bullet is not supported and should be dropped.** The
+camera essentially never reaches its horizontal bounds — the thing widening would
+relieve is not happening. Widening would only add traversal time, which is exactly
+the cost the plan itself warned about.
+
+**What the data does show is the opposite problem.** On the three wide arenas the
+camera resolves separation by *zooming out*, not by clamping — down to 0.39, i.e.
+fighters rendered at under 40% size, with the pair up to ~2,320px apart. Phase 6's
+own bullet "allow the camera to zoom out (rather than clamp) when a fighter is
+launched" is therefore already the behaviour, and it is pushed to its floor
+(`minZoom = Math.max(0.30, GAME_W / (worldWidth + 200))`, `smb-camera.js:335`).
+The legibility problem on wide maps is the zoom-out, so a wider map makes it worse.
+
+By contrast the 21 single-screen arenas never drop below **0.82** zoom. The split is
+clean: single-screen arenas are framed fine; the wide ones trade legibility for
+containment.
+
+If Phase 6 is picked up, the question worth asking is not "how wide should arenas
+be" but "what should the camera do when two fighters are 2,000px apart" — a split
+screen, a leash, or an off-screen indicator (`drawEdgeIndicators` already exists in
+`smb-menu-utils.js`). That is a design decision, not a tuning one.
+
+**Harness note:** the bot flag is `f.isAI`, not `f.isBot`, and `startGame()`
+rebuilds `players[]` after it returns — flagging fighters immediately after the call
+is silently discarded. The tell is `sepMean === sepMax` exactly, with the loop
+otherwise running normally. The first run of this measurement produced a full clean
+table of zeros that way.
+
+### Phase 1 — verified Sep 7 2026 (the verification the plan required and never got)
+
+The plan's non-negotiable step 5 was a before/after `.smbreplay` death comparison.
+That is not recoverable now — recording a "before" means reverting shipped code — so
+Phase 1 was instead verified directly against its own spec, in a live browser:
+
+| Spec item | Result |
+|---|---|
+| 1.1 no double corpse | **Pass.** `PlayerRagdoll.collapse(p)` is now only an `else if` fallback at the six `checkDeaths()` sites; `new VerletRagdoll(f)` occurs once, inside DeathAnim's settle hand-off |
+| 1.2 joint angle limits | **Pass.** `VerletAngleConstraint` present in `smb-verlet.js` (13 refs) |
+| 1.3 three authored beats | **Pass.** A real kill runs `impact → stagger → fall → settle → done` through the game loop |
+| 1.4 directional variety | **Pass, all 7 cases.** finisher→`executeDeath`, boss+kb≥10→`voidDeath`, boss+low kb→`crumple`, splash→`blastDeath`, kb≥13→`launchDeath`, chip→`crumple`, no context→`crumple` |
+| 1.5 weapon leaves the hand | **Pass.** `DeathAnim._props` gains an entry on every death kind tested |
+
+`executeDeath` correctly skips `stagger`/`fall` — the finisher owns that
+presentation, as designed. `landed` is true for `crumple` and false for
+`launchDeath`/`blastDeath` within the sample window, consistent with those kinds
+arcing away. Repeat `DeathAnim.begin()` on an already-dying fighter is ignored
+rather than stacking a second record. Zero page errors across every case.
+
+Visually confirmed: the corpse lies extended on the ground rather than converging
+to the curled silhouette that finding 1(a) described.
+
+**Two harness notes**, both of which produced convincing false failures first:
+calling `DeathAnim.update()` by hand stalls in `impact` forever, because the beat
+requests a hit-stop that only the real loop decrements — drive deaths through
+`gameLoop`. And per-hit damage is capped, so `dealDamage(att, tgt, tgt.health + 50)`
+does **not** kill; set health low first, then land a normal blow.
+
+### Phase 3 `def.smear` — added Sep 7 2026
+
+`Fighter.draw()` only smears a limb when the state is `attacking`/`ragdoll`/
+spinning, and `_finApplyPose` deliberately never writes `attackTimer` — doing so
+would re-arm the melee hit-scan and let a finisher damage bystanders. The
+consequence was that **the biggest swing in the game was the only swing that never
+trailed**. Fixed in the shared layer, so all 29 defs gained it without being edited:
+
+- `_finSmearAt(def, timer)` in `smb-finisher-engine.js` resolves the active smear
+  window, defaulting to every `def.swing` window — the same opt-out shape
+  `def.holds` uses for `def.impact`. `def.smear` overrides with
+  `{at, dur, samples, alpha}`; `def.smear = false` disables it for a finisher whose
+  presentation does not want trails (a slow crush, a hold).
+- `Fighter.draw()` adds `!!this._finSmear` to `_canSmear` and reads samples/alpha
+  from it. The displacement gate drops from 11px to 6px while a finisher owns the
+  pose: 11 exists to stop a walk cycle ghosting every step, and a finisher has no
+  walk cycle.
+
+Verified by sweeping `_finApplyPose` across all 29 defs' full timelines: every def
+gets a smear window, none error, each window matches its swing duration exactly
+(sword `swing.dur 16` → 16 smear frames), 513 smear frames total. Default,
+`smear:false`, explicit-window, no-swing and post-`_finClearPose` cleanup paths were
+each checked individually.
+
+**Camera grammar — this bullet should be DROPPED, not built.** It was first
+deferred as "needs visual review"; measurement then settled it. The finisher defs
+already own their cameras: **310 `CinCam.` calls across the 8 def files**
+(weapon 94, weapon2 80, boss 35, beast 21, tf 20, reality 19, void 19, yeti 18),
+driving `slowMo`, `zoomTo`, `focusMidpoint`, `focusOn`, `shake` and `restore` on
+authored frame timelines — e.g. `smb-finisher-beast.js` goes 1.15 at frame 0, 1.55
+at 38, 1.0 at ~50, 1.3 at 60, `restore()` at 105. `_finApplyHolds` adds the engine's
+own hold zoom on top of that.
+
+An automatic `_finApplyCam` that pushes in on anticipation and snaps out on impact
+would be a **second writer to the same camera**, on frames the defs are already
+driving. That is the "duplicate systems — two systems writing to the same global"
+entry in CLAUDE.md's failure table, applied to a load-bearing cinematic path. The
+per-def camera work is the feature, not a gap.
+
+With that dropped, **Phase 3 is complete.**
+
+### What shipped that this plan did not anticipate
+
+Phase 2's goals were partly met on the **story-scene** rig instead of the gameplay
+rig, via `js/smb-figure-rig.js` (521L) — keyframed `POSES` + `CLIPS` with per-key
+easing and holds, which is a stronger substrate than the per-state sine waves Phase 2
+assumed it would be patching. It brought overlapping action, squash/stretch, tapered
+limbs, feet, contact shadow and rig-sampled smears to all 113 story scenes.
+
+Two consequences for this plan:
+
+- **Finding 3 is resolved twice over.** The plan said "the good rig is already in
+  the repo, promote it". Both rigs were instead rebuilt independently: the gameplay
+  fighter got `js/smb-anim-fighter.js` (IK, foot planting, overlap, squash), and the
+  narrative figure got `js/smb-figure-rig.js` (keyframed poses and clips). They do
+  not share code. That is a real duplication to be aware of, but it is duplication
+  of *substrate*, not of the old `_drawFigure` gait code the finding was about.
+- **The Phase 2 cape bullet is now contradicted.** It calls for porting the bezier
+  cape into `drawAccessory`. The cape was subsequently turned **off by default**
+  (`SCENE_CAPE_DEFAULT = false`) because it flattened the silhouette on every figure.
+  Do not port it without revisiting that decision.
+
+Phase 1's verification bullet — "record a `.smbreplay` before and after and compare
+deaths side by side" — was never done. The captures in `replays/` dated 2026-09-06
+are boss-tuning runs, not death-animation A/Bs.
+
+---
+
 ## What's actually wrong (verified in source, not assumed)
 
 ### 1. Death is the worst offender, and it is two bugs stacked

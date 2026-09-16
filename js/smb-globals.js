@@ -62,11 +62,122 @@ const SERVER_CONFIG = {
 // ============================================================
 const CHANGELOG = [
   {
+    version: '4.3.0',
+    title: 'THE SHARPENED EDGE UPDATE',
+    date: '2026-09-16',
+    flavor: 'Thirteen weapons measured against each other until none of them was the obvious answer, a front door worth walking through, and levels that expect you to actually finish them.',
+    isLatest: true,
+    changes: [
+      // ── Story levels ──────────────────────────────────────────────────────
+      { cat: 'Story',  text: 'Reaching the exit no longer finishes a level. Every enemy in the area has to be down first, and the exit marker burns red until they are — running the length of a world past everything that lived in it was, until now, a complete clear' },
+      { cat: 'Story',  text: 'A level\'s objective is a requirement rather than decoration. Caches have to be recovered, mechanisms thrown, an escort actually delivered — and finishing the objective no longer ends the level on its own while enemies are still standing' },
+      { cat: 'Story',  text: 'Optional fights stay optional. Guardians posted on hidden caches and the elites behind side portals are off the required list, so nothing off the main path can hold a level open' },
+      { cat: 'Story',  text: 'The objective bar carries a live count of what is left, and a straggler who ends up somewhere you would never think to look comes to find you instead of hiding. Enemies you outran are spawned in rather than left queued where they can never be fought' },
+      { cat: 'Story',  text: 'On the long one-map regions, each stretch is sealed by the same rule — you can no longer bank chapter after chapter by walking past their fights' },
+      { cat: 'Fix',    text: 'Scenes between levels played on top of a live match. The world underneath kept running for the whole cutscene — enemies fought, timers ran, and you could take damage from a fight nobody could see. Everything stops now while a scene, or a branching choice, is on screen' },
+      { cat: 'Fix',    text: 'Escape during a between-level scene both skipped the scene and opened the pause menu underneath it' },
+
+      // ── Combat ────────────────────────────────────────────────────────────
+      { cat: 'Combat', text: 'Clashes are a precision beat now, not a default outcome. Two blades only ring off each other if the swings began within three frames, both fighters are swinging into each other, and both weapons actually reach — miss any of those and someone simply gets hit' },
+      { cat: 'Combat', text: 'Strength has to match. A swing meets a swing, an ability meets an ability, a super meets a super — bring the weaker action into a stronger one and it breaks outright: your swing is cancelled with real recovery on it and their attack lands untouched' },
+      { cat: 'Combat', text: 'Three fast hits with your back to a wall and you get out of it, with invulnerability on the way. This existed but belonged to one boss alone, so no player, bot or story enemy had any answer to being pinned — and the walls that spring up mid-level put a corner anywhere. It was also measuring the wrong wall: it tested the edges of the screen rather than of the world, so in a walking world it could not fire where you were actually trapped. It now reads the walls that are really there, the spring-up ones first' },
+      { cat: 'Balance', text: 'Air Dash is gone. Two very different moves were sharing one double-tap — a ground roll and an air burst — and the airborne half turned spacing into a non-question. The skill node is removed and the 120 EXP it cost is refunded to saves that had bought it' },
+
+      // ── Balance ───────────────────────────────────────────────────────────
+      { cat: 'Balance', text: 'Every melee weapon rebalanced against measurement rather than feel. A headless harness fought all thirteen against each other, 384 matches per weapon per round, and the spread between the best and worst weapon fell from 95 points of win rate to 51 — the imbalance, measured as distance from an even 50%, roughly halved' },
+      { cat: 'Balance', text: 'The flail and the hammer were the two genuinely broken weapons, winning 100% and 92% of their matchups. Both are now near the middle of the field, still the heaviest and slowest things you can carry — the per-hit weight is the point, and it stayed' },
+      { cat: 'Balance', text: 'The axe was the worst weapon in the game by a distance, winning 5% of its matchups; it is now competitive. The combat gloves, shield, electric staff and broomstick were all raised out of the bottom of the table' },
+      { cat: 'Balance', text: 'Weapon stats now appear as bars in the picker, read live from the weapons themselves. The old descriptions carried damage figures typed in by hand, and the balance pass had quietly made nearly every one of them wrong' },
+      { cat: 'Fix',    text: 'Ranged weapons were deliberately left alone. They come last in every simulated table, but that is the bots refusing to keep their distance rather than the weapons being weak — a bow with 700 range was fighting at a median gap of 130 pixels, inside the band where its own damage is penalised. Buffing the numbers would have broken them for anyone who actually kites' },
+
+      // ── The shell ─────────────────────────────────────────────────────────
+      { cat: 'Visual', text: 'The in-game HUD was reading as a debug readout. Health bars stretched to nearly half the screen on a wide display — which also made a 10-damage hit look like nothing had happened — so they are capped, set into a recess, and pulled off full saturation. Lives are drawn pips now instead of characters that landed differently on every machine' },
+      { cat: 'Visual', text: 'Damage numbers no longer out-shout the fight. They appear on every hit, and at full chroma a normal exchange was a confetti spray over the fighters throwing the punches — the damage tier still reads at a glance' },
+      { cat: 'Fix',    text: 'A clash printed itself as "-CLASH". The floating-number code assumed it was always given a number, so it prefixed the label with a minus sign and picked its colour by comparing text against damage thresholds' },
+      { cat: 'Visual', text: 'Fighters are drawn as one figure instead of a set of separately painted parts. The old build read as segments bolted together; the body is now a single silhouette under one light' },
+      { cat: 'Visual', text: 'Arena colour reworked across the board — grounded materials and real value steps instead of flat bright fills' },
+      { cat: 'Fix',    text: 'The Defense minigame never drew its nexus. Two different functions were competing for the same name, and the one that won belonged to the story mode and quietly did nothing here' },
+      { cat: 'Visual', text: 'The whole menu was running three different button designs at once — flat glass pills, a gradient-and-bevel set, and a hand-styled one-off on the main button — and whichever loaded last won. There are three roles now: one filled button for the single thing to press, an outline for alternatives, and quiet text for utilities' },
+      { cat: 'Visual', text: 'Ten card designs, each with its own colour and glow, collapsed onto one surface. A row of them used to read as unrelated products' },
+      { cat: 'UI',     text: 'The home screen opens on your own progress — your name, level, coins, and the chapter you stopped on, with one button to resume it. Every mode is visible as a tile instead of hidden two clicks behind a pair of cards, and the first-run tutorial offer no longer sits in the middle of the screen as an accept-or-dismiss bar' },
+      { cat: 'Visual', text: 'New home screen art: instead of a figure standing still, you come through the rift mid-dash with hunters closing from the other side' },
+      { cat: 'Visual', text: 'Loading screens are animated scenes now, one for each situation — story, boss, True Form, Battle Royale, minigames, training, online and versus. Three still images had been covering six modes between them, and Battle Royale and online matches had no art of their own at all' },
+
+      // ── Fixes ─────────────────────────────────────────────────────────────
+      { cat: 'Fix',    text: 'Checkmarks sat off-centre in every checkbox in the game. The tick was positioned by hand against a box that two competing rules had made 18 by 15 pixels — not square, so no amount of nudging could have centred it' },
+      { cat: 'Fix',    text: 'Story progress could read past 100% — a finished save reported 201%, because completed chapters were being counted with duplicates. The percentage on the home screen and the journey screen are now the same number, and that number is the count of distinct chapters you have actually beaten' },
+      { cat: 'Fix',    text: 'The Resume button on the pause screen was printing a black outline over its own near-black label, smearing the word into an unreadable double image' },
+      { cat: 'Setting',text: 'Replay Mode is on by default, so returning to a chapter you have beaten replays its cutscenes and fights instead of letting you walk through' },
+      { cat: 'UI',     text: 'The build number is back on the home screen, where it opens the changelog' },
+    ],
+  },
+  {
+    version: '4.2.0',
+    title: 'THE LIVING WORLD UPDATE',
+    date: '2026-09-09',
+    flavor: 'Every road you walk is somewhere now, every scene between the fights plays as a film, and three tests are waiting that no amount of reflex will pass.',
+    changes: [
+      // ── Worlds ────────────────────────────────────────────────────────────
+      { cat: 'Visual', text: 'Every walking chapter renders the place it was written for. All 55 of them were authored with an arena — a coast, a cave, a burning city — and the walking-world builder was throwing that away and drawing the same navy sky and the same generic city tiles for the entire campaign. 33 distinct worlds now render across 59 chapters, up from one' },
+      { cat: 'Visual', text: 'Enclosed places are visibly enclosed — the suburb has its fence, the void and the god domain have their walls, drawn at the real edges of the map rather than somewhere out in the middle of it' },
+      { cat: 'Visual', text: 'New backdrops built out for the soccer stadium, deep space, the lava fields, the frozen peaks, Mega City, the Warp Zone, the Grand Colosseum and The New Realm, each with its own depth layers instead of a flat gradient' },
+      { cat: 'Visual', text: 'Eight arenas that existed in the game but appeared in no chapter at all are now placed across the campaign, breaking up stretches that had been repeating the same theme' },
+      { cat: 'Fix',    text: 'One chapter\'s palette could bleed into the next — the sky and ground gradients were cached under a single name shared by every walking world' },
+
+      // ── Story presentation ────────────────────────────────────────────────
+      { cat: 'Cinematic', text: 'Every story scene is a cutscene now. Beats advance on their own once a line has typed and held, the camera keeps drifting so a long hold is never a frozen still, the letterbox slides in, and there is a real skip that ends the sequence instead of nudging you forward one line at a time. Hold the button to fast-forward at 4x' },
+      { cat: 'Cinematic', text: 'A run of consecutive story chapters can now play as one continuous film — narration, your choice, then straight into the next — instead of eleven chapters and eleven victory screens' },
+      { cat: 'Cinematic', text: 'Characters in story scenes are hand-posed now. A keyframed rig drives them through held poses, anticipation and three-frame snaps, which is something the old motion could not express at all; figures also scale with your window instead of sitting at a fixed size that vanished on a large display' },
+      { cat: 'Visual', text: 'Captions are a soft gradient scrim tinted to the act rather than a flat black subtitle bar, the type scales with your window, and in cinematic mode the line sits above the lower bar the way film subtitles do' },
+      { cat: 'Story', text: 'Every narrated chapter has its own staging. 47 chapters had no scene written for them and were falling back to a generic act backdrop — the count is now 111 of 111' },
+      { cat: 'Fix',    text: 'Scene staging was landing on the wrong chapters. Scenes are keyed by chapter number and every chapter added since they were written had slid them along, so only 10 of 66 were still on the chapter they were authored for and 25 were sitting on chapters with no story at all. All 66 are back where they belong' },
+      { cat: 'Story', text: 'The story reads faster. Hold times are now a reading-rate budget rather than a fixed floor and cap — short lines used to sit on screen twice as long as anyone needs while the longest cards flashed past unreadably — and around 34 chapters carrying real repetition were trimmed. The whole campaign is about five minutes shorter with nothing cut that mattered' },
+      { cat: 'Fix',    text: 'Story figures drew in the wrong colour. The face was setting a pen for the brows and mouth and never putting it back, so every attacking figure was rendered entirely in mouth-red and every hurt figure in washed-out black, across all 113 scenes' },
+      { cat: 'Fix',    text: 'Cleaned up 273 stray quote-comma marks that were being printed inside story captions across 34 chapters, and fixed a crash in nine scenes that opened with a ring of portals' },
+
+      // ── New content ───────────────────────────────────────────────────────
+      { cat: 'Mode', text: 'The Trials — three chapters that test something other than your damage. The Trial of Sense hands you a lantern that deals no damage and fires a reveal sweep against an opponent you cannot see; the band between its two rings shows the distortions a body leaves in space, not the body, and the echo it stamps is already stale by the time you read it. Your weapon arc, your opponent\'s footfall dust and their hit reactions stay visible — you are blind to find them and sighted to fight them' },
+      { cat: 'Mode', text: 'The Trial of Control inverts gravity or your own controls mid-fight, each on its own readable tell — horizontal bands for one, vertical for the other — so you learn which rule is about to change rather than only that one is' },
+      { cat: 'Mode', text: 'The Trial of Self-knowledge fights you with a copy that replays your own inputs, mirrored, on a delay, carrying your weapon. It cannot be beaten by reacting faster; it can only be beaten by breaking your own habits' },
+      { cat: 'Mode', text: 'A late-campaign chapter now fields every one of the ninety-four before you at once, in order, each a little harder than the last. Ninety-four, and you — which is the number in the title', spoilerLevel: 2 },
+
+      // ── Combat ────────────────────────────────────────────────────────────
+      { cat: 'Combat', text: 'Whip rework — the tip is a sweet spot now. Connect at full extension for 1.55x damage and a bleed; connect up close and you only chip. Q lassos and hooks the target for two and a half seconds with every lash counting as a tip hit, and E is now Serpent\'s Coil: three extending lashes with the third launching' },
+      { cat: 'Combat', text: 'Finishers smear. The single biggest swing in the game was the only swing that never trailed its weapon, because a finisher deliberately never enters the attacking state. All 29 of them now trail through the blow' },
+      { cat: 'Combat', text: 'You get 48 frames of invulnerability when a finisher hands control back, so executing someone in a crowd no longer gets you punished on the exact frame the camera lets go' },
+      { cat: 'Balance', text: 'Supers no longer heal you faster than a boss can hurt you. Every super restores health and every fifth becomes a domain, and the fill rate was quick enough that a player could out-heal a boss indefinitely. Damage dealt while your own domain is open now charges nothing — the domain already pays you in every other way — and damage to minions charges at a third, because a stream of minions is not an opponent' },
+      { cat: 'Balance', text: 'Domain hazard knockback cut from 18 to 10. It was the hardest knockback of any domain hazard, so a single sure-hit near the edge was taking a whole life on 16 damage' },
+
+      // ── Bosses ────────────────────────────────────────────────────────────
+      { cat: 'AI',  text: 'Boss recovery is paced by phase. Later phases buy far more specials than early ones, so a flat recovery cost meant the deeper into the fight you got the less the boss did — melee dropped from 25 swings a minute to 11. The cost now scales with the phase, and a melee pressure window opens as each recovery ends so two recoveries can never chain back to back' },
+      { cat: 'Fix', text: 'One boss super was buying 22 seconds of silence from a single cast — its recovery was written in the wrong unit. That was the single largest cause of dead air in the fight' },
+      { cat: 'Combat', text: 'Boss specials tell you where they land. The meteor drew a shadow a fifth the size of its blast, so standing clear of the only visible marker still cost you 43. The chain slam teleported its victim and read as a 76-damage combo out of nowhere — it telegraphs now and whiffs if you leave. Spike volleys warn before they rise and are no longer narrower than the fighter they are aimed at, and beam warnings drop from five seconds to under two, which was long enough to walk away and come back before it fired' },
+      { cat: 'Fix', text: 'The gravity pulse dealt no damage at all — it dragged you in and then could not punish you for being there. It crushes on a falloff now' },
+      { cat: 'Fix', text: 'A boss waiting offstage between phases could still land hazard damage on you from two thousand pixels away with nothing visible on screen to blame' },
+      { cat: 'Fix', text: 'Dying clears a boss\'s lingering debuffs. Size was already restored on respawn but inverted gravity and inverted controls were not, so you came back still mirrored from a hit you had already paid a life for' },
+      { cat: 'Balance', text: 'True Form hits for 0.85x across all of its attacks, tuned in one place so its twenty-six damage sources stay in proportion to each other', spoilerLevel: 2 },
+      { cat: 'AI',  text: 'The Sovereign keeps a dossier on you. His adaptation had no opponent terms in it at all — every input was about himself — so he converged to the same fighter against a hammer berserker, a katana assassin and a spear zoner alike. He now remembers by kit and by fighting style, so what he learns transfers to opponents he has never met, and a rematch starts more than twice as close to where the last one ended', spoilerLevel: 3 },
+      { cat: 'AI',  text: 'His counter-picking reads a weapon\'s authored class and its reach instead of guessing from cooldown — spear, scythe and katana all read as heavy to him, and nothing in the decision looked at range, so he would answer a 130-reach spear with an 80-reach hammer and walk into pokes all match', spoilerLevel: 3 },
+      { cat: 'AI',  text: 'He stops retreating from domains that do not need him close. Against hazard-rain domains distance buys him nothing and costs him his entire offense — he spent one whole domain at zero attack uptime, 40% stunned, took 142 and dealt nothing. He also no longer gets pulled off the corner by the ring-out guard, which is where his kills come from', spoilerLevel: 3 },
+
+      // ── Engine ────────────────────────────────────────────────────────────
+      { cat: 'Fix', text: 'Bots follow a path again. The waypoint check measured from the middle of the bot to the top of the platform, a gap that is always larger than the tolerance while standing on one, so a bot walked to the first point of its route and stopped there permanently' },
+      { cat: 'Fix', text: 'The camera holds still. It biases toward you as fighters separate so a distant opponent on a wide map stops dragging the view, tracks from the edge of a soft dead zone instead of snapping, and no longer fights the HUD for the top of the world — which is what was causing the vibration' },
+      { cat: 'Visual', text: 'Hand-drawn weapon art is in for the axe and scythe, with the drawn shapes falling through to the old procedural art if they fail to load. Asymmetric weapons no longer draw upside down when you face left, and the ammo dots, cooldown bar, invincibility ring and scar trail no longer get rotated off the screen along with the weapon' },
+      { cat: 'Fix', text: 'Fixed a crash on chapters whose world has no floor beneath it — the void fog was building an impossible gradient and taking the frame down with it' },
+
+      // ── UI ────────────────────────────────────────────────────────────────
+      { cat: 'UI', text: 'The version number is back on the home screen, under the title, and clicking it opens these notes' },
+      { cat: 'UI', text: 'Phone layout fixes for the home button cluster and the tutorial prompt' },
+      { cat: 'System', text: 'Portal builds: CrazyGames support and its consent notice, and Newgrounds and Game Jolt are now allowed origins for online play' },
+    ],
+  },
+  {
     version: '4.0.26',
     title: 'THE CHOSEN KIT UPDATE',
     date: '2026-08-26',
     flavor: 'The hardest opponent in the game had been fighting with a weapon he never chose. He chooses now — and he changes his mind between lives, based on what has been working on you.',
-    isLatest: true,
+    isLatest: false,
     changes: [
       { cat: 'AI',      text: 'The Sovereign picks his own weapon and class now. He was locked to one kit for an entire match with no way to change it, which meant the single biggest factor in how much damage anyone does was decided for him before the fight started and never revisited', spoilerLevel: 3 },
       { cat: 'AI',      text: 'He starts on his own blade and re-picks every time he loses a life, keeping whatever has actually been earning damage against you and counter-picking your weapon — light kits to punish a slow swing, heavy ones to out-reach a fast one. Beat one kit and you have not beaten him; you have taught him to bring a different one', spoilerLevel: 3 },
@@ -811,7 +922,7 @@ let camDramaZoom   = 1.0;
 // SETTINGS & FRAME STATE
 // ============================================================
 // User-configurable settings (toggled from menu)
-const settings = { particles: true, screenShake: true, dmgNumbers: true, landingDust: true, bossAura: true, botPortal: true, phaseFlash: true, ragdollEnabled: (localStorage.getItem('smc_ragdoll') === '1'), finishers: true, view3D: (localStorage.getItem('smc_view3D') === '1'), experimental3D: (localStorage.getItem('smc_experimental3D') === '1'), hideHud: false, storyVoice: (localStorage.getItem('smc_storyVoice') !== '0'), replayMode: (localStorage.getItem('smc_replayMode') === '1'), animQuality: (localStorage.getItem('smc_animQuality') === 'classic' ? 'classic' : 'high') };
+const settings = { particles: true, screenShake: true, dmgNumbers: true, landingDust: true, bossAura: true, botPortal: true, phaseFlash: true, ragdollEnabled: (localStorage.getItem('smc_ragdoll') === '1'), finishers: true, view3D: (localStorage.getItem('smc_view3D') === '1'), experimental3D: (localStorage.getItem('smc_experimental3D') === '1'), hideHud: false, storyVoice: (localStorage.getItem('smc_storyVoice') !== '0'), replayMode: (localStorage.getItem('smc_replayMode') !== '0'), animQuality: (localStorage.getItem('smc_animQuality') === 'classic' ? 'classic' : 'high') };
 
 // Active finisher state — set by triggerFinisher(), cleared when animation completes or on backToMenu
 let activeFinisher = null;
@@ -967,7 +1078,7 @@ const SECRET_LETTER_POS = {
 
 // Arena order (used for menu background cycling)
 const ARENA_KEYS_ORDERED = ['grass', 'city', 'space', 'lava', 'forest', 'ice', 'ruins',
-  'cave', 'mirror', 'underwater', 'volcano', 'colosseum', 'cyberpunk', 'haunted', 'clouds', 'neonGrid', 'mushroom'];
+  'cave', 'mirror', 'underwater', 'volcano', 'colosseum', 'cyberpunk', 'haunted', 'clouds', 'neonGrid', 'mushroom', 'sewer'];
 
 // Menu background cycling state
 let menuBgArenaIdx   = 0;
@@ -1003,7 +1114,7 @@ let _publicRoomCheckTimer = 0;
 // ============================================================
 // VERSION
 // ============================================================
-const GAME_VERSION = '4.0.26';  // bump this when releasing; must match CHANGELOG[0].version
+const GAME_VERSION = '4.3.0';  // bump this when releasing; must match CHANGELOG[0].version
 console.log('[VERSION CHECK]', GAME_VERSION);
 
 // DEBUG / DEVELOPER STATE
@@ -1192,12 +1303,28 @@ let unlockedCosmetics  = [];    // cosmetic IDs; hydrated per account
 // ── Ability unlock toast ─────────────────────────────────────────────────
 let abilityUnlockToast = null;  // { text, icon, timer, maxTimer }
 
+// ── Between-level overlay hold ────────────────────────────────────────────
+// Narrative scenes and branch prompts are fullscreen overlays that open while a
+// match is still running. gameLoop() parks on this flag (and smb-input.js stops
+// feeding it keys) so the world underneath stops instead of simulating out of
+// sight. Held keys are dropped on both edges.
+function storyHoldGameplay(on) {
+  window._storySceneHold = !!on;
+  if (typeof _clearAllKeys === 'function') _clearAllKeys();
+}
+
 // ── Exploration chapter state ─────────────────────────────────────────────
 let exploreActive    = false;   // true while exploration chapter is running
 let exploreWorldLen  = 4200;    // total world length in game px (set per chapter)
 let exploreGoalX     = 3800;    // world x of goal object
 let exploreGoalName  = '';      // display name of the goal object
 let exploreGoalFound = false;   // true when player reaches the goal
+// Clear-the-area gate: the exit stays sealed while the level's objective is
+// unfinished or a required enemy is alive. Set by storyLevelClearBlocker()
+// consumers; read by the exploration HUD to explain WHY the mark won't take.
+let exploreGoalBlocked     = 0;  // count of required enemies still standing (0 = clear)
+let exploreGoalBlockReason = ''; // player-facing reason the exit is sealed
+let exploreFoesRemaining   = 0;  // required enemies left (alive + queued), for the HUD
 let exploreSpawnQ    = [];      // [{wx, def}] enemies to spawn as player passes wx
 let exploreEnemyCap  = 2;       // max concurrent exploration enemies alive at once
 let exploreCheckpoints = [];    // [{ x, hit }]

@@ -10,6 +10,67 @@ function _syncSelCards(gridId, val) {
     c.classList.toggle('active', c.dataset.val === val));
 }
 
+// ── Weapon stat bars ─────────────────────────────────────────────────────────
+// Read straight from WEAPONS so the picker can never drift from the balance
+// numbers. Bars are normalised WITHIN a category (melee vs ranged): a bow's 700
+// reach against a hammer's 58 would flatten every melee bar to nothing, and the
+// comparison a player actually makes is between weapons of the same kind. The
+// raw figure is printed next to every bar, so the bar is the comparison and the
+// number is the truth.
+var _WSTAT_MAX = null;
+function _weaponStatMax() {
+  if (_WSTAT_MAX) return _WSTAT_MAX;
+  var acc = { melee: { dmg: 1, range: 1, spd: 1 }, ranged: { dmg: 1, range: 1, spd: 1 } };
+  if (typeof WEAPONS === 'undefined') return (_WSTAT_MAX = acc);
+  Object.keys(WEAPONS).forEach(function (k) {
+    var d = WEAPONS[k]; if (!d) return;
+    var g = (d.type === 'ranged') ? acc.ranged : acc.melee;
+    g.dmg   = Math.max(g.dmg,   _weaponDisplayDamage(d));
+    g.range = Math.max(g.range, d.range || 0);
+    g.spd   = Math.max(g.spd,   d.cooldown ? 60 / d.cooldown : 0);
+  });
+  return (_WSTAT_MAX = acc);
+}
+
+// Several ranged weapons carry damage:0 and roll per shot through damageFunc.
+// Those functions are pure randoms with no side effects, so sampling them is
+// safe; showing the literal 0 would be a lie.
+function _weaponDisplayDamage(def) {
+  if (!def) return 0;
+  if (typeof def.damageFunc === 'function') {
+    var n = 0;
+    for (var i = 0; i < 24; i++) { try { n += def.damageFunc(); } catch (e) { return def.damage || 0; } }
+    return Math.round(n / 24);
+  }
+  return def.damage || 0;
+}
+
+// Rendered into the weapon DESCRIPTION panel, not onto the cards: a card in the
+// 5-column picker is ~55px wide, which clips a labelled bar and its value.
+function _weaponStatBarsHtml(key) {
+  var def = (key && String(key).startsWith('_custom_') && window.CUSTOM_WEAPONS)
+    ? window.CUSTOM_WEAPONS[key]
+    : (typeof WEAPONS !== 'undefined' ? WEAPONS[key] : null);
+  if (!def) return '';
+  var max = _weaponStatMax();
+  var g   = (def.type === 'ranged') ? max.ranged : max.melee;
+  var dmg = _weaponDisplayDamage(def);
+  var spd = def.cooldown ? 60 / def.cooldown : 0;
+  var row = function (label, frac, raw) {
+    var pct = Math.max(4, Math.min(100, Math.round(frac * 100)));
+    return '<span class="wstat-row">' +
+             '<span class="wstat-l">' + label + '</span>' +
+             '<span class="wstat-track"><i style="width:' + pct + '%"></i></span>' +
+             '<span class="wstat-v">' + raw + '</span>' +
+           '</span>';
+  };
+  return '<span class="wstat">' +
+    row('DMG',   dmg / g.dmg,             dmg) +
+    row('REACH', (def.range || 0) / g.range, (def.range || 0)) +
+    row('SPD',   spd / g.spd,             (def.cooldown || 0)) +
+  '</span>';
+}
+
 function _buildSelCardGrid(gridId, selectId, cardData, pid, type) {
   const grid = document.getElementById(gridId);
   const sel  = document.getElementById(selectId);
@@ -128,6 +189,10 @@ function showDesc(pid, type, value) {
   panel.style.display = 'block';
   titleEl.textContent = desc.title;
   bodyEl.innerHTML = [
+    // Stat bars read live from WEAPONS. The old descriptions carried hardcoded
+    // "Damage: N." strings that the balance pass silently invalidated — the
+    // hammer still claimed 22 after it became 14. Numbers live in one place now.
+    type === 'weapon' ? _weaponStatBarsHtml(value) : '',
     `<span style="color:#ccc">${desc.what}</span>`,
     desc.ability ? `<br><span style="color:#88ccff">${desc.ability}</span>` : '',
     desc.super   ? `<br><span style="color:#ffaa44">${desc.super}</span>`   : '',
@@ -189,6 +254,7 @@ const _ARENA_GIMMICKS = {
   neonGrid:   'Speed boost pads on the floor',
   mirror:     'Platforms drift and reality warps',
   desert:     'Quicksand pit slows movement in the center',
+  sewer:      'The map flows — fight on drifting trash, the sewage burns and sweeps',
   random:     'A random arena is chosen each match',
 };
 

@@ -371,20 +371,31 @@ function _showStory2Narrative(lines, callback) {
   _narrativeActive = true;
 
   if (typeof showNarrativeScene === 'function') {
+    // Every between-chapter segment plays as a cutscene, not a click-through
+    // reader: beats auto-advance on a reading-rate budget, the camera keeps
+    // drifting, and holding click/Space scrubs. holdLastBeat stops the film on
+    // its final beat and shows the ordinary Fight!/Continue button, so the
+    // player still chooses the moment the match starts.
+    //
+    // A multi-chapter run (smb-story-cinematic-sequence.js) does NOT come
+    // through here — it calls showNarrativeScene itself so it can span chapters.
     showNarrativeScene(lines, _activeStory2Chapter, function () {
       _narrativeActive = false;
       if (callback) callback();
-    });
+    }, { cinematic: true, holdLastBeat: true });
   } else {
     // Fallback: legacy DOM panel if scene renderer not loaded
     const panel   = document.getElementById('storyDialoguePanel');
     const bodyEl  = document.getElementById('storyDialogueBody');
     const btn     = document.getElementById('storyDialogueFightBtn');
     if (!panel) { _narrativeActive = false; if (callback) callback(); return; }
+    // Same hold as the canvas scene: this panel also opens over a live match.
+    if (typeof storyHoldGameplay === 'function') storyHoldGameplay(true);
     let idx = 0;
     function showLine() {
       if (idx >= lines.length) {
         panel.style.display = 'none';
+        if (typeof storyHoldGameplay === 'function') storyHoldGameplay(false);
         _narrativeActive = false;
         if (callback) callback();
         return;
@@ -455,10 +466,15 @@ function _showBranchChoice(ch, onComplete) {
         const contBtn = document.createElement('button');
         contBtn.textContent = 'Continue →';
         contBtn.style.cssText = btn.style.cssText;
-        contBtn.onclick = () => { document.body.removeChild(overlay); onComplete(); };
+        contBtn.onclick = () => {
+          document.body.removeChild(overlay);
+          if (typeof storyHoldGameplay === 'function') storyHoldGameplay(false);
+          onComplete();
+        };
         overlay.appendChild(contBtn);
       } else {
         document.body.removeChild(overlay);
+        if (typeof storyHoldGameplay === 'function') storyHoldGameplay(false);
         onComplete();
       }
     };
@@ -468,6 +484,8 @@ function _showBranchChoice(ch, onComplete) {
 
   overlay.appendChild(btnRow);
   document.body.appendChild(overlay);
+  // A branch prompt is a between-level overlay too — hold the match under it.
+  if (typeof storyHoldGameplay === 'function') storyHoldGameplay(true);
 }
 
 // ── Escort chapter launch ─────────────────────────────────────────────────────

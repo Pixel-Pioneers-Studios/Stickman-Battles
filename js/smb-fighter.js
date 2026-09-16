@@ -1,5 +1,33 @@
 'use strict';
 
+// ── CLASH ─────────────────────────────────────────────────────────────────
+// Two melee swings starting within CLASH_WINDOW frames of each other cancel
+// out instead of one silently losing the race. See Fighter._resolveClash().
+//
+// A clash is a precision beat, not a default outcome. Three things must all be
+// true: the swings began within CLASH_WINDOW frames, both fighters are swinging
+// INTO each other (opposed facing), and both blades actually reach — our arc
+// hits them and theirs hits us. Miss any one and the exchange falls through to
+// the ordinary first-wins rule.
+//
+// Strength also has to match. Every attacking action carries a tier (normal
+// swing / ability / super); only equal tiers can meet. A weaker action thrown
+// into a stronger one does not trade — it breaks outright and the stronger
+// action lands, which is what _resolveOverpower() handles.
+const CLASH_WINDOW    = 3;   // frames apart to still count as simultaneous
+const CLASH_REACH_PAD = 8;   // slack on the mutual-reach test, px
+const CLASH_KNOCKBACK = 6.5; // horizontal push applied to BOTH fighters
+const CLASH_ENDLAG    = 16;  // recovery before either may swing again
+const CLASH_COOLDOWN  = 20;  // re-clash guard, so a trade can't loop
+const CLASH_HITSTOP   = 8;   // freeze frames on the exchange
+const CLASH_STREAK_MAX   = 2;   // consecutive clashes allowed per pair
+const CLASH_STREAK_RESET = 120; // frames of no clashing that clears the streak
+// Attack strength tiers — only equal tiers may clash.
+const CLASH_TIER_ATTACK  = 0;
+const CLASH_TIER_ABILITY = 1;
+const CLASH_TIER_SUPER   = 2;
+const CLASH_BREAK_ENDLAG = 22; // recovery the overpowered fighter eats
+
 // ============================================================
 // FIGHTER
 // ============================================================
@@ -82,6 +110,9 @@ class Fighter {
     this.aiState     = 'chase';
     this.aiReact     = 0;
     this.squashTimer   = 0;  // frames of landing squash animation
+    this._wallSlamCd   = 0;  // re-fire guard for _wallSlam()
+    this._clashCd      = 0;  // re-fire guard for _resolveClash()
+    this._attackKindTier = CLASH_TIER_ATTACK; // strength tier of the current action
     this.aiNoHitTimer  = 0;  // frames bot has been attacking without landing a hit
     // ---- NO-IDLE SYSTEM ----
     this.intent          = 'pressure'; // 'pressure'|'reposition'|'bait'|'retreat'
@@ -154,6 +185,34 @@ class Fighter {
   cx() { return this.x + this.w / 2; }
   cy() { return this.y + this.h / 2; }
 
+  // The walls the AI should treat as the end of the world. In a normal arena that
+  // is the screen; in an arena that declares a worldWidth (Battle Royale's is
+  // 12000) the screen is a viewport, not a boundary, and reading GAME_W here made
+  // every bot past x=850 behave as though it were pinned against the right wall.
+  _aiWorldBounds() {
+    const a = (typeof currentArena !== 'undefined') ? currentArena : null;
+    if (a && a.worldWidth) {
+      return {
+        left:  a.mapLeft  !== undefined ? a.mapLeft  : -(a.worldWidth - GAME_W) / 2,
+        right: a.mapRight !== undefined ? a.mapRight : (a.worldWidth + GAME_W) / 2,
+      };
+    }
+    return { left: 0, right: GAME_W };
+  }
+
+  // Where "the middle, away from the corners" actually is. In Battle Royale the
+  // meaningful centre is the inside of the storm ring, not the middle of a
+  // 12000px world — repositioning toward x=6000 while the ring sits at x=1500 is
+  // a walk into the storm.
+  _aiSafeCenterX() {
+    if (typeof brActive !== 'undefined' && brActive &&
+        typeof brZoneLeft !== 'undefined' && typeof brZoneRight !== 'undefined') {
+      return (brZoneLeft + brZoneRight) / 2;
+    }
+    const b = this._aiWorldBounds();
+    return (b.left + b.right) / 2;
+  }
+
   _isInvalidAITarget(candidate) {
     return !candidate || candidate === this || candidate.health <= 0 ||
       (candidate.godmode === true) ||
@@ -205,6 +264,22 @@ class Fighter {
       tfSizeTargets.delete(this);
       this.tfDrawScale = 1;
       this.drawScale   = 1;
+    }
+    // Death clears the debuffs the boss put ON you. Size already restores above,
+    // but control/gravity inversion live in GLOBALS rather than on the fighter, so
+    // nothing was clearing them: you respawned still mirrored, from a hit you had
+    // already paid for with a life. Only a human death clears them — an AI death
+    // must not wipe an arena-wide state mid-fight.
+    if (!this.isAI && !this.isBoss) {
+      if (typeof tfControlsInverted !== 'undefined' && tfControlsInverted) {
+        tfControlsInverted = false;
+        if (typeof tfControlsInvertTimer !== 'undefined') tfControlsInvertTimer = 0;
+      }
+      if (typeof tfGravityInverted !== 'undefined' && tfGravityInverted) {
+        tfGravityInverted = false;
+        if (typeof forceResetGravity === 'function') forceResetGravity();
+      }
+      this._domainSlowFactor = 1;
     }
     // Always re-pick a safe platform — this handles moving/disappearing boss floor
     if (currentArena && typeof pickSafeSpawn === 'function') {
@@ -296,6 +371,17 @@ class Fighter {
     this.lavaBurnTimer   = 0;
     this._speedBuff      = 0;
     this._powerBuff      = 0;
+    // Map perks are a per-life economy. Buffs were already cleared here, but
+    // curses had no clear at all and maxHealth deltas never rolled back, so a
+    // death wiped everything you had earned and kept everything you had been
+    // punished with. Both sides now end with the life.
+    this.curses          = [];
+    if (this._perkMaxHpDelta) {
+      this.maxHealth      -= this._perkMaxHpDelta;
+      this._perkMaxHpDelta = 0;
+      // health was already refilled to the pre-rollback maxHealth further up.
+      this.health          = this.maxHealth;
+    }
     this._domainSlowFactor = 1;
     this._domainSlowAccum  = 0;
     this.classPerkUsed    = false;
@@ -621,8 +707,11 @@ class Fighter {
         screenShake = Math.max(screenShake, 12);
         // Launcher kick: knock them upward
         dealDamage(this, atk, 18, 12);
-        atk.vy = Math.min(atk.vy, -16);
-        atk.vx = this.facing * 6;
+        // Raw launch site: dealDamage's knockback scaling does not cover these two
+        // direct writes, so apply kbResist here or a countered boss flies like a minion.
+        const _kbR = atk.kbResist || 1;
+        atk.vy = Math.min(atk.vy, -16 * _kbR);
+        atk.vx = this.facing * 6 * _kbR;
         spawnParticles(atk.cx(), atk.cy(), '#ff6644', 16);
       }
     }
@@ -1390,6 +1479,45 @@ class Fighter {
             if (!this.isBoss && !tgt.isBoss && tgt.weapon && tgt.weapon.type === 'melee' && tgt.attackTimer > 0) {
               const _myStart  = this._attackStartFrame  || 0;
               const _tgtStart = tgt._attackStartFrame   || 0;
+              // ── STRENGTH MISMATCH ────────────────────────────────────────
+              // Only equal-strength actions may meet. A weaker action thrown
+              // into a stronger one breaks outright — no trade, no first-wins
+              // race — and the stronger one carries through to its damage.
+              const _myTier  = this._clashTier();
+              const _tgtTier = tgt._clashTier();
+              if (_myTier !== _tgtTier) {
+                if (_myTier < _tgtTier) {
+                  this._resolveOverpower(tgt, this);  // ours breaks
+                  break;
+                }
+                this._resolveOverpower(this, tgt);    // theirs breaks
+                // fall through — our stronger action lands below
+              } else {
+              // ── CLASH ────────────────────────────────────────────────────
+              // Two melee swings that began within a few frames of each other
+              // are a genuine trade, not a race one side quietly lost. Neither
+              // lands: both are thrown back and have to re-commit. Outside the
+              // window the original first-wins rule still applies, so existing
+              // tuning is untouched — this only replaces the silent cancel in
+              // the case where the timing really was simultaneous.
+              if (Math.abs(_myStart - _tgtStart) <= CLASH_WINDOW &&
+                  !this._clashCd && !tgt._clashCd && !isCinematic &&
+                  // Precision: both must swing into each other and both blades
+                  // must actually reach, or one swing simply landed first.
+                  this._clashArcsMeet(tgt) &&
+                  // At least one side must be human. Two AI on matched weapons
+                  // swing on a shared tick with identical cooldowns, so they
+                  // re-clash indefinitely: measured 0 damage dealt across 382
+                  // frames at 6px apart, against 42 damage in 191 frames with
+                  // clashing disabled. The streak cap alone did not break it.
+                  // A clash is a player-facing flourish anyway — two bots
+                  // deadlocking off-screen serves nobody.
+                  (!this.isAI || !tgt.isAI) &&
+                  this._clashStreakOk(tgt) && tgt._clashStreakOk(this)) {
+                this._resolveClash(tgt);
+                this.swingHitTargets.add(tgt);
+                break;
+              }
               if (_myStart >= _tgtStart) {
                 // tgt attacked first (or same frame) — cancel our swing so only tgt's hit registers
                 this.attackTimer = 0;
@@ -1398,6 +1526,7 @@ class Fighter {
               } else {
                 // We attacked first — cancel tgt's pending swing
                 tgt.attackTimer = 0;
+              }
               }
             }
             dealDamage(this, tgt, this._swingDamage(tgt), this.weapon.kb);
@@ -1589,7 +1718,10 @@ class Fighter {
         this.y += this.vy * slowMotion;
         this.vx *= 0.72;
         this.vx = clamp(this.vx, -13, 13);
-        this.y = clamp(this.y, -200, GAME_H + 100);
+        // GAME_H+100 is the right floor for a 520-tall arena, but Battle Royale's
+        // world is 1900 tall with terrain below y=620, so a fixed clamp pinned a
+        // free-flying player to the sky and made the underground unreachable.
+        this.y = clamp(this.y, -200, (currentArena && currentArena.mapBottom) || GAME_H + 100);
         this._prevOnGround = true;
         return;
       }
@@ -1699,6 +1831,8 @@ class Fighter {
     if (this._prevOnGround && !this.onGround && this.vy <= -5) {
       this.canDoubleJump = true;
     }
+    if (this._wallSlamCd > 0) this._wallSlamCd--;
+    if (this._clashCd > 0) this._clashCd--;
     if (this.coyoteFrames > 0 && !this.onGround) this.coyoteFrames--;
     if (this._lavaJumpGrace > 0) { if (this.onGround) this._lavaJumpGrace = 0; else this._lavaJumpGrace--; }
     this._prevOnGround = this.onGround;
@@ -2094,6 +2228,15 @@ class Fighter {
       }
       // Landing squash animation trigger
       if (!this.isBoss && landVy > 5) this.squashTimer = 4;
+      // Heavy landings crack the surface. Cosmetic only — the slab is untouched.
+      if (landVy > 11 && typeof spawnImpact === 'function') {
+        spawnImpact(this.cx(), pl.y, Math.min(1.1, 0.35 + (landVy - 11) / 16), {
+          pl,
+          shake:  this.isBoss ? 8 : 0,
+          chunks: this.isBoss ? 7 : 4,
+          noScar: landVy < 15,
+        });
+      }
       // Clear pending double-jump intent on landing
       if (this.isAI) this._pfDoubleJumpPending = false;
       // Landing dust — harder landing = more particles
@@ -2182,15 +2325,178 @@ class Fighter {
       this.vy = Math.abs(this.vy) * 0.1; // small bounce so gravity takes over
     } else if (minPen === dLeft) {
       // Hit right face of platform (player moving right)
+      const _slamVx = this.vx;
       this.x  = pl.x - this.w;
       this.vx = Math.min(this.vx, 0);
       this._wallHitT = 8; // breaks a sprint — see updateFragmentManifest()
+      this._wallSlam(pl, _slamVx, 1);
     } else if (minPen === dRight) {
       // Hit left face of platform (player moving left)
+      const _slamVx = this.vx;
       this.x  = pl.x + pl.w;
       this.vx = Math.max(this.vx, 0);
       this._wallHitT = 8;
+      this._wallSlam(pl, _slamVx, -1);
     }
+  }
+
+  // Being launched into a wall used to end in silence — vx was simply zeroed.
+  // This gives that moment a bounce, a body deformation, and a cracked wall.
+  // dir: +1 = was travelling right (wall on the right), -1 = travelling left.
+  // Cosmetic apart from the bounce, which is a fraction of speed the fighter
+  // already had, so it cannot add energy to a juggle.
+  _wallSlam(pl, vx, dir) {
+    const spd = Math.abs(vx);
+    // Walking into a wall stays silent — this is for being THROWN into one.
+    if (spd < 9) return;
+    if (this._wallSlamCd > 0) return;   // don't re-fire while grinding the wall
+    if (this.health <= 0) return;
+    this._wallSlamCd = 14;
+
+    const power = Math.min(1.6, 0.5 + (spd - 9) / 9);
+
+    // Bounce off the wall — a fraction of the speed that was already there.
+    this.vx = -dir * spd * 0.30;
+
+    // Body compresses along the axis it hit on.
+    this._hitSquash = { amt: Math.min(0.26, 0.08 + spd * 0.012), t: 12, max: 12, axis: 'x' };
+
+    // Crack the wall face at the point of contact.
+    if (typeof spawnImpact === 'function') {
+      spawnImpact(dir > 0 ? pl.x : pl.x + pl.w, this.cy(), power, {
+        pl, axis: 'v', eject: -dir, shake: 0,
+        chunks: Math.round(3 + power * 5),
+      });
+    }
+
+    if (settings.screenShake) {
+      screenShake = Math.max(screenShake, Math.min(15, Math.round(4 + spd * 0.7)));
+    }
+    if (typeof SoundManager !== 'undefined' && SoundManager.explosion && spd > 14) {
+      SoundManager.explosion();
+    }
+  }
+
+  // Two AI on the same weapon re-swing in LOCKSTEP: the cadence is set by the
+  // weapon cooldown (sword is 30 frames) on a shared global aiTick, identical
+  // for both, so every exchange lands inside CLASH_WINDOW and they clash
+  // forever. Measured: two 'hard' swordfighters clashed on an exact 30-frame
+  // period for 263 frames and neither lost a single point of health.
+  // Jittering the recovery does not fix it — endlag expires well before the
+  // cooldown does, so it never governs the re-swing. Instead, cap how many
+  // times a PAIR may clash in a row; past the cap the exchange falls through
+  // to the first-wins rule and someone actually connects, which breaks the
+  // symmetry for free.
+  // Strength tier of whatever this fighter is doing right now. A super in
+  // flight outranks everything (superActive stays true for the whole move, not
+  // just its opening frames); otherwise the tag set by attack()/ability()/
+  // activateSuper() stands for the action currently driving attackTimer.
+  _clashTier() {
+    if (this.superActive) return CLASH_TIER_SUPER;
+    return this._attackKindTier || CLASH_TIER_ATTACK;
+  }
+
+  // Precision gate for a clash: both fighters must be swinging INTO each other,
+  // and both blades must reach. The caller has already established that OUR arc
+  // reaches them; this adds the opposed facing and the return half of the reach,
+  // so a clash only fires when the two weapons genuinely meet in the middle.
+  _clashArcsMeet(other) {
+    if (!other) return false;
+    const _dir = Math.sign(other.cx() - this.cx());
+    if (_dir !== 0 && (this.facing !== _dir || other.facing !== -_dir)) return false;
+    if (typeof other._getMeleeArcPoints !== 'function') return false;
+    const pts = other._getMeleeArcPoints();
+    if (!pts || !pts.length) return false;
+    const pad = CLASH_REACH_PAD;
+    for (const pt of pts) {
+      if (pt.x > this.x - pad && pt.x < this.x + this.w + pad &&
+          pt.y > this.y - pad && pt.y < this.y + this.h + pad) return true;
+    }
+    return false;
+  }
+
+  // A weaker action met a stronger one. The weaker one breaks outright: its
+  // swing is cancelled with real recovery on it, and the stronger action is
+  // left completely untouched so it lands as though nothing interrupted it.
+  // No damage is routed here — the winner's own dealDamage() call follows.
+  _resolveOverpower(winner, loser) {
+    if (!winner || !loser || loser.health <= 0) return;
+    loser.attackTimer = 0;
+    loser.weaponHit   = false;
+    loser.attackEndlag = Math.max(loser.attackEndlag || 0, CLASH_BREAK_ENDLAG);
+    // One flourish per break, not one per side detecting it.
+    if (loser._clashCd) return;
+    loser._clashCd = CLASH_COOLDOWN;
+    const bx = (winner.cx() + loser.cx()) / 2;
+    const by = (winner.cy() + loser.cy()) / 2;
+    if (settings.particles) {
+      spawnParticles(bx, by, '#ffffff', 8);
+      spawnParticles(bx, by, '#ff8844', 6);
+    }
+    if (typeof DamageText !== 'undefined' && typeof damageTexts !== 'undefined') {
+      damageTexts.push(new DamageText(bx, by - 18, 'BREAK', '#ff8844'));
+    }
+    if (settings.screenShake) screenShake = Math.max(screenShake, 5);
+  }
+
+  _clashStreakOk(other) {
+    const f = (typeof frameCount !== 'undefined') ? frameCount : 0;
+    if (this._clashStreakWith !== other || (f - (this._clashStreakAt || 0)) > CLASH_STREAK_RESET) {
+      this._clashStreak = 0;
+      this._clashStreakWith = other;
+    }
+    if ((this._clashStreak || 0) >= CLASH_STREAK_MAX) {
+      this._clashStreak = 0;   // let a real hit land, then clashes may resume
+      return false;
+    }
+    return true;
+  }
+
+  // Both fighters lose the exchange: swings cancelled, both knocked back, no
+  // damage dealt. Deliberately routes NO damage, so dealDamage() is not the
+  // right channel — the only state touched is velocity and swing timers, the
+  // same as a wall bounce. Horizontal only: vertical impulses here would slip
+  // past the launch governors that regulate juggles.
+  _resolveClash(other) {
+    if (!other || other.health <= 0 || this.health <= 0) return;
+    // Both fighters detect the same exchange, so this is reached twice per
+    // clash — once from each side's swing loop. The cooldown set below makes
+    // the second call a no-op, which keeps the streak count, the particle
+    // burst and the sound to one per exchange rather than two.
+    if (this._clashCd || other._clashCd) return;
+
+    this.attackTimer  = 0;  this.weaponHit  = false;
+    other.attackTimer = 0;  other.weaponHit = false;
+
+    // Re-commit cost — neither fighter gets a free instant re-swing.
+    this.attackEndlag  = Math.max(this.attackEndlag  || 0, CLASH_ENDLAG);
+    other.attackEndlag = Math.max(other.attackEndlag || 0, CLASH_ENDLAG);
+    this._clashCd = other._clashCd = CLASH_COOLDOWN;
+
+    // Streak bookkeeping — see _clashStreakOk() for why this is load bearing.
+    const _cf = (typeof frameCount !== 'undefined') ? frameCount : 0;
+    this._clashStreak  = (this._clashStreakWith  === other ? (this._clashStreak  || 0) : 0) + 1;
+    other._clashStreak = (other._clashStreakWith === this  ? (other._clashStreak || 0) : 0) + 1;
+    this._clashStreakWith  = other; this._clashStreakAt  = _cf;
+    other._clashStreakWith = this;  other._clashStreakAt = _cf;
+
+    const d = Math.sign(this.cx() - other.cx()) || (this.facing ? -this.facing : 1);
+    this.vx  =  d * CLASH_KNOCKBACK;
+    other.vx = -d * CLASH_KNOCKBACK;
+
+    const mx = (this.cx() + other.cx()) / 2;
+    const my = (this.cy() + other.cy()) / 2;
+    if (settings.particles) {
+      spawnParticles(mx, my, '#ffffff', 14);
+      spawnParticles(mx, my, '#ffee88', 10);
+      if (typeof spawnRing === 'function') spawnRing(mx, my);
+    }
+    if (typeof DamageText !== 'undefined' && typeof damageTexts !== 'undefined') {
+      damageTexts.push(new DamageText(mx, my - 18, 'CLASH', '#ffee88'));
+    }
+    hitStopFrames = Math.max(hitStopFrames, CLASH_HITSTOP);
+    if (settings.screenShake) screenShake = Math.max(screenShake, 11);
+    SoundManager.heavyHit && SoundManager.heavyHit();
   }
 
   // Player state machine: idle | run | jump | fall | attack | stunned | ragdoll | dead
@@ -2602,7 +2908,24 @@ class Fighter {
     }
     this.cooldown    = this.attackCooldownMult ? Math.max(1, Math.ceil(this.weapon.cooldown * this.attackCooldownMult)) : this.weapon.cooldown;
     this._attackStartFrame = (typeof frameCount !== 'undefined' ? frameCount : 0);
+    this._attackKindTier   = CLASH_TIER_ATTACK; // see _clashTier()
     this.attackTimer = this.attackDuration;
+
+    // ── MELEE LUNGE ────────────────────────────────────────────────────────
+    // Ranged weapons already push the shooter back (_recoilPush above); melee
+    // had no equivalent, so a swing read as an arm animation on a body bolted
+    // to the floor. A small forward carry makes it read as committed weight.
+    // Grounded only — in the air this would be free horizontal control — and
+    // never over a ledge, since the AI is required not to walk off the map.
+    if (this.weapon && this.weapon.type === 'melee' && this.onGround &&
+        !this.isBoss && !this.isEdgeDanger(this.facing)) {
+      const _heavy = this.weapon.weaponType === 'heavy';
+      const _lunge = _heavy ? 2.6 : 1.4;
+      // Only ADD toward the swing; never brake a fighter already moving faster
+      // than the lunge would carry them, so it can't fight player input.
+      const _fwd = this.vx * this.facing;
+      if (_fwd < _lunge) this.vx = this.facing * Math.min(_lunge, _fwd + _lunge);
+    }
     // Affinity feel: low affinity slows movement during attack swing; high affinity lets you stay mobile
     if (!this.isBoss && this.charClass && this.weapon && typeof CLASS_AFFINITY !== 'undefined') {
       const _aff2 = CLASS_AFFINITY[this.charClass];
@@ -2622,6 +2945,9 @@ class Fighter {
     if (this.abilityCooldown > 0 || this.health <= 0 || this.stunTimer > 0 || this.ragdollTimer > 0) return;
     if (!this.isBoss && this.attackEndlag > 0) return; // can't ability during swing recovery
     if (this.shielding) return;
+    // Abilities out-rank ordinary swings in a clash — see _clashTier().
+    this._attackKindTier   = CLASH_TIER_ABILITY;
+    this._attackStartFrame = (typeof frameCount !== 'undefined' ? frameCount : 0);
     // MEGAKNIGHT class override: Q = Grand Slam — spinning slam that craters nearby enemies upward
     if (this.charClass === 'megaknight') {
       this.abilityCooldown  = 80;
@@ -2665,6 +2991,9 @@ class Fighter {
   }
 
   activateSuper(target) {
+    // Supers out-rank abilities and swings in a clash — see _clashTier().
+    this._attackKindTier   = CLASH_TIER_SUPER;
+    this._attackStartFrame = (typeof frameCount !== 'undefined' ? frameCount : 0);
     // ── Conviction: every 5th super triggers conviction instead of normal super ──
     // Supers spent inside your own domain don't advance the next one. The domain
     // buffs you and its hazards credit you super meter, so counting them let a
@@ -2674,7 +3003,13 @@ class Fighter {
     if (!_inOwnDomain) this._domainSuperCount = (this._domainSuperCount || 0) + 1;
     const _domKey = (typeof DomainManager !== 'undefined' && DomainManager.domainKeyOf)
       ? DomainManager.domainKeyOf(this) : this.charClass;
-    if (this._domainSuperCount >= 5
+    // Battle Royale never expands a domain. A domain is a duel-scale set piece:
+    // it freezes the field, reframes the camera and rewrites the arena, none of
+    // which survives contact with a 12000px world, a closing storm and 99 other
+    // fighters. The super itself still fires — only the every-fifth upgrade is
+    // suppressed, and the counter keeps ticking so nothing else desyncs.
+    const _brNoDomain = (typeof brActive !== 'undefined' && brActive);
+    if (!_brNoDomain && this._domainSuperCount >= 5
         && _domKey && _domKey !== 'none'
         && typeof DomainManager !== 'undefined'
         && typeof DOMAIN_DEFS !== 'undefined' && DOMAIN_DEFS[_domKey]) {
@@ -3105,7 +3440,9 @@ class Fighter {
           if (d.health <= 0) continue;
           if (dist(this, d) < 280) dealDamage(this, d, 15, 50);
         }
-        if (this.isBoss) this.postSpecialPause = 90; // 1.5s pause after super
+        // postSpecialPause is counted in AI ticks, not frames — 90 was 22.5s of
+        // total silence, the single largest cause of the boss's dead stretches.
+        if (this.isBoss) this.postSpecialPause = 6; // 6 ticks = 90 frames = 1.5s
       },
       // ── Nullblade: Null Sequence — 3-hit combo extender, low KB to keep target in range ──
       nullblade: () => {
@@ -3461,9 +3798,11 @@ class Fighter {
     const fwd      = this.raycastForward(dir);
     const pathSafe = fwd.heat < 0.55 && !fwd.cliff;
 
-    // Screen-edge guard (50px — reduced from 120px to avoid huge dead zones)
-    const nearLeftEdge  = this.x < 50 && !this.isBoss;
-    const nearRightEdge = this.x + this.w > GAME_W - 50 && !this.isBoss;
+    // World-edge guard (50px — reduced from 120px to avoid huge dead zones).
+    // World, not screen: see _aiWorldBounds().
+    const _uB = this._aiWorldBounds();
+    const nearLeftEdge  = this.x < _uB.left + 50 && !this.isBoss;
+    const nearRightEdge = this.x + this.w > _uB.right - 50 && !this.isBoss;
     const towardEdge    = (nearLeftEdge && dir < 0) || (nearRightEdge && dir > 0);
 
     switch (best) {
@@ -3563,7 +3902,7 @@ class Fighter {
 
       // ---- REPOSITION: move toward map center to avoid corner traps ----
       case 'reposition': {
-        const toCenter = GAME_W / 2 - this.cx();
+        const toCenter = this._aiSafeCenterX() - this.cx();
         if (Math.abs(toCenter) > 30) {
           const rDir = Math.sign(toCenter);
           if (!this.isEdgeDanger(rDir)) this.vx = rDir * spd;
@@ -3775,7 +4114,12 @@ class Fighter {
         if (pl.isFloorDisabled) continue;
         if (lookX > pl.x && lookX < pl.x + pl.w && pl.y > footY - 8) return false;
       }
-      return this.y + this.h < GAME_H + 40;
+      // Same defect as the edge clamp above, on the vertical axis: GAME_H is 520,
+      // so in a tall world (BR's is 1900) every fighter standing below y=560 read
+      // "no drop below me is dangerous" and every fighter above it read the
+      // opposite. mapBottom is the world's own floor when the arena declares one.
+      const _worldBottom = (currentArena && currentArena.mapBottom) || GAME_H;
+      return this.y + this.h < _worldBottom + 40;
     }
 
     // ── Airborne check: would continuing in 'dir' lead to a void? ──
@@ -3826,15 +4170,28 @@ class Fighter {
     if (this.aiReact > 0) { this.aiReact--; return; }
     if (this.ragdollTimer > 0 || this.stunTimer > 0) return;
 
+    // Battle Royale travel. A nav-locked BR bot has been handed a destination, not
+    // an opponent, and the duelling brain below has no concept of one: it would
+    // walk at the waypoint's X in a straight line and swing at it on arrival.
+    // _brNavStep owns movement for exactly as long as the lock is set; BR clears
+    // it the moment the bot has something real to fight.
+    if (this._brNavLock && typeof _brNavStep === 'function') { _brNavStep(this); return; }
+
     // ---- TARGET VALIDATION: reassign if current target is dead/invalid ----
     if (this._isInvalidAITarget(this.target)) this._acquireAITarget();
 
     // ---- DYNAMIC RETARGETING: re-evaluate closest enemy every 25 ticks ----
     // Prevents bots from tunnel-visioning a far target while a closer one is adjacent.
-    this._targetRetargetCd = (this._targetRetargetCd || 0) - 1;
-    if (this._targetRetargetCd <= 0) {
-      this._acquireAITarget();
-      this._targetRetargetCd = 25;
+    // _brNavLock is Battle Royale's navigation hold: BR hands the bot a positional
+    // waypoint (a chest, a rift, the inside of the ring) dressed as a target, and
+    // re-acquiring "nearest living thing" here threw that waypoint away mid-route.
+    // BR clears the flag itself the moment it wants the bot fighting again.
+    if (!this._brNavLock) {
+      this._targetRetargetCd = (this._targetRetargetCd || 0) - 1;
+      if (this._targetRetargetCd <= 0) {
+        this._acquireAITarget();
+        this._targetRetargetCd = 25;
+      }
     }
 
     // ---- DANGER AVOIDANCE: boss beams ----
@@ -4150,8 +4507,15 @@ class Fighter {
     // ---- DANGER: map screen edges (avoid falling off) ----
     // Story mode uses wider margin so bots never drift near soft boundary
     const _edgeMargin = (storyModeActive && gameMode !== 'exploration') ? 110 : 50;
-    const nearLeftEdge  = this.x < _edgeMargin && !this.isBoss;
-    const nearRightEdge = this.x + this.w > GAME_W - _edgeMargin && !this.isBoss;
+    // These are the WORLD's walls, not the screen's. Read against GAME_W (900) in
+    // a wide arena — Battle Royale's world is 12000 wide — every bot past x=850
+    // permanently believed it was standing at the right-hand edge of the map and
+    // had its rightward velocity zeroed on every AI tick. The whole field could
+    // only ever walk left. currentArena.worldWidth is the same source
+    // Fighter.update()'s own horizontal clamp uses, so the two now agree.
+    const _wb = this._aiWorldBounds();
+    const nearLeftEdge  = this.x < _wb.left + _edgeMargin && !this.isBoss;
+    const nearRightEdge = this.x + this.w > _wb.right - _edgeMargin && !this.isBoss;
     if (this.onGround) {
       if (nearLeftEdge  && dir < 0) { this.vx = 0; }
       if (nearRightEdge && dir > 0) { this.vx = 0; }
@@ -4325,7 +4689,7 @@ class Fighter {
             if (!this.isEdgeDanger(-dir)) this.vx = -dir * spd * 0.30;
             break;
           case 'reposition': {
-            const toCenter = GAME_W / 2 - this.cx();
+            const toCenter = this._aiSafeCenterX() - this.cx();
             const rDir2 = Math.sign(toCenter);
             if (Math.abs(toCenter) > 40 && !this.isEdgeDanger(rDir2)) this.vx = rDir2 * spd * 0.55;
             break;
@@ -4488,6 +4852,18 @@ class Fighter {
     // Speed cached for motion trail and speed lines (used in two places below)
     const _spdAbs = Math.abs(this.vx);
 
+    // Material palette for this fighter — the whole body is painted from a value
+    // ramp derived from `this.color` rather than from the flat colour itself.
+    const _pal = FigureSkin.pal(this.color);
+    FigureSkin.setCrowd(typeof players !== 'undefined' ? players.length : 2);
+
+    // Contact shadow. Fades out as he leaves the ground so a jump reads as a
+    // jump instead of the figure dragging its shadow into the air with it.
+    if (!this.isBoss && this.ragdollTimer <= 0) {
+      const _gsH = this.onGround ? 0 : Math.min(1, Math.abs(this.vy) / 14);
+      FigureSkin.groundShadow(cx, this.y + this.h + 1, 15 - _gsH * 5, 1 - _gsH * 0.55);
+    }
+
     // ── MOTION AFTERIMAGE ───────────────────────────────────────────────────
     // Ghosted head+body copies trail behind the fighter when moving fast.
     if (_spdAbs > 3.0 && !this.isBoss && !this.squashTimer && this.ragdollTimer <= 0) {
@@ -4497,8 +4873,8 @@ class Fighter {
         const _gOff   = -Math.sign(this.vx) * _gi * 7;
         ctx.save();
         ctx.globalAlpha = _gAlpha;
-        ctx.strokeStyle = this.color;
-        ctx.fillStyle   = this.color;
+        ctx.strokeStyle = _pal.base;
+        ctx.fillStyle   = _pal.base;
         ctx.lineWidth   = 5;
         ctx.lineCap     = 'round';
         const _gcx = cx + _gOff;
@@ -4508,7 +4884,7 @@ class Fighter {
       }
     }
 
-    ctx.strokeStyle = this.color;
+    ctx.strokeStyle = _pal.base;
     ctx.lineWidth   = FIG_LINE_W;
     ctx.lineCap     = 'round';
     ctx.lineJoin    = 'round';
@@ -4517,135 +4893,43 @@ class Fighter {
     // Scoped to the head + face block; the torso line and limbs still use cx.
     const headCX = (typeof animHeadLag === 'function' && !this.isBoss)
       ? cx + animHeadLag(this, (hipX - cx) * -0.35, 4, 2) : cx;
-    ctx.beginPath();
-    ctx.arc(headCX, headCY, headR, 0, Math.PI * 2);
-    ctx.fillStyle = this.color;
-    ctx.fill();
-    // Soft underside shading — gives the head volume instead of a flat disc
-    ctx.fillStyle = 'rgba(0,0,0,0.10)';
-    ctx.beginPath();
-    ctx.arc(headCX, headCY + 2.2, headR - 1.6, Math.PI * 0.12, Math.PI * 0.88);
-    ctx.fill();
-    // Top-light sheen on the facing side
-    ctx.fillStyle = 'rgba(255,255,255,0.13)';
-    ctx.beginPath();
-    ctx.ellipse(headCX + f * 3.0, headCY - 5.2, 4.6, 2.6, f * 0.5, 0, Math.PI * 2);
-    ctx.fill();
+
+    // ── ONE BODY, NOT A PILE OF PARTS ───────────────────────────────────────
+    // Nothing below paints. Every piece of the figure is accumulated into two
+    // silhouettes — the far-side limbs, and everything else — which are then
+    // filled and lit ONCE each, further down. Painting parts individually is
+    // what made the figure read as assembled components. See smb-figure-skin.js.
+    const _near = FigureSkin.begin();
+    const _far  = FigureSkin.begin();
+
+    // Neck — a short column between jaw and shoulders. Without it the head is a
+    // ball balanced on a stick and the upper body has no direction.
+    FigureSkin.segment(_near,
+      [{ x: headCX, y: headCY + headR * 0.55 }, { x: shoulderX, y: shoulderY - 1 }],
+      // Narrower than the jaw above it, so the chin reads as an overhang. At
+      // equal widths the head, neck and chest merge into one tapered column.
+      [FIG_LINE_W * 0.55, FIG_LINE_W * 0.92]);
+
+    FigureSkin.head(_near, headCX, headCY, headR, f);
 
     // ── FACE ──────────────────────────────────────────────────
-    // 3/4-view face: large near eye toward facing + smaller far eye, brows
-    // anchored just above each eye (the old single brow floated at the very
-    // top of the head and read as detached marks).
-    const _expr = this.expressionState || 'neutral';
-    const _eyeX  = headCX + f * 4.2;   // near eye
-    const _eyeY  = headCY - 3.2;
-    const _eyeR  = 2.6;
-    const _eye2X = headCX - f * 1.8;   // far eye (smaller — perspective)
-    const _eye2R = 2.1;
-
-    // Scleras
-    ctx.fillStyle = '#fff';
-    ctx.beginPath();
-    ctx.arc(_eyeX,  _eyeY, _eyeR,  0, Math.PI * 2);
-    ctx.arc(_eye2X, _eyeY, _eye2R, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Half-lid: paint a sliver of head color back over the top of both eyes
-    if (_expr === 'cool' || _expr === 'serene') {
-      ctx.fillStyle = this.color;
-      ctx.fillRect(_eyeX  - _eyeR  - 0.5, _eyeY - _eyeR,  _eyeR  * 2 + 1, _eyeR  * 0.65);
-      ctx.fillRect(_eye2X - _eye2R - 0.5, _eyeY - _eye2R, _eye2R * 2 + 1, _eye2R * 0.65);
-    }
-
-    // Pupils — track the nearest opponent instead of staring straight ahead.
-    // The look offset is tiny (the sclera is 2.6px) but it is what makes the
-    // fighter read as watching the fight rather than facing a direction.
+    // Lit eyes in a shadowed socket, brow-driven expression, no drawn mouth
+    // outside of a grimace. See FigureSkin.face() for why the old sclera +
+    // pupil + smile face had to go.
     const _look = (typeof animEyeTarget === 'function' && !this.isBoss)
       ? animEyeTarget(this) : { x: 0, y: 0 };
-    const _lookX = f * 0.8 + _look.x * 1.15;
-    const _lookY = 0.2 + _look.y * 0.9;
-    ctx.fillStyle = s === 'hurt' ? '#ff0000' : '#111';
-    ctx.beginPath();
-    ctx.arc(_eyeX  + _lookX, _eyeY + _lookY, 1.25, 0, Math.PI * 2);
-    ctx.arc(_eye2X + _lookX * 0.88, _eyeY + _lookY, 1.05, 0, Math.PI * 2);
-    ctx.fill();
-    // Catchlight on the near pupil
-    if (s !== 'hurt') {
-      ctx.fillStyle = 'rgba(255,255,255,0.85)';
-      ctx.beginPath();
-      ctx.arc(_eyeX + _lookX - 0.45, _eyeY - 0.3 + _lookY, 0.5, 0, Math.PI * 2);
-      ctx.fill();
-    }
-
-    // Blink — a lid of head colour sweeps down over both eyes. Each fighter has
-    // its own phase offset so a crowd never blinks in unison.
     const _blink = (typeof animBlink === 'function' && !this.isBoss && s !== 'hurt')
       ? animBlink(this) : 0;
-    if (_blink > 0.01) {
-      ctx.fillStyle = this.color;
-      const _lid = (_eyeR + 0.6) * 2 * _blink;
-      ctx.fillRect(_eyeX  - _eyeR  - 0.6, _eyeY - _eyeR  - 0.6, _eyeR  * 2 + 1.2, _lid);
-      ctx.fillRect(_eye2X - _eye2R - 0.6, _eyeY - _eye2R - 0.6, _eye2R * 2 + 1.2, _lid);
-    }
-
-    // Eyebrows — short arcs hugging each eye; expression tilts the inner end
-    let _browIn = 0, _browOut = 0, _browLift = 0;  // y-offsets: inner end, outer end, mid peak
-    if (s === 'hurt') {
-      _browIn = -1.5; _browOut = 0.5; _browLift = -0.5;  // worried ↗
-    } else if (s === 'attacking' || _expr === 'focused' || _expr === 'intense') {
-      _browIn = 1.5; _browOut = -0.5; _browLift = 0.8;   // determined ↘
-    } else if (_expr === 'cool') {
-      _browIn = 0.5; _browOut = -0.5; _browLift = 0.3;   // cool slight ↘
-    }
-    const _browY = _eyeY - 4.4;
-    ctx.strokeStyle = 'rgba(0,0,0,0.7)';
-    ctx.lineWidth   = 1.6;
-    ctx.beginPath();
-    ctx.moveTo(_eyeX + f * 2.9, _browY + _browOut);
-    ctx.quadraticCurveTo(_eyeX, _browY - 1.6 + _browLift, _eyeX - f * 2.6, _browY + _browIn);
-    ctx.stroke();
-    // Far brow — shorter and fainter
-    ctx.strokeStyle = 'rgba(0,0,0,0.45)';
-    ctx.lineWidth   = 1.4;
-    ctx.beginPath();
-    ctx.moveTo(_eye2X + f * 2.2, _browY + _browOut * 0.7);
-    ctx.quadraticCurveTo(_eye2X, _browY - 1.3 + _browLift * 0.7, _eye2X - f * 1.9, _browY + _browIn * 0.7);
-    ctx.stroke();
-
-    // Mouth — canvas y-down: arc(…,0,π,false)=∪=smile; arc(…,0,π,true)=∩=frown
-    ctx.lineWidth = 1.5;
-    if (s === 'hurt') {
-      ctx.strokeStyle = '#ff3333';
-      ctx.beginPath();
-      ctx.arc(headCX + f * 3.5, headCY + 5, 2.5, 0, Math.PI, true); // ∩ frown
-      ctx.stroke();
-    } else if (_expr === 'cool' || _expr === 'serene') {
-      // Smirk: rises toward the ear side
-      ctx.strokeStyle = 'rgba(0,0,0,0.6)';
-      ctx.beginPath();
-      ctx.moveTo(headCX + f * 0.5, headCY + 5);
-      ctx.quadraticCurveTo(headCX + f * 3.5, headCY + 5.5, headCX + f * 6.5, headCY + 3.5);
-      ctx.stroke();
-    } else if (_expr === 'intense') {
-      // Grim tight line
-      ctx.strokeStyle = '#ff3333';
-      ctx.beginPath();
-      ctx.moveTo(headCX + f * 1.0, headCY + 5.5);
-      ctx.lineTo(headCX + f * 6.0, headCY + 5.5);
-      ctx.stroke();
-    } else if (s === 'attacking') {
-      ctx.strokeStyle = '#ff3333';
-      ctx.beginPath();
-      ctx.arc(headCX + f * 3.5, headCY + 5, 2.5, 0, Math.PI, true); // ∩ grit/shout
-      ctx.stroke();
-    } else {
-      // neutral — subtle smirk, ear side lifts slightly
-      ctx.strokeStyle = 'rgba(0,0,0,0.6)';
-      ctx.beginPath();
-      ctx.moveTo(headCX - f * 0.5, headCY + 5.2);
-      ctx.quadraticCurveTo(headCX + f * 2.0, headCY + 5.6, headCX + f * 4.5, headCY + 4.0);
-      ctx.stroke();
-    }
+    // Deferred: the face has to land on top of the painted body, but the
+    // expression inputs are only in scope here.
+    const _paintFace = () => FigureSkin.face(_pal, headCX, headCY, headR, f, {
+      expr:      this.expressionState || 'neutral',
+      hurt:      s === 'hurt',
+      attacking: s === 'attacking',
+      lookX:     f * 0.6 + _look.x * 1.4,
+      lookY:     0.2 + _look.y * 1.1,
+      blink:     _blink,
+    });
 
     // ACCESSORIES (hat, cape)
     drawAccessory(this, cx, headCY, shoulderY, hipY, f, headR);
@@ -4654,13 +4938,17 @@ class Fighter {
       drawStoryCharacterOverlay(this, cx, headCY, shoulderY, hipY, f, headR);
     }
 
-    // BODY (leans forward when walking)
-    ctx.strokeStyle = this.color;
-    ctx.lineWidth   = 6;
-    ctx.beginPath();
-    ctx.moveTo(cx, neckY);
-    ctx.lineTo(hipX, hipY);
-    ctx.stroke();
+    // BODY — painted further down, once the arm angles are solved, so the
+    // far-side arm can be layered BEHIND the chest. The geometry is settled
+    // here; only the paint order moved.
+    const _torsoPts = [
+      { x: shoulderX,                   y: neckY },
+      { x: (shoulderX + hipX) * 0.5,    y: (neckY + hipY) * 0.5 },
+      { x: hipX,                        y: hipY },
+    ];
+    // Chest wider than waist — the taper is what turns the torso from a drawn
+    // line into a ribcage over a pelvis.
+    const _torsoW = [FIG_LINE_W * 1.85, FIG_LINE_W * 1.45, FIG_LINE_W * 1.30];
 
     // ARM ANGLES
     const atkProgress = (this._finPoseP !== null && this._finPoseP !== undefined) ? this._finPoseP
@@ -4771,7 +5059,7 @@ class Fighter {
     const [lElbX, lElbY] = _hiQ
       ? animIK(shoulderX, shoulderY, lEx, lEy, _armBone, -f)
       : _lj(shoulderX, shoulderY, lEx, lEy, elbowOut, -3);
-    ctx.strokeStyle = this.color;
+    ctx.strokeStyle = _pal.base;
     ctx.lineWidth   = 5;
     // ── LIMB SMEAR ──────────────────────────────────────────────────────────
     // A fast weapon arm draws as a few trailing ghosts along its own arc rather
@@ -4779,36 +5067,72 @@ class Fighter {
     // frame, so it costs nothing when the arm is not moving.
     // Only committed motion smears — a walk cycle's arm swing must not, or every
     // step trails ghosts.
-    const _canSmear = (s === 'attacking' || s === 'ragdoll' || this.spinning > 0);
+    // _finSmear is set by the finisher engine across its swing windows. A
+    // finisher never sets state 'attacking' (writing attackTimer would re-arm the
+    // melee hit-scan), so without this the game's biggest swing was the only one
+    // that never trailed.
+    const _canSmear = (s === 'attacking' || s === 'ragdoll' || this.spinning > 0 ||
+                       !!this._finSmear);
     if (_hiQ && _canSmear && typeof animSmear === 'function') {
       const _pv = this._smearPrev;
       this._smearPrev = { x: rEx, y: rEy, ex: rElbX, ey: rElbY };
       const _dsp = _pv ? Math.hypot(rEx - _pv.x, rEy - _pv.y) : 0;
-      if (_dsp > 11) {
+      // The 11px gate exists so a walk cycle's arm swing does not ghost every
+      // step. A finisher has no walk cycle — the pose is authored and the swing
+      // IS the showcase — so it gets a lower bar, or only the two fastest frames
+      // of the whole sequence trail.
+      if (_dsp > (this._finSmear ? 6 : 11)) {
         // animSmear applies the offset via ctx.translate, so drawFn just draws
         // the arm where it is now; the path runs from last frame's hand back to
         // this one, which puts the ghosts along the swing.
         animSmear(() => {
-          ctx.strokeStyle = this.color;
+          ctx.strokeStyle = _pal.base;
           ctx.lineWidth   = 5;
           ctx.beginPath();
           ctx.moveTo(shoulderX, shoulderY);
           ctx.lineTo(rElbX, rElbY);
           ctx.lineTo(rEx, rEy);
           ctx.stroke();
-        }, _pv.x - rEx, _pv.y - rEy, 0, 0, 4, 0.34);
+        }, _pv.x - rEx, _pv.y - rEy, 0, 0,
+           this._finSmear ? this._finSmear.samples : 4,
+           this._finSmear ? this._finSmear.alpha   : 0.34);
       }
     } else {
       this._smearPrev = { x: rEx, y: rEy, ex: rElbX, ey: rElbY };
     }
-    ctx.beginPath(); ctx.moveTo(shoulderX, shoulderY); ctx.lineTo(rElbX, rElbY); ctx.lineTo(rEx, rEy); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(shoulderX, shoulderY); ctx.lineTo(lElbX, lElbY); ctx.lineTo(lEx, lEy); ctx.stroke();
+    // ── ACCUMULATE: arms + torso ────────────────────────────────────────────
+    // Widths taper shoulder -> elbow -> wrist. The off-hand arm goes into the
+    // FAR silhouette: one shadowed mass behind one lit mass is the whole depth
+    // cue, and without it a single merged body is a blob.
+    const _armW  = [FIG_LINE_W * 1.15, FIG_LINE_W * 0.92, FIG_LINE_W * 0.70];
+    const _farW  = [FIG_LINE_W * 1.02, FIG_LINE_W * 0.82, FIG_LINE_W * 0.62];
+    // Back limbs are nudged AGAINST facing so they clear the torso silhouette.
+    const _bOff  = -f * 1.6;
+    FigureSkin.segment(_far, [
+      { x: shoulderX + _bOff, y: shoulderY },
+      { x: lElbX + _bOff,     y: lElbY },
+      { x: lEx + _bOff,       y: lEy },
+    ], _farW);
+    if (!this._hideWeapon) FigureSkin.hand(_far, lEx + _bOff, lEy, lAng, f, 0.85);
 
-    // WEAPON in right hand (boss draws gauntlet on both hands for visual flair)
+    FigureSkin.segment(_near, _torsoPts, _torsoW);
+    // `true` = also feed the internal form shadow. The near arm hangs against
+    // the torso and the union would otherwise absorb it completely.
+    FigureSkin.segment(_near, [
+      { x: shoulderX, y: shoulderY },
+      { x: rElbX,     y: rElbY },
+      { x: rEx,       y: rEy },
+    ], _armW, true);
+    FigureSkin.hand(_near, rEx, rEy, rAng, f, 1);
+
+    // WEAPON in right hand (boss draws gauntlet on both hands for visual flair).
+    // Deferred: the body is now painted in one pass AFTER the legs are solved,
+    // so drawing the weapon here would put it underneath the fighter holding it.
     const weapScale = this.isBoss ? 1.0 : 1.5;
     // Fragment bearers hold nothing until the pattern surfaces — _fragV is null
     // for everyone else, so their weapon draws exactly as before.
     const _fragV = (typeof fragmentWeaponVisual === 'function') ? fragmentWeaponVisual(this) : null;
+    const _paintWeapon = () => {
     if (_fragV && typeof drawFragmentArmSurge === 'function') {
       // Light feeds up the arm first — the surge precedes the shape.
       drawFragmentArmSurge(this, cx, shoulderY, rElbX, rElbY, rEx, rEy);
@@ -4838,13 +5162,14 @@ class Fighter {
     // guard stance reads as two fists instead of one hand and one bare arm stub.
     if (!this.isBoss && this.weaponKey === 'combat' && !this._domainDisplayWeapon) {
       ctx.save();
-      ctx.fillStyle   = this.color;
+      ctx.fillStyle   = _pal.far;
       ctx.beginPath(); ctx.arc(lEx, lEy, 4.4, 0, Math.PI * 2); ctx.fill();
-      ctx.strokeStyle = 'rgba(0,0,0,0.28)'; ctx.lineWidth = 0.9; ctx.stroke();
-      ctx.globalAlpha = 0.2; ctx.fillStyle = '#ffffff';
+      ctx.strokeStyle = _pal.farRim; ctx.globalAlpha = 0.5; ctx.lineWidth = 1.1; ctx.stroke();
+      ctx.globalAlpha = 0.14; ctx.fillStyle = '#ffffff';
       ctx.beginPath(); ctx.arc(lEx - 1.2, lEy - 1.4, 2.0, 0, Math.PI * 2); ctx.fill();
       ctx.restore();
     }
+    };   // end _paintWeapon — invoked after the body paint, below
 
     // LEGS
     let rLeg, lLeg;
@@ -4894,8 +5219,32 @@ class Fighter {
     const [lKneeX, lKneeY] = _hiQ
       ? animIK(hipX, hipY, lFootX, lFootY, _legBone, -f)
       : _lj(hipX, hipY, lFootX, lFootY, kneeOut, 0);
-    ctx.beginPath(); ctx.moveTo(hipX, hipY); ctx.lineTo(rKneeX, rKneeY); ctx.lineTo(rFootX, rFootY); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(hipX, hipY); ctx.lineTo(lKneeX, lKneeY); ctx.lineTo(lFootX, lFootY); ctx.stroke();
+    // ── ACCUMULATE: legs ────────────────────────────────────────────────────
+    // Thigh -> knee -> ankle taper, plus an actual boot at each ankle. The old
+    // rig ended both legs in a round line cap, which is why the figure never
+    // looked planted on the floor it was standing on.
+    const _legW    = [FIG_LINE_W * 1.30, FIG_LINE_W * 1.00, FIG_LINE_W * 0.76];
+    const _legFarW = [FIG_LINE_W * 1.16, FIG_LINE_W * 0.90, FIG_LINE_W * 0.68];
+    const _lOff    = -f * 1.6;
+    FigureSkin.segment(_far, [
+      { x: hipX + _lOff,   y: hipY },
+      { x: lKneeX + _lOff, y: lKneeY },
+      { x: lFootX + _lOff, y: lFootY },
+    ], _legFarW);
+    FigureSkin.foot(_far, lFootX + _lOff, lFootY + 1.2, lLeg, f);
+
+    FigureSkin.segment(_near, [
+      { x: hipX,   y: hipY },
+      { x: rKneeX, y: rKneeY },
+      { x: rFootX, y: rFootY },
+    ], _legW, true);   // detail: separates the near leg from the far one
+    FigureSkin.foot(_near, rFootX, rFootY + 1.2, rLeg, f);
+
+    // ── PAINT: two silhouettes, then the face on top ────────────────────────
+    FigureSkin.paint(_far,  _pal, true);
+    FigureSkin.paint(_near, _pal, false);
+    _paintFace();
+    _paintWeapon();
 
     // ── SPEED LINES ─────────────────────────────────────────────────────────
     // Horizontal streaks on the trailing side of the fighter when running fast.
@@ -4927,24 +5276,40 @@ class Fighter {
         ctx.save();
         ctx.translate(shX, shY);
         ctx.scale(1.8, 1.8);
-        ctx.fillStyle = '#4466cc';
+        // Kite shield as a lit metal face rather than two flat colours: a
+        // value ramp down the plate, a rolled rim, and the boss at the centre.
+        // Matches the weapon sprites it is carried alongside.
+        const _shG = ctx.createLinearGradient(-10, -14, 10, 16);
+        _shG.addColorStop(0,    '#6d7f9e');
+        _shG.addColorStop(0.42, '#4a5872');
+        _shG.addColorStop(1,    '#2c3549');
         ctx.beginPath();
         ctx.moveTo(-8, -14); ctx.lineTo(8, -14);
         ctx.lineTo(12, 4); ctx.lineTo(0, 16); ctx.lineTo(-12, 4);
-        ctx.closePath(); ctx.fill();
-        ctx.strokeStyle = '#aabbff'; ctx.lineWidth = 1.5; ctx.stroke();
-        ctx.strokeStyle = '#ffee88'; ctx.lineWidth = 1;
-        ctx.beginPath(); ctx.moveTo(0, -8); ctx.lineTo(0, 10); ctx.stroke();
-        ctx.beginPath(); ctx.moveTo(-7, -2); ctx.lineTo(7, -2); ctx.stroke();
+        ctx.closePath();
+        ctx.fillStyle = _shG; ctx.fill();
+        ctx.strokeStyle = 'rgba(12,16,24,0.85)'; ctx.lineWidth = 1.6; ctx.stroke();
+        // Rolled edge catching the key light on the upper left.
+        ctx.strokeStyle = 'rgba(214,226,244,0.42)'; ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(-11.4, 3.4); ctx.lineTo(-7.6, -13.2); ctx.lineTo(7.6, -13.2);
+        ctx.stroke();
+        // Boss (the central dome) — the one bright note.
+        ctx.fillStyle = 'rgba(196,166,96,0.9)';
+        ctx.beginPath(); ctx.ellipse(0, -1, 3.4, 3.8, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = 'rgba(255,240,206,0.5)';
+        ctx.beginPath(); ctx.ellipse(-1, -2.2, 1.5, 1.6, 0, 0, Math.PI * 2); ctx.fill();
         ctx.restore();
       } else {
         const _shStacks = this.shieldStacks || 1;
         // Color shifts from blue → yellow → orange → red as shield degrades
         let _shStroke, _shFill;
-        if      (_shStacks <= 1) { _shStroke = 'rgba(100,210,255,0.88)'; _shFill = 'rgba(100,210,255,0.14)'; }
-        else if (_shStacks === 2) { _shStroke = 'rgba(255,210,60,0.88)';  _shFill = 'rgba(255,210,60,0.14)'; }
-        else if (_shStacks === 3) { _shStroke = 'rgba(255,140,50,0.88)';  _shFill = 'rgba(255,140,50,0.14)'; }
-        else                      { _shStroke = 'rgba(255,70,40,0.88)';   _shFill = 'rgba(255,70,40,0.10)'; }
+        // Degradation still reads blue -> amber -> red, one step off full chroma
+        // so the bubble does not out-glow the fighter inside it.
+        if      (_shStacks <= 1) { _shStroke = 'rgba(126,196,228,0.82)'; _shFill = 'rgba(126,196,228,0.13)'; }
+        else if (_shStacks === 2) { _shStroke = 'rgba(222,190,92,0.82)';  _shFill = 'rgba(222,190,92,0.13)'; }
+        else if (_shStacks === 3) { _shStroke = 'rgba(220,142,72,0.82)';  _shFill = 'rgba(220,142,72,0.13)'; }
+        else                      { _shStroke = 'rgba(214,88,64,0.82)';   _shFill = 'rgba(214,88,64,0.10)'; }
         ctx.beginPath();
         ctx.arc(cx + f * 15, shoulderY + 12, 23, 0, Math.PI * 2);
         ctx.strokeStyle = _shStroke;
@@ -4970,8 +5335,8 @@ class Fighter {
       ctx.save();
       const isGodslayer = this.armorStyle === 'godslayer';
       const gsPulse    = isGodslayer ? (0.5 + 0.5 * Math.sin(t * 0.08)) : 0;
-      const armorCol   = isGodslayer ? '#c09018' : '#9ab8e8';
-      const armorEdge  = isGodslayer ? '#ffe060' : '#cde0ff';
+      const armorCol   = isGodslayer ? '#b08a24' : '#7d93b4';
+      const armorEdge  = isGodslayer ? '#e8cc72' : '#aec3dd';
       if (isGodslayer) {
         ctx.shadowColor = '#ffe840';
         ctx.shadowBlur  = 7 + gsPulse * 9;
@@ -5061,7 +5426,7 @@ class Fighter {
             ctx.restore();
           }
         } else {
-          ctx.strokeStyle = '#7090c0'; ctx.lineWidth = 1;
+          ctx.strokeStyle = 'rgba(30,40,58,0.7)'; ctx.lineWidth = 1;
           ctx.beginPath(); ctx.moveTo(cx, neckY + 4); ctx.lineTo(cx, neckY + 18); ctx.stroke();
         }
       }
@@ -5093,18 +5458,34 @@ class Fighter {
       ctx.restore();
     }
 
-    // Stun stars orbiting head
+    // Stun — orbiting sparks. Drawn as four-point glints rather than the old
+    // '★' text glyph, which rendered in the system font and was the last piece
+    // of literal emoji on the fighter.
     if (this.stunTimer > 0) {
       ctx.save();
       ctx.globalAlpha = Math.min(1, this.stunTimer / 15);
       for (let i = 0; i < 3; i++) {
-        const starA  = t * 0.14 + (i * Math.PI * 2 / 3);
-        const starX  = cx  + Math.cos(starA) * 15;
-        const starY  = ty  - 4 + Math.sin(starA * 2) * 5;
-        ctx.fillStyle   = i % 2 === 0 ? '#ffdd00' : '#ffffff';
-        ctx.font        = '10px Arial';
-        ctx.textAlign   = 'center';
-        ctx.fillText('★', starX, starY);
+        const starA = t * 0.14 + (i * Math.PI * 2 / 3);
+        const starX = cx + Math.cos(starA) * 15;
+        const starY = ty - 4 + Math.sin(starA * 2) * 5;
+        // Depth: a spark on the far side of the orbit is smaller and dimmer.
+        const depth = 0.68 + 0.32 * Math.sin(starA);
+        const rad   = (3.4 + i * 0.5) * depth;
+        ctx.save();
+        ctx.translate(starX, starY);
+        ctx.rotate(t * 0.06 + i);
+        ctx.globalAlpha *= depth;
+        ctx.fillStyle   = '#ffe9a8';
+        ctx.shadowColor = '#ffb020';
+        ctx.shadowBlur  = 6;
+        ctx.beginPath();
+        ctx.moveTo(0, -rad);
+        ctx.quadraticCurveTo(0.6, -0.6, rad, 0);
+        ctx.quadraticCurveTo(0.6, 0.6, 0, rad);
+        ctx.quadraticCurveTo(-0.6, 0.6, -rad, 0);
+        ctx.quadraticCurveTo(-0.6, -0.6, 0, -rad);
+        ctx.fill();
+        ctx.restore();
       }
       ctx.restore();
     }

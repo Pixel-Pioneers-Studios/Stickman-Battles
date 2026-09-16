@@ -49,6 +49,7 @@ const SovDossier = (() => {
       strat: {},         // strategy -> { used, leaked, stopped }
       dials: null,       // { agg, def, spc, rxn } running mean of endpoints
       loadout: {},       // loadoutKey -> { n, dmg } running mean of damage/life
+      grid: null,        // sit -> action -> { tries, taken, dealt } (SMK2 tactic grid)
       lastSeen: 0,
     };
   }
@@ -228,6 +229,60 @@ const SovDossier = (() => {
     return acc;
   }
 
+  // ── Tactic grid, keyed by opponent ────────────────────────────────────────
+  // The dial endpoints above answer "how hard do I fight this person". The grid
+  // answers "what works on them, WHERE" — 9 situations x 6 actions, scored by
+  // measured consequence. It is the only record here that can express a counter
+  // rather than an intensity, and it is the slowest to fill, which is exactly why
+  // it has to survive the match that filled it.
+  //
+  // Merged rather than replaced: a returning opponent's grid is the old one plus
+  // the new evidence, with the stored side decayed so a stale read loses to a
+  // fresh one. Cells are capped so a long match cannot pin a cell forever.
+  function recordGrid(keys, grid) {
+    if (!grid) return;
+    for (const key of keys) {
+      const r = get(key);
+      if (!r.grid) r.grid = {};
+      for (const sit of Object.keys(grid)) {
+        const src = grid[sit];
+        const dst = r.grid[sit] || (r.grid[sit] = {});
+        for (const act of Object.keys(src)) {
+          const a = src[act];
+          if (!a || !(a.tries > 0)) continue;
+          const c = dst[act] || (dst[act] = { tries: 0, taken: 0, dealt: 0 });
+          c.tries = c.tries * SOV_DOSSIER_DECAY + a.tries;
+          c.taken = c.taken * SOV_DOSSIER_DECAY + a.taken;
+          c.dealt = c.dealt * SOV_DOSSIER_DECAY + a.dealt;
+          if (c.tries > 20) { const k = 20 / c.tries; c.tries *= k; c.taken *= k; c.dealt *= k; }
+        }
+      }
+      r.lastSeen = Date.now();
+    }
+    _dirty = true;
+  }
+
+  // Blended across the keys by evidence, so the exact-kit record outvotes the
+  // archetype record once it has any — and an opponent he has never met still
+  // starts from what people who FIGHT like them taught him.
+  function gridPrior(keys) {
+    let out = null;
+    for (const key of keys) {
+      const r = get(key);
+      if (!r.grid) continue;
+      out = out || {};
+      for (const sit of Object.keys(r.grid)) {
+        const dst = out[sit] || (out[sit] = {});
+        for (const act of Object.keys(r.grid[sit])) {
+          const a = r.grid[sit][act];
+          const c = dst[act] || (dst[act] = { tries: 0, taken: 0, dealt: 0 });
+          c.tries += a.tries; c.taken += a.taken; c.dealt += a.dealt;
+        }
+      }
+    }
+    return out;
+  }
+
   // ── Loadout results, keyed by opponent ────────────────────────────────────
   // The bandit added in 4.0.26 learns damage-per-life globally. Against a real
   // person the right kit is a function of THEIR kit, so the record is filed per
@@ -282,6 +337,6 @@ const SovDossier = (() => {
   }
 
   return { load, save, kitKey, behKey, archetype, get, recordStrategy, strategyBias,
-           bestStrategy, recordDials, dialPrior, recordLoadout, loadoutPrior,
+           bestStrategy, recordDials, dialPrior, recordGrid, gridPrior, recordLoadout, loadoutPrior,
            tick, reset, dump, _raw: () => load() };
 })();

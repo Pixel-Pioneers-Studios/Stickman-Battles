@@ -8,6 +8,8 @@
     "lint": "npm run globals && eslint js/ server.js storage.js tools/",
     "build": "node --check server.js && node --check storage.js && find js -name '*.js' -print0 | xargs -0 -n1 -P8 node --check",
     "audit": "node tools/audit/check.js",
+    "whatsnew": "node tools/whatsnew/gen.js",
+    "split": "node tools/split-saga.js",
     "check": "npm run build && npm run audit && npm run lint"
   },
   "engines": {

@@ -4,6 +4,27 @@
 // Must load AFTER smb-menu-config.js, BEFORE smb-menu-startcore.js
 
 function startGame(_skipVote) {
+  // ── ONLINE LAUNCH GATE ──────────────────────────────────────────────────
+  // While a room is live the match must be launched by the host for everyone at
+  // once. Without this, a host pressing the menu's FIGHT button (or a guest
+  // pressing anything) started a purely local match while the peer kept its own
+  // settings — the "1v1 for me, Survival for my friend" desync.
+  if (typeof NetworkManager !== 'undefined' && NetworkManager.connected && !window._onlineLaunchInProgress) {
+    if (!NetworkManager.isHost()) {
+      NetworkManager.showToast('The host starts the match — or leave the room to play solo');
+      return;
+    }
+    if (typeof networkStartGame === 'function') { networkStartGame(); return; }
+  }
+  // 'online' is a lobby screen, not a playable mode — starting it unconnected
+  // dropped the player into a silent local 1v1 that looked like a broken match.
+  if (typeof gameMode !== 'undefined' && gameMode === 'online' &&
+      !(typeof NetworkManager !== 'undefined' && NetworkManager.connected)) {
+    if (typeof NetworkManager !== 'undefined') {
+      NetworkManager.showToast('Connect to a room first — or pick another mode');
+    }
+    return;
+  }
   if (typeof _resetSdFloor === 'function') _resetSdFloor();
   if (typeof cgSdk !== 'undefined') cgSdk.gameplayStart();
   // Story mode: reset per-fight event state when launching from story
@@ -40,13 +61,13 @@ function startGame(_skipVote) {
     const info    = _getLoadingInfo();
     const titleEl = document.getElementById('loadModeTitle');
     const subEl   = document.getElementById('loadModeSub');
-    const imgEl   = document.getElementById('loadModeImg');
     if (titleEl) titleEl.textContent = info.title;
     if (subEl)   subEl.textContent   = info.subtitle;
-    if (imgEl) {
-      imgEl.src = info.image;
-    }
     loadOv.style.display = 'flex';
+    // Scene starts AFTER the overlay is displayed — the canvas has no layout
+    // size while its parent is display:none, so starting first would size the
+    // backing store to 0 and draw nothing.
+    if (typeof LoadScene !== 'undefined') LoadScene.start(info.scene);
     const bar = document.getElementById('loadBar');
     if (bar) { bar.style.width = '0%'; requestAnimationFrame(() => { bar.style.transition = 'width 0.75s ease'; bar.style.width = '100%'; }); }
   }
@@ -57,7 +78,11 @@ function startGame(_skipVote) {
   // (seamless story transitions skip the hold — just a ~120ms fade dip)
   setTimeout(() => {
     _startGameCore();
-    if (loadOv && !_seamless) setTimeout(() => { loadOv.style.display = 'none'; }, 200);
+    if (loadOv && !_seamless) setTimeout(() => {
+      loadOv.style.display = 'none';
+      // Stop the rAF once hidden — it must not keep running behind the match.
+      if (typeof LoadScene !== 'undefined') LoadScene.stop();
+    }, 200);
     if (fadeOv) setTimeout(() => { fadeOv.style.opacity = '0'; }, _seamless ? 60 : 300);
     // Unfreeze only after overlays are fully gone (~350ms fade) so bots can't act while loading screen is visible
     setTimeout(() => { gameLoading = false; }, _seamless ? 220 : 480);

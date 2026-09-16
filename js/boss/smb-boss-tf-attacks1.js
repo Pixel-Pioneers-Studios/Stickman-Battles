@@ -7,6 +7,12 @@
 function triggerPhaseTransition(entity, phase) {
   // Reset stagger accumulator so TrueForm doesn't inherit boss-phase stagger state
   bossStaggerDmg = 0; bossStaggerDecay = 0;
+  // Battle Royale has no room for a phase cutscene. The beast and the yeti are
+  // ambient wildlife there, not the event of the match, and a cinematic freezes
+  // all 100 fighters and the closing storm for several seconds because someone
+  // three landmarks away chipped a beast to half health. Their phase STATS still
+  // apply — only the cutscene is skipped.
+  if (typeof gameMode !== 'undefined' && gameMode === 'battleroyale') return;
   if (entity.isTrueForm) {
     startCinematic(phase === 2 ? _makeTFPhase2Cinematic(entity) : _makeTFPhase3Cinematic(entity));
   } else if (entity.isBeast) {
@@ -99,6 +105,10 @@ function updateTFMeteorCrash() {
       tf.x = mc.landX - tf.w / 2;  // reposition off-screen
       tf.y = -200;
       tf.vx = 0; tf.vy = 0;
+      // The drawn shadow tops out at r=60 while the blast reaches 280, so a player
+      // standing well clear of the only visible marker still took up to 43.
+      bossWarnings.push({ type: 'circle', x: mc.landX, y: 460, r: 280,
+        color: '#8800ff', timer: 80, maxTimer: 80, label: 'METEOR — MOVE!' });
     }
   } else if (mc.phase === 'shadow') {
     // Shadow circle grows on the ground at landX
@@ -246,6 +256,13 @@ function updateTFChainSlam() {
   cs.timer++;
   // Stage timing: 0=grab(0-20f), 1=slam(20-40f), 2=kick(40-60f), 3=shockwave(60-80f)
   if (cs.stage === 0 && cs.timer >= 20) {
+    // Whiff if the target left the telegraphed reach during the wind-up. The
+    // cooldown was already spent at cast time, so bailing here cannot loop.
+    if (dist(tf, cs.target) > (cs.reach || 260)) {
+      spawnParticles(tf.cx(), tf.cy(), '#8800ff', 8);
+      tfChainSlam = null;
+      return;
+    }
     // Grab: pull target to boss + damage
     cs.target.x = tf.cx() - cs.target.w / 2 + tf.facing * 30;
     cs.target.vy = -8;
@@ -706,6 +723,12 @@ function updateBossPendingAttacks() {
         const range  = isEdge ? 500 : 350;
         const force  = isEdge ? 18  : 22;
         if (dd < range && dd > 1) {
+          // The pulse used to be pure displacement, which made the boss's most
+          // frequently fired special a no-op that also cost it a recovery window —
+          // it dragged the player in and then could not punish. The crush scales
+          // with how deep inside the radius they were caught. Damage is applied
+          // before the pull so dealDamage's knockback cannot cancel it.
+          dealDamage(boss, p, Math.round(6 + 10 * (1 - dd / range)), 0);
           const pull = force * (1 - dd / range);
           p.vx = (ddx / dd) * pull;
           p.vy = (ddy / dd) * pull * 0.5 - 5;

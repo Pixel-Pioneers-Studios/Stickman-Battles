@@ -516,6 +516,12 @@ function _launchExplorationChapter(ch) {
   exploreGoalX     = goalX;
   exploreGoalName  = ch.objectName || 'Exit';
   exploreGoalFound = false;
+  // Clear-the-area gate resets with the world: a stale seal reason or a leaked
+  // force-spawn drain would follow the player into the next level.
+  exploreGoalBlocked     = 0;
+  exploreGoalBlockReason = '';
+  window._exploreForceSpawnAll = false;
+  if (typeof _storyResetLevelWin === 'function') _storyResetLevelWin();
   exploreCheckpoints = [];
   exploreCheckpointIdx = -1;
   if (_region) {

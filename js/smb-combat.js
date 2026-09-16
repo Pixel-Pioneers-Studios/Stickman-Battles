@@ -91,102 +91,131 @@ function _spawnWeaponHitFX(attacker, target, dmg) {
   const tx = target.cx(), ty = target.cy();
   const wk = attacker && attacker.weaponKey ? attacker.weaponKey : null;
   const heavy = dmg >= 22;
+  // Sprays read as FORCE when they follow the blow. Direction is the line from
+  // attacker to target, falling back to facing when they are stacked exactly.
+  let _fxdx = target.cx() - (attacker ? attacker.cx() : target.cx());
+  let _fxdy = target.cy() - (attacker ? attacker.cy() : target.cy());
+  if (Math.abs(_fxdx) < 0.01 && Math.abs(_fxdy) < 0.01) { _fxdx = (attacker && attacker.facing) || 1; _fxdy = 0; }
+  const _fxlen = Math.hypot(_fxdx, _fxdy) || 1;
+  _fxdx /= _fxlen; _fxdy /= _fxlen;
+  // Local shim: every burst below sprays along the hit instead of as a ball.
+  // spawnRing() calls are left radial on purpose — a ring is not a spray.
+  const sp = (x, y, color, count, spread) =>
+    (typeof spawnParticlesDir === 'function'
+      ? spawnParticlesDir(x, y, color, count, _fxdx, _fxdy, spread)
+      : spawnParticles(x, y, color, count));
   switch (wk) {
     case 'sword':
       // Metallic sparks: white core + light-blue scatter
-      spawnParticles(tx, ty, '#d4eeff', heavy ? 14 : 8);
-      spawnParticles(tx, ty, '#ffffff', heavy ? 8 : 4);
-      if (heavy) spawnParticles(tx, ty, '#88ccff', 6);
+      sp(tx, ty, '#d4eeff', heavy ? 14 : 8);
+      sp(tx, ty, '#ffffff', heavy ? 8 : 4);
+      if (heavy) sp(tx, ty, '#88ccff', 6);
       break;
     case 'hammer':
       // Dusty orange shockwave chunks + ground dust ring (smash archetype)
-      spawnParticles(tx, ty, '#cc5500', heavy ? 16 : 10);
-      spawnParticles(tx, ty, '#ffaa44', heavy ? 10 : 5);
-      spawnParticles(tx, target.y + target.h - 4, '#887766', heavy ? 10 : 5); // ground dust at feet
+      sp(tx, ty, '#cc5500', heavy ? 16 : 10);
+      sp(tx, ty, '#ffaa44', heavy ? 10 : 5);
+      sp(tx, target.y + target.h - 4, '#887766', heavy ? 10 : 5); // ground dust at feet
       if (heavy) spawnRing(tx, target.y + target.h - 4);
       break;
     case 'axe':
       // Chunky red/orange shards
-      spawnParticles(tx, ty, '#ff4400', heavy ? 14 : 9);
-      spawnParticles(tx, ty, '#cc2200', heavy ? 8 : 4);
+      sp(tx, ty, '#ff4400', heavy ? 14 : 9);
+      sp(tx, ty, '#cc2200', heavy ? 8 : 4);
       break;
     case 'scythe':
       // Dark purple reaping wisps
-      spawnParticles(tx, ty, '#9900cc', heavy ? 14 : 8);
-      spawnParticles(tx, ty, '#440066', heavy ? 8 : 5);
-      if (heavy) spawnParticles(tx, ty, '#cc88ff', 6);
+      sp(tx, ty, '#9900cc', heavy ? 14 : 8);
+      sp(tx, ty, '#440066', heavy ? 8 : 5);
+      if (heavy) sp(tx, ty, '#cc88ff', 6);
       break;
     case 'spear': {
       // Pierce flash: sparks streak along the thrust line (thrust archetype)
       const _spDir = attacker.facing || 1;
-      spawnParticles(tx, ty, '#00ccbb', heavy ? 10 : 6);
-      spawnParticles(tx + _spDir * 10, ty, '#ffffff', heavy ? 6 : 3);
-      spawnParticles(tx + _spDir * 20, ty, '#aaffee', heavy ? 4 : 2);
+      sp(tx, ty, '#00ccbb', heavy ? 10 : 6);
+      sp(tx + _spDir * 10, ty, '#ffffff', heavy ? 6 : 3);
+      sp(tx + _spDir * 20, ty, '#aaffee', heavy ? 4 : 2);
       break;
     }
     case 'fryingpan':
       // Bright yellow/gold clang burst + comic impact ring
-      spawnParticles(tx, ty, '#ffdd00', heavy ? 16 : 10);
-      spawnParticles(tx, ty, '#ffffff', heavy ? 10 : 5);
+      sp(tx, ty, '#ffdd00', heavy ? 16 : 10);
+      sp(tx, ty, '#ffffff', heavy ? 10 : 5);
       if (heavy) spawnRing(tx, ty);
       break;
     case 'broomstick': {
       // Poke streak: scatter trails along the jab line (thrust archetype)
       const _bsDir = attacker.facing || 1;
-      spawnParticles(tx, ty, '#cc44ff', heavy ? 10 : 6);
-      spawnParticles(tx + _bsDir * 12, ty, '#ffee44', heavy ? 6 : 3);
+      sp(tx, ty, '#cc44ff', heavy ? 10 : 6);
+      sp(tx + _bsDir * 12, ty, '#ffee44', heavy ? 6 : 3);
       break;
     }
     case 'katana':
       // Clean cut: sparse thin white/steel flash (iai archetype — less is more)
-      spawnParticles(tx, ty, '#ffffff', heavy ? 8 : 5);
-      spawnParticles(tx, ty, '#aaaadd', heavy ? 5 : 3);
+      sp(tx, ty, '#ffffff', heavy ? 8 : 5);
+      sp(tx, ty, '#aaaadd', heavy ? 5 : 3);
       break;
     case 'whip': {
       // Snap burst at the crack point (the weapon tip, not the target center)
       const _wt = attacker._weaponTip;
       const _wx = _wt ? _wt.x : tx, _wy = _wt ? _wt.y : ty;
-      spawnParticles(_wx, _wy, '#ffffff', heavy ? 10 : 7);
-      spawnParticles(_wx, _wy, '#ffcc88', heavy ? 6 : 3);
+      sp(_wx, _wy, '#ffffff', heavy ? 10 : 7);
+      sp(_wx, _wy, '#ffcc88', heavy ? 6 : 3);
       break;
     }
     case 'flail':
       // Heavy iron chunks (whirl archetype)
-      spawnParticles(tx, ty, '#bbbbbb', heavy ? 14 : 9);
-      spawnParticles(tx, ty, '#777788', heavy ? 8 : 4);
-      if (heavy) spawnParticles(tx, ty, '#ffffff', 6);
+      sp(tx, ty, '#bbbbbb', heavy ? 14 : 9);
+      sp(tx, ty, '#777788', heavy ? 8 : 4);
+      if (heavy) sp(tx, ty, '#ffffff', 6);
       break;
     case 'electricstaff':
       // Crackling cyan discharge (zap archetype)
-      spawnParticles(tx, ty, '#00eeff', heavy ? 14 : 9);
-      spawnParticles(tx, ty, '#ffffff', heavy ? 7 : 4);
+      sp(tx, ty, '#00eeff', heavy ? 14 : 9);
+      sp(tx, ty, '#ffffff', heavy ? 7 : 4);
       break;
     case 'combat':
       // Red/white punch burst with extra count on heavy
-      spawnParticles(tx, ty, '#ff2233', heavy ? 18 : 10);
-      spawnParticles(tx, ty, '#ffffff', heavy ? 10 : 5);
+      sp(tx, ty, '#ff2233', heavy ? 18 : 10);
+      sp(tx, ty, '#ffffff', heavy ? 10 : 5);
       break;
     case 'shield':
       // Gold/blue blocking-style burst (attacker hitting with shield bash)
-      spawnParticles(tx, ty, '#4488ff', heavy ? 12 : 7);
-      spawnParticles(tx, ty, '#ffdd88', heavy ? 8 : 4);
+      sp(tx, ty, '#4488ff', heavy ? 12 : 7);
+      sp(tx, ty, '#ffdd88', heavy ? 8 : 4);
       break;
     case 'gun': case 'peashooter': case 'slingshot': case 'bow': case 'paperairplane':
       // Ranged: particles are spawned by Projectile on hit, nothing extra needed here
-      spawnParticles(tx, ty, target.color, 8);
+      sp(tx, ty, target.color, 8);
       break;
     default:
       // Generic fallback
-      spawnParticles(tx, ty, target.color, 12);
+      sp(tx, ty, target.color, 12);
       if (heavy) {
-        spawnParticles(tx, ty, '#ffffff', 8);
-        spawnParticles(tx, ty, dmg >= 34 ? '#ff8844' : '#ffee88', dmg >= 34 ? 12 : 7);
+        sp(tx, ty, '#ffffff', 8);
+        sp(tx, ty, dmg >= 34 ? '#ff8844' : '#ffee88', dmg >= 34 ? 12 : 7);
       }
       break;
   }
 }
 
 // ── VERTICAL LAUNCH GOVERNOR ─────────────────────────────────────────────────
+// The walls a fighter can actually be pinned against, in world coordinates. An
+// arena lock is checked first because those are the walls that spring up during
+// a story fight and make a corner available in the middle of an open world;
+// otherwise the arena's own map edges stand. GAME_W is the screen, never the
+// world, so it is only the last resort.
+function _wallBounds() {
+  if (typeof exploreArenaLock !== 'undefined' && exploreArenaLock) {
+    return { left: exploreArenaLock.left, right: exploreArenaLock.right };
+  }
+  if (typeof currentArena !== 'undefined' && currentArena &&
+      currentArena.mapLeft != null && currentArena.mapRight != null) {
+    return { left: currentArena.mapLeft, right: currentArena.mapRight };
+  }
+  return { left: 0, right: GAME_W };
+}
+
 // Every anti-juggle system in dealDamage() below regulates `actualKb` — the
 // HORIZONTAL impulse. Nothing ever policed vertical displacement, and ~37 call
 // sites across the codebase launch a target by writing `t.vy = Math.min(t.vy, -N)`
@@ -296,6 +325,11 @@ function dealDamage(attacker, target, dmg, kbForce, stunMult = 1.0, isSplash = f
     );
     if (_gd > 160) return;
   }
+  // Backstage gate — a boss mid-portal sits at (-2000,-2000) invulnerable for up
+  // to 2.5s, but the hazards it spawned earlier keep ticking. That damage arrives
+  // with no visible source and nothing to punish: measured in
+  // smb_replay_void_2026-09-06 as 39 damage delivered from 2280px away.
+  if (attacker && attacker.backstageHiding && target && !target.isBoss) return;
   // TF opening cinematic: TrueForm cannot hurt players — fight is fully scripted
   if (typeof tfOpeningFightActive !== 'undefined' && tfOpeningFightActive &&
       attacker && attacker.isTrueForm && target && !target.isBoss) return;
@@ -314,9 +348,11 @@ function dealDamage(attacker, target, dmg, kbForce, stunMult = 1.0, isSplash = f
     return;
   }
   // Combat weapon counter stance: absorb the hit, teleport behind attacker next frame.
-  // Bosses and TrueForm bypass the counter (unavoidable by design).
-  if (target._counterStance > 0 && attacker && attacker !== target &&
-      !attacker.isBoss && !attacker.isTrueForm) {
+  // Bosses and TrueForm used to bypass this entirely, which made the Combat Q read
+  // as broken against the Creator: the stance lit up and then nothing happened, with
+  // no feedback distinguishing it from a missed read. Bosses are countered like any
+  // other attacker now; the retaliation launch still respects their kbResist.
+  if (target._counterStance > 0 && attacker && attacker !== target) {
     target._counterStance    = 0;
     target._counterAttacker  = attacker;
     spawnParticles(target.cx(), target.cy(), '#ff4444', 14);
@@ -443,6 +479,10 @@ function dealDamage(attacker, target, dmg, kbForce, stunMult = 1.0, isSplash = f
   if (typeof directorAddIntensity === 'function') {
     directorAddIntensity(actualDmg * 0.02);
   }
+  // Sampled before the block below, which clears `shielding` on an overflow
+  // break: a hit that broke the guard is still a hit the guard was up for, and
+  // the KB immunity further down has to see it that way.
+  const _shieldedHit = !!target.shielding;
   if (target.shielding) {
     const _stacks = Math.max(1, target.shieldStacks || 1);
     // Parry: only on fresh HP shield (stack 1); fires before damage absorption
@@ -497,11 +537,26 @@ function dealDamage(attacker, target, dmg, kbForce, stunMult = 1.0, isSplash = f
     target.hurtTimer = 8;
     // Hit confirmation flash: brief white overlay drawn over the target in the render loop
     target._hitFlashTimer = actualDmg >= 22 ? 5 : 3;
+    // ── Impact juice scope ────────────────────────────────────────────────────
+    // Everything below this line (hitstop, screen shake, camera punch, slow-mo)
+    // is a WORLD-WIDE global. Battle Royale runs up to 100 fighters spread over
+    // 12000px, and every off-screen bot skirmish, storm tick and crate break was
+    // driving all of them at once. hitStopFrames is the worst of it: gameLoop
+    // returns before the draw call when it is set (smb-loop-core.js), so dozens
+    // of unrelated hits per second made the screen render in bursts — a visible
+    // strobe, and a photosensitivity hazard.
+    // In BR, global feedback belongs to the local player's own hits only. Other
+    // fighters keep their per-fighter feedback (hurt flash, particles, damage
+    // numbers), which is local to them and costs nothing.
+    const _juiceOK = (typeof gameMode === 'undefined' || gameMode !== 'battleroyale')
+      || (typeof _brIsLocalPlayerHit === 'function' && _brIsLocalPlayerHit(attacker, target));
     // Variable hitstop: light 2-4f, medium 4-7f, heavy 8-11f, cosmic(boss) 11-14f
     // ±2 frame variance keeps each impact feeling distinct rather than metronomic.
     const _isCosmicHit = attacker && (attacker.isBoss || attacker.isTrueForm);
     const _hsVar = Math.round((Math.random() - 0.5) * 4); // ±2 frames
-    if (!target.isBoss) {
+    if (!_juiceOK) {
+      // BR: off-screen/AI-vs-AI hit — no global freeze.
+    } else if (!target.isBoss) {
       // Merge with any hitstop already set this frame (Math.max, not =) so a weak
       // simultaneous hit (splash/AoE) can't truncate a heavy hit's freeze.
       if (_isCosmicHit && actualDmg >= 20) {
@@ -518,11 +573,11 @@ function dealDamage(attacker, target, dmg, kbForce, stunMult = 1.0, isSplash = f
       if (actualDmg >= 30) hitStopFrames = Math.max(hitStopFrames, 1, Math.min(5, Math.floor(actualDmg / 22) + (_hsVar > 1 ? 1 : 0)));
       else if (actualDmg >= 15) hitStopFrames = Math.max(hitStopFrames, _hsVar > 1 ? 3 : 2);
     }
-    if (typeof setCameraDrama === 'function' && actualDmg > 22) {
+    if (_juiceOK && typeof setCameraDrama === 'function' && actualDmg > 22) {
       setCameraDrama('impact', 18);
     }
     // Slow-motion: cosmic hits always trigger; heavy hits on players trigger too
-    if (!target.isBoss && slowMotion >= 0.9) {
+    if (_juiceOK && !target.isBoss && slowMotion >= 0.9) {
       if (_isCosmicHit && actualDmg >= 22) {
         slowMotion = 0.25;
         hitSlowTimer = 18;
@@ -532,7 +587,7 @@ function dealDamage(attacker, target, dmg, kbForce, stunMult = 1.0, isSplash = f
       }
     }
     // Camera zoom-in on heavy/cosmic hits
-    if (actualDmg >= 18) camHitZoomTimer = _isCosmicHit ? 22 : 15;
+    if (_juiceOK && actualDmg >= 18) camHitZoomTimer = _isCosmicHit ? 22 : 15;
     // Red vignette flash when a human player takes a heavy hit
     if (!target.isAI && !target.isBoss && actualDmg >= 15) {
       hitVignetteTimer = _isCosmicHit ? 28 : 18;
@@ -610,6 +665,14 @@ function dealDamage(attacker, target, dmg, kbForce, stunMult = 1.0, isSplash = f
   if (attacker && attacker._isFamiliar && !target.onGround && !target.isBoss) {
     actualKb = 0;
   }
+
+  // ── SHIELD KB IMMUNITY ────────────────────────────────────────────────────
+  // A blocked hit does not move the defender. Being pushed off a ledge by the
+  // residual knockback of a hit you blocked is the single outcome a guard exists
+  // to prevent, and the degraded tiers and the break already charge for holding
+  // it in damage. Applied last so the combo ramp, the per-frame impulse limit
+  // and the hard cap above cannot re-introduce a push.
+  if (_shieldedHit) actualKb = 0;
 
   // One-punch mode: training only — instantly kills on hit
   if (trainingMode && attacker && attacker.onePunchMode && !target.shielding) {
@@ -698,32 +761,51 @@ function dealDamage(attacker, target, dmg, kbForce, stunMult = 1.0, isSplash = f
     target._antiRangedStats = target._antiRangedStats || { projectiles: 0, rangedDamage: 0, farTicks: 0 };
     target._antiRangedStats.rangedDamage = Math.min(999, (target._antiRangedStats.rangedDamage || 0) + actualDmg);
   }
-  // Wall-combo escape: if TrueForm is hit 3+ times quickly while near a boundary, trigger escape
-  if (target && target.isTrueForm && attacker && !attacker.isBoss && !attacker.isTrueForm &&
-      target.invincible <= 0 && !target.godmode) {
+  // ── WALL-COMBO ESCAPE ─────────────────────────────────────────────────────
+  // Three fast hits with your back to a wall and you get out, with i-frames on
+  // the way. This used to be TrueForm's alone, which left every player, bot and
+  // story enemy with no answer to being pinned — and the walls that spring up
+  // mid-level made a corner available anywhere. It also measured the wrong wall:
+  // `GAME_W` is the 900px SCREEN, so in a 6000px walking world the left test only
+  // fired at the world origin and the right test fired at an arbitrary midpoint.
+  // _wallBounds() reads the walls that are actually live: an arena lock first
+  // (those ARE the springing walls), then the arena's own map edges.
+  if (target && attacker && attacker !== target && !attacker.isBoss &&
+      target.invincible <= 0 && !target.godmode && !target.isDead) {
+    const _wb = _wallBounds();
     target._wallComboTimer = target._wallComboTimer || 0;
     target._wallComboHits  = target._wallComboHits  || 0;
     // Reset counter when the window expires (90 frames ≈ 1.5 s)
     if (target._wallComboTimer <= 0) target._wallComboHits = 0;
     target._wallComboHits++;
     target._wallComboTimer = 90; // refresh window
-    const _nearLeft  = target.x < 80;
-    const _nearRight = target.x + target.w > GAME_W - 80;
+    const _nearLeft  = target.x < _wb.left + 80;
+    const _nearRight = target.x + target.w > _wb.right - 80;
     if (target._wallComboHits >= 3 && (_nearLeft || _nearRight)) {
-      // Trigger escape: teleport to center + brief invulnerability
       target._wallComboHits  = 0;
       target._wallComboTimer = 0;
-      // Choose escape destination: center of arena, with slight vertical lift
-      const _escX = GAME_W / 2 - target.w / 2 + (Math.random() - 0.5) * 120;
-      const _escY  = GAME_H * 0.35;
-      target.x  = Math.max(20, Math.min(GAME_W - target.w - 20, _escX));
-      target.y  = _escY;
-      target.vx = 0;
-      target.vy = -6;
+      // The burst itself is deferred: the knockback below runs AFTER this point
+      // and would overwrite any velocity set here, which is exactly how the
+      // original read as "fires but does nothing".
+      target._wallEscape = { dir: _nearLeft ? 1 : -1 };
+      if (target.isTrueForm) {
+        // TrueForm keeps its own answer: it leaves entirely and reappears in the
+        // middle of the fight. On a boss that reads as a phase beat, which is
+        // why it stays exclusive to it.
+        const _escX = (_wb.left + _wb.right) / 2 - target.w / 2 + (Math.random() - 0.5) * 120;
+        target.x  = Math.max(_wb.left + 20, Math.min(_wb.right - target.w - 20, _escX));
+        target.y  = GAME_H * 0.35;
+        target.vx = 0;
+        target.vy = -6;
+        spawnParticles(target.cx(), target.cy(), '#aa00ff', 14);
+      }
+      // (non-TrueForm: the pop-out is applied below, after knockback)
       // Brief invulnerability (~0.4 s = 24 frames at 60 fps)
       target.invincible = Math.max(target.invincible, 24);
       spawnParticles(target.cx(), target.cy(), '#ffffff', 20);
-      spawnParticles(target.cx(), target.cy(), '#aa00ff', 14);
+      if (typeof SoundManager !== 'undefined' && typeof SoundManager.shieldBlock === 'function') {
+        SoundManager.shieldBlock();
+      }
     }
   }
   // ── ATTRIBUTION STAMP ─────────────────────────────────────────────────────
@@ -735,6 +817,15 @@ function dealDamage(attacker, target, dmg, kbForce, stunMult = 1.0, isSplash = f
     target._lastAttacker      = attacker;
     target._lastAttackerFrame = frameCount;
     target._lastAttackerDmg   = actualDmg;
+  }
+  // Battle Royale elimination credit. It has to be taken HERE, on the killing
+  // blow, and not by a later sweep for corpses: the main loop prunes minions with
+  // `minions.filter(m => m.health > 0)` in the draw phase, which runs before
+  // updateBattleRoyale(), so by the time BR's own update sees the world the
+  // fighter that just died is already gone from the array. Counting only — the
+  // BR side decides what, if anything, it means.
+  if (target.health <= 0 && typeof _brCreditElimination === 'function') {
+    _brCreditElimination(attacker, target);
   }
   target.invincible = target.invincible > hitInvincibleFrames ? target.invincible : hitInvincibleFrames; // preserve finisher lock
   const dir        = attacker ? (target.cx() > attacker.cx() ? 1 : -1) : 1;
@@ -769,6 +860,17 @@ function dealDamage(attacker, target, dmg, kbForce, stunMult = 1.0, isSplash = f
       // Render-only; consumed by animHitSquash() in Fighter.draw().
       const _sqAmt = Math.min(0.22, 0.05 + actualKb * 0.011);
       target._hitSquash = { amt: _sqAmt, t: 10, max: 10 };
+    }
+  }
+  // Wall-combo escape burst, applied after the knockback that would otherwise
+  // overwrite it: the point of the escape is to leave the wall, so it has to win
+  // over the hit that is driving the victim into it.
+  if (target._wallEscape) {
+    const _we = target._wallEscape;
+    target._wallEscape = null;
+    if (!target.isTrueForm) {
+      target.vx = _we.dir * 9;
+      target.vy = -5;
     }
   }
   if (settings.screenShake) {
@@ -971,9 +1073,22 @@ function dealDamage(attacker, target, dmg, kbForce, stunMult = 1.0, isSplash = f
   }
   // Super charges for the attacker; gun charges faster via superRateBonus
   // Super move itself doesn't charge the next super (prevents instant refill)
-  if (attacker && !attacker.superActive) {
+  // A domain must not pay for its own successor. Damage dealt while you own an
+  // active domain charges nothing: the domain already buffs you, regenerates you
+  // and (for several classes) its hazards credit you meter, so a domain fight
+  // used to refill the bar faster than a neutral one. Measured in
+  // smb_replay_creator_2026-09-07: a full super every 9s, and every super heals
+  // +40 (Fighter.activateSuper), i.e. ~4.4 hp/s of free healing against a boss
+  // dealing ~4.1 hp/s — the player literally out-healed the fight.
+  const _attInOwnDomain = attacker && typeof DomainManager !== 'undefined'
+    && typeof DomainManager.ownsDomain === 'function' && DomainManager.ownsDomain(attacker);
+  if (attacker && !attacker.superActive && !_attInOwnDomain) {
     const superRate = (attacker.superChargeRate || 1) * (attacker.weapon && attacker.weapon.superRateBonus || 1);
     let _superGain = Math.floor(actualDmg * 0.70 * superRate);
+    // Minions are not a fair meter source. The creator fight ships a constant
+    // stream of them, which is why it charged twice as fast as the TrueForm
+    // fight (a super every 9s vs every 18s) for the same player skill.
+    if (target && target.isMinion) _superGain = Math.floor(_superGain * 0.35);
     // Q-ability super cap: max 28 meter points per Q activation (≈28% super)
     if (attacker._qSuperCapRemaining !== undefined) {
       _superGain = Math.min(_superGain, Math.max(0, attacker._qSuperCapRemaining));
@@ -987,7 +1102,9 @@ function dealDamage(attacker, target, dmg, kbForce, stunMult = 1.0, isSplash = f
     }
   }
   // Target also gains super from taking damage (half of what attacker gained)
-  if (target && !target.superActive && !target.isBoss) {
+  const _tgtInOwnDomain = target && typeof DomainManager !== 'undefined'
+    && typeof DomainManager.ownsDomain === 'function' && DomainManager.ownsDomain(target);
+  if (target && !target.superActive && !target.isBoss && !_tgtInOwnDomain) {
     const _targetSuperGain = Math.floor(actualDmg * 0.35);
     const _tPrev = target.superReady;
     target.superMeter = Math.min(100, target.superMeter + _targetSuperGain);
