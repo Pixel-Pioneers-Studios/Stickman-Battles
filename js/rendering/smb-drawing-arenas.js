@@ -3446,6 +3446,9 @@ function endGame() {
     // Portal ad break — self-guarded: no-op off CrazyGames, online, or on cooldown.
     cgSdk.adBreak();
   }
+  // Sovereign's open-arsenal sample for the life still in progress: a match he
+  // wins never ends in his death, so without this his winning lives are lost.
+  for (const _p of players) { try { if (_p && _p._arsenalCommit) _p._arsenalCommit('end'); } catch (e) {} }
   gameRunning = false;
   exploreActive = false;
   if (typeof saveGame === 'function') saveGame();

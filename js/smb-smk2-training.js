@@ -285,9 +285,51 @@ const SMK2Trainer = (() => {
     { name: 'aerial', w: 'sword', c: 'none', policy: 'aerial' },
   ];
 
+  // ── SCRIPTED OPPONENTS MUST FIGHT WITH THEIR WHOLE KIT ────────────────────
+  // Every policy in this file and every stress policy in smb-sov-scenarios.js
+  // called `attack()` and nothing else. No ability, no super — measured
+  // 2026-09-20 over a full sweep: the opponent's abilityCooldown was 0 on
+  // 23,142 of 23,142 samples, i.e. not one ability was spent in the entire
+  // measurement suite.
+  //
+  // That is not a small realism gap, it invalidates whole classes of result.
+  // Sovereign's volley standoff, his shield timing, his i-frame reads and his
+  // punish windows are all answers to a kit he was never actually shown, so the
+  // sim could neither reward nor punish any of them. It also made him look
+  // adaptive when he was not: against an opponent that never threatens, there is
+  // nothing to adapt TO.
+  //
+  // Returns true when it consumed the frame's offensive action.
+  function _policyUseKit(f, t, d, rate) {
+    if (!f || !t || t.health <= 0) return false;
+    if ((f.stunTimer || 0) > 0 || (f.ragdollTimer || 0) > 0) return false;
+    const R = (f.weapon && f.weapon.range) || 90;
+    // Super first: it is the biggest swing available and a real player spends it.
+    if (f.superReady && d < R * 2.6 && typeof f.useSuper === 'function' &&
+        Math.random() < (rate.sup !== undefined ? rate.sup : 0.012)) {
+      f.shielding = false; f.useSuper(t); return true;
+    }
+    if ((f.abilityCooldown || 0) <= 0 && typeof f.ability === 'function' &&
+        d < R * (rate.abiRange || 2.2) &&
+        Math.random() < (rate.abi !== undefined ? rate.abi : 0.03)) {
+      f.shielding = false; f.ability(t); return true;
+    }
+    return false;
+  }
+  // Exposed so smb-sov-scenarios.js upgrades every stress policy through the
+  // same code path rather than growing its own copy that drifts.
+  if (typeof window !== 'undefined') window._policyUseKit = _policyUseKit;
+
   function _applyPolicy(f, policy) {
     if (!f || !policy) return;
     f._policy = policy;
+    // Extension hook — smb-sov-scenarios.js registers the stress policies
+    // (parry_wall, landing_trap, ledge_executioner, chip, random_walk) here.
+    // Consulted BEFORE the switch so the original four stay exactly as measured.
+    if (typeof SovScenarios !== 'undefined' && SovScenarios.policyFn) {
+      const ext = SovScenarios.policyFn(policy);
+      if (ext) { f.updateAI = ext; return; }
+    }
     f.updateAI = function () {
       const t = this.target;
       if (!t || t.health <= 0) return;
@@ -302,17 +344,23 @@ const SMK2Trainer = (() => {
       if (!this.onGround && this.canDoubleJump && this.vy > 2) { this.vy = -12; this.canDoubleJump = false; }
       switch (policy) {
         case 'turtle':
+          // Defensive kit use: spends the ability to create space when pressured.
+          if (d < 200 && _policyUseKit(this, t, d, { abi: 0.035, sup: 0.010 })) break;
           this.shielding = d < 170;
           if (d < 130) this.vx = -dir * spd * 0.8; else this.vx *= 0.8;
           if (d < 85 && this.cooldown <= 0 && Math.random() < 0.25) { this.shielding = false; this.attack(t); }
           break;
         case 'rusher':
+          // Burst kit use: closes and dumps the ability at point-blank.
+          if (_policyUseKit(this, t, d, { abi: 0.055, sup: 0.016, abiRange: 1.6 })) break;
           this.shielding = false;
           this.vx = dir * spd * 1.15;
           if (this.onGround && Math.random() < 0.02) this.vy = -13;
           if (d < 95 && this.cooldown <= 0) this.attack(t);
           break;
         case 'zoner':
+          // The ability IS the poke for a zoner — used at the top of its range.
+          if (_policyUseKit(this, t, d, { abi: 0.06, sup: 0.014, abiRange: 3.0 })) break;
           // Band is tied to the weapon's own reach rather than to fixed pixels, so
           // the policy still means "stay at the edge of my range" whatever kit the
           // panel holds.
@@ -324,6 +372,7 @@ const SMK2Trainer = (() => {
             if (d < R * 1.05 && this.cooldown <= 0) this.attack(t); }
           break;
         case 'aerial':
+          if (_policyUseKit(this, t, d, { abi: 0.045, sup: 0.014, abiRange: 2.4 })) break;
           this.shielding = false;
           this.vx = dir * spd * 0.9;
           if (this.onGround) this.vy = -15;
@@ -352,6 +401,30 @@ const SMK2Trainer = (() => {
     // assignment so Fighter.update() actually reads them (see _applySimEnv note).
     _applySimEnv();
 
+    // ── Scenario environment override ───────────────────────────────────────
+    // Applied AFTER _applySimEnv so the sim baseline is always the starting
+    // point and a scenario only states its differences. The arena is CLONED
+    // rather than mutated — ARENAS.sovereign is the real shipped arena object
+    // and a stray flag left on it would follow the player into a real match.
+    if (_o.env) {
+      const base = currentArena;
+      const a = Object.assign({}, base, { platforms: (base.platforms || []).map(p => Object.assign({}, p)) });
+      if (_o.env.floorWidth) {
+        const W = Math.max(200, Math.min(900, _o.env.floorWidth));
+        // Keep exactly one isFloor platform — pickSafeSpawn() returns null
+        // without one and respawn crashes. Narrow it, centre it, drop the rest.
+        const floor = a.platforms.find(p => p.isFloor) || { y: 460, h: 60, isFloor: true };
+        a.platforms = [Object.assign({}, floor, { x: (900 - W) / 2, w: W, isFloor: true })];
+      }
+      if (_o.env.gravity) {
+        const g = _o.env.gravity;
+        a.isLowGravity   = g < 0.85;
+        a.isHeavyGravity = g > 1.15;
+        a.earthPhysics   = false;
+      }
+      currentArena = a;
+    }
+
     // Circuit floor is at y=460; spawn above it so fighters fall into position
     const SPAWN_Y = 380;
 
@@ -372,8 +445,20 @@ const SMK2Trainer = (() => {
     // Panel mode: one scripted opponent of a named archetype, instead of a
     // seeded random loadout. Implies duel.
     const panel = _o.panel || null;
+    // Scenario roster: a full per-bot spec list from smb-sov-scenarios.js, each
+    // entry { w, c, policy, hp, dmg }. Takes precedence over the seeded pool and
+    // over `panel`, and unlike panel it applies to EVERY bot rather than bot 0 —
+    // a stress scenario is usually a combination, not a single archetype.
+    const roster = Array.isArray(_o.roster) ? _o.roster : null;
     for (let i = 0; i < numBots; i++) {
-      const ld  = (panel && i === 0) ? { w: panel.w, c: panel.c } : pool[Math.floor(rng() * pool.length)];
+      const rs  = roster ? roster[i % roster.length] : null;
+      // `opp`: a FAIR opponent with a named kit and its own full AI — no policy,
+      // no stat multipliers. Used by tools/sov-discover.js, where any buff would
+      // be measured as a property of the opponent's weapon.
+      const ld  = rs ? { w: rs.w, c: rs.c }
+                : (_o.opp && i === 0) ? { w: _o.opp.w, c: _o.opp.c || 'none' }
+                : (panel && i === 0) ? { w: panel.w, c: panel.c }
+                : pool[Math.floor(rng() * pool.length)];
       const _bx = duel ? 700 : (spawns[i] || 300 + i * 120);
       // ── Duel opponent strength ────────────────────────────────────────────
       // The sim's core problem, measured 2026-08-23: no AI opponent available
@@ -400,7 +485,12 @@ const SMK2Trainer = (() => {
         // loses to whichever archetype cashes in the damage buff most often" are
         // the same measurement unless the buff can be switched off. Any claim
         // about a behavioural weakness has to survive this control.
-        const _bf = _o.noBuff ? { dmg: 1, hp: 1 } : DUEL_BUFF;
+        // A roster entry carries its OWN hp/dmg multipliers, because the whole
+        // point of glass_cannon vs attrition_tank is that they are stat mirror
+        // images. Those replace DUEL_BUFF rather than stacking with it — a
+        // scenario's difficulty must be the thing the scenario says it is.
+        const _bf = rs ? { dmg: rs.dmg || 1, hp: rs.hp || 1 }
+                  : _o.noBuff ? { dmg: 1, hp: 1 } : DUEL_BUFF;
         bot.dmgMult = _bf.dmg;
         bot.maxHealth = Math.round(bot.maxHealth * _bf.hp);
         bot.health    = bot.maxHealth;
@@ -410,18 +500,28 @@ const SMK2Trainer = (() => {
         // hit is plausible, so they never chain. A human does. Removing the
         // guard for the opponent alone roughly doubled lockout. Per-fighter, so
         // Sovereign keeps his own guard intact.
-        bot._noWhiffGuard = !_o.noBuff;
+        // Scenario rosters ALWAYS drop the guard. Lockout comes from chained
+        // hits, not big ones, and the AI whiff-guard makes a bot hold its swing
+        // unless a hit is plausible — so a guarded bot never chains and a human
+        // always does. Measured: removing it for the opponent alone roughly
+        // doubles lockout. A stress scenario that cannot chain is not stress.
+        // `scenarioGuard:'keep'` leaves it in place — the control arm that makes
+        // the choice above measurable rather than assumed.
+        bot._noWhiffGuard = (_o.scenarioGuard === 'keep') ? false
+                          : rs ? true : !_o.noBuff;
       }
       bot._teamId      = 'sim_bots'; // shared team → areAlliedEntities() blocks bot-vs-bot damage
       // AdaptiveAI names itself 'SOVEREIGN' in its constructor — rename so match
       // logs don't show two of him.
-      bot.name         = (panel && i === 0) ? ('PANEL:' + panel.name) : (duel ? ('DUEL:' + ld.c) : ('BOT' + (i + 1)));
+      bot.name         = rs ? ('SCN:' + rs.policy + (roster.length > 1 ? (i + 1) : ''))
+                       : (panel && i === 0) ? ('PANEL:' + panel.name) : (duel ? ('DUEL:' + ld.c) : ('BOT' + (i + 1)));
       bot.target       = sov;
       if (duel) bot.lives = OPP_LIVES;
       _applyBotClass(bot, ld.c);
       // Applied AFTER class setup: _applyBotClass can touch stats but never the
       // decision function, and the policy must be the last word on updateAI.
-      if (panel && i === 0) _applyPolicy(bot, panel.policy);
+      if (rs) _applyPolicy(bot, rs.policy);
+      else if (panel && i === 0) _applyPolicy(bot, panel.policy);
       bots.push(bot);
     }
 
@@ -443,12 +543,26 @@ const SMK2Trainer = (() => {
     const prevBotHp  = new Map(bots.map(b => [b, b.health]));
     let framesRun    = 0;
 
+    // ── DOMAINS MUST BE TICKED OR THEY NEVER END ──────────────────────────
+    // DomainManager.update() owns _domainRiseTimer, and the sim never called it.
+    // Measured 2026-09-20: on his third super Sovereign triggers Absolute
+    // Dominion, which sets _domainRising = true; smb-fighter.js then SKIPS
+    // GRAVITY for that fighter. With nothing ticking the rise to completion he
+    // ascended at a constant 1.5px/frame forever — observed at y = -3578, ~3500px
+    // above a 460px floor, with damage frozen for the last 35 seconds of the match.
+    //
+    // Any match in which he expanded was therefore scoring a fighter who had left
+    // the arena. That matters most for exactly the flags that make him spend supers
+    // more often, which is the opposite of what a fair measurement needs.
+    try { if (typeof DomainManager !== 'undefined' && DomainManager.reset) DomainManager.reset(); } catch (e) {}
     for (let f = 0; f < MAX_FRAMES; f++) {   // crowd mode always runs full duration
       hitStopFrames = 0;
       slowMotion    = 1;
       aiTick        = f;   // REAL cadence: AI re-decides every AI_TICK_INTERVAL frames (was 0 = every frame)
       frameCount    = f;
       framesRun     = f + 1;
+      // Drawing stays stubbed; only the simulation half is advanced.
+      try { if (typeof DomainManager !== 'undefined' && DomainManager.update) DomainManager.update(); } catch (e) {}
 
       // Sovereign re-targets nearest living bot each frame
       const living = bots.filter(b => b.health > 0);
@@ -512,6 +626,10 @@ const SMK2Trainer = (() => {
       if (_duelOver) break;
     }
 
+    // Close his open-arsenal sample and file inference counts: the sim never
+    // runs endGame, and a match he wins never reaches his onDeath.
+    try { if (sov._arsenalCommit) sov._arsenalCommit('end'); } catch (e) {}
+    try { if (sov._commitMech) sov._commitMech(); } catch (e) {}
     players.length = 0;   // clear lexical `players` (final restore happens in _restoreEnv)
     gameRunning    = false;
 
@@ -571,6 +689,23 @@ const SMK2Trainer = (() => {
       framesRun,
       oppDeaths,
       duel,
+      // What he actually learned this match, in the grid's own shape. Surfaced
+      // so tools/sov-vector.js can accumulate it into data/sov-artifact.json —
+      // the link that tools/sov-evolved-genome.json never had.
+      grid: sov._tacticGrid || {},
+      // Times the grid itself released the super bank early (_gridWantsSuper).
+      // Surfaced for the same reason `grid` is: a tool measuring whether the
+      // grid changes behaviour needs to see that it actually fired, or a null
+      // result and a gate that never ran look identical.
+      gridSupers: sov._gridSupers || 0,
+      // Plans completed and swings a plan held — the execution counters for the
+      // tactic-plan layer, surfaced for the same reason gridSupers is.
+      planCount:  sov._planCount  || 0,
+      planVetoed: sov._planVetoed || 0,
+      planStat:   sov._planStat   || {},
+      baitHeld:   sov._baitHeld   || 0,
+      killCredits: sov._killCredits || 0,
+      swarmSeen:   sov._swarmSeen   || 0,
     };
   }
 

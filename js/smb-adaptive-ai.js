@@ -260,6 +260,25 @@ class AdaptiveAI extends Fighter {
       const tgt = Math.max(lo, Math.min(hi, target));
       m[k] += (tgt - m[k]) * RATE;
     };
+    // ── SELF-TERM BUDGET (SMK2_TUNE.oppAdapt) ───────────────────────────────
+    // The opponent offsets below were correct and were being thrown away. The
+    // self-referential part of each target routinely overshoots the ease()
+    // ceiling on its own — measured mean aggression target 1.13 / 1.89 / 1.10
+    // against parry_wall / gauntlet / regenerator, at or over the ceiling in
+    // ~85% of cycles — so adding a +-0.35 opponent offset to an already-clamped
+    // 1.89 changes nothing, and every opponent lands on the same endpoint.
+    //
+    // The control case is in the same measurement: escalator was the ONLY
+    // scenario whose target had headroom (0.845, 17.6% clamped) and the ONLY one
+    // whose converged dials differed from all the others.
+    //
+    // So the self term is squashed into a bounded budget. tanh keeps its sign and
+    // its ordering — a bigger win still means more aggression — while capping how
+    // much of the range it can consume, leaving the opponent offset decisive at
+    // the margin. It is NOT a nerf to self-adaptation: inside the budget the
+    // response is near-linear (tanh x ~ x for small x).
+    const _oppAdapt = (typeof SMK2_TUNE !== 'undefined' && SMK2_TUNE && (SMK2_TUNE.oppAdapt || SMK2_TUNE.adaptV2));
+    const SQ = (x, cap) => _oppAdapt ? cap * Math.tanh(x / cap) : x;
 
     // Evidence, as signed pressures rather than one-way triggers.
     const punished = recent.filter(e => e.type === 'dmg_punished').length;
@@ -300,23 +319,32 @@ class AdaptiveAI extends Fighter {
     const O = (typeof this._oppAdaptTerms === 'function' && this._oppAdaptTerms()) || null;
     const OT = k => (O && typeof O[k] === 'number' && isFinite(O[k])) ? Math.max(-0.35, Math.min(0.35, O[k])) : 0;
 
-    ease('aggression', B.aggression + winning * 0.05 - pressure * 0.09 + OT('aggression'), 0.55, 1);
+    // TARGET SATURATION PROBE (SMK2_TUNE.dialProbe): is the opponent term OT even
+    // reachable, or has the self-referential part already pinned the target at the
+    // ease() ceiling before OT is added? Records pre-clamp target and OT magnitude.
+    if (typeof SMK2_TUNE !== 'undefined' && SMK2_TUNE.dialProbe) {
+      const _T = this._targProbe || (this._targProbe = { n: 0, tgt: 0, over: 0, ot: 0, otNonZero: 0 });
+      const _raw = B.aggression + winning * 0.05 - pressure * 0.09 + OT('aggression');
+      _T.n++; _T.tgt += _raw; if (_raw >= 1) _T.over++;
+      _T.ot += Math.abs(OT('aggression')); if (OT('aggression') !== 0) _T.otNonZero++;
+    }
+    ease('aggression', B.aggression + SQ(winning * 0.05 - pressure * 0.09, 0.18) + OT('aggression'), 0.55, 1);
 
     // Defense: bought when he is being hit, relaxed when he is not. A fighter
     // taking nothing has no reason to keep paying for guard.
-    ease('defense', B.defense + losing * 0.10 - (dmgTaken === 0 ? 0.12 : 0)
-                    + dodges * 0.02 + OT('defense'), 0.30, 1);
+    ease('defense', B.defense + SQ(losing * 0.10 - (dmgTaken === 0 ? 0.12 : 0)
+                    + dodges * 0.02, 0.18) + OT('defense'), 0.30, 1);
 
     // Spacing: tightens while pressure is working, and opens only when his
     // APPROACH is what is being punished — same reasoning as aggression above.
     // Keyed on raw damage it produced the retreat spiral described there, and the
     // ceiling is lower now (0.34) so even a bad read never turns him passive.
-    ease('spacing', B.spacing - winning * 0.03 + pressure * 0.05 + OT('spacing'), 0, 0.34);
+    ease('spacing', B.spacing + SQ(-winning * 0.03 + pressure * 0.05, 0.12) + OT('spacing'), 0, 0.34);
 
     // Reaction speed: EVIDENCE-driven only. The old unconditional
     // `reactionSpeed += R * 0.45` every cycle is gone — it alone pinned this dial
     // at 1.0 within two cycles of every fight regardless of what happened.
-    ease('reactionSpeed', B.reactionSpeed + losing * 0.05 + OT('reactionSpeed'), 0.45, 1);
+    ease('reactionSpeed', B.reactionSpeed + SQ(losing * 0.05, 0.15) + OT('reactionSpeed'), 0.45, 1);
 
     // Clamp all to [0, 1]
     for (const k of Object.keys(m)) m[k] = Math.max(0, Math.min(1, m[k]));
@@ -499,7 +527,10 @@ class AdaptiveAI extends Fighter {
         return;
       }
       // Didn't dodge: shield if timing is still good
-      if (effDef > 0.60 && this.shieldCooldown === 0 && Math.random() < 0.40) {
+      // Scaled like the SovereignMK2 gate (see _dialGate there): a constant tuned
+      // for a 0.88 baseline is unreachable once adaptV2 starts the dial at 0.60.
+      const _defGate = (typeof this._dialGate === 'function') ? this._dialGate(0.682) : 0.60;
+      if (effDef > _defGate && this.shieldCooldown === 0 && Math.random() < 0.40) {
         this.shielding     = true;
         this.shieldCooldown = typeof SHIELD_CD !== 'undefined' ? SHIELD_CD : 450;
         this._recordEvent('dodge', 3);

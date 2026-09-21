@@ -15,15 +15,130 @@
 // jumpEconomy: enforce the player's 1 ground + 1 air jump rule on every path in
 // this class (see _vetoExtraJump). Set false to restore the old unbounded
 // behaviour for an A/B — the old behaviour is the triple-jump bug.
+// Kill-credit gate, read by all three ledgers (_resolveTactic, _resolveApproach,
+// _planTick). Declared as a function so it hoists above every call site, and
+// defensively so a missing SMK2_TUNE can never throw inside update() — a throw
+// there is swallowed by the trainer's per-fighter try/catch and disappears.
+function _KC() {
+  return typeof window !== 'undefined' && window.SMK2_TUNE ? !!window.SMK2_TUNE.killCredit : false;
+}
+
 window.SMK2_TUNE = window.SMK2_TUNE || { openGate: true, pressureDecay: true, lockCeiling: true, voidBoostMax: 3, recoverCeilAboveDeck: 200, jumpEconomy: true, edgePressure: true, ringoutGuard: true,
   // Tactic ledger (see _airApproachGuard). tacticLedger:false restores the old
   // unconditional air approach. airDenyAt is net health per attempt — the
   // approach is vetoed once it costs him more than this.
   tacticLedger: true, airDenyAt: -4, tacticExplore: 0.2,
+  // Grid-driven super release (see _gridWantsSuper). The grid is the only
+  // situation-aware opinion he owns; superGate is the first thing that acts on it.
+  // superGate stays OFF: measured null at both thresholds — margin 8 fired 1392
+  // times across 144 matches/arm (fitness t=-0.50, stocks t=-0.09), margin 20
+  // fired 1053 across 108 (t=-0.04). Kept, not deleted, because it is the only
+  // working demonstration of reading _tacticGrid and the next consumer will want it.
+  // ON. Settled at 2,880 matches/arm (40 independent seed blocks): stocks
+  // +0.059 +/- 0.024 (t=2.48), locked -0.28 +/- 0.13 (t=-2.13), damage taken
+  // -6.3. Agrees in sign with a 19-block run on the previous baseline. The note
+  // this replaces recorded it as null (fitness t=-0.50, stocks t=-0.09) — that
+  // was measured on a rig whose A/A moved 0.39 stocks and whose second arm
+  // inherited the first arm's dossier. It is the only live reader of the learned
+  // tactic grid, so this is also the one channel overnight training reaches him
+  // through. He deals slightly LESS damage with it on and still wins more: it
+  // spends supers where the record says they convert, not where they look big.
+  superGate: true, superGateMargin: 8,
+  // Tactical plans (see _planTick). The first adaptation unit larger than a verb.
+  // tacticPlans defaults OFF: measured non-positive in every configuration tried
+  // (see docs/sovereign-observations.md, Sep 20). Kept wired because it is the
+  // only mechanism yet built that moves match outcomes at all, and because
+  // bait_whiff_punish beat parry_wall in 4 of 4 independent runs.
+  tacticPlans: false, planHold: 90, planExplore: 0.2, planSteer: false,
+  baitPunisher: false, baitMinHits: 8, baitRate: 0.5,
+  // Start the adaptation dials low instead of hand-set near ceiling.
+  freshDials: false, freshLevel: 0.45, dialProbe: false,
+  // Budget the self-referential adaptation terms so the opponent offsets in
+  // _applyAdaptation are reachable instead of clamped away. See the SELF-TERM
+  // BUDGET note in smb-adaptive-ai.js.
+  oppAdapt: true,
+  // adaptV2 = the two halves that only work together. Budgeting the self terms
+  // (oppAdapt) is useless while the baseline sits at 0.90, because even a
+  // budgeted +0.18 reaches the ceiling before the opponent offset is added; and
+  // lowering the baseline alone just gets overwritten in ~3s by a target that is
+  // still saturated. Together, measured: aggression spread across 9 opponents
+  // went 0.051 -> 0.107 and the reads became sensible (backs off glass_cannon,
+  // swarms gauntlet) instead of every opponent converging on the same endpoint.
+  // ON. Settled at 1,440 matches/arm (20 independent seed blocks, A/A floor
+  // exactly zero): stocks +0.033 +/- 0.065, i.e. free. What it buys is the thing
+  // the character is supposed to have and did not — opponent-SPECIFIC adaptation.
+  // Without it every dial starts at 88-95% of its own ceiling and he finishes
+  // every fight on the same values no matter who he fought. With it, aggression
+  // endpoint spread across opponents goes 0.019 -> 0.122 and reactionSpeed
+  // 0.003 -> 0.041, reproduced at three disjoint seed offsets within 7%.
+  // Earlier same-day flip/revert was decided on 3 blocks and was noise either way.
+  adaptV2: true, adaptV2Base: 0.60,
+  // Attacker-count term inside _oppAdaptTerms. Separate flag because that
+  // function feeds both A/B arms; only meaningful with adaptV2 (headroom).
+  swarmTerm: true,
+  // Credit a kill as the mirror of the death penalty instead of 0. ON by default:
+  // unlike the other Sep-20 flags this is a CORRECTION, not an addition. Measured
+  // null on outcomes (n=234/arm, 500 firings, fitness t=1.28, stocks t=0.66) —
+  // expected, since two of the three ledgers it fixes have no live reader — but
+  // leaving it off means every future artifact keeps scoring a closed stock as 0.
+  killCredit: true,
   // swingGate stays OFF: across six measured runs it fired zero times, because it
   // needs an attack cell AND a shield cell populated in the SAME situation and the
   // grid never gets there. Shipping it on would be shipping something inert.
-  swingGate: false };
+  swingGate: false,
+  // volleyArmedRead: require the opponent to have actually SPENT the ability
+  // before the volley standoff treats them as armed. See _observeTargetThreat.
+  // ON. The single largest behavioural defect found in this codebase: the volley
+  // standoff treated an opponent whose ability was merely AVAILABLE as armed, so
+  // the two standoff branches won 47.7% of every decision frame in the match and
+  // 'window' posture never fired once in 23,142 calls. Measured at 1,440
+  // matches/arm: stocks +0.161 +/- 0.057 (t=2.81), damage taken -33.4 +/- 8.6
+  // (t=-3.87), behaviour L1 shift 118 points. Costs +1.2pp locked — the honest
+  // price of engaging instead of retreating.
+  volleyArmedRead: true,
+  // tacticChoice: opponent-conditioned tactic SELECTION (see the block above
+  // _commit). choiceDenyAt is net health per commit — a branch yields once it
+  // costs him more than this against THIS opponent.
+  // ON, on DESIGN grounds with a measured zero cost — stated plainly because it
+  // is not an outcome win: stocks +0.012 +/- 0.029 (t=0.42) over 2,664
+  // matches/arm, a tight null rather than an unresolved one.
+  //
+  // What it buys is the property every previous rework failed to produce. Before
+  // it, aiMemory moved four dials and _tacticGrid booked five coarse verbs, so
+  // against a turtle and a rusher he ran the identical cascade in the identical
+  // order and only pressed harder or softer. With it, the same tactic is priced
+  // differently per opponent and he yields accordingly — measured: corner_exploit
+  // 0 net/commit vs a rusher but -6.5 vs mixed, counter_attack_c -12.5 vs turtle
+  // and -25.7 vs rusher. He keeps it against one and drops it against the other.
+  // Behaviour shifts 16 L1 points and costs nothing.
+  tacticChoice: true, choiceDenyAt: -2, choiceExplore: 0.15,
+  // stratTerms: the strategic adaptation layer (_strategicTerms). ON because the
+  // alternative is the ReferenceError it used to throw; the flag exists so the
+  // revival can be A/B'd rather than assumed.
+  stratTerms: true,
+  // curseAvoid: steer out of a curse pickup's collection ring. See _avoidCurses.
+  curseAvoid: true,
+  // infer: prediction-failure -> hypothesis engine (see the INFERENCE block).
+  infer: false,
+  // curiosity: judge an action optimistically while under-sampled, so not-knowing
+  // becomes something he pays to resolve. See the NOT-KNOWING block.
+  curiosity: false, curiosityK: 1.0,
+  // experiment: spend a bounded number of deliberate tests per life to separate
+  // co-occurring causes. Requires infer. See the INTERVENTION block.
+  experiment: false, experimentBudget: 3,
+  // inferAct: ACT on the rules infer states — cancel a swing whose stated rule
+  // says it cannot land, and guard instead. Requires infer. See _inferAct.
+  // Z is the confidence the rule must clear (Wilson bound); explore is the share
+  // of matching swings left alone so the rule keeps receiving honest samples.
+  inferAct: false, inferActZ: 1.28, inferActExplore: 0.15,
+  // openLoadout: choose from EVERY legal weapon and class with no authored
+  // priors or counter bonus, learning only from his own per-life results. See
+  // _pickOpenLoadout. Off = the curated SMK2_LOADOUTS bandit.
+  openLoadout: false,
+  // discovery: residual-based exploit detection (see _scoreSurprise). sigma is
+  // in units of his own running |residual|, so it adapts to the match's noise.
+  discovery: false, discoverySigma: 2.5, discoveryWindow: 600, discoveryYield: 0.6,
+  discoveryLog: false };
 
 // ── Owner-attached hazard registry ───────────────────────────────────────────
 // Several weapon abilities/supers store their live hazard directly on the wielder
@@ -139,7 +254,25 @@ class SovereignMK2 extends AdaptiveAI {
     this.name           = 'SOVEREIGN Ω';
 
     // Override AdaptiveAI defaults — Sovereign starts near-peak, not at warmup level
-    this.aiMemory = { aggression: 0.90, defense: 0.88, spacing: 0.12, reactionSpeed: 0.95 };
+    // ── Starting dials ────────────────────────────────────────────────────
+    // Hand-set ABOVE AdaptiveAI's own defaults (0.78 / 0.70 / 0.18 / 0.90).
+    // freshDials starts him low instead, so _applyAdaptation — which since the
+    // R=0.32 -> 0.05 fix converges toward a target in BOTH directions — has room
+    // to climb. Tests whether his strength is the hand-tuning or the learning.
+    const _fl = (typeof SMK2_TUNE !== 'undefined' && SMK2_TUNE && typeof SMK2_TUNE.freshLevel === 'number')
+      ? SMK2_TUNE.freshLevel : 0.45;
+    // adaptV2 baseline: enough headroom under the ease() ceiling for the opponent
+    // offset to matter. spacing is set directly rather than mirrored from the
+    // level — its ease band is [0, 0.34], so a mirrored 0.40 would sit above the
+    // ceiling and be yanked down on the first cycle, which is not a baseline.
+    if (typeof SMK2_TUNE !== 'undefined' && SMK2_TUNE && SMK2_TUNE.adaptV2) {
+      const _b = (typeof SMK2_TUNE.adaptV2Base === 'number') ? SMK2_TUNE.adaptV2Base : 0.60;
+      this.aiMemory = { aggression: _b, defense: _b, spacing: 0.20, reactionSpeed: _b };
+      this._adaptV2 = true;
+    } else
+    this.aiMemory = (typeof SMK2_TUNE !== 'undefined' && SMK2_TUNE && SMK2_TUNE.freshDials)
+      ? { aggression: _fl, defense: _fl, spacing: 1 - _fl, reactionSpeed: _fl }
+      : { aggression: 0.90, defense: 0.88, spacing: 0.12, reactionSpeed: 0.95 };
     this.isSovereignMK2 = true;
 
     // Sovereign has no charClass, so DomainManager reaches his domain through
@@ -166,6 +299,7 @@ class SovereignMK2 extends AdaptiveAI {
     this._projDodgeCd = 0;
     this._itemRunTimer = 0;   // frames left committed to a map pickup
     this._recoverJumps = 0;   // off-stage recovery jumps used this airborne stint
+    this._expUsed      = 0;   // experiments spent this life (see _wantsExperiment)
     this._areaDodgeCd  = 0;   // re-arm gate on area-hazard evasion
     this._domHazCd     = 0;   // re-arm gate on domain-hazard evasion (_scanDomainHazards)
     this._domHazDir    = 0;
@@ -547,6 +681,8 @@ class SovereignMK2 extends AdaptiveAI {
     // they stood when the life ended are the read that was actually being used,
     // and the post-death cycle would fold a death penalty into them first.
     try { this._commitDossier('death'); } catch (e) {}
+    try { this._commitMech(); } catch (e) {}
+    try { this._arsenalCommit('death'); } catch (e) {}
     super.onDeath();
     this._deathCount++;
     this._spawnDefendTimer  = 45; // ~0.75 sec of defensive jump-back before engaging
@@ -578,6 +714,20 @@ class SovereignMK2 extends AdaptiveAI {
 
   _applyGenomeToMemory() {
     const g = this._genome;
+    // freshDials must survive this. SMK2Trainer calls applyGenome() immediately
+    // after construction, and this method overwrites three of the four dials from
+    // the genome — aggression, spacing, reactionSpeed, but NOT defense. That is
+    // why the Sep 20 "dials are inert" result was invalid: the fresh values were
+    // erased before the match for exactly those three, and defense — the only one
+    // the genome does not touch — was the only one measured to transmit.
+    if (typeof SMK2_TUNE !== 'undefined' && SMK2_TUNE && SMK2_TUNE.adaptV2) return;
+    if (typeof SMK2_TUNE !== 'undefined' && SMK2_TUNE && SMK2_TUNE.freshDials) {
+      const _fl = (typeof SMK2_TUNE.freshLevel === 'number') ? SMK2_TUNE.freshLevel : 0.45;
+      this.aiMemory.aggression    = _fl;
+      this.aiMemory.spacing       = 1 - _fl;
+      this.aiMemory.reactionSpeed = _fl;
+      return;
+    }
     this.aiMemory.aggression    = g.aggression;
     this.aiMemory.spacing       = g.spacing;
     this.aiMemory.reactionSpeed = g.reactionSpeed;
@@ -797,6 +947,32 @@ class SovereignMK2 extends AdaptiveAI {
   // do not overwrite live state, and they are blended by confidence rather than
   // assigned. A wrong recollection costs him a few seconds of ease(), not a match.
   _seedFromDossier(t, kitOnly) {
+    // ── Trained-artifact prior ──────────────────────────────────────────────
+    // Seeded BEFORE the dossier guard below, and independently of it: the
+    // artifact is what overnight training learned about the GAME, while the
+    // dossier is what he remembers about THIS OPPONENT. He should arrive
+    // knowing the game even against someone he has never met.
+    //
+    // SovArtifact.gridPrior() has already scaled every cell down to PRIOR_CAP
+    // tries, so this is an opening opinion a single fight's evidence can
+    // overturn — not a lookup table. Dossier cells win ties (`if (dst[act])
+    // continue` below) because opponent-specific memory is strictly more
+    // relevant than the general case.
+    if (!this._artifactSeeded && typeof SovArtifact !== 'undefined') {
+      this._artifactSeeded = true;
+      try {
+        const ap = SovArtifact.gridPrior();
+        for (const sit of Object.keys(ap)) {
+          const dst = this._tacticGrid[sit] || (this._tacticGrid[sit] = {});
+          for (const act of Object.keys(ap[sit])) {
+            if (dst[act]) continue;
+            const a = ap[sit][act];
+            dst[act] = { tries: a.tries, taken: a.taken, dealt: a.dealt };
+          }
+        }
+      } catch (e) { /* a malformed artifact must never block a fight */ }
+    }
+
     if (typeof SovDossier === 'undefined') return;
     const keys = this._dossierKeys(t, kitOnly);
     if (!keys.length) return;
@@ -909,7 +1085,22 @@ class SovereignMK2 extends AdaptiveAI {
     if (!r) return keys;
     const arch = SovDossier.archetype(r);
     this._oppArchetype = arch;
-    keys.push(SovDossier.behKey(arch));
+    const bk = SovDossier.behKey(arch);
+    keys.push(bk);
+    // ── THE BUILD, not the weapon and the habit separately ───────────────────
+    // kitKey is weapon/class and behKey is the archetype, and they were filed as
+    // two INDEPENDENT records that loadoutPrior then averages. So "aggressive
+    // Thor" and "passive Thor" were the same memory: he learned "vs Thor" and
+    // "vs rusher" in isolation and blended them, which is exactly the pair of
+    // marginals that cannot represent an interaction. A build whose weapon says
+    // one thing and whose behaviour says another is the case worth learning.
+    //
+    // The joint key needs no new machinery: loadoutPrior already weights each key
+    // by min(5, n), so a fresh joint record contributes almost nothing and the two
+    // marginals carry the pick until the specific build has actually been played
+    // a few times. That is hierarchical shrinkage for free — general answer first,
+    // specialised only where it has been earned.
+    keys.push(keys[0] + '|' + bk);
     return keys;
   }
 
@@ -1079,14 +1270,70 @@ class SovereignMK2 extends AdaptiveAI {
     const conf = Math.min(1, S.frames / 1800);          // full weight at ~30s
     // Cap was 0.20 and measured too hot in play — see the coefficient note above.
     const cap  = v => Math.max(-0.13, Math.min(0.13, v)) * conf;
-    return { aggression: cap(agg), defense: cap(def), spacing: cap(spc), reactionSpeed: cap(rxn) };
+    // `+ sAgg / sDef / sSpc / sRxn` used to be appended here. Those four are the
+    // SWARM terms and they are declared in _oppAdaptTerms() below, not in this
+    // function — so this return threw `ReferenceError: sAgg is not defined` on
+    // every call that got past the 240-frame guard, which is every call that
+    // matters. The whole strategic layer (damage-source shares, range-band
+    // profitability, persistent habits) has therefore been dead, and silently:
+    // the throw unwinds through _oppAdaptTerms into _applyAdaptation.
+    // Verified 2026-09-20 by calling it directly with a populated _strat.
+    // Gated so the revival itself is measurable. It is a correctness fix — the
+    // old code threw — but this layer has been dead long enough that its
+    // coefficients have never been validated against live play, and "it used to
+    // crash" is not evidence that its numbers are right.
+    // `!== false` was wrong: --set passes the NUMBER 0, and 0 !== false under
+    // strict comparison, so the gate never fired and the A/B returned exact
+    // zeros on every metric — the A/A signature. Check falsiness, but only when
+    // the property was deliberately set, so an absent flag still means ON.
+    if (typeof SMK2_TUNE !== 'undefined' && SMK2_TUNE &&
+        SMK2_TUNE.stratTerms !== undefined && !SMK2_TUNE.stratTerms) return null;
+    return { aggression: cap(agg), defense: cap(def),
+             spacing: cap(spc), reactionSpeed: cap(rxn) };
   }
 
   _oppAdaptTerms() {
+    // ── ATTACKER COUNT — computed BEFORE the per-opponent guards ─────────────
+    // This ran after `if (!this._oppRates()) return null;` and therefore never
+    // ran at all in the case it exists for. Measured in `gauntlet`: 1687 of 1788
+    // calls to this function returned null (94%), because _oppRates() needs
+    // sustained observation of ONE target and in a crowd he re-targets before it
+    // accumulates. The whole opponent-adaptation system switches itself off
+    // exactly when facing several opponents — OT was non-zero in 97.6% of cycles
+    // against parry_wall and 4.7% against gauntlet.
+    //
+    // Attacker COUNT needs no per-opponent history, so it is computed first and
+    // returned even when the kit/behaviour half has nothing to say.
+    let _live = 0;
+    const _swarmOn = (typeof SMK2_TUNE !== 'undefined' && SMK2_TUNE && SMK2_TUNE.swarmTerm);
+    if (_swarmOn && typeof players !== 'undefined' && Array.isArray(players)) {
+      for (const p of players) {
+        if (!p || p === this || p.health <= 0) continue;
+        if (typeof areAlliedEntities === 'function' && areAlliedEntities(this, p)) continue;
+        if (Math.abs(p.cx() - this.cx()) > 420) continue;   // only what can reach him
+        _live++;
+      }
+    }
+    let sAgg = 0, sDef = 0, sSpc = 0, sRxn = 0;
+    if (_live > 1) {
+      // Damage output is not what fails him in a crowd — surviving the crossfire
+      // is, and a fighter mid-swing cannot escape it (95% of hits he takes land
+      // while committed). Every anti-juggle guard in dealDamage() is
+      // attacker-keyed, so two attackers defeat all of them at once.
+      const swarm = Math.min(1, (_live - 1) / 3);           // 2 -> 0.33, 4+ -> 1.0
+      sAgg = -0.22 * swarm;
+      sDef =  0.18 * swarm;
+      sSpc =  0.16 * swarm;
+      sRxn =  0.10 * swarm;
+      this._swarmSeen = (this._swarmSeen || 0) + 1;
+    }
+
+    const _swarmOnly = (sAgg || sDef || sSpc || sRxn)
+      ? { aggression: sAgg, defense: sDef, spacing: sSpc, reactionSpeed: sRxn } : null;
     const t = this.target;
-    if (!t || t.health <= 0) return null;
+    if (!t || t.health <= 0) return _swarmOnly;
     const r = this._oppRates();
-    if (!r) return null;
+    if (!r) return _swarmOnly;
 
     const w      = t.weapon || {};
     const reach  = (w.range || 60) / 90;            // 1.0 == sword
@@ -1095,6 +1342,7 @@ class SovereignMK2 extends AdaptiveAI {
     const spd    = (t.classSpeedMult || 1);
 
     let agg = 0, def = 0, spc = 0, rxn = 0;
+
     // Evolvable response gains. Fall back to 1.0 for any genome saved before these
     // genes existed — applyGenome() merges over SMK2_DEFAULT_GENOME, so an old
     // champion simply reads the defaults rather than NaN.
@@ -3058,6 +3306,17 @@ class SovereignMK2 extends AdaptiveAI {
     const a = this._lastAttacker;
     if (!a || this._lastAttackerFrame === this._threatSeenFrame) return;
     this._threatSeenFrame = this._lastAttackerFrame;
+    // ── COMMITMENT SAMPLING ───────────────────────────────────────────────
+    // Piggybacks the ledger's new-hit edge, which is the only place in the class
+    // that already knows "a hit just landed on me" exactly once.
+    //
+    // VECTOR's dominant overnight finding, over ~80 confirmed runs: 95% of the
+    // hits he takes land while he is MID-SWING. That is a fact about the fight he
+    // is in, not about Sovereign in general — a rusher produces a completely
+    // different number — so it has to be measured live rather than assumed.
+    if (!this._commitRing) this._commitRing = [];
+    this._commitRing.push(((this.attackTimer || 0) > 0 || (this.attackEndlag || 0) > 0) ? 1 : 0);
+    if (this._commitRing.length > 24) this._commitRing.shift();
     const led = this._threatLedger.get(a) || { dmg: 0, lastFrame: frameCount };
     // Decay the running tally toward the newest hit so old damage fades.
     const age = frameCount - led.lastFrame;
@@ -3325,6 +3584,58 @@ class SovereignMK2 extends AdaptiveAI {
   // the blast radius while it is ARMED: hold just outside, force the throw at
   // range (where volley defense answers it), then all-in during the ~2.5s
   // ability cooldown. Returns 'standoff' | 'window' | null.
+  // ── DOES THIS OPPONENT ACTUALLY USE ITS ABILITY? ─────────────────────────
+  // _volleyCyclePosture treats a target as ARMED whenever its ability is merely
+  // off cooldown, which is the resting state of anyone who never presses it.
+  // Measured 2026-09-20 over the full scenario sweep: the opponent's
+  // abilityCooldown was 0 on 23,142 of 23,142 posture calls, 'window' posture
+  // fired ZERO times, and the two standoff branches together won 47.7% of every
+  // decision frame in the match. Half his life was spent retreating from a
+  // threat that never once arrived.
+  //
+  // So watch for the cooldown going 0 -> positive, which only happens when the
+  // ability is actually spent, and let the standoff be earned rather than
+  // assumed. He eats the first one and respects it afterwards — which is what
+  // adapting to an opponent is supposed to look like.
+  _observeTargetThreat() {
+    const t = this.target;
+    if (!t) return;
+    if (t !== this._threatWatchTarget) {
+      this._threatWatchTarget = t;
+      this._tgtAbilityCdPrev  = t.abilityCooldown || 0;
+      // Opponent-keyed, so switching targets in a 3-way does not inherit the
+      // other one's record.
+      this._tgtAbilityUses    = 0;
+      this._tgtAbilityLastUse = -99999;
+      return;
+    }
+    const cd   = t.abilityCooldown || 0;
+    const prev = this._tgtAbilityCdPrev || 0;
+    this._tgtAbilityCdPrev = cd;
+    const _fc = (typeof frameCount !== 'undefined') ? frameCount : 0;
+    if (prev <= 0 && cd > 0) {
+      this._tgtAbilityUses    = (this._tgtAbilityUses || 0) + 1;
+      this._tgtAbilityLastUse = _fc;
+    }
+    if (t.superReady === false && this._tgtSuperPrev === true) {
+      this._tgtAbilityUses    = (this._tgtAbilityUses || 0) + 1;
+      this._tgtAbilityLastUse = _fc;
+    }
+    this._tgtSuperPrev = !!t.superReady;
+  }
+
+  // True when the standoff has been earned: this opponent has spent the ability
+  // at least once, and recently enough that another is worth expecting.
+  _volleyThreatDemonstrated() {
+    if ((this._tgtAbilityUses || 0) <= 0) return false;
+    const _fc = (typeof frameCount !== 'undefined') ? frameCount : 0;
+    // NOT `|| -99999`: frameCount is 0 on the first frame of a headless match, and
+    // a use recorded at frame 0 is falsy, so the fallback would fire on a real
+    // observation and the threat would be forgotten the instant it was seen.
+    const last = (this._tgtAbilityLastUse === undefined) ? -99999 : this._tgtAbilityLastUse;
+    return (_fc - last) < 900;   // ~15s memory
+  }
+
   _volleyCyclePosture(t) {
     if (!t || !t.weapon) return null;
     // Per-weapon burst radius: how far the ARMED ability/super reaches with no
@@ -3339,6 +3650,9 @@ class SovereignMK2 extends AdaptiveAI {
     if (this._targetDamageMult(t) < 1.25) return null;
     const armed = (t.abilityCooldown || 0) === 0 || !!t.superReady;
     this._volleyStandoffR = _burstR;
+    // volleyArmedRead: an available ability is not a demonstrated one.
+    if (typeof SMK2_TUNE !== 'undefined' && SMK2_TUNE && SMK2_TUNE.volleyArmedRead &&
+        !this._volleyThreatDemonstrated()) return null;
     return armed ? 'standoff' : 'window';
   }
 
@@ -3352,6 +3666,271 @@ class SovereignMK2 extends AdaptiveAI {
            (t._parryVulnFrames || 0) > 25 ||
            (t.attackEndlag || 0) > 6 ||
            (t._reloadTimer || 0) > 12;
+  }
+
+  // ══ PUNISHER READ — one plan, veto only, self-observed ════════════════════
+  //
+  // WHAT SURVIVED THE PLAN EXPERIMENT
+  // The general plan layer measured non-positive in every configuration (see
+  // docs/sovereign-observations.md). Exactly one thing inside it was robust:
+  // bait_whiff_punish beat parry_wall in 4 of 4 independent runs (+1.75, +0.67,
+  // +0.83, +1.17 stocks) across changing libraries, changing context keys, and
+  // with steering both on and off. Against an opponent who shields on reaction
+  // and punishes recovery, "only swing into their commitment" is just correct.
+  //
+  // So this is that one plan and nothing else: no library, no exploration, no
+  // steering — the three things measured to cost him. A single read, and a veto
+  // through the choke point every swing already passes.
+  //
+  // THE READ IS OF HIMSELF, NOT OF THEM. Whether the opponent is "a punisher" is
+  // hard to observe and easy to get wrong. Whether HE keeps getting hit mid-swing
+  // is one bit per incoming hit and is the thing that actually matters — it is
+  // true of a parry_wall and false of a rusher, which is exactly the distinction
+  // the veto needs to make.
+  _punisherRead() {
+    const TUNE = (typeof SMK2_TUNE !== 'undefined' && SMK2_TUNE) || {};
+    if (!TUNE.baitPunisher) return false;
+    const r = this._commitRing;
+    // Enough hits to mean something. Below this he has no opinion and swings
+    // normally — the cost of a wrong read is paid in donated tempo, and early in
+    // a life he cannot afford to donate any.
+    const need = (typeof TUNE.baitMinHits === 'number') ? TUNE.baitMinHits : 8;
+    if (!r || r.length < need) return false;
+    const rate = r.reduce((a, b) => a + b, 0) / r.length;
+    const thr  = (typeof TUNE.baitRate === 'number') ? TUNE.baitRate : 0.5;
+    return rate > thr;
+  }
+
+  // ══ TACTICAL PLANS — adaptation above the level of the verb ═══════════════
+  //
+  // WHY THIS LAYER EXISTS, AND WHAT IT IS ANSWERING
+  // Two separate adaptation systems have now measured null:
+  //   · the eleven continuous genome dials — A/B vs frozen-at-max was a wash
+  //     (Welch t=0.18, Aug 26), because every dial is a one-way ratchet that
+  //     saturates ~6s into any fight;
+  //   · discrete choice among the grid's six primitives — the super-release gate
+  //     fired 1392 times across 144 matches per arm and moved nothing
+  //     (fitness t=-0.50, stocks t=-0.09, Sep 20).
+  //
+  // The common property of both failures is the SIZE OF THE DECISION. A dial
+  // changes how hard he does what he was already doing. A primitive swap changes
+  // one frame. Neither can express "stop trading and make them come to you for
+  // the next two seconds", which is the kind of sentence that actually decides
+  // fights — and it is the reason smb-sov-artifact.js ships a named tactic
+  // library that, until now, nothing could execute.
+  //
+  // So a plan is a MULTI-SECOND COMMITMENT with its own success statistic. It is
+  // chosen, held for ~1.5s, and then priced by what it cost — the same booking
+  // discipline _markTactic uses, one level up.
+  //
+  // SAFETY: plans steer and veto. They never seize.
+  //   · steering only runs while GROUNDED and inboard of the floor span, so it
+  //     can never fight the off-stage recovery, the spawn-defend jump, or
+  //     _airDenyTrack — all of which own vx in situations a plan has no opinion
+  //     about. A plan that steers a recovering fighter into the void is not a
+  //     tactic, it is a bug.
+  //   · the attack veto routes through SovereignMK2.attack(), the single choke
+  //     point all twelve call sites already pass through. No call site changes.
+  //   · a plan can never make him idle: PRESSURE never vetoes, and the veto is
+  //     skipped entirely whenever the target is helpless, so free damage is
+  //     always taken. "AI must always engage" is preserved by construction.
+  // disengage_reset is OFF the default library. Measured Sep 20: with it in, plans
+  // lose stocks (3.20 vs 3.55) while dealing IDENTICAL damage (926.95 vs 941.75)
+  // and taking MORE (424.58 vs 388.62) — output was never the cost, position was.
+  // It retreats on a pure away-from-target vector, and his largest single death
+  // cause is the edge ringout. The grounded-and-inboard guard stops a plan
+  // STARTING near the ledge; nothing stopped this one walking him to it.
+  // Restorable via SMK2_TUNE.planDisengage once it retreats toward stage centre.
+  _planLibrary() {
+    const TUNE = (typeof SMK2_TUNE !== 'undefined' && SMK2_TUNE) || {};
+    const lib = ['pressure_ground', 'bait_whiff_punish', 'spacing_poke'];
+    if (TUNE.planDisengage) lib.push('disengage_reset');
+    return lib;
+  }
+
+  // ── PLAN CONTEXT — the term the first build was missing ───────────────────
+  // Measured Sep 20: a context-blind plan layer is a net LOSS (stocks 2.80 vs
+  // 3.18, lockout 8.87% vs 7.56% at t=2.33) — but the loss is not uniform. It is
+  // a large WIN against parry_wall (+1.75 stocks) and a large loss against
+  // landing_trap (-1.34), gauntlet (-1.17) and escalator (-0.83). Patient plans
+  // beat a patient opponent and get him killed by a pressuring one.
+  //
+  // A single global statistic per plan cannot hold both of those facts at once:
+  // he learns "baiting works" from the punisher and then baits into a gauntlet.
+  // That is the same shape as the Aug 27 finding that _applyAdaptation had zero
+  // opponent terms and converged identically against three opposite opponents.
+  //
+  // So plan value is keyed by how much pressure he is actually under. Coarse on
+  // purpose — four buckets, from the threat ledger he already maintains — because
+  // a plan statistic needs to fill inside one match.
+  _planContext() {
+    const _fc = (typeof frameCount !== 'undefined') ? frameCount : 0;
+    let dmg = 0, srcs = 0;
+    if (this._threatLedger) {
+      for (const [f, e] of this._threatLedger) {
+        if (!e || _fc - e.lastFrame > 300) continue;
+        if (!f || f.health <= 0) continue;
+        dmg += e.dmg || 0; srcs++;
+      }
+    }
+    // Multiple live attackers is its own context, not a louder version of one:
+    // every anti-juggle guard in dealDamage is attacker-keyed, so two attackers
+    // defeat all of them at once and the right plan changes completely.
+    if (srcs > 1) return 'swarm';
+    return dmg > 60 ? 'hot' : dmg > 15 ? 'warm' : 'cold';
+  }
+
+  // Net health per plan attempt, same statistic the grid uses one level down.
+  // Thin plans return null so _selectPlan falls through to trying them.
+  _planValue(name, ctx) {
+    const e = this._planStat && this._planStat[(ctx || 'cold') + '|' + name];
+    if (!e || e.tries < 2) return null;
+    return (e.dealt - e.taken) / e.tries;
+  }
+
+  // Epsilon-greedy over plans, with untried plans taking priority over explore.
+  // A plan he has never run has no opinion attached, and the cheapest way to get
+  // one is to run it once.
+  _selectPlan(t) {
+    const TUNE = (typeof SMK2_TUNE !== 'undefined' && SMK2_TUNE) || {};
+    const lib = this._planLibrary();
+    if (!this._planStat) this._planStat = {};
+    const ctx = this._planContext();
+    const untried = lib.filter(n => {
+      const e = this._planStat[ctx + '|' + n];
+      return !e || e.tries < 2;
+    });
+    if (untried.length) return untried[Math.floor(Math.random() * untried.length)];
+    const explore = (typeof TUNE.planExplore === 'number') ? TUNE.planExplore : 0.2;
+    if (Math.random() < explore) return lib[Math.floor(Math.random() * lib.length)];
+    let best = lib[0], bestVal = -Infinity;
+    for (const n of lib) {
+      const v = this._planValue(n, ctx);
+      if (v === null) continue;
+      if (v > bestVal) { bestVal = v; best = n; }
+    }
+    return best;
+  }
+
+  // Open a plan, or close and price the one that is running. Mirrors
+  // _markTactic/_resolveTactic: snapshot on open, health delta on close, with a
+  // death inside the window priced as the maximum a decision can cost.
+  _planTick() {
+    const TUNE = (typeof SMK2_TUNE !== 'undefined' && SMK2_TUNE) || {};
+    if (TUNE.tacticPlans === false) { this._activePlan = null; return; }
+    if (typeof isCinematic !== 'undefined' && isCinematic) return;
+    if (this.health <= 0) { this._activePlan = null; return; }
+    const t = this.target;
+    if (!t || t.health <= 0) { this._activePlan = null; return; }
+    const _fc = (typeof frameCount !== 'undefined') ? frameCount : 0;
+    const HOLD = (typeof TUNE.planHold === 'number') ? TUNE.planHold : 90;
+
+    const P = this._activePlan;
+    if (P && _fc - P.frame >= HOLD) {
+      const died  = this.lives !== P.lives;
+      const taken = died ? P.hp + 40 : Math.max(0, P.hp - this.health);
+      // KILL CREDIT — the mirror of the death surcharge above.
+      // Scoring a kill as 0 made every ledger structurally unable to value the
+      // action that CLOSES a stock: his own death cost hp+40, his own kill paid
+      // nothing. The comment explaining this guard is about respawn making the
+      // health delta garbage, which is true and is not a reason to round the
+      // reward to zero rather than to the mirror of the penalty.
+      // TARGET IDENTITY. The snapshot is meaningless unless it is compared against
+      // the SAME fighter it was taken from. Resolving against this.target instead
+      // let a mid-window retarget price bot A's decision with bot B's health — and
+      // because every bot spawns with identical `lives`, the "they died" guard below
+      // also passed spuriously, so a kill was never even detected as one.
+      const _bt = P.tgt;
+      const dealt = !_bt ? 0
+                  : (_bt.lives === P.tLives) ? Math.max(0, P.tHp - _bt.health)
+                  : (_KC() ? (this._killCredits = (this._killCredits || 0) + 1, P.tHp + 40) : 0);
+      if (!this._planStat) this._planStat = {};
+      const key = (P.ctx || 'cold') + '|' + P.name;
+      const e = this._planStat[key] || (this._planStat[key] = { tries: 0, taken: 0, dealt: 0 });
+      e.tries++; e.taken += taken; e.dealt += dealt;
+      // Same rolling decay as the grid: a plan that stopped working early must be
+      // able to come back, or the first two minutes decide the whole match.
+      if (e.tries > 8) { e.tries *= 0.75; e.taken *= 0.75; e.dealt *= 0.75; }
+      this._activePlan = null;
+      this._planCount = (this._planCount || 0) + 1;
+    }
+
+    if (!this._activePlan) {
+      this._activePlan = {
+        name: this._selectPlan(t), frame: _fc, ctx: this._planContext(), tgt: t,
+        hp: this.health, lives: this.lives, tHp: t.health, tLives: t.lives,
+      };
+    }
+    this._executeTactic(this._activePlan.name, t);
+  }
+
+  // The executor the tactic library always assumed existed. Steering only.
+  _executeTactic(name, t) {
+    if (!name || !t || t.health <= 0 || this.health <= 0) return;
+    if ((this.stunTimer || 0) > 0 || (this.ragdollTimer || 0) > 0) return;
+    // Grounded and inboard only — see the SAFETY note above.
+    if (!this.onGround) return;
+    if ((this._spawnDefendTimer || 0) > 0 || (this._airDenyTimer || 0) > 0) return;
+    if (typeof currentArena !== 'undefined' && currentArena && currentArena.platforms) {
+      const fl = currentArena.platforms.find(p => p.isFloor && !p.isFloorDisabled);
+      if (fl && (this.cx() < fl.x + 40 || this.cx() > fl.x + fl.w - 40)) return;
+    }
+    const TUNE = (typeof SMK2_TUNE !== 'undefined' && SMK2_TUNE) || {};
+    // planSteer isolates the two halves of a plan. The veto is a decision; the
+    // steering is a movement CONTROLLER, and it runs from update() after
+    // super.update() has already let updateAI choose a velocity — so every frame
+    // it fires it discards pathfinding, edge-danger and hazard avoidance and
+    // replaces them with a naive distance hold. Turning it off measures the veto
+    // alone, which is the only way to tell a bad tactic from a bad integration.
+    if (TUNE.planSteer === false) return;
+    const reach = (this.weapon && this.weapon.range) || 90;
+    const dx  = t.cx() - this.cx();
+    const d   = Math.abs(dx);
+    const dir = Math.sign(dx) || 1;
+    // Hold a band rather than a point: a target distance produces a fighter who
+    // oscillates across it every frame, which is the 44-flip/sec strobe the
+    // corner-exploit hysteresis had to fix once already.
+    const band = (lo, hi) => {
+      if (d > hi)      this.vx = dir * Math.min(5.5, 2 + (d - hi) * 0.05);
+      else if (d < lo) this.vx = -dir * Math.min(5.0, 2 + (lo - d) * 0.06);
+    };
+    switch (name) {
+      case 'bait_whiff_punish': band(reach * 1.25, reach * 1.65); break;
+      case 'spacing_poke':      band(reach * 0.95, reach * 1.20); break;
+      case 'disengage_reset':   if (d < reach * 2.2) this.vx = -dir * 4.5; break;
+      // pressure_ground leaves movement entirely to updateAI — it is the control
+      // arm, and a plan layer whose baseline is itself a behaviour change cannot
+      // tell you whether planning helped or whether that one plan did.
+      default: break;
+    }
+  }
+
+  // Consulted from attack(). A plan may hold a swing; it may never hold one that
+  // is free. Returns true to veto.
+  _planVetoAttack(t) {
+    const P = this._activePlan;
+    if (!P || !t || t.health <= 0) return false;
+    const TUNE = (typeof SMK2_TUNE !== 'undefined' && SMK2_TUNE) || {};
+    if (TUNE.tacticPlans === false) return false;
+    if (this._targetHelpless(t)) return false;     // free damage is never refused
+    const reach = (this.weapon && this.weapon.range) || 90;
+    const d = Math.abs(t.cx() - this.cx());
+    switch (P.name) {
+      // The whole point of the plan: swing into their RECOVERY, not into them.
+      // This is the direct answer to the night's dominant finding — 95% of the
+      // hits he takes land while he is mid-swing, so a plan that only swings when
+      // the opponent is already committed removes the window they punish.
+      case 'bait_whiff_punish':
+        return !((t.attackEndlag || 0) > 0 || (t.cooldown || 0) > 4 || (t._reloadTimer || 0) > 0);
+      // Poke at the tip. Inside 70% of reach he is in THEIR range too, which is
+      // where an even trade happens, and even trades are measured as losing.
+      case 'spacing_poke':
+        return d < reach * 0.70;
+      case 'disengage_reset':
+        return true;
+      default:
+        return false;
+    }
   }
 
   // ── SWING DISCIPLINE — mind-level veto layer over Fighter.attack() ────────
@@ -3384,6 +3963,18 @@ class SovereignMK2 extends AdaptiveAI {
       if ((_t._counterStance || 0) > 0) return;
       // own-stamina discipline — don't buy +40% endlag for a contested exchange
       if (!_helpless && (this.stamina !== undefined) && this.stamina < 15) return;
+    }
+    // Plan veto last, after every engine-rule veto above: those say a swing
+    // CANNOT pay, this one says the running plan would rather spend the moment
+    // differently. A mind-level preference must not be able to override a rule.
+    if (this._planVetoAttack(_t)) { this._planVetoed = (this._planVetoed || 0) + 1; return; }
+    // Punisher bait. Same ordering rule as the plan veto: engine rules first, a
+    // preference last. Skipped whenever the target is already committed — which
+    // is the entire point, since that is the window the swing is being saved for.
+    if (_t && _t.health > 0 && this._punisherRead() && !this._targetHelpless(_t) &&
+        !((_t.attackEndlag || 0) > 0 || (_t.cooldown || 0) > 4 || (_t._reloadTimer || 0) > 0)) {
+      this._baitHeld = (this._baitHeld || 0) + 1;
+      return;
     }
     super.attack(target);
   }
@@ -3422,10 +4013,27 @@ class SovereignMK2 extends AdaptiveAI {
     this._resolveTactic();
     this._resolveApproach();
     this._airApproachGuard();
+    this._observeTargetThreat();
+    this._avoidCurses(this.speed || 5);
+    this._inferTick();
+    this._arsTrack();
+    // The experiment itself: swing INTO their swing to produce the sample that
+    // separates the hypotheses. After _inferTick so the exchange is booked like
+    // any other observation.
+    if (this._wantsExperiment(this.target)) {
+      this._expUsed = (this._expUsed || 0) + 1;
+      this._expLast = (typeof frameCount !== 'undefined') ? frameCount : 0;
+      try { this.attack(this.target); } catch (e) {}
+    }
     this._airDenyTrack();
+    // After _airDenyTrack, which owns vx during an air approach and whose steer a
+    // plan must never contest.
+    this._planTick();
     // Before _sampleDecision, which owns the same rising edge: a swing the gate
     // converts is a GUARD he chose, and that is what the grid must be told he did.
-    this._swingGate();
+    // A stated inference rule gets first refusal on the swing; the ledger gate
+    // only sees it if the rule let it through.
+    if (!this._inferAct(this.target)) this._swingGate();
     this._sampleDecision();
     // Last, and after super.update(): every shield site lives in updateAI() which
     // runs inside it, and _airDenyTrack raises one of its own. Provisioning has to
@@ -3602,6 +4210,9 @@ class SovereignMK2 extends AdaptiveAI {
   // blindly trusted. Priors are per-1000-frames; a life measured ~400 frames,
   // hence the 0.4 scale to put both on the same footing.
   _pickLoadout() {
+    if (typeof SMK2_TUNE !== 'undefined' && SMK2_TUNE && SMK2_TUNE.openLoadout) {
+      try { const lo = this._pickOpenLoadout(); if (lo) return lo; } catch (e) {}
+    }
     const pool = SMK2_LOADOUTS.filter(lo =>
       typeof WEAPONS !== 'undefined' && WEAPONS[lo.wk] &&
       lo.wk !== 'gauntlet' && lo.wk !== 'mkgauntlet');
@@ -3700,15 +4311,130 @@ class SovereignMK2 extends AdaptiveAI {
       const _hp  = this.maxHealth;
       const _spd = this.classSpeedMult || 1;
       applyClass(this, lo.cls);
-      this.maxHealth      = _hp;
-      this.health         = _hp;
-      this.classSpeedMult = _spd;
+      if (lo.open && typeof CLASSES !== 'undefined' && CLASSES[lo.cls]) {
+        // Open mode: the class's REAL trade-offs, scaled onto his stat line.
+        // Restoring his own stats (below) would make every class identical
+        // except for its perk, and he could never discover that a class is
+        // tanky or fragile — only that its perk helps.
+        const C = CLASSES[lo.cls];
+        this.maxHealth      = Math.round(_hp * (C.hp || 150) / 150);
+        this.health         = this.maxHealth;
+        this.classSpeedMult = _spd * (C.speedMult || 1);
+      } else {
+        this.maxHealth      = _hp;
+        this.health         = _hp;
+        this.classSpeedMult = _spd;
+      }
     }
     // Signature kit routes to his own authored finisher, which is keyed in
     // CLASS_FINISHERS under 'nullblade' and was unreachable while he had no
     // charClass. Mirrors the _domainKey escape hatch.
     this._finisherKey = lo.fin || null;
-    this._loadoutDealt0 = this.totalDamageDealt || 0;
+    this._loadoutDealt0 = this.totalDamageDealt || 0;    if (lo.open) this._arsStart();
+  }
+
+  // ══ OPEN ARSENAL — finding out what is strong instead of being told ══════
+  //
+  // SMK2_LOADOUTS is seven kits WE chose, seeded with priors WE measured, nudged
+  // by a counter bonus WE wrote. Whatever he "learned" from it was bounded by our
+  // opinion of the roster. Here the pool is every weapon a player can select and
+  // every class, the priors are flat, and the only evidence is his own:
+  // net damage per 1000 frames for each life he fought, filed under what he held
+  // and what the opponent held (SovDossier.recordArsenal).
+  //
+  // The choice is Thompson sampling — draw a plausible value for each option
+  // from its posterior and take the best draw. It is the curiosity principle
+  // again: an option he has barely tried has a WIDE posterior, so it sometimes
+  // draws high and gets tried; an option he has tried fifty times draws close
+  // to what it is actually worth. Nothing is excluded, including kits we
+  // believe are useless to him, because that belief is exactly what he is
+  // supposed to test.
+  //
+  // Weapon and class are chosen independently (additive model): 20 x 13 combos
+  // would take thousands of matches to cover, two bandits of 20 and 13 do not.
+  // Combos are still recorded, for the record, not for the choice.
+  _pickOpenLoadout() {
+    if (typeof WEAPON_KEYS === 'undefined' || typeof CLASSES === 'undefined') return null;
+    if (typeof SovDossier === 'undefined' || typeof SovDossier.arsenalPrior !== 'function') return null;
+    const t = this.target;
+    const W = WEAPON_KEYS.filter(k => WEAPONS[k]);
+    const C = Object.keys(CLASSES).filter(k => k !== 'megaknight');   // admin-only, barred from boss fights
+    const A = SovDossier.arsenalPrior() || {};
+    const opp = (t && t.weaponKey) ? A['ow:' + t.weaponKey] : null;
+    const any = A.any || null;
+    const gauss = () => {
+      let u = 0, v = 0;
+      while (u === 0) u = Math.random();
+      while (v === 0) v = Math.random();
+      return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+    };
+    const choose = (field, opts) => {
+      // Pooled spread of per-life outcomes: the unit his uncertainty is in.
+      let n = 0, r = 0, r2 = 0;
+      const tbl = any ? any[field] : {};
+      for (const k of Object.keys(tbl)) { n += tbl[k].n; r += tbl[k].r; r2 += tbl[k].r2; }
+      const grand = n ? r / n : 0;
+      const sd = n > 3 ? Math.max(5, Math.sqrt(Math.max(0, r2 / n - grand * grand))) : 40;
+      const K = 3;   // global evidence counts as at most K lives about THIS opponent
+      let best = null, bestDraw = -Infinity;
+      for (const o of opts) {
+        const cA = any && any[field][o], cO = opp && opp[field][o];
+        const mA = cA && cA.n ? cA.r / cA.n : null;
+        let mean, neff;
+        if (cO && cO.n) {
+          const mO = cO.r / cO.n;
+          const k = (mA === null) ? 0 : Math.min(K, cA.n);
+          mean = (cO.n * mO + k * mA) / (cO.n + k); neff = cO.n + k;
+        } else if (mA !== null) { mean = mA; neff = Math.min(K, cA.n); }
+        else { mean = grand; neff = 0.25; }
+        const draw = mean + (sd / Math.sqrt(neff)) * gauss();
+        if (draw > bestDraw) { bestDraw = draw; best = o; }
+      }
+      return best;
+    };
+    const wk = choose('weapon', W);
+    const cls = choose('cls', C);
+    if (!wk) return null;
+    return { key: wk + '|' + cls, wk, cls: cls === 'none' ? null : cls, clsKey: cls,
+             fin: wk === 'nullblade' ? 'nullblade' : null, open: true };
+  }
+
+  // One sample per life. Damage taken is tracked here rather than read from a
+  // counter because Fighter has none; only decreases count, so a respawn refill
+  // never reads as healing.
+  _arsStart() {
+    const t = this.target;
+    this._arsSeg = { f0: (typeof frameCount !== 'undefined') ? frameCount : 0,
+                     dealt0: this.totalDamageDealt || 0, taken: 0,
+                     ow: t && t.weaponKey || null, oc: (t && t.charClass) || 'none' };
+    this._arsPrevHp = this.health;
+  }
+
+  _arsTrack() {
+    if (!this._arsSeg) return;
+    if (this.health < this._arsPrevHp) this._arsSeg.taken += this._arsPrevHp - this.health;
+    this._arsPrevHp = this.health;
+  }
+
+  // Close the current life's sample. 'death' starts the next life's sample on
+  // the same kit (the kit is locked per match); 'end' closes it for good. Both
+  // are needed: a match he wins never ends in his death, and dropping those
+  // lives would bias every estimate against the kits that win.
+  _arsenalCommit(reason) {
+    const S = this._arsSeg;
+    const lo = this._loadout;
+    if (!S || !lo || !lo.open) return;
+    this._arsTrack();
+    const fc = (typeof frameCount !== 'undefined') ? frameCount : 0;
+    const frames = fc - S.f0;
+    if (frames >= 120 && typeof SovDossier !== 'undefined' && SovDossier.recordArsenal) {
+      const dealt = Math.max(0, (this.totalDamageDealt || 0) - S.dealt0);
+      const net = dealt - S.taken;
+      SovDossier.recordArsenal({ w: lo.wk, c: lo.clsKey || 'none', ow: S.ow, oc: S.oc,
+                                 dealt, taken: S.taken, net, frames, rate: net / frames * 1000 });
+    }
+    if (reason === 'end') { this._arsSeg = null; return; }
+    this._arsStart();
   }
 
   // The kit is chosen ONCE PER MATCH, not once per life. Re-picking on every
@@ -3870,9 +4596,11 @@ class SovereignMK2 extends AdaptiveAI {
     if (!sit) return;
     if (P === 0) this._lastMoveBook = _fc;
     this._pendingTactic = {
-      sit, action, prio: P, frame: _fc,
+      sit, action, prio: P, frame: _fc, tgt: tgt || null,
       hp: this.health, lives: this.lives,
       tHp: tgt ? tgt.health : 0, tLives: tgt ? tgt.lives : 0,
+      // Lockout he INHERITED, so the resolve can tell what he CREATED.
+      tLock: tgt ? Math.max(tgt.stunTimer || 0, tgt._parryVulnFrames || 0) : 0,
     };
   }
 
@@ -3889,10 +4617,44 @@ class SovereignMK2 extends AdaptiveAI {
     const died  = this.lives !== P.lives;
     const taken = died ? P.hp + 40 : Math.max(0, P.hp - this.health);
     // Same problem mirrored: if THEY died or respawned, the delta is garbage.
-    const dealt = (t && t.lives === P.tLives) ? Math.max(0, P.tHp - t.health) : 0;
+    // KILL CREDIT — the mirror of the death surcharge above.
+    // Scoring a kill as 0 made every ledger structurally unable to value the
+    // action that CLOSES a stock: his own death cost hp+40, his own kill paid
+    // nothing. The comment explaining this guard is about respawn making the
+    // health delta garbage, which is true and is not a reason to round the
+    // reward to zero rather than to the mirror of the penalty.
+    // TARGET IDENTITY. The snapshot is meaningless unless it is compared against
+    // the SAME fighter it was taken from. Resolving against this.target instead
+    // let a mid-window retarget price bot A's decision with bot B's health — and
+    // because every bot spawns with identical `lives`, the "they died" guard below
+    // also passed spuriously, so a kill was never even detected as one.
+    const _bt = P.tgt;
+    const dealt = !_bt ? 0
+                : (_bt.lives === P.tLives) ? Math.max(0, P.tHp - _bt.health)
+                : (_KC() ? (this._killCredits = (this._killCredits || 0) + 1, P.tHp + 40) : 0);
+    // ── LOCKOUT HE CREATED IS VALUE, EVEN AT ZERO DAMAGE ──────────────────
+    // The window closes at 30 frames; a parry stuns for 90. So when he shields
+    // PERFECTLY the ledger reads taken=0 (the parry prevented the hit) and
+    // dealt=0 (he is holding a guard, not swinging) and books `shield` at net
+    // ZERO — while the punish that walks through the opening he just made
+    // collects the entire reward 30-120 frames later under `attack`.
+    //
+    // That is why he never adapted into blocking however long he fought: the
+    // reward for his single best defensive conversion was being credited to a
+    // different action every time it worked. A parry is worth 0 damage and 90
+    // frames of a helpless, 1.5x-vulnerable opponent, and only one of those two
+    // was reaching the ledger.
+    //
+    // Priced off the lockout he ADDED during the window, not the lockout he
+    // found, so following up on someone else's stun is not double-counted.
+    let created = 0;
+    if (_bt && _bt.lives === P.tLives) {
+      const lockNow = Math.max(_bt.stunTimer || 0, _bt._parryVulnFrames || 0);
+      if (lockNow > (P.tLock || 0) + 20) created = (lockNow - (P.tLock || 0)) * 0.22;
+    }
     const row = this._tacticGrid[P.sit] || (this._tacticGrid[P.sit] = {});
     const e   = row[P.action] || (row[P.action] = { tries: 0, taken: 0, dealt: 0 });
-    e.tries++; e.taken += taken; e.dealt += dealt;
+    e.tries++; e.taken += taken; e.dealt += dealt + created;
     // Rolling window. Without decay a cell averages the whole match and an answer
     // that stopped working in the first minute can never come back.
     if (e.tries > 10) { e.tries *= 0.75; e.taken *= 0.75; e.dealt *= 0.75; }
@@ -3954,7 +4716,7 @@ class SovereignMK2 extends AdaptiveAI {
   _markApproach(t) {
     if (this._pendingApproach || this.health <= 0 || !t) return;
     this._pendingApproach = {
-      frame: (typeof frameCount !== 'undefined') ? frameCount : 0,
+      frame: (typeof frameCount !== 'undefined') ? frameCount : 0, tgt: t,
       hp: this.health, lives: this.lives, tHp: t.health, tLives: t.lives,
     };
   }
@@ -3968,7 +4730,21 @@ class SovereignMK2 extends AdaptiveAI {
     const t = this.target;
     const died  = this.lives !== P.lives;
     const taken = died ? P.hp + 40 : Math.max(0, P.hp - this.health);
-    const dealt = (t && t.lives === P.tLives) ? Math.max(0, P.tHp - t.health) : 0;
+    // KILL CREDIT — the mirror of the death surcharge above.
+    // Scoring a kill as 0 made every ledger structurally unable to value the
+    // action that CLOSES a stock: his own death cost hp+40, his own kill paid
+    // nothing. The comment explaining this guard is about respawn making the
+    // health delta garbage, which is true and is not a reason to round the
+    // reward to zero rather than to the mirror of the penalty.
+    // TARGET IDENTITY. The snapshot is meaningless unless it is compared against
+    // the SAME fighter it was taken from. Resolving against this.target instead
+    // let a mid-window retarget price bot A's decision with bot B's health — and
+    // because every bot spawns with identical `lives`, the "they died" guard below
+    // also passed spuriously, so a kill was never even detected as one.
+    const _bt = P.tgt;
+    const dealt = !_bt ? 0
+                : (_bt.lives === P.tLives) ? Math.max(0, P.tHp - _bt.health)
+                : (_KC() ? (this._killCredits = (this._killCredits || 0) + 1, P.tHp + 40) : 0);
     const e = this._approachStat;
     e.tries++; e.taken += taken; e.dealt += dealt;
     if (e.tries > 12) { e.tries *= 0.75; e.taken *= 0.75; e.dealt *= 0.75; }
@@ -4116,6 +4892,8 @@ class SovereignMK2 extends AdaptiveAI {
       this.shielding   = true;
       this._armorHold  = Math.max(this._armorHold || 0, 12);
       this._swingGated = (this._swingGated || 0) + 1;
+      // Cancelled, not failed: the inference engine must not book it as a miss.
+      if (this._infOpen && this._infOpen.f === ((typeof frameCount !== 'undefined') ? frameCount : 0)) this._infOpen = null;
     }
   }
 
@@ -4274,6 +5052,43 @@ class SovereignMK2 extends AdaptiveAI {
   // A super he never fires is not patience, it is a wasted resource. Worse, it
   // starves Absolute Dominion: the domain counter only advances on spends, and
   // death wipes it, so hoarding can lose him the domain outright.
+  // ── GRID-DRIVEN SUPER RELEASE ────────────────────────────────────────────
+  // The first thing in the codebase to act on _tacticGrid.
+  //
+  // The grid had exactly two readers and neither changed behaviour: _swingGate is
+  // off by default (it fired zero times in six runs) and _bestAction is called
+  // only by the debug console. So the entire offline stack — trainer, VECTOR,
+  // artifact, gridPrior() — filled a ledger that no decision consulted. This is
+  // the missing edge.
+  //
+  // Super is the right first consumer because the grid's opinion about it is the
+  // strongest one it holds. Measured across 1170 overnight matches, net per try:
+  //
+  //     ca (close-above)  super +30.97   vs  attack  +5.26
+  //     fl (far-level)    super +28.62   vs  attack  (below super)
+  //     cl / cb / ml      attack wins — super is NOT released there
+  //
+  // An order of magnitude, over thousands of tries per cell. And the bank hold it
+  // overrides is situation-blind: it waits a flat ~1.5s wherever the fight is.
+  // This does not make him spend more super everywhere; it makes him spend it in
+  // the two cells his own record says it is worth an order of magnitude more, and
+  // stay his hand in the cells where the record says swing instead.
+  _gridWantsSuper(t) {
+    const TUNE = (typeof SMK2_TUNE !== 'undefined' && SMK2_TUNE) || {};
+    if (TUNE.superGate === false || TUNE.tacticLedger === false) return false;
+    const sit = this._situationKey(t);
+    if (!sit) return false;
+    // Both halves required, exactly as _swingGate demands both. A high super value
+    // alone is not evidence — the question is whether it beats the alternative HERE,
+    // and _tacticValue already falls back to the action's cross-situation average
+    // when a cell is thin, so this answers early in a match rather than never.
+    const sup = this._tacticValue(sit, 'super');
+    const atk = this._tacticValue(sit, 'attack');
+    if (sup === null || atk === null) return false;
+    const margin = (typeof TUNE.superGateMargin === 'number') ? TUNE.superGateMargin : 8;
+    return sup > atk + margin;
+  }
+
   _updateSuperBank() {
     if (this.health <= 0) { this._superFullSince = 0; this._bankStale = false; return; }
     if (typeof isCinematic !== 'undefined' && isCinematic) return;
@@ -4292,7 +5107,14 @@ class SovereignMK2 extends AdaptiveAI {
     // buys a real read; it just no longer buys a hoard.
     const _held = _fc - this._superFullSince;
     this._bankStale = _held > 90;
-    if (!this._bankStale) return;
+    // A cell the grid rates highly for super shortens the hold rather than removing
+    // it: 20 frames still reads the opponent's commitment, it just no longer waits
+    // out a full read in the one situation his record says is worth spending in.
+    // Every gate below this line still applies — he can want it and still be denied
+    // for range, stun, endlag or a raised guard.
+    const _gridRelease = _held > 20 && this._gridWantsSuper(this.target);
+    if (!this._bankStale && !_gridRelease) return;
+    if (_gridRelease && !this._bankStale) this._gridSupers = (this._gridSupers || 0) + 1;
 
     // Don't fire it into nothing — it still has to be able to connect.
     const t = this.target;
@@ -4828,6 +5650,737 @@ class SovereignMK2 extends AdaptiveAI {
   }
 
   // ══════════════════════════════════════════════════════════════
+  // ══ INFERENCE — learning rules for mechanics he has no name for ══════════
+  //
+  // Everything else he learns is indexed by actions he ALREADY has names for:
+  // four dials, five verbs, 59 named cascade branches. None of it can represent
+  // a mechanic the code never told him about. Clash is the proof — two swings
+  // starting within 3 frames with equal strength tiers cancel each other, and he
+  // has triggered it by accident in live matches while having no way to notice it
+  // happened, because a clash deals ZERO damage to both fighters and so produces
+  // no signal in any health-based ledger he owns.
+  //
+  // This works the other way round: it starts from a PREDICTION FAILURE and looks
+  // for what co-occurred.
+  //
+  //   1. He swings and predicts "this should land" — in range, facing them, they
+  //      are not shielding and not invincible.
+  //   2. It does not land.
+  //   3. Record every observable condition that happened to be true.
+  //   4. Over many such failures, find the condition whose presence raises the
+  //      failure rate far above its base rate.
+  //
+  // That is the chain a person runs: "that should have hit. They were not
+  // blocking. But we did swing at the same instant — maybe swinging together
+  // cancels." The second stage is the same machinery: among the cases where they
+  // ALSO swung together, separate the ones where he still got hit, and the
+  // difference is their action's strength tier.
+  //
+  // Nothing here reads the clash constants or any clash flag. The only inputs are
+  // things one fighter can observe about another.
+  _inferFeatures(t, _fc) {
+    const F = {};
+    if (!t) return F;
+    const reach  = (this.weapon && this.weapon.range) || 90;
+    const treach = (t.weapon && t.weapon.range) || 90;
+    const d      = Math.abs(t.cx() - this.cx());
+    F.opp_swinging = (t.attackTimer || 0) > 0;
+    // "We started at the same moment" — he can see when their swing began.
+    const myS = this._attackStartFrame || 0, tS = t._attackStartFrame || 0;
+    const sync = F.opp_swinging && myS && tS && Math.abs(myS - tS);
+    F.sync_0_3   = sync !== false && sync <= 3;
+    F.sync_4_10  = sync !== false && sync > 3 && sync <= 10;
+    F.mutual_reach = d <= reach + 8 && d <= treach + 8;
+    F.opposed = Math.sign(t.cx() - this.cx()) === (this.facing || 1) &&
+                Math.sign(this.cx() - t.cx()) === (t.facing || 1);
+    // Their action's strength relative to his, as a WATCHER would rank it: a
+    // super in flight reads as a super, otherwise whatever is driving the swing.
+    // This is observation — you can see someone throw a super. Deliberately not
+    // a call to _clashTier(), because that is the clash system's own helper and
+    // the point is that he owns none of the clash system's concepts.
+    const tierOf = f => (f && f.superActive) ? 2 : ((f && f._attackKindTier) || 0);
+    const myT = tierOf(this), tT = tierOf(t);
+    F.opp_tier_higher = F.opp_swinging && tT > myT;
+    F.opp_tier_equal  = F.opp_swinging && tT === myT;
+    F.opp_airborne = !t.onGround;
+    F.close_range  = d < reach * 0.6;
+
+    // ── LATENT VARIABLES: features he was never handed ────────────────────
+    // After every observable above is accounted for, unexplained variance is
+    // left over — the clash case splits ~50/50 between "we both vanished" and
+    // "mine broke and theirs landed" and none of the features above say why.
+    // The cause is CLASH_STREAK_MAX / CLASH_COOLDOWN, counters he cannot see.
+    //
+    // A reasoner facing residual variance posits something unobserved. The most
+    // productive guess is almost always HISTORY: the outcome of this event may
+    // depend on how recently the same event happened. So he constructs that
+    // feature himself — time since the last occurrence of this same pattern —
+    // rather than being told a streak counter exists. If the hidden variable is
+    // a cooldown or a streak, this is the shape that exposes it.
+    const sig = (F.sync_0_3 ? 'S' : '') + (F.opp_tier_equal ? 'E' : '') +
+                (F.opp_swinging ? 'W' : '');
+    if (sig) {
+      const hist = this._infPatternLast || (this._infPatternLast = {});
+      const prev = hist[sig];
+      if (prev !== undefined) {
+        const since = _fc - prev;
+        F.repeat_within_30  = since <= 30;
+        F.repeat_within_120 = since <= 120;
+        F.first_in_a_while  = since > 120;
+      } else {
+        F.first_in_a_while = true;
+      }
+      hist[sig] = _fc;
+    }
+    return F;
+  }
+
+  // His model of when a swing ought to connect. Deliberately naive — the whole
+  // point is that its failures are informative.
+  _inferExpectHit(t) {
+    if (!t || t.health <= 0) return false;
+    const reach = (this.weapon && this.weapon.range) || 90;
+    const d = Math.abs(t.cx() - this.cx());
+    if (d > reach) return false;
+    if (Math.abs(t.cy() - this.cy()) > 60) return false;
+    if (t.shielding) return false;
+    if ((t.invincible || 0) > 0) return false;
+    return true;
+  }
+
+  _inferTick() {
+    const TUNE = (typeof SMK2_TUNE !== 'undefined' && SMK2_TUNE) || {};
+    if (!TUNE.infer) return;
+    if (!this._infSeeded) { this._infSeeded = true; try { this._seedInference(); } catch (e) {} }
+    const _fc = (typeof frameCount !== 'undefined') ? frameCount : 0;
+    const swinging = (this.attackTimer || 0) > 0;
+    if (swinging && !this._infPrevSwing) {
+      const t = this.target;
+      this._infOpen = { f: _fc, dealt0: this.totalDamageDealt || 0, hp0: this.health,
+                        expect: this._inferExpectHit(t), feat: this._inferFeatures(t, _fc),
+                        hurtAtExchange: false };
+    }
+    // Damage taken AT THE EXCHANGE, not merely somewhere in the swing window.
+    // Without this the "did I also get hurt" flag catches a follow-up landing
+    // half a second later, and the tier lesson — cancel vs. mine-broke-theirs-
+    // landed — cannot separate, because both look identical over 36 frames.
+    if (this._infOpen && _fc - this._infOpen.f <= 8 && this.health < this._infOpen.hp0 - 0.001) {
+      this._infOpen.hurtAtExchange = true;
+    }
+    if (this._infOpen && (!swinging || _fc - this._infOpen.f > 36)) {
+      const O = this._infOpen; this._infOpen = null;
+      if (O.expect) {
+        const landed = (this.totalDamageDealt || 0) > O.dealt0 + 0.001;
+        const gotHit = O.hurtAtExchange;
+        const S = this._infStats || (this._infStats = { n: 0, miss: 0, feat: {}, pair: {} });
+        if (!S.pair) S.pair = {};
+        S.n++;
+        if (!landed) { S.miss++; if (gotHit) S.missHitTotal = (S.missHitTotal || 0) + 1; }
+        const on = Object.keys(O.feat).filter(k => O.feat[k]);
+        for (const k of on) {
+          const e = S.feat[k] || (S.feat[k] = { n: 0, miss: 0, missClean: 0, missHit: 0 });
+          e.n++;
+          if (!landed) { e.miss++; if (gotHit) e.missHit++; else e.missClean++; }
+        }
+        // PAIRS. A single condition cannot separate "we cancelled" from "mine
+        // broke and theirs landed" — both look like `opp_swinging`. The rule is a
+        // CONJUNCTION (same instant AND equal strength), so the conjunction has to
+        // be a thing he can hold. Ten features is 45 pairs; cheap.
+        for (let i = 0; i < on.length; i++) for (let j = i + 1; j < on.length; j++) {
+          const key = on[i] + ' & ' + on[j];
+          const e = S.pair[key] || (S.pair[key] = { n: 0, miss: 0, missClean: 0, missHit: 0 });
+          e.n++;
+          if (!landed) { e.miss++; if (gotHit) e.missHit++; else e.missClean++; }
+        }
+      }
+    }
+    this._infPrevSwing = swinging;
+  }
+
+  // ── WHAT HE ALREADY KNOWS ABOUT THE GAME ──────────────────────────────────
+  // _infStats is per-instance, so every match used to start at n=0 and he could
+  // not state a single rule until 12 predicted swings in. Seed from the dossier's
+  // one game-wide record (SovDossier.recordMech) and remember the seed, so
+  // _commitMech files only what THIS instance observed on top of it.
+  _seedInference() {
+    if (typeof SovDossier === 'undefined' || typeof SovDossier.mechPrior !== 'function') return;
+    const prior = SovDossier.mechPrior();
+    if (!prior || !(prior.n > 0)) return;
+    this._infStats = { n: prior.n, miss: prior.miss || 0, missHitTotal: prior.missHitTotal || 0,
+                       feat: prior.feat || {}, pair: prior.pair || {} };
+    this._infBase = JSON.parse(JSON.stringify(this._infStats));
+  }
+
+  // File the counts accrued since the last commit. Called on death and every
+  // 600 frames, because a match can end without him dying and onDeath is the
+  // only commit the dossier otherwise gets.
+  _commitMech() {
+    const S = this._infStats;
+    if (!S || typeof SovDossier === 'undefined' || typeof SovDossier.recordMech !== 'function') return;
+    const B = this._infBase || { n: 0, miss: 0, missHitTotal: 0, feat: {}, pair: {} };
+    const delta = { n: S.n - (B.n || 0), miss: S.miss - (B.miss || 0),
+                    missHitTotal: (S.missHitTotal || 0) - (B.missHitTotal || 0), feat: {}, pair: {} };
+    if (!(delta.n > 0)) return;
+    for (const bucket of ['feat', 'pair']) {
+      const src = S[bucket] || {}, base = B[bucket] || {};
+      for (const k of Object.keys(src)) {
+        const c = src[k], b = base[k] || {};
+        if (c.n - (b.n || 0) <= 0) continue;
+        delta[bucket][k] = { n: c.n - (b.n || 0), miss: c.miss - (b.miss || 0),
+                             missClean: c.missClean - (b.missClean || 0), missHit: c.missHit - (b.missHit || 0) };
+      }
+    }
+    SovDossier.recordMech(delta);
+    this._infBase = JSON.parse(JSON.stringify(S));
+  }
+
+  // ── ACTING ON WHAT HE INFERRED ────────────────────────────────────────────
+  // `discovery` failed by acting GLOBALLY: a finding made the whole cascade
+  // yield for 600 frames, so he abandoned a working plan to chase something that
+  // was often unreachable, and measured negative. A rule from _inferRules is
+  // about ONE exchange ("a same-instant, equal-strength swing does not land"),
+  // so the action is scoped to one swing and nothing else: on its first frame,
+  // if a stated rule covers it, he may cancel it and raise a guard — the same
+  // conversion _swingGate already makes off the tactic ledger.
+  //
+  // Two asymmetries with curiosity, both deliberate. Curiosity is OPTIMISTIC
+  // about what to try, because trying is how uncertainty narrows. Acting on a
+  // rule is PESSIMISTIC about the rule: the swing is scored with the upper
+  // Wilson bound on landing and the lower bound on getting hurt, so a rule at
+  // n=6 has to be overwhelming before it changes anything and a rule at n=40
+  // only has to be right.
+  //
+  // Returns true when the swing was converted.
+  _inferAct(t) {
+    const TUNE = (typeof SMK2_TUNE !== 'undefined' && SMK2_TUNE) || {};
+    if (!TUNE.infer || !TUNE.inferAct) return false;
+    const O = this._infOpen;
+    const _fc = (typeof frameCount !== 'undefined') ? frameCount : 0;
+    // Only the swing _inferTick opened THIS frame: its features were computed
+    // once, at the decision point. Recomputing them would advance the pattern
+    // history (_infPatternLast) and corrupt repeat_within_*.
+    if (!O || O.f !== _fc || !O.expect) return false;
+    if (!t || t.health <= 0 || this.health <= 0) return false;
+    if (this._expLast === _fc) return false;                  // a deliberate experiment is not up for veto
+    if (this._targetHelpless(t)) return false;                // free damage outranks every rule
+
+    const now = this._inferRulesCache;
+    if (!now || _fc - now.f > 60) this._inferRulesCache = { f: _fc, rules: this._inferRules(true) };
+    const rules = this._inferRulesCache.rules;
+    if (!rules.length) return false;
+
+    const S = this._infStats;
+    const z = (typeof TUNE.inferActZ === 'number') ? TUNE.inferActZ : 1.28;
+    const wilson = (k, n, sign) => {
+      if (!(n > 0)) return sign > 0 ? 1 : 0;
+      const p = k / n, z2 = z * z, den = 1 + z2 / n;
+      const mid = p + z2 / (2 * n), rad = z * Math.sqrt(p * (1 - p) / n + z2 / (4 * n * n));
+      return Math.min(1, Math.max(0, (mid + sign * rad) / den));
+    };
+    const on = O.feat;
+    // The best-evidenced stated rule that covers this swing: lowest plausible
+    // chance of landing, judged at its most generous.
+    let cell = null, key = null, landUCB = 1;
+    for (const r of rules) {
+      const parts = r.when.split(' & ');
+      if (!parts.every(p => on[p])) continue;
+      const c = parts.length > 1 ? S.pair[r.when] : S.feat[r.when];
+      if (!c || !(c.n > 0)) continue;
+      const u = wilson(c.n - c.miss, c.n, +1);
+      if (u < landUCB) { landUCB = u; cell = c; key = r.when; }
+    }
+    if (!cell) return false;
+
+    const myDmg = (this.weapon && this.weapon.damage) || 12;
+    const tDmg  = (t && t.weapon && t.weapon.damage) || 12;
+    const hurtLCB = wilson(cell.missHit || 0, cell.n, -1);
+    const evSwing = landUCB * myDmg - hurtLCB * tDmg;
+    const g = this._tacticValue(this._situationKey(t), 'shield');
+    const evGuard = (g === null) ? 0 : g;
+    if (evSwing >= evGuard) return false;
+
+    // Leave a share alone so the rule keeps being tested. Without this a rule
+    // that stops being true (a rebalance, a different opponent) can never be
+    // unlearned, because he would never again take the swing that disproves it.
+    const explore = (typeof TUNE.inferActExplore === 'number') ? TUNE.inferActExplore : 0.15;
+    // Page-wide tally as well as per-instance, so a lab sweep can verify the
+    // mechanism fired after every match's Sovereign is gone.
+    const G = (typeof window !== 'undefined')
+      ? (window.__sovInferAct || (window.__sovInferAct = { converted: 0, explored: 0, byRule: {} }))
+      : { converted: 0, explored: 0, byRule: {} };
+    const st = this._inferActStats || (this._inferActStats = { converted: 0, explored: 0, byRule: {} });
+    const bump = (f) => { st[f]++; G[f]++; };
+    if (Math.random() < explore) { bump('explored'); return false; }
+
+    // Convert, and DROP the open observation: a cancelled swing did not fail,
+    // it never happened. Booking it as a miss would feed the rule its own
+    // decision and make it self-confirming.
+    this._infOpen = null;
+    this.attackTimer = 0;
+    this.cooldown    = Math.max(this.cooldown || 0, 10);
+    this.shielding   = true;
+    this._armorHold  = Math.max(this._armorHold || 0, 12);
+    bump('converted');
+    st.byRule[key] = (st.byRule[key] || 0) + 1;
+    G.byRule[key] = (G.byRule[key] || 0) + 1;
+    return true;
+  }
+
+  // Promote a co-occurring condition to a stated rule once it is both frequent
+  // enough to trust and far enough above the base failure rate to be worth
+  // believing. `clean` separates "we both vanished" from "mine broke and theirs
+  // landed", which is the tier lesson.
+  _inferRules(includePairs) {
+    const S = this._infStats;
+    if (!S || S.n < 12) return [];
+    const base = S.miss / S.n;
+    const out = [];
+    const src = includePairs ? Object.assign({}, S.feat, S.pair || {}) : S.feat;
+    for (const k of Object.keys(src)) {
+      const e = src[k];
+      if (e.n < 6) continue;
+      const rate = e.miss / e.n;
+      const lift = base > 0.001 ? rate / base : (rate > 0 ? 99 : 0);
+      if (rate < 0.55 || lift < 1.6) continue;
+      out.push({ when: k, n: e.n, missRate: +rate.toFixed(2), baseRate: +base.toFixed(2),
+                 lift: +lift.toFixed(2),
+                 outcome: e.missClean >= e.missHit ? 'both_cancel' : 'mine_broke_theirs_landed',
+                 clean: e.missClean, alsoHit: e.missHit });
+    }
+    return out.sort((a, b) => b.lift - a.lift);
+  }
+
+  // ── CURSES ARE PICKED UP BY PROXIMITY, NOT BY CHOICE ──────────────────────
+  // `_mapItemValue()` returns 0 for every curse and `_selectMapResource` does
+  // `if (!value) continue`, which the comment there calls "curses never become a
+  // self-inflicted advantage". That only means he never WALKS OVER TO one. It is
+  // not avoidance: `updateMapPerks()` collects on `Math.hypot(dx, dy) < 28` for
+  // any fighter in range, so a curse sitting on the deck he is fighting on goes
+  // straight into him.
+  //
+  // The Circuit puts three pickups on his own decks and 4 of its 9 types are
+  // curses. Measured in the 2026-09-21 player replay: his maxHealth fell 150 ->
+  // 135, which is exactly one `curse_maxhp_perm` (-15 for the rest of the life).
+  // The others are 30s slow, 20s weakened damage, 25s extra damage taken.
+  //
+  // So: a light steering push out of the collection ring, using the SAME geometry
+  // the collector uses. Deliberately weak — it must never outrank a free punish,
+  // and it never fires toward an edge.
+  _avoidCurses(moveSpd) {
+    const TUNE = (typeof SMK2_TUNE !== 'undefined' && SMK2_TUNE) || {};
+    if (!TUNE.curseAvoid) return;
+    if (typeof mapPerkState === 'undefined' || !mapPerkState || !Array.isArray(mapPerkState.items)) return;
+    if ((this.stunTimer || 0) > 0 || (this.ragdollTimer || 0) > 0 || this.health <= 0) return;
+    // Free damage beats a curse every time — never break a punish to dodge one.
+    if (this._targetHelpless && this.target && this._targetHelpless(this.target)) return;
+    const RING = 40;                       // collector fires at 28; steer from just outside
+    const cx = this.cx(), cy = this.y + this.h / 2;
+    for (const it of mapPerkState.items) {
+      if (!it || it.collected || !it.type) continue;
+      if (it.type.indexOf('curse_') !== 0) continue;
+      const dx = cx - it.x, dy = cy - it.y;
+      if (Math.hypot(dx, dy) > RING) continue;
+      const out = Math.sign(dx) || (cx < GAME_W / 2 ? 1 : -1);
+      if (this.isEdgeDanger(out)) continue;
+      // Push out only as hard as needed to clear the ring, so he keeps fighting.
+      this.vx = out * Math.max(Math.abs(this.vx), (moveSpd || 5) * 0.75);
+      this._curseDodges = (this._curseDodges || 0) + 1;
+      break;
+    }
+  }
+
+  // ── DIAL GATES MUST SCALE WITH THE DIAL BASELINE ──────────────────────────
+  // Every `effDef > 0.55`-style threshold in this class was written when the
+  // dials started at 0.88-0.95. adaptV2 starts them at 0.60 and lets adaptation
+  // move them, so those absolute numbers silently became unreachable.
+  //
+  // Measured in the 2026-09-21 player replay: his shield went from 19-24% of the
+  // player's swings (five pre-adaptV2 replays) to 0.13%, and overall shield uptime
+  // from 6.8-11.9% of frames to 0.47%. Cause: defense rests near 0.50 under
+  // adaptV2 and the proactive-shield branch demands effDef > 0.55, so it never
+  // fired once in a five-minute match. He did not "choose" to stop blocking —
+  // the branch was unreachable.
+  //
+  // Expressed as a FRACTION of whatever baseline is in force, so this is exactly
+  // a no-op when adaptV2 is off (0.88 * 0.625 = 0.55, the original constant).
+  _dialGate(frac) {
+    const TUNE = (typeof SMK2_TUNE !== 'undefined' && SMK2_TUNE) || {};
+    const base = TUNE.adaptV2 ? ((typeof TUNE.adaptV2Base === 'number') ? TUNE.adaptV2Base : 0.60) : 0.88;
+    return base * frac;
+  }
+
+  // ══ OPPONENT-CONDITIONED TACTIC CHOICE ═══════════════════════════════════
+  //
+  // Everything he learns today changes INTENSITY, never CHOICE. `aiMemory` moves
+  // four dials; `_tacticGrid` books five coarse verbs (attack/shield/super/two
+  // movement keys) and has exactly two live readers. So against a turtle and
+  // against a rusher he runs the identical cascade in the identical order and
+  // merely presses harder or softer. That is why "he does not actually adapt"
+  // keeps surviving every rework.
+  //
+  // This books the thing he actually chose — the named cascade branch that won
+  // the frame, from the _commit vocabulary below — keyed by WHICH OPPONENT he is
+  // fighting. A branch that reliably loses him health against a parry-heavy
+  // opponent can then yield, and the cascade continues to whatever is next.
+  //
+  // Deliberately a yield and not an override: the branch that ends up running is
+  // still a real branch with its own pathfinding, edge checks and hazard
+  // avoidance intact. Every previous attempt at this layer wrote `vx` itself
+  // after updateAI() and measured as positional harm (see
+  // docs/sovereign-observations.md). Nothing here writes movement.
+  _choiceOppKey() {
+    if (this._oppArchetype) return this._oppArchetype;
+    if (typeof SovDossier === 'undefined' || typeof this._oppRates !== 'function') return null;
+    const r = this._oppRates();
+    if (!r) return null;
+    return (this._oppArchetype = SovDossier.archetype(r));
+  }
+
+  // Open on the frame the committed branch changes; price it when it closes.
+  _commitBook(name) {
+    const _fc = (typeof frameCount !== 'undefined') ? frameCount : 0;
+    const open = this._cmtOpen;
+    if (open && (open.action !== name || _fc - open.frame >= 45)) this._commitResolve(_fc);
+    if (this._cmtOpen) return;
+    const t = this.target;
+    const sit = this._situationKey(t);
+    if (!sit) return;
+    this._cmtOpen = { action: name, sit, frame: _fc, tgt: t || null,
+                      hp: this.health, lives: this.lives,
+                      tHp: t ? t.health : 0, tLives: t ? t.lives : 0,
+                      // What he EXPECTS this to be worth, recorded before he finds
+                      // out. Without a prediction there is no residual, and without
+                      // a residual nothing can ever be a surprise — a mean is
+                      // precisely the statistic that hides "this worked five times
+                      // better than usual".
+                      expect: this._choiceValue(name),
+                      tLock: t ? Math.max(t.stunTimer || 0, t._parryVulnFrames || 0) : 0,
+                      opp: this._choiceOppKey() || 'any' };
+  }
+
+  _commitResolve(_fc) {
+    const P = this._cmtOpen;
+    this._cmtOpen = null;
+    if (!P) return;
+    if (_fc - P.frame < 8) return;               // a one-frame flicker prices nothing
+    // Priced against the booked target, not this.target — a mid-window retarget
+    // would otherwise charge one opponent's decision to another's health.
+    const taken = (this.lives === P.lives) ? Math.max(0, P.hp - this.health) : P.hp + 40;
+    const bt = P.tgt;
+    let dealt = !bt ? 0
+              : (bt.lives === P.tLives) ? Math.max(0, P.tHp - bt.health) : P.tHp + 40;
+    // Lockout created during the window counts as value — see the same note in
+    // _resolveTactic. Without it a perfect parry books ZERO on the branch that
+    // produced it, because this window (45 frames) also closes long before the
+    // 90-frame stun it bought can be converted.
+    if (bt && bt.lives === P.tLives) {
+      const lockNow = Math.max(bt.stunTimer || 0, bt._parryVulnFrames || 0);
+      if (lockNow > (P.tLock || 0) + 20) dealt += (lockNow - (P.tLock || 0)) * 0.22;
+    }
+    const net = dealt - taken;
+    if (typeof SMK2_TUNE !== 'undefined' && SMK2_TUNE && SMK2_TUNE.discovery) {
+      try { this._scoreSurprise(P, net, _fc); } catch (e) { /* never kill a frame */ }
+    }
+    const g   = this._choiceGrid || (this._choiceGrid = {});
+    // Filed under this opponent AND under 'any'. The archetype is unknown for the
+    // first few hundred frames (_oppRates needs behaviour to read), so filing
+    // only under the archetype would throw away every booking made before he
+    // worked out who he was fighting — and those are the bookings he most needs
+    // while the opponent-specific cells are still empty.
+    const opp = this._choiceOppKey();
+    for (const k of (opp && opp !== 'any') ? [opp, 'any'] : ['any']) {
+      const bo  = g[k] || (g[k] = {});
+      const row = bo[P.sit] || (bo[P.sit] = {});
+      const e   = row[P.action] || (row[P.action] = { tries: 0, net: 0, net2: 0 });
+      e.tries++; e.net += net; e.net2 = (e.net2 || 0) + net * net;
+      // Rolling decay, same reason as _tacticGrid: an answer that stopped working
+      // early in the match must be able to come back.
+      if (e.tries > 12) { e.tries *= 0.75; e.net *= 0.75; e.net2 *= 0.75; }
+    }
+  }
+
+  // Net health per commit. Cell first, then this opponent across all situations,
+  // then null. The fallback exists because splitting one statistic across nine
+  // situations starved the equivalent lookup in _tacticValue badly enough to
+  // regress it — he should hold the general opinion until a cell earns its own.
+  _choiceValue(name) {
+    const g = this._choiceGrid;
+    if (!g) return null;
+    const sit = this._situationKey(this.target);
+    const opp = this._choiceOppKey();
+    // Most specific first: this opponent in this situation, then this opponent
+    // anywhere, then the general record. He specialises only where he has earned
+    // the right to and holds the general opinion until then.
+    for (const k of (opp && opp !== 'any') ? [opp, 'any'] : ['any']) {
+      const bo = g[k];
+      if (!bo) continue;
+      const cell = sit && bo[sit] && bo[sit][name];
+      if (cell && cell.tries >= 3) return cell.net / cell.tries;
+      let tries = 0, net = 0;
+      for (const s2 of Object.keys(bo)) {
+        const c = bo[s2][name];
+        if (c) { tries += c.tries; net += c.net; }
+      }
+      if (tries >= 4) return net / tries;
+    }
+    return null;
+  }
+
+  // ══ DISCOVERY — noticing that something worked far better than expected ═══
+  //
+  // Everything else he owns AVERAGES. aiMemory averages, _tacticGrid averages,
+  // _choiceGrid averages. An average is the exact statistic that erases a
+  // discovery: one commit worth 60 net health inside a cell whose mean is 3
+  // moves that mean to 4 and is then indistinguishable from noise forever.
+  //
+  // So this watches the RESIDUAL instead. Every booking records what he expected
+  // before he found out; on resolve, `net - expect` is how wrong he was. A large
+  // positive residual is the signature of an exploit: a situation where his own
+  // model badly understates what is available.
+  //
+  // "Large" is measured against his own noise, not a constant. _residScale is a
+  // slow running mean of |residual|, so a chaotic match raises the bar and a
+  // quiet one lowers it, and the detector cannot be spammed by a high-variance
+  // matchup.
+  _scoreSurprise(P, net, _fc) {
+    const exp = P.expect;
+    if (exp === null || exp === undefined) return;      // no prediction, no residual
+    const resid = net - exp;
+    const a = Math.abs(resid);
+    this._residScale = (this._residScale === undefined) ? a
+                     : this._residScale * 0.97 + a * 0.03;
+    const scale = Math.max(5, this._residScale || 5);
+    const TUNE  = (typeof SMK2_TUNE !== 'undefined' && SMK2_TUNE) || {};
+    const k     = (typeof TUNE.discoverySigma === 'number') ? TUNE.discoverySigma : 2.5;
+    if (net <= 0 || resid < scale * k) return;
+
+    const key = P.opp + '|' + P.sit + '|' + P.action;
+    const D   = this._discoveries || (this._discoveries = {});
+    const d   = D[key] || (D[key] = { action: P.action, sit: P.sit, opp: P.opp,
+                                      hits: 0, best: 0, mean: 0, until: 0 });
+    d.hits++;
+    d.best  = Math.max(d.best, net);
+    d.mean += (net - d.mean) / d.hits;
+    // A pursue window, not a permanent promotion. He goes back to the thing that
+    // just overperformed while the opening is plausibly still there, and the
+    // window lapses on its own if it stops paying.
+    d.until = _fc + ((typeof TUNE.discoveryWindow === 'number') ? TUNE.discoveryWindow : 600);
+    this._lastDiscovery = d;
+    this._discoveryCount = (this._discoveryCount || 0) + 1;
+    if (TUNE.discoveryLog && typeof console !== 'undefined') {
+      console.log('[SOV DISCOVERY] ' + P.action + ' vs ' + P.opp + ' @' + P.sit +
+                  '  net ' + net.toFixed(1) + ' vs expected ' + exp.toFixed(1) +
+                  '  (resid ' + resid.toFixed(1) + ', scale ' + scale.toFixed(1) + ')');
+    }
+  }
+
+  // The live discovery for the situation he is in right now, if any.
+  _activeDiscovery() {
+    const D = this._discoveries;
+    if (!D) return null;
+    const _fc = (typeof frameCount !== 'undefined') ? frameCount : 0;
+    const sit = this._situationKey(this.target);
+    if (!sit) return null;
+    const opp = this._choiceOppKey() || 'any';
+    let best = null;
+    for (const k of Object.keys(D)) {
+      const d = D[k];
+      if (d.until <= _fc || d.sit !== sit) continue;
+      if (d.opp !== opp && d.opp !== 'any') continue;
+      if (!best || d.mean > best.mean) best = d;
+    }
+    return best;
+  }
+
+  // ── INTERVENTION: paying health to settle a question ──────────────────────
+  // Correlation is all the above can ever produce, because he only observes
+  // fights that happen TO him. `sync_0_3`, `opp_tier_equal` and `opp_swinging`
+  // co-occur, and nothing that merely watches can say which does the work.
+  // Separating co-occurring causes requires INTERVENTION — deliberately produce
+  // the case instead of waiting for it.
+  //
+  // That needs a reason to spend health on something other than winning, which is
+  // the one thing no ledger here could express. So it gets an explicit budget:
+  // a few experiments per life, only while healthy, only on a hypothesis that is
+  // still under-sampled, never while a free punish is available. The cost is
+  // real — roughly half these exchanges end with him eating the hit — and that
+  // is the point. Knowledge is not free and he now pays for it.
+  _wantsExperiment(t) {
+    const TUNE = (typeof SMK2_TUNE !== 'undefined' && SMK2_TUNE) || {};
+    if (!TUNE.infer || !TUNE.experiment) return false;
+    if (!t || t.health <= 0 || this.health <= 0) return false;
+    if (this.health / Math.max(1, this.maxHealth) < 0.45) return false;  // never while it could cost a stock
+    if (this._targetHelpless(t)) return false;                           // free damage outranks curiosity
+    const budget = (typeof TUNE.experimentBudget === 'number') ? TUNE.experimentBudget : 3;
+    if ((this._expUsed || 0) >= budget) return false;
+    const _fc = (typeof frameCount !== 'undefined') ? frameCount : 0;
+    if (_fc - (this._expLast || -999) < 240) return false;               // spaced out
+    const S = this._infStats;
+    const cell = S && S.pair && S.pair['sync_0_3 & opp_tier_equal'];
+    if (cell && cell.n >= 25) return false;                              // already answered
+    if ((t.attackTimer || 0) <= 0) return false;
+    const tS = t._attackStartFrame || 0;
+    if (!tS || _fc - tS > 2) return false;                               // must still be simultaneous
+    const reach = (this.weapon && this.weapon.range) || 90;
+    const d = Math.abs(t.cx() - this.cx());
+    if (d > reach || Math.abs(t.cy() - this.cy()) > 55) return false;
+    if ((this.cooldown || 0) > 0 || (this.attackTimer || 0) > 0) return false;
+    return true;
+  }
+
+  // ── SECOND QUESTION: given that it failed, why did I ALSO get hurt? ───────
+  // _inferRules asks "what predicts my attack failing", and both outcomes of a
+  // simultaneous exchange are failures — a mutual cancel and losing the ordinary
+  // first-wins race look identical to it. The thing that separates them is
+  // whether he ALSO took damage, so that has to be its own question with its own
+  // base rate: among failures, what raises the chance he got hurt too?
+  //
+  // This is where the self-constructed history features earn their place. If a
+  // hidden streak or cooldown governs whether the cancel fires, then "this same
+  // pattern happened again recently" should predict getting hurt, and nothing in
+  // the observable feature set can.
+  _inferHurtRules(includePairs) {
+    const S = this._infStats;
+    if (!S || S.miss < 10) return [];
+    const base = (() => {
+      let h = 0;
+      for (const k of Object.keys(S.feat)) { /* base comes from the whole sample */ }
+      return S.missHit !== undefined ? S.missHit / S.miss : null;
+    })();
+    // Base computed from the aggregate counters kept alongside the features.
+    const bh = (S.missHitTotal || 0) / Math.max(1, S.miss);
+    const src = includePairs ? Object.assign({}, S.feat, S.pair || {}) : S.feat;
+    const out = [];
+    for (const k of Object.keys(src)) {
+      const e = src[k];
+      if (e.miss < 5) continue;
+      const rate = e.missHit / e.miss;
+      const lift = bh > 0.001 ? rate / bh : (rate > 0 ? 99 : 0);
+      if (lift < 1.25 && lift > 0.8) continue;      // keep strong effects BOTH ways
+      out.push({ when: k, failures: e.miss, hurtRate: +rate.toFixed(2),
+                 baseHurt: +bh.toFixed(2), lift: +lift.toFixed(2),
+                 reads: rate > bh ? 'THEIRS LANDS — mine broke' : 'CLEAN CANCEL — neither lands' });
+    }
+    return out.sort((a, b) => Math.abs(b.lift - 1) - Math.abs(a.lift - 1));
+  }
+
+  // ══ NOT-KNOWING, AND WHY IT HAS TO COST SOMETHING ════════════════════════
+  //
+  // Every ledger in this class stored sums: { tries, net }. A cell with 3 samples
+  // and a cell with 300 were indistinguishable — both just had a mean. With no
+  // variance there is no uncertainty, and with no uncertainty there is nothing to
+  // be curious ABOUT. That is the mechanical reason he never investigated
+  // anything: not unwillingness, but the absence of any quantity that could go up
+  // when he learned something.
+  //
+  // So: keep the sum of squares and report a standard error, then treat an
+  // UNDER-SAMPLED action optimistically — mean + k*stderr instead of mean. An
+  // action he does not understand gets the benefit of the doubt and therefore
+  // gets tried, and trying it is the only thing that collapses the uncertainty.
+  // Smallest honest implementation of "wanting to find out": not-knowing now has
+  // a cost, so resolving it has value.
+  _choiceStderr(name) {
+    const g = this._choiceGrid;
+    if (!g) return null;
+    const sit = this._situationKey(this.target);
+    const opp = this._choiceOppKey();
+    for (const k of (opp && opp !== 'any') ? [opp, 'any'] : ['any']) {
+      const bo = g[k]; if (!bo) continue;
+      const c = sit && bo[sit] && bo[sit][name];
+      if (!c || c.tries < 2) continue;
+      const m = c.net / c.tries;
+      const v = Math.max(0, (c.net2 || 0) / c.tries - m * m);
+      return Math.sqrt(v / c.tries);
+    }
+    return null;
+  }
+
+  // How many times has he actually tried this here? Zero is not "bad", it is
+  // "unknown", and the two must never score the same.
+  _choiceTries(name) {
+    const g = this._choiceGrid;
+    if (!g) return 0;
+    const sit = this._situationKey(this.target);
+    const opp = this._choiceOppKey();
+    let n = 0;
+    for (const k of (opp && opp !== 'any') ? [opp, 'any'] : ['any']) {
+      const bo = g[k]; if (!bo) continue;
+      const c = sit && bo[sit] && bo[sit][name];
+      if (c) n = Math.max(n, c.tries);
+    }
+    return n;
+  }
+
+  // Should this branch be allowed to win the frame? False lets the cascade
+  // continue past it. Called from the guard so a branch with side effects is
+  // never run just to be discarded.
+  _preferCommit(name) {
+    const TUNE = (typeof SMK2_TUNE !== 'undefined' && SMK2_TUNE) || {};
+    if (!TUNE.tacticChoice) return true;
+    // A live discovery outranks the ledger. Never yield the tactic that just
+    // overperformed, and step aside for it when a different branch holds the
+    // window — this is the only way a LATER cascade branch can ever win a frame,
+    // since the cascade is a fixed preference order and nothing here is allowed
+    // to write vx itself.
+    if (typeof SMK2_TUNE !== 'undefined' && SMK2_TUNE && SMK2_TUNE.discovery) {
+      const d = this._activeDiscovery();
+      if (d) {
+        if (d.action === name) return true;
+        const yieldP = (typeof SMK2_TUNE.discoveryYield === 'number') ? SMK2_TUNE.discoveryYield : 0.6;
+        if (Math.random() < yieldP) { this._discoveryYields = (this._discoveryYields || 0) + 1; return false; }
+      }
+    }
+    const v = this._choiceValue(name);
+    if (v === null) return true;                 // no evidence: cascade order stands
+    // OPTIMISM: judge an action by the best it could plausibly be, not by the
+    // average of a handful of samples. Wide error bars survive the gate and get
+    // tried again, which is the only way error bars ever narrow. With curiosity
+    // off this reduces exactly to the old mean comparison.
+    let vOpt = v;
+    if (TUNE.curiosity) {
+      const se = this._choiceStderr(name);
+      const k  = (typeof TUNE.curiosityK === 'number') ? TUNE.curiosityK : 1.0;
+      const n  = this._choiceTries(name);
+      // Thin cells get an explicit unknown-bonus on top: a stderr computed from
+      // two samples badly understates how little he actually knows.
+      const thin = n < 5 ? (5 - n) * 1.6 : 0;
+      vOpt = v + (se === null ? 0 : k * se) + thin;
+    }
+    const denyAt = (typeof TUNE.choiceDenyAt === 'number') ? TUNE.choiceDenyAt : -2;
+    if (vOpt >= denyAt) return true;
+    // Never close the door completely, or a tactic that dipped once can never
+    // prove itself again and the ledger freezes at its first impression.
+    const ex = (typeof TUNE.choiceExplore === 'number') ? TUNE.choiceExplore : 0.15;
+    if (Math.random() < ex) return true;
+    this._choiceSkips = (this._choiceSkips || 0) + 1;
+    return false;
+  }
+
+  // ── ACTION VOCABULARY ───────────────────────────────────────
+  // Every terminal branch of updateAI() below names itself here on the frame it
+  // wins the cascade. Today this only counts — it is deliberately inert, so the
+  // marked cascade is behaviour-identical to the unmarked one. It exists because
+  // the cascade IS already a policy (a hardcoded, integer-valued preference
+  // order), and naming its branches is the prerequisite for ever scoring them:
+  // you cannot learn a preference over actions that have no names.
+  //
+  // Read it with window.sovCommitLog() / window.sovCommitReset().
+  _commit(name) {
+    this._lastCommit = name;
+    if (typeof SMK2_TUNE !== 'undefined' && SMK2_TUNE && SMK2_TUNE.tacticChoice) {
+      try { this._commitBook(name); } catch (e) { /* bookkeeping must never kill a frame */ }
+    }
+    const log = this._commitLog || (this._commitLog = Object.create(null));
+    log[name] = (log[name] || 0) + 1;
+    this._commitTotal = (this._commitTotal || 0) + 1;
+    // Also accumulate page-wide. The per-instance log dies with the instance, and
+    // the headless harnesses build fresh fighters per match outside players[],
+    // so a session-level tally is the only one that survives a multi-match run.
+    const g = (typeof window !== 'undefined')
+      ? (window.SOV_COMMIT_LOG || (window.SOV_COMMIT_LOG = Object.create(null))) : null;
+    if (g) g[name] = (g[name] || 0) + 1;
+  }
+
   // OVERRIDE: updateAI() — full enhanced AI loop
   // ══════════════════════════════════════════════════════════════
 
@@ -4947,6 +6500,7 @@ class SovereignMK2 extends AdaptiveAI {
             this.vy = -15; this.canDoubleJump = false;
           }
           this.aiReact = 0;
+          this._commit('recover_jump_abort');
           return;
         }
       }
@@ -4966,6 +6520,7 @@ class SovereignMK2 extends AdaptiveAI {
           this.vy = -15; this.canDoubleJump = false;
         }
         this.aiReact = 0;
+        this._commit('hop_steer');
         return;
       }
       // Grounded again (landed on the platform or fell back) — release the hop
@@ -5071,6 +6626,7 @@ class SovereignMK2 extends AdaptiveAI {
       if (this._oppArchetype !== _prevArch) { try { this._seedFromDossier(t); } catch (e) {} }
     }
     if (typeof SovDossier !== 'undefined') SovDossier.tick();
+    if (this._oppObsFrames > 0 && this._oppObsFrames % 600 === 0) { try { this._commitMech(); } catch (e) {} }
 
     // ── OPENING WEAPON PRIOR — read weapon class on frame 1 and lock a counter ──
     // Fires once per match; skipped when a death record is already active (that takes priority).
@@ -5195,6 +6751,35 @@ class SovereignMK2 extends AdaptiveAI {
     const memoryPressure = _memoryState ? (0.10 + memoryLocalWeight * 0.30 + memoryGlobalWeight * 0.18) : 0;
     const effAgg = Math.min(1, m.aggression + microAgg + memoryAgg + memoryPressure * 0.55);
     const effDef = Math.min(1, m.defense    + microDef + memoryDef + memoryPressure * 0.65);
+    // DIAL TRANSMISSION PROBE (SMK2_TUNE.dialProbe). The question these answer:
+    // an aiMemory dial is one addend in a clamped sum, so how much of a change in
+    // the DIAL survives into the value the fighter actually uses? Stashed rather
+    // than logged — these are hot-path locals sampled every decision.
+    if (typeof SMK2_TUNE !== 'undefined' && SMK2_TUNE.dialProbe) {
+      const P = this._dialProbe || (this._dialProbe = { n: 0, effAgg: 0, effDef: 0, aggClamped: 0, defClamped: 0 });
+      P.n++; P.effAgg += effAgg; P.effDef += effDef;
+      if (effAgg >= 0.999) P.aggClamped++;
+      if (effDef >= 0.999) P.defClamped++;
+      // Per-addend budget: what each contributor actually puts into the sum, so
+      // the channel can be apportioned instead of guessed at.
+      // Time course: dial value bucketed by 300-frame (5s) slice, so "does it
+      // converge, and how fast" is answerable instead of inferable from a mean.
+      const _SLW = (typeof SMK2_TUNE.dialProbeSlice === 'number') ? SMK2_TUNE.dialProbeSlice : 300;
+      const _sl = Math.min(59, Math.floor(((typeof frameCount !== 'undefined') ? frameCount : 0) / _SLW));
+      P.slice = P.slice || [];
+      const _S = P.slice[_sl] || (P.slice[_sl] = { n: 0, agg: 0, def: 0, spc: 0, rct: 0 });
+      _S.n++; _S.agg += m.aggression; _S.def += m.defense; _S.spc += m.spacing; _S.rct += m.reactionSpeed;
+      P.a_dial = (P.a_dial || 0) + m.aggression;
+      P.a_micro = (P.a_micro || 0) + microAgg;
+      P.a_mem = (P.a_mem || 0) + memoryAgg;
+      P.a_press = (P.a_press || 0) + memoryPressure * 0.55;
+      P.a_raw = (P.a_raw || 0) + (m.aggression + microAgg + memoryAgg + memoryPressure * 0.55);
+      P.d_dial = (P.d_dial || 0) + m.defense;
+      P.d_micro = (P.d_micro || 0) + microDef;
+      P.d_mem = (P.d_mem || 0) + memoryDef;
+      P.d_press = (P.d_press || 0) + memoryPressure * 0.65;
+      P.d_raw = (P.d_raw || 0) + (m.defense + microDef + memoryDef + memoryPressure * 0.65);
+    }
 
     // State-based aggression: pull back when low HP, surge when player is vulnerable.
     const hpPct      = this.health / Math.max(1, this.maxHealth);
@@ -5277,6 +6862,31 @@ class SovereignMK2 extends AdaptiveAI {
     // Unbeatable tuning: no artificial minimum gap — Sovereign thinks every frame
     // his reaction stats allow. (Was a 2-frame floor donated as a read window.)
     const reactFrames = Math.max(0, Math.round(4 - m.reactionSpeed * 3 - memoryReact * 3));
+    if (typeof SMK2_TUNE !== 'undefined' && SMK2_TUNE.dialProbe) {
+      const P = this._dialProbe || (this._dialProbe = { n: 0, effAgg: 0, effDef: 0, aggClamped: 0, defClamped: 0 });
+      P.rn = (P.rn || 0) + 1;
+      P.react = (P.react || 0) + reactFrames;
+      P.reactZero = (P.reactZero || 0) + (reactFrames === 0 ? 1 : 0);
+      P.pref = (P.pref || 0) + prefDist;
+      P.r_dial = (P.r_dial || 0) + m.reactionSpeed * 3;
+      P.r_mem  = (P.r_mem  || 0) + memoryReact * 3;
+      P.r_raw  = (P.r_raw  || 0) + (4 - m.reactionSpeed * 3 - memoryReact * 3);
+      // prefDist budget — absolute contribution of each addend, so a term that
+      // swings +-40px is not hidden by one that is merely large and constant.
+      P.p_base   = (P.p_base   || 0) + this._genome.prefDistBase;
+      P.p_dial   = (P.p_dial   || 0) + m.spacing * 60;
+      P.p_intim  = (P.p_intim  || 0) + (-this._intimidation * 22);
+      P.p_evo    = (P.p_evo    || 0) + (-this._evolutionStage * 5);
+      P.p_threat = (P.p_threat || 0) + threatSpacing;
+      P.p_thor   = (P.p_thor   || 0) + thorSpacing;
+      P.p_mem    = (P.p_mem    || 0) + memorySpacing * 80;
+      P.p_opener = (P.p_opener || 0) + openerAggroBias;
+      P.p_super  = (P.p_super  || 0) + superCharging;
+      P.p_dmg    = (P.p_dmg    || 0) + dmgThreat;
+      P.p_speed  = (P.p_speed  || 0) + speedDanger;
+      P.p_rage   = (P.p_rage   || 0) + rageBuff;
+      P.p_lives  = (P.p_lives  || 0) + livesSpacing;
+    }
     const atkRange    = weaponRange * (1.1 + this._intimidation * 0.08) + 20;
 
     const dx  = t.cx() - this.cx();
@@ -5364,7 +6974,7 @@ class SovereignMK2 extends AdaptiveAI {
     this._updateHumanization(dir, moveSpd);
     if (this._humanFakeoutTimer > 0) {
       this.aiReact = reactFrames;
-      return; // fakeout frame — skip normal logic
+      this._commit('fakeout'); return; // fakeout frame — skip normal logic
     }
 
     // ── Danger: beams ─────────────────────────────────────────
@@ -5375,6 +6985,7 @@ class SovereignMK2 extends AdaptiveAI {
           const fd = this.cx() < beam.x ? -1 : 1;
           if (!this.isEdgeDanger(fd)) this.vx = fd * 8;
           if (this.onGround) this.vy = -18;
+          this._commit('danger_beam');
           return;
         }
       }
@@ -5385,6 +6996,7 @@ class SovereignMK2 extends AdaptiveAI {
       if ((currentArena.lavaY - (this.y + this.h)) < 80 && this.onGround) {
         this.vx = this.cx() < GAME_W / 2 ? 6 : -6;
         this.vy = -18;
+        this._commit('danger_lava_air');
         return;
       }
     }
@@ -5405,6 +7017,7 @@ class SovereignMK2 extends AdaptiveAI {
     if (this._runVoidRecovery(t, dir, moveSpd, _jumpVy)) {
       this.aiReact = 0;
       this._updateFearFactor(d, recentLanded, true);
+      this._commit('danger_lava_ground');
       return;
     }
 
@@ -5413,6 +7026,7 @@ class SovereignMK2 extends AdaptiveAI {
     // or pressure plan is worth contesting it (replay-proven loss pattern).
     if (this._runVolleyDefense(t, d, dir, moveSpd, _jumpVy)) {
       this._updateFearFactor(d, recentLanded, true);
+      this._commit('volley_defense_a');
       return;
     }
 
@@ -5420,6 +7034,7 @@ class SovereignMK2 extends AdaptiveAI {
     // volley read: no punish window is worth eating a 4-bolt AoE super.
     if (this._runTelegraphedEvasion(t, dir, moveSpd, _jumpVy)) {
       this._updateFearFactor(d, recentLanded, true);
+      this._commit('volley_defense_b');
       return;
     }
 
@@ -5429,6 +7044,7 @@ class SovereignMK2 extends AdaptiveAI {
     // shipped after this code was written.
     if (this._runBlindEvasion(t, dir, moveSpd, _jumpVy)) {
       this._updateFearFactor(d, recentLanded, true);
+      this._commit('volley_defense_c');
       return;
     }
 
@@ -5472,6 +7088,7 @@ class SovereignMK2 extends AdaptiveAI {
             if (playerAttacking && d < 130 && this.shieldCooldown === 0 && this._shieldHoldFrames === 0) { this.shielding = true; this.shieldCooldown = 60; this._shieldHoldFrames = 10; }
           }
           this.aiReact = 0;
+          this._commit('volley_cycle_a');
           return;
         }
         // At range while armed: drift centerward, never parked on a floor edge.
@@ -5480,6 +7097,7 @@ class SovereignMK2 extends AdaptiveAI {
           if (!this.isEdgeDanger(_cDir)) this.vx = _cDir * moveSpd * 0.9;
         } else this.vx *= 0.7;
         this.aiReact = 0;
+        this._commit('volley_cycle_b');
         return;
       }
     }
@@ -5562,6 +7180,7 @@ class SovereignMK2 extends AdaptiveAI {
         this.vx = dir * moveSpd * 0.9;
         this.vy = Math.max(this.vy, 8);   // fast-fall to their level
         this.aiReact = 0;
+        this._commit('air_descent');
         return;
       }
     }
@@ -5666,6 +7285,7 @@ class SovereignMK2 extends AdaptiveAI {
           this._hopTarget = _step;
           this._hopFrames = 40;
           this.aiReact = 0;
+          this._commit('elevation_pursuit');
           return;
         }
       }
@@ -5760,13 +7380,13 @@ class SovereignMK2 extends AdaptiveAI {
     // Highest hazard priority: every other threat here can be traded with, and
     // this one cannot — when the deck goes there is no ground to fight on. See
     // _runFloorHazard().
-    if (this._runFloorHazard(moveSpd, _jumpVy)) { this.aiReact = 0; return; }
+    if (this._runFloorHazard(moveSpd, _jumpVy)) { this.aiReact = 0; this._commit('floor_hazard'); return; }
 
     // ── Danger: boss / arena set-piece hazards (leave the zone) ────────────
     // Runs before the projectile scan because these hit harder and telegraph
     // longer. See _scanAreaThreats().
-    if (this._scanDomainHazards(moveSpd, _jumpVy)) { this.aiReact = 0; return; }
-    if (this._scanAreaThreats(moveSpd, _jumpVy)) { this.aiReact = 0; return; }
+    if (this._scanDomainHazards(moveSpd, _jumpVy)) { this.aiReact = 0; this._commit('domain_hazard'); return; }
+    if (this._scanAreaThreats(moveSpd, _jumpVy)) { this.aiReact = 0; this._commit('area_threat'); return; }
 
     // ── Danger: incoming projectiles / sword crescents (dodge) ─────────────
     // A ranged-poking player (crescent spam from 200-400px) chips Sovereign down.
@@ -5810,6 +7430,7 @@ class SovereignMK2 extends AdaptiveAI {
     // opponent inside one, and collect/deny available map resources naturally.
     if (this._runMapTactics(t, dir, d, moveSpd, _jumpVy, weaponRange)) {
       this.aiReact = 0;
+      this._commit('map_tactics');
       return;
     }
 
@@ -5852,6 +7473,7 @@ class SovereignMK2 extends AdaptiveAI {
       this._recordEvent('dodge', 7);
       this.aiReact = 0;
       this._updateFearFactor(d, recentLanded, true);
+      this._commit('rapid_hit_escape');
       return;
     }
 
@@ -5886,6 +7508,7 @@ class SovereignMK2 extends AdaptiveAI {
       if (this.superReady && ((t._parryVulnFrames || 0) > 25 || finishPush)) this.useSuper(t);
       this.aiReact = 0;
       this._updateFearFactor(d, recentLanded, true);
+      this._commit('guaranteed_punish');
       return;
     }
 
@@ -5900,7 +7523,7 @@ class SovereignMK2 extends AdaptiveAI {
       const _lGap   = _land.x - this.cx();
       const _lDir   = Math.sign(_lGap) || dir;
       if (Math.abs(_lGap) > 24) {
-        if (!this.isEdgeDanger(_lDir)) { this.vx = _lDir * moveSpd * 1.5; this.aiReact = 0; return; }
+        if (!this.isEdgeDanger(_lDir)) { this.vx = _lDir * moveSpd * 1.5; this.aiReact = 0; this._commit('landing_punish_close'); return; }
       } else {
         this.vx *= 0.55;                              // camped under the landing spot
         if (this.cooldown <= 0 && d < weaponRange + 8 &&
@@ -5908,6 +7531,7 @@ class SovereignMK2 extends AdaptiveAI {
           this._strike(t);                            // clip them on the way down
         }
         this.aiReact = 0;
+        this._commit('landing_punish');
         return;
       }
     }
@@ -5934,6 +7558,7 @@ class SovereignMK2 extends AdaptiveAI {
         this.vx *= 0.65; // hold position — do not close until they can be hurt
       }
       this.aiReact = 0;
+      this._commit('spawn_standoff');
       return;
     }
 
@@ -5953,6 +7578,7 @@ class SovereignMK2 extends AdaptiveAI {
     if (t._comboSuper && this.shieldCooldown === 0 && this._shieldHoldFrames === 0) {
       this.shielding = true; this.shieldCooldown = 60; this._shieldHoldFrames = 26;
       this.aiReact = 0;
+      this._commit('pugilist_read_a');
       return;
     }
 
@@ -5992,6 +7618,7 @@ class SovereignMK2 extends AdaptiveAI {
       }
       this._recordEvent('dodge', 3);
       this.aiReact = 0;
+      this._commit('pugilist_read_b');
       return;
     }
 
@@ -6029,6 +7656,7 @@ class SovereignMK2 extends AdaptiveAI {
       if (this.abilityCooldown <= 0 && d < 300 && Math.random() < 0.08) this.ability(t);
       this.aiReact = Math.max(1, reactFrames - 1);
       this._updateFearFactor(d, recentLanded, true);
+      this._commit('force_engagement');
       return;
     }
 
@@ -6053,30 +7681,34 @@ class SovereignMK2 extends AdaptiveAI {
     // ── D. Anti-exploit forced response ───────────────────────
     if (this._runExploitResponse(t, dir, d, moveSpd)) {
       this.aiReact = Math.max(0, reactFrames - 1);
+      this._commit('anti_exploit');
       return;
     }
 
     // ── SOVEREIGN ESCAPE: when backed to own edge, jump over player to reverse corner ──
     if (this._runSovereignEscape(t, dir, moveSpd, _jumpVy)) {
       this.aiReact = 0;
+      this._commit('sov_escape_a');
       return;
     }
 
     if (this._runFlowBreak(t, dir, d, moveSpd, weaponRange, playerAttacking, recentTaken)) {
       this.aiReact = 0;
       this._updateFearFactor(d, recentLanded, true);
+      this._commit('sov_escape_b');
       return;
     }
 
     // ── CORNER EXPLOIT: player is near edge — block escape, attack aggressively ──
-    if (this._runCornerExploit(t, dir, d, moveSpd, atkRange)) {
+    if (this._preferCommit('corner_exploit') && this._runCornerExploit(t, dir, d, moveSpd, atkRange)) {
       this.aiReact = this._limiterBroken ? 0 : Math.max(0, reactFrames - 1);
       this._updateFearFactor(d, recentLanded, true);
+      this._commit('corner_exploit');
       return;
     }
 
     // ── B. Punish mode: ignore defense, go full offense ───────
-    if (this._punishModeActive) {
+    if (this._punishModeActive && this._preferCommit('punish_mode')) {
       // Stop-short fakeout: occasionally pause just outside attack range before striking.
       // Breaks the fixed-timing read that skilled players use to dodge every punish rush.
       if (this._punishFakeoutTimer > 0) {
@@ -6110,6 +7742,7 @@ class SovereignMK2 extends AdaptiveAI {
       if (this.superReady && Math.random() < (finishPush ? 0.12 : 0.055)) this.useSuper(t);
       this.aiReact = 1; // unbeatable tuning: near-continuous decisions in punish mode
       this._updateFearFactor(d, recentLanded, true);
+      this._commit('punish_mode');
       return;
     }
 
@@ -6132,6 +7765,7 @@ class SovereignMK2 extends AdaptiveAI {
           this._preemptMode   = true;
           this._preemptTarget = 'attack';
           this._recordEvent('dodge', 4);
+          this._commit('predict_counter_a');
           return;
         }
       }
@@ -6139,6 +7773,7 @@ class SovereignMK2 extends AdaptiveAI {
       // the multi-frame preempt: anti-air landing, intercept, or guard-break.
       if (this._applyPredictionCounter(t, dir, d, moveSpd)) {
         this.aiReact = reactFrames;
+        this._commit('predict_counter_b');
         return;
       }
     }
@@ -6153,7 +7788,8 @@ class SovereignMK2 extends AdaptiveAI {
     // ── SHIELD PRIORITY — evaluated before hardCounter so parry/flowBreak don't eat it ──
     // Shield FIRST when it's the tactically preferred reaction; otherwise fall through
     // to hardCounter / COUNTER-ATTACK (which dodge). Reacting at all is the mistake gate.
-    if (playerAttacking && d < 210 && this.shieldCooldown === 0 && this._shieldHoldFrames === 0 && effDef > 0.55) {
+    if (playerAttacking && d < 210 && this.shieldCooldown === 0 && this._shieldHoldFrames === 0 &&
+        effDef > this._dialGate(0.625)) {
       const _shCornered = (nearLeft && dir < 0) || (nearRight && dir > 0);
       // Shield is preferred when cornered (no clean dodge lane), vs a heavy/high-KB
       // weapon (long punishable recovery), under sustained pressure, or with a learned
@@ -6168,6 +7804,7 @@ class SovereignMK2 extends AdaptiveAI {
         this._recordEvent('dodge', 3);
         this._chooseAdaptivePunishRoute(t, dir, d, playerAttacking, currentAction, _bmObs, _bmPred, recentTaken);
         this.aiReact = reactFrames;
+        this._commit('shield_priority_a');
         return;
       }
     }
@@ -6175,6 +7812,7 @@ class SovereignMK2 extends AdaptiveAI {
     if (this._runHardCounter(t, dir, d, moveSpd, weaponRange, atkRange, playerAttacking)) {
       this.aiReact = this._limiterBroken ? 0 : Math.max(0, reactFrames - 1);
       this._updateFearFactor(d, recentLanded, true);
+      this._commit('shield_priority_b');
       return;
     }
 
@@ -6196,6 +7834,7 @@ class SovereignMK2 extends AdaptiveAI {
       this._punishTimer = (lb ? 5 : 8) + _psHeavy;
       this.aiReact = 0;
       this._updateFearFactor(d, recentLanded, false);
+      this._commit('phase_step_read');
       return;
     }
 
@@ -6208,6 +7847,7 @@ class SovereignMK2 extends AdaptiveAI {
       if (!this.isEdgeDanger(_wbDir)) this.vx = _wbDir * moveSpd * 1.4;
       if (d < weaponRange + 10 && this.cooldown <= 0) this.attack(t); // still attack if in range
       this.aiReact = 0;
+      this._commit('wall_safety');
       return;
     }
 
@@ -6231,6 +7871,7 @@ class SovereignMK2 extends AdaptiveAI {
           this._recordEvent('dodge', 3);
           this._chooseAdaptivePunishRoute(t, dir, d, playerAttacking, currentAction, _bmObs, _bmPred, recentTaken);
           this.aiReact = reactFrames;
+          this._commit('counter_attack_a');
           return;
         }
 
@@ -6254,6 +7895,7 @@ class SovereignMK2 extends AdaptiveAI {
           this._recordEvent('dodge', 3);
           this._chooseAdaptivePunishRoute(t, dir, d, playerAttacking, currentAction, _bmObs, _bmPred, recentTaken);
           this.aiReact = reactFrames;
+          this._commit('counter_attack_b');
           return;
         } else {
           _dodged = false; // no dodge lane and no shield — gets clipped this frame
@@ -6272,6 +7914,7 @@ class SovereignMK2 extends AdaptiveAI {
           this._commitToChaseFrames = 30;
           this._chaseDirection      = dir;
           this.aiReact = Math.max(1, reactFrames - 1); // punish sprint starts one frame earlier
+          this._commit('counter_attack_c');
           return;
         }
       }
@@ -6288,6 +7931,7 @@ class SovereignMK2 extends AdaptiveAI {
         this._shieldHoldFrames = 12;
         this._chooseAdaptivePunishRoute(t, dir, d, playerAttacking, currentAction, _bmObs, _bmPred, recentTaken);
         this.aiReact = reactFrames;
+        this._commit('counter_attack_d');
         return;
       }
     }
@@ -6312,6 +7956,7 @@ class SovereignMK2 extends AdaptiveAI {
         const _ptHeavy  = (t.weapon && t.weapon.kb >= 18) ? Math.min(10, Math.round(_ptWpnRec / 9)) : 0;
         this._punishTimer = (lb ? 3 : 5) + _ptHeavy; // re-arm for the new attack
         this.aiReact = 0;
+        this._commit('punish_timer_a');
         return;
       }
 
@@ -6340,6 +7985,7 @@ class SovereignMK2 extends AdaptiveAI {
         // available ability/super tools because the engine guarantees value here.
         this._tryTacticalConversion(t, d, weaponRange);
       }
+      this._commit('punish_timer_b');
       return;
     }
 
@@ -6363,6 +8009,7 @@ class SovereignMK2 extends AdaptiveAI {
         }
         this.aiReact = 1;
         this._updateFearFactor(d, recentLanded, true);
+        this._commit('endlag_punish_a');
         return;
       }
       // Out of range: sprint to close the gap — window is brief so no hesitation
@@ -6383,18 +8030,21 @@ class SovereignMK2 extends AdaptiveAI {
         this._queueAdaptivePunishOutcome('direct', t, d);
         this._counterWindowOpen = false;
         this.aiReact = 0;
+        this._commit('endlag_punish_b');
         return;
       }
       const route = this._adaptivePunishRoute || this._chooseAdaptivePunishRoute(t, dir, d, playerAttacking, currentAction, _bmObs, _bmPred, recentTaken);
       if (route === 'delayed' && this._adaptivePunishTimer > 0) {
         this.vx *= 0.60;
         this.aiReact = 0;
+        this._commit('endlag_punish_c');
         return;
       }
       if (route === 'crossup' && this.onGround && d < 210) {
         this.vy = _jumpVy;
         if (!this.isEdgeDanger(dir)) this.vx = dir * moveSpd * 0.75;
         this.aiReact = 0;
+        this._commit('endlag_punish_d');
         return;
       }
       if (d < weaponRange * 1.6 + 40 && this.cooldown <= 0) {
@@ -6406,18 +8056,21 @@ class SovereignMK2 extends AdaptiveAI {
         }
         this._counterWindowOpen = false;
         this.aiReact = 0;
+        this._commit('endlag_punish_e');
         return;
       } else if (!this.isEdgeDanger(dir)) {
         // Out of range: sprint at maximum speed — NEVER abandon a punish window
         this.vx = dir * moveSpd * 2.5;
         if (this.onGround && t.y < this.y - 50) this.vy = _jumpVy;
         this.aiReact = 0;
+        this._commit('endlag_punish_f');
         return;
       } else if (this.onGround || this.canDoubleJump) {
         // Edge danger: jump over the player to continue the chase
         if (this.onGround) { this.vy = _jumpVy; this.vx = dir * moveSpd * 0.85; }
         else { this.vy = -15; this.canDoubleJump = false; this.vx = dir * moveSpd * 0.6; }
         this.aiReact = 0;
+        this._commit('endlag_punish_g');
         return;
       }
       // Truly stuck (airborne + edge + no double jump) — abandon window
@@ -6434,6 +8087,7 @@ class SovereignMK2 extends AdaptiveAI {
         this.ability(t);
         if (!this.isEdgeDanger(dir)) this.vx = dir * moveSpd * 0.7; // stay on target after Phase Step
         this._comboFollowTimer = Math.max(lb ? 9 : 12, 12);
+        this._commit('combo_follow_a');
         return;
       }
       if (this.cooldown <= 0) {
@@ -6453,6 +8107,7 @@ class SovereignMK2 extends AdaptiveAI {
           this._comboFollowTimer = 4;
           if (!this.isEdgeDanger(dir)) this.vx = dir * moveSpd * 1.15;
         }
+        this._commit('combo_follow_b');
         return;
       }
     }
@@ -6468,7 +8123,7 @@ class SovereignMK2 extends AdaptiveAI {
     }
 
     // ── BAIT MECHANIC ──────────────────────────────────────────
-    if (this._baitTimer > 0) {
+    if (this._baitTimer > 0 && this._preferCommit('bait')) {
       this._baitTimer--;
       this.vx = 0; // stand still — invite attack (creeping telegraphs intent and defeats the bait)
       if (playerAttacking && d < 160) {
@@ -6493,6 +8148,7 @@ class SovereignMK2 extends AdaptiveAI {
           this._pressureHoldTimer = Math.max(this._pressureHoldTimer, 45);
         }
       }
+      this._commit('bait');
       return;
     }
 
@@ -6512,6 +8168,7 @@ class SovereignMK2 extends AdaptiveAI {
       this.shieldCooldown   = 60;
       this._shieldHoldFrames = 12; // shorter hold for proactive stance
       this.aiReact = Math.max(1, reactFrames);
+      this._commit('proactive_shield');
       return;
     }
 
@@ -6523,15 +8180,16 @@ class SovereignMK2 extends AdaptiveAI {
     }
 
     // ── PLATFORM CONTROL: contest player's favourite platform ─
-    if (!finishMode && this._runPlatformControl(t, dir, d, moveSpd)) {
+    if (!finishMode && this._preferCommit('platform_control') && this._runPlatformControl(t, dir, d, moveSpd)) {
       this.aiReact = Math.max(1, reactFrames);
+      this._commit('platform_control');
       return;
     }
 
     // ── MID-APPROACH EVASION ──────────────────────────────────
     // Player attacks while Sovereign is outside attack range — without this check
     // the movement code runs and Sovereign walks straight into the hit.
-    if (playerAttacking && d > atkRange && d < 240) {
+    if (playerAttacking && d > atkRange && d < 240 && this._preferCommit('mid_approach_evasion')) {
       const dDir = (nearLeft && dir < 0) ? 1 : (nearRight && dir > 0) ? -1 : -dir;
       if (this.onGround && !this.isEdgeDanger(dDir)) {
         this.vx = dDir * moveSpd * 2.2;
@@ -6555,18 +8213,20 @@ class SovereignMK2 extends AdaptiveAI {
       this._punishTimer = (lb ? 4 : 6) + _pt2Heavy;
       this.aiReact = 0;
       this._updateFearFactor(d, recentLanded, false);
+      this._commit('mid_approach_evasion');
       return;
     }
 
     // ── BREATHING ROOM — back off after sustained aggression ─────
     // Gives the player a clear window to move, reposition, and counter-attack.
     if (this._restCooldown > 0) this._restCooldown--;
-    if (this._restTimer > 0) {
+    if (this._restTimer > 0 && this._preferCommit('breathing_room')) {
       this._restTimer--;
       this._telegraphTimer = 0; // cancel any pending telegraph during rest
       if (!this.isEdgeDanger(-dir)) this.vx = -dir * moveSpd * 0.38;
       else this.vx *= 0.55;
       this.aiReact = 3;
+      this._commit('breathing_room');
       return;
     }
 
@@ -6729,7 +8389,7 @@ class SovereignMK2 extends AdaptiveAI {
       // Vertical gate: never wind up under a hovering/elevated player the blade
       // can't reach — Sovereign used to slow-telegraph endlessly below them.
       // Don't arm the telegraph against a player who just spawned — prevents spawn-kills
-      if (t.invincible > 80) { this.aiReact = reactFrames; return; }
+      if (t.invincible > 80) { this.aiReact = reactFrames; this._commit('hold_vs_invuln'); return; }
       // In range — arm the telegraph (visual tell before striking)
       // Real frames now (per-frame cadence): 14 → 8 as Sovereign evolves; ~6 after
       // limiter break. Short enough to pressure, long enough for a human read.
@@ -6799,10 +8459,12 @@ class SovereignMK2 extends AdaptiveAI {
     if (this._tryTacticalConversion(t, d, weaponRange)) {
       this._updateFearFactor(d, recentLanded, true);
       this.aiReact = 0;
+      this._commit('ability_super');
       return;
     }
 
     this._updateFearFactor(d, recentLanded, false);
+    this._commit('neutral');
 
     // Debug: gated behind window.DEBUG_RECORDING to prevent frame spam
     if (window.DEBUG_RECORDING) {
@@ -7107,11 +8769,35 @@ function resetSovereignMK2() {
 function applySovereignPeakTuning(ai, opts) {
   if (!ai || !ai.aiMemory) return ai;
   const silent = !!(opts && opts.silent);
-  ai.aiMemory.aggression    = 0.94;
-  ai.aiMemory.defense       = 0.90;
-  ai.aiMemory.spacing       = 0.08;
-  ai.aiMemory.reactionSpeed = 0.98;
-  ai.intelligence           = 0.97;
+  // ── DIALS: PEAK IS A CEILING, NOT A STARTING POSITION ──────────────────────
+  // This function is the ONLY thing that runs on the shipping path (_startGameCore
+  // and SovereignControl) and does not run in SMK2Trainer, which builds fighters
+  // straight from the constructor. So for a long time every measurement of the
+  // starting dials was a measurement of the SIM's Sovereign, and the real one was
+  // pinned here at 0.94/0.90/0.08/0.98 regardless.
+  //
+  // That pinning is exactly what adaptV2 exists to remove: at 0.88-0.98 every dial
+  // is already against its own ease() ceiling, there is no headroom for the
+  // opponent term to express, and he finishes every fight on the same values no
+  // matter who he fought. Overwriting the constructor's headroom baseline here
+  // would make adaptV2 inert in the only place that ships.
+  //
+  // Under adaptV2 the dials therefore keep their baseline and he EARNS the peak
+  // within the fight. Everything else below is untouched — limiter, pressure mode,
+  // evolution stage, intimidation and the skipped warmup are what "peak" means
+  // apart from the dials, and none of them cap adaptation.
+  if (!(typeof SMK2_TUNE !== 'undefined' && SMK2_TUNE && SMK2_TUNE.adaptV2)) {
+    ai.aiMemory.aggression    = 0.94;
+    ai.aiMemory.defense       = 0.90;
+    ai.aiMemory.spacing       = 0.08;
+    ai.aiMemory.reactionSpeed = 0.98;
+    ai.intelligence           = 0.97;
+  } else {
+    const m = ai.aiMemory;
+    // Derived, not asserted: a 0.97 intelligence on 0.60 dials is a number that
+    // describes nobody, and _updateAuraColor and several gates read it.
+    ai.intelligence = (m.aggression + m.defense + (1 - m.spacing) + m.reactionSpeed) / 4;
+  }
   ai._limiterBroken         = true;
   ai._limiterBreakDialogue  = true;  // suppress opening "limiters withdrawn" line
   ai._adaptInterval         = 4;
@@ -7123,4 +8809,32 @@ function applySovereignPeakTuning(ai, opts) {
   ai._actionSampleCount     = 10;
   if (typeof ai._updateAuraColor === 'function') ai._updateAuraColor();
   return ai;
+}
+
+
+// ── COMMIT LOG READOUT (dev) ───────────────────────────────────────────────
+// Which branches of the updateAI() cascade actually win frames, and how often.
+// The cascade is 70+ guards deep and its lower half has never been measured, so
+// "score the ~30 tactical branches" is a plan resting on an untested assumption:
+// that those branches fire at all. This answers that before any surgery.
+//
+// Session-wide, so a multi-life, multi-match headless run reads as one tally.
+function sovCommitLog() {
+  const out = Object.assign(Object.create(null), (typeof window !== 'undefined' && window.SOV_COMMIT_LOG) || {});
+  let total = 0;
+  for (const k of Object.keys(out)) total += out[k];
+  const rows = Object.keys(out).map(k => ({ action: k, frames: out[k], pct: total ? +(100 * out[k] / total).toFixed(2) : 0 }))
+                               .sort((a, b) => b.frames - a.frames);
+  return { total, rows };
+}
+
+function sovCommitReset() {
+  if (typeof window !== 'undefined') window.SOV_COMMIT_LOG = Object.create(null);
+  const seen = (typeof players !== 'undefined' && players) ? players : [];
+  for (const p of seen) { if (p && p._commitLog) { p._commitLog = Object.create(null); p._commitTotal = 0; } }
+}
+
+if (typeof window !== 'undefined') {
+  window.sovCommitLog   = sovCommitLog;
+  window.sovCommitReset = sovCommitReset;
 }

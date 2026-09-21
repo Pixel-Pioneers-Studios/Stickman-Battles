@@ -32,7 +32,12 @@
 // Globals-based, no modules. Loaded before smb-smk2-class.js.
 
 const SOV_DOSSIER_KEY     = 'sov_dossier_v1';
-const SOV_DOSSIER_MAX     = 64;      // records before the coldest are evicted
+// Raised 64 -> 128 on 2026-09-20: _dossierKeys now files a third, JOINT
+// kit|behaviour record per opponent (see the note there), so the same number of
+// distinct opponents costs 50% more records. At 64 the coldest were being evicted
+// after roughly 21 opponents, which would have thrown away the specialised build
+// memory first — it is always the youngest.
+const SOV_DOSSIER_MAX     = 128;     // records before the coldest are evicted
 const SOV_DOSSIER_DECAY   = 0.94;    // applied to counts on load — old reads fade
 const SOV_ARCHETYPES      = ['rusher', 'turtle', 'zoner', 'aerial', 'mixed'];
 
@@ -311,6 +316,92 @@ const SovDossier = (() => {
     return den ? { mean: num / den, weight: den } : null;
   }
 
+  // ── Mechanics, keyed to NOTHING ───────────────────────────────────────────
+  // Everything above is about a person. This is about the game: what his
+  // prediction-failure engine (_inferTick) has learned about how exchanges
+  // resolve. The clash rule is the same against everyone, so filing it per
+  // opponent would split one law of physics into 128 thin samples. One record,
+  // under a key _dossierKeys can never produce.
+  //
+  // Without this the engine starts every match at n=0 and needs 12 predicted
+  // swings before it states a single rule, so an action path could only ever
+  // work in a long lab sweep, never in a real fight.
+  //
+  // Callers pass DELTAS (counts accrued since their last commit) so a Sovereign
+  // seeded from this record never files the same swing twice.
+  const SOV_MECH_KEY = '__mech';
+  const SOV_MECH_CAP = 3000;   // predicted swings retained (~100 matches); older evidence scales down
+
+  function _addCell(dst, src) {
+    for (const f of ['n', 'miss', 'missClean', 'missHit']) dst[f] = (dst[f] || 0) + (src[f] || 0);
+  }
+
+  function recordMech(delta) {
+    if (!delta || !(delta.n > 0)) return;
+    const r = get(SOV_MECH_KEY);
+    const m = r.mech || (r.mech = { n: 0, miss: 0, missHitTotal: 0, feat: {}, pair: {} });
+    m.n += delta.n; m.miss += delta.miss || 0; m.missHitTotal += delta.missHitTotal || 0;
+    for (const bucket of ['feat', 'pair']) {
+      const src = delta[bucket] || {};
+      for (const k of Object.keys(src)) _addCell(m[bucket][k] || (m[bucket][k] = {}), src[k]);
+    }
+    // Bounded, so a rule that stops being true (a rebalance) can be unlearned.
+    if (m.n > SOV_MECH_CAP) {
+      const s = SOV_MECH_CAP / m.n;
+      m.n *= s; m.miss *= s; m.missHitTotal *= s;
+      for (const bucket of ['feat', 'pair']) for (const k of Object.keys(m[bucket])) {
+        const c = m[bucket][k];
+        for (const f of ['n', 'miss', 'missClean', 'missHit']) c[f] = (c[f] || 0) * s;
+      }
+    }
+    r.lastSeen = Date.now();
+    _dirty = true;
+  }
+
+  function mechPrior() {
+    const s = load();
+    const r = s[SOV_MECH_KEY];
+    return (r && r.mech) ? JSON.parse(JSON.stringify(r.mech)) : null;
+  }
+
+  // ── Arsenal: what he has measured about every weapon and class ────────────
+  // The curated SMK2_LOADOUTS list and its hand-written priors are OUR opinion
+  // of what is strong. This is his: one sample per life he fought, filed under
+  // what he held and what the opponent held, scored by net damage per 1000
+  // frames. Keys: 'any', 'ow:<opponent weapon>', 'oc:<opponent class>'.
+  // Cells keep sum and sum of squares of the per-life rate, so the picker can
+  // tell "bad" from "barely tried" (see _pickOpenLoadout).
+  const SOV_ARSENAL_KEY = '__arsenal';
+
+  function _addSample(tbl, k, s) {
+    const c = tbl[k] || (tbl[k] = { n: 0, r: 0, r2: 0, net: 0, frames: 0, dealt: 0, taken: 0 });
+    c.n++; c.r += s.rate; c.r2 += s.rate * s.rate;
+    c.net += s.net; c.frames += s.frames; c.dealt += s.dealt; c.taken += s.taken;
+  }
+
+  function recordArsenal(s) {
+    if (!s || !s.w || !(s.frames > 0) || !isFinite(s.rate)) return;
+    const r = get(SOV_ARSENAL_KEY);
+    const A = r.arsenal || (r.arsenal = {});
+    const keys = ['any'];
+    if (s.ow) keys.push('ow:' + s.ow);
+    if (s.oc) keys.push('oc:' + s.oc);
+    for (const key of keys) {
+      const b = A[key] || (A[key] = { weapon: {}, cls: {}, combo: {} });
+      _addSample(b.weapon, s.w, s);
+      _addSample(b.cls, s.c || 'none', s);
+      _addSample(b.combo, s.w + '|' + (s.c || 'none'), s);
+    }
+    r.lastSeen = Date.now();
+    _dirty = true;
+  }
+
+  function arsenalPrior() {
+    const s = load();
+    const r = s[SOV_ARSENAL_KEY];
+    return (r && r.arsenal) ? r.arsenal : null;
+  }
+
   function tick() {
     if (++_saveTimer >= 600) { _saveTimer = 0; save(); }   // ~10s
   }
@@ -338,5 +429,6 @@ const SovDossier = (() => {
 
   return { load, save, kitKey, behKey, archetype, get, recordStrategy, strategyBias,
            bestStrategy, recordDials, dialPrior, recordGrid, gridPrior, recordLoadout, loadoutPrior,
+           recordMech, mechPrior, recordArsenal, arsenalPrior,
            tick, reset, dump, _raw: () => load() };
 })();

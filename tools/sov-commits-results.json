@@ -1,0 +1,185 @@
+{
+ "total": 52884,
+ "rows": [
+  {
+   "action": "volley_cycle_b",
+   "frames": 15670,
+   "pct": 29.63
+  },
+  {
+   "action": "volley_cycle_a",
+   "frames": 9565,
+   "pct": 18.09
+  },
+  {
+   "action": "danger_lava_ground",
+   "frames": 7434,
+   "pct": 14.06
+  },
+  {
+   "action": "guaranteed_punish",
+   "frames": 5632,
+   "pct": 10.65
+  },
+  {
+   "action": "anti_exploit",
+   "frames": 2787,
+   "pct": 5.27
+  },
+  {
+   "action": "air_descent",
+   "frames": 2102,
+   "pct": 3.97
+  },
+  {
+   "action": "punish_mode",
+   "frames": 2077,
+   "pct": 3.93
+  },
+  {
+   "action": "corner_exploit",
+   "frames": 2068,
+   "pct": 3.91
+  },
+  {
+   "action": "hop_steer",
+   "frames": 1469,
+   "pct": 2.78
+  },
+  {
+   "action": "neutral",
+   "frames": 932,
+   "pct": 1.76
+  },
+  {
+   "action": "volley_defense_c",
+   "frames": 919,
+   "pct": 1.74
+  },
+  {
+   "action": "shield_priority_b",
+   "frames": 384,
+   "pct": 0.73
+  },
+  {
+   "action": "endlag_punish_f",
+   "frames": 245,
+   "pct": 0.46
+  },
+  {
+   "action": "punish_timer_b",
+   "frames": 233,
+   "pct": 0.44
+  },
+  {
+   "action": "force_engagement",
+   "frames": 215,
+   "pct": 0.41
+  },
+  {
+   "action": "predict_counter_a",
+   "frames": 173,
+   "pct": 0.33
+  },
+  {
+   "action": "counter_attack_c",
+   "frames": 136,
+   "pct": 0.26
+  },
+  {
+   "action": "landing_punish",
+   "frames": 135,
+   "pct": 0.26
+  },
+  {
+   "action": "predict_counter_b",
+   "frames": 133,
+   "pct": 0.25
+  },
+  {
+   "action": "recover_jump_abort",
+   "frames": 113,
+   "pct": 0.21
+  },
+  {
+   "action": "landing_punish_close",
+   "frames": 106,
+   "pct": 0.2
+  },
+  {
+   "action": "combo_follow_b",
+   "frames": 93,
+   "pct": 0.18
+  },
+  {
+   "action": "sov_escape_b",
+   "frames": 78,
+   "pct": 0.15
+  },
+  {
+   "action": "sov_escape_a",
+   "frames": 60,
+   "pct": 0.11
+  },
+  {
+   "action": "elevation_pursuit",
+   "frames": 50,
+   "pct": 0.09
+  },
+  {
+   "action": "endlag_punish_e",
+   "frames": 18,
+   "pct": 0.03
+  },
+  {
+   "action": "endlag_punish_b",
+   "frames": 14,
+   "pct": 0.03
+  },
+  {
+   "action": "endlag_punish_d",
+   "frames": 11,
+   "pct": 0.02
+  },
+  {
+   "action": "ability_super",
+   "frames": 10,
+   "pct": 0.02
+  },
+  {
+   "action": "combo_follow_a",
+   "frames": 10,
+   "pct": 0.02
+  },
+  {
+   "action": "shield_priority_a",
+   "frames": 4,
+   "pct": 0.01
+  },
+  {
+   "action": "counter_attack_d",
+   "frames": 3,
+   "pct": 0.01
+  },
+  {
+   "action": "wall_safety",
+   "frames": 2,
+   "pct": 0
+  },
+  {
+   "action": "endlag_punish_a",
+   "frames": 1,
+   "pct": 0
+  },
+  {
+   "action": "endlag_punish_c",
+   "frames": 1,
+   "pct": 0
+  },
+  {
+   "action": "proactive_shield",
+   "frames": 1,
+   "pct": 0
+  }
+ ]
+}
