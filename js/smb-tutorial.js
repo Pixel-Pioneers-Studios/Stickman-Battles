@@ -67,7 +67,7 @@ const TUTORIAL_STEPS = [
   {
     id: 'shield',
     title: 'BLOCK',
-    hint: 'Hold  S  to raise your shield. Blocking drains it — let go to recharge.',
+    hint: 'Hold  S  on the ground to raise your shield. Blocking drains it — let go to recharge.',
     need: 70,    // frames held
     check(p1) {
       return p1.shielding ? 1 : 0;

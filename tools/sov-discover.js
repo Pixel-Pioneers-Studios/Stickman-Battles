@@ -91,6 +91,7 @@ const MIME = { '.html':'text/html','.js':'text/javascript','.css':'text/css','.j
   await page.evaluate((flags, lineage) => {
     SovDossier.reset();
     for (const f of flags) SMK2_TUNE[f] = true;
+    SMK2_TUNE.innateArsenal = false;   // the lab must never feed on its own previous output
     let s = (0x9E3779B9 ^ Math.imul(lineage + 1, 0x85EBCA6B)) >>> 0;
     Math.random = function () {
       s = (s + 0x6D2B79F5) >>> 0;
@@ -107,8 +108,10 @@ const MIME = { '.html':'text/html','.js':'text/javascript','.css':'text/css','.j
     await page.evaluate((start, n) => {
       // Opponents cycle through every legal weapon so no kit is under-sampled;
       // class is random. Stock stats, full AI, no policy (see `opp` in _runMatch).
-      const W = WEAPON_KEYS.filter(k => WEAPONS[k]);
-      const C = Object.keys(CLASSES).filter(k => k !== 'megaknight');
+      // Opponents a real Sovereign fight can contain: ranged weapons and the
+      // ranged-locked classes are barred from every boss fight.
+      const W = WEAPON_KEYS.filter(k => WEAPONS[k] && WEAPONS[k].type !== 'ranged');
+      const C = Object.keys(CLASSES).filter(k => k !== 'megaknight' && k !== 'gunner' && k !== 'archer');
       const P = SovereignMK2.prototype, origPick = P._pickOpenLoadout;
       let picked;
       P._pickOpenLoadout = function () { const lo = origPick.apply(this, arguments); picked = lo; return lo; };

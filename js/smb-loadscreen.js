@@ -475,6 +475,92 @@ var LoadScene = (function () {
         dark: '#100408', rim: 'rgba(255,130,110,0.9)', eye: '#ff4030' });
       // Flash drawn OVER the fighters — it is the point of contact between them.
       impact(ctx, cx, cy + H * 0.02, H * 0.15, t, '255,170,90');
+    },
+
+    // SPLASH — the opening clash. This replaces the old stock/AI splash still
+    // with the same stickman vocabulary used by every authored loading scene.
+    // The composition intentionally echoes the reference: cool bearer versus
+    // warm rival, both converging on a bright fracture in reality.
+    splash: function (ctx, W, H, t, u) {
+      var sky = ctx.createRadialGradient(W * 0.5, H * 0.42, 0, W * 0.5, H * 0.42, H * 0.90);
+      sky.addColorStop(0, '#1b1534');
+      sky.addColorStop(0.42, '#0b1023');
+      sky.addColorStop(1, '#02030a');
+      ctx.fillStyle = sky; ctx.fillRect(0, 0, W, H);
+
+      // Split-color energy fields behind the fighters.
+      var leftGlow = ctx.createRadialGradient(W * 0.18, H * 0.46, 0, W * 0.18, H * 0.46, W * 0.58);
+      leftGlow.addColorStop(0, 'rgba(32,178,255,0.40)');
+      leftGlow.addColorStop(0.55, 'rgba(21,77,170,0.14)');
+      leftGlow.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = leftGlow; ctx.fillRect(0, 0, W * 0.68, H);
+      var rightGlow = ctx.createRadialGradient(W * 0.82, H * 0.46, 0, W * 0.82, H * 0.46, W * 0.58);
+      rightGlow.addColorStop(0, 'rgba(255,112,38,0.40)');
+      rightGlow.addColorStop(0.55, 'rgba(180,38,18,0.14)');
+      rightGlow.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = rightGlow; ctx.fillRect(W * 0.32, 0, W * 0.68, H);
+
+      // Fracture rays — lightweight, deterministic, and alive.
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.lineCap = 'round';
+      for (var i = 0; i < 20; i++) {
+        var a = (i / 20) * Math.PI * 2 + Math.sin(t * 0.22) * 0.05;
+        var inner = H * (0.05 + (i % 3) * 0.02);
+        var outer = H * (0.40 + (i % 5) * 0.10);
+        var ex = W * 0.5 + Math.cos(a) * outer;
+        var ey = H * 0.43 + Math.sin(a) * outer;
+        var col = i % 2 ? '255,118,54' : '73,202,255';
+        var ray = ctx.createLinearGradient(W * 0.5, H * 0.43, ex, ey);
+        ray.addColorStop(0, 'rgba(255,255,255,0.80)');
+        ray.addColorStop(0.18, 'rgba(' + col + ',0.52)');
+        ray.addColorStop(1, 'rgba(' + col + ',0)');
+        ctx.strokeStyle = ray;
+        ctx.lineWidth = (i % 4 === 0 ? 3.2 : 1.2) * u;
+        ctx.beginPath();
+        ctx.moveTo(W * 0.5 + Math.cos(a) * inner, H * 0.43 + Math.sin(a) * inner);
+        ctx.lineTo(ex, ey);
+        ctx.stroke();
+      }
+      ctx.restore();
+
+      // Floating debris gives the scene scale without looking like a photo.
+      ctx.save();
+      for (var d = 0; d < 22; d++) {
+        var dp = (t * (0.04 + (d % 4) * 0.008) + d / 22) % 1;
+        var side = d % 2 ? 1 : -1;
+        var dx = W * 0.5 + side * (W * (0.10 + (d % 6) * 0.06) + Math.sin(d * 4.2) * 18 * u);
+        var dy = H * (0.16 + dp * 0.72);
+        var ds = (2 + (d % 4) * 1.4) * u;
+        ctx.globalAlpha = 0.18 + 0.28 * Math.sin(Math.PI * dp);
+        ctx.fillStyle = d % 2 ? '#ff8a4a' : '#72d8ff';
+        ctx.save(); ctx.translate(dx, dy); ctx.rotate(t * 0.8 + d);
+        ctx.beginPath();
+        ctx.moveTo(-ds, -ds * 0.55); ctx.lineTo(ds * 0.8, -ds);
+        ctx.lineTo(ds, ds * 0.65); ctx.lineTo(-ds * 0.5, ds);
+        ctx.closePath(); ctx.fill();
+        ctx.restore();
+      }
+      ctx.restore();
+
+      // The actual game figures: broad, readable, weapon-bearing silhouettes.
+      var clashY = H * 0.67 + Math.sin(t * 1.2) * 4 * u;
+      fig(ctx, W * 0.31, clashY, {
+        u: u * 2.05, face: 1, pose: 'clash', t: t, weapon: 'sword', eye: '#80e8ff',
+        dark: '#050b18', rim: 'rgba(132,224,255,0.94)'
+      });
+      fig(ctx, W * 0.69, clashY, {
+        u: u * 2.05, face: -1, pose: 'clash', t: t, weapon: 'axe', eye: '#ffba70',
+        dark: '#160608', rim: 'rgba(255,137,77,0.94)'
+      });
+      impact(ctx, W * 0.5, H * 0.49, H * 0.19, t, '255,205,126');
+
+      // Foreground vignette keeps the splash legible and makes the game canvas
+      // feel like a deliberate title-card surface.
+      var vignette = ctx.createRadialGradient(W * 0.5, H * 0.43, H * 0.16, W * 0.5, H * 0.43, H * 0.78);
+      vignette.addColorStop(0, 'rgba(0,0,0,0)');
+      vignette.addColorStop(1, 'rgba(0,0,0,0.66)');
+      ctx.fillStyle = vignette; ctx.fillRect(0, 0, W, H);
     }
   };
 

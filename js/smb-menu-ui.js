@@ -74,6 +74,8 @@ function selectMode(mode) {
     if (_mgCard) _mgCard.classList.add('active');
     const _survOpts = document.getElementById('survivalOptions');
     if (_survOpts) _survOpts.style.display = minigameType === 'survival' ? 'flex' : 'none';
+    const _sportsOpts = document.getElementById('sportsOptions');
+    if (_sportsOpts) _sportsOpts.style.display = minigameType === 'sports' ? 'flex' : 'none';
   }
   // P2 panel title/hint
   document.getElementById('p2Title').textContent = isTrueForm ? 'TRUE FORM' : isAdaptive ? 'NEURAL AI' : (isBoss && !isBoss2p) ? 'CREATOR' : (isBoss2p ? 'Player 2' : (isTraining ? 'TRAINING' : (p2IsBot ? 'BOT' : 'Player 2')));
@@ -677,8 +679,8 @@ const _WEAPON_CARD_DATA = {
   gun:           { tag: 'Ranged' },
   axe:           { tag: 'Splash' },
   spear:         { tag: 'Reach' },
-  bow:           { tag: 'Archer' },
-  shield:        { tag: 'Paladin' },
+  bow:           { tag: 'Volley' },
+  shield:        { tag: 'Guard' },
   scythe:        { tag: 'Lifesteal' },
   fryingpan:     { tag: 'Stun' },
   broomstick:    { tag: 'Push' },
@@ -692,6 +694,12 @@ const _WEAPON_CARD_DATA = {
   katana:        { tag: 'Precise' },
   flamethrower:  { tag: 'Suppress' },
   electricstaff: { tag: 'Chain' },
+  bomb:          { tag: 'Blast' },
+  knives:        { tag: 'Recall' },
+  glassblade:    { tag: 'Fragile' },
+  anchor:        { tag: 'Moored' },
+  crossbow:      { tag: 'Pin' },
+  fragment:      { tag: 'Style' },
 };
 
 const _CLASS_CARD_DATA = {
@@ -710,6 +718,9 @@ const _CLASS_CARD_DATA = {
   ronin:       { tag: 'Precision' },
   reaper:      { tag: 'Undying' },
   summoner:    { tag: 'Swarm' },
+  demolitionist: { tag: 'Blast' },
+  warden:      { tag: 'Armour' },
+  adept:       { tag: 'Fragment' },
 };
 
 // ── Home Screen Canvas Animation ──────────────────────────────────────────────

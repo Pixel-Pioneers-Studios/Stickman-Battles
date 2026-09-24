@@ -57,7 +57,6 @@ const storyState = {
     doubleJump:  false,
     weaponAbility: false,
     superMeter:  false,
-    dodge:       false,
   },
 
   // Persistent flags written to localStorage so they survive reload
@@ -71,8 +70,6 @@ const storyState = {
   storyState.abilities.doubleJump    = !!sk.doubleJump;
   storyState.abilities.weaponAbility = !!(sk.weaponAbility || sk.weaponAbilityOld);
   storyState.abilities.superMeter    = !!sk.superMeter;
-  storyState.abilities.dodge         = !!sk.dodge;
-  storyDodgeUnlocked                 = storyState.abilities.dodge;
 })();
 
 // Restore branch-choice flags from persistent save data.
@@ -127,8 +124,7 @@ function _handleBuiltinEvent(name, data) {
 
     // ── Player's health drops to 20% or below ────────────────────────────────
     case 'SURVIVAL_EVENT': {
-      // Dodge Roll is no longer granted passively — it is bought in the skill
-      // tree (Mobility branch). Just flash the screen red to signal danger.
+      // No ability is granted here. Just flash the screen red to signal danger.
       if (typeof hitStopFrames !== 'undefined') hitStopFrames = Math.max(hitStopFrames, 2);
       break;
     }

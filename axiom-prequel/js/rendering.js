@@ -575,7 +575,11 @@ function drawHUD() {
     ctx.fillStyle   = '#ccbb99';
     ctx.font        = '13px Courier New';
     ctx.textAlign   = 'center';
-    ctx.fillText('J — LIGHT   K — HEAVY   L — GRAB   SHIFT — DODGE   Q — SUPER   E — PICK UP', GAME_W / 2, GAME_H - 8);
+    ctx.fillText(
+      vanguardActive()
+        ? 'J — LIGHT   K — HEAVY   L — GRAB   SHIFT — DODGE   Q — SUPER   S — BRACE'
+        : 'J — LIGHT   K — HEAVY   L — GRAB   SHIFT — DODGE   Q — SUPER   E — PICK UP',
+      GAME_W / 2, GAME_H - 8);
     ctx.globalAlpha = 1;
   }
 

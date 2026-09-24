@@ -164,6 +164,13 @@ document.addEventListener('keydown', e => {
   // Block attack/ability/super keydown events during the TF opening cinematic (after free period)
   if (typeof tfOpeningFightActive !== 'undefined' && tfOpeningFightActive
       && (typeof _tfOpeningFreeFrames === 'undefined' || _tfOpeningFreeFrames <= 0)) return;
+  // Nor during a finisher. The finisher freezes the world and blocks
+  // processInput(), but this keydown path calls attack/ability/useSuper
+  // directly and never went through that block. Measured in a 2026-09-21
+  // replay: a player caught by Sovereign's execution pressed super 6 frames in,
+  // spent a full meter on their 5th super, triggered a domain the death then
+  // cancelled — and lost the whole five-super domain count with it.
+  if (typeof activeFinisher !== 'undefined' && activeFinisher) return;
 
   players.forEach((p, i) => {
     if (p.isAI || p.health <= 0) return;
@@ -237,6 +244,7 @@ document.addEventListener('visibilitychange', () => {
 
 const SHIELD_MAX    = 140;  // max frames shield stays up (~2.3 s)
 const SHIELD_CD     = 180; // 3-second cooldown at 60 fps
+const FAST_FALL_VY  = 13;  // shield key in the air; the fall cap (19) still applies
 
 function processInput() {
   if (!gameRunning || paused) return;
@@ -427,10 +435,14 @@ function processInput() {
         spawnParticles(p.cx(), p.cy(), p.color,  8);
         spawnParticles(p.cx(), p.cy(), '#ffffff', 5);
         SoundManager.jump();
+      } else if (p._wxExtraJumps > 0 && !p._noDoubleJump) {
+        // Fragment Overdrive: third jump, refilled on landing by smb-weapons-ext.js
+        p.vy = dblPower;
+        p._wxExtraJumps--;
+        spawnParticles(p.cx(), p.cy(), '#8fd8ff', 10);
+        SoundManager.jump();
       }
     }
-    // --- Story dodge roll (grounded only) — double-tap ← / → ---
-    if (storyModeActive && typeof storyHandleDodgeInput === 'function') storyHandleDodgeInput(p);
     // --- S / ArrowDown = shield (degrades per consecutive deployment; re-press required after break) ---
     // Tiers: stacks 1→30HP, 2→15HP, 3→5HP, 4→80% block, 5→50% block, 6→20% block, 7+→no effect
     const _SHIELD_HP_TABLE = [0, 30, 15, 5];
@@ -441,7 +453,18 @@ function processInput() {
       p._brShieldTimer--;
       if (p._brShieldTimer <= 0) { p.shielding = false; p._brShieldTimer = 0; }
     }
-    if (!sHeld && !p._brShieldTimer) {
+    if ((!p.onGround || p._landLag > 0) && !p._brShieldTimer) {
+      // Airborne the same key is fast-fall: the guard is ground-only. Past the
+      // apex only, so it can't cancel a jump's rise. Fighter.update() drops any
+      // guard still up; the hold timer stays 0 so holding it through a landing
+      // raises the guard as a fresh press.
+      const _gDir = ((gameMode === 'trueform' || gameMode === 'story') && tfGravityInverted) ? -1 : 1;
+      if (!p.onGround && sHeld && (keyHeldFrames[p.controls.shield] || 0) === 1 && p.vy * _gDir > -2) {
+        p.vy = _gDir * Math.max(p.vy * _gDir, FAST_FALL_VY);
+      }
+      p.shielding = false;
+      p.shieldHoldTimer = 0;
+    } else if (!sHeld && !p._brShieldTimer) {
       // Key released — clear shield state and allow fresh activation on next press
       p.shielding       = false;
       p.shieldHoldTimer = 0;

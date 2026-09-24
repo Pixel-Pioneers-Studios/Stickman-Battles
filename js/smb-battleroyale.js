@@ -372,16 +372,16 @@ const BR_RARITY = [
 // adding a weapon to WEAPONS can never break the tables.
 const BR_WEAPON_TIERS = {
   legendary: ['nullblade', 'voidblade', 'shockrifle'],
-  epic:      ['scythe', 'katana', 'flamethrower', 'electricstaff'],
-  rare:      ['axe', 'hammer', 'gun', 'bow', 'flail'],
-  uncommon:  ['sword', 'spear', 'whip', 'boomerang'],
+  epic:      ['scythe', 'katana', 'flamethrower', 'electricstaff', 'glassblade', 'crossbow'],
+  rare:      ['axe', 'hammer', 'gun', 'bow', 'flail', 'bomb', 'anchor'],
+  uncommon:  ['sword', 'spear', 'whip', 'boomerang', 'knives'],
 };
 
 // `combat` is the drop-in loadout — it must never appear in a chest, or the
 // reward for opening one can be the thing you already had. The gauntlets are
 // already out of WEAPON_KEYS; listed so a direct tier lookup cannot reintroduce
 // them. `lantern` is trial-only equipment, not a BR weapon.
-const BR_LOOT_EXCLUDE = ['combat', 'gauntlet', 'mkgauntlet', 'lantern'];
+const BR_LOOT_EXCLUDE = ['combat', 'gauntlet', 'mkgauntlet', 'lantern', 'fragment'];
 
 const BR_LOOT_POOL = [
   { type: 'medkit', label: 'Medkit',  icon: '💊', color: '#44ff88', weight: 22 },

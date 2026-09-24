@@ -354,13 +354,13 @@ function toggleRandomPool(type, key) {
 // rather than shouting the game's name back at them.
 function _getLoadingInfo() {
   const mgNames = {
-    survival: 'SURVIVAL', koth: 'KING OF THE HILL', chaos: 'CHAOS MATCH', soccer: 'SOCCER'
+    survival: 'SURVIVAL', koth: 'KING OF THE HILL', chaos: 'CHAOS MATCH', sports: 'SPORTS ARENA'
   };
   const mgSubs = {
     survival: 'WAVE AFTER WAVE — LAST AS LONG AS YOU CAN',
     koth:     'HOLD THE ZONE. THEY WILL NOT LET YOU',
     chaos:    'EVERY RULE IS NEGOTIABLE',
-    soccer:   'FIRST TO SCORE. NOBODY SAID NO WEAPONS'
+    sports:   'NOBODY SAID NO WEAPONS'
   };
   switch (gameMode) {
     case 'boss':
@@ -372,7 +372,8 @@ function _getLoadingInfo() {
     case 'battleroyale':
       return { title: 'BATTLE ROYALE', subtitle: '94 BEARERS. ONE SURVIVOR', scene: 'battleroyale' };
     case 'minigames':
-      return { title: mgNames[minigameType] || 'MINIGAME',
+      return { title: minigameType === 'sports' && typeof SPORTS !== 'undefined' && SPORTS[sportsType]
+                        ? SPORTS[sportsType].name : (mgNames[minigameType] || 'MINIGAME'),
                subtitle: mgSubs[minigameType] || 'GET READY', scene: 'minigames' };
     case 'training':
       return { title: 'TRAINING',   subtitle: 'NO STAKES. NO MERCY EITHER', scene: 'training' };

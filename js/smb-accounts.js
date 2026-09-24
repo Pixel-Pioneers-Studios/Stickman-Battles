@@ -87,7 +87,6 @@ const AccountManager = (() => {
           if (typeof u.storyOnline        === 'undefined') u.storyOnline        = false;
           if (typeof u.tfEndingSeen       === 'undefined') u.tfEndingSeen       = false;
           if (typeof u.damnationScar      === 'undefined') u.damnationScar      = false;
-          if (typeof u.storyDodgeUnlocked === 'undefined') u.storyDodgeUnlocked = false;
           if (typeof u.paradoxCompanion   === 'undefined') u.paradoxCompanion   = false;
           if (typeof u.interTravel        === 'undefined') u.interTravel        = false;
           if (typeof u.patrolMode         === 'undefined') u.patrolMode         = false;
@@ -140,7 +139,7 @@ const AccountManager = (() => {
               bossBeaten: false, trueform: false, megaknight: false,
               letters: [], achievements: [],
               sovereignBeaten: false, storyOnline: false, tfEndingSeen: false,
-              damnationScar: false, storyDodgeUnlocked: false, paradoxCompanion: false,
+              damnationScar: false, paradoxCompanion: false,
               interTravel: false, patrolMode: false, godEncountered: false, godDefeated: false,
             },
             settings: { sfxVol: 0.35, sfxMute: false, musicMute: false, ragdoll: false },
@@ -187,7 +186,7 @@ const AccountManager = (() => {
         createdAt: Date.now(),
         saveKey:   'smb_acct_' + id,
         role:      'player',
-        data:      { version: (typeof SAVE_VERSION !== 'undefined' ? SAVE_VERSION : 3), progression: {}, stats: {}, coins: 0, cosmetics: [], _legacyCleared: false, unlocks: { bossBeaten: false, trueform: false, megaknight: false, letters: [], achievements: [], sovereignBeaten: false, storyOnline: false, tfEndingSeen: false, damnationScar: false, storyDodgeUnlocked: false, paradoxCompanion: false, interTravel: false, patrolMode: false }, settings: { sfxVol: 0.35, sfxMute: false, musicMute: false, ragdoll: false } },
+        data:      { version: (typeof SAVE_VERSION !== 'undefined' ? SAVE_VERSION : 3), progression: {}, stats: {}, coins: 0, cosmetics: [], _legacyCleared: false, unlocks: { bossBeaten: false, trueform: false, megaknight: false, letters: [], achievements: [], sovereignBeaten: false, storyOnline: false, tfEndingSeen: false, damnationScar: false, paradoxCompanion: false, interTravel: false, patrolMode: false }, settings: { sfxVol: 0.35, sfxMute: false, musicMute: false, ragdoll: false } },
       };
     });
     _persist();

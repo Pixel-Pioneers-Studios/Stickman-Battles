@@ -55,6 +55,10 @@ class Axiom {
     this.dodgeFacing = 1;
     this.dodgeCooldown = 0;
 
+    // Vanguard chapters only — see js/vanguard.js
+    this.bracing   = false;
+    this.braceHold = 0;
+
     this.knockdownTimer = 0;
     this.footstepTimer  = 0;    // footstep cadence counter
     this.superBurstTimer = 0;   // visual glow after super activation
@@ -81,6 +85,9 @@ class Axiom {
 
   // ── State helper ─────────────────────────────────────────────────────────
   _setState(s) {
+    // A brace only exists while the brace state does — getting hurt, knocked
+    // down or killed drops the guard rather than leaving it stuck on.
+    if (s !== 'brace') this.bracing = false;
     this.state      = s;
     this.stateTimer = 0;
   }
@@ -117,10 +124,15 @@ class Axiom {
     switch (this.state) {
       case 'idle':
       case 'run':
+        if (this._tryBrace()) break;
         this._handleGroundMovement();
         this._handleGroundCombat();
         this._handleDodge();
         this._handleJump();
+        break;
+
+      case 'brace':
+        this._tickBrace();
         break;
 
       case 'jump':
@@ -500,6 +512,35 @@ class Axiom {
     if (this.stateTimer >= 14) this._setState('idle');
   }
 
+  // ── Brace (vanguard chapters) ─────────────────────────────────────────────
+  // Plant your feet and become the only thing in the room worth hitting. No
+  // movement, no swinging — the trade is that every nearby enemy comes to you
+  // instead of to Anders, Seraph or VAEL.
+  _tryBrace() {
+    if (!held('brace') || !this.onGround || !vanguardActive()) return false;
+    this.bracing   = true;
+    this.braceHold = 0;
+    this._setState('brace');
+    spawnDustPuff(this.cx(), this.y + this.h);
+    return true;
+  }
+
+  _tickBrace() {
+    this.braceHold++;
+
+    // Can still turn to meet them — the brace only reduces damage from the front.
+    if (held('left'))       this.facing = -1;
+    else if (held('right')) this.facing =  1;
+
+    this.vx *= 0.55;
+    if (Math.abs(this.vx) < 0.2) this.vx = 0;
+
+    if (!held('brace') || !this.onGround) {
+      this.bracing = false;
+      this._setState('idle');
+    }
+  }
+
   // ── Weapon pickup ─────────────────────────────────────────────────────────
   _handlePickup() {
     if (this.nearPickup && !this.weapon) {
@@ -588,6 +629,10 @@ class Axiom {
     } else if (this.state === 'grab') {
       targetR = this.facing > 0 ? 0.1 : Math.PI - 0.1;
       targetL = this.facing > 0 ? 0.4 : Math.PI - 0.4;
+    } else if (this.state === 'brace') {
+      // Both forearms up and in, shoulders squared at whatever is coming.
+      targetR = 0.55 * this.facing;
+      targetL = Math.PI - targetR * 0.45;
     }
 
     this.armAngleR = lerp(this.armAngleR, targetR, 0.28);

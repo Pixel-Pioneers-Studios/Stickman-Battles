@@ -25,6 +25,26 @@
   let _voices = [];
   let _lastSub = null;   // identity of the last subtitle object we reacted to
   let _rafId = 0;
+  let _duckUntil = 0;    // keep music ducked until this timestamp (release tail between lines)
+  let _ducked = false;
+
+  const DUCK_RELEASE_MS = 700; // hold the duck briefly so gaps between lines don't strobe the music
+
+  // Pull the music down while a line is being spoken so the voice-over is audible.
+  function _setDuck(on) {
+    if (on === _ducked) return;
+    _ducked = on;
+    try {
+      if (typeof MusicManager !== 'undefined' && MusicManager && MusicManager.setDucked) MusicManager.setDucked(on);
+    } catch (e) { /* audio ducking is cosmetic; never break a frame */ }
+  }
+
+  function _updateDuck() {
+    const speaking = !!synth && (synth.speaking || synth.pending);
+    const now = (typeof performance !== 'undefined') ? performance.now() : Date.now();
+    if (speaking) _duckUntil = now + DUCK_RELEASE_MS;
+    _setDuck(now < _duckUntil);
+  }
 
   function _loadVoices() {
     if (!synth) return;
@@ -57,11 +77,15 @@
       u.pitch = profile.pitch;
       u.rate = profile.rate;
       synth.speak(u);
+      _duckUntil = ((typeof performance !== 'undefined') ? performance.now() : Date.now()) + DUCK_RELEASE_MS;
+      _setDuck(true);
     } catch (e) { /* speech is non-critical; never let it break a frame */ }
   }
 
   function stop() {
     if (synth) { try { synth.cancel(); } catch (e) {} }
+    _duckUntil = 0;
+    _setDuck(false);
   }
 
   function _tick() {
@@ -70,6 +94,7 @@
       _lastSub = sub;
       if (sub && sub.speaker && sub.text) speak(sub.text, sub.speaker);
     }
+    _updateDuck();
     _rafId = requestAnimationFrame(_tick);
   }
 

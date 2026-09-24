@@ -62,11 +62,56 @@ const SERVER_CONFIG = {
 // ============================================================
 const CHANGELOG = [
   {
+    version: '4.4.0',
+    title: 'THE ARSENAL UPDATE',
+    date: '2026-09-24',
+    flavor: 'Six new weapons, three new classes, a stadium with four sports in it, and hits that finally land when they should.',
+    isLatest: true,
+    changes: [
+      // ── Weapons & classes ─────────────────────────────────────────────────
+      { cat: 'Weapon', text: 'Bomb — lobbed bombs that roll along the floor and set each other off. Q throws stickies that cling to floors, walls and enemies, up to six at once; hold it to set the whole field off together' },
+      { cat: 'Weapon', text: 'Throwing Knives — six of them, and every throw leaves a blade on the floor. Walk over one to pick it up, or Recall them all at once and cut through anything standing between you and your knives' },
+      { cat: 'Weapon', text: 'Glass Blade — the hardest-hitting fast blade in the game, and it cracks every time you are hit. Three cracks and it shatters; break it yourself with Shatterstep before a fight you cannot win breaks it for you' },
+      { cat: 'Weapon', text: 'Anchor — slow overhead swings that take no knockback while you are planted. Throw it, then haul a hooked enemy to you or pull yourself to it' },
+      { cat: 'Weapon', text: 'Crossbow — slow, heavy bolts that pin a target to the wall they drive it into. Tripwire strings a wire along the ground for the first person careless enough to cross it' },
+      { cat: 'Class',  text: 'Demolitionist (bigger blasts, bomb-jumps that go where you aim) and Warden (every third hit taken is halved, and slow to match) join the roster' },
+      { cat: 'Mode',   text: 'The new weapons drop from Battle Royale chests' },
+      { cat: 'Weapon', text: 'A new fighting style is waiting at the end of a late-campaign lesson: the Fragment, and the Adept class built around it. Charging it pulls enemies in; the blast holds them in front of you instead of throwing them away, so Barrage follows straight into it', spoilerLevel: 2 },
+      { cat: 'Fix',    text: 'Fragment Barrage pushed its own target out of reach — by the third punch the gap was half again longer than a punch, so the last two always missed. You now follow them in, the punches hold them, and its shockwaves no longer vanish into the punch that threw them. Overdrive heals on cast, since it never deals the damage every other super heals from', spoilerLevel: 2 },
+
+      // ── Combat ────────────────────────────────────────────────────────────
+      { cat: 'Combat', text: 'Your own hits no longer protect the opponent from you. The invulnerability a hit grants used to block your next swing, your ability and your super too, so a hit followed by anything fast lost the follow-up — measured at 8% to 44% of every weapon\'s damage. It now only stops the same attack from hitting twice, and a second attacker from piling on' },
+      { cat: 'Combat', text: 'Combo escapes no longer switch on invulnerability halfway through a string. The wall escape, the air-juggle escape and the cap on long stuns now leave you unstunnable for a moment instead — the hits still land, but none of them can lock you down again, so the way out is getting your controls back rather than a patch of immunity' },
+      { cat: 'Combat', text: 'Combo strings. The first two basic melee hits of a combo push lightly and hold the target until your next swing connects; the third launches. Before this, every hit launched and only one in four ever led to a second' },
+      { cat: 'Combat', text: 'Supers heal when they connect, not when you cast them — a whiffed super heals nothing, and the heal shows as a green number. Only supers that land count toward a domain' },
+      { cat: 'Combat', text: 'The air costs something now. Land with an attack still out and you eat its recovery before you can act, the shield only goes up on the ground, and holding down past the top of a jump fast-falls' },
+      { cat: 'Combat', text: 'The ground roll has followed the Air Dash out. Double-tapping a direction no longer does anything' },
+      { cat: 'Fix',    text: 'Guns, bows and every ability could stun their own user. The punishment for whiffing a melee swing was applied to any attack that ended without a melee hit, including shots and abilities that connected' },
+
+      // ── Balance ───────────────────────────────────────────────────────────
+      { cat: 'Balance', text: 'Weapons and classes retuned with the strongest AI in the game on both sides, rather than against the stock bot — which never punishes recovery and so made every heavy weapon look better than it plays' },
+      { cat: 'Balance', text: 'Varek\'s rage never reset, so from the third life of a long match every hit carried the full bonus. It now resets each life and caps at +20%' },
+      { cat: 'Fix',     text: 'Katana follow-through slashes could cut the same target a second time for a hidden 22 damage' },
+      { cat: 'Fix',     text: 'Class descriptions matched the code for the first time in a while: HP and speed are read live, and every perk says what it actually does' },
+
+      // ── AI ────────────────────────────────────────────────────────────────
+      { cat: 'AI', text: 'Bots no longer freeze under a ledge you are standing on. They walk to somewhere they can jump from and come up after you' },
+      { cat: 'AI', text: 'The Sovereign chooses from the whole arsenal now — every weapon and class — starting from the kits he found strongest in his own fights, and he takes his class\'s health with it', spoilerLevel: 3 },
+      { cat: 'AI', text: 'He learns your habits per opponent: whether you live in the air, and how you come down when you are near him', spoilerLevel: 3 },
+      { cat: 'AI', text: 'A safety net, disclosed: if you lead him by two stocks or more, his hits grow stronger until the gap closes', spoilerLevel: 3 },
+      { cat: 'Arena', text: 'The Circuit no longer drops pickups or crates. Its curses only ever landed on the player', spoilerLevel: 3 },
+
+      // ── Modes & sound ─────────────────────────────────────────────────────
+      { cat: 'Mode',  text: 'Soccer grew into the Sports Arena: soccer, basketball, volleyball and dodgeball. Nobody takes damage but every hit still knocks back, so fighting is how you win the ball — and each weapon\'s ability doubles as a signature ball move' },
+      { cat: 'Audio', text: 'Music ducks under spoken story dialogue instead of talking over it' },
+    ],
+  },
+  {
     version: '4.3.0',
     title: 'THE SHARPENED EDGE UPDATE',
     date: '2026-09-16',
     flavor: 'Thirteen weapons measured against each other until none of them was the obvious answer, a front door worth walking through, and levels that expect you to actually finish them.',
-    isLatest: true,
+    isLatest: false,
     changes: [
       // ── Story levels ──────────────────────────────────────────────────────
       { cat: 'Story',  text: 'Reaching the exit no longer finishes a level. Every enemy in the area has to be down first, and the exit marker burns red until they are — running the length of a world past everything that lived in it was, until now, a complete clear' },
@@ -1114,7 +1159,7 @@ let _publicRoomCheckTimer = 0;
 // ============================================================
 // VERSION
 // ============================================================
-const GAME_VERSION = '4.3.0';  // bump this when releasing; must match CHANGELOG[0].version
+const GAME_VERSION = '4.4.0';  // bump this when releasing; must match CHANGELOG[0].version
 console.log('[VERSION CHECK]', GAME_VERSION);
 
 // DEBUG / DEVELOPER STATE
@@ -1290,7 +1335,6 @@ let tfAttackRetryQueue = []; // [{ ctx, move, targetRef, source, framesLeft, att
 let storyEventFired    = {};   // { [eventName]: true } — dedup per fight
 let storyFreezeTimer   = 0;    // frames of physics halt for cinematic freezes
 let storyDistortLevel  = 0;    // 0-1 world distortion intensity (rises with chapter progress)
-let storyDodgeUnlocked = false; // set true when DODGE_UNLOCK event fires
 let sovereignBeaten    = false; // set true after Sovereign MK2 is defeated
 let bossRushUnlocked   = false; // set true by cheat code UNLOCKBOSSRUSH
 let storyOnline        = false; // set true after online story completion
@@ -1537,8 +1581,6 @@ function resetProgressionGlobals() {
 // from the new-account path in loadGame(). Does NOT touch localStorage — that is
 // handled by _applySaveData() (primary path) or explicit removeItem (new-account path).
 function resetAccountScopedGlobals() {
-  // storyDodgeUnlocked — declared in this file; always safe
-  storyDodgeUnlocked = false;
   sovereignBeaten    = false;
   storyOnline        = false;
   godEncountered     = false;

@@ -301,19 +301,11 @@ function _lobbyUiRefresh() {
   if (pubBtn) {
     if (inPub) {
       pubBtn.textContent      = '✓ In Public Server';
-      pubBtn.style.background = 'rgba(0,200,80,0.18)';
-      pubBtn.style.borderColor = 'rgba(0,255,100,0.5)';
-      pubBtn.style.color      = '#afffca';
-      pubBtn.style.opacity    = '0.7';
-      pubBtn.style.cursor     = 'default';
+      pubBtn.classList.add('is-joined');
       pubBtn.onclick          = null;
     } else {
       pubBtn.textContent      = '🌐 Public Server';
-      pubBtn.style.background = 'rgba(0,160,255,0.15)';
-      pubBtn.style.borderColor = 'rgba(0,200,255,0.5)';
-      pubBtn.style.color      = '#88eeff';
-      pubBtn.style.opacity    = '1';
-      pubBtn.style.cursor     = 'pointer';
+      pubBtn.classList.remove('is-joined');
       pubBtn.onclick          = function() { LobbyManager.joinPublicLobby(); };
     }
   }

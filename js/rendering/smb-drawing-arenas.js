@@ -187,7 +187,10 @@ function drawSoccerArena() {
     ctx.closePath();
     ctx.fill();
   }
-  // Markings foreshortened into the ground plane
+  // Markings foreshortened into the ground plane. The Sports Arena draws its own
+  // goals / hoops / net (smb-sports.js), so the pitch lines only belong to soccer.
+  const _sportsCourt = typeof isSportsMode === 'function' && isSportsMode();
+  if (!_sportsCourt || sportsType === 'soccer') {
   ctx.strokeStyle = 'rgba(255,255,255,0.28)';
   ctx.lineWidth   = 2;
   ctx.beginPath(); ctx.moveTo(GAME_W / 2, pitchY); ctx.lineTo(GAME_W / 2, GAME_H); ctx.stroke();
@@ -197,9 +200,10 @@ function drawSoccerArena() {
   ctx.strokeRect(GAME_W - 118, pitchY + 12, 168, 74);
   // touchline along the top of the pitch
   ctx.beginPath(); ctx.moveTo(X0, pitchY + 2); ctx.lineTo(X0 + XW, pitchY + 2); ctx.stroke();
+  }
 
   // ── Goals standing on the pitch at both ends ──────────────────────────────
-  for (const side of [0, 1]) {
+  if (!_sportsCourt) for (const side of [0, 1]) {
     const gx  = side ? GAME_W - 8 : 8;
     const dir = side ? -1 : 1;
     const gTop = groundY - 92, gH = 92, gW = 36;
@@ -2529,7 +2533,7 @@ function drawPlatforms() {
     .sort((a, b) => (b.y + b.h) - (a.y + a.h));
 
   for (const pl of drawOrder) {
-    if (pl.isFloorDisabled) continue;
+    if (pl.isFloorDisabled || pl.noDraw) continue;
 
     if (isVoid) {
       // Void arena: solid black with white outline — no shadow, no highlight
@@ -3473,8 +3477,12 @@ function endGame() {
   // KotH win is determined by zone-time (kothWinnerIdx), not by lives
   const _kothWin = gameMode === 'minigames' && minigameType === 'koth' && typeof kothWinnerIdx !== 'undefined' && kothWinnerIdx >= 0
     ? players[kothWinnerIdx] || null : null;
+  // Sports Arena: nobody loses a life, so the scoreboard decides
+  const _sportsWin = gameMode === 'minigames' && minigameType === 'sports' && typeof sportsWinnerIdx !== 'undefined' && sportsWinnerIdx >= 0
+    ? players[sportsWinnerIdx] || null : null;
   const winner = bossDefeated                              ? null   // human win — handled in bossDefeated block
                : _kothWin                                  ? _kothWin
+               : _sportsWin                                ? _sportsWin
                : ((storyTwoEnemies || _allyInMatch) && _aliveHuman) ? _aliveHuman
                : alive.length === 1                        ? alive[0]
                : (alive.length === 0 && isBossModeEnd)     ? bossEntity
@@ -3993,6 +4001,24 @@ function updateHUD() {
       sEl.style.width = p.superMeter + '%';
       if (p.superReady) sEl.classList.add('ready');
       else              sEl.classList.remove('ready');
+    }
+    const domEl = document.getElementById(`p${n}Dom`);
+    if (domEl) {
+      // Hidden wherever a 5th super can't become a domain: bosses, Battle
+      // Royale, story before supers unlock, classes with no domain.
+      const dk = (typeof DomainManager !== 'undefined' && DomainManager.domainKeyOf)
+        ? DomainManager.domainKeyOf(p) : p.charClass;
+      const hasDomain = !p.isBoss && dk && dk !== 'none'
+        && typeof DOMAIN_DEFS !== 'undefined' && !!DOMAIN_DEFS[dk]
+        && !(typeof brActive !== 'undefined' && brActive)
+        && !(storyModeActive && p._storyNoSuper);
+      domEl.style.display = hasDomain ? '' : 'none';
+      if (hasDomain) {
+        const c = Math.min(4, p._domainSuperCount || 0);
+        const pips = domEl.children;
+        for (let i = 0; i < pips.length; i++) pips[i].classList.toggle('on', i < c);
+        domEl.classList.toggle('armed', c >= 4);
+      }
     }
     const cdTrack = cdEl && cdEl.parentElement;
     if (cdTrack) cdTrack.style.display = (storyModeActive && p._storyNoAbility) ? 'none' : '';

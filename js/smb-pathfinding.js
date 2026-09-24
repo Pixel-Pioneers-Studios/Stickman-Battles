@@ -10,6 +10,10 @@ const PF_GRAVITY  = 0.65;   // px / frame²
 const PF_JUMP_VY  = 20;     // |vy| on ground jump  (vy = -20)
 const PF_JUMP2_VY = 17;     // |vy| on double jump   (vy = -17)
 const PF_BOT_SPD  = 5.2;    // representative bot vx (hard difficulty)
+const PF_NODE_STEP = 220;   // spacing of interior graph nodes along a platform
+const PF_MAX_INNER = 40;    // hard cap on interior nodes per platform
+const PF_SIDE_OFF  = 70;    // stand-off from a destination platform's near edge
+const PF_HEADROOM  = 60;    // min clearance above a surface for it to be standable
 
 // ═════════════════════════════════════════════════════════════
 // ARC SIMULATION
@@ -305,7 +309,8 @@ class PlatformGraph {
   constructor() {
     this.nodes     = [];
     this.edges     = new Map(); // nodeId → [{to, cost, action, meta}]
-    this.platNodes = [];        // platNodes[platIdx] = [leftId, centerId, rightId] | null
+    this.platNodes = [];        // platNodes[platIdx] = [leftId, …, rightId] | null
+    this.platMid   = [];        // platMid[platIdx]   = canonical mid node id
     this._nodeMap  = new Map();
   }
   _addNode(n) { this.nodes.push(n); this._nodeMap.set(n.id, n); }
@@ -315,6 +320,38 @@ class PlatformGraph {
     this.edges.get(fromId).push({ to: toId, cost, action, meta: meta || {} });
   }
   neighbors(id) { return this.edges.get(id) || []; }
+}
+
+// Is there room to stand at (x, surfY)? A platform's top surface is only
+// walkable if nothing else's underside is sitting on it. The exploration
+// worlds seal their tunnel layer with full-height rock fill whose top edge is
+// flush against the surface slab above, and those zero-clearance surfaces were
+// being handed to A* as walkable nodes — routing bots into solid stone.
+function _pfHeadroomFree(arena, platIdx, x, surfY) {
+  for (let k = 0; k < arena.platforms.length; k++) {
+    if (k === platIdx) continue;
+    const pl = arena.platforms[k];
+    if (!pl || pl.isFloorDisabled) continue;
+    if (x <= pl.x || x >= pl.x + pl.w) continue;
+    const under = pl.y + (pl.h || 20);          // this platform's underside
+    if (under <= surfY + 2 && under > surfY - PF_HEADROOM) return false;
+  }
+  return true;
+}
+
+// Nearest node on a given platform to an x position (platforms now carry a
+// variable number of nodes, so edge endpoints are looked up rather than indexed).
+function _pfNearestNodeOnPlat(graph, platIdx, x) {
+  const ids = graph.platNodes[platIdx];
+  if (!ids || !ids.length) return null;
+  let best = ids[0], bestD = Infinity;
+  for (const id of ids) {
+    const n = graph.getNode(id);
+    if (!n) continue;
+    const dx = Math.abs(n.x - x);
+    if (dx < bestD) { bestD = dx; best = id; }
+  }
+  return best;
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -329,7 +366,13 @@ function buildPlatformGraph(arena) {
   const graph  = new PlatformGraph();
   let   nextId = 0;
 
-  // ── Step 1: nodes (3 per platform) ───────────────────────
+  // ── Step 1: nodes along each platform ────────────────────
+  // Three nodes per platform (left/center/right) is fine for a 900px arena but
+  // useless on the exploration worlds, whose floor and bedrock are single
+  // platforms thousands of pixels wide: a bot standing at x=1300 had its
+  // nearest node at the world centre, so pfClosestNode resolved it onto a
+  // platform it wasn't even on and A* found no path at all. Long platforms now
+  // carry interior nodes every PF_NODE_STEP px, capped so the build stays cheap.
   for (let i = 0; i < arena.platforms.length; i++) {
     const pl = arena.platforms[i];
     if (!_pfPlatSafe(pl, arena)) { graph.platNodes.push(null); continue; }
@@ -337,33 +380,55 @@ function buildPlatformGraph(arena) {
     const inset  = Math.min(12, pl.w * 0.1);
     const leftX  = pl.x + inset;
     const rightX = pl.x + pl.w - inset;
-    const centX  = pl.x + pl.w * 0.5;
     const surfY  = pl.y;
+    const span   = Math.max(0, rightX - leftX);
 
-    const nL = new PFNode(nextId++, i, leftX,  surfY, 'left');
-    const nC = new PFNode(nextId++, i, centX,  surfY, 'center');
-    const nR = new PFNode(nextId++, i, rightX, surfY, 'right');
+    // Interior sample count, bounded both ways.
+    const inner = Math.max(1, Math.min(PF_MAX_INNER, Math.round(span / PF_NODE_STEP) - 1));
+    const xs    = [leftX];
+    for (let k = 1; k <= inner; k++) xs.push(leftX + (span * k) / (inner + 1));
+    xs.push(rightX);
 
-    graph._addNode(nL); graph._addNode(nC); graph._addNode(nR);
-    graph.platNodes.push([nL.id, nC.id, nR.id]);
+    const ids = [], kept = [];
+    for (let k = 0; k < xs.length; k++) {
+      if (!_pfHeadroomFree(arena, i, xs[k], surfY)) continue;
+      const role = k === 0 ? 'left' : k === xs.length - 1 ? 'right' : 'center';
+      const n = new PFNode(nextId++, i, xs[k], surfY, role);
+      graph._addNode(n);
+      ids.push(n.id); kept.push(xs[k]);
+    }
+    // Entirely buried surface (rock fill under a slab) — not a place to route to.
+    if (!ids.length) { graph.platNodes.push(null); continue; }
+    graph.platNodes.push(ids);
+    // Mid node kept addressable: the cross-platform pass still wants one
+    // canonical "anywhere on this platform" endpoint for long-range routing.
+    graph.platMid[i] = ids[Math.floor(ids.length / 2)];
 
-    // Walk edges within the same platform (bidirectional)
-    const wLC = (centX - leftX)  / PF_BOT_SPD;
-    const wCR = (rightX - centX) / PF_BOT_SPD;
-    graph.addEdge(nL.id, nC.id, wLC,       'walk');
-    graph.addEdge(nC.id, nL.id, wLC,       'walk');
-    graph.addEdge(nC.id, nR.id, wCR,       'walk');
-    graph.addEdge(nR.id, nC.id, wCR,       'walk');
-    graph.addEdge(nL.id, nR.id, wLC + wCR, 'walk');
-    graph.addEdge(nR.id, nL.id, wLC + wCR, 'walk');
+    // Walk edges: adjacent samples, bidirectional. A chain (rather than the old
+    // all-pairs triangle) keeps edge count linear as node count grows and makes
+    // A*'s costs reflect real travel time along the platform.
+    for (let k = 0; k + 1 < ids.length; k++) {
+      const w = Math.abs(kept[k + 1] - kept[k]) / PF_BOT_SPD;
+      graph.addEdge(ids[k],     ids[k + 1], w, 'walk');
+      graph.addEdge(ids[k + 1], ids[k],     w, 'walk');
+    }
   }
 
   // ── Step 2: cross-platform edges via arc simulation ──────
+  // Every candidate launch point is still arc-verified — the change from the
+  // original pass is WHERE a bot is assumed to jump from. Launching only from
+  // A's outer edge is correct for small arenas but silently drops every link
+  // off a long platform: from the 6000px exploration bedrock the only launch
+  // points considered were x=2 and x=5998, so nothing reachable from the middle
+  // of the floor (a ledge, a structure, a vault's escape stub) was ever an
+  // edge. Each pair now also tries the point on A directly beside B.
   for (let i = 0; i < arena.platforms.length; i++) {
     const nodesA = graph.platNodes[i];
     if (!nodesA) continue;
     const plA    = arena.platforms[i];
     const aCentX = plA.x + plA.w * 0.5;
+    const aMinX  = plA.x + 2;
+    const aMaxX  = plA.x + plA.w - 2;
 
     for (let j = 0; j < arena.platforms.length; j++) {
       if (i === j) continue;
@@ -372,49 +437,57 @@ function buildPlatformGraph(arena) {
       const plB    = arena.platforms[j];
       if (!_pfPlatSafe(plB, arena)) continue;
 
-      const bCentX  = plB.x + plB.w * 0.5;
+      const bCentX   = plB.x + plB.w * 0.5;
       const bIsRight = bCentX >= aCentX;
-      const vx      = (bIsRight ? 1 : -1) * PF_BOT_SPD;
+      const launchY  = plA.y;   // bot feet at platform surface
+      const bWeight  = _pfPlatWeight(plB, arena);
+      const dY       = plB.y - plA.y; // positive = B is lower
 
-      // Launch from the A-edge that faces B (inset 2px so we don't start inside A)
-      const launchX = bIsRight ? plA.x + plA.w - 2 : plA.x + 2;
-      const launchY = plA.y;   // bot feet at platform surface
+      // Candidate launch points on A, best-first:
+      //  1. beside B — stand off B's near edge by PF_SIDE_OFF so the arc rises
+      //     alongside it and drifts on, rather than into its underside.
+      //  2. A's outer edge facing B (the original, and the only one that works
+      //     when A is short enough that its edge already is "beside B").
+      const nearEdgeX = bIsRight ? plB.x : plB.x + plB.w;
+      const cands     = [
+        Math.max(aMinX, Math.min(aMaxX, nearEdgeX + (bIsRight ? -PF_SIDE_OFF : PF_SIDE_OFF))),
+        bIsRight ? aMaxX : aMinX,
+      ];
 
-      const bWeight = _pfPlatWeight(plB, arena);
-      const dY      = plB.y - plA.y; // positive = B is lower
+      for (let c = 0; c < cands.length; c++) {
+        const launchX = cands[c];
+        if (c > 0 && Math.abs(launchX - cands[0]) < 8) break; // same point — already tried
+        const toB = bCentX - launchX;
+        const vx  = (toB === 0 ? (bIsRight ? 1 : -1) : Math.sign(toB)) * PF_BOT_SPD;
 
-      // Which A-edge node faces B?
-      const fromEdgeId = bIsRight ? nodesA[2] : nodesA[0];
-
-      if (dY <= 0) {
-        // ── B is at same height or HIGHER — try jump, then doubleJump ──
-
-        // Single jump
-        const r1 = pfSimulateArc(launchX, launchY, vx, -PF_JUMP_VY, arena, false, i);
-        if (r1.landed && r1.platIdx === j) {
-          // cost = air-time in "AI ticks" / platform quality
-          const cost = (r1.frame / 15) / bWeight;
-          graph.addEdge(fromEdgeId, nodesB[1], cost,        'jump', { arcPts: r1.arcPoints });
-          graph.addEdge(nodesA[1],  nodesB[1], cost * 1.05, 'jump', { arcPts: r1.arcPoints });
-          continue; // single jump works; no need for double
+        let r, action = null, mult = 1;
+        if (dY <= 0) {
+          // ── B is at same height or HIGHER — try jump, then doubleJump ──
+          r = pfSimulateArc(launchX, launchY, vx, -PF_JUMP_VY, arena, false, i);
+          if (r.landed && r.platIdx === j) { action = 'jump'; }
+          else {
+            r = pfSimulateArc(launchX, launchY, vx, -PF_JUMP_VY, arena, true, i);
+            // penalise double: harder to execute
+            if (r.landed && r.platIdx === j) { action = 'doubleJump'; mult = 1.35; }
+          }
+        } else {
+          // ── B is LOWER — try drop (walk off edge, no initial upward vy) ──
+          r = pfSimulateArc(launchX, launchY, vx, 0, arena, false, i);
+          if (r.landed && r.platIdx === j) { action = 'drop'; }
         }
+        if (!action) continue;
 
-        // Double jump
-        const r2 = pfSimulateArc(launchX, launchY, vx, -PF_JUMP_VY, arena, true, i);
-        if (r2.landed && r2.platIdx === j) {
-          const cost = (r2.frame / 15) * 1.35 / bWeight; // penalise double: harder to execute
-          graph.addEdge(fromEdgeId, nodesB[1], cost,        'doubleJump', { arcPts: r2.arcPoints });
-          graph.addEdge(nodesA[1],  nodesB[1], cost * 1.05, 'doubleJump', { arcPts: r2.arcPoints });
-        }
-
-      } else {
-        // ── B is LOWER — try drop (walk off edge, no initial upward vy) ──
-        const r = pfSimulateArc(launchX, launchY, vx, 0, arena, false, i);
-        if (r.landed && r.platIdx === j) {
-          const cost = (r.frame / 15) / bWeight;
-          graph.addEdge(fromEdgeId, nodesB[1], cost,        'drop', { arcPts: r.arcPoints });
-          graph.addEdge(nodesA[1],  nodesB[1], cost * 1.05, 'drop', { arcPts: r.arcPoints });
-        }
+        // cost = air-time in "AI ticks" / platform quality
+        const cost       = (r.frame / 15) * mult / bWeight;
+        const fromNodeId = _pfNearestNodeOnPlat(graph, i, launchX);
+        const toNodeId   = _pfNearestNodeOnPlat(graph, j, r.x);
+        const midA       = graph.platMid[i];
+        graph.addEdge(fromNodeId, toNodeId, cost, action, { arcPts: r.arcPoints });
+        // Keep a link off A's canonical mid node so long-range routes that
+        // haven't reached the launch sample yet can still see the transition.
+        if (midA !== fromNodeId)
+          graph.addEdge(midA, toNodeId, cost * 1.05, action, { arcPts: r.arcPoints });
+        break; // this pair is linked; don't spend arcs on the other candidate
       }
     }
   }

@@ -27,6 +27,16 @@ function dealDamage(attacker, target, damage, kbForce, launch) {
     // Hazard/environmental damage always bypasses block
   }
 
+  // Vanguard chapters: a braced Axiom eats less from the front. Returns 1 in
+  // every other chapter, so this is a no-op outside a vanguard fight.
+  if (target === axiomPlayer) {
+    const bm = vanguardBraceMult(attacker);
+    if (bm !== 1) {
+      actualDamage = Math.ceil(actualDamage * bm);
+      actualLaunch = false;   // planted feet don't get swept
+    }
+  }
+
   target.health -= actualDamage;
   if (target.health < 0) target.health = 0;
 
@@ -56,6 +66,11 @@ function dealDamage(attacker, target, damage, kbForce, launch) {
     comboCount++;
     comboDisplayTimer = 110;
   }
+  // Vanguard chapters: a companion taking a hit is what actually loses the run
+  if (target.isCompanion) {
+    vanguardOnCompanionHit(target, actualDamage, actualLaunch);
+  }
+
   // Build super meter for Axiom when he takes a hit; reset combo
   if (target === axiomPlayer) {
     axiomPlayer.superMeter = Math.min(axiomPlayer.maxSuper, axiomPlayer.superMeter + damage * 0.3);

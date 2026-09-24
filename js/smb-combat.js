@@ -79,7 +79,8 @@ function _isCoopTeammate(a, b) {
 
 // Hook for future class-weapon special interactions. Called after affinity multiplier is applied.
 function applyClassWeaponInteraction(attacker, target, dmg) {
-  // placeholder for future logic
+  // Weapon/class modifiers from smb-weapons-ext.js (Overdrive, Glass Blade cracks, Warden).
+  if (typeof wxDamageMods === 'function') return wxDamageMods(attacker, target, dmg);
   return dmg;
 }
 
@@ -297,9 +298,42 @@ function applyLaunch(attacker, target, launchVy, opts) {
   return vy;
 }
 
+// COMBO STRINGS. Every basic hit used to launch: knockback becomes vx, air drag
+// is light, so the victim sailed ~150px out of reach before a ~34-frame stun
+// ended, and weapon cooldown outlasted the stun anyway. Only 28% of hit-stuns
+// in replays led to a second hit; winning an exchange was worth one hit.
+// Now the first STRING_LEN-1 basic melee hits of a combo push lightly and stun
+// until the attacker's next swing connects; the next hit launches as before.
+const STRING_LEN      = 3;    // the hit that launches
+const STRING_KB       = 0.2;  // knockback multiplier on the hits before it
+const STRING_STUN_PAD = 10;   // slack past the next swing's contact: a human presses late
+
+// Varek rage: +1% damage per hit taken this life, up to +20%. It used to be
+// +1.5% up to +45% and never reset, so from the third life of a 10-stock match
+// every hit carried the full bonus (Varek 41% -> 60% win rate at 10 stocks).
+const KRATOS_RAGE_MAX = 20;
+const KRATOS_RAGE_PER = 0.01;
+
+// HIT I-FRAMES ARE PER ACTION. The i-frames a hit grants exist so one action
+// cannot connect twice (a lingering hazard ticking every frame, two sub-hits on
+// one frame) and so a second attacker cannot stack on the same opening. They
+// used to block the SAME attacker's next action too: a swing into the super, a
+// swing into the ability, or two fast swings 11-15 frames apart. Measured with
+// Sovereign on both sides, 8-44% of each weapon's damage vanished that way,
+// mostly mid-combo. The attacker who granted them now passes with any action
+// started after the granting hit; everything else they block as before.
+// Only hit-granted i-frames qualify: spawn, super, perk or finisher invincibility
+// runs longer than the hit's window and is never bypassed.
+function _hitIframesLetThrough(attacker, target) {
+  if (!attacker || target._hitIframeBy !== attacker || typeof frameCount === 'undefined') return false;
+  if (attacker._attackStartFrame == null || attacker._attackStartFrame === target._hitIframeAct) return false;
+  return target.invincible <= (target._hitIframeUntil || 0) - frameCount + 1;
+}
+
 function dealDamage(attacker, target, dmg, kbForce, stunMult = 1.0, isSplash = false, hitInvincibleFrames = 16) {
   if (activeCinematic) return; // no damage during cinematic pauses
-  if (!target || target.invincible > 0 || target.health <= 0) return;
+  if (!target || target.health <= 0) return;
+  if (target.invincible > 0 && !_hitIframesLetThrough(attacker, target)) return;
   if (target.godmode) return; // godmode: no hitbox — all damage blocked
   // Capped env-stack: environmental sources (attacker===null) may stack within one frame,
   // but total env damage per target per frame is capped at MAX_ENV_DAMAGE.
@@ -389,15 +423,15 @@ function dealDamage(attacker, target, dmg, kbForce, stunMult = 1.0, isSplash = f
     const _pdm = LiveOps.getBalance('playerDamageMult', 1);
     if (_pdm !== 1) actualDmg = Math.max(1, Math.round(actualDmg * _pdm));
   }
-  // Kratos rage bonus
+  // Kratos rage bonus (stacks reset each life — see Fighter.respawn)
   if (attacker && attacker.charClass === 'kratos' && attacker.rageStacks > 0) {
-    actualDmg = Math.round(actualDmg * (1 + Math.min(attacker.rageStacks, 30) * 0.015));
+    actualDmg = Math.round(actualDmg * (1 + Math.min(attacker.rageStacks, KRATOS_RAGE_MAX) * KRATOS_RAGE_PER));
   }
-  // Kratos: Spartan Rage active — +30% damage + heals 10% of damage dealt
+  // Kratos: Spartan Rage active — +30% damage + heals 5% of damage dealt
   if (attacker && attacker.spartanRageTimer > 0) {
     actualDmg = Math.round(actualDmg * 1.3);
     // Queue heal: accumulate in pool, apply as integer HP
-    attacker._spartanRageHealPool = (attacker._spartanRageHealPool || 0) + actualDmg * 0.10;
+    attacker._spartanRageHealPool = (attacker._spartanRageHealPool || 0) + actualDmg * 0.05;
     const healNow = Math.floor(attacker._spartanRageHealPool);
     if (healNow >= 1) {
       attacker._spartanRageHealPool -= healNow;
@@ -449,7 +483,7 @@ function dealDamage(attacker, target, dmg, kbForce, stunMult = 1.0, isSplash = f
   }
   // Kratos: target being hit builds rage stacks
   if (target && target.charClass === 'kratos') {
-    target.rageStacks = Math.min(30, (target.rageStacks || 0) + 1);
+    target.rageStacks = Math.min(KRATOS_RAGE_MAX, (target.rageStacks || 0) + 1);
   }
   // KB scales with damage — heavier hits launch targets further
   let actualKb  = kbForce * (1 + actualDmg * 0.028);
@@ -499,6 +533,8 @@ function dealDamage(attacker, target, dmg, kbForce, stunMult = 1.0, isSplash = f
         if (settings.dmgNumbers)
           damageTexts.push(new DamageText(target.cx(), target.y - 38, 'PARRY!', '#ffff00'));
         SoundManager.clang && SoundManager.clang();
+        // Fragment Overdrive parries explode — resolved next frame, never inside dealDamage.
+        if (target._wxOverdrive > 0) target._wxParryBurst = true;
         actualDmg = 0;
         actualKb  = 0;
       }
@@ -601,6 +637,7 @@ function dealDamage(attacker, target, dmg, kbForce, stunMult = 1.0, isSplash = f
   // Boss modifier: deals double KB, takes half KB
   if (attacker && attacker.kbBonus) actualKb = Math.round(actualKb * attacker.kbBonus);
   if (target.kbResist)  actualKb = Math.round(actualKb * target.kbResist);
+  if (typeof wxKnockbackMods === 'function') actualKb = wxKnockbackMods(attacker, target, actualKb);
   // Affinity feel: low affinity reduces KB output; high affinity slightly boosts it
   if (attacker && attacker.charClass && attacker.weapon && typeof CLASS_AFFINITY !== 'undefined') {
     const _affKb = CLASS_AFFINITY[attacker.charClass];
@@ -614,6 +651,7 @@ function dealDamage(attacker, target, dmg, kbForce, stunMult = 1.0, isSplash = f
   // ── COMBO TRACKING: hitstun decay + auto-launch ─────────────────────────────
   // Track how many consecutive hits attacker has landed on target within 45 frames.
   // This is separate from TrueForm's _comboCount (which is boss-specific).
+  let _stringHit = false;
   if (attacker && !attacker.isBoss && !attacker.isTrueForm && target && !target.isBoss && typeof frameCount !== 'undefined') {
     const _fc = frameCount;
     // Reset counter when last hit was >45 frames ago (combo window expired)
@@ -631,6 +669,10 @@ function dealDamage(attacker, target, dmg, kbForce, stunMult = 1.0, isSplash = f
     if (_cn >= 7 && actualKb > 0) {
       actualKb = Math.max(actualKb, 17);
     }
+    _stringHit = _cn < STRING_LEN && !isSplash && !attacker.superActive &&
+                 attacker.attackTimer > 0 && attacker._attackKindTier === CLASH_TIER_ATTACK &&
+                 !!attacker.weapon && attacker.weapon.type === 'melee';
+    if (_stringHit) actualKb *= STRING_KB;
   }
 
   // ── PER-FRAME IMPULSE LIMIT ───────────────────────────────────────────────
@@ -691,8 +733,12 @@ function dealDamage(attacker, target, dmg, kbForce, stunMult = 1.0, isSplash = f
   if (target.armorStyle === 'godslayer' && typeof gameMode !== 'undefined' && gameMode === 'absoluteaxiom') {
     actualDmg = Math.max(1, Math.round(actualDmg * 0.12));
   }
-  // Soccer: players take no health damage but still feel KB/stun
-  if (gameMode === 'minigames' && minigameType === 'soccer') actualDmg = 0;
+  // Sports Arena: players take no health damage but still feel KB/stun, and a
+  // hit fighter loses the ball they were carrying
+  if (gameMode === 'minigames' && minigameType === 'sports') {
+    actualDmg = 0;
+    if (typeof sportsOnHit === 'function') sportsOnHit(attacker, target, actualKb);
+  }
   // Online: if attacker is local and target is remote, send hit event to server
   // The remote client will apply the damage to themselves
   if (onlineMode && attacker && !attacker.isRemote && target && target.isRemote) {
@@ -707,6 +753,27 @@ function dealDamage(attacker, target, dmg, kbForce, stunMult = 1.0, isSplash = f
   }
   target.health    = Math.max(0, target.health - actualDmg);
   if (attacker && actualDmg > 0) attacker.totalDamageDealt = (attacker.totalDamageDealt || 0) + actualDmg;
+  // Super payout (armed by Fighter.activateSuper): once, on the super's first
+  // hit — the heal and one charge toward the domain. A whiffed super earns neither.
+  // superActive outlives the super itself (fallback timer, shared slash arrays), so
+  // the tier check stops a swing or ability thrown after a whiff from collecting it.
+  if (attacker && (attacker._superHealPending > 0 || attacker._superCountPending) &&
+      actualDmg > 0 && attacker !== target && attacker._attackKindTier === CLASH_TIER_SUPER &&
+      attacker.superActive && attacker.health > 0 && typeof frameCount !== 'undefined' &&
+      frameCount <= (attacker._superHealUntil || 0)) {
+    if (attacker._superCountPending) {
+      attacker._superCountPending = false;
+      attacker._domainSuperCount = (attacker._domainSuperCount || 0) + 1;
+    }
+    const _heal = Math.min(attacker._superHealPending || 0, attacker.maxHealth - attacker.health);
+    attacker._superHealPending = 0;
+    if (_heal > 0) {
+      attacker.health += _heal;
+      damageTexts.push(new DamageText(attacker.cx(), attacker.y - 30, '+' + _heal, '#44ff88'));
+      spawnParticles(attacker.cx(), attacker.cy(), '#44ff88', 14);
+      if (typeof SoundManager !== 'undefined' && SoundManager.superHeal) SoundManager.superHeal();
+    }
+  }
   if (actualDmg > 0 && !target.isBoss) target._damageAccumThisLife = (target._damageAccumThisLife || 0) + actualDmg;
   // Ronin Death's Dojo: every successful hit by the domain owner leaves a deferred
   // cut mark; DomainManager detonates all marks when the blade sheathes.
@@ -761,6 +828,12 @@ function dealDamage(attacker, target, dmg, kbForce, stunMult = 1.0, isSplash = f
     target._antiRangedStats = target._antiRangedStats || { projectiles: 0, rangedDamage: 0, farTicks: 0 };
     target._antiRangedStats.rangedDamage = Math.min(999, (target._antiRangedStats.rangedDamage || 0) + actualDmg);
   }
+  // Escape windows (wall pop-out, lock ceiling, air juggle) no longer grant
+  // i-frames: invincibility that switched on mid-string swallowed half of it for
+  // nothing. They open a no-restun window instead — hits still land, but none
+  // can put the target back in stun, so the escape is control, not immunity.
+  // Read before this hit can open one, so the hit that trips it still stuns.
+  const _stunGuarded = typeof frameCount !== 'undefined' && (target._stunGuardUntil || -1) >= frameCount;
   // ── WALL-COMBO ESCAPE ─────────────────────────────────────────────────────
   // Three fast hits with your back to a wall and you get out, with i-frames on
   // the way. This used to be TrueForm's alone, which left every player, bot and
@@ -771,7 +844,7 @@ function dealDamage(attacker, target, dmg, kbForce, stunMult = 1.0, isSplash = f
   // _wallBounds() reads the walls that are actually live: an arena lock first
   // (those ARE the springing walls), then the arena's own map edges.
   if (target && attacker && attacker !== target && !attacker.isBoss &&
-      target.invincible <= 0 && !target.godmode && !target.isDead) {
+      (target.invincible <= 0 || _hitIframesLetThrough(attacker, target)) && !target.godmode && !target.isDead) {
     const _wb = _wallBounds();
     target._wallComboTimer = target._wallComboTimer || 0;
     target._wallComboHits  = target._wallComboHits  || 0;
@@ -800,8 +873,10 @@ function dealDamage(attacker, target, dmg, kbForce, stunMult = 1.0, isSplash = f
         spawnParticles(target.cx(), target.cy(), '#aa00ff', 14);
       }
       // (non-TrueForm: the pop-out is applied below, after knockback)
-      // Brief invulnerability (~0.4 s = 24 frames at 60 fps)
-      target.invincible = Math.max(target.invincible, 24);
+      // ~0.4 s (24 frames at 60 fps): TrueForm has left the spot, so it keeps
+      // i-frames; everyone else gets the no-restun window.
+      if (target.isTrueForm) target.invincible = Math.max(target.invincible, 24);
+      else target._stunGuardUntil = Math.max(target._stunGuardUntil || 0, frameCount + 24);
       spawnParticles(target.cx(), target.cy(), '#ffffff', 20);
       if (typeof SoundManager !== 'undefined' && typeof SoundManager.shieldBlock === 'function') {
         SoundManager.shieldBlock();
@@ -827,6 +902,11 @@ function dealDamage(attacker, target, dmg, kbForce, stunMult = 1.0, isSplash = f
   if (target.health <= 0 && typeof _brCreditElimination === 'function') {
     _brCreditElimination(attacker, target);
   }
+  if (target.invincible <= hitInvincibleFrames && hitInvincibleFrames > 0 && typeof frameCount !== 'undefined') {
+    target._hitIframeBy    = attacker;
+    target._hitIframeAct   = attacker ? attacker._attackStartFrame : null;
+    target._hitIframeUntil = frameCount + hitInvincibleFrames;
+  }
   target.invincible = target.invincible > hitInvincibleFrames ? target.invincible : hitInvincibleFrames; // preserve finisher lock
   const dir        = attacker ? (target.cx() > attacker.cx() ? 1 : -1) : 1;
   // Informational stamp for the death animation: which way the blow pushed, how
@@ -848,6 +928,9 @@ function dealDamage(attacker, target, dmg, kbForce, stunMult = 1.0, isSplash = f
     target.vy      = -actualKb * 0.55;
     if (currentArena && currentArena.isLowGravity)  target.vy = -actualKb * 0.25;
     if (currentArena && currentArena.isHeavyGravity) target.vy = -actualKb * 0.75;
+    // Even a small pop puts a string hit under air drag (0.94 vs 0.78 grounded),
+    // which carried the target out of sword reach before the follow-up landed.
+    if (_stringHit && target.onGround) target.vy = 0;
     // Hard velocity cap applied immediately — fighter.update() also clamps but
     // runs next frame; this prevents fling glitch from same-frame stacking.
     target.vx = clamp(target.vx, -18, 18);
@@ -947,6 +1030,7 @@ function dealDamage(attacker, target, dmg, kbForce, stunMult = 1.0, isSplash = f
     }
   }
   if (!target.shielding) {
+    const _stunBefore = target.stunTimer || 0, _ragBefore = target.ragdollTimer || 0;
     _spawnWeaponHitFX(attacker, target, actualDmg);
     // Chance-based stun / ragdoll (not guaranteed; boss is harder to ragdoll)
     const ragdollChance = target.kbResist ? 0.30 * target.kbResist : 0.30;
@@ -1014,6 +1098,24 @@ function dealDamage(attacker, target, dmg, kbForce, stunMult = 1.0, isSplash = f
           target.ragdollTimer = Math.max(6, Math.floor(target.ragdollTimer * _pf));
       }
     }
+    // String hit: the attacker may swing again as soon as this swing's endlag is
+    // over (and not before the target's hit i-frames lapse, or the follow-up
+    // whiffs), and the stun lasts until that swing's contact frame. Set after
+    // both decays so they can't open a gap; the lockout ceiling still bounds it.
+    if (_stringHit && !_shieldedHit && actualDmg > 0) {
+      const _contact = typeof attacker._meleeContactFrames === 'function' ? attacker._meleeContactFrames() : 5;
+      const _next = Math.max((attacker.attackTimer || 0) + (attacker.weapon.endlag || 0),
+                             (target.invincible || 0) - _contact + 2);
+      attacker.cooldown = Math.min(attacker.cooldown || 0, _next);
+      target.stunTimer  = Math.max(target.stunTimer || 0,
+                                   Math.min(MAX_STUN, Math.ceil(_next + _contact) + STRING_STUN_PAD));
+    }
+
+    if (_stunGuarded) {
+      target.stunTimer    = Math.min(target.stunTimer || 0, _stunBefore);
+      target.ragdollTimer = Math.min(target.ragdollTimer || 0, _ragBefore);
+    }
+
     // ── LOCKOUT CEILING ───────────────────────────────────────────────────────
     // A hard bound on how long a fighter can be held unable to act by chained
     // hits, whatever the cause — combo length, weapon matchup, or AI cadence.
@@ -1021,7 +1123,7 @@ function dealDamage(attacker, target, dmg, kbForce, stunMult = 1.0, isSplash = f
     // TOTAL: hits landing ~28 frames apart re-stun before the previous expires,
     // so a 6-hit chain measured 192 continuous frames (3.2s) with no input.
     // This caps the run rather than zeroing it mid-hit, then grants a short
-    // invincible beat so the very next hit cannot immediately re-lock.
+    // no-restun beat so the very next hit cannot immediately re-lock.
     if (target && !target.isBoss && !target.isTrueForm && typeof frameCount !== 'undefined' &&
         !(typeof SMK2_TUNE !== 'undefined' && SMK2_TUNE && SMK2_TUNE.lockCeiling === false)) {
       const _LOCK_CEIL = 105;   // ~1.75s of continuous lock
@@ -1048,7 +1150,7 @@ function dealDamage(attacker, target, dmg, kbForce, stunMult = 1.0, isSplash = f
         target.stunTimer = Math.max(0, _LOCK_CEIL - _held);
         if (target.ragdollTimer > 0) target.ragdollTimer = Math.min(target.ragdollTimer, 10);
         if (target.stunTimer === 0) {
-          target.invincible = Math.max(target.invincible || 0, 12); // one beat to act
+          target._stunGuardUntil = Math.max(target._stunGuardUntil || 0, frameCount + 12); // one beat to act
           target._lockStart = frameCount;
           target._lockUntil = -9999; // run is over — the next hit starts a fresh one
         } else {
@@ -1059,10 +1161,11 @@ function dealDamage(attacker, target, dmg, kbForce, stunMult = 1.0, isSplash = f
       }
     }
 
-    // ── AIR ESCAPE WINDOW: high combo + airborne → reduce invincibility frames ─
+    // ── AIR ESCAPE WINDOW: high combo + airborne → no-restun window ──────────
     // Gives the defending player an earlier escape window while airborne.
-    if (attacker && attacker._comboHitCount >= 5 && !target.onGround && !target.isBoss) {
-      target.invincible = Math.max(target.invincible, Math.round(hitInvincibleFrames * 1.5));
+    if (attacker && attacker._comboHitCount >= 5 && !target.onGround && !target.isBoss &&
+        typeof frameCount !== 'undefined') {
+      target._stunGuardUntil = Math.max(target._stunGuardUntil || 0, frameCount + Math.round(hitInvincibleFrames * 1.5));
     }
     // Per-limb spring reaction
     if (target._rd) {
@@ -1113,7 +1216,7 @@ function dealDamage(attacker, target, dmg, kbForce, stunMult = 1.0, isSplash = f
       target.superFlashTimer = 90;
     }
   }
-  if (settings.dmgNumbers) damageTexts.push(new DamageText(target.cx(), target.y, actualDmg, target.shielding ? '#88ddff' : '#ffdd00'));
+  if (settings.dmgNumbers && !(actualDmg === 0 && gameMode === 'minigames' && minigameType === 'sports')) damageTexts.push(new DamageText(target.cx(), target.y, actualDmg, target.shielding ? '#88ddff' : '#ffdd00'));
   // Weapon splash — axe (large) and gun (small) deal AoE to nearby targets
   if (!isSplash && !target.shielding && attacker && attacker.weapon && attacker.weapon.splashRange) {
     handleSplash(attacker, target, actualDmg);

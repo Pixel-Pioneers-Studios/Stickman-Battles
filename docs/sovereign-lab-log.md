@@ -1145,3 +1145,157 @@ He is effectively useless with every ranged weapon (dealt ~0/1000f), and ranged
 opponents are his easiest. Class differences are small and lineages disagree —
 classes read as roughly balanced for him. Clash rule re-derived 5/5 against the
 real AI, not just scripted bots.
+
+---
+
+# 2026-09-21 (4) — Sovereign as balance tester and bug finder
+
+`tools/sov-balance.js` runs round-robins through BalanceSim (tools/class-balance.js)
+with `--brain=sovereign` on both sides, `--mode=threat` (Sovereign vs a stock
+bot: how dangerous is a bot holding X to a strong player — i.e. every story
+enemy), `--patch`/`--wpatch` to measure candidate stats in-page, and a bug
+finder (non-finite state, off-arena, 30s stalls, timeouts, errors).
+
+**The three views disagree, and the outlier is bot-vs-bot.** At 4.3.0 stats:
+Sovereign mirror hammer 9% / flail 6% / sword 95%; threat view hammer -42% /
+flail -58% of field-average danger; bot-vs-bot hammer 56% / flail 65%. The 4.3.0
+pass was tuned on bot-vs-bot, where heavies win only because the stock AI never
+punishes endlag. Stats that balance the mirror push bot-vs-bot to hammer/flail
+100%, sword 5% — accepted, because no player experiences CPU-vs-CPU.
+
+Shipped to smb-data-weapons.js (?v=4.4.0): Sovereign-mirror RMSE 27.5 -> 9.7,
+spread 89 -> 36 (sword 77 top, the rest 41-61); threat spread 3.40x -> 2.27x.
+Classes (sword held): RMSE 22.1 -> 13.9, melee classes 43-71.5 (was 22-95), via
+HP only — paladin 160->108 (its floor()-based 15% DR is really ~20% on a sword
+hit), kratos 145->112, ninja 90->126, ronin 115->132, warrior 120->138,
+summoner 120->138. Gunner/archer untuned: their perks are ranged-only.
+
+Harness defects found and fixed: strict per-frame update alternation still
+leaked (frame 0 is A-first; mirrored brains parity-lock — combat mirror 22-2),
+now a seeded coin flip; `load` waited on CDN scripts and timed out shards,
+now offline request interception + domcontentloaded + 600s timeouts.
+
+**Bug found:** `_spawnFamiliar` team id was `'fam_'+playerNum+'_'+Date.now()` —
+two same-playerNum Summoners summoning in the same ms became ALLIES (7/8
+Summoner mirrors stalled to the cap), and it overwrote an existing `_teamId`,
+pulling a Summoner out of its team. Now inherits the owner's team or takes a
+unique counter id. 8/8 resolve.
+
+---
+
+# 2026-09-21 (5) — The guard-bait test, and inferAct ON
+
+Concern: a human who learns that inferAct guards on a same-instant swing could
+farm it. `guard_baiter` (smb-sov-scenarios.js) swings as he steps in, never
+swings into his guard, hits the drop; human-limited (15-frame decisions, never
+reads his swing's first frame). `tools/sov-bait.js`: inferAct off/on x baiter/
+rusher, 5 blocks x 30 rematches with memory carried, after an 18-match warm-up
+(from empty memory he states no rules, so nothing can be baited).
+
+| opponent | inferAct | stocks left | taken |
+|---|---|---|---|
+| baiter | off | 3.92 | 377 |
+| baiter | on  | 4.25 | 343 |
+| rusher | off | 3.16 | 496 |
+| rusher | on  | 3.68 | 437 |
+
+The bait does not pay: a converted guard is a fresh raise, so it parries the
+baiter's swing. Conversions stay flat across 30 rematches (0.45 -> 0.58/1k) —
+no adaptation observed because none was needed. `infer` + `inferAct` are now
+ON by default. Real-game smoke test (gameMode 'sovereign', 60 s): no page
+errors, _infStats accrues, __mech persists to localStorage.
+
+COLD START: a fresh profile has no mechanics knowledge, so inferAct does
+nothing until he has seen enough swings (0 rules after 60 s live). The first
+fights on any machine are unassisted.
+
+---
+
+# 2026-09-21 (6) — Innate memory (`js/smb-sov-memory.js`)
+
+He no longer starts cold. `tools/sov-memory-build.js` runs 5 lineages x 300
+matches (scenario panel + fair opponents on every melee weapon; infer +
+experiment on, inferAct off so conversions don't starve the cells he acts on,
+innateMemory off so the file can't feed itself), merges the inference stats,
+scales them to a weight of 1,500 swings and writes a plain script. 7.5 KB, 41
+rules, sharpest `sync_0_3 & opp_tier_equal` 98% and `sync_0_3 &
+repeat_within_120` 97%. `_seedInference` adds it UNDER the local dossier every
+fight and never writes it back, so local experience (cap 3,000) can outvote it.
+
+Why a script and not data/sov-artifact.json: data/ has never been committed, so
+the existing tactic-grid artifact 404s on every deploy and has never shipped.
+That grid was left alone (never measured); only the validated mechanics layer
+ships.
+
+Verified: fresh profile, live `sovereign` mode — 41 rules from the first swing.
+A live run showed a ~22 s stall (him on a deck, the bot beneath: the known
+vertical deadlock). Sim check, 60 seeded Circuit matches per arm: 0 stalls >=15 s
+either way, mean longest quiet 260 vs 265 frames, vertical stacking 17.3% vs
+17.9% — not caused by this work. Also: vs fair expert bots on the Circuit the
+learning is flat (4.30 vs 4.27 stocks) — its measured gains are vs sword
+pressure/bait opponents and the scenario panel.
+
+---
+
+# 2026-09-21 (7) — First human match with inferAct + innate memory
+
+`smb_replay_sovereign_2026-09-21(1).smbreplay`, 338 s. Player (sword / Paladin,
+108 HP) beat Sovereign (katana / Ronin) **10-8** after 14 lead changes or ties;
+the player took 3 of the last 4 stocks. Recomputed from events (header agreed
+this time). Damage: he took 2,070, dealt 1,735.
+
+vs this morning's pre-change replay (player lost 6-10 on whip / Archer):
+Sovereign shielding 0.5% -> 15.5% of frames, and guards raised on the player's
+swing start 1/145 -> 31/184 — inferAct is visible from outside. Scored live:
+when he guarded a swing start in range, the next ~1 s netted him +1.9 per swing;
+when he did not, -0.5 (n=20 vs 102 — small, same direction as the lab).
+
+**Bug found — supers accepted during a finisher.** At 169.45 s his hit took the
+player from 10 to 1 HP and started his execution (hp 1, invincible 9999). The
+player's super fired 6 frames later (meter 100 -> 0). It was their 5th, so it
+triggered a domain that the death cancelled, and `onFighterDied` zeroed
+`_domainSuperCount` — a full meter plus five supers of domain progress, lost.
+Meter otherwise carries over death (109.5 s: 100 -> 100). Cause: the keydown
+handler in smb-input.js calls attack/ability/useSuper directly and only blocked
+the TF opening cinematic; the finisher only blocks processInput(). Fixed: the
+keydown handler returns while `activeFinisher` is set, and `useSuper` refuses
+during a finisher for any caller. Verified headless both ways.
+
+---
+
+# 2026-09-21 (8) — Human mimic + hybrid (first build, first test)
+
+Built end to end:
+- **Input track** in replays (`js/smb-replay.js`): per human player, per frame,
+  held L/R/J/SH/D + pressed ATK/ABI/SUP, run-length encoded. Verified headless.
+  No existing replay has it; every match from now on does.
+- **`tools/ghost-core.js`** (shared builder/runtime): lagged situation (12 f),
+  3-frame actions, six play modes, persistence (lookups conditioned on the
+  previous move/shield), rush-in cue. Controllers: `ghost` (static mimic),
+  `modes` (habit-chosen modes, the control), `hybrid` (modes chosen by a
+  Sovereign-style Thompson ledger, >=30 f per mode, 25% habit).
+- **`tools/ghost-build.js`** -> `tools/ghost-model.json`. Only replays with
+  g/stn/rag/inv fields are usable (13 train + 3 held out; the 9 pre-2026-07-27
+  replays read every sample as airborne and never stunned).
+- **`tools/ghost-test.js`**; hook `opts.oppAI` in `_runMatch` (per-frame, no
+  whiff-guard).
+
+Result (320 ghost/hybrid matches + 80 bot matches vs shipping Sovereign):
+- STYLE matches: attacks 8.8 vs human 9.8-9.9 /1k, distance 131 vs 120-142,
+  toward 38% vs 37-43%, jumps close.
+- SKILL does not: it takes 352 dmg/1k vs a human's 74-82 and deals 59 vs
+  108-133 — weaker than the stock expert bot (274 taken / 120 dealt). Exposure
+  table: at the same distance on the ground it is hit 2-6x as often as a human
+  (45-80 px: 22 vs 7 hits/1k). Humans avoid hits by TIMING, which a coarse,
+  lagged lookup over state-inferred actions cannot express.
+- Hybrid: no adaptation gain (net -367 -> -334 by match 11+, control -328 ->
+  -321). Choosing between modes of a body this weak does not matter yet.
+
+Fixes along the way: mode labels were 77% 'air' (airborne is how humans move,
+not intent) — now intent-first; per-step independent sampling jittered and
+turned the ghost mid-swing — now persistent.
+
+NOT yet usable as a proxy for human outcomes. Next: input-tracked replays
+(real timings), Sovereign's attack phase/facing as perception, and short
+state-history matching instead of coarse bins. The exposure table is the test
+to pass: human hit rates per band.

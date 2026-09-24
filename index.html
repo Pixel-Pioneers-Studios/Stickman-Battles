@@ -59,7 +59,7 @@
   }
   </script>
 
-  <link rel="stylesheet" href="SMB.css?v=4.3.8">
+  <link rel="stylesheet" href="SMB.css?v=4.5.7">
 </head>
 <body>
 
@@ -136,8 +136,8 @@
             <option value="gun">Gun</option>
             <option value="axe">Axe</option>
             <option value="spear">Spear</option>
-            <option value="bow">Bow ⚔ Archer only</option>
-            <option value="shield">Shield ⚔ Paladin only</option>
+            <option value="bow">Bow</option>
+            <option value="shield">Shield</option>
             <option value="scythe">Scythe</option>
             <option value="fryingpan">Frying Pan</option>
             <option value="broomstick">Broomstick</option>
@@ -151,6 +151,11 @@
             <option value="katana">Katana</option>
             <option value="flamethrower">Flamethrower</option>
             <option value="electricstaff">Electric Staff</option>
+            <option value="bomb">Bomb</option>
+            <option value="knives">Throwing Knives</option>
+            <option value="glassblade">Glass Blade</option>
+            <option value="anchor">Anchor</option>
+            <option value="crossbow">Crossbow</option>
           </select>
           <div class="sel-card-grid" id="p1WeaponCards"></div>
         </div>
@@ -172,6 +177,8 @@
             <option value="ronin">Ronin</option>
             <option value="reaper">Reaper</option>
             <option value="summoner">Summoner</option>
+            <option value="demolitionist">Demolitionist</option>
+            <option value="warden">Warden</option>
           </select>
           <div class="sel-card-grid" id="p1ClassCards"></div>
         </div>
@@ -315,7 +322,7 @@
     <!-- REFIGHT PANEL -->
     <div class="nexus-panel" id="refightPanel" style="display:none">
       <button class="nexus-back" onclick="closeRefight()">&#8592; Back</button>
-      <p style="font-size:0.68rem;color:#553322;letter-spacing:1px;margin:0 0 10px;text-align:center;">Beat each encounter in Story Mode to unlock it here.</p>
+      <p style="font-size:0.72rem;color:var(--ui-faint);letter-spacing:0.5px;margin:0 0 10px;text-align:left;">Beat each encounter in Story Mode to unlock it here.</p>
       <div class="nexus-grid">
         <div class="path-card path-boss-fight" id="refight-creator">
           <div class="path-card-icon"><svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-flame"/></svg></div>
@@ -348,8 +355,8 @@
       </div>
       <!-- Unlockable: Boss Rush shortcut (shown by cheat/progression) -->
       <div class="mode-card nexus-bossrush-card" id="modeBossRush" style="display:none" onclick="startSimFight('boss')">
-        <div class="mode-name" style="color:#ff7744;"><svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-flame"/></svg> Boss Rush</div>
-        <div class="mode-desc" style="color:#884422;">Jump straight into the fire</div>
+        <div class="mode-name"><svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-flame"/></svg> Boss Rush</div>
+        <div class="mode-desc">Jump straight into the fire</div>
       </div>
       <!-- Hidden data-mode anchors so selectMode() can toggle active class -->
       <div id="modeBoss" data-mode="boss" style="display:none"></div>
@@ -369,16 +376,16 @@
             <div class="mode-desc">Local or vs bot</div>
           </div>
           <div class="mode-card" id="modeOnline" data-mode="online" onclick="selectMode('online')">
-            <div class="mode-name" style="color:#00eeff"><svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-globe"/></svg> Online</div>
+            <div class="mode-name"><svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-globe"/></svg> Online</div>
             <div class="mode-desc">Play against others</div>
           </div>
-          <div class="mode-card" data-mode="battleroyale" onclick="selectMode('battleroyale')" style="border-color:rgba(255,160,50,0.4);">
-            <div class="mode-name" style="color:#ffaa33;"><svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-trophy"/></svg> Battle Royale</div>
-            <div class="mode-desc" style="color:#aa6622;">100 players · zone · loot</div>
+          <div class="mode-card" data-mode="battleroyale" onclick="selectMode('battleroyale')">
+            <div class="mode-name"><svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-trophy"/></svg> Battle Royale</div>
+            <div class="mode-desc">100 players · zone · loot</div>
           </div>
           <div class="mode-card" id="modeStoryOnline" data-mode="storyonline" onclick="selectMode('storyonline')" style="display:none">
-            <div class="mode-name" style="color:#ffdd88"><svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-globe"/></svg> Story Online</div>
-            <div class="mode-desc" style="color:#aa9944">Cross-world multiplayer</div>
+            <div class="mode-name"><svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-globe"/></svg> Story Online</div>
+            <div class="mode-desc">Cross-world multiplayer</div>
           </div>
         </div>
       </div>
@@ -391,15 +398,15 @@
           </div>
           <div class="mode-card" data-mode="minigames" onclick="selectMode('minigames')">
             <div class="mode-name">Minigames</div>
-            <div class="mode-desc">Survival · KotH · Chaos</div>
+            <div class="mode-desc">Survival · KotH · Chaos · Sports</div>
           </div>
-          <div class="mode-card" onclick="openDesigner()" style="border-color:rgba(100,200,255,0.25);">
-            <div class="mode-name" style="color:#88ccff;"><svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-wrench"/></svg> Creator</div>
+          <div class="mode-card" onclick="openDesigner()">
+            <div class="mode-name"><svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-wrench"/></svg> Creator</div>
             <div class="mode-desc">Map &amp; Weapon Studio</div>
           </div>
           <div class="mode-card" id="modeCompleteRandom" data-mode="completerandom" onclick="selectMode('completerandom')" style="display:none">
-            <div class="mode-name" style="color:#ff9944"><svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-dice"/></svg> Complete Random</div>
-            <div class="mode-desc" style="color:#aa7733">New weapon &amp; class every death</div>
+            <div class="mode-name"><svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-dice"/></svg> Complete Random</div>
+            <div class="mode-desc">New weapon &amp; class every death</div>
           </div>
         </div>
       </div>
@@ -435,7 +442,7 @@
     <!-- CONFIG VIEW: shown when a game mode is selected -->
     <div id="menuConfigContent">
       <div style="display:flex; align-items:center; gap:12px; width:100%; max-width:600px; margin-bottom:4px;">
-        <button class="btn" onclick="backToHome()" style="font-size:0.78rem; padding:5px 14px; background:rgba(80,60,180,0.18); border-color:rgba(120,100,220,0.5); color:#aabbff;">← Back</button>
+        <button class="btn" onclick="backToHome()" style="font-size:0.78rem; padding:5px 14px;">← Back</button>
         <span id="configModeLabel" style="font-size:1rem; color:#c8d8ff; font-weight:bold; letter-spacing:2px; text-transform:uppercase;"></span>
       </div>
       <!-- Boss player count toggle (shown when boss mode is selected) -->
@@ -517,7 +524,7 @@
               <button class="online-chip-btn active" data-onlinemg="survival" onclick="setOnlineMinigame('survival')">Survival</button>
               <button class="online-chip-btn" data-onlinemg="koth" onclick="setOnlineMinigame('koth')">King of the Hill</button>
               <button class="online-chip-btn" data-onlinemg="chaos" onclick="setOnlineMinigame('chaos')">Chaos Match</button>
-              <button class="online-chip-btn" data-onlinemg="soccer" onclick="setOnlineMinigame('soccer')">Soccer</button>
+              <button class="online-chip-btn" data-onlinemg="sports" onclick="setOnlineMinigame('sports')">Sports Arena</button>
               <button class="online-chip-btn" data-onlinemg="defense" onclick="setOnlineMinigame('defense')">Nexus Defense</button>
             </div>
           </div>
@@ -589,14 +596,25 @@
             <div class="mode-name" style="font-size:0.95rem">Chaos Match</div>
             <div class="mode-desc" style="font-size:0.72rem">1v1 with wild modifiers</div>
           </div>
-          <div class="mode-card" id="mgCardSoccer" onclick="selectMinigame('soccer')" style="padding:8px 10px;font-size:0.82rem;">
-            <div class="mode-name" style="font-size:0.95rem"><svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-target"/></svg> Soccer</div>
-            <div class="mode-desc" style="font-size:0.72rem">Score goals, not damage</div>
+          <div class="mode-card" id="mgCardSports" onclick="selectMinigame('sports')" style="padding:8px 10px;font-size:0.82rem;">
+            <div class="mode-name" style="font-size:0.95rem"><svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-target"/></svg> Sports Arena</div>
+            <div class="mode-desc" style="font-size:0.72rem">Your abilities are trick shots</div>
           </div>
           <div class="mode-card" id="mgCardDefense" onclick="selectMinigame('defense')" style="padding:8px 10px;font-size:0.82rem;">
             <div class="mode-name" style="font-size:0.95rem"><svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-target"/></svg> Nexus Defense</div>
             <div class="mode-desc" style="font-size:0.72rem">Protect the crystal from waves</div>
           </div>
+        </div>
+        <!-- Sports Arena sub-options (only shown when sports is selected) -->
+        <div id="sportsOptions" style="display:none;flex-direction:column;gap:6px;margin-top:6px;padding:8px;background:rgba(255,255,255,0.05);border-radius:6px;border:1px solid rgba(255,255,255,0.1);">
+          <div style="display:flex;gap:6px;flex-wrap:wrap;">
+            <button class="btn active" data-sport="soccer" style="flex:1;font-size:0.73rem;padding:4px 8px;" onclick="selectSport('soccer')">Soccer</button>
+            <button class="btn" data-sport="basketball" style="flex:1;font-size:0.73rem;padding:4px 8px;" onclick="selectSport('basketball')">Basketball</button>
+            <button class="btn" data-sport="volleyball" style="flex:1;font-size:0.73rem;padding:4px 8px;" onclick="selectSport('volleyball')">Volleyball</button>
+            <button class="btn" data-sport="dodgeball" style="flex:1;font-size:0.73rem;padding:4px 8px;" onclick="selectSport('dodgeball')">Dodgeball</button>
+          </div>
+          <div id="sportsDesc" style="font-size:0.72rem;color:#ccd;">Kick it into their goal — first to 5.</div>
+          <div style="font-size:0.68rem;color:#99a;">No damage, full knockback. Use your ability near the ball for a trick shot that depends on your weapon; a super near the ball makes a burning shot that bowls people over. Hit whoever has the ball to knock it loose.</div>
         </div>
         <!-- Survival sub-options (only shown when survival is selected) -->
         <div id="survivalOptions" style="display:flex;flex-direction:column;gap:6px;margin-top:6px;padding:8px;background:rgba(255,255,255,0.05);border-radius:6px;border:1px solid rgba(255,255,255,0.1);">
@@ -623,7 +641,7 @@
         <div>
       <p class="section-label">Arena</p>
       <div style="display:flex;gap:6px;align-items:center;">
-        <select id="arenaSelect" onchange="selectArena(this.value)" style="flex:1;background:rgba(10,10,30,0.85);color:#c8d8ff;border:1px solid rgba(100,140,255,0.35);border-radius:8px;padding:6px 10px;font-size:0.82rem;outline:none;cursor:pointer;">
+        <select id="arenaSelect" onchange="selectArena(this.value)" style="flex:1;padding:6px 10px;font-size:0.82rem;cursor:pointer;">
           <optgroup label="─── Classic ───────────">
             <option value="grass">Grass Plains</option>
             <option value="city">City Rooftops</option>
@@ -689,28 +707,25 @@
 
     <!-- CHAOS MODE TOGGLE -->
     <div id="chaosModeRow" style="display:none;align-items:center;gap:10px;width:100%;max-width:600px;">
-      <button id="chaosModeBtn" class="btn" onclick="toggleChaosMode()"
-        style="flex:1;background:rgba(20,10,40,0.85);border:1px solid rgba(160,60,255,0.4);color:#cc88ff;font-size:0.8rem;padding:6px 10px;border-radius:8px;cursor:pointer;transition:all 0.2s;">
+      <button id="chaosModeBtn" class="btn" onclick="toggleChaosMode()" style="flex:1;">
         <svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-bolt"/></svg> Chaos Mode: OFF
       </button>
-      <label style="color:#9988bb;font-size:0.75rem;white-space:nowrap;">Kill Target:
+      <label style="color:var(--ui-faint);font-size:0.75rem;white-space:nowrap;">Kill Target:
         <input id="chaosKillTargetInput" type="number" min="5" max="100" value="15"
           onchange="if(typeof chaosKillTarget!=='undefined') chaosKillTarget=parseInt(this.value)||15;"
-          style="width:46px;background:rgba(10,10,30,0.85);color:#c8d8ff;border:1px solid rgba(100,140,255,0.35);border-radius:6px;padding:2px 5px;font-size:0.8rem;outline:none;">
+          style="width:46px;padding:2px 5px;font-size:0.8rem;">
       </label>
     </div>
 
     <!-- SETTINGS shortcut — opens the settings modal -->
     <div class="settings-section">
-      <button class="btn settings-toggle" onclick="openSettingsModal()"><svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-gear"/></svg> Settings <span id="settingsVersionLabel" style="font-size:0.65rem;color:#334488;letter-spacing:1px;"></span></button>
+      <button class="btn settings-toggle" onclick="openSettingsModal()"><svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-gear"/></svg> Settings <span id="settingsVersionLabel" style="font-size:0.65rem;color:var(--ui-faint);letter-spacing:1px;"></span></button>
     </div>
 
     <!-- START + FULLSCREEN row -->
     <div style="display:flex;gap:8px;align-items:center;justify-content:center;">
       <button class="btn btn-start" onclick="startGame()">START GAME</button>
-      <button id="fullscreenBtn" onclick="toggleFullscreen()"
-        style="font-size:0.75rem;color:#cceeff;background:rgba(0,180,255,0.1);border:1px solid rgba(0,180,255,0.3);border-radius:8px;padding:10px 14px;cursor:pointer;letter-spacing:1px;transition:background 0.15s;"
-        onmouseover="this.style.background='rgba(0,180,255,0.22)'" onmouseout="this.style.background='rgba(0,180,255,0.1)'">
+      <button id="fullscreenBtn" class="btn" onclick="toggleFullscreen()" title="Fullscreen">
         ⛶
       </button>
     </div>
@@ -718,7 +733,7 @@
 
     <!-- Controls info (collapsible) -->
     <details style="width:100%;max-width:600px;">
-      <summary style="cursor:pointer;font-size:0.72rem;color:rgba(180,200,255,0.55);letter-spacing:2px;text-transform:uppercase;list-style:none;text-align:center;padding:4px 0;">Controls ▾</summary>
+      <summary style="cursor:pointer;font-size:0.72rem;color:var(--ui-faint);letter-spacing:2px;text-transform:uppercase;list-style:none;text-align:center;padding:4px 0;">Controls ▾</summary>
       <div class="controls-info" style="margin-top:6px;">
         <div><strong>P1:</strong> <strong>A/D</strong> move · <strong>W</strong> jump/double-jump · <strong>S</strong> shield · <strong>Space</strong> attack · <strong>Q</strong> ability · <strong>E</strong> super</div>
         <div><strong>P2:</strong> <strong>J/L</strong> move · <strong>I</strong> jump/double-jump · <strong>K</strong> shield · <strong>U</strong> attack · <strong>O</strong> ability · <strong>P</strong> super</div>
@@ -732,12 +747,12 @@
         <svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-trophy"/></svg> Achievements
       </button>
       <button onclick="showChangelogModal()" class="footer-pill">
-        <svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-clipboard"/></svg> Updates <span id="homeVersionBadge" style="font-size:0.65rem;color:#4466bb;"></span>
+        <svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-clipboard"/></svg> Updates <span id="homeVersionBadge" style="font-size:0.65rem;color:var(--ui-faint);"></span>
       </button>
-      <button onclick="openCommunityModal()" class="footer-pill" style="color:#9bb0ff;border-color:rgba(88,101,242,0.35);">
+      <button onclick="openCommunityModal()" class="footer-pill">
         <svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-chat"/></svg> Community
       </button>
-      <button onclick="openGuidebook()" class="footer-pill" style="color:#88ffcc;border-color:rgba(80,255,180,0.35);" title="Guidebook — controls, tips, and Fighters Log">
+      <button onclick="openGuidebook()" class="footer-pill" title="Guidebook — controls, tips, and Fighters Log">
         <svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-bookopen"/></svg> Guidebook
       </button>
     </div>
@@ -813,8 +828,8 @@
             <option value="gun">Gun</option>
             <option value="axe">Axe</option>
             <option value="spear">Spear</option>
-            <option value="bow">Bow ⚔ Archer only</option>
-            <option value="shield">Shield ⚔ Paladin only</option>
+            <option value="bow">Bow</option>
+            <option value="shield">Shield</option>
             <option value="scythe">Scythe</option>
             <option value="fryingpan">Frying Pan</option>
             <option value="broomstick">Broomstick</option>
@@ -828,6 +843,11 @@
             <option value="katana">Katana</option>
             <option value="flamethrower">Flamethrower</option>
             <option value="electricstaff">Electric Staff</option>
+            <option value="bomb">Bomb</option>
+            <option value="knives">Throwing Knives</option>
+            <option value="glassblade">Glass Blade</option>
+            <option value="anchor">Anchor</option>
+            <option value="crossbow">Crossbow</option>
           </select>
           <div class="sel-card-grid" id="p2WeaponCards"></div>
         </div>
@@ -849,6 +869,8 @@
             <option value="ronin">Ronin</option>
             <option value="reaper">Reaper</option>
             <option value="summoner">Summoner</option>
+            <option value="demolitionist">Demolitionist</option>
+            <option value="warden">Warden</option>
           </select>
           <div class="sel-card-grid" id="p2ClassCards"></div>
         </div>
@@ -916,6 +938,7 @@
     <div class="super-bar-wrap">
       <span class="super-label">SUPER</span>
       <div class="super-bar-track"><div class="super-bar-fill" id="p1Super"></div></div>
+      <span class="dom-pips" id="p1Dom" title="Domain charge — landed supers. At 4, your next super is your domain."><i></i><i></i><i></i><i></i></span>
     </div>
     <div class="cd-bar-wrap">
       <span class="cd-label">Q</span>
@@ -953,6 +976,7 @@
     <div class="super-bar-wrap">
       <span class="super-label">SUPER</span>
       <div class="super-bar-track"><div class="super-bar-fill" id="p2Super"></div></div>
+      <span class="dom-pips" id="p2Dom" title="Domain charge — landed supers. At 4, your next super is your domain."><i></i><i></i><i></i><i></i></span>
     </div>
     <div class="cd-bar-wrap">
       <span class="cd-label">Q</span>
@@ -1397,12 +1421,14 @@
         <tr><td>Attack</td><td><b>J</b> &nbsp;or&nbsp; <b>Numpad 1</b></td></tr>
         <tr><td>Ability</td><td><b>K</b> &nbsp;or&nbsp; <b>Numpad 2</b></td></tr>
         <tr><td>Super</td><td><b>L</b> &nbsp;or&nbsp; <b>Numpad 3</b></td></tr>
-        <tr><td>Shield</td><td><b>S</b> &nbsp;or&nbsp; <b>↓</b></td></tr>
+        <tr><td>Shield (on the ground)</td><td><b>S</b> &nbsp;or&nbsp; <b>↓</b></td></tr>
+        <tr><td>Fast-fall (in the air)</td><td><b>S</b> &nbsp;or&nbsp; <b>↓</b> &nbsp;(after the peak of a jump)</td></tr>
       </table>
       <div class="gb-section-title" style="margin-top:18px;">Combat Tips</div>
       <ul class="gb-list">
         <li>Watch for the <b>orange glow</b> — an enemy is winding up an attack. Dodge or shield.</li>
         <li>Holding <b>Shield</b> blocks damage but breaks if held too long or hit repeatedly.</li>
+        <li>Landing while an attack is still swinging leaves you <b>stuck in recovery</b> — no jump, no shield. Finish aerials before you touch down.</li>
         <li><b>Knockback</b> sends you flying — recover with a jump before you fall off the stage.</li>
         <li>Your <b>Super meter</b> fills as you deal and take damage. Use it when it's full for a powerful attack.</li>
         <li>Class abilities and supers vary — experiment with each class to find your playstyle.</li>
@@ -1650,8 +1676,8 @@
   <script src="./js/smb-sitelock.js?v=4.3.8"></script>
   <script src="./js/smb-errorboundary.js?v=4.3.8"></script>
   <!-- Global state, canvas setup -->
-  <script src="./js/smb-icons.js?v=4.3.8"></script>
-  <script src="./js/smb-globals.js?v=4.3.8"></script>
+  <script src="./js/smb-icons.js?v=4.4.1"></script>
+  <script src="./js/smb-globals.js?v=4.6.1"></script>
   <script src="./js/smb-palette.js?v=4.3.8"></script>
   <!-- Hand-drawn weapon sprite art (must follow smb-globals.js, precede smb-fighter.js) -->
   <script src="./js/smb-weapon-sprites.js?v=4.3.8"></script>
@@ -1661,7 +1687,7 @@
   <script src="./js/smb-liveops.js?v=4.3.8"></script>
   <script src="./js/smb-admin-session.js?v=4.3.8"></script>
   <!-- Sound system -->
-  <script src="./js/smb-audio.js?v=4.3.8"></script>
+  <script src="./js/smb-audio.js?v=4.4.5"></script>
   <!-- Game Director: pacing, intensity, dynamic events -->
   <script src="./js/smb-director.js?v=4.3.8"></script>
   <!-- Achievement system -->
@@ -1671,12 +1697,12 @@
   <!-- The Circuit's sliding plate. Must load after smb-data-arenas.js (owns the
        authoring fields it drives) and before smb-loop-core.js (which ticks it). -->
   <script src="./js/smb-circuit.js?v=4.3.8"></script>
-  <script src="./js/smb-data-mapperks.js?v=4.3.8"></script>
+  <script src="./js/smb-data-mapperks.js?v=4.4.6"></script>
   <script src="./js/smb-data-mapperks-draw.js?v=4.3.8"></script>
-  <script src="./js/smb-data-weapons.js?v=4.3.8"></script>
+  <script src="./js/smb-data-weapons.js?v=4.6.1"></script>
   <script src="./js/smb-map-analyzer.js?v=4.3.8"></script>
   <!-- Combat pipeline, particles, heatmap, ragdoll (split from smb-particles.js) -->
-  <script src="./js/smb-combat.js?v=4.3.8"></script>
+  <script src="./js/smb-combat.js?v=4.6.1"></script>
   <script src="./js/smb-particles-core.js?v=4.3.8"></script>
   <script src="./js/smb-destruction.js?v=4.3.8"></script>
   <script src="./js/smb-heatmap.js?v=4.3.8"></script>
@@ -1684,7 +1710,7 @@
   <!-- Animation substrate + death animation (docs/animation-quality-plan.md) -->
   <script src="./js/smb-anim-core.js?v=4.3.8"></script>
   <script src="./js/smb-anim-fighter.js?v=4.3.8"></script>
-  <script src="./js/smb-figure-skin.js?v=4.3.8"></script>
+  <script src="./js/smb-figure-skin.js?v=4.6.1"></script>
   <script src="./js/smb-cin-figure.js?v=4.3.8"></script>
   <script src="./js/smb-cin-perf.js?v=4.3.8"></script>
   <script src="./js/smb-transition.js?v=4.3.8"></script>
@@ -1712,7 +1738,9 @@
   <!-- Fragment weapon manifestation + sprint escalation (must load before smb-fighter.js) -->
   <script src="./js/smb-fragment-manifest.js?v=4.3.8"></script>
   <!-- Fighter base class -->
-  <script src="./js/smb-fighter.js?v=4.3.9"></script>
+  <script src="./js/smb-fighter.js?v=4.6.1"></script>
+  <!-- Bomb / Fragment / Knives / Glass Blade / Anchor / Crossbow runtime (must follow smb-fighter.js) -->
+  <script src="./js/smb-weapons-ext.js?v=4.6.1"></script>
   <!-- Modular combat AI: CombatSystem, MovementSystem, AIController, CombatAIFighter -->
   <script src="./js/smb-combat-ai.js?v=4.3.8"></script>
   <!-- Enemy NPCs, training mode -->
@@ -1757,20 +1785,23 @@
   <!-- Adaptive AI — learning opponent for Adaptive AI mode (story) -->
   <script src="./js/smb-adaptive-ai.js?v=4.3.8"></script>
   <!-- SOVEREIGN Ω — upgraded adaptive AI with prediction/punishment/limiter break -->
-  <script src="./js/smb-smk2-data.js?v=4.3.8"></script>
+  <script src="./js/smb-smk2-data.js?v=4.5.0"></script>
+  <script src="./js/smb-sov-memory.js?v=4.4.0"></script>
+  <script src="./js/smb-sov-arsenal.js?v=4.5.3"></script>
   <script src="./js/smb-sov-dossier.js?v=4.4.0"></script>
+  <script src="./js/smb-sov-habits.js?v=4.5.1"></script>
   <script src="./js/smb-sov-telemetry.js?v=4.3.9"></script>
   <script src="./js/smb-sov-artifact.js?v=4.3.9"></script>
-  <script src="./js/smb-smk2-class.js?v=4.4.0"></script>
-  <script src="./js/smb-smk2-training.js?v=4.4.0"></script>
-  <script src="./js/smb-sov-scenarios.js?v=4.4.0"></script>
+  <script src="./js/smb-smk2-class.js?v=4.6.1"></script>
+  <script src="./js/smb-smk2-training.js?v=4.4.8"></script>
+  <script src="./js/smb-sov-scenarios.js?v=4.4.6"></script>
   <script src="./js/smb-absolute-axiom.js?v=4.3.8"></script>
   <!-- TrueForm ending cinematic -->
   <script src="./js/smb-trueform-ending-data.js?v=4.3.8"></script>
   <script src="./js/smb-trueform-ending-update.js?v=4.3.8"></script>
   <script src="./js/smb-trueform-ending-draw.js?v=4.3.8"></script>
   <!-- Drawing, game state, HUD, visual effects -->
-  <script src="./js/rendering/smb-drawing-arenas.js?v=4.4.0"></script>
+  <script src="./js/rendering/smb-drawing-arenas.js?v=4.5.6"></script>
   <script src="./js/rendering/smb-drawing-bg.js?v=4.3.8"></script>
   <script src="./js/rendering/smb-drawing-effects.js?v=4.3.8"></script>
   <script src="./js/rendering/smb-drawing-scenes.js?v=4.3.8"></script>
@@ -1778,9 +1809,10 @@
   <script src="./js/rendering/smb-drawing-arenas2.js?v=4.3.8"></script>
   <script src="./js/rendering/smb-drawing-arenas3.js?v=4.3.8"></script>
   <!-- Minigame systems -->
-  <script src="./js/smb-minigames.js?v=4.3.8"></script>
+  <script src="./js/smb-minigames.js?v=4.5.6"></script>
+  <script src="./js/smb-sports.js?v=4.5.6"></script>
   <script src="./js/smb-trials.js?v=4.3.8"></script>
-  <script src="./js/smb-battleroyale.js?v=4.3.8"></script>
+  <script src="./js/smb-battleroyale.js?v=4.4.1"></script>
   <script src="./js/smb-sewer.js?v=4.3.8"></script>
   <!-- True-Form QTE system -->
   <script src="./js/smb-qte-core.js?v=4.3.8"></script>
@@ -1794,29 +1826,29 @@
   <script src="./js/smb-camera.js?v=4.3.8"></script>
   <script src="./js/smb-camera-trace.js?v=4.3.8"></script>
   <script src="./js/smb-screenfx.js?v=4.3.8"></script>
-  <script src="./js/smb-loop-core.js?v=4.3.8"></script>
-  <script src="./js/smb-input.js?v=4.3.8"></script>
+  <script src="./js/smb-loop-core.js?v=4.5.6"></script>
+  <script src="./js/smb-input.js?v=4.4.3"></script>
   <script src="./js/smb-cheats.js?v=4.3.8"></script>
   <!-- Menu UI, startGame, tutorial -->
-  <script src="./js/smb-menu-ui.js?v=4.3.8"></script>
-  <script src="./js/smb-menu-select.js?v=4.3.8"></script>
-  <script src="./js/smb-menu-config.js?v=4.3.8"></script>
-  <script src="./js/smb-loadscreen.js?v=4.3.8"></script>
+  <script src="./js/smb-menu-ui.js?v=4.5.6"></script>
+  <script src="./js/smb-menu-select.js?v=4.4.0"></script>
+  <script src="./js/smb-menu-config.js?v=4.5.6"></script>
+  <script src="./js/smb-loadscreen.js?v=4.6.0"></script>
   <script src="./js/smb-menu-spawn.js?v=4.3.8"></script>
-  <script src="./js/smb-menu-startcore.js?v=4.3.8"></script>
-  <script src="./js/smb-menu-utils.js?v=4.3.8"></script>
+  <script src="./js/smb-menu-startcore.js?v=4.5.6"></script>
+  <script src="./js/smb-menu-utils.js?v=4.5.7"></script>
   <!-- Network / online multiplayer -->
-  <script src="./js/smb-network.js?v=4.3.8"></script>
+  <script src="./js/smb-network.js?v=4.5.6"></script>
   <!-- Centralized runtime state (accounts, admin overrides, online session) -->
   <!-- Must load before smb-online.js, smb-accounts.js, and smb-admin.js -->
   <script src="./js/smb-state.js?v=4.3.8"></script>
   <!-- Supabase auth + cloud save bridge -->
   <script src="./js/smb-supabase.js?v=4.3.8"></script>
   <!-- Lobby presence layer — wraps NetworkManager with lobby API + UI -->
-  <script src="./js/smb-online.js?v=4.3.8"></script>
+  <script src="./js/smb-online.js?v=4.5.7"></script>
   <!-- Developer debug toolkit (loaded last so all systems exist) -->
   <script src="./js/smb-debug-overlay.js?v=4.3.8"></script>
-  <script src="./js/smb-debug-console.js?v=4.3.8"></script>
+  <script src="./js/smb-debug-console.js?v=4.4.5"></script>
   <script src="./js/smb-ai-console.js?v=4.3.8"></script>
   <script src="./js/smb-sov-advisor.js?v=4.3.8"></script>
   <script src="./js/smb-debug-jump.js?v=4.3.8"></script>
@@ -1825,7 +1857,7 @@
   <!-- Save / Export / Import system -->
   <script src="./js/smb-save.js?v=4.3.8"></script>
   <!-- Admin control panel — F9 to toggle; only visible for accounts in ADMIN_IDS -->
-  <script src="./js/smb-admin-core.js?v=4.3.8"></script>
+  <script src="./js/smb-admin-core.js?v=4.4.1"></script>
   <script src="./js/smb-admin-panels.js?v=4.3.8"></script>
   <script src="./js/smb-sovereign-control.js?v=4.3.8"></script>
   <!-- Comprehensive live-service admin dashboard — F10 to toggle -->
@@ -1864,7 +1896,7 @@
   <script src="./js/story/acts/act4/smb-act4-arc2.js?v=4.3.8"></script>
   <script src="./js/story/acts/act5/smb-act5-arc1.js?v=4.3.8"></script>
   <script src="./js/story/acts/act5/smb-act5-arc2.js?v=4.3.8"></script>
-  <script src="./js/story/acts/act5/smb-act5-bridge.js?v=4.3.8"></script>
+  <script src="./js/story/acts/act5/smb-act5-bridge.js?v=4.4.1"></script>
   <script src="./js/story/acts/act7/smb-act7-arc1.js?v=4.3.8"></script>
   <script src="./js/story/acts/act7/smb-act7-arc2.js?v=4.3.8"></script>
   <script src="./js/story/acts/act7/smb-act7-arc3.js?v=4.3.8"></script>
@@ -1896,7 +1928,7 @@
   <script src="./js/smb-figure-rig.js?v=4.3.8"></script>
   <script src="./js/smb-story-narrative-scene.js?v=4.3.8"></script>
   <script src="./js/story/smb-story-engine-flow.js?v=4.3.8"></script>
-  <script src="./js/story/smb-story-engine-match.js?v=4.3.8"></script>
+  <script src="./js/story/smb-story-engine-match.js?v=4.4.1"></script>
   <script src="./js/story/smb-story-engine-events.js?v=4.3.8"></script>
   <script src="./js/story/smb-story-engine-frame.js?v=4.3.8"></script>
   <script src="./js/story/smb-story-engine-explore.js?v=4.3.8"></script>
@@ -1917,11 +1949,11 @@
   <!-- Map & Weapon Designer (standalone tool) -->
   <script src="./js/smb-designer.js?v=4.3.8"></script>
   <!-- Test harness — only active when window.DEBUG_MODE = true -->
-  <script src="./js/smb-test-tools.js?v=4.3.8"></script>
+  <script src="./js/smb-test-tools.js?v=4.5.6"></script>
   <!-- Guided onboarding tutorial — runs on top of training mode -->
-  <script src="./js/smb-tutorial.js?v=4.3.8"></script>
+  <script src="./js/smb-tutorial.js?v=4.4.3"></script>
   <!-- Replay system — recording, IndexedDB storage, download, and viewer -->
-  <script src="./js/smb-replay.js?v=4.3.8"></script>
+  <script src="./js/smb-replay.js?v=4.4.0"></script>
   <!-- Dev: "test the latest update" panel (F6). Data file is generated by
        tools/whatsnew/gen.js via `npm run whatsnew`; both are optional at runtime. -->
   <script src="./js/smb-whatsnew-data.js?v=4.3.8"></script>
@@ -1929,6 +1961,8 @@
   <script src="./js/smb-ui-controls.js?v=4.3.8"></script>
   <!-- StoryVoice — speaks story dialogue lines via the Web Speech API -->
   <script src="./js/smb-storyvoice.js?v=4.3.8"></script>
+  <!-- Render-only presentation pass: does not alter gameplay or saves. -->
+  <script src="./js/smb-visual-polish.js?v=4.6.0"></script>
 
   <!-- YouTube IFrame API for background music (disabled by MusicManager on CrazyGames) -->
   <div id="ytBossPlayer"    style="position:fixed;width:1px;height:1px;opacity:0;pointer-events:none;left:-9999px;top:-9999px;"></div>
@@ -2590,9 +2624,8 @@ function _renderFightersLog() {
      ============================================================ -->
 <div id="splashOverlay" style="position:fixed;inset:0;z-index:10000;background:#000;cursor:pointer;transition:opacity 0.6s ease;"
      onclick="dismissSplash()">
-  <img id="splashImg" src="images/Game-Page.png"
-       alt="Stickman Evolution: The 95th"
-       style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;">
+  <canvas id="splashCanvas" aria-label="Stickman Evolution: The 95th"
+       style="position:absolute;inset:0;width:100%;height:100%;display:block;"></canvas>
   <!-- Subtle click-to-continue hint -->
   <div id="splashHint" style="position:absolute;bottom:7%;left:50%;transform:translateX(-50%);
        color:rgba(255,255,255,0.55);font-size:0.85rem;letter-spacing:3px;text-transform:uppercase;
@@ -2649,11 +2682,42 @@ function _renderFightersLog() {
     setTimeout(function() { el.style.display = 'none'; }, 650);
   }
   window.dismissSplash = dismissSplash;
+  // The splash uses the same authored canvas renderer as the mode loading
+  // scenes, so it remains crisp and game-native at any aspect ratio.
+  if (typeof LoadScene !== 'undefined' && LoadScene.start) {
+    var splashLoadCanvas = document.getElementById('splashCanvas');
+    var splashModeCanvas = document.getElementById('loadModeCanvas');
+    if (splashLoadCanvas && splashModeCanvas) {
+      // LoadScene owns the loading canvas; mirror its authored scene onto the
+      // splash canvas with a tiny local renderer instead of shipping another
+      // mismatched still asset.
+      var splashCtx = splashLoadCanvas.getContext('2d');
+      var splashRaf = 0;
+      var splashT0 = performance.now();
+      function drawSplash() {
+        if (!splashLoadCanvas || _splashDismissed) return;
+        var dpr = Math.min(window.devicePixelRatio || 1, 1.5);
+        var w = Math.max(1, Math.floor(window.innerWidth * dpr));
+        var h = Math.max(1, Math.floor(window.innerHeight * dpr));
+        if (splashLoadCanvas.width !== w || splashLoadCanvas.height !== h) {
+          splashLoadCanvas.width = w; splashLoadCanvas.height = h;
+        }
+        var t = (performance.now() - splashT0) / 1000;
+        splashCtx.clearRect(0, 0, w, h);
+        var scene = LoadScene.scenes.splash;
+        if (scene) scene(splashCtx, w, h, t, Math.min(w, h) / 560);
+        splashRaf = requestAnimationFrame(drawSplash);
+      }
+      drawSplash();
+      var oldDismissSplash = window.dismissSplash;
+      window.dismissSplash = function () {
+        if (splashRaf) cancelAnimationFrame(splashRaf);
+        oldDismissSplash();
+      };
+    }
+  }
   // Auto-dismiss after 3 seconds
-  setTimeout(dismissSplash, 3000);
-  // If image fails to load (file missing), dismiss immediately
-  var img = document.getElementById('splashImg');
-  if (img) img.onerror = function() { dismissSplash(); };
+  setTimeout(window.dismissSplash, 3000);
 })();
 </script>
 

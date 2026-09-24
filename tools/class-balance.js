@@ -43,6 +43,8 @@ const DIFF    = String(args.diff  || 'hard');
 // every rate in the table, so the cap is set high enough to be rare.
 const FRAMES  = parseInt(args.frames, 10)   || 18000;
 const PORT    = parseInt(args.port, 10)    || 8121;
+// --brain=sovereign puts SovereignMK2 on BOTH sides (see build()).
+const BRAIN   = String(args.brain || 'fighter');
 const ROOT    = path.resolve(__dirname, '..');
 const MIME = { '.html':'text/html','.js':'text/javascript','.css':'text/css','.json':'application/json','.png':'image/png','.svg':'image/svg+xml' };
 
@@ -135,8 +137,15 @@ window.BalanceSim = (function () {
     return (c && c.weapon) ? c.weapon : FALLBACK_WEAPON;
   }
 
-  function build(key, x, color, diff, stocks, wOverride) {
-    const f = new Fighter(x, 380, color, wOverride || weaponFor(key));
+  // brain 'sovereign': both sides run SovereignMK2 with a LOCKED kit, so the
+  // wielder is the strongest brain in the game on both sides and only the
+  // weapon/class differs. The stock Fighter AI under-uses some kits badly
+  // (hammer read 92% here and bottom-tier in Sovereign's hands), so a balance
+  // read taken with one brain only measures that brain.
+  function build(key, x, color, diff, stocks, wOverride, brain) {
+    const Ctor = (brain === 'sovereign' && typeof SovereignMK2 !== 'undefined') ? SovereignMK2 : Fighter;
+    const f = new Ctor(x, 380, color, wOverride || weaponFor(key));
+    if (Ctor !== Fighter) f._loadoutLocked = true;   // never re-pick: the kit IS the experiment
     f.isAI = true;
     f.aiDiff = diff;               // NOTE: compared as a STRING downstream — keep it a known tier
     f.intelligence = 0.92;
@@ -161,13 +170,27 @@ window.BalanceSim = (function () {
     _env(o.arena);
     const rng = _rng(seed);
     const xA = swap ? 620 : 280, xB = swap ? 280 : 620;
-    const A = build(keyA, xA, '#00d4ff', diff, stocks, o.wA);
-    const B = build(keyB, xB, '#ff4444', diff, stocks, o.wB);
+    // Fresh brain every match: shared dossier memory would let one match's
+    // lessons leak into the next and make the matrix order-dependent.
+    if ((o.brain === 'sovereign' || o.brainA === 'sovereign' || o.brainB === 'sovereign') && typeof SovDossier !== 'undefined') {
+      const _cl = console.log; console.log = () => {};
+      try { SovDossier.reset(); } finally { console.log = _cl; }
+    }
+    try { if (typeof DomainManager !== 'undefined' && DomainManager.reset) DomainManager.reset(); } catch (e) {}
+    // brainA/brainB let the two sides differ (tools/sov-balance.js --mode=threat:
+    // Sovereign vs a stock bot, i.e. how dangerous a bot holding X is to a strong
+    // player — which is what every story enemy is).
+    const A = build(keyA, xA, '#00d4ff', diff, stocks, o.wA, o.brainA || o.brain);
+    const B = build(keyB, xB, '#ff4444', diff, stocks, o.wB, o.brainB || o.brain);
     A.target = B; B.target = A;
     players.length = 0; players.push(A, B);
 
     let dmgA = 0, dmgB = 0, lockA = 0, lockB = 0, deathsA = 0, deathsB = 0;
     let pvA = A.health, pvB = B.health, frames = 0, err = null;
+    // BUG FINDER: things a correct match never does. Counted, not thrown, so a
+    // sweep reports every kit that trips one instead of dying on the first.
+    const bug = { nonFinite: 0, offArena: 0, stall: 0, maxQuiet: 0 };
+    let quiet = 0;
 
     for (let fr = 0; fr < MAX_FRAMES; fr++) {
       hitStopFrames = 0; slowMotion = 1; aiTick = fr; frameCount = fr;
@@ -180,7 +203,15 @@ window.BalanceSim = (function () {
       // measure that artifact, not the class. Ranged mirrors sat near 50% —
       // which is exactly the tell, since a projectile resolves on a later frame
       // and so does not care who moved first.
-      const order = (fr % 2 === 0) ? [A, B] : [B, A];
+      // DomainManager owns domain rise/expiry; without a tick a fighter whose
+      // domain rises skips gravity forever (measured y=-3578 on 2026-09-20).
+      try { if (typeof DomainManager !== 'undefined' && DomainManager.update) DomainManager.update(); } catch (e) { if (!err) err = 'domain:' + e.message; }
+      // Strict alternation still leaks: frame 0 is always A-first, and two
+      // mirrored brains that act on the same frames with even-length swing
+      // cycles lock onto the same parity, so A keeps getting the first-mover
+      // frame. Measured 2026-09-21 with Sovereign on both sides: combat mirror
+      // 22-2. A seeded coin flip per frame has no period to lock onto.
+      const order = (rng() < 0.5) ? [A, B] : [B, A];
       for (const f of order) {
         try { f.update(); } catch (e) { if (!err) err = (f === A ? 'A:' : 'B:') + e.message; }
       }
@@ -196,6 +227,13 @@ window.BalanceSim = (function () {
       if (B.stunTimer > 0 || B.ragdollTimer > 0) lockB++;
       if (A.health < pvA) dmgB += pvA - A.health;   // damage DEALT BY B
       if (B.health < pvB) dmgA += pvB - B.health;
+      for (const f of [A, B]) {
+        if (!isFinite(f.x) || !isFinite(f.y) || !isFinite(f.health)) bug.nonFinite++;
+        else if (f.x < -150 || f.x > 1050 || f.y < -400) bug.offArena++;
+      }
+      if (A.health < pvA || B.health < pvB) quiet = 0;
+      else if (++quiet > bug.maxQuiet) bug.maxQuiet = quiet;
+      if (quiet === 1800) bug.stall++;   // 30s with neither fighter taking damage
       pvA = A.health; pvB = B.health;
 
       let over = false;
@@ -205,6 +243,9 @@ window.BalanceSim = (function () {
         f.lives--;
         if (f.lives <= 0) { over = true; break; }
         try { f.onDeath(); } catch (_) {}
+        // Per-life class state Fighter.respawn() resets in the real game; the sim
+        // never calls respawn(), so without this every perk fired once per MATCH.
+        f.classPerkUsed = false; f.spartanRageTimer = 0; f.rageStacks = 0;
         f.health = f.maxHealth;
         f.x = other.cx() < 450 ? 600 + Math.floor(rng() * 120) : 180 + Math.floor(rng() * 120);
         f.y = 380; f.vx = f.vy = 0;
@@ -218,7 +259,7 @@ window.BalanceSim = (function () {
     return { a: keyA, b: keyB, frames, err,
              stockDiff: deathsB - deathsA, deathsA, deathsB,
              dmgA, dmgB, lockA, lockB,
-             hpA: A.maxHealth, hpB: B.maxHealth,
+             hpA: A.maxHealth, hpB: B.maxHealth, bug,
              timeout: frames >= MAX_FRAMES };
   }
 
@@ -283,7 +324,7 @@ window.BalanceSim = (function () {
   // passes.
   if (!args['no-mirror']) {
     log('mirror control: each class vs itself...');
-    const mir = await page.evaluate((ks, MATCHES, STOCKS, ARENA, DIFF, FRAMES, MODE, HOLD) => {
+    const mir = await page.evaluate((ks, MATCHES, STOCKS, ARENA, DIFF, FRAMES, MODE, HOLD, BRAIN) => {
       const out = {};
       for (const k of ks) {
         let aw = 0, bw = 0, dr = 0;
@@ -291,13 +332,13 @@ window.BalanceSim = (function () {
           const m = MODE === 'weapons' ? { k: HOLD, w: k } : { k, w: null };
           const r = BalanceSim.runMatch(m.k, m.k, (Math.random() * 1e9) | 0,
             { stocks: STOCKS, arena: ARENA, diff: DIFF, maxFrames: FRAMES, swap: i % 2 === 1,
-              wA: m.w, wB: m.w });
+              wA: m.w, wB: m.w, brain: BRAIN });
           if (r.stockDiff > 0) aw++; else if (r.stockDiff < 0) bw++; else dr++;
         }
         out[k] = { aw, bw, dr };
       }
       return out;
-    }, classes, MATCHES, STOCKS, ARENA, DIFF, FRAMES, MODE, HOLD);
+    }, classes, MATCHES, STOCKS, ARENA, DIFF, FRAMES, MODE, HOLD, BRAIN);
     console.log('\n  --- MIRROR CONTROL (same class both sides; 50% = unbiased) ---');
     let worst = 50, worstK = '(none)';
     for (const k of classes) {
@@ -323,7 +364,7 @@ window.BalanceSim = (function () {
   const rows = [];
   for (let p = 0; p < pairs.length; p++) {
     const [a, b] = pairs[p];
-    const res = await page.evaluate((a, b, MATCHES, STOCKS, ARENA, DIFF, FRAMES, MODE, HOLD) => {
+    const res = await page.evaluate((a, b, MATCHES, STOCKS, ARENA, DIFF, FRAMES, MODE, HOLD, BRAIN) => {
       const out = [];
       for (let i = 0; i < MATCHES; i++) {
         const seed = (Math.random() * 1e9) | 0;
@@ -333,12 +374,12 @@ window.BalanceSim = (function () {
         const mb = MODE === 'weapons' ? { k: HOLD, w: b } : { k: b, w: null };
         const r = BalanceSim.runMatch(ma.k, mb.k, seed,
           { stocks: STOCKS, arena: ARENA, diff: DIFF, maxFrames: FRAMES, swap: i % 2 === 1,
-            wA: ma.w, wB: mb.w });
+            wA: ma.w, wB: mb.w, brain: BRAIN });
         r.a = a; r.b = b;   // label by entrant, not by class
         out.push(r);
       }
       return out;
-    }, a, b, MATCHES, STOCKS, ARENA, DIFF, FRAMES, MODE, HOLD);
+    }, a, b, MATCHES, STOCKS, ARENA, DIFF, FRAMES, MODE, HOLD, BRAIN);
     rows.push(...res);
     if ((p + 1) % 10 === 0 || p === pairs.length - 1)
       log(`  ${p + 1}/${pairs.length} pairings  (${Math.round((Date.now() - t0) / 1000)}s)`);

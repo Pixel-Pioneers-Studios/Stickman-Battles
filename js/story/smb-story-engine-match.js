@@ -377,6 +377,7 @@ function _completeChapter2(ch) {
   }
   _story2.tokens += ch.tokenReward;
   _story2.chapter = Math.max(_story2.chapter, ch.id + 1);
+  if (ch.unlocksFragment && typeof wxUnlockFragmentStyle === 'function') wxUnlockFragmentStyle(true);
   // isEpilogue marks reflective no-fight codas throughout the story (ch 13-16, 84,
   // 149, 185), NOT "the end." Only the true final chapter (highest id) completes it.
   // Fight-chapter completion is handled separately via _lastFightId in story2OnMatchEnd.

@@ -365,7 +365,6 @@ const SupabaseBridge = (() => {
       if (save.unlocks.storyOnline) score += 2;
       if (save.unlocks.tfEndingSeen) score += 1;
       if (save.unlocks.damnationScar) score += 1;
-      if (save.unlocks.storyDodgeUnlocked) score += 1;
       if (save.unlocks.paradoxCompanion) score += 1;
       if (save.unlocks.interTravel) score += 1;
       if (save.unlocks.patrolMode) score += 1;
@@ -411,7 +410,6 @@ const SupabaseBridge = (() => {
       u.storyOnline        = !!(u.storyOnline        || other.unlocks.storyOnline);
       u.tfEndingSeen       = !!(u.tfEndingSeen       || other.unlocks.tfEndingSeen);
       u.damnationScar      = !!(u.damnationScar      || other.unlocks.damnationScar);
-      u.storyDodgeUnlocked = !!(u.storyDodgeUnlocked || other.unlocks.storyDodgeUnlocked);
       u.paradoxCompanion   = !!(u.paradoxCompanion   || other.unlocks.paradoxCompanion);
       u.interTravel        = !!(u.interTravel        || other.unlocks.interTravel);
       u.patrolMode         = !!(u.patrolMode         || other.unlocks.patrolMode);

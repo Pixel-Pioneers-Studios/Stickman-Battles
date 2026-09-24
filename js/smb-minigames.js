@@ -3,16 +3,7 @@
 // ============================================================
 // MINIGAMES
 // ============================================================
-let minigameType      = 'survival'; // 'survival' | 'koth' | 'chaos' | 'soccer' | 'defense'
-let soccerBall   = null;
-let soccerScore  = [0, 0];
-let soccerScored = 0;
-
-const SOCCER_GOALS = {
-  left:  { x: 0,   y: 360, w: 14, h: 100, team: 1 }, // P2 scores here
-  right: { x: 886, y: 360, w: 14, h: 100, team: 0 }, // P1 scores here
-};
-const SOCCER_WIN_SCORE = 5;
+let minigameType      = 'survival'; // 'survival' | 'koth' | 'chaos' | 'sports' | 'defense'
 let survivalWave      = 0;
 let survivalEnemies   = [];         // alive enemies this wave
 let survivalWaveDelay = 0;          // countdown to next wave
@@ -55,9 +46,14 @@ let defenseWaveDelay  = 0;
 // is reachable from the network layer (a host can broadcast a type), so unknown
 // values are rejected here rather than setting minigameType to something no
 // update/draw path handles.
-const MINIGAME_TYPES = ['survival', 'koth', 'chaos', 'soccer', 'defense'];
+const MINIGAME_TYPES = ['survival', 'koth', 'chaos', 'sports', 'defense'];
 
 function selectMinigame(type) {
+  // Soccer became one sport inside the Sports Arena; older hosts still send it.
+  if (type === 'soccer') {
+    type = 'sports';
+    if (typeof selectSport === 'function') selectSport('soccer');
+  }
   if (!MINIGAME_TYPES.includes(type)) {
     console.warn('[Minigames] Unknown minigame type:', type);
     return;
@@ -69,6 +65,8 @@ function selectMinigame(type) {
   // Show/hide survival sub-options
   const survOpts = document.getElementById('survivalOptions');
   if (survOpts) survOpts.style.display = type === 'survival' ? 'flex' : 'none';
+  const sportsOpts = document.getElementById('sportsOptions');
+  if (sportsOpts) sportsOpts.style.display = type === 'sports' ? 'flex' : 'none';
   // Refresh selectMode UI so P2 panel visibility toggles correctly
   selectMode('minigames');
 }
@@ -231,12 +229,7 @@ function initMinigame() {
   kothZoneX         = GAME_W / 2;
   kothWinnerIdx     = -1;
   chaosMatchTimer = 0;
-  soccerBall   = null;
-  soccerScore  = [0, 0];
-  soccerScored = 0;
-  if (minigameType === 'soccer') {
-    soccerBall = { x: GAME_W/2 - 15, y: 300, w: 30, h: 30, vx: 0, vy: 0, spin: 0, bounciness: 0.75, lastTouched: null };
-  }
+  if (minigameType === 'sports' && typeof initSports === 'function') initSports();
   if (minigameType === 'chaos') {
     // Reset all players to standard settings; updateChaosMatch will add first mod on frame 1
     clearChaosModifiers();
@@ -514,211 +507,11 @@ function drawMinigameDefenseNexus() {
   ctx.restore();
 }
 
-function updateSoccerBall() {
-  if (!soccerBall || !gameRunning) return;
-  if (soccerScored > 0) { soccerScored--; return; }
-
-  const ball  = soccerBall;
-  const arena = currentArena;
-
-  // Gravity
-  ball.vy += 0.55;
-  ball.x  += ball.vx;
-  ball.y  += ball.vy;
-  ball.spin += ball.vx * 0.04;
-
-  // Floor bounce
-  const floor = arena.platforms.find(p => p.isFloor);
-  if (floor && ball.y + ball.h > floor.y) {
-    ball.y  = floor.y - ball.h;
-    ball.vy = -Math.abs(ball.vy) * ball.bounciness;
-    ball.vx *= 0.88;
-    if (Math.abs(ball.vy) < 1.5) ball.vy = 0;
-  }
-  // Ceiling
-  if (ball.y < 0) { ball.y = 0; ball.vy = Math.abs(ball.vy) * 0.6; }
-  // Left/right wall bounces — skip when ball is inside the goal opening (let it score)
-  const _leftGoal  = SOCCER_GOALS.left;
-  const _rightGoal = SOCCER_GOALS.right;
-  const _ballMidY  = ball.y + ball.h / 2;
-  const _inLeftGoalY  = _ballMidY >= _leftGoal.y  && _ballMidY <= _leftGoal.y  + _leftGoal.h;
-  const _inRightGoalY = _ballMidY >= _rightGoal.y && _ballMidY <= _rightGoal.y + _rightGoal.h;
-  if (ball.x < 14 && !_inLeftGoalY)             { ball.x = 14; ball.vx = Math.abs(ball.vx) * 0.6; }
-  if (ball.x + ball.w > GAME_W - 14 && !_inRightGoalY) { ball.x = GAME_W - 14 - ball.w; ball.vx = -Math.abs(ball.vx) * 0.6; }
-
-  // Speed cap + passive drag
-  ball.vx *= 0.993;
-  const maxSpd = 13;
-  const spd = Math.hypot(ball.vx, ball.vy);
-  if (spd > maxSpd) { ball.vx = ball.vx / spd * maxSpd; ball.vy = ball.vy / spd * maxSpd; }
-
-  // Player body collision — push ball away (biased toward player facing direction)
-  for (const p of players) {
-    if (!p || p.health <= 0) continue;
-    const bCX = ball.x + ball.w / 2;
-    const bCY = ball.y + ball.h / 2;
-    const overlapX = bCX - p.cx();
-    const overlapY = bCY - (p.y + p.h / 2);
-    const dist2    = Math.hypot(overlapX, overlapY);
-    const minDist  = p.w / 2 + ball.w / 2 + 4;
-    if (dist2 < minDist && dist2 > 0.1) {
-      const nx = overlapX / dist2;
-      const ny = overlapY / dist2;
-      // Blend 60% facing direction + 40% physics normal for predictability
-      const facingX = p.facing || 1;
-      const blendX  = nx * 0.4 + facingX * 0.6;
-      const blendY  = ny * 0.4 - 0.15; // slight upward bias
-      const blendLen = Math.hypot(blendX, blendY) || 1;
-      const bx2 = blendX / blendLen, by2 = blendY / blendLen;
-      const relVx  = ball.vx - p.vx;
-      const relVy  = ball.vy - p.vy;
-      const dot    = relVx * -bx2 + relVy * -by2;
-      const pSpd   = Math.hypot(p.vx, p.vy);
-      const impulse = Math.max(dot + 2.0 + pSpd * 0.4, 1.2);
-      ball.vx += bx2 * impulse;
-      ball.vy += by2 * impulse * 0.75;
-      const pen = minDist - dist2;
-      ball.x -= nx * pen * 0.55;
-      ball.y -= ny * pen * 0.55;
-      ball.lastTouched = p;
-    }
-  }
-
-  // Weapon tip collision — attack gives directional kick biased by player facing
-  for (const p of players) {
-    if (!p || p.attackTimer <= 0) continue;
-    const tip = p._weaponTip;
-    if (!tip) continue;
-    const bx = ball.x + ball.w / 2, by = ball.y + ball.h / 2;
-    const td  = Math.hypot(tip.x - bx, tip.y - by);
-    if (td < ball.w / 2 + 10) {
-      const physNx = (bx - tip.x) / (td || 1);
-      const physNy = (by - tip.y) / (td || 1);
-      const facingX = p.facing || 1;
-      // 70% facing, 30% physics normal; always kick upward a bit
-      const kickX = physNx * 0.3 + facingX * 0.7;
-      const kickY = physNy * 0.3 - 0.35;
-      const kickLen = Math.hypot(kickX, kickY) || 1;
-      const forceMult = (1 + (p.weapon?.damage || 10) / 15) * (1 + Math.hypot(p.vx, p.vy) * 0.08);
-      ball.vx = (kickX / kickLen) * 6.5 * forceMult;
-      ball.vy = (kickY / kickLen) * 5.5 * forceMult;
-      ball.lastTouched = p;
-    }
-  }
-
-  // Goal detection
-  const bx = ball.x, by = ball.y, bw = ball.w, bh = ball.h;
-  for (const [side, goal] of Object.entries(SOCCER_GOALS)) {
-    if (bx < goal.x + goal.w && bx + bw > goal.x &&
-        by < goal.y + goal.h && by + bh > goal.y) {
-      const scoringTeam = goal.team; // 0 = P1 scored, 1 = P2 scored
-      soccerScore[scoringTeam]++;
-      soccerScored = 120;
-      ball.x = GAME_W / 2 - ball.w / 2;
-      ball.y = 340;
-      ball.vx = 0; ball.vy = 0; ball.spin = 0;
-      spawnParticles(goal.x + goal.w / 2, goal.y + goal.h / 2, '#ffdd00', 20);
-      SoundManager.explosion();
-      if (settings.screenShake) screenShake = Math.max(screenShake, 10);
-      if (soccerScore[scoringTeam] >= SOCCER_WIN_SCORE) {
-        const winner = players[scoringTeam];
-        const name   = winner ? winner.name : `P${scoringTeam + 1}`;
-        damageTexts.push(new DamageText(GAME_W / 2, GAME_H / 2 - 60, `${name} WINS!`, '#ffdd00'));
-        setTimeout(endGame, 2000);
-      }
-    }
-  }
-}
-
-function drawSoccer() {
-  if (minigameType !== 'soccer') return;
-
-  ctx.save();
-  // Field markings
-  ctx.strokeStyle = 'rgba(255,255,255,0.35)';
-  ctx.lineWidth = 2;
-  ctx.setLineDash([8, 6]);
-  ctx.beginPath(); ctx.moveTo(GAME_W / 2, 0); ctx.lineTo(GAME_W / 2, 460); ctx.stroke();
-  ctx.setLineDash([]);
-  ctx.beginPath(); ctx.arc(GAME_W / 2, 300, 60, 0, Math.PI * 2); ctx.stroke();
-
-  // Goals
-  for (const [side, goal] of Object.entries(SOCCER_GOALS)) {
-    ctx.fillStyle = 'rgba(255,255,255,0.15)';
-    ctx.fillRect(goal.x, goal.y, goal.w, goal.h);
-    ctx.strokeStyle = '#fff';
-    ctx.lineWidth = 3;
-    ctx.setLineDash([]);
-    ctx.strokeRect(goal.x, goal.y, goal.w, goal.h);
-    // Net lines
-    ctx.strokeStyle = 'rgba(255,255,255,0.3)';
-    ctx.lineWidth = 1;
-    for (let yy = goal.y; yy < goal.y + goal.h; yy += 12) {
-      ctx.beginPath(); ctx.moveTo(goal.x, yy); ctx.lineTo(goal.x + goal.w, yy); ctx.stroke();
-    }
-  }
-
-  // Ball
-  if (soccerBall && soccerScored === 0) {
-    const ball = soccerBall;
-    ctx.save();
-    ctx.translate(ball.x + ball.w / 2, ball.y + ball.h / 2);
-    ctx.rotate(ball.spin);
-    ctx.beginPath(); ctx.arc(0, 0, ball.w / 2, 0, Math.PI * 2);
-    ctx.fillStyle = '#ffffff';
-    ctx.shadowColor = '#ffff00'; ctx.shadowBlur = 8;
-    ctx.fill();
-    ctx.fillStyle = '#222';
-    ctx.shadowBlur = 0;
-    for (let i = 0; i < 5; i++) {
-      const a  = (i / 5) * Math.PI * 2 - Math.PI / 2;
-      const px = Math.cos(a) * (ball.w / 2 * 0.55);
-      const py = Math.sin(a) * (ball.w / 2 * 0.55);
-      ctx.beginPath(); ctx.arc(px, py, ball.w / 2 * 0.22, 0, Math.PI * 2); ctx.fill();
-    }
-    ctx.restore();
-  }
-
-  // "GOAL!" flash
-  if (soccerScored > 80) {
-    ctx.save();
-    ctx.globalAlpha = Math.min(1, (soccerScored - 80) / 30);
-    ctx.font = 'bold 72px Arial';
-    ctx.textAlign = 'center';
-    ctx.fillStyle = '#ffdd00';
-    ctx.shadowColor = '#ff8800'; ctx.shadowBlur = 20;
-    ctx.fillText('GOAL!', GAME_W / 2, GAME_H / 2 - 40);
-    ctx.restore();
-  }
-
-  ctx.restore();
-}
-
 function drawMinigameHUD() {
   if (!gameRunning) return;
   ctx.save();
-  if (minigameType === 'soccer') {
-    const p1c = players[0]?.color || '#00d4ff';
-    const p2c = players[1]?.color || '#ff4444';
-    // Draw score in screen space so it stays fixed and below the DOM HUD
-    ctx.save();
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
-    const _ssy = (typeof _hudBottom === 'function' ? _hudBottom() : 0) + 8;
-    ctx.fillStyle = 'rgba(0,0,0,0.6)';
-    ctx.fillRect(canvas.width / 2 - 70, _ssy, 140, 30);
-    ctx.font = 'bold 22px Arial';
-    ctx.shadowColor = '#000'; ctx.shadowBlur = 4;
-    ctx.fillStyle = p1c;
-    ctx.textAlign = 'left';
-    ctx.fillText(soccerScore[0], canvas.width / 2 - 60, _ssy + 22);
-    ctx.fillStyle = '#fff';
-    ctx.textAlign = 'center';
-    ctx.fillText('–', canvas.width / 2, _ssy + 22);
-    ctx.fillStyle = p2c;
-    ctx.textAlign = 'right';
-    ctx.fillText(soccerScore[1], canvas.width / 2 + 60, _ssy + 22);
-    ctx.shadowBlur = 0;
-    ctx.restore();
+  if (minigameType === 'sports') {
+    if (typeof drawSportsHUD === 'function') drawSportsHUD();
   } else if (minigameType === 'survival') {
     ctx.fillStyle = '#ffdd44'; ctx.font = 'bold 14px Arial'; ctx.textAlign = 'center';
     const waveGoalStr = survivalFriendlyFire ? '⚔' : survivalInfinite ? '∞' : `/${survivalWaveGoal}`;

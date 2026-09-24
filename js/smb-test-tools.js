@@ -386,7 +386,8 @@
       kingZone: 'koth',
       koth:     'koth',
       chaos:    'chaos',
-      soccer:   'soccer',
+      soccer:   'sports',
+      sports:   'sports',
     };
     const resolved = modeMap[modeName] || modeName;
     console.log(`[smbTest] Loading minigame: ${resolved}`);

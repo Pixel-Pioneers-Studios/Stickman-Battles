@@ -199,7 +199,6 @@ const _SAVE_DEFAULTS = {
     storyOnline:        false,
     tfEndingSeen:       false,
     damnationScar:      false,
-    storyDodgeUnlocked: false,
     paradoxCompanion:   false,
     interTravel:        false,
     patrolMode:         false,
@@ -273,7 +272,6 @@ function _migrateSave(data) {
   if (typeof d.unlocks.storyOnline        === 'undefined') d.unlocks.storyOnline        = false;
   if (typeof d.unlocks.tfEndingSeen       === 'undefined') d.unlocks.tfEndingSeen       = false;
   if (typeof d.unlocks.damnationScar      === 'undefined') d.unlocks.damnationScar      = false;
-  if (typeof d.unlocks.storyDodgeUnlocked === 'undefined') d.unlocks.storyDodgeUnlocked = false;
   if (typeof d.unlocks.paradoxCompanion   === 'undefined') d.unlocks.paradoxCompanion   = false;
   if (typeof d.unlocks.interTravel        === 'undefined') d.unlocks.interTravel        = false;
   if (typeof d.unlocks.patrolMode         === 'undefined') d.unlocks.patrolMode         = false;
@@ -370,7 +368,6 @@ function _flushRuntimeIntoBase(base) {
   if (typeof unlockedMegaknight !== 'undefined') base.unlocks.megaknight      = base.unlocks.megaknight      || !!unlockedMegaknight;
   if (typeof sovereignBeaten    !== 'undefined') base.unlocks.sovereignBeaten = base.unlocks.sovereignBeaten || !!sovereignBeaten;
   if (typeof storyOnline        !== 'undefined') base.unlocks.storyOnline     = base.unlocks.storyOnline     || !!storyOnline;
-  if (typeof storyDodgeUnlocked !== 'undefined') base.unlocks.storyDodgeUnlocked = base.unlocks.storyDodgeUnlocked || !!storyDodgeUnlocked;
   if (typeof paradoxCompanionActive !== 'undefined') base.unlocks.paradoxCompanion = base.unlocks.paradoxCompanion || !!paradoxCompanionActive;
   if (typeof godEncountered     !== 'undefined') base.unlocks.godEncountered  = base.unlocks.godEncountered  || !!godEncountered;
   if (typeof godDefeated        !== 'undefined') base.unlocks.godDefeated     = base.unlocks.godDefeated     || !!godDefeated;
@@ -423,7 +420,6 @@ function _gatherSaveData() {
       letters:      (typeof collectedLetterIds !== 'undefined') ? Array.from(collectedLetterIds) : [],
       achievements: (typeof earnedAchievements !== 'undefined') ? Array.from(earnedAchievements) : [],
       // Extended unlocks with runtime globals
-      storyDodgeUnlocked: (typeof storyDodgeUnlocked    !== 'undefined') ? !!storyDodgeUnlocked    : false,
       paradoxCompanion:   (typeof paradoxCompanionActive !== 'undefined') ? !!paradoxCompanionActive : false,
       // Extended unlocks — sourced from runtime globals (hydrated by _refreshRuntimeFromSave)
       sovereignBeaten: (typeof sovereignBeaten !== 'undefined') ? !!sovereignBeaten : false,
@@ -494,7 +490,6 @@ function _refreshRuntimeFromSave(data) {
       data.unlocks.letters.forEach(function(id) { collectedLetterIds.add(id); });
     }
     // Extended runtime globals reset by resetAccountScopedGlobals() above; restore here
-    if (typeof storyDodgeUnlocked    !== 'undefined') storyDodgeUnlocked    = !!data.unlocks.storyDodgeUnlocked;
     if (typeof paradoxCompanionActive !== 'undefined') paradoxCompanionActive = !!data.unlocks.paradoxCompanion;
     // New v3 runtime globals
     if (typeof sovereignBeaten !== 'undefined') sovereignBeaten = !!data.unlocks.sovereignBeaten;
@@ -704,7 +699,6 @@ function _rewardUnlockSetter(key, value) {
     storyOnline:        function(v) { if (typeof storyOnline !== 'undefined') storyOnline = v; },
     tfEndingSeen:       function(v) { if (typeof tfEndingSeen !== 'undefined') tfEndingSeen = v; },
     damnationScar:      function(v) { if (typeof damnationScar !== 'undefined') damnationScar = v; },
-    storyDodgeUnlocked: function(v) { if (typeof storyDodgeUnlocked !== 'undefined') storyDodgeUnlocked = v; },
     paradoxCompanion:   function(v) { if (typeof paradoxCompanionActive !== 'undefined') paradoxCompanionActive = v; },
     interTravel:        function(v) { if (typeof interTravel !== 'undefined') interTravel = v; },
     patrolMode:         function(v) { if (typeof patrolMode !== 'undefined') patrolMode = v; },
@@ -885,7 +879,7 @@ function forceRehydrateFromAccount(acct) {
 
 // ── Dev guard: warn on stale localStorage reads for account-scoped keys ───────
 function _guardLocalStorageRead(key) {
-  if (key && /^smc_|^smb_(bossBeaten|trueform|megaknight|sovereignBeaten|storyOnline|storyDodgeUnlocked|damnationScar|interTravel|patrolMode)$/.test(key)) {
+  if (key && /^smc_|^smb_(bossBeaten|trueform|megaknight|sovereignBeaten|storyOnline|damnationScar|interTravel|patrolMode)$/.test(key)) {
     console.warn('[storage] Blocked localStorage read for account-scoped key:', key,
       '— use runtime globals instead.');
   }

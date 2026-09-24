@@ -47,8 +47,10 @@ function gameLoop() {
       _drawWorld();
       drawSuperFlash();
       drawHUD();
+      drawVanguardHUD();
       drawChapterTitle();
       drawGameOver();
+      drawVanguardFail();
       break;
 
     case 'interlude':
@@ -91,6 +93,9 @@ function _updatePlaying() {
   // Enemies
   for (const e of enemies) e.update();
 
+  // Vanguard resolve meter (no-op outside a vanguard chapter)
+  updateVanguard();
+
   // Weapon pickups
   updateWeaponPickups();
 
@@ -106,6 +111,12 @@ function _updatePlaying() {
 
 function _checkChapterState() {
   if (!axiomPlayer) return;
+
+  // Vanguard failure — a companion went first. Retry the chapter, not the run.
+  if (isVanguardFailed()) {
+    if (just('confirm')) _restartCurrentChapter();
+    return;
+  }
 
   // Player dead — game over
   if (axiomPlayer.health <= 0 && axiomPlayer.state === 'dead') {
@@ -189,6 +200,7 @@ function _drawWorld() {
   drawBackground(ch.background);
   drawPlatforms();
   drawWeaponPickups();
+  drawVanguardOverlay();
   drawParticles();
 
   // Companions

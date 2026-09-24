@@ -348,7 +348,6 @@ function _launchInterludeChapter(ch) {
     noSuper:      true,    // no combat supers during a walk
     noClass:      !_sk.classUnlock,
     noDoubleJump: !_sk.doubleJump,
-    noDodge:      !_sk.dodge,
     dmgMult:      1.0, speedMult: 1.0, jumpMult: 1.0,
   };
 
@@ -523,7 +522,6 @@ function _launchEscortChapter(ch) {
     noAbility:    !_sk.weaponAbility,
     noSuper:      !_sk.superMeter,
     noClass:      !_sk.classUnlock,
-    noDodge:      !_sk.dodge,
     dmgMult:      1.0 + (_sk.heavyHit2 ? 0.25 : _sk.heavyHit1 ? 0.15 : 0),
     speedMult:    1.0 + (_sk.fastMove2 ? 0.20 : _sk.fastMove1 ? 0.10 : 0),
     jumpMult:     1.0 + (_sk.highJump2 ? 0.25 : _sk.highJump1 ? 0.15 : 0),
@@ -811,7 +809,6 @@ function _launchChapter2FightImmediate(ch) {
     noAbility:     _caps.noAbility    !== undefined ? _caps.noAbility    : !_sk.weaponAbility,
     noSuper:       _caps.noSuper      !== undefined ? _caps.noSuper      : !_sk.superMeter,
     noClass:       _caps.noClass      !== undefined ? _caps.noClass      : !_sk.classUnlock,
-    noDodge:       !_sk.dodge,
     dmgMult:       1.0 + (_sk.heavyHit2 ? 0.25 : _sk.heavyHit1 ? 0.15 : 0),
     speedMult:     1.0 + (_sk.fastMove2 ? 0.20 : _sk.fastMove1 ? 0.10 : 0),
     jumpMult:      1.0 + (_sk.highJump2 ? 0.25 : _sk.highJump1 ? 0.15 : 0),
@@ -1020,7 +1017,6 @@ function _launchAssassinationChapter(ch) {
     noAbility:    !_sk.weaponAbility,
     noSuper:      !_sk.superMeter,
     noClass:      !_sk.classUnlock,
-    noDodge:      !_sk.dodge,
     dmgMult:      1.0 + (_sk.heavyHit2 ? 0.25 : _sk.heavyHit1 ? 0.15 : 0),
     speedMult:    1.0 + (_sk.fastMove2 ? 0.20 : _sk.fastMove1 ? 0.10 : 0),
     jumpMult:     1.0 + (_sk.highJump2 ? 0.25 : _sk.highJump1 ? 0.15 : 0),
@@ -1085,7 +1081,6 @@ function _launchGauntletChapter(ch) {
     noAbility:    !_sk.weaponAbility,
     noSuper:      !_sk.superMeter,
     noClass:      !_sk.classUnlock,
-    noDodge:      !_sk.dodge,
     dmgMult:      1.0 + (_sk.heavyHit2 ? 0.25 : _sk.heavyHit1 ? 0.15 : 0),
     speedMult:    1.0 + (_sk.fastMove2 ? 0.20 : _sk.fastMove1 ? 0.10 : 0),
     jumpMult:     1.0 + (_sk.highJump2 ? 0.25 : _sk.highJump1 ? 0.15 : 0),

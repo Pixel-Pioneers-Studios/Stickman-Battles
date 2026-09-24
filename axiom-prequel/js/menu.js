@@ -50,8 +50,14 @@ function drawMenu() {
 }
 
 function _drawTitleScreen() {
+  ctx.textAlign = 'center';
+
+  // Franchise overline
+  ctx.fillStyle = '#5c5440';
+  ctx.font      = '13px Courier New';
+  ctx.fillText('S T I C K M A N   E V O L U T I O N', GAME_W / 2, GAME_H * 0.4 - 52);
+
   // Main title
-  ctx.textAlign   = 'center';
   ctx.fillStyle   = `rgba(220,210,190,${0.9 + Math.sin(menuPulse * 1.2) * 0.07})`;
   ctx.font        = 'bold 72px Courier New';
   ctx.fillText('A X I O M', GAME_W / 2, GAME_H * 0.4);
@@ -116,6 +122,10 @@ function _drawChapterSelect() {
       ctx.fillStyle = sel ? '#6688aa' : '#445568';
       ctx.font      = '9px Courier New';
       ctx.fillText('~ INTERLUDE ~', cx, cy - cardH / 2 + 28);
+    } else if (ch.type === 'vanguard') {
+      ctx.fillStyle = sel ? '#d8b860' : '#7a6838';
+      ctx.font      = 'bold 9px Courier New';
+      ctx.fillText('\u2039 VANGUARD \u203a', cx, cy - cardH / 2 + 28);
     }
 
     // Chapter name
@@ -124,7 +134,7 @@ function _drawChapterSelect() {
       : (isIl ? '#7090b0' : '#998a6c');
     ctx.font      = `bold ${sel ? 12 : 11}px Courier New`;
     const words   = ch.subtitle.split(' ');
-    let line = '', lineY = isIl ? cy - 6 : cy - 12;
+    let line = '', lineY = (isIl || ch.type === 'vanguard') ? cy - 6 : cy - 12;
     for (const w of words) {
       if ((line + ' ' + w).trim().length > 14) {
         ctx.fillText(line.trim(), cx, lineY);

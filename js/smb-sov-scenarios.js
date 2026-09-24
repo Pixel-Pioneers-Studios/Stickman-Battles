@@ -63,6 +63,35 @@ const SovScenarios = (function () {
       if (theyCommitted && d < 100 && f.cooldown <= 0) { f.shielding = false; f.attack(t); }
     },
 
+    // Exploits inferAct the way a human would. inferAct turns his swing into a
+    // guard when their swings START together, so: swing as he steps into range
+    // (when he tends to swing too), never swing into a raised guard (a fresh one
+    // parries), and hit the moment it drops. Human-limited on purpose — it reacts
+    // to his approach and to his guard, never to the first frame of his swing,
+    // which no person can see in time. Used by tools/sov-bait.js to measure
+    // whether he stops falling for it, and how fast.
+    guard_baiter(f) {
+      const t = f.target; if (!t || t.health <= 0) return;
+      const dx = t.cx() - f.cx(), d = Math.abs(dx), dir = Math.sign(dx) || 1;
+      f.facing = dir;
+      f.shielding = false;
+      const tR = (t.weapon && t.weapon.range) || 90;
+      const R  = (f.weapon && f.weapon.range) || 90;
+      const guardUp = !!t.shielding;
+      const dropped = f._bgPrevGuard && !guardUp;
+      f._bgPrevGuard = guardUp;
+      const closing = f._bgPrevD !== undefined && d < f._bgPrevD - 0.5;
+      f._bgPrevD = d;
+      // Hover at the edge of HIS reach, so every approach is his decision.
+      if (d > tR + 25) f.vx = dir * 4.0;
+      else if (d < tR * 0.6) f.vx = -dir * 3.0;
+      else f.vx *= 0.8;
+      if (f.cooldown > 0) return;
+      if (guardUp) return;                                   // never into the guard
+      if (dropped && d < R + 20) { f._bgPunish = (f._bgPunish || 0) + 1; f.attack(t); return; }
+      if (closing && d < Math.min(R, tR) + 10) { f._bgBait = (f._bgBait || 0) + 1; f.attack(t); }
+    },
+
     // Hits the landing. Targets the single measured weakness: 126 of 127 hits
     // Sovereign took landed airborne or in landing recovery.
     //
@@ -157,6 +186,39 @@ const SovScenarios = (function () {
       f.vx = dir * (4.2 + Math.min(1.6, fc / 4500));
       if (f.onGround && d > 200 && Math.random() < 0.02) f.vy = -12;
       if (d < 100 && f.cooldown <= 0) f.attack(t);
+    },
+
+    // Habit-engine test pair (js/smb-sov-habits.js, C1 / _habitGate). Neither
+    // does anything but the one thing its name says — deliberately narrow, so a
+    // veto rate difference between them can only be explained by that one axis.
+    //
+    // Swings whenever the opponent is airborne within reach, otherwise holds
+    // position. Measures whether he learns to stop giving this opponent the air.
+    anti_air_hawk(f) {
+      const t = f.target; if (!t || t.health <= 0) return;
+      const dx = t.cx() - f.cx(), d = Math.abs(dx), dir = Math.sign(dx) || 1;
+      f.facing = dir;
+      f.shielding = false;
+      const reach = ((f.weapon && f.weapon.range) || 90) + 40;
+      if (!t.onGround && d < reach) {
+        if (f.cooldown <= 0) f.attack(t);
+        f.vx *= 0.5;
+      } else {
+        f.vx = 0;   // holds position — never chases, never punishes ground
+      }
+    },
+
+    // Approaches and swings at a grounded opponent, never at an airborne one.
+    // The control side of the pair: this opponent gives him no reason to ever
+    // avoid the air, so a real learner should stay loose against it.
+    ground_brawler(f) {
+      const t = f.target; if (!t || t.health <= 0) return;
+      const dx = t.cx() - f.cx(), d = Math.abs(dx), dir = Math.sign(dx) || 1;
+      f.facing = dir;
+      f.shielding = false;
+      const R = (f.weapon && f.weapon.range) || 90;
+      if (d > R * 0.8) f.vx = dir * 4.4; else f.vx *= 0.7;
+      if (t.onGround && d < R + 10 && f.cooldown <= 0) f.attack(t);
     },
 
     // Deliberately erratic. Exists as a CONTROL: if Sovereign scores the same

@@ -462,7 +462,7 @@ function gameLoop(timestamp) {
   if (typeof drawSuddenDeathFloor === 'function') drawSuddenDeathFloor();
   if (typeof drawDepthFloorGrid === 'function') drawDepthFloorGrid();
   if (typeof drawCinematicImpactWorldEffects === 'function') drawCinematicImpactWorldEffects();
-  if (gameMode === 'minigames' && minigameType === 'soccer') drawSoccer();
+  if (gameMode === 'minigames' && minigameType === 'sports' && typeof drawSports === 'function') drawSports();
   if (gameMode === 'minigames' && minigameType === 'defense' && typeof drawMinigameDefenseNexus === 'function') drawMinigameDefenseNexus();
   if (gameMode === 'battleroyale' && typeof drawBattleRoyaleWorld === 'function') drawBattleRoyaleWorld();
   if (gameMode === 'escort' && typeof drawEscortNPC === 'function') drawEscortNPC();
@@ -596,8 +596,8 @@ function gameLoop(timestamp) {
     });
   }
 
-  // Soccer ball physics update
-  if (gameMode === 'minigames' && minigameType === 'soccer') updateSoccerBall();
+  // Sports Arena: ball physics, scoring and the sports bots
+  if (gameMode === 'minigames' && minigameType === 'sports' && typeof updateSports === 'function') updateSports();
   // Minigame logic update
   if (gameMode === 'minigames') updateMinigame();
   // Battle Royale update
@@ -708,6 +708,27 @@ function gameLoop(timestamp) {
     // Authored death beats run AFTER physics so they can override the pose and
     // read the body's real landing velocity (see docs/animation-quality-plan.md).
     if (typeof DeathAnim !== 'undefined') DeathAnim.update();
+  }
+  // Habit engine scouting (js/smb-sov-habits.js): every human's nearest living
+  // hostile opponent watches them this frame too, so a human's habits get
+  // filed from story fights, versus bots and training, not only from a
+  // Sovereign match. Sovereign observes himself already, from his own update().
+  if (typeof SovHabits !== 'undefined' && !gameFrozen) {
+    for (let _hi = 0; _hi < players.length; _hi++) {
+      const _h = players[_hi];
+      if (!_h || _h.isAI !== false || !(_h.health > 0) || _h.isRemote) continue;
+      let _opp = null, _bestD = Infinity;
+      for (let _oi = 0; _oi < players.length; _oi++) {
+        const _o = players[_oi];
+        if (!_o || _o === _h || !(_o.health > 0)) continue;
+        if (typeof SovereignMK2 !== 'undefined' && _o instanceof SovereignMK2) continue;
+        if (typeof isHostileTarget === 'function' && !isHostileTarget(_h, _o)) continue;
+        const _d = Math.abs(_o.cx() - _h.cx());
+        if (_d < _bestD) { _bestD = _d; _opp = _o; }
+      }
+      if (_opp) SovHabits.observe(_opp, _h);
+    }
+    SovHabits.tick();
   }
   // Passive super charge: every player (non-boss) gains a small amount of super each frame
   if (!isCinematic && !paused) {

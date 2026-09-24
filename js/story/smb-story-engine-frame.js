@@ -1,5 +1,5 @@
 'use strict';
-// smb-story-engine-frame.js — Per-frame: storyCheckEvents, onEnemyDeath, syncDistort, resetState, boundaries, dodgeRoll
+// smb-story-engine-frame.js — Per-frame: storyCheckEvents, onEnemyDeath, syncDistort, resetState, boundaries
 // Depends on: smb-globals.js, smb-story-registry.js (and preceding story-engine splits)
 
 // ── storyCheckEvents: called each game frame from smc-loop.js ─────────────────
@@ -133,8 +133,6 @@ function resetStoryEventState() {
   storyState.abilities.doubleJump    = !!sk.doubleJump;
   storyState.abilities.weaponAbility = !!(sk.weaponAbility || sk.weaponAbilityOld);
   storyState.abilities.superMeter    = !!sk.superMeter;
-  storyState.abilities.dodge         = !!sk.dodge;
-  storyDodgeUnlocked                 = !!sk.dodge; // keep dodge mechanic gate in sync with the tree
 }
 
 // ── Story soft boundary / portal system ───────────────────────────────────────
@@ -354,73 +352,3 @@ function drawStoryWorldDistortion(ctx, cw, ch_h) {
   ctx.globalAlpha = 1;
   ctx.restore();
 }
-
-// ── Dodge roll (double-tap ← / → while grounded) ─────────────────────────────
-// Grounded + dodge unlocked → Dodge Roll (i-frame ground roll). There is no
-// airborne variant — the double-tap does nothing in the air.
-// State stored on the Fighter instance:
-//   p._dodgeTimer / p._dodgeCd / p._dodgeFacing — ground dodge
-//
-// Called from processInput() (smb-input.js) for each living non-AI player.
-
-const DODGE_FRAMES   = 14;  // i-frame duration
-const DODGE_SPEED    = 16;  // lateral velocity burst
-const DODGE_CD       = 48;  // cooldown before next dodge
-
-/**
- * Must be called from processInput() for each non-AI player.
- */
-function storyHandleDodgeInput(p) {
-  if (!p) return;
-  const dodgeOK = storyDodgeUnlocked && !p._storyNoDodge;
-  if (!dodgeOK) return;
-
-  // ── Active-frame physics: ground dodge in progress ──────────────────────
-  if (p._dodgeTimer > 0) {
-    p._dodgeTimer--;
-    p.vx = p._dodgeFacing * DODGE_SPEED;
-    p.invincible = Math.max(p.invincible || 0, 1); // i-frames
-    if (p._dodgeTimer === 0) {
-      p._dodgeCd = DODGE_CD;
-      p.vx *= 0.3; // hard-brake on exit
-    }
-    return;
-  }
-
-  // Tick cooldowns
-  if (p._dodgeCd > 0) p._dodgeCd--;
-
-  // ── Double-tap detection: same direction key twice within 13 frames ─────
-  if (!p._tapState) p._tapState = {};
-  const ts    = p._tapState;
-  const lHeld = keyHeldFrames[p.controls.left]  || 0;
-  const rHeld = keyHeldFrames[p.controls.right] || 0;
-
-  if (lHeld === 1) {
-    if (ts.lTapFrame && (frameCount - ts.lTapFrame) < 13) { _storyTryDodge(p, -1); ts.lTapFrame = 0; }
-    else ts.lTapFrame = frameCount;
-  }
-  if (rHeld === 1) {
-    if (ts.rTapFrame && (frameCount - ts.rTapFrame) < 13) { _storyTryDodge(p, 1); ts.rTapFrame = 0; }
-    else ts.rTapFrame = frameCount;
-  }
-}
-
-// Dispatch a double-tap to a ground dodge. Airborne double-taps do nothing.
-function _storyTryDodge(p, dir) {
-  if (!p.onGround) return;
-  if (storyDodgeUnlocked && !p._storyNoDodge) _doDodge(p, dir);
-}
-
-function _doDodge(p, dir) {
-  if (p._dodgeTimer > 0 || (p._dodgeCd || 0) > 0) return;
-  p._dodgeTimer   = DODGE_FRAMES;
-  p._dodgeFacing  = dir;
-  p.vx            = dir * DODGE_SPEED;
-  p.invincible    = Math.max(p.invincible || 0, 1);
-  spawnParticles(p.cx(), p.cy(), '#88eeff', 8);
-  SoundManager && SoundManager.jump && SoundManager.jump(); // reuse jump sound
-}
-
-
-

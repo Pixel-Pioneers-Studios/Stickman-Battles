@@ -66,6 +66,42 @@ const SMK2_PREDICT_LINES = [
   'Predictable.',
   'There it is.',
 ];
+// Habit engine C1 (js/smb-sov-habits.js, _habitGate in smb-smk2-class.js): the
+// first line spoken the first time a match's air-avoidance veto engages. Cold,
+// precise, about the opponent specifically — never generic taunts.
+const SMK2_HABIT_AIR_LINES = [
+  'You wait for me to leave the ground.',
+  'I stay down. You\'ll have to come to me.',
+  'You punish the air. So I won\'t give it to you.',
+  'Not this time. I keep my feet.',
+];
+// Habit engine C2 (js/smb-sov-habits.js descentArm/descentRecord, _descentControl
+// in smb-smk2-class.js): the first line spoken the first time he picks a
+// non-default descent option in a match, once this opponent has punished
+// `default` at least 3 times. Cold, precise, about the specific moment.
+const SMK2_HABIT_DESCENT_LINES = [
+  'You wait under me. I\'ll stop coming down to you.',
+  'That gap where I land unarmed — I see it too now.',
+  'You\'ve been catching my landings. Not anymore.',
+  'I won\'t float into your reach again.',
+];
+// Match-start read (SovereignMK2._habitDossierLine): what his persisted habit
+// record already says about THIS player — gathered in earlier fights with him and
+// scouted from the player's fights with everyone else (js/smb-sov-habits.js).
+const SMK2_DOSSIER_LINES = {
+  descent: [
+    'You wait under me for the landing. I remember.',
+    'Last time you caught me coming down. I kept count.',
+  ],
+  air: [
+    'You punish anything that leaves the ground. I noticed.',
+    'You like it when I jump. I remember why.',
+  ],
+  watched: [
+    'I\'ve been watching your other fights.',
+    'Every enemy you\'ve fought told me something about you.',
+  ],
+};
 const SMK2_EVOLUTION_LINES = [
   'I\'m starting to see the shape of you.',
   'Now I know what you reach for.',

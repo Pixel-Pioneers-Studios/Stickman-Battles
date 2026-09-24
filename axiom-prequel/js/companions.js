@@ -15,6 +15,7 @@ class Companion {
 
     this.health    = 100;
     this.maxHealth = 100;
+    this.isCompanion = true;   // read by dealDamage() for the vanguard resolve drain
 
     this.vx = 0;
     this.vy = 0;
@@ -93,9 +94,22 @@ class Companion {
       if (d < targetDx) { target = e; targetDx = d; }
     }
 
-    if (target && targetDx < 300) {
+    // In a vanguard chapter the companions stop leading the charge — they only
+    // answer what is already on top of them, and they will not advance past
+    // Axiom. Without this their own recklessness drains RESOLVE instead of the
+    // player's mistakes doing it.
+    const vg = vanguardActive();
+    const engageRange = vg ? 150 : 300;
+
+    if (target && targetDx < engageRange) {
       // Engage enemy
       this.facing = target.cx() > this.cx() ? 1 : -1;
+      if (vg && this._pastAxiom(this.facing)) {
+        // Hold the line here rather than stepping in front of him.
+        this.vx   *= 0.7;
+        this.state = 'idle';
+        return;
+      }
       if (targetDx < this.attackRange && this.attackCooldown <= 0) {
         this._startAttack(target);
       } else if (targetDx > this.attackRange - 10) {
@@ -118,6 +132,12 @@ class Companion {
         this.state  = 'idle';
       }
     }
+  }
+
+  // True if moving in `dir` would put this companion ahead of Axiom.
+  _pastAxiom(dir) {
+    if (!axiomPlayer) return false;
+    return (this.cx() - axiomPlayer.cx()) * dir > 26;
   }
 
   _startAttack(target) {
@@ -289,13 +309,17 @@ class VAEL extends Companion {
     this.dashTimer++;
     if (this.dashTimer >= 180 && enemies.filter(e => e.health > 0).length > 0) {
       this.dashTimer = 0;
+      // In a vanguard chapter he only lunges at what's already in the fight —
+      // the full-map dive is what gets him surrounded and bleeds RESOLVE.
+      const reach = vanguardActive() ? 200 : Infinity;
       let farthest = null, maxDx = 0;
       for (const e of enemies) {
         if (e.health <= 0) continue;
         const d = Math.abs(e.cx() - this.cx());
+        if (d > reach) continue;
         if (d > maxDx) { farthest = e; maxDx = d; }
       }
-      if (farthest) {
+      if (farthest && !(vanguardActive() && this._pastAxiom(farthest.cx() > this.cx() ? 1 : -1))) {
         this.facing = farthest.cx() > this.cx() ? 1 : -1;
         this.vx     = this.facing * 10;
         this.vy     = -4;

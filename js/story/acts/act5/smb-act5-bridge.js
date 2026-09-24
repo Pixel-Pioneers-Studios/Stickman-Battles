@@ -219,6 +219,9 @@ STORY_CHAPTER_REGISTRY.push(
     id: 154, title: 'The Compass Points',
     world: '🌌 Void — The Trail',
     type: 'branch',
+    // Axiom shows Kael what the fragment is for — clearing this unlocks the
+    // Fragment weapon and Adept class (smb-weapons-ext.js).
+    unlocksFragment: true,
     narrative: [
       'You had been walking a long time.',
       '',

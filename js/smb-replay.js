@@ -163,6 +163,53 @@ const ReplaySystem = (() => {
   // state, so events carry the frame they actually happened on rather than the
   // frame a 20fps sample happened to catch. Nothing here mutates game state and
   // dealDamage() is untouched — this is pure observation.
+  // ── Input track ─────────────────────────────────────────────────────────────
+  // What each HUMAN player actually pressed, every frame. Frames are sampled at
+  // 20fps and hold state only, so a swing start can be inferred but an ability,
+  // a tapped jump or a 1-frame shield cannot. This track makes a replay into
+  // training data for tools/ghost-build.js (the human mimic).
+  //   held:    L=1 R=2 J=4 SH=8 D=16     pressed this frame: ATK=32 ABI=64 SUP=128
+  // Stored run-length: per player, [[frame, mask], ...] appended only on change.
+  const IN_L = 1, IN_R = 2, IN_J = 4, IN_SH = 8, IN_D = 16, IN_ATK = 32, IN_ABI = 64, IN_SUP = 128;
+  let _inputs     = {};     // playerIdx -> [[fc, mask], ...]
+  let _inLast     = {};     // playerIdx -> last mask written
+  let _inPressed  = {};     // playerIdx -> edge bits pressed since last recordFrame
+  if (typeof document !== 'undefined') {
+    // Capture phase, observation only: runs before smb-input.js's handler and
+    // never stops or alters the event.
+    document.addEventListener('keydown', e => {
+      if (!_recording || e.repeat || typeof players === 'undefined') return;
+      const k = (typeof _eventKey === 'function') ? _eventKey(e) : e.key;
+      players.forEach((p, i) => {
+        const c = p && !p.isAI && p.controls;
+        if (!c) return;
+        let b = 0;
+        if (k === c.attack) b |= IN_ATK;
+        if (k === c.ability) b |= IN_ABI;
+        if (k === c.super) b |= IN_SUP;
+        if (b) _inPressed[i] = (_inPressed[i] || 0) | b;
+      });
+    }, true);
+  }
+
+  function _recordInputs(fc) {
+    if (typeof players === 'undefined' || typeof keysDown === 'undefined') return;
+    players.forEach((p, i) => {
+      const c = p && !p.isAI && p.controls;
+      if (!c || !c.left) return;
+      let m = _inPressed[i] || 0;
+      if (keysDown.has(c.left))   m |= IN_L;
+      if (keysDown.has(c.right))  m |= IN_R;
+      if (keysDown.has(c.jump))   m |= IN_J;
+      if (keysDown.has(c.shield)) m |= IN_SH;
+      if (c.down && keysDown.has(c.down)) m |= IN_D;
+      _inPressed[i] = 0;
+      if (m === _inLast[i]) return;
+      _inLast[i] = m;
+      (_inputs[i] || (_inputs[i] = [])).push([fc, m]);
+    });
+  }
+
   let _events   = [];
   let _prevSnap = null;   // [{hp, lives, x, y}] from the previous game frame
   let _bounds   = null;   // { minX, maxX, deathY } — the stage's kill boundary
@@ -274,6 +321,9 @@ const ReplaySystem = (() => {
     _events     = [];
     _prevSnap   = null;
     _bounds     = _computeBounds();
+    _inputs     = {};
+    _inLast     = {};
+    _inPressed  = {};
     _startFC    = typeof frameCount !== 'undefined' ? frameCount : 0;
     _meta = {
       version:  GAME_VERSION,
@@ -296,6 +346,7 @@ const ReplaySystem = (() => {
     // Events are detected at FULL frame rate — above the sampling gate — so a
     // KO lands on the frame it happened rather than the next 3-frame sample.
     _detectEvents(fc);
+    _recordInputs(fc);
     if (fc % RECORD_EVERY_N !== 0) return;
 
     const idx = Math.floor(fc / RECORD_EVERY_N);
@@ -341,6 +392,10 @@ const ReplaySystem = (() => {
       frames:     _frames,
       platFrames: _platFrames,
       events:     _events,
+      // Per-frame human inputs (see _recordInputs). Absent in replays recorded
+      // before 2026-09-21; readers must treat it as optional.
+      inputs:     _inputs,
+      inputBits:  { L: IN_L, R: IN_R, J: IN_J, SH: IN_SH, D: IN_D, ATK: IN_ATK, ABI: IN_ABI, SUP: IN_SUP },
     };
     _persist(_lastReplay);
   }

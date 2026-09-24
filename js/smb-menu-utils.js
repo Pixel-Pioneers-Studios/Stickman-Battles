@@ -9,9 +9,7 @@ function toggleChaosMode() {
   const btn = document.getElementById('chaosModeBtn');
   if (btn) {
     btn.textContent = '⚡ Chaos Mode: ' + (chaosMode ? 'ON' : 'OFF');
-    btn.style.borderColor = chaosMode ? 'rgba(220,80,255,0.8)' : 'rgba(160,60,255,0.4)';
-    btn.style.color       = chaosMode ? '#ff88ff' : '#cc88ff';
-    btn.style.boxShadow   = chaosMode ? '0 0 12px rgba(200,60,255,0.5)' : '';
+    btn.classList.toggle('active', chaosMode);
   }
 }
 
@@ -115,6 +113,7 @@ function refreshMenuFromAccount() {
   if (typeof refreshCoinDisplay === 'function') refreshCoinDisplay();
   if (typeof syncCodeInput === 'function') syncCodeInput();
   if (typeof refreshMegaknightClassOption === 'function') refreshMegaknightClassOption();
+  if (typeof refreshFragmentOptions === 'function') refreshFragmentOptions();
   // Home hub identity + Resume card. Defined below this function, so it is
   // referenced through the same typeof guard every other optional hook uses.
   if (typeof refreshHomeHub === 'function') refreshHomeHub();

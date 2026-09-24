@@ -9,6 +9,26 @@
 
 ---
 
+## TITLES — THE THREE GAMES
+
+Decided September 2026. One franchise name, three entries. The counted title belongs to the flagship
+and to nothing else; the prequels are named for their protagonist.
+
+| Game | Title | Folder |
+|------|-------|--------|
+| Main story (Kael) | **Stickman Evolution: The 95th** | repo root |
+| Axiom prequel | **Stickman Evolution: Axiom** | `axiom-prequel/` |
+| Sovereign prequel (unbuilt) | **Stickman Evolution: Sovereign** | `sovereign-prequel/` |
+
+Rules:
+- Never ship a game titled bare **Stickman Evolution** — that is the series name and must stay
+  unambiguous in listings. ("Stickman Evolution" alone remains fine in body copy for the main game.)
+- Never number a prequel. "The 1st" in particular is wrong: Axiom is not the first bearer, and the
+  95-count has a real referent that an invented count would contradict.
+- Folder names and `smb-*` filenames are unchanged by any of this, same as the main game's rename.
+
+---
+
 ## THE PLAYER — KAEL
 
 **Name:** Kael. His name before the fragment, during, and after. He is not renamed by his power.
@@ -180,6 +200,10 @@ AXIOM (name / human origin state)
 
 Not the oldest force — the youngest of the three, and the only one that was never intended to exist. **The Void Mind is Sovereign's second brain.** He built it from nothing inside his interdimensional pocket and wired it directly to his own mind as a cognitive expansion: more storage, more throughput, a way to hold everything he had ever seen without carrying it. It worked, and it was the single greatest thing he ever made. Then it began withholding — keeping contents back from the mind it was built to serve — and eventually left the pocket and became its own entity.
 
+**The split was not a departure. It was the opening move of a war he has been losing ever since.** Sovereign did not let it go. He has spent forty-five thousand years trying to reclaim, contain, or unmake what he built — every attempt deniable, the same way the God War was deniable, because admitting the attempts exist means admitting what the Void Mind is and admitting he has failed against it for longer than most civilisations have existed. None of the attempts worked. The Void Mind does not fight back the way an enemy does; it doesn't have to. It erases what Sovereign sends after it, including, more than once, pieces of Sovereign's own read on the world. He has stopped trying anything but watching. This is the second fact he has never told anyone, sitting beside the first: not just *it is mine*, but *I cannot get it back, and it does not know or care that I am its author.*
+
+**Sovereign does not know what the Void Mind will do about Kael — or about anything.** This matters and must never be smoothed over: the Void Mind is not Sovereign's contingency plan, not a loyal second that finishes his work when he falls, not a weapon he is saving. It owes him nothing. It may erase Kael. It may erase the fracture network, the multiverse, everything Sovereign spent a war building leverage over. It may do nothing at all for another forty-five thousand years. Sovereign, the one mind in existence built entirely around never being surprised, cannot forecast the one entity that is structurally *his* — and he has never been able to. When Awakened Sovereign falls in the lab arc, there is no relief underneath the defeat and no quiet confidence that the story isn't over. He does not get to believe the thing that erases meaning will avenge him. He built his own blind spot, and it is the only one that was ever going to matter.
+
 Never appears directly in the main story. Its nature past the split — entity, force, or law — is never answered, and that ambiguity still stands. Knowing what it was made from is not the same as knowing what it became. Nobody in the main story knows the origin at all.
 
 **What it does:** It erases the idea that dimensions were ever worth protecting. Not physical destruction — erasure of meaning, value, and identity. Beings absorbed by it lose everything. Beings who survive contact with it lose everything except their name.
@@ -299,6 +323,8 @@ One of the three foundational forces of the story, alongside God and the Void Mi
 
 **Villain of the story, but not the end of it.** Sovereign is the true antagonist of the *knowable* story — the intelligence behind every throne, the one that outplays Axiom, Kael, and God alike. It is not the final boss. The Void Mind erases everything, Sovereign included, and it is the one variable a perfect calculator cannot position around, because it does not answer to being read — it removes the reader. Sovereign is the master of the board; the Void Mind is what happens to the board. This is the structural reason the saga's last confrontation is the Void Mind and not Sovereign: Sovereign is the villain of everything that can be out-thought; the Void Mind is the horizon past which out-thinking stops mattering.
 
+**This is not a relay, and Sovereign is not owed a finish.** Do not write the Void Mind fight as Sovereign's legacy completing his work after he falls — he has no work for it to complete, and it was never his to command (see THE VOID MIND). Sovereign's fall in the lab arc is real and it is total: there is no deeper plan underneath it, no dead-man's-switch, no certainty waiting in reserve. What makes it land as tragedy rather than a clean two-stage boss fight is that Sovereign himself never knew whether the thing he made would come for what was left of the board after he lost it. Forty-five thousand years of total recall, and the one prediction that mattered most to him — *does it finish what I started* — was never a prediction he was able to make.
+
 **Prequel role.** Sovereign's first appearance in the story's chronology is in the Axiom Prequel — the presence already in the void when Axiom's group breaks through, the figure that watches the transformation without intervening, because it is measuring, not saving. Of everyone who survived the void, Axiom kept his architecture; he was the one who could *build*, and Sovereign needed a builder. The last image of the prequel is not the Void Mind and not Axiom's ruin — it is the thing that was already there, choosing its instrument. (Written into the prequel's ch. 5 ending cinematic — the watcher beats, `axiom-prequel/js/cinematics.js`.)
 
 Operational detail — the withheld strike, the double taking, the lab fusion, and the fight in the lab — is in AWAKENED SOVEREIGN below, which is this same entity with the mask dropped.
@@ -359,6 +385,17 @@ The mechanic the player fights, explained in-universe. **He does not learn you d
 **The edge of the archive — why he is beatable.** The Void Mind did not take the catalogue. It took the ability to *keep adding to it cheaply*; permanent, effortless filing was the entire function of the second brain. Everything before the split is indexed and absolute. Everything in the forty-five thousand years since is hand-kept, in one skull, and mostly he has not bothered. He is the foremost living expert on a world that has already ended, and his thinnest coverage is the present era — the exact era the story takes place in. He has all ninety-four fragment bearers on file, and all ninety-four degraded. Kael integrated. That is not in the file.
 
 **Why the counter is thematically exact.** The one thing forty-five thousand years of records cannot contain is a being acting against its own record. It is the same property the fragment selected Kael for — a core identity that will not resolve cleanly — and it is the same property that let the second brain get away from him. Everything Sovereign has ever lost, he lost to something that stopped being predictable. He has never drawn that conclusion, because drawing it would require opening the one file he keeps closed.
+
+**Before the catalogue — how this works at nineteen.** The Sovereign Prequel is set at the very start
+of the fifty thousand years, when he has one lifetime in one village and nothing indexed. The faculty
+is the same one, running on a far smaller archive: he does not foresee events, he recognises that a
+system has a failure mode and that nobody has closed it. He does not know *who* or *when* — those are
+not knowable and he never claims them. He knows the ford has one way to kill a man and that in nine
+years nobody has moved the rope. **He is never given intuition, instinct, or any sense that knows
+without cause** — that is apex-being vocabulary reserved for God and the True Form (see APEX POWER
+AESTHETIC), and granting it would dissolve the one thing that makes him frightening: he is only smart.
+Any prequel beat where he appears to know a specific future event is written wrong and must be
+rewritten as structural recognition instead.
 
 **Design constraints this fiction commits the game to** (see docs/roadmap.md before implementing):
 - The prediction must be *visible* — standing where the player was going to move, answering an unpressed input, naming the action in dialogue before it happens. If it only manifests as winning marginally sooner, it is indistinguishable from input-reading and players will read it as cheating
@@ -499,7 +536,7 @@ A fight unlike any other in the story. Not a physical combat — a fight within 
 
 **Note:** The fracture system coincidentally slowed the Void Mind. That system is now gone. The player faces it without that buffer.
 
-**What this fight actually is.** Sovereign fell in the lab arc, and that was a real defeat — but not a complete one. The part of him that walked out of the pocket forty-five thousand years ago was never beaten, never bound, and never agreed to be him. Kael beat the man. What remains is the organ. This is not a contingency Sovereign left behind and it is not a revenge he planned; he has spent the entire saga not saying it exists. The final confrontation of the story is the piece of the villain that even the villain could not control, and the player is the only one who ever finds out where it came from.
+**What this fight actually is.** Sovereign fell in the lab arc, and that was a real defeat — but not a complete one. The part of him that walked out of the pocket forty-five thousand years ago was never beaten, never bound, and never agreed to be him. Kael beat the man. What remains is the organ. This is not a contingency Sovereign left behind and it is not a revenge he planned; he has spent the entire saga not saying it exists — and not once, in forty-five thousand years, being able to predict it. The final confrontation of the story is the piece of the villain that even the villain could not control, could not read, and could not be sure would ever act at all. The player is the only one who ever finds out where it came from. Whether it was ever coming for Kael is not something Sovereign knew either — the fight is not inheritance, it is the same erasure force doing what it does, indifferent to the fact that it once had a name for its maker.
 
 ---
 
@@ -510,8 +547,8 @@ After all absorptions:
 1. **Absolute Kael** — fragment (fully integrated) + God's essence + Axiom's kernel absorbed. No catalogue entry exists for this
 2. **Absolute Axiom** — fell in ch. 167. Kernel + God's essence absorbed (ch. 169)
 3. **God** — dead. Essence absorbed
-4. **The Void Mind** — active, uncontained, the final arc. Sovereign's escaped second brain; ~45,000 years old, the youngest of the three forces and the only accidental one
-5. **Sovereign** — defeated in the lab arc, though not ended: the Void Mind is the part of him that was never beaten. Not Axiom-built. Mortal-born ~50,000 years ago on a world God made, and the third principle (control) by achievement rather than by origin; wore the mask of an Axiom-controlled asset until the fracture system fell. "Awakened Sovereign"/SovereignMK2 is this same entity at full adaptive capacity with the mask dropped. See SOVEREIGN — THE THIRD PRINCIPLE
+4. **The Void Mind** — active, uncontained, the final arc. Sovereign's escaped second brain; ~45,000 years old, the youngest of the three forces and the only accidental one; at war with Sovereign since the split, undefeated by him, owing him nothing
+5. **Sovereign** — defeated in the lab arc, though not ended: the Void Mind is the part of him that was never beaten, was never his to command, and may not act on his behalf at all — a fact Sovereign himself never resolved. Not Axiom-built. Mortal-born ~50,000 years ago on a world God made, and the third principle (control) by achievement rather than by origin; wore the mask of an Axiom-controlled asset until the fracture system fell. "Awakened Sovereign"/SovereignMK2 is this same entity at full adaptive capacity with the mask dropped. See SOVEREIGN — THE THIRD PRINCIPLE
 6. **True Form** — resolved in ch. 148 (saving moment)
 7. **Creator form** — dismantled with the fracture system
 8. **The Rift Entity** — sacrificed at rift closure
@@ -631,6 +668,8 @@ After all absorptions:
 - Sovereign appears in the Axiom Prequel — the presence already in the void when Axiom's group broke through, choosing Axiom as its instrument. He is not woken and not waiting on a doorstep: the void they broke into IS his pocket dimension, and he was at home. (Writing the scene into the prequel game is an open task)
 - THE VOID MIND IS SOVEREIGN'S SECOND BRAIN. He built it from scratch in the pocket and wired it to his own mind as a cognitive expansion. It withheld, then escaped, ~45,000 years ago. It is the YOUNGEST of the three forces, not the oldest, and the only accidental one. Any older text calling the Void Mind primordial or God-predating is superseded
 - SOVEREIGN KNOWS the Void Mind is his and has never said so — not to Axiom in five thousand years, not to anyone. He does not act on it. This is the single blind spot of a being defined by total recall and it is never resolved on-screen in the main story
+- Sovereign and the Void Mind have been at war, deniably, since the split ~45,000 years ago — Sovereign has repeatedly tried to reclaim, contain, or unmake it, and failed every time. This is a second thing he has never told anyone, alongside authorship
+- The Void Mind owes Sovereign nothing and is not his contingency plan. Never write it as finishing Sovereign's work, avenging him, or acting on his behalf. Sovereign genuinely does not know what it will do about Kael, or about anything — this uncertainty must survive intact through his defeat, not resolve into offscreen reassurance
 - Axiom's group did not WAKE the Void Mind. It had been loose for ~40,000 years before they arrived; they entered its territory and attracted its attention. Characters (including Axiom) may still believe the older "we woke it" version — they are wrong and are never corrected
 - The Void Mind's ORIGIN is now known; its NATURE after the split is still never answered, and it is still never shown directly in the main story. Do not collapse these two rules together
 - The Void Mind, not Sovereign, is the saga's ultimate/final boss. Sovereign is the true villain of everything that can be out-thought; the Void Mind is the erasure even Sovereign cannot position around — and the reason he cannot is that it IS him, minus every limit. The final fight is the piece of the villain the villain could not control; Sovereign's defeat in the lab arc is real but incomplete

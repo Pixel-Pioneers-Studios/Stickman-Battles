@@ -62,7 +62,9 @@ const MAP_PERK_DEFS = {
 
 // Perk systems The Circuit opts into. Keyed by system rather than arena so the
 // existing per-arena blocks stay untouched and nothing else inherits them.
-const SOVEREIGN_PERK_SYSTEMS = { items: true, blizzard: true, meteors: true };
+// items is OFF: curses never reach him (he scores them 0), so the pool slowed
+// and weakened only the player while heals undid their damage.
+const SOVEREIGN_PERK_SYSTEMS = { items: false, blizzard: true, meteors: true };
 
 // True when the current arena runs `system`, either as its own arena or because
 // The Circuit borrows it. `key` is the arena that natively owns the system.
@@ -90,7 +92,7 @@ function initMapPerks(key) {
   }
   if (key === 'sovereign') {
     const def = MAP_PERK_DEFS.sovereign;
-    for (const pos of def.items) {
+    if (SOVEREIGN_PERK_SYSTEMS.items) for (const pos of def.items) {
       mapItems.push({
         x: pos.baseX, y: pos.baseY - 22,
         type: def.types[Math.floor(Math.random() * def.types.length)],

@@ -28,6 +28,14 @@ const CLASH_TIER_ABILITY = 1;
 const CLASH_TIER_SUPER   = 2;
 const CLASH_BREAK_ENDLAG = 22; // recovery the overpowered fighter eats
 
+// Landing with a basic attack still out costs the swing's remainder, its endlag
+// and this many frames more: no attack, ability, jump or shield. An aerial that
+// finishes before touchdown costs nothing, so spacing a jump-in is rewarded.
+const LAND_LAG_FRAMES = 8;
+
+const SUPER_HEAL        = 25;   // paid when the super connects, not when it's cast
+const SUPER_HEAL_WINDOW = 150;  // frames after the cast in which a hit still pays it
+
 // ============================================================
 // FIGHTER
 // ============================================================
@@ -103,9 +111,6 @@ class Fighter {
     this._maxLives       = chosenLives; // for correct heart display
     this.onePunchMode    = false;       // training: kills anything in one hit
     this.swingHitTargets = new Set();   // tracks targets hit in current swing (multi-hit)
-    this._lastTapLeft    = -999;        // frame of last left-key tap (story dodge detection)
-    this._lastTapRight   = -999;
-    this._lastTapUp      = -999;
     this.target          = null;
     this.aiState     = 'chase';
     this.aiReact     = 0;
@@ -337,6 +342,7 @@ class Fighter {
     this._scytheToss         = null;
     this._paperPlanes        = [];
     this._shieldCharge       = null;
+    if (typeof wxResetFighter === 'function') wxResetFighter(this);
     // Nulling the reference alone orphaned the live familiar: it stayed in
     // minions[] and kept fighting while the next life spawned a fresh one, so a
     // Summoner accumulated one permanent extra body per death. Retire it first.
@@ -359,6 +365,8 @@ class Fighter {
     this._counterStance      = 0;   // frames remaining in counter window
     this._counterAttacker    = null;
     this.canDoubleJump   = false;
+    this._landLag        = 0;
+    this._airSwing       = false;
     // superMeter / superReady intentionally NOT reset — supers carry over between lives
     // Domain: clear expansion state and reset counter so domain must be re-earned
     if (typeof DomainManager !== 'undefined') DomainManager.onFighterDied(this);
@@ -386,6 +394,7 @@ class Fighter {
     this._domainSlowAccum  = 0;
     this.classPerkUsed    = false;
     this.spartanRageTimer = 0;
+    this.rageStacks       = 0;
     this._ammo        = this.weapon && this.weapon.clipSize ? this.weapon.clipSize : 0;
     this._reloadTimer = 0;
     this._rangedCommitTimer = 0;
@@ -477,6 +486,12 @@ class Fighter {
     const _prevAtkTimer = this.attackTimer;
     if (this.attackTimer > 0)     this.attackTimer--;
     if (this.attackEndlag > 0) { this.attackEndlag--; this.vx *= 0.72; } // slow during recovery
+    if (this._landLag > 0) {
+      this._landLag--;
+      // Re-asserted every frame: the swing's own endlag is ASSIGNED when it ends
+      // and would otherwise overwrite a longer landing lag.
+      if (this.onGround) this.attackEndlag = Math.max(this.attackEndlag, this._landLag);
+    }
     // Affinity move penalty: low-affinity attacks slow the attacker during the active swing frames
     if (this._affinityMovePenalty > 0) { this._affinityMovePenalty--; this.vx *= 0.88; }
     // Stamina regen
@@ -1151,6 +1166,9 @@ class Fighter {
       }
     }
 
+    // ── Bomb / Fragment / Knives / Glass Blade / Anchor / Crossbow entities ─────
+    if (typeof wxUpdateFighter === 'function') wxUpdateFighter(this);
+
     // ── Boomerang Q: Orbit Guard — boomerang circles user as a spinning shield ────
     if (this._boomOrbit) {
       const bo = this._boomOrbit;
@@ -1437,7 +1455,7 @@ class Fighter {
     // ---- WEAPON ARC HITBOX (melee only) — sweeps multiple points along swing arc ----
     // Use _prevAtkTimer so hit detection also runs on the final swing frame (timer 1→0),
     // ensuring weaponHit is correctly set before the whiff-stun check below.
-    if (_prevAtkTimer > 0 && this.weapon.type === 'melee') {
+    if (_prevAtkTimer > 0 && this.weapon.type === 'melee' && !this.weapon.noSwingHitbox) {
       // Build a set of hit-check points: tip + mid-arc + close-arc for wide coverage
       const hitPoints = this._getMeleeArcPoints();
       if (hitPoints.length > 0) {
@@ -1533,9 +1551,11 @@ class Fighter {
             this.swingHitTargets.add(tgt);
             this.weaponHit = true;
             if (this.weaponKey === 'katana') {
+              // Follow-through only: it spawns ON tgt, and without tgt in its
+              // hitSet it re-cut them for a flat 22 once their i-frames lapsed.
               if (!this._swordSlashes) this._swordSlashes = [];
               this._swordSlashes.push({ x: tgt.cx(), y: tgt.cy(), vx: this.facing * 7, vy: -0.4,
-                tilt: this.facing * 0.18, facing: this.facing, life: 20, maxLife: 20, size: 20, color: '#aaaadd', hitSet: new Set() });
+                tilt: this.facing * 0.18, facing: this.facing, life: 20, maxLife: 20, size: 20, color: '#aaaadd', hitSet: new Set([tgt]) });
             } else if (this.weaponKey === 'flail') {
               tgt.vy = Math.min(tgt.vy, -10); // chain ball sends upward
               spawnParticles(tgt.cx(), tgt.cy(), '#bbbbbb', 10);
@@ -1622,7 +1642,11 @@ class Fighter {
     if (_prevAtkTimer === 1 && this.attackTimer === 0 && !this.isBoss) {
       let endlag = this.weapon.endlag || 0;
       // Whiff punish: extra recovery if swing missed + 30% chance of stun (stars overhead)
-      if (!this.weaponHit) {
+      // Basic melee swings only. Abilities and supers also run attackTimer (for the
+      // pose), and ranged shots never set weaponHit, so without this gate a sword
+      // Blade Storm, a gun shot or a bomb throw could stun its own user.
+      if (!this.weaponHit && this.weapon.type === 'melee' &&
+          this._attackKindTier === CLASH_TIER_ATTACK) {
         endlag = Math.round(endlag * 2.4);
         if (Math.random() < 0.30) {
           this.stunTimer = Math.max(this.stunTimer || 0, 20 + Math.floor(Math.random() * 16));
@@ -1640,6 +1664,9 @@ class Fighter {
           else if (_affMult > 1.2) endlag = Math.round(endlag * (1 - (_affMult > 1.4 ? 0.20 : 0.10)));
         }
       }
+      // One-shot opt-out (smb-weapons-ext.js): a landed Fragment blast holds its
+      // target, so its pose ends with no recovery to punish.
+      if (this._skipSwingEndlag) { endlag = 0; this._skipSwingEndlag = false; }
       this.attackEndlag = endlag;
       // Stamina drain on attack
       const staminaCost = Math.min(this.stamina, (this.weapon.damage || 10) * 1.5);
@@ -1652,7 +1679,8 @@ class Fighter {
           !this._comboSuper && !this._peaCluster && !this._gravityStone &&
           !(this._paperSwarm && this._paperSwarm.length) &&
           !this._shieldCharge && !this._thrownAxe && !this._thunderStrikes &&
-          !this._flailOrbit && !this._whipCoil && !(this._boomerangs && this._boomerangs.length)) {
+          !this._flailOrbit && !this._whipCoil && !(this._boomerangs && this._boomerangs.length) &&
+          !(typeof wxSuperOngoing === 'function' && wxSuperOngoing(this))) {
         this.superActive = false;
       }
       // Electric Staff overcharge: chain to nearby enemies after each melee swing
@@ -1704,6 +1732,17 @@ class Fighter {
         !(typeof isCombatLocked === 'function' && isCombatLocked('ai')) &&
         aiTick % (this.aiTickInterval || AI_TICK_INTERVAL) === 0 &&
         (this.target || this._acquireAITarget())) this.updateAI();
+
+      // Here, after both processInput() and updateAI() have written this frame's
+      // intent, so one check covers humans and every AI path alike.
+      if (this._landLag > 0 && this.onGround && this.vy < 0 &&
+          !(this.hurtTimer > 0) && !this.superActive) this.vy = 0;
+      // The guard is ground-only, and landing lag can't be guarded out of either.
+      // The BR shield item is a pickup, not a guard.
+      if (this.shielding && (!this.onGround || this._landLag > 0) && !this._brShieldTimer && !this.isBoss) {
+        this.shielding = false;
+        this.shieldHoldTimer = 0;
+      }
 
       // ── Standard game physics ──
       // godmode cheat: free flight for human player
@@ -1766,7 +1805,11 @@ class Fighter {
         // Lock horizontal drift — input runs before this so we enforce it here
         this.vx = 0;
       }
-      this.x  += this.vx * _sm;
+      // _wxMoveMult: sticky-bomb weight, Overdrive speed, Fragment charge slow.
+      // Self-driven movement only — knockback travels at full speed.
+      const _wxMM = (this._wxMoveMult && !(this.hurtTimer > 0) && !(this.stunTimer > 0) && !(this.ragdollTimer > 0))
+        ? this._wxMoveMult : 1;
+      this.x  += this.vx * _sm * _wxMM;
       // Exact pre-integration foot position, for one-way (passUnder) platforms.
       // Reconstructing this from vy inside checkPlatform() is unreliable — vy is
       // clamped and re-written after integration — so record it here instead.
@@ -1835,6 +1878,17 @@ class Fighter {
     if (this._clashCd > 0) this._clashCd--;
     if (this.coyoteFrames > 0 && !this.onGround) this.coyoteFrames--;
     if (this._lavaJumpGrace > 0) { if (this.onGround) this._lavaJumpGrace = 0; else this._lavaJumpGrace--; }
+    if (!this.onGround) {
+      this._airSwing = this.attackTimer > 0 && this._attackKindTier === CLASH_TIER_ATTACK;
+    } else {
+      if (this._airSwing && !this._prevOnGround && !this.isBoss) {
+        // Weapon cooldown already outlasts endlag, so a lag that only delayed the
+        // next swing would cost nothing. What it takes away is the escape.
+        this._landLag = this.attackTimer + ((this.weapon && this.weapon.endlag) || 0) + LAND_LAG_FRAMES;
+        this.attackEndlag = Math.max(this.attackEndlag, this._landLag);
+      }
+      this._airSwing = false;
+    }
     this._prevOnGround = this.onGround;
 
     // Horizontal clamp — boss arenas with no worldWidth get hard walls at 0/GAME_W;
@@ -2132,7 +2186,16 @@ class Fighter {
     // whiff-guard clear a swing at all against a target that moves.
     fam.aiDiff        = 'expert';
     fam.intelligence  = 0.85;
-    const famTeamId   = 'fam_' + this.playerNum + '_' + Date.now();
+    // The familiar joins its owner's team. Two old defects in the previous
+    // 'fam_' + playerNum + '_' + Date.now() id: two Summoners with the same
+    // playerNum (any two bots) that summon in the same millisecond — the first
+    // frame of a match — got the SAME id and became allies, so neither they nor
+    // their familiars ever fought (7 of 8 Summoner mirrors stalled to the frame
+    // cap, found by tools/sov-balance.js); and it overwrote an existing
+    // _teamId, pulling a Summoner out of its own team the moment it summoned.
+    Fighter._famTeamSeq = (Fighter._famTeamSeq || 0) + 1;
+    const famTeamId   = (this._teamId !== undefined) ? this._teamId
+                      : ('fam_' + this.playerNum + '_' + Fighter._famTeamSeq);
     fam._teamId       = famTeamId;
     this._teamId      = famTeamId;
     fam.color         = '#44ccff';
@@ -2774,6 +2837,10 @@ class Fighter {
       }
     }
 
+    // Weapons with a bespoke basic attack (smb-weapons-ext.js). Returning true
+    // hands control back to the ordinary swing below.
+    if (this.weapon.customAttack && this.weapon.customAttack(this, target) !== true) return;
+
     // Per-weapon swing grammar: distinct duration per melee weapon (legacy 12 otherwise).
     // Bosses keep their own attackDuration handling (cinematics set it directly).
     if (!this.isBoss) {
@@ -2793,9 +2860,11 @@ class Fighter {
       }
     } else {
       const _distToTarget = target ? dist(this, target) : 999;
-      const _pointBlankT  = !this.isBoss ? Math.max(0, 1 - clamp((_distToTarget - 48) / 72, 0, 1)) : 0;
+      // Flamethrower is a close-range weapon — exempt from the gun point-blank penalties.
+      const _isFlamer     = this.weaponKey === 'flamethrower';
+      const _pointBlankT  = (!this.isBoss && !_isFlamer) ? Math.max(0, 1 - clamp((_distToTarget - 48) / 72, 0, 1)) : 0;
       // Ranged: close-range disadvantage — add extra cooldown when enemy is point-blank (<70px)
-      if (!this.isBoss && _distToTarget < 70) {
+      if (!this.isBoss && !_isFlamer && _distToTarget < 70) {
         const _pbPenalty = Math.round((this.weapon.cooldown || 30) * 0.35);
         this.cooldown = Math.max(this.cooldown, _pbPenalty); // stacks with normal cooldown
       }
@@ -2861,18 +2930,23 @@ class Fighter {
           vx: this.facing * bSpd, vy: (Math.random() - 0.5) * 0.6 - 0.4,
           life: 85, hitSet: new Set(),
         });
+      } else if (this.weapon.customShot) {
+        this.weapon.customShot(this, dmg, _atkVyOff);
       } else if (this.weaponKey === 'flamethrower') {
-        // Fire a tight cone of 3 short-range flame projectiles (stream, not a single bullet)
-        const _ftOffs = [-0.45, 0, 0.45];
-        for (const _fto of _ftOffs) {
+        // Continuous stream: one damaging flame per tick plus four visual-only
+        // puffs at mixed speeds (slow ones fill the jet near the nozzle). Flames drag, rise and swell (see Projectile), so overlapping
+        // ticks read as one billowing jet rather than a volley of tracers.
+        for (let _fi = 0; _fi < 5; _fi++) {
           const _fp = new Projectile(
-            this.cx() + this.facing * 14, this.y + 20,
-            this.facing * 11 + (Math.random() - 0.5) * 1.2,
-            _fto + (Math.random() - 0.5) * 0.3,
-            this, dmg, '#ff5500'
+            this.cx() + this.facing * 40, this.y + 21,   // barrel tip
+            this.facing * (_fi === 0 ? 11 + Math.random() * 2 : 5 + Math.random() * 8),
+            (Math.random() - 0.5) * (_fi === 0 ? 0.5 : 1.6),
+            this, _fi === 0 ? dmg : 0, '#ff5500'
           );
-          _fp.life = 9;
+          _fp.life = _fp._maxLife = 17 + Math.floor(Math.random() * 4);
           _fp._isFlame = true;
+          _fp._flameFx = _fi > 0;
+          _fp._flameScale = 0.8 + Math.random() * 0.45;
           _fp._warmupFrames = 0;
           projectiles.push(_fp);
         }
@@ -2895,15 +2969,16 @@ class Fighter {
           projectiles.push(_proj2);
         }
       }
-      const _commitFrames = Math.max(10, Math.min(18, Math.round((this.weapon.cooldown || 30) * 0.42)));
-      const _recoilPush = 0.6 + _recoilHeat * (_atkRapid ? 0.11 : 0.08);
+      // A held stream can't carry a per-shot commit window or it pulses.
+      const _commitFrames = _isFlamer ? 2 : Math.max(10, Math.min(18, Math.round((this.weapon.cooldown || 30) * 0.42)));
+      const _recoilPush = _isFlamer ? 0.12 : 0.6 + _recoilHeat * (_atkRapid ? 0.11 : 0.08);
       this.attackEndlag = Math.max(this.attackEndlag || 0, _commitFrames);
       this._rangedCommitTimer = Math.max(this._rangedCommitTimer, _commitFrames);
       this._rangedMovePenalty = Math.max(this._rangedMovePenalty, Math.round(_commitFrames * 1.55));
       this._rangedShotHeat = Math.min(8, this._rangedShotHeat + (_atkRapid ? 1.75 : 1.15) + _pointBlankT * 0.9);
       this._recentRangedUse = Math.min(180, this._recentRangedUse + 28);
       this._rangedRecoilKick = Math.max(this._rangedRecoilKick, _commitFrames);
-      this.vx *= _atkRapid ? 0.58 : 0.68;
+      this.vx *= _isFlamer ? 0.9 : _atkRapid ? 0.58 : 0.68;
       this.vx -= this.facing * _recoilPush;
     }
     this.cooldown    = this.attackCooldownMult ? Math.max(1, Math.ceil(this.weapon.cooldown * this.attackCooldownMult)) : this.weapon.cooldown;
@@ -2976,8 +3051,16 @@ class Fighter {
     const _safeTarget = target || this.target || trainingDummies[0] || players.find(p => p !== this && p.health > 0) || minions.find(m => m.health > 0);
     if (!_safeTarget) return; // no valid target — don't fire ability (avoids null crash in weapon ability functions)
     if (!this.weapon || typeof this.weapon.ability !== 'function') return; // weapon not loaded yet
+    this._abilityCdOverride = null;
     this.weapon.ability(this, _safeTarget);
-    this.abilityCooldown = Math.round(this.weapon.abilityCooldown * (this._weaponAbilityCdMult || 1));
+    // An ability may set its own cooldown for this press (multi-press abilities
+    // like Drop Anchor, or a deferred throw like the sticky bomb).
+    if (this._abilityCdOverride != null) {
+      this.abilityCooldown = this._abilityCdOverride;
+      this._abilityCdOverride = null;
+    } else {
+      this.abilityCooldown = Math.round(this.weapon.abilityCooldown * (this._weaponAbilityCdMult || 1));
+    }
     this.attackTimer     = this.attackDuration * 2;
     abilityFlashTimer = 14; abilityFlashPlayer = this;
   }
@@ -2985,6 +3068,9 @@ class Fighter {
   // Dedicated super / ultimate activation (separate button from Q)
   useSuper(target) {
     if (this.state === 'dead' || this.stunTimer > 0 || this.ragdollTimer > 0) return;
+    // No super while a finisher is running, for either fighter. The keydown
+    // guard in smb-input.js covers the player path; this covers every caller.
+    if (typeof activeFinisher !== 'undefined' && activeFinisher) return;
     if (!this.superReady) return;
     if (this._storyNoSuper) return; // story progression — super not yet unlocked
     this.activateSuper(target);
@@ -2994,13 +3080,19 @@ class Fighter {
     // Supers out-rank abilities and swings in a clash — see _clashTier().
     this._attackKindTier   = CLASH_TIER_SUPER;
     this._attackStartFrame = (typeof frameCount !== 'undefined' ? frameCount : 0);
-    // ── Conviction: every 5th super triggers conviction instead of normal super ──
-    // Supers spent inside your own domain don't advance the next one. The domain
-    // buffs you and its hazards credit you super meter, so counting them let a
-    // domain pay for its own successor.
+    // ── Conviction: after 4 LANDED supers, the next super is the domain ──
+    // A super only counts once it connects: dealDamage() credits
+    // _domainSuperCount on its first hit (same gate as the heal). Whiffs build
+    // nothing. Supers spent inside your own domain don't count either — the
+    // domain buffs you and its hazards credit you super meter, so counting them
+    // let a domain pay for its own successor.
     const _inOwnDomain = typeof DomainManager !== 'undefined'
       && typeof DomainManager.ownsDomain === 'function' && DomainManager.ownsDomain(this);
-    if (!_inOwnDomain) this._domainSuperCount = (this._domainSuperCount || 0) + 1;
+    const _nowF = (typeof frameCount !== 'undefined' ? frameCount : 0);
+    this._superCountPending = !_inOwnDomain;
+    // Mega Jump's shockwave lands well after 150 frames can have passed; its
+    // superActive fallback is 3 s, so give it that long to connect.
+    this._superHealUntil = _nowF + (this.charClass === 'megaknight' ? 180 : SUPER_HEAL_WINDOW);
     const _domKey = (typeof DomainManager !== 'undefined' && DomainManager.domainKeyOf)
       ? DomainManager.domainKeyOf(this) : this.charClass;
     // Battle Royale never expands a domain. A domain is a duel-scale set piece:
@@ -3008,12 +3100,17 @@ class Fighter {
     // which survives contact with a 12000px world, a closing storm and 99 other
     // fighters. The super itself still fires — only the every-fifth upgrade is
     // suppressed, and the counter keeps ticking so nothing else desyncs.
-    const _brNoDomain = (typeof brActive !== 'undefined' && brActive);
-    if (!_brNoDomain && this._domainSuperCount >= 5
+    // The Sports Arena is excluded for the same reason: a domain would rewrite
+    // the court the goals and hoops are measured against.
+    const _brNoDomain = (typeof brActive !== 'undefined' && brActive) ||
+                        (typeof isSportsMode === 'function' && isSportsMode());
+    if (!_brNoDomain && !_inOwnDomain && (this._domainSuperCount || 0) >= 4
         && _domKey && _domKey !== 'none'
         && typeof DomainManager !== 'undefined'
         && typeof DOMAIN_DEFS !== 'undefined' && DOMAIN_DEFS[_domKey]) {
       this._domainSuperCount = 0;
+      this._superCountPending = false; // the expansion itself earns nothing
+      this._superHealPending  = 0;
       this.superMeter = 0;
       this.superReady = false;
       if (!this.isAI && !this.isBoss) { _achStats.superCount++; if (_achStats.superCount >= 10) unlockAchievement('super_saver'); }
@@ -3039,9 +3136,10 @@ class Fighter {
       setTimeout(() => { if (this) this.superActive = false; }, 3000); // fallback: MegaKnight may not land (e.g. falls off-map)
       return;
     }
-    if (!this.isBoss) {
-      this.health = Math.min(this.maxHealth, this.health + 40);
-    }
+    // The heal is paid by dealDamage() on the super's first connecting hit. Paid
+    // up front it was a panic button: +40 every ~18s undid 29-54% of the damage
+    // players took in 1v1 replays, whether or not the super touched anyone.
+    if (!this.isBoss) this._superHealPending = SUPER_HEAL;
     this.superMeter  = 0;
     this.superReady  = false;
     this.superActive = true; // block super-meter charging during this move
@@ -3402,8 +3500,10 @@ class Fighter {
             this.facing * (14 + Math.random() * 4), _fvy + (Math.random() - 0.5) * 0.3,
             this, 0, '#ff6600'  // damage = 0: pure visual, real damage done in AoE above
           );
-          _ffp.life = 14;
+          _ffp.life = _ffp._maxLife = 14;
           _ffp._isFlame = true;
+          _ffp._flameFx = true;
+          _ffp._flameScale = 1.3;
           _ffp._warmupFrames = 0;
           projectiles.push(_ffp);
         }
@@ -3470,6 +3570,10 @@ class Fighter {
         }
       }
     };
+    if (!superMoves[this.weaponKey] && this.weapon && typeof this.weapon.superMove === 'function') {
+      this.weapon.superMove(this, _superTarget);
+      return;
+    }
     (superMoves[this.weaponKey] || superMoves.sword)();
   }
 
@@ -3510,6 +3614,110 @@ class Fighter {
   }
 
   /**
+   * Climb toward a target perched above us.
+   *
+   * Reaching a higher target used to be three separate dice rolls scattered
+   * through the action switch (5% in `attack`, 8% in the `walk` branch, 4–30%
+   * in the heuristic fallback). At one AI tick every 15 frames a 5% roll is one
+   * attempt every five seconds, fired with vx ~= 0, so the bot bobbed in place
+   * under the ledge instead of getting onto it.
+   *
+   * This is the single deliberate climb: it only fires when a jump actually
+   * gains height (verified against the same arc simulator the pathfinder uses),
+   * it drifts toward the target instead of hopping straight up, it saves the
+   * double jump for tall climbs, and its rate is a difficulty dial rather than
+   * a rare coincidence. Returns true when a jump was committed.
+   */
+  _aiClimbToward(t, spd) {
+    if (!t || t.health <= 0 || !this.onGround) return false;
+    const footGap = (this.y + this.h) - (t.y + t.h);   // + = target is above us
+    if (footGap < 45) return false;                    // within melee reach already
+    const dx  = t.cx() - this.cx();
+    const adx = Math.abs(dx);
+    if (adx > 340) return false;                       // a walk problem, not a climb
+    if ((this._aiClimbCd || 0) > 0) { this._aiClimbCd--; return false; }
+
+    const dir = adx < 12 ? (this.facing || 1) : (dx > 0 ? 1 : -1);
+    if (adx > 40 && typeof this.isEdgeDanger === 'function' && this.isEdgeDanger(dir)) return false;
+
+    const useDouble = footGap > 150;
+    // Drift is part of the jump, so the arc we verify must be the arc we fly.
+    const jvx  = dir * spd * (adx > 26 ? 0.95 : 0.45);
+    const feet = this.y + this.h;
+    const gained = (r) => r && r.landed && r.y <= feet - 30;
+    const canArc = (typeof pfSimulateArc === 'function' && currentArena && currentArena.platforms);
+
+    if (canArc && !gained(pfSimulateArc(this.cx(), feet, jvx, -20, currentArena, useDouble, -1, 90))) {
+      // Standing directly under the ledge is the one place the jump can never
+      // work — the arc simulator (correctly) refuses to rise through the
+      // platform's own body. Rather than hammering an impossible jump forever,
+      // look for a takeoff spot a short walk to either side and go stand on it.
+      // This is what turns "bot gives up under the perch" into "bot walks
+      // around and comes up the side".
+      for (const off of [-80, 80, -140, 140]) {
+        const lx = this.cx() + off;
+        const rr = pfSimulateArc(lx, feet, dir * spd * 0.95, -20, currentArena, useDouble, -1, 90);
+        if (gained(rr)) {
+          this.vx = (off > 0 ? 1 : -1) * spd;
+          this._aiClimbCd = 1;
+          return true;                  // repositioning counts as the tick's move
+        }
+      }
+      this._aiClimbCd = 3;
+      return false;
+    }
+
+    const p = this.aiDiff === 'easy' ? 0.35 : this.aiDiff === 'medium' ? 0.60 :
+              this.aiDiff === 'hard' ? 0.85 : 1.00;
+    if (Math.random() > p) return false;
+
+    this.vy = -20;
+    this.vx = jvx;
+    this._aiClimbPending = useDouble;   // fire the double jump at apex
+    this._aiClimbCd      = 2;           // ~0.5s between attempts
+    return true;
+  }
+
+  /**
+   * Drop onto a target standing below us.
+   *
+   * The mirror of _aiClimbToward, and the other half of the ledge exploit: a
+   * bot that has climbed above the player still has to come down onto what may
+   * be a very narrow perch (the vault coves' escape stub is 36px wide). Walking
+   * off at full speed sails clean over it, so the landing is arc-verified at
+   * several step-off speeds and the first one that actually puts the bot on the
+   * target's surface is the one committed to. Returns true when a drop starts.
+   */
+  _aiDropToward(t, spd) {
+    if (!t || t.health <= 0 || !this.onGround) return false;
+    if (typeof pfSimulateArc !== 'function' || !currentArena || !currentArena.platforms) return false;
+    const drop = (t.y + t.h) - (this.y + this.h);   // + = target is below us
+    if (drop < 45) return false;
+    const dx  = t.cx() - this.cx();
+    const adx = Math.abs(dx);
+    if (adx > 260) return false;
+    if ((this._aiDropCd || 0) > 0) { this._aiDropCd--; return false; }
+
+    const dir  = adx < 8 ? (this.facing || 1) : (dx > 0 ? 1 : -1);
+    const feet = this.y + this.h;
+    const tFeet = t.y + t.h;
+    // Slow step-offs first: a full-speed walk-off overshoots a narrow ledge.
+    const tries = [[0, 0.45], [0, 0.75], [0, 1], [-8, 0.45], [-8, 0.75]];
+    for (const [vy0, mul] of tries) {
+      const vx = dir * spd * mul;
+      const r  = pfSimulateArc(this.cx(), feet, vx, vy0, currentArena, false, -1, 120);
+      if (r && r.landed && Math.abs(r.y - tFeet) < 26 && Math.abs(r.x - t.cx()) < 90) {
+        this.vx = vx;
+        if (vy0) this.vy = vy0;
+        this._aiDropCd = 2;
+        return true;
+      }
+    }
+    this._aiDropCd = 3;
+    return false;
+  }
+
+  /**
    * Score each possible AI action [0–1+] based on current game state.
    * Higher score = more desirable action.
    * Difficulty weights bias the scores toward aggression or caution.
@@ -3520,6 +3728,19 @@ class Fighter {
     const d        = t ? Math.abs(t.cx() - this.cx()) : Infinity;
     const dNorm    = Math.min(d / 500, 1);           // 0 = at target, 1 = far away
     const tHpPct   = t ? t.health / t.maxHealth : 1;
+
+    // ── VERTICAL REACH ────────────────────────────────────────────────────
+    // Every distance in this scorer is HORIZONTAL only, but the melee
+    // whiff-guard in attack() refuses any swing whose mid-height gap exceeds
+    // 60px — and it aborts *without consuming the cooldown*. So a melee bot
+    // standing directly under a target perched on a ledge scored `attack`
+    // (d ~= 0 beats everything), called attack() every tick, had every swing
+    // vetoed, and never moved: the "stand on a ledge and the bot gives up"
+    // exploit, reproducible anywhere in the game, not just the vault coves.
+    // Treating an out-of-reach vertical gap as "not in range" hands the choice
+    // to chase, which climbs. Ranged is unaffected — its shots do travel.
+    const vGap     = t ? Math.abs((this.y + this.h / 2) - (t.y + t.h / 2)) : 0;
+    const inVReach = !t || !this.weapon || this.weapon.type !== 'melee' || vGap <= 60;
 
 
     // Difficulty: easy = cautious, expert = relentless
@@ -3686,6 +3907,21 @@ class Fighter {
       }
     }
 
+    // ── VERTICAL-REACH GATE ───────────────────────────────────────────────
+    // Applied last so no modifier above (hazard push, finish-them urgency,
+    // personality multipliers) can resurrect an attack the whiff-guard is
+    // guaranteed to veto. Out of vertical reach = close the gap instead.
+    if (!inVReach) {
+      s.attack = 0;
+      // Abilities and supers are scored on horizontal distance too, and for a
+      // melee kit they whiff just as surely — left alone, `use_ability` simply
+      // inherits the deadlock `attack` used to own. Damped rather than zeroed,
+      // since a few kits use theirs to travel.
+      s.use_ability = Math.min(s.use_ability || 0, 0.30);
+      s.use_super   = Math.min(s.use_super   || 0, 0.30);
+      s.chase       = Math.max(s.chase || 0, 1.10);
+    }
+
     return s;
   }
 
@@ -3805,6 +4041,14 @@ class Fighter {
     const nearRightEdge = this.x + this.w > _uB.right - 50 && !this.isBoss;
     const towardEdge    = (nearLeftEdge && dir < 0) || (nearRightEdge && dir > 0);
 
+    // Climb follow-through: fire the saved double jump at (or just past) the
+    // apex of a climb started on an earlier tick. Landing clears the flag.
+    if (this.onGround) {
+      this._aiClimbPending = false;
+    } else if (this._aiClimbPending && this.canDoubleJump && this.vy >= -2) {
+      this.vy = -17; this.canDoubleJump = false; this._aiClimbPending = false;
+    }
+
     switch (best) {
 
       // ---- AVOID_HAZARD: flee the most dangerous nearby direction ----
@@ -3895,9 +4139,8 @@ class Fighter {
         }
         if (this.abilityCooldown <= 0 && Math.random() < abiFreq) this.ability(t);
         if (this.superReady && Math.random() < 0.25) this.useSuper(t);
-        // Hop to reach target on a higher platform
-        if (this.onGround && t && t.y + t.h < this.y - 30 && !fwd.cliff && !nearLeftEdge && !nearRightEdge && Math.random() < 0.05)
-          this.vy = -16;
+        // Climb to a target on a higher platform (see _aiClimbToward)
+        if (!fwd.cliff && !nearLeftEdge && !nearRightEdge) this._aiClimbToward(t, spd);
         break;
 
       // ---- REPOSITION: move toward map center to avoid corner traps ----
@@ -3934,6 +4177,13 @@ class Fighter {
           this.vx = kickDir * spd * 1.4;
           break;
         }
+
+        // ── 1b. Vertical pursuit ───────────────────────────────────
+        // The target is on a different level. Handled before pathfinding
+        // because the graph only routes between platform nodes: it has no edge
+        // to "the ledge the player happens to be standing on right now", which
+        // is exactly where a player hides to stall a bot out.
+        if (this._aiClimbToward(t, spd) || this._aiDropToward(t, spd)) break;
 
         // ── 2. Pathfinding waypoint ────────────────────────────────
         const wp = (typeof pfGetNextWaypoint === 'function' && !this.isBoss)
@@ -3993,9 +4243,6 @@ class Fighter {
               this.vx = wpDir * (pathSafe ? spd * 1.12 : spd * 0.88);
             }
 
-            // Hop to clear terrain or reach airborne targets
-            if (this.onGround && t && t.y + t.h < this.y - 50 && !voidFwd && !nearLeftEdge && !nearRightEdge && Math.random() < 0.08)
-              this.vy = -18;
           }
 
         } else {
@@ -4015,15 +4262,6 @@ class Fighter {
             this.vy = -18;
           if (this.onGround && t && !t.onGround && !voidFwd && Math.random() < 0.06 && !fwd.cliff && !this.isEdgeDanger(dir))
             this.vy = -18;
-          if (t && this.onGround && !voidFwd) {
-            const _vGap  = this.cy() - t.cy();
-            const _lDist = Math.abs(t.cx() - this.cx());
-            if (_vGap > 80 && _lDist < 280) {
-              const _jProb = this.aiDiff === 'easy' ? 0.04 : this.aiDiff === 'medium' ? 0.10 :
-                             this.aiDiff === 'hard' ? 0.20 : 0.30;
-              if (Math.random() < _jProb) { this.vy = -17; this.vx = dir * spd * 1.1; }
-            }
-          }
         }
 
         // Trickster: erratic jumps/fakes, but never toward a void
@@ -4167,6 +4405,8 @@ class Fighter {
     // brain only runs every AI_TICK_INTERVAL (15) frames, which played the input
     // tape back at 1/15 speed. All this does is suppress the normal AI.
     if (this._trialMirror) return;
+    // Sports Arena bots are driven per-frame by updateSports() (smb-sports.js).
+    if (this._sportsBot) return;
     if (this.aiReact > 0) { this.aiReact--; return; }
     if (this.ragdollTimer > 0 || this.stunTimer > 0) return;
 
@@ -6010,6 +6250,8 @@ class Fighter {
       }
     }
 
+    if (typeof wxDrawFighter === 'function') wxDrawFighter(this);
+
     // ── Hammer Q: Ground Shockwave — rolling ground crack ────────────────────────
     if (this._hammerShock) {
       const hs = this._hammerShock;
@@ -6294,6 +6536,8 @@ class Fighter {
       peashooter: '#44ff66', slingshot: '#cc8844', paperairplane: '#aaccff',
       flail: '#cccccc', whip: '#cc8833', boomerang: '#cc9944',
       katana: '#8888cc', flamethrower: '#ff5500', electricstaff: '#00ccff',
+      bomb: '#ff8a3d', knives: '#c8d0da', glassblade: '#d8f6ff', anchor: '#8a939c',
+      crossbow: '#c89a5a', fragment: '#8fd8ff',
     };
     if (k !== 'gauntlet' && _glowColors[k]) {
       const pulse = 0.5 + 0.5 * Math.sin(frameCount * 0.12 + (this.playerNum || 0));
@@ -7267,6 +7511,8 @@ class Fighter {
       ctx.beginPath(); ctx.arc(32, 0, 1.8, 0, Math.PI * 2); ctx.fill();
       ctx.globalAlpha = 1;
       ctx.restore();
+    } else if (typeof wxDrawWeaponArt === 'function') {
+      wxDrawWeaponArt(this, k, attacking);
     }
 
     ctx.restore();   // ends the facing mirror opened before the art chain

@@ -24,6 +24,8 @@ class Enemy {
 
     // AI
     this.aiTimer      = rndInt(30, 80);
+    this.aiTarget     = null;                  // resolved by vanguardPickTarget()
+    this._retargetIn  = rndInt(1, 24);         // staggered so a wave doesn't turn in lockstep
     this.attackCooldown = 0;
     this.attackRange  = cfg.attackRange ?? 55;
     this.damage       = cfg.damage      ?? 8;
@@ -116,7 +118,20 @@ class Enemy {
 
   _runAI() {
     if (!axiomPlayer || axiomPlayer.health <= 0) return;
-    const ax  = axiomPlayer.cx();
+
+    // Outside a vanguard chapter this always resolves to Axiom, so the old
+    // behaviour is unchanged. Re-evaluated on a timer to stop target flicker.
+    if (--this._retargetIn <= 0
+        || !this.aiTarget
+        || this.aiTarget.health <= 0
+        || this.aiTarget.state === 'dead'
+        || this.aiTarget.state === 'knockdown') {
+      this.aiTarget    = vanguardPickTarget(this);
+      this._retargetIn = VG_RETARGET_EVERY;
+    }
+    if (!this.aiTarget) return;
+
+    const ax  = this.aiTarget.cx();
     const my  = this.cx();
     const dx  = ax - my;
     const adx = Math.abs(dx);
@@ -156,13 +171,15 @@ class Enemy {
   }
 
   _updateAttack() {
-    // Active window: frames 8–16
+    // Active window: frames 8–16. The swing lands on whoever it was aimed at when
+    // it started — a late re-target must not teleport the hit onto someone else.
+    const t = this.aiTarget ?? axiomPlayer;
     if (this.stateTimer >= 8 && this.stateTimer <= 16) {
-      if (axiomPlayer && axiomPlayer.health > 0) {
-        const d = dist(this.cx(), this.cy(), axiomPlayer.cx(), axiomPlayer.cy());
+      if (t && t.health > 0) {
+        const d = dist(this.cx(), this.cy(), t.cx(), t.cy());
         if (d < this.attackRange + 10) {
-          dealDamage(this, axiomPlayer, this.damage, this.kbForce, false);
-          spawnHitSpark(axiomPlayer.cx(), axiomPlayer.cy(), this.facing);
+          dealDamage(this, t, this.damage, this.kbForce, false);
+          spawnHitSpark(t.cx(), t.cy(), this.facing);
         }
       }
     }

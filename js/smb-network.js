@@ -309,6 +309,7 @@ const NetworkManager = (() => {
           mode:  typeof gameMode !== 'undefined' ? gameMode : '2p',
           lives: typeof chosenLives !== 'undefined' ? chosenLives : 3,
           minigameType: typeof minigameType !== 'undefined' ? minigameType : 'survival',
+          sportsType: typeof sportsType !== 'undefined' ? sportsType : 'soccer',
           allowCustomWeapons: typeof onlineAllowCustomWeapons !== 'undefined' ? onlineAllowCustomWeapons : false,
         });
         // Late-join: send full story state so guest can reconstruct current scene
@@ -513,6 +514,7 @@ const NetworkManager = (() => {
       if (typeof minigameType !== 'undefined') minigameType = msg.minigameType;
       if (mode === 'minigames' && typeof selectMinigame === 'function') selectMinigame(msg.minigameType);
     }
+    if (msg.sportsType && typeof selectSport === 'function') selectSport(msg.sportsType);
     if (msg.allowCustomWeapons !== undefined && typeof onlineAllowCustomWeapons !== 'undefined') {
       onlineAllowCustomWeapons = !!msg.allowCustomWeapons;
     }
@@ -1298,6 +1300,7 @@ function networkStartGame() {
     mode:         typeof gameMode       !== 'undefined' ? gameMode       : '2p',
     lives:        typeof chosenLives    !== 'undefined' ? chosenLives    : 3,
     minigameType: typeof minigameType   !== 'undefined' ? minigameType   : 'survival',
+    sportsType:   typeof sportsType     !== 'undefined' ? sportsType     : 'soccer',
     allowCustomWeapons: typeof onlineAllowCustomWeapons !== 'undefined' ? onlineAllowCustomWeapons : false,
     chaosMode:    typeof chaosMode      !== 'undefined' ? !!chaosMode    : false,
   });

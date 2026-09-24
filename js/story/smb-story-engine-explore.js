@@ -695,7 +695,6 @@ function _launchExplorationChapter(ch) {
     noAbility:    !_sk.weaponAbility,
     noSuper:      !_sk.superMeter,
     noClass:      !_sk.classUnlock,
-    noDodge:      !_sk.dodge,
     dmgMult:      1.0 + (_sk.heavyHit2 ? 0.25 : _sk.heavyHit1 ? 0.15 : 0),
     speedMult:    1.0 + (_sk.fastMove2 ? 0.20 : _sk.fastMove1 ? 0.10 : 0),
     jumpMult:     1.0 + (_sk.highJump2 ? 0.25 : _sk.highJump1 ? 0.15 : 0),

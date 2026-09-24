@@ -854,7 +854,6 @@ const STORY_SKILL_TREE = {
       { id: 'highJump1',      name: 'Stronger Legs',       desc: 'Jump 15% higher',                           expCost: 25,  requires: null },
       { id: 'highJump2',      name: 'Leap Training',        desc: 'Jump 25% higher total',                     expCost: 45,  requires: 'highJump1' },
       { id: 'doubleJump',     name: 'Double Jump',          desc: 'Press W again while airborne',              expCost: 80,  requires: 'highJump2' },
-      { id: 'dodge',          name: 'Dodge Roll',           desc: 'Double-tap ← or → to dodge through attacks', expCost: 70, requires: 'highJump1' },
       { id: 'fastFall',       name: 'Fast Fall',            desc: 'Hold S in air to drop fast; cancel lag',    expCost: 55,  requires: 'highJump2' },
     ],
   },
@@ -962,7 +961,6 @@ function _applySkillTreeToPlayer(p) {
   // Jump
   p._storyJumpMult = 1.0 + (sk.highJump2 ? 0.25 : sk.highJump1 ? 0.15 : 0);
   if (p._storyNoDoubleJump !== undefined) p._storyNoDoubleJump = !sk.doubleJump;
-  if (p._storyNoDodge !== undefined) p._storyNoDodge = !sk.dodge;
   // HP bonus (stacking tiers)
   const wKey    = p.weaponKey || 'sword';
   const hpBonus = (sk.tankier3 ? 40 : sk.tankier2 ? 25 : sk.tankier1 ? 15 : 0) + _weaponMasteryHpBonus(wKey);
@@ -1017,7 +1015,7 @@ function _storyUpdateExpDisplay() {
 // re-clearing a chapter for loot fight with half a moveset — the nodes are all
 // buyable anyway, so locking them added hassle and nothing else. They are now
 // granted on every save (old and new); the tree still renders them, marked owned.
-const STORY_CORE_UNLOCKS = ['weaponAbility', 'superMeter', 'doubleJump', 'dodge', 'classUnlock'];
+const STORY_CORE_UNLOCKS = ['weaponAbility', 'superMeter', 'doubleJump', 'classUnlock'];
 function _applyStoryCoreUnlocks(sk) {
   if (!sk || typeof sk !== 'object') return sk;
   for (const id of STORY_CORE_UNLOCKS) sk[id] = true;
@@ -1130,6 +1128,10 @@ function _normalizeStory2Progress(data) {
     delete out.skillTree.airDash;
     out.exp = (out.exp || 0) + 120;
   }
+  // Dodge Roll was removed from the tree along with the double-tap dash. It had
+  // been a free core unlock on every save, so there is nothing to refund —
+  // just drop the stale node.
+  if (out.skillTree && out.skillTree.dodge) delete out.skillTree.dodge;
   _applyStoryCoreUnlocks(out.skillTree); // never locked, on old saves too
   if (data.weaponSkills && typeof data.weaponSkills === 'object') {
     out.weaponSkills = {};
@@ -1790,7 +1792,7 @@ const STORY_ABILITIES2 = {
   },
   ghost_step2: {
     name: 'Fracture Step',
-    desc: 'After rolling (double-tap ← or →), gain 0.4s of invincibility frames. 8s cooldown.',
+    desc: 'After a double jump, gain 0.4s of invincibility frames. 8s cooldown.',
     icon: '👁️', tokenCost: 110, requiresBlueprint: true,
     lore: 'A half-step between dimensions. The Herald showed you — then let you earn it.',
   },

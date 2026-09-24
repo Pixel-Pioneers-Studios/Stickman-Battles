@@ -142,6 +142,7 @@ const SoundManager = (() => {
                    g.gain.setValueAtTime(_vol*0.22,c.currentTime);
                    g.gain.exponentialRampToValueAtTime(0.001,c.currentTime+0.40);
                    o.connect(g); g.connect(c.destination); o.start(); o.stop(c.currentTime+0.40); }); },
+    superHeal(){ _play(c => { [523,659,784].forEach((f,i)=>setTimeout(()=>_osc(c,'sine',f,0.12,0.16),i*40)); }); },
     superActivate(){ _play(c => { [262,330,392,523].forEach((f,i)=>setTimeout(()=>_osc(c,'sine',f,0.18,0.22),i*55)); }); },
     megaknightFall() { _playBuffer('megaknight', 0.90); },
     loadAudio(key, url) {
@@ -177,12 +178,14 @@ const MusicManager = (() => {
   if (_isLocal || _isCrazyGames) {
     // Suppress YouTube script loading and return no-op stub
     console.info('[MusicManager] External music disabled in this environment.');
-    return { playBoss(){}, playNormal(){}, stop(){}, setMuted(){}, isMuted(){ return true; }, toggle(){} };
+    return { playBoss(){}, playNormal(){}, stop(){}, setMuted(){}, isMuted(){ return true; }, toggle(){},
+             setDucked(){}, isDucked(){ return false; } };
   }
 
   const BOSS_VID   = 'LsRdmuTmU4k';
   const NORMAL_VID = 'GO_ygNZbmqs';
   const MUSIC_VOL  = 20; // 0-100, kept low so SFX are audible
+  const DUCK_VOL   = 0;  // volume while ducked (0 = silenced) (story voice-over / cinematic dialogue)
 
   let _bossPlayer   = null;
   let _normalPlayer = null;
@@ -191,7 +194,16 @@ const MusicManager = (() => {
   let _normalReady  = false;
   let _muted        = (localStorage.getItem('smc_musicMute') === '1');
   let _current      = null;  // 'boss' | 'normal' | null
+  let _ducked       = false; // true while a voice-over needs the floor
   let _pendingTrack = null;  // track queued before API ready
+
+  function _vol() { return _ducked ? DUCK_VOL : MUSIC_VOL; }
+
+  function _applyVolume() {
+    const v = _vol();
+    try { _bossPlayer.setVolume(v);   } catch(e) {}
+    try { _normalPlayer.setVolume(v); } catch(e) {}
+  }
 
   function _tryPlay(track) {
     if (!_ready) { _pendingTrack = track; return; }
@@ -202,8 +214,8 @@ const MusicManager = (() => {
     try { _normalPlayer.pauseVideo(); } catch(e) {}
     _current = track;
     try {
-      if (track === 'boss')   { _bossPlayer.setVolume(MUSIC_VOL);   _bossPlayer.playVideo();   }
-      if (track === 'normal') { _normalPlayer.setVolume(MUSIC_VOL); _normalPlayer.playVideo(); }
+      if (track === 'boss')   { _bossPlayer.setVolume(_vol());   _bossPlayer.playVideo();   }
+      if (track === 'normal') { _normalPlayer.setVolume(_vol()); _normalPlayer.playVideo(); }
     } catch(e) {}
   }
 
@@ -244,8 +256,17 @@ const MusicManager = (() => {
       _muted = !!m || !!window._cgAudioMuted;
       localStorage.setItem('smc_musicMute', m ? '1' : '0');
       if (m) { try { _bossPlayer.pauseVideo();   } catch(e) {} try { _normalPlayer.pauseVideo(); } catch(e) {} }
-      else if (_current) _tryPlay(_current);
+      else if (_current) { _applyVolume(); const t = _current; _current = null; _tryPlay(t); }
     },
+    // Duck the music under story voice-over / cinematic dialogue so the line is audible.
+    setDucked(d) {
+      d = !!d;
+      if (d === _ducked) return;
+      _ducked = d;
+      if (!_ready || _muted) return;
+      _applyVolume();
+    },
+    isDucked() { return _ducked; },
     isMuted()  { return _muted; },
     toggle()   { this.setMuted(!_muted); },
   };

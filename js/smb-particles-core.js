@@ -203,6 +203,9 @@ class Projectile {
       tf._antiRangedStats.projectiles = Math.min(999, (tf._antiRangedStats.projectiles || 0) + 1);
     }
   }
+  // Flame puffs: 0 at spawn → 1 at burnout; radius swells with age.
+  _flameAge()    { const m = this._maxLife || 14; return Math.min(1, Math.max(0, 1 - this.life / m)); }
+  _flameRadius() { return (5 + this._flameAge() * 28) * (this._flameScale || 1); }
   update() {
     // Ninja Shadow Realm time dilation: projectiles fired by slowed fighters crawl
     if (this.owner && this.owner._domainSlowFactor > 0 && this.owner._domainSlowFactor < 1) {
@@ -248,6 +251,8 @@ class Projectile {
     this.x += this.vx;
     this.y += this.vy;
     this.vy += 0.08;
+    // Flames drag to a stop and rise as they burn out (hot gas, not a slug)
+    if (this._isFlame) { this.vx *= 0.92; this.vy = this.vy * 0.9 - 0.13; }
     // Track distance for damage falloff (applied on hit below)
     this._distTraveled = (this._distTraveled || 0) + Math.abs(this.vx);
     if (--this.life <= 0) { this.active = false; return; }
@@ -259,6 +264,9 @@ class Projectile {
         return;
       }
     }
+    if (this._flameFx) return; // visual-only flame puff — never collides with fighters
+    // Swelling flames get a hit pad matching their drawn radius
+    const _hp = this._isFlame ? this._flameRadius() * 0.5 : 0;
     // player collision
     for (const p of players) {
       if (p === this.owner || p.health <= 0) continue;
@@ -294,7 +302,7 @@ class Projectile {
       if (!_survFF && gameMode === 'boss' && !(this.owner && this.owner.isBoss) && !p.isBoss) continue;
       if (!_survFF && gameMode === 'minigames' && !(this.owner && this.owner.isBoss) && !p.isBoss && !p.isAI) continue;
       if (this.hitEntities && this.hitEntities.has(p)) continue; // dedup: already hit this target
-    if (this.x > p.x && this.x < p.x+p.w && this.y > p.y && this.y < p.y+p.h) {
+    if (this.x > p.x - _hp && this.x < p.x+p.w + _hp && this.y > p.y - _hp && this.y < p.y+p.h + _hp) {
         this.hitEntities.add(p);
         // Q-ability: diminishing returns on damage per sequential hit
         if (this._isQAbility && this.owner) {
@@ -305,7 +313,7 @@ class Projectile {
         // Distance falloff: full damage ≤200px, ramps down to 60% at ≥600px
         const _falloff = Math.max(0.60, 1.0 - Math.max(0, (this._distTraveled - 200) / 1000));
         const _hitDmg  = Math.max(1, Math.round(this.damage * _falloff * (1 - (this._closeRangePenalty || 0) * 0.18)));
-        dealDamage(this.owner, p, _hitDmg, 7, 1.0, false, 0);
+        dealDamage(this.owner, p, _hitDmg, this._isFlame ? 2 : 7, 1.0, false, 0);
         handleSplash(this.owner, p, _hitDmg, this.x, this.y);
         // Projectile-level splash (e.g. Napalm Spit Q): range set directly on the projectile
         if (this.splashRange && this.owner) {
@@ -323,6 +331,7 @@ class Projectile {
             }
           }
         }
+        if (this._isFlame) { spawnParticles(this.x, this.y, '#ff8a20', 2); continue; } // burns through
         this.active = false;
         spawnParticles(this.x, this.y, this.color, 6);
         return;
@@ -333,11 +342,13 @@ class Projectile {
       for (const mn of minions) {
         if (mn.health <= 0) continue;
         if (areAlliedEntities(this.owner, mn)) continue;
-        if (this.x > mn.x && this.x < mn.x+mn.w && this.y > mn.y && this.y < mn.y+mn.h) {
+        if (this._isFlame && this.hitEntities.has(mn)) continue;
+        if (this.x > mn.x - _hp && this.x < mn.x+mn.w + _hp && this.y > mn.y - _hp && this.y < mn.y+mn.h + _hp) {
           const _mFalloff = Math.max(0.60, 1.0 - Math.max(0, ((this._distTraveled || 0) - 200) / 1000));
           const _mHitDmg  = Math.max(1, Math.round(this.damage * _mFalloff * (1 - (this._closeRangePenalty || 0) * 0.18)));
           dealDamage(this.owner, mn, _mHitDmg, 9, 1.0, false, 0);
           handleSplash(this.owner, mn, _mHitDmg, this.x, this.y);
+          if (this._isFlame) { this.hitEntities.add(mn); continue; }
           this.active = false;
           spawnParticles(this.x, this.y, this.color, 6);
           return;
@@ -348,9 +359,11 @@ class Projectile {
     if (!this.owner.isDummy) {
       for (const dum of trainingDummies) {
         if (dum.health <= 0) continue;
-        if (this.x > dum.x && this.x < dum.x+dum.w && this.y > dum.y && this.y < dum.y+dum.h) {
+        if (this._isFlame && this.hitEntities.has(dum)) continue;
+        if (this.x > dum.x - _hp && this.x < dum.x+dum.w + _hp && this.y > dum.y - _hp && this.y < dum.y+dum.h + _hp) {
           dealDamage(this.owner, dum, this.damage, 9, 1.0, false, 0);
           handleSplash(this.owner, dum, this.damage, this.x, this.y);
+          if (this._isFlame) { this.hitEntities.add(dum); continue; }
           this.active = false;
           spawnParticles(this.x, this.y, this.color, 6);
           return;
@@ -379,22 +392,26 @@ class Projectile {
       ctx.beginPath(); ctx.moveTo(-2, 0); ctx.lineTo(8, -0.5); ctx.stroke();
       ctx.shadowBlur = 0;
     } else if (this._isFlame) {
-      // Flame projectile: teardrop tongue of fire
-      const _fAng = Math.atan2(this.vy, this.vx);
-      const _fA   = Math.min(1, this.life / 6);
-      ctx.globalAlpha = _fA * 0.88;
-      ctx.shadowColor = '#ff8800'; ctx.shadowBlur = 12;
+      // Flame puff: small white-hot core at the nozzle that swells, reddens and
+      // smokes out. Overlapping puffs merge into one continuous jet. Normal
+      // blending on purpose: additive washes to white on bright skies.
+      const _fT = this._flameAge();
+      const _fR = this._flameRadius();
       ctx.translate(this.x, this.y);
-      ctx.rotate(_fAng);
-      ctx.fillStyle = '#ff6600';
+      if (_fT > 0.55) {
+        ctx.globalAlpha = Math.min(1, (_fT - 0.55) * 3) * (1 - _fT) * 1.2;
+        ctx.fillStyle = '#3a302c';
+        ctx.beginPath(); ctx.arc(0, -_fR * 0.3, _fR * 0.9, 0, Math.PI * 2); ctx.fill();
+      }
+      ctx.globalAlpha = Math.max(0, Math.min(1, (1 - _fT) * 1.6));
+      const _fg = ctx.createRadialGradient(0, 0, 0, 0, 0, _fR);
+      _fg.addColorStop(0,    _fT < 0.3 ? '#fff3b0' : _fT < 0.6 ? '#ffb330' : '#ff6a10');
+      _fg.addColorStop(0.5,  _fT < 0.45 ? 'rgba(255,120,15,0.95)' : 'rgba(215,50,5,0.9)');
+      _fg.addColorStop(1,    'rgba(150,15,0,0)');
+      ctx.fillStyle = _fg;
       ctx.beginPath();
-      ctx.ellipse(2, 0, 8, 3.5, 0, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = '#ffaa00';
-      ctx.beginPath();
-      ctx.ellipse(-2, 0, 5, 2, 0, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = '#ffdd44';
-      ctx.beginPath();
-      ctx.ellipse(-4, 0, 2.5, 1.2, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.ellipse(0, 0, _fR * 1.3, _fR, Math.atan2(this.vy, this.vx), 0, Math.PI * 2);
+      ctx.fill();
     } else if (this._isArrow) {
       const _ang = Math.atan2(this.vy, this.vx);
       const _alpha = Math.min(1, this.life / 15);

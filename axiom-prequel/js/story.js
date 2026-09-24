@@ -94,9 +94,15 @@ function drawWeaponPickups() {
 //
 // type: 'interlude' — walking chapter, dialogue triggers, no enemies
 //       'play'      — combat chapter with enemies
+//       'vanguard'  — combat chapter where the enemies will go for the companions
+//                     instead of Axiom, and every hit they land drains a shared
+//                     RESOLVE meter. See js/vanguard.js. Optional fields:
+//                       resolve:   starting/max resolve (default 100)
+//                       braceHint: true to show the one-time teach line
 //
 // Interlude chapters complete when Axiom reaches endTriggerX and all dialogue fired.
-// Play chapters complete when all enemies are dead.
+// Play and vanguard chapters complete when all enemies are dead; a vanguard
+// chapter is additionally lost if RESOLVE reaches zero.
 //
 // Ground y and entity spawn y formula:
 //   ground platform y = G
@@ -345,7 +351,8 @@ const CHAPTERS = [
   // Warehouse. VAEL already inside. Lieutenant at the end.
   // ══════════════════════════════════════════════════════════════════════════
   {
-    id: 7, type: 'play',
+    id: 7, type: 'vanguard',
+    resolve: 140, braceHint: true,
     title: 'ACT II', subtitle: 'First Through Every Door',
     width: 2400, background: 'warehouse',
     axiomStart: { x: 100, y: 326 },
@@ -373,7 +380,9 @@ const CHAPTERS = [
     companionStarts: [
       { name: 'anders', x: 170, y: 330 },
       { name: 'seraph', x: 230, y: 330 },
-      { name: 'vael',   x: 2150, y: 330 },
+      // VAEL used to start at 2150, already inside the enemy line. Harmless when
+      // companions couldn't be hurt; unsurvivable now that they can be.
+      { name: 'vael',   x: 290, y: 330 },
     ],
     weaponPickups: [
       { x: 1820, y: 240, type: 'sword', durability: 9, label: 'SWORD' },
@@ -422,7 +431,8 @@ const CHAPTERS = [
   // City plaza. Thugs, then Dimensional Scouts from the rift.
   // ══════════════════════════════════════════════════════════════════════════
   {
-    id: 9, type: 'play',
+    id: 9, type: 'vanguard',
+    resolve: 100,
     title: 'ACT III', subtitle: 'Something Breaks Through',
     width: 3000, background: 'plaza',
     axiomStart: { x: 100, y: 386 },
@@ -502,7 +512,8 @@ const CHAPTERS = [
   // Last fight. Then the portal. Then nothing.
   // ══════════════════════════════════════════════════════════════════════════
   {
-    id: 11, type: 'play',
+    id: 11, type: 'vanguard',
+    resolve: 140,
     title: 'ACT III', subtitle: 'The Step',
     width: 1800, background: 'portal',
     axiomStart: { x: 100, y: 376 },
@@ -555,6 +566,9 @@ function loadChapter(idx) {
   );
 
   axiomPlayer = new Axiom(ch.axiomStart.x, ch.axiomStart.y);
+
+  // Sets up (or clears) the vanguard resolve meter for this chapter.
+  initVanguard(ch);
 
   companions = [];
   for (const cs of (ch.companionStarts ?? [])) {

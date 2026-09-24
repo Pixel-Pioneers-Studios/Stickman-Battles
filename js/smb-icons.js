@@ -117,6 +117,18 @@ const SMB_ICONS = {
 
   target: '<circle cx="12" cy="12" r="9.4" fill="none" stroke="currentColor" stroke-width="2.2"/><circle class="a" cx="12" cy="12" r="5.4" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="12" r="2"/>',
 
+  bomb: '<circle cx="11" cy="14" r="7.2"/><path class="a" d="M7.6 11.2a4 4 0 0 1 3.2-2.4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><rect x="13.2" y="5.2" width="3.6" height="3" rx="0.8" transform="rotate(35 15 6.7)"/><path d="M16.6 4.4c1-1.4 2.6-1.8 3.9-1.1" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><circle cx="21" cy="3" r="1.3"/>',
+
+  knives: '<path d="M4.2 19.8 13.6 6.4l2 1.4-7.7 14.2z"/><path class="a" d="M14.2 7.1l3.3-4.6 1.3.9-3 4.8z"/><path d="M9.8 20.6 17.4 6l2.2 1.1-6 15.1z" opacity="0.55"/>',
+
+  glassblade: '<path d="M12 1.6 14.6 7l-1.1 7.4h-3L9.4 7z"/><path class="a" d="M11.2 4.6 12.8 8.2 11.6 11.6 12.6 14" fill="none" stroke="currentColor" stroke-width="1.1"/><rect x="7" y="14.4" width="10" height="2.1" rx="1"/><rect x="10.9" y="16.5" width="2.2" height="4.6" rx="1.1"/>',
+
+  anchor: '<circle cx="12" cy="4.4" r="2.4" fill="none" stroke="currentColor" stroke-width="1.8"/><rect x="11" y="6.6" width="2" height="13.6" rx="1"/><rect x="7.4" y="9" width="9.2" height="1.9" rx="0.95"/><path d="M4 14.2c.4 4.2 3.8 6.8 8 6.8s7.6-2.6 8-6.8l-2.6 1.4c-.8 2.2-2.8 3.4-5.4 3.4s-4.6-1.2-5.4-3.4z"/>',
+
+  crossbow: '<path d="M3 8.4c4.6-3.6 13.4-3.6 18 0l-1.2 1.6c-4-2.9-11.6-2.9-15.6 0z"/><path class="a" d="M4.3 9.8 12 13.6l7.7-3.8" fill="none" stroke="currentColor" stroke-width="1.1"/><rect x="11" y="6" width="2" height="15" rx="1"/><path d="M12 1.4 14 5h-4z"/>',
+
+  fragment: '<path d="M12 2.2 17.4 8.6 14.6 21.2 12 18.4 9.4 21.2 6.6 8.6z"/><path class="a" d="M12 5.6 14.6 9 12 16 9.4 9z"/>',
+
   unknown: '<circle cx="12" cy="12" r="9.4" fill="none" stroke="currentColor" stroke-width="2"/><path d="M9.2 9.2a2.8 2.8 0 0 1 5.6.4c0 1.9-2.8 2.2-2.8 4.2" fill="none" stroke="currentColor" stroke-width="2.1"/><circle cx="12" cy="17.6" r="1.5"/>',
 };
 
@@ -130,6 +142,8 @@ const SMB_WEAPON_ICONS = {
   peashooter: 'sprout', slingshot: 'slingshot', paperairplane: 'plane',
   flail: 'flail', whip: 'whip', boomerang: 'boomerang', katana: 'katana',
   flamethrower: 'flame', electricstaff: 'bolt',
+  bomb: 'bomb', knives: 'knives', glassblade: 'glassblade', anchor: 'anchor',
+  crossbow: 'crossbow', fragment: 'fragment',
 };
 
 const SMB_CLASS_ICONS = {
@@ -137,6 +151,7 @@ const SMB_CLASS_ICONS = {
   kratos: 'burst', ninja: 'shuriken', gunner: 'crosshair', archer: 'bow',
   paladin: 'cross', berserker: 'doubleaxe', megaknight: 'helmet',
   pugilist: 'glove', ronin: 'katana', reaper: 'skull', summoner: 'orbit',
+  demolitionist: 'bomb', warden: 'anchor', adept: 'fragment',
 };
 
 // `size` is a CSS length; icons default to 1em so they track the font size.

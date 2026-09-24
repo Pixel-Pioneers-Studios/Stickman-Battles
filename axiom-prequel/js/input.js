@@ -26,6 +26,7 @@ const BINDINGS = {
   heavy:  ['KeyK', 'KeyX'],          // power strike
   grab:   ['KeyL', 'KeyC'],          // grab / throw
   dodge:  ['ShiftLeft', 'ShiftRight'],
+  brace:  ['KeyS', 'ArrowDown'],      // vanguard: plant and pull every enemy onto you
   pickup: ['KeyE', 'KeyF'],          // pick up / drop weapon
   super:  ['KeyQ'],                  // void pulse (when super meter is full)
   pause:  ['Escape', 'KeyP'],

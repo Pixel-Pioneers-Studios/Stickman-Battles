@@ -193,6 +193,9 @@ function showDesc(pid, type, value) {
     // "Damage: N." strings that the balance pass silently invalidated — the
     // hammer still claimed 22 after it became 14. Numbers live in one place now.
     type === 'weapon' ? _weaponStatBarsHtml(value) : '',
+    // Same rule for classes: HP and speed read live, never typed into a string.
+    (type !== 'weapon' && typeof CLASSES !== 'undefined' && CLASSES[value])
+      ? `<span style="color:#ffd27a">HP ${CLASSES[value].hp} · Speed ×${(CLASSES[value].speedMult || 1).toFixed(2)}</span><br>` : '',
     `<span style="color:#ccc">${desc.what}</span>`,
     desc.ability ? `<br><span style="color:#88ccff">${desc.ability}</span>` : '',
     desc.super   ? `<br><span style="color:#ffaa44">${desc.super}</span>`   : '',

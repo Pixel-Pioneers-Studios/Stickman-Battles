@@ -93,7 +93,7 @@ function _startGameCore() {
     currentArenaKey = '__br__';
     if (typeof _makeBRArena === 'function') ARENAS['__br__'] = _makeBRArena(); // ensure ARENAS lookup works at line 83
   } else if (isMinigamesMode) {
-    if (minigameType === 'soccer') {
+    if (minigameType === 'sports') {
       currentArenaKey = 'soccer';
     } else {
       // Pick a random arena from the standard PvP selection
@@ -337,7 +337,6 @@ function _startGameCore() {
     p1._storyNoSuper      = !!_sc.noSuper;
     p1._storyNoDoubleJump = !!_sc.noDoubleJump;
     p1._noDoubleJump      = !!_sc.noDoubleJump;  // unified flag checked in smb-loop.js
-    p1._storyNoDodge      = !!_sc.noDodge;
   }
   // Megaknight spawn fall
   if (p1.charClass === 'megaknight') { p1.y = -120; p1.vy = 2; p1._spawnFalling = true; p1.invincible = 200; SoundManager.megaknightFall && SoundManager.megaknightFall(); }
@@ -562,8 +561,8 @@ function _startGameCore() {
   } else if (isMinigamesMode) {
     // Minigames: P1 always human; survival/koth both support optional P2
     p1.isAI = false;
-    p1.lives = (minigameType === 'survival') ? 1 : 99; // survival: 1 life; koth/chaos/soccer: infinite (99)
-    if (minigameType === 'koth' || minigameType === 'chaos' || minigameType === 'soccer' || (minigameType === 'survival' && !p2IsNone)) {
+    p1.lives = (minigameType === 'survival') ? 1 : 99; // survival: 1 life; koth/chaos/sports: infinite (99)
+    if (minigameType === 'koth' || minigameType === 'chaos' || minigameType === 'sports' || (minigameType === 'survival' && !p2IsNone)) {
       const p2mg = new Fighter(720, 300, c2, w2,
         { left:'j', right:'l', jump:'i', attack:'u', shield:'k', ability:'o', super:'[' }, p2IsBot, p2Diff);
       p2mg.playerNum = 2; p2mg.name = p2IsBot ? 'BOT' : 'P2';
@@ -577,7 +576,7 @@ function _startGameCore() {
       applyClass(p2mg, _p2ResolvedClass);
       players = [p1, p2mg];
       if (minigameType === 'koth' || minigameType === 'chaos') { p1.target = p2mg; p2mg.target = p1; }
-      else if (minigameType === 'soccer') {
+      else if (minigameType === 'sports') {
         p1.lives = 99; p2mg.lives = 99;
         p1.target = p2mg; p2mg.target = p1;
       } else { p1.target = null; p2mg.target = null; } // survival: both target enemies

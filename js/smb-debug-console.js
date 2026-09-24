@@ -431,7 +431,7 @@ function _consoleExec(raw) {
     _consolePrint('  lives:        ' + p.lives);
     _consolePrint('  superMeter:   ' + (p.superMeter || 0).toFixed(1) + ' / ' + (p.superMeterMax || 100));
     _consolePrint('  superReady:   ' + !!p.superReady);
-    _consolePrint('  superCount:   ' + (p._domainSuperCount || 0) + ' (next Conviction at 5)');
+    _consolePrint('  superCount:   ' + (p._domainSuperCount || 0) + ' landed (next super is Conviction at 4)');
     _consolePrint('  abilityCd:    ' + (p.abilityCooldown || 0));
     _consolePrint('  attackTimer:  ' + (p.attackTimer || 0));
     _consolePrint('  isAI:         ' + !!p.isAI);

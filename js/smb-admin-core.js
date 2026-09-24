@@ -590,6 +590,7 @@ function unlockAllItems(accountId) {
       setAccountFlagWithRuntime(['unlocks', 'bossBeaten'],  true, function(v) { bossBeaten = v; });
       setAccountFlagWithRuntime(['unlocks', 'trueform'],    true, function(v) { unlockedTrueBoss = v; });
       setAccountFlagWithRuntime(['unlocks', 'megaknight'],  true, function(v) { unlockedMegaknight = v; });
+      setAccountFlagWithRuntime(['unlocks', 'fragment'],    true, function() {});
       setAccountFlagWithRuntime(['unlocks', 'letters'], allLetters.slice(), function() {});
       setAccountFlagWithRuntime(['unlocks', 'achievements'], _ADMIN_ALL_ACH_IDS.slice(), function() {});
     } else {
@@ -601,6 +602,7 @@ function unlockAllItems(accountId) {
     }
     // Sync the hidden code-input display if available.
     if (typeof syncCodeInput === 'function') syncCodeInput();
+    if (typeof refreshFragmentOptions === 'function') refreshFragmentOptions();
     if (typeof saveGame === 'function') saveGame();
     _adminLog('All items unlocked on active account.');
     return;
@@ -611,6 +613,7 @@ function unlockAllItems(accountId) {
     data.unlocks.bossBeaten   = true;
     data.unlocks.trueform     = true;
     data.unlocks.megaknight   = true;
+    data.unlocks.fragment     = true;
     data.unlocks.letters      = allLetters;
     data.unlocks.achievements = _ADMIN_ALL_ACH_IDS.slice();
   });

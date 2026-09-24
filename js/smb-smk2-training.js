@@ -391,9 +391,12 @@ const SMK2Trainer = (() => {
   function _runMatch(genome, numBots, seed, opts) {
     const _o    = opts || {};
     const duel  = !!_o.duel;
-    const SOV_LIVES  = 5;
-    const OPP_LIVES  = 5;    // duel only — crowd bots keep unlimited lives
-    const MAX_FRAMES = 7200; // ~2 min sim time with full-rate AI
+    // opts.lives / opts.maxFrames: overridable for calibration runs that need
+    // a long stock-based match (e.g. 10 lives, ~24000 frames) instead of the
+    // trainer's short default. Both default to the unchanged values.
+    const SOV_LIVES  = _o.lives || 5;
+    const OPP_LIVES  = _o.lives || 5;    // duel only — crowd bots keep unlimited lives
+    const MAX_FRAMES = _o.maxFrames || 7200; // ~2 min sim time with full-rate AI
     const matchId    = ++_matchSeq;
     // Full sim-env reset every match — guards against game-loop interference
     // during setTimeout yields AND against state accumulated by prior matches.
@@ -434,6 +437,19 @@ const SMK2Trainer = (() => {
     sov.lives  = SOV_LIVES;
     sov._teamId = 'sim_sov'; // distinct — bots must NOT be allied with Sovereign
     sov.applyGenome(genome);
+    // opts.sovKit: pin Sovereign's own weapon/class (calibration needs him on
+    // the exact kit a target replay recorded, e.g. sword/ninja). Stat-only,
+    // same treatment _applyBotClass gives the opponent — his move set is
+    // driven by SovereignMK2 itself, not by charClass.
+    if (_o.sovKit && _o.sovKit.w && typeof WEAPONS !== 'undefined' && WEAPONS[_o.sovKit.w]) {
+      sov.weaponKey = _o.sovKit.w;
+      sov.weapon    = WEAPONS[_o.sovKit.w];
+    }
+    if (_o.sovKit && _o.sovKit.c) _applyBotClass(sov, _o.sovKit.c);
+    // Lock it, or SovereignMK2._ensureMatchLoadout() re-picks on his first frame
+    // with a target and silently overwrites the pin (found 2026-09-23: every
+    // "sovKit" run before this measured his own bandit pick, mostly katana/ronin).
+    if (_o.sovKit && (_o.sovKit.w || _o.sovKit.c)) sov._loadoutLocked = true;
 
     // Build bots from seeded loadout selection
     const rng    = _makeRng(seed);
@@ -518,10 +534,28 @@ const SMK2Trainer = (() => {
       bot.target       = sov;
       if (duel) bot.lives = OPP_LIVES;
       _applyBotClass(bot, ld.c);
+      // `oppHpMult`: a MEASUREMENT instrument for the human proxy
+      // (tools/human-proxy.js). The proxy's offence matches a human's but its
+      // defence does not (it takes ~2x a human's damage per frame), so its health
+      // is scaled until its stock trade vs Sovereign matches the human replays.
+      // Applied after _applyBotClass, which would otherwise overwrite maxHealth.
+      if (_o.oppHpMult && i === 0) {
+        bot.maxHealth = Math.round(bot.maxHealth * _o.oppHpMult);
+        bot.health    = bot.maxHealth;
+      }
       // Applied AFTER class setup: _applyBotClass can touch stats but never the
       // decision function, and the policy must be the last word on updateAI.
       if (rs) _applyPolicy(bot, rs.policy);
       else if (panel && i === 0) _applyPolicy(bot, panel.policy);
+      // `oppAI`: an external per-frame controller for bot 0 (tools/ghost-core.js,
+      // the human mimic). Every frame, not every AI_TICK_INTERVAL, because a
+      // human's hands move every frame; and no whiff-guard, because a human
+      // swings at air.
+      if (typeof _o.oppAI === 'function' && i === 0) {
+        bot.updateAI = _o.oppAI;
+        bot.aiTickInterval = 1;
+        bot._noWhiffGuard = true;
+      }
       bots.push(bot);
     }
 
@@ -542,6 +576,18 @@ const SMK2Trainer = (() => {
     let prevSovHp    = sov.health;
     const prevBotHp  = new Map(bots.map(b => [b, b.health]));
     let framesRun    = 0;
+
+    // opts.record: capture frames/events in the .smbreplay schema so
+    // tools/proxy-stats.js can score a sim match exactly like a real replay.
+    // Only bots[0] ("me", index 0) and sov (index 1) are recorded — duel mode.
+    const REC_EVERY_N = 3;
+    const rec = (_o.record && bots.length) ? { frames: [], events: [], recordEveryN: REC_EVERY_N } : null;
+    const _snap = f => ({
+      x: f.x, y: f.y, vx: f.vx || 0, vy: f.vy || 0, hp: f.health, mhp: f.maxHealth,
+      atk: (f.attackTimer || 0) > 0 ? 1 : 0, sh: f.shielding ? 1 : 0, g: f.onGround ? 1 : 0,
+      stn: f.stunTimer || 0, rag: f.ragdollTimer || 0, inv: f.invincible || 0, el: 0,
+      lives: f.lives, wk: f.weaponKey, cls: f.charClass || 'none',
+    });
 
     // ── DOMAINS MUST BE TICKED OR THEY NEVER END ──────────────────────────
     // DomainManager.update() owns _domainRiseTimer, and the sim never called it.
@@ -579,19 +625,29 @@ const SMK2Trainer = (() => {
       // Sample AFTER the updates so timers reflect this frame's hits.
       if (sov.stunTimer > 0 || sov.ragdollTimer > 0) lockedFrames++;
       // Health deltas, ignoring the jump back up on respawn.
-      if (sov.health < prevSovHp) dmgTaken += prevSovHp - sov.health;
+      if (sov.health < prevSovHp) {
+        dmgTaken += prevSovHp - sov.health;
+        if (rec) rec.events.push({ t: 'dmg', fi: f / REC_EVERY_N, fc: f, p: 1, v: prevSovHp - sov.health, hp: sov.health });
+      }
       prevSovHp = sov.health;
       for (const b of bots) {
         const ph = prevBotHp.get(b);
-        if (b.health < ph) dmgDealt += ph - b.health;
+        if (b.health < ph) {
+          dmgDealt += ph - b.health;
+          if (rec && b === bots[0]) rec.events.push({ t: 'dmg', fi: f / REC_EVERY_N, fc: f, p: 0, v: ph - b.health, hp: b.health });
+        }
         prevBotHp.set(b, b.health);
       }
+      if (rec && f % REC_EVERY_N === 0) rec.frames.push([_snap(bots[0]), _snap(sov)]);
 
       // Sovereign death — respawn, limited lives
       if (sov.health <= 0) {
+        if (rec) rec.events.push({ t: 'ko', fi: f / REC_EVERY_N, fc: f, p: 1 });
         sov.lives--;
         if (sov.lives <= 0) break;
         try { sov.onDeath(); } catch (_) {}
+        // Per-life class state Fighter.respawn() resets in the real game.
+        sov.classPerkUsed = false; sov.spartanRageTimer = 0; sov.rageStacks = 0;
         sov.health = sov.maxHealth;
         sov.x = 450; sov.y = SPAWN_Y;
         sov.vx = sov.vy = 0;
@@ -604,6 +660,7 @@ const SMK2Trainer = (() => {
       let _duelOver = false;
       for (const b of bots) {
         if (b.health <= 0) {
+          if (rec && b === bots[0]) rec.events.push({ t: 'ko', fi: f / REC_EVERY_N, fc: f, p: 0 });
           kills++;
           if (duel) {
             b.lives--;
@@ -611,6 +668,7 @@ const SMK2Trainer = (() => {
             if (b.lives <= 0) { _duelOver = true; break; }
           }
           try { b.onDeath(); } catch (_) {}
+          b.classPerkUsed = false; b.spartanRageTimer = 0; b.rageStacks = 0;
           b.health = b.maxHealth;
           // Respawn on opposite side from Sovereign to maintain pressure
           b.x = sov.cx() < GAME_W / 2
@@ -706,6 +764,7 @@ const SMK2Trainer = (() => {
       baitHeld:   sov._baitHeld   || 0,
       killCredits: sov._killCredits || 0,
       swarmSeen:   sov._swarmSeen   || 0,
+      rec,
     };
   }
 

@@ -303,8 +303,6 @@ const FigureSkin = (function () {
    */
   function paint(b, p, far) {
     if (!b.parts.length) return;
-    const q = quality();
-
     ctx.save();
     ctx.lineJoin = 'round';
     ctx.lineCap  = 'round';
@@ -318,8 +316,9 @@ const FigureSkin = (function () {
     ctx.stroke(b.p);
     ctx.globalAlpha = 1;
 
-    // 2 — ONE light across the whole body, baked into an OPAQUE gradient and
-    //     painted part by part.
+    // 2 — A restrained, mostly-flat fill. The fighters are graphic stickmen,
+    //     not hard-surface robots: one readable color per silhouette keeps the
+    //     face, pose, and weapon doing the storytelling.
     //
     //     Opaque is the important word. Every part is filled with the same
     //     world-space gradient, so a pixel gets the same colour no matter which
@@ -330,47 +329,10 @@ const FigureSkin = (function () {
     //     Laying the light across the WHOLE figure rather than per part is also
     //     what makes it read as one object under one sun, instead of as a set
     //     of separately lit components.
-    let style;
-    if (q >= 2) {
-      // Key upper-left falling to shadow lower-right, in WORLD space so a
-      // fighter turning round does not flip his own lighting.
-      const w = b.x1 - b.x0, h = b.y1 - b.y0;
-      const g = ctx.createLinearGradient(b.x0, b.y0, b.x0 + w * 0.90, b.y1);
-      if (far) {
-        g.addColorStop(0,    p.farLite);
-        g.addColorStop(0.55, p.far);
-        g.addColorStop(1,    p.farDark);
-      } else {
-        g.addColorStop(0,    p.lite);
-        g.addColorStop(0.22, p.liteMid);
-        g.addColorStop(0.44, p.base);
-        g.addColorStop(0.66, p.base);
-        g.addColorStop(0.85, p.darkMid);
-        g.addColorStop(1,    p.dark);
-      }
-      style = g;
-    } else {
-      style = far ? p.far : p.base;
-    }
+    const style = far ? p.far : p.base;
     ctx.fillStyle = style;
     for (const q2 of b.parts) ctx.fill(q2);
 
-    // 3 — INTERNAL FORM SHADOW.
-    //
-    // A full union is what stops the figure reading as assembled parts, but it
-    // also swallows anything lying against the body: the near arm hangs beside
-    // the torso and simply disappears into it. A painter does not solve that
-    // with an outline — they put a shadow where the arm sits over the chest.
-    // Stroking those parts' own long edges does exactly that.
-    if (q >= 2 && b.hasD && !far) {
-      ctx.strokeStyle = p.gDark;
-      ctx.globalAlpha = 0.30;
-      ctx.lineWidth   = 4.2;
-      ctx.stroke(b.d);
-      ctx.globalAlpha = 0.28;
-      ctx.lineWidth   = 2.0;
-      ctx.stroke(b.d);
-    }
     ctx.restore();
   }
 

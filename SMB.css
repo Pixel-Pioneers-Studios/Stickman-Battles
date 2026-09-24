@@ -1303,9 +1303,195 @@ body.depth-phase-active {
   animation: superPulse 0.5s ease-in-out infinite;
 }
 
+/* Domain charge: one pip per LANDED super (Fighter._domainSuperCount). At 4
+   the next super expands the domain, so the row goes armed and pulses with
+   the same rhythm as a ready super bar. */
+.dom-pips { display: flex; gap: 2px; flex: none; }
+.dom-pips i {
+  width: 5px; height: 5px;
+  transform: rotate(45deg);
+  background: rgba(6,8,16,0.62);
+  border: 1px solid rgba(216,172,62,0.45);
+}
+.dom-pips i.on { background: #d8ac3e; border-color: #ffd700; }
+.dom-pips.armed i {
+  background: #ffd700; border-color: #fff6d8;
+  box-shadow: 0 0 6px rgba(255,200,60,0.7);
+  animation: superPulse 0.5s ease-in-out infinite;
+}
+
 @keyframes superPulse {
   0%, 100% { opacity: 1; }
   50%       { opacity: 0.5; }
+}
+
+/* ============================================================
+   VISUAL POLISH PASS — shared shell language
+   ------------------------------------------------------------
+   The homepage's ember/charcoal treatment is now the visual contract for
+   menus, setup cards, modals, HUD chrome, and story surfaces. These are
+   presentation-only overrides: layout, input, and state remain unchanged.
+   ============================================================ */
+:root {
+  --polish-glow: rgba(242,118,43,0.20);
+  --polish-glow-cool: rgba(123,174,255,0.16);
+  --polish-glass: rgba(18,23,35,0.86);
+  --polish-glass-strong: rgba(12,16,25,0.95);
+}
+
+button, select, input, textarea { font-family: inherit; }
+
+button:focus-visible, select:focus-visible, input:focus-visible,
+.mode-card:focus-visible, .arena-card:focus-visible, .sel-card:focus-visible {
+  outline: 2px solid var(--ember-hover);
+  outline-offset: 2px;
+}
+
+#menu::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: -1;
+  background:
+    radial-gradient(circle at 50% 18%, rgba(242,118,43,0.08), transparent 32%),
+    linear-gradient(115deg, rgba(255,255,255,0.018) 1px, transparent 1px),
+    linear-gradient(25deg, rgba(255,255,255,0.012) 1px, transparent 1px);
+  background-size: auto, 72px 72px, 96px 96px;
+  mask-image: linear-gradient(to bottom, #000 0%, rgba(0,0,0,0.7) 54%, transparent 100%);
+}
+
+.menu-side,
+.player-config,
+.selection-desc,
+.settings-panel,
+.nexus-panel,
+.story-modal-box,
+.overlay-box,
+.smb-modal-box {
+  border-color: var(--ui-line-strong);
+  background-color: var(--polish-glass);
+  box-shadow: var(--ui-shadow), inset 0 1px 0 rgba(255,255,255,0.07);
+}
+
+.mode-card, .arena-card, .sel-card, .story-ch-card, .story-level-tile,
+.story-journey-card, .story-ability-card2 {
+  border-color: var(--ui-line);
+  background-color: rgba(20,25,38,0.84);
+  box-shadow: 0 10px 22px rgba(0,0,0,0.24), inset 0 1px 0 rgba(255,255,255,0.045);
+  transition: transform 160ms ease, border-color 160ms ease,
+              background-color 160ms ease, box-shadow 160ms ease;
+}
+
+.mode-card:hover, .arena-card:hover, .sel-card:hover,
+.story-ch-card:not(.ch-locked):hover, .story-level-tile:hover,
+.story-journey-card:hover:not(.locked), .story-ability-card2:hover {
+  border-color: var(--ember-line);
+  background-color: rgba(39,32,39,0.92);
+  box-shadow: 0 14px 30px rgba(0,0,0,0.32), 0 0 22px var(--polish-glow),
+              inset 0 1px 0 rgba(255,255,255,0.08);
+}
+
+.mode-card.active, .arena-card.active, .sel-card.active,
+.story-tab.active, .story-level-tile.lvl-current, .story-ch-card.ch-current {
+  border-color: var(--ember);
+  box-shadow: 0 0 0 1px rgba(242,118,43,0.18), 0 0 26px var(--polish-glow),
+              inset 0 1px 0 rgba(255,255,255,0.10);
+}
+
+.config-header, .smb-modal-header, .story-act-header {
+  position: relative;
+}
+.config-header::after, .smb-modal-header::after, .story-act-header::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -5px;
+  height: 1px;
+  background: linear-gradient(90deg, var(--ember), transparent 78%);
+  opacity: 0.36;
+}
+
+.btn, .btn-start, .training-btn, .home-nav-btn, .story-tab,
+.story-act-pager-arrow, .footer-pill, .nexus-back, .smb-modal-close {
+  border-radius: 7px;
+  transition: transform 150ms ease, background-color 150ms ease,
+              border-color 150ms ease, box-shadow 150ms ease;
+}
+.btn:hover, .btn-start:hover, .training-btn:hover, .home-nav-btn:hover,
+.story-tab:hover, .story-act-pager-arrow:hover, .footer-pill:hover,
+.nexus-back:hover, .smb-modal-close:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 18px rgba(0,0,0,0.25), 0 0 16px var(--polish-glow);
+}
+.btn:active, .btn-start:active, .training-btn:active, .home-nav-btn:active,
+.story-tab:active, .story-act-pager-arrow:active { transform: translateY(1px); }
+
+#hud {
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+  background: linear-gradient(180deg, rgba(7,10,16,0.84), rgba(7,10,16,0.46) 62%, transparent);
+  backdrop-filter: blur(5px);
+}
+#hud .hud-name { color: var(--ui-text); letter-spacing: 2.5px; }
+#hud .hud-weapon { color: var(--ui-muted); }
+.health-bar-wrap, .super-bar-track, .cd-bar-track {
+  border-color: rgba(255,255,255,0.16);
+  background: rgba(5,8,13,0.76);
+}
+
+#gameCanvas {
+  filter: saturate(1.06) contrast(1.025);
+}
+#gameCanvas.view-3d, #gameCanvas.view-3d-tf {
+  filter: saturate(1.1) contrast(1.04) drop-shadow(0 24px 30px rgba(0,0,0,0.30));
+}
+
+/* The game has many legacy overlays authored inline. These selectors give them
+   the same stage-lighting and depth as the new homepage without touching their
+   content or behavior. */
+#pauseOverlay, #gameOverOverlay, #replayBrowserModal, #replayViewerModal,
+#statsLogModal, #achievementsModal, #changelogModal, #settingsModal,
+#communityModal, #saveProgressModal, #storyModal, #skillTreeModal, #shopModal,
+#storyVictoryOverlay, #storyDialoguePanel, #importSaveModal, #guidebookModal,
+#storyIntroOverlay, #storyUnlockOverlay {
+  backdrop-filter: blur(10px) saturate(1.12);
+}
+
+#pauseOverlay .overlay-box, #gameOverOverlay .overlay-box,
+#replayBrowserModal > div, #replayViewerModal > div,
+#statsLogModal > div, #achievementsModal > div, #changelogModal > div,
+#settingsModal > div, #communityModal > div, #saveProgressModal > div,
+#guidebookModal > div, #storyDialoguePanel > div, #storyVictoryOverlay > div,
+#importSaveModal > div {
+  border-color: var(--ui-line-strong) !important;
+  background: linear-gradient(180deg, rgba(27,33,49,0.97), rgba(10,13,22,0.98)) !important;
+  box-shadow: 0 24px 70px rgba(0,0,0,0.62), 0 0 34px rgba(242,118,43,0.08),
+              inset 0 1px 0 rgba(255,255,255,0.08) !important;
+}
+
+#pauseOverlay .overlay-box::before, #gameOverOverlay .overlay-box::before,
+.story-modal-box::before, .smb-modal-box::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: inherit;
+  background: linear-gradient(120deg, rgba(242,118,43,0.09), transparent 32%, transparent 68%, rgba(119,174,255,0.06));
+  opacity: 0.8;
+}
+
+#trainingExpandPanel, #mapCreatorPanel, #gameConsoleOverlay, #crashOverlay {
+  box-shadow: 0 24px 70px rgba(0,0,0,0.68), inset 0 1px 0 rgba(255,255,255,0.08);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 .cd-bar-fill {
@@ -1897,6 +2083,7 @@ body.depth-phase-active {
   .cd-bar-track    { height: 3px; }
   .super-bar-wrap,
   .cd-bar-wrap     { gap: 3px; }
+  .dom-pips i      { width: 3px; height: 3px; }
   .lives-display   { font-size: 0.62rem; letter-spacing: 0; }
   /* Shrink fullscreen HUD button on small screens */
   #hudFullscreenBtn { font-size: 9px; padding: 1px 6px; }
@@ -5325,3 +5512,349 @@ input[type="color"] {
   text-align: right;
   font-variant-numeric: tabular-nums;
 }
+
+/* ============================================================
+   MENU SHELL PARITY — The Grid + the match-setup screen
+   ------------------------------------------------------------
+   The hub rebuild flattened `.mode-card`, `.path-card` and `.b`, but the Grid
+   and the setup screen (player panels, online panel, chaos/settings/start,
+   footer) still resolved to the older kit: `.nexus-grid .mode-card` and
+   `.mode-card.active` out-rank the flat rule, and `#p1Config` / `#p2Config`
+   are ID rules. Everything here is scoped under `#menu`, which out-ranks all
+   of them without !important. Player identity survives as the panel's top
+   edge, its heading and its active card; the ember is the only other accent.
+   ============================================================ */
+
+/* ---- Mode cards (The Grid, minigames, boss rush) ------------------------- */
+#menu .mode-card,
+#menu .nexus-grid .mode-card,
+#menu .mode-cards .mode-card {
+  background: var(--ui-surface);
+  border: 1px solid var(--ui-line);
+  border-radius: var(--ui-radius);
+  box-shadow: none;
+  text-align: left;
+  padding: 13px 14px;
+  transform: none;
+}
+#menu .mode-card:hover,
+#menu .nexus-grid .mode-card:hover {
+  background: var(--ui-surface-2);
+  border-color: var(--ember-line);
+  box-shadow: none;
+  transform: translateY(-2px);
+}
+#menu .mode-card.active,
+#menu .nexus-grid .mode-card.active,
+#menu .mode-cards .mode-card.active,
+#menu .mode-card[data-mode].active {
+  background: var(--ember-soft);
+  border-color: var(--ember-line);
+  box-shadow: none;
+}
+#menu .mode-card::before, #menu .mode-card::after { display: none; }
+#menu .mode-name {
+  font-family: inherit;
+  font-weight: 800;
+  font-size: 0.92rem;
+  letter-spacing: 0.5px;
+  color: var(--ui-text);
+  text-shadow: none;
+  text-transform: none;
+}
+#menu .mode-name .smb-icon { color: var(--ember); }
+#menu .mode-desc { font-family: inherit; font-size: 0.72rem; color: var(--ui-faint); line-height: 1.4; }
+
+#menu .nexus-section-label,
+#menu .section-label {
+  font-family: inherit;
+  font-size: 0.64rem;
+  font-weight: 700;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--ui-faint);
+  text-shadow: none;
+}
+
+/* ---- Generic buttons on the setup screen -------------------------------- */
+#menu .btn {
+  font-family: inherit;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  text-transform: none;
+  text-shadow: none;
+  background: transparent;
+  color: var(--ui-text);
+  border: 1px solid var(--ui-line-strong);
+  border-radius: var(--ui-radius);
+  box-shadow: none;
+  transform: none;
+}
+#menu .btn:hover { background: var(--ember-soft); border-color: var(--ember-line); box-shadow: none; transform: none; }
+#menu .btn.active { background: var(--ember-soft); border-color: var(--ember-line); color: var(--ember); }
+#menu .btn::before, #menu .btn::after { display: none; }
+
+#menu .btn.btn-start {
+  background: var(--ember);
+  border-color: var(--ember);
+  color: var(--ember-ink);
+  padding: 12px 34px;
+  font-size: 0.95rem;
+  letter-spacing: 1.2px;
+}
+#menu .btn.btn-start:hover  { background: var(--ember-hover); border-color: var(--ember-hover); }
+#menu .btn.btn-start:active { background: #D9611B; border-color: #D9611B; }
+
+#menu #chaosModeBtn { color: var(--ui-muted); padding: 7px 12px; font-size: 0.8rem; }
+#menu #chaosModeBtn.active { color: var(--ember); background: var(--ember-soft); border-color: var(--ember-line); }
+
+#menu #fullscreenBtn { padding: 10px 14px; font-size: 0.8rem; color: var(--ui-muted); }
+
+#menu #configModeLabel {
+  font-family: inherit;
+  font-size: 1.35rem;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  color: var(--ui-text);
+  text-shadow: none;
+}
+
+#menu .footer-pill {
+  font-family: inherit;
+  font-weight: 600;
+  font-size: 0.78rem;
+  letter-spacing: 0.4px;
+  text-transform: none;
+  text-shadow: none;
+  background: transparent;
+  color: var(--ui-muted);
+  border: 1px solid transparent;
+  border-radius: var(--ui-radius);
+  box-shadow: none;
+  transform: none;
+  padding: 8px 14px;
+}
+#menu .footer-pill:hover { color: var(--ui-text); border-color: var(--ui-line); background: transparent; transform: none; box-shadow: none; }
+
+/* ---- Inputs --------------------------------------------------------------- */
+#menu input[type="number"],
+#menu input[type="text"],
+#menu select:not(.gs-native-hidden),
+#menu .online-input,
+#menu .online-select {
+  background: var(--ui-ground);
+  color: var(--ui-text);
+  border: 1px solid var(--ui-line-strong);
+  border-radius: var(--ui-radius);
+  box-shadow: none;
+  font-family: inherit;
+}
+#menu input[type="number"]:focus,
+#menu input[type="text"]:focus,
+#menu .online-input:focus,
+#menu .online-select:focus { border-color: var(--ember-line); box-shadow: none; outline: none; }
+#menu .online-input::placeholder { color: var(--ui-faint); }
+
+/* ---- Online panel --------------------------------------------------------- */
+#menu .online-panel {
+  background: var(--ui-surface);
+  border: 1px solid var(--ui-line);
+  border-radius: var(--ui-radius);
+  box-shadow: none;
+  backdrop-filter: none;
+}
+#menu .online-head { border-bottom-color: var(--ui-line); }
+#menu .online-eyebrow,
+#menu .online-step-head { color: var(--ui-text); text-shadow: none; }
+#menu .online-eyebrow .smb-icon { color: var(--ember); }
+#menu .online-step-num { background: var(--ember-soft); color: var(--ember); border: 1px solid var(--ember-line); box-shadow: none; }
+#menu .online-note { color: var(--ui-muted); }
+#menu .online-label { color: var(--ui-faint); }
+#menu .online-chip-btn {
+  background: transparent;
+  color: var(--ui-muted);
+  border: 1px solid var(--ui-line-strong);
+  border-radius: var(--ui-radius);
+  box-shadow: none;
+  font-family: inherit;
+}
+#menu .online-chip-btn:hover { color: var(--ui-text); border-color: var(--ember-line); background: var(--ember-soft); }
+#menu .online-chip-btn.active { background: var(--ember-soft); border-color: var(--ember-line); color: var(--ember); box-shadow: none; }
+#menu .online-list, #menu .online-browser { background: transparent; border-color: var(--ui-line); border-radius: var(--ui-radius); }
+#menu .online-empty { color: var(--ui-faint); }
+#menu #lobbyBtnPublic {
+  background: transparent;
+  color: var(--ui-text);
+  border: 1px solid var(--ui-line-strong);
+  border-radius: var(--ui-radius);
+  box-shadow: none;
+  font-family: inherit;
+}
+#menu #lobbyBtnPublic:hover { background: var(--ember-soft); border-color: var(--ember-line); }
+#menu #lobbyBtnPublic.is-joined { color: var(--ui-good); border-color: rgba(63,185,132,0.45); cursor: default; }
+
+/* ---- Player panels -------------------------------------------------------- */
+#menu .player-config,
+#menu #p1Config,
+#menu #p2Config {
+  background: var(--ui-surface);
+  border: 1px solid var(--ui-line);
+  border-radius: var(--ui-radius);
+  box-shadow: none;
+}
+#menu #p1Config { border-top: 2px solid var(--p1); }
+#menu #p2Config { border-top: 2px solid var(--p2); }
+#menu #p1Config:hover, #menu #p2Config:hover { box-shadow: none; }
+#menu #p1Config:hover { border-color: var(--ui-line-strong); border-top-color: var(--p1); }
+#menu #p2Config:hover { border-color: var(--ui-line-strong); border-top-color: var(--p2); }
+#menu .player-config .config-header {
+  background: transparent;
+  box-shadow: none;
+  border-radius: 0;
+  border-bottom: 1px solid var(--ui-line);
+}
+#menu .player-config h3 {
+  font-family: inherit;
+  font-weight: 800;
+  font-size: 0.86rem;
+  letter-spacing: 1.5px;
+  text-shadow: none;
+}
+#menu #p1Config .config-row,
+#menu #p2Config .config-row,
+#menu .player-config .config-row {
+  background: transparent;
+  border: none;
+  border-top: 1px solid var(--ui-line);
+  border-radius: 0;
+  box-shadow: none;
+}
+#menu #p1Config .config-row label,
+#menu #p2Config .config-row label,
+#menu .player-config label {
+  color: var(--ui-faint);
+  font-family: inherit;
+  text-shadow: none;
+}
+#menu .bot-toggle {
+  font-family: inherit;
+  font-weight: 700;
+  font-size: 0.72rem;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  background: transparent;
+  color: var(--ui-text);
+  border: 1px solid var(--ui-line-strong);
+  border-radius: var(--ui-radius);
+  box-shadow: none;
+  text-shadow: none;
+  transform: none;
+}
+#menu .bot-toggle:hover { background: var(--ember-soft); border-color: var(--ember-line); transform: none; box-shadow: none; }
+#menu .player-preview-canvas,
+#menu .preview-stage canvas { background: var(--ui-ground); border: 1px solid var(--ui-line); border-radius: var(--ui-radius); box-shadow: none; }
+
+/* Weapon / class cards */
+#menu .sel-card {
+  background: var(--ui-surface-2);
+  border: 1px solid var(--ui-line);
+  border-radius: var(--ui-radius);
+  box-shadow: none;
+  transform: none;
+}
+#menu .sel-card::before, #menu .sel-card::after { display: none; }
+#menu .sel-card:hover { border-color: var(--ember-line); background: var(--ui-raised); box-shadow: none; transform: translateY(-1px); }
+#menu .sel-card:active { transform: none; box-shadow: none; }
+#menu .sel-card-name { font-family: inherit; font-weight: 700; color: var(--ui-text); text-shadow: none; }
+#menu .sel-card-tag  { color: var(--ui-faint); }
+#menu .sel-card-icon { color: var(--ui-muted); }
+#menu #p1Config .sel-card.active { background: rgba(0,229,255,0.12); border-color: var(--p1); box-shadow: none; transform: none; }
+#menu #p2Config .sel-card.active { background: rgba(255,34,51,0.12); border-color: var(--p2); box-shadow: none; transform: none; }
+#menu #p1Config .sel-card.active .sel-card-icon { color: var(--p1); }
+#menu #p2Config .sel-card.active .sel-card-icon { color: var(--p2); }
+
+/* Custom dropdown (smb-ui-controls.js) */
+#menu .gs-arrow,
+#menu .gs-face {
+  font-family: inherit;
+  background: var(--ui-surface-2);
+  color: var(--ui-muted);
+  border: 1px solid var(--ui-line);
+  border-radius: var(--ui-radius);
+  box-shadow: none;
+  text-shadow: none;
+  transform: none;
+}
+#menu .gs-face { color: var(--ui-text); }
+#menu .gs-arrow:hover,
+#menu .gs-face:hover { border-color: var(--ember-line); color: var(--ui-text); background: var(--ui-raised); transform: none; box-shadow: none; }
+#menu .gs-panel { background: var(--ui-surface); border: 1px solid var(--ui-line-strong); border-radius: var(--ui-radius); box-shadow: var(--ui-shadow); }
+
+/* Simulator / Grid / Refight panels sit on the page like the hub does: the
+   hub's column resolves to ~744px (its grid sizes to content inside the 940px
+   cap), and there is no floating rounded card around it. */
+#menu .nexus-panel {
+  max-width: 744px;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  padding: 0;
+  gap: 8px;
+  backdrop-filter: none;
+}
+#menu .nexus-panel .nexus-back { align-self: flex-start; }
+#menu .nexus-section-label { text-align: left; margin: 10px 0 2px; }
+
+/* The side columns were a second rounded, shadowed frame around each player
+   panel. The panel is the surface; the column is just layout. */
+#menu .menu-side {
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  backdrop-filter: none;
+}
+
+/* Simulator landing + Refight: the path cards read like hub tiles. */
+#menu .nexus-panel .path-cards,
+#menu .nexus-panel .nexus-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 11px;
+  width: 100%;
+  max-width: none;
+  margin: 0;
+}
+#menu .nexus-panel .path-card {
+  border-radius: var(--ui-radius);
+  border-width: 1px;
+  text-align: left;
+  align-items: flex-start;
+  padding: 16px 18px;
+  min-height: 88px;
+  width: auto;
+  max-width: none;
+}
+#menu .nexus-panel .path-card-title {
+  font-family: inherit;
+  font-weight: 800;
+  font-size: 1rem;
+  letter-spacing: 0.5px;
+  text-transform: none;
+  text-shadow: none;
+}
+#menu .nexus-panel .path-card-desc { font-family: inherit; font-size: 0.76rem; }
+#menu .nexus-panel .path-card-icon { font-size: 1.1rem; margin-bottom: 2px; }
+#menu .simulator-greeting {
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--ui-line);
+  border-radius: 0;
+  box-shadow: none;
+  text-align: left;
+  padding: 4px 2px 12px;
+}
+#menu .sim-greeting-name { color: var(--ui-text); font-family: inherit; font-weight: 800; font-size: 1.1rem; text-shadow: none; }
+#menu .sim-greeting-name span { color: var(--ember); }
+#menu .sim-greeting-sub { color: var(--ui-faint); font-family: inherit; }
