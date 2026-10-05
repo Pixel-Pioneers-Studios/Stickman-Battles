@@ -3,11 +3,12 @@ STORY_CHAPTER_REGISTRY.push(
   {
     id: 145, title: 'What Remains',
     world: '🕳️ The Void — Breach',
+    arena: 'void',
     type: 'exploration', exploreMode: 'escape',
     style: 'void',
     worldLength: 4200,
     objectName: 'Stable Core',
-    preText: 'The void is tearing open as the True Form stirs. The collapse is spreading from behind. Reach the stable core before it swallows everything.',
+    preText: 'The void is tearing open as Cosmic Axiom stirs. The collapse is spreading from behind. Reach the stable core before it swallows everything.',
     spawnEnemies: [
       { wx: 700,  name: 'Void Shard',    weaponKey: 'sword',  classKey: 'none',    aiDiff: 'hard',   color: '#cc44ff' },
       { wx: 1500, name: 'Void Shard',    weaponKey: 'axe',    classKey: 'berserker',aiDiff: 'hard',  color: '#bb33ee' },
@@ -15,26 +16,24 @@ STORY_CHAPTER_REGISTRY.push(
       { wx: 3200, name: 'True Echo',     weaponKey: 'hammer', classKey: 'thor',    aiDiff: 'expert', color: '#9911cc', isGuard: true, health: 130 },
     ],
     fightScript: [
-      { frame: 20,  text: '⚠️ VOID BREACH — the True Form is stirring. Keep moving RIGHT.', color: '#ff44ff', timer: 290 },
+      { frame: 20,  text: '⚠️ VOID BREACH — Cosmic Axiom is stirring. Keep moving RIGHT.', color: '#ff44ff', timer: 290 },
       { frame: 380, text: '"It feeds on the closure energy. It will come for you. And you will be the only thing that can stop it."', color: '#cc88ff', timer: 280 },
       { frame: 680, text: 'The void holds. Barely. Keep moving.', color: '#aaccff', timer: 220 },
     ],
-    sky: ['#0a0014', '#12001e', '#1a0028'],
-    groundColor: '#0c0814',
-    platColor: '#140c1e',
     playerLives: 3,
     tokenReward: 50, blueprintDrop: null,
-    postText: 'You are still here. The void holds. The True Form is coming.',
+    postText: 'You are still here. The void holds. Cosmic Axiom is coming.',
   },
 
   {
     id: 146, title: 'What It Built Here',
-    world: '🕳️ The Void — True Form\'s Domain',
+    world: '🕳️ The Void — Cosmic Axiom\'s Domain',
+    arena: 'void',
     type: 'exploration', exploreMode: 'scavenge',
     style: 'void',
     worldLength: 3600,
     objectName: 'Absorbed Fragment Echoes',
-    preText: 'The True Form has been here a long time. Across its domain are the absorbed fragment energies of every bearer who came before — ninety-four of them. Collect four echoes and understand what came before you.',
+    preText: 'Cosmic Axiom has been here a long time. Across its domain are the absorbed fragment energies of every bearer who came before — ninety-four of them. Collect four echoes and understand what came before you.',
     scavengeItemDefs: [
       { wx: 500,  y: 355, name: 'First Bearer\'s Echo',      icon: '👁️' },
       { wx: 1200, y: 315, name: 'The Forty-Seventh\'s Mark', icon: '🌀' },
@@ -48,12 +47,9 @@ STORY_CHAPTER_REGISTRY.push(
       { wx: 3100, name: 'Fragment Echo',   weaponKey: 'hammer', classKey: 'warrior', aiDiff: 'expert', color: '#660099', isGuard: true, health: 130 },
     ],
     fightScript: [
-      { frame: 40,  text: 'The True Form absorbed ninety-four bearers. Their echoes are still here. Collect them.', color: '#cc44ff', timer: 280 },
+      { frame: 40,  text: 'Cosmic Axiom absorbed ninety-four bearers. Their echoes are still here. Collect them.', color: '#cc44ff', timer: 280 },
       { frame: 600, text: 'Each echo is a life that ended here. Each one made it further than the one before.', color: '#aa22dd', timer: 290 },
     ],
-    sky: ['#020208', '#060410', '#0a0618'],
-    groundColor: '#040614',
-    platColor: '#0c101e',
     playerLives: 3,
     tokenReward: 60, blueprintDrop: null,
     postText: 'The ninety-fourth echo was the closest. It reached this same point. Then something in it gave. You carry what it couldn\'t. That is the only difference between you and them — not power. Persistence.',
@@ -73,10 +69,10 @@ STORY_CHAPTER_REGISTRY.push(
     // migration is needed. The field itself is built by _brSpawnBots(), which
     // derives bearer mode from this `type`.
     type: 'battleroyale',
-    preText: 'The True Form kept every bearer it ever took. Ninety-four of them stand between you and its core — not three, not in waves. All of them, at once. Only one thing walks out of the construct layer.',
+    preText: 'Cosmic Axiom kept every bearer it ever took. Ninety-four of them stand between you and its core — not three, not in waves. All of them, at once. Only one thing walks out of the construct layer.',
     opponentName: 'Fragment Bearer',
     fightScript: [
-      { frame: 60,   text: 'These were fragment bearers once. The True Form kept what it needed and discarded the rest.', color: '#cc44ff', timer: 290 },
+      { frame: 60,   text: 'These were fragment bearers once. Cosmic Axiom kept what it needed and discarded the rest.', color: '#cc44ff', timer: 290 },
       { frame: 420,  text: 'They fight like you — because they were made from people who fought like you.', color: '#aa22dd', timer: 270 },
       { frame: 1200, text: 'Ninety-four people carried what you carry. This is what the Void did with all of them.', color: '#bb33ee', timer: 280 },
       { frame: 2400, text: 'The lower numbers go down easily. They were taken early. The last ones held out longest.', color: '#ffffff', timer: 260 },
@@ -84,12 +80,12 @@ STORY_CHAPTER_REGISTRY.push(
     arena: 'void',
     playerLives: 1,
     tokenReward: 80, blueprintDrop: null,
-    postText: 'The last construct dissolves and the count stops at one. You are the only bearer who has ever walked out of the construct layer — not because you are stronger than the ninety-four, but because you are the one still standing at the end of them. The True Form\'s presence is everywhere now — not hiding, not approaching. Just present. It has been watching since you entered the void. It was watching ninety-four times before that.',
+    postText: 'The last construct dissolves and the count stops at one. You are the only bearer who has ever walked out of the construct layer — not because you are stronger than the ninety-four, but because you are the one still standing at the end of them. Cosmic Axiom\'s presence is everywhere now — not hiding, not approaching. Just present. It has been watching since you entered the void. It was watching ninety-four times before that.',
   },
 
   {
     id: 148, title: 'Before the End',
-    world: '🕳️ The Void — True Form\'s Threshold',
+    world: '🕳️ The Void — Cosmic Axiom\'s Threshold',
     type: 'branch',
     narrative: [
       '"You are the ninety-fifth."',
@@ -121,7 +117,7 @@ STORY_CHAPTER_REGISTRY.push(
       {
         label: '"The uncertainty is exactly why I\'m here."',
         flag: 'tf_confronted_directly',
-        consequence: '"Yes," the True Form said. Not agreement. Recognition. "That is the correct answer." A pause. "It doesn\'t change what happens next." The presence tightened. "But it changes what it means."',
+        consequence: '"Yes," Cosmic Axiom said. Not agreement. Recognition. "That is the correct answer." A pause. "It doesn\'t change what happens next." The presence tightened. "But it changes what it means."',
       },
       {
         label: '"Then we both walk in without knowing."',
@@ -135,7 +131,7 @@ STORY_CHAPTER_REGISTRY.push(
 
   {
     id: 149, title: 'Same Frequency',
-    world: '🕳️ The Void — True Form\'s Threshold',
+    world: '🕳️ The Void — Cosmic Axiom\'s Threshold',
     isEpilogue: true,
     noFight: true,
     tokenReward: 0,

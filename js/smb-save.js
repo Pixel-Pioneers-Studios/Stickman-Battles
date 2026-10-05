@@ -160,6 +160,7 @@ function _saveSnapshotSummary(data) {
 }
 
 function _logSaveState(prefix, data, suffix) {
+  if (!window._smbDebugSave) return;
   const s = _saveSnapshotSummary(data);
   console.info(`[${prefix}] ${CANONICAL_SAVE_KEY} ${suffix}`, { coins: s.coins, chapter: s.chapter });
 }
@@ -330,7 +331,7 @@ function _flushRuntimeIntoBase(base) {
     const _snap = getStoryDataForSave();
     if (_snap && Array.isArray(_snap.defeated)) {
       base.story = _snap;
-      console.info('[STORY FLUSH]', { defeated: _snap.defeated.length, chapter: _snap.chapter });
+      if (window._smbDebugSave) console.info('[STORY FLUSH]', { defeated: _snap.defeated.length, chapter: _snap.chapter });
     }
   }
   // storyProgress — STORY_PROGRESS is mutated directly in smb-progression.js
@@ -512,6 +513,7 @@ function _refreshRuntimeFromSave(data) {
   if (typeof earnedAchievements !== 'undefined' && data.unlocks && Array.isArray(data.unlocks.achievements)) {
     earnedAchievements.clear();
     data.unlocks.achievements.forEach(function(id) { earnedAchievements.add(id); });
+    if (typeof _achUpdateNavCount === 'function') _achUpdateNavCount();
   }
 
   // Settings — smb-globals.js (const object; properties must be mutated, not replaced)
@@ -938,7 +940,7 @@ function saveGame() {
       console.info('[DEFAULT BLOCKED]', summary);
       return;
     }
-    console.info('[SAVE WRITE]', { acct: acct.id, coins: summary.coins, chapter: summary.chapter });
+    if (window._smbDebugSave) console.info('[SAVE WRITE]', { acct: acct.id, coins: summary.coins, chapter: summary.chapter });
     const preserveTs = (window.__SMB_PENDING_SAVE_TIMESTAMP !== undefined);
     normalized.meta = {
       updatedAt: preserveTs ? Number(window.__SMB_PENDING_SAVE_TIMESTAMP) || 0 : Date.now(),
@@ -954,7 +956,7 @@ function saveGame() {
     GameState.save();
     _writeCanonicalSave(normalized);
     _logSaveState('SAVE FINAL', normalized, 'written');
-    console.info('[SAVE VERIFIED]', summary);
+    if (window._smbDebugSave) console.info('[SAVE VERIFIED]', summary);
     if (!window.__SMB_SUPPRESS_CLOUD_SYNC && window.SupabaseBridge && typeof SupabaseBridge.queueSyncFromRuntime === 'function') {
       SupabaseBridge.queueSyncFromRuntime(normalized);
     }

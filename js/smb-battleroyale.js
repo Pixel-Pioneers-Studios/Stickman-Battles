@@ -27,6 +27,7 @@ const BR_PLANE_Y      = -180;   // world Y of the transport plane
 const BR_PLANE_SPEED  = 18;     // px/frame (crosses 12000 units in ~690 frames ≈ 11.5s)
 const BR_ZONE_WAIT_F  = 1800;   // 30s wait between zone moves
 const BR_ZONE_CLOSE_F = 600;    // 10s linear close duration
+const BR_BOT_PICKUP_F = 60;     // frames a bot must stand over a ground item to take it (1s)
 
 // ── Story reframe: the field is the 94 bearers who came before Kael ───────────
 // docs/TRIALS_DESIGN.md judges Battle Royale worth including "only if reframed":
@@ -270,7 +271,7 @@ function _brMakeZonePhases() {
 
   var widths = [9200, 6800, 4700, 3100, 2000, 1150, 340];
   var phases = [{ left: 0, right: BR_WORLD_W, top: 0, bottom: BR_WORLD_H,
-                  wait: 2100, close: 780 }];
+                  wait: 2800, close: 780 }];
   var prevL = 0, prevR = BR_WORLD_W;
   for (var i = 0; i < widths.length; i++) {
     var half = widths[i] / 2;
@@ -290,10 +291,13 @@ function _brMakeZonePhases() {
     // makes a full match around six minutes instead of three. The variance
     // stays — the point is that the rhythm is unreadable, not that it is brutal.
     var t     = i / (widths.length - 1);
-    var wait  = Math.round((2600 - 900 * t) * (0.88 + Math.random() * 0.24));
+    // Sep 25 2026: waits scaled ~1.33x (3400 -> 2300) for an ~8 minute match.
+    // Closes are unchanged, so the ring still moves as fast; there is just more
+    // match between them to fight in.
+    var wait  = Math.round((3400 - 1100 * t) * (0.88 + Math.random() * 0.24));
     var close = Math.round((980 - 260 * t) * (0.90 + Math.random() * 0.20));
     phases.push({ left: L, right: R, top: 0, bottom: BR_WORLD_H,
-                  wait: Math.max(900, wait), close: Math.max(600, close) });
+                  wait: Math.max(1200, wait), close: Math.max(600, close) });
     prevL = L; prevR = R;
   }
   return phases;
@@ -601,6 +605,7 @@ function initBattleRoyale() {
   brZoneTimer    = brZonePhases[1] ? brZonePhases[1].wait : BR_ZONE_WAIT_F;
   brZoneCloseLen = BR_ZONE_CLOSE_F;
   _brResetSurge();
+  _brWarStartFrame = 0;
   brZoneLeft     = 0;
   brZoneRight    = BR_WORLD_W;
   brZoneTop      = 0;
@@ -633,6 +638,7 @@ function initBattleRoyale() {
   brSpectateList    = [];
   brSpectateIdx     = 0;
   brElimBanner      = 0;
+  _brHideRestartBtn();
 
   currentArena = _makeBRArena();
   // Without this the key keeps whatever arena was loaded last, and
@@ -855,7 +861,9 @@ function _brUpdatePlane() {
     }
   } else if (!brLanded) {
     if (p1) {
-      p1.vx = 0;
+      // No vx override: this runs after processInput and before physics, so
+      // zeroing vx here locked the player into a straight drop with no way to
+      // steer off a lava pool below them.
       if (p1.onGround) {
         brLanded      = true;
         brPlaneFlight = (minions.some(function(b) { return b._brOnPlane; }));
@@ -901,7 +909,9 @@ function _brUpdateBotFalls() {
     if (bot.onGround) {
       bot._brLanded  = true;
       bot.invincible = 90;
-      bot.target     = players[0] || null;
+      // No target: BR's brain picks one within 12 frames. Landing on the player
+      // pointed all ~99 bots at them for the rest of the match.
+      bot.target     = null;
     }
     if (bot.y > BR_DEATH_Y) {
       bot.health = 0;
@@ -1089,6 +1099,19 @@ function _brUpdateHazards() {
       var fx = f.cx(), fy = f.y + (f.h || 50);
       if (fx < hz.x || fx > hz.x + hz.w) continue;
       if (fy < hz.y || fy > hz.y + hz.h + 20) continue;
+      // Lava counts as the landing. The bounce below keeps a faller off the
+      // floor, and the landing checks only look at onGround, so a drop into a
+      // pool never "landed": the player was stuck in freefall (zone never
+      // starts) and a bot never got its AI back. Landing grants the i-frames.
+      if (f === players[0] && brJumped && !brLanded) {
+        brLanded      = true;
+        brPlaneFlight = minions.some(function(b) { return b._brOnPlane; });
+        f.invincible  = 90;
+      } else if (f._brBot && f._brDropped && !f._brLanded) {
+        f._brLanded  = true;
+        f.invincible = 90;
+        f.target     = null;   // see _brUpdateBotFalls
+      }
       // Bounce out with enough height to clear the rim, and grant the ground
       // jump so the escape is not a few px short (the lava-escape fix pattern).
       if (f.vy > -6) f.vy = -12;
@@ -1300,7 +1323,11 @@ function _brUpdateGroundItems() {
     }
     if (gi_item.life <= 0) { brGroundItems.splice(gi, 1); continue; }
 
-    // Bots auto-pickup if inventory has space
+    // Bots pick up if inventory has space — but not on contact. A bot has to
+    // stand over the item for BR_BOT_PICKUP_F frames (the human has to stop and
+    // press F), so walking past, getting hit off it, or being contested costs
+    // it the grab. One bot channels an item at a time; leaving range resets it.
+    var chanBot = null;
     for (var bi = 0; bi < minions.length; bi++) {
       var bot = minions[bi];
       if (!bot || !bot._brBot || bot.health <= 0 || !bot._brLanded) continue;
@@ -1313,19 +1340,21 @@ function _brUpdateGroundItems() {
         // legendary for the uncommon it walked over ten seconds later — and with
         // a full bag it would not pick the legendary up at all.
         if (bIt.type === 'weapon') {
-          if (_brWeaponRank(bIt.weaponKey) <= _brWeaponRank(bot.weaponKey)) continue;
-          _brApplyItem(bIt, bot);
-          brGroundItems.splice(gi, 1);
-          break;
-        }
-        var bslot = bot._brInv.indexOf(null);
-        if (bslot !== -1) {
-          bot._brInv[bslot] = bIt;
-          brGroundItems.splice(gi, 1);
-          break;
-        }
+          if (_brWeaponRank(bIt.weaponKey) <= _brWeaponRank(_brRealWeaponKey(bot))) continue;
+        } else if (bot._brInv.indexOf(null) === -1) continue;
+        // Prefer whoever already started the channel; otherwise first eligible.
+        if (!chanBot || bot === gi_item._pickBot) chanBot = bot;
       }
     }
+    if (!chanBot || chanBot.hurtTimer > 0) { gi_item._pickBot = null; gi_item._pickT = 0; continue; }
+    if (gi_item._pickBot !== chanBot) { gi_item._pickBot = chanBot; gi_item._pickT = 0; }
+    // Settle over the item rather than drifting off it mid-channel.
+    if (chanBot._brNavLock) chanBot.vx *= 0.6;
+    if (++gi_item._pickT < BR_BOT_PICKUP_F) continue;
+    var cIt = gi_item.item;
+    if (cIt.type === 'weapon') _brApplyItem(cIt, chanBot);
+    else chanBot._brInv[chanBot._brInv.indexOf(null)] = cIt;
+    brGroundItems.splice(gi, 1);
   }
 }
 
@@ -1373,7 +1402,11 @@ function _brApplyItem(item, fighter) {
   if      (item.type === 'medkit') { fighter.health = Math.min(fighter.maxHealth, fighter.health + (item.heal || 50)); if (typeof spawnParticles === 'function') spawnParticles(fighter.cx(), fighter.cy(), '#44ff88', 12); }
   else if (item.type === 'shield') { fighter.shieldHP = (item.shield || 30); fighter.shielding = true; fighter._brShieldTimer = 300; if (typeof spawnParticles === 'function') spawnParticles(fighter.cx(), fighter.cy(), '#4488ff', 10); }
   else if (item.type === 'super')  { fighter.superMeter = 100; fighter.superReady = true; if (typeof spawnParticles === 'function') spawnParticles(fighter.cx(), fighter.cy(), '#ffdd00', 14); }
-  else if (item.type === 'weapon' && item.weaponKey) { var w = WEAPONS[item.weaponKey]; if (w) { fighter.weaponKey = item.weaponKey; fighter.weapon = w; fighter.cooldown = 0; } }
+  else if (item.type === 'weapon' && item.weaponKey) {
+    var w = WEAPONS[item.weaponKey];
+    if (w && fighter._brForm) { fighter._brForm.saved.weaponKey = item.weaponKey; fighter._brForm.saved.weapon = w; }
+    else if (w) { fighter.weaponKey = item.weaponKey; fighter.weapon = w; fighter.cooldown = 0; }
+  }
 }
 
 // Pressing 1-5: select the slot; for weapon slots swap with equipped weapon immediately
@@ -1385,6 +1418,11 @@ function selectBRSlot(s) {
   // Weapon slot: swap inventory weapon with currently equipped weapon
   var p = players.find(function(pl) { return !pl.isAI && pl.health > 0; });
   if (!p || !p.weaponKey || !p.weapon) return;
+  if (p._brForm) {
+    if (typeof DamageText !== 'undefined')
+      damageTexts.push(new DamageText(p.cx(), p.y - 35, 'No weapons in creature form', '#ff8888'));
+    return;
+  }
   var equippedItem = { type: 'weapon', weaponKey: p.weaponKey,
                        label: (p.weapon && p.weapon.name) || p.weaponKey, icon: '⚔', color: '#cc88ff' };
   var newWeapon = WEAPONS[item.weaponKey];
@@ -1451,6 +1489,19 @@ function _brWeaponRank(key) {
   return 1;
 }
 
+// A fighter in a creature form (smb-br-forms.js) carries a stand-in weapon; the
+// weapon it will get back when the form breaks is stashed on the form.
+function _brRealWeaponKey(f) {
+  return (f && f._brForm) ? f._brForm.saved.weaponKey : (f ? f.weaponKey : null);
+}
+
+// How dangerous a fighter is to walk into. A creature form outclasses any
+// weapon, so it reads as legendary-tier.
+function _brArmedRank(f) {
+  if (f && f._brForm) return 4;
+  return _brWeaponRank(f ? f.weaponKey : null);
+}
+
 // True distance, not the Manhattan approximation the old brain used. Manhattan
 // across a world this shape rates a chest 600px straight down through solid rock
 // as nearer than one 700px along the floor you are standing on.
@@ -1494,6 +1545,80 @@ function _brBestRift(bot, destX, destY) {
     if (cost < bestCost) { bestCost = cost; best = g; }
   }
   return best;
+}
+
+// Whether an awake bot should treat another BOT as someone to fight. The same
+// rules the off-screen war runs on (_brDormantWar), applied on screen.
+// Measured with a roaming player (tools/br-player.js): 49 of 67 deaths were
+// awake bots killing each other around the player, 30 of them in the first
+// 30 seconds, because bots land ~120px apart and brawled before anyone had
+// looted. The field burned out wherever the player went and matches ended in
+// 3-5 minutes on an 8 minute storm.
+// Humans are always fair game, and anyone who is hitting you, or
+// squaring up to you at close range, gets answered.
+function _brBotFightWanted(bot, other, recentlyHurt) {
+  // Mid-finisher, both fighters are out of the match until it ends.
+  if (other._finWorldLock) return false;
+  // The human is capped as hard as bot-vs-bot fights are. Before this the player
+  // was the one target that was ALWAYS wanted, so once the two on-screen bot
+  // fights were running every other awake bot's only legal foe was the player —
+  // the scoring cap below never got a say and the whole wake area piled on.
+  // Hitting a bot still always earns its attention.
+  // A bot already on the player is not exempt: the count excludes itself, so the
+  // fourth one re-checks and drops off, whoever handed it the player.
+  if (!other.isAI && players.indexOf(other) !== -1) {
+    if (recentlyHurt && bot._lastAttacker === other) return true;
+    return _brOnPlayerCount(other, bot) < BR_MAX_ON_PLAYER;
+  }
+  // Wildlife is worth starting on only when healthy enough to finish it (a kill
+  // earns its form), or when it started on you.
+  if (other._brWildlife) {
+    return (recentlyHurt && bot._lastAttacker === other) || bot.health / bot.maxHealth >= 0.5;
+  }
+  if (!other._brBot) return true;
+  if (recentlyHurt && bot._lastAttacker === other) return true;
+  if (other.target === bot && !other._brNavLock &&
+      Math.abs(other.cx() - bot.cx()) < 160 && Math.abs(other.cy() - bot.cy()) < 120) return true;
+  if (!_brWarStartFrame || frameCount - _brWarStartFrame < 1200) return false;   // looting phase
+  if (_brArmedRank(bot) === 0) return false;
+  if (bot.health / bot.maxHealth < 0.5) return false;
+  // Pace, as the off-screen war is paced: at most two bot-vs-bot fights on
+  // screen at once. Joining the fight you are already in is always allowed.
+  if (bot.target === other) return true;
+  return _brAwakeBotFights() < 2;
+}
+
+// Awake bot-vs-bot engagements, counted once per pair (cached per frame).
+var _brAwakeFightsFrame = -1, _brAwakeFightsN = 0;
+function _brAwakeBotFights() {
+  if (_brAwakeFightsFrame === frameCount) return _brAwakeFightsN;
+  var n = 0;
+  for (var i = 0; i < minions.length; i++) {
+    var m = minions[i];
+    if (!m || !m._brBot || m.health <= 0 || m._brSleep || m._brNavLock) continue;
+    var t = m.target;
+    if (t && t._brBot && t.health > 0 && !t._brSleep) n += (t.target === m) ? 0.5 : 1;
+  }
+  _brAwakeFightsFrame = frameCount; _brAwakeFightsN = n;
+  return n;
+}
+
+// How many other awake bots are currently fighting this (human) fighter.
+var BR_MAX_ON_PLAYER = 3;
+function _brOnPlayerCount(p, except) {
+  var n = 0;
+  for (var i = 0; i < minions.length; i++) {
+    var m = minions[i];
+    if (m === except || !m || m.health <= 0 || m._brSleep || m._brNavLock) continue;
+    if (m.target === p) n++;
+  }
+  return n;
+}
+
+// A goal this bot recently failed to reach (see _brNavStep).
+function _brGoalBanned(bot, x, y) {
+  return (bot._brBanUntil || 0) > frameCount &&
+         Math.abs(x - bot._brBanX) < 90 && Math.abs(y - bot._brBanY) < 90;
 }
 
 // Point the bot at a world position. _brNavLock tells Fighter.updateAI not to
@@ -1547,7 +1672,7 @@ function _brBotUseItems(bot, threatD, recentlyHurt) {
     // old brain made permanently: it equipped on pickup and never looked again,
     // so a legendary picked up second went into a slot and stayed there.
     if (it.type === 'weapon' && it.weaponKey &&
-        _brWeaponRank(it.weaponKey) > _brWeaponRank(bot.weaponKey)) {
+        _brWeaponRank(it.weaponKey) > _brWeaponRank(_brRealWeaponKey(bot))) {
       _brApplyItem(it, bot); bot._brInv[s] = null; return true;
     }
   }
@@ -1572,24 +1697,80 @@ function _brUpdateBots() {
 
     var bx = bot.cx(), by = bot.cy();
     var hpPct = bot.health / bot.maxHealth;
-    var armed = _brWeaponRank(bot.weaponKey);
+    var armed = _brArmedRank(bot);
     var skill = bot.aiDiff === 'expert' ? 3 : bot.aiDiff === 'hard' ? 2 : bot.aiDiff === 'medium' ? 1 : 0;
     var recentlyHurt = (_fc - (bot._lastAttackerFrame || -9999)) < 150;
 
     // ── Threat picture ────────────────────────────────────────
     // Nearest hostile, and whether anyone is actually close enough to matter.
-    // Wildlife counts as a threat but never as a target worth seeking out.
+    // Wildlife is the lowest-priority target (see the prey scoring below).
     var foe = null, foeD = Infinity;
     for (var ai = 0; ai < all.length; ai++) {
       var f = all[ai];
       if (f === bot || !f || f.health <= 0 || f._brOnPlane) continue;
       if (typeof areAlliedEntities === 'function' && areAlliedEntities(bot, f)) continue;
+      if (!_brBotFightWanted(bot, f, recentlyHurt)) continue;
       var fd = _brDist(bx, by, f.cx(), f.cy());
       if (fd < foeD) { foeD = fd; foe = f; }
     }
 
+    // ── Who is actually worth fighting ───────────────────────
+    // Nearest-first made every awake bot duel whoever happened to be beside it,
+    // which is how a player picks off a crowd one at a time. Competent bots now
+    // choose: someone already busy in another fight is a free third-party,
+    // someone hurt is a cheap elimination, whoever is hitting you gets answered,
+    // wildlife comes last, and a clearly better-armed fighter is avoided.
+    var prey = foe, preyD = foeD;
+    if (skill >= 1 && foe) {
+      var bestCost = Infinity;
+      for (var pi = 0; pi < all.length; pi++) {
+        var c = all[pi];
+        if (c === bot || !c || c.health <= 0 || c._brOnPlane || c._brSleep) continue;
+        if (typeof areAlliedEntities === 'function' && areAlliedEntities(bot, c)) continue;
+        if (!_brBotFightWanted(bot, c, recentlyHurt)) continue;
+        var cd0 = _brDist(bx, by, c.cx(), c.cy());
+        if (cd0 > 900) continue;
+        var cost = cd0;
+        var ct = c.target;
+        if (ct && ct !== bot && ct.health > 0 && ct.health < 999999 &&
+            _brDist(c.cx(), c.cy(), ct.cx(), ct.cy()) < 300) cost -= 150 + skill * 60;
+        cost -= (1 - c.health / (c.maxHealth || 1)) * (100 + skill * 80);
+        if (ct === bot && cd0 < 400) cost -= 200;
+        // Priority is player, then bot, then monster: at equal range the player's
+        // pull below wins, a bot costs its distance, and wildlife costs extra.
+        if (c._brWildlife) cost += 260;
+        // The human is the threat that matters. Without this, 44-59% of the bots
+        // within 350px of the player were busy fighting each other beside them
+        // (measured, tools/br-player.js), which reads as the field ignoring you.
+        // Capped, though: two bots already on the player is a fight, five is a
+        // pile-on. Past two, the pull drops to a nudge.
+        if (!c.isAI && !c.isRemote && players.indexOf(c) !== -1) {
+          cost -= (_brOnPlayerCount(c, bot) < 2) ? 220 + skill * 60 : 60;
+        }
+        if (_brArmedRank(c) - armed >= 2) cost += 300;
+        if (cost < bestCost) { bestCost = cost; prey = c; preyD = cd0; }
+      }
+    }
+
     // ── Items ────────────────────────────────────────────────
     if (_brBotUseItems(bot, foeD, recentlyHurt)) continue;
+
+    // ── Break off to heal ────────────────────────────────────
+    // A hurt bot carrying a medkit gets out and drinks it (medkits are only
+    // drunk when calm, i.e. nobody within 620px). Only when not locked in melee:
+    // turning your back at point-blank range is just dying slower.
+    if (skill >= 1 && foe && hpPct < 0.35 && foeD < 620 && foeD > (skill >= 2 ? 140 : 220)) {
+      var hasKit = false;
+      for (var ki = 0; ki < 5; ki++) if (bot._brInv[ki] && bot._brInv[ki].type === 'medkit') hasKit = true;
+      var foeHp = foe.maxHealth ? foe.health / foe.maxHealth : 1;
+      if (hasKit && foeHp > hpPct && (skill >= 2 || !recentlyHurt)) {
+        var fleeX = bx + (bx < foe.cx() ? -1 : 1) * 800;
+        var fpad  = 220 + skill * 70;
+        fleeX = Math.max(ringL + fpad, Math.min(ringR - fpad, fleeX));
+        _brGoTo(bot, fleeX, by);
+        continue;
+      }
+    }
 
     // ── 1. Storm, predictively ───────────────────────────────
     var inStorm  = bx < brZoneLeft || bx > brZoneRight;
@@ -1620,13 +1801,19 @@ function _brUpdateBots() {
     // is why the field used to evaporate in the first minute. Engage when you
     // have a real reason to: you are armed, or they are on top of you anyway.
     if (foe && foeD < 900) {
-      var foeArmed  = _brWeaponRank(foe.weaponKey);
+      var foeArmed  = _brArmedRank(foe);
       var foeHpPct  = foe.maxHealth ? foe.health / foe.maxHealth : 1;
       var outgunned = (foeArmed - armed) >= 2 || (hpPct < 0.35 && foeHpPct > hpPct + 0.25);
       var committed = foeD < 200 || recentlyHurt;
 
       if (committed || (!outgunned && (armed > 0 || foeArmed === 0) && foeD < 560)) {
-        _brEngage(bot, foe);
+        // Committed means somebody is in your face; answer the closest one
+        // unless the chosen target is right there too.
+        _brEngage(bot, (committed && preyD > 260) ? foe : prey);
+        continue;
+      }
+      if (prey !== foe && preyD < 560 && (armed > 0 || _brArmedRank(prey) === 0)) {
+        _brEngage(bot, prey);
         continue;
       }
       if (outgunned && foeD < 420 && !committed) {
@@ -1651,8 +1838,8 @@ function _brUpdateBots() {
       var gd = _brDist(bx, by, g.x, g.y);
       // Never walk past a free upgrade lying on the floor.
       var wants = invSpace ||
-        (g.item.type === 'weapon' && _brWeaponRank(g.item.weaponKey) > _brWeaponRank(bot.weaponKey));
-      if (wants && gd < pickD && gd < lootUrge) { pickD = gd; pick = g; pickIsGround = true; }
+        (g.item.type === 'weapon' && _brWeaponRank(g.item.weaponKey) > _brWeaponRank(_brRealWeaponKey(bot)));
+      if (wants && gd < pickD && gd < lootUrge && !_brGoalBanned(bot, g.x, g.y)) { pickD = gd; pick = g; pickIsGround = true; }
     }
     if (!pick || pickD > 320) {
       for (var ci = 0; ci < brLootBoxes.length; ci++) {
@@ -1662,7 +1849,7 @@ function _brUpdateBots() {
         // storm is the single most common way a bot used to kill itself.
         if (box.x < ringL + 60 || box.x > ringR - 60) continue;
         var cd = _brDist(bx, by, box.x, box.y);
-        if (cd < pickD && cd < lootUrge) { pickD = cd; pick = box; pickIsGround = false; }
+        if (cd < pickD && cd < lootUrge && !_brGoalBanned(bot, box.x, box.y - 10)) { pickD = cd; pick = box; pickIsGround = false; }
       }
     }
 
@@ -1675,9 +1862,10 @@ function _brUpdateBots() {
     // Nothing to loot, nobody worth fighting: move toward the ring, but toward a
     // part of it worth holding. Picking a landmark rather than the bare centre is
     // what stops the whole surviving field from stacking on one pixel.
+    if (prey && preyD < 900) { _brEngage(bot, prey); continue; }
     if (foe && foeD < 1800) { _brEngage(bot, foe); continue; }
 
-    if (!bot._brRoamX || Math.abs(bx - bot._brRoamX) < 240 ||
+    if (!bot._brRoamX || Math.abs(bx - bot._brRoamX) < 240 || _brGoalBanned(bot, bot._brRoamX, by) ||
         bot._brRoamX < ringL + pad || bot._brRoamX > ringR - pad) {
       var options = [];
       for (var li = 0; li < BR_LANDMARKS.length; li++) {
@@ -1711,12 +1899,45 @@ function _brNavStep(bot) {
   var spd = (bot.aiDiff === 'easy' ? 3.6 : bot.aiDiff === 'medium' ? 4.5 :
              bot.aiDiff === 'hard' ? 5.2 : 5.6);
 
+  // ── Give up on goals that are not getting closer ──
+  // A goal can be unreachable from where the bot stands (a chest in a lava
+  // pool, a ledge with no graph route). BR re-issued the same goal every
+  // decision, so the bot stood under or over it for the rest of the match.
+  // No progress for ~2s: drop it and remember it for a while, and BR picks
+  // something else (see _brGoalBanned).
+  var gd = Math.abs(tx - bot.cx()) + Math.abs(ty - bot.cy());
+  if (bot._brNavGoalX === undefined || Math.abs(bot._brNavGoalX - tx) > 60 || Math.abs(bot._brNavGoalY - ty) > 60) {
+    bot._brNavGoalX = tx; bot._brNavGoalY = ty; bot._brNavBest = gd; bot._brNavSince = frameCount;
+  } else if (gd < bot._brNavBest - 20) {
+    bot._brNavBest = gd; bot._brNavSince = frameCount;
+  } else if (gd > 80 && frameCount - bot._brNavSince > 120) {
+    bot._brBanX = tx; bot._brBanY = ty; bot._brBanUntil = frameCount + 600;
+    bot._brNavGoalX = undefined;
+    bot._brNavLock = false;
+    return;
+  }
+
   var wpX = tx, wpY = ty, wantJump = false;
+  var wp = null;
   if (typeof pfGetNextWaypoint === 'function') {
-    var wp = pfGetNextWaypoint(bot, tx, ty);
+    wp = pfGetNextWaypoint(bot, tx, ty);
     if (wp) {
       wpX = wp.x; wpY = wp.y;
       wantJump = (wp.action === 'jump');
+    }
+  }
+  // No route, standing on a ledge with the goal below: step off the nearer
+  // edge. Walking at the goal's X from directly above it is standing still.
+  if (!wp && bot.onGround && ty > bot.y + bot.h + 40 && Math.abs(tx - bot.cx()) < 160 &&
+      currentArena && currentArena.platforms) {
+    var _pls = currentArena.platforms, _feet = bot.y + bot.h;
+    for (var _pi = 0; _pi < _pls.length; _pi++) {
+      var _pl = _pls[_pi];
+      if (bot.cx() >= _pl.x && bot.cx() <= _pl.x + _pl.w && Math.abs(_feet - _pl.y) < 8) {
+        if (_pl.isFloor) break;   // the world floor has no "off"
+        wpX = (tx - _pl.x < _pl.x + _pl.w - tx) ? _pl.x - 30 : _pl.x + _pl.w + 30;
+        break;
+      }
     }
   }
 
@@ -1751,10 +1972,38 @@ function _brNavStep(bot) {
 // Called by dealDamage() on a killing blow — see the note there for why the
 // credit cannot be taken from BR's own update. Wildlife is not a contender, and
 // storm/lava kills arrive with a null attacker and correctly count for nobody.
+// A finishing tick from the storm, lava or an off-screen exchange carries no
+// attacker, so a fighter you beat down and knocked into the storm counted for
+// nobody. Credit whoever last hurt them within BR_KILL_CREDIT_F instead.
+var BR_KILL_CREDIT_F = 300;
 function _brCreditElimination(attacker, target) {
   if (!brActive || !target || target._brKillCounted) return;
-  if (target._brWildlife) return;
+  if ((!attacker || attacker === target) && target._lastAttacker &&
+      typeof frameCount !== 'undefined' &&
+      frameCount - (target._lastAttackerFrame || -99999) <= BR_KILL_CREDIT_F) {
+    attacker = target._lastAttacker;
+  }
+  // Killing a beast or a yeti earns its form. Only flagged here: the change of
+  // body happens at the next BR update, never inside dealDamage().
+  if (target._brWildlife) {
+    // Once: a corpse still takes hits until the loop prunes it, and each one
+    // would otherwise re-grant (and refill) the form.
+    target._brKillCounted = true;
+    if (attacker && attacker !== target && attacker.health > 0 && !attacker._brWildlife &&
+        (attacker._brBot || players.indexOf(attacker) !== -1)) {
+      attacker._brFormPending = target.isYeti ? 'yeti' : 'beast';
+    }
+    return;
+  }
   target._brKillCounted = true;
+  _brDropLoadout(target);
+  // Bots get no finisher of their own (only the player's screen shows one), so
+  // they collect its heal on the kill instead. A kill that played a finisher
+  // already paid it.
+  if (attacker && attacker._brBot && attacker !== target && attacker.health > 0 && !target._brFinKill &&
+      typeof FIN_HEAL !== 'undefined') {
+    attacker.health = Math.min(attacker.maxHealth, attacker.health + FIN_HEAL);
+  }
   if (!attacker || attacker.isAI || attacker.isBoss) return;
   brPlayerKills++;
   if (typeof unlockAchievement !== 'function') return;
@@ -1858,7 +2107,50 @@ function _brCycleSpectate(dir) {
   brSpectateTarget = brSpectateList[brSpectateIdx];
 }
 
+// Restart button — shown while the player is out and spectating, so a dead run
+// doesn't have to be watched to the end (or quit through the menu) to go again.
+function _brHideRestartBtn() {
+  var b = document.getElementById('brRestartBtn');
+  if (b) b.style.display = 'none';
+}
+
+function _brRestart() {
+  _brHideRestartBtn();
+  if (!gameRunning || gameMode !== 'battleroyale') return;
+  if (typeof ReplaySystem !== 'undefined') ReplaySystem.stopRecording();
+  if (typeof cgSdk !== 'undefined') cgSdk.gameplayStop();
+  // Stopping gameRunning ends the current rAF chain (gameLoop returns at its top);
+  // start the new match a tick later so the two loops never overlap.
+  gameRunning = false;
+  setTimeout(function() { if (typeof startGame === 'function') startGame(); }, 60);
+}
+
+function _brSyncRestartBtn() {
+  var show = gameRunning && brSpectating && !brWinner && !brStoryBearers;
+  var b = document.getElementById('brRestartBtn');
+  if (!show) { if (b) b.style.display = 'none'; return; }
+  var wrap = document.getElementById('gameWrapper');
+  if (!b) {
+    if (!wrap) return;
+    b = document.createElement('button');
+    b.id = 'brRestartBtn';
+    b.className = 'btn btn-start';
+    b.textContent = 'Restart';
+    b.style.position = 'absolute';
+    b.style.transform = 'translateX(-50%)';
+    b.style.zIndex = '50';
+    b.addEventListener('click', function(e) { e.stopPropagation(); _brRestart(); });
+    wrap.appendChild(b);
+  }
+  // Just below the ELIMINATED banner, tracking the (letterboxed) canvas.
+  var r = canvas.getBoundingClientRect();
+  b.style.left    = (r.left + r.width / 2) + 'px';
+  b.style.top     = (r.top + r.height * ((GAME_H / 2 + 36) / GAME_H)) + 'px';
+  b.style.display = 'block';
+}
+
 function _brUpdateSpectate() {
+  _brSyncRestartBtn();
   if (!brSpectating) return;
   if (brElimBanner > 0) brElimBanner--;
   // Refresh list — remove newly dead fighters
@@ -1885,6 +2177,18 @@ function _brIsLocalPlayerHit(attacker, target) {
     if (attacker === p || target === p) return true;
   }
   return false;
+}
+
+// Hit sounds are global audio, so in BR they are scoped to what the camera can
+// see (plus the local player's own hits). Without this every fight across the
+// 12000px world played at full volume — 30-50 hits a second in the midgame.
+function _brIsAudibleHit(attacker, target) {
+  if (!brActive || _brIsLocalPlayerHit(attacker, target)) return true;
+  if (!target || typeof target.cx !== 'function') return false;
+  var zoom  = (typeof camZoomCur !== 'undefined' && camZoomCur > 0) ? camZoomCur : 1;
+  var halfW = GAME_W / (2 * zoom) + 120;
+  var halfH = GAME_H / (2 * zoom) + 120;
+  return Math.abs(target.cx() - camXCur) < halfW && Math.abs(target.cy() - camYCur) < halfH;
 }
 
 // ── Dormant tick ──────────────────────────────────────────────────────────────
@@ -1957,7 +2261,7 @@ function _brDormantTick(bot) {
     // A bot with a full bag and a good weapon has no business emptying the map.
     // Without this the off-screen field hoovered all 200 chests inside twenty
     // seconds and the player arrived at a world with nothing left in it.
-    var _wants = bot._brInv.indexOf(null) !== -1 || _brWeaponRank(bot.weaponKey) < 3;
+    var _wants = bot._brInv.indexOf(null) !== -1 || _brWeaponRank(_brRealWeaponKey(bot)) < 3;
     if (_wants && Math.abs(_ring - bot.cx()) < 400
         && bot.cx() > brZoneLeft + 500 && bot.cx() < brZoneRight - 500) {
       // Comfortably inside the ring — go shopping instead. 2200px is about as
@@ -1972,12 +2276,19 @@ function _brDormantTick(bot) {
       }
       if (_bx3) bot._brDormGoal = _bx3.x;
     }
+    // Armed and healthy: go looking for a fight instead (see _brDormantWar).
+    // Not while fleeing, and not across the storm line.
+    if ((bot._brFleeUntil || 0) <= frameCount) {
+      var _prey = _brDormantHuntTarget(bot, _w);
+      if (_prey) bot._brDormGoal = _prey.cx();
+    }
   }
 
   // Walk. Sky bots are left alone: their floor is a cloud, and sliding one along
   // its X would drop it off the edge of the Cloud Kingdom with nothing to catch
   // it in this cheap integrator.
-  if (_live && bot._brDormGoal !== undefined && brLayerAt(bot.cy()) !== 'sky') {
+  // A bot locked in an off-screen skirmish stands and fights.
+  if (_live && !bot._brFoe && bot._brDormGoal !== undefined && brLayerAt(bot.cy()) !== 'sky') {
     var _dx = bot._brDormGoal - bot.cx();
     // Pace. A stroll is right for shopping and fatally wrong for a wall that is
     // moving at ~3.6px/frame: the first close used to eat forty bots outright
@@ -2006,7 +2317,7 @@ function _brDormantTick(bot) {
       // it walks past stays in the world for whoever comes next — including the
       // player, who otherwise inherits an already-stripped map.
       if (_bx2.item.type === 'weapon') {
-        if (_brWeaponRank(_bx2.item.weaponKey) <= _brWeaponRank(bot.weaponKey)) continue;
+        if (_brWeaponRank(_bx2.item.weaponKey) <= _brWeaponRank(_brRealWeaponKey(bot))) continue;
         _bx2.opened = true; _bx2.anim = 30;
         _brApplyItem(_bx2.item, bot);
       } else {
@@ -2024,6 +2335,198 @@ function _brDormantTick(bot) {
   if (bot._brShieldTimer > 0 && --bot._brShieldTimer <= 0) {
     bot.shielding = false; bot.shieldHP = 0;
   }
+}
+
+// ============================================================
+// THE UNSEEN WAR — off-screen bots fight each other
+// ============================================================
+// Measured 2026-09-25 with the camera parked in one place for a whole match: 91
+// of 100 fighters were still alive when the final ring began, the storm then
+// deleted 38 of them in one close, and only 7 eliminations in the entire match
+// were fighter-on-fighter. Sleeping bots walked and looted but never met anyone,
+// so the whole war only existed inside the camera's radius and the last ring was
+// a crowd rather than the survivors of a fight.
+//
+// Sleeping bots now resolve fights abstractly. Two that meet lock into a
+// skirmish and trade damage every half-second at a rate set by weapon tier and
+// skill, through the same attacker-less dealDamage() path the storm uses (so no
+// hit-stop, finisher, sound or kill credit reaches the player). The losing side
+// may break off when it is clearly beaten. The winner walks over its victim's
+// drop. The moment either wakes, the real brain takes over the same fight.
+const BR_WAR_TICK   = 30;    // frames between skirmish exchanges
+const BR_WAR_MEET_X = 260;   // how close two sleepers must be to start fighting
+const BR_WAR_MEET_Y = 160;
+// Damage per second by weapon rank (fists .. legendary). Close to what the real
+// brain does with the same kit: bot-vs-bot duels in tools/br-duel.js last ~15-20s.
+const BR_WAR_DPS    = [5.5, 7, 8.5, 10, 12];
+const BR_WAR_SKILL  = { easy: 0.8, medium: 1.0, hard: 1.15, expert: 1.3 };
+
+function _brWarSkill(bot) {
+  return bot.aiDiff === 'expert' ? 3 : bot.aiDiff === 'hard' ? 2 : bot.aiDiff === 'medium' ? 1 : 0;
+}
+
+// Chance per war tick that a bot starts a fight with a sleeper in reach. Bots
+// land ~120px apart, so "fight anyone in reach" had the whole field paired off
+// within seconds of landing and 57 dead inside half a minute. Unarmed bots
+// mostly look for a weapon first; armed, skilled ones pick fights.
+function _brWarAggro(bot) {
+  var rank = _brArmedRank(bot);
+  if (rank === 0) return 0.015;
+  return 0.02 + rank * 0.015 + _brWarSkill(bot) * 0.012;
+}
+
+function _brWarUnlink(bot) {
+  var foe = bot._brFoe;
+  bot._brFoe = null;
+  if (foe && foe._brFoe === bot) foe._brFoe = null;
+}
+
+var _brWarStartFrame = 0;   // first war tick after the player lands (reset per match)
+
+function _brDormantWar() {
+  if (!brLanded || typeof frameCount === 'undefined' || frameCount % BR_WAR_TICK !== 0) return;
+  var sleepers = [];
+  for (var i = 0; i < minions.length; i++) {
+    var b = minions[i];
+    if (!b || !b._brBot || b.health <= 0 || !b._brLanded) continue;
+    // Awake bots belong to the real brain; drop any abstract fight they were in.
+    if (!b._brSleep) { if (b._brFoe) _brWarUnlink(b); continue; }
+    sleepers.push(b);
+  }
+
+  // ── Exchanges ────────────────────────────────────────────────────────────
+  for (var s = 0; s < sleepers.length; s++) {
+    var a = sleepers[s], foe = a._brFoe;
+    if (!foe) continue;
+    if (foe.health <= 0 || !foe._brSleep ||
+        Math.abs(foe.cx() - a.cx()) > BR_WAR_MEET_X * 1.6 || Math.abs(foe.cy() - a.cy()) > 300) {
+      _brWarUnlink(a); continue;
+    }
+    // Each side hits on its own turn, so a pair exchanges once per tick total
+    // from each direction regardless of array order.
+    var dps = BR_WAR_DPS[_brArmedRank(a)] * (BR_WAR_SKILL[a.aiDiff] || 1);
+    var dmg = Math.max(1, Math.round(dps * (BR_WAR_TICK / 60) * (0.6 + Math.random() * 0.8)));
+    if (typeof dealDamage === 'function') dealDamage(null, foe, dmg, 0);
+    if (foe.health <= 0) {
+      // The exchange carries no attacker, so the kill heal is paid here
+      // (see _brCreditElimination for awake kills).
+      if (a.health > 0 && typeof FIN_HEAL !== 'undefined') a.health = Math.min(a.maxHealth, a.health + FIN_HEAL);
+      // Walk over the victim's drop; ground-item pickup does the rest.
+      a._brDormGoal = foe.cx();
+      _brWarUnlink(a);
+      continue;
+    }
+    // Break off when clearly beaten. Easy bots fight to the death, which is how
+    // a weak player dies too.
+    var hp = a.health / a.maxHealth, fhp = foe.health / foe.maxHealth;
+    if (_brWarSkill(a) >= 1 && hp < 0.3 && fhp > hp + 0.2 && Math.random() < 0.35) {
+      a._brDormGoal = a.cx() + (a.cx() < foe.cx() ? -900 : 900);
+      a._brFleeUntil = frameCount + 600;
+      _brWarUnlink(a);
+    }
+  }
+
+  // ── Recovery ─────────────────────────────────────────────────────────────
+  // A sleeper out of combat drinks, arms and shields exactly like an awake one
+  // between fights (threat distance "far", not recently hurt).
+  for (var r = 0; r < sleepers.length; r++) {
+    var rb = sleepers[r];
+    if (!rb._brFoe && rb.health > 0 && (frameCount + (rb._brTickSalt || 0) * 5) % 120 === 0) {
+      _brBotUseItems(rb, 9999, false);
+    }
+  }
+
+  // ── New meetings ─────────────────────────────────────────────────────────
+  // The first ~20s on the ground is for looting, as it is for the player.
+  if (!_brWarStartFrame) _brWarStartFrame = frameCount;
+  if (frameCount - _brWarStartFrame < 1200) return;
+  // Concurrency budget: one fight per ~18 living fighters. Every bot always has
+  // a neighbour in reach, so the pairing chance alone could not slow the war
+  // down; the number of fights running at once is what sets the pace.
+  var active = 0;
+  for (var c = 0; c < sleepers.length; c++) if (sleepers[c]._brFoe) active++;
+  // 12 left ~25 alive at five minutes; with the ~8 minute match the player
+  // needs more of the field still standing when they get there (Half the Field
+  // is 50 player kills, and off-screen kills count for nobody).
+  var budget = Math.ceil(brAlive / 18) * 2 - active;   // counted in fighters, two per fight
+  if (budget <= 0) return;
+  sleepers.sort(function (p, q) { return p.x - q.x; });
+  for (var m = 0; m < sleepers.length && budget > 0; m++) {
+    var p = sleepers[m];
+    if (p._brFoe || p.health <= 0 || (p._brFleeUntil || 0) > frameCount) continue;
+    for (var n = m + 1; n < sleepers.length; n++) {
+      var q = sleepers[n];
+      if (q.x - p.x > BR_WAR_MEET_X) break;
+      if (q._brFoe || q.health <= 0 || (q._brFleeUntil || 0) > frameCount) continue;
+      if (Math.abs(q.cy() - p.cy()) > BR_WAR_MEET_Y) continue;
+      if (typeof areAlliedEntities === 'function' && areAlliedEntities(p, q)) continue;
+      // A fight needs someone who wants it. A bot under half health does not
+      // pick fights (it is looking for a medkit), though a healthy one may
+      // still pick a fight with it. Without this, winners were paired straight
+      // into their next fight and the median loser started it on 27 HP.
+      var ap = p.health / p.maxHealth >= 0.5 ? _brWarAggro(p) : 0;
+      var aq = q.health / q.maxHealth >= 0.5 ? _brWarAggro(q) : 0;
+      if (Math.random() > Math.max(ap, aq)) continue;
+      p._brFoe = q; q._brFoe = p;
+      budget -= 2;
+      break;
+    }
+  }
+}
+
+// A sleeper worth hunting: the nearest non-allied sleeper inside the ring that
+// this bot expects to beat. Only armed, healthy, competent bots hunt; the rest
+// shop. Hunting is what gives the off-screen war an elimination curve instead of
+// relying on two random walkers bumping into each other.
+function _brDormantHuntTarget(bot, win) {
+  var skill = _brWarSkill(bot), rank = _brArmedRank(bot);
+  var hp = bot.health / bot.maxHealth;
+  if (hp < 0.6 || (rank + skill) < 3) return null;
+  var best = null, bestD = 1300;
+  for (var i = 0; i < minions.length; i++) {
+    var o = minions[i];
+    if (!o || o === bot || !o._brBot || o.health <= 0 || !o._brLanded || !o._brSleep) continue;
+    if (o.cx() < win.left + 200 || o.cx() > win.right - 200) continue;
+    if (Math.abs(o.cy() - bot.cy()) > 300) continue;
+    if (typeof areAlliedEntities === 'function' && areAlliedEntities(bot, o)) continue;
+    // Pick fights you win: a clearly better-armed target is left alone.
+    if (_brArmedRank(o) > rank + 1) continue;
+    var d = Math.abs(o.cx() - bot.cx());
+    if (d < bestD) { bestD = d; best = o; }
+  }
+  return best;
+}
+
+// Everything a fighter was carrying hits the floor when it dies — its weapon and
+// its bag. Before this, an eliminated bot's legendary simply ceased to exist, so
+// there was no such thing as looting a kill.
+function _brRarityOfWeapon(key) {
+  var tiers = ['legendary', 'epic', 'rare', 'uncommon'];
+  for (var t = 0; t < tiers.length; t++) {
+    if (BR_WEAPON_TIERS[tiers[t]].indexOf(key) !== -1) {
+      for (var r = 0; r < BR_RARITY.length; r++) if (BR_RARITY[r].key === tiers[t]) return BR_RARITY[r];
+    }
+  }
+  return BR_RARITY[0];
+}
+
+function _brDropLoadout(f) {
+  if (!f || !f._brBot || f._brLoadoutDropped) return;
+  f._brLoadoutDropped = true;
+  var drops = [];
+  var _dk = _brRealWeaponKey(f);
+  if (_dk && _dk !== 'combat' && WEAPONS[_dk]) {
+    var rar = _brRarityOfWeapon(_dk);
+    drops.push({ type: 'weapon', weaponKey: _dk, icon: '⚔',
+                 label: WEAPONS[_dk].name || _dk,
+                 color: rar.color, rarity: rar.key, rarityLabel: rar.label });
+  }
+  if (f._brInv) for (var i = 0; i < f._brInv.length; i++) if (f._brInv[i]) drops.push(f._brInv[i]);
+  var gy = f.y + (f.h || 50) * 0.4;
+  for (var d = 0; d < drops.length; d++) {
+    _brDropGroundItem(drops[d], f.cx() + (d - (drops.length - 1) / 2) * 22, gy);
+  }
+  f._brInv = [null, null, null, null, null];
 }
 
 function _brCullBots() {
@@ -2053,7 +2556,12 @@ function _brCullBots() {
     // Only sleep bots that are also safely inside the zone — bots outside the zone
     // still need storm-damage applied each tick (which happens in _brZoneDamage regardless
     // of sleep state), but bots inside the zone that are far away can safely freeze.
-    bot._brSleep = (dx > 2000 || dy > 1200);
+    // Awake = what the player can see (900x520 at the BR camera's fixed zoom)
+    // plus ~2s of approach. It was 2000x1200: some twenty bots a third of the
+    // map away ran full real-time fights nobody could see, which are far
+    // deadlier than the paced off-screen war, so wherever the player went the
+    // field was burned out around them and matches ended in 2.5-6 minutes.
+    bot._brSleep = (dx > 1100 || dy > 650);
     if (bot._brSleep) _brDormantTick(bot);
   });
 }
@@ -2069,9 +2577,11 @@ function updateBattleRoyale() {
   _brUpdateHazards();
   _brUpdateRifts();
   _brCullBots();
+  _brDormantWar();
   _brUpdateZone();
   _brCheckBoxBreaking();
   _brUpdateGroundItems();
+  if (typeof brUpdateForms === 'function') brUpdateForms();
   _brUpdateBots();
   _brUpdateSpectate();
   _brTrackPlayerFeats();
@@ -2198,6 +2708,13 @@ function drawBattleRoyaleWorld() {
     ctx.shadowBlur  = 0;
     ctx.font = '10px Arial'; ctx.textAlign = 'center'; ctx.fillStyle = '#fff';
     ctx.fillText(gi.item.icon || '?', gi.x, gi.y + 4);
+    // Bot pickup channel progress
+    if (gi._pickT > 0) {
+      ctx.strokeStyle = '#ffd24a'; ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      ctx.arc(gi.x, gi.y, 13, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * Math.min(1, gi._pickT / BR_BOT_PICKUP_F));
+      ctx.stroke();
+    }
     ctx.globalAlpha = 1;
   });
 
@@ -2319,7 +2836,7 @@ function drawBattleRoyaleHUD() {
         _nearItem = _g.item; break;
       }
     }
-    if (_nearItem) {
+    if (_nearItem && !_p1hud._brFormOffer) {
       var _pPulse = 0.7 + 0.3 * Math.sin(_fc * 0.15);
       ctx.globalAlpha = _pPulse;
       ctx.font = 'bold 12px Arial'; ctx.textAlign = 'center';
@@ -2386,6 +2903,9 @@ function drawBattleRoyaleHUD() {
       ctx.fillText('[Q] Prev    [E] Next', GAME_W / 2, GAME_H - 64);
     }
   }
+
+  // ── Creature form panel (above the inventory) ─────────────
+  if (!brSpectating && typeof brDrawFormHUD === 'function') brDrawFormHUD();
 
   // ── Minimap ───────────────────────────────────────────────
   _drawBRMinimap();

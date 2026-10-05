@@ -64,3 +64,10 @@ const WEAPON_SPRITES = {};
     }
   }
 })();
+
+// ── Weapon art target ─────────────────────────────────────────────────────────
+// drawWeapon() and wxDrawWeaponArt() paint through _weaponArtCtx() instead of
+// the global `ctx`, so the menu preview can borrow the real weapon art for its
+// own canvas. null = the main game canvas; set it only around a single call.
+let weaponArtCtx = null;
+function _weaponArtCtx() { return weaponArtCtx || ctx; }

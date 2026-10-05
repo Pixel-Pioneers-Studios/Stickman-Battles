@@ -1,0 +1,102 @@
+{
+ "started": "2026-09-19T04:06:26.414Z",
+ "model": "llama3.2:3b",
+ "cycles": [
+  {
+   "cycle": 1,
+   "worstName": "gauntlet",
+   "sweepVec": {
+    "parry_wall": 141,
+    "attrition_tank": 2326,
+    "glass_cannon": 813,
+    "untouchable": 1070,
+    "landing_trap": 703,
+    "no_ground": 1987,
+    "gauntlet": -428,
+    "ledge_executioner": 2103,
+    "noise_control": 2213
+   },
+   "sweepWorst": -428,
+   "description": {
+    "summary": "Sovereign was punished by a gauntlet in a 1v4 situation.",
+    "weakness": "Sovereign's weakness is that he is vulnerable to simultaneous attacks, especially when he's airborne, stunned, or in recovery. He also takes significant damage when hit from behind or with multiple attackers on him.",
+    "confident": true
+   },
+   "proposal": {
+    "hypothesis": "Sovereign will struggle to cope with a 'gauntlet' of attacks from multiple opponents with the 'landing_trap' policy, as it converges on his landings and limits his recovery time.",
+    "name": "Triple Threat Gauntlet",
+    "punishes": "recovery",
+    "bots": [
+     {
+      "w": "peashooter",
+      "policy": "landing_trap"
+     },
+     {
+      "w": "peashooter",
+      "policy": "landing_trap"
+     },
+     {
+      "w": "peashooter",
+      "policy": "landing_trap"
+     }
+    ]
+   },
+   "test": {
+    "avgFitness": 2650,
+    "avgLocked": 0.5,
+    "stocksLeft": 5
+   },
+   "survived": false
+  },
+  {
+   "cycle": 2,
+   "worstName": "gauntlet",
+   "sweepVec": {
+    "parry_wall": -38,
+    "attrition_tank": 1202,
+    "glass_cannon": 950,
+    "untouchable": 1958,
+    "landing_trap": 87,
+    "no_ground": 1850,
+    "gauntlet": -443,
+    "ledge_executioner": 2250,
+    "noise_control": 2066
+   },
+   "sweepWorst": -443,
+   "description": {
+    "summary": "Sovereign was punished by a gauntlet in a 1v4 situation, where the opponent's four simultaneous attackers overwhelmed him.",
+    "weakness": "The opponent's ability to land hits from behind Sovereign (43.5%) and with multiple attackers on him (43.5%) suggests that Sovereign's defensive positioning is vulnerable to multi-hit combos. The high percentage of hits landing during landing recovery (13%) also indicates that Sovereign's recovery is not reliable enough to avoid taking damage. The opponent's ability to land hits while Sovereign is stunned (13%) and within 30 frames of the previous hit (17.4%) further suggests that Sovereign's defensive timing is poor. The long unbroken chain of 4 hits and the worst single burst of 70 damage over 4 hits indicate that Sovereign's defensive capabilities are not sufficient to handle prolonged pressure.",
+    "confident": true
+   },
+   "proposal": {
+    "hypothesis": "Sovereign will struggle to defend against a relentless rusher with a high-damage, multi-hit combo, leading to a significant increase in his worst-case score.",
+    "name": "Gauntlet Rusher",
+    "punishes": "landing",
+    "bots": [
+     {
+      "w": "spear",
+      "policy": "rusher"
+     },
+     {
+      "w": "spear",
+      "policy": "rusher"
+     },
+     {
+      "w": "spear",
+      "policy": "rusher"
+     },
+     {
+      "w": "spear",
+      "policy": "rusher"
+     }
+    ]
+   },
+   "test": {
+    "avgFitness": 587,
+    "avgLocked": 4,
+    "stocksLeft": 2.3
+   },
+   "survived": false
+  }
+ ]
+}

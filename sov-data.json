@@ -1,0 +1,4811 @@
+{
+ "habits": {
+  "human:God": {
+   "key": "human:God",
+   "postures": {
+    "air": {
+     "exp": 28174,
+     "dealt": 57.66,
+     "taken": 128.56
+    },
+    "landing": {
+     "exp": 14434.279999999999,
+     "dealt": 42.26,
+     "taken": 26.1
+    },
+    "committed": {
+     "exp": 3220.4399999999996,
+     "dealt": 1.88,
+     "taken": 4.88
+    },
+    "ground": {
+     "exp": 11354.779999999999,
+     "dealt": 7.9399999999999995,
+     "taken": 7.76
+    }
+   },
+   "descent": {
+    "default": {
+     "win": 9.459999999999999,
+     "loss": 6.76,
+     "none": 30.68,
+     "dmgNet": -21.879999999999995
+    },
+    "strike": {
+     "win": 42.26,
+     "loss": 21.979999999999997,
+     "none": 82.52,
+     "dmgNet": 63.72
+    },
+    "dive": {
+     "win": 15.399999999999999,
+     "loss": 11.52,
+     "none": 30.799999999999997,
+     "dmgNet": -105.19999999999999
+    },
+    "drift": {
+     "win": 1.94,
+     "loss": 3.94,
+     "none": 5.64,
+     "dmgNet": -18.4
+    }
+   },
+   "lastSeen": 1790202819751
+  },
+  "human:<your account>": {
+   "key": "human:<your account>",
+   "postures": {
+    "air": {
+     "exp": 0,
+     "dealt": 0,
+     "taken": 0
+    },
+    "landing": {
+     "exp": 0,
+     "dealt": 0,
+     "taken": 0
+    },
+    "committed": {
+     "exp": 0,
+     "dealt": 0,
+     "taken": 0
+    },
+    "ground": {
+     "exp": 0,
+     "dealt": 0,
+     "taken": 0
+    }
+   },
+   "descent": {
+    "default": {
+     "win": 0,
+     "loss": 0,
+     "none": 0,
+     "dmgNet": 0
+    },
+    "strike": {
+     "win": 0,
+     "loss": 0,
+     "none": 0,
+     "dmgNet": 0
+    },
+    "dive": {
+     "win": 0,
+     "loss": 0,
+     "none": 0,
+     "dmgNet": 0
+    },
+    "drift": {
+     "win": 0,
+     "loss": 0,
+     "none": 0,
+     "dmgNet": 0
+    }
+   },
+   "lastSeen": 0
+  }
+ },
+ "dossier": {
+  "kit:sword/ninja": {
+   "key": "kit:sword/ninja",
+   "n": 0.10848563810404592,
+   "frames": 0,
+   "strat": {},
+   "dials": {
+    "agg": 0.9263569505536988,
+    "def": 1,
+    "spc": 0.10326319062607595,
+    "rxn": 1
+   },
+   "loadout": {
+    "signature": {
+     "n": 1,
+     "dmg": 67
+    }
+   },
+   "lastSeen": 1788384490382
+  },
+  "kit:nullblade/berserker": {
+   "key": "kit:nullblade/berserker",
+   "n": 3.1249171711121138,
+   "frames": 0,
+   "strat": {},
+   "dials": {
+    "agg": 0.9160350436339184,
+    "def": 0.9961292809672037,
+    "spc": 0.17659960525685706,
+    "rxn": 1
+   },
+   "loadout": {
+    "ronin": {
+     "n": 4,
+     "dmg": 209.75
+    }
+   },
+   "lastSeen": 1788385804426
+  },
+  "beh:zoner": {
+   "key": "beh:zoner",
+   "n": 8.219994463406998,
+   "frames": 0,
+   "strat": {},
+   "dials": {
+    "agg": 0.9126119211680881,
+    "def": 0.9839874772362577,
+    "spc": 0.20701866226095092,
+    "rxn": 0.9993332794705518
+   },
+   "loadout": {
+    "ronin": {
+     "n": 5,
+     "dmg": 235.8
+    },
+    "signature": {
+     "n": 2,
+     "dmg": 108.5
+    }
+   },
+   "lastSeen": 1789080794435
+  },
+  "beh:mixed": {
+   "key": "beh:mixed",
+   "n": 150.78790990136565,
+   "frames": 0,
+   "strat": {},
+   "dials": {
+    "agg": 0.9564657399359927,
+    "def": 0.99838182984885,
+    "spc": 0.19029392541130305,
+    "rxn": 0.995673145036667
+   },
+   "loadout": {
+    "signature": {
+     "n": 18,
+     "dmg": 148.66666666666663
+    },
+    "ninja": {
+     "n": 2,
+     "dmg": 332
+    },
+    "ronin": {
+     "n": 49,
+     "dmg": 146.30612244897955
+    },
+    "pugilist": {
+     "n": 10,
+     "dmg": 257.3
+    },
+    "torren": {
+     "n": 5,
+     "dmg": 84.8
+    },
+    "reaper": {
+     "n": 9,
+     "dmg": 138.55555555555554
+    }
+   },
+   "lastSeen": 1790202808801,
+   "grid": {
+    "fl": {
+     "approach_ground": {
+      "tries": 20,
+      "taken": 0.006303848311257475,
+      "dealt": 28.35947352187012
+     },
+     "attack": {
+      "tries": 4.7636,
+      "taken": 8.459999999999999,
+      "dealt": 0
+     },
+     "retreat": {
+      "tries": 3.7072,
+      "taken": 12.3704,
+      "dealt": 0
+     }
+    },
+    "ma": {
+     "attack": {
+      "tries": 20,
+      "taken": 71.3364535531883,
+      "dealt": 121.103825520541
+     },
+     "approach_ground": {
+      "tries": 20,
+      "taken": 15.223220177669054,
+      "dealt": 57.728226136698105
+     },
+     "approach_air": {
+      "tries": 20,
+      "taken": 120.86179090892443,
+      "dealt": 14.198306064678368
+     },
+     "retreat": {
+      "tries": 20,
+      "taken": 12.281835810809872,
+      "dealt": 26.95931074821868
+     },
+     "shield": {
+      "tries": 18.698563128470262,
+      "taken": 44.37999118470078,
+      "dealt": 0
+     },
+     "super": {
+      "tries": 3.654184,
+      "taken": 0,
+      "dealt": 24.92153488
+     }
+    },
+    "ml": {
+     "approach_ground": {
+      "tries": 20,
+      "taken": 31.228598136387074,
+      "dealt": 85.75248348549341
+     },
+     "retreat": {
+      "tries": 19.113013407999993,
+      "taken": 33.644387598038335,
+      "dealt": 49.396258230548426
+     },
+     "attack": {
+      "tries": 20,
+      "taken": 8.69630714420089,
+      "dealt": 54.67738834954641
+     },
+     "shield": {
+      "tries": 20,
+      "taken": 208.13393609182066,
+      "dealt": 0
+     }
+    },
+    "cl": {
+     "attack": {
+      "tries": 20,
+      "taken": 131.77619854241686,
+      "dealt": 292.831814777911
+     },
+     "retreat": {
+      "tries": 20,
+      "taken": 341.7820963689979,
+      "dealt": 58.95824480634348
+     },
+     "super": {
+      "tries": 20,
+      "taken": 0,
+      "dealt": 77.47000276422494
+     },
+     "approach_ground": {
+      "tries": 20,
+      "taken": 136.16268992942554,
+      "dealt": 95.59517974781667
+     },
+     "shield": {
+      "tries": 20,
+      "taken": 56.13539489609483,
+      "dealt": 109.55525512245816
+     }
+    },
+    "fb": {
+     "approach_ground": {
+      "tries": 16.496105691049912,
+      "taken": 5.573614362511509,
+      "dealt": 0
+     },
+     "retreat": {
+      "tries": 6.507184357648639,
+      "taken": 0,
+      "dealt": 171.70876455532797
+     }
+    },
+    "fa": {
+     "approach_ground": {
+      "tries": 20,
+      "taken": 1.2626087918832818,
+      "dealt": 4.9112166655531935
+     },
+     "retreat": {
+      "tries": 20,
+      "taken": 0.08746426534400695,
+      "dealt": 20.095400391096074
+     },
+     "shield": {
+      "tries": 16.933075478753278,
+      "taken": 0,
+      "dealt": 0
+     },
+     "attack": {
+      "tries": 6.37493296,
+      "taken": 0,
+      "dealt": 0
+     },
+     "super": {
+      "tries": 1.94,
+      "taken": 0,
+      "dealt": 38.8
+     }
+    },
+    "mb": {
+     "approach_ground": {
+      "tries": 20,
+      "taken": 5.686858185573992,
+      "dealt": 192.30394332636533
+     },
+     "attack": {
+      "tries": 18.698563128470262,
+      "taken": 15.087018527908056,
+      "dealt": 0
+     },
+     "shield": {
+      "tries": 20,
+      "taken": 24.83543648854523,
+      "dealt": 327.6319181350428
+     },
+     "retreat": {
+      "tries": 11.393723402692633,
+      "taken": 0,
+      "dealt": 0
+     }
+    },
+    "ca": {
+     "retreat": {
+      "tries": 20,
+      "taken": 0.3814168413605469,
+      "dealt": 26.436021385250694
+     },
+     "attack": {
+      "tries": 20,
+      "taken": 0.17117827423521967,
+      "dealt": 141.9109249586602
+     },
+     "approach_ground": {
+      "tries": 20,
+      "taken": 36.06172916482343,
+      "dealt": 27.8287174384492
+     },
+     "approach_air": {
+      "tries": 20,
+      "taken": 88.20985620685452,
+      "dealt": 21.11482095946759
+     },
+     "super": {
+      "tries": 19.542007723456,
+      "taken": 0,
+      "dealt": 0
+     },
+     "shield": {
+      "tries": 20,
+      "taken": 150.6295074415749,
+      "dealt": 69.80058197773238
+     }
+    },
+    "cb": {
+     "retreat": {
+      "tries": 20,
+      "taken": 97.95799464639235,
+      "dealt": 138.46380807324988
+     },
+     "approach_ground": {
+      "tries": 20,
+      "taken": 13.752753393859038,
+      "dealt": 5.49293229794694
+     },
+     "super": {
+      "tries": 1,
+      "taken": 0,
+      "dealt": 22
+     },
+     "attack": {
+      "tries": 20,
+      "taken": 159.46268761277307,
+      "dealt": 110.29205750370916
+     },
+     "shield": {
+      "tries": 20,
+      "taken": 205.80777511312652,
+      "dealt": 0
+     }
+    }
+   }
+  },
+  "beh:turtle": {
+   "key": "beh:turtle",
+   "n": 0,
+   "frames": 0,
+   "strat": {},
+   "dials": null,
+   "loadout": {},
+   "lastSeen": 0
+  },
+  "kit:katana/ronin": {
+   "key": "kit:katana/ronin",
+   "n": 2.371947036713501,
+   "frames": 0,
+   "strat": {},
+   "dials": {
+    "agg": 0.9423028909642909,
+    "def": 0.9882086637754878,
+    "spc": 0.20948434655645892,
+    "rxn": 0.9993851664698352
+   },
+   "loadout": {
+    "ninja": {
+     "n": 1,
+     "dmg": 70
+    },
+    "signature": {
+     "n": 2,
+     "dmg": 170.5
+    },
+    "ronin": {
+     "n": 2,
+     "dmg": 155
+    }
+   },
+   "lastSeen": 1788385859076
+  },
+  "beh:aerial": {
+   "key": "beh:aerial",
+   "n": 125.22580281849014,
+   "frames": 0,
+   "strat": {},
+   "dials": {
+    "agg": 0.9572347442427288,
+    "def": 0.9965569328795468,
+    "spc": 0.2272675556342809,
+    "rxn": 0.9999954448982155
+   },
+   "loadout": {
+    "ronin": {
+     "n": 26,
+     "dmg": 195.5
+    },
+    "torren": {
+     "n": 15,
+     "dmg": 118.73333333333333
+    },
+    "reaper": {
+     "n": 20,
+     "dmg": 112.29999999999998
+    },
+    "signature": {
+     "n": 1,
+     "dmg": 215
+    },
+    "ninja": {
+     "n": 7,
+     "dmg": 181.14285714285714
+    }
+   },
+   "lastSeen": 1790200640736,
+   "grid": {
+    "fl": {
+     "approach_ground": {
+      "tries": 20,
+      "taken": 1.2596968597547546,
+      "dealt": 152.97636410404175
+     },
+     "attack": {
+      "tries": 11.2212739648,
+      "taken": 29.059532841599992,
+      "dealt": 54.630399999999995
+     },
+     "retreat": {
+      "tries": 20,
+      "taken": 10.803251697947221,
+      "dealt": 58.92241875482219
+     }
+    },
+    "ma": {
+     "attack": {
+      "tries": 20,
+      "taken": 165.28425549709735,
+      "dealt": 13.52303928222318
+     },
+     "approach_ground": {
+      "tries": 20,
+      "taken": 53.95131625818968,
+      "dealt": 58.93046166789303
+     },
+     "approach_air": {
+      "tries": 20,
+      "taken": 91.43531900962043,
+      "dealt": 0.7613809536337587
+     },
+     "retreat": {
+      "tries": 20,
+      "taken": 3.3388297198864825,
+      "dealt": 1.7074362585874847
+     },
+     "shield": {
+      "tries": 20,
+      "taken": 97.91401744414374,
+      "dealt": 0
+     },
+     "super": {
+      "tries": 12.427369942399999,
+      "taken": 0,
+      "dealt": 113.71441361279999
+     }
+    },
+    "ml": {
+     "approach_ground": {
+      "tries": 20,
+      "taken": 4.402316836658944,
+      "dealt": 135.84592651465854
+     },
+     "retreat": {
+      "tries": 20,
+      "taken": 54.99738825934306,
+      "dealt": 52.70215541073308
+     },
+     "attack": {
+      "tries": 20,
+      "taken": 37.94474154397587,
+      "dealt": 174.9254465105863
+     },
+     "shield": {
+      "tries": 20,
+      "taken": 4.077230072268364,
+      "dealt": 0
+     }
+    },
+    "cl": {
+     "attack": {
+      "tries": 20,
+      "taken": 3.3552480280948203,
+      "dealt": 405.4394253026001
+     },
+     "retreat": {
+      "tries": 20,
+      "taken": 277.6080484289179,
+      "dealt": 3.350378010654374
+     },
+     "super": {
+      "tries": 20,
+      "taken": 0,
+      "dealt": 53.215488672847734
+     },
+     "approach_ground": {
+      "tries": 20,
+      "taken": 234.99463120780896,
+      "dealt": 106.85516823745034
+     },
+     "shield": {
+      "tries": 20,
+      "taken": 27.582094738587504,
+      "dealt": 35.59117575536391
+     }
+    },
+    "fb": {
+     "approach_ground": {
+      "tries": 19.588226198605142,
+      "taken": 12.237224833943333,
+      "dealt": 20.186293358991925
+     },
+     "attack": {
+      "tries": 1,
+      "taken": 0,
+      "dealt": 0
+     }
+    },
+    "fa": {
+     "approach_ground": {
+      "tries": 20,
+      "taken": 77.68651044536807,
+      "dealt": 123.31531444357229
+     },
+     "retreat": {
+      "tries": 20,
+      "taken": 0.5578220787150544,
+      "dealt": 0
+     },
+     "attack": {
+      "tries": 20,
+      "taken": 0.21210498050670357,
+      "dealt": 0
+     },
+     "shield": {
+      "tries": 2.8236,
+      "taken": 0,
+      "dealt": 0
+     },
+     "super": {
+      "tries": 1,
+      "taken": 0,
+      "dealt": 0
+     }
+    },
+    "mb": {
+     "approach_ground": {
+      "tries": 20,
+      "taken": 8.435520570971622,
+      "dealt": 43.6662241320884
+     },
+     "attack": {
+      "tries": 12.018470020671966,
+      "taken": 14.800854465269843,
+      "dealt": 23.696564490572367
+     },
+     "shield": {
+      "tries": 20,
+      "taken": 137.6231014869383,
+      "dealt": 170.0461454586772
+     },
+     "retreat": {
+      "tries": 2.8236,
+      "taken": 0,
+      "dealt": 0
+     }
+    },
+    "ca": {
+     "retreat": {
+      "tries": 20,
+      "taken": 56.869105776763426,
+      "dealt": 5.1127011824498885
+     },
+     "attack": {
+      "tries": 20,
+      "taken": 1.4507066965481241,
+      "dealt": 276.52580174318985
+     },
+     "approach_ground": {
+      "tries": 20,
+      "taken": 93.6055949661169,
+      "dealt": 44.67216321147304
+     },
+     "approach_air": {
+      "tries": 20,
+      "taken": 30.60925881903043,
+      "dealt": 28.772033942654833
+     },
+     "shield": {
+      "tries": 20,
+      "taken": 9.724078932741094,
+      "dealt": 90.72365862882494
+     },
+     "super": {
+      "tries": 4.434932959999999,
+      "taken": 0,
+      "dealt": 97.56852511999999
+     }
+    },
+    "cb": {
+     "retreat": {
+      "tries": 18.0962925642802,
+      "taken": 109.74937791751155,
+      "dealt": 107.44060145183998
+     },
+     "approach_ground": {
+      "tries": 20,
+      "taken": 0,
+      "dealt": 12.886745503032826
+     },
+     "attack": {
+      "tries": 18.82825864730879,
+      "taken": 0,
+      "dealt": 221.67589051233077
+     },
+     "shield": {
+      "tries": 18.82825864730879,
+      "taken": 75.88432678258637,
+      "dealt": 45.67240054655254
+     },
+     "super": {
+      "tries": 1.94,
+      "taken": 0,
+      "dealt": 0
+     }
+    }
+   }
+  },
+  "kit:sword/gunner": {
+   "key": "kit:sword/gunner",
+   "n": 0,
+   "frames": 0,
+   "strat": {},
+   "dials": null,
+   "loadout": {},
+   "lastSeen": 0
+  },
+  "kit:scythe/ninja": {
+   "key": "kit:scythe/ninja",
+   "n": 0.12942769297450565,
+   "frames": 0,
+   "strat": {},
+   "dials": {
+    "agg": 0.9634772783474012,
+    "def": 1,
+    "spc": 0.10659829666150746,
+    "rxn": 1
+   },
+   "loadout": {
+    "signature": {
+     "n": 1,
+     "dmg": 70
+    }
+   },
+   "lastSeen": 1788385678010
+  },
+  "kit:fryingpan/kratos": {
+   "key": "kit:fryingpan/kratos",
+   "n": 9.416041124572013,
+   "frames": 0,
+   "strat": {},
+   "dials": {
+    "agg": 0.7302614382393358,
+    "def": 0.9966599809020857,
+    "spc": 0.33315220446386273,
+    "rxn": 0.9541750090784407
+   },
+   "loadout": {
+    "ronin": {
+     "n": 9,
+     "dmg": 164.55555555555554
+    }
+   },
+   "lastSeen": 1788388574922
+  },
+  "beh:rusher": {
+   "key": "beh:rusher",
+   "n": 23.6217433589632,
+   "frames": 0,
+   "strat": {},
+   "dials": {
+    "agg": 0.8201712583120859,
+    "def": 0.9997757991441224,
+    "spc": 0.3376067190545259,
+    "rxn": 0.9939991001946517
+   },
+   "loadout": {
+    "ronin": {
+     "n": 10,
+     "dmg": 149.6
+    },
+    "reaper": {
+     "n": 1,
+     "dmg": 184
+    }
+   },
+   "lastSeen": 1790201805726,
+   "grid": {
+    "ml": {
+     "approach_ground": {
+      "tries": 20,
+      "taken": 38.19308560983364,
+      "dealt": 201.98098069228203
+     },
+     "shield": {
+      "tries": 20,
+      "taken": 44.26454331354583,
+      "dealt": 0
+     },
+     "attack": {
+      "tries": 20,
+      "taken": 126.08376924635449,
+      "dealt": 75.52327576779393
+     },
+     "retreat": {
+      "tries": 20,
+      "taken": 0,
+      "dealt": 0
+     }
+    },
+    "fa": {
+     "approach_ground": {
+      "tries": 20,
+      "taken": 48.471660227707,
+      "dealt": 66.32944671693032
+     },
+     "retreat": {
+      "tries": 20,
+      "taken": 0,
+      "dealt": 20.095400391096074
+     },
+     "shield": {
+      "tries": 20,
+      "taken": 0,
+      "dealt": 0
+     }
+    },
+    "ma": {
+     "approach_ground": {
+      "tries": 20,
+      "taken": 58.271078849135165,
+      "dealt": 23.468221325339716
+     },
+     "attack": {
+      "tries": 20,
+      "taken": 326.41801284151694,
+      "dealt": 0
+     },
+     "retreat": {
+      "tries": 20,
+      "taken": 7.7994248309703975,
+      "dealt": 3.9401357538953583
+     },
+     "approach_air": {
+      "tries": 20,
+      "taken": 124.62077626835607,
+      "dealt": 12.843558640547467
+     },
+     "shield": {
+      "tries": 20,
+      "taken": 53.17262739811128,
+      "dealt": 0
+     }
+    },
+    "ca": {
+     "retreat": {
+      "tries": 20,
+      "taken": 75.98101605056327,
+      "dealt": 33.87346454706606
+     },
+     "approach_air": {
+      "tries": 20,
+      "taken": 79.10195980349256,
+      "dealt": 30.464239067864145
+     },
+     "approach_ground": {
+      "tries": 20,
+      "taken": 71.49176781997667,
+      "dealt": 56.80822607691309
+     },
+     "attack": {
+      "tries": 20,
+      "taken": 0,
+      "dealt": 210.92358340489923
+     },
+     "shield": {
+      "tries": 20,
+      "taken": 31.067202323993893,
+      "dealt": 190.21050848542708
+     }
+    },
+    "cl": {
+     "attack": {
+      "tries": 20,
+      "taken": 42.86343791469806,
+      "dealt": 369.2742760632509
+     },
+     "retreat": {
+      "tries": 20,
+      "taken": 185.8295929265738,
+      "dealt": 0
+     },
+     "super": {
+      "tries": 20,
+      "taken": 0,
+      "dealt": 86.99366117738654
+     },
+     "shield": {
+      "tries": 20,
+      "taken": 53.824411792659006,
+      "dealt": 37.6422101026535
+     },
+     "approach_ground": {
+      "tries": 20,
+      "taken": 256.8515221918537,
+      "dealt": 65.20935647362833
+     }
+    },
+    "fl": {
+     "approach_ground": {
+      "tries": 20,
+      "taken": 0,
+      "dealt": 140.70099919169812
+     },
+     "retreat": {
+      "tries": 6.507184357648639,
+      "taken": 0,
+      "dealt": 0
+     }
+    },
+    "cb": {
+     "approach_ground": {
+      "tries": 20,
+      "taken": 0,
+      "dealt": 39.737131004769445
+     },
+     "retreat": {
+      "tries": 20,
+      "taken": 0,
+      "dealt": 342.70788763866284
+     },
+     "attack": {
+      "tries": 20,
+      "taken": 16.829521335785834,
+      "dealt": 266.4925210472245
+     },
+     "shield": {
+      "tries": 20,
+      "taken": 34.69141869661952,
+      "dealt": 0
+     }
+    },
+    "mb": {
+     "shield": {
+      "tries": 20,
+      "taken": 62.116934439330684,
+      "dealt": 307.26431088651304
+     },
+     "attack": {
+      "tries": 20,
+      "taken": 26.337390455164325,
+      "dealt": 0
+     },
+     "retreat": {
+      "tries": 15.377050277648639,
+      "taken": 0,
+      "dealt": 0
+     },
+     "approach_ground": {
+      "tries": 1,
+      "taken": 0,
+      "dealt": 0
+     }
+    },
+    "fb": {
+     "approach_ground": {
+      "tries": 20,
+      "taken": 0,
+      "dealt": 0
+     }
+    }
+   }
+  },
+  "kit:axe/archer": {
+   "key": "kit:axe/archer",
+   "n": 1.0041918642580736,
+   "frames": 0,
+   "strat": {},
+   "dials": {
+    "agg": 0.867577205693344,
+    "def": 0.9673772215593985,
+    "spc": 0.25041433527567103,
+    "rxn": 0.9883720831994973
+   },
+   "loadout": {
+    "ronin": {
+     "n": 2,
+     "dmg": 187
+    }
+   },
+   "lastSeen": 1788389966877
+  },
+  "kit:electricstaff/ninja": {
+   "key": "kit:electricstaff/ninja",
+   "n": 20.21327595680475,
+   "frames": 0,
+   "strat": {},
+   "dials": {
+    "agg": 0.9975121942229007,
+    "def": 0.998020480440292,
+    "spc": 0.07613811511908011,
+    "rxn": 0.9984479956290812
+   },
+   "loadout": {
+    "pugilist": {
+     "n": 10,
+     "dmg": 257.3
+    }
+   },
+   "lastSeen": 1790202265885,
+   "grid": {
+    "fl": {
+     "approach_ground": {
+      "tries": 20,
+      "taken": 0,
+      "dealt": 52.02298532207346
+     }
+    },
+    "ca": {
+     "retreat": {
+      "tries": 20,
+      "taken": 0,
+      "dealt": 0.8165586810946118
+     },
+     "approach_ground": {
+      "tries": 20,
+      "taken": 0,
+      "dealt": 21.330446403838646
+     },
+     "super": {
+      "tries": 18.8521379424,
+      "taken": 0,
+      "dealt": 0
+     },
+     "attack": {
+      "tries": 17.50690096,
+      "taken": 0,
+      "dealt": 53.648399999999995
+     },
+     "shield": {
+      "tries": 4.434932959999999,
+      "taken": 0,
+      "dealt": 0
+     },
+     "approach_air": {
+      "tries": 5.82,
+      "taken": 0,
+      "dealt": 0
+     }
+    },
+    "cl": {
+     "attack": {
+      "tries": 20,
+      "taken": 50.8057175269214,
+      "dealt": 361.80261268237194
+     },
+     "approach_ground": {
+      "tries": 20,
+      "taken": 53.618414616680795,
+      "dealt": 65.92115567281452
+     },
+     "super": {
+      "tries": 10.603769942399998,
+      "taken": 0,
+      "dealt": 0
+     },
+     "retreat": {
+      "tries": 20,
+      "taken": 144.8225406485656,
+      "dealt": 7.628840519558516
+     },
+     "shield": {
+      "tries": 20,
+      "taken": 93.36855319687234,
+      "dealt": 255.11784615586498
+     }
+    },
+    "ma": {
+     "retreat": {
+      "tries": 20,
+      "taken": 0,
+      "dealt": 138.4022340946502
+     },
+     "approach_air": {
+      "tries": 20,
+      "taken": 67.3358446632373,
+      "dealt": 0
+     },
+     "approach_ground": {
+      "tries": 20,
+      "taken": 0,
+      "dealt": 0
+     },
+     "super": {
+      "tries": 3.654184,
+      "taken": 0,
+      "dealt": 24.92153488
+     },
+     "attack": {
+      "tries": 1.94,
+      "taken": 0,
+      "dealt": 0
+     }
+    },
+    "fa": {
+     "approach_ground": {
+      "tries": 20,
+      "taken": 0,
+      "dealt": 44.17617668196348
+     },
+     "attack": {
+      "tries": 6.37493296,
+      "taken": 0,
+      "dealt": 0
+     },
+     "super": {
+      "tries": 1.94,
+      "taken": 0,
+      "dealt": 38.8
+     }
+    },
+    "mb": {
+     "retreat": {
+      "tries": 4.434932959999999,
+      "taken": 0,
+      "dealt": 0
+     },
+     "approach_ground": {
+      "tries": 13.955568,
+      "taken": 0,
+      "dealt": 0
+     }
+    },
+    "ml": {
+     "approach_ground": {
+      "tries": 15.347649919999999,
+      "taken": 36.7068,
+      "dealt": 0
+     },
+     "retreat": {
+      "tries": 12.524049919999998,
+      "taken": 57.65412847999999,
+      "dealt": 84.26372624
+     },
+     "attack": {
+      "tries": 11.131967999999999,
+      "taken": 0,
+      "dealt": 142.217896
+     },
+     "shield": {
+      "tries": 2.8236,
+      "taken": 0,
+      "dealt": 0
+     }
+    },
+    "cb": {
+     "attack": {
+      "tries": 7.25853296,
+      "taken": 53.648399999999995,
+      "dealt": 0
+     },
+     "retreat": {
+      "tries": 8.4708,
+      "taken": 0,
+      "dealt": 0
+     },
+     "shield": {
+      "tries": 2.94,
+      "taken": 36.86,
+      "dealt": 0
+     },
+     "approach_ground": {
+      "tries": 2.94,
+      "taken": 36.86,
+      "dealt": 0
+     }
+    },
+    "fb": {
+     "approach_ground": {
+      "tries": 3.654184,
+      "taken": 0,
+      "dealt": 0
+     },
+     "retreat": {
+      "tries": 1.94,
+      "taken": 0,
+      "dealt": 0
+     }
+    }
+   }
+  },
+  "kit:sword/summoner": {
+   "key": "kit:sword/summoner",
+   "n": 1.9370155502071078,
+   "frames": 0,
+   "strat": {},
+   "dials": {
+    "agg": 0.9288091699929734,
+    "def": 0.9996884367291081,
+    "spc": 0.16655476030311891,
+    "rxn": 0.99995392955686
+   },
+   "loadout": {
+    "ronin": {
+     "n": 7,
+     "dmg": 250.42857142857142
+    }
+   },
+   "lastSeen": 1788653805879
+  },
+  "kit:axe/none": {
+   "key": "kit:axe/none",
+   "n": 0,
+   "frames": 0,
+   "strat": {},
+   "dials": null,
+   "loadout": {},
+   "lastSeen": 0
+  },
+  "kit:sword/none": {
+   "key": "kit:sword/none",
+   "n": 0,
+   "frames": 0,
+   "strat": {},
+   "dials": null,
+   "loadout": {},
+   "lastSeen": 0
+  },
+  "kit:spear/thor": {
+   "key": "kit:spear/thor",
+   "n": 48.21802762556127,
+   "frames": 0,
+   "strat": {},
+   "dials": {
+    "agg": 0.9564649571209518,
+    "def": 0.9970249419845503,
+    "spc": 0.2832254117640149,
+    "rxn": 0.999938584716587
+   },
+   "loadout": {
+    "torren": {
+     "n": 20,
+     "dmg": 110.24999999999999
+    },
+    "signature": {
+     "n": 13,
+     "dmg": 159.84615384615384
+    }
+   },
+   "lastSeen": 1788736873390
+  },
+  "kit:sword/thor": {
+   "key": "kit:sword/thor",
+   "n": 47.33088666059282,
+   "frames": 0,
+   "strat": {},
+   "dials": {
+    "agg": 0.9638460495878871,
+    "def": 0.9973590413617377,
+    "spc": 0.11244093516215081,
+    "rxn": 0.9999879483289216
+   },
+   "loadout": {
+    "reaper": {
+     "n": 30,
+     "dmg": 122.56666666666669
+    }
+   },
+   "lastSeen": 1788807208603
+  },
+  "kit:scythe/reaper": {
+   "key": "kit:scythe/reaper",
+   "n": 0,
+   "frames": 0,
+   "strat": {},
+   "dials": null,
+   "loadout": {},
+   "lastSeen": 0
+  },
+  "kit:sword/paladin": {
+   "key": "kit:sword/paladin",
+   "n": 21.054196954666665,
+   "frames": 0,
+   "strat": {},
+   "dials": {
+    "agg": 0.9373418942126838,
+    "def": 0.9998176982457243,
+    "spc": 0.291765869955456,
+    "rxn": 1
+   },
+   "loadout": {
+    "ronin": {
+     "n": 10,
+     "dmg": 182.60000000000002
+    }
+   },
+   "lastSeen": 1790026969276,
+   "grid": {
+    "fl": {
+     "approach_ground": {
+      "tries": 20,
+      "taken": 36.102776334136266,
+      "dealt": 73.17922336652776
+     },
+     "retreat": {
+      "tries": 17.454427260989718,
+      "taken": 0,
+      "dealt": 0
+     }
+    },
+    "ma": {
+     "attack": {
+      "tries": 20,
+      "taken": 0,
+      "dealt": 28.30024954057953
+     },
+     "approach_ground": {
+      "tries": 20,
+      "taken": 70.01304018079378,
+      "dealt": 35.54026370123815
+     },
+     "retreat": {
+      "tries": 20,
+      "taken": 0,
+      "dealt": 0
+     },
+     "approach_air": {
+      "tries": 20,
+      "taken": 86.23536641057105,
+      "dealt": 0
+     },
+     "shield": {
+      "tries": 6.168836982399999,
+      "taken": 56.857206806399994,
+      "dealt": 0
+     }
+    },
+    "ca": {
+     "approach_ground": {
+      "tries": 20,
+      "taken": 34.972022373673745,
+      "dealt": 87.88068926355854
+     },
+     "retreat": {
+      "tries": 20,
+      "taken": 65.1324492029018,
+      "dealt": 48.3534648383049
+     },
+     "attack": {
+      "tries": 20,
+      "taken": 24.892174984596426,
+      "dealt": 158.41496750307644
+     },
+     "approach_air": {
+      "tries": 20,
+      "taken": 0,
+      "dealt": 0
+     },
+     "shield": {
+      "tries": 20,
+      "taken": 38.96860678440743,
+      "dealt": 112.52902970891266
+     }
+    },
+    "cl": {
+     "attack": {
+      "tries": 20,
+      "taken": 75.75759165591671,
+      "dealt": 226.89531698527026
+     },
+     "super": {
+      "tries": 20,
+      "taken": 0,
+      "dealt": 42.609191773335624
+     },
+     "approach_ground": {
+      "tries": 20,
+      "taken": 183.11888170681794,
+      "dealt": 122.8442105190849
+     },
+     "shield": {
+      "tries": 20,
+      "taken": 11.189020129651567,
+      "dealt": 85.8379006386915
+     },
+     "retreat": {
+      "tries": 20,
+      "taken": 95.11426574333909,
+      "dealt": 117.21019861249684
+     }
+    },
+    "ml": {
+     "approach_ground": {
+      "tries": 20,
+      "taken": 0,
+      "dealt": 46.20917295201953
+     },
+     "shield": {
+      "tries": 10.513348098418337,
+      "taken": 0,
+      "dealt": 0
+     },
+     "attack": {
+      "tries": 20,
+      "taken": 0,
+      "dealt": 58.1124909243775
+     },
+     "retreat": {
+      "tries": 13.014368715297278,
+      "taken": 143.15805586827008,
+      "dealt": 150.05567128737763
+     }
+    },
+    "cb": {
+     "approach_ground": {
+      "tries": 17.202638861874334,
+      "taken": 0,
+      "dealt": 76.89748098418336
+     },
+     "attack": {
+      "tries": 20,
+      "taken": 0,
+      "dealt": 170.3486014163803
+     },
+     "shield": {
+      "tries": 20,
+      "taken": 117.0191961328487,
+      "dealt": 70.4301905810872
+     },
+     "retreat": {
+      "tries": 5.168836982399999,
+      "taken": 124.05208757759998,
+      "dealt": 0
+     }
+    },
+    "fa": {
+     "approach_ground": {
+      "tries": 20,
+      "taken": 0,
+      "dealt": 0
+     },
+     "retreat": {
+      "tries": 7.689748098418337,
+      "taken": 0,
+      "dealt": 0
+     },
+     "attack": {
+      "tries": 12.975460059645718,
+      "taken": 0,
+      "dealt": 0
+     },
+     "shield": {
+      "tries": 1.94,
+      "taken": 0,
+      "dealt": 0
+     }
+    },
+    "mb": {
+     "approach_ground": {
+      "tries": 20,
+      "taken": 0,
+      "dealt": 0
+     },
+     "shield": {
+      "tries": 15.563937653838359,
+      "taken": 213.50259888569158,
+      "dealt": 0
+     },
+     "attack": {
+      "tries": 3.654184,
+      "taken": 0,
+      "dealt": 36.54183999999999
+     },
+     "retreat": {
+      "tries": 1.94,
+      "taken": 0,
+      "dealt": 0
+     }
+    },
+    "fb": {
+     "approach_ground": {
+      "tries": 8.798706763456,
+      "taken": 0,
+      "dealt": 11
+     }
+    }
+   }
+  },
+  "kit:whip/kratos": {
+   "key": "kit:whip/kratos",
+   "n": 18.304360892077582,
+   "frames": 0,
+   "strat": {},
+   "dials": {
+    "agg": 0.9996137245400142,
+    "def": 1,
+    "spc": 0.020368602721366594,
+    "rxn": 1
+   },
+   "loadout": {
+    "ronin": {
+     "n": 10,
+     "dmg": 97.79999999999998
+    }
+   },
+   "lastSeen": 1788813545496
+  },
+  "kit:flail/archer": {
+   "key": "kit:flail/archer",
+   "n": 7.340214470435837,
+   "frames": 0,
+   "strat": {},
+   "dials": {
+    "agg": 0.860282399383984,
+    "def": 1,
+    "spc": 0.3142705876611429,
+    "rxn": 0.9582207454784187
+   },
+   "loadout": {
+    "ronin": {
+     "n": 4,
+     "dmg": 165.75
+    }
+   },
+   "lastSeen": 1789080627486
+  },
+  "kit:axe/ninja": {
+   "key": "kit:axe/ninja",
+   "n": 7.488153212373402,
+   "frames": 0,
+   "strat": {},
+   "dials": {
+    "agg": 0.8554323993573075,
+    "def": 0.9833330690861456,
+    "spc": 0.3370980997937002,
+    "rxn": 0.9993662070262389
+   },
+   "loadout": {
+    "signature": {
+     "n": 4,
+     "dmg": 138
+    }
+   },
+   "lastSeen": 1789080794435
+  },
+  "kit:spear/archer": {
+   "key": "kit:spear/archer",
+   "n": 4.96782894558215,
+   "frames": 0,
+   "strat": {},
+   "dials": {
+    "agg": 0.9884155170605949,
+    "def": 0.9984953136460348,
+    "spc": 0.2602558314307886,
+    "rxn": 0.9992870030694007
+   },
+   "loadout": {
+    "ronin": {
+     "n": 3,
+     "dmg": 186
+    }
+   },
+   "lastSeen": 1789080925901
+  },
+  "kit:whip/archer": {
+   "key": "kit:whip/archer",
+   "n": 11.488044297301329,
+   "frames": 0,
+   "strat": {},
+   "dials": {
+    "agg": 0.9888940599292873,
+    "def": 0.9895745364887889,
+    "spc": 0.18038958500635224,
+    "rxn": 1
+   },
+   "loadout": {
+    "ronin": {
+     "n": 6,
+     "dmg": 203.5
+    }
+   },
+   "grid": {
+    "fl": {
+     "approach_ground": {
+      "tries": 20,
+      "taken": 4.606375993814463,
+      "dealt": 0
+     },
+     "attack": {
+      "tries": 10.603769942399998,
+      "taken": 39.91439663999999,
+      "dealt": 0
+     },
+     "retreat": {
+      "tries": 8.089116959999998,
+      "taken": 62.089061439999995,
+      "dealt": 0
+     }
+    },
+    "ma": {
+     "attack": {
+      "tries": 20,
+      "taken": 50.984276645682165,
+      "dealt": 151.7946215220367
+     },
+     "approach_ground": {
+      "tries": 20,
+      "taken": 33.08305135338656,
+      "dealt": 0
+     },
+     "approach_air": {
+      "tries": 20,
+      "taken": 79.31434687371465,
+      "dealt": 0
+     },
+     "retreat": {
+      "tries": 20,
+      "taken": 46.63962567377787,
+      "dealt": 0
+     }
+    },
+    "ml": {
+     "approach_ground": {
+      "tries": 20,
+      "taken": 57.33491701108782,
+      "dealt": 8.114133068033523
+     },
+     "retreat": {
+      "tries": 20,
+      "taken": 15.743812562173106,
+      "dealt": 49.768029149745495
+     },
+     "attack": {
+      "tries": 20,
+      "taken": 39.61324922529294,
+      "dealt": 295.9530012923458
+     }
+    },
+    "cl": {
+     "attack": {
+      "tries": 20,
+      "taken": 74.95713589264433,
+      "dealt": 183.29873032448253
+     },
+     "retreat": {
+      "tries": 20,
+      "taken": 138.18370382485304,
+      "dealt": 0
+     },
+     "super": {
+      "tries": 20,
+      "taken": 0,
+      "dealt": 227.43934435003192
+     },
+     "approach_ground": {
+      "tries": 18.692886902399998,
+      "taken": 18.1688369824,
+      "dealt": 57.65412847999999
+     },
+     "shield": {
+      "tries": 3.654184,
+      "taken": 7.308368,
+      "dealt": 0
+     }
+    },
+    "fb": {
+     "approach_ground": {
+      "tries": 10.932436982399999,
+      "taken": 42.354,
+      "dealt": 31.04
+     },
+     "attack": {
+      "tries": 1,
+      "taken": 0,
+      "dealt": 0
+     }
+    },
+    "fa": {
+     "approach_ground": {
+      "tries": 20,
+      "taken": 81.73466345467399,
+      "dealt": 50.76392615265227
+     },
+     "retreat": {
+      "tries": 8.25853296,
+      "taken": 7.6472,
+      "dealt": 0
+     },
+     "attack": {
+      "tries": 1.94,
+      "taken": 1.94,
+      "dealt": 0
+     }
+    },
+    "mb": {
+     "approach_ground": {
+      "tries": 20,
+      "taken": 34.670894823856585,
+      "dealt": 187.58652462727568
+     },
+     "attack": {
+      "tries": 4.434932959999999,
+      "taken": 35.479463679999995,
+      "dealt": 0
+     }
+    },
+    "ca": {
+     "retreat": {
+      "tries": 20,
+      "taken": 77.53193106762416,
+      "dealt": 9.497124662218646
+     },
+     "attack": {
+      "tries": 20,
+      "taken": 42.344271068351546,
+      "dealt": 0
+     },
+     "approach_ground": {
+      "tries": 20,
+      "taken": 71.59400306619914,
+      "dealt": 0
+     },
+     "approach_air": {
+      "tries": 8.417784000000001,
+      "taken": 7.587199999999999,
+      "dealt": 0
+     }
+    },
+    "cb": {
+     "retreat": {
+      "tries": 11.337673964799999,
+      "taken": 85.19488077119999,
+      "dealt": 0
+     },
+     "approach_ground": {
+      "tries": 7.25853296,
+      "taken": 0,
+      "dealt": 53.21919551999999
+     },
+     "attack": {
+      "tries": 1,
+      "taken": 0,
+      "dealt": 34
+     }
+    }
+   },
+   "lastSeen": 1789966104618
+  },
+  "kit:whip/archer|beh:zoner": {
+   "key": "kit:whip/archer|beh:zoner",
+   "n": 0,
+   "frames": 0,
+   "strat": {},
+   "dials": null,
+   "loadout": {},
+   "grid": null,
+   "lastSeen": 0
+  },
+  "kit:whip/archer|beh:mixed": {
+   "key": "kit:whip/archer|beh:mixed",
+   "n": 2.9307233961173322,
+   "frames": 0,
+   "strat": {},
+   "dials": {
+    "agg": 0.9532108745035701,
+    "def": 0.9998464939933149,
+    "spc": 0.21013651314197263,
+    "rxn": 1
+   },
+   "loadout": {
+    "ronin": {
+     "n": 2,
+     "dmg": 137.5
+    }
+   },
+   "grid": {
+    "fl": {
+     "approach_ground": {
+      "tries": 6.88,
+      "taken": 2,
+      "dealt": 0
+     },
+     "attack": {
+      "tries": 2.94,
+      "taken": 9,
+      "dealt": 0
+     },
+     "retreat": {
+      "tries": 2,
+      "taken": 14,
+      "dealt": 0
+     }
+    },
+    "ma": {
+     "attack": {
+      "tries": 5.9399999999999995,
+      "taken": 13,
+      "dealt": 34
+     },
+     "approach_ground": {
+      "tries": 11.129999999999999,
+      "taken": 29.63,
+      "dealt": 0
+     },
+     "approach_air": {
+      "tries": 7.9399999999999995,
+      "taken": 30.88,
+      "dealt": 0
+     },
+     "retreat": {
+      "tries": 5,
+      "taken": 6,
+      "dealt": 0
+     }
+    },
+    "ml": {
+     "approach_ground": {
+      "tries": 7.88,
+      "taken": 29.1,
+      "dealt": 3
+     },
+     "retreat": {
+      "tries": 4,
+      "taken": 4,
+      "dealt": 12
+     },
+     "attack": {
+      "tries": 4,
+      "taken": 8,
+      "dealt": 92
+     }
+    },
+    "cl": {
+     "attack": {
+      "tries": 12.82,
+      "taken": 32.64,
+      "dealt": 137.32
+     },
+     "retreat": {
+      "tries": 8.879999999999999,
+      "taken": 65.22,
+      "dealt": 0
+     },
+     "super": {
+      "tries": 3.94,
+      "taken": 0,
+      "dealt": 86.36
+     },
+     "approach_ground": {
+      "tries": 4.9399999999999995,
+      "taken": 1.94,
+      "dealt": 13
+     },
+     "shield": {
+      "tries": 1,
+      "taken": 2,
+      "dealt": 0
+     }
+    },
+    "fb": {
+     "approach_ground": {
+      "tries": 2.94,
+      "taken": 15,
+      "dealt": 0
+     }
+    },
+    "fa": {
+     "approach_ground": {
+      "tries": 10.82,
+      "taken": 53.739999999999995,
+      "dealt": 36
+     },
+     "retreat": {
+      "tries": 2,
+      "taken": 2,
+      "dealt": 0
+     }
+    },
+    "mb": {
+     "approach_ground": {
+      "tries": 13.7,
+      "taken": 18.88,
+      "dealt": 129.36
+     },
+     "attack": {
+      "tries": 1,
+      "taken": 8,
+      "dealt": 0
+     }
+    },
+    "ca": {
+     "retreat": {
+      "tries": 8.879999999999999,
+      "taken": 39.76,
+      "dealt": 0
+     },
+     "attack": {
+      "tries": 9.879999999999999,
+      "taken": 26,
+      "dealt": 0
+     },
+     "approach_ground": {
+      "tries": 8,
+      "taken": 25,
+      "dealt": 0
+     },
+     "approach_air": {
+      "tries": 2,
+      "taken": 2,
+      "dealt": 0
+     }
+    },
+    "cb": {
+     "retreat": {
+      "tries": 3.88,
+      "taken": 25.22,
+      "dealt": 0
+     },
+     "approach_ground": {
+      "tries": 2,
+      "taken": 0,
+      "dealt": 12
+     }
+    }
+   },
+   "lastSeen": 1789965986136
+  },
+  "kit:whip/archer|beh:aerial": {
+   "key": "kit:whip/archer|beh:aerial",
+   "n": 8.557320901184,
+   "frames": 0,
+   "strat": {},
+   "dials": {
+    "agg": 0.9997702323270066,
+    "def": 0.9786540439325266,
+    "spc": 0.170174462514683,
+    "rxn": 1
+   },
+   "loadout": {
+    "ronin": {
+     "n": 4,
+     "dmg": 236.5
+    }
+   },
+   "grid": {
+    "fl": {
+     "approach_ground": {
+      "tries": 18.891968,
+      "taken": 3.88,
+      "dealt": 0
+     },
+     "attack": {
+      "tries": 8.308368,
+      "taken": 32.88765599999999,
+      "dealt": 0
+     },
+     "retreat": {
+      "tries": 6.477784,
+      "taken": 51.158576,
+      "dealt": 0
+     }
+    },
+    "ma": {
+     "attack": {
+      "tries": 19.609752,
+      "taken": 51.367968,
+      "dealt": 158.242256
+     },
+     "approach_ground": {
+      "tries": 20,
+      "taken": 25.78049978121557,
+      "dealt": 0
+     },
+     "approach_air": {
+      "tries": 20,
+      "taken": 78.31595565346915,
+      "dealt": 0
+     },
+     "retreat": {
+      "tries": 20,
+      "taken": 50.83184530639513,
+      "dealt": 0
+     }
+    },
+    "ml": {
+     "approach_ground": {
+      "tries": 20,
+      "taken": 53.2003840406496,
+      "dealt": 8.221622358216129
+     },
+     "retreat": {
+      "tries": 18.061383999999997,
+      "taken": 13.4072,
+      "dealt": 43.850207999999995
+     },
+     "attack": {
+      "tries": 20,
+      "taken": 39.64714737828888,
+      "dealt": 272.44360030844695
+     }
+    },
+    "cl": {
+     "attack": {
+      "tries": 20,
+      "taken": 71.36332917188342,
+      "dealt": 183.28909742846224
+     },
+     "retreat": {
+      "tries": 20,
+      "taken": 133.5579000516087,
+      "dealt": 0
+     },
+     "super": {
+      "tries": 17.068368,
+      "taken": 0,
+      "dealt": 162.72409599999997
+     },
+     "approach_ground": {
+      "tries": 14.786152,
+      "taken": 16.654184,
+      "dealt": 47.504391999999996
+     },
+     "shield": {
+      "tries": 2.8236,
+      "taken": 5.6472,
+      "dealt": 0
+     }
+    },
+    "fb": {
+     "approach_ground": {
+      "tries": 8.534184,
+      "taken": 29.1,
+      "dealt": 31.04
+     },
+     "attack": {
+      "tries": 1,
+      "taken": 0,
+      "dealt": 0
+     }
+    },
+    "fa": {
+     "approach_ground": {
+      "tries": 20,
+      "taken": 78.10522200418967,
+      "dealt": 47.798413075110425
+     },
+     "retreat": {
+      "tries": 6.594184,
+      "taken": 5.88,
+      "dealt": 0
+     },
+     "attack": {
+      "tries": 1.94,
+      "taken": 1.94,
+      "dealt": 0
+     }
+    },
+    "mb": {
+     "approach_ground": {
+      "tries": 20,
+      "taken": 36.46604938271606,
+      "dealt": 188.76543209876544
+     },
+     "attack": {
+      "tries": 3.654184,
+      "taken": 29.233472,
+      "dealt": 0
+     }
+    },
+    "ca": {
+     "retreat": {
+      "tries": 20,
+      "taken": 76.12682779235548,
+      "dealt": 11.335088620122502
+     },
+     "attack": {
+      "tries": 20,
+      "taken": 36.98933320402103,
+      "dealt": 0
+     },
+     "approach_ground": {
+      "tries": 20,
+      "taken": 74.23412931491686,
+      "dealt": 0
+     },
+     "approach_air": {
+      "tries": 6.7036,
+      "taken": 5.82,
+      "dealt": 0
+     }
+    },
+    "cb": {
+     "retreat": {
+      "tries": 8.308368,
+      "taken": 65.504392,
+      "dealt": 0
+     },
+     "approach_ground": {
+      "tries": 5.594184,
+      "taken": 0,
+      "dealt": 43.850207999999995
+     },
+     "attack": {
+      "tries": 1,
+      "taken": 0,
+      "dealt": 34
+     }
+    }
+   },
+   "lastSeen": 1789966104618
+  },
+  "kit:katana/gunner": {
+   "key": "kit:katana/gunner",
+   "n": 0,
+   "frames": 0,
+   "strat": {},
+   "dials": null,
+   "loadout": {},
+   "grid": null,
+   "lastSeen": 0
+  },
+  "kit:sword/paladin|beh:mixed": {
+   "key": "kit:sword/paladin|beh:mixed",
+   "n": 0,
+   "frames": 0,
+   "strat": {},
+   "dials": null,
+   "loadout": {},
+   "grid": null,
+   "lastSeen": 0
+  },
+  "kit:sword/paladin|beh:aerial": {
+   "key": "kit:sword/paladin|beh:aerial",
+   "n": 21.054196954666665,
+   "frames": 0,
+   "strat": {},
+   "dials": {
+    "agg": 0.9373418942126838,
+    "def": 0.9998176982457243,
+    "spc": 0.291765869955456,
+    "rxn": 1
+   },
+   "loadout": {
+    "ronin": {
+     "n": 10,
+     "dmg": 182.60000000000002
+    }
+   },
+   "grid": {
+    "fl": {
+     "approach_ground": {
+      "tries": 20,
+      "taken": 36.102776334136266,
+      "dealt": 73.17922336652776
+     },
+     "retreat": {
+      "tries": 17.454427260989718,
+      "taken": 0,
+      "dealt": 0
+     }
+    },
+    "ma": {
+     "attack": {
+      "tries": 20,
+      "taken": 0,
+      "dealt": 28.30024954057953
+     },
+     "approach_ground": {
+      "tries": 20,
+      "taken": 70.01304018079378,
+      "dealt": 35.54026370123815
+     },
+     "retreat": {
+      "tries": 20,
+      "taken": 0,
+      "dealt": 0
+     },
+     "approach_air": {
+      "tries": 20,
+      "taken": 86.23536641057105,
+      "dealt": 0
+     },
+     "shield": {
+      "tries": 6.168836982399999,
+      "taken": 56.857206806399994,
+      "dealt": 0
+     }
+    },
+    "ca": {
+     "approach_ground": {
+      "tries": 20,
+      "taken": 34.972022373673745,
+      "dealt": 87.88068926355854
+     },
+     "retreat": {
+      "tries": 20,
+      "taken": 65.1324492029018,
+      "dealt": 48.3534648383049
+     },
+     "attack": {
+      "tries": 20,
+      "taken": 24.892174984596426,
+      "dealt": 158.41496750307644
+     },
+     "approach_air": {
+      "tries": 20,
+      "taken": 0,
+      "dealt": 0
+     },
+     "shield": {
+      "tries": 20,
+      "taken": 38.96860678440743,
+      "dealt": 112.52902970891266
+     }
+    },
+    "cl": {
+     "attack": {
+      "tries": 20,
+      "taken": 75.75759165591671,
+      "dealt": 226.89531698527026
+     },
+     "super": {
+      "tries": 20,
+      "taken": 0,
+      "dealt": 42.609191773335624
+     },
+     "approach_ground": {
+      "tries": 20,
+      "taken": 183.11888170681794,
+      "dealt": 122.8442105190849
+     },
+     "shield": {
+      "tries": 20,
+      "taken": 11.189020129651567,
+      "dealt": 85.8379006386915
+     },
+     "retreat": {
+      "tries": 20,
+      "taken": 95.11426574333909,
+      "dealt": 117.21019861249684
+     }
+    },
+    "ml": {
+     "approach_ground": {
+      "tries": 20,
+      "taken": 0,
+      "dealt": 46.20917295201953
+     },
+     "shield": {
+      "tries": 10.513348098418337,
+      "taken": 0,
+      "dealt": 0
+     },
+     "attack": {
+      "tries": 20,
+      "taken": 0,
+      "dealt": 58.1124909243775
+     },
+     "retreat": {
+      "tries": 13.014368715297278,
+      "taken": 143.15805586827008,
+      "dealt": 150.05567128737763
+     }
+    },
+    "cb": {
+     "approach_ground": {
+      "tries": 17.202638861874334,
+      "taken": 0,
+      "dealt": 76.89748098418336
+     },
+     "attack": {
+      "tries": 20,
+      "taken": 0,
+      "dealt": 170.3486014163803
+     },
+     "shield": {
+      "tries": 20,
+      "taken": 117.0191961328487,
+      "dealt": 70.4301905810872
+     },
+     "retreat": {
+      "tries": 5.168836982399999,
+      "taken": 124.05208757759998,
+      "dealt": 0
+     }
+    },
+    "fa": {
+     "approach_ground": {
+      "tries": 20,
+      "taken": 0,
+      "dealt": 0
+     },
+     "retreat": {
+      "tries": 7.689748098418337,
+      "taken": 0,
+      "dealt": 0
+     },
+     "attack": {
+      "tries": 12.975460059645718,
+      "taken": 0,
+      "dealt": 0
+     },
+     "shield": {
+      "tries": 1.94,
+      "taken": 0,
+      "dealt": 0
+     }
+    },
+    "mb": {
+     "approach_ground": {
+      "tries": 20,
+      "taken": 0,
+      "dealt": 0
+     },
+     "shield": {
+      "tries": 15.563937653838359,
+      "taken": 213.50259888569158,
+      "dealt": 0
+     },
+     "attack": {
+      "tries": 3.654184,
+      "taken": 0,
+      "dealt": 36.54183999999999
+     },
+     "retreat": {
+      "tries": 1.94,
+      "taken": 0,
+      "dealt": 0
+     }
+    },
+    "fb": {
+     "approach_ground": {
+      "tries": 8.798706763456,
+      "taken": 0,
+      "dealt": 11
+     }
+    }
+   },
+   "lastSeen": 1790026969276
+  },
+  "__mech": {
+   "key": "__mech",
+   "n": 0,
+   "frames": 0,
+   "strat": {},
+   "dials": null,
+   "loadout": {},
+   "grid": null,
+   "lastSeen": 1790202802868,
+   "mech": {
+    "n": 421,
+    "miss": 80,
+    "missHitTotal": 12,
+    "feat": {
+     "close_range": {
+      "n": 261.0000000000001,
+      "miss": 28,
+      "missClean": 22.000000000000014,
+      "missHit": 6
+     },
+     "mutual_reach": {
+      "n": 395,
+      "miss": 59,
+      "missClean": 51.99999999999997,
+      "missHit": 7
+     },
+     "opp_airborne": {
+      "n": 159,
+      "miss": 32,
+      "missClean": 29,
+      "missHit": 3
+     },
+     "opposed": {
+      "n": 223,
+      "miss": 46,
+      "missClean": 39,
+      "missHit": 7
+     },
+     "first_in_a_while": {
+      "n": 8,
+      "miss": 6,
+      "missClean": 4,
+      "missHit": 2
+     },
+     "opp_swinging": {
+      "n": 10,
+      "miss": 8,
+      "missClean": 6,
+      "missHit": 2
+     },
+     "opp_tier_equal": {
+      "n": 6,
+      "miss": 5,
+      "missClean": 4,
+      "missHit": 1
+     },
+     "sync_4_10": {
+      "n": 7,
+      "miss": 5,
+      "missClean": 4,
+      "missHit": 1
+     },
+     "sync_0_3": {
+      "n": 3,
+      "miss": 3,
+      "missClean": 2,
+      "missHit": 1
+     },
+     "opp_tier_higher": {
+      "n": 3,
+      "miss": 3,
+      "missClean": 2,
+      "missHit": 0.9999999999999999
+     },
+     "repeat_within_120": {
+      "n": 2,
+      "miss": 2,
+      "missClean": 2,
+      "missHit": 0
+     }
+    },
+    "pair": {
+     "mutual_reach & close_range": {
+      "n": 261.0000000000001,
+      "miss": 28,
+      "missClean": 22.000000000000014,
+      "missHit": 6
+     },
+     "mutual_reach & opp_airborne": {
+      "n": 149.00000000000003,
+      "miss": 25.999999999999993,
+      "missClean": 25,
+      "missHit": 1
+     },
+     "mutual_reach & opposed": {
+      "n": 199,
+      "miss": 27,
+      "missClean": 25,
+      "missHit": 2
+     },
+     "opp_airborne & close_range": {
+      "n": 90,
+      "miss": 9.000000000000004,
+      "missClean": 8,
+      "missHit": 0.9999999999999996
+     },
+     "opposed & opp_airborne": {
+      "n": 73,
+      "miss": 13.999999999999993,
+      "missClean": 12,
+      "missHit": 2
+     },
+     "close_range & first_in_a_while": {
+      "n": 5.000000000000014,
+      "miss": 3,
+      "missClean": 2,
+      "missHit": 1
+     },
+     "mutual_reach & first_in_a_while": {
+      "n": 5,
+      "miss": 3,
+      "missClean": 2,
+      "missHit": 1
+     },
+     "mutual_reach & opp_tier_equal": {
+      "n": 6,
+      "miss": 5,
+      "missClean": 4,
+      "missHit": 1
+     },
+     "opp_swinging & close_range": {
+      "n": 5,
+      "miss": 3,
+      "missClean": 2,
+      "missHit": 1
+     },
+     "opp_swinging & first_in_a_while": {
+      "n": 8,
+      "miss": 6,
+      "missClean": 4,
+      "missHit": 2
+     },
+     "opp_swinging & mutual_reach": {
+      "n": 7,
+      "miss": 5,
+      "missClean": 4,
+      "missHit": 1
+     },
+     "opp_swinging & opp_tier_equal": {
+      "n": 6,
+      "miss": 5,
+      "missClean": 4,
+      "missHit": 1
+     },
+     "opp_swinging & sync_4_10": {
+      "n": 7,
+      "miss": 5,
+      "missClean": 4,
+      "missHit": 1
+     },
+     "opp_tier_equal & close_range": {
+      "n": 4,
+      "miss": 3,
+      "missClean": 2,
+      "missHit": 1
+     },
+     "opp_tier_equal & first_in_a_while": {
+      "n": 4,
+      "miss": 3,
+      "missClean": 2,
+      "missHit": 1
+     },
+     "sync_4_10 & close_range": {
+      "n": 3,
+      "miss": 1,
+      "missClean": 1,
+      "missHit": 0
+     },
+     "sync_4_10 & first_in_a_while": {
+      "n": 5,
+      "miss": 3,
+      "missClean": 2,
+      "missHit": 1
+     },
+     "sync_4_10 & mutual_reach": {
+      "n": 5,
+      "miss": 3,
+      "missClean": 3,
+      "missHit": 0
+     },
+     "sync_4_10 & opp_tier_equal": {
+      "n": 3.999999999999993,
+      "miss": 3,
+      "missClean": 3,
+      "missHit": 0
+     },
+     "opp_airborne & first_in_a_while": {
+      "n": 3,
+      "miss": 2,
+      "missClean": 1,
+      "missHit": 1
+     },
+     "opp_swinging & opp_airborne": {
+      "n": 3,
+      "miss": 2,
+      "missClean": 1,
+      "missHit": 0.9999999999999996
+     },
+     "opp_swinging & opposed": {
+      "n": 6,
+      "miss": 5,
+      "missClean": 4,
+      "missHit": 1
+     },
+     "opp_tier_equal & opp_airborne": {
+      "n": 3,
+      "miss": 2,
+      "missClean": 1,
+      "missHit": 1
+     },
+     "opposed & close_range": {
+      "n": 129,
+      "miss": 13,
+      "missClean": 12,
+      "missHit": 1
+     },
+     "opposed & first_in_a_while": {
+      "n": 5,
+      "miss": 4,
+      "missClean": 3,
+      "missHit": 1
+     },
+     "opposed & opp_tier_equal": {
+      "n": 3,
+      "miss": 2,
+      "missClean": 2,
+      "missHit": 0
+     },
+     "sync_4_10 & opp_airborne": {
+      "n": 1,
+      "miss": 0,
+      "missClean": 0,
+      "missHit": 0
+     },
+     "sync_4_10 & opposed": {
+      "n": 4,
+      "miss": 3,
+      "missClean": 2,
+      "missHit": 1
+     },
+     "opp_swinging & sync_0_3": {
+      "n": 3,
+      "miss": 3,
+      "missClean": 2,
+      "missHit": 1
+     },
+     "sync_0_3 & close_range": {
+      "n": 2,
+      "miss": 2,
+      "missClean": 1,
+      "missHit": 1
+     },
+     "sync_0_3 & first_in_a_while": {
+      "n": 3,
+      "miss": 3,
+      "missClean": 2,
+      "missHit": 1
+     },
+     "sync_0_3 & mutual_reach": {
+      "n": 2,
+      "miss": 1.9999999999999858,
+      "missClean": 1,
+      "missHit": 1
+     },
+     "sync_0_3 & opp_airborne": {
+      "n": 2,
+      "miss": 2,
+      "missClean": 1,
+      "missHit": 1
+     },
+     "sync_0_3 & opp_tier_equal": {
+      "n": 2,
+      "miss": 2,
+      "missClean": 1,
+      "missHit": 1
+     },
+     "sync_0_3 & opposed": {
+      "n": 2,
+      "miss": 2,
+      "missClean": 2.000000000000007,
+      "missHit": 0
+     },
+     "opp_swinging & opp_tier_higher": {
+      "n": 3,
+      "miss": 3,
+      "missClean": 2,
+      "missHit": 0.9999999999999999
+     },
+     "opp_tier_higher & first_in_a_while": {
+      "n": 2.9999999999999996,
+      "miss": 2.9999999999999996,
+      "missClean": 2.0000000000000004,
+      "missHit": 1
+     },
+     "opposed & opp_tier_higher": {
+      "n": 3,
+      "miss": 3,
+      "missClean": 2.0000000000000004,
+      "missHit": 1
+     },
+     "sync_4_10 & opp_tier_higher": {
+      "n": 2,
+      "miss": 2,
+      "missClean": 1,
+      "missHit": 1
+     },
+     "sync_0_3 & opp_tier_higher": {
+      "n": 1,
+      "miss": 1,
+      "missClean": 1,
+      "missHit": 0
+     },
+     "mutual_reach & repeat_within_120": {
+      "n": 2,
+      "miss": 2,
+      "missClean": 2,
+      "missHit": 0
+     },
+     "opp_swinging & repeat_within_120": {
+      "n": 2,
+      "miss": 2,
+      "missClean": 2,
+      "missHit": 0
+     },
+     "opp_tier_equal & repeat_within_120": {
+      "n": 2,
+      "miss": 2,
+      "missClean": 2.0000000000000018,
+      "missHit": 0
+     },
+     "sync_4_10 & repeat_within_120": {
+      "n": 2.0000000000000004,
+      "miss": 2.0000000000000004,
+      "missClean": 1.9999999999999996,
+      "missHit": 0
+     },
+     "opposed & repeat_within_120": {
+      "n": 1,
+      "miss": 1,
+      "missClean": 1,
+      "missHit": 0
+     }
+    }
+   }
+  },
+  "kit:fragment/kratos": {
+   "key": "kit:fragment/kratos",
+   "n": 1.8974230044444442,
+   "frames": 0,
+   "strat": {},
+   "dials": {
+    "agg": 0.999723885449828,
+    "def": 0.9514310462540028,
+    "spc": 0.04210533208646508,
+    "rxn": 0.9986552696704837
+   },
+   "loadout": {
+    "ninja": {
+     "n": 1,
+     "dmg": 594
+    }
+   },
+   "grid": {
+    "fl": {
+     "approach_ground": {
+      "tries": 1,
+      "taken": 0,
+      "dealt": 0
+     },
+     "attack": {
+      "tries": 2,
+      "taken": 0,
+      "dealt": 0
+     }
+    },
+    "ma": {
+     "attack": {
+      "tries": 3,
+      "taken": 0,
+      "dealt": 0
+     },
+     "approach_ground": {
+      "tries": 3,
+      "taken": 0,
+      "dealt": 0
+     },
+     "retreat": {
+      "tries": 3,
+      "taken": 0,
+      "dealt": 0
+     },
+     "approach_air": {
+      "tries": 5,
+      "taken": 8,
+      "dealt": 0
+     }
+    },
+    "cl": {
+     "attack": {
+      "tries": 8.8837890625,
+      "taken": 10.96875,
+      "dealt": 130.86755859374998
+     },
+     "retreat": {
+      "tries": 5,
+      "taken": 45,
+      "dealt": 0
+     },
+     "approach_ground": {
+      "tries": 1,
+      "taken": 10,
+      "dealt": 0
+     }
+    },
+    "ca": {
+     "approach_ground": {
+      "tries": 3,
+      "taken": 0,
+      "dealt": 32
+     },
+     "attack": {
+      "tries": 6,
+      "taken": 9,
+      "dealt": 91.78
+     },
+     "retreat": {
+      "tries": 1,
+      "taken": 0,
+      "dealt": 0
+     },
+     "super": {
+      "tries": 1,
+      "taken": 0,
+      "dealt": 0
+     }
+    },
+    "cb": {
+     "super": {
+      "tries": 1,
+      "taken": 0,
+      "dealt": 22
+     },
+     "attack": {
+      "tries": 2,
+      "taken": 0,
+      "dealt": 24.48
+     },
+     "approach_ground": {
+      "tries": 1,
+      "taken": 0,
+      "dealt": 0
+     }
+    },
+    "fa": {
+     "approach_ground": {
+      "tries": 3,
+      "taken": 0,
+      "dealt": 0
+     }
+    },
+    "ml": {
+     "attack": {
+      "tries": 1,
+      "taken": 0,
+      "dealt": 0
+     },
+     "approach_ground": {
+      "tries": 3,
+      "taken": 0,
+      "dealt": 19.78
+     }
+    },
+    "mb": {
+     "attack": {
+      "tries": 1,
+      "taken": 11,
+      "dealt": 0
+     },
+     "approach_ground": {
+      "tries": 1,
+      "taken": 0,
+      "dealt": 6
+     }
+    }
+   },
+   "lastSeen": 1790129107272
+  },
+  "kit:fragment/kratos|beh:mixed": {
+   "key": "kit:fragment/kratos|beh:mixed",
+   "n": 1.8974230044444442,
+   "frames": 0,
+   "strat": {},
+   "dials": {
+    "agg": 0.999723885449828,
+    "def": 0.9514310462540028,
+    "spc": 0.04210533208646508,
+    "rxn": 0.9986552696704837
+   },
+   "loadout": {
+    "ninja": {
+     "n": 1,
+     "dmg": 594
+    }
+   },
+   "grid": {
+    "fl": {
+     "approach_ground": {
+      "tries": 1,
+      "taken": 0,
+      "dealt": 0
+     },
+     "attack": {
+      "tries": 2,
+      "taken": 0,
+      "dealt": 0
+     }
+    },
+    "ma": {
+     "attack": {
+      "tries": 3,
+      "taken": 0,
+      "dealt": 0
+     },
+     "approach_ground": {
+      "tries": 3,
+      "taken": 0,
+      "dealt": 0
+     },
+     "retreat": {
+      "tries": 3,
+      "taken": 0,
+      "dealt": 0
+     },
+     "approach_air": {
+      "tries": 5,
+      "taken": 8,
+      "dealt": 0
+     }
+    },
+    "cl": {
+     "attack": {
+      "tries": 8.8837890625,
+      "taken": 10.96875,
+      "dealt": 130.86755859374998
+     },
+     "retreat": {
+      "tries": 5,
+      "taken": 45,
+      "dealt": 0
+     },
+     "approach_ground": {
+      "tries": 1,
+      "taken": 10,
+      "dealt": 0
+     }
+    },
+    "ca": {
+     "approach_ground": {
+      "tries": 3,
+      "taken": 0,
+      "dealt": 32
+     },
+     "attack": {
+      "tries": 6,
+      "taken": 9,
+      "dealt": 91.78
+     },
+     "retreat": {
+      "tries": 1,
+      "taken": 0,
+      "dealt": 0
+     },
+     "super": {
+      "tries": 1,
+      "taken": 0,
+      "dealt": 0
+     }
+    },
+    "cb": {
+     "super": {
+      "tries": 1,
+      "taken": 0,
+      "dealt": 22
+     },
+     "attack": {
+      "tries": 2,
+      "taken": 0,
+      "dealt": 24.48
+     },
+     "approach_ground": {
+      "tries": 1,
+      "taken": 0,
+      "dealt": 0
+     }
+    },
+    "fa": {
+     "approach_ground": {
+      "tries": 3,
+      "taken": 0,
+      "dealt": 0
+     }
+    },
+    "ml": {
+     "attack": {
+      "tries": 1,
+      "taken": 0,
+      "dealt": 0
+     },
+     "approach_ground": {
+      "tries": 3,
+      "taken": 0,
+      "dealt": 19.78
+     }
+    },
+    "mb": {
+     "attack": {
+      "tries": 1,
+      "taken": 11,
+      "dealt": 0
+     },
+     "approach_ground": {
+      "tries": 1,
+      "taken": 0,
+      "dealt": 6
+     }
+    }
+   },
+   "lastSeen": 1790129107272
+  },
+  "kit:spear/gunner": {
+   "key": "kit:spear/gunner",
+   "n": 16.387834666666667,
+   "frames": 0,
+   "strat": {},
+   "dials": {
+    "agg": 0.991814109024431,
+    "def": 1,
+    "spc": 0.1561086116153769,
+    "rxn": 1
+   },
+   "loadout": {
+    "ninja": {
+     "n": 7,
+     "dmg": 181.14285714285714
+    }
+   },
+   "grid": {
+    "fl": {
+     "approach_ground": {
+      "tries": 20,
+      "taken": 0,
+      "dealt": 0
+     },
+     "retreat": {
+      "tries": 16.196380728256,
+      "taken": 0,
+      "dealt": 77.53255473599998
+     },
+     "attack": {
+      "tries": 3.88,
+      "taken": 0,
+      "dealt": 54.630399999999995
+     }
+    },
+    "cl": {
+     "attack": {
+      "tries": 20,
+      "taken": 56.43634168399583,
+      "dealt": 331.4660957234034
+     },
+     "approach_ground": {
+      "tries": 20,
+      "taken": 88.11527588025476,
+      "dealt": 172.6625537040124
+     },
+     "super": {
+      "tries": 10.512890763456,
+      "taken": 0,
+      "dealt": 239.12416245529596
+     },
+     "retreat": {
+      "tries": 20,
+      "taken": 161.89190564771314,
+      "dealt": 0
+     },
+     "shield": {
+      "tries": 20,
+      "taken": 67.62518056413326,
+      "dealt": 86.28884927236271
+     }
+    },
+    "cb": {
+     "shield": {
+      "tries": 5.8587067634559995,
+      "taken": 0,
+      "dealt": 0
+     },
+     "approach_ground": {
+      "tries": 14.681727745855998,
+      "taken": 0,
+      "dealt": 0
+     },
+     "retreat": {
+      "tries": 9.603769942399998,
+      "taken": 0,
+      "dealt": 77.53255473599998
+     },
+     "attack": {
+      "tries": 5.168836982399999,
+      "taken": 0,
+      "dealt": 113.71441361279999
+     },
+     "super": {
+      "tries": 1.94,
+      "taken": 0,
+      "dealt": 0
+     }
+    },
+    "ma": {
+     "approach_ground": {
+      "tries": 20,
+      "taken": 127.11773452435806,
+      "dealt": 12.306258011886728
+     },
+     "retreat": {
+      "tries": 7.108836982399999,
+      "taken": 51.68836982399999,
+      "dealt": 0
+     },
+     "super": {
+      "tries": 12.427369942399999,
+      "taken": 0,
+      "dealt": 113.71441361279999
+     },
+     "approach_air": {
+      "tries": 20,
+      "taken": 97.22676213021774,
+      "dealt": 8.46209631361049
+     },
+     "attack": {
+      "tries": 5.6472,
+      "taken": 0,
+      "dealt": 0
+     },
+     "shield": {
+      "tries": 1.94,
+      "taken": 0,
+      "dealt": 0
+     }
+    },
+    "ca": {
+     "attack": {
+      "tries": 20,
+      "taken": 0,
+      "dealt": 236.62179872930878
+     },
+     "shield": {
+      "tries": 11.6466209824,
+      "taken": 0,
+      "dealt": 0
+     },
+     "retreat": {
+      "tries": 20,
+      "taken": 27.554931134730094,
+      "dealt": 0
+     },
+     "approach_ground": {
+      "tries": 20,
+      "taken": 50.50130080503144,
+      "dealt": 0
+     },
+     "super": {
+      "tries": 4.434932959999999,
+      "taken": 0,
+      "dealt": 97.56852511999999
+     },
+     "approach_air": {
+      "tries": 6.477784,
+      "taken": 56.471999999999994,
+      "dealt": 0
+     }
+    },
+    "fa": {
+     "retreat": {
+      "tries": 17.886250509312,
+      "taken": 0,
+      "dealt": 0
+     },
+     "approach_ground": {
+      "tries": 20,
+      "taken": 0,
+      "dealt": 0
+     },
+     "attack": {
+      "tries": 20,
+      "taken": 0,
+      "dealt": 0
+     },
+     "super": {
+      "tries": 1,
+      "taken": 0,
+      "dealt": 0
+     }
+    },
+    "fb": {
+     "approach_ground": {
+      "tries": 10.293639723455998,
+      "taken": 0,
+      "dealt": 0
+     }
+    },
+    "ml": {
+     "approach_ground": {
+      "tries": 8.1088369824,
+      "taken": 0,
+      "dealt": 29.1
+     },
+     "shield": {
+      "tries": 11.69346592,
+      "taken": 0,
+      "dealt": 0
+     },
+     "attack": {
+      "tries": 12.955568,
+      "taken": 91.3546,
+      "dealt": 373.24385552
+     },
+     "retreat": {
+      "tries": 8.5872,
+      "taken": 20,
+      "dealt": 0
+     }
+    },
+    "mb": {
+     "attack": {
+      "tries": 3.654184,
+      "taken": 0,
+      "dealt": 0
+     },
+     "retreat": {
+      "tries": 1,
+      "taken": 0,
+      "dealt": 0
+     }
+    }
+   },
+   "lastSeen": 1790129451559
+  },
+  "kit:spear/gunner|beh:mixed": {
+   "key": "kit:spear/gunner|beh:mixed",
+   "n": 0,
+   "frames": 0,
+   "strat": {},
+   "dials": null,
+   "loadout": {},
+   "grid": null,
+   "lastSeen": 0
+  },
+  "kit:spear/gunner|beh:aerial": {
+   "key": "kit:spear/gunner|beh:aerial",
+   "n": 16.387834666666667,
+   "frames": 0,
+   "strat": {},
+   "dials": {
+    "agg": 0.991814109024431,
+    "def": 1,
+    "spc": 0.1561086116153769,
+    "rxn": 1
+   },
+   "loadout": {
+    "ninja": {
+     "n": 7,
+     "dmg": 181.14285714285714
+    }
+   },
+   "grid": {
+    "fl": {
+     "approach_ground": {
+      "tries": 20,
+      "taken": 0,
+      "dealt": 0
+     },
+     "retreat": {
+      "tries": 16.196380728256,
+      "taken": 0,
+      "dealt": 77.53255473599998
+     },
+     "attack": {
+      "tries": 3.88,
+      "taken": 0,
+      "dealt": 54.630399999999995
+     }
+    },
+    "cl": {
+     "attack": {
+      "tries": 20,
+      "taken": 56.43634168399583,
+      "dealt": 331.4660957234034
+     },
+     "approach_ground": {
+      "tries": 20,
+      "taken": 88.11527588025476,
+      "dealt": 172.6625537040124
+     },
+     "super": {
+      "tries": 10.512890763456,
+      "taken": 0,
+      "dealt": 239.12416245529596
+     },
+     "retreat": {
+      "tries": 20,
+      "taken": 161.89190564771314,
+      "dealt": 0
+     },
+     "shield": {
+      "tries": 20,
+      "taken": 67.62518056413326,
+      "dealt": 86.28884927236271
+     }
+    },
+    "cb": {
+     "shield": {
+      "tries": 5.8587067634559995,
+      "taken": 0,
+      "dealt": 0
+     },
+     "approach_ground": {
+      "tries": 14.681727745855998,
+      "taken": 0,
+      "dealt": 0
+     },
+     "retreat": {
+      "tries": 9.603769942399998,
+      "taken": 0,
+      "dealt": 77.53255473599998
+     },
+     "attack": {
+      "tries": 5.168836982399999,
+      "taken": 0,
+      "dealt": 113.71441361279999
+     },
+     "super": {
+      "tries": 1.94,
+      "taken": 0,
+      "dealt": 0
+     }
+    },
+    "ma": {
+     "approach_ground": {
+      "tries": 20,
+      "taken": 127.11773452435806,
+      "dealt": 12.306258011886728
+     },
+     "retreat": {
+      "tries": 7.108836982399999,
+      "taken": 51.68836982399999,
+      "dealt": 0
+     },
+     "super": {
+      "tries": 12.427369942399999,
+      "taken": 0,
+      "dealt": 113.71441361279999
+     },
+     "approach_air": {
+      "tries": 20,
+      "taken": 97.22676213021774,
+      "dealt": 8.46209631361049
+     },
+     "attack": {
+      "tries": 5.6472,
+      "taken": 0,
+      "dealt": 0
+     },
+     "shield": {
+      "tries": 1.94,
+      "taken": 0,
+      "dealt": 0
+     }
+    },
+    "ca": {
+     "attack": {
+      "tries": 20,
+      "taken": 0,
+      "dealt": 236.62179872930878
+     },
+     "shield": {
+      "tries": 11.6466209824,
+      "taken": 0,
+      "dealt": 0
+     },
+     "retreat": {
+      "tries": 20,
+      "taken": 27.554931134730094,
+      "dealt": 0
+     },
+     "approach_ground": {
+      "tries": 20,
+      "taken": 50.50130080503144,
+      "dealt": 0
+     },
+     "super": {
+      "tries": 4.434932959999999,
+      "taken": 0,
+      "dealt": 97.56852511999999
+     },
+     "approach_air": {
+      "tries": 6.477784,
+      "taken": 56.471999999999994,
+      "dealt": 0
+     }
+    },
+    "fa": {
+     "retreat": {
+      "tries": 17.886250509312,
+      "taken": 0,
+      "dealt": 0
+     },
+     "approach_ground": {
+      "tries": 20,
+      "taken": 0,
+      "dealt": 0
+     },
+     "attack": {
+      "tries": 20,
+      "taken": 0,
+      "dealt": 0
+     },
+     "super": {
+      "tries": 1,
+      "taken": 0,
+      "dealt": 0
+     }
+    },
+    "fb": {
+     "approach_ground": {
+      "tries": 10.293639723455998,
+      "taken": 0,
+      "dealt": 0
+     }
+    },
+    "ml": {
+     "approach_ground": {
+      "tries": 8.1088369824,
+      "taken": 0,
+      "dealt": 29.1
+     },
+     "shield": {
+      "tries": 11.69346592,
+      "taken": 0,
+      "dealt": 0
+     },
+     "attack": {
+      "tries": 12.955568,
+      "taken": 91.3546,
+      "dealt": 373.24385552
+     },
+     "retreat": {
+      "tries": 8.5872,
+      "taken": 20,
+      "dealt": 0
+     }
+    },
+    "mb": {
+     "attack": {
+      "tries": 3.654184,
+      "taken": 0,
+      "dealt": 0
+     },
+     "retreat": {
+      "tries": 1,
+      "taken": 0,
+      "dealt": 0
+     }
+    }
+   },
+   "lastSeen": 1790129451559
+  },
+  "kit:sword/none|beh:mixed": {
+   "key": "kit:sword/none|beh:mixed",
+   "n": 0,
+   "frames": 0,
+   "strat": {},
+   "dials": null,
+   "loadout": {},
+   "grid": null,
+   "lastSeen": 0
+  },
+  "kit:sword/kratos": {
+   "key": "kit:sword/kratos",
+   "n": 63.365399999999994,
+   "frames": 0,
+   "strat": {},
+   "dials": {
+    "agg": 0.9106970836571108,
+    "def": 0.9997563839747448,
+    "spc": 0.3083600746134711,
+    "rxn": 0.9999595211629349
+   },
+   "loadout": {
+    "ronin": {
+     "n": 24,
+     "dmg": 163.74999999999997
+    }
+   },
+   "grid": {
+    "ml": {
+     "approach_ground": {
+      "tries": 20,
+      "taken": 38.11394693435237,
+      "dealt": 202.2323915667345
+     },
+     "shield": {
+      "tries": 20,
+      "taken": 42.076303128893294,
+      "dealt": 0
+     },
+     "attack": {
+      "tries": 20,
+      "taken": 129.81681679274652,
+      "dealt": 78.58150691632002
+     },
+     "retreat": {
+      "tries": 20,
+      "taken": 0,
+      "dealt": 0
+     }
+    },
+    "fa": {
+     "approach_ground": {
+      "tries": 20,
+      "taken": 46.61729004351581,
+      "dealt": 63.43909611808853
+     },
+     "retreat": {
+      "tries": 20,
+      "taken": 0,
+      "dealt": 20.095400391096074
+     },
+     "shield": {
+      "tries": 20,
+      "taken": 0,
+      "dealt": 0
+     }
+    },
+    "ma": {
+     "approach_ground": {
+      "tries": 20,
+      "taken": 59.85183114342254,
+      "dealt": 22.865521467832718
+     },
+     "attack": {
+      "tries": 20,
+      "taken": 325.2289042379311,
+      "dealt": 0
+     },
+     "retreat": {
+      "tries": 20,
+      "taken": 6.579624498582799,
+      "dealt": 2.7481095346859585
+     },
+     "approach_air": {
+      "tries": 20,
+      "taken": 142.75022350906212,
+      "dealt": 10.401657833593003
+     },
+     "shield": {
+      "tries": 20,
+      "taken": 51.1189541310737,
+      "dealt": 0
+     }
+    },
+    "ca": {
+     "retreat": {
+      "tries": 20,
+      "taken": 78.82244486828928,
+      "dealt": 35.571008425328934
+     },
+     "approach_air": {
+      "tries": 20,
+      "taken": 76.3378585730621,
+      "dealt": 29.64510889403125
+     },
+     "approach_ground": {
+      "tries": 20,
+      "taken": 72.26011776579622,
+      "dealt": 60.31816129267981
+     },
+     "attack": {
+      "tries": 20,
+      "taken": 0,
+      "dealt": 206.96147110301354
+     },
+     "shield": {
+      "tries": 20,
+      "taken": 31.40596134252953,
+      "dealt": 190.0924995980015
+     }
+    },
+    "cl": {
+     "attack": {
+      "tries": 20,
+      "taken": 46.84457584394315,
+      "dealt": 364.1813098866945
+     },
+     "retreat": {
+      "tries": 20,
+      "taken": 183.5796866268338,
+      "dealt": 0
+     },
+     "super": {
+      "tries": 20,
+      "taken": 0,
+      "dealt": 82.0969793395464
+     },
+     "shield": {
+      "tries": 20,
+      "taken": 58.990048406716,
+      "dealt": 36.21626348453262
+     },
+     "approach_ground": {
+      "tries": 20,
+      "taken": 248.33181426966183,
+      "dealt": 64.85551173203122
+     }
+    },
+    "fl": {
+     "approach_ground": {
+      "tries": 20,
+      "taken": 0,
+      "dealt": 140.27012490110968
+     },
+     "retreat": {
+      "tries": 7.689748098418337,
+      "taken": 0,
+      "dealt": 0
+     }
+    },
+    "cb": {
+     "approach_ground": {
+      "tries": 20,
+      "taken": 0,
+      "dealt": 42.584018729965194
+     },
+     "retreat": {
+      "tries": 20,
+      "taken": 0,
+      "dealt": 339.0977354925122
+     },
+     "attack": {
+      "tries": 20,
+      "taken": 20.61044244281463,
+      "dealt": 264.86730658381043
+     },
+     "shield": {
+      "tries": 20,
+      "taken": 34.28013312395931,
+      "dealt": 0
+     }
+    },
+    "mb": {
+     "shield": {
+      "tries": 20,
+      "taken": 67.80252120923434,
+      "dealt": 304.1581642810386
+     },
+     "attack": {
+      "tries": 20,
+      "taken": 27.275624029246124,
+      "dealt": 0
+     },
+     "retreat": {
+      "tries": 18.717291844274335,
+      "taken": 0,
+      "dealt": 0
+     },
+     "approach_ground": {
+      "tries": 1,
+      "taken": 0,
+      "dealt": 0
+     }
+    },
+    "fb": {
+     "approach_ground": {
+      "tries": 20,
+      "taken": 0,
+      "dealt": 0
+     }
+    }
+   },
+   "lastSeen": 1790201805726
+  },
+  "kit:sword/kratos|beh:aerial": {
+   "key": "kit:sword/kratos|beh:aerial",
+   "n": 20.173444444444446,
+   "frames": 0,
+   "strat": {},
+   "dials": {
+    "agg": 0.9607907509856566,
+    "def": 0.9993381066638531,
+    "spc": 0.3250607373913292,
+    "rxn": 1
+   },
+   "loadout": {
+    "ronin": {
+     "n": 8,
+     "dmg": 201.375
+    }
+   },
+   "grid": {
+    "ml": {
+     "approach_ground": {
+      "tries": 12.365891121104639,
+      "taken": 0,
+      "dealt": 136.39069345325566
+     },
+     "shield": {
+      "tries": 20,
+      "taken": 4.077230072268364,
+      "dealt": 0
+     },
+     "attack": {
+      "tries": 11.365891121104639,
+      "taken": 0,
+      "dealt": 0
+     },
+     "retreat": {
+      "tries": 11.543769942399997,
+      "taken": 0,
+      "dealt": 0
+     }
+    },
+    "fa": {
+     "approach_ground": {
+      "tries": 20,
+      "taken": 91.32664654837409,
+      "dealt": 142.34807580043
+     },
+     "retreat": {
+      "tries": 19.969661063504635,
+      "taken": 0,
+      "dealt": 0
+     },
+     "shield": {
+      "tries": 1,
+      "taken": 0,
+      "dealt": 0
+     }
+    },
+    "ma": {
+     "approach_ground": {
+      "tries": 20,
+      "taken": 48.06591991699335,
+      "dealt": 62.34449382597529
+     },
+     "attack": {
+      "tries": 11.365891121104639,
+      "taken": 193.22014905877882,
+      "dealt": 0
+     },
+     "retreat": {
+      "tries": 20,
+      "taken": 0,
+      "dealt": 1.7074362585874847
+     },
+     "approach_air": {
+      "tries": 20,
+      "taken": 81.69664644270681,
+      "dealt": 0
+     },
+     "shield": {
+      "tries": 15.731143745855999,
+      "taken": 67.9,
+      "dealt": 0
+     }
+    },
+    "ca": {
+     "retreat": {
+      "tries": 20,
+      "taken": 60.81541391985106,
+      "dealt": 4.304503786369072
+     },
+     "approach_air": {
+      "tries": 20,
+      "taken": 18.464499997739196,
+      "dealt": 36.98903813786547
+     },
+     "approach_ground": {
+      "tries": 20,
+      "taken": 95.05872699786555,
+      "dealt": 51.991681661670604
+     },
+     "attack": {
+      "tries": 19.160877566055998,
+      "taken": 0,
+      "dealt": 297.66579047051226
+     },
+     "shield": {
+      "tries": 13.791143745855997,
+      "taken": 0,
+      "dealt": 82.7992
+     }
+    },
+    "cl": {
+     "attack": {
+      "tries": 20,
+      "taken": 0,
+      "dealt": 406.5596051063967
+     },
+     "retreat": {
+      "tries": 20,
+      "taken": 298.61424044807967,
+      "dealt": 0
+     },
+     "super": {
+      "tries": 20,
+      "taken": 0,
+      "dealt": 33.55466458303164
+     },
+     "shield": {
+      "tries": 15.129491121104637,
+      "taken": 0,
+      "dealt": 0
+     },
+     "approach_ground": {
+      "tries": 19.056660705855997,
+      "taken": 300.8263123756799,
+      "dealt": 72.90381872
+     }
+    },
+    "fl": {
+     "approach_ground": {
+      "tries": 20,
+      "taken": 0,
+      "dealt": 180.72018736568037
+     }
+    },
+    "cb": {
+     "approach_ground": {
+      "tries": 20,
+      "taken": 0,
+      "dealt": 0
+     },
+     "retreat": {
+      "tries": 2,
+      "taken": 0,
+      "dealt": 34.56
+     },
+     "attack": {
+      "tries": 1,
+      "taken": 0,
+      "dealt": 0
+     }
+    },
+    "mb": {
+     "shield": {
+      "tries": 10.027543745855999,
+      "taken": 0,
+      "dealt": 171.06989630430334
+     },
+     "attack": {
+      "tries": 4.7636,
+      "taken": 0,
+      "dealt": 0
+     }
+    }
+   },
+   "lastSeen": 1790200640736
+  },
+  "kit:sword/kratos|beh:mixed": {
+   "key": "kit:sword/kratos|beh:mixed",
+   "n": 22.56,
+   "frames": 0,
+   "strat": {},
+   "dials": {
+    "agg": 0.939242498084784,
+    "def": 1,
+    "spc": 0.26494763826042406,
+    "rxn": 0.9999500275611477
+   },
+   "loadout": {
+    "ronin": {
+     "n": 8,
+     "dmg": 150.75000000000003
+    }
+   },
+   "grid": {
+    "ml": {
+     "approach_ground": {
+      "tries": 20,
+      "taken": 39.665509586251076,
+      "dealt": 196.67707196406099
+     },
+     "shield": {
+      "tries": 20,
+      "taken": 52.078395602571916,
+      "dealt": 0
+     },
+     "attack": {
+      "tries": 20,
+      "taken": 92.53625601848243,
+      "dealt": 84.89870065728739
+     },
+     "retreat": {
+      "tries": 20,
+      "taken": 0,
+      "dealt": 0
+     }
+    },
+    "fa": {
+     "approach_ground": {
+      "tries": 20,
+      "taken": 62.54622929391942,
+      "dealt": 97.48891178048437
+     },
+     "retreat": {
+      "tries": 20,
+      "taken": 0,
+      "dealt": 20.095400391096074
+     },
+     "shield": {
+      "tries": 16.933075478753278,
+      "taken": 0,
+      "dealt": 0
+     }
+    },
+    "ma": {
+     "approach_ground": {
+      "tries": 20,
+      "taken": 64.10584428180023,
+      "dealt": 30.38654134031767
+     },
+     "attack": {
+      "tries": 20,
+      "taken": 332.6193921852388,
+      "dealt": 0
+     },
+     "retreat": {
+      "tries": 20,
+      "taken": 2.0478738046123413,
+      "dealt": 19.738891565441094
+     },
+     "approach_air": {
+      "tries": 20,
+      "taken": 127.87254750724281,
+      "dealt": 27.262748431084642
+     },
+     "shield": {
+      "tries": 20,
+      "taken": 72.80553253077188,
+      "dealt": 0
+     }
+    },
+    "ca": {
+     "retreat": {
+      "tries": 20,
+      "taken": 51.95712639210206,
+      "dealt": 20.377697701483626
+     },
+     "approach_air": {
+      "tries": 20,
+      "taken": 94.37882665665548,
+      "dealt": 35.06866996524484
+     },
+     "approach_ground": {
+      "tries": 20,
+      "taken": 94.8785883045385,
+      "dealt": 37.11015801518107
+     },
+     "attack": {
+      "tries": 20,
+      "taken": 0,
+      "dealt": 225.67290003832306
+     },
+     "shield": {
+      "tries": 20,
+      "taken": 20.111795024304634,
+      "dealt": 204.33790706619013
+     }
+    },
+    "cl": {
+     "attack": {
+      "tries": 20,
+      "taken": 51.22018758142258,
+      "dealt": 350.6577722543204
+     },
+     "retreat": {
+      "tries": 20,
+      "taken": 222.70277943625828,
+      "dealt": 0
+     },
+     "super": {
+      "tries": 20,
+      "taken": 0,
+      "dealt": 103.96317260734453
+     },
+     "shield": {
+      "tries": 20,
+      "taken": 32.00072509359473,
+      "dealt": 46.80499509663763
+     },
+     "approach_ground": {
+      "tries": 20,
+      "taken": 285.6381719543615,
+      "dealt": 58.815019115476524
+     }
+    },
+    "fl": {
+     "approach_ground": {
+      "tries": 20,
+      "taken": 0,
+      "dealt": 147.0509273834296
+     },
+     "retreat": {
+      "tries": 1.94,
+      "taken": 0,
+      "dealt": 0
+     }
+    },
+    "cb": {
+     "approach_ground": {
+      "tries": 20,
+      "taken": 0,
+      "dealt": 15.86148613052138
+     },
+     "retreat": {
+      "tries": 20,
+      "taken": 0,
+      "dealt": 339.9625041117058
+     },
+     "attack": {
+      "tries": 20,
+      "taken": 10.522120366679953,
+      "dealt": 262.4247069693086
+     },
+     "shield": {
+      "tries": 10.97271696,
+      "taken": 23.91815088,
+      "dealt": 0
+     }
+    },
+    "mb": {
+     "shield": {
+      "tries": 20,
+      "taken": 24.83543648854523,
+      "dealt": 327.6319181350428
+     },
+     "attack": {
+      "tries": 20,
+      "taken": 19.91016526053946,
+      "dealt": 0
+     },
+     "retreat": {
+      "tries": 4.88,
+      "taken": 0,
+      "dealt": 0
+     }
+    },
+    "fb": {
+     "approach_ground": {
+      "tries": 14.59472810350464,
+      "taken": 0,
+      "dealt": 0
+     }
+    }
+   },
+   "lastSeen": 1790201715261
+  },
+  "kit:sword/kratos|beh:rusher": {
+   "key": "kit:sword/kratos|beh:rusher",
+   "n": 20.631955555555553,
+   "frames": 0,
+   "strat": {},
+   "dials": {
+    "agg": 0.8302328015067133,
+    "def": 0.999885245832878,
+    "spc": 0.33937599703337806,
+    "rxn": 0.9999303226745619
+   },
+   "loadout": {
+    "ronin": {
+     "n": 8,
+     "dmg": 139.125
+    }
+   },
+   "grid": {
+    "ml": {
+     "approach_ground": {
+      "tries": 20,
+      "taken": 38.19308560983364,
+      "dealt": 201.98098069228203
+     },
+     "shield": {
+      "tries": 20,
+      "taken": 44.26454331354583,
+      "dealt": 0
+     },
+     "attack": {
+      "tries": 20,
+      "taken": 126.08376924635449,
+      "dealt": 75.52327576779393
+     },
+     "retreat": {
+      "tries": 20,
+      "taken": 0,
+      "dealt": 0
+     }
+    },
+    "fa": {
+     "approach_ground": {
+      "tries": 20,
+      "taken": 48.471660227707,
+      "dealt": 66.32944671693032
+     },
+     "retreat": {
+      "tries": 20,
+      "taken": 0,
+      "dealt": 20.095400391096074
+     },
+     "shield": {
+      "tries": 20,
+      "taken": 0,
+      "dealt": 0
+     }
+    },
+    "ma": {
+     "approach_ground": {
+      "tries": 20,
+      "taken": 58.271078849135165,
+      "dealt": 23.468221325339716
+     },
+     "attack": {
+      "tries": 20,
+      "taken": 326.41801284151694,
+      "dealt": 0
+     },
+     "retreat": {
+      "tries": 20,
+      "taken": 7.7994248309703975,
+      "dealt": 3.9401357538953583
+     },
+     "approach_air": {
+      "tries": 20,
+      "taken": 124.62077626835607,
+      "dealt": 12.843558640547467
+     },
+     "shield": {
+      "tries": 20,
+      "taken": 53.17262739811128,
+      "dealt": 0
+     }
+    },
+    "ca": {
+     "retreat": {
+      "tries": 20,
+      "taken": 75.98101605056327,
+      "dealt": 33.87346454706606
+     },
+     "approach_air": {
+      "tries": 20,
+      "taken": 79.10195980349256,
+      "dealt": 30.464239067864145
+     },
+     "approach_ground": {
+      "tries": 20,
+      "taken": 71.49176781997667,
+      "dealt": 56.80822607691309
+     },
+     "attack": {
+      "tries": 20,
+      "taken": 0,
+      "dealt": 210.92358340489923
+     },
+     "shield": {
+      "tries": 20,
+      "taken": 31.067202323993893,
+      "dealt": 190.21050848542708
+     }
+    },
+    "cl": {
+     "attack": {
+      "tries": 20,
+      "taken": 42.86343791469806,
+      "dealt": 369.2742760632509
+     },
+     "retreat": {
+      "tries": 20,
+      "taken": 185.8295929265738,
+      "dealt": 0
+     },
+     "super": {
+      "tries": 20,
+      "taken": 0,
+      "dealt": 86.99366117738654
+     },
+     "shield": {
+      "tries": 20,
+      "taken": 53.824411792659006,
+      "dealt": 37.6422101026535
+     },
+     "approach_ground": {
+      "tries": 20,
+      "taken": 256.8515221918537,
+      "dealt": 65.20935647362833
+     }
+    },
+    "fl": {
+     "approach_ground": {
+      "tries": 20,
+      "taken": 0,
+      "dealt": 140.70099919169812
+     },
+     "retreat": {
+      "tries": 6.507184357648639,
+      "taken": 0,
+      "dealt": 0
+     }
+    },
+    "cb": {
+     "approach_ground": {
+      "tries": 20,
+      "taken": 0,
+      "dealt": 39.737131004769445
+     },
+     "retreat": {
+      "tries": 20,
+      "taken": 0,
+      "dealt": 342.70788763866284
+     },
+     "attack": {
+      "tries": 20,
+      "taken": 16.829521335785834,
+      "dealt": 266.4925210472245
+     },
+     "shield": {
+      "tries": 20,
+      "taken": 34.69141869661952,
+      "dealt": 0
+     }
+    },
+    "mb": {
+     "shield": {
+      "tries": 20,
+      "taken": 62.116934439330684,
+      "dealt": 307.26431088651304
+     },
+     "attack": {
+      "tries": 20,
+      "taken": 26.337390455164325,
+      "dealt": 0
+     },
+     "retreat": {
+      "tries": 15.377050277648639,
+      "taken": 0,
+      "dealt": 0
+     },
+     "approach_ground": {
+      "tries": 1,
+      "taken": 0,
+      "dealt": 0
+     }
+    },
+    "fb": {
+     "approach_ground": {
+      "tries": 20,
+      "taken": 0,
+      "dealt": 0
+     }
+    }
+   },
+   "lastSeen": 1790201805726
+  },
+  "kit:sword/kratos|beh:zoner": {
+   "key": "kit:sword/kratos|beh:zoner",
+   "n": 0,
+   "frames": 0,
+   "strat": {},
+   "dials": null,
+   "loadout": {},
+   "grid": null,
+   "lastSeen": 0
+  },
+  "kit:electricstaff/ninja|beh:mixed": {
+   "key": "kit:electricstaff/ninja|beh:mixed",
+   "n": 15.172222222222222,
+   "frames": 0,
+   "strat": {},
+   "dials": {
+    "agg": 1,
+    "def": 0.9995589882127103,
+    "spc": 0.06343320614410985,
+    "rxn": 0.9998099082570754
+   },
+   "loadout": {
+    "pugilist": {
+     "n": 6,
+     "dmg": 234
+    }
+   },
+   "grid": {
+    "fl": {
+     "approach_ground": {
+      "tries": 20,
+      "taken": 0,
+      "dealt": 52.02298532207346
+     }
+    },
+    "ca": {
+     "retreat": {
+      "tries": 20,
+      "taken": 0,
+      "dealt": 0.8165586810946118
+     },
+     "approach_ground": {
+      "tries": 20,
+      "taken": 0,
+      "dealt": 21.330446403838646
+     },
+     "super": {
+      "tries": 18.8521379424,
+      "taken": 0,
+      "dealt": 0
+     },
+     "attack": {
+      "tries": 17.50690096,
+      "taken": 0,
+      "dealt": 53.648399999999995
+     },
+     "shield": {
+      "tries": 4.434932959999999,
+      "taken": 0,
+      "dealt": 0
+     },
+     "approach_air": {
+      "tries": 5.82,
+      "taken": 0,
+      "dealt": 0
+     }
+    },
+    "cl": {
+     "attack": {
+      "tries": 20,
+      "taken": 50.8057175269214,
+      "dealt": 361.80261268237194
+     },
+     "approach_ground": {
+      "tries": 20,
+      "taken": 53.618414616680795,
+      "dealt": 65.92115567281452
+     },
+     "super": {
+      "tries": 10.603769942399998,
+      "taken": 0,
+      "dealt": 0
+     },
+     "retreat": {
+      "tries": 20,
+      "taken": 144.8225406485656,
+      "dealt": 7.628840519558516
+     },
+     "shield": {
+      "tries": 20,
+      "taken": 93.36855319687234,
+      "dealt": 255.11784615586498
+     }
+    },
+    "ma": {
+     "retreat": {
+      "tries": 20,
+      "taken": 0,
+      "dealt": 138.4022340946502
+     },
+     "approach_air": {
+      "tries": 20,
+      "taken": 67.3358446632373,
+      "dealt": 0
+     },
+     "approach_ground": {
+      "tries": 20,
+      "taken": 0,
+      "dealt": 0
+     },
+     "super": {
+      "tries": 3.654184,
+      "taken": 0,
+      "dealt": 24.92153488
+     },
+     "attack": {
+      "tries": 1.94,
+      "taken": 0,
+      "dealt": 0
+     }
+    },
+    "fa": {
+     "approach_ground": {
+      "tries": 20,
+      "taken": 0,
+      "dealt": 44.17617668196348
+     },
+     "attack": {
+      "tries": 6.37493296,
+      "taken": 0,
+      "dealt": 0
+     },
+     "super": {
+      "tries": 1.94,
+      "taken": 0,
+      "dealt": 38.8
+     }
+    },
+    "mb": {
+     "retreat": {
+      "tries": 4.434932959999999,
+      "taken": 0,
+      "dealt": 0
+     },
+     "approach_ground": {
+      "tries": 13.955568,
+      "taken": 0,
+      "dealt": 0
+     }
+    },
+    "ml": {
+     "approach_ground": {
+      "tries": 15.347649919999999,
+      "taken": 36.7068,
+      "dealt": 0
+     },
+     "retreat": {
+      "tries": 12.524049919999998,
+      "taken": 57.65412847999999,
+      "dealt": 84.26372624
+     },
+     "attack": {
+      "tries": 11.131967999999999,
+      "taken": 0,
+      "dealt": 142.217896
+     },
+     "shield": {
+      "tries": 2.8236,
+      "taken": 0,
+      "dealt": 0
+     }
+    },
+    "cb": {
+     "attack": {
+      "tries": 7.25853296,
+      "taken": 53.648399999999995,
+      "dealt": 0
+     },
+     "retreat": {
+      "tries": 8.4708,
+      "taken": 0,
+      "dealt": 0
+     },
+     "shield": {
+      "tries": 2.94,
+      "taken": 36.86,
+      "dealt": 0
+     },
+     "approach_ground": {
+      "tries": 2.94,
+      "taken": 36.86,
+      "dealt": 0
+     }
+    },
+    "fb": {
+     "approach_ground": {
+      "tries": 3.654184,
+      "taken": 0,
+      "dealt": 0
+     },
+     "retreat": {
+      "tries": 1.94,
+      "taken": 0,
+      "dealt": 0
+     }
+    }
+   },
+   "lastSeen": 1790202265885
+  },
+  "kit:sword/archer": {
+   "key": "kit:sword/archer",
+   "n": 21.70777777777778,
+   "frames": 0,
+   "strat": {},
+   "dials": {
+    "agg": 0.9746444758109634,
+    "def": 0.9998058230648765,
+    "spc": 0.21855949000794522,
+    "rxn": 0.997781701617074
+   },
+   "loadout": {
+    "ronin": {
+     "n": 9,
+     "dmg": 110.44444444444444
+    }
+   },
+   "grid": {
+    "fl": {
+     "approach_ground": {
+      "tries": 17.31528625618972,
+      "taken": 0,
+      "dealt": 0
+     }
+    },
+    "ma": {
+     "approach_air": {
+      "tries": 20,
+      "taken": 115.00933711414915,
+      "dealt": 13.719406086427403
+     },
+     "approach_ground": {
+      "tries": 20,
+      "taken": 14.35375182771003,
+      "dealt": 60.25218585175597
+     },
+     "attack": {
+      "tries": 20,
+      "taken": 0,
+      "dealt": 168.7633384447995
+     },
+     "retreat": {
+      "tries": 20,
+      "taken": 12.923847444684359,
+      "dealt": 0
+     },
+     "shield": {
+      "tries": 6.507184357648639,
+      "taken": 0,
+      "dealt": 0
+     }
+    },
+    "cl": {
+     "attack": {
+      "tries": 20,
+      "taken": 132.42125147948656,
+      "dealt": 290.97712902391396
+     },
+     "shield": {
+      "tries": 20,
+      "taken": 53.35832147417022,
+      "dealt": 106.10985716853688
+     },
+     "retreat": {
+      "tries": 14.915460059645717,
+      "taken": 356.4706516247271,
+      "dealt": 70.30448116147198
+     },
+     "approach_ground": {
+      "tries": 20,
+      "taken": 137.49583872350345,
+      "dealt": 91.65098003775013
+     },
+     "super": {
+      "tries": 14.947823723455999,
+      "taken": 0,
+      "dealt": 70.30448116147198
+     }
+    },
+    "ca": {
+     "retreat": {
+      "tries": 20,
+      "taken": 0,
+      "dealt": 29.217540378307127
+     },
+     "approach_ground": {
+      "tries": 20,
+      "taken": 39.34681646929999,
+      "dealt": 29.05106615983316
+     },
+     "attack": {
+      "tries": 20,
+      "taken": 0,
+      "dealt": 144.40907406029663
+     },
+     "shield": {
+      "tries": 13.947823723455999,
+      "taken": 177.96057312000002,
+      "dealt": 0
+     },
+     "approach_air": {
+      "tries": 3.88,
+      "taken": 32.98,
+      "dealt": 0
+     }
+    },
+    "fa": {
+     "approach_ground": {
+      "tries": 20,
+      "taken": 0,
+      "dealt": 0
+     }
+    },
+    "cb": {
+     "approach_ground": {
+      "tries": 15.98661921618972,
+      "taken": 0,
+      "dealt": 0
+     },
+     "shield": {
+      "tries": 20,
+      "taken": 215.36885488926075,
+      "dealt": 0
+     },
+     "retreat": {
+      "tries": 6.37493296,
+      "taken": 97.56852511999999,
+      "dealt": 0
+     },
+     "attack": {
+      "tries": 8.31493296,
+      "taken": 140.24852511999998,
+      "dealt": 0
+     }
+    },
+    "mb": {
+     "retreat": {
+      "tries": 6.507184357648639,
+      "taken": 0,
+      "dealt": 0
+     },
+     "attack": {
+      "tries": 6.507184357648639,
+      "taken": 0,
+      "dealt": 0
+     },
+     "approach_ground": {
+      "tries": 10.94211731764864,
+      "taken": 0,
+      "dealt": 168.52745248
+     }
+    },
+    "ml": {
+     "attack": {
+      "tries": 20,
+      "taken": 0,
+      "dealt": 26.801273961901327
+     },
+     "retreat": {
+      "tries": 4.434932959999999,
+      "taken": 0,
+      "dealt": 0
+     },
+     "shield": {
+      "tries": 7.25853296,
+      "taken": 190.76239439999998,
+      "dealt": 0
+     },
+     "approach_ground": {
+      "tries": 7.477784,
+      "taken": 0,
+      "dealt": 33.8832
+     }
+    },
+    "fb": {
+     "retreat": {
+      "tries": 5.168836982399999,
+      "taken": 0,
+      "dealt": 171.70876455532797
+     },
+     "approach_ground": {
+      "tries": 3.654184,
+      "taken": 0,
+      "dealt": 0
+     }
+    }
+   },
+   "lastSeen": 1790202808801
+  },
+  "kit:sword/archer|beh:mixed": {
+   "key": "kit:sword/archer|beh:mixed",
+   "n": 21.70777777777778,
+   "frames": 0,
+   "strat": {},
+   "dials": {
+    "agg": 0.9746444758109634,
+    "def": 0.9998058230648765,
+    "spc": 0.21855949000794522,
+    "rxn": 0.997781701617074
+   },
+   "loadout": {
+    "ronin": {
+     "n": 9,
+     "dmg": 110.44444444444444
+    }
+   },
+   "grid": {
+    "fl": {
+     "approach_ground": {
+      "tries": 17.31528625618972,
+      "taken": 0,
+      "dealt": 0
+     }
+    },
+    "ma": {
+     "approach_air": {
+      "tries": 20,
+      "taken": 115.00933711414915,
+      "dealt": 13.719406086427403
+     },
+     "approach_ground": {
+      "tries": 20,
+      "taken": 14.35375182771003,
+      "dealt": 60.25218585175597
+     },
+     "attack": {
+      "tries": 20,
+      "taken": 0,
+      "dealt": 168.7633384447995
+     },
+     "retreat": {
+      "tries": 20,
+      "taken": 12.923847444684359,
+      "dealt": 0
+     },
+     "shield": {
+      "tries": 6.507184357648639,
+      "taken": 0,
+      "dealt": 0
+     }
+    },
+    "cl": {
+     "attack": {
+      "tries": 20,
+      "taken": 132.42125147948656,
+      "dealt": 290.97712902391396
+     },
+     "shield": {
+      "tries": 20,
+      "taken": 53.35832147417022,
+      "dealt": 106.10985716853688
+     },
+     "retreat": {
+      "tries": 14.915460059645717,
+      "taken": 356.4706516247271,
+      "dealt": 70.30448116147198
+     },
+     "approach_ground": {
+      "tries": 20,
+      "taken": 137.49583872350345,
+      "dealt": 91.65098003775013
+     },
+     "super": {
+      "tries": 14.947823723455999,
+      "taken": 0,
+      "dealt": 70.30448116147198
+     }
+    },
+    "ca": {
+     "retreat": {
+      "tries": 20,
+      "taken": 0,
+      "dealt": 29.217540378307127
+     },
+     "approach_ground": {
+      "tries": 20,
+      "taken": 39.34681646929999,
+      "dealt": 29.05106615983316
+     },
+     "attack": {
+      "tries": 20,
+      "taken": 0,
+      "dealt": 144.40907406029663
+     },
+     "shield": {
+      "tries": 13.947823723455999,
+      "taken": 177.96057312000002,
+      "dealt": 0
+     },
+     "approach_air": {
+      "tries": 3.88,
+      "taken": 32.98,
+      "dealt": 0
+     }
+    },
+    "fa": {
+     "approach_ground": {
+      "tries": 20,
+      "taken": 0,
+      "dealt": 0
+     }
+    },
+    "cb": {
+     "approach_ground": {
+      "tries": 15.98661921618972,
+      "taken": 0,
+      "dealt": 0
+     },
+     "shield": {
+      "tries": 20,
+      "taken": 215.36885488926075,
+      "dealt": 0
+     },
+     "retreat": {
+      "tries": 6.37493296,
+      "taken": 97.56852511999999,
+      "dealt": 0
+     },
+     "attack": {
+      "tries": 8.31493296,
+      "taken": 140.24852511999998,
+      "dealt": 0
+     }
+    },
+    "mb": {
+     "retreat": {
+      "tries": 6.507184357648639,
+      "taken": 0,
+      "dealt": 0
+     },
+     "attack": {
+      "tries": 6.507184357648639,
+      "taken": 0,
+      "dealt": 0
+     },
+     "approach_ground": {
+      "tries": 10.94211731764864,
+      "taken": 0,
+      "dealt": 168.52745248
+     }
+    },
+    "ml": {
+     "attack": {
+      "tries": 20,
+      "taken": 0,
+      "dealt": 26.801273961901327
+     },
+     "retreat": {
+      "tries": 4.434932959999999,
+      "taken": 0,
+      "dealt": 0
+     },
+     "shield": {
+      "tries": 7.25853296,
+      "taken": 190.76239439999998,
+      "dealt": 0
+     },
+     "approach_ground": {
+      "tries": 7.477784,
+      "taken": 0,
+      "dealt": 33.8832
+     }
+    },
+    "fb": {
+     "retreat": {
+      "tries": 5.168836982399999,
+      "taken": 0,
+      "dealt": 171.70876455532797
+     },
+     "approach_ground": {
+      "tries": 3.654184,
+      "taken": 0,
+      "dealt": 0
+     }
+    }
+   },
+   "lastSeen": 1790202808801
+  }
+ }
+}

@@ -1,7 +1,7 @@
 // Side-by-side sheet: current style (left) vs grounded style (right), at 4x,
 // with a 1x strip underneath at the size the game actually draws.
 const fs=require('fs'),path=require('path');
-const puppeteer=require('/Users/aarushgupta/Documents/Stickman-Battles/node_modules/puppeteer');
+const puppeteer=require('/Users/aarushgupta/Developer/Personal/Stickman-Battles/node_modules/puppeteer');
 const A=process.argv[2], B=process.argv[3], keys=process.argv.slice(4);
 const rd=(d,k)=>fs.readFileSync(path.join(d,k+'.png')).toString('base64');
 (async()=>{

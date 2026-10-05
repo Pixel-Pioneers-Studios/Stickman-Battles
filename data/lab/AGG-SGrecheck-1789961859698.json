@@ -1,0 +1,88 @@
+{
+ "label": "SGrecheck",
+ "flags": "",
+ "sets": "superGate:0",
+ "blocks": 26,
+ "seedsPerBlock": 8,
+ "matchesPerArm": 1872,
+ "at": "2026-09-21T03:37:39.696Z",
+ "outcome": {
+  "stocks": {
+   "n": 26,
+   "mean": 0,
+   "sd": 0,
+   "se": 0,
+   "t": 0
+  },
+  "kills": {
+   "n": 26,
+   "mean": 0,
+   "sd": 0,
+   "se": 0,
+   "t": 0
+  },
+  "fitness": {
+   "n": 26,
+   "mean": 0,
+   "sd": 0,
+   "se": 0,
+   "t": 0
+  },
+  "dealt": {
+   "n": 26,
+   "mean": 0,
+   "sd": 0,
+   "se": 0,
+   "t": 0
+  },
+  "taken": {
+   "n": 26,
+   "mean": 0,
+   "sd": 0,
+   "se": 0,
+   "t": 0
+  },
+  "locked": {
+   "n": 26,
+   "mean": 0,
+   "sd": 0,
+   "se": 0,
+   "t": 0
+  }
+ },
+ "behaviourL1": {
+  "n": 26,
+  "mean": 0,
+  "sd": 0,
+  "se": 0,
+  "t": 0
+ },
+ "blockStocks": [
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0
+ ]
+}

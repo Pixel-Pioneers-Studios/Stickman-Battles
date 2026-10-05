@@ -52,7 +52,7 @@ Set a flag; trigger at frame start in `gameLoop`.
 
 ## How Claude Should Behave
 
-Also read `FABLE_BEHAVIOR_PROMPT.md` (repo root) and the memory index at `~/.claude/projects/-Users-aarushgupta-Documents-Stickman-Battles/memory/MEMORY.md` before working — both are treated as binding and cover communication style, when to act vs. report, and current project state.
+Also read `FABLE_BEHAVIOR_PROMPT.md` (repo root) and the memory index at `~/.claude/projects/-Users-aarushgupta-Developer-Personal-Stickman-Battles/memory/MEMORY.md` before working — both are treated as binding and cover communication style, when to act vs. report, and current project state.
 
 Before making any change:
 1. **Read the relevant module** — understand what already exists
@@ -259,7 +259,7 @@ Script load order in `index.html` — files may only reference globals from earl
 112. `js/story/smb-story-engine-match.js` — `spawnWorldBoss`, `story2OnMatchEnd`, victory
 113. `js/story/smb-story-engine-events.js` — Event bus, `_handleBuiltinEvent`, freeze/slow helpers
 114. `js/story/smb-story-engine-frame.js` — Per-frame: `storyCheckEvents`, dodge roll, boundaries
-115. `js/story/smb-story-engine-explore.js` — Exploration chapter: platform gen, side portal
+115. `js/story/smb-story-levels.js` + `js/story/levels/chNN.js` — `STORY_LEVELS`: authored per-chapter maps (layout, floor, backdrop, world-space set pieces, floor surfaces), loaded just before `smb-story-engine-explore.js`, which builds explore worlds and falls back to its seeded generator for chapters without an entry. Chapters 0–9 are authored.
 116. `js/story/smb-story-engine-explore2.js` — `updateExploration`, scene triggers, fallen warrior
 117. `js/story/smb-story-finalize.js` — Story end/transition logic
 118. `js/smb-progression.js` — Player progression / unlocks

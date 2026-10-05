@@ -82,7 +82,93 @@ function animStridePhase(f, legLen, amp, fallback) {
 function animStrideReset(f) { if (f) { f._stride = 0; if (f._fp) f._fp = { r: null, l: null }; } }
 
 /** Drop all plants — call on respawn / teleport so a foot never tethers. */
-function animFootRelease(f) { animStrideReset(f); }
+function animFootRelease(f) { animStrideReset(f); f && (f._runPh = 0); }
+
+// ── Run cycle (reference-captured) ──────────────────────────────────────────
+/**
+ * The run is COPIED, not designed. Joint positions were read frame by frame off
+ * a side-view treadmill capture with a marker overlay (Eastern Michigan
+ * University Running Science Lab, "Slow motion running - side view": an NCAA
+ * D1 athlete at 10 mph, 100 fps) — 8 frames across half a stride, the other
+ * half taken from the opposite leg, one light [1,2,1] smoothing pass.
+ *
+ * What the reference shows that the old sine scissor could not:
+ *  - the swing knee folds to ~120° and the heel comes up under the hip;
+ *  - the stance leg lands only slightly ahead of the hip, bends ~40° as it
+ *    loads, and is behind the hip at toe-off;
+ *  - the body is HIGHEST in flight and lowest at mid-stance (two bobs per
+ *    stride, ~2px at this scale);
+ *  - the torso is nearly upright (~8° lean), and the elbows hold ~90–100°
+ *    while the arms dwell at each end of the swing and switch quickly.
+ *
+ * Angles are ABSOLUTE bone directions in facing-right space (0 = right,
+ * PI/2 = straight down), 16 samples per stride; phase 0 = this leg driving
+ * its knee forward just after the other foot's toe-off.
+ */
+const RUN_MOCAP = {
+  thigh: [1.004,1.117,1.205,1.27,1.36,1.448,1.573,1.691,1.806,1.934,1.955,1.881,1.692,1.363,1.06,0.952],
+  shin:  [2.3,1.838,1.503,1.447,1.625,1.95,2.196,2.312,2.408,2.635,3.005,3.325,3.478,3.386,3.056,2.678],
+  // Pelvis height offset in px at FIG_LEG_LEN 31 (negative = up), per 1/16.
+  bob:   [-1.04,-1.62,-2.23,-1.52,-0.07,0.04,-0.54,-1.11,-1.04,-1.62,-2.23,-1.52,-0.07,0.04,-0.54,-1.11],
+  thighFrac: 0.494,   // thigh / FIG_LEG_LEN  (142:129 thigh:shin in the capture)
+  shinFrac:  0.449,   // puts the mid-stance ankle exactly at the idle pose's depth
+  strideLegs: 2.6,    // ground covered per full cycle, in leg lengths (~80px)
+};
+
+/** Periodic Catmull-Rom sample of a 16-entry table at phase u in [0,1). */
+function _runTab(a, u) {
+  const n = a.length, x = (((u % 1) + 1) % 1) * n, i = Math.floor(x), t = x - i;
+  const p0 = a[(i + n - 1) % n], p1 = a[i], p2 = a[(i + 1) % n], p3 = a[(i + 2) % n];
+  return p1 + 0.5 * t * (p2 - p0 + t * (2 * p0 - 5 * p1 + 4 * p2 - p3 + t * (3 * (p1 - p2) + p3 - p0)));
+}
+
+/**
+ * Advance the run phase by distance travelled so the stance foot stays put on
+ * the ground. Returns the phase in [0,1).
+ */
+function animRunAdvance(f, legLen, amp) {
+  if (f._runPh === undefined) f._runPh = 0;
+  const stride = Math.max(8, RUN_MOCAP.strideLegs * legLen * amp);
+  // Moving against facing (backpedalling) runs the cycle in reverse, or the
+  // planted foot would slide at twice the body's speed.
+  const dir = ((f.vx || 0) * (f.facing || 1)) < 0 ? -1 : 1;
+  f._runPh = ((f._runPh + dir * Math.abs(f.vx || 0) / stride) % 1 + 1) % 1;
+  return f._runPh;
+}
+
+/**
+ * One leg of the run in facing-right space. `amp` (0..1) eases the whole cycle
+ * toward standing for slow movement; at 1 it is the reference exactly.
+ */
+function animRunLeg(u, legLen, amp) {
+  const H = Math.PI / 2;
+  const th = _runTab(RUN_MOCAP.thigh, u), sh = _runTab(RUN_MOCAP.shin, u);
+  const thigh = H + (th - H) * amp;
+  const shin  = thigh + (sh - th) * amp;
+  const tl = legLen * RUN_MOCAP.thighFrac, sl = legLen * RUN_MOCAP.shinFrac;
+  const kx = Math.cos(thigh) * tl, ky = Math.sin(thigh) * tl;
+  return { thigh, shin, kx, ky, ax: kx + Math.cos(shin) * sl, ay: ky + Math.sin(shin) * sl };
+}
+
+/** Pelvis bob for the run at phase u (px, negative = up). */
+function animRunBob(u, legLen, amp) {
+  return _runTab(RUN_MOCAP.bob, u) * (legLen / 31) * amp;
+}
+
+/**
+ * One arm of the run in facing-right space: upper-arm and forearm angles.
+ * Same-side arm is back while the same-side knee drives forward. The arm holds
+ * at each end and switches fast (a flattened cosine), which is what the
+ * reference does — a pure sine reads as a pendulum, not a runner.
+ */
+function animRunArm(u, amp) {
+  const w = Math.tanh(1.8 * Math.cos(2 * Math.PI * (u - 1 / 16))) / Math.tanh(1.8);  // +1 = back
+  const D = Math.PI / 180;
+  return {
+    upper: (117.5 + 32.5 * w * amp) * D + (1 - amp) * -20 * D,
+    fore:  (23.5 + 38.5 * w * amp) * D + (1 - amp) * 40 * D,
+  };
+}
 
 // ── Overlap & drag ──────────────────────────────────────────────────────────
 /**

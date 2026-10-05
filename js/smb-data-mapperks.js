@@ -68,8 +68,15 @@ const SOVEREIGN_PERK_SYSTEMS = { items: false, blizzard: true, meteors: true };
 
 // True when the current arena runs `system`, either as its own arena or because
 // The Circuit borrows it. `key` is the arena that natively owns the system.
+// Custom maps from the Creator Studio opt into systems by name through
+// `designerPerks` (blizzard, meteors, beast, yeti) instead of owning an arena key.
+function _designerPerk(name) {
+  return !!(currentArena && currentArena.designerPerks && currentArena.designerPerks[name]);
+}
+
 function arenaRunsPerk(key, system) {
   if (currentArenaKey === key) return true;
+  if (_designerPerk(system)) return true;
   return currentArenaKey === 'sovereign' && !!SOVEREIGN_PERK_SYSTEMS[system];
 }
 
@@ -293,7 +300,7 @@ function updateMapPerks() {
   }
 
   // ---- FOREST: Rare beast encounter ----
-  if (currentArenaKey === 'forest') {
+  if (currentArenaKey === 'forest' || _designerPerk('beast')) {
     // Track beast death → set cooldown
     if (forestBeast && forestBeast.health <= 0) {
       _achCheckBeastDead();
@@ -472,7 +479,7 @@ function updateMapPerks() {
   }
 
   // ---- ICE: Yeti rare encounter ----
-  if (currentArenaKey === 'ice') {
+  if (currentArenaKey === 'ice' || _designerPerk('yeti')) {
     // Clean up dead yeti and start respawn cooldown
     if (yeti && yeti.health <= 0) { _achCheckYetiDead(); yeti = null; yetiCooldown = SPAWN_CONFIG.yeti.respawnDelay; }
     if (yetiCooldown > 0) yetiCooldown--;

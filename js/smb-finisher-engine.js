@@ -69,6 +69,7 @@ const FIN_ANTIC_FRAMES = 5;    // wind-up frames inserted before each def.swing
 const FIN_ANTIC_AMOUNT = 0.62; // radians of counter-motion at the peak
 const FIN_HOLD_FRAMES  = 5;
 const FIN_RECOVER_IFRAMES = 48;  // 0.8s of i-frames when a finisher hands control back
+const FIN_HEAL = 25;             // paid to a non-boss attacker when the finisher completes (matches SUPER_HEAL)
 const FIN_BRACE_FRAMES = 4;
 const FIN_HURT_FRAMES  = 10;
 const FIN_SQUASH_FRAMES = 7;
@@ -238,6 +239,7 @@ function _finClearPose(f) {
   f._finSquash = null;
   f._finSmear = null;
   f._finNoBlink = false;
+  f._hideWeapon = false;
 }
 
 // ============================================================
@@ -252,17 +254,28 @@ function triggerFinisher(attacker, target) {
   if (typeof isCinematic !== 'undefined' && isCinematic) return false;
   if (!attacker || !target) return false;
   if (trainingMode || tutorialMode) return false;
-  if (onlineMode)          return false;
-  // Battle Royale runs no finishers at all. Restricting them to the local
-  // player's own kills was not enough: a finisher takes over the stage and
-  // freezes the world, and in a 100-player match with a closing storm that is
-  // several seconds of standing still inside a ring that does not stop moving —
-  // it gets you killed for winning a fight.
-  if (gameMode === 'battleroyale') return false;
+  if (onlineMode || window._pubHubActive) return false;
+  // Battle Royale: only finishers the local player lands or is hit by, and the
+  // world does NOT freeze — a frozen 100-player match with a closing storm got
+  // you killed for winning a fight. Instead the two fighters step out of the
+  // match: both are invulnerable, bots stop targeting them, and the rest of the
+  // field plays on. Nobody else's screen shows it.
+  const _world = gameMode === 'battleroyale';
+  if (_world) {
+    if (activeWorldFinisher) return false;
+    const _local = f => !f.isAI && !f.isRemote && players.indexOf(f) !== -1;
+    if (!_local(attacker) && !_local(target)) return false;
+  }
 
   let def = null;
 
-  if (attacker.isBoss && !target.isBoss) {
+  if ((attacker.isYeti || attacker.isBeast) && !attacker.isBoss && !target.isBoss) {
+    // Yeti and ForestBeast are not isBoss, so they used to fall into the PvP
+    // branch and play their carried weapon's finisher (hammer / axe) — their
+    // own authored pools below were unreachable.
+    const _pool = attacker.isYeti ? _YETI_KILL_POOL : _BEAST_KILL_POOL;
+    def = _pool[Math.floor(Math.random() * _pool.length)];
+  } else if (attacker.isBoss && !target.isBoss) {
     // Boss kills player — pick from character-specific pool
     let _pool;
     if (attacker.isTrueForm)           _pool = _TF_KILL_POOL;
@@ -274,10 +287,14 @@ function triggerFinisher(attacker, target) {
     // Player kills boss or Sovereign
     def = FIN_HEROS_TRIUMPH;
   } else if (!attacker.isBoss && !target.isBoss) {
-    // Player vs player
-    const picked = _pickFinisher(attacker);
-    if (!picked) return false;
-    def = picked.def;
+    // Player vs player. A kill landed by a Q or E plays that move's own finisher.
+    const moveDef = typeof _pickMoveFinisher === 'function' ? _pickMoveFinisher(attacker) : null;
+    if (moveDef) def = moveDef;
+    else {
+      const picked = _pickFinisher(attacker);
+      if (!picked) return false;
+      def = picked.def;
+    }
   } else {
     return false;
   }
@@ -295,13 +312,28 @@ function triggerFinisher(attacker, target) {
   attacker._finPoseState = null; target._finPoseState = null;
 
   const data = {};
+  if (_world) {
+    attacker._finWorldLock = true; target._finWorldLock = true;
+    // Anyone already on either fighter lets go now rather than on its next AI tick.
+    for (const f of players.concat(typeof minions !== 'undefined' ? minions : [])) {
+      if (f && f !== attacker && f !== target && (f.target === attacker || f.target === target)) f.target = null;
+    }
+    if (typeof MoveScene !== 'undefined') {
+      if (attacker._msScene) MoveScene.abort(attacker._msScene);
+      if (target._msScene)   MoveScene.abort(target._msScene);
+    }
+  }
   if (def.setup) {
+    const _keep = _world ? _finSaveTime() : null;
     try {
       def.setup(attacker, target, data);
+      if (_keep) _finRestoreTime(_keep);
     } catch (e) {
       // Roll back the freeze-alive lock — otherwise the target is stuck at
       // health=1/invincible=9999 with no finisher driving completion.
       console.error('[finisher] setup threw — aborting finisher:', e);
+      if (_keep) _finRestoreTime(_keep);
+      attacker._finWorldLock = false; target._finWorldLock = false;
       target.health = 0;
       target.invincible = 0;
       _finClearPose(attacker); _finClearPose(target);
@@ -309,14 +341,21 @@ function triggerFinisher(attacker, target) {
     }
   }
 
-  activeFinisher = {
+  const _fin = {
     attacker,
     target,
     timer: 0,
     totalDuration: def.duration || 90,
     def,
     data,
+    world: _world,
   };
+  if (_world) {
+    activeWorldFinisher = _fin;
+    _finCountAchievement(attacker);
+    return true;
+  }
+  activeFinisher = _fin;
 
   // Block processInput() and updateAI() during the finisher
   activeCinematic = _makeFinisherSentinel();
@@ -326,20 +365,29 @@ function triggerFinisher(attacker, target) {
   // Completely stop the game world — physics, particles, everything freezes
   slowMotion = 0;
 
-  // Achievement tracking — only credit the human player's finishers
+  _finCountAchievement(attacker);
+  return true;
+}
+
+// Achievement tracking — only credit the human player's finishers
+function _finCountAchievement(attacker) {
   if (!attacker.isAI && !attacker.isBoss && typeof unlockAchievement === 'function') {
     _achStats.finisherCount = (_achStats.finisherCount || 0) + 1;
     unlockAchievement('first_finisher');
     if (_achStats.finisherCount >= 10) unlockAchievement('finisher_master');
   }
-
-  return true;
 }
+
+// A world finisher must not touch the match clock: every def drives slowMotion
+// and hit-stop through CinCam for the frozen-stage version.
+function _finSaveTime() { return { sm: slowMotion, hs: hitStopFrames }; }
+function _finRestoreTime(k) { slowMotion = k.sm; hitStopFrames = k.hs; }
 
 // ============================================================
 // UPDATE (called each frame between player update + draw)
 // ============================================================
 function updateFinisher() {
+  if (activeWorldFinisher) _finTickWorld(activeWorldFinisher);
   if (!activeFinisher) return;
   const { attacker, target, def, data } = activeFinisher;
 
@@ -396,6 +444,19 @@ function updateFinisher() {
     // it covers the hand-back, not a reposition.
     if (attacker && attacker.health > 0) {
       attacker.invincible = Math.max(attacker.invincible || 0, FIN_RECOVER_IFRAMES);
+      // Finishing someone pays a heal, on completion only (an aborted setup pays
+      // nothing). Bosses don't collect, same as the super heal, and neither do
+      // story enemies: finishing the player is already their reward.
+      const _storyFoe = typeof storyModeActive !== 'undefined' && storyModeActive &&
+        attacker !== players[0] && !areAlliedEntities(attacker, players[0]);
+      const _finHeal = (attacker.isBoss || _storyFoe) ? 0 : Math.min(FIN_HEAL, (attacker.maxHealth || 0) - attacker.health);
+      if (_finHeal > 0) {
+        attacker.health += _finHeal;
+        if (typeof damageTexts !== 'undefined' && typeof DamageText !== 'undefined')
+          damageTexts.push(new DamageText(attacker.cx(), attacker.y - 30, '+' + _finHeal, '#44ff88'));
+        if (typeof spawnParticles === 'function') spawnParticles(attacker.cx(), attacker.cy(), '#44ff88', 14);
+        if (typeof SoundManager !== 'undefined' && SoundManager.superHeal) SoundManager.superHeal();
+      }
     }
     // Let normal death logic take over
     target.health    = 0;
@@ -404,12 +465,74 @@ function updateFinisher() {
   }
 }
 
+// Battle Royale finisher tick. Same choreography as updateFinisher, but the
+// match clock, input and AI of everyone else are left alone; only the two
+// locked fighters are driven (Fighter.update skips them while _finWorldLock).
+function _finTickWorld(fin) {
+  const { attacker, target, def, data } = fin;
+  const gone = f => !f || (players.indexOf(f) === -1 && (typeof minions === 'undefined' || minions.indexOf(f) === -1));
+  const keep = _finSaveTime();
+  if (gone(attacker) || gone(target) || !gameRunning) { _finEndWorld(fin, false); _finRestoreTime(keep); return; }
+  target.invincible   = Math.max(target.invincible, 2);
+  attacker.invincible = Math.max(attacker.invincible, 2);
+  if (fin.timer === 1 && typeof CinFX !== 'undefined') {
+    CinFX.motionTrailOn(attacker, def.accentColor || attacker.color || '#ffffff');
+  }
+  if (def.update) {
+    try { def.update(attacker, target, fin.timer, data); }
+    catch (e) { console.error('[finisher] update threw — force-completing:', e); fin.timer = fin.totalDuration; }
+  }
+  _finApplyApproach(attacker, target, def, fin.timer, data);
+  _finApplyFacing(attacker, target, def, fin.timer, data);
+  _finApplyPose(attacker, target, def, fin.timer);
+  _finApplyHolds(attacker, target, def, fin.timer, data);
+  fin.timer++;
+  if (fin.timer >= fin.totalDuration) _finEndWorld(fin, true);
+  _finRestoreTime(keep);
+}
+
+function _finEndWorld(fin, completed) {
+  const { attacker, target } = fin;
+  if (typeof CinFX !== 'undefined') CinFX.motionTrailOff(attacker);
+  _finClearPose(attacker); _finClearPose(target);
+  CinCam.restore();
+  attacker._finWorldLock = false; target._finWorldLock = false;
+  activeWorldFinisher = null;
+  if (!completed) {
+    // Aborted (match ended, a fighter left the arrays): the target was only
+    // ever alive because of the lock, so let it die without a heal.
+    target.health = 0; target.invincible = 0;
+    return;
+  }
+  if (attacker.health > 0) {
+    attacker.invincible = Math.max(attacker.invincible || 0, FIN_RECOVER_IFRAMES);
+    const _finHeal = attacker.isBoss ? 0 : Math.min(FIN_HEAL, (attacker.maxHealth || 0) - attacker.health);
+    if (_finHeal > 0) {
+      attacker.health += _finHeal;
+      if (typeof damageTexts !== 'undefined' && typeof DamageText !== 'undefined')
+        damageTexts.push(new DamageText(attacker.cx(), attacker.y - 30, '+' + _finHeal, '#44ff88'));
+      if (typeof spawnParticles === 'function') spawnParticles(attacker.cx(), attacker.cy(), '#44ff88', 14);
+      if (typeof SoundManager !== 'undefined' && SoundManager.superHeal) SoundManager.superHeal();
+    }
+  }
+  target.health = 0;
+  target.invincible = 0;
+  // The killing blow went through dealDamage with the target held at 1 HP, so
+  // the elimination was never credited. The heal is already paid above.
+  target._brFinKill = true;
+  if (typeof _brCreditElimination === 'function') _brCreditElimination(attacker, target);
+}
+
 // ============================================================
 // DRAW (called in screen-space after drawAchievementPopups)
 // ============================================================
 function drawFinisher(ctx) {
-  if (!activeFinisher) return;
-  const { attacker, target, timer, totalDuration, def, data } = activeFinisher;
+  if (activeWorldFinisher) _finDraw(ctx, activeWorldFinisher);
+  if (activeFinisher) _finDraw(ctx, activeFinisher);
+}
+
+function _finDraw(ctx, fin) {
+  const { attacker, target, timer, totalDuration, def, data } = fin;
   const t = timer / totalDuration;
 
   // Radial vignette base (each finisher may add its own on top)

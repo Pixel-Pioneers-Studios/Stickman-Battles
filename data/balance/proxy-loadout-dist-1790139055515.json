@@ -1,0 +1,58 @@
+[
+  {
+    "key": "signature",
+    "pct7of10": 100,
+    "meanKills": 10,
+    "meanDmgToMe": 216.29,
+    "meanDmgToOpp": 145.56,
+    "n": 2
+  },
+  {
+    "key": "ronin",
+    "pct7of10": 100,
+    "meanKills": 10,
+    "meanDmgToMe": 239.455,
+    "meanDmgToOpp": 129.5,
+    "n": 2
+  },
+  {
+    "key": "ninja",
+    "pct7of10": 100,
+    "meanKills": 10,
+    "meanDmgToMe": 212.82999999999998,
+    "meanDmgToOpp": 149.595,
+    "n": 2
+  },
+  {
+    "key": "reaper",
+    "pct7of10": 100,
+    "meanKills": 10,
+    "meanDmgToMe": 184.75,
+    "meanDmgToOpp": 148.485,
+    "n": 2
+  },
+  {
+    "key": "torren",
+    "pct7of10": 100,
+    "meanKills": 10,
+    "meanDmgToMe": 190.185,
+    "meanDmgToOpp": 109.855,
+    "n": 2
+  },
+  {
+    "key": "varek",
+    "pct7of10": 100,
+    "meanKills": 10,
+    "meanDmgToMe": 175.445,
+    "meanDmgToOpp": 114.675,
+    "n": 2
+  },
+  {
+    "key": "pugilist",
+    "pct7of10": 100,
+    "meanKills": 10,
+    "meanDmgToMe": 238.6,
+    "meanDmgToOpp": 156.965,
+    "n": 2
+  }
+]

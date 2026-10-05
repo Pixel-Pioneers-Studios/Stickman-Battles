@@ -197,6 +197,11 @@ class Projectile {
     this.active = true;
     this._warmupFrames = 0;
     this.hitEntities = new Set(); // prevents duplicate hits from same projectile (e.g. piercing)
+    // The action that fired this shot. Its hits count as that move for dealDamage()'s
+    // per-weapon move tuning even if the owner has gone back to basic shots by then.
+    this._moveTier = !owner ? null
+      : (owner.superActive || owner._attackKindTier === CLASH_TIER_SUPER) ? CLASH_TIER_SUPER
+      : (owner._attackKindTier || CLASH_TIER_ATTACK);
     const tf = typeof getTrueFormAntiRangedBoss === 'function' ? getTrueFormAntiRangedBoss() : (players && players.find(p => p.isTrueForm && p.health > 0));
     if (tf && owner && !owner.isAI && owner.weapon && owner.weapon.type === 'ranged') {
       tf._antiRangedStats = tf._antiRangedStats || { projectiles: 0, rangedDamage: 0, farTicks: 0 };
@@ -207,6 +212,10 @@ class Projectile {
   _flameAge()    { const m = this._maxLife || 14; return Math.min(1, Math.max(0, 1 - this.life / m)); }
   _flameRadius() { return (5 + this._flameAge() * 28) * (this._flameScale || 1); }
   update() {
+    _moveTierOverride = this._moveTier;
+    try { return this._update(); } finally { _moveTierOverride = null; }
+  }
+  _update() {
     // Ninja Shadow Realm time dilation: projectiles fired by slowed fighters crawl
     if (this.owner && this.owner._domainSlowFactor > 0 && this.owner._domainSlowFactor < 1) {
       this._domainSlowAccum = (this._domainSlowAccum || 0) + this.owner._domainSlowFactor;
@@ -250,7 +259,7 @@ class Projectile {
     }
     this.x += this.vx;
     this.y += this.vy;
-    this.vy += 0.08;
+    this.vy += this._gravity != null ? this._gravity : 0.08; // lobbed shots (Mortar Stone) set their own
     // Flames drag to a stop and rise as they burn out (hot gas, not a slug)
     if (this._isFlame) { this.vx *= 0.92; this.vy = this.vy * 0.9 - 0.13; }
     // Track distance for damage falloff (applied on hit below)
@@ -258,9 +267,15 @@ class Projectile {
     if (--this.life <= 0) { this.active = false; return; }
     // platform collision
     for (const pl of currentArena.platforms) {
+      // A lob climbs through platforms on the way up; it only lands coming down.
+      if (this._burstOnLand && this.vy < 0) break;
+      if (this._burstOnLand && pl.y < this._landY && !pl.isFloor) continue;
       if (this.x > pl.x && this.x < pl.x+pl.w && this.y > pl.y && this.y < pl.y+pl.h) {
         this.active = false;
         spawnParticles(this.x, this.y, this.color, 4);
+        if (typeof worldReactProjectile === 'function') worldReactProjectile(this, pl);
+        // Lobbed shells detonate where they land, so a near miss still splashes.
+        if (this._burstOnLand) this._splashBurst(null, this.damage);
         return;
       }
     }
@@ -315,22 +330,7 @@ class Projectile {
         const _hitDmg  = Math.max(1, Math.round(this.damage * _falloff * (1 - (this._closeRangePenalty || 0) * 0.18)));
         dealDamage(this.owner, p, _hitDmg, this._isFlame ? 2 : 7, 1.0, false, 0);
         handleSplash(this.owner, p, _hitDmg, this.x, this.y);
-        // Projectile-level splash (e.g. Napalm Spit Q): range set directly on the projectile
-        if (this.splashRange && this.owner) {
-          spawnRing(this.x, this.y);
-          spawnParticles(this.x, this.y, this.color, 18);
-          if (typeof screenShake !== 'undefined') screenShake = Math.max(screenShake, 14);
-          const _pAll = [...players, ...minions, ...(typeof trainingDummies !== 'undefined' ? trainingDummies : [])];
-          const _sDmg = Math.max(1, Math.round(_hitDmg * 0.50));
-          for (const t of _pAll) {
-            if (t === p || t === this.owner || t.health <= 0) continue;
-            if (areAlliedEntities(this.owner, t)) continue;
-            if (Math.hypot(t.cx() - this.x, (t.y + t.h * 0.5) - this.y) < this.splashRange) {
-              dealDamage(this.owner, t, _sDmg, 6, 1.0, true);
-              spawnParticles(t.cx(), t.cy(), this.color, 8);
-            }
-          }
-        }
+        this._splashBurst(p, _hitDmg);
         if (this._isFlame) { spawnParticles(this.x, this.y, '#ff8a20', 2); continue; } // burns through
         this.active = false;
         spawnParticles(this.x, this.y, this.color, 6);
@@ -348,6 +348,7 @@ class Projectile {
           const _mHitDmg  = Math.max(1, Math.round(this.damage * _mFalloff * (1 - (this._closeRangePenalty || 0) * 0.18)));
           dealDamage(this.owner, mn, _mHitDmg, 9, 1.0, false, 0);
           handleSplash(this.owner, mn, _mHitDmg, this.x, this.y);
+          this._splashBurst(mn, _mHitDmg);
           if (this._isFlame) { this.hitEntities.add(mn); continue; }
           this.active = false;
           spawnParticles(this.x, this.y, this.color, 6);
@@ -363,11 +364,31 @@ class Projectile {
         if (this.x > dum.x - _hp && this.x < dum.x+dum.w + _hp && this.y > dum.y - _hp && this.y < dum.y+dum.h + _hp) {
           dealDamage(this.owner, dum, this.damage, 9, 1.0, false, 0);
           handleSplash(this.owner, dum, this.damage, this.x, this.y);
+          this._splashBurst(dum, this.damage);
           if (this._isFlame) { this.hitEntities.add(dum); continue; }
           this.active = false;
           spawnParticles(this.x, this.y, this.color, 6);
           return;
         }
+      }
+    }
+  }
+  // Projectile-level splash (e.g. Napalm Spit Q): range set directly on the
+  // projectile. Shared by every hit branch — it used to run only on the players[]
+  // branch, so a direct hit on a minion (every Battle Royale bot) never splashed.
+  _splashBurst(hit, hitDmg) {
+    if (!this.splashRange || !this.owner) return;
+    spawnRing(this.x, this.y);
+    spawnParticles(this.x, this.y, this.color, 18);
+    if (typeof screenShake !== 'undefined') screenShake = Math.max(screenShake, 14);
+    const _pAll = [...players, ...minions, ...(typeof trainingDummies !== 'undefined' ? trainingDummies : [])];
+    const _sDmg = Math.max(1, Math.round(hitDmg * 0.50));
+    for (const t of _pAll) {
+      if (t === hit || t === this.owner || t.health <= 0) continue;
+      if (areAlliedEntities(this.owner, t)) continue;
+      if (Math.hypot(t.cx() - this.x, (t.y + t.h * 0.5) - this.y) < this.splashRange) {
+        dealDamage(this.owner, t, _sDmg, 6, 1.0, true);
+        spawnParticles(t.cx(), t.cy(), this.color, 8);
       }
     }
   }

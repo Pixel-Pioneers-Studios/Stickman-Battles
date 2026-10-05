@@ -225,7 +225,7 @@ function story2OnMatchEnd(playerWon) {
   storyGauntletState = null;
   storyPendingPhaseConfig = null;
   storyPhaseIndicator = null;
-  _story2.tokens += ch.tokenReward;
+  _story2.tokens += _storyTokenReward(ch.tokenReward);
   if (ch.blueprintDrop && !_story2.blueprints.includes(ch.blueprintDrop)) {
     _story2.blueprints.push(ch.blueprintDrop);
   }
@@ -302,7 +302,10 @@ function story2OnMatchEnd(playerWon) {
   if (ch.id >= _lastFightId && !_story2.storyComplete) {
     _completeStory2();
   }
+  // Level won: its rest-checkpoint resume point is spent.
+  if (_story2.cpResume && _story2.cpResume.chId === ch.id) _story2.cpResume = null;
   _saveStory2();
+  if (typeof checkCompletionAchievements === 'function') checkCompletionAchievements();
 
   // ── Ship part awards (first-clear only) ────────────────────────────────
   // Hull fragments scattered through Act 0 and Act 1.
@@ -375,7 +378,7 @@ function _completeChapter2(ch) {
     // Recompute rather than increment — saga-scoped and idempotent.
     if (typeof _storyRecomputePowerLevel === 'function') _storyRecomputePowerLevel();
   }
-  _story2.tokens += ch.tokenReward;
+  _story2.tokens += _storyTokenReward(ch.tokenReward);
   _story2.chapter = Math.max(_story2.chapter, ch.id + 1);
   if (ch.unlocksFragment && typeof wxUnlockFragmentStyle === 'function') wxUnlockFragmentStyle(true);
   // isEpilogue marks reflective no-fight codas throughout the story (ch 13-16, 84,
@@ -385,6 +388,7 @@ function _completeChapter2(ch) {
   if (ch.isEpilogue && ch.id >= _finalChapterId2) _completeStory2();
   _awardSagaCompletion();
   _saveStory2();
+  if (typeof checkCompletionAchievements === 'function') checkCompletionAchievements();
   _showStory2Victory(ch);
 }
 
@@ -438,7 +442,7 @@ function _showStory2Victory(ch) {
 
   if (rewardEl) {
     let html = `<div style="color:#ffd700;font-size:0.80rem;margin-bottom:5px;">Rewards earned:</div>`;
-    html += `<div style="color:#ffee99;font-size:0.76rem;">🪙 +${ch.tokenReward} tokens (total: ${_story2.tokens})</div>`;
+    html += `<div style="color:#ffee99;font-size:0.76rem;">🪙 +${_storyTokenReward(ch.tokenReward)} tokens (total: ${_story2.tokens})</div>`;
     if (ch.blueprintDrop && STORY_ABILITIES2[ch.blueprintDrop]) {
       html += `<div style="color:#88ccff;font-size:0.76rem;margin-top:3px;">📋 Blueprint: ${STORY_ABILITIES2[ch.blueprintDrop].name}</div>`;
     }

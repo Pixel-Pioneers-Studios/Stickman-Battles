@@ -14,7 +14,7 @@ function _dsAllowed() {
   if (typeof isCinematic !== 'undefined' && isCinematic)  return false;
   if (typeof activeCinematic !== 'undefined' && activeCinematic) return false;
   if (typeof paused !== 'undefined' && paused) return false;
-  if (typeof onlineMode !== 'undefined' && onlineMode) return false;
+  if ((typeof onlineMode !== 'undefined' && onlineMode) || window._pubHubActive) return false;
   // Admin-only — lore note: God's body is destroyed; this summon is a developer tool only
   const localPlayer = typeof players !== 'undefined' && players.find(p => !p.isAI && !p.isRemote);
   const accountId   = localPlayer && localPlayer.accountId;

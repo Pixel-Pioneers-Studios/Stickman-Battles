@@ -124,13 +124,13 @@
 
   function loadTrueForm() {
     if (!_guard('loadTrueForm')) return;
-    console.log('[smbTest] Loading True Form fight…');
+    console.log('[smbTest] Loading Cosmic Axiom fight…');
     _quickStart('trueform');
   }
 
   function loadTrueForm3D() {
     if (!_guard('loadTrueForm3D')) return;
-    console.log('[smbTest] Loading True Form → 3D phase…');
+    console.log('[smbTest] Loading Cosmic Axiom → 3D phase…');
     _quickStart('trueform', null, () => {
       // After the game loop is live, skip intro cinematic and force 3D
       _waitForGame(() => {
@@ -464,8 +464,8 @@
       '║ BOSS LOADERS                                         ║\n' +
       '║  smbTest.loadSovereign()      Neural AI fight         ║\n' +
       '║  smbTest.loadCreator()        Creator / Boss fight    ║\n' +
-      '║  smbTest.loadTrueForm()       True Form fight         ║\n' +
-      '║  smbTest.loadTrueForm3D()     True Form + 3D phase    ║\n' +
+      '║  smbTest.loadTrueForm()       Cosmic Axiom fight         ║\n' +
+      '║  smbTest.loadTrueForm3D()     Cosmic Axiom + 3D phase    ║\n' +
       '╠══════════════════════════════════════════════════════╣\n' +
       '║ PHASE CONTROL                                        ║\n' +
       '║  smbTest.setBossPhase(1|2|3)  force phase            ║\n' +

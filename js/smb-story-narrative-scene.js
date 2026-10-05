@@ -1603,9 +1603,14 @@
 
     // Background
     var theme = (bs && bs.bg) ? bs.bg : (_spec && _spec.bg) ? _spec.bg : _getTheme(_chapter);
+    // A chapter with an authored map plays its scenes in that map unless a beat
+    // or spec points at another level explicitly.
+    var _lvScene = (typeof storyLevelSceneSpec === 'function') ? storyLevelSceneSpec(_chapter) : null;
+    if (_lvScene && !(bs && bs.bg) && theme !== 'level') { theme = 'level'; if (!(_spec && _spec.level)) bs = Object.assign({}, bs || {}, { level: _lvScene }); }
     if (bs && bs.warp) { _ctx.save(); var wave=Math.sin(_t*0.04)*bs.warp; _ctx.transform(1,wave*0.01,wave*0.008,1,0,0); }
     switch(theme) {
       case 'city':     _drawCityBg(_ctx,w,h,_t,bs&&bs.cityOpts); break;
+      case 'level':    if (!(typeof drawStoryLevelScene === 'function' && drawStoryLevelScene(_ctx,w,h,footY,(bs&&bs.level)||(_spec&&_spec.level)))) _drawCityBg(_ctx,w,h,_t,bs&&bs.cityOpts); break;
       case 'forest':   _drawForestBg(_ctx,w,h,_t); break;
       case 'cave':     _drawCaveBg(_ctx,w,h,_t); break;
       case 'volcano':  _drawCityBg(_ctx,w,h,_t,{skyTop:'#200400',skyMid:'#300800',skyBot:'#200400',noMoon:true,farColor:'#2a0a04',hazeColor:'rgba(200,70,20,0.12)',winColor:'#ff9955',sheen:'rgba(255,120,40,0.10)'}); _drawFireGlow(_ctx,w,h,0.7,_t); break;

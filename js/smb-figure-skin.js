@@ -245,22 +245,11 @@ const FigureSkin = (function () {
    */
   function head(b, x, y, r, f) {
     const P = new Path2D();
-    P.moveTo(x - f * r * 0.04, y - r * 1.10);
-    P.bezierCurveTo(x - f * r * 0.74, y - r * 1.06,
-                    x - f * r * 0.88, y - r * 0.24,
-                    x - f * r * 0.70, y + r * 0.34);
-    P.bezierCurveTo(x - f * r * 0.56, y + r * 0.82,
-                    x - f * r * 0.14, y + r * 1.10,
-                    x + f * r * 0.26, y + r * 1.00);
-    P.bezierCurveTo(x + f * r * 0.62, y + r * 0.84,
-                    x + f * r * 0.80, y + r * 0.40,
-                    x + f * r * 0.82, y - r * 0.12);
-    P.bezierCurveTo(x + f * r * 0.83, y - r * 0.66,
-                    x + f * r * 0.52, y - r * 1.08,
-                    x - f * r * 0.04, y - r * 1.10);
-    P.closePath();
+    // A clean circle keeps the in-game model in the same hand-drawn stickman
+    // language as the menu art and the requested reference image.
+    P.ellipse(x, y, r * 1.02, r * 1.02, 0, 0, Math.PI * 2);
     _add(b, P);
-    _bound(b, x, y, r * 1.15);
+    _bound(b, x, y, r * 1.05);
   }
 
   /** Fist — so an arm ends in a hand rather than a rounded stump. */
@@ -310,9 +299,12 @@ const FigureSkin = (function () {
     // 1 — outline at DOUBLE width. Every interior seam gets stroked too; the
     //     fills in step 2 bury all of them, and half of this one, leaving a
     //     single clean line around the silhouette and nothing inside it.
-    ctx.globalAlpha = far ? 0.50 : 0.80;
-    ctx.strokeStyle = far ? p.farRim : p.rim;
-    ctx.lineWidth   = far ? 2.2 : 2.8;
+    // The far-side limb is a shadowed part of the same fighter, not a ghost.
+    // Keeping it nearly opaque prevents legs from disappearing into arena art
+    // at store-cover scale and preserves a readable silhouette in-game.
+    ctx.globalAlpha = far ? 0.86 : 0.94;
+    ctx.strokeStyle = p.accent;
+    ctx.lineWidth   = far ? 1.35 : 1.85;
     ctx.stroke(b.p);
     ctx.globalAlpha = 1;
 
@@ -329,7 +321,7 @@ const FigureSkin = (function () {
     //     Laying the light across the WHOLE figure rather than per part is also
     //     what makes it read as one object under one sun, instead of as a set
     //     of separately lit components.
-    const style = far ? p.far : p.base;
+    const style = far ? 'rgba(3, 5, 18, 0.90)' : 'rgba(3, 5, 18, 0.80)';
     ctx.fillStyle = style;
     for (const q2 of b.parts) ctx.fill(q2);
 
@@ -367,9 +359,9 @@ const FigureSkin = (function () {
     ctx.save();
 
     if (quality() >= 2) {
-      // Brow shadow: a soft smudge giving the sockets depth. Deliberately low
-      // contrast — the hard band this replaced read as a visor.
-      ctx.globalAlpha = 0.20;
+      // A small, dark socket gives the face depth without making a bright band
+      // across the head. The old bright smudge read as a visor at small sizes.
+      ctx.globalAlpha = 0.18;
       ctx.fillStyle = p.eye;
       ctx.beginPath();
       ctx.ellipse(x + f * r * 0.28, eyeY - r * 0.22, r * 0.60, r * 0.28, f * 0.12, 0, Math.PI * 2);
@@ -377,6 +369,7 @@ const FigureSkin = (function () {
     }
 
     if (open > 0.06) {
+      // Dark eyes with tiny catchlights read as eyes instead of glowing slots.
       ctx.fillStyle = p.eye;
       ctx.globalAlpha = 0.92;
       ctx.beginPath();
@@ -398,7 +391,7 @@ const FigureSkin = (function () {
       }
     } else {
       ctx.globalAlpha = 0.72;                      // shut: a lid line, not a gap
-      ctx.strokeStyle = p.eye;
+      ctx.strokeStyle = p.accent;
       ctx.lineCap = 'round';
       ctx.lineWidth = r * 0.10;
       ctx.beginPath();
@@ -407,28 +400,8 @@ const FigureSkin = (function () {
       ctx.stroke();
     }
 
-    // Brows. + = inner end down (anger / effort), - = inner end up (pain).
-    let tilt = 0;
-    if (hurt)                                      tilt = -0.50;
-    else if (hard)                                 tilt =  0.52;
-    else if (expr === 'focused')                   tilt =  0.32;
-    else if (expr === 'cool' || expr === 'serene') tilt =  0.12;
-
-    ctx.globalAlpha = 0.66;
-    ctx.strokeStyle = p.eye;
-    ctx.lineCap     = 'round';
-    const browY = eyeY - r * 0.36;
-    ctx.lineWidth = r * 0.13;
-    ctx.beginPath();
-    ctx.moveTo(nearX + f * r * 0.24, browY - tilt * r * 0.20);
-    ctx.lineTo(nearX - f * r * 0.20, browY + tilt * r * 0.22);
-    ctx.stroke();
-    ctx.globalAlpha = 0.40;
-    ctx.lineWidth = r * 0.105;
-    ctx.beginPath();
-    ctx.moveTo(farX + f * r * 0.18, browY - tilt * r * 0.15);
-    ctx.lineTo(farX - f * r * 0.15, browY + tilt * r * 0.17);
-    ctx.stroke();
+    // No brows: drawn in the outline colour they read as a stray stripe across
+    // the head, not as a feature. Expression is carried by eye openness alone.
 
     // A mouth only when the face is doing something, and always an open shape.
     // A drawn line curves into a smiley or a frown, and neither belongs here.

@@ -75,6 +75,7 @@ STORY_CHAPTER_REGISTRY.push(
   {
     id: 83, title: 'What You Carry',
     world: '🌌 The Void Between — Fragment Core',
+    arena: 'void',
     type: 'exploration', exploreMode: 'defense',
     style: 'void',
     worldLength: 900,
@@ -95,9 +96,6 @@ STORY_CHAPTER_REGISTRY.push(
       { frame: 520, text: '"It does not control you. It does not alter your intentions. It only modifies what was already latent."', color: '#ffcc66', timer: 310 },
       { frame: 640, text: '"What the fragment found in you — that is yours. The void only provided the material."', color: '#cc88ff', timer: 300 },
     ],
-    sky: ['#060410', '#0c0820', '#12082c'],
-    groundColor: '#080614',
-    platColor: '#100c1e',
     playerLives: 3,
     tokenReward: 50, blueprintDrop: null,
     postText: 'Not a conscience. Not a key. Crystallized radiation from something that existed before anything was built. It crystallized, and it found you. The Fallen God said nothing for a long time after that. Neither did you.',

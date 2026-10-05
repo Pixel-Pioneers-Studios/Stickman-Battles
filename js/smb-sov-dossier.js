@@ -402,6 +402,31 @@ const SovDossier = (() => {
     return (r && r.arsenal) ? r.arsenal : null;
   }
 
+  // ── Move book: his own results with combo routes and counters ─────────────
+  // js/smb-sov-combo.js reads these over the lab's SOV_MOVEBOOK. One cell per
+  // situation and action: [tries, successes, value sum]. Bounded, so a
+  // rebalance that breaks a route can be unlearned.
+  const SOV_MOVES_KEY = '__moves';
+  const SOV_MOVES_CAP = 60;
+
+  function recordMove(table, key, action, succ, value) {
+    if (!table || !key || !action) return;
+    const r = get(SOV_MOVES_KEY);
+    const M = r.moves || (r.moves = {});
+    const T = M[table] || (M[table] = {});
+    const row = T[key] || (T[key] = {});
+    const c = row[action] || (row[action] = [0, 0, 0]);
+    c[0]++; c[1] += succ ? 1 : 0; c[2] += isFinite(value) ? value : 0;
+    if (c[0] > SOV_MOVES_CAP) { const k = SOV_MOVES_CAP / c[0]; c[0] *= k; c[1] *= k; c[2] *= k; }
+    r.lastSeen = Date.now();
+    _dirty = true;
+  }
+
+  function moveEvidence(table) {
+    const r = load()[SOV_MOVES_KEY];
+    return (r && r.moves && r.moves[table]) || null;
+  }
+
   function tick() {
     if (++_saveTimer >= 600) { _saveTimer = 0; save(); }   // ~10s
   }
@@ -429,6 +454,6 @@ const SovDossier = (() => {
 
   return { load, save, kitKey, behKey, archetype, get, recordStrategy, strategyBias,
            bestStrategy, recordDials, dialPrior, recordGrid, gridPrior, recordLoadout, loadoutPrior,
-           recordMech, mechPrior, recordArsenal, arsenalPrior,
+           recordMech, mechPrior, recordArsenal, arsenalPrior, recordMove, moveEvidence,
            tick, reset, dump, _raw: () => load() };
 })();

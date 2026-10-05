@@ -662,8 +662,11 @@ function _sportsPoint(team, label, pts, noReset) {
   if (sportsWinnerIdx >= 0) return;
   sportsScore[team] += (pts || 1);
   const scorer = players.find(p => p && !p.isBoss && p._sportsTeam === team);
-  const color  = scorer ? scorer.color : '#ffdd44';
-  sportsBanner = { text: label, sub: (scorer ? scorer.name : 'P' + (team + 1)) + (pts > 1 ? '  +' + pts : ''), color, t: noReset ? 60 : 100 };
+  // Public Server rounds are team games: name the team, not its first player
+  const teamName = (typeof PubHub !== 'undefined' && PubHub.active) ? (team === 0 ? 'BLUE' : 'RED') : null;
+  const color  = teamName ? (team === 0 ? '#4cc9f0' : '#ff5c5c') : (scorer ? scorer.color : '#ffdd44');
+  const who    = teamName || (scorer ? scorer.name : 'P' + (team + 1));
+  sportsBanner = { text: label, sub: who + (pts > 1 ? '  +' + pts : ''), color, t: noReset ? 60 : 100 };
   if (SoundManager && SoundManager.explosion) SoundManager.explosion();
   if (settings.screenShake) screenShake = Math.max(screenShake, noReset ? 6 : 10);
   const src = sportsBalls[0];
@@ -671,8 +674,13 @@ function _sportsPoint(team, label, pts, noReset) {
 
   if (sportsScore[team] >= SPORTS[sportsType].win) {
     sportsWinnerIdx = scorer ? players.indexOf(scorer) : team;
-    sportsBanner = { text: (scorer ? scorer.name : 'P' + (team + 1)) + ' WINS!', sub: sportsScore[0] + ' – ' + sportsScore[1], color, t: 240 };
+    sportsBanner = { text: who + ' WINS!', sub: sportsScore[0] + ' – ' + sportsScore[1], color, t: 240 };
     sportsPause = 9999;
+    // Public Server: the lobby server ends the round for everyone — no endGame().
+    if (typeof PubHub !== 'undefined' && PubHub.active) {
+      setTimeout(() => { if (typeof PubHub !== 'undefined' && PubHub.active) PubHub.sportsWon(team); }, 2000);
+      return;
+    }
     setTimeout(() => { if (gameRunning && isSportsMode()) endGame(); }, 2000);
     return;
   }
@@ -789,6 +797,8 @@ function _sportsBotStep(p) {
 // ── Per-frame update ─────────────────────────────────────────
 function updateSports() {
   if (!isSportsMode() || !gameRunning) return;
+  // Public Server: only the authority simulates the ball; everyone else mirrors it.
+  if (typeof PubHub !== 'undefined' && PubHub.active && !PubHub.isAuthority()) { PubHub.sportsFollow(); return; }
   if (sportsBanner && --sportsBanner.t <= 0) sportsBanner = null;
 
   // Detect abilities / supers the moment they fire (humans and bots alike)
@@ -821,6 +831,8 @@ function updateSports() {
     if (sportsPause === 0 && sportsWinnerIdx < 0) {
       _sportsResetPositions();
       _sportsServe(sportsType === 'volleyball' ? sportsServeTeam : -1);
+      // Public Server: tells the other players to reset their own fighters
+      if (typeof PubHub !== 'undefined' && PubHub.active) PubHub.sportsKickoff();
     }
     return;
   }

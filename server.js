@@ -110,8 +110,12 @@ const ALLOWED_ORIGINS = new Set(String(process.env.ALLOWED_ORIGINS || 'https://s
 // https://docs.crazygames.com/resources/html5/sitelock/
 const CRAZYGAMES_ORIGIN = /^(?:https:\/\/(?:[a-z0-9-]+\.)*crazygames\.(?:com|com\.[a-z]{2}|co\.[a-z]{2}|[a-z]{2,3})|capacitor:\/\/app\.crazygames\.com)$/i;
 // Portal origins that iframe the game from their own CDN. Newgrounds serves
-// HTML5 uploads from uploads.ungrounded.net; Game Jolt from gamejolt.net.
+// HTML5 uploads from uploads.ungrounded.net; Game Jolt from gamejolt.net;
+// itch.io from html-classic.itch.zone (older uploads: *.ssl.hwcdn.net).
 const PORTAL_ORIGINS = [
+  /^https:\/\/(?:[a-z0-9-]+\.)?itch\.zone$/i,
+  /^https:\/\/(?:[a-z0-9-]+\.)*hwcdn\.net$/i,
+  /^https:\/\/(?:[a-z0-9-]+\.)?itch\.io$/i,
   /^https:\/\/(?:[a-z0-9-]+\.)?ungrounded\.net$/i,
   /^https:\/\/(?:[a-z0-9-]+\.)?newgrounds\.com$/i,
   /^https:\/\/(?:[a-z0-9-]+\.)?gamejolt\.net$/i,
@@ -1539,6 +1543,10 @@ _io = new Server(httpServer, {
     methods: ['GET', 'POST'],
   },
 });
+
+// ── Public Server (hostless shared lobbies) — see pubhub.js ──────────────────
+const { attachPublicHub } = require('./pubhub');
+attachPublicHub(_io, { log: (type, msg) => _pushAdminLog(type, msg) });
 
 // ── Socket.io relay rooms ─────────────────────────────────────────────────────
 

@@ -1,0 +1,681 @@
+[brain] server :8120, launching 3 workers
+[brain] widened input layer 164 -> 233
+[brain] widened input layer 164 -> 233
+[brain] resumed at iteration 1958, stage league
+[brain] it 1959 [league 77%] R/ep 9.07 ent 2.55 kl 0.005 | hit/swing 48% dj/min 41.3 blk/min 0.2 abiHit 38 supHit 43 | expert 12/12 easy 2/3 self 2/4 sovereign 4/5 summoner 2/3 idle 1/1 hard x3 0/1 | roll 3.5s upd 37.3s
+[brain] it 1960 [league 77%] R/ep 8.78 ent 2.43 kl 0.005 | hit/swing 51% dj/min 37.1 blk/min 0.1 abiHit 31 supHit 63 | idle 3/3 summoner 3/3 self 4/11 hard x3 0/1 hard 2/2 expert 3/3 easy 1/1 expert x2 3/3 sovereign 1/1 | roll 2.6s upd 31.6s
+[brain] it 1961 [league 78%] R/ep 8.26 ent 2.46 kl 0.005 | hit/swing 48% dj/min 36.5 blk/min 0.0 abiHit 39 supHit 54 | expert x2 2/2 easy 2/2 self 5/10 summoner 3/3 hard x3 1/2 expert 4/6 idle 2/2 sovereign 2/2 hard 1/1 medium 1/1 | roll 2.8s upd 32.9s
+[brain] it 1962 [league 78%] R/ep 7.90 ent 2.44 kl 0.006 | hit/swing 53% dj/min 36.6 blk/min 0.1 abiHit 20 supHit 66 | sovereign 3/5 self 4/10 expert 6/6 idle 2/2 easy 1/1 hard 2/2 summoner 4/4 medium 1/1 expert x2 2/2 | roll 2.5s upd 33.9s
+[brain] it 1963 [league 78%] R/ep 5.17 ent 2.39 kl 0.006 | hit/swing 45% dj/min 34.4 blk/min 0.5 abiHit 18 supHit 58 | sovereign 8/9 summoner 2/2 idle 2/2 self 4/12 expert 1/1 medium 1/1 expert x2 2/2 hard 1/1 | roll 2.5s upd 29.3s
+[brain] it 1964 [league 78%] R/ep 6.69 ent 2.55 kl 0.005 | hit/swing 41% dj/min 39.1 blk/min 0.4 abiHit 31 supHit 53 | sovereign 3/6 hard x3 1/1 expert 6/7 self 2/6 summoner 1/2 idle 1/1 expert x2 1/1 hard 2/2 easy 1/1 | roll 2.0s upd 33.3s
+[brain] it 1965 [league 77%] R/ep 10.09 ent 2.53 kl 0.006 | hit/swing 50% dj/min 39.9 blk/min 0.1 abiHit 25 supHit 65 | expert x2 1/2 expert 9/9 sovereign 7/8 summoner 3/3 self 3/6 hard x3 1/1 idle 1/1 | roll 2.0s upd 23.0s
+[brain] it 1966 [league 77%] R/ep 10.25 ent 2.47 kl 0.007 | hit/swing 56% dj/min 38.6 blk/min 0.2 abiHit 31 supHit 69 | sovereign 3/5 self 6/10 expert x2 0/1 hard x3 3/4 expert 6/7 medium 2/2 summoner 2/2 easy 1/1 | roll 1.9s upd 30.1s
+[brain] it 1967 [league 80%] R/ep 8.24 ent 2.57 kl 0.006 | hit/swing 47% dj/min 39.4 blk/min 0.3 abiHit 30 supHit 52 | hard 1/1 summoner 2/2 expert 7/8 sovereign 6/7 self 3/4 idle 1/1 medium 2/2 hard x3 0/2 easy 1/1 | roll 2.6s upd 23.2s
+[brain] it 1968 [league 77%] R/ep 5.32 ent 2.44 kl 0.007 | hit/swing 51% dj/min 35.6 blk/min 0.3 abiHit 33 supHit 64 | summoner 3/4 self 9/15 hard x3 0/1 expert 5/5 sovereign 3/6 easy 2/2 hard 1/1 idle 1/1 | roll 2.1s upd 22.4s
+[brain] it 1969 [league 74%] R/ep 8.01 ent 2.45 kl 0.006 | hit/swing 53% dj/min 35.4 blk/min 0.2 abiHit 32 supHit 46 | medium 3/3 hard x3 1/2 expert 6/6 idle 3/3 summoner 4/4 sovereign 0/4 self 1/3 hard 1/1 | roll 1.9s upd 21.8s
+[brain] it 1970 [league 71%] R/ep 2.06 ent 2.54 kl 0.007 | hit/swing 50% dj/min 38.7 blk/min 0.5 abiHit 19 supHit 47 | idle 2/2 self 2/12 expert 4/4 expert x2 0/1 sovereign 2/5 medium 2/2 summoner 3/4 | roll 1.9s upd 23.7s
+[brain] it 1971 [league 70%] R/ep 10.77 ent 2.50 kl 0.006 | hit/swing 44% dj/min 38.6 blk/min 0.3 abiHit 49 supHit 57 | self 8/11 summoner 3/3 easy 1/1 medium 1/1 expert 4/4 idle 1/1 sovereign 2/3 expert x2 1/1 hard 1/1 hard x3 1/1 | roll 1.9s upd 21.6s
+[brain] it 1972 [league 70%] R/ep 7.85 ent 2.53 kl 0.007 | hit/swing 45% dj/min 38.3 blk/min 0.1 abiHit 46 supHit 47 | self 6/11 expert 4/5 summoner 0/1 hard 1/1 expert x2 1/2 medium 2/2 idle 3/3 sovereign 1/1 | roll 1.9s upd 25.7s
+[brain] it 1973 [league 70%] R/ep 8.07 ent 2.56 kl 0.007 | hit/swing 45% dj/min 41.3 blk/min 0.4 abiHit 24 supHit 56 | sovereign 3/3 self 6/9 expert 5/6 summoner 3/4 hard x3 0/1 medium 1/2 hard 1/1 idle 1/1 easy 1/1 | roll 2.2s upd 24.3s
+[brain] it 1974 [league 69%] R/ep 10.76 ent 2.41 kl 0.006 | hit/swing 61% dj/min 33.8 blk/min 0.2 abiHit 23 supHit 75 | expert 7/7 expert x2 3/3 sovereign 4/7 self 6/11 hard x3 2/3 hard 1/1 medium 2/2 idle 1/1 | roll 2.2s upd 25.5s
+[brain] it 1975 [league 67%] R/ep 3.26 ent 2.48 kl 0.008 | hit/swing 44% dj/min 35.4 blk/min 0.2 abiHit 34 supHit 54 | idle 1/1 summoner 3/3 expert 3/4 self 5/12 sovereign 4/8 hard x3 1/3 | roll 2.1s upd 23.6s
+[brain] it 1976 [league 68%] R/ep 4.96 ent 2.51 kl 0.008 | hit/swing 45% dj/min 37.3 blk/min 0.1 abiHit 48 supHit 62 | self 6/14 sovereign 5/6 hard x3 0/2 expert 4/5 summoner 3/3 hard 3/3 medium 2/2 idle 1/1 | roll 2.1s upd 38.2s
+[brain] it 1977 [league 68%] R/ep 6.43 ent 2.44 kl 0.006 | hit/swing 55% dj/min 36.2 blk/min 0.6 abiHit 35 supHit 63 | medium 2/2 expert 4/4 self 6/13 sovereign 4/5 summoner 2/2 expert x2 2/2 hard 3/3 easy 1/1 hard x3 0/2 | roll 2.6s upd 37.4s
+[brain] it 1978 [league 68%] R/ep 10.44 ent 2.48 kl 0.006 | hit/swing 50% dj/min 37.6 blk/min 0.0 abiHit 54 supHit 54 | expert 4/4 hard x3 1/3 idle 5/5 self 2/6 summoner 4/4 expert x2 1/1 easy 3/3 sovereign 2/2 | roll 1.6s upd 19.2s
+[brain] it 1979 [league 69%] R/ep 4.91 ent 2.55 kl 0.008 | hit/swing 42% dj/min 37.8 blk/min 0.2 abiHit 39 supHit 44 | sovereign 3/4 expert 3/3 self 5/10 hard x3 0/1 summoner 2/4 idle 2/2 easy 1/1 | roll 1.8s upd 18.5s
+[brain] it 1980 [league 69%] R/ep 10.77 ent 2.51 kl 0.007 | hit/swing 55% dj/min 40.9 blk/min 0.1 abiHit 30 supHit 61 | self 9/12 expert x2 2/2 hard x3 1/3 hard 3/3 summoner 1/1 expert 6/6 sovereign 2/2 medium 2/2 | roll 1.5s upd 20.2s
+[brain] it 1981 [league 67%] R/ep 6.33 ent 2.52 kl 0.006 | hit/swing 47% dj/min 39.8 blk/min 0.1 abiHit 39 supHit 44 | self 8/14 hard 1/1 sovereign 2/4 expert 3/3 expert x2 2/2 idle 1/1 medium 1/1 | roll 1.6s upd 18.2s
+[brain] it 1982 [league 66%] R/ep 7.45 ent 2.32 kl 0.007 | hit/swing 62% dj/min 33.0 blk/min 0.3 abiHit 39 supHit 87 | sovereign 7/10 self 9/17 expert x2 2/2 expert 5/5 hard x3 1/2 summoner 3/3 easy 1/1 | roll 1.7s upd 18.5s
+[brain] it 1983 [league 67%] R/ep 9.63 ent 2.47 kl 0.006 | hit/swing 41% dj/min 37.8 blk/min 0.1 abiHit 47 supHit 43 | self 1/4 expert 6/6 summoner 5/6 sovereign 2/2 idle 2/2 easy 2/2 expert x2 0/1 hard 1/1 | roll 1.5s upd 18.0s
+[brain] it 1984 [league 68%] R/ep 9.20 ent 2.32 kl 0.007 | hit/swing 56% dj/min 32.2 blk/min 0.2 abiHit 26 supHit 83 | self 5/13 expert 12/12 hard 2/2 medium 1/1 summoner 4/4 sovereign 3/4 idle 1/1 hard x3 2/2 | roll 1.6s upd 17.8s
+[brain] it 1985 [league 68%] R/ep 12.44 ent 2.50 kl 0.007 | hit/swing 46% dj/min 39.3 blk/min 0.1 abiHit 63 supHit 48 | expert x2 2/3 hard 4/4 expert 4/4 summoner 2/2 self 2/5 sovereign 2/2 hard x3 2/3 idle 1/1 | roll 1.5s upd 17.9s
+[brain] it 1986 [league 65%] R/ep 6.57 ent 2.40 kl 0.005 | hit/swing 52% dj/min 35.5 blk/min 0.2 abiHit 29 supHit 87 | sovereign 7/12 summoner 4/5 expert 9/9 self 4/11 easy 2/2 hard 4/4 | roll 1.7s upd 15.8s
+[brain] it 1987 [league 63%] R/ep 4.30 ent 2.65 kl 0.007 | hit/swing 40% dj/min 41.5 blk/min 0.4 abiHit 37 supHit 47 | expert 5/6 expert x2 3/4 summoner 0/2 easy 2/2 sovereign 1/6 self 2/6 medium 2/2 | roll 1.6s upd 17.1s
+[brain] it 1988 [league 61%] R/ep 11.73 ent 2.34 kl 0.008 | hit/swing 63% dj/min 33.2 blk/min 0.2 abiHit 24 supHit 76 | self 8/11 medium 4/4 sovereign 3/5 idle 2/2 expert x2 2/3 summoner 0/1 expert 5/5 hard 2/2 easy 1/1 hard x3 1/1 | roll 1.7s upd 21.8s
+[brain] it 1989 [league 61%] R/ep 6.24 ent 2.28 kl 0.007 | hit/swing 58% dj/min 29.5 blk/min 0.3 abiHit 20 supHit 79 | expert 9/11 medium 1/1 self 6/13 summoner 2/3 hard 2/2 idle 2/2 sovereign 2/5 easy 1/1 | roll 1.7s upd 16.3s
+[brain] it 1990 [league 64%] R/ep 11.94 ent 2.33 kl 0.006 | hit/swing 64% dj/min 33.0 blk/min 0.4 abiHit 36 supHit 87 | expert 6/6 easy 2/2 self 8/10 expert x2 2/2 sovereign 5/7 medium 2/2 hard x3 3/3 summoner 1/2 idle 1/1 | roll 1.6s upd 18.4s
+[brain] it 1991 [league 66%] R/ep 7.16 ent 2.41 kl 0.004 | hit/swing 54% dj/min 32.4 blk/min 0.2 abiHit 8 supHit 70 | expert 5/8 hard 1/1 expert x2 3/4 medium 2/2 self 6/12 summoner 2/2 sovereign 4/5 hard x3 1/2 idle 1/1 | roll 1.8s upd 17.9s
+[brain] it 1992 [league 65%] R/ep 8.84 ent 2.53 kl 0.006 | hit/swing 49% dj/min 40.0 blk/min 0.1 abiHit 53 supHit 66 | self 3/7 expert x2 2/2 hard 3/3 sovereign 4/5 medium 2/2 summoner 4/5 expert 3/3 hard x3 1/3 | roll 1.8s upd 20.9s
+[brain] it 1993 [league 65%] R/ep 9.39 ent 2.43 kl 0.005 | hit/swing 62% dj/min 35.2 blk/min 0.2 abiHit 32 supHit 80 | sovereign 5/9 self 5/11 medium 2/2 summoner 3/3 expert 8/8 hard x3 1/1 easy 1/1 expert x2 3/3 idle 1/1 | roll 2.0s upd 28.4s
+[brain] it 1994 [league 66%] R/ep 9.83 ent 2.45 kl 0.007 | hit/swing 51% dj/min 36.8 blk/min 0.2 abiHit 37 supHit 80 | expert 9/9 hard x3 1/1 self 1/6 sovereign 6/9 medium 3/3 expert x2 2/2 summoner 2/2 hard 2/2 idle 1/1 | roll 1.8s upd 26.1s
+[brain] it 1995 [league 62%] R/ep 12.60 ent 2.48 kl 0.006 | hit/swing 54% dj/min 37.9 blk/min 0.0 abiHit 47 supHit 69 | hard x3 2/2 sovereign 3/8 expert 7/7 expert x2 2/2 summoner 3/3 self 2/2 easy 3/3 medium 2/2 hard 1/1 | roll 1.9s upd 21.3s
+[brain] it 1996 [league 62%] R/ep 11.24 ent 2.39 kl 0.007 | hit/swing 49% dj/min 34.4 blk/min 0.2 abiHit 45 supHit 59 | hard x3 2/2 expert x2 1/1 self 6/11 hard 2/2 idle 3/3 sovereign 1/1 medium 3/3 expert 4/4 easy 1/1 summoner 2/2 | roll 1.4s upd 15.9s
+[brain] it 1997 [league 61%] R/ep 6.52 ent 2.50 kl 0.007 | hit/swing 46% dj/min 37.6 blk/min 0.5 abiHit 49 supHit 74 | self 4/12 expert x2 3/4 expert 3/4 medium 3/3 idle 2/2 sovereign 5/8 hard x3 1/1 easy 1/1 | roll 1.6s upd 17.1s
+[brain] it 1998 [league 61%] R/ep 10.67 ent 2.30 kl 0.006 | hit/swing 68% dj/min 32.0 blk/min 0.1 abiHit 21 supHit 88 | sovereign 3/5 easy 5/5 hard x3 1/2 hard 1/1 expert 14/15 summoner 3/3 idle 1/1 self 3/8 expert x2 2/2 medium 1/1 | roll 1.5s upd 16.7s
+[brain] it 1999 [league 59%] R/ep 5.49 ent 2.41 kl 0.007 | hit/swing 48% dj/min 36.4 blk/min 0.2 abiHit 34 supHit 80 | sovereign 5/9 self 8/17 idle 2/2 expert 6/6 expert x2 2/2 easy 1/1 hard x3 0/1 hard 1/1 | roll 1.6s upd 17.8s
+[brain] it 2000 [league 58%] R/ep 9.13 ent 2.34 kl 0.008 | hit/swing 56% dj/min 33.1 blk/min 0.2 abiHit 25 supHit 83 | hard x3 1/1 expert 8/8 hard 2/2 self 6/14 idle 3/3 medium 1/1 sovereign 4/6 easy 1/1 summoner 2/2 expert x2 1/1 | roll 1.5s upd 15.6s
+[brain] it 2001 [league 56%] R/ep 9.48 ent 2.33 kl 0.007 | hit/swing 63% dj/min 33.0 blk/min 0.4 abiHit 33 supHit 95 | medium 4/4 self 8/13 summoner 3/3 sovereign 3/8 expert x2 4/4 expert 4/4 hard x3 2/2 easy 1/1 | roll 1.6s upd 15.9s
+[brain] it 2002 [league 60%] R/ep 9.65 ent 2.34 kl 0.006 | hit/swing 60% dj/min 30.8 blk/min 0.0 abiHit 27 supHit 69 | expert 5/5 self 4/8 hard x3 1/2 summoner 3/3 sovereign 7/9 idle 2/2 expert x2 2/2 hard 0/1 easy 2/2 medium 1/1 | roll 1.5s upd 16.2s
+[brain] it 2003 [league 59%] R/ep 4.66 ent 2.55 kl 0.004 | hit/swing 49% dj/min 35.5 blk/min 0.1 abiHit 16 supHit 51 | sovereign 2/6 self 4/9 summoner 3/3 expert 3/4 expert x2 2/3 idle 2/2 medium 1/1 | roll 1.6s upd 15.8s
+[brain] it 2004 [league 62%] R/ep 7.96 ent 2.52 kl 0.006 | hit/swing 47% dj/min 37.1 blk/min 0.2 abiHit 55 supHit 47 | medium 2/2 self 5/14 hard x3 1/1 idle 1/1 summoner 1/1 sovereign 5/5 hard 1/1 easy 2/2 expert 2/2 expert x2 1/1 | roll 1.5s upd 16.3s
+[brain] it 2005 [league 61%] R/ep 6.17 ent 2.46 kl 0.006 | hit/swing 46% dj/min 30.2 blk/min 0.2 abiHit 22 supHit 52 | idle 1/2 easy 2/2 sovereign 4/7 expert 5/5 self 5/10 hard x3 0/1 hard 1/1 | roll 1.5s upd 16.8s
+[brain] it 2006 [league 59%] R/ep 9.08 ent 2.39 kl 0.007 | hit/swing 59% dj/min 34.3 blk/min 0.3 abiHit 32 supHit 80 | self 4/11 expert x2 3/3 sovereign 5/8 easy 1/1 expert 4/4 summoner 1/1 hard 2/2 medium 1/1 idle 1/1 hard x3 2/2 | roll 1.6s upd 16.1s
+[brain] it 2007 [league 59%] R/ep 8.95 ent 2.58 kl 0.007 | hit/swing 38% dj/min 37.8 blk/min 0.2 abiHit 60 supHit 52 | medium 5/5 expert 7/7 expert x2 0/1 self 4/6 sovereign 1/2 summoner 0/3 idle 1/1 | roll 1.4s upd 17.3s
+[brain] it 2008 [league 60%] R/ep 7.94 ent 2.49 kl 0.008 | hit/swing 44% dj/min 36.0 blk/min 0.2 abiHit 49 supHit 71 | self 4/10 expert 5/6 medium 2/2 expert x2 1/1 easy 1/1 idle 2/2 sovereign 4/5 hard x3 1/2 summoner 1/2 | roll 1.5s upd 18.0s
+[brain] it 2009 [league 61%] R/ep 10.97 ent 2.45 kl 0.008 | hit/swing 57% dj/min 34.9 blk/min 0.3 abiHit 36 supHit 63 | summoner 4/5 easy 2/2 hard 3/3 sovereign 3/4 self 3/7 medium 1/1 expert 8/8 hard x3 1/1 idle 3/3 | roll 1.5s upd 16.4s
+[brain] it 2010 [league 58%] R/ep 4.81 ent 2.54 kl 0.005 | hit/swing 40% dj/min 38.6 blk/min 0.1 abiHit 50 supHit 58 | self 4/11 idle 1/1 expert 6/7 sovereign 2/6 easy 2/2 summoner 1/1 expert x2 1/3 | roll 2.0s upd 18.1s
+[brain] it 2011 [league 57%] R/ep 4.03 ent 2.43 kl 0.008 | hit/swing 48% dj/min 32.3 blk/min 0.1 abiHit 29 supHit 58 | expert 6/6 self 5/13 medium 2/2 easy 2/2 sovereign 3/8 hard 1/1 summoner 1/1 idle 1/1 | roll 1.6s upd 16.5s
+[brain] it 2012 [league 59%] R/ep 3.51 ent 2.59 kl 0.008 | hit/swing 42% dj/min 40.8 blk/min 0.2 abiHit 55 supHit 48 | summoner 2/2 sovereign 3/5 self 3/11 expert 4/5 medium 1/1 idle 1/1 hard 0/1 hard x3 0/1 | roll 1.5s upd 16.6s
+[brain] it 2013 [league 59%] R/ep 5.34 ent 2.62 kl 0.008 | hit/swing 39% dj/min 38.8 blk/min 0.2 abiHit 31 supHit 49 | sovereign 3/4 summoner 2/4 expert 3/5 self 5/10 medium 1/1 hard x3 1/2 hard 1/1 idle 1/1 | roll 1.5s upd 16.2s
+[brain] it 2014 [league 60%] R/ep 5.76 ent 2.47 kl 0.007 | hit/swing 49% dj/min 37.6 blk/min 0.2 abiHit 43 supHit 63 | sovereign 5/7 self 7/14 summoner 0/1 hard 5/5 expert 5/5 hard x3 0/1 medium 2/2 expert x2 1/1 | roll 1.6s upd 18.1s
+[brain] it 2015 [league 60%] R/ep 2.63 ent 2.47 kl 0.006 | hit/swing 46% dj/min 33.9 blk/min 0.1 abiHit 27 supHit 51 | sovereign 6/9 expert 3/4 self 4/10 medium 1/1 summoner 0/1 idle 1/1 hard 1/1 expert x2 1/1 | roll 1.6s upd 17.5s
+[brain] it 2016 [league 62%] R/ep 9.39 ent 2.50 kl 0.006 | hit/swing 46% dj/min 38.3 blk/min 0.3 abiHit 53 supHit 57 | idle 1/1 sovereign 7/9 expert 10/11 easy 3/3 self 3/6 summoner 1/1 hard 1/1 | roll 1.5s upd 16.1s
+[brain] it 2017 [league 63%] R/ep 7.88 ent 2.43 kl 0.006 | hit/swing 63% dj/min 36.0 blk/min 0.3 abiHit 28 supHit 76 | idle 1/1 sovereign 3/5 expert 7/7 self 5/14 summoner 2/3 easy 3/3 expert x2 3/3 hard 2/2 hard x3 1/1 | roll 1.6s upd 19.7s
+[brain] it 2018 [league 63%] R/ep 8.42 ent 2.43 kl 0.007 | hit/swing 61% dj/min 35.6 blk/min 0.1 abiHit 10 supHit 65 | self 7/13 expert 15/15 expert x2 2/2 summoner 3/3 sovereign 1/3 hard 2/2 | roll 1.5s upd 16.7s
+[brain] it 2019 [league 63%] R/ep 7.53 ent 2.33 kl 0.006 | hit/swing 53% dj/min 33.4 blk/min 0.3 abiHit 40 supHit 91 | self 8/16 medium 3/3 expert 8/8 expert x2 1/2 summoner 4/5 sovereign 3/4 idle 1/1 | roll 1.8s upd 21.5s
+[brain] it 2020 [league 62%] R/ep 5.58 ent 2.37 kl 0.006 | hit/swing 55% dj/min 33.3 blk/min 0.5 abiHit 37 supHit 83 | expert x2 1/1 hard 1/1 self 11/20 expert 7/7 sovereign 4/7 summoner 1/1 medium 2/2 hard x3 0/1 | roll 1.8s upd 18.0s
+[brain] it 2021 [league 64%] R/ep 9.21 ent 2.44 kl 0.008 | hit/swing 47% dj/min 36.4 blk/min 0.0 abiHit 53 supHit 61 | self 3/7 summoner 2/4 expert 6/6 hard 3/3 idle 2/2 expert x2 1/1 hard x3 1/1 sovereign 3/3 | roll 1.3s upd 16.0s
+[brain] it 2022 [league 62%] R/ep 5.55 ent 2.47 kl 0.005 | hit/swing 49% dj/min 36.6 blk/min 0.1 abiHit 32 supHit 66 | expert 6/6 medium 2/2 self 9/14 sovereign 3/6 idle 1/1 hard 1/1 summoner 1/1 | roll 1.6s upd 18.5s
+[brain] it 2023 [league 61%] R/ep 11.12 ent 2.39 kl 0.007 | hit/swing 58% dj/min 35.1 blk/min 0.2 abiHit 41 supHit 85 | sovereign 2/4 self 6/11 expert 5/5 summoner 2/2 easy 3/3 hard 3/3 hard x3 4/4 medium 1/1 idle 1/1 expert x2 1/1 | roll 1.8s upd 28.2s
+[brain] it 2024 [league 63%] R/ep 10.69 ent 2.31 kl 0.006 | hit/swing 63% dj/min 31.3 blk/min 0.3 abiHit 22 supHit 75 | self 6/10 summoner 2/3 expert 10/10 idle 2/2 expert x2 3/3 easy 2/2 sovereign 4/4 hard 1/1 medium 1/1 | roll 1.8s upd 18.9s
+[brain] it 2025 [league 64%] R/ep 12.46 ent 2.39 kl 0.007 | hit/swing 66% dj/min 35.1 blk/min 0.3 abiHit 35 supHit 81 | expert 10/12 self 6/6 expert x2 4/4 hard 1/1 hard x3 1/2 sovereign 4/5 medium 1/1 easy 1/1 | roll 1.6s upd 25.2s
+[brain] it 2026 [league 65%] R/ep 10.14 ent 2.36 kl 0.006 | hit/swing 54% dj/min 34.4 blk/min 0.3 abiHit 43 supHit 70 | expert 9/10 self 9/13 sovereign 3/4 summoner 1/1 hard 1/1 hard x3 1/1 expert x2 2/2 medium 1/1 idle 1/1 easy 2/2 | roll 1.8s upd 22.4s
+[brain] it 2027 [league 63%] R/ep 8.91 ent 2.59 kl 0.005 | hit/swing 40% dj/min 40.5 blk/min 0.1 abiHit 34 supHit 46 | hard x3 1/2 hard 2/2 self 4/5 summoner 1/2 expert 3/4 medium 2/2 sovereign 2/4 idle 1/1 | roll 1.8s upd 23.4s
+[brain] it 2028 [league 64%] R/ep 10.67 ent 2.42 kl 0.007 | hit/swing 62% dj/min 36.1 blk/min 0.2 abiHit 31 supHit 65 | medium 3/3 self 3/7 hard 5/5 sovereign 3/5 easy 3/3 expert 4/4 summoner 3/3 expert x2 1/1 hard x3 1/1 idle 1/1 | roll 2.1s upd 18.5s
+[brain] it 2029 [league 65%] R/ep 10.65 ent 2.52 kl 0.006 | hit/swing 47% dj/min 35.9 blk/min 0.3 abiHit 44 supHit 47 | expert 10/11 idle 3/3 summoner 3/5 sovereign 2/2 self 1/3 medium 1/1 easy 2/2 | roll 1.6s upd 31.2s
+[brain] it 2030 [league 66%] R/ep 9.15 ent 2.50 kl 0.006 | hit/swing 60% dj/min 34.1 blk/min 0.2 abiHit 24 supHit 62 | self 5/9 expert 5/6 summoner 4/4 sovereign 2/3 idle 2/2 easy 2/2 hard 1/1 hard x3 1/1 expert x2 0/2 | roll 1.9s upd 25.5s
+[brain] it 2031 [league 67%] R/ep 5.12 ent 2.60 kl 0.006 | hit/swing 38% dj/min 40.4 blk/min 0.2 abiHit 53 supHit 47 | easy 3/3 self 2/10 sovereign 3/3 expert 5/5 medium 2/2 summoner 3/3 hard x3 0/1 idle 1/1 | roll 1.7s upd 24.0s
+[brain] it 2032 [league 69%] R/ep 7.14 ent 2.49 kl 0.006 | hit/swing 45% dj/min 37.8 blk/min 0.0 abiHit 60 supHit 55 | expert 8/8 sovereign 4/5 self 4/11 easy 2/2 idle 2/2 summoner 2/3 expert x2 1/1 hard 1/1 | roll 1.7s upd 20.0s
+[brain] it 2033 [league 67%] R/ep 6.45 ent 2.58 kl 0.008 | hit/swing 49% dj/min 39.3 blk/min 0.1 abiHit 57 supHit 47 | self 5/8 idle 2/2 expert 6/7 sovereign 1/5 summoner 3/4 hard x3 1/2 expert x2 0/1 | roll 1.6s upd 38.7s
+[brain] it 2034 [league 67%] R/ep 10.55 ent 2.41 kl 0.005 | hit/swing 62% dj/min 31.8 blk/min 0.2 abiHit 34 supHit 69 | self 4/8 medium 2/2 sovereign 4/6 hard x3 2/3 easy 1/1 expert x2 3/3 expert 4/5 summoner 1/1 idle 2/2 | roll 2.1s upd 31.1s
+[brain] it 2035 [league 67%] R/ep 8.32 ent 2.42 kl 0.007 | hit/swing 57% dj/min 34.6 blk/min 0.1 abiHit 43 supHit 64 | easy 3/3 medium 4/4 self 5/10 expert 6/6 sovereign 3/5 hard x3 1/1 summoner 2/2 | roll 1.9s upd 28.0s
+[brain] it 2036 [league 67%] R/ep 6.51 ent 2.51 kl 0.008 | hit/swing 48% dj/min 37.2 blk/min 0.1 abiHit 52 supHit 75 | expert 7/9 summoner 1/1 easy 2/2 self 1/10 expert x2 1/1 medium 2/2 sovereign 5/7 hard 2/2 hard x3 1/1 idle 1/1 | roll 2.0s upd 30.0s
+[brain] it 2037 [league 66%] R/ep 10.79 ent 2.43 kl 0.007 | hit/swing 52% dj/min 36.2 blk/min 0.2 abiHit 44 supHit 85 | sovereign 5/6 self 7/9 expert x2 1/1 easy 3/3 expert 10/11 idle 1/1 hard 1/1 summoner 4/4 medium 2/2 | roll 1.9s upd 29.6s
+[brain] it 2038 [league 67%] R/ep 6.57 ent 2.43 kl 0.006 | hit/swing 49% dj/min 35.3 blk/min 0.1 abiHit 41 supHit 65 | self 2/10 summoner 4/5 expert 11/11 easy 3/3 sovereign 4/5 idle 1/1 | roll 2.3s upd 26.9s
+[brain] it 2039 [league 65%] R/ep 5.00 ent 2.40 kl 0.006 | hit/swing 54% dj/min 34.5 blk/min 0.3 abiHit 26 supHit 67 | medium 1/1 sovereign 0/5 easy 1/1 expert 8/8 hard 2/2 summoner 2/2 idle 1/1 hard x3 0/1 self 9/15 expert x2 0/1 | roll 2.1s upd 29.1s
+[brain] it 2040 [league 67%] R/ep 6.42 ent 2.46 kl 0.006 | hit/swing 50% dj/min 34.7 blk/min 0.3 abiHit 25 supHit 83 | expert 5/5 summoner 2/2 self 5/18 sovereign 6/6 medium 1/1 idle 3/3 expert x2 2/2 | roll 2.3s upd 30.3s
+[brain] it 2041 [league 67%] R/ep 7.96 ent 2.42 kl 0.006 | hit/swing 58% dj/min 32.2 blk/min 0.1 abiHit 35 supHit 70 | self 9/12 expert 6/8 expert x2 2/3 medium 2/2 summoner 2/2 sovereign 3/6 idle 4/4 easy 1/1 | roll 2.1s upd 28.6s
+[brain] it 2042 [league 66%] R/ep 5.30 ent 2.59 kl 0.004 | hit/swing 41% dj/min 39.5 blk/min 0.0 abiHit 53 supHit 51 | hard 3/3 self 6/11 hard x3 1/2 expert 4/6 summoner 1/3 sovereign 3/4 easy 1/1 | roll 2.0s upd 27.2s
+[brain] it 2043 [league 67%] R/ep 11.59 ent 2.49 kl 0.009 | hit/swing 57% dj/min 38.3 blk/min 0.3 abiHit 47 supHit 66 | expert x2 0/1 expert 3/4 summoner 3/3 hard x3 3/3 idle 2/2 sovereign 3/3 self 5/7 medium 2/2 hard 1/2 | roll 1.9s upd 28.3s
+[brain] it 2044 [league 67%] R/ep 7.32 ent 2.52 kl 0.007 | hit/swing 55% dj/min 35.2 blk/min 0.4 abiHit 67 supHit 58 | summoner 2/3 hard x3 3/4 expert 5/5 self 4/13 sovereign 1/3 idle 1/1 easy 1/1 hard 1/1 | roll 1.9s upd 28.5s
+[brain] it 2045 [league 67%] R/ep 6.82 ent 2.50 kl 0.008 | hit/swing 38% dj/min 38.5 blk/min 0.2 abiHit 59 supHit 67 | self 8/12 expert 5/6 summoner 2/2 medium 3/3 easy 2/2 idle 1/1 sovereign 1/2 hard x3 0/1 expert x2 1/1 | roll 2.1s upd 27.7s
+[brain] it 2046 [league 65%] R/ep 3.47 ent 2.58 kl 0.005 | hit/swing 48% dj/min 39.6 blk/min 0.1 abiHit 47 supHit 64 | expert 4/5 self 4/12 sovereign 4/7 medium 2/2 summoner 2/3 easy 3/3 | roll 2.0s upd 27.1s
+[brain] it 2047 [league 64%] R/ep 5.48 ent 2.40 kl 0.007 | hit/swing 54% dj/min 33.2 blk/min 0.2 abiHit 21 supHit 76 | expert 6/6 self 3/13 hard x3 1/2 summoner 3/3 sovereign 5/8 easy 2/2 idle 1/1 hard 1/1 | roll 2.1s upd 29.2s
+[brain] it 2048 [league 64%] R/ep 8.31 ent 2.57 kl 0.007 | hit/swing 39% dj/min 39.7 blk/min 0.1 abiHit 68 supHit 52 | sovereign 2/3 self 7/12 easy 4/4 expert x2 1/2 hard 1/1 expert 4/4 idle 1/1 hard x3 0/1 | roll 2.2s upd 31.2s
+[brain] it 2049 [league 65%] R/ep 10.19 ent 2.41 kl 0.009 | hit/swing 54% dj/min 35.3 blk/min 0.1 abiHit 61 supHit 78 | expert 8/8 hard 2/2 medium 3/3 hard x3 1/2 sovereign 4/6 self 4/8 idle 5/5 expert x2 1/1 easy 1/1 | roll 2.1s upd 33.6s
+[brain] it 2050 [league 63%] R/ep 8.08 ent 2.48 kl 0.008 | hit/swing 48% dj/min 38.5 blk/min 0.4 abiHit 67 supHit 79 | expert 6/8 sovereign 4/7 self 3/8 summoner 4/5 idle 2/2 hard x3 1/3 medium 1/1 easy 2/2 hard 1/1 | roll 2.2s upd 28.6s
+[brain] it 2051 [league 64%] R/ep 7.35 ent 2.43 kl 0.005 | hit/swing 51% dj/min 35.9 blk/min 0.3 abiHit 52 supHit 75 | medium 3/3 self 7/11 summoner 2/4 sovereign 6/8 expert 4/4 idle 1/1 hard 1/1 hard x3 1/1 | roll 2.0s upd 27.5s
+[brain] it 2052 [league 65%] R/ep 5.68 ent 2.58 kl 0.008 | hit/swing 46% dj/min 39.5 blk/min 0.2 abiHit 42 supHit 70 | sovereign 4/7 self 4/6 summoner 2/3 medium 2/2 expert x2 2/3 expert 8/8 hard x3 0/2 hard 1/1 | roll 2.8s upd 36.5s
+[brain] it 2053 [league 65%] R/ep 6.86 ent 2.34 kl 0.007 | hit/swing 63% dj/min 32.3 blk/min 0.2 abiHit 16 supHit 86 | expert 8/8 summoner 1/1 self 7/16 sovereign 4/6 easy 3/3 hard 3/3 idle 1/1 expert x2 1/1 hard x3 1/2 | roll 2.8s upd 29.1s
+[brain] it 2054 [league 65%] R/ep 3.18 ent 2.49 kl 0.007 | hit/swing 55% dj/min 36.3 blk/min 0.2 abiHit 28 supHit 66 | self 3/13 sovereign 8/10 expert x2 1/2 summoner 2/3 expert 5/5 medium 1/1 | roll 2.2s upd 23.2s
+[brain] it 2055 [league 64%] R/ep 7.97 ent 2.52 kl 0.008 | hit/swing 44% dj/min 40.6 blk/min 0.2 abiHit 42 supHit 66 | medium 3/3 hard x3 1/2 sovereign 3/5 self 6/12 easy 3/3 expert 3/3 summoner 1/1 idle 3/3 | roll 2.3s upd 62.3s
+[brain] it 2056 [league 64%] R/ep 8.96 ent 2.48 kl 0.006 | hit/swing 53% dj/min 37.6 blk/min 0.1 abiHit 63 supHit 78 | self 5/13 hard x3 1/1 hard 3/3 expert 8/8 idle 2/2 sovereign 3/4 easy 2/2 summoner 3/3 expert x2 1/1 medium 1/1 | roll 2.4s upd 40.0s
+[brain] it 2057 [league 65%] R/ep 8.03 ent 2.48 kl 0.007 | hit/swing 56% dj/min 39.1 blk/min 0.3 abiHit 33 supHit 66 | self 5/10 hard 2/3 summoner 3/3 expert 7/8 expert x2 3/4 sovereign 1/3 easy 1/1 idle 2/2 | roll 2.3s upd 32.7s
+[brain] it 2058 [league 65%] R/ep 8.03 ent 2.37 kl 0.006 | hit/swing 59% dj/min 35.0 blk/min 0.3 abiHit 42 supHit 80 | self 5/14 hard x3 1/1 summoner 4/4 hard 1/1 expert x2 1/1 sovereign 6/8 expert 9/9 medium 2/2 | roll 2.1s upd 28.8s
+[brain] it 2059 [league 65%] R/ep 6.88 ent 2.54 kl 0.007 | hit/swing 45% dj/min 39.6 blk/min 0.2 abiHit 54 supHit 55 | summoner 2/3 self 6/12 hard x3 2/2 medium 1/1 expert 8/8 sovereign 1/3 expert x2 0/1 | roll 2.2s upd 27.4s
+[brain] it 2060 [league 64%] R/ep 5.11 ent 2.63 kl 0.006 | hit/swing 46% dj/min 41.2 blk/min 0.3 abiHit 41 supHit 46 | summoner 1/6 expert 3/4 sovereign 3/6 hard 2/2 self 4/8 expert x2 1/2 hard x3 1/1 medium 1/1 easy 1/1 | roll 1.9s upd 28.7s
+[brain] it 2061 [league 63%] R/ep 10.79 ent 2.64 kl 0.006 | hit/swing 51% dj/min 42.5 blk/min 0.2 abiHit 49 supHit 54 | self 4/9 hard 1/1 expert 6/6 summoner 0/2 idle 1/1 hard x3 3/3 easy 1/1 medium 2/2 sovereign 0/1 | roll 2.1s upd 29.0s
+[brain] it 2062 [league 63%] R/ep 7.51 ent 2.44 kl 0.006 | hit/swing 55% dj/min 36.2 blk/min 0.4 abiHit 39 supHit 75 | sovereign 6/9 self 5/12 idle 3/3 summoner 4/4 medium 1/1 hard 2/2 hard x3 1/1 easy 1/1 expert 1/2 expert x2 1/1 | roll 2.3s upd 30.6s
+[brain] it 2063 [league 65%] R/ep 8.44 ent 2.46 kl 0.006 | hit/swing 48% dj/min 37.7 blk/min 0.3 abiHit 47 supHit 61 | sovereign 5/6 medium 3/3 summoner 5/6 self 4/7 idle 1/1 easy 2/2 expert 5/5 expert x2 0/1 | roll 2.0s upd 30.5s
+[brain] it 2064 [league 66%] R/ep 9.38 ent 2.52 kl 0.008 | hit/swing 48% dj/min 39.1 blk/min 0.3 abiHit 61 supHit 61 | self 4/9 sovereign 3/3 expert 9/11 idle 2/2 summoner 2/2 expert x2 0/1 hard x3 1/1 hard 1/1 easy 1/1 | roll 1.8s upd 29.8s
+[brain] it 2065 [league 67%] R/ep 9.68 ent 2.49 kl 0.008 | hit/swing 50% dj/min 38.5 blk/min 0.6 abiHit 42 supHit 80 | easy 3/3 expert 9/9 medium 3/3 self 5/10 hard 4/4 sovereign 3/4 summoner 1/2 expert x2 1/2 | roll 2.3s upd 29.1s
+[brain] it 2066 [league 65%] R/ep 10.04 ent 2.38 kl 0.007 | hit/swing 56% dj/min 32.0 blk/min 0.1 abiHit 32 supHit 68 | hard x3 2/3 self 5/10 expert 7/7 sovereign 0/3 hard 1/1 idle 2/2 summoner 2/3 expert x2 1/2 | roll 1.9s upd 23.0s
+[brain] it 2067 [league 67%] R/ep 5.73 ent 2.58 kl 0.009 | hit/swing 46% dj/min 37.9 blk/min 0.2 abiHit 56 supHit 48 | hard x3 0/2 idle 2/2 summoner 2/4 self 4/9 expert 7/8 medium 2/2 sovereign 4/4 hard 1/1 | roll 2.0s upd 26.0s
+[brain] it 2068 [league 69%] R/ep 9.11 ent 2.34 kl 0.006 | hit/swing 57% dj/min 32.5 blk/min 0.1 abiHit 23 supHit 101 | sovereign 9/11 hard x3 2/3 self 7/15 expert x2 1/2 summoner 5/5 easy 3/3 idle 1/1 expert 4/4 | roll 2.3s upd 24.9s
+[brain] it 2069 [league 68%] R/ep 8.85 ent 2.55 kl 0.007 | hit/swing 37% dj/min 37.5 blk/min 0.2 abiHit 47 supHit 48 | self 3/6 summoner 3/4 expert 7/7 hard 1/1 easy 1/1 sovereign 0/2 medium 3/3 idle 1/1 | roll 1.8s upd 23.8s
+[brain] it 2070 [league 68%] R/ep 10.87 ent 2.44 kl 0.006 | hit/swing 57% dj/min 33.8 blk/min 0.3 abiHit 37 supHit 80 | hard 5/5 self 2/5 expert 10/10 medium 2/2 summoner 2/2 sovereign 6/6 idle 2/2 expert x2 1/3 easy 1/1 | roll 1.8s upd 36.3s
+[brain] it 2071 [league 70%] R/ep 8.52 ent 2.50 kl 0.006 | hit/swing 53% dj/min 35.7 blk/min 0.0 abiHit 49 supHit 68 | sovereign 5/6 summoner 4/4 expert 7/8 self 4/7 medium 4/4 hard 1/1 expert x2 1/1 hard x3 0/1 | roll 1.9s upd 26.5s
+[brain] it 2072 [league 71%] R/ep 8.80 ent 2.46 kl 0.006 | hit/swing 47% dj/min 34.5 blk/min 0.3 abiHit 73 supHit 69 | sovereign 6/7 self 4/7 hard x3 2/4 medium 1/1 summoner 2/2 hard 2/3 easy 1/1 expert 4/4 idle 1/1 | roll 1.6s upd 20.8s
+[brain] it 2073 [league 67%] R/ep 10.20 ent 2.38 kl 0.007 | hit/swing 49% dj/min 32.7 blk/min 0.1 abiHit 67 supHit 79 | expert 5/5 self 7/9 medium 2/2 summoner 3/3 hard 2/2 expert x2 1/2 sovereign 1/5 idle 2/2 hard x3 1/1 easy 1/1 | roll 1.5s upd 18.2s
+[brain] it 2074 [league 68%] R/ep 10.43 ent 2.42 kl 0.008 | hit/swing 53% dj/min 35.2 blk/min 0.3 abiHit 53 supHit 73 | self 9/10 expert 6/7 sovereign 5/7 hard x3 2/2 summoner 4/5 idle 1/1 easy 2/2 | roll 1.6s upd 21.5s
+[brain] it 2075 [league 68%] R/ep 9.53 ent 2.54 kl 0.008 | hit/swing 46% dj/min 40.0 blk/min 0.1 abiHit 57 supHit 63 | sovereign 3/4 expert 7/8 expert x2 2/2 medium 2/2 summoner 3/4 self 4/9 hard x3 1/2 easy 2/2 | roll 1.7s upd 16.9s
+[brain] it 2076 [league 71%] R/ep 6.87 ent 2.54 kl 0.006 | hit/swing 43% dj/min 36.6 blk/min 0.3 abiHit 59 supHit 63 | summoner 5/5 hard 2/2 sovereign 9/11 expert 4/4 self 4/7 idle 2/2 medium 1/1 easy 1/1 | roll 1.6s upd 19.1s
+[brain] it 2077 [league 74%] R/ep 6.43 ent 2.40 kl 0.007 | hit/swing 48% dj/min 33.7 blk/min 0.0 abiHit 37 supHit 66 | sovereign 7/7 hard x3 0/1 self 5/13 expert 4/5 medium 4/4 expert x2 1/1 easy 1/1 summoner 1/2 idle 2/2 | roll 1.4s upd 18.4s
+[brain] it 2078 [league 76%] R/ep 7.81 ent 2.39 kl 0.006 | hit/swing 57% dj/min 32.6 blk/min 0.0 abiHit 41 supHit 63 | expert 5/5 hard 3/3 self 6/15 idle 2/2 summoner 3/3 sovereign 4/4 hard x3 1/1 expert x2 1/1 easy 2/2 | roll 1.6s upd 17.9s
+[brain] it 2079 [league 77%] R/ep 10.77 ent 2.38 kl 0.007 | hit/swing 53% dj/min 33.7 blk/min 0.2 abiHit 42 supHit 71 | expert x2 1/2 expert 11/11 easy 1/1 self 8/10 sovereign 5/6 hard x3 1/1 medium 2/2 hard 1/1 idle 1/1 | roll 1.6s upd 23.2s
+[brain] it 2080 [league 79%] R/ep 9.15 ent 2.42 kl 0.007 | hit/swing 53% dj/min 35.6 blk/min 0.2 abiHit 56 supHit 79 | hard x3 1/3 self 3/11 hard 3/3 expert 10/10 summoner 3/4 sovereign 6/6 easy 2/2 | roll 1.8s upd 18.7s
+[brain] it 2081 [league 79%] R/ep 7.46 ent 2.34 kl 0.007 | hit/swing 55% dj/min 31.3 blk/min 0.1 abiHit 39 supHit 88 | expert 7/8 sovereign 9/13 hard 2/2 self 4/9 easy 3/3 summoner 3/3 hard x3 0/1 expert x2 1/1 idle 1/1 | roll 1.8s upd 18.8s
+[brain] it 2082 [league 78%] R/ep 8.62 ent 2.56 kl 0.007 | hit/swing 52% dj/min 37.5 blk/min 0.4 abiHit 58 supHit 60 | idle 3/3 sovereign 5/8 medium 3/3 self 7/9 expert 7/7 hard x3 1/1 | roll 1.6s upd 18.9s
+[brain] it 2083 [league 77%] R/ep 8.17 ent 2.44 kl 0.005 | hit/swing 52% dj/min 33.4 blk/min 0.1 abiHit 48 supHit 70 | expert 11/11 self 8/12 sovereign 5/6 hard 1/1 summoner 1/1 idle 2/2 easy 1/1 | roll 2.4s upd 26.6s
+[brain] it 2084 [league 77%] R/ep 7.42 ent 2.62 kl 0.008 | hit/swing 39% dj/min 40.7 blk/min 0.1 abiHit 66 supHit 46 | medium 2/2 sovereign 1/2 expert x2 1/2 self 2/5 easy 3/3 expert 5/7 idle 1/1 hard x3 0/1 summoner 1/2 hard 2/2 | roll 1.6s upd 24.8s
+[brain] it 2085 [league 78%] R/ep 7.74 ent 2.50 kl 0.007 | hit/swing 51% dj/min 37.5 blk/min 0.2 abiHit 33 supHit 75 | expert 8/8 sovereign 4/5 self 10/16 idle 1/1 hard x3 0/2 expert x2 2/2 hard 1/1 summoner 1/1 | roll 2.2s upd 23.7s
+[brain] it 2086 [league 76%] R/ep 9.43 ent 2.40 kl 0.007 | hit/swing 57% dj/min 34.0 blk/min 0.0 abiHit 51 supHit 72 | sovereign 1/3 expert 11/12 hard 3/3 idle 1/1 self 2/9 summoner 5/5 easy 3/3 medium 1/1 hard x3 1/1 expert x2 1/1 | roll 1.8s upd 40.7s
+[brain] it 2087 [league 73%] R/ep 9.26 ent 2.39 kl 0.005 | hit/swing 49% dj/min 33.7 blk/min 0.3 abiHit 43 supHit 87 | medium 2/2 sovereign 4/8 expert 6/6 self 5/10 summoner 3/4 expert x2 1/1 easy 2/2 hard x3 2/2 idle 1/1 | roll 2.4s upd 26.5s
+[brain] it 2088 [league 72%] R/ep 7.45 ent 2.39 kl 0.007 | hit/swing 55% dj/min 33.8 blk/min 0.2 abiHit 45 supHit 69 | self 5/11 sovereign 3/5 expert 8/8 hard x3 1/2 idle 2/2 easy 2/2 hard 2/2 expert x2 1/2 | roll 2.2s upd 27.8s
+[brain] it 2089 [league 73%] R/ep 5.81 ent 2.50 kl 0.007 | hit/swing 36% dj/min 37.0 blk/min 0.2 abiHit 62 supHit 70 | expert 7/7 self 4/12 expert x2 1/1 summoner 2/2 sovereign 2/5 easy 1/1 hard 2/2 hard x3 1/1 | roll 1.9s upd 24.3s
+[brain] it 2090 [league 74%] R/ep 4.94 ent 2.39 kl 0.008 | hit/swing 47% dj/min 34.2 blk/min 0.2 abiHit 51 supHit 75 | expert 6/6 self 4/16 sovereign 3/4 hard 2/2 medium 1/1 summoner 3/5 expert x2 1/1 easy 1/1 | roll 2.3s upd 24.2s
+[brain] it 2091 [league 72%] R/ep 7.24 ent 2.40 kl 0.007 | hit/swing 55% dj/min 35.1 blk/min 0.2 abiHit 29 supHit 82 | self 3/14 hard x3 3/3 expert 5/5 idle 1/1 sovereign 5/8 summoner 3/3 expert x2 0/2 medium 1/1 | roll 2.1s upd 27.5s
+[brain] it 2092 [league 69%] R/ep 5.91 ent 2.51 kl 0.007 | hit/swing 38% dj/min 38.3 blk/min 0.3 abiHit 69 supHit 67 | expert 5/5 hard 3/3 sovereign 4/9 self 5/10 idle 2/2 medium 1/1 summoner 2/2 easy 2/2 expert x2 1/2 | roll 1.8s upd 18.7s
+[brain] it 2093 [league 68%] R/ep 9.99 ent 2.71 kl 0.009 | hit/swing 40% dj/min 41.9 blk/min 0.2 abiHit 93 supHit 38 | expert 8/8 hard 3/3 hard x3 2/3 self 2/5 sovereign 0/1 easy 1/1 summoner 0/1 | roll 1.6s upd 22.6s
+[brain] it 2094 [league 64%] R/ep 6.51 ent 2.56 kl 0.006 | hit/swing 56% dj/min 37.9 blk/min 0.2 abiHit 54 supHit 56 | sovereign 4/8 expert 2/3 hard 4/5 self 1/7 hard x3 2/2 expert x2 2/2 summoner 1/1 medium 1/1 easy 1/1 | roll 1.6s upd 23.1s
+[brain] it 2095 [league 62%] R/ep 11.36 ent 2.52 kl 0.009 | hit/swing 52% dj/min 38.9 blk/min 0.3 abiHit 65 supHit 72 | medium 5/5 expert 7/7 expert x2 5/7 self 3/6 summoner 2/2 sovereign 1/3 | roll 1.6s upd 22.6s
+[brain] it 2096 [league 63%] R/ep 9.67 ent 2.49 kl 0.007 | hit/swing 46% dj/min 38.4 blk/min 0.2 abiHit 58 supHit 69 | self 4/10 expert 8/8 hard x3 2/4 sovereign 3/3 expert x2 1/1 summoner 2/3 medium 1/1 | roll 1.9s upd 21.7s
+[brain] it 2097 [league 60%] R/ep 8.97 ent 2.43 kl 0.007 | hit/swing 48% dj/min 35.8 blk/min 0.4 abiHit 60 supHit 87 | expert 8/8 sovereign 6/9 idle 1/1 self 5/10 expert x2 0/2 easy 2/2 summoner 4/4 medium 1/1 hard x3 1/1 | roll 1.9s upd 20.1s
+[brain] it 2098 [league 60%] R/ep 8.65 ent 2.50 kl 0.006 | hit/swing 57% dj/min 37.3 blk/min 0.1 abiHit 48 supHit 62 | expert 10/10 self 3/11 easy 1/1 expert x2 2/3 idle 3/3 sovereign 1/2 hard 2/2 hard x3 1/1 | roll 1.6s upd 22.0s
+[brain] it 2099 [league 58%] R/ep 5.53 ent 2.51 kl 0.007 | hit/swing 46% dj/min 37.0 blk/min 0.3 abiHit 44 supHit 68 | self 11/17 easy 1/1 summoner 3/3 sovereign 4/8 medium 2/2 expert 2/2 hard 1/1 idle 2/2 expert x2 0/1 | roll 1.9s upd 23.6s
+[brain] it 2100 [league 58%] R/ep 11.67 ent 2.49 kl 0.006 | hit/swing 45% dj/min 38.4 blk/min 0.1 abiHit 68 supHit 61 | expert 6/6 sovereign 3/4 self 3/7 idle 2/2 hard x3 3/3 summoner 4/5 easy 1/1 hard 3/3 | roll 1.6s upd 22.5s
+[brain] it 2101 [league 59%] R/ep 10.22 ent 2.49 kl 0.008 | hit/swing 46% dj/min 37.4 blk/min 0.2 abiHit 31 supHit 53 | self 3/7 hard 1/1 summoner 5/5 expert 4/4 medium 1/1 sovereign 2/2 idle 1/1 expert x2 1/1 hard x3 0/1 | roll 6.4s upd 18.4s
+[brain] it 2102 [league 60%] R/ep 10.00 ent 2.29 kl 0.007 | hit/swing 64% dj/min 30.5 blk/min 0.3 abiHit 15 supHit 56 | self 4/6 idle 1/1 sovereign 6/7 hard x3 2/3 expert 3/3 summoner 1/1 medium 1/1 | roll 6.2s upd 13.8s
+[brain] it 2103 [league 59%] R/ep 8.74 ent 2.51 kl 0.008 | hit/swing 44% dj/min 34.3 blk/min 0.1 abiHit 33 supHit 40 | hard 1/1 self 2/6 idle 1/1 sovereign 1/3 expert 4/5 summoner 1/1 hard x3 2/2 | roll 6.1s upd 16.5s
+[brain] it 2104 [league 57%] R/ep 5.20 ent 2.58 kl 0.006 | hit/swing 43% dj/min 40.5 blk/min 0.0 abiHit 76 supHit 43 | sovereign 1/4 expert 5/5 self 1/9 medium 1/1 easy 2/2 hard 2/2 expert x2 0/2 hard x3 1/2 | roll 1.9s upd 23.8s
+[brain] it 2105 [league 56%] R/ep 3.43 ent 2.58 kl 0.007 | hit/swing 38% dj/min 38.8 blk/min 0.4 abiHit 57 supHit 62 | medium 2/2 expert 3/3 hard x3 0/1 sovereign 3/7 self 4/11 easy 2/2 hard 2/2 idle 1/1 summoner 2/2 | roll 2.2s upd 23.0s
+[brain] it 2106 [league 60%] R/ep 10.65 ent 2.36 kl 0.005 | hit/swing 52% dj/min 30.7 blk/min 0.1 abiHit 51 supHit 69 | summoner 5/5 expert 8/8 sovereign 6/6 hard 3/3 idle 2/2 self 2/6 medium 1/1 easy 3/3 | roll 1.7s upd 23.6s
+[brain] it 2107 [league 60%] R/ep 7.41 ent 2.54 kl 0.005 | hit/swing 46% dj/min 38.4 blk/min 0.3 abiHit 53 supHit 48 | self 8/13 expert 2/3 idle 1/1 expert x2 0/1 summoner 1/2 sovereign 3/3 hard x3 1/1 medium 1/1 | roll 1.9s upd 23.5s
+[brain] it 2108 [league 62%] R/ep 4.98 ent 2.45 kl 0.009 | hit/swing 45% dj/min 33.3 blk/min 0.4 abiHit 38 supHit 61 | expert 4/5 self 4/12 hard x3 0/1 idle 3/3 sovereign 5/5 summoner 2/3 easy 3/3 expert x2 0/1 | roll 1.8s upd 23.0s
+[brain] it 2109 [league 65%] R/ep 6.89 ent 2.47 kl 0.008 | hit/swing 51% dj/min 34.8 blk/min 0.1 abiHit 42 supHit 57 | expert 3/3 summoner 2/3 self 4/10 medium 2/2 sovereign 6/7 hard 1/1 idle 4/4 easy 1/1 hard x3 0/1 | roll 1.7s upd 23.0s
+[brain] it 2110 [league 62%] R/ep 8.03 ent 2.48 kl 0.007 | hit/swing 46% dj/min 34.3 blk/min 0.1 abiHit 68 supHit 69 | sovereign 3/9 idle 2/2 self 5/9 summoner 2/2 expert x2 1/2 expert 8/8 easy 2/2 hard 1/1 | roll 1.8s upd 23.0s
+[brain] it 2111 [league 62%] R/ep 5.40 ent 2.48 kl 0.007 | hit/swing 42% dj/min 37.4 blk/min 0.1 abiHit 58 supHit 58 | self 7/12 sovereign 3/4 expert 3/4 summoner 4/4 hard x3 0/2 idle 2/2 easy 1/1 medium 1/1 | roll 1.8s upd 23.3s
+[brain] it 2112 [league 66%] R/ep 6.37 ent 2.30 kl 0.006 | hit/swing 53% dj/min 29.5 blk/min 0.1 abiHit 32 supHit 73 | self 9/18 idle 3/3 sovereign 5/6 expert x2 1/2 expert 5/5 hard 3/3 easy 1/1 summoner 2/2 | roll 1.8s upd 22.9s
+[brain] it 2113 [league 66%] R/ep 7.48 ent 2.49 kl 0.008 | hit/swing 48% dj/min 36.1 blk/min 0.2 abiHit 55 supHit 59 | self 5/9 expert x2 1/4 summoner 4/5 medium 2/2 idle 1/1 hard 2/2 hard x3 1/1 expert 4/5 sovereign 1/2 | roll 1.8s upd 25.0s
+[brain] it 2114 [league 66%] R/ep 5.17 ent 2.51 kl 0.005 | hit/swing 49% dj/min 36.9 blk/min 0.4 abiHit 37 supHit 57 | expert 8/8 sovereign 4/9 summoner 3/3 self 3/10 hard 2/2 expert x2 1/1 medium 1/1 | roll 1.7s upd 22.8s
+[brain] it 2115 [league 65%] R/ep 8.77 ent 2.41 kl 0.007 | hit/swing 52% dj/min 34.2 blk/min 0.2 abiHit 29 supHit 71 | medium 3/3 expert 5/5 idle 1/1 self 7/15 sovereign 4/5 easy 1/1 expert x2 2/2 hard 1/1 summoner 2/2 hard x3 0/1 | roll 1.8s upd 19.8s
+[brain] it 2116 [league 65%] R/ep 8.24 ent 2.43 kl 0.006 | hit/swing 54% dj/min 33.8 blk/min 0.3 abiHit 42 supHit 68 | self 4/9 expert 9/9 idle 3/3 hard x3 0/2 easy 1/1 summoner 2/3 sovereign 2/5 medium 1/1 expert x2 1/1 hard 1/1 | roll 1.6s upd 28.1s
+[brain] it 2117 [league 65%] R/ep 8.02 ent 2.37 kl 0.007 | hit/swing 51% dj/min 32.2 blk/min 0.4 abiHit 59 supHit 81 | medium 4/4 summoner 5/5 self 10/16 easy 2/2 sovereign 3/4 expert 2/2 expert x2 1/1 hard 1/1 | roll 2.1s upd 34.4s
+[brain] it 2118 [league 66%] R/ep 7.35 ent 2.51 kl 0.006 | hit/swing 46% dj/min 32.8 blk/min 0.1 abiHit 59 supHit 71 | sovereign 3/6 self 4/11 expert x2 2/2 expert 5/5 hard 2/2 summoner 1/2 hard x3 1/1 medium 2/2 easy 1/1 idle 1/1 | roll 1.6s upd 15.6s
+[brain] it 2119 [league 64%] R/ep 7.53 ent 2.37 kl 0.006 | hit/swing 56% dj/min 32.3 blk/min 0.2 abiHit 29 supHit 86 | expert 9/9 self 4/12 sovereign 6/9 hard x3 1/1 hard 1/1 summoner 2/2 medium 4/4 idle 3/3 expert x2 1/1 easy 1/1 | roll 1.5s upd 15.9s
+[brain] it 2120 [league 61%] R/ep 6.10 ent 2.48 kl 0.006 | hit/swing 49% dj/min 33.7 blk/min 0.2 abiHit 44 supHit 69 | expert 7/8 easy 2/2 sovereign 1/5 self 3/9 summoner 1/1 idle 1/1 hard 2/2 medium 1/1 hard x3 0/2 expert x2 1/1 | roll 1.4s upd 15.8s
+[brain] it 2121 [league 63%] R/ep 10.37 ent 2.51 kl 0.008 | hit/swing 41% dj/min 35.1 blk/min 0.2 abiHit 96 supHit 62 | summoner 2/2 expert 6/6 idle 1/1 self 6/10 sovereign 3/3 medium 3/3 hard 1/1 hard x3 1/2 expert x2 0/1 | roll 1.4s upd 17.6s
+[brain] it 2122 [league 62%] R/ep 5.22 ent 2.46 kl 0.007 | hit/swing 39% dj/min 35.2 blk/min 0.3 abiHit 54 supHit 64 | self 6/15 expert 6/7 hard 2/2 expert x2 1/2 summoner 3/4 idle 1/1 medium 1/1 sovereign 0/3 hard x3 1/2 easy 1/1 | roll 1.6s upd 18.0s
+[brain] it 2123 [league 65%] R/ep 9.56 ent 2.46 kl 0.006 | hit/swing 46% dj/min 35.2 blk/min 0.2 abiHit 56 supHit 70 | self 8/12 summoner 2/2 expert 9/9 sovereign 5/6 hard x3 1/1 expert x2 1/2 medium 1/1 | roll 1.5s upd 14.4s
+[brain] it 2124 [league 64%] R/ep 8.71 ent 2.40 kl 0.008 | hit/swing 54% dj/min 30.8 blk/min 0.1 abiHit 79 supHit 60 | idle 4/4 expert 9/9 sovereign 3/5 summoner 2/2 self 5/10 easy 3/3 medium 2/2 hard x3 0/1 | roll 1.4s upd 13.5s
+[brain] it 2125 [league 61%] R/ep 9.22 ent 2.42 kl 0.008 | hit/swing 54% dj/min 33.7 blk/min 0.2 abiHit 45 supHit 82 | sovereign 7/10 hard 1/1 expert 9/9 expert x2 1/1 hard x3 1/1 self 5/11 easy 2/2 idle 1/1 | roll 1.4s upd 13.7s
+[brain] it 2126 [league 61%] R/ep 9.04 ent 2.42 kl 0.008 | hit/swing 54% dj/min 33.1 blk/min 0.5 abiHit 41 supHit 80 | sovereign 7/8 self 5/11 summoner 4/4 expert 9/9 easy 2/2 expert x2 0/1 hard x3 1/2 medium 2/2 hard 1/1 | roll 1.5s upd 22.9s
+[brain] it 2127 [league 61%] R/ep 10.63 ent 2.40 kl 0.007 | hit/swing 61% dj/min 33.5 blk/min 0.2 abiHit 30 supHit 83 | summoner 4/4 medium 2/2 sovereign 1/3 self 5/9 expert 7/9 easy 1/1 hard x3 3/5 expert x2 2/2 hard 2/2 | roll 1.6s upd 20.8s
+[brain] it 2128 [league 62%] R/ep 6.14 ent 2.51 kl 0.005 | hit/swing 39% dj/min 37.1 blk/min 0.4 abiHit 71 supHit 67 | summoner 3/3 self 8/13 medium 4/4 expert 4/4 sovereign 2/4 idle 1/1 hard x3 0/2 easy 1/1 expert x2 1/2 | roll 1.6s upd 15.2s
+[brain] it 2129 [league 64%] R/ep 8.02 ent 2.56 kl 0.007 | hit/swing 43% dj/min 38.5 blk/min 0.3 abiHit 81 supHit 60 | self 2/8 sovereign 6/6 summoner 2/3 expert 8/8 expert x2 1/3 hard 2/2 medium 2/2 | roll 1.7s upd 15.7s
+[brain] it 2130 [league 62%] R/ep 4.45 ent 2.49 kl 0.009 | hit/swing 39% dj/min 37.2 blk/min 0.1 abiHit 95 supHit 64 | self 2/8 expert 9/9 easy 1/1 summoner 2/3 sovereign 4/7 hard x3 0/1 medium 1/1 idle 1/1 | roll 1.3s upd 15.4s
+[brain] it 2131 [league 65%] R/ep 8.06 ent 2.47 kl 0.006 | hit/swing 52% dj/min 34.2 blk/min 0.3 abiHit 39 supHit 82 | easy 4/4 expert 5/5 idle 3/3 hard x3 1/1 self 7/13 medium 1/1 expert x2 0/2 sovereign 6/7 summoner 2/2 hard 1/1 | roll 1.6s upd 20.4s
+[brain] it 2132 [league 65%] R/ep 5.94 ent 2.54 kl 0.008 | hit/swing 44% dj/min 35.4 blk/min 0.1 abiHit 63 supHit 47 | self 4/9 hard 3/3 expert x2 0/3 sovereign 2/4 easy 2/2 expert 5/5 medium 2/2 summoner 1/1 | roll 1.8s upd 24.6s
+[brain] it 2133 [league 64%] R/ep 8.04 ent 2.53 kl 0.007 | hit/swing 50% dj/min 33.6 blk/min 0.1 abiHit 49 supHit 55 | expert 3/3 self 5/8 summoner 2/2 sovereign 2/4 medium 3/3 idle 3/3 expert x2 1/3 easy 1/1 hard 1/1 | roll 1.8s upd 16.2s
+[brain] it 2134 [league 65%] R/ep 10.56 ent 2.40 kl 0.007 | hit/swing 50% dj/min 33.5 blk/min 0.1 abiHit 57 supHit 81 | expert 10/11 easy 2/2 sovereign 4/5 self 8/11 expert x2 1/1 medium 5/5 summoner 2/2 hard 1/1 | roll 1.4s upd 16.2s
+[brain] it 2135 [league 66%] R/ep 11.64 ent 2.54 kl 0.006 | hit/swing 49% dj/min 38.4 blk/min 0.1 abiHit 61 supHit 59 | self 6/10 hard x3 1/2 expert 5/5 summoner 3/3 idle 1/1 medium 2/2 expert x2 4/4 hard 2/2 sovereign 1/1 | roll 1.4s upd 13.8s
+[brain] it 2136 [league 65%] R/ep 9.32 ent 2.44 kl 0.005 | hit/swing 48% dj/min 35.8 blk/min 0.4 abiHit 73 supHit 67 | self 8/14 hard 1/1 expert x2 2/2 summoner 2/2 expert 7/7 sovereign 2/3 easy 3/3 idle 1/1 | roll 1.4s upd 18.1s
+[brain] it 2137 [league 65%] R/ep 5.09 ent 2.51 kl 0.007 | hit/swing 38% dj/min 36.7 blk/min 0.3 abiHit 78 supHit 57 | easy 4/4 self 3/9 expert 3/6 summoner 3/3 hard x3 0/2 sovereign 3/5 hard 1/1 expert x2 1/1 | roll 1.6s upd 33.0s
+[brain] it 2138 [league 66%] R/ep 3.50 ent 2.56 kl 0.006 | hit/swing 43% dj/min 38.5 blk/min 0.2 abiHit 42 supHit 54 | sovereign 5/8 self 3/8 idle 1/1 expert 5/6 hard x3 0/1 summoner 0/3 expert x2 1/1 hard 2/2 | roll 1.7s upd 20.3s
+[brain] it 2139 [league 65%] R/ep 9.20 ent 2.36 kl 0.006 | hit/swing 48% dj/min 33.2 blk/min 0.0 abiHit 52 supHit 88 | sovereign 2/4 expert 7/7 self 8/12 hard 1/1 summoner 4/6 idle 2/2 easy 1/1 expert x2 2/2 | roll 2.1s upd 16.4s
+[brain] it 2140 [league 68%] R/ep 7.32 ent 2.38 kl 0.006 | hit/swing 52% dj/min 33.1 blk/min 0.1 abiHit 42 supHit 81 | self 5/16 expert 6/6 medium 3/3 easy 1/1 idle 3/3 hard 1/1 sovereign 3/4 hard x3 2/3 expert x2 1/1 summoner 1/1 | roll 1.6s upd 15.7s
+[brain] it 2141 [league 69%] R/ep 9.66 ent 2.36 kl 0.007 | hit/swing 58% dj/min 32.4 blk/min 0.2 abiHit 31 supHit 74 | sovereign 7/10 idle 2/2 summoner 7/7 easy 1/1 self 5/7 hard 2/2 expert 4/4 medium 2/2 hard x3 1/1 | roll 1.4s upd 17.4s
+[brain] it 2142 [league 69%] R/ep 8.44 ent 2.49 kl 0.007 | hit/swing 47% dj/min 34.0 blk/min 0.0 abiHit 56 supHit 62 | hard 2/2 expert x2 3/4 self 8/14 idle 1/1 sovereign 2/3 summoner 3/3 expert 4/4 medium 2/2 | roll 1.7s upd 17.2s
+[brain] it 2143 [league 68%] R/ep 9.14 ent 2.61 kl 0.010 | hit/swing 47% dj/min 38.9 blk/min 0.4 abiHit 74 supHit 58 | self 4/8 idle 3/3 sovereign 2/4 hard x3 2/4 expert 2/3 hard 1/1 easy 2/2 summoner 2/2 expert x2 0/1 | roll 1.5s upd 13.6s
+[brain] it 2144 [league 68%] R/ep 7.70 ent 2.36 kl 0.008 | hit/swing 53% dj/min 31.5 blk/min 0.0 abiHit 41 supHit 69 | sovereign 5/7 self 2/12 expert 8/8 summoner 2/2 medium 1/1 hard x3 1/1 expert x2 1/1 easy 3/3 idle 3/3 hard 1/1 | roll 1.4s upd 13.5s
+[brain] it 2145 [league 67%] R/ep 5.90 ent 2.39 kl 0.007 | hit/swing 52% dj/min 32.5 blk/min 0.4 abiHit 36 supHit 66 | idle 1/1 expert 5/5 self 6/14 medium 2/2 sovereign 4/6 hard x3 1/3 hard 1/1 expert x2 1/1 summoner 1/1 | roll 1.3s upd 13.7s
+[brain] it 2146 [league 68%] R/ep 9.21 ent 2.38 kl 0.007 | hit/swing 60% dj/min 34.0 blk/min 0.1 abiHit 53 supHit 77 | idle 2/2 hard 5/5 sovereign 6/8 hard x3 1/2 summoner 3/3 expert 8/8 self 5/9 easy 1/1 medium 1/1 | roll 1.6s upd 14.3s
+[brain] it 2147 [league 66%] R/ep 7.48 ent 2.60 kl 0.007 | hit/swing 39% dj/min 41.8 blk/min 0.3 abiHit 97 supHit 49 | self 7/10 summoner 2/3 expert 5/5 sovereign 2/6 hard x3 2/2 medium 1/1 hard 1/1 | roll 1.8s upd 14.5s
+[brain] it 2148 [league 64%] R/ep 8.56 ent 2.36 kl 0.007 | hit/swing 55% dj/min 33.1 blk/min 0.3 abiHit 49 supHit 70 | sovereign 2/5 self 6/13 expert 7/7 hard x3 3/3 summoner 1/1 idle 1/1 expert x2 0/3 hard 1/1 easy 2/2 | roll 1.5s upd 13.4s
+[brain] it 2149 [league 65%] R/ep 7.71 ent 2.41 kl 0.009 | hit/swing 49% dj/min 33.0 blk/min 0.2 abiHit 45 supHit 57 | hard 3/3 expert 3/5 hard x3 1/2 self 5/8 summoner 3/3 easy 1/1 sovereign 2/3 expert x2 1/1 idle 2/2 | roll 1.5s upd 16.5s
+[brain] it 2150 [league 64%] R/ep 10.11 ent 2.33 kl 0.006 | hit/swing 53% dj/min 33.2 blk/min 0.2 abiHit 42 supHit 95 | expert x2 1/1 sovereign 4/5 self 12/16 summoner 1/2 expert 8/8 idle 1/1 hard x3 2/3 medium 1/1 easy 1/1 | roll 1.7s upd 16.2s
+[brain] it 2151 [league 63%] R/ep 8.53 ent 2.34 kl 0.008 | hit/swing 58% dj/min 33.0 blk/min 0.2 abiHit 37 supHit 90 | hard x3 1/2 self 2/9 idle 2/2 summoner 3/4 hard 1/1 expert x2 1/2 sovereign 3/6 expert 10/11 easy 2/2 medium 1/1 | roll 1.5s upd 14.7s
+[brain] it 2152 [league 65%] R/ep 11.73 ent 2.57 kl 0.007 | hit/swing 49% dj/min 37.6 blk/min 0.3 abiHit 46 supHit 59 | summoner 4/5 self 3/4 expert 8/8 hard 3/3 sovereign 4/4 idle 1/1 hard x3 1/2 easy 1/1 | roll 1.4s upd 13.7s
+[brain] it 2153 [league 65%] R/ep 4.83 ent 2.42 kl 0.007 | hit/swing 41% dj/min 36.3 blk/min 0.2 abiHit 56 supHit 63 | self 8/18 sovereign 4/6 expert 5/5 idle 1/1 hard 1/1 expert x2 1/1 medium 1/1 | roll 1.5s upd 13.6s
+[brain] it 2154 [league 62%] R/ep 8.93 ent 2.50 kl 0.007 | hit/swing 53% dj/min 34.1 blk/min 0.2 abiHit 43 supHit 44 | hard x3 1/2 expert 8/9 self 4/6 summoner 2/2 medium 1/1 sovereign 2/5 idle 2/2 hard 1/1 | roll 1.4s upd 14.6s
+[brain] it 2155 [league 64%] R/ep 9.73 ent 2.35 kl 0.007 | hit/swing 58% dj/min 31.3 blk/min 0.1 abiHit 52 supHit 83 | self 3/8 expert 11/12 expert x2 2/2 idle 2/2 sovereign 4/4 medium 2/2 easy 2/2 summoner 3/5 hard x3 1/1 hard 1/1 | roll 1.3s upd 13.8s
+[brain] it 2156 [league 65%] R/ep 7.61 ent 2.41 kl 0.008 | hit/swing 53% dj/min 32.8 blk/min 0.1 abiHit 65 supHit 67 | sovereign 4/6 expert x2 1/1 self 4/11 expert 8/8 medium 5/5 idle 2/2 hard x3 0/1 summoner 2/2 | roll 1.4s upd 21.8s
+[brain] it 2157 [league 64%] R/ep 11.10 ent 2.36 kl 0.006 | hit/swing 55% dj/min 29.3 blk/min 0.0 abiHit 51 supHit 61 | expert x2 3/3 hard 3/3 easy 1/1 expert 8/8 sovereign 2/4 self 3/5 idle 2/2 medium 2/2 summoner 1/1 | roll 1.6s upd 15.8s
+[brain] it 2158 [league 66%] R/ep 9.84 ent 2.42 kl 0.007 | hit/swing 58% dj/min 34.5 blk/min 0.1 abiHit 41 supHit 86 | self 6/10 sovereign 6/6 expert 6/7 summoner 4/4 hard x3 2/3 expert x2 1/3 idle 1/1 medium 2/2 | roll 1.5s upd 13.9s
+[brain] it 2159 [league 65%] R/ep 4.12 ent 2.53 kl 0.007 | hit/swing 45% dj/min 37.8 blk/min 0.1 abiHit 58 supHit 58 | summoner 3/4 medium 4/4 self 4/10 hard x3 0/2 expert 3/3 sovereign 3/5 expert x2 0/1 easy 1/1 hard 1/1 | roll 1.3s upd 13.9s
+[brain] it 2160 [league 64%] R/ep 9.27 ent 2.47 kl 0.007 | hit/swing 45% dj/min 38.0 blk/min 0.2 abiHit 72 supHit 75 | expert 6/6 hard x3 2/2 self 4/8 summoner 4/5 expert x2 1/3 easy 1/1 sovereign 2/5 hard 1/1 | roll 1.4s upd 13.6s
+[brain] it 2161 [league 66%] R/ep 8.23 ent 2.33 kl 0.008 | hit/swing 52% dj/min 33.2 blk/min 0.1 abiHit 33 supHit 100 | hard 1/1 sovereign 5/6 expert 6/6 self 7/14 summoner 5/6 medium 4/4 expert x2 1/1 hard x3 1/2 easy 1/1 | roll 1.5s upd 14.9s
+[brain] it 2162 [league 66%] R/ep 3.56 ent 2.47 kl 0.007 | hit/swing 41% dj/min 36.4 blk/min 0.2 abiHit 61 supHit 54 | hard 1/1 expert x2 1/1 self 5/17 expert 6/6 sovereign 2/3 idle 1/1 summoner 0/1 | roll 1.4s upd 13.6s
+[brain] it 2163 [league 65%] R/ep 8.86 ent 2.31 kl 0.005 | hit/swing 60% dj/min 32.6 blk/min 0.0 abiHit 45 supHit 79 | medium 3/3 summoner 5/5 self 7/14 sovereign 1/3 expert 10/11 hard 3/3 hard x3 1/1 idle 1/1 expert x2 1/1 | roll 1.3s upd 13.5s
+[brain] it 2164 [league 64%] R/ep 12.95 ent 2.38 kl 0.007 | hit/swing 59% dj/min 29.9 blk/min 0.1 abiHit 43 supHit 79 | sovereign 4/6 idle 3/3 self 3/6 medium 2/2 expert 4/4 expert x2 1/1 summoner 4/4 hard x3 1/2 easy 3/3 hard 1/1 | roll 1.3s upd 14.5s
+[brain] it 2165 [league 65%] R/ep 8.97 ent 2.36 kl 0.007 | hit/swing 51% dj/min 32.8 blk/min 0.3 abiHit 62 supHit 76 | self 6/15 sovereign 3/4 hard x3 2/3 expert 5/5 medium 5/5 summoner 1/1 idle 2/2 easy 1/1 | roll 1.3s upd 14.1s
+[brain] it 2166 [league 65%] R/ep 7.95 ent 2.28 kl 0.007 | hit/swing 70% dj/min 30.7 blk/min 0.1 abiHit 27 supHit 84 | medium 1/1 expert 8/10 self 6/10 sovereign 6/9 summoner 4/4 hard 4/4 idle 2/2 easy 2/2 hard x3 0/1 | roll 1.3s upd 13.9s
+[brain] it 2167 [league 66%] R/ep 6.14 ent 2.26 kl 0.006 | hit/swing 60% dj/min 30.0 blk/min 0.2 abiHit 23 supHit 75 | self 8/14 expert 13/13 idle 1/1 sovereign 3/7 medium 1/1 easy 1/1 | roll 1.4s upd 12.6s
+[brain] it 2168 [league 65%] R/ep 8.64 ent 2.44 kl 0.007 | hit/swing 60% dj/min 36.2 blk/min 0.0 abiHit 53 supHit 65 | summoner 4/4 sovereign 4/7 self 5/8 hard x3 0/1 expert 8/8 expert x2 2/3 hard 1/1 | roll 1.4s upd 13.8s
+[brain] it 2169 [league 63%] R/ep 8.38 ent 2.29 kl 0.007 | hit/swing 65% dj/min 29.1 blk/min 0.3 abiHit 30 supHit 86 | self 10/11 sovereign 6/12 hard x3 0/1 expert 8/8 hard 1/1 idle 1/1 expert x2 1/1 easy 2/2 medium 2/2 | roll 1.4s upd 13.6s
+[brain] it 2170 [league 61%] R/ep 10.57 ent 2.33 kl 0.007 | hit/swing 56% dj/min 30.6 blk/min 0.0 abiHit 62 supHit 90 | expert 13/13 hard 4/4 self 7/10 sovereign 3/6 expert x2 1/2 summoner 2/2 idle 1/1 medium 1/1 easy 1/1 | roll 1.3s upd 13.6s
+[brain] it 2171 [league 62%] R/ep 10.92 ent 2.27 kl 0.008 | hit/swing 55% dj/min 28.2 blk/min 0.3 abiHit 57 supHit 89 | self 5/11 sovereign 4/6 summoner 3/4 hard x3 2/4 idle 3/3 expert 7/7 expert x2 0/1 hard 1/1 | roll 1.4s upd 13.6s
+[brain] it 2172 [league 61%] R/ep 6.58 ent 2.45 kl 0.006 | hit/swing 38% dj/min 33.9 blk/min 0.1 abiHit 74 supHit 63 | sovereign 1/3 self 5/11 easy 1/1 summoner 3/4 hard x3 1/4 hard 2/2 expert 5/5 | roll 1.4s upd 12.6s
+[brain] it 2173 [league 60%] R/ep 8.21 ent 2.41 kl 0.006 | hit/swing 50% dj/min 32.9 blk/min 0.2 abiHit 60 supHit 81 | expert 9/10 self 6/11 sovereign 3/4 hard x3 0/2 hard 2/2 easy 2/2 summoner 4/6 idle 1/1 | roll 1.3s upd 13.8s
+[brain] it 2174 [league 60%] R/ep 11.43 ent 2.24 kl 0.006 | hit/swing 66% dj/min 30.3 blk/min 0.1 abiHit 33 supHit 91 | medium 2/2 self 5/10 idle 2/2 expert x2 2/2 hard x3 2/2 sovereign 2/4 summoner 7/7 easy 3/3 expert 6/6 | roll 1.3s upd 14.7s
+[brain] it 2175 [league 59%] R/ep 7.56 ent 2.33 kl 0.007 | hit/swing 62% dj/min 29.8 blk/min 0.4 abiHit 31 supHit 78 | idle 5/5 self 2/8 sovereign 7/10 expert 6/6 hard 1/1 expert x2 3/4 medium 1/1 summoner 2/2 easy 1/1 hard x3 1/1 | roll 1.4s upd 14.1s
+[brain] it 2176 [league 61%] R/ep 7.44 ent 2.42 kl 0.008 | hit/swing 54% dj/min 34.3 blk/min 0.1 abiHit 48 supHit 84 | self 5/13 hard 2/2 sovereign 6/7 expert 8/8 summoner 2/2 medium 1/1 hard x3 1/2 idle 1/1 easy 2/2 | roll 1.6s upd 13.8s
+[brain] it 2177 [league 63%] R/ep 3.83 ent 2.45 kl 0.008 | hit/swing 46% dj/min 32.9 blk/min 0.2 abiHit 58 supHit 72 | self 5/19 easy 2/2 expert x2 0/1 idle 2/2 hard 2/2 expert 4/4 summoner 0/1 sovereign 3/3 hard x3 1/1 | roll 1.5s upd 15.2s
+[brain] it 2178 [league 61%] R/ep 10.75 ent 2.33 kl 0.006 | hit/swing 58% dj/min 30.4 blk/min 0.3 abiHit 42 supHit 81 | summoner 3/3 expert 6/6 medium 2/2 self 7/13 hard 3/3 sovereign 3/7 hard x3 4/5 expert x2 1/1 idle 1/1 easy 2/2 | roll 1.4s upd 13.9s
+[brain] it 2179 [league 62%] R/ep 11.06 ent 2.32 kl 0.007 | hit/swing 64% dj/min 31.5 blk/min 0.0 abiHit 44 supHit 84 | easy 3/3 self 7/10 medium 1/1 expert 10/10 hard 3/3 sovereign 4/5 idle 1/1 hard x3 1/1 expert x2 1/1 summoner 1/1 | roll 1.3s upd 14.0s
+[brain] it 2180 [league 60%] R/ep 6.97 ent 2.45 kl 0.006 | hit/swing 55% dj/min 29.7 blk/min 0.2 abiHit 53 supHit 57 | self 7/12 sovereign 1/4 medium 2/2 expert 3/3 easy 4/4 idle 3/3 hard 1/1 expert x2 0/1 hard x3 1/1 | roll 1.5s upd 15.1s
+[brain] it 2181 [league 62%] R/ep 8.38 ent 2.41 kl 0.007 | hit/swing 39% dj/min 35.3 blk/min 0.3 abiHit 84 supHit 73 | self 2/8 expert 10/10 easy 1/1 sovereign 6/8 medium 3/3 summoner 3/4 expert x2 0/1 hard x3 0/1 | roll 1.5s upd 15.0s
+[brain] it 2182 [league 62%] R/ep 10.39 ent 2.40 kl 0.008 | hit/swing 49% dj/min 34.4 blk/min 0.2 abiHit 70 supHit 79 | self 7/13 expert 7/8 sovereign 2/3 summoner 2/2 expert x2 3/3 idle 2/2 hard 1/1 medium 1/1 hard x3 0/1 easy 1/1 | roll 1.3s upd 14.0s
+[brain] it 2183 [league 61%] R/ep 9.05 ent 2.41 kl 0.005 | hit/swing 55% dj/min 33.2 blk/min 0.6 abiHit 42 supHit 82 | summoner 2/2 sovereign 5/7 self 5/13 expert x2 0/1 easy 3/3 idle 2/2 expert 6/6 hard x3 3/3 hard 2/2 | roll 1.4s upd 13.9s
+[brain] it 2184 [league 63%] R/ep 9.18 ent 2.50 kl 0.007 | hit/swing 49% dj/min 30.9 blk/min 0.2 abiHit 73 supHit 55 | medium 1/1 easy 1/1 hard x3 2/3 self 3/7 hard 2/2 summoner 2/4 sovereign 3/4 idle 2/2 expert 3/3 | roll 1.2s upd 13.8s
+[brain] it 2185 [league 61%] R/ep 6.75 ent 2.39 kl 0.006 | hit/swing 46% dj/min 32.0 blk/min 0.0 abiHit 53 supHit 69 | expert 5/5 self 5/12 medium 2/2 expert x2 2/2 hard 2/2 summoner 4/5 idle 1/1 easy 1/1 sovereign 2/6 | roll 1.3s upd 14.1s
+[brain] it 2186 [league 60%] R/ep 5.47 ent 2.41 kl 0.007 | hit/swing 48% dj/min 31.5 blk/min 0.0 abiHit 46 supHit 74 | easy 2/2 sovereign 3/9 expert 5/5 hard 4/4 self 7/14 summoner 1/1 idle 1/1 | roll 1.5s upd 13.7s
+[brain] it 2187 [league 60%] R/ep 9.73 ent 2.35 kl 0.007 | hit/swing 49% dj/min 30.7 blk/min 0.1 abiHit 53 supHit 80 | sovereign 4/6 self 4/10 summoner 1/1 easy 4/4 hard x3 2/3 expert 4/4 idle 1/1 hard 3/3 expert x2 1/1 | roll 1.3s upd 14.6s
+[brain] it 2188 [league 61%] R/ep 7.23 ent 2.36 kl 0.007 | hit/swing 58% dj/min 30.6 blk/min 0.3 abiHit 42 supHit 77 | expert 10/10 self 4/12 hard 1/1 sovereign 4/7 medium 4/4 hard x3 1/1 easy 0/1 expert x2 2/2 | roll 1.4s upd 14.6s
+[brain] it 2189 [league 65%] R/ep 5.94 ent 2.38 kl 0.008 | hit/swing 55% dj/min 33.0 blk/min 0.2 abiHit 33 supHit 74 | self 6/15 sovereign 9/9 medium 2/2 hard 1/1 expert x2 1/2 expert 5/6 easy 1/1 idle 1/1 summoner 0/1 | roll 1.4s upd 15.6s
+[brain] it 2190 [league 67%] R/ep 8.50 ent 2.32 kl 0.010 | hit/swing 53% dj/min 30.3 blk/min 0.2 abiHit 36 supHit 97 | self 9/20 expert x2 1/1 expert 7/7 summoner 1/3 sovereign 5/6 idle 2/2 easy 3/3 medium 1/1 hard x3 2/3 | roll 1.5s upd 15.6s
+[brain] it 2191 [league 67%] R/ep 10.52 ent 2.41 kl 0.008 | hit/swing 51% dj/min 33.7 blk/min 0.4 abiHit 71 supHit 91 | hard x3 2/4 summoner 4/4 self 6/10 sovereign 7/8 medium 4/4 expert 2/3 hard 1/1 expert x2 2/3 idle 1/1 | roll 1.4s upd 15.2s
+[brain] it 2192 [league 68%] R/ep 7.14 ent 2.41 kl 0.008 | hit/swing 58% dj/min 33.4 blk/min 0.1 abiHit 33 supHit 81 | self 1/10 sovereign 3/4 hard x3 1/2 hard 2/2 expert 3/4 idle 1/1 summoner 3/5 expert x2 4/4 easy 1/1 | roll 1.7s upd 14.6s
+[brain] it 2193 [league 66%] R/ep 8.59 ent 2.42 kl 0.007 | hit/swing 50% dj/min 30.9 blk/min 0.3 abiHit 66 supHit 69 | summoner 3/4 sovereign 2/4 idle 1/1 self 4/11 easy 3/3 hard 1/1 expert x2 1/1 hard x3 1/1 medium 1/1 expert 4/4 | roll 1.3s upd 14.9s
+[brain] it 2194 [league 67%] R/ep 10.66 ent 2.49 kl 0.006 | hit/swing 46% dj/min 35.6 blk/min 0.1 abiHit 48 supHit 75 | expert x2 1/2 expert 12/12 sovereign 5/6 summoner 1/1 idle 2/2 self 6/8 easy 3/3 medium 1/1 hard 1/1 | roll 1.2s upd 15.0s
+[brain] it 2195 [league 67%] R/ep 6.15 ent 2.47 kl 0.007 | hit/swing 52% dj/min 34.2 blk/min 0.1 abiHit 69 supHit 52 | sovereign 3/5 self 3/8 expert 7/8 idle 2/2 medium 3/3 hard 1/1 hard x3 0/2 expert x2 1/1 easy 1/1 summoner 1/2 | roll 1.5s upd 15.6s
+[brain] it 2196 [league 67%] R/ep 8.36 ent 2.44 kl 0.007 | hit/swing 57% dj/min 35.4 blk/min 0.2 abiHit 37 supHit 78 | medium 1/1 sovereign 3/6 hard 4/4 self 4/10 expert 4/4 expert x2 3/5 summoner 3/3 idle 1/1 | roll 1.3s upd 15.7s
+[brain] it 2197 [league 68%] R/ep 7.89 ent 2.34 kl 0.008 | hit/swing 59% dj/min 33.8 blk/min 0.3 abiHit 39 supHit 78 | self 10/15 sovereign 6/8 summoner 2/3 expert x2 4/4 idle 1/1 hard x3 1/2 expert 2/2 | roll 1.4s upd 19.2s
+[brain] it 2198 [league 67%] R/ep 7.20 ent 2.35 kl 0.008 | hit/swing 56% dj/min 33.1 blk/min 0.1 abiHit 38 supHit 84 | expert 13/13 self 5/13 hard 2/2 expert x2 1/1 idle 2/2 hard x3 1/2 sovereign 3/5 summoner 1/1 | roll 1.6s upd 20.3s
+[brain] it 2199 [league 67%] R/ep 9.72 ent 2.49 kl 0.006 | hit/swing 50% dj/min 35.3 blk/min 0.2 abiHit 71 supHit 69 | idle 3/3 sovereign 4/5 expert 9/9 self 3/8 expert x2 3/3 easy 3/3 summoner 1/1 hard 1/1 | roll 1.3s upd 15.9s
+[brain] it 2200 [league 67%] R/ep 7.92 ent 2.42 kl 0.007 | hit/swing 45% dj/min 33.4 blk/min 0.1 abiHit 57 supHit 58 | sovereign 3/5 expert 8/8 self 7/11 easy 2/2 hard 2/2 summoner 2/2 hard x3 0/1 medium 2/2 | roll 1.2s upd 15.5s
+[brain] it 2201 [league 68%] R/ep 12.13 ent 2.27 kl 0.007 | hit/swing 61% dj/min 32.2 blk/min 0.2 abiHit 50 supHit 103 | self 5/13 summoner 5/5 idle 3/3 hard 1/1 expert x2 3/3 expert 8/8 sovereign 2/2 hard x3 2/3 medium 1/1 easy 1/1 | roll 1.4s upd 14.9s
+[brain] it 2202 [league 70%] R/ep 8.11 ent 2.45 kl 0.006 | hit/swing 56% dj/min 34.8 blk/min 0.2 abiHit 49 supHit 75 | expert 5/7 self 5/8 medium 1/1 sovereign 4/8 hard 1/1 idle 3/3 hard x3 2/4 summoner 3/3 expert x2 1/1 | roll 1.3s upd 15.4s
+[brain] it 2203 [league 71%] R/ep 9.46 ent 2.42 kl 0.007 | hit/swing 50% dj/min 35.5 blk/min 0.2 abiHit 94 supHit 70 | self 1/9 hard 1/1 sovereign 4/6 summoner 3/3 expert x2 2/3 expert 5/5 hard x3 2/3 idle 2/2 | roll 1.3s upd 15.3s
+[brain] it 2204 [league 72%] R/ep 11.60 ent 2.30 kl 0.008 | hit/swing 71% dj/min 30.8 blk/min 0.3 abiHit 53 supHit 89 | expert 12/12 sovereign 6/9 self 2/6 hard x3 3/3 easy 2/2 idle 1/1 summoner 1/1 medium 2/2 expert x2 2/3 | roll 1.3s upd 17.7s
+[brain] it 2205 [league 72%] R/ep 8.47 ent 2.41 kl 0.006 | hit/swing 53% dj/min 32.4 blk/min 0.0 abiHit 52 supHit 70 | self 8/13 expert x2 1/1 expert 3/3 sovereign 3/4 medium 3/3 summoner 2/3 hard x3 2/2 hard 1/1 | roll 1.5s upd 18.9s
+[brain] it 2206 [league 68%] R/ep 7.63 ent 2.38 kl 0.005 | hit/swing 65% dj/min 32.0 blk/min 0.1 abiHit 47 supHit 72 | self 4/9 summoner 6/6 easy 4/4 expert 8/9 sovereign 2/6 medium 1/1 hard x3 1/2 expert x2 1/2 hard 1/1 idle 1/1 | roll 1.3s upd 18.9s
+[brain] it 2207 [league 65%] R/ep 9.29 ent 2.42 kl 0.005 | hit/swing 56% dj/min 32.6 blk/min 0.2 abiHit 53 supHit 66 | self 3/6 summoner 2/3 hard x3 1/1 expert 8/8 hard 2/2 sovereign 3/7 medium 1/1 expert x2 2/2 easy 1/1 idle 1/1 | roll 1.3s upd 16.1s
+[brain] it 2208 [league 63%] R/ep 7.95 ent 2.50 kl 0.007 | hit/swing 43% dj/min 32.8 blk/min 0.0 abiHit 55 supHit 63 | self 6/11 medium 2/2 sovereign 3/6 summoner 3/5 expert x2 2/3 expert 7/7 hard x3 1/1 | roll 1.4s upd 19.1s
+[brain] it 2209 [league 59%] R/ep 5.60 ent 2.46 kl 0.008 | hit/swing 47% dj/min 35.7 blk/min 0.4 abiHit 52 supHit 67 | idle 2/2 self 4/10 expert 6/7 sovereign 5/10 hard 1/1 hard x3 1/2 summoner 1/2 expert x2 1/1 | roll 1.5s upd 17.1s
+[brain] it 2210 [league 61%] R/ep 10.11 ent 2.35 kl 0.006 | hit/swing 55% dj/min 30.5 blk/min 0.4 abiHit 58 supHit 98 | self 5/13 expert x2 3/3 sovereign 5/6 summoner 1/2 hard 4/4 expert 4/4 easy 2/2 hard x3 2/4 idle 3/3 | roll 1.3s upd 18.1s
+[brain] it 2211 [league 61%] R/ep 7.61 ent 2.39 kl 0.007 | hit/swing 48% dj/min 32.5 blk/min 0.2 abiHit 57 supHit 70 | summoner 2/2 sovereign 5/7 hard x3 0/2 self 6/11 idle 4/4 hard 2/2 medium 3/3 expert 4/4 expert x2 1/3 | roll 1.3s upd 17.0s
+[brain] it 2212 [league 62%] R/ep 8.45 ent 2.42 kl 0.006 | hit/swing 58% dj/min 32.5 blk/min 0.4 abiHit 39 supHit 80 | hard x3 0/2 expert x2 2/4 expert 4/5 self 5/9 sovereign 4/6 idle 2/2 summoner 5/5 medium 1/1 hard 1/1 | roll 1.3s upd 17.7s
+[brain] it 2213 [league 62%] R/ep 9.19 ent 2.32 kl 0.008 | hit/swing 64% dj/min 31.3 blk/min 0.3 abiHit 40 supHit 76 | self 7/13 idle 3/3 medium 2/2 expert 13/13 sovereign 3/5 summoner 1/1 expert x2 2/3 hard 1/1 | roll 1.3s upd 18.2s
+[brain] it 2214 [league 59%] R/ep 10.76 ent 2.30 kl 0.007 | hit/swing 51% dj/min 33.3 blk/min 0.2 abiHit 50 supHit 79 | hard x3 1/1 expert 8/9 self 11/11 hard 1/1 sovereign 5/10 summoner 2/2 expert x2 1/1 idle 1/1 | roll 1.6s upd 35.4s
+[brain] it 2215 [league 57%] R/ep 8.56 ent 2.39 kl 0.005 | hit/swing 55% dj/min 33.3 blk/min 0.2 abiHit 44 supHit 89 | idle 3/3 easy 1/1 self 3/10 expert 6/6 sovereign 5/10 expert x2 4/4 hard x3 2/2 summoner 1/1 | roll 1.8s upd 33.6s
+[brain] it 2216 [league 58%] R/ep 6.81 ent 2.53 kl 0.007 | hit/swing 43% dj/min 37.4 blk/min 0.0 abiHit 75 supHit 49 | idle 1/1 self 6/13 sovereign 3/5 hard 3/3 hard x3 2/3 easy 2/2 expert 2/2 summoner 1/1 | roll 1.9s upd 47.2s
+[brain] it 2217 [league 59%] R/ep 7.10 ent 2.54 kl 0.009 | hit/swing 31% dj/min 35.4 blk/min 0.1 abiHit 92 supHit 63 | easy 2/2 sovereign 4/5 expert x2 0/1 self 4/10 summoner 1/3 expert 4/4 hard x3 1/1 medium 2/2 hard 1/1 | roll 1.9s upd 32.5s
+[brain] it 2218 [league 59%] R/ep 12.34 ent 2.42 kl 0.008 | hit/swing 58% dj/min 35.4 blk/min 0.1 abiHit 47 supHit 71 | self 5/9 idle 2/2 expert 11/11 sovereign 3/5 hard x3 1/1 expert x2 4/4 summoner 2/2 | roll 1.7s upd 31.9s
+[brain] it 2219 [league 59%] R/ep 6.73 ent 2.42 kl 0.008 | hit/swing 52% dj/min 33.3 blk/min 0.2 abiHit 56 supHit 65 | expert 6/6 sovereign 4/6 self 4/13 idle 2/2 easy 1/1 summoner 2/2 hard x3 1/2 expert x2 0/1 hard 2/2 medium 2/2 | roll 1.8s upd 28.8s
+[brain] it 2220 [league 56%] R/ep 5.77 ent 2.43 kl 0.006 | hit/swing 54% dj/min 33.3 blk/min 0.2 abiHit 43 supHit 67 | expert 9/9 sovereign 2/8 self 9/14 idle 1/1 hard x3 1/2 summoner 1/2 hard 1/1 | roll 2.2s upd 45.1s
+[brain] it 2221 [league 55%] R/ep 8.94 ent 2.45 kl 0.008 | hit/swing 46% dj/min 36.5 blk/min 0.2 abiHit 62 supHit 73 | expert 8/8 summoner 5/5 sovereign 1/2 self 7/11 medium 1/1 expert x2 1/1 hard 2/2 idle 1/1 easy 1/1 | roll 2.1s upd 36.3s
+[brain] it 2222 [league 56%] R/ep 8.88 ent 2.50 kl 0.007 | hit/swing 47% dj/min 33.3 blk/min 0.1 abiHit 91 supHit 55 | sovereign 3/6 self 1/7 expert x2 3/3 expert 8/8 medium 1/1 summoner 0/1 hard x3 1/1 easy 1/1 | roll 2.0s upd 42.5s
+[brain] it 2223 [league 57%] R/ep 6.49 ent 2.44 kl 0.006 | hit/swing 42% dj/min 34.2 blk/min 0.3 abiHit 72 supHit 66 | expert 3/3 sovereign 2/4 self 4/14 summoner 3/3 expert x2 3/4 medium 1/1 easy 1/1 hard 1/1 hard x3 0/1 idle 1/1 | roll 2.3s upd 45.3s
+[brain] it 2224 [league 54%] R/ep 4.15 ent 2.46 kl 0.006 | hit/swing 44% dj/min 33.7 blk/min 0.4 abiHit 65 supHit 71 | hard x3 0/1 easy 2/2 sovereign 2/7 self 3/12 expert 6/6 idle 2/2 medium 4/4 summoner 1/1 hard 1/1 | roll 2.4s upd 44.4s
+[brain] it 2225 [league 55%] R/ep 7.08 ent 2.32 kl 0.008 | hit/swing 54% dj/min 32.7 blk/min 0.0 abiHit 24 supHit 63 | expert 6/6 self 8/13 sovereign 3/3 idle 3/3 hard x3 1/2 easy 2/2 medium 1/1 hard 1/1 expert x2 0/1 | roll 2.5s upd 51.2s
+[brain] it 2226 [league 56%] R/ep 7.77 ent 2.30 kl 0.007 | hit/swing 59% dj/min 30.9 blk/min 0.3 abiHit 33 supHit 88 | self 7/15 expert 10/10 sovereign 2/5 hard 1/1 easy 3/3 idle 3/3 expert x2 2/2 summoner 5/5 hard x3 0/1 | roll 2.7s upd 67.7s
+[brain] it 2227 [league 54%] R/ep 7.23 ent 2.52 kl 0.006 | hit/swing 50% dj/min 37.1 blk/min 0.2 abiHit 46 supHit 52 | sovereign 1/3 expert 7/7 easy 2/2 self 6/11 summoner 3/3 hard 1/1 expert x2 0/1 idle 2/2 medium 1/1 hard x3 0/1 | roll 2.5s upd 74.1s
+[brain] it 2228 [league 54%] R/ep 8.64 ent 2.35 kl 0.005 | hit/swing 48% dj/min 29.7 blk/min 0.3 abiHit 55 supHit 74 | easy 3/3 hard x3 0/1 medium 2/2 expert 4/5 self 2/9 expert x2 3/3 sovereign 4/5 idle 3/3 summoner 2/2 hard 1/1 | roll 2.3s upd 78.0s
+[brain] it 2229 [league 55%] R/ep 7.27 ent 2.34 kl 0.005 | hit/swing 53% dj/min 28.4 blk/min 0.2 abiHit 42 supHit 63 | idle 3/3 expert x2 2/2 self 5/14 expert 4/4 hard 2/2 medium 2/2 sovereign 3/4 summoner 2/2 hard x3 1/2 | roll 2.7s upd 64.8s
+[brain] it 2230 [league 55%] R/ep 5.89 ent 2.32 kl 0.008 | hit/swing 59% dj/min 34.5 blk/min 0.1 abiHit 27 supHit 76 | expert 4/4 self 5/14 sovereign 7/10 expert x2 1/2 hard 1/1 idle 2/2 easy 3/3 summoner 2/2 medium 1/1 | roll 5.0s upd 126.4s
+[brain] it 2231 [league 56%] R/ep 11.15 ent 2.35 kl 0.006 | hit/swing 58% dj/min 31.5 blk/min 0.1 abiHit 48 supHit 77 | self 2/8 expert 12/12 summoner 4/4 easy 3/3 expert x2 1/1 hard x3 1/1 medium 1/1 sovereign 2/2 idle 1/1 | roll 4.3s upd 111.8s
+[brain] it 2232 [league 57%] R/ep 10.58 ent 2.38 kl 0.008 | hit/swing 58% dj/min 33.0 blk/min 0.4 abiHit 47 supHit 80 | sovereign 3/5 self 7/10 expert 10/11 expert x2 4/5 hard 1/1 summoner 1/1 easy 1/1 hard x3 1/1 | roll 2.6s upd 38.0s
+[brain] it 2233 [league 57%] R/ep 9.33 ent 2.28 kl 0.006 | hit/swing 57% dj/min 33.2 blk/min 0.4 abiHit 29 supHit 84 | expert 4/4 hard 3/3 self 7/14 medium 2/2 hard x3 1/1 sovereign 4/6 expert x2 3/4 idle 1/1 summoner 3/3 | roll 2.4s upd 30.8s
+[brain] it 2234 [league 59%] R/ep 6.02 ent 2.34 kl 0.007 | hit/swing 60% dj/min 33.3 blk/min 0.3 abiHit 31 supHit 73 | self 7/16 hard x3 1/3 expert 9/9 medium 1/1 sovereign 3/4 summoner 3/4 idle 2/2 | roll 2.3s upd 27.8s
+[brain] it 2235 [league 61%] R/ep 7.32 ent 2.32 kl 0.008 | hit/swing 55% dj/min 30.5 blk/min 0.3 abiHit 48 supHit 80 | hard 3/3 self 6/15 idle 4/4 medium 1/1 expert 4/4 summoner 5/6 expert x2 0/1 sovereign 5/6 easy 2/2 | roll 1.6s upd 19.9s
+[brain] it 2236 [league 61%] R/ep 10.29 ent 2.37 kl 0.007 | hit/swing 51% dj/min 33.0 blk/min 0.2 abiHit 46 supHit 78 | easy 2/2 expert 3/3 self 4/10 summoner 6/6 idle 3/3 hard 2/2 sovereign 6/7 hard x3 1/2 expert x2 1/1 medium 1/1 | roll 1.4s upd 21.1s
+[brain] it 2237 [league 61%] R/ep 8.67 ent 2.38 kl 0.006 | hit/swing 59% dj/min 32.7 blk/min 0.6 abiHit 42 supHit 73 | expert 6/7 easy 1/1 self 6/12 sovereign 2/4 hard 2/2 summoner 3/3 idle 3/3 hard x3 1/2 medium 1/1 expert x2 1/1 | roll 1.9s upd 17.5s
+[brain] it 2238 [league 60%] R/ep 6.82 ent 2.33 kl 0.007 | hit/swing 54% dj/min 31.9 blk/min 0.0 abiHit 39 supHit 86 | self 5/12 sovereign 6/10 expert 4/4 idle 2/2 summoner 2/4 medium 2/2 hard x3 1/2 expert x2 1/1 easy 1/1 | roll 1.5s upd 13.7s
+[brain] it 2239 [league 61%] R/ep 9.33 ent 2.33 kl 0.007 | hit/swing 51% dj/min 30.8 blk/min 0.1 abiHit 60 supHit 67 | self 7/13 expert 8/8 sovereign 2/3 summoner 3/3 hard x3 1/1 hard 5/5 expert x2 1/1 | roll 1.4s upd 13.7s
+[brain] it 2240 [league 62%] R/ep 9.80 ent 2.30 kl 0.009 | hit/swing 57% dj/min 31.5 blk/min 0.3 abiHit 42 supHit 95 | expert 6/7 self 2/10 medium 3/3 hard x3 2/4 summoner 6/6 sovereign 1/3 hard 3/3 easy 2/2 idle 1/1 expert x2 1/1 | roll 1.3s upd 13.8s
+[brain] it 2241 [league 61%] R/ep 7.98 ent 2.39 kl 0.007 | hit/swing 47% dj/min 31.6 blk/min 0.1 abiHit 59 supHit 61 | self 3/9 expert 8/8 sovereign 1/4 expert x2 1/2 hard 3/3 easy 2/2 hard x3 1/1 medium 1/1 | roll 1.4s upd 20.4s
+[brain] it 2242 [league 62%] R/ep 8.27 ent 2.35 kl 0.006 | hit/swing 54% dj/min 31.6 blk/min 0.4 abiHit 56 supHit 71 | expert x2 2/3 self 3/8 idle 2/2 expert 11/11 easy 1/1 sovereign 4/8 summoner 1/3 medium 1/1 | roll 1.7s upd 32.2s
+[brain] it 2243 [league 65%] R/ep 8.63 ent 2.26 kl 0.008 | hit/swing 58% dj/min 28.0 blk/min 0.3 abiHit 43 supHit 92 | sovereign 7/9 idle 5/5 summoner 3/3 self 5/11 expert 6/7 hard 4/4 hard x3 1/3 | roll 1.9s upd 32.4s
+[brain] it 2244 [league 66%] R/ep 9.93 ent 2.38 kl 0.007 | hit/swing 50% dj/min 30.4 blk/min 0.3 abiHit 73 supHit 74 | expert x2 3/3 expert 4/5 self 8/12 sovereign 3/4 summoner 3/4 idle 1/1 hard x3 1/2 medium 1/1 easy 1/1 | roll 1.9s upd 29.7s
+[brain] it 2245 [league 65%] R/ep 6.19 ent 2.27 kl 0.008 | hit/swing 54% dj/min 30.1 blk/min 0.1 abiHit 29 supHit 80 | expert 8/9 sovereign 3/7 self 5/13 medium 2/2 summoner 4/4 easy 3/3 idle 3/3 | roll 1.7s upd 22.6s
+[brain] it 2246 [league 65%] R/ep 9.47 ent 2.28 kl 0.005 | hit/swing 55% dj/min 31.3 blk/min 0.3 abiHit 43 supHit 86 | expert 13/13 idle 2/2 sovereign 4/5 self 7/14 easy 3/3 hard 1/1 summoner 1/1 hard x3 0/1 | roll 1.5s upd 20.5s
+[brain] it 2247 [league 63%] R/ep 9.24 ent 2.35 kl 0.008 | hit/swing 61% dj/min 29.7 blk/min 0.2 abiHit 54 supHit 78 | sovereign 6/11 idle 1/1 self 4/8 easy 2/2 expert 7/7 hard x3 2/3 expert x2 1/1 medium 3/3 hard 1/1 summoner 0/1 | roll 1.5s upd 18.8s
+[brain] it 2248 [league 62%] R/ep 8.78 ent 2.36 kl 0.006 | hit/swing 52% dj/min 31.4 blk/min 0.2 abiHit 34 supHit 86 | medium 1/1 hard 2/2 self 8/14 sovereign 5/8 expert 8/8 idle 1/1 hard x3 2/3 summoner 3/3 easy 1/1 | roll 1.7s upd 15.9s
+[brain] it 2249 [league 61%] R/ep 9.49 ent 2.41 kl 0.007 | hit/swing 55% dj/min 31.7 blk/min 0.2 abiHit 74 supHit 82 | sovereign 2/5 self 4/11 easy 4/4 hard 2/2 expert 6/6 expert x2 4/4 summoner 2/2 hard x3 1/2 idle 1/1 | roll 1.4s upd 14.8s
+[brain] it 2250 [league 62%] R/ep 7.19 ent 2.37 kl 0.008 | hit/swing 58% dj/min 31.2 blk/min 0.2 abiHit 65 supHit 70 | self 6/14 idle 3/3 expert x2 2/3 summoner 4/4 sovereign 5/6 expert 4/4 easy 1/1 | roll 1.4s upd 14.4s
+[brain] it 2251 [league 62%] R/ep 11.89 ent 2.19 kl 0.007 | hit/swing 66% dj/min 27.6 blk/min 0.3 abiHit 38 supHit 57 | summoner 2/2 self 4/8 expert 5/5 hard x3 3/4 sovereign 2/3 medium 2/2 hard 1/1 idle 2/2 easy 1/1 | roll 5.5s upd 9.6s
+[brain] it 2252 [league 58%] R/ep 3.89 ent 2.53 kl 0.006 | hit/swing 48% dj/min 37.1 blk/min 0.5 abiHit 31 supHit 44 | self 1/6 expert 3/3 medium 1/1 sovereign 2/7 idle 3/3 easy 1/1 hard 1/1 expert x2 0/1 summoner 1/1 | roll 5.0s upd 9.8s
+[brain] it 2253 [league 58%] R/ep 9.90 ent 2.43 kl 0.009 | hit/swing 47% dj/min 30.4 blk/min 0.1 abiHit 58 supHit 40 | hard x3 1/1 hard 1/1 self 2/6 summoner 3/3 expert 8/8 sovereign 2/2 | roll 4.8s upd 9.9s
+[brain] it 2254 [league 57%] R/ep 10.43 ent 2.42 kl 0.006 | hit/swing 57% dj/min 30.0 blk/min 0.2 abiHit 69 supHit 63 | self 3/6 expert 13/13 expert x2 2/3 hard 1/1 summoner 3/4 hard x3 1/1 sovereign 1/3 medium 1/1 | roll 1.4s upd 16.1s
+[brain] it 2255 [league 57%] R/ep 10.50 ent 2.34 kl 0.006 | hit/swing 43% dj/min 32.3 blk/min 0.5 abiHit 112 supHit 82 | hard 3/3 summoner 3/3 hard x3 1/4 sovereign 4/6 self 7/10 expert 8/8 idle 2/2 medium 2/2 | roll 1.5s upd 13.8s
+[brain] it 2256 [league 55%] R/ep 7.75 ent 2.38 kl 0.005 | hit/swing 49% dj/min 32.8 blk/min 0.3 abiHit 74 supHit 63 | self 2/8 expert 8/8 expert x2 3/4 idle 2/2 medium 1/1 sovereign 1/4 summoner 1/1 | roll 1.4s upd 12.6s
+[brain] it 2257 [league 57%] R/ep 4.06 ent 2.44 kl 0.008 | hit/swing 42% dj/min 33.2 blk/min 0.1 abiHit 86 supHit 55 | summoner 3/3 expert 9/9 self 2/9 expert x2 0/1 sovereign 5/9 easy 2/2 medium 1/1 hard x3 0/1 hard 1/1 | roll 1.4s upd 13.1s
+[brain] it 2258 [league 58%] R/ep 9.77 ent 2.39 kl 0.007 | hit/swing 54% dj/min 32.1 blk/min 0.2 abiHit 41 supHit 66 | expert 7/8 easy 1/1 summoner 4/4 self 5/10 sovereign 4/6 hard 1/1 hard x3 2/2 expert x2 0/1 | roll 1.6s upd 13.9s
+[brain] it 2259 [league 61%] R/ep 10.35 ent 2.39 kl 0.007 | hit/swing 60% dj/min 30.9 blk/min 0.2 abiHit 75 supHit 67 | self 7/12 easy 4/4 sovereign 5/5 hard 1/1 summoner 3/3 medium 2/2 expert 4/4 expert x2 1/1 hard x3 1/2 idle 2/2 | roll 1.8s upd 13.0s
+[brain] it 2260 [league 61%] R/ep 12.36 ent 2.41 kl 0.008 | hit/swing 54% dj/min 32.7 blk/min 0.1 abiHit 83 supHit 68 | expert 11/12 sovereign 3/4 self 5/6 medium 1/1 hard x3 1/1 easy 1/1 idle 2/2 expert x2 1/1 summoner 1/2 hard 1/1 | roll 1.4s upd 13.0s
+[brain] it 2261 [league 61%] R/ep 6.63 ent 2.36 kl 0.008 | hit/swing 49% dj/min 33.2 blk/min 0.3 abiHit 82 supHit 66 | self 6/15 expert 6/7 expert x2 1/1 sovereign 4/5 summoner 5/5 hard 3/3 easy 3/3 hard x3 0/1 | roll 1.4s upd 12.7s
+[brain] it 2262 [league 61%] R/ep 6.04 ent 2.40 kl 0.006 | hit/swing 47% dj/min 32.9 blk/min 0.3 abiHit 85 supHit 70 | self 7/11 sovereign 4/5 hard x3 0/2 hard 2/2 idle 2/2 expert 3/4 summoner 2/2 expert x2 1/2 easy 1/1 | roll 1.4s upd 13.0s
+[brain] it 2263 [league 62%] R/ep 6.28 ent 2.31 kl 0.007 | hit/swing 52% dj/min 30.9 blk/min 0.1 abiHit 57 supHit 81 | self 4/14 easy 5/5 summoner 4/4 sovereign 4/7 idle 2/2 hard x3 0/2 expert x2 1/1 expert 5/5 medium 1/1 | roll 1.6s upd 14.0s
+[brain] it 2264 [league 58%] R/ep 7.11 ent 2.37 kl 0.007 | hit/swing 45% dj/min 32.8 blk/min 0.2 abiHit 99 supHit 71 | sovereign 2/9 self 8/11 expert 8/8 summoner 2/2 medium 3/3 easy 2/2 hard x3 0/1 expert x2 1/1 hard 1/1 | roll 1.5s upd 14.1s
+[brain] it 2265 [league 57%] R/ep 7.44 ent 2.34 kl 0.006 | hit/swing 55% dj/min 32.9 blk/min 0.4 abiHit 46 supHit 73 | self 5/11 summoner 2/3 sovereign 4/10 medium 1/1 expert 5/5 hard x3 1/1 expert x2 2/3 idle 2/2 easy 1/1 hard 1/1 | roll 1.5s upd 14.0s
+[brain] it 2266 [league 56%] R/ep 4.56 ent 2.34 kl 0.007 | hit/swing 51% dj/min 31.3 blk/min 0.4 abiHit 54 supHit 70 | self 8/18 sovereign 2/4 summoner 2/3 expert 3/3 hard x3 0/1 hard 3/3 easy 1/1 medium 2/2 | roll 1.5s upd 12.8s
+[brain] it 2267 [league 55%] R/ep 7.87 ent 2.38 kl 0.008 | hit/swing 44% dj/min 31.3 blk/min 0.3 abiHit 82 supHit 53 | expert 9/9 expert x2 0/1 summoner 1/1 hard 1/1 self 6/9 idle 2/2 sovereign 1/5 easy 1/1 | roll 1.5s upd 11.8s
+[brain] it 2268 [league 55%] R/ep 6.96 ent 2.43 kl 0.008 | hit/swing 41% dj/min 34.7 blk/min 0.3 abiHit 91 supHit 72 | sovereign 4/5 idle 3/3 self 5/11 summoner 1/3 expert 2/3 hard x3 0/3 expert x2 2/2 hard 1/1 easy 2/2 | roll 1.7s upd 13.9s
+[brain] it 2269 [league 56%] R/ep 12.26 ent 2.32 kl 0.007 | hit/swing 57% dj/min 31.4 blk/min 0.1 abiHit 38 supHit 80 | expert 9/9 sovereign 5/6 summoner 4/5 self 5/8 expert x2 2/2 hard x3 1/1 hard 1/1 medium 2/2 idle 1/1 easy 1/1 | roll 1.3s upd 12.9s
+[brain] it 2270 [league 55%] R/ep 9.20 ent 2.35 kl 0.008 | hit/swing 57% dj/min 30.5 blk/min 0.2 abiHit 44 supHit 77 | self 4/8 hard 2/2 expert 9/9 medium 1/1 sovereign 2/7 summoner 3/3 hard x3 3/3 idle 1/1 easy 1/1 | roll 1.3s upd 12.8s
+[brain] it 2271 [league 55%] R/ep 10.01 ent 2.40 kl 0.006 | hit/swing 52% dj/min 32.0 blk/min 0.2 abiHit 86 supHit 59 | self 5/10 expert 7/7 hard 3/3 sovereign 1/2 easy 2/2 hard x3 1/1 summoner 4/5 medium 1/1 | roll 1.2s upd 11.8s
+[brain] it 2272 [league 57%] R/ep 11.74 ent 2.26 kl 0.006 | hit/swing 63% dj/min 32.2 blk/min 0.3 abiHit 39 supHit 91 | self 6/11 sovereign 4/5 expert x2 1/2 expert 9/9 easy 2/2 summoner 4/4 hard 3/3 hard x3 2/2 medium 3/3 | roll 1.3s upd 13.1s
+[brain] it 2273 [league 58%] R/ep 4.59 ent 2.34 kl 0.006 | hit/swing 53% dj/min 32.3 blk/min 0.1 abiHit 40 supHit 66 | easy 2/2 sovereign 6/10 self 5/12 expert 4/5 summoner 4/5 idle 2/2 | roll 1.4s upd 12.9s
+[brain] it 2274 [league 57%] R/ep 6.18 ent 2.43 kl 0.006 | hit/swing 49% dj/min 33.9 blk/min 0.5 abiHit 48 supHit 68 | self 3/10 idle 2/2 sovereign 5/9 expert 10/11 easy 2/2 summoner 2/2 | roll 1.4s upd 12.8s
+[brain] it 2275 [league 56%] R/ep 8.38 ent 2.29 kl 0.008 | hit/swing 50% dj/min 32.7 blk/min 0.4 abiHit 55 supHit 75 | expert 2/2 self 6/13 summoner 3/3 sovereign 5/7 medium 3/3 easy 2/2 idle 2/2 hard x3 1/3 expert x2 1/1 hard 1/1 | roll 1.4s upd 12.9s
+[brain] it 2276 [league 55%] R/ep 11.18 ent 2.42 kl 0.007 | hit/swing 55% dj/min 30.4 blk/min 0.1 abiHit 91 supHit 67 | expert x2 2/2 expert 7/7 sovereign 3/5 hard x3 1/2 self 4/8 summoner 2/2 easy 4/4 medium 1/1 hard 2/2 idle 1/1 | roll 1.6s upd 14.1s
+[brain] it 2277 [league 52%] R/ep 9.50 ent 2.34 kl 0.007 | hit/swing 60% dj/min 32.2 blk/min 0.3 abiHit 40 supHit 66 | sovereign 3/8 expert 6/6 self 8/10 hard x3 1/2 medium 1/1 summoner 5/5 expert x2 1/1 easy 2/2 hard 1/1 | roll 1.3s upd 12.8s
+[brain] it 2278 [league 50%] R/ep 6.83 ent 2.42 kl 0.007 | hit/swing 53% dj/min 33.0 blk/min 0.3 abiHit 60 supHit 55 | sovereign 3/8 expert 5/5 hard 5/5 self 3/9 medium 2/2 summoner 0/1 idle 2/2 expert x2 1/1 easy 2/2 | roll 1.3s upd 12.8s
+[brain] it 2279 [league 55%] R/ep 10.22 ent 2.33 kl 0.007 | hit/swing 50% dj/min 31.4 blk/min 0.2 abiHit 87 supHit 82 | expert 11/11 hard x3 2/2 self 3/9 expert x2 2/2 sovereign 5/7 summoner 3/4 easy 1/1 hard 1/1 medium 1/1 | roll 1.3s upd 14.0s
+[brain] it 2280 [league 55%] R/ep 7.45 ent 2.37 kl 0.005 | hit/swing 45% dj/min 33.7 blk/min 0.1 abiHit 81 supHit 72 | sovereign 5/7 expert 6/6 self 7/16 hard 3/3 medium 2/2 idle 1/1 hard x3 1/1 summoner 1/1 easy 1/1 | roll 1.6s upd 12.9s
+[brain] it 2281 [league 58%] R/ep 9.34 ent 2.38 kl 0.007 | hit/swing 42% dj/min 33.4 blk/min 0.1 abiHit 81 supHit 59 | idle 2/2 hard x3 1/2 self 8/11 expert 5/6 hard 2/2 summoner 1/2 sovereign 4/5 expert x2 1/1 easy 1/1 | roll 1.2s upd 12.6s
+[brain] it 2282 [league 58%] R/ep 7.35 ent 2.29 kl 0.006 | hit/swing 53% dj/min 31.2 blk/min 0.1 abiHit 42 supHit 64 | self 8/15 expert 9/9 idle 2/2 easy 1/1 sovereign 1/3 hard x3 1/2 hard 2/2 summoner 1/1 | roll 1.3s upd 12.8s
+[brain] it 2283 [league 58%] R/ep 9.12 ent 2.21 kl 0.007 | hit/swing 63% dj/min 28.4 blk/min 0.4 abiHit 16 supHit 80 | sovereign 2/4 expert 7/7 idle 4/4 self 6/13 easy 2/2 hard 2/2 hard x3 0/1 expert x2 1/1 summoner 2/3 | roll 1.3s upd 13.2s
+[brain] it 2284 [league 58%] R/ep 10.86 ent 2.25 kl 0.006 | hit/swing 62% dj/min 29.4 blk/min 0.6 abiHit 48 supHit 95 | expert 7/7 sovereign 8/12 self 4/9 hard 1/1 medium 1/1 easy 3/3 hard x3 2/3 expert x2 2/2 summoner 2/2 idle 2/2 | roll 1.3s upd 12.8s
+[brain] it 2285 [league 59%] R/ep 8.97 ent 2.34 kl 0.007 | hit/swing 52% dj/min 30.0 blk/min 0.4 abiHit 61 supHit 76 | expert 9/9 sovereign 4/6 medium 3/3 self 5/9 summoner 3/4 idle 2/2 hard x3 0/1 hard 1/1 expert x2 1/1 | roll 1.3s upd 12.9s
+[brain] it 2286 [league 59%] R/ep 7.95 ent 2.25 kl 0.006 | hit/swing 56% dj/min 30.1 blk/min 0.3 abiHit 34 supHit 77 | sovereign 5/10 self 5/9 expert 9/9 medium 2/2 summoner 4/4 expert x2 1/1 idle 2/2 easy 1/1 | roll 1.3s upd 11.8s
+[brain] it 2287 [league 56%] R/ep 8.86 ent 2.22 kl 0.007 | hit/swing 61% dj/min 30.0 blk/min 0.6 abiHit 36 supHit 85 | hard x3 2/3 self 6/10 sovereign 4/11 hard 2/2 expert 4/4 summoner 2/2 expert x2 1/1 medium 2/2 easy 3/3 idle 1/1 | roll 1.3s upd 12.8s
+[brain] it 2288 [league 56%] R/ep 7.12 ent 2.37 kl 0.006 | hit/swing 55% dj/min 34.2 blk/min 0.3 abiHit 47 supHit 70 | self 6/12 expert 8/9 sovereign 3/5 expert x2 2/2 hard x3 0/1 summoner 3/3 hard 2/2 idle 1/1 | roll 1.5s upd 13.9s
+[brain] it 2289 [league 55%] R/ep 7.35 ent 2.29 kl 0.006 | hit/swing 55% dj/min 33.1 blk/min 0.3 abiHit 63 supHit 72 | hard x3 0/1 self 5/11 easy 1/1 expert 5/5 hard 4/4 sovereign 4/8 summoner 3/4 medium 2/2 idle 1/1 expert x2 1/1 | roll 1.3s upd 12.8s
+[brain] it 2290 [league 55%] R/ep 7.52 ent 2.30 kl 0.007 | hit/swing 56% dj/min 34.4 blk/min 0.4 abiHit 35 supHit 78 | sovereign 4/8 idle 1/1 self 3/11 easy 3/3 expert 13/13 summoner 3/3 medium 2/2 expert x2 1/2 | roll 1.3s upd 13.0s
+[brain] it 2291 [league 57%] R/ep 8.64 ent 2.30 kl 0.008 | hit/swing 54% dj/min 33.3 blk/min 0.4 abiHit 53 supHit 74 | self 12/17 summoner 4/4 idle 2/2 sovereign 5/6 hard x3 1/2 expert 6/6 expert x2 0/1 | roll 1.4s upd 13.0s
+[brain] it 2292 [league 56%] R/ep 4.48 ent 2.31 kl 0.006 | hit/swing 50% dj/min 29.7 blk/min 0.1 abiHit 57 supHit 63 | self 3/13 sovereign 2/8 medium 2/2 summoner 2/2 expert 7/7 easy 3/3 idle 1/1 | roll 1.3s upd 13.0s
+[brain] it 2293 [league 54%] R/ep 8.33 ent 2.53 kl 0.008 | hit/swing 47% dj/min 34.3 blk/min 0.4 abiHit 70 supHit 43 | self 1/6 medium 2/2 expert x2 2/2 easy 3/3 summoner 5/5 expert 5/5 sovereign 1/3 hard x3 0/1 | roll 1.2s upd 12.9s
+[brain] it 2294 [league 55%] R/ep 6.67 ent 2.35 kl 0.008 | hit/swing 57% dj/min 30.7 blk/min 0.0 abiHit 76 supHit 70 | expert 9/9 expert x2 1/1 sovereign 5/7 medium 1/1 self 2/11 easy 2/2 hard x3 1/2 hard 1/1 summoner 2/3 | roll 1.6s upd 13.9s
+[brain] it 2295 [league 55%] R/ep 8.45 ent 2.27 kl 0.006 | hit/swing 56% dj/min 28.1 blk/min 0.5 abiHit 49 supHit 80 | medium 1/1 self 7/12 sovereign 7/11 expert 4/5 summoner 6/6 hard 2/2 easy 1/1 hard x3 1/1 idle 1/1 | roll 1.3s upd 12.8s
+[brain] it 2296 [league 57%] R/ep 9.36 ent 2.32 kl 0.008 | hit/swing 58% dj/min 31.7 blk/min 0.4 abiHit 77 supHit 70 | easy 2/2 self 3/10 expert 6/6 idle 1/1 summoner 2/2 hard 3/3 medium 5/5 hard x3 0/1 sovereign 3/3 expert x2 1/1 | roll 1.2s upd 12.9s
+[brain] it 2297 [league 55%] R/ep 6.82 ent 2.33 kl 0.007 | hit/swing 56% dj/min 33.0 blk/min 0.3 abiHit 25 supHit 67 | self 7/14 sovereign 3/7 expert 6/6 idle 2/2 summoner 0/1 expert x2 3/3 easy 1/1 hard 1/1 | roll 1.3s upd 13.1s
+[brain] it 2298 [league 54%] R/ep 7.40 ent 2.32 kl 0.007 | hit/swing 52% dj/min 34.8 blk/min 0.3 abiHit 45 supHit 73 | hard x3 2/2 self 6/18 expert 5/5 easy 2/2 expert x2 1/1 medium 3/3 idle 1/1 hard 2/2 sovereign 2/3 summoner 1/1 | roll 1.5s upd 12.7s
+[brain] it 2299 [league 54%] R/ep 4.64 ent 2.31 kl 0.006 | hit/swing 50% dj/min 30.5 blk/min 0.1 abiHit 17 supHit 60 | sovereign 1/3 summoner 1/2 medium 1/1 idle 2/2 self 3/14 expert 4/4 hard 1/1 hard x3 2/3 easy 1/1 | roll 1.3s upd 15.6s
+[brain] it 2300 [league 51%] R/ep 3.84 ent 2.42 kl 0.006 | hit/swing 40% dj/min 33.8 blk/min 0.3 abiHit 75 supHit 49 | self 7/13 expert 3/4 expert x2 1/1 summoner 2/3 medium 3/3 sovereign 0/4 hard 1/1 hard x3 0/1 | roll 1.5s upd 13.8s
+[brain] it 2301 [league 51%] R/ep 5.77 ent 2.35 kl 0.006 | hit/swing 55% dj/min 34.5 blk/min 0.5 abiHit 48 supHit 68 | idle 2/2 expert 5/5 self 6/16 medium 3/3 sovereign 3/5 hard x3 0/1 hard 2/2 summoner 2/3 easy 1/1 | roll 1.4s upd 13.2s
+[brain] it 2302 [league 53%] R/ep 10.06 ent 2.25 kl 0.008 | hit/swing 54% dj/min 31.6 blk/min 0.2 abiHit 58 supHit 78 | self 10/15 expert 6/6 easy 2/2 medium 2/2 hard x3 2/2 sovereign 6/7 expert x2 1/1 | roll 1.4s upd 14.6s
+[brain] it 2303 [league 58%] R/ep 4.97 ent 2.29 kl 0.008 | hit/swing 50% dj/min 31.8 blk/min 0.4 abiHit 50 supHit 77 | sovereign 7/9 expert x2 1/2 expert 3/4 self 7/16 medium 1/1 summoner 3/4 idle 2/2 | roll 1.5s upd 14.0s
+[brain] it 2304 [league 57%] R/ep 8.95 ent 2.29 kl 0.006 | hit/swing 62% dj/min 29.9 blk/min 0.3 abiHit 45 supHit 77 | easy 2/2 self 4/11 expert 10/11 summoner 3/3 sovereign 3/5 expert x2 3/3 idle 2/2 | roll 1.3s upd 13.1s
+[brain] it 2305 [league 59%] R/ep 7.73 ent 2.29 kl 0.008 | hit/swing 58% dj/min 34.4 blk/min 0.3 abiHit 28 supHit 81 | expert x2 1/1 hard 3/3 self 9/15 idle 1/1 sovereign 4/6 easy 2/2 summoner 2/2 expert 7/8 medium 1/1 | roll 1.3s upd 15.2s
+[brain] it 2306 [league 59%] R/ep 9.17 ent 2.34 kl 0.006 | hit/swing 43% dj/min 31.1 blk/min 0.2 abiHit 80 supHit 69 | self 4/10 medium 2/2 summoner 1/3 hard x3 1/1 expert 9/9 expert x2 2/2 sovereign 2/3 easy 3/3 | roll 1.4s upd 15.3s
+[brain] it 2307 [league 61%] R/ep 4.99 ent 2.30 kl 0.006 | hit/swing 51% dj/min 31.6 blk/min 0.2 abiHit 52 supHit 66 | self 9/15 easy 1/1 idle 2/2 summoner 4/5 expert 5/5 medium 1/1 sovereign 4/6 hard 1/1 | roll 1.4s upd 13.7s
+[brain] it 2308 [league 61%] R/ep 9.83 ent 2.35 kl 0.005 | hit/swing 46% dj/min 32.9 blk/min 0.2 abiHit 85 supHit 64 | idle 3/3 self 11/14 expert 7/7 summoner 3/4 sovereign 2/3 easy 1/1 expert x2 2/2 | roll 1.3s upd 13.3s
+[brain] it 2309 [league 60%] R/ep 9.12 ent 2.27 kl 0.009 | hit/swing 53% dj/min 30.7 blk/min 0.2 abiHit 57 supHit 88 | expert 8/8 self 6/13 medium 3/3 expert x2 3/3 sovereign 2/3 idle 2/2 summoner 3/4 hard x3 1/1 | roll 1.4s upd 13.4s
+[brain] it 2310 [league 60%] R/ep 10.41 ent 2.24 kl 0.006 | hit/swing 54% dj/min 31.3 blk/min 0.3 abiHit 59 supHit 75 | medium 2/2 expert 9/9 sovereign 5/8 self 8/11 easy 1/1 expert x2 2/2 summoner 5/5 hard x3 0/1 hard 1/1 | roll 1.3s upd 13.1s
+[brain] it 2311 [league 64%] R/ep 8.40 ent 2.20 kl 0.007 | hit/swing 59% dj/min 28.5 blk/min 0.4 abiHit 46 supHit 87 | summoner 4/5 self 4/12 easy 2/2 hard x3 1/1 expert x2 1/2 expert 9/9 sovereign 4/5 idle 2/2 hard 1/1 | roll 1.3s upd 13.0s
+[brain] it 2312 [league 63%] R/ep 7.46 ent 2.41 kl 0.007 | hit/swing 51% dj/min 33.5 blk/min 0.3 abiHit 53 supHit 65 | summoner 3/3 sovereign 5/9 expert 5/5 self 2/9 easy 4/4 medium 1/1 expert x2 2/2 hard 1/1 idle 1/1 | roll 1.3s upd 15.5s
+[brain] it 2313 [league 65%] R/ep 9.90 ent 2.38 kl 0.006 | hit/swing 51% dj/min 31.6 blk/min 0.3 abiHit 98 supHit 60 | sovereign 5/7 self 1/4 summoner 6/7 medium 5/5 hard 2/2 easy 3/3 expert 3/3 expert x2 1/1 hard x3 1/1 | roll 1.2s upd 14.0s
+[brain] it 2314 [league 64%] R/ep 11.65 ent 2.24 kl 0.006 | hit/swing 68% dj/min 25.9 blk/min 0.1 abiHit 57 supHit 66 | expert 10/10 sovereign 2/3 self 2/8 idle 3/3 expert x2 1/1 medium 1/1 easy 3/3 hard x3 2/2 hard 1/1 summoner 2/2 | roll 1.2s upd 13.7s
+[brain] it 2315 [league 63%] R/ep 10.10 ent 2.30 kl 0.005 | hit/swing 61% dj/min 26.7 blk/min 0.1 abiHit 88 supHit 76 | summoner 2/2 idle 2/2 self 4/9 sovereign 5/8 expert 11/11 hard 5/5 medium 1/1 expert x2 1/1 hard x3 1/1 | roll 1.2s upd 13.3s
+[brain] it 2316 [league 63%] R/ep 7.93 ent 2.30 kl 0.007 | hit/swing 51% dj/min 33.4 blk/min 0.2 abiHit 37 supHit 93 | self 9/17 easy 1/1 expert 5/5 sovereign 2/4 expert x2 3/4 hard x3 1/2 summoner 3/3 hard 2/2 medium 1/1 idle 1/1 | roll 1.4s upd 13.1s
+[brain] it 2317 [league 66%] R/ep 6.79 ent 2.37 kl 0.006 | hit/swing 48% dj/min 32.3 blk/min 0.2 abiHit 68 supHit 65 | self 8/13 sovereign 5/9 expert 7/7 easy 4/4 idle 3/3 hard 1/1 | roll 1.5s upd 13.2s
+[brain] it 2318 [league 65%] R/ep 6.18 ent 2.32 kl 0.007 | hit/swing 51% dj/min 33.8 blk/min 0.2 abiHit 69 supHit 75 | self 5/13 expert 4/4 expert x2 1/2 sovereign 5/9 easy 2/2 hard x3 1/1 medium 2/2 summoner 0/1 | roll 1.4s upd 14.6s
+[brain] it 2319 [league 63%] R/ep 4.77 ent 2.40 kl 0.006 | hit/swing 50% dj/min 34.9 blk/min 0.3 abiHit 54 supHit 60 | summoner 5/6 self 4/15 idle 1/1 easy 1/1 expert x2 1/1 expert 3/3 sovereign 1/3 medium 1/1 hard x3 1/1 | roll 1.6s upd 14.7s
+[brain] it 2320 [league 63%] R/ep 9.19 ent 2.41 kl 0.007 | hit/swing 58% dj/min 30.4 blk/min 0.3 abiHit 53 supHit 63 | expert 2/3 summoner 7/7 self 5/9 sovereign 2/4 hard x3 1/1 expert x2 1/2 easy 1/1 idle 1/1 medium 1/1 | roll 1.4s upd 16.4s
+[brain] it 2321 [league 61%] R/ep 8.90 ent 2.43 kl 0.008 | hit/swing 52% dj/min 34.1 blk/min 0.5 abiHit 49 supHit 68 | self 5/11 expert 5/5 expert x2 2/2 sovereign 1/3 summoner 3/3 medium 2/2 idle 2/2 hard x3 1/2 hard 3/4 easy 2/2 | roll 1.4s upd 14.5s
+[brain] it 2322 [league 62%] R/ep 10.41 ent 2.25 kl 0.007 | hit/swing 61% dj/min 29.8 blk/min 0.5 abiHit 47 supHit 89 | self 5/14 summoner 3/4 hard x3 2/2 medium 1/1 expert x2 3/3 expert 8/8 sovereign 4/4 idle 3/3 easy 2/2 | roll 1.5s upd 14.6s
+[brain] it 2323 [league 63%] R/ep 9.84 ent 2.32 kl 0.007 | hit/swing 57% dj/min 30.5 blk/min 0.2 abiHit 60 supHit 68 | self 5/11 sovereign 3/4 idle 3/3 hard x3 2/2 hard 1/1 easy 3/3 expert 11/12 summoner 1/1 | roll 1.4s upd 15.4s
+[brain] it 2324 [league 62%] R/ep 10.86 ent 2.31 kl 0.007 | hit/swing 59% dj/min 30.3 blk/min 0.6 abiHit 53 supHit 91 | expert x2 4/5 expert 7/8 idle 4/4 sovereign 4/7 self 4/8 easy 2/2 summoner 1/1 hard x3 0/1 medium 1/1 | roll 1.5s upd 14.8s
+[brain] it 2325 [league 61%] R/ep 8.14 ent 2.45 kl 0.006 | hit/swing 42% dj/min 35.0 blk/min 0.3 abiHit 75 supHit 60 | expert 6/7 sovereign 1/2 self 4/8 medium 2/2 easy 2/2 hard 2/2 hard x3 0/1 summoner 4/5 idle 2/2 expert x2 1/1 | roll 1.4s upd 15.0s
+[brain] it 2326 [league 61%] R/ep 4.45 ent 2.44 kl 0.009 | hit/swing 48% dj/min 33.7 blk/min 0.2 abiHit 57 supHit 65 | self 7/15 expert 5/5 sovereign 5/8 hard 3/3 expert x2 1/2 summoner 1/1 idle 1/1 medium 1/1 hard x3 0/1 | roll 1.7s upd 15.0s
+[brain] it 2327 [league 59%] R/ep 10.60 ent 2.27 kl 0.009 | hit/swing 56% dj/min 32.5 blk/min 0.1 abiHit 51 supHit 97 | easy 3/3 medium 3/3 sovereign 2/5 hard 2/2 self 4/10 expert 11/11 summoner 1/1 hard x3 2/2 expert x2 1/1 idle 1/1 | roll 1.6s upd 16.2s
+[brain] it 2328 [league 59%] R/ep 9.03 ent 2.41 kl 0.006 | hit/swing 55% dj/min 32.0 blk/min 0.1 abiHit 54 supHit 66 | self 7/12 easy 3/3 expert 4/4 medium 1/1 summoner 5/5 sovereign 4/7 hard 1/1 expert x2 1/2 | roll 1.7s upd 15.1s
+[brain] it 2329 [league 57%] R/ep 8.45 ent 2.38 kl 0.006 | hit/swing 54% dj/min 32.7 blk/min 0.5 abiHit 49 supHit 73 | sovereign 4/8 medium 1/1 self 4/9 summoner 8/8 easy 1/1 expert 7/8 hard 1/1 idle 1/1 hard x3 1/2 | roll 1.5s upd 15.3s
+[brain] it 2330 [league 56%] R/ep 7.85 ent 2.38 kl 0.006 | hit/swing 47% dj/min 31.9 blk/min 0.1 abiHit 96 supHit 74 | sovereign 1/2 self 4/14 expert 10/10 hard x3 1/1 easy 3/3 summoner 3/3 hard 1/1 idle 1/1 medium 1/1 | roll 1.5s upd 15.5s
+[brain] it 2331 [league 54%] R/ep 3.56 ent 2.39 kl 0.008 | hit/swing 44% dj/min 34.5 blk/min 0.2 abiHit 67 supHit 63 | self 4/10 sovereign 4/11 hard 2/2 expert 4/5 expert x2 3/3 summoner 1/2 easy 1/1 medium 1/1 | roll 1.4s upd 12.8s
+[brain] it 2332 [league 55%] R/ep 6.42 ent 2.43 kl 0.007 | hit/swing 51% dj/min 33.4 blk/min 0.2 abiHit 44 supHit 68 | medium 1/1 idle 2/2 summoner 3/4 easy 1/1 self 6/16 expert 4/4 expert x2 1/2 sovereign 2/3 hard x3 1/2 | roll 1.4s upd 15.5s
+[brain] it 2333 [league 55%] R/ep 9.44 ent 2.39 kl 0.007 | hit/swing 63% dj/min 31.5 blk/min 0.2 abiHit 51 supHit 74 | hard 1/1 sovereign 4/5 expert 8/8 self 4/10 easy 3/3 hard x3 1/3 summoner 2/2 expert x2 1/2 idle 2/2 medium 1/1 | roll 1.4s upd 6329.0s
+[brain] worker 0 failed (Attempted to use detached Frame '0AE0D94B191B789B53FFB1640AB338B9'.); relaunching
+[brain] worker 1 failed (Attempted to use detached Frame 'AA410CA2B9C8EAF801FFD215EC9EDEC7'.); relaunching
+[brain] worker 2 failed (Attempted to use detached Frame '3402B7A02B276FADE30D2EBF2B634FF6'.); relaunching
+[brain] worker 1 relaunch failed: Navigation timeout of 90000 ms exceeded
+[brain] worker 0 relaunch failed: Navigation timeout of 90000 ms exceeded
+[brain] worker 2 relaunch failed: Navigation timeout of 90000 ms exceeded
+[brain] worker 2 relaunch failed: Navigation timeout of 90000 ms exceeded
+[brain] worker 0 relaunch failed: Navigation timeout of 90000 ms exceeded
+[brain] worker 1 relaunch failed: Navigation timeout of 90000 ms exceeded
+[brain] worker 2 relaunch failed: Timed out after 30000 ms while waiting for the WS endpoint URL to appear in stdo
+[brain] worker 0 relaunch failed: Timed out after 30000 ms while waiting for the WS endpoint URL to appear in stdo
+[brain] worker 1 relaunch failed: Timed out after 30000 ms while waiting for the WS endpoint URL to appear in stdo
+[brain] no worker returned data this iteration
+[brain] worker 0 failed (Attempted to use detached Frame '0AE0D94B191B789B53FFB1640AB338B9'.); relaunching
+[brain] worker 1 failed (Attempted to use detached Frame 'AA410CA2B9C8EAF801FFD215EC9EDEC7'.); relaunching
+[brain] worker 2 failed (Attempted to use detached Frame '3402B7A02B276FADE30D2EBF2B634FF6'.); relaunching
+[brain] worker 0 relaunch failed: Timed out after 30000 ms while waiting for the WS endpoint URL to appear in stdo
+[brain] worker 1 relaunch failed: Timed out after 30000 ms while waiting for the WS endpoint URL to appear in stdo
+[brain] worker 2 relaunch failed: Timed out after 30000 ms while waiting for the WS endpoint URL to appear in stdo
+[brain] worker 0 relaunch failed: Timed out after 30000 ms while waiting for the WS endpoint URL to appear in stdo
+[brain] worker 2 relaunch failed: Timed out after 30000 ms while waiting for the WS endpoint URL to appear in stdo
+[brain] worker 1 relaunch failed: Timed out after 30000 ms while waiting for the WS endpoint URL to appear in stdo
+[brain] worker 1 relaunch failed: Timed out after 30000 ms while waiting for the WS endpoint URL to appear in stdo
+[brain] worker 0 relaunch failed: Timed out after 30000 ms while waiting for the WS endpoint URL to appear in stdo
+[brain] worker 2 relaunch failed: Timed out after 30000 ms while waiting for the WS endpoint URL to appear in stdo
+[brain] no worker returned data this iteration
+[brain] worker 0 failed (Attempted to use detached Frame '0AE0D94B191B789B53FFB1640AB338B9'.); relaunching
+[brain] worker 1 failed (Attempted to use detached Frame 'AA410CA2B9C8EAF801FFD215EC9EDEC7'.); relaunching
+[brain] worker 2 failed (Attempted to use detached Frame '3402B7A02B276FADE30D2EBF2B634FF6'.); relaunching
+[brain] worker 2 relaunch failed: Timed out after 30000 ms while waiting for the WS endpoint URL to appear in stdo
+[brain] worker 1 relaunch failed: Timed out after 30000 ms while waiting for the WS endpoint URL to appear in stdo
+[brain] worker 0 relaunch failed: Timed out after 30000 ms while waiting for the WS endpoint URL to appear in stdo
+[brain] worker 1 relaunch failed: Timed out after 30000 ms while waiting for the WS endpoint URL to appear in stdo
+[brain] worker 0 relaunch failed: Timed out after 30000 ms while waiting for the WS endpoint URL to appear in stdo
+[brain] worker 1 relaunch failed: Timed out after 30000 ms while waiting for the WS endpoint URL to appear in stdo
+[brain] worker 0 relaunch failed: Timed out after 30000 ms while waiting for the WS endpoint URL to appear in stdo
+[brain] worker 2 relaunch failed: Target.setAutoAttach timed out. Increase the 'protocolTimeout' setting in launch
+[brain] worker 2 relaunch failed: Timed out after 30000 ms while waiting for the WS endpoint URL to appear in stdo
+[brain] no worker returned data this iteration
+[brain] worker 0 failed (Attempted to use detached Frame '0AE0D94B191B789B53FFB1640AB338B9'.); relaunching
+[brain] worker 1 failed (Attempted to use detached Frame 'AA410CA2B9C8EAF801FFD215EC9EDEC7'.); relaunching
+[brain] worker 2 failed (Attempted to use detached Frame '3402B7A02B276FADE30D2EBF2B634FF6'.); relaunching
+[brain] worker 0 relaunch failed: Timed out after 30000 ms while waiting for the WS endpoint URL to appear in stdo
+[brain] worker 2 relaunch failed: Timed out after 30000 ms while waiting for the WS endpoint URL to appear in stdo
+[brain] worker 1 relaunch failed: Timed out after 30000 ms while waiting for the WS endpoint URL to appear in stdo
+[brain] worker 2 relaunch failed: Timed out after 30000 ms while waiting for the WS endpoint URL to appear in stdo
+[brain] worker 0 relaunch failed: Timed out after 30000 ms while waiting for the WS endpoint URL to appear in stdo
+[brain] worker 1 relaunch failed: Timed out after 30000 ms while waiting for the WS endpoint URL to appear in stdo
+[brain] worker 2 relaunch failed: Timed out after 30000 ms while waiting for the WS endpoint URL to appear in stdo
+[brain] worker 1 relaunch failed: Timed out after 30000 ms while waiting for the WS endpoint URL to appear in stdo
+[brain] worker 0 relaunch failed: Timed out after 30000 ms while waiting for the WS endpoint URL to appear in stdo
+[brain] no worker returned data this iteration
+[brain] worker 0 failed (Attempted to use detached Frame '0AE0D94B191B789B53FFB1640AB338B9'.); relaunching
+[brain] worker 1 failed (Attempted to use detached Frame 'AA410CA2B9C8EAF801FFD215EC9EDEC7'.); relaunching
+[brain] worker 2 failed (Attempted to use detached Frame '3402B7A02B276FADE30D2EBF2B634FF6'.); relaunching
+[brain] worker 2 relaunch failed: Timed out after 30000 ms while waiting for the WS endpoint URL to appear in stdo
+[brain] worker 0 relaunch failed: Timed out after 30000 ms while waiting for the WS endpoint URL to appear in stdo
+[brain] worker 1 relaunch failed: Timed out after 30000 ms while waiting for the WS endpoint URL to appear in stdo
+[brain] worker 2 relaunch failed: Timed out after 30000 ms while waiting for the WS endpoint URL to appear in stdo
+[brain] worker 2 relaunch failed: Timed out after 30000 ms while waiting for the WS endpoint URL to appear in stdo
+[brain] worker 0 relaunch failed: Target.createTarget timed out. Increase the 'protocolTimeout' setting in launch/
+[brain] worker 1 relaunch failed: Target.createTarget timed out. Increase the 'protocolTimeout' setting in launch/
+[brain] worker 0 relaunch failed: Timed out after 30000 ms while waiting for the WS endpoint URL to appear in stdo
+[brain] worker 1 relaunch failed: Timed out after 30000 ms while waiting for the WS endpoint URL to appear in stdo
+[brain] no worker returned data this iteration
+[brain] worker 0 failed (Attempted to use detached Frame '0AE0D94B191B789B53FFB1640AB338B9'.); relaunching
+[brain] worker 1 failed (Attempted to use detached Frame 'AA410CA2B9C8EAF801FFD215EC9EDEC7'.); relaunching
+[brain] worker 2 failed (Attempted to use detached Frame '3402B7A02B276FADE30D2EBF2B634FF6'.); relaunching
+[brain] worker 2 relaunch failed: Timed out after 30000 ms while waiting for the WS endpoint URL to appear in stdo
+[brain] worker 1 relaunch failed: Timed out after 30000 ms while waiting for the WS endpoint URL to appear in stdo
+[brain] worker 0 relaunch failed: Timed out after 30000 ms while waiting for the WS endpoint URL to appear in stdo
+[brain] worker 1 relaunch failed: Timed out after 30000 ms while waiting for the WS endpoint URL to appear in stdo
+[brain] worker 2 relaunch failed: Timed out after 30000 ms while waiting for the WS endpoint URL to appear in stdo
+[brain] worker 0 relaunch failed: Timed out after 30000 ms while waiting for the WS endpoint URL to appear in stdo
+[brain] worker 1 relaunch failed: Timed out after 30000 ms while waiting for the WS endpoint URL to appear in stdo
+[brain] worker 2 relaunch failed: Timed out after 30000 ms while waiting for the WS endpoint URL to appear in stdo
+[brain] worker 0 relaunch failed: Timed out after 30000 ms while waiting for the WS endpoint URL to appear in stdo
+[brain] no worker returned data this iteration
+[brain] worker 0 failed (Attempted to use detached Frame '0AE0D94B191B789B53FFB1640AB338B9'.); relaunching
+[brain] worker 1 failed (Attempted to use detached Frame 'AA410CA2B9C8EAF801FFD215EC9EDEC7'.); relaunching
+[brain] worker 2 failed (Attempted to use detached Frame '3402B7A02B276FADE30D2EBF2B634FF6'.); relaunching
+[brain] worker 2 relaunch failed: Timed out after 30000 ms while waiting for the WS endpoint URL to appear in stdo
+[brain] worker 0 relaunch failed: Timed out after 30000 ms while waiting for the WS endpoint URL to appear in stdo
+[brain] worker 1 relaunch failed: Timed out after 30000 ms while waiting for the WS endpoint URL to appear in stdo
+[brain] worker 2 relaunch failed: Timed out after 30000 ms while waiting for the WS endpoint URL to appear in stdo
+[brain] worker 0 relaunch failed: Timed out after 30000 ms while waiting for the WS endpoint URL to appear in stdo
+[brain] worker 1 relaunch failed: Timed out after 30000 ms while waiting for the WS endpoint URL to appear in stdo
+[brain] worker 2 relaunch failed: Timed out after 30000 ms while waiting for the WS endpoint URL to appear in stdo
+[brain] worker 0 relaunch failed: Timed out after 30000 ms while waiting for the WS endpoint URL to appear in stdo
+[brain] worker 1 relaunch failed: Timed out after 30000 ms while waiting for the WS endpoint URL to appear in stdo
+[brain] no worker returned data this iteration
+[brain] worker 0 failed (Attempted to use detached Frame '0AE0D94B191B789B53FFB1640AB338B9'.); relaunching
+[brain] worker 1 failed (Attempted to use detached Frame 'AA410CA2B9C8EAF801FFD215EC9EDEC7'.); relaunching
+[brain] worker 2 failed (Attempted to use detached Frame '3402B7A02B276FADE30D2EBF2B634FF6'.); relaunching
+[brain] worker 0 relaunch failed: Timed out after 30000 ms while waiting for the WS endpoint URL to appear in stdo
+[brain] worker 1 relaunch failed: Timed out after 30000 ms while waiting for the WS endpoint URL to appear in stdo
+[brain] worker 2 relaunch failed: Timed out after 30000 ms while waiting for the WS endpoint URL to appear in stdo
+[brain] worker 1 relaunch failed: Timed out after 30000 ms while waiting for the WS endpoint URL to appear in stdo
+[brain] worker 0 relaunch failed: Timed out after 30000 ms while waiting for the WS endpoint URL to appear in stdo
+[brain] worker 2 relaunch failed: Timed out after 30000 ms while waiting for the WS endpoint URL to appear in stdo
+[brain] worker 0 relaunch failed: Timed out after 30000 ms while waiting for the WS endpoint URL to appear in stdo
+[brain] worker 2 relaunch failed: Timed out after 30000 ms while waiting for the WS endpoint URL to appear in stdo
+[brain] worker 1 relaunch failed: Timed out after 30000 ms while waiting for the WS endpoint URL to appear in stdo
+[brain] no worker returned data this iteration
+[brain] worker 0 failed (Attempted to use detached Frame '0AE0D94B191B789B53FFB1640AB338B9'.); relaunching
+[brain] worker 1 failed (Attempted to use detached Frame 'AA410CA2B9C8EAF801FFD215EC9EDEC7'.); relaunching
+[brain] worker 2 failed (Attempted to use detached Frame '3402B7A02B276FADE30D2EBF2B634FF6'.); relaunching
+[brain] worker 1 relaunch failed: Timed out after 30000 ms while waiting for the WS endpoint URL to appear in stdo
+[brain] worker 2 relaunch failed: Timed out after 30000 ms while waiting for the WS endpoint URL to appear in stdo
+[brain] worker 0 relaunch failed: Timed out after 30000 ms while waiting for the WS endpoint URL to appear in stdo
+[brain] worker 0 relaunch failed: Timed out after 30000 ms while waiting for the WS endpoint URL to appear in stdo
+[brain] worker 1 relaunch failed: Timed out after 30000 ms while waiting for the WS endpoint URL to appear in stdo
+[brain] worker 2 relaunch failed: Timed out after 30000 ms while waiting for the WS endpoint URL to appear in stdo
+[brain] worker 2 relaunch failed: Timed out after 30000 ms while waiting for the WS endpoint URL to appear in stdo
+[brain] worker 1 relaunch failed: Timed out after 30000 ms while waiting for the WS endpoint URL to appear in stdo
+[brain] worker 0 relaunch failed: Timed out after 30000 ms while waiting for the WS endpoint URL to appear in stdo
+[brain] no worker returned data this iteration
+[brain] worker 0 failed (Attempted to use detached Frame '0AE0D94B191B789B53FFB1640AB338B9'.); relaunching
+[brain] worker 1 failed (Attempted to use detached Frame 'AA410CA2B9C8EAF801FFD215EC9EDEC7'.); relaunching
+[brain] worker 2 failed (Attempted to use detached Frame '3402B7A02B276FADE30D2EBF2B634FF6'.); relaunching
+[brain] worker 2 relaunch failed: Timed out after 30000 ms while waiting for the WS endpoint URL to appear in stdo
+[brain] worker 0 relaunch failed: Timed out after 30000 ms while waiting for the WS endpoint URL to appear in stdo
+[brain] worker 1 relaunch failed: Timed out after 30000 ms while waiting for the WS endpoint URL to appear in stdo
+[brain] worker 0 relaunch failed: Timed out after 30000 ms while waiting for the WS endpoint URL to appear in stdo
+[brain] worker 1 relaunch failed: Timed out after 30000 ms while waiting for the WS endpoint URL to appear in stdo
+[brain] worker 2 relaunch failed: Timed out after 30000 ms while waiting for the WS endpoint URL to appear in stdo
+[brain] worker 0 relaunch failed: Timed out after 30000 ms while waiting for the WS endpoint URL to appear in stdo
+[brain] worker 2 relaunch failed: Timed out after 30000 ms while waiting for the WS endpoint URL to appear in stdo
+[brain] worker 1 relaunch failed: Timed out after 30000 ms while waiting for the WS endpoint URL to appear in stdo
+[brain] no worker returned data this iteration
+[brain] worker 0 failed (Attempted to use detached Frame '0AE0D94B191B789B53FFB1640AB338B9'.); relaunching
+[brain] worker 1 failed (Attempted to use detached Frame 'AA410CA2B9C8EAF801FFD215EC9EDEC7'.); relaunching
+[brain] worker 2 failed (Attempted to use detached Frame '3402B7A02B276FADE30D2EBF2B634FF6'.); relaunching
+[brain] worker 0 relaunch failed: Timed out after 30000 ms while waiting for the WS endpoint URL to appear in stdo
+[brain] worker 1 relaunch failed: Timed out after 30000 ms while waiting for the WS endpoint URL to appear in stdo
+[brain] worker 2 relaunch failed: Timed out after 30000 ms while waiting for the WS endpoint URL to appear in stdo
+[brain] worker 1 relaunch failed: Timed out after 30000 ms while waiting for the WS endpoint URL to appear in stdo
+[brain] worker 2 relaunch failed: Timed out after 30000 ms while waiting for the WS endpoint URL to appear in stdo
+[brain] worker 0 relaunch failed: Timed out after 30000 ms while waiting for the WS endpoint URL to appear in stdo
+[brain] worker 1 relaunch failed: Timed out after 30000 ms while waiting for the WS endpoint URL to appear in stdo
+[brain] worker 0 relaunch failed: Timed out after 30000 ms while waiting for the WS endpoint URL to appear in stdo
+[brain] worker 2 relaunch failed: Timed out after 30000 ms while waiting for the WS endpoint URL to appear in stdo
+[brain] no worker returned data this iteration
+[brain] worker 0 failed (Attempted to use detached Frame '0AE0D94B191B789B53FFB1640AB338B9'.); relaunching
+[brain] worker 1 failed (Attempted to use detached Frame 'AA410CA2B9C8EAF801FFD215EC9EDEC7'.); relaunching
+[brain] worker 2 failed (Attempted to use detached Frame '3402B7A02B276FADE30D2EBF2B634FF6'.); relaunching
+[brain] worker 0 relaunch failed: Timed out after 30000 ms while waiting for the WS endpoint URL to appear in stdo
+[brain] worker 1 relaunch failed: Timed out after 30000 ms while waiting for the WS endpoint URL to appear in stdo
+[brain] worker 2 relaunch failed: Timed out after 30000 ms while waiting for the WS endpoint URL to appear in stdo
+[brain] worker 0 relaunch failed: Timed out after 30000 ms while waiting for the WS endpoint URL to appear in stdo
+[brain] worker 1 relaunch failed: Timed out after 30000 ms while waiting for the WS endpoint URL to appear in stdo
+[brain] worker 2 relaunch failed: Timed out after 30000 ms while waiting for the WS endpoint URL to appear in stdo
+[brain] worker 0 relaunch failed: Timed out after 30000 ms while waiting for the WS endpoint URL to appear in stdo
+[brain] worker 1 relaunch failed: Timed out after 30000 ms while waiting for the WS endpoint URL to appear in stdo
+[brain] worker 2 relaunch failed: Timed out after 30000 ms while waiting for the WS endpoint URL to appear in stdo
+[brain] no worker returned data this iteration
+[brain] worker 0 failed (Attempted to use detached Frame '0AE0D94B191B789B53FFB1640AB338B9'.); relaunching
+[brain] worker 1 failed (Attempted to use detached Frame 'AA410CA2B9C8EAF801FFD215EC9EDEC7'.); relaunching
+[brain] worker 2 failed (Attempted to use detached Frame '3402B7A02B276FADE30D2EBF2B634FF6'.); relaunching
+[brain] worker 1 relaunch failed: Timed out after 30000 ms while waiting for the WS endpoint URL to appear in stdo
+[brain] worker 0 relaunch failed: Timed out after 30000 ms while waiting for the WS endpoint URL to appear in stdo
+[brain] worker 2 relaunch failed: Timed out after 30000 ms while waiting for the WS endpoint URL to appear in stdo
+[brain] worker 1 relaunch failed: Timed out after 30000 ms while waiting for the WS endpoint URL to appear in stdo
+[brain] worker 0 relaunch failed: Timed out after 30000 ms while waiting for the WS endpoint URL to appear in stdo
+[brain] worker 2 relaunch failed: Timed out after 30000 ms while waiting for the WS endpoint URL to appear in stdo
+[brain] worker 1 relaunch failed: Timed out after 30000 ms while waiting for the WS endpoint URL to appear in stdo
+[brain] worker 0 relaunch failed: Timed out after 30000 ms while waiting for the WS endpoint URL to appear in stdo
+[brain] worker 2 relaunch failed: Timed out after 30000 ms while waiting for the WS endpoint URL to appear in stdo
+[brain] no worker returned data this iteration
+[brain] worker 0 failed (Attempted to use detached Frame '0AE0D94B191B789B53FFB1640AB338B9'.); relaunching
+[brain] worker 1 failed (Attempted to use detached Frame 'AA410CA2B9C8EAF801FFD215EC9EDEC7'.); relaunching
+[brain] worker 2 failed (Attempted to use detached Frame '3402B7A02B276FADE30D2EBF2B634FF6'.); relaunching
+[brain] worker 1 relaunch failed: Timed out after 30000 ms while waiting for the WS endpoint URL to appear in stdo
+[brain] worker 0 relaunch failed: Timed out after 30000 ms while waiting for the WS endpoint URL to appear in stdo
+[brain] worker 2 relaunch failed: Timed out after 30000 ms while waiting for the WS endpoint URL to appear in stdo
+[brain] worker 2 relaunch failed: Timed out after 30000 ms while waiting for the WS endpoint URL to appear in stdo
+[brain] worker 0 relaunch failed: Timed out after 30000 ms while waiting for the WS endpoint URL to appear in stdo
+[brain] worker 1 relaunch failed: Timed out after 30000 ms while waiting for the WS endpoint URL to appear in stdo
+[brain] worker 2 relaunch failed: Navigation timeout of 90000 ms exceeded
+[brain] worker 1 relaunch failed: Navigation timeout of 90000 ms exceeded
+[brain] worker 0 relaunch failed: Navigation timeout of 90000 ms exceeded
+[brain] no worker returned data this iteration
+[brain] worker 0 failed (Attempted to use detached Frame '0AE0D94B191B789B53FFB1640AB338B9'.); relaunching
+[brain] worker 1 failed (Attempted to use detached Frame 'AA410CA2B9C8EAF801FFD215EC9EDEC7'.); relaunching
+[brain] worker 2 failed (Attempted to use detached Frame '3402B7A02B276FADE30D2EBF2B634FF6'.); relaunching
+[brain] worker 0 relaunch failed: Timed out after 30000 ms while waiting for the WS endpoint URL to appear in stdo
+[brain] worker 1 relaunch failed: Timed out after 30000 ms while waiting for the WS endpoint URL to appear in stdo
+[brain] worker 2 relaunch failed: Timed out after 30000 ms while waiting for the WS endpoint URL to appear in stdo
+[brain] worker 2 relaunch failed: Navigation timeout of 90000 ms exceeded
+[brain] worker 0 relaunch failed: Navigation timeout of 90000 ms exceeded
+[brain] worker 1 relaunch failed: Navigation timeout of 90000 ms exceeded
+[brain] no worker returned data this iteration
+[brain] it 2334 [league 57%] R/ep 10.09 ent 2.35 kl 0.007 | hit/swing 56% dj/min 29.3 blk/min 0.1 abiHit 88 supHit 68 | self 4/7 expert 8/9 medium 3/3 hard 3/3 sovereign 5/6 easy 3/3 idle 3/3 summoner 1/2 | roll 13.8s upd 213.6s
+[brain] it 2335 [league 57%] R/ep 7.64 ent 2.36 kl 0.008 | hit/swing 53% dj/min 33.9 blk/min 0.4 abiHit 71 supHit 69 | expert 8/8 self 6/14 medium 4/4 sovereign 2/4 expert x2 1/2 easy 3/3 idle 1/1 summoner 1/1 hard 1/1 | roll 12.3s upd 226.5s
+[brain] it 2336 [league 57%] R/ep 8.09 ent 2.43 kl 0.008 | hit/swing 50% dj/min 29.4 blk/min 0.2 abiHit 72 supHit 52 | easy 3/3 hard x3 0/3 expert 7/7 summoner 4/5 sovereign 4/6 hard 2/2 self 3/7 idle 1/1 | roll 13.7s upd 237.6s
+[brain] it 2337 [league 59%] R/ep 9.85 ent 2.29 kl 0.005 | hit/swing 62% dj/min 30.9 blk/min 0.4 abiHit 36 supHit 88 | expert 6/6 hard 2/2 self 8/15 hard x3 1/1 sovereign 3/4 easy 5/5 expert x2 3/3 idle 1/1 summoner 1/1 | roll 15.1s upd 276.2s
+[brain] it 2338 [league 59%] R/ep 5.91 ent 2.41 kl 0.006 | hit/swing 52% dj/min 34.3 blk/min 0.4 abiHit 50 supHit 82 | self 5/14 summoner 3/5 expert 10/11 sovereign 2/3 idle 1/1 expert x2 1/1 hard x3 0/1 | roll 16.7s upd 854.0s
+[brain] worker 0 failed (Attempted to use detached Frame '83D2A6561088F443940D53AF34E3F7B8'.); relaunching
+[brain] worker 1 failed (Attempted to use detached Frame 'C1674C92A6C05A2D40BDFAC1B9F9674E'.); relaunching
+[brain] worker 2 failed (Attempted to use detached Frame '4A11F1111C57308D727FCF563B72C84B'.); relaunching
+[brain] worker 0 relaunch failed: Timed out after 30000 ms while waiting for the WS endpoint URL to appear in stdo
+[brain] worker 2 relaunch failed: Timed out after 30000 ms while waiting for the WS endpoint URL to appear in stdo
+[brain] worker 1 relaunch failed: Timed out after 30000 ms while waiting for the WS endpoint URL to appear in stdo
+[brain] worker 0 relaunch failed: Timed out after 30000 ms while waiting for the WS endpoint URL to appear in stdo
+[brain] worker 2 relaunch failed: Timed out after 30000 ms while waiting for the WS endpoint URL to appear in stdo
+[brain] worker 1 relaunch failed: Timed out after 30000 ms while waiting for the WS endpoint URL to appear in stdo
+[brain] worker 0 relaunch failed: Timed out after 30000 ms while waiting for the WS endpoint URL to appear in stdo
+[brain] worker 2 relaunch failed: Timed out after 30000 ms while waiting for the WS endpoint URL to appear in stdo
+[brain] worker 1 relaunch failed: Timed out after 30000 ms while waiting for the WS endpoint URL to appear in stdo
+[brain] no worker returned data this iteration
+[brain] worker 0 failed (Attempted to use detached Frame '83D2A6561088F443940D53AF34E3F7B8'.); relaunching
+[brain] worker 1 failed (Attempted to use detached Frame 'C1674C92A6C05A2D40BDFAC1B9F9674E'.); relaunching
+[brain] worker 2 failed (Attempted to use detached Frame '4A11F1111C57308D727FCF563B72C84B'.); relaunching
+[brain] worker 0 relaunch failed: Timed out after 30000 ms while waiting for the WS endpoint URL to appear in stdo
+[brain] worker 1 relaunch failed: Timed out after 30000 ms while waiting for the WS endpoint URL to appear in stdo
+[brain] worker 2 relaunch failed: Timed out after 30000 ms while waiting for the WS endpoint URL to appear in stdo
+[brain] worker 2 relaunch failed: Timed out after 30000 ms while waiting for the WS endpoint URL to appear in stdo
+[brain] worker 0 relaunch failed: Timed out after 30000 ms while waiting for the WS endpoint URL to appear in stdo
+[brain] worker 1 relaunch failed: Timed out after 30000 ms while waiting for the WS endpoint URL to appear in stdo
+[brain] worker 1 relaunch failed: Navigation timeout of 90000 ms exceeded
+[brain] worker 2 relaunch failed: Navigation timeout of 90000 ms exceeded
+[brain] worker 0 relaunch failed: Navigation timeout of 90000 ms exceeded
+[brain] no worker returned data this iteration
+[brain] worker 0 failed (Attempted to use detached Frame '83D2A6561088F443940D53AF34E3F7B8'.); relaunching
+[brain] worker 1 failed (Attempted to use detached Frame 'C1674C92A6C05A2D40BDFAC1B9F9674E'.); relaunching
+[brain] worker 2 failed (Attempted to use detached Frame '4A11F1111C57308D727FCF563B72C84B'.); relaunching
+[brain] worker 2 relaunch failed: Navigation timeout of 90000 ms exceeded
+[brain] worker 1 relaunch failed: Navigation timeout of 90000 ms exceeded
+[brain] worker 0 relaunch failed: Navigation timeout of 90000 ms exceeded
+[brain] worker 2 relaunch failed: Navigation timeout of 90000 ms exceeded
+[brain] worker 0 relaunch failed: Navigation timeout of 90000 ms exceeded
+[brain] worker 1 relaunch failed: Navigation timeout of 90000 ms exceeded
+[brain] worker 2 relaunch failed: Timed out after 30000 ms while waiting for the WS endpoint URL to appear in stdo
+[brain] worker 1 relaunch failed: Timed out after 30000 ms while waiting for the WS endpoint URL to appear in stdo
+[brain] worker 0 relaunch failed: Timed out after 30000 ms while waiting for the WS endpoint URL to appear in stdo
+[brain] no worker returned data this iteration
+[brain] worker 0 failed (Attempted to use detached Frame '83D2A6561088F443940D53AF34E3F7B8'.); relaunching
+[brain] worker 1 failed (Attempted to use detached Frame 'C1674C92A6C05A2D40BDFAC1B9F9674E'.); relaunching
+[brain] worker 2 failed (Attempted to use detached Frame '4A11F1111C57308D727FCF563B72C84B'.); relaunching
+[brain] worker 0 relaunch failed: Timed out after 30000 ms while waiting for the WS endpoint URL to appear in stdo
+[brain] worker 2 relaunch failed: Timed out after 30000 ms while waiting for the WS endpoint URL to appear in stdo
+[brain] worker 1 relaunch failed: Timed out after 30000 ms while waiting for the WS endpoint URL to appear in stdo
+[brain] worker 0 relaunch failed: Timed out after 30000 ms while waiting for the WS endpoint URL to appear in stdo
+[brain] worker 1 relaunch failed: Timed out after 30000 ms while waiting for the WS endpoint URL to appear in stdo
+[brain] worker 2 relaunch failed: Timed out after 30000 ms while waiting for the WS endpoint URL to appear in stdo
+[brain] worker 1 relaunch failed: Timed out after 30000 ms while waiting for the WS endpoint URL to appear in stdo
+[brain] worker 0 relaunch failed: Timed out after 30000 ms while waiting for the WS endpoint URL to appear in stdo
+[brain] worker 2 relaunch failed: Timed out after 30000 ms while waiting for the WS endpoint URL to appear in stdo
+[brain] no worker returned data this iteration
+[brain] worker 0 failed (Attempted to use detached Frame '83D2A6561088F443940D53AF34E3F7B8'.); relaunching
+[brain] worker 1 failed (Attempted to use detached Frame 'C1674C92A6C05A2D40BDFAC1B9F9674E'.); relaunching
+[brain] worker 2 failed (Attempted to use detached Frame '4A11F1111C57308D727FCF563B72C84B'.); relaunching
+[brain] worker 1 relaunch failed: Timed out after 30000 ms while waiting for the WS endpoint URL to appear in stdo
+[brain] worker 2 relaunch failed: Timed out after 30000 ms while waiting for the WS endpoint URL to appear in stdo
+[brain] worker 0 relaunch failed: Timed out after 30000 ms while waiting for the WS endpoint URL to appear in stdo
+[brain] worker 0 relaunch failed: Timed out after 30000 ms while waiting for the WS endpoint URL to appear in stdo
+[brain] worker 2 relaunch failed: Timed out after 30000 ms while waiting for the WS endpoint URL to appear in stdo
+[brain] worker 1 relaunch failed: Timed out after 30000 ms while waiting for the WS endpoint URL to appear in stdo
+[brain] worker 0 relaunch failed: Timed out after 30000 ms while waiting for the WS endpoint URL to appear in stdo
+[brain] worker 1 relaunch failed: Timed out after 30000 ms while waiting for the WS endpoint URL to appear in stdo
+[brain] worker 2 relaunch failed: Timed out after 30000 ms while waiting for the WS endpoint URL to appear in stdo
+[brain] no worker returned data this iteration
+[brain] stopped at iteration 2338; saved to data/brain/
+[brain] server :8120, launching 3 workers
+[brain] resumed at iteration 2338, stage league
+[brain] it 2339 [league 58%] R/ep 8.59 ent 2.41 kl 0.009 | hit/swing 54% dj/min 31.3 blk/min 0.2 abiHit 71 supHit 62 | medium 3/3 expert x2 1/2 expert 9/11 self 4/10 easy 2/2 idle 2/2 sovereign 1/3 summoner 2/2 hard 1/1 hard x3 1/1 | roll 1.3s upd 17.4s
+[brain] it 2340 [league 60%] R/ep 8.76 ent 2.36 kl 0.007 | hit/swing 45% dj/min 31.9 blk/min 0.2 abiHit 92 supHit 64 | self 5/16 medium 2/2 sovereign 4/5 expert 6/6 hard x3 2/2 hard 3/3 easy 1/1 expert x2 1/1 | roll 1.5s upd 16.0s
+[brain] it 2341 [league 60%] R/ep 7.66 ent 2.25 kl 0.005 | hit/swing 58% dj/min 28.1 blk/min 0.2 abiHit 40 supHit 75 | sovereign 3/5 expert 9/10 self 4/13 summoner 3/4 idle 4/4 easy 1/1 expert x2 2/2 hard 1/1 | roll 1.4s upd 18.2s
+[brain] it 2342 [league 58%] R/ep 5.36 ent 2.31 kl 0.007 | hit/swing 56% dj/min 25.5 blk/min 0.2 abiHit 64 supHit 69 | expert 8/9 self 1/15 sovereign 2/4 hard 5/5 easy 2/2 idle 3/3 medium 1/1 expert x2 1/1 | roll 1.5s upd 15.9s
+[brain] it 2343 [league 59%] R/ep 9.86 ent 2.37 kl 0.007 | hit/swing 56% dj/min 34.2 blk/min 0.1 abiHit 46 supHit 73 | self 6/11 hard x3 2/3 sovereign 2/3 hard 2/2 summoner 4/4 expert 3/3 easy 4/4 medium 2/2 expert x2 0/1 idle 3/3 | roll 1.4s upd 16.6s
+[brain] it 2344 [league 60%] R/ep 6.24 ent 2.38 kl 0.006 | hit/swing 46% dj/min 31.6 blk/min 0.2 abiHit 65 supHit 72 | medium 3/3 sovereign 7/9 hard x3 0/2 hard 2/2 self 6/12 expert 4/5 summoner 4/4 easy 1/1 | roll 1.5s upd 16.8s
+[brain] it 2345 [league 60%] R/ep 7.07 ent 2.39 kl 0.007 | hit/swing 47% dj/min 35.3 blk/min 0.1 abiHit 69 supHit 67 | self 6/15 medium 5/5 hard 2/2 sovereign 2/3 expert 7/8 summoner 1/1 expert x2 2/2 easy 2/2 | roll 1.4s upd 19.1s
+[brain] it 2346 [league 62%] R/ep 4.81 ent 2.39 kl 0.007 | hit/swing 53% dj/min 32.5 blk/min 0.4 abiHit 63 supHit 68 | summoner 4/5 self 2/13 expert 8/8 sovereign 4/5 hard 1/1 expert x2 1/1 hard x3 1/2 easy 1/1 | roll 1.5s upd 16.1s
+[brain] it 2347 [league 63%] R/ep 12.63 ent 2.35 kl 0.007 | hit/swing 53% dj/min 33.1 blk/min 0.0 abiHit 52 supHit 80 | self 7/13 expert 9/9 hard x3 3/5 sovereign 3/3 medium 1/1 idle 1/1 easy 2/2 summoner 2/2 hard 1/1 expert x2 1/1 | roll 1.7s upd 17.3s
+[brain] it 2348 [league 63%] R/ep 6.86 ent 2.30 kl 0.006 | hit/swing 62% dj/min 29.0 blk/min 0.1 abiHit 46 supHit 66 | summoner 6/6 self 5/14 hard x3 0/1 expert 3/3 hard 2/2 idle 4/4 medium 1/1 sovereign 2/3 easy 2/2 | roll 1.5s upd 17.6s
+[brain] it 2349 [league 63%] R/ep 6.34 ent 2.44 kl 0.008 | hit/swing 40% dj/min 33.0 blk/min 0.0 abiHit 98 supHit 57 | self 2/10 expert 6/6 medium 4/4 sovereign 2/3 easy 1/1 hard 1/1 summoner 3/4 expert x2 1/1 idle 1/1 | roll 1.5s upd 22.1s
+[brain] it 2350 [league 64%] R/ep 9.20 ent 2.26 kl 0.007 | hit/swing 53% dj/min 28.5 blk/min 0.3 abiHit 52 supHit 82 | sovereign 3/5 summoner 2/2 expert 6/6 hard 5/5 self 5/13 expert x2 1/1 medium 1/1 easy 1/1 idle 2/2 hard x3 1/1 | roll 1.5s upd 17.1s
+[brain] it 2351 [league 66%] R/ep 3.33 ent 2.41 kl 0.006 | hit/swing 48% dj/min 32.1 blk/min 0.3 abiHit 48 supHit 64 | sovereign 5/9 self 6/17 expert 3/3 idle 2/2 hard 1/1 expert x2 2/2 medium 1/1 | roll 1.7s upd 18.3s
+[brain] it 2352 [league 67%] R/ep 5.10 ent 2.37 kl 0.007 | hit/swing 44% dj/min 31.8 blk/min 0.2 abiHit 89 supHit 65 | self 3/15 summoner 2/2 expert 7/7 easy 3/3 sovereign 2/2 medium 2/2 expert x2 2/3 hard 1/1 | roll 1.6s upd 17.9s
+[brain] it 2353 [league 69%] R/ep 5.79 ent 2.39 kl 0.006 | hit/swing 47% dj/min 35.3 blk/min 0.0 abiHit 65 supHit 81 | self 6/14 sovereign 4/6 medium 3/3 expert 7/8 hard 1/1 expert x2 1/2 idle 2/2 summoner 3/3 hard x3 0/1 | roll 1.8s upd 23.0s
+[brain] it 2354 [league 67%] R/ep 6.81 ent 2.41 kl 0.008 | hit/swing 50% dj/min 34.4 blk/min 0.2 abiHit 65 supHit 71 | idle 1/1 sovereign 7/11 expert x2 1/1 self 5/13 hard x3 1/1 summoner 2/2 expert 5/5 easy 1/1 hard 1/1 | roll 1.9s upd 26.6s
+[brain] it 2355 [league 68%] R/ep 8.48 ent 2.37 kl 0.006 | hit/swing 45% dj/min 31.5 blk/min 0.4 abiHit 92 supHit 65 | sovereign 6/8 self 7/13 easy 1/1 hard 1/1 expert x2 2/3 expert 5/5 summoner 2/3 | roll 1.8s upd 24.5s
+[brain] it 2356 [league 67%] R/ep 10.78 ent 2.38 kl 0.008 | hit/swing 60% dj/min 31.4 blk/min 0.5 abiHit 69 supHit 81 | summoner 3/3 expert 9/9 medium 4/4 self 5/10 hard x3 1/2 expert x2 2/2 easy 2/2 sovereign 2/4 hard 1/1 | roll 1.7s upd 30.5s
+[brain] it 2357 [league 66%] R/ep 10.06 ent 2.37 kl 0.005 | hit/swing 54% dj/min 32.7 blk/min 0.0 abiHit 48 supHit 78 | sovereign 3/6 summoner 4/4 expert 11/11 self 6/10 hard 3/3 hard x3 1/1 expert x2 1/1 | roll 2.1s upd 31.3s
+[brain] it 2358 [league 67%] R/ep 6.94 ent 2.27 kl 0.008 | hit/swing 63% dj/min 32.8 blk/min 0.0 abiHit 22 supHit 75 | hard 1/1 easy 3/3 sovereign 5/7 expert 5/6 self 7/14 summoner 1/2 expert x2 1/2 medium 1/1 idle 1/1 hard x3 1/1 | roll 1.8s upd 20.0s
+[brain] it 2359 [league 67%] R/ep 8.56 ent 2.37 kl 0.006 | hit/swing 49% dj/min 32.2 blk/min 0.1 abiHit 75 supHit 67 | expert 6/6 self 4/9 medium 2/2 summoner 3/3 idle 1/1 sovereign 5/8 hard 4/4 hard x3 1/2 expert x2 1/1 easy 1/1 | roll 1.7s upd 28.2s
+[brain] it 2360 [league 70%] R/ep 10.88 ent 2.29 kl 0.008 | hit/swing 52% dj/min 27.3 blk/min 0.3 abiHit 98 supHit 90 | expert x2 3/3 idle 3/3 summoner 3/4 self 5/11 sovereign 7/7 medium 2/2 hard 1/1 hard x3 1/2 expert 3/3 easy 1/1 | roll 1.7s upd 22.0s
+[brain] it 2361 [league 68%] R/ep 9.74 ent 2.37 kl 0.007 | hit/swing 50% dj/min 30.4 blk/min 0.1 abiHit 112 supHit 69 | hard 2/2 expert 9/11 sovereign 4/6 self 3/7 summoner 2/2 medium 3/3 expert x2 2/2 idle 1/1 easy 1/1 | roll 1.5s upd 19.9s
+[brain] it 2362 [league 67%] R/ep 4.41 ent 2.48 kl 0.008 | hit/swing 52% dj/min 38.0 blk/min 0.1 abiHit 46 supHit 58 | expert x2 2/3 self 5/12 sovereign 3/6 expert 7/8 summoner 3/3 hard x3 0/2 hard 1/1 | roll 1.7s upd 19.3s
+[brain] it 2363 [league 67%] R/ep 10.93 ent 2.41 kl 0.005 | hit/swing 52% dj/min 32.2 blk/min 0.0 abiHit 75 supHit 59 | expert 6/6 sovereign 4/6 medium 1/1 self 7/9 hard x3 2/3 summoner 2/2 idle 1/1 hard 1/1 | roll 2.1s upd 19.7s
+[brain] it 2364 [league 65%] R/ep 5.14 ent 2.45 kl 0.006 | hit/swing 45% dj/min 35.1 blk/min 0.1 abiHit 65 supHit 70 | expert 7/7 easy 2/2 self 4/14 idle 1/1 expert x2 1/1 hard 2/2 sovereign 4/8 summoner 1/2 | roll 1.7s upd 20.7s
+[brain] it 2365 [league 69%] R/ep 6.47 ent 2.31 kl 0.007 | hit/swing 57% dj/min 33.8 blk/min 0.4 abiHit 43 supHit 91 | hard 3/3 easy 1/1 expert 3/3 self 11/19 sovereign 8/10 hard x3 0/1 idle 3/3 summoner 1/2 medium 1/1 | roll 2.0s upd 25.9s
+[brain] it 2366 [league 67%] R/ep 8.14 ent 2.35 kl 0.007 | hit/swing 49% dj/min 34.0 blk/min 0.3 abiHit 54 supHit 74 | hard 1/1 self 5/11 expert 12/13 sovereign 2/4 idle 1/1 medium 1/1 expert x2 2/2 easy 1/1 hard x3 0/1 | roll 1.8s upd 21.1s
+[brain] it 2367 [league 65%] R/ep 7.59 ent 2.30 kl 0.007 | hit/swing 58% dj/min 33.7 blk/min 0.1 abiHit 30 supHit 95 | self 7/17 expert 9/9 summoner 5/5 sovereign 2/4 hard x3 1/1 medium 1/1 idle 2/2 easy 4/4 expert x2 1/1 hard 1/1 | roll 1.6s upd 18.9s
+[brain] it 2368 [league 66%] R/ep 5.72 ent 2.42 kl 0.009 | hit/swing 48% dj/min 34.4 blk/min 0.0 abiHit 39 supHit 73 | self 6/12 idle 2/2 sovereign 5/9 expert 2/3 medium 2/2 summoner 2/2 hard x3 1/2 expert x2 1/1 easy 1/1 hard 1/1 | roll 2.8s upd 27.4s
+[brain] it 2369 [league 65%] R/ep 11.08 ent 2.41 kl 0.009 | hit/swing 45% dj/min 36.0 blk/min 0.1 abiHit 97 supHit 63 | expert 8/8 self 4/9 summoner 1/1 idle 3/3 hard x3 1/3 medium 1/1 expert x2 2/2 hard 2/2 sovereign 0/1 | roll 1.8s upd 35.5s
+[brain] it 2370 [league 64%] R/ep 6.89 ent 2.37 kl 0.007 | hit/swing 53% dj/min 29.5 blk/min 0.2 abiHit 73 supHit 64 | self 3/15 idle 5/5 sovereign 2/3 expert x2 3/3 expert 6/7 medium 2/2 summoner 1/1 hard 1/1 easy 1/1 | roll 2.3s upd 45.6s
+[brain] it 2371 [league 62%] R/ep 9.60 ent 2.35 kl 0.007 | hit/swing 57% dj/min 33.6 blk/min 0.1 abiHit 51 supHit 85 | self 6/10 expert 7/7 idle 4/4 expert x2 2/2 easy 1/1 sovereign 4/8 hard x3 1/1 hard 1/1 summoner 3/3 medium 2/2 | roll 5.9s upd 38.8s
+[brain] it 2372 [league 63%] R/ep 6.88 ent 2.29 kl 0.008 | hit/swing 51% dj/min 31.9 blk/min 0.1 abiHit 57 supHit 89 | medium 1/1 hard 1/1 self 9/21 expert 5/5 summoner 5/5 easy 1/1 expert x2 2/2 sovereign 4/4 hard x3 0/1 idle 1/1 | roll 2.0s upd 34.0s
+[brain] SIGINT: finishing this iteration then saving
+[brain] it 2373 [league 63%] R/ep 10.85 ent 2.34 kl 0.007 | hit/swing 58% dj/min 30.9 blk/min 0.2 abiHit 75 supHit 73 | self 3/8 expert x2 2/2 sovereign 1/2 expert 8/8 hard 1/1 summoner 5/5 idle 1/1 easy 2/2 hard x3 1/2 medium 1/1 | roll 1.8s upd 24.6s
+[brain] stopped at iteration 2373; saved to data/brain/

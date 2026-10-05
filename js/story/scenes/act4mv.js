@@ -915,7 +915,8 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
   // Null: 847 catalogued beings, 4,200 years, and Kael is the first structural
   // error. Staged flat and symmetrical — it is a machine describing a fault.
   S[105] = {
-    bg: 'space',
+    // Where the Erasure Protocol stopped, by the Dimensional Anchor (ch104)
+    bg: 'level', level: { ch: 104, x: 4150 },
     npcColor: '#9900cc',
     beats: [
       {
@@ -1085,7 +1086,8 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
   // ── Chapter 110 — The Pull (6 beats) ────────────────────────────────────────
   // The fragment leans toward Seraph like water toward a drain.
   S[110] = {
-    bg: 'ice',
+    // The centre of the expanse, at the rim of Seraph's bowl (ch112)
+    bg: 'level', level: { ch: 112, x: 2800 },
     npcColor: '#00aacc',
     beats: [
       {
@@ -1178,7 +1180,8 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
   // ── Chapter 116 — The Blind Spot (6 beats) ──────────────────────────────────
   // VAEL has been first through every door — and cannot see Kael at all.
   S[116] = {
-    bg: 'ice',
+    // Where the three temporal layers meet (ch118)
+    bg: 'level', level: { ch: 118, x: 3000 },
     npcColor: '#0055ff',
     beats: [
       {
@@ -1394,7 +1397,8 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
 
   // ── Chapter 125: The Architecture of the Lie ─────────────────────────────────
   S[125] = {
-    bg: 'fracture',
+    // The fracture boundary, by the figure's traces (ch123)
+    bg: 'level', level: { ch: 123, x: 3000 },
     npcColor: '#8855aa',
     beats: [
       {

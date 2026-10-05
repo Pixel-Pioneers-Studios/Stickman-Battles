@@ -19,6 +19,13 @@
  * Usage:
  *   node tools/sov-discover.js --lineages=5 --matches=600
  *   node tools/sov-discover.js --worker --lineage=0 --matches=600 --port=8600 --out=DIR
+ *   node tools/sov-discover.js --pairs --lineages=5 --matches=1600
+ *
+ * --pairs: WEAPON BLOCKS. Instead of choosing, he holds one weapon for a block of
+ * matches and cycles every class under it, then moves to the next weapon. The
+ * open picker scores weapon and class separately; this is the only run that
+ * measures them TOGETHER (the arsenal's `combo` table), which is what
+ * _pickOpenLoadout needs to choose a class for the weapon it just chose.
  */
 const { spawn } = require('child_process');
 const http = require('http');
@@ -44,7 +51,7 @@ if (!args.worker) {
   const t0 = Date.now();
   Promise.all(Array.from({ length: LINEAGES }, (_, i) => new Promise(resolve => {
     const p = spawn('node', [__filename, '--worker', `--lineage=${i}`, `--matches=${MATCHES}`,
-                             `--port=${BASEPORT + i}`, `--out=${out}`, `--flags=${FLAGS.join(',')}`],
+                             `--port=${BASEPORT + i}`, `--out=${out}`, `--flags=${FLAGS.join(',')}`].concat(args.pairs ? ['--pairs'] : []),
                     { cwd: ROOT, stdio: ['ignore', 'pipe', 'pipe'] });
     let tail = '';
     p.stdout.on('data', d => { const s = String(d); if (/lineage \d+ (at|done)/.test(s)) process.stdout.write(s); });
@@ -105,7 +112,7 @@ const MIME = { '.html':'text/html','.js':'text/javascript','.css':'text/css','.j
 
   for (let done = 0; done < MATCHES; done += BATCH) {
     const n = Math.min(BATCH, MATCHES - done);
-    await page.evaluate((start, n) => {
+    await page.evaluate((start, n, pairs, total, lineage) => {
       // Opponents cycle through every legal weapon so no kit is under-sampled;
       // class is random. Stock stats, full AI, no policy (see `opp` in _runMatch).
       // Opponents a real Sovereign fight can contain: ranged weapons and the
@@ -113,13 +120,23 @@ const MIME = { '.html':'text/html','.js':'text/javascript','.css':'text/css','.j
       const W = WEAPON_KEYS.filter(k => WEAPONS[k] && WEAPONS[k].type !== 'ranged');
       const C = Object.keys(CLASSES).filter(k => k !== 'megaknight' && k !== 'gunner' && k !== 'archer');
       const P = SovereignMK2.prototype, origPick = P._pickOpenLoadout;
-      let picked;
-      P._pickOpenLoadout = function () { const lo = origPick.apply(this, arguments); picked = lo; return lo; };
+      let picked, forced = null;
+      P._pickOpenLoadout = function () {
+        const lo = forced ? { key: forced.w + '|' + forced.c, wk: forced.w, cls: forced.c === 'none' ? null : forced.c,
+                              clsKey: forced.c, fin: null, open: true } : origPick.apply(this, arguments);
+        picked = lo; return lo;
+      };
+      // Every lineage walks the weapons in the same block order but starts its
+      // class cycle at a different offset, so pooled lineages cover each pair.
+      const SW = WEAPON_KEYS.filter(k => WEAPONS[k] && WEAPONS[k].type !== 'ranged');
+      const SC = Object.keys(CLASSES).filter(k => k !== 'megaknight');
+      const block = Math.max(1, Math.floor(total / SW.length));
       try {
         for (let i = 0; i < n; i++) {
           const m = start + i;
           const opp = { w: W[m % W.length], c: C[Math.floor(Math.random() * C.length)] };
           picked = null;
+          forced = pairs ? { w: SW[Math.floor(m / block) % SW.length], c: SC[(m + lineage * 3) % SC.length] } : null;
           const r = SMK2Trainer.runMatch(null, 1, (m + 1) * 7919, { duel: true, noBuff: true, opp });
           window.__discHist.push({
             m, ow: opp.w, oc: opp.c, w: picked && picked.wk, c: picked && (picked.clsKey || 'none'),
@@ -128,7 +145,7 @@ const MIME = { '.html':'text/html','.js':'text/javascript','.css':'text/css','.j
           });
         }
       } finally { P._pickOpenLoadout = origPick; }
-    }, done, n);
+    }, done, n, !!args.pairs, MATCHES, LINEAGE);
     console.log(`lineage ${LINEAGE} at ${done + n}/${MATCHES}`);
   }
 

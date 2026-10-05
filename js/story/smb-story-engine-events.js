@@ -215,7 +215,7 @@ function _handleBuiltinEvent(name, data) {
       if (tfCard) tfCard.style.display = '';
       _showMidFightUnlock({
         icon: '👁',
-        name: 'True Form Unlocked',
+        name: 'Cosmic Axiom Unlocked',
         desc: 'Something beyond the Creator.\nFind the letters hidden in the arenas.',
         color: '#cc88ff',
       });

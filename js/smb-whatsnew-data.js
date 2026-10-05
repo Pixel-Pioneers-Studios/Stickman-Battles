@@ -44,7 +44,7 @@ window.WHATS_NEW = {
   {
    "kind": "boss",
    "arg": "trueform",
-   "label": "True Form fight",
+   "label": "Cosmic Axiom fight",
    "why": "js/boss/smb-trueform-attacks.js"
   },
   {
@@ -326,7 +326,7 @@ window.WHATS_NEW = {
   {
    "kind": "story",
    "arg": 150,
-   "label": "Ch 150 — True Form",
+   "label": "Ch 150 — Cosmic Axiom",
    "why": "story"
   },
   {

@@ -108,7 +108,7 @@ STORY_CHAPTER_REGISTRY.push(
     strippedPowers: true,
     tokenReward:    150,
     blueprintDrop:  null,
-    postText: 'The vessel collapsed. Not destroyed — resolved, the same way the True Form resolved. It was never trying to survive. It was trying to get an accurate answer. The Void Mind has one now. You crossed the substrate floor, stripped of every borrowed power, and you won. Not because the fragment carried you. Not because God\'s essence steadied your hand. Because the person who fell out of the alley fourteen acts ago, who was afraid and untrained and had nothing, became this. The Void Mind recorded it. The fragment came back online. Everything came back online. But something underneath it was different now. You knew what it felt like to fight with only yourself. And you knew what was there.',
+    postText: 'The vessel collapsed. Not destroyed — resolved, the same way Cosmic Axiom resolved. It was never trying to survive. It was trying to get an accurate answer. The Void Mind has one now. You crossed the substrate floor, stripped of every borrowed power, and you won. Not because the fragment carried you. Not because God\'s essence steadied your hand. Because the person who fell out of the alley fourteen acts ago, who was afraid and untrained and had nothing, became this. The Void Mind recorded it. The fragment came back online. Everything came back online. But something underneath it was different now. You knew what it felt like to fight with only yourself. And you knew what was there.',
   },
 
 );

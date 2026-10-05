@@ -1,7 +1,7 @@
 // Grid contact sheet of every rendered sprite, each cell scaled so the sprite
 // fills it — so a tall sprite and a thin one are judged at comparable size.
 const fs=require('fs'),path=require('path');
-const pptr=require('/Users/aarushgupta/Documents/Stickman-Battles/node_modules/puppeteer');
+const pptr=require('/Users/aarushgupta/Developer/Personal/Stickman-Battles/node_modules/puppeteer');
 const dir=process.argv[2];
 const keys=process.argv.slice(3).length?process.argv.slice(3)
   :fs.readdirSync(dir).filter(f=>f.endsWith('.png')).map(f=>f.replace('.png',''));

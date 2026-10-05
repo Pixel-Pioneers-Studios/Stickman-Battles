@@ -31,6 +31,16 @@ window.SMK2_TUNE = window.SMK2_TUNE || { openGate: true, pressureDecay: true, lo
   // descentRecord). false must be fully inert: the gate returns before
   // touching SovHabits, vy, vx or attack at all.
   habitDescent: true,
+  // Move book (js/smb-sov-combo.js, data js/smb-sov-movebook.js). comboRoutes:
+  // after a hit lands, choose the follow-up the lab found links true. counterBook:
+  // three frames into an opponent's move, choose the measured answer to it.
+  // false must be fully inert: _moveBookStep returns before touching anything.
+  comboRoutes: false,
+  counterBook: false,
+  // Routes may spend ability and super (see SovMoves.routeAvail).
+  routeSpend: true,
+  // Choose the class for the weapon already chosen (see _pickOpenLoadout).
+  pairedClass: false,
   // descentDamage: C2 also weighs each arm's net damage, not only who opened
   // first (see SovHabits.descentArm). OFF: 160 matched pairs vs the human proxy
   // read kills -0.15 (t=-1.72). The proxy does not reproduce the player's descent
@@ -43,6 +53,11 @@ window.SMK2_TUNE = window.SMK2_TUNE || { openGate: true, pressureDecay: true, lo
   // unconditional air approach. airDenyAt is net health per attempt — the
   // approach is vetoed once it costs him more than this.
   tacticLedger: true, airDenyAt: -4, tacticExplore: 0.2,
+  // One-strike scars (see _scarTick): a method that let the opponent open on him
+  // once is barred against that opponent for the rest of the match, with no
+  // exploration. false must be fully inert. scarAir/scarChase/scarDescent/
+  // scarSwing switch single channels off for measurement.
+  scars: true,
   // swingHold: _swingGate drops a swing whose cell nets below swingHoldAt per
   // try even when guarding there is no better (see _swingGate).
   swingHold: true, swingHoldAt: -8,
@@ -68,6 +83,10 @@ window.SMK2_TUNE = window.SMK2_TUNE || { openGate: true, pressureDecay: true, lo
   // only mechanism yet built that moves match outcomes at all, and because
   // bait_whiff_punish beat parry_wall in 4 of 4 independent runs.
   tacticPlans: false, planHold: 90, planExplore: 0.2, planSteer: false,
+  // planGamble: run the plan layer as a gambler (see _gambleTick) instead of the
+  // epsilon-greedy hold above. Independent of tacticPlans, so an A/B on this flag
+  // alone compares against the shipped game.
+  planGamble: false,
   baitPunisher: false, baitMinHits: 8, baitRate: 0.5,
   // Start the adaptation dials low instead of hand-set near ceiling.
   freshDials: false, freshLevel: 0.45, dialProbe: false,
@@ -651,6 +670,9 @@ class SovereignMK2 extends AdaptiveAI {
     this._airDenyX      = null;  // redirect landing x, null = no redirect available
     this._armorApproach = false; // raise the guard on this descent
     this._armorHold     = 0;     // frames to keep it up through landing recovery
+    this._scarBook      = new Map();  // target -> { air:Set, chase, descent:Set, swing:Set } (match-scoped)
+    this._scarWatch     = [];         // open windows: what he is doing that a hit would indict
+    this._scarLog       = [];
 
     // ── Endlag Punish Window ───────────────────────────────────────
     this._endlagWindow        = 0;    // frames remaining in opponent's post-swing recovery
@@ -1131,7 +1153,7 @@ class SovereignMK2 extends AdaptiveAI {
     // ── THE BUILD, not the weapon and the habit separately ───────────────────
     // kitKey is weapon/class and behKey is the archetype, and they were filed as
     // two INDEPENDENT records that loadoutPrior then averages. So "aggressive
-    // Thor" and "passive Thor" were the same memory: he learned "vs Thor" and
+    // Torren" and "passive Torren" were the same memory: he learned "vs Torren" and
     // "vs rusher" in isolation and blended them, which is exactly the pair of
     // marginals that cannot represent an interaction. A build whose weapon says
     // one thing and whose behaviour says another is the case worth learning.
@@ -2844,7 +2866,7 @@ class SovereignMK2 extends AdaptiveAI {
 
   // Estimate the target's CURRENT outgoing damage multiplier from live buff
   // fields. This is how Sovereign knows a 22-base crescent is about to hit for
-  // the 45%-max-HP cap: Kratos rage (+1%/stack), Spartan Rage (+30%), map
+  // the 45%-max-HP cap: Varek rage (+1%/stack), Spartan Rage (+30%), map
   // power buff (+35%), and any flat dmgMult all compound in dealDamage.
   _targetDamageMult(t) {
     if (!t) return 1;
@@ -3858,6 +3880,7 @@ class SovereignMK2 extends AdaptiveAI {
   // death inside the window priced as the maximum a decision can cost.
   _planTick() {
     const TUNE = (typeof SMK2_TUNE !== 'undefined' && SMK2_TUNE) || {};
+    if (TUNE.planGamble) { this._gambleTick(); return; }
     if (TUNE.tacticPlans === false) { this._activePlan = null; return; }
     if (typeof isCinematic !== 'undefined' && isCinematic) return;
     if (this.health <= 0) { this._activePlan = null; return; }
@@ -3903,6 +3926,89 @@ class SovereignMK2 extends AdaptiveAI {
       };
     }
     this._executeTactic(this._activePlan.name, t);
+  }
+
+  // ── GAMBLER — the plan layer without the hedge ────────────────────────────
+  // The epsilon-greedy layer above holds every plan for a fixed 1.5s and spends a
+  // fifth of its choices at random, so inside one match it never stays on a read
+  // long enough to profit from it. Here he bets: open on pressure, keep a plan for
+  // as long as it wins exchanges, drop it the moment it has lost more than it won.
+  //
+  // An exchange is an OPENER — the first hit after 60 quiet frames — so a combo
+  // books once, not once per hit, and a trade (both hit inside the frame) books
+  // nothing. The bet is judged on a decaying score, not a running tally: a tally
+  // lets an early streak carry a plan the opponent has since solved for the rest
+  // of the match. At 0.6 decay a fresh bet dies on its first loss and an
+  // established one on two in a row. A plan dropped twice without winning a single exchange is burned for
+  // the match. If every plan burns, the burns clear: a plan layer with nothing
+  // left to choose is the idle-boss failure.
+  _gambleTick() {
+    if (typeof isCinematic !== 'undefined' && isCinematic) return;
+    const t = this.target;
+    if (this.health <= 0 || !t || t.health <= 0) return;
+    const _fc = (typeof frameCount !== 'undefined') ? frameCount : 0;
+    let G = this._gamble;
+    if (!G) G = this._gamble = { burned: {}, dropped: {}, won: {}, lost: {}, lastEx: -9999, switches: 0, lineAt: -9999 };
+    if (G.tgt !== t) {
+      G.tgt = t; G.hp = this.health; G.lives = this.lives; G.tHp = t.health; G.tLives = t.lives;
+    }
+    const hitMe   = this.lives !== G.lives  || this.health < G.hp;
+    const hitThem = t.lives    !== G.tLives || t.health    < G.tHp;
+    let outcome = 0;
+    if ((hitMe || hitThem) && _fc - G.lastEx > 60) outcome = hitThem ? (hitMe ? 0 : 1) : -1;
+    if (hitMe || hitThem) G.lastEx = _fc;
+    G.hp = this.health; G.lives = this.lives; G.tHp = t.health; G.tLives = t.lives;
+
+    let B = this._activePlan;
+    if (!B || !B.gamble) B = this._openBet('pressure_ground', t);
+    if (outcome !== 0) B.score = B.score * 0.6 + outcome;
+    if (outcome > 0) {
+      B.wins++; G.won[B.name] = (G.won[B.name] || 0) + 1;
+    } else if (outcome < 0) {
+      B.losses++; G.lost[B.name] = (G.lost[B.name] || 0) + 1;
+      if (B.score < 0) {
+        if (B.wins === 0 && (G.dropped[B.name] = (G.dropped[B.name] || 0) + 1) >= 2) G.burned[B.name] = true;
+        B = this._openBet(this._nextBet(B.name), t);
+      }
+    }
+    this._executeTactic(B.name, t);
+  }
+
+  // Untried plans first, in library order; after that the best record this match.
+  // The plan just dropped is never re-picked while anything else is available.
+  _nextBet(dropped) {
+    const G = this._gamble;
+    const lib = this._planLibrary();
+    let pool = lib.filter(n => !G.burned[n]);
+    if (!pool.length) { G.burned = {}; G.dropped = {}; pool = lib.slice(); }
+    const others = pool.filter(n => n !== dropped);
+    if (others.length) pool = others;
+    const untried = pool.filter(n => !G.won[n] && !G.lost[n]);
+    if (untried.length) return untried[0];
+    let best = pool[0], bestV = -Infinity;
+    for (const n of pool) {
+      const w = G.won[n] || 0, l = G.lost[n] || 0;
+      const v = (w - l) / (w + l + 1);
+      if (v > bestV) { bestV = v; best = n; }
+    }
+    return best;
+  }
+
+  _openBet(name, t) {
+    const G = this._gamble;
+    const _fc = (typeof frameCount !== 'undefined') ? frameCount : 0;
+    const prev = this._activePlan;
+    this._activePlan = { name, gamble: true, frame: _fc, wins: 0, losses: 0, score: 0, tgt: t };
+    if (prev && prev.gamble) G.switches++;
+    // Spoken only to a human, only on a real switch, at most every 10 seconds.
+    if (prev && prev.gamble && t && t.isAI === false && _fc - G.lineAt > 600 &&
+        typeof SMK2_GAMBLE_LINES !== 'undefined' && SMK2_GAMBLE_LINES[name] &&
+        typeof showBossDialogue === 'function') {
+      G.lineAt = _fc;
+      const pool = SMK2_GAMBLE_LINES[name];
+      showBossDialogue(pool[Math.floor(Math.random() * pool.length)], 180);
+    }
+    return this._activePlan;
   }
 
   // The executor the tactic library always assumed existed. Steering only.
@@ -3952,7 +4058,7 @@ class SovereignMK2 extends AdaptiveAI {
     const P = this._activePlan;
     if (!P || !t || t.health <= 0) return false;
     const TUNE = (typeof SMK2_TUNE !== 'undefined' && SMK2_TUNE) || {};
-    if (TUNE.tacticPlans === false) return false;
+    if (TUNE.tacticPlans === false && !TUNE.planGamble) return false;
     if (this._targetHelpless(t)) return false;     // free damage is never refused
     const reach = (this.weapon && this.weapon.range) || 90;
     const d = Math.abs(t.cx() - this.cx());
@@ -4043,6 +4149,7 @@ class SovereignMK2 extends AdaptiveAI {
     // per-opponent ledger. Covers his real fights and the headless sim, which
     // both drive Fighter.update() -> updateAI() -> here every AI tick.
     if (typeof SovHabits !== 'undefined' && this.target) SovHabits.observe(this, this.target);
+    this._scarTick();
     // Recovery-jump budget is per airborne stint, so it refills on contact with
     // the ground and nowhere else.
     if (this.onGround) this._recoverJumps = 0;
@@ -4084,7 +4191,7 @@ class SovereignMK2 extends AdaptiveAI {
     // converts is a GUARD he chose, and that is what the grid must be told he did.
     // A stated inference rule gets first refusal on the swing; the ledger gate
     // only sees it if the rule let it through.
-    if (!this._inferAct(this.target)) this._swingGate();
+    if (!this._scarSwingGate(this.target) && !this._inferAct(this.target)) this._swingGate();
     this._sampleDecision();
     // Last, and after super.update(): every shield site lives in updateAI() which
     // runs inside it, and _airDenyTrack raises one of its own. Provisioning has to
@@ -4409,9 +4516,10 @@ class SovereignMK2 extends AdaptiveAI {
   // believe are useless to him, because that belief is exactly what he is
   // supposed to test.
   //
-  // Weapon and class are chosen independently (additive model): 20 x 13 combos
-  // would take thousands of matches to cover, two bandits of 20 and 13 do not.
-  // Combos are still recorded, for the record, not for the choice.
+  // Weapon first. With pairedClass the class is then chosen FOR that weapon from
+  // the weapon|class record (tools/sov-discover.js --pairs measures every pair),
+  // shrunk toward the class's overall record where a pair is thin. Without it,
+  // weapon and class are two independent bandits.
   _pickOpenLoadout() {
     if (typeof WEAPON_KEYS === 'undefined' || typeof CLASSES === 'undefined') return null;
     if (typeof SovDossier === 'undefined' || typeof SovDossier.arsenalPrior !== 'function') return null;
@@ -4429,7 +4537,7 @@ class SovereignMK2 extends AdaptiveAI {
       while (v === 0) v = Math.random();
       return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
     };
-    const choose = (field, opts) => {
+    const choose = (field, opts, pairW) => {
       // Pooled spread of per-life outcomes: the unit his uncertainty is in.
       let n = 0, r = 0, r2 = 0;
       const tbl = any ? any[field] : {};
@@ -4448,13 +4556,25 @@ class SovereignMK2 extends AdaptiveAI {
           mean = (cO.n * mO + k * mA) / (cO.n + k); neff = cO.n + k;
         } else if (mA !== null) { mean = mA; neff = Math.min(K, cA.n); }
         else { mean = grand; neff = 0.25; }
+        // Paired: what this class did WITH this weapon, shrunk toward the class's
+        // overall record. The opponent-specific pair wins when he has one.
+        if (pairW) {
+          const pk = pairW + '|' + o;
+          const cP = (opp && opp.combo && opp.combo[pk] && opp.combo[pk].n) ? opp.combo[pk]
+                   : (any && any.combo && any.combo[pk] && any.combo[pk].n) ? any.combo[pk] : null;
+          if (cP) {
+            const kP = Math.min(K, neff);
+            mean = (cP.n * (cP.r / cP.n) + kP * mean) / (cP.n + kP); neff = cP.n + kP;
+          }
+        }
         const draw = mean + (sd / Math.sqrt(neff)) * gauss();
         if (draw > bestDraw) { bestDraw = draw; best = o; }
       }
       return best;
     };
     const wk = choose('weapon', W);
-    const cls = choose('cls', C);
+    const TUNE = (typeof SMK2_TUNE !== 'undefined' && SMK2_TUNE) || {};
+    const cls = choose('cls', C, TUNE.pairedClass ? wk : null);
     if (!wk) return null;
     return { key: wk + '|' + cls, wk, cls: cls === 'none' ? null : cls, clsKey: cls,
              fin: wk === 'nullblade' ? 'nullblade' : null, open: true };
@@ -4469,8 +4589,8 @@ class SovereignMK2 extends AdaptiveAI {
     const out = {};
     for (const src of [SOV_ARSENAL.arsenal, local]) {
       for (const bk of Object.keys(src)) {
-        const dst = out[bk] || (out[bk] = { weapon: {}, cls: {} });
-        for (const field of ['weapon', 'cls']) {
+        const dst = out[bk] || (out[bk] = { weapon: {}, cls: {}, combo: {} });
+        for (const field of ['weapon', 'cls', 'combo']) {
           const from = src[bk][field] || {};
           for (const k of Object.keys(from)) {
             const c = from[k], e = dst[field][k] || (dst[field][k] = { n: 0, r: 0, r2: 0 });
@@ -4853,6 +4973,8 @@ class SovereignMK2 extends AdaptiveAI {
     // Swing committed this frame.
     if ((this.attackTimer || 0) > (this._prevAtkSample || 0) && !this._prevAtkSample) {
       this._markTactic('attack', t, 1);
+      const sg = this._scarSwingSig(t);
+      if (sg) this._scarOpen('swing', sg, t);
     }
     this._prevAtkSample = this.attackTimer || 0;
 
@@ -4888,6 +5010,8 @@ class SovereignMK2 extends AdaptiveAI {
   // had become good again.
   _airApproachGuard() {
     if (this._airDenyTimer > 0) this._airDenyTimer--;
+    const prevVy = this._scarPrevVy || 0;
+    this._scarPrevVy = this.vy;
     const t = this.target;
     const wasGrounded = this._airGuardPrevGround;
     if (!t || t.health <= 0 || this.health <= 0) return;
@@ -4895,17 +5019,25 @@ class SovereignMK2 extends AdaptiveAI {
 
     // A fresh ground launch, this frame, at a target holding higher ground.
     const launching = wasGrounded && !this.onGround && this.vy < -8;
-    if (!launching) return;
+    // The double jump is the same approach from a different launcher, and only
+    // the scar layer below acts on it: the ledger was measured on ground launches.
+    const airJump = !wasGrounded && !this.onGround && prevVy > -3 && this.vy < -8;
+    if (!launching && !airJump) return;
     const dx = Math.abs(t.cx() - this.cx());
-    const occupiedHighGround = t.onGround && t.y < this.y - 40 && dx < 220;
-    if (!occupiedHighGround) return;
+    const highGround = t.onGround && t.y < this.y - 40;
+    if (!highGround) return;
+    const occupiedHighGround = launching && dx < 220;
+    // Wider than the ledger's 220: a running jump from further out still arrives
+    // inside their swing, and a hit it takes must be able to indict it.
+    if (!occupiedHighGround && dx >= 320) return;
 
     const TUNE = (typeof SMK2_TUNE !== 'undefined' && SMK2_TUNE) || {};
     if (TUNE.tacticLedger === false) return;
+    let method = 'naked';
     const val = this._approachValue();
     const denyAt  = (typeof TUNE.airDenyAt === 'number') ? TUNE.airDenyAt : -4;
     const explore = (typeof TUNE.tacticExplore === 'number') ? TUNE.tacticExplore : 0.2;
-    if (val !== null && val < denyAt && Math.random() > explore) {
+    if (occupiedHighGround && val !== null && val < denyAt && Math.random() > explore) {
       // What costs him is not the approach, it is ARRIVING NEUTRAL INSIDE THEIR
       // SWING — of the 127 hits he took in replay 2026-09-10, 126 landed either
       // airborne or within 0.6 s of touching down. So the response changes how he
@@ -4923,28 +5055,25 @@ class SovereignMK2 extends AdaptiveAI {
       // one: measured against a platform camper it cut the approach's cost by 63%
       // and he died MORE, because a boss that answers a camper with passivity
       // loses on the clock. Saving health is not the objective.
-      this._airDenyX = this._approachLip(t);
-      if (this._airDenyX === null) {
-        if ((this.shieldStacks || 0) < 4) {
-          this._armorApproach = true;
-        } else {
-          // Damp vx with the cancel: a cancelled launch that keeps its horizontal
-          // carry can walk him off the lip he was standing on, which trades a
-          // landing punish for a self-ringout.
-          this.vy = 0; this.vx *= 0.3; this._jumpVyPrev = 0;
-        }
-      }
-      this._airDenyTimer = 90;
-      // Still booked. An armoured or redirected approach is a different decision
-      // with a different price, and the grid only stays honest if it keeps reading
-      // the consequence of what he actually did.
-      if (this._airDenyX !== null || this._armorApproach) { this._markApproach(t); this._markTactic('approach_air', t, 1); }
-      return;
+      method = this._approachLip(t) !== null ? 'lip' : (this.shieldStacks || 0) < 4 ? 'armor' : 'hold';
     }
-    this._airDenyX = null;
-    this._armorApproach = false;
-    this._markApproach(t);
-    this._markTactic('approach_air', t, 1);
+    method = this._scarApproachMethod(method, t);
+    if (method === 'naked' && !occupiedHighGround) { this._scarOpen('air', 'naked', t); return; }
+    this._airDenyX = method === 'lip' ? this._approachLip(t) : null;
+    this._armorApproach = method === 'armor';
+    if (method === 'hold') {
+      // Damp vx with the cancel: a cancelled launch that keeps its horizontal
+      // carry can walk him off the lip he was standing on, which trades a
+      // landing punish for a self-ringout.
+      this.vy = 0; this.vx *= 0.3; this._jumpVyPrev = 0;
+    }
+    if (method !== 'naked') this._airDenyTimer = 90;
+    // Still booked. An armoured or redirected approach is a different decision
+    // with a different price, and the grid only stays honest if it keeps reading
+    // the consequence of what he actually did.
+    if (method === 'hold') return;
+    if (occupiedHighGround) { this._markApproach(t); this._markTactic('approach_air', t, 1); }
+    this._scarOpen('air', method, t);
   }
 
   // ── SWING GATE — the second composed counter ─────────────────────────────
@@ -5036,6 +5165,125 @@ class SovereignMK2 extends AdaptiveAI {
     if (Math.abs(dx) > 24) this.vx = Math.sign(dx) * Math.min(4.2, Math.abs(dx) * 0.09);
   }
 
+  // ── ONE-STRIKE SCARS ─────────────────────────────────────────────────────
+  // Every other learner here is an AVERAGE: the approach ledger needs 4 tries and
+  // a mean below -4, C1 divides openers by seconds of exposure behind a 10-second
+  // prior, C2's descent prior is worth ~30 descents, and each keeps a 12-20%
+  // exploration slice that guarantees a repeat. None of them can hold "that got
+  // me hit once", so the same trick lands several times before any of them move.
+  // A scar is that fact: the method he was using when this opponent opened on
+  // him, barred against them for the rest of the match. Windows open where a
+  // method is committed (_scarOpen); an opener indicts every open window; a hit
+  // he lands first closes them clean. Match-scoped: the instance is rebuilt per
+  // match and respawn() does not touch it.
+  _scarOn(chan) {
+    const TUNE = (typeof SMK2_TUNE !== 'undefined' && SMK2_TUNE) || {};
+    if (TUNE.scars === false) return false;
+    return !chan || TUNE['scar' + chan[0].toUpperCase() + chan.slice(1)] !== false;
+  }
+
+  _scarsFor(t) {
+    if (!t) return null;
+    let r = this._scarBook.get(t);
+    if (!r) { r = { air: new Set(), chase: false, descent: new Set(), swing: new Set() }; this._scarBook.set(t, r); }
+    return r;
+  }
+
+  _scarOpen(chan, sig, t) {
+    if (!t || !this._scarOn(chan)) return;
+    const fc = (typeof frameCount !== 'undefined') ? frameCount : 0;
+    this._scarWatch = this._scarWatch.filter(w => !(w.chan === chan && w.tgt === t));
+    this._scarWatch.push({ chan, sig, tgt: t, frame: fc, landF: null, tHp: t.health, tLives: t.lives });
+  }
+
+  _scarBurn(chan, sig, t) {
+    const r = this._scarsFor(t);
+    if (!r) return;
+    const fresh = chan === 'chase' ? !r.chase : !r[chan].has(sig);
+    // A barred method that still got him hit means some path went round the bar.
+    if (!fresh) { this._scarRepeats = (this._scarRepeats || 0) + 1; return; }
+    if (chan === 'chase') r.chase = true; else r[chan].add(sig);
+    this._scarLog.push({ chan, sig, frame: (typeof frameCount !== 'undefined') ? frameCount : 0 });
+    if (typeof showBossDialogue === 'function' && typeof SMK2_SCAR_LINES !== 'undefined' && (this._scarLineCd || 0) <= 0) {
+      this._scarLineCd = 600;
+      showBossDialogue(SMK2_SCAR_LINES[Math.floor(Math.random() * SMK2_SCAR_LINES.length)], 120);
+    }
+  }
+
+  // First thing in update(): whatever hit him since his last frame is read
+  // against the windows that were open when it landed.
+  _scarTick() {
+    if ((this._scarLineCd || 0) > 0) this._scarLineCd--;
+    if (!this._scarOn()) return;
+    const fc = (typeof frameCount !== 'undefined') ? frameCount : 0;
+    const took = this._scarHp !== undefined && (this.lives < this._scarLives || this.health < this._scarHp - 0.01);
+    this._scarHp = this.health;
+    this._scarLives = this.lives;
+    if (took) {
+      // Mid-combo hits are the opener's consequence, not a new method's.
+      const opener = fc - (this._scarLastHit === undefined ? -9999 : this._scarLastHit) > 60;
+      this._scarLastHit = fc;
+      // Only the fighter who hit him can indict a method aimed at them; a hazard
+      // or a third party hitting him mid-approach says nothing about the approach.
+      const by = (fc - (this._lastAttackerFrame || -9999) <= 2) ? this._lastAttacker : null;
+      if (opener && by) {
+        for (const w of this._scarWatch) if (w.tgt === by) this._scarBurn(w.chan, w.sig, w.tgt);
+      }
+      this._scarWatch.length = 0;
+      return;
+    }
+    if (!this._scarWatch.length) return;
+    this._scarWatch = this._scarWatch.filter(w => {
+      const tg = w.tgt;
+      if (!tg || tg.health <= 0 || tg.lives !== w.tLives) return false;
+      if (tg.health < w.tHp - 0.01) return false;
+      if (w.chan === 'swing') return fc - w.frame <= 45;
+      // Air windows run through the landing: 126 of 127 hits in 2026-09-10 landed
+      // airborne or within 0.6 s of touchdown.
+      if (this.onGround && w.landF === null && fc - w.frame > 3) w.landF = fc;
+      if (w.landF !== null && fc - w.landF > 40) return false;
+      return fc - w.frame <= 180;
+    });
+  }
+
+  // The approach he is about to make, with every burned method swapped for the
+  // next one still clean. 'hold' is never burned: it is not an approach.
+  _scarApproachMethod(m, t) {
+    if (m === 'hold' || !this._scarOn('air')) return m;
+    const r = this._scarsFor(t);
+    if (!r || !r.air.has(m)) return m;
+    const ok = { lip: this._approachLip(t) !== null, armor: (this.shieldStacks || 0) < 4, naked: true };
+    for (const alt of ['lip', 'armor', 'naked']) if (ok[alt] && !r.air.has(alt)) return alt;
+    return 'hold';
+  }
+
+  // Swing scars are keyed on what the opponent was doing, never on neutral: a
+  // scar on "swing at close range" would end his offence after one whiff punish.
+  _scarSwingSig(t) {
+    const st = t.shielding ? 'shield' : (t.attackTimer || 0) > 0 ? 'swing' : !t.onGround ? 'air' : null;
+    if (!st) return null;
+    const sit = this._situationKey(t);
+    return sit ? sit + ':' + st : null;
+  }
+
+  // Same rising edge and cancel as _swingGate, ahead of it and with no explore.
+  _scarSwingGate(t) {
+    if (!t || t.health <= 0 || this.health <= 0 || !this._scarOn('swing')) return false;
+    if ((this.attackTimer || 0) <= 0 || this._prevAtkSample > 0) return false;
+    const r = this._scarsFor(t);
+    if (!r || !r.swing.size) return false;
+    const sg = this._scarSwingSig(t);
+    if (!sg || !r.swing.has(sg)) return false;
+    this.attackTimer = 0;
+    this.cooldown    = Math.max(this.cooldown || 0, 10);
+    if (this._infOpen && this._infOpen.f === ((typeof frameCount !== 'undefined') ? frameCount : 0)) this._infOpen = null;
+    if (!t.shielding && (this.shieldStacks || 0) < 4) {
+      this.shielding  = true;
+      this._armorHold = Math.max(this._armorHold || 0, 12);
+    }
+    return true;
+  }
+
   // ── SHIELD PROVISIONING ──────────────────────────────────────────────────
   // Eight paths in this class raise a guard with a bare `this.shielding = true`.
   // None of them touch `shieldStacks` or `shieldHP`, and the only code that ever
@@ -5059,11 +5307,8 @@ class SovereignMK2 extends AdaptiveAI {
     const up = !!this.shielding;
     const wasUp = !!this._prevShieldProvision;
     if (up && !wasUp && this.health > 0) {
-      const stacks = (this.shieldStacks || 0) + 1;
-      this.shieldStacks        = stacks;
-      this.shieldRechargeTimer = 180;
-      this.shieldHP = stacks <= 3 ? [30, 15, 5][stacks - 1] : 0;  // 4-6 are % tiers
-      if (stacks > 6) this.shielding = false;   // depleted — the wall the player hits
+      // Same rules as a human press (smb-combat.js shieldRaise); refused = the wall the player hits.
+      if (!shieldRaise(this)) this.shielding = false;
     }
     // Stamped last, after a depletion may have forced the guard back down: a raise
     // he was refused must not read as "already holding" next frame, or the frame
@@ -5187,6 +5432,22 @@ class SovereignMK2 extends AdaptiveAI {
     return sup > atk + margin;
   }
 
+  // Burst (Fighter.burst): no dice and a 2-frame reaction. A burst also
+  // pays a domain charge, so it isn't a pure loss for his bank — except
+  // when he is at 4 and the next super IS Absolute Dominion. Then he eats
+  // the string unless it could end the life.
+  _aiWantsBurst() {
+    const d = this._aiBurstDanger();
+    if (!d || d.since < 2) return false;
+    const _hp = this.health / (this.maxHealth || 1);
+    if ((this._domainSuperCount || 0) >= 4 && _hp > 0.35) return false;
+    if (d.combo >= 2 || (d.combo >= 1 && _hp < 0.30)) {
+      this._burstsUsed = (this._burstsUsed || 0) + 1;
+      return true;
+    }
+    return false;
+  }
+
   _updateSuperBank() {
     if (this.health <= 0) { this._superFullSince = 0; this._bankStale = false; return; }
     if (typeof isCinematic !== 'undefined' && isCinematic) return;
@@ -5234,6 +5495,39 @@ class SovereignMK2 extends AdaptiveAI {
     if (!this.superReady) this._superFullSince = 0;
   }
 
+  // ── WALK SPEED PARITY ────────────────────────────────────────────────────
+  // His movement branches set vx from moveSpd (up to 6.5, class-blind) times
+  // multipliers up to 2.5, so he walked at up to ~2x anything a player's input
+  // can produce: grounded bursts of 10-12.8 px/frame in the Sep 22-23 replays
+  // against a player ceiling of 5.2 x class speed. Called from Fighter.update()
+  // just before integration, so every branch — updateAI() and the hooks that
+  // run after super.update() — is held to the formula processInput() uses.
+  _walkSpeedCap() {
+    const _curse = this.curses && this.curses.some(c => c.type === 'curse_slow');
+    const _chaos = gameMode === 'minigames' && currentChaosModifiers.has('speedy') ? 1.4 : 1.0;
+    const _water = currentArena && currentArena.isSlowMovement ? 0.72 : 1.0;
+    const _earth = currentArena && currentArena.earthPhysics   ? 0.70 : 1.0;
+    const _kite  = (this._kiteSpeedMult != null) ? this._kiteSpeedMult : 1.0;
+    return 5.2 * (this.classSpeedMult || 1.0) * (this._speedBuff > 0 ? 1.35 : 1.0) *
+           (_curse ? 0.6 : 1.0) * _chaos * _water * _earth * _kite;
+  }
+
+  _capSelfVx() {
+    const _fc = (typeof frameCount !== 'undefined') ? frameCount : 0;
+    // Ability dashes (Iaijutsu and the like) belong to the weapon, and a player
+    // gets the same dash, so a fresh ability cooldown exempts a short window.
+    const _ab = this.abilityCooldown || 0;
+    if (_ab > (this._capPrevAbCd || 0)) this._capDashUntil = _fc + 10;
+    this._capPrevAbCd = _ab;
+    if (_fc < (this._capDashUntil || 0)) return;
+    if (this.health <= 0 || this.stunTimer > 0 || this.ragdollTimer > 0 || this.hurtTimer > 0) return;
+    if (this.superActive || this._dimPunchGravLock || this._domainRising) return;
+    // Knockback momentum outlives hurtTimer and is not his to shed.
+    if (this._lastAttackerFrame != null && _fc - this._lastAttackerFrame < 24) return;
+    const cap = this._walkSpeedCap();
+    if (Math.abs(this.vx) > cap) this.vx = Math.sign(this.vx) * cap;
+  }
+
   // ── NULL RECOIL (juggle break) ───────────────────────────────────────────
   // Replay evidence (2026-07-30, lost 10 stocks to 2): Sovereign spent 21% of the
   // match stunned and a further 14% ragdolled — over a THIRD of the fight unable
@@ -5268,7 +5562,7 @@ class SovereignMK2 extends AdaptiveAI {
     // Trigger on TIME REMOVED FROM THE MATCH, not on hit spacing.
     //
     // The first version of this counted hits landed while helpless and needed 4
-    // inside 150 frames. Instrumented against a live Megaknight it fired exactly
+    // inside 150 frames. Instrumented against a live Knight it fired exactly
     // zero times in 8000 frames — because the incoming hits alternate between
     // landing while he is stunned and landing in the beat right after he recovers,
     // so the "helpless hit" counter reset before it ever reached the threshold,
@@ -5315,7 +5609,7 @@ class SovereignMK2 extends AdaptiveAI {
     this.ragdollTimer = 0;
     this.ragdollSpin  = 0;
     if (this.state === 'stunned' || this.state === 'ragdoll') this.state = 'idle';
-    this.invincible   = Math.max(this.invincible || 0, 26); // one clean beat, not a reset
+    this._stunGuardUntil = Math.max(this._stunGuardUntil || 0, frameCount + 26); // one clean beat, not a reset
     // Kill the juggle's own upward velocity so he actually returns to the floor,
     // and reset the launch chain that put him there.
     if (this.vy < 0) this.vy = 0;
@@ -5400,7 +5694,7 @@ class SovereignMK2 extends AdaptiveAI {
       this.vx = 0; this.vy = 0;
       this.ragdollTimer = 0;
       this.stunTimer    = Math.min(this.stunTimer, 6);
-      this.invincible   = Math.max(this.invincible, 18); // land safely, no anchor-camping
+      this._stunGuardUntil = Math.max(this._stunGuardUntil || 0, frameCount + 18); // land safely, no anchor-camping
       if (typeof spawnParticles === 'function') {
         spawnParticles(this.cx(), this.cy(), '#cc2200', 16);
         spawnParticles(this.cx(), this.cy(), '#ffffff', 8);
@@ -6485,6 +6779,94 @@ class SovereignMK2 extends AdaptiveAI {
   // you cannot learn a preference over actions that have no names.
   //
   // Read it with window.sovCommitLog() / window.sovCommitReset().
+  // ── MOVE BOOK (js/smb-sov-combo.js) ──────────────────────────────────────
+  // Routes first: a landed hit is the more valuable moment. A route or counter
+  // that has the frame returns true and the cascade stops for this frame.
+  _moveBookStep(t, spd, jumpVy) {
+    const TUNE = (typeof SMK2_TUNE !== 'undefined' && SMK2_TUNE) || {};
+    if (!TUNE.comboRoutes && !TUNE.counterBook) return false;
+    if (typeof SovMoves === 'undefined' || !t || t.health <= 0) return false;
+    try {
+      if (TUNE.comboRoutes && this._routeTick(t, spd, jumpVy)) { this._commit('route'); return true; }
+      if (TUNE.counterBook && this._counterTick(t, spd, jumpVy)) { this._commit('counter'); return true; }
+    } catch (e) { this._route = null; this._ctr = null; }
+    return false;
+  }
+
+  // Phases: 'settle' lets the move that landed finish, 'exec' drives one chosen
+  // follow-up to its outcome, then back to choosing. Any miss ends the route.
+  _routeTick(t, spd, jumpVy) {
+    const fc = (typeof frameCount !== 'undefined') ? frameCount : 0;
+    let R = this._route;
+    if (R && (R.tgt !== t || fc - R.f0 > 420 || R.hits >= 12)) R = this._route = null;
+    if (!R) {
+      if (!this._comboLandedLast || SovMoves.lock(t) <= 0) return false;
+      R = this._route = { tgt: t, f0: fc, phase: 'settle', since: fc, lastHp: t.health, hits: 0, p: null, st: null, keys: null };
+    }
+    const free = SovMoves.lock(t) <= 0;
+    if (R.phase === 'settle') {
+      if (t.health < R.lastHp - 0.5) { R.lastHp = t.health; R.since = fc; }
+      // Standing through his own recovery is only safe while they cannot act.
+      if (free && (t.attackTimer || 0) > 0) { this._route = null; return false; }
+      const busy = (this.attackTimer || 0) > 0 || fc - R.since < 3;
+      if (busy && !free && fc - R.since < 40) { this.vx *= 0.8; return true; }
+      const pick = SovMoves.pickRoute(this, t);
+      // A route that no longer expects to pay hands the frame back to the cascade.
+      if (!pick || pick.value < SOV_ROUTE_MIN_VALUE) { this._route = null; return false; }
+      R.phase = 'exec'; R.p = SovMoves.startRoute(pick.action); R.st = SovMoves.routeTracker(t); R.keys = pick.keys;
+      this._comboFollowHits = 0;
+    }
+    SovMoves.trackRoute(R.st, t);
+    if (R.p.fired < 0 && free && (t.attackTimer || 0) > 0) { this._route = null; return false; }
+    const status = SovMoves.driveRoute(this, t, R.p, spd, jumpVy);
+    const out = SovMoves.routeDone(R.st, this, R.p, status);
+    if (!out) return true;
+    const hit = out === 'hit';
+    if (typeof SovDossier !== 'undefined' && SovDossier.recordMove) {
+      SovDossier.recordMove('route', R.keys[1], R.p.action, hit, R.st.dmg);
+    }
+    const log = (typeof window !== 'undefined') ? (window.SOV_ROUTE_LOG || (window.SOV_ROUTE_LOG = { steps: 0, hits: 0, trueHits: 0, dmg: 0, chains: 0 })) : null;
+    if (log) { log.steps++; if (hit) { log.hits++; log.dmg += R.st.dmg; if (R.st.freeAtHit <= 1) log.trueHits++; } }
+    if (!hit) { if (log) log.chains++; this._route = null; return false; }
+    R.hits++; R.phase = 'settle'; R.since = fc; R.lastHp = t.health;
+    return true;
+  }
+
+  // A new move from the target (its _attackStartFrame changed) arms a counter;
+  // SOV_COUNTER_REACT frames later he answers; the exchange is scored at the
+  // end of SOV_COUNTER_WINDOW whether or not the answer still holds the frame.
+  _counterTick(t, spd, jumpVy) {
+    const fc = (typeof frameCount !== 'undefined') ? frameCount : 0;
+    let C = this._ctr;
+    if (C && C.st) SovMoves.trackCounter(C.st, this, t);
+    if (C && C.st && (fc - C.moveF >= SOV_COUNTER_WINDOW || C.tgt !== t)) {
+      if (C.tgt === t && typeof SovDossier !== 'undefined' && SovDossier.recordMove) {
+        const v = SovMoves.counterValue(C.st, this, t);
+        SovDossier.recordMove('counter', C.keys[1], C.p.action, v > 0, v);
+        const log = (typeof window !== 'undefined') ? (window.SOV_COUNTER_LOG || (window.SOV_COUNTER_LOG = {})) : null;
+        if (log) { const e = log[C.p.action] || (log[C.p.action] = { n: 0, v: 0 }); e.n++; e.v += v; }
+      }
+      C = this._ctr = null;
+    }
+    const sf = t._attackStartFrame;
+    if (!C && sf != null && sf !== this._ctrSeenStart && (t.attackTimer || 0) > 0 && t.weapon && t.weapon.type === 'melee') {
+      this._ctrSeenStart = sf;
+      if (fc - sf <= SOV_COUNTER_REACT + 2) C = this._ctr = { tgt: t, moveF: sf, kind: SovMoves.moveKind(t), p: null, st: null, keys: null, live: false };
+    }
+    if (!C) return false;
+    if (!C.p) {
+      if (fc - C.moveF < SOV_COUNTER_REACT) return false;
+      const pick = SovMoves.pickCounter(this, t, C.kind);
+      if (!pick) { this._ctr = null; return false; }
+      C.p = SovMoves.startCounter(pick.action); C.keys = pick.keys; C.live = true;
+      C.st = SovMoves.counterTracker(this, t);
+    }
+    if (!C.live) return false;
+    C.live = SovMoves.driveCounter(this, t, C.p, spd, jumpVy);
+    if (!C.live && this.shielding && C.p.action === 'shield') this.shielding = false;
+    return C.live;
+  }
+
   _commit(name) {
     this._lastCommit = name;
     if (typeof SMK2_TUNE !== 'undefined' && SMK2_TUNE && SMK2_TUNE.tacticChoice) {
@@ -6512,6 +6894,9 @@ class SovereignMK2 extends AdaptiveAI {
   // next-frame-restore plumbing _vetoExtraJump needs (that one runs from
   // update(), which is called AFTER updateAI() already wrote vy for the frame).
   updateAI() {
+    // Mid lava climb: Fighter._voidSafetyFrame owns vx/vy until he lands. The
+    // cascade's per-frame vx write otherwise pinned him under the decks.
+    if (this._lavaDeck && !this.onGround) return;
     this._updateAICascade();
     this._habitGate();
     this._descentControl();
@@ -6636,9 +7021,12 @@ class SovereignMK2 extends AdaptiveAI {
       ? (window.SOV_HABIT_LOG || (window.SOV_HABIT_LOG = { seen: 0, vetoed: 0, passed: 0 })) : null;
     if (G) G.seen++;
 
+    const sc = this._scarOn('chase') ? this._scarsFor(t) : null;
+    if (sc && sc.chase) { this.vy = 0; stats.vetoed++; if (G) G.vetoed++; return; }
+
     // Always let a slice through so the 'air' estimate keeps getting data —
     // otherwise a correct early veto starves the very evidence that justifies it.
-    if (Math.random() < 0.12) { stats.passed++; if (G) G.passed++; return; }
+    if (Math.random() < 0.12) { stats.passed++; if (G) G.passed++; this._scarOpen('chase', 'chase', t); return; }
 
     const key = SovHabits.keyFor(t);
     const airV = SovHabits.postureValue(key, 'air', true);
@@ -6655,6 +7043,7 @@ class SovereignMK2 extends AdaptiveAI {
     } else {
       stats.passed++;
       if (G) G.passed++;
+      this._scarOpen('chase', 'chase', t);
     }
     if (this._habitLineCd > 0) this._habitLineCd--;
   }
@@ -6739,13 +7128,18 @@ class SovereignMK2 extends AdaptiveAI {
     const dx = t.cx() - this.cx();
     const reach = (typeof this._meleeReachDist === 'function') ? this._meleeReachDist(t) : 60;
 
-    const avail = ['default', 'dive'];
+    let avail = ['default', 'dive'];
     // Timed strike needs only a weapon that will be ready in time; the swing
     // itself waits for reach (see the per-frame block in _descentControl).
     if ((this.cooldown || 0) <= 12) avail.push('strike');
     const awayDir = dx >= 0 ? -1 : 1;
     if (typeof this.isEdgeDanger !== 'function' || !this.isEdgeDanger(awayDir)) avail.push('drift');
 
+    const sc = this._scarOn('descent') ? this._scarsFor(t) : null;
+    if (sc && sc.descent.size) {
+      const clean = avail.filter(a => !sc.descent.has(a));
+      if (clean.length) avail = clean;
+    }
     let arm = SovHabits.descentArm(key, avail);
 
 
@@ -6795,6 +7189,7 @@ class SovereignMK2 extends AdaptiveAI {
     if (!outcome) return;
 
     SovHabits.descentRecord(pend.key, pend.arm, outcome, pend.dealtAcc - pend.takenAcc);
+    if (outcome === 'loss' && t && this._lastAttacker === t && this._scarOn('descent')) this._scarBurn('descent', pend.arm, t);
     if (typeof window !== 'undefined') {
       const L = window.SOV_DESCENT_LOG || (window.SOV_DESCENT_LOG = {});
       const a = L[pend.arm] || (L[pend.arm] = { chosen: 0, win: 0, loss: 0, none: 0 });
@@ -7896,6 +8291,9 @@ class SovereignMK2 extends AdaptiveAI {
       return;
     }
 
+    // ── MOVE BOOK — measured combo routes and counters ──────────────────────
+    if (this._moveBookStep(t, moveSpd, _jumpVy)) { this.aiReact = 0; return; }
+
     // ── GUARANTEED PUNISH — the target literally cannot fight back ──────────
     // The engine's hard rules create windows where the opponent is locked out of
     // acting: attackEndlag (cannot attack or ability — worse after a whiff, 2.4×,
@@ -8005,7 +8403,7 @@ class SovereignMK2 extends AdaptiveAI {
     // the DomainManager registry generically rather than per-class flags.
     // Retreat only beats CONTACT-ECONOMY domains — the ones whose payout requires
     // Sovereign to touch the owner (Ronin's marks, Reaper's souls, Ninja's slow,
-    // Berserker/Pugilist owner buffs, Megaknight's rift). Those have spawnEvery 0:
+    // Berserker/Pugilist owner buffs, Knight's rift). Those have spawnEvery 0:
     // nothing comes looking for him, so distance genuinely starves them.
     //
     // Hazard-RAIN domains are the opposite. Storm Realm's lightning is aimed at an

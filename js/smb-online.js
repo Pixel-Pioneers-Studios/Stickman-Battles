@@ -204,6 +204,9 @@ const LobbyManager = (() => {
   // ── joinPublicLobby ───────────────────────────────────────────────────────────
   // Convenience shortcut — always joins the well-known public server.
   function joinPublicLobby() {
+    // The Public Server now lives on the lobby server (smb-public-hub.js), so it
+    // survives any one player leaving. The old peer-hosted room is the fallback.
+    if (window.PubHub && typeof PubHub.join === 'function') { PubHub.join(); return null; }
     return joinLobby(_PUBLIC_LOBBY_ID);
   }
 

@@ -1,0 +1,178 @@
+{
+  "target": {
+    "n": 17,
+    "dmgToOppPer1k": 107.69941176470587,
+    "dmgToMePer1k": 83.18882352941175,
+    "lockoutPct": 27.229411764705876,
+    "meAirPct": 59.83529411764706,
+    "oppAirPct": 65.85882352941178,
+    "killRatio": 0.5810810810365838,
+    "exposure": {
+      "6g": {
+        "n": 927,
+        "hits": 0
+      },
+      "5g": {
+        "n": 1890,
+        "hits": 0
+      },
+      "4g": {
+        "n": 3156,
+        "hits": 2
+      },
+      "4a": {
+        "n": 5433,
+        "hits": 6
+      },
+      "3a": {
+        "n": 6331,
+        "hits": 15
+      },
+      "2a": {
+        "n": 8374,
+        "hits": 102
+      },
+      "1a": {
+        "n": 8888,
+        "hits": 286
+      },
+      "0a": {
+        "n": 11680,
+        "hits": 525
+      },
+      "3g": {
+        "n": 2939,
+        "hits": 1
+      },
+      "2g": {
+        "n": 3547,
+        "hits": 8
+      },
+      "0g": {
+        "n": 6868,
+        "hits": 110
+      },
+      "1g": {
+        "n": 4337,
+        "hits": 51
+      },
+      "5a": {
+        "n": 2649,
+        "hits": 2
+      },
+      "6a": {
+        "n": 935,
+        "hits": 0
+      }
+    }
+  },
+  "best": {
+    "reactionFrames": 14,
+    "decisionEvery": 4,
+    "timingNoiseFr": 3,
+    "aimNoise": 0.18,
+    "spacing": 95,
+    "antiAir": 0.55,
+    "whiffPunish": 0.6,
+    "pokeRate": 0.55,
+    "jumpInRate": 0.03,
+    "shieldUse": 0.04,
+    "abilityCd": 100,
+    "abilityRate": 0.35,
+    "superRate": 0.85,
+    "comboFollow": 0.65,
+    "retreatDiscipline": 0.5,
+    "evadeJump": 0.55,
+    "doubleJumpEvade": 0.45,
+    "fastFallRate": 0.35,
+    "airHopRate": 0.12,
+    "aboveAttackRate": 0.5,
+    "readRate": 0.85,
+    "offenseRead": 0.6
+  },
+  "finalAgg": {
+    "dmgToOppPer1k": 120.99000000000001,
+    "dmgToOppPer1k_se": 4.469743467657473,
+    "dmgToMePer1k": 168.08833333333334,
+    "dmgToMePer1k_se": 6.097048694063199,
+    "lockoutPct": 47.46666666666667,
+    "lockoutPct_se": 1.6059611175589252,
+    "meAirPct": 55.93333333333333,
+    "meAirPct_se": 1.3253091882441788,
+    "oppAirPct": 49.383333333333326,
+    "oppAirPct_se": 1.418312769141952,
+    "bothGroundPct": 26.166666666666668,
+    "bothGroundPct_se": 1.2857336859206543,
+    "meanDist": 88.5,
+    "meanDist_se": 3.3341665625260335,
+    "hitsPerOpeningOnMe": 2.405,
+    "hitsPerOpeningOnMe_se": 0.09776672917374978,
+    "hitsPerOpeningOnOpp": 1.31,
+    "hitsPerOpeningOnOpp_se": 0.05006662228138287,
+    "killsOpp": 5.166666666666667,
+    "killsOpp_se": 0.3073181485764296,
+    "killsMe": 10,
+    "killsMe_se": 0,
+    "n": 6
+  },
+  "simExposure": {
+    "4g": {
+      "n": 295,
+      "hits": 4
+    },
+    "3g": {
+      "n": 396,
+      "hits": 1
+    },
+    "2g": {
+      "n": 1324,
+      "hits": 0
+    },
+    "1a": {
+      "n": 1884,
+      "hits": 99
+    },
+    "2a": {
+      "n": 2286,
+      "hits": 48
+    },
+    "3a": {
+      "n": 963,
+      "hits": 10
+    },
+    "0g": {
+      "n": 2098,
+      "hits": 55
+    },
+    "1g": {
+      "n": 1566,
+      "hits": 32
+    },
+    "0a": {
+      "n": 1849,
+      "hits": 137
+    },
+    "6g": {
+      "n": 109,
+      "hits": 1
+    },
+    "5g": {
+      "n": 212,
+      "hits": 0
+    },
+    "5a": {
+      "n": 202,
+      "hits": 0
+    },
+    "4a": {
+      "n": 414,
+      "hits": 5
+    },
+    "6a": {
+      "n": 33,
+      "hits": 0
+    }
+  },
+  "sov7of10": 6,
+  "n": 6
+}

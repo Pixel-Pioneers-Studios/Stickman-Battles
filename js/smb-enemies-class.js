@@ -9,7 +9,7 @@ function applyClass(fighter, classKey) {
   fighter.maxHealth       = cls.hp;
   fighter.health          = cls.hp;
   fighter.classSpeedMult  = cls.speedMult;
-  // Megaknight always uses mkgauntlet — force it regardless of what was selected
+  // Knight always uses mkgauntlet — force it regardless of what was selected
   if (classKey === 'megaknight' && typeof WEAPONS !== 'undefined' && WEAPONS.mkgauntlet) {
     fighter.weapon    = WEAPONS.mkgauntlet;
     fighter.weaponKey = 'mkgauntlet';
@@ -26,7 +26,7 @@ function updateClassWeapon(player) {
 
   if (cls && cls.weapon) wEl.value = cls.weapon;
 
-  // Megaknight always uses mkgauntlet — lock the weapon selector
+  // Knight always uses mkgauntlet — lock the weapon selector
   wEl.disabled = isMK;
   if (cardGrid) {
     if (isMK) {

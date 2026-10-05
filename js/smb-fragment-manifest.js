@@ -105,6 +105,20 @@ function updateFragmentManifest(p) {
   // Swinging from empty hands accelerates the growth instead of snapping to a
   // value — the weapon visibly extrudes during the first frames of the swing.
   var rate = (p.attackTimer > 0) ? FRAG_ATTACK_RATE : FRAG_IN_RATE;
+  // Q and E run as MoveScenes with attackTimer zeroed, so they used to fall back
+  // to the slow idle rate: 5% of the weapon on frame 1, full only on frame 6,
+  // while scenes strike from frame 1 — the move landed from an empty fist. An
+  // ability or super start (ability()/activateSuper() stamp _attackStartFrame
+  // with their tier) arms the weapon in full on the press; the swing extrusion
+  // above stays for basic attacks.
+  var _tAb = (typeof CLASH_TIER_ABILITY !== 'undefined') ? CLASH_TIER_ABILITY : 1;
+  var _tSu = (typeof CLASH_TIER_SUPER   !== 'undefined') ? CLASH_TIER_SUPER   : 2;
+  var _special = p._attackKindTier === _tAb || p._attackKindTier === _tSu;
+  if (p._attackStartFrame !== p._fragSeenStart) {
+    p._fragSeenStart = p._attackStartFrame;
+    if (_special) { p._fragIdle = 0; rate = 1; }
+  }
+  if (p._msScene || p.superActive) { p._fragIdle = 0; rate = 1; }
   if (p._fragIdle < FRAG_HOLD_FRAMES) p._fragArm = Math.min(1, p._fragArm + rate);
   else                                p._fragArm = Math.max(0, p._fragArm - FRAG_OUT_RATE);
 

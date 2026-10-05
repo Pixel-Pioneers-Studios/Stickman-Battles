@@ -4,9 +4,28 @@
 
 // Canvas fills 100vw × 100vh and canvas.width = window.innerWidth, so
 // getBoundingClientRect() CSS-pixel values map 1:1 to canvas coordinates.
-function _hudBottom() {
+//
+// Called several times per frame (camera, story HUD, banners). Reading the rect
+// forces a synchronous layout, so it is cached and refreshed only when #hud
+// changes size, the window resizes, or at most once a second as a backstop.
+let _hudGeomCache = null, _hudGeomFrame = -9999, _hudGeomWatched = false;
+function _hudGeom() {
+  const f = typeof frameCount !== 'undefined' ? frameCount : 0;
+  if (_hudGeomCache && f - _hudGeomFrame < 60 && f >= _hudGeomFrame) return _hudGeomCache;
   const el = document.getElementById('hud');
-  return el ? el.getBoundingClientRect().bottom : 0;
+  if (!el) return { bottom: 0, height: 0 };
+  if (!_hudGeomWatched) {
+    _hudGeomWatched = true;
+    const drop = () => { _hudGeomCache = null; };
+    window.addEventListener('resize', drop);
+    if (typeof ResizeObserver === 'function') new ResizeObserver(drop).observe(el);
+  }
+  _hudGeomCache = { bottom: el.getBoundingClientRect().bottom, height: el.offsetHeight };
+  _hudGeomFrame = f;
+  return _hudGeomCache;
+}
+function _hudBottom() {
+  return _hudGeom().bottom;
 }
 
 function drawStorySubtitle() {
@@ -317,8 +336,11 @@ const _HFB_COMBO_WINDOW = 210; // ~3.5 s
 function drawHitEffectivenessHUD() {
   if (!gameRunning || (typeof isCinematic !== 'undefined' && isCinematic)) return;
 
-  const boss = (typeof players !== 'undefined') && players &&
-    players.find(p => (p.isBoss || p.isSovereignMK2) && p.health > 0);
+  // The combo read runs against a boss, or against the one opponent of a
+  // single human in a plain duel (Fight Ladder, Versus vs bot, Quick Fight).
+  const boss = (typeof players !== 'undefined') && players && (
+    players.find(p => (p.isBoss || p.isSovereignMK2) && p.health > 0) ||
+    (players.length === 2 && players[0] && !players[0].isAI && players[1] && players[1].isAI && players[1].health > 0 ? players[1] : null));
   if (!boss) {
     _hitfb.bossHPprev = null;
     _hitfb.comboCount = 0;
@@ -398,8 +420,8 @@ function drawHitEffectivenessHUD() {
     else             { r = 100; g = 220; b = 255;  label = `COMBO ×${n}`; }
 
     const scale    = 1 + flashBoost * 0.12;
-    const fontSize = Math.round(cw * 0.018 * scale);
-    ctx.font = `bold ${fontSize}px "Segoe UI", Arial, sans-serif`;
+    const fontSize = Math.round(Math.max(18, cw * 0.026) * scale);
+    ctx.font = `bold ${fontSize}px 'Rajdhani', "Segoe UI", sans-serif`;
     ctx.textAlign    = 'right';
     ctx.textBaseline = 'middle';
     const tx = cw - Math.round(cw * 0.012);

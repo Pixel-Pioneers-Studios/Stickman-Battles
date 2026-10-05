@@ -551,6 +551,8 @@ function updateTFEnding() {
       } else {
         _tfeUnlockPatrolMode();
         if (typeof activateParadoxCompanion === 'function') activateParadoxCompanion();
+        // TF is left alive/invincible for the ending, so endGame can't see a 0-HP boss — award here
+        if (typeof unlockAchievement === 'function' && !players.some(p => !p.isBoss && p.weapon && p.weapon._isCustom)) unlockAchievement('true_form');
         endGame();
       }
     }

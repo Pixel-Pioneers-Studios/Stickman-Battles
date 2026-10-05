@@ -181,7 +181,7 @@ function drawBossSpikes() {
 }
 
 // ============================================================
-// SPARTAN RAGE VISUALS  (Kratos class perk active)
+// SPARTAN RAGE VISUALS  (Varek class perk active)
 // ============================================================
 function drawAccessory(fighter, cx, headCY, shoulderY, hipY, facing, headR) {
   const hat  = fighter.hat  || 'none';
@@ -600,7 +600,7 @@ function drawSpartanRageEffects() {
 }
 
 // ============================================================
-// CLASS VISUAL EFFECTS (Thor lightning arcs, Ninja shadow trail, etc.)
+// CLASS VISUAL EFFECTS (Torren lightning arcs, Ninja shadow trail, etc.)
 // ============================================================
 function spawnLightningBolt(x, targetY) {
   // Build a jagged segmented path from top of screen down to target
@@ -669,7 +669,7 @@ function drawClassEffects() {
   for (const p of players) {
     if (p.health <= 0 || p.backstageHiding) continue;
 
-    // THOR: Periodic lightning arc toward target + electric sparks on body
+    // TORREN: Periodic lightning arc toward target + electric sparks on body
     if (p.charClass === 'thor') {
       // Ambient crackling particles
       if (frameCount % 8 === 0 && settings.particles && particles.length < MAX_PARTICLES) {
@@ -703,7 +703,7 @@ function drawClassEffects() {
       classTrails.push({ x: p.x, y: p.y, color: 'rgba(0,200,80,0.45)', alpha: 0.45, size: 1, life: 14 });
     }
 
-    // KRATOS: Ember sparks when in Spartan Rage (already handled by drawSpartanRageEffects)
+    // VAREK: Ember sparks when in Spartan Rage (already handled by drawSpartanRageEffects)
     // Extra hit flash crackle when rage is active and hit
     if (p.charClass === 'kratos' && p.spartanRageTimer > 0 && p.hurtTimer > 0) {
       if (settings.particles) {

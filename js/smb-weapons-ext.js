@@ -205,6 +205,7 @@ function _wxStep() {
     if (f._wxOverdrive > 0) m *= 1.25;
     if (f._wxCharge && f._wxCharge.t > 36 && f.charClass !== 'adept') m *= 0.6;
     if (f._wxBarrage) m *= 0.5;
+    if (f._storyMoveMult && storyModeActive) m *= f._storyMoveMult;
     f._wxMoveMult = m === 1 ? 0 : m;
   }
 }
@@ -526,8 +527,14 @@ function _wxUpdateBarrage(user) {
   if (b.t >= WX_BARRAGE_END) user._wxBarrage = null;
 }
 
-// E: 8 seconds of everything turned up.
+// E: 8 seconds of everything turned up. Casting again while it runs stacks
+// another 8s on top (banked time capped at 16s), but one unbroken Overdrive
+// ends after 24s no matter how often it is refed. It used to reset to 8s on
+// every cast, and the +30% damage refilled the bar inside that window, so a
+// steady player kept it up indefinitely.
 const WX_OVERDRIVE_FRAMES = 480;
+const WX_OVERDRIVE_BANK_MAX = 960;
+const WX_OVERDRIVE_CHAIN_MAX = 1440;
 function wxFragmentOverdrive(user) {
   // Every other super pays its heal and domain charge when it connects
   // (dealDamage). Overdrive deals no damage, so it pays both on cast.
@@ -544,7 +551,13 @@ function wxFragmentOverdrive(user) {
     spawnParticles(user.cx(), user.cy(), '#44ff88', 14);
     if (typeof SoundManager !== 'undefined' && SoundManager.superHeal) SoundManager.superHeal();
   }
-  user._wxOverdrive = WX_OVERDRIVE_FRAMES;
+  if (user._wxOverdrive > 0) {
+    const chainLeft = WX_OVERDRIVE_CHAIN_MAX - (user._wxOverdriveUp || 0);
+    user._wxOverdrive = Math.max(0, Math.min(user._wxOverdrive + WX_OVERDRIVE_FRAMES, WX_OVERDRIVE_BANK_MAX, chainLeft));
+  } else {
+    user._wxOverdrive = WX_OVERDRIVE_FRAMES;
+    user._wxOverdriveUp = 0;
+  }
   user._wxExtraJumps = 1;
   spawnRing(user.cx(), user.cy());
   spawnParticles(user.cx(), user.cy(), '#8fd8ff', 30);
@@ -559,15 +572,21 @@ function _wxUpdateOverdrive(user) {
     return;
   }
   user._wxOverdrive--;
+  user._wxOverdriveUp = (user._wxOverdriveUp || 0) + 1;
+  if (user._wxOverdriveUp >= WX_OVERDRIVE_CHAIN_MAX) user._wxOverdrive = 0;
   if (user.onGround) user._wxExtraJumps = 1;
   // Cooldowns recover 60% faster.
   if (user.cooldown > 0) user.cooldown = Math.max(0, user.cooldown - 0.6);
   if (user.abilityCooldown > 0) user.abilityCooldown = Math.max(0, user.abilityCooldown - 0.6);
-  // Stronger shield: each raise starts with double HP.
+  // Stronger shield: each raise starts with double HP. Under 'pool' rules the HP
+  // is a meter that outlives the raise, so the bonus is capped and taken back on
+  // lowering — otherwise every raise would double it again.
+  const _pool = typeof SHIELD_RULES !== 'undefined' && SHIELD_RULES === 'pool';
   if (user.shielding && !user._wxShieldBoosted) {
-    user.shieldHP = (user.shieldHP || 0) * 2;
+    user.shieldHP = _pool ? Math.min(SHIELD_POOL_MAX * 2, (user.shieldHP || 0) * 2) : (user.shieldHP || 0) * 2;
     user._wxShieldBoosted = true;
   } else if (!user.shielding) {
+    if (_pool && user._wxShieldBoosted) user.shieldHP = Math.min(SHIELD_POOL_MAX, user.shieldHP || 0);
     user._wxShieldBoosted = false;
   }
   if (user._wxParryBurst) {
@@ -649,6 +668,9 @@ function refreshFragmentOptions() {
 // THROWING KNIVES
 // ═════════════════════════════════════════════════════════════════════════════
 const WX_KNIVES = 6;
+const WX_KNIFE_SPEED  = 18;
+const WX_KNIFE_RECALL = 22;
+const WX_KNIFE_SCALE  = 1.5;   // drawn size and hit pad grow together
 
 function _wxKnifeState(user) {
   if (user._wxKnivesHeld == null) user._wxKnivesHeld = WX_KNIVES;
@@ -674,7 +696,7 @@ function wxThrowKnife(user, dmg) {
     return;
   }
   user._wxKnivesHeld--;
-  _wxLaunchKnife(user, user.facing * 14, -0.6 + (Math.random() - 0.5) * 0.4, dmg || 9);
+  _wxLaunchKnife(user, user.facing * WX_KNIFE_SPEED, -0.6 + (Math.random() - 0.5) * 0.4, dmg || 9);
 }
 
 function wxRecallKnives(user, fromSuper) {
@@ -696,7 +718,7 @@ function wxFanOfSteel(user) {
   user._wxFanCap = new Map();
   for (let i = 0; i < WX_KNIVES; i++) {
     const a = -0.35 + (i / (WX_KNIVES - 1)) * 0.7;
-    _wxLaunchKnife(user, Math.cos(a) * 14 * user.facing, Math.sin(a) * 14 - 1, 9, user._wxFanCap, 45);
+    _wxLaunchKnife(user, Math.cos(a) * WX_KNIFE_SPEED * user.facing, Math.sin(a) * WX_KNIFE_SPEED - 1, 9, user._wxFanCap, 45);
   }
   user._wxFanRecallAt = _wxFrame() + 40;
   screenShake = Math.max(screenShake, 10);
@@ -731,7 +753,7 @@ function _wxUpdateKnives(user) {
       if (--k.life <= 0 && k.state === 'fly') { k.state = 'drop'; k.vx *= 0.2; }
       if (k.state === 'fly') {
         for (const t of hostiles) {
-          if (k.hit.has(t) || !_wxTouches(t, k.x, k.y, 4)) continue;
+          if (k.hit.has(t) || !_wxTouches(t, k.x, k.y, 4 * WX_KNIFE_SCALE)) continue;
           hit(k, t);
           k.state = 'drop'; k.vx = -k.vx * 0.15; k.vy = -2;
           break;
@@ -744,13 +766,13 @@ function _wxUpdateKnives(user) {
       if (_wxTouches(user, k.x, k.y, 8)) { k.gone = true; user._wxKnivesHeld++; }
     } else if (k.state === 'recall') {
       const dx = user.cx() - k.x, dy = user.cy() - k.y, d = Math.hypot(dx, dy) || 1;
-      k.vx = dx / d * 17; k.vy = dy / d * 17;
+      k.vx = dx / d * WX_KNIFE_RECALL; k.vy = dy / d * WX_KNIFE_RECALL;
       k.x += k.vx; k.y += k.vy;
       for (const t of hostiles) {
-        if (k.hit.has(t) || !_wxTouches(t, k.x, k.y, 6)) continue;
+        if (k.hit.has(t) || !_wxTouches(t, k.x, k.y, 6 * WX_KNIFE_SCALE)) continue;
         hit(k, t);
       }
-      if (d < 22) { k.gone = true; user._wxKnivesHeld++; }
+      if (d < WX_KNIFE_RECALL + 5) { k.gone = true; user._wxKnivesHeld++; }
     }
   }
   // `done` hides a harmless floor knife from Sovereign's hazard scan.
@@ -1101,7 +1123,7 @@ function wxResetFighter(f) {
   f._wxBombs = [];
   f._wxQPending = false; f._wxQDetonated = false;
   f._wxCharge = null; f._wxBarrage = null;
-  f._wxOverdrive = 0; f._wxExtraJumps = 0; f._wxParryBurst = false;
+  f._wxOverdrive = 0; f._wxOverdriveUp = 0; f._wxExtraJumps = 0; f._wxParryBurst = false;
   f._wxKnives = []; f._wxKnivesHeld = WX_KNIVES; f._wxFanRecallAt = 0;
   f._wxGlass = null; f._wxShards = []; f._wxMirror = null;
   f._wxAnchor = null; f._wxKeel = null;
@@ -1248,7 +1270,7 @@ function _wxDrawBomb(bm) {
 
 function _wxDrawKnife(x, y, ang, alpha) {
   ctx.save();
-  ctx.translate(x, y); ctx.rotate(ang);
+  ctx.translate(x, y); ctx.rotate(ang); ctx.scale(WX_KNIFE_SCALE, WX_KNIFE_SCALE);
   ctx.globalAlpha = alpha;
   ctx.fillStyle = '#2b2622'; ctx.fillRect(-9, -1.4, 6, 2.8);
   ctx.fillStyle = '#d7dde4';
@@ -1401,6 +1423,7 @@ function wxDrawFighter(f) {
 
 // Anchor silhouette in local space: shank along +x, crown at the far end.
 function _wxAnchorShape(s) {
+  const ctx = _weaponArtCtx();
   ctx.save();
   ctx.scale(s, s);
   ctx.fillStyle = '#5a6068'; ctx.strokeStyle = '#2a2e33'; ctx.lineWidth = 1;
@@ -1418,6 +1441,7 @@ function _wxAnchorShape(s) {
 
 // In-hand art. Local frame: hand at the origin, weapon along +x, already mirrored.
 function wxDrawWeaponArt(f, k, attacking) {
+  const ctx = _weaponArtCtx();
   const fc = _wxFrame();
   if (k === 'bomb') {
     ctx.shadowBlur = 0;

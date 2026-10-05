@@ -134,7 +134,8 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
 
   // ─── Chapter 72 — What Axiom Wants ───────────────────────────────────────
   S[72] = {
-    bg: 'fracture',
+    // The loop's repeated corridor, at chapter 73's first arch
+    bg: 'level', level: { ch: 73, x: 620 },
     npcColor: '#cc44ff',
     beats: [
       {
@@ -250,7 +251,8 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
 
   // ─── Chapter 148 — Before the End ────────────────────────────────────────
   S[148] = {
-    bg: 'fracture',
+    // Cosmic Axiom's threshold, past the ninety-four lights (ch146)
+    bg: 'level', level: { ch: 146, x: 3400 },
     npcColor: '#cc44ff',
     beats: [
       {
@@ -355,7 +357,8 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
   // Paradox explains the mechanism: same radiation, same frequency, interference.
   // Paradox has no body here — it comes through the fragment, so no npc figure.
   S[149] = {
-    bg: 'fracture',
+    // Cosmic Axiom's threshold, past the ninety-four lights (ch146)
+    bg: 'level', level: { ch: 146, x: 3400 },
     npcColor: '#cc44ff',
     beats: [
       {
@@ -504,7 +507,8 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
   // Saga III's opening. The network has stopped humming and the man who built it
   // is standing next to you. Wide, still, almost no camera movement.
   S[151] = {
-    bg: 'fracture',
+    // The void after the network went quiet — the substrate's beam (ch156)
+    bg: 'level', level: { ch: 156, x: 300 },
     npcColor: '#bb99cc',
     beats: [
       {
@@ -592,7 +596,8 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
   // ── Chapter 152 — The Cost (13 beats) ───────────────────────────────────────
   // Axiom is dying of the same corruption he watched ninety-four people die of.
   S[152] = {
-    bg: 'fracture',
+    // Still in the void's aftermath, on the substrate beam (ch156)
+    bg: 'level', level: { ch: 156, x: 900 },
     npcColor: '#bb99cc',
     beats: [
       {
@@ -695,7 +700,8 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
   // ── Chapter 153 — The Bond (12 beats) ───────────────────────────────────────
   // Kael teaches the man who built the fracture system how to stop building.
   S[153] = {
-    bg: 'fracture',
+    // The teaching, on the substrate beam (ch156)
+    bg: 'level', level: { ch: 156, x: 1800 },
     npcColor: '#bb99cc',
     beats: [
       {
@@ -792,7 +798,8 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
   // ── Chapter 154 — The Compass Points (long) ─────────────────────────────────
   // The trail points down. Held wide — this is a chapter of decision, not action.
   S[154] = {
-    bg: 'fracture',
+    // The trail through the void-between: Sovereign's footprints (ch156)
+    bg: 'level', level: { ch: 156, x: 2700 },
     npcColor: '#bb99cc',
     beats: [
       {

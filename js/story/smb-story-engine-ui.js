@@ -52,7 +52,7 @@ function _renderStoryJourney() {
 
     const icon = done ? '✅' : current ? '▶️' : locked ? '🔒' : '⭐';
     let rewardHtml = '';
-    if (ch.tokenReward) rewardHtml += `+${ch.tokenReward} 🪙`;
+    if (ch.tokenReward) rewardHtml += `+${_storyTokenReward(ch.tokenReward)} 🪙`;
     if (ch.blueprintDrop && STORY_ABILITIES2[ch.blueprintDrop]) {
       rewardHtml += ` · 📋 ${STORY_ABILITIES2[ch.blueprintDrop].name}`;
     }
@@ -322,6 +322,105 @@ function openStoryMenuShop() {
 function closeShopModal() {
   const modal = document.getElementById('shopModal');
   if (modal) modal.style.display = 'none';
+}
+
+// ── Story loadout ────────────────────────────────────────────────────────────
+// Story keeps its own weapon/class pick in _story2.loadout. The picker borrows
+// the Versus Player 1 card (cosmetics included, which stay shared) and swaps the
+// Versus weapon/class values out while it is open, then puts them back.
+let _storyLoadoutStash = null; // { parent, next, weapon, cls, reopenStory }
+
+// Story is melee-only and skips the goofy-tone weapons; 'random' always passes.
+function _storyWeaponAllowed(key) {
+  if (key === 'random') return true;
+  if (!WEAPONS[key] || WEAPONS[key].type === 'ranged') return false;
+  return typeof STORY_TONE_EXCLUDED_WEAPONS === 'undefined' || !STORY_TONE_EXCLUDED_WEAPONS.includes(key);
+}
+
+function storyLoadoutValues() {
+  const lo = (_story2 && _story2.loadout) || {};
+  return { weapon: lo.weapon || 'sword', cls: lo.cls || 'warrior' };
+}
+
+function _storyLoadoutLabel() {
+  const lo = storyLoadoutValues();
+  const wName = lo.weapon === 'random' ? 'Random' : (WEAPONS[lo.weapon] ? WEAPONS[lo.weapon].name : lo.weapon);
+  const cName = lo.cls === 'random' ? 'Random' : (CLASSES[lo.cls] ? CLASSES[lo.cls].name : lo.cls);
+  return wName + ' · ' + cName;
+}
+
+function _refreshStoryLoadoutLabels() {
+  const label = _storyLoadoutLabel();
+  const btn  = document.getElementById('storyLoadoutBtn');
+  const desc = document.getElementById('storyLoadoutCardDesc');
+  if (btn)  btn.textContent  = 'Loadout: ' + label;
+  if (desc) desc.textContent = label;
+}
+
+function _setP1Loadout(weapon, cls) {
+  const wSel = document.getElementById('p1Weapon');
+  const cSel = document.getElementById('p1Class');
+  if (wSel && [...wSel.options].some(o => o.value === weapon)) wSel.value = weapon;
+  if (cSel && [...cSel.options].some(o => o.value === cls))    cSel.value = cls;
+  if (typeof _syncSelCards === 'function') {
+    _syncSelCards('p1WeaponCards', wSel ? wSel.value : weapon);
+    _syncSelCards('p1ClassCards',  cSel ? cSel.value : cls);
+  }
+  const wGrid = document.getElementById('p1WeaponCards');
+  if (wGrid) wGrid.classList.toggle('locked', !!cSel && cSel.value === 'megaknight');
+}
+
+function openStoryLoadout() {
+  if (_storyLoadoutStash) return;
+  const overlay = document.getElementById('storyLoadoutOverlay');
+  const host    = document.getElementById('storyLoadoutHost');
+  const card    = document.getElementById('p1Config');
+  const wSel    = document.getElementById('p1Weapon');
+  const cSel    = document.getElementById('p1Class');
+  if (!overlay || !host || !card || !wSel || !cSel) return;
+  const storyModal = document.getElementById('storyModal');
+  const reopenStory = !!storyModal && storyModal.style.display !== 'none';
+  if (reopenStory) storyModal.style.display = 'none';
+  _storyLoadoutStash = { parent: card.parentNode, next: card.nextSibling, weapon: wSel.value, cls: cSel.value, reopenStory };
+
+  host.appendChild(card);
+  card.classList.add('expanded');
+  if (typeof applyBossRangedLock === 'function') applyBossRangedLock('story');
+  const lo = storyLoadoutValues();
+  _setP1Loadout(lo.weapon, lo.cls);
+  document.querySelectorAll('#p1WeaponCards .sel-card').forEach(c => {
+    c.classList.toggle('card-story-off', !_storyWeaponAllowed(c.dataset.val));
+  });
+  const desc = document.getElementById('p1Desc');
+  if (desc) desc.style.display = 'none';
+  overlay.style.display = 'flex';
+}
+
+function closeStoryLoadout() {
+  const st = _storyLoadoutStash;
+  if (!st) return;
+  _storyLoadoutStash = null;
+  const card = document.getElementById('p1Config');
+  const wSel = document.getElementById('p1Weapon');
+  const cSel = document.getElementById('p1Class');
+  if (_story2 && wSel && cSel) {
+    _story2.loadout = { weapon: _storyWeaponAllowed(wSel.value) ? wSel.value : 'sword', cls: cSel.value };
+    if (typeof _saveStory2 === 'function') _saveStory2();
+  }
+  document.querySelectorAll('#p1WeaponCards .sel-card').forEach(c => c.classList.remove('card-story-off'));
+  _setP1Loadout(st.weapon, st.cls);
+  if (wSel && typeof wSel.disabled === 'boolean') wSel.disabled = !!cSel && cSel.value === 'megaknight';
+  if (card && st.parent) st.parent.insertBefore(card, st.next);
+  if (typeof applyBossRangedLock === 'function') applyBossRangedLock(gameMode);
+  const desc = document.getElementById('p1Desc');
+  if (desc) desc.style.display = 'none';
+  const overlay = document.getElementById('storyLoadoutOverlay');
+  if (overlay) overlay.style.display = 'none';
+  _refreshStoryLoadoutLabels();
+  if (st.reopenStory) {
+    const storyModal = document.getElementById('storyModal');
+    if (storyModal) storyModal.style.display = 'flex';
+  }
 }
 
 // ── Standalone Skill Tree modal ───────────────────────────────────────────────
@@ -732,7 +831,9 @@ function _renderSkillTreeModal() {
     if (expEl) expEl.textContent = _story2.exp;
     if (typeof _saveStory2 === 'function') _saveStory2();
     if (typeof showToast   === 'function') showToast('✓ ' + n.name + ' unlocked!');
-    // No full re-render needed — canvas draws live from _story2 state
+    // Canvas draws live from _story2 state, but the mastery panel is static DOM —
+    // rebuild it so its EXP total and affordable cards reflect the spend
+    _renderWeaponMasterySection(container);
   });
 }
 

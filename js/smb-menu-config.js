@@ -145,7 +145,7 @@ function toggleStatsLog() {
     ['Raged Beast', '180', 'Forest arena (1 in 10 beast spawns)', '+dmg, +kb, +speed, red aura'],
     ['Yeti', '450', 'Ice arena (0.5% chance/frame)', 'Roar stun, Ice spikes, Ice breath'],
     ['Boss (Creator)', '3000 (True: 4500)', 'Creator arena', 'Beams, Spikes, Floor hazards, Minions, Teleport'],
-    ['True Form', '5000', 'Void arena (unlock secret letters)', 'Gravity flip, control invert, black holes, size shift, portal, floor removal'],
+    ['Cosmic Axiom', '5000', 'Void arena (unlock secret letters)', 'Gravity flip, control invert, black holes, size shift, portal, floor removal'],
     ['Boss Minion', '50', 'Spawned by Boss Phase 2+', 'Hard AI, 50% damage output'],
     ['SOVEREIGN (Neural)', 'Same as hard bot', 'Adaptive AI mode (unlock via story)', 'Reads player patterns, dodge-punish, baits attacks, learns in real-time'],
     ['Dummy', '∞ (auto-heal)', 'Training mode', 'Stands still — for practice'],
@@ -165,7 +165,7 @@ function toggleStatsLog() {
     ['Attack CD Mult', '0.5x'], ['Beam CD P2', '560f'], ['Beam CD P3', '400f / 280f (desperation)'],
     ['Spike Damage', '20 (vy=-24)'], ['Beam Damage', '12/frame in 24px radius'], ['Floor Hazard', '15s active, 5s warning cycle'],
     ['Fake Death', 'Triggers once at 33% HP'], ['Stagger', '120+ dmg in 3s → 2.5s stun'],
-    ['True Form HP', '5000'], ['TF Speed', '4.2 (1.3× normal)'], ['TF KB Resist', '0.90'],
+    ['Cosmic Axiom HP', '5000'], ['TF Speed', '4.2 (1.3× normal)'], ['TF KB Resist', '0.90'],
     ['TF Phases', 'QTE at 75/50/25/10% HP; ends with full cinematic'], ['Adaptation', 'Learns player over time (5 tiers)'],
   ];
   for (const [k, v] of bossStats) {
@@ -199,64 +199,69 @@ function toggleStatsLog() {
   modal.style.display = 'flex';
 }
 
-// Build a reverse map: weaponKey → classKey (first class that locks to that weapon)
-function _buildWeaponClassMap() {
-  const map = {};
-  if (typeof CLASSES === 'undefined') return map;
-  for (const [cKey, cDef] of Object.entries(CLASSES)) {
-    if (cDef.weapon && !map[cDef.weapon]) map[cDef.weapon] = cKey;
-  }
-  return map;
+// Classes a 'random' class roll may land on. 'none' is never a valid result —
+// rolling Random should always hand you an actual class. Knight is left out
+// because it swaps the rolled weapon for its gauntlets. Falls back to every
+// rollable class if the player's pool held nothing rollable.
+function _isRollableClass(c) {
+  return c !== 'none' && c !== 'random' && c !== 'megaknight' && !!CLASSES[c] && !CLASSES[c].styleLocked;
+}
+function _randomClassPickPool() {
+  const all  = Object.keys(CLASSES).filter(_isRollableClass);
+  const pool = randomClassPool ? [...randomClassPool].filter(_isRollableClass) : all;
+  return pool.length ? pool : all;
 }
 
-// Coordinated resolver — called once per player with BOTH select IDs.
-// If both are 'random':
-//   50% → pick a random weapon, derive class from it (or 'none')
-//   50% → pick a random class, use its locked weapon
-// If only weapon is random: pick random weapon (no class influence)
-// If only class is random:  pick random class (no weapon influence)
-// Returns { weaponKey, classKey }
-function resolveWeaponAndClass(weaponSelectId, classSelectId) {
-  const wVal = document.getElementById(weaponSelectId)?.value || 'sword';
-  const cVal = document.getElementById(classSelectId)?.value  || 'none';
-  const _allowedCustomModes = new Set(['2p', 'training']);
+function _pickFrom(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
 
-  const wPool = randomWeaponPool ? [...randomWeaponPool] : WEAPON_KEYS;
-  const cPool = randomClassPool  ? [...randomClassPool]  : ['none', 'thor', 'kratos', 'ninja', 'gunner', 'archer', 'paladin'];
-  const wcMap = _buildWeaponClassMap(); // weapon → class
+// Classes of one kind ('melee' | 'ranged') from the pool; when the player's
+// pool holds none of that kind, any rollable class of that kind.
+function _classPoolOfKind(cPool, kind) {
+  const own = cPool.filter(c => classRollKind(c) === kind);
+  if (own.length) return own;
+  return Object.keys(CLASSES).filter(c => _isRollableClass(c) && classRollKind(c) === kind);
+}
 
+// Shared roll for both resolvers. The weapon always rolls first and the class
+// follows its kind, so a sword never comes with Archer and a gun never with Thor.
+//   both random  → random weapon, then a random class of the same kind
+//   weapon only  → random weapon of the chosen class's kind (free-weapon classes take any)
+//   class only   → random class of the chosen weapon's kind
+// `weaponFilter` narrows the weapon pool (story mode uses it for its own rules).
+function _rollLoadout(wVal, cVal, weaponFilter) {
+  let wPool = randomWeaponPool ? [...randomWeaponPool] : WEAPON_KEYS.slice();
+  if (weaponFilter) wPool = wPool.filter(weaponFilter);
+  if (!wPool.length) wPool = ['sword'];
+  const cPool = _randomClassPickPool();
   let weaponKey, classKey;
 
   if (wVal === 'random' && cVal === 'random') {
-    // 50/50: weapon-first vs class-first
-    if (Math.random() < 0.5) {
-      // ── Weapon-first: pick weapon, then derive class ─────────
-      weaponKey = wPool.length ? wPool[Math.floor(Math.random() * wPool.length)] : 'sword';
-      classKey  = cPool.length ? cPool[Math.floor(Math.random() * cPool.length)] : 'none';
-    } else {
-      // ── Class-first: pick class with a random weapon ──────────
-      const eligibleClasses = cPool.filter(c => c !== 'none');
-      if (eligibleClasses.length === 0) {
-        // fallback: pure weapon random
-        weaponKey = wPool.length ? wPool[Math.floor(Math.random() * wPool.length)] : 'sword';
-        classKey  = 'none';
-      } else {
-        classKey  = eligibleClasses[Math.floor(Math.random() * eligibleClasses.length)];
-        weaponKey = wPool.length ? wPool[Math.floor(Math.random() * wPool.length)] : 'sword';
-      }
-    }
+    weaponKey = _pickFrom(wPool);
+    classKey  = _pickFrom(_classPoolOfKind(cPool, weaponRollKind(weaponKey)));
   } else if (wVal === 'random') {
-    // Only weapon is random — class stays as selected
-    weaponKey = wPool.length ? wPool[Math.floor(Math.random() * wPool.length)] : 'sword';
+    const _cls = CLASSES[cVal];
+    const _kindPool = (_cls && _cls.weapon) ? wPool.filter(k => weaponRollKind(k) === classRollKind(cVal)) : wPool;
+    weaponKey = _pickFrom(_kindPool.length ? _kindPool : wPool);
     classKey  = cVal;
   } else if (cVal === 'random') {
-    // Only class is random — weapon stays as selected
     weaponKey = wVal;
-    classKey  = cPool.length ? cPool[Math.floor(Math.random() * cPool.length)] : 'none';
+    classKey  = _pickFrom(_classPoolOfKind(cPool, weaponRollKind(wVal)));
   } else {
     weaponKey = wVal;
     classKey  = cVal;
   }
+  return { weaponKey, classKey };
+}
+
+// Coordinated resolver — called once per player with BOTH select IDs.
+// Returns { weaponKey, classKey }
+function resolveWeaponAndClass(weaponSelectId, classSelectId, weaponFilter) {
+  const wVal = document.getElementById(weaponSelectId)?.value || 'sword';
+  const cVal = document.getElementById(classSelectId)?.value  || 'none';
+  const _allowedCustomModes = new Set(['2p', 'training']);
+
+  const { weaponKey: _w, classKey } = _rollLoadout(wVal, cVal, weaponFilter);
+  let weaponKey = _w;
 
   // Custom weapon guard
   if (weaponKey && weaponKey.startsWith('_custom_') && !_allowedCustomModes.has(gameMode)) {
@@ -267,33 +272,8 @@ function resolveWeaponAndClass(weaponSelectId, classSelectId) {
 }
 
 // Resolve weapon+class from raw values (not element IDs) — used by completeRandomizer
-function resolveWeaponAndClassValues(wVal, cVal) {
-  const wPool = randomWeaponPool ? [...randomWeaponPool] : WEAPON_KEYS;
-  const cPool = randomClassPool  ? [...randomClassPool]  : ['none', 'thor', 'kratos', 'ninja', 'gunner', 'archer', 'paladin'];
-  const wcMap = _buildWeaponClassMap();
-  let weaponKey, classKey;
-  if (wVal === 'random' && cVal === 'random') {
-    if (Math.random() < 0.5) {
-      weaponKey = wPool[Math.floor(Math.random() * wPool.length)] || 'sword';
-      classKey  = cPool[Math.floor(Math.random() * cPool.length)] || 'none';
-    } else {
-      const eligible = cPool.filter(c => c !== 'none');
-      if (!eligible.length) { weaponKey = wPool[Math.floor(Math.random() * wPool.length)] || 'sword'; classKey = 'none'; }
-      else {
-        classKey  = eligible[Math.floor(Math.random() * eligible.length)];
-        weaponKey = wPool[Math.floor(Math.random() * wPool.length)] || 'sword';
-      }
-    }
-  } else if (wVal === 'random') {
-    weaponKey = wPool[Math.floor(Math.random() * wPool.length)] || 'sword';
-    classKey  = cVal;
-  } else if (cVal === 'random') {
-    weaponKey = wVal;
-    classKey  = cPool[Math.floor(Math.random() * cPool.length)] || 'none';
-  } else {
-    weaponKey = wVal; classKey = cVal;
-  }
-  return { weaponKey, classKey };
+function resolveWeaponAndClassValues(wVal, cVal, weaponFilter) {
+  return _rollLoadout(wVal, cVal, weaponFilter);
 }
 
 // Legacy single-value helpers (used by code paths that resolve independently)
@@ -310,8 +290,7 @@ function getWeaponChoice(id) {
 function getClassChoice(id) {
   const v = document.getElementById(id)?.value || 'none';
   if (v !== 'random') return v;
-  const pool = randomClassPool ? [...randomClassPool] : ['none', 'thor', 'kratos', 'ninja', 'gunner', 'archer', 'paladin'];
-  return pool.length ? pool[Math.floor(Math.random() * pool.length)] : 'none';
+  return _pickFrom(_randomClassPickPool());
 }
 
 function getWeaponChoiceFromPool() {
@@ -327,7 +306,7 @@ function toggleRandomPool(type, key) {
     // Keep at least 1 weapon
     if (randomWeaponPool.size === 0) randomWeaponPool.add(key);
   } else if (type === 'class') {
-    if (!randomClassPool) randomClassPool = new Set(['none', 'thor', 'kratos', 'ninja', 'gunner']);
+    if (!randomClassPool) randomClassPool = new Set(_randomClassPickPool());
     if (randomClassPool.has(key)) randomClassPool.delete(key);
     else randomClassPool.add(key);
     if (randomClassPool.size === 0) randomClassPool.add(key);
@@ -362,11 +341,14 @@ function _getLoadingInfo() {
     chaos:    'EVERY RULE IS NEGOTIABLE',
     sports:   'NOBODY SAID NO WEAPONS'
   };
+  // Fight Ladder: the card names the rung and the opponent you are about to face.
+  const ld = gameMode === '2p' ? window._ladderNext : null;
+  if (ld) return { title: `RUNG ${ld.rung + 1}`, subtitle: String(ld.name).toUpperCase(), scene: 'versus' };
   switch (gameMode) {
     case 'boss':
       return { title: 'BOSS FIGHT', subtitle: 'IT HAS BEEN WAITING', scene: 'boss' };
     case 'trueform':
-      return { title: 'TRUE FORM',  subtitle: 'THE RULES STOP APPLYING', scene: 'trueform' };
+      return { title: 'COSMIC AXIOM',  subtitle: 'THE RULES STOP APPLYING', scene: 'trueform' };
     case 'story':
       return { title: 'STORY MODE', subtitle: 'THE 95TH BEARER', scene: 'story' };
     case 'battleroyale':

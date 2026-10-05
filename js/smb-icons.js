@@ -80,6 +80,64 @@ const SMB_ICONS = {
 
   orbit: '<circle cx="12" cy="12" r="3.2"/><circle cx="12" cy="12" r="8.8" fill="none" stroke="currentColor" stroke-width="1.6" stroke-dasharray="3 3"/><circle class="a" cx="12" cy="3.2" r="2.1"/><circle class="a" cx="19.6" cy="16.4" r="2.1"/><circle class="a" cx="4.4" cy="16.4" r="2.1"/>',
 
+  // ── Achievements ──────────────────────────────────────────
+  // Drawn to sit inside the hex badge (see achBadgeSVG), so they favour solid
+  // masses over hairlines. Black-at-opacity details read on any tier colour.
+
+  drop: '<path d="M12 2.2C8.6 7.2 5.4 10.9 5.4 14.8a6.6 6.6 0 0 0 13.2 0c0-3.9-3.2-7.6-6.6-12.6z"/><path d="M8.9 14.8a3.1 3.1 0 0 0 3.1 3.1" fill="none" stroke="#000" stroke-width="1.6" opacity=".35"/>',
+
+  chevrons: '<path d="M5 20l7-5 7 5M5 13.6l7-5 7 5M5 7.2l7-5 7 5" fill="none" stroke="currentColor" stroke-width="2.7"/>',
+
+  heartcrack: '<path d="M12 21.2s-8.8-5.2-8.8-11.4A5 5 0 0 1 12 6.6a5 5 0 0 1 8.8 3.2c0 6.2-8.8 11.4-8.8 11.4z"/><path d="M12.8 6.4 10.4 10.8l3.2 2.2-2.2 4.6" fill="none" stroke="#000" stroke-width="1.7" opacity=".5"/>',
+
+  stopwatch: '<circle cx="12" cy="13.6" r="7.8" fill="none" stroke="currentColor" stroke-width="2.3"/><rect x="9.4" y="1.6" width="5.2" height="2.6" rx="1.1"/><rect x="11" y="3.8" width="2" height="2.4"/><path d="M12 13.6V9.2M18.4 5.4l1.6 1.6" fill="none" stroke="currentColor" stroke-width="2.3"/><circle cx="12" cy="13.6" r="1.5"/>',
+
+  star: '<path d="M12 2.2l2.9 6.3 6.9.8-5.1 4.7 1.4 6.8L12 17.4l-6.1 3.4 1.4-6.8-5.1-4.7 6.9-.8z"/>',
+
+  crown: '<path d="M2.8 7.6l4.8 4.4L12 5l4.4 7 4.8-4.4-1.9 10.6H4.7z"/><rect x="4.6" y="19.4" width="14.8" height="2.6" rx="1.1"/><circle class="a" cx="12" cy="3" r="1.7"/><circle class="a" cx="2.8" cy="6.2" r="1.4"/><circle class="a" cx="21.2" cy="6.2" r="1.4"/>',
+
+  wave: '<path d="M2 20.4c2.4 0 2.4-1.8 4.8-1.8s2.4 1.8 4.8 1.8 2.4-1.8 4.8-1.8 2.4 1.8 4.8 1.8" fill="none" stroke="currentColor" stroke-width="2.2"/><path d="M2 15.6c1.6-6.6 6.6-11.2 12.6-11.2 3 0 5.4 1 7.2 2.8-3.4-.6-6.4.8-6.6 3.8-.2 2.6 1.8 3.6 4.2 3.2-1.8 1.4-4.2 1.8-6.4 1.4H2z"/>',
+
+  flag: '<path class="a" d="M1.6 22.4c3-4 6.6-6 10.4-6s7.4 2 10.4 6z"/><rect x="10.8" y="1.8" width="2.2" height="16" rx="1.1"/><path d="M13 2.6h8l-2.4 3.2L21 9h-8z"/>',
+
+  spiral: '<path d="M12.0 11.1 L12.1 11.0 L12.3 11.0 L12.4 11.0 L12.6 11.0 L12.8 11.0 L13.0 11.1 L13.2 11.2 L13.3 11.3 L13.5 11.5 L13.6 11.7 L13.7 11.9 L13.8 12.1 L13.9 12.4 L13.9 12.6 L13.8 12.9 L13.7 13.2 L13.6 13.5 L13.5 13.8 L13.2 14.0 L13.0 14.2 L12.7 14.4 L12.4 14.6 L12.0 14.7 L11.7 14.7 L11.3 14.7 L10.9 14.7 L10.5 14.6 L10.1 14.4 L9.7 14.2 L9.4 13.9 L9.1 13.5 L8.9 13.2 L8.7 12.7 L8.5 12.3 L8.4 11.8 L8.4 11.3 L8.5 10.8 L8.6 10.3 L8.8 9.8 L9.1 9.3 L9.4 8.9 L9.8 8.5 L10.3 8.2 L10.8 7.9 L11.3 7.7 L11.9 7.6 L12.5 7.5 L13.1 7.6 L13.8 7.7 L14.4 7.9 L14.9 8.2 L15.5 8.6 L16.0 9.0 L16.4 9.6 L16.8 10.2 L17.1 10.8 L17.2 11.5 L17.3 12.2 L17.3 13.0 L17.2 13.7 L17.0 14.4 L16.7 15.1 L16.3 15.8 L15.8 16.4 L15.2 16.9 L14.5 17.4 L13.8 17.8 L13.0 18.0 L12.2 18.2 L11.3 18.2 L10.5 18.2 L9.6 18.0 L8.8 17.7 L8.0 17.2 L7.3 16.7 L6.6 16.1 L6.1 15.3 L5.6 14.5 L5.2 13.7 L5.0 12.7 L4.9 11.8 L4.9 10.8 L5.1 9.8 L5.4 8.9 L5.8 8.0 L6.3 7.1 L7.0 6.3 L7.8 5.6 L8.6 5.0 L9.6 4.6 L10.6 4.2 L11.7 4.1 L12.8 4.0 L13.9 4.1 L14.9 4.4 L16.0 4.8 L17.0 5.3 L17.9 6.0 L18.7 6.8 L19.4 7.7 L20.0 8.7 L20.4 9.8 L20.7 11.0 L20.9 12.2 L20.8 13.4 L20.6 14.6 L20.3 15.8 L19.8 16.9 L19.1 18.0 L18.2 18.9 L17.3 19.8 L16.2 20.5 L15.1 21.1 L13.8 21.5 L12.5 21.7 L11.2 21.8 L9.8 21.6 L8.5 21.3 L7.3 20.8 L6.1 20.2" fill="none" stroke="currentColor" stroke-width="2"/>',
+
+  diamond: '<path d="M12 1.6 20.4 12 12 22.4 3.6 12z"/><path d="M12 1.6 15.2 12 12 22.4 8.8 12z" fill="#000" opacity=".22"/><path d="M3.6 12h16.8" stroke="#000" stroke-width="1.2" opacity=".28"/>',
+
+  medal: '<path class="a" d="M6.4 1.6h3.8l2.8 6.6H9.2zM17.6 1.6h-3.8l-1.4 3.3 1.5 3.3h.9z"/><circle cx="12" cy="15.2" r="7"/><path d="M12 10.8l1.3 2.7 3 .4-2.2 2 .6 3-2.7-1.5-2.7 1.5.6-3-2.2-2 3-.4z" fill="#000" opacity=".35"/>',
+
+  compass: '<circle cx="12" cy="12" r="9.4" fill="none" stroke="currentColor" stroke-width="2.1"/><path d="M16.6 7.4 13.6 13.6 7.4 16.6 10.4 10.4z"/><circle cx="12" cy="12" r="1.3" fill="#000" opacity=".45"/>',
+
+  crate: '<rect x="3" y="4" width="18" height="16" rx="1.6"/><path d="M3 8.6h18M3 15.4h18M5.6 8.6l12.8 6.8" fill="none" stroke="#000" stroke-width="1.5" opacity=".35"/>',
+
+  horns: '<path d="M2.6 2.6c.2 4.4 2 6.8 4.8 7.8L6 12.6c0 5 2.8 8.6 6 9.6 3.2-1 6-4.6 6-9.6l-1.4-2.2c2.8-1 4.6-3.4 4.8-7.8-2 2.6-4.4 3.8-7 4h-4.8c-2.6-.2-5-1.4-7-4z"/><path d="M8.4 13.2l2.6 1.4M15.6 13.2 13 14.6M10 18.2h4" fill="none" stroke="#000" stroke-width="1.7" opacity=".5"/>',
+
+  crescent: '<path d="M14.4 2.4a9.8 9.8 0 1 0 7.2 13.4A7.8 7.8 0 1 1 14.4 2.4z"/><circle class="a" cx="18.4" cy="5.4" r="1.2"/><circle class="a" cx="21" cy="10" r=".9"/>',
+
+  snowflake: '<path d="M12 2v20M3.4 7l17.2 10M3.4 17 20.6 7" fill="none" stroke="currentColor" stroke-width="2.1"/><path d="M9.2 3.4 12 6.2l2.8-2.8M9.2 20.6 12 17.8l2.8 2.8M3.2 10.6 7 9.6 6 5.8M20.8 13.4 17 14.4l1 3.8M3.2 13.4 7 14.4 6 18.2M20.8 10.6 17 9.6l1-3.8" fill="none" stroke="currentColor" stroke-width="1.6"/>',
+
+  claw: '<path d="M5.4 2.6c2.8 5.6 3.2 11.4 1.6 19-2.8-6.4-3.4-13-1.6-19zM12.2 2c2.8 6 3 12.4 1 20-2.6-6.8-3-13.4-1-20zM18.8 3c2.4 5.6 2.4 11.4-.2 18-2.2-6.4-2.2-12.2.2-18z"/>',
+
+  omega: '<path d="M3.6 20.6h5.6v-2.4C6.4 16.8 4.8 14.2 4.8 11A7.2 7.2 0 0 1 12 3.6 7.2 7.2 0 0 1 19.2 11c0 3.2-1.6 5.8-4.4 7.2v2.4h5.6" fill="none" stroke="currentColor" stroke-width="2.6"/>',
+
+  halo: '<ellipse cx="12" cy="4.4" rx="7.4" ry="2.4" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 8.6l1.9 5.4 5.7.2-4.5 3.5 1.6 5.5L12 20l-4.7 3.2 1.6-5.5-4.5-3.5 5.7-.2z"/>',
+
+  eye: '<path d="M1.4 12C4 7 7.8 4.4 12 4.4S20 7 22.6 12C20 17 16.2 19.6 12 19.6S4 17 1.4 12z"/><circle cx="12" cy="12" r="4.4" fill="#000" opacity=".55"/><circle cx="12" cy="12" r="1.8"/>',
+
+  portal: '<ellipse cx="12" cy="12" rx="6.6" ry="9.8" fill="none" stroke="currentColor" stroke-width="2.3"/><ellipse class="a" cx="12" cy="12" rx="3.4" ry="6" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M12 9.2l1 1.8 1.8 1-1.8 1-1 1.8-1-1.8-1.8-1 1.8-1z"/>',
+
+  rocket: '<path d="M12 1.6c3.2 2.6 4.6 6.2 4.6 10.2v5H7.4v-5c0-4 1.4-7.6 4.6-10.2z"/><circle cx="12" cy="9.4" r="1.9" fill="#000" opacity=".45"/><path d="M7.4 12.4 4 16v3.4l3.4-1.8zM16.6 12.4 20 16v3.4l-3.4-1.8z"/><path class="a" d="M9.4 17.8h5.2L12 22.6z"/>',
+
+  flask: '<path d="M8.8 2h6.4v2h-.9v5.2l5.6 9.6A2 2 0 0 1 18.2 22H5.8a2 2 0 0 1-1.7-3.2l5.6-9.6V4h-.9z"/><path d="M6.6 15.2h10.8" stroke="#000" stroke-width="1.5" opacity=".3"/><circle cx="10.4" cy="18.2" r="1" fill="#000" opacity=".3"/><circle cx="14" cy="17.4" r=".8" fill="#000" opacity=".3"/>',
+
+  map: '<path d="M2.4 5.2 8.4 3l7.2 2.4L21.6 3v15.8l-6 2.2-7.2-2.4-6 2.2z"/><path d="M8.4 3v15.6M15.6 5.4V21" stroke="#000" stroke-width="1.5" opacity=".35"/><path d="M11 10.4l2.6 2.6M13.6 10.4 11 13" stroke="#000" stroke-width="1.5" opacity=".5"/>',
+
+  planet: '<circle cx="12" cy="12" r="6.4"/><ellipse cx="12" cy="12" rx="11" ry="3.4" transform="rotate(-24 12 12)" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M8 9.6c2.4-.8 5.6-.6 8 .6" fill="none" stroke="#000" stroke-width="1.3" opacity=".3"/>',
+
+  infinity: '<path d="M12 12c-2.2-3.2-4-4.6-6-4.6a4.6 4.6 0 0 0 0 9.2c2 0 3.8-1.4 6-4.6s4-4.6 6-4.6a4.6 4.6 0 0 1 0 9.2c-2 0-3.8-1.4-6-4.6z" fill="none" stroke="currentColor" stroke-width="2.5"/>',
+
+  branches: '<path d="M12 22v-8.4M12 13.6 5.4 6.4M12 13.6l6.6-7.2M12 13.6V4.4" fill="none" stroke="currentColor" stroke-width="2.4"/><circle cx="5" cy="5.4" r="2.6"/><circle cx="19" cy="5.4" r="2.6"/><circle cx="12" cy="3.2" r="2.6"/><circle class="a" cx="12" cy="20.4" r="2"/>',
+
   // ── UI chrome ─────────────────────────────────────────────
   cap: '<path d="M12 2.6 23 8l-11 5.4L1 8z"/><path d="M5.4 10.8v4.6c0 2.2 3 3.8 6.6 3.8s6.6-1.6 6.6-3.8v-4.6L12 14z"/><path class="a" d="M21.4 8.8v6.4" fill="none" stroke="currentColor" stroke-width="1.5"/>',
 

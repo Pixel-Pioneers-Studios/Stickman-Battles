@@ -836,7 +836,7 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
   // ── Chapter 13 — Resonance (5 beats) ────────────────────────────────────────
   // First uncontrolled discharge. The voice reaches him for the first time.
   S[13] = {
-    bg: 'city',
+    bg: 'level', level: { ch: 12, x: 3000 },
     npcColor: '#88aacc',
     beats: [
       {
@@ -915,7 +915,7 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
   // ── Chapter 14 — Coherence (5 beats) ────────────────────────────────────────
   // The fragment flickers mid-fight; the voice explains he is not dying.
   S[14] = {
-    bg: 'city',
+    bg: 'level', level: { ch: 11, x: 3000 },
     npcColor: '#88aacc',
     beats: [
       {
@@ -989,7 +989,7 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
   // ── Chapter 15 — Phase (4 beats) ────────────────────────────────────────────
   // A blow passes through him. The voice, third contact, still unnamed.
   S[15] = {
-    bg: 'city',
+    bg: 'level', level: { ch: 12, x: 3950 },
     npcColor: '#88aacc',
     beats: [
       {
@@ -1044,7 +1044,7 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
   // Veran explains the classes; the fragment-voice interrupts her for the first
   // time to correct her. Two speakers, so this one is staged as a real two-shot.
   S[16] = {
-    bg: 'city',
+    bg: 'level', level: { ch: 12, x: 1160 },
     npcColor: '#cc99dd',
     beats: [
       {

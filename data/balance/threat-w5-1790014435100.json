@@ -1,0 +1,167 @@
+{
+ "LABEL": "threat-w5",
+ "MODE": "threat",
+ "PATCH": {
+  "hammer": {
+   "damage": 20,
+   "range": 72,
+   "cooldown": 60,
+   "endlag": 18
+  },
+  "flail": {
+   "damage": 17,
+   "range": 70,
+   "cooldown": 58,
+   "endlag": 18
+  },
+  "scythe": {
+   "damage": 15,
+   "cooldown": 33
+  },
+  "whip": {
+   "damage": 15,
+   "cooldown": 26,
+   "endlag": 10
+  },
+  "fryingpan": {
+   "damage": 18,
+   "cooldown": 42,
+   "endlag": 15
+  },
+  "sword": {
+   "damage": 15,
+   "range": 84,
+   "cooldown": 36,
+   "endlag": 9,
+   "abilityCooldown": 180
+  },
+  "katana": {
+   "cooldown": 52,
+   "abilityCooldown": 230
+  },
+  "broomstick": {
+   "damage": 16,
+   "cooldown": 24
+  },
+  "combat": {
+   "damage": 19
+  },
+  "electricstaff": {
+   "cooldown": 28
+  },
+  "shield": {
+   "damage": 16
+  },
+  "spear": {
+   "damage": 20
+  }
+ },
+ "ents": [
+  "sword",
+  "hammer",
+  "axe",
+  "spear",
+  "shield",
+  "scythe",
+  "fryingpan",
+  "broomstick",
+  "combat",
+  "flail",
+  "whip",
+  "katana",
+  "electricstaff"
+ ],
+ "bt": {
+  "sword": {
+   "w": 0,
+   "n": 156,
+   "dmg": 28942,
+   "taken": 70240,
+   "f": 245923
+  },
+  "hammer": {
+   "w": 0,
+   "n": 156,
+   "dmg": 37538,
+   "taken": 77285,
+   "f": 337361
+  },
+  "axe": {
+   "w": 0,
+   "n": 156,
+   "dmg": 41658,
+   "taken": 70200,
+   "f": 255778
+  },
+  "spear": {
+   "w": 0,
+   "n": 156,
+   "dmg": 38253,
+   "taken": 70200,
+   "f": 233655
+  },
+  "shield": {
+   "w": 0,
+   "n": 156,
+   "dmg": 26984,
+   "taken": 70200,
+   "f": 253683
+  },
+  "scythe": {
+   "w": 0,
+   "n": 156,
+   "dmg": 29410,
+   "taken": 70200,
+   "f": 256844
+  },
+  "fryingpan": {
+   "w": 0,
+   "n": 156,
+   "dmg": 30508,
+   "taken": 70200,
+   "f": 259550
+  },
+  "broomstick": {
+   "w": 0,
+   "n": 156,
+   "dmg": 35424,
+   "taken": 70200,
+   "f": 267921
+  },
+  "combat": {
+   "w": 0,
+   "n": 156,
+   "dmg": 40169,
+   "taken": 70240,
+   "f": 213531
+  },
+  "flail": {
+   "w": 0,
+   "n": 156,
+   "dmg": 27322,
+   "taken": 75373,
+   "f": 330359
+  },
+  "whip": {
+   "w": 0,
+   "n": 156,
+   "dmg": 33177,
+   "taken": 70200,
+   "f": 314327
+  },
+  "katana": {
+   "w": 0,
+   "n": 156,
+   "dmg": 29226,
+   "taken": 70240,
+   "f": 238431
+  },
+  "electricstaff": {
+   "w": 1,
+   "n": 156,
+   "dmg": 44942,
+   "taken": 70178,
+   "f": 254682
+  }
+ }
+}

@@ -435,7 +435,7 @@ const DomainManager = (() => {
     const wk = domain.owner.weaponKey;
     const OX = _dOX(domain);
 
-    // Thor + Hammer → Mjolnir roams the arena freely, periodically dart-strikes an enemy
+    // Torren + Hammer → Mjolnir roams the arena freely, periodically dart-strikes an enemy
     if (domain.defKey === 'thor') {
       domain.hazards.push({
         type:        'mjolnir',
@@ -454,7 +454,7 @@ const DomainManager = (() => {
       });
     }
 
-    // Kratos → Blades of Chaos: fire chains whipping across the arena
+    // Varek → Blades of Chaos: fire chains whipping across the arena
     if (domain.defKey === 'kratos') {
       domain.hazards.push({
         type:       'blades_of_chaos',
@@ -537,7 +537,7 @@ const DomainManager = (() => {
       });
     }
 
-    // Megaknight → Gravity Vortex: strong pull drags enemies into the void rocks
+    // Knight → Gravity Vortex: strong pull drags enemies into the void rocks
     if (domain.defKey === 'megaknight') {
       domain.hazards.push({
         type:   'gravity_vortex',
@@ -781,7 +781,7 @@ const DomainManager = (() => {
 
     switch (_dk) {
 
-      // ── Thor: hammer raised → lightning strikes → supercharge → ground slam ──
+      // ── Torren: hammer raised → lightning strikes → supercharge → ground slam ──
       case 'thor': {
         if (t === 275) {
           CinFX.bgContrast('#000a1a', 0.88, 60);
@@ -829,7 +829,7 @@ const DomainManager = (() => {
         break;
       }
 
-      // ── Kratos: axe charged → rage explosion → axe thrown into sky → war domain ──
+      // ── Varek: axe charged → rage explosion → axe thrown into sky → war domain ──
       case 'kratos': {
         if (t === 275) {
           CinFX.bgContrast('#1a0500', 0.90, 60);
@@ -1100,7 +1100,7 @@ const DomainManager = (() => {
         break;
       }
 
-      // ── Megaknight: reality cracks → void gauntlet charges → punches rift open ──
+      // ── Knight: reality cracks → void gauntlet charges → punches rift open ──
       case 'megaknight': {
         if (t === 278) {
           CinFX.bgContrast('#050013', 0.90, 62);
@@ -2718,10 +2718,8 @@ const DomainManager = (() => {
     if (def.hazardType === 'null_wall') _createNullWalls(domain);
     _createWeaponHazards(domain);
 
-    // Thor holds Mjolnir during domain when hammer-equipped; otherwise holds equipped weapon.
-    // Kratos holds the Blade of Olympus while his axe tears the arena apart.
-    if (defKey === 'thor') fighter._domainDisplayWeapon = 'stormbreaker';
-    if (defKey === 'kratos') fighter._domainDisplayWeapon = 'sword';
+    // Torren and Varek keep their own weapon in hand through the domain; the
+    // Stormbreaker / Blade of Olympus display swaps were removed.
 
     _domains.push(domain);
 
@@ -3529,7 +3527,19 @@ const DomainManager = (() => {
 
   // ── Update (called once per game frame before player.update()) ─────
 
+  // True only while update() runs. Every hazard, passive, Ronin cut and Reaper
+  // skull deals its damage from inside update(), so dealDamage (smb-combat.js)
+  // reads this to deny super meter for domain-generated damage while the
+  // owner's own attacks inside the domain still charge normally.
+  let _hazardTick = false;
+  function isHazardTick() { return _hazardTick; }
+
   function update() {
+    _hazardTick = true;
+    try { _updateBody(); } finally { _hazardTick = false; }
+  }
+
+  function _updateBody() {
     if (!gameRunning) return;
 
     // ── Rising fighters ───────────────────────────────────────────
@@ -3552,7 +3562,7 @@ const DomainManager = (() => {
       // Fire cinematic events tied to the rising phase countdown
       _tickDomainEntry(r);
 
-      // Early activation: Thor activates at the hammer slam (t=215), Ninja once the
+      // Early activation: Torren activates at the hammer slam (t=215), Ninja once the
       // launcher strikes land (t=168) — not at the end of rising
       if ((r.animData.slamActivate || r.animData.earlyActivate) && !r.animData.domainActivated) {
         r.animData.domainActivated = true;
@@ -4456,7 +4466,6 @@ const DomainManager = (() => {
           }
 
         }
-        // (stormbreaker is now drawn via fighter._domainDisplayWeapon = 'stormbreaker' — no update needed here)
 
         if (remove) domain.hazards.splice(j, 1);
       }
@@ -5702,6 +5711,7 @@ const DomainManager = (() => {
     triggerExpansion,
     domainKeyOf: _domainKeyOf,
     ownsDomain,
+    isHazardTick,
     onFighterDied,
     anyActive,
     reset,

@@ -14,7 +14,8 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
   // ── Chapter 155 — The Figure on the Ridge (12 beats) ────────────────────────
   // Sparring on the descent, and the admission: he was the figure on the ridge.
   S[155] = {
-    bg: 'ruins',
+    // The descent, further down the substrate (ch156)
+    bg: 'level', level: { ch: 156, x: 3600 },
     npcColor: '#bb99cc',
     beats: [
       {
@@ -116,7 +117,8 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
   // ── Chapter 157 — God's Threshold (14 beats) ────────────────────────────────
   // The domain is BUILT, not void. It acknowledges Kael and refuses to see Axiom.
   S[157] = {
-    bg: 'ruins',
+    // God's domain, the outer edge of the nave (ch158)
+    bg: 'level', level: { ch: 158, x: 450 },
     npcColor: '#ffe8bb',
     beats: [
       {
@@ -204,7 +206,8 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
   // ── Chapter 159 — What You Are (9 beats) ────────────────────────────────────
   // God speaks structurally, not in words. Wide and low — the domain is talking.
   S[159] = {
-    bg: 'ruins',
+    // The deep interior, under the flexing arches (ch158)
+    bg: 'level', level: { ch: 158, x: 3000 },
     npcColor: '#ffe8bb',
     beats: [
       {
@@ -285,7 +288,8 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
   // God places itself between Axiom and the far side. Kael steps forward and
   // stands with him — the beat the whole companion arc has been building to.
   S[161] = {
-    bg: 'ruins',
+    // The centre, where the domain's decision formed (ch160)
+    bg: 'level', level: { ch: 160, x: 3300 },
     npcColor: '#ffe8bb',
     beats: [
       {
@@ -410,7 +414,8 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
   // ── Chapter 163 — The Lab (15 beats) ────────────────────────────────────────
   // Three minutes too late. The fusion completes as he comes through the door.
   S[163] = {
-    bg: 'cave',
+    // The lab: Axiom's original construction space, the sealed section (ch67)
+    bg: 'level', level: { ch: 67, x: 1500 },
     npcColor: '#cc99ff',
     beats: [
       {
@@ -540,7 +545,8 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
   // Calix through the compass: you cannot beat God's form — find the seam.
   // Calix is a voice at extreme range, so no figure; the compass carries it.
   S[165] = {
-    bg: 'ruins',
+    // Still in the lab, Calix's voice through the compass (ch67)
+    bg: 'level', level: { ch: 67, x: 2100 },
     npcColor: '#66ccaa',
     beats: [
       {
@@ -610,7 +616,8 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
   // The domain rewritten and improved. Axiom's cadence with everything alive
   // pressed out of it — and the real him breaking through underneath.
   S[166] = {
-    bg: 'ruins',
+    // God's domain rewritten, lattice through every joint (ch168)
+    bg: 'level', level: { ch: 168, x: 600 },
     npcColor: '#cc99ff',
     beats: [
       {
@@ -685,7 +692,8 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
 
   // ── Chapter 170 — Peak Form (22 lines) ──────────────────────────────────────
   S[170] = {
-    bg: 'ruins',
+    // God's domain, fully rewritten, at the centre (ch168)
+    bg: 'level', level: { ch: 168, x: 3900 },
     npcColor: '#cc99ff',
     beats: [
       {
@@ -713,7 +721,8 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
 
   // ── Chapter 171 — After Everything (39 lines) ───────────────────────────────
   S[171] = {
-    bg: 'ruins',
+    // The domain settling, at the centre (ch168)
+    bg: 'level', level: { ch: 168, x: 3700 },
     npcColor: '#bb99cc',
     beats: [
       {

@@ -1,38 +1,64 @@
 'use strict';
 
 // ============================================================
-// STICKMAN CLASH — MAP & WEAPON DESIGNER
-// Accessible from the main menu (Designer card) or via console.
+// STICKMAN EVOLUTION — CREATOR STUDIO (map + weapon designer)
+// Opened from the main menu Designer card. The live in-match map editor
+// (Training, F4) lives further down and shares only the small style helpers.
+//
+// Both editors draw with the game's own renderer: while the menu is up the
+// game canvas is idle, so each frame the arena (or a real Fighter) is drawn
+// into it with drawBackground/drawPlatforms/Fighter.draw and copied into the
+// editor canvas. What you edit is what you play.
 // ============================================================
 
-// ---- State ----
-let _dPlatforms  = [];          // custom platforms being edited
-let _dHazards    = new Set();   // active hazard toggles
+// ---- Map editor state ----
+let _dPlatforms  = [];          // platforms being edited
+let _dHazards    = new Set();   // hazard keys (see _D_HAZARDS)
 let _dSelected   = null;        // index of selected platform
 let _dDragging   = false;
 let _dResizing   = false;       // true when dragging a resize handle
-let _dResizeDir  = null;        // 'e' | 'w' | 'n' | 's' | 'se' | 'sw'
+let _dResizeDir  = null;        // 'e' | 'w' | 's' | 'se' | 'sw'
 let _dDragOffX   = 0;
 let _dDragOffY   = 0;
-let _dHistory    = [];          // undo stack (shallow platform copies)
+let _dHistory    = [];          // undo stack (JSON platform snapshots)
 let _dBaseArena  = 'grass';
-let _dMeta       = { name: 'My Map', hasLava: false, skyColor: '#0d0d1e' };
+let _dMeta       = { name: 'My Map', sky: null };  // sky null = base arena's sky
 let _dCanvas     = null;
 let _dCtx        = null;
 let _dAnimId     = null;
-let _dCustomWeapons = [];       // saved custom weapons
 let _dSnapGrid   = true;        // grid snap toggle
+let _dBgKey      = null;        // base arena whose bg elements are generated
+let _dKeyHandler = null;
 const _D_SNAP    = 20;          // grid snap size (game units)
+const _D_MAX_PLATFORMS = 60;
 
 function _dSnapVal(v) { return _dSnapGrid ? Math.round(v / _D_SNAP) * _D_SNAP : v; }
 
 function designerToggleSnap() {
   _dSnapGrid = !_dSnapGrid;
   const btn = document.getElementById('dSnapBtn');
-  if (btn) { btn.textContent = `Grid Snap: ${_dSnapGrid ? 'ON' : 'OFF'}`; btn.classList.toggle('active', _dSnapGrid); }
+  if (btn) { btn.textContent = `Snap ${_dSnapGrid ? 'on' : 'off'}`; btn.classList.toggle('on', _dSnapGrid); }
 }
 
-// ---- PRESET ARENA LAYOUTS ----
+// Arenas a custom map can be built on: single-screen (900 wide), not story- or
+// boss-only. Filtered again at runtime against ARENAS.
+const _D_BASES = ['grass', 'city', 'forest', 'ice', 'lava', 'space', 'ruins', 'cave', 'colosseum',
+  'cyberpunk', 'underwater', 'volcano', 'desert', 'haunted', 'mushroom', 'clouds', 'suburb', 'rural', 'sewer'];
+
+// Every hazard here is wired to a real engine system (see _dBuildArena).
+const _D_HAZARDS = [
+  { k: 'lava',      label: 'Lava floor',   tip: 'Falling below the floor line burns' },
+  { k: 'lowgrav',   label: 'Low gravity',  tip: 'Floaty jumps, long air time' },
+  { k: 'heavygrav', label: 'Heavy gravity', tip: 'Short jumps, fast falls' },
+  { k: 'ice',       label: 'Ice',          tip: 'Slippery footing' },
+  { k: 'wind',      label: 'Wind gusts',   tip: 'Gusts shove everyone sideways' },
+  { k: 'meteors',   label: 'Meteors',      tip: 'Telegraphed meteor strikes' },
+  { k: 'beast',     label: 'Forest Beast', tip: 'A beast joins the fight now and then' },
+  { k: 'yeti',      label: 'Yeti',         tip: 'A yeti joins the fight now and then' },
+];
+const _D_HAZARD_KEYS = new Set(_D_HAZARDS.map(h => h.k));
+
+// ---- PRESET LAYOUTS ----
 const _D_PRESETS = {
   arena: [
     { x: -60, y: 480, w: 1020, h: 40, isFloor: true },
@@ -65,238 +91,251 @@ function designerApplyPreset(name) {
   const pl = _D_PRESETS[name];
   if (!pl) return;
   _dHistory.push(JSON.stringify(_dPlatforms));
-  _dPlatforms = pl.map(p => Object.assign({ oscX: 0, oscY: 0, ox: p.x, oy: p.y }, p));
+  _dPlatforms = pl.map(p => Object.assign({ oscX: 0, oscY: 0 }, p));
   _dSelected  = null;
+  _dSyncControls();
 }
 
-// ---- OPEN / CLOSE ----
-// ── Build the entire designer UI as a draggable floating panel ──
-function _dBuildOverlay() {
-  if (document.getElementById('designerOverlay')) return; // already built
+// ---- Icons (the game's own SVG set, smb-icons.js) ----
+function _dIco(name) {
+  return `<svg class="smb-icon cs-ico" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" focusable="false"><use href="#i-${name}"/></svg>`;
+}
 
-  const S = (css) => css; // identity — just for readability
+// ---- Styles: one stylesheet, the menu's tokens (SMB.css :root) ----
+function _dInjectStyle() {
+  if (document.getElementById('csStyle')) return;
+  const st = document.createElement('style');
+  st.id = 'csStyle';
+  st.textContent = `
+  #designerOverlay { position:fixed; top:4vh; left:50%; transform:translateX(-50%);
+    width:min(1040px,96vw); max-height:92vh; display:none; flex-direction:column; overflow:hidden;
+    background:var(--ui-surface,#141926); border:1px solid var(--ui-line-strong,rgba(150,170,210,0.26));
+    border-radius:6px; box-shadow:var(--ui-shadow,0 18px 44px rgba(0,0,0,0.55)); z-index:2000;
+    color:var(--ui-text,#E6EBF5); font-family:inherit; font-size:14px; user-select:none; }
+  #designerOverlay .cs-head { display:flex; align-items:center; justify-content:space-between; gap:12px;
+    padding:10px 14px; border-bottom:1px solid var(--ui-line,rgba(150,170,210,0.14)); cursor:grab; flex-shrink:0; }
+  #designerOverlay .cs-title { display:flex; align-items:center; gap:8px; font-weight:800; letter-spacing:0.08em;
+    text-transform:uppercase; font-size:0.82rem; }
+  #designerOverlay .cs-ico { width:16px; height:16px; flex-shrink:0; }
+  #designerOverlay .cs-tabs { display:flex; gap:2px; background:var(--ui-ground,#0A0C12); padding:3px; border-radius:4px; }
+  #designerOverlay .cs-tab { background:none; border:none; color:var(--ui-muted,#8B97AD); padding:6px 16px;
+    border-radius:3px; cursor:pointer; font:inherit; font-size:0.8rem; font-weight:700; letter-spacing:0.04em; }
+  #designerOverlay .cs-tab.on { background:var(--ui-raised,#232B3D); color:var(--ui-text,#E6EBF5); }
+  #designerOverlay .cs-x { background:none; border:1px solid var(--ui-line,rgba(150,170,210,0.14)); color:var(--ui-muted,#8B97AD);
+    width:30px; height:30px; border-radius:3px; cursor:pointer; font-size:1rem; line-height:1; }
+  #designerOverlay .cs-x:hover { color:var(--ui-text,#E6EBF5); border-color:var(--ui-line-strong,rgba(150,170,210,0.26)); }
+  #designerOverlay .cs-body { display:flex; gap:14px; padding:14px; overflow:auto; flex:1; min-height:0; }
+  #designerOverlay .cs-main { flex:1; min-width:0; display:flex; flex-direction:column; gap:8px; }
+  #designerOverlay .cs-side { width:236px; flex-shrink:0; display:flex; flex-direction:column; gap:12px; overflow-y:auto; }
+  #designerOverlay .cs-sec { display:flex; flex-direction:column; gap:7px; }
+  #designerOverlay .cs-label { font-size:0.68rem; font-weight:800; letter-spacing:0.12em; text-transform:uppercase;
+    color:var(--ui-faint,#5D6880); }
+  #designerOverlay .cs-row { display:flex; gap:6px; align-items:center; flex-wrap:wrap; }
+  #designerOverlay .cs-hint { font-size:0.74rem; color:var(--ui-muted,#8B97AD); line-height:1.45; }
+  #designerOverlay .cs-hint b { color:var(--ui-text,#E6EBF5); font-weight:700; }
+  #designerOverlay .cs-btn { display:inline-flex; align-items:center; justify-content:center; gap:6px;
+    background:var(--ui-surface-2,#1B2131); color:var(--ui-text,#E6EBF5); border:1px solid var(--ui-line-strong,rgba(150,170,210,0.26));
+    border-radius:3px; padding:7px 12px; cursor:pointer; font:inherit; font-size:0.78rem; font-weight:700; }
+  #designerOverlay .cs-btn:hover { background:var(--ui-raised,#232B3D); }
+  #designerOverlay .cs-btn:disabled { opacity:0.4; cursor:not-allowed; }
+  #designerOverlay .cs-btn.primary { background:var(--ember,#F2762B); color:var(--ember-ink,#160A02); border-color:var(--ember,#F2762B); }
+  #designerOverlay .cs-btn.primary:hover { background:var(--ember-hover,#FF8A42); }
+  #designerOverlay .cs-btn.ghost { background:none; }
+  #designerOverlay .cs-btn.small { padding:4px 9px; font-size:0.72rem; }
+  #designerOverlay .cs-btn.danger:hover { color:var(--ui-bad,#E05A4E); border-color:var(--ui-bad,#E05A4E); }
+  #designerOverlay .cs-btn.wide { flex:1; }
+  #designerOverlay .cs-chip { background:none; border:1px solid var(--ui-line-strong,rgba(150,170,210,0.26)); color:var(--ui-muted,#8B97AD);
+    border-radius:999px; padding:4px 10px; cursor:pointer; font:inherit; font-size:0.72rem; font-weight:700; }
+  #designerOverlay .cs-chip.on, #designerOverlay .cs-btn.on { background:var(--ember-soft,rgba(242,118,43,0.14));
+    border-color:var(--ember-line,rgba(242,118,43,0.42)); color:var(--ember,#F2762B); }
+  #designerOverlay input[type=text], #designerOverlay input[type=number], #designerOverlay select {
+    background:var(--ui-ground,#0A0C12); color:var(--ui-text,#E6EBF5); border:1px solid var(--ui-line-strong,rgba(150,170,210,0.26));
+    border-radius:3px; padding:6px 8px; font:inherit; font-size:0.8rem; outline:none; min-width:0; }
+  #designerOverlay input:focus, #designerOverlay select:focus { border-color:var(--ember-line,rgba(242,118,43,0.42)); }
+  #designerOverlay input[type=number] { width:64px; }
+  #designerOverlay input[type=color] { width:34px; height:28px; padding:0; border:1px solid var(--ui-line-strong,rgba(150,170,210,0.26));
+    border-radius:3px; background:none; cursor:pointer; }
+  #designerOverlay input[type=range] { width:100%; accent-color:var(--ember,#F2762B); }
+  #designerOverlay label.cs-check { display:flex; align-items:center; gap:7px; font-size:0.8rem; cursor:pointer; }
+  #designerOverlay .cs-canvas { width:100%; aspect-ratio:900/520; border-radius:4px; display:block; cursor:crosshair;
+    border:1px solid var(--ui-line,rgba(150,170,210,0.14)); background:#000; }
+  #designerOverlay .cs-list { display:flex; flex-direction:column; gap:4px; max-height:150px; overflow-y:auto; }
+  #designerOverlay .cs-item { display:flex; align-items:center; gap:6px; padding:6px 8px; border-radius:3px;
+    background:var(--ui-ground,#0A0C12); border:1px solid var(--ui-line,rgba(150,170,210,0.14)); font-size:0.78rem; }
+  #designerOverlay .cs-item span { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  #designerOverlay .cs-empty { font-size:0.74rem; color:var(--ui-faint,#5D6880); }
+  #designerOverlay .cs-bases { display:grid; grid-template-columns:repeat(6,1fr); gap:5px; }
+  #designerOverlay .cs-base { display:flex; flex-direction:column; align-items:center; gap:3px; padding:7px 2px 5px;
+    background:var(--ui-ground,#0A0C12); border:1px solid var(--ui-line,rgba(150,170,210,0.14)); border-radius:3px;
+    color:var(--ui-muted,#8B97AD); cursor:pointer; font:inherit; font-size:0.64rem; font-weight:700; }
+  #designerOverlay .cs-base .cs-ico { width:22px; height:22px; }
+  #designerOverlay .cs-base.on { border-color:var(--ember-line,rgba(242,118,43,0.42)); color:var(--ember,#F2762B); background:var(--ember-soft,rgba(242,118,43,0.14)); }
+  #designerOverlay .cs-stat { display:flex; flex-direction:column; gap:3px; }
+  #designerOverlay .cs-stat-top { display:flex; justify-content:space-between; font-size:0.78rem; }
+  #designerOverlay .cs-stat-top b { font-variant-numeric:tabular-nums; }
+  #designerOverlay .cs-meter { height:8px; border-radius:2px; background:var(--ui-ground,#0A0C12); overflow:hidden;
+    border:1px solid var(--ui-line,rgba(150,170,210,0.14)); }
+  #designerOverlay .cs-meter i { display:block; height:100%; background:var(--ui-good,#3FB984); transition:width 0.12s; }
+  #designerOverlay .cs-meter.over i { background:var(--ui-bad,#E05A4E); }
+  #designerOverlay .cs-preview { width:100%; aspect-ratio:1; border-radius:4px; display:block;
+    border:1px solid var(--ui-line,rgba(150,170,210,0.14)); background:#000; }
+  .cs-modal { position:fixed; inset:0; background:rgba(0,0,0,0.72); z-index:3000; display:flex; align-items:center; justify-content:center; padding:16px; }
+  .cs-modal-box { width:min(460px,100%); background:var(--ui-surface,#141926); border:1px solid var(--ui-line-strong,rgba(150,170,210,0.26));
+    border-radius:6px; padding:18px; display:flex; flex-direction:column; gap:12px; color:var(--ui-text,#E6EBF5); font-family:inherit; }
+  .cs-modal-box h3 { margin:0; font-size:0.95rem; letter-spacing:0.04em; }
+  .cs-modal-box p { margin:0; font-size:0.8rem; color:var(--ui-muted,#8B97AD); line-height:1.5; }
+  .cs-modal-box textarea { width:100%; min-height:88px; resize:vertical; background:var(--ui-ground,#0A0C12); color:var(--ui-text,#E6EBF5);
+    border:1px solid var(--ui-line-strong,rgba(150,170,210,0.26)); border-radius:3px; padding:8px; font:0.74rem/1.4 ui-monospace,Menlo,monospace; word-break:break-all; }
+  .cs-modal-box .cs-row { display:flex; gap:8px; justify-content:flex-end; flex-wrap:wrap; }
+  .cs-modal-box button { display:inline-flex; align-items:center; gap:6px; background:var(--ui-surface-2,#1B2131); color:var(--ui-text,#E6EBF5);
+    border:1px solid var(--ui-line-strong,rgba(150,170,210,0.26)); border-radius:3px; padding:7px 14px; cursor:pointer; font:inherit; font-size:0.8rem; font-weight:700; }
+  .cs-modal-box button.primary { background:var(--ember,#F2762B); color:var(--ember-ink,#160A02); border-color:var(--ember,#F2762B); }
+  @media (max-width: 760px) {
+    #designerOverlay .cs-body { flex-direction:column; }
+    #designerOverlay .cs-side { width:auto; }
+    #designerOverlay .cs-bases { grid-template-columns:repeat(4,1fr); }
+  }`;
+  document.head.appendChild(st);
+}
+
+// ---- Build the whole studio (once) ----
+function _dBuildOverlay() {
+  if (document.getElementById('designerOverlay')) return;
+  _dInjectStyle();
   const panel = document.createElement('div');
   panel.id = 'designerOverlay';
-  panel.style.cssText = S(`
-    display:none;
-    position:fixed;
-    top:5vh; left:50%;
-    transform:translateX(-50%);
-    width:min(960px,96vw);
-    max-height:90vh;
-    background:#0a0a1a;
-    border:1.5px solid rgba(100,180,255,0.22);
-    border-radius:14px;
-    box-shadow:0 8px 60px rgba(0,0,50,0.7);
-    z-index:2000;
-    display:none;
-    flex-direction:column;
-    overflow:hidden;
-    font-family:'Segoe UI',Arial,sans-serif;
-    color:#ccd;
-    font-size:14px;
-    user-select:none;
-  `);
+  panel.setAttribute('role', 'dialog');
+  panel.setAttribute('aria-label', 'Creator Studio');
 
-  // ── Drag handle / title bar ───────────────────────────────
+  const hazardChips = _D_HAZARDS.map(h =>
+    `<button class="cs-chip d-hazard-btn" data-h="${h.k}" title="${h.tip}" onclick="designerToggleHazard('${h.k}')">${h.label}</button>`).join('');
+  const abilityOpts = _W_ABILITIES.map(a => `<option value="${a.k}">${a.label}</option>`).join('');
+
   panel.innerHTML = `
-  <div id="dDragHandle" style="display:flex;align-items:center;justify-content:space-between;
-    padding:9px 14px;background:rgba(40,60,120,0.55);cursor:grab;border-radius:12px 12px 0 0;
-    border-bottom:1px solid rgba(100,180,255,0.15);flex-shrink:0;">
-    <span style="font-weight:700;letter-spacing:1px;font-size:0.92rem;">🛠 Creator Studio</span>
-    <div style="display:flex;gap:6px;align-items:center;">
-      <button onclick="designerTab('map')"    id="dTabMap"    style="${_dTabBtnStyle(true)}">Map</button>
-      <button onclick="designerTab('weapon')" id="dTabWeapon" style="${_dTabBtnStyle(false)}">Weapon</button>
-      <button onclick="closeDesigner()" style="background:rgba(255,80,80,0.18);border:1px solid rgba(255,80,80,0.35);
-        color:#ff8888;border-radius:7px;padding:3px 11px;cursor:pointer;font-size:0.8rem;">✕</button>
+  <div class="cs-head" id="dDragHandle">
+    <div class="cs-title">${_dIco('wrench')} Creator Studio</div>
+    <div class="cs-tabs" role="tablist">
+      <button class="cs-tab on" id="dTabMap" role="tab" onclick="designerTab('map')">Map</button>
+      <button class="cs-tab" id="dTabWeapon" role="tab" onclick="designerTab('weapon')">Weapon</button>
     </div>
+    <button class="cs-x" onclick="closeDesigner()" aria-label="Close" title="Close (Esc)">&times;</button>
   </div>
 
-  <!-- MAP PANEL -->
-  <div id="designerMapPanel" style="display:flex;flex-direction:row;gap:10px;padding:10px;overflow:auto;flex:1;min-height:0;">
-    <!-- Canvas -->
-    <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:6px;">
-      <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
-        <button id="dSnapBtn" onclick="designerToggleSnap()" style="${_dBtnStyle('#44ff88',true)}">Grid Snap: ON</button>
-        <span style="color:#778;font-size:0.72rem;">Presets:</span>
-        <button onclick="designerApplyPreset('arena')"   style="${_dBtnStyle()}">⚔ Arena</button>
-        <button onclick="designerApplyPreset('parkour')" style="${_dBtnStyle()}">🏃 Parkour</button>
-        <button onclick="designerApplyPreset('boss')"    style="${_dBtnStyle()}">👑 Boss Stage</button>
+  <!-- MAP -->
+  <div class="cs-body" id="designerMapPanel">
+    <div class="cs-main">
+      <div class="cs-row">
+        <button class="cs-btn small on" id="dSnapBtn" onclick="designerToggleSnap()">Snap on</button>
+        <span class="cs-label" style="margin-left:6px;">Start from</span>
+        <button class="cs-btn small ghost" onclick="designerResetToBase()">Arena layout</button>
+        <button class="cs-btn small ghost" onclick="designerApplyPreset('arena')">Open arena</button>
+        <button class="cs-btn small ghost" onclick="designerApplyPreset('parkour')">Parkour</button>
+        <button class="cs-btn small ghost" onclick="designerApplyPreset('boss')">Boss stage</button>
       </div>
-      <canvas id="designerCanvas" width="900" height="520"
-        style="width:100%;border-radius:8px;border:1px solid rgba(255,255,255,0.08);cursor:crosshair;display:block;">
-      </canvas>
-      <p style="font-size:0.7rem;color:#556;margin:0;">Left-click empty space = add platform · Left-drag = move · Right-click = delete · Scroll = resize width · Drag corner handles = resize</p>
+      <canvas id="designerCanvas" class="cs-canvas" width="900" height="520"></canvas>
+      <div class="cs-hint"><b>Click</b> empty space to add a platform &middot; <b>drag</b> to move &middot; drag the <b>handles</b> to resize &middot;
+        <b>Delete</b> removes &middot; <b>D</b> duplicates &middot; <b>arrows</b> nudge &middot; <b>Ctrl+Z</b> undo</div>
     </div>
-    <!-- Controls -->
-    <div style="width:200px;flex-shrink:0;display:flex;flex-direction:column;gap:7px;overflow-y:auto;">
-      <div style="font-size:0.72rem;color:#88aacc;font-weight:700;letter-spacing:1px;text-transform:uppercase;">Base Arena</div>
-      <select id="dBaseArena" onchange="designerChangeBase()" style="${_dSelectStyle()}">
-        <option value="grass">Grass</option><option value="lava">Lava</option>
-        <option value="space">Space</option><option value="city">City</option>
-        <option value="forest">Forest</option><option value="ice">Ice</option>
-        <option value="ruins">Ruins</option><option value="cave">Cave</option>
-        <option value="colosseum">Colosseum</option><option value="cyberpunk">Cyberpunk</option>
-        <option value="underwater">Underwater</option><option value="volcano">Volcano</option>
-      </select>
-      <div style="font-size:0.72rem;color:#88aacc;font-weight:700;letter-spacing:1px;text-transform:uppercase;margin-top:4px;">Selected Platform</div>
-      <div style="display:flex;gap:6px;align-items:center;">
-        <label style="font-size:0.72rem;color:#889;">W</label>
-        <input id="dPlatW" type="number" value="120" min="20" max="450" onchange="designerUpdateSelected()" style="${_dInputStyle()};width:60px;">
-        <label style="font-size:0.72rem;color:#889;">H</label>
-        <input id="dPlatH" type="number" value="14"  min="8"  max="80"  onchange="designerUpdateSelected()" style="${_dInputStyle()};width:50px;">
+    <div class="cs-side">
+      <div class="cs-sec">
+        <div class="cs-label">Map</div>
+        <input id="dMapName" type="text" value="My Map" maxlength="32" placeholder="Map name" aria-label="Map name">
+        <select id="dBaseArena" onchange="designerChangeBase()" aria-label="Base arena"></select>
+        <div class="cs-row">
+          <label class="cs-check"><input type="checkbox" id="dSkyOn" onchange="designerSyncMeta()"> Custom sky</label>
+          <input id="dSkyColor" type="color" value="#1a2440" oninput="designerSyncMeta()" aria-label="Sky color">
+        </div>
       </div>
-      <label style="display:flex;align-items:center;gap:6px;font-size:0.78rem;cursor:pointer;">
-        <input type="checkbox" id="dPlatFloor"  onchange="designerUpdateSelected()"> Floor
-      </label>
-      <label style="display:flex;align-items:center;gap:6px;font-size:0.78rem;cursor:pointer;">
-        <input type="checkbox" id="dPlatMoving" onchange="designerUpdateSelected()"> Moving platform
-      </label>
-      <div style="font-size:0.72rem;color:#88aacc;font-weight:700;letter-spacing:1px;text-transform:uppercase;margin-top:4px;">Map Settings</div>
-      <input id="dMapName"  type="text"     value="My Map" placeholder="Map name"
-        style="${_dInputStyle()};width:100%;">
-      <label style="display:flex;align-items:center;gap:6px;font-size:0.78rem;cursor:pointer;">
-        <input type="checkbox" id="dHasLava"> Has Lava
-      </label>
-      <div style="display:flex;align-items:center;gap:6px;">
-        <label style="font-size:0.72rem;color:#889;">Sky</label>
-        <input id="dSkyColor" type="color" value="#0d0d1e" style="width:40px;height:24px;border:none;background:none;cursor:pointer;">
+      <div class="cs-sec">
+        <div class="cs-label">Selected platform</div>
+        <div class="cs-row" id="dPlatRow">
+          <label class="cs-hint">W</label><input id="dPlatW" type="number" value="120" min="20" max="900" onchange="designerUpdateSelected()">
+          <label class="cs-hint">H</label><input id="dPlatH" type="number" value="14" min="8" max="80" onchange="designerUpdateSelected()">
+        </div>
+        <label class="cs-check"><input type="checkbox" id="dPlatFloor" onchange="designerUpdateSelected()"> Ground (spawns land here)</label>
+        <label class="cs-check"><input type="checkbox" id="dPlatMoving" onchange="designerUpdateSelected()"> Moving platform</label>
+        <div class="cs-row">
+          <button class="cs-btn small" onclick="designerDuplicate()">Duplicate</button>
+          <button class="cs-btn small danger" onclick="designerDeleteSelected()">Delete</button>
+          <button class="cs-btn small" onclick="designerUndo()">Undo</button>
+        </div>
       </div>
-      <div style="font-size:0.72rem;color:#88aacc;font-weight:700;letter-spacing:1px;text-transform:uppercase;margin-top:4px;">Hazards</div>
-      <div style="display:flex;flex-wrap:wrap;gap:5px;">
-        <button class="d-hazard-btn" onclick="designerToggleHazard('lava')"      style="${_dBtnStyle()}">🌋 Lava</button>
-        <button class="d-hazard-btn" onclick="designerToggleHazard('lowgrav')"   style="${_dBtnStyle()}">🚀 Low-G</button>
-        <button class="d-hazard-btn" onclick="designerToggleHazard('heavygrav')" style="${_dBtnStyle()}">⬇ Heavy-G</button>
-        <button class="d-hazard-btn" onclick="designerToggleHazard('ice')"       style="${_dBtnStyle()}">🧊 Ice</button>
-        <button class="d-hazard-btn" onclick="designerToggleHazard('wind')"      style="${_dBtnStyle()}">💨 Wind</button>
-        <button class="d-hazard-btn" onclick="designerToggleHazard('fog')"       style="${_dBtnStyle()}">🌫 Fog</button>
-        <button class="d-hazard-btn" onclick="designerToggleHazard('npc_beast')" style="${_dBtnStyle()}">🐺 Beast</button>
-        <button class="d-hazard-btn" onclick="designerToggleHazard('npc_yeti')"  style="${_dBtnStyle()}">❄ Yeti</button>
+      <div class="cs-sec">
+        <div class="cs-label">Hazards</div>
+        <div class="cs-row">${hazardChips}</div>
       </div>
-      <div style="display:flex;gap:5px;flex-wrap:wrap;margin-top:4px;">
-        <button onclick="designerAddPlatform()"   style="${_dBtnStyle('#88ccff')}">+ Add</button>
-        <button onclick="designerUndo()"          style="${_dBtnStyle()}">↩ Undo</button>
-        <button onclick="designerClearPlatforms()" style="${_dBtnStyle('#ff8888')}">🗑 Clear</button>
+      <div class="cs-sec">
+        <button class="cs-btn primary" onclick="designerPlay()">${_dIco('play')} Play this map</button>
+        <div class="cs-row">
+          <button class="cs-btn wide" onclick="designerSave()">${_dIco('check')} Save</button>
+          <button class="cs-btn wide" onclick="designerShare()">${_dIco('globe')} Share</button>
+        </div>
+        <div class="cs-row">
+          <button class="cs-btn wide" onclick="designerImport()">${_dIco('clipboard')} Import</button>
+          <button class="cs-btn wide ghost danger" onclick="designerClearPlatforms()">Clear all</button>
+        </div>
       </div>
-      <div style="display:flex;gap:5px;flex-wrap:wrap;">
-        <button onclick="designerPreview()" style="${_dBtnStyle('#88ff44')}">▶ Preview</button>
-        <button onclick="designerSave()"    style="${_dBtnStyle('#ffcc44')}">💾 Save</button>
-        <button onclick="designerLoad()"    style="${_dBtnStyle()}">📂 Load</button>
-        <button onclick="designerExport()"  style="${_dBtnStyle('#88ccff')}">↑ Export</button>
-        <button onclick="designerImport()"  style="${_dBtnStyle('#cc88ff')}">↓ Import</button>
-      </div>
-      <div id="dSavedMaps" style="display:none;margin-top:4px;">
-        <div style="font-size:0.7rem;color:#aaa;margin-bottom:4px;">Saved Maps</div>
-        <div id="dSavedMapsList" style="display:flex;flex-direction:column;gap:4px;max-height:140px;overflow-y:auto;"></div>
+      <div class="cs-sec" id="dSavedMaps">
+        <div class="cs-label">Your maps</div>
+        <div id="dSavedMapsList" class="cs-list"></div>
       </div>
     </div>
   </div>
 
-  <!-- WEAPON PANEL -->
-  <div id="designerWeaponPanel" style="display:none;flex-direction:row;gap:10px;padding:10px;overflow:auto;flex:1;min-height:0;">
-    <!-- Preview Canvas -->
-    <div style="flex:0 0 280px;display:flex;flex-direction:column;gap:8px;">
-      <div style="font-size:0.72rem;color:#88aacc;font-weight:700;letter-spacing:1px;text-transform:uppercase;">Live Preview</div>
-      <canvas id="weaponPreviewCanvas" width="280" height="280"
-        style="width:280px;height:280px;border-radius:10px;border:1px solid rgba(100,180,255,0.18);background:#060610;display:block;">
-      </canvas>
-      <div id="weaponStatDisplay" style="font-size:0.76rem;line-height:1.6;background:rgba(255,255,255,0.04);
-        border-radius:7px;padding:7px 10px;border:1px solid rgba(255,255,255,0.06);"></div>
+  <!-- WEAPON -->
+  <div class="cs-body" id="designerWeaponPanel" style="display:none;">
+    <div class="cs-side" style="width:300px;">
+      <canvas id="weaponPreviewCanvas" class="cs-preview" width="560" height="560"></canvas>
+      <div class="cs-sec">
+        <div class="cs-stat-top"><span class="cs-label">Power</span><b id="wPowerVal">0%</b></div>
+        <div class="cs-meter" id="wPowerMeter"><i style="width:0%"></i></div>
+        <div class="cs-hint" id="wPowerHint">Custom weapons can match the strongest weapons in the game, not beat them.</div>
+      </div>
+      <div class="cs-sec">
+        <div class="cs-label">Your weapons</div>
+        <div id="dSavedWeaponsList" class="cs-list"></div>
+      </div>
     </div>
-    <!-- Controls -->
-    <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:7px;overflow-y:auto;">
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
-        <div>
-          <label style="font-size:0.72rem;color:#889;">Name</label>
-          <input id="wName" type="text" value="Custom Weapon" oninput="wSync()" style="${_dInputStyle()};width:100%;margin-top:3px;">
-        </div>
-        <div>
-          <label style="font-size:0.72rem;color:#889;">Color</label>
-          <input id="wColor" type="color" value="#44aaff" onchange="wSync()" style="display:block;width:100%;height:30px;border:none;background:none;cursor:pointer;margin-top:3px;">
-        </div>
+    <div class="cs-main" style="gap:12px;">
+      <div class="cs-sec">
+        <div class="cs-label">Start from</div>
+        <div class="cs-bases" id="wBaseGrid"></div>
       </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
-        <div>
-          <label style="font-size:0.72rem;color:#889;">Shape</label>
-          <select id="wShape" onchange="wSync()" style="${_dSelectStyle()};margin-top:3px;width:100%;">
-            <option value="blade">Blade / Sword</option>
-            <option value="dagger">Dagger</option>
-            <option value="hammer">Hammer</option>
-            <option value="axe">Axe</option>
-            <option value="spear">Spear / Lance</option>
-            <option value="bow">Bow</option>
-            <option value="staff">Staff / Orb</option>
-          </select>
-        </div>
-        <div>
-          <label style="font-size:0.72rem;color:#889;">Type</label>
-          <select id="wType" onchange="wSync()" style="${_dSelectStyle()};margin-top:3px;width:100%;">
-            <option value="melee">Melee</option>
-            <option value="heavy">Heavy Melee</option>
-            <option value="ranged">Ranged</option>
-            <option value="magic">Magic</option>
-          </select>
-        </div>
+      <div class="cs-row">
+        <input id="wName" type="text" value="My Weapon" maxlength="24" oninput="wSync()" aria-label="Weapon name" style="flex:1;">
       </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
-        <div>
-          <label style="font-size:0.72rem;color:#889;">Damage <span id="wDmgVal" style="color:#ff8888;">15</span></label>
-          <input id="wDmg" type="range" min="1" max="60" value="15" oninput="wSync()" style="width:100%;margin-top:3px;">
-        </div>
-        <div>
-          <label style="font-size:0.72rem;color:#889;">Range <span id="wRangeVal" style="color:#88aaff;">50</span>px</label>
-          <input id="wRange" type="range" min="20" max="90" value="50" oninput="wSync()" style="width:100%;margin-top:3px;">
-        </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px 18px;">
+        <div class="cs-stat"><div class="cs-stat-top"><span>Damage</span><b id="wDmgVal"></b></div>
+          <input id="wDmg" type="range" oninput="wSync()" aria-label="Damage"></div>
+        <div class="cs-stat"><div class="cs-stat-top"><span>Reach</span><b id="wRangeVal"></b></div>
+          <input id="wRange" type="range" oninput="wSync()" aria-label="Reach"></div>
+        <div class="cs-stat"><div class="cs-stat-top"><span>Time between swings</span><b id="wCoolVal"></b></div>
+          <input id="wCool" type="range" oninput="wSync()" aria-label="Swing cooldown"></div>
+        <div class="cs-stat"><div class="cs-stat-top"><span>Knockback</span><b id="wKbVal"></b></div>
+          <input id="wKb" type="range" oninput="wSync()" aria-label="Knockback"></div>
+        <div class="cs-stat"><div class="cs-stat-top"><span>Ability</span></div>
+          <select id="wAbilEffect" onchange="wSync()" aria-label="Ability">${abilityOpts}</select></div>
+        <div class="cs-stat"><div class="cs-stat-top"><span>Ability recharge</span><b id="wAbilCoolVal"></b></div>
+          <input id="wAbilCool" type="range" oninput="wSync()" aria-label="Ability recharge"></div>
       </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
-        <div>
-          <label style="font-size:0.72rem;color:#889;">Cooldown <span id="wCoolVal" style="color:#ffcc44;">30</span>f</label>
-          <input id="wCool" type="range" min="8" max="80" value="30" oninput="wSync()" style="width:100%;margin-top:3px;">
-        </div>
-        <div>
-          <label style="font-size:0.72rem;color:#889;">Knockback <span id="wKbVal" style="color:#88ff88;">8</span></label>
-          <input id="wKb" type="range" min="1" max="22" value="8" oninput="wSync()" style="width:100%;margin-top:3px;">
-        </div>
+      <div class="cs-hint" id="wAbilHint"></div>
+      <div class="cs-row" style="margin-top:4px;">
+        <button class="cs-btn primary" id="wTestBtn" onclick="wTestWeapon()">${_dIco('target')} Test on a dummy</button>
+        <button class="cs-btn" id="wUseBtn" onclick="wUseInVersus()">${_dIco('crossedswords')} Use in Versus</button>
+        <button class="cs-btn" onclick="wSaveWeapon()">${_dIco('check')} Save</button>
+        <button class="cs-btn" onclick="wExportWeapon()">${_dIco('globe')} Share</button>
+        <button class="cs-btn" onclick="wImportWeapon()">${_dIco('clipboard')} Import</button>
       </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
-        <div>
-          <label style="font-size:0.72rem;color:#889;">Ability Effect</label>
-          <select id="wAbilEffect" onchange="wSync()" style="${_dSelectStyle()};margin-top:3px;width:100%;">
-            <option value="dash">Dash Strike</option>
-            <option value="leap">Leap</option>
-            <option value="shield_burst">Shield Burst</option>
-            <option value="projectile">Projectile</option>
-            <option value="heal">Heal</option>
-            <option value="slow">Slow</option>
-          </select>
-        </div>
-        <div>
-          <label style="font-size:0.72rem;color:#889;">Ability CD <span id="wAbilCoolVal" style="color:#ffaa44;">90</span>f</label>
-          <input id="wAbilCool" type="range" min="30" max="300" value="90" oninput="wSync()" style="width:100%;margin-top:3px;">
-        </div>
-      </div>
-      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px;">
-        <button onclick="wSaveWeapon()"    style="${_dBtnStyle('#ffcc44')}">💾 Save Weapon</button>
-        <button onclick="wEquipWeapon('p1')" style="${_dBtnStyle('#00d4ff')}">Equip P1</button>
-        <button onclick="wEquipWeapon('p2')" style="${_dBtnStyle('#ff4455')}">Equip P2</button>
-        <button onclick="wExportWeapon()"  style="${_dBtnStyle()}">📋 Export Code</button>
-        <button onclick="wImportWeapon()"  style="${_dBtnStyle('#cc88ff')}">↓ Import</button>
-      </div>
-      <div id="dSavedWeaponsList" style="display:flex;flex-direction:column;gap:4px;max-height:120px;overflow-y:auto;margin-top:4px;"></div>
     </div>
   </div>`;
 
   document.body.appendChild(panel);
   _dMakeDraggable(panel, document.getElementById('dDragHandle'));
+  _dFillBaseSelect();
+  _wFillBaseGrid();
 }
 
-// Helper style builders (avoids repeating inline CSS)
-function _dTabBtnStyle(active) {
-  return `background:${active ? 'rgba(80,160,255,0.25)' : 'rgba(255,255,255,0.07)'};
-    border:1px solid ${active ? 'rgba(80,160,255,0.55)' : 'rgba(255,255,255,0.15)'};
-    color:${active ? '#88ccff' : '#aab'};border-radius:7px;padding:3px 14px;
-    cursor:pointer;font-size:0.8rem;font-family:inherit;`;
-}
+// Style builders kept for the Training live editor further down.
 function _dBtnStyle(accentColor, isActive) {
   const c = accentColor || 'rgba(255,255,255,0.7)';
   return `background:${isActive ? 'rgba(68,255,136,0.16)' : 'rgba(255,255,255,0.06)'};
@@ -304,20 +343,12 @@ function _dBtnStyle(accentColor, isActive) {
     color:${isActive ? c : '#bbc'};border-radius:6px;padding:3px 10px;cursor:pointer;
     font-size:0.76rem;font-family:inherit;transition:background 0.12s;`;
 }
-function _dInputStyle() {
-  return `background:#0c0c22;color:#ccd;border:1px solid rgba(100,180,255,0.22);
-    border-radius:5px;padding:4px 8px;font-size:0.78rem;font-family:inherit;outline:none;`;
-}
-function _dSelectStyle() {
-  return `background:#0c0c22;color:#ccd;border:1px solid rgba(100,180,255,0.22);
-    border-radius:5px;padding:4px 8px;font-size:0.78rem;font-family:inherit;outline:none;cursor:pointer;`;
-}
 
 // Make element draggable via a handle
 function _dMakeDraggable(el, handle) {
   let ox = 0, oy = 0, sx = 0, sy = 0;
   handle.addEventListener('mousedown', (e) => {
-    if (e.target.tagName === 'BUTTON' || e.target.tagName === 'SELECT') return;
+    if (e.target.closest('button,select,input')) return;
     e.preventDefault();
     sx = e.clientX; sy = e.clientY;
     const rect = el.getBoundingClientRect();
@@ -341,29 +372,30 @@ function _dMakeDraggable(el, handle) {
 }
 
 function openDesigner() {
-  _dBuildOverlay(); // build DOM if first open
+  _dBuildOverlay();
   const ov = document.getElementById('designerOverlay');
   ov.style.display = 'flex';
-  // Re-center on open (in case it was dragged previously)
-  if (ov.style.transform !== 'none') {
-    ov.style.left      = '50%';
-    ov.style.top       = '5vh';
-    ov.style.transform = 'translateX(-50%)';
-  }
+  ov.style.left = '50%'; ov.style.top = '4vh'; ov.style.transform = 'translateX(-50%)';
   _dCanvas = document.getElementById('designerCanvas');
   _dCtx    = _dCanvas.getContext('2d');
   _dSetupCanvasEvents();
+  _dInstallKeys();
+  // A fresh studio starts on the base arena's real layout, never a blank grid.
+  if (_dPlatforms.length === 0) designerChangeBase(true);
   _dLoadSaved();
+  _wHydrateLibrary();
   _wRefreshList();
   _dStartPreviewLoop();
   designerTab('map');
-  wSync(); // init weapon preview
+  if (!_wSpec) _wApplySpec(_wDefaultSpec('sword'));
+  wSync();
 }
 
 function closeDesigner() {
   const ov = document.getElementById('designerOverlay');
   if (ov) ov.style.display = 'none';
   if (_dAnimId) { cancelAnimationFrame(_dAnimId); _dAnimId = null; }
+  if (_dKeyHandler) { document.removeEventListener('keydown', _dKeyHandler, true); _dKeyHandler = null; }
 }
 
 // ── In-game Training Mode Designer ───────────────────────────
@@ -605,120 +637,231 @@ function _dInputStyle() {
     border-radius:5px;padding:4px 6px;font-family:monospace;font-size:0.75rem;box-sizing:border-box;`;
 }
 
+// ============================================================
+// CREATOR STUDIO — MAP EDITOR
+// ============================================================
+
 function designerTab(tab) {
   const mp = document.getElementById('designerMapPanel');
   const wp = document.getElementById('designerWeaponPanel');
-  const tm = document.getElementById('dTabMap');
-  const tw = document.getElementById('dTabWeapon');
-  if (mp) mp.style.display = tab === 'map'    ? 'flex'   : 'none';
-  if (wp) wp.style.display = tab === 'weapon' ? 'flex'   : 'none';
-  if (tm) { tm.style.background = tab === 'map'    ? 'rgba(80,160,255,0.25)' : 'rgba(255,255,255,0.07)';
-            tm.style.borderColor= tab === 'map'    ? 'rgba(80,160,255,0.55)' : 'rgba(255,255,255,0.15)';
-            tm.style.color      = tab === 'map'    ? '#88ccff' : '#aab'; }
-  if (tw) { tw.style.background = tab === 'weapon' ? 'rgba(80,160,255,0.25)' : 'rgba(255,255,255,0.07)';
-            tw.style.borderColor= tab === 'weapon' ? 'rgba(80,160,255,0.55)' : 'rgba(255,255,255,0.15)';
-            tw.style.color      = tab === 'weapon' ? '#88ccff' : '#aab'; }
-  if (tab === 'weapon') _wDraw();
+  if (mp) mp.style.display = tab === 'map'    ? 'flex' : 'none';
+  if (wp) wp.style.display = tab === 'weapon' ? 'flex' : 'none';
+  document.getElementById('dTabMap')?.classList.toggle('on', tab === 'map');
+  document.getElementById('dTabWeapon')?.classList.toggle('on', tab === 'weapon');
 }
 
-// ---- BASE ARENA CHANGE ----
-function designerChangeBase() {
-  _dBaseArena = document.getElementById('dBaseArena').value;
-  _dPlatforms = [];
+function _dBaseList() {
+  if (typeof ARENAS === 'undefined') return ['grass'];
+  return _D_BASES.filter(k => {
+    const a = ARENAS[k];
+    return a && !a.isStoryOnly && !a.isBossArena && !a.isExploreArena && !(a.worldWidth > 900);
+  });
+}
+
+function _dFillBaseSelect() {
+  const sel = document.getElementById('dBaseArena');
+  if (!sel) return;
+  // Display names come from the Versus arena list, which already has them.
+  const label = (k) => {
+    const o = document.querySelector(`#arenaSelect option[value="${k}"]`);
+    const t = (o && o.textContent.trim()) || (ARENAS[k] && ARENAS[k].name) || k;
+    return t.charAt(0).toUpperCase() + t.slice(1);
+  };
+  sel.innerHTML = _dBaseList().map(k => `<option value="${k}">${_escHtml(label(k))}</option>`).join('');
+  sel.value = _dBaseArena;
+}
+
+// The hazards a base arena brings with it on its own, so starting from Ice gives
+// you the ice, the wind and the yeti without hunting for toggles.
+function _dBaseHazards(key) {
+  const a = (typeof ARENAS !== 'undefined' && ARENAS[key]) || {};
+  const h = [];
+  if (a.hasLava) h.push('lava');
+  if (a.isLowGravity) h.push('lowgrav');
+  if (a.isHeavyGravity) h.push('heavygrav');
+  if (a.isIcy) h.push('ice');
+  if (key === 'ice') h.push('wind', 'yeti');
+  if (key === 'space') h.push('meteors');
+  if (key === 'forest') h.push('beast');
+  return h;
+}
+
+function _dBaseLayout(key) {
+  const src = (typeof ARENA_BASE_PLATFORMS !== 'undefined' && ARENA_BASE_PLATFORMS[key])
+    || (typeof ARENAS !== 'undefined' && ARENAS[key] && ARENAS[key].platforms) || _D_PRESETS.arena;
+  return src.filter(p => !p.noDraw && !p.isFloorDisabled).map(p => ({
+    x: p.x, y: p.y, w: p.w, h: p.h || 14, isFloor: !!p.isFloor, oscX: 0, oscY: 0 }));
+}
+
+// silent: opening the studio. Otherwise a base change on an edited map asks
+// first, because it replaces the layout.
+function designerChangeBase(silent) {
+  const sel = document.getElementById('dBaseArena');
+  const next = (sel && sel.value) || _dBaseArena;
+  if (!silent && _dHistory.length && !confirm('Switch arena? This replaces your current layout with its layout.')) {
+    if (sel) sel.value = _dBaseArena;
+    return;
+  }
+  _dBaseArena = next;
+  _dPlatforms = _dBaseLayout(next);
+  _dHazards   = new Set(_dBaseHazards(next));
   _dSelected  = null;
   _dHistory   = [];
-  // Pre-populate with the selected arena's platforms as starting points
-  if (typeof ARENAS !== 'undefined' && ARENAS[_dBaseArena]) {
-    ARENAS[_dBaseArena].platforms.forEach(pl => {
-      _dPlatforms.push({ x: pl.x, y: pl.y, w: pl.w, h: pl.h || 14,
-        isFloor: !!pl.isFloor, oscX: pl.oscX || 0, oscY: pl.oscY || 0,
-        ox: pl.ox || pl.x, oy: pl.oy || pl.y });
-    });
-  }
+  _dSyncHazardChips();
+  _dSyncControls();
+}
+
+function designerResetToBase() {
+  _dHistory.push(JSON.stringify(_dPlatforms));
+  _dPlatforms = _dBaseLayout(_dBaseArena);
+  _dSelected  = null;
+  _dSyncControls();
 }
 
 // ---- PLATFORM TOOLS ----
+function _dPush() { _dHistory.push(JSON.stringify(_dPlatforms)); if (_dHistory.length > 80) _dHistory.shift(); }
+
 function designerAddPlatform() {
-  _dHistory.push(JSON.stringify(_dPlatforms));
-  _dPlatforms.push({ x: 300, y: 200, w: 120, h: 14, isFloor: false, oscX: 0, oscY: 0 });
+  if (_dPlatforms.length >= _D_MAX_PLATFORMS) { _dToast(`Maps hold up to ${_D_MAX_PLATFORMS} platforms`, true); return; }
+  _dPush();
+  _dPlatforms.push({ x: 390, y: 220, w: 120, h: 14, isFloor: false, oscX: 0, oscY: 0 });
   _dSelected = _dPlatforms.length - 1;
   _dSyncControls();
 }
 
+function designerDuplicate() {
+  if (_dSelected === null || !_dPlatforms[_dSelected]) return;
+  if (_dPlatforms.length >= _D_MAX_PLATFORMS) { _dToast(`Maps hold up to ${_D_MAX_PLATFORMS} platforms`, true); return; }
+  _dPush();
+  const c = Object.assign({}, _dPlatforms[_dSelected]);
+  c.x += 40; c.y -= 40;
+  _dPlatforms.push(c);
+  _dSelected = _dPlatforms.length - 1;
+  _dSyncControls();
+}
+
+function designerDeleteSelected() {
+  if (_dSelected === null || !_dPlatforms[_dSelected]) return;
+  _dPush();
+  _dPlatforms.splice(_dSelected, 1);
+  _dSelected = null;
+  _dSyncControls();
+}
+
 function designerClearPlatforms() {
-  _dHistory.push(JSON.stringify(_dPlatforms));
+  if (_dPlatforms.length && !confirm('Remove every platform? You can undo this.')) return;
+  _dPush();
   _dPlatforms = [];
   _dSelected  = null;
+  _dSyncControls();
 }
 
 function designerUndo() {
   if (_dHistory.length === 0) return;
   _dPlatforms = JSON.parse(_dHistory.pop());
   _dSelected  = null;
+  _dSyncControls();
 }
 
 function designerUpdateSelected() {
   if (_dSelected === null || !_dPlatforms[_dSelected]) return;
   const pl = _dPlatforms[_dSelected];
-  pl.w     = parseInt(document.getElementById('dPlatW').value);
-  pl.h     = parseInt(document.getElementById('dPlatH').value);
+  _dPush();
+  pl.w = Math.max(20, Math.min(900, parseInt(document.getElementById('dPlatW').value) || pl.w));
+  pl.h = Math.max(8,  Math.min(80,  parseInt(document.getElementById('dPlatH').value) || pl.h));
   pl.isFloor = document.getElementById('dPlatFloor').checked;
-  const moving = document.getElementById('dPlatMoving').checked;
-  pl.oscX  = moving ? 60 : 0;
-  pl.oscY  = 0;
-  if (!pl.ox) { pl.ox = pl.x; pl.oy = pl.y; }
+  pl.oscX = document.getElementById('dPlatMoving').checked ? 60 : 0;
 }
 
 function _dSyncControls() {
   const pl = _dSelected !== null ? _dPlatforms[_dSelected] : null;
-  document.getElementById('dPlatW').value       = pl ? pl.w : 120;
-  document.getElementById('dPlatH').value       = pl ? pl.h : 14;
+  const w = document.getElementById('dPlatW'); if (!w) return;
+  w.value = pl ? Math.round(pl.w) : 120;
+  document.getElementById('dPlatH').value       = pl ? Math.round(pl.h) : 14;
   document.getElementById('dPlatFloor').checked  = pl ? !!pl.isFloor : false;
   document.getElementById('dPlatMoving').checked = pl ? (pl.oscX > 0) : false;
+  for (const id of ['dPlatW', 'dPlatH', 'dPlatFloor', 'dPlatMoving']) document.getElementById(id).disabled = !pl;
 }
 
-// ---- HAZARD TOGGLES ----
+// ---- HAZARDS ----
 function designerToggleHazard(h) {
+  if (!_D_HAZARD_KEYS.has(h)) return;
   if (_dHazards.has(h)) _dHazards.delete(h);
-  else _dHazards.add(h);
-  // Update button visual
-  document.querySelectorAll('.d-hazard-btn').forEach(btn => {
-    const key = btn.getAttribute('onclick').match(/'([^']+)'/)?.[1];
-    if (key) btn.classList.toggle('active', _dHazards.has(key));
-  });
+  else {
+    _dHazards.add(h);
+    if (h === 'lowgrav')   _dHazards.delete('heavygrav');
+    if (h === 'heavygrav') _dHazards.delete('lowgrav');
+  }
+  _dSyncHazardChips();
+}
+
+function _dSyncHazardChips() {
+  document.querySelectorAll('#designerOverlay .d-hazard-btn').forEach(btn =>
+    btn.classList.toggle('on', _dHazards.has(btn.dataset.h)));
 }
 
 function designerSyncMeta() {
-  _dMeta.name    = document.getElementById('dMapName').value || 'My Map';
-  _dMeta.hasLava = document.getElementById('dHasLava').checked;
-  _dMeta.skyColor = document.getElementById('dSkyColor').value;
+  const n = document.getElementById('dMapName');
+  if (!n) return;
+  _dMeta.name = (n.value || '').trim().slice(0, 32) || 'My Map';
+  _dMeta.sky  = document.getElementById('dSkyOn').checked ? document.getElementById('dSkyColor').value : null;
+}
+
+// ---- KEYBOARD ----
+function _dInstallKeys() {
+  if (_dKeyHandler) return;
+  _dKeyHandler = (e) => {
+    const ov = document.getElementById('designerOverlay');
+    if (!ov || ov.style.display === 'none') return;
+    if (document.querySelector('.cs-modal')) return;
+    if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); closeDesigner(); return; }
+    const inField = e.target && e.target.closest && e.target.closest('input,select,textarea');
+    if (inField) return;
+    const mapOpen = document.getElementById('designerMapPanel').style.display !== 'none';
+    if (!mapOpen) return;
+    const k = e.key;
+    if ((e.ctrlKey || e.metaKey) && k.toLowerCase() === 'z') { e.preventDefault(); e.stopPropagation(); designerUndo(); return; }
+    if (k === 'Delete' || k === 'Backspace') { e.preventDefault(); e.stopPropagation(); designerDeleteSelected(); return; }
+    if (k.toLowerCase() === 'd' && !e.ctrlKey && !e.metaKey) { e.preventDefault(); e.stopPropagation(); designerDuplicate(); return; }
+    const nudge = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }[k];
+    if (nudge && _dSelected !== null && _dPlatforms[_dSelected]) {
+      e.preventDefault(); e.stopPropagation();
+      const step = e.shiftKey ? 1 : (_dSnapGrid ? _D_SNAP : 5);
+      const pl = _dPlatforms[_dSelected];
+      pl.x += nudge[0] * step; pl.y = Math.max(0, Math.min(520 - pl.h, pl.y + nudge[1] * step));
+    }
+  };
+  // Capture phase: the game's own key handlers must not see studio keys.
+  document.addEventListener('keydown', _dKeyHandler, true);
 }
 
 // ---- CANVAS EVENTS ----
 function _dSetupCanvasEvents() {
   const cv = _dCanvas;
-  // Scale canvas coords from CSS to logical GAME dimensions (900×520)
   const _toGame = (cx, cy) => {
     const r = cv.getBoundingClientRect();
     return { x: (cx - r.left) / r.width * 900, y: (cy - r.top) / r.height * 520 };
   };
-
-  // Returns which resize handle is under cursor ('e','w','se','sw', or null)
-  const _getHandleAt = (x, y) => {
-    if (_dSelected === null) return null;
-    const pl = _dPlatforms[_dSelected];
-    const sx = cv.width  / 900, sy = cv.height / 520;
-    const hSize = 10 / sx; // handle hit-zone in game coords
-    const checks = [
-      { dir: 'e',  hx: pl.x + pl.w, hy: pl.y + pl.h / 2 },
-      { dir: 'w',  hx: pl.x,        hy: pl.y + pl.h / 2 },
-      { dir: 's',  hx: pl.x + pl.w / 2, hy: pl.y + pl.h },
-      { dir: 'se', hx: pl.x + pl.w, hy: pl.y + pl.h },
-      { dir: 'sw', hx: pl.x,        hy: pl.y + pl.h },
-    ];
-    for (const c of checks) {
-      if (Math.abs(x - c.hx) < hSize && Math.abs(y - c.hy) < hSize) return c.dir;
+  const _hit = (x, y) => {
+    for (let i = _dPlatforms.length - 1; i >= 0; i--) {
+      const pl = _dPlatforms[i];
+      if (x >= pl.x && x <= pl.x + pl.w && y >= pl.y - 4 && y <= pl.y + pl.h + 4) return i;
     }
+    return -1;
+  };
+  const _getHandleAt = (x, y) => {
+    if (_dSelected === null || !_dPlatforms[_dSelected]) return null;
+    const pl = _dPlatforms[_dSelected];
+    const r = cv.getBoundingClientRect();
+    const hSize = 9 * 900 / Math.max(1, r.width);
+    const checks = [
+      { dir: 'se', hx: pl.x + pl.w,     hy: pl.y + pl.h },
+      { dir: 'sw', hx: pl.x,            hy: pl.y + pl.h },
+      { dir: 'e',  hx: pl.x + pl.w,     hy: pl.y + pl.h / 2 },
+      { dir: 'w',  hx: pl.x,            hy: pl.y + pl.h / 2 },
+      { dir: 's',  hx: pl.x + pl.w / 2, hy: pl.y + pl.h },
+    ];
+    for (const c of checks) if (Math.abs(x - c.hx) < hSize && Math.abs(y - c.hy) < hSize) return c.dir;
     return null;
   };
 
@@ -726,39 +869,26 @@ function _dSetupCanvasEvents() {
     e.preventDefault();
     const { x, y } = _toGame(e.clientX, e.clientY);
     if (e.button === 2) {
-      const idx = _dPlatforms.findIndex(pl => x >= pl.x && x <= pl.x + pl.w && y >= pl.y && y <= pl.y + pl.h);
-      if (idx >= 0) { _dHistory.push(JSON.stringify(_dPlatforms)); _dPlatforms.splice(idx, 1); _dSelected = null; }
+      const idx = _hit(x, y);
+      if (idx >= 0) { _dPush(); _dPlatforms.splice(idx, 1); _dSelected = null; _dSyncControls(); }
       return;
     }
-    // Check resize handle first
     const handle = _getHandleAt(x, y);
-    if (handle && _dSelected !== null) {
-      _dResizing  = true;
-      _dResizeDir = handle;
-      _dDragOffX  = x;
-      _dDragOffY  = y;
-      return;
-    }
-    // Select or add platform
-    const idx = _dPlatforms.findIndex(pl => x >= pl.x && x <= pl.x + pl.w && y >= pl.y && y <= pl.y + pl.h);
+    if (handle) { _dPush(); _dResizing = true; _dResizeDir = handle; _dDragOffX = x; _dDragOffY = y; return; }
+    const idx = _hit(x, y);
     if (idx >= 0) {
-      _dSelected  = idx;
-      _dDragging  = true;
-      _dDragOffX  = x - _dPlatforms[idx].x;
-      _dDragOffY  = y - _dPlatforms[idx].y;
-      _dSyncControls();
+      _dPush();
+      _dSelected = idx; _dDragging = true;
+      _dDragOffX = x - _dPlatforms[idx].x; _dDragOffY = y - _dPlatforms[idx].y;
     } else {
-      _dHistory.push(JSON.stringify(_dPlatforms));
-      const pw = parseInt(document.getElementById('dPlatW').value) || 120;
-      const ph = parseInt(document.getElementById('dPlatH').value) || 14;
-      const nx = _dSnapVal(x - pw / 2), ny = _dSnapVal(y);
-      _dPlatforms.push({ x: nx, y: ny, w: pw, h: ph, isFloor: false, oscX: 0, oscY: 0 });
+      if (_dPlatforms.length >= _D_MAX_PLATFORMS) { _dToast(`Maps hold up to ${_D_MAX_PLATFORMS} platforms`, true); return; }
+      _dPush();
+      const pw = 120, ph = 14;
+      _dPlatforms.push({ x: _dSnapVal(x - pw / 2), y: _dSnapVal(y), w: pw, h: ph, isFloor: false, oscX: 0, oscY: 0 });
       _dSelected = _dPlatforms.length - 1;
-      _dDragging  = true;
-      _dDragOffX  = pw / 2;
-      _dDragOffY  = ph / 2;
-      _dSyncControls();
+      _dDragging = true; _dDragOffX = pw / 2; _dDragOffY = ph / 2;
     }
+    _dSyncControls();
   };
 
   cv.onmousemove = (e) => {
@@ -768,45 +898,130 @@ function _dSetupCanvasEvents() {
       const dx = x - _dDragOffX, dy = y - _dDragOffY;
       _dDragOffX = x; _dDragOffY = y;
       if (_dResizeDir.includes('e')) pl.w = Math.max(20, pl.w + dx);
-      if (_dResizeDir.includes('w')) { pl.x = _dSnapVal(pl.x + dx); pl.w = Math.max(20, pl.w - dx); }
-      if (_dResizeDir.includes('s')) pl.h = Math.max(8, pl.h + dy);
-      document.getElementById('dPlatW').value = Math.round(pl.w);
-      document.getElementById('dPlatH').value = Math.round(pl.h);
+      if (_dResizeDir.includes('w')) { const nw = Math.max(20, pl.w - dx); pl.x += pl.w - nw; pl.w = nw; }
+      if (_dResizeDir.includes('s')) pl.h = Math.max(8, Math.min(80, pl.h + dy));
+      _dSyncControls();
       return;
     }
     if (!_dDragging || _dSelected === null) {
-      // Update cursor style based on handle proximity
       const handle = _getHandleAt(x, y);
-      cv.style.cursor = handle ? (handle === 'e' || handle === 'w' ? 'ew-resize' : handle === 's' ? 'ns-resize' : 'nwse-resize') : 'crosshair';
+      cv.style.cursor = handle ? (handle === 'e' || handle === 'w' ? 'ew-resize' : handle === 's' ? 'ns-resize' : 'nwse-resize')
+        : (_hit(x, y) >= 0 ? 'move' : 'crosshair');
       return;
     }
     const pl = _dPlatforms[_dSelected];
     pl.x = _dSnapVal(x - _dDragOffX);
-    pl.y = _dSnapVal(y - _dDragOffY);
+    pl.y = Math.max(0, Math.min(520 - pl.h, _dSnapVal(y - _dDragOffY)));
   };
 
-  const _stopDrag = () => { _dDragging = false; _dResizing = false; _dResizeDir = null; };
-  cv.onmouseup    = _stopDrag;
+  const _stopDrag = () => {
+    if (_dResizing && _dSelected !== null) {
+      const pl = _dPlatforms[_dSelected];
+      pl.w = _dSnapGrid ? Math.max(_D_SNAP, _dSnapVal(pl.w)) : Math.round(pl.w);
+      pl.x = Math.round(pl.x); pl.h = Math.round(pl.h);
+      _dSyncControls();
+    }
+    _dDragging = false; _dResizing = false; _dResizeDir = null;
+  };
+  cv.onmouseup = _stopDrag;
   cv.onmouseleave = _stopDrag;
   cv.oncontextmenu = (e) => e.preventDefault();
-
-  // Scroll wheel: resize selected platform width
   cv.onwheel = (e) => {
+    if (_dSelected === null || !_dPlatforms[_dSelected]) return;
     e.preventDefault();
-    if (_dSelected === null) return;
     const pl = _dPlatforms[_dSelected];
-    pl.w = Math.max(30, Math.min(450, pl.w - Math.sign(e.deltaY) * _D_SNAP));
-    document.getElementById('dPlatW').value = pl.w;
+    pl.w = Math.max(20, Math.min(900, pl.w - Math.sign(e.deltaY) * _D_SNAP));
+    _dSyncControls();
   };
 }
 
-// ---- PREVIEW LOOP (draws editor canvas) ----
+// ---- RENDER: the game's own renderer, borrowed while the menu is up ----
+// Draws `draw` into the idle game canvas at worldW x worldH, then copies the
+// result into `target`. Returns false when the game canvas is busy (a match is
+// running) so callers can fall back.
+function _dRenderViaGame(target, worldW, worldH, draw) {
+  if (typeof canvas === 'undefined' || typeof ctx === 'undefined' || !canvas) return false;
+  if (typeof gameRunning !== 'undefined' && gameRunning) return false;
+  const tw = target.canvas.width, th = target.canvas.height;
+  const s  = Math.min(1, canvas.width / tw, canvas.height / th);
+  const rw = Math.max(1, Math.floor(tw * s)), rh = Math.max(1, Math.floor(th * s));
+  let ok = true;
+  ctx.save();
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.clearRect(0, 0, rw, rh);
+  ctx.beginPath(); ctx.rect(0, 0, rw, rh); ctx.clip();
+  ctx.setTransform(rw / worldW, 0, 0, rh / worldH, 0, 0);
+  try { draw(); } catch (e) { ok = false; }
+  ctx.restore();
+  if (ok) {
+    target.clearRect(0, 0, tw, th);
+    target.drawImage(canvas, 0, 0, rw, rh, 0, 0, tw, th);
+  }
+  ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, rw, rh); ctx.restore();
+  return ok;
+}
+
+// Build the playable arena object for a map spec. The single source of truth:
+// the editor view, Play, saved maps and share codes all go through here.
+function _dBuildArena(spec) {
+  const base = (typeof ARENAS !== 'undefined' && (ARENAS[spec.base] || ARENAS.grass)) || {};
+  const hz = new Set(spec.hazards || []);
+  let platforms = (spec.platforms || []).map(p => {
+    const pl = { x: p.x, y: p.y, w: p.w, h: p.h || 14, isFloor: !!p.isFloor };
+    if (p.oscX > 0) { pl.ox = p.x; pl.oscX = p.oscX; pl.oscSpeed = 0.018; pl.oscPhase = (p.x * 0.013) % 6.28; }
+    return pl;
+  });
+  if (!platforms.length) platforms = _dBaseLayout(spec.base).map(p => Object.assign({}, p));
+  // Spawning needs a ground platform (pickSafeSpawn). If the author marked none,
+  // the widest of the lowest platforms becomes the ground.
+  if (!platforms.some(p => p.isFloor)) {
+    const g = platforms.slice().sort((a, b) => (b.y - a.y) || (b.w - a.w))[0];
+    if (g) g.isFloor = true;
+  }
+  const a = Object.assign({}, base, {
+    name:           spec.name || 'Custom Map',
+    designerBase:   (typeof ARENAS !== 'undefined' && ARENAS[spec.base]) ? spec.base : 'grass',
+    isCustomMap:    true,
+    hasLava:        hz.has('lava'),
+    lavaY:          hz.has('lava') ? (base.lavaY || 490) : base.lavaY,
+    isLowGravity:   hz.has('lowgrav'),
+    isHeavyGravity: hz.has('heavygrav'),
+    isIcy:          hz.has('ice'),
+    designerPerks:  { blizzard: hz.has('wind'), meteors: hz.has('meteors'), beast: hz.has('beast'), yeti: hz.has('yeti') },
+    platforms,
+  });
+  if (spec.sky) a.sky = [spec.sky, _dDarken(spec.sky)];
+  return a;
+}
+
+function _dDarken(hex) {
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex || '');
+  if (!m) return '#0a0c12';
+  const n = parseInt(m[1], 16);
+  const c = (v) => Math.round(v * 0.45).toString(16).padStart(2, '0');
+  return '#' + c(n >> 16) + c((n >> 8) & 255) + c(n & 255);
+}
+
+function _dDrawArenaReal(dc, spec) {
+  const arena = _dBuildArena(spec);
+  return _dRenderViaGame(dc, 900, 520, () => {
+    const pa = currentArena, pk = currentArenaKey;
+    currentArena = arena; currentArenaKey = spec.base;
+    try {
+      if (_dBgKey !== spec.base && typeof generateBgElements === 'function') { generateBgElements(); _dBgKey = spec.base; }
+      drawBackground();
+      drawPlatforms();
+    } finally { currentArena = pa; currentArenaKey = pk; }
+  });
+}
+
 function _dStartPreviewLoop() {
   const loop = () => {
     const ov = document.getElementById('designerOverlay');
     if (!ov || ov.style.display === 'none') { _dAnimId = null; return; }
     _dAnimId = requestAnimationFrame(loop);
-    _dDrawEditor();
+    const mapOpen = document.getElementById('designerMapPanel').style.display !== 'none';
+    if (mapOpen) _dDrawEditor(); else _wDraw();
   };
   if (_dAnimId) cancelAnimationFrame(_dAnimId);
   _dAnimId = requestAnimationFrame(loop);
@@ -816,408 +1031,288 @@ function _dDrawEditor() {
   const cv = _dCanvas;
   if (!cv) return;
   const dc = _dCtx;
-  const W = 900, H = 520;
+  const W = cv.width, H = cv.height, sx = W / 900, sy = H / 520;
+  designerSyncMeta();
+  const spec = _dCurrentSpec();
 
-  dc.clearRect(0, 0, cv.width, cv.height);
-
-  // Sky gradient
-  const sky = dc.createLinearGradient(0, 0, 0, cv.height);
-  sky.addColorStop(0, _dMeta.skyColor || '#0d0d1e');
-  sky.addColorStop(1, '#1a1a2e');
-  dc.fillStyle = sky;
-  dc.fillRect(0, 0, cv.width, cv.height);
-
-  const sx = cv.width / W, sy = cv.height / H;
-
-  // Lava hint at bottom
-  if (_dHazards.has('lava') || _dMeta.hasLava) {
-    dc.fillStyle = 'rgba(255,80,0,0.25)';
-    dc.fillRect(0, cv.height - cv.height * 0.07, cv.width, cv.height * 0.07);
-    dc.fillStyle = '#ff6600';
-    dc.fillRect(0, cv.height - 3, cv.width, 3);
+  if (!_dDrawArenaReal(dc, spec)) {
+    // Fallback (a match is running underneath): flat schematic.
+    dc.fillStyle = spec.sky || '#141926'; dc.fillRect(0, 0, W, H);
+    for (const pl of _dPlatforms) { dc.fillStyle = pl.isFloor ? '#3d4a5c' : '#556070'; dc.fillRect(pl.x * sx, pl.y * sy, pl.w * sx, pl.h * sy); }
   }
 
-  // Grid — fine when snap active (20 units), coarse otherwise
-  const gridUnits = _dSnapGrid ? _D_SNAP : 45;
-  const gridAlpha = _dSnapGrid ? 0.07 : 0.04;
-  dc.strokeStyle = `rgba(255,255,255,${gridAlpha})`;
-  dc.lineWidth = 0.5;
-  for (let x = 0; x < cv.width; x += gridUnits * sx) { dc.beginPath(); dc.moveTo(x,0); dc.lineTo(x,cv.height); dc.stroke(); }
-  for (let y = 0; y < cv.height; y += gridUnits * sy) { dc.beginPath(); dc.moveTo(0,y); dc.lineTo(cv.width,y); dc.stroke(); }
+  // Grid only while snapping, faint enough to read the art through.
+  if (_dSnapGrid) {
+    dc.strokeStyle = 'rgba(255,255,255,0.06)'; dc.lineWidth = 1;
+    dc.beginPath();
+    for (let x = 0; x <= 900; x += _D_SNAP * 2) { dc.moveTo(x * sx + 0.5, 0); dc.lineTo(x * sx + 0.5, H); }
+    for (let y = 0; y <= 520; y += _D_SNAP * 2) { dc.moveTo(0, y * sy + 0.5); dc.lineTo(W, y * sy + 0.5); }
+    dc.stroke();
+  }
 
-  // Ceiling line
-  const ceilY = _dHazards.has('lowgrav') ? (cv.height * 0.3) : (cv.height * 0.05);
-  dc.strokeStyle = 'rgba(100,200,255,0.3)';
-  dc.setLineDash([6,4]);
-  dc.lineWidth = 1.5;
-  dc.beginPath(); dc.moveTo(0, ceilY); dc.lineTo(cv.width, ceilY); dc.stroke();
-  dc.setLineDash([]);
-  dc.fillStyle = 'rgba(100,200,255,0.5)';
-  dc.font = '10px Arial';
-  dc.fillText('ceiling', 6, ceilY - 3);
-
-  // Platforms
   _dPlatforms.forEach((pl, i) => {
     const px = pl.x * sx, py = pl.y * sy, pw = pl.w * sx, ph = (pl.h || 14) * sy;
-    const isSelected = i === _dSelected;
-
-    // Shadow
-    dc.fillStyle = 'rgba(0,0,0,0.4)';
-    dc.fillRect(px + 2, py + 2, pw, ph);
-
-    // Platform body
-    if (pl.isFloor) {
-      dc.fillStyle = isSelected ? '#88ff88' : '#446644';
-    } else {
-      dc.fillStyle = isSelected ? '#aaddff' : '#334466';
-    }
-    dc.fillRect(px, py, pw, ph);
-
-    // Shimmer edge
-    dc.fillStyle = isSelected ? 'rgba(255,255,255,0.6)' : 'rgba(255,255,255,0.18)';
-    dc.fillRect(px, py, pw, 2);
-
-    // Oscillating indicator
-    if (pl.oscX > 0 || pl.oscY > 0) {
-      dc.strokeStyle = '#ffcc44';
-      dc.lineWidth   = 1.5;
-      dc.setLineDash([4, 3]);
-      dc.beginPath();
-      dc.moveTo(px - pl.oscX * sx, py); dc.lineTo(px + pw + pl.oscX * sx, py);
-      dc.stroke();
+    if (pl.oscX > 0) {
+      dc.strokeStyle = 'rgba(227,179,65,0.8)'; dc.lineWidth = 2; dc.setLineDash([6, 5]);
+      dc.beginPath(); dc.moveTo(px - pl.oscX * sx, py + ph / 2); dc.lineTo(px + pw + pl.oscX * sx, py + ph / 2); dc.stroke();
       dc.setLineDash([]);
     }
-
-    // Selected: outline + functional resize handles
-    if (isSelected) {
-      dc.strokeStyle = '#88ff44';
-      dc.lineWidth   = 2;
-      dc.strokeRect(px - 1, py - 1, pw + 2, ph + 2);
-      // Resize handles: east, west, south, se, sw corners
-      const handles = [
-        { hx: px + pw,      hy: py + ph/2, dir: 'e'  },
-        { hx: px,           hy: py + ph/2, dir: 'w'  },
-        { hx: px + pw/2,    hy: py + ph,   dir: 's'  },
-        { hx: px + pw,      hy: py + ph,   dir: 'se' },
-        { hx: px,           hy: py + ph,   dir: 'sw' },
-      ];
-      handles.forEach(h => {
-        dc.fillStyle = h.dir === 'e' || h.dir === 'w' ? '#44aaff' : '#88ff44';
-        dc.fillRect(h.hx - 5, h.hy - 5, 10, 10);
-        dc.strokeStyle = 'rgba(0,0,0,0.5)'; dc.lineWidth = 1;
-        dc.strokeRect(h.hx - 5, h.hy - 5, 10, 10);
-      });
-      // Size label
-      dc.fillStyle = 'rgba(255,255,255,0.55)';
-      dc.font      = '9px Arial';
-      dc.textAlign = 'center';
-      dc.fillText(`${Math.round(pl.w)}×${Math.round(pl.h)}`, px + pw/2, py - 5);
-      dc.textAlign = 'left';
+    if (pl.isFloor && i !== _dSelected) {
+      dc.fillStyle = 'rgba(63,185,132,0.9)'; dc.fillRect(px, py - 3 * sy, Math.min(pw, 26 * sx), 2 * sy);
     }
+    if (i !== _dSelected) return;
+    dc.strokeStyle = '#F2762B'; dc.lineWidth = 2.5;
+    dc.strokeRect(px - 2, py - 2, pw + 4, ph + 4);
+    const hs = 7 * sx;
+    for (const [hx, hy] of [[px + pw, py + ph / 2], [px, py + ph / 2], [px + pw / 2, py + ph], [px + pw, py + ph], [px, py + ph]]) {
+      dc.fillStyle = '#F2762B'; dc.fillRect(hx - hs, hy - hs, hs * 2, hs * 2);
+      dc.strokeStyle = '#160A02'; dc.lineWidth = 1.5; dc.strokeRect(hx - hs, hy - hs, hs * 2, hs * 2);
+    }
+    const label = `${Math.round(pl.w)} x ${Math.round(pl.h)}${pl.isFloor ? '  ground' : ''}${pl.oscX > 0 ? '  moving' : ''}`;
+    dc.font = `700 ${Math.round(13 * sx)}px system-ui, sans-serif`;
+    const tw = dc.measureText(label).width + 12 * sx;
+    const ly = Math.max(18 * sy, py - 12 * sy);
+    dc.fillStyle = 'rgba(10,12,18,0.85)'; dc.fillRect(px, ly - 14 * sy, tw, 18 * sy);
+    dc.fillStyle = '#E6EBF5'; dc.textBaseline = 'middle'; dc.fillText(label, px + 6 * sx, ly - 5 * sy);
+    dc.textBaseline = 'alphabetic';
   });
 
-  // Hazard overlays
-  if (_dHazards.has('fog')) {
-    dc.fillStyle = 'rgba(180,180,220,0.12)';
-    dc.fillRect(0, 0, cv.width, cv.height);
-    dc.fillStyle = 'rgba(180,180,220,0.6)';
-    dc.font = 'bold 11px Arial';
-    dc.textAlign = 'center';
-    dc.fillText('🌫 FOG ACTIVE', cv.width / 2, 20);
-    dc.textAlign = 'left';
+  if (!_dPlatforms.length) {
+    dc.fillStyle = 'rgba(10,12,18,0.7)'; dc.fillRect(W / 2 - 230 * sx, H / 2 - 22 * sy, 460 * sx, 44 * sy);
+    dc.fillStyle = '#E6EBF5'; dc.font = `700 ${Math.round(16 * sx)}px system-ui, sans-serif`; dc.textAlign = 'center';
+    dc.fillText('Click anywhere to place your first platform', W / 2, H / 2 + 6 * sy); dc.textAlign = 'left';
   }
-  if (_dHazards.has('wind')) {
-    for (let i = 0; i < 5; i++) {
-      const wx = ((Date.now() / 8 + i * 160) % cv.width);
-      dc.strokeStyle = 'rgba(150,200,255,0.25)';
-      dc.lineWidth   = 1;
-      dc.beginPath(); dc.moveTo(wx, 60 + i * 70); dc.lineTo(wx + 50, 60 + i * 70); dc.stroke();
+}
+
+// ---- MAP SPECS ----
+// A spec is the whole map as plain data. Saves, share codes and Play all use it.
+//   { v:1, name, base, sky|null, hazards:[...], platforms:[{x,y,w,h,isFloor,oscX}] }
+function _dCurrentSpec() {
+  return {
+    v: 1, name: _dMeta.name || 'My Map', base: _dBaseArena, sky: _dMeta.sky || null,
+    hazards: [..._dHazards],
+    platforms: _dPlatforms.map(p => ({ x: Math.round(p.x), y: Math.round(p.y), w: Math.round(p.w), h: Math.round(p.h || 14),
+      isFloor: !!p.isFloor, oscX: p.oscX > 0 ? 60 : 0 })),
+  };
+}
+
+const _dNum = (v, lo, hi, d) => { v = Number(v); return Number.isFinite(v) ? Math.max(lo, Math.min(hi, Math.round(v))) : d; };
+const _dCleanName = (s, d, max) => (String(s == null ? '' : s).replace(/[\u0000-\u001f<>]/g, '').trim().slice(0, max) || d);
+
+// Accepts anything a player might paste: share codes' payload, the current spec,
+// or the pre-September save/export shape { meta, platforms, hazards, base }.
+// Everything is clamped; nothing from outside reaches the page unescaped.
+function _dSanitizeMapSpec(raw) {
+  if (!raw || typeof raw !== 'object') return null;
+  const legacy = raw.meta && typeof raw.meta === 'object';
+  const bases = _dBaseList();
+  const base = bases.includes(raw.base) ? raw.base : 'grass';
+  const skyIn = legacy ? raw.meta.skyColor : raw.sky;
+  const sky = /^#[0-9a-f]{6}$/i.test(skyIn || '') && !(legacy && /^#0d0d1e$/i.test(skyIn)) ? skyIn : null;
+  const LEGACY = { npc_beast: 'beast', npc_yeti: 'yeti' };
+  const hz = new Set();
+  for (const h of Array.isArray(raw.hazards) ? raw.hazards : []) { const k = LEGACY[h] || h; if (_D_HAZARD_KEYS.has(k)) hz.add(k); }
+  if (legacy && raw.meta.hasLava) hz.add('lava');
+  const pls = (Array.isArray(raw.platforms) ? raw.platforms : []).slice(0, _D_MAX_PLATFORMS).map(p => {
+    if (Array.isArray(p)) p = { x: p[0], y: p[1], w: p[2], h: p[3], isFloor: p[4] & 1, oscX: (p[4] & 2) ? 60 : 0 };
+    if (!p || typeof p !== 'object') return null;
+    return { x: _dNum(p.x, -200, 1100, 0), y: _dNum(p.y, 0, 520, 300), w: _dNum(p.w, 20, 1200, 120), h: _dNum(p.h, 8, 80, 14),
+      isFloor: !!p.isFloor, oscX: Number(p.oscX) > 0 ? 60 : 0 };
+  }).filter(Boolean);
+  return { v: 1, name: _dCleanName(legacy ? raw.meta.name : raw.name, 'Custom Map', 32), base, sky, hazards: [...hz], platforms: pls };
+}
+
+function _dApplySpec(spec) {
+  _dMeta = { name: spec.name, sky: spec.sky };
+  _dBaseArena = spec.base;
+  _dPlatforms = spec.platforms.map(p => Object.assign({ oscY: 0 }, p));
+  _dHazards = new Set(spec.hazards);
+  _dSelected = null;
+  _dHistory = [];
+  const sel = document.getElementById('dBaseArena'); if (sel) sel.value = spec.base;
+  const nm = document.getElementById('dMapName'); if (nm) nm.value = spec.name;
+  const on = document.getElementById('dSkyOn'); if (on) on.checked = !!spec.sky;
+  if (spec.sky) { const c = document.getElementById('dSkyColor'); if (c) c.value = spec.sky; }
+  _dSyncHazardChips();
+  _dSyncControls();
+}
+
+// ---- SHARE CODES ----
+// "SE-MAP1." / "SE-WPN1." + base64url(JSON). Platforms pack to [x,y,w,h,flags].
+function _dB64(s) { return btoa(unescape(encodeURIComponent(s))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); }
+function _dUnB64(s) {
+  s = s.replace(/-/g, '+').replace(/_/g, '/'); while (s.length % 4) s += '=';
+  return decodeURIComponent(escape(atob(s)));
+}
+function _dMapToCode(spec) {
+  const packed = { n: spec.name, b: spec.base, s: spec.sky || 0, z: spec.hazards,
+    p: spec.platforms.map(p => [p.x, p.y, p.w, p.h, (p.isFloor ? 1 : 0) | (p.oscX > 0 ? 2 : 0)]) };
+  return 'SE-MAP1.' + _dB64(JSON.stringify(packed));
+}
+function _dCodeToMap(text) {
+  text = String(text || '').trim();
+  try {
+    if (text.startsWith('SE-MAP1.')) {
+      const o = JSON.parse(_dUnB64(text.slice(8)));
+      return _dSanitizeMapSpec({ name: o.n, base: o.b, sky: o.s || null, hazards: o.z, platforms: o.p });
     }
-  }
-
-  // NPC spawn hints
-  if (_dHazards.has('npc_beast')) {
-    dc.fillStyle = 'rgba(100,200,0,0.7)';
-    dc.font = '14px Arial';
-    dc.fillText('🐺', cv.width * 0.65, cv.height * 0.5);
-    dc.fillStyle = 'rgba(100,200,0,0.4)';
-    dc.font = '9px Arial';
-    dc.fillText('Forest Beast spawn', cv.width * 0.63, cv.height * 0.5 + 14);
-  }
-  if (_dHazards.has('npc_yeti')) {
-    dc.fillStyle = 'rgba(180,240,255,0.7)';
-    dc.font = '14px Arial';
-    dc.fillText('❄', cv.width * 0.35, cv.height * 0.5);
-    dc.fillStyle = 'rgba(180,240,255,0.4)';
-    dc.font = '9px Arial';
-    dc.fillText('Yeti spawn', cv.width * 0.32, cv.height * 0.5 + 14);
-  }
-
-  // Info overlay
-  dc.fillStyle = 'rgba(255,255,255,0.35)';
-  dc.font = '10px Arial';
-  dc.textAlign = 'right';
-  dc.fillText(`Platforms: ${_dPlatforms.length}  |  Selected: ${_dSelected !== null ? _dSelected : 'none'}`, cv.width - 6, cv.height - 6);
-  dc.textAlign = 'left';
+    return _dSanitizeMapSpec(JSON.parse(text));
+  } catch (e) { return null; }
 }
 
-// ---- PREVIEW IN GAME ----
-function designerPreview() {
-  designerSyncMeta();
-  if (typeof ARENAS === 'undefined') { alert('Open the game first (ARENAS not loaded).'); return; }
-  // Build a custom arena object and inject it
-  const base = (ARENAS[_dBaseArena] || ARENAS['grass']);
-  const customArena = Object.assign({}, base, {
-    name:       _dMeta.name,
-    sky:        [_dMeta.skyColor, '#1a1a2e'],
-    hasLava:    _dMeta.hasLava || _dHazards.has('lava'),
-    isLowGravity:   _dHazards.has('lowgrav'),
-    isHeavyGravity: _dHazards.has('heavygrav'),
-    isIcy:          _dHazards.has('ice'),
-    platforms:  _dPlatforms.length > 0 ? _dPlatforms.map(pl => ({
-      x: pl.x, y: pl.y, w: pl.w, h: pl.h || 14,
-      isFloor: pl.isFloor,
-      oscX: pl.oscX || 0, oscY: pl.oscY || 0,
-      ox: pl.x, oy: pl.y,
-    })) : base.platforms,
-  });
-  const _customKey  = '_custom_' + (_dMeta.name || 'custom').replace(/\s+/g,'_').toLowerCase();
-  ARENAS[_customKey] = customArena;
-  ARENAS['_custom']  = customArena; // always keep generic key for backwards compat
-  currentArenaKey    = _customKey;
-  currentArena       = customArena;
-  if (typeof generateBgElements === 'function') generateBgElements();
-  // Inject into the arena dropdown so the player can select it like a normal map
-  _dInjectArenaOption(_customKey, '🗺 ' + (_dMeta.name || 'Custom Map'));
-  closeDesigner();
-  if (typeof selectMode === 'function') selectMode('2p');
-  if (typeof selectArena === 'function') selectArena(_customKey);
-  _dToast(`Map "${_dMeta.name}" ready — selected in arena list!`);
+// ---- SAVE / LIBRARY ----
+function _dGetSaves() {
+  try { const o = JSON.parse(localStorage.getItem('smc_custom_maps') || '{}'); return o && typeof o === 'object' ? o : {}; }
+  catch (e) { return {}; }
+}
+function _dPutSaves(saves) {
+  try { localStorage.setItem('smc_custom_maps', JSON.stringify(saves)); return true; }
+  catch (e) { _dToast('Could not save (storage full or blocked)', true); return false; }
+}
+function _dSlug(name) { return String(name).toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '').slice(0, 32) || 'map'; }
+function _dMapKey(spec) { return '_custom_' + _dSlug(spec.name); }
+
+// Registers the map as a selectable arena and returns its ARENAS key.
+function _dRegisterMap(spec) {
+  const key = _dMapKey(spec);
+  if (typeof ARENAS !== 'undefined') ARENAS[key] = _dBuildArena(spec);
+  _dInjectArenaOption(key, spec.name + ' (custom)');
+  return key;
 }
 
-// ---- SAVE / LOAD / EXPORT ----
-function designerSave() {
+function designerSave(quiet) {
   designerSyncMeta();
+  const spec = _dCurrentSpec();
   const saves = _dGetSaves();
-  const key   = Date.now().toString();
-  saves[key]  = { meta: _dMeta, platforms: _dPlatforms, hazards: [..._dHazards], base: _dBaseArena };
-  localStorage.setItem('smc_custom_maps', JSON.stringify(saves));
+  // Same name overwrites, so saving twice doesn't make duplicates.
+  for (const [k, v] of Object.entries(saves)) {
+    const s = _dSanitizeMapSpec(v.spec || v);
+    if (s && _dSlug(s.name) === _dSlug(spec.name)) delete saves[k];
+  }
+  saves[Date.now().toString(36)] = { spec };
+  if (!_dPutSaves(saves)) return null;
+  const key = _dRegisterMap(spec);
   _dLoadSaved();
-  alert(`Map "${_dMeta.name}" saved!`);
+  if (!quiet) _dToast(`Saved "${spec.name}". It's in the arena list too.`);
+  return key;
 }
 
-function designerLoad() {
-  const panel = document.getElementById('dSavedMaps');
-  if (panel) panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
-}
+function designerLoad() { _dLoadSaved(); }
 
 function _dLoadSaved() {
-  const saves = _dGetSaves();
-  const list  = document.getElementById('dSavedMapsList');
+  const list = document.getElementById('dSavedMapsList');
   if (!list) return;
-  list.innerHTML = '';
-  Object.entries(saves).forEach(([k, v]) => {
-    const row = document.createElement('div');
-    row.className = 'd-saved-entry';
-    row.innerHTML = `<span>${v.meta.name}</span>
-      <div><button onclick="_dApplySave('${k}')">Load</button><button onclick="_dDeleteSave('${k}')">✕</button></div>`;
-    list.appendChild(row);
-  });
-  const panel = document.getElementById('dSavedMaps');
-  if (panel && Object.keys(saves).length > 0) panel.style.display = 'block';
-}
-
-function _dGetSaves() {
-  try { return JSON.parse(localStorage.getItem('smc_custom_maps') || '{}'); } catch { return {}; }
+  const entries = Object.entries(_dGetSaves()).map(([k, v]) => [k, _dSanitizeMapSpec(v.spec || v)]).filter(e => e[1]);
+  if (!entries.length) { list.innerHTML = '<div class="cs-empty">Nothing saved yet.</div>'; return; }
+  list.innerHTML = entries.reverse().map(([k, s]) =>
+    `<div class="cs-item"><span title="${_escHtml(s.name)}">${_escHtml(s.name)}</span>
+      <button class="cs-btn small" onclick="_dApplySave('${k}')">Open</button>
+      <button class="cs-btn small danger" onclick="_dDeleteSave('${k}')" aria-label="Delete">&times;</button></div>`).join('');
 }
 
 function _dApplySave(key) {
-  const saves = _dGetSaves();
-  const s     = saves[key];
-  if (!s) return;
-  _dMeta      = s.meta;
-  _dPlatforms = s.platforms || [];
-  _dHazards   = new Set(s.hazards || []);
-  _dBaseArena = s.base || 'grass';
-  document.getElementById('dBaseArena').value  = _dBaseArena;
-  document.getElementById('dMapName').value    = _dMeta.name;
-  document.getElementById('dHasLava').checked  = _dMeta.hasLava;
-  document.getElementById('dSkyColor').value   = _dMeta.skyColor;
-  _dSelected = null;
-  // Sync hazard buttons
-  document.querySelectorAll('.d-hazard-btn').forEach(btn => {
-    const k = btn.getAttribute('onclick').match(/'([^']+)'/)?.[1];
-    if (k) btn.classList.toggle('active', _dHazards.has(k));
-  });
+  const v = _dGetSaves()[key];
+  const spec = v && _dSanitizeMapSpec(v.spec || v);
+  if (!spec) return;
+  _dApplySpec(spec);
+  _dToast(`Opened "${spec.name}"`);
 }
 
 function _dDeleteSave(key) {
   const saves = _dGetSaves();
+  const spec = saves[key] && _dSanitizeMapSpec(saves[key].spec || saves[key]);
+  if (!spec || !confirm(`Delete "${spec.name}"?`)) return;
   delete saves[key];
-  localStorage.setItem('smc_custom_maps', JSON.stringify(saves));
+  _dPutSaves(saves);
   _dLoadSaved();
 }
 
-// ── Export / Import modal ────────────────────────────────────
-function designerExport() {
+// ---- PLAY ----
+function designerPlay() {
   designerSyncMeta();
-  const obj  = { meta: _dMeta, platforms: _dPlatforms, hazards: [..._dHazards], base: _dBaseArena };
-  const text = JSON.stringify(obj, null, 2);
-  const name = (_dMeta.name || 'map').replace(/\s+/g, '_');
-  _dShowExportModal(text, name + '.json', 'Map Export');
+  const spec = _dCurrentSpec();
+  if (!spec.platforms.length) { _dToast('Add at least one platform first', true); return; }
+  const key = _dRegisterMap(spec);
+  closeDesigner();
+  if (typeof selectMode === 'function') selectMode('2p');
+  if (typeof p1IsBot !== 'undefined') p1IsBot = false;
+  if (typeof p2IsBot !== 'undefined') p2IsBot = true;
+  if (typeof p2IsNone !== 'undefined') p2IsNone = false;
+  if (typeof selectArena === 'function') selectArena(key);
+  if (typeof startGame === 'function') startGame();
 }
 
-function _dShowExportModal(text, filename, title) {
-  // Remove existing modal if open
-  document.getElementById('_dExportModal')?.remove();
-
-  const modal = document.createElement('div');
-  modal.id = '_dExportModal';
-  modal.style.cssText = `position:fixed;inset:0;background:rgba(0,0,0,0.72);z-index:3000;
-    display:flex;align-items:center;justify-content:center;`;
-
-  modal.innerHTML = `
-  <div style="background:#0c0c1e;border:1.5px solid rgba(100,180,255,0.28);border-radius:13px;
-    padding:22px 24px 18px;width:min(480px,92vw);box-shadow:0 6px 40px rgba(0,0,80,0.6);
-    font-family:'Segoe UI',Arial,sans-serif;color:#ccd;">
-    <div style="font-weight:700;font-size:0.95rem;margin-bottom:14px;">${title}</div>
-    <div style="display:flex;gap:10px;margin-bottom:16px;">
-      <button onclick="_dExportAsCode('${_escAttr(text)}')"
-        style="flex:1;${_dModalBtnStyle('#88ccff')}">
-        📋 Copy Code<br><span style="font-size:0.7rem;opacity:0.7;">Paste anywhere</span>
-      </button>
-      <button onclick="_dExportAsFile('${_escAttr(text)}','${_escAttr(filename)}')"
-        style="flex:1;${_dModalBtnStyle('#88ff44')}">
-        💾 Download File<br><span style="font-size:0.7rem;opacity:0.7;">Save as .json</span>
-      </button>
-    </div>
-    <textarea readonly style="width:100%;height:80px;background:#07071a;color:#7a9;
-      border:1px solid rgba(100,180,255,0.18);border-radius:6px;padding:8px;
-      font-family:monospace;font-size:0.71rem;resize:none;box-sizing:border-box;">${_escHtml(text.slice(0,400))}…</textarea>
-    <div style="display:flex;justify-content:flex-end;margin-top:12px;">
-      <button onclick="document.getElementById('_dExportModal').remove()"
-        style="${_dModalBtnStyle()}">Close</button>
-    </div>
-  </div>`;
-
-  document.body.appendChild(modal);
-  modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+// ---- SHARE / IMPORT ----
+function _dModal(html) {
+  document.getElementById('csModal')?.remove();
+  const m = document.createElement('div');
+  m.id = 'csModal'; m.className = 'cs-modal';
+  m.innerHTML = `<div class="cs-modal-box" role="dialog">${html}</div>`;
+  m.addEventListener('click', e => { if (e.target === m) m.remove(); });
+  m.addEventListener('keydown', e => { if (e.key === 'Escape') { e.stopPropagation(); m.remove(); } });
+  document.body.appendChild(m);
+  return m;
 }
 
-function _dExportAsCode(text) {
-  navigator.clipboard?.writeText(text)
-    .then(() => { _dToast('Copied to clipboard!'); })
-    .catch(() => {
-      const ta = document.createElement('textarea');
-      ta.value = text; document.body.appendChild(ta); ta.select();
-      document.execCommand('copy'); ta.remove();
-      _dToast('Copied to clipboard!');
-    });
-}
-
-function _dExportAsFile(text, filename) {
-  const blob = new Blob([text], { type: 'application/json' });
-  const url  = URL.createObjectURL(blob);
-  const a    = document.createElement('a');
-  a.href = url; a.download = filename; a.click();
-  URL.revokeObjectURL(url);
-  _dToast('File downloaded!');
-}
-
-// ── Import modal ─────────────────────────────────────────────
-function designerImport() {
-  document.getElementById('_dImportModal')?.remove();
-
-  const modal = document.createElement('div');
-  modal.id = '_dImportModal';
-  modal.style.cssText = `position:fixed;inset:0;background:rgba(0,0,0,0.72);z-index:3000;
-    display:flex;align-items:center;justify-content:center;`;
-
-  modal.innerHTML = `
-  <div style="background:#0c0c1e;border:1.5px solid rgba(100,180,255,0.28);border-radius:13px;
-    padding:22px 24px 18px;width:min(480px,92vw);box-shadow:0 6px 40px rgba(0,0,80,0.6);
-    font-family:'Segoe UI',Arial,sans-serif;color:#ccd;">
-    <div style="font-weight:700;font-size:0.95rem;margin-bottom:14px;">Map Import</div>
-    <div style="display:flex;gap:10px;margin-bottom:14px;">
-      <label style="flex:1;${_dModalBtnStyle('#88ccff')};cursor:pointer;text-align:center;display:flex;
-        flex-direction:column;align-items:center;justify-content:center;">
-        📁 Upload File<br><span style="font-size:0.7rem;opacity:0.7;">.json map file</span>
-        <input type="file" accept=".json,.txt" onchange="_dImportFromFile(this)"
-          style="position:absolute;width:1px;height:1px;opacity:0;">
-      </label>
-      <div style="display:flex;align-items:center;color:#556;font-size:0.8rem;">or</div>
-      <div style="flex:2;display:flex;flex-direction:column;gap:6px;">
-        <span style="font-size:0.72rem;color:#889;">Paste code:</span>
-        <textarea id="_dImportText" rows="4" placeholder="Paste map JSON here…"
-          style="background:#07071a;color:#7a9;border:1px solid rgba(100,180,255,0.18);
-          border-radius:6px;padding:8px;font-family:monospace;font-size:0.71rem;
-          resize:vertical;width:100%;box-sizing:border-box;"></textarea>
-      </div>
-    </div>
-    <div style="display:flex;gap:8px;justify-content:flex-end;">
-      <button onclick="document.getElementById('_dImportModal').remove()"
-        style="${_dModalBtnStyle()}">Cancel</button>
-      <button onclick="_dImportFromText()" style="${_dModalBtnStyle('#88ff44')}">Import Code</button>
-    </div>
-  </div>`;
-
-  document.body.appendChild(modal);
-  modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
-}
-
-function _dImportFromFile(input) {
-  const file = input.files[0];
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = (e) => {
-    _dApplyImportJSON(e.target.result);
-    document.getElementById('_dImportModal')?.remove();
+function _dCopy(text) {
+  const fallback = () => {
+    const ta = document.createElement('textarea'); ta.value = text; document.body.appendChild(ta); ta.select();
+    try { document.execCommand('copy'); } catch (e) {}
+    ta.remove(); _dToast('Copied');
   };
-  reader.readAsText(file);
+  if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(() => _dToast('Copied'), fallback);
+  else fallback();
 }
 
-function _dImportFromText() {
-  const text = document.getElementById('_dImportText')?.value?.trim();
-  if (!text) return;
-  _dApplyImportJSON(text);
-  document.getElementById('_dImportModal')?.remove();
+function _dShareModal(title, blurb, code) {
+  const m = _dModal(`<h3>${_escHtml(title)}</h3><p>${blurb}</p>
+    <textarea readonly id="csShareCode"></textarea>
+    <div class="cs-row"><button onclick="document.getElementById('csModal').remove()">Close</button>
+      <button class="primary" id="csCopyBtn">Copy code</button></div>`);
+  const ta = m.querySelector('#csShareCode'); ta.value = code;
+  m.querySelector('#csCopyBtn').onclick = () => _dCopy(code);
+  ta.focus(); ta.select();
 }
 
-function _dApplyImportJSON(text) {
-  try {
-    const s = JSON.parse(text);
-    if (!s || !s.platforms) { _dToast('Invalid map data — missing platforms.', true); return; }
-    _dHistory.push(JSON.stringify(_dPlatforms));
-    _dMeta      = s.meta      || _dMeta;
-    _dPlatforms = s.platforms || [];
-    _dHazards   = new Set(s.hazards || []);
-    _dBaseArena = s.base      || 'grass';
-    // Sync controls
-    const dba = document.getElementById('dBaseArena'); if (dba) dba.value = _dBaseArena;
-    const dmn = document.getElementById('dMapName');   if (dmn) dmn.value = _dMeta.name || 'My Map';
-    const dhl = document.getElementById('dHasLava');   if (dhl) dhl.checked = !!_dMeta.hasLava;
-    const dsc = document.getElementById('dSkyColor');  if (dsc) dsc.value = _dMeta.skyColor || '#0d0d1e';
-    document.querySelectorAll('.d-hazard-btn').forEach(btn => {
-      const k = btn.getAttribute('onclick')?.match(/'([^']+)'/)?.[1];
-      if (k) btn.classList.toggle('active', _dHazards.has(k));
-    });
-    _dSelected = null;
-    _dToast(`Imported "${_dMeta.name || 'map'}" — ${_dPlatforms.length} platforms`);
-  } catch (err) {
-    _dToast('Could not parse map JSON.', true);
-  }
+function designerShare() {
+  designerSyncMeta();
+  const spec = _dCurrentSpec();
+  if (!spec.platforms.length) { _dToast('Add at least one platform first', true); return; }
+  _dShareModal(`Share "${spec.name}"`, 'Anyone can paste this code into <b>Import</b> in their Creator Studio to play your map.', _dMapToCode(spec));
+}
+function designerExport() { designerShare(); }
+
+function _dImportModal(title, blurb, onCode) {
+  const m = _dModal(`<h3>${_escHtml(title)}</h3><p>${blurb}</p>
+    <textarea id="csImportCode" placeholder="Paste a code here"></textarea>
+    <div class="cs-row"><button onclick="document.getElementById('csModal').remove()">Cancel</button>
+      <button class="primary" id="csImportBtn">Import</button></div>`);
+  const ta = m.querySelector('#csImportCode');
+  m.querySelector('#csImportBtn').onclick = () => { if (onCode(ta.value)) m.remove(); };
+  ta.focus();
 }
 
-// Small helpers
+function designerImport() {
+  _dImportModal('Import a map', 'Paste a map code (it starts with <b>SE-MAP1.</b>). Older .json map exports work too.', (text) => {
+    const spec = _dCodeToMap(text);
+    if (!spec) { _dToast("That isn't a map code", true); return false; }
+    if (_dPlatforms.length) _dPush();
+    _dApplySpec(spec);
+    _dToast(`Imported "${spec.name}". Save it to keep it.`);
+    return true;
+  });
+}
+
+// ---- misc helpers (shared with the Training live editor) ----
 function _dToast(msg, isError) {
   const t = document.createElement('div');
   t.textContent = msg;
+  t.setAttribute('role', 'status');
   t.style.cssText = `position:fixed;bottom:24px;left:50%;transform:translateX(-50%);
-    background:${isError ? 'rgba(255,60,60,0.92)' : 'rgba(60,200,120,0.92)'};
-    color:#fff;padding:8px 20px;border-radius:8px;font-size:0.85rem;z-index:4000;
-    pointer-events:none;font-family:'Segoe UI',Arial,sans-serif;`;
+    background:${isError ? 'rgba(224,90,78,0.95)' : 'rgba(27,33,49,0.97)'};border:1px solid rgba(150,170,210,0.26);
+    color:#E6EBF5;padding:9px 18px;border-radius:4px;font-size:0.85rem;font-weight:700;z-index:4000;pointer-events:none;font-family:inherit;`;
   document.body.appendChild(t);
-  setTimeout(() => t.remove(), 2200);
+  setTimeout(() => t.remove(), 2600);
 }
 
 function _dModalBtnStyle(accent) {
@@ -1227,642 +1322,462 @@ function _dModalBtnStyle(accent) {
     font-size:0.8rem;font-family:inherit;transition:background 0.12s;`;
 }
 
-function _escHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function _escHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
 function _escAttr(s) { return String(s).replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/\n/g,'\\n'); }
 
-// ---- WEAPON BUILDER ----
+function _dExportAsCode(text) { _dCopy(text); }
+function _dExportAsFile(text, filename) {
+  const blob = new Blob([text], { type: 'application/json' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href = url; a.download = filename; a.click();
+  URL.revokeObjectURL(url);
+  _dToast('File downloaded');
+}
+
+// Used by the Training live editor's Export.
+function _dShowExportModal(text, filename, title, altCodeText) {
+  const code = altCodeText || text;
+  const m = _dModal(`<h3>${_escHtml(title || 'Export')}</h3>
+    <textarea readonly id="csShareCode"></textarea>
+    <div class="cs-row"><button onclick="document.getElementById('csModal').remove()">Close</button>
+      <button id="csFileBtn">Download file</button><button class="primary" id="csCopyBtn">Copy</button></div>`);
+  m.querySelector('#csShareCode').value = code;
+  m.querySelector('#csCopyBtn').onclick = () => _dCopy(code);
+  m.querySelector('#csFileBtn').onclick = () => _dExportAsFile(text, filename || 'export.json');
+}
+
+function _dInjectArenaOption(key, label) {
+  const sel = document.getElementById('arenaSelect');
+  if (!sel) return;
+  sel.querySelector(`option[value="${CSS.escape(key)}"]`)?.remove();
+  let grp = sel.querySelector('optgroup[data-custom="1"]') || sel.querySelector('optgroup[label="─── Custom ────────────"]');
+  if (!grp) { grp = document.createElement('optgroup'); grp.label = 'Your maps'; grp.dataset.custom = '1'; sel.appendChild(grp); }
+  const opt = document.createElement('option');
+  opt.value = key; opt.textContent = label;
+  grp.appendChild(opt);
+}
+
+// Restore saved maps into ARENAS + the arena list on page load.
+function _dRestoreCustomMapsToDropdown() {
+  for (const v of Object.values(_dGetSaves())) {
+    const spec = _dSanitizeMapSpec(v.spec || v);
+    if (spec && spec.platforms.length) _dRegisterMap(spec);
+  }
+}
+
+// ============================================================
+// CREATOR STUDIO — WEAPON BUILDER
+// A custom weapon starts from a real weapon and inherits its art, swing and
+// (by default) its signature ability; the player retunes the numbers inside a
+// power budget. The engine sees an ordinary weapon: the custom key is aliased
+// to the base in WEAPON_SPRITES / WEAPON_SWINGS, so nothing in Fighter changes.
+// ============================================================
+
+const _W_BASES = [
+  { k: 'sword', icon: 'sword' }, { k: 'katana', icon: 'katana' }, { k: 'axe', icon: 'axe' },
+  { k: 'hammer', icon: 'hammer' }, { k: 'spear', icon: 'spear' }, { k: 'scythe', icon: 'scythe' },
+  { k: 'fryingpan', icon: 'fryingpan' }, { k: 'broomstick', icon: 'broomstick' }, { k: 'flail', icon: 'flail' },
+  { k: 'whip', icon: 'whip' }, { k: 'shield', icon: 'shield' }, { k: 'electricstaff', icon: 'bolt' },
+];
+const _W_ABILITIES = [
+  { k: 'signature', label: 'Signature (from base)', hint: '' },
+  { k: 'dash',   label: 'Dash strike', hint: 'Lunges forward and hits anyone in reach.' },
+  { k: 'leap',   label: 'Leap',        hint: 'A big jump, with the double jump restored.' },
+  { k: 'burst',  label: 'Shockwave',   hint: 'Knocks back everyone close by.' },
+  { k: 'launch', label: 'Uppercut',    hint: 'Launches a nearby enemy upward.' },
+  { k: 'bolt',   label: 'Energy bolt', hint: 'Fires a projectile.' },
+  { k: 'heal',   label: 'Mend',        hint: 'Heals 12% of max health. Recharge is at least 6s.' },
+];
+// Slider ranges in engine units (frames, px). Cooldowns display in seconds.
+const _W_RANGE = { damage: [6, 26], range: [55, 150], cooldown: [18, 66], kb: [4, 24], abilityCooldown: [120, 480] };
+const _W_BUDGET = 36;   // the power formula below scores Spear 34.9, Electric Staff 36.4, Sword 22.4
+
+let _wSpec = null;          // spec being edited
+let _wEditKey = null;       // library key when editing a saved weapon
+let _wPreviewFighter = null;
+
+function _wBaseDef(k) { return (typeof WEAPONS !== 'undefined' && WEAPONS[k]) || null; }
+function _wBases() { return _W_BASES.filter(b => _wBaseDef(b.k) && _wBaseDef(b.k).type === 'melee'); }
+
+function designerWeaponPower(s) {
+  const base = _wBaseDef(s.base) || {};
+  const cycle = s.cooldown + (base.endlag || 9);
+  return s.damage * (60 / cycle) * (0.6 + s.range / 200) * (0.85 + s.kb / 40);
+}
+
+function _wDefaultSpec(baseKey) {
+  const b = _wBaseDef(baseKey) || _wBaseDef('sword');
+  const clampR = (v, r) => Math.max(r[0], Math.min(r[1], v));
+  return { v: 1, name: 'My ' + (b.name || 'Weapon'), base: baseKey,
+    damage: clampR(b.damage, _W_RANGE.damage), range: clampR(b.range, _W_RANGE.range),
+    cooldown: clampR(b.cooldown, _W_RANGE.cooldown), kb: clampR(b.kb, _W_RANGE.kb),
+    ability: 'signature', abilityCooldown: clampR(b.abilityCooldown || 180, _W_RANGE.abilityCooldown) };
+}
+
+function _wSanitize(raw) {
+  if (!raw || typeof raw !== 'object') return null;
+  const bases = _wBases().map(b => b.k);
+  const base = bases.includes(raw.base) ? raw.base : 'sword';
+  const r = _W_RANGE;
+  const legacyAbil = { shield_burst: 'burst', projectile: 'bolt', slow: 'launch' };
+  let ability = legacyAbil[raw.ability] || legacyAbil[raw._abilEffect] || raw.ability || raw._abilEffect || 'signature';
+  if (!_W_ABILITIES.some(a => a.k === ability)) ability = 'signature';
+  const s = { v: 1, name: _dCleanName(raw.name, 'Custom Weapon', 24), base,
+    damage: _dNum(raw.damage, r.damage[0], r.damage[1], 15), range: _dNum(raw.range, r.range[0], r.range[1], 84),
+    cooldown: _dNum(raw.cooldown, r.cooldown[0], r.cooldown[1], 36), kb: _dNum(raw.kb != null ? raw.kb : raw.kbForce, r.kb[0], r.kb[1], 10),
+    ability, abilityCooldown: _dNum(raw.abilityCooldown, r.abilityCooldown[0], r.abilityCooldown[1], 180) };
+  if (s.ability === 'heal') s.abilityCooldown = Math.max(360, s.abilityCooldown);
+  // Over-budget weapons (old saves, hand-edited codes) are scaled back to fair.
+  const p = designerWeaponPower(s);
+  if (p > _W_BUDGET) s.damage = Math.max(r.damage[0], Math.floor(s.damage * _W_BUDGET / p));
+  return s;
+}
+
+function _wAbilityFn(spec, base) {
+  const dmg = spec.damage, kb = spec.kb, reach = spec.range;
+  const foes = (user) => [...players, ...trainingDummies, ...minions].filter(f =>
+    f && f !== user && f.health > 0 && !(typeof areAlliedEntities === 'function' && areAlliedEntities(user, f)));
+  switch (spec.ability) {
+    case 'signature': return base.ability;
+    case 'dash': return function (user) {
+      user.vx = user.facing * 16;
+      for (const f of foes(user)) {
+        const ahead = (f.cx() - user.cx()) * user.facing;
+        if (ahead > -10 && ahead < reach + 60 && Math.abs(f.cy() - user.cy()) < 60) dealDamage(user, f, Math.round(dmg * 0.8), kb);
+      }
+      spawnParticles(user.cx(), user.cy(), '#E6EBF5', 12);
+    };
+    case 'leap': return function (user) { user.vy = -19; user.canDoubleJump = true; spawnParticles(user.cx(), user.y + user.h, '#E6EBF5', 10); };
+    case 'burst': return function (user) {
+      for (const f of foes(user)) if (dist(user, f) < 110) dealDamage(user, f, Math.round(dmg * 0.5), Math.round(kb * 1.8));
+      spawnParticles(user.cx(), user.cy(), '#F2762B', 20);
+      if (typeof spawnRing === 'function') spawnRing(user.cx(), user.cy());
+    };
+    case 'launch': return function (user) {
+      for (const f of foes(user)) if (dist(user, f) < reach + 30) {
+        dealDamage(user, f, Math.round(dmg * 0.6), 4);
+        if (typeof applyLaunch === 'function') applyLaunch(user, f, -15);
+      }
+    };
+    case 'bolt': return function (user) { spawnBullet(user, 12, '#F2762B', Math.round(dmg * 0.8)); };
+    case 'heal': return function (user) {
+      user.health = Math.min(user.maxHealth, user.health + Math.round(user.maxHealth * 0.12));
+      spawnParticles(user.cx(), user.cy(), '#3FB984', 16);
+    };
+  }
+  return function () {};
+}
+
+// The weapon object the engine equips.
+function designerBuildWeapon(spec) {
+  const base = _wBaseDef(spec.base) || _wBaseDef('sword');
+  return Object.assign({}, base, {
+    name: spec.name, damage: spec.damage, range: spec.range, cooldown: spec.cooldown, kb: spec.kb,
+    abilityCooldown: spec.ability === 'heal' ? Math.max(360, spec.abilityCooldown) : spec.abilityCooldown,
+    abilityName: spec.ability === 'signature' ? base.abilityName : (_W_ABILITIES.find(a => a.k === spec.ability) || {}).label,
+    ability: _wAbilityFn(spec, base),
+    description: (base.name || spec.base) + '-based custom weapon',
+    _isCustom: true, _base: spec.base, _spec: spec,
+  });
+}
+
+function designerRegisterWeapon(key, spec) {
+  window.CUSTOM_WEAPONS = window.CUSTOM_WEAPONS || {};
+  window.CUSTOM_WEAPONS[key] = designerBuildWeapon(spec);
+  if (typeof WEAPON_SWINGS !== 'undefined' && WEAPON_SWINGS[spec.base]) WEAPON_SWINGS[key] = WEAPON_SWINGS[spec.base];
+  if (typeof WEAPON_SPRITES !== 'undefined' && WEAPON_SPRITES[spec.base]) WEAPON_SPRITES[key] = WEAPON_SPRITES[spec.base];
+  return window.CUSTOM_WEAPONS[key];
+}
+
+// Saved weapons come back from localStorage as plain data (no ability function,
+// no aliases). Rebuild every one from its spec; migrate the old studio list too.
+function _wHydrateLibrary() {
+  window.CUSTOM_WEAPONS = window.CUSTOM_WEAPONS || {};
+  for (const [k, w] of Object.entries(window.CUSTOM_WEAPONS)) {
+    if (!k.startsWith('_custom_')) continue;
+    const spec = _wSanitize(w._spec || w);
+    if (spec) designerRegisterWeapon(k, spec); else delete window.CUSTOM_WEAPONS[k];
+  }
+  try {
+    const old = JSON.parse(localStorage.getItem('smc_custom_weapons') || 'null');
+    if (Array.isArray(old) && old.length) {
+      const names = new Set(Object.values(window.CUSTOM_WEAPONS).map(w => w.name));
+      old.forEach((w, i) => { const s = _wSanitize(w); if (s && !names.has(s.name)) designerRegisterWeapon('_custom_m' + i + Date.now().toString(36), s); });
+      localStorage.removeItem('smc_custom_weapons');
+      if (typeof saveCustomWeaponsData === 'function') saveCustomWeaponsData();
+    }
+  } catch (e) {}
+  if (typeof refreshCustomWeaponOptions === 'function') refreshCustomWeaponOptions();
+}
+
+// ---- UI ----
+function _wFillBaseGrid() {
+  const g = document.getElementById('wBaseGrid');
+  if (!g) return;
+  g.innerHTML = _wBases().map(b =>
+    `<button class="cs-base" data-base="${b.k}" onclick="wPickBase('${b.k}')" title="${_escHtml(_wBaseDef(b.k).name)}">
+      ${_dIco(b.icon)}<span>${_escHtml(_wBaseDef(b.k).name)}</span></button>`).join('');
+  const r = _W_RANGE;
+  const setR = (id, rr) => { const el = document.getElementById(id); el.min = rr[0]; el.max = rr[1]; el.step = 1; };
+  setR('wDmg', r.damage); setR('wRange', r.range); setR('wCool', r.cooldown); setR('wKb', r.kb); setR('wAbilCool', r.abilityCooldown);
+}
+
+function wPickBase(k) {
+  const keepName = _wSpec && !/^My /.test(_wSpec.name) ? _wSpec.name : null;
+  const s = _wDefaultSpec(k);
+  if (keepName) s.name = keepName;
+  _wApplySpec(s);
+}
+
+function _wApplySpec(spec) {
+  _wSpec = spec;
+  const set = (id, v) => { const el = document.getElementById(id); if (el) el.value = v; };
+  set('wName', spec.name); set('wDmg', spec.damage); set('wRange', spec.range); set('wCool', spec.cooldown);
+  set('wKb', spec.kb); set('wAbilEffect', spec.ability); set('wAbilCool', spec.abilityCooldown);
+  wSync();
+}
+
+function _wReadSpec() {
+  const v = (id) => document.getElementById(id)?.value;
+  return _wSanitize({ name: v('wName'), base: _wSpec ? _wSpec.base : 'sword', damage: v('wDmg'), range: v('wRange'),
+    cooldown: v('wCool'), kb: v('wKb'), ability: v('wAbilEffect'), abilityCooldown: v('wAbilCool') });
+}
+
 function wSync() {
-  document.getElementById('wDmgVal').textContent    = document.getElementById('wDmg').value;
-  document.getElementById('wRangeVal').textContent  = document.getElementById('wRange').value;
-  document.getElementById('wCoolVal').textContent   = document.getElementById('wCool').value;
-  document.getElementById('wKbVal').textContent     = document.getElementById('wKb').value;
-  document.getElementById('wAbilCoolVal').textContent = document.getElementById('wAbilCool').value;
-  _wUpdateStatDisplay();
-  _wDraw();
+  if (!document.getElementById('wDmg')) return;
+  const raw = { dmg: +document.getElementById('wDmg').value };
+  const s = _wReadSpec();
+  if (!s) return;
+  _wSpec = s;
+  const sec = (f) => (f / 60).toFixed(1) + 's';
+  document.getElementById('wDmgVal').textContent     = raw.dmg;
+  document.getElementById('wRangeVal').textContent   = s.range;
+  document.getElementById('wCoolVal').textContent    = (s.cooldown / 60).toFixed(2) + 's';
+  document.getElementById('wKbVal').textContent      = s.kb;
+  document.getElementById('wAbilCoolVal').textContent = sec(s.ability === 'heal' ? Math.max(360, s.abilityCooldown) : s.abilityCooldown);
+  document.querySelectorAll('#wBaseGrid .cs-base').forEach(b => b.classList.toggle('on', b.dataset.base === s.base));
+
+  const base = _wBaseDef(s.base) || {};
+  const ab = _W_ABILITIES.find(a => a.k === s.ability);
+  document.getElementById('wAbilHint').textContent = s.ability === 'signature'
+    ? `${base.abilityName || 'Signature'}: the ${base.name || s.base}'s own ability.` : (ab ? ab.hint : '');
+
+  // Power: the raw slider value, before sanitizing scales it back.
+  const p = designerWeaponPower(Object.assign({}, s, { damage: raw.dmg }));
+  const pct = Math.round(p / _W_BUDGET * 100);
+  const over = p > _W_BUDGET + 0.01;
+  document.getElementById('wPowerVal').textContent = pct + '%';
+  const meter = document.getElementById('wPowerMeter');
+  meter.classList.toggle('over', over);
+  meter.firstElementChild.style.width = Math.min(100, pct) + '%';
+  document.getElementById('wPowerHint').textContent = over
+    ? 'Over budget: lower damage, reach, speed or knockback. Saving caps the damage.'
+    : 'Custom weapons can match the strongest weapons in the game, not beat them.';
+
+  designerRegisterWeapon('_custom_preview', s);
+  _wRefreshPreviewFighter();
 }
 
-function _wUpdateStatDisplay() {
-  const name   = document.getElementById('wName')?.value   || 'Custom';
-  const dmg    = document.getElementById('wDmg')?.value    || 15;
-  const range  = document.getElementById('wRange')?.value  || 50;
-  const cool   = document.getElementById('wCool')?.value   || 30;
-  const kb     = document.getElementById('wKb')?.value     || 8;
-  const type   = document.getElementById('wType')?.value   || 'melee';
-  const abil   = document.getElementById('wAbilEffect')?.value || 'dash';
-  const el     = document.getElementById('weaponStatDisplay');
-  if (!el) return;
-  el.innerHTML =
-    `<b style="color:#88aaff">${name}</b><br>` +
-    `Damage: <span style="color:#ff8888">${dmg}</span>  ·  ` +
-    `Range: <span style="color:#88aaff">${range}px</span>  ·  ` +
-    `Cooldown: <span style="color:#ffcc44">${cool}f</span><br>` +
-    `Knockback: <span style="color:#88ff88">${kb}</span>  ·  ` +
-    `Type: <span style="color:#cc88ff">${type}</span><br>` +
-    `Ability: <span style="color:#ffaa44">${abil}</span>  (CD ${document.getElementById('wAbilCool')?.value || 90}f)`;
+function _wRefreshPreviewFighter() {
+  if (typeof Fighter === 'undefined') return;
+  try {
+    if (!_wPreviewFighter) {
+      _wPreviewFighter = new Fighter(0, 0, '#E6EBF5', 'sword', null, false);
+      _wPreviewFighter.onGround = true;
+      _wPreviewFighter.facing = 1;
+      _wPreviewFighter.lives = 1;
+    }
+    _wPreviewFighter.weaponKey = '_custom_preview';
+    _wPreviewFighter.weapon = window.CUSTOM_WEAPONS['_custom_preview'];
+  } catch (e) { _wPreviewFighter = null; }
 }
 
-// ── Weapon Visual System — modular shape-based renderer ──────
-// shape → { blade, guard, handle, head, effect }
-const _WEAPON_SHAPES = {
-  blade:    { headW: 10, headH: 1.6, guardW: 2.2, handleLen: 0.48, headShape: 'blade' },
-  dagger:   { headW: 6,  headH: 1.2, guardW: 1.6, handleLen: 0.35, headShape: 'blade' },
-  hammer:   { headW: 0,  headH: 0,   guardW: 0,   handleLen: 0.55, headShape: 'hammer' },
-  axe:      { headW: 0,  headH: 0,   guardW: 0,   handleLen: 0.55, headShape: 'axe' },
-  spear:    { headW: 8,  headH: 2.2, guardW: 1.0, handleLen: 0.75, headShape: 'blade' },
-  bow:      { headW: 0,  headH: 0,   guardW: 0,   handleLen: 0.0,  headShape: 'bow' },
-  staff:    { headW: 0,  headH: 0,   guardW: 0,   handleLen: 0.65, headShape: 'orb' },
-};
-
-function _wGetShape() {
-  const sel = document.getElementById('wShape');
-  return sel ? sel.value : 'blade';
-}
-
+// Real fighter, real weapon art: idle for a beat, then a swing, on a loop.
 function _wDraw() {
   const cv = document.getElementById('weaponPreviewCanvas');
   if (!cv) return;
   const dc = cv.getContext('2d');
-  const W  = cv.width, H = cv.height;
-  dc.clearRect(0, 0, W, H);
-
-  // Background — dark gradient with vignette
-  const bg = dc.createRadialGradient(W/2, H/2, 10, W/2, H/2, W * 0.7);
-  bg.addColorStop(0, '#141426');
-  bg.addColorStop(1, '#06060f');
-  dc.fillStyle = bg;
-  dc.fillRect(0, 0, W, H);
-
-  const type   = document.getElementById('wType')?.value   || 'melee';
-  const color  = document.getElementById('wColor')?.value  || '#44aaff';
-  const range  = parseInt(document.getElementById('wRange')?.value  || 50);
-  const dmg    = parseInt(document.getElementById('wDmg')?.value    || 15);
-  const cool   = parseInt(document.getElementById('wCool')?.value   || 30);
-  const kb     = parseInt(document.getElementById('wKb')?.value     || 8);
-  const shape  = _wGetShape();
-  const sd     = _WEAPON_SHAPES[shape] || _WEAPON_SHAPES.blade;
-  const t      = Date.now();
-
-  // Stat-driven proportions: heavier = thicker, faster = slimmer
-  const weightFactor  = Math.max(0.4, Math.min(2.2, dmg / 15));   // damage = weight proxy
-  const speedFactor   = Math.max(0.5, Math.min(1.8, 30 / cool));  // cooldown inverse = speed
-
-  const cx = W / 2, cy = H / 2;
-  const weaponLen = Math.max(40, Math.min(120, range * 1.2));
-  const bladeW    = Math.max(4, 10 * weightFactor * speedFactor * 0.55);
-
-  dc.save();
-  dc.translate(cx, cy + 10);
-  dc.rotate(-Math.PI / 3.5);
-
-  // ── GLOW behind weapon ───────────────────────────────────
-  const glowPulse = 0.85 + Math.sin(t * 0.003) * 0.15;
-  dc.shadowColor  = color;
-  dc.shadowBlur   = 24 * glowPulse;
-
-  const headShape = sd.headShape;
-
-  if (headShape === 'blade') {
-    // ── Handle ───────────────────────────────────────────────
-    const handleLen = weaponLen * sd.handleLen;
-    const handleW   = Math.max(4, 6 * weightFactor * 0.7);
-    dc.fillStyle = '#7a5533';
-    dc.beginPath();
-    dc.roundRect(-handleW/2, 0, handleW, handleLen, 3);
-    dc.fill();
-    // Handle wrap
-    dc.strokeStyle = '#4a3018';
-    dc.lineWidth   = 2;
-    for (let i = 6; i < handleLen - 6; i += 7) {
-      dc.beginPath(); dc.moveTo(-handleW/2, i); dc.lineTo(handleW/2, i); dc.stroke();
-    }
-
-    // ── Guard ────────────────────────────────────────────────
-    const guardW = handleW * sd.guardW * 2.5;
-    dc.fillStyle = '#aaaaaa';
-    dc.shadowBlur = 8;
-    dc.beginPath();
-    dc.roundRect(-guardW/2, handleLen - 4, guardW, 7, 2);
-    dc.fill();
-
-    // ── Blade ────────────────────────────────────────────────
-    const bladeLen = weaponLen - handleLen;
-    dc.shadowColor = color;
-    dc.shadowBlur  = 18 * glowPulse;
-    dc.fillStyle   = color;
-    dc.beginPath();
-    dc.moveTo(-bladeW/2, handleLen);
-    dc.lineTo(-bladeW * 0.25, handleLen + bladeLen * 0.88);
-    dc.lineTo(0, handleLen + bladeLen);  // tip
-    dc.lineTo( bladeW * 0.25, handleLen + bladeLen * 0.88);
-    dc.lineTo( bladeW/2, handleLen);
-    dc.closePath();
-    dc.fill();
-    // Blade edge highlight
-    dc.strokeStyle = 'rgba(255,255,255,0.55)';
-    dc.lineWidth   = 1.2;
-    dc.beginPath();
-    dc.moveTo(0, handleLen + 4);
-    dc.lineTo(0, handleLen + bladeLen);
-    dc.stroke();
-
-  } else if (headShape === 'hammer') {
-    const handleLen = weaponLen * 0.68;
-    const handleW   = Math.max(5, 7 * weightFactor * 0.65);
-    dc.fillStyle = '#7a5533';
-    dc.beginPath(); dc.roundRect(-handleW/2, 0, handleW, handleLen, 3); dc.fill();
-    // Hammer head — width driven by weight
-    const hHeadW = Math.max(22, 36 * weightFactor * 0.8);
-    const hHeadH = Math.max(14, 24 * weightFactor * 0.7);
-    dc.fillStyle   = color;
-    dc.shadowColor = color;
-    dc.shadowBlur  = 20 * glowPulse;
-    dc.beginPath(); dc.roundRect(-hHeadW/2, handleLen, hHeadW, hHeadH, 4); dc.fill();
-    dc.strokeStyle = 'rgba(255,255,255,0.3)'; dc.lineWidth = 1.5;
-    dc.strokeRect(-hHeadW/2, handleLen, hHeadW, hHeadH);
-
-  } else if (headShape === 'axe') {
-    const handleLen = weaponLen * 0.65;
-    const handleW   = Math.max(4, 6 * weightFactor * 0.65);
-    dc.fillStyle = '#7a5533';
-    dc.beginPath(); dc.roundRect(-handleW/2, 0, handleW, handleLen, 3); dc.fill();
-    // Axe head — crescent
-    dc.fillStyle   = color;
-    dc.shadowColor = color;
-    dc.shadowBlur  = 20 * glowPulse;
-    const aR = Math.max(18, 28 * weightFactor * 0.75);
-    dc.beginPath();
-    dc.moveTo(0, handleLen);
-    dc.lineTo(-aR * 0.6, handleLen - aR * 0.5);
-    dc.lineTo(-aR, handleLen + aR * 0.25);
-    dc.lineTo(-aR * 0.5, handleLen + aR * 0.8);
-    dc.lineTo(0, handleLen + aR * 0.5);
-    dc.closePath();
-    dc.fill();
-
-  } else if (headShape === 'bow') {
-    dc.restore();
-    dc.save();
-    dc.translate(cx, cy);
-    // Bow arc
-    dc.strokeStyle = color;
-    dc.lineWidth   = Math.max(2, 3.5 * weightFactor * 0.7);
-    dc.shadowColor = color;
-    dc.shadowBlur  = 18;
-    dc.beginPath();
-    dc.arc(cx, cy, weaponLen * 0.5, -Math.PI * 0.72, Math.PI * 0.72);
-    dc.stroke();
-    // String
-    dc.strokeStyle = 'rgba(255,255,200,0.7)';
-    dc.lineWidth   = 1;
-    dc.setLineDash([]);
-    const bowY0 = cy - weaponLen * 0.5 * Math.sin(Math.PI * 0.72);
-    const bowY1 = cy + weaponLen * 0.5 * Math.sin(Math.PI * 0.72);
-    dc.beginPath();
-    dc.moveTo(cx + weaponLen * 0.5 * Math.cos(Math.PI * 0.72), bowY0);
-    dc.lineTo(cx + weaponLen * 0.5 * Math.cos(Math.PI * 0.72), bowY1);
-    dc.stroke();
-    // Arrow
-    const arrX0 = cx - weaponLen * 0.4, arrX1 = cx + weaponLen * 0.42;
-    dc.strokeStyle = '#ffffaa'; dc.lineWidth = 2;
-    dc.beginPath(); dc.moveTo(arrX0, cy); dc.lineTo(arrX1, cy); dc.stroke();
-    dc.fillStyle = '#ffffaa';
-    dc.beginPath(); dc.moveTo(arrX1, cy); dc.lineTo(arrX1-10, cy-5); dc.lineTo(arrX1-10, cy+5); dc.closePath(); dc.fill();
-    // Speed lines (fast weapons)
-    if (speedFactor > 1.2) {
-      dc.strokeStyle = `rgba(255,255,255,${(speedFactor-1)*0.4})`;
-      dc.lineWidth = 1; dc.setLineDash([4,4]);
-      for (let i = 0; i < 3; i++) {
-        dc.beginPath(); dc.moveTo(arrX0 - 10 - i*8, cy + (i-1)*8); dc.lineTo(arrX0 - 30 - i*8, cy + (i-1)*8); dc.stroke();
-      }
-      dc.setLineDash([]);
-    }
-    dc.restore();
-    _wDrawStickman(dc, W, H, color);
-    _wUpdateStatDisplay();
-    return;
-
-  } else if (headShape === 'orb') {
-    const handleLen = weaponLen * 0.72;
-    const handleW   = Math.max(4, 6 * weightFactor * 0.6);
-    dc.fillStyle = '#555588';
-    dc.beginPath(); dc.roundRect(-handleW/2, 0, handleW, handleLen, 3); dc.fill();
-    // Crystal topper
-    const orbR = Math.max(12, 20 * weightFactor * 0.6);
-    const orbPulse = 0.85 + Math.sin(t * 0.004) * 0.15;
-    dc.fillStyle   = color;
-    dc.shadowColor = color;
-    dc.shadowBlur  = 28 * glowPulse;
-    dc.beginPath(); dc.arc(0, handleLen + orbR, orbR * orbPulse, 0, Math.PI * 2); dc.fill();
-    // Orbital particles
-    dc.shadowBlur = 8;
-    for (let i = 0; i < 5; i++) {
-      const a = t * 0.0022 + i * Math.PI * 2 / 5;
-      dc.fillStyle = 'rgba(255,255,255,0.7)';
-      dc.beginPath(); dc.arc(Math.cos(a) * orbR * 1.4, handleLen + orbR + Math.sin(a) * orbR * 1.4 * 0.4, 2.5, 0, Math.PI * 2); dc.fill();
-    }
-  }
-
-  dc.restore();
-  dc.shadowBlur = 0;
-
-  // ── Speed lines for fast weapons ────────────────────────────
-  if (speedFactor > 1.3) {
-    const alpha = Math.min(0.55, (speedFactor - 1.3) * 0.6);
-    dc.strokeStyle = `rgba(255,255,255,${alpha})`;
-    dc.lineWidth   = 1.5;
-    dc.setLineDash([6, 5]);
-    for (let i = 0; i < 4; i++) {
-      const lx = cx + 28 + i * 12, ly = cy + 22 + i * 14;
-      dc.beginPath(); dc.moveTo(lx, ly); dc.lineTo(lx + 22, ly - 18); dc.stroke();
-    }
-    dc.setLineDash([]);
-  }
-
-  // ── Range arc indicator ──────────────────────────────────────
-  dc.strokeStyle = `rgba(255,255,255,0.10)`;
-  dc.lineWidth   = 1;
-  dc.setLineDash([4, 5]);
-  dc.beginPath(); dc.arc(cx, cy, weaponLen * 0.85, 0, Math.PI * 2); dc.stroke();
-  dc.setLineDash([]);
-
-  // ── Stat bars — visual feedback strips at bottom ────────────
-  const barY = H - 28;
-  const barH = 6;
-  const barsInfo = [
-    { label: 'DMG',  val: Math.min(1, dmg / 40),  col: '#ff6655' },
-    { label: 'SPD',  val: Math.min(1, speedFactor / 1.8), col: '#55ddff' },
-    { label: 'KB',   val: Math.min(1, kb / 18),   col: '#88ff44' },
-    { label: 'RNG',  val: Math.min(1, range / 90), col: '#ffcc44' },
-  ];
-  dc.font = '9px Arial';
-  barsInfo.forEach((b, i) => {
-    const bx = 10 + i * (W / 4 - 2);
-    const bw = W / 4 - 14;
-    dc.fillStyle = 'rgba(255,255,255,0.08)'; dc.fillRect(bx, barY, bw, barH);
-    dc.fillStyle = b.col;
-    dc.fillRect(bx, barY, bw * b.val, barH);
-    dc.fillStyle = 'rgba(255,255,255,0.45)';
-    dc.textAlign = 'left';
-    dc.fillText(b.label, bx, barY - 3);
+  const f = _wPreviewFighter;
+  const t = (typeof performance !== 'undefined' ? performance.now() : Date.now()) / (1000 / 60);
+  const WW = 200, WH = 200;
+  const ok = f && _dRenderViaGame(dc, WW, WH, () => {
+    const g = ctx.createLinearGradient(0, 0, 0, WH);
+    g.addColorStop(0, '#1B2131'); g.addColorStop(1, '#0A0C12');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, WW, WH);
+    ctx.fillStyle = '#232B3D'; ctx.fillRect(0, 158, WW, 42);
+    ctx.fillStyle = 'rgba(150,170,210,0.26)'; ctx.fillRect(0, 158, WW, 1);
+    f.x = WW / 2 - f.w / 2 - 18; f.y = 158 - f.h; f.vx = f.vy = 0; f.onGround = true;
+    f.state = 'idle'; f.animTimer = Math.floor(t);
+    const cyc = Math.floor(t) % 80;
+    f._finPoseP = cyc >= 46 && cyc < 64 ? (cyc - 46) / 18 : null;
+    f.draw();
   });
-
-  // ── Stickman holder ──────────────────────────────────────────
-  _wDrawStickman(dc, W, H, color);
-
-  _wUpdateStatDisplay();
-}
-
-function _wDrawStickman(dc, W, H, color) {
-  // Simple stickman on the right side holding the weapon
-  const sx = W - 38, sy = H / 2 + 10;
-  dc.strokeStyle = 'rgba(180,200,255,0.55)';
-  dc.lineWidth   = 2.5;
-  dc.lineCap     = 'round';
-  // Head
-  dc.beginPath(); dc.arc(sx, sy - 28, 9, 0, Math.PI * 2); dc.stroke();
-  // Body
-  dc.beginPath(); dc.moveTo(sx, sy - 19); dc.lineTo(sx, sy + 10); dc.stroke();
-  // Arms — left arm holds weapon
-  dc.beginPath(); dc.moveTo(sx, sy - 10); dc.lineTo(sx - 22, sy - 2); dc.stroke();
-  dc.beginPath(); dc.moveTo(sx, sy - 10); dc.lineTo(sx + 10, sy + 2); dc.stroke();
-  // Legs
-  dc.beginPath(); dc.moveTo(sx, sy + 10); dc.lineTo(sx - 10, sy + 28); dc.stroke();
-  dc.beginPath(); dc.moveTo(sx, sy + 10); dc.lineTo(sx + 10, sy + 28); dc.stroke();
-  // Tiny weapon in hand
-  dc.strokeStyle = color;
-  dc.shadowColor = color;
-  dc.shadowBlur  = 10;
-  dc.lineWidth   = 2;
-  dc.beginPath(); dc.moveTo(sx - 22, sy - 2); dc.lineTo(sx - 38, sy - 16); dc.stroke();
-  dc.shadowBlur  = 0;
-  dc.lineCap     = 'butt';
-}
-
-function _wBuildObj() {
-  const name      = document.getElementById('wName')?.value    || 'Custom';
-  const dmg       = parseInt(document.getElementById('wDmg')?.value    || 15);
-  const range     = parseInt(document.getElementById('wRange')?.value  || 50);
-  const cool      = parseInt(document.getElementById('wCool')?.value   || 30);
-  const kb        = parseInt(document.getElementById('wKb')?.value     || 8);
-  const type      = document.getElementById('wType')?.value   || 'melee';
-  const abilCool  = parseInt(document.getElementById('wAbilCool')?.value || 90);
-  const abilEffect = document.getElementById('wAbilEffect')?.value || 'dash';
-  const color     = document.getElementById('wColor')?.value  || '#44aaff';
-
-  // Build ability function based on selected effect
-  let abilityFn;
-  switch (abilEffect) {
-    case 'dash':
-      abilityFn = function(user, target) {
-        user.vx += user.facing * 18;
-        const d = Math.abs(user.cx() - target.cx());
-        if (d < range + 30) { if (typeof dealDamage !== 'undefined') dealDamage(user, target, Math.round(dmg * 0.7), kb); }
-      };
-      break;
-    case 'leap':
-      abilityFn = function(user) { user.vy = -20; user.canDoubleJump = true; };
-      break;
-    case 'shield_burst':
-      abilityFn = function(user, target) {
-        if (typeof dealDamage !== 'undefined') dealDamage(user, target, Math.round(dmg * 0.4), kb * 2);
-        if (typeof spawnParticles !== 'undefined') spawnParticles(user.cx(), user.cy(), color, 20);
-      };
-      break;
-    case 'projectile':
-      abilityFn = function(user) {
-        if (typeof spawnBullet !== 'undefined') spawnBullet(user, dmg, range * 0.06);
-      };
-      break;
-    case 'heal':
-      abilityFn = function(user) { user.health = Math.min(user.maxHealth, user.health + Math.round(user.maxHealth * 0.2)); };
-      break;
-    case 'slow':
-      abilityFn = function(user, target) { target.stunTimer = Math.max(target.stunTimer, 40); };
-      break;
-    default:
-      abilityFn = function() {};
+  f && (f._finPoseP = null);
+  if (!ok) {
+    dc.fillStyle = '#141926'; dc.fillRect(0, 0, cv.width, cv.height);
+    dc.fillStyle = '#8B97AD'; dc.font = '700 22px system-ui, sans-serif'; dc.textAlign = 'center';
+    dc.fillText('Preview available from the menu', cv.width / 2, cv.height / 2); dc.textAlign = 'left';
   }
-
-  return {
-    name,
-    damage:          dmg,
-    range,
-    cooldown:        cool,
-    kb,
-    type,
-    abilityCooldown: abilCool,
-    ability:         abilityFn,
-    _color:          color,  // custom metadata
-    _abilEffect:     abilEffect,
-    _isCustom:       true,   // blocks achievement/progression tracking
-  };
 }
 
-function wSaveWeapon() {
-  const obj = _wBuildObj();
-  // Strip non-serializable fn for storage
-  const stored = Object.assign({}, obj, { ability: null });
-  _dCustomWeapons.push(stored);
-  try { localStorage.setItem('smc_custom_weapons', JSON.stringify(_dCustomWeapons)); } catch(e) {}
+// ---- LIBRARY ----
+function _wLibrary() {
+  return Object.entries(window.CUSTOM_WEAPONS || {}).filter(([k, w]) => k.startsWith('_custom_') && k !== '_custom_preview' && w && w._spec);
+}
+
+function wSaveWeapon(quiet) {
+  const s = _wReadSpec();
+  if (!s) return null;
+  // Same name overwrites, like maps.
+  let key = _wEditKey && window.CUSTOM_WEAPONS[_wEditKey] ? _wEditKey : null;
+  for (const [k, w] of _wLibrary()) if (w._spec.name.toLowerCase() === s.name.toLowerCase()) key = k;
+  key = key || ('_custom_' + Date.now().toString(36));
+  designerRegisterWeapon(key, s);
+  _wEditKey = key;
+  if (typeof saveCustomWeaponsData === 'function') {
+    const prev = window.CUSTOM_WEAPONS._custom_preview;
+    delete window.CUSTOM_WEAPONS._custom_preview;   // never persist the preview slot
+    saveCustomWeaponsData();
+    window.CUSTOM_WEAPONS._custom_preview = prev;
+  }
+  if (typeof refreshCustomWeaponOptions === 'function') refreshCustomWeaponOptions();
   _wRefreshList();
-  alert(`Weapon "${obj.name}" saved!`);
+  if (!quiet) _dToast(`Saved "${s.name}". Pick it in Versus or Training.`);
+  return key;
 }
 
 function _wRefreshList() {
-  try {
-    const raw = localStorage.getItem('smc_custom_weapons');
-    if (raw) _dCustomWeapons = JSON.parse(raw);
-  } catch(e) { _dCustomWeapons = []; }
-
   const list = document.getElementById('dSavedWeaponsList');
   if (!list) return;
-  list.innerHTML = '';
-  _dCustomWeapons.forEach((w, i) => {
-    const row = document.createElement('div');
-    row.className = 'd-saved-entry';
-    row.innerHTML = `<span>${w.name} (${w.type}, ${w.damage}dmg)</span>
-      <div>
-        <button onclick="_wLoadWeapon(${i})">Load</button>
-        <button onclick="_wDeleteWeapon(${i})">✕</button>
-      </div>`;
-    list.appendChild(row);
-  });
+  const lib = _wLibrary();
+  if (!lib.length) { list.innerHTML = '<div class="cs-empty">Nothing saved yet.</div>'; return; }
+  list.innerHTML = lib.map(([k, w]) =>
+    `<div class="cs-item"><span title="${_escHtml(w._spec.name)}">${_escHtml(w._spec.name)}</span>
+      <button class="cs-btn small" onclick="_wLoadWeapon('${k}')">Open</button>
+      <button class="cs-btn small danger" onclick="_wDeleteWeapon('${k}')" aria-label="Delete">&times;</button></div>`).join('');
 }
 
-function _wLoadWeapon(i) {
-  const w = _dCustomWeapons[i];
-  if (!w) return;
-  document.getElementById('wName').value      = w.name;
-  document.getElementById('wDmg').value       = w.damage;
-  document.getElementById('wRange').value     = w.range;
-  document.getElementById('wCool').value      = w.cooldown;
-  document.getElementById('wKb').value        = w.kb;
-  document.getElementById('wType').value      = w.type;
-  document.getElementById('wAbilCool').value  = w.abilityCooldown || 90;
-  document.getElementById('wAbilEffect').value = w._abilEffect || 'dash';
-  document.getElementById('wColor').value     = w._color || '#44aaff';
-  wSync();
+function _wLoadWeapon(key) {
+  const w = window.CUSTOM_WEAPONS && window.CUSTOM_WEAPONS[key];
+  if (!w || !w._spec) return;
+  _wEditKey = key;
+  _wApplySpec(Object.assign({}, w._spec));
 }
 
-function _wDeleteWeapon(i) {
-  _dCustomWeapons.splice(i, 1);
-  try { localStorage.setItem('smc_custom_weapons', JSON.stringify(_dCustomWeapons)); } catch(e) {}
+function _wDeleteWeapon(key) {
+  const w = window.CUSTOM_WEAPONS && window.CUSTOM_WEAPONS[key];
+  if (!w || !confirm(`Delete "${w.name}"?`)) return;
+  delete window.CUSTOM_WEAPONS[key];
+  if (_wEditKey === key) _wEditKey = null;
+  if (typeof loadCustomWeaponSelection === 'function' && loadCustomWeaponSelection() === key && typeof saveCustomWeaponSelection === 'function') saveCustomWeaponSelection('');
+  const prev = window.CUSTOM_WEAPONS._custom_preview; delete window.CUSTOM_WEAPONS._custom_preview;
+  if (typeof saveCustomWeaponsData === 'function') saveCustomWeaponsData();
+  window.CUSTOM_WEAPONS._custom_preview = prev;
+  if (typeof refreshCustomWeaponOptions === 'function') refreshCustomWeaponOptions();
   _wRefreshList();
 }
 
-function wEquipWeapon(pid) {
-  const _allowedModes = new Set(['2p', 'training']);
-  if (typeof gameMode !== 'undefined' && !_allowedModes.has(gameMode)) {
-    alert('Custom weapons can only be used in 1v1 or Training mode.');
-    return;
-  }
-  if (typeof players === 'undefined' || !players.length) {
-    // Not in game — store for next game start
-    const wObj = _wBuildObj();
-    if (pid === 'p1') {
-      const _cwKey = '_custom_' + Date.now();
-      window.CUSTOM_WEAPONS = window.CUSTOM_WEAPONS || {};
-      window.CUSTOM_WEAPONS[_cwKey] = wObj;
-      if (typeof saveCustomWeaponSelection === 'function') saveCustomWeaponSelection(_cwKey);
-      if (typeof saveCustomWeaponsData === 'function') saveCustomWeaponsData();
-      alert(`Custom weapon ready — it will be equipped on P1 when you start a 1v1 or Training match.`);
-    }
-    return;
-  }
-  const wObj = _wBuildObj();
-  const p    = pid === 'p2' ? players[1] : players[0];
-  if (p) { p.weapon = wObj; alert(`Equipped "${wObj.name}" on ${pid.toUpperCase()}!`); }
-  else    { alert('Player not found in current game.'); }
+function _wEquipP1(key) {
+  if (typeof refreshCustomWeaponOptions === 'function') refreshCustomWeaponOptions();
+  const sel = document.getElementById('p1Weapon');
+  if (sel) { const o = sel.querySelector(`option[value="${CSS.escape(key)}"]`); if (o) o.hidden = false; sel.value = key; }
+  if (typeof saveCustomWeaponSelection === 'function') saveCustomWeaponSelection(key);
+}
+
+function wUseInVersus() {
+  const key = wSaveWeapon(true);
+  if (!key) return;
+  closeDesigner();
+  if (typeof selectMode === 'function') selectMode('2p');
+  _wEquipP1(key);
+  _dToast(`"${window.CUSTOM_WEAPONS[key].name}" equipped for Player 1`);
+}
+function wEquipWeapon() { wUseInVersus(); }
+
+function wTestWeapon() {
+  const key = wSaveWeapon(true);
+  if (!key) return;
+  closeDesigner();
+  if (typeof selectMode === 'function') selectMode('training');
+  _wEquipP1(key);
+  window._wTest = { key, name: window.CUSTOM_WEAPONS[key].name, hits: [], total: 0, best: 0, seen: new Map(), started: false };
+  if (typeof startGame === 'function') startGame();
 }
 
 function wExportWeapon() {
-  const obj = _wBuildObj();
-  const serializable = Object.assign({}, obj);
-  delete serializable.ability;
-  serializable._abilEffect = document.getElementById('wAbilEffect')?.value || 'dash';
-  const jsText  = `// Custom weapon — paste into WEAPONS object in smb-data.js\n'${obj.name.toLowerCase().replace(/\s+/g,'_')}': ${JSON.stringify(serializable, null, 2)},`;
-  const jsonText = JSON.stringify(serializable, null, 2);
-  const filename = (obj.name || 'weapon').replace(/\s+/g,'_') + '.json';
-  _dShowExportModal(jsonText, filename, 'Weapon Export — ' + obj.name, jsText);
+  const s = _wReadSpec();
+  if (!s) return;
+  const code = 'SE-WPN1.' + _dB64(JSON.stringify(s));
+  _dShareModal(`Share "${s.name}"`, 'Anyone can paste this code into <b>Import</b> on the Weapon tab to get your weapon.', code);
 }
 
 function wImportWeapon() {
-  document.getElementById('_dWeaponImportModal')?.remove();
-  const modal = document.createElement('div');
-  modal.id = '_dWeaponImportModal';
-  modal.style.cssText = `position:fixed;inset:0;background:rgba(0,0,0,0.72);z-index:3000;
-    display:flex;align-items:center;justify-content:center;`;
-  modal.innerHTML = `
-  <div style="background:#0c0c1e;border:1.5px solid rgba(200,136,255,0.28);border-radius:13px;
-    padding:22px 24px 18px;width:min(480px,92vw);box-shadow:0 6px 40px rgba(60,0,80,0.6);
-    font-family:'Segoe UI',Arial,sans-serif;color:#ccd;">
-    <div style="font-weight:700;font-size:0.95rem;margin-bottom:14px;color:#cc88ff;">Weapon Import</div>
-    <div style="margin-bottom:10px;">
-      <label style="font-size:0.8rem;opacity:0.7;">Import from file (.json)</label><br>
-      <input type="file" accept=".json,.txt" onchange="_wImportFromFile(this)"
-        style="margin-top:4px;color:#aaa;font-size:0.8rem;width:100%;">
-    </div>
-    <div style="font-size:0.75rem;text-align:center;opacity:0.45;margin-bottom:8px;">— or paste JSON below —</div>
-    <textarea id="_dWeaponImportText" rows="5" placeholder='{"name":"My Weapon","damage":14,...}'
-      style="width:100%;background:#07071a;color:#bdc;border:1px solid rgba(200,136,255,0.2);
-      border-radius:7px;padding:8px;font-family:monospace;font-size:0.72rem;
-      resize:vertical;box-sizing:border-box;"></textarea>
-    <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:12px;">
-      <button onclick="document.getElementById('_dWeaponImportModal').remove()"
-        style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.18);
-        color:#bbc;border-radius:7px;padding:6px 16px;cursor:pointer;font-family:inherit;font-size:0.8rem;">
-        Cancel
-      </button>
-      <button onclick="_wImportFromText()" style="${_dModalBtnStyle('#cc88ff')}">Import</button>
-    </div>
-  </div>`;
-  document.body.appendChild(modal);
-  modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
-}
-
-function _wImportFromFile(input) {
-  if (!input.files?.length) return;
-  const reader = new FileReader();
-  reader.onload = e => {
-    _wApplyImportJSON(e.target.result);
-    document.getElementById('_dWeaponImportModal')?.remove();
-  };
-  reader.readAsText(input.files[0]);
-}
-
-function _wImportFromText() {
-  const text = document.getElementById('_dWeaponImportText')?.value?.trim();
-  if (!text) { _dToast('Nothing to import'); return; }
-  _wApplyImportJSON(text);
-  document.getElementById('_dWeaponImportModal')?.remove();
-}
-
-function _wApplyImportJSON(text) {
-  let obj;
-  try { obj = JSON.parse(text); } catch (err) { _dToast('Invalid JSON — could not import'); return; }
-  const setVal = (id, val) => { const el = document.getElementById(id); if (el && val !== undefined) el.value = val; };
-  setVal('wName',      obj.name);
-  setVal('wDmg',       obj.damage);
-  setVal('wRange',     obj.range);
-  setVal('wCool',      obj.cooldown);
-  setVal('wKb',        obj.kbForce);
-  setVal('wType',      obj.type);
-  setVal('wAbilEffect', obj._abilEffect || obj.abilEffect);
-  setVal('wAbilCool',  obj.abilityCooldown);
-  setVal('wColor',     obj.color || obj.weaponColor);
-  setVal('wShape',     obj.shape);
-  wSync();
-  _dToast(`Imported "${obj.name || 'weapon'}"`);
-}
-
-// Overloaded version for weapon (pass optional jsCode for "Copy Code" text)
-const _dShowExportModal_orig = _dShowExportModal;
-// eslint-disable-next-line no-global-assign
-_dShowExportModal = function(text, filename, title, altCodeText) {
-  document.getElementById('_dExportModal')?.remove();
-  const codeText = altCodeText || text;
-  const modal = document.createElement('div');
-  modal.id = '_dExportModal';
-  modal.style.cssText = `position:fixed;inset:0;background:rgba(0,0,0,0.72);z-index:3000;
-    display:flex;align-items:center;justify-content:center;`;
-  const preview = _escHtml((altCodeText || text).slice(0, 380));
-  modal.innerHTML = `
-  <div style="background:#0c0c1e;border:1.5px solid rgba(100,180,255,0.28);border-radius:13px;
-    padding:22px 24px 18px;width:min(500px,92vw);box-shadow:0 6px 40px rgba(0,0,80,0.6);
-    font-family:'Segoe UI',Arial,sans-serif;color:#ccd;">
-    <div style="font-weight:700;font-size:0.95rem;margin-bottom:14px;">${title}</div>
-    <div style="display:flex;gap:10px;margin-bottom:16px;">
-      <button onclick="_dExportAsCode(decodeURIComponent('${encodeURIComponent(codeText)}'))"
-        style="flex:1;background:rgba(136,200,255,0.1);border:1px solid rgba(136,200,255,0.4);
-        color:#88ccff;border-radius:8px;padding:10px 8px;cursor:pointer;font-family:inherit;font-size:0.82rem;">
-        📋 Copy Code<br><span style="font-size:0.7rem;opacity:0.65;">Paste into file / chat</span>
-      </button>
-      <button onclick="_dExportAsFile(decodeURIComponent('${encodeURIComponent(text)}'),'${_escAttr(filename)}')"
-        style="flex:1;background:rgba(136,255,68,0.1);border:1px solid rgba(136,255,68,0.4);
-        color:#88ff44;border-radius:8px;padding:10px 8px;cursor:pointer;font-family:inherit;font-size:0.82rem;">
-        💾 Download File<br><span style="font-size:0.7rem;opacity:0.65;">Save as .json</span>
-      </button>
-    </div>
-    <textarea readonly style="width:100%;height:72px;background:#07071a;color:#7a9;
-      border:1px solid rgba(100,180,255,0.15);border-radius:6px;padding:8px;
-      font-family:monospace;font-size:0.7rem;resize:none;box-sizing:border-box;">${preview}…</textarea>
-    <div style="display:flex;justify-content:flex-end;margin-top:12px;">
-      <button onclick="document.getElementById('_dExportModal').remove()"
-        style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.18);
-        color:#bbc;border-radius:7px;padding:6px 16px;cursor:pointer;font-family:inherit;font-size:0.8rem;">
-        Close
-      </button>
-    </div>
-  </div>`;
-  document.body.appendChild(modal);
-  modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
-};
-
-// Init weapon preview on tab load
-// Inject a custom arena option into the arena <select> dropdown.
-// Avoids duplicates by checking for an existing option with the same value.
-function _dInjectArenaOption(key, label) {
-  const sel = document.getElementById('arenaSelect');
-  if (!sel) return;
-  // Remove stale entry with this key if it exists
-  const existing = sel.querySelector(`option[value="${CSS.escape(key)}"]`);
-  if (existing) existing.remove();
-  // Find or create the "Custom" optgroup
-  let grp = sel.querySelector('optgroup[label="─── Custom ────────────"]');
-  if (!grp) {
-    grp = document.createElement('optgroup');
-    grp.label = '─── Custom ────────────';
-    sel.appendChild(grp);
-  }
-  const opt = document.createElement('option');
-  opt.value       = key;
-  opt.textContent = label;
-  grp.appendChild(opt);
-  sel.value = key; // auto-select it
-}
-
-// Restore all saved custom maps into the arena dropdown + ARENAS on page load.
-function _dRestoreCustomMapsToDropdown() {
-  const saves = _dGetSaves();
-  Object.entries(saves).forEach(([, v]) => {
-    if (!v.meta || !v.meta.name) return;
-    const key  = '_custom_' + v.meta.name.replace(/\s+/g,'_').toLowerCase();
-    const base = (typeof ARENAS !== 'undefined' && ARENAS[v.base || 'grass']) || {};
-    const platforms = (v.platforms || []).map(pl => ({
-      x: pl.x, y: pl.y, w: pl.w, h: pl.h || 14,
-      isFloor: pl.isFloor, oscX: pl.oscX||0, oscY: pl.oscY||0, ox: pl.x, oy: pl.y,
-    }));
-    if (typeof ARENAS !== 'undefined') {
-      ARENAS[key] = Object.assign({}, base, {
-        name:           v.meta.name,
-        sky:            [v.meta.skyColor || '#1a1a2e', '#1a1a2e'],
-        hasLava:        v.meta.hasLava || false,
-        isLowGravity:   (v.hazards||[]).includes('lowgrav'),
-        isHeavyGravity: (v.hazards||[]).includes('heavygrav'),
-        isIcy:          (v.hazards||[]).includes('ice'),
-        platforms:      platforms.length > 0 ? platforms : (base.platforms || []),
-      });
-    }
-    _dInjectArenaOption(key, '🗺 ' + v.meta.name);
+  _dImportModal('Import a weapon', 'Paste a weapon code (it starts with <b>SE-WPN1.</b>). Older .json weapon exports work too.', (text) => {
+    text = String(text || '').trim();
+    let raw = null;
+    try { raw = text.startsWith('SE-WPN1.') ? JSON.parse(_dUnB64(text.slice(8))) : JSON.parse(text); } catch (e) {}
+    const s = _wSanitize(raw);
+    if (!s) { _dToast("That isn't a weapon code", true); return false; }
+    _wEditKey = null;
+    _wApplySpec(s);
+    _dToast(`Imported "${s.name}". Save it to keep it.`);
+    return true;
   });
 }
 
+// ---- WEAPON TEST HUD (Training, after "Test on a dummy") ----
+// Reads damage off the dummies' health rather than hooking dealDamage.
+function drawDesignerTestHUD(c) {
+  const T = window._wTest;
+  if (!T || !c) return;
+  if (typeof gameRunning === 'undefined' || !gameRunning || gameMode !== 'training') {
+    if (T.started) window._wTest = null;   // left Training: the test is over
+    return;
+  }
+  const p1 = players && players[0];
+  if (!p1 || p1.weaponKey !== T.key) return;
+  if (!T.started) {
+    T.started = true;
+    if (!trainingDummies.length && typeof spawnTrainingDummy === 'function') spawnTrainingDummy();
+  }
+  for (const d of trainingDummies) {
+    const prev = T.seen.has(d) ? T.seen.get(d) : d.health;
+    if (d.health < prev) {
+      const dmg = prev - d.health;
+      T.total += dmg; T.best = Math.max(T.best, dmg);
+      T.hits.push([frameCount, dmg]);
+    }
+    T.seen.set(d, d.health);
+  }
+  while (T.hits.length && frameCount - T.hits[0][0] > 300) T.hits.shift();
+  const recent = T.hits.reduce((a, h) => a + h[1], 0);
+  const dps = recent / 5;
+
+  const w = 250, h = 92, x = 16, y = (typeof _hudBottom === 'function' ? _hudBottom() : 110) + 12;
+  c.save();
+  c.setTransform(1, 0, 0, 1, 0, 0);
+  c.fillStyle = 'rgba(20,25,38,0.92)'; c.fillRect(x, y, w, h);
+  c.strokeStyle = 'rgba(150,170,210,0.26)'; c.lineWidth = 1; c.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1);
+  c.fillStyle = '#F2762B'; c.fillRect(x, y, 3, h);
+  c.textBaseline = 'top';
+  c.fillStyle = '#5D6880'; c.font = '800 10px system-ui, sans-serif';
+  c.fillText('WEAPON TEST', x + 14, y + 10);
+  c.fillStyle = '#E6EBF5'; c.font = '700 14px system-ui, sans-serif';
+  c.fillText(String(T.name).slice(0, 26), x + 14, y + 24);
+  c.font = '700 12px system-ui, sans-serif'; c.fillStyle = '#8B97AD';
+  c.fillText('DPS (5s)', x + 14, y + 50); c.fillText('Total', x + 100, y + 50); c.fillText('Best hit', x + 170, y + 50);
+  c.fillStyle = '#E6EBF5'; c.font = '800 16px system-ui, sans-serif';
+  c.fillText(dps.toFixed(1), x + 14, y + 66); c.fillText(String(Math.round(T.total)), x + 100, y + 66); c.fillText(String(Math.round(T.best)), x + 170, y + 66);
+  c.restore();
+}
+
 document.addEventListener('DOMContentLoaded', () => {
-  // Load saved weapons
-  try {
-    const raw = localStorage.getItem('smc_custom_weapons');
-    if (raw) _dCustomWeapons = JSON.parse(raw);
-  } catch(e) {}
-  // Restore persisted custom weapons into window.CUSTOM_WEAPONS
+  // Restore persisted custom weapons, then rebuild them (ability fns + art aliases).
   if (typeof loadCustomWeaponsData === 'function') loadCustomWeaponsData();
-  // Restore custom maps into arena dropdown
-  // Defer slightly so ARENAS (smb-data.js) is guaranteed to be defined
-  setTimeout(_dRestoreCustomMapsToDropdown, 200);
-  // Animate weapon preview when tab is open
-  const _wLoop = () => {
-    const panel = document.getElementById('designerWeaponPanel');
-    if (panel && panel.style.display !== 'none') _wDraw();
-    requestAnimationFrame(_wLoop);
-  };
-  requestAnimationFrame(_wLoop);
+  // Defer so ARENAS / WEAPON_SPRITES / menu dropdowns all exist.
+  setTimeout(() => {
+    try { _wHydrateLibrary(); } catch (e) {}
+    try { _dRestoreCustomMapsToDropdown(); } catch (e) {}
+  }, 200);
 });

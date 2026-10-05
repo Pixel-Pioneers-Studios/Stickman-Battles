@@ -67,7 +67,7 @@ class Yeti extends Fighter {
         // Freeze zone on ground
         this._freezeZones.push({ x: this.cx(), y: this.y + this.h, r: 110, timer: 240, maxTimer: 240 });
         // Damage + freeze players in range
-        for (const p of players) {
+        for (const p of creatureFoes(this)) {
           if (p === this || p.health <= 0) continue;
           const dd = Math.abs(p.cx() - this.cx());
           if (dd < 130) {
@@ -92,7 +92,7 @@ class Yeti extends Fighter {
       z.timer--;
       // Damage players standing in zone each ~30 frames
       if (z.timer % 30 === 0) {
-        for (const p of players) {
+        for (const p of creatureFoes(this)) {
           if (p === this || p.health <= 0) continue;
           if (Math.hypot(p.cx() - z.x, (p.y + p.h) - z.y) < z.r && p.onGround) {
             dealDamage(this, p, 4, 0);
@@ -144,7 +144,7 @@ class Yeti extends Fighter {
     screenShake = Math.max(screenShake, 18);
     spawnParticles(this.cx(), this.cy(), '#aaddff', 20);
     if (settings.dmgNumbers) damageTexts.push(new DamageText(this.cx(), this.y - 20, 'ROAR!', '#aaddff'));
-    for (const p of players) {
+    for (const p of creatureFoes(this)) {
       if (p.isBoss || p.health <= 0) continue;
       if (dist(this, p) < 220) {
         p.stunTimer = Math.max(p.stunTimer || 0, 50);
@@ -165,7 +165,7 @@ class Yeti extends Fighter {
       // Delayed damage
       setTimeout(() => {
         if (!gameRunning) return;
-        for (const p of players) {
+        for (const p of creatureFoes(this)) {
           if (p.isBoss || p.health <= 0) continue;
           if (Math.abs(p.cx() - sx) < 28 && p.y + p.h > (currentArena.deathY || 520) - 90) {
             dealDamage(this, p, 8, 7);
@@ -522,14 +522,14 @@ class Yeti extends Fighter {
       }
     }
 
-    // Name tag
-    ctx.globalAlpha = 1; ctx.fillStyle = '#88ccff'; ctx.font = 'bold 12px Arial'; ctx.textAlign = 'center';
-    ctx.fillText('YETI', cx, ty - 12);
-
-    // HP bar
-    const hpPct = Math.max(0, this.health / this.maxHealth);
-    ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillRect(cx - 26, ty - 24, 52, 5);
-    ctx.fillStyle = `hsl(${hpPct * 120},100%,44%)`; ctx.fillRect(cx - 26, ty - 24, 52 * hpPct, 5);
+    // Name tag + HP bar (skipped for a fighter wearing this body — BR creature form)
+    if (!this._brForm) {
+      ctx.globalAlpha = 1; ctx.fillStyle = '#88ccff'; ctx.font = 'bold 12px Arial'; ctx.textAlign = 'center';
+      ctx.fillText('YETI', cx, ty - 12);
+      const hpPct = Math.max(0, this.health / this.maxHealth);
+      ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillRect(cx - 26, ty - 24, 52, 5);
+      ctx.fillStyle = `hsl(${hpPct * 120},100%,44%)`; ctx.fillRect(cx - 26, ty - 24, 52 * hpPct, 5);
+    }
 
     ctx.restore();
   }

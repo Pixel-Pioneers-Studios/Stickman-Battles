@@ -32,7 +32,7 @@ const args = Object.fromEntries(process.argv.slice(2).map(a => {
 }));
 const MODE    = String(args.mode || 'weapons');
 const MATCHES = parseInt(args.matches, 10) || 12;
-const JOBS    = parseInt(args.jobs, 10) || 5;
+const JOBS    = parseInt(args.jobs, 10) || 4;
 const STOCKS  = parseInt(args.stocks, 10) || 3;
 const FRAMES  = parseInt(args.frames, 10) || 18000;
 const BRAIN   = String(args.brain || 'sovereign');
@@ -42,6 +42,8 @@ const PATCH   = args.patch ? JSON.parse(args.patch) : {};
 // --wpatch: weapon stats applied in EVERY mode, so classes can be measured on
 // top of candidate weapon stats rather than the shipped ones.
 const WPATCH  = args.wpatch ? JSON.parse(args.wpatch) : {};
+// --all: every pickable weapon, ranged included (default is melee only).
+const ALL     = !!args.all;
 const BASEPORT = parseInt(args.port, 10) || 8700;
 const LABEL   = String(args.label || `${MODE}-${BRAIN}`);
 const log = (...a) => console.log('[bal]', ...a);
@@ -65,7 +67,9 @@ async function worker() {
   });
   const puppeteer = require(path.join(ROOT, 'node_modules', 'puppeteer'));
   const browser = await puppeteer.launch({ headless: 'new', protocolTimeout: 1800000,
-    args: ['--no-sandbox', '--disable-gpu', '--mute-audio'] });
+    // The sim never draws, so images and background services are pure memory cost.
+    args: ['--no-sandbox', '--disable-gpu', '--mute-audio', '--blink-settings=imagesEnabled=false',
+           '--disable-extensions', '--disable-background-networking', '--disable-dev-shm-usage'] });
   const page = await browser.newPage();
   const errs = [];
   page.on('pageerror', e => errs.push(String(e && e.message || e)));
@@ -84,11 +88,16 @@ async function worker() {
   await page.evaluate(() => { try { if (typeof backToHome === 'function') backToHome(); } catch (e) {} });
   await page.addScriptTag({ content: SIM });
 
-  const res = await page.evaluate((MODE, MATCHES, STOCKS, FRAMES, BRAIN, HOLD_C, HOLD_W, PATCH, WPATCH, shard, of) => {
+  const res = await page.evaluate((MODE, MATCHES, STOCKS, FRAMES, BRAIN, HOLD_C, HOLD_W, PATCH, WPATCH, shard, of, args_all) => {
     // Apply candidate stats in-page only.
     for (const k of Object.keys(WPATCH)) if (WEAPONS[k]) Object.assign(WEAPONS[k], WPATCH[k]);
     const tbl = MODE === 'classes' ? CLASSES : WEAPONS;
     for (const k of Object.keys(PATCH)) if (tbl[k]) Object.assign(tbl[k], PATCH[k]);
+    // dmgRange:[lo,hi] stands in for a ranged weapon's damageFunc (JSON has no functions).
+    for (const P of [WPATCH, PATCH]) for (const k of Object.keys(P)) {
+      const r = P[k] && P[k].dmgRange, w = WEAPONS[k];
+      if (r && w) w.damageFunc = () => r[0] + Math.floor(Math.random() * (r[1] - r[0] + 1));
+    }
     // Seeded, so a shard is reproducible and two runs of the same config agree.
     let s = (0x9E3779B9 ^ Math.imul(shard + 1, 0x85EBCA6B)) >>> 0;
     Math.random = function () {
@@ -96,8 +105,41 @@ async function worker() {
       t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
       return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
     };
+    // Damage split by source: basic attack / ability (Q) / super (E), keyed by
+    // the attacker's weapon. Projectiles and lingering hitboxes are credited to
+    // whatever action the owner last started, so a Q projectile landing after a
+    // fresh swing reads as basic — close enough to rank the kits.
+    const src = {};
+    const srow = k => src[k] || (src[k] = { dmg: [0, 0, 0], hits: [0, 0, 0], casts: [0, 0, 0] });
+    const _dd = dealDamage;
+    window.dealDamage = function (attacker, target) {
+      const h0 = target ? target.health : 0;
+      const r = _dd.apply(this, arguments);
+      if (attacker && target && attacker !== target && attacker.weaponKey && players.includes(attacker)) {
+        const d = h0 - target.health;
+        if (d > 0) {
+          const t = _moveTierOverride !== null ? (_moveTierOverride === 2 ? 2 : _moveTierOverride === 1 ? 1 : 0) : (attacker.superActive || attacker._attackKindTier === 2) ? 2 : attacker._attackKindTier === 1 ? 1 : 0;
+          const s = srow(attacker.weaponKey); s.dmg[t] += d; s.hits[t]++;
+        }
+      }
+      return r;
+    };
+    for (const [m, t] of [['attack', 0], ['ability', 1], ['activateSuper', 2]]) {
+      const _o = Fighter.prototype[m];
+      Fighter.prototype[m] = function () {
+        const cdA = this.cooldown, cdQ = this.abilityCooldown, sm = this.superMeter;
+        const r = _o.apply(this, arguments);
+        const fired = t === 0 ? (this.cooldown > cdA) : t === 1 ? (this.abilityCooldown > cdQ) : (this.superMeter < sm);
+        if (fired && this.weaponKey && players.includes(this)) {
+          const s = srow(this.weaponKey); s.casts[t]++;
+          // Horizontal gap to the target at each basic attack: where the kit is actually fought.
+          if (t === 0 && this.target) { s.gap = (s.gap || 0) + Math.abs(this.target.cx() - this.cx()); s.near = (s.near || 0) + (Math.abs(this.target.cx() - this.cx()) < 120 ? 1 : 0); }
+        }
+        return r;
+      };
+    }
     const ents = (MODE === 'weapons' || MODE === 'threat')
-      ? WEAPON_KEYS.filter(k => WEAPONS[k].type === 'melee' && WEAPONS[k].damage > 0)
+      ? WEAPON_KEYS.filter(k => args_all || (WEAPONS[k].type === 'melee' && WEAPONS[k].damage > 0))
       : Object.keys(CLASSES).filter(k => k !== 'megaknight');
     // --hold=signature: each class holds its own weapon (what selecting the class
     // sets the picker to), sword where it has none.
@@ -123,8 +165,8 @@ async function worker() {
                    f: r.frames, to: r.timeout, err: r.err, bug: r.bug });
       }
     });
-    return { ents, out };
-  }, MODE, MATCHES, STOCKS, FRAMES, BRAIN, HOLD_C, HOLD_W, PATCH, WPATCH, shard, of);
+    return { ents, out, src };
+  }, MODE, MATCHES, STOCKS, FRAMES, BRAIN, HOLD_C, HOLD_W, PATCH, WPATCH, shard, of, ALL);
   res.pageErrors = [...new Set(errs)].slice(0, 5);
   process.stdout.write('RESULT ' + JSON.stringify(res) + '\n');
   await browser.close(); server.close();
@@ -138,7 +180,7 @@ async function main() {
   const parts = await Promise.all(Array.from({ length: JOBS }, (_, i) => new Promise(resolve => {
     const argv = [__filename, '--worker', `--shard=${i}`, `--of=${JOBS}`, `--wport=${BASEPORT + i}`,
       `--mode=${MODE}`, `--matches=${MATCHES}`, `--stocks=${STOCKS}`, `--frames=${FRAMES}`,
-      `--brain=${BRAIN}`, `--holdclass=${HOLD_C}`, `--hold=${HOLD_W}`, `--patch=${JSON.stringify(PATCH)}`, `--wpatch=${JSON.stringify(WPATCH)}`];
+      `--brain=${BRAIN}`, ...(ALL ? ['--all'] : []), `--holdclass=${HOLD_C}`, `--hold=${HOLD_W}`, `--patch=${JSON.stringify(PATCH)}`, `--wpatch=${JSON.stringify(WPATCH)}`];
     const p = spawn('node', argv, { cwd: ROOT, stdio: ['ignore', 'pipe', 'pipe'] });
     let buf = '', tail = '';
     p.stdout.on('data', d => { buf += d; });
@@ -198,6 +240,24 @@ async function main() {
   }).filter(x => x.r >= 80).sort((x, y) => y.r - x.r);
   for (const x of lop.slice(0, 12)) console.log(`    ${x.w.padEnd(14)} beats ${x.l.padEnd(14)} ${x.r.toFixed(0)}%  (n=${x.n})`);
   if (!lop.length) console.log('    none at 80%+');
+  const src = {};
+  for (const p of ok) for (const [k, v] of Object.entries(p.src || {})) {
+    const s = src[k] || (src[k] = { dmg: [0, 0, 0], hits: [0, 0, 0], casts: [0, 0, 0] });
+    for (let t = 0; t < 3; t++) { s.dmg[t] += v.dmg[t]; s.hits[t] += v.hits[t]; s.casts[t] += v.casts[t]; }
+    s.gap = (s.gap || 0) + (v.gap || 0); s.near = (s.near || 0) + (v.near || 0);
+  }
+  if (Object.keys(src).length) {
+    console.log('\n  damage by source (per cast = damage / times used; share = % of the kit\'s damage):');
+    console.log('  weapon         basic/hit  basic/use   Q/use  Q casts   E/use  E casts   share basic/Q/E   gap  <120px');
+    for (const e of ranked) {
+      const s = src[e]; if (!s) continue;
+      const tot = s.dmg[0] + s.dmg[1] + s.dmg[2] || 1;
+      const per = (t, n) => (n ? (s.dmg[t] / n).toFixed(1) : '-').padStart(t ? 7 : 9);
+      console.log(`  ${e.padEnd(14)} ${per(0, s.hits[0])}  ${per(0, s.casts[0])} ${per(1, s.casts[1])}  ${String(s.casts[1]).padStart(7)} ${per(2, s.casts[2])}  ${String(s.casts[2]).padStart(7)}   ` +
+        [0, 1, 2].map(t => Math.round(100 * s.dmg[t] / tot)).join('/').padEnd(9) +
+        `${s.casts[0] ? Math.round(s.gap / s.casts[0]) : '-'}`.padStart(6) + `${s.casts[0] ? Math.round(100 * s.near / s.casts[0]) : '-'}%`.padStart(7));
+    }
+  }
   console.log('\n  BUG FINDER:');
   let anyBug = false;
   for (const [kind, o] of Object.entries(bugs)) {
@@ -211,7 +271,7 @@ async function main() {
 
   const dir = path.join(ROOT, 'data', 'balance'); fs.mkdirSync(dir, { recursive: true });
   const file = path.join(dir, `${LABEL.replace(/[^\w.+-]/g, '_')}-${Date.now()}.json`);
-  fs.writeFileSync(file, JSON.stringify({ LABEL, MODE, BRAIN, MATCHES, PATCH, ents, st, mir, cell, bugs, rmse }, null, 1));
+  fs.writeFileSync(file, JSON.stringify({ LABEL, MODE, BRAIN, MATCHES, PATCH, ents, st, mir, cell, bugs, rmse, src }, null, 1));
   log('wrote ' + path.relative(ROOT, file));
 }
 

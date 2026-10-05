@@ -117,6 +117,7 @@ function updateBossDeathScene() {
     if (sc.timer >= 370) {
       bossDeathScene = null;
       const _customWpnUsed = players.some(p => !p.isBoss && p.weapon && p.weapon._isCustom);
+      if (gameMode === 'boss' && !_customWpnUsed && typeof unlockAchievement === 'function') unlockAchievement('boss_slayer');
       if (!bossBeaten && gameMode === 'boss' && !_customWpnUsed) {
         if (typeof setAccountFlagWithRuntime === 'function') {
           setAccountFlagWithRuntime(['unlocks', 'bossBeaten'], true, function(v) { bossBeaten = v; });

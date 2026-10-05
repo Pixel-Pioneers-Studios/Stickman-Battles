@@ -1,0 +1,110 @@
+{
+ "started": "2026-09-19T03:59:37.150Z",
+ "model": "llama3.2:3b",
+ "cycles": [
+  {
+   "cycle": 1,
+   "worstName": "landing_trap",
+   "sweepVec": {
+    "parry_wall": 197,
+    "attrition_tank": 1524,
+    "glass_cannon": 942,
+    "untouchable": 417,
+    "landing_trap": -887,
+    "no_ground": 2149,
+    "gauntlet": 805,
+    "ledge_executioner": 1804,
+    "noise_control": 2117
+   },
+   "sweepWorst": -887,
+   "description": {
+    "summary": "Sovereign was hit by the landing trap 44 times, with 70.5% of those hits occurring while airborne. The trap's recovery window was consistently hit, forcing Sovereign to approach the ground or adjust his landing timing to avoid taking damage. The trap's effectiveness is evident in the high damage taken (672) and the fact that it was able to stun or ragdoll Sovereign 3.1% of the time.",
+    "weakness": "The landing trap's weakness is that it is vulnerable to being ignored when Sovereign is on the ground. The trap's effectiveness is greatly reduced when Sovereign is not airborne, as evidenced by the significantly lower damage taken (34 dmg) when the trap hits while Sovereign is in close range (cb). This suggests that the trap's design relies heavily on its ability to hit Sovereign while he is airborne, leaving it vulnerable to being avoided or countered when he is on the ground.",
+    "confident": true
+   },
+   "proposal": {
+    "hypothesis": "Sovereign will struggle to defend against the landing trap when facing 3 opponents with high HP and moderate damage output.",
+    "name": "Landing Trap Overload",
+    "punishes": "Sovereign's Ground Trap Vulnerability",
+    "bots": [
+     {
+      "w": "fryingpan",
+      "policy": "parry_wall",
+      "hp": 3,
+      "dmg": 2
+     },
+     {
+      "w": "fryingpan",
+      "policy": "parry_wall",
+      "hp": 3,
+      "dmg": 2
+     },
+     {
+      "w": "fryingpan",
+      "policy": "parry_wall",
+      "hp": 3,
+      "dmg": 2
+     }
+    ]
+   },
+   "test": {
+    "avgFitness": 84,
+    "avgLocked": 4.5,
+    "stocksLeft": 4.3
+   },
+   "survived": false
+  },
+  {
+   "cycle": 2,
+   "worstName": "gauntlet",
+   "sweepVec": {
+    "parry_wall": 20,
+    "attrition_tank": 1993,
+    "glass_cannon": 1088,
+    "untouchable": 1481,
+    "landing_trap": 130,
+    "no_ground": 2305,
+    "gauntlet": -113,
+    "ledge_executioner": 2120,
+    "noise_control": 2249
+   },
+   "sweepWorst": -113,
+   "description": {
+    "summary": "Sovereign was punished by the Gauntlet in a 4-on-1 situation, where four attackers simultaneously targeted him. He was able to land some hits, but was also hit by a significant amount of damage, particularly from behind and while shielding. The Gauntlet's effectiveness is shown in its ability to punish Sovereign for being in a vulnerable position, such as during landing recovery and while stunned.",
+    "weakness": "The Gauntlet's weakness is that it does not punish Sovereign for being in a position where he is not the center of attention, such as when he is mid-swing or when there is more than one attacker on him. This is evident from the fact that 18.8% of the hits he took came from behind him, and 18.8% came while he was shielding. This suggests that the Gauntlet relies on Sovereign being the primary target, rather than taking into account the overall situation.",
+    "confident": true
+   },
+   "proposal": {
+    "hypothesis": "Sovereign will struggle to deal damage and maintain pressure due to the Gauntlet's inability to punish him for not being the center of attention.",
+    "name": "Gauntlet Overload",
+    "punishes": "Behind",
+    "bots": [
+     {
+      "w": "hammer",
+      "policy": "parry_wall",
+      "hp": 0.5,
+      "dmg": 2.5
+     },
+     {
+      "w": "fryingpan",
+      "policy": "parry_wall",
+      "hp": 0.5,
+      "dmg": 2.5
+     },
+     {
+      "w": "fryingpan",
+      "policy": "parry_wall",
+      "hp": 0.5,
+      "dmg": 2.5
+     }
+    ]
+   },
+   "test": {
+    "avgFitness": 3913,
+    "avgLocked": 4.4,
+    "stocksLeft": 4.3
+   },
+   "survived": false
+  }
+ ]
+}

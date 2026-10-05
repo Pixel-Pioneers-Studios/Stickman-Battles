@@ -42,7 +42,7 @@ STORY_CHAPTER_REGISTRY.push(
       'The fracture system is gone.',
       '',
       'The entire war — the scouts, the fractures,',
-      'the Creator, the True Form, five thousand years —',
+      'the Creator, Cosmic Axiom, five thousand years —',
       'was built in the shadow of this.',
       '',
       'Not against you. Against this.',

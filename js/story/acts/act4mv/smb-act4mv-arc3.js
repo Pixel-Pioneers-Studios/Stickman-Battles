@@ -45,13 +45,13 @@ STORY_CHAPTER_REGISTRY.push(
     objectName: 'Ridge Meeting Point',
     preText: 'The hooded figure is waiting at the base of the ridge — but Veran\'s signal drones are sweeping the area. Reach the meeting point without triggering a scan.',
     stealthGuardDefs: [
-      { wx: 600,  radius: 90,  name: 'Signal Drone' },
+      { wx: 750,  radius: 90,  name: 'Signal Drone' },
       { wx: 1300, radius: 95,  name: 'Signal Drone' },
       { wx: 2000, radius: 100, name: 'Scan Unit' },
       { wx: 2900, radius: 90,  name: 'Scan Unit' },
     ],
     spawnEnemies: [
-      { wx: 600,  name: 'Signal Drone', weaponKey: 'sword',  classKey: 'warrior',  aiDiff: 'hard',   color: '#4488dd' },
+      { wx: 750,  name: 'Signal Drone', weaponKey: 'sword',  classKey: 'warrior',  aiDiff: 'hard',   color: '#4488dd' },
       { wx: 1300, name: 'Signal Drone', weaponKey: 'spear',  classKey: 'warrior',  aiDiff: 'hard',   color: '#3377cc' },
       { wx: 2000, name: 'Scan Unit',    weaponKey: 'axe',    classKey: 'ninja', aiDiff: 'expert', color: '#2266bb' },
       { wx: 2900, name: 'Scan Unit',    weaponKey: 'sword',  classKey: 'ninja', aiDiff: 'expert', color: '#1155aa', isGuard: true, health: 120 },

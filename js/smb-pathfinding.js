@@ -33,8 +33,18 @@ const PF_HEADROOM  = 60;    // min clearance above a surface for it to be standa
  * Returns:
  *   { landed, x, y, platIdx, frame, blocked, died, doubleUsed, arcPoints }
  */
+// The arena's real gravity and fall cap, as Fighter.update applies them. A
+// fixed 0.65 under-predicted every low-gravity jump by ~2x, so airborne
+// correction steered bots toward landings they then sailed past.
+function pfArenaGravity(arena) {
+  const base = arena.isLowGravity ? 0.28 : arena.isHeavyGravity ? 0.95 : arena.earthPhysics ? 0.88 : PF_GRAVITY;
+  return base * ((arena.modifiers && arena.modifiers.gravityMult) || 1);
+}
+
 function pfSimulateArc(feetX, feetY, vx, initVY, arena, useDouble, skipPlatIdx, maxFrames) {
   if (!arena || !arena.platforms) return { landed: false };
+  const grav  = pfArenaGravity(arena);
+  const vyMax = arena.isLowGravity ? 10 : 19;
 
   const MAX  = maxFrames || 160;
   const pls  = arena.platforms;
@@ -59,7 +69,7 @@ function pfSimulateArc(feetX, feetY, vx, initVY, arena, useDouble, skipPlatIdx, 
       firedDouble = true;
     }
 
-    vy += PF_GRAVITY;
+    vy = Math.min(vy + grav, vyMax);
     x  += vx;
     y  += vy;
 
@@ -472,6 +482,13 @@ function buildPlatformGraph(arena) {
           }
         } else {
           // ── B is LOWER — try drop (walk off edge, no initial upward vy) ──
+          // Only from A's own ledge, walking outward. Fighters cannot drop
+          // THROUGH a platform, but the arc sim skips the source platform for
+          // 8 frames and so happily "fell" through it from the beside-B
+          // candidate — an edge from the middle of A to a platform under A that
+          // no fighter could take, and a bot that stood on it forever.
+          const atEdge = (launchX === aMaxX && vx > 0) || (launchX === aMinX && vx < 0);
+          if (!atEdge) continue;
           r = pfSimulateArc(launchX, launchY, vx, 0, arena, false, i);
           if (r.landed && r.platIdx === j) { action = 'drop'; }
         }
@@ -601,7 +618,24 @@ function pfGetNextWaypoint(bot, targetX, targetY) {
     Math.abs((bot._pfLastTargetY || 0) - targetY) > 80;
 
   if (!bot._pfPath || bot._pfPathAge >= 18 || targetMoved) {
-    const sNode = pfClosestNode(graph, bot.cx(), bot.y + bot.h * 0.5);
+    // Start from the platform under the bot's FEET when it is standing on one.
+    // Nearest-node-to-mid-body picked a node on the platform directly overhead
+    // whenever the nearest floor node was farther sideways than the ledge was
+    // high (floor nodes are 220px apart), so the path began "walk to the
+    // platform above you" and the bot jumped into its underside forever.
+    let sNode = null;
+    if (bot.onGround && currentArena && currentArena.platforms) {
+      const _feet = bot.y + bot.h, _pls = currentArena.platforms;
+      for (let pi = 0; pi < _pls.length; pi++) {
+        const pl = _pls[pi];
+        if (bot.cx() >= pl.x && bot.cx() <= pl.x + pl.w && Math.abs(_feet - pl.y) < 8) {
+          const id = _pfNearestNodeOnPlat(graph, pi, bot.cx());
+          if (id !== null && id !== undefined) sNode = graph.getNode(id);
+          break;
+        }
+      }
+    }
+    if (!sNode) sNode = pfClosestNode(graph, bot.cx(), bot.y + bot.h * 0.5);
     const gNode = pfClosestNode(graph, targetX, targetY);
     if (!sNode || !gNode) { bot._pfPath = null; return null; }
 
@@ -647,9 +681,25 @@ function pfGetNextWaypoint(bot, targetX, targetY) {
     if (!plB || !_pfPlatSafe(plB, currentArena)) {
       forceRecalculatePath(bot); return null;
     }
-    // Arc re-check for the drop
+    // Arc re-check for the drop. A grounded bot is still ON the source
+    // platform, walking to its ledge, so the fall is simulated from that ledge
+    // the way the graph built it. Simulating from the bot's own feet with no
+    // skip landed straight back on the platform it was standing on, failed
+    // every time, threw the path away, and left the bot oscillating between the
+    // drop node and a direct walk at the target — no drop edge could ever be
+    // followed from the ground.
     const dropDir = node.x > bot.cx() ? 1 : -1;
-    const dr = pfSimulateArc(bot.cx(), bot.y + bot.h, dropDir * PF_BOT_SPD, 0, currentArena, false, -1, 80);
+    let _dx0 = bot.cx(), _dy0 = bot.y + bot.h, _skip = -1;
+    if (bot.onGround && currentArena.platforms) {
+      const _pls = currentArena.platforms;
+      for (let pi = 0; pi < _pls.length; pi++) {
+        const pl = _pls[pi];
+        if (bot.cx() >= pl.x && bot.cx() <= pl.x + pl.w && Math.abs(_dy0 - pl.y) < 8) {
+          _dx0 = dropDir > 0 ? pl.x + pl.w - 2 : pl.x + 2; _dy0 = pl.y; _skip = pi; break;
+        }
+      }
+    }
+    const dr = pfSimulateArc(_dx0, _dy0, dropDir * PF_BOT_SPD, 0, currentArena, false, _skip, 80);
     if (!dr.landed || dr.platIdx !== node.platIdx) {
       forceRecalculatePath(bot); return null;
     }

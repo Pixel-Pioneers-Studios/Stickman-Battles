@@ -156,7 +156,7 @@ function _makeTFPhase3Cinematic(tf) {
   return {
     durationFrames: 210, // 3.5 s
     _voidFired: false, _roarFired: false,
-    _phaseLabel: { text: '— TRUE FORM —', color: '#ffffff' },
+    _phaseLabel: { text: '— COSMIC AXIOM —', color: '#ffffff' },
     update(t) {
       if (t < 0.25)     slowMotion = Math.max(0.02, 1 - t * 3.9);
       else if (t > 2.7) slowMotion = Math.min(1.0, (t - 2.7) / 0.8);

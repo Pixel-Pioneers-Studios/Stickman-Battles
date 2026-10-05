@@ -50,7 +50,7 @@ const SMK2Trainer = (() => {
     // Several melee weapons were missing despite the pool being documented as
     // melee-only — you cannot adapt to a pattern you never see.
     //
-    // Megaknight is deliberately NOT here. It is a troll class with intentionally
+    // Knight is deliberately NOT here. It is a troll class with intentionally
     // absurd stats, and it is barred from boss fights entirely (see
     // _rerollTrollClass in smb-menu-spawn.js). Training against a joke loadout
     // would drag the genome toward countering something Sovereign never faces.
@@ -242,6 +242,19 @@ const SMK2Trainer = (() => {
       for (const [k, fn] of Object.entries(s.smSounds)) SoundManager[k] = fn;
     }
     _saved = null;
+  }
+
+  function _tickWorld() {
+    try {
+      if (typeof projectiles !== 'undefined') {
+        projectiles.forEach(p => p.update());
+        projectiles = projectiles.filter(p => p.active);
+      }
+      if (typeof minions !== 'undefined') {
+        minions.forEach(m => { if (m.health > 0) m.update(); });
+        minions = minions.filter(m => m.health > 0);
+      }
+    } catch (e) {}
   }
 
   // ── Apply class stats to a bot (no side effects) ────────────────────────
@@ -478,7 +491,7 @@ const SMK2Trainer = (() => {
       const _bx = duel ? 700 : (spawns[i] || 300 + i * 120);
       // ── Duel opponent strength ────────────────────────────────────────────
       // The sim's core problem, measured 2026-08-23: no AI opponent available
-      // here comes close to a real player. A real Megaknight match did 1210
+      // here comes close to a real player. A real Knight match did 1210
       // damage to Sovereign and locked him 32% of the time. The sim's best
       // efforts: expert Fighter duel 192 damage / 1.9% locked; 50 crowd bots
       // 268 damage and LESS lockout than 3 bots; AdaptiveAI duel opponent a
@@ -616,6 +629,11 @@ const SMK2Trainer = (() => {
         sov.target = living.reduce((n, b) =>
           Math.abs(b.cx() - sov.cx()) < Math.abs(n.cx() - sov.cx()) ? b : n);
       }
+
+      // Same order as gameLoop: projectiles and minions before fighters. Without
+      // this the Summoner's familiar never acted and the Gunner's death burst
+      // never flew, so every lab verdict on those classes scored a passive perk.
+      _tickWorld();
 
       try { sov.update(); } catch (e) { if (!_errSample) _errSample = 'sov:' + e.message; }
       for (const b of bots) {
@@ -1158,5 +1176,7 @@ const SMK2Trainer = (() => {
   }
 
   return { run, stop, stressTest, evalVsDefault, mutate, saveChampion, loadChampion, resetChampion, runMatch, evolvePanel, adoptPanelWinner, crossover, SMK2_PANEL,
-           DUEL_BUFF };
+           DUEL_BUFF,
+           // For drills that build their own two-fighter scene (tools/sov-movelab.js).
+           simEnv: { stub: _stubEnv, apply: _applySimEnv, restore: _restoreEnv, tickWorld: _tickWorld, applyClass: _applyBotClass } };
 })();

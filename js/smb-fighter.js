@@ -16,6 +16,9 @@
 // action lands, which is what _resolveOverpower() handles.
 const CLASH_WINDOW    = 3;   // frames apart to still count as simultaneous
 const CLASH_REACH_PAD = 8;   // slack on the mutual-reach test, px
+// Legacy per-weapon hitbox reach past the hand, for weapons with no WEAPON_SWINGS tipLen.
+const MELEE_TIP_LENS = { sword: 26, hammer: 30, axe: 23, spear: 40, gauntlet: 22, mkgauntlet: 30, whip: 50, flail: 28 };
+const MELEE_BLADE_STEP = 14; // max px between hit samples along the drawn blade
 const CLASH_KNOCKBACK = 6.5; // horizontal push applied to BOTH fighters
 const CLASH_ENDLAG    = 16;  // recovery before either may swing again
 const CLASH_COOLDOWN  = 20;  // re-clash guard, so a trade can't loop
@@ -28,6 +31,16 @@ const CLASH_TIER_ABILITY = 1;
 const CLASH_TIER_SUPER   = 2;
 const CLASH_BREAK_ENDLAG = 22; // recovery the overpowered fighter eats
 
+// Basic melee swings chain at most BASIC_CHAIN_MAX in a row. The next one has to
+// be something else: an ability, a super, or a swing from the other stance
+// (ground vs air). Pausing BASIC_CHAIN_RESET frames past the last swing's
+// cooldown also clears it — longer than a string hit's stun, so a paused third
+// swing can't land on a victim who is still held.
+// Only swings that LANDED count: dealDamage() bumps _basicChainN on a swing's
+// first damaging hit. A whiff, a blocked hit or a 0-damage hit breaks the run.
+const BASIC_CHAIN_MAX   = 2;
+const BASIC_CHAIN_RESET = 20;
+
 // Landing with a basic attack still out costs the swing's remainder, its endlag
 // and this many frames more: no attack, ability, jump or shield. An aerial that
 // finishes before touchdown costs nothing, so spacing a jump-in is rewarded.
@@ -35,6 +48,109 @@ const LAND_LAG_FRAMES = 8;
 
 const SUPER_HEAL        = 25;   // paid when the super connects, not when it's cast
 const SUPER_HEAL_WINDOW = 150;  // frames after the cast in which a hit still pays it
+// Burst: super pressed while stunned (not ragdolled) spends the full meter to
+// break the combo. No damage; a smaller heal and one domain charge, both on cast.
+const BURST_HEAL    = 10;
+const BURST_RADIUS  = 110;  // px from the burster's centre
+const BURST_KB_X    = 13;   // horizontal push on everyone hostile in range
+const BURST_KB_Y    = 6;
+const BURST_IFRAMES = 8;    // just enough that the swing already in flight misses
+const BURST_CONFIRM_WINDOW = 24; // burst takes two super presses; the second must land within this many frames
+
+// ── SWING TRAIL ───────────────────────────────────────────────────────────
+// 'crescent' fills the area the blade sweeps (hilt→tip band, spline-smoothed,
+// additive white core → weapon colour → hue-shifted rim). 'line' is the older
+// thin blade-tip streak. Render-only either way; hitboxes never read this.
+var SWING_TRAIL_STYLE = 'crescent';
+const SWING_CRESCENT_REACH  = 1.08; // outer edge drawn this far past the tip (hilt = 0, tip = 1)
+const SWING_CRESCENT_INNER  = 0.5;  // inner edge at the newest sample
+const SWING_CRESCENT_SUBDIV = 4;    // spline points per recorded sample pair
+const SWING_CRESCENT_MINCAP = 14;   // samples kept, so one crescent spans the whole swing
+
+// '#rrggbb' → [h 0-360, s 0-1, l 0-1]; null for anything else
+function _swingHexToHsl(hex) {
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex || '');
+  if (!m) return null;
+  const n = parseInt(m[1], 16);
+  const r = (n >> 16 & 255) / 255, g = (n >> 8 & 255) / 255, b = (n & 255) / 255;
+  const mx = Math.max(r, g, b), mn = Math.min(r, g, b), l = (mx + mn) / 2;
+  if (mx === mn) return [0, 0, l];
+  const d = mx - mn, s = l > 0.5 ? d / (2 - mx - mn) : d / (mx + mn);
+  let h = mx === r ? (g - b) / d + (g < b ? 6 : 0) : mx === g ? (b - r) / d + 2 : (r - g) / d + 4;
+  return [h * 60, s, l];
+}
+
+// Catmull-Rom through pts[i][kx], pts[i][ky]; returns [{x,y,t}] with t = source index
+function _swingSpline(pts, kx, ky) {
+  const out = [];
+  const n = pts.length;
+  for (let i = 0; i < n - 1; i++) {
+    const p0 = pts[Math.max(0, i - 1)], p1 = pts[i], p2 = pts[i + 1], p3 = pts[Math.min(n - 1, i + 2)];
+    for (let s = 0; s < SWING_CRESCENT_SUBDIV; s++) {
+      const t = s / SWING_CRESCENT_SUBDIV, t2 = t * t, t3 = t2 * t;
+      const f = (a, b, c, d) => 0.5 * (2 * b + (c - a) * t + (2 * a - 5 * b + 4 * c - d) * t2 + (3 * b - a - 3 * c + d) * t3);
+      out.push({ x: f(p0[kx], p1[kx], p2[kx], p3[kx]), y: f(p0[ky], p1[ky], p2[ky], p3[ky]), t: i + t });
+    }
+  }
+  out.push({ x: pts[n - 1][kx], y: pts[n - 1][ky], t: n - 1 });
+  return out;
+}
+
+// Filled blade-sweep crescent. pts: [{x,y (tip), hx,hy (hilt), life, maxLife}], oldest first.
+// Each layer is one seamless polygon: soft body layers stack toward the outer
+// edge so brightness ramps up smoothly, then a glowing white core and a thin
+// hue-shifted rim. The band narrows to nothing at the tail, which is the fade.
+function _drawSwingCrescent(ctx, pts, col, heavy) {
+  const n = pts.length;
+  if (n < 2) return;
+  const fade = pts[n - 1].life / pts[n - 1].maxLife;
+  if (fade <= 0.02) return;
+  const R = SWING_CRESCENT_REACH, W = R - SWING_CRESCENT_INNER;
+  const width = [];
+  for (let i = 0; i < n; i++) width.push(W * Math.pow(i / (n - 1), 0.7));
+  // Spline of the line at fraction u across the band (0 = inner edge, 1 = outer edge)
+  const edgeAt = (u) => {
+    const e = [];
+    for (let i = 0; i < n; i++) {
+      const p = pts[i], f = R - width[i] * (1 - u);
+      e.push({ x: p.hx + (p.x - p.hx) * f, y: p.hy + (p.y - p.hy) * f });
+    }
+    return _swingSpline(e, 'x', 'y');
+  };
+  const strip = (uIn, uOut, alpha) => {
+    const A = edgeAt(uOut), B = edgeAt(uIn);
+    ctx.globalAlpha = Math.min(1, alpha * fade);
+    ctx.beginPath();
+    ctx.moveTo(A[0].x, A[0].y);
+    for (let j = 1; j < A.length; j++) ctx.lineTo(A[j].x, A[j].y);
+    for (let j = B.length - 1; j >= 0; j--) ctx.lineTo(B[j].x, B[j].y);
+    ctx.closePath(); ctx.fill();
+  };
+
+  const hsl = _swingHexToHsl(col) || [200, 0.9, 0.7];
+  const h   = hsl[0];
+  // Rim hue: cool colours drift toward violet (the reference look), warm ones toward red
+  const warm = h < 90 || h > 300;
+  const rimH = (warm ? h - 30 + 360 : h + 45) % 360;
+  const body = `hsl(${h.toFixed(0)},95%,58%)`;
+  const rim  = `hsl(${rimH.toFixed(0)},95%,55%)`;
+  const k    = heavy ? 1.15 : 1;
+
+  ctx.save();
+  ctx.globalCompositeOperation = 'lighter';
+  ctx.fillStyle = body;
+  strip(0,    1, 0.10 * k);
+  strip(0.3,  1, 0.12 * k);
+  strip(0.55, 1, 0.16 * k);
+  strip(0.75, 1, 0.20 * k);
+  ctx.fillStyle = rim;
+  strip(0.97, 1.05, 0.65);
+  ctx.fillStyle   = '#ffffff';
+  ctx.shadowColor = body;
+  ctx.shadowBlur  = heavy ? 14 : 10;
+  strip(0.86, 0.97, 0.9);
+  ctx.restore();
+}
 
 // ============================================================
 // FIGHTER
@@ -81,7 +197,7 @@ class Fighter {
     this.shieldHoldTimer     = 0;  // frames S is held this activation
     this.shieldStacks        = 0;  // consecutive activations since last full recharge
     this.shieldRechargeTimer = 0;  // frames until stacks reset to 0 (recharge)
-    this.shieldHP            = 0;  // remaining HP for current HP-based shield tier (stacks 1-3)
+    this.shieldHP            = SHIELD_RULES === 'pool' ? SHIELD_POOL_MAX : 0;  // guard meter ('pool') or current tier's HP (stacks 1-3)
     this.shieldBroken        = false; // true while shield is broken and awaiting re-press
     this.canDoubleJump   = false; // allows one double-jump after leaving ground
     this.superMeter      = 0;    // 0-100 super charge
@@ -96,7 +212,7 @@ class Fighter {
     this.godmode        = false;
     this.backstageHiding = false;
     this.classPerkUsed   = false;  // one-time class passive; resets each life
-    this.spartanRageTimer = 0;     // Kratos: frames of +50% damage boost
+    this.spartanRageTimer = 0;     // Varek: frames of +50% damage boost
     this.noCooldownsActive = false;
     this.lavaBurnTimer = 0;
     this.contactDamageCooldown = 0; // frames between passive weapon contact hits
@@ -220,7 +336,7 @@ class Fighter {
 
   _isInvalidAITarget(candidate) {
     return !candidate || candidate === this || candidate.health <= 0 ||
-      (candidate.godmode === true) ||
+      (candidate.godmode === true) || !!candidate._finWorldLock ||
       (typeof areAlliedEntities === 'function' && areAlliedEntities(this, candidate));
   }
 
@@ -289,7 +405,11 @@ class Fighter {
     // Always re-pick a safe platform — this handles moving/disappearing boss floor
     if (currentArena && typeof pickSafeSpawn === 'function') {
       const sideHint = this.playerNum === 2 ? 'right' : 'left';
-      const newSpawn = pickSafeSpawn(sideHint);
+      // Story exploration: checkpoints record spawnX — rise there, not wherever
+      // the arena-wide pick lands in a 6000px world.
+      const _exploreCp = !this.isAI && typeof exploreActive !== 'undefined' && exploreActive &&
+                         typeof pickSafeSpawnNear === 'function' && Number.isFinite(this.spawnX);
+      const newSpawn = _exploreCp ? pickSafeSpawnNear(this.spawnX, 'any') : pickSafeSpawn(sideHint);
       if (newSpawn) { this.spawnX = newSpawn.x; this.spawnY = newSpawn.y; }
       else if (currentArena.isBossArena) {
         // Floor was removed — use screen centre at a safe height so player can reach a platform
@@ -316,8 +436,9 @@ class Fighter {
     this.shieldHoldTimer     = 0;
     this.shieldStacks        = 0;
     this.shieldRechargeTimer = 0;
-    this.shieldHP            = 0;
+    this.shieldHP            = SHIELD_RULES === 'pool' ? SHIELD_POOL_MAX : 0;
     this.shieldBroken        = false;
+    this._shieldRegenWait    = 0;
     this._hammerSpin         = null;
     this._spearCharge        = null;
     this._axeWhirl           = null;
@@ -406,7 +527,7 @@ class Fighter {
     this._degradeVisual       = 0;
     this._lastHealthSeen      = this.health;
     this.invincible = 180; // 3 s of spawn protection — enough for a stable landing
-    // Megaknight spawn animation: fall from sky
+    // Knight spawn animation: fall from sky
     if (this.charClass === 'megaknight') {
       this.y = -120;
       this.vy = 2;
@@ -444,8 +565,15 @@ class Fighter {
 
   // ---- UPDATE ----
   update() {
-    // Remote player in online mode: skip local physics (state driven by network)
-    if (this.isRemote && onlineMode) {
+    // Remote player in online mode: skip local physics (state driven by network).
+    // Public Server puppets (_pubRemote) are network-driven without onlineMode.
+    if (this.isRemote && (onlineMode || this._pubRemote)) {
+      this.updateState();
+      return;
+    }
+    // Held by a Battle Royale finisher: the finisher drives this body while the
+    // rest of the match runs (smb-finisher-engine.js, _finTickWorld).
+    if (this._finWorldLock) {
       this.updateState();
       return;
     }
@@ -711,7 +839,11 @@ class Fighter {
       if (atk && atk.health > 0) {
         // Teleport to the opposite side of the attacker
         const behindX = atk.cx() + (atk.facing || 1) * 55;
-        this.x = clamp(behindX - this.w / 2, 0, GAME_W - this.w);
+        // World bounds, not the screen: story/explore maps are thousands of px
+        // wide, and clamping to GAME_W snapped the countering player back to the
+        // start of the map (and the finisher then played out there).
+        const _wb = this._aiWorldBounds();
+        this.x = clamp(behindX - this.w / 2, _wb.left, _wb.right - this.w);
         this.y = atk.y;
         this.vy = 0;
         this.vx = 0;
@@ -912,8 +1044,14 @@ class Fighter {
 
     // ── Paper Airplane super: Origami Swarm — 8 homing planes that track enemies ──
     if (this._paperSwarm && this._paperSwarm.length > 0) {
-      const _swarmTarget = players.find(p => p !== this && p.health > 0)
-                        || trainingDummies.find(d => d.health > 0);
+      // Nearest hostile across every roster — Battle Royale bots live in minions[],
+      // so a players[]-only search left the swarm with nothing to home on.
+      let _swarmTarget = null, _swarmD = Infinity;
+      for (const f of [...players, ...trainingDummies, ...minions]) {
+        if (!f || f.health <= 0 || !isHostileTarget(this, f)) continue;
+        const _sd = Math.hypot(f.cx() - this.cx(), f.cy() - this.cy());
+        if (_sd < _swarmD) { _swarmD = _sd; _swarmTarget = f; }
+      }
       for (let i = this._paperSwarm.length - 1; i >= 0; i--) {
         const pl = this._paperSwarm[i];
         if (_swarmTarget) {
@@ -938,7 +1076,7 @@ class Fighter {
             pl.life = 0;
           }
         }
-        if (pl.life <= 0 || pl.x < worldLeftBound() - 60 || pl.x > worldRightBound() + 60 || pl.y > GAME_H + 60) {
+        if (pl.life <= 0 || pl.x < worldLeftBound() - 60 || pl.x > worldRightBound() + 60 || pl.y > ((currentArena && currentArena.mapBottom) || GAME_H) + 60) {
           this._paperSwarm.splice(i, 1);
         }
       }
@@ -958,7 +1096,7 @@ class Fighter {
         wb.timer = 26;
         wb.ticks--;
         if (this.health > 0 && wb.src && wb.src !== this) {
-          dealDamage(wb.src, this, wb.dmg, 0);
+          dealDamage(wb.src, this, wb.dmg, 0, 1.0, false, 0, true); // DoT: unblockable, grants no i-frames
           spawnParticles(this.cx(), this.cy() + 6, '#aa2222', 4);
         }
       }
@@ -1094,7 +1232,8 @@ class Fighter {
         if (!isHostileTarget(this, f)) continue;
         const _foid = f._id || f.name || 'dummy';
         fo.hitCd[_foid] = (fo.hitCd[_foid] || 0) - 1;
-        if ((fo.hitCd[_foid] || 0) <= 0 && Math.hypot(f.cx() - fo.ballX, (f.y + f.h * 0.5) - fo.ballY) < 26) {
+        if ((fo.hitCd[_foid] || 0) <= 0 &&
+            fo.ballX > f.x - 18 && fo.ballX < f.x + f.w + 18 && fo.ballY > f.y - 18 && fo.ballY < f.y + f.h + 18) {
           dealDamage(this, f, 16, 10);
           fo.hitCd[_foid] = 14;
           spawnParticles(fo.ballX, fo.ballY, '#888888', 6);
@@ -1137,7 +1276,7 @@ class Fighter {
             spawnParticles(bm.x, bm.y, '#cc9944', 8);
           }
         }
-        if (bm.x < worldLeftBound() - 100 || bm.x > worldRightBound() + 100 || bm.y > GAME_H + 100) {
+        if (bm.x < worldLeftBound() - 100 || bm.x > worldRightBound() + 100 || bm.y > ((currentArena && currentArena.mapBottom) || GAME_H) + 100) {
           this._boomerangs.splice(i, 1);
         }
       }
@@ -1149,7 +1288,7 @@ class Fighter {
         const pp = this._paperPlanes[i];
         pp.x += pp.vx; pp.y += pp.vy; pp.vy += 0.06;
         pp.life--;
-        if (pp.life <= 0 || pp.x < worldLeftBound() - 60 || pp.x > worldRightBound() + 60 || pp.y > GAME_H + 60) {
+        if (pp.life <= 0 || pp.x < worldLeftBound() - 60 || pp.x > worldRightBound() + 60 || pp.y > ((currentArena && currentArena.mapBottom) || GAME_H) + 60) {
           this._paperPlanes.splice(i, 1); continue;
         }
         const _ppAll = [...players, ...trainingDummies, ...minions];
@@ -1183,14 +1322,35 @@ class Fighter {
       const _boAll = [...players, ...trainingDummies, ...minions];
       for (const f of _boAll) {
         if (!isHostileTarget(this, f) || bo.hitCd.has(f)) continue;
-        if (Math.hypot(f.cx() - bo.ballX, (f.y + f.h * 0.5) - bo.ballY) < 30) {
+        if (Math.hypot(f.cx() - bo.ballX, (f.y + f.h * 0.5) - bo.ballY) < 38) {
           dealDamage(this, f, 15, 9);
           bo.hitCd.set(f, 20);
           spawnParticles(bo.ballX, bo.ballY, '#cc9944', 7);
           screenShake = Math.max(screenShake, 6);
         }
       }
-      if (bo.timer <= 0) this._boomOrbit = null;
+      if (bo.timer <= 0) {
+        // The guard ends by flinging itself at the nearest enemy as a returning throw,
+        // so the ability still pays out when nobody walked into the ring.
+        let _boTgt = null, _boTd = 480;
+        for (const f of _boAll) {
+          if (!isHostileTarget(this, f) || f.health <= 0) continue;
+          const _d = Math.hypot(f.cx() - bo.ballX, (f.y + f.h * 0.5) - bo.ballY);
+          if (_d < _boTd) { _boTgt = f; _boTd = _d; }
+        }
+        const _bdx = _boTgt ? _boTgt.cx() - bo.ballX : this.facing;
+        const _bdy = _boTgt ? (_boTgt.y + _boTgt.h * 0.5) - bo.ballY : 0;
+        const _bl  = Math.hypot(_bdx, _bdy) || 1;
+        if (!this._boomerangs) this._boomerangs = [];
+        this._boomerangs.push({
+          x: bo.ballX, y: bo.ballY,
+          vx: (_bdx / _bl) * 12, vy: (_bdy / _bl) * 12 - 2,
+          timer: 38, returning: false,
+          hitSetGo: new Set(), hitSetReturn: new Set(),
+        });
+        spawnParticles(bo.ballX, bo.ballY, '#ffcc44', 10);
+        this._boomOrbit = null;
+      }
     }
 
     // ── Axe E: Thrown Axe — heavy spinning axe head flies out and returns ────────
@@ -1329,7 +1489,7 @@ class Fighter {
           dealDamage(this, f, 28, 14);
           // Was a bare `f.vy = -16` assignment — not even Math.min, so it set
           // upward velocity unconditionally and bypassed the launch governor
-          // entirely. Same class of bug as the Megaknight uppercut.
+          // entirely. Same class of bug as the Knight uppercut.
           applyLaunch(this, f, -16);
           hs.hitSet.add(f);
           spawnParticles(f.cx(), f.cy(), '#ffcc44', 14);
@@ -1396,11 +1556,8 @@ class Fighter {
     }
 
     if (this.shieldCooldown > 0)       this.shieldCooldown--; // legacy — kept at 0
-    // Shield recharge: tick down while not shielding; when it hits 0 stacks fully reset
-    if (!this.shielding && this.shieldRechargeTimer > 0) {
-      this.shieldRechargeTimer--;
-      if (this.shieldRechargeTimer === 0) { this.shieldStacks = 0; this.shieldHP = 0; }
-    }
+    // Shield meter refill / stack recharge (smb-combat.js shieldTick)
+    shieldTick(this);
     if (this._projDeflectCd > 0)       this._projDeflectCd--;
     if (this._parryVulnFrames > 0)     this._parryVulnFrames--;
     if (this.contactDamageCooldown > 0) this.contactDamageCooldown--;
@@ -1483,8 +1640,10 @@ class Fighter {
           // swingHitTargets, set weaponHit, and can even cancel our attack via the
           // trade-prevention branch below — all for zero damage.
           if (!isHostileTarget(this, tgt)) continue;
-          // Vertical separation guard: require meaningful bounding-box overlap (~55px center gap)
-          if (Math.abs((this.y + this.h / 2) - (tgt.y + tgt.h / 2)) > 55) continue;
+          // Vertical separation guard: the bodies must overlap vertically at all.
+          // Was a 55px centre gap, which dropped hits on a jumping target the
+          // blade visibly passed through; the per-point box test is the real gate.
+          if (Math.abs((this.y + this.h / 2) - (tgt.y + tgt.h / 2)) > (this.h + tgt.h) / 2) continue;
           // Block friendly fire unless survival competitive mode explicitly enables it
           const _survFFM = gameMode === 'minigames' && minigameType === 'survival' && survivalFriendlyFire;
           if (!_survFFM && gameMode === 'boss' && !this.isBoss && !tgt.isBoss) continue;
@@ -1667,6 +1826,8 @@ class Fighter {
       // One-shot opt-out (smb-weapons-ext.js): a landed Fragment blast holds its
       // target, so its pose ends with no recovery to punish.
       if (this._skipSwingEndlag) { endlag = 0; this._skipSwingEndlag = false; }
+      // A shield stopped this swing (dealDamage, BLOCK_ENDLAG): the defender's turn.
+      if (this._blockedEndlag) { endlag += this._blockedEndlag; this._blockedEndlag = 0; }
       this.attackEndlag = endlag;
       // Stamina drain on attack
       const staminaCost = Math.min(this.stamina, (this.weapon.damage || 10) * 1.5);
@@ -1725,21 +1886,37 @@ class Fighter {
     // Acquisition is folded into the gate AFTER the aiTick check so it still only
     // runs on this fighter's own AI ticks, and _acquireAITarget() returns null
     // when nothing legal is alive — a targetless AI stays idle, as before.
+    // Burst runs every frame, not on AI ticks: updateAI() returns while
+    // stunned, and a 15-frame tick would miss most of the stun window.
+    if (this.isAI && !this.isBoss && this.superReady && this.stunTimer > 0 &&
+        !(this.ragdollTimer > 0) && !this._fusionAIOverride && !activeCinematic &&
+        !(typeof isCombatLocked === 'function' && isCombatLocked('ai')) &&
+        this._aiWantsBurst()) this.useSuper(this.target);
+
+    // Spawn grace (story arena locks): the AI stays idle until _aiHoldUntil so
+    // the player can see the walls go up. Striking it first forfeits the grace.
+    if (this._aiHoldUntil && (this.hurtTimer > 0 || frameCount >= this._aiHoldUntil)) this._aiHoldUntil = 0;
     if (this.isAI && !this._fusionAIOverride &&
-        !this._domainRising &&
+        !this._domainRising && !this._aiHoldUntil &&
         !activeCinematic &&
         !(typeof isCutsceneActive === 'function' && isCutsceneActive()) &&
         !(typeof isCombatLocked === 'function' && isCombatLocked('ai')) &&
         aiTick % (this.aiTickInterval || AI_TICK_INTERVAL) === 0 &&
         (this.target || this._acquireAITarget())) this.updateAI();
+      if (this._aiClimbSteer) this._aiTickClimbSteer();
+      // Ice: the AI writes vx once per 15-frame tick and glides in between, so
+      // a chase at full speed slid ~40x its speed past the tick that saw the edge.
+      if (this.isAI && !this.isBoss && this.onGround && currentArena && currentArena.isIcy &&
+          !storyModeActive && !(this.hurtTimer > 0) && !(this.stunTimer > 0) &&
+          Math.abs(this.vx) > 0.3) this._aiIceBrake();
 
       // Here, after both processInput() and updateAI() have written this frame's
       // intent, so one check covers humans and every AI path alike.
       if (this._landLag > 0 && this.onGround && this.vy < 0 &&
           !(this.hurtTimer > 0) && !this.superActive) this.vy = 0;
-      // The guard is ground-only, and landing lag can't be guarded out of either.
+      // Landing lag can't be guarded out of; the air guard needs SHIELD_AIR.
       // The BR shield item is a pickup, not a guard.
-      if (this.shielding && (!this.onGround || this._landLag > 0) && !this._brShieldTimer && !this.isBoss) {
+      if (this.shielding && ((!this.onGround && !SHIELD_AIR) || this._landLag > 0) && !this._brShieldTimer && !this.isBoss) {
         this.shielding = false;
         this.shieldHoldTimer = 0;
       }
@@ -1785,7 +1962,8 @@ class Fighter {
       const _arenaModGrav = ((currentArena.modifiers && currentArena.modifiers.gravityMult) || 1.0) *
         (gameMode === 'minigames' && typeof chaosGravityMult === 'number' ? chaosGravityMult : 1.0);
       const arenaGravity = (_chaosMoon ? 0.18 : (currentArena.isLowGravity ? 0.28 : (currentArena.isHeavyGravity ? 0.95 : (currentArena.earthPhysics ? 0.88 : 0.65)))) * _arenaModGrav;
-      const gravDir = ((gameMode === 'trueform' || gameMode === 'story') && tfGravityInverted && !this.isBoss) ? -1 : 1;
+      const _gravInv = ((gameMode === 'trueform' || gameMode === 'story') && tfGravityInverted) || this._mvGravInverted;
+      const gravDir = (_gravInv && !this.isBoss) ? -1 : 1;
       const _sm = slowMotion; // cinematic slow-motion time scale
 
       // ── GRAVITY FAILSAFE ─────────────────────────────────────────────────────
@@ -1809,6 +1987,7 @@ class Fighter {
       // Self-driven movement only — knockback travels at full speed.
       const _wxMM = (this._wxMoveMult && !(this.hurtTimer > 0) && !(this.stunTimer > 0) && !(this.ragdollTimer > 0))
         ? this._wxMoveMult : 1;
+      if (this._capSelfVx) this._capSelfVx();
       this.x  += this.vx * _sm * _wxMM;
       // Exact pre-integration foot position, for one-way (passUnder) platforms.
       // Reconstructing this from vy inside checkPlatform() is unreliable — vy is
@@ -1833,7 +2012,7 @@ class Fighter {
       }
       this.onGround = false;
       // Inverted gravity ceiling bounce
-      if (gameMode === 'trueform' && tfGravityInverted && !this.isBoss && this.y < 0) {
+      if (((gameMode === 'trueform' && tfGravityInverted) || this._mvGravInverted) && !this.isBoss && this.y < 0) {
         this.y = 0; this.vy = Math.abs(this.vy) * 0.4;
       }
       // No ceiling — camera zooms out to follow players upward
@@ -1866,7 +2045,7 @@ class Fighter {
       // Walked off edge (vy > -5 means didn't jump off)
       if (this.coyoteFrames === 0) this.coyoteFrames = 6;
     }
-    // Megaknight: record Y when leaving ground for fall-height damage
+    // Knight: record Y when leaving ground for fall-height damage
     if (this.charClass === 'megaknight' && this._prevOnGround && !this.onGround) {
       this._fallStartY = this.y;
     }
@@ -1976,10 +2155,10 @@ class Fighter {
     if (!this.classPerkUsed && this.charClass !== 'none' && this.health > 0 && this.target) {
       const pct = this.health / this.maxHealth;
 
-      // THOR: Lightning Storm at ≤20% HP — 2 strikes after a visible 600ms windup.
+      // TORREN: Lightning Storm at ≤55% HP — 2 strikes after a visible 600ms windup.
       // Damage routed through dealDamage so shields/multipliers/achievements apply.
       // Stun reduced (25f) and windup gives a dodge window before the first strike.
-      if (this.charClass === 'thor' && pct <= 0.20) {
+      if (this.charClass === 'thor' && pct <= CLASS_PERK_THRESHOLD.thor) {
         this.classPerkUsed = true;
         screenShake = Math.max(screenShake, 16);
         spawnParticles(this.cx(), this.cy(), '#ffff00', 20);
@@ -1987,7 +2166,8 @@ class Fighter {
         const _t    = this.target;
         const _thor = this;
         const _strikeFn = () => {
-          if (!gameRunning || !_t || _t.health <= 0 || _thor.health <= 0) return;
+          // Not cancelled by Torren's death: the storm is already called down.
+          if (!gameRunning || !_t || _t.health <= 0) return;
           spawnLightningBolt(_t.cx(), _t.y);
           spawnParticles(_t.cx(), _t.cy(), '#ffff00', 18);
           spawnParticles(_t.cx(), _t.cy(), '#ffffff', 10);
@@ -2000,8 +2180,8 @@ class Fighter {
         setTimeout(_strikeFn, 950);  // follow-up
       }
 
-      // KRATOS: Spartan Rage at ≤15% HP — 5s damage boost; heals 10% of damage dealt during rage
-      if (this.charClass === 'kratos' && pct <= 0.15) {
+      // VAREK: Spartan Rage at ≤55% HP — 5s damage boost; heals 10% of damage dealt during rage
+      if (this.charClass === 'kratos' && pct <= CLASS_PERK_THRESHOLD.kratos) {
         this.classPerkUsed     = true;
         this.spartanRageTimer  = 300;
         this._spartanRageHealPool = 0; // resets each activation
@@ -2011,18 +2191,18 @@ class Fighter {
         spawnParticles(this.cx(), this.cy(), '#ffffff',  8);
       }
 
-      // NINJA: Shadow Step at ≤25% HP — 2s invincibility + all cooldowns reset
-      if (this.charClass === 'ninja' && pct <= 0.25) {
+      // NINJA: Shadow Step at ≤55% HP — 2s super armor + all cooldowns reset
+      if (this.charClass === 'ninja' && pct <= CLASS_PERK_THRESHOLD.ninja) {
         this.classPerkUsed = true;
-        this.invincible = 120;
+        this._superArmorUntil = frameCount + 120;
         this.cooldown = 0; this.abilityCooldown = 0; this.shieldCooldown = 0; this.boostCooldown = 0;
         screenShake = Math.max(screenShake, 14);
         spawnParticles(this.cx(), this.cy(), '#44ff88', 30);
         spawnParticles(this.cx(), this.cy(), '#ffffff', 14);
       }
 
-      // GUNNER: Last Stand at ≤20% HP — 8 bullets burst in all directions
-      if (this.charClass === 'gunner' && pct <= 0.20) {
+      // GUNNER: Last Stand at ≤55% HP — 8 bullets burst in all directions
+      if (this.charClass === 'gunner' && pct <= CLASS_PERK_THRESHOLD.gunner) {
         this.classPerkUsed = true;
         screenShake = Math.max(screenShake, 26);
         spawnParticles(this.cx(), this.cy(), '#ff6600', 28);
@@ -2039,16 +2219,16 @@ class Fighter {
         }
       }
 
-      // ARCHER: Back-Step at ≤20% HP — auto-dash backward + reset double jump
-      if (this.charClass === 'archer' && pct <= 0.20 && this.onGround) {
+      // ARCHER: Back-Step at ≤55% HP — auto-dash backward + reset double jump
+      if (this.charClass === 'archer' && pct <= CLASS_PERK_THRESHOLD.archer && this.onGround) {
         this.classPerkUsed = true;
         this.vx = -this.facing * 20;
         this.canDoubleJump = true;
         spawnParticles(this.cx(), this.cy(), '#aad47a', 16);
       }
 
-      // PALADIN: Holy Light at ≤25% HP — AoE heal pulse
-      if (this.charClass === 'paladin' && pct <= 0.25) {
+      // PALADIN: Holy Light at ≤55% HP — AoE heal pulse
+      if (this.charClass === 'paladin' && pct <= CLASS_PERK_THRESHOLD.paladin) {
         this.classPerkUsed = true;
         this.health = Math.min(this.maxHealth, this.health + 20);
         screenShake = Math.max(screenShake, 14);
@@ -2060,8 +2240,8 @@ class Fighter {
         }
       }
 
-      // BERSERKER: Blood Frenzy at ≤15% HP — 3s damage boost + speed boost
-      if (this.charClass === 'berserker' && pct <= 0.15) {
+      // BERSERKER: Blood Frenzy at ≤55% HP — 3s damage boost + speed boost
+      if (this.charClass === 'berserker' && pct <= CLASS_PERK_THRESHOLD.berserker) {
         this.classPerkUsed = true;
         this._powerBuff   = 180; // 3s damage boost via existing power buff
         this._speedBuff   = 180; // also speed boost
@@ -2070,10 +2250,10 @@ class Fighter {
         spawnParticles(this.cx(), this.cy(), '#880000', 12);
       }
 
-      // (Megaknight perk is now the super — no passive HP-threshold trigger)
+      // (Knight perk is now the super — no passive HP-threshold trigger)
 
-      // PUGILIST: Surge Strike at ≤20% HP — auto-launches Combo Strike for free
-      if (this.charClass === 'pugilist' && pct <= 0.20 && !this._comboSuper) {
+      // PUGILIST: Surge Strike at ≤55% HP — auto-launches Combo Strike for free
+      if (this.charClass === 'pugilist' && pct <= CLASS_PERK_THRESHOLD.pugilist && !this._comboSuper) {
         this.classPerkUsed = true;
         const _sfAll = [...players, ...trainingDummies, ...minions];
         let _sfTgt = null, _sfDist = 9999;
@@ -2089,7 +2269,7 @@ class Fighter {
           aim: 0, fire: false,
         };
         if (_sfTgt) this.facing = _sfTgt.cx() > this.cx() ? 1 : -1;
-        this.invincible = Math.max(this.invincible || 0, 55);
+        this._superArmorUntil = Math.max(this._superArmorUntil || 0, frameCount + 55);
         this.superActive = true;
         screenShake = Math.max(screenShake, 20);
         spawnParticles(this.cx(), this.cy(), '#ff4444', 24);
@@ -2097,18 +2277,18 @@ class Fighter {
       }
 
       // REAPER: Revive at ≤8% HP — restore to 40% HP once
-      if (this.charClass === 'reaper' && pct <= 0.08) {
+      if (this.charClass === 'reaper' && pct <= CLASS_PERK_THRESHOLD.reaper) {
         this.classPerkUsed = true;
         this.health = Math.round(this.maxHealth * 0.40);
-        this.invincible = Math.max(this.invincible, 60);
+        this._superArmorUntil = Math.max(this._superArmorUntil || 0, frameCount + 60);
         screenShake = Math.max(screenShake, 20);
         spawnParticles(this.cx(), this.cy(), '#aa44aa', 32);
         spawnParticles(this.cx(), this.cy(), '#ffffff', 16);
         spawnRing(this.cx(), this.cy());
       }
 
-      // SUMMONER: Desperate Bond at ≤20% HP — immediately spawn/empower familiar
-      if (this.charClass === 'summoner' && pct <= 0.20) {
+      // SUMMONER: Desperate Bond at ≤55% HP — immediately spawn/empower familiar
+      if (this.charClass === 'summoner' && pct <= CLASS_PERK_THRESHOLD.summoner) {
         this.classPerkUsed = true;
         if (!this._familiar || this._familiar.health <= 0) this._spawnFamiliar();
         if (this._familiar && this._familiar.health > 0) {
@@ -2312,7 +2492,7 @@ class Fighter {
         spawnParticles(this.cx(), pl.y, this.color, 10);
         this.ragdollSpin = 0;
       }
-      // MEGAKNIGHT: Fall-height landing damage (any normal landing, not just Mega Jump)
+      // KNIGHT: Fall-height landing damage (any normal landing, not just Mega Jump)
       if (this.charClass === 'megaknight' && !this._megaJumping && !this._spawnFalling &&
           this._fallStartY !== null && landVy > 5) {
         const fallHeight = Math.max(0, this.y - this._fallStartY); // positive = fell down
@@ -2337,7 +2517,7 @@ class Fighter {
         }
         this._fallStartY = null;
       }
-      // MEGAKNIGHT: Mega Jump shockwave on landing
+      // KNIGHT: Mega Jump shockwave on landing
       if (this._megaJumping && !this._megaJumpLanded && landVy > 8) {
         this._megaJumping    = false;
         this._megaJumpLanded = true;
@@ -2362,7 +2542,7 @@ class Fighter {
         SoundManager.explosion && SoundManager.explosion();
         this.superActive = false;
       }
-      // MEGAKNIGHT: spawn-fall landing — deals AoE damage when dropping in from sky
+      // KNIGHT: spawn-fall landing — deals AoE damage when dropping in from sky
       if (this._spawnFalling && landVy > 6) {
         this._spawnFalling = false;
         this.invincible    = 0;
@@ -2613,7 +2793,7 @@ class Fighter {
     const _sc        = this.drawScale || 1;
     const armLen     = FIG_ARM_LEN * _sc;
     const atkP       = 1 - this.attackTimer / this.attackDuration;
-    // Megaknight: upward arc — fist sweeps from low to high
+    // Knight: upward arc — fist sweeps from low to high
     let ang, reachFrac = 1;
     if (this.charClass === 'megaknight') {
       ang = this.facing > 0
@@ -2634,9 +2814,32 @@ class Fighter {
     };
   }
 
-  // Returns 3 points along the weapon swing arc for broad hitbox coverage.
+  // Length of the DRAWN weapon past the hand, in unscaled figure px. tipLen
+  // predates the sprite art and is far shorter than what drawWeapon() paints
+  // (a sword's tipLen is 26; its art runs ~77px past the hand), so swings hit
+  // only near the fist while the blade visibly passed through people. Sprite
+  // art is WEAPON_SPRITE_DEFS len gripped at `anchor`, scaled by drawWeapon's
+  // weapScale (1.5, bosses 1). Never shorter than tipLen: no weapon loses reach.
+  _meleeBladeLen() {
+    const _swg = (typeof WEAPON_SWINGS !== 'undefined') ? WEAPON_SWINGS[this.weaponKey] : null;
+    const tip  = (_swg && _swg.tipLen) || MELEE_TIP_LENS[this.weaponKey] || 23;
+    const def  = (typeof WEAPON_SPRITE_DEFS !== 'undefined') ? WEAPON_SPRITE_DEFS[this.weaponKey] : null;
+    const art  = def ? def.len * (1 - def.anchor) * (this.isBoss ? 1 : 1.5) : 0;
+    return Math.max(tip, art);
+  }
+
+  // Grip tilt drawWeapon() rotates the art by while attacking, mirrored with
+  // facing so the blade sits where it is drawn on both sides.
+  _meleeBladeTilt() {
+    const _swg = (typeof WEAPON_SWINGS !== 'undefined') ? WEAPON_SWINGS[this.weaponKey] : null;
+    const t = (_swg && _swg.tilt !== undefined) ? _swg.tilt : 0.6;
+    return this.facing < 0 ? -t : t;
+  }
+
+  // Returns points along the weapon swing arc for broad hitbox coverage.
   // Includes the inner arm, mid-arc, and tip — so enemies right next to the
-  // attacker or slightly misaligned still get hit.
+  // attacker or slightly misaligned still get hit — plus samples along the
+  // drawn blade, so anything the visible weapon passes through is hit.
   _getMeleeArcPoints() {
     if (this.attackTimer < 0) return [];
     const cx        = this.cx();
@@ -2644,9 +2847,8 @@ class Fighter {
     const _sc2      = this.drawScale || 1;
     const armLen    = FIG_ARM_LEN * _sc2;
     const atkP      = 1 - this.attackTimer / this.attackDuration;
-    const tipLens = { sword: 26, hammer: 30, axe: 23, spear: 40, gauntlet: 22, mkgauntlet: 30, whip: 50, flail: 28 };
     const _swg2   = (typeof WEAPON_SWINGS !== 'undefined') ? WEAPON_SWINGS[this.weaponKey] : null;
-    const wLen    = ((_swg2 && _swg2.tipLen) || tipLens[this.weaponKey] || 23) * _sc2;
+    const wLen    = ((_swg2 && _swg2.tipLen) || MELEE_TIP_LENS[this.weaponKey] || 23) * _sc2;
     // Sample inner (50%), mid (75%), and tip (100%) along the weapon; whip adds extra outer sample
     const fracs = (_swg2 && _swg2.hitFracs) || (this.weaponKey === 'whip' ? [0.40, 0.65, 0.85, 1.0] : [0.50, 0.75, 1.0]);
 
@@ -2674,6 +2876,9 @@ class Fighter {
       }
     }
     const pts = [];
+    const bladeLen = this._meleeBladeLen() * _sc2;
+    const tilt     = this._meleeBladeTilt();
+    const nBlade   = Math.max(1, Math.ceil(bladeLen / MELEE_BLADE_STEP));
     for (const pose of poses) {
       const fullReach = (armLen + wLen) * pose.reachFrac;
       for (const frac of fracs) {
@@ -2681,6 +2886,16 @@ class Fighter {
           x: cx        + Math.cos(pose.ang) * fullReach * frac,
           y: shoulderY + Math.sin(pose.ang) * fullReach * frac,
         });
+      }
+      // The drawn blade: from the hand (arm stretched as draw() stretches it
+      // for thrusts), rotated by the grip tilt, out to the art's tip.
+      const armR = armLen * (pose.reachFrac !== 1 ? 0.65 + 0.5 * pose.reachFrac : 1);
+      const hx = cx        + Math.cos(pose.ang) * armR;
+      const hy = shoulderY + Math.sin(pose.ang) * armR;
+      const bc = Math.cos(pose.ang + tilt), bs = Math.sin(pose.ang + tilt);
+      for (let i = 1; i <= nBlade; i++) {
+        const d = bladeLen * i / nBlade;
+        pts.push({ x: hx + bc * d, y: hy + bs * d });
       }
     }
     return pts;
@@ -2691,14 +2906,26 @@ class Fighter {
   // from cx(); a hit lands once that tip enters the target box (+half-width +pad).
   // This is FAR shorter than the AI's loose `weapon.range*1.1+20` commit band —
   // the gap is what made bots whiff (and eat the harsh whiff-punish) constantly.
+  // The drawn-blade samples usually reach further than the arm line, so this
+  // takes the furthest forward any blade point gets across the swing.
   _meleeReachDist(tgt) {
     const sc  = this.drawScale || 1;
-    const _tl = { sword: 26, hammer: 30, axe: 23, spear: 40, gauntlet: 22, mkgauntlet: 30, whip: 50, flail: 28 };
     const _swg = (typeof WEAPON_SWINGS !== 'undefined') ? WEAPON_SWINGS[this.weaponKey] : null;
-    const wLen = ((_swg && _swg.tipLen) || _tl[this.weaponKey] || 23) * sc;
+    const wLen = ((_swg && _swg.tipLen) || MELEE_TIP_LENS[this.weaponKey] || 23) * sc;
     const armLen = FIG_ARM_LEN * sc;
+    const blade  = this._meleeBladeLen() * sc;
+    const tilt   = Math.abs(this._meleeBladeTilt());
+    let reach = armLen + wLen;
+    for (let i = 0; i <= 8; i++) {
+      const p = i / 8;
+      const pose = this.charClass === 'megaknight'
+        ? { ang: lerp(1.2, -1.1, p), reachFrac: 1 }
+        : swingPose(this.weaponKey, p, 1, this._jabAlt);
+      const armR = armLen * (pose.reachFrac !== 1 ? 0.65 + 0.5 * pose.reachFrac : 1);
+      reach = Math.max(reach, Math.cos(pose.ang) * armR + Math.cos(pose.ang + tilt) * blade);
+    }
     const tgtHalf = tgt ? tgt.w * 0.5 : 14;
-    return (armLen + wLen) + tgtHalf + 8; // +8 ≈ hitPad + arc-forgiveness slack
+    return reach + tgtHalf + 8; // +8 ≈ hitPad + arc-forgiveness slack
   }
 
   // ── WHIP SWEET SPOT ───────────────────────────────────────────────────────────
@@ -2758,9 +2985,14 @@ class Fighter {
     if (this.state === 'dead' || this.state === 'stunned' || this.state === 'ragdoll') return;
     if (this.cooldown > 0 || this.health <= 0 || this.stunTimer > 0 || this.ragdollTimer > 0) return;
     if (!this.isBoss && this.attackEndlag > 0) return; // enforced swing recovery window
-    if (this.shielding) return;
+    if (this.shielding) {
+      // Attack out of shield ('pool'): the swing drops the guard. With BLOCK_ENDLAG
+      // on the blocked attacker this is the counter a successful block earns.
+      if (SHIELD_RULES !== 'pool' || this._brShieldTimer > 0) return;
+      this.shielding = false; this.shieldHoldTimer = 0; this._shieldOosLatch = true;
+    }
 
-    // MEGAKNIGHT: Uppercut Slam — upward fist swing, wide arc, sends enemies skyward
+    // KNIGHT: Uppercut Slam — upward fist swing, wide arc, sends enemies skyward
     if (this.charClass === 'megaknight') {
       this.cooldown     = this.attackCooldownMult ? Math.max(1, Math.ceil(this.weapon.cooldown * this.attackCooldownMult)) : this.weapon.cooldown;
       this.attackDuration = 12; // reset in case a cinematic stretched it
@@ -2774,7 +3006,7 @@ class Fighter {
         const relX = f.cx() - this.cx();
         const relY = f.cy() - this.cy();
         // Wide upward arc in front — 185px range, generous vertical tolerance.
-        // Deliberately absurd: Megaknight is a troll class, not a balance target.
+        // Deliberately absurd: Knight is a troll class, not a balance target.
         if (Math.hypot(relX, relY) < 185 && (relX * this.facing > -50)) {
           dealDamage(this, f, this.weapon.damage, this.weapon.kb);
           // Governed launch — repeated uppercuts inside the window decay so the
@@ -2786,7 +3018,7 @@ class Fighter {
       }
       // NOTE: this branch deliberately returns before the shared swing-recovery
       // block, so Uppercut Slam has no endlag and no stamina cost. That is not an
-      // oversight — Megaknight is a joke class and is barred from boss fights
+      // oversight — Knight is a joke class and is barred from boss fights
       // (see the troll-class bar in _startGameCore). Do not "fix" it.
 
       // Upward arc particle burst
@@ -2798,6 +3030,21 @@ class Fighter {
     }
 
     if (!this.weapon) return;
+
+    const _fcNow    = typeof frameCount !== 'undefined' ? frameCount : 0;
+    const _chainKey = this.onGround ? 'g' : 'a';
+    const _chained  = !this.isBoss && this.weapon.type === 'melee' && this._basicChainKey === _chainKey &&
+                      _fcNow <= (this._basicChainReadyAt || 0) + BASIC_CHAIN_RESET;
+    // Still armed = the previous swing never dealt damage, so the run is broken.
+    if (!this.isBoss && this.weapon.type === 'melee' && (!_chained || this._basicChainArmed)) this._basicChainN = 0;
+    if (_chained && this._basicChainN >= BASIC_CHAIN_MAX) {
+      if (!this.isAI && _fcNow - (this._basicChainToldAt || -999) > 40 && settings.dmgNumbers &&
+          typeof DamageText !== 'undefined') {
+        this._basicChainToldAt = _fcNow;
+        damageTexts.push(new DamageText(this.cx(), this.y - 30, 'SWITCH IT UP', '#aaaaaa'));
+      }
+      return;
+    }
 
     // ── AI MELEE WHIFF-GUARD ────────────────────────────────────────────
     // The melee hitbox is a swept weapon-tip arc whose real reach is only
@@ -2835,6 +3082,14 @@ class Fighter {
         const _vGap    = Math.abs((this.y + this.h / 2) - (_gT.y + _gT.h / 2));
         if (_projGap > this._meleeReachDist(_gT) || _vGap > 60) return;
       }
+    }
+
+    if (!this.isBoss && this.weapon.type === 'melee') {
+      // Counted in dealDamage() when this swing lands — see BASIC_CHAIN_MAX.
+      this._basicChainArmed = true;
+      this._basicChainKey = _chainKey;
+      this._basicChainReadyAt = _fcNow + (this.attackCooldownMult
+        ? Math.ceil(this.weapon.cooldown * this.attackCooldownMult) : this.weapon.cooldown);
     }
 
     // Weapons with a bespoke basic attack (smb-weapons-ext.js). Returning true
@@ -2984,6 +3239,7 @@ class Fighter {
     this.cooldown    = this.attackCooldownMult ? Math.max(1, Math.ceil(this.weapon.cooldown * this.attackCooldownMult)) : this.weapon.cooldown;
     this._attackStartFrame = (typeof frameCount !== 'undefined' ? frameCount : 0);
     this._attackKindTier   = CLASH_TIER_ATTACK; // see _clashTier()
+    this._blockedEndlag    = 0;                 // a cut-off swing's block penalty never carries over
     this.attackTimer = this.attackDuration;
 
     // ── MELEE LUNGE ────────────────────────────────────────────────────────
@@ -3022,8 +3278,10 @@ class Fighter {
     if (this.shielding) return;
     // Abilities out-rank ordinary swings in a clash — see _clashTier().
     this._attackKindTier   = CLASH_TIER_ABILITY;
+    this._basicChainN      = 0;
+    this._basicChainArmed  = false;
     this._attackStartFrame = (typeof frameCount !== 'undefined' ? frameCount : 0);
-    // MEGAKNIGHT class override: Q = Grand Slam — spinning slam that craters nearby enemies upward
+    // KNIGHT class override: Q = Grand Slam — spinning slam that craters nearby enemies upward
     if (this.charClass === 'megaknight') {
       this.abilityCooldown  = 80;
       this.abilityCooldown2 = 80;
@@ -3052,7 +3310,11 @@ class Fighter {
     if (!_safeTarget) return; // no valid target — don't fire ability (avoids null crash in weapon ability functions)
     if (!this.weapon || typeof this.weapon.ability !== 'function') return; // weapon not loaded yet
     this._abilityCdOverride = null;
-    this.weapon.ability(this, _safeTarget);
+    // Scripted move scene (smb-move-scenes.js); the weapon's own ability is
+    // handed over as the effect the scene fires at its release frame.
+    const _scene = typeof MoveScene !== 'undefined' &&
+      MoveScene.begin(this, 'q', _safeTarget, () => this.weapon.ability(this, _safeTarget));
+    if (!_scene) this.weapon.ability(this, _safeTarget);
     // An ability may set its own cooldown for this press (multi-press abilities
     // like Drop Anchor, or a deferred throw like the sticky bomb).
     if (this._abilityCdOverride != null) {
@@ -3061,13 +3323,30 @@ class Fighter {
     } else {
       this.abilityCooldown = Math.round(this.weapon.abilityCooldown * (this._weaponAbilityCdMult || 1));
     }
-    this.attackTimer     = this.attackDuration * 2;
+    // A scene poses the body itself; a live attackTimer would also arm the swing hitbox.
+    this.attackTimer     = _scene ? 0 : this.attackDuration * 2;
     abilityFlashTimer = 14; abilityFlashPlayer = this;
   }
 
   // Dedicated super / ultimate activation (separate button from Q)
   useSuper(target) {
-    if (this.state === 'dead' || this.stunTimer > 0 || this.ragdollTimer > 0) return;
+    if (this.state === 'dead' || this.ragdollTimer > 0) return;
+    if (this.stunTimer > 0) {
+      if (this.superReady && !this._storyNoSuper && !this.isBoss &&
+          !(typeof activeFinisher !== 'undefined' && activeFinisher)) {
+        // Two presses: the first arms the burst, the second (inside the
+        // window) fires it, so a stray super press mid-combo can't burn the meter.
+        const _nowF = (typeof frameCount !== 'undefined' ? frameCount : 0);
+        if (_nowF <= (this._burstArmUntil ?? -1)) {
+          this._burstArmUntil = -1;
+          this.burst();
+        } else {
+          this._burstArmUntil = _nowF + BURST_CONFIRM_WINDOW;
+          spawnParticles(this.cx(), this.cy(), '#ffffff', 6);
+        }
+      }
+      return;
+    }
     // No super while a finisher is running, for either fighter. The keydown
     // guard in smb-input.js covers the player path; this covers every caller.
     if (typeof activeFinisher !== 'undefined' && activeFinisher) return;
@@ -3076,9 +3355,80 @@ class Fighter {
     this.activateSuper(target);
   }
 
+  // AI burst decision. Rolls once per hit taken (so a reroll every frame can't
+  // turn a small chance into a certainty), then waits out a reaction delay.
+  // Only worth the meter when the attacker is inside the push radius and has
+  // strung hits together — a single stray hit's stun ends on its own.
+  _aiBurstDanger() {
+    const a = this._lastAttacker;
+    const _fc = (typeof frameCount !== 'undefined') ? frameCount : 0;
+    if (!a || a.health <= 0 || _fc - (this._lastAttackerFrame || 0) > 45) return null;
+    const dx = a.cx() - this.cx(), dy = a.cy() - this.cy();
+    if (dx * dx + dy * dy > BURST_RADIUS * BURST_RADIUS) return null;
+    return { attacker: a, combo: a._comboHitCount || 0, since: _fc - this._lastAttackerFrame };
+  }
+
+  _aiWantsBurst() {
+    const d = this._aiBurstDanger();
+    if (!d) return false;
+    const cfg = this.aiDiff === 'easy'   ? { combo: 4, chance: 0.25, delay: 16 }
+              : this.aiDiff === 'medium' ? { combo: 3, chance: 0.45, delay: 11 }
+              : this.aiDiff === 'hard'   ? { combo: 2, chance: 0.65, delay: 7 }
+              :                            { combo: 2, chance: 0.85, delay: 4 };
+    if (d.combo < cfg.combo) return false;
+    if (this._burstRollFrame !== this._lastAttackerFrame) {
+      this._burstRollFrame = this._lastAttackerFrame;
+      this._burstRollPass  = Math.random() < cfg.chance;
+    }
+    return this._burstRollPass && d.since >= cfg.delay;
+  }
+
+  // Combo breaker. Stun is the only state it answers: a launch (ragdoll) is
+  // the attacker's payoff and still commits the victim.
+  burst() {
+    const _nowF = (typeof frameCount !== 'undefined' ? frameCount : 0);
+    this.superMeter  = 0;
+    this.superReady  = false;
+    this.stunTimer   = 0;
+    this.hurtTimer   = 0;
+    // Clear the last hit's attribution so _hitIframesLetThrough() can't let
+    // that attacker's next action through these i-frames.
+    this._hitIframeBy = null;
+    this.invincible  = Math.max(this.invincible || 0, BURST_IFRAMES);
+    // Pays like a landed super, minus the damage: one domain charge (not inside
+    // your own domain, same as activateSuper) and a reduced heal.
+    const _inOwnDomain = typeof DomainManager !== 'undefined'
+      && typeof DomainManager.ownsDomain === 'function' && DomainManager.ownsDomain(this);
+    if (!_inOwnDomain) this._domainSuperCount = (this._domainSuperCount || 0) + 1;
+    const _heal = Math.min(BURST_HEAL, this.maxHealth - this.health);
+    if (_heal > 0) {
+      this.health += _heal;
+      damageTexts.push(new DamageText(this.cx(), this.y - 30, '+' + _heal, '#44ff88'));
+    }
+    // Knockback only — no dealDamage(), so no damage, stun or i-frames on them.
+    const _all = [...players, ...trainingDummies, ...minions];
+    for (const f of _all) {
+      if (!isHostileTarget(this, f) || f.godmode) continue;
+      const _dx = f.cx() - this.cx(), _dy = f.cy() - this.cy();
+      if (_dx * _dx + _dy * _dy > BURST_RADIUS * BURST_RADIUS) continue;
+      const _dir = _dx === 0 ? -this.facing : Math.sign(_dx);
+      f.vx = _dir * BURST_KB_X;
+      f.vy = Math.min(f.vy || 0, -BURST_KB_Y);
+      f._comboHitCount = 0; // their string is over; the next hit starts a new one
+    }
+    this.vy = Math.min(this.vy || 0, 0);
+    if (!this.isAI) { _achStats.superCount++; if (_achStats.superCount >= 10) unlockAchievement('super_saver'); }
+    screenShake = Math.max(screenShake, 14);
+    spawnParticles(this.cx(), this.cy(), '#ffffff', 24);
+    spawnParticles(this.cx(), this.cy(), this.color, 20);
+    if (typeof SoundManager !== 'undefined' && SoundManager.superActivate) SoundManager.superActivate();
+  }
+
   activateSuper(target) {
     // Supers out-rank abilities and swings in a clash — see _clashTier().
     this._attackKindTier   = CLASH_TIER_SUPER;
+    this._basicChainN      = 0;
+    this._basicChainArmed  = false;
     this._attackStartFrame = (typeof frameCount !== 'undefined' ? frameCount : 0);
     // ── Conviction: after 4 LANDED supers, the next super is the domain ──
     // A super only counts once it connects: dealDamage() credits
@@ -3118,7 +3468,7 @@ class Fighter {
       return;
     }
 
-    // MEGAKNIGHT super: Mega Jump — massive leap into the sky, shockwave on landing
+    // KNIGHT super: Mega Jump — massive leap into the sky, shockwave on landing
     if (this.charClass === 'megaknight') {
       this._megaJumping    = true;
       this._megaJumpLanded = false;
@@ -3127,13 +3477,13 @@ class Fighter {
       this.superMeter      = 0;
       this.superReady      = false;
       this.superActive     = true; // block super meter charging from landing shockwave
-      this.invincible      = Math.max(this.invincible, 120);
+      this._superArmorUntil = Math.max(this._superArmorUntil || 0, frameCount + 120);
       screenShake = Math.max(screenShake, 20);
       spawnParticles(this.cx(), this.y + this.h, '#8844ff', 32);
       spawnParticles(this.cx(), this.y + this.h, '#cc88ff', 18);
       spawnParticles(this.cx(), this.y + this.h, '#ffffff', 10);
       SoundManager.explosion && SoundManager.explosion();
-      setTimeout(() => { if (this) this.superActive = false; }, 3000); // fallback: MegaKnight may not land (e.g. falls off-map)
+      setTimeout(() => { if (this) this.superActive = false; }, 3000); // fallback: Knight may not land (e.g. falls off-map)
       return;
     }
     // The heal is paid by dealDamage() on the super's first connecting hit. Paid
@@ -3152,7 +3502,7 @@ class Fighter {
     spawnParticles(this.cx(), this.cy(), '#ffd700',    12);
     this.attackTimer = this.attackDuration * 3;
     this.weaponHit   = false;
-    if (!this.isBoss) this.invincible = Math.max(this.invincible, 90); // 1.5s i-frames on super
+    if (!this.isBoss) this._superArmorUntil = Math.max(this._superArmorUntil || 0, frameCount + 90); // 1.5s super armor
     // Resolve a safe target — target arg may be undefined in solo/training modes
     const _superTarget = target || this.target || trainingDummies[0] || players.find(p => p !== this && p.health > 0);
     const superMoves = {
@@ -3331,7 +3681,7 @@ class Fighter {
           fire:      false,  // set by the attack key (smb-input.js) to commit early
         };
         if (_csTgt) this.facing = _csTgt.cx() > this.cx() ? 1 : -1;
-        this.invincible = Math.max(this.invincible || 0, 55);
+        this._superArmorUntil = Math.max(this._superArmorUntil || 0, frameCount + 55);
         screenShake = Math.max(screenShake, 10);
         spawnParticles(this.cx(), this.cy(), '#ff4444', 14);
         spawnParticles(this.cx(), this.cy(), '#ffffff', 6);
@@ -3570,11 +3920,18 @@ class Fighter {
         }
       }
     };
-    if (!superMoves[this.weaponKey] && this.weapon && typeof this.weapon.superMove === 'function') {
-      this.weapon.superMove(this, _superTarget);
+    const _fireSuper = () => {
+      if (!superMoves[this.weaponKey] && this.weapon && typeof this.weapon.superMove === 'function') {
+        this.weapon.superMove(this, _superTarget);
+        return;
+      }
+      (superMoves[this.weaponKey] || superMoves.sword)();
+    };
+    if (typeof MoveScene !== 'undefined' && MoveScene.begin(this, 'e', _superTarget, _fireSuper)) {
+      this.attackTimer = 0;
       return;
     }
-    (superMoves[this.weaponKey] || superMoves.sword)();
+    _fireSuper();
   }
 
   // ---- AI ----
@@ -3636,6 +3993,13 @@ class Fighter {
     const adx = Math.abs(dx);
     if (adx > 340) return false;                       // a walk problem, not a climb
     if ((this._aiClimbCd || 0) > 0) { this._aiClimbCd--; return false; }
+    if (this._aiClimbSteer) return true;               // a hop-and-drift is already under way
+
+    // Narrow perches reachable only by jumping straight up a gap and drifting
+    // over once the feet clear the lip (the vault shaft's escape stub). A fixed-
+    // drift arc clips the perch's underside, so the arc check below never
+    // passes and the bot parks under the player forever.
+    if (adx < 220 && this._aiPlanHopDrift(t, spd)) return true;
 
     const dir = adx < 12 ? (this.facing || 1) : (dx > 0 ? 1 : -1);
     if (adx > 40 && typeof this.isEdgeDanger === 'function' && this.isEdgeDanger(dir)) return false;
@@ -3679,6 +4043,103 @@ class Fighter {
   }
 
   /**
+   * Plan a two-stage climb: walk to a takeoff spot, jump straight up for k
+   * frames, then hold a fixed drift until landing. Simulated with the fighter's
+   * whole body box and the arena's real gravity (pfSimulateArc is a single
+   * point at 0.65, which can't tell whether a 32px body fits up a 56px gap).
+   * Only a plan that lands on the target's own surface is accepted. On success
+   * stores this._aiClimbSteer, which _aiTickClimbSteer() flies every frame.
+   */
+  _aiPlanHopDrift(t, spd) {
+    if (!currentArena || !currentArena.platforms) return false;
+    const w = this.w, h = this.h;
+    const f0 = this.y + this.h;
+    const tFeet = t.y + t.h;
+    const tcx = t.cx();
+    const g = currentArena.isLowGravity ? 0.28 : currentArena.isHeavyGravity ? 0.95
+      : currentArena.earthPhysics ? 0.88 : 0.65;
+    const lo = Math.min(this.x, t.x) - 360, hi = Math.max(this.x, t.x) + 360;
+    const pls = currentArena.platforms.filter(pl => !pl.isFloorDisabled && pl.x < hi && pl.x + pl.w > lo);
+    const boxHit = (x, feet) => {
+      for (const pl of pls) {
+        if (x + w > pl.x && x < pl.x + pl.w && feet > pl.y && feet - h < pl.y + (pl.h || 20)) return true;
+      }
+      return false;
+    };
+    const standsAt = (x) => pls.some(pl => Math.abs(pl.y - f0) < 3 && x + w * 0.5 > pl.x && x + w * 0.5 < pl.x + pl.w);
+    const sim = (x0, k, dvx) => {
+      let x = x0, y = f0, vy = -20;
+      for (let f = 0; f < 110; f++) {
+        const py = y;
+        vy += g;
+        x += f >= k ? dvx : 0;
+        y += vy;
+        if (vy > 0) {
+          for (const pl of pls) {
+            if (x + w > pl.x && x < pl.x + pl.w && py <= pl.y + 1 && y >= pl.y) {
+              return (Math.abs(pl.y - tFeet) < 4 && tcx > pl.x && tcx < pl.x + pl.w &&
+                      Math.abs(x + w * 0.5 - tcx) < 60) ? true : false;
+            }
+          }
+        }
+        if (boxHit(x, y)) return false;
+      }
+      return false;
+    };
+
+    // Takeoff candidates: where we stand, then a fan around the target.
+    const cands = [this.x];
+    for (let off = -96; off <= 96; off += 12) cands.push(tcx + off - w * 0.5);
+    for (const x0 of cands) {
+      if (Math.abs(x0 - this.x) > 200 || !standsAt(x0) || boxHit(x0, f0 - 1)) continue;
+      // The walk there must not pass through a wall.
+      const step = x0 > this.x ? 12 : -12;
+      let clear = true;
+      for (let x = this.x; step > 0 ? x < x0 : x > x0; x += step) {
+        if (boxHit(x, f0 - 1) || !standsAt(x)) { clear = false; break; }
+      }
+      if (!clear) continue;
+      const ddir = tcx >= x0 + w * 0.5 ? 1 : -1;
+      for (const k of [4, 8, 12, 16, 20, 26]) {
+        for (const m of [0.35, 0.6, 0.9]) {
+          const dvx = ddir * spd * m;
+          if (sim(x0, k, dvx)) {
+            this._aiClimbSteer = { walkTo: x0, k, vx: dvx, n: 0, air: -1 };
+            return true;
+          }
+        }
+      }
+    }
+    this._aiClimbCd = 3;
+    return false;
+  }
+
+  /**
+   * Per-frame driver for a planned hop-and-drift (see _aiPlanHopDrift). Runs
+   * every frame because a 15-frame AI tick can't hit a 12px takeoff spot or
+   * hold a drift against air friction.
+   */
+  _aiTickClimbSteer() {
+    const s = this._aiClimbSteer;
+    if (!s) return;
+    const t = this.target;
+    if (++s.n > 150 || !t || t.health <= 0 || this.hurtTimer > 0 || this.stunTimer > 0) { this._aiClimbSteer = null; return; }
+    if (s.air < 0) {
+      if (!this.onGround) { this._aiClimbSteer = null; return; }
+      const dx = s.walkTo - this.x;
+      if (Math.abs(dx) > 3) { this.vx = Math.sign(dx) * Math.min(Math.abs(dx), 5); return; }
+      this.x = s.walkTo;
+      this.vx = 0;
+      this.vy = -20;
+      s.air = 0;
+      return;
+    }
+    s.air++;
+    if (s.air > 2 && this.onGround) { this._aiClimbSteer = null; this._aiClimbCd = 1; return; }
+    this.vx = s.air >= s.k ? s.vx : 0;
+  }
+
+  /**
    * Drop onto a target standing below us.
    *
    * The mirror of _aiClimbToward, and the other half of the ledge exploit: a
@@ -3711,6 +4172,28 @@ class Fighter {
         if (vy0) this.vy = vy0;
         this._aiDropCd = 2;
         return true;
+      }
+    }
+    // Mid-ledge, every arc above "lands" back on our own surface on frame 1, so
+    // a bot on a wide ledge right over the player never came down (story
+    // levels are full of these). Simulate stepping off each edge instead, and
+    // walk toward the first edge whose drop lands beside the target.
+    const pls = currentArena.platforms;
+    const own = pls.findIndex(q => q && !q.isFloorDisabled && Math.abs(q.y - feet) < 3 &&
+                                   this.x + this.w > q.x && this.x < q.x + q.w);
+    if (own >= 0) {
+      const q = pls[own];
+      const near = (this.cx() - q.x) < (q.x + q.w - this.cx()) ? -1 : 1;
+      for (const edir of [near, -near]) {
+        const ex = edir > 0 ? q.x + q.w + 2 : q.x - 2;
+        for (const mul of [0.45, 0.75]) {
+          const r = pfSimulateArc(ex, feet, edir * spd * mul, 0, currentArena, false, own, 120);
+          if (r && r.landed && Math.abs(r.y - tFeet) < 26 && Math.abs(r.x - t.cx()) < 140) {
+            this.vx = edir * spd * mul;
+            this._aiDropCd = 0;   // keep steering to the edge on the next tick
+            return true;
+          }
+        }
       }
     }
     this._aiDropCd = 3;
@@ -3761,7 +4244,12 @@ class Fighter {
     s.avoid_hazard = clampedHeat > 0.30 ? clampedHeat * hazardW * (1 + (1 - hpPct) * 0.3) : 0;
 
     // RECOVER: steer to platform when falling
-    s.recover = (!this.onGround && this.vy > 1 && this.y > GAME_H * 0.50) ? 0.96 : 0;
+    // Also when nothing is underneath: on low-gravity stages a long jump drifts
+    // past the edge while still high, and waiting for mid-screen is too late.
+    const _cxNow = this.cx(), _feet = this.y + this.h - 4;
+    const _overGround = !this.onGround && this.vy > 1 && currentArena.platforms.some(pl =>
+      !pl.isFloorDisabled && _cxNow >= pl.x && _cxNow <= pl.x + pl.w && pl.y >= _feet);
+    s.recover = (!this.onGround && this.vy > 1 && (this.y > GAME_H * 0.50 || !_overGround)) ? 0.96 : 0;
 
     // RETREAT: only when critically low HP (< 20%) and healthy enemy very close
     s.retreat = (hpPct < 0.12 && d < 160)
@@ -3940,6 +4428,67 @@ class Fighter {
     const lethalFall = currentArena.hasLava || currentArena.isVoidArena ||
       (bossFloorState === 'hazard' && bossFloorType === 'void');
     if (!lethalFall) return;
+
+    // Lava well (feet below every deck): climb out the way a human does. One
+    // bounce apex sits ~70px under the lowest deck, so the exit is bounce ->
+    // lava-grace ground jump -> double jump, each spent at an apex, rising in
+    // the open gap BESIDE a deck (decks are solid from below and cover most of
+    // the well, so a straight-up jump bonks). The generic branch below fired
+    // the double jump the instant we fell toward the lava — the same frame as
+    // the bounce — and steered to deck centres, i.e. under them: bots bounced
+    // in place until they burned (0/56 escapes, measured 2026-09-26).
+    if (this.onGround) this._lavaDeck = null;
+    if (currentArena.hasLava && currentArena.lavaY && !this.onGround) {
+      const footY = this.y + this.h;
+      const decks = currentArena.platforms.filter(pl => !pl.isFloorDisabled && pl.y < currentArena.lavaY);
+      let lowestTop = -Infinity;
+      for (const pl of decks) if (pl.y > lowestTop) lowestTop = pl.y;
+      if (decks.length && (footY > lowestTop || this._lavaDeck)) {
+        // A deck overhead that the head would hit before the feet clear `topY`.
+        const roofed = (x0, x1, topY) => decks.some(p => x1 > p.x && x0 < p.x + p.w &&
+          p.y + p.h <= this.y + 2 && p.y + p.h > topY - this.h - 6);
+        // Pick the nearest open column beside any low deck. On the stock lava
+        // map the upper decks roof every inner gap, so this is a wall column.
+        if (!this._lavaDeck || !decks.includes(this._lavaDeck.pl)) {
+          const b = this._aiWorldBounds(), hw = this.w / 2;
+          let best = null, bestD = Infinity;
+          for (const pl of decks) {
+            if (pl.y < lowestTop - 60) continue;   // high decks: out of reach from the lava
+            for (const c of [pl.x - hw - 4, pl.x + pl.w + hw + 4]) {
+              if (c - hw < b.left || c + hw > b.right) continue;
+              if (decks.some(p => c + hw > p.x && c - hw < p.x + p.w && p.y > pl.y - this.h && p.y < currentArena.lavaY)) continue;
+              if (roofed(c - hw, c + hw, pl.y)) continue;
+              const d = Math.abs(c - this.cx());
+              if (d < bestD) { bestD = d; best = { pl, colX: c }; }
+            }
+          }
+          this._lavaDeck = best;
+        }
+        if (!this._lavaDeck) return;
+        const pl = this._lavaDeck.pl;
+        let aimX;
+        if (footY > pl.y - 4) {
+          aimX = this._lavaDeck.colX;   // below the surface: rise in the open column
+        } else {
+          aimX = Math.max(pl.x + 24, Math.min(pl.x + pl.w - 24, this.cx()));
+        }
+        const spd = this.aiDiff === 'easy' ? 3.4 : this.aiDiff === 'medium' ? 4.4 : this.aiDiff === 'hard' ? 5.0 : 5.6;
+        this.vx = Math.max(-spd * 2.4, Math.min(spd * 2.4, (aimX - this.cx()) * 0.3));
+        const mk = this.charClass === 'megaknight';
+        const nearLava = footY > currentArena.lavaY - 30 && this.vy > 0;
+        if (this.vy >= -1 && !nearLava && Math.abs(aimX - this.cx()) < 24 && !roofed(this.x, this.x + this.w, pl.y)) {
+          if (this._lavaJumpGrace > 0) {
+            this.vy = mk ? -22 : -17;
+            this.canDoubleJump = true;
+            this._lavaJumpGrace = 0;
+          } else if (this.canDoubleJump && !this._noDoubleJump) {
+            this.vy = mk ? -16 : -13;
+            this.canDoubleJump = false;
+          }
+        }
+        return;
+      }
+    }
 
     // Only act when airborne and falling
     if (this.onGround || this.vy <= 0.5) return;
@@ -4245,6 +4794,17 @@ class Fighter {
 
           }
 
+          // Waypoint steering also runs mid-air, where a ground-level heading can
+          // carry a long low-gravity jump clean past the stage. Keep a heading
+          // whose arc still lands; otherwise take the first one that does.
+          if (!this.onGround && typeof pfSimulateArc === 'function') {
+            const _lands = vx => pfSimulateArc(this.cx(), this.y + this.h, vx, this.vy, currentArena, false, -1, 160).landed;
+            if (!_lands(this.vx)) {
+              const _alt = [0, -this.vx].find(_lands);
+              if (_alt !== undefined) this.vx = _alt;
+            }
+          }
+
         } else {
           // ── 3. Heuristic fallback (no graph / no path found) ──────
           const voidFwd = !storyModeActive && typeof pfVoidAhead === 'function' && pfVoidAhead(this, dir);
@@ -4295,16 +4855,7 @@ class Fighter {
     // Only shield when stacks are low (shield still effective); bots won't spam a depleted shield
     if (t && this.aiDiff !== 'easy' && t.attackTimer > 0 && d < 110 &&
         (this.shieldStacks || 0) <= 2 && Math.random() < 0.22) {
-      if ((this.shieldHoldTimer || 0) === 0) {
-        const _aiStacks = (this.shieldStacks || 0) + 1;
-        this.shieldStacks        = _aiStacks;
-        this.shieldRechargeTimer = 180;
-        if (_aiStacks <= 3) {
-          const _aiHPTable = [30, 15, 5];
-          this.shieldHP = _aiHPTable[_aiStacks - 1] || 0;
-        }
-      }
-      this.shielding = true;
+      if ((this.shieldHoldTimer || 0) !== 0 || shieldRaise(this)) this.shielding = true;
       setTimeout(() => { this.shielding = false; this.shieldHoldTimer = 0; this.shieldBroken = false; }, 320);
     }
 
@@ -4323,6 +4874,30 @@ class Fighter {
     // Reaction lag now handled by _pendingAction system (see above).
     // Rare stun pause for easy bots only (simulates brief confusion)
     if (this.aiDiff === 'easy' && Math.random() < 0.04) this.aiReact = 3 + Math.floor(Math.random() * 4);
+  }
+
+  // Caps a grounded AI's speed on ice so the glide stops before an edge that
+  // drops into the void. Edges over a lower platform are left alone so bots
+  // can still step down.
+  _aiIceBrake() {
+    const foot = this.y + this.h, cx = this.cx(), dir = this.vx > 0 ? 1 : -1;
+    let under = null;
+    for (const pl of currentArena.platforms) {
+      if (pl.isFloorDisabled) continue;
+      if (cx >= pl.x && cx <= pl.x + pl.w && foot >= pl.y - 8 && foot <= pl.y + 22) { under = pl; break; }
+    }
+    if (!under) return;
+    const edgeX = dir > 0 ? under.x + under.w : under.x;
+    const pastX = edgeX + dir * (this.w * 0.5 + 12);
+    for (const pl of currentArena.platforms) {
+      if (pl === under || pl.isFloorDisabled) continue;
+      if (pastX > pl.x && pastX < pl.x + pl.w && pl.y > foot - 8) return;
+    }
+    const fricMult = (currentArena.modifiers && currentArena.modifiers.frictionMult) || 1.0;
+    const fric = 1 - (1 - 0.975) * fricMult;
+    const room = Math.max(0, (edgeX - cx) * dir - this.w * 0.5 - 6);
+    const maxV = room * (1 - fric) / fric;
+    if (Math.abs(this.vx) > maxV) this.vx = dir * maxV;
   }
 
   // Returns true if moving in 'dir' (±1) would walk the AI off a platform
@@ -4426,7 +5001,10 @@ class Fighter {
     // waypoint (a chest, a rift, the inside of the ring) dressed as a target, and
     // re-acquiring "nearest living thing" here threw that waypoint away mid-route.
     // BR clears the flag itself the moment it wants the bot fighting again.
-    if (!this._brNavLock) {
+    // BR bots skip the sweep entirely: BR re-picks their target every 12 frames
+    // under its pile-on cap, and this sweep's "any player within 350px wins"
+    // rule quietly overrode that pick for every bot standing near the player.
+    if (!this._brNavLock && !this._brBot) {
       this._targetRetargetCd = (this._targetRetargetCd || 0) - 1;
       if (this._targetRetargetCd <= 0) {
         this._acquireAITarget();
@@ -4510,10 +5088,32 @@ class Fighter {
       }
     }
 
+    // ---- PERCHED TARGET: hop-and-drift climb ----
+    // Must run ahead of the nudge / wander / no-idle paths below. Each of those
+    // returns before the utility AI, so a bot standing under a perched player
+    // spent every tick wandering or random-hopping and the climb in the chase
+    // case never ran (the vault escape stub: 1 hit in 75s of standing on it).
+    // Only commits to a plan that is simulated to land on the target's ledge.
+    if (!this.isBoss && this.onGround && this.target && this.target.health > 0 &&
+        !(this.weapon && this.weapon.type === 'ranged')) {
+      const _pt = this.target;
+      const _up = (this.y + this.h) - (_pt.y + _pt.h);
+      if (this._aiClimbSteer) { this._wanderTimer = 0; return; }
+      if (_up >= 45 && Math.abs(_pt.cx() - this.cx()) < 220) {
+        if ((this._aiClimbCd || 0) > 0) this._aiClimbCd--;
+        else if (this._aiPlanHopDrift(_pt, this.aiDiff === 'easy' ? 3.4 : this.aiDiff === 'medium' ? 4.4 : 5.0)) {
+          this._wanderTimer = 0;
+          return;
+        }
+      }
+    }
+
     // ---- RANDOM NUDGE: prevents long idle stretches ----
     // Biased toward the target: a bot stalled against a ledge would otherwise
     // wander off in a random direction and stay stalled.
-    if (!this.isBoss && frameCount % 45 === 0 && Math.abs(this.vx) < 0.5 && this.target) {
+    // Grounded only: mid-air, isEdgeDanger reads every direction as a drop and
+    // flipped the nudge away from the target, off the side of the stage.
+    if (!this.isBoss && this.onGround && frameCount % 45 === 0 && Math.abs(this.vx) < 0.5 && this.target) {
       const spd0 = this.aiDiff === 'easy' ? 2.6 : this.aiDiff === 'medium' ? 4.2 : 5.8;
       const toT  = this.target.cx() > this.cx() ? 1 : -1;
       this._wanderDir   = this.isEdgeDanger(toT) ? -toT : toT;
@@ -4545,6 +5145,20 @@ class Fighter {
     if (this._wanderTimer > 0) {
       this._wanderTimer--;
       const spd0 = this.aiDiff === 'easy' ? 3.0 : this.aiDiff === 'medium' ? 4.4 : 5.2;
+      // A target standing on another level: wander re-arms every 45 frames and
+      // returns before the chase case, so its climb/drop never ran and a bot on
+      // a narrow ledge over the player bounced between edge-danger flips for
+      // good. Take an arc-verified climb/drop when one exists; otherwise wander
+      // as before (it is what unsticks most ledge standoffs). Human targets
+      // only: bot-vs-bot, both chasing each other's last ledge ping-ponged and
+      // cut duel damage ~30%, while wander brings two bots back together.
+      const _vt = this.target;
+      if (!this.isBoss && _vt && _vt.health > 0 && !_vt.isAI && this.onGround && _vt.onGround &&
+          Math.abs((_vt.y + _vt.h) - (this.y + this.h)) >= 45 &&
+          (this._aiClimbToward(_vt, spd0) || this._aiDropToward(_vt, spd0))) {
+        this._wanderTimer = 0;
+        return;
+      }
       if (!this.isEdgeDanger(this._wanderDir)) {
         this.vx = this._wanderDir * spd0 * 1.2;
       } else {
@@ -4976,9 +5590,13 @@ class Fighter {
     const cx = this.cx();
     const ty = this.y;
     const f  = this.facing;
+    // Move-scene pose (smb-move-scenes.js): authored joint angles that replace the
+    // state-driven ones below. A held victim keeps its own state (hurt face etc).
+    const _mp = this._movePose || null;
     // Finisher pose override (render-only — never touches attackTimer, so no hitboxes fire).
     // _finPoseP = swing progress 0..1; _finPoseState = forced pose state ('hurt' etc).
-    const s  = (this._finPoseP !== null && this._finPoseP !== undefined) ? 'attacking'
+    const s  = (_mp && !_mp.keepState) ? 'movescene'
+             : (this._finPoseP !== null && this._finPoseP !== undefined) ? 'attacking'
              : (this._finPoseState || this.state);
     const t  = this.animTimer;
 
@@ -5022,6 +5640,17 @@ class Fighter {
         ctx.translate(-cx, -_hipY);
       }
     }
+    // Move-scene pitch about the hips, and the crouch (the planted feet are
+    // solved back down to the floor further below).
+    if (_mp) {
+      if (_mp.rot) {
+        const _mpY = ty + this.h * 0.55;
+        ctx.translate(cx, _mpY);
+        ctx.rotate(_mp.rot * f);
+        ctx.translate(-cx, -_mpY);
+      }
+      if (_mp.drop) ctx.translate(0, _mp.drop);
+    }
 
     // Squash / stretch / idle breath
     let animScaleX = 1, animScaleY = 1, animOffY = 0;
@@ -5062,8 +5691,21 @@ class Fighter {
     // it (see _wallHitT in updateFragmentManifest).
     const _inAir    = (s === 'jumping' || s === 'falling');
     const _spr      = ((s === 'walking' || _inAir) && this._sprintAmt) ? this._sprintAmt : 0;
-    const headBob   = (s === 'walking') ? Math.abs(Math.sin(_walkStepPhase * Math.PI / 2)) * (2.2 + _spr * 1.6) : 0;
-    const headCY    = ty + headR + 1 + animOffY + headBob + _spr * 2.5; // head drops as he commits
+    // Keep the head's run motion vertical and restrained. The torso already
+    // pitches into the sprint; horizontal head lag on top of that makes the
+    // face visibly rock backward and forward each step.
+    // Reference-captured run cycle (see RUN_MOCAP in smb-anim-fighter.js).
+    // Drives legs, swinging arms, pelvis bob and lean for any grounded run.
+    // Every fighter carries a spring ragdoll (_rd) whose walking target was a
+    // 4-step scissor; the run overrides it unless the ragdoll has collapsed.
+    const _run = s === 'walking' && !this.isBoss && !(this._rd && this._rd.collapsed) &&
+                 !(this.spinning > 0) &&
+                 typeof animRunLeg === 'function';
+    const _runAmp = _run ? Math.max(0.35, Math.min(1, Math.abs(this.vx || 0) / 4.5)) : 0;
+    const _runPh  = _run ? animRunAdvance(this, FIG_LEG_LEN, _runAmp) : 0;
+    const headBob   = _run ? animRunBob(_runPh, FIG_LEG_LEN, _runAmp)
+                    : (s === 'walking') ? Math.abs(Math.sin(_walkStepPhase * Math.PI / 2)) * (2.2 + _spr * 0.8) : 0;
+    const headCY    = ty + headR + 1 + animOffY + headBob + (_run ? 0 : _spr * 1.2); // head drops slightly as he commits
     const neckY     = headCY + headR + 1;
     const shoulderY = neckY + FIG_NECK;
     const hipY      = shoulderY + 30;
@@ -5074,11 +5716,18 @@ class Fighter {
     // Pelvis/shoulder counter-rotation: during a stride the hips swing one way
     // and the shoulders the other. One extra scalar, and the walk stops reading
     // as a rigid board sliding along.
-    const _pelvis = ((typeof animHiQ === 'function') && animHiQ() && !this.isBoss && s === 'walking')
+    // The run is excluded: an unsynced hip sway drags the planted foot.
+    const _pelvis = ((typeof animHiQ === 'function') && animHiQ() && !this.isBoss && s === 'walking' && !_run)
       ? Math.sin(t * (0.24 + _spr * 0.22)) * (2.0 + _spr * 2.2) : 0;
-    const hipX      = cx + _pelvis + (s === 'walking' ? f * (2.5 - _spr * 22)
-                          : (_inAir ? f * (-_spr * 22) : 0));
-    const shoulderX = cx - _pelvis * 0.8;
+    // A real runner is nearly upright — ~8° forward in the reference, i.e. the
+    // hips ~4px behind the shoulders here — not the old 26px anime dash.
+    const hipX      = cx + _pelvis + (_run ? -f * 4.5 * _runAmp
+                          : s === 'walking' ? f * (2.5 - _spr * 26)
+                          : (_inAir ? f * (-_spr * 4.5) : 0));   // matches the run so takeoff doesn't pop
+    // Showcase captures can ask for a render-only forward lean. It is kept
+    // opt-in so normal gameplay poses and collision geometry remain unchanged.
+    const _coverLean = (Number(this._coverLean) || 0) + (_mp ? (_mp.lean || 0) : 0);
+    const shoulderX = cx - _pelvis * 0.8 + f * _coverLean;
     const armLen    = FIG_ARM_LEN;
     const legLen    = FIG_LEG_LEN;
     // Inline helper: 2-segment limb joint via midpoint offset (classic rig)
@@ -5088,6 +5737,16 @@ class Fighter {
     const _hiQ = (typeof animHiQ === 'function') && animHiQ() && !this.isBoss;
     const _armBone = armLen * 0.60;   // each of the two arm bones
     const _legBone = legLen * 0.58;   // each of the two leg bones
+    // One shared gait phase keeps the arms, legs, and passing feet in lockstep.
+    // High-quality mode advances by distance travelled so the stride does not
+    // skate when the runner's speed changes.
+    const _gaitAmp = 0.40 + _spr * 0.42;
+    const _gaitPhase = s === 'walking'
+      ? ((_hiQ && typeof animStridePhase === 'function')
+        ? animStridePhase(this, legLen, _gaitAmp, t * (0.22 + _spr * 0.16))
+        : t * (0.22 + _spr * 0.16))
+      : (this._gaitPhase || 0);
+    if (s === 'walking') this._gaitPhase = _gaitPhase;
 
     // Speed cached for motion trail and speed lines (used in two places below)
     const _spdAbs = Math.abs(this.vx);
@@ -5131,8 +5790,9 @@ class Fighter {
 
     // HEAD — drags a few frames behind the torso's lean (overlap/follow-through).
     // Scoped to the head + face block; the torso line and limbs still use cx.
-    const headCX = (typeof animHeadLag === 'function' && !this.isBoss)
-      ? cx + animHeadLag(this, (hipX - cx) * -0.35, 4, 2) : cx;
+    const headCX = (_spr <= 0.10 && typeof animHeadLag === 'function' && !this.isBoss)
+      ? cx + f * _coverLean * 1.20 + animHeadLag(this, (hipX - cx) * -0.35, 4, 2)
+      : cx + f * _coverLean * 1.20;
 
     // ── ONE BODY, NOT A PILE OF PARTS ───────────────────────────────────────
     // Nothing below paints. Every piece of the figure is accumulated into two
@@ -5194,10 +5854,11 @@ class Fighter {
     const atkProgress = (this._finPoseP !== null && this._finPoseP !== undefined) ? this._finPoseP
                       : (this.attackDuration > 0 ? 1 - this.attackTimer / this.attackDuration : 0);
     let rAng, lAng;
+    let _runArmR = false, _runArmL = false;   // arm follows the captured run swing
 
-    // Empty-handed sprint blend, shared by the ground and air poses. Arms only
-    // stream back when the fragment weapon is actually gone — a runner holding a
-    // hammer behind his back looks broken, so an armed sprint keeps the carry pose.
+    // Empty-handed sprint blend, shared by the ground and air poses. Armed
+    // runners keep their weapon carry; empty-handed runners use the same
+    // forward/back arm cycle as a grounded athletic run.
     const _armed = (this._fragArm === undefined) ? 1 : this._fragArm;
     const _blade = _spr * (1 - Math.min(1, _armed * 1.6));
 
@@ -5227,22 +5888,25 @@ class Fighter {
       }
       lAng = f > 0 ? lerp(Math.PI*0.8, Math.PI*0.55, atkProgress) : lerp(Math.PI*0.2, Math.PI*0.45, atkProgress);
     } else if (s === 'walking') {
-      // Arms swing in antiphase to the legs off the same distance-driven gait
-      // phase (one frame stale, since the legs are solved below — which is free
-      // overlap, not a bug). Falls back to the animTimer cycle in classic mode.
-      const sw = (_hiQ && this._gaitPhase !== undefined)
-        ? -Math.sin(this._gaitPhase) * (0.52 + _spr * 0.22)
-        : Math.sin(t * (0.24 + _spr * 0.20)) * (0.52 + _spr * 0.22);
+      // Arms swing in antiphase to the legs from the shared gait phase.
+      const sw = -Math.sin(_gaitPhase) * (0.52 + _spr * 0.28);
       // Carry pose: weapon arm holds its carry stance while the off arm keeps swinging
       const _cw = (!this.isBoss && typeof WEAPON_SWINGS !== 'undefined' && WEAPON_SWINGS[this.weaponKey]) ? WEAPON_SWINGS[this.weaponKey].carry : null;
-      if (_blade > 0.05) {
-        // Both arms straight back and a touch ABOVE horizontal, streaming behind
-        // him. Canvas angles: 0 = +X, PI/2 = down. Facing right (f>0) the arms
-        // must point past PI to sit above the horizontal, not below it.
-        const back = f > 0 ? Math.PI * 1.04 : -Math.PI * 0.04;
-        const rest = f > 0 ? Math.PI * 0.58 : Math.PI * 0.42;
-        rAng = lerp(rest, back + sw * 0.06, _blade);
-        lAng = lerp(Math.PI * 0.42 - sw, back + f * 0.10 - sw * 0.06, _blade);
+      if (_run) {
+        // Weapon arm keeps its carry; any free arm pumps like the reference.
+        _runArmR = _blade > 0.05 || !_cw;
+        _runArmL = _runArmR || _cw.lArm === undefined;
+        rAng = _runArmR ? 0 : (f > 0 ? _cw.arm : Math.PI - _cw.arm) + sw * 0.06;
+        lAng = (_runArmL || !_cw) ? 0 : (f > 0 ? _cw.lArm : Math.PI - _cw.lArm);
+      } else if (_spr > 0.10 && (_blade > 0.05 || !_cw)) {
+        // Normal sprint mechanics: elbows stay bent while one hand drives
+        // forward/up toward the chest and the opposite hand drives backward
+        // toward the hip. The pair switches on the opposite leg strike.
+        const runSw = -Math.sin(_gaitPhase) * (0.90 + _spr * 0.25);
+        const forward = -0.15;
+        const back = Math.PI + 0.15;
+        rAng = f > 0 ? forward + runSw : back - runSw;
+        lAng = f > 0 ? back - runSw : forward + runSw;
       } else if (_cw) {
         rAng = (f > 0 ? _cw.arm : Math.PI - _cw.arm) + sw * 0.06; // tiny bob so the carry isn't frozen
         lAng = _cw.lArm !== undefined ? (f > 0 ? _cw.lArm : Math.PI - _cw.lArm) : Math.PI * 0.42 - sw;
@@ -5284,19 +5948,47 @@ class Fighter {
       rAng -= this._finAnticip * f;
       lAng += this._finAnticip * f * 0.35;
     }
+    if (_mp) {
+      rAng = f > 0 ? _mp.r : Math.PI - _mp.r;
+      lAng = f > 0 ? _mp.l : Math.PI - _mp.l;
+    } else if (this._msOut && typeof msBlendOut === 'function') {
+      const _ok = msBlendOut(this), _op = this._msOut.p;
+      rAng = msLerpAngle(rAng, f > 0 ? _op.r : Math.PI - _op.r, _ok);
+      lAng = msLerpAngle(lAng, f > 0 ? _op.l : Math.PI - _op.l, _ok);
+    }
     let _rArmLen = (s === 'attacking' && this._swingArmStretch) ? armLen * this._swingArmStretch : armLen;
     if (this._finStretch) _rArmLen *= this._finStretch;
+    let _lArmLen = armLen;
+    if (_mp) { _rArmLen = armLen * (_mp.rl || 1); _lArmLen = armLen * (_mp.ll || 1); }
+    // Captured run arms are forward kinematics (upper arm, then forearm), so
+    // the elbow sits where the reference's does instead of where IK guesses.
+    const _runArmFK = (u) => {
+      const a = animRunArm(u, _runAmp);
+      const up = f > 0 ? a.upper : Math.PI - a.upper, fo = f > 0 ? a.fore : Math.PI - a.fore;
+      const ex = shoulderX + Math.cos(up) * _armBone, ey = shoulderY + Math.sin(up) * _armBone;
+      const hx = ex + Math.cos(fo) * _armBone,        hy = ey + Math.sin(fo) * _armBone;
+      // A held weapon is carried near-upright and rocks ~±13° with the pump.
+      // Pointing it along the arm swept the blade across the body every stride.
+      const wr = -1.25 - (a.fore - 0.41) * 0.35;
+      const wa = f > 0 ? wr : Math.PI - wr;
+      return { ex, ey, wa, ang: Math.atan2(hy - shoulderY, hx - shoulderX),
+               len: Math.hypot(hx - shoulderX, hy - shoulderY) };
+    };
+    const _rRun = _runArmR ? _runArmFK(_runPh) : null;         // near arm = near leg's side
+    const _lRun = _runArmL ? _runArmFK(_runPh + 0.5) : null;
+    if (_rRun) { rAng = _rRun.ang; _rArmLen = _rRun.len; }
+    if (_lRun) { lAng = _lRun.ang; _lArmLen = _lRun.len; }
     const rEx = shoulderX + Math.cos(rAng) * _rArmLen;
     const rEy = shoulderY + Math.sin(rAng) * _rArmLen;
-    const lEx = shoulderX + Math.cos(lAng) * armLen;
-    const lEy = shoulderY + Math.sin(lAng) * armLen;
+    const lEx = shoulderX + Math.cos(lAng) * _lArmLen;
+    const lEy = shoulderY + Math.sin(lAng) * _lArmLen;
 
     // 2-segment arms: elbows bend outward (in facing direction) and slightly up
     const elbowOut = f * 5;
-    const [rElbX, rElbY] = _hiQ
+    const [rElbX, rElbY] = _rRun ? [_rRun.ex, _rRun.ey] : _hiQ
       ? animIK(shoulderX, shoulderY, rEx, rEy, _armBone, -f)
       : _lj(shoulderX, shoulderY, rEx, rEy, elbowOut, -3);
-    const [lElbX, lElbY] = _hiQ
+    const [lElbX, lElbY] = _lRun ? [_lRun.ex, _lRun.ey] : _hiQ
       ? animIK(shoulderX, shoulderY, lEx, lEy, _armBone, -f)
       : _lj(shoulderX, shoulderY, lEx, lEy, elbowOut, -3);
     ctx.strokeStyle = _pal.base;
@@ -5312,7 +6004,7 @@ class Fighter {
     // melee hit-scan), so without this the game's biggest swing was the only one
     // that never trailed.
     const _canSmear = (s === 'attacking' || s === 'ragdoll' || this.spinning > 0 ||
-                       !!this._finSmear);
+                       !!this._finSmear || !!(_mp && (_mp.trail || _mp.smear)));
     if (_hiQ && _canSmear && typeof animSmear === 'function') {
       const _pv = this._smearPrev;
       this._smearPrev = { x: rEx, y: rEy, ex: rElbX, ey: rElbY };
@@ -5353,7 +6045,10 @@ class Fighter {
       { x: lElbX + _bOff,     y: lElbY },
       { x: lEx + _bOff,       y: lEy },
     ], _farW);
-    if (!this._hideWeapon) FigureSkin.hand(_far, lEx + _bOff, lEy, lAng, f, 0.85);
+    // Combat fights bare-handed: the fists are part of the body silhouette (same
+    // material, shading and rim as the arms), just sized up to read as clenched.
+    const _fistS = (!this.isBoss && this.weaponKey === 'combat' && !this._domainDisplayWeapon && !this._hideWeapon) ? 1.6 : 1;
+    if (!this._hideWeapon) FigureSkin.hand(_far, lEx + _bOff, lEy, lAng, f, 0.85 * _fistS);
 
     FigureSkin.segment(_near, _torsoPts, _torsoW);
     // `true` = also feed the internal form shadow. The near arm hangs against
@@ -5363,7 +6058,7 @@ class Fighter {
       { x: rElbX,     y: rElbY },
       { x: rEx,       y: rEy },
     ], _armW, true);
-    FigureSkin.hand(_near, rEx, rEy, rAng, f, 1);
+    FigureSkin.hand(_near, rEx, rEy, rAng, f, _fistS);
 
     // WEAPON in right hand (boss draws gauntlet on both hands for visual flair).
     // Deferred: the body is now painted in one pass AFTER the legs are solved,
@@ -5379,6 +6074,22 @@ class Fighter {
     }
     if (!_fragV || _fragV.grow > 0.02) {
       ctx.save();
+      let _wAng = _rRun ? _rRun.wa : rAng, _wAtk = s === 'attacking';
+      if (!_mp && this._msOut && !this._msOut.p.keepState && typeof msBlendOut === 'function') {
+        _wAng = msLerpAngle(_wAng, msWeaponAngle(this, Object.assign({}, this._msOut.p, { trail: false })).a, msBlendOut(this));
+      }
+      if (_mp && !_mp.keepState && typeof msWeaponAngle === 'function') {
+        const _mw = msWeaponAngle(this, _mp);
+        _wAng = _mw.a; _wAtk = _mw.atk;
+        // Foreshortening: a blade swung across the camera shortens along its own axis.
+        if (_mp.wl !== undefined && Math.abs(_mp.wl - 1) > 0.01) {
+          ctx.translate(rEx, rEy);
+          ctx.rotate(_mw.W);
+          ctx.scale(Math.max(0.12, _mp.wl), 1);
+          ctx.rotate(-_mw.W);
+          ctx.translate(-rEx, -rEy);
+        }
+      }
       if (_fragV) {
         ctx.globalAlpha *= _fragV.alpha;
         // Scale about the hand along the weapon's own axis so it extrudes out of
@@ -5389,7 +6100,7 @@ class Fighter {
         ctx.rotate(-rAng);
         ctx.translate(-rEx, -rEy);
       }
-      if (!this._hideWeapon) this.drawWeapon(rEx, rEy, rAng, s === 'attacking', this._domainDisplayWeapon || null, weapScale);
+      if (!this._hideWeapon) this.drawWeapon(rEx, rEy, _wAng, _wAtk, this._domainDisplayWeapon || null, weapScale);
       ctx.restore();
     }
     if (_fragV && typeof drawFragmentManifest === 'function') {
@@ -5398,17 +6109,7 @@ class Fighter {
     if (this.isBoss && this.weaponKey === 'gauntlet') {
       this.drawWeapon(lEx, lEy, lAng + Math.PI, s === 'attacking', 'gauntlet', weapScale);
     }
-    // Combat brawler fights bare-handed — give the off-hand a matching fist so the
-    // guard stance reads as two fists instead of one hand and one bare arm stub.
-    if (!this.isBoss && this.weaponKey === 'combat' && !this._domainDisplayWeapon) {
-      ctx.save();
-      ctx.fillStyle   = _pal.far;
-      ctx.beginPath(); ctx.arc(lEx, lEy, 4.4, 0, Math.PI * 2); ctx.fill();
-      ctx.strokeStyle = _pal.farRim; ctx.globalAlpha = 0.5; ctx.lineWidth = 1.1; ctx.stroke();
-      ctx.globalAlpha = 0.14; ctx.fillStyle = '#ffffff';
-      ctx.beginPath(); ctx.arc(lEx - 1.2, lEy - 1.4, 2.0, 0, Math.PI * 2); ctx.fill();
-      ctx.restore();
-    }
+    // (Combat's off-hand fist is now part of the body silhouette — see _fistS.)
     };   // end _paintWeapon — invoked after the body paint, below
 
     // LEGS
@@ -5436,29 +6137,64 @@ class Fighter {
     else if (s === 'walking') {
       // Sprint drives the stride faster and wider, and pitches the whole cycle
       // forward so the legs are driving behind him rather than stepping under.
-      const _amp   = 0.44 + _spr * 0.30;
-      // Stride phase from distance travelled, not from animTimer — see
-      // animStridePhase(). This is what stops the feet skating.
-      const _phase = (_hiQ && typeof animStridePhase === 'function')
-        ? animStridePhase(this, legLen, _amp, t * (0.24 + _spr * 0.22))
-        : t * (0.24 + _spr * 0.22);
-      const sw = Math.sin(_phase) * _amp;
-      const pitch = _spr * f * 0.24; // drives the whole leg cycle out behind him
+      const sw = Math.sin(_gaitPhase) * _gaitAmp;
+      const pitch = _spr * f * 0.30; // drives the whole leg cycle out behind him
       rLeg = Math.PI * 0.5 + sw + pitch;
       lLeg = Math.PI * 0.5 - sw + pitch;
-      this._gaitPhase = _phase;   // arms read this so they swing with the legs
     } else { rLeg = Math.PI*0.62; lLeg = Math.PI*0.38; }
 
     // 2-segment legs: knees bend forward (in facing direction)
     let rFootX = hipX + Math.cos(rLeg)*legLen, rFootY = hipY + Math.sin(rLeg)*legLen;
     let lFootX = hipX + Math.cos(lLeg)*legLen, lFootY = hipY + Math.sin(lLeg)*legLen;
+    if (s === 'walking' && _spr > 0.12) {
+      // Lift the passing foot instead of letting both feet drag through the
+      // same low arc. This is a render-only pose change; collision geometry is
+      // untouched.
+      const _lift = 3 + _spr * 7;
+      rFootY -= Math.max(0, Math.sin(_gaitPhase)) * _lift;
+      lFootY -= Math.max(0, Math.sin(_gaitPhase + Math.PI)) * _lift;
+    }
+    if (_mp) {
+      if (_mp.air) {
+        rLeg = f > 0 ? _mp.lg : Math.PI - _mp.lg;
+        lLeg = f > 0 ? _mp.lgl : Math.PI - _mp.lgl;
+        rFootX = hipX + Math.cos(rLeg) * legLen * (_mp.ls || 1);
+        rFootY = hipY + Math.sin(rLeg) * legLen * (_mp.ls || 1);
+        lFootX = hipX + Math.cos(lLeg) * legLen * (_mp.lsl || 1);
+        lFootY = hipY + Math.sin(lLeg) * legLen * (_mp.lsl || 1);
+      } else {
+        // Planted: the floor is where an idle stance puts it, less the crouch
+        // the whole figure was translated down by.
+        const _mpGround = hipY + legLen * Math.sin(Math.PI * 0.62) - (_mp.drop || 0);
+        rFootX = hipX + f * (_mp.fr !== undefined ? _mp.fr : 7);
+        lFootX = hipX + f * (_mp.fl !== undefined ? _mp.fl : -7);
+        rFootY = lFootY = _mpGround;
+        rLeg = Math.atan2(rFootY - hipY, rFootX - hipX);
+        lLeg = Math.atan2(lFootY - hipY, lFootX - hipX);
+      }
+    }
     const kneeOut = f * 5;
-    const [rKneeX, rKneeY] = _hiQ
+    let [rKneeX, rKneeY] = _hiQ
       ? animIK(hipX, hipY, rFootX, rFootY, _legBone, -f)
       : _lj(hipX, hipY, rFootX, rFootY, kneeOut, 0);
-    const [lKneeX, lKneeY] = _hiQ
+    let [lKneeX, lKneeY] = _hiQ
       ? animIK(hipX, hipY, lFootX, lFootY, _legBone, -f)
       : _lj(hipX, hipY, lFootX, lFootY, kneeOut, 0);
+    if (_run) {
+      // Captured run: thigh and shin straight from the reference (FK). The
+      // foot argument below is the SHIN direction, faded to flat as the ankle
+      // reaches the ground, so the boot plants flat and toes down in swing.
+      const _groundY = hipY - headBob + legLen * Math.sin(Math.PI * 0.62);
+      const _leg = (u) => {
+        const L = animRunLeg(u, legLen, _runAmp);
+        const kx = hipX + f * L.kx, ky = hipY + L.ky, ax = hipX + f * L.ax, ay = hipY + L.ay;
+        const lift = Math.max(0, Math.min(1, (_groundY - ay) / 3));
+        const sh = f > 0 ? L.shin : Math.PI - L.shin;
+        return [kx, ky, ax, ay, Math.PI / 2 + (sh - Math.PI / 2) * lift];
+      };
+      [rKneeX, rKneeY, rFootX, rFootY, rLeg] = _leg(_runPh);          // near leg
+      [lKneeX, lKneeY, lFootX, lFootY, lLeg] = _leg(_runPh + 0.5);
+    }
     // ── ACCUMULATE: legs ────────────────────────────────────────────────────
     // Thigh -> knee -> ankle taper, plus an actual boot at each ankle. The old
     // rig ended both legs in a round line cap, which is why the figure never
@@ -5559,7 +6295,7 @@ class Fighter {
         ctx.fill();
         // HP arc for stacks 1-3: shows remaining shield health as a partial ring
         if (_shStacks <= 3 && (this.shieldHP || 0) > 0) {
-          const _hpMax  = [30, 15, 5][_shStacks - 1] || 1;
+          const _hpMax  = SHIELD_RULES === 'pool' ? SHIELD_POOL_MAX : ([30, 15, 5][_shStacks - 1] || 1);
           const _hpFrac = Math.min(1, (this.shieldHP || 0) / _hpMax);
           ctx.beginPath();
           ctx.arc(cx + f * 15, shoulderY + 12, 27, -Math.PI / 2, -Math.PI / 2 + _hpFrac * Math.PI * 2);
@@ -5849,6 +6585,16 @@ class Fighter {
         const _stCol   = this._swingTrailColor || '#ffffff';
         const _stHeavy = !!this._swingTrailHeavy;
         const _stW     = this._swingTrailWidth || (_stHeavy ? 9 : 5);   // width at the newest sample
+        if (SWING_TRAIL_STYLE === 'crescent' && _stPts[0].hx !== undefined) {
+          // One crescent per swing, so back-to-back swings never bridge
+          let _stFrom = 0;
+          for (let _ti = 1; _ti <= _stPts.length; _ti++) {
+            if (_ti === _stPts.length || _stPts[_ti].seg !== _stPts[_stFrom].seg) {
+              _drawSwingCrescent(ctx, _stPts.slice(_stFrom, _ti), _stCol, _stHeavy);
+              _stFrom = _ti;
+            }
+          }
+        } else {
         ctx.save();
         ctx.globalCompositeOperation = 'lighter';
         ctx.lineCap  = 'round';
@@ -5875,6 +6621,7 @@ class Fighter {
         for (let _ti = _st0 + 1; _ti < _stN; _ti++) ctx.lineTo(_stPts[_ti].x, _stPts[_ti].y);
         ctx.stroke();
         ctx.restore();
+        }
       }
     }
 
@@ -6464,17 +7211,34 @@ class Fighter {
 
     // ── Whip rope: brief taut-line flash on Lasso/hit ────────────────────────────
     if (this._whipRope) {
-      const _wrA = Math.min(1, this._whipRope.timer / 6);
+      const _wr  = this._whipRope;
+      const _wrA = Math.min(1, _wr.timer / 6);
       ctx.save();
       ctx.globalAlpha = _wrA * 0.75;
-      ctx.strokeStyle = this._whipRope.isLasso ? '#ffcc44' : '#cc8833';
-      ctx.lineWidth   = this._whipRope.isLasso ? 2 : 1.5;
-      ctx.setLineDash([4, 3]);
-      ctx.beginPath();
-      ctx.moveTo(this.cx() + this.facing * 10, this.cy());
-      ctx.lineTo(this._whipRope.tx, this._whipRope.ty);
-      ctx.stroke();
-      ctx.setLineDash([]);
+      ctx.strokeStyle = _wr.isLasso ? '#ffcc44' : '#cc8833';
+      ctx.lineWidth   = _wr.isLasso ? 3 : 1.5;
+      if (_wr.isLasso) {
+        const _lt = _wr.tgt && _wr.tgt.health > 0 ? _wr.tgt : null;
+        const _lx = _lt ? _lt.cx() : _wr.tx;
+        const _ly = _lt ? _lt.cy() : _wr.ty;
+        ctx.globalAlpha = _wrA * 0.95;
+        ctx.shadowColor = '#ffcc44';
+        ctx.shadowBlur  = 8;
+        ctx.beginPath();
+        ctx.moveTo(this.cx() + this.facing * 10, this.cy());
+        ctx.lineTo(_lx, _ly);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.ellipse(_lx, _ly, 20, 9, 0, 0, Math.PI * 2);
+        ctx.stroke();
+      } else {
+        ctx.setLineDash([4, 3]);
+        ctx.beginPath();
+        ctx.moveTo(this.cx() + this.facing * 10, this.cy());
+        ctx.lineTo(_wr.tx, _wr.ty);
+        ctx.stroke();
+        ctx.setLineDash([]);
+      }
       ctx.restore();
     }
 
@@ -6504,6 +7268,7 @@ class Fighter {
   }
 
   drawWeapon(hx, hy, angle, attacking, overrideKey = null, scale = 1) {
+    const ctx = _weaponArtCtx();
     ctx.save();
     ctx.translate(hx, hy);
     const k = overrideKey || this.weaponKey;
@@ -6511,7 +7276,11 @@ class Fighter {
     const _swgD = (typeof WEAPON_SWINGS !== 'undefined') ? WEAPON_SWINGS[k] : null;
     let _atkTilt;
     if (attacking) {
+      // Mirrored with facing like the carry tilt: unmirrored, a left-facing blade
+      // tilted the opposite way to a right-facing one, and the hitbox
+      // (_meleeBladeTilt) follows this art.
       _atkTilt = (_swgD && _swgD.tilt !== undefined) ? _swgD.tilt : 0.6;
+      if (this.facing < 0) _atkTilt = -_atkTilt;
     } else {
       // Carry tilt: how the weapon rests in the hand out of combat (facing-mirrored)
       const _cTilt = (_swgD && _swgD.carry && _swgD.carry.tilt) || 0;
@@ -6532,7 +7301,7 @@ class Fighter {
     const _glowColors = {
       sword: '#c8e8ff', hammer: '#ffaa44', gun: '#ff4444', axe: '#66dde8',
       spear: '#8888ff', bow: '#aadd88', shield: '#4488ff', scythe: '#ffcc33',
-      fryingpan: '#ffcc44', broomstick: '#ddbb44', combat: '#ff3333',
+      fryingpan: '#ffcc44', broomstick: '#ddbb44', combat: this.color || '#ff3333', // bare fists glow in the fighter's own colour
       peashooter: '#44ff66', slingshot: '#cc8844', paperairplane: '#aaccff',
       flail: '#cccccc', whip: '#cc8833', boomerang: '#cc9944',
       katana: '#8888cc', flamethrower: '#ff5500', electricstaff: '#00ccff',
@@ -6569,11 +7338,16 @@ class Fighter {
         _stColor = WEAPON_THEMES[this.weaponTheme];
       }
       const _stLife = _swgTr ? _swgTr.life : (_stHeavy ? 14 : 9);
-      this._swingTrail.push({ x: this._weaponTip.x, y: this._weaponTip.y, life: _stLife, maxLife: _stLife });
+      // A sample pushed last frame has decayed exactly once; anything older means
+      // the previous swing ended, so this one starts a new crescent segment.
+      const _stLast = this._swingTrail[this._swingTrail.length - 1];
+      const _stSeg  = !_stLast ? 0 : (_stLast.life < _stLast.maxLife - 1 ? (_stLast.seg || 0) + 1 : (_stLast.seg || 0));
+      this._swingTrail.push({ x: this._weaponTip.x, y: this._weaponTip.y, hx: hx, hy: hy, seg: _stSeg, life: _stLife, maxLife: _stLife });
       this._swingTrailColor = _stColor;
       this._swingTrailHeavy = _stHeavy;
       this._swingTrailWidth = _swgTr ? _swgTr.width : 0;
-      const _stCap = _swgTr ? _swgTr.cap : (_stHeavy ? 8 : 6);
+      let _stCap = _swgTr ? _swgTr.cap : (_stHeavy ? 8 : 6);
+      if (SWING_TRAIL_STYLE === 'crescent') _stCap = Math.max(_stCap, SWING_CRESCENT_MINCAP);
       while (this._swingTrail.length > _stCap) this._swingTrail.shift();
     }
 
@@ -6958,39 +7732,26 @@ class Fighter {
       ctx.beginPath(); ctx.moveTo(37,-7); ctx.lineTo(42,7); ctx.stroke();
 
     } else if (k === 'combat') {
-      // Bare hands — no weapon object at all. Draw a compact clenched fist that
-      // sits ON the hand joint (small enough to read as part of the arm, not a
-      // held item). Everything is in the fighter's own colour so it reads as skin.
-      const _fistColor = this.color || '#cc4444';
+      // Bare hands — no weapon object at all. The fist itself is part of the body
+      // silhouette (FigureSkin.hand at _fistS), so it shares the fighter's
+      // material and rim. Only surface detail is drawn here, centred on the hand.
       // No weapon halo on a bare hand (a cosmetic weapon theme still glows)
       if (!this.weaponTheme) ctx.shadowBlur = 0;
-      // Wrist tape — two wraps just behind the hand
-      ctx.strokeStyle = 'rgba(255,255,255,0.5)'; ctx.lineWidth = 1.4;
-      ctx.beginPath(); ctx.moveTo(-2.5, -2.6); ctx.lineTo(-2.5, 2.6); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(-0.4, -3.0); ctx.lineTo(-0.4, 3.0); ctx.stroke();
-      // Fist mass
-      ctx.fillStyle = _fistColor;
-      ctx.beginPath(); ctx.ellipse(3.2, 0, 5.0, 4.4, 0, 0, Math.PI * 2); ctx.fill();
-      ctx.strokeStyle = 'rgba(0,0,0,0.30)'; ctx.lineWidth = 0.9; ctx.stroke();
-      // Thumb folded across the front-bottom
-      ctx.fillStyle = _fistColor;
-      ctx.beginPath(); ctx.ellipse(5.2, 2.0, 2.4, 1.5, -0.35, 0, Math.PI * 2); ctx.fill();
-      ctx.strokeStyle = 'rgba(0,0,0,0.22)'; ctx.lineWidth = 0.7; ctx.stroke();
+      // Wrist tape — two wraps just behind the fist
+      ctx.strokeStyle = 'rgba(255,255,255,0.38)'; ctx.lineWidth = 1.1;
+      ctx.beginPath(); ctx.moveTo(-5.2, -2.2); ctx.lineTo(-5.2, 2.2); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(-3.9, -2.6); ctx.lineTo(-3.9, 2.6); ctx.stroke();
       // Knuckle ridge — three short creases on the striking face
-      ctx.strokeStyle = 'rgba(0,0,0,0.22)'; ctx.lineWidth = 0.7; ctx.lineCap = 'round';
+      ctx.strokeStyle = 'rgba(0,0,0,0.30)'; ctx.lineWidth = 0.7; ctx.lineCap = 'round';
       for (let _ki = 0; _ki < 3; _ki++) {
-        const _ky = -2.2 + _ki * 2.0;
-        ctx.beginPath(); ctx.moveTo(5.4, _ky); ctx.lineTo(7.2, _ky); ctx.stroke();
+        const _ky = -1.8 + _ki * 1.8;
+        ctx.beginPath(); ctx.moveTo(1.6, _ky); ctx.lineTo(3.0, _ky); ctx.stroke();
       }
-      // Top-light highlight
-      ctx.globalAlpha = 0.22; ctx.fillStyle = '#ffffff';
-      ctx.beginPath(); ctx.ellipse(2.4, -1.9, 2.6, 1.3, -0.3, 0, Math.PI * 2); ctx.fill();
-      ctx.globalAlpha = 1;
       // Impact flare — only while the punch is actually swinging
       if (attacking) {
         ctx.globalAlpha = 0.45; ctx.shadowColor = '#ffddaa'; ctx.shadowBlur = 10;
         ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 1.1;
-        ctx.beginPath(); ctx.arc(3.2, 0, 6.6, -0.9, 0.9); ctx.stroke();
+        ctx.beginPath(); ctx.arc(0, 0, 5.2, -0.9, 0.9); ctx.stroke();
         ctx.globalAlpha = 1; ctx.shadowBlur = 0;
       }
 
@@ -7343,7 +8104,7 @@ class Fighter {
       ctx.restore();
 
     } else if (k === 'mkgauntlet') {
-      // Megaknight gauntlets — gold + purple, larger than boss gauntlet
+      // Knight gauntlets — gold + purple, larger than boss gauntlet
       ctx.save();
       ctx.shadowColor = '#cc88ff';
       ctx.shadowBlur  = 18;

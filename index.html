@@ -59,7 +59,7 @@
   }
   </script>
 
-  <link rel="stylesheet" href="SMB.css?v=4.5.7">
+  <link rel="stylesheet" href="SMB.css?v=4.9.25">
 </head>
 <body>
 
@@ -172,7 +172,7 @@
             <option value="archer">Archer</option>
             <option value="paladin">Paladin</option>
             <option value="berserker">Berserker</option>
-            <option value="megaknight">Megaknight</option>
+            <option value="megaknight">Knight</option>
             <option value="pugilist">Pugilist</option>
             <option value="ronin">Ronin</option>
             <option value="reaper">Reaper</option>
@@ -233,32 +233,32 @@
       <div class="hub-main">
         <div class="hub-resume">
           <div>
-            <div class="hub-kicker" id="hubResumeKicker">Begin</div>
-            <h3 id="hubResumeTitle">Start the Story</h3>
-            <p class="hub-where" id="hubResumeWhere">Ninety-four bearers came before you. None of them lasted.</p>
+            <div class="hub-kicker">Fight Ladder</div>
+            <h3 id="hubLadderTitle">Rung 1: Sparring Partner</h3>
+            <p class="hub-where" id="hubLadderWhere">Ten 1v1 fights, each one harder. Win to climb; every rung pays coins.</p>
           </div>
           <div>
-            <div class="hub-prog"><i id="hubProgBar" style="width:0%"></i></div>
-            <div class="hub-proglab"><span id="hubProgLabel">STORY PROGRESS</span><span id="hubProgPct">0%</span></div>
-            <button class="b b-primary" id="hubResumeBtn" onclick="hubResume()">Start Chapter 1</button>
+            <div class="hub-prog"><i id="hubLadderBar" style="width:0%"></i></div>
+            <div class="hub-proglab"><span>RUNGS CLEARED</span><span id="hubLadderCount">0 / 10</span></div>
+            <button class="b b-primary" onclick="ladderFightNext()">Fight</button>
           </div>
         </div>
         <div class="hub-side">
+          <div class="hub-quick" onclick="openStoryPath()">
+            <span class="hub-qt">Story</span>
+            <span class="hub-qd" id="hubStoryDesc">Chapters, skill tree and shop.</span>
+          </div>
           <div class="hub-quick" onclick="quickFight()">
             <span class="hub-qt">Quick Fight</span>
-            <span class="hub-qd">Instant match, random arena. No setup.</span>
-          </div>
-          <div class="hub-quick" onclick="openSimulator()">
-            <span class="hub-qt">The Simulator</span>
-            <span class="hub-qd">Versus, minigames, refights and training.</span>
+            <span class="hub-qd">Instant match. Random arena, weapon and class.</span>
           </div>
         </div>
       </div>
 
       <div class="hub-tiles">
-        <div class="hub-tile" onclick="openStoryPath()">
-          <span class="hub-tn">Story</span>
-          <span class="hub-td">Chapters, skill tree and shop.</span>
+        <div class="hub-tile" onclick="openSimulator()">
+          <span class="hub-tn">The Simulator</span>
+          <span class="hub-td">Refights, minigames and training.</span>
         </div>
         <div class="hub-tile" onclick="selectMode('battleroyale')">
           <span class="hub-badge hub-badge-new">New</span>
@@ -279,7 +279,7 @@
     <!-- STORY PATH PANEL: shown when Story path card is clicked -->
     <div class="nexus-panel" id="storyPathPanel" style="display:none">
       <button class="nexus-back" onclick="closeStoryPath()">&#8592; Back</button>
-      <div class="path-cards path-cards-3">
+      <div class="path-cards path-cards-3 path-cards-4">
         <div class="path-card path-chapters" onclick="openStoryMenuChapters()">
           <div class="path-card-icon"><svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-book"/></svg></div>
           <div class="path-card-title">Chapters</div>
@@ -295,6 +295,24 @@
           <div class="path-card-title">Skill Tree</div>
           <div class="path-card-desc">Spend EXP to grow stronger</div>
         </div>
+        <div class="path-card path-loadout" onclick="openStoryLoadout()">
+          <div class="path-card-icon"><svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-crossedswords"/></svg></div>
+          <div class="path-card-title">Loadout</div>
+          <div class="path-card-desc" id="storyLoadoutCardDesc">Weapon, class and look</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- STORY LOADOUT: borrows the Player 1 config card while open (see openStoryLoadout).
+         Lives inside #menu so the card keeps its #menu-scoped styles. -->
+    <div id="storyLoadoutOverlay" style="display:none">
+      <div class="story-loadout-box">
+        <div class="story-loadout-head">
+          <span>STORY LOADOUT</span>
+          <button class="smb-modal-close" onclick="closeStoryLoadout()">Done</button>
+        </div>
+        <p class="story-loadout-note">Kept separate from Versus. Pick Random to roll a fresh build every chapter. Story is melee-only, so ranged weapons can't be taken in.</p>
+        <div id="storyLoadoutHost"></div>
       </div>
     </div>
 
@@ -302,7 +320,7 @@
     <div class="nexus-panel" id="simulatorPanel" style="display:none">
       <button class="nexus-back" onclick="closeSimulator()">&#8592; Back</button>
       <div class="simulator-greeting">
-        <div class="sim-greeting-name">Welcome back, <span id="simGreetUsername">Pilot</span>.</div>
+        <div class="sim-greeting-name">Welcome, <span id="simGreetUsername">Pilot</span>.</div>
         <div class="sim-greeting-sub">What are you simulating today?</div>
       </div>
       <div class="path-cards">
@@ -331,7 +349,7 @@
         </div>
         <div class="path-card path-boss-fight" id="refight-trueform">
           <div class="path-card-icon"><svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-bolt"/></svg></div>
-          <div class="path-card-title">True Form</div>
+          <div class="path-card-title">Cosmic Axiom</div>
           <div class="path-card-desc">Face what lies beneath the Creator</div>
         </div>
         <div class="path-card path-boss-fight" id="refight-sovereign">
@@ -347,7 +365,7 @@
         <div class="path-card path-gauntlet" id="refight-gauntlet">
           <div class="path-card-icon"><svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-trophy"/></svg></div>
           <div class="path-card-title">Full Gauntlet</div>
-          <div class="path-card-desc">Creator &rarr; True Form &rarr; Sovereign. All three. Back to back.</div>
+          <div class="path-card-desc">Creator &rarr; Cosmic Axiom &rarr; Sovereign. All three. Back to back.</div>
         </div>
         <!-- Cutscenes lives on the home nav bar (#cutsceneTheaterBtn), spoiler-gated
              behind tfEndingSeen. The duplicate stub card that used to sit here was
@@ -414,16 +432,10 @@
     <!-- Hidden ID anchor for modeStory — JS uses this to toggle active state -->
     <div id="modeStory" data-mode="story" style="display:none"></div>
 
-    <!-- FIRST-RUN TUTORIAL OFFER — shown once, dismissed forever after -->
-    <div id="tutorialPrompt" style="display:none;align-items:center;justify-content:center;gap:10px;flex-wrap:wrap;margin:14px auto 0;max-width:620px;padding:0;background:none;border:none;">
-      <span style="color:var(--ui-faint);font-size:0.8rem;">New here? Learn the controls in about a minute.</span>
-      <button class="b b-secondary" style="padding:8px 18px;" onclick="startTutorial()">Play Tutorial</button>
-      <button class="b b-quiet" onclick="skipTutorial()">No thanks</button>
-    </div>
-
     <!-- HOME QUICK NAV -->
     <div class="home-quicknav">
-      <button class="home-nav-btn" onclick="startTutorial()" title="Learn movement, attacking, blocking, abilities and supers"><svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-cap"/></svg><span class="nav-label"> Tutorial</span></button>
+      <button class="home-nav-btn" onclick="startTutorial()" title="Replay the first fight: movement, attacking, blocking, abilities and supers"><svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-cap"/></svg><span class="nav-label"> Tutorial</span></button>
+      <button id="homeAchBtn" class="home-nav-btn" onclick="showAchievementsModal()" title="Badges you've earned and how to unlock the rest"><svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-trophy"/></svg><span class="nav-label"> Achievements</span> <span id="homeAchCount" class="home-ach-count"></span></button>
       <button id="cloudLoginBtn" class="home-nav-btn" style="display:none" onclick="toggleCloudLoginNav()" title="Log in with a username to carry your progress between computers"><svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-globe"/></svg><span class="nav-label"> Log In</span></button>
       <button id="accountsSavesBtn" class="home-nav-btn" onclick="openAccountsModal()" title="Open account, local save, and cloud sync settings"><svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-user"/></svg><span class="nav-label"> Account &amp; Saves</span></button>
       <button class="home-nav-btn" onclick="openStore()" title="Buy cosmetics and unlocks with coins"><svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-coin"/></svg><span class="nav-label"> Store</span> <span id="coinDisplay" style="color:#ffdd44;font-weight:bold;font-size:0.8em;"></span></button>
@@ -433,10 +445,6 @@
       <button id="cutsceneTheaterBtn" class="home-nav-btn" style="display:none" onclick="openCutsceneTheater()" title="Rewatch any cinematic, finisher, or domain"><svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-film"/></svg><span class="nav-label"> Cutscenes</span></button>
     </div>
 
-    <!-- TRUE FORM HINT — hidden once unlocked -->
-    <div id="trueFormHint" style="text-align:center;margin:0;font-size:0.68rem;color:#886699;letter-spacing:1px;opacity:0.8;overflow:visible;">
-      <svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-lock"/></svg> <em>A secret power lies dormant... beat the boss to uncover it.</em>
-    </div>
     </div><!-- /#menuHomeContent -->
 
     <!-- CONFIG VIEW: shown when a game mode is selected -->
@@ -512,7 +520,7 @@
             <div class="online-chips">
               <button class="online-chip-btn active" data-onlinemode="2p" onclick="setOnlineGameMode('2p')">1v1</button>
               <button class="online-chip-btn" data-onlinemode="boss" onclick="setOnlineGameMode('boss')">Boss Co-op</button>
-              <button class="online-chip-btn" data-onlinemode="trueform" onclick="setOnlineGameMode('trueform')">True Form</button>
+              <button class="online-chip-btn" data-onlinemode="trueform" onclick="setOnlineGameMode('trueform')">Cosmic Axiom</button>
               <button class="online-chip-btn" data-onlinemode="minigames" onclick="setOnlineGameMode('minigames')">Minigames</button>
               <button class="online-chip-btn" data-onlinemode="training" onclick="setOnlineGameMode('training')">Training</button>
             </div>
@@ -756,6 +764,7 @@
         <svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-bookopen"/></svg> Guidebook
       </button>
     </div>
+    <div class="ad-slot ad-slot-home" data-size="300×250" aria-hidden="true"></div>
     <div id="cgConsentNotice" style="margin-top:8px;text-align:center;font-size:0.62rem;line-height:1.4;color:rgba(190,205,235,0.58);">
       By playing, you agree to the <a href="https://www.crazygames.com/terms-and-conditions" target="_blank" rel="noopener" style="color:#a9c8ff;">Terms &amp; Conditions</a>
       and acknowledge the <a href="https://www.crazygames.com/privacy-policy" target="_blank" rel="noopener" style="color:#a9c8ff;">Privacy Policy</a>.
@@ -864,7 +873,7 @@
             <option value="archer">Archer</option>
             <option value="paladin">Paladin</option>
             <option value="berserker">Berserker</option>
-            <option value="megaknight">Megaknight</option>
+            <option value="megaknight">Knight</option>
             <option value="pugilist">Pugilist</option>
             <option value="ronin">Ronin</option>
             <option value="reaper">Reaper</option>
@@ -953,7 +962,7 @@
 
   <!-- Center / kill feed + boss HP bar (2P boss mode) -->
   <div class="hud-center">
-    <button id="hudMenuBtn" onclick="backToMenu()" title="Back to Menu">&#8962; Menu</button>
+    <button id="hudMenuBtn" onclick="openPauseMenu()" title="Pause / Menu">&#8962; Menu</button>
     <button id="hudFullscreenBtn" onclick="toggleFullscreen()" title="Fullscreen">&#x26F6;</button>
     <div id="killFeed"></div>
     <div id="bossHpBar" style="display:none; flex-direction:column; align-items:center; gap:3px; margin-top:4px;">
@@ -1057,9 +1066,16 @@
 <div class="overlay-screen" id="pauseOverlay">
   <div class="overlay-box">
     <h2>Paused</h2>
-    <div class="btn-row">
+    <div class="btn-row" id="pauseMainRow">
       <button class="btn btn-start" onclick="resumeGame()">Resume</button>
-      <button class="btn" onclick="backToMenu()">Menu</button>
+      <button class="btn" onclick="pauseAskQuit(true)">Quit to Menu</button>
+    </div>
+    <div id="pauseQuitConfirm" style="display:none;">
+      <p style="margin:4px 0 10px;color:var(--ui-faint, #9aa8bb);font-size:0.85rem;">Leave this match? Progress in it will be lost.</p>
+      <div class="btn-row">
+        <button class="btn" onclick="pauseAskQuit(false)">Stay</button>
+        <button class="btn btn-start" onclick="backToMenu()">Leave</button>
+      </div>
     </div>
     <div class="btn-row" style="margin-top:8px;">
       <button class="btn" onclick="toggleStatsLog()" style="font-size:0.8rem;padding:6px 14px;">Stats Log</button>
@@ -1070,6 +1086,19 @@
 <!-- ============================================================
      GAME OVER OVERLAY
      ============================================================ -->
+<!-- FIGHT LADDER RESULT — shown by smb-ladder.js in place of the game-over screen -->
+<div id="ladderResult" role="dialog" aria-modal="true" aria-labelledby="ladderResultHead" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.62);z-index:9300;align-items:center;justify-content:center;padding:16px;">
+  <div class="smb-modal-box" style="width:min(440px,100%);text-align:center;">
+    <div id="ladderResultHead" style="font-size:2.1rem;font-weight:900;letter-spacing:4px;margin:4px 0 6px;">VICTORY</div>
+    <div id="ladderResultSub" style="color:var(--ui-warn);font-weight:700;font-size:0.92rem;margin-bottom:10px;"></div>
+    <p id="ladderResultNext" style="color:var(--ui-muted);font-size:0.88rem;line-height:1.5;margin:0 0 18px;"></p>
+    <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">
+      <button class="b b-primary" id="ladderResultGo" onclick="ladderContinue()">Next Fight</button>
+      <button class="b b-secondary" onclick="ladderToMenu()">Menu</button>
+    </div>
+  </div>
+</div>
+
 <div class="overlay-screen" id="gameOverOverlay">
   <div class="overlay-box">
     <h2 id="winnerText">PLAYER 1 WINS!</h2>
@@ -1077,6 +1106,9 @@
     <div class="btn-row">
       <button id="playAgainBtn" class="btn btn-start" onclick="_cancelRematchCountdown(); startGame()">Play Again</button>
       <button class="btn" onclick="backToMenu()">Menu</button>
+    </div>
+    <div id="adRewardRow" style="display:none; margin-top:10px;">
+      <button id="adRewardBtn" class="btn ad-reward-btn"></button>
     </div>
     <div id="bossRushRow" style="display:none; margin-top:10px;">
       <button id="bossRushNextBtn" class="btn" style="color:#ff8844;border-color:rgba(200,80,30,0.5);font-weight:700;letter-spacing:1px;" onclick="bossRushAdvance()">Next Boss &#8594;</button>
@@ -1125,7 +1157,7 @@
       <!-- TrueForm Ending -->
       <div id="replayBossRow_tf" style="display:none;align-items:center;gap:8px;background:rgba(100,0,180,0.1);border:1px solid rgba(140,60,220,0.3);border-radius:8px;padding:10px 12px">
         <div style="flex:1">
-          <div style="font-size:11px;color:#cc88ff;font-weight:600;letter-spacing:.5px">TRUE FORM — Ending Cinematic</div>
+          <div style="font-size:11px;color:#cc88ff;font-weight:600;letter-spacing:.5px">COSMIC AXIOM — Ending Cinematic</div>
           <div style="font-size:10px;color:#556;margin-top:2px">The final sequence after TrueForm is defeated.</div>
         </div>
         <button onclick="closeReplayBrowser(); replayTFEnding();"
@@ -1206,20 +1238,22 @@
 <!-- ============================================================
      ACHIEVEMENTS MODAL
      ============================================================ -->
-<div id="achievementsModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.92); z-index:9999; align-items:center; justify-content:center; font-family:'Segoe UI',Arial,sans-serif; color:#dde4ff;">
-  <div style="width:min(900px,96vw); height:min(560px,92vh); display:flex; flex-direction:column; background:#08061a; border:1px solid rgba(255,200,0,0.3); border-radius:14px; overflow:hidden; box-shadow:0 0 60px rgba(255,200,0,0.08);">
-    <div style="display:flex; justify-content:space-between; align-items:center; padding:11px 18px; border-bottom:1px solid rgba(255,200,0,0.18); flex-shrink:0;">
-      <h2 style="color:#ffcc00; margin:0; font-size:1rem; letter-spacing:1px;"><svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-trophy"/></svg> ACHIEVEMENTS &nbsp;<span id="achCount" style="font-size:0.7rem; color:#666; font-weight:normal;"></span></h2>
-      <button onclick="document.getElementById('achievementsModal').style.display='none'" style="background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.15);border-radius:7px;color:#dde4ff;padding:4px 14px;cursor:pointer;font-size:0.8rem;">Close</button>
+<div id="achievementsModal" onclick="if(event.target===this)closeAchievementsModal()" style="display:none;">
+  <div class="ach-shell" role="dialog" aria-label="Achievements">
+    <div class="ach-header">
+      <h2><svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-trophy"/></svg> Achievements</h2>
+      <div class="ach-progress"><div class="ach-progress-track"><div id="achProgressFill" class="ach-progress-fill"></div></div><span id="achCount"></span></div>
+      <button class="ach-close" onclick="closeAchievementsModal()">Close</button>
     </div>
-    <div style="display:flex; flex:1; overflow:hidden;">
-      <div id="achievementsGrid" style="width:54%; padding:10px; display:grid; grid-template-columns:repeat(8,1fr); gap:5px; align-content:start; overflow-y:auto; border-right:1px solid rgba(255,200,0,0.1);"></div>
-      <div id="achDetail" style="flex:1; padding:24px 20px; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; gap:10px;">
-        <div id="achDetailIcon" style="font-size:52px; line-height:1;"><svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-trophy"/></svg></div>
-        <div id="achDetailTitle" style="font-size:1.05rem; font-weight:700; color:#ffcc00;">Select an achievement</div>
-        <div id="achDetailDesc" style="font-size:0.78rem; color:#aaa; line-height:1.4;"></div>
-        <div id="achDetailHint" style="font-size:0.73rem; color:#7799bb; font-style:italic; line-height:1.4;"></div>
-        <div id="achDetailStatus" style="font-size:0.7rem; padding:4px 14px; border-radius:20px; margin-top:4px; letter-spacing:0.5px;"></div>
+    <div class="ach-body">
+      <div id="achievementsGrid" class="ach-list"></div>
+      <div id="achDetail" class="ach-detail">
+        <div id="achDetailIcon" class="ach-detail-badge"></div>
+        <div id="achDetailTier" class="ach-detail-tier"></div>
+        <div id="achDetailTitle" class="ach-detail-title">Select an achievement</div>
+        <div id="achDetailDesc" class="ach-detail-desc"></div>
+        <div id="achDetailHint" class="ach-detail-hint"></div>
+        <div id="achDetailStatus" class="ach-status"></div>
       </div>
     </div>
   </div>
@@ -1437,7 +1471,6 @@
       <ul class="gb-list">
         <li><b>Lava Floor</b> — When you see the <em>"FLOOR IS LAVA"</em> warning, move to a platform immediately. Lava eruptions deal heavy damage.</li>
         <li><b>Void Floor</b> — <em>"FLOOR REMOVED"</em> means the ground disappears. Fall off = instant KO. Stay on platforms.</li>
-        <li><b>Sudden Death</b> — After 90 seconds in a 1v1, lava rises from below. Finish the fight fast.</li>
       </ul>
       <div class="gb-section-title" style="margin-top:18px;">QTE (Quick-Time Events)</div>
       <ul class="gb-list">
@@ -1512,6 +1545,14 @@
           <input type="checkbox" id="settingReplayMode" onchange="updateSettings()">
           <span>Replay Mode</span>
         </label>
+        <label class="setting-item" title="Let Quick Fight pick arenas with hazards (lava, meteors, water, etc.). Off = hazard-free arenas only">
+          <input type="checkbox" id="settingQuickFightHazards" onchange="updateSettings()">
+          <span>Quick Fight Hazards</span>
+        </label>
+        <label class="setting-item" title="Turn Performance Mode on automatically when the frame rate drops. Off = never switch it on for you">
+          <input type="checkbox" id="settingAutoPerf" checked onchange="updateSettings()">
+          <span>Auto Performance Mode</span>
+        </label>
       </div>
       <!-- Performance mode -->
       <div style="margin-top:8px;">
@@ -1581,7 +1622,7 @@
     <!-- RESET -->
     <div class="settings-modal-section" style="border-bottom:none;">
       <div id="resetConfirmRow" style="display:none;padding:8px;background:rgba(255,50,50,0.12);border-radius:6px;border:1px solid rgba(255,80,80,0.3);margin-bottom:6px;">
-        <span style="font-size:0.75rem;color:#ff8888;">Reset all progress (boss beaten, letters, true form)?</span>
+        <span style="font-size:0.75rem;color:#ff8888;">Reset all progress (boss beaten, letters, Cosmic Axiom)?</span>
         <div style="display:flex;gap:6px;margin-top:6px;">
           <button class="btn" onclick="confirmResetProgress()" style="background:rgba(200,0,0,0.7);font-size:0.72rem;padding:4px 12px;">Yes, Reset</button>
           <button class="btn" onclick="document.getElementById('resetConfirmRow').style.display='none'" style="font-size:0.72rem;padding:4px 12px;">Cancel</button>
@@ -1676,13 +1717,15 @@
   <script src="./js/smb-sitelock.js?v=4.3.8"></script>
   <script src="./js/smb-errorboundary.js?v=4.3.8"></script>
   <!-- Global state, canvas setup -->
-  <script src="./js/smb-icons.js?v=4.4.1"></script>
-  <script src="./js/smb-globals.js?v=4.6.1"></script>
+  <script src="./js/smb-icons.js?v=4.7.1"></script>
+  <script src="./js/smb-globals.js?v=4.9.37"></script>
   <script src="./js/smb-palette.js?v=4.3.8"></script>
   <!-- Hand-drawn weapon sprite art (must follow smb-globals.js, precede smb-fighter.js) -->
-  <script src="./js/smb-weapon-sprites.js?v=4.3.8"></script>
+  <script src="./js/smb-weapon-sprites.js?v=4.6.7"></script>
   <!-- CrazyGames SDK wrapper — must follow smb-globals.js -->
-  <script src="./js/smb-crazygames.js?v=4.3.8"></script>
+  <script src="./js/smb-crazygames.js?v=4.8.8"></script>
+  <!-- AdManager — routes ads to cgSdk on CrazyGames, placeholders on our own site -->
+  <script src="./js/smb-ads.js?v=4.9.2"></script>
   <!-- Live ops: remote config, version checks, soft updates (must follow smb-globals.js) -->
   <script src="./js/smb-liveops.js?v=4.3.8"></script>
   <script src="./js/smb-admin-session.js?v=4.3.8"></script>
@@ -1691,26 +1734,27 @@
   <!-- Game Director: pacing, intensity, dynamic events -->
   <script src="./js/smb-director.js?v=4.3.8"></script>
   <!-- Achievement system -->
-  <script src="./js/smb-achievements.js?v=4.3.8"></script>
+  <script src="./js/smb-achievements.js?v=4.9.16"></script>
   <!-- Arena, weapon, class data (split from smb-data.js) -->
-  <script src="./js/smb-data-arenas.js?v=4.3.8"></script>
+  <script src="./js/smb-data-arenas.js?v=4.9.35"></script>
   <!-- The Circuit's sliding plate. Must load after smb-data-arenas.js (owns the
        authoring fields it drives) and before smb-loop-core.js (which ticks it). -->
   <script src="./js/smb-circuit.js?v=4.3.8"></script>
-  <script src="./js/smb-data-mapperks.js?v=4.4.6"></script>
+  <script src="./js/smb-data-mapperks.js?v=4.7.0"></script>
   <script src="./js/smb-data-mapperks-draw.js?v=4.3.8"></script>
-  <script src="./js/smb-data-weapons.js?v=4.6.1"></script>
+  <script src="./js/smb-data-weapons.js?v=4.9.37"></script>
   <script src="./js/smb-map-analyzer.js?v=4.3.8"></script>
   <!-- Combat pipeline, particles, heatmap, ragdoll (split from smb-particles.js) -->
-  <script src="./js/smb-combat.js?v=4.6.1"></script>
-  <script src="./js/smb-particles-core.js?v=4.3.8"></script>
+  <script src="./js/smb-combat.js?v=4.9.28"></script>
+  <script src="./js/smb-particles-core.js?v=4.9.28"></script>
   <script src="./js/smb-destruction.js?v=4.3.8"></script>
+  <script src="./js/smb-world-react.js?v=4.9.10"></script>
   <script src="./js/smb-heatmap.js?v=4.3.8"></script>
   <script src="./js/smb-verlet.js?v=4.3.8"></script>
   <!-- Animation substrate + death animation (docs/animation-quality-plan.md) -->
   <script src="./js/smb-anim-core.js?v=4.3.8"></script>
-  <script src="./js/smb-anim-fighter.js?v=4.3.8"></script>
-  <script src="./js/smb-figure-skin.js?v=4.6.1"></script>
+  <script src="./js/smb-anim-fighter.js?v=4.8.2"></script>
+  <script src="./js/smb-figure-skin.js?v=4.9.4"></script>
   <script src="./js/smb-cin-figure.js?v=4.3.8"></script>
   <script src="./js/smb-cin-perf.js?v=4.3.8"></script>
   <script src="./js/smb-transition.js?v=4.3.8"></script>
@@ -1732,41 +1776,49 @@
   <script src="./js/smb-finisher-beast.js?v=4.3.8"></script>
   <script src="./js/smb-finisher-weapon.js?v=4.3.8"></script>
   <script src="./js/smb-finisher-weapon2.js?v=4.3.8"></script>
-  <script src="./js/smb-finisher-engine.js?v=4.3.8"></script>
+  <script src="./js/smb-finisher-weapon3.js?v=4.8.0"></script>
+  <script src="./js/smb-finisher-engine.js?v=4.9.37"></script>
   <!-- Platform graph + A* pathfinding (must load before smb-fighter.js) -->
-  <script src="./js/smb-pathfinding.js?v=4.3.9"></script>
+  <script src="./js/smb-pathfinding.js?v=4.9.35"></script>
   <!-- Fragment weapon manifestation + sprint escalation (must load before smb-fighter.js) -->
-  <script src="./js/smb-fragment-manifest.js?v=4.3.8"></script>
+  <script src="./js/smb-fragment-manifest.js?v=4.3.9"></script>
   <!-- Fighter base class -->
-  <script src="./js/smb-fighter.js?v=4.6.1"></script>
+  <script src="./js/smb-fighter.js?v=4.9.37"></script>
   <!-- Bomb / Fragment / Knives / Glass Blade / Anchor / Crossbow runtime (must follow smb-fighter.js) -->
-  <script src="./js/smb-weapons-ext.js?v=4.6.1"></script>
+  <script src="./js/smb-weapons-ext.js?v=4.9.37"></script>
+  <!-- Abilities and supers as scripted, uninterruptible move scenes (must follow smb-weapons-ext.js) -->
+  <script src="./js/smb-move-scenes.js?v=4.9.24"></script>
+  <script src="./js/smb-move-scenes-defs.js?v=4.9.28"></script>
+  <!-- Per-move finishers: a Q/E kill plays that move's own finisher (needs move scenes + finisher helpers) -->
+  <script src="./js/smb-finisher-moves.js?v=4.9.22"></script>
+  <script src="./js/smb-finisher-moves-defs.js?v=4.9.22"></script>
+  <script src="./js/smb-finisher-moves-defs2.js?v=4.9.22"></script>
   <!-- Modular combat AI: CombatSystem, MovementSystem, AIController, CombatAIFighter -->
   <script src="./js/smb-combat-ai.js?v=4.3.8"></script>
   <!-- Enemy NPCs, training mode -->
-  <script src="./js/smb-enemies-core.js?v=4.3.8"></script>
-  <script src="./js/smb-enemies-creatures.js?v=4.3.8"></script>
-  <script src="./js/smb-enemies-training.js?v=4.3.8"></script>
-  <script src="./js/smb-enemies-class.js?v=4.3.8"></script>
+  <script src="./js/smb-enemies-core.js?v=4.3.9"></script>
+  <script src="./js/smb-enemies-creatures.js?v=4.3.9"></script>
+  <script src="./js/smb-enemies-training.js?v=4.8.9"></script>
+  <script src="./js/smb-enemies-class.js?v=4.8.9"></script>
   <!-- God entity and encounter system -->
-  <script src="./js/smb-god.js?v=4.3.8"></script>
-  <script src="./js/smb-god-cinematics.js?v=4.3.8"></script>
+  <script src="./js/smb-god.js?v=4.9.21"></script>
+  <script src="./js/smb-god-cinematics.js?v=4.9.21"></script>
   <!-- Divine Summon: H key calls a Herald to clear the level -->
-  <script src="./js/smb-divine-summon.js?v=4.3.8"></script>
+  <script src="./js/smb-divine-summon.js?v=4.9.1"></script>
   <!-- Domain Expansion system -->
-  <script src="./js/smb-domain.js?v=4.3.8"></script>
+  <script src="./js/smb-domain.js?v=4.9.23"></script>
   <!-- Boss and True Form -->
   <script src="./js/boss/smb-boss.js?v=4.3.8"></script>
-  <script src="./js/boss/smb-boss-cinematics.js?v=4.3.8"></script>
+  <script src="./js/boss/smb-boss-cinematics.js?v=4.9.16"></script>
   <script src="./js/boss/smb-boss-tf-misc.js?v=4.3.8"></script>
-  <script src="./js/boss/smb-boss-phase-cin.js?v=4.3.8"></script>
-  <script src="./js/boss/smb-boss-tf-legacy.js?v=4.3.8"></script>
+  <script src="./js/boss/smb-boss-phase-cin.js?v=4.9.16"></script>
+  <script src="./js/boss/smb-boss-tf-legacy.js?v=4.9.16"></script>
   <script src="./js/boss/smb-boss-tf-attacks1.js?v=4.3.8"></script>
   <script src="./js/boss/smb-boss-tf-attacks2.js?v=4.3.8"></script>
   <script src="./js/boss/smb-boss-tf-visuals1.js?v=4.3.8"></script>
   <script src="./js/boss/smb-boss-tf-visuals2.js?v=4.3.8"></script>
-  <script src="./js/boss/smb-boss-helpers.js?v=4.3.8"></script>
-  <script src="./js/boss/smb-trueform.js?v=4.3.8"></script>
+  <script src="./js/boss/smb-boss-helpers.js?v=4.9.29"></script>
+  <script src="./js/boss/smb-trueform.js?v=4.9.18"></script>
   <script src="./js/boss/smb-trueform-attacks.js?v=4.3.8"></script>
   <!-- Paradox entity: multiversal being, revive system, TF damage lock, foreshadowing -->
   <script src="./js/smb-paradox-class.js?v=4.3.8"></script>
@@ -1785,37 +1837,43 @@
   <!-- Adaptive AI — learning opponent for Adaptive AI mode (story) -->
   <script src="./js/smb-adaptive-ai.js?v=4.3.8"></script>
   <!-- SOVEREIGN Ω — upgraded adaptive AI with prediction/punishment/limiter break -->
-  <script src="./js/smb-smk2-data.js?v=4.5.0"></script>
+  <script src="./js/smb-smk2-data.js?v=4.6.4"></script>
   <script src="./js/smb-sov-memory.js?v=4.4.0"></script>
-  <script src="./js/smb-sov-arsenal.js?v=4.5.3"></script>
-  <script src="./js/smb-sov-dossier.js?v=4.4.0"></script>
-  <script src="./js/smb-sov-habits.js?v=4.5.1"></script>
+  <script src="./js/smb-sov-arsenal.js?v=4.7.9"></script>
+  <script src="./js/smb-sov-dossier.js?v=4.6.2"></script>
+  <script src="./js/smb-sov-habits.js?v=4.6.2"></script>
+  <script src="./js/smb-sov-movebook.js?v=4.6.2"></script>
+  <script src="./js/smb-sov-combo.js?v=4.6.2"></script>
   <script src="./js/smb-sov-telemetry.js?v=4.3.9"></script>
   <script src="./js/smb-sov-artifact.js?v=4.3.9"></script>
-  <script src="./js/smb-smk2-class.js?v=4.6.1"></script>
-  <script src="./js/smb-smk2-training.js?v=4.4.8"></script>
+  <script src="./js/smb-smk2-class.js?v=4.9.13"></script>
+  <script src="./js/smb-smk2-training.js?v=4.8.9"></script>
   <script src="./js/smb-sov-scenarios.js?v=4.4.6"></script>
-  <script src="./js/smb-absolute-axiom.js?v=4.3.8"></script>
+  <script src="./js/smb-brain.js?v=4.9.33"></script>
+  <script src="./js/smb-brain-read.js?v=4.9.33"></script>
+  <script src="./js/smb-absolute-axiom.js?v=4.9.21"></script>
   <!-- TrueForm ending cinematic -->
-  <script src="./js/smb-trueform-ending-data.js?v=4.3.8"></script>
-  <script src="./js/smb-trueform-ending-update.js?v=4.3.8"></script>
+  <script src="./js/smb-trueform-ending-data.js?v=4.8.9"></script>
+  <script src="./js/smb-trueform-ending-update.js?v=4.7.1"></script>
   <script src="./js/smb-trueform-ending-draw.js?v=4.3.8"></script>
   <!-- Drawing, game state, HUD, visual effects -->
-  <script src="./js/rendering/smb-drawing-arenas.js?v=4.5.6"></script>
-  <script src="./js/rendering/smb-drawing-bg.js?v=4.3.8"></script>
-  <script src="./js/rendering/smb-drawing-effects.js?v=4.3.8"></script>
-  <script src="./js/rendering/smb-drawing-scenes.js?v=4.3.8"></script>
-  <script src="./js/rendering/smb-drawing-hud.js?v=4.3.8"></script>
+  <script src="./js/rendering/smb-drawing-arenas.js?v=4.9.37"></script>
+  <script src="./js/rendering/smb-drawing-bg.js?v=4.9.22"></script>
+  <script src="./js/rendering/smb-drawing-effects.js?v=4.8.9"></script>
+  <script src="./js/rendering/smb-drawing-scenes.js?v=4.7.1"></script>
+  <script src="./js/rendering/smb-drawing-hud.js?v=4.9.3"></script>
   <script src="./js/rendering/smb-drawing-arenas2.js?v=4.3.8"></script>
   <script src="./js/rendering/smb-drawing-arenas3.js?v=4.3.8"></script>
+  <script src="./js/rendering/smb-drawing-arenas4.js?v=4.4.2"></script>
   <!-- Minigame systems -->
-  <script src="./js/smb-minigames.js?v=4.5.6"></script>
-  <script src="./js/smb-sports.js?v=4.5.6"></script>
+  <script src="./js/smb-minigames.js?v=4.8.0"></script>
+  <script src="./js/smb-sports.js?v=4.9.7"></script>
   <script src="./js/smb-trials.js?v=4.3.8"></script>
-  <script src="./js/smb-battleroyale.js?v=4.4.1"></script>
+  <script src="./js/smb-battleroyale.js?v=4.9.37"></script>
+  <script src="./js/smb-br-forms.js?v=4.9.37"></script>
   <script src="./js/smb-sewer.js?v=4.3.8"></script>
   <!-- True-Form QTE system -->
-  <script src="./js/smb-qte-core.js?v=4.3.8"></script>
+  <script src="./js/smb-qte-core.js?v=4.9.16"></script>
   <script src="./js/smb-qte-engine.js?v=4.3.8"></script>
   <script src="./js/smb-qte-draw.js?v=4.3.8"></script>
   <!-- Impact cinematic system: playCinematicAttack, CINEMATIC_PRESETS, updateCinematicSystem -->
@@ -1823,45 +1881,46 @@
   <!-- Deterministic step-based cutscene system -->
   <script src="./js/smb-cutscene.js?v=4.3.8"></script>
   <!-- Camera, screen FX, main game loop, input (split from smb-loop.js) -->
-  <script src="./js/smb-camera.js?v=4.3.8"></script>
+  <script src="./js/smb-camera.js?v=4.9.3"></script>
   <script src="./js/smb-camera-trace.js?v=4.3.8"></script>
   <script src="./js/smb-screenfx.js?v=4.3.8"></script>
-  <script src="./js/smb-loop-core.js?v=4.5.6"></script>
-  <script src="./js/smb-input.js?v=4.4.3"></script>
-  <script src="./js/smb-cheats.js?v=4.3.8"></script>
+  <script src="./js/smb-loop-core.js?v=4.9.25"></script>
+  <script src="./js/smb-input.js?v=4.9.37"></script>
+  <script src="./js/smb-cheats.js?v=4.9.16"></script>
   <!-- Menu UI, startGame, tutorial -->
-  <script src="./js/smb-menu-ui.js?v=4.5.6"></script>
-  <script src="./js/smb-menu-select.js?v=4.4.0"></script>
-  <script src="./js/smb-menu-config.js?v=4.5.6"></script>
+  <script src="./js/smb-menu-ui.js?v=4.9.25"></script>
+  <script src="./js/smb-menu-select.js?v=4.9.3"></script>
+  <script src="./js/smb-menu-config.js?v=4.9.25"></script>
   <script src="./js/smb-loadscreen.js?v=4.6.0"></script>
-  <script src="./js/smb-menu-spawn.js?v=4.3.8"></script>
-  <script src="./js/smb-menu-startcore.js?v=4.5.6"></script>
-  <script src="./js/smb-menu-utils.js?v=4.5.7"></script>
+  <script src="./js/smb-menu-spawn.js?v=4.9.29"></script>
+  <script src="./js/smb-menu-startcore.js?v=4.9.29"></script>
+  <script src="./js/smb-menu-utils.js?v=4.9.35"></script>
   <!-- Network / online multiplayer -->
-  <script src="./js/smb-network.js?v=4.5.6"></script>
+  <script src="./js/smb-network.js?v=4.9.1"></script>
   <!-- Centralized runtime state (accounts, admin overrides, online session) -->
   <!-- Must load before smb-online.js, smb-accounts.js, and smb-admin.js -->
   <script src="./js/smb-state.js?v=4.3.8"></script>
   <!-- Supabase auth + cloud save bridge -->
   <script src="./js/smb-supabase.js?v=4.3.8"></script>
   <!-- Lobby presence layer — wraps NetworkManager with lobby API + UI -->
-  <script src="./js/smb-online.js?v=4.5.7"></script>
+  <script src="./js/smb-online.js?v=4.9.1"></script>
+  <script src="./js/smb-public-hub.js?v=4.9.9"></script>
   <!-- Developer debug toolkit (loaded last so all systems exist) -->
   <script src="./js/smb-debug-overlay.js?v=4.3.8"></script>
-  <script src="./js/smb-debug-console.js?v=4.4.5"></script>
-  <script src="./js/smb-ai-console.js?v=4.3.8"></script>
+  <script src="./js/smb-debug-console.js?v=4.9.33"></script>
+  <script src="./js/smb-ai-console.js?v=4.9.16"></script>
   <script src="./js/smb-sov-advisor.js?v=4.3.8"></script>
-  <script src="./js/smb-debug-jump.js?v=4.3.8"></script>
+  <script src="./js/smb-debug-jump.js?v=4.9.16"></script>
   <!-- Account system — must load before smb-save.js so getSaveKey() works -->
   <script src="./js/smb-accounts.js?v=4.3.8"></script>
   <!-- Save / Export / Import system -->
-  <script src="./js/smb-save.js?v=4.3.8"></script>
+  <script src="./js/smb-save.js?v=4.9.2"></script>
   <!-- Admin control panel — F9 to toggle; only visible for accounts in ADMIN_IDS -->
   <script src="./js/smb-admin-core.js?v=4.4.1"></script>
   <script src="./js/smb-admin-panels.js?v=4.3.8"></script>
   <script src="./js/smb-sovereign-control.js?v=4.3.8"></script>
   <!-- Comprehensive live-service admin dashboard — F10 to toggle -->
-  <script src="./js/smb-admin-liveops-panel.js?v=4.3.8"></script>
+  <script src="./js/smb-admin-liveops-panel.js?v=4.9.16"></script>
   <!-- Attack Test Sandbox — dev tool (type "atk help" in the game console) -->
   <script src="./js/smb-attacktest-core.js?v=4.3.8"></script>
   <script src="./js/smb-attacktest-exec.js?v=4.3.8"></script>
@@ -1870,93 +1929,236 @@
   <script src="./js/smb-attacktest-gui.js?v=4.3.8"></script>
   <!-- Story Mode system -->
   <script src="./js/story/smb-story-registry.js?v=4.3.8"></script>
-  <script src="./js/story/acts/act0/smb-act0-arc1.js?v=4.3.8"></script>
-  <script src="./js/story/acts/act0/smb-act0-arc2.js?v=4.3.8"></script>
-  <script src="./js/story/acts/act1/smb-act1-arc1.js?v=4.3.8"></script>
-  <script src="./js/story/acts/act1/smb-act1-arc2.js?v=4.3.8"></script>
+  <script src="./js/story/acts/act0/smb-act0-arc1.js?v=4.9.22"></script>
+  <script src="./js/story/acts/act0/smb-act0-arc2.js?v=4.9.22"></script>
+  <script src="./js/story/acts/act1/smb-act1-arc1.js?v=4.9.24"></script>
+  <script src="./js/story/acts/act1/smb-act1-arc2.js?v=4.9.22"></script>
   <script src="./js/story/acts/act2/smb-act2-arc1.js?v=4.3.8"></script>
-  <script src="./js/story/acts/act2/smb-act2-arc2.js?v=4.3.8"></script>
+  <script src="./js/story/acts/act2/smb-act2-arc2.js?v=4.9.23"></script>
   <script src="./js/story/acts/act2/smb-act2-arc3.js?v=4.3.8"></script>
-  <script src="./js/story/acts/act3/smb-act3-arc1.js?v=4.3.8"></script>
-  <script src="./js/story/acts/act3/smb-act3-arc2.js?v=4.3.8"></script>
+  <script src="./js/story/acts/act3/smb-act3-arc1.js?v=4.9.24"></script>
+  <script src="./js/story/acts/act3/smb-act3-arc2.js?v=4.9.24"></script>
   <script src="./js/story/acts/side/smb-lab-infiltration.js?v=4.3.8"></script>
   <script src="./js/story/acts/side/smb-calix-discovery.js?v=4.3.8"></script>
-  <script src="./js/story/acts/act5/smb-act5-arc-damnation.js?v=4.3.8"></script>
-  <script src="./js/story/acts/act6/smb-act6-arc1.js?v=4.3.8"></script>
+  <script src="./js/story/acts/act5/smb-act5-arc-damnation.js?v=4.9.16"></script>
+  <script src="./js/story/acts/act6/smb-act6-arc1.js?v=4.9.29"></script>
   <script src="./js/story/acts/act6/smb-act6-arc2.js?v=4.3.8"></script>
   <script src="./js/story/acts/act6/smb-act6-arc3.js?v=4.3.8"></script>
   <script src="./js/story/acts/act4mv/smb-act4mv-arc1.js?v=4.3.8"></script>
-  <script src="./js/story/acts/act4mv/smb-act4mv-arc2.js?v=4.3.8"></script>
+  <script src="./js/story/acts/act4mv/smb-act4mv-arc2.js?v=4.9.30"></script>
   <script src="./js/story/acts/act4mv/smb-act4mv-null.js?v=4.3.8"></script>
-  <script src="./js/story/acts/act4mv/smb-act4mv-seraph.js?v=4.3.8"></script>
+  <script src="./js/story/acts/act4mv/smb-act4mv-seraph.js?v=4.9.30"></script>
   <script src="./js/story/acts/act4mv/smb-act4mv-vael.js?v=4.3.8"></script>
   <script src="./js/story/acts/act4mv/smb-act4mv-thresh.js?v=4.3.8"></script>
-  <script src="./js/story/acts/act4mv/smb-act4mv-arc3.js?v=4.3.8"></script>
-  <script src="./js/story/acts/act4/smb-act4-arc1.js?v=4.3.8"></script>
-  <script src="./js/story/acts/act4/smb-act4-arc2.js?v=4.3.8"></script>
-  <script src="./js/story/acts/act5/smb-act5-arc1.js?v=4.3.8"></script>
-  <script src="./js/story/acts/act5/smb-act5-arc2.js?v=4.3.8"></script>
-  <script src="./js/story/acts/act5/smb-act5-bridge.js?v=4.4.1"></script>
-  <script src="./js/story/acts/act7/smb-act7-arc1.js?v=4.3.8"></script>
-  <script src="./js/story/acts/act7/smb-act7-arc2.js?v=4.3.8"></script>
-  <script src="./js/story/acts/act7/smb-act7-arc3.js?v=4.3.8"></script>
-  <script src="./js/story/acts/actvoidmind/smb-voidmind-entry.js?v=4.3.8"></script>
+  <script src="./js/story/acts/act4mv/smb-act4mv-arc3.js?v=4.9.31"></script>
+  <script src="./js/story/acts/act4/smb-act4-arc1.js?v=4.9.32"></script>
+  <script src="./js/story/acts/act4/smb-act4-arc2.js?v=4.9.16"></script>
+  <script src="./js/story/acts/act5/smb-act5-arc1.js?v=4.9.16"></script>
+  <script src="./js/story/acts/act5/smb-act5-arc2.js?v=4.9.16"></script>
+  <script src="./js/story/acts/act5/smb-act5-bridge.js?v=4.9.16"></script>
+  <script src="./js/story/acts/act7/smb-act7-arc1.js?v=4.9.16"></script>
+  <script src="./js/story/acts/act7/smb-act7-arc2.js?v=4.9.16"></script>
+  <script src="./js/story/acts/act7/smb-act7-arc3.js?v=4.9.16"></script>
+  <script src="./js/story/acts/actvoidmind/smb-voidmind-entry.js?v=4.9.16"></script>
   <script src="./js/story/acts/actvoidmind/smb-voidmind-reckoning1.js?v=4.3.8"></script>
   <script src="./js/story/acts/actvoidmind/smb-voidmind-reckonings2-4.js?v=4.3.8"></script>
   <script src="./js/story/acts/actvoidmind/smb-voidmind-reckonings5-8.js?v=4.3.8"></script>
-  <script src="./js/story/acts/actvoidmind/smb-voidmind-trial.js?v=4.3.8"></script>
+  <script src="./js/story/acts/actvoidmind/smb-voidmind-trial.js?v=4.9.16"></script>
   <script src="./js/story/acts/actvoidmind/smb-voidmind-after.js?v=4.3.8"></script>
   <script src="./js/story/acts/actvoidmind/smb-voidmind-fight.js?v=4.3.8"></script>
-  <script src="./js/story/smb-story-config.js?v=4.3.8"></script>
+  <script src="./js/story/smb-story-config.js?v=4.9.25"></script>
   <script src="./js/story/smb-story-engine-data.js?v=4.3.8"></script>
-  <script src="./js/story/smb-story-engine-ui.js?v=4.3.8"></script>
+  <script src="./js/story/smb-story-engine-ui.js?v=4.9.26"></script>
   <script src="./js/story/smb-story-prologue-tuesday.js?v=4.3.8"></script>
   <script src="./js/smb-story-scenes.js?v=4.3.8"></script>
   <!-- Per-act scene specs (split out of smb-story-scenes.js). Order among these
        does not matter; all must load before smb-story-narrative-scene.js. -->
-  <script src="./js/story/scenes/act0.js?v=4.3.8"></script>
-  <script src="./js/story/scenes/act1.js?v=4.3.8"></script>
+  <script src="./js/story/scenes/act0.js?v=4.9.22"></script>
+  <script src="./js/story/scenes/act1.js?v=4.9.23"></script>
   <script src="./js/story/scenes/act2.js?v=4.3.8"></script>
-  <script src="./js/story/scenes/act3.js?v=4.3.8"></script>
+  <script src="./js/story/scenes/act3.js?v=4.9.24"></script>
   <script src="./js/story/scenes/act4.js?v=4.3.8"></script>
-  <script src="./js/story/scenes/act4mv.js?v=4.3.8"></script>
-  <script src="./js/story/scenes/act5.js?v=4.3.8"></script>
-  <script src="./js/story/scenes/act6.js?v=4.3.8"></script>
-  <script src="./js/story/scenes/act7.js?v=4.3.8"></script>
-  <script src="./js/story/scenes/actvoidmind.js?v=4.3.8"></script>
+  <script src="./js/story/scenes/act4mv.js?v=4.9.31"></script>
+  <script src="./js/story/scenes/act5.js?v=4.9.33"></script>
+  <script src="./js/story/scenes/act6.js?v=4.9.29"></script>
+  <script src="./js/story/scenes/act7.js?v=4.9.34"></script>
+  <script src="./js/story/scenes/actvoidmind.js?v=4.9.34"></script>
   <script src="./js/story/scenes/side.js?v=4.3.8"></script>
   <script src="./js/smb-figure-rig.js?v=4.3.8"></script>
-  <script src="./js/smb-story-narrative-scene.js?v=4.3.8"></script>
-  <script src="./js/story/smb-story-engine-flow.js?v=4.3.8"></script>
-  <script src="./js/story/smb-story-engine-match.js?v=4.4.1"></script>
-  <script src="./js/story/smb-story-engine-events.js?v=4.3.8"></script>
+  <script src="./js/smb-story-narrative-scene.js?v=4.9.22"></script>
+  <script src="./js/story/smb-story-engine-flow.js?v=4.9.25"></script>
+  <script src="./js/story/smb-story-engine-match.js?v=4.9.1"></script>
+  <script src="./js/story/smb-story-engine-events.js?v=4.9.16"></script>
   <script src="./js/story/smb-story-engine-frame.js?v=4.3.8"></script>
-  <script src="./js/story/smb-story-engine-explore.js?v=4.3.8"></script>
-  <script src="./js/story/smb-story-engine-explore2.js?v=4.3.8"></script>
+  <script src="./js/story/smb-story-levels.js?v=4.9.32"></script>
+  <script src="./js/story/levels/ch00.js?v=4.9.22"></script>
+  <script src="./js/story/levels/ch01.js?v=4.9.22"></script>
+  <script src="./js/story/levels/ch02.js?v=4.9.22"></script>
+  <script src="./js/story/levels/ch03.js?v=4.9.22"></script>
+  <script src="./js/story/levels/ch04.js?v=4.9.22"></script>
+  <script src="./js/story/levels/ch05.js?v=4.9.22"></script>
+  <script src="./js/story/levels/ch06.js?v=4.9.22"></script>
+  <script src="./js/story/levels/ch07.js?v=4.9.22"></script>
+  <script src="./js/story/levels/ch08.js?v=4.9.22"></script>
+  <script src="./js/story/levels/ch09.js?v=4.9.22"></script>
+  <script src="./js/story/levels/ch10.js?v=4.9.22"></script>
+  <script src="./js/story/levels/ch11.js?v=4.9.22"></script>
+  <script src="./js/story/levels/ch12.js?v=4.9.22"></script>
+  <script src="./js/story/levels/ch13.js?v=4.9.22"></script>
+  <script src="./js/story/levels/ch14.js?v=4.9.22"></script>
+  <script src="./js/story/levels/ch15.js?v=4.9.22"></script>
+  <script src="./js/story/levels/ch16.js?v=4.9.22"></script>
+  <script src="./js/story/levels/ch17.js?v=4.9.22"></script>
+  <script src="./js/story/levels/ch18.js?v=4.9.22"></script>
+  <script src="./js/story/levels/ch19.js?v=4.9.22"></script>
+  <script src="./js/story/levels/ch20.js?v=4.9.22"></script>
+  <script src="./js/story/levels/ch21.js?v=4.9.22"></script>
+  <script src="./js/story/levels/ch22.js?v=4.9.22"></script>
+  <script src="./js/story/levels/ch23.js?v=4.9.22"></script>
+  <script src="./js/story/levels/ch24.js?v=4.9.22"></script>
+  <script src="./js/story/levels/ch25.js?v=4.9.22"></script>
+  <script src="./js/story/levels/ch26.js?v=4.9.22"></script>
+  <script src="./js/story/levels/ch27.js?v=4.9.22"></script>
+  <script src="./js/story/levels/ch28.js?v=4.9.22"></script>
+  <script src="./js/story/levels/ch29.js?v=4.9.22"></script>
+  <script src="./js/story/levels/ch31.js?v=4.9.23"></script>
+  <script src="./js/story/levels/ch32.js?v=4.9.23"></script>
+  <script src="./js/story/levels/ch33.js?v=4.9.23"></script>
+  <script src="./js/story/levels/ch34.js?v=4.9.23"></script>
+  <script src="./js/story/levels/ch35.js?v=4.9.23"></script>
+  <script src="./js/story/levels/ch36.js?v=4.9.23"></script>
+  <script src="./js/story/levels/ch37.js?v=4.9.23"></script>
+  <script src="./js/story/levels/ch38.js?v=4.9.23"></script>
+  <script src="./js/story/levels/ch39.js?v=4.9.23"></script>
+  <script src="./js/story/levels/ch40.js?v=4.9.23"></script>
+  <script src="./js/story/levels/ch41.js?v=4.9.23"></script>
+  <script src="./js/story/levels/ch42.js?v=4.9.23"></script>
+  <script src="./js/story/levels/ch43.js?v=4.9.23"></script>
+  <script src="./js/story/levels/ch44.js?v=4.9.23"></script>
+  <script src="./js/story/levels/ch45.js?v=4.9.23"></script>
+  <script src="./js/story/levels/ch46.js?v=4.9.23"></script>
+  <script src="./js/story/levels/ch47.js?v=4.9.23"></script>
+  <script src="./js/story/levels/ch48.js?v=4.9.23"></script>
+  <script src="./js/story/levels/ch49.js?v=4.9.23"></script>
+  <script src="./js/story/levels/ch50.js?v=4.9.24"></script>
+  <script src="./js/story/levels/ch52.js?v=4.9.24"></script>
+  <script src="./js/story/levels/ch54.js?v=4.9.24"></script>
+  <script src="./js/story/levels/ch55.js?v=4.9.24"></script>
+  <script src="./js/story/levels/ch56.js?v=4.9.24"></script>
+  <script src="./js/story/levels/ch57.js?v=4.9.24"></script>
+  <script src="./js/story/levels/ch58.js?v=4.9.24"></script>
+  <script src="./js/story/levels/ch59.js?v=4.9.24"></script>
+  <script src="./js/story/levels/ch60.js?v=4.9.24"></script>
+  <script src="./js/story/levels/ch61.js?v=4.9.24"></script>
+  <script src="./js/story/levels/ch62.js?v=4.9.24"></script>
+  <script src="./js/story/levels/ch63.js?v=4.9.24"></script>
+  <script src="./js/story/levels/ch64.js?v=4.9.24"></script>
+  <script src="./js/story/levels/ch65.js?v=4.9.24"></script>
+  <script src="./js/story/levels/ch66.js?v=4.9.24"></script>
+  <script src="./js/story/levels/ch67.js?v=4.9.24"></script>
+  <script src="./js/story/levels/ch68.js?v=4.9.24"></script>
+  <script src="./js/story/levels/ch69.js?v=4.9.24"></script>
+  <script src="./js/story/levels/ch70.js?v=4.9.29"></script>
+  <script src="./js/story/levels/ch71.js?v=4.9.29"></script>
+  <script src="./js/story/levels/ch73.js?v=4.9.29"></script>
+  <script src="./js/story/levels/ch74.js?v=4.9.29"></script>
+  <script src="./js/story/levels/ch75.js?v=4.9.29"></script>
+  <script src="./js/story/levels/ch76.js?v=4.9.29"></script>
+  <script src="./js/story/levels/ch77.js?v=4.9.29"></script>
+  <script src="./js/story/levels/ch78.js?v=4.9.29"></script>
+  <script src="./js/story/levels/ch79.js?v=4.9.29"></script>
+  <script src="./js/story/levels/ch80.js?v=4.9.29"></script>
+  <script src="./js/story/levels/ch81.js?v=4.9.29"></script>
+  <script src="./js/story/levels/ch83.js?v=4.9.29"></script>
+  <script src="./js/story/levels/ch86.js?v=4.9.29"></script>
+  <script src="./js/story/levels/ch87.js?v=4.9.29"></script>
+  <script src="./js/story/levels/ch88.js?v=4.9.29"></script>
+  <script src="./js/story/levels/ch89.js?v=4.9.29"></script>
+  <script src="./js/story/levels/ch90.js?v=4.9.30"></script>
+  <script src="./js/story/levels/ch91.js?v=4.9.30"></script>
+  <script src="./js/story/levels/ch92.js?v=4.9.30"></script>
+  <script src="./js/story/levels/ch93.js?v=4.9.30"></script>
+  <script src="./js/story/levels/ch94.js?v=4.9.30"></script>
+  <script src="./js/story/levels/ch95.js?v=4.9.30"></script>
+  <script src="./js/story/levels/ch96.js?v=4.9.30"></script>
+  <script src="./js/story/levels/ch97.js?v=4.9.30"></script>
+  <script src="./js/story/levels/ch98.js?v=4.9.30"></script>
+  <script src="./js/story/levels/ch99.js?v=4.9.30"></script>
+  <script src="./js/story/levels/ch100.js?v=4.9.30"></script>
+  <script src="./js/story/levels/ch101.js?v=4.9.30"></script>
+  <script src="./js/story/levels/ch102.js?v=4.9.30"></script>
+  <script src="./js/story/levels/ch103.js?v=4.9.30"></script>
+  <script src="./js/story/levels/ch104.js?v=4.9.30"></script>
+  <script src="./js/story/levels/ch106.js?v=4.9.30"></script>
+  <script src="./js/story/levels/ch107.js?v=4.9.30"></script>
+  <script src="./js/story/levels/ch108.js?v=4.9.30"></script>
+  <script src="./js/story/levels/ch109.js?v=4.9.30"></script>
+  <script src="./js/story/levels/ch111.js?v=4.9.31"></script>
+  <script src="./js/story/levels/ch112.js?v=4.9.31"></script>
+  <script src="./js/story/levels/ch114.js?v=4.9.31"></script>
+  <script src="./js/story/levels/ch115.js?v=4.9.31"></script>
+  <script src="./js/story/levels/ch117.js?v=4.9.31"></script>
+  <script src="./js/story/levels/ch118.js?v=4.9.31"></script>
+  <script src="./js/story/levels/ch119.js?v=4.9.31"></script>
+  <script src="./js/story/levels/ch120.js?v=4.9.31"></script>
+  <script src="./js/story/levels/ch121.js?v=4.9.31"></script>
+  <script src="./js/story/levels/ch122.js?v=4.9.31"></script>
+  <script src="./js/story/levels/ch123.js?v=4.9.31"></script>
+  <script src="./js/story/levels/ch124.js?v=4.9.31"></script>
+  <script src="./js/story/levels/ch126.js?v=4.9.31"></script>
+  <script src="./js/story/levels/ch127.js?v=4.9.31"></script>
+  <script src="./js/story/levels/ch128.js?v=4.9.31"></script>
+  <script src="./js/story/levels/ch129.js?v=4.9.31"></script>
+  <script src="./js/story/levels/ch130.js?v=4.9.32"></script>
+  <script src="./js/story/levels/ch131.js?v=4.9.32"></script>
+  <script src="./js/story/levels/ch132.js?v=4.9.32"></script>
+  <script src="./js/story/levels/ch133.js?v=4.9.32"></script>
+  <script src="./js/story/levels/ch134.js?v=4.9.32"></script>
+  <script src="./js/story/levels/ch135.js?v=4.9.32"></script>
+  <script src="./js/story/levels/ch136.js?v=4.9.32"></script>
+  <script src="./js/story/levels/ch137.js?v=4.9.32"></script>
+  <script src="./js/story/levels/ch138.js?v=4.9.32"></script>
+  <script src="./js/story/levels/ch139.js?v=4.9.32"></script>
+  <script src="./js/story/levels/ch140.js?v=4.9.32"></script>
+  <script src="./js/story/levels/ch141.js?v=4.9.32"></script>
+  <script src="./js/story/levels/ch142.js?v=4.9.32"></script>
+  <script src="./js/story/levels/ch144.js?v=4.9.32"></script>
+  <script src="./js/story/levels/ch145.js?v=4.9.32"></script>
+  <script src="./js/story/levels/ch146.js?v=4.9.32"></script>
+  <script src="./js/story/levels/ch156.js?v=4.9.33"></script>
+  <script src="./js/story/levels/ch158.js?v=4.9.33"></script>
+  <script src="./js/story/levels/ch160.js?v=4.9.33"></script>
+  <script src="./js/story/levels/ch168.js?v=4.9.33"></script>
+  <script src="./js/story/levels/ch181.js?v=4.9.34"></script>
+  <script src="./js/story/levels/ch184.js?v=4.9.34"></script>
+  <script src="./js/story/smb-story-engine-explore.js?v=4.9.35"></script>
+  <script src="./js/story/smb-story-engine-explore2.js?v=4.9.24"></script>
   <script src="./js/story/smb-story-interlude.js?v=4.3.8"></script>
-  <script src="./js/story/smb-story-engine-modes.js?v=4.3.8"></script>
-  <script src="./js/story/smb-story-finalize.js?v=4.3.8"></script>
+  <script src="./js/story/smb-story-engine-modes.js?v=4.9.22"></script>
+  <script src="./js/story/smb-story-finalize.js?v=4.9.16"></script>
+  <script src="./js/story/smb-story-map.js?v=4.9.6"></script>
   <script src="./js/story/smb-saga-structure.js?v=4.3.8"></script>
   <script src="./js/smb-story-cinematic-sequence.js?v=4.3.8"></script>
   <!-- Escort chapter engine — NPC protection, wave spawning, story integration -->
   <script src="./js/smb-escort.js?v=4.3.8"></script>
   <!-- Ship & Fracture Progression (lore: Axiom, the war, branch rulers, True Form) -->
-  <script src="./js/smb-progression.js?v=4.3.8"></script>
+  <script src="./js/smb-progression.js?v=4.9.16"></script>
   <!-- Multiverse Progression System -->
-  <script src="./js/smb-multiverse.js?v=4.3.8"></script>
+  <script src="./js/smb-multiverse.js?v=4.9.35"></script>
   <!-- Chaos Multiplayer system — events, mutations, item drops, kill streaks, spectator -->
   <script src="./js/smb-multiplayer-chaos.js?v=4.3.8"></script>
   <!-- Map & Weapon Designer (standalone tool) -->
-  <script src="./js/smb-designer.js?v=4.3.8"></script>
+  <script src="./js/smb-designer.js?v=4.7.0"></script>
   <!-- Test harness — only active when window.DEBUG_MODE = true -->
-  <script src="./js/smb-test-tools.js?v=4.5.6"></script>
+  <script src="./js/smb-test-tools.js?v=4.9.16"></script>
   <!-- Guided onboarding tutorial — runs on top of training mode -->
-  <script src="./js/smb-tutorial.js?v=4.4.3"></script>
+  <script src="./js/smb-ladder.js?v=4.9.3"></script>
+  <script src="./js/smb-tutorial.js?v=4.9.17"></script>
   <!-- Replay system — recording, IndexedDB storage, download, and viewer -->
-  <script src="./js/smb-replay.js?v=4.4.0"></script>
+  <script src="./js/smb-replay.js?v=4.9.1"></script>
   <!-- Dev: "test the latest update" panel (F6). Data file is generated by
        tools/whatsnew/gen.js via `npm run whatsnew`; both are optional at runtime. -->
-  <script src="./js/smb-whatsnew-data.js?v=4.3.8"></script>
+  <script src="./js/smb-whatsnew-data.js?v=4.9.16"></script>
   <script src="./js/smb-whatsnew.js?v=4.3.8"></script>
   <script src="./js/smb-ui-controls.js?v=4.3.8"></script>
   <!-- StoryVoice — speaks story dialogue lines via the Web Speech API -->
@@ -2369,7 +2571,7 @@ function _renderFightersLog() {
     <div class="mc-actions">
       <button class="mc-btn mc-attack"  data-key="u"  title="Attack">ATK</button>
       <button class="mc-btn mc-ability" data-key="o"  title="Ability">O</button>
-      <button class="mc-btn mc-super"   data-key="p"  title="Super">SUP</button>
+      <button class="mc-btn mc-super"   data-key="["  title="Super">SUP</button>
       <button class="mc-btn mc-shield"  data-key="k"  title="Shield">SHD</button>
     </div>
     <!-- Movement row -->
@@ -2379,6 +2581,8 @@ function _renderFightersLog() {
       <button class="mc-btn mc-right" data-key="l"  title="Move Right">▶</button>
     </div>
   </div>
+
+  <div id="mc-rotate">Rotate your device to landscape for two-player controls</div>
 
   <!-- Pause button -->
   <button id="mc-pause" onclick="pauseGame()" title="Pause">⏸ PAUSE</button>
@@ -2451,13 +2655,19 @@ function _renderFightersLog() {
     if (!mc) return;
     mc.classList.add('active');
 
-    // Show P2 pad only if P2 is a human (not bot, not None)
+    // Show P2 pad only if a second local human is actually on the J/L keys.
+    // p2IsBot alone lies: story exploration sets it false with no P2 at all.
     const p2Pad = document.getElementById('mc-p2');
-    const p2Bot = (typeof p2IsBot !== 'undefined' && p2IsBot) ||
-                  (typeof p2IsNone !== 'undefined' && p2IsNone);
-    if (p2Pad) p2Pad.style.display = p2Bot ? 'none' : 'flex';
+    const p2Human = !(typeof onlineMode !== 'undefined' && onlineMode) &&
+      !(typeof storyModeActive !== 'undefined' && storyModeActive) &&
+      typeof players !== 'undefined' && players.some(p =>
+        p && !p.isAI && !p.isRemote && p.controls && p.controls.left === 'j');
+    if (p2Pad) p2Pad.style.display = p2Human ? 'flex' : 'none';
     // Solo: split P1's controls across both thumbs (see .solo rules in SMB.css).
-    mc.classList.toggle('solo', !!p2Bot);
+    mc.classList.toggle('solo', !p2Human);
+    if (p2Human) {
+      try { screen.orientation.lock('landscape').catch(function() {}); } catch (e) {}
+    }
   }
 
   function hideMobileControls() {
@@ -2487,8 +2697,14 @@ function _renderFightersLog() {
       window.startGame = function() {
         const result = _origStart.apply(this, arguments);
         if (mobileEnabled) {
-          // Slight delay so gameRunning + p2IsBot are set by _startGameCore
-          setTimeout(showMobileControls, 450);
+          // Wait for _startGameCore (runs after the ~800ms loading hold) so the
+          // P2-pad check sees this match's players, not the previous one's.
+          let tries = 0;
+          (function waitForMatch() {
+            const loading = typeof gameLoading !== 'undefined' && gameLoading;
+            if (loading && ++tries < 50) { setTimeout(waitForMatch, 100); return; }
+            showMobileControls();
+          })();
         }
         return result;
       };
@@ -2680,6 +2896,7 @@ function _renderFightersLog() {
     el.style.opacity = '0';
     el.style.pointerEvents = 'none';
     setTimeout(function() { el.style.display = 'none'; }, 650);
+    if (typeof maybeStartFirstRun === 'function') maybeStartFirstRun();
   }
   window.dismissSplash = dismissSplash;
   // The splash uses the same authored canvas renderer as the mode loading
@@ -2767,6 +2984,7 @@ function _renderFightersLog() {
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid rgba(255,200,100,0.10);">
       <div style="display:flex;gap:5px;">
         <button id="storyTabChapters"   class="story-tab active" onclick="switchStoryTab('chapters')">Chapters</button>
+        <button id="storyViewToggle"    class="story-tab" style="display:none" onclick="StoryMap.toggle()">List view</button>
       </div>
       <span style="font-size:0.76rem;color:#776633;letter-spacing:0.04em;"><span style="color:#b89930;font-weight:600;"><svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-coin"/></svg> <span id="storyTokenDisplay">0</span></span></span>
     </div>
@@ -2778,7 +2996,7 @@ function _renderFightersLog() {
 
     <!-- TAB: Multiverse -->
     <div id="storyTabPanelMultiverse" style="display:none;">
-      <p style="margin:0 0 10px;font-size:0.72rem;color:#7755aa;line-height:1.5;">Travel across dimensions. Each world grants permanent power before you face the Creator and True Form.</p>
+      <p style="margin:0 0 10px;font-size:0.72rem;color:#7755aa;line-height:1.5;">Travel across dimensions. Each world grants permanent power before you face the Creator and Cosmic Axiom.</p>
       <div id="multiverseWorldList" style="max-height:360px;overflow-y:auto;"></div>
     </div>
 
@@ -2786,6 +3004,8 @@ function _renderFightersLog() {
     <!-- Footer buttons -->
     <div style="display:flex;gap:8px;justify-content:space-between;flex-wrap:wrap;align-items:center;margin-top:4px;">
       <button id="continueStoryBtn" onclick="continueStory()" style="flex:1;min-width:220px;background:linear-gradient(135deg,#0e4a1a,#1a7a30);border:1px solid rgba(80,220,100,0.45);border-radius:8px;color:#aaffbb;padding:9px 20px;cursor:pointer;font-size:0.90rem;font-weight:700;letter-spacing:0.03em;transition:background 0.15s,box-shadow 0.15s;text-align:left;" onmouseover="this.style.background='linear-gradient(135deg,#155c22,#229940)';this.style.boxShadow='0 0 12px rgba(60,200,80,0.35)'" onmouseout="this.style.background='linear-gradient(135deg,#0e4a1a,#1a7a30)';this.style.boxShadow=''">▶ Continue Story</button>
+      <button id="storyLoadoutBtn" onclick="openStoryLoadout()" style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.16);border-radius:7px;color:#ffd27a;padding:6px 16px;cursor:pointer;font-size:0.78rem;white-space:nowrap;">Loadout</button>
+      <button id="storyDifficultyBtn" onclick="_showStoryDifficultyPicker(false)" style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.16);border-radius:7px;color:#aaffbb;padding:6px 16px;cursor:pointer;font-size:0.78rem;white-space:nowrap;">Difficulty: Normal</button>
       <button onclick="storyNewGame()" style="background:rgba(255,80,80,0.10);border:1px solid rgba(255,80,80,0.30);border-radius:7px;color:#ff9988;padding:6px 16px;cursor:pointer;font-size:0.78rem;white-space:nowrap;">↺ New Game</button>
     </div>
   </div>

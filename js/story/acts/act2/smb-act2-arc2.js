@@ -85,10 +85,10 @@ STORY_CHAPTER_REGISTRY.push(
     objectName: 'Protocol Fragments',
     preText: 'The Second Architect hid the closure protocol data across the sanctum. Collect all four data shards before the forest patrols find you.',
     scavengeItemDefs: [
-      { wx: 500,  y: 360, name: 'Extension Schema',  icon: '📜' },
-      { wx: 1200, y: 310, name: 'Anchor Blueprint',  icon: '📜' },
-      { wx: 2000, y: 345, name: 'Fragment Log',      icon: '💾' },
-      { wx: 2900, y: 330, name: 'Fourth Step Data',  icon: '💾' },
+      { wx: 540,  y: 220, name: 'Extension Schema',  icon: '📜' },   // high bough (js/story/levels/ch41.js)
+      { wx: 1200, y: 470, name: 'Anchor Blueprint',  icon: '📜' },   // root vault pit
+      { wx: 2020, y: 250, name: 'Fragment Log',      icon: '💾' },   // hollow log
+      { wx: 2920, y: 160, name: 'Fourth Step Data',  icon: '💾' },   // seed-pod archive
     ],
     spawnEnemies: [
       { wx: 800,  name: 'Sanctum Scout',   weaponKey: 'sword',  classKey: 'ninja',   aiDiff: 'medium', color: '#334422' },
@@ -169,7 +169,7 @@ STORY_CHAPTER_REGISTRY.push(
     opponentName: 'Third Architect', weaponKey: 'spear', classKey: 'ninja', aiDiff: 'expert', opponentColor: '#2266bb',
     armor: ['helmet', 'chestplate'],
     playerLives: 1,
-    arena: 'sovereign',
+    arena: 'ice',
     walkFight: true, worldLength: 3000,
     tokenReward: 120, blueprintDrop: 'berserker_blood2',
     postText: '"...814," they say, standing slowly. "I was wrong." They hold out their hand. "I\'ll come. One more Architect left — the fourth. The one who originally designed the fragment containment protocol." A pause. "They\'re in the ruins of the first dimension. The one that collapsed."',
@@ -178,6 +178,7 @@ STORY_CHAPTER_REGISTRY.push(
   {
     id: 44, title: 'The Fragment Breathes',
     world: '❄️ Ice Dimension — Fractured Approach',
+    arena: 'ice',
     type: 'exploration', exploreMode: 'escape',
     style: 'void',
     worldLength: 4400,
@@ -195,9 +196,6 @@ STORY_CHAPTER_REGISTRY.push(
       { frame: 400, text: '"Fragment energy was originally designed to repair. To connect." The Third Architect sounds shaken.', color: '#aaccff', timer: 270 },
       { frame: 700, text: 'Don\'t slow down. The wave doesn\'t care about revelations.', color: '#ff6644', timer: 220 },
     ],
-    sky: ['#050510', '#081028'],
-    groundColor: '#0a1020',
-    platColor: '#1a2a40',
     playerLives: 3,
     tokenReward: 25, blueprintDrop: null,
     postText: 'The fragment is not just adapting. It is remembering what it was made to do. The Third Architect now looks at you differently — calculating, but no longer pessimistic.',
@@ -206,16 +204,19 @@ STORY_CHAPTER_REGISTRY.push(
   {
     id: 45, title: 'Third Architect\'s Doubt',
     world: '❄️ Ice Dimension — Probability Engine',
+    arena: 'ice',
     type: 'exploration', exploreMode: 'puzzle',
     style: 'void',
     worldLength: 3600,
     objectName: 'Probability Seal',
     preText: 'The Third Architect\'s probability engine is locked behind four calculation nodes. Activate them in sequence to access the closure data.',
     puzzleSwitchDefs: [
-      { wx: 600,  y: 390, label: '1' },
-      { wx: 1300, y: 350, label: '2' },
-      { wx: 2100, y: 375, label: '3' },
-      { wx: 3000, y: 360, label: '4' },
+      // Zig-zag through the probability engine (js/story/levels/ch45.js):
+      // floor dais, gyroscope tower top, west gallery, lift top stop.
+      { wx: 1300, y: 420, label: '1' },
+      { wx: 2440, y: 170, label: '2' },
+      { wx: 480,  y: 250, label: '3' },
+      { wx: 2990, y: 190, label: '4' },
     ],
     spawnEnemies: [
       { wx: 900,  name: 'Logic Guard',    weaponKey: 'sword',  classKey: 'warrior',  aiDiff: 'medium', color: '#4477aa' },
@@ -227,9 +228,6 @@ STORY_CHAPTER_REGISTRY.push(
       { frame: 40,  text: 'Activate nodes in order. Wrong sequence resets the probability engine.', color: '#88ccff', timer: 270 },
       { frame: 650, text: 'Third Architect: "There is a version of this where you survive. I calculate it at fourteen percent."', color: '#aaccff', timer: 300 },
     ],
-    sky: ['#0c1428', '#141e32', '#1c2838'],
-    groundColor: '#0e1628',
-    platColor: '#1a2438',
     playerLives: 3,
     tokenReward: 20, blueprintDrop: null,
     postText: 'A fourteen-percent survival chance. The Third Architect is already modeling alternatives. So, quietly, are you.',
