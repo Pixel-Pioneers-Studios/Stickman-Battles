@@ -198,6 +198,18 @@ function updateEscapeMode() {
     if (typeof dealDamage === 'function') dealDamage(null, p1, 9999, 0);
     screenShake = 25;
   }
+
+  // The wall is just as lethal to enemies it overtakes.
+  const _caught = (f) => {
+    if (!f || f === p1 || f.health <= 0 || f.isStoryAlly || f.storyFaction === 'player' || f._teamId === 1) return;
+    if (f.x > escapeWallX + 10) return;
+    // No hit i-frames: the environmental cap (14/frame) is the only throttle, so
+    // the wall burns enemies down in a few frames while the player gets the slow rate.
+    if (typeof dealDamage === 'function') dealDamage(null, f, 9999, 0, 1.0, false, 0);
+    if (typeof spawnParticles === 'function') spawnParticles(f.cx(), f.cy(), '#ff6622', 16);
+  };
+  if (typeof minions !== 'undefined' && minions) minions.forEach(_caught);
+  for (const p of players) { if (p.storyFaction === 'enemy') _caught(p); }
 }
 
 function drawEscapeModeOverlay() {
@@ -511,9 +523,12 @@ function drawScavengeHUD() {
 // ============================================================
 
 function initPuzzleMode(ch) {
-  puzzleSwitches = (ch.puzzleSwitches || []).map((sw, i) => Object.assign({
+  // Chapters author switches as puzzleSwitchDefs with world-x under `wx` (the
+  // same shape as scavengeItemDefs); the older puzzleSwitches/`x` form also works.
+  const _swDefs = (ch.puzzleSwitches && ch.puzzleSwitches.length) ? ch.puzzleSwitches : (ch.puzzleSwitchDefs || []);
+  puzzleSwitches = _swDefs.map((sw, i) => Object.assign({
     label: String(i + 1), activated: false, pulseTimer: 0
-  }, sw));
+  }, sw, { x: (sw.x != null ? sw.x : sw.wx), y: (sw.y != null ? sw.y : 380) }));
   // Default switches if not provided
   if (!puzzleSwitches.length) {
     const wl    = ch.worldLength || 4800;
@@ -541,7 +556,10 @@ function updatePuzzleMode() {
     if (sw.activated) { if (sw.pulseTimer > 0) sw.pulseTimer--; continue; }
     const dx = Math.abs(p1.cx() - sw.x);
     const dy = Math.abs(p1.cy() - sw.y);
-    if (dx < 30 && dy < 60) {
+    // A wrong switch fires once per visit — standing on it used to re-trigger
+    // every frame, spawning a guard per frame.
+    if (!(dx < 30 && dy < 60)) { sw._wrongHold = false; continue; }
+    if (!sw._wrongHold) {
       if (i === puzzleStep) {
         // Correct order
         sw.activated  = true;
@@ -571,6 +589,7 @@ function updatePuzzleMode() {
         };
         puzzleSwitches.forEach(s => { s.activated = false; });
         puzzleStep = 0;
+        sw._wrongHold = true;
         _exploreSpawnEnemy({
           wx: p1.x + 120, name: 'Guard', weaponKey: 'sword',
           classKey: 'warrior', aiDiff: 'medium', color: '#884422', health: 100

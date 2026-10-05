@@ -331,8 +331,7 @@ function updateCamera() {
   // The HUD is a fixed HTML bar at the top of the screen. Convert its pixel
   // height to game units so camera targets can be shifted down, keeping
   // players visible below the HUD instead of hidden behind it.
-  const _hudEl = document.getElementById('hud');
-  const _hudScreenH = (_hudEl && _hudEl.offsetHeight) || 0;
+  const _hudScreenH = _hudGeom().height;
   const _hudGU = _hudScreenH * GAME_H / Math.max(canvas.height, 1); // HUD height in game units
   const _hudShift = _hudGU / 2; // shift camera center down by half HUD height
 
@@ -341,8 +340,12 @@ function updateCamera() {
   let targetY    = GAME_H / 2;
 
   // ── Online: track only local player ──────────────────────
-  if (gameMode === 'online' && typeof localPlayerSlot !== 'undefined' && players[localPlayerSlot]) {
-    const lp = players[localPlayerSlot];
+  // Public Server hub too: ten players on a 3600-wide city can never share one
+  // frame, so follow your own fighter (players[0]). Soccer keeps the normal
+  // camera — the whole pitch fits on screen.
+  const _pubHubCam = window._pubHubActive && gameMode === '2p' && players[0];
+  if (_pubHubCam || (gameMode === 'online' && typeof localPlayerSlot !== 'undefined' && players[localPlayerSlot])) {
+    const lp = _pubHubCam ? players[0] : players[localPlayerSlot];
     const PAD = 180;
     const bbMinX = lp.cx() - PAD, bbMaxX = lp.cx() + PAD;
     const bbMinY = lp.y    - PAD, bbMaxY = lp.y + lp.h + PAD;
@@ -405,6 +408,7 @@ function updateCamera() {
     const _isWide = !!(currentArena && currentArena.worldWidth);
     const _wr = _camWorldRect();
     const _tracked = _camTrackedSet(activePlayers);
+    const _camDuel = _tracked.length === 2 && !_tracked.some(p => p.isBoss);
     const _safeH   = Math.max(GAME_H - _hudGU * 1.15, GAME_H * 0.70);
 
     // Zoom floor is a flat limit, NOT "whatever keeps the viewport inside the
@@ -443,8 +447,10 @@ function updateCamera() {
 
     const _sol = _camSolveFrame(_tracked, {
       zMin: _zMin, zMax: _zMax,
-      padX: _isWide ? 220 : 190,
-      padY: _isWide ? 200 : 190,
+      // A plain 1v1 frames tighter: two fighters are the whole show, and at the
+      // portal's ~918x470 frame the old padding left them ~60px tall.
+      padX: _isWide ? 220 : (_camDuel ? 150 : 190),
+      padY: _isWide ? 200 : (_camDuel ? 160 : 190),
       safeH: _safeH, hudGU: _hudGU, hudShift: _hudShift,
       wL: _wr.wL, wR: _wr.wR, wT: _wr.wT, wB: _wr.wB,
       biasX: _biasX, biasY: _biasY, biasW: _biasW,
@@ -650,7 +656,9 @@ function updateCamera() {
     // because the framing deliberately abandoned the second player, and rescuing
     // them alternately was the 600-1100 unit ping-pong on long maps.
     const _fsHumans = activePlayers.filter(p => !p.isAI && !p.isBoss);
-    const _fsSubjects = (gameMode === 'online' && typeof localPlayerSlot !== 'undefined' && players[localPlayerSlot] && players[localPlayerSlot].health > 0)
+    const _fsSubjects = (window._pubHubActive && gameMode === '2p' && players[0] && players[0].health > 0)
+      ? [players[0]]
+      : (gameMode === 'online' && typeof localPlayerSlot !== 'undefined' && players[localPlayerSlot] && players[localPlayerSlot].health > 0)
       ? [players[localPlayerSlot]]
       : (_fsHumans.length ? _fsHumans : activePlayers.slice(0, 1));
     // Vertically unreachable fighters are skipped for the same reason horizontally

@@ -155,9 +155,11 @@ STORY_CHAPTER_REGISTRY.push(
     objectName: 'Archive Core',
     preText: 'Veran\'s archive nodes are locked. Activate the three mechanisms in the correct sequence to unlock the truth.',
     puzzleSwitchDefs: [
-      { wx: 600,  y: 390, label: '1' },
-      { wx: 1400, y: 350, label: '2' },
-      { wx: 2400, y: 380, label: '3' },
+      // Out of spatial order on purpose (js/story/levels/ch09.js): 1 is up in the
+      // far gallery, 2 in the basement alcove, 3 on top of the central tower.
+      { wx: 2460, y: 180, label: '1' },
+      { wx: 940,  y: 560, label: '2' },
+      { wx: 1500, y: 240, label: '3' },
     ],
     spawnEnemies: [
       { wx: 900,  name: 'Archive Guard', weaponKey: 'sword', classKey: 'none',    aiDiff: 'easy',   color: '#557799' },
@@ -226,7 +228,7 @@ STORY_CHAPTER_REGISTRY.push(
     opponentName: 'Veran — The Architect', weaponKey: 'sword', classKey: 'warrior', aiDiff: 'hard', opponentColor: '#4488dd',
     armor: ['helmet'],
     playerLives: 2,
-    arena: 'volcano',
+    arena: 'storyRelay',
     walkFight: true, worldLength: 3000,
     tokenReward: 55, blueprintDrop: 'time_stop2',
     postText: '"Good," Veran says, lying on the ground. "You\'re an asset. Get up — I\'ll explain everything. The fracture fragment inside you is a key. And someone is trying to take it."',
@@ -256,7 +258,7 @@ STORY_CHAPTER_REGISTRY.push(
     opponentName: 'Rift Collector', weaponKey: 'hammer', classKey: 'thor', aiDiff: 'hard', opponentColor: '#aa00ff',
     armor: ['helmet', 'chestplate'],
     playerLives: 3,
-    arena: 'void',
+    arena: 'storyRelay',
     walkFight: true, worldLength: 3000,
     tokenReward: 60, blueprintDrop: null,
     postText: '"There will be more," Veran says. "We need to go through the primary fracture — into the space between dimensions. Find the rift entity\'s anchor point and destroy it." She hands you a compass that points toward rifts. "Follow it."',

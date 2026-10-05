@@ -1,0 +1,113 @@
+{
+ "LABEL": "threat-base",
+ "MODE": "threat",
+ "PATCH": {},
+ "ents": [
+  "sword",
+  "hammer",
+  "axe",
+  "spear",
+  "shield",
+  "scythe",
+  "fryingpan",
+  "broomstick",
+  "combat",
+  "flail",
+  "whip",
+  "katana",
+  "electricstaff"
+ ],
+ "bt": {
+  "sword": {
+   "w": 11,
+   "n": 156,
+   "dmg": 50484,
+   "taken": 69573,
+   "f": 306923
+  },
+  "hammer": {
+   "w": 0,
+   "n": 156,
+   "dmg": 25124,
+   "taken": 76367,
+   "f": 349026
+  },
+  "axe": {
+   "w": 14,
+   "n": 156,
+   "dmg": 50270,
+   "taken": 68956,
+   "f": 296855
+  },
+  "spear": {
+   "w": 8,
+   "n": 156,
+   "dmg": 48168,
+   "taken": 69454,
+   "f": 281724
+  },
+  "shield": {
+   "w": 0,
+   "n": 156,
+   "dmg": 30902,
+   "taken": 70280,
+   "f": 309403
+  },
+  "scythe": {
+   "w": 0,
+   "n": 156,
+   "dmg": 30524,
+   "taken": 70236,
+   "f": 306388
+  },
+  "fryingpan": {
+   "w": 0,
+   "n": 156,
+   "dmg": 26786,
+   "taken": 70240,
+   "f": 295293
+  },
+  "broomstick": {
+   "w": 0,
+   "n": 156,
+   "dmg": 37743,
+   "taken": 70216,
+   "f": 320987
+  },
+  "combat": {
+   "w": 7,
+   "n": 156,
+   "dmg": 45039,
+   "taken": 69667,
+   "f": 253214
+  },
+  "flail": {
+   "w": 0,
+   "n": 156,
+   "dmg": 17923,
+   "taken": 75576,
+   "f": 342970
+  },
+  "whip": {
+   "w": 0,
+   "n": 156,
+   "dmg": 30487,
+   "taken": 70200,
+   "f": 343362
+  },
+  "katana": {
+   "w": 1,
+   "n": 156,
+   "dmg": 43218,
+   "taken": 70262,
+   "f": 288875
+  },
+  "electricstaff": {
+   "w": 12,
+   "n": 156,
+   "dmg": 47799,
+   "taken": 69645,
+   "f": 294167
+  }
+ }
+}

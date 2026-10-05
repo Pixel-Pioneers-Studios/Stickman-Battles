@@ -115,7 +115,7 @@ function _spawnHazardFloorY() {
   if (!currentArena) return Infinity;
   if (currentArena.hasLava) return currentArena.lavaY || 442;
   // void/creator/god_domain arenas use bossFloorState for floor hazards
-  if ((currentArenaKey === 'void' || currentArenaKey === 'creator' || currentArenaKey === 'god_domain') && bossFloorState === 'hazard') return 460;
+  if ((currentArenaKey === 'void' || currentArenaKey === 'creator' || currentArenaKey === 'god_domain' || (currentArenaKey === '__storyarena__' && currentArena.isBossArena)) && bossFloorState === 'hazard') return 460;
   return Infinity;
 }
 
@@ -132,7 +132,7 @@ function isHazard(x, y) {
     if (y >= ly - 10) return true;
   }
   // Boss-arena floor hazard (void = TrueForm, creator = Boss, god_domain = God)
-  if ((currentArenaKey === 'void' || currentArenaKey === 'creator' || currentArenaKey === 'god_domain') &&
+  if ((currentArenaKey === 'void' || currentArenaKey === 'creator' || currentArenaKey === 'god_domain' || (currentArenaKey === '__storyarena__' && currentArena.isBossArena)) &&
       bossFloorState === 'hazard' && y >= 450) return true;
   // Active boss beams — don't spawn players into a live beam column
   if (typeof bossBeams !== 'undefined' && Array.isArray(bossBeams)) {
@@ -201,7 +201,11 @@ function pickSafeSpawn(sideHint, avoidX) {
   // lavaY - 90: keep spawns well above lava so players don't immediately burn on respawn
   // Fix 5: stricter lava margin — keep 120px above lava to account for fall arc
   const lavaMargin = currentArena.hasLava ? 120 : 90;
-  const safe = platforms.filter(pl => !pl.isFloorDisabled && pl.w > 50 && pl.y < lavaY - lavaMargin);
+  // Underground fill/bedrock are walls and the tunnel floor, not spawn ledges:
+  // their tops sit sealed under the surface slab, so a respawn there lands the
+  // fighter inside solid ground.
+  const safe = platforms.filter(pl => !pl.isFloorDisabled && !pl.isRockFill && !pl.isBedrock &&
+    pl.w > 50 && pl.y < lavaY - lavaMargin);
   const raised = safe.filter(pl => !pl.isFloor);
   const floor  = safe.find(pl => pl.isFloor);
 
@@ -372,7 +376,7 @@ function pickSafeSpawnNear(preferredX, sideHint = 'any', avoidX) {
   const hazardY = _spawnHazardFloorY();
   const bounds = _arenaSpawnBounds();
   const candidates = currentArena.platforms.filter(pl =>
-    pl && !pl.isFloorDisabled && pl.w > 46 && pl.y < hazardY - 18
+    pl && !pl.isFloorDisabled && !pl.isRockFill && !pl.isBedrock && pl.w > 46 && pl.y < hazardY - 18
   );
   if (!candidates.length) return pickSafeSpawn(sideHint, avoidX);
 

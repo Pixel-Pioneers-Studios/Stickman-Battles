@@ -3,6 +3,7 @@ STORY_CHAPTER_REGISTRY.push(
   {
     id: 56, type: 'exploration', exploreMode: 'traversal', title: 'Signal Maze',
     world: '📡 Creator\'s Interference Layer — Fractured City',
+    arena: 'storyInterference',
     narrative: [
       'The Creator began unmaking the pathways.',
       '',
@@ -23,9 +24,6 @@ STORY_CHAPTER_REGISTRY.push(
     objectName: 'Fallback Beacon',
     style: 'city',
     worldLength: 5000,
-    sky: ['#0a080e', '#130d1a'],
-    groundColor: '#1a1622',
-    platColor: '#2a2035',
     spawnEnemies: [
       { wx: 500,  name: 'Signal Construct',    weaponKey: 'sword',  classKey: 'warrior',   aiDiff: 'hard',   color: '#554466' },
       { wx: 900,  name: 'Loop Guard',          weaponKey: 'axe',    classKey: 'ninja',     aiDiff: 'hard',   color: '#443355' },
@@ -60,13 +58,13 @@ STORY_CHAPTER_REGISTRY.push(
         label: 'The Creator sealed the exits. Survive the interference surge.',
         waves: 3,
         waveSize: 3,
-        arena: 'cyberpunk',
+        arena: 'storyInterference',
         playerLives: 3,
       },
       {
         type: 'elite_wave',
         label: 'The Null Warden has your coordinates.',
-        arena: 'cyberpunk',
+        arena: 'storyInterference',
         opponents: [
           { name: 'Null Warden',   weaponKey: 'spear', classKey: 'warrior',   aiDiff: 'expert', color: '#6a5575', armor: ['helmet', 'chestplate'], isElite: true },
           { name: 'Glitch Knight', weaponKey: 'axe',   classKey: 'berserker', aiDiff: 'expert', color: '#6a4a7a', isElite: true },
@@ -76,7 +74,7 @@ STORY_CHAPTER_REGISTRY.push(
       {
         type: 'mini_boss',
         label: 'Beacon Sentinel — the last lock on the fallback point.',
-        arena: 'cyberpunk',
+        arena: 'storyInterference',
         finalChapter: true,
         opponents: [
           { name: 'Beacon Sentinel', weaponKey: 'axe', classKey: 'thor', aiDiff: 'expert', color: '#5a3a6a', armor: ['helmet', 'chestplate'], isElite: true },
@@ -89,6 +87,7 @@ STORY_CHAPTER_REGISTRY.push(
   {
     id: 57, title: 'Empty Sanctum',
     world: '📡 Creator\'s Interference Layer — Third Architect\'s Post',
+    arena: 'storyInterference',
     type: 'exploration', exploreMode: 'escape',
     style: 'void',
     worldLength: 4200,
@@ -106,9 +105,6 @@ STORY_CHAPTER_REGISTRY.push(
       { frame: 380, text: '"They didn\'t flee," the Fourth Architect says. "They left on their own terms." Keep running.', color: '#aaccff', timer: 270 },
       { frame: 680, text: 'Don\'t stop. Constructs don\'t process grief.', color: '#ff6644', timer: 220 },
     ],
-    sky: ['#120808', '#1c1010'],
-    groundColor: '#1a0e0e',
-    platColor: '#261616',
     playerLives: 3,
     tokenReward: 10, blueprintDrop: null,
     postText: 'The Third Architect is gone. And the Creator\'s constructs are already converging on the fallback point.',
@@ -140,7 +136,7 @@ STORY_CHAPTER_REGISTRY.push(
     twoEnemies: true,
     secondEnemy: { weaponKey: 'axe', classKey: 'berserker', aiDiff: 'hard', color: '#446688' },
     playerLives: 2,
-    arena: 'forest',
+    arena: 'storyInterference',
     walkFight: true, worldLength: 3000,
     tokenReward: 80, blueprintDrop: null,
     postText: 'They dissolve quietly. The Fourth Architect closes their eyes for a moment. No one speaks.',
@@ -149,6 +145,7 @@ STORY_CHAPTER_REGISTRY.push(
   {
     id: 59, title: 'The Deal',
     world: '📡 Interference Layer — Fallback Perimeter',
+    arena: 'storyInterference',
     type: 'exploration', exploreMode: 'defense',
     style: 'void',
     worldLength: 900,
@@ -165,9 +162,6 @@ STORY_CHAPTER_REGISTRY.push(
       { frame: 30,  text: 'Creator probes locked onto the terminal. Hold them off.', color: '#cc88ff', timer: 270 },
       { frame: 420, text: '"Can the fragment substitute for the fourth step?" Fourth Architect. The rift entity: "Maybe."', color: '#aaccff', timer: 280 },
     ],
-    sky: ['#080e0e', '#10181a'],
-    groundColor: '#0c1414',
-    platColor: '#161e20',
     playerLives: 3,
     tokenReward: 10, blueprintDrop: null,
     postText: 'The protocol is incomplete. The fragment might be enough — but it means using more of yourself than anyone expected. The Creator\'s Enforcer arrives within the hour.',
@@ -176,19 +170,20 @@ STORY_CHAPTER_REGISTRY.push(
   {
     id: 60, title: 'The Preserved Speak',
     world: '📡 Creator\'s Interference Layer — Shelter Approach',
+    arena: 'storyInterference',
     type: 'exploration', exploreMode: 'stealth',
     style: 'void',
     worldLength: 3400,
     objectName: 'Shelter Chamber',
     preText: 'One of the Preserved is hiding in the shelter chamber. Reach them without alerting Creator sweep units — they won\'t wait if the alarm fires.',
     stealthGuardDefs: [
-      { wx: 600,  radius: 85,  name: 'Sweep Unit' },
+      { wx: 750,  radius: 85,  name: 'Sweep Unit' },
       { wx: 1200, radius: 90,  name: 'Sweep Unit' },
       { wx: 1900, radius: 100, name: 'Erasure Drone' },
       { wx: 2700, radius: 90,  name: 'Patrol Unit' },
     ],
     spawnEnemies: [
-      { wx: 600,  name: 'Sweep Unit',    weaponKey: 'sword',  classKey: 'warrior',  aiDiff: 'hard',   color: '#9999cc' },
+      { wx: 750,  name: 'Sweep Unit',    weaponKey: 'sword',  classKey: 'warrior',  aiDiff: 'hard',   color: '#9999cc' },
       { wx: 1200, name: 'Sweep Unit',    weaponKey: 'spear',  classKey: 'warrior',  aiDiff: 'hard',   color: '#8888bb' },
       { wx: 1900, name: 'Erasure Drone', weaponKey: 'axe',    classKey: 'berserker',aiDiff: 'hard',   color: '#7777aa' },
       { wx: 2700, name: 'Patrol Unit',   weaponKey: 'hammer', classKey: 'thor',     aiDiff: 'hard',   color: '#666699', isGuard: true, health: 120 },
@@ -197,9 +192,6 @@ STORY_CHAPTER_REGISTRY.push(
       { frame: 30,  text: 'Creator sweep units everywhere. The Preserved won\'t wait if the alarm fires.', color: '#ffcc44', timer: 270 },
       { frame: 480, text: '"Don\'t be surprised if what you find is afraid." She means the Creator.', color: '#cc88ff', timer: 260 },
     ],
-    sky: ['#100c06', '#1c160a'],
-    groundColor: '#140e06',
-    platColor: '#1e1a10',
     playerLives: 3,
     tokenReward: 20, blueprintDrop: null,
     postText: 'There is something older than the Creator. Something that cannot be negotiated with. The fracture system was built as a weapon against it. You needed to know that before you go further.',
@@ -239,7 +231,7 @@ STORY_CHAPTER_REGISTRY.push(
     secondEnemy: { weaponKey: 'sword', classKey: 'warrior', aiDiff: 'expert', color: '#9999cc' },
     armor: ['helmet'],
     playerLives: 2,
-    arena: 'lava',
+    arena: 'storyInterference',
     walkFight: true, worldLength: 3000,
     tokenReward: 110, blueprintDrop: null,
     postText: 'The Third Architect looks up at you from the ground. "The trade finalized thirty seconds ago. The Preserved are free." A pause. "Go close the rift. I was wrong about whether it was possible. I wasn\'t wrong about the cost." They step back through a portal. It closes. You don\'t see them again.',
@@ -248,17 +240,19 @@ STORY_CHAPTER_REGISTRY.push(
   {
     id: 62, title: 'Aftermath',
     world: '📡 Interference Layer — Fallback Workshop',
+    arena: 'storyInterference',
     type: 'exploration', exploreMode: 'scavenge',
     style: 'void',
     worldLength: 4000,
     objectName: 'Protocol Components',
     preText: 'Veran needs the salvaged protocol components to reconstruct the fourth step. Collect all five pieces before the interference wave erases them.',
     scavengeItemDefs: [
-      { wx: 500,  y: 355, name: 'Step-3 Blueprint',   icon: '📜' },
-      { wx: 1200, y: 315, name: 'Fragment Conduit',   icon: '🔩' },
-      { wx: 1900, y: 340, name: 'Closure Catalyst',   icon: '⚗️' },
-      { wx: 2700, y: 330, name: 'Resonance Core',     icon: '💠' },
-      { wx: 3500, y: 350, name: 'Fourth Step Shard',  icon: '🔷' },
+      // Placed on the workshop's fixtures (js/story/levels/ch62.js)
+      { wx: 500,  y: 330, name: 'Step-3 Blueprint',  icon: '📜' },   // drafting table
+      { wx: 1335, y: 160, name: 'Fragment Conduit',  icon: '🔩' },   // crane hook
+      { wx: 1925, y: 470, name: 'Closure Catalyst',  icon: '⚗️' },   // tank pit
+      { wx: 2735, y: 250, name: 'Resonance Core',    icon: '💠' },   // crate stack
+      { wx: 3490, y: 230, name: 'Fourth Step Shard', icon: '🔷' },   // gantry
     ],
     spawnEnemies: [
       { wx: 800,  name: 'Interference Unit',  weaponKey: 'sword',  classKey: 'warrior',  aiDiff: 'hard',   color: '#554466' },
@@ -271,9 +265,6 @@ STORY_CHAPTER_REGISTRY.push(
       { frame: 40,  text: 'Collect all five protocol components. Interference units are erasing them — move fast.', color: '#cc88ff', timer: 270 },
       { frame: 550, text: 'Veran: "You\'re still here. After all of this." The Fourth Architect: "We continue. Forward."', color: '#88ccff', timer: 280 },
     ],
-    sky: ['#0e080e', '#181018'],
-    groundColor: '#120e14',
-    platColor: '#1c1620',
     playerLives: 3,
     tokenReward: 25, blueprintDrop: null,
     postText: 'Three Architects remain. The fragment may be enough. The Creator\'s Enforcer is coming.',
@@ -282,15 +273,18 @@ STORY_CHAPTER_REGISTRY.push(
   {
     id: 63, title: 'Veran\'s Confession',
     world: '📡 Interference Layer — Research Archive',
+    arena: 'storyInterference',
     type: 'exploration', exploreMode: 'puzzle',
     style: 'void',
     worldLength: 3000,
     objectName: 'Research Core',
     preText: 'Veran\'s research archive is partitioned behind three sequence locks. Unlock them in order to recover the original fracture event data — the full truth.',
     puzzleSwitchDefs: [
-      { wx: 500,  y: 385, label: '1' },
-      { wx: 1300, y: 350, label: '2' },
-      { wx: 2400, y: 370, label: '3' },
+      // Out of order through Veran's archive (js/story/levels/ch63.js):
+      // top of the filing stacks, her desk, the middle shelf.
+      { wx: 2295, y: 170, label: '1' },
+      { wx: 610,  y: 380, label: '2' },
+      { wx: 1440, y: 240, label: '3' },
     ],
     spawnEnemies: [
       { wx: 800,  name: 'Archive Probe',  weaponKey: 'sword',  classKey: 'warrior', aiDiff: 'hard',   color: '#446688' },
@@ -301,9 +295,6 @@ STORY_CHAPTER_REGISTRY.push(
       { frame: 40,  text: 'Activate sequence locks in order to access the research data.', color: '#99ffcc', timer: 270 },
       { frame: 580, text: 'Veran: "The first fracture event — that was me. I caused it." Fifteen years of truth.', color: '#88ccff', timer: 300 },
     ],
-    sky: ['#08090e', '#101318'],
-    groundColor: '#0c1018',
-    platColor: '#161822',
     playerLives: 3,
     tokenReward: 30, blueprintDrop: null,
     postText: 'Veran believes she caused the original fracture event. She has carried that for fifteen years. You know what she believes now. You go forward anyway — but now it is a genuine choice.',

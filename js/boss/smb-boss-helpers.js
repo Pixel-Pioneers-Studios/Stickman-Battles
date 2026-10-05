@@ -203,8 +203,9 @@ class FallenGod extends Boss {
   }
 
   // Override draw to give a golden tint on top of base Boss rendering
-  draw(ctx) {
-    super.draw(ctx);
+  // Called as p.draw() — a `ctx` parameter here would shadow the global canvas context.
+  draw() {
+    super.draw();
     if (!this._fallenGodTint) return;
     // Overlay a subtle golden rim around the entity
     ctx.save();
@@ -623,7 +624,7 @@ function startAxiomOriginCutscene(onDoneCallback) {
       const a = fade(sf, sd);
       ctx.fillStyle='#030008'; ctx.fillRect(0,0,CW,CH);
       const rulers=[
-        {col:'#ffffff',lc:'#dddddd',glow:'#aaaaaa',x:0.50,y:0.43,lbl:'True Form'},
+        {col:'#ffffff',lc:'#dddddd',glow:'#aaaaaa',x:0.50,y:0.43,lbl:'Cosmic Axiom'},
         {col:'#ff4422',lc:'#ff9977',glow:'#ff4422',x:0.15,y:0.30,lbl:'Branch I'},
         {col:'#44aaff',lc:'#88ccff',glow:'#44aaff',x:0.85,y:0.30,lbl:'Branch II'},
         {col:'#44ff88',lc:'#88ffbb',glow:'#44ff88',x:0.22,y:0.72,lbl:'Branch III'},
@@ -669,7 +670,7 @@ function startAxiomOriginCutscene(onDoneCallback) {
       ctx.fillStyle='#000'; ctx.fillRect(0,0,CW,CH);
       ctx.save(); ctx.globalAlpha=a; ctx.textAlign='center'; ctx.shadowColor='#000'; ctx.shadowBlur=10;
       ctx.fillStyle='#cccccc'; ctx.font=`bold ${Math.round(CH*0.042)}px Arial`;
-      ctx.fillText('This is what True Form is.', CW*0.5, CH*0.42);
+      ctx.fillText('This is what Cosmic Axiom is.', CW*0.5, CH*0.42);
       ctx.fillStyle='#888888'; ctx.font=`${Math.round(CH*0.032)}px Arial`;
       ctx.fillText('This is what the Creator built over.', CW*0.5, CH*0.54);
       ctx.fillStyle='#666666'; ctx.font=`${Math.round(CH*0.026)}px Arial`;

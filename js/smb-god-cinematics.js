@@ -14,7 +14,7 @@ function resetGodCinematicFlags() {
 
 // ── Threshold triggers (called from God.update) ────────────────────────────
 function _tryFireGodDialogueCin(god) {
-  if (_godDialogueCinFired || god.health > 50000) return;
+  if (_godDialogueCinFired || god.health > god.maxHealth * 0.5) return;
   _godDialogueCinFired = true;
   _startGodDialogueCin(god);
 }

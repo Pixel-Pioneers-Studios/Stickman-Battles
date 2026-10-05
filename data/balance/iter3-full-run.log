@@ -1,0 +1,89 @@
+[proxy-calibrate] computing human targets from replays...
+
+════ HUMAN TARGET (mean over 17 scoreable replays) ════
+{
+  "dmgToOppPer1k": 63.82176470588235,
+  "dmgToMePer1k": 61.73352941176469,
+  "lockoutPct": 17.617647058823522,
+  "meAirPct": 45.2529411764706,
+  "oppAirPct": 62.21764705882353,
+  "killRatio": 0.5810810810365838
+}
+
+Human exposure (time share % / hits per 1000 frames there):
+                   0g       0a       1g       1a       2g       2a       3g       3a       4g       4a       5g       5a       6g       6a
+  human          10/5    17/15      6/4    13/11      5/1     12/4      4/0      9/1      5/0      8/0      3/0      4/0      1/0      1/0
+[proxy-calibrate] readRate (p) curve: 0, 0.25, 0.5, 0.7, 0.85 — n=60 each
+
+════ READ-RATE CURVE (damage into proxy vs p) ════
+  p        dmg->proxy/1k    dmg->sov/1k    lock%    meAir%    sovAir%    killRatio
+  0               203.0        130.9     47.6      56.2       52.1    0.32   (score=25.73)
+  0.25            194.6        129.1     46.9      56.2       51.8    0.33   (score=23.08)
+  0.5             193.7        131.3     47.3      56.2       51.7    0.33   (score=23.01)
+  0.7             190.7        132.4     46.9      56.3       51.7    0.34   (score=22.19)
+  0.85            183.9        136.4     46.5      57.5       52.1    0.35   (score=20.54)
+[proxy-calibrate] best p so far = 0.85 (score 20.54)
+[proxy-calibrate] offenseRead (q) refinement at p=0.85: 0, 0.3, 0.6 — n=60 each
+
+════ OFFENSE-READ REFINEMENT at p=0.85 ════
+  q        dmg->proxy/1k    dmg->sov/1k    score
+  0               188.3        131.0    21.50
+  0.3             186.2        136.4    21.12
+  0.6             185.7        129.7    20.54
+
+════ FINAL PROXY PARAMETERS ════
+{
+  "reactionFrames": 14,
+  "decisionEvery": 4,
+  "timingNoiseFr": 3,
+  "aimNoise": 0.18,
+  "spacing": 95,
+  "antiAir": 0.55,
+  "whiffPunish": 0.6,
+  "pokeRate": 0.55,
+  "jumpInRate": 0.03,
+  "shieldUse": 0.04,
+  "abilityCd": 100,
+  "abilityRate": 0.35,
+  "superRate": 0.85,
+  "comboFollow": 0.65,
+  "retreatDiscipline": 0.5,
+  "evadeJump": 0.55,
+  "doubleJumpEvade": 0.45,
+  "fastFallRate": 0.35,
+  "airHopRate": 0.12,
+  "aboveAttackRate": 0.5,
+  "readRate": 0.85,
+  "offenseRead": 0.6
+}
+[proxy-calibrate] saved to tools/human-proxy-params.json
+[proxy-calibrate] final evaluation: 220 matches with the best parameters, parallel across 5 shards
+
+════ SIM vs HUMAN (final, n=220) ════
+  damage into Sovereign/1k     sim=133.04 ±1.75   human=63.82
+  damage into proxy/1k         sim=187.13 ±2.09   human=61.73
+  lockout %                    sim=46.88 ±0.20   human=17.62
+  proxy's airborne %           sim=56.91 ±0.22   human=45.25
+  Sovereign's airborne %       sim=51.83 ±0.24   human=62.22
+  kill ratio (sov deaths share) sim=0.35   human=0.58
+
+  Sovereign got >=7 kills of 10 stocks in 220/220 sim matches
+  proxy got >=7 kills of 10 stocks in 53/220 sim matches
+
+════ EXPOSURE comparison (time share % / hits per 1000 frames there) ════
+                   0g       0a       1g       1a       2g       2a       3g       3a       4g       4a       5g       5a       6g       6a
+  human          10/5    17/15      6/4    13/11      5/1     12/4      4/0      9/1      5/0      8/0      3/0      4/0      1/0      1/0
+  proxy         14/10    13/24    11/11    14/19      9/0     17/9      4/0      7/2      3/1      4/2      2/2      1/3      1/2      0/4
+
+  damage-into-proxy gap vs human: 203% (OUTSIDE the 25% bar)
+[proxy-calibrate] loadout distribution: 7 Sovereign kits x 65 matches, player spear/gunner
+
+════ SOVEREIGN LOADOUT DISTRIBUTION vs calibrated proxy (n=65 each) ════
+  loadout      sov >=7/10 kills   mean sov kills   mean dmg->proxy/1k   mean dmg->sov/1k
+  signature      100% (65/65)       9.91              201.5                141.6
+  ronin          100% (65/65)       9.83              195.8                140.1
+  ninja          100% (65/65)       9.89              205.4                134.0
+  reaper         100% (65/65)       9.85              196.0                139.7
+  torren         100% (65/65)      10.00              206.0                136.5
+  varek          100% (65/65)       9.78              198.5                137.6
+  pugilist       100% (65/65)       9.92              201.2                137.4

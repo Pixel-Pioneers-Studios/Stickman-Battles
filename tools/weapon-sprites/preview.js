@@ -1,7 +1,7 @@
 // Composites sprite PNGs onto a grey sheet at 4x so they can be eyeballed.
-const fs=require('fs'),path=require('path'),puppeteer=require('/Users/aarushgupta/Documents/Stickman-Battles/node_modules/puppeteer');
+const fs=require('fs'),path=require('path'),puppeteer=require('/Users/aarushgupta/Developer/Personal/Stickman-Battles/node_modules/puppeteer');
 const keys=process.argv.slice(2);
-const dir='/Users/aarushgupta/Documents/Stickman-Battles/images/weapons';
+const dir='/Users/aarushgupta/Developer/Personal/Stickman-Battles/images/weapons';
 (async()=>{
   const b=await puppeteer.launch({headless:'new'});const p=await b.newPage();
   await p.setContent('<body style="margin:0">');
@@ -20,6 +20,6 @@ const dir='/Users/aarushgupta/Documents/Stickman-Battles/images/weapons';
     }
     return c.toDataURL('image/png').split(',')[1];
   },imgs);
-  fs.writeFileSync('/tmp/claude-501/-Users-aarushgupta-Documents-Stickman-Battles/2f275c18-8241-4265-a07d-1f8341a4610e/scratchpad/preview.png',Buffer.from(png,'base64'));
+  fs.writeFileSync(path.join(require('os').tmpdir(),'preview.png'),Buffer.from(png,'base64'));
   await b.close();console.log('ok');
 })();

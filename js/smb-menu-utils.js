@@ -53,8 +53,7 @@ resizeGame();
 menuLoopRunning = true;
 requestAnimationFrame(menuBgLoop);
 
-// Sync version labels from GAME_VERSION constant so they never drift
-(function() { const el = document.getElementById('gameVersionLabel'); if (el && typeof GAME_VERSION !== 'undefined') el.textContent = 'v' + GAME_VERSION; })();
+// Version labels stay out of player-facing UI; the build number lives in the Updates modal header.
 _initVersionLabels();
 
 // Build weapon/class selection card grids
@@ -107,8 +106,6 @@ function refreshMenuFromAccount() {
     csBtn.style.display = (tfSeen || dev) ? '' : 'none';
   }
 
-  // First-run tutorial offer — no-op once the player has played or dismissed it.
-  if (typeof maybeOfferTutorial === 'function') maybeOfferTutorial();
 
   if (typeof refreshCoinDisplay === 'function') refreshCoinDisplay();
   if (typeof syncCodeInput === 'function') syncCodeInput();
@@ -205,8 +202,13 @@ function drawStageBoundary(scX, scY, camCX, camCY) {
   let nearL = Infinity, nearR = Infinity;
   for (const p of players) {
     if (!p || p.health <= 0 || p.isAI) continue;   // warn the human, not the bot
-    nearL = Math.min(nearL, p.cx() - minX);
-    nearR = Math.min(nearR, maxX - p.cx());
+    // Only when the edge is a live threat: already past the lip, or knocked
+    // toward it. Proximity alone lit the band whenever someone stood on a
+    // side platform above a short floor, which read as a stray red line.
+    const launched = (p.hurtTimer > 0 || p.stunTimer > 0 || p.ragdollTimer > 0) && !p.onGround;
+    const dL = p.cx() - minX, dR = maxX - p.cx();
+    if (dL < 0 || (launched && p.vx < -1)) nearL = Math.min(nearL, dL);
+    if (dR < 0 || (launched && p.vx > 1))  nearR = Math.min(nearR, dR);
   }
 
   ctx.save();
@@ -354,9 +356,9 @@ function refreshHomeHub() {
   const started  = done > 0 || idx > 0;
 
   if (subEl) {
-    subEl.textContent = total
-      ? (done + ' / ' + total + ' CHAPTERS')
-      : 'No save yet';
+    subEl.textContent = done > 0
+      ? (done + (done === 1 ? ' CHAPTER' : ' CHAPTERS') + ' CLEARED')
+      : 'New recruit';
   }
   if (kickEl)  kickEl.textContent  = complete ? 'Story complete' : (started ? 'Continue' : 'Begin');
   if (titleEl) titleEl.textContent = ch && ch.title ? ch.title : 'Start the Story';
@@ -376,6 +378,14 @@ function refreshHomeHub() {
   }
 
   window._hubResumeIdx = idx;
+
+  const storyDescEl = document.getElementById('hubStoryDesc');
+  if (storyDescEl) {
+    storyDescEl.textContent = complete ? 'Story complete. Replay any chapter.'
+      : started ? ('Resume Chapter ' + (idx + 1) + ' · ' + pct + '% done')
+      : 'Ninety-four bearers came before you. Start Chapter 1.';
+  }
+  if (typeof refreshLadderCard === 'function') refreshLadderCard();
 }
 
 // The story engine loads AFTER this file, so STORY_CHAPTERS2 and _story2 do not

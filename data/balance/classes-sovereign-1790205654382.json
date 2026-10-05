@@ -1,0 +1,863 @@
+{
+ "LABEL": "classes-sovereign",
+ "MODE": "classes",
+ "BRAIN": "sovereign",
+ "MATCHES": 16,
+ "PATCH": {},
+ "ents": [
+  "none",
+  "warrior",
+  "thor",
+  "kratos",
+  "ninja",
+  "gunner",
+  "archer",
+  "paladin",
+  "berserker",
+  "pugilist",
+  "ronin",
+  "reaper",
+  "summoner",
+  "demolitionist",
+  "warden",
+  "adept"
+ ],
+ "st": {
+  "none": {
+   "w": 128,
+   "l": 112,
+   "d": 0,
+   "n": 240,
+   "dFor": 87382,
+   "dAg": 97387,
+   "f": 391149
+  },
+  "warrior": {
+   "w": 128,
+   "l": 112,
+   "d": 0,
+   "n": 240,
+   "dFor": 85163,
+   "dAg": 90053,
+   "f": 374807
+  },
+  "thor": {
+   "w": 102,
+   "l": 138,
+   "d": 0,
+   "n": 240,
+   "dFor": 84583,
+   "dAg": 92099,
+   "f": 376516
+  },
+  "kratos": {
+   "w": 99,
+   "l": 141,
+   "d": 0,
+   "n": 240,
+   "dFor": 79429,
+   "dAg": 76448,
+   "f": 339491
+  },
+  "ninja": {
+   "w": 154,
+   "l": 86,
+   "d": 0,
+   "n": 240,
+   "dFor": 89042,
+   "dAg": 79682,
+   "f": 412645
+  },
+  "gunner": {
+   "w": 77,
+   "l": 163,
+   "d": 0,
+   "n": 240,
+   "dFor": 75923,
+   "dAg": 76044,
+   "f": 336918
+  },
+  "archer": {
+   "w": 61,
+   "l": 179,
+   "d": 0,
+   "n": 240,
+   "dFor": 71690,
+   "dAg": 67457,
+   "f": 319064
+  },
+  "paladin": {
+   "w": 147,
+   "l": 93,
+   "d": 0,
+   "n": 240,
+   "dFor": 90260,
+   "dAg": 74558,
+   "f": 378348
+  },
+  "berserker": {
+   "w": 113,
+   "l": 127,
+   "d": 0,
+   "n": 240,
+   "dFor": 84578,
+   "dAg": 85701,
+   "f": 366320
+  },
+  "pugilist": {
+   "w": 172,
+   "l": 68,
+   "d": 0,
+   "n": 240,
+   "dFor": 92491,
+   "dAg": 84285,
+   "f": 375593
+  },
+  "ronin": {
+   "w": 101,
+   "l": 139,
+   "d": 0,
+   "n": 240,
+   "dFor": 82863,
+   "dAg": 88637,
+   "f": 361669
+  },
+  "reaper": {
+   "w": 133,
+   "l": 107,
+   "d": 0,
+   "n": 240,
+   "dFor": 86632,
+   "dAg": 86527,
+   "f": 376453
+  },
+  "summoner": {
+   "w": 145,
+   "l": 95,
+   "d": 0,
+   "n": 240,
+   "dFor": 91538,
+   "dAg": 85999,
+   "f": 356108
+  },
+  "demolitionist": {
+   "w": 91,
+   "l": 149,
+   "d": 0,
+   "n": 240,
+   "dFor": 80946,
+   "dAg": 86076,
+   "f": 362205
+  },
+  "warden": {
+   "w": 174,
+   "l": 66,
+   "d": 0,
+   "n": 240,
+   "dFor": 90927,
+   "dAg": 96684,
+   "f": 401364
+  },
+  "adept": {
+   "w": 95,
+   "l": 145,
+   "d": 0,
+   "n": 240,
+   "dFor": 81437,
+   "dAg": 87247,
+   "f": 361576
+  }
+ },
+ "mir": {
+  "none": {
+   "a": 5,
+   "b": 11,
+   "d": 0
+  },
+  "warrior": {
+   "a": 9,
+   "b": 7,
+   "d": 0
+  },
+  "thor": {
+   "a": 8,
+   "b": 8,
+   "d": 0
+  },
+  "kratos": {
+   "a": 8,
+   "b": 8,
+   "d": 0
+  },
+  "ninja": {
+   "a": 7,
+   "b": 9,
+   "d": 0
+  },
+  "gunner": {
+   "a": 7,
+   "b": 9,
+   "d": 0
+  },
+  "archer": {
+   "a": 7,
+   "b": 9,
+   "d": 0
+  },
+  "paladin": {
+   "a": 9,
+   "b": 7,
+   "d": 0
+  },
+  "berserker": {
+   "a": 8,
+   "b": 8,
+   "d": 0
+  },
+  "pugilist": {
+   "a": 8,
+   "b": 8,
+   "d": 0
+  },
+  "ronin": {
+   "a": 7,
+   "b": 9,
+   "d": 0
+  },
+  "reaper": {
+   "a": 9,
+   "b": 7,
+   "d": 0
+  },
+  "summoner": {
+   "a": 7,
+   "b": 9,
+   "d": 0
+  },
+  "demolitionist": {
+   "a": 5,
+   "b": 11,
+   "d": 0
+  },
+  "warden": {
+   "a": 10,
+   "b": 6,
+   "d": 0
+  },
+  "adept": {
+   "a": 7,
+   "b": 9,
+   "d": 0
+  }
+ },
+ "cell": {
+  "none|archer": {
+   "aw": 14,
+   "bw": 2,
+   "d": 0
+  },
+  "none|summoner": {
+   "aw": 6,
+   "bw": 10,
+   "d": 0
+  },
+  "warrior|kratos": {
+   "aw": 12,
+   "bw": 4,
+   "d": 0
+  },
+  "warrior|pugilist": {
+   "aw": 6,
+   "bw": 10,
+   "d": 0
+  },
+  "warrior|adept": {
+   "aw": 12,
+   "bw": 4,
+   "d": 0
+  },
+  "thor|paladin": {
+   "aw": 5,
+   "bw": 11,
+   "d": 0
+  },
+  "thor|demolitionist": {
+   "aw": 9,
+   "bw": 7,
+   "d": 0
+  },
+  "kratos|archer": {
+   "aw": 10,
+   "bw": 6,
+   "d": 0
+  },
+  "kratos|summoner": {
+   "aw": 2,
+   "bw": 14,
+   "d": 0
+  },
+  "ninja|archer": {
+   "aw": 14,
+   "bw": 2,
+   "d": 0
+  },
+  "ninja|summoner": {
+   "aw": 10,
+   "bw": 6,
+   "d": 0
+  },
+  "gunner|paladin": {
+   "aw": 3,
+   "bw": 13,
+   "d": 0
+  },
+  "gunner|demolitionist": {
+   "aw": 8,
+   "bw": 8,
+   "d": 0
+  },
+  "archer|pugilist": {
+   "aw": 3,
+   "bw": 13,
+   "d": 0
+  },
+  "archer|adept": {
+   "aw": 6,
+   "bw": 10,
+   "d": 0
+  },
+  "paladin|summoner": {
+   "aw": 10,
+   "bw": 6,
+   "d": 0
+  },
+  "berserker|ronin": {
+   "aw": 6,
+   "bw": 10,
+   "d": 0
+  },
+  "pugilist|adept": {
+   "aw": 10,
+   "bw": 6,
+   "d": 0
+  },
+  "ronin|adept": {
+   "aw": 7,
+   "bw": 9,
+   "d": 0
+  },
+  "demolitionist|adept": {
+   "aw": 10,
+   "bw": 6,
+   "d": 0
+  },
+  "none|warrior": {
+   "aw": 9,
+   "bw": 7,
+   "d": 0
+  },
+  "none|paladin": {
+   "aw": 3,
+   "bw": 13,
+   "d": 0
+  },
+  "none|demolitionist": {
+   "aw": 13,
+   "bw": 3,
+   "d": 0
+  },
+  "warrior|ninja": {
+   "aw": 3,
+   "bw": 13,
+   "d": 0
+  },
+  "warrior|ronin": {
+   "aw": 9,
+   "bw": 7,
+   "d": 0
+  },
+  "thor|berserker": {
+   "aw": 8,
+   "bw": 8,
+   "d": 0
+  },
+  "thor|warden": {
+   "aw": 3,
+   "bw": 13,
+   "d": 0
+  },
+  "kratos|paladin": {
+   "aw": 4,
+   "bw": 12,
+   "d": 0
+  },
+  "kratos|demolitionist": {
+   "aw": 11,
+   "bw": 5,
+   "d": 0
+  },
+  "ninja|paladin": {
+   "aw": 10,
+   "bw": 6,
+   "d": 0
+  },
+  "ninja|demolitionist": {
+   "aw": 10,
+   "bw": 6,
+   "d": 0
+  },
+  "gunner|berserker": {
+   "aw": 4,
+   "bw": 12,
+   "d": 0
+  },
+  "gunner|warden": {
+   "aw": 1,
+   "bw": 15,
+   "d": 0
+  },
+  "archer|ronin": {
+   "aw": 6,
+   "bw": 10,
+   "d": 0
+  },
+  "paladin|demolitionist": {
+   "aw": 13,
+   "bw": 3,
+   "d": 0
+  },
+  "berserker|reaper": {
+   "aw": 9,
+   "bw": 7,
+   "d": 0
+  },
+  "pugilist|ronin": {
+   "aw": 15,
+   "bw": 1,
+   "d": 0
+  },
+  "summoner|demolitionist": {
+   "aw": 12,
+   "bw": 4,
+   "d": 0
+  },
+  "none|thor": {
+   "aw": 13,
+   "bw": 3,
+   "d": 0
+  },
+  "none|berserker": {
+   "aw": 7,
+   "bw": 9,
+   "d": 0
+  },
+  "none|warden": {
+   "aw": 5,
+   "bw": 11,
+   "d": 0
+  },
+  "warrior|gunner": {
+   "aw": 12,
+   "bw": 4,
+   "d": 0
+  },
+  "warrior|reaper": {
+   "aw": 6,
+   "bw": 10,
+   "d": 0
+  },
+  "thor|kratos": {
+   "aw": 11,
+   "bw": 5,
+   "d": 0
+  },
+  "thor|pugilist": {
+   "aw": 4,
+   "bw": 12,
+   "d": 0
+  },
+  "thor|adept": {
+   "aw": 7,
+   "bw": 9,
+   "d": 0
+  },
+  "kratos|berserker": {
+   "aw": 5,
+   "bw": 11,
+   "d": 0
+  },
+  "kratos|warden": {
+   "aw": 5,
+   "bw": 11,
+   "d": 0
+  },
+  "ninja|berserker": {
+   "aw": 13,
+   "bw": 3,
+   "d": 0
+  },
+  "ninja|warden": {
+   "aw": 6,
+   "bw": 10,
+   "d": 0
+  },
+  "gunner|pugilist": {
+   "aw": 4,
+   "bw": 12,
+   "d": 0
+  },
+  "gunner|adept": {
+   "aw": 5,
+   "bw": 11,
+   "d": 0
+  },
+  "archer|reaper": {
+   "aw": 4,
+   "bw": 12,
+   "d": 0
+  },
+  "paladin|berserker": {
+   "aw": 7,
+   "bw": 9,
+   "d": 0
+  },
+  "paladin|warden": {
+   "aw": 4,
+   "bw": 12,
+   "d": 0
+  },
+  "berserker|summoner": {
+   "aw": 6,
+   "bw": 10,
+   "d": 0
+  },
+  "pugilist|reaper": {
+   "aw": 11,
+   "bw": 5,
+   "d": 0
+  },
+  "ronin|reaper": {
+   "aw": 3,
+   "bw": 13,
+   "d": 0
+  },
+  "reaper|summoner": {
+   "aw": 6,
+   "bw": 10,
+   "d": 0
+  },
+  "summoner|warden": {
+   "aw": 5,
+   "bw": 11,
+   "d": 0
+  },
+  "warden|adept": {
+   "aw": 12,
+   "bw": 4,
+   "d": 0
+  },
+  "none|kratos": {
+   "aw": 8,
+   "bw": 8,
+   "d": 0
+  },
+  "none|pugilist": {
+   "aw": 7,
+   "bw": 9,
+   "d": 0
+  },
+  "none|adept": {
+   "aw": 10,
+   "bw": 6,
+   "d": 0
+  },
+  "warrior|archer": {
+   "aw": 12,
+   "bw": 4,
+   "d": 0
+  },
+  "warrior|summoner": {
+   "aw": 6,
+   "bw": 10,
+   "d": 0
+  },
+  "thor|ninja": {
+   "aw": 7,
+   "bw": 9,
+   "d": 0
+  },
+  "thor|ronin": {
+   "aw": 4,
+   "bw": 12,
+   "d": 0
+  },
+  "kratos|pugilist": {
+   "aw": 7,
+   "bw": 9,
+   "d": 0
+  },
+  "kratos|adept": {
+   "aw": 10,
+   "bw": 6,
+   "d": 0
+  },
+  "ninja|pugilist": {
+   "aw": 5,
+   "bw": 11,
+   "d": 0
+  },
+  "ninja|adept": {
+   "aw": 13,
+   "bw": 3,
+   "d": 0
+  },
+  "gunner|ronin": {
+   "aw": 6,
+   "bw": 10,
+   "d": 0
+  },
+  "archer|summoner": {
+   "aw": 3,
+   "bw": 13,
+   "d": 0
+  },
+  "paladin|pugilist": {
+   "aw": 3,
+   "bw": 13,
+   "d": 0
+  },
+  "paladin|adept": {
+   "aw": 12,
+   "bw": 4,
+   "d": 0
+  },
+  "berserker|demolitionist": {
+   "aw": 8,
+   "bw": 8,
+   "d": 0
+  },
+  "pugilist|summoner": {
+   "aw": 10,
+   "bw": 6,
+   "d": 0
+  },
+  "ronin|summoner": {
+   "aw": 3,
+   "bw": 13,
+   "d": 0
+  },
+  "reaper|demolitionist": {
+   "aw": 9,
+   "bw": 7,
+   "d": 0
+  },
+  "summoner|adept": {
+   "aw": 11,
+   "bw": 5,
+   "d": 0
+  },
+  "none|ninja": {
+   "aw": 8,
+   "bw": 8,
+   "d": 0
+  },
+  "none|ronin": {
+   "aw": 7,
+   "bw": 9,
+   "d": 0
+  },
+  "warrior|paladin": {
+   "aw": 9,
+   "bw": 7,
+   "d": 0
+  },
+  "warrior|demolitionist": {
+   "aw": 9,
+   "bw": 7,
+   "d": 0
+  },
+  "thor|gunner": {
+   "aw": 11,
+   "bw": 5,
+   "d": 0
+  },
+  "thor|reaper": {
+   "aw": 6,
+   "bw": 10,
+   "d": 0
+  },
+  "kratos|ninja": {
+   "aw": 4,
+   "bw": 12,
+   "d": 0
+  },
+  "kratos|ronin": {
+   "aw": 8,
+   "bw": 8,
+   "d": 0
+  },
+  "ninja|ronin": {
+   "aw": 12,
+   "bw": 4,
+   "d": 0
+  },
+  "gunner|reaper": {
+   "aw": 3,
+   "bw": 13,
+   "d": 0
+  },
+  "archer|paladin": {
+   "aw": 3,
+   "bw": 13,
+   "d": 0
+  },
+  "archer|demolitionist": {
+   "aw": 5,
+   "bw": 11,
+   "d": 0
+  },
+  "paladin|ronin": {
+   "aw": 14,
+   "bw": 2,
+   "d": 0
+  },
+  "berserker|warden": {
+   "aw": 5,
+   "bw": 11,
+   "d": 0
+  },
+  "pugilist|demolitionist": {
+   "aw": 15,
+   "bw": 1,
+   "d": 0
+  },
+  "ronin|demolitionist": {
+   "aw": 9,
+   "bw": 7,
+   "d": 0
+  },
+  "reaper|warden": {
+   "aw": 5,
+   "bw": 11,
+   "d": 0
+  },
+  "none|gunner": {
+   "aw": 10,
+   "bw": 6,
+   "d": 0
+  },
+  "none|reaper": {
+   "aw": 8,
+   "bw": 8,
+   "d": 0
+  },
+  "warrior|thor": {
+   "aw": 10,
+   "bw": 6,
+   "d": 0
+  },
+  "warrior|berserker": {
+   "aw": 10,
+   "bw": 6,
+   "d": 0
+  },
+  "warrior|warden": {
+   "aw": 5,
+   "bw": 11,
+   "d": 0
+  },
+  "thor|archer": {
+   "aw": 11,
+   "bw": 5,
+   "d": 0
+  },
+  "thor|summoner": {
+   "aw": 7,
+   "bw": 9,
+   "d": 0
+  },
+  "kratos|gunner": {
+   "aw": 9,
+   "bw": 7,
+   "d": 0
+  },
+  "kratos|reaper": {
+   "aw": 7,
+   "bw": 9,
+   "d": 0
+  },
+  "ninja|gunner": {
+   "aw": 10,
+   "bw": 6,
+   "d": 0
+  },
+  "ninja|reaper": {
+   "aw": 9,
+   "bw": 7,
+   "d": 0
+  },
+  "gunner|archer": {
+   "aw": 9,
+   "bw": 7,
+   "d": 0
+  },
+  "gunner|summoner": {
+   "aw": 6,
+   "bw": 10,
+   "d": 0
+  },
+  "archer|berserker": {
+   "aw": 5,
+   "bw": 11,
+   "d": 0
+  },
+  "archer|warden": {
+   "aw": 0,
+   "bw": 16,
+   "d": 0
+  },
+  "paladin|reaper": {
+   "aw": 9,
+   "bw": 7,
+   "d": 0
+  },
+  "berserker|pugilist": {
+   "aw": 2,
+   "bw": 14,
+   "d": 0
+  },
+  "berserker|adept": {
+   "aw": 8,
+   "bw": 8,
+   "d": 0
+  },
+  "pugilist|warden": {
+   "aw": 8,
+   "bw": 8,
+   "d": 0
+  },
+  "ronin|warden": {
+   "aw": 6,
+   "bw": 10,
+   "d": 0
+  },
+  "reaper|adept": {
+   "aw": 12,
+   "bw": 4,
+   "d": 0
+  },
+  "demolitionist|warden": {
+   "aw": 4,
+   "bw": 12,
+   "d": 0
+  }
+ },
+ "bugs": {
+  "nonFinite": {},
+  "offArena": {},
+  "stall": {},
+  "timeout": {},
+  "err": {}
+ },
+ "rmse": 13.339028731508153
+}

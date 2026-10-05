@@ -20,6 +20,12 @@ function _exploreHostile(m) {
 function _exploreRemainingFoes() {
   const p1 = players && players[0];
   let count = 0, nearest = null, nd = Infinity;
+  // Escape levels are won by outrunning the fracture wall and stealth levels by
+  // slipping through; enemies there are obstacles, not a clear requirement.
+  if ((typeof escapeModeActive  !== 'undefined' && escapeModeActive) ||
+      (typeof stealthModeActive !== 'undefined' && stealthModeActive)) {
+    return { count: 0, alive: 0, queued: 0, nearest: null, nearestDist: nd };
+  }
   const consider = (m) => {
     if (!_exploreHostile(m) || _exploreOptionalFoe(m)) return;
     count++;
@@ -479,15 +485,35 @@ function updateExploration() {
   for (let i = 0; i < exploreCheckpoints.length; i++) {
     const cp = exploreCheckpoints[i];
     if (cp.hit || p1.cx() < cp.x || exploreArenaLock) continue;
+    // Rest beacons sit on the surface; walking under one in a tunnel does not
+    // light it (it stays armed until the player passes it up top).
+    if (cp.rest && p1.y + p1.h > _EXP_SURF_Y + 4) continue;
     cp.hit = true;
     exploreCheckpointIdx = i;
+    if (cp.rest) {
+      // Rest beacon: no fight. Record the resume point for a game-over Retry.
+      if (_activeStory2Chapter) {
+        _story2.cpResume = { chId: _activeStory2Chapter.id, x: cp.x };
+        if (typeof _saveStory2 === 'function') _saveStory2();
+      }
+      // ...and the mid-life respawn point, as the subtitle promises. Without it
+      // a fall into an authored gap sent the player back to the level start.
+      const _restSpawn = typeof pickSafeSpawnNear === 'function' ? pickSafeSpawnNear(cp.x, 'any') : null;
+      if (_restSpawn) { p1.spawnX = _restSpawn.x; p1.spawnY = _restSpawn.y; }
+      cp.litFrame = frameCount;
+      spawnParticles(cp.x, _EXP_SURF_Y - 60, '#ffd27a', 22);
+      if (SoundManager && SoundManager.superActivate) SoundManager.superActivate();
+      storyFightSubtitle = { text: 'Checkpoint reached — fall, and you rise here.', timer: 170, maxTimer: 170, color: '#ffd27a' };
+      continue;
+    }
     const safeSpawn = typeof pickSafeSpawnNear === 'function' ? pickSafeSpawnNear(cp.x, 'any') : null;
     if (safeSpawn) {
       p1.spawnX = safeSpawn.x;
       p1.spawnY = safeSpawn.y;
     }
+    const _fightCps = exploreCheckpoints.filter(c => !c.rest);
     storyFightSubtitle = {
-      text: `Checkpoint secured ${i + 1}/${exploreCheckpoints.length}`,
+      text: `Checkpoint secured ${_fightCps.indexOf(cp) + 1}/${_fightCps.length}`,
       timer: 170,
       maxTimer: 170,
       color: '#7dffcc'
@@ -515,7 +541,16 @@ function updateExploration() {
       if (_sec) {
         _exploreSpawnEnemy({ wx: cp.x + 300, exactX: cp.x + 300, name: _sec.name, weaponKey: _sec.weaponKey, classKey: _sec.classKey, aiDiff: _sec.aiDiff, color: _sec.color, health: _sec.health || 120, armor: _sec.armor, isElite: true, isArenaLockEnemy: true }, p1);
       }
-      storyFightSubtitle = { text: `${_opp.name}${_sec ? ' and ' + _sec.name : ''} blocks your path!`, timer: 180, maxTimer: 180, color: '#ffcc66' };
+      // Difficulty escorts (Challenge/Evolution). A duel otherwise has one
+      // authored opponent, so the explore enemy cap never reached it. Low base
+      // HP because the chapter shift already multiplies it ~2-3x.
+      const _extra = typeof _storyDiffCfg === 'function' ? (_storyDiffCfg().duelExtra | 0) : 0;
+      const _escW = ['spear', 'axe', 'sword', 'hammer'].filter(w => w !== _opp.weaponKey);
+      for (let e = 0; e < _extra; e++) {
+        const _ex = e % 2 === 0 ? cp.x - 160 - e * 40 : cp.x + 260 + e * 40;
+        _exploreSpawnEnemy({ wx: _ex, exactX: _ex, name: _opp.name + ' Escort', weaponKey: _escW[e % _escW.length], classKey: 'warrior', aiDiff: _opp.aiDiff, color: _opp.color, health: 60, isArenaLockEnemy: true }, p1);
+      }
+      storyFightSubtitle = { text: `${_opp.name}${_sec ? ' and ' + _sec.name : ''}${_extra ? ' and ' + _extra + ' more' : ''} block${_sec || _extra ? '' : 's'} your path!`, timer: 180, maxTimer: 180, color: '#ffcc66' };
       if (typeof setCameraDrama === 'function') setCameraDrama('wideshot', 46);
     } else if (!_replaySkip && ((_activeStory2Chapter && _activeStory2Chapter.id >= 8) || (storyGauntletState && storyGauntletState.index > 0))) {
       if (!exploreArenaLock && currentArena) {
@@ -537,18 +572,29 @@ function updateExploration() {
     }
   }
 
+  // Side portals are optional, so entering takes a fresh press of the shield
+  // (down) key while inside one. Touch alone used to pull the player in: the
+  // seeded position can land on an authored switch or climb, and walking past
+  // it started a two-elite fight nobody chose. A guard held while walking in
+  // does not count; it has to be released and pressed again.
+  const _portalKey = p1.controls && p1.controls.shield;
+  const _portalDown = !!(_portalKey && typeof keysDown !== 'undefined' && keysDown.has(_portalKey));
   for (const portal of exploreSidePortals) {
     if (!portal.active || portal.entered) continue;
-    if (Math.abs(p1.cx() - portal.x) < 34 && Math.abs(p1.cy() - portal.y) < 120) {
+    portal.near = Math.abs(p1.cx() - portal.x) < 34 && Math.abs(p1.cy() - portal.y) < 120;
+    if (!portal.near) { portal._keyUp = false; continue; }
+    if (_portalDown && portal._keyUp) {
       _storyEnterSidePortal(portal, p1, _activeStory2Chapter);
+      continue;
     }
+    portal._keyUp = !_portalDown;
   }
   for (const portal of exploreSidePortals) {
     if (!portal || !portal.challengeActive) continue;
     const livePortalEnemy = minions.some(m => m.health > 0 && m.isSidePortalEnemy);
     if (!livePortalEnemy) {
       portal.challengeActive = false;
-      _story2.tokens += portal.reward;
+      _story2.tokens += _storyTokenReward(portal.reward);
       if (portal.type === 'distorted_rift') {
         if (!_story2.metaUpgrades) _story2.metaUpgrades = { damage: 0, survivability: 0, healUses: 0 };
         _story2.metaUpgrades.damage = Math.min(6, _story2.metaUpgrades.damage + 1);
@@ -556,8 +602,8 @@ function updateExploration() {
       _saveStory2();
       storyFightSubtitle = {
         text: portal.type === 'distorted_rift'
-          ? `Distorted Rift conquered — +${portal.reward} 🪙 and +1 damage rank.`
-          : `Side portal cleared — +${portal.reward} 🪙`,
+          ? `Distorted Rift conquered — +${_storyTokenReward(portal.reward)} 🪙 and +1 damage rank.`
+          : `Side portal cleared — +${_storyTokenReward(portal.reward)} 🪙`,
         timer: 220,
         maxTimer: 220,
         color: portal.type === 'distorted_rift' ? '#ff88ff' : '#88ffcc'
@@ -660,45 +706,54 @@ function updateExplorePickups(p1) {
   }
 }
 
-// Hidden-loot chests: minor chests open on touch; elite chests lazily spawn a
-// Vault Warden (a fight as hard as the chapter's duel) when the player closes in,
-// and stay locked until it falls. Entirely optional — off the golden path.
+// Hidden-loot chests: open on touch. Some caches are watched by one or two weak
+// scavengers at seeded posts in the tunnel maze (see the loot pass); a guarded
+// cache stays locked until they fall. Entirely optional — off the golden path.
 function _chestGuardAlive(it) {
   return !!(it.guarded && minions.some(m => m._chestKey === it.key && m.health > 0));
 }
 
+const _CACHE_GUARD_WEAPONS = ['sword', 'axe', 'spear'];
 function _updateChestPickup(it, p1) {
   const dx = Math.abs(p1.cx() - it.x);
-  // Lazy-spawn the guardian as the player closes in. Underground chests only
-  // trigger once the player is actually down in the tunnel (not walking above).
-  const _inReach = it.underground ? (dx < 420 && Math.abs(p1.cy() - it.y) < 170) : dx < 420;
+  // Lazy-spawn the guards as the player closes in. Underground caches wake
+  // once the player is down in that cache's tunnels, not while walking above.
+  const _inReach = it.underground
+    ? (dx < 900 && p1.y + p1.h > _EXP_SURF_Y + 20)
+    : dx < 420;
   if (it.guarded && !it._guardSpawned && _inReach) {
     it._guardSpawned = true;
-    _exploreSpawnEnemy({
-      wx: it.x, exactX: it.x - 30, exactY: it.underground ? it.y - 30 : undefined,
-      name: 'Vault Warden',
-      weaponKey: 'axe', classKey: 'berserker', aiDiff: 'expert',
-      color: '#cc8833', isElite: true, health: 190,
-      isChestGuardian: true, chestKey: it.key,
-    }, p1);
-    storyFightSubtitle = { text: '⚠ Something guards that cache.', timer: 180, maxTimer: 180, color: '#ffaa44' };
+    it.guards.forEach((g, gi) => {
+      const wk = _CACHE_GUARD_WEAPONS[Math.floor(_exploreKeyRand(it.key, 7 + gi) * _CACHE_GUARD_WEAPONS.length)];
+      _exploreSpawnEnemy({
+        wx: g.x, exactX: g.x - 17, exactY: g.floorY - 86,
+        name: it.underground ? 'Tunnel Scavenger' : 'Cache Scavenger',
+        weaponKey: wk, classKey: 'warrior', aiDiff: 'easy',
+        color: '#8a7a5a', health: 70, isWeak: true,
+        isChestGuardian: true, chestKey: it.key, postX: g.x,
+      }, p1);
+    });
+    storyFightSubtitle = {
+      text: it.guards.length > 1 ? '⚠ Scavengers are picking over this cache.' : '⚠ A scavenger guards this cache.',
+      timer: 170, maxTimer: 170, color: '#ffaa44'
+    };
   }
-  // Leash: the Warden guards its cache — it never chases across the world.
+  // Leash: each guard holds its post — it never chases across the world.
   if (it.guarded && it._guardSpawned && !it.collected) {
-    const g = minions.find(m => m._chestKey === it.key && m.health > 0);
-    if (g && Math.abs(g.cx() - it.x) > 640) {
-      spawnParticles(g.cx(), g.cy(), '#cc8833', 12);
-      g.x = it.x - 40; g.y = it.y - 60; g.vx = 0; g.vy = 0;
-      g.health = Math.min(g.maxHealth, g.health + 30);
-      spawnParticles(g.cx(), g.cy(), '#cc8833', 14);
-      storyFightSubtitle = { text: 'The Vault Warden returns to its cache.', timer: 150, maxTimer: 150, color: '#ffaa44' };
+    for (const g of minions) {
+      if (g._chestKey !== it.key || g.health <= 0 || g._guardPostX == null) continue;
+      if (Math.abs(g.cx() - g._guardPostX) <= 520) continue;
+      spawnParticles(g.cx(), g.cy(), '#8a7a5a', 10);
+      g.x = g._guardPostX - g.w / 2; g.y = g._guardPostY - g.h - 2; g.vx = 0; g.vy = 0;
+      g.health = Math.min(g.maxHealth, g.health + 20);
+      spawnParticles(g.cx(), g.cy(), '#8a7a5a', 12);
     }
   }
   if (dx < 46 && Math.abs(p1.cy() - it.y) < 78) {
     if (_chestGuardAlive(it)) {
       if (!it._lockNag || frameCount - it._lockNag > 240) {
         it._lockNag = frameCount;
-        storyFightSubtitle = { text: '🔒 The Vault Warden still stands.', timer: 140, maxTimer: 140, color: '#ff7766' };
+        storyFightSubtitle = { text: '🔒 Its guards are still around.', timer: 140, maxTimer: 140, color: '#ff7766' };
       }
       return;
     }
@@ -717,10 +772,14 @@ function _updateChestPickup(it, p1) {
     if (typeof _saveStory2 === 'function') _saveStory2();
     spawnParticles(it.x, it.y, it.tier === 'elite' ? '#ffaa22' : '#88ccff', 26);
     if (SoundManager && SoundManager.superActivate) SoundManager.superActivate();
+    // Last cache of an already-cleared level = the level's star, right now.
+    const _chId = parseInt(it.key, 10);
+    const _starNow = typeof storyChapterStarred === 'function' && storyChapterStarred(_chId);
     storyFightSubtitle = {
-      text: `${it.tier === 'elite' ? '🗝️ Elite cache' : '🧰 Hidden cache'}  ${parts.join('  ')}`,
+      text: `${it.tier === 'elite' ? '🗝️ Elite cache' : '🧰 Hidden cache'}  ${parts.join('  ')}${_starNow ? '  ★ Level 100%' : ''}`,
       timer: 190, maxTimer: 190, color: it.tier === 'elite' ? '#ffcc55' : '#aaddff'
     };
+    if (typeof checkCompletionAchievements === 'function') checkCompletionAchievements();
   }
 }
 
@@ -733,7 +792,7 @@ function _regionCompleteChapter(chId) {
   if (!ch || !_story2) return;
   const _first = !_story2.defeated.includes(ch.id);
   if (_first) {
-    _story2.tokens += (ch.tokenReward || 0);
+    _story2.tokens += _storyTokenReward(ch.tokenReward);
     if (ch.blueprintDrop && !_story2.blueprints.includes(ch.blueprintDrop)) {
       _story2.blueprints.push(ch.blueprintDrop);
     }
@@ -753,8 +812,9 @@ function _regionCompleteChapter(chId) {
   _story2.chapter = Math.max(_story2.chapter, ch.id + 1);
   if (players[0]) _story2.health = Math.round(players[0].health);
   if (typeof _saveStory2 === 'function') _saveStory2();
+  if (typeof checkCompletionAchievements === 'function') checkCompletionAchievements();
   storyFightSubtitle = {
-    text: `✓ ${ch.title} complete${_first && ch.tokenReward ? '  +' + ch.tokenReward + ' 🪙' : ''}`,
+    text: `✓ ${ch.title} complete${_first && ch.tokenReward ? '  +' + _storyTokenReward(ch.tokenReward) + ' 🪙' : ''}`,
     timer: 260, maxTimer: 260, color: '#88ffcc',
   };
   // Objective points at the next segment's chapter
@@ -812,9 +872,15 @@ function _exploreSpawnEnemy(def, p1) {
     m.isExploreGuard = true;
     m._guardX = def.wx; // the x position they guard
   }
-  if (def.isArenaLockEnemy) m.isArenaLockEnemy = true;
+  if (def.isArenaLockEnemy) {
+    m.isArenaLockEnemy = true;
+    m._aiHoldUntil = frameCount + 180; // 3s grace to register the lock before they engage
+  }
   if (def.isSidePortalEnemy) m.isSidePortalEnemy = true;
-  if (def.isChestGuardian) { m.isChestGuardian = true; m._chestKey = def.chestKey; }
+  if (def.isChestGuardian) {
+    m.isChestGuardian = true; m._chestKey = def.chestKey;
+    if (def.postX != null) { m._guardPostX = def.postX; m._guardPostY = (def.exactY != null ? def.exactY + 86 : my + 84); }
+  }
   if (def.classKey && def.classKey !== 'none' && typeof applyClass === 'function') {
     applyClass(m, def.classKey);
     // applyClass overwrites maxHealth with the class's base HP. An explicitly
@@ -824,6 +890,15 @@ function _exploreSpawnEnemy(def, p1) {
     if (def.health) { m.maxHealth = def.health; m.health = def.health; }
   }
   _storyScaleEnemyUnit(m, _activeStory2Chapter ? _activeStory2Chapter.id : 1, { elite: !!def.isElite });
+  // Weak encounter (cache scavengers): roughly half a standard enemy at this
+  // point of the story, whatever the chapter scaling made of it.
+  if (def.isWeak) {
+    m.maxHealth = Math.max(30, Math.round(m.maxHealth * 0.5));
+    m.health    = m.maxHealth;
+    m.dmgMult  *= 0.6;
+    m.attackCooldownMult = (m.attackCooldownMult || 1) * 1.3;
+    m._storyWeak = true;
+  }
   if (def.armor && typeof storyApplyArmor === 'function') {
     storyApplyArmor(m, def.armor);
   }

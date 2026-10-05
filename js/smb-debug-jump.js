@@ -134,7 +134,7 @@ function _dbgJumpMenuOpen() {
   _sec('BOSS FIGHT');
   const bossSel = _sel({
     'boss':     'Standard Boss',
-    'trueform': 'True Form',
+    'trueform': 'Cosmic Axiom',
   });
   _row('Boss', bossSel, '▶ Start', (v) => forceBossFight(v));
 
@@ -1024,6 +1024,12 @@ function _cinViewerOpen() {
     'w:bow':           'Bow -- Arrow Storm',
     'w:combat':        'Combat -- Knockout',
     'w:nullblade':     'Nullblade -- Void Reckoning',
+    'w:bomb':          'Bomb -- Chain Reaction',
+    'w:fragment':      'Fragment -- The Lesson',
+    'w:knives':        'Throwing Knives -- Recall',
+    'w:glassblade':    'Glass Blade -- Shatterpoint',
+    'w:anchor':        'Anchor -- Dead Weight',
+    'w:crossbow':      'Crossbow -- Pinned',
     'c:thor':          'Torren -- Stormbearer',
     'c:kratos':        'Varek -- Undying Rage',
     'c:ninja':         'Ninja -- Shadow Strike',
@@ -1031,7 +1037,7 @@ function _cinViewerOpen() {
     'c:paladin':       'Paladin -- Holy Judgment',
     'c:berserker':     'Berserker -- Blood Frenzy',
     'c:archer':        'Archer -- Volley',
-    'c:megaknight':    'MegaKnight -- Final Judgment',
+    'c:megaknight':    'Knight -- Final Judgment',
     'b:sky_exec':      '[Boss] Sky Execution',
     'b:darkness':      '[Boss] Darkness Falls',
     'b:cr_code_del':   '[Boss] Code Deletion',
@@ -1124,7 +1130,7 @@ function _cinViewerOpen() {
     'archer':     'Archer -- Verdant Hunt',
     'paladin':    'Paladin -- Holy Sanctuary',
     'berserker':  'Berserker -- Blood Arena',
-    'megaknight': 'MegaKnight -- Void Rift',
+    'megaknight': 'Knight -- Void Rift',
     'ronin':      "Ronin -- Death's Dojo",
     'reaper':     'Reaper -- Eternal Harvest',
     'pugilist':   'Pugilist -- Iron Arena',

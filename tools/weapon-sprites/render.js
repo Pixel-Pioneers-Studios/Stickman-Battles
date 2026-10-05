@@ -13,7 +13,7 @@ const DEFS = GRIM ? require('./defs-grim') : require('./defs');
 const { AXIS } = GRIM ? require('./parts-grim') : require('./parts');
 
 const BOX_W = 512, BOX_H = 220, SS = 4;   // supersample factor
-const OUT_W = 128;                        // final sprite width, matches axe/scythe
+const OUT_W = +(process.env.SPRITE_W || 128); // final sprite width, matches axe/scythe; SPRITE_W for hi-res store art
 const DEF_LEN = 58;                       // default in-game display width
 const outFlag = ARGV.indexOf('--out');
 const OUT_DIR = outFlag >= 0

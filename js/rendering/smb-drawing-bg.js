@@ -60,7 +60,7 @@ function drawBackground() {
   ctx.fillStyle = drawBackground._skyGradCache;
   ctx.fillRect(_bgX, 0, _bgW, GAME_H);
   // Ground color fill below floor level — prevents raw canvas showing through on zoomed-out large maps
-  if (a.groundColor) {
+  if (a.groundColor && !a.noGroundFill) {
     const floorPl = a.platforms && a.platforms.find(pl => pl.isFloor);
     const groundTop = floorPl ? floorPl.y : GAME_H - 60;
 
@@ -86,11 +86,21 @@ function drawBackground() {
     ctx.fillRect(_bgX, groundTop, _bgW, _bgH - groundTop);
   }
 
-  _drawArenaThemeArt(currentArenaKey);
+  // Creator Studio maps are keyed '_custom_*' but wear their base arena's art;
+  // the Lava hazard brings the lava pool with it on any base.
+  const _dBase = currentArena && currentArena.designerBase;
+  _drawArenaThemeArt(_dBase || currentArenaKey);
+  if (_dBase && _dBase !== 'lava' && currentArena.hasLava) drawLava();
+  // Story arena fights: a chapter's authored arena brings its own art
+  if (a.storyLevel != null && !a.isExploreArena && typeof drawStoryLevelBackdrop === 'function') {
+    drawStoryLevelBackdrop(a);
+    drawStoryLevelBack(a);
+  }
 
   // Exploration: tile the style-appropriate background across world width
   if (currentArena && currentArena.isExploreArena) {
     _drawExploreThemeArt(currentArena);
+    if (typeof drawStoryLevelBack === 'function') drawStoryLevelBack(currentArena);
   }
 
   // Battle Royale: one authored arena backdrop per landmark band.
@@ -119,6 +129,7 @@ function _drawArenaThemeArt(currentArenaKey) {
   if (currentArenaKey === 'void')       drawVoidArena();
   if (currentArenaKey === 'sovereign')  drawSovereignArena();
   if (currentArenaKey === 'soccer')     drawSoccerArena();
+  if (currentArenaKey === 'nexus')      drawNexusArena();
   if (currentArenaKey === 'cave')       drawCaveArena();
   if (currentArenaKey === 'mirror')     drawMirrorArena();
   if (currentArenaKey === 'underwater') drawUnderwaterArena();
@@ -145,6 +156,19 @@ function _drawArenaThemeArt(currentArenaKey) {
   if (currentArenaKey === 'absolute_axiom_domain') drawAbsoluteAxiomArena();
   if (currentArenaKey === 'studio')               drawStudioArena();
   if (currentArenaKey === 'sewer')      drawSewerArena();
+  if (currentArenaKey === 'storyLab') drawStoryLabArena();
+  if (currentArenaKey === 'storyRelay') drawStoryRelayArena();
+  if (currentArenaKey === 'storyCore') drawStoryCoreArena();
+  if (currentArenaKey === 'storyAssembly') drawStoryAssemblyArena();
+  if (currentArenaKey === 'storyInterference') drawStoryInterferenceArena();
+  if (currentArenaKey === 'storyWar') drawStoryWarArena();
+  if (currentArenaKey === 'storyFlux') drawStoryFluxArena();
+  if (currentArenaKey === 'storyShadow') drawStoryShadowArena();
+  if (currentArenaKey === 'storyTitan') drawStoryTitanArena();
+  if (currentArenaKey === 'storyNull') drawStoryNullArena();
+  if (currentArenaKey === 'storyQuiet') drawStoryQuietArena();
+  if (currentArenaKey === 'storyCoast') drawStoryCoastArena();
+  if (currentArenaKey === 'storyCollision') drawStoryCollisionArena();
 }
 
 // Arenas whose bespoke art is a full backdrop worth inheriting into an explore
@@ -157,6 +181,8 @@ const EXPLORE_THEME_ARENAS = new Set([
   'megacity', 'warpzone', 'colosseum10', 'homeYard', 'homeAlley', 'homeRooftop',
   'suburb', 'rural', 'portalEdge', 'realmEntry', 'bossSanctum', 'god_domain',
   'absolute_axiom_domain',
+  'storyLab', 'storyRelay', 'storyCore', 'storyAssembly', 'storyInterference', 'storyWar', 'storyFlux',
+  'storyShadow', 'storyTitan', 'storyNull', 'storyQuiet', 'storyCoast', 'storyCollision',
 ]);
 
 // Explore worlds are 5000-9000px wide; bespoke arena art is authored for a
@@ -169,6 +195,10 @@ const _EXPLORE_THEME_PARALLAX = 0.28;
 const _EXPLORE_THEME_EDGE = 44;   // px cropped from each side of a 900px panel
 
 function _drawExploreThemeArt(a) {
+  if (typeof drawStoryLevelBackdrop === 'function' && drawStoryLevelBackdrop(a)) {
+    _drawExploreUnderground();
+    return;
+  }
   const key = a.themeKey;
   if (!key || !EXPLORE_THEME_ARENAS.has(key)) {
     _drawExploreBgTiles(a.exploreStyle);
@@ -230,6 +260,12 @@ function _drawExploreThemeArt(a) {
     _drawArenaThemeArt(key);
     ctx.restore();
   }
+
+  // The tile fallback above carves the tunnels; this path has to as well. Without
+  // it a themed world never drew its shafts/chambers and never advanced
+  // _ugRevealCur, which also gates the chest draw — so every underground cache
+  // in a themed chapter was invisible even to a player standing on it.
+  _drawExploreUnderground();
 }
 
 // Battle Royale's world is a left-to-right sequence of landmark bands, each one
@@ -460,39 +496,21 @@ function _drawExploreUnderground() {
           ctx.fillStyle = `rgba(255,200,110,${0.75 * flick})`;
           ctx.fillRect(tx - 2, r.y + 16, 4, 10);
         }
-        // Fog-of-war cover: solid ground look until the player goes underground
+        // Fog-of-war cover: an unlit black cavity until the player goes
+        // underground. It used to be painted groundColor, which made the whole
+        // tunnel invisible — a player never learned a cache existed. Black shows
+        // THAT there is a space down there without showing what is in it.
         if (reveal < 0.98) {
           ctx.globalAlpha = 1 - reveal;
-          ctx.fillStyle = currentArena.groundColor || '#333344';
+          ctx.fillStyle = '#030305';
           ctx.fillRect(r.x, r.y, r.w, r.h);
           ctx.globalAlpha = 1;
         }
       } else if (reveal < 0.97) {
-        // Shaft camouflage: from the surface it looks like ordinary paving with
-        // hairline cracks and a faint dark patch — the only tell. It opens into
-        // a visible hole only while the player is underground.
+        // Shaft from the surface: a pitch-black opening in the floor (was
+        // camouflaged as paving, which hid the cache entirely).
         ctx.globalAlpha = 1 - reveal;
-        ctx.fillStyle = currentArena.platColor || '#445566';
-        ctx.fillRect(r.x, r.y, r.w, r.h);
-        // Continue the floor's top-highlight strip across the cover
-        ctx.fillStyle = 'rgba(255,255,255,0.20)';
-        ctx.fillRect(r.x, r.y, r.w, 3);
-        // Deterministic hairline cracks
-        let cs = (Math.imul(r.x | 0, 2654435761) >>> 0) || 1;
-        const crng = () => { cs = (Math.imul(cs, 1664525) + 1013904223) >>> 0; return cs / 4294967296; };
-        ctx.strokeStyle = 'rgba(0,0,0,0.45)';
-        ctx.lineWidth = 1.2;
-        for (let c = 0; c < 3; c++) {
-          let zx = r.x + 8 + crng() * (r.w - 16), zy = r.y + 2;
-          ctx.beginPath(); ctx.moveTo(zx, zy);
-          while (zy < r.y + r.h - 6) { zx += (crng() - 0.5) * 18; zy += 8 + crng() * 14; ctx.lineTo(zx, zy); }
-          ctx.stroke();
-        }
-        // Subtle sag toward the centre — something is off about this slab
-        const dg = ctx.createRadialGradient(r.x + r.w / 2, r.y + r.h / 2, 4, r.x + r.w / 2, r.y + r.h / 2, r.w * 0.7);
-        dg.addColorStop(0, 'rgba(0,0,0,0.30)');
-        dg.addColorStop(1, 'rgba(0,0,0,0)');
-        ctx.fillStyle = dg;
+        ctx.fillStyle = '#030305';
         ctx.fillRect(r.x, r.y, r.w, r.h);
         ctx.globalAlpha = 1;
       }

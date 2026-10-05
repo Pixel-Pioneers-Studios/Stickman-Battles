@@ -88,16 +88,28 @@ function openStoryMenu() {
   _updateStoryCloseBtn();
 
   if (typeof _updateContinueStoryBtn === 'function') _updateContinueStoryBtn();
+  if (typeof _refreshStoryLoadoutLabels === 'function') _refreshStoryLoadoutLabels();
 
   // The seam text — the bridge from the cold open into the player's own story.
   // It used to run on first launch, chained straight off Tuesday; the cold open
   // now ends on the home screen instead, so it plays here, the first time the
   // player chooses Story of their own accord. Its own "Just let me fight" exit
   // still leads out to a quick match.
+  // Saves with progress from before difficulties existed keep the setup they
+  // were playing on; only a fresh story gets asked.
+  if (m && !_story2.difficulty && Array.isArray(_story2.defeated) && _story2.defeated.length > 0) {
+    _story2.difficulty = 'normal';
+    _saveStory2();
+  }
+  _updateStoryDifficultyBtn();
+
   if (m && !_story2.prologueSeen) {
     _story2.prologueSeen = true;
     if (typeof saveGame === 'function') saveGame();
-    if (typeof _showPrologue === 'function') setTimeout(() => _showPrologue(() => {}), 260);
+    if (typeof _showPrologue === 'function') setTimeout(() => _showPrologue(_maybePickStoryDifficulty), 260);
+    else _maybePickStoryDifficulty();
+  } else {
+    _maybePickStoryDifficulty();
   }
 }
 
@@ -179,7 +191,7 @@ function _updateStoryCloseBtn() {
 }
 
 function storyNewGame() {
-  const msg = 'Start a new story?\nProgress will be reset. (Boss/True Form unlocks are kept.)';
+  const msg = 'Start a new story?\nProgress will be reset and you will pick a difficulty again. (Boss/Cosmic Axiom unlocks are kept.)';
   if (!confirm(msg)) return;
   _story2 = _defaultStory2Progress();
   // A real new game replays the cold open, so drop the out-of-save guard too.
@@ -189,6 +201,198 @@ function storyNewGame() {
   _renderChapterList();
   if (typeof _story2TokenDisplay === 'function') _story2TokenDisplay();
   if (typeof _updateStoryCloseBtn === 'function') _updateStoryCloseBtn();
+  _updateStoryDifficultyBtn();
+  _maybePickStoryDifficulty();
+}
+
+// ── Story difficulty ──────────────────────────────────────────────────────────
+// Picked once, the first time the story menu opens on a fresh story. Read by
+// _storyScaleEnemyUnit (enemy stats), _launchExplorationChapter (enemy count),
+// the move-speed pass in smb-weapons-ext.js, and dealDamage (Evolution adaptation).
+//   shift:   chapters added to the HP/prediction scaling index, so later-chapter enemies arrive
+//            early. Damage ignores it: a shifted damage curve put late-game hits (~60 on
+//            a 150hp player) on chapter 0, so one combo string was a death.
+//   hpCap / dmgCap: multipliers on the per-unit HP and per-hit damage ceilings
+//   hp / dmg / cd: final multipliers on enemy HP, damage, and attack cooldown
+//   ai:      bot intelligence tier for every non-boss enemy (elites one tier up), so a
+//            harder difficulty is never out-thought by an easier one at any chapter
+//   mercyTo: chapters below this keep the onboarding mercy band
+//   duelExtra: escorts that join every walk-level duel alongside its authored opponent
+//   reward:  multiplier on chapter and side-portal token payouts
+// Evolution is permanent for a save: the only way out is New Game, and no other
+// difficulty can switch into it mid-story.
+const STORY_DIFFICULTIES = {
+  story: {
+    name: 'Story', color: '#88ccff',
+    tagline: 'Experience the story with little fighting.',
+    lines: ['Enemies are much weaker and slower', 'Easy bot intelligence', 'Fewer enemies in explore levels'],
+    shift: 0, hpCap: 1, dmgCap: 1, hp: 0.45, dmg: 0.35, cd: 1.45, speed: 1,
+    predict: -1, dodge: -1, ai: 'easy', exploreCap: -2, mercyTo: 6, duelExtra: 0, reward: 1,
+  },
+  normal: {
+    name: 'Normal', color: '#aaffbb',
+    tagline: 'The fight as it was designed.',
+    lines: ['Enemies grow stronger as the story goes on', 'Normal bot intelligence'],
+    shift: 0, hpCap: 1, dmgCap: 1, hp: 1, dmg: 1, cd: 1, speed: 1,
+    predict: 0, dodge: 0, ai: 'medium', exploreCap: 0, mercyTo: 6, duelExtra: 0, reward: 1,
+  },
+  challenge: {
+    name: 'Challenge', color: '#ffcc66',
+    tagline: 'Stronger enemies arrive earlier.',
+    lines: ['Enemies are a dozen chapters ahead of you', 'Tougher enemies that hit a little harder', 'Hard bot intelligence', 'No beginner mercy', 'An extra enemy joins every duel', '+50% tokens'],
+    shift: 12, hpCap: 1.25, dmgCap: 1, hp: 1, dmg: 1.05, cd: 0.92, speed: 1.06,
+    predict: 0.04, dodge: 0.03, ai: 'hard', exploreCap: 1, mercyTo: 0, duelExtra: 1, reward: 1.5,
+  },
+  evolution: {
+    name: 'Evolution', color: '#ff6644',
+    tagline: 'Evolve or die. Permanent.',
+    lines: ['Enemies are far ahead of you, faster and sharper', 'Expert bot intelligence', 'Enemies adapt to any move you repeat: vary your attacks',
+            'No beginner mercy', 'Two extra enemies join every duel', 'Double tokens', 'Can never be changed without wiping story progress'],
+    shift: 25, hpCap: 1.6, dmgCap: 1, hp: 1, dmg: 1.15, cd: 0.82, speed: 1.15,
+    predict: 0.08, dodge: 0.06, ai: 'expert', exploreCap: 2, mercyTo: 0, duelExtra: 2, reward: 2,
+  },
+};
+const STORY_DIFFICULTY_ORDER = ['story', 'normal', 'challenge', 'evolution'];
+
+function _storyDifficulty() {
+  const d = typeof _story2 !== 'undefined' && _story2 ? _story2.difficulty : null;
+  return STORY_DIFFICULTIES[d] ? d : 'normal';
+}
+function _storyDiffCfg() { return STORY_DIFFICULTIES[_storyDifficulty()]; }
+function _storyTokenReward(n) { return Math.round((n || 0) * (_storyDiffCfg().reward || 1)); }
+
+// Evolution: an enemy builds resistance to whichever move keeps hitting it. A
+// move is weapon + action tier (swing/ability/super) + ground/air. The first
+// three hits of a move are free (a full combo string); each hit past that costs
+// 9%, down to 55%. Landing a different move sheds a stack from every other move,
+// and a move unused for 4s is forgotten.
+function _storyEvoAdapt(attacker, target, dmg) {
+  const now = typeof frameCount !== 'undefined' ? frameCount : 0;
+  const key = (attacker.weaponKey || '?') + ':' + (attacker._attackKindTier | 0) + (attacker.onGround ? 'g' : 'a');
+  const book = target._evoAdapt || (target._evoAdapt = {});
+  for (const k in book) {
+    if (k !== key && book[k].n > 0) book[k].n--;
+  }
+  let e = book[key];
+  if (!e || now - e.t > 240) e = book[key] = { n: 0, t: now, shown: false };
+  e.n++;
+  e.t = now;
+  const over = e.n - 3;
+  if (over <= 0) { e.shown = false; return dmg; }
+  const mult = Math.max(0.55, 1 - 0.09 * over);
+  if (!e.shown && mult <= 0.82 && settings.dmgNumbers && typeof DamageText !== 'undefined') {
+    e.shown = true;
+    damageTexts.push(new DamageText(target.cx(), target.y - 38, 'ADAPTING', '#ff7744'));
+  }
+  return Math.max(1, Math.round(dmg * mult));
+}
+
+function _updateStoryDifficultyBtn() {
+  const btn = document.getElementById('storyDifficultyBtn');
+  if (!btn) return;
+  const cfg = _storyDiffCfg();
+  const locked = _storyDifficulty() === 'evolution';
+  btn.textContent = 'Difficulty: ' + cfg.name + (locked ? ' 🔒' : '');
+  btn.style.color = cfg.color;
+  btn.title = locked ? 'Evolution is permanent. Start a New Game to leave it.' : 'Change difficulty';
+}
+
+function _maybePickStoryDifficulty() {
+  const m = document.getElementById('storyModal');
+  if (!m || m.style.display === 'none') return;
+  if (_story2 && !_story2.difficulty) _showStoryDifficultyPicker(true);
+}
+
+// firstPick: a fresh story choosing for the first time (Evolution allowed).
+// Otherwise the player is changing an existing choice (Evolution is out of reach,
+// and if it is the current choice nothing else is).
+function _showStoryDifficultyPicker(firstPick) {
+  const old = document.getElementById('storyDifficultyOverlay');
+  if (old) old.remove();
+  const current = _story2 && _story2.difficulty ? _story2.difficulty : null;
+  const evoLocked = current === 'evolution';
+
+  const ov = document.createElement('div');
+  ov.id = 'storyDifficultyOverlay';
+  ov.style.cssText = [
+    'position:fixed', 'inset:0', 'z-index:9400', 'background:rgba(3,4,10,0.97)',
+    'display:flex', 'align-items:center', 'justify-content:center',
+    'padding:16px', 'box-sizing:border-box', 'overflow-y:auto',
+  ].join(';');
+
+  const box = document.createElement('div');
+  box.style.cssText = 'width:min(760px,100%);text-align:center;';
+  const title = document.createElement('h2');
+  title.textContent = firstPick ? 'Choose Your Difficulty' : 'Change Difficulty';
+  title.style.cssText = 'margin:0 0 6px;color:#fff;font-size:1.5rem;letter-spacing:2px;';
+  const sub = document.createElement('p');
+  sub.textContent = evoLocked
+    ? 'Evolution is permanent. The only way out is a New Game, which wipes your story progress.'
+    : firstPick
+      ? 'You can switch between Story, Normal and Challenge later. Evolution can only be chosen now, and never left.'
+      : 'Evolution can only be chosen when starting a new story.';
+  sub.style.cssText = 'margin:0 0 18px;color:#99a;font-size:0.85rem;line-height:1.5;';
+  box.appendChild(title);
+  box.appendChild(sub);
+
+  const grid = document.createElement('div');
+  grid.style.cssText = 'display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;text-align:left;';
+  for (const key of STORY_DIFFICULTY_ORDER) {
+    const cfg = STORY_DIFFICULTIES[key];
+    const disabled = evoLocked ? key !== 'evolution' : (!firstPick && key === 'evolution');
+    const isCurrent = !firstPick && key === current;
+    const card = document.createElement('button');
+    card.style.cssText = [
+      'display:flex', 'flex-direction:column', 'gap:6px', 'padding:14px',
+      'background:' + (isCurrent ? '#262838' : '#161826'),
+      'border:1px solid ' + (isCurrent ? cfg.color : 'rgba(255,255,255,0.14)'),
+      'border-radius:10px', 'color:#ccd', 'font-family:inherit', 'text-align:left',
+      'cursor:' + (disabled || isCurrent ? 'default' : 'pointer'),
+      'opacity:' + (disabled ? '0.4' : '1'), 'transition:background 0.12s,border-color 0.12s',
+    ].join(';');
+    const name = document.createElement('div');
+    name.textContent = cfg.name + (isCurrent ? '  (current)' : '');
+    name.style.cssText = 'font-size:1.05rem;font-weight:800;letter-spacing:1px;color:' + cfg.color + ';';
+    const tag = document.createElement('div');
+    tag.textContent = cfg.tagline;
+    tag.style.cssText = 'font-size:0.8rem;color:#eef;';
+    card.appendChild(name);
+    card.appendChild(tag);
+    const ul = document.createElement('ul');
+    ul.style.cssText = 'margin:2px 0 0;padding-left:16px;font-size:0.72rem;color:#99a;line-height:1.45;';
+    for (const l of cfg.lines) {
+      const li = document.createElement('li');
+      li.textContent = l;
+      ul.appendChild(li);
+    }
+    card.appendChild(ul);
+    if (!disabled && !isCurrent) {
+      card.onmouseover = () => { card.style.background = '#22243a'; card.style.borderColor = cfg.color; };
+      card.onmouseout  = () => { card.style.background = '#161826'; card.style.borderColor = 'rgba(255,255,255,0.14)'; };
+      card.onclick = () => {
+        if (key === 'evolution' &&
+            !confirm('Evolution is permanent.\nYou will never be able to change difficulty on this story. The only way out is New Game, which wipes your story progress.\n\nChoose Evolution?')) return;
+        _story2.difficulty = key;
+        _saveStory2();
+        _updateStoryDifficultyBtn();
+        ov.remove();
+      };
+    }
+    grid.appendChild(card);
+  }
+  box.appendChild(grid);
+
+  const close = document.createElement('button');
+  close.textContent = firstPick ? 'Not now' : 'Close';
+  close.style.cssText = 'margin-top:18px;padding:7px 22px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.14);border-radius:7px;color:#889;cursor:pointer;font-size:0.8rem;font-family:inherit;';
+  close.onclick = () => {
+    ov.remove();
+    // An unpicked story is not playable yet — leave the menu with the overlay.
+    if (firstPick) closeStoryMenu();
+  };
+  box.appendChild(close);
+  ov.appendChild(box);
+  document.body.appendChild(ov);
 }
 
 // Power level label per chapter
@@ -239,11 +443,24 @@ function _renderChapterList() {
     ? [..._seen].filter(i => isChapterInActiveSaga(i)).length
     : _seen.size);
   const pct      = totalCh > 0 ? Math.min(100, Math.round((doneCh / totalCh) * 100)) : 0;
+  const _tally   = typeof storyStarTally === 'function' ? storyStarTally() : null;
+  // Retroactive: an existing save may already qualify for the completion awards.
+  if (typeof checkCompletionAchievements === 'function') checkCompletionAchievements();
+
+  // Map view (smb-story-map.js) is the default; the list below is its fallback,
+  // one click away on the Map/List toggle.
+  const _viewBtn = document.getElementById('storyViewToggle');
+  if (typeof StoryMap !== 'undefined') {
+    if (_viewBtn) { _viewBtn.style.display = ''; _viewBtn.textContent = StoryMap.enabled() ? 'List view' : 'Map view'; }
+    if (StoryMap.enabled()) { StoryMap.mount(list); return; }
+    StoryMap.unmount();
+  }
   const progWrap = document.createElement('div');
   progWrap.className = 'story-progress-wrap';
   progWrap.innerHTML =
     `<div class="story-progress-row">` +
-      `<span>Progress</span><span style="color:#334d55;">${doneCh}/${totalCh} chapters · ${pct}%</span>` +
+      `<span>Progress</span><span style="color:#334d55;">${doneCh}/${totalCh} chapters · ${pct}%` +
+      (_tally ? ` · ★ ${_tally.stars}/${_tally.total}` : '') + `</span>` +
     `</div>` +
     `<div class="story-progress-bar-bg">` +
       `<div class="story-progress-bar-fill" style="width:${pct}%;"></div>` +
@@ -319,11 +536,12 @@ function _renderChapterList() {
   };
 
   // Act completion tally
-  let actDone = 0, actTotal = 0;
+  let actDone = 0, actTotal = 0, actStars = 0;
   for (const arc of act.arcs) {
     for (let i = arc.chapterRange[0]; i <= arc.chapterRange[1]; i++) {
       actTotal++;
       if (_story2.defeated.includes(i)) actDone++;
+      if (typeof storyChapterStarred === 'function' && storyChapterStarred(i)) actStars++;
     }
   }
 
@@ -338,7 +556,7 @@ function _renderChapterList() {
     `<button class="story-act-pager-arrow" data-dir="-1" ${canPrev ? '' : 'disabled'}>◀</button>` +
     `<div class="story-act-pager-mid">` +
       `<div class="story-act-pager-title">${act.label}</div>` +
-      `<div class="story-act-pager-sub">${actDone}/${actTotal} levels · Act ${_storyViewAct + 1} of ${maxAct + 1}</div>` +
+      `<div class="story-act-pager-sub">${actDone}/${actTotal} levels · ★ ${actStars}/${actTotal} · Act ${_storyViewAct + 1} of ${_acts.length}</div>` +
     `</div>` +
     `<button class="story-act-pager-arrow" data-dir="1" ${canNext ? '' : 'disabled'}>▶</button>`;
   pager.querySelectorAll('.story-act-pager-arrow').forEach(btn => {
@@ -390,18 +608,23 @@ function _renderChapterList() {
 
       const badge = done ? '✓' : locked ? '🔒' : current ? '▶' : (i + 1);
       const _lives = ch.playerLives !== undefined ? ch.playerLives : 3;
+      const _loot  = typeof storyChapterLootProgress === 'function' ? storyChapterLootProgress(i) : { got: 0, total: 0 };
+      const _star  = typeof storyChapterStarred === 'function' && storyChapterStarred(i);
       const tip = isSpoilerLocked
         ? "You're not supposed to see that yet."
         : `Level ${i + 1} · ${displayWorld}` +
           (!ch.noFight ? ` · ${_lives === 1 ? '1 life' : _lives + ' lives'}` : '') +
           (!done && ch.tokenReward ? ` · +${ch.tokenReward}🪙` : '') +
-          (done ? ' · replay' : '');
+          (_loot.total ? ` · caches ${_loot.got}/${_loot.total}` : '') +
+          (_star ? ' · ★ 100%' : done ? ' · replay' : '');
       tile.title = tip;
+      if (_star) tile.classList.add('lvl-starred');
 
       tile.innerHTML =
         `<div class="lvl-num">${badge}</div>` +
         `<div class="lvl-idx">${i + 1}</div>` +
-        `<div class="lvl-name">${displayTitle}</div>`;
+        `<div class="lvl-name">${displayTitle}</div>` +
+        (_star ? `<div class="lvl-star" aria-label="100% complete">★</div>` : '');
 
       if (!locked) {
         tile.style.cursor = 'pointer';
@@ -1029,6 +1252,7 @@ function _defaultStory2Progress() {
     exp:               0,       // EXP earned from kills — used for skill tree
     health:            null,    // persistent HP carried between walk→fight chapters (null = full)
     lootTaken:         {},      // { 'chapterId:index': 1 } — one-time loot pickups already collected
+    cpResume:          null,    // { chId, x } — last rest checkpoint reached; a game-over Retry resumes there
     blueprints:        [],      // blueprint keys earned
     unlockedAbilities: [],      // ability keys bought from store
     skillTree:         _applyStoryCoreUnlocks({}), // { nodeId: true } — purchased skill nodes (core moves pre-granted)
@@ -1043,6 +1267,8 @@ function _defaultStory2Progress() {
     branchFlags:       {},      // { [flagKey]: true } — choices made at branch chapters
     prologueSeen:      false,   // true after the Axiom/multiverse intro plays once
     tuesdaySeen:       false,   // true after the playable Tuesday cold open has run once
+    difficulty:        null,    // 'story' | 'normal' | 'challenge' | 'evolution' — null until picked (see STORY_DIFFICULTIES)
+    loadout:           { weapon: 'sword', cls: 'warrior' }, // story's own P1 pick, separate from Versus; either may be 'random'
     migrations:        { threshArc: true, trialChapters: true }, // one-time save migrations already applied (new saves need none)
   };
 }
@@ -1119,6 +1345,9 @@ function _normalizeStory2Progress(data) {
   if (typeof data.exp === 'number') out.exp = data.exp;
   if (typeof data.health === 'number') out.health = data.health;
   if (data.lootTaken && typeof data.lootTaken === 'object') out.lootTaken = Object.assign({}, data.lootTaken);
+  if (data.cpResume && typeof data.cpResume.chId === 'number' && typeof data.cpResume.x === 'number') {
+    out.cpResume = { chId: data.cpResume.chId, x: data.cpResume.x };
+  }
   if (Array.isArray(data.blueprints)) out.blueprints = data.blueprints.slice();
   if (Array.isArray(data.unlockedAbilities)) out.unlockedAbilities = data.unlockedAbilities.slice();
   if (data.skillTree && typeof data.skillTree === 'object') out.skillTree = Object.assign({}, data.skillTree);
@@ -1161,6 +1390,11 @@ function _normalizeStory2Progress(data) {
   if (data.branchFlags && typeof data.branchFlags === 'object') out.branchFlags = Object.assign({}, data.branchFlags);
   if (typeof data.prologueSeen === 'boolean') out.prologueSeen = data.prologueSeen;
   if (typeof data.tuesdaySeen  === 'boolean') out.tuesdaySeen  = data.tuesdaySeen;
+  if (typeof data.difficulty === 'string' && STORY_DIFFICULTIES[data.difficulty]) out.difficulty = data.difficulty;
+  if (data.loadout && typeof data.loadout === 'object') {
+    if (typeof data.loadout.weapon === 'string') out.loadout.weapon = data.loadout.weapon;
+    if (typeof data.loadout.cls    === 'string') out.loadout.cls    = data.loadout.cls;
+  }
   // Saves predating the migrations field have had no migrations applied — don't inherit the base defaults
   out.migrations = (data.migrations && typeof data.migrations === 'object') ? Object.assign({}, data.migrations) : {};
   return out;
@@ -1518,8 +1752,118 @@ function _showPreFightStoreNag(ch, onContinue) {
   };
 }
 
+// ── Death spirit ─────────────────────────────────────────────────────────────
+// On a story game over a spirit tells the player what happened: who landed the
+// last blow, with what, and how to answer it next time — plus where to go if
+// the fight was simply ahead of them (the skill tree, or coming back later).
+// Built from the attribution stamp dealDamage() leaves on every hit
+// (_lastAttacker / _lastAttackerFrame / _lastAttackerDmg).
+const _SPIRIT_WEAPON_TIPS = [
+  [['sword', 'katana', 'glassblade', 'nullblade', 'voidblade'],
+    'That blade is quick. Don’t trade hits with it. Shield the first swing, then strike before the next string starts.'],
+  [['hammer', 'anchor', 'fryingpan'],
+    'Heavy and slow. Bait the swing from just outside its reach, then hit it during the long recovery.'],
+  [['axe', 'flail'],
+    'Wide arcs with a real wind-up. Stay just past its reach and step in after it swings.'],
+  [['spear', 'broomstick', 'whip', 'scythe'],
+    'Long reach, weak up close. Get inside the tip and stay there.'],
+  [['combat', 'gauntlet', 'mkgauntlet', 'fragment'],
+    'Fast close-range strings. Don’t stand in front of it. Make it come to you and hit it on the way in.'],
+  [['shield'],
+    'It blocks what is in front of it. Go over it or behind it before you swing.'],
+  [['flamethrower'],
+    'A short cone of fire. Don’t stand in it. Jump over it and strike from behind.'],
+  [['boomerang'],
+    'It comes back. Step aside after it passes, not before.'],
+  [['bomb'],
+    'Explosives on a delay. Keep moving and never stand where one lands.'],
+];
+function _spiritWeaponTip(wk) {
+  for (const [keys, tip] of _SPIRIT_WEAPON_TIPS) if (keys.includes(wk)) return tip;
+  const w = (typeof WEAPONS !== 'undefined') ? WEAPONS[wk] : null;
+  if (w && w.type === 'ranged') {
+    return 'It wins at range. Close the distance in jumps, not a straight walk, and push while it reloads.';
+  }
+  return 'Watch its swing once before you commit. Every weapon has a gap after it attacks.';
+}
+function _spiritEsc(s) {
+  return String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+}
+// Unspent EXP that could buy a skill node right now.
+function _spiritAffordableSkills() {
+  if (typeof STORY_SKILL_TREE === 'undefined' || !_story2) return 0;
+  const sk = _story2.skillTree || {}, exp = _story2.exp || 0;
+  let n = 0;
+  for (const branch of Object.values(STORY_SKILL_TREE)) {
+    for (const node of branch.nodes) {
+      if (sk[node.id] || exp < node.expCost) continue;
+      if (typeof _skillNodeReqMet === 'function' && !_skillNodeReqMet(node, sk)) continue;
+      n++;
+    }
+  }
+  return n;
+}
+function _storyBuildDeathReport(ch) {
+  const p1 = (typeof players !== 'undefined' && players) ? players.find(p => p && !p.isAI && !p.isBoss) : null;
+  const rep = { cause: 'world', killer: null, lines: [], action: null };
+  const k = p1 && p1._lastAttacker;
+  const recent = k && typeof frameCount !== 'undefined' && frameCount - (p1._lastAttackerFrame || 0) < 360;
+  if (ch && ch.chaseTimer > 0 && typeof storyChaseTimer !== 'undefined' && storyChaseTimer <= 0) {
+    rep.cause = 'timer';
+    rep.lines.push('The route collapsed around you. The clock ran out, not your strength.');
+    rep.lines.push('Keep moving forward. Fight only what stands in your way.');
+    return rep;
+  }
+  if (!recent) {
+    rep.lines.push('Nothing struck that last blow. The world took you: a fall, or the ground itself.');
+    rep.lines.push('Watch your footing near edges and hazards. They take lives too.');
+    return rep;
+  }
+  rep.cause = 'foe';
+  const wk = k.weaponKey || (k.weapon && k.weapon.key) || '';
+  const wName = (typeof WEAPONS !== 'undefined' && WEAPONS[wk] && WEAPONS[wk].name) || (wk ? wk : 'bare hands');
+  const cName = (k.charClass && k.charClass !== 'none' && typeof CLASSES !== 'undefined' && CLASSES[k.charClass] && CLASSES[k.charClass].name) || null;
+  const who = k.name || (k.isBoss ? 'the boss' : 'an enemy');
+  rep.killer = { name: who, weapon: wName, cls: cName };
+  rep.lines.push(`<b>${_spiritEsc(who)}</b>${cName ? ` (${_spiritEsc(cName)})` : ''} ended you with ${_spiritEsc(/^[aeiou]/i.test(wName) ? 'an' : 'a')} <b>${_spiritEsc(wName)}</b>` +
+    (p1._lastAttackerDmg ? `. The last blow did ${Math.round(p1._lastAttackerDmg)} damage.` : '.'));
+  rep.lines.push(_spiritWeaponTip(wk));
+  const afford = _spiritAffordableSkills();
+  if (k.isChestGuardian) {
+    rep.lines.push('That one guarded a hidden cache. The fight was optional, and the cache will wait. Come back when you are stronger.');
+    rep.action = afford ? 'skills' : null;
+  } else if (k.isBoss || k._storyElite) {
+    rep.lines.push(k.isBoss
+      ? 'Bosses chain their attacks. Learn the tell, and don’t hang in the air, where you can’t shield.'
+      : 'That was an elite, tougher than the rest by design.');
+  }
+  if (afford) {
+    rep.lines.push(`You have ${_story2.exp} EXP unspent. ${afford} upgrade${afford > 1 ? 's' : ''} in the skill tree ${afford > 1 ? 'are' : 'is'} yours to take right now.`);
+    rep.action = 'skills';
+  } else if (k.isChestGuardian || k.isBoss || k._storyElite) {
+    rep.lines.push('Cleared levels pay tokens and EXP. Replay an earlier one and return stronger.');
+  }
+  return rep;
+}
+function _spiritPanelHTML(rep) {
+  return `
+    <div class="story-spirit">
+      <svg class="story-spirit-fig" viewBox="0 0 40 64" aria-hidden="true">
+        <circle cx="20" cy="10" r="7"/>
+        <path d="M20 17 L20 40 M20 23 L9 33 M20 23 L31 31 M20 40 L12 56 M20 40 L27 55"/>
+      </svg>
+      <div class="story-spirit-body">
+        <div class="story-spirit-kicker">A spirit lingers where you fell</div>
+        ${rep.lines.map(l => `<p>${l}</p>`).join('')}
+      </div>
+    </div>`;
+}
+
 // ── Story retry screen ────────────────────────────────────────────────────────
 function _showStory2RetryScreen(ch) {
+  // Read the death NOW: the fighters still exist; by the next frame they may not.
+  const _death = _storyBuildDeathReport(ch);
+  const _canResume = !!(_story2.cpResume && _story2.cpResume.chId === ch.id && !storyPhaseIndicator);
   requestAnimationFrame(() => {
     // Hide default game-over overlay content and inject custom retry screen
     const ov = document.getElementById('gameOverOverlay');
@@ -1538,7 +1882,7 @@ function _showStory2RetryScreen(ch) {
     retryDiv.id = '_story2RetryScreen';
     retryDiv.style.cssText = 'margin-top:16px;text-align:center;';
 
-    retryDiv.innerHTML = `
+    retryDiv.innerHTML = _spiritPanelHTML(_death) + `
       <div style="font-size:0.72rem;letter-spacing:1px;color:#667;text-transform:uppercase;margin-bottom:4px;">${storyPhaseIndicator ? 'Phase Failed' : 'Chapter'}</div>
       <div style="font-size:1.05rem;font-weight:700;color:#dde4ff;margin-bottom:10px;">${ch.title}</div>
       ${storyPhaseIndicator ? `<div style="font-size:0.74rem;color:#8cc8ff;margin-bottom:10px;">PHASE ${storyPhaseIndicator.index}/${storyPhaseIndicator.total} — ${storyPhaseIndicator.label}</div>` : ''}
@@ -1548,9 +1892,19 @@ function _showStory2RetryScreen(ch) {
         </div>
       ` : ''}
       <div style="display:flex;flex-direction:column;gap:7px;max-width:240px;margin:0 auto;">
-        <button id="_retryChapterBtn" style="padding:10px 0;background:linear-gradient(135deg,#1a5acc,#2277ee);border:none;border-radius:9px;color:#fff;font-weight:700;font-size:0.88rem;cursor:pointer;width:100%;">
-          ↺ Retry ${storyPhaseIndicator ? 'Phase' : 'Chapter'}
+        ${_canResume ? `
+          <button id="_retryCheckpointBtn" style="padding:10px 0;background:linear-gradient(135deg,#b8741a,#e39a2c);border:none;border-radius:9px;color:#fff;font-weight:700;font-size:0.88rem;cursor:pointer;width:100%;">
+            🔥 Retry from Checkpoint
+          </button>
+        ` : ''}
+        <button id="_retryChapterBtn" style="padding:10px 0;background:${_canResume ? 'rgba(40,80,180,0.55)' : 'linear-gradient(135deg,#1a5acc,#2277ee)'};border:none;border-radius:9px;color:#fff;font-weight:700;font-size:0.88rem;cursor:pointer;width:100%;">
+          ↺ ${_canResume ? 'Restart' : 'Retry'} ${storyPhaseIndicator ? 'Phase' : 'Chapter'}
         </button>
+        ${_death.action === 'skills' ? `
+          <button id="_retrySkillsBtn" style="padding:10px 0;background:linear-gradient(135deg,#1f7a44,#2fa05c);border:none;border-radius:9px;color:#fff;font-weight:700;font-size:0.88rem;cursor:pointer;width:100%;">
+            🌟 Open Skill Tree
+          </button>
+        ` : ''}
         ${affordable.length > 0 ? `
           <button id="_retryStoreBtn" style="padding:10px 0;background:linear-gradient(135deg,#6622aa,#9933cc);border:none;border-radius:9px;color:#fff;font-weight:700;font-size:0.88rem;cursor:pointer;width:100%;">
             🏪 Go to Store
@@ -1563,6 +1917,9 @@ function _showStory2RetryScreen(ch) {
 
     const btnRow = ov.querySelector('.btn-row');
     if (btnRow) btnRow.style.display = 'none'; // hide default buttons
+    // endGame titles a story loss "DRAW!" when no enemy is left standing to win.
+    const _wt = document.getElementById('winnerText');
+    if (_wt) { _wt.textContent = 'YOU FELL'; _wt.style.color = '#ff6a6a'; }
     ov.querySelector('.overlay-box')?.appendChild(retryDiv);
 
     retryDiv.querySelector('#_retryChapterBtn').onclick = () => {
@@ -1571,6 +1928,26 @@ function _showStory2RetryScreen(ch) {
       storyModeActive = false;
       if (typeof backToMenu === 'function') backToMenu();
       setTimeout(() => _beginChapter2(ch.id), 350);
+    };
+
+    const cpBtn = retryDiv.querySelector('#_retryCheckpointBtn');
+    if (cpBtn) cpBtn.onclick = () => {
+      ov.style.display = 'none';
+      if (btnRow) btnRow.style.display = '';
+      storyModeActive = false;
+      if (typeof backToMenu === 'function') backToMenu();
+      // Consumed by _launchExplorationChapter for this chapter only
+      window._storyResumeCpFor = ch.id;
+      setTimeout(() => _beginChapter2(ch.id), 350);
+    };
+
+    const skBtn = retryDiv.querySelector('#_retrySkillsBtn');
+    if (skBtn) skBtn.onclick = () => {
+      ov.style.display = 'none';
+      if (btnRow) btnRow.style.display = '';
+      storyModeActive = false;
+      if (typeof backToMenu === 'function') backToMenu();
+      setTimeout(() => { if (typeof openSkillTreeModal === 'function') openSkillTreeModal(); }, 340);
     };
 
     const storeBtn = retryDiv.querySelector('#_retryStoreBtn');

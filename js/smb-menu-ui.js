@@ -78,7 +78,7 @@ function selectMode(mode) {
     if (_sportsOpts) _sportsOpts.style.display = minigameType === 'sports' ? 'flex' : 'none';
   }
   // P2 panel title/hint
-  document.getElementById('p2Title').textContent = isTrueForm ? 'TRUE FORM' : isAdaptive ? 'NEURAL AI' : (isBoss && !isBoss2p) ? 'CREATOR' : (isBoss2p ? 'Player 2' : (isTraining ? 'TRAINING' : (p2IsBot ? 'BOT' : 'Player 2')));
+  document.getElementById('p2Title').textContent = isTrueForm ? 'COSMIC AXIOM' : isAdaptive ? 'NEURAL AI' : (isBoss && !isBoss2p) ? 'CREATOR' : (isBoss2p ? 'Player 2' : (isTraining ? 'TRAINING' : (p2IsBot ? 'BOT' : 'Player 2')));
   const _p2Hint = document.getElementById('p2Hint');
   if (_p2Hint) _p2Hint.textContent = isTrueForm ? 'Secret Final Boss' : isAdaptive ? 'Learns your playstyle' : (isBoss && !isBoss2p) ? 'Boss — AI Controlled' : (isBoss2p ? '← → ↑ · Enter · . · /' : (isTraining ? 'Practice mode' : (p2IsBot ? 'AI Controlled' : '← → ↑ · Enter · . · / · ↓')));
   document.getElementById('p1DifficultyRow').style.display = p1IsBot ? 'flex' : 'none';
@@ -161,7 +161,7 @@ function _enterConfigView(mode) {
   const modeLabel = document.getElementById('configModeLabel');
   if (modeLabel) {
     const _names = {
-      '2p': '1v1', 'boss': 'Boss Fight', 'trueform': 'True Form',
+      '2p': '1v1', 'boss': 'Boss Fight', 'trueform': 'Cosmic Axiom',
       'training': 'Training', 'minigames': 'Minigames', 'online': 'Online',
       'battleroyale': 'Battle Royale',
       'sovereign': 'Sovereign Ω', 'adaptive': 'Adaptive AI', 'storyonline': 'Story Online',
@@ -334,7 +334,7 @@ function _updateBossRushNextBtn(playerWon) {
   const hasNext = _bossRushGauntlet.length > 0 && (_bossRushIdx + 1) < _bossRushGauntlet.length;
   row.style.display = (playerWon && hasNext) ? '' : 'none';
   if (playerWon && hasNext) {
-    const labels = { boss: 'Creator', trueform: 'True Form', sovereign: 'SOVEREIGN Ω' };
+    const labels = { boss: 'Creator', trueform: 'Cosmic Axiom', sovereign: 'SOVEREIGN Ω' };
     const btn = document.getElementById('bossRushNextBtn');
     if (btn) btn.textContent = 'Continue: ' + (labels[_bossRushGauntlet[_bossRushIdx + 1]] || 'Next') + ' →';
   }
@@ -345,6 +345,7 @@ function _openStoryPathPanel() {
   const storyPathPanel = document.getElementById('storyPathPanel');
   if (pathCards) pathCards.style.display = 'none';
   if (storyPathPanel) storyPathPanel.style.display = '';
+  if (typeof _refreshStoryLoadoutLabels === 'function') _refreshStoryLoadoutLabels();
 }
 
 function openStoryPath() {
@@ -545,6 +546,7 @@ function unlockCosmetic(id) {
     unlockedCosmetics.push(id);
     if (typeof saveGame === 'function') saveGame();
   }
+  if (typeof checkCompletionAchievements === 'function') checkCompletionAchievements();
   return true;
 }
 
@@ -632,9 +634,11 @@ function setBossPlayers(n) {
 }
 
 // Instant match for first-time visitors: no menus, no unlocks, no story gating.
-// Arenas here are deliberately hazard-free so a first fight reads clearly.
+// Arena, weapon and class are all rolled at random for this match (see
+// isQuickFightRand in _startGameCore) — the 1v1 menu selections are left untouched.
+// Arenas are limited to this hazard-free set so a first fight reads clearly, unless
+// the player turns on settings.quickFightHazards.
 const _QUICK_FIGHT_ARENAS = ['grass', 'city', 'forest', 'colosseum', 'clouds', 'ruins'];
-
 function quickFight() {
   // Hides storyModal directly rather than via closeStoryMenu(), which refuses to
   // close until chapter 0 is beaten. Quick Fight is a deliberate bypass of that gate.
@@ -648,7 +652,7 @@ function quickFight() {
   p2IsNone = false;
   const b = document.getElementById('p2BotToggle');
   if (b) b.textContent = 'Bot';
-  selectArena(_QUICK_FIGHT_ARENAS[Math.floor(Math.random() * _QUICK_FIGHT_ARENAS.length)]);
+  window._quickFightRandomNext = true;
   startGame();
 }
 

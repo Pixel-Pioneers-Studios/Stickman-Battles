@@ -209,7 +209,7 @@
       if (typeof saveGame === 'function') saveGame();
     }
     _pushLocalLog('ADMIN', 'TrueForm unlocked → ' + accountId);
-    _toast('True Form unlocked');
+    _toast('Cosmic Axiom unlocked');
   }
 
   function _unlockMultiverse(accountId) {
@@ -704,7 +704,7 @@
           '<div style="display:flex;gap:6px;flex-wrap:wrap;">',
             '<button onclick="AdminDash.unlockAll()" style="' + _btnStyle('#44ff88') + '">Unlock All</button>',
             '<button onclick="AdminDash.unlockSovereign()" style="' + _btnStyle('#ff8844') + '">Sovereign Fight</button>',
-            '<button onclick="AdminDash.unlockTrueForm()" style="' + _btnStyle('#ff44aa') + '">True Form</button>',
+            '<button onclick="AdminDash.unlockTrueForm()" style="' + _btnStyle('#ff44aa') + '">Cosmic Axiom</button>',
             '<button onclick="AdminDash.unlockMultiverse()" style="' + _btnStyle('#aa44ff') + '">Multiverse Arc</button>',
             '<button onclick="AdminDash.grantParadox()" style="' + _btnStyle('#44aaff') + '">Paradox Companion</button>',
           '</div>',
@@ -1257,7 +1257,7 @@
     '',
     'SMB-SPECIFIC',
     '  /unlocksovereign USER   Sovereign fight',
-    '  /unlocktrueform USER    True Form',
+    '  /unlocktrueform USER    Cosmic Axiom',
     '  /unlockmultiverse USER  Multiverse Arc',
     '  /giveparadox USER       Paradox Companion',
     '  /spawnboss NAME         Event boss broadcast',
@@ -1527,7 +1527,7 @@
           'Coins:          ' + (snap.coins || 0),
           'Chapter:        ' + ((snap.story && snap.story.chapter) || 0),
           'Boss Beaten:    ' + !!(snap.unlocks && snap.unlocks.bossBeaten),
-          'True Form:      ' + !!(snap.unlocks && snap.unlocks.trueform),
+          'Cosmic Axiom:      ' + !!(snap.unlocks && snap.unlocks.trueform),
           'Sovereign:      ' + !!(snap.unlocks && snap.unlocks.sovereignBeaten),
           'Paradox:        ' + !!(snap.unlocks && snap.unlocks.paradoxCompanion),
           'Multiverse:     ' + !!(snap.unlocks && snap.unlocks.interTravel),

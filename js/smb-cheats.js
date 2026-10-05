@@ -40,7 +40,7 @@ function _cheatUnlockAll() {
   if (_adCard)  _adCard.style.display  = '';
   if (_sovCard) _sovCard.style.display = '';
 
-  // Megaknight
+  // Knight
   if (typeof setAccountFlagWithRuntime === 'function') {
     setAccountFlagWithRuntime(['unlocks', 'megaknight'], true, function(v) { unlockedMegaknight = v; if (typeof refreshMegaknightClassOption === 'function') refreshMegaknightClassOption(); });
   } else { unlockedMegaknight = true; if (typeof refreshMegaknightClassOption === 'function') refreshMegaknightClassOption(); }
@@ -159,11 +159,11 @@ function applyCode(val) {
     if (adCard)  adCard.style.display  = '';
     if (sovCard) sovCard.style.display = '';
     ok('SOVEREIGN Ω unlocked! Select it from the menu.');
-  } else if (code === 'CLASSMEGAKNIGHT') {
+  } else if (code === 'CLASSKNIGHT' || code === 'CLASSMEGAKNIGHT') {
     if (typeof setAccountFlagWithRuntime === 'function') {
       setAccountFlagWithRuntime(['unlocks', 'megaknight'], true, function(v) { unlockedMegaknight = v; if (typeof refreshMegaknightClassOption === 'function') refreshMegaknightClassOption(); });
     } else { unlockedMegaknight = true; if (typeof refreshMegaknightClassOption === 'function') refreshMegaknightClassOption(); }
-    ok('Megaknight class unlocked! Select it from the class cards.');
+    ok('Knight class unlocked! Select it from the class cards.');
   } else if (code.startsWith('MAP:')) {
     const mapKey = code.slice(4).toLowerCase();
     if (!ARENAS[mapKey]) { err('Unknown arena. Try: grass lava space city forest ice ruins'); return; }
@@ -228,7 +228,7 @@ function applyCode(val) {
     const _targetHp = parseInt(code.slice(6), 10);
     if (isNaN(_targetHp) || _targetHp < 1) { err('Usage: SETHP:<number>  e.g. SETHP:1001'); return; }
     const _tfBoss = players.find(p => p.isBoss && p.isTrueForm);
-    if (!_tfBoss) { err('No TrueForm boss found. Start a True Form fight first.'); return; }
+    if (!_tfBoss) { err('No TrueForm boss found. Start a Cosmic Axiom fight first.'); return; }
 
     // ── 1. Set HP ────────────────────────────────────────────────────────────
     _tfBoss.health    = Math.min(_targetHp, _tfBoss.maxHealth);
@@ -309,7 +309,7 @@ function applyCode(val) {
     ok('Everything unlocked!');
   } else if (code === 'HELP' || code === 'CODES') {
     if (msgEl) {
-      msgEl.textContent = 'TRUEFORM · SOVEREIGN · CLASSMEGAKNIGHT · AXIOMSQUARED · UNLOCKALL · GODMODE · FULLHEAL · KILLBOSS · SETHP:<n> · MAP:<arena> · WEAPON:<key> · CLASS:<key>';
+      msgEl.textContent = 'TRUEFORM · SOVEREIGN · CLASSKNIGHT · AXIOMSQUARED · UNLOCKALL · GODMODE · FULLHEAL · KILLBOSS · SETHP:<n> · MAP:<arena> · WEAPON:<key> · CLASS:<key>';
       msgEl.style.color = '#aabbff'; msgEl.style.fontSize = '0.7rem';
     }
   } else {

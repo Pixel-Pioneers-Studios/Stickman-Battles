@@ -6,7 +6,13 @@
 // GAME LOOP
 // ============================================================
 let _lastFrameTime = 0;
-const _FRAME_MIN_MS = 1000 / 62; // cap at ~62fps to prevent double-speed on 120Hz displays
+// The sim is per-frame, so it must tick 60 times a second on any display.
+// A plain "at least N ms since the last tick" cap only works on 60/120Hz: on
+// 144Hz it ticked every 3rd refresh (48/s, 20% slow motion) and on 75Hz every
+// 2nd (37.5/s). Ticks are scheduled on a 60Hz grid instead; the tolerance
+// absorbs vsync jitter so a 60Hz display never drops a frame.
+const _FRAME_STEP_MS = 1000 / 60;
+const _FRAME_MIN_MS  = _FRAME_STEP_MS - 1.5;
 
 // ── World Modifier Handler ────────────────────────────────────────────────────
 // Called once per frame during story mode to apply per-world gameplay changes.
@@ -84,8 +90,12 @@ function gameLoop(timestamp) {
     requestAnimationFrame(gameLoop);
     return;
   }
-  _lastFrameTime = timestamp;
+  // Stay on the grid when a refresh lands late; resync after a real stall, or
+  // when the display runs a hair faster than 60Hz (never let the grid lead).
+  const _nextTick = _lastFrameTime + _FRAME_STEP_MS;
+  _lastFrameTime = (timestamp - _nextTick > _FRAME_STEP_MS) ? timestamp : Math.min(_nextTick, timestamp);
   if (paused || gameLoading) { requestAnimationFrame(gameLoop); return; }
+  if (typeof autoPerfSample === 'function') autoPerfSample(timestamp);
   // Between-level narrative scene: the overlay owns the screen, so the match
   // underneath must stop rather than keep simulating out of sight. Park the same
   // way `paused` does — the rAF chain stays alive, nothing else restarts it.
@@ -161,6 +171,8 @@ function gameLoop(timestamp) {
   if (typeof updateDirector === 'function') updateDirector(1/60);
 
   // ---------- Phase: updateInput ----------
+  // Public Server: send own state, drive every other player's puppet, mirror bots
+  if (typeof PubHub !== 'undefined' && PubHub.active) PubHub.tick();
   // Online: tick network + apply remote player state
   if (onlineMode && gameRunning && NetworkManager.connected) {
     const localP  = players.find(p => !p.isRemote);
@@ -202,12 +214,47 @@ function gameLoop(timestamp) {
   }
 
   applyWorldModifiers();
+  if (typeof Brain !== 'undefined') Brain.tickLive();
   processInput(); // updateInput
 
   // ---------- Phase: updateCircuitPlate (The Circuit — Sovereign's sliding plate) ----------
   // Must run before fighters update so collision reads this frame's plate position.
   // No-ops on every arena but The Circuit.
   if (typeof CircuitPlate !== 'undefined') CircuitPlate.update();
+
+  // ---------- Phase: Creator Studio moving platforms ----------
+  // Only boss arenas animated platforms, so "Moving platform" in custom maps was
+  // inert. Smooth sine sway; anyone standing on the slab rides with it.
+  // Authored story levels (smb-story-levels.js) use the same sway, plus a
+  // vertical variant (oy/oscY) for lifts.
+  if (currentArena && (currentArena.designerBase || currentArena.storyLevel != null || currentArena.storyRegion) && !gameFrozen) {
+    for (const pl of currentArena.platforms) {
+      if (pl.oscX && pl.ox !== undefined) {
+        const nx = pl.ox + Math.sin(frameCount * (pl.oscSpeed || 0.018) + (pl.oscPhase || 0)) * pl.oscX;
+        const dx = nx - pl.x;
+        if (dx) {
+          for (const f of [...players, ...minions, ...trainingDummies]) {
+            if (!f || f.health <= 0 || !f.onGround) continue;
+            const feet = f.y + f.h;
+            if (Math.abs(feet - pl.y) <= 4 && f.x + f.w > pl.x && f.x < pl.x + pl.w) f.x += dx;
+          }
+          pl.x = nx;
+        }
+      }
+      if (pl.oscY && pl.oy !== undefined) {
+        const ny = pl.oy + Math.sin(frameCount * (pl.oscSpeed || 0.018) + (pl.oscPhase || 0)) * pl.oscY;
+        const dy = ny - pl.y;
+        if (dy) {
+          for (const f of [...players, ...minions, ...trainingDummies]) {
+            if (!f || f.health <= 0 || !f.onGround) continue;
+            const feet = f.y + f.h;
+            if (Math.abs(feet - pl.y) <= 6 && f.x + f.w > pl.x && f.x < pl.x + pl.w) f.y += dy;
+          }
+          pl.y = ny;
+        }
+      }
+    }
+  }
 
   // ---------- Phase: updateBossArena (platforms, floor hazard) ----------
   if (currentArena && currentArena.isBossArena) {
@@ -322,37 +369,6 @@ function gameLoop(timestamp) {
     }
   }
 
-  // ── Sudden death rising floor ─────────────────────────────────────────────
-  // Suppressed while any domain is active — domains are the climax; sudden death undercuts them.
-  const _domainSuppressSuddenDeath = typeof DomainManager !== 'undefined' && DomainManager.anyActive();
-  if (gameRunning && !isCinematic && !gameFrozen && !storyModeActive && !_domainSuppressSuddenDeath
-      && gameMode === '2p'
-      && typeof _sdFloor !== 'undefined' && _achStats.matchStartTime) {
-    _sdFloor.frames++;
-    const _elapsed = _sdFloor.frames / 60;
-    if (!_sdFloor.warned && _elapsed >= 75) {
-      _sdFloor.warned = true;
-      if (typeof queueAnnouncement === 'function') queueAnnouncement('SUDDEN DEATH IN 15s!', '#ff8800');
-    }
-    if (!_sdFloor.active && _elapsed >= 90) {
-      _sdFloor.active = true;
-      _sdFloor._prevHasLava = !!(currentArena && currentArena.hasLava); // so reset can restore authored lava
-      _sdFloor.y = GAME_H + 40;
-      if (typeof queueAnnouncement === 'function') queueAnnouncement('SUDDEN DEATH!', '#ff3300');
-    }
-    if (_sdFloor.active) {
-      _sdFloor.y = Math.max(_sdFloor.y - 0.5, GAME_H * 0.5);
-      if (currentArena) {
-        currentArena.hasLava = true;
-        currentArena.lavaY   = _sdFloor.y + 6;
-      }
-      if (currentArena && !_sdFloor._floorDisabled) {
-        const _fp = currentArena.platforms.find(p => p.isFloor);
-        if (_fp) { _fp.isFloorDisabled = true; _sdFloor._floorDisabled = true; }
-      }
-    }
-  }
-
   // ---------- Phase: updateCamera (bounding box, dead zone, lerp) ----------
   const baseScale = Math.min(canvas.width / GAME_W, canvas.height / GAME_H);
   const baseScaleX = baseScale;
@@ -449,11 +465,13 @@ function gameLoop(timestamp) {
   if (typeof drawCinBgContrast   === 'function') drawCinBgContrast();
   if (typeof drawCinImpactFrame  === 'function') drawCinImpactFrame();
   drawPlatforms();
+  if (typeof drawStoryLevelGround === 'function') drawStoryLevelGround();
   // The Sewer: the flow is drawn AFTER the platforms so a trash barge sits IN the
   // sewage rather than on a painted strip behind it. Inert on every other arena.
   if (typeof drawSewerFlow === 'function') drawSewerFlow();
   // Cosmetic impact scars ride on top of the slabs they were cut into.
   if (typeof drawSurfaceScars === 'function') drawSurfaceScars();
+  if (typeof drawWorldReactBack === 'function') drawWorldReactBack();
   // Circuit void lips + slide telegraph — must sit ABOVE the plate so the warning
   // is drawn on the ground the player is standing on, not hidden under it.
   if (typeof CircuitPlate !== 'undefined') CircuitPlate.drawOverlay();
@@ -708,6 +726,9 @@ function gameLoop(timestamp) {
     // Authored death beats run AFTER physics so they can override the pose and
     // read the body's real landing velocity (see docs/animation-quality-plan.md).
     if (typeof DeathAnim !== 'undefined') DeathAnim.update();
+    // Move scenes own the bodies they script: they run after physics and
+    // overwrite whatever it did to them (smb-move-scenes.js).
+    if (typeof MoveScene !== 'undefined') MoveScene.update();
   }
   // Habit engine scouting (js/smb-sov-habits.js): every human's nearest living
   // hostile opponent watches them this frame too, so a human's habits get
@@ -855,6 +876,7 @@ function gameLoop(timestamp) {
       ctx.restore();
     }
   });
+  if (typeof MoveScene !== 'undefined') MoveScene.draw();
   // The Trials: reveal sweep, distortion band, perception cues, inversion tell.
   // Above the fighters so a cue is never hidden behind a body, and inert unless
   // a trial is armed (smb-trials.js).
@@ -1045,9 +1067,12 @@ function gameLoop(timestamp) {
 
   // ---------- Destruction debris (cosmetic — no collision, no sync) ----------
   if (typeof updateDestruction === 'function') { updateDestruction(); drawDebrisChunks(); }
+  if (typeof updateWorldReact === 'function') { updateWorldReact(); drawWorldReactFront(); }
 
   // Domain speech bubbles (world-space, above entities)
   if (typeof DomainManager !== 'undefined') DomainManager.drawSpeechBubbles();
+  // Public Server name tags (world-space, above entities)
+  if (typeof PubHub !== 'undefined' && PubHub.active) PubHub.drawWorld();
 
   // Damage texts — filter expired to prevent leak
   damageTexts.forEach(d => { d.update(); d.draw(); });
@@ -1120,6 +1145,7 @@ function gameLoop(timestamp) {
   // Ship & Fracture progression — tick preview timer each frame
   if (typeof updateFracturePreview === 'function') updateFracturePreview();
   if (typeof updateFractureBranch === 'function') updateFractureBranch();
+  if (typeof updateLadder === 'function') updateLadder();
   if (typeof updateTutorial === 'function') updateTutorial();
   if (gameMode === 'trueform' && !tfAbsorptionScene && typeof updateQTE === 'function') updateQTE();
 
@@ -1138,9 +1164,8 @@ function gameLoop(timestamp) {
   // New chaos modifier notification — timer ticked here, drawn in screen-space below
   if (_chaosModNotif && _chaosModNotif.timer > 0) _chaosModNotif.timer--;
   if (exploreActive && typeof drawExploreGoalObject === 'function') drawExploreGoalObject();
-  // Story mode: void fog + boundary warning (drawn in game-world space)
+  // Story mode: void fog (drawn in game-world space)
   if (storyModeActive) drawStoryVoidFog();
-  if (storyModeActive && typeof drawStoryBoundaryWarning === 'function') drawStoryBoundaryWarning();
   if (exploreActive && typeof drawExploreWorldModeOverlay === 'function') drawExploreWorldModeOverlay();
   // Achievement popups (drawn over everything, in screen space)
   ctx.setTransform(1, 0, 0, 1, 0, 0); // reset transform for screen-space draw
@@ -1156,6 +1181,7 @@ function gameLoop(timestamp) {
     ctx.fillRect(0, 0, canvas.width, canvas.height);
   }
 
+  if (typeof MoveScene !== 'undefined') MoveScene.drawScreen();
   if (typeof drawCinematicImpactEffects === 'function') drawCinematicImpactEffects();
   drawCinematicOverlay();
   // Story world distortion intentionally disabled (purple scanlines removed per user request)
@@ -1198,6 +1224,7 @@ function gameLoop(timestamp) {
   if (typeof drawFinisher === 'function') drawFinisher(ctx); // finisher overlay (topmost)
   if (typeof drawCinNameCard === 'function') drawCinNameCard(canvas.width, canvas.height);
   if (typeof drawTutorial === 'function') drawTutorial(ctx);
+  if (typeof drawDesignerTestHUD === 'function') drawDesignerTestHUD(ctx);
   // Absolute Axiom: RGS HUD + Dimension Punch overlay (topmost — must draw after finisher)
   if (typeof _drawRGSHud === 'function') _drawRGSHud(canvas.width, canvas.height);
   if (typeof _drawDimPunchOverlay === 'function') _drawDimPunchOverlay(canvas.width, canvas.height);

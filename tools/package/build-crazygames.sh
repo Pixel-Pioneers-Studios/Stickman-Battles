@@ -37,15 +37,30 @@ rm -rf "$STAGE" "$ZIP"
 mkdir -p "$STAGE"
 
 cd "$ROOT"
-cp index.html SMB.css favicon.svg live-config.json mega-knight-evolution.mp3 "$STAGE/"
+# mega-knight-evolution.mp3 is a Clash Royale voice line — not ours to ship on a
+# portal, so it stays out and its loader is stripped below.
+cp index.html SMB.css favicon.svg live-config.json "$STAGE/"
 cp -R js fonts "$STAGE/"
 mkdir -p "$STAGE/images"
 # images/store holds portal cover art — uploaded through the dashboard, not shipped.
 find images -maxdepth 1 -type f -exec cp {} "$STAGE/images/" \;
 [ -d images/weapons ] && cp -R images/weapons "$STAGE/images/"
+# Sovereign's learned priors, fetched at runtime by js/smb-sov-artifact.js.
+# Without it he ships with a blank slate. The rest of data/ is lab output.
+mkdir -p "$STAGE/data"
+cp data/sov-artifact.json "$STAGE/data/"
 
 # Strip anything that is not a runtime asset.
 find "$STAGE" \( -name '.DS_Store' -o -name '*.smbreplay' -o -name '*.md' \) -delete
+
+# Third-party audio. The megaknight buffer is optional (a missing one plays
+# nothing). MusicManager is already a no-op on CrazyGames, so the YouTube API
+# loader would only pull in an unused third-party player.
+perl -ni -e "print unless /^SoundManager\.loadAudio\('megaknight'/" "$STAGE/js/smb-audio.js"
+perl -0pi -e "s#<script>\s*if \(location\.protocol !== 'file:'\) \{\s*const _ytScript[^<]*</script>##" "$STAGE/index.html"
+if grep -q "mega-knight-evolution" "$STAGE/js/smb-audio.js" || grep -q "youtube.com/iframe_api" "$STAGE/index.html"; then
+  echo "failed to strip third-party audio from the staged bundle" >&2; exit 1
+fi
 
 # ── Saga stamping ────────────────────────────────────────────────────────────
 # Applied to the STAGED copy only. `full` is the source's own default, so it is

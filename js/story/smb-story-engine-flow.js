@@ -281,7 +281,7 @@ function _beginChapter2(idx) {
       if (ch._menuHidden) {
         // Silent completion — no victory screen. Mark done and chain to the next chapter.
         if (!_story2.defeated.includes(ch.id)) _story2.defeated.push(ch.id);
-        _story2.tokens += ch.tokenReward || 0;
+        _story2.tokens += _storyTokenReward(ch.tokenReward);
         _story2.chapter = Math.max(_story2.chapter, ch.id + 1);
         if (typeof _saveStory2 === 'function') _saveStory2();
         const _nextCh = STORY_CHAPTERS2[ch.id + 1];
@@ -501,7 +501,7 @@ function _launchEscortChapter(ch) {
 
   // Set arena
   if (ch.arena) {
-    selectedArena = ch.arena;
+    selectedArena = (typeof storyLevelArenaKey === 'function') ? storyLevelArenaKey(ch, ch.arena) : ch.arena;
     const arSelect = document.getElementById('arenaSelect');
     if (arSelect) arSelect.value = selectedArena;
   }
@@ -724,7 +724,11 @@ function _launchChapter2FightImmediate(ch) {
 
   // Set arena
   if ((_phase && _phase.arena) || ch.arena) {
-    selectedArena = (_phase && _phase.arena) || ch.arena;
+    // A phase that only echoes the chapter's own arena still gets the chapter's
+    // authored story arena; a phase naming a different arena keeps it.
+    const _pArena = _phase && _phase.arena;
+    selectedArena = (_pArena && _pArena !== ch.arena) ? _pArena
+      : ((typeof storyLevelArenaKey === 'function') ? storyLevelArenaKey(ch, _pArena || ch.arena) : (_pArena || ch.arena));
     const arSelect = document.getElementById('arenaSelect');
     if (arSelect) arSelect.value = selectedArena;
   }
@@ -804,7 +808,7 @@ function _launchChapter2FightImmediate(ch) {
   const _sk = _story2.skillTree || {};
   storyPlayerOverride = {
     // If chapter not yet beaten, strip ranged weapons from the player too
-    weapon:        _caps.weapon !== undefined ? _safeWeapon(_caps.weapon) : (id < 1 ? 'sword' : ((_w => (_isToneExcluded(_w) || _isRanged(_w)) ? _RANGED_FALLBACK : null)(document.getElementById('p1Weapon')?.value))),
+    weapon:        _caps.weapon !== undefined ? _safeWeapon(_caps.weapon) : (id < 1 ? 'sword' : ((_w => (_isToneExcluded(_w) || _isRanged(_w)) ? _RANGED_FALLBACK : null)(storyLoadoutValues().weapon))),
     noDoubleJump:  _caps.noDoubleJump !== undefined ? _caps.noDoubleJump : !_sk.doubleJump,
     noAbility:     _caps.noAbility    !== undefined ? _caps.noAbility    : !_sk.weaponAbility,
     noSuper:       _caps.noSuper      !== undefined ? _caps.noSuper      : !_sk.superMeter,
@@ -816,7 +820,7 @@ function _launchChapter2FightImmediate(ch) {
 
   // Per-weapon mastery: fold the equipped weapon's damage bonus into the override
   if (typeof _weaponMasteryDmgBonus === 'function') {
-    const _eqWeapon = storyPlayerOverride.weapon || document.getElementById('p1Weapon')?.value || 'sword';
+    const _eqWeapon = storyPlayerOverride.weapon || storyLoadoutValues().weapon;
     storyPlayerOverride.dmgMult *= (1 + _weaponMasteryDmgBonus(_eqWeapon));
   }
 
@@ -839,7 +843,7 @@ function _launchChapter2FightImmediate(ch) {
   if (typeof setObjective === 'function') {
     const _chOrigId = ch._origId !== undefined ? ch._origId : ch.id;
     let _obj;
-    if (ch.isTrueFormFight)  _obj = 'Defeat True Form';
+    if (ch.isTrueFormFight)  _obj = 'Defeat Cosmic Axiom';
     else if (ch.isBossFight) _obj = ch.bossType === 'fallen_god' ? 'Defeat the Fallen God' : 'Defeat the Creator';
     else if (ch.isSovereignFight) _obj = 'Defeat the Sovereign';
     else if (ch.isAbsoluteAxiomFight) _obj = 'Defeat Absolute Axiom';
@@ -999,7 +1003,7 @@ function _launchAssassinationChapter(ch) {
   if (_arc) storyCurrentArc = _arc.id;
 
   if (ch.arena) {
-    selectedArena = ch.arena;
+    selectedArena = (typeof storyLevelArenaKey === 'function') ? storyLevelArenaKey(ch, ch.arena) : ch.arena;
     const arSelect = document.getElementById('arenaSelect');
     if (arSelect) arSelect.value = selectedArena;
   }
@@ -1022,16 +1026,21 @@ function _launchAssassinationChapter(ch) {
     jumpMult:     1.0 + (_sk.highJump2 ? 0.25 : _sk.highJump1 ? 0.15 : 0),
   };
 
-  if (ch.weaponKey) { const w = document.getElementById('p2Weapon'); if (w) w.value = ch.weaponKey; }
-  if (ch.classKey)  { const c = document.getElementById('p2Class');  if (c) c.value = ch.classKey; }
-  if (ch.aiDiff)    { const d = document.getElementById('p2Difficulty'); if (d) d.value = ch.aiDiff; }
+  // Assassination chapters author their target as target* fields; this
+  // launcher only read the duel fields, so every target spawned as a generic
+  // "Target" holding whatever weapon the menu last had selected.
+  const _tW = ch.weaponKey || ch.targetWeaponKey, _tC = ch.classKey || ch.targetClassKey, _tD = ch.aiDiff || ch.targetAiDiff;
+  const _tName = ch.opponentName || ch.targetName;
+  if (_tW) { const w = document.getElementById('p2Weapon'); if (w) w.value = _tW; }
+  if (_tC) { const c = document.getElementById('p2Class');  if (c) c.value = _tC; }
+  if (_tD) { const d = document.getElementById('p2Difficulty'); if (d) d.value = _tD; }
 
   storyBossType       = null;
-  storyOpponentName   = ch.opponentName  || 'Target';
-  storyOpponentColor  = ch.opponentColor || null;
-  storyCharId         = _resolveStoryCharId(ch.opponentName || '');
+  storyOpponentName   = _tName || 'Target';
+  storyOpponentColor  = ch.opponentColor || ch.targetColor || null;
+  storyCharId         = _resolveStoryCharId(_tName || '');
   storyChapterCtx     = { origId: (ch._origId !== undefined ? ch._origId : ch.id), noAdaptive: !!ch.noAdaptive };
-  storyEnemyArmor     = ch.armor || [];
+  storyEnemyArmor     = ch.armor || ch.targetArmor || [];
   storyTwoEnemies     = false;
   storySecondEnemyDef = null;
   storyAllyDef        = null;
@@ -1063,7 +1072,7 @@ function _launchGauntletChapter(ch) {
   if (_arc) storyCurrentArc = _arc.id;
 
   if (ch.arena) {
-    selectedArena = ch.arena;
+    selectedArena = (typeof storyLevelArenaKey === 'function') ? storyLevelArenaKey(ch, ch.arena) : ch.arena;
     const arSelect = document.getElementById('arenaSelect');
     if (arSelect) arSelect.value = selectedArena;
   }

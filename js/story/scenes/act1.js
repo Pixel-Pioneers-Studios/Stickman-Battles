@@ -504,7 +504,8 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
   // Beat 6: "A long silence." (narrator)
   // Beat 7: "'Death can have me when it earns me,' you said. 'Let's go.'" (PLAYER — bubble from player)
   S[30] = {
-    bg: 'fracture',
+    // The Eye Antechamber's stone benches, at the start of chapter 31's map
+    bg: 'level', level: { ch: 31, x: 480 },
     npcColor: '#4488dd',
     beats: [
       {

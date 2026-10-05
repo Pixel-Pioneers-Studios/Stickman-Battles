@@ -1,7 +1,7 @@
 // Tiles inhand.js crops into one labelled contact sheet. inhand.js already
 // centres each crop on the fighter using the live draw transform.
 const fs=require('fs'),path=require('path');
-const pptr=require('/Users/aarushgupta/Documents/Stickman-Battles/node_modules/puppeteer');
+const pptr=require('/Users/aarushgupta/Developer/Personal/Stickman-Battles/node_modules/puppeteer');
 const dir=process.argv[2], keys=process.argv.slice(3);
 (async()=>{
   const b=await pptr.launch({headless:'new'});const p=await b.newPage();

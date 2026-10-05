@@ -107,6 +107,7 @@ window.BalanceSim = (function () {
     if (typeof projectiles     !== 'undefined') projectiles.length     = 0;
     if (typeof damageTexts     !== 'undefined') damageTexts.length     = 0;
     hitStopFrames = 0; slowMotion = 1; screenShake = 0;
+    if (typeof MoveScene !== 'undefined' && MoveScene.reset) MoveScene.reset();
     isCinematic = false; activeCinematic = null; storyModeActive = false;
     gameRunning = true; gameMode = 'versus'; onlineMode = false;
     if (typeof trainingMode      !== 'undefined') trainingMode      = false;
@@ -192,8 +193,20 @@ window.BalanceSim = (function () {
     const bug = { nonFinite: 0, offArena: 0, stall: 0, maxQuiet: 0 };
     let quiet = 0;
 
+    // Weapon effects schedule follow-up shots with setTimeout (gun/pea bursts,
+    // paper barrage, super cleanups). The sim runs far faster than real time,
+    // so on the wall clock those fired after the match was already decided.
+    // For the match they run on sim frames at 60fps instead.
+    const _rto = window.setTimeout, _timers = [];
+    window.setTimeout = (fn, ms) => { if (typeof fn === 'function') _timers.push({ at: frames + Math.max(1, Math.ceil((ms || 0) / 16.67)), fn }); return 0; };
+    try {
     for (let fr = 0; fr < MAX_FRAMES; fr++) {
       hitStopFrames = 0; slowMotion = 1; aiTick = fr; frameCount = fr;
+      for (let ti = _timers.length - 1; ti >= 0; ti--) {
+        if (_timers[ti].at > fr) continue;
+        const tf = _timers.splice(ti, 1)[0].fn;
+        try { tf(); } catch (e) { if (!err) err = 'timer:' + e.message; }
+      }
       frames = fr + 1;
       A.target = B; B.target = A;
       // Update order is ALTERNATED every frame. It is not cosmetic: with a fixed
@@ -214,6 +227,16 @@ window.BalanceSim = (function () {
       const order = (rng() < 0.5) ? [A, B] : [B, A];
       for (const f of order) {
         try { f.update(); } catch (e) { if (!err) err = (f === A ? 'A:' : 'B:') + e.message; }
+      }
+      // gameLoop runs move scenes after physics (every Q/E is one since 4.9),
+      // and the passive super trickle. Without the first, a fighter froze in
+      // its first ability forever; without the second supers came only from hits.
+      try { if (typeof MoveScene !== 'undefined') MoveScene.update(); } catch (e) { if (!err) err = 'scene:' + e.message; }
+      for (const f of order) {
+        if (f.isBoss || f.superActive || f.health <= 0) continue;
+        const _pr = f.superReady;
+        f.superMeter = Math.min(100, f.superMeter + 0.04);
+        if (!_pr && f.superMeter >= 100) { f.superReady = true; f.superFlashTimer = 90; }
       }
       // gameLoop owns these two, not Fighter.update(). Without them a bow shot
       // hangs in the air forever and a Summoner familiar never acts.
@@ -255,6 +278,8 @@ window.BalanceSim = (function () {
       pvA = A.health; pvB = B.health;
       if (over) break;
     }
+    } finally { window.setTimeout = _rto; }
+    if (typeof MoveScene !== 'undefined' && MoveScene.reset) MoveScene.reset();
     players.length = 0; gameRunning = false;
     return { a: keyA, b: keyB, frames, err,
              stockDiff: deathsB - deathsA, deathsA, deathsB,

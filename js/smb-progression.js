@@ -547,7 +547,7 @@ const MOTIVATION_STAGES = [
     { stage: 0, text: 'You were attacked. Find out why.' },
     { stage: 1, text: 'Someone is coordinating this. Follow the trail.' },
     { stage: 2, text: 'The Creator controls this branch. He built the system you\'re fighting.' },
-    { stage: 3, text: 'True Form is the Creator\'s core. Reach him. End this.' }
+    { stage: 3, text: 'Cosmic Axiom is the Creator\'s core. Reach him. End this.' }
 ];
 
 let motivationStage = 0; // tracks current stage; advances via advanceMotivation()

@@ -15,7 +15,8 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
   // Below all dimensions. No figure to face — the Substrate is not a character,
   // it is an attention. Staged almost entirely as stillness and scale.
   S[172] = {
-    bg: 'space',
+    // The Substrate, below all dimensions: the Trial Ground (ch181)
+    bg: 'level', level: { ch: 181, x: 450 },
     npcColor: '#220033',
     beats: [
       {
@@ -108,7 +109,8 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
   // no opposing figure, a slowly tightening frame and a rising accent — so the
   // sequence reads as one continuous interrogation rather than eight scenes.
   S[173] = {
-    bg: 'space',
+    // The Substrate, below all dimensions: the Trial Ground (ch181)
+    bg: 'level', level: { ch: 181, x: 450 },
     npcColor: '#332244',
     beats: [
       {
@@ -151,7 +153,8 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
   // no opposing figure, a slowly tightening frame and a rising accent — so the
   // sequence reads as one continuous interrogation rather than eight scenes.
   S[174] = {
-    bg: 'space',
+    // The Substrate, below all dimensions: the Trial Ground (ch181)
+    bg: 'level', level: { ch: 181, x: 450 },
     npcColor: '#33254a',
     beats: [
       {
@@ -194,7 +197,8 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
   // no opposing figure, a slowly tightening frame and a rising accent — so the
   // sequence reads as one continuous interrogation rather than eight scenes.
   S[175] = {
-    bg: 'space',
+    // The Substrate, below all dimensions: the Trial Ground (ch181)
+    bg: 'level', level: { ch: 181, x: 450 },
     npcColor: '#2e2246',
     beats: [
       {
@@ -237,7 +241,8 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
   // no opposing figure, a slowly tightening frame and a rising accent — so the
   // sequence reads as one continuous interrogation rather than eight scenes.
   S[176] = {
-    bg: 'space',
+    // The Substrate, below all dimensions: the Trial Ground (ch181)
+    bg: 'level', level: { ch: 181, x: 450 },
     npcColor: '#3a2850',
     beats: [
       {
@@ -280,7 +285,8 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
   // no opposing figure, a slowly tightening frame and a rising accent — so the
   // sequence reads as one continuous interrogation rather than eight scenes.
   S[177] = {
-    bg: 'space',
+    // The Substrate, below all dimensions: the Trial Ground (ch181)
+    bg: 'level', level: { ch: 181, x: 450 },
     npcColor: '#402a58',
     beats: [
       {
@@ -323,7 +329,8 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
   // no opposing figure, a slowly tightening frame and a rising accent — so the
   // sequence reads as one continuous interrogation rather than eight scenes.
   S[178] = {
-    bg: 'space',
+    // The Substrate, below all dimensions: the Trial Ground (ch181)
+    bg: 'level', level: { ch: 181, x: 450 },
     npcColor: '#452c5e',
     beats: [
       {
@@ -366,7 +373,8 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
   // no opposing figure, a slowly tightening frame and a rising accent — so the
   // sequence reads as one continuous interrogation rather than eight scenes.
   S[179] = {
-    bg: 'space',
+    // The Substrate, below all dimensions: the Trial Ground (ch181)
+    bg: 'level', level: { ch: 181, x: 450 },
     npcColor: '#4a2e64',
     beats: [
       {
@@ -409,7 +417,8 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
   // no opposing figure, a slowly tightening frame and a rising accent — so the
   // sequence reads as one continuous interrogation rather than eight scenes.
   S[180] = {
-    bg: 'space',
+    // The Substrate, below all dimensions: the Trial Ground (ch181)
+    bg: 'level', level: { ch: 181, x: 450 },
     npcColor: '#50306a',
     beats: [
       {
@@ -450,7 +459,8 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
   // ── Chapter 181 — What Is Yours (Trial, 54 lines) ───────────────────────────
   // The Void Vessel: the trial made a body to argue with.
   S[181] = {
-    bg: 'space',
+    // The Substrate, below all dimensions: the Trial Ground (ch181)
+    bg: 'level', level: { ch: 181, x: 450 },
     npcColor: '#553377',
     beats: [
       {
@@ -492,7 +502,8 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
 
   // ── Chapter 182 — After (50 lines) ──────────────────────────────────────────
   S[182] = {
-    bg: 'space',
+    // The Substrate's edge (ch184)
+    bg: 'level', level: { ch: 184, x: 450 },
     npcColor: '#553377',
     beats: [
       {
@@ -519,7 +530,8 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
   // ── Chapter 183 — The Verdict (20 beats) ────────────────────────────────────
   // Eight reckonings assembled into a judgement, and the fragment answering it.
   S[183] = {
-    bg: 'space',
+    // The Substrate, the decision (ch184)
+    bg: 'level', level: { ch: 184, x: 450 },
     npcColor: '#553377',
     beats: [
       {
@@ -633,7 +645,8 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
   // The last chapter in the game. The attention withdraws; the fragment goes
   // still — not against a threat, but in answer to him. Ends on open sky.
   S[185] = {
-    bg: 'space',
+    // The Substrate's threshold, after (ch184)
+    bg: 'level', level: { ch: 184, x: 450 },
     npcColor: '#553377',
     beats: [
       {

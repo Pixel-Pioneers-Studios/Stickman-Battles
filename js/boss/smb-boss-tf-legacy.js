@@ -226,7 +226,7 @@ function _DELETED_makeTFEntryCinematic(tf) {
   return {
     durationFrames: 240, // 4 s
     _burstFired: false, _line1Fired: false, _line2Fired: false,
-    _phaseLabel: { text: '— TRUE FORM —', color: '#ffffff' },
+    _phaseLabel: { text: '— COSMIC AXIOM —', color: '#ffffff' },
     update(t) {
       if (t < 0.3)      slowMotion = Math.max(0.08, 1 - t * 3.1);
       else if (t > 3.1) slowMotion = Math.min(1.0, (t - 3.1) / 0.9);

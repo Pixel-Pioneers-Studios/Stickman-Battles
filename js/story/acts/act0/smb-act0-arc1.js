@@ -142,7 +142,7 @@ STORY_CHAPTER_REGISTRY.push(
     preText: 'A watcher who already knew your name before the fight started. They\'ve tracked seventeen fracture events and came here for one reason — you.',
     opponentName: 'Rooftop Watcher', weaponKey: 'spear', classKey: 'ninja', aiDiff: 'medium', opponentColor: '#8855cc',
     playerLives: 2,
-    arena: 'cyberpunk',
+    arena: 'homeRooftop',
     walkFight: true, worldLength: 3000,
     tokenReward: 25, blueprintDrop: null,
     postText: '"Kael," they say first, quiet, like confirming something they already knew. "There are others like you. In other fractures. You\'re not the first. But you might be the last." They hand you a torn data card before passing out. One word printed on it: ARCHITECT.',
@@ -159,10 +159,12 @@ STORY_CHAPTER_REGISTRY.push(
     objectName: 'Relay Components',
     preText: 'Veran needs relay components scattered across the rooftop. Collect all four before the patrol finds you.',
     scavengeItemDefs: [
-      { wx: 500,  y: 360, name: 'Signal Booster',   icon: '📡' },
-      { wx: 1100, y: 290, name: 'Power Cell',        icon: '🔋' },
-      { wx: 1900, y: 340, name: 'Fracture Antenna',  icon: '📡' },
-      { wx: 2700, y: 300, name: 'Data Core',         icon: '💾' },
+      // Placed on the authored rooftop map (js/story/levels/ch05.js): the mast
+      // platform, the greenhouse shelf, the billboard top, the water-tower tank.
+      { wx: 1185, y: 86,  name: 'Signal Booster',   icon: '📡' },
+      { wx: 1700, y: 366, name: 'Power Cell',        icon: '🔋' },
+      { wx: 2300, y: 196, name: 'Fracture Antenna',  icon: '📡' },
+      { wx: 2780, y: 226, name: 'Data Core',         icon: '💾' },
     ],
     spawnEnemies: [
       { wx: 800,  name: 'Rooftop Guard', weaponKey: 'sword',  classKey: 'none',    aiDiff: 'easy',   color: '#665544' },

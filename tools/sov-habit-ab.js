@@ -14,6 +14,7 @@
  *
  * Usage: node tools/sov-habit-ab.js [--n=200] [--jobs=8] [--carry=0]
  *                                   [--opps=anti_air_hawk,ground_brawler] [--flag=habitAir]
+ *                                   [--fixed=routeSpend:0,comboRoutes:1]   held in BOTH arms
  */
 const { spawn } = require('child_process');
 const fs = require('fs'), path = require('path'), http = require('http');
@@ -52,7 +53,8 @@ async function worker() {
     await page.addScriptTag({ content: fs.readFileSync(path.join(ROOT, 'tools', 'human-proxy.js'), 'utf8') });
     pparams = JSON.parse(fs.readFileSync(args.params || path.join(ROOT, 'tools', 'human-proxy-params.json'), 'utf8'));
   }
-  const rows = await page.evaluate((opp, flagName, on, seed0, n, carry, pparams) => {
+  const fixed = String(args.fixed || '').split(',').filter(Boolean).map(kv => { const [k, v] = kv.split(':'); return [k, v === '1' || v === 'true']; });
+  const rows = await page.evaluate((opp, flagName, on, seed0, n, carry, pparams, fixed) => {
     const _cl = console.log;
     const seedRng = seed => { let s = seed >>> 0; return () => { s = (s + 0x6D2B79F5) >>> 0; let t = s;
       t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; };
@@ -76,6 +78,7 @@ async function worker() {
       // Carry mode: every bot in this sequence answers to one fixed ledger key.
       if (carry) Fighter.prototype._habitKey = 'ab:' + opp + ':' + Math.floor(i / carry);
       else delete Fighter.prototype._habitKey;
+      for (const [k, v] of fixed) SMK2_TUNE[k] = v;
       SMK2_TUNE[flagName] = on;
       Math.random = seedRng(seed * 7919 + 17);
       window.__abT = 0; window.__abA = 0;
@@ -113,7 +116,7 @@ async function worker() {
         descentLog: window.SOV_DESCENT_LOG || {} });
     }
     return out;
-  }, opp, flagName, on, seed0, n, carry, pparams);
+  }, opp, flagName, on, seed0, n, carry, pparams, fixed);
   process.stdout.write('RESULT ' + JSON.stringify({ opp, on, rows, errs: errs.slice(0, 3) }) + '\n');
   await browser.close(); server.close();
 }
@@ -134,7 +137,8 @@ async function driver() {
       const t = tasks[next++];
       const r = await new Promise(resolve => {
         const p = spawn('node', [__filename, '--worker', `--wport=${9500 + slot}`, `--opp=${t.opp}`, `--on=${t.on}`,
-          `--seed0=${t.seed0}`, `--n=${t.n}`, `--carry=${carry}`, `--flag=${flag}`].concat(args.params ? [`--params=${args.params}`] : []), { cwd: ROOT, stdio: ['ignore', 'pipe', 'pipe'] });
+          `--seed0=${t.seed0}`, `--n=${t.n}`, `--carry=${carry}`, `--flag=${flag}`].concat(args.params ? [`--params=${args.params}`] : [],
+          args.fixed ? [`--fixed=${args.fixed}`] : []), { cwd: ROOT, stdio: ['ignore', 'pipe', 'pipe'] });
         let buf = '', tail = '';
         p.stdout.on('data', d => { buf += d; }); p.stderr.on('data', d => { tail = (tail + d).slice(-1500); });
         p.on('close', () => {

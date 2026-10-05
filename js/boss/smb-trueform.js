@@ -1,3 +1,6 @@
+// Draw scale for Axiom's body art. See the comment in TrueForm.draw().
+const TF_BODY_SCALE = 1.16;
+
 class TrueForm extends Fighter {
   constructor() {
     const noCtrl = { left: null, right: null, jump: null, attack: null, ability: null, super: null };
@@ -8,11 +11,14 @@ class TrueForm extends Fighter {
       contactDmgMult: 0,
       ability() {}
     });
-    this.name          = 'TRUE FORM';
+    this.name          = 'COSMIC AXIOM';
     this.health        = 10000;
     this.maxHealth     = 10000;
-    this.w             = 18;
-    this.h             = 50;
+    // Same body as every Fighter (34x84). This used to be 18x50, a holdover
+    // that left Axiom a head shorter and half as wide as the player he hunts.
+    // draw() scales the art by TF_BODY_SCALE to fill it.
+    this.w             = 34;
+    this.h             = 84;
     this.isBoss        = true;
     this.isTrueForm    = true;
     // Damage trim. Applied centrally in dealDamage (attacker.dmgMult) rather than
@@ -1157,6 +1163,13 @@ class TrueForm extends Fighter {
     // ════════════════════════════════════════════════════════════════════════
     // L0 — OUTER VOID NEBULA
     // ════════════════════════════════════════════════════════════════════════
+    // Body scale: the segment art below was laid out for the old 18x50 body
+    // (head top at core-38, feet near core+36). Scaling it once around the core
+    // makes it span the 84px hitbox, feet on the floor, at player height.
+    // Restored right after L5, so the HP bar and labels keep their size.
+    ctx.save();
+    ctx.translate(cx, coreY); ctx.scale(TF_BODY_SCALE, TF_BODY_SCALE); ctx.translate(-cx, -coreY);
+
     ctx.save();
     ctx.globalAlpha = blinkAlpha * (0.22 + rage * 0.25);
     if (tfs !== 1) { ctx.translate(cx, coreY); ctx.scale(tfs, tfs); ctx.translate(-cx, -coreY); }
@@ -1240,16 +1253,56 @@ class TrueForm extends Fighter {
       ctx.restore();
     };
 
+    // Cosmic Axiom: Ring A is stars he carries, Ring C is planets — the
+    // First Laws are a cosmos, so the debris around him is celestial.
+    const _drawStarMote = (px, py, size, col) => {
+      ctx.save();
+      ctx.translate(px, py);
+      ctx.shadowColor = col;
+      ctx.shadowBlur  = 6;
+      ctx.strokeStyle = col;
+      ctx.lineWidth   = 0.7;
+      ctx.beginPath();
+      ctx.moveTo(-size * 1.6, 0); ctx.lineTo(size * 1.6, 0);
+      ctx.moveTo(0, -size * 1.6); ctx.lineTo(0, size * 1.6);
+      ctx.stroke();
+      ctx.fillStyle = col;
+      ctx.beginPath(); ctx.arc(0, 0, size * 0.45, 0, Math.PI * 2); ctx.fill();
+      ctx.restore();
+    };
+    const _PLANET_TONES = ['#c9b48c', '#8597b8', '#b07a62', '#9aa58a', '#b8a6c8'];
+    const _drawPlanet = (px, py, r, tone, ringed) => {
+      ctx.save();
+      ctx.translate(px, py);
+      // Lit from the upper left, terminator falls lower right
+      const pg = ctx.createRadialGradient(-r * 0.4, -r * 0.4, r * 0.1, 0, 0, r);
+      pg.addColorStop(0,   tone);
+      pg.addColorStop(0.7, 'rgba(20,16,30,1)');
+      pg.addColorStop(1,   '#05040a');
+      ctx.shadowColor = glowColor;
+      ctx.shadowBlur  = 8;
+      ctx.fillStyle   = pg;
+      ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2); ctx.fill();
+      if (ringed) {
+        ctx.shadowBlur  = 0;
+        ctx.strokeStyle = tone;
+        ctx.globalAlpha *= 0.55;
+        ctx.lineWidth   = 0.8;
+        ctx.beginPath(); ctx.ellipse(0, 0, r * 1.8, r * 0.45, -0.35, 0, Math.PI * 2); ctx.stroke();
+      }
+      ctx.restore();
+    };
+
     // Ring A — tight fast orbit (radius 26)
     const rA = (26 + Math.sin(T * 0.7) * 4) * _TF_ORBIT_SCALE;
     for (let i = 0; i < 8; i++) {
       const ang  = T * 1.4 + (i / 8) * Math.PI * 2;
       const px   = cx    + Math.cos(ang) * rA;
       const py   = coreY + Math.sin(ang) * rA * 0.45;
-      const sz   = 2.2 + Math.sin(T * 2 + i * 0.78) * 0.8;
+      const sz   = 1.6 + Math.sin(T * 2 + i * 0.78) * 0.6;
       const alpha = 0.55 + Math.sin(T * 1.8 + i) * 0.3;
       ctx.globalAlpha = alpha * blinkAlpha;
-      _drawShard(px, py, sz, ang * 2, i % 2 === 0 ? WHITE : glowColor, 6);
+      _drawStarMote(px, py, sz, i % 3 === 0 ? '#ffe7c2' : WHITE);
     }
 
     // Ring B — counter-rotating (radius 44)
@@ -1272,12 +1325,10 @@ class TrueForm extends Fighter {
         const ang   = T * 0.45 + (i / cnt) * Math.PI * 2;
         const px    = cx    + Math.cos(ang) * rC;
         const py    = coreY + Math.sin(ang) * rC * 0.32;
-        const sz    = 5 + rage * 4 + Math.sin(T * 0.8 + i) * 1.5;
-        const alpha = (rage - 0.35) * 1.5 * (0.5 + Math.sin(T * 0.6 + i) * 0.3);
-        ctx.globalAlpha = Math.min(0.85, alpha) * blinkAlpha;
-        ctx.shadowColor = WHITE;
-        ctx.shadowBlur  = 14;
-        _drawShard(px, py, sz, ang + T * 0.4, WHITE, 14);
+        const sz    = 3.5 + rage * 2.5 + Math.sin(T * 0.8 + i) * 0.8;
+        const alpha = (rage - 0.35) * 1.5 * (0.6 + Math.sin(T * 0.6 + i) * 0.3);
+        ctx.globalAlpha = Math.min(0.95, alpha) * blinkAlpha;
+        _drawPlanet(px, py, sz, _PLANET_TONES[i % _PLANET_TONES.length], i === 1);
       }
     }
     ctx.restore();
@@ -1423,6 +1474,45 @@ class TrueForm extends Fighter {
       ctx.restore();
     }
 
+    // ── COSMOS FILL — head and torso are windows onto the First Laws ────────
+    // A drifting starfield instead of flat black. Star layout is generated
+    // once per instance; only the drift and twinkle are animated.
+    if (!this._cosmicStars) {
+      this._cosmicStars = [];
+      for (let i = 0; i < 26; i++) {
+        this._cosmicStars.push({
+          x: Math.random() * 2 - 1, y: Math.random() * 2 - 1,
+          r: Math.random() < 0.18 ? 1.3 : 0.75,
+          v: 0.15 + Math.random() * 0.35,
+          tw: 1.5 + Math.random() * 3, p: Math.random() * 6.28,
+          warm: Math.random() < 0.25,
+        });
+      }
+    }
+    // Caller has already translated to the part's centre and clipped to it
+    const _paintCosmos = (hw, hh, seed) => {
+      ctx.save();
+      ctx.shadowBlur = 0;
+      const span = Math.max(hw, hh);
+      const bg = ctx.createRadialGradient(-hw * 0.3, -hh * 0.3, 0, 0, 0, span * 1.4);
+      bg.addColorStop(0,   `rgb(${Math.round(cRc * 0.32)},${Math.round(cG * 0.25)},${Math.round(Math.max(0, cB) * 0.42)})`);
+      bg.addColorStop(0.6, '#07041a');
+      bg.addColorStop(1,   '#010008');
+      ctx.fillStyle = bg;
+      ctx.fillRect(-hw - 2, -hh - 2, hw * 2 + 4, hh * 2 + 4);
+      const baseA = ctx.globalAlpha;
+      for (const s of this._cosmicStars) {
+        // Slow sideways drift, wrapped inside the part's box
+        let sx = s.x * hw + T * s.v * 4 + seed * 7;
+        sx = ((sx + hw) % (hw * 2) + hw * 2) % (hw * 2) - hw;
+        const sy = s.y * hh;
+        ctx.globalAlpha = baseA * (0.45 + 0.55 * Math.abs(Math.sin(T * s.tw + s.p + seed)));
+        ctx.fillStyle   = s.warm ? '#ffe2b8' : '#ffffff';
+        ctx.fillRect(sx, sy, s.r, s.r);
+      }
+      ctx.restore();
+    };
+
     // ── TORSO — elongated parallelogram, slightly rotated ───────────────────
     const torsoW = 8 + Math.sin(T * 1.8) * 1.5;
     const torsoH = seg.torsoBot - seg.torsoTop;
@@ -1432,8 +1522,10 @@ class TrueForm extends Fighter {
     ctx.rotate(torsoTilt + ragRot);
     ctx.beginPath();
     ctx.rect(-torsoW, -torsoH * 0.5, torsoW * 2, torsoH);
-    ctx.fillStyle = '#000000';
-    ctx.fill();
+    ctx.save();
+    ctx.clip();
+    _paintCosmos(torsoW, torsoH * 0.5, 0);
+    ctx.restore();
     ctx.strokeStyle = WHITE;
     ctx.shadowColor = glowColor;
     ctx.shadowBlur  = segGlow;
@@ -1451,8 +1543,10 @@ class TrueForm extends Fighter {
     ctx.rotate(headTilt + ragRot);
     ctx.beginPath();
     ctx.arc(0, 0, headR, 0, Math.PI * 2);
-    ctx.fillStyle = '#000000';
-    ctx.fill();
+    ctx.save();
+    ctx.clip();
+    _paintCosmos(headR, headR, 3);
+    ctx.restore();
     ctx.strokeStyle = WHITE;
     ctx.shadowColor = glowColor;
     ctx.shadowBlur  = segGlow * 1.2;
@@ -1484,38 +1578,76 @@ class TrueForm extends Fighter {
     ctx.globalAlpha = blinkAlpha;
     if (tfs !== 1) { ctx.translate(cx, coreY); ctx.scale(tfs, tfs); ctx.translate(-cx, -coreY); }
 
-    // Pulsing singularity at the chest level — the "soul" of True Form
-    const coreR = Math.max(0.01, (5 + Math.sin(T * 3.1) * 2 + rage * 5) * tfs);
-    const coreGrad = ctx.createRadialGradient(cx, coreY, 0, cx, coreY, coreR * 3.5);
-    coreGrad.addColorStop(0,   WHITE);
-    coreGrad.addColorStop(0.2, glowColor);
-    coreGrad.addColorStop(0.6, `rgba(${cR},${cG},${cB},0.4)`);
+    // A black hole at the chest — the "soul" of Cosmic Axiom. The First Laws
+    // collapse things; his heart is the collapse. Accretion disk back half is
+    // drawn before the event horizon, front half after, so the hole sits
+    // inside the disk instead of on top of it.
+    const coreR = Math.max(0.01, (4.5 + Math.sin(T * 3.1) * 0.8 + rage * 1.8) * tfs);
+    const coreGrad = ctx.createRadialGradient(cx, coreY, coreR * 0.8, cx, coreY, coreR * 3.5);
+    coreGrad.addColorStop(0,   `rgba(${cRc},${cG},${Math.max(0,cB)},0.55)`);
+    coreGrad.addColorStop(0.5, `rgba(${cRc},${cG},${Math.max(0,cB)},0.18)`);
     coreGrad.addColorStop(1,   'rgba(0,0,0,0)');
-
-    ctx.shadowColor = WHITE;
-    ctx.shadowBlur  = 22 + rage * 18;
-    ctx.fillStyle   = coreGrad;
+    ctx.fillStyle = coreGrad;
     ctx.beginPath(); ctx.arc(cx, coreY, coreR * 3.5, 0, Math.PI * 2); ctx.fill();
 
-    // Solid bright core center
-    ctx.shadowBlur  = 30 + rage * 20;
-    ctx.fillStyle   = WHITE;
-    ctx.beginPath(); ctx.arc(cx, coreY, coreR, 0, Math.PI * 2); ctx.fill();
+    const diskA    = coreR * (2.7 + rage * 0.6);
+    const diskB    = coreR * 0.75;
+    const diskTilt = -0.18 + Math.sin(T * 0.4) * 0.05;
+    // Disk heats from amber toward white as rage climbs
+    const diskHot  = `rgb(255,${Math.round(200 + rage * 55)},${Math.round(150 + rage * 105)})`;
+    const _diskHalf = (a0, a1, alphaMul) => {
+      ctx.save();
+      ctx.globalAlpha = blinkAlpha * alphaMul;
+      ctx.shadowColor = glowColor;
+      ctx.shadowBlur  = 10 + rage * 10;
+      ctx.strokeStyle = glowColor;
+      ctx.lineWidth   = coreR * 0.75;
+      ctx.beginPath(); ctx.ellipse(cx, coreY, diskA, diskB, diskTilt, a0, a1); ctx.stroke();
+      ctx.shadowColor = diskHot;
+      ctx.strokeStyle = diskHot;
+      ctx.lineWidth   = Math.max(0.6, coreR * 0.22);
+      ctx.beginPath(); ctx.ellipse(cx, coreY, diskA * 0.92, diskB * 0.92, diskTilt, a0, a1); ctx.stroke();
+      // Infalling streaks riding the disk
+      ctx.shadowBlur = 0;
+      ctx.lineWidth  = 0.8;
+      for (let k = 0; k < 5; k++) {
+        const sa = (T * 2.4 + k * 1.2566) % (Math.PI * 2);
+        if (sa < a0 || sa > a1) continue;
+        ctx.globalAlpha = blinkAlpha * alphaMul * 0.8;
+        ctx.beginPath(); ctx.ellipse(cx, coreY, diskA * 1.05, diskB * 1.05, diskTilt, sa, sa + 0.35); ctx.stroke();
+      }
+      ctx.restore();
+    };
+    _diskHalf(Math.PI, Math.PI * 2, 0.55);   // far side (upper) — dimmer
 
-    // Rotating cross-flare (4 spikes from core, common cosmic motif)
-    ctx.globalAlpha = blinkAlpha * (0.5 + rage * 0.4);
-    ctx.strokeStyle = WHITE;
+    // Event horizon + photon ring
     ctx.shadowColor = WHITE;
-    ctx.shadowBlur  = 12;
-    ctx.lineWidth   = 1.2;
-    const flareAng = T * 0.7;
-    for (let f2 = 0; f2 < 4; f2++) {
-      const fa  = flareAng + f2 * Math.PI * 0.5;
-      const fl2 = (12 + rage * 14 + Math.sin(T * 2.2 + f2) * 3) * tfs;
-      ctx.beginPath();
-      ctx.moveTo(cx, coreY);
-      ctx.lineTo(cx + Math.cos(fa) * fl2, coreY + Math.sin(fa) * fl2 * 0.55);
-      ctx.stroke();
+    ctx.shadowBlur  = 8 + rage * 8;
+    ctx.fillStyle   = '#000000';
+    ctx.beginPath(); ctx.arc(cx, coreY, coreR, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = WHITE;
+    ctx.lineWidth   = 1.1;
+    ctx.beginPath(); ctx.arc(cx, coreY, coreR * 1.08, 0, Math.PI * 2); ctx.stroke();
+
+    _diskHalf(0, Math.PI, 1.0);              // near side (lower) — in front
+
+    // Supernova build-up: the cross-flare only appears as he nears desperation
+    if (rage > 0.5) {
+      const nova = (rage - 0.5) * 2;
+      ctx.globalAlpha = blinkAlpha * nova * (0.6 + Math.sin(T * 5) * 0.25);
+      ctx.strokeStyle = WHITE;
+      ctx.shadowColor = WHITE;
+      ctx.shadowBlur  = 12;
+      ctx.lineWidth   = 1.2;
+      const flareAng = T * 0.7;
+      for (let f2 = 0; f2 < 4; f2++) {
+        const fa  = flareAng + f2 * Math.PI * 0.5;
+        const fl2 = (14 + nova * 16 + Math.sin(T * 2.2 + f2) * 3) * tfs;
+        ctx.beginPath();
+        ctx.moveTo(cx + Math.cos(fa) * coreR * 1.3, coreY + Math.sin(fa) * coreR * 1.3 * 0.55);
+        ctx.lineTo(cx + Math.cos(fa) * fl2, coreY + Math.sin(fa) * fl2 * 0.55);
+        ctx.stroke();
+      }
     }
     ctx.restore();
 
@@ -1550,6 +1682,7 @@ class TrueForm extends Fighter {
     ctx.beginPath(); ctx.arc(eyeX - this.facing * 2 * tfs, eyeBaseY + 1 * tfs, 1.8 * tfs, 0, Math.PI * 2); ctx.fill();
 
     ctx.restore();
+    ctx.restore(); // TF_BODY_SCALE
 
     // ════════════════════════════════════════════════════════════════════════
     // L6 — HP BAR (floating above head)

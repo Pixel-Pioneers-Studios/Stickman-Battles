@@ -230,6 +230,43 @@ function drawSoccerArena() {
 }
 
 function drawVoidArena() {
+  // Faint light at the centre of the void, so the black has depth instead of reading as unlit canvas
+  ctx.save();
+  if (!drawVoidArena._glow) {
+    const g = ctx.createRadialGradient(GAME_W / 2, GAME_H * 0.46, 0, GAME_W / 2, GAME_H * 0.46, GAME_W * 0.62);
+    g.addColorStop(0,   'rgba(70,60,110,0.20)');
+    g.addColorStop(0.45,'rgba(30,24,60,0.10)');
+    g.addColorStop(1,   'rgba(0,0,0,0)');
+    drawVoidArena._glow = g;
+  }
+  ctx.fillStyle = drawVoidArena._glow;
+  ctx.fillRect(-GAME_W, -GAME_H, GAME_W * 3, GAME_H * 3);
+
+  // Receding horizon lines — a floor plane that goes nowhere
+  ctx.strokeStyle = '#ffffff';
+  ctx.lineWidth = 1;
+  for (let i = 0; i < 6; i++) {
+    const y = 330 + i * i * 4.2;
+    ctx.globalAlpha = 0.025 + i * 0.008;
+    ctx.beginPath(); ctx.moveTo(-GAME_W, y); ctx.lineTo(GAME_W * 2, y); ctx.stroke();
+  }
+
+  // Slow drifting motes (positions are a pure function of frame + index)
+  const t = frameCount || 0;
+  ctx.fillStyle = '#ffffff';
+  for (let i = 0; i < 38; i++) {
+    const sx = (i * 173.3) % (GAME_W + 80) - 40;
+    const sy = (i * 97.7 + 40) % 440;
+    const x  = sx + Math.sin(t * 0.004 + i * 1.7) * 18;
+    const y  = (((sy - t * (0.08 + (i % 5) * 0.03)) % 460) + 460) % 460;
+    const tw = 0.5 + 0.5 * Math.sin(t * 0.03 + i * 2.3);
+    ctx.globalAlpha = 0.05 + tw * 0.14;
+    const s = (i % 3 === 0) ? 2 : 1.2;
+    ctx.fillRect(x, y, s, s);
+  }
+  ctx.globalAlpha = 1;
+  ctx.restore();
+
   // Subtle void distortion rings
   ctx.save();
   for (let i = 0; i < 4; i++) {
@@ -669,17 +706,30 @@ function _meadowBg() {
   });
   _meadowBg._c = {
     bands: [band(6, 130, 190, 0.5, 0.5, 0.04), band(5, 70, 140, 0.8, 0.75, 0.07), band(4, 30, 95, 1.15, 0.95, 0.11)],
-    // Treeline on the far hills
-    trees: Array.from({ length: 26 }, (_, i) => ({
-      x: -30 + i * 38 + rnd(-12, 12),
-      r: rnd(10, 22),
+    // Treeline on the far hills. Spans well past the arena so a zoomed-out
+    // camera never sees where it stops, and packed tightly enough (spacing
+    // under the smallest crown's diameter) that no sky shows between crowns.
+    trees: Array.from({ length: 64 }, (_, i) => ({
+      x: -600 + i * 34 + rnd(-8, 8),
+      r: rnd(15, 24),
       h: rnd(6, 20),
     })),
-    // Hedgerow bushes closer in
-    bushes: Array.from({ length: 14 }, (_, i) => ({
-      x: -20 + i * 70 + rnd(-22, 22),
-      r: rnd(14, 30),
-    })),
+    // Hedgerow: irregular RUNS of overlapping lobes with open ground between
+    // them. One evenly spaced dome per 70px read as a row of turtle shells.
+    bushes: (() => {
+      const out = [];
+      let x = -600 + rnd(0, 60);
+      while (x < 1500) {
+        const n = 3 + Math.floor(Math.random() * 5);
+        for (let j = 0; j < n; j++) {
+          const r = rnd(11, 22);
+          out.push({ x, r, dy: rnd(-3, 3) });
+          x += r * rnd(0.9, 1.3);
+        }
+        x += rnd(40, 130);
+      }
+      return out;
+    })(),
     // Wildflowers: fewer and muted. The old set was 34 candy-bright blooms
     // (hot pink, violet, saturated yellow) which read as a children's level.
     // A real meadow is overwhelmingly green with sparse, desaturated colour.
@@ -753,16 +803,22 @@ function drawClouds() {
   // chroma. Getting this the right way round is most of why the hills now read
   // as being a long way off rather than as a green stripe.
   // Understorey band behind the crowns. Feathered at the top — a flat fillRect
-  // left a hard horizontal rule running the width of the screen.
-  const _ub = ctx.createLinearGradient(0, 394, 0, 440);
+  // left a hard horizontal rule running the width of the screen. It is also
+  // far wider than the arena and feathered at the BOTTOM: a GAME_W-wide rect
+  // showed its left/right/bottom edges as a box whenever the camera zoomed out.
+  const _bandX = -3000, _bandW = GAME_W + 6000;
+  const _ub = ctx.createLinearGradient(0, 394, 0, 470);
   _ub.addColorStop(0,    'rgba(104,134,118,0)');
-  _ub.addColorStop(0.35, 'rgba(104,134,118,0.55)');
-  _ub.addColorStop(1,    'rgba(98,128,112,0.66)');
+  _ub.addColorStop(0.22, 'rgba(104,134,118,0.55)');
+  _ub.addColorStop(0.62, 'rgba(98,128,112,0.62)');
+  _ub.addColorStop(1,    'rgba(98,128,112,0)');
   ctx.fillStyle = _ub;
-  ctx.fillRect(-60, 394, GAME_W + 120, 62);
+  ctx.fillRect(_bandX, 394, _bandW, 76);
   // The whole treeline as ONE compound path — a distant wood is a single ragged
   // mass, not thirty individually readable crowns. Drawing each tree separately
-  // is what produced the row of green circles. See _lobeUnion().
+  // is what produced the row of green circles. See _lobeUnion(). A base rect is
+  // part of the same union so the crowns grow out of the wood instead of
+  // hovering over the band as a row of puffs.
   ctx.beginPath();
   for (const t of bg.trees) {
     const ch = t.r * 0.7 + t.h * 0.25;
@@ -773,16 +829,14 @@ function drawClouds() {
       ctx.ellipse(t.x + ox, 398 + oy, t.r * sx, ch * sy, 0, 0, Math.PI * 2);
     }
   }
-  ctx.fillStyle = 'rgba(92,122,106,0.82)';
-  ctx.fill();
-  // Sunlit tops, also unioned, riding above the mass.
-  ctx.beginPath();
-  for (const t of bg.trees) {
-    const ch = t.r * 0.7 + t.h * 0.25;
-    ctx.moveTo(t.x - t.r * 0.28 + t.r * 0.55, 396 - t.h * 0.35);
-    ctx.ellipse(t.x - t.r * 0.28, 396 - t.h * 0.35, t.r * 0.55, ch * 0.5, 0, 0, Math.PI * 2);
-  }
-  ctx.fillStyle = 'rgba(134,160,140,0.34)';
+  ctx.rect(bg.trees[0].x, 398, bg.trees[bg.trees.length - 1].x - bg.trees[0].x, 30);
+  // Light from above as a gradient across the whole mass. The old per-tree
+  // highlight ellipses drew a second circle inside every crown.
+  const _tg = ctx.createLinearGradient(0, 372, 0, 428);
+  _tg.addColorStop(0,   'rgba(120,148,130,0.84)');
+  _tg.addColorStop(0.5, 'rgba(92,122,106,0.84)');
+  _tg.addColorStop(1,   'rgba(92,122,106,0)');
+  ctx.fillStyle = _tg;
   ctx.fill();
   // Haze band sitting ON the treeline, thickest at its base — the standard
   // landscape-painting cue for distance.
@@ -791,27 +845,30 @@ function drawClouds() {
   _hz.addColorStop(0.5, 'rgba(196,216,228,0.17)');
   _hz.addColorStop(1,   'rgba(196,216,228,0.03)');
   ctx.fillStyle = _hz;
-  ctx.fillRect(-60, 388, GAME_W + 120, 64);
+  ctx.fillRect(_bandX, 388, _bandW, 64);
   ctx.restore();
   ctx.save();
   ctx.translate(-camOff * 0.11, 0);
-  // Hedgerow, same treatment — one mass, nearer so it keeps more contrast and
-  // chroma than the treeline behind it.
+  // Hedgerow, same language as the treeline — unioned round lobes lit from
+  // above — so the two rows read as one landscape. Nearer, so it keeps more
+  // contrast and chroma. Lobes are full circles sunk below their base line and
+  // the fill fades out at the bottom, so each run sits IN the grass rather than
+  // on a ruled edge.
   ctx.beginPath();
   for (const b of bg.bushes) {
-    for (const [ox, k] of [[0, 1], [-b.r * 0.6, 0.62], [b.r * 0.6, 0.58]]) {
-      ctx.moveTo(b.x + ox + b.r * k, 442);
-      ctx.arc(b.x + ox, 442, b.r * k, Math.PI, 0);
-    }
+    const cy = 452 + b.dy;
+    ctx.moveTo(b.x + b.r, cy);
+    ctx.arc(b.x, cy, b.r, 0, Math.PI * 2);
+    const k = 0.62;
+    ctx.moveTo(b.x + b.r * 0.55 + b.r * k, cy - b.r * 0.35);
+    ctx.arc(b.x + b.r * 0.55, cy - b.r * 0.35, b.r * k, 0, Math.PI * 2);
   }
-  ctx.fillStyle = 'rgba(62,88,60,0.85)';
-  ctx.fill();
-  ctx.beginPath();
-  for (const b of bg.bushes) {
-    ctx.moveTo(b.x - b.r * 0.2 + b.r * 0.5, 440 - b.r * 0.2);
-    ctx.arc(b.x - b.r * 0.2, 440 - b.r * 0.2, b.r * 0.5, Math.PI, 0);
-  }
-  ctx.fillStyle = 'rgba(114,140,98,0.30)';   // sunlit tops
+  const _hg = ctx.createLinearGradient(0, 424, 0, 470);
+  _hg.addColorStop(0,    'rgba(84,112,74,0.9)');
+  _hg.addColorStop(0.45, 'rgba(62,88,60,0.88)');
+  _hg.addColorStop(0.75, 'rgba(62,88,60,0.55)');
+  _hg.addColorStop(1,    'rgba(62,88,60,0)');
+  ctx.fillStyle = _hg;
   ctx.fill();
   ctx.restore();
 
@@ -2536,15 +2593,18 @@ function drawPlatforms() {
     if (pl.isFloorDisabled || pl.noDraw) continue;
 
     if (isVoid) {
-      // Void arena: solid black with white outline — no shadow, no highlight
+      // Void arena: solid black with white outline, lit from the top edge only
+      ctx.save();
       ctx.fillStyle = '#000000';
       ctx.fillRect(pl.x, pl.y, pl.w, pl.h);
-      ctx.save();
+      ctx.strokeStyle = 'rgba(255,255,255,0.55)';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(pl.x + 0.5, pl.y + 0.5, pl.w - 1, pl.h - 1);
       ctx.strokeStyle = '#ffffff';
-      ctx.lineWidth = 1.5;
+      ctx.lineWidth = 2;
       ctx.shadowColor = '#fff';
-      ctx.shadowBlur  = 4;
-      ctx.strokeRect(pl.x, pl.y, pl.w, pl.h);
+      ctx.shadowBlur  = 8;
+      ctx.beginPath(); ctx.moveTo(pl.x, pl.y + 1); ctx.lineTo(pl.x + pl.w, pl.y + 1); ctx.stroke();
       ctx.restore();
       continue;
     }
@@ -2706,7 +2766,8 @@ function drawStoryVoidFog() {
   if (!Number.isFinite(fogStartY) || !Number.isFinite(fogEndY) || !(fogHeight > 0)) return;
 
   // Cover full world width — no void peeks through on wide maps
-  const fogX = currentArena.mapLeft !== undefined ? currentArena.mapLeft - 200 : -200;
+  // mapLeft is a camera clamp, not the world edge (900px defense worlds set 450).
+  const fogX = Math.min(0, currentArena.mapLeft !== undefined ? currentArena.mapLeft : 0) - 200;
   const fogW  = (currentArena.worldWidth ? currentArena.worldWidth + 400 : GAME_W + 400);
 
   const grad = ctx.createLinearGradient(0, fogStartY, 0, fogEndY);
@@ -2718,59 +2779,6 @@ function drawStoryVoidFog() {
 
   ctx.fillStyle = grad;
   ctx.fillRect(fogX, fogStartY, fogW, fogHeight);
-}
-
-// ── Story boundary proximity warning (edge vignette, world-space) ────────
-function drawStoryBoundaryWarning() {
-  if (!storyModeActive || !currentArena || gameMode === 'exploration') return;
-  // Same reason as the fog: this compares world-space x against GAME_W, so in
-  // BR's 9000px world every fighter reads as past the right edge and the
-  // vignette pins at full strength for the whole match.
-  if (gameMode === 'battleroyale') return;
-  const worldW = currentArena.worldWidth || GAME_W;
-  // Check if any non-boss player is close to the soft boundary zone
-  let leftIntensity = 0, rightIntensity = 0;
-  for (const p of players) {
-    if (!p || p.isBoss || p.health <= 0) continue;
-    const distL = p.x;
-    const distR = GAME_W - (p.x + p.w);
-    if (distL < 140) leftIntensity  = Math.max(leftIntensity,  1 - distL / 140);
-    if (distR < 140) rightIntensity = Math.max(rightIntensity, 1 - distR / 140);
-  }
-  if (leftIntensity <= 0 && rightIntensity <= 0) return;
-  ctx.save();
-  // Left warning gradient
-  if (leftIntensity > 0) {
-    const gl = ctx.createLinearGradient(0, 0, 120, 0);
-    gl.addColorStop(0,   `rgba(80,0,180,${(leftIntensity * 0.55).toFixed(2)})`);
-    gl.addColorStop(0.6, `rgba(80,0,180,${(leftIntensity * 0.18).toFixed(2)})`);
-    gl.addColorStop(1.0, 'rgba(80,0,180,0)');
-    ctx.fillStyle = gl;
-    ctx.fillRect(0, 0, 120, GAME_H);
-    // Glitch lines
-    ctx.strokeStyle = `rgba(180,100,255,${(leftIntensity * 0.6).toFixed(2)})`;
-    ctx.lineWidth = 1;
-    for (let i = 0; i < 4; i++) {
-      const gy = Math.floor(Math.random() * GAME_H);
-      ctx.beginPath(); ctx.moveTo(0, gy); ctx.lineTo(30 + Math.random() * 50, gy); ctx.stroke();
-    }
-  }
-  // Right warning gradient
-  if (rightIntensity > 0) {
-    const gr = ctx.createLinearGradient(GAME_W, 0, GAME_W - 120, 0);
-    gr.addColorStop(0,   `rgba(80,0,180,${(rightIntensity * 0.55).toFixed(2)})`);
-    gr.addColorStop(0.6, `rgba(80,0,180,${(rightIntensity * 0.18).toFixed(2)})`);
-    gr.addColorStop(1.0, 'rgba(80,0,180,0)');
-    ctx.fillStyle = gr;
-    ctx.fillRect(GAME_W - 120, 0, 120, GAME_H);
-    ctx.strokeStyle = `rgba(180,100,255,${(rightIntensity * 0.6).toFixed(2)})`;
-    ctx.lineWidth = 1;
-    for (let i = 0; i < 4; i++) {
-      const gy = Math.floor(Math.random() * GAME_H);
-      ctx.beginPath(); ctx.moveTo(GAME_W, gy); ctx.lineTo(GAME_W - 30 - Math.random() * 50, gy); ctx.stroke();
-    }
-  }
-  ctx.restore();
 }
 
 // ── Ability unlock toast (story mode) ────────────────────────────────────
@@ -3043,6 +3051,51 @@ function drawExploreGoalObject() {
     ctx.textAlign = 'center';
     ctx.fillStyle = '#ffffff';
     ctx.fillText(portal.type === 'distorted_rift' ? 'DISTORTED RIFT' : 'SIDE PORTAL', portal.x, portal.y - 32);
+    if (portal.near) {
+      const _pk = players[0] && players[0].controls && players[0].controls.shield;
+      ctx.globalAlpha = 1;
+      ctx.shadowBlur = 0;
+      ctx.fillStyle = '#ffffff';
+      ctx.fillText(`Press ${_pk ? String(_pk).toUpperCase() : 'SHIELD'} to enter`, portal.x, portal.y + 46);
+      ctx.fillStyle = 'rgba(255,255,255,0.7)';
+      ctx.font = '9px Arial';
+      ctx.fillText(portal.type === 'distorted_rift' ? 'Boss echo — rare reward' : 'Two elites — bonus coins', portal.x, portal.y + 59);
+    }
+    ctx.restore();
+  }
+  // Rest checkpoints: a standing brazier on the surface. Cold until reached,
+  // then lit — the lit ones are where a game-over Retry brings you back.
+  for (const cp of (exploreCheckpoints || [])) {
+    if (!cp.rest) continue;
+    const bx = cp.x, by = 440;
+    const lit = !!cp.hit;
+    const flick = 0.8 + 0.2 * Math.sin(frameCount * 0.21 + bx);
+    ctx.save();
+    ctx.fillStyle = '#3b3530';
+    ctx.fillRect(bx - 3, by - 44, 6, 44);                 // post
+    ctx.fillRect(bx - 11, by - 4, 22, 4);                 // foot
+    ctx.fillStyle = '#5a5048';
+    ctx.beginPath();                                      // bowl
+    ctx.moveTo(bx - 12, by - 48); ctx.lineTo(bx + 12, by - 48);
+    ctx.lineTo(bx + 7, by - 40);  ctx.lineTo(bx - 7, by - 40);
+    ctx.closePath(); ctx.fill();
+    if (lit) {
+      const r = 34 + 6 * flick;
+      const g = ctx.createRadialGradient(bx, by - 56, 0, bx, by - 56, r);
+      g.addColorStop(0, `rgba(255,190,90,${0.42 * flick})`);
+      g.addColorStop(1, 'rgba(255,150,50,0)');
+      ctx.fillStyle = g;
+      ctx.fillRect(bx - r, by - 56 - r, r * 2, r * 2);
+      ctx.fillStyle = `rgba(255,${190 + 40 * flick | 0},110,0.95)`;
+      ctx.beginPath();
+      ctx.moveTo(bx - 7, by - 48);
+      ctx.quadraticCurveTo(bx - 2, by - 60 - 8 * flick, bx, by - 66 - 6 * flick);
+      ctx.quadraticCurveTo(bx + 3, by - 58, bx + 7, by - 48);
+      ctx.closePath(); ctx.fill();
+    } else {
+      ctx.fillStyle = 'rgba(140,160,190,0.35)';           // cold ember
+      ctx.fillRect(bx - 5, by - 51, 10, 3);
+    }
     ctx.restore();
   }
   for (const it of (explorePickups || [])) {
@@ -3129,6 +3182,10 @@ function drawExploreGoalObject() {
 function checkDeaths() {
   for (const p of players) {
     if (p.isRemote) continue; // remote player deaths are managed on their own machine
+    // Battle Royale: out of lives and spectating. Without this, once the 999
+    // invincibility below ran out the corpse re-entered this branch EVERY frame
+    // (no lives-0 path catches it) and SoundManager.death() fired 60x a second.
+    if (p._brOut) continue;
     if (p.health <= 0 && p.invincible === 0) {
       // Notify AdaptiveAI of its death so it can adapt immediately
       if (p.isAdaptive && typeof p.onDeath === 'function') p.onDeath();
@@ -3353,7 +3410,9 @@ function checkDeaths() {
         } else {
           // Check if boss fake-death should trigger (boss < 33% HP, once per game)
           const boss = players.find(q => q.isBoss);
-          if (boss && boss.health < boss.maxHealth * 0.33 && !fakeDeath.triggered && gameMode === 'boss') {
+          if (typeof ladderOnOut === 'function' && ladderOnOut(p)) {
+            p.invincible = 9999; // the Fight Ladder shows its own result card, not endGame
+          } else if (boss && boss.health < boss.maxHealth * 0.33 && !fakeDeath.triggered && gameMode === 'boss') {
             // Use Paradox revive if available, otherwise fall back to standard fake-death
             if (typeof triggerParadoxRevive === 'function') {
               triggerParadoxRevive(p);
@@ -3403,6 +3462,7 @@ function checkDeaths() {
                 setTimeout(endGame, 900);
               } else {
                 // Enter spectate instead of ending — game continues until 1 survivor
+                p._brOut = true;
                 if (typeof _brEnterSpectate === 'function') _brEnterSpectate(p);
               }
             } else if (gameMode === 'trueform') {
@@ -3419,12 +3479,16 @@ function checkDeaths() {
 }
 
 function addKillFeed(loser) {
-  const killer = players.find(q => q !== loser);
-  if (killer) killer.kills++;
+  // Credit whoever landed the last hit. Story enemies live in minions[], so
+  // "the other entry in players[]" found nobody there and printed "?".
+  const _la = loser._lastAttacker;
+  const _laRecent = _la && _la !== loser && frameCount - (loser._lastAttackerFrame || 0) < 600;
+  const killer = _laRecent ? _la : players.find(q => q !== loser);
+  if (killer) killer.kills = (killer.kills || 0) + 1;
   const feed = document.getElementById('killFeed');
   const msg  = document.createElement('div');
   msg.className   = 'kill-msg';
-  msg.textContent = `${killer ? killer.name : '?'} KO'd ${loser.name}!`;
+  msg.textContent = killer ? `${killer.name} KO'd ${loser.name}!` : `${loser.name} was KO'd!`;
   msg.style.color = killer ? killer.color : '#fff';
   feed.prepend(msg);
   setTimeout(() => msg.remove(), 3200);
@@ -3444,12 +3508,14 @@ function addKillFeed(loser) {
 }
 
 function endGame() {
+  if (typeof _brHideRestartBtn === 'function') _brHideRestartBtn();
   if (typeof ReplaySystem !== 'undefined') ReplaySystem.stopRecording();
   if (typeof cgSdk !== 'undefined') {
     cgSdk.gameplayStop();
-    // Portal ad break — self-guarded: no-op off CrazyGames, online, or on cooldown.
-    cgSdk.adBreak();
   }
+  // Between-match ad: CrazyGames SDK on the portal, placeholder on our own site.
+  // Self-guarded: no-op online, in story, in cinematics, early in a session, or on cooldown.
+  if (typeof AdManager !== 'undefined') AdManager.interstitial();
   // Sovereign's open-arsenal sample for the life still in progress: a match he
   // wins never ends in his death, so without this his winning lives are lost.
   for (const _p of players) { try { if (_p && _p._arsenalCommit) _p._arsenalCommit('end'); } catch (e) {} }
@@ -3499,6 +3565,7 @@ function endGame() {
   const achievWinner = _anyCustomWeapon ? null : (winner || _bossDefeatedAchiever);
 
   // ── Coin rewards ──────────────────────────────────────────────────────────
+  let _adOfferCoins = 0;
   if (typeof awardCoins === 'function') {
     const _humanPlayers = players.filter(p => !p.isAI && !p.isBoss);
     if (_humanPlayers.length > 0) {
@@ -3508,6 +3575,7 @@ function endGame() {
       else if (winner && !winner.isAI && !winner.isBoss) _coins += 10;
       const _coinMult = (window.LiveOps && typeof LiveOps.getCoinMult === 'function') ? LiveOps.getCoinMult() : 1;
       const _rewardCoins = Math.round(_coins * _coinMult);
+      _adOfferCoins = _rewardCoins;
       if (window.SupabaseBridge && typeof SupabaseBridge.claimMatchRewards === 'function') {
         void SupabaseBridge.claimMatchRewards({
           rewardType: 'match',
@@ -3544,7 +3612,8 @@ function endGame() {
     if (_achStats.superCount >= 10) unlockAchievement('super_saver');
     // Hammer-only win
     if (achievWinner.weaponKey === 'hammer') unlockAchievement('hammer_time');
-    // Boss slayer achievements are intentionally unobtainable
+    // Boss slayer / True Form unlock in their death scenes (smb-drawing-scenes.js,
+    // smb-trueform-ending-update.js); the TF isn't at 0 HP by the time endGame runs
     // SOVEREIGN beaten — unlock the SOVEREIGN mode card
     if (gameMode === 'adaptive' && !sovereignBeaten) {
       if (typeof setAccountFlagWithRuntime === 'function') {
@@ -3617,6 +3686,7 @@ function endGame() {
                  '&#x2756; Something stirs... seek clues in the arenas.</div>';
   }
   document.getElementById('statsDisplay').innerHTML = statsHtml;
+  if (typeof AdManager !== 'undefined') AdManager.offerMatchCoins(_adOfferCoins);
   if (gameMode === 'sovereign' && typeof SovereignAdaptiveMemory !== 'undefined' &&
       SovereignAdaptiveMemory && typeof SovereignAdaptiveMemory.commit === 'function') {
     const _sovOpponent = players.find(p => p && !p.isSovereignMK2 && !p.isBoss && !p.isMinion) || null;
@@ -3681,7 +3751,7 @@ function syncCodeInput() {
     return;
   }
   if (unlockedTrueBoss) {
-    inp.value       = '✦ TRUE FORM UNLOCKED ✦';
+    inp.value       = '✦ COSMIC AXIOM UNLOCKED ✦';
     inp.placeholder = '';
     return;
   }
@@ -3700,7 +3770,7 @@ function unlockTrueForm() {
   const card = document.getElementById('modeTrueForm');
   if (card) { card.style.display = ''; }
   const msg = document.getElementById('codeMessage');
-  if (msg) { msg.textContent = '✦ True Form unlocked!'; msg.style.color = '#cc00ee'; }
+  if (msg) { msg.textContent = '✦ Cosmic Axiom unlocked!'; msg.style.color = '#cc00ee'; }
   syncCodeInput();
 }
 
@@ -3836,12 +3906,20 @@ function _resetSdFloor() {
 }
 
 function backToMenu() {
+  // Leaving a Public Server match leaves the lobby too
+  if (typeof PubHub !== 'undefined' && PubHub.active) PubHub.leave(true);
   _cancelRematchCountdown();
+  if (typeof _brHideRestartBtn === 'function') _brHideRestartBtn();
   if (typeof _cancelPendingBossLaunch === 'function') _cancelPendingBossLaunch();
   _resetSdFloor();
   if (typeof ReplaySystem !== 'undefined') ReplaySystem.stopRecording();
   MusicManager.stop();
   activeFinisher = null; // cancel any in-progress finisher
+  if (typeof activeWorldFinisher !== 'undefined' && activeWorldFinisher) {
+    activeWorldFinisher.attacker._finWorldLock = false;
+    activeWorldFinisher.target._finWorldLock = false;
+    activeWorldFinisher = null;
+  }
   gameRunning  = false;
   paused       = false;
   exploreActive = false;
@@ -3910,8 +3988,21 @@ function backToMenu() {
 function pauseGame() {
   if (!gameRunning) return;
   paused = !paused;
+  pauseAskQuit(false);
   document.getElementById('pauseOverlay').style.display = paused ? 'flex' : 'none';
   if (typeof cgSdk !== 'undefined') { if (paused) cgSdk.gameplayStop(); else cgSdk.gameplayStart(); }
+}
+
+// The HUD Menu button pauses instead of quitting; leaving is confirmed in the overlay.
+function openPauseMenu() {
+  if (gameRunning && !paused) pauseGame();
+}
+
+function pauseAskQuit(ask) {
+  const main = document.getElementById('pauseMainRow');
+  const conf = document.getElementById('pauseQuitConfirm');
+  if (main) main.style.display = ask ? 'none' : '';
+  if (conf) conf.style.display = ask ? '' : 'none';
 }
 
 function resumeGame() {
@@ -3923,6 +4014,19 @@ function resumeGame() {
 // ============================================================
 // HUD
 // ============================================================
+// updateHUD runs every frame. Rewriting innerHTML/textContent/style with an
+// unchanged value still rebuilds nodes and dirties style+layout, and the canvas
+// HUD then reads #hud's rect, forcing that layout synchronously each frame.
+// Write only when the value actually changed.
+function _hudSet(el, prop, val) {
+  const k = '_hudLast_' + prop;
+  if (el[k] === val) return;
+  el[k] = val;
+  if (prop === 'html') el.innerHTML = val;
+  else if (prop === 'text') el.textContent = val;
+  else el.style[prop] = val;
+}
+
 function updateHUD() {
   const _hudEl = document.getElementById('hud');
   if (typeof settings !== 'undefined' && settings.hideHud) {
@@ -3951,7 +4055,7 @@ function updateHUD() {
   // visibility (not display) keeps the flex slot, so the centre Menu button
   // stays centred on screen instead of sliding to the right edge.
   const hudP2El = document.getElementById('hud-p2');
-  if (hudP2El) hudP2El.style.visibility = (!hudP2 || _storyHidesP2) ? 'hidden' : '';
+  if (hudP2El) _hudSet(hudP2El, 'visibility', (!hudP2 || _storyHidesP2) ? 'hidden' : '');
 
   for (let i = 0; i < 2; i++) {
     const p = hudPlayers[i];
@@ -3964,25 +4068,25 @@ function updateHUD() {
     const sEl  = document.getElementById(`p${n}Super`);
     const cdEl = document.getElementById(`p${n}CdBar`);
     if (hEl) {
-      hEl.style.width = pct + '%';
+      _hudSet(hEl, 'width', pct + '%');
       // Hue still runs red -> green with health, but at 100% saturation this
       // inline style was overriding the stylesheet and painting a pure lime
       // slab — the single loudest cartoon note on the screen. Same hue ramp,
       // material chroma, and a lit top edge so it reads as an instrument.
       const _hHue = pct * 1.2;
-      hEl.style.background =
-        `linear-gradient(180deg, hsl(${_hHue},38%,62%) 0%, hsl(${_hHue},36%,52%) 45%, hsl(${_hHue},40%,34%) 100%)`;
+      _hudSet(hEl, 'background',
+        `linear-gradient(180deg, hsl(${_hHue},38%,62%) 0%, hsl(${_hHue},36%,52%) 45%, hsl(${_hHue},40%,34%) 100%)`);
     }
     const htEl = document.getElementById(`p${n}HealthText`);
-    if (htEl) htEl.textContent = Math.ceil(p.health) + '/' + p.maxHealth;
+    if (htEl) _hudSet(htEl, 'text', Math.ceil(p.health) + '/' + p.maxHealth);
     if (lEl) {
       if (p.isBoss) {
         // Boss: show a phase indicator instead of hearts
         const phase = p.getPhase ? p.getPhase() : 1;
-        lEl.innerHTML = `<span style="font-size:10px;letter-spacing:1px;color:#cc00ee">PHASE ${phase}</span>`;
+        _hudSet(lEl, 'html', `<span style="font-size:10px;letter-spacing:1px;color:#cc00ee">PHASE ${phase}</span>`);
       } else if (infiniteMode || p.isDummy || p.lives >= 50 ||
                  (gameMode === 'minigames' && (minigameType === 'survival' || minigameType === 'koth' || minigameType === 'chaos'))) {
-        lEl.innerHTML = '∞';
+        _hudSet(lEl, 'html', '∞');
       } else {
         const capped    = Math.min(p.lives, 10);
         const cappedMax = Math.min(p._maxLives !== undefined ? p._maxLives : chosenLives, 10);
@@ -3991,14 +4095,14 @@ function updateHUD() {
         // machines and the most storybook mark in the HUD.
         const full  = '<i class="life-pip"></i>'.repeat(Math.max(0, capped));
         const empty = '<i class="life-pip spent"></i>'.repeat(Math.max(0, cappedMax - capped));
-        lEl.innerHTML = full + empty;
+        _hudSet(lEl, 'html', full + empty);
       }
     }
-    if (nEl) nEl.style.color = p.color;
+    if (nEl) _hudSet(nEl, 'color', _readableNameColor(p.color));
     const superTrack = sEl && sEl.parentElement;
-    if (superTrack) superTrack.style.display = (storyModeActive && p._storyNoSuper) ? 'none' : '';
+    if (superTrack) _hudSet(superTrack, 'display', (storyModeActive && p._storyNoSuper) ? 'none' : '');
     if (sEl) {
-      sEl.style.width = p.superMeter + '%';
+      _hudSet(sEl, 'width', p.superMeter + '%');
       if (p.superReady) sEl.classList.add('ready');
       else              sEl.classList.remove('ready');
     }
@@ -4012,7 +4116,7 @@ function updateHUD() {
         && typeof DOMAIN_DEFS !== 'undefined' && !!DOMAIN_DEFS[dk]
         && !(typeof brActive !== 'undefined' && brActive)
         && !(storyModeActive && p._storyNoSuper);
-      domEl.style.display = hasDomain ? '' : 'none';
+      _hudSet(domEl, 'display', hasDomain ? '' : 'none');
       if (hasDomain) {
         const c = Math.min(4, p._domainSuperCount || 0);
         const pips = domEl.children;
@@ -4021,27 +4125,27 @@ function updateHUD() {
       }
     }
     const cdTrack = cdEl && cdEl.parentElement;
-    if (cdTrack) cdTrack.style.display = (storyModeActive && p._storyNoAbility) ? 'none' : '';
+    if (cdTrack) _hudSet(cdTrack, 'display', (storyModeActive && p._storyNoAbility) ? 'none' : '');
     if (cdEl) {
       // Show how much of the Q cooldown has recovered (full = ready)
       const maxCd = p.weapon && p.weapon.abilityCooldown;
       const cdPct = maxCd > 0
         ? Math.max(0, 100 - (p.abilityCooldown / maxCd) * 100)
         : 100;
-      cdEl.style.width = cdPct + '%';
+      _hudSet(cdEl, 'width', cdPct + '%');
     }
     const shEl = document.getElementById(`p${n}ShieldBar`);
     if (shEl) {
       const shPct = p.shieldCooldown > 0
         ? Math.max(0, 100 - (p.shieldCooldown / 180) * 100)
         : 100;
-      shEl.style.width = shPct + '%';
+      _hudSet(shEl, 'width', shPct + '%');
       // Recharging stays a dim blue; ready brightens to near-white. Both were a
       // full step hotter than everything else in the HUD, so "shield is up"
       // read as the most urgent thing on screen even at rest.
-      shEl.style.background = p.shieldCooldown > 0
+      _hudSet(shEl, 'background', p.shieldCooldown > 0
         ? 'linear-gradient(90deg, #3a5f8c, #5f87ad)'
-        : 'linear-gradient(90deg, #6fa8bf, #cfe2ea)';
+        : 'linear-gradient(90deg, #6fa8bf, #cfe2ea)');
     }
     const wEl = document.getElementById(`p${n}WeaponHud`);
     if (wEl) {
@@ -4054,7 +4158,7 @@ function updateHUD() {
         if (weapLabel) weapLabel += ' · ' + clsName;
         else weapLabel = clsName;
       }
-      wEl.textContent = weapLabel;
+      _hudSet(wEl, 'text', weapLabel);
     }
   }
 
@@ -4064,14 +4168,25 @@ function updateHUD() {
   const bossHpText = document.getElementById('bossHpText');
   if (bossBarEl) {
     if (gameMode === 'boss' && bossPlayerCount === 2 && boss) {
-      bossBarEl.style.display = 'flex';
+      _hudSet(bossBarEl, 'display', 'flex');
       const bPct = Math.max(0, boss.health / boss.maxHealth * 100);
-      if (bossHpFill) bossHpFill.style.width = bPct + '%';
-      if (bossHpText) bossHpText.textContent = Math.ceil(boss.health) + ' / ' + boss.maxHealth;
+      if (bossHpFill) _hudSet(bossHpFill, 'width', bPct + '%');
+      if (bossHpText) _hudSet(bossHpText, 'text', Math.ceil(boss.health) + ' / ' + boss.maxHealth);
     } else {
-      bossBarEl.style.display = 'none';
+      _hudSet(bossBarEl, 'display', 'none');
     }
   }
+}
+
+// Fighter colour for name text. Near-black bodies (Cosmic Axiom is #000000)
+// would print an invisible name, so they fall back to a pale tone.
+function _readableNameColor(c) {
+  if (typeof c !== 'string' || c[0] !== '#') return c || '#ffffff';
+  let h = c.slice(1);
+  if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2];
+  if (h.length !== 6) return c;
+  const r = parseInt(h.slice(0, 2), 16), g = parseInt(h.slice(2, 4), 16), b = parseInt(h.slice(4, 6), 16);
+  return (0.2126 * r + 0.7152 * g + 0.0722 * b) < 60 ? '#e4e0f5' : c;
 }
 
 function _entityOverlayLabel(ent) {
@@ -4128,7 +4243,7 @@ function drawEntityOverlays(scX, scY, camX, camY) {
     ctx.fillStyle = 'rgba(255,255,255,0.35)';
     ctx.fillText(label, sx, labelY);           // shadow pass
     ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
-    ctx.fillStyle = ent.color || '#ffffff';
+    ctx.fillStyle = _readableNameColor(ent.color);
     ctx.fillText(label, sx, labelY);
 
     const _round = (x, y, w, h, r) => {
@@ -4168,6 +4283,15 @@ function drawEntityOverlays(scX, scY, camX, camY) {
     ctx.strokeStyle = 'rgba(255,255,255,0.14)';
     ctx.lineWidth = 1;
     _round(bx - 0.5, by - 0.5, barW + 1, barH + 1, (barH + 1) / 2); ctx.stroke();
+
+    // Battle Royale creature form: its health sits on top of the body's.
+    if (ent._brForm) {
+      const fp = Math.max(0, Math.min(1, ent._brForm.hp / Math.max(1, ent._brForm.maxHp)));
+      ctx.fillStyle = 'rgba(8,10,18,0.82)';
+      _round(bx - 1, by - 7, barW + 2, 5, 2.5); ctx.fill();
+      ctx.fillStyle = ent._brForm.def.color;
+      _round(bx, by - 6.5, Math.max(0, barW * fp), 4, 2); ctx.fill();
+    }
 
     if (ent.weapon && ent.weapon.clipSize) {
       ctx.font = '600 9px "Segoe UI", Roboto, Helvetica, Arial, sans-serif';
@@ -4575,6 +4699,11 @@ function _drawPlayerPreview(pid, frame) {
   pc.translate(cx, baseY + 28);
   pc.rotate(sway * Math.PI / 180);
   pc.translate(-cx, -(baseY + 28));
+  // Shrink about the feet so a held weapon (hammer overhead, sword at the side)
+  // fits inside the small preview box
+  pc.translate(cx, baseY + 14);
+  pc.scale(0.8, 0.8);
+  pc.translate(-cx, -(baseY + 14));
 
   pc.strokeStyle = color;
   pc.fillStyle   = color;
@@ -4592,10 +4721,11 @@ function _drawPlayerPreview(pid, frame) {
   const armLen   = 20;
   const legLen   = 23;
 
-  // Idle arm sway
+  // Idle arm sway — weapons with a carry stance hold it, same as the in-match idle
   const armSw = Math.sin(t * 0.045) * 0.04;
-  const rAng  = Math.PI * 0.58 + armSw;
-  const lAng  = Math.PI * 0.42 - armSw;
+  const _carry = (typeof WEAPON_SWINGS !== 'undefined' && WEAPON_SWINGS[weaponVal]) ? WEAPON_SWINGS[weaponVal].carry : null;
+  const rAng  = (_carry ? _carry.arm : Math.PI * 0.58) + armSw;
+  const lAng  = (_carry && _carry.lArm !== undefined) ? _carry.lArm : Math.PI * 0.42 - armSw;
   const rEx   = cx + Math.cos(rAng) * armLen;
   const rEy   = shouldY + Math.sin(rAng) * armLen;
   const lEx   = cx + Math.cos(lAng) * armLen;
@@ -4649,6 +4779,16 @@ function _drawPlayerPreview(pid, frame) {
   const [lKnX, lKnY] = _lj(cx, hipY, lFootX, lFootY, 4, 0);
   pc.beginPath(); pc.moveTo(cx, hipY); pc.lineTo(rKnX, rKnY); pc.lineTo(rFootX, rFootY); pc.stroke();
   pc.beginPath(); pc.moveTo(cx, hipY); pc.lineTo(lKnX, lKnY); pc.lineTo(lFootX, lFootY); pc.stroke();
+
+  // Equipped weapon in the right hand, painted by the real in-match drawWeapon()
+  // so the preview can never drift from what the fighter carries in a fight.
+  if (weaponVal !== 'random' && typeof Fighter !== 'undefined' && typeof _weaponArtCtx === 'function') {
+    const stub = { weaponKey: weaponVal, weapon: null, facing: 1, color, playerNum: pid === 'p2' ? 2 : 1 };
+    weaponArtCtx = pc;
+    try { Fighter.prototype.drawWeapon.call(stub, rEx, rEy, rAng, false, null, 0.9); }
+    catch (e) { /* preview art must never break the menu */ }
+    finally { weaponArtCtx = null; }
+  }
 
   pc.restore();
 }
@@ -5578,5 +5718,70 @@ function drawStudioArena() {
     ctx.beginPath(); ctx.arc(W - 26, 16, 8.5, 0, Math.PI * 2); ctx.fill();
   }
   ctx.globalAlpha = 1;
+  ctx.restore();
+}
+
+// ── Nexus Bastion (Nexus Defense minigame) ─────────────────────────────────
+// A walled courtyard at dusk: a far curtain wall with buttresses, and a stone
+// gate at each end of the floor. The gates are where rushers come from, so
+// they carry the telegraph — the gate glows while its side has rushers queued.
+// Gate centres must match NEXUS_GATE_L_X / NEXUS_GATE_R_X in smb-minigames.js.
+function drawNexusArena() {
+  const floorPl = currentArena.platforms.find(pl => pl.isFloor);
+  const groundY = floorPl ? floorPl.y : 460;
+  const f = frameCount;
+  ctx.save();
+
+  // Far curtain wall with crenellations and buttresses
+  const wallTop = groundY - 150;
+  ctx.fillStyle = '#161b28';
+  ctx.fillRect(-200, wallTop, 2200, groundY - wallTop);
+  for (let x = -200; x < 2000; x += 36) ctx.fillRect(x, wallTop - 14, 20, 14);
+  ctx.fillStyle = '#121622';
+  for (let x = 60; x < 1800; x += 220) {
+    ctx.fillRect(x, wallTop - 30, 44, groundY - wallTop + 30);
+    ctx.fillRect(x - 4, wallTop - 36, 52, 8);
+  }
+  // Mortar courses — faint, just enough to read as masonry
+  ctx.strokeStyle = 'rgba(255,255,255,0.035)';
+  ctx.lineWidth = 1;
+  for (let y = wallTop + 18; y < groundY; y += 18) {
+    ctx.beginPath(); ctx.moveTo(-200, y); ctx.lineTo(2000, y); ctx.stroke();
+  }
+  // Braziers on the buttresses
+  for (let x = 82; x < 1800; x += 220) {
+    const fl = 0.75 + 0.25 * Math.sin(f * 0.21 + x);
+    const g = ctx.createRadialGradient(x, wallTop - 44, 1, x, wallTop - 44, 26);
+    g.addColorStop(0, `rgba(255,170,80,${0.55 * fl})`);
+    g.addColorStop(1, 'rgba(255,120,40,0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(x - 26, wallTop - 70, 52, 52);
+  }
+
+  // Gates at each end of the floor
+  const q = (typeof defenseSpawnQueue !== 'undefined' && Array.isArray(defenseSpawnQueue)) ? defenseSpawnQueue : [];
+  const gates = [
+    { x: (typeof NEXUS_GATE_L_X !== 'undefined') ? NEXUS_GATE_L_X : 60,   hot: q.some(s => s.fromLeft) },
+    { x: (typeof NEXUS_GATE_R_X !== 'undefined') ? NEXUS_GATE_R_X : 1740, hot: q.some(s => !s.fromLeft) },
+  ];
+  for (const gt of gates) {
+    const gw = 86, gh = 118, gx = gt.x - gw / 2, gy = groundY - gh;
+    ctx.fillStyle = '#0e111a';
+    ctx.fillRect(gx - 14, gy - 16, gw + 28, gh + 16);           // gatehouse
+    ctx.fillStyle = '#05060a';
+    ctx.beginPath();                                            // arch opening
+    ctx.moveTo(gx, groundY);
+    ctx.lineTo(gx, gy + gw / 2);
+    ctx.arc(gt.x, gy + gw / 2, gw / 2, Math.PI, 0);
+    ctx.lineTo(gx + gw, groundY);
+    ctx.closePath();
+    ctx.fill();
+    const heat = gt.hot ? 0.55 + 0.25 * Math.sin(f * 0.18) : 0.12;
+    const gg = ctx.createRadialGradient(gt.x, groundY - 40, 4, gt.x, groundY - 40, 70);
+    gg.addColorStop(0, `rgba(255,80,40,${heat})`);
+    gg.addColorStop(1, 'rgba(255,60,30,0)');
+    ctx.fillStyle = gg;
+    ctx.fillRect(gt.x - 70, groundY - 110, 140, 110);
+  }
   ctx.restore();
 }

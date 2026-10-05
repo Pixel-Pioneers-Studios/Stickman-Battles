@@ -31,6 +31,7 @@ STORY_CHAPTER_REGISTRY.push(
   {
     id: 81, title: 'What Was Before',
     world: '🌌 The Void Between — The Last Threshold',
+    arena: 'void',
     type: 'exploration', exploreMode: 'puzzle',
     style: 'void',
     worldLength: 3200,
@@ -50,9 +51,6 @@ STORY_CHAPTER_REGISTRY.push(
       { frame: 40,  text: 'Activate memory locks in order. The Fallen God is watching.', color: '#ffcc44', timer: 270 },
       { frame: 600, text: '"You carry its conscience. When you face it — remind it of what it was." — The Fallen God', color: '#ffdd88', timer: 290 },
     ],
-    sky: ['#060818', '#0a0c22', '#0e102c'],
-    groundColor: '#080a1c',
-    platColor: '#10142a',
     playerLives: 3,
     tokenReward: 150, blueprintDrop: null,
     postText: 'What remains is clarity: the worlds ahead require a different kind of understanding. The Fallen God\'s voice settles around you once more. "The multiverse is not safe. But it will teach you what you need. Follow." The compass burns. You go forward.',

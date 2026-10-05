@@ -1,0 +1,633 @@
+{
+ "LABEL": "w1",
+ "MODE": "weapons",
+ "BRAIN": "sovereign",
+ "MATCHES": 24,
+ "PATCH": {
+  "hammer": {
+   "damage": 20,
+   "range": 72,
+   "cooldown": 70,
+   "endlag": 18
+  },
+  "flail": {
+   "damage": 15,
+   "range": 70,
+   "cooldown": 72,
+   "endlag": 18
+  },
+  "scythe": {
+   "damage": 15,
+   "cooldown": 36
+  },
+  "whip": {
+   "damage": 13,
+   "cooldown": 32
+  },
+  "fryingpan": {
+   "cooldown": 46,
+   "endlag": 15
+  }
+ },
+ "ents": [
+  "sword",
+  "hammer",
+  "axe",
+  "spear",
+  "shield",
+  "scythe",
+  "fryingpan",
+  "broomstick",
+  "combat",
+  "flail",
+  "whip",
+  "katana",
+  "electricstaff"
+ ],
+ "st": {
+  "sword": {
+   "w": 272,
+   "l": 16,
+   "d": 0,
+   "n": 288,
+   "dFor": 152363,
+   "dAg": 106163,
+   "f": 492406
+  },
+  "hammer": {
+   "w": 117,
+   "l": 171,
+   "d": 0,
+   "n": 288,
+   "dFor": 144379,
+   "dAg": 154065,
+   "f": 708860
+  },
+  "axe": {
+   "w": 187,
+   "l": 101,
+   "d": 0,
+   "n": 288,
+   "dFor": 151259,
+   "dAg": 139624,
+   "f": 594136
+  },
+  "spear": {
+   "w": 169,
+   "l": 119,
+   "d": 0,
+   "n": 288,
+   "dFor": 150649,
+   "dAg": 146550,
+   "f": 640879
+  },
+  "shield": {
+   "w": 140,
+   "l": 148,
+   "d": 0,
+   "n": 288,
+   "dFor": 146343,
+   "dAg": 149083,
+   "f": 677610
+  },
+  "scythe": {
+   "w": 115,
+   "l": 173,
+   "d": 0,
+   "n": 288,
+   "dFor": 143098,
+   "dAg": 157219,
+   "f": 665763
+  },
+  "fryingpan": {
+   "w": 120,
+   "l": 168,
+   "d": 0,
+   "n": 288,
+   "dFor": 144747,
+   "dAg": 153505,
+   "f": 695827
+  },
+  "broomstick": {
+   "w": 96,
+   "l": 192,
+   "d": 0,
+   "n": 288,
+   "dFor": 142387,
+   "dAg": 155072,
+   "f": 731187
+  },
+  "combat": {
+   "w": 109,
+   "l": 179,
+   "d": 0,
+   "n": 288,
+   "dFor": 138985,
+   "dAg": 148178,
+   "f": 558555
+  },
+  "flail": {
+   "w": 70,
+   "l": 218,
+   "d": 0,
+   "n": 288,
+   "dFor": 130802,
+   "dAg": 154941,
+   "f": 708210
+  },
+  "whip": {
+   "w": 79,
+   "l": 209,
+   "d": 0,
+   "n": 288,
+   "dFor": 136844,
+   "dAg": 150902,
+   "f": 738886
+  },
+  "katana": {
+   "w": 249,
+   "l": 39,
+   "d": 0,
+   "n": 288,
+   "dFor": 152785,
+   "dAg": 119393,
+   "f": 531303
+  },
+  "electricstaff": {
+   "w": 149,
+   "l": 139,
+   "d": 0,
+   "n": 288,
+   "dFor": 148626,
+   "dAg": 148572,
+   "f": 657506
+  }
+ },
+ "mir": {
+  "sword": {
+   "a": 8,
+   "b": 16,
+   "d": 0
+  },
+  "hammer": {
+   "a": 9,
+   "b": 15,
+   "d": 0
+  },
+  "axe": {
+   "a": 9,
+   "b": 15,
+   "d": 0
+  },
+  "spear": {
+   "a": 15,
+   "b": 9,
+   "d": 0
+  },
+  "shield": {
+   "a": 16,
+   "b": 8,
+   "d": 0
+  },
+  "scythe": {
+   "a": 14,
+   "b": 10,
+   "d": 0
+  },
+  "fryingpan": {
+   "a": 13,
+   "b": 11,
+   "d": 0
+  },
+  "broomstick": {
+   "a": 15,
+   "b": 9,
+   "d": 0
+  },
+  "combat": {
+   "a": 10,
+   "b": 14,
+   "d": 0
+  },
+  "flail": {
+   "a": 13,
+   "b": 11,
+   "d": 0
+  },
+  "whip": {
+   "a": 15,
+   "b": 9,
+   "d": 0
+  },
+  "katana": {
+   "a": 11,
+   "b": 13,
+   "d": 0
+  },
+  "electricstaff": {
+   "a": 12,
+   "b": 12,
+   "d": 0
+  }
+ },
+ "cell": {
+  "sword|scythe": {
+   "aw": 23,
+   "bw": 1,
+   "d": 0
+  },
+  "sword|whip": {
+   "aw": 23,
+   "bw": 1,
+   "d": 0
+  },
+  "hammer|spear": {
+   "aw": 5,
+   "bw": 19,
+   "d": 0
+  },
+  "hammer|combat": {
+   "aw": 11,
+   "bw": 13,
+   "d": 0
+  },
+  "axe|broomstick": {
+   "aw": 19,
+   "bw": 5,
+   "d": 0
+  },
+  "axe|electricstaff": {
+   "aw": 18,
+   "bw": 6,
+   "d": 0
+  },
+  "spear|broomstick": {
+   "aw": 19,
+   "bw": 5,
+   "d": 0
+  },
+  "spear|electricstaff": {
+   "aw": 16,
+   "bw": 8,
+   "d": 0
+  },
+  "shield|combat": {
+   "aw": 14,
+   "bw": 10,
+   "d": 0
+  },
+  "scythe|whip": {
+   "aw": 10,
+   "bw": 14,
+   "d": 0
+  },
+  "fryingpan|combat": {
+   "aw": 8,
+   "bw": 16,
+   "d": 0
+  },
+  "broomstick|electricstaff": {
+   "aw": 9,
+   "bw": 15,
+   "d": 0
+  },
+  "combat|electricstaff": {
+   "aw": 3,
+   "bw": 21,
+   "d": 0
+  },
+  "sword|hammer": {
+   "aw": 24,
+   "bw": 0,
+   "d": 0
+  },
+  "sword|fryingpan": {
+   "aw": 24,
+   "bw": 0,
+   "d": 0
+  },
+  "sword|katana": {
+   "aw": 12,
+   "bw": 12,
+   "d": 0
+  },
+  "hammer|shield": {
+   "aw": 5,
+   "bw": 19,
+   "d": 0
+  },
+  "hammer|flail": {
+   "aw": 18,
+   "bw": 6,
+   "d": 0
+  },
+  "axe|spear": {
+   "aw": 12,
+   "bw": 12,
+   "d": 0
+  },
+  "axe|combat": {
+   "aw": 22,
+   "bw": 2,
+   "d": 0
+  },
+  "spear|combat": {
+   "aw": 20,
+   "bw": 4,
+   "d": 0
+  },
+  "shield|flail": {
+   "aw": 17,
+   "bw": 7,
+   "d": 0
+  },
+  "scythe|fryingpan": {
+   "aw": 8,
+   "bw": 16,
+   "d": 0
+  },
+  "scythe|katana": {
+   "aw": 7,
+   "bw": 17,
+   "d": 0
+  },
+  "fryingpan|flail": {
+   "aw": 19,
+   "bw": 5,
+   "d": 0
+  },
+  "broomstick|combat": {
+   "aw": 10,
+   "bw": 14,
+   "d": 0
+  },
+  "whip|katana": {
+   "aw": 1,
+   "bw": 23,
+   "d": 0
+  },
+  "sword|axe": {
+   "aw": 24,
+   "bw": 0,
+   "d": 0
+  },
+  "sword|broomstick": {
+   "aw": 23,
+   "bw": 1,
+   "d": 0
+  },
+  "sword|electricstaff": {
+   "aw": 24,
+   "bw": 0,
+   "d": 0
+  },
+  "hammer|scythe": {
+   "aw": 12,
+   "bw": 12,
+   "d": 0
+  },
+  "hammer|whip": {
+   "aw": 16,
+   "bw": 8,
+   "d": 0
+  },
+  "axe|shield": {
+   "aw": 19,
+   "bw": 5,
+   "d": 0
+  },
+  "axe|flail": {
+   "aw": 22,
+   "bw": 2,
+   "d": 0
+  },
+  "spear|shield": {
+   "aw": 13,
+   "bw": 11,
+   "d": 0
+  },
+  "spear|flail": {
+   "aw": 18,
+   "bw": 6,
+   "d": 0
+  },
+  "shield|scythe": {
+   "aw": 20,
+   "bw": 4,
+   "d": 0
+  },
+  "shield|whip": {
+   "aw": 13,
+   "bw": 11,
+   "d": 0
+  },
+  "scythe|broomstick": {
+   "aw": 15,
+   "bw": 9,
+   "d": 0
+  },
+  "scythe|electricstaff": {
+   "aw": 10,
+   "bw": 14,
+   "d": 0
+  },
+  "fryingpan|whip": {
+   "aw": 16,
+   "bw": 8,
+   "d": 0
+  },
+  "broomstick|flail": {
+   "aw": 17,
+   "bw": 7,
+   "d": 0
+  },
+  "combat|flail": {
+   "aw": 17,
+   "bw": 7,
+   "d": 0
+  },
+  "flail|whip": {
+   "aw": 11,
+   "bw": 13,
+   "d": 0
+  },
+  "whip|electricstaff": {
+   "aw": 3,
+   "bw": 21,
+   "d": 0
+  },
+  "sword|spear": {
+   "aw": 23,
+   "bw": 1,
+   "d": 0
+  },
+  "sword|combat": {
+   "aw": 24,
+   "bw": 0,
+   "d": 0
+  },
+  "hammer|fryingpan": {
+   "aw": 11,
+   "bw": 13,
+   "d": 0
+  },
+  "hammer|katana": {
+   "aw": 1,
+   "bw": 23,
+   "d": 0
+  },
+  "axe|scythe": {
+   "aw": 18,
+   "bw": 6,
+   "d": 0
+  },
+  "axe|whip": {
+   "aw": 20,
+   "bw": 4,
+   "d": 0
+  },
+  "spear|scythe": {
+   "aw": 10,
+   "bw": 14,
+   "d": 0
+  },
+  "spear|whip": {
+   "aw": 23,
+   "bw": 1,
+   "d": 0
+  },
+  "shield|fryingpan": {
+   "aw": 15,
+   "bw": 9,
+   "d": 0
+  },
+  "shield|katana": {
+   "aw": 3,
+   "bw": 21,
+   "d": 0
+  },
+  "scythe|combat": {
+   "aw": 16,
+   "bw": 8,
+   "d": 0
+  },
+  "fryingpan|katana": {
+   "aw": 2,
+   "bw": 22,
+   "d": 0
+  },
+  "broomstick|whip": {
+   "aw": 12,
+   "bw": 12,
+   "d": 0
+  },
+  "combat|whip": {
+   "aw": 21,
+   "bw": 3,
+   "d": 0
+  },
+  "flail|katana": {
+   "aw": 1,
+   "bw": 23,
+   "d": 0
+  },
+  "sword|shield": {
+   "aw": 24,
+   "bw": 0,
+   "d": 0
+  },
+  "sword|flail": {
+   "aw": 24,
+   "bw": 0,
+   "d": 0
+  },
+  "hammer|axe": {
+   "aw": 10,
+   "bw": 14,
+   "d": 0
+  },
+  "hammer|broomstick": {
+   "aw": 16,
+   "bw": 8,
+   "d": 0
+  },
+  "hammer|electricstaff": {
+   "aw": 12,
+   "bw": 12,
+   "d": 0
+  },
+  "axe|fryingpan": {
+   "aw": 20,
+   "bw": 4,
+   "d": 0
+  },
+  "axe|katana": {
+   "aw": 3,
+   "bw": 21,
+   "d": 0
+  },
+  "spear|fryingpan": {
+   "aw": 16,
+   "bw": 8,
+   "d": 0
+  },
+  "spear|katana": {
+   "aw": 2,
+   "bw": 22,
+   "d": 0
+  },
+  "shield|broomstick": {
+   "aw": 12,
+   "bw": 12,
+   "d": 0
+  },
+  "shield|electricstaff": {
+   "aw": 11,
+   "bw": 13,
+   "d": 0
+  },
+  "scythe|flail": {
+   "aw": 12,
+   "bw": 12,
+   "d": 0
+  },
+  "fryingpan|broomstick": {
+   "aw": 18,
+   "bw": 6,
+   "d": 0
+  },
+  "fryingpan|electricstaff": {
+   "aw": 7,
+   "bw": 17,
+   "d": 0
+  },
+  "broomstick|katana": {
+   "aw": 2,
+   "bw": 22,
+   "d": 0
+  },
+  "combat|katana": {
+   "aw": 1,
+   "bw": 23,
+   "d": 0
+  },
+  "flail|electricstaff": {
+   "aw": 6,
+   "bw": 18,
+   "d": 0
+  },
+  "katana|electricstaff": {
+   "aw": 20,
+   "bw": 4,
+   "d": 0
+  }
+ },
+ "bugs": {
+  "nonFinite": {},
+  "offArena": {},
+  "stall": {},
+  "timeout": {},
+  "err": {}
+ },
+ "rmse": 20.496746840758192
+}

@@ -131,7 +131,8 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
 
   // ── Chapter 51 — The Split (branch) ─────────────────────────────────────────
   S[51] = {
-    bg: 'fracture',
+    // The Assembly Hall, at the end of chapter 49's map
+    bg: 'level', level: { ch: 49, x: 3500 },
     npcColor: '#2266bb',
     beats: [
       {
@@ -306,7 +307,8 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
 
   // ── Chapter 53 — What Veran Didn't Say (branch) ─────────────────────────────
   S[53] = {
-    bg: 'fracture',
+    // The Assembly Hall, at the end of chapter 49's map
+    bg: 'level', level: { ch: 49, x: 3500 },
     npcColor: '#88aaff',
     beats: [
       {

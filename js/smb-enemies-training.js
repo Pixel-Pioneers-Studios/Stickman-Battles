@@ -589,7 +589,7 @@ function _tlabRecordLaunch(target, requested, granted, n) {
 
 // Classifies where the fighter is in its attack, using the same fields the
 // combat code reads. "recovery" is the punish window — the number that was
-// missing entirely from the Megaknight.
+// missing entirely from the Knight.
 function _tlabPhase(f) {
   if (!f) return '-';
   if (f.stunTimer   > 0) return 'STUNNED';

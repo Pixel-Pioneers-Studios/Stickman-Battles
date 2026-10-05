@@ -48,6 +48,21 @@ function _startGameCore() {
   const isAdaptiveMode     = gameMode === 'adaptive' || gameMode === 'sovereign';
   const isSovereignMode    = gameMode === 'sovereign';
   const isCompleteRandMode = gameMode === '2p' && completeRandomizer;
+  // Quick Fight: one-shot "everything random" for this match only — arena, weapon
+  // and class are rolled fresh and the player's 1v1 menu selections are ignored.
+  // Unlike Complete Randomizer it does not reroll the arena on every death.
+  const isQuickFightRand   = gameMode === '2p' && !!window._quickFightRandomNext;
+  window._quickFightRandomNext = false;
+  // Fight Ladder rung (smb-ladder.js): the opponent, arena and difficulty are
+  // fixed per rung. P1 gets the starter kit (sword, Warrior) on the first-run
+  // fight, and on every rung unless they picked a real loadout (anything but
+  // Random) in Versus, so a run keeps one identity from fight to fight.
+  const ladderDef          = gameMode === '2p' ? (window._ladderNext || null) : null;
+  window._ladderNext = null;
+  const _p1PicksRandom     = (document.getElementById('p1Weapon')?.value || 'random') === 'random'
+                          && (document.getElementById('p1Class')?.value  || 'random') === 'random';
+  const useStarterKit      = !!(ladderDef && (ladderDef.firstRun || _p1PicksRandom));
+  const isRandLoadout      = isCompleteRandMode || isQuickFightRand;
   const isMultiverseMode   = gameMode === 'multiverse';
   const isBossLivesMode    = isBossMode || isTrueFormMode;
   _setBossFightLivesLock(isBossLivesMode);
@@ -79,13 +94,17 @@ function _startGameCore() {
     const mvWorld = (typeof MultiverseManager !== 'undefined') ? MultiverseManager.getActiveWorld() : null;
     currentArenaKey = (mvWorld && mvWorld.arenaKey) ? mvWorld.arenaKey : 'homeAlley';
   } else if (isBossMode) {
-    currentArenaKey = 'creator';
+    // A story chapter's authored arena (storyLevelArenaKey) keeps the Creator
+    // arena's boss rules via isBossArena; any other boss match is 'creator'.
+    currentArenaKey = (storyModeActive && selectedArena === '__storyarena__' && ARENAS.__storyarena__ && ARENAS.__storyarena__.isBossArena) ? '__storyarena__' : 'creator';
   } else if (isTrainingMode) {
     currentArenaKey = 'training';
   } else if (isTrueFormMode) {
     currentArenaKey = 'void';
   } else if (isDamnationMode) {
-    currentArenaKey = 'damnation';
+    // Story arenas built on 'damnation' keep its six platforms in order — the
+    // fall-removal sequence (damnationRemovalOrder) is index-based.
+    currentArenaKey = (storyModeActive && selectedArena === '__storyarena__' && ARENAS.__storyarena__ && ARENAS.__storyarena__.isDamnationArena) ? '__storyarena__' : 'damnation';
     if (typeof resetDamnationState === 'function') resetDamnationState();
   } else if (isExploreMode) {
     currentArenaKey = '__explore__';
@@ -95,13 +114,21 @@ function _startGameCore() {
   } else if (isMinigamesMode) {
     if (minigameType === 'sports') {
       currentArenaKey = 'soccer';
+    } else if (minigameType === 'defense') {
+      currentArenaKey = 'nexus';
     } else {
       // Pick a random arena from the standard PvP selection
       const arenaPool = ARENA_KEYS_ORDERED.filter(k => ARENAS[k] && !ARENAS[k].isStoryOnly);
       currentArenaKey = randChoice(arenaPool);
     }
-  } else if (isCompleteRandMode) {
-    const arenaPool = ARENA_KEYS_ORDERED.filter(k => ARENAS[k] && !ARENAS[k].isStoryOnly);
+  } else if (ladderDef && ARENAS[ladderDef.arena]) {
+    currentArenaKey = ladderDef.arena;
+  } else if (isRandLoadout) {
+    let arenaPool = ARENA_KEYS_ORDERED.filter(k => ARENAS[k] && !ARENAS[k].isStoryOnly);
+    if (isQuickFightRand && !settings.quickFightHazards && typeof _QUICK_FIGHT_ARENAS !== 'undefined') {
+      const _safe = arenaPool.filter(k => _QUICK_FIGHT_ARENAS.includes(k));
+      if (_safe.length) arenaPool = _safe;
+    }
     currentArenaKey = randChoice(arenaPool);
   } else {
     // Only standard PvP arenas (ARENA_KEYS_ORDERED) available for random pick
@@ -114,7 +141,7 @@ function _startGameCore() {
       currentArenaKey = selectedArena === 'random' ? randChoice(arenaPool) : selectedArena;
     }
   }
-  isRandomMapMode = (selectedArena === 'random' && !isCompleteRandMode);
+  isRandomMapMode = (selectedArena === 'random' && !isRandLoadout);
   // Lava/void: no randomization
   if (currentArenaKey !== 'creator' && currentArenaKey !== 'god_domain' && currentArenaKey !== 'lava' && currentArenaKey !== 'void' && currentArenaKey !== 'soccer' && currentArenaKey !== 'damnation' && currentArenaKey !== 'sovereign' && currentArenaKey !== 'training' && !isExploreMode && !isBattleRoyaleMode && !isEscortMode) randomizeArenaLayout(currentArenaKey);
   currentArena = ARENAS[currentArenaKey];
@@ -138,10 +165,21 @@ function _startGameCore() {
 
   // Resolve weapons & classes together — handles 50/50 when both are 'random'
   // Complete Randomizer is a 1v1 modifier: force random arena + weapon + class
-  const _p1Resolved = isCompleteRandMode ? resolveWeaponAndClassValues('random', 'random') : resolveWeaponAndClass('p1Weapon', 'p1Class');
-  const _p2Resolved = isCompleteRandMode ? resolveWeaponAndClassValues('random', 'random') : resolveWeaponAndClass('p2Weapon', 'p2Class');
+  // Story uses its own saved pick (story loadout menu), not the Versus selects.
+  // Random rolls skip anything the mode would strip afterwards, so a rolled
+  // class is never left holding a substituted sword.
+  const _p1StoryLoadout = (storyModeActive && typeof storyLoadoutValues === 'function') ? storyLoadoutValues() : null;
+  const _isBossRoll = isBossMode || isTrueFormMode || isGodMode || isAbsoluteAxiomMode || isDamnationMode || isSovereignMode;
+  const _rollFilter = (storyModeActive && typeof _storyWeaponAllowed === 'function') ? _storyWeaponAllowed
+    : _isBossRoll ? (k => !WEAPONS[k] || WEAPONS[k].type !== 'ranged') : null;
+  const _p1Resolved = isRandLoadout ? resolveWeaponAndClassValues('random', 'random')
+    : _p1StoryLoadout ? resolveWeaponAndClassValues(_p1StoryLoadout.weapon, _p1StoryLoadout.cls, _rollFilter)
+    : resolveWeaponAndClass('p1Weapon', 'p1Class', _rollFilter);
+  const _p2Resolved = isRandLoadout ? resolveWeaponAndClassValues('random', 'random') : resolveWeaponAndClass('p2Weapon', 'p2Class', _rollFilter);
   let w1 = _p1Resolved.weaponKey;
   let w2 = _p2Resolved.weaponKey;
+  if (useStarterKit) w1 = 'sword';
+  if (ladderDef) w2 = ladderDef.weapon;
   // Story mode: HARD enforce no ranged weapons for human players at game start
   if (storyModeActive) {
     const _isMeleeOnly = (key) => typeof WEAPONS !== 'undefined' && WEAPONS[key] && WEAPONS[key].type === 'ranged';
@@ -173,9 +211,11 @@ function _startGameCore() {
   // Store resolved class keys so applyClass calls below use the coordinated result
   let _p1ResolvedClass = _p1Resolved.classKey;
   let _p2ResolvedClass = _p2Resolved.classKey;
+  if (useStarterKit) _p1ResolvedClass = 'warrior';
+  if (ladderDef) _p2ResolvedClass = ladderDef.cls;
 
   // ── TROLL CLASS BAR (boss fights) ───────────────────────────────────────
-  // Megaknight is a joke class with deliberately absurd stats — a 30-damage
+  // Knight is a joke class with deliberately absurd stats — a 30-damage
   // launcher on a 22-frame cooldown, a free AoE on every landing, and a super
   // that grants 2s of invincibility. That is fine as a toy in versus and
   // training, and completely trivialises a boss fight: it beat Sovereign 10-8
@@ -186,17 +226,17 @@ function _startGameCore() {
     const _reroll = (cls) => {
       if (cls !== 'megaknight') return cls;
       const _pool = (typeof CLASSES !== 'undefined')
-        ? Object.keys(CLASSES).filter(k => k !== 'megaknight' && k !== 'random')
+        ? Object.keys(CLASSES).filter(k => k !== 'megaknight' && k !== 'random' && k !== 'none')
         : ['none'];
       const _pick = _pool.length ? _pool[Math.floor(Math.random() * _pool.length)] : 'none';
       if (typeof queueAnnouncement === 'function') {
-        queueAnnouncement('MEGAKNIGHT BARRED — REROLLED', '#cc88ff');
+        queueAnnouncement('KNIGHT BARRED — REROLLED', '#cc88ff');
       }
       return _pick;
     };
     _p1ResolvedClass = _reroll(_p1ResolvedClass);
     _p2ResolvedClass = _reroll(_p2ResolvedClass);
-    // The class selector locks the weapon to mkgauntlet while Megaknight is
+    // The class selector locks the weapon to mkgauntlet while Knight is
     // picked, so rerolling the class alone would leave the player holding a
     // 30-damage 22-frame gauntlet under an ordinary class — the stats that made
     // it a problem, minus the identity. Reroll the weapon with it.
@@ -213,7 +253,7 @@ function _startGameCore() {
   const c1   = document.getElementById('p1Color').value;
   const c2   = document.getElementById('p2Color').value;
   const p1Diff = (document.getElementById('p1Difficulty')?.value) || 'hard';
-  const p2Diff = (document.getElementById('p2Difficulty')?.value) || 'hard';
+  const p2Diff = ladderDef ? ladderDef.diff : ((document.getElementById('p2Difficulty')?.value) || 'hard');
   const diff   = p2Diff; // legacy alias used below for p2
   const isBot  = p2IsBot; // bot determined by P2 toggle, not separate mode
 
@@ -226,6 +266,7 @@ function _startGameCore() {
   projectiles        = [];
   particles          = [];
   if (typeof resetDestruction === 'function') resetDestruction();
+  if (typeof resetWorldReact === 'function') resetWorldReact();
   bloodStains        = [];
   verletRagdolls     = [];
   damageTexts        = [];
@@ -303,6 +344,10 @@ function _startGameCore() {
     ARENAS.god_domain.hasLava = false;
     ARENAS.god_domain.deathY  = 640;
   }
+  if (currentArenaKey === '__storyarena__' && currentArena && currentArena.isBossArena) {
+    currentArena.hasLava = false;
+    currentArena.deathY  = 640;
+  }
 
   // Player 1  (W/A/D move · S=shield · Space=attack · Q=ability)
   const p1 = new Fighter(160, 300, c1, w1, { left:'a', right:'d', jump:'w', attack:' ', shield:'s', ability:'q', super:'e' }, p1IsBot, p1Diff);
@@ -318,8 +363,8 @@ function _startGameCore() {
   applyClass(p1, _storyClassLocked ? 'none' : _p1ResolvedClass);
   // If player explicitly chose a weapon (not random), restore it after applyClass
   // so archer/paladin class doesn't forcefully override the selected weapon
-  if (document.getElementById('p1Weapon')?.value && document.getElementById('p1Weapon').value !== 'random'
-      && !isCompleteRandMode) {
+  const _p1WeaponPick = _p1StoryLoadout ? _p1StoryLoadout.weapon : document.getElementById('p1Weapon')?.value;
+  if (_p1WeaponPick && _p1WeaponPick !== 'random' && !isRandLoadout) {
     const _w1Obj = (w1 && w1.startsWith('_custom_') && window.CUSTOM_WEAPONS && window.CUSTOM_WEAPONS[w1])
                    ? window.CUSTOM_WEAPONS[w1]
                    : (typeof WEAPONS !== 'undefined' && WEAPONS[w1] ? WEAPONS[w1] : null);
@@ -338,7 +383,7 @@ function _startGameCore() {
     p1._storyNoDoubleJump = !!_sc.noDoubleJump;
     p1._noDoubleJump      = !!_sc.noDoubleJump;  // unified flag checked in smb-loop.js
   }
-  // Megaknight spawn fall
+  // Knight spawn fall
   if (p1.charClass === 'megaknight') { p1.y = -120; p1.vy = 2; p1._spawnFalling = true; p1.invincible = 200; SoundManager.megaknightFall && SoundManager.megaknightFall(); }
 
   // Player 2 / Bot / Boss / Training Dummy
@@ -508,6 +553,7 @@ function _startGameCore() {
     players = [p1, ai];
     p1.target = ai;
     ai.target = p1;
+    if (_useSovMK2 && typeof Brain !== 'undefined' && Brain.driveSovereign) Brain.driveSovereign(ai, p1);
   } else if (isDamnationMode) {
     // Eternal Damnation arc: P1 solo, wave manager spawns echoes dynamically
     p1.isAI  = false;
@@ -858,6 +904,10 @@ function _startGameCore() {
 
   // HUD labels
   document.getElementById('p1HudName').textContent = p1.name;
+  if (p2 && ladderDef) {
+    p2.name  = ladderDef.name.toUpperCase();
+    p2.lives = p2._maxLives = ladderDef.lives;
+  }
   if (p2) document.getElementById('p2HudName').textContent = p2.name;
   document.getElementById('killFeed').innerHTML = '';
 
@@ -874,7 +924,7 @@ function _startGameCore() {
 
   // Post-class weapon restore: if player explicitly selected a non-random weapon,
   // respect that choice over what applyClass may have forced
-  if (!isCompleteRandMode) {
+  if (!isRandLoadout) {
     const _p2WeaponEl = document.getElementById('p2Weapon');
     const _p2WeaponVal = _p2WeaponEl?.value;
     if (p2 && !p2.isBoss && _p2WeaponVal && _p2WeaponVal !== 'random') {

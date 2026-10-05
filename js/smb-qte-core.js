@@ -106,7 +106,7 @@ const QTE_PHASES = {
   // Success triggers the boss death cinematic.
   4: {
     id: 4,
-    name: 'TRUE-FORM COLLAPSE',
+    name: 'COSMIC AXIOM COLLAPSE',
     subtitle: 'Rebuild the multiverse — or perish with it.',
     promptCount: [9, 9],
     windowFrames: 28,

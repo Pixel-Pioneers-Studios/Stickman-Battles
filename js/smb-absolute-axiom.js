@@ -80,6 +80,11 @@ const AA_SPECIAL_NAMES = [
   'Dimension Punch',
 ];
 
+const AA_STUN_MAX      = 45;  // longest single stun the RGS kit can apply
+const AA_STUN_IMMUNE   = 300; // stun immunity after any stun ends
+const AA_MELEE_REACH   = 120; // strike only connects in front, inside this
+const AA_MELEE_RECOVER = 40;  // 30 in phase 3: AA stands exposed after a strike
+
 function _aaDialogue(lines, dur) {
   if (!Array.isArray(lines) || !lines.length) return;
   const line = lines[Math.floor(Math.random() * lines.length)];
@@ -213,6 +218,8 @@ class AbsoluteAxiom extends God {
     // Melee windup telegraph (no instant auto-attack aura)
     this._meleeWindup       = 0;  // counts 0→35; strike fires at 35
     this._meleeWindupTarget = null;
+    this._meleeFacing       = 1;
+    this._meleeRecover      = 0;
 
     // Dimension punch state
     this._dimPunchCd = 0;
@@ -249,6 +256,7 @@ class AbsoluteAxiom extends God {
 
     // Stun state (triggered by Godslayer loadout perk)
     this._stunFrames  = 0;
+    this._stunImmune  = 0;
 
     // Visual
     this._aaAuraPhase = 0;
@@ -396,9 +404,13 @@ class AbsoluteAxiom extends God {
       _aaDialogue(AA_IDLE_LINES, 160);
     }
 
-    // Stun: freeze movement and attacks while stunned
+    // Stun: freeze movement and attacks while stunned. Capped and followed by
+    // immunity — the RGS kit used to chain stuns for half the fight.
+    if (this._stunImmune > 0) { this._stunImmune--; this._stunFrames = 0; }
     if (this._stunFrames > 0) {
+      if (this._stunFrames > AA_STUN_MAX) this._stunFrames = AA_STUN_MAX;
       this._stunFrames--;
+      if (this._stunFrames === 0) this._stunImmune = AA_STUN_IMMUNE;
       this._wingAngle += 0; this._auraPhase = this._aaAuraPhase;
       if (typeof spawnParticles === 'function' && this._stunFrames % 10 === 0)
         spawnParticles(this.cx(), this.cy(), '#ffe066', 4);
@@ -513,7 +525,13 @@ class AbsoluteAxiom extends God {
 
       // Move toward player but stop at comfortable range (not constant chase to face)
       const _stopRange = _inStance ? 200 : 130;
-      if (minDist > _stopRange) {
+      if (this._meleeRecover > 0) {
+        this._meleeRecover--;
+        this.vx *= 0.6;
+      } else if (this._meleeWindup > 0) {
+        this.facing = this._meleeFacing;
+        this.vx = this.facing * 1.2;
+      } else if (minDist > _stopRange) {
         this.vx = this.facing * baseSpd;
       } else {
         this.vx *= 0.75; // glide to a stop in melee range
@@ -531,7 +549,7 @@ class AbsoluteAxiom extends God {
       if (this._dashFrames > 0) {
         this._dashFrames--;
         this.vx = this._dashVx;
-      } else if (!_inStance && this._dashCd <= 0 && minDist > 180 && minDist < 500) {
+      } else if (!_inStance && !this._meleeWindup && !this._meleeRecover && this._dashCd <= 0 && minDist > 180 && minDist < 500) {
         const _dashSpd   = 18 * this._phase3SpeedMod;
         this._dashVx     = this.facing * _dashSpd;
         this._dashFrames = 7;
@@ -558,9 +576,10 @@ class AbsoluteAxiom extends God {
     //   direct  → 35 frames (unchanged default)
     //   crossup → 28 frames (faster, catches early escapes)
     //   delayed → 47 frames (timing trip — punishes counter-timed dodges)
-    if (minDist < 155 && this._attackCd <= 0 && !this._meleeWindup) {
+    if (minDist < 155 && this._attackCd <= 0 && !this._meleeWindup && !this._meleeRecover) {
       this._meleeWindup = 1;
       this._meleeWindupTarget = target;
+      this._meleeFacing = this.facing;
       this._meleeWindupDur = 35;
       this._bmMeleeRoute = null;
       if (this._behaviorModel) {
@@ -600,7 +619,14 @@ class AbsoluteAxiom extends God {
               targetRef : this._meleeWindupTarget,
             };
           }
-          dealDamage(this, this._meleeWindupTarget, 220, 10);
+          const _mt = this._meleeWindupTarget;
+          const _dx = _mt.cx() - this.cx();
+          const _inFront = _dx * this._meleeFacing > -20 && Math.abs(_dx) < AA_MELEE_REACH;
+          const _vOk = Math.abs((_mt.y + _mt.h / 2) - (this.y + this.h / 2)) < 80;
+          this.vx = this._meleeFacing * 12;
+          if (_inFront && _vOk) dealDamage(this, _mt, 220, 10);
+          else if (typeof spawnParticles === 'function') spawnParticles(this.cx() + this._meleeFacing * 60, this.cy(), '#661100', 8);
+          this._meleeRecover = this._aaPhase === 3 ? 30 : AA_MELEE_RECOVER;
           this._attackCd    = Math.ceil(70 / this._phase3SpeedMod);
           this._meleeWindup = 0;
           this._meleeWindupTarget = null;
@@ -610,7 +636,7 @@ class AbsoluteAxiom extends God {
     }
 
     // Special attacks
-    if (this._specialCd <= 0) this._pickSpecial(target);
+    if (this._specialCd <= 0 && !this._meleeWindup && !this._meleeRecover) this._pickSpecial(target);
   }
 
   // ── Pattern analysis ───────────────────────────────────────────────────────
@@ -1808,7 +1834,17 @@ class AbsoluteAxiom extends God {
       ctx.restore();
     }
 
-    // Smite rings (dark fire version)
+    // Smite rings (dark fire version); the warning circle shows the blast radius during the dive
+    if (this._smitePending) {
+      const frac = 1 - this._smiteTimer / GOD_SMITE_WARN;
+      ctx.save();
+      ctx.strokeStyle = `rgba(255,70,0,${0.35 + frac * 0.5})`;
+      ctx.lineWidth   = 2 + frac * 3;
+      ctx.beginPath(); ctx.arc(cx, cy, 189, 0, Math.PI * 2); ctx.stroke();
+      ctx.fillStyle = `rgba(255,40,0,${frac * 0.14})`;
+      ctx.beginPath(); ctx.arc(cx, cy, 189 * frac, 0, Math.PI * 2); ctx.fill();
+      ctx.restore();
+    }
     for (const ring of this._smiteRings) {
       ctx.save();
       ctx.globalAlpha = ring.alpha;
@@ -1823,16 +1859,17 @@ class AbsoluteAxiom extends God {
     if (this._meleeWindup > 0) {
       ctx.save();
       const windupFrac = Math.min(1, this._meleeWindup / (this._meleeWindupDur || 35));
-      const pulseR = 50 + windupFrac * 105;
+      const pulseR = 40 + windupFrac * (AA_MELEE_REACH - 40);
+      const a0 = this._meleeFacing > 0 ? -Math.PI / 2 : Math.PI / 2;
       ctx.globalAlpha = windupFrac * 0.85;
       ctx.strokeStyle = '#ff0022';
       ctx.lineWidth   = 3 + windupFrac * 4;
       ctx.shadowColor = '#ff0022';
       ctx.shadowBlur  = 20 + windupFrac * 20;
-      ctx.beginPath(); ctx.arc(cx, cy, pulseR, 0, Math.PI * 2); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(cx, cy); ctx.arc(cx, cy, pulseR, a0, a0 + Math.PI); ctx.closePath(); ctx.stroke();
       ctx.globalAlpha = windupFrac * 0.35;
       ctx.fillStyle   = '#ff0022';
-      ctx.beginPath(); ctx.arc(cx, cy, pulseR, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(cx, cy); ctx.arc(cx, cy, pulseR, a0, a0 + Math.PI); ctx.closePath(); ctx.fill();
       ctx.restore();
     }
 
@@ -2004,11 +2041,11 @@ const RGS_LOADOUTS = [
     name: 'Fracture Staff',
     color: '#00ffcc',
     key: '3',
-    desc: 'Reality manipulation — freeze field, HP regen, reality fracture',
+    desc: 'Reality manipulation — freeze field, out-of-combat regen, reality fracture',
     attackDesc: 'Fracture Bolt (slow)',
     qDesc: 'Freeze Field (hard stop)',
     superDesc: 'Reality Fracture (DoT nova)',
-    perkDesc: '5 HP/frame regen',
+    perkDesc: 'Regen after 3s untouched',
   },
   {
     name: "Titan's Gauntlet",
@@ -2087,9 +2124,8 @@ function _updateRGS(aa, player) {
   const kd  = typeof keysDown !== 'undefined' ? keysDown : new Set();
 
   // ── Block normal super — _storyNoSuper silences E in smb-input.js ──────────
+  // The meter still fills from landed hits and pays for the RGS super instead.
   player._storyNoSuper = true;
-  // Drain superMeter slowly so the standard HUD bar empties smoothly
-  if (player.superMeter > 0) player.superMeter = Math.max(0, player.superMeter - 4);
   player.superReady = false;
 
   // ── Camera zoom — pull back for the large arena ───────────────────────────
@@ -2124,14 +2160,17 @@ function _updateRGS(aa, player) {
     player.kbResist = Math.max(player.kbResist || 0, 0.55);
   }
 
-  // Fracture Staff: 5 HP/frame regen
-  if (load === 2) {
+  // Fracture Staff: regen only after RGS_REGEN_DELAY frames without taking damage
+  if (player._rgsLastHp !== undefined && player.health < player._rgsLastHp) player._rgsHurtT = 0;
+  else player._rgsHurtT = (player._rgsHurtT || 0) + 1;
+  if (load === 2 && player._rgsHurtT > RGS_REGEN_DELAY) {
     player._rgsHpRegen++;
-    if (player._rgsHpRegen >= 12) {
+    if (player._rgsHpRegen >= 10) {
       player._rgsHpRegen = 0;
-      if (player.health < player.maxHealth) player.health = Math.min(player.maxHealth, player.health + 5);
+      if (player.health < player.maxHealth) player.health = Math.min(player.maxHealth, player.health + 1);
     }
   }
+  player._rgsLastHp = player.health;
 
   // Titan: combo stack decays
   if (load === 3) {
@@ -2176,9 +2215,10 @@ function _updateRGS(aa, player) {
   if (!kd.has('q')) player._rgsQHeld = false;
 
   // ── E key — RGS super ─────────────────────────────────────────────────────
-  if (kd.has('e') && !player._rgsEHeld && player._rgsSuperCd <= 0) {
+  if (kd.has('e') && !player._rgsEHeld && player._rgsSuperCd <= 0 && player.superMeter >= 100) {
     player._rgsEHeld = true;
     _rgsUseSuper(player, aa, load);
+    player.superMeter  = 0;
     player._rgsSuperCd = 360;
   }
   if (!kd.has('e')) player._rgsEHeld = false;
@@ -2187,14 +2227,24 @@ function _updateRGS(aa, player) {
   _rgsUpdateEffects(player, aa);
 }
 
+// RGS moves land where the player aims them, not on AA wherever it stands.
+const RGS_REACH       = 260; // AA must be this close for direct-hit abilities and supers
+const RGS_REGEN_DELAY = 180;
+
+function _rgsAANear(player, aa) {
+  return Math.hypot(aa.cx() - player.cx(), aa.cy() - (player.y + player.h / 2)) < RGS_REACH;
+}
+
 function _rgsUseAbility(player, aa, load) {
   const GW = typeof GAME_W !== 'undefined' ? GAME_W : 900;
   const GH = typeof GAME_H !== 'undefined' ? GAME_H : 520;
+  const near = _rgsAANear(player, aa);
   if (load === 0) {
-    // Godslayer: Holy Columns — 7 divine columns crash down on AA; each stuns
+    // Godslayer: Holy Columns — 5 divine columns crash down in front of the player
     if (typeof showBossDialogue === 'function') showBossDialogue('Holy Columns!', 90);
-    for (let i = -3; i <= 3; i++) {
-      const lx = aa.cx() + i * 52;
+    const _hcx = player.cx() + player.facing * 150;
+    for (let i = -2; i <= 2; i++) {
+      const lx = _hcx + i * 52;
       player._rgsLightning.push({ x: lx, timer: 0, maxTimer: 35, hitDealt: false, isHoly: true });
     }
     if (typeof screenShake !== 'undefined') screenShake = Math.max(screenShake, 20);
@@ -2204,21 +2254,26 @@ function _rgsUseAbility(player, aa, load) {
     if (typeof showBossDialogue === 'function') showBossDialogue('Void Counter!', 90);
     const dx = player.cx() - aa.cx(), dy = (player.cy ? player.cy() : player.y + player.h/2) - (aa.y + aa.h / 2);
     const d = Math.hypot(dx, dy) || 1;
-    aa.vx += (dx / d) * 30;
-    aa.vy += (dy / d) * 18;
-    if (typeof dealDamage === 'function') dealDamage(player, aa, 3500, 12);
+    if (near) {
+      aa.vx += (dx / d) * 30;
+      aa.vy += (dy / d) * 18;
+      if (typeof dealDamage === 'function') dealDamage(player, aa, 3500, 12);
+    }
     if (typeof spawnParticles === 'function') {
-      spawnParticles(aa.cx(), aa.cy(), '#cc88ff', 30);
+      if (near) spawnParticles(aa.cx(), aa.cy(), '#cc88ff', 30);
       spawnParticles(player.cx ? player.cx() : player.x, player.y, '#cc88ff', 16);
     }
     if (typeof screenShake !== 'undefined') screenShake = Math.max(screenShake, 18);
   } else if (load === 2) {
-    // Fracture Staff: Freeze Field — hard stop on AA for 120 frames
+    // Fracture Staff: Freeze Field — a field around the player; hard-stops AA only if it is inside
     if (typeof showBossDialogue === 'function') showBossDialogue('Freeze Field!', 90);
-    aa._stunFrames = Math.max(aa._stunFrames || 0, 120);
-    aa.vx = 0; aa.vy = 0;
-    player._rgsTimeBubbles.push({ x: aa.cx(), y: aa.cy(), r: 0, maxR: 90, timer: 0, maxTimer: 120, isFreezeField: true });
-    if (typeof spawnParticles === 'function') spawnParticles(aa.cx(), aa.cy(), '#00ffcc', 24);
+    const _fx = player.cx(), _fy = player.y + player.h / 2;
+    if (Math.hypot(aa.cx() - _fx, aa.cy() - _fy) < 130) {
+      aa._stunFrames = Math.max(aa._stunFrames || 0, 120);
+      aa.vx = 0; aa.vy = 0;
+    }
+    player._rgsTimeBubbles.push({ x: _fx, y: _fy, r: 0, maxR: 130, timer: 0, maxTimer: 120, isFreezeField: true });
+    if (typeof spawnParticles === 'function') spawnParticles(_fx, _fy, '#00ffcc', 24);
     if (typeof CinFX !== 'undefined') CinFX.flash('#00ffcc', 0.35, 12);
   } else {
     // Titan's Gauntlet: Power Surge — next 180 frames all attacks deal +60% dmg
@@ -2232,13 +2287,19 @@ function _rgsUseAbility(player, aa, load) {
 function _rgsUseSuper(player, aa, load) {
   const GW = typeof GAME_W !== 'undefined' ? GAME_W : 900;
   const GH = typeof GAME_H !== 'undefined' ? GAME_H : 520;
+  const near = _rgsAANear(player, aa);
+  // Zones open on AA when it is in reach, otherwise in front of the player
+  const zx = near ? aa.cx() : player.cx() + player.facing * 120;
+  const zy = near ? aa.cy() : player.y + player.h / 2;
   if (load === 0) {
-    // Godslayer: God's End — 10 divine columns crash across the arena; stuns AA
+    // Godslayer: God's End — a line of divine columns marches out from the player
     if (typeof showBossDialogue === 'function') showBossDialogue("God's End!", 120);
-    if (typeof dealDamage === 'function') dealDamage(player, aa, 8000, 14);
-    aa._stunFrames = Math.max(aa._stunFrames || 0, 80);
-    for (let i = 0; i < 10; i++) {
-      const lx = 80 + i * 74;
+    if (near) {
+      if (typeof dealDamage === 'function') dealDamage(player, aa, 8000, 14);
+      aa._stunFrames = Math.max(aa._stunFrames || 0, 80);
+    }
+    for (let i = 0; i < 8; i++) {
+      const lx = player.cx() + player.facing * (60 + i * 64);
       player._rgsLightning.push({ x: lx, timer: i * 4, maxTimer: 30 + i * 4, hitDealt: false, isHoly: true });
     }
     if (typeof CinFX !== 'undefined') CinFX.flash('#ffe066', 0.6, 18);
@@ -2246,22 +2307,24 @@ function _rgsUseSuper(player, aa, load) {
   } else if (load === 1) {
     // Null Blade: Void Collapse — massive pull + void implosion DoT field
     if (typeof showBossDialogue === 'function') showBossDialogue('Void Collapse!', 120);
-    if (typeof dealDamage === 'function') dealDamage(player, aa, 12000, 18);
-    aa.vx = 0; aa.vy = -12;
-    player._rgsRiftZones.push({ x: aa.cx(), y: aa.cy(), r: 120, timer: 0, maxTimer: 300 });
+    if (near) {
+      if (typeof dealDamage === 'function') dealDamage(player, aa, 12000, 18);
+      aa.vx = 0; aa.vy = -12;
+    }
+    player._rgsRiftZones.push({ x: zx, y: zy, r: 120, timer: 0, maxTimer: 300 });
     if (typeof spawnParticles === 'function') {
-      for (let i = 0; i < 4; i++) spawnParticles(aa.cx(), aa.cy(), '#cc88ff', 16);
+      for (let i = 0; i < 4; i++) spawnParticles(zx, zy, '#cc88ff', 16);
     }
     if (typeof CinFX !== 'undefined') CinFX.flash('#cc88ff', 0.65, 20);
     if (typeof screenShake !== 'undefined') screenShake = Math.max(screenShake, 26);
   } else if (load === 2) {
     // Fracture Staff: Reality Fracture — 6 sustained DoT zones radiate from AA
     if (typeof showBossDialogue === 'function') showBossDialogue('Reality Fracture!', 120);
-    if (typeof dealDamage === 'function') dealDamage(player, aa, 6000, 10);
+    if (near && typeof dealDamage === 'function') dealDamage(player, aa, 6000, 10);
     for (let i = 0; i < 6; i++) {
       const angle = (Math.PI * 2 / 6) * i;
       player._rgsRiftZones.push({
-        x: aa.cx() + Math.cos(angle) * 80, y: aa.cy() + Math.sin(angle) * 60,
+        x: zx + Math.cos(angle) * 80, y: zy + Math.sin(angle) * 60,
         r: 65, timer: 0, maxTimer: 420,
       });
     }
@@ -2270,11 +2333,13 @@ function _rgsUseSuper(player, aa, load) {
   } else {
     // Titan's Gauntlet: Titan's Fall — slams AA into the ground + shockwave rings
     if (typeof showBossDialogue === 'function') showBossDialogue("Titan's Fall!", 120);
-    aa.vy = 28; aa.vx = 0;
-    aa._stunFrames = Math.max(aa._stunFrames || 0, 100);
-    if (typeof dealDamage === 'function') dealDamage(player, aa, 10000, 20);
+    if (near) {
+      aa.vy = 28; aa.vx = 0;
+      aa._stunFrames = Math.max(aa._stunFrames || 0, 100);
+      if (typeof dealDamage === 'function') dealDamage(player, aa, 10000, 20);
+    }
     for (let i = 0; i < 3; i++) {
-      player._rgsTimeBubbles.push({ x: aa.cx(), y: aa.cy(), r: i * 30, maxR: 160 + i * 50, timer: 0, maxTimer: 50 + i * 18, isTitanShock: true });
+      player._rgsTimeBubbles.push({ x: zx, y: zy, r: i * 30, maxR: 160 + i * 50, timer: 0, maxTimer: 50 + i * 18, isTitanShock: true });
     }
     if (typeof CinFX !== 'undefined') CinFX.flash('#ff6622', 0.7, 22);
     if (typeof screenShake !== 'undefined') screenShake = Math.max(screenShake, 32);
@@ -2605,7 +2670,7 @@ function _drawRGSHud(W, H) {
   ctx.fillStyle = '#ddd';
   ctx.font = '9px monospace';
   const qReady = player._rgsAbilityCd <= 0;
-  const eReady = player._rgsSuperCd   <= 0;
+  const eReady = player._rgsSuperCd   <= 0 && player.superMeter >= 100;
   ctx.fillText(`Q: ${ldata.qDesc}`, panX + 8, panY + 58);
   ctx.fillText(`E: ${ldata.superDesc}`, panX + 8, panY + 70);
 
@@ -2617,7 +2682,7 @@ function _drawRGSHud(W, H) {
   ctx.fillRect(panX + 8, panY + 74, (panW - 16) * qFrac, 5);
 
   // E super cooldown bar
-  const eFrac = eReady ? 1 : 1 - player._rgsSuperCd / 360;
+  const eFrac = eReady ? 1 : Math.min(1, (player.superMeter || 0) / 100);
   ctx.fillStyle = '#333';
   ctx.fillRect(panX + 8, panY + 82, panW - 16, 5);
   ctx.fillStyle = eReady ? '#ff6622' : '#442200';
@@ -2628,7 +2693,7 @@ function _drawRGSHud(W, H) {
   ctx.font = '8px monospace';
   ctx.fillText(qReady ? 'Q ABILITY READY' : `Q ${Math.ceil(player._rgsAbilityCd/60)}s`, panX + 8, panY + 97);
   ctx.textAlign = 'right';
-  ctx.fillText(eReady ? 'E SUPER READY' : `E ${Math.ceil(player._rgsSuperCd/60)}s`, panX + panW - 8, panY + 97);
+  ctx.fillText(eReady ? 'E SUPER READY' : `E ${Math.floor(player.superMeter || 0)}%`, panX + panW - 8, panY + 97);
   ctx.textAlign = 'left';
 
   // Jumps remaining

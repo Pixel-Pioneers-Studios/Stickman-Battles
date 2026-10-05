@@ -168,7 +168,7 @@ function refreshMegaknightClassOption() {
     if (sel && !sel.querySelector('option[value="megaknight"]')) {
       const opt = document.createElement('option');
       opt.value = 'megaknight';
-      opt.textContent = 'Megaknight ★';
+      opt.textContent = 'Knight ★';
       sel.appendChild(opt);
     }
   });
@@ -410,7 +410,7 @@ function switchArenaWithTransition(newArenaKey, callback) {
 function switchArena(newKey) {
   if (!gameRunning) return;
   const OFFMAP = ['creator', 'void', 'soccer'];
-  if (OFFMAP.includes(newKey) || ARENAS[newKey]?.isStoryOnly || ARENAS[newKey]?.isExploreArena || ARENAS[newKey]?.isTrainingOnly || ARENAS[newKey]?.isStudioArena) return;
+  if (OFFMAP.includes(newKey) || ARENAS[newKey]?.isStoryOnly || ARENAS[newKey]?.isMinigameOnly || ARENAS[newKey]?.isExploreArena || ARENAS[newKey]?.isTrainingOnly || ARENAS[newKey]?.isStudioArena) return;
   currentArenaKey = newKey;
   if (currentArenaKey !== 'lava') randomizeArenaLayout(currentArenaKey);
   currentArena = ARENAS[currentArenaKey];
@@ -496,6 +496,10 @@ function openSettingsModal() {
   if (svEl) svEl.checked = settings.storyVoice !== false;
   const rcEl = document.getElementById('settingReplayMode');
   if (rcEl) rcEl.checked = !!settings.replayMode;
+  const qfhEl = document.getElementById('settingQuickFightHazards');
+  if (qfhEl) qfhEl.checked = !!settings.quickFightHazards;
+  const apEl = document.getElementById('settingAutoPerf');
+  if (apEl) apEl.checked = settings.autoPerf !== false;
   const aqEl = document.getElementById('settingAnimQuality');
   if (aqEl) aqEl.checked = settings.animQuality !== 'classic';
 }
@@ -598,6 +602,16 @@ function updateSettings() {
     settings.replayMode = replayModeEl.checked;
     localStorage.setItem('smc_replayMode', settings.replayMode ? '1' : '0');
   }
+  const qfHazEl = document.getElementById('settingQuickFightHazards');
+  if (qfHazEl) {
+    settings.quickFightHazards = qfHazEl.checked;
+    localStorage.setItem('smc_qfHazards', settings.quickFightHazards ? '1' : '0');
+  }
+  const autoPerfEl = document.getElementById('settingAutoPerf');
+  if (autoPerfEl) {
+    settings.autoPerf = autoPerfEl.checked;
+    localStorage.setItem('smc_autoPerf', settings.autoPerf ? '1' : '0');
+  }
   const hideHudEl = document.getElementById('settingHideHud');
   if (hideHudEl) {
     settings.hideHud = hideHudEl.checked;
@@ -616,8 +630,9 @@ function toggleAdvanced() {
 let _performanceModeActive = false;
 let _perfModePrevSettings = null;
 
-function togglePerformanceMode() {
+function togglePerformanceMode(auto) {
   const btn = document.getElementById('perfModeBtn');
+  if (auto !== true) _autoPerfUserSet = true; // the player's choice always wins
   _performanceModeActive = !_performanceModeActive;
 
   if (_performanceModeActive) {
@@ -658,6 +673,34 @@ function togglePerformanceMode() {
   }
 
   updateSettings();
+}
+
+// ── Auto performance mode ────────────────────────────────────────────────────
+// Most players never open settings, so on a machine that can't hold frame rate
+// the effects stay on and the game just feels sluggish. If a live match spends
+// a ~240-frame window averaging below 50fps (the sim is per-frame, so that is
+// also the game itself running 17%+ slow), switch Performance Mode on once and
+// say so. Never overrides a player who toggled it themselves, and the
+// "Auto Performance Mode" setting (settings.autoPerf) turns it off entirely.
+let _autoPerfUserSet = false, _autoPerfDone = false;
+let _autoPerfPrev = 0, _autoPerfN = 0, _autoPerfSum = 0;
+function autoPerfSample(ts) {
+  if (_autoPerfDone || _autoPerfUserSet || _performanceModeActive || settings.autoPerf === false) return;
+  const dt = ts - _autoPerfPrev;
+  _autoPerfPrev = ts;
+  if (!(dt > 0) || dt > 250) return; // first frame, tab switch, load hitch
+  // Average, not a count of slow frames: a struggling machine often alternates
+  // fast and dropped frames, which a majority vote never flags.
+  _autoPerfN++;
+  _autoPerfSum += dt;
+  if (_autoPerfN < 240) return;
+  const slow = _autoPerfSum / _autoPerfN > 20;
+  _autoPerfN = 0; _autoPerfSum = 0;
+  if (!slow) return;
+  _autoPerfDone = true;
+  togglePerformanceMode(true);
+  if (typeof showToast === 'function')
+    showToast('Low frame rate detected: Performance Mode turned on (Settings to change)', 4000);
 }
 
 // ── Changelog ─────────────────────────────────────────────────────────────────
@@ -791,8 +834,8 @@ function closeChangelogModal() {
 function _initVersionLabels() {
   const badge    = document.getElementById('homeVersionBadge');
   const settings = document.getElementById('settingsVersionLabel');
-  if (badge)    badge.textContent    = 'v' + GAME_VERSION;
-  if (settings) settings.textContent = 'v' + GAME_VERSION;
+  if (badge)    badge.textContent    = '';
+  if (settings) settings.textContent = '';
 }
 
 // ── Custom Weapons Panel ──────────────────────────────────────────────────────

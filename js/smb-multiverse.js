@@ -422,6 +422,7 @@ const MultiverseManager = (function() {
   let _gravFlipTimer = 0;
   let _gravFlipping  = false;
   let _shadowFogAlpha = 0;
+  let _worldXform = null;
 
   return {
     // ── Accessors ───────────────────────────────────────────
@@ -549,10 +550,12 @@ const MultiverseManager = (function() {
       if (!world) return;
       const m = world.modifier;
 
-      // Gravity Flux: periodic flip
+      // Gravity Flux: inverts every gravityFlipInterval frames and snaps back
+      // after gravityFlipDuration.
       if (m.gravityFlipInterval && players) {
         _gravFlipTimer++;
-        if (_gravFlipTimer >= m.gravityFlipInterval) {
+        const _span = _gravFlipping ? (m.gravityFlipDuration || m.gravityFlipInterval) : m.gravityFlipInterval;
+        if (_gravFlipTimer >= _span) {
           _gravFlipTimer = 0;
           _gravFlipping = !_gravFlipping;
           // Toggle gravity for all non-boss players
@@ -590,6 +593,9 @@ const MultiverseManager = (function() {
     // ── Per-frame draw (game-world space) ─────────────────────
     draw() {
       if (!_active) return;
+      // The shadow fog is drawn in screen space; keep the camera transform so it
+      // can centre on the player in scrolling worlds.
+      _worldXform = (typeof ctx.getTransform === 'function') ? ctx.getTransform() : null;
       const world = this.getActiveWorld();
       if (!world) return;
       const m = world.modifier;
@@ -605,7 +611,7 @@ const MultiverseManager = (function() {
 
       // Gravity flip warning bar
       if (m.gravityFlipInterval) {
-        const progress = _gravFlipTimer / m.gravityFlipInterval;
+        const progress = _gravFlipTimer / (_gravFlipping ? (m.gravityFlipDuration || m.gravityFlipInterval) : m.gravityFlipInterval);
         const barW = GAME_W * progress;
         ctx.save();
         ctx.globalAlpha = 0.35;
@@ -636,10 +642,11 @@ const MultiverseManager = (function() {
       // Shadow Realm: darkness vignette overlay
       if (world.modifier.visibilityRadius && _shadowFogAlpha > 0 && players && players[0]) {
         const p   = players[0];
-        const scX = canvas.width  / GAME_W;
-        const scY = canvas.height / GAME_H;
-        const px  = p.cx() * scX;
-        const py  = p.cy() * scY;
+        const T   = _worldXform;
+        const scX = T ? T.a : canvas.width  / GAME_W;
+        const scY = T ? T.d : canvas.height / GAME_H;
+        const px  = p.cx() * scX + (T ? T.e : 0);
+        const py  = p.cy() * scY + (T ? T.f : 0);
         const r   = world.modifier.visibilityRadius * Math.min(scX, scY);
 
         ctx.save();

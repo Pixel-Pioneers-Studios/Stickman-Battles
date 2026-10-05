@@ -85,6 +85,14 @@ const SMK2_HABIT_DESCENT_LINES = [
   'You\'ve been catching my landings. Not anymore.',
   'I won\'t float into your reach again.',
 ];
+// One-strike scars (SovereignMK2._scarBurn): said the first time a method is
+// barred for the rest of the match.
+const SMK2_SCAR_LINES = [
+  'Once.',
+  'That worked one time. It won\'t work twice.',
+  'Noted. Never again.',
+  'You only get that once.',
+];
 // Match-start read (SovereignMK2._habitDossierLine): what his persisted habit
 // record already says about THIS player — gathered in earlier fights with him and
 // scouted from the player's fights with everyone else (js/smb-sov-habits.js).
@@ -100,6 +108,22 @@ const SMK2_DOSSIER_LINES = {
   watched: [
     'I\'ve been watching your other fights.',
     'Every enemy you\'ve fought told me something about you.',
+  ],
+};
+// Gamble mode (SovereignMK2._gambleTick): spoken when he commits to a new plan,
+// keyed by the plan he is switching TO.
+const SMK2_GAMBLE_LINES = {
+  pressure_ground: [
+    'No more feeling you out.',
+    'Keep up, then.',
+  ],
+  bait_whiff_punish: [
+    'Go on. Swing first.',
+    'You answer everything I do. So I\'ll do nothing.',
+  ],
+  spacing_poke: [
+    'You like it close. Stay out there.',
+    'I know exactly how far you reach.',
   ],
 };
 const SMK2_EVOLUTION_LINES = [

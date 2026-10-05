@@ -38,7 +38,7 @@ const FIG_NECK    = 5;
 const FIG_ARM_LEN = 24;   // drives melee reach — do not retune for looks alone
 const FIG_LEG_LEN = 31;   // was 27; +4 exactly offsets the smaller head, keeping feet at y+86
 const FIG_SHOULDER_DY = FIG_HEAD_R * 2 + 2 + FIG_NECK;   // head top -> shoulder
-const FIG_LINE_W  = 6;    // was 5 — thicker limbs hold up against detailed backgrounds
+const FIG_LINE_W  = 3.8;  // outlined stickman model: thin limbs, dark interior, bright contour
 
 // ============================================================
 // SERVER SYNC CONFIGURATION
@@ -62,11 +62,65 @@ const SERVER_CONFIG = {
 // ============================================================
 const CHANGELOG = [
   {
+    version: '4.5.0',
+    title: 'EVERY MOVE A SCENE',
+    date: '2026-10-04',
+    flavor: 'Abilities and supers play out like short fight scenes, every one of them has a finisher, and Battle Royale finally lets you finish someone without stopping the match.',
+    isLatest: true,
+    changes: [
+      { cat: 'Combat',  text: 'Every ability (Q) and super (E) is now a short scripted scene: the move carries you and your target through its own choreography and nothing outside can interrupt it. A held target with a full super meter can press super to break out' },
+      { cat: 'Combat',  text: 'Scenes never carry anyone off a ledge. An ability\'s final launch is softened near the edge; a super\'s is not, because a super is a kill move' },
+      { cat: 'Cinematic', text: 'Each ability and super has its own finisher, 51 in all. A kill landed by a move plays that move\'s finisher instead of the weapon\'s generic one' },
+      { cat: 'Mode',    text: 'Battle Royale has finishers. They play only on your screen, when you land one or are hit by one, and the match keeps running around you. Both fighters are invulnerable and ignored by bots until it ends, and finishing someone heals you 25' },
+      { cat: 'Mode',    text: 'Battle Royale bots heal 25 for every elimination, on screen or off' },
+      { cat: 'Mode',    text: 'Killing the beast or the yeti in Battle Royale offers you its form: its body, moves and toughness, with a form health bar on top of your own. Press F to take it or G to turn it down. Bots earn forms the same way' },
+      { cat: 'Mode',    text: 'Battle Royale bots fight each other off screen now, so the field thins out across the match instead of the storm killing 38 at once at the end. Eliminated fighters drop their weapon and bag' },
+      { cat: 'Mode',    text: 'Fight Ladder: ten 1v1 rungs against bots, each harder than the last, with coins for every win. New players start on the first rung' },
+      { cat: 'Network', text: 'Public Server: a hostless lobby of up to 10 players. It starts as a free-for-all in Mega City with roaming bots, and every five minutes players vote on the next mode' },
+      { cat: 'Mode',    text: 'Nexus Defense was a guaranteed loss at wave 4. Rushers can be knocked back now, waves arrive in a stream instead of all at once, and the Nexus repairs between waves' },
+      { cat: 'Combat',  text: 'Combo scaling: from the third hit of a combo on, each hit deals less (90%, 75%, 60%, then 50%). Supers never drop below 70%' },
+      { cat: 'Combat',  text: 'Two basic swings in a row that both land is the limit; a third shows SWITCH IT UP. A whiffed swing does not count toward it' },
+      { cat: 'Combat',  text: 'Only one fighter at a time can keep you stunned. While someone else\'s hit has you stunned, a second attacker\'s hits still deal damage but cannot stun you again' },
+      { cat: 'Combat',  text: 'Shields are one pool of 50 instead of a ladder of weakening raises. Hits drain it, it refills after a short rest, and you can swing straight out of guard. A blocked melee swing leaves the attacker open for 14 extra frames' },
+      { cat: 'Combat',  text: 'Weapon hitboxes now match the drawn weapon, including its length and grip angle. Left-facing swings used to tilt the opposite way to right-facing ones' },
+      { cat: 'Balance', text: 'Weapon pass: every super now deals at least 18 damage per use and almost every ability at least 10. Gun Burst Shot no longer decays to 10% damage for the rest of the match, and Flail Orbit Storm hits what it touches' },
+      { cat: 'Balance', text: 'Throwing Knives fly faster (18, was 14), come back faster on Recall, and are bigger with a matching hitbox' },
+      { cat: 'Visual',  text: 'Hits shake the world: loose dirt, sparks and cracks thrown from the arena itself, picked per arena' },
+      { cat: 'Visual',  text: 'A new running animation, taken from slow-motion footage of a real runner' },
+      { cat: 'Story',   text: 'Story difficulty: Normal, Challenge and Evolution. Evolution enemies resist a move you keep repeating, and harder difficulties pay more' },
+      { cat: 'Story',   text: 'Every story chapter has its own hand-built map, with climbs, drops, portals, water and set pieces that match the story' },
+      { cat: 'Story',   text: 'The chapter list is a star chart of 24 worlds. Zoom into a world to pick a chapter. The old list is still one toggle away' },
+      { cat: 'Story',   text: 'Hidden caches are visible again in themed worlds, tunnel mazes lead to them, and rest checkpoints break up long levels' },
+      { cat: 'Story',   text: 'True Form is now called Cosmic Axiom, and canon explains where its power comes from', spoilerLevel: 2 },
+      { cat: 'Boss',    text: 'God and the final secret boss are telegraph-and-punish fights instead of standing still and clicking. Attacks show where they will land, stuns are capped, and super meter no longer refills every couple of swings', spoilerLevel: 3 },
+      { cat: 'UI',      text: 'Achievements have their own badges, tiers and categories, and a trophy button on the home screen. Locked achievements tell you how to earn them' },
+      { cat: 'UI',      text: 'Mobile: the second player\'s pad no longer appears in single-player modes, and its super button no longer pauses the game' },
+      { cat: 'Fix',     text: 'Bots on the Ice arena brake before sliding off the edge. They used to chase you straight off the end of the floor' },
+      { cat: 'Fix',     text: 'Cloud Kingdom gravity is much stronger. A jump plus double jump used to rise 834px' },
+      { cat: 'Fix',     text: 'Multiverse Gravity Flux really flips gravity now, and the kill feed names the fighter who scored the KO' },
+      { cat: 'Fix',     text: 'Settings > Reset Progress really resets now. The save was written straight back as the page closed' },
+    ],
+  },
+  {
+    version: '4.4.1',
+    title: 'COMBAT BALANCE',
+    date: '2026-09-26',
+    flavor: 'Class perks you can no longer skip, and a Sword that stops deleting half a health bar every three seconds.',
+    isLatest: false,
+    changes: [
+      { cat: 'Balance', text: 'Class perks fire at 55% health (was 15-25%). One heavy hit used to carry a fighter from above the threshold straight to zero, so the perk never went off at all. Only a near one-shot can skip it now' },
+      { cat: 'Balance', text: 'Torren\'s Lightning Storm still strikes if Torren falls during its windup' },
+      { cat: 'Balance', text: 'Sword Blade Storm hit a close target twice, with the burst and then the forward arc — 46 damage every 3 seconds, double any other melee ability. It now hits each target once (24), and its cooldown is 4 seconds (was 3)' },
+      { cat: 'Balance', text: 'Whip Lasso hooked for 2.5 seconds on a 2.5-second cooldown, so a steady Lasso kept every lash a critical hit forever. The hook now lasts 1.5 seconds and the cooldown is 3.5. A tip crack hits for 20 (was 23)' },
+      { cat: 'Balance', text: 'Combat (fists) 19 damage to 16, and a little slower between punches. Spamming it killed faster than any other weapon' },
+    ],
+  },
+  {
     version: '4.4.0',
     title: 'THE ARSENAL UPDATE',
     date: '2026-09-24',
     flavor: 'Six new weapons, three new classes, a stadium with four sports in it, and hits that finally land when they should.',
-    isLatest: true,
+    isLatest: false,
     changes: [
       // ── Weapons & classes ─────────────────────────────────────────────────
       { cat: 'Weapon', text: 'Bomb — lobbed bombs that roll along the floor and set each other off. Q throws stickies that cling to floors, walls and enemies, up to six at once; hold it to set the whole field off together' },
@@ -146,7 +200,7 @@ const CHANGELOG = [
       { cat: 'Visual', text: 'Ten card designs, each with its own colour and glow, collapsed onto one surface. A row of them used to read as unrelated products' },
       { cat: 'UI',     text: 'The home screen opens on your own progress — your name, level, coins, and the chapter you stopped on, with one button to resume it. Every mode is visible as a tile instead of hidden two clicks behind a pair of cards, and the first-run tutorial offer no longer sits in the middle of the screen as an accept-or-dismiss bar' },
       { cat: 'Visual', text: 'New home screen art: instead of a figure standing still, you come through the rift mid-dash with hunters closing from the other side' },
-      { cat: 'Visual', text: 'Loading screens are animated scenes now, one for each situation — story, boss, True Form, Battle Royale, minigames, training, online and versus. Three still images had been covering six modes between them, and Battle Royale and online matches had no art of their own at all' },
+      { cat: 'Visual', text: 'Loading screens are animated scenes now, one for each situation — story, boss, Cosmic Axiom, Battle Royale, minigames, training, online and versus. Three still images had been covering six modes between them, and Battle Royale and online matches had no art of their own at all', spoilerLevel: 2 },
 
       // ── Fixes ─────────────────────────────────────────────────────────────
       { cat: 'Fix',    text: 'Checkmarks sat off-centre in every checkbox in the game. The tick was positioned by hand against a box that two competing rules had made 18 by 15 pixels — not square, so no amount of nudging could have centred it' },
@@ -200,7 +254,7 @@ const CHANGELOG = [
       { cat: 'Fix', text: 'The gravity pulse dealt no damage at all — it dragged you in and then could not punish you for being there. It crushes on a falloff now' },
       { cat: 'Fix', text: 'A boss waiting offstage between phases could still land hazard damage on you from two thousand pixels away with nothing visible on screen to blame' },
       { cat: 'Fix', text: 'Dying clears a boss\'s lingering debuffs. Size was already restored on respawn but inverted gravity and inverted controls were not, so you came back still mirrored from a hit you had already paid a life for' },
-      { cat: 'Balance', text: 'True Form hits for 0.85x across all of its attacks, tuned in one place so its twenty-six damage sources stay in proportion to each other', spoilerLevel: 2 },
+      { cat: 'Balance', text: 'Cosmic Axiom hits for 0.85x across all of its attacks, tuned in one place so its twenty-six damage sources stay in proportion to each other', spoilerLevel: 2 },
       { cat: 'AI',  text: 'The Sovereign keeps a dossier on you. His adaptation had no opponent terms in it at all — every input was about himself — so he converged to the same fighter against a hammer berserker, a katana assassin and a spear zoner alike. He now remembers by kit and by fighting style, so what he learns transfers to opponents he has never met, and a rematch starts more than twice as close to where the last one ended', spoilerLevel: 3 },
       { cat: 'AI',  text: 'His counter-picking reads a weapon\'s authored class and its reach instead of guessing from cooldown — spear, scythe and katana all read as heavy to him, and nothing in the decision looked at range, so he would answer a 130-reach spear with an 80-reach hammer and walk into pokes all match', spoilerLevel: 3 },
       { cat: 'AI',  text: 'He stops retreating from domains that do not need him close. Against hazard-rain domains distance buys him nothing and costs him his entire offense — he spent one whole domain at zero attack uptime, 40% stunned, took 142 and dealt nothing. He also no longer gets pulled off the corner by the ring-out guard, which is where his kills come from', spoilerLevel: 3 },
@@ -241,7 +295,7 @@ const CHANGELOG = [
       { cat: 'Fix',    text: 'Being launched into the air no longer locks you out of the fight. Every anti-combo protection in the game only ever limited horizontal knockback, so attacks that throw you straight UP slipped past all of it — a fighter held above the floor could be re-launched forever without ever touching ground. Repeated launches now weaken, so you always land' },
       { cat: 'Fix',    text: 'The safeguard that caps how long you can be stun-locked had never once activated. It only recognised a chain if hits landed within four frames of each other, but real attack speeds are closer to thirty — so it saw every hit as a fresh start and never triggered. It now measures against when your last stun was due to end, which is what it was always meant to do' },
       { cat: 'Combat', text: 'Hammer\'s Ground Shockwave, Spear\'s Ground Spike and Frying Pan\'s Ground Pound set your upward speed directly, ignoring every launch protection. All three now go through the shared system — they hit exactly as hard, they just cannot juggle you indefinitely' },
-      { cat: 'Fix',    text: 'Megaknight is barred from boss encounters. It is a joke class with deliberately silly numbers, and it trivialised fights that are meant to be the hardest in the game. Pick it for a boss and you will be handed a random real class instead — it is untouched everywhere else' },
+      { cat: 'Fix',    text: 'Knight is barred from boss encounters. It is a joke class with deliberately silly numbers, and it trivialised fights that are meant to be the hardest in the game. Pick it for a boss and you will be handed a random real class instead — it is untouched everywhere else' },
       { cat: 'AI',     text: 'The Sovereign no longer sits on a full super bar waiting for a perfect opening that never comes, and can break out of being juggled once his blade discharges — he pays for it with a long cooldown, so sustained pressure still beats him', spoilerLevel: 3 },
       { cat: 'Mode',   text: 'Training mode gained a measurement lab (F5, or the Lab button): live frame data for your current weapon — startup, active, recovery and cooldown — plus a readout of how much of the fight your opponent has spent unable to act, and a hit log showing the damage and knockback actually applied after every cap and scaling rule' },
       { cat: 'Mode',   text: 'Training dummies do something now. They can stand, block, jump or counter-attack on a fixed delay, so you can practise against a guard, test whether a string is safe, and measure your own punish windows' },
@@ -351,7 +405,7 @@ const CHANGELOG = [
       { cat: 'Story', text: 'Hidden caches — walking chapters now hide treasure chests off the beaten path; a minor cache sits within reach, while an elite cache waits on a high perch behind a Vault Warden who will not let you open it while he breathes. Loot never respawns once taken' },
       { cat: 'Story', text: 'Continuous regions — a stretch of the campaign now plays as one unbroken world; crossing a border completes the chapter and the road simply keeps going, no fade, no menu' },
       { cat: 'Story', text: 'The story opens differently now — an ordinary man, an ordinary Tuesday, and the moment everything after it stopped being ordinary' },
-      { cat: 'Story', text: 'Two classes carry new names — Torren (formerly Thor) and Varek (formerly Kratos); the dead bearers behind them finally have names of their own, and their rage, storms, and domains are renamed to match' },
+      { cat: 'Story', text: 'Two classes carry new names — Torren and Varek; the dead bearers behind them finally have names of their own, and their rage, storms, and domains are renamed to match' },
       { cat: 'Story', text: 'Joke weapons no longer wander into the campaign — frying pans, peashooters, and paper airplanes stay in versus and sandbox where they belong' },
       { cat: 'AI',    text: 'Late-campaign named and elite opponents now study you — they profile your habits in real time instead of running fixed scripts' },
       { cat: 'Fix',   text: 'Stealth chapters actually work now — authored alert zones were being ignored entirely and the alarm timer was so generous you could stand in a spotlight; zones trigger where designed and guards respond in about a second' },
@@ -456,8 +510,8 @@ const CHANGELOG = [
       { cat: 'UI',      text: 'Story shop separated into a standalone full-screen modal; skill tree likewise moved to its own dedicated canvas-rendered interactive modal with animated edge connectors and live unlock flow — both previously lived inside a combined store tab' },
       { cat: 'Visual',  text: 'Axiom Prequel ending cinematic expanded — void cracks grow from screen corners across beats 2–9; companion silhouettes appear one by one at the portal edge and walk through; Axiom\'s silhouette enters the portal on beat 1 with a burst flash; the visuals now carry the weight the dialogue describes' },
       { cat: 'Story',   text: 'A long arc was added past the end of Act VII — the oldest threat in the world, with no body and no name; it ends where everything ends', spoilerLevel: 3 },
-      { cat: 'Story',   text: 'Act VIII bridge chapters (IDs 136–139) added, connecting the True Form resolution to the God domain; interlude chapter type added for cinematic walking scenes with no combat' },
-      { cat: 'Admin',   text: 'Divine Summon (H key) — a Herald sweeps the arena and destroys all AI enemies; admin-only, 2-minute cooldown; blocked in boss, True Form, God, and exploration modes' },
+      { cat: 'Story',   text: 'Act VIII bridge chapters (IDs 136–139) added, connecting the Cosmic Axiom resolution to the God domain; interlude chapter type added for cinematic walking scenes with no combat', spoilerLevel: 2 },
+      { cat: 'Admin',   text: 'Divine Summon (H key) — a Herald sweeps the arena and destroys all AI enemies; admin-only, 2-minute cooldown; blocked in boss, Cosmic Axiom, God, and exploration modes', spoilerLevel: 2 },
     ],
   },
   {
@@ -501,13 +555,13 @@ const CHANGELOG = [
       { cat: 'Visual',  text: 'Swing trails now take their shape from each weapon\'s real motion: thrusts leave straight streaks, smashes vertical crescents, sweeps huge arcs — with per-weapon width, length, and persistence' },
       { cat: 'Visual',  text: 'Ranged weapons no longer play a melee swing when firing — each has its own firing pose: gun recoil kick, slingshot draw-and-release, overhand airplane throw, sidearm boomerang throw, steady bow aim' },
       { cat: 'Visual',  text: 'Weapons no longer all tilt the same way mid-attack — grip angle is per-weapon, so spears point forward and guns stay level' },
-      { cat: 'Polish',  text: 'Megaknight\'s drawn arm now follows its actual uppercut arc — the visual previously played a generic slash while the hitbox swept upward' },
+      { cat: 'Polish',  text: 'Knight\'s drawn arm now follows its actual uppercut arc — the visual previously played a generic slash while the hitbox swept upward' },
       { cat: 'Audio',   text: 'Per-weapon hit sounds — heavy weapons land with a deep concussive thud, thrusts with a sharp pierce, the whip with an audible crack, the electric staff with a zap, and the frying pan with the clang it always deserved' },
       { cat: 'Visual',  text: 'Per-weapon hit sparks upgraded — smashes kick up ground dust and impact rings, thrusts streak sparks along the attack line, the whip bursts at the crack point, the katana cuts clean with minimal flash' },
       { cat: 'Visual',  text: 'Weapons are now carried differently out of combat — spear and broomstick shouldered, hammer rested over the shoulder, katana held low at the hip, scythe upright, flail dangling, combat gloves up in a guard, gun at low ready' },
       { cat: 'Visual',  text: 'Player face redesigned — proper two-eye 3/4 view with centered pupils and a catchlight, eyebrows that sit above the eyes instead of floating at the top of the head, and soft head shading for volume; all expressions (cool, focused, intense, hurt) carried over' },
-      { cat: 'Visual',  text: 'Conviction entrances cleaned up — the chaotic radial line-scribble bursts on activation are gone, replaced by clean expanding shockwave rings and a hard anime impact-frame cut at the name-card slam; Kratos\'s floating red heat bar is now a soft ground-hugging glow' },
-      { cat: 'Story',   text: 'Every story act now has its own cinematic identity — per-act color grading, letterbox depth, narration-bar tint, and a signature ambient motif in all cutscenes: drifting dust in the Home City, fracture shards in the Network, falling embers through the war, reality tears near True Form, kernel pulse rings at the very end' },
+      { cat: 'Visual',  text: 'Conviction entrances cleaned up — the chaotic radial line-scribble bursts on activation are gone, replaced by clean expanding shockwave rings and a hard anime impact-frame cut at the name-card slam; Varek\'s floating red heat bar is now a soft ground-hugging glow' },
+      { cat: 'Story',   text: 'Every story act now has its own cinematic identity — per-act color grading, letterbox depth, narration-bar tint, and a signature ambient motif in all cutscenes: drifting dust in the Home City, fracture shards in the Network, falling embers through the war, reality tears near Cosmic Axiom, kernel pulse rings at the very end', spoilerLevel: 2 },
       { cat: 'Story',   text: 'Story cutscenes gained cinematic language — beats now transition (fade, white flash-cut with shake, or whip-pan with motion streaks) instead of hard-cutting, narration captions fade in with an act-colored accent, and scenes can play audio stings: a dread swell, a tension riser, an impact boom, or a sudden hush' },
       { cat: 'Combat',  text: 'Eleven weapons that had NO finisher now have one — Iaijutsu (Katana), Judgment Lash (Whip), Wrecking Ball (Flail), Overload (Electric Staff), Aegis Break (Shield), Clean Sweep (Broomstick), Full Bloom (Pea Shooter), Orbital Stone (Slingshot), A Thousand Folds (Paper Airplane), Infinite Return (Boomerang), and Incinerate (Flamethrower)' },
       { cat: 'Fix',     text: 'Story maps no longer have walkable land beyond the boundary portals — the ground now ends just past the portal, and the reality-enforcement teleport can no longer place you outside the map' },
@@ -587,7 +641,7 @@ const CHANGELOG = [
     isLatest: false,
     changes: [
       { cat: 'Mode',    text: 'Added Conviction — once you activate your super 5 times in a match, your class unleashes its personal Conviction: a 25-second environmental takeover that floods the arena with class-specific hazards; each class has a unique named conviction with its own atmosphere, hazard type, and owner buff' },
-      { cat: 'Mode',    text: 'Conviction roster — Thor: Storm Realm (relentless lightning strikes, speed boost); Kratos: Spartan War Domain (debris barrages, power boost); Ninja: Shadow Realm (reworked in 3.9.1 — time dilation); Gunner: Arsenal Domain (bullet storm); Archer: Verdant Hunt (arrow curtain); Paladin: Holy Sanctuary (holy beams, passive heal); Berserker: Blood Arena (speed + power + lifesteal, no environmental hazard — pure stats); further convictions are unlocked through progression' },
+      { cat: 'Mode',    text: 'Conviction roster — Torren: Storm Realm (relentless lightning strikes, speed boost); Varek: Spartan War Domain (debris barrages, power boost); Ninja: Shadow Realm (reworked in 3.9.1 — time dilation); Gunner: Arsenal Domain (bullet storm); Archer: Verdant Hunt (arrow curtain); Paladin: Holy Sanctuary (holy beams, passive heal); Berserker: Blood Arena (speed + power + lifesteal, no environmental hazard — pure stats); further convictions are unlocked through progression' },
       { cat: 'Mode',    text: 'Conviction entry plays a full cinematic sequence: world darkens, the class name card slams onto screen, a Dutch camera tilt locks in, and the arena atmosphere shifts to match the conviction\'s color and sky; sudden death is suppressed for the full duration' },
       { cat: 'Arena',   text: 'Added Training Grounds — a clean symmetry-balanced stage with 8 platforms across 4 height tiers; designed for combo drills, jump practice, and aerial/edge-guard training; only accessible in Training mode' },
       { cat: 'Visual',  text: 'Added cinematic speed lines — radial and directional burst effects used during finishers, Conviction entry, and heavy cinematic hits; cone, spread, count, and length are fully configurable' },
@@ -603,7 +657,7 @@ const CHANGELOG = [
       { cat: 'Achieve', text: 'Multiverse achievements added — Multiverse Warrior (conquer your first Multiverse world), Dimension Breaker (conquer all Multiverse worlds)' },
       { cat: 'Achieve', text: 'Progression achievements added — Fracture Explorer (enter a Fracture for the first time), Axiom Ship Complete (build the full Axiom Ship); Nexus Defender (survive 5 Nexus Defense waves); Pure Chaos (activate all chaos modifiers at once); Beyond Godhood (a secret — you\'ll know it when you see it)' },
       { cat: 'Combat',  text: 'Melee hitboxes tightened — vertical tolerance reduced from ±8 px to ±4 px; directional pruning added so hit points more than 12 px behind the attacker\'s facing direction are discarded; reduces phantom hits above/below and on rapid-turnaround frames' },
-      { cat: 'Combat',  text: 'Thor perk reworked — now fires 2 lightning strikes (was 3) after a 600 ms visual windup that telegraphs the attack; damage is now routed through the full combat pipeline so shields, multipliers, and combo limits apply; stun reduced from 45 to 25 frames; both bolts are fully dodgeable' },
+      { cat: 'Combat',  text: 'Torren perk reworked — now fires 2 lightning strikes (was 3) after a 600 ms visual windup that telegraphs the attack; damage is now routed through the full combat pipeline so shields, multipliers, and combo limits apply; stun reduced from 45 to 25 frames; both bolts are fully dodgeable' },
       { cat: 'Combat',  text: 'Damage multiplier cap — combined attacker buffs (class rage, abilities, map perks) are now capped at 3.5× the original hit value; prevents multiplicative stack-spikes at high-buff states while leaving normal combat completely unaffected' },
       { cat: 'AI',      text: 'Sovereign habit window extended from 6 to 12 recent actions for more stable pattern reads; anti-air counter now activates at 38% jump rate (was 50%), catching aerial-preference players sooner; habit confidence is penalised when the player mixes 3+ distinct action types in rapid succession' },
       { cat: 'AI',      text: 'Sovereign aerial tracking — Sovereign now tracks what fraction of the match the player spends airborne; once this exceeds 35%, it proactively jumps to match the player\'s altitude and engage in the air rather than waiting on the ground' },
@@ -650,7 +704,7 @@ const CHANGELOG = [
     flavor: 'Story Mode is no longer a corridor. It\'s a system — eight ways to play, one world that uses all of them.',
     isLatest: false,
     changes: [
-      { cat: 'Story',  text: 'Story Mode chapters are now multi-phase gauntlets — every fight chapter runs through a pacing engine that builds a sequence of 3–4 phases before the final encounter; boss and True Form chapters are excluded and launch directly as before' },
+      { cat: 'Story',  text: 'Story Mode chapters are now multi-phase gauntlets — every fight chapter runs through a pacing engine that builds a sequence of 3–4 phases before the final encounter; boss and Cosmic Axiom chapters are excluded and launch directly as before', spoilerLevel: 2 },
       { cat: 'Story',  text: 'Added Chase phase archetype — a timed traversal with a countdown bar; if the timer expires the run ends immediately; fires at chapters 24, 31, 38, 45 and later' },
       { cat: 'Story',  text: 'Added Survival Wave phase archetype — wave-defence mode in a compact 900px arena; enemies spawn in escalating waves from a state machine (countdown → active → between → victory); the arena locks the camera for the duration; fires at chapters 15, 20, 25, 30 and later' },
       { cat: 'Story',  text: 'Added Puzzle Lock phase archetype — replaces the opening phase with a mechanic challenge; three rotating variants: Timed Duel (one life, no mistakes), Marked Target (eliminate the priority target first), Platform Switch (high-ground advantage active); fires at chapters 11, 21, 41 and later' },
@@ -708,7 +762,7 @@ const CHANGELOG = [
       { cat: 'System',  text: 'Added cloud save system — create a free account and your progress syncs automatically across devices; unlocks, story chapters, cosmetics, and fracture state are all preserved' },
       { cat: 'System',  text: 'Save reconciliation on login merges local and cloud data non-destructively — unlocks, letters, achievements, and blueprints take the union; numeric stats keep the highest value; fracture branches merge by ID taking max progress; no progress is ever overwritten on sign-in' },
       { cat: 'System',  text: 'Save schema updated to v3 — adds coins, cosmetics, and new unlock flags (godEncountered, godDefeated, sovereignBeaten, storyOnline, paradoxCompanion, storyDodgeUnlocked, interTravel, patrolMode); existing saves migrate automatically on load' },
-      { cat: 'System',  text: 'All unlock writes (boss beaten, letters, True Form, Sovereign, God, TF Ending, Patrol Mode, Inter-Travel, Dodge Roll) now route through a centralized account-flag system — unlocks persist correctly on account switches and no longer require a full saveGame() call' },
+      { cat: 'System',  text: 'All unlock writes (boss beaten, letters, Cosmic Axiom, Sovereign, God, TF Ending, Patrol Mode, Inter-Travel, Dodge Roll) now route through a centralized account-flag system — unlocks persist correctly on account switches and no longer require a full saveGame() call', spoilerLevel: 2 },
       { cat: 'System',  text: 'Added debounced save queue — all save triggers batch into a single write per tick; prevents excessive localStorage writes during rapid state changes' },
       { cat: 'System',  text: 'Added "Save Your Progress" prompt — appears after completing Chapter 1 if not signed into a cloud account; one-time nudge with direct sign-up flow' },
       { cat: 'Account', text: 'Accounts now support password protection — set a password to lock your account; a 12-character recovery code is generated on password creation in case you forget it' },
@@ -725,10 +779,10 @@ const CHANGELOG = [
     version: '2.8.0',
     title: 'THE LOOP UPDATE',
     date: '2026-04-15',
-    flavor: 'Before you can reach True Form, it reaches you first. Escape the loop. Uncover what started it all. And take your shape.',
+    flavor: 'Before you can reach it, it reaches you first. Escape the loop. Uncover what started it all. And take your shape.',
     isLatest: false,
     changes: [
-      { cat: 'Story',   text: 'Added Eternal Damnation arc (Act 5, Ch. 91–92) — True Form sends an echo of itself inward before the player arrives; the dimension wall seals, trapping the player in a dying loop with 17 fractured echoes of past enemies', spoilerAct: 5 },
+      { cat: 'Story',   text: 'Added Eternal Damnation arc (Act 5, Ch. 91–92) — Cosmic Axiom sends an echo of itself inward before the player arrives; the dimension wall seals, trapping the player in a dying loop with 17 fractured echoes of past enemies', spoilerAct: 5 },
       { cat: 'Story',   text: 'Added Damnation arena — a crumbling loop-dimension stage exclusive to the Eternal Damnation gauntlet; platforms are removed in sequence as the escape window closes', spoilerAct: 5 },
       { cat: 'Story',   text: 'Added Lab Infiltration side mission (Ch. 93) — an abandoned research facility buried under a collapsed district; logs inside reveal the fractures were not an accident', spoilerAct: 5 },
       { cat: 'System',  text: 'Added Cosmetic Store — earn ⬡ coins by playing matches (5 per match, +10 for winning, +20 for beating the boss); spend them on character skins and weapon themes' },
@@ -749,7 +803,7 @@ const CHANGELOG = [
       { cat: 'System',   text: 'Added Fracture System — visible interdimensional tears appear in-world; before ship is built, only a 10-second preview with one branch guardian; after ship built, full branch entry and ruler boss fight available' },
       { cat: 'System',   text: 'Three fracture branches added: Alpha Branch (Vael), Null Branch (Kael), Crimson Branch (Sora) — each with its own ruler, lore, and combat challenge', spoilerAct: 4 },
       { cat: 'System',   text: 'Added Lore Moment system — ambient story beats fire at key progression milestones (first fracture, ship completion, ruler defeat) and persist across sessions' },
-      { cat: 'System',   text: 'Added Motivation Tracker — narrative context updates dynamically as Axiom\'s investigation progresses toward True Form' },
+      { cat: 'System',   text: 'Added Motivation Tracker — narrative context updates dynamically as Axiom\'s investigation progresses toward Cosmic Axiom', spoilerLevel: 2 },
       { cat: 'Polish',   text: 'Arena rendering pipeline split: Soccer and Void arena draw calls extracted to dedicated rendering submodule (js/rendering/smb-drawing-arenas.js) for cleaner separation' },
     ],
   },
@@ -776,16 +830,16 @@ const CHANGELOG = [
     version: '2.5.0',
     title: 'THE PARADOX UPDATE',
     date: '2026-03-28',
-    flavor: 'A multiversal being steps out of the background. Nothing about the Creator fight — or the True Form — will ever feel the same.',
+    flavor: 'A multiversal being steps out of the background. Nothing about the Creator fight — or what waits past it — will ever feel the same.',
     isLatest: false,
     requiredProgress: 1,
     changes: [
       { cat: 'Narrative', text: 'Introduced Paradox — a multiversal entity that exists at the edge of every major fight as a hidden force' },
-      { cat: 'Cinematic', text: 'True Form fight now opens with a 7-second pre-fight cinematic: Paradox and True Form clash evenly, True Form escalates, snaps Paradox\'s neck, and hurls them into a portal', spoilerLevel: 2 },
-      { cat: 'Cinematic', text: 'New 5-second cinematic at 30% True Form HP: True Form warps away, returns dragging Paradox, and attacks them repeatedly before the final stretch', spoilerLevel: 2 },
-      { cat: 'Cinematic', text: 'Creator fight now shows random background flashes of True Form and Paradox fighting as silhouettes (under 1 second each, every 11–20 seconds)' },
+      { cat: 'Cinematic', text: 'Cosmic Axiom fight now opens with a 7-second pre-fight cinematic: Paradox and Cosmic Axiom clash evenly, Cosmic Axiom escalates, snaps Paradox\'s neck, and hurls them into a portal', spoilerLevel: 2 },
+      { cat: 'Cinematic', text: 'New 5-second cinematic at 30% Cosmic Axiom HP: Cosmic Axiom warps away, returns dragging Paradox, and attacks them repeatedly before the final stretch', spoilerLevel: 2 },
+      { cat: 'Cinematic', text: 'Creator fight now shows random background flashes of Cosmic Axiom and Paradox fighting as silhouettes (under 1 second each, every 11–20 seconds)', spoilerLevel: 2 },
       { cat: 'Cinematic', text: 'Creator fight scripted moment at 50% HP: Boss punches Paradox out of the arena with a particle burst and unique dialogue' },
-      { cat: 'Mechanic',  text: 'True Form fight now begins with a damage lock phase — player deals 0 damage until Paradox Empowerment activates (8 seconds)', spoilerLevel: 2 },
+      { cat: 'Mechanic',  text: 'Cosmic Axiom fight now begins with a damage lock phase — player deals 0 damage until Paradox Empowerment activates (8 seconds)', spoilerLevel: 2 },
       { cat: 'Mechanic',  text: 'Paradox Empowerment grants 1.4× speed and 1.6× damage for 15 seconds with a pulsing cyan aura, restoring full combat after the lock', spoilerLevel: 2 },
       { cat: 'System',    text: 'Revive system reworked: Paradox now appears as a visual entity during the boss mercy revive, delivering randomized dialogue before restoring 2 lives' },
       { cat: 'Polish',    text: 'Paradox entity features a flickering black/cyan stickman with glitch offsets, scan-line artifacts, and a cyan particle trail' },
@@ -815,8 +869,8 @@ const CHANGELOG = [
     isLatest: false,
     requiredProgress: 1,
     changes: [
-      { cat: 'Fix',      text: 'True Form Code Realm: added double-jump so all 5 nodes are reachable', spoilerLevel: 2 },
-      { cat: 'Fix',      text: 'True Form Code Realm: lowered unreachable high nodes to proper jump height', spoilerLevel: 2 },
+      { cat: 'Fix',      text: 'Cosmic Axiom Code Realm: added double-jump so all 5 nodes are reachable', spoilerLevel: 2 },
+      { cat: 'Fix',      text: 'Cosmic Axiom Code Realm: lowered unreachable high nodes to proper jump height', spoilerLevel: 2 },
       { cat: 'Fix',      text: 'QTE: movement keys (WASD/arrows) now register correctly mid-QTE' },
       { cat: 'Fix',      text: 'QTE: phases now end after max attempts with penalty damage instead of looping forever' },
       { cat: 'Fix',      text: 'Large maps: camera now clamps to world bounds and no longer drifts off-edge' },
@@ -842,18 +896,18 @@ const CHANGELOG = [
       { cat: 'Story',    text: 'Implemented exploration chapters and cutscene dialogues' },
       { cat: 'Story',    text: 'Added major narrative twist: the fragment is the Creator\'s conscience', spoilerAct: 4 },
       { cat: 'Story',    text: 'Introduced the Void Mind as a post-campaign threat', spoilerAct: 6 },
-      { cat: 'Cinematic',text: 'Redesigned True Form ending into a 10-phase meta-breaking cinematic', spoilerLevel: 2 },
+      { cat: 'Cinematic',text: 'Redesigned Cosmic Axiom ending into a 10-phase meta-breaking cinematic', spoilerLevel: 2 },
       { cat: 'Cinematic',text: 'Added interactive Code Realm with 5 corruptible nodes', spoilerLevel: 2 },
       { cat: 'Cinematic',text: 'Added 3-hit QTE finisher sequence', spoilerLevel: 2 },
       { cat: 'Cinematic',text: 'Added dimension-panel launch sequence across 7 realities', spoilerLevel: 2 },
-      { cat: 'Cinematic',text: 'True Form ending now triggers at a critical HP threshold', spoilerLevel: 2 },
-      { cat: 'AI',       text: 'Improved True Form adaptive AI — 6 attack tiers, player profiling', spoilerLevel: 2 },
+      { cat: 'Cinematic',text: 'Cosmic Axiom ending now triggers at a critical HP threshold', spoilerLevel: 2 },
+      { cat: 'AI',       text: 'Improved Cosmic Axiom adaptive AI — 6 attack tiers, player profiling', spoilerLevel: 2 },
       { cat: 'AI',       text: 'Added dedicated Adaptive AI game mode' },
       { cat: 'Combat',   text: 'Added finisher system (killcam killing blows)' },
       { cat: 'Combat',   text: 'Balanced ranged weapons — reduced bullet spam window' },
-      { cat: 'Combat',   text: 'Added QTE phases at critical True Form HP thresholds', spoilerLevel: 2 },
+      { cat: 'Combat',   text: 'Added QTE phases at critical Cosmic Axiom HP thresholds', spoilerLevel: 2 },
       { cat: 'UI',       text: 'Added Experimental 3D Mode setting with dimension-break visuals' },
-      { cat: 'UI',       text: 'Added Replay Cinematic button on True Form end screen', spoilerLevel: 2 },
+      { cat: 'UI',       text: 'Added Replay Cinematic button on Cosmic Axiom end screen', spoilerLevel: 2 },
       { cat: 'Network',  text: 'Improved multiplayer state sync and disconnect handling' },
       { cat: 'System',   text: 'Modularised codebase into 20+ named JS modules' },
     ],
@@ -876,13 +930,13 @@ const CHANGELOG = [
   },
   {
     version: '0.5.0',
-    title: 'TRUE FORM AWAKENS',
+    title: 'SOMETHING AWAKENS',
     date: '2025-11-15',
     flavor: 'Something stirs beneath the surface.',
     requiredProgress: 1,
     changes: [
-      { cat: 'Boss',     text: 'Added True Form — adaptive boss with player pattern recognition' },
-      { cat: 'Boss',     text: 'Added secret letter hunt system unlocking True Form mode' },
+      { cat: 'Boss',     text: 'Added Cosmic Axiom — adaptive boss with player pattern recognition', spoilerLevel: 2 },
+      { cat: 'Boss',     text: 'Added secret letter hunt system unlocking Cosmic Axiom mode', spoilerLevel: 2 },
       { cat: 'Boss',     text: 'Added Boss fight mode (The Creator, phase AI, beams, minion spawns)' },
       { cat: 'Combat',   text: 'Added shield, ability, and super systems' },
       { cat: 'UI',       text: 'Full UI redesign — glass-morphism, mode cards, player config panels' },
@@ -967,10 +1021,14 @@ let camDramaZoom   = 1.0;
 // SETTINGS & FRAME STATE
 // ============================================================
 // User-configurable settings (toggled from menu)
-const settings = { particles: true, screenShake: true, dmgNumbers: true, landingDust: true, bossAura: true, botPortal: true, phaseFlash: true, ragdollEnabled: (localStorage.getItem('smc_ragdoll') === '1'), finishers: true, view3D: (localStorage.getItem('smc_view3D') === '1'), experimental3D: (localStorage.getItem('smc_experimental3D') === '1'), hideHud: false, storyVoice: (localStorage.getItem('smc_storyVoice') !== '0'), replayMode: (localStorage.getItem('smc_replayMode') !== '0'), animQuality: (localStorage.getItem('smc_animQuality') === 'classic' ? 'classic' : 'high') };
+const settings = { particles: true, screenShake: true, dmgNumbers: true, landingDust: true, bossAura: true, botPortal: true, phaseFlash: true, ragdollEnabled: (localStorage.getItem('smc_ragdoll') === '1'), finishers: true, view3D: (localStorage.getItem('smc_view3D') === '1'), experimental3D: (localStorage.getItem('smc_experimental3D') === '1'), hideHud: false, storyVoice: (localStorage.getItem('smc_storyVoice') !== '0'), replayMode: (localStorage.getItem('smc_replayMode') !== '0'), animQuality: (localStorage.getItem('smc_animQuality') === 'classic' ? 'classic' : 'high'), quickFightHazards: (localStorage.getItem('smc_qfHazards') === '1'), autoPerf: (localStorage.getItem('smc_autoPerf') !== '0') };
 
 // Active finisher state — set by triggerFinisher(), cleared when animation completes or on backToMenu
 let activeFinisher = null;
+// Battle Royale finisher: plays for the local player only while the match keeps
+// running around it (see triggerFinisher). Separate slot so nothing that reads
+// activeFinisher as "the world is frozen" fires for it.
+let activeWorldFinisher = null;
 
 // ── World System ──────────────────────────────────────────────────────────────
 let currentWorld   = null; // STORY_WORLDS entry for the active chapter's world
@@ -1159,7 +1217,7 @@ let _publicRoomCheckTimer = 0;
 // ============================================================
 // VERSION
 // ============================================================
-const GAME_VERSION = '4.4.0';  // bump this when releasing; must match CHANGELOG[0].version
+const GAME_VERSION = '4.5.0';  // bump this when releasing; must match CHANGELOG[0].version
 console.log('[VERSION CHECK]', GAME_VERSION);
 
 // DEBUG / DEVELOPER STATE
@@ -1204,7 +1262,7 @@ let storyPressureState  = { dodgeFatigue: 0, dodgeTimer: 0 };
 // ============================================================
 // ENTITY & VISUAL STATE
 // ============================================================
-let lightningBolts   = [];    // { x, y, timer, segments } — Thor perk visual lightning
+let lightningBolts   = [];    // { x, y, timer, segments } — Torren perk visual lightning
 let backstagePortals = [];    // {x,y,type,phase,timer,radius,maxRadius,shards,done}
 let phaseTransitionRings = []; // expanding ring effects on phase change
 // ---- Combat Phase Lock ----

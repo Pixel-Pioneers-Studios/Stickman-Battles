@@ -7,9 +7,25 @@ var cgSdk = (function () {
   var _lastAdAt   = 0;
   var _breaksSeen = 0;
 
+  // CrazyGames requires game audio to be silent while an ad plays. Restores
+  // whatever mute state the player had, and keeps the portal's mute if set.
+  var _preAdMuted = null;
+  function _adMute() {
+    if (_preAdMuted !== null) return;
+    try { _preAdMuted = SoundManager.isMuted(); SoundManager.setMuted(true); } catch (e) { _preAdMuted = null; }
+  }
+  function _adUnmute() {
+    if (_preAdMuted === null) return;
+    var was = _preAdMuted; _preAdMuted = null;
+    try { SoundManager.setMuted(was || !!window._cgAudioMuted); } catch (e) {}
+  }
+
   // Returns the SDK only when it is fully initialized (i.e. on CrazyGames).
   // On other hosts the SDK object may exist but throws on property access.
+  // Touching the SDK before init() resolves logs a console error per access.
+  var _initDone = false;
   function sdk() {
+    if (!_initDone) return null;
     try {
       var s = (window.CrazyGames && window.CrazyGames.SDK) || null;
       if (!s) return null;
@@ -31,6 +47,7 @@ var cgSdk = (function () {
   }());
 
   function _onSdkReady() {
+    _initDone = true;
     var s = sdk();
     if (!s) return;
 
@@ -123,6 +140,11 @@ var cgSdk = (function () {
             inp.value = inviteCode;
             if (typeof networkJoinRoom === 'function') networkJoinRoom();
           }
+        } else if (typeof LobbyManager !== 'undefined' && !(window.NetworkManager && NetworkManager.isConnected())) {
+          // Instant multiplayer with no invite: the party leader hosts a room
+          // straight away. updateRoom() inside connect() hands the room to CG,
+          // which brings the rest of the party in through the join listener.
+          LobbyManager.createLobby({ maxPlayers: 2, isPrivate: true });
         }
       }, 400);
     }
@@ -179,23 +201,23 @@ var cgSdk = (function () {
       var params = { roomName: roomCode };
 
       if (s && s.game) {
-        // Try native invite button (SDK v3)
-        if (typeof s.game.showInviteButton === 'function') {
-          try { s.game.showInviteButton(params); return; } catch (e) {}
-        }
-        // Fallback: generate invite link and copy to clipboard
+        // inviteLink is CG's current API; showInviteButton is deprecated and
+        // only used when an older SDK lacks inviteLink.
         if (typeof s.game.inviteLink === 'function') {
           try {
             var link = s.game.inviteLink(params);
             Promise.resolve(link).then(function (url) {
-              if (url && navigator.clipboard) {
-                navigator.clipboard.writeText(url).then(function () {
-                  if (typeof showToast === 'function') showToast('Invite link copied!');
-                }).catch(function () {});
-              }
+              var copied = function () { if (typeof showToast === 'function') showToast('Invite link copied!'); };
+              // The portal iframe may deny clipboard access; the room code still works.
+              var denied = function () { if (typeof showToast === 'function') showToast('Room code: ' + roomCode, 4000); };
+              if (url && navigator.clipboard) navigator.clipboard.writeText(url).then(copied, denied);
+              else denied();
             });
             return;
           } catch (e) {}
+        }
+        if (typeof s.game.showInviteButton === 'function') {
+          try { s.game.showInviteButton(params); return; } catch (e) {}
         }
       }
 
@@ -226,11 +248,11 @@ var cgSdk = (function () {
       if (_breaksSeen < 2 || (now - _lastAdAt) < MIN_AD_GAP_MS) { done(); return; }
       _lastAdAt = now;
       var finished = false;
-      function settle() { if (finished) return; finished = true; done(); }
+      function settle() { if (finished) return; finished = true; _adUnmute(); done(); }
       try {
         s.game.gameplayStop();
         s.ad.requestAd('midgame', {
-          adStarted:  function () {},
+          adStarted:  _adMute,
           adFinished: settle,
           adError:    settle
         });
@@ -246,13 +268,14 @@ var cgSdk = (function () {
       var settled = false;
       function fin(ok) {
         if (settled) return; settled = true;
+        _adUnmute();
         if (wasRunning) { try { s.game.gameplayStart(); } catch (e) {} }
         if (ok) { if (onReward) onReward(); } else if (onSkip) onSkip();
       }
       try {
         s.game.gameplayStop();
         s.ad.requestAd('rewarded', {
-          adStarted:  function () {},
+          adStarted:  _adMute,
           adFinished: function () { fin(true); },
           adError:    function () { fin(false); }
         });
@@ -265,9 +288,9 @@ var cgSdk = (function () {
       if (!s) { if (onDone) onDone(); return; }
       s.game.gameplayStop();
       s.ad.requestAd('midgame', {
-        adStarted:  function () {},
-        adFinished: function () { s.game.gameplayStart(); if (onDone) onDone(); },
-        adError:    function () { s.game.gameplayStart(); if (onDone) onDone(); }
+        adStarted:  _adMute,
+        adFinished: function () { _adUnmute(); s.game.gameplayStart(); if (onDone) onDone(); },
+        adError:    function () { _adUnmute(); s.game.gameplayStart(); if (onDone) onDone(); }
       });
     }
   };

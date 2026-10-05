@@ -311,7 +311,7 @@ const ReplaySystem = (() => {
   // ════════════════════════════════════════════════════════════════════════════
 
   function startRecording() {
-    if (typeof onlineMode !== 'undefined' && onlineMode) return;
+    if ((typeof onlineMode !== 'undefined' && onlineMode) || window._pubHubActive) return;
     if (typeof gameMode  !== 'undefined' && SKIP_MODES.has(gameMode)) return;
 
     _recording  = true;

@@ -1,0 +1,1487 @@
+{
+ "label": "inferAct_pkg__b59@off472",
+ "flags": [
+  "infer",
+  "inferAct"
+ ],
+ "sets": {},
+ "seeds": 8,
+ "at": "2026-09-21T14:05:36.496Z",
+ "outcome": {
+  "stocks": {
+   "n": 9,
+   "matches": 72,
+   "mean": -0.181,
+   "sd": 0.343,
+   "t": -1.58
+  },
+  "fitness": {
+   "n": 9,
+   "matches": 72,
+   "mean": -577.329,
+   "sd": 631.293,
+   "t": -2.74
+  },
+  "dealt": {
+   "n": 9,
+   "matches": 72,
+   "mean": -206.431,
+   "sd": 230.86,
+   "t": -2.68
+  },
+  "taken": {
+   "n": 9,
+   "matches": 72,
+   "mean": 23.292,
+   "sd": 64.759,
+   "t": 1.08
+  },
+  "locked": {
+   "n": 9,
+   "matches": 72,
+   "mean": -0.14,
+   "sd": 2.772,
+   "t": -0.15
+  }
+ },
+ "behaviourL1": 6.02,
+ "inferAct": {
+  "base": null,
+  "treat": {
+   "converted": 55,
+   "explored": 12,
+   "byRule": {
+    "sync_0_3": 1,
+    "sync_0_3 & opp_tier_equal": 41,
+    "opp_tier_equal": 7,
+    "opp_tier_equal & close_range": 6
+   }
+  },
+  "mechN": [
+   0,
+   600
+  ]
+ },
+ "topDeltas": [
+  {
+   "a": "volley_cycle_b",
+   "base": 27.38,
+   "treat": 26.49,
+   "d": -0.8900000000000006
+  },
+  {
+   "a": "guaranteed_punish",
+   "base": 15.28,
+   "treat": 14.39,
+   "d": -0.8899999999999988
+  },
+  {
+   "a": "corner_exploit",
+   "base": 3.13,
+   "treat": 3.85,
+   "d": 0.7200000000000002
+  },
+  {
+   "a": "punish_mode",
+   "base": 3.49,
+   "treat": 3.03,
+   "d": -0.4600000000000004
+  },
+  {
+   "a": "neutral",
+   "base": 1.6,
+   "treat": 1.96,
+   "d": 0.3599999999999999
+  },
+  {
+   "a": "hop_steer",
+   "base": 6.76,
+   "treat": 7.05,
+   "d": 0.29000000000000004
+  },
+  {
+   "a": "volley_defense_a",
+   "base": 3.3,
+   "treat": 3.01,
+   "d": -0.29000000000000004
+  },
+  {
+   "a": "shield_priority_b",
+   "base": 1.23,
+   "treat": 1.52,
+   "d": 0.29000000000000004
+  },
+  {
+   "a": "endlag_punish_f",
+   "base": 0.43,
+   "treat": 0.69,
+   "d": 0.25999999999999995
+  },
+  {
+   "a": "volley_defense_c",
+   "base": 0.5,
+   "treat": 0.73,
+   "d": 0.22999999999999998
+  },
+  {
+   "a": "danger_lava_ground",
+   "base": 10,
+   "treat": 10.21,
+   "d": 0.21000000000000085
+  },
+  {
+   "a": "force_engagement",
+   "base": 1.04,
+   "treat": 0.83,
+   "d": -0.21000000000000008
+  },
+  {
+   "a": "volley_cycle_a",
+   "base": 11.84,
+   "treat": 12,
+   "d": 0.16000000000000014
+  },
+  {
+   "a": "air_descent",
+   "base": 5.29,
+   "treat": 5.14,
+   "d": -0.15000000000000036
+  },
+  {
+   "a": "punish_timer_b",
+   "base": 0.61,
+   "treat": 0.73,
+   "d": 0.12
+  }
+ ],
+ "base": {
+  "worst": -2100.75,
+  "travel": {
+   "aggression": 0.2003,
+   "defense": 0.2898,
+   "spacing": 0.1464,
+   "reactionSpeed": 0.1894
+  },
+  "spread": {
+   "aggression": 0.0633,
+   "defense": 0.1028,
+   "spacing": 0.1162,
+   "reactionSpeed": 0.1616
+  },
+  "runs": [
+   {
+    "scenario": "parry_wall",
+    "fitness": -2024,
+    "stocks": 0,
+    "dealt": 278,
+    "taken": 903,
+    "frames": 5527,
+    "locked": 8.1
+   },
+   {
+    "scenario": "parry_wall",
+    "fitness": -1553.75,
+    "stocks": 0,
+    "dealt": 482,
+    "taken": 898,
+    "frames": 6271,
+    "locked": 9.3
+   },
+   {
+    "scenario": "parry_wall",
+    "fitness": -2091.75,
+    "stocks": 0,
+    "dealt": 294,
+    "taken": 902,
+    "frames": 5623,
+    "locked": 13.4
+   },
+   {
+    "scenario": "parry_wall",
+    "fitness": -1584,
+    "stocks": 0,
+    "dealt": 398,
+    "taken": 790,
+    "frames": 3636,
+    "locked": 20.7
+   },
+   {
+    "scenario": "parry_wall",
+    "fitness": -2100.75,
+    "stocks": 0,
+    "dealt": 306,
+    "taken": 956,
+    "frames": 5823,
+    "locked": 12.1
+   },
+   {
+    "scenario": "parry_wall",
+    "fitness": -2050.5,
+    "stocks": 0,
+    "dealt": 230,
+    "taken": 827,
+    "frames": 4871,
+    "locked": 12.5
+   },
+   {
+    "scenario": "parry_wall",
+    "fitness": -1608,
+    "stocks": 0,
+    "dealt": 388,
+    "taken": 852,
+    "frames": 7098,
+    "locked": 9.9
+   },
+   {
+    "scenario": "parry_wall",
+    "fitness": -2070.5,
+    "stocks": 0,
+    "dealt": 222,
+    "taken": 902,
+    "frames": 4881,
+    "locked": 10.7
+   },
+   {
+    "scenario": "attrition_tank",
+    "fitness": 3210.5,
+    "stocks": 5,
+    "dealt": 2625,
+    "taken": 108,
+    "frames": 5064,
+    "locked": 3.8
+   },
+   {
+    "scenario": "attrition_tank",
+    "fitness": 2640.25,
+    "stocks": 4,
+    "dealt": 2625,
+    "taken": 284,
+    "frames": 3378,
+    "locked": 15.4
+   },
+   {
+    "scenario": "attrition_tank",
+    "fitness": 1346.25,
+    "stocks": 4,
+    "dealt": 1685,
+    "taken": 314,
+    "frames": 7200,
+    "locked": 7.7
+   },
+   {
+    "scenario": "attrition_tank",
+    "fitness": 199.75,
+    "stocks": 3,
+    "dealt": 1260,
+    "taken": 488,
+    "frames": 7200,
+    "locked": 10.3
+   },
+   {
+    "scenario": "attrition_tank",
+    "fitness": 2107,
+    "stocks": 3,
+    "dealt": 2625,
+    "taken": 420,
+    "frames": 3927,
+    "locked": 19.9
+   },
+   {
+    "scenario": "attrition_tank",
+    "fitness": 2130.5,
+    "stocks": 3,
+    "dealt": 2665,
+    "taken": 340,
+    "frames": 5609,
+    "locked": 16.5
+   },
+   {
+    "scenario": "attrition_tank",
+    "fitness": 492.5,
+    "stocks": 1,
+    "dealt": 2215,
+    "taken": 680,
+    "frames": 7200,
+    "locked": 15.3
+   },
+   {
+    "scenario": "attrition_tank",
+    "fitness": 3112.25,
+    "stocks": 5,
+    "dealt": 2665,
+    "taken": 205,
+    "frames": 4281,
+    "locked": 11
+   },
+   {
+    "scenario": "glass_cannon",
+    "fitness": 1582.5,
+    "stocks": 4,
+    "dealt": 265,
+    "taken": 228,
+    "frames": 1388,
+    "locked": 10.4
+   },
+   {
+    "scenario": "glass_cannon",
+    "fitness": 552.25,
+    "stocks": 2,
+    "dealt": 312,
+    "taken": 638,
+    "frames": 3739,
+    "locked": 9.1
+   },
+   {
+    "scenario": "glass_cannon",
+    "fitness": 1001.25,
+    "stocks": 3,
+    "dealt": 265,
+    "taken": 490,
+    "frames": 3393,
+    "locked": 10.2
+   },
+   {
+    "scenario": "glass_cannon",
+    "fitness": 78,
+    "stocks": 1,
+    "dealt": 393,
+    "taken": 832,
+    "frames": 3823,
+    "locked": 10.7
+   },
+   {
+    "scenario": "glass_cannon",
+    "fitness": 626.75,
+    "stocks": 2,
+    "dealt": 358,
+    "taken": 568,
+    "frames": 3337,
+    "locked": 8.2
+   },
+   {
+    "scenario": "glass_cannon",
+    "fitness": 55.25,
+    "stocks": 1,
+    "dealt": 288,
+    "taken": 754,
+    "frames": 2517,
+    "locked": 17.8
+   },
+   {
+    "scenario": "glass_cannon",
+    "fitness": 543.5,
+    "stocks": 2,
+    "dealt": 265,
+    "taken": 587,
+    "frames": 3141,
+    "locked": 12.2
+   },
+   {
+    "scenario": "glass_cannon",
+    "fitness": 1077.5,
+    "stocks": 3,
+    "dealt": 277,
+    "taken": 416,
+    "frames": 2116,
+    "locked": 10
+   },
+   {
+    "scenario": "untouchable",
+    "fitness": 2160.5,
+    "stocks": 1,
+    "dealt": 1483,
+    "taken": 812,
+    "frames": 3859,
+    "locked": 18.1
+   },
+   {
+    "scenario": "untouchable",
+    "fitness": 318.5,
+    "stocks": 0,
+    "dealt": 1040,
+    "taken": 870,
+    "frames": 3181,
+    "locked": 20.9
+   },
+   {
+    "scenario": "untouchable",
+    "fitness": 1865,
+    "stocks": 2,
+    "dealt": 1294,
+    "taken": 576,
+    "frames": 3753,
+    "locked": 10
+   },
+   {
+    "scenario": "untouchable",
+    "fitness": 2229.25,
+    "stocks": 2,
+    "dealt": 1339,
+    "taken": 616,
+    "frames": 3048,
+    "locked": 17.4
+   },
+   {
+    "scenario": "untouchable",
+    "fitness": 2806,
+    "stocks": 3,
+    "dealt": 1410,
+    "taken": 460,
+    "frames": 3560,
+    "locked": 7.8
+   },
+   {
+    "scenario": "untouchable",
+    "fitness": 2005.5,
+    "stocks": 1,
+    "dealt": 1384,
+    "taken": 836,
+    "frames": 3493,
+    "locked": 30.7
+   },
+   {
+    "scenario": "untouchable",
+    "fitness": -200,
+    "stocks": 0,
+    "dealt": 838,
+    "taken": 830,
+    "frames": 3693,
+    "locked": 22.1
+   },
+   {
+    "scenario": "untouchable",
+    "fitness": 3107.25,
+    "stocks": 3,
+    "dealt": 1475,
+    "taken": 558,
+    "frames": 3617,
+    "locked": 16.7
+   },
+   {
+    "scenario": "landing_trap",
+    "fitness": 826,
+    "stocks": 0,
+    "dealt": 1181,
+    "taken": 870,
+    "frames": 2807,
+    "locked": 18.5
+   },
+   {
+    "scenario": "landing_trap",
+    "fitness": 2804.5,
+    "stocks": 2,
+    "dealt": 1548,
+    "taken": 530,
+    "frames": 3287,
+    "locked": 12.7
+   },
+   {
+    "scenario": "landing_trap",
+    "fitness": -557.5,
+    "stocks": 0,
+    "dealt": 819,
+    "taken": 870,
+    "frames": 2636,
+    "locked": 20
+   },
+   {
+    "scenario": "landing_trap",
+    "fitness": 1470.75,
+    "stocks": 0,
+    "dealt": 1455,
+    "taken": 870,
+    "frames": 2971,
+    "locked": 2.9
+   },
+   {
+    "scenario": "landing_trap",
+    "fitness": 1825.75,
+    "stocks": 1,
+    "dealt": 1327,
+    "taken": 720,
+    "frames": 2922,
+    "locked": 10.6
+   },
+   {
+    "scenario": "landing_trap",
+    "fitness": 905.75,
+    "stocks": 0,
+    "dealt": 1187,
+    "taken": 830,
+    "frames": 3031,
+    "locked": 9.6
+   },
+   {
+    "scenario": "landing_trap",
+    "fitness": -28.75,
+    "stocks": 0,
+    "dealt": 1048,
+    "taken": 906,
+    "frames": 3242,
+    "locked": 12.3
+   },
+   {
+    "scenario": "landing_trap",
+    "fitness": 937.5,
+    "stocks": 0,
+    "dealt": 1158,
+    "taken": 750,
+    "frames": 2950,
+    "locked": 9
+   },
+   {
+    "scenario": "gauntlet",
+    "fitness": 4093.25,
+    "stocks": 0,
+    "dealt": 2229,
+    "taken": 950,
+    "frames": 4460,
+    "locked": 13.1
+   },
+   {
+    "scenario": "gauntlet",
+    "fitness": 1361,
+    "stocks": 0,
+    "dealt": 1519,
+    "taken": 870,
+    "frames": 3227,
+    "locked": 20.3
+   },
+   {
+    "scenario": "gauntlet",
+    "fitness": -487.75,
+    "stocks": 0,
+    "dealt": 956,
+    "taken": 837,
+    "frames": 2596,
+    "locked": 22.7
+   },
+   {
+    "scenario": "gauntlet",
+    "fitness": 112.5,
+    "stocks": 0,
+    "dealt": 1351,
+    "taken": 907,
+    "frames": 3264,
+    "locked": 13.4
+   },
+   {
+    "scenario": "gauntlet",
+    "fitness": 844,
+    "stocks": 0,
+    "dealt": 1357,
+    "taken": 870,
+    "frames": 3693,
+    "locked": 21.6
+   },
+   {
+    "scenario": "gauntlet",
+    "fitness": -1401.5,
+    "stocks": 0,
+    "dealt": 808,
+    "taken": 870,
+    "frames": 2823,
+    "locked": 24.2
+   },
+   {
+    "scenario": "gauntlet",
+    "fitness": 441,
+    "stocks": 0,
+    "dealt": 1275,
+    "taken": 901,
+    "frames": 3572,
+    "locked": 16.3
+   },
+   {
+    "scenario": "gauntlet",
+    "fitness": -946.25,
+    "stocks": 0,
+    "dealt": 810,
+    "taken": 830,
+    "frames": 2613,
+    "locked": 20.9
+   },
+   {
+    "scenario": "regenerator",
+    "fitness": 1143.319999999999,
+    "stocks": 4,
+    "dealt": 1290,
+    "taken": 426,
+    "frames": 7200,
+    "locked": 4.9
+   },
+   {
+    "scenario": "regenerator",
+    "fitness": -380.1700000000013,
+    "stocks": 0,
+    "dealt": 1390,
+    "taken": 910,
+    "frames": 7172,
+    "locked": 12.3
+   },
+   {
+    "scenario": "regenerator",
+    "fitness": -735.5600000000011,
+    "stocks": 0,
+    "dealt": 1258,
+    "taken": 830,
+    "frames": 6992,
+    "locked": 8.6
+   },
+   {
+    "scenario": "regenerator",
+    "fitness": -370.2600000000017,
+    "stocks": 1,
+    "dealt": 1202,
+    "taken": 787,
+    "frames": 7200,
+    "locked": 9.9
+   },
+   {
+    "scenario": "regenerator",
+    "fitness": -1390.4400000000016,
+    "stocks": 0,
+    "dealt": 788,
+    "taken": 897,
+    "frames": 5661,
+    "locked": 9.6
+   },
+   {
+    "scenario": "regenerator",
+    "fitness": -373.91000000000224,
+    "stocks": 1,
+    "dealt": 1235,
+    "taken": 802,
+    "frames": 7200,
+    "locked": 10.6
+   },
+   {
+    "scenario": "regenerator",
+    "fitness": 93.52999999999815,
+    "stocks": 2,
+    "dealt": 1126,
+    "taken": 624,
+    "frames": 7200,
+    "locked": 8.8
+   },
+   {
+    "scenario": "regenerator",
+    "fitness": -1323.1500000000005,
+    "stocks": 0,
+    "dealt": 919,
+    "taken": 817,
+    "frames": 5372,
+    "locked": 13
+   },
+   {
+    "scenario": "escalator",
+    "fitness": 1067,
+    "stocks": 2,
+    "dealt": 1177,
+    "taken": 539,
+    "frames": 4543,
+    "locked": 4.6
+   },
+   {
+    "scenario": "escalator",
+    "fitness": 1069,
+    "stocks": 2,
+    "dealt": 1217,
+    "taken": 530,
+    "frames": 6234,
+    "locked": 4.8
+   },
+   {
+    "scenario": "escalator",
+    "fitness": 586,
+    "stocks": 2,
+    "dealt": 1172,
+    "taken": 659,
+    "frames": 7200,
+    "locked": 3.9
+   },
+   {
+    "scenario": "escalator",
+    "fitness": -468.25,
+    "stocks": 2,
+    "dealt": 789,
+    "taken": 610,
+    "frames": 7200,
+    "locked": 8.8
+   },
+   {
+    "scenario": "escalator",
+    "fitness": 410.5,
+    "stocks": 3,
+    "dealt": 735,
+    "taken": 567,
+    "frames": 7200,
+    "locked": 4.1
+   },
+   {
+    "scenario": "escalator",
+    "fitness": 1433.75,
+    "stocks": 3,
+    "dealt": 1217,
+    "taken": 558,
+    "frames": 5212,
+    "locked": 7.3
+   },
+   {
+    "scenario": "escalator",
+    "fitness": 1043.25,
+    "stocks": 2,
+    "dealt": 1257,
+    "taken": 619,
+    "frames": 4746,
+    "locked": 6.4
+   },
+   {
+    "scenario": "escalator",
+    "fitness": 882.75,
+    "stocks": 2,
+    "dealt": 1177,
+    "taken": 708,
+    "frames": 6639,
+    "locked": 9.1
+   },
+   {
+    "scenario": "noise_control",
+    "fitness": 2217.5,
+    "stocks": 5,
+    "dealt": 750,
+    "taken": 149,
+    "frames": 2106,
+    "locked": 15.8
+   },
+   {
+    "scenario": "noise_control",
+    "fitness": 2218.5,
+    "stocks": 5,
+    "dealt": 750,
+    "taken": 139,
+    "frames": 1812,
+    "locked": 19.2
+   },
+   {
+    "scenario": "noise_control",
+    "fitness": 2229.5,
+    "stocks": 5,
+    "dealt": 750,
+    "taken": 157,
+    "frames": 1895,
+    "locked": 14.1
+   },
+   {
+    "scenario": "noise_control",
+    "fitness": 2109,
+    "stocks": 5,
+    "dealt": 790,
+    "taken": 293,
+    "frames": 3236,
+    "locked": 17.2
+   },
+   {
+    "scenario": "noise_control",
+    "fitness": 2206.5,
+    "stocks": 5,
+    "dealt": 750,
+    "taken": 159,
+    "frames": 1935,
+    "locked": 18.4
+   },
+   {
+    "scenario": "noise_control",
+    "fitness": 2297,
+    "stocks": 5,
+    "dealt": 790,
+    "taken": 136,
+    "frames": 1743,
+    "locked": 6.9
+   },
+   {
+    "scenario": "noise_control",
+    "fitness": 2347.25,
+    "stocks": 5,
+    "dealt": 790,
+    "taken": 34,
+    "frames": 1756,
+    "locked": 7
+   },
+   {
+    "scenario": "noise_control",
+    "fitness": 2239,
+    "stocks": 5,
+    "dealt": 750,
+    "taken": 101,
+    "frames": 2049,
+    "locked": 16.7
+   }
+  ]
+ },
+ "treat": {
+  "worst": -2100.75,
+  "travel": {
+   "aggression": 0.2249,
+   "defense": 0.2924,
+   "spacing": 0.1577,
+   "reactionSpeed": 0.1911
+  },
+  "spread": {
+   "aggression": 0.0664,
+   "defense": 0.1128,
+   "spacing": 0.1149,
+   "reactionSpeed": 0.1647
+  },
+  "runs": [
+   {
+    "scenario": "parry_wall",
+    "fitness": -2024,
+    "stocks": 0,
+    "dealt": 278,
+    "taken": 903,
+    "frames": 5527,
+    "locked": 8.1
+   },
+   {
+    "scenario": "parry_wall",
+    "fitness": -1553.75,
+    "stocks": 0,
+    "dealt": 482,
+    "taken": 898,
+    "frames": 6271,
+    "locked": 9.3
+   },
+   {
+    "scenario": "parry_wall",
+    "fitness": -2091.75,
+    "stocks": 0,
+    "dealt": 294,
+    "taken": 902,
+    "frames": 5623,
+    "locked": 13.4
+   },
+   {
+    "scenario": "parry_wall",
+    "fitness": -1584,
+    "stocks": 0,
+    "dealt": 398,
+    "taken": 790,
+    "frames": 3636,
+    "locked": 20.7
+   },
+   {
+    "scenario": "parry_wall",
+    "fitness": -2100.75,
+    "stocks": 0,
+    "dealt": 306,
+    "taken": 956,
+    "frames": 5823,
+    "locked": 12.1
+   },
+   {
+    "scenario": "parry_wall",
+    "fitness": -2050.5,
+    "stocks": 0,
+    "dealt": 230,
+    "taken": 827,
+    "frames": 4871,
+    "locked": 12.5
+   },
+   {
+    "scenario": "parry_wall",
+    "fitness": -1608,
+    "stocks": 0,
+    "dealt": 388,
+    "taken": 852,
+    "frames": 7098,
+    "locked": 9.9
+   },
+   {
+    "scenario": "parry_wall",
+    "fitness": -2070.5,
+    "stocks": 0,
+    "dealt": 222,
+    "taken": 902,
+    "frames": 4881,
+    "locked": 10.7
+   },
+   {
+    "scenario": "attrition_tank",
+    "fitness": 3210.5,
+    "stocks": 5,
+    "dealt": 2625,
+    "taken": 108,
+    "frames": 5064,
+    "locked": 3.8
+   },
+   {
+    "scenario": "attrition_tank",
+    "fitness": 2640.25,
+    "stocks": 4,
+    "dealt": 2625,
+    "taken": 284,
+    "frames": 3378,
+    "locked": 15.4
+   },
+   {
+    "scenario": "attrition_tank",
+    "fitness": 1346.25,
+    "stocks": 4,
+    "dealt": 1685,
+    "taken": 314,
+    "frames": 7200,
+    "locked": 7.7
+   },
+   {
+    "scenario": "attrition_tank",
+    "fitness": 199.75,
+    "stocks": 3,
+    "dealt": 1260,
+    "taken": 488,
+    "frames": 7200,
+    "locked": 10.3
+   },
+   {
+    "scenario": "attrition_tank",
+    "fitness": 2107,
+    "stocks": 3,
+    "dealt": 2625,
+    "taken": 420,
+    "frames": 3927,
+    "locked": 19.9
+   },
+   {
+    "scenario": "attrition_tank",
+    "fitness": 1412.75,
+    "stocks": 4,
+    "dealt": 1750,
+    "taken": 338,
+    "frames": 7200,
+    "locked": 5.2
+   },
+   {
+    "scenario": "attrition_tank",
+    "fitness": -320.25,
+    "stocks": 2,
+    "dealt": 1397,
+    "taken": 651,
+    "frames": 7200,
+    "locked": 16.3
+   },
+   {
+    "scenario": "attrition_tank",
+    "fitness": -119.5,
+    "stocks": 2,
+    "dealt": 1413,
+    "taken": 530,
+    "frames": 7200,
+    "locked": 8.9
+   },
+   {
+    "scenario": "glass_cannon",
+    "fitness": 178.5,
+    "stocks": 1,
+    "dealt": 288,
+    "taken": 640,
+    "frames": 2505,
+    "locked": 7.3
+   },
+   {
+    "scenario": "glass_cannon",
+    "fitness": 1048,
+    "stocks": 3,
+    "dealt": 289,
+    "taken": 418,
+    "frames": 2618,
+    "locked": 13.4
+   },
+   {
+    "scenario": "glass_cannon",
+    "fitness": 1599.25,
+    "stocks": 4,
+    "dealt": 265,
+    "taken": 230,
+    "frames": 1606,
+    "locked": 4.5
+   },
+   {
+    "scenario": "glass_cannon",
+    "fitness": 1034,
+    "stocks": 3,
+    "dealt": 265,
+    "taken": 452,
+    "frames": 1578,
+    "locked": 18.4
+   },
+   {
+    "scenario": "glass_cannon",
+    "fitness": -1153.75,
+    "stocks": 0,
+    "dealt": 264,
+    "taken": 870,
+    "frames": 3184,
+    "locked": 6.4
+   },
+   {
+    "scenario": "glass_cannon",
+    "fitness": 561.5,
+    "stocks": 2,
+    "dealt": 300,
+    "taken": 568,
+    "frames": 2658,
+    "locked": 15.7
+   },
+   {
+    "scenario": "glass_cannon",
+    "fitness": 1074.5,
+    "stocks": 3,
+    "dealt": 265,
+    "taken": 405,
+    "frames": 1942,
+    "locked": 11.4
+   },
+   {
+    "scenario": "glass_cannon",
+    "fitness": 2010.5,
+    "stocks": 5,
+    "dealt": 265,
+    "taken": 152,
+    "frames": 1686,
+    "locked": 10.9
+   },
+   {
+    "scenario": "untouchable",
+    "fitness": 2643.75,
+    "stocks": 3,
+    "dealt": 1327,
+    "taken": 666,
+    "frames": 4169,
+    "locked": 8.3
+   },
+   {
+    "scenario": "untouchable",
+    "fitness": 865,
+    "stocks": 0,
+    "dealt": 1219,
+    "taken": 897,
+    "frames": 3601,
+    "locked": 10.7
+   },
+   {
+    "scenario": "untouchable",
+    "fitness": 2249.5,
+    "stocks": 1,
+    "dealt": 1372,
+    "taken": 720,
+    "frames": 3658,
+    "locked": 8.4
+   },
+   {
+    "scenario": "untouchable",
+    "fitness": 841.75,
+    "stocks": 0,
+    "dealt": 1130,
+    "taken": 830,
+    "frames": 3826,
+    "locked": 11.3
+   },
+   {
+    "scenario": "untouchable",
+    "fitness": 353.75,
+    "stocks": 0,
+    "dealt": 1214,
+    "taken": 910,
+    "frames": 5059,
+    "locked": 15.7
+   },
+   {
+    "scenario": "untouchable",
+    "fitness": 2778.25,
+    "stocks": 2,
+    "dealt": 1466,
+    "taken": 490,
+    "frames": 4024,
+    "locked": 10.9
+   },
+   {
+    "scenario": "untouchable",
+    "fitness": 1673.75,
+    "stocks": 1,
+    "dealt": 1234,
+    "taken": 720,
+    "frames": 3850,
+    "locked": 19
+   },
+   {
+    "scenario": "untouchable",
+    "fitness": -187.75,
+    "stocks": 0,
+    "dealt": 915,
+    "taken": 965,
+    "frames": 5162,
+    "locked": 12.6
+   },
+   {
+    "scenario": "landing_trap",
+    "fitness": -997,
+    "stocks": 0,
+    "dealt": 564,
+    "taken": 830,
+    "frames": 1742,
+    "locked": 14.7
+   },
+   {
+    "scenario": "landing_trap",
+    "fitness": -530.25,
+    "stocks": 0,
+    "dealt": 736,
+    "taken": 830,
+    "frames": 2179,
+    "locked": 15.3
+   },
+   {
+    "scenario": "landing_trap",
+    "fitness": -1478,
+    "stocks": 0,
+    "dealt": 417,
+    "taken": 830,
+    "frames": 1952,
+    "locked": 14.7
+   },
+   {
+    "scenario": "landing_trap",
+    "fitness": -1401.5,
+    "stocks": 0,
+    "dealt": 590,
+    "taken": 830,
+    "frames": 1579,
+    "locked": 20.6
+   },
+   {
+    "scenario": "landing_trap",
+    "fitness": -8.25,
+    "stocks": 0,
+    "dealt": 1016,
+    "taken": 870,
+    "frames": 2622,
+    "locked": 12.4
+   },
+   {
+    "scenario": "landing_trap",
+    "fitness": -482.75,
+    "stocks": 0,
+    "dealt": 844,
+    "taken": 906,
+    "frames": 1907,
+    "locked": 10.9
+   },
+   {
+    "scenario": "landing_trap",
+    "fitness": -1964.25,
+    "stocks": 0,
+    "dealt": 336,
+    "taken": 830,
+    "frames": 1726,
+    "locked": 27.2
+   },
+   {
+    "scenario": "landing_trap",
+    "fitness": -549.25,
+    "stocks": 0,
+    "dealt": 753,
+    "taken": 870,
+    "frames": 2192,
+    "locked": 16.6
+   },
+   {
+    "scenario": "gauntlet",
+    "fitness": -1025,
+    "stocks": 0,
+    "dealt": 678,
+    "taken": 907,
+    "frames": 2614,
+    "locked": 16.9
+   },
+   {
+    "scenario": "gauntlet",
+    "fitness": -1459.25,
+    "stocks": 0,
+    "dealt": 552,
+    "taken": 827,
+    "frames": 2082,
+    "locked": 23.4
+   },
+   {
+    "scenario": "gauntlet",
+    "fitness": -622,
+    "stocks": 0,
+    "dealt": 646,
+    "taken": 830,
+    "frames": 2139,
+    "locked": 24.3
+   },
+   {
+    "scenario": "gauntlet",
+    "fitness": -499,
+    "stocks": 0,
+    "dealt": 845,
+    "taken": 870,
+    "frames": 2327,
+    "locked": 14.9
+   },
+   {
+    "scenario": "gauntlet",
+    "fitness": -1885.5,
+    "stocks": 0,
+    "dealt": 542,
+    "taken": 864,
+    "frames": 2179,
+    "locked": 22.9
+   },
+   {
+    "scenario": "gauntlet",
+    "fitness": 1463.75,
+    "stocks": 0,
+    "dealt": 1558,
+    "taken": 830,
+    "frames": 3631,
+    "locked": 11
+   },
+   {
+    "scenario": "gauntlet",
+    "fitness": -518,
+    "stocks": 0,
+    "dealt": 956,
+    "taken": 830,
+    "frames": 2886,
+    "locked": 25.1
+   },
+   {
+    "scenario": "gauntlet",
+    "fitness": -561.5,
+    "stocks": 0,
+    "dealt": 939,
+    "taken": 907,
+    "frames": 2927,
+    "locked": 24.3
+   },
+   {
+    "scenario": "regenerator",
+    "fitness": -1991.3200000000015,
+    "stocks": 0,
+    "dealt": 374,
+    "taken": 912,
+    "frames": 6617,
+    "locked": 7.4
+   },
+   {
+    "scenario": "regenerator",
+    "fitness": 391.14999999999725,
+    "stocks": 5,
+    "dealt": 479,
+    "taken": 297,
+    "frames": 7200,
+    "locked": 5.5
+   },
+   {
+    "scenario": "regenerator",
+    "fitness": 587.6299999999987,
+    "stocks": 2,
+    "dealt": 1424,
+    "taken": 737,
+    "frames": 7200,
+    "locked": 8.7
+   },
+   {
+    "scenario": "regenerator",
+    "fitness": -1335.9300000000007,
+    "stocks": 0,
+    "dealt": 807,
+    "taken": 870,
+    "frames": 5192,
+    "locked": 8
+   },
+   {
+    "scenario": "regenerator",
+    "fitness": -1913.5400000000006,
+    "stocks": 0,
+    "dealt": 430,
+    "taken": 790,
+    "frames": 3497,
+    "locked": 15.3
+   },
+   {
+    "scenario": "regenerator",
+    "fitness": -854.0500000000013,
+    "stocks": 1,
+    "dealt": 983,
+    "taken": 747,
+    "frames": 7200,
+    "locked": 9.6
+   },
+   {
+    "scenario": "regenerator",
+    "fitness": -1309.9200000000017,
+    "stocks": 1,
+    "dealt": 690,
+    "taken": 720,
+    "frames": 7200,
+    "locked": 5.3
+   },
+   {
+    "scenario": "regenerator",
+    "fitness": -1319.8300000000008,
+    "stocks": 0,
+    "dealt": 877,
+    "taken": 844,
+    "frames": 5556,
+    "locked": 9.8
+   },
+   {
+    "scenario": "escalator",
+    "fitness": 563,
+    "stocks": 2,
+    "dealt": 1112,
+    "taken": 598,
+    "frames": 7200,
+    "locked": 5.2
+   },
+   {
+    "scenario": "escalator",
+    "fitness": 418.75,
+    "stocks": 2,
+    "dealt": 1027,
+    "taken": 708,
+    "frames": 7200,
+    "locked": 7.8
+   },
+   {
+    "scenario": "escalator",
+    "fitness": -411.25,
+    "stocks": 1,
+    "dealt": 1001,
+    "taken": 778,
+    "frames": 7200,
+    "locked": 6.8
+   },
+   {
+    "scenario": "escalator",
+    "fitness": 481.75,
+    "stocks": 1,
+    "dealt": 1217,
+    "taken": 760,
+    "frames": 6733,
+    "locked": 8.7
+   },
+   {
+    "scenario": "escalator",
+    "fitness": 905,
+    "stocks": 2,
+    "dealt": 1194,
+    "taken": 717,
+    "frames": 6456,
+    "locked": 8.3
+   },
+   {
+    "scenario": "escalator",
+    "fitness": 1028.5,
+    "stocks": 3,
+    "dealt": 1212,
+    "taken": 579,
+    "frames": 7200,
+    "locked": 4.9
+   },
+   {
+    "scenario": "escalator",
+    "fitness": -484.5,
+    "stocks": 1,
+    "dealt": 925,
+    "taken": 853,
+    "frames": 7200,
+    "locked": 6.7
+   },
+   {
+    "scenario": "escalator",
+    "fitness": -322.75,
+    "stocks": 1,
+    "dealt": 983,
+    "taken": 720,
+    "frames": 7200,
+    "locked": 3
+   },
+   {
+    "scenario": "noise_control",
+    "fitness": 2258.25,
+    "stocks": 5,
+    "dealt": 790,
+    "taken": 145,
+    "frames": 2349,
+    "locked": 10.9
+   },
+   {
+    "scenario": "noise_control",
+    "fitness": 2179.25,
+    "stocks": 5,
+    "dealt": 750,
+    "taken": 166,
+    "frames": 2985,
+    "locked": 15.1
+   },
+   {
+    "scenario": "noise_control",
+    "fitness": 2237.75,
+    "stocks": 5,
+    "dealt": 790,
+    "taken": 177,
+    "frames": 1697,
+    "locked": 16.2
+   },
+   {
+    "scenario": "noise_control",
+    "fitness": 2146.5,
+    "stocks": 5,
+    "dealt": 750,
+    "taken": 200,
+    "frames": 2693,
+    "locked": 19.1
+   },
+   {
+    "scenario": "noise_control",
+    "fitness": 1707.75,
+    "stocks": 4,
+    "dealt": 750,
+    "taken": 273,
+    "frames": 2863,
+    "locked": 18.3
+   },
+   {
+    "scenario": "noise_control",
+    "fitness": 1693.75,
+    "stocks": 4,
+    "dealt": 750,
+    "taken": 291,
+    "frames": 2262,
+    "locked": 24
+   },
+   {
+    "scenario": "noise_control",
+    "fitness": 1769.75,
+    "stocks": 4,
+    "dealt": 790,
+    "taken": 304,
+    "frames": 2729,
+    "locked": 10.7
+   },
+   {
+    "scenario": "noise_control",
+    "fitness": 2277,
+    "stocks": 5,
+    "dealt": 750,
+    "taken": 106,
+    "frames": 1938,
+    "locked": 9.3
+   }
+  ]
+ }
+}

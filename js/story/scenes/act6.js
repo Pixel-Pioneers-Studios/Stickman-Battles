@@ -192,7 +192,8 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
   // Long monologue — staged as a slow, near-static push so the words carry it,
   // with the register changing only where the story turns.
   S[82] = {
-    bg: 'space',
+    // The origin vault's relief of the tall figure and the smaller one (ch79)
+    bg: 'level', level: { ch: 79, x: 2000 },
     npcColor: '#ddaa44',
     beats: [
       {
@@ -379,7 +380,8 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
   // ── Chapter 84 — Unregistered (8 beats) ─────────────────────────────────────
   // Why Axiom needed ninety-four collection attempts: delete was never available.
   S[84] = {
-    bg: 'space',
+    // Still in the Fragment Core, under the fragment (ch83)
+    bg: 'level', level: { ch: 83, x: 450 },
     npcColor: '#ddaa44',
     beats: [
       {
@@ -447,7 +449,8 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
   // ── Chapter 85 — The Shape Beyond (8 beats) ─────────────────────────────────
   // The first mention of the thing under everything — and that it is not an enemy.
   S[85] = {
-    bg: 'space',
+    // The Final Threshold: in front of the Separation Seal (ch81)
+    bg: 'level', level: { ch: 81, x: 2760 },
     npcColor: '#ddaa44',
     beats: [
       {

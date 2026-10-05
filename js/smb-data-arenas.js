@@ -109,9 +109,15 @@ const ARENAS = {
     isVoidArena: true,
     platforms: [
       { x: 0,   y: 460, w: 900, h: 60, isFloor: true, isFloorDisabled: false },
-      { x: 280, y: 225, w: 200, h: 16 },
+      { x: 350, y: 225, w: 200, h: 16 },
       { x: 80,  y: 295, w: 140, h: 16 },
       { x: 680, y: 295, w: 140, h: 16 },
+      // The floor spends about a third of the fight as lava or void; these are the
+      // stepping stones that keep a floorless phase playable.
+      { x: 205, y: 378, w: 110, h: 14 },
+      { x: 585, y: 378, w: 110, h: 14 },
+      { x: 150, y: 152, w: 110, h: 14 },
+      { x: 640, y: 152, w: 110, h: 14 },
     ]
   },
   damnation: {
@@ -288,6 +294,36 @@ const ARENAS = {
       { x: 0,   y: 460, w: 900, h: 60, isFloor: true },
       { x: 0,   y: 0,   w: 10,  h: 460 },
       { x: 890, y: 0,   w: 10,  h: 460 },
+    ],
+  },
+  // ── Nexus Bastion ──────────────────────────────────────────────────────────
+  // Built for the Nexus Defense minigame only. Twice the standard width so the
+  // rushers have a real approach lane from each gate: the Nexus sits at x=900,
+  // gates at both ends, ~800px of walk on each side. The floor is one unbroken
+  // piece because rushers never jump — any gap would kill them for free.
+  // Platforms are the player's: two watchtowers over the lanes, a crown ledge
+  // over the Nexus, and low gate ledges for dropping onto a fresh spawn.
+  nexus: {
+    name:        'Nexus Bastion',
+    isMinigameOnly: true,
+    sky:         ['#0b1020', '#1d2640'],
+    groundColor: '#2a2f3a',
+    platColor:   '#4a5262',
+    platEdge:    '#2c323e',
+    hasLava:     false,
+    deathY:      700,
+    worldWidth:  1800,
+    mapLeft:     0,
+    mapRight:    1800,
+    noStageBoundary: true,
+    modifiers:   { gravityMult: 1.0, frictionMult: 1.0, hazardFrequency: 1.0 },
+    platforms: [
+      { x: 0,    y: 460, w: 1800, h: 60, isFloor: true },
+      { x: 150,  y: 350, w: 130,  h: 16 }, // left gate ledge
+      { x: 1520, y: 350, w: 130,  h: 16 }, // right gate ledge
+      { x: 420,  y: 300, w: 150,  h: 18 }, // left watchtower
+      { x: 1230, y: 300, w: 150,  h: 18 }, // right watchtower
+      { x: 810,  y: 250, w: 180,  h: 18 }, // crown ledge over the Nexus
     ],
   },
   // ----------------------------------------------------------------
@@ -477,7 +513,7 @@ const ARENAS = {
     hasLava:      false,
     deathY:       640,
     isLowGravity: true,
-    modifiers:    { gravityMult: 0.8, frictionMult: 0.88, hazardFrequency: 0.6 },
+    modifiers:    { gravityMult: 1.9, frictionMult: 0.88, hazardFrequency: 0.6 },
     platforms: [
       { x: -60, y: 480, w: 1020, h: 40, isFloor: true },
       { x: 355, y: 175, w: 190, h: 22 },
@@ -854,6 +890,165 @@ const ARENAS = {
       { x: 1850, y: 158, w: 140, h: 18 }, { x: 2260, y: 148, w: 140, h: 18 },
       { x: 2650, y: 158, w: 145, h: 18 }, { x: 3040, y: 148, w: 140, h: 18 },
     ]
+  },
+
+  // Story locations (art in rendering/smb-drawing-arenas4.js). All authored
+  // against a floor at y=460 — the explore world's horizon match reads it.
+  storyLab: {
+    name: 'Research Facility', isStoryOnly: true,
+    sky: ['#0b0f10', '#121819', '#182022'],
+    groundColor: '#262c2e', platColor: '#3a4346', platEdge: '#1a2022',
+    hasLava: false, deathY: 640,
+    platforms: [
+      { x: -60, y: 460, w: 1020, h: 60, isFloor: true },
+      { x:  80, y: 330, w: 150, h: 16 }, { x: 670, y: 330, w: 150, h: 16 },
+      { x: 360, y: 250, w: 180, h: 16 },
+      { x: 150, y: 170, w: 120, h: 14 }, { x: 630, y: 170, w: 120, h: 14 },
+    ],
+  },
+  storyRelay: {
+    name: 'Relay Station', isStoryOnly: true,
+    sky: ['#0a0e16', '#141b26', '#1f2a36'],
+    groundColor: '#1c2128', platColor: '#343c46', platEdge: '#161b22',
+    hasLava: false, deathY: 640,
+    platforms: [
+      { x: -60, y: 460, w: 1020, h: 60, isFloor: true },
+      { x: 100, y: 330, w: 140, h: 16 }, { x: 510, y: 360, w: 170, h: 16 },
+      { x: 330, y: 240, w: 150, h: 16 }, { x: 690, y: 250, w: 140, h: 16 },
+      { x: 180, y: 160, w: 120, h: 14 },
+    ],
+  },
+  storyCore: {
+    name: 'Multiversal Core', isStoryOnly: true,
+    sky: ['#07060e', '#0d0b1a', '#151228'],
+    groundColor: '#15121f', platColor: '#2e2a42', platEdge: '#0e0c16',
+    hasLava: false, deathY: 640,
+    platforms: [
+      { x: -60, y: 460, w: 1020, h: 60, isFloor: true },
+      { x:  60, y: 336, w: 200, h: 14 }, { x: 640, y: 336, w: 200, h: 14 },
+      { x: 330, y: 300, w: 240, h: 14 },
+      { x: 160, y: 200, w: 130, h: 14 }, { x: 610, y: 200, w: 130, h: 14 },
+    ],
+  },
+  storyAssembly: {
+    name: 'The Assembly', isStoryOnly: true,
+    sky: ['#1c1d22', '#2a2c32', '#3a3c42'],
+    groundColor: '#2a2b30', platColor: '#44454c', platEdge: '#1a1b20',
+    hasLava: false, deathY: 640,
+    platforms: [
+      { x: -60, y: 460, w: 1020, h: 60, isFloor: true },
+      { x:  90, y: 320, w: 150, h: 16 }, { x: 660, y: 320, w: 150, h: 16 },
+      { x: 340, y: 230, w: 220, h: 16 },
+      { x: 150, y: 150, w: 120, h: 14 }, { x: 630, y: 150, w: 120, h: 14 },
+    ],
+  },
+  storyInterference: {
+    name: 'Interference Layer', isStoryOnly: true,
+    sky: ['#08070b', '#110d14', '#1a1219'],
+    groundColor: '#18141a', platColor: '#302830', platEdge: '#0e0b10',
+    hasLava: false, deathY: 640,
+    platforms: [
+      { x: -60, y: 460, w: 1020, h: 60, isFloor: true },
+      { x: 110, y: 340, w: 150, h: 16 }, { x: 640, y: 340, w: 150, h: 16 },
+      { x: 370, y: 260, w: 160, h: 16 },
+      { x: 180, y: 180, w: 120, h: 14 }, { x: 600, y: 180, w: 120, h: 14 },
+    ],
+  },
+  storyWar: {
+    name: 'War Front', isStoryOnly: true,
+    sky: ['#1a0e08', '#3a1e10', '#6a3a1c'],
+    groundColor: '#2e2016', platColor: '#4a3626', platEdge: '#1a120c',
+    hasLava: false, deathY: 640,
+    platforms: [
+      { x: -60, y: 460, w: 1020, h: 60, isFloor: true },
+      { x:  60, y: 350, w: 160, h: 16 }, { x: 600, y: 330, w: 170, h: 16 },
+      { x: 330, y: 260, w: 170, h: 16 },
+      { x: 140, y: 180, w: 120, h: 14 }, { x: 680, y: 190, w: 120, h: 14 },
+    ],
+  },
+  storyFlux: {
+    name: 'Gravity Flux', isStoryOnly: true,
+    sky: ['#0e1a26', '#1a2e40', '#2c4658'],
+    groundColor: '#2a2e2c', platColor: '#4a4640', platEdge: '#1e1c1a',
+    hasLava: false, deathY: 640,
+    platforms: [
+      { x: -60, y: 460, w: 1020, h: 60, isFloor: true },
+      { x:  70, y: 330, w: 130, h: 16 }, { x: 700, y: 310, w: 130, h: 16 },
+      { x: 330, y: 250, w: 150, h: 16 }, { x: 540, y: 180, w: 120, h: 14 },
+      { x: 180, y: 150, w: 110, h: 14 },
+    ],
+  },
+  storyShadow: {
+    name: 'The Unseen Court', isStoryOnly: true,
+    sky: ['#030305', '#07070b', '#0c0c12'],
+    groundColor: '#0e0e13', platColor: '#1e1e26', platEdge: '#08080b',
+    hasLava: false, deathY: 640,
+    platforms: [
+      { x: -60, y: 460, w: 1020, h: 60, isFloor: true },
+      { x:  80, y: 320, w: 150, h: 16 }, { x: 670, y: 320, w: 150, h: 16 },
+      { x: 360, y: 240, w: 180, h: 16 },
+      { x: 170, y: 160, w: 110, h: 14 }, { x: 620, y: 160, w: 110, h: 14 },
+    ],
+  },
+  storyTitan: {
+    name: 'Titan World', isStoryOnly: true,
+    sky: ['#2a1a12', '#4a2e1e', '#6a4630'],
+    groundColor: '#4a3a2c', platColor: '#6a5644', platEdge: '#2e241c',
+    hasLava: false, deathY: 640,
+    platforms: [
+      { x: -60, y: 460, w: 1020, h: 60, isFloor: true },
+      { x:  60, y: 300, w: 170, h: 18 }, { x: 640, y: 330, w: 180, h: 18 },
+      { x: 360, y: 220, w: 170, h: 18 },
+      { x: 130, y: 140, w: 130, h: 16 }, { x: 620, y: 170, w: 130, h: 16 },
+    ],
+  },
+  storyNull: {
+    name: 'Null Space', isStoryOnly: true,
+    sky: ['#04030c', '#080614', '#0c0a1e'],
+    groundColor: '#12101e', platColor: '#262440', platEdge: '#0a0914',
+    hasLava: false, deathY: 640,
+    platforms: [
+      { x: -60, y: 460, w: 1020, h: 60, isFloor: true },
+      { x: 100, y: 330, w: 140, h: 16 }, { x: 660, y: 330, w: 140, h: 16 },
+      { x: 370, y: 250, w: 160, h: 16 },
+      { x: 170, y: 170, w: 120, h: 14 }, { x: 610, y: 170, w: 120, h: 14 },
+    ],
+  },
+  storyQuiet: {
+    name: 'The Quiet Expanse', isStoryOnly: true,
+    sky: ['#020a0c', '#051216', '#0a1c20'],
+    groundColor: '#142022', platColor: '#26363a', platEdge: '#0a1214',
+    hasLava: false, deathY: 640,
+    platforms: [
+      { x: -60, y: 460, w: 1020, h: 60, isFloor: true },
+      { x:  90, y: 340, w: 150, h: 16 }, { x: 650, y: 340, w: 150, h: 16 },
+      { x: 360, y: 260, w: 180, h: 16 },
+      { x: 180, y: 180, w: 110, h: 14 }, { x: 610, y: 180, w: 110, h: 14 },
+    ],
+  },
+  storyCoast: {
+    name: 'Fracture Coast', isStoryOnly: true,
+    sky: ['#020614', '#06102a', '#0e1c3a'],
+    groundColor: '#2a2a2c', platColor: '#3e4044', platEdge: '#141618',
+    hasLava: false, deathY: 640,
+    platforms: [
+      { x: -60, y: 460, w: 1020, h: 60, isFloor: true },
+      { x: 220, y: 340, w: 150, h: 16 }, { x: 600, y: 330, w: 150, h: 16 },
+      { x: 400, y: 240, w: 160, h: 16 },
+      { x: 240, y: 160, w: 110, h: 14 }, { x: 660, y: 170, w: 110, h: 14 },
+    ],
+  },
+  storyCollision: {
+    name: 'Collision Realm', isStoryOnly: true,
+    sky: ['#100400', '#241006', '#44200c'],
+    groundColor: '#2e1a10', platColor: '#4a2e1e', platEdge: '#1a0e08',
+    hasLava: false, deathY: 640,
+    platforms: [
+      { x: -60, y: 460, w: 1020, h: 60, isFloor: true },
+      { x:  90, y: 330, w: 150, h: 16 }, { x: 660, y: 340, w: 150, h: 16 },
+      { x: 350, y: 250, w: 190, h: 16 },
+      { x: 160, y: 170, w: 120, h: 14 }, { x: 620, y: 170, w: 120, h: 14 },
+    ],
   },
 
   training: {

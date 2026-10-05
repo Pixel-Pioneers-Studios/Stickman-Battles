@@ -28,6 +28,18 @@ window.GODSLAYER_WEAPON = {
 
 // ── Encounter state ────────────────────────────────────────────────────────
 const _GOD_ATTACK_RANGE   = 160;
+// Phase-2 God: holds off to one side and attacks only through telegraphed moves.
+const GOD_HOVER_SIDE      = 210;  // horizontal standoff from the target
+const GOD_HOVER_RISE      = 120;  // height above the target's center
+const GOD_LANCE_RANGE     = 420;  // starts Judgment Lance inside this distance
+const GOD_LANCE_WINDUP    = 40;   // 30 below 35% HP
+const GOD_LANCE_LOCK      = 12;   // aim freezes this many frames before the dash
+const GOD_LANCE_SPEED     = 24;
+const GOD_LANCE_FRAMES    = 18;
+const GOD_LANCE_DMG       = 60;
+const GOD_LANCE_RECOVER   = 55;   // 45 below 35% HP — the punish window
+const GOD_LANCE_CD        = 100;  // 70 below 35% HP
+const GOD_SMITE_WARN      = 36;
 let _godEncounterCooldown = 0;
 let _godWasAlive          = false;
 
@@ -48,7 +60,7 @@ function updateGodEncounterTick() {
   if (typeof gameRunning === 'undefined' || !gameRunning) return;
   if (typeof gameMode !== 'undefined' && gameMode === 'god') return;
   if (typeof gameMode !== 'undefined' && (gameMode === 'boss' || gameMode === 'trueform')) return;
-  if (typeof onlineMode !== 'undefined' && onlineMode) return;
+  if ((typeof onlineMode !== 'undefined' && onlineMode) || window._pubHubActive) return;
   if (_godEncounterCooldown > 0) { _godEncounterCooldown--; return; }
   if (typeof activeCinematic !== 'undefined' && activeCinematic) return;
   if (typeof storyModeActive !== 'undefined' && storyModeActive) return;
@@ -225,9 +237,12 @@ function _showGodFakeCrash() {
       </div>
       <div style="background:rgba(0,0,0,0.5);border-radius:8px;padding:10px 14px;
         font-family:monospace;font-size:0.68rem;color:#ff9999;text-align:left;
-        margin-bottom:20px;max-height:90px;overflow-y:auto;word-break:break-all;
+        margin-bottom:20px;max-height:140px;overflow-y:auto;word-break:break-all;
         border:1px solid rgba(255,80,80,0.2);">
         Your presence is not accepted here.
+        <div style="margin-top:8px;font-family:'Segoe UI',Arial,sans-serif;font-size:0.72rem;color:#c9b8ff;word-break:normal;">
+          This is not a real crash. It is part of the game: something in this world has noticed you. Your saved progress is safe.
+        </div>
       </div>
       <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">
         <button id="_godCrashMenuBtn"
@@ -283,6 +298,9 @@ class God extends Fighter {
     // Flying state
     this._flyVy    = 0;
     this._smiteTimer = 0;
+    this._smitePending = false;
+    this._lance      = null; // { phase:'windup'|'dash'|'recover', t, dur, dx, dy, hit:Set }
+    this._hoverSide  = Math.random() < 0.5 ? -1 : 1;
 
     // Dash state
     this._dashCd     = 60;
@@ -306,8 +324,8 @@ class God extends Fighter {
       this.kbBonus   = 1.5;
       this.kbResist  = 0.9;
     } else {
-      this.health    = 100000;
-      this.maxHealth = 100000;
+      this.health    = 50000;
+      this.maxHealth = 50000;
       this.dmgMult   = 3.0;
       this.kbBonus   = 1.2;
       this.kbResist  = 0.7;
@@ -340,9 +358,8 @@ class God extends Fighter {
   }
 
   _doHolySmite() {
-    this._smiteTimer = 28; // frames of forced dive
-    this._smiteRings.push({ r: 0, maxR: 230, alpha: 1.0, _hitChecked: false });
-    if (typeof screenShake !== 'undefined') screenShake = Math.max(screenShake, 7);
+    this._smiteTimer   = GOD_SMITE_WARN; // forced dive; the ring lands when it ends
+    this._smitePending = true;
   }
 
   _doRadiantNova() {
@@ -370,6 +387,10 @@ class God extends Fighter {
       this._angelCooldown = 580;
     } else if (roll < 0.52) {
       this._doDivineColumn(target);
+      if (hpFrac < 0.5) {
+        this._columns.push({ x: target.cx() - 110, timer: 0, maxTimer: 125, hitDealt: false });
+        this._columns.push({ x: target.cx() + 110, timer: 0, maxTimer: 150, hitDealt: false });
+      }
     } else if (roll < 0.72) {
       this._doHolySmite();
     } else {
@@ -430,6 +451,11 @@ class God extends Fighter {
   }
 
   _updateSmiteRings() {
+    if (this._smitePending && this._smiteTimer <= 0) {
+      this._smitePending = false;
+      this._smiteRings.push({ r: 0, maxR: 210, alpha: 1.0, _hitChecked: false });
+      if (typeof screenShake !== 'undefined') screenShake = Math.max(screenShake, 7);
+    }
     for (let i = this._smiteRings.length - 1; i >= 0; i--) {
       const ring = this._smiteRings[i];
       ring.r    += 10;
@@ -470,11 +496,13 @@ class God extends Fighter {
       if (this._trailPoints.length > 18) this._trailPoints.pop();
     }
 
-    this._updateColumns();
-    this._updateNova();
-    this._updateSmiteRings();
-
-    if (this._smiteTimer > 0) this._smiteTimer--;
+    // AbsoluteAxiom.update() ticks these itself (except while stunned).
+    if (!this.isAbsoluteAxiom || this._stunFrames > 0) {
+      this._updateColumns();
+      this._updateNova();
+      this._updateSmiteRings();
+      if (this._smiteTimer > 0) this._smiteTimer--;
+    }
 
     // Find nearest target across all entities, skipping godmode entities
     let target = null, minDist = Infinity;
@@ -506,7 +534,10 @@ class God extends Fighter {
       return; // skip God's locomotion and melee auto-attack entirely
     }
 
-    if (this._smiteTimer > 0) {
+    const _p2 = this._phase === 2;
+    if (_p2 && this._lance) {
+      this._updateLance(target);
+    } else if (this._smiteTimer > 0) {
       // Forced dive during smite
       this.vx    *= 0.85;
       this._flyVy = 12;
@@ -516,8 +547,15 @@ class God extends Fighter {
       const GH_h = typeof GAME_H !== 'undefined' ? GAME_H : 520;
       const toDist    = Math.hypot(target.cx() - this.cx(), (target.y + target.h / 2) - (this.y + this.h / 2));
       const orbitMult = Math.min(1, toDist / 160);
-      const rawHoverX = target.cx() + Math.sin(this._hoverTime * 0.42) * 52 * orbitMult;
-      const rawHoverY = (target.y + target.h / 2) - 100 + Math.sin(this._hoverTime * 0.68) * 14 * orbitMult;
+      // Phase 2 keeps a standoff to one side; the side flips when Judgment Lance passes through.
+      if (_p2) {
+        if (target.cx() + this._hoverSide * GOD_HOVER_SIDE < 40 || target.cx() + this._hoverSide * GOD_HOVER_SIDE > GW_h - 40)
+          this._hoverSide = -this._hoverSide;
+      }
+      const rawHoverX = _p2
+        ? target.cx() + this._hoverSide * GOD_HOVER_SIDE + Math.sin(this._hoverTime * 0.42) * 30
+        : target.cx() + Math.sin(this._hoverTime * 0.42) * 52 * orbitMult;
+      const rawHoverY = (target.y + target.h / 2) - (_p2 ? GOD_HOVER_RISE : 100) + Math.sin(this._hoverTime * 0.68) * 14 * orbitMult;
       const hoverX    = Math.max(18 + this.w / 2, Math.min(GW_h - this.w / 2 - 18, rawHoverX));
       const hoverY    = Math.max(8 + this.h / 2,  Math.min(GH_h * 0.88 - this.h / 2, rawHoverY));
 
@@ -533,7 +571,7 @@ class God extends Fighter {
         this._dashFrames--;
         this.vx     = this._dashVx;
         this._flyVy = this._dashVy;
-      } else if (this._dashCd <= 0 && toDist > 80) {
+      } else if (this._dashCd <= 0 && toDist > 80 && (!_p2 || flyDist > 140)) {
         const dashSpd  = this._phase === 1 ? 90 : 75;
         this._dashVx   = (errX / flyDist) * dashSpd;
         this._dashVy   = (errY / flyDist) * dashSpd;
@@ -557,14 +595,18 @@ class God extends Fighter {
     this.y = Math.max(8, Math.min(GH * 0.88 - this.h, this.y));
     this.x = Math.max(18, Math.min(GW - this.w - 18, this.x));
 
-    // Melee strike when close
-    if (minDist < _GOD_ATTACK_RANGE && this._attackCd <= 0 && typeof dealDamage === 'function') {
+    // Melee strike when close (phase 1); phase 2 melee is the telegraphed Judgment Lance
+    if (!_p2 && minDist < _GOD_ATTACK_RANGE && this._attackCd <= 0 && typeof dealDamage === 'function') {
       const baseDmg = this.weapon ? (this.weapon.damage || 20) : 20;
       dealDamage(this, target, baseDmg, 8);
-      this._attackCd = this._phase === 1 ? 40 : 60;
+      this._attackCd = 40;
+    }
+    if (_p2 && !this._lance && this._attackCd <= 0 && this._smiteTimer <= 0 && minDist < GOD_LANCE_RANGE) {
+      const _low = this.health / this.maxHealth < 0.35;
+      this._lance = { phase: 'windup', t: 0, dur: _low ? 30 : GOD_LANCE_WINDUP, dx: this.facing, dy: 0, hit: new Set() };
     }
 
-    if (this._phase === 2 && this._specialCd <= 0) this._pickAndFireSpecial(target);
+    if (_p2 && this._specialCd <= 0 && !this._lance) this._pickAndFireSpecial(target);
 
     // Cinematic HP thresholds (Phase 2, standalone encounter only).
     // The story fight (ch.160) is excluded: its 1400 HP sits below both thresholds
@@ -574,6 +616,54 @@ class God extends Fighter {
     if (this._phase === 2 && !this._storyGod) {
       if (typeof _tryFireGodDialogueCin === 'function') _tryFireGodDialogueCin(this);
       if (typeof _tryFireGod1000Cin     === 'function') _tryFireGod1000Cin(this);
+    }
+  }
+
+  // Judgment Lance: wind up with a visible aim line, dash through it, then hang
+  // exposed. The aim tracks the target until GOD_LANCE_LOCK frames before the
+  // dash, so moving late dodges it and moving early does not.
+  _updateLance(target) {
+    const L = this._lance;
+    const low = this.health / this.maxHealth < 0.35;
+    L.t++;
+    if (L.phase === 'windup') {
+      this.vx *= 0.8; this._flyVy *= 0.8;
+      if (L.t <= L.dur - GOD_LANCE_LOCK && target) {
+        const ax = target.cx() - this.cx(), ay = (target.y + target.h / 2) - (this.y + this.h / 2);
+        const d  = Math.hypot(ax, ay) || 1;
+        L.dx = ax / d; L.dy = ay / d;
+      }
+      if (L.t >= L.dur) {
+        L.phase = 'dash'; L.t = 0;
+        if (typeof screenShake !== 'undefined') screenShake = Math.max(screenShake, 6);
+      }
+    } else if (L.phase === 'dash') {
+      this.vx     = L.dx * GOD_LANCE_SPEED;
+      this._flyVy = L.dy * GOD_LANCE_SPEED;
+      if (typeof dealDamage === 'function') {
+        const pad = 14;
+        for (const p of this._godTargetPool()) {
+          if (p === this || p.health <= 0 || L.hit.has(p)) continue;
+          if (p._teamId !== undefined && this._teamId !== undefined && p._teamId === this._teamId) continue;
+          if (p.x < this.x + this.w + pad && p.x + p.w > this.x - pad &&
+              p.y < this.y + this.h + pad && p.y + p.h > this.y - pad) {
+            L.hit.add(p);
+            dealDamage(this, p, GOD_LANCE_DMG, 16);
+          }
+        }
+      }
+      if (L.t >= GOD_LANCE_FRAMES) {
+        L.phase = 'recover'; L.t = 0;
+        if (target) this._hoverSide = this.cx() < target.cx() ? -1 : 1;
+        if (typeof spawnParticles === 'function') spawnParticles(this.cx(), this.y + this.h / 2, '#ffffc0', 12);
+      }
+    } else {
+      this.vx *= 0.88;
+      this._flyVy = 0.8;
+      if (L.t >= (low ? 45 : GOD_LANCE_RECOVER)) {
+        this._lance    = null;
+        this._attackCd = low ? 70 : GOD_LANCE_CD;
+      }
     }
   }
 
@@ -981,6 +1071,57 @@ class God extends Fighter {
     if (typeof ctx === 'undefined') return;
     const p2 = this._phase === 2;
     const GH = typeof GAME_H !== 'undefined' ? GAME_H : 520;
+
+    // Judgment Lance: aim line while winding up (turns white once locked),
+    // dimmed halo while exposed in recovery
+    const L = this._lance;
+    if (L && L.phase === 'windup') {
+      const frac   = Math.min(1, L.t / L.dur);
+      const locked = L.t > L.dur - GOD_LANCE_LOCK;
+      const len    = GOD_LANCE_SPEED * GOD_LANCE_FRAMES;
+      ctx.save();
+      ctx.lineCap     = 'round';
+      ctx.shadowColor = locked ? '#ffffff' : 'rgba(255,220,90,0.9)';
+      ctx.shadowBlur  = 10 + frac * 14;
+      ctx.strokeStyle = locked ? `rgba(255,255,255,${0.55 + frac * 0.4})` : `rgba(255,215,80,${0.18 + frac * 0.4})`;
+      ctx.lineWidth   = locked ? 5 : 2 + frac * 3;
+      ctx.setLineDash(locked ? [] : [14, 10]);
+      ctx.beginPath();
+      ctx.moveTo(godCx, godCy);
+      ctx.lineTo(godCx + L.dx * len, godCy + L.dy * len);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle = `rgba(255,240,170,${0.25 + frac * 0.5})`;
+      ctx.beginPath();
+      ctx.arc(godCx, godCy, 10 + frac * 22, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    } else if (L && L.phase === 'recover') {
+      ctx.save();
+      ctx.strokeStyle = `rgba(140,140,170,${0.5 + Math.sin(L.t * 0.5) * 0.2})`;
+      ctx.lineWidth   = 2;
+      ctx.setLineDash([4, 6]);
+      ctx.beginPath();
+      ctx.arc(godCx, godCy, 46 * (this._scale || 1), 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    // Holy Smite warning: the blast radius around God while he dives
+    if (this._smitePending) {
+      const frac = 1 - this._smiteTimer / GOD_SMITE_WARN;
+      ctx.save();
+      ctx.strokeStyle = `rgba(255,230,120,${0.35 + frac * 0.5})`;
+      ctx.lineWidth   = 2 + frac * 3;
+      ctx.beginPath();
+      ctx.arc(godCx, godCy, 189, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.fillStyle = `rgba(255,230,120,${frac * 0.14})`;
+      ctx.beginPath();
+      ctx.arc(godCx, godCy, 189 * frac, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
 
     // Divine column warnings & strikes
     for (const col of this._columns) {

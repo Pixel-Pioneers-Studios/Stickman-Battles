@@ -1462,6 +1462,7 @@ button:focus-visible, select:focus-visible, input:focus-visible,
 #replayBrowserModal > div, #replayViewerModal > div,
 #statsLogModal > div, #achievementsModal > div, #changelogModal > div,
 #settingsModal > div, #communityModal > div, #saveProgressModal > div,
+#tutorialPrompt > div,
 #guidebookModal > div, #storyDialoguePanel > div, #storyVictoryOverlay > div,
 #importSaveModal > div {
   border-color: var(--ui-line-strong) !important;
@@ -1566,6 +1567,18 @@ button:focus-visible, select:focus-visible, input:focus-visible,
 #hudMenuBtn:active {
   transform: scale(0.96);
   filter: brightness(0.82);
+}
+
+/* Touch: the 22px-tall button at the screen's top edge was hard to hit, and
+   iOS Safari spends taps that close to the edge on revealing its toolbar. */
+@media (pointer: coarse) {
+  #hudMenuBtn {
+    touch-action: manipulation;
+    min-height: 34px;
+    padding: 6px 16px;
+    font-size: 13px;
+    margin-top: 6px;
+  }
 }
 
 /* In-game fullscreen button (HUD center, below Menu) */
@@ -1782,48 +1795,159 @@ button:focus-visible, select:focus-visible, input:focus-visible,
 }
 
 /* ============================================================
-   ACHIEVEMENT CARDS
+   ACHIEVEMENTS — modal, cards, hex badges, unlock toast
+   Badge colours live in ACH_TIERS (smb-achievements.js); the SVG carries
+   them itself so it also renders as a canvas image. CSS only adds glow.
    ============================================================ */
+#achievementsModal {
+  position: fixed; inset: 0; z-index: 9999;
+  align-items: center; justify-content: center;
+  background: rgba(3,4,8,0.88);
+  color: var(--ui-text);
+}
+#achievementsModal .ach-shell {
+  width: min(980px, 96vw); height: min(620px, 92vh);
+  display: flex; flex-direction: column; overflow: hidden;
+  border: 1px solid var(--ui-line-strong); border-radius: 10px;
+}
+.ach-header {
+  display: flex; align-items: center; gap: 18px;
+  padding: 12px 18px; flex-shrink: 0;
+  border-bottom: 1px solid var(--ui-line);
+}
+.ach-header h2 {
+  margin: 0; font-size: 1rem; letter-spacing: 2px; text-transform: uppercase;
+  color: #ffd766; display: flex; align-items: center; gap: 8px; white-space: nowrap;
+}
+.ach-progress { flex: 1; display: flex; align-items: center; gap: 10px; min-width: 0; }
+.ach-progress-track {
+  flex: 1; max-width: 260px; height: 6px; border-radius: 3px;
+  background: rgba(255,255,255,0.07); overflow: hidden;
+}
+.ach-progress-fill {
+  height: 100%; width: 0; border-radius: 3px;
+  background: linear-gradient(90deg, #a8741a, #ffd766);
+  transition: width 0.4s ease-out;
+}
+#achCount { font-size: 0.78rem; color: var(--ui-muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+#achievementsModal .ach-close {
+  background: rgba(255,255,255,0.06); border: 1px solid var(--ui-line-strong);
+  color: var(--ui-text); padding: 6px 16px; cursor: pointer; font-size: 0.8rem;
+}
+.ach-body { display: flex; flex: 1; min-height: 0; }
+.ach-list {
+  flex: 1; min-width: 0; overflow-y: auto;
+  padding: 4px 16px 18px;
+  border-right: 1px solid var(--ui-line);
+}
+.ach-cat-head {
+  display: flex; justify-content: space-between; align-items: baseline;
+  margin: 14px 2px 8px; padding-bottom: 5px;
+  border-bottom: 1px solid var(--ui-line);
+  font-size: 0.68rem; font-weight: 700; letter-spacing: 2px; text-transform: uppercase;
+  color: var(--ui-muted);
+}
+.ach-cat-count { color: var(--ui-faint); font-variant-numeric: tabular-nums; letter-spacing: 1px; }
+.ach-cat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(92px, 1fr));
+  gap: 8px;
+}
 .ach-card {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 3px;
-  padding: 7px 4px 6px;
-  border-radius: 7px;
-  text-align: center;
-  cursor: pointer;
-  transition: transform 0.12s, background 0.12s;
+  height: 112px;
+  display: flex; flex-direction: column; align-items: center; justify-content: flex-start;
+  gap: 6px; padding: 10px 6px 8px;
+  border-radius: 8px; text-align: center; cursor: pointer;
+  background: rgba(255,255,255,0.025);
+  border: 1px solid rgba(255,255,255,0.06);
+  transition: background 0.12s, border-color 0.12s, transform 0.12s;
+  outline: none;
 }
-.ach-card:hover { transform: scale(1.08); }
-.ach-earned {
-  background: rgba(255, 200, 0, 0.1);
-  border: 1px solid rgba(255, 200, 0, 0.4);
-}
-.ach-locked {
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  opacity: 0.5;
-}
-.ach-selected {
-  background: rgba(255, 200, 0, 0.22) !important;
-  border-color: rgba(255, 200, 0, 0.8) !important;
-  opacity: 1 !important;
-  box-shadow: 0 0 10px rgba(255,200,0,0.3);
-}
-.ach-icon      { font-size: 22px; line-height: 1; }
+.ach-card:hover, .ach-card:focus-visible { background: rgba(255,255,255,0.06); transform: translateY(-2px); }
+.ach-icon { width: 54px; height: 54px; flex-shrink: 0; }
+.ach-badge { width: 100%; height: 100%; display: block; }
+.ach-earned .ach-badge { filter: drop-shadow(0 0 5px var(--ach-glow, rgba(255,215,102,0.35))); }
+.ach-tier-bronze { --ach-glow: rgba(240,182,132,0.30); }
+.ach-tier-silver { --ach-glow: rgba(226,233,244,0.28); }
+.ach-tier-gold   { --ach-glow: rgba(255,215,102,0.42); }
+.ach-tier-mythic { --ach-glow: rgba(190,160,255,0.50); }
 .ach-title-mini {
-  font-size: 0.58rem;
-  font-weight: 600;
-  color: #ccc;
-  line-height: 1.2;
+  font-size: 0.66rem; font-weight: 600; line-height: 1.25;
+  color: var(--ui-text);
+  width: 100%;
   overflow: hidden;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  word-break: break-word;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+  word-break: normal; overflow-wrap: normal; hyphens: none;
 }
-.ach-locked .ach-title-mini { color: #555; }
+.ach-locked .ach-title-mini { color: var(--ui-faint); }
+.ach-selected {
+  background: rgba(255,215,102,0.09) !important;
+  border-color: rgba(255,215,102,0.55) !important;
+}
+.ach-detail {
+  width: 300px; flex-shrink: 0;
+  padding: 28px 24px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  text-align: center; gap: 8px;
+}
+.ach-detail-badge { width: 128px; height: 128px; margin-bottom: 6px; }
+.ach-detail[data-tier="bronze"] .ach-badge { filter: drop-shadow(0 0 14px rgba(240,182,132,0.35)); }
+.ach-detail[data-tier="silver"] .ach-badge { filter: drop-shadow(0 0 14px rgba(226,233,244,0.30)); }
+.ach-detail[data-tier="gold"]   .ach-badge { filter: drop-shadow(0 0 16px rgba(255,215,102,0.45)); }
+.ach-detail[data-tier="mythic"] .ach-badge { filter: drop-shadow(0 0 18px rgba(190,160,255,0.55)); }
+.ach-detail-tier {
+  font-size: 0.64rem; font-weight: 700; letter-spacing: 3px; text-transform: uppercase;
+  color: var(--ui-faint);
+}
+.ach-detail-title { font-size: 1.2rem; font-weight: 700; color: var(--ui-text); line-height: 1.25; }
+.ach-detail-desc  { font-size: 0.86rem; color: var(--ui-muted); line-height: 1.45; }
+.ach-detail-hint {
+  font-size: 0.78rem; color: #9fb4d6; line-height: 1.45;
+  margin-top: 6px; max-width: 250px;
+}
+.ach-detail-hint:empty { display: none; }
+.ach-hint-label {
+  display: block; margin-bottom: 3px;
+  font-size: 0.6rem; font-weight: 700; letter-spacing: 2px; text-transform: uppercase;
+  color: var(--ui-faint);
+}
+.ach-status {
+  margin-top: 10px; padding: 4px 16px; border-radius: 20px;
+  font-size: 0.68rem; font-weight: 700; letter-spacing: 2px; text-transform: uppercase;
+}
+.ach-status-earned { background: rgba(63,185,132,0.12); border: 1px solid rgba(63,185,132,0.45); color: #6fd9a8; }
+.ach-status-locked { background: rgba(255,255,255,0.03); border: 1px solid var(--ui-line); color: var(--ui-faint); }
+
+@media (max-width: 700px) {
+  .ach-header { flex-wrap: wrap; gap: 8px 14px; }
+  .ach-progress { order: 3; flex-basis: 100%; }
+  .ach-body { flex-direction: column-reverse; }
+  .ach-list { border-right: none; border-top: 1px solid var(--ui-line); }
+  .ach-detail { width: auto; flex-direction: row; flex-wrap: wrap; justify-content: flex-start;
+                text-align: left; padding: 12px 16px; gap: 2px 12px; }
+  .ach-detail-badge { width: 64px; height: 64px; margin: 0; }
+  .ach-detail-hint { max-width: none; }
+}
+
+
+/* Unlock toast (HTML, bottom-right) */
+.ach-notif {
+  position: fixed; bottom: 20px; right: 20px; z-index: 2000;
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 18px 10px 10px;
+  background: rgba(12,10,22,0.95);
+  border: 1px solid rgba(255,215,102,0.6); border-radius: 10px;
+  color: #fff; font-family: Arial, sans-serif; cursor: pointer; text-align: left;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+  animation: achSlideIn 0.35s ease;
+}
+.ach-notif-bronze { border-color: rgba(240,182,132,0.6); }
+.ach-notif-silver { border-color: rgba(226,233,244,0.55); }
+.ach-notif-mythic { border-color: rgba(190,160,255,0.7); }
+.ach-notif-badge { width: 46px; height: 46px; flex-shrink: 0; }
+.ach-notif-kicker { font-size: 10px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: #ffd766; }
+.ach-notif-title  { font-size: 14px; font-weight: 700; margin-top: 1px; }
+.ach-notif-desc   { font-size: 11px; color: #9aa3b5; margin-top: 2px; }
 @keyframes achSlideIn { from { transform: translateX(120%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
 
 /* ============================================================
@@ -1966,6 +2090,18 @@ button:focus-visible, select:focus-visible, input:focus-visible,
   justify-content: flex-end;
   max-width: 140px;
 }
+/* With one pad the whole bottom edge is free — spread out so thumbs don't
+   clip neighbouring buttons. */
+#mobileControls.solo .mc-dpad { gap: 16px; }
+#mobileControls.solo #mc-p1 .mc-actions {
+  display: grid;
+  grid-template-columns: repeat(2, auto);
+  gap: 14px;
+  max-width: none;
+}
+#mobileControls.solo .mc-btn { width: 68px; height: 68px; }
+#mobileControls.solo .mc-left,
+#mobileControls.solo .mc-right { width: 64px; height: 64px; }
 
 .mc-btn {
   pointer-events: auto;
@@ -2103,13 +2239,41 @@ button:focus-visible, select:focus-visible, input:focus-visible,
   }
   /* D-pad stays bottom-left; remove the gap that was for actions above it */
   #mc-p1 { gap: 0; }
-  /* Pause button: move above the control zone so it doesn't overlap */
+  /* Pause button: in the empty band between the letterboxed game and the
+     control row — at the top it sat on the HUD bars. */
   #mc-pause {
-    bottom: auto;
-    top: max(46px, env(safe-area-inset-top, 46px));
+    bottom: calc(max(16px, env(safe-area-inset-bottom, 16px)) + 84px);
     font-size: 0.58rem;
     padding: 3px 12px;
   }
+  /* Solo sizes that fit dpad + 2x2 actions side by side on a 360-390px phone */
+  #mobileControls.solo .mc-dpad { gap: 8px; }
+  #mobileControls.solo #mc-p1 .mc-actions { gap: 10px; }
+  #mobileControls.solo .mc-btn { width: 62px; height: 62px; }
+  #mobileControls.solo .mc-left,
+  #mobileControls.solo .mc-right { width: 58px; height: 58px; }
+}
+
+/* Two thumb pads cannot share a portrait phone; ask for landscape instead. */
+#mc-rotate { display: none; }
+@media (orientation: portrait) and (max-width: 700px) {
+  #mobileControls.active:not(.solo) #mc-rotate {
+    display: flex;
+    position: fixed;
+    inset: 0;
+    z-index: 5;
+    pointer-events: auto;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    text-align: center;
+    background: rgba(4,4,12,0.92);
+    color: #dde4ff;
+    font-weight: 700;
+    letter-spacing: 1px;
+    font-size: 1rem;
+  }
+  #mobileControls.active:not(.solo) .mc-pad { display: none !important; }
 }
 
 /* ─── STORY MODE v2 — Chapters, Ability Store, Tokens ────────────────────── */
@@ -2473,6 +2637,64 @@ button:focus-visible, select:focus-visible, input:focus-visible,
   color: #ffb84d;
   opacity: 0.75;
 }
+/* Death spirit on the story retry screen */
+.story-spirit {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  max-width: 420px;
+  margin: 0 auto 14px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(160,200,255,0.22);
+  background: radial-gradient(ellipse at 12% 30%, rgba(140,190,255,0.14), rgba(10,14,30,0.55) 70%);
+  text-align: left;
+}
+.story-spirit-fig {
+  flex: 0 0 34px;
+  width: 34px;
+  height: 54px;
+  fill: none;
+  stroke: rgba(200,225,255,0.85);
+  stroke-width: 2.6;
+  stroke-linecap: round;
+  filter: drop-shadow(0 0 6px rgba(150,200,255,0.8));
+  animation: storySpiritFloat 3.2s ease-in-out infinite;
+}
+.story-spirit-fig circle { fill: rgba(200,225,255,0.18); }
+@keyframes storySpiritFloat {
+  0%, 100% { transform: translateY(0);    opacity: 0.85; }
+  50%      { transform: translateY(-4px); opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) { .story-spirit-fig { animation: none; } }
+.story-spirit-kicker {
+  font-size: 0.64rem;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: #9fc2ee;
+  margin-bottom: 5px;
+}
+.story-spirit-body p {
+  margin: 0 0 6px;
+  font-size: 0.8rem;
+  line-height: 1.45;
+  color: #d8e2f2;
+  font-style: italic;
+}
+.story-spirit-body p:last-child { margin-bottom: 0; }
+.story-spirit-body b { color: #fff; font-style: normal; }
+
+/* 100% complete: cleared with every hidden cache opened */
+.story-level-tile .lvl-star {
+  position: absolute;
+  top: 2px;
+  right: 5px;
+  font-size: 0.78rem;
+  line-height: 1;
+  color: #ffc94d;
+  text-shadow: 0 0 6px rgba(255,190,60,0.7);
+}
+.story-level-tile.lvl-starred { border-color: rgba(255,200,90,0.45); }
 .story-level-tile .lvl-name {
   margin-top: 4px;
   font-size: 0.56rem;
@@ -3186,6 +3408,16 @@ button:focus-visible, select:focus-visible, input:focus-visible,
   }
   .home-quicknav::-webkit-scrollbar { display: none; }
 
+  /* Loadout screen: the desktop 300px side-column floor left the center only
+     ~190px on a phone, clipping the modifier and arena pickers. */
+  #menu:not(.menu-home) {
+    grid-template-columns: minmax(0, 1fr) 236px minmax(0, 1fr);
+    padding: 8px max(8px, env(safe-area-inset-right)) 8px max(8px, env(safe-area-inset-left));
+    gap: 8px;
+  }
+  #menuConfigContent > * { max-width: 100%; min-width: 0; }
+  #arenaSection > div { grid-template-columns: minmax(0, 1fr) !important; gap: 4px !important; }
+
   /* 4-column mode cards to use horizontal space */
   .mode-cards {
     grid-template-columns: repeat(4, 1fr);
@@ -3195,8 +3427,9 @@ button:focus-visible, select:focus-visible, input:focus-visible,
   .mode-name  { font-size: 0.78rem; }
   .mode-desc  { font-size: 0.60rem; }
 
-  /* Canvas fills the full landscape screen */
-  canvas {
+  /* Canvas fills the full landscape screen. Not the loadout previews: forced
+     to 100vh they spilled over the weapon grid. */
+  canvas:not(.player-preview-canvas) {
     width: 100vw !important;
     height: 100vh !important;
     margin: 0 !important;
@@ -4588,10 +4821,10 @@ input[type="color"]::-webkit-color-swatch { border: none; border-radius: 6px; }
    CrazyGames' primary desktop iframes are 907x510, 821x462,
    1077x606, 1216x684 and 1366x768. #menu is height:100vh with
    overflow:hidden and no scrolling, so at those heights the path
-   cards, tutorial prompt and quick-nav row fell past the fold and
+   cards and quick-nav row fell past the fold and
    became unreachable. Compress the home column to fit instead of
-   clipping it. tutorialPrompt and trueFormHint are styled inline
-   in index.html, hence !important.
+   clipping it. trueFormHint is styled inline in index.html, hence
+   !important.
    ============================================================ */
 @media (max-height: 860px) {
   #menuHomeContent { gap: 3px; }
@@ -4599,7 +4832,6 @@ input[type="color"]::-webkit-color-swatch { border: none; border-radius: 6px; }
   #quickFightBtn   { padding: 12px 38px 14px !important; font-size: 1.15rem !important; }
   .path-card       { padding: 16px 16px 14px; gap: 5px; }
   .path-card-icon  { font-size: 2rem; }
-  #tutorialPrompt  { margin: 6px auto 3px !important; padding: 9px 14px !important; }
   .home-quicknav   { margin: 5px 0 0; }
 }
 
@@ -4614,7 +4846,6 @@ input[type="color"]::-webkit-color-swatch { border: none; border-radius: 6px; }
   .path-card       { padding: 11px 12px 10px; gap: 3px; }
   .path-card-icon  { font-size: 1.6rem; }
   .path-card-title { font-size: 1rem; letter-spacing: 3px; }
-  #tutorialPrompt  { margin: 3px auto 1px !important; padding: 6px 10px !important; gap: 8px !important; }
   .home-quicknav   { margin: 3px 0 0; gap: 4px; }
 }
 
@@ -4630,7 +4861,6 @@ input[type="color"]::-webkit-color-swatch { border: none; border-radius: 6px; }
   .path-card-icon  { font-size: 1.2rem; }
   .path-card-title { font-size: 0.88rem; letter-spacing: 2px; }
   .path-card-desc  { font-size: 0.58rem; }
-  #tutorialPrompt  { margin: 1px auto 0 !important; padding: 4px 8px !important; gap: 6px !important; }
   .home-quicknav   { margin: 1px 0 0; gap: 3px; }
   .home-nav-btn    { padding: 4px 8px; font-size: 0.66rem; }
   #trueFormHint    { display: none !important; }
@@ -4658,7 +4888,6 @@ input[type="color"]::-webkit-color-swatch { border: none; border-radius: 6px; }
   .path-card-icon  { font-size: 1.5rem; }
   .path-card-title { font-size: 0.95rem; letter-spacing: 2px; }
   .path-card-desc  { font-size: 0.6rem; }
-  #tutorialPrompt  { margin: 3px auto 1px !important; padding: 6px 10px !important; }
   .home-quicknav   { margin: 3px 0 0; gap: 3px; }
   .home-nav-btn    { padding: 4px 8px; font-size: 0.66rem; }
 }
@@ -4718,7 +4947,7 @@ input[type="color"]::-webkit-color-swatch { border: none; border-radius: 6px; }
    rendered clipped. The plate is the containing block now, and the chip
    sits fully inside it so the scrolling phone layout cannot clip it. */
 .home-quicknav .home-nav-btn { position: relative; }
-.home-quicknav #coinDisplay {
+.home-quicknav #coinDisplay, .home-quicknav #homeAchCount {
   position: absolute;
   top: -1px;
   right: -1px;
@@ -4731,12 +4960,12 @@ input[type="color"]::-webkit-color-swatch { border: none; border-radius: 6px; }
   text-shadow: 0 1px 2px #000;
   pointer-events: none;
 }
-.home-quicknav #coinDisplay:empty { display: none; }
+.home-quicknav #coinDisplay:empty, .home-quicknav #homeAchCount:empty { display: none; }
+.home-quicknav #homeAchCount { color: #ffd766; font-weight: bold; }
 
 /* --- 2. Drop the marketing copy ---------------------------- */
-/* The version stamp is NOT marketing copy — players need to know which
-   build they are on when they report something, so it stays. Only the
-   subtitle line is dropped here. */
+/* The build number is shown in the Updates modal header and the crash
+   screen, not on the home screen. */
 .game-subtitle         { display: none; }
 
 /* Build stamp, pinned to the top-left corner. In flow it sat directly on
@@ -4761,10 +4990,14 @@ input[type="color"]::-webkit-color-swatch { border: none; border-radius: 6px; }
      CrazyGames — these terms do not govern itch or our own domain. */
   display: none;
   position: fixed;
-  left: 0; right: 0; bottom: 4px;
+  left: 0; right: 0; bottom: 0;
   margin: 0;
+  padding: 10px 0 4px;
   font-size: 0.55rem;
   color: rgba(180, 195, 225, 0.30);
+  /* Cards scroll beneath this line; the fade keeps text from printing over them. */
+  background: linear-gradient(to bottom, rgba(6, 8, 14, 0), rgba(6, 8, 14, 0.92) 55%);
+  z-index: 5;
   pointer-events: auto;
 }
 #cgConsentNotice a {
@@ -4793,23 +5026,6 @@ input[type="color"]::-webkit-color-swatch { border: none; border-radius: 6px; }
   text-shadow: 0 2px 0 rgba(0,0,0,0.45);
 }
 
-/* --- 5. Tutorial offer: a hint, not a cookie banner -------- */
-#tutorialPrompt {
-  background: none !important;
-  border: none !important;
-  border-radius: 0 !important;
-}
-
-/* Tutorial offer stays one compact row — it wrapped once the buttons
-   picked up the chunky plate styling, which read as a stacked banner. */
-#tutorialPrompt {
-  flex-wrap: nowrap !important;
-  max-width: none !important;
-  gap: 10px !important;
-}
-#tutorialPrompt .home-nav-btn { padding: 6px 14px; font-size: 0.7rem; }
-#tutorialPrompt > span { font-size: 0.78rem; opacity: 0.75; }
-
 /* The canvas hero is drawn by _drawFractureScene in fixed GAME_W x GAME_H
    space and never reads the DOM, so the column's vertical rhythm is tuned
    against it. Removing the subtitle and version line pulled the title down
@@ -4817,13 +5033,6 @@ input[type="color"]::-webkit-color-swatch { border: none; border-radius: 6px; }
    without bringing the copy back. Do not centre this column — that decouples
    it from the canvas art entirely. */
 .game-titlemark { margin-bottom: 30px !important; }
-
-/* The nowrap rule above keeps the tutorial offer on one line on desktop, but at
-   phone widths that row overflows and clips the button labels. Let it wrap. */
-@media (max-width: 560px) {
-  #tutorialPrompt { flex-wrap: wrap !important; justify-content: center; }
-  #tutorialPrompt > span { flex: 1 0 100%; text-align: center; }
-}
 
 /* ============================================================
    ONLINE PANEL — themed to match the rest of the menu.
@@ -5858,3 +6067,164 @@ input[type="color"] {
 #menu .sim-greeting-name { color: var(--ui-text); font-family: inherit; font-weight: 800; font-size: 1.1rem; text-shadow: none; }
 #menu .sim-greeting-name span { color: var(--ember); }
 #menu .sim-greeting-sub { color: var(--ui-faint); font-family: inherit; }
+
+/* ============================================================
+   ADS — AdManager (js/smb-ads.js)
+   ============================================================ */
+.ad-slot { display: none; }
+/* Home banner sits in the empty bottom-right corner, and only where the
+   viewport is big enough that it cannot cover a menu card. */
+@media (min-width: 1480px) and (min-height: 720px) {
+  .ad-slot.ad-slot-live.ad-slot-home {
+    display: flex;
+    position: fixed;
+    right: 18px; bottom: 26px;
+    width: 300px; height: 250px;
+    z-index: 4;
+  }
+}
+.ad-slot.ad-slot-live {
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px dashed rgba(180, 195, 225, 0.22);
+  border-radius: 6px;
+  color: rgba(180, 195, 225, 0.4);
+  font: 600 0.7rem/1 'Rajdhani', sans-serif;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  pointer-events: none;
+}
+.ad-slot-size { font-size: 0.6rem; letter-spacing: 1px; opacity: 0.7; }
+
+.ad-reward-btn {
+  color: #ffd34d;
+  border-color: rgba(255, 200, 60, 0.45);
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+.ad-reward-btn:disabled { opacity: 0.6; cursor: default; }
+
+.ad-placeholder-overlay {
+  position: fixed; inset: 0;
+  z-index: 99999;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(4, 6, 10, 0.94);
+}
+.ad-placeholder-box {
+  display: flex; flex-direction: column; align-items: center; gap: 10px;
+  padding: 28px 40px;
+  border: 1px dashed rgba(180, 195, 225, 0.3);
+  border-radius: 10px;
+  color: #c8d2e6;
+  font-family: 'Rajdhani', sans-serif;
+  text-align: center;
+}
+.ad-placeholder-tag   { font-size: 0.75rem; letter-spacing: 3px; color: rgba(180, 195, 225, 0.55); }
+.ad-placeholder-kind  { font-size: 1.3rem; font-weight: 700; }
+.ad-placeholder-count { font-size: 2rem; font-weight: 700; color: #ffd34d; }
+
+/* ─── Compact corner HUD ─────────────────────────────────────────────────────
+   The full-width scrim was a band ~18% of the frame tall at the portal's
+   918x470, frosted with a backdrop blur that also smeared any ability callout
+   drawn under it. Each player now gets a small panel in their own corner:
+   name and lives on one line, then health, super, and Q|S side by side.
+   Phones keep their own layouts (the max-width rules above). */
+@media (min-width: 801px) {
+  #hud {
+    background: none;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    border-bottom: 0;
+    padding: 6px 8px;
+  }
+  .hud-side {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 3px 6px;
+    max-width: 300px;
+    padding: 6px 9px 7px;
+    background: rgba(6, 9, 16, 0.62);
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    border-radius: 6px;
+  }
+  .hud-side.right { justify-content: flex-end; }
+  .hud-side > * { width: 100%; }
+  .hud-side > .hud-name-row { width: auto; flex: 1; order: 1; }
+  .hud-side > .lives-display { width: auto; order: 2; }
+  .hud-side.right > .lives-display { order: 0; }
+  .hud-side > .health-bar-wrap { order: 3; }
+  .hud-side > .super-bar-wrap { order: 4; }
+  .hud-side > .cd-bar-wrap { order: 5; width: calc(50% - 3px); }
+}
+
+/* ─── Story map (smb-story-map.js) ──────────────────────────────────────────
+   The story modal widens to hold the map; the list view keeps the old width. */
+.story-modal-box.story-map-mode {
+  width: min(1000px, 96vw);
+  max-height: 96vh;
+  padding: 16px 18px 14px;
+}
+.story-map-wrap { position: relative; }
+.story-map-canvas {
+  display: block;
+  width: 100%;
+  height: clamp(200px, calc(96vh - 215px), 520px);
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  outline: none;
+}
+.story-map-canvas:focus-visible { border-color: var(--ember-line); }
+.story-map-info {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 2px 4px;
+  min-height: 46px;
+}
+.smi-main { min-width: 0; text-align: left; }
+.smi-title { font-weight: 800; color: var(--ui-text); font-size: 0.95rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.smi-sub { font-size: 0.74rem; color: var(--ui-muted); }
+.smi-btns { display: flex; gap: 8px; align-items: center; flex: none; }
+.smi-hint { font-size: 0.68rem; color: var(--ui-faint); margin-right: 4px; }
+.smi-btns .b:disabled { opacity: 0.4; cursor: default; }
+@media (max-width: 700px) { .smi-hint { display: none; } }
+
+/* ── Story loadout overlay (hosts #p1Config while open) ─────────────────── */
+#storyLoadoutOverlay {
+  position: fixed; inset: 0; z-index: 9060;
+  background: rgba(0,0,0,0.92);
+  align-items: center; justify-content: center;
+}
+#storyLoadoutOverlay .story-loadout-box {
+  width: min(560px, 96vw); max-height: 92vh; overflow-y: auto;
+  background: rgba(10,10,18,0.98); border: 1px solid rgba(255,200,100,0.22);
+  border-radius: 12px; padding: 16px 18px 18px;
+}
+#storyLoadoutOverlay .story-loadout-head {
+  display: flex; align-items: center; justify-content: space-between;
+  color: #ffd27a; font-weight: 800; letter-spacing: 3px; font-size: 0.82rem; margin-bottom: 6px;
+}
+#storyLoadoutOverlay .story-loadout-note { margin: 0 0 10px; font-size: 0.70rem; color: #998866; line-height: 1.5; }
+#storyLoadoutOverlay #p1Config { width: 100%; max-width: none; margin: 0; }
+#storyLoadoutOverlay #p1BotToggle,
+#storyLoadoutOverlay #p1Config .expand-arrow,
+#storyLoadoutOverlay #p1DifficultyRow { display: none !important; }
+#storyLoadoutOverlay #p1Config .config-header { pointer-events: none; }
+/* Weapons whose tone keeps them out of Story — visible, not pickable. */
+.sel-card.card-story-off { pointer-events: none; opacity: 0.32; filter: grayscale(1); position: relative; }
+.sel-card.card-story-off .sel-card-tag { visibility: hidden; }
+#menu .sel-card.card-story-off::after {
+  display: block; content: 'NOT IN STORY';
+  position: absolute; left: 0; right: 0; bottom: 2px;
+  font-size: 0.44rem; letter-spacing: 0.3px; color: #ff8866; font-weight: 800;
+}
+.path-cards-3.path-cards-4 { max-width: 620px; }
+.path-card.path-loadout { background: rgba(26, 20, 8, 0.92); border-color: rgba(255, 210, 122, 0.30); }
+.path-card.path-loadout:hover { border-color: rgba(255, 210, 122, 0.60); }
+.path-card.path-loadout .path-card-title { color: #ffd27a; }
+.path-card.path-loadout .path-card-desc  { color: #8a7040; }

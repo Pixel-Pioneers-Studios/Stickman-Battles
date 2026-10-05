@@ -13,7 +13,7 @@
 //   launch       — hero flies across multi-dimension panels
 //   coderealm    — abstract void; 5 interactive reality rifts to seal
 //   return       — hero falls back through dimensional tear
-//   finisher     — 3-hit Kratos QTE beatdown
+//   finisher     — 3-hit Varek QTE beatdown
 //   aura         — black aura absorbed into hero
 //   powers       — ability unlock overlay
 //   fall         — hero drops through floor

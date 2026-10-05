@@ -34,17 +34,20 @@ STORY_CHAPTER_REGISTRY.push(
   {
     id: 25, title: 'Collector\'s Network',
     world: '🌀 Fracture Core — Junction Node',
+    arena: 'realmEntry',
     type: 'exploration', exploreMode: 'scavenge',
     style: 'void',
     worldLength: 5200,
     objectName: 'Data Caches',
     preText: 'Collector terminals are scattered through the node. Access all five data caches before the network purges them.',
     scavengeItemDefs: [
-      { wx: 600,  y: 380, name: 'Collector Log A', icon: '📂' },
-      { wx: 1300, y: 340, name: 'Collector Log B', icon: '📂' },
-      { wx: 2100, y: 360, name: 'Origin Data',     icon: '💾' },
-      { wx: 3000, y: 350, name: 'Fracture Map',    icon: '🗺️' },
-      { wx: 4200, y: 370, name: 'Creator\'s Mark',  icon: '⬡' },
+      // Placed on the junction map (js/story/levels/ch25.js): terminal tower
+      // top, sorting trench, lift upper stop, main conduit, routing core.
+      { wx: 650,  y: 180, name: 'Collector Log A', icon: '📂' },
+      { wx: 1420, y: 500, name: 'Collector Log B', icon: '📂' },
+      { wx: 2400, y: 250, name: 'Origin Data',     icon: '💾' },
+      { wx: 3110, y: 210, name: 'Fracture Map',    icon: '🗺️' },
+      { wx: 4300, y: 230, name: 'Creator\'s Mark',  icon: '⬡' },
     ],
     spawnEnemies: [
       { wx: 800,  name: 'Network Enforcer', weaponKey: 'sword',  classKey: 'warrior',  aiDiff: 'medium', color: '#3355aa' },
@@ -57,8 +60,6 @@ STORY_CHAPTER_REGISTRY.push(
       { frame: 40,  text: 'Access all five data caches. Network enforcers are purging them — move fast.', color: '#44aaff', timer: 270 },
       { frame: 700, text: 'Veran: "I didn\'t know about the collectors. By then I was trying to undo it."', color: '#88ccff', timer: 260 },
     ],
-    sky: ['#040c08', '#081510', '#0c1e14'],
-    groundColor: '#060e0a', platColor: '#0e1812',
     playerLives: 3,
     tokenReward: 35, blueprintDrop: null,
     postText: 'Data secured. The system was built before the rift entity existed. The Creator built all of it. That\'s not comfortable. But it\'s not today\'s problem.',
@@ -103,16 +104,19 @@ STORY_CHAPTER_REGISTRY.push(
   {
     id: 27, title: 'Creator\'s Mark',
     world: '🌀 Fracture Core — Inner Threshold',
+    arena: 'warpzone',
     type: 'exploration', exploreMode: 'puzzle',
     style: 'void',
     worldLength: 3800,
     objectName: 'Creator\'s Seal',
     preText: 'The Creator\'s mark locks the threshold. Activate all four mechanisms in sequence to break the seal.',
     puzzleSwitchDefs: [
-      { wx: 600,  y: 395, label: '1' },
-      { wx: 1300, y: 355, label: '2' },
-      { wx: 2100, y: 370, label: '3' },
-      { wx: 3000, y: 360, label: '4' },
+      // Zig-zag order across the warp chamber (js/story/levels/ch27.js):
+      // pit, high tower, lift top stop, west wall shelf.
+      { wx: 1630, y: 540, label: '1' },
+      { wx: 2370, y: 120, label: '2' },
+      { wx: 2990, y: 220, label: '3' },
+      { wx: 470,  y: 260, label: '4' },
     ],
     spawnEnemies: [
       { wx: 900,  name: 'Threshold Guard',  weaponKey: 'sword',  classKey: 'warrior', aiDiff: 'hard',   color: '#446688' },
@@ -124,8 +128,6 @@ STORY_CHAPTER_REGISTRY.push(
       { frame: 40,  text: 'Activate the mechanisms in order. Wrong sequence resets progress.', color: '#99ffcc', timer: 270 },
       { frame: 600, text: 'Veran: "It\'s letting you. Real fighters chose to stand here."', color: '#88ccff', timer: 250 },
     ],
-    sky: ['#070318', '#0e0625', '#150932'],
-    groundColor: '#090418', platColor: '#120828',
     playerLives: 3,
     tokenReward: 42, blueprintDrop: null,
     postText: 'The seal breaks. The door opens. It\'s letting you through. That\'s the part that bothers you most.',
@@ -134,16 +136,19 @@ STORY_CHAPTER_REGISTRY.push(
   {
     id: 28, title: 'Into the Crucible',
     world: '🌀 Fracture Core — Approach',
+    arena: 'volcano',
     type: 'exploration', exploreMode: 'scavenge',
     style: 'void',
     worldLength: 3400,
     objectName: 'Bearer Records',
     preText: 'Veran needs the records of the previous forty-seven fragment bearers to map the Crucible champion\'s absorbed signatures. Collect all four data fragments.',
     scavengeItemDefs: [
-      { wx: 500,  y: 355, name: 'Bearer Log I',    icon: '📄' },
-      { wx: 1200, y: 315, name: 'Bearer Log II',   icon: '📄' },
-      { wx: 2000, y: 345, name: 'Fragment Map',    icon: '🗺️' },
-      { wx: 2900, y: 330, name: 'Signature Atlas', icon: '💾' },
+      // Placed on the Crucible approach map (js/story/levels/ch28.js): low
+      // niche, obsidian spire top, chain bridge, the Crucible's outer wall.
+      { wx: 380,  y: 400, name: 'Bearer Log I',    icon: '📄' },
+      { wx: 1235, y: 180, name: 'Bearer Log II',   icon: '📄' },
+      { wx: 1990, y: 270, name: 'Fragment Map',    icon: '🗺️' },
+      { wx: 2840, y: 240, name: 'Signature Atlas', icon: '💾' },
     ],
     spawnEnemies: [
       { wx: 800,  name: 'Crucible Scout',   weaponKey: 'axe',    classKey: 'berserker',aiDiff: 'hard',   color: '#880044' },
@@ -155,8 +160,6 @@ STORY_CHAPTER_REGISTRY.push(
       { frame: 40,  text: 'Collect the bearer records. Crucible scouts are purging them.', color: '#cc88ff', timer: 270 },
       { frame: 560, text: '"It carries forty-seven fragment signatures. Each one a move learned from someone who wasn\'t enough."', color: '#ff88cc', timer: 280 },
     ],
-    sky: ['#0f0308', '#180610', '#200a18'],
-    groundColor: '#100408', platColor: '#1c0814',
     playerLives: 3,
     tokenReward: 20, blueprintDrop: null,
     postText: 'The Crucible waits. You go in.',
@@ -189,7 +192,7 @@ STORY_CHAPTER_REGISTRY.push(
     opponentName: 'Crucible Champion', weaponKey: 'axe', classKey: 'berserker', aiDiff: 'expert', opponentColor: '#880044',
     armor: ['helmet', 'chestplate', 'leggings'],
     playerLives: 2,
-    arena: 'ice',
+    arena: 'volcano',
     walkFight: true, worldLength: 3000,
     tokenReward: 110, blueprintDrop: 'fracture_surge2',
     postText: 'It collapses. And as it dissolves, the forty-seven fragment signatures it held — they release. Freed. A wave of light flows into your fragment. The compass burns white. The core is open.',
@@ -274,7 +277,7 @@ STORY_CHAPTER_REGISTRY.push(
     opponentName: 'The Eye', weaponKey: 'hammer', classKey: 'thor', aiDiff: 'expert', opponentColor: '#6633cc',
     armor: ['helmet', 'chestplate'],
     playerLives: 1,
-    arena: 'underwater',
+    arena: 'storyCore',
     walkFight: true, worldLength: 3000,
     tokenReward: 130, blueprintDrop: 'ghost_step2',
     postText: 'The Eye dissolves. The door opens. Beyond it: the rift entity. The first fragment bearer. Ten thousand years of waiting. And behind it, somehow — the beginning of everything that comes next.',

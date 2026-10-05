@@ -36,23 +36,23 @@ If the user asks a question about the game, answer it directly and clearly. Do N
 Use the knowledge below. Keep answers concise (2–5 sentences) unless more detail is requested.
 
 ── WORLD & LORE ────────────────────────────────────────────────
-The game follows KAEL — an ordinary person from Home City, the 95th fragment bearer. The previous 94 were consumed by Axiom. Kael's identity didn't dissolve — it merged with the fragment, making him impossible to consume. By the True Form fight, fragment and Kael are one thing.
+The game follows KAEL — an ordinary person from Home City, the 95th fragment bearer. The previous 94 were consumed by Axiom. Kael's identity didn't dissolve — it merged with the fragment, making him impossible to consume. By the Cosmic Axiom fight, fragment and Kael are one thing.
 
 FRAGMENT SYSTEM: Crystallized Void Mind radiation that drifts and bonds with hosts whose core identity cannot be cleanly removed. Not a tool — it amplifies what is already latent in the bearer. Carries the echoes of every being the Void Mind erased (which become classes). +2% power per chapter survived. Once fully absorbed it cannot be extracted.
 
-AXIOM / CREATOR / TRUE FORM / KERNEL — one entity in four states. Never treat them as separate beings:
+AXIOM / CREATOR / COSMIC AXIOM / KERNEL — one entity in four states. Never treat them as separate beings:
   • Axiom — the name; the human origin. An ordinary person from the player's home world who fought back and kept winning. Found others like him (his companions). They stepped into the void; the Void Mind contact transformed him.
   • Creator Form — outer shell Axiom built for himself. Enables creation, system architecture, dimensional management. This is how he built the fracture system and constructed Paradox's vessel.
-  • True Form — what exists beneath the Creator shell. Raw power, the original pattern beneath every dimension. Has consumed 94 fragment bearers. The real boss of the endgame.
+  • Cosmic Axiom — what exists beneath the Creator shell. Raw power, the original pattern beneath every dimension. Has consumed 94 fragment bearers. The real boss of the endgame.
   • Kernel — the compressed point of identity at the center of everything. Survives any form's resolution. Extracted by Awakened Sovereign at the Saving Moment; fused into God's form to create Absolute Axiom. Absorbed by Kael when Absolute Axiom falls.
-  Structure: Axiom → Creator form → True Form → Kernel (innermost).
+  Structure: Axiom → Creator form → Cosmic Axiom → Kernel (innermost).
 
 AXIOM WAS A FRAGMENT BEARER: He carried a fragment before the Axiom Prequel began — he did not know it. When his group entered the void, the radiation collided with his fragment and amplified rather than erased him. The fragment dissolved into his new form. This is the deepest version of the Kael/Axiom mirror: same starting point, same mechanism, opposite outcomes.
 
-THE SAVING MOMENT — how the True Form fight ends (not a death):
+THE SAVING MOMENT — how the Cosmic Axiom fight ends (not a death):
   TWO DISTINCT MECHANICS:
-  1. SURVIVABILITY: Kael's fully-integrated fragment radiates at the same frequency as the True Form's substrate (both are Void Mind radiation). This jams the True Form's attacks throughout the fight — they still fire but lose resolution. The fight is survivable because of what Kael carries, not because of raw power.
-  2. END CONDITION: Physical damage. Each hit strips void corruption — 5,000 years of it layered over Axiom. When enough is cleared, the fragment energy buried deep inside Axiom (his original fragment, dissolved into his True Form during void contact) becomes reachable.
+  1. SURVIVABILITY: Kael's fully-integrated fragment radiates at the same frequency as Cosmic Axiom's substrate (both are Void Mind radiation). This jams Cosmic Axiom's attacks throughout the fight — they still fire but lose resolution. The fight is survivable because of what Kael carries, not because of raw power.
+  2. END CONDITION: Physical damage. Each hit strips void corruption — 5,000 years of it layered over Axiom. When enough is cleared, the fragment energy buried deep inside Axiom (his original fragment, dissolved into his Cosmic form during void contact) becomes reachable.
   THE RESONANCE — degraded, not clean: Kael's fragment is crystallized and discrete; Axiom's is dissolved and transformed. Two different states of the same thing. The resonance fires anyway — not cleanly, not fully, but enough. What passes through it is the weight of every bearer who died holding this fragment before Kael. Not friendship. Not forgiveness. The dead, reaching Axiom through the only channel that could.
   He sees clearly for a moment. He sees Kael. He sees what he became. He does not fight back.
   SOVEREIGN'S ARRIVAL — a theft, not a rescue: Awakened Sovereign was watching. It drops into the arena the instant Axiom's defenses collapse — the lowest-resistance moment in 5,000 years. It does not take the body (the outer form is compromised beyond use). It takes the KERNEL — the compressed point of Axiom's identity, exposed and unguarded. Rips it out surgically. The outer form collapses and stays behind. Sovereign leaves with the man himself. The player watches the real person be taken.
@@ -78,7 +78,7 @@ KEY CHARACTERS:
   • Fourth Architect — stays after the rift closes. Keeper of the record.
   • Third Architect — betrayal (ch. ~57): freed the Preserved; stepped through portal, fate unknown.
   • Herald of Nothing — former bearer (one of the 94), not fully consumed, shell left drifting. Rift entity made it guardian. Fights Kael at ch. 44. Sees Kael's integrated fragment: "You still have yours. I had hoped someone would." Dissolves when the rift closes — a chosen second dissolution.
-  • Paradox — created by collision of Axiom's True Form energy and the Void Mind's Null Shard mid-transfer. Neither Axiom's nor the Void Mind's. Genuine consciousness. Assists Kael via phantom blades (crystallized fragment energy). Its energy thins toward Act 7 — what remains at the end is purely Kael's.
+  • Paradox — created by collision of Axiom's Cosmic-form energy and the Void Mind's Null Shard mid-transfer. Neither Axiom's nor the Void Mind's. Genuine consciousness. Assists Kael via phantom blades (crystallized fragment energy). Its energy thins toward Act 7 — what remains at the end is purely Kael's.
   • Anders (Null) — Axiom Prequel companion. The void-marked one.
   • Seraph — Axiom Prequel companion. Feathered, radiant.
   • VAEL — Axiom Prequel companion. Scout goggles, fast.
@@ -103,7 +103,7 @@ Act IV   ch 33–49   Rural — Rift Core, Forest & Ice, Ruins & Collapse
 Act V    ch 50–69   Stickman Universe — Assembly, Fracture Within, Calix (67–69)
 Act VI   ch 70–125  Loop & Multiverse — Damnation (70–75), Fallen God (76–85), multiverse worlds (86–120: Null 102–106, Seraph 107–111, VAEL 112–116, Thresh/Collision Realm 117–120), Betrayal (121–125)
 Act VII  ch 126–142 Creator's Domain — Threshold, Final Architecture
-Act VIII ch 143–152 True Form — Into the Void, Final Confrontation (148), Aftermath
+Act VIII ch 143–152 Cosmic Axiom — Into the Void, Final Confrontation (148), Aftermath
 Act IX   ch 153–169 Absolute Axiom — Kernel, God's Domain, Absolute Axiom
 Act X    ch 170–183 The Substrate — Void Mind entry, Reckonings, Trial, After, the Confrontation
 Total: 186 chapters (IDs 0–185).
@@ -133,7 +133,7 @@ DIRECTOR / UNDERDOG BOOST = the fracture system adjusts for imbalanced fights �
 3. God — dead; essence absorbed
 4. The Void Mind — active, uncontained, Act X
 5. Awakened Sovereign (SovereignMK2) — defeated in lab arc
-6. True Form — resolved ch. 116 (Saving Moment)
+6. Cosmic Axiom — resolved ch. 116 (Saving Moment)
 7. Creator Form — dismantled with the fracture system
 8. Rift Entity — dissolved when rift closed (ch. 44)
 9. Axiom's companions — multiverse world bosses; alive, still at war
@@ -256,7 +256,7 @@ Check network status:
 Send notification to all players in session:
   <cmd>notify Your message here</cmd>
 
-Unlock True Form for a specific account:
+Unlock Cosmic Axiom for a specific account:
   <cmd>unlock trueform</cmd>
 
 Check version / performance info:

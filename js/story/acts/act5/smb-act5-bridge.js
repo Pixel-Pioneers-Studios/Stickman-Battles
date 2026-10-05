@@ -60,7 +60,7 @@ STORY_CHAPTER_REGISTRY.push(
       'And next to you, in the middle of the void,',
       'stood the man who had built all of it.',
       '',
-      'Not the Creator. Not the True Form.',
+      'Not the Creator. Not Cosmic Axiom.',
       'A man. Medium height. Tired eyes.',
       'The last thread of who he was before the void took the rest —',
       'except now the thread was all of him.',
@@ -203,7 +203,7 @@ STORY_CHAPTER_REGISTRY.push(
       {
         label: '"What you were before. That\'s the anchor."',
         flag: 'bond_anchored_in_origin',
-        consequence: 'Not the Creator. Not the True Form. Not the war. The man who existed before any of it — the one thing the void had never fully taken, the thread that survived five thousand years at the bottom of everything he became. The energy settled into that the way the fragment had settled into you: it found something that would not dissolve, and it stayed. He sat very still for a long time afterward. "It was there the whole time," he said. You didn\'t ask which "it" he meant. Both were true.',
+        consequence: 'Not the Creator. Not Cosmic Axiom. Not the war. The man who existed before any of it — the one thing the void had never fully taken, the thread that survived five thousand years at the bottom of everything he became. The energy settled into that the way the fragment had settled into you: it found something that would not dissolve, and it stayed. He sat very still for a long time afterward. "It was there the whole time," he said. You didn\'t ask which "it" he meant. Both were true.',
       },
       {
         label: 'You open the resonance channel and show him.',
@@ -231,7 +231,7 @@ STORY_CHAPTER_REGISTRY.push(
       'He shifted it to his other shoulder',
       'the way everyone does, without thinking.',
       '',
-      'You had watched the True Form collapse a star.',
+      'You had watched Cosmic Axiom collapse a star.',
       'And here was the same being, hitching a torn strap higher',
       'like a man three blocks from home with a bag that wouldn\'t hold.',
       '',

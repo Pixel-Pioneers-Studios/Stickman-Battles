@@ -1,0 +1,799 @@
+'use strict';
+// smb-brain.js — THE BRAIN: a learned fighter that plays through the keyboard.
+// Depends on: smb-input.js (keysDown, keyHeldFrames, processInput), smb-fighter.js,
+//             smb-smk2-training.js (SMK2Trainer.simEnv), smb-domain.js (DomainManager)
+//
+// Nothing here knows what a double jump, a shield or a super is. The network sees
+// numbers about both fighters and chooses which of eight virtual keys to hold; the
+// real input handlers (the same keydown listener and processInput() a human goes
+// through) turn those keys into actions. Everything it knows about the controls it
+// learns from what the keys did to the numbers. Training runs from tools/brain/.
+//
+// Separate from SovereignMK2 on purpose: this is a second opponent, not a rewrite.
+
+const Brain = (() => {
+  const REPEAT = 3;                       // frames each decision's keys are held
+  const HEADS  = [3, 2, 2, 4];            // move L/-/R · jump · shield · button -/atk/abi/sup
+  const N_LOGITS = HEADS.reduce((a, b) => a + b, 0);
+  const KEY_NAMES = ['left', 'right', 'jump', 'shield', 'attack', 'ability', 'super'];
+
+  function controlsFor(slot) {
+    const c = {};
+    for (const k of KEY_NAMES) c[k] = 'brain' + slot + '_' + k;
+    return c;
+  }
+
+  // ── Network ────────────────────────────────────────────────────────────────
+  function _b64ToF32(s) {
+    const bin = atob(s), u8 = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i);
+    return new Float32Array(u8.buffer);
+  }
+  function _f32ToB64(f) {
+    const u8 = new Uint8Array(f.buffer, f.byteOffset, f.byteLength);
+    let s = '';
+    for (let i = 0; i < u8.length; i += 0x8000) s += String.fromCharCode.apply(null, u8.subarray(i, i + 0x8000));
+    return btoa(s);
+  }
+
+  // weights: { sizes:[in,h1,...,out], W:[b64...], b:[b64...] } — W is row-major [out][in].
+  function loadNet(weights) {
+    if (!weights || !weights.sizes) return null;
+    const W = weights.W.map(x => typeof x === 'string' ? _b64ToF32(x) : Float32Array.from(x));
+    const b = weights.b.map(x => typeof x === 'string' ? _b64ToF32(x) : Float32Array.from(x));
+    const bufs = weights.sizes.map(n => new Float32Array(n));
+    return { sizes: weights.sizes, W, b, bufs };
+  }
+
+  function forward(net, x) {
+    const S = net.sizes, L = S.length - 1;
+    let inp = x;
+    for (let l = 0; l < L; l++) {
+      const nIn = S[l], nOut = S[l + 1], W = net.W[l], b = net.b[l], out = net.bufs[l + 1];
+      for (let o = 0; o < nOut; o++) {
+        let s = b[o]; const row = o * nIn;
+        for (let i = 0; i < nIn; i++) s += W[row + i] * inp[i];
+        out[o] = l < L - 1 ? Math.tanh(s) : s;
+      }
+      inp = out;
+    }
+    return inp;
+  }
+
+  // Samples one option per head. Returns the log-probability of the joint choice.
+  function sample(logits, act, greedy) {
+    let off = 0, logp = 0;
+    for (let h = 0; h < HEADS.length; h++) {
+      const n = HEADS[h];
+      let mx = -Infinity;
+      for (let k = 0; k < n; k++) if (logits[off + k] > mx) mx = logits[off + k];
+      let z = 0;
+      for (let k = 0; k < n; k++) z += Math.exp(logits[off + k] - mx);
+      let pick = 0;
+      if (greedy) {
+        for (let k = 1; k < n; k++) if (logits[off + k] > logits[off + pick]) pick = k;
+      } else {
+        let r = Math.random() * z;
+        for (pick = 0; pick < n - 1; pick++) { r -= Math.exp(logits[off + pick] - mx); if (r <= 0) break; }
+      }
+      act[h] = pick;
+      logp += logits[off + pick] - mx - Math.log(z);
+      off += n;
+    }
+    return logp;
+  }
+
+  // ── Observation ────────────────────────────────────────────────────────────
+  // Everything is from the observer's side: dx is signed toward the opponent, so
+  // one policy plays both spawn sides. Scaled by hand to roughly [-1, 1].
+  const OBS_FIGHTER = 30;
+  // Kit identity, appended AFTER everything else so a checkpoint trained without
+  // it can be widened with zero weights (tools/brain/train.js) and lose nothing.
+  // Frozen lists: reordering them would scramble what a trained net has learned.
+  const KIT_WEAPONS = ['sword', 'hammer', 'gun', 'axe', 'spear', 'bow', 'shield', 'scythe', 'fryingpan',
+    'broomstick', 'combat', 'peashooter', 'slingshot', 'paperairplane', 'flail', 'whip', 'boomerang', 'katana',
+    'flamethrower', 'electricstaff', 'bomb', 'knives', 'glassblade', 'anchor', 'crossbow', 'mkgauntlet', 'fragment'];
+  const KIT_CLASSES = ['none', 'warrior', 'thor', 'kratos', 'ninja', 'gunner', 'archer', 'paladin', 'berserker',
+    'megaknight', 'pugilist', 'ronin', 'reaper', 'summoner', 'demolitionist', 'warden', 'adept'];
+  const OBS_BASE = 2 * OBS_FIGHTER + 16;
+  const OBS_KIT = KIT_WEAPONS.length + KIT_CLASSES.length;
+  // Crowd view, appended after the kits for the same widening reason. The main
+  // opponent slot stays the nearest real fighter (what it has always seen); these
+  // slots hold the next nearest hostiles of any kind, familiars included, so a
+  // Summoner's second body or a 2v1 partner stops being invisible.
+  const N_EXTRA = 2;
+  const OBS_EXTRA_SLOT = OBS_FIGHTER + 3;
+  const OBS_CROWD = N_EXTRA * OBS_EXTRA_SLOT + 3;
+  // Opponent read, appended last. Everything above is one frame: two different
+  // players who make the same situation get the same answer. These are decayed
+  // per-decision tallies of what THIS opponent has been doing (half-life ~20 s,
+  // kept across stocks), so a net trained against many styles can tell a turtle
+  // from a rusher and answer each — adapting with frozen weights.
+  const N_HIST = 17;
+  const HIST_DECAY = Math.pow(0.5, 1 / 400);   // 400 decisions = 20 s
+  const OBS_DIM = OBS_BASE + 2 * OBS_KIT + OBS_CROWD + N_HIST;
+  let _histOff = false;                          // ablation: read frozen at match start (tools/brain/adapt.js)
+  let _huntWeights = null;                       // the frozen net a hunter run trains against (opts.hunt)
+
+  function _kitObs(o, i, f) {
+    for (let k = 0; k < OBS_KIT; k++) o[i + k] = 0;
+    const w = KIT_WEAPONS.indexOf(f.weaponKey), c = KIT_CLASSES.indexOf(f.charClass || 'none');
+    if (w >= 0) o[i + w] = 1;
+    if (c >= 0) o[i + KIT_WEAPONS.length + c] = 1;
+    return i + OBS_KIT;
+  }
+
+  // A class that names a weapon fights with it; the rest draw any weapon.
+  // withClass: never 'none', so class passives and domains are always in play.
+  function randomKit(withClass) {
+    const cls = KIT_CLASSES.filter(c => c !== 'adept' && CLASSES[c] && !(withClass && c === 'none'));
+    const c = cls[Math.floor(Math.random() * cls.length)];
+    const w = CLASSES[c].weapon || WEAPON_KEYS[Math.floor(Math.random() * WEAPON_KEYS.length)];
+    return { w, c };
+  }
+
+  function _fighterObs(o, i, f, me) {
+    const W = f.weapon || {};
+    const ranged = W.type === 'ranged' ? 1 : 0;
+    o[i++] = (f.cx() - 450) / 450;
+    o[i++] = (f.y - 300) / 200;
+    o[i++] = (f.vx || 0) / 12;
+    o[i++] = (f.vy || 0) / 18;
+    o[i++] = f.onGround ? 1 : 0;
+    o[i++] = f.canDoubleJump ? 1 : 0;
+    o[i++] = f.facing || 1;
+    o[i++] = f.health / Math.max(1, f.maxHealth);
+    o[i++] = (f.lives || 0) / 3;
+    o[i++] = Math.min(1, (f.cooldown || 0) / 40);
+    o[i++] = Math.min(1, (f.attackTimer || 0) / 20);
+    o[i++] = Math.min(1, (f.attackEndlag || 0) / 30);
+    o[i++] = Math.min(1, (f.abilityCooldown || 0) / 300);
+    o[i++] = (f.superMeter || 0) / 100;
+    o[i++] = f.superReady ? 1 : 0;
+    o[i++] = f.shielding ? 1 : 0;
+    // Under 'pool' shield rules shieldHP is a meter that is full at rest and stacks
+    // sit at 1; every checkpoint so far trained on the ladder, where both read ~0
+    // with the guard down. Keep the ladder's meaning: guard HP only while raised.
+    const _pool = typeof SHIELD_RULES !== 'undefined' && SHIELD_RULES === 'pool';
+    o[i++] = _pool ? (f.shielding ? 1 / 7 : 0) : Math.min(1, (f.shieldStacks || 0) / 7);
+    o[i++] = Math.min(1, ((_pool && !f.shielding) ? 0 : (f.shieldHP || 0)) / 30);
+    o[i++] = f.shieldBroken ? 1 : 0;
+    o[i++] = Math.min(1, (f.stunTimer || 0) / 90);
+    o[i++] = Math.min(1, (f.ragdollTimer || 0) / 60);
+    o[i++] = Math.min(1, (f.invincible || 0) / 60);
+    o[i++] = Math.min(1, (f._landLag || 0) / 20);
+    o[i++] = Math.min(1, (f._parryVulnFrames || 0) / 90);
+    o[i++] = Math.min(1, (f._clashCd || 0) / 30);
+    o[i++] = (f._domainRising || (typeof DomainManager !== 'undefined' && DomainManager.ownsDomain && DomainManager.ownsDomain(f))) ? 1 : 0;
+    o[i++] = Math.min(2, (W.range || 60) / 120);
+    o[i++] = Math.min(2, (W.damage || 10) / 20);
+    o[i++] = ranged;
+    o[i++] = Math.min(2, (f.classSpeedMult || 1));
+    return i;
+  }
+
+  // Every living body hostile to `me`: fighters and minions (familiars) alike.
+  function hostilesOf(me) {
+    const out = [];
+    const pools = [players, typeof minions !== 'undefined' ? minions : []];
+    for (const arr of pools) for (const f of arr) if (f && f !== me && f.health > 0 && isHostileTarget(me, f)) out.push(f);
+    return out;
+  }
+
+  function _crowdObs(o, i, me, opp) {
+    const all = hostilesOf(me);
+    const others = all.filter(f => f !== opp)
+      .sort((a, b) => Math.abs(a.cx() - me.cx()) + Math.abs(a.cy() - me.cy()) - Math.abs(b.cx() - me.cx()) - Math.abs(b.cy() - me.cy()));
+    for (let s = 0; s < N_EXTRA; s++) {
+      const f = others[s];
+      if (!f) { for (let k = 0; k < OBS_EXTRA_SLOT; k++) o[i++] = 0; continue; }
+      o[i++] = 1;                                   // slot filled
+      o[i++] = (f.cx() - me.cx()) / 450;
+      o[i++] = (f.cy() - me.cy()) / 200;
+      i = _fighterObs(o, i, f, false);
+    }
+    o[i++] = Math.min(1, all.filter(f => Math.abs(f.cx() - me.cx()) < 300).length / 3);
+    o[i++] = me.classPerkUsed ? 1 : 0;
+    o[i++] = opp.classPerkUsed ? 1 : 0;
+    return i;
+  }
+
+  // [prior, scale, lo, hi] per tally. value = (num + prior*K) / (den + K): with no
+  // evidence it reads the prior, so the first seconds of a match are neutral.
+  const HIST_SPEC = [
+    [0.5, 1, -1, 1],   //  0 approaches when it moves (+1) vs backs off (-1)
+    [0.3, 1, 0, 1],    //  1 typical distance it keeps
+    [0.3, 1, 0, 1],    //  2 time airborne
+    [0.1, 1, 0, 1],    //  3 shields while I swing in reach
+    [0.03, 3, 0, 1],   //  4 shields while I am NOT swinging (sits in guard)
+    [0.02, 20, 0, 2],  //  5 swing starts per decision (aggression)
+    [0.3, 1, 0, 1],    //  6 of its swings, share thrown from out of reach (whiffs)
+    [0.1, 3, 0, 1],    //  7 swings while I am in endlag in its reach (whiff punish)
+    [0.1, 3, 0, 1],    //  8 swings/shields as I walk into its range (anti-approach)
+    [0.1, 3, 0, 1],    //  9 swings as I fall into its range (anti-air)
+    [0.01, 20, 0, 2],  // 10 jump starts per decision
+    [0.003, 60, 0, 2], // 11 ability uses per decision
+    [0.9, 1, 0, 1],    // 12 holds a ready super (hoarding)
+    [0.5, 1, 0, 2],    // 13 damage I deal per swing of mine /10
+    [0.5, 1, 0, 2],    // 14 damage I take per swing of its /10
+    [0, 20, -2, 2],    // 15 net damage per decision /10 (is what I'm doing working)
+  ];
+  const HIST_K = 3;
+  function _histObs(o, i, me, opp) {
+    let H = me._bHist;
+    if (!H) H = me._bHist = { f: -1, n: 0, num: new Float64Array(HIST_SPEC.length), den: new Float64Array(HIST_SPEC.length), p: null };
+    const fc = typeof frameCount !== 'undefined' ? frameCount : 0;
+    if (H.f !== fc) {
+      H.f = fc;
+      const p = H.p;
+      const now = { ref: opp, oAtk: opp.attackTimer || 0, oG: !!opp.onGround, oSh: !!opp.shielding, oAbi: opp.abilityCooldown || 0,
+                    oSup: !!opp.superReady, oHp: opp.health, mAtk: me.attackTimer || 0, mHp: me.health };
+      if (p && p.ref === opp) {
+        const dx = Math.abs(opp.cx() - me.cx()), dy = Math.abs(opp.cy() - me.cy());
+        const myR = ((me.weapon && me.weapon.range) || 60) * 1.4 + 20;
+        const opR = ((opp.weapon && opp.weapon.range) || 60) * 1.4 + 20;
+        const oSwing = now.oAtk > 0 && p.oAtk === 0 ? 1 : 0;
+        const mSwing = now.mAtk > 0 && p.mAtk === 0 ? 1 : 0;
+        const dealt = Math.max(0, p.oHp - now.oHp), taken = Math.max(0, p.mHp - now.mHp);
+        const towardMe = Math.sign(me.cx() - opp.cx());
+        const meToward = Math.sign(opp.cx() - me.cx()) === Math.sign(me.vx || 0) && Math.abs(me.vx || 0) > 2;
+        const add = (k, cond, ind) => { H.num[k] = H.num[k] * HIST_DECAY + (cond ? ind : 0); H.den[k] = H.den[k] * HIST_DECAY + (cond ? 1 : 0); };
+        add(0, Math.abs(opp.vx || 0) > 1.5, Math.sign(opp.vx || 0) === towardMe ? 1 : 0);
+        add(1, true, Math.min(1, dx / 500));
+        add(2, true, now.oG ? 0 : 1);
+        add(3, now.mAtk > 0 && dx < myR && dy < 120, now.oSh ? 1 : 0);
+        add(4, now.mAtk === 0, now.oSh ? 1 : 0);
+        add(5, true, oSwing);
+        add(6, oSwing, dx > opR ? 1 : 0);
+        add(7, (me.attackEndlag || 0) > 0 && dx < opR, oSwing);
+        add(8, meToward && dx < opR * 1.3 && dx > opR * 0.5, oSwing || (now.oSh && !p.oSh) ? 1 : 0);
+        add(9, !me.onGround && (me.vy || 0) > 0 && dx < opR * 1.2, oSwing);
+        add(10, true, p.oG && !now.oG && (opp.vy || 0) < -8 ? 1 : 0);
+        add(11, true, now.oAbi > p.oAbi + 5 ? 1 : 0);
+        add(12, p.oSup, now.oSup ? 1 : 0);
+        // Ratio tallies: numerator and denominator move on different events.
+        H.num[13] = H.num[13] * HIST_DECAY + dealt / 10; H.den[13] = H.den[13] * HIST_DECAY + mSwing;
+        H.num[14] = H.num[14] * HIST_DECAY + taken / 10; H.den[14] = H.den[14] * HIST_DECAY + oSwing;
+        add(15, true, (dealt - taken) / 10);
+        H.n++;
+      }
+      H.p = now;
+    }
+    for (let k = 0; k < HIST_SPEC.length; k++) {
+      const [prior, scale, lo, hi] = HIST_SPEC[k];
+      // Ablation reads as the first frame of a match (priors, no evidence): the
+      // in-distribution "knows nothing about this opponent", not out-of-range zeros.
+      const v = _histOff ? prior * scale : (H.num[k] + prior * HIST_K) / (H.den[k] + HIST_K) * scale;
+      o[i++] = Math.max(lo, Math.min(hi, k === 0 ? 2 * v - 1 : v));
+    }
+    o[i++] = _histOff ? 0 : Math.min(1, H.n / 300);  // how much it has seen (15 s = full)
+    return i;
+  }
+
+  function observe(me, opp, prevAct, obs) {
+    const o = obs || new Float32Array(OBS_DIM);
+    const dir = Math.sign(opp.cx() - me.cx()) || 1;
+    let i = _fighterObs(o, 0, me, true);
+    i = _fighterObs(o, i, opp, false);
+    const dx = opp.cx() - me.cx(), dy = opp.cy() - me.cy();
+    o[i++] = dx / 450;
+    o[i++] = dy / 200;
+    o[i++] = Math.min(1, Math.abs(dx) / 900);
+    o[i++] = dir;
+    o[i++] = me.facing === dir ? 1 : 0;       // facing the opponent
+    o[i++] = opp.facing === -dir ? 1 : 0;     // opponent facing me
+    // Nearest hostile projectile, relative.
+    let best = null, bd = Infinity;
+    if (typeof projectiles !== 'undefined') {
+      for (const p of projectiles) {
+        if (!p || !p.active || p.owner === me) continue;
+        const d = Math.abs(p.x - me.cx()) + Math.abs(p.y - me.cy());
+        if (d < bd) { bd = d; best = p; }
+      }
+    }
+    o[i++] = best ? 1 : 0;
+    o[i++] = best ? (best.x - me.cx()) / 450 : 0;
+    o[i++] = best ? (best.y - me.cy()) / 200 : 0;
+    o[i++] = best ? (best.vx || 0) / 15 : 0;
+    // What it is holding right now — needed to learn that a key must be released
+    // before it can be pressed again (jump, attack).
+    o[i++] = prevAct[0] - 1;
+    o[i++] = prevAct[1];
+    o[i++] = prevAct[2];
+    o[i++] = prevAct[3] === 1 ? 1 : 0;
+    o[i++] = prevAct[3] === 2 ? 1 : 0;
+    o[i++] = prevAct[3] === 3 ? 1 : 0;
+    i = _kitObs(o, i, me);
+    i = _kitObs(o, i, opp);
+    i = _crowdObs(o, i, me, opp);
+    i = _histObs(o, i, me, opp);
+    for (let k = 0; k < o.length; k++) {
+      const v = o[k];
+      o[k] = v !== v ? 0 : v > 5 ? 5 : v < -5 ? -5 : v;
+    }
+    return o;
+  }
+
+  // ── Virtual keyboard ───────────────────────────────────────────────────────
+  // Movement, jump and shield are read by processInput() from keysDown; attack,
+  // ability and super only fire from the keydown listener. So a press of those
+  // three is a real dispatched keydown, the same event a keyboard sends.
+  function _press(k)   {
+    if (keysDown.has(k)) return;
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: k }));
+    keysDown.add(k);
+  }
+  function _release(k) { keysDown.delete(k); delete keyHeldFrames[k]; }
+  function _hold(k, on) { if (on) keysDown.add(k); else _release(k); }
+
+  function applyKeys(f, act) {
+    const c = f.controls;
+    _hold(c.left,  act[0] === 0);
+    _hold(c.right, act[0] === 2);
+    _hold(c.jump,  act[1] === 1);
+    _hold(c.shield, act[2] === 1);
+    const btn = [null, c.attack, c.ability, c.super];
+    for (let b = 1; b < 4; b++) { if (act[3] === b) _press(btn[b]); else _release(btn[b]); }
+  }
+  function releaseAll(f) { for (const k of Object.values(f.controls)) _release(k); }
+
+  // ── Discovery tracker ──────────────────────────────────────────────────────
+  // Counts what the brain actually DID with each control, from state changes and
+  // from damage events. This is the readout for "which controls does it know".
+  const STAT_KEYS = ['frames', 'walkFrames', 'jumps', 'doubleJumps', 'fastFalls',
+    'shieldRaises', 'blocks', 'hitsTaken', 'swings', 'swingHits', 'abilities', 'abilityHits',
+    'supers', 'superHits', 'parries', 'clashes', 'clashWins', 'guardBreaks', 'stuns',
+    'strings', 'domains', 'kills', 'deaths', 'dmgDealt', 'dmgTaken',
+    // Same presses split by situation: "threat" = the opponent is mid-swing and in
+    // reach. A network mashing keys at random presses equally often in both, so
+    // the ratio between them is what shows it knows what a control is FOR.
+    'threatFrames', 'calmFrames', 'jumpsThreat', 'jumpsCalm', 'djThreat', 'djCalm',
+    'shieldThreat', 'shieldCalm',
+    // Damage in the first 10 s of a match vs after: the adaptation readout. A
+    // net that reads its opponent should trade better late than early.
+    'dmgDealtEarly', 'dmgTakenEarly'];
+  function newStats() { const s = {}; for (const k of STAT_KEYS) s[k] = 0; return s; }
+
+  const BRAIN_TEAM = 'brain_a', ENEMY_TEAM = 'brain_b';
+  let _track = null;   // { brain, opp, opps, st, bonus, frame, lastAbi, lastSup, prev }
+  let _wrapped = false;
+  function _installDamageHook() {
+    if (_wrapped || typeof window.dealDamage !== 'function') return;
+    _wrapped = true;
+    const orig = window.dealDamage;
+    window.dealDamage = function (attacker, target, dmg, kb, ...rest) {
+      const T = _track;
+      const foe = x => !!x && x._teamId === ENEMY_TEAM;
+      if (!T || !((target === T.brain && foe(attacker)) || (attacker === T.brain && foe(target)))) return orig(attacker, target, dmg, kb, ...rest);
+      const hp0 = target.health, sh0 = !!target.shielding, stun0 = target.stunTimer || 0;
+      const broke0 = !!target.shieldBroken, pv0 = attacker ? (attacker._parryVulnFrames || 0) : 0;
+      const r = orig(attacker, target, dmg, kb, ...rest);
+      const lost = Math.max(0, hp0 - target.health);
+      const st = T.st;
+      if (target === T.brain) {
+        st.hitsTaken++;
+        // Defense pays directly: 1800 iterations of "damage taken hurts" never
+        // taught it to shield (~1% of hits blocked), so what a shield saves is
+        // credited at half the rate a hit costs, and a parry earns a flat bonus.
+        if (sh0) T.bonus += Math.min(0.5, Math.max(0, (dmg || 0) - lost) / 80);
+        if (sh0 && lost < (dmg || 0) * 0.5) st.blocks++;
+        if (sh0 && attacker && (attacker._parryVulnFrames || 0) > pv0) { st.parries++; T.bonus += 0.5; }
+      } else if (T.opps.indexOf(target) < 0) {
+        // A familiar or other non-stock body: worth half, and not a kill.
+        T.bonus += lost / 80;
+      } else {
+        if (lost > 0) {
+          const f = T.frame;
+          // One landing per activation: multi-hit supers and abilities count once.
+          if (f - T.lastSup < 150) { if (!T.supLanded) { T.supLanded = true; st.superHits++; } }
+          else if (f - T.lastAbi < 90 && !((T.brain.attackTimer || 0) > 0)) { if (!T.abiLanded) { T.abiLanded = true; st.abilityHits++; } }
+          else st.swingHits++;
+          if (stun0 > 0) st.strings++;
+        }
+        if ((target.stunTimer || 0) > stun0 && stun0 === 0) st.stuns++;
+        if (sh0 && !broke0 && target.shieldBroken) st.guardBreaks++;
+      }
+      return r;
+    };
+  }
+
+  // A hostile is mid-swing and close enough that the swing could reach `b`.
+  function _threatened(b) {
+    if ((b.stunTimer || 0) > 0) return false;
+    for (const e of hostilesOf(b)) {
+      const reach = ((e.weapon && e.weapon.range) || 60) * 1.4 + 30;
+      if ((e.attackTimer || 0) > 0 && Math.abs(e.cx() - b.cx()) < reach && Math.abs(e.cy() - b.cy()) < 140) return true;
+    }
+    return false;
+  }
+
+  function _trackFrame(T) {
+    const b = T.brain, o = T.opp, p = T.prev, st = T.st;
+    st.frames++;
+    const threat = _threatened(b);
+    if (threat) st.threatFrames++; else st.calmFrames++;
+    if (Math.abs(b.vx || 0) > 1 && b.onGround) st.walkFrames++;
+    // A ground jump leaves canDoubleJump armed; a double jump spends it in the air.
+    if (p.onGround && !b.onGround && (b.vy || 0) < -10) { st.jumps++; if (threat) st.jumpsThreat++; else st.jumpsCalm++; }
+    if (!p.onGround && !b.onGround && p.canDoubleJump && !b.canDoubleJump && (b.vy || 0) < -8) { st.doubleJumps++; if (threat) st.djThreat++; else st.djCalm++; }
+    if (!b.onGround && (b.vy || 0) >= 12.9 && (p.vy || 0) < 12.9 && keysDown.has(b.controls.shield)) st.fastFalls++;
+    if (!p.shielding && b.shielding) { st.shieldRaises++; if (threat) st.shieldThreat++; else st.shieldCalm++; }
+    if ((b.attackTimer || 0) > (p.attackTimer || 0) && (p.attackTimer || 0) === 0) st.swings++;
+    if ((b.abilityCooldown || 0) > (p.abilityCooldown || 0) + 5) { st.abilities++; T.lastAbi = T.frame; T.abiLanded = false; }
+    if (p.superReady && !b.superReady && b.health > 0) { st.supers++; T.lastSup = T.frame; T.supLanded = false; }
+    const bc = b._clashCd || 0, oc = o._clashCd || 0;
+    if (bc > (p.clashCd || 0) && (p.clashCd || 0) === 0) st.clashes++;
+    if (oc > (p.oClashCd || 0) && (p.oClashCd || 0) === 0 && bc === 0) st.clashWins++;
+    const dom = !!(b._domainRising || (typeof DomainManager !== 'undefined' && DomainManager.ownsDomain && DomainManager.ownsDomain(b)));
+    // Five landed supers in one life is a long chain with nothing paid along the
+    // way; opening the domain is worth a stock so the chain has an end it can see.
+    if (dom && !p.dom) { st.domains++; T.bonus += 2; }
+    p.onGround = b.onGround; p.canDoubleJump = b.canDoubleJump; p.vy = b.vy;
+    p.shielding = b.shielding; p.attackTimer = b.attackTimer || 0;
+    p.abilityCooldown = b.abilityCooldown || 0; p.superReady = b.superReady;
+    p.clashCd = bc; p.oClashCd = oc; p.dom = dom;
+  }
+
+  // ── Episode ────────────────────────────────────────────────────────────────
+  const SPAWN_Y = 380;
+
+  // 'random' | 'randomClass' | { w, c } where w may be 'random' (any melee
+  // weapon, unless the class names one) | undefined (sword, no class).
+  function resolveKit(k) {
+    if (k === 'random') return randomKit();
+    if (k === 'randomClass') return randomKit(true);
+    if (!k) return { w: 'sword', c: 'none' };
+    if (k.w === 'ranged') {
+      const r = WEAPON_KEYS.filter(w => WEAPONS[w] && WEAPONS[w].type === 'ranged');
+      return { w: r[Math.floor(Math.random() * r.length)], c: k.c || 'none' };
+    }
+    if (k.w !== 'random') return k;
+    const named = k.c && CLASSES[k.c] && CLASSES[k.c].weapon;
+    const melee = WEAPON_KEYS.filter(w => WEAPONS[w] && WEAPONS[w].type !== 'ranged');
+    return { w: named || melee[Math.floor(Math.random() * melee.length)], c: k.c };
+  }
+
+  function _makeOpponent(spec, x, slot) {
+    const kit = resolveKit(spec.kit);
+    let f;
+    if (spec.type === 'self') {
+      f = new Fighter(x, SPAWN_Y, '#44aaff', kit.w, controlsFor(slot), false);
+      f._brainNet = loadNet(spec.weights || _huntWeights);
+      // Live Sovereign plays his top choice every decision, so the hunter's target does too.
+      f._brainGreedy = !!spec.greedy;
+    } else if (spec.type === 'sovereign' && typeof SovereignMK2 !== 'undefined') {
+      f = new SovereignMK2(x, SPAWN_Y, '#ff2200', kit.w);
+      f.isAI = true;
+      f.weaponKey = kit.w; f.weapon = WEAPONS[kit.w]; f._loadoutLocked = true;
+      // Fast Sovereign (guard drill): shorter gaps between swings, same windups and
+      // same minus-on-block endlag — so guarding is the answer and still pays.
+      // His own code checks the cooldown before swinging, so it is the swing's
+      // recovery (weapon.endlag, scaled on a per-fighter copy below) that caps him.
+      if (spec.speed) f.attackCooldownMult = spec.speed;
+    } else if (spec.type === 'style' && typeof HumanProxy !== 'undefined') {
+      // A fixed playstyle (tools/human-proxy.js, injected by the trainer). With
+      // several param sets it switches style every spec.every frames, so the
+      // read has to keep up with a player who changes plan mid-match.
+      f = new Fighter(x, SPAWN_Y, '#44dd44', kit.w, null, true, 'expert');
+      const ctls = (spec.styles || [spec.params]).map(p => HumanProxy.controller(p));
+      const every = spec.every || 1800, off = Math.floor(Math.random() * ctls.length);
+      f.updateAI = function () { return ctls[(off + Math.floor((frameCount || 0) / every)) % ctls.length].call(this); };
+      f.aiTickInterval = 1; f._noWhiffGuard = true;
+    } else {
+      f = new Fighter(x, SPAWN_Y, '#44dd44', kit.w, null, true, spec.type === 'idle' ? 'easy' : spec.type);
+      if (spec.type === 'idle') { f.updateAI = function () { this.vx *= 0.8; }; f.aiTickInterval = 1; }
+    }
+    f._teamId = ENEMY_TEAM;   // before the class, so a Summoner's familiar joins this team
+    if (kit.c && kit.c !== 'none') applyClass(f, kit.c);
+    if (spec.speed && f.weapon) f.weapon = Object.assign({}, f.weapon, { endlag: Math.round((f.weapon.endlag || 0) * spec.speed) });
+    if (spec.hpMult) { f.maxHealth = Math.round(f.maxHealth * spec.hpMult); f.health = f.maxHealth; }
+    f.name = 'OPP:' + spec.type;
+    return f;
+  }
+
+  // Runs whole episodes until `steps` decisions are collected. Returns flat
+  // base64 arrays for the trainer plus per-episode results and discovery stats.
+  function rollout(opts) {
+    _installDamageHook();
+    const net = loadNet(opts.weights);
+    const steps = opts.steps || 2000;
+    const maxFrames = opts.maxFrames || 3600;
+    const lives = opts.lives || 3;
+    const specs = opts.opponents || [{ type: 'idle' }];
+    const novelty = opts.novelty || 0;
+    const greedy = !!opts.greedy;
+    _histOff = !!opts.histOff;
+    if (opts.hunt) _huntWeights = opts.hunt;
+    // Eval only (tools/brain/shieldtest.js) — who controls the brain's shield key:
+    // undefined = the net; 'none' = never; 'f1' = scripted guard checked every
+    // frame (raised whenever a hostile swing is in reach); 'dec' = the same guard
+    // checked only at decisions, every REPEAT frames, like the net; 'hold' = guard
+    // held AHEAD (at decisions) while a hostile is in reach and neither side is
+    // swinging or recovering, dropped when the net presses a button. Ground only:
+    // in the air the key is fast fall, so the net keeps it there.
+    const shieldMode = opts.shieldMode;
+    const holdKey = (f, a) => {
+      if (a[3] > 0 && f.shielding) { f.shielding = false; f.shieldHoldTimer = 0; }   // let go, then press
+      let on = false;
+      if (f.onGround && a[3] === 0 && !((f.attackTimer || 0) > 0) && !((f.attackEndlag || 0) > 0)) {
+        for (const e of hostilesOf(f)) {
+          const reach = ((e.weapon && e.weapon.range) || 60) * 1.4 + 30;
+          if (Math.abs(e.cx() - f.cx()) < reach && Math.abs(e.cy() - f.cy()) < 140 && !((e.attackEndlag || 0) > 0)) { on = true; break; }
+        }
+      }
+      _hold(f.controls.shield, f.onGround ? on : a[2] === 1);
+    };
+    // Under the air guard / guard burst rules (smb-combat.js SHIELD_AIR, GUARD_BURST)
+    // the scripted guards also guard in the air, and burst out of a stun the
+    // first frame they may (release, then press).
+    const oracleKey = (f, a) => {
+      const k = f.controls.shield;
+      if (shieldMode !== 'none' && (f.stunTimer || 0) > 0 && typeof guardBurstReady === 'function') {
+        _hold(k, guardBurstReady(f) && !keysDown.has(k)); return;
+      }
+      // With the air guard on, the air key raises a guard too, so 'none' gives up fast fall.
+      const airGuard = typeof SHIELD_AIR !== 'undefined' && SHIELD_AIR;
+      _hold(k, !f.onGround && !airGuard ? a[2] === 1 : shieldMode === 'none' ? false : _threatened(f));
+    };
+
+    // opts.episodes: play exactly that many whole matches instead of filling `steps` (evaluation).
+    const nEps = opts.episodes || 0;
+    const obsBuf = new Float32Array(((nEps ? 0 : steps) + (nEps || 1) * Math.ceil(maxFrames / REPEAT) + 1) * OBS_DIM);
+    const acts = [], logps = [], rews = [], dones = [];
+    const episodes = [];
+    const total = newStats();
+    let n = 0, epIdx = 0;
+    const errs = {};
+    const saved = SMK2Trainer.simEnv.stub ? (SMK2Trainer.simEnv.stub(), true) : false;
+
+    while (nEps ? epIdx < nEps : n < steps) {
+      const spec = specs[((opts.specOffset || 0) + epIdx++) % specs.length];
+      SMK2Trainer.simEnv.apply();
+      // The page may be running a flow of its own: in a fresh (headless) profile the
+      // first-run tutorial starts a match and leaves gameLoading set, and
+      // processInput() then drops every held key — the brain could swing (keydown
+      // listener) but never walk, jump or guard. The sim owns the page while it runs.
+      if (typeof tutorialActive !== 'undefined' && tutorialActive && typeof endTutorial === 'function') { try { endTutorial(false); } catch (e) {} }
+      gameLoading = false;
+      try { if (typeof DomainManager !== 'undefined' && DomainManager.reset) DomainManager.reset(); } catch (e) {}
+      try { if (typeof MoveScene !== 'undefined') MoveScene.reset(); } catch (e) {}
+      const flip = Math.random() < 0.5;
+      const bx = flip ? 600 + Math.random() * 150 : 150 + Math.random() * 150;
+      const kit = resolveKit(spec.brainKit);
+      const brain = new Fighter(bx, SPAWN_Y, '#ffcc00', kit.w, controlsFor(0), false);
+      brain._teamId = BRAIN_TEAM;
+      if (kit.c && kit.c !== 'none') applyClass(brain, kit.c);
+      brain.name = 'BRAIN';
+      // spec.count: how many opponents it faces at once (2v1, 3v1). They share a
+      // team, so they never fight each other, and all of them hunt the brain.
+      const opps = [];
+      for (let q = 0; q < (spec.count || 1); q++) {
+        const ox = (flip ? 150 : 600) + Math.random() * 150;
+        const f = _makeOpponent(spec, ox, 1 + q);
+        f._teamId = ENEMY_TEAM; f.lives = lives; f.target = brain;
+        opps.push(f);
+      }
+      brain.lives = lives;
+      brain.target = opps[0];
+      players.length = 0; players.push(brain, ...opps);
+
+      const st = newStats();
+      // hitLag: for each hit the brain takes, [frames since the nearest hostile's
+      // swing started (-1 = none in progress: ability, projectile, hazard), and
+      // the brain's state as that frame began: stun / air / atk / open].
+      const swingStart = new Map(), hitLag = [];
+      const T = _track = { brain, opp: opps[0], opps, st, bonus: 0, frame: 0, lastAbi: -999, lastSup: -999,
+        prev: { onGround: false, canDoubleJump: false, vy: 0, shielding: false, attackTimer: 0,
+                abilityCooldown: 0, superReady: false, clashCd: 0, oClashCd: 0, dom: false } };
+      const act = [1, 0, 0, 0], prevAct = [1, 0, 0, 0];
+      const oppIO = opps.map(f => f._brainNet ? { act: [1, 0, 0, 0], prev: [1, 0, 0, 0], obs: new Float32Array(OBS_DIM) } : null);
+      const seen = {};
+      const alive = f => f.lives > 0 && players.indexOf(f) >= 0;
+      // The main opponent slot: nearest opponent still in the match.
+      const primary = () => {
+        let best = null, bd = Infinity;
+        for (const f of opps) {
+          if (!alive(f)) continue;
+          const d = Math.abs(f.cx() - brain.cx()) + Math.abs(f.cy() - brain.cy());
+          if (d < bd) { bd = d; best = f; }
+        }
+        return best;
+      };
+      let bLost = 0, oLost = 0, pb = brain.health;
+      const po = opps.map(f => f.health);
+      let frame = 0, trunc = false, epSteps = 0, finalObs = null, won = false;
+      const start = n;
+
+      while (true) {
+        // ── decision ──
+        const main = primary() || opps[0];
+        T.opp = main; brain.target = main;
+        const o = obsBuf.subarray(n * OBS_DIM, (n + 1) * OBS_DIM);
+        observe(brain, main, prevAct, o);
+        logps.push(sample(forward(net, o), act, greedy));
+        acts.push(act[0], act[1], act[2], act[3]);
+        if (shieldMode === 'hold') holdKey(brain, act);
+        applyKeys(brain, act);
+        if (shieldMode === 'none' || shieldMode === 'dec') oracleKey(brain, act);
+        else if (shieldMode === 'hold') holdKey(brain, act);
+        opps.forEach((f, q) => {
+          const io = oppIO[q];
+          if (!io || !alive(f)) return;
+          observe(f, brain, io.prev, io.obs);
+          sample(forward(f._brainNet, io.obs), io.act, !!f._brainGreedy);
+          applyKeys(f, io.act);
+          for (let k = 0; k < 4; k++) io.prev[k] = io.act[k];
+        });
+        for (let k = 0; k < 4; k++) prevAct[k] = act[k];
+
+        let r = 0, done = false;
+        for (let s = 0; s < REPEAT && !done; s++) {
+          hitStopFrames = 0; slowMotion = 1; aiTick = frame; frameCount = frame; T.frame = frame;
+          try { if (typeof DomainManager !== 'undefined' && DomainManager.update) DomainManager.update(); } catch (e) {}
+          SMK2Trainer.simEnv.tickWorld();
+          if (shieldMode === 'f1' || shieldMode === 'none') oracleKey(brain, act);
+          // What the brain was doing as the frame began: could it have guarded at all?
+          const pre = shieldMode === undefined ? null
+            : (brain.stunTimer || 0) > 0 || (brain.ragdollTimer || 0) > 0 ? 'stun'
+            : !brain.onGround ? 'air' : (brain.attackTimer || 0) > 0 || (brain.attackEndlag || 0) > 0 ? 'atk' : 'open';
+          try { processInput(); } catch (e) { errs.input = errs.input || e.message; }
+          try { brain.update(); } catch (e) { errs.brain = errs.brain || e.message; }
+          for (const f of opps) { if (!alive(f)) continue; try { f.update(); } catch (e) { errs.opp = errs.opp || e.message; } }
+          // Abilities and supers play as move scenes (smb-move-scenes.js); gameLoop ends them, so the sim must too.
+          try { if (typeof MoveScene !== 'undefined') MoveScene.update(); } catch (e) { errs.scene = errs.scene || e.message; }
+          _trackFrame(T);
+          frame++;
+          if (shieldMode !== undefined) {
+            for (const e of hostilesOf(brain)) {
+              if ((e.attackTimer || 0) <= 0) swingStart.delete(e);
+              else if (!swingStart.has(e)) swingStart.set(e, frame);
+            }
+            if (brain.health < pb) {
+              let lag = -1, bd = Infinity;
+              for (const [e, f0] of swingStart) {
+                const d = Math.abs(e.cx() - brain.cx());
+                if (d < bd) { bd = d; lag = frame - f0; }
+              }
+              hitLag.push([lag, pre]);
+            }
+          }
+          if (brain.health < pb) { r -= (pb - brain.health) / 40; st.dmgTaken += pb - brain.health; if (frame < 600) st.dmgTakenEarly += pb - brain.health; }
+          pb = brain.health;
+          opps.forEach((f, q) => {
+            if (f.health < po[q]) { r += (po[q] - f.health) / 40; st.dmgDealt += po[q] - f.health; if (frame < 600) st.dmgDealtEarly += po[q] - f.health; }
+            po[q] = f.health;
+          });
+          r += T.bonus; T.bonus = 0;
+          for (const who of [brain, ...opps]) {
+            if (who.health > 0 || !alive(who)) continue;
+            const isB = who === brain;
+            if (isB) { bLost++; st.deaths++; r -= 2; } else { oLost++; st.kills++; r += 2; }
+            who.lives--;
+            if (who.lives <= 0) {
+              if (isB) { done = true; break; }
+              // Out of the match: off the field and its keys released.
+              players.splice(players.indexOf(who), 1);
+              try { who._despawnFamiliar && who._despawnFamiliar(); } catch (_) {}
+              if (who._brainNet) releaseAll(who);
+              if (!opps.some(alive)) { done = true; won = true; break; }
+              continue;
+            }
+            try { who.onDeath(); } catch (_) {}
+            who.classPerkUsed = false; who.spartanRageTimer = 0; who.rageStacks = 0;
+            who.health = who.maxHealth;
+            const other = isB ? (primary() || opps[0]) : brain;
+            who.x = other.cx() < 450 ? 600 + Math.random() * 150 : 150 + Math.random() * 150;
+            who.y = SPAWN_Y; who.vx = who.vy = 0;
+            who.ragdollTimer = who.stunTimer = who.hurtTimer = 0;
+            who.shielding = false; who.state = 'idle';
+            if (isB) pb = brain.health; else po[opps.indexOf(who)] = who.health;
+          }
+          if (!done && frame >= maxFrames) { done = true; trunc = true; }
+        }
+        // Exploration scaffold: a small bonus the first time per episode each
+        // control DOES something. Annealed to zero by the trainer.
+        if (novelty > 0) {
+          for (const k of ['jumps', 'doubleJumps', 'shieldRaises', 'swings', 'abilities', 'supers', 'fastFalls']) {
+            if (!seen[k] && st[k] > 0) { seen[k] = 1; r += novelty; }
+          }
+        }
+        rews.push(r); dones.push(done ? 1 : 0);
+        n++; epSteps++;
+        if (done) {
+          if (trunc) { finalObs = new Float32Array(OBS_DIM); observe(brain, primary() || opps[0], prevAct, finalObs); }
+          break;
+        }
+      }
+      releaseAll(brain); for (const f of opps) if (f._brainNet) releaseAll(f);
+      _track = null;
+      // Timeout decided on remaining stocks, then remaining health fraction,
+      // against the best-placed opponent.
+      const score = f => Math.max(0, f.lives) + (f.lives > 0 ? f.health / f.maxHealth : 0);
+      const win = won ? 1 : brain.lives <= 0 ? 0 : (score(brain) > Math.max(...opps.map(score)) ? 1 : 0);
+      episodes.push({ opp: spec.label || spec.type, snap: spec.snap, kit: brain.weaponKey + '/' + (brain.charClass || 'none'), start, len: epSteps, trunc,
+        finalObs: finalObs ? _f32ToB64(finalObs) : null,
+        bLost, oLost, win, frames: frame, stats: st, bursts: brain._guardBurstCount || 0, hitLag: shieldMode !== undefined ? hitLag : undefined });
+      for (const k of STAT_KEYS) total[k] += st[k];
+    }
+    players.length = 0;
+    gameRunning = false;
+    _histOff = false;
+    if (saved) SMK2Trainer.simEnv.restore();
+    return {
+      obsDim: OBS_DIM, n,
+      obs: _f32ToB64(obsBuf.subarray(0, n * OBS_DIM).slice()),
+      acts: _f32ToB64(Float32Array.from(acts)),
+      logps: _f32ToB64(Float32Array.from(logps)),
+      rews: _f32ToB64(Float32Array.from(rews)),
+      dones: _f32ToB64(Float32Array.from(dones)),
+      episodes, total, errs,
+    };
+  }
+
+  // ── Live play ──────────────────────────────────────────────────────────────
+  // Puts a trained net in charge of a real fighter in a real match. The fighter
+  // stays a non-AI player, so it is driven exactly like the rollout above.
+  let _live = null;
+  function possess(fighter, weights, opponent) {
+    const net = loadNet(weights);
+    if (!fighter || !net) return false;
+    release();
+    fighter._bHist = null;
+    _live = { f: fighter, net, opp: opponent, act: [1, 0, 0, 0], prev: [1, 0, 0, 0], obs: new Float32Array(OBS_DIM), t: 0,
+              wasAI: fighter.isAI, controls: fighter.controls };
+    fighter.isAI = false;
+    fighter.controls = controlsFor(9);
+    return true;
+  }
+  function tickLive() {
+    const L = _live;
+    if (!L || !gameRunning) return;
+    if (!L.f || players.indexOf(L.f) < 0) { release(); return; }
+    if (L.f.health <= 0) { releaseAll(L.f); return; }
+    if (L.t++ % REPEAT !== 0) return;
+    const opp = (L.opp && L.opp.health > 0 && players.indexOf(L.opp) >= 0) ? L.opp
+              : players.find(p => p !== L.f && p.health > 0);
+    if (!opp) return;
+    observe(L.f, opp, L.prev, L.obs);
+    sample(forward(L.net, L.obs), L.act, !!L.greedy);
+    applyKeys(L.f, L.act);
+    for (let k = 0; k < 4; k++) L.prev[k] = L.act[k];
+  }
+  function release() {
+    const L = _live;
+    if (!L) return;
+    _live = null;
+    if (L.f) { releaseAll(L.f); L.f.isAI = L.wasAI; L.f.controls = L.controls; }
+  }
+  // Loads the newest checkpoint the trainer wrote (dev server serves data/).
+  function takeOver(fighter, opponent, url) {
+    return fetch((url || 'data/brain/latest.json') + '?t=' + Date.now())
+      .then(r => r.json())
+      .then(j => possess(fighter, j.pi || j, opponent) ? (j.iter || 0) : -1);
+  }
+
+  // Sovereign's body, the brain's hands. His counter-pick still chooses the kit,
+  // but only among kits the net has a one-hot for (nullblade is not one), and
+  // he plays his top choice. If the checkpoint can't load he stays the cascade.
+  let _sovCkpt = null;
+  function driveSovereign(sov, opponent) {
+    if (!sov || !opponent) return Promise.resolve(-1);
+    try { if (sov._ensureMatchLoadout) sov._ensureMatchLoadout(); } catch (e) {}
+    if (KIT_WEAPONS.indexOf(sov.weaponKey) < 0 && typeof SMK2_LOADOUTS !== 'undefined' && sov._applyLoadout) {
+      const known = SMK2_LOADOUTS.filter(l => KIT_WEAPONS.indexOf(l.wk) >= 0)
+        .sort((a, b) => (b.prior || 0) - (a.prior || 0));
+      if (known.length) sov._applyLoadout(known[0]);
+    }
+    const ck = _sovCkpt ? Promise.resolve(_sovCkpt)
+      : fetch('data/brain/latest.json').then(r => r.json()).then(j => (_sovCkpt = j));
+    return ck.then(j => {
+      if (players.indexOf(sov) < 0 || !possess(sov, j.pi || j, opponent)) return -1;
+      _live.greedy = true;
+      return j.iter || 0;
+    }).catch(() => -1);
+  }
+
+  return { REPEAT, HEADS, N_LOGITS, OBS_DIM, OBS_BASE, STAT_KEYS, randomKit, resolveKit, hostilesOf, controlsFor, loadNet, forward, sample,
+           observe, applyKeys, rollout, possess, tickLive, release, takeOver, driveSovereign,
+           get live() { return _live; } };
+})();

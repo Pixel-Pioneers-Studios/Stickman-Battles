@@ -96,7 +96,7 @@ const STORY_ACT_STRUCTURE = [
     ],
   },
   {
-    id: 'act8', label: 'Act VIII — True Form', color: '#cc44ff',
+    id: 'act8', label: 'Act VIII — Cosmic Axiom', color: '#cc44ff',
     arcs: [
       { id: 'arc5-0',      label: 'Into the Void',        chapterRange: [145, 149] },
       { id: 'arc5-1',      label: 'Final Confrontation',  chapterRange: [150, 150] },

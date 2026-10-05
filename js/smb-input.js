@@ -6,6 +6,7 @@
 // ============================================================
 const keysDown      = new Set();
 const keyHeldFrames = {};   // key → frames held continuously
+const ATTACK_MASH_LOCK = 16; // frames the attack key stays dead after a mashed recovery; outlasts STRING_STUN_PAD so a mashed follow-up drops the string
 
 const SCROLL_BLOCK = new Set([' ', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 's', '/']);
 
@@ -29,6 +30,22 @@ function _eventKey(e) {
     if (ch >= 'A' && ch <= 'Z') return ch.toLowerCase();
   }
   return _normKey(e.key);
+}
+
+// Who a human's attack/Q/E is aimed at. Two-human modes keep players[] as-is;
+// with no second player (Battle Royale, where the 99 bots live in minions[])
+// the old fallback was "first living minion" — often thousands of px away — so
+// range-gated moves like Iaijutsu never fired their slashes. Use the nearest foe.
+function _inputTarget(p, i) {
+  const other = players[i === 0 ? 1 : 0];
+  if (other) return other;
+  let best = null, bestD = Infinity;
+  for (const f of [...players, ...trainingDummies, ...minions]) {
+    if (!f || f === p || f.health <= 0 || !isHostileTarget(p, f)) continue;
+    const d = Math.hypot(f.cx() - p.cx(), f.cy() - p.cy());
+    if (d < bestD) { bestD = d; best = f; }
+  }
+  return best || undefined;
 }
 
 document.addEventListener('keydown', e => {
@@ -69,10 +86,10 @@ document.addEventListener('keydown', e => {
         if (card) card.style.display = '';
         spawnParticles && spawnParticles(450, 260, '#cc00ff', 30);
         spawnParticles && spawnParticles(450, 260, '#ffffff', 20);
-        showBossDialogue && showBossDialogue('True Form Unlocked!', 180);
+        showBossDialogue && showBossDialogue('Cosmic Axiom Unlocked!', 180);
         // Show a brief notification
         const notif = document.createElement('div');
-        notif.textContent = '⚡ TRUE FORM UNLOCKED ⚡';
+        notif.textContent = '⚡ COSMIC AXIOM UNLOCKED ⚡';
         notif.style.cssText = 'position:fixed;top:20%;left:50%;transform:translateX(-50%);background:rgba(160,0,255,0.92);color:#fff;padding:16px 32px;border-radius:12px;font-size:1.2rem;font-weight:900;letter-spacing:3px;z-index:9999;pointer-events:none;text-align:center;box-shadow:0 0 40px #cc00ff;';
         document.body.appendChild(notif);
         setTimeout(() => notif.remove(), 3000);
@@ -98,8 +115,8 @@ document.addEventListener('keydown', e => {
         setTimeout(() => notif.remove(), 3000);
       }
     }
-    // MEGAKNIGHT cheat: type CLASSMEGAKNIGHT in menu
-    if (_cheatBuffer.endsWith('CLASSMEGAKNIGHT')) {
+    // KNIGHT cheat: type CLASSKNIGHT in menu (the old CLASSMEGAKNIGHT still works)
+    if (_cheatBuffer.endsWith('CLASSKNIGHT') || _cheatBuffer.endsWith('CLASSMEGAKNIGHT')) {
       _cheatBuffer = '';
       if (typeof setAccountFlagWithRuntime === 'function') {
         setAccountFlagWithRuntime(['unlocks', 'megaknight'], true, function(v) { unlockedMegaknight = v; });
@@ -109,11 +126,11 @@ document.addEventListener('keydown', e => {
       ['p1Class','p2Class'].forEach(id => {
         const sel = document.getElementById(id);
         if (sel && !sel.querySelector('option[value="megaknight"]')) {
-          const opt = document.createElement('option'); opt.value = 'megaknight'; opt.textContent = 'Class: Megaknight ★'; sel.appendChild(opt);
+          const opt = document.createElement('option'); opt.value = 'megaknight'; opt.textContent = 'Class: Knight ★'; sel.appendChild(opt);
         }
       });
       const notif2 = document.createElement('div');
-      notif2.textContent = '★ Class: MEGAKNIGHT UNLOCKED ★';
+      notif2.textContent = '★ Class: KNIGHT UNLOCKED ★';
       notif2.style.cssText = 'position:fixed;top:20%;left:50%;transform:translateX(-50%);background:rgba(80,0,160,0.95);color:#fff;padding:14px 32px;border-radius:12px;font-size:1.2rem;font-weight:900;letter-spacing:2px;z-index:9999;pointer-events:none;text-align:center;box-shadow:0 0 40px #8844ff;';
       document.body.appendChild(notif2);
       setTimeout(() => notif2.remove(), 3000);
@@ -151,6 +168,9 @@ document.addEventListener('keydown', e => {
   // Battle Royale item actions (only when alive, not spectating)
   if (gameRunning && !paused && gameMode === 'battleroyale' && typeof brSpectating !== 'undefined' && !brSpectating) {
     if (_nk === 'r') { if (typeof consumeBRActiveSlot === 'function') consumeBRActiveSlot(); return; }
+    // A pending beast/yeti offer takes F and G until it is answered or expires.
+    if (_nk === 'f' && typeof brAcceptFormOffer  === 'function' && brAcceptFormOffer())  return;
+    if (_nk === 'g' && typeof brDeclineFormOffer === 'function' && brDeclineFormOffer()) return;
     if (_nk === 'g') { if (typeof dropBRActiveSlot    === 'function') dropBRActiveSlot();    return; }
     if (_nk === 'f') { if (typeof _brPickupNearbyGroundItem === 'function') _brPickupNearbyGroundItem(); return; }
   }
@@ -171,10 +191,11 @@ document.addEventListener('keydown', e => {
   // spent a full meter on their 5th super, triggered a domain the death then
   // cancelled — and lost the whole five-super domain count with it.
   if (typeof activeFinisher !== 'undefined' && activeFinisher) return;
+  if (typeof activeWorldFinisher !== 'undefined' && activeWorldFinisher) return;
 
   players.forEach((p, i) => {
     if (p.isAI || p.health <= 0) return;
-    const other         = players[i === 0 ? 1 : 0];
+    const other         = _inputTarget(p, i);
     const incapacitated = p.ragdollTimer > 0 || p.stunTimer > 0;
     // Paradox Fusion: block all direct player actions while Paradox owns controls
     if (p._fusionAIOverride) return;
@@ -184,7 +205,19 @@ document.addEventListener('keydown', e => {
       // starting a normal swing. Without this the same press would queue an
       // ordinary attack that fires the instant the super releases.
       if (p._comboSuper && p._comboSuper.phase === 3) { p._comboSuper.fire = true; return; }
-      if (!incapacitated) { p.attack(other); }
+      // A press inside the swing's own cooldown/endlag used to be dropped, so a
+      // combo-string follow-up had to land in the ~10 frames after recovery;
+      // an AI that polls every frame never misses that window. Buffer it too.
+      // One press per recovery is the timing: pressing again inside the same
+      // recovery is mashing, which drops the buffered swing and holds the
+      // attack key out for ATTACK_MASH_LOCK frames past the recovery.
+      const _recovering = p.cooldown > 0 || (!p.isBoss && p.attackEndlag > 0);
+      if (frameCount < (p._attackMashUntil || 0)) { /* mashed — ignored */ }
+      else if (!incapacitated && !_recovering) { p.attack(other); }
+      else if (_recovering && !incapacitated && p._inputBuffer && p._inputBuffer.action === 'attack') {
+        p._inputBuffer = null;
+        p._attackMashUntil = frameCount + Math.max(p.cooldown, p.attackEndlag || 0) + ATTACK_MASH_LOCK;
+      }
       else { p._inputBuffer = { action: 'attack', frame: frameCount }; }
     }
     if (_nk === p.controls.ability) {
@@ -211,7 +244,8 @@ document.addEventListener('keydown', e => {
         spawnParticles(p.cx(), p.cy(), '#00aaff', 4);
       } else if (p._storyNoSuper) {
         // super locked in story — silently ignore
-      } else if (!incapacitated) {
+      } else if (!incapacitated || (p.stunTimer > 0 && !(p.ragdollTimer > 0) && p.superReady)) {
+        // Stunned with a full meter: two presses of useSuper() burst out of the combo.
         checkSecretLetterCollect(p);
         p.useSuper(other);
       } else {
@@ -353,7 +387,13 @@ function processInput() {
   players.forEach(p => {
     if (p.isAI || p.health <= 0) return;
     if (p._fusionAIOverride) return; // Paradox Fusion: AI handles movement, skip keyboard input
-    if (p.ragdollTimer > 0 || p.stunTimer > 0) {
+    // Inside a move scene (smb-move-scenes.js) the scene moves the body; a held
+    // victim's one way out is the super key, handled on keydown.
+    if (p._msScene || p._msLock) { p.shielding = false; return; }
+    // Guard burst (smb-combat.js): a fresh shield press 2+ hits into a stun breaks
+    // it and raises the guard, then this frame's input runs as normal.
+    const _burst = p.stunTimer > 0 && (keyHeldFrames[p.controls.shield] || 0) === 1 && guardBurst(p);
+    if (!_burst && (p.ragdollTimer > 0 || p.stunTimer > 0)) {
       // Expire stale buffer so it can't fire far outside the intended window
       if (p._inputBuffer && (frameCount - p._inputBuffer.frame) > 8) p._inputBuffer = null;
       p.shielding = false;
@@ -361,11 +401,13 @@ function processInput() {
     }
     // Input buffer: if a buffered action was queued while incapacitated and the
     // window (~133ms / 8 frames) hasn't expired, execute it now and clear.
-    if (p._inputBuffer) {
+    const _bufWait = p._inputBuffer && p._inputBuffer.action === 'attack' &&
+                     (p.cooldown > 0 || (!p.isBoss && p.attackEndlag > 0));
+    if (p._inputBuffer && !_bufWait) {
       if ((frameCount - p._inputBuffer.frame) <= 8) {
         const _buf      = p._inputBuffer;
         const _pi       = players.indexOf(p);
-        const _bufOther = players[_pi === 0 ? 1 : 0];
+        const _bufOther = _inputTarget(p, _pi);
         p._inputBuffer  = null;
         if      (_buf.action === 'attack')  p.attack(_bufOther);
         else if (_buf.action === 'ability' && !p._storyNoAbility) p.ability(_bufOther);
@@ -414,7 +456,7 @@ function processInput() {
 
     // --- Jump (ground jump + double jump) ---
     if (wHeld === 1) {
-      // Megaknight gets higher jump power
+      // Knight gets higher jump power
       const jumpPower = p.charClass === 'megaknight' ? -22 : -17;
       const dblPower  = p.charClass === 'megaknight' ? -16 : -13;
       if (p.onGround || (p.coyoteFrames > 0 && !p.canDoubleJump) || p._lavaJumpGrace > 0) {
@@ -445,23 +487,27 @@ function processInput() {
     }
     // --- S / ArrowDown = shield (degrades per consecutive deployment; re-press required after break) ---
     // Tiers: stacks 1→30HP, 2→15HP, 3→5HP, 4→80% block, 5→50% block, 6→20% block, 7+→no effect
-    const _SHIELD_HP_TABLE = [0, 30, 15, 5];
     const sHeld     = keysDown.has(p.controls.shield);
-    const sNewPress = sHeld && (p.shieldHoldTimer || 0) === 0 && !p.shieldBroken;
+    // _shieldOosLatch: an attack out of shield dropped the guard (Fighter.attack);
+    // it stays down until the key is released, or a held key would re-raise it.
+    const sNewPress = sHeld && (p.shieldHoldTimer || 0) === 0 && !p.shieldBroken && !p._shieldOosLatch;
     // Tick down BR item shield timer
     if (p._brShieldTimer > 0) {
       p._brShieldTimer--;
       if (p._brShieldTimer <= 0) { p.shielding = false; p._brShieldTimer = 0; }
     }
-    if ((!p.onGround || p._landLag > 0) && !p._brShieldTimer) {
-      // Airborne the same key is fast-fall: the guard is ground-only. Past the
-      // apex only, so it can't cancel a jump's rise. Fighter.update() drops any
-      // guard still up; the hold timer stays 0 so holding it through a landing
-      // raises the guard as a fresh press.
+    if (!p.onGround && !p._brShieldTimer) {
+      // Airborne the same key is also fast-fall, past the apex only so it can't
+      // cancel a jump's rise. With SHIELD_AIR it raises the air guard as well.
       const _gDir = ((gameMode === 'trueform' || gameMode === 'story') && tfGravityInverted) ? -1 : 1;
-      if (!p.onGround && sHeld && (keyHeldFrames[p.controls.shield] || 0) === 1 && p.vy * _gDir > -2) {
+      if (sHeld && (keyHeldFrames[p.controls.shield] || 0) === 1 && p.vy * _gDir > -2) {
         p.vy = _gDir * Math.max(p.vy * _gDir, FAST_FALL_VY);
       }
+    }
+    if ((p._landLag > 0 || (!p.onGround && !SHIELD_AIR)) && !p._brShieldTimer) {
+      // No guard out of landing lag (or in the air with SHIELD_AIR off). Fighter.update()
+      // drops any guard still up; the hold timer stays 0 so holding it through
+      // raises the guard as a fresh press.
       p.shielding = false;
       p.shieldHoldTimer = 0;
     } else if (!sHeld && !p._brShieldTimer) {
@@ -469,22 +515,18 @@ function processInput() {
       p.shielding       = false;
       p.shieldHoldTimer = 0;
       p.shieldBroken    = false;
+      p._shieldOosLatch = false;
       p._shieldRaiseDelay = 0;
     } else if (sNewPress && p._domainSlowFactor > 0 && p._domainSlowFactor < 1 &&
                (p._shieldRaiseDelay || 0) < Math.round(8 / p._domainSlowFactor - 8)) {
       // Shadow Realm time dilation: the shield comes up late — keep holding through the raise
       p._shieldRaiseDelay = (p._shieldRaiseDelay || 0) + 1;
     } else if (sNewPress && !(p.weapon && p.weapon.type === 'ranged' && p._rangedCommitTimer > 0)) {
-      // New key-press: increment stack tier and activate shield if still effective
-      const _newStacks = (p.shieldStacks || 0) + 1;
-      p.shieldStacks        = _newStacks;
-      p.shieldRechargeTimer = 180; // 3 s recharge window; resets on every deployment
-      if (_newStacks <= 6) {
+      // New key-press: book it under the active shield rules (smb-combat.js shieldRaise)
+      if (shieldRaise(p)) {
         p.shielding       = true;
         p.shieldHoldTimer = 1;
-        if (_newStacks <= 3) p.shieldHP = _SHIELD_HP_TABLE[_newStacks];
       }
-      // Stack 7+: shield fails — stacks still tracked, shielding stays false
     } else if (sHeld && p.shielding) {
       // Continuing to hold an active shield
       p.shieldHoldTimer = (p.shieldHoldTimer || 0) + 1;

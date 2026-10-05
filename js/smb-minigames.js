@@ -42,6 +42,16 @@ let defenseNexusMaxHp = 100;
 let defenseWave       = 0;
 let defenseEnemies    = [];
 let defenseWaveDelay  = 0;
+// Rushers leave the gates one at a time instead of all on one frame, so a
+// single defender can actually move between lanes.
+let defenseSpawnQueue = [];   // [{ fromLeft }]
+let defenseSpawnTimer = 0;
+const DEFENSE_SPAWN_GAP   = 40;   // frames between releases
+const DEFENSE_NEXUS_REGEN = 25;   // Nexus HP restored per cleared wave
+const DEFENSE_CONTACT_DMG = 10;   // Nexus HP lost per rusher that reaches it
+// Gate centres on the Nexus Bastion arena (drawNexusArena reads these too).
+const NEXUS_GATE_L_X = 60;
+const NEXUS_GATE_R_X = 1740;
 // Every minigame that actually has a card and a system behind it. selectMinigame
 // is reachable from the network layer (a host can broadcast a type), so unknown
 // values are rejected here rather than setting minigameType to something no
@@ -110,6 +120,8 @@ function addOneChaosModifier() {
     currentChaosModifiers.delete(toRemove);
   }
   currentChaosModifiers.add(newMod.id);
+  // Survival only ever rolls 3 at once, so Chaos Match is where every modifier can stack
+  if (currentChaosModifiers.size >= CHAOS_MODS.length && typeof unlockAchievement === 'function') unlockAchievement('chaos_all');
   // Apply modifier effects to current players
   applyChaosModifiers();
   // Show notification
@@ -239,11 +251,21 @@ function initMinigame() {
     defenseNexusMaxHp = 100;
     defenseWave       = 0;
     defenseEnemies    = [];
+    defenseSpawnQueue = [];
+    defenseSpawnTimer = 0;
     defenseWaveDelay  = 210; // 3.5s before first wave
     const _floorPl = typeof currentArena !== 'undefined' && currentArena && currentArena.platforms &&
                      currentArena.platforms.find(function(p) { return p.isFloor; });
-    defenseNexusX = GAME_W / 2;
+    defenseNexusX = (currentArena && currentArena.worldWidth) ? currentArena.worldWidth / 2 : GAME_W / 2;
     defenseNexusY = _floorPl ? _floorPl.y : GAME_H - 80;
+    // Start the defender beside the Nexus, not at the arena's left spawn —
+    // on the Bastion that is 800px from the thing being defended.
+    players.forEach(function(p, i) {
+      if (p.isBoss) return;
+      p.x = defenseNexusX + (i === 0 ? -90 : 60) - p.w / 2;
+      p.y = defenseNexusY - p.h - 2;
+      p.spawnX = p.x; p.spawnY = defenseNexusY;
+    });
     // Defense mode: faster attacking, bigger knockback for player(s)
     players.forEach(function(p) {
       if (!p.isBoss) {
@@ -289,25 +311,43 @@ function spawnSurvivalWave() {
 
 function spawnDefenseWave() {
   defenseWave++;
-  const waveSize = Math.min(1 + Math.floor(defenseWave * 0.8), 7);
-  const speed    = Math.min(1.2 + defenseWave * 0.14, 2.8); // rushers get faster each wave
-  for (let i = 0; i < waveSize; i++) {
-    const fromLeft = i % 2 === 0;
-    const bx = fromLeft ? 20 + Math.random() * 60 : GAME_W - 20 - Math.random() * 60;
-    const bot = new Fighter(bx, 80, `hsl(${10 + Math.random() * 25},85%,50%)`, randChoice(WEAPON_KEYS),
-      { left: null, right: null, jump: null, attack: null, ability: null, super: null }, false, 'easy');
-    bot.name        = 'Rusher';
-    bot.lives       = 1;
-    bot.dmgMult     = 0;    // rushers deal no combat damage — they only damage the nexus on contact
-    bot._defenseRusher = true;
-    bot._defenseSpeed  = speed; // always positive — direction computed from position each frame
-    bot.playerNum   = 3;    // enemy faction colour (red tint from playerNum = 3 styling)
-    minions.push(bot);
-    defenseEnemies.push(bot);
-  }
-  damageTexts.push(new DamageText(GAME_W / 2, 80, `WAVE ${defenseWave}!`, '#ff8844'));
+  const waveSize = Math.min(1 + Math.floor(defenseWave * 0.6), 6);
+  // Alternate sides, starting from a random one, so both lanes stay live.
+  const _firstLeft = Math.random() < 0.5;
+  for (let i = 0; i < waveSize; i++) defenseSpawnQueue.push({ fromLeft: (i % 2 === 0) === _firstLeft });
+  defenseSpawnTimer = 0;
+  const _tx = typeof defenseNexusX !== 'undefined' ? defenseNexusX : GAME_W / 2;
+  damageTexts.push(new DamageText(_tx, 80, `WAVE ${defenseWave}!`, '#ff8844'));
   screenShake = Math.max(screenShake, 6);
   if (typeof SoundManager !== 'undefined' && SoundManager.waveStart) SoundManager.waveStart();
+}
+
+function _releaseDefenseRusher(fromLeft) {
+  const speed = Math.min(1.1 + defenseWave * 0.1, 2.4); // rushers get faster each wave
+  const _wide = currentArena && currentArena.worldWidth;
+  const gateX = _wide ? (fromLeft ? NEXUS_GATE_L_X : NEXUS_GATE_R_X)
+                      : (fromLeft ? 50 : GAME_W - 50);
+  const bot = new Fighter(gateX, 80, `hsl(${10 + Math.random() * 25},85%,50%)`, randChoice(WEAPON_KEYS),
+    { left: null, right: null, jump: null, attack: null, ability: null, super: null }, false, 'easy');
+  bot.x = gateX - bot.w / 2;
+  const _floorPl = currentArena && currentArena.platforms && currentArena.platforms.find(function(p) { return p.isFloor; });
+  if (_floorPl) bot.y = _floorPl.y - bot.h - 2;
+  bot.name        = 'Rusher';
+  bot.lives       = 1;
+  // A full 150-HP fighter per rusher made wave 4 (4 rushers, 600 HP) outrun any
+  // single defender. Rushers are fodder that scales gently instead.
+  bot.maxHealth   = 40 + defenseWave * 6;
+  bot.health      = bot.maxHealth;
+  bot.dmgMult     = 0;    // rushers deal no combat damage — they only damage the nexus on contact
+  bot._defenseRusher = true;
+  bot._defenseSpeed  = speed; // always positive — direction computed from position each frame
+  bot._defenseFromLeft = fromLeft;
+  bot._defenseLastHp   = bot.health;
+  bot._defenseStagger  = 0;
+  bot.playerNum   = 3;    // enemy faction colour (red tint from playerNum = 3 styling)
+  minions.push(bot);
+  defenseEnemies.push(bot);
+  if (typeof spawnParticles === 'function') spawnParticles(gateX, bot.y + bot.h / 2, '#ff5530', 10);
 }
 
 function updateMinigame() {
@@ -395,15 +435,33 @@ function updateMinigame() {
       var _de = defenseEnemies[_di];
       if (!_de || _de.health <= 0) continue;
 
-      // Continuously push them toward the nexus (overrides whatever AI/friction would do)
+      // A hit staggers the rusher. Steering used to overwrite vx every frame,
+      // which erased every hit's knockback on the very next frame.
+      if (_de.health < _de._defenseLastHp) _de._defenseStagger = 26;
+      _de._defenseLastHp = _de.health;
+      if (_de._defenseStagger > 0) _de._defenseStagger--;
       var _toDx = defenseNexusX - _de.cx();
-      _de.vx = (_toDx >= 0 ? 1 : -1) * (_de._defenseSpeed || 2.0);
+      // While staggered or stunned the knockback carries and friction bleeds
+      // it off; afterwards the rusher resumes its march at full speed.
+      if (_de._defenseStagger <= 0 && !(_de.stunTimer > 0)) {
+        _de.vx = (_toDx >= 0 ? 1 : -1) * (_de._defenseSpeed || 2.0);
+      }
+
+      // Ring-out: a rusher knocked back through its own gate is banished.
+      if (currentArena && currentArena.worldWidth && _de._defenseStagger > 0 &&
+          ((_de._defenseFromLeft && _de.cx() < NEXUS_GATE_L_X - 10) ||
+           (!_de._defenseFromLeft && _de.cx() > NEXUS_GATE_R_X + 10))) {
+        if (typeof spawnParticles === 'function') spawnParticles(_de.cx(), _de.cy(), '#ffcc66', 16);
+        damageTexts.push(new DamageText(_de.cx(), _de.y - 10, 'BANISHED', '#ffcc66'));
+        _de.health = 0;
+        continue;
+      }
 
       // Contact check: rusher bottom touches nexus base
       var _ddx = Math.abs(_de.cx() - defenseNexusX);
       var _ddy = Math.abs((_de.y + (_de.h || 50)) - defenseNexusY);
       if (_ddx < 50 && _ddy < 60) {
-        defenseNexusHp -= 15;
+        defenseNexusHp -= DEFENSE_CONTACT_DMG;
         _de.health = 0;
         screenShake = Math.max(screenShake, 14);
         if (typeof spawnParticles === 'function') spawnParticles(defenseNexusX, defenseNexusY - 30, '#ff4422', 14);
@@ -415,27 +473,37 @@ function updateMinigame() {
     }
 
     if (_nexusReached) {
-      damageTexts.push(new DamageText(GAME_W / 2, GAME_H / 2 - 40, 'NEXUS DESTROYED!', '#ff2200'));
+      damageTexts.push(new DamageText(defenseNexusX, GAME_H / 2 - 40, 'NEXUS DESTROYED!', '#ff2200'));
       clearChaosModifiers();
       setTimeout(endGame, 2500);
       return;
+    }
+
+    // Release queued rushers one at a time
+    if (defenseSpawnQueue.length > 0) {
+      if (defenseSpawnTimer > 0) defenseSpawnTimer--;
+      else {
+        _releaseDefenseRusher(defenseSpawnQueue.shift().fromLeft);
+        defenseSpawnTimer = DEFENSE_SPAWN_GAP;
+      }
     }
 
     // Wave timer / spawn next wave
     if (defenseWaveDelay > 0) {
       defenseWaveDelay--;
       if (defenseWaveDelay === 0) spawnDefenseWave();
-    } else if (defenseEnemies.filter(function(e) { return e.health > 0; }).length === 0) {
-      // Wave cleared — reward HP and queue next
-      players.forEach(function(p) { if (!p.isBoss) p.health = Math.min(p.maxHealth, p.health + 20); });
+    } else if (defenseSpawnQueue.length === 0 && defenseEnemies.filter(function(e) { return e.health > 0; }).length === 0) {
+      // Wave cleared — repair the Nexus and queue next. (Rushers deal no
+      // combat damage, so the old player heal here did nothing.)
+      defenseNexusHp = Math.min(defenseNexusMaxHp, defenseNexusHp + DEFENSE_NEXUS_REGEN);
       if (defenseWave >= 5) unlockAchievement('nexus_defender');
       if (defenseWave >= DEFENSE_WAVE_GOAL) {
-        damageTexts.push(new DamageText(GAME_W / 2, 110, `NEXUS DEFENDED!  ${DEFENSE_WAVE_GOAL} WAVES!`, '#44ff88'));
+        damageTexts.push(new DamageText(defenseNexusX, 110, `NEXUS DEFENDED!  ${DEFENSE_WAVE_GOAL} WAVES!`, '#44ff88'));
         unlockAchievement('nexus_defender');
         setTimeout(endGame, 2500);
         return;
       }
-      damageTexts.push(new DamageText(GAME_W / 2, 110, 'Wave cleared!  +20 HP', '#44ff88'));
+      damageTexts.push(new DamageText(defenseNexusX, 110, 'Wave cleared!  Nexus +' + DEFENSE_NEXUS_REGEN, '#44ff88'));
       defenseWaveDelay = 240;
     }
   }
@@ -510,6 +578,9 @@ function drawMinigameDefenseNexus() {
 function drawMinigameHUD() {
   if (!gameRunning) return;
   ctx.save();
+  // Pin to the screen. This ran under the camera transform, so on any zoomed
+  // or scrolled view the wave counter floated somewhere in the world.
+  ctx.setTransform(canvas.width / GAME_W, 0, 0, canvas.height / GAME_H, 0, 0);
   if (minigameType === 'sports') {
     if (typeof drawSportsHUD === 'function') drawSportsHUD();
   } else if (minigameType === 'survival') {
@@ -537,7 +608,7 @@ function drawMinigameHUD() {
     }
   } else if (minigameType === 'defense') {
     ctx.fillStyle = '#ff8844'; ctx.font = 'bold 14px Arial'; ctx.textAlign = 'center';
-    var _defAlive = defenseEnemies.filter(function(e) { return e.health > 0; }).length;
+    var _defAlive = defenseEnemies.filter(function(e) { return e.health > 0; }).length + defenseSpawnQueue.length;
     ctx.fillText('Wave ' + defenseWave + '  —  Enemies: ' + _defAlive, GAME_W / 2, GAME_H - 20);
     if (defenseWaveDelay > 0 && defenseWave === 0) {
       ctx.fillStyle = '#aaffaa'; ctx.font = 'bold 18px Arial';
@@ -600,6 +671,11 @@ function drawMinigameHUD() {
 function confirmResetProgress() {
   // Wipe ALL localStorage keys — both smc_ prefixed and the consolidated save blob
   localStorage.clear();
+  // The beforeunload/visibilitychange flush in smb-save.js (and GameState.save)
+  // would write the in-memory save straight back before the reload lands, so
+  // the wipe silently undid itself. Nothing may touch storage from here on.
+  window.__SMB_WIPING__ = true;
+  try { Storage.prototype.setItem = function() {}; } catch (e) {}
 
   // Flash confirmation then reload the page so all in-memory state resets too
   const msg = document.createElement('div');

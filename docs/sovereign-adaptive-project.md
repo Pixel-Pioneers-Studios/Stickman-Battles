@@ -675,3 +675,30 @@ doesn't reproduce the player's descent punish.
 
 `sov-habit-ab.js --carry` now keeps the dossier between rematches too, not just
 the habit ledger.
+
+### 2026-09-27: guard check, and the gambler's first build
+
+**Guard collapse is not landing lag.** Probe vs proxy v3, 24 matches: of 6,140 shield
+raises by his AI, 0.2% were stripped by landing lag and 3.2% by being airborne. He is
+shielding on 5.0% of grounded frames because the cascade rarely chooses to, and 41% of
+the hits he takes land while he stands free and could have guarded.
+
+**Gambler (`SMK2_TUNE.planGamble`, default OFF).** Reworks the plan layer: opens on
+`pressure_ground`, keeps a plan while it wins exchanges (an exchange is an opener, the
+first hit after 60 quiet frames), and drops it when a 0.6-decay score goes negative, so a fresh
+bet dies on its first loss and an established one after two in a row. A plan dropped twice without a win is
+burned for the match. Switch lines in `SMK2_GAMBLE_LINES`, spoken only to a human. A
+lifetime tally was tried first and let an early streak pin a plan for the whole
+match (under 1 switch per match); the decaying score gives ~6 bets per match.
+
+A/B vs proxy v3, matched seeds:
+- vs shipped (plans off), 240 pairs: stocks -0.57 (t=-7.1), kills -0.47 (t=-6.1),
+  dealt -107, taken +53. Clearly worse.
+- vs the epsilon-greedy plan layer (`tacticPlans:1` in both arms), 230 pairs: stocks
+  +0.07 (t=0.9), kills +0.07 (t=0.7). The same.
+
+So committing costs nothing relative to hedging. The loss is the plan menu:
+`pressure_ground` IS the shipped behaviour, and the other two plans only refuse
+swings. Every plan loses exchanges in a normal fight, so an absolute "lost twice,
+drop it" verdict keeps pulling him off his best plan onto weaker ones. A gambler
+over a menu whose alternatives are worse than the default can only lose.

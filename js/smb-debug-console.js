@@ -254,6 +254,7 @@ function _consoleExec(raw) {
       'status                  — show game state summary',
       'syscheck                — health-check all major systems',
       'check fighter [p1|p2]   — detailed fighter state dump',
+      'brain [off]             — hand P2 to the trained brain (data/brain/latest.json) [dev]',
       'version                 — show build/game version info',
       'time                    — show current frame count and game clock',
       'fps                     — show current FPS',
@@ -917,7 +918,7 @@ function _consoleExec(raw) {
       } else if (typeof unlockedTrueBoss !== 'undefined') { unlockedTrueBoss = true; }
       const card = document.getElementById('modeTrueForm');
       if (card) card.style.display = '';
-      _consoleOk('True Form unlocked!');
+      _consoleOk('Cosmic Axiom unlocked!');
     } else if (sub === 'megaknight') {
       if (typeof unlockedMegaknight !== 'undefined') {
         if (typeof setAccountFlagWithRuntime === 'function') {
@@ -926,10 +927,10 @@ function _consoleExec(raw) {
         ['p1Class','p2Class'].forEach(id => {
           const sel = document.getElementById(id);
           if (sel && !sel.querySelector('option[value="megaknight"]')) {
-            const opt = document.createElement('option'); opt.value='megaknight'; opt.textContent='Class: Megaknight ★'; sel.appendChild(opt);
+            const opt = document.createElement('option'); opt.value='megaknight'; opt.textContent='Class: Knight ★'; sel.appendChild(opt);
           }
         });
-        _consoleOk('Class: Megaknight unlocked!');
+        _consoleOk('Class: Knight unlocked!');
       }
     } else { _consoleErr('Usage: unlock trueform|megaknight'); }
     return;
@@ -943,7 +944,7 @@ function _consoleExec(raw) {
   //   absoluteaxiom → absoluteAxiomUnlocked (Absolute Axiom mode)
   //   god           → godDefeated         (God fight)
   //   bossrush      → bossRushUnlocked    (Boss Rush mode)
-  //   megaknight    → megaknight          (Megaknight class)
+  //   megaknight    → megaknight          (Knight class)
   //   damnation     → damnationScar       (Damnation mode)
   if (cmd === 'GRANT' && (parts[1] || '').toUpperCase() === 'UNLOCK') {
     const activeAcct = typeof AccountManager !== 'undefined' ? AccountManager.getActiveAccount() : null;
@@ -1104,6 +1105,29 @@ function _consoleExec(raw) {
   if (cmd === 'SOV STATS' || cmd === 'SOVEREIGN STATS') { if (typeof showSovereignStats === 'function') showSovereignStats(!adaptiveAIDebug); return; }
   if (cmd === 'SOV PREDICT' || cmd === 'SOVEREIGN PREDICT') { if (typeof showSovereignPredictions === 'function') showSovereignPredictions(); return; }
   if (cmd === 'SOV RESET' || cmd === 'SOVEREIGN RESET') { if (typeof resetSovereignMK2 === 'function') resetSovereignMK2(); return; }
+  if (cmd === 'BRAIN' || cmd === 'BRAIN ON' || cmd === 'BRAIN OFF') {
+    if (typeof Brain === 'undefined') { _consoleErr('Brain not loaded.'); return; }
+    if (cmd === 'BRAIN OFF') { Brain.release(); _consolePrint('Brain released P2.', '#44ff88'); return; }
+    if (!gameRunning || !players[1]) { _consoleErr('Start a 1v1 match first.'); return; }
+    Brain.takeOver(players[1], players[0])
+      .then(it => it >= 0 ? _consolePrint('Brain (iteration ' + it + ') now controls P2.', '#44ff88') : _consoleErr('Brain: bad checkpoint.'))
+      .catch(e => _consoleErr('Brain: no checkpoint at data/brain/latest.json (' + e.message + ')'));
+    return;
+  }
+
+  // In-match read on top of the brain (smb-brain-read.js).
+  if (cmd === 'READ' || cmd === 'READ ON' || cmd === 'READ OFF') {
+    if (typeof BrainRead === 'undefined') { _consoleErr('BrainRead not loaded.'); return; }
+    if (cmd !== 'READ') BrainRead.enabled = cmd === 'READ ON';
+    _consolePrint('Read is ' + (BrainRead.enabled ? 'ON' : 'OFF') + '.', '#44ff88');
+    const L = typeof Brain !== 'undefined' && Brain.live;
+    if (!L || !L.read) { _consolePrint('  (no brain-driven fighter in this match)', '#888888'); return; }
+    const reads = BrainRead.describe(L.read);
+    if (!reads.length) _consolePrint('  nothing read yet', '#888888');
+    for (const r of reads) _consolePrint('  ' + r.read + ' ' + r.at + '  x' + r.strength + '  (n ' + r.evidence + ')', '#aaddff');
+    _consolePrint('  ' + JSON.stringify(L.read.stats), '#888888');
+    return;
+  }
 
   // ── Genome training commands ──────────────────────────────────────────────
   const _ok = (s) => _consolePrint('  ✓ ' + s, '#44ff88');

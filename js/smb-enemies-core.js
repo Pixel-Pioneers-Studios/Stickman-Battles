@@ -34,6 +34,17 @@ class Minion extends Fighter {
   respawn() { this.health = 0; }
 }
 
+// Everyone a wild creature can hurt. Battle Royale bots live in minions[], not
+// players[], so a players-only loop let every bot walk through a beast slam.
+// Other minions (boss summons, story allies) stay out, as they always were.
+function creatureFoes(self) {
+  const out = players.slice();
+  if (typeof minions !== 'undefined') {
+    for (const m of minions) if (m && m !== self && m._brBot) out.push(m);
+  }
+  return out;
+}
+
 // ============================================================
 // FOREST BEAST  (rare random encounter in forest arena)
 // ============================================================
@@ -108,7 +119,7 @@ class ForestBeast extends Fighter {
         spawnParticles(this.cx(), this.y + this.h, '#aa6600', 10);
         // Damage any target standing close on the ground.
         // dmgMult is applied centrally by dealDamage() — do NOT pre-multiply here.
-        for (const p of players) {
+        for (const p of creatureFoes(this)) {
           if (p === this || p.health <= 0) continue;
           const dist = Math.abs(p.cx() - this.cx());
           if (dist < 90 && p.onGround && this._feetGap(p) < 40) {
@@ -131,7 +142,7 @@ class ForestBeast extends Fighter {
         // Land impact shockwave
         screenShake = Math.max(screenShake, 8);
         spawnParticles(this.cx(), this.y + this.h, '#553300', 16);
-        for (const p of players) {
+        for (const p of creatureFoes(this)) {
           if (p === this || p.health <= 0) continue;
           const dist = Math.abs(p.cx() - this.cx());
           if (dist < 70 && this._feetGap(p) < 50) dealDamage(this, p, 16, 12);
@@ -146,7 +157,7 @@ class ForestBeast extends Fighter {
     if (!this.target || this.target.health <= 0) this._fbRetargetCd = 0;
     this._fbRetargetCd = (this._fbRetargetCd || 0) - 1;
     if (this._fbRetargetCd <= 0) {
-      const _pool = players.filter(p => p !== this && p.health > 0 && !p.godmode && !areAlliedEntities(this, p));
+      const _pool = creatureFoes(this).filter(p => p !== this && p.health > 0 && !p.godmode && !areAlliedEntities(this, p));
       // True 2D distance — a horizontal-only comparison makes a player parked directly
       // overhead read as "nearest" and locks the beast onto a target it cannot reach.
       if (_pool.length > 0) {
@@ -449,19 +460,21 @@ class ForestBeast extends Fighter {
       spawnParticles(bodyX, bodyY - ry * 0.6, '#ff4400', 2);
     }
 
-    // Name tag
-    ctx.globalAlpha = 1;
-    ctx.fillStyle = raged ? '#ff6600' : '#aaffaa';
-    ctx.font = 'bold 11px Arial';
-    ctx.textAlign = 'center';
-    ctx.fillText(this.name, cx, ty - 10);
+    // Name tag + HP bar — a fighter wearing this body (BR creature form) has
+    // the shared overhead nameplate already.
+    if (!this._brForm) {
+      ctx.globalAlpha = 1;
+      ctx.fillStyle = raged ? '#ff6600' : '#aaffaa';
+      ctx.font = 'bold 11px Arial';
+      ctx.textAlign = 'center';
+      ctx.fillText(this.name, cx, ty - 10);
 
-    // HP bar
-    const hpPct = Math.max(0, this.health / this.maxHealth);
-    ctx.fillStyle = 'rgba(0,0,0,0.5)';
-    ctx.fillRect(cx - 24, ty - 22, 48, 5);
-    ctx.fillStyle = `hsl(${hpPct * 120},100%,44%)`;
-    ctx.fillRect(cx - 24, ty - 22, 48 * hpPct, 5);
+      const hpPct = Math.max(0, this.health / this.maxHealth);
+      ctx.fillStyle = 'rgba(0,0,0,0.5)';
+      ctx.fillRect(cx - 24, ty - 22, 48, 5);
+      ctx.fillStyle = `hsl(${hpPct * 120},100%,44%)`;
+      ctx.fillRect(cx - 24, ty - 22, 48 * hpPct, 5);
+    }
 
     ctx.restore();
   }

@@ -967,6 +967,8 @@ const NetworkManager = (() => {
     const text = _chatModerate(inp.value.trim());
     inp.value = '';
     if (!text) return;
+    // Public Server chat goes through the lobby server, which echoes it to everyone
+    if (window.PubHub && PubHub.active) { PubHub.sendChat(text); return; }
     const sender = 'P' + (_localSlot + 1);
     _appendChatMsg(sender, text);
     sendGameEvent('chat', { sender, text });
@@ -1225,7 +1227,7 @@ const NetworkManager = (() => {
     getLocalSlot, getSlotCount, isHost, isConnected, getLatency,
     getOwnPeerId, getOwnDeviceId, getLocalIdentity, getPeerMeta, getPeerRoster, getSlotByAccountId, getSlotByPeerId, getSlotByDeviceId,
     setRoomType, refreshPublicRooms, setOnlineGameMode, setOnlineMinigame, setOnlineLives, selectOnlineArenaLocal, showToast,
-    renderLobby: _renderLobbySettings, clearChat: _clearChat, setChatVisible: _setChatVisible,
+    renderLobby: _renderLobbySettings, clearChat: _clearChat, setChatVisible: _setChatVisible, appendChat: _appendChatMsg,
     sendGameStateSync,
     get connected() { return _connected; },
     get slot() { return _localSlot; },
