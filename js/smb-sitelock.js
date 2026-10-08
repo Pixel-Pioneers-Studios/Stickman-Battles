@@ -18,7 +18,7 @@
     /^0\.0\.0\.0$/,
     // Own hosting
     /(^|\.)onrender\.com$/i,
-    /(^|\.)github.com$/i,
+    /(^|\.)github.io$/i,
     // CrazyGames: portal (all regional TLDs), game-file CDN, and the mobile apps
     /(^|\.)crazygames\.(com|com\.[a-z]{2}|co\.[a-z]{2}|[a-z]{2,3})$/i,
     // itch.io — HTML5 uploads are served from itch.zone / the hwcdn edge
