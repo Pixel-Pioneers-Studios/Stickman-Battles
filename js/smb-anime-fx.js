@@ -139,6 +139,8 @@ const AniFX = {
       if (a < 0.01) return;
       rctx.globalAlpha = a;
       const s = _cinWorldToScreen(snap.wx, snap.wy);
+      if (snap.ent && snap.ent._cinPerf && typeof CinPerf !== 'undefined' &&
+          CinPerf.drawGhostScreen(snap.ent, rctx, s.x, s.y, sc, tint || snap.color || '#ffffff', a)) return;
       _drawAfterSilhouette(rctx, s.x, s.y, sc, tint || snap.color || '#ffffff');
     });
     rctx.restore();

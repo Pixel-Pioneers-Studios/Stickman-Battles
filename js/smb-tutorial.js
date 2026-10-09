@@ -6,8 +6,8 @@
 // controls over that live fight as prompts. The ladder owns the match and its
 // result card; the Tutorial button replays the run.
 //
-// Nothing here mutates health directly. The bot is held idle with the existing
-// _aiHoldUntil spawn-grace gate until the ATTACK prompt, or until it is hit.
+// Nothing here mutates health directly. The bot fights from the first frame and
+// both fighters spawn close together (smb-ladder.js), so the first hit is seconds in.
 //
 // Depends on: smb-globals.js, smb-fighter.js, smb-ladder.js, smb-input.js (keysDown)
 // Ticked by:  smb-loop-core.js  → updateTutorial()
@@ -29,25 +29,26 @@ let _tutMeterGranted  = false; // super meter topped up once for the super step
 let _tutPrevVy        = 0;     // previous-frame vy, for jump-launch detection
 let _tutFightInit     = false; // bot held for the opening steps
 
-const FIRST_RUN_BOT_RELEASE = 900;  // the bot engages on its own after 15s regardless
-
 // Each step: `need` progress units to clear. `check` runs once per frame and
 // returns how much progress to ADD this frame (0 for none). The steps prompt;
 // they never gate the fight — the bot fights back from the ATTACK step on.
 const TUTORIAL_STEPS = [
   {
-    id: 'move',
-    title: 'MOVE',
-    hint: 'Press  A  and  D  to walk left and right.',
-    need: 160,   // total pixels walked
-    check(p1) {
-      return Math.min(Math.abs(p1.vx), 12);
+    id: 'attack',
+    title: 'FIGHT',
+    hint: 'A / D move   W jump   SPACE swing. Land 3 hits.',
+    need: 3,     // three landed hits
+    check(p1, bot) {
+      if (!bot) return 0;
+      const hit = bot.health < _tutBotHp;
+      _tutBotHp = bot.health;
+      return hit ? 1 : 0;
     }
   },
   {
     id: 'jump',
     title: 'JUMP',
-    hint: 'Press  W  to jump. Press it again in mid-air to double jump.',
+    hint: 'Press  W  to jump, and again in mid-air to double jump.',
     need: 2,     // two launches
     check(p1) {
       // Count any upward launch, not just ground takeoffs — the hint teaches the
@@ -55,19 +56,6 @@ const TUTORIAL_STEPS = [
       const launched = p1.vy < -4 && _tutPrevVy >= -1;
       _tutPrevVy = p1.vy;
       return launched ? 1 : 0;
-    }
-  },
-  {
-    id: 'attack',
-    title: 'ATTACK',
-    hint: 'Press  SPACE  to swing. Land 3 hits on the bot. It fights back now.',
-    need: 3,     // three landed hits
-    releaseBot: true,
-    check(p1, bot) {
-      if (!bot) return 0;
-      const hit = bot.health < _tutBotHp;
-      _tutBotHp = bot.health;
-      return hit ? 1 : 0;
     }
   },
   {
@@ -82,7 +70,7 @@ const TUTORIAL_STEPS = [
   {
     id: 'ability',
     title: 'ABILITY',
-    hint: 'Press  Q  for your weapon ability. Every weapon has a different one.',
+    hint: 'Press  Q  for your weapon ability. Every weapon has its own.',
     need: 1,
     check(p1) {
       // Ability fired = cooldown rose this frame. A rising edge is required so a
@@ -95,7 +83,7 @@ const TUTORIAL_STEPS = [
   {
     id: 'super',
     title: 'SUPER',
-    hint: 'Your super meter fills as you fight. It is full now: press  E.  Caught in a move? A full meter + E breaks out.',
+    hint: 'Your super meter is full: press  E.  (Full meter + E also breaks a hold.)',
     need: 1,
     grantMeter: true,   // top the meter up so the step is always reachable
     check(p1) {
@@ -105,7 +93,7 @@ const TUTORIAL_STEPS = [
   {
     id: 'finish',
     title: 'KNOCK IT OUT',
-    hint: 'Take both of its lives. Drain its health or knock it off the stage.',
+    hint: 'Take both of its lives. Drain its health or knock it off.',
     need: 2,
     check(p1, bot) {
       if (!bot) return 0;
@@ -140,6 +128,7 @@ function _tutBot() { return typeof ladderBot === 'function' ? ladderBot() : null
 
 /** Per-frame tick. Safe to call every frame in every mode. */
 function updateTutorial() {
+  _tipTick();
   if (!tutorialActive) return;
   if (!gameRunning) {
     // The ladder stops the match itself and ends the prompts from its result
@@ -160,11 +149,11 @@ function _tutUpdateFight() {
 
   if (!_tutFightInit) {
     _tutFightInit = true;
-    bot._aiHoldUntil = Infinity;
+    // No hold: the bot engages straight away so the first hit lands in seconds.
+    // It is the Easy rung-1 opponent, and the prompts never gate the fight.
     _tutBotHp    = bot.health;
     _tutBotLives = bot.lives;
   }
-  if (bot._aiHoldUntil && _tutFrames >= FIRST_RUN_BOT_RELEASE) bot._aiHoldUntil = 0;
   if (p1.health <= 0) return;
 
   const step = TUTORIAL_STEPS[tutorialStep];
@@ -174,7 +163,6 @@ function _tutUpdateFight() {
   // Top the meter up ONCE so the super step is reachable regardless of how the
   // fight went. Granting every frame would mask the spend this step detects.
   if (step.grantMeter && !_tutMeterGranted) { p1.superMeter = 100; _tutMeterGranted = true; }
-  if (step.releaseBot && bot._aiHoldUntil) bot._aiHoldUntil = 0;
 
   let gained = 0;
   try { gained = step.check(p1, bot) || 0; } catch (e) { gained = 0; }
@@ -246,6 +234,12 @@ function markTutorialSeen() { _tutWriteFlag('tutorialSeen', 'smb_tutorialSeen');
  * the first-run fight instead of the menu, unless something else already owns
  * the session (an invite link, a running match).
  */
+// A first-time player does not need the full 3s splash: clear it early so the
+// fight starts sooner. dismissSplash() is idempotent, so the 3s timer is harmless.
+try {
+  if (!hasSeenTutorial()) setTimeout(function () { if (typeof window.dismissSplash === 'function') window.dismissSplash(); }, 900);
+} catch (e) {}
+
 function maybeStartFirstRun() {
   if (hasSeenTutorial()) return;
   if (gameRunning || tutorialActive) return;
@@ -268,7 +262,15 @@ function drawTutorial(ctx) {
   // Drawn in screen pixels (identity transform), so centre on the real canvas
   // width, not GAME_W. y clears the player HUD band, which is ~115px tall.
   // Width fits the longest hint at 13px monospace (~7.8px/char) without spilling.
-  const w = Math.min(640, cw - 24), h = 82, x = (cw - w) / 2, y = 124;
+  // Compact on short frames (the portal's 918x470): the panel must not eat the arena.
+  const ch = ctx.canvas.height;
+  const compact = ch < 600;
+  const w = Math.min(compact ? 560 : 640, cw - 24), h = compact ? 52 : 82;
+  const x = (cw - w) / 2, y = compact ? 84 : 124;
+  // The KO is the payoff: once the deciding blow lands (finisher playing, result
+  // card pending) the prompts get out of the way.
+  if ((typeof activeFinisher !== 'undefined' && activeFinisher) ||
+      (typeof _ladderOver !== 'undefined' && _ladderOver)) return;
   // This is a live fight, so a fighter can jump up behind the panel: fade it out
   // of the way rather than hide the opponent behind the instructions.
   const panelAlpha = _tutFighterBehind(x, y, w, h) ? 0.5 : 1;
@@ -286,21 +288,22 @@ function drawTutorial(ctx) {
   ctx.globalAlpha = panelAlpha;
   ctx.textAlign = 'center';
 
+  const tY = compact ? 19 : 24, hY = compact ? 37 : 46;
   ctx.fillStyle = '#3fb6ff';
-  ctx.font = 'bold 15px monospace';
-  ctx.fillText(`${step.title}   (${Math.min(tutorialStep + 1, TUTORIAL_STEPS.length)}/${TUTORIAL_STEPS.length})`, cw / 2, y + 24);
+  ctx.font = compact ? 'bold 14px monospace' : 'bold 15px monospace';
+  ctx.fillText(`${step.title}   (${Math.min(tutorialStep + 1, TUTORIAL_STEPS.length)}/${TUTORIAL_STEPS.length})`, cw / 2, y + tY);
 
   ctx.fillStyle = '#e8f4ff';
-  ctx.font = '13px monospace';
-  ctx.fillText(step.hint, cw / 2, y + 46);
+  ctx.font = compact ? '12.5px monospace' : '13px monospace';
+  ctx.fillText(step.hint, cw / 2, y + hY);
 
   // Progress bar
   const pct = Math.max(0, Math.min(1, _tutProgress / step.need));
-  const bw = w - 60, bx = x + 30, by = y + 58;
+  const bw = w - 60, bx = x + 30, by = y + (compact ? 43 : 58);
   ctx.fillStyle = 'rgba(255,255,255,0.14)';
-  ctx.fillRect(bx, by, bw, 7);
+  ctx.fillRect(bx, by, bw, compact ? 4 : 7);
   ctx.fillStyle = '#3fb6ff';
-  ctx.fillRect(bx, by, bw * pct, 7);
+  ctx.fillRect(bx, by, bw * pct, compact ? 4 : 7);
 
   if (_tutBannerTimer > 0) {
     ctx.globalAlpha = Math.min(1, _tutBannerTimer / 30);
@@ -327,4 +330,75 @@ function _tutFighterBehind(x, y, w, h) {
     if (sx < x + w && sx + sw > x && sy < y + h && sy + sh > y) return true;
   }
   return false;
+}
+
+// ── Contextual tips ──────────────────────────────────────────────────────────
+// Toast-only (never a modal, never pauses). Each tip fires once, the first time
+// it is relevant, and is remembered per account (localStorage fallback). They
+// stay silent during the first-run fight and ladder first run, so that flow is
+// untouched. Tap a toast to dismiss; "tips off" silences the rest.
+
+const CONTEXT_TIPS = {
+  class:    { text: 'CLASS PERK: your class changes health, speed and passive perks. Read its card in the loadout screen.' },
+  super:    { text: 'SUPER READY: press E (SUP). Land 4 supers and the next one opens a DOMAIN.' },
+  finisher: { text: 'FINISHER: a KO can trigger a cinematic finisher, set by your weapon, class or move. Turn them off in Settings.' },
+  mastery:  { text: 'WEAPON MASTERY: every weapon levels up on its own in Story. Spend EXP in the Skill Tree.' },
+};
+let _tipFrames = 0, _tipShownAt = -9999, _tipEl = null, _tipHide = 0, _tipWasFin = false;
+
+function _tipSeen(id) { return _tutReadFlag('tip_' + id, 'smb_tip_' + id); }
+function _tipMark(id) { _tutWriteFlag('tip_' + id, 'smb_tip_' + id); }
+
+/** Show a tip once. Returns true if it was shown. */
+function showContextTip(id) {
+  const tip = CONTEXT_TIPS[id];
+  if (!tip || _tipSeen(id) || _tutReadFlag('tipsOff', 'smb_tipsOff')) return false;
+  if (typeof document === 'undefined' || !document.body) return false;
+  _tipMark(id);
+  if (!_tipEl) {
+    _tipEl = document.createElement('div');
+    _tipEl.id = 'ctxTip';
+    _tipEl.style.cssText = 'position:fixed;top:128px;left:50%;transform:translateX(-50%);max-width:min(520px,90vw);' +
+      'background:rgba(6,12,24,0.92);border:2px solid #3fb6ff;border-radius:10px;color:#e8f4ff;padding:10px 16px;' +
+      'font:13px/1.35 monospace;text-align:center;z-index:9000;cursor:pointer;transition:opacity .4s;opacity:0;pointer-events:auto';
+    _tipEl.addEventListener('click', function (e) {
+      if (e.target && e.target.dataset && e.target.dataset.off) _tutWriteFlag('tipsOff', 'smb_tipsOff');
+      _tipEl.style.opacity = '0'; _tipEl.style.pointerEvents = 'none'; _tipHide = 0;
+    });
+    document.body.appendChild(_tipEl);
+  }
+  _tipEl.innerHTML = '';
+  const t = document.createElement('div'); t.textContent = tip.text; _tipEl.appendChild(t);
+  const off = document.createElement('div');
+  off.textContent = 'tap to dismiss  |  tips off'; off.dataset.off = '1';
+  off.style.cssText = 'margin-top:5px;font-size:10px;opacity:.55';
+  _tipEl.appendChild(off);
+  _tipEl.style.opacity = '1'; _tipEl.style.pointerEvents = 'auto';
+  _tipShownAt = _tipFrames; _tipHide = _tipFrames + 60 * 8;
+  return true;
+}
+
+function _tipTick() {
+  if (_tipHide && _tipFrames > _tipHide && _tipEl) { _tipEl.style.opacity = '0'; _tipEl.style.pointerEvents = 'none'; _tipHide = 0; }
+  if (!gameRunning || (typeof gameLoading !== 'undefined' && gameLoading)) return;
+  _tipFrames++;
+  if (tutorialActive || (typeof ladderActive !== 'undefined' && ladderActive && !hasSeenTutorial())) return;
+  if (typeof onlineMode !== 'undefined' && onlineMode) return;
+  if ((typeof activeCinematic !== 'undefined' && activeCinematic) || (typeof isCinematic !== 'undefined' && isCinematic)) return;
+  const fin = (typeof activeFinisher !== 'undefined') && !!activeFinisher;
+  const finRise = fin && !_tipWasFin; _tipWasFin = fin;
+  if (_tipFrames - _tipShownAt < 60 * 10) return;   // one toast at a time, spaced out
+  const p1 = Array.isArray(players) ? players[0] : null;
+  if (!p1 || p1.isAI || p1.isRemote || p1.health <= 0) return;
+  if (finRise) { if (showContextTip('finisher')) return; }
+  if (_tipFrames < 90) return;
+  if ((p1.superReady || p1.superMeter >= 100) && showContextTip('super')) return;
+  if (p1.charClass && p1.charClass !== 'none' && _tipFrames > 240 && typeof CLASSES !== 'undefined' && CLASSES[p1.charClass]) {
+    if (!_tipSeen('class')) {
+      const c = CLASSES[p1.charClass];
+      CONTEXT_TIPS.class.text = 'CLASS: ' + c.name.toUpperCase() + ' - ' + c.desc;
+      if (showContextTip('class')) return;
+    }
+  }
+  if (typeof storyModeActive !== 'undefined' && storyModeActive && _tipFrames > 600 && p1.weaponKey && p1.weaponKey !== 'fists' && showContextTip('mastery')) return;
 }

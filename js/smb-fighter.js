@@ -31,6 +31,71 @@ const CLASH_TIER_ABILITY = 1;
 const CLASH_TIER_SUPER   = 2;
 const CLASH_BREAK_ENDLAG = 22; // recovery the overpowered fighter eats
 
+// Ability / super entities clash on the same tiers. Every entity a fighter owns
+// is listed here with the field it lives in, its hit radius and its tier; a
+// hostile pair that touches resolves as the swing loop does: equal tiers (both
+// above a basic swing) destroy each other, otherwise the lower tier is destroyed
+// and the higher one flies on. Tier 0 entities (basic shots) never clash with
+// each other, they only break against something stronger.
+const CLASH_ENTITY_DEFS = [
+  { key: '_swordSlashes', list: true,  r: e => e.size || 16, tier: e => (e.hitSet && e.hitSet.size) ? 0 : 1 },
+  { key: '_boomerangs',   list: true,  r: () => 12,          tier: e => e.oneWay ? 0 : 1 },
+  { key: '_paperSwarm',   list: true,  r: () => 8,           tier: () => 2 },
+  { key: '_shockBolt',    list: false, r: () => 14,          tier: () => 1 },
+  { key: '_hammerShock',  list: false, r: () => 18,          tier: () => 1 },
+  { key: '_thrownAxe',    list: false, r: () => 16,          tier: () => 2, onKill: o => { o.superActive = false; } },
+];
+function _clashEntityGather(out, low) {
+  for (const f of players) {
+    if (!f || f.health <= 0 || f.isBoss || f.isTrueForm || f.isRemote) continue;
+    for (const d of CLASH_ENTITY_DEFS) {
+      const v = f[d.key];
+      if (!v) continue;
+      for (const e of (d.list ? v : [v])) {
+        const t = d.tier(e);
+        if (t >= 1) out.push({ x: e.x, y: e.y, vx: e.vx || 0, vy: e.vy || 0, r: d.r(e), tier: Math.max(t, f.superActive ? 2 : 0), owner: f, kill: () => {
+          if (d.list) { const i = f[d.key].indexOf(e); if (i >= 0) f[d.key].splice(i, 1); } else f[d.key] = null;
+          if (d.onKill) d.onKill(f);
+        } });
+      }
+    }
+  }
+  for (const p of projectiles) {
+    if (!p.active || p._netGhost || !p.owner || p.owner.health <= 0 || p.owner.isBoss || p.owner.isTrueForm) continue;
+    const t = p._moveTier || 0;
+    if (low ? t >= 1 : t < 1) continue;
+    out.push({ x: p.x, y: p.y, vx: p.vx, vy: p.vy, r: 6, tier: t, owner: p.owner, kill: () => { p.active = false; } });
+  }
+}
+function resolveEntityClashes() {
+  if (typeof onlineMode !== 'undefined' && onlineMode) return;
+  if (typeof PubHub !== 'undefined' && PubHub.active) return;
+  if (typeof isCinematic !== 'undefined' && isCinematic) return;
+  const hi = [], lo = [];
+  _clashEntityGather(hi, false);
+  if (!hi.length) return;
+  _clashEntityGather(lo, true);
+  const all = hi.concat(lo);
+  const dead = new Set();
+  for (const a of hi) {
+    if (dead.has(a)) continue;
+    for (const b of all) {
+      if (a === b || dead.has(b) || a.owner === b.owner || !isHostileTarget(a.owner, b.owner)) continue;
+      if (typeof areAlliedEntities === 'function' && areAlliedEntities(a.owner, b.owner)) continue;
+      const reach = a.r + b.r + Math.hypot(a.vx - b.vx, a.vy - b.vy) * 0.5;
+      if (Math.hypot(a.x - b.x, a.y - b.y) > reach) continue;
+      const loser = a.tier === b.tier ? null : (a.tier < b.tier ? a : b);
+      const bx = (a.x + b.x) / 2, by = (a.y + b.y) / 2;
+      if (!loser) { dead.add(a); dead.add(b); a.kill(); b.kill(); } else { dead.add(loser); loser.kill(); }
+      if (settings.particles) { spawnParticles(bx, by, '#ffffff', 8); spawnParticles(bx, by, loser ? '#ff8844' : '#ffdd66', 6); }
+      if (typeof DamageText !== 'undefined' && typeof damageTexts !== 'undefined') damageTexts.push(new DamageText(bx, by - 14, loser ? 'BREAK' : 'CLASH', loser ? '#ff8844' : '#ffdd66'));
+      if (settings.screenShake) screenShake = Math.max(screenShake, loser ? 4 : 6);
+      if (!loser) break;
+      if (dead.has(a)) break;
+    }
+  }
+}
+
 // Basic melee swings chain at most BASIC_CHAIN_MAX in a row. The next one has to
 // be something else: an ability, a super, or a swing from the other stance
 // (ground vs air). Pausing BASIC_CHAIN_RESET frames past the last swing's
@@ -193,7 +258,7 @@ class Fighter {
     this.ragdollTimer = 0;   // frames of limp physics (flailing limbs)
     this.weaponHit    = false; // has weapon tip dealt damage this swing?
     this.boostCooldown   = 0;  // ability cooldown (legacy field)
-    this.shieldCooldown      = 0;  // legacy field kept for compatibility — always 0 now
+    this.shieldCooldown      = 0;  // guard-break lock (frames); shieldRaise() refuses a fresh raise while > 0
     this.shieldHoldTimer     = 0;  // frames S is held this activation
     this.shieldStacks        = 0;  // consecutive activations since last full recharge
     this.shieldRechargeTimer = 0;  // frames until stacks reset to 0 (recharge)
@@ -904,7 +969,7 @@ class Fighter {
         this.vx *= 0.55;
         if (cs.timer === 3 && !cs.kickDone) {
           cs.kickDone = true;
-          dealDamage(this, t, 20, 6);
+          dealDamage(this, t, cs.surge ? 8 : 20, 6);   // surge (free perk) version hits at ~40%
           t.vy = -21;
           t.vx = this.facing * 3;
           cs.impactX = t.cx(); cs.impactY = t.cy(); cs.impactFlash = 12;
@@ -962,7 +1027,7 @@ class Fighter {
           cs.punchDone = true;
           const _a = cs.aim || 0;
           this.facing = Math.cos(_a) >= 0 ? 1 : -1;
-          dealDamage(this, t, 34, 28);
+          dealDamage(this, t, cs.surge ? 14 : 34, 28);
           t.vx = Math.cos(_a) * 26;
           t.vy = Math.sin(_a) * 26;
           cs.impactX = t.cx(); cs.impactY = t.cy(); cs.impactFlash = 18;
@@ -1555,7 +1620,7 @@ class Fighter {
       if (st.timer <= 0) this._scytheToss = null;
     }
 
-    if (this.shieldCooldown > 0)       this.shieldCooldown--; // legacy — kept at 0
+    if (this.shieldCooldown > 0)       this.shieldCooldown--; // guard-break lock countdown (gates shieldRaise)
     // Shield meter refill / stack recharge (smb-combat.js shieldTick)
     shieldTick(this);
     if (this._projDeflectCd > 0)       this._projDeflectCd--;
@@ -1818,7 +1883,7 @@ class Fighter {
       if (this.charClass && this.weapon && typeof CLASS_AFFINITY !== 'undefined') {
         const _aff = CLASS_AFFINITY[this.charClass];
         if (_aff) {
-          const _affMult = _aff[this.weapon.type] || 1.0;
+          const _affMult = _aff[this.weapon.weaponType] || 1.0;
           if (_affMult < 0.8) endlag = Math.round(endlag * (1 + (_affMult < 0.6 ? 0.30 : 0.15)));
           else if (_affMult > 1.2) endlag = Math.round(endlag * (1 - (_affMult > 1.4 ? 0.20 : 0.10)));
         }
@@ -2176,11 +2241,11 @@ class Fighter {
           // Apply stun post-dealDamage so it stacks with (rather than overwrites) KB stun
           if (_t.health > 0) _t.stunTimer = Math.max(_t.stunTimer, 25);
         };
-        setTimeout(_strikeFn, 600);  // windup: target can dodge the first bolt
-        setTimeout(_strikeFn, 950);  // follow-up
+        combatAfter(36, _strikeFn);  // windup: target can dodge the first bolt
+        combatAfter(57, _strikeFn);  // follow-up
       }
 
-      // VAREK: Spartan Rage at ≤55% HP — 5s damage boost; heals 10% of damage dealt during rage
+      // VAREK: Warborn Fury at ≤55% HP — 5s damage boost; heals 10% of damage dealt during rage
       if (this.charClass === 'kratos' && pct <= CLASS_PERK_THRESHOLD.kratos) {
         this.classPerkUsed     = true;
         this.spartanRageTimer  = 300;
@@ -2266,7 +2331,7 @@ class Fighter {
           phase: 0, timer: 0, target: _sfTgt,
           kickDone: false, punchDone: false,
           impactX: 0, impactY: 0, impactFlash: 0,
-          aim: 0, fire: false,
+          aim: 0, fire: false, surge: true,
         };
         if (_sfTgt) this.facing = _sfTgt.cx() > this.cx() ? 1 : -1;
         this._superArmorUntil = Math.max(this._superArmorUntil || 0, frameCount + 55);
@@ -3033,8 +3098,10 @@ class Fighter {
 
     const _fcNow    = typeof frameCount !== 'undefined' ? frameCount : 0;
     const _chainKey = this.onGround ? 'g' : 'a';
+    const _held     = !!this._basicChainHeld && _fcNow - (this._comboLastFrame || 0) <= 45;
     const _chained  = !this.isBoss && this.weapon.type === 'melee' && this._basicChainKey === _chainKey &&
-                      _fcNow <= (this._basicChainReadyAt || 0) + BASIC_CHAIN_RESET;
+                      (_held || _fcNow <= (this._basicChainReadyAt || 0) + BASIC_CHAIN_RESET);
+    if (!_held) this._basicChainHeld = false;
     // Still armed = the previous swing never dealt damage, so the run is broken.
     if (!this.isBoss && this.weapon.type === 'melee' && (!_chained || this._basicChainArmed)) this._basicChainN = 0;
     if (_chained && this._basicChainN >= BASIC_CHAIN_MAX) {
@@ -3261,11 +3328,23 @@ class Fighter {
     if (!this.isBoss && this.charClass && this.weapon && typeof CLASS_AFFINITY !== 'undefined') {
       const _aff2 = CLASS_AFFINITY[this.charClass];
       if (_aff2) {
-        const _affMult2 = _aff2[this.weapon.type] || 1.0;
+        const _affMult2 = _aff2[this.weapon.weaponType] || 1.0;
         if (_affMult2 < 0.8) this._affinityMovePenalty = Math.round(this.attackDuration * 0.6); // sluggish during swing
         else if (_affMult2 > 1.2) this._affinityMovePenalty = 0; // no extra penalty
       }
     }
+  }
+
+  // An ability or super thrown mid-combo does not clear the swing chain, or
+  // A A Q A A is a legal loop. The chain stays spent until the combo window
+  // lapses or the next swing is from the other stance.
+  _resetBasicChainForMove() {
+    const _fc = (typeof frameCount !== 'undefined' ? frameCount : 0);
+    const _mid = (this._comboHitCount || 0) > 1 && _fc - (this._comboLastFrame || 0) <= 45 &&
+                 (this._basicChainN || 0) >= BASIC_CHAIN_MAX;
+    this._basicChainHeld  = _mid;
+    this._basicChainArmed = false;
+    if (!_mid) this._basicChainN = 0;
   }
 
   ability(target) {
@@ -3278,8 +3357,7 @@ class Fighter {
     if (this.shielding) return;
     // Abilities out-rank ordinary swings in a clash — see _clashTier().
     this._attackKindTier   = CLASH_TIER_ABILITY;
-    this._basicChainN      = 0;
-    this._basicChainArmed  = false;
+    this._resetBasicChainForMove();
     this._attackStartFrame = (typeof frameCount !== 'undefined' ? frameCount : 0);
     // KNIGHT class override: Q = Grand Slam — spinning slam that craters nearby enemies upward
     if (this.charClass === 'megaknight') {
@@ -3427,8 +3505,7 @@ class Fighter {
   activateSuper(target) {
     // Supers out-rank abilities and swings in a clash — see _clashTier().
     this._attackKindTier   = CLASH_TIER_SUPER;
-    this._basicChainN      = 0;
-    this._basicChainArmed  = false;
+    this._resetBasicChainForMove();
     this._attackStartFrame = (typeof frameCount !== 'undefined' ? frameCount : 0);
     // ── Conviction: after 4 LANDED supers, the next super is the domain ──
     // A super only counts once it connects: dealDamage() credits
@@ -3484,7 +3561,7 @@ class Fighter {
       spawnParticles(this.cx(), this.y + this.h, '#cc88ff', 18);
       spawnParticles(this.cx(), this.y + this.h, '#ffffff', 10);
       SoundManager.explosion && SoundManager.explosion();
-      setTimeout(() => { if (this) this.superActive = false; }, 3000); // fallback: Knight may not land (e.g. falls off-map)
+      combatAfter(180, () => { if (this) this.superActive = false; }); // fallback: Knight may not land (e.g. falls off-map)
       return;
     }
     // The heal is paid by dealDamage() on the super's first connecting hit. Paid
@@ -3494,7 +3571,7 @@ class Fighter {
     this.superMeter  = 0;
     this.superReady  = false;
     this.superActive = true; // block super-meter charging during this move
-    setTimeout(() => { if (this) this.superActive = false; }, 1800); // fallback: clears if per-effect cleanup is somehow skipped
+    combatAfter(108, () => { if (this) this.superActive = false; }); // fallback: clears if per-effect cleanup is somehow skipped
     screenShake      = Math.max(screenShake, 24);
     SoundManager.superActivate();
     if (!this.isAI && !this.isBoss) { _achStats.superCount++; if (_achStats.superCount >= 10) unlockAchievement('super_saver'); }
@@ -3529,10 +3606,10 @@ class Fighter {
       },
       gun: () => {
         for (let i = 0; i < 14; i++) {
-          setTimeout(() => {
+          combatAfter(i * 3, () => {
             if (!gameRunning || this.health <= 0) return;
             spawnBullet(this, 14 + (Math.random() - 0.5) * 4, '#ff8800', Math.floor(Math.random() * 4) + 9);
-          }, i * 50);
+          });
         }
       },
       // ── Axe: Axe Throw — hurl the axe across the arena; it curves back ─────────
@@ -3566,7 +3643,7 @@ class Fighter {
       // ── Bow: Arrow Rain — 8 spread arrows arc outward ───────────────────────
       bow: () => {
         for (let i = 0; i < 8; i++) {
-          setTimeout(() => {
+          combatAfter(Math.round(i * 3.3), () => {
             if (!gameRunning || this.health <= 0) return;
             const angle = -0.48 + (i / 7) * 0.96;
             const spd   = 16;
@@ -3578,7 +3655,7 @@ class Fighter {
             );
             _bArrow._isArrow = true;
             projectiles.push(_bArrow);
-          }, i * 55);
+          });
         }
         spawnParticles(this.cx(), this.cy(), '#ffee44', 16);
       },
@@ -3907,7 +3984,7 @@ class Fighter {
           { delay: 220, dmg: 24, kb: 16 },
         ];
         for (const hit of _nullHits) {
-          setTimeout(() => {
+          combatAfter(Math.round(hit.delay * 0.06), () => {
             if (!gameRunning || this.health <= 0) return;
             for (const f of _allTargets) {
               if (!isHostileTarget(this, f)) continue;
@@ -3917,7 +3994,7 @@ class Fighter {
                 if (hit.kb >= 16) screenShake = Math.max(screenShake, 18);
               }
             }
-          }, hit.delay);
+          });
         }
       }
     };
@@ -4857,7 +4934,7 @@ class Fighter {
     if (t && this.aiDiff !== 'easy' && t.attackTimer > 0 && d < 110 &&
         (this.shieldStacks || 0) <= 2 && Math.random() < 0.22) {
       if ((this.shieldHoldTimer || 0) !== 0 || shieldRaise(this)) this.shielding = true;
-      setTimeout(() => { this.shielding = false; this.shieldHoldTimer = 0; this.shieldBroken = false; }, 320);
+      combatAfter(19, () => { this.shielding = false; this.shieldHoldTimer = 0; this.shieldBroken = false; });
     }
 
     // --- Dodge projectiles (medium+) ---

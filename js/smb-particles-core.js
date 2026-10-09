@@ -215,7 +215,20 @@ class Projectile {
     _moveTierOverride = this._moveTier;
     try { return this._update(); } finally { _moveTierOverride = null; }
   }
+  // Online mirror of a projectile fired on the owner's machine (see NetProj below).
+  // Visual only: dead-reckons, eases toward corrections, never collides or damages.
+  // Hit authority stays with the owner (hitEvent / pub:hit).
+  _ghostStep() {
+    if (this._ox || this._oy) {
+      this.x += this._ox * 0.25; this.y += this._oy * 0.25;
+      this._ox *= 0.75; this._oy *= 0.75;
+      if (Math.abs(this._ox) < 0.05 && Math.abs(this._oy) < 0.05) this._ox = this._oy = 0;
+    }
+    this.x += this.vx; this.y += this.vy; this.vy += this._gravity != null ? this._gravity : 0.08;
+    if (--this.life <= 0 || ++this._ghostAge > 240) this.active = false;
+  }
   _update() {
+    if (this._netGhost) return this._ghostStep();
     // Ninja Shadow Realm time dilation: projectiles fired by slowed fighters crawl
     if (this.owner && this.owner._domainSlowFactor > 0 && this.owner._domainSlowFactor < 1) {
       this._domainSlowAccum = (this._domainSlowAccum || 0) + this.owner._domainSlowFactor;
@@ -560,3 +573,93 @@ class DamageText {
   }
 }
 
+// ── NetProj: online projectile position correction ────────────────────────────
+// Remote fighters are network puppets (they never run attacks), so a remote
+// player's shots only exist on the owner's machine. The owner sends compact
+// snapshots [id,x,y,vx,vy,color,kind,life] on spawn and every NetProj.EVERY frames
+// (skipped when every shot still sits within TOL px of dead-reckoning); the
+// receiver keeps a visual-only ghost per id, eases it onto the snapshot, and
+// snaps if the error exceeds SNAP. An empty list clears the sender's ghosts.
+const NetProj = (() => {
+  const EVERY = 6, MAX = 12, TOL = 2, SNAP = 60;
+  let _seq = 0, _lastFrame = 0, _had = false, _last = {};
+  const _ghosts = new Map();
+  const r1 = v => Math.round(v * 10) / 10;
+  function _kind(p) { return (p._isArrow ? 1 : 0) | (p._isPaperPlane ? 2 : 0) | (p._isShuriken ? 4 : 0); }
+  // Sender: returns an array to transmit, or null when nothing needs sending.
+  function collect(owner) {
+    if (!owner || typeof projectiles === 'undefined') return null;
+    const now = frameCount, live = [];
+    let fresh = false;
+    for (const p of projectiles) {
+      if (!p.active || p.owner !== owner || p._netGhost || p._flameFx || p._isFlame) continue;
+      if (!p._nid) { _seq = (_seq % 60000) + 1; p._nid = _seq; fresh = true; }
+      live.push(p);
+      if (live.length >= MAX) break;
+    }
+    if (!live.length) {
+      if (!_had) return null;
+      _had = false; _last = {};
+      return [];
+    }
+    _had = true;
+    if (!fresh && now - _lastFrame < EVERY) return null;
+    if (!fresh) {
+      const dt = now - _lastFrame;
+      let same = live.length === Object.keys(_last).length;
+      for (let i = 0; same && i < live.length; i++) {
+        const p = live[i], l = _last[p._nid];
+        if (!l) { same = false; break; }
+        const g = p._gravity != null ? p._gravity : 0.08;
+        const ex = l[0] + l[2] * dt - p.x, ey = l[1] + l[3] * dt + g * dt * (dt + 1) / 2 - p.y;
+        if (ex * ex + ey * ey > TOL * TOL) same = false;
+      }
+      if (same) return null;
+    }
+    _lastFrame = now; _last = {};
+    return live.map(p => {
+      const e = [p._nid, Math.round(p.x), Math.round(p.y), r1(p.vx), r1(p.vy), p.color, _kind(p), Math.min(255, p.life | 0)];
+      _last[p._nid] = [e[1], e[2], e[3], e[4]];
+      return e;
+    });
+  }
+  // Receiver: list is the sender's full live set; key identifies the sender.
+  function apply(key, owner, list) {
+    if (!owner || !Array.isArray(list) || typeof projectiles === 'undefined') return;
+    const seen = {};
+    for (const e of list) {
+      if (!Array.isArray(e) || !(e[0] > 0) || !isFinite(e[1]) || !isFinite(e[2])) continue;
+      const k = key + ':' + e[0], vx = +e[3] || 0, vy = +e[4] || 0;
+      seen[k] = true;
+      let g = _ghosts.get(k);
+      if (g && !g.active) { _ghosts.delete(k); g = null; }
+      if (!g) {
+        g = new Projectile(e[1], e[2], vx, vy, owner, 0, typeof e[5] === 'string' ? e[5].slice(0, 24) : '#ffffff');
+        g._netGhost = true; g._ghostAge = 0; g._ox = g._oy = 0; g.hitEntities = new Set();
+        const kd = e[6] | 0;
+        if (kd & 1) g._isArrow = true;
+        if (kd & 2) g._isPaperPlane = true;
+        if (kd & 4) g._isShuriken = true;
+        _ghosts.set(k, g);
+        projectiles.push(g);
+      } else {
+        const ex = e[1] - g.x, ey = e[2] - g.y, err = Math.hypot(ex, ey);
+        NetProj.lastErr = err;
+        if (err > SNAP) { g.x = e[1]; g.y = e[2]; g._ox = g._oy = 0; }
+        else { g._ox = ex; g._oy = ey; }
+        g.vx = vx; g.vy = vy;
+      }
+      g.life = Math.max(1, e[7] | 0 || 90);
+      g._ghostAge = 0;
+    }
+    for (const [k, g] of _ghosts) {
+      if (k.indexOf(key + ':') !== 0 || seen[k]) continue;
+      if (g.active) { g.active = false; spawnParticles(g.x, g.y, g.color, 3); }
+      _ghosts.delete(k);
+    }
+  }
+  function clear(key) {
+    for (const [k, g] of _ghosts) if (key == null || k.indexOf(key + ':') === 0) { g.active = false; _ghosts.delete(k); }
+  }
+  return { EVERY, collect, apply, clear, lastErr: 0, _ghosts };
+})();

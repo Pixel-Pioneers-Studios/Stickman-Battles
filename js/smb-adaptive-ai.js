@@ -534,7 +534,7 @@ class AdaptiveAI extends Fighter {
         this.shielding     = true;
         this.shieldCooldown = typeof SHIELD_CD !== 'undefined' ? SHIELD_CD : 450;
         this._recordEvent('dodge', 3);
-        setTimeout(() => { this.shielding = false; }, 280);
+        combatAfter(17, () => { this.shielding = false; });
         return;
       }
     } else {

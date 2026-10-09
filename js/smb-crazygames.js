@@ -259,6 +259,12 @@ var cgSdk = (function () {
       } catch (e) { settle(); }
     },
 
+    // True only when the portal SDK is initialised and can serve ads (never on itch/local).
+    adReady: function () {
+      var s = sdk();
+      return !!(s && s.ad && typeof s.ad.requestAd === 'function');
+    },
+
     // Rewarded ad — call from an explicit player-initiated button only.
     // onReward() runs when the ad completed; onSkip() when it did not.
     requestRewardedAd: function (onReward, onSkip) {

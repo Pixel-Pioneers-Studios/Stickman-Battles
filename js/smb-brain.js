@@ -791,8 +791,15 @@ const Brain = (() => {
   // but only among kits the net has a one-hot for (nullblade is not one), and
   // he plays his top choice. If the checkpoint can't load he stays the cascade.
   let _sovCkpt = null;
+  // Default ON everywhere Sovereign appears; `brain off` (console) selects the cascade.
+  let _sovEnabled = true;
+  try { if (localStorage.getItem('smb_brain_sov') === '0') _sovEnabled = false; } catch (e) {}
+  function setSovereignDrive(on) {
+    _sovEnabled = !!on;
+    try { localStorage.setItem('smb_brain_sov', on ? '1' : '0'); } catch (e) {}
+  }
   function driveSovereign(sov, opponent) {
-    if (!sov || !opponent) return Promise.resolve(-1);
+    if (!_sovEnabled || !sov || !opponent) return Promise.resolve(-1);
     try { if (sov._ensureMatchLoadout) sov._ensureMatchLoadout(); } catch (e) {}
     if (KIT_WEAPONS.indexOf(sov.weaponKey) < 0 && typeof SMK2_LOADOUTS !== 'undefined' && sov._applyLoadout) {
       const known = SMK2_LOADOUTS.filter(l => KIT_WEAPONS.indexOf(l.wk) >= 0)
@@ -809,6 +816,7 @@ const Brain = (() => {
   }
 
   return { REPEAT, HEADS, N_LOGITS, OBS_DIM, OBS_BASE, STAT_KEYS, randomKit, resolveKit, hostilesOf, controlsFor, loadNet, forward, sample,
-           observe, applyKeys, rollout, possess, tickLive, release, takeOver, driveSovereign,
+           observe, applyKeys, rollout, possess, tickLive, release, takeOver, driveSovereign, setSovereignDrive,
+           get sovereignDrive() { return _sovEnabled; },
            get live() { return _live; } };
 })();

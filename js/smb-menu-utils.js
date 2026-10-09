@@ -251,6 +251,9 @@ function drawEdgeIndicators(scX, scY, camCX, camCY) {
   const MARGIN = 40; // px from screen edge before indicator shows
   const ARROW  = 14; // arrow half-size
   const allP   = [...players, ...minions].filter(p => p.health > 0 && !p.isBoss);
+  // Distance readout is measured from the fighter the camera follows.
+  const _ref = (gameMode === 'online' && typeof localPlayerSlot !== 'undefined' && players[localPlayerSlot])
+    ? players[localPlayerSlot] : players[0];
   for (const p of allP) {
     // Convert game coords to screen coords
     const sx = (p.cx() - camCX) * scX + canvas.width  / 2;
@@ -284,6 +287,11 @@ function drawEdgeIndicators(scX, scY, camCX, camCY) {
     ctx.shadowColor = '#000';
     ctx.shadowBlur  = 4;
     ctx.fillText(p.name || '?', 0, ARROW + 12);
+    if (_ref && _ref !== p && _ref.health > 0) {
+      const _dist = Math.round(Math.hypot(p.cx() - _ref.cx(), p.cy() - _ref.cy()));
+      ctx.font = 'bold 10px Arial';
+      ctx.fillText(_dist + ' px', 0, ARROW + 23);
+    }
     ctx.restore();
   }
 }

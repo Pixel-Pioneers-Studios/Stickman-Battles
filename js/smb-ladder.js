@@ -35,6 +35,7 @@ let _ladderBotRef  = null;  // the opponent, pinned at match start
 let _ladderInit    = false; // opponent configured for this match
 let _ladderOver    = false; // the deciding KO has landed
 let _ladderWon     = false;
+let _ladderFirstRun = false; // the running match is the first-run fight
 let _ladderShownAt = 0;     // result card open time, for the input guard
 
 /** Rungs beaten so far, 0 to LADDER_RUNGS.length. */
@@ -101,6 +102,7 @@ function startLadderRung(rung, opts) {
   _ladderInit   = false;
   _ladderOver   = false;
   _ladderWon    = false;
+  _ladderFirstRun = !!(opts && opts.firstRun);
 
   window._ladderNext = Object.assign({ rung, firstRun: !!(opts && opts.firstRun) }, def);
   if (typeof startGame === 'function') startGame();
@@ -119,6 +121,23 @@ function updateLadder() {
   // Name and lives are set at spawn by _startGameCore; this only pins the opponent.
   _ladderBotRef = players[1];
   _ladderInit = true;
+  if (_ladderFirstRun) _ladderStageFirstRun(players[0], players[1]);
+}
+
+/**
+ * First-run only: start both fighters on the arena floor, close together, so the
+ * opening seconds are a fight rather than a walk across a randomised layout.
+ * Placement only: no stats, health or AI state change.
+ */
+function _ladderStageFirstRun(p1, p2) {
+  const plats = (typeof currentArena !== 'undefined' && currentArena && currentArena.platforms) || [];
+  const fl = plats.find(q => q && q.isFloor);
+  if (!fl || !p1 || !p2) return;
+  const cx = fl.x + fl.w / 2;
+  p1.x = cx - 140 - p1.w / 2; p1.y = fl.y - p1.h; p1.vx = 0; p1.vy = 0; p1.facing = 1;
+  p2.x = cx + 140 - p2.w / 2; p2.y = fl.y - p2.h; p2.vx = 0; p2.vy = 0; p2.facing = -1;
+  p1.spawnX = p1.x; p1.spawnY = fl.y;
+  p2.spawnX = p2.x; p2.spawnY = fl.y;
 }
 
 /**

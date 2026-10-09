@@ -420,6 +420,9 @@ function cinScript(def) {
         slowMotion = _cinSampleKeyframes(def.slowMo, t);
       }
 
+      // ── 1b. Figure performances (CinPerf; optional) ─────────
+      if (def.perf && typeof CinPerf !== 'undefined') CinPerf.run(this, t, def.perf);
+
       // ── 2. Camera ───────────────────────────────────────────
       if (def.orbit && t >= (def.orbit.start || 0)) {
         const o     = def.orbit;
@@ -484,6 +487,7 @@ function cinScript(def) {
     },
 
     onEnd() {
+      if (def.perf && typeof CinPerf !== 'undefined') CinPerf.endBound();
       slowMotion           = 1.0;
       cinematicCamOverride = false;
       cinematicCamSnapFrames = 0;

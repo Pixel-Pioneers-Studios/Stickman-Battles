@@ -245,6 +245,13 @@ function attachPublicHub(io, opts) {
       socket.volatile.to(_room(at.shard)).emit('pub:state', { slot: at.slot, s: state });
     });
 
+    // Projectile snapshots (client NetProj): relayed as-is, capped, volatile.
+    socket.on('pub:proj', (list) => {
+      const at = socketShard.get(socket.id);
+      if (!at || !Array.isArray(list) || list.length > 16) return;
+      socket.volatile.to(_room(at.shard)).emit('pub:proj', { slot: at.slot, p: list });
+    });
+
     // Shared-world snapshot (bots, ball). Only the authority may author it.
     socket.on('pub:world', (world) => {
       const at = socketShard.get(socket.id);

@@ -39,6 +39,7 @@ const CIN_POSE = {
   headTilt: 0,
   headScale: 1,
   headOff: 0,              // head x offset in px (drag / overlap)
+  hipDrop: 0,              // px the hips sit BELOW standing height (kneel, crouch, collapse)
 
   // Upper arm then forearm, each an ABSOLUTE angle so a pose may hyperextend
   rArm: Math.PI * 0.58, rFore: Math.PI * 0.58,
@@ -90,13 +91,13 @@ const CinRig = {
   joints(pose) {
     const p = cinPose(pose);
     const B = CIN_BONE, s = p.scale, f = p.facing;
-    const hipY  = p.y - B.thigh * s - B.shin * s;
+    const hipY  = p.y - B.thigh * s - B.shin * s + p.hipDrop * s;
     const hipX  = p.x;
     const shX   = hipX + Math.sin(p.torso) * B.torso * s * f;
     const shY   = hipY - Math.cos(p.torso) * B.torso * s;
     const neckX = shX, neckY = shY - 6 * s;
     const headX = neckX + p.headOff * s + Math.sin(p.headTilt) * B.headR * s;
-    const headY = neckY - B.headR * s;
+    const headY = neckY - B.headR * s * p.headScale;
 
     const limb = (ox, oy, a1, a2, l1, l2, mult) => {
       const jx = ox + Math.cos(a1) * l1 * s * mult;
@@ -223,25 +224,19 @@ const CinRig = {
       if (j.x + r > x1) x1 = j.x + r;
       if (j.y + r > y1) y1 = j.y + r;
     }
+    // LOCKED FIGHTER LOOK (see FigureSkin.paint): near-black body, outline in the
+    // fighter's own accent colour. This used to lay the coloured gradient ramp
+    // across the body, so every cutscene figure was the OLD coloured fighter.
     const compound = new Path2D();
     for (const q of parts) compound.addPath(q);
     ctx.lineJoin = 'round'; ctx.lineCap = 'round';
     const _a = ctx.globalAlpha;
-    ctx.globalAlpha = _a * 0.75;
-    ctx.strokeStyle = pal.rim;
-    ctx.lineWidth   = 2.6;
+    ctx.globalAlpha = _a * 0.94;
+    ctx.strokeStyle = pal.accent;
+    ctx.lineWidth   = 1.85 * (o.outline || 1);
     ctx.stroke(compound);
     ctx.globalAlpha = _a;
-
-    const w = Math.max(1, x1 - x0), h = Math.max(1, y1 - y0);
-    const g = ctx.createLinearGradient(x0, y0, x0 + w * 0.90, y1);
-    g.addColorStop(0,    pal.lite);
-    g.addColorStop(0.22, pal.liteMid);
-    g.addColorStop(0.44, pal.base);
-    g.addColorStop(0.66, pal.base);
-    g.addColorStop(0.85, pal.darkMid);
-    g.addColorStop(1,    pal.dark);
-    ctx.fillStyle = g;
+    ctx.fillStyle = 'rgba(3, 5, 18, 0.80)';
     for (const q of parts) ctx.fill(q);
   },
 

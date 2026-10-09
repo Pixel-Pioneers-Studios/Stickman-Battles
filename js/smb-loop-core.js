@@ -163,6 +163,7 @@ function gameLoop(timestamp) {
   if (typeof updateParadoxCompanion === 'function') updateParadoxCompanion();
   frameCount++;
   aiTick++;
+  tickCombatTimers();
   if (typeof ReplaySystem !== 'undefined') ReplaySystem.recordFrame();
   // Strategic advisor sampling. Cheap per frame; the network call it may schedule
   // is fully async and never awaited here, so a slow or absent Ollama cannot
@@ -580,6 +581,7 @@ function gameLoop(timestamp) {
   }
 
   // ---------- Phase: updatePhysics/updateCombat (projectiles, minions, players) ----------
+  resolveEntityClashes();
   projectiles.forEach(p => p.update());
   projectiles = projectiles.filter(p => p.active); // prevent leak
   projectiles.forEach(p => p.draw());

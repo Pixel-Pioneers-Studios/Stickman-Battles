@@ -138,7 +138,7 @@ async function readChapters(browser) {
   const { ctx, page } = await bootPage(browser);
   const list = await page.evaluate(() => STORY_CHAPTERS2.map((c, i) => ({
     idx: i, id: c.id, title: c.title || '', type: c.type || 'fight',
-    noFight: !!c.noFight, walkFight: !!c.walkFight,
+    noFight: !!c.noFight, walkFight: !!c.walkFight, hasBeat: !!c.beat,
     cinematicRun: typeof isStoryCinematicRunStart === 'function' && isStoryCinematicRunStart(c.id),
     boss: !!(c.isBossFight || c.isTrueFormFight || c.isSovereignFight || c.isGodFight || c.isAbsoluteAxiomFight),
     exploreMode: c.exploreMode || c.mode || null,
@@ -148,9 +148,9 @@ async function readChapters(browser) {
 }
 
 function skipReason(ch) {
-  if (ch.type === 'branch') return 'branch choice';
+  if (ch.type === 'branch' && !ch.hasBeat) return 'branch choice';
   if (ch.noFight) return 'narrative only';
-  if (ch.cinematicRun) return 'cinematic run';
+  if (ch.cinematicRun && !ch.hasBeat) return 'cinematic run';
   if (ch.type === 'ship_flight') return 'ship flight needs human input';
   return null;
 }
@@ -356,7 +356,9 @@ async function runAttempt(browser, ch, attempt) {
       if (typeof SovQTE !== 'undefined') SovQTE.enable();
       _activeStory2Chapter = ch;
       _seenNarrativeIds.add(ch.id);
-      _launchChapterWithGauntlet(ch);
+      // A branch chapter's playable beat: win = the beat's continuation fires.
+      if (ch.beat && typeof _playChapterBeat === 'function') _playChapterBeat(ch, () => { if (!T.result) { T.result = 'WIN'; T.note = 'beat cleared'; } });
+      else _launchChapterWithGauntlet(ch);
       return 'ok';
     }, ch.id, DIFFICULTY, STALL_S);
     if (launched !== 'ok') return { result: 'CRASH', note: 'launch: ' + launched };

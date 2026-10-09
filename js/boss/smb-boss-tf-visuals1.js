@@ -396,6 +396,7 @@ function updateTFCalcStrike() {
       spawnParticles(tf.cx(), tf.cy(), '#aaddff', 10);
       if (target) {
         if (target.shielding) {
+          target.shielding = false; target.shieldHoldTimer = 0;
           target.shieldCooldown = Math.max(target.shieldCooldown || 0, typeof SHIELD_CD !== 'undefined' ? Math.round(SHIELD_CD * 0.55) : 180);
           target.hurtTimer = Math.max(target.hurtTimer || 0, 10);
           target.vx += tf.facing * 7;

@@ -8,6 +8,22 @@ const keysDown      = new Set();
 const keyHeldFrames = {};   // key → frames held continuously
 const ATTACK_MASH_LOCK = 16; // frames the attack key stays dead after a mashed recovery; outlasts STRING_STUN_PAD so a mashed follow-up drops the string
 
+// Last-used input device for on-screen prompts (QTE icons): 'keyboard' | 'touch' | 'gamepad'.
+// Synthetic keydowns from the touch pads are untrusted, so they don't flip it to keyboard.
+let lastInputDevice = ('ontouchstart' in window && !window.matchMedia('(pointer:fine)').matches) ? 'touch' : 'keyboard';
+document.addEventListener('keydown', e => { if (e.isTrusted) lastInputDevice = 'keyboard'; }, true);
+document.addEventListener('pointerdown', e => { lastInputDevice = (e.pointerType === 'touch' || e.pointerType === 'pen') ? 'touch' : (e.pointerType === 'mouse' && lastInputDevice === 'touch' ? 'keyboard' : lastInputDevice); }, true);
+window.addEventListener('gamepadconnected', () => { lastInputDevice = 'gamepad'; });
+function pollInputDevice() {
+  try {
+    const pads = navigator.getGamepads ? navigator.getGamepads() : [];
+    for (const g of pads) {
+      if (g && (g.buttons.some(b => b.pressed) || g.axes.some(v => Math.abs(v) > 0.6))) { lastInputDevice = 'gamepad'; break; }
+    }
+  } catch (e) {}
+  return lastInputDevice;
+}
+
 const SCROLL_BLOCK = new Set([' ', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 's', '/']);
 
 // Normalize a key string so that caps-lock and shift don't break single-letter

@@ -128,7 +128,7 @@ class ForestBeast extends Fighter {
           }
         }
         this._slamCd = this.isRaged ? 280 : 400;
-        setTimeout(() => { this._slamPhase = 'none'; }, 300);
+        combatAfter(18, () => { this._slamPhase = 'none'; });
       }
       return;
     }

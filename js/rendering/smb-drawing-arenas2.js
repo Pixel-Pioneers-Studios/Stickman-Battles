@@ -1591,46 +1591,56 @@ function drawCyberpunkArena() {
   ctx.fillRect(-200, 90, GAME_W + 400, floorY - 90);
 
   // ── Tower bands, far to near ─────────────────────────────────────────────
-  for (const bd of bg.bands) {
+  // Towers, window grids, crowns and mast poles never animate: each band is
+  // cached (parallax applied at blit). Only the aircraft-warning lamps stay live.
+  for (let bi = 0; bi < bg.bands.length; bi++) {
+    const bd = bg.bands[bi];
     ctx.save();
     ctx.translate(-camOff * bd.par, 0);
-    for (const tw of bd.towers) {
-      const top = floorY - tw.h;
-      ctx.fillStyle = bd.fill;
-      ctx.fillRect(tw.x, top, tw.w, tw.h);
-      // Window grid — a static lit/dark mask, so nothing strobes
-      const cols = Math.max(2, Math.floor(tw.w / 11));
-      const rows = Math.max(3, Math.floor(tw.h / 15));
-      for (let r = 0; r < rows; r++) {
-        for (let cN = 0; cN < cols; cN++) {
-          if (!tw.mask[(r * cols + cN) % tw.mask.length]) continue;
-          ctx.fillStyle = `rgba(180,236,255,${bd.winA})`;
-          ctx.fillRect(tw.x + 4 + cN * 11, top + 6 + r * 15, 5, 7);
+    _bgStaticLayer('cyber-band' + bi, bd, -110, 0, 1280, floorY, (ctx) => {
+      for (const tw of bd.towers) {
+        const top = floorY - tw.h;
+        ctx.fillStyle = bd.fill;
+        ctx.fillRect(tw.x, top, tw.w, tw.h);
+        // Window grid — a static lit/dark mask, so nothing strobes
+        const cols = Math.max(2, Math.floor(tw.w / 11));
+        const rows = Math.max(3, Math.floor(tw.h / 15));
+        for (let r = 0; r < rows; r++) {
+          for (let cN = 0; cN < cols; cN++) {
+            if (!tw.mask[(r * cols + cN) % tw.mask.length]) continue;
+            ctx.fillStyle = `rgba(180,236,255,${bd.winA})`;
+            ctx.fillRect(tw.x + 4 + cN * 11, top + 6 + r * 15, 5, 7);
+          }
+        }
+        // Neon crown along the parapet
+        if (tw.crown) {
+          ctx.strokeStyle = tw.crown;
+          ctx.shadowColor = tw.crown;
+          ctx.shadowBlur  = 10;
+          ctx.lineWidth   = 2;
+          ctx.beginPath(); ctx.moveTo(tw.x, top); ctx.lineTo(tw.x + tw.w, top); ctx.stroke();
+          ctx.shadowBlur = 0;
+        }
+        // Antenna mast
+        if (tw.mast) {
+          ctx.strokeStyle = 'rgba(40,52,80,0.9)';
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.moveTo(tw.x + tw.w * 0.5, top);
+          ctx.lineTo(tw.x + tw.w * 0.5, top - tw.mast);
+          ctx.stroke();
         }
       }
-      // Neon crown along the parapet
-      if (tw.crown) {
-        ctx.strokeStyle = tw.crown;
-        ctx.shadowColor = tw.crown;
-        ctx.shadowBlur  = 10;
-        ctx.lineWidth   = 2;
-        ctx.beginPath(); ctx.moveTo(tw.x, top); ctx.lineTo(tw.x + tw.w, top); ctx.stroke();
-        ctx.shadowBlur = 0;
-      }
-      // Antenna with a red aircraft-warning lamp
-      if (tw.mast) {
-        ctx.strokeStyle = 'rgba(40,52,80,0.9)';
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.moveTo(tw.x + tw.w * 0.5, top);
-        ctx.lineTo(tw.x + tw.w * 0.5, top - tw.mast);
-        ctx.stroke();
-        const blip = 0.3 + Math.abs(Math.sin(f * 0.05 + tw.blink)) * 0.7;
-        ctx.fillStyle = `rgba(255,60,50,${blip})`;
-        ctx.shadowColor = '#ff3c32'; ctx.shadowBlur = 8;
-        ctx.beginPath(); ctx.arc(tw.x + tw.w * 0.5, top - tw.mast, 2.4, 0, Math.PI * 2); ctx.fill();
-        ctx.shadowBlur = 0;
-      }
+    });
+    // Red aircraft-warning lamps (live)
+    for (const tw of bd.towers) {
+      if (!tw.mast) continue;
+      const top = floorY - tw.h;
+      const blip = 0.3 + Math.abs(Math.sin(f * 0.05 + tw.blink)) * 0.7;
+      ctx.fillStyle = `rgba(255,60,50,${blip})`;
+      ctx.shadowColor = '#ff3c32'; ctx.shadowBlur = 8;
+      ctx.beginPath(); ctx.arc(tw.x + tw.w * 0.5, top - tw.mast, 2.4, 0, Math.PI * 2); ctx.fill();
+      ctx.shadowBlur = 0;
     }
     ctx.restore();
   }

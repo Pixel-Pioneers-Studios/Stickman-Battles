@@ -703,7 +703,7 @@ function drawClassEffects() {
       classTrails.push({ x: p.x, y: p.y, color: 'rgba(0,200,80,0.45)', alpha: 0.45, size: 1, life: 14 });
     }
 
-    // VAREK: Ember sparks when in Spartan Rage (already handled by drawSpartanRageEffects)
+    // VAREK: Ember sparks when in Warborn Fury (already handled by drawSpartanRageEffects)
     // Extra hit flash crackle when rage is active and hit
     if (p.charClass === 'kratos' && p.spartanRageTimer > 0 && p.hurtTimer > 0) {
       if (settings.particles) {

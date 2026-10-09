@@ -197,6 +197,7 @@ window.BalanceSim = (function () {
     // paper barrage, super cleanups). The sim runs far faster than real time,
     // so on the wall clock those fired after the match was already decided.
     // For the match they run on sim frames at 60fps instead.
+    if (typeof _combatTimers !== 'undefined') _combatTimers.length = 0;
     const _rto = window.setTimeout, _timers = [];
     window.setTimeout = (fn, ms) => { if (typeof fn === 'function') _timers.push({ at: frames + Math.max(1, Math.ceil((ms || 0) / 16.67)), fn }); return 0; };
     try {
@@ -207,6 +208,9 @@ window.BalanceSim = (function () {
         const tf = _timers.splice(ti, 1)[0].fn;
         try { tf(); } catch (e) { if (!err) err = 'timer:' + e.message; }
       }
+      // combatAfter() replaced setTimeout in combat code (Thor's storm, gun and
+      // pea bursts); gameLoop ticks it every frame, so the sim has to as well.
+      try { if (typeof tickCombatTimers === 'function') tickCombatTimers(); } catch (e) { if (!err) err = 'ctimer:' + e.message; }
       frames = fr + 1;
       A.target = B; B.target = A;
       // Update order is ALTERNATED every frame. It is not cosmetic: with a fixed

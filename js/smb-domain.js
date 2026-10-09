@@ -19,7 +19,7 @@ const DOMAIN_DEFS = {
     announce:   'The sky tears open — lightning reigns!',
   },
   kratos: {
-    name:       'Warpath Domain',
+    name:       'Ashen Warpath',
     color:      '#ff5500',
     bgTint:     'rgba(70,15,0,0.52)',
     spawnEvery: 34,           // logs roll in constantly
@@ -38,7 +38,7 @@ const DOMAIN_DEFS = {
     announce:   'The shadows drag at your limbs — only one moves free!',
   },
   gunner: {
-    name:       'Arsenal Domain',
+    name:       'Siege Line',
     color:      '#ff9900',
     bgTint:     'rgba(35,15,0,0.48)',
     spawnEvery: 26,
@@ -454,7 +454,7 @@ const DomainManager = (() => {
       });
     }
 
-    // Varek → Blades of Chaos: fire chains whipping across the arena
+    // Varek → Ember Chains: fire chains whipping across the arena
     if (domain.defKey === 'kratos') {
       domain.hazards.push({
         type:       'blades_of_chaos',

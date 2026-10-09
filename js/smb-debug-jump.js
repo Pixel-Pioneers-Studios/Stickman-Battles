@@ -1124,9 +1124,9 @@ function _cinViewerOpen() {
   _sec('CONVICTION', 'Auto-starts a VS match if no game is running.');
   _selRow({
     'thor':       'Torren -- Storm Realm',
-    'kratos':     'Varek -- Warpath Domain',
+    'kratos':     'Varek -- Ashen Warpath',
     'ninja':      'Ninja -- Shadow Realm',
-    'gunner':     'Gunner -- Arsenal Domain',
+    'gunner':     'Gunner -- Siege Line',
     'archer':     'Archer -- Verdant Hunt',
     'paladin':    'Paladin -- Holy Sanctuary',
     'berserker':  'Berserker -- Blood Arena',

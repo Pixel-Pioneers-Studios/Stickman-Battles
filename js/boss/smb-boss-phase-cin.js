@@ -80,6 +80,7 @@ function _makeBossPhase2Cinematic(boss) {
     _slamFired: false, _roarFired: false,
     _phaseLabel: { text: '— PHASE II —', color: '#cc00ee' },
     update(t) {
+      if (typeof CinPerf !== 'undefined') CinPerf.run(this, t, CinPerf.SCENES.bossP2);
       // Slow motion ramp: 0.15× during cinematic, fade out at end
       if (t < 0.4)      slowMotion = Math.max(0.15, 1 - t * 2.1);
       else if (t > 1.8) slowMotion = Math.min(1.0, (t - 1.8) / 0.7);
@@ -120,7 +121,7 @@ function _makeBossPhase2Cinematic(boss) {
         showBossDialogue('I was being patient. That ends now.', 220);
       }
     },
-    onEnd() { slowMotion = 1.0; cinematicCamOverride = false; }
+    onEnd() { if (typeof CinPerf !== 'undefined') CinPerf.endBound(); slowMotion = 1.0; cinematicCamOverride = false; }
   };
 }
 
@@ -130,6 +131,7 @@ function _makeBossPhase3Cinematic(boss) {
     _slamFired: false, _roarFired: false,
     _phaseLabel: { text: '— PHASE III —', color: '#ff44aa' },
     update(t) {
+      if (typeof CinPerf !== 'undefined') CinPerf.run(this, t, CinPerf.SCENES.bossP3);
       if (t < 0.3)      slowMotion = Math.max(0.05, 1 - t * 3.2);
       else if (t > 2.2) slowMotion = Math.min(1.0, (t - 2.2) / 0.8);
       else              slowMotion = 0.05;
@@ -167,7 +169,7 @@ function _makeBossPhase3Cinematic(boss) {
         showBossDialogue('Now you see why I built this world.', 250);
       }
     },
-    onEnd() { slowMotion = 1.0; cinematicCamOverride = false; }
+    onEnd() { if (typeof CinPerf !== 'undefined') CinPerf.endBound(); slowMotion = 1.0; cinematicCamOverride = false; }
   };
 }
 
@@ -177,6 +179,7 @@ function _makeTFPhase2Cinematic(tf) {
     _burstFired: false, _roarFired: false,
     _phaseLabel: { text: '— FORM II —', color: '#aaaaaa' },
     update(t) {
+      if (typeof CinPerf !== 'undefined') CinPerf.run(this, t, CinPerf.SCENES.tfP2);
       if (t < 0.35)     slowMotion = Math.max(0.1, 1 - t * 2.6);
       else if (t > 1.8) slowMotion = Math.min(1.0, (t - 1.8) / 0.7);
       else              slowMotion = 0.1;
@@ -212,7 +215,7 @@ function _makeTFPhase2Cinematic(tf) {
         showBossDialogue('You surprised me. That almost never happens.', 250);
       }
     },
-    onEnd() { slowMotion = 1.0; cinematicCamOverride = false; }
+    onEnd() { if (typeof CinPerf !== 'undefined') CinPerf.endBound(); slowMotion = 1.0; cinematicCamOverride = false; }
   };
 }
 
@@ -222,6 +225,7 @@ function _makeTFPhase3Cinematic(tf) {
     _voidFired: false, _roarFired: false,
     _phaseLabel: { text: '— COSMIC AXIOM —', color: '#ffffff' },
     update(t) {
+      if (typeof CinPerf !== 'undefined') CinPerf.run(this, t, CinPerf.SCENES.tfP3);
       if (t < 0.25)     slowMotion = Math.max(0.02, 1 - t * 3.9);
       else if (t > 2.7) slowMotion = Math.min(1.0, (t - 2.7) / 0.8);
       else              slowMotion = 0.02;
@@ -258,7 +262,7 @@ function _makeTFPhase3Cinematic(tf) {
         showBossDialogue('No more fractions. All of it.', 280);
       }
     },
-    onEnd() { slowMotion = 1.0; cinematicCamOverride = false; }
+    onEnd() { if (typeof CinPerf !== 'undefined') CinPerf.endBound(); slowMotion = 1.0; cinematicCamOverride = false; }
   };
 }
 
@@ -271,6 +275,7 @@ function _makeBeastPhase2Cinematic(beast) {
     _rageFired: false, _roarFired: false,
     _phaseLabel: { text: '— BEAST UNLEASHED —', color: '#cc4400' },
     update(t) {
+      if (typeof CinPerf !== 'undefined') CinPerf.run(this, t, CinPerf.SCENES.beastP2);
       // Slow motion: slam on slow-mo, fade back at end
       if (t < 0.3)      slowMotion = Math.max(0.15, 1 - t * 3.0);
       else if (t > 1.8) slowMotion = Math.min(1.0,  (t - 1.8) / 0.7);
@@ -315,7 +320,7 @@ function _makeBeastPhase2Cinematic(beast) {
           damageTexts.push(new DamageText(beast.cx(), beast.y - 30, 'RAAAWR!', '#ff6600'));
       }
     },
-    onEnd() { slowMotion = 1.0; cinematicCamOverride = false; }
+    onEnd() { if (typeof CinPerf !== 'undefined') CinPerf.endBound(); slowMotion = 1.0; cinematicCamOverride = false; }
   };
 }
 
@@ -325,6 +330,7 @@ function _makeYetiPhase2Cinematic(yetiEnt) {
     _leapFired: false, _slamFired: false, _roarFired: false,
     _phaseLabel: { text: '— BLIZZARD RAGE —', color: '#88ccff' },
     update(t) {
+      if (typeof CinPerf !== 'undefined') CinPerf.run(this, t, CinPerf.SCENES.yetiP2);
       if (t < 0.3)      slowMotion = Math.max(0.10, 1 - t * 3.1);
       else if (t > 2.2) slowMotion = Math.min(1.0,  (t - 2.2) / 0.8);
       else              slowMotion = 0.10;
@@ -377,7 +383,7 @@ function _makeYetiPhase2Cinematic(yetiEnt) {
           damageTexts.push(new DamageText(yetiEnt.cx(), yetiEnt.y - 35, 'BLIZZARD!', '#aaddff'));
       }
     },
-    onEnd() { slowMotion = 1.0; cinematicCamOverride = false; }
+    onEnd() { if (typeof CinPerf !== 'undefined') CinPerf.endBound(); slowMotion = 1.0; cinematicCamOverride = false; }
   };
 }
 

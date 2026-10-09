@@ -1341,6 +1341,33 @@ function drawLava() {
 // what a night skyline needs around it: a moon and its glow, a dim far band of
 // towers behind, rooftop clutter — water tanks, AC units, antennas with warning
 // lamps — on the near band, a couple of aircraft, and haze at street level.
+// ── Static background layer cache ─────────────────────────────────────────
+// Paints a layer that never animates (towers, windows, panels) ONCE into an
+// offscreen canvas and blits it each frame. paint(c) receives the context to
+// draw on (shadow the global `ctx` inside it). Cache key: layer key + arena +
+// a caller `sig` (data identity) + the current canvas scale bucket, so a resize
+// or zoom change re-renders. Set window._noBgCache = true to bypass (A/B, debug).
+// Falls back to painting live when the layer would be oversized.
+const _bgLayerCache = new Map();
+function _bgStaticLayer(key, sig, x, y, w, h, paint) {
+  if (window._noBgCache) { paint(ctx); return; }
+  const t = ctx.getTransform();
+  const sb = Math.min(3, Math.max(0.25, Math.ceil(Math.hypot(t.a, t.b) * 16) / 16));  // ~1:1 with the screen so the blit is a plain copy
+  const pw = Math.ceil(w * sb), ph = Math.ceil(h * sb);
+  if (!(pw > 0 && ph > 0) || pw * ph > 6e6) { paint(ctx); return; }
+  const k = key + '|' + (typeof currentArenaKey !== 'undefined' ? currentArenaKey : '');
+  let e = _bgLayerCache.get(k);
+  if (!e || e.sig !== sig || e.sb !== sb || e.x !== x || e.y !== y || e.w !== w || e.h !== h) {
+    if (!e) { e = { c: document.createElement('canvas') }; _bgLayerCache.set(k, e); }
+    e.c.width = pw; e.c.height = ph;
+    const o = e.c.getContext('2d');
+    o.scale(sb, sb); o.translate(-x, -y);
+    paint(o);
+    e.sig = sig; e.sb = sb; e.x = x; e.y = y; e.w = w; e.h = h;
+  }
+  ctx.drawImage(e.c, x, y, w, h);
+}
+
 function _cityBg() {
   if (_cityBg._c) return _cityBg._c;
   const rnd = (a, b) => a + Math.random() * (b - a);
@@ -1384,20 +1411,23 @@ function drawCityBuildings() {
   }
   ctx.globalAlpha = 1;
 
-  // ── Moon ─────────────────────────────────────────────────────────────────
-  const mX = 178, mY = 82;
-  const mg = ctx.createRadialGradient(mX, mY, 6, mX, mY, 140);
-  mg.addColorStop(0,   'rgba(190,206,244,0.32)');
-  mg.addColorStop(0.3, 'rgba(140,160,214,0.10)');
-  mg.addColorStop(1,   'rgba(110,130,190,0)');
-  ctx.fillStyle = mg;
-  ctx.fillRect(mX - 150, mY - 150, 300, 300);
-  ctx.fillStyle = '#dfe6fb';
-  ctx.beginPath(); ctx.arc(mX, mY, 26, 0, Math.PI * 2); ctx.fill();
-  ctx.fillStyle = 'rgba(158,168,206,0.45)';
-  ctx.beginPath(); ctx.arc(mX - 8, mY - 6, 6, 0, Math.PI * 2); ctx.fill();
-  ctx.beginPath(); ctx.arc(mX + 7, mY + 5, 4.5, 0, Math.PI * 2); ctx.fill();
-  ctx.beginPath(); ctx.arc(mX + 1, mY - 13, 3, 0, Math.PI * 2); ctx.fill();
+  // ── Moon (static: cached) ────────────────────────────────────────────────
+  _bgStaticLayer('city-moon', 0, 20, -70, 320, 310, (ctx) => {
+    const mX = 178, mY = 82;
+    const mg = ctx.createRadialGradient(mX, mY, 6, mX, mY, 140);
+    mg.addColorStop(0,   'rgba(190,206,244,0.32)');
+    mg.addColorStop(0.3, 'rgba(140,160,214,0.10)');
+    mg.addColorStop(1,   'rgba(110,130,190,0)');
+    ctx.fillStyle = mg;
+    ctx.fillRect(mX - 150, mY - 150, 300, 300);
+    ctx.fillStyle = '#dfe6fb';
+    ctx.beginPath(); ctx.arc(mX, mY, 26, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = 'rgba(158,168,206,0.45)';
+    ctx.beginPath(); ctx.arc(mX - 8, mY - 6, 6, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(mX + 7, mY + 5, 4.5, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(mX + 1, mY - 13, 3, 0, Math.PI * 2); ctx.fill();
+
+  });
 
   // ── Aircraft crossing high up ────────────────────────────────────────────
   for (const pl of bg.planes) {
@@ -1410,70 +1440,94 @@ function drawCityBuildings() {
     ctx.fillRect(px - (pl.spd > 0 ? 16 : 0), pl.y - 0.5, 16, 1);
   }
 
-  // ── Far band of towers ───────────────────────────────────────────────────
+  // ── Far band of towers (static: cached, parallax applied at blit) ────────
   ctx.save();
   ctx.translate(-camOff * 0.04, 0);
-  for (const b of bg.far) {
-    const top = GAME_H - b.h;
-    ctx.fillStyle = 'rgba(16,18,32,0.9)';
-    ctx.fillRect(b.x, top, b.w, b.h);
-    const cols = Math.max(2, Math.floor(b.w / 10));
-    const rows = Math.max(3, Math.floor(b.h / 16));
-    for (let r = 0; r < rows; r++) {
-      for (let c = 0; c < cols; c++) {
-        if (!b.lit[(r * cols + c) % b.lit.length]) continue;
-        ctx.fillStyle = 'rgba(190,205,255,0.14)';
-        ctx.fillRect(b.x + 3 + c * 10, top + 5 + r * 16, 4, 6);
+  _bgStaticLayer('city-far', bg.far, -60, GAME_H - 320, 1120, 320, (ctx) => {
+    for (const b of bg.far) {
+      const top = GAME_H - b.h;
+      ctx.fillStyle = 'rgba(16,18,32,0.9)';
+      ctx.fillRect(b.x, top, b.w, b.h);
+      const cols = Math.max(2, Math.floor(b.w / 10));
+      const rows = Math.max(3, Math.floor(b.h / 16));
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+          if (!b.lit[(r * cols + c) % b.lit.length]) continue;
+          ctx.fillStyle = 'rgba(190,205,255,0.14)';
+          ctx.fillRect(b.x + 3 + c * 10, top + 5 + r * 16, 4, 6);
+        }
       }
     }
-  }
+  });
   ctx.restore();
 
   // ── Near band (bgBuildings) with rooftop clutter ─────────────────────────
+  // Static pass (cached): towers, windows, clutter. Live pass: antenna lamps and
+  // neon flicker. Draw order between the two only differs where a tower overlaps
+  // a neighbour's parapet line.
+  let _nx0 = Infinity, _nx1 = -Infinity, _nh = 0;
+  for (const b of bgBuildings) { _nx0 = Math.min(_nx0, b.x); _nx1 = Math.max(_nx1, b.x + b.w); _nh = Math.max(_nh, b.h); }
+  if (_nx1 > _nx0) {
+    const _rx = Math.floor(_nx0) - 8, _rw = Math.ceil(_nx1 - _nx0) + 16;
+    const _ry = Math.floor(GAME_H - _nh - 80), _rh = GAME_H - _ry + 4;
+    _bgStaticLayer('city-near', bgBuildings, _rx, _ry, _rw, _rh, (ctx) => {
+      let ri = 0;
+      for (const b of bgBuildings) {
+        const shade = 14 + Math.floor(b.h / 20);
+        const top = GAME_H - b.h;
+        ctx.fillStyle = `rgb(${shade},${shade},${shade + 12})`;
+        ctx.fillRect(b.x, top, b.w, b.h);
+        // Lit face down one edge so the towers aren't flat slabs
+        ctx.fillStyle = 'rgba(255,255,255,0.035)';
+        ctx.fillRect(b.x, top, Math.min(8, b.w * 0.16), b.h);
+        for (const w of b.wins) {
+          ctx.fillStyle = w.on ? 'rgba(255,245,160,0.65)' : 'rgba(40,40,60,0.5)';
+          ctx.fillRect(w.x, w.y, 7, 9);
+        }
+        // Rooftop clutter — two items per building, taken off a fixed list
+        for (let k = 0; k < 2; k++) {
+          const it = bg.roof[(ri * 2 + k) % bg.roof.length];
+          const ix = b.x + 8 + it.u * Math.max(4, b.w - 20);
+          ctx.fillStyle = `rgb(${shade + 6},${shade + 6},${shade + 18})`;
+          if (it.kind === 0) {                         // water tank on legs
+            const tw = 13 * it.s, th = 15 * it.s;
+            ctx.fillRect(ix - tw * 0.5, top - th - 5, tw, th);
+            ctx.beginPath();
+            ctx.moveTo(ix - tw * 0.5, top - th - 5);
+            ctx.lineTo(ix, top - th - 11);
+            ctx.lineTo(ix + tw * 0.5, top - th - 5);
+            ctx.closePath();
+            ctx.fill();
+            ctx.fillRect(ix - tw * 0.4, top - 5, 2, 5);
+            ctx.fillRect(ix + tw * 0.4 - 2, top - 5, 2, 5);
+          } else if (it.kind === 1) {                  // AC unit
+            ctx.fillRect(ix - 9 * it.s, top - 8 * it.s, 18 * it.s, 8 * it.s);
+            ctx.fillStyle = `rgb(${shade + 14},${shade + 14},${shade + 26})`;
+            ctx.fillRect(ix - 6 * it.s, top - 10 * it.s, 12 * it.s, 2 * it.s);
+          } else {                                     // antenna mast (lamp is live)
+            const mh = 26 * it.s;
+            ctx.fillRect(ix - 1, top - mh, 2, mh);
+            ctx.fillRect(ix - 5, top - mh * 0.6, 10, 1.5);
+            ctx.fillRect(ix - 3.5, top - mh * 0.85, 7, 1.5);
+          }
+        }
+        ri++;
+      }
+    });
+  }
   let ri = 0;
   for (const b of bgBuildings) {
-    const shade = 14 + Math.floor(b.h / 20);
     const top = GAME_H - b.h;
-    ctx.fillStyle = `rgb(${shade},${shade},${shade + 12})`;
-    ctx.fillRect(b.x, top, b.w, b.h);
-    // Lit face down one edge so the towers aren't flat slabs
-    ctx.fillStyle = 'rgba(255,255,255,0.035)';
-    ctx.fillRect(b.x, top, Math.min(8, b.w * 0.16), b.h);
-    for (const w of b.wins) {
-      ctx.fillStyle = w.on ? 'rgba(255,245,160,0.65)' : 'rgba(40,40,60,0.5)';
-      ctx.fillRect(w.x, w.y, 7, 9);
-    }
-    // Rooftop clutter — two items per building, taken off a fixed list
     for (let k = 0; k < 2; k++) {
       const it = bg.roof[(ri * 2 + k) % bg.roof.length];
+      if (it.kind !== 2) continue;
       const ix = b.x + 8 + it.u * Math.max(4, b.w - 20);
-      ctx.fillStyle = `rgb(${shade + 6},${shade + 6},${shade + 18})`;
-      if (it.kind === 0) {                         // water tank on legs
-        const tw = 13 * it.s, th = 15 * it.s;
-        ctx.fillRect(ix - tw * 0.5, top - th - 5, tw, th);
-        ctx.beginPath();
-        ctx.moveTo(ix - tw * 0.5, top - th - 5);
-        ctx.lineTo(ix, top - th - 11);
-        ctx.lineTo(ix + tw * 0.5, top - th - 5);
-        ctx.closePath();
-        ctx.fill();
-        ctx.fillRect(ix - tw * 0.4, top - 5, 2, 5);
-        ctx.fillRect(ix + tw * 0.4 - 2, top - 5, 2, 5);
-      } else if (it.kind === 1) {                  // AC unit
-        ctx.fillRect(ix - 9 * it.s, top - 8 * it.s, 18 * it.s, 8 * it.s);
-        ctx.fillStyle = `rgb(${shade + 14},${shade + 14},${shade + 26})`;
-        ctx.fillRect(ix - 6 * it.s, top - 10 * it.s, 12 * it.s, 2 * it.s);
-      } else {                                     // antenna mast + warning lamp
-        const mh = 26 * it.s;
-        ctx.fillRect(ix - 1, top - mh, 2, mh);
-        ctx.fillRect(ix - 5, top - mh * 0.6, 10, 1.5);
-        ctx.fillRect(ix - 3.5, top - mh * 0.85, 7, 1.5);
-        const blip = 0.25 + Math.abs(Math.sin(f * 0.05 + it.blink)) * 0.75;
-        ctx.fillStyle = `rgba(255,70,60,${blip})`;
-        ctx.shadowColor = '#ff4638'; ctx.shadowBlur = 7;
-        ctx.beginPath(); ctx.arc(ix, top - mh, 2, 0, Math.PI * 2); ctx.fill();
-        ctx.shadowBlur = 0;
-      }
+      const mh = 26 * it.s;
+      const blip = 0.25 + Math.abs(Math.sin(f * 0.05 + it.blink)) * 0.75;
+      ctx.fillStyle = `rgba(255,70,60,${blip})`;
+      ctx.shadowColor = '#ff4638'; ctx.shadowBlur = 7;
+      ctx.beginPath(); ctx.arc(ix, top - mh, 2, 0, Math.PI * 2); ctx.fill();
+      ctx.shadowBlur = 0;
     }
     ri++;
     // Neon sign flicker on the taller buildings (kept)

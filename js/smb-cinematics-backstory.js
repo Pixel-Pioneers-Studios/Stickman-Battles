@@ -25,6 +25,7 @@ function startBossBackstoryCinematic() {
 
   startCinematic(cinScript({
     duration: 38.0,
+    perf: (typeof CinPerf !== 'undefined') ? CinPerf.SCENES.backstory : null,
 
     // ── SLOW-MOTION CURVE ────────────────────────────────────
     // Normal entering most scenes; near-freeze on key impacts

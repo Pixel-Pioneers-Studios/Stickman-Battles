@@ -360,7 +360,6 @@ function _wxUpdateBombs(user) {
 // FRAGMENT
 // ═════════════════════════════════════════════════════════════════════════════
 const WX_FRAG_MAX_CHARGE = 90;
-const WX_FRAG_BLAST_HOLD = 18;   // long enough to press Q and have the first punch land
 const WX_FRAG_PULL_MIN   = 30;   // stop pulling at arm's length, never through the user
 const WX_FRAG_YANK_TO    = 42;   // where the blast leaves its target: inside Barrage's first punch (62)
 
@@ -380,6 +379,12 @@ function _wxReleaseBlast(user) {
   // The blast is a set-up, not a launcher: no knockback, and it yanks what it
   // hits to arm's length and holds it there, inside Barrage's first punch.
   let held = false;
+  // Register as a basic attack BEFORE the hits land, so dealDamage treats the
+  // blast as a combo-string hit (string stun / launch rules) like any swing.
+  user._attackStartFrame = _wxFrame();
+  if (typeof CLASH_TIER_ATTACK !== 'undefined') user._attackKindTier = CLASH_TIER_ATTACK;
+  user.attackDuration = 7;
+  user.attackTimer = 7;
   for (const t of _wxHostiles(user)) {
     if (Math.hypot(t.cx() - cx, t.cy() - cy) >= r + 12 || !_wxHit(user, t, dmg, 0) || t.shielding) continue;
     held = true;
@@ -387,7 +392,7 @@ function _wxReleaseBlast(user) {
     // Ground friction (0.78) carries vx about 3.5x its value before it dies out.
     if (gap > WX_FRAG_YANK_TO && !t.isBoss && !t.isTrueForm)
       t.vx = (cx > t.cx() ? 1 : -1) * Math.min(12, (gap - WX_FRAG_YANK_TO) / 3.5);
-    if (!((t._stunGuardUntil || -1) >= _wxFrame())) t.stunTimer = Math.max(t.stunTimer || 0, WX_FRAG_BLAST_HOLD);
+    // The hold is the combo string's own stun (dealDamage); no extra fixed hold.
   }
   _wxAddFx({ kind: 'fragblast', x: cx, y: cy, r, max: 14 });
   if (settings.particles) {
@@ -818,7 +823,7 @@ function wxShatterstep(user) {
   _wxNoSwingHit(user);
   if (g.broken > 0) return;
   _wxShards(user, 5, 0.6, 13, 7, 21, true);
-  _wxShatter(user, 150);
+  _wxShatter(user, 60);
 }
 
 function wxMirrorwall(user) {
@@ -852,7 +857,7 @@ function _wxUpdateGlass(user) {
     if (user.health < g.hp - 0.5 && g.broken <= 0) {
       g.cracks++;
       spawnParticles(user.cx() + user.facing * 24, user.cy(), '#d8f6ff', 5);
-      if (g.cracks >= 3) { _wxShards(user, 6, 0, 9, 6, 18, false); _wxShatter(user, 240); }
+      if (g.cracks >= 3) { _wxShards(user, 6, 0, 9, 6, 18, false); _wxShatter(user, 120); }
     }
     g.hp = user.health;
     if (g.broken > 0 && --g.broken === 0) spawnParticles(user.cx() + user.facing * 24, user.cy(), '#ffffff', 10);

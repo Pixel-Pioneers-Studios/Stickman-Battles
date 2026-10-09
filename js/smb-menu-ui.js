@@ -589,6 +589,7 @@ function renderStore() {
   const grid = document.getElementById('storeGrid');
   if (!grid) return;
   grid.innerHTML = '';
+  if (typeof AdManager !== 'undefined' && AdManager.mountStoreOffer) AdManager.mountStoreOffer(grid);
   COSMETIC_CATALOG.forEach(item => {
     const owned = isCosmeticUnlocked(item.id);
     const card  = document.createElement('div');

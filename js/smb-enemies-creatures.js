@@ -79,7 +79,7 @@ class Yeti extends Fighter {
         }
         if (typeof SoundManager !== 'undefined') SoundManager.heavyHit();
         this._heavyCd = this.health < this.maxHealth * 0.5 ? 280 : 420;
-        setTimeout(() => { this._heavyPhase = 'none'; }, 400);
+        combatAfter(24, () => { this._heavyPhase = 'none'; });
       }
       return;
     }
@@ -163,7 +163,7 @@ class Yeti extends Fighter {
       const sx = clamp(target.cx() + off, 30, GAME_W - 30);
       this.iceSpikes.push({ x: sx, y: currentArena.deathY || 520, timer: 60, h: 80 });
       // Delayed damage
-      setTimeout(() => {
+      combatAfter(24, () => {
         if (!gameRunning) return;
         for (const p of creatureFoes(this)) {
           if (p.isBoss || p.health <= 0) continue;
@@ -173,7 +173,7 @@ class Yeti extends Fighter {
             spawnParticles(p.cx(), p.cy(), '#aaddff', 10);
           }
         }
-      }, 400);
+      });
     }
     spawnParticles(target.cx(), target.cy() + 60, '#aaddff', 12);
   }

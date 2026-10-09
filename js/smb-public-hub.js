@@ -168,6 +168,7 @@ const PubHub = (() => {
     _sock.on('pub:votes', t => { if (_phase) _phase.votes = t; _renderVote(); });
     _sock.on('pub:state', _onState);
     _sock.on('pub:world', _onWorld);
+    _sock.on('pub:proj', _onProj);
     _sock.on('pub:hit', _onHit);
     _sock.on('pub:event', _onEvent);
     _sock.on('pub:chat', m => {
@@ -507,6 +508,13 @@ const PubHub = (() => {
     if (buf.length > 20) buf.shift();
   }
 
+  // Another human's projectile snapshot (NetProj): shown as visual-only ghosts on their puppet.
+  function _onProj(m) {
+    if (!_active || !m || m.slot === _slot || !Array.isArray(m.p) || m.p.length > 16) return;
+    const f = _puppets[m.slot];
+    if (f && typeof NetProj !== 'undefined') NetProj.apply('h' + m.slot, f, m.p);
+  }
+
   function _onState(m) {
     if (!_active || !m || m.slot === _slot || !m.s) return;
     _buf[m.slot] = _buf[m.slot] || [];
@@ -727,6 +735,10 @@ const PubHub = (() => {
 
     if (!_sock || !_sock.connected) return;
     if (me && _frame % STATE_EVERY === 0) _sock.volatile.emit('pub:state', _packState(me));
+    if (me && typeof NetProj !== 'undefined') {
+      const pl = NetProj.collect(me);
+      if (pl) _sock.volatile.emit('pub:proj', pl);
+    }
     if (_isAuth() && _frame % WORLD_EVERY === 0) {
       const w = {};
       if (_stage === 'hub') w.bots = Object.values(_bots).map(_packBot);

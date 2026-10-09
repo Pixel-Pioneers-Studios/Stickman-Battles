@@ -85,16 +85,16 @@ const WEAPONS = {
       user._qSuperCapRemaining = 10; // max 10% super per activation
       const offsets = [-0.55, 0, 0.55]; // slight vertical spread
       for (let i = 0; i < 3; i++) {
-        setTimeout(() => {
+        combatAfter(i * 4, () => {
           if (!gameRunning || user.health <= 0) return;
           const _p = spawnBullet(user, 9, '#ffdd00', 7);
           if (_p) {
             _p._isQAbility = true;
             _p.vy += offsets[i]; // fan spread
           }
-        }, i * 60);
+        });
       }
-      setTimeout(() => { user._qSuperCapRemaining = undefined; }, 400);
+      combatAfter(24, () => { user._qSuperCapRemaining = undefined; });
     }
   },
   axe: {
@@ -169,7 +169,7 @@ const WEAPONS = {
         _p._isArrow    = true;
         projectiles.push(_p);
       }
-      setTimeout(() => { user._qSuperCapRemaining = undefined; }, 400);
+      combatAfter(24, () => { user._qSuperCapRemaining = undefined; });
     }
   },
   shield: {
@@ -308,7 +308,7 @@ const WEAPONS = {
       // Capture now: the weapon can change mid-burst (BR loot swap, creature form).
       const _dmgFn = user.weapon.damageFunc;
       for (let i = 0; i < 9; i++) {
-        setTimeout(() => {
+        combatAfter(i * 4, () => {
           if (!gameRunning || user.health <= 0) return;
           const angle = (Math.random() - 0.5) * 0.28;
           const spd   = 13 + Math.random() * 3;
@@ -319,9 +319,9 @@ const WEAPONS = {
           );
           _p._isQAbility = true;
           projectiles.push(_p);
-        }, i * 65);
+        });
       }
-      setTimeout(() => { user._qSuperCapRemaining = undefined; }, 800);
+      combatAfter(48, () => { user._qSuperCapRemaining = undefined; });
     }
   },
   slingshot: {
@@ -384,7 +384,7 @@ const WEAPONS = {
     ability(user, _target) {
       const _dmgFn = user.weapon.damageFunc; // weapon can change mid-barrage
       for (let i = 0; i < 5; i++) {
-        setTimeout(() => {
+        combatAfter(i * 7, () => {
           if (!gameRunning || user.health <= 0) return;
           const angle = (Math.random() - 0.5) * 0.55;
           const _pp = new Projectile(
@@ -395,7 +395,7 @@ const WEAPONS = {
           );
           _pp._isPaperPlane = true;
           projectiles.push(_pp);
-        }, i * 120);
+        });
       }
     }
   },
@@ -945,7 +945,7 @@ const CLASSES = {
   kratos:    { name: 'Varek',    desc: 'Axe specialist, rage at low HP',       weapon: 'axe',    hp: 112, speedMult: 0.95, perk: 'rage'         },
   ninja:     { name: 'Ninja',     desc: 'Fast sword fighter, quick dash',       weapon: 'sword',  hp: 126,  speedMult: 1.24, perk: 'swift'        },
   gunner:    { name: 'Gunner',    desc: 'Dual-shot gunslinger',                 weapon: 'gun',    hp: 110, speedMult: 1.06, perk: 'dual_shot'    },
-  archer:    { name: 'Archer',    desc: 'Fast. Auto-backstep at low HP.', weapon: 'bow', hp: 95, speedMult: 1.20, perk: 'backstep'    },
+  archer:    { name: 'Archer',    desc: 'Fast. Auto-backstep at low HP.', weapon: 'bow', hp: 120, speedMult: 1.20, perk: 'backstep'    },
   paladin:   { name: 'Paladin',   desc: 'Takes ~15% less damage. Slower.', weapon: 'shield', hp: 108, speedMult: 0.88, perk: 'holy_light' },
   berserker:  { name: 'Berserker',  desc: 'Any weapon. Rage boosts dmg at low HP.',             weapon: null, hp: 130, speedMult: 1.08, perk: 'blood_frenzy' },
   megaknight: { name: 'Knight', desc: 'Legendary knight. Smash, uppercut, and crush enemies.', weapon: 'mkgauntlet', hp: 170, speedMult: 0.84, perk: null },
@@ -963,7 +963,7 @@ const CLASSES = {
 // Keys must match classKey values used in applyClass().
 const CLASS_AFFINITY = {
   archer: {
-    light: 0.9,
+    light: 1.0,
     heavy: 0.7,
     ranged: 1.25
   },
@@ -983,7 +983,7 @@ const CLASS_AFFINITY = {
     ranged: 0.5
   },
   pugilist: {
-    light: 1.25,
+    light: 1.1,
     heavy: 0.85,
     ranged: 0.5
   },
@@ -1037,7 +1037,7 @@ const WEAPON_DESCS = {
   bomb:          { title: 'Bomb',            what: 'Lobbed bombs (13-16 dmg) that roll along the floor and burst on contact or when the fuse runs out. Passive — Chain Reaction: a blast sets off every other bomb it reaches.', ability: 'Q — Remote Detonation: tap to throw a sticky bomb that clings to floors, walls or enemies (each one stuck to an enemy slows them 5%). Up to 6 at once; a 7th sets off your oldest. HOLD Q to detonate them all.', super: 'E — Giga Bomb: one huge slow bomb — 3s fuse, 200px blast, 45 dmg, massive knockback. Sets off every sticky it reaches.', how: 'Your own blasts never hurt you but they do push you — use them to bomb-jump. Lay stickies, then drop the Giga Bomb on them.' },
   fragment:      { title: 'Fragment',        what: 'The fragment style Axiom taught you. HOLD attack to charge a blast around you (7 dmg tapped, up to 20 at full). The charge pulls enemies in, and the blast barely pushes them: it holds them in front of you for Barrage. Past half-charge you slow down, and it goes off by itself at full.', ability: 'Q — Fragment Barrage: four fragment-driven punches, each throwing a shockwave with a little knockback, ending in a Fragment Laser from your centre (38 dmg max in total).', super: 'E — Fragment Overdrive (8s, recasting adds 8s, up to 24s in one run): +30% damage, 30% less damage taken, cooldowns recover 60% faster, +25% speed, a third air jump, a stronger shield, and every parry explodes.', how: 'Charge to drag them in, release, then Barrage straight away. Overdrive turns every other tool up.' },
   knives:        { title: 'Throwing Knives', what: 'Six knives (8-10 dmg each). Thrown knives stick where they land — walk over one to pick it back up. With none left you slash with your last blade.', ability: 'Q — Recall: every knife on the map flies back to you, cutting anything in its path.', super: 'E — Fan of Steel: throw all six in a spread, then Recall them instantly.', how: 'Throw past your opponent on purpose, then Recall through them.' },
-  glassblade:    { title: 'Glass Blade',     what: 'The hardest-hitting fast blade (20 dmg). Passive — Fragile: every hit you take cracks it (-15% dmg per crack). At 3 cracks it shatters into shards and reforms after 4s.', ability: 'Q — Shatterstep: dash forward and break the blade on purpose, firing its shards ahead of you.', super: 'E — Mirrorwall: a glass wall that reflects projectiles and bursts into shards when an enemy touches it.', how: 'Hit first and cleanly. Shatter it yourself before a fight you cannot win breaks it for you.' },
+  glassblade:    { title: 'Glass Blade',     what: 'The hardest-hitting fast blade (20 dmg). Passive — Fragile: every hit you take cracks it (-15% dmg per crack). At 3 cracks it shatters into shards and reforms after 2s.', ability: 'Q — Shatterstep: dash forward and break the blade on purpose, firing its shards ahead of you.', super: 'E — Mirrorwall: a glass wall that reflects projectiles and bursts into shards when an enemy touches it.', how: 'Hit first and cleanly. Shatter it yourself before a fight you cannot win breaks it for you.' },
   anchor:        { title: 'Anchor',          what: 'Slow, heavy overhead swings. Passive — Moored: while grounded and mid-swing you take no knockback.', ability: 'Q — Drop Anchor: throw the anchor; it embeds where it lands. Press Q again to haul an enemy it hooked, or to pull yourself to it.', super: 'E — Keelhaul: swing the anchor in a wide circle that drags everyone in, then slam.', how: 'Trade hits while planted. You cannot swing while the anchor is out.' },
   crossbow:      { title: 'Crossbow',        what: 'Slow, heavy bolts (17-20 dmg). A bolt that drives its target into a wall, or into the floor from above, pins them briefly.', ability: 'Q — Tripwire: fire two bolts that stretch a wire along the ground. The first enemy to cross it is tripped.', super: 'E — Siege Bolt: a bolt that pierces everything in its path (34 dmg each) and pins the last thing it hits.', how: 'Fight near walls. Lay a Tripwire where they have to walk.' },
 };
@@ -1050,7 +1050,7 @@ const CLASS_DESCS = {
   none:      { title: 'No Class',  what: 'No class modifier. Pick any weapon.',                                                               perk: null,                                                                                                                  how:  'Choose any weapon — pure skill matters.' },
   warrior:   { title: 'Warrior',   what: 'Disciplined melee fighter. Sturdy, no perk, no frills.',                                            perk: null,                                                                                                                  how:  'Extra HP instead of a perk. Win on fundamentals.' },
   thor:      { title: 'Torren',    what: 'Hammer master. Slower on his feet. Suggested weapon: Hammer.',                                      perk: 'Lightning Storm (≤55% HP, once per life): two lightning bolts strike your target, 8 dmg + stun each. The first has a short windup, so it can be dodged.', how:  'The lightning answers once you drop to half health — punish the stun it leaves.' },
-  kratos:    { title: 'Varek',     what: 'Axe specialist. Every hit you take this life builds rage: +1% damage per stack, up to +20%. Rage resets when you lose a stock. Suggested weapon: Axe.', perk: 'Spartan Rage (≤55% HP, once per life): +30% damage for 5 seconds, and you heal 5% of the damage you deal while it lasts.', how:  'Absorb pressure to stack rage, then strike hard in the Spartan Rage window.' },
+  kratos:    { title: 'Varek',     what: 'Axe specialist. Every hit you take this life builds rage: +1% damage per stack, up to +20%. Rage resets when you lose a stock. Suggested weapon: Axe.', perk: 'Warborn Fury (≤55% HP, once per life): +30% damage for 5 seconds, and you heal 5% of the damage you deal while it lasts.', how:  'Absorb pressure to stack rage, then strike hard in the Warborn Fury window.' },
   ninja:     { title: 'Ninja',     what: 'Extremely fast and elusive. Suggested weapon: Sword.',                                              perk: 'Shadow Step (≤55% HP, once per life): 2 seconds of super armor (you still take damage but cannot be stunned or knocked back) and all cooldowns reset instantly.',            how:  'Use your speed to dodge. The perk buys time to escape and counter.' },
   gunner:    { title: 'Gunner',    what: 'Every gun shot fires a second bullet for free. Suggested weapon: Gun.',                             perk: 'Last Stand (≤55% HP, once per life): fires 8 bullets in all directions for 3–5 dmg each.',                          how:  'Keep distance at all times. Last Stand punishes enemies who close in once you\'re at half health.' },
   archer:    { title: 'Archer',    what: 'Fast, low HP. Suggested weapon: Bow.',                                                              perk: 'Back-Step (≤55% HP, once per life, on the ground): auto-dash backward and reset your double jump.',                  how:  'Stay at range. The back-step gets you out when pressured.' },

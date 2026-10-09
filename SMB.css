@@ -1579,6 +1579,15 @@ button:focus-visible, select:focus-visible, input:focus-visible,
     font-size: 13px;
     margin-top: 6px;
   }
+  /* Small HUD/pause buttons keep their look; an invisible pseudo-element grows
+     the tap area to >=44x44 CSS px without overlapping neighbours. */
+  #hudMenuBtn, #hudFullscreenBtn, #mc-pause { position: relative; }
+  #hudMenuBtn::after, #hudFullscreenBtn::after, #mc-pause::after {
+    content: ''; position: absolute; left: 0; right: 0; top: 0; bottom: 0;
+  }
+  #hudMenuBtn::after { top: -13px; }
+  #hudFullscreenBtn::after { left: -14px; right: -14px; bottom: -34px; }
+  #mc-pause::after { top: -14px; bottom: -14px; }
 }
 
 /* In-game fullscreen button (HUD center, below Menu) */
@@ -6228,3 +6237,58 @@ input[type="color"] {
 .path-card.path-loadout:hover { border-color: rgba(255, 210, 122, 0.60); }
 .path-card.path-loadout .path-card-title { color: #ffd27a; }
 .path-card.path-loadout .path-card-desc  { color: #8a7040; }
+
+/* ─── Home hub on short frames (CrazyGames 918x470, laptops at 720) ─────────
+   The hub rebuild came after the max-height tiers above, which only know the
+   old path-card home. At 918x470 the logo art and the hero card pushed the
+   four mode tiles below the fold of a no-scroll menu. These rules compress the
+   hub (not the fighters' art) so every tile is visible without scrolling.
+   Width is gated so portrait phones keep their own stacked layout. */
+@media (max-height: 760px) and (min-width: 761px) {
+  #menu.menu-home { padding-top: 8px; padding-bottom: 8px; }
+  #menuHomeContent { gap: 0; }
+  #menuHomeContent .home-char-stage { height: clamp(24px, 17vh, 130px); }
+  #menuHomeContent .hub-bar { margin-bottom: 8px; padding: 4px 4px 8px; }
+  #menuHomeContent .hub-main { gap: 10px; }
+  #menuHomeContent .hub-resume { min-height: 0; padding: 14px 18px 14px; gap: 8px; }
+  #menuHomeContent .hub-resume h3 { font-size: 1.2rem; }
+  #menuHomeContent .hub-proglab { margin-bottom: 8px; }
+  #menuHomeContent .hub-side { gap: 10px; }
+  #menuHomeContent .hub-quick { padding: 10px 16px; }
+  #menuHomeContent .hub-tiles { margin-top: 10px; gap: 10px; }
+  #menuHomeContent .hub-tile { min-height: 0; padding: 10px 12px; }
+}
+@media (max-height: 560px) and (min-width: 761px) {
+  #menu.menu-home { padding-top: 4px; padding-bottom: 4px; }
+  #menuHomeContent .home-char-stage { height: clamp(24px, 12vh, 64px); }
+  #menuHomeContent .game-title { font-size: 1.2rem; letter-spacing: 2px; margin-top: 6px; }
+  #menuHomeContent .hub-bar { margin-bottom: 6px; padding: 2px 4px 6px; }
+  #menuHomeContent .hub-avatar { width: 28px; height: 28px; }
+  #menuHomeContent .hub-main { gap: 8px; }
+  #menuHomeContent .hub-resume { padding: 12px 16px 12px; gap: 8px; }
+  #menuHomeContent .hub-resume h3 { font-size: 1.05rem; margin-bottom: 2px; }
+  #menuHomeContent .hub-where { font-size: 0.74rem; line-height: 1.35; }
+  #menuHomeContent .hub-kicker { margin-bottom: 3px; }
+  #menuHomeContent .hub-proglab { margin-bottom: 6px; }
+  #menuHomeContent .hub-resume .b-primary { padding: 8px 22px; }
+  #menuHomeContent .hub-side { gap: 8px; }
+  #menuHomeContent .hub-quick { padding: 9px 14px; }
+  #menuHomeContent .hub-tiles { margin-top: 8px; gap: 8px; }
+  #menuHomeContent .hub-tile { padding: 10px 12px; }
+}
+
+/* ─── HUD text on small desktop frames ──────────────────────────────────────
+   At the portal's 918x470 the corner HUD text was 7.5 to 11px: the health
+   readout and the SUPER/Q/S labels were close to unreadable. Larger type, same
+   panels (they stay compact corner cards, no scrim). Phones keep their own
+   sizes from the max-width rules above. */
+@media (min-width: 801px) {
+  #hud .hud-name   { font-size: 0.82rem; }
+  #hud .hud-weapon { font-size: 0.64rem; }
+  #hud .health-bar-wrap { height: 15px; }
+  #hud .hp-text    { font-size: 10px; right: 6px; }
+  #hud .super-label { font-size: 0.62rem; min-width: 38px; }
+  #hud .cd-label   { font-size: 0.7rem; }
+  #hud .super-bar-track, #hud .cd-bar-track { height: 6px; }
+  #hud .life-pip   { width: 8px; height: 8px; }
+}

@@ -363,6 +363,21 @@ const NetworkManager = (() => {
         }
         break;
 
+      case 'projState': {
+        // Owner's projectile snapshot. The host trusts the connection's slot; a guest
+        // trusts the slot the host stamped when relaying.
+        const _ps = _isHost ? fromSlot : msg.slot;
+        if (!Array.isArray(msg.p) || msg.p.length > 16 || !Number.isInteger(_ps) || _ps === _localSlot) break;
+        if (typeof NetProj !== 'undefined' && typeof players !== 'undefined' && players[_ps] && players[_ps].isRemote) {
+          NetProj.apply('n' + _ps, players[_ps], msg.p);
+        }
+        if (_isHost) {
+          const relay = { type: 'projState', slot: fromSlot, p: msg.p };
+          for (const c of _connections) { if (c !== fromConn && c.open) c.send(relay); }
+        }
+        break;
+      }
+
       case 'clientHello': {
         const merged = _setSlotMeta(fromSlot, {
           peerId: fromConn && fromConn.peer ? fromConn.peer : (_slotMeta[fromSlot] && _slotMeta[fromSlot].peerId) || null,
@@ -773,7 +788,7 @@ const NetworkManager = (() => {
     _slotConnections = {};
     _slotMeta = {};
     _remoteStates = {};
-    _stateBuffers = {};
+    _stateBuffers = {}; if (typeof NetProj !== "undefined") NetProj.clear();
     _forcedCloseSlots = {};
     _latencies = {};
     _pingTimers = {};
@@ -1064,6 +1079,19 @@ const NetworkManager = (() => {
       _sendTimer = 0;
       sendState();
     }
+    sendProjectiles();
+  }
+
+  // Owner -> everyone: compact snapshot of my live projectiles (see NetProj). Sent on
+  // spawn and every NetProj.EVERY frames; hit authority is unchanged (hitEvent).
+  function sendProjectiles() {
+    if (!_connected || typeof NetProj === 'undefined') return;
+    const p = (typeof players !== 'undefined') && players[_localSlot];
+    const list = p && NetProj.collect(p);
+    if (!list) return;
+    const msg = { type: 'projState', slot: _localSlot, p: list };
+    if (_isHost) _broadcast(msg);
+    else if (_connections[0] && _connections[0].open) _connections[0].send(msg);
   }
 
   // Public room advertisement via localStorage

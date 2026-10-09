@@ -2878,7 +2878,7 @@ class SovereignMK2 extends AdaptiveAI {
 
   // Estimate the target's CURRENT outgoing damage multiplier from live buff
   // fields. This is how Sovereign knows a 22-base crescent is about to hit for
-  // the 45%-max-HP cap: Varek rage (+1%/stack), Spartan Rage (+30%), map
+  // the 45%-max-HP cap: Varek rage (+1%/stack), Warborn Fury (+30%), map
   // power buff (+35%), and any flat dmgMult all compound in dealDamage.
   _targetDamageMult(t) {
     if (!t) return 1;
@@ -4185,6 +4185,9 @@ class SovereignMK2 extends AdaptiveAI {
     this._ringoutGuard();
     this._edgePressure();
     super.update();
+    // THE BRAIN drives movement/attacks (isAI=false, so updateAI never runs);
+    // this slice keeps only his voice, journal and dossier observation alive.
+    if (!this.isAI && typeof Brain !== 'undefined' && Brain.live && Brain.live.f === this) this._brainVoiceTick();
     this._resolveTactic();
     this._resolveApproach();
     this._airApproachGuard();
@@ -6910,6 +6913,276 @@ class SovereignMK2 extends AdaptiveAI {
   // launch decided this frame can be cancelled outright, with none of the
   // next-frame-restore plumbing _vetoExtraJump needs (that one runs from
   // update(), which is called AFTER updateAI() already wrote vy for the frame).
+  // Voice/observation slice for a brain-driven Sovereign. Calls the same observers
+  // updateAI uses (same pools, same cooldowns) and NEVER writes vx/vy/input/attack
+  // state. Its own reactive lines (stock lost, big combo landed, low HP) reuse
+  // existing pools and the _fearLineCd / _punishDialogueCd limiters.
+  _brainVoiceTick() {
+    if (typeof gameRunning !== 'undefined' && !gameRunning) return;
+    if (typeof activeCinematic !== 'undefined' && activeCinematic) return;
+    if (this.health <= 0) return;
+    if (!this.target || this.target.health <= 0) {
+      const o = Brain.live.opp;
+      if (o && o.health > 0 && players.indexOf(o) >= 0) this.target = o; else return;
+    }
+    const t = this.target;
+    try {
+      this._observeAlways();
+      this._observationFrames++;
+      this._observeFight(t);
+      this._updateEvolutionState();
+      const d = Math.abs(t.cx() - this.cx());
+      this._observeProfiles(t, d);
+      this._updateIntimidation(t, d);
+      this._updateCornerPressure(t, d);
+      if (this._punishDialogueCd > 0) this._punishDialogueCd--;
+      // Reactive lines.
+      const v = this._bvState || (this._bvState = { lives: this.lives, tHp: t.health, hits: [], lowSaid: false });
+      if (this.lives < v.lives) {
+        v.lowSaid = false;
+        this._triggerFearLine(SMK2_LIMITER_LINES, 150);
+      }
+      v.lives = this.lives;
+      if (t.health < v.tHp - 0.5) { v.hits.push(frameCount); if (v.hits.length > 8) v.hits.shift(); }
+      v.tHp = t.health;
+      if (v.hits.length >= 3 && frameCount - v.hits[v.hits.length - 3] <= 90 && this._punishDialogueCd <= 0) {
+        this._punishDialogueCd = 400;
+        v.hits.length = 0;
+        showBossDialogue(SMK2_PUNISH_LINES[Math.floor(Math.random() * SMK2_PUNISH_LINES.length)], 160);
+      }
+      if (!v.lowSaid && this.health < this.maxHealth * 0.25) {
+        v.lowSaid = true;
+        this._triggerFearLine(SMK2_LIMITER_LINES, 150);
+      }
+    } catch (e) { if (!this._bvErr) { this._bvErr = true; console.warn('[brainVoice]', e.message); } }
+  }
+
+  // Observation half of the cascade (BehaviorModel, habit/spam trackers, dossier
+  // seeding, evolution inputs). No movement or attack writes, so the brain voice
+  // slice (_brainVoiceTick) shares it verbatim with updateAI.
+  _observeFight(t) {
+    this._observationFrames++;
+
+    // Match-scope strategic read (damage sources, range profitability, persistent
+    // habits). Separate from the counters below because those are wiped on every
+    // target switch by _applyOppProfile — this ledger must outlive that.
+    this._strategicObserve(t, Math.abs(t.cx() - this.cx()));
+
+    // ── Opponent observation for the dossier ─────────────────────────────────
+    // Cheap per-tick counters that feed _oppRates()/_oppAdaptTerms(). Kept here
+    // rather than in the habit tracker because they are FRAME shares (how much of
+    // the fight the opponent spent airborne / in his face), not action counts.
+    // FRAME shares, not action tags. The habit tracker's counts are the obvious
+    // source and they are unusable for this: measured across whole fights it
+    // logged 9-26 non-idle actions total, `shield` was identically zero, and the
+    // resulting rates swung 0.11-0.55 between two runs of the SAME opponent. A
+    // classifier built on ~12 samples is a random number generator. These counters
+    // sample every frame, so a 30-second read carries ~1800 observations.
+    this._oppObsFrames = (this._oppObsFrames || 0) + 1;
+    if (!t.onGround)        this._oppAirFrames    = (this._oppAirFrames    || 0) + 1;
+    if (t.attackTimer > 0)  this._oppAtkFrames    = (this._oppAtkFrames    || 0) + 1;
+    if (t.shielding)        this._oppShieldFrames = (this._oppShieldFrames || 0) + 1;
+    // Fighter has NO dodge/roll timer — evasion is expressed as movement, so the
+    // obvious `t.dodgeTimer > 0` would have been silently zero forever. The honest
+    // measure is retreating while HE is committed to a swing: that is a read on
+    // him, not just walking.
+    if (this.attackTimer > 0 && Math.abs(t.vx) > 1.2 &&
+        Math.sign(t.cx() - this.cx()) === Math.sign(t.vx)) {
+      this._oppDodgeFrames = (this._oppDodgeFrames || 0) + 1;
+    }
+    {
+      const _dx = Math.abs(t.cx() - this.cx());
+      if (_dx < 150) this._oppCloseFrames = (this._oppCloseFrames || 0) + 1;
+      this._oppDistSum = (this._oppDistSum || 0) + _dx;
+      // Closing INTENT: which way is the opponent's own velocity pointing? This is
+      // what separates a rusher from a zoner — not the gap itself, which Sovereign
+      // controls by chasing.
+      //
+      // The first version gated on `|t.vx| > |this.vx| * 0.8` and compared frame-
+      // to-frame distance, which measured almost nothing: he is the faster fighter
+      // by design, so the gate failed on most frames and a puppet scripted to
+      // charge him every single frame registered approach on only 8.6% of them
+      // (and retreat on 7.4% — indistinguishable). Reading the sign of THEIR
+      // velocity against THEIR bearing to him is independent of his own movement,
+      // which is the whole point.
+      if (Math.abs(t.vx) > 0.4) {
+        if (Math.sign(t.vx) === Math.sign(this.cx() - t.cx())) this._oppApproachFrames = (this._oppApproachFrames || 0) + 1;
+        else                                                   this._oppRetreatFrames  = (this._oppRetreatFrames  || 0) + 1;
+      }
+    }
+
+    // Re-seed once the archetype read is real. The seed at target acquisition
+    // happens on frame 1, when _oppRates() has nothing and every opponent
+    // classifies as 'mixed' — so the behavioural half of the fingerprint is
+    // guaranteed wrong at exactly the moment it is first used. Re-run it when
+    // enough has been seen to classify honestly, and again if the read later
+    // CHANGES: a player who switches from zoning to rushing is a different
+    // opponent as far as anything he has learned is concerned.
+    // ── Seed on the FIRST observed frame, not only on a target switch ─────────
+    // _seedFromDossier used to be reachable only from _switchTarget(), and in the
+    // 1v1 he is actually fought in that never fires: the fighter already has a
+    // target when the match starts, so _updateTargetSelection() finds `best ===
+    // cur` and returns before switching. Measured end to end, recall was 0.00 in
+    // every rematch and the archetype was still null 60 frames in — the dossier
+    // was being WRITTEN correctly and never once READ. The kit key needs no
+    // observation, so the opening recall can happen immediately; the behavioural
+    // half arrives at 180 frames when there is something real to classify.
+    if (this._oppObsFrames === 1)   { try { this._seedFromDossier(t, true); } catch (e) {} }
+    if (this._oppObsFrames === 180) { try { this._seedFromDossier(t); } catch (e) {} }
+    else if (this._oppObsFrames > 180 && this._oppObsFrames % 300 === 0) {
+      const _prevArch = this._oppArchetype;
+      try { this._dossierKeys(t); } catch (e) {}
+      if (this._oppArchetype !== _prevArch) { try { this._seedFromDossier(t); } catch (e) {} }
+    }
+    if (typeof SovDossier !== 'undefined') SovDossier.tick();
+    if (this._oppObsFrames > 0 && this._oppObsFrames % 600 === 0) { try { this._commitMech(); } catch (e) {} }
+
+    // ── OPENING WEAPON PRIOR — read weapon class on frame 1 and lock a counter ──
+    // Fires once per match; skipped when a death record is already active (that takes priority).
+    if (!this._openingPriorApplied && !this._deathRecord && this._adaptLockTimer <= 0) {
+      this._openingPriorApplied = true;
+      const _owType = t.weapon ? t.weapon.type : '';
+      const _owKb   = t.weapon ? (t.weapon.kb   || 0) : 0;
+      const _owDmg  = t.weapon ? (t.weapon.damage || 0) : 0;
+      if (_owType === 'ranged' || _owType === 'magic') {
+        this._lockedCounterStrategy = 'intercept';
+        this._adaptLockTimer        = 180;
+        this._pressureMode          = 'suffocate';
+      } else if (_owKb >= 16 || (t.weapon && t.weapon.weaponType === 'heavy') || _owDmg >= 22) {
+        // weaponType (light/heavy) is the heavy flag — weapon.type is only ever
+        // melee/ranged/magic, so the old `type === 'heavy'` check silently missed
+        // hammer (kb 16), axe, and frying pan: exactly the launch-chain weapons
+        // that bled stocks in the opening minute before adaptation converged.
+        this._lockedCounterStrategy = 'parry';
+        this._adaptLockTimer        = 180;
+      } else if (t.weaponKey === 'shield' || t.charClass === 'knight') {
+        this._lockedCounterStrategy = 'guard-break';
+        this._adaptLockTimer        = 180;
+      } else {
+        this._lockedCounterStrategy = 'pressure';
+        this._adaptLockTimer        = 120;
+        this._pressureMode          = 'suffocate';
+      }
+    }
+
+    // ── BehaviorModel observe — the single prediction brain ──────────────
+    // Parent updateAI() is bypassed in this override, so we drive the richer
+    // per-context bigram model manually and compute its prediction up front:
+    // _bmPred now feeds Sovereign's own prediction shim (_updatePrediction),
+    // so there is one source of truth for "what will the player do next".
+    const _bmObs  = this._behaviorModel.observe(t, this._bmPrevSnap);
+    this._bmPrevSnap = { onGround: t.onGround, vx: t.vx, vy: t.vy };
+    const _bmPred = this._behaviorModel.predictNext(_bmObs.action, _bmObs.context);
+
+    // ── Swing-confirm tracker ────────────────────────────────────────────
+    // _strike() reports that a swing STARTED, not that it connected, so a combo
+    // string used to spend its follow-up hits on air. Replay-measured, this is
+    // Sovereign's real weakness: 155 swings for 1385 damage (8.94/swing) against
+    // a human's 119 for 1562 (13.13/swing) at an almost identical hit rate — a
+    // conversion gap, not a decision gap. A live HP drop is the ground truth for
+    // "that landed", so it gates whether a string earns the right to continue.
+    this._comboLandedLast = (t.health < this._comboPrevTgtHp - 0.5);
+    this._comboPrevTgtHp  = t.health;
+    // Reset the extension budget whenever no string is running — covers every
+    // site that starts one without having to patch each individually.
+    if (this._comboFollowHits === 0) this._comboExtensions = 0;
+
+    // ── A. Action tracking + prediction (sourced from the BehaviorModel) ──
+    const currentAction = _smk2ClassifyAction(t, this._prevT2state);
+    if (currentAction !== 'idle') {
+      this._actionSampleCount++;
+      this._recordActionBigram(currentAction);
+      this._updatePrediction(_bmPred);
+    }
+    this._updateHabitTracker(currentAction, t);
+    this._checkPredictionCorrect(t, currentAction);
+    this._prevT2state = { attacking: t.attackTimer > 0, onGround: t.onGround, shielding: t.shielding, vx: t.vx };
+
+    const _bmBias = this._behaviorModel.computeBias(_bmObs.action, _bmPred);
+    const _bmRead  = this._behaviorModel.summarizeOpponent(_bmObs.action, _bmPred);
+    const _memoryState = (typeof SovereignAdaptiveMemory !== 'undefined' &&
+      SovereignAdaptiveMemory && typeof SovereignAdaptiveMemory.observe === 'function')
+      ? SovereignAdaptiveMemory.observe(this, {
+          target: t,
+          currentAction,
+          bmObs: _bmObs,
+          bmPred: _bmPred,
+          bmRead: _bmRead,
+        })
+      : null;
+    if (_memoryState) {
+      this._adaptiveMemoryState  = _memoryState;
+    }
+
+    // ── B. Spam/punishment tracking (very short gate — Sovereign reads fast) ──
+    if (this._observationFrames >= 4 && this._actionSampleCount >= 1) {
+      this._updateSpamTracker(currentAction);
+    }
+
+    // ── D. Anti-exploit tracking ─────────────────────────────
+    this._updateAntiExploit(t);
+    this._updateSpatialProfile(t);   // platform + zone + post-KB tracking
+    return { _bmObs, _bmPred, _bmBias, _bmRead, _memoryState, currentAction };
+  }
+
+  // Ability/super profile reads and their one-shot "I have your pattern" lines.
+  _observeProfiles(t, d) {
+    // ── Ability / super observation ───────────────────────────────
+    // Rising-edge detect: ability fired when cooldown was 0 and is now > 0.
+    // Super fired when superReady flips true → false (consumed).
+    const _tAbilityCd  = t.abilityCooldown || 0;
+    const _tSuperReady = !!t.superReady;
+    if (this._prevTAbilityCd === 0 && _tAbilityCd > 0) {
+      this._behaviorModel.logAbilityUse({
+        dist: d, healthPct: t.health / Math.max(1, t.maxHealth),
+        attacking: t.attackTimer > 0, comboDepth: this._countRecent('player_attack', 60),
+      });
+    }
+    if (this._prevTSuperReady && !_tSuperReady) {
+      this._behaviorModel.logSuperUse({
+        dist: d, healthPct: t.health / Math.max(1, t.maxHealth),
+        comboDepth: this._countRecent('player_attack', 60), attacking: t.attackTimer > 0,
+      });
+      this._recordEvent('player_super', 2);
+    }
+    this._prevTAbilityCd  = _tAbilityCd;
+    this._prevTSuperReady = _tSuperReady;
+    if (--this._profileUpdateCd <= 0) {
+      this._profileUpdateCd = 90;
+      this._superProfile   = this._behaviorModel.getSuperProfile();
+      this._abilityProfile = this._behaviorModel.getAbilityProfile();
+      // Fire a one-shot "I have your pattern" line when the profile first resolves.
+      // This is the Garou moment — the player should feel the AI name what it learned.
+      if (!this._profileSaidSuper && this._superProfile !== 'unknown' && typeof showBossDialogue === 'function') {
+        this._profileSaidSuper = true;
+        const _spl = {
+          healer:   SMK2_PROFILE_SUPER_HEALER,
+          finisher: SMK2_PROFILE_SUPER_FINISHER,
+          opener:   SMK2_PROFILE_SUPER_OPENER,
+          dump:     SMK2_PROFILE_SUPER_DUMP,
+        }[this._superProfile];
+        if (_spl) showBossDialogue(_spl[Math.floor(Math.random() * _spl.length)], 220);
+      }
+      if (!this._profileSaidAbility && this._abilityProfile !== 'unknown' && typeof showBossDialogue === 'function') {
+        this._profileSaidAbility = true;
+        const _apl = {
+          poke:   SMK2_PROFILE_ABILITY_POKE,
+          combo:  SMK2_PROFILE_ABILITY_COMBO,
+          closer: SMK2_PROFILE_ABILITY_CLOSER,
+        }[this._abilityProfile];
+        if (_apl && this._profileSaidSuper) {
+          // Stagger: ability read fires 3 seconds after super read so they don't overlap
+          const _self = this;
+          setTimeout(() => {
+            if (typeof showBossDialogue === 'function') showBossDialogue(_apl[Math.floor(Math.random() * _apl.length)], 200);
+          }, 3000);
+        } else if (_apl) {
+          showBossDialogue(_apl[Math.floor(Math.random() * _apl.length)], 200);
+        }
+      }
+    }
+  }
+
   updateAI() {
     // Mid lava climb: Fighter._voidSafetyFrame owns vx/vy until he lands. The
     // cascade's per-frame vx write otherwise pinned him under the decks.
@@ -7383,167 +7656,7 @@ class SovereignMK2 extends AdaptiveAI {
     // ── Observation window ───────────────────────────────────
     // Sovereign must observe for at least 180 frames (~3 sec) and see
     // at least 6 non-idle player actions before adapting.
-    this._observationFrames++;
-
-    // Match-scope strategic read (damage sources, range profitability, persistent
-    // habits). Separate from the counters below because those are wiped on every
-    // target switch by _applyOppProfile — this ledger must outlive that.
-    this._strategicObserve(t, Math.abs(t.cx() - this.cx()));
-
-    // ── Opponent observation for the dossier ─────────────────────────────────
-    // Cheap per-tick counters that feed _oppRates()/_oppAdaptTerms(). Kept here
-    // rather than in the habit tracker because they are FRAME shares (how much of
-    // the fight the opponent spent airborne / in his face), not action counts.
-    // FRAME shares, not action tags. The habit tracker's counts are the obvious
-    // source and they are unusable for this: measured across whole fights it
-    // logged 9-26 non-idle actions total, `shield` was identically zero, and the
-    // resulting rates swung 0.11-0.55 between two runs of the SAME opponent. A
-    // classifier built on ~12 samples is a random number generator. These counters
-    // sample every frame, so a 30-second read carries ~1800 observations.
-    this._oppObsFrames = (this._oppObsFrames || 0) + 1;
-    if (!t.onGround)        this._oppAirFrames    = (this._oppAirFrames    || 0) + 1;
-    if (t.attackTimer > 0)  this._oppAtkFrames    = (this._oppAtkFrames    || 0) + 1;
-    if (t.shielding)        this._oppShieldFrames = (this._oppShieldFrames || 0) + 1;
-    // Fighter has NO dodge/roll timer — evasion is expressed as movement, so the
-    // obvious `t.dodgeTimer > 0` would have been silently zero forever. The honest
-    // measure is retreating while HE is committed to a swing: that is a read on
-    // him, not just walking.
-    if (this.attackTimer > 0 && Math.abs(t.vx) > 1.2 &&
-        Math.sign(t.cx() - this.cx()) === Math.sign(t.vx)) {
-      this._oppDodgeFrames = (this._oppDodgeFrames || 0) + 1;
-    }
-    {
-      const _dx = Math.abs(t.cx() - this.cx());
-      if (_dx < 150) this._oppCloseFrames = (this._oppCloseFrames || 0) + 1;
-      this._oppDistSum = (this._oppDistSum || 0) + _dx;
-      // Closing INTENT: which way is the opponent's own velocity pointing? This is
-      // what separates a rusher from a zoner — not the gap itself, which Sovereign
-      // controls by chasing.
-      //
-      // The first version gated on `|t.vx| > |this.vx| * 0.8` and compared frame-
-      // to-frame distance, which measured almost nothing: he is the faster fighter
-      // by design, so the gate failed on most frames and a puppet scripted to
-      // charge him every single frame registered approach on only 8.6% of them
-      // (and retreat on 7.4% — indistinguishable). Reading the sign of THEIR
-      // velocity against THEIR bearing to him is independent of his own movement,
-      // which is the whole point.
-      if (Math.abs(t.vx) > 0.4) {
-        if (Math.sign(t.vx) === Math.sign(this.cx() - t.cx())) this._oppApproachFrames = (this._oppApproachFrames || 0) + 1;
-        else                                                   this._oppRetreatFrames  = (this._oppRetreatFrames  || 0) + 1;
-      }
-    }
-
-    // Re-seed once the archetype read is real. The seed at target acquisition
-    // happens on frame 1, when _oppRates() has nothing and every opponent
-    // classifies as 'mixed' — so the behavioural half of the fingerprint is
-    // guaranteed wrong at exactly the moment it is first used. Re-run it when
-    // enough has been seen to classify honestly, and again if the read later
-    // CHANGES: a player who switches from zoning to rushing is a different
-    // opponent as far as anything he has learned is concerned.
-    // ── Seed on the FIRST observed frame, not only on a target switch ─────────
-    // _seedFromDossier used to be reachable only from _switchTarget(), and in the
-    // 1v1 he is actually fought in that never fires: the fighter already has a
-    // target when the match starts, so _updateTargetSelection() finds `best ===
-    // cur` and returns before switching. Measured end to end, recall was 0.00 in
-    // every rematch and the archetype was still null 60 frames in — the dossier
-    // was being WRITTEN correctly and never once READ. The kit key needs no
-    // observation, so the opening recall can happen immediately; the behavioural
-    // half arrives at 180 frames when there is something real to classify.
-    if (this._oppObsFrames === 1)   { try { this._seedFromDossier(t, true); } catch (e) {} }
-    if (this._oppObsFrames === 180) { try { this._seedFromDossier(t); } catch (e) {} }
-    else if (this._oppObsFrames > 180 && this._oppObsFrames % 300 === 0) {
-      const _prevArch = this._oppArchetype;
-      try { this._dossierKeys(t); } catch (e) {}
-      if (this._oppArchetype !== _prevArch) { try { this._seedFromDossier(t); } catch (e) {} }
-    }
-    if (typeof SovDossier !== 'undefined') SovDossier.tick();
-    if (this._oppObsFrames > 0 && this._oppObsFrames % 600 === 0) { try { this._commitMech(); } catch (e) {} }
-
-    // ── OPENING WEAPON PRIOR — read weapon class on frame 1 and lock a counter ──
-    // Fires once per match; skipped when a death record is already active (that takes priority).
-    if (!this._openingPriorApplied && !this._deathRecord && this._adaptLockTimer <= 0) {
-      this._openingPriorApplied = true;
-      const _owType = t.weapon ? t.weapon.type : '';
-      const _owKb   = t.weapon ? (t.weapon.kb   || 0) : 0;
-      const _owDmg  = t.weapon ? (t.weapon.damage || 0) : 0;
-      if (_owType === 'ranged' || _owType === 'magic') {
-        this._lockedCounterStrategy = 'intercept';
-        this._adaptLockTimer        = 180;
-        this._pressureMode          = 'suffocate';
-      } else if (_owKb >= 16 || (t.weapon && t.weapon.weaponType === 'heavy') || _owDmg >= 22) {
-        // weaponType (light/heavy) is the heavy flag — weapon.type is only ever
-        // melee/ranged/magic, so the old `type === 'heavy'` check silently missed
-        // hammer (kb 16), axe, and frying pan: exactly the launch-chain weapons
-        // that bled stocks in the opening minute before adaptation converged.
-        this._lockedCounterStrategy = 'parry';
-        this._adaptLockTimer        = 180;
-      } else if (t.weaponKey === 'shield' || t.charClass === 'knight') {
-        this._lockedCounterStrategy = 'guard-break';
-        this._adaptLockTimer        = 180;
-      } else {
-        this._lockedCounterStrategy = 'pressure';
-        this._adaptLockTimer        = 120;
-        this._pressureMode          = 'suffocate';
-      }
-    }
-
-    // ── BehaviorModel observe — the single prediction brain ──────────────
-    // Parent updateAI() is bypassed in this override, so we drive the richer
-    // per-context bigram model manually and compute its prediction up front:
-    // _bmPred now feeds Sovereign's own prediction shim (_updatePrediction),
-    // so there is one source of truth for "what will the player do next".
-    const _bmObs  = this._behaviorModel.observe(t, this._bmPrevSnap);
-    this._bmPrevSnap = { onGround: t.onGround, vx: t.vx, vy: t.vy };
-    const _bmPred = this._behaviorModel.predictNext(_bmObs.action, _bmObs.context);
-
-    // ── Swing-confirm tracker ────────────────────────────────────────────
-    // _strike() reports that a swing STARTED, not that it connected, so a combo
-    // string used to spend its follow-up hits on air. Replay-measured, this is
-    // Sovereign's real weakness: 155 swings for 1385 damage (8.94/swing) against
-    // a human's 119 for 1562 (13.13/swing) at an almost identical hit rate — a
-    // conversion gap, not a decision gap. A live HP drop is the ground truth for
-    // "that landed", so it gates whether a string earns the right to continue.
-    this._comboLandedLast = (t.health < this._comboPrevTgtHp - 0.5);
-    this._comboPrevTgtHp  = t.health;
-    // Reset the extension budget whenever no string is running — covers every
-    // site that starts one without having to patch each individually.
-    if (this._comboFollowHits === 0) this._comboExtensions = 0;
-
-    // ── A. Action tracking + prediction (sourced from the BehaviorModel) ──
-    const currentAction = _smk2ClassifyAction(t, this._prevT2state);
-    if (currentAction !== 'idle') {
-      this._actionSampleCount++;
-      this._recordActionBigram(currentAction);
-      this._updatePrediction(_bmPred);
-    }
-    this._updateHabitTracker(currentAction, t);
-    this._checkPredictionCorrect(t, currentAction);
-    this._prevT2state = { attacking: t.attackTimer > 0, onGround: t.onGround, shielding: t.shielding, vx: t.vx };
-
-    const _bmBias = this._behaviorModel.computeBias(_bmObs.action, _bmPred);
-    const _bmRead  = this._behaviorModel.summarizeOpponent(_bmObs.action, _bmPred);
-    const _memoryState = (typeof SovereignAdaptiveMemory !== 'undefined' &&
-      SovereignAdaptiveMemory && typeof SovereignAdaptiveMemory.observe === 'function')
-      ? SovereignAdaptiveMemory.observe(this, {
-          target: t,
-          currentAction,
-          bmObs: _bmObs,
-          bmPred: _bmPred,
-          bmRead: _bmRead,
-        })
-      : null;
-    if (_memoryState) {
-      this._adaptiveMemoryState  = _memoryState;
-    }
-
-    // ── B. Spam/punishment tracking (very short gate — Sovereign reads fast) ──
-    if (this._observationFrames >= 4 && this._actionSampleCount >= 1) {
-      this._updateSpamTracker(currentAction);
-    }
-
-    // ── D. Anti-exploit tracking ─────────────────────────────
-    this._updateAntiExploit(t);
-    this._updateSpatialProfile(t);   // platform + zone + post-KB tracking
+    const { _bmObs, _bmPred, _bmBias, _bmRead, _memoryState, currentAction } = this._observeFight(t);
     this._runPlateControl(t);        // The Circuit: act on that read by moving the stage
     this._updateEvolutionState();
 
@@ -7726,60 +7839,7 @@ class SovereignMK2 extends AdaptiveAI {
 
     // (unexplained-damage learning now lives in _observeAlways, above the act gate)
 
-    // ── Ability / super observation ───────────────────────────────
-    // Rising-edge detect: ability fired when cooldown was 0 and is now > 0.
-    // Super fired when superReady flips true → false (consumed).
-    const _tAbilityCd  = t.abilityCooldown || 0;
-    const _tSuperReady = !!t.superReady;
-    if (this._prevTAbilityCd === 0 && _tAbilityCd > 0) {
-      this._behaviorModel.logAbilityUse({
-        dist: d, healthPct: t.health / Math.max(1, t.maxHealth),
-        attacking: t.attackTimer > 0, comboDepth: this._countRecent('player_attack', 60),
-      });
-    }
-    if (this._prevTSuperReady && !_tSuperReady) {
-      this._behaviorModel.logSuperUse({
-        dist: d, healthPct: t.health / Math.max(1, t.maxHealth),
-        comboDepth: this._countRecent('player_attack', 60), attacking: t.attackTimer > 0,
-      });
-      this._recordEvent('player_super', 2);
-    }
-    this._prevTAbilityCd  = _tAbilityCd;
-    this._prevTSuperReady = _tSuperReady;
-    if (--this._profileUpdateCd <= 0) {
-      this._profileUpdateCd = 90;
-      this._superProfile   = this._behaviorModel.getSuperProfile();
-      this._abilityProfile = this._behaviorModel.getAbilityProfile();
-      // Fire a one-shot "I have your pattern" line when the profile first resolves.
-      // This is the Garou moment — the player should feel the AI name what it learned.
-      if (!this._profileSaidSuper && this._superProfile !== 'unknown' && typeof showBossDialogue === 'function') {
-        this._profileSaidSuper = true;
-        const _spl = {
-          healer:   SMK2_PROFILE_SUPER_HEALER,
-          finisher: SMK2_PROFILE_SUPER_FINISHER,
-          opener:   SMK2_PROFILE_SUPER_OPENER,
-          dump:     SMK2_PROFILE_SUPER_DUMP,
-        }[this._superProfile];
-        if (_spl) showBossDialogue(_spl[Math.floor(Math.random() * _spl.length)], 220);
-      }
-      if (!this._profileSaidAbility && this._abilityProfile !== 'unknown' && typeof showBossDialogue === 'function') {
-        this._profileSaidAbility = true;
-        const _apl = {
-          poke:   SMK2_PROFILE_ABILITY_POKE,
-          combo:  SMK2_PROFILE_ABILITY_COMBO,
-          closer: SMK2_PROFILE_ABILITY_CLOSER,
-        }[this._abilityProfile];
-        if (_apl && this._profileSaidSuper) {
-          // Stagger: ability read fires 3 seconds after super read so they don't overlap
-          const _self = this;
-          setTimeout(() => {
-            if (typeof showBossDialogue === 'function') showBossDialogue(_apl[Math.floor(Math.random() * _apl.length)], 200);
-          }, 3000);
-        } else if (_apl) {
-          showBossDialogue(_apl[Math.floor(Math.random() * _apl.length)], 200);
-        }
-      }
-    }
+    this._observeProfiles(t, d);
 
     this._updateIntimidation(t, d);
     this._updatePressureState(t, d);
