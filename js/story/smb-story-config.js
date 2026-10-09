@@ -1336,6 +1336,27 @@ function _migrateStory2TrialChapters(p) {
   return true;
 }
 
+// `defeated` is keyed by chapter id (ch.id). Older saves/writers used the array
+// index; resolve any entry that is not a known id through STORY_CHAPTERS2[idx].id
+// so no progress is lost. Returns true if the list changed. Safe before the
+// registry exists (STORY_CHAPTERS2 is defined in smb-story-finalize.js).
+function _migrateStory2DefeatedKeys(p) {
+  if (!p || !Array.isArray(p.defeated) || typeof STORY_CHAPTERS2 === 'undefined' || !STORY_CHAPTERS2.length) return false;
+  const ids = new Set(STORY_CHAPTERS2.map(c => c && c.id));
+  const out = [], seen = new Set();
+  for (const v of p.defeated) {
+    const n = Number(v);
+    if (!Number.isInteger(n) || n < 0) continue;
+    const id = ids.has(n) ? n : (STORY_CHAPTERS2[n] ? STORY_CHAPTERS2[n].id : null);
+    if (id === null || seen.has(id)) continue;
+    seen.add(id); out.push(id);
+  }
+  out.sort((a, b) => a - b);
+  const changed = out.length !== p.defeated.length || out.some((v, i) => v !== p.defeated[i]);
+  if (changed) p.defeated = out;
+  return changed;
+}
+
 function _normalizeStory2Progress(data) {
   const base = _defaultStory2Progress();
   if (!data || typeof data !== 'object') return base;
@@ -1380,6 +1401,7 @@ function _normalizeStory2Progress(data) {
       _seen[i] = 1;
       return true;
     });
+    _migrateStory2DefeatedKeys(out); // legacy index-keyed entries -> ch.id (no-op until the registry exists)
   }
   if (typeof data.storyComplete === 'boolean') out.storyComplete = data.storyComplete;
   if (data.runState && typeof data.runState === 'object') out.runState = Object.assign({}, base.runState, data.runState);

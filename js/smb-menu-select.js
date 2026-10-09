@@ -419,7 +419,7 @@ function switchArena(newKey) {
   // Clear arena-specific NPCs and items — they belong to their home arena
   if (typeof forestBeast !== 'undefined') { forestBeast = null; forestBeastCooldown = 600; }
   if (typeof yeti        !== 'undefined') { yeti        = null; yetiCooldown        = 600; }
-  if (typeof mapItems    !== 'undefined') mapItems = [];
+  // mapItems is cleared and re-seeded by initMapPerks() above; do not wipe it here.
   // Assign safe spawn positions for ALL players on the new map.
   // Alive players are repositioned immediately.
   // Dead players only get spawnX/spawnY updated so their pending respawn()

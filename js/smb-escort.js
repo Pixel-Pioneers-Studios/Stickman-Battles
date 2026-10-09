@@ -16,6 +16,16 @@
 //     ],
 //     fightScript, arena, playerLives, tokenReward, …
 //   }
+//
+// Explore escorts: a walkFight/exploration chapter that declares `escortNPC` runs
+// the same engine inside its scrolling world (initEscortMode is called from
+// _launchExplorationChapter). There the NPC follows the player along the map,
+// waves trigger on world-x, delivery does not end the match — the level's exit
+// gate (storyLevelClearBlocker) waits for it instead — and:
+//     escortGoalX:   world x (default: just short of the exit)
+//     escortLeash:   NPC waits when the player is this far behind (default 260)
+//     escortHunters: arena-lock duel enemies that go after the NPC (default 0)
+//     escortArriveText: subtitle when the NPC reaches the goal
 
 // ============================================================
 // STATE
@@ -31,6 +41,15 @@ var escortBanner     = 0;          // banner countdown frames
 var escortNPCName    = 'Escort';
 var escortNPCColor   = '#66aaff';
 var _escortChapter   = null;
+var escortInExplore  = false;      // running inside an exploration world
+var _escortStuck     = 0;
+var _escortLastX     = 0;
+var _escortPending   = null;       // explore chapter waiting for its first live frame
+
+// Explore chapters arm the escort at launch; it starts on the first frame the
+// match is actually running (startGame defers its core setup behind the loading
+// screen, which also runs escortCleanup — a timer-based init loses that race).
+function escortArm(chapter) { _escortPending = chapter || null; }
 
 // ============================================================
 // INIT
@@ -38,8 +57,10 @@ var _escortChapter   = null;
 function initEscortMode(chapter) {
   _escortChapter  = chapter;
   var npcCfg      = chapter.escortNPC || {};
-  escortGoalX     = chapter.escortGoalX || GAME_W * 0.85;
-  escortSpeed     = chapter.escortSpeed !== undefined ? chapter.escortSpeed : 0.7;
+  escortInExplore = (typeof exploreActive !== 'undefined' && exploreActive);
+  escortGoalX     = chapter.escortGoalX
+    || (escortInExplore && typeof exploreGoalX !== 'undefined' ? exploreGoalX - 60 : GAME_W * 0.85);
+  escortSpeed     = chapter.escortSpeed !== undefined ? chapter.escortSpeed : (escortInExplore ? 1.8 : 0.7);
   escortStopRange = chapter.escortStopRange || 220;
   escortWaveDefs  = chapter.escortWaves || [];
   escortWaveFired = escortWaveDefs.map(function() { return false; });
@@ -71,6 +92,24 @@ function initEscortMode(chapter) {
   escortNPC.target      = null;
   escortNPC._isEscortNPC = true;
   escortNPC.playerNum   = -99;        // sentinel — not a real player slot
+  escortNPC._hideWeapon = true;       // she is not a fighter here
+  // On the player's side: every hit loop scans players/trainingDummies/minions,
+  // so the NPC has to live in minions[] to be hittable at all, and the faction
+  // stamps keep the player's own swings (and target pickers) off it. The minion
+  // loop also runs its physics and draws it.
+  escortNPC.storyFaction = 'player';
+  escortNPC._teamId      = 1;
+  escortNPC.isStoryAlly  = true;
+  escortNPC.isMinion     = true;
+  minions.push(escortNPC);
+  if (p1 && p1._teamId === undefined) { p1._teamId = 1; p1.storyFaction = 'player'; }
+  _escortStuck = 0;
+  _escortLastX = escortNPC.x;
+  // A checkpoint resume (or backtrack entry) starts mid-map: waves behind the
+  // spawn point already happened.
+  for (var _wi = 0; _wi < escortWaveDefs.length; _wi++) {
+    if ((escortWaveDefs[_wi].triggerX || 0) < spawnX - 100) escortWaveFired[_wi] = true;
+  }
 
   if (typeof setObjective === 'function')
     setObjective('Escort ' + escortNPCName + ' to safety');
@@ -80,6 +119,14 @@ function initEscortMode(chapter) {
 // PER-FRAME UPDATE  (called from game loop)
 // ============================================================
 function updateEscortMode() {
+  if (_escortPending) {
+    var _pc = _escortPending;
+    if (typeof _activeStory2Chapter === 'undefined' || _activeStory2Chapter !== _pc) _escortPending = null;
+    else if (gameRunning && players[0] && typeof exploreActive !== 'undefined' && exploreActive) {
+      _escortPending = null;
+      initEscortMode(_pc);
+    }
+  }
   if (!escortActive || !gameRunning || escortState === 'idle' || escortState === 'done') return;
 
   // Outcome banner countdown — then trigger endGame
@@ -107,11 +154,11 @@ function updateEscortMode() {
     return;
   }
 
-  // NPC physics tick
-  escortNPC.update();
+  // Physics runs in the minion loop (the NPC lives in minions[]).
+  if (escortInExplore) { _escortExploreTick(); return; }
 
   // Decide NPC movement: stop if any enemy is close
-  var enemies  = minions.filter(function(m) { return m.health > 0 && !m._isEscortNPC; });
+  var enemies  = minions.filter(function(m) { return m.health > 0 && !m._isEscortNPC && !areAlliedEntities(m, escortNPC); });
   var tooClose = enemies.some(function(e) {
     return Math.abs(e.cx() - escortNPC.cx()) < escortStopRange;
   });
@@ -145,6 +192,99 @@ function updateEscortMode() {
   }
 }
 
+// ── Explore escort: follow the player through the world ───────
+function _escortExploreTick() {
+  var npc = escortNPC, p1 = players[0];
+  if (!p1) return;
+  var ch = _escortChapter || {};
+  npc._hideWeapon = true;   // finisher/move-scene resets can flip it back
+  var floor = (currentArena && currentArena.platforms || []).find(function(pl) { return pl.isFloor; });
+  var floorY = floor ? floor.y : 440;
+
+  // Fell into a shaft / off the map, or wedged for 4s: rejoin beside the player.
+  var fell = npc.y > floorY + 60;
+  if (Math.abs(npc.x - _escortLastX) < 0.2 && npc.vx !== 0) _escortStuck++; else _escortStuck = 0;
+  _escortLastX = npc.x;
+  if (fell || _escortStuck > 240) _escortRejoin(p1.x - 50 * (p1.facing || 1), floorY);
+
+  // The duel's arena lock walls off the fight — pull her in rather than strand her outside.
+  if (typeof exploreArenaLock !== 'undefined' && exploreArenaLock &&
+      (npc.x < exploreArenaLock.left + 10 || npc.x + npc.w > exploreArenaLock.right - 10)) {
+    _escortRejoin(Math.max(exploreArenaLock.left + 40, Math.min(exploreArenaLock.right - 80, Math.min(escortGoalX, p1.x - 60))), floorY);
+  }
+
+  var foes = minions.filter(function(m) { return m.health > 0 && m !== npc && !areAlliedEntities(m, npc); });
+
+  // Duel hunters: the first N arena-lock enemies go after the NPC instead of the player.
+  var want = ch.escortHunters || 0;
+  if (want > 0) {
+    var have = foes.filter(function(m) { return m._escortEnemy && m.isArenaLockEnemy; }).length;
+    foes.forEach(function(m) { if (have < want && m.isArenaLockEnemy && !m._escortEnemy) { m._escortEnemy = true; have++; } });
+  }
+  foes.forEach(function(m) { if (m._escortEnemy) m.target = npc; });
+
+  _escortCheckWaves();
+
+  var delivered = npc.cx() >= escortGoalX;
+  if (delivered) {
+    npc.vx = 0;
+    if (!npc._arrived) {
+      npc._arrived = true;
+      npc._arrivedAt = frameCount;
+      storyFightSubtitle = {
+        text: ch.escortArriveText || (escortNPCName + ' is safe.'),
+        timer: 240, maxTimer: 240, color: '#88ccff'
+      };
+      if (typeof SoundManager !== 'undefined' && SoundManager.phaseUp) SoundManager.phaseUp();
+    }
+    // escortLines: [{ after: frames since arrival, text, color }] — beats tied to
+    // the NPC's arrival instead of the fight-script clock (which runs from level start).
+    var lines = ch.escortLines || [];
+    for (var li = 0; li < lines.length; li++) {
+      var ln = lines[li];
+      if (!npc['_line' + li] && frameCount - npc._arrivedAt >= (ln.after || 0)) {
+        npc['_line' + li] = true;
+        storyFightSubtitle = { text: ln.text, timer: ln.timer || 260, maxTimer: ln.timer || 260, color: ln.color || '#aaccff' };
+      }
+    }
+    return;
+  }
+
+  // Walk the route, but never leave the player behind, and hold while foes are close.
+  var threatened = foes.some(function(e) { return Math.abs(e.cx() - npc.cx()) < escortStopRange && Math.abs(e.cy() - npc.cy()) < 160; });
+  var leash      = ch.escortLeash || 260;
+  var waiting    = (npc.cx() - p1.cx()) > leash;
+  if (threatened || waiting || npc.hurtTimer > 0 || npc.stunTimer > 0) {
+    npc.vx = 0;
+    if (threatened) {
+      var near = foes.reduce(function(a, b) { return Math.abs(b.cx() - npc.cx()) < Math.abs(a.cx() - npc.cx()) ? b : a; });
+      npc.facing = near.cx() < npc.cx() ? -1 : 1;
+    } else {
+      npc.facing = p1.cx() < npc.cx() ? -1 : 1;
+    }
+    return;
+  }
+  npc.vx = escortSpeed;
+  npc.facing = 1;
+
+  // Hop the cache shafts / gaps: no floor 30px ahead of her feet.
+  if (npc.onGround) {
+    var aheadX = npc.x + npc.w + 30, feet = npc.y + npc.h;
+    var solid = (currentArena && currentArena.platforms || []).some(function(pl) {
+      return aheadX >= pl.x && aheadX <= pl.x + pl.w && pl.y >= feet - 4 && pl.y <= feet + 30;
+    });
+    if (!solid) { npc.vy = -13; npc.vx = 4; npc.onGround = false; }
+  }
+}
+
+function _escortRejoin(x, floorY) {
+  var npc = escortNPC;
+  npc.x = x; npc.y = floorY - npc.h - 2; npc.vx = 0; npc.vy = 0;
+  npc.invincible = Math.max(npc.invincible || 0, 60);
+  _escortStuck = 0; _escortLastX = npc.x;
+  if (typeof spawnParticles === 'function') spawnParticles(npc.cx(), npc.cy(), escortNPCColor, 12);
+}
+
 // ── Wave check ────────────────────────────────────────────────
 function _escortCheckWaves() {
   for (var i = 0; i < escortWaveDefs.length; i++) {
@@ -158,6 +298,23 @@ function _escortCheckWaves() {
 }
 
 function _escortSpawnWave(wave) {
+  if (escortInExplore && typeof _exploreSpawnEnemy === 'function') {
+    var n = wave.count || 2, p1 = players[0];
+    var floorX0 = 80, floorX1 = (typeof exploreWorldLen !== 'undefined' ? exploreWorldLen : 6000) - 80;
+    for (var k = 0; k < n; k++) {
+      var side = wave.fromRight === false ? -1 : (wave.fromRight ? 1 : (k % 2 ? -1 : 1));
+      var x = Math.max(floorX0, Math.min(floorX1, escortNPC.cx() + side * (480 + k * 60)));
+      _exploreSpawnEnemy({
+        exactX: x, weaponKey: wave.weaponKey || 'sword', aiDiff: wave.aiDiff || 'medium',
+        name: wave.name || 'Attacker', color: wave.color || '#ff4455', health: wave.health,
+        classKey: wave.classKey,
+      }, p1);
+      var m = minions[minions.length - 1];
+      if (m && m !== escortNPC) { m._escortEnemy = true; m.target = escortNPC; m.invincible = 40; }
+    }
+    if (wave.text) storyFightSubtitle = { text: wave.text, timer: 220, maxTimer: 220, color: '#ff7755' };
+    return;
+  }
   var count   = wave.count   || 2;
   var wk      = wave.weaponKey || 'sword';
   var diff    = wave.aiDiff  || 'medium';
@@ -190,6 +347,8 @@ function _escortSpawnWave(wave) {
     bot.playerNum  = 2 + (i % 4);
     bot.name       = 'Attacker';
     bot._escortEnemy = true;
+    bot.storyFaction = 'enemy';
+    bot._teamId      = 2;
     minions.push(bot);
   }
 
@@ -230,30 +389,10 @@ function escortOnPlayerDeath() {
 function drawEscortNPC() {
   if (!escortActive || !escortNPC || escortState === 'idle' || escortState === 'done') return;
 
-  // Let Fighter render itself (normal stickman)
-  escortNPC.draw();
+  // The body is drawn by the minion loop (the NPC lives in minions[]).
+  if (escortNPC.health <= 0) return;
 
-  var x = escortNPC.cx();
-  var y = escortNPC.y;
-
-  // NPC nameplate
-  ctx.save();
-  ctx.font      = 'bold 10px Arial';
-  ctx.textAlign = 'center';
-  ctx.fillStyle = 'rgba(0,0,0,0.55)';
-  ctx.fillRect(x - 28, y - 22, 56, 14);
-  ctx.fillStyle = escortNPCColor;
-  ctx.shadowColor = escortNPCColor; ctx.shadowBlur = 4;
-  ctx.fillText(escortNPCName, x, y - 11);
-  ctx.shadowBlur = 0;
-
-  // Health bar above nameplate
-  var hFrac = Math.max(0, escortNPC.health / escortNPC.maxHealth);
-  ctx.fillStyle = 'rgba(0,0,0,0.5)';
-  ctx.fillRect(x - 28, y - 28, 56, 6);
-  ctx.fillStyle = hFrac > 0.5 ? '#44dd66' : hFrac > 0.25 ? '#ffaa22' : '#ff3322';
-  ctx.fillRect(x - 28, y - 28, 56 * hFrac, 6);
-  ctx.restore();
+  // Fighter.draw() already renders her name tag and health bar.
 
   // Goal flag marker
   _drawEscortGoalFlag();
@@ -332,6 +471,7 @@ function drawEscortHUD() {
     var barW = 200, barH = 14;
     var barX = (GAME_W - barW) / 2;
     var barY = 82;
+    if (escortInExplore) { barW = 150; barH = 10; barX = 14; barY = 106; }
     var hFrac = Math.max(0, escortNPC.health / escortNPC.maxHealth);
     var pulse = 0.88 + 0.12 * Math.sin(_fc * 0.09);
 
@@ -360,6 +500,8 @@ function drawEscortHUD() {
     var prog    = Math.max(0, Math.min(1, 1 - dist / total));
     var trW     = 180, trH = 8;
     var trX     = GAME_W - trW - 8, trY = 82;
+    // Explore: the top-right corner shows the nearest enemy's name — stack under her HP bar.
+    if (escortInExplore) { trW = 150; trH = 6; trX = 14; trY = 132; }
 
     ctx.fillStyle = 'rgba(0,0,0,0.55)'; ctx.fillRect(trX - 2, trY - 2, trW + 4, trH + 4);
     ctx.fillStyle = '#222';            ctx.fillRect(trX, trY, trW, trH);
@@ -375,7 +517,7 @@ function drawEscortHUD() {
       ctx.globalAlpha = nearPulse;
       ctx.font = 'bold 11px Arial'; ctx.textAlign = 'center'; ctx.fillStyle = '#ffdd44';
       ctx.shadowColor = '#ffdd44'; ctx.shadowBlur = 8;
-      ctx.fillText('Almost there!', GAME_W - trW / 2 - 8, trY + 22);
+      ctx.fillText('Almost there!', trX + trW / 2, trY + 22);
       ctx.shadowBlur = 0; ctx.globalAlpha = 1;
     }
   }
@@ -388,6 +530,7 @@ function drawEscortHUD() {
 // ============================================================
 function escortCleanup() {
   escortActive   = false;
+  escortInExplore = false;
   escortNPC      = null;
   escortState    = 'idle';
   escortWaveDefs = [];

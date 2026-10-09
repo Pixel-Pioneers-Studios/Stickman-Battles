@@ -401,8 +401,10 @@ const NetworkManager = (() => {
         if (!Number.isInteger(msg.targetSlot) || !Number.isFinite(_hDmg) || !Number.isFinite(_hKb)) return;
         if (typeof dealDamage === 'function' && players[msg.targetSlot]) {
           const attacker = players[msg.attackerSlot] || players[0];
-          dealDamage(attacker, players[msg.targetSlot],
-            Math.max(0, Math.min(80, _hDmg)), Math.max(0, Math.min(26, _hKb)));
+          const _cDmg = Math.max(0, Math.min(80, _hDmg)), _cKb = Math.max(0, Math.min(26, _hKb));
+          _netInboundHit = { dmg: _cDmg, kb: _cKb };
+          try { dealDamage(attacker, players[msg.targetSlot], _cDmg, _cKb); }
+          finally { _netInboundHit = null; }
         }
         if (_isHost) {
           const relay = Object.assign({}, msg);
@@ -527,12 +529,18 @@ const NetworkManager = (() => {
 
   function _handleGameEvent(msg, fromSlot) {
     const isHostOrigin = fromSlot === 0;
-    if (!isHostOrigin && msg.event !== 'chat') {
+    if (!isHostOrigin && msg.event !== 'chat' && msg.event !== 'ninjaSlow') {
       return false;
     }
 
     if (msg.event === 'chat') {
       _appendChatMsg(msg.sender || 'P?', msg.text || '');
+    } else if (msg.event === 'ninjaSlow') {
+      // Remote ninja's time dilation is live; the domain loop expires it if pings stop.
+      const _rp = typeof players !== 'undefined' ? players[fromSlot] : null;
+      if (_rp && _rp.isRemote && _rp.charClass === 'ninja' && typeof frameCount !== 'undefined') {
+        (window._netNinjaSlowUntil = window._netNinjaSlowUntil || {})[fromSlot] = frameCount + 40;
+      }
     } else if (msg.event === 'modeChange') {
       if (!_isHost && typeof selectMode === 'function') selectMode(msg.mode);
     } else if (msg.event === 'achievement') {

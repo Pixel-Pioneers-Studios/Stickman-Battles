@@ -229,16 +229,21 @@ function _applyRefightLocks() {
     _setRefightCardLock(id, !_locks[id]);
   });
   _setRefightCardLock('refight-gauntlet', !_allUnlocked);
+
+  // Locked cards are hidden outright (their names spoil the story), so the
+  // panel starts empty and fills in as bosses are beaten.
+  var _anyUnlocked = Object.keys(_locks).some(function(id) { return _locks[id]; });
+  var _empty = document.getElementById('refightEmpty');
+  if (_empty) _empty.style.display = _anyUnlocked ? 'none' : '';
 }
 
 function _setRefightCardLock(id, locked) {
   var el = document.getElementById(id);
   if (!el) return;
+  // Hidden, not greyed out: a locked card would still show the boss's name.
+  el.style.display = locked ? 'none' : '';
   if (locked) {
-    el.classList.add('refight-locked');
-    el.onclick = function() {
-      if (typeof showToast === 'function') showToast(' Complete this fight in Story Mode first.');
-    };
+    el.onclick = null;
   } else {
     el.classList.remove('refight-locked');
     var _modeMap = {

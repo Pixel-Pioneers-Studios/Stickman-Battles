@@ -3472,6 +3472,7 @@ class Fighter {
     if (this.charClass === 'megaknight') {
       this._megaJumping    = true;
       this._megaJumpLanded = false;
+      if (!this.isBoss) this._superHealPending = SUPER_HEAL; // paid by dealDamage() when the landing shockwave connects
       this.vy              = -40;
       this.canDoubleJump   = true;
       this.superMeter      = 0;

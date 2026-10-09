@@ -106,7 +106,7 @@ const StoryMap = (() => {
     const cur = (typeof sagaClampChapter === 'function') ? sagaClampChapter(_story2.chapter) : _story2.chapter;
     const arc = _arcFor(i);
     const arcUnlocked = arc && typeof _isArcUnlocked === 'function' ? _isArcUnlocked(arc) : true;
-    const done    = _story2.defeated.includes(i);
+    const done    = _story2.defeated.includes(STORY_CHAPTERS2[i] ? STORY_CHAPTERS2[i].id : i); // keyed by ch.id
     const current = i === cur;
     const locked  = !arcUnlocked || i > cur;
     return { done, current, locked };

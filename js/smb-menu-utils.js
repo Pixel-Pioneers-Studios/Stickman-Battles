@@ -202,6 +202,10 @@ function drawStageBoundary(scX, scY, camCX, camCY) {
   let nearL = Infinity, nearR = Infinity;
   for (const p of players) {
     if (!p || p.health <= 0 || p.isAI) continue;   // warn the human, not the bot
+    // Standing on any platform (side rooftop, collapsed-slab arena, etc.) is not a
+    // ring-out threat even if cx is past the union of isFloor segments; without
+    // this the red band + lip line stayed lit permanently (AA Broken Branch).
+    if (p.onGround) continue;
     // Only when the edge is a live threat: already past the lip, or knocked
     // toward it. Proximity alone lit the band whenever someone stood on a
     // side platform above a short floor, which read as a stray red line.

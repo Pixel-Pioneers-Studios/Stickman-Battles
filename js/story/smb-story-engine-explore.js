@@ -900,6 +900,9 @@ function _launchExplorationChapter(ch) {
   if (typeof selectLives === 'function') selectLives(ch.playerLives || 3);
   infiniteMode = false;
 
+  // A stale escort from an earlier level must not follow the player in here.
+  if (typeof escortCleanup === 'function') escortCleanup();
+  if (typeof escortArm === 'function') escortArm(ch.escortNPC ? ch : null);
   startGame();
   setTimeout(() => {
     if (players[0]) _applySkillTreeToPlayer(players[0]);

@@ -560,7 +560,8 @@ function setPlayerChapter(accountId, chapterId) {
       // Mark every prior chapter as defeated so none are gated.
       story.defeated = story.defeated || [];
       for (let i = 0; i < chapterId; i++) {
-        if (story.defeated.indexOf(i) === -1) story.defeated.push(i);
+        const k = (typeof STORY_CHAPTERS2 !== 'undefined' && STORY_CHAPTERS2[i]) ? STORY_CHAPTERS2[i].id : i; // defeated is keyed by ch.id
+        if (story.defeated.indexOf(k) === -1) story.defeated.push(k);
       }
       if (typeof restoreStoryDataFromSave === 'function') restoreStoryDataFromSave(story);
     }
@@ -575,7 +576,8 @@ function setPlayerChapter(accountId, chapterId) {
     data.story.chapter  = chapterId;
     data.story.defeated = data.story.defeated || [];
     for (let i = 0; i < chapterId; i++) {
-      if (data.story.defeated.indexOf(i) === -1) data.story.defeated.push(i);
+      const k = (typeof STORY_CHAPTERS2 !== 'undefined' && STORY_CHAPTERS2[i]) ? STORY_CHAPTERS2[i].id : i; // defeated is keyed by ch.id
+      if (data.story.defeated.indexOf(k) === -1) data.story.defeated.push(k);
     }
   });
   _adminLog('Chapter set to ' + chapterId + ' on account ' + accountId + '.');

@@ -611,7 +611,10 @@ const PubHub = (() => {
     if (h.target === _slot) victim = _me();
     else if (typeof h.target === 'string' && _isAuth()) victim = _bots[h.target];
     if (!attacker || !victim || victim.health <= 0) return;
-    dealDamage(attacker, victim, Number(h.dmg) || 0, Number(h.kb) || 0);
+    const dmg = Number(h.dmg) || 0, kb = Number(h.kb) || 0;
+    _netInboundHit = { dmg, kb };
+    try { dealDamage(attacker, victim, dmg, kb); }
+    finally { _netInboundHit = null; }
   }
 
   function _onEvent(ev) {

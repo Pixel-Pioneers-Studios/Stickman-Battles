@@ -3595,6 +3595,22 @@ const DomainManager = (() => {
       if (r.fighter.charClass === 'ninja' && r.animData && r.animData.slowStarted &&
           r.fighter.health > 0) _slowSources.push(r.fighter);
     }
+    // Online: each client only runs its own ninja's domain, so the owner pings
+    // the slow over gameEvent and the other client re-creates the source here.
+    if (typeof onlineMode !== 'undefined' && onlineMode && typeof frameCount !== 'undefined') {
+      const _me = players[onlineLocalSlot];
+      if (frameCount % 15 === 0 && _me && _slowSources.indexOf(_me) !== -1 &&
+          typeof NetworkManager !== 'undefined' && NetworkManager.sendGameEvent) {
+        NetworkManager.sendGameEvent('ninjaSlow', {});
+      }
+      const _ns = window._netNinjaSlowUntil;
+      if (_ns) {
+        for (const k in _ns) {
+          const _rp = players[+k];
+          if (_rp && _rp.isRemote && _rp.health > 0 && _ns[k] > frameCount) _slowSources.push(_rp);
+        }
+      }
+    }
     for (const src of _slowSources) {
       const _sf = DOMAIN_DEFS.ninja.slowFactor || 0.5;
       for (const tgt of _getDomainTargets(src)) {

@@ -512,6 +512,17 @@ class God extends Fighter {
       const d = Math.hypot(p.cx() - this.cx(), (p.y + p.h / 2) - (this.y + this.h / 2));
       if (d < minDist) { minDist = d; target = p; }
     }
+    // Everyone alive is in godmode: fall back to them anyway so God keeps moving and
+    // attacking (damage is still nullified downstream) instead of freezing mid-air.
+    if (!target) {
+      minDist = Infinity;
+      for (const p of this._godTargetPool()) {
+        if (p === this || p.health <= 0) continue;
+        if (p._teamId !== undefined && this._teamId !== undefined && p._teamId === this._teamId) continue;
+        const d = Math.hypot(p.cx() - this.cx(), (p.y + p.h / 2) - (this.y + this.h / 2));
+        if (d < minDist) { minDist = d; target = p; }
+      }
+    }
     if (!target) return;
 
     this.target = target;

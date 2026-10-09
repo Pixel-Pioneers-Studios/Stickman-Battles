@@ -154,6 +154,7 @@ function _drawArenaThemeArt(currentArenaKey) {
   if (currentArenaKey === 'bossSanctum') drawBossSanctumArena();
   if (currentArenaKey === 'god_domain')  drawGodDomainArena();
   if (currentArenaKey === 'absolute_axiom_domain') drawAbsoluteAxiomArena();
+  if (currentArena.isAAWorld && typeof drawAAWorldArena === 'function') drawAAWorldArena();
   if (currentArenaKey === 'studio')               drawStudioArena();
   if (currentArenaKey === 'sewer')      drawSewerArena();
   if (currentArenaKey === 'storyLab') drawStoryLabArena();

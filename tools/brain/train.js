@@ -22,6 +22,11 @@
  *
  * Patching the holes: --hunters=data/brain-hunter[,...] puts each hunter's latest
  * checkpoint and its newest snapshots into the main league at HUNTER_SHARE.
+ *
+ * --torch runs the update (values, GAE, PPO epochs) in PyTorch instead of
+ * ppo.js + pool.js: tools/brain/torch_ppo.py, set up per torch_client.js. Same
+ * objective and checkpoint format (tools/brain/torchparity.js checks the math).
+ * Adam's moments start fresh on every launch either way.
  */
 const fs = require('fs'), path = require('path'), http = require('http');
 const { MLP, Adam } = require('./ppo');
@@ -255,8 +260,16 @@ function withHunters(opps) {
     if (fs.existsSync(logp)) fs.renameSync(logp, logp.replace('.jsonl', `-${Date.now()}.jsonl`));
     log('fresh start: random network');
   }
-  const gpool = new GradPool(THREADS, pi, vf, Object.assign({ HEADS }, CFG));
-  const piOpt = new Adam(pi, CFG.lr), vfOpt = new Adam(vf, CFG.lr);
+  let gpool = null, piOpt = null, vfOpt = null, torch = null;
+  if (args.torch) {
+    const { TorchPPO } = require('./torch_client');
+    torch = new TorchPPO(log);
+    const h = await torch.init(pi, vf, Object.assign({ HEADS }, CFG), THREADS, state.iter);
+    log(`update on PyTorch ${h.torch} (${h.device})`);
+  } else {
+    gpool = new GradPool(THREADS, pi, vf, Object.assign({ HEADS }, CFG));
+    piOpt = new Adam(pi, CFG.lr); vfOpt = new Adam(vf, CFG.lr);
+  }
   const pool = (state.pool || []).map(p => ({ iter: p.iter, weights: loadJSON(path.join(SNAPS, p.file), null) })).filter(p => p.weights);
 
   const t0 = Date.now();
@@ -305,41 +318,47 @@ function withHunters(opps) {
       off += r.n;
     }
 
-    // ── Values + GAE ──
-    const V = vf.forward(obs, N).slice();
-    const adv = new Float32Array(N), ret = new Float32Array(N);
-    for (const e of episodes) {
-      let next = 0;
-      if (e.trunc && e.finalObs) next = vf.forward(f32(e.finalObs), 1)[0];
-      let gae = 0;
-      for (let t = e.start + e.len - 1; t >= e.start; t--) {
-        const delta = rews[t] + CFG.gamma * next - V[t];
-        gae = delta + CFG.gamma * CFG.lambda * gae;
-        adv[t] = gae; ret[t] = gae + V[t];
-        next = V[t];
-      }
-    }
-    let mu = 0, sd = 0;
-    for (let i = 0; i < N; i++) mu += adv[i]; mu /= N;
-    for (let i = 0; i < N; i++) sd += (adv[i] - mu) ** 2; sd = Math.sqrt(sd / N) + 1e-8;
-    const nadv = new Float32Array(N); for (let i = 0; i < N; i++) nadv[i] = (adv[i] - mu) / sd;
-
-    // ── Update ──
+    let u;
     const tu = Date.now();
-    gpool.setBatch({ obs, acts, logps, adv: nadv, ret, N, D: OBS_DIM });
-    const u = { pl: 0, vl: 0, ent: 0, kl: 0, clipFrac: 0, epochs: 0 };
-    const idx = new Int32Array(N); for (let i = 0; i < N; i++) idx[i] = i;
-    for (let ep = 0; ep < CFG.epochs; ep++) {
-      for (let i = N - 1; i > 0; i--) { const j = (Math.random() * (i + 1)) | 0; const t = idx[i]; idx[i] = idx[j]; idx[j] = t; }
-      const s = { pl: 0, vl: 0, ent: 0, kl: 0, clip: 0, n: 0 };
-      for (let a = 0; a + CFG.mb <= N; a += CFG.mb) {
-        const g = await gpool.grads(idx, a, CFG.mb);
-        piOpt.step(1, CFG.maxGrad); vfOpt.step(1, CFG.maxGrad);
-        for (const k in s) s[k] += g[k];
+    if (torch) {
+      u = await torch.update(pi, vf, { N, D: OBS_DIM, H, obs, acts, logps, rews,
+        episodes: episodes.map(e => ({ start: e.start, len: e.len, trunc: e.trunc, finalObs: e.trunc && e.finalObs ? f32(e.finalObs) : null })) }, state.iter);
+    } else {
+      // ── Values + GAE ──
+      const V = vf.forward(obs, N).slice();
+      const adv = new Float32Array(N), ret = new Float32Array(N);
+      for (const e of episodes) {
+        let next = 0;
+        if (e.trunc && e.finalObs) next = vf.forward(f32(e.finalObs), 1)[0];
+        let gae = 0;
+        for (let t = e.start + e.len - 1; t >= e.start; t--) {
+          const delta = rews[t] + CFG.gamma * next - V[t];
+          gae = delta + CFG.gamma * CFG.lambda * gae;
+          adv[t] = gae; ret[t] = gae + V[t];
+          next = V[t];
+        }
       }
-      const n = Math.max(1, s.n);
-      Object.assign(u, { pl: s.pl / n, vl: s.vl / n, ent: s.ent / n, kl: s.kl / n, clipFrac: s.clip / n, epochs: ep + 1 });
-      if (u.kl > CFG.targetKl * 1.5) break;
+      let mu = 0, sd = 0;
+      for (let i = 0; i < N; i++) mu += adv[i]; mu /= N;
+      for (let i = 0; i < N; i++) sd += (adv[i] - mu) ** 2; sd = Math.sqrt(sd / N) + 1e-8;
+      const nadv = new Float32Array(N); for (let i = 0; i < N; i++) nadv[i] = (adv[i] - mu) / sd;
+
+      // ── Update ──
+      gpool.setBatch({ obs, acts, logps, adv: nadv, ret, N, D: OBS_DIM });
+      u = { pl: 0, vl: 0, ent: 0, kl: 0, clipFrac: 0, epochs: 0 };
+      const idx = new Int32Array(N); for (let i = 0; i < N; i++) idx[i] = i;
+      for (let ep = 0; ep < CFG.epochs; ep++) {
+        for (let i = N - 1; i > 0; i--) { const j = (Math.random() * (i + 1)) | 0; const t = idx[i]; idx[i] = idx[j]; idx[j] = t; }
+        const s = { pl: 0, vl: 0, ent: 0, kl: 0, clip: 0, n: 0 };
+        for (let a = 0; a + CFG.mb <= N; a += CFG.mb) {
+          const g = await gpool.grads(idx, a, CFG.mb);
+          piOpt.step(1, CFG.maxGrad); vfOpt.step(1, CFG.maxGrad);
+          for (const k in s) s[k] += g[k];
+        }
+        const n = Math.max(1, s.n);
+        Object.assign(u, { pl: s.pl / n, vl: s.vl / n, ent: s.ent / n, kl: s.kl / n, clipFrac: s.clip / n, epochs: ep + 1 });
+        if (u.kl > CFG.targetKl * 1.5) break;
+      }
     }
     const tUpd = Date.now() - tu;
 
@@ -397,7 +416,8 @@ function withHunters(opps) {
   }
 
   log(`stopped at iteration ${state.iter}; saved to ${path.relative(ROOT, DIR)}/`);
-  gpool.close();
+  if (gpool) gpool.close();
+  if (torch) torch.close();
   await Promise.all(workers.map(w => killBrowser(w.browser)));
   server.close();
   process.exit(0);

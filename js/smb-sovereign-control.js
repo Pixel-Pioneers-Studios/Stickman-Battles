@@ -225,6 +225,7 @@ const SovereignControl = {
       if (saved.hadTickInterval) host.aiTickInterval = saved.aiTickInterval;
       else delete host.aiTickInterval;
 
+      delete host._sovDeathFired;
       host.isAI   = saved.isAI;
       host.aiDiff = saved.aiDiff;
       host.target = saved.target;
@@ -278,6 +279,35 @@ const SovereignControl = {
   };
   _wrapped._sovCtlWrapped = true;
   window.queueAnnouncement = _wrapped;
+})();
+
+// ── Death hook ─────────────────────────────────────────────────────────────
+// checkDeaths() only calls onDeath() on `p.isAdaptive` fighters, and isAdaptive
+// is deliberately NOT grafted (it would put the host on the boss HUD), so a
+// possessed host's deaths never reached SovereignMK2.onDeath: no between-life
+// adaptation, no dossier / mech / arsenal commit. Mirror checkDeaths' own death
+// condition for the host just before it runs, once per death (the flag clears
+// when health is restored on respawn).
+(function () {
+  if (typeof window === 'undefined' || typeof window.checkDeaths !== 'function') return;
+  if (window.checkDeaths._sovCtlWrapped) return;
+  const _orig = window.checkDeaths;
+  const _wrapped = function () {
+    try {
+      const h = SovereignControl.active ? SovereignControl._host : null;
+      if (h) {
+        if (h.health > 0) h._sovDeathFired = false;
+        else if (!h._sovDeathFired && h.invincible === 0 && !h.isRemote && !h._brOut &&
+                 typeof h.onDeath === 'function' && players.includes(h)) {
+          h._sovDeathFired = true;
+          h.onDeath();
+        }
+      }
+    } catch (e) { console.warn('[SovCtl] onDeath hook failed', e); }
+    return _orig.apply(this, arguments);
+  };
+  _wrapped._sovCtlWrapped = true;
+  window.checkDeaths = _wrapped;
 })();
 
 // ── The button ─────────────────────────────────────────────────────────────

@@ -116,6 +116,11 @@ function gameLoop(timestamp) {
     return;
   }
   _sceneHoldOrphan = 0;
+  // Absolute Axiom Dimension Punch flight: the cutscene owns the whole frame
+  if (typeof AAMultiverse !== 'undefined' && AAMultiverse.flightFrame()) {
+    requestAnimationFrame(gameLoop);
+    return;
+  }
   // Hitstop: freeze gameplay for a few frames on strong hits
   if (hitStopFrames > 0) {
     hitStopFrames--;
@@ -483,7 +488,7 @@ function gameLoop(timestamp) {
   if (gameMode === 'minigames' && minigameType === 'sports' && typeof drawSports === 'function') drawSports();
   if (gameMode === 'minigames' && minigameType === 'defense' && typeof drawMinigameDefenseNexus === 'function') drawMinigameDefenseNexus();
   if (gameMode === 'battleroyale' && typeof drawBattleRoyaleWorld === 'function') drawBattleRoyaleWorld();
-  if (gameMode === 'escort' && typeof drawEscortNPC === 'function') drawEscortNPC();
+  if ((gameMode === 'escort' || (typeof escortActive !== 'undefined' && escortActive)) && typeof drawEscortNPC === 'function') drawEscortNPC();
   if (gameMode === 'shipflight' && typeof drawShipFlight === 'function') drawShipFlight();
   drawBackstagePortals();
   drawMapPerks();
@@ -588,6 +593,7 @@ function gameLoop(timestamp) {
     }
   });
   minions.forEach(m => { if (m.health > 0) m.draw(); });
+  if (typeof AAMultiverse !== 'undefined') AAMultiverse.drawWorld();
   minions = minions.filter(m => m.health > 0);
   // God death hook — triggers achievement when God is removed from minions
   if (typeof _checkGodDeath === 'function') _checkGodDeath();
@@ -722,7 +728,11 @@ function gameLoop(timestamp) {
   }
   // Players — skip physics update for remote (network-driven) players; also skip during hard freeze or absorption cinematic
   if (!gameFrozen && !tfAbsorptionScene) {
-    players.forEach(p => { if ((p.health > 0 || p.invincible > 0) && !p.isRemote) p.update(); });
+    // BR: array order decides mirror fights (the later updater reacts to the same
+    // frame's swing). AI decisions land on fixed frames (aiTick % interval), so a
+    // strict frame-parity alternation would never flip those; flip a coin instead.
+    const _updOrder = (gameMode === 'battleroyale' && Math.random() < 0.5) ? players.slice().reverse() : players;
+    _updOrder.forEach(p => { if ((p.health > 0 || p.invincible > 0) && !p.isRemote) p.update(); });
     // Authored death beats run AFTER physics so they can override the pose and
     // read the body's real landing velocity (see docs/animation-quality-plan.md).
     if (typeof DeathAnim !== 'undefined') DeathAnim.update();
@@ -1138,7 +1148,7 @@ function gameLoop(timestamp) {
   // Multiverse: per-frame world modifier tick (gravity flip, shadow teleport, etc.)
   if (multiverseModeActive && typeof MultiverseManager !== 'undefined') MultiverseManager.tick();
   if (exploreActive && typeof updateExploration === 'function') updateExploration();
-  if (gameMode === 'escort' && typeof updateEscortMode === 'function') updateEscortMode();
+  if ((gameMode === 'escort' || (typeof escortActive !== 'undefined' && escortActive) || (typeof _escortPending !== 'undefined' && _escortPending)) && typeof updateEscortMode === 'function') updateEscortMode();
   if (gameMode === 'shipflight' && typeof updateShipFlight === 'function') updateShipFlight();
   if (gameMode === 'assassination' && typeof updateAssassinationMode === 'function') updateAssassinationMode();
   if (gameMode === 'gauntlet' && typeof updateGauntletMode === 'function') updateGauntletMode();
@@ -1158,7 +1168,7 @@ function gameLoop(timestamp) {
   // Minigame HUD overlay
   if (gameMode === 'minigames') drawMinigameHUD();
   if (gameMode === 'battleroyale' && typeof drawBattleRoyaleHUD === 'function') drawBattleRoyaleHUD();
-  if (gameMode === 'escort' && typeof drawEscortHUD === 'function') drawEscortHUD();
+  if ((gameMode === 'escort' || (typeof escortActive !== 'undefined' && escortActive)) && typeof drawEscortHUD === 'function') drawEscortHUD();
   if (gameMode === 'assassination' && typeof drawAssassinationHUD === 'function') drawAssassinationHUD();
   if (gameMode === 'gauntlet' && typeof drawGauntletHUD === 'function') drawGauntletHUD();
   // New chaos modifier notification — timer ticked here, drawn in screen-space below
@@ -1167,6 +1177,8 @@ function gameLoop(timestamp) {
   // Story mode: void fog (drawn in game-world space)
   if (storyModeActive) drawStoryVoidFog();
   if (exploreActive && typeof drawExploreWorldModeOverlay === 'function') drawExploreWorldModeOverlay();
+  // Absolute Axiom multiverse: dead-universe darkness + location title card
+  if (typeof AAMultiverse !== 'undefined') AAMultiverse.drawOverlay(finalScX, finalScY, camCX, camCY);
   // Achievement popups (drawn over everything, in screen space)
   ctx.setTransform(1, 0, 0, 1, 0, 0); // reset transform for screen-space draw
 

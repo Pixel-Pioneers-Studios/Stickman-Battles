@@ -251,7 +251,7 @@ Script load order in `index.html` — files may only reference globals from earl
 104. `js/smb-attacktest-commands.js` — `_atkCommand` router, kit HUD, key handler
 105. `js/smb-attacktest-gui.js` — Visual GUI overlay + console patch
 106. `js/story/smb-story-registry.js` — declares `STORY_CHAPTER_REGISTRY = []`; the arc files below push chapters into it at load time (it is NOT a static literal array)
-107. `js/story/acts/` — Per-act story arc files. Directories: `act0`–`act7`, `act4mv` (multiverse), `actvoidmind`, and `side`. Each `.js` calls `STORY_CHAPTER_REGISTRY.push(...)` with a unique `id:`. There are currently 184 chapters, ids 0–183 contiguous.
+107. `js/story/acts/` — Per-act story arc files. Directories: `act0`–`act7`, `act4mv` (multiverse), `actvoidmind`, and `side`. Each `.js` calls `STORY_CHAPTER_REGISTRY.push(...)` with a unique `id:`. There are currently 186 chapters, ids 0–185 contiguous.
 108. `js/story/smb-story-config.js` — Story configuration
 109. `js/story/smb-story-engine-data.js` — Chapter expansion helpers, state vars
 110. `js/story/smb-story-engine-ui.js` — Tab switching, journey/store/skill-tree UI

@@ -4,6 +4,8 @@
 // Must load AFTER smb-menu-spawn.js, BEFORE smb-menu-utils.js
 
 function _startGameCore() {
+  // Every match starts escort-free; escort chapters re-arm it after this returns.
+  if (typeof escortCleanup === 'function') escortCleanup();
   // Stale online state must never leak into an offline match. Leaving a room
   // without reloading the page used to leave onlineMode true, which forced
   // training2P on and flagged a fighter isRemote with nothing driving it: an
@@ -87,7 +89,8 @@ function _startGameCore() {
   if (isSovereignMode) {
     currentArenaKey = 'sovereign'; // Sovereign's dedicated melee-only arena
   } else if (isAbsoluteAxiomMode) {
-    currentArenaKey = 'absolute_axiom_domain';
+    // Standalone: the multiverse fight opens in the Broken Branch (smb-axiom-multiverse.js)
+    currentArenaKey = (!storyModeActive && ARENAS.aa_branch) ? 'aa_branch' : 'absolute_axiom_domain';
   } else if (isGodMode) {
     currentArenaKey = 'god_domain'; // God's own divine domain arena
   } else if (isMultiverseMode) {

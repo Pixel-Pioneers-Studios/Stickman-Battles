@@ -464,7 +464,14 @@ function guardBurst(f) {
 // stance, and slips through the short i-frames a HIT grants (spawn, super and
 // finisher invincibility still stop it). Callers pass 0 hitInvincibleFrames so a
 // tick never shields the target from the next real hit either.
+// Set around dealDamage() while applying a hit packet from a remote attacker: the
+// attacker's client already ran the attacker-side multiplier math, so the packet's
+// pre-target dmg replaces ours instead of being scaled a second time.
+let _netInboundHit = null;
+
 function dealDamage(attacker, target, dmg, kbForce, stunMult = 1.0, isSplash = false, hitInvincibleFrames = 16, isDot = false) {
+  // Consume the inbound-hit flag here so nested calls (reflect, splash) never inherit it.
+  const _inbound = _netInboundHit; _netInboundHit = null;
   if (activeCinematic) return; // no damage during cinematic pauses
   if (!target || target.health <= 0) return;
   if (target.invincible > 0 && !_hitIframesLetThrough(attacker, target) &&
@@ -487,7 +494,8 @@ function dealDamage(attacker, target, dmg, kbForce, stunMult = 1.0, isSplash = f
   if (target._guiAttackImmune) return; // GUI-triggered attacks never damage the triggering player
   if (attacker && areAlliedEntities(attacker, target)) return;
   // God hard range gate — enforced at the system level, overrides all AI-layer logic
-  if (attacker && attacker._isGod && target) {
+  // Phase 1 only: its sole damage is melee (range 160). Phase 2 specials (nova/column/smite/lance) are ranged by design.
+  if (attacker && attacker.isGod && attacker._phase === 1 && target) {
     const _gd = Math.hypot(
       target.cx() - attacker.cx(),
       (target.y + (target.h || 0) / 2) - (attacker.y + (attacker.h || 0) / 2)
@@ -592,6 +600,10 @@ function dealDamage(attacker, target, dmg, kbForce, stunMult = 1.0, isSplash = f
   // Curse: attacker has curse_weak — deal 50% damage
   if (attacker && attacker.curses && attacker.curses.some(c => c.type === 'curse_weak'))
     actualDmg = Math.max(1, Math.round(actualDmg * 0.5));
+  // Online split: the attacker's client owns attacker-side scaling (above) and sends
+  // the hit pre-target; the victim's client owns target-side scaling and shields (below).
+  if (_inbound) actualDmg = _inbound.dmg;
+  const _netPreTargetDmg = actualDmg;
   // Paladin passive: 15% damage reduction on incoming hits
   if (target && target.charClass === 'paladin')
     actualDmg = Math.max(1, Math.floor(actualDmg * 0.85));
@@ -928,10 +940,10 @@ function dealDamage(attacker, target, dmg, kbForce, stunMult = 1.0, isSplash = f
   // Online: if attacker is local and target is remote, send hit event to server
   // The remote client will apply the damage to themselves
   if (onlineMode && attacker && !attacker.isRemote && target && target.isRemote) {
-    NetworkManager.sendHit(actualDmg, actualKb, actualKb > 0 ? (target.cx() > attacker.cx() ? 1 : -1) : 0);
+    NetworkManager.sendHit(_netPreTargetDmg, kbForce, actualKb > 0 ? (target.cx() > attacker.cx() ? 1 : -1) : 0);
   }
   // Public Server: forward hits this browser authored to the victim's owner
-  if (typeof PubHub !== 'undefined' && PubHub.active) PubHub.onDamage(attacker, target, actualDmg, actualKb);
+  if (typeof PubHub !== 'undefined' && PubHub.active) PubHub.onDamage(attacker, target, _netPreTargetDmg, kbForce);
   // Training lab hit log — records the values AFTER all scaling/caps, which is the
   // whole point: the raw dmg/kb passed in tell you nothing about what the pipeline
   // actually applied. Gated on trainingMode so it costs nothing in a real match.

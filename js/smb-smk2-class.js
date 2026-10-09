@@ -756,7 +756,9 @@ class SovereignMK2 extends AdaptiveAI {
       };
     }
 
-    if (typeof unlockAchievement === 'function') unlockAchievement('sovereign_slayer');
+    // Not when the dying body is a possessed player (F7): they did not kill Sovereign.
+    const _possessed = typeof SovereignControl !== 'undefined' && SovereignControl.active && SovereignControl._host === this;
+    if (!_possessed && typeof unlockAchievement === 'function') unlockAchievement('sovereign_slayer');
   }
 
   // ══════════════════════════════════════════════════════════════
@@ -874,7 +876,7 @@ class SovereignMK2 extends AdaptiveAI {
       // Execute preemptive movement
       if (this._preemptTarget === 'attack') {
         // Pre-dash back — create distance to whiff their attack
-        const safeDir = (this.x < 100) ? 1 : (this.x + this.w > GAME_W - 100) ? -1 : -dir;
+        const safeDir = (this.x < this._wbL() + 100) ? 1 : (this.x + this.w > this._wbR() - 100) ? -1 : -dir;
         if (!this.isEdgeDanger(safeDir)) this.vx = safeDir * moveSpd * (2.2 + this._evolutionStage * 0.14);
       } else if (this._preemptTarget === 'jump') {
         // Anti-air: pre-position at the projected landing zone — wait where they'll
@@ -1604,7 +1606,7 @@ class SovereignMK2 extends AdaptiveAI {
     if (this._punishModeActive) delta += 0.028;
     if (this._exploit.engageTimer > 0) delta += 0.018;
     if (t.health < t.maxHealth * 0.40) delta += 0.010;
-    if (t.x < 95 || t.x + t.w > GAME_W - 95) delta += 0.018;
+    if (t.x < this._wbL() + 95 || t.x + t.w > this._wbR() - 95) delta += 0.018;
     delta += this._evolutionStage * 0.004;
 
     this._intimidation = Math.max(0, Math.min(1, this._intimidation + delta));
@@ -1892,7 +1894,7 @@ class SovereignMK2 extends AdaptiveAI {
     if (strat === 'parry' && playerAttacking && d < 170) {
       // Player attacks constantly — dash out of the swing and punish immediately
       this._counterLockTimer = 10;
-      const dDir = (this.x < 100 && dir < 0) ? 1 : (this.x + this.w > GAME_W - 100 && dir > 0) ? -1 : -dir;
+      const dDir = (this.x < this._wbL() + 100 && dir < 0) ? 1 : (this.x + this.w > this._wbR() - 100 && dir > 0) ? -1 : -dir;
       if (this.onGround && !this.isEdgeDanger(dDir)) this.vx = dDir * moveSpd * 2.4;
       else if (this.onGround) this.vy = -18;
       // Phase Step as the opening parry-counter if in range
@@ -1911,7 +1913,7 @@ class SovereignMK2 extends AdaptiveAI {
   _runFlowBreak(t, dir, d, moveSpd, weaponRange, playerAttacking, recentTaken) {
     if (this._flowBreakCd > 0) return false;
 
-    const cornered = this.x < 70 || this.x + this.w > GAME_W - 70;
+    const cornered = this.x < this._wbL() + 70 || this.x + this.w > this._wbR() - 70;
     if (recentTaken >= 2 && d < weaponRange * 1.35 + 30 && this.abilityCooldown <= 0) {
       this._flowBreakCd = 120;
       this._pressureHoldTimer = 90;
@@ -1929,7 +1931,7 @@ class SovereignMK2 extends AdaptiveAI {
     if (_tHpRatio < 0.25) return false;
     if (playerAttacking && d < 155 && (recentTaken >= 1 || this.health < this.maxHealth * 0.46)) {
       this._flowBreakCd = 70;
-      const dDir = (this.x < 100 && dir < 0) ? 1 : (this.x + this.w > GAME_W - 100 && dir > 0) ? -1 : -dir;
+      const dDir = (this.x < this._wbL() + 100 && dir < 0) ? 1 : (this.x + this.w > this._wbR() - 100 && dir > 0) ? -1 : -dir;
       if (!this.isEdgeDanger(dDir)) this.vx = dDir * moveSpd * 2.4;
       if (this.onGround) this.vy = -17;
       return true;
@@ -1938,7 +1940,7 @@ class SovereignMK2 extends AdaptiveAI {
     if (cornered && d < 170 && this._repositionBurstCd <= 0) {
       this._repositionBurstCd = 160;
       this._flowBreakCd = 55;
-      const centerDir = Math.sign(GAME_W / 2 - this.cx()) || -dir;
+      const centerDir = Math.sign(this._aiSafeCenterX() - this.cx()) || -dir;
       if (!this.isEdgeDanger(centerDir)) this.vx = centerDir * moveSpd * 2.05;
       this.vy = this.onGround ? -16 : this.vy;
       this._pressureHoldTimer = 60;
@@ -2078,10 +2080,10 @@ class SovereignMK2 extends AdaptiveAI {
       this._postKBArmed = true;
       this._postKBTimer = 60; // extended window: full knockback arc is ~1 sec
       // Edge awareness: hit near edge → immediately ramp corner pressure
-      const hitNearEdge = t.cx() < 130 || t.cx() > GAME_W - 130;
+      const hitNearEdge = t.cx() < this._wbL() + 130 || t.cx() > this._wbR() - 130;
       if (hitNearEdge) {
         this._cornerPressure = Math.min(1, this._cornerPressure + 0.40);
-        this._cornerSide     = t.cx() < GAME_W / 2 ? -1 : 1;
+        this._cornerSide     = t.cx() < this._wbMid() ? -1 : 1;
       }
     }
     if (t) this._postKBLastTgtHp = t.health >= 0 ? t.health : this._postKBLastTgtHp;
@@ -2174,7 +2176,7 @@ class SovereignMK2 extends AdaptiveAI {
       playerShielding: !!t.shielding,
       playerRetreating: t.onGround && Math.abs(t.vx) > 4.5 && Math.sign(t.vx) === -dir,
       playerPassive: !playerAttacking && !t.shielding && Math.abs(t.vx) < 1.3,
-      cornered: t.cx() < 110 || t.cx() > GAME_W - 110,
+      cornered: t.cx() < this._wbL() + 110 || t.cx() > this._wbR() - 110,
       recentTaken,
       context: bmObs.context,
       pressure: this._pressureMode,
@@ -2195,7 +2197,7 @@ class SovereignMK2 extends AdaptiveAI {
       route,
       hpSnap: t ? t.health : Infinity,
       checkFrame: frameCount + 22,
-      cornered: !!(t && (t.cx() < 110 || t.cx() > GAME_W - 110)),
+      cornered: !!(t && (t.cx() < this._wbL() + 110 || t.cx() > this._wbR() - 110)),
       playerShielding: !!(t && t.shielding),
       playerAttacking: !!(t && t.attackTimer > 0),
       distance: typeof d === 'number' ? d : 0,
@@ -2247,10 +2249,11 @@ class SovereignMK2 extends AdaptiveAI {
   // Accumulates corner pressure when the player is near a stage edge.
   // Activates corner mode once pressure reaches threshold.
   _updateCornerPressure(t, d) {
-    const nearLeft  = t.cx() < 130;
-    const nearRight = t.cx() > GAME_W - 130;
+    const _wbl = this._wbL(), _wbw = this._wbR() - _wbl;
+    const nearLeft  = t.cx() < _wbl + 130;
+    const nearRight = t.cx() > _wbl + _wbw - 130;
     const atEdge    = nearLeft || nearRight;
-    const atCenter  = t.cx() > GAME_W * 0.28 && t.cx() < GAME_W * 0.72;
+    const atCenter  = t.cx() > _wbl + _wbw * 0.28 && t.cx() < _wbl + _wbw * 0.72;
 
     if (atEdge && d < 200) {
       // Ramp up faster when we're close and they're against the wall
@@ -2407,11 +2410,11 @@ class SovereignMK2 extends AdaptiveAI {
   // ══════════════════════════════════════════════════════════════
   _runSovereignEscape(t, dir, moveSpd, jumpVy) {
     if (this._sovereignEscapeCd > 0) { this._sovereignEscapeCd--; return false; }
-    const atMyEdge = this.x < 80 || this.x + this.w > GAME_W - 80;
+    const atMyEdge = this.x < this._wbL() + 80 || this.x + this.w > this._wbR() - 80;
     if (!atMyEdge) return false;
     if (!this.onGround && !this.canDoubleJump) return false;
 
-    const escapeDir = this.x < GAME_W / 2 ? 1 : -1; // toward center
+    const escapeDir = this.x < this._aiSafeCenterX() ? 1 : -1; // toward center
 
     if (this.onGround) {
       this.vy = jumpVy - 3; // extra height to clear player
@@ -2538,16 +2541,25 @@ class SovereignMK2 extends AdaptiveAI {
     return true;
   }
 
+  // World-edge helpers (see Fighter._aiWorldBounds): the arena edge, not the 900px screen.
+  _wbL()   { return this._aiWorldBounds().left; }
+  _wbR()   { return this._aiWorldBounds().right; }
+  _wbMid() { const b = this._aiWorldBounds(); return (b.left + b.right) / 2; }
+
   _runVoidRecovery(t, dir, moveSpd, jumpVy) {
     if (this._voidRecoverCd > 0) this._voidRecoverCd--;
 
-    const offLeft   = this.x < -18;
-    const offRight  = this.x + this.w > GAME_W + 18;
+    // World bounds, not GAME_W: in a wide story world every x past 900 read as
+    // off-stage, so he held recovery forever and hovered against the lock wall.
+    const _wb       = this._aiWorldBounds();
+    const _midX     = (_wb.left + _wb.right) / 2;
+    const offLeft   = this.x < _wb.left - 18;
+    const offRight  = this.x + this.w > _wb.right + 18;
     const offBottom = this.y > GAME_H + 28;
     // Only treat low-y as a ledge risk when AIRBORNE — the floor itself can sit
     // below GAME_H-180 in some arenas, which would otherwise trigger a trampoline loop.
     // Threshold is GAME_H-120 (=400) — floor y≈376 and normal jump arcs never reach 400.
-    const nearLedge = this.x < 62 || this.x + this.w > GAME_W - 62 ||
+    const nearLedge = this.x < _wb.left + 62 || this.x + this.w > _wb.right - 62 ||
                       (!this.onGround && this.y > GAME_H - 120);
     const heavyThreat = !!(t && t.weapon && (t.weapon.kb >= 18 || t.weapon.weaponType === 'heavy'));
     // Only treat being near the ledge as void risk if actually moving fast OR just got hit multiple times
@@ -2570,8 +2582,8 @@ class SovereignMK2 extends AdaptiveAI {
     this._humanFakeoutTimer = 0;
     this.shielding = false;
 
-    const centerDir = this.cx() < GAME_W / 2 ? 1 : -1;
-    const retreatDir = (offLeft || (nearLedge && this.cx() < GAME_W / 2)) ? 1 : -1;
+    const centerDir = this.cx() < _midX ? 1 : -1;
+    const retreatDir = (offLeft || (nearLedge && this.cx() < _midX)) ? 1 : -1;
     let   escapeDir = offLeft ? 1 : offRight ? -1 : centerDir;
 
     // ── Recovery boost budget ────────────────────────────────────────────────
@@ -2709,7 +2721,7 @@ class SovereignMK2 extends AdaptiveAI {
     }
 
     // ── Edge-camp detection ────────────────────────────────────
-    const atEdge = t.x < 85 || t.x + t.w > GAME_W - 85;
+    const atEdge = t.x < this._wbL() + 85 || t.x + t.w > this._wbR() - 85;
     ex.edgeFrames = atEdge ? ex.edgeFrames + 1 : Math.max(0, ex.edgeFrames - 2);
     if (ex.edgeRespCd > 0) ex.edgeRespCd--;
 
@@ -2779,7 +2791,7 @@ class SovereignMK2 extends AdaptiveAI {
       if (!this._cornerMode && this._cornerCd <= 0) {
         this._cornerPressure = Math.max(this._cornerPressure, 0.75);
         this._cornerMode = true;
-        this._cornerSide = t.cx() < GAME_W / 2 ? -1 : 1;
+        this._cornerSide = t.cx() < this._wbMid() ? -1 : 1;
       }
       if (d < _atkR * 0.85 && !playerAttacking) {
         // Hold just outside their reach — bait the attack
@@ -3608,7 +3620,7 @@ class SovereignMK2 extends AdaptiveAI {
     // actually about to connect.
     const _canShield = this.shieldCooldown === 0 && this._shieldHoldFrames === 0;
     if (this.onGround) {
-      const _runway = away < 0 ? this.x - 40 : (GAME_W - 40) - (this.x + this.w);
+      const _runway = away < 0 ? this.x - (this._wbL() + 40) : (this._wbR() - 40) - (this.x + this.w);
       if (gap > 95 && _runway > 150 && !this.isEdgeDanger(away)) {
         // Outrun the fan: crescents fly a fixed 8 px/f and expire in ~42 frames.
         this.vx = away * moveSpd * 2.2;
@@ -4093,14 +4105,19 @@ class SovereignMK2 extends AdaptiveAI {
   //     +40% — a self-inflicted punish window. Hold unless the target is helpless
   //     (free damage is worth sluggish recovery; an exchange is not).
   // Decision-layer only: no stats, cooldowns, or damage values are touched.
+  // True while a swing started now would contact inside the target's i-frames.
+  _iframeVeto(t) {
+    return !!t && (t.invincible || 0) > this._meleeContactFrames() + 2 &&
+      !(t._hitIframeBy === this && typeof frameCount !== 'undefined' &&
+        t.invincible <= (t._hitIframeUntil || 0) - frameCount + 1);
+  }
+
   attack(target) {
     const _t = target || this.target;
     if (_t && this.weapon && this.weapon.type === 'melee' && _t.health > 0) {
       const _helpless = this._targetHelpless(_t);
       // i-frame veto — swing would connect inside invincibility
-      if ((_t.invincible || 0) > this._meleeContactFrames() + 2 &&
-          !(_t._hitIframeBy === this && typeof frameCount !== 'undefined' &&
-            _t.invincible <= (_t._hitIframeUntil || 0) - frameCount + 1)) return;
+      if (this._iframeVeto(_t)) return;
       // fresh-shield parry veto (parry only exists on HP shields, stacks 1).
       // Note: dealDamage disables parry based on the ATTACKER's stun, not the
       // target's — a stunned-but-shielding target can still parry us, so no
@@ -4313,7 +4330,7 @@ class SovereignMK2 extends AdaptiveAI {
     if (this._counterLockTimer > 0 || this._preemptMode) return;
 
     const cx = this.cx(), tx = t.cx();
-    const centre = (typeof GAME_W !== 'undefined' ? GAME_W : 900) / 2;
+    const centre = this._wbMid();
     const outward = tx >= centre ? 1 : -1;            // away from stage centre
     // Is the opponent actually near a ledge on that side? Ask the same helper the
     // AI uses on itself rather than guessing at arena geometry — it already
@@ -5857,7 +5874,7 @@ class SovereignMK2 extends AdaptiveAI {
         return true;
       }
       // Shield unavailable (cooldown) — take the hit moving rather than standing.
-      const away = (this.cx() <= GAME_W / 2) ? 1 : -1;
+      const away = (this.cx() <= this._aiSafeCenterX()) ? 1 : -1;
       if (!this.isEdgeDanger(away)) { this.vx = away * moveSpd * 1.6; this._domHazCd = 8; return true; }
     }
     return false;
@@ -6028,7 +6045,7 @@ class SovereignMK2 extends AdaptiveAI {
     }
     for (const z of zones) {
       if (Math.hypot(z.x - cx, z.y - cy) >= z.r) continue;
-      let outDir = Math.sign(cx - z.x) || (cx < GAME_W / 2 ? 1 : -1);
+      let outDir = Math.sign(cx - z.x) || (cx < this._aiSafeCenterX() ? 1 : -1);
       if (this.isEdgeDanger(outDir)) outDir = -outDir;
       if (this.isEdgeDanger(outDir)) return false;
       this.vx = outDir * moveSpd * 1.85;
@@ -6394,7 +6411,7 @@ class SovereignMK2 extends AdaptiveAI {
       if (it.type.indexOf('curse_') !== 0) continue;
       const dx = cx - it.x, dy = cy - it.y;
       if (Math.hypot(dx, dy) > RING) continue;
-      const out = Math.sign(dx) || (cx < GAME_W / 2 ? 1 : -1);
+      const out = Math.sign(dx) || (cx < this._aiSafeCenterX() ? 1 : -1);
       if (this.isEdgeDanger(out)) continue;
       // Push out only as hard as needed to clear the ring, so he keeps fighting.
       this.vx = out * Math.max(Math.abs(this.vx), (moveSpd || 5) * 0.75);
@@ -7264,7 +7281,7 @@ class SovereignMK2 extends AdaptiveAI {
         this._spawnDefendJumped = true;
         const _awayDir   = this.cx() < t.cx() ? -1 : 1;
         // Fallback toward CENTER, not toward player — prevents spawn-jumping into own edge
-        const _centerDir = this.cx() < GAME_W / 2 ? 1 : -1;
+        const _centerDir = this.cx() < this._aiSafeCenterX() ? 1 : -1;
         // On an elevated platform, jumping launches Sovereign above the arena into
         // hazard/projectile range — drop-step toward center instead of jumping.
         const _floorPl   = (typeof currentArena !== 'undefined' && currentArena && currentArena.platforms)
@@ -7808,15 +7825,30 @@ class SovereignMK2 extends AdaptiveAI {
     // ── Danger: lava ──────────────────────────────────────────
     if (currentArena && currentArena.hasLava && currentArena.lavaY) {
       if ((currentArena.lavaY - (this.y + this.h)) < 80 && this.onGround) {
-        this.vx = this.cx() < GAME_W / 2 ? 6 : -6;
+        // Flee toward the nearest deck that sits clear of the lava, not toward
+        // screen-centre (GAME_W/2 = x450 sent him back across a 2700px lava map
+        // from anywhere past the first screen, off ledges and into the pit).
+        let _lvDir = 0, _lvBest = Infinity;
+        const _lvCx = this.cx(), _lvTop = currentArena.lavaY - 100;
+        for (const pl of (currentArena.platforms || [])) {
+          if (!pl || pl.isFloorDisabled || pl.w < 50 || pl.y >= _lvTop) continue;
+          const _gap = _lvCx < pl.x ? pl.x - _lvCx : _lvCx > pl.x + pl.w ? _lvCx - (pl.x + pl.w) : 0;
+          if (_gap < _lvBest) {
+            _lvBest = _gap;
+            // directly under a deck: step out to its nearer edge, then rise
+            _lvDir = _lvCx < pl.x ? 1 : _lvCx > pl.x + pl.w ? -1 : (_lvCx - pl.x < pl.x + pl.w - _lvCx ? -1 : 1);
+          }
+        }
+        if (_lvBest === Infinity) _lvDir = _lvCx < this._aiSafeCenterX() ? 1 : -1;
+        this.vx = _lvDir * 6;
         this.vy = -18;
         this._commit('danger_lava_air');
         return;
       }
     }
 
-    const nearLeft  = this.x < 50;
-    const nearRight = this.x + this.w > GAME_W - 50;
+    const nearLeft  = this.x < this._wbL() + 50;
+    const nearRight = this.x + this.w > this._wbR() - 50;
 
     // Arena-aware jump force — prevents over/under-jumping in low/heavy gravity arenas
     const _jumpVy = (() => {
@@ -7884,7 +7916,7 @@ class SovereignMK2 extends AdaptiveAI {
           // center. Fighting near the floor edge is what converts a capped-KB
           // launch into a ring-out while ragdolled (the one remaining death mode).
           const _soCornered = (nearLeft && dir > 0) || (nearRight && dir < 0) ||
-                              this.x < 90 || this.x + this.w > GAME_W - 90;
+                              this.x < this._wbL() + 90 || this.x + this.w > this._wbR() - 90;
           const _soDir = (nearLeft && dir < 0) ? 1 : (nearRight && dir > 0) ? -1 : -dir;
           if (_soCornered && d < (this._volleyStandoffR || 185) * 0.8 &&
               this.shieldCooldown === 0 && this._shieldHoldFrames === 0) {
@@ -7893,7 +7925,7 @@ class SovereignMK2 extends AdaptiveAI {
             // airborne within 150px still eats it). Shield through the burst.
             this.shielding = true; this.shieldCooldown = 60; this._shieldHoldFrames = 14;
           } else if (_soCornered && this.onGround && !playerAttacking) {
-            const _cDir = this.cx() < GAME_W / 2 ? 1 : -1;
+            const _cDir = this.cx() < this._aiSafeCenterX() ? 1 : -1;
             this.vy = _jumpVy; this.vx = _cDir * moveSpd * 1.6; // leap to center ground
           } else if (!this.isEdgeDanger(_soDir)) {
             this.vx = _soDir * moveSpd * 1.5;
@@ -7906,8 +7938,8 @@ class SovereignMK2 extends AdaptiveAI {
           return;
         }
         // At range while armed: drift centerward, never parked on a floor edge.
-        if (this.x < 120 || this.x + this.w > GAME_W - 120) {
-          const _cDir = this.cx() < GAME_W / 2 ? 1 : -1;
+        if (this.x < this._wbL() + 120 || this.x + this.w > this._wbR() - 120) {
+          const _cDir = this.cx() < this._aiSafeCenterX() ? 1 : -1;
           if (!this.isEdgeDanger(_cDir)) this.vx = _cDir * moveSpd * 0.9;
         } else this.vx *= 0.7;
         this.aiReact = 0;
@@ -8376,6 +8408,23 @@ class SovereignMK2 extends AdaptiveAI {
       }
       this.aiReact = 0;
       this._commit('spawn_standoff');
+      return;
+    }
+
+    // ── I-FRAME SPACING — the swing is vetoed in attack(), so use the wait ────
+    // Below the standoff threshold (40) the veto still blocks every swing until
+    // the target's i-frames fall to the weapon's contact frame, and nothing else
+    // was chosen: he stood in range doing nothing (~38% of in-range frames when
+    // the target had i-frames). Work the spacing instead: ease to ~70% of reach
+    // so the swing that unlocks the moment they turn vulnerable starts from the
+    // right distance. attack() still vetoes — he never swings through i-frames.
+    // Skipped while they are attacking so the defensive tiers below still run.
+    if (this._iframeVeto(t) && d < weaponRange + 40 && !playerAttacking) {
+      const _sp = weaponRange * 0.7;
+      if (d > _sp + 8) { if (!this.isEdgeDanger(dir)) this.vx = dir * moveSpd * 0.5; }
+      else if (d < _sp - 8) { if (!this.isEdgeDanger(-dir)) this.vx = -dir * moveSpd * 0.5; }
+      this.aiReact = 0;
+      this._commit('iframe_spacing');
       return;
     }
 

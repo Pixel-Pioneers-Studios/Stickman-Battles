@@ -24,16 +24,16 @@
   <meta property="og:url" content="https://stickman-battles.onrender.com/">
   <meta property="og:title" content="Stickman Evolution: The 95th — Free Browser Action Fighter">
   <meta property="og:description" content="Ten classes, sixteen weapons, eighteen arenas and a 184-chapter story. Play free in your browser — no download, no sign-up.">
-  <meta property="og:image" content="https://stickman-battles.onrender.com/images/og-cover.jpg">
+  <meta property="og:image" content="https://stickman-battles.onrender.com/images/og-cover.jpg?v=2">
   <meta property="og:image:type" content="image/jpeg">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
-  <meta property="og:image:alt" content="A lone stickman with a glowing blue sword faces a towering reality-warping figure.">
+  <meta property="og:image:alt" content="A glowing blue stickman with a sword looks up at four figures on distant mountain peaks while a war rages in the valley below.">
 
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="Stickman Evolution: The 95th — Free Browser Action Fighter">
   <meta name="twitter:description" content="Ten classes, sixteen weapons, eighteen arenas and a 184-chapter story. Play free in your browser — no download, no sign-up.">
-  <meta name="twitter:image" content="https://stickman-battles.onrender.com/images/og-cover.jpg">
+  <meta name="twitter:image" content="https://stickman-battles.onrender.com/images/og-cover.jpg?v=2">
 
   <script type="application/ld+json">
   {
@@ -42,7 +42,7 @@
     "name": "Stickman Evolution: The 95th",
     "alternateName": "Stickman Evolution",
     "url": "https://stickman-battles.onrender.com/",
-    "image": "https://stickman-battles.onrender.com/images/og-cover.jpg",
+    "image": "https://stickman-battles.onrender.com/images/og-cover.jpg?v=2",
     "description": "A fast, brutal stickman action fighter you can play free in your browser. 10 classes, 16 weapons, 18 arenas and a 184-chapter story. No download, no sign-up.",
     "genre": ["Action", "Fighting", "Browser Game"],
     "gamePlatform": ["Web Browser", "PC"],
@@ -341,6 +341,7 @@
     <div class="nexus-panel" id="refightPanel" style="display:none">
       <button class="nexus-back" onclick="closeRefight()">&#8592; Back</button>
       <p style="font-size:0.72rem;color:var(--ui-faint);letter-spacing:0.5px;margin:0 0 10px;text-align:left;">Beat each encounter in Story Mode to unlock it here.</p>
+      <div id="refightEmpty" style="font-size:0.85rem;color:var(--ui-faint);padding:28px 0;text-align:center;">Nothing to refight yet. Keep going.</div>
       <div class="nexus-grid">
         <div class="path-card path-boss-fight" id="refight-creator">
           <div class="path-card-icon"><svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-flame"/></svg></div>
@@ -1714,7 +1715,7 @@
   <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
   <!-- Error boundary — must be FIRST so it catches all other module errors -->
   <!-- Host allowlist — must be the first game script -->
-  <script src="./js/smb-sitelock.js?v=4.3.8"></script>
+  <script src="./js/smb-sitelock.js?v=4.9.48"></script>
   <script src="./js/smb-errorboundary.js?v=4.3.8"></script>
   <!-- Global state, canvas setup -->
   <script src="./js/smb-icons.js?v=4.7.1"></script>
@@ -1745,7 +1746,7 @@
   <script src="./js/smb-data-weapons.js?v=4.9.37"></script>
   <script src="./js/smb-map-analyzer.js?v=4.3.8"></script>
   <!-- Combat pipeline, particles, heatmap, ragdoll (split from smb-particles.js) -->
-  <script src="./js/smb-combat.js?v=4.9.28"></script>
+  <script src="./js/smb-combat.js?v=4.9.48"></script>
   <script src="./js/smb-particles-core.js?v=4.9.28"></script>
   <script src="./js/smb-destruction.js?v=4.3.8"></script>
   <script src="./js/smb-world-react.js?v=4.9.10"></script>
@@ -1754,7 +1755,7 @@
   <!-- Animation substrate + death animation (docs/animation-quality-plan.md) -->
   <script src="./js/smb-anim-core.js?v=4.3.8"></script>
   <script src="./js/smb-anim-fighter.js?v=4.8.2"></script>
-  <script src="./js/smb-figure-skin.js?v=4.9.4"></script>
+  <script src="./js/smb-figure-skin.js?v=4.9.48"></script>
   <script src="./js/smb-cin-figure.js?v=4.3.8"></script>
   <script src="./js/smb-cin-perf.js?v=4.3.8"></script>
   <script src="./js/smb-transition.js?v=4.3.8"></script>
@@ -1783,9 +1784,9 @@
   <!-- Fragment weapon manifestation + sprint escalation (must load before smb-fighter.js) -->
   <script src="./js/smb-fragment-manifest.js?v=4.3.9"></script>
   <!-- Fighter base class -->
-  <script src="./js/smb-fighter.js?v=4.9.37"></script>
+  <script src="./js/smb-fighter.js?v=4.9.48"></script>
   <!-- Bomb / Fragment / Knives / Glass Blade / Anchor / Crossbow runtime (must follow smb-fighter.js) -->
-  <script src="./js/smb-weapons-ext.js?v=4.9.37"></script>
+  <script src="./js/smb-weapons-ext.js?v=4.9.48"></script>
   <!-- Abilities and supers as scripted, uninterruptible move scenes (must follow smb-weapons-ext.js) -->
   <script src="./js/smb-move-scenes.js?v=4.9.24"></script>
   <script src="./js/smb-move-scenes-defs.js?v=4.9.28"></script>
@@ -1801,12 +1802,12 @@
   <script src="./js/smb-enemies-training.js?v=4.8.9"></script>
   <script src="./js/smb-enemies-class.js?v=4.8.9"></script>
   <!-- God entity and encounter system -->
-  <script src="./js/smb-god.js?v=4.9.21"></script>
+  <script src="./js/smb-god.js?v=4.9.48"></script>
   <script src="./js/smb-god-cinematics.js?v=4.9.21"></script>
   <!-- Divine Summon: H key calls a Herald to clear the level -->
   <script src="./js/smb-divine-summon.js?v=4.9.1"></script>
   <!-- Domain Expansion system -->
-  <script src="./js/smb-domain.js?v=4.9.23"></script>
+  <script src="./js/smb-domain.js?v=4.9.48"></script>
   <!-- Boss and True Form -->
   <script src="./js/boss/smb-boss.js?v=4.3.8"></script>
   <script src="./js/boss/smb-boss-cinematics.js?v=4.9.16"></script>
@@ -1846,19 +1847,20 @@
   <script src="./js/smb-sov-combo.js?v=4.6.2"></script>
   <script src="./js/smb-sov-telemetry.js?v=4.3.9"></script>
   <script src="./js/smb-sov-artifact.js?v=4.3.9"></script>
-  <script src="./js/smb-smk2-class.js?v=4.9.13"></script>
+  <script src="./js/smb-smk2-class.js?v=4.9.48"></script>
   <script src="./js/smb-smk2-training.js?v=4.8.9"></script>
   <script src="./js/smb-sov-scenarios.js?v=4.4.6"></script>
   <script src="./js/smb-brain.js?v=4.9.33"></script>
   <script src="./js/smb-brain-read.js?v=4.9.33"></script>
-  <script src="./js/smb-absolute-axiom.js?v=4.9.21"></script>
+  <script src="./js/smb-absolute-axiom.js?v=4.9.48"></script>
+  <script src="./js/smb-axiom-multiverse.js?v=4.9.48"></script>
   <!-- TrueForm ending cinematic -->
   <script src="./js/smb-trueform-ending-data.js?v=4.8.9"></script>
   <script src="./js/smb-trueform-ending-update.js?v=4.7.1"></script>
   <script src="./js/smb-trueform-ending-draw.js?v=4.3.8"></script>
   <!-- Drawing, game state, HUD, visual effects -->
-  <script src="./js/rendering/smb-drawing-arenas.js?v=4.9.37"></script>
-  <script src="./js/rendering/smb-drawing-bg.js?v=4.9.22"></script>
+  <script src="./js/rendering/smb-drawing-arenas.js?v=4.9.48"></script>
+  <script src="./js/rendering/smb-drawing-bg.js?v=4.9.48"></script>
   <script src="./js/rendering/smb-drawing-effects.js?v=4.8.9"></script>
   <script src="./js/rendering/smb-drawing-scenes.js?v=4.7.1"></script>
   <script src="./js/rendering/smb-drawing-hud.js?v=4.9.3"></script>
@@ -1866,7 +1868,7 @@
   <script src="./js/rendering/smb-drawing-arenas3.js?v=4.3.8"></script>
   <script src="./js/rendering/smb-drawing-arenas4.js?v=4.4.2"></script>
   <!-- Minigame systems -->
-  <script src="./js/smb-minigames.js?v=4.8.0"></script>
+  <script src="./js/smb-minigames.js?v=4.9.48"></script>
   <script src="./js/smb-sports.js?v=4.9.7"></script>
   <script src="./js/smb-trials.js?v=4.3.8"></script>
   <script src="./js/smb-battleroyale.js?v=4.9.37"></script>
@@ -1884,27 +1886,27 @@
   <script src="./js/smb-camera.js?v=4.9.3"></script>
   <script src="./js/smb-camera-trace.js?v=4.3.8"></script>
   <script src="./js/smb-screenfx.js?v=4.3.8"></script>
-  <script src="./js/smb-loop-core.js?v=4.9.25"></script>
+  <script src="./js/smb-loop-core.js?v=4.9.48"></script>
   <script src="./js/smb-input.js?v=4.9.37"></script>
   <script src="./js/smb-cheats.js?v=4.9.16"></script>
   <!-- Menu UI, startGame, tutorial -->
-  <script src="./js/smb-menu-ui.js?v=4.9.25"></script>
-  <script src="./js/smb-menu-select.js?v=4.9.3"></script>
+  <script src="./js/smb-menu-ui.js?v=4.9.48"></script>
+  <script src="./js/smb-menu-select.js?v=4.9.48"></script>
   <script src="./js/smb-menu-config.js?v=4.9.25"></script>
   <script src="./js/smb-loadscreen.js?v=4.6.0"></script>
   <script src="./js/smb-menu-spawn.js?v=4.9.29"></script>
-  <script src="./js/smb-menu-startcore.js?v=4.9.29"></script>
-  <script src="./js/smb-menu-utils.js?v=4.9.35"></script>
+  <script src="./js/smb-menu-startcore.js?v=4.9.48"></script>
+  <script src="./js/smb-menu-utils.js?v=4.9.48"></script>
   <!-- Network / online multiplayer -->
-  <script src="./js/smb-network.js?v=4.9.1"></script>
+  <script src="./js/smb-network.js?v=4.9.48"></script>
   <!-- Centralized runtime state (accounts, admin overrides, online session) -->
   <!-- Must load before smb-online.js, smb-accounts.js, and smb-admin.js -->
   <script src="./js/smb-state.js?v=4.3.8"></script>
   <!-- Supabase auth + cloud save bridge -->
-  <script src="./js/smb-supabase.js?v=4.3.8"></script>
+  <script src="./js/smb-supabase.js?v=4.9.48"></script>
   <!-- Lobby presence layer — wraps NetworkManager with lobby API + UI -->
   <script src="./js/smb-online.js?v=4.9.1"></script>
-  <script src="./js/smb-public-hub.js?v=4.9.9"></script>
+  <script src="./js/smb-public-hub.js?v=4.9.48"></script>
   <!-- Developer debug toolkit (loaded last so all systems exist) -->
   <script src="./js/smb-debug-overlay.js?v=4.3.8"></script>
   <script src="./js/smb-debug-console.js?v=4.9.33"></script>
@@ -1914,11 +1916,11 @@
   <!-- Account system — must load before smb-save.js so getSaveKey() works -->
   <script src="./js/smb-accounts.js?v=4.3.8"></script>
   <!-- Save / Export / Import system -->
-  <script src="./js/smb-save.js?v=4.9.2"></script>
+  <script src="./js/smb-save.js?v=4.9.48"></script>
   <!-- Admin control panel — F9 to toggle; only visible for accounts in ADMIN_IDS -->
-  <script src="./js/smb-admin-core.js?v=4.4.1"></script>
+  <script src="./js/smb-admin-core.js?v=4.9.48"></script>
   <script src="./js/smb-admin-panels.js?v=4.3.8"></script>
-  <script src="./js/smb-sovereign-control.js?v=4.3.8"></script>
+  <script src="./js/smb-sovereign-control.js?v=4.9.48"></script>
   <!-- Comprehensive live-service admin dashboard — F10 to toggle -->
   <script src="./js/smb-admin-liveops-panel.js?v=4.9.16"></script>
   <!-- Attack Test Sandbox — dev tool (type "atk help" in the game console) -->
@@ -1936,7 +1938,7 @@
   <script src="./js/story/acts/act2/smb-act2-arc1.js?v=4.3.8"></script>
   <script src="./js/story/acts/act2/smb-act2-arc2.js?v=4.9.23"></script>
   <script src="./js/story/acts/act2/smb-act2-arc3.js?v=4.3.8"></script>
-  <script src="./js/story/acts/act3/smb-act3-arc1.js?v=4.9.24"></script>
+  <script src="./js/story/acts/act3/smb-act3-arc1.js?v=4.9.48"></script>
   <script src="./js/story/acts/act3/smb-act3-arc2.js?v=4.9.24"></script>
   <script src="./js/story/acts/side/smb-lab-infiltration.js?v=4.3.8"></script>
   <script src="./js/story/acts/side/smb-calix-discovery.js?v=4.3.8"></script>
@@ -1966,9 +1968,9 @@
   <script src="./js/story/acts/actvoidmind/smb-voidmind-trial.js?v=4.9.16"></script>
   <script src="./js/story/acts/actvoidmind/smb-voidmind-after.js?v=4.3.8"></script>
   <script src="./js/story/acts/actvoidmind/smb-voidmind-fight.js?v=4.3.8"></script>
-  <script src="./js/story/smb-story-config.js?v=4.9.25"></script>
+  <script src="./js/story/smb-story-config.js?v=4.9.48"></script>
   <script src="./js/story/smb-story-engine-data.js?v=4.3.8"></script>
-  <script src="./js/story/smb-story-engine-ui.js?v=4.9.26"></script>
+  <script src="./js/story/smb-story-engine-ui.js?v=4.9.48"></script>
   <script src="./js/story/smb-story-prologue-tuesday.js?v=4.3.8"></script>
   <script src="./js/smb-story-scenes.js?v=4.3.8"></script>
   <!-- Per-act scene specs (split out of smb-story-scenes.js). Order among these
@@ -2042,7 +2044,7 @@
   <script src="./js/story/levels/ch49.js?v=4.9.23"></script>
   <script src="./js/story/levels/ch50.js?v=4.9.24"></script>
   <script src="./js/story/levels/ch52.js?v=4.9.24"></script>
-  <script src="./js/story/levels/ch54.js?v=4.9.24"></script>
+  <script src="./js/story/levels/ch54.js?v=4.9.48"></script>
   <script src="./js/story/levels/ch55.js?v=4.9.24"></script>
   <script src="./js/story/levels/ch56.js?v=4.9.24"></script>
   <script src="./js/story/levels/ch57.js?v=4.9.24"></script>
@@ -2131,16 +2133,16 @@
   <script src="./js/story/levels/ch168.js?v=4.9.33"></script>
   <script src="./js/story/levels/ch181.js?v=4.9.34"></script>
   <script src="./js/story/levels/ch184.js?v=4.9.34"></script>
-  <script src="./js/story/smb-story-engine-explore.js?v=4.9.35"></script>
+  <script src="./js/story/smb-story-engine-explore.js?v=4.9.48"></script>
   <script src="./js/story/smb-story-engine-explore2.js?v=4.9.24"></script>
   <script src="./js/story/smb-story-interlude.js?v=4.3.8"></script>
   <script src="./js/story/smb-story-engine-modes.js?v=4.9.22"></script>
-  <script src="./js/story/smb-story-finalize.js?v=4.9.16"></script>
-  <script src="./js/story/smb-story-map.js?v=4.9.6"></script>
+  <script src="./js/story/smb-story-finalize.js?v=4.9.48"></script>
+  <script src="./js/story/smb-story-map.js?v=4.9.48"></script>
   <script src="./js/story/smb-saga-structure.js?v=4.3.8"></script>
   <script src="./js/smb-story-cinematic-sequence.js?v=4.3.8"></script>
   <!-- Escort chapter engine — NPC protection, wave spawning, story integration -->
-  <script src="./js/smb-escort.js?v=4.3.8"></script>
+  <script src="./js/smb-escort.js?v=4.9.48"></script>
   <!-- Ship & Fracture Progression (lore: Axiom, the war, branch rulers, True Form) -->
   <script src="./js/smb-progression.js?v=4.9.16"></script>
   <!-- Multiverse Progression System -->

@@ -301,6 +301,13 @@ const SupabaseBridge = (() => {
     return ts || 0;
   }
 
+  // Reset epoch: a cloud snapshot stamped meta.resetAt beats any local/remote data last saved before it.
+  let _resetAt = 0;
+  function _resetAtOf(save) {
+    const r = save && save.meta && typeof save.meta.resetAt === 'number' ? save.meta.resetAt : 0;
+    return r > 0 ? r : 0;
+  }
+
   function _runtimeSave() {
     if (typeof window._gatherSaveData === 'function') return window._gatherSaveData();
     if (typeof window.GameState !== 'undefined' && typeof window.saveGame === 'function') {
@@ -527,6 +534,7 @@ const SupabaseBridge = (() => {
     data.meta = data.meta || {};
     if (typeof data.meta.updatedAt !== 'number' || !data.meta.updatedAt) data.meta.updatedAt = Date.now();
     data.meta.source = 'cloud';
+    if (_resetAt > 0 && !(data.meta.resetAt > _resetAt)) data.meta.resetAt = _resetAt;
     return {
       user_id: _user.id,
       save_version: data.version || 3,
@@ -811,14 +819,19 @@ const SupabaseBridge = (() => {
     const localScore = _saveMeaningfulScore(local);
     const remoteScore = _saveMeaningfulScore(remote && remote.save_data ? remote.save_data : null);
     const hasRemote = !!(remote && remote.save_data);
+    const remoteResetAt = hasRemote ? _resetAtOf(remote.save_data) : 0;
+    if (remoteResetAt > _resetAt) _resetAt = remoteResetAt;
+    // Local data last saved before the cloud reset is stale: the reset wins, no merge.
+    const staleLocal = !!(local && remoteResetAt > 0 && localTs < remoteResetAt && _resetAtOf(local) < remoteResetAt);
     const chooseRemote = hasRemote && (
+      staleLocal ||
       (!local && remoteScore > 0) ||
       (remoteScore > 0 && localScore === 0) ||
       (remoteScore > 0 && localScore > 0 && remoteTs >= localTs)
     );
 
     if (chooseRemote) {
-      const merged = local ? _mergeSaveData(remote.save_data, local) : _cloneSave(remote.save_data);
+      const merged = (local && !staleLocal) ? _mergeSaveData(remote.save_data, local) : _cloneSave(remote.save_data);
       if (merged && typeof window._applySaveData === 'function') window._applySaveData(merged);
       if (merged && typeof window._refreshRuntimeFromSave === 'function') window._refreshRuntimeFromSave(merged);
       if (typeof window.GameState !== 'undefined' && typeof saveGame === 'function') {
@@ -841,6 +854,19 @@ const SupabaseBridge = (() => {
     }
 
     return { skipped: true, reason: 'no-local-save' };
+  }
+
+  // Overwrite the cloud snapshot with an empty save stamped resetAt so the next sync cannot restore old progress.
+  async function pushReset() {
+    if (!isAvailable()) return { skipped: true, reason: 'unavailable' };
+    await ensureReady();
+    if (!_session || !_user) return { skipped: true, reason: 'signed_out' };
+    const client = await getClient();
+    const now = Date.now();
+    _resetAt = now;
+    const res = await client.from('player_save_snapshots').upsert(_buildSnapshotRow({ version: 3, meta: { updatedAt: now, resetAt: now } }));
+    if (res.error) throw res.error;
+    return { ok: true, resetAt: now };
   }
 
   function queueSyncFromRuntime(saveOverride) {
@@ -924,6 +950,7 @@ const SupabaseBridge = (() => {
     signUpWithUsername,
     fetchRemoteSave,
     reconcileActiveSave,
+    pushReset,
     queueSyncFromRuntime,
     suppressNextSync,
     clearSuppressNextSync,

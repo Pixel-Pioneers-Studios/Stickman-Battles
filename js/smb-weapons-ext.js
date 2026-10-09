@@ -618,7 +618,7 @@ function wxIsFragmentUnlocked() {
   if (typeof _story2 !== 'undefined' && _story2 && Array.isArray(_story2.defeated) &&
       typeof STORY_CHAPTERS2 !== 'undefined') {
     for (const id of _story2.defeated) {
-      const ch = STORY_CHAPTERS2[id];
+      const ch = STORY_CHAPTERS2.find(c => c && c.id === id) || STORY_CHAPTERS2[id];
       if (ch && ch.unlocksFragment) return true;
     }
   }

@@ -3478,6 +3478,13 @@ function checkDeaths() {
   }
 }
 
+function _feedName(e) {
+  const n = e && (e.name || e.displayName || e.label);
+  if (n && n !== '?') return String(n);
+  const t = e && (e.charClass || e.enemyType || e.type || (e.constructor && e.constructor.name));
+  return t && t !== 'Object' ? String(t).replace(/[_-]+/g, ' ').toUpperCase() : 'ENEMY';
+}
+
 function addKillFeed(loser) {
   // Credit whoever landed the last hit. Story enemies live in minions[], so
   // "the other entry in players[]" found nobody there and printed "?".
@@ -3488,7 +3495,9 @@ function addKillFeed(loser) {
   const feed = document.getElementById('killFeed');
   const msg  = document.createElement('div');
   msg.className   = 'kill-msg';
-  msg.textContent = killer ? `${killer.name} KO'd ${loser.name}!` : `${loser.name} was KO'd!`;
+  // Unnamed attackers (story enemies, creatures) fall back to display name / type / class.
+  const _kn = killer ? _feedName(killer) : '';
+  msg.textContent = killer ? `${_kn} KO'd ${_feedName(loser)}!` : `${_feedName(loser)} was KO'd!`;
   msg.style.color = killer ? killer.color : '#fff';
   feed.prepend(msg);
   setTimeout(() => msg.remove(), 3200);
@@ -3529,7 +3538,12 @@ function endGame() {
   const bossEntity   = players.find(p => p.isBoss);
   const bossDefeated = isBossModeEnd && bossEntity && bossEntity.health <= 0;
   // In two-enemy story mode, multiple bots may still be alive — the winner is the surviving human
-  const _aliveHuman = alive.find(p => !p.isAI && !p.isBoss);
+  // F7 possession flips the human's fighter to isAI=true while the human still owns the slot,
+  // so "human" must mean human-OWNED, not !isAI (otherwise a possessed win scores as a loss).
+  const _isHumanOwned = p => !!p && (!p.isAI || (typeof SovereignControl !== 'undefined' && SovereignControl.active && SovereignControl._host === p));
+  const _aliveHuman = alive.find(p => _isHumanOwned(p) && !p.isBoss);
+  // God fight lives in minions[], so when every human is out, God (not a DRAW) took the match.
+  const _godFoe = (gameMode === 'god' && Array.isArray(minions)) ? minions.find(m => m && m.isGod && m.health > 0) : null;
   // Story ally in match: the ally surviving alongside the player must not block the win check
   const _allyInMatch = players.some(p => p.isStoryAlly);
   // If nobody is alive and it's not a boss fight, use first-death tracking to pick a winner.
@@ -3552,6 +3566,7 @@ function endGame() {
                : ((storyTwoEnemies || _allyInMatch) && _aliveHuman) ? _aliveHuman
                : alive.length === 1                        ? alive[0]
                : (alive.length === 0 && isBossModeEnd)     ? bossEntity
+               : (alive.length === 0 && _godFoe)           ? _godFoe
                : _tiebreakWinner                           ? _tiebreakWinner
                : null;
 
@@ -3709,7 +3724,7 @@ function endGame() {
   document.getElementById('gameOverOverlay').style.display = 'flex';
   // Boss Rush gauntlet: show "Next Boss" button when player wins
   if (typeof _updateBossRushNextBtn === 'function') {
-    const _playerWon = bossDefeated || !!(winner && !winner.isAI && !winner.isBoss);
+    const _playerWon = bossDefeated || !!(winner && _isHumanOwned(winner) && !winner.isBoss);
     _updateBossRushNextBtn(_playerWon);
   }
 
@@ -3718,13 +3733,13 @@ function endGame() {
     const isBossModeEnd2 = gameMode === 'boss' || gameMode === 'trueform';
     const playerWon = isBossModeEnd2
       ? bossDefeated
-      : !!(winner && !winner.isAI);
+      : !!(winner && _isHumanOwned(winner) && !winner.isBoss && !winner.isGod);
     storyOnMatchEnd(playerWon);
   }
 
   // Multiverse mode: report result so EncounterManager can advance
   if (gameMode === 'multiverse' && typeof multiverseOnMatchEnd === 'function') {
-    const playerWon = !!(winner && !winner.isAI);
+    const playerWon = !!(winner && _isHumanOwned(winner));
     multiverseOnMatchEnd(playerWon);
   }
 
@@ -4044,7 +4059,10 @@ function updateHUD() {
   const hudP2   = _trainingTarget !== null
     ? _trainingTarget
     : ((gameMode === 'boss' && bossPlayerCount === 2) ? nonBoss[1] : (boss || nonBoss[1]));
-  const hudPlayers = [hudP1, hudP2];
+  // Online guest: players[1] is the local fighter, so swap the panels to keep
+  // "P1" on the left meaning "me" on both clients.
+  const _hudSwap = onlineMode && !boss && hudP1 && hudP1.isRemote && hudP2 && !hudP2.isRemote;
+  const hudPlayers = _hudSwap ? [hudP2, hudP1] : [hudP1, hudP2];
 
   // Hide the p2 HUD panel whenever there is no second entity to display.
   // Story mode also hides it: those levels are one continuous map with several
@@ -4098,7 +4116,10 @@ function updateHUD() {
         _hudSet(lEl, 'html', full + empty);
       }
     }
-    if (nEl) _hudSet(nEl, 'color', _readableNameColor(p.color));
+    if (nEl) {
+      _hudSet(nEl, 'color', _readableNameColor(p.color));
+      if (_hudSwap && nEl.textContent !== p.name) nEl.textContent = p.name;
+    }
     const superTrack = sEl && sEl.parentElement;
     if (superTrack) _hudSet(superTrack, 'display', (storyModeActive && p._storyNoSuper) ? 'none' : '');
     if (sEl) {
@@ -4210,6 +4231,8 @@ function drawEntityOverlays(scX, scY, camX, camY) {
 
   for (const ent of all) {
     if (ent.backstageHiding) continue;
+    // God draws its own scaled purple/gold bar (God.draw); skip the default one so there aren't two.
+    if (ent.isGod && (ent._phase === 2 || ent._consoleSummoned)) continue;
     // Trial of Sense: a floating nameplate over an invisible body is a marker,
     // and a marker is the wallhack the reveal sweep exists to not be.
     if (ent._trialInvisible && ent.health > 0) continue;
@@ -4705,14 +4728,6 @@ function _drawPlayerPreview(pid, frame) {
   pc.scale(0.8, 0.8);
   pc.translate(-cx, -(baseY + 14));
 
-  pc.strokeStyle = color;
-  pc.fillStyle   = color;
-  pc.lineWidth   = 3.5;
-  pc.lineCap     = 'round';
-  pc.lineJoin    = 'round';
-  pc.shadowColor = auraColor;
-  pc.shadowBlur  = 8;
-
   const headR    = 10;
   const headCY   = baseY - 48;
   const neckY    = headCY + headR + 1;
@@ -4731,54 +4746,43 @@ function _drawPlayerPreview(pid, frame) {
   const lEx   = cx + Math.cos(lAng) * armLen;
   const lEy   = shouldY + Math.sin(lAng) * armLen;
 
-  // Head
-  pc.beginPath();
-  pc.arc(cx, headCY, headR, 0, Math.PI * 2);
-  pc.fill();
-
-  // Eyes
-  pc.fillStyle = '#fff';
-  pc.beginPath();
-  pc.arc(cx + 4, headCY - 2, 2.8, 0, Math.PI * 2);
-  pc.fill();
-  pc.fillStyle = '#111';
-  pc.beginPath();
-  pc.arc(cx + 5, headCY - 2, 1.5, 0, Math.PI * 2);
-  pc.fill();
-
-  // Smile
-  pc.strokeStyle = 'rgba(0,0,0,0.5)';
-  pc.lineWidth   = 1.4;
-  pc.beginPath();
-  pc.arc(cx + 4, headCY + 3, 3, 0, Math.PI, true);
-  pc.stroke();
-
-  // Reset stroke for body/limbs
-  pc.strokeStyle = color;
-  pc.lineWidth   = 3.5;
-
-  // Body
-  pc.beginPath();
-  pc.moveTo(cx, neckY);
-  pc.lineTo(cx, hipY);
-  pc.stroke();
-
-  // Arms (2-segment with elbows)
+  // Same model as in a match: FigureSkin geometry and paint (black body, outline
+  // in the fighter's colour, dark eyes), so the preview matches the fighter.
   const _lj = (ax, ay, bx, by, ox, oy) => [(ax+bx)*0.5 + ox, (ay+by)*0.5 + oy];
   const [rElbX, rElbY] = _lj(cx, shouldY, rEx, rEy, 4, -2);
   const [lElbX, lElbY] = _lj(cx, shouldY, lEx, lEy, 4, -2);
-  pc.beginPath(); pc.moveTo(cx, shouldY); pc.lineTo(rElbX, rElbY); pc.lineTo(rEx, rEy); pc.stroke();
-  pc.beginPath(); pc.moveTo(cx, shouldY); pc.lineTo(lElbX, lElbY); pc.lineTo(lEx, lEy); pc.stroke();
-
-  // Legs
   const rFootX = cx + Math.cos(Math.PI * 0.62) * legLen;
   const rFootY = hipY + Math.sin(Math.PI * 0.62) * legLen;
   const lFootX = cx + Math.cos(Math.PI * 0.38) * legLen;
   const lFootY = hipY + Math.sin(Math.PI * 0.38) * legLen;
   const [rKnX, rKnY] = _lj(cx, hipY, rFootX, rFootY, 4, 0);
   const [lKnX, lKnY] = _lj(cx, hipY, lFootX, lFootY, 4, 0);
-  pc.beginPath(); pc.moveTo(cx, hipY); pc.lineTo(rKnX, rKnY); pc.lineTo(rFootX, rFootY); pc.stroke();
-  pc.beginPath(); pc.moveTo(cx, hipY); pc.lineTo(lKnX, lKnY); pc.lineTo(lFootX, lFootY); pc.stroke();
+
+  if (typeof FigureSkin !== 'undefined') {
+    const LW = FIG_LINE_W, f = 1, off = -1.6;
+    const pal  = FigureSkin.pal(color);
+    const near = FigureSkin.begin();
+    const far  = FigureSkin.begin();
+    FigureSkin.segment(near, [{ x: cx, y: headCY + headR * 0.55 }, { x: cx, y: shouldY - 1 }], [LW * 0.55, LW * 0.92]);
+    FigureSkin.head(near, cx, headCY, headR, f);
+    FigureSkin.segment(far, [{ x: cx + off, y: shouldY }, { x: lElbX + off, y: lElbY }, { x: lEx + off, y: lEy }],
+      [LW * 1.02, LW * 0.82, LW * 0.62]);
+    FigureSkin.hand(far, lEx + off, lEy, lAng, f, 0.85);
+    FigureSkin.segment(near, [{ x: cx, y: shouldY }, { x: cx, y: (shouldY + hipY) * 0.5 }, { x: cx, y: hipY }],
+      [LW * 1.85, LW * 1.45, LW * 1.30]);
+    FigureSkin.segment(near, [{ x: cx, y: shouldY }, { x: rElbX, y: rElbY }, { x: rEx, y: rEy }],
+      [LW * 1.15, LW * 0.92, LW * 0.70], true);
+    FigureSkin.hand(near, rEx, rEy, rAng, f, 1);
+    FigureSkin.segment(far, [{ x: cx + off, y: hipY }, { x: lKnX + off, y: lKnY }, { x: lFootX + off, y: lFootY }],
+      [LW * 1.16, LW * 0.90, LW * 0.68]);
+    FigureSkin.foot(far, lFootX + off, lFootY + 1.2, Math.PI * 0.38, f);
+    FigureSkin.segment(near, [{ x: cx, y: hipY }, { x: rKnX, y: rKnY }, { x: rFootX, y: rFootY }],
+      [LW * 1.30, LW * 1.00, LW * 0.76], true);
+    FigureSkin.foot(near, rFootX, rFootY + 1.2, Math.PI * 0.62, f);
+    FigureSkin.paint(far, pal, true, pc);
+    FigureSkin.paint(near, pal, false, pc);
+    FigureSkin.face(pal, cx, headCY, headR, f, { lookX: 0.6, lookY: 0.2 }, pc);
+  }
 
   // Equipped weapon in the right hand, painted by the real in-match drawWeapon()
   // so the preview can never drift from what the fighter carries in a fight.

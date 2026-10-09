@@ -281,6 +281,10 @@ const FigureSkin = (function () {
     _bound(b, x, y, 8);
   }
 
+  // paint() and face() draw to the game canvas unless handed another 2D
+  // context (the menu's fighter previews pass their own).
+  function _mainCtx() { return ctx; }
+
   // ── The single paint ──────────────────────────────────────────────────────
 
   /**
@@ -290,8 +294,9 @@ const FigureSkin = (function () {
    * @param p    palette from pal()
    * @param far  true for the back-side limbs: shadowed, weaker outline
    */
-  function paint(b, p, far) {
+  function paint(b, p, far, g) {
     if (!b.parts.length) return;
+    const ctx = g || _mainCtx();
     ctx.save();
     ctx.lineJoin = 'round';
     ctx.lineCap  = 'round';
@@ -338,7 +343,8 @@ const FigureSkin = (function () {
    * Expression is carried by eye openness and brow angle, the two things a face
    * actually uses, rather than by recolouring or by drawing a mouth.
    */
-  function face(p, x, y, r, f, o) {
+  function face(p, x, y, r, f, o, g) {
+    const ctx = g || _mainCtx();
     o = o || {};
     const expr  = o.expr || 'neutral';
     const blink = Math.max(0, Math.min(1, o.blink || 0));

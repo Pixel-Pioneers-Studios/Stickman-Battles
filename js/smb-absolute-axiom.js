@@ -281,10 +281,103 @@ class AbsoluteAxiom extends God {
     if (this._locomotionMode === 'walk') Fighter.prototype.checkPlatform.call(this, pl);
   }
 
+  // ── Fall recovery ─────────────────────────────────────────────────────────
+  // AA has no respawn and no bossTeleport (he is not isBoss), so a fall past
+  // deathY used to kill him outright and end the match. Now, the moment he is
+  // falling with no ground under him — or is knocked off-screen — he takes
+  // flight and flies to the nearest platform. He can still be hit on the way.
+  _aaGroundBelow() {
+    if (!currentArena) return true;
+    const feet  = this.y + this.h;
+    const limit = currentArena.deathY || 640;
+    return currentArena.platforms.some(pl =>
+      !pl.isFloorDisabled && !(pl._aaCrack > 0) &&
+      this.x + this.w > pl.x && this.x < pl.x + pl.w &&
+      pl.y >= feet - 4 && pl.y < limit);
+  }
+
+  _aaPickLanding() {
+    if (!currentArena) return null;
+    const GH = typeof GAME_H !== 'undefined' ? GAME_H : 520;
+    // Nearest platform, biased toward his target — pure nearest made him fly
+    // back to the ledge he just walked off, forever, when a gap stood between.
+    const tgt = (this.target && this.target.health > 0) ? this.target : null;
+    let best = null, bestScore = Infinity;
+    for (const pl of currentArena.platforms) {
+      if (pl.isFloorDisabled || pl._aaCrack > 0 || pl.y > GH || pl.y < 40 || pl.w < 60) continue;
+      const tx = Math.max(pl.x + 24, Math.min(pl.x + pl.w - 24, this.cx()));
+      let score = Math.hypot(tx - this.cx(), (pl.y - this.h) - this.y) - pl.w * 0.15;
+      if (tgt) {
+        const lx = Math.max(pl.x + 24, Math.min(pl.x + pl.w - 24, tgt.cx()));
+        score += 0.8 * Math.hypot(lx - tgt.cx(), pl.y - (tgt.y + tgt.h));
+      }
+      if (score < bestScore) { bestScore = score; best = pl; }
+    }
+    return best;
+  }
+
+  // Returns true while recovering (the rest of update() is skipped).
+  _aaFallRecover() {
+    const GW = typeof GAME_W !== 'undefined' ? GAME_W : 900;
+    const GH = typeof GAME_H !== 'undefined' ? GAME_H : 520;
+    if (!this._recoverFly) {
+      const lost = this.y > GH - this.h * 0.5 || this.y < -220 ||
+                   this.x + this.w < -40 || this.x > GW + 40;
+      const dropping = this._locomotionMode === 'walk' && !this.onGround &&
+                       this.vy > 1.5 && !this._aaGroundBelow();
+      if (!lost && !dropping) return false;
+      this._recoverFly = { t: 0 };
+      this._aerialSlam = null; this._dashFrames = 0;
+      this._meleeWindup = 0; this._meleeWindupTarget = null;
+      if (typeof AAMultiverse !== 'undefined' && AAMultiverse.onBossFall) AAMultiverse.onBossFall(this);
+      if (typeof spawnParticles === 'function') spawnParticles(this.cx(), this.cy(), '#cc00ff', 14);
+    }
+    const r = this._recoverFly;
+    r.t++;
+    const pl = this._aaPickLanding();
+    if (!pl) { // nothing to land on — hold position above the arena centre
+      this.x = GW / 2 - this.w / 2; this.y = Math.min(this.y, GH * 0.4); this.vx = 0; this.vy = 0;
+      return true;
+    }
+    const tgt = (this.target && this.target.health > 0) ? this.target : null;
+    const aimX = tgt ? (this.cx() + tgt.cx()) / 2 : this.cx();
+    const tx = Math.max(pl.x + 24, Math.min(pl.x + pl.w - 24, aimX));
+    const ty = pl.y - this.h;
+    const dx = tx - this.cx(), dy = ty - this.y, d = Math.hypot(dx, dy) || 1;
+    const spd = 11 * (this._phase3SpeedMod || 1);
+    this._locomotionMode = 'fly';
+    this.facing = Math.sign(dx) || this.facing;
+    // Run God/Fighter update for timers and animation, then fly on our own path
+    // (God's fly branch clamps him on-screen; we override the result).
+    const px = this.x, py = Math.max(-200, Math.min(GH + 60, this.y));
+    super.update();
+    if (this.health <= 0) return true;
+    const step = Math.min(spd, d);
+    this.x = px + dx / d * step;
+    this.y = py + dy / d * step;
+    this.vx = dx / d * step; this.vy = 0;
+    if (d <= spd + 1) {
+      this.x = tx - this.w / 2; this.y = ty;
+      this.vx = 0; this.vy = 0; this.onGround = true;
+      this._locomotionMode = 'walk';
+      this._recoverFly = null;
+      this._jumpCd = Math.max(this._jumpCd || 0, 40);
+      if (typeof spawnParticles === 'function') spawnParticles(this.cx(), this.y + this.h, '#ff2266', 12);
+      if (typeof screenShake !== 'undefined') screenShake = Math.max(screenShake, 8);
+    }
+    return true;
+  }
+
   // ── Per-frame update ──────────────────────────────────────────────────────
   update() {
     if (this.health <= 0) return;
     if (typeof activeCinematic !== 'undefined' && activeCinematic) return;
+    // Standalone fight: location chain + Dimension Punch transitions (smb-axiom-multiverse.js)
+    if (typeof AAMultiverse !== 'undefined') {
+      AAMultiverse.tick(this);
+      if (AAMultiverse.holdBoss(this)) return;
+    }
+    if (this._aaFallRecover()) return;
 
     this._aaAuraPhase += 0.042;
     this._wingAngle   += 0.07;
@@ -738,6 +831,10 @@ class AbsoluteAxiom extends God {
       this._doSingularity(target); this._setCd(); return;
     }
 
+    // Location bias: each world of the multiverse fight favours its own attacks
+    const _fav = (typeof AAMultiverse !== 'undefined') ? AAMultiverse.favorPick(this) : null;
+    if (_fav) { this[_fav](target); this._setCd(); return; }
+
     // Phase-weighted random pool
     const r = Math.random();
     if (phase === 1) {
@@ -760,7 +857,11 @@ class AbsoluteAxiom extends God {
       else if (r < 0.94) this._doGenesisStar(target);
       else               this._doColumnBarrage(target);
     } else { // phase 3
-      if (r < 0.09)      this._doDimensionPunch(target);
+      if (r < 0.09) {
+        // In the multiverse fight the Dimension Punch is the scripted location transition
+        if (typeof AAMultiverse !== 'undefined' && AAMultiverse.enabled()) this._doDimShattering();
+        else this._doDimensionPunch(target);
+      }
       else if (r < 0.18) this._doDimShattering();
       else if (r < 0.27) this._doColumnBarrage(target);
       else if (r < 0.33) this._doAbsoluteStrike(target);
@@ -1305,6 +1406,7 @@ class AbsoluteAxiom extends God {
   draw() {
     if (this.health <= 0) return;
     if (typeof ctx === 'undefined') return;
+    if (typeof AAMultiverse !== 'undefined' && AAMultiverse.hideBoss(this)) return;
 
     const cx    = this.cx();
     const headY = this.y + 11;

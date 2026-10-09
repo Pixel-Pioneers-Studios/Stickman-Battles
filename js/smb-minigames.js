@@ -669,6 +669,17 @@ function drawMinigameHUD() {
 }
 
 function confirmResetProgress() {
+  // Signed-in: stamp the reset into the cloud snapshot first (clear() also drops the auth session),
+  // so the next sync cannot merge the old remote save back. Capped wait; offline falls through.
+  if (window.__SMB_RESET_PUSHED || !(window.SupabaseBridge && SupabaseBridge.pushReset)) { _confirmResetProgressLocal(); return; }
+  window.__SMB_RESET_PUSHED = true;
+  Promise.race([
+    SupabaseBridge.pushReset().catch(function(e) { console.warn('[RESET] cloud reset failed', e); }),
+    new Promise(function(r) { setTimeout(r, 3000); })
+  ]).then(_confirmResetProgressLocal, _confirmResetProgressLocal);
+}
+
+function _confirmResetProgressLocal() {
   // Wipe ALL localStorage keys — both smc_ prefixed and the consolidated save blob
   localStorage.clear();
   // The beforeunload/visibilitychange flush in smb-save.js (and GameState.save)

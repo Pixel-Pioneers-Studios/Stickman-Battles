@@ -206,16 +206,30 @@ STORY_CHAPTER_REGISTRY.push(
     fightScript: [
       { frame: 40,  text: '⚠️ PROTECT VERAN — stay between the probes and her position.', color: '#ffcc44', timer: 340 },
       { frame: 80,  text: 'First probe wave incoming. Stay aggressive — they aim for her, not you.', color: '#ff9944', timer: 300 },
-      { frame: 420, text: 'Second wave. Faster constructs. Hold the line.', color: '#cc44ff', timer: 280 },
-      { frame: 600, text: '"Eighty percent," Veran says through gritted teeth. "Keep going."', color: '#aaccff', timer: 260 },
     ],
-    preText: 'Protect Veran during the relay upload. Two probe waves. She cannot take critical damage. 2 lives.',
+    preText: 'Get Veran to the relay uplink, then hold the line while she uploads. Probes go for her, not you. If she falls, it is over. 2 lives.',
     opponentName: 'Probe Wave Alpha', weaponKey: 'spear', classKey: 'warrior', aiDiff: 'hard', opponentColor: '#9999cc',
     twoEnemies: true,
     secondEnemy: { weaponKey: 'sword', classKey: 'warrior', aiDiff: 'hard', color: '#8888bb' },
     playerLives: 2,
     arena: 'neonGrid',
     walkFight: true, worldLength: 3000,
+    // Escort: Veran walks with you to the uplink console under the relay mast
+    // (levels/ch54.js MAST - 60), then the duel's second probe hunts her.
+    escortNPC: { name: 'Veran', color: '#4488dd', hp: 220 },
+    escortGoalX: 2940,
+    escortSpeed: 1.8,
+    escortHunters: 1,
+    escortArriveText: 'Veran drops to the uplink console. "Starting the upload. Don\'t let them reach me."',
+    escortWaves: [
+      { triggerX: 1000, count: 2, weaponKey: 'sword', aiDiff: 'medium', color: '#9999cc', name: 'Probe', text: 'Probes inbound. They are tracking Veran.' },
+      { triggerX: 2100, count: 2, weaponKey: 'spear', aiDiff: 'medium', color: '#8888bb', name: 'Probe', fromRight: true, text: 'Second wave. Faster constructs. Hold the line.' },
+    ],
+    // The fight-script clock runs from level start, so the upload beats key off
+    // Veran reaching the console instead.
+    escortLines: [
+      { after: 2700, text: '"Eighty percent," Veran says through gritted teeth. "Keep going."', color: '#aaccff' },
+    ],
     tokenReward: 90, blueprintDrop: 'reflect2',
     postText: 'Upload complete. "The relay has the data," Veran says, hands shaking. "It\'s locked. We\'re committed." Everyone in the room knows what that means.',
   },
