@@ -26,8 +26,13 @@
 
 const STORY_LEVELS = {};
 
+// `levelId` lets a derived chapter (a branch chapter's playable beat) borrow another
+// chapter's authored map.
+function storyLevelId(ch) {
+  return ch ? (ch.levelId != null ? ch.levelId : ch.id) : null;
+}
 function storyLevelFor(ch) {
-  return (ch && STORY_LEVELS[ch.id]) || null;
+  return (ch && STORY_LEVELS[storyLevelId(ch)]) || null;
 }
 
 function _storyLevelView() {
@@ -116,7 +121,7 @@ function storyLevelArenaKey(ch, fallbackKey) {
     platEdge:    lv.platEdge || base.platEdge,
     platforms:   plats,
     isStoryOnly: true,
-    storyLevel:  ch.id,
+    storyLevel:  storyLevelId(ch),
   }, A.props || {});
   if (typeof ARENA_BASE_PLATFORMS !== 'undefined') ARENA_BASE_PLATFORMS[key] = plats.map(p => ({ ...p }));
   return key;

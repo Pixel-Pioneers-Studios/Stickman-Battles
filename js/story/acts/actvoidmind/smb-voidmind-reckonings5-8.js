@@ -60,6 +60,19 @@ STORY_CHAPTER_REGISTRY.push(
       'because that quality is survivable.',
       'Not because it is meaningful.',
     ],
+    // Playable beat (see _playChapterBeat in smb-story-engine-flow.js): mass without direction: the weight, made to arrive.
+    beat: {
+      arena: 'void', levelId: 181,
+      opponentName: 'The Weight', opponentSuffix: '— mass without direction', opponentColor: '#55556a',
+      weaponKey: 'hammer', classKey: 'thor', aiDiff: 'medium',
+      preText: 'It does not want anything from you. It only arrives.',
+      fightScript: [
+        { frame: 40,  text: 'It does not hate you. It does not choose you. It only arrives, and keeps arriving.', color: '#8877aa', timer: 290 },
+        { frame: 440, text: 'You named each of them when you picked them up. Keep standing.', color: '#9988bb', timer: 280 },
+      ],
+      beatScale: 0.6,
+      playerLives: 5,
+    },
     branchPrompt: '"You don\'t put things down. That\'s a property, not a decision. The weight is real but it wasn\'t chosen. You accumulated — you didn\'t carry. There\'s a difference, and it matters for what the weight means."',
     choices: [
       {
@@ -125,6 +138,20 @@ STORY_CHAPTER_REGISTRY.push(
       'God finished what it was building.',
       'It did not have to say what the building was for.',
     ],
+    // Playable beat (see _playChapterBeat in smb-story-engine-flow.js): walking the floor God built; nothing here was built for you.
+    beat: {
+      type: 'exploration', exploreMode: 'traversal',
+      arena: 'god_domain', style: 'void', worldLength: 3400,
+      objectName: 'The Oldest Wall',
+      preText: 'Look at what you are standing in.',
+      spawnEnemies: [],
+      fightScript: [
+        { frame: 30,  text: 'The floor. The walls that hold the shape of this place. Load, carried evenly, for longer than there have been dimensions.', color: '#eedd99', timer: 300 },
+        { frame: 400, text: 'Nothing here is hostile. It is a house, and the house is very old, and someone has moved in.', color: '#ddcc88', timer: 290 },
+        { frame: 780, text: 'God built it. It did not say what it was for.', color: '#ccbb77', timer: 260 },
+      ],
+      playerLives: 3,
+    },
     branchPrompt: '"God built the Substrate. The Void Mind lives inside God\'s architecture. That\'s not avoidance — that\'s a house built for an occupant. God knew and built and said nothing."',
     choices: [
       {
@@ -191,6 +218,22 @@ STORY_CHAPTER_REGISTRY.push(
       'The fragment was always going home.',
       'You were the path it walked on.',
     ],
+    // Playable beat (see _playChapterBeat in smb-story-engine-flow.js): the delivery: run, and what is behind you collapses as you go.
+    beat: {
+      type: 'exploration', exploreMode: 'escape',
+      arena: 'void', style: 'void', worldLength: 3400,
+      objectName: 'The Delivery',
+      preText: 'Everything that hardened you was the cargo stabilizing. Run.',
+      spawnEnemies: [
+        { wx: 1300, name: 'Void Radiance', weaponKey: 'sword', classKey: 'warrior', aiDiff: 'medium', color: '#7766aa', isWeak: true },
+        { wx: 2200, name: 'Void Radiance', weaponKey: 'spear', classKey: 'warrior', aiDiff: 'medium', color: '#6655aa', isWeak: true },
+      ],
+      fightScript: [
+        { frame: 20,  text: 'Behind you the dark is closing. It does not chase. It simply stops holding the floor up.', color: '#9988bb', timer: 280 },
+        { frame: 420, text: 'If you were only the path, you would stop when the cargo arrived. Do not stop.', color: '#8877aa', timer: 280 },
+      ],
+      playerLives: 3,
+    },
     branchPrompt: '"The fragment needed a carrier strong enough to survive. Every fight that hardened you hardened the cargo. Peak form was maximum charge. You\'re here because you completed the delivery. You are the path, not the arrival."',
     choices: [
       {
@@ -244,6 +287,25 @@ STORY_CHAPTER_REGISTRY.push(
       '',
       'What are you carrying out?',
     ],
+    // Playable beat (see _playChapterBeat in smb-story-engine-flow.js): the last question, answered with what you pick up.
+    beat: {
+      type: 'exploration', exploreMode: 'scavenge',
+      arena: 'void', style: 'void', worldLength: 3400,
+      objectName: 'What You Carry Out',
+      preText: 'What are you carrying out? Pick it up.',
+      scavengeItemDefs: [
+        { wx: 600,  y: 370, name: 'Every Name',                    icon: '📖' },
+        { wx: 1300, y: 365, name: 'Every Weight',                  icon: '⚖️' },
+        { wx: 2000, y: 370, name: 'The Alley',                     icon: '🌃' },
+        { wx: 2700, y: 365, name: 'What You Refused to Put Down',  icon: '🔹' },
+      ],
+      spawnEnemies: [],
+      fightScript: [
+        { frame: 30,  text: 'Nothing attacks. Nothing needs to. The question is already asking.', color: '#8877aa', timer: 280 },
+        { frame: 520, text: 'Some of these are lighter than they were. You pick them up anyway, and you know which.', color: '#9988bb', timer: 290 },
+      ],
+      playerLives: 3,
+    },
     branchPrompt: 'Seven reckonings. Seven chances to find a gap. The Void Mind has the map of what held and what moved. Now it asks plainly: after all of it — what remains yours?',
     choices: [
       {

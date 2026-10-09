@@ -1886,6 +1886,10 @@ function _showStory2RetryScreen(ch) {
   // Read the death NOW: the fighters still exist; by the next frame they may not.
   const _death = _storyBuildDeathReport(ch);
   const _canResume = !!(_story2.cpResume && _story2.cpResume.chId === ch.id && !storyPhaseIndicator);
+  // Ad-gated continue: once per chapter attempt, only when a real ad SDK is live.
+  const _adOk = window._storyAdUsedCh !== ch.id && typeof AdManager !== 'undefined' &&
+    AdManager.rewardedReady && AdManager.rewardedReady();
+  const _fellPhase = storyGauntletState ? storyGauntletState.index : 0;
   requestAnimationFrame(() => {
     // Hide default game-over overlay content and inject custom retry screen
     const ov = document.getElementById('gameOverOverlay');
@@ -1922,6 +1926,11 @@ function _showStory2RetryScreen(ch) {
         <button id="_retryChapterBtn" style="padding:10px 0;background:${_canResume ? 'rgba(40,80,180,0.55)' : 'linear-gradient(135deg,#1a5acc,#2277ee)'};border:none;border-radius:9px;color:#fff;font-weight:700;font-size:0.88rem;cursor:pointer;width:100%;">
           ↺ ${_canResume ? 'Restart' : 'Retry'} ${storyPhaseIndicator ? 'Phase' : 'Chapter'}
         </button>
+        ${_adOk ? `
+          <button id="_retryAdBtn" class="ad-reward-btn" style="padding:10px 0;background:rgba(255,200,60,0.12);border:1px solid rgba(255,200,60,0.45);border-radius:9px;color:#ffd34d;font-weight:700;font-size:0.88rem;cursor:pointer;width:100%;">
+            ▶ Watch ad to continue
+          </button>
+        ` : ''}
         ${_death.action === 'skills' ? `
           <button id="_retrySkillsBtn" style="padding:10px 0;background:linear-gradient(135deg,#1f7a44,#2fa05c);border:none;border-radius:9px;color:#fff;font-weight:700;font-size:0.88rem;cursor:pointer;width:100%;">
             🌟 Open Skill Tree
@@ -1950,6 +1959,24 @@ function _showStory2RetryScreen(ch) {
       storyModeActive = false;
       if (typeof backToMenu === 'function') backToMenu();
       setTimeout(() => _beginChapter2(ch.id), 350);
+    };
+
+    const adBtn = retryDiv.querySelector('#_retryAdBtn');
+    if (adBtn) adBtn.onclick = () => {
+      adBtn.disabled = true;
+      AdManager.rewarded(() => {
+        window._storyAdUsedCh = ch.id;
+        ov.style.display = 'none';
+        if (btnRow) btnRow.style.display = '';
+        storyModeActive = false;
+        if (typeof backToMenu === 'function') backToMenu();
+        // Full HP: clear carried health, resume the phase / rest checkpoint we fell in.
+        if (_story2.runState) _story2.runState.healthPct = 1;
+        _story2.health = null;
+        window._storyAdResume = { chId: ch.id, index: _fellPhase };
+        if (_canResume) window._storyResumeCpFor = ch.id;
+        setTimeout(() => _beginChapter2(ch.id), 350);
+      }, () => { adBtn.disabled = false; });
     };
 
     const cpBtn = retryDiv.querySelector('#_retryCheckpointBtn');
@@ -1982,6 +2009,7 @@ function _showStory2RetryScreen(ch) {
     };
 
     retryDiv.querySelector('#_retryMenuBtn').onclick = () => {
+      if (window._storyAdUsedCh === ch.id) window._storyAdUsedCh = null;
       ov.style.display = 'none';
       if (btnRow) btnRow.style.display = '';
       storyVictoryBackToMenu();

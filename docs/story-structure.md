@@ -94,3 +94,28 @@ geometry from the `a` argument (`_slPlat(a, tag)`), never `currentArena`. The
 segment under the camera owns the sky. Non-walkFight explore worlds clamp the
 left edge at x=450 (`mapLeft = GAME_W/2`) — keep the first post/obstacle well
 right of it.
+
+## PLAYABLE BEATS ON BRANCH CHAPTERS (`beat`)
+
+A `type: 'branch'` chapter is narration plus a choice. It can also carry
+`beat: { ... }`, an overlay of ordinary chapter fields (`walkFight` / `type:
+'exploration'` + `exploreMode` / a plain duel with `opponentName`, `spawnEnemies`,
+`fightScript`, `arena`, ...) that plays between the narration and the choice, so
+the chapter is not text alone. `_playChapterBeat` (smb-story-engine-flow.js) runs it
+through the normal launchers as a derived chapter with the real chapter's id;
+`story2OnMatchEnd` hands a win back to the branch flow instead of the victory
+screen, and the real chapter still completes after the choice. A lost beat uses
+the normal retry screen and re-enters the real chapter without replaying the
+narration.
+
+| Field | Meaning |
+|-------|---------|
+| `afterNarrative: [...]` | Optional. Second half of a narration split around the beat (nothing is dropped; the scene spec continues from where the first half ended). |
+| `beat.levelId` | Borrow another chapter's `STORY_LEVELS` map (e.g. 181 for the Trial Ground arena, 66 for the lab corridor). |
+| `beat.beatScale` | 0..1 trims the beat enemies' health and damage (duels). |
+| `beat.spawnEnemies[].isWeak` | Existing flag: roughly half-strength fodder. |
+
+Exploration beats get no generic checkpoint waves, pressure stalkers or idle ambushes
+(a `defense` beat keeps its wave; a `walkFight` keeps its one duel). The Reckonings
+film (`STORY_CINEMATIC_RUNS`) plays beats and `afterNarrative` inline. Chapters 166,
+170 and 171 (around the Absolute Axiom fight) deliberately have no beat.

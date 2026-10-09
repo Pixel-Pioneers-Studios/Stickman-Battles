@@ -59,7 +59,9 @@ STORY_CHAPTER_REGISTRY.push(
       '',
       'And next to you, in the middle of the void,',
       'stood the man who had built all of it.',
-      '',
+    ],
+    // Narration after the beat; staged from the same scene spec (see _playBranchAfterNarrative).
+    afterNarrative: [
       'Not the Creator. Not Cosmic Axiom.',
       'A man. Medium height. Tired eyes.',
       'The last thread of who he was before the void took the rest —',
@@ -78,6 +80,23 @@ STORY_CHAPTER_REGISTRY.push(
       'It wasn\'t an apology.',
       'It was a measurement.',
     ],
+    // Playable beat (see _playChapterBeat in smb-story-engine-flow.js): the first quiet walk out of the void, nothing hunting you.
+    beat: {
+      type: 'exploration', exploreMode: 'traversal',
+      arena: 'void', style: 'void', worldLength: 3400,
+      objectName: 'The Edge of the Quiet',
+      preText: 'Nothing is humming. Walk.',
+      spawnEnemies: [
+        { wx: 1300, name: 'Fracture Remnant', weaponKey: 'sword', classKey: 'warrior', aiDiff: 'medium', color: '#8899bb', isWeak: true },
+        { wx: 2200, name: 'Fracture Remnant', weaponKey: 'spear', classKey: 'warrior', aiDiff: 'medium', color: '#7788aa', isWeak: true },
+      ],
+      fightScript: [
+        { frame: 30,  text: 'Nothing is humming. For five thousand years the void had a pulse, and you keep waiting for it to start again.', color: '#aaccff', timer: 280 },
+        { frame: 330, text: 'Axiom walks half a step behind you. Not following. Learning how.', color: '#bb99cc', timer: 260 },
+        { frame: 640, text: 'A Fracture Remnant drifts out of the dark: the last of the network\'s noise. It does not know the network is gone.', color: '#8899bb', timer: 280 },
+      ],
+      playerLives: 3,
+    },
     branchPrompt: 'The war is over. The man who ran it is standing next to you. What do you do with the silence?',
     choices: [
       {
@@ -114,7 +133,9 @@ STORY_CHAPTER_REGISTRY.push(
       'had also been insulation — five thousand years of it,',
       'packed around fragment energy that was never crystallized,',
       'never discrete, never bonded.',
-      '',
+    ],
+    // Narration after the beat; staged from the same scene spec (see _playBranchAfterNarrative).
+    afterNarrative: [
       'Now the corruption was gone,',
       'and the energy sat exposed inside him',
       'with nothing holding its shape.',
@@ -136,6 +157,21 @@ STORY_CHAPTER_REGISTRY.push(
       '',
       '"It does not feel slow."',
     ],
+    // Playable beat (see _playChapterBeat in smb-story-engine-flow.js): the exposed energy draws hollow echoes; hold the line beside him.
+    beat: {
+      type: 'exploration', exploreMode: 'defense',
+      arena: 'void', style: 'void', worldLength: 900,
+      objectName: 'Axiom\'s Exposed Energy',
+      preText: 'The insulation is gone. What was under it is drawing everything hollow in the void. Hold position.',
+      nexusHP: 260, survivalWaves: 2, waveSize: 2,
+      opponentName: 'Hollow Echo', weaponKey: 'sword', classKey: 'warrior', aiDiff: 'medium', opponentColor: '#8899aa',
+      fightScript: [
+        { frame: 30,  text: 'The energy under his skin is exposed, and the void can taste it. Things that were never people are drifting toward the light.', color: '#aaccff', timer: 300 },
+        { frame: 380, text: 'Ninety-four times you read this secondhand. Hold the line.', color: '#ccddff', timer: 240 },
+        { frame: 700, text: 'He does not move. He is measuring what it costs to stand still.', color: '#bb99cc', timer: 260 },
+      ],
+      playerLives: 3,
+    },
     branchPrompt: 'Axiom is dying the way the ninety-four died. He knows the pattern better than anyone alive. What do you say?',
     choices: [
       {
@@ -173,7 +209,9 @@ STORY_CHAPTER_REGISTRY.push(
       'five thousand years of building systems',
       'that held dangerous things in place —',
       'was exactly wrong.',
-      '',
+    ],
+    // Narration after the beat; staged from the same scene spec (see _playBranchAfterNarrative).
+    afterNarrative: [
       'His first attempts were walls. The energy went through them.',
       'His next were channels. The energy ignored them.',
       'He built containment the way the collection protocol built it,',
@@ -198,6 +236,28 @@ STORY_CHAPTER_REGISTRY.push(
       '',
       'The light under his skin steadied.',
     ],
+    // Playable beat (see _playChapterBeat in smb-story-engine-flow.js): three nodes; building them is exactly wrong.
+    beat: {
+      type: 'exploration', exploreMode: 'puzzle',
+      arena: 'void', style: 'void', worldLength: 2800,
+      objectName: 'The Anchor',
+      preText: 'Three nodes, in order. Axiom builds. The energy answers.',
+      puzzleSwitchDefs: [
+        { wx: 600,  y: 385, label: '1' },
+        { wx: 1400, y: 350, label: '2' },
+        { wx: 2200, y: 370, label: '3' },
+      ],
+      spawnEnemies: [
+        { wx: 1000, name: 'Hollow Echo', weaponKey: 'sword', classKey: 'warrior', aiDiff: 'medium', color: '#8899aa', isWeak: true },
+        { wx: 1800, name: 'Hollow Echo', weaponKey: 'spear', classKey: 'warrior', aiDiff: 'medium', color: '#7788aa', isWeak: true },
+      ],
+      fightScript: [
+        { frame: 30,  text: 'Three nodes, set in order. Axiom reaches for the tools he trusts. The energy hollows each one out from the inside.', color: '#aaccff', timer: 300 },
+        { frame: 520, text: 'He tries again, harder. It does not hold harder.', color: '#bb99cc', timer: 240 },
+        { frame: 1000, text: 'The last node is not a lock. There is nothing in it to build.', color: '#ccddff', timer: 260 },
+      ],
+      playerLives: 3,
+    },
     branchPrompt: 'The bond is forming — improvised, imprecise, for an energy state the fragment was never designed to occupy. What holds it?',
     choices: [
       {
@@ -248,7 +308,9 @@ STORY_CHAPTER_REGISTRY.push(
       'You had never heard it. Neither, you suspected, had he.',
       'It did not last. But it happened —',
       'and for exactly that long, the man was all the way back.',
-      '',
+    ],
+    // Narration after the beat; staged from the same scene spec (see _playBranchAfterNarrative).
+    afterNarrative: [
       'Then the compass moved, and he went still.',
       '',
       'The compass was pointing.',
@@ -279,6 +341,27 @@ STORY_CHAPTER_REGISTRY.push(
       '"And it does not leave trails, Kael."',
       '"It leaves invitations."',
     ],
+    // Playable beat (see _playChapterBeat in smb-story-engine-flow.js): the torn strap gives; gather the spilled pack before the void takes it.
+    beat: {
+      type: 'exploration', exploreMode: 'scavenge',
+      arena: 'void', style: 'void', worldLength: 3000,
+      objectName: 'The Pack',
+      preText: 'The strap finally gives. The pack spills across the void. Gather it before the dark does.',
+      scavengeItemDefs: [
+        { wx: 700,  y: 370, name: 'Rations',            icon: '🍞' },
+        { wx: 1500, y: 365, name: 'Survey Instruments', icon: '📐' },
+        { wx: 2300, y: 370, name: 'The Compass',        icon: '🧭' },
+      ],
+      spawnEnemies: [
+        { wx: 1900, name: 'Fracture Remnant', weaponKey: 'sword', classKey: 'warrior', aiDiff: 'medium', color: '#8899bb', isWeak: true },
+      ],
+      fightScript: [
+        { frame: 30,  text: 'The strap gives all at once, the way torn things do. Everything he carried is rolling away across the void.', color: '#aaccff', timer: 280 },
+        { frame: 420, text: '"Leave the rations," he says. He is already picking up the instruments. Five thousand years of habit.', color: '#bb99cc', timer: 280 },
+        { frame: 800, text: 'The compass is the last thing left on the ground. It is not still.', color: '#ffffff', timer: 260 },
+      ],
+      playerLives: 3,
+    },
     branchPrompt: 'Sovereign is loose, unconstrained, and heading for the oldest place in existence — and it wants to be followed. What do you do with that?',
     choices: [
       {

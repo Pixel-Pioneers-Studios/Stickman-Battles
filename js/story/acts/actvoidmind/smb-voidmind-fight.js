@@ -83,6 +83,21 @@ STORY_CHAPTER_REGISTRY.push(
       '',
       'In answer.',
     ],
+    // Playable beat (see _playChapterBeat in smb-story-engine-flow.js): the erasure begins at the edges; hold the signal that cannot hold itself.
+    beat: {
+      type: 'exploration', exploreMode: 'defense',
+      arena: 'void', style: 'void', worldLength: 900,
+      objectName: 'The Preserved',
+      preText: 'The argument is already underway. Something that cannot protect itself is still lit. Hold position.',
+      nexusHP: 280, survivalWaves: 2, waveSize: 2,
+      opponentName: 'Erasure Echo', weaponKey: 'sword', classKey: 'warrior', aiDiff: 'medium', opponentColor: '#4a2a66',
+      fightScript: [
+        { frame: 30,  text: 'The erasure starts at the edges. Where it touches, the Substrate goes quiet.', color: '#8877aa', timer: 290 },
+        { frame: 420, text: 'Forty-three signals went silent when the walls sealed. This one has not. It cannot protect itself. That is the whole argument.', color: '#9988bb', timer: 320 },
+        { frame: 860, text: 'Be the answer to it.', color: '#ffffff', timer: 220 },
+      ],
+      playerLives: 3,
+    },
     branchPrompt: 'The Void Mind has the complete map. Its verdict: everything you protected is now unprotected. The mission succeeded and left everything fragile. The erasure argument is already underway.',
     choices: [
       {

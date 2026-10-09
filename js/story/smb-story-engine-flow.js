@@ -35,6 +35,13 @@ function _startStoryGauntlet(ch) {
     carryHealthPct: _storyGetCarryHealthPct(),
     sideRewards: [],
   };
+  // Ad-gated continue: re-enter at the phase the player fell in, at full HP.
+  const _adr = window._storyAdResume;
+  if (_adr && _adr.chId === ch.id) {
+    storyGauntletState.index = Math.min(_adr.index || 0, phases.length - 1);
+    storyGauntletState.carryHealthPct = 1;
+  }
+  window._storyAdResume = null;
   _storyUpdatePhaseIndicator();
   _launchStoryGauntletPhase(ch);
 }
@@ -270,9 +277,18 @@ function _beginChapter2(idx) {
   }
 
   if (ch.type === 'branch') {
-    const _afterBranchNarr = () => _showBranchChoice(ch, () => _completeChapter2(ch));
-    if (_cinReplaySkip(ch)) _afterBranchNarr();
-    else _showStory2Narrative(_sagaChapterNarrative(ch), _afterBranchNarr);
+    // A branch chapter may carry a playable `beat` (see _playChapterBeat): narration,
+    // then the beat, then any `afterNarrative`, then the choice. Without a beat this is
+    // exactly the old narration -> choice flow.
+    const _toChoice = () => _showBranchChoice(ch, () => _completeChapter2(ch));
+    const _afterBeat = () => _playBranchAfterNarrative(ch, _toChoice);
+    const _toBeat = ch.beat ? () => _playChapterBeat(ch, _afterBeat) : _toChoice;
+    // Retrying a lost beat must not replay the narration it already showed.
+    if (_cinReplaySkip(ch) || (ch.beat && _seenNarrativeIds.has(ch.id))) _toBeat();
+    else {
+      if (ch.beat) _seenNarrativeIds.add(ch.id);
+      _showStory2Narrative(_sagaChapterNarrative(ch), _toBeat);
+    }
     return;
   }
 
@@ -306,6 +322,50 @@ function _beginChapter2(idx) {
   _showStory2Narrative(allLines, () => {
     _showPreFightStoreNag(ch, () => _launchChapterWithGauntlet(ch));
   });
+}
+
+// ── Playable beats on branch chapters ─────────────────────────────────────────
+// A branch chapter (narration + a choice) can carry `beat: { ... }`, an overlay of
+// ordinary chapter fields (walkFight / type:'exploration' + exploreMode / plain duel,
+// opponent*, spawnEnemies, fightScript, arena, levelId, ...) that is played between
+// the narration and the choice. It runs through the normal launchers as a derived
+// chapter that keeps the real chapter's id (so world, arc and retry all line up);
+// story2OnMatchEnd hands a WIN back to `done` instead of showing the victory
+// screen, and the real chapter still completes through _completeChapter2 after the
+// choice. `afterNarrative` (optional) plays between the beat and the choice, so a
+// long narration can be split around the beat without losing a word.
+function _playChapterBeat(ch, done) {
+  if (!ch || !ch.beat) { if (done) done(); return; }
+  const bc = Object.assign({}, ch, ch.beat);
+  bc.type = ch.beat.type;                 // undefined = plain duel / walkFight
+  bc.narrative = []; bc.choices = null; bc.branchPrompt = null; bc.afterNarrative = null;
+  bc.beat = null; bc.isEpilogue = false; bc.sagaColdOpen = null;
+  // Exploration beats carry their own authored encounters: no generic checkpoint
+  // waves, pressure stalkers or idle ambushes (a walkFight keeps its one duel).
+  // A defense beat keeps its checkpoint wave: that wave IS the defense encounter.
+  if (bc.walkFight !== true) { bc.noPressure = true; if (bc.exploreMode !== 'defense') bc.noCheckpointFights = true; }
+  bc._beatParent = ch; bc._beatDone = done || function () {};
+  _activeStory2Chapter = bc;
+  if (typeof _storyMarkTransition === 'function') _storyMarkTransition(bc);
+  if (bc.walkFight === true) {
+    storyGauntletState = null;
+    if (typeof resetStoryEventState === 'function') resetStoryEventState();
+    _launchExplorationChapter(bc);
+  } else {
+    _directLaunchChapter(bc);
+  }
+}
+
+// Narration that follows a beat. Staged from the same scene spec as the chapter's
+// own narration, continuing where the first half left off.
+function _playBranchAfterNarrative(ch, next) {
+  _activeStory2Chapter = ch;
+  const after = Array.isArray(ch.afterNarrative) ? ch.afterNarrative : [];
+  if (!after.length || _cinReplaySkip(ch)) { next(); return; }
+  const first = _sagaChapterNarrative(ch);
+  const off = (typeof window._storyBeatCount === 'function') ? window._storyBeatCount(first) : 0;
+  _activeStory2Chapter = Object.assign({}, ch, { noFight: true, _sceneBeatOffset: off });
+  _showStory2Narrative(after, function () { _activeStory2Chapter = ch; next(); });
 }
 
 // Direct launch — no gauntlet phases, just the chapter itself

@@ -425,6 +425,14 @@ function _storyScaleEnemyUnit(unit, chapterId, opts = {}) {
       unit.aiDiff = _STORY_AI_RANK[Math.min(3, _STORY_AI_RANK.indexOf(diff.ai) + (elite ? 1 : 0))];
     }
   }
+  // A branch chapter's playable beat (see _playChapterBeat) is a beat, not a full
+  // chapter fight: `beatScale` (0..1) trims its enemies' health and damage.
+  const _bs = (typeof _activeStory2Chapter !== 'undefined' && _activeStory2Chapter) ? _activeStory2Chapter.beatScale : 0;
+  if (_bs > 0 && _bs < 1 && !unit.isBoss) {
+    unit.maxHealth = Math.max(1, Math.round(unit.maxHealth * _bs));
+    unit.health    = unit.maxHealth;
+    unit.dmgMult   = unit.dmgMult * Math.max(0.5, _bs);
+  }
   return unit;
 }
 
@@ -586,7 +594,7 @@ function _launchExplorationChapter(ch) {
     platColor:     ch.platColor   || (_level && _level.platColor)   || (_theme && _theme.platColor)   || '#445566',
     platEdge:      ch.platEdge    || (_theme && _theme.platEdge)    || null,
     themeKey:      (_theme && ch.arena) || null,
-    storyLevel:    _level ? ch.id : null,
+    storyLevel:    _level ? ((typeof storyLevelId === 'function') ? storyLevelId(ch) : ch.id) : null,
     // Region: each member chapter with an authored map draws its own segment.
     storyRegion:   (_region && typeof STORY_LEVELS !== 'undefined')
       ? _region.chapters.map((cid, i) => ({ id: cid, off: i * _region.segLen, len: _region.segLen })).filter(sg => STORY_LEVELS[sg.id])
@@ -675,7 +683,10 @@ function _launchExplorationChapter(ch) {
   } else {
     // Duel (walk→fight) chapters always get exactly ONE checkpoint — it hosts the
     // chapter's authored duel; more would replay the same opponent per checkpoint.
-    const checkpointCount = (ch.walkFight === true || ch.exploreMode === 'duel') ? 1
+    // noCheckpointFights: a branch chapter's playable beat (see _playChapterBeat) has no
+    // generic arena-lock waves; its authored enemies are the whole encounter.
+    const checkpointCount = ch.noCheckpointFights ? 0
+      : (ch.walkFight === true || ch.exploreMode === 'duel') ? 1
       : (ch.worldLength >= 5200 ? 2 : 1);
     for (let i = 1; i <= checkpointCount; i++) {
       exploreCheckpoints.push({ x: Math.floor((worldLen * i) / (checkpointCount + 1)), hit: false });

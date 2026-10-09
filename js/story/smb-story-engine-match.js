@@ -181,6 +181,21 @@ function story2OnMatchEnd(playerWon) {
   const ch = _activeStory2Chapter;
   if (!ch || !storyModeActive) return false; // not a story2 fight
 
+  // Playable beat on a branch chapter (_playChapterBeat): a win hands control back to
+  // the branch flow instead of completing the chapter here. A loss falls through to the
+  // normal retry screen, which re-enters the real chapter by id.
+  if (ch._beatDone && playerWon) {
+    const _beatCb = ch._beatDone;
+    ch._beatDone = null;
+    storyGauntletState = null; storyPendingPhaseConfig = null; storyPhaseIndicator = null;
+    storyFightSubtitle = null;
+    const _goOv = document.getElementById('gameOverOverlay');
+    if (_goOv) _goOv.style.display = 'none';
+    _activeStory2Chapter = ch._beatParent || ch;
+    try { _beatCb(); } catch (e) { console.error('[beat] continuation failed', e); }
+    return true;
+  }
+
   // Flush any unshown early fight-script entries (frame ≤ 90) so they always display
   if (storyFightScript && storyFightScriptIdx < storyFightScript.length) {
     const earlyEntry = storyFightScript.slice(storyFightScriptIdx).find(e => e.frame <= 90);
@@ -222,6 +237,7 @@ function story2OnMatchEnd(playerWon) {
   }
 
   // Award tokens + blueprint
+  if (window._storyAdUsedCh === ch.id) window._storyAdUsedCh = null; // chapter cleared: ad continue available again
   storyGauntletState = null;
   storyPendingPhaseConfig = null;
   storyPhaseIndicator = null;

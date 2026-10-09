@@ -195,6 +195,8 @@ function _spawnSurvivalWave(ss, p1) {
 // stealth run unwinnable.
 function _storyPressureScripted() {
   if (exploreArenaLock) return true;
+  // Branch-chapter beats (see _playChapterBeat) carry their own authored encounters.
+  if (typeof _activeStory2Chapter !== 'undefined' && _activeStory2Chapter && _activeStory2Chapter.noPressure) return true;
   if (typeof stealthModeActive !== 'undefined' && stealthModeActive &&
       typeof stealthAlarmed !== 'undefined' && stealthAlarmed) return true;
   if (typeof escapeModeActive  !== 'undefined' && escapeModeActive)  return true;
@@ -459,7 +461,8 @@ function updateExploration() {
     const _doneCh = _activeStory2Chapter;
     const _nextCh = (_doneCh && typeof STORY_CHAPTERS2 !== 'undefined')
       ? STORY_CHAPTERS2[_doneCh.id + 1] : null;
-    const _nextWalkable = _nextCh && (_nextCh.walkFight === true || _nextCh.type === 'exploration');
+    // A branch chapter's beat (_playChapterBeat) always hands back to its own flow.
+    const _nextWalkable = !(_doneCh && _doneCh._beatDone) && _nextCh && (_nextCh.walkFight === true || _nextCh.type === 'exploration');
     if (_nextWalkable && typeof _regionCompleteChapter === 'function' && typeof _beginChapter2 === 'function') {
       _regionCompleteChapter(_doneCh.id);
       storyFightSubtitle = { text: `✨ ${exploreGoalName} found — entering ${_nextCh.title || 'the next area'}…`, timer: 110, maxTimer: 110, color: '#ffffaa' };

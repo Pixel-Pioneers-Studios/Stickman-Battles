@@ -45,6 +45,19 @@ STORY_CHAPTER_REGISTRY.push(
       'The Void Mind does not argue.',
       'It has simply shown you the alternative.',
     ],
+    // Playable beat (see _playChapterBeat in smb-story-engine-flow.js): the version of the ridge, made to stand in front of you.
+    beat: {
+      arena: 'void', levelId: 181,
+      opponentName: 'The Hooded Figure', opponentSuffix: '— the version the Void Mind offers', opponentColor: '#26202e',
+      weaponKey: 'sword', classKey: 'ninja', aiDiff: 'medium',
+      preText: 'It does not argue. It stands in the shape of the version and waits.',
+      fightScript: [
+        { frame: 40,  text: 'It stands the way the figure stood on the ridge. Every fact it carries is real.', color: '#8877aa', timer: 300 },
+        { frame: 420, text: 'The version is not a lie. That is what makes it heavy. Decide what you will do with the weight.', color: '#9988bb', timer: 300 },
+      ],
+      beatScale: 0.6,
+      playerLives: 5,
+    },
     branchPrompt: '"She was going to betray the mission. The intelligence was accurate. What you did was necessary. The guilt was never yours."',
     choices: [
       {

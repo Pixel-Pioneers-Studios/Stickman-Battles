@@ -124,10 +124,32 @@ function playStoryCinematicRun(chId, onDone) {
     };
 
     // The choice, if this chapter has one. Presented after its narration.
+    // A chapter with a playable `beat` (smb-story-engine-flow.js _playChapterBeat)
+    // plays it between its narration and its choice; the film resumes after, with
+    // any `afterNarrative` (the second half of a split narration) before the choice.
     const doChoice = () => {
+      if (ch.beat && !ch._beatPlayed && typeof _playChapterBeat === 'function') {
+        ch._beatPlayed = true;
+        if (typeof _seenNarrativeIds !== 'undefined') _seenNarrativeIds.add(ch.id); // a retry skips the narration
+        _playChapterBeat(ch, () => { _activeStory2Chapter = ch; playAfter(); });
+        return;
+      }
+      ch._beatPlayed = false;
       const hasChoice = Array.isArray(ch.choices) && ch.choices.length && ch.branchPrompt;
       if (hasChoice && typeof _showBranchChoice === 'function') _showBranchChoice(ch, afterChapter);
       else afterChapter();
+    };
+    const playAfter = () => {
+      const after = Array.isArray(ch.afterNarrative) ? ch.afterNarrative : [];
+      if (!after.length || typeof showNarrativeScene !== 'function') { doChoice(); return; }
+      const first = (typeof _sagaChapterNarrative === 'function') ? _sagaChapterNarrative(ch) : (ch.narrative || []);
+      const off = (typeof window._storyBeatCount === 'function') ? window._storyBeatCount(first) : 0;
+      const chAfter = Object.assign({}, ch, { _sceneBeatOffset: off });
+      showNarrativeScene(after, chAfter, doChoice, {
+        cinematic: true, hold: run.hold || 80, label: run.label,
+        progress:  { done: idx, total: total },
+        onSkip:    doChoice,
+      });
     };
 
     // Saga cold opens still apply inside a run (see _sagaChapterNarrative).
