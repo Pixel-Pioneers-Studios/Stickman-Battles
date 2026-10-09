@@ -25,6 +25,13 @@
   const JERSEY   = [[5150, 90], [5300, 90]];
   const GATE     = 5600;
 
+  // Optional loot (see _slStashPlats / level.loot in smb-story-levels.js): a hidden cache
+  // one jump off the route, and a better one held by an OPTIONAL elite.
+  const STASH = [
+    { id: 'a', x: 1220, y: 250, w: 140, steps: [[1150, 345, 90]] },
+    { id: 'b', x: 4470, y: 250, w: 190, steps: [[4400, 345, 90]], gx: 60, guard: { name: 'Riot Remnant', weaponKey: 'spear', classKey: 'warden', health: 170, color: '#8a4a2a' } },
+  ];
+
   function layout() {
     const P = [];
     _slLedge(P, COP.x + 6, G - 34, COP.w - 12);
@@ -38,6 +45,7 @@
     _slLedge(P, LEDGE.x, LEDGE.y, LEDGE.w);
     _slLedge(P, VAN.x, VAN.y, VAN.w);
     for (const [x, w] of JERSEY) _slLedge(P, x, G - 40, w);
+    _slStashPlats(P, STASH);
     return P;
   }
 
@@ -284,10 +292,12 @@
     }
   }
 
+  function loot() { return _slStashLoot(STASH); }
+
   STORY_LEVELS[6] = {
     sky: ['#24100c', '#7a3420'],
     groundColor: '#2a221e',
     platColor: '#3a322c',
-    layout, backdrop, back, surface,
+    layout, loot, backdrop, back, surface,
   };
 })();

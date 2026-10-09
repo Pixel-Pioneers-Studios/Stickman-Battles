@@ -19,12 +19,20 @@
   const TERMS = [[700, 'AXIOM WAR — PHASE 1'], [1500, 'FRACTURE ACCELERATION'], [2450, 'WEAPONIZE DECAY'], [3500, 'RIVAL BRANCHES: DESTABILIZE'], [4200, 'AUTHORIZED: THE CREATOR']];
   const HATCH = [1800, 4680];
 
+  // Optional loot (see _slStashPlats / level.loot in smb-story-levels.js): a hidden cache
+  // one jump off the route, and a better one held by an OPTIONAL elite.
+  const STASH = [
+    { id: 'a', x: 1970, y: 250, w: 140, steps: [[1900, 345, 90]] },
+    { id: 'b', x: 4150, y: 250, w: 190, steps: [[4080, 345, 90]], gx: 60, guard: { name: 'Lab Enforcer', weaponKey: 'axe', classKey: 'warden', health: 175, color: '#8a8e94' } },
+  ];
+
   function layout() {
     const P = [];
     for (const [x, y, w] of RACK) _slLedge(P, x, y, w);
     _slLedge(P, ARENA - 340, 360, 100); _slLedge(P, ARENA + 240, 360, 100);
     _slLedge(P, ARENA - 200, 250, 400);          // observation gallery
     for (let k = 0; k < 4; k++) _slLedge(P, CELLS + k * 160, G - 60, 50);   // cell bunks
+    _slStashPlats(P, STASH);
     return P;
   }
 
@@ -95,10 +103,12 @@
 
   function surface(v, a, ph) { _slSurfaces(v, a, ph, [{ x0: -200, x1: 6200, kind: 'tile', face: 'concrete' }]); }
 
+  function loot() { return _slStashLoot(STASH); }
+
   STORY_LEVELS[66] = {
     sky: ['#0c0c0e', '#1a1c1e'],
     groundColor: '#14161a',
     platColor: '#4a4c50',
-    layout, backdrop, back, surface,
+    layout, loot, backdrop, back, surface,
   };
 })();

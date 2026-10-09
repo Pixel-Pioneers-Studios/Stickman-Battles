@@ -21,10 +21,18 @@
   const BRAZIERS = [800, 2550, 3550, 5450];
   const DRAINS = [1800, 4680];
 
+  // Optional loot (see _slStashPlats / level.loot in smb-story-levels.js): a hidden cache
+  // one jump off the route, and a better one held by an OPTIONAL elite.
+  const STASH = [
+    { id: 'a', x: 2030, y: 250, w: 140, steps: [[1960, 345, 90]] },
+    { id: 'b', x: 4290, y: 250, w: 190, steps: [[4220, 345, 90]], gx: 60, guard: { name: 'Throne Sentinel', weaponKey: 'hammer', classKey: 'warden', health: 185, color: '#b88a4a' } },
+  ];
+
   function layout() {
     const P = [];
     for (const [x, y, w] of DAIS) _slLedge(P, x, y, w);
     _slLedge(P, THRONE - 340, 360, 100); _slLedge(P, THRONE + 240, 360, 100);
+    _slStashPlats(P, STASH);
     return P;
   }
 
@@ -79,10 +87,12 @@
 
   function surface(v, a, ph) { _slSurfaces(v, a, ph, [{ x0: -200, x1: 6200, kind: 'sandstone', face: 'soil' }]); }
 
+  function loot() { return _slStashLoot(STASH); }
+
   STORY_LEVELS[101] = {
     sky: ['#2a1a12', '#4a2e1e', '#6a4630'],
     groundColor: '#4a3a2c',
     platColor: '#8a7460',
-    layout, backdrop, back, surface,
+    layout, loot, backdrop, back, surface,
   };
 })();

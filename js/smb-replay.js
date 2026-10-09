@@ -357,6 +357,9 @@ const ReplaySystem = (() => {
     }
   }
 
+  // Drop the current recording without saving it (scripted menu previews).
+  function discardRecording() { _recording = false; }
+
   function stopRecording() {
     if (!_recording) return;
     _recording = false;
@@ -912,6 +915,7 @@ const ReplaySystem = (() => {
     startRecording,
     recordFrame,
     stopRecording,
+    discardRecording,
     watchReplay,
     downloadReplay,
     refreshReplayPanel,

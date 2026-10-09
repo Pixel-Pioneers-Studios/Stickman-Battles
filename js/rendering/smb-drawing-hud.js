@@ -481,3 +481,152 @@ function drawMatchAnnouncer() {
   ctx.restore();
 }
 
+
+// ── Explore minimap ───────────────────────────────────────────────────────────
+// A thin strip showing the whole level outline: platforms, the player, hostile
+// foes, the exit, rest/fight checkpoints and caches the player has already seen.
+// Explore worlds run 3000-9000px; the camera shows ~900 of it, so without this
+// the only sense of where you are is the progress bar. Drawn on canvas in the
+// HUD layer (screen space), top-left under the DOM HUD. M toggles it; it is on
+// by default only in levels wider than 1.5 screens. An explicit M choice is
+// remembered (localStorage 'smb_minimap': '1' on everywhere, '0' off everywhere).
+//
+// drawEdgeIndicators (smb-menu-utils.js) reads window._hudAvoid — the canvas-space
+// rects this strip and the sidequest tracker occupy — so off-screen arrows never
+// land on top of them.
+const _MM = { sig: '', path: null, yMin: 0, yMax: 560, pref: undefined };
+function _mmLoadPref() {
+  if (_MM.pref !== undefined) return _MM.pref;
+  let v = null;
+  try { const s = localStorage.getItem('smb_minimap'); v = s === '1' ? true : s === '0' ? false : null; } catch (e) {}
+  return (_MM.pref = v);
+}
+function exploreMinimapEnabled() {
+  const p = _mmLoadPref();
+  if (p !== null) return p;
+  return typeof exploreWorldLen === 'number' && exploreWorldLen > GAME_W * 1.5;
+}
+function toggleExploreMinimap() {
+  _MM.pref = !exploreMinimapEnabled();
+  try { localStorage.setItem('smb_minimap', _MM.pref ? '1' : '0'); } catch (e) {}
+  return _MM.pref;
+}
+document.addEventListener('keydown', function (e) {
+  if (e.key !== 'm' && e.key !== 'M') return;
+  if (e.ctrlKey || e.metaKey || e.altKey || e.repeat) return;
+  if (typeof gameRunning === 'undefined' || !gameRunning || gameMode !== 'exploration' || !exploreActive) return;
+  const ae = document.activeElement;
+  if (ae && (ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA' || ae.isContentEditable)) return;
+  if (window._storySceneHold) return;
+  toggleExploreMinimap();
+});
+
+function drawExploreMinimap() {
+  window._hudAvoid = [];
+  const _mmArena = (typeof ARENAS !== 'undefined' && ARENAS.__explore__) || currentArena;
+  if (!exploreActive || !players[0] || !_mmArena || !_mmArena.platforms) return;
+  if (!exploreMinimapEnabled() || !(exploreWorldLen > GAME_W * 1.05)) return;
+  if ((typeof activeCinematic !== 'undefined' && activeCinematic) || (typeof isCinematic !== 'undefined' && isCinematic)) return;
+  const p1 = players[0];
+  const cw = canvas.width;
+  const W = Math.round(Math.max(190, Math.min(300, cw * 0.26)));
+  const H = 36, PADX = 8, PADY = 14;
+  const bx = 14, by = Math.round(_hudBottom() + 10);
+  const iw = W - PADX * 2, ih = H;
+  const L = exploreWorldLen;
+  const sx = iw / L;
+
+  // Outline path: rebuilt only when the arena or the strip width changes.
+  const plats = _mmArena.platforms;
+  const sig = L + ':' + plats.length + ':' + iw;
+  if (_MM.sig !== sig || !_MM.path) {
+    let yMin = 120;
+    for (const p of plats) if (!p.isBedrock && !p.isRockFill && p.y > -700 && p.y < yMin) yMin = p.y - 20;
+    _MM.yMin = yMin; _MM.yMax = 560;
+    const path = new Path2D();
+    const ty = y => Math.max(0, Math.min(ih, (y - _MM.yMin) / (_MM.yMax - _MM.yMin) * ih));
+    for (const p of plats) {
+      if (p.isBedrock || p.isRockFill || p.w < 28 || p.y > 600) continue;
+      const y = Math.round(ty(p.y)) + 0.5;
+      path.moveTo(p.x * sx, y); path.lineTo((p.x + p.w) * sx, y);
+    }
+    _MM.path = path; _MM.sig = sig;
+  }
+  const ty = y => Math.max(0, Math.min(ih, (y - _MM.yMin) / (_MM.yMax - _MM.yMin) * ih));
+  const tx = x => Math.max(0, Math.min(iw, x * sx));
+
+  ctx.save();
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.textBaseline = 'alphabetic';
+  // Plate
+  ctx.globalAlpha = 1;
+  ctx.fillStyle = 'rgba(8,10,16,0.62)';
+  ctx.beginPath(); ctx.roundRect(bx, by, W, H + PADY + 6, 3); ctx.fill();
+  ctx.strokeStyle = 'rgba(150,165,190,0.22)'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.roundRect(bx + 0.5, by + 0.5, W - 1, H + PADY + 5, 3); ctx.stroke();
+  ctx.font = '600 8px "Segoe UI", Arial, sans-serif';
+  ctx.fillStyle = 'rgba(165,178,200,0.6)';
+  ctx.textAlign = 'left';
+  ctx.fillText('LEVEL', bx + PADX, by + 10);
+  ctx.textAlign = 'right';
+  ctx.fillText('M', bx + W - PADX, by + 10);
+
+  ctx.translate(bx + PADX, by + PADY);
+  // Platforms
+  ctx.strokeStyle = 'rgba(150,165,190,0.62)'; ctx.lineWidth = 1;
+  ctx.stroke(_MM.path);
+
+  // Checkpoints: fight gates and rest beacons; passed ones go muted green.
+  for (const cp of (exploreCheckpoints || [])) {
+    const x = Math.round(tx(cp.x)) + 0.5, h = cp.rest ? 4 : 7;
+    ctx.strokeStyle = cp.hit ? 'rgba(150,196,160,0.85)' : 'rgba(205,210,222,0.42)';
+    ctx.beginPath(); ctx.moveTo(x, ih - h); ctx.lineTo(x, ih); ctx.stroke();
+  }
+  // Exit
+  if (exploreGoalX > 0 && exploreGoalX < L + 400) {
+    const x = Math.round(tx(exploreGoalX)) + 0.5;
+    const col = exploreGoalFound ? 'rgba(235,225,160,0.95)' : 'rgba(214,176,98,0.9)';
+    ctx.strokeStyle = col; ctx.fillStyle = col;
+    ctx.beginPath(); ctx.moveTo(x, 2); ctx.lineTo(x, ih); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x - 3, 2); ctx.lineTo(x + 3, 2); ctx.lineTo(x, 6); ctx.closePath(); ctx.fill();
+  }
+  // Caches the player has actually come near (or opened). Hidden ones stay hidden.
+  for (const it of (explorePickups || [])) {
+    if (it.type !== 'chest') continue;
+    if (!it._seen && !it.collected && Math.abs(p1.cx() - it.x) < 420) it._seen = true;
+    if (!it._seen && !it.collected) continue;
+    const x = Math.round(tx(it.x)), y = Math.round(ty(it.y)) ;
+    const yy = Math.min(ih - 2, y);
+    ctx.strokeStyle = it.collected ? 'rgba(170,150,98,0.75)' : 'rgba(224,196,120,0.95)';
+    ctx.fillStyle = it.collected ? 'rgba(170,150,98,0.75)' : 'rgba(0,0,0,0)';
+    ctx.beginPath(); ctx.rect(x - 2, yy - 2, 4, 4);
+    if (it.collected) ctx.fill(); else ctx.stroke();
+  }
+  // Optional objectives that have been spotted (sidequests)
+  if (typeof storySidequestMarks === 'function') {
+    for (const m of storySidequestMarks()) {
+      const x = Math.round(tx(m.x)), yy = Math.min(ih - 2, Math.round(ty(m.y)));
+      ctx.strokeStyle = m.done ? 'rgba(120,160,156,0.55)' : 'rgba(132,200,192,0.95)';
+      ctx.beginPath(); ctx.arc(x, yy, 2.6, 0, Math.PI * 2); ctx.stroke();
+      if (m.done) { ctx.fillStyle = 'rgba(120,160,156,0.55)'; ctx.fill(); }
+    }
+  }
+  // Hostiles
+  ctx.fillStyle = 'rgba(204,104,92,0.95)';
+  const dot = f => {
+    if (!f || f === p1 || !(f.health > 0)) return;
+    if (!_exploreHostile(f)) return;
+    ctx.fillRect(Math.round(tx(f.cx())) - 1, Math.min(ih - 2, Math.round(ty(f.y + f.h))) - 2, 2, 2);
+  };
+  if (typeof minions !== 'undefined') minions.forEach(dot);
+  for (const p of players) if (p !== p1 && p.storyFaction === 'enemy') dot(p);
+  // Player
+  const px = Math.round(tx(p1.cx())), py = Math.min(ih - 3, Math.round(ty(p1.y + p1.h)));
+  ctx.fillStyle = '#eaf0fa';
+  ctx.fillRect(px - 1, py - 5, 2, 5);
+  ctx.strokeStyle = 'rgba(234,240,250,0.35)';
+  ctx.beginPath(); ctx.moveTo(px + 0.5, 0); ctx.lineTo(px + 0.5, py - 6); ctx.stroke();
+  ctx.restore();
+
+  window._hudAvoid.push({ x: bx, y: by, w: W, h: H + PADY + 6 });
+}

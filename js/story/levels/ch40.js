@@ -19,11 +19,19 @@
   const BENCHES = [[800, 160], [2050, 140], [4100, 160], [5250, 140]];
   const HOLES = [1800, 4680];
 
+  // Optional loot (see _slStashPlats / level.loot in smb-story-levels.js): a hidden cache
+  // one jump off the route, and a better one held by an OPTIONAL elite.
+  const STASH = [
+    { id: 'a', x: 2020, y: 250, w: 140, steps: [[1950, 345, 90]] },
+    { id: 'b', x: 4470, y: 250, w: 190, steps: [[4400, 345, 90]], gx: 60, guard: { name: 'Grove Warden', weaponKey: 'spear', classKey: 'warrior', health: 165, color: '#5a8a3a' } },
+  ];
+
   function layout() {
     const P = [];
     for (const [x, y, w] of FUNGUS) _slLedge(P, x, y, w);
     for (const [x, w] of BENCHES) _slLedge(P, x, G - 44, w);
     _slLedge(P, HEART - 330, 360, 90); _slLedge(P, HEART + 240, 360, 90);    // moss stones
+    _slStashPlats(P, STASH);
     return P;
   }
 
@@ -102,10 +110,12 @@
 
   function surface(v, a, ph) { _slSurfaces(v, a, ph, [{ x0: -200, x1: 6200, kind: 'parquet', face: 'soil' }]); }
 
+  function loot() { return _slStashLoot(STASH); }
+
   STORY_LEVELS[40] = {
     sky: ['#0a0804', '#1a1408'],
     groundColor: '#1a1208',
     platColor: '#4a3420',
-    layout, backdrop, back, surface,
+    layout, loot, backdrop, back, surface,
   };
 })();

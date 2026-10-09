@@ -80,12 +80,17 @@ chapter in `js/story/levels/chNN.js`) replaces that with an authored map:
 | `back(v)` | drawBackground | World-anchored set pieces behind fighters. |
 | `surface(v, a, ph)` | twice | Floor top face (`ph='back'`, before props) and lip/slab face (`ph='front'`, after platforms). `_slSurfaces` handles zones of asphalt/sidewalk/roof/tile/etc. at every floor height. |
 
+| `floor(worldLen)` on a non-earth walkFight world | world build | Works for lava/void/space worlds (ch10 uses it for five decks over a lava field); earth-style worlds still get shaft slabs and ignore it. Walkable worlds are always >= 6000px (`Math.max(worldLength, 6000)`). |
+| `exploreProps` | world build | Props merged into the explore arena. Hazards are not inherited from the chapter's theme arena, so a lava level sets `{ hasLava, lavaY, deathY, noVoidFog }` here. `pickSafeSpawn` keeps spawns 120px above `lavaY`, so decks at y=440 need `lavaY >= 562`. |
+| `startX` | world build | Spawn x. Without it `pickSafeSpawn` picks a raised ledge near the camera (ch10 started on the crane arm). |
+| `loot(segLen)` | world build | Optional extras: `[{ id, x, y, tier, contents, guards:[{x, floorY, elite:true, name, weaponKey, classKey, health}] }]`, keyed `'<chId>:x<id>'`. An `elite` guard is a full-strength `isChestGuardian` that holds its post and unlocks the chest when it falls; chest guardians are exempt from `storyLevelClearBlocker`, so the exit never waits on it. `_slStashPlats` / `_slStashLoot` (smb-story-levels.js) build the standard two-step ledge stash and its entry (used by ch2, 6, 10, 29, 40, 43, 66, 87, 97, 101, 129). |
+
 Mode objects authored in chapter data are placed to match the map: chapter 5's
 `scavengeItemDefs` sit on climb spots, chapter 9's `puzzleSwitchDefs` are out
 of spatial order on purpose. Single jump ≈ 214px, double ≈ 337px; keep required
 steps ≤ 120px so every climb works without double jump.
 
-**One-map regions** (`STORY_REGIONS`, e.g. chapters 32–35 as one 24000px
+**One-map regions** (`STORY_REGIONS`: 32–35, 11–12, 42–43, 94–95; e.g. 32–35 is one 24000px
 world) use the same entries: the explore arena carries `storyRegion`
 (`[{ id, off, len }]`), and `_storyRegionCall` draws each visible segment's
 level translated by `off` and clipped to its span, against a shim arena whose

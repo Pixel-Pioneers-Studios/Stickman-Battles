@@ -1159,6 +1159,7 @@ function gameLoop(timestamp) {
   if (typeof updateFractureBranch === 'function') updateFractureBranch();
   if (typeof updateLadder === 'function') updateLadder();
   if (typeof updateTutorial === 'function') updateTutorial();
+  if (typeof updateMovePreview === 'function') updateMovePreview();
   if (gameMode === 'trueform' && !tfAbsorptionScene && typeof updateQTE === 'function') updateQTE();
 
   // TrueForm: record player position history for multiverse lag-echo
@@ -1176,6 +1177,7 @@ function gameLoop(timestamp) {
   // New chaos modifier notification — timer ticked here, drawn in screen-space below
   if (_chaosModNotif && _chaosModNotif.timer > 0) _chaosModNotif.timer--;
   if (exploreActive && typeof drawExploreGoalObject === 'function') drawExploreGoalObject();
+  if (exploreActive && typeof drawSidequestWorld === 'function') drawSidequestWorld();
   // Story mode: void fog (drawn in game-world space)
   if (storyModeActive) drawStoryVoidFog();
   if (exploreActive && typeof drawExploreWorldModeOverlay === 'function') drawExploreWorldModeOverlay();
@@ -1229,7 +1231,11 @@ function gameLoop(timestamp) {
   }
   if ((currentArena && currentArena.isBossArena || window.FORCE_ATTACK_MODE) && typeof drawBossDialogue === 'function') drawBossDialogue(finalScX, finalScY, camCX, camCY);
   if (typeof drawHitEffectivenessHUD === 'function') drawHitEffectivenessHUD();
-  if (gameMode === 'exploration') drawExploreHUD();
+  if (gameMode === 'exploration') {
+    drawExploreHUD();
+    if (typeof drawExploreMinimap === 'function') drawExploreMinimap();
+    if (typeof drawSidequestHUD === 'function') drawSidequestHUD();
+  }
   if (typeof _interludeActive !== 'undefined' && _interludeActive && typeof drawInterlude === 'function') drawInterlude();
   if (exploreActive && typeof drawExploreModeOverlay === 'function') drawExploreModeOverlay();
   if (abilityUnlockToast && abilityUnlockToast.timer > 0) drawAbilityUnlockToast();

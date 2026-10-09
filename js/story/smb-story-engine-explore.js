@@ -618,6 +618,9 @@ function _launchExplorationChapter(ch) {
     exploreStyle:  ch.style || 'city',
     platforms:     plats,
   };
+  // Authored hazard rules (e.g. a lava crossing): damage-bearing arena props that
+  // the theme inheritance above deliberately does not carry over.
+  if (_level && _level.exploreProps) Object.assign(ARENAS[arenaKey], _level.exploreProps);
   if (_earth) {
     // Underground layer: no void beneath earth worlds — bedrock seals the world,
     // the death plane sits far below as a failsafe, and the camera may pan down
@@ -655,8 +658,12 @@ function _launchExplorationChapter(ch) {
   exploreGoalBlockReason = '';
   window._exploreForceSpawnAll = false;
   if (typeof _storyResetLevelWin === 'function') _storyResetLevelWin();
+  if (typeof storySidequestsReset === 'function') storySidequestsReset();
   exploreCheckpoints = [];
   exploreCheckpointIdx = -1;
+  // Authored spawn: a map whose raised ledges would win pickSafeSpawn (and may hang
+  // over a hazard) names the x the player should start on.
+  if (_level && _level.startX != null) exploreStartX = _level.startX;
   if (_region) {
     // One duel checkpoint per segment, each carrying its own chapter's opponent.
     // Checkpoints behind the launched chapter's segment start pre-hit so walking
@@ -834,6 +841,21 @@ function _launchExplorationChapter(ch) {
           key: _key,
         });
       });
+      // Authored extras (level.loot): off-path chests behind a jump, and richer
+      // ones watched by an OPTIONAL elite (isChestGuardian — exempt from the
+      // clear gate, leashed to its post). Keyed ':x<id>' so the c0/c1 star keys
+      // are untouched.
+      const _lvLoot = (typeof STORY_LEVELS !== 'undefined' && STORY_LEVELS[seg.cid] && typeof STORY_LEVELS[seg.cid].loot === 'function')
+        ? STORY_LEVELS[seg.cid].loot(seg.len) : [];
+      (_lvLoot || []).forEach(d => {
+        const _gs = (d.guards || []).map(g => Object.assign({}, g, { x: seg.off + g.x }));
+        _loot.push({
+          x: seg.off + d.x, y: d.y, type: 'chest', tier: d.tier || 'minor', icon: '🧰',
+          underground: false, guards: _gs, guarded: _gs.length > 0, _guardSpawned: false,
+          contents: d.contents || (d.tier === 'elite' ? { tokens: 40, exp: 45, heal: 100 } : { tokens: 15, exp: 18 }),
+          key: seg.cid + ':x' + d.id,
+        });
+      });
       _loot.forEach(it => {
         it.collected = !!_story2.lootTaken[it.key];
         explorePickups.push(it);
@@ -917,6 +939,8 @@ function _launchExplorationChapter(ch) {
   startGame();
   setTimeout(() => {
     if (players[0]) _applySkillTreeToPlayer(players[0]);
+    // Optional side objectives (smb-story-sidequests.js) — need the arena and the player
+    if (typeof storySidequestsArm === 'function') storySidequestsArm(ch);
     // Initialise special explore modes after players[] is populated
     if (_exploreMode === 'stealth'  && typeof initStealthMode  === 'function') initStealthMode(ch);
     if (_exploreMode === 'escape'   && typeof initEscapeMode   === 'function') initEscapeMode(ch);

@@ -371,6 +371,27 @@ function _slMover(P, tag, x, y, w, ax, ay, speed, phase) {
 }
 function _slPlat(a, tag) { return (a && a.platforms || []).find(p => p.slTag === tag) || null; }
 
+// Optional loot stashes. A spec { id, x, y, w, steps:[[x,y,w],..], guard?, contents? } is an
+// off-path ledge stack (each step <=110px, one single jump) ending in a chest ledge. With
+// `guard` ({name, weaponKey, classKey, health, color}) the chest is the better one and an
+// OPTIONAL elite holds the ledge (isChestGuardian: leashed, exempt from the level-clear gate,
+// the exit never waits on it). Use _slStashPlats in layout() and return _slStashLoot(list)
+// from the level's `loot()` hook (read by _launchExplorationChapter).
+function _slStashPlats(P, list) {
+  for (const s of list) {
+    for (const [x, y, w] of (s.steps || [])) P.push({ x, y, w, h: 12, passUnder: true });
+    P.push({ x: s.x, y: s.y, w: s.w, h: 12, passUnder: true });
+  }
+}
+function _slStashLoot(list) {
+  return list.map(s => ({
+    id: s.id, tier: s.guard ? 'elite' : 'minor',
+    x: s.x + (s.cx != null ? s.cx : s.w / 2), y: s.y - 16,
+    contents: s.contents || (s.guard ? { tokens: 40, exp: 45, heal: 100 } : { tokens: 15, exp: 18 }),
+    guards: s.guard ? [Object.assign({ x: s.x + (s.gx != null ? s.gx : 40), floorY: s.y, elite: true }, s.guard)] : [],
+  }));
+}
+
 function _slBrick(x, y, w, h, base, mortar) {
   ctx.fillStyle = base; ctx.fillRect(x, y, w, h);
   ctx.save(); ctx.beginPath(); ctx.rect(x, y, w, h); ctx.clip();

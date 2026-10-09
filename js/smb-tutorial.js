@@ -382,6 +382,7 @@ function _tipTick() {
   if (_tipHide && _tipFrames > _tipHide && _tipEl) { _tipEl.style.opacity = '0'; _tipEl.style.pointerEvents = 'none'; _tipHide = 0; }
   if (!gameRunning || (typeof gameLoading !== 'undefined' && gameLoading)) return;
   _tipFrames++;
+  if (typeof _mp !== 'undefined' && _mp) return; // move preview (smb-move-preview.js) stays tip-free
   if (tutorialActive || (typeof ladderActive !== 'undefined' && ladderActive && !hasSeenTutorial())) return;
   if (typeof onlineMode !== 'undefined' && onlineMode) return;
   if ((typeof activeCinematic !== 'undefined' && activeCinematic) || (typeof isCinematic !== 'undefined' && isCinematic)) return;

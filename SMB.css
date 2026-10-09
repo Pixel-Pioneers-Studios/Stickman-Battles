@@ -742,6 +742,62 @@ input, textarea, [contenteditable] {
   line-height: 1;
 }
 
+/* Move preview: a small play button in the card's top-right corner. */
+.sel-card { position: relative; }
+.sel-card-preview {
+  position: absolute;
+  top: 3px; right: 3px;
+  width: 18px; height: 18px;
+  padding: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(8,10,18,0.55);
+  border: 1px solid rgba(255,255,255,0.18);
+  border-radius: 50%;
+  color: var(--muted);
+  cursor: pointer;
+  opacity: 0.7;
+  transition: opacity 0.15s, color 0.15s, border-color 0.15s;
+}
+.sel-card-preview svg { display: block; margin-left: 1px; }
+.sel-card-preview:hover, .sel-card-preview:focus-visible { opacity: 1; color: var(--text); border-color: rgba(255,255,255,0.5); }
+.sel-card.card-barred .sel-card-preview { display: none; }
+
+/* Move preview overlay (smb-move-preview.js): bottom strip under the fight. */
+#mpOverlay {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 60;
+  padding: 8px 16px calc(8px + env(safe-area-inset-bottom, 0px));
+  background: rgba(8,10,18,0.82);
+  border-top: 1px solid rgba(255,255,255,0.14);
+  color: var(--text);
+  display: flex; flex-direction: column; gap: 6px;
+  font-family: inherit;
+}
+#mpOverlay .mp-top { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 14px; }
+#mpOverlay .mp-kind { font-size: 0.6rem; letter-spacing: 1.6px; color: var(--muted); font-weight: 700; }
+#mpOverlay .mp-name { font-size: 0.95rem; font-weight: 800; letter-spacing: 0.3px; }
+#mpOverlay .mp-steps { display: flex; gap: 4px; flex: 1; min-width: 0; flex-wrap: wrap; }
+#mpOverlay .mp-step {
+  font-size: 0.66rem; font-weight: 700; letter-spacing: 0.6px; padding: 2px 9px;
+  border: 1px solid rgba(255,255,255,0.14); border-radius: 3px; color: var(--muted);
+}
+#mpOverlay .mp-step.on { color: var(--text); border-color: rgba(255,255,255,0.6); background: rgba(255,255,255,0.08); }
+#mpOverlay .mp-btns { display: flex; gap: 6px; }
+#mpOverlay .mp-btn {
+  background: transparent; color: var(--text); font-size: 0.72rem; font-weight: 700; letter-spacing: 0.5px;
+  padding: 4px 14px; border: 1px solid rgba(255,255,255,0.3); border-radius: 4px; cursor: pointer;
+}
+#mpOverlay .mp-btn:hover { border-color: rgba(255,255,255,0.7); background: rgba(255,255,255,0.08); }
+#mpOverlay .mp-cap { min-height: 3.1em; }
+#mpOverlay .mp-cap-title { font-size: 0.74rem; font-weight: 800; letter-spacing: 1px; color: var(--muted); text-transform: uppercase; }
+#mpOverlay .mp-cap-body { font-size: 1.02rem; line-height: 1.35; margin-top: 2px; }
+/* Nobody is driving P1 with a pad during a preview. */
+body.mp-active #mobileControls, body.mp-active #mc-pause { display: none !important; }
+@media (max-width: 600px) {
+  #mpOverlay { padding: 6px 12px calc(6px + env(safe-area-inset-bottom, 0px)); }
+  #mpOverlay .mp-cap-body { font-size: 0.86rem; }
+  #mpOverlay .mp-steps { order: 5; flex-basis: 100%; }
+}
+
 /* ============================================================
    SELECTION DESCRIPTION PANEL
    ============================================================ */

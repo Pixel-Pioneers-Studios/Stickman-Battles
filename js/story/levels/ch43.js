@@ -18,11 +18,19 @@
   const SLATES = [900, 1400, 2400, 3900, 4300, 5400];
   const CAVES = [1800, 4680];
 
+  // Optional loot (see _slStashPlats / level.loot in smb-story-levels.js): a hidden cache
+  // one jump off the route, and a better one held by an OPTIONAL elite.
+  const STASH = [
+    { id: 'a', x: 2060, y: 250, w: 140, steps: [[1990, 345, 90]] },
+    { id: 'b', x: 4250, y: 250, w: 190, steps: [[4180, 345, 90]], gx: 60, guard: { name: 'Frost Warden', weaponKey: 'sword', classKey: 'warrior', health: 165, color: '#6aa8d8' } },
+  ];
+
   function layout() {
     const P = [];
     for (const [x, y, w] of CRAG) _slLedge(P, x, y, w);
     _slLedge(P, SPIRE - 320, 350, 100); _slLedge(P, SPIRE + 220, 350, 100);
     _slLedge(P, SPIRE - 80, 250, 160);   // observatory gallery under the spire
+    _slStashPlats(P, STASH);
     return P;
   }
 
@@ -93,10 +101,12 @@
 
   function surface(v, a, ph) { _slSurfaces(v, a, ph, [{ x0: -200, x1: 6200, kind: 'rubble', face: 'concrete' }]); }
 
+  function loot() { return _slStashLoot(STASH); }
+
   STORY_LEVELS[43] = {
     sky: ['#1a2e48', '#8aa8c8'],
     groundColor: '#3a4e64',
     platColor: '#6a86a0',
-    layout, backdrop, back, surface,
+    layout, loot, backdrop, back, surface,
   };
 })();

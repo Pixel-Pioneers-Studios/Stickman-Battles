@@ -2798,6 +2798,9 @@ function drawStoryVoidFog() {
   // below went NaN and createLinearGradient threw, taking the whole game loop
   // down through the error boundary.
   if (gameMode === 'battleroyale') return;
+  // Worlds whose below-floor space is a visible hazard (a lava field) opt out: the
+  // fog would paint the melt black.
+  if (currentArena.noVoidFog) return;
 
   // Find floor top: prefer isFloor-tagged platform, fall back to lowest platform
   let floorTopY = currentArena.deathY - 60;

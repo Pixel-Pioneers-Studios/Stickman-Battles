@@ -263,7 +263,16 @@ function drawEdgeIndicators(scX, scY, camCX, camCY) {
     if (onScreen) continue;
     // Clamp indicator to screen edge with margin
     const ix = Math.max(MARGIN, Math.min(canvas.width  - MARGIN, sx));
-    const iy = Math.max(MARGIN, Math.min(canvas.height - MARGIN, sy));
+    let iy = Math.max(MARGIN, Math.min(canvas.height - MARGIN, sy));
+    // Keep clear of the explore minimap / sidequest tracker (smb-drawing-hud.js,
+    // smb-story-sidequests.js): an arrow that would land on one slides below it.
+    if (gameMode === 'exploration' && Array.isArray(window._hudAvoid)) {
+      for (const r of window._hudAvoid) {
+        if (ix > r.x - ARROW && ix < r.x + r.w + ARROW && iy > r.y - ARROW && iy < r.y + r.h + ARROW) {
+          iy = Math.min(canvas.height - MARGIN, r.y + r.h + ARROW + 18);
+        }
+      }
+    }
     const angle = Math.atan2(sy - iy, sx - ix);
     ctx.save();
     ctx.translate(ix, iy);

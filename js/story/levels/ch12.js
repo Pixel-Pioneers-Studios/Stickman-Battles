@@ -36,7 +36,7 @@
 
   function backdrop(v) { _slSkyAbove(v, '#0a0c12'); }
 
-  function back(v) {
+  function back(v, a) {
     const x0 = Math.max(-200, v.x - 40), x1 = Math.min(6200, v.x + v.w + 40);
     // Station shell
     ctx.fillStyle = '#181a22'; ctx.fillRect(x0, G - 560, x1 - x0, 560);
@@ -137,7 +137,7 @@
     }
     // ── Lift up to the fracture mouth
     if (_slVisible(v, 4860, 6200)) {
-      const lf = _slPlat(currentArena, 'lift');
+      const lf = _slPlat(a, 'lift');
       ctx.fillStyle = '#2a2e38'; ctx.fillRect(LIFT.x - 10, G - 300, 8, 300); ctx.fillRect(LIFT.x + LIFT.w + 2, G - 300, 8, 300);
       if (lf) {
         ctx.fillStyle = '#4a5060'; ctx.fillRect(lf.x, lf.y, lf.w, 10);
