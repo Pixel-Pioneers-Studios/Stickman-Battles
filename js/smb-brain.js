@@ -42,19 +42,49 @@ const Brain = (() => {
     const W = weights.W.map(x => typeof x === 'string' ? _b64ToF32(x) : Float32Array.from(x));
     const b = weights.b.map(x => typeof x === 'string' ? _b64ToF32(x) : Float32Array.from(x));
     const bufs = weights.sizes.map(n => new Float32Array(n));
-    return { sizes: weights.sizes, W, b, bufs };
+    const net = { sizes: weights.sizes, W, b, bufs, gru: null };
+    // Optional memory (tools/brain/train.js --gru): a GRU fed by the first hidden
+    // layer, added into the second. torch.nn.GRU's layout: gates r, z, n stacked.
+    const g = weights.gru;
+    if (g && g.H && weights.sizes.length >= 4) {
+      const f = x => typeof x === 'string' ? _b64ToF32(x) : Float32Array.from(x);
+      net.gru = { H: g.H, Wi: f(g.Wi), Wh: f(g.Wh), bi: f(g.bi), bh: f(g.bh), M: f(g.M), tmp: new Float32Array(g.H) };
+    }
+    return net;
+  }
+  // The memory a fighter carries through one match: zeros at the start, kept across stocks.
+  function newState(net) { return net && net.gru ? new Float32Array(net.gru.H) : null; }
+
+  function _gruStep(g, x, nIn, h) {
+    const H = g.H, Wi = g.Wi, Wh = g.Wh, bi = g.bi, bh = g.bh, out = g.tmp;
+    for (let j = 0; j < H; j++) {
+      let ri = bi[j], zi = bi[H + j], ni = bi[2 * H + j];
+      const a = j * nIn, bz = (H + j) * nIn, c = (2 * H + j) * nIn;
+      for (let i = 0; i < nIn; i++) { const v = x[i]; ri += Wi[a + i] * v; zi += Wi[bz + i] * v; ni += Wi[c + i] * v; }
+      let rh = bh[j], zh = bh[H + j], nh = bh[2 * H + j];
+      const d = j * H, e = (H + j) * H, f = (2 * H + j) * H;
+      for (let i = 0; i < H; i++) { const v = h[i]; rh += Wh[d + i] * v; zh += Wh[e + i] * v; nh += Wh[f + i] * v; }
+      const r = 1 / (1 + Math.exp(-(ri + rh))), z = 1 / (1 + Math.exp(-(zi + zh)));
+      out[j] = (1 - z) * Math.tanh(ni + r * nh) + z * h[j];
+    }
+    h.set(out);
   }
 
-  function forward(net, x) {
-    const S = net.sizes, L = S.length - 1;
+  // h: this fighter's memory (newState), advanced one decision. A net with no GRU ignores it.
+  function forward(net, x, h) {
+    const S = net.sizes, L = S.length - 1, g = net.gru;
+    if (g && !h) h = new Float32Array(g.H);
     let inp = x;
     for (let l = 0; l < L; l++) {
       const nIn = S[l], nOut = S[l + 1], W = net.W[l], b = net.b[l], out = net.bufs[l + 1];
+      const mem = g && l === 1, H = mem ? g.H : 0, M = mem ? g.M : null;
       for (let o = 0; o < nOut; o++) {
         let s = b[o]; const row = o * nIn;
         for (let i = 0; i < nIn; i++) s += W[row + i] * inp[i];
+        if (mem) { const mr = o * H; for (let i = 0; i < H; i++) s += M[mr + i] * h[i]; }
         out[o] = l < L - 1 ? Math.tanh(s) : s;
       }
+      if (g && l === 0) _gruStep(g, out, nOut, h);
       inp = out;
     }
     return inp;
@@ -591,8 +621,8 @@ const Brain = (() => {
       const T = _track = { brain, opp: opps[0], opps, st, bonus: 0, frame: 0, lastAbi: -999, lastSup: -999,
         prev: { onGround: false, canDoubleJump: false, vy: 0, shielding: false, attackTimer: 0,
                 abilityCooldown: 0, superReady: false, clashCd: 0, oClashCd: 0, dom: false } };
-      const act = [1, 0, 0, 0], prevAct = [1, 0, 0, 0];
-      const oppIO = opps.map(f => f._brainNet ? { act: [1, 0, 0, 0], prev: [1, 0, 0, 0], obs: new Float32Array(OBS_DIM) } : null);
+      const act = [1, 0, 0, 0], prevAct = [1, 0, 0, 0], mem = newState(net);
+      const oppIO = opps.map(f => f._brainNet ? { act: [1, 0, 0, 0], prev: [1, 0, 0, 0], obs: new Float32Array(OBS_DIM), h: newState(f._brainNet) } : null);
       const seen = {};
       const alive = f => f.lives > 0 && players.indexOf(f) >= 0;
       // The main opponent slot: nearest opponent still in the match.
@@ -616,7 +646,7 @@ const Brain = (() => {
         T.opp = main; brain.target = main;
         const o = obsBuf.subarray(n * OBS_DIM, (n + 1) * OBS_DIM);
         observe(brain, main, prevAct, o);
-        logps.push(sample(forward(net, o), act, greedy));
+        logps.push(sample(forward(net, o, mem), act, greedy));
         acts.push(act[0], act[1], act[2], act[3]);
         if (brain._bRead) BrainRead.adjust(brain._bRead, brain, main, act);
         if (shieldMode === 'hold') holdKey(brain, act);
@@ -627,7 +657,7 @@ const Brain = (() => {
           const io = oppIO[q];
           if (!io || !alive(f)) return;
           observe(f, brain, io.prev, io.obs);
-          sample(forward(f._brainNet, io.obs), io.act, !!f._brainGreedy);
+          sample(forward(f._brainNet, io.obs, io.h), io.act, !!f._brainGreedy);
           if (f._bRead) BrainRead.adjust(f._bRead, f, brain, io.act);
           applyKeys(f, io.act);
           for (let k = 0; k < 4; k++) io.prev[k] = io.act[k];
@@ -750,7 +780,7 @@ const Brain = (() => {
     if (!fighter || !net) return false;
     release();
     fighter._bHist = null;
-    _live = { f: fighter, net, opp: opponent, act: [1, 0, 0, 0], prev: [1, 0, 0, 0], obs: new Float32Array(OBS_DIM), t: 0,
+    _live = { f: fighter, net, opp: opponent, act: [1, 0, 0, 0], prev: [1, 0, 0, 0], obs: new Float32Array(OBS_DIM), t: 0, h: newState(net),
               wasAI: fighter.isAI, controls: fighter.controls,
               read: typeof BrainRead !== 'undefined' ? Object.assign(BrainRead.create(), { live: true }) : null };
     fighter.isAI = false;
@@ -769,7 +799,7 @@ const Brain = (() => {
     if (L.t++ % REPEAT !== 0) return;
     if (!opp) return;
     observe(L.f, opp, L.prev, L.obs);
-    sample(forward(L.net, L.obs), L.act, !!L.greedy);
+    sample(forward(L.net, L.obs, L.h), L.act, !!L.greedy);
     if (L.read) BrainRead.adjust(L.read, L.f, opp, L.act);
     applyKeys(L.f, L.act);
     for (let k = 0; k < 4; k++) L.prev[k] = L.act[k];
@@ -815,7 +845,7 @@ const Brain = (() => {
     }).catch(() => -1);
   }
 
-  return { REPEAT, HEADS, N_LOGITS, OBS_DIM, OBS_BASE, STAT_KEYS, randomKit, resolveKit, hostilesOf, controlsFor, loadNet, forward, sample,
+  return { REPEAT, HEADS, N_LOGITS, OBS_DIM, OBS_BASE, STAT_KEYS, randomKit, resolveKit, hostilesOf, controlsFor, loadNet, newState, forward, sample,
            observe, applyKeys, rollout, possess, tickLive, release, takeOver, driveSovereign, setSovereignDrive,
            get sovereignDrive() { return _sovEnabled; },
            get live() { return _live; } };

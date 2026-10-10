@@ -19,6 +19,9 @@
  *   --out         output dir                     (default data/level-test/<stamp>)
  *   --headful     show the browser
  *   --shots       also screenshot every N seconds (debugging a chapter)
+ *   --pilot       cascade (default; the scripted F7 Sovereign) or brain (the neural
+ *                 net that drives the shipped Sovereign fight, pressing virtual keys)
+ *   --ckpt        brain checkpoint for --pilot=brain  (default data/brain/latest.json)
  *
  * Result per attempt:
  *   WIN    chapter cleared (victory screen, or walk-through exit into the next world)
@@ -57,6 +60,8 @@ const STALL_S    = parseInt(args.stall, 10) || 45;
 const PORT       = parseInt(args.port, 10) || 8131;
 const HEADFUL    = !!args.headful;
 const SHOTS_S    = parseInt(args.shots, 10) || 0;
+const PILOT      = args.pilot === 'brain' ? 'brain' : 'cascade';
+const CKPT       = String(args.ckpt || 'data/brain/latest.json');
 const STAMP      = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
 const OUT        = path.resolve(args.out || path.join(ROOT, 'data', 'level-test', STAMP));
 fs.mkdirSync(OUT, { recursive: true });
@@ -164,7 +169,7 @@ async function runAttempt(browser, ch, attempt) {
   const bootErrs = errors.length, bootConsole = consoleErrors.length;
   try {
     await page.evaluate(QTE_SRC);
-    const launched = await page.evaluate((id, diff, stallS) => {
+    const launched = await page.evaluate((id, diff, stallS, pilot, ckpt) => {
       const T = window.__lt = {
         result: null, note: '', frames: 0, startT: performance.now(),
         hp: null, lives: null, livesStart: null, maxHp: 0, dmgTaken: 0, healed: 0, deaths: 0,
@@ -189,7 +194,7 @@ async function runAttempt(browser, ch, attempt) {
       const snap = () => {
         const modes = ['stealthModeActive', 'escapeModeActive', 'defenseModeActive', 'escortModeActive', 'puzzleModeActive', 'scavengeModeActive', 'survivalModeActive']
           .filter(k => { try { return !!eval(k); } catch (e) { return false; } });
-        const h = SovereignControl._host;
+        const h = host();
         T.context = { subtitle: (typeof storyFightSubtitle !== 'undefined' && storyFightSubtitle && storyFightSubtitle.text) || '',
           modes, lives: h ? h.lives : null, health: h ? Math.round(h.health) : null,
           enemiesAlive: (typeof minions !== 'undefined' ? minions.filter(m => m.health > 0).length : 0) +
@@ -202,13 +207,36 @@ async function runAttempt(browser, ch, attempt) {
         T.note = T.context.lives > 0 ? 'failed with lives left' + (T.context.subtitle ? ': "' + T.context.subtitle + '"' : '') : 'out of lives';
       });
 
-      const host = () => SovereignControl.active ? SovereignControl._host : null;
+      const BRAIN = pilot === 'brain';
+      // function declaration on purpose: snap() above runs later but is defined first.
+      function host() {
+        if (BRAIN) return Brain.live ? Brain.live.f : null;
+        return SovereignControl.active ? SovereignControl._host : null;
+      }
+      // The brain plays as a non-AI fighter through the real key path. With nothing
+      // to fight (or while the walker steers) its keys are let go, or tickLive would
+      // aim it at whatever else is alive, allies included.
+      if (BRAIN) {
+        fetch(ckpt + '?t=' + Date.now()).then(r => r.json()).then(j => { T.ck = j.pi || j; T.ckIter = j.iter || 0; }).catch(e => { T.ckErr = String(e); });
+        // The game's own tickLive only accepts an opponent that is in players[];
+        // story enemies live in minions[], so the same decision step is run here.
+        Brain.tickLive = function () {
+          const L = Brain.live;
+          if (!L || !L.f || typeof gameRunning === 'undefined' || !gameRunning) return;
+          if (L.f.health <= 0 || T.navHold || !L.opp || L.opp.health <= 0) { try { Brain.applyKeys(L.f, [1, 0, 0, 0]); } catch (e) {} return; }
+          if (L.t++ % Brain.REPEAT !== 0) return;
+          Brain.observe(L.f, L.opp, L.prev, L.obs);
+          Brain.sample(Brain.forward(L.net, L.obs, L.h), L.act, true);
+          Brain.applyKeys(L.f, L.act);
+          for (let k = 0; k < 4; k++) L.prev[k] = L.act[k];
+        };
+      }
       // endGame() scores a story win as `winner && !winner.isAI`, and possession
       // sets isAI on the player — every possessed win would read as a loss.
       const origEnd = window.endGame;
       window.endGame = function () {
         const h = host();
-        if (!h) return origEnd.apply(this, arguments);
+        if (!h || BRAIN) return origEnd.apply(this, arguments);
         h.isAI = false;
         try { return origEnd.apply(this, arguments); } finally { h.isAI = true; }
       };
@@ -261,16 +289,27 @@ async function runAttempt(browser, ch, attempt) {
         const nav = { lastX: h.x, stuck: 0, backoff: 0, dir: 1, dropPl: null, dropSide: 1 };
         // Optional foes (cache guards, side-portal elites) don't gate the exit;
         // chasing one into a cache tunnel is how he got lost. Fight them only up close.
-        const baseInvalid = h._isInvalidAITarget;
-        h._isInvalidAITarget = function (c) {
-          if (baseInvalid.call(this, c)) return true;
-          return typeof _exploreOptionalFoe === 'function' && _exploreOptionalFoe(c) &&
-            Math.hypot(c.cx() - this.cx(), c.cy() - this.cy()) > 220;
-        };
+        const farOptional = (me, c) => typeof _exploreOptionalFoe === 'function' && _exploreOptionalFoe(c) &&
+          Math.hypot(c.cx() - me.cx(), c.cy() - me.cy()) > 220;
+        if (!BRAIN) {
+          const baseInvalid = h._isInvalidAITarget;
+          h._isInvalidAITarget = function (c) { return baseInvalid.call(this, c) || farOptional(this, c); };
+        }
         h.update = function () {
-          if (!this.target || this.target.health <= 0) { try { this._acquireAITarget(); } catch (e) {} }
+          if (BRAIN) {
+            // Nearest living hostile is the brain's opponent this frame.
+            let best = null, bd = Infinity;
+            for (const c of Brain.hostilesOf(this)) {
+              if (c.godmode || farOptional(this, c)) continue;
+              const d = Math.abs(c.cx() - this.cx()) + Math.abs(c.cy() - this.cy());
+              if (d < bd) { bd = d; best = c; }
+            }
+            this.target = best;
+            if (Brain.live && Brain.live.f === this) Brain.live.opp = best;
+          } else if (!this.target || this.target.health <= 0) { try { this._acquireAITarget(); } catch (e) {} }
           const free = !activeCinematic && !isCinematic;
           let wp = free ? (this.target ? dropEdge(this, nav) : waypoint(this)) : null;
+          T.navHold = !!wp;
           if (!wp) { if (this.onGround) nav.dropPl = null; T.aiFrames++; return inner.apply(this, arguments); }
           if (wp.drop) T.dropFrames++; else T.navFrames++;
           const dx = wp.x - this.cx();
@@ -320,11 +359,17 @@ async function runAttempt(browser, ch, attempt) {
             T.result = 'CRASH'; T.note = 'harness: the first-run ladder took over the match'; return;
           }
           if (typeof gameRunning === 'undefined' || !gameRunning || !Array.isArray(players)) return;
-          if (!SovereignControl.active || !isMatchHost(SovereignControl._host)) {
+          if (BRAIN) {
+            if (!Brain.live || !isMatchHost(Brain.live.f)) {
+              const f = T.ck && SovereignControl._pickHost();
+              if (!f || f.health <= 0 || !Brain.possess(f, T.ck, null)) { T.engageFails++; return; }
+              Brain.live.greedy = true;
+            }
+          } else if (!SovereignControl.active || !isMatchHost(SovereignControl._host)) {
             SovereignControl.active = false; SovereignControl._host = null;
             if (!SovereignControl.engage()) { T.engageFails++; return; }
           }
-          const h = SovereignControl._host;
+          const h = host();
           installNav(h);
           if (T.livesStart == null) { T.livesStart = h.lives; T.weapon = h.weaponKey; T.cls = h.charClass; }
           T.maxHp = Math.max(T.maxHp, h.maxHealth || 0);
@@ -360,7 +405,7 @@ async function runAttempt(browser, ch, attempt) {
       if (ch.beat && typeof _playChapterBeat === 'function') _playChapterBeat(ch, () => { if (!T.result) { T.result = 'WIN'; T.note = 'beat cleared'; } });
       else _launchChapterWithGauntlet(ch);
       return 'ok';
-    }, ch.id, DIFFICULTY, STALL_S);
+    }, ch.id, DIFFICULTY, STALL_S, PILOT, CKPT);
     if (launched !== 'ok') return { result: 'CRASH', note: 'launch: ' + launched };
 
     const deadline = Date.now() + TIMEOUT_S * 1000;
@@ -370,8 +415,8 @@ async function runAttempt(browser, ch, attempt) {
       await sleep(1000);
       if (SHOTS_S && ++tickN % SHOTS_S === 0) {
         await page.screenshot({ path: path.join(OUT, `ch${ch.id}-a${attempt + 1}-t${tickN}.png`) }).catch(() => {});
-        const dbg = await page.evaluate(() => { const h = SovereignControl._host; const t = h && h.target;
-          return h ? { x: Math.round(h.x), y: Math.round(h.y), target: t ? { name: t.name, x: Math.round(t.x), y: Math.round(t.y), hp: Math.round(t.health), godmode: !!t.godmode, inv: t.invincible } : null,
+        const dbg = await page.evaluate(() => { const h = (typeof Brain !== 'undefined' && Brain.live && Brain.live.f) || SovereignControl._host; const t = h && h.target;
+          return h ? { brain: (typeof Brain !== 'undefined' && Brain.live) ? { act: Array.from(Brain.live.act), t: Brain.live.t, opp: !!Brain.live.opp, hold: !!window.__lt.navHold, isAI: h.isAI, keys: [...keysDown].filter(k => String(k).startsWith('brain')), ctl: h.controls && h.controls.left } : undefined, x: Math.round(h.x), y: Math.round(h.y), target: t ? { name: t.name, x: Math.round(t.x), y: Math.round(t.y), hp: Math.round(t.health), godmode: !!t.godmode, inv: t.invincible } : null,
             lock: typeof exploreArenaLock !== 'undefined' ? !!exploreArenaLock : null, onGround: h.onGround, vy: +h.vy.toFixed(1), feet: Math.round(h.y + h.h), sinceDealt: Math.round((performance.now() - window.__lt.lastDealt) / 1000), plats: (currentArena.platforms || []).filter(p => p.x < h.x + 300 && p.x + p.w > h.x - 300 && p.y < 500).map(p => [Math.round(p.x), Math.round(p.y), Math.round(p.w), p.passUnder ? 'pu' : '', p.isFloor ? 'floor' : '']), cin: !!activeCinematic, isCin: !!isCinematic } : null; }).catch(() => null);
         console.log(`[lt]   t${tickN} ch ${ch.id}`, JSON.stringify(dbg));
       }
@@ -493,7 +538,7 @@ function esc(s) { return String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;'
   if (misaligned.length) console.warn(`[lt] ${misaligned.length} chapters have id != index; using id`);
   const pick = parseChapters(args.chapters, all.length - 1);
   const chapters = pick ? all.filter(c => pick.includes(c.id)) : all;
-  console.log(`[lt] ${chapters.length} chapters × ${ATTEMPTS} attempts · ${DIFFICULTY} · ${PARALLEL} parallel · out ${OUT}`);
+  console.log(`[lt] ${chapters.length} chapters × ${ATTEMPTS} attempts · ${DIFFICULTY} · pilot ${PILOT} · ${PARALLEL} parallel · out ${OUT}`);
 
   const jobs = [];
   const rows = new Map();

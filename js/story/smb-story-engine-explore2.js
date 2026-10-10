@@ -874,6 +874,7 @@ function _exploreSpawnEnemy(def, p1) {
   m.weapon    = (typeof WEAPONS !== 'undefined' && WEAPONS[m.weaponKey]) || m.weapon;
   m.aiDiff    = def.aiDiff || 'medium';
   m.name     = def.name || 'Enemy';
+  m._storyFoe = true;   // lets BOT_TACTICS.story own this Minion
   m.lives    = 1;
   m.health   = def.health || (isGuard ? 120 : 80);
   m.maxHealth= def.health || (isGuard ? 120 : 80);

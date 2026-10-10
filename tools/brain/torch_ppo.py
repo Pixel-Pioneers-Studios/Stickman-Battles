@@ -15,12 +15,22 @@ Wire format, both ways: uint32 LE header length, JSON header, then the raw
 buffers named in header["bufs"] ([name, dtype, count] with dtype f32 or i32),
 concatenated in that order. Log lines go to stderr.
 
-  init    {piSizes, vfSizes, cfg, threads}  bufs pi, vf           -> {ok, device}
+  init    {piSizes, vfSizes, gru, cfg, threads}  bufs pi, vf      -> {ok, device}
   update  {N, D, H, episodes:[[start, len, trunc]], seed}
           bufs obs, acts, logps, rews, finalObs                    -> {upd} bufs pi, vf
   step    one minibatch with given indices, no shuffle (parity test only)
           {N, D, H, m} bufs obs, acts, logps, adv, ret, idx        -> {st} bufs pi, vf
   weights                                                          -> bufs pi, vf
+  seq     one sequence from an empty memory (parity test only)
+          {T, D} bufs obs                                          -> bufs logits, v
+
+Memory (init gru = H > 0): both nets carry a GRU fed by the first hidden layer and
+added into the second (js/smb-brain.js forward). Its weights follow the layers in
+the flat buffers: weight_ih, weight_hh, bias_ih, bias_hh, then the H -> hidden
+matrix. The update then trains on whole matches cut into cfg.seqLen-decision
+pieces: each piece starts from the memory the current weights reach by that point
+(recomputed here from the match's first decision, so the browser sends nothing
+extra) and gradients stop at the piece's edge.
 """
 import json
 import struct
@@ -72,12 +82,31 @@ def send(head, bufs=()):
 
 
 class MLP(nn.Module):
-    """ppo.js's MLP: tanh hidden layers, linear output."""
+    """ppo.js's MLP: tanh hidden layers, linear output. gru = H adds the memory block."""
 
-    def __init__(self, sizes):
+    def __init__(self, sizes, gru=0):
         super().__init__()
         self.sizes = sizes
         self.layers = nn.ModuleList(nn.Linear(sizes[i], sizes[i + 1]) for i in range(len(sizes) - 1))
+        self.gru = nn.GRU(sizes[1], gru, batch_first=True) if gru else None
+        self.mem = nn.Linear(gru, sizes[2], bias=False) if gru else None
+
+    def seq(self, x, h0):
+        """x [B, T, in], h0 [B, H] -> output [B, T, out] and the memory after every step [B, T, H]."""
+        a = torch.tanh(self.layers[0](x))
+        g, _ = self.gru(a, h0.unsqueeze(0).contiguous())
+        a = torch.tanh(self.layers[1](a) + self.mem(g))
+        for i in range(2, len(self.layers)):
+            a = self.layers[i](a)
+            if i < len(self.layers) - 1:
+                a = torch.tanh(a)
+        return a, g
+
+    def tensors(self):
+        ts = [t for l in self.layers for t in (l.weight, l.bias)]
+        if self.gru is not None:
+            ts += [self.gru.weight_ih_l0, self.gru.weight_hh_l0, self.gru.bias_ih_l0, self.gru.bias_hh_l0, self.mem.weight]
+        return ts
 
     def forward(self, x):
         for i, l in enumerate(self.layers):
@@ -89,15 +118,14 @@ class MLP(nn.Module):
     def load_flat(self, flat):
         o = 0
         with torch.no_grad():
-            for l in self.layers:
-                nw, nb = l.weight.numel(), l.bias.numel()
-                l.weight.copy_(torch.from_numpy(flat[o:o + nw].copy()).view_as(l.weight)); o += nw
-                l.bias.copy_(torch.from_numpy(flat[o:o + nb].copy())); o += nb
+            for t in self.tensors():
+                n = t.numel()
+                t.copy_(torch.from_numpy(flat[o:o + n].copy()).view_as(t)); o += n
         assert o == flat.size, f"flat weights {flat.size} != params {o}"
 
     def flat(self):
         with torch.no_grad():
-            return torch.cat([t for l in self.layers for t in (l.weight.reshape(-1), l.bias)]).cpu().numpy().astype(np.float32)
+            return torch.cat([t.reshape(-1) for t in self.tensors()]).cpu().numpy().astype(np.float32)
 
 
 class Trainer:
@@ -106,8 +134,9 @@ class Trainer:
         self.heads = list(self.cfg["HEADS"])
         torch.set_num_threads(int(head.get("threads") or 4))
         self.dev = torch.device("cpu")
-        self.pi = MLP(head["piSizes"]).to(self.dev)
-        self.vf = MLP(head["vfSizes"]).to(self.dev)
+        self.H = int(head.get("gru") or 0)
+        self.pi = MLP(head["piSizes"], self.H).to(self.dev)
+        self.vf = MLP(head["vfSizes"], self.H).to(self.dev)
         self.pi.load_flat(bufs["pi"])
         self.vf.load_flat(bufs["vf"])
         # ppo.js's Adam: b1 0.9, b2 0.999, eps 1e-8, bias-corrected; torch's matches.
@@ -151,6 +180,67 @@ class Trainer:
             return {"pl": pl.sum().item(), "vl": vl.sum().item(), "ent": ent.sum().item(),
                     "kl": (old_logp[idx] - logp).sum().item(), "clip": (s2 < s1).sum().item(), "n": len(idx)}
 
+    def minibatch_seq(self, obs, acts, old_logp, adv, ret, ix, mask, hp, hv):
+        """minibatch() over pieces of matches. ix [B, L] decision indices (padding points
+        at 0), mask [B, L] 1 on real decisions, hp/hv [B, H] the memory each piece starts from."""
+        c = self.cfg
+        x, flat, m = obs[ix], ix.reshape(-1), mask.reshape(-1)
+        n = m.sum()
+        logits, _ = self.pi.seq(x, hp)
+        logp, ent = self.logp_ent(logits.reshape(flat.numel(), -1), acts[flat])
+        ratio = torch.exp(logp - old_logp[flat])
+        A = adv[flat]
+        s1, s2 = ratio * A, torch.clamp(ratio, 1 - c["clip"], 1 + c["clip"]) * A
+        pl = -torch.minimum(s1, s2)
+        self.pi_opt.zero_grad(set_to_none=True)
+        (((pl - c["entCoef"] * ent) * m).sum() / n).backward()
+        nn.utils.clip_grad_norm_(self.pi.parameters(), c["maxGrad"])
+        self.pi_opt.step()
+        v, _ = self.vf.seq(x, hv)
+        e = v.reshape(-1) - ret[flat]
+        vl = 0.5 * e * e
+        self.vf_opt.zero_grad(set_to_none=True)
+        ((vl * m).sum() / n).backward()
+        nn.utils.clip_grad_norm_(self.vf.parameters(), c["maxGrad"])
+        self.vf_opt.step()
+        with torch.no_grad():
+            return {"pl": (pl * m).sum().item(), "vl": (vl * m).sum().item(), "ent": (ent * m).sum().item(),
+                    "kl": ((old_logp[flat] - logp) * m).sum().item(), "clip": ((s2 < s1) * m).sum().item(), "n": int(n.item())}
+
+    def seq_pass(self, obs, acts, old_logp, eps, fin, N):
+        """Every match replayed from an empty memory with the current weights: values
+        for GAE, the pieces the epochs train on, and lpErr, the largest gap between the
+        log-probability the browser recorded and the one torch gets for the same
+        decision (float noise if the two forward passes agree)."""
+        L = int(self.cfg.get("seqLen") or 128)
+        V, Vfin = np.zeros(N), []
+        ix, hp, hv, lp_err, k = [], [], [], 0.0, 0
+        z = torch.zeros(1, self.H)
+        with torch.no_grad():
+            for start, length, trunc in eps:
+                x = obs[start:start + length]
+                xv = x
+                if trunc:
+                    xv = torch.cat([x, torch.from_numpy(fin[k:k + 1].copy())]); k += 1
+                v, gv = self.vf.seq(xv.unsqueeze(0), z)
+                V[start:start + length] = v[0, :length, 0].double().numpy()
+                if trunc:
+                    Vfin.append(float(v[0, length, 0]))
+                logits, gp = self.pi.seq(x.unsqueeze(0), z)
+                lp, _ = self.logp_ent(logits[0], acts[start:start + length])
+                lp_err = max(lp_err, float((lp - old_logp[start:start + length]).abs().max()))
+                for s in range(0, length, L):
+                    row = torch.zeros(L, dtype=torch.long)
+                    n = min(L, length - s)
+                    row[:n] = torch.arange(start + s, start + s + n)
+                    ix.append(row)
+                    hp.append(gp[0, s - 1] if s else z[0])
+                    hv.append(gv[0, s - 1] if s else z[0])
+        ix = torch.stack(ix)
+        # A piece's padding is the tail the match did not fill: index 0 everywhere but its first slot.
+        mask = ((ix > 0) | (torch.arange(L).unsqueeze(0) == 0)).float()
+        return V, np.array(Vfin), ix, mask, torch.stack(hp), torch.stack(hv), lp_err
+
     def update(self, head, b):
         c = self.cfg
         t0 = time.time()
@@ -163,9 +253,13 @@ class Trainer:
         fin = b["finalObs"].reshape(-1, D) if b["finalObs"].size else np.zeros((0, D), np.float32)
 
         # ── Values + GAE (train.js did this with vf.forward in JS) ──
-        with torch.no_grad():
-            V = self.vf(obs).squeeze(1).double().numpy()
-            Vfin = self.vf(torch.from_numpy(fin.copy())).squeeze(1).double().numpy() if len(fin) else np.zeros(0)
+        seq = None
+        if self.H:
+            V, Vfin, *seq = self.seq_pass(obs, acts, old_logp, eps, fin, N)
+        else:
+            with torch.no_grad():
+                V = self.vf(obs).squeeze(1).double().numpy()
+                Vfin = self.vf(torch.from_numpy(fin.copy())).squeeze(1).double().numpy() if len(fin) else np.zeros(0)
         adv = np.zeros(N, np.float64)
         ret = np.zeros(N, np.float64)
         g, lam = c["gamma"], c["lambda"]
@@ -190,17 +284,31 @@ class Trainer:
         mb = c["mb"]
         u = {"pl": 0, "vl": 0, "ent": 0, "kl": 0, "clipFrac": 0, "epochs": 0}
         for ep in range(c["epochs"]):
-            perm = torch.randperm(N, generator=self.gen)
             s = {"pl": 0, "vl": 0, "ent": 0, "kl": 0, "clip": 0, "n": 0}
-            for a in range(0, N - mb + 1, mb):
-                st = self.minibatch(obs, acts, old_logp, adv_t, ret_t, perm[a:a + mb])
-                for key in s:
-                    s[key] += st[key]
+            if seq:
+                ix, mask, hp, hv, _ = seq
+                C, cb = ix.shape[0], max(1, mb // ix.shape[1])
+                perm = torch.randperm(C, generator=self.gen)
+                for a in range(0, C, cb):
+                    bi = perm[a:a + cb]
+                    if a and len(bi) < cb / 2:
+                        break
+                    st = self.minibatch_seq(obs, acts, old_logp, adv_t, ret_t, ix[bi], mask[bi], hp[bi], hv[bi])
+                    for key in s:
+                        s[key] += st[key]
+            else:
+                perm = torch.randperm(N, generator=self.gen)
+                for a in range(0, N - mb + 1, mb):
+                    st = self.minibatch(obs, acts, old_logp, adv_t, ret_t, perm[a:a + mb])
+                    for key in s:
+                        s[key] += st[key]
             n = max(1, s["n"])
             u = {"pl": s["pl"] / n, "vl": s["vl"] / n, "ent": s["ent"] / n, "kl": s["kl"] / n,
                  "clipFrac": s["clip"] / n, "epochs": ep + 1}
             if u["kl"] > c["targetKl"] * 1.5:
                 break
+        if seq:
+            u["lpErr"] = seq[4]
         u["tGae"] = round(t_gae * 1000)
         u["tPy"] = round((time.time() - t0) * 1000)
         return u
@@ -227,6 +335,11 @@ def main():
                               torch.from_numpy(b["logps"].copy()), torch.from_numpy(b["adv"].copy()),
                               torch.from_numpy(b["ret"].copy()), torch.from_numpy(b["idx"].astype(np.int64)))
             send({"st": st}, [("pi", tr.pi.flat()), ("vf", tr.vf.flat())])
+        elif t == "seq":
+            with torch.no_grad():
+                x = torch.from_numpy(b["obs"].copy()).view(1, head["T"], head["D"])
+                z = torch.zeros(1, tr.H)
+                send({}, [("logits", tr.pi.seq(x, z)[0].reshape(-1).numpy()), ("v", tr.vf.seq(x, z)[0].reshape(-1).numpy())])
         elif t == "weights":
             send({}, [("pi", tr.pi.flat()), ("vf", tr.vf.flat())])
         else:

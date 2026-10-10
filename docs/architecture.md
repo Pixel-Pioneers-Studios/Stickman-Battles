@@ -19,7 +19,7 @@ Strict dependency order. A file may only reference globals defined by files load
 |---|------|---------------|
 | 1 | `smb-errorboundary.js` | Global error handler; renders overlay on module failure |
 | 2 | `smb-globals.js` | Canvas, `GAME_W=900 / GAME_H=520`, ALL global state |
-| 3 | `smb-audio.js` | `SoundManager` singleton — Web Audio API, no external files |
+| 3 | `smb-audio.js` | `SoundManager` singleton — Web Audio API with bundled, buffered local SFX |
 | 4 | `smb-director.js` | Match intensity tracker 0–1; dynamic pacing |
 | 5 | `smb-achievements.js` | `ACHIEVEMENTS` array, `unlockAchievement()`, popup draw |
 | 6 | `smb-data.js` | `ARENAS`, `WEAPONS`, `CLASSES`, story arenas, `pickSafeSpawn()` |

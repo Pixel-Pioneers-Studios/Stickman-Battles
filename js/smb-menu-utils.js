@@ -82,12 +82,6 @@ function refreshMenuFromAccount() {
   const sovCard = document.getElementById('modeSovereign');
   if (sovCard) sovCard.style.display = (typeof sovereignBeaten !== 'undefined' && sovereignBeaten) ? '' : 'none';
 
-  const soCard = document.getElementById('modeStoryOnline');
-  if (soCard) soCard.style.display = (
-    (typeof storyOnline !== 'undefined' && storyOnline) ||
-    (typeof _story2 !== 'undefined' && _story2 && _story2.storyComplete)
-  ) ? '' : 'none';
-
   const brCard = document.getElementById('modeBossRush');
   if (brCard) brCard.style.display = (typeof bossRushUnlocked !== 'undefined' && bossRushUnlocked) ? '' : 'none';
 

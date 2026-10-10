@@ -721,6 +721,7 @@ function dealDamage(attacker, target, dmg, kbForce, stunMult = 1.0, isSplash = f
       const parryChance = held <= 8 ? 0.65 : held <= 15 ? 0.30 : 0;
       if (parryChance > 0 && Math.random() < parryChance) {
         _parried = true;
+        if (typeof SoundManager !== 'undefined' && SoundManager.parry) SoundManager.parry();
         attacker.stunTimer        = Math.max(attacker.stunTimer || 0, 90);
         attacker._parryVulnFrames = 90;
         spawnParticles(target.cx(),   target.cy(),   '#ffff00', 22);
@@ -1010,6 +1011,14 @@ function dealDamage(attacker, target, dmg, kbForce, stunMult = 1.0, isSplash = f
   // DoT ticks and domain hazards are passive damage and never collect.
   const _payoutHazard = typeof DomainManager !== 'undefined'
     && typeof DomainManager.isHazardTick === 'function' && DomainManager.isHazardTick();
+  // An ability or super that connects is the "something else" the swing chain
+  // asks for, so it clears a chain held through a combo. A whiffed one leaves it
+  // held — see Fighter._resetBasicChainForMove().
+  if (attacker && attacker._basicChainHeld && actualDmg > 0 && attacker !== target && !isDot && !_payoutHazard &&
+      (attacker._attackKindTier === CLASH_TIER_ABILITY || attacker._attackKindTier === CLASH_TIER_SUPER)) {
+    attacker._basicChainHeld = false;
+    attacker._basicChainN = 0;
+  }
   if (attacker && (attacker._superHealPending > 0 || attacker._superCountPending) &&
       actualDmg > 0 && attacker !== target && attacker._attackKindTier === CLASH_TIER_SUPER &&
       !isDot && !_payoutHazard && attacker.health > 0 && typeof frameCount !== 'undefined' &&
@@ -1176,6 +1185,7 @@ function dealDamage(attacker, target, dmg, kbForce, stunMult = 1.0, isSplash = f
   target._lastHitCtx = {
     dir, kb: actualKb, dmg: actualDmg, splash: !!isSplash,
     finisher: !!_finisherFired,
+    wk: attacker ? attacker.weaponKey : null,
     fromBoss: !!(attacker && (attacker.isBoss || attacker.isTrueForm)),
     hx: attacker ? attacker.cx() : target.cx(),
     hy: attacker ? attacker.cy() : target.cy(),
@@ -1245,6 +1255,7 @@ function dealDamage(attacker, target, dmg, kbForce, stunMult = 1.0, isSplash = f
     else if (_hs === 'pierce' && SoundManager.hitPierce) SoundManager.hitPierce();
     else if (_hs === 'snap'   && SoundManager.hitSnap)   SoundManager.hitSnap();
     else if (_hs === 'zap'    && SoundManager.hitZap)    SoundManager.hitZap();
+    else if (_hs === 'slash'  && SoundManager.hitSlash)  SoundManager.hitSlash();
     else if (_hs === 'clang')                            SoundManager.clang();
     else if (actualDmg >= 30) SoundManager.heavyHit();
     else SoundManager.hit();

@@ -59,7 +59,7 @@
   }
   </script>
 
-  <link rel="stylesheet" href="SMB.css?v=4.9.51">
+  <link rel="stylesheet" href="SMB.css?v=4.9.53">
 </head>
 <body>
 
@@ -227,20 +227,21 @@
             <span class="hub-psub" id="hubPlayerSub">No save yet</span>
           </div>
         </div>
+        <button type="button" class="hub-friends" id="hubFriends" onclick="if(window.FriendsManager)FriendsManager.open()">Friends</button>
         <span class="hub-coins" id="hubCoins" title="Coins">0</span>
       </div>
 
       <div class="hub-main">
         <div class="hub-resume">
           <div>
-            <div class="hub-kicker">Fight Ladder</div>
+            <div class="hub-kicker" id="hubLadderKicker">Fight Ladder</div>
             <h3 id="hubLadderTitle">Rung 1: Sparring Partner</h3>
             <p class="hub-where" id="hubLadderWhere">Ten 1v1 fights, each one harder. Win to climb; every rung pays coins.</p>
           </div>
           <div>
             <div class="hub-prog"><i id="hubLadderBar" style="width:0%"></i></div>
-            <div class="hub-proglab"><span>RUNGS CLEARED</span><span id="hubLadderCount">0 / 10</span></div>
-            <button class="b b-primary" onclick="ladderFightNext()">Fight</button>
+            <div class="hub-proglab"><span id="hubLadderLab">RUNGS CLEARED</span><span id="hubLadderCount">0 / 10</span></div>
+            <button class="b b-primary" id="hubLadderBtn" onclick="ladderFightNext()">Fight</button>
           </div>
         </div>
         <div class="hub-side">
@@ -271,7 +272,7 @@
         </div>
         <div class="hub-tile" onclick="selectMode('online')">
           <span class="hub-tn">Online</span>
-          <span class="hub-td">Play someone across the world.</span>
+          <span class="hub-td">Lobbies of 10. Invite friends by link.</span>
         </div>
       </div>
     </div>
@@ -402,10 +403,6 @@
             <div class="mode-name"><svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-trophy"/></svg> Battle Royale</div>
             <div class="mode-desc">100 players · zone · loot</div>
           </div>
-          <div class="mode-card" id="modeStoryOnline" data-mode="storyonline" onclick="selectMode('storyonline')" style="display:none">
-            <div class="mode-name"><svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-globe"/></svg> Story Online</div>
-            <div class="mode-desc">Cross-world multiplayer</div>
-          </div>
         </div>
       </div>
       <div class="nexus-section">
@@ -474,7 +471,8 @@
 
         <!-- STEP 1 — room -->
         <div id="onlineConnectRow" class="online-step">
-          <div class="online-step-head"><span class="online-step-num">1</span> Create or join a room</div>
+          <div id="lobbyMount"></div>
+          <div class="online-step-head"><span class="online-step-num">1</span> Or open a two-player duel room</div>
           <p class="online-note">Pick any code and share it with your friend. Whoever connects first is the host and picks the match rules.</p>
           <div class="online-row">
             <input id="onlineRoomCode" class="online-input" type="text" placeholder="ROOM CODE" maxlength="20" autocomplete="off">
@@ -497,7 +495,6 @@
               <option value="10" selected>10 players</option>
             </select>
           </div>
-          <div id="lobbyMount"></div>
           <div id="publicRoomBrowser" class="online-browser">
             <div id="publicRoomList" class="online-list">
               <span class="online-empty">No open rooms right now.</span>
@@ -1719,19 +1716,19 @@
   <script src="./js/smb-errorboundary.js?v=4.3.8"></script>
   <!-- Global state, canvas setup -->
   <script src="./js/smb-icons.js?v=4.7.1"></script>
-  <script src="./js/smb-globals.js?v=4.9.49"></script>
+  <script src="./js/smb-globals.js?v=4.9.53"></script>
   <script src="./js/smb-palette.js?v=4.3.8"></script>
   <!-- Hand-drawn weapon sprite art (must follow smb-globals.js, precede smb-fighter.js) -->
-  <script src="./js/smb-weapon-sprites.js?v=4.6.7"></script>
+  <script src="./js/smb-weapon-sprites.js?v=4.9.54"></script>
   <!-- CrazyGames SDK wrapper — must follow smb-globals.js -->
-  <script src="./js/smb-crazygames.js?v=4.9.49"></script>
+  <script src="./js/smb-crazygames.js?v=4.9.53"></script>
   <!-- AdManager — routes ads to cgSdk on CrazyGames, placeholders on our own site -->
   <script src="./js/smb-ads.js?v=4.9.49"></script>
   <!-- Live ops: remote config, version checks, soft updates (must follow smb-globals.js) -->
   <script src="./js/smb-liveops.js?v=4.3.8"></script>
   <script src="./js/smb-admin-session.js?v=4.3.8"></script>
   <!-- Sound system -->
-  <script src="./js/smb-audio.js?v=4.4.5"></script>
+  <script src="./js/smb-audio.js?v=4.9.54"></script>
   <!-- Game Director: pacing, intensity, dynamic events -->
   <script src="./js/smb-director.js?v=4.3.8"></script>
   <!-- Achievement system -->
@@ -1741,25 +1738,26 @@
   <!-- The Circuit's sliding plate. Must load after smb-data-arenas.js (owns the
        authoring fields it drives) and before smb-loop-core.js (which ticks it). -->
   <script src="./js/smb-circuit.js?v=4.3.8"></script>
-  <script src="./js/smb-data-mapperks.js?v=4.7.0"></script>
+  <script src="./js/smb-data-mapperks.js?v=4.9.53"></script>
   <script src="./js/smb-data-mapperks-draw.js?v=4.3.8"></script>
-  <script src="./js/smb-data-weapons.js?v=4.9.49"></script>
+  <script src="./js/smb-data-weapons.js?v=4.9.54"></script>
   <script src="./js/smb-map-analyzer.js?v=4.3.8"></script>
   <!-- Combat pipeline, particles, heatmap, ragdoll (split from smb-particles.js) -->
-  <script src="./js/smb-combat.js?v=4.9.49"></script>
-  <script src="./js/smb-particles-core.js?v=4.9.49"></script>
+  <script src="./js/smb-combat.js?v=4.9.54"></script>
+  <script src="./js/smb-particles-core.js?v=4.9.54"></script>
   <script src="./js/smb-destruction.js?v=4.3.8"></script>
   <script src="./js/smb-world-react.js?v=4.9.10"></script>
   <script src="./js/smb-heatmap.js?v=4.3.8"></script>
-  <script src="./js/smb-verlet.js?v=4.3.8"></script>
+  <script src="./js/smb-verlet.js?v=4.9.54"></script>
   <!-- Animation substrate + death animation (docs/animation-quality-plan.md) -->
   <script src="./js/smb-anim-core.js?v=4.3.8"></script>
   <script src="./js/smb-anim-fighter.js?v=4.8.2"></script>
-  <script src="./js/smb-figure-skin.js?v=4.9.48"></script>
+  <script src="./js/smb-figure-skin.js?v=4.9.54"></script>
   <script src="./js/smb-cin-figure.js?v=4.9.49"></script>
   <script src="./js/smb-cin-perf.js?v=4.9.49"></script>
   <script src="./js/smb-transition.js?v=4.3.8"></script>
-  <script src="./js/smb-death-anim.js?v=4.3.8"></script>
+  <script src="./js/smb-death-anim.js?v=4.9.54"></script>
+  <script src="./js/smb-corpse.js?v=4.9.54"></script>
   <!-- Cinematic scripting system (split from smb-cinematics.js) -->
   <script src="./js/smb-cinematics-core.js?v=4.9.49"></script>
   <script src="./js/smb-anime-fx.js?v=4.9.49"></script>
@@ -1778,22 +1776,24 @@
   <script src="./js/smb-finisher-weapon.js?v=4.3.8"></script>
   <script src="./js/smb-finisher-weapon2.js?v=4.3.8"></script>
   <script src="./js/smb-finisher-weapon3.js?v=4.8.0"></script>
-  <script src="./js/smb-finisher-engine.js?v=4.9.37"></script>
+  <script src="./js/smb-finisher-engine.js?v=4.9.54"></script>
   <!-- Platform graph + A* pathfinding (must load before smb-fighter.js) -->
   <script src="./js/smb-pathfinding.js?v=4.9.35"></script>
   <!-- Fragment weapon manifestation + sprint escalation (must load before smb-fighter.js) -->
   <script src="./js/smb-fragment-manifest.js?v=4.3.9"></script>
   <!-- Fighter base class -->
-  <script src="./js/smb-fighter.js?v=4.9.49"></script>
+  <script src="./js/smb-fighter.js?v=4.9.54"></script>
   <!-- Bomb / Fragment / Knives / Glass Blade / Anchor / Crossbow runtime (must follow smb-fighter.js) -->
-  <script src="./js/smb-weapons-ext.js?v=4.9.49"></script>
+  <script src="./js/smb-weapons-ext.js?v=4.9.52"></script>
   <!-- Abilities and supers as scripted, uninterruptible move scenes (must follow smb-weapons-ext.js) -->
   <script src="./js/smb-move-scenes.js?v=4.9.49"></script>
-  <script src="./js/smb-move-scenes-defs.js?v=4.9.28"></script>
+  <script src="./js/smb-move-scenes-defs.js?v=4.9.54"></script>
+  <!-- Per-frame tactics for the stock bots (must follow smb-fighter.js and the move scenes) -->
+  <script src="./js/smb-bot-tactics.js?v=4.9.55"></script>
   <!-- Per-move finishers: a Q/E kill plays that move's own finisher (needs move scenes + finisher helpers) -->
   <script src="./js/smb-finisher-moves.js?v=4.9.22"></script>
   <script src="./js/smb-finisher-moves-defs.js?v=4.9.22"></script>
-  <script src="./js/smb-finisher-moves-defs2.js?v=4.9.22"></script>
+  <script src="./js/smb-finisher-moves-defs2.js?v=4.9.54"></script>
   <!-- Modular combat AI: CombatSystem, MovementSystem, AIController, CombatAIFighter -->
   <script src="./js/smb-combat-ai.js?v=4.3.8"></script>
   <!-- Enemy NPCs, training mode -->
@@ -1850,7 +1850,7 @@
   <script src="./js/smb-smk2-class.js?v=4.9.49"></script>
   <script src="./js/smb-smk2-training.js?v=4.8.9"></script>
   <script src="./js/smb-sov-scenarios.js?v=4.4.6"></script>
-  <script src="./js/smb-brain.js?v=4.9.49"></script>
+  <script src="./js/smb-brain.js?v=4.9.52"></script>
   <script src="./js/smb-brain-read.js?v=4.9.33"></script>
   <script src="./js/smb-absolute-axiom.js?v=4.9.48"></script>
   <script src="./js/smb-axiom-multiverse.js?v=4.9.48"></script>
@@ -1883,20 +1883,20 @@
   <!-- Deterministic step-based cutscene system -->
   <script src="./js/smb-cutscene.js?v=4.3.8"></script>
   <!-- Camera, screen FX, main game loop, input (split from smb-loop.js) -->
-  <script src="./js/smb-camera.js?v=4.9.49"></script>
+  <script src="./js/smb-camera.js?v=4.9.53"></script>
   <script src="./js/smb-camera-trace.js?v=4.3.8"></script>
   <script src="./js/smb-screenfx.js?v=4.3.8"></script>
   <script src="./js/smb-loop-core.js?v=4.9.51"></script>
-  <script src="./js/smb-input.js?v=4.9.49"></script>
-  <script src="./js/smb-cheats.js?v=4.9.16"></script>
+  <script src="./js/smb-input.js?v=4.9.54"></script>
+  <script src="./js/smb-cheats.js?v=4.9.53"></script>
   <!-- Menu UI, startGame, tutorial -->
-  <script src="./js/smb-menu-ui.js?v=4.9.49"></script>
+  <script src="./js/smb-menu-ui.js?v=4.9.53"></script>
   <script src="./js/smb-menu-select.js?v=4.9.51"></script>
-  <script src="./js/smb-menu-config.js?v=4.9.25"></script>
+  <script src="./js/smb-menu-config.js?v=4.9.53"></script>
   <script src="./js/smb-loadscreen.js?v=4.6.0"></script>
   <script src="./js/smb-menu-spawn.js?v=4.9.29"></script>
-  <script src="./js/smb-menu-startcore.js?v=4.9.48"></script>
-  <script src="./js/smb-menu-utils.js?v=4.9.51"></script>
+  <script src="./js/smb-menu-startcore.js?v=4.9.53"></script>
+  <script src="./js/smb-menu-utils.js?v=4.9.53"></script>
   <!-- Network / online multiplayer -->
   <script src="./js/smb-network.js?v=4.9.49"></script>
   <!-- Centralized runtime state (accounts, admin overrides, online session) -->
@@ -1905,8 +1905,10 @@
   <!-- Supabase auth + cloud save bridge -->
   <script src="./js/smb-supabase.js?v=4.9.48"></script>
   <!-- Lobby presence layer — wraps NetworkManager with lobby API + UI -->
-  <script src="./js/smb-online.js?v=4.9.1"></script>
-  <script src="./js/smb-public-hub.js?v=4.9.49"></script>
+  <script src="./js/smb-online.js?v=4.9.53"></script>
+  <script src="./js/smb-public-hub.js?v=4.9.53"></script>
+  <!-- Friends: presence + lobby invites only (no messaging). After smb-public-hub.js. -->
+  <script src="./js/smb-friends.js?v=4.9.53"></script>
   <!-- Developer debug toolkit (loaded last so all systems exist) -->
   <script src="./js/smb-debug-overlay.js?v=4.3.8"></script>
   <script src="./js/smb-debug-console.js?v=4.9.49"></script>
@@ -1968,7 +1970,7 @@
   <script src="./js/story/acts/actvoidmind/smb-voidmind-trial.js?v=4.9.16"></script>
   <script src="./js/story/acts/actvoidmind/smb-voidmind-after.js?v=4.9.50"></script>
   <script src="./js/story/acts/actvoidmind/smb-voidmind-fight.js?v=4.9.50"></script>
-  <script src="./js/story/smb-story-config.js?v=4.9.50"></script>
+  <script src="./js/story/smb-story-config.js?v=4.9.52"></script>
   <script src="./js/story/smb-story-engine-data.js?v=4.3.8"></script>
   <script src="./js/story/smb-story-engine-ui.js?v=4.9.48"></script>
   <script src="./js/story/smb-story-prologue-tuesday.js?v=4.3.8"></script>
@@ -1989,8 +1991,8 @@
   <script src="./js/smb-figure-rig.js?v=4.3.8"></script>
   <script src="./js/smb-story-narrative-scene.js?v=4.9.50"></script>
   <script src="./js/story/smb-story-engine-flow.js?v=4.9.50"></script>
-  <script src="./js/story/smb-story-engine-match.js?v=4.9.50"></script>
-  <script src="./js/story/smb-story-engine-events.js?v=4.9.16"></script>
+  <script src="./js/story/smb-story-engine-match.js?v=4.9.53"></script>
+  <script src="./js/story/smb-story-engine-events.js?v=4.9.53"></script>
   <script src="./js/story/smb-story-engine-frame.js?v=4.3.8"></script>
   <script src="./js/story/smb-story-levels.js?v=4.9.51"></script>
   <script src="./js/story/levels/ch00.js?v=4.9.22"></script>
@@ -2134,7 +2136,7 @@
   <script src="./js/story/levels/ch181.js?v=4.9.34"></script>
   <script src="./js/story/levels/ch184.js?v=4.9.34"></script>
   <script src="./js/story/smb-story-engine-explore.js?v=4.9.51"></script>
-  <script src="./js/story/smb-story-engine-explore2.js?v=4.9.51"></script>
+  <script src="./js/story/smb-story-engine-explore2.js?v=4.9.55"></script>
   <script src="./js/story/smb-story-sidequests.js?v=4.9.51"></script>
   <script src="./js/story/smb-story-interlude.js?v=4.3.8"></script>
   <script src="./js/story/smb-story-engine-modes.js?v=4.9.22"></script>
@@ -2155,9 +2157,11 @@
   <!-- Test harness — only active when window.DEBUG_MODE = true -->
   <script src="./js/smb-test-tools.js?v=4.9.16"></script>
   <!-- Guided onboarding tutorial — runs on top of training mode -->
-  <script src="./js/smb-ladder.js?v=4.9.49"></script>
-  <script src="./js/smb-tutorial.js?v=4.9.51"></script>
-  <script src="./js/smb-move-preview.js?v=4.9.51"></script>
+  <script src="./js/smb-ladder.js?v=4.9.53"></script>
+  <!-- Weekly Challenge: takes over the ladder card once the ladder is cleared. -->
+  <script src="./js/smb-weekly.js?v=4.9.53"></script>
+  <script src="./js/smb-tutorial.js?v=4.9.53"></script>
+  <script src="./js/smb-move-preview.js?v=4.9.52"></script>
   <!-- Replay system — recording, IndexedDB storage, download, and viewer -->
   <script src="./js/smb-replay.js?v=4.9.51"></script>
   <!-- Dev: "test the latest update" panel (F6). Data file is generated by
@@ -2168,7 +2172,7 @@
   <!-- StoryVoice — speaks story dialogue lines via the Web Speech API -->
   <script src="./js/smb-storyvoice.js?v=4.3.8"></script>
   <!-- Render-only presentation pass: does not alter gameplay or saves. -->
-  <script src="./js/smb-visual-polish.js?v=4.6.0"></script>
+  <script src="./js/smb-visual-polish.js?v=4.9.52"></script>
 
   <!-- YouTube IFrame API for background music (disabled by MusicManager on CrazyGames) -->
   <div id="ytBossPlayer"    style="position:fixed;width:1px;height:1px;opacity:0;pointer-events:none;left:-9999px;top:-9999px;"></div>

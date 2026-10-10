@@ -12,6 +12,8 @@ function randn() {
   return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
 }
 
+const GRU_KEYS = ['Wi', 'Wh', 'bi', 'bh', 'M'];
+
 class MLP {
   constructor(sizes, outGain = 1) {
     this.sizes = sizes;
@@ -26,6 +28,17 @@ class MLP {
       this.gW.push(new Float32Array(nIn * nOut)); this.gb.push(new Float32Array(nOut));
     }
     this.acts = null;
+    this.gru = null;
+  }
+
+  // Memory block (js/smb-brain.js loadNet): a GRU fed by the first hidden layer and
+  // added into the second through M. M starts at zero, so the net plays exactly as
+  // it did until training finds a use for the memory. Trained by torch_ppo.py only.
+  addGru(H) {
+    const nIn = this.sizes[1], k = 1 / Math.sqrt(H);
+    const u = n => { const a = new Float32Array(n); for (let i = 0; i < n; i++) a[i] = (Math.random() * 2 - 1) * k; return a; };
+    this.gru = { H, Wi: u(3 * H * nIn), Wh: u(3 * H * H), bi: u(3 * H), bh: u(3 * H), M: new Float32Array(this.sizes[2] * H) };
+    return this;
   }
 
   // X: Float32Array(n * in). Caches activations for backward().
@@ -86,12 +99,15 @@ class MLP {
 
   toJSON() {
     const b64 = f => Buffer.from(f.buffer, f.byteOffset, f.byteLength).toString('base64');
-    return { sizes: this.sizes, W: this.W.map(b64), b: this.b.map(b64) };
+    const j = { sizes: this.sizes, W: this.W.map(b64), b: this.b.map(b64) };
+    if (this.gru) { j.gru = { H: this.gru.H }; for (const k of GRU_KEYS) j.gru[k] = b64(this.gru[k]); }
+    return j;
   }
   static fromJSON(j) {
     const m = new MLP(j.sizes);
     const f32 = s => { const buf = Buffer.from(s, 'base64'); return new Float32Array(buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength)); };
     m.W = j.W.map(f32); m.b = j.b.map(f32);
+    if (j.gru) { m.gru = { H: j.gru.H }; for (const k of GRU_KEYS) m.gru[k] = f32(j.gru[k]); }
     return m;
   }
 }
@@ -199,4 +215,4 @@ function chunkGrads(pi, vf, batch, idx, m, cfg) {
   return st;
 }
 
-module.exports = { MLP, Adam, chunkGrads, randn };
+module.exports = { MLP, Adam, chunkGrads, randn, GRU_KEYS };

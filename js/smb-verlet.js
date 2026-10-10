@@ -174,6 +174,7 @@ class VerletRagdoll {
   update() {
     this.timer--;
     if (this.timer < 60) this.alpha = this.timer / 60;
+    if (this.fig && typeof Corpse !== 'undefined') Corpse.update(this);
 
     // Integrate all points
     this.points.forEach(p => p.integrate(0.55));
@@ -190,9 +191,10 @@ class VerletRagdoll {
     // Use arena platforms for collision
     const plats = currentArena?.platforms || [];
     this.points.forEach(p => {
+      const r = p.r || 0;   // the head rests on its rim, not its centre
       // Arena floor fallback
-      if (p.y > this.floorY) {
-        p.y = this.floorY;
+      if (p.y > this.floorY - r) {
+        p.y = this.floorY - r;
         p.oy = p.y + (p.y - p.oy) * 0.35; // bounce damp
         p.ox = p.ox + (p.x - p.ox) * 0.25; // floor friction
       }
@@ -202,8 +204,8 @@ class VerletRagdoll {
       // Platform surfaces (only top collision)
       for (const pl of plats) {
         if (pl.isFloorDisabled) continue;
-        if (p.x > pl.x && p.x < pl.x + pl.w && p.y > pl.y && p.y < pl.y + pl.h + 12) {
-          p.y = pl.y;
+        if (p.x > pl.x && p.x < pl.x + pl.w && p.y > pl.y - r && p.y < pl.y + pl.h + 12) {
+          p.y = pl.y - r;
           p.oy = p.y + (p.y - p.oy) * 0.35;
           p.ox = p.ox + (p.x - p.ox) * 0.25;
         }
@@ -212,6 +214,9 @@ class VerletRagdoll {
   }
 
   draw() {
+    // The fighter's own skin plus the mark of what killed it (smb-corpse.js);
+    // the plain stick drawing below is the fallback.
+    if (this.fig && typeof Corpse !== 'undefined' && Corpse.draw(this)) return;
     ctx.save();
     ctx.globalAlpha = this.alpha;
     ctx.strokeStyle = this.color;

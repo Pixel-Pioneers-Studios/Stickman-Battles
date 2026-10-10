@@ -120,6 +120,11 @@ async function worker() {
         if (d > 0) {
           const t = _moveTierOverride !== null ? (_moveTierOverride === 2 ? 2 : _moveTierOverride === 1 ? 1 : 0) : (attacker.superActive || attacker._attackKindTier === 2) ? 2 : attacker._attackKindTier === 1 ? 1 : 0;
           const s = srow(attacker.weaponKey); s.dmg[t] += d; s.hits[t]++;
+          // Combos: _comboHitCount is 1 on an opener and counts up inside the 45-frame window.
+          const cn = attacker._comboHitCount || 1, c = s.combo || (s.combo = { open: 0, len: [0, 0, 0, 0, 0, 0], dmg: 0, max: 0 });
+          if (cn <= 1 || !attacker.__cAcc) { attacker.__cAcc = { n: 0, d: 0 }; c.open++; }
+          const acc = attacker.__cAcc; acc.n++; acc.d += d;
+          c.len[Math.min(acc.n, 5)]++; c.dmg += d; if (acc.d > c.max) c.max = acc.d;
         }
       }
       return r;
@@ -245,6 +250,11 @@ async function main() {
     const s = src[k] || (src[k] = { dmg: [0, 0, 0], hits: [0, 0, 0], casts: [0, 0, 0] });
     for (let t = 0; t < 3; t++) { s.dmg[t] += v.dmg[t]; s.hits[t] += v.hits[t]; s.casts[t] += v.casts[t]; }
     s.gap = (s.gap || 0) + (v.gap || 0); s.near = (s.near || 0) + (v.near || 0);
+    if (v.combo) {
+      const c = s.combo || (s.combo = { open: 0, len: [0, 0, 0, 0, 0, 0], dmg: 0, max: 0 });
+      c.open += v.combo.open; c.dmg += v.combo.dmg; c.max = Math.max(c.max, v.combo.max);
+      for (let i = 0; i < 6; i++) c.len[i] += v.combo.len[i];
+    }
   }
   if (Object.keys(src).length) {
     console.log('\n  damage by source (per cast = damage / times used; share = % of the kit\'s damage):');
@@ -256,6 +266,18 @@ async function main() {
       console.log(`  ${e.padEnd(14)} ${per(0, s.hits[0])}  ${per(0, s.casts[0])} ${per(1, s.casts[1])}  ${String(s.casts[1]).padStart(7)} ${per(2, s.casts[2])}  ${String(s.casts[2]).padStart(7)}   ` +
         [0, 1, 2].map(t => Math.round(100 * s.dmg[t] / tot)).join('/').padEnd(9) +
         `${s.casts[0] ? Math.round(s.gap / s.casts[0]) : '-'}`.padStart(6) + `${s.casts[0] ? Math.round(100 * s.near / s.casts[0]) : '-'}%`.padStart(7));
+    }
+  }
+  if (Object.values(src).some(s => s.combo)) {
+    // hit% = basic swings that connected. 2nd/3rd/4th = share of openers that reached that
+    // many hits (how reliably the kit converts). dmg/open = average damage one opener is worth.
+    console.log('\n  combos (an opener is the first hit after 45 quiet frames):');
+    console.log('  weapon          hit%   2nd   3rd   4th+  dmg/open   best   match frames');
+    for (const e of ranked) {
+      const s = src[e], c = s && s.combo; if (!c || !c.open) continue;
+      const p = n => `${Math.round(100 * n / c.open)}%`.padStart(5);
+      const hit = s.casts[0] ? Math.round(100 * Math.min(1, (s.dmg[0] / s.casts[0]) / ((s.dmg[0] / (s.hits[0] || 1)) || 1))) : 0;
+      console.log(`  ${e.padEnd(14)} ${`${hit}%`.padStart(5)} ${p(c.len[2])} ${p(c.len[3])} ${p(c.len[4])}  ${(c.dmg / c.open).toFixed(1).padStart(8)} ${String(Math.round(c.max)).padStart(6)}   ${Math.round(st[e].f / (st[e].n || 1))}`);
     }
   }
   console.log('\n  BUG FINDER:');

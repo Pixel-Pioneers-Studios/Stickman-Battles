@@ -97,7 +97,7 @@ function resolveEntityClashes() {
 }
 
 // Basic melee swings chain at most BASIC_CHAIN_MAX in a row. The next one has to
-// be something else: an ability, a super, or a swing from the other stance
+// be something else: an ability or super that lands, or a swing from the other stance
 // (ground vs air). Pausing BASIC_CHAIN_RESET frames past the last swing's
 // cooldown also clears it — longer than a string hit's stun, so a paused third
 // swing can't land on a victim who is still held.
@@ -443,6 +443,7 @@ class Fighter {
   }
 
   respawn() {
+    if (!this.isAI && typeof SoundManager !== 'undefined' && SoundManager.respawn && typeof gameRunning !== 'undefined' && gameRunning) SoundManager.respawn();
     // Restore size if Axiom resized this fighter — must happen before spawn position calc
     if (typeof tfSizeTargets !== 'undefined' && tfSizeTargets.has(this)) {
       const orig = tfSizeTargets.get(this);
@@ -1961,13 +1962,21 @@ class Fighter {
     // Spawn grace (story arena locks): the AI stays idle until _aiHoldUntil so
     // the player can see the walls go up. Striking it first forfeits the grace.
     if (this._aiHoldUntil && (this.hurtTimer > 0 || frameCount >= this._aiHoldUntil)) this._aiHoldUntil = 0;
-    if (this.isAI && !this._fusionAIOverride &&
+    const _aiFree = this.isAI && !this._fusionAIOverride &&
         !this._domainRising && !this._aiHoldUntil &&
         !activeCinematic &&
         !(typeof isCutsceneActive === 'function' && isCutsceneActive()) &&
-        !(typeof isCombatLocked === 'function' && isCombatLocked('ai')) &&
+        !(typeof isCombatLocked === 'function' && isCombatLocked('ai'));
+    if (_aiFree &&
         aiTick % (this.aiTickInterval || AI_TICK_INTERVAL) === 0 &&
-        (this.target || this._acquireAITarget())) this.updateAI();
+        (this.target || this._acquireAITarget())) {
+      // _tacLegacy: casts made by the tick brain are checked by botTacVeto().
+      this._tacLegacy = true;
+      this.updateAI();
+      this._tacLegacy = false;
+    }
+    // Per-frame tactics for the stock bots (smb-bot-tactics.js).
+    if (_aiFree && this.target && typeof botTacticsFrame === 'function') botTacticsFrame(this);
       if (this._aiClimbSteer) this._aiTickClimbSteer();
       // Ice: the AI writes vx once per 15-frame tick and glides in between, so
       // a chase at full speed slid ~40x its speed past the tick that saw the edge.
@@ -2341,10 +2350,10 @@ class Fighter {
         spawnParticles(this.cx(), this.cy(), '#ffffff', 12);
       }
 
-      // REAPER: Revive at ≤8% HP — restore to 40% HP once
+      // REAPER: Second Wind at ≤35% HP — heal 32% max HP once (never a death-save)
       if (this.charClass === 'reaper' && pct <= CLASS_PERK_THRESHOLD.reaper) {
         this.classPerkUsed = true;
-        this.health = Math.round(this.maxHealth * 0.40);
+        this.health = Math.min(this.maxHealth, this.health + Math.round(this.maxHealth * 0.32));
         this._superArmorUntil = Math.max(this._superArmorUntil || 0, frameCount + 60);
         screenShake = Math.max(screenShake, 20);
         spawnParticles(this.cx(), this.cy(), '#aa44aa', 32);
@@ -2443,7 +2452,7 @@ class Fighter {
                       : ('fam_' + this.playerNum + '_' + Fighter._famTeamSeq);
     fam._teamId       = famTeamId;
     this._teamId      = famTeamId;
-    fam.color         = '#44ccff';
+    fam.color         = this.color;
     fam.name          = 'FAMILIAR';
     fam._isFamiliar   = true;
     // 65 HP put the familiar inside two Sovereign swings, so the answer to a
@@ -2550,7 +2559,7 @@ class Fighter {
       // Landing dust — harder landing = more particles
       if (settings.landingDust && landVy > 4) {
         spawnParticles(this.cx(), pl.y, 'rgba(200,200,200,0.9)', Math.min(14, Math.floor(landVy * 1.2)));
-        if (!this.isAI && landVy > 6) SoundManager.land();
+        if (!this.isAI && landVy > 6) SoundManager.land(landVy > 13);
       }
       // Stop ragdoll spin on landing
       if (this.ragdollTimer > 0 && landVy > 2) {
@@ -2871,7 +2880,7 @@ class Fighter {
     }
     const tipLens = { sword: 26, hammer: 30, axe: 23, spear: 40, gauntlet: 22, mkgauntlet: 30 };
     const _swg    = (typeof WEAPON_SWINGS !== 'undefined') ? WEAPON_SWINGS[this.weaponKey] : null;
-    const wLen    = ((_swg && _swg.tipLen) || tipLens[this.weaponKey] || 23) * _sc;
+    const wLen    = ((_swg && _swg.tipLen) || tipLens[this.weaponKey] || 23) * _sc * (this._wxReachMult || 1);
     const reach   = (armLen + wLen) * reachFrac;
     return {
       x: cx         + Math.cos(ang) * reach,
@@ -2890,7 +2899,7 @@ class Fighter {
     const tip  = (_swg && _swg.tipLen) || MELEE_TIP_LENS[this.weaponKey] || 23;
     const def  = (typeof WEAPON_SPRITE_DEFS !== 'undefined') ? WEAPON_SPRITE_DEFS[this.weaponKey] : null;
     const art  = def ? def.len * (1 - def.anchor) * (this.isBoss ? 1 : 1.5) : 0;
-    return Math.max(tip, art);
+    return Math.max(tip, art) * (this._wxReachMult || 1); // _wxReachMult: Glass Blade stub (smb-weapons-ext.js)
   }
 
   // Grip tilt drawWeapon() rotates the art by while attacking, mirrored with
@@ -2913,7 +2922,7 @@ class Fighter {
     const armLen    = FIG_ARM_LEN * _sc2;
     const atkP      = 1 - this.attackTimer / this.attackDuration;
     const _swg2   = (typeof WEAPON_SWINGS !== 'undefined') ? WEAPON_SWINGS[this.weaponKey] : null;
-    const wLen    = ((_swg2 && _swg2.tipLen) || MELEE_TIP_LENS[this.weaponKey] || 23) * _sc2;
+    const wLen    = ((_swg2 && _swg2.tipLen) || MELEE_TIP_LENS[this.weaponKey] || 23) * _sc2 * (this._wxReachMult || 1);
     // Sample inner (50%), mid (75%), and tip (100%) along the weapon; whip adds extra outer sample
     const fracs = (_swg2 && _swg2.hitFracs) || (this.weaponKey === 'whip' ? [0.40, 0.65, 0.85, 1.0] : [0.50, 0.75, 1.0]);
 
@@ -2976,7 +2985,7 @@ class Fighter {
   _meleeReachDist(tgt) {
     const sc  = this.drawScale || 1;
     const _swg = (typeof WEAPON_SWINGS !== 'undefined') ? WEAPON_SWINGS[this.weaponKey] : null;
-    const wLen = ((_swg && _swg.tipLen) || MELEE_TIP_LENS[this.weaponKey] || 23) * sc;
+    const wLen = ((_swg && _swg.tipLen) || MELEE_TIP_LENS[this.weaponKey] || 23) * sc * (this._wxReachMult || 1);
     const armLen = FIG_ARM_LEN * sc;
     const blade  = this._meleeBladeLen() * sc;
     const tilt   = Math.abs(this._meleeBladeTilt());
@@ -3056,6 +3065,7 @@ class Fighter {
       if (SHIELD_RULES !== 'pool' || this._brShieldTimer > 0) return;
       this.shielding = false; this.shieldHoldTimer = 0; this._shieldOosLatch = true;
     }
+    if (this._tacLegacy && typeof botTacVeto === 'function' && botTacVeto(this, 'a', target)) return;
 
     // KNIGHT: Uppercut Slam — upward fist swing, wide arc, sends enemies skyward
     if (this.charClass === 'megaknight') {
@@ -3178,7 +3188,7 @@ class Fighter {
       this.weaponHit = false;
       this.swingHitTargets.clear();
       if (!_atkTarget || dist(this, _atkTarget) < this.weapon.range * 1.4 * (this.drawScale || 1)) {
-        if (!this.isAI) SoundManager.swing();
+        if (!this.isAI) SoundManager.swing(this.weaponKey);
       }
     } else {
       const _distToTarget = target ? dist(this, target) : 999;
@@ -3206,12 +3216,12 @@ class Fighter {
           this._reloadInterrupted = false;
         }
       }
-      if (!this.isAI) SoundManager.shoot();
+      if (!this.isAI) SoundManager.shoot(this.weaponKey);
       const bSpd = this.weapon.bulletSpeed || 13;
       const bClr = this.weapon.bulletColor || '#ffdd00';
       const bVy  = this.weapon.bulletVy  || 0;
       const _baseDmg = this.weapon.damageFunc ? this.weapon.damageFunc() : this.weapon.damage;
-      const _closeDmgMult = 1 - _pointBlankT * 0.34;
+      const _closeDmgMult = 1 - _pointBlankT * 0.22;
       const dmg  = Math.max(1, Math.round(_baseDmg * _closeDmgMult));
       // Slingshot: auto-aim regular shot at nearest enemy (arc adjusted to lead target)
       let _bvx = this.facing * bSpd, _bvy = bVy;
@@ -3265,7 +3275,7 @@ class Fighter {
             (Math.random() - 0.5) * (_fi === 0 ? 0.5 : 1.6),
             this, _fi === 0 ? dmg : 0, '#ff5500'
           );
-          _fp.life = _fp._maxLife = 17 + Math.floor(Math.random() * 4);
+          _fp.life = _fp._maxLife = 21 + Math.floor(Math.random() * 4);
           _fp._isFlame = true;
           _fp._flameFx = _fi > 0;
           _fp._flameScale = 0.8 + Math.random() * 0.45;
@@ -3318,7 +3328,7 @@ class Fighter {
     if (this.weapon && this.weapon.type === 'melee' && this.onGround &&
         !this.isBoss && !this.isEdgeDanger(this.facing)) {
       const _heavy = this.weapon.weaponType === 'heavy';
-      const _lunge = _heavy ? 2.6 : 1.4;
+      const _lunge = this.weapon.lunge || (_heavy ? 2.6 : 1.4);
       // Only ADD toward the swing; never brake a fighter already moving faster
       // than the lunge would carry them, so it can't fight player input.
       const _fwd = this.vx * this.facing;
@@ -3335,9 +3345,10 @@ class Fighter {
     }
   }
 
-  // An ability or super thrown mid-combo does not clear the swing chain, or
-  // A A Q A A is a legal loop. The chain stays spent until the combo window
-  // lapses or the next swing is from the other stance.
+  // An ability or super thrown mid-combo does not clear the swing chain by
+  // itself, or a whiffed Q would buy two more swings. The chain stays spent
+  // until that move lands (dealDamage() clears it), the combo window lapses, or
+  // the next swing is from the other stance.
   _resetBasicChainForMove() {
     const _fc = (typeof frameCount !== 'undefined' ? frameCount : 0);
     const _mid = (this._comboHitCount || 0) > 1 && _fc - (this._comboLastFrame || 0) <= 45 &&
@@ -3355,6 +3366,7 @@ class Fighter {
     if (this.abilityCooldown > 0 || this.health <= 0 || this.stunTimer > 0 || this.ragdollTimer > 0) return;
     if (!this.isBoss && this.attackEndlag > 0) return; // can't ability during swing recovery
     if (this.shielding) return;
+    if (this._tacLegacy && typeof botTacVeto === 'function' && botTacVeto(this, 'q', target)) return;
     // Abilities out-rank ordinary swings in a clash — see _clashTier().
     this._attackKindTier   = CLASH_TIER_ABILITY;
     this._resetBasicChainForMove();
@@ -3430,6 +3442,7 @@ class Fighter {
     if (typeof activeFinisher !== 'undefined' && activeFinisher) return;
     if (!this.superReady) return;
     if (this._storyNoSuper) return; // story progression — super not yet unlocked
+    if (this._tacLegacy && typeof botTacVeto === 'function' && botTacVeto(this, 'e', target)) return;
     this.activateSuper(target);
   }
 
@@ -5049,6 +5062,95 @@ class Fighter {
     }
   }
 
+  // ---- RANGED KITING (bot AI) -------------------------------------------------
+  // Fighter.attack() punishes shooting inside ~120px (extra cooldown, -34% damage,
+  // wide spread), and a bot that walks into melee range pays it on every shot.
+  // This holds a preferred distance band instead: back off when the target is
+  // inside it, advance (handled by the caller's chase branch) when outside it.
+  // Returns true when it fully handled this AI tick (movement + shooting).
+  // Skipped for bosses, flamethrower (a close-range weapon), non-projectile weapons,
+  // and ranged-vs-ranged duels (those keep the existing close-quarters logic).
+  _aiRangedBand() {
+    const C = Fighter._kiteCfg || (Fighter._kiteCfg = { lo: 100, loSlow: 10, retreatSpd: 0.8, retreatSk: 0.1, cap: 5, capSk: 4, commit: 8, gate: 0, hiMax: 190, hiAdd: 50, fire: 1, shootBack: 1 });
+    const w = this.weapon || {};
+    const lo = C.lo + ((w.cooldown || 30) >= 40 ? C.loSlow : 0);
+    const hi = Math.max(lo + C.hiAdd, Math.min(C.hiMax, (w.range || 500) * 0.5));
+    const sk = this.aiDiff === 'easy' ? 0.3 : this.aiDiff === 'medium' ? 0.6 : this.aiDiff === 'hard' ? 0.85 : 1;
+    return { lo: lo * (0.55 + 0.45 * sk), hi, sk, C };
+  }
+
+  // True when this bot should run the kiting branch against its current target.
+  _aiIsKiter(t) {
+    const w = this.weapon;
+    return !!(!this.isBoss && w && w.type === 'ranged' && this.weaponKey !== 'flamethrower' &&
+              !w.noSwingHitbox && t && t.health > 0 && !(t.weapon && t.weapon.type === 'ranged'));
+  }
+
+  _aiRangedKite(t, d, dir, spd) {
+    if (this.isBoss || !t || t.health <= 0 || !this.onGround) return false;
+    const w = this.weapon;
+    if (!w || w.type !== 'ranged' || this.weaponKey === 'flamethrower' || w.noSwingHitbox) return false;
+    if (t.weapon && t.weapon.type === 'ranged') return false;
+    const B = this._aiRangedBand(), sk = B.sk, C = B.C;
+    const reloading = !!(w.clipSize && this._reloadTimer > 0);
+    const arcs = this.weaponKey === 'slingshot' || this.weaponKey === 'bomb';
+    const feetDy = (t.y + t.h) - (this.y + this.h);
+    const levelOk = arcs || Math.abs(feetDy) < 80;
+    const atkP = this.aiDiff === 'easy' ? 0.55 : this.aiDiff === 'medium' ? 0.75 : 0.90;
+    const shoot = () => {
+      if (this.cooldown <= 0 && levelOk && Math.random() < atkP * C.fire) this.attack(t);
+      if (this.abilityCooldown <= 0 && Math.random() < 0.15) this.ability(t);
+      if (this.superReady && Math.random() < 0.22) this.useSuper(t);
+    };
+    let retreat = d < B.lo || (reloading && d < B.hi + 40);
+    // gate: chance per tick that a bot simply fails to react (lower skill = more often)
+    if (retreat && C.gate && Math.random() < C.gate * (1 - sk)) retreat = false;
+    // Retreat is capped: after ~4s of backing away the bot commits and fights for
+    // ~1.5s so the target is always pressured and the bot never runs forever.
+    if ((this._kiteCommit || 0) > 0) { this._kiteCommit--; retreat = false; this._kiteRetreat = 0; }
+    if (!retreat) {
+      this._kiteRetreat = Math.max(0, (this._kiteRetreat || 0) - 1);
+      if (d > B.hi || d < 70) return false;   // chase branch / point-blank brawl
+      // In band: slow strafe, never a statue. If the target is on another level and
+      // the weapon cannot arc, route toward it instead of firing into a wall.
+      if (!levelOk && typeof pfGetNextWaypoint === 'function') {
+        const wp = pfGetNextWaypoint(this, t.cx(), t.y + t.h * 0.5);
+        if (wp) {
+          const wd = wp.x > this.cx() ? 1 : -1;
+          if (!this.isEdgeDanger(wd)) this.vx = wd * spd;
+          if (wp.action === 'jump' || wp.action === 'doubleJump') this.vy = -20;
+          this.facing = dir;
+          return true;
+        }
+      }
+      const sd = this.isEdgeDanger(this._rangedStrafeDir || 1) ? -(this._rangedStrafeDir || 1) : (this._rangedStrafeDir || 1);
+      this.vx = sd * spd * 0.35;
+      this.facing = dir;
+      shoot();
+      return true;
+    }
+    this._kiteRetreat = (this._kiteRetreat || 0) + 1;
+    if (this._kiteRetreat > C.cap + Math.round(C.capSk * (1 - sk))) { this._kiteCommit = C.commit; this._kiteRetreat = 0; return false; }
+    const away = -dir, wb = this._aiWorldBounds(), m = 40;
+    const wall = away < 0 ? this.x < wb.left + m : this.x + this.w > wb.right - m;
+    if (!wall && !this.isEdgeDanger(away)) {
+      this.vx = away * spd * (C.retreatSpd + C.retreatSk * sk);
+      this.facing = dir;
+      if (d > B.lo * 0.7 && Math.random() < C.shootBack) shoot();      // trade a shot while backing off unless truly point-blank
+      return true;
+    }
+    // Cornered (ledge/wall behind): hop past the target onto open ground, else fight back.
+    if (d < 150 && !this.isEdgeDanger(dir) && frameCount >= (this._kiteJumpAt || 0)) {
+      this._kiteJumpAt = frameCount + 100;
+      this.vy = -19; this.vx = dir * spd * 1.5;
+      return true;
+    }
+    this.vx *= 0.5;
+    this.facing = dir;
+    shoot();
+    return true;
+  }
+
   updateAI() {
     // Trial controllers are purpose-built and fully replace the normal brain —
     // an invisible fighter running standard aggression simply deletes the
@@ -5191,7 +5293,7 @@ class Fighter {
     // wander off in a random direction and stay stalled.
     // Grounded only: mid-air, isEdgeDanger reads every direction as a drop and
     // flipped the nudge away from the target, off the side of the stage.
-    if (!this.isBoss && this.onGround && frameCount % 45 === 0 && Math.abs(this.vx) < 0.5 && this.target) {
+    if (!this.isBoss && this.onGround && frameCount % 45 === 0 && Math.abs(this.vx) < 0.5 && this.target && !this._aiIsKiter(this.target)) {
       const spd0 = this.aiDiff === 'easy' ? 2.6 : this.aiDiff === 'medium' ? 4.2 : 5.8;
       const toT  = this.target.cx() > this.cx() ? 1 : -1;
       this._wanderDir   = this.isEdgeDanger(toT) ? -toT : toT;
@@ -5200,7 +5302,7 @@ class Fighter {
     }
 
     // ---- STUCK DETECTION: if attacking with no hits for 1s, wander away ----
-    if (this.isAI && this.state === 'attacking') {
+    if (this.isAI && this.state === 'attacking' && !this._aiIsKiter(this.target)) {
       if (this.weaponHit) {
         this.aiNoHitTimer = 0;
         // Press forward after landing a hit (combo follow-through for hard/expert)
@@ -5212,7 +5314,9 @@ class Fighter {
         if (this.aiNoHitTimer > 60) {
           this.aiNoHitTimer = 0;
           this.aiState = 'chase';
-          this._wanderDir = (Math.random() < 0.5 ? -1 : 1);
+          // Against a kiting shooter a random wander is free target practice: press in.
+          const _vsKiter = this.target && typeof this.target._aiIsKiter === 'function' && this.target.isAI && this.target._aiIsKiter(this);
+          this._wanderDir = _vsKiter ? (this.target.cx() > this.cx() ? 1 : -1) : (Math.random() < 0.5 ? -1 : 1);
           this._wanderTimer = 45;
         }
       }
@@ -5220,6 +5324,8 @@ class Fighter {
       this.aiNoHitTimer = 0;
     }
     // ---- WANDER STATE: move in random direction briefly ----
+    // A kiting ranged bot never wanders: wander walks it into the target's face for seconds.
+    if (this._wanderTimer > 0 && this._aiIsKiter(this.target)) this._wanderTimer = 0;
     if (this._wanderTimer > 0) {
       this._wanderTimer--;
       const spd0 = this.aiDiff === 'easy' ? 3.0 : this.aiDiff === 'medium' ? 4.4 : 5.2;
@@ -5460,6 +5566,7 @@ class Fighter {
     // ---- RANGED WEAPON AI: kite / strafe / aim behavior ----
     // Phases based on HP: low-HP kites far, dominant HP pushes close.
     if (this.weapon && this.weapon.type === 'ranged' && t && t.health > 0) {
+      if (this._aiRangedKite(t, d, dir, spd)) return;
       // HP-based phase switching
       const _hpPct       = this.health / this.maxHealth;
       const _advRatio    = t.health > 0 ? this.health / t.health : 2;
@@ -5467,8 +5574,10 @@ class Fighter {
       const _targetRetreating = _targetIsRanged && Math.sign(t.vx || 0) === Math.sign(t.cx() - this.cx()) && Math.abs(t.vx || 0) > 1.8;
       const _isLowHp     = _hpPct < 0.28;               // kite mode: stay far
       const _isDominating = _advRatio > 1.60 && _hpPct > 0.50; // push in for the kill
-      const _optMin   = _targetIsRanged ? 95 : (_isDominating ? 90  : 160);
-      const _optMax   = _targetIsRanged ? (_targetRetreating ? 150 : 175) : (_isLowHp ? 280 : (_isDominating ? 180 : 220));
+      const _kiting = !this.isBoss && !_targetIsRanged && this.weaponKey !== 'flamethrower' && !this.weapon.noSwingHitbox;
+      const _kb = _kiting ? this._aiRangedBand() : null;
+      const _optMin   = _kiting ? _kb.lo : _targetIsRanged ? 95 : (_isDominating ? 90  : 160);
+      const _optMax   = _kiting ? _kb.hi : _targetIsRanged ? (_targetRetreating ? 150 : 175) : (_isLowHp ? 280 : (_isDominating ? 180 : 220));
       const _closeRange = _targetIsRanged ? 110 : 80; // panic distance — back away NOW
 
       // Tick strafe timer — flip direction more often when dominant
@@ -5598,7 +5707,7 @@ class Fighter {
         } else if (roll < 0.50 && this.onGround && !this.isEdgeDanger(dir)) {
           this.vy = -17;                                              // 20% random jump
         } else if (roll < 0.70 && !this.isEdgeDanger(dir)) {
-          this._wanderDir   = Math.random() < 0.70 ? dir : -dir;    // 20% reposition burst
+          this._wanderDir   = (Math.random() < 0.70 || (t && t.isAI && typeof t._aiIsKiter === 'function' && t._aiIsKiter(this))) ? dir : -dir;    // 20% reposition burst
           this._wanderTimer = 12 + Math.floor(Math.random() * 14);
         }
         // remaining 30%: no-op (natural pause keeps rhythm varied)

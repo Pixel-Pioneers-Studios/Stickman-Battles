@@ -803,45 +803,6 @@ function _storyBuildPhases(ch) {
     isElite: true,
   });
 
-  // ── PROTOTYPE: GoW-style multi-enemy "rounds of fighters" ────────────────
-  // A small allowlist of crowd-themed chapters gets a curated wave sequence
-  // instead of collapsing to a single duel. If this feels good, widen the set.
-  // The Last Army (47), Rogue Faction (52), Architecture Soldiers (127).
-  //
-  // CRITICAL: gate on `_origId`, which is present ONLY on launch-time chapters
-  // (set by _phaseToChapter). During _expandStoryChaptersInPlace the source
-  // chapter has no _origId, so this stays single-phase there — returning >1
-  // phase at expansion would split the chapter into multiple STORY_CHAPTERS2
-  // entries and desync every downstream id + save. Waves are launch-only.
-  const PROTOTYPE_WAVE_CHAPTERS = new Set([47, 52, 129]);
-  if (ch._origId !== undefined && PROTOTYPE_WAVE_CHAPTERS.has(ch._origId)) {
-    const lives = ch.playerLives || 3;
-    const arena = ch.arena || 'homeAlley';
-    ch.phases = [
-      {
-        type: 'arena_lock', label: 'Wave 1 — First Line', arena, playerLives: lives,
-        opponents: [
-          supportEnemy,
-          _storyCloneEnemyDef(supportEnemy, { name: `${baseEnemy.name} Grunt`, color: '#667788' }),
-        ],
-      },
-      {
-        type: 'elite_wave', label: 'Wave 2 — Heavies', arena, playerLives: lives,
-        opponents: [
-          eliteEnemy,
-          _storyCloneEnemyDef(supportEnemy, { name: `${baseEnemy.name} Skirmisher`, weaponKey: 'spear', classKey: 'ninja', color: '#8855cc' }),
-        ],
-      },
-      {
-        type: 'mini_boss', label: ch.opponentName || 'Commander', finalChapter: true, arena, playerLives: lives,
-        opponents: [
-          _storyCloneEnemyDef(baseEnemy, { name: ch.opponentName || `${baseEnemy.name} Commander`, aiDiff: eliteAI, isElite: true }),
-        ],
-      },
-    ];
-    return ch.phases; // skip the finale collapse — keep all three rounds
-  }
-
   if (ch.type === 'exploration') {
     const worldLen = Math.max(5600, ch.worldLength || 5600);
     ch.phases = [
@@ -1057,7 +1018,7 @@ function restoreStoryDataFromSave(data) {
 
 // ============================================================
 // STORY MODE v2 — Chapter Progression, Tokens, Blueprints,
-//                 Ability Store, Story Online unlock
+//                 Ability Store
 // ============================================================
 
 // ============================================================

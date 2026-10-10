@@ -12,8 +12,8 @@ const WEAPONS = {
   sword: {
     // THE ALL-ROUNDER: Fast, mobile, reliable. Jack of all trades.
     // Identity: Dash Slash chases and punishes. Great neutral game.
-    name: 'Sword',   damage: 15, range: 84, cooldown: 36, endlag: 9,
-    kb: 10,          abilityCooldown: 240, type: 'melee', weaponType: 'light', color: '#cccccc',
+    name: 'Sword',   damage: 14, range: 84, cooldown: 38, endlag: 11,
+    kb: 10, superDmgMult: 0.9,          abilityCooldown: 240, type: 'melee', weaponType: 'light', color: '#cccccc',
     abilityName: 'Blade Storm',
     ability(user, _target) {
       // 4 crescent arcs burst outward in all directions — forward, backward, up, down
@@ -49,7 +49,7 @@ const WEAPONS = {
   hammer: {
     // THE CRUSHER: Slow, punishing, massive knockback. Forces commitment.
     // Identity: Every hit sends enemies flying. One good read = huge reward.
-    name: 'Hammer',  damage: 20, range: 72, cooldown: 60, endlag: 18,
+    name: 'Hammer',  damage: 26, range: 72, cooldown: 54, endlag: 18,
     kb: 16,          abilityCooldown: 230, abilityDmgMult: 0.75, superDmgMult: 2.0, type: 'melee', weaponType: 'heavy', color: '#888888',
     abilityName: 'Ground Shockwave',
     ability(user, _target) {
@@ -72,12 +72,12 @@ const WEAPONS = {
   gun: {
     // THE HARASSER: Reliable ranged poke. Rewards keeping distance.
     // Identity: Steady chip damage + burst fire ability. Control space.
-    name: 'Gun',     damage: 9, range: 600, cooldown: 24, endlag: 6,
-    damageFunc: () => Math.floor(Math.random() * 4) + 12,
+    name: 'Gun',     damage: 9, range: 600, cooldown: 22, endlag: 6,
+    damageFunc: () => Math.floor(Math.random() * 4) + 17,
     superRateBonus: 1.2,
     splashRange: 38, splashDmgPct: 0.30,
-    clipSize: 8, reloadFrames: 90,
-    kb: 7,           abilityCooldown: 200, abilityDmgMult: 1.6, type: 'ranged', weaponType: 'ranged', color: '#666666',
+    clipSize: 12, reloadFrames: 60,
+    kb: 9,           abilityCooldown: 200, abilityDmgMult: 1.6, type: 'ranged', weaponType: 'ranged', color: '#666666',
     abilityName: 'Burst Shot',
     ability(user, _target) {
       // 3-round burst: fires 3 bullets in a tight vertical fan, rapid-fire feel
@@ -100,7 +100,7 @@ const WEAPONS = {
   axe: {
     // THE SPINNER: Mid-range AoE brawler. Covers angles, not pure damage.
     // Identity: Spin Attack is a defensive escape AND offensive tool. Trades raw dmg for coverage.
-    name: 'Axe',     damage: 22, range: 98, cooldown: 39, endlag: 13,
+    name: 'Axe',     damage: 19, range: 98, cooldown: 46, endlag: 16,
     splashRange: 70, splashDmgPct: 0.30,
     kb: 10,          abilityCooldown: 180, type: 'melee', weaponType: 'heavy', color: '#cc4422',
     abilityName: 'Rising Cleave',
@@ -118,7 +118,7 @@ const WEAPONS = {
   spear: {
     // THE POKER: Longest melee reach. Safe, consistent, spacing-dependent.
     // Identity: Ground Spike punishes rushers close-up; Lance Charge is the mid-range punish.
-    name: 'Spear',   damage: 17, range: 130, cooldown: 42, endlag: 11,
+    name: 'Spear',   damage: 15, range: 130, cooldown: 42, endlag: 13,
     kb: 7,           abilityCooldown: 165, superDmgMult: 1.4, type: 'melee', weaponType: 'light', color: '#8888ff',
     abilityName: 'Ground Spike',
     ability(user, _target) {
@@ -150,8 +150,8 @@ const WEAPONS = {
     // THE SNIPER: Highest single-shot ranged damage. Archer class only.
     // Identity: Huge range, powerful arrow, but slow fire rate demands good aim.
     name: 'Bow',  damage: 0, range: 700, cooldown: 40, endlag: 4,
-    damageFunc: () => Math.floor(20 + Math.random() * 9),
-    clipSize: 3, reloadFrames: 90,
+    damageFunc: () => Math.floor(21 + Math.random() * 9),
+    clipSize: 4, reloadFrames: 70,
     kb: 14,       abilityCooldown: 185, type: 'ranged', weaponType: 'ranged', color: '#aad47a',
     requiresClass: 'archer',
     abilityName: 'Triple Shot',
@@ -175,8 +175,8 @@ const WEAPONS = {
   shield: {
     // THE WALL: Lowest damage, highest block and pushback. Paladin class only.
     // Identity: You don't kill with damage — you kill by shoving enemies off platforms.
-    name: 'Shield', damage: 16, range: 68, cooldown: 31, endlag: 9,
-    kb: 26,         abilityCooldown: 195, abilityDmgMult: 1.6, type: 'melee', weaponType: 'heavy', color: '#88aaff',
+    name: 'Shield', damage: 18, range: 68, cooldown: 31, endlag: 9,
+    kb: 26,         abilityCooldown: 195, abilityDmgMult: 1.9, type: 'melee', weaponType: 'heavy', color: '#88aaff',
     requiresClass: 'paladin',
     contactDmgMult: 0,
     abilityName: 'Shield Bash',
@@ -225,7 +225,7 @@ const WEAPONS = {
   fryingpan: {
     // THE STUNNER: Slow but delivers punishing stun windows. Reads = reward.
     // Identity: Land the slow swing → stun window → follow-up combo. High risk, high reward.
-    name: 'Frying Pan', damage: 18, range: 65, cooldown: 42, endlag: 15,
+    name: 'Frying Pan', damage: 22, range: 65, cooldown: 40, endlag: 15,
     kb: 12,              abilityCooldown: 220, superDmgMult: 2.0, type: 'melee', weaponType: 'heavy', color: '#ccaa44',
     abilityName: 'Ground Pound',
     ability(user, _target) {
@@ -253,8 +253,8 @@ const WEAPONS = {
   broomstick: {
     // THE PUSHER: Long reach + extreme knockback. Kills by platform denial.
     // Identity: Lowest damage, highest push force. Win by edgeguarding.
-    name: 'Broomstick', damage: 13, range: 105, cooldown: 34, endlag: 8,
-    kb: 18,              abilityCooldown: 135, type: 'melee', weaponType: 'light', color: '#aa8855',
+    name: 'Broomstick', damage: 12, range: 105, cooldown: 36, endlag: 8,
+    kb: 18,              abilityCooldown: 190, type: 'melee', weaponType: 'light', color: '#aa8855',
     abilityName: 'Broom Ride',
     ability(user, _target) {
       // Leap onto the broom and rocket through the air — aerial body-check
@@ -272,8 +272,8 @@ const WEAPONS = {
     // Identity: Must get close. Roundhouse is the answer to being surrounded — the fists
     // are single-target, so without it the weapon had nothing for story crowds. Combo
     // Strike is a confirm — the dash has to land — and pays out a player-aimed launch.
-    name: 'Combat', damage: 16, range: 60, cooldown: 20, endlag: 7,
-    kb: 4,           abilityCooldown: 180, abilityDmgMult: 1.3, superDmgMult: 0.85, type: 'melee', weaponType: 'light', color: '#ee3333',
+    name: 'Combat', damage: 20, range: 60, cooldown: 20, endlag: 5,
+    kb: 4, lunge: 3.6,           abilityCooldown: 180, abilityDmgMult: 1.8, superDmgMult: 1.0, type: 'melee', weaponType: 'light', color: '#ee3333',
     abilityName: 'Roundhouse',
     ability(user) {
       // Spinning kick: hits every hostile close on BOTH sides once, knocking them outward.
@@ -296,10 +296,10 @@ const WEAPONS = {
   peashooter: {
     // THE HARASSER: Fastest fire rate. Chip damage and interrupts enemy combos.
     // Identity: Each shot is weak but relentless. Storm ability dumps huge lead.
-    name: 'Pea Shooter', damage: 0, range: 700, cooldown: 14, endlag: 5,
-    damageFunc: () => 4 + Math.floor(Math.random() * 2), // 4-5 per shot
+    name: 'Pea Shooter', damage: 0, range: 700, cooldown: 12, endlag: 5,
+    damageFunc: () => 8 + Math.floor(Math.random() * 2), // 8-9 per shot
     bulletSpeed: 15, bulletColor: '#44cc44',
-    clipSize: 15, reloadFrames: 75,
+    clipSize: 18, reloadFrames: 60,
     kb: 3,               abilityCooldown: 120, abilityDmgMult: 2.0, superDmgMult: 1.6, type: 'ranged', weaponType: 'ranged', color: '#44cc44',
     abilityName: 'Pea Storm',
     ability(user, _target) {
@@ -327,10 +327,10 @@ const WEAPONS = {
   slingshot: {
     // THE AIM-REWARDING SNIPER: Highest per-shot ranged damage. Slow but punishing.
     // Identity: Arc trajectory demands prediction. Land a hit = big reward.
-    name: 'Slingshot', damage: 0, range: 650, cooldown: 44, endlag: 5,
-    damageFunc: () => 15 + Math.floor(Math.random() * 5), // 15-19 per shot
-    bulletSpeed: 11, bulletColor: '#ff9933', bulletVy: -1.5,
-    clipSize: 4, reloadFrames: 100,
+    name: 'Slingshot', damage: 0, range: 650, cooldown: 30, endlag: 5,
+    damageFunc: () => 23 + Math.floor(Math.random() * 5), // 23-27 per shot
+    bulletSpeed: 13, bulletColor: '#ff9933', bulletVy: -1.5,
+    clipSize: 6, reloadFrames: 60,
     kb: 10,            abilityCooldown: 230, superDmgMult: 1.4, type: 'ranged', weaponType: 'ranged', color: '#cc8833',
     abilityName: 'Mortar Stone',
     ability(user, target) {
@@ -375,7 +375,7 @@ const WEAPONS = {
   paperairplane: {
     // THE TRICKSTER: Unpredictable arc confuses and disrupts. Unique flight path.
     // Identity: Angles and curves opponents can't predict. Barrage forces dodging.
-    name: 'Paper Airplane', damage: 0, range: 800, cooldown: 50, endlag: 8,
+    name: 'Paper Airplane', damage: 0, range: 800, cooldown: 44, endlag: 8,
     damageFunc: () => 8 + Math.floor(Math.random() * 4), // 8-11 per shot
     bulletSpeed: 7, bulletColor: '#aaccff', bulletVy: -0.5,
     clipSize: 4, reloadFrames: 80,
@@ -402,7 +402,7 @@ const WEAPONS = {
   flail: {
     // THE SWINGER: Heavy, delayed, commitment-heavy. Rewards reading and staying close.
     // Identity: Chain Yank fires ball out then returns — double-hit if you stay in range.
-    name: 'Flail',   damage: 17, range: 70, cooldown: 58, endlag: 18,
+    name: 'Flail',   damage: 24, range: 70, cooldown: 52, endlag: 18,
     kb: 18,          abilityCooldown: 200, superDmgMult: 2.0, type: 'melee', weaponType: 'heavy', color: '#aaaaaa',
     abilityName: 'Chain Yank',
     ability(user, _target) {
@@ -429,13 +429,13 @@ const WEAPONS = {
     // Land the tip and you hit harder than a sword and open a bleed; let them inside
     // your reach and you are poking with a rope for chip damage.
     // Identity: spacing IS the damage stat. Q hooks one target, E is a long-range barrage.
-    name: 'Whip',    damage: 12, range: 125, cooldown: 34, endlag: 10,
-    kb: 7,           abilityCooldown: 270, type: 'melee', weaponType: 'light', color: '#cc8833',
+    name: 'Whip',    damage: 11, range: 125, cooldown: 40, endlag: 13,
+    kb: 7, superDmgMult: 0.85,           abilityCooldown: 270, type: 'melee', weaponType: 'light', color: '#cc8833',
     // Sweet-spot tuning — read by the whip branch of the melee hit resolver in smb-fighter.js
     // Max center-to-center melee reach follows the drawn lash (_meleeReachDist) and is
     // ≈ 124, so 90 keeps the outer quarter of the range the sweet spot.
     crackDist: 90,   // horizontal gap (px) at/past which a hit counts as a tip crack
-    crackMult: 1.2,  // damage multiplier on a crack hit (12 → 14)
+    crackMult: 1.2,  // damage multiplier on a crack hit (11 → 13)
     hookMult:  1.25, // extra multiplier while the target is Hooked by Lasso
     bleedDmg:  2,    // damage per bleed tick
     bleedTicks: 3,   // ticks applied by a body hit (a crack applies 5)
@@ -481,9 +481,9 @@ const WEAPONS = {
     // THE RETURNER: Ranged weapon whose Q/E come back. Bait the dodge then catch them.
     // Identity: Outgoing throw baits a dodge; the return punishes it.
     name: 'Boomerang', damage: 0, range: 650, cooldown: 34, endlag: 8,
-    damageFunc: () => 14 + Math.floor(Math.random() * 5),
+    damageFunc: () => 16 + Math.floor(Math.random() * 5),
     bulletSpeed: 10, bulletColor: '#cc9944',
-    clipSize: 3, reloadFrames: 110,
+    clipSize: 4, reloadFrames: 85,
     kb: 8,             abilityCooldown: 175, superDmgMult: 1.8, type: 'ranged', weaponType: 'ranged', color: '#cc9944',
     abilityName: 'Orbit Guard',
     ability(user, _target) {
@@ -505,7 +505,7 @@ const WEAPONS = {
   katana: {
     // THE PRECISION BLADE: Fast light melee. Standing still = 2× damage on Iaijutsu.
     // Identity: Patience over aggression. The kill resets everything for Ronin class.
-    name: 'Katana',  damage: 12, range: 98, cooldown: 52, endlag: 11,
+    name: 'Katana',  damage: 13, range: 98, cooldown: 52, endlag: 11,
     kb: 8,           abilityCooldown: 230, type: 'melee', weaponType: 'light', color: '#888899',
     abilityName: 'Iaijutsu',
     ability(user, target) {
@@ -547,10 +547,10 @@ const WEAPONS = {
   flamethrower: {
     // THE SUPPRESSOR: 25-shot rapid-fire, very short range. Backdraft punishes rushers.
     // Identity: Keep enemies burning from close range; Backdraft when they rush you.
-    name: 'Flamethrower', damage: 0, range: 180, cooldown: 4, endlag: 3,
-    damageFunc: () => 5 + Math.floor(Math.random() * 3),
+    name: 'Flamethrower', damage: 0, range: 220, cooldown: 4, endlag: 3,
+    damageFunc: () => 13 + Math.floor(Math.random() * 3),
     bulletSpeed: 9, bulletColor: '#ff5500',
-    clipSize: 45, reloadFrames: 85,
+    clipSize: 70, reloadFrames: 85,
     kb: 2,                abilityCooldown: 135, superDmgMult: 1.3, type: 'ranged', weaponType: 'ranged', color: '#ff4400',
     abilityName: 'Napalm Spit',
     ability(user, _target) {
@@ -571,7 +571,7 @@ const WEAPONS = {
   electricstaff: {
     // THE CHAIN STRIKER: Melee with group-shock Q and Overcharge super.
     // Identity: Punishes clustered enemies. Overcharge makes every swing AoE for 4s.
-    name: 'Electric Staff', damage: 19, range: 112, cooldown: 32, endlag: 12,
+    name: 'Electric Staff', damage: 16, range: 112, cooldown: 36, endlag: 12,
     kb: 10,                  abilityCooldown: 190, abilityDmgMult: 1.2, type: 'melee', weaponType: 'heavy', color: '#00ccff',
     abilityName: 'Shock Bolt',
     ability(user, _target) {
@@ -729,8 +729,8 @@ const WEAPONS = {
   knives: {
     // THE SCAVENGER: six knives, and you have to go get them back.
     // Identity: every throw leaves a blade on the floor that Recall turns into a hit.
-    name: 'Throwing Knives', damage: 0, range: 520, cooldown: 24, endlag: 5,
-    damageFunc: () => 9 + Math.floor(Math.random() * 3),
+    name: 'Throwing Knives', damage: 0, range: 520, cooldown: 20, endlag: 5,
+    damageFunc: () => 12 + Math.floor(Math.random() * 3),
     bulletSpeed: 18, kb: 5, abilityCooldown: 150, abilityDmgMult: 1.6, superDmgMult: 1.6, type: 'ranged', weaponType: 'ranged', color: '#9aa3ad',
     abilityName: 'Recall',
     customShot(user, dmg) { if (typeof wxThrowKnife === 'function') wxThrowKnife(user, dmg); },
@@ -739,10 +739,10 @@ const WEAPONS = {
   },
 
   glassblade: {
-    // THE GLASS CANNON: the hardest-hitting fast blade, and every hit you take chips it.
-    // Identity: win the exchange cleanly or lose the blade.
-    name: 'Glass Blade', damage: 26, range: 92, cooldown: 28, endlag: 7,
-    kb: 9, abilityCooldown: 200, superDmgMult: 2.5, type: 'melee', weaponType: 'light', color: '#bfe6ee',
+    // THE GLASS CANNON: the fastest-swinging weapon in the game (18-frame cooldown vs 20 for fists), and
+    // every hit you take chips it. Identity: win the exchange cleanly or lose the blade.
+    name: 'Glass Blade', damage: 24, range: 92, cooldown: 18, endlag: 6,
+    kb: 9, abilityDmgMult: 1.5, abilityCooldown: 200, superDmgMult: 2.5, type: 'melee', weaponType: 'light', color: '#bfe6ee',
     abilityName: 'Shatterstep',
     ability(user, _target) { if (typeof wxShatterstep === 'function') wxShatterstep(user); },
     superMove(user, _target) { if (typeof wxMirrorwall === 'function') wxMirrorwall(user); },
@@ -751,8 +751,8 @@ const WEAPONS = {
   anchor: {
     // THE MOORING: slow, immovable while it swings, and it can be thrown and hauled on.
     // Identity: plant yourself and trade; drop the anchor to pull the fight to you.
-    name: 'Anchor', damage: 22, range: 80, cooldown: 46, endlag: 15,
-    kb: 16, abilityCooldown: 170, superDmgMult: 1.4, type: 'melee', weaponType: 'heavy', color: '#5a6068',
+    name: 'Anchor', damage: 28, range: 80, cooldown: 40, endlag: 15,
+    kb: 16, abilityDmgMult: 1.5, abilityCooldown: 170, superDmgMult: 1.4, type: 'melee', weaponType: 'heavy', color: '#5a6068',
     abilityName: 'Drop Anchor',
     customAttack(user, target) { if (typeof wxAnchorAttackGate === 'function') return wxAnchorAttackGate(user, target); },
     ability(user, _target) { if (typeof wxDropAnchor === 'function') wxDropAnchor(user); },
@@ -816,16 +816,16 @@ function classRollKind(key) {
 // Weapons without an entry fall back to the legacy 12-frame diagonal slash.
 const WEAPON_SWINGS = {
   // ── melee ──────────────────────────────────────────────────────────────
-  sword:         { archetype: 'slash',  dur:  9, a0: -0.65, a1: 1.15, ease: 'snap',   tilt: 0.6,  tipLen: 26, trail: { life:  9, cap: 6,  width: 5 } },
+  sword:         { archetype: 'slash',  dur:  9, a0: -0.65, a1: 1.15, ease: 'snap',   tilt: 0.6,  tipLen: 26, trail: { life:  9, cap: 6,  width: 5 }, hitSound: 'slash' },
   katana:        { archetype: 'iai',    dur:  7, a0: -0.35, a1: 0.95, ease: 'iai',    tilt: 0.5,  tipLen: 30, trail: { life: 13, cap: 8,  width: 4 },
                    hitSound: 'pierce', carry: { arm: 0.80, tilt: 0.45 } },  // held low at the hip, blade angled down — ready stance
   hammer:        { archetype: 'smash',  dur: 15, a0: -1.85, a1: 0.95, ease: 'heavy',  tilt: 0.7,  tipLen: 30, trail: { life: 14, cap: 9,  width: 10 },
                    hitSound: 'blunt', carry: { arm: -0.90, tilt: -0.50 } }, // head rested up over the shoulder
   fryingpan:     { archetype: 'smash',  dur: 12, a0: -1.55, a1: 0.80, ease: 'heavy',  tilt: 0.7,  tipLen: 26, trail: { life: 11, cap: 7,  width: 8 },
                    hitSound: 'clang', carry: { arm: 1.05, tilt: 0.25 } },   // dangling at the side like a skillet
-  axe:           { archetype: 'cleave', dur: 12, a0: -1.05, a1: 1.35, ease: 'snap',   tilt: 0.65, tipLen: 26, trail: { life: 12, cap: 8,  width: 8 },
+  axe:           { archetype: 'cleave', dur: 12, a0: -1.05, a1: 1.35, ease: 'snap',   tilt: 0.65, tipLen: 26, trail: { life: 12, cap: 8,  width: 8 }, hitSound: 'slash',
                    carry: { arm: 0.95, tilt: -0.20 } },                     // held low at the side
-  scythe:        { archetype: 'sweep',  dur: 14, a0: -1.45, a1: 1.65, ease: 'sweep',  tilt: 0.8,  tipLen: 30, trail: { life: 13, cap: 9,  width: 7 },
+  scythe:        { archetype: 'sweep',  dur: 14, a0: -1.45, a1: 1.65, ease: 'sweep',  tilt: 0.8,  tipLen: 30, trail: { life: 13, cap: 9,  width: 7 }, hitSound: 'slash',
                    carry: { arm: -1.30, tilt: -0.20 } },                    // upright reaper pose, blade overhead
   spear:         { archetype: 'thrust', dur: 10, a0:  0.10, a1: 0.02, ease: 'linear', tilt: 0.06, tipLen: 40,
                    reach: { r0: 0.45, r1: 1.0, ease: 'thrust' }, hitFracs: [0.45, 0.7, 0.9, 1.0], trail: { life: 8, cap: 6, width: 4 },
@@ -849,16 +849,16 @@ const WEAPON_SWINGS = {
                    hitSound: 'clang', carry: { arm: 0.35, tilt: 0.0 } },     // held braced in front
   electricstaff: { archetype: 'strike', dur: 11, a0: -0.95, a1: 1.25, ease: 'snap',   tilt: 0.6,  tipLen: 30, trail: { life: 11, cap: 8, width: 6 },
                    hitSound: 'zap', carry: { arm: 0.70, tilt: -1.30 } },     // walking-staff, held upright
-  glassblade:    { archetype: 'slash',  dur:  8, a0: -0.70, a1: 1.10, ease: 'snap',   tilt: 0.55, tipLen: 28, trail: { life: 10, cap: 7, width: 4 },
-                   hitSound: 'pierce' },
-  anchor:        { archetype: 'smash',  dur: 16, a0: -1.90, a1: 0.95, ease: 'heavy',  tilt: 0.7,  tipLen: 30, trail: { life: 14, cap: 9, width: 10 },
+  glassblade:    { archetype: 'slash',  dur:  6, a0: -0.70, a1: 1.10, ease: 'snap',   tilt: 0.55, tipLen: 40, trail: { life: 10, cap: 7, width: 4 },
+                   hitSound: 'slash' },
+  anchor:        { archetype: 'smash',  dur: 13, a0: -1.90, a1: 0.95, ease: 'heavy',  tilt: 0.7,  tipLen: 30, trail: { life: 14, cap: 9, width: 10 },
                    hitSound: 'blunt', carry: { arm: 0.95, tilt: 0.55 } },    // hauled low, fluke near the floor
   fragment:      { archetype: 'jab',    dur:  7, a0:  0.12, a1: -0.10, ease: 'linear', tilt: 0.0, tipLen: 16, alternate: true,
                    reach: { r0: 0.4, r1: 1.0, ease: 'jab' }, trail: { life: 0, cap: 0, width: 0 },
                    carry: { arm: -0.35, lArm: -0.60 } },
   // ── enemy-only melee (distinct from sword so duels read differently) ───
-  nullblade:    { archetype: 'slash',  dur: 10, a0: -0.85, a1: 1.05, ease: 'snap',   tilt: 0.55, tipLen: 26, trail: { life: 10, cap: 7, width: 5 } },
-  voidblade:     { archetype: 'slash',  dur:  9, a0: -0.50, a1: 1.20, ease: 'iai',    tilt: 0.5,  tipLen: 24, trail: { life: 10, cap: 7, width: 4 } },
+  nullblade:    { archetype: 'slash',  dur: 10, a0: -0.85, a1: 1.05, ease: 'snap',   tilt: 0.55, tipLen: 26, trail: { life: 10, cap: 7, width: 5 }, hitSound: 'slash' },
+  voidblade:     { archetype: 'slash',  dur:  9, a0: -0.50, a1: 1.20, ease: 'iai',    tilt: 0.5,  tipLen: 24, trail: { life: 10, cap: 7, width: 4 }, hitSound: 'slash' },
   // ── ranged firing poses (no swing — recoil/throw arcs, weapon stays level) ──
   gun:           { archetype: 'point',  a0: -0.45, a1: 0.02, ease: 'recoil', tilt: 0.0, carry: { arm: 0.55, tilt: -0.35 } }, // low ready, muzzle slightly up
   peashooter:    { archetype: 'point',  a0: -0.18, a1: 0.00, ease: 'recoil', tilt: 0.0 },
@@ -951,7 +951,7 @@ const CLASSES = {
   megaknight: { name: 'Knight', desc: 'Legendary knight. Smash, uppercut, and crush enemies.', weapon: 'mkgauntlet', hp: 170, speedMult: 0.84, perk: null },
   pugilist:   { name: 'Pugilist',   desc: 'Combat brawler. Fast and durable. Roundhouse + Combo Strike fires free at low HP.', weapon: 'combat', hp: 135, speedMult: 1.15, perk: 'surge_fist'  },
   ronin:      { name: 'Ronin',      desc: 'Katana master. Iaijutsu kills reset all cooldowns.',                         weapon: 'katana',       hp: 132, speedMult: 1.18, perk: 'death_step'    },
-  reaper:     { name: 'Reaper',     desc: 'Scythe specialist. Revives once when near death.',                           weapon: 'scythe',       hp: 125, speedMult: 1.00, perk: 'revive'       },
+  reaper:     { name: 'Reaper',     desc: 'Scythe specialist. Heals once when badly hurt.',                           weapon: 'scythe',       hp: 125, speedMult: 1.00, perk: 'revive'       },
   summoner:   { name: 'Summoner',   desc: 'Calls a fragile familiar that harries your enemy. Any weapon.',                weapon: null,           hp: 138, speedMult: 1.05, perk: 'call_familiar' },
   demolitionist: { name: 'Demolitionist', desc: 'Bomb specialist. Bigger blasts and controlled bomb-jumps.',          weapon: 'bomb',         hp: 125, speedMult: 1.00, perk: 'demolition'    },
   warden:     { name: 'Warden',     desc: 'Armoured anchor-bearer. Every third hit taken is halved. Slow.',            weapon: 'anchor',       hp: 160, speedMult: 0.86, perk: 'bulwark'       },
@@ -1004,42 +1004,42 @@ const CLASS_AFFINITY = {
 // ============================================================
 // HP fraction at which each class's once-per-life passive perk fires
 // (Fighter.update). Set high enough that only a near-one-shot can carry a
-// fighter from above it to zero before the perk runs. Reaper's perk is a
-// revive to 40%, so it has to stay below that.
+// fighter from above it to zero before the perk runs. Reaper's perk heals
+// 32% max HP, so 0.35 keeps the result under full health.
 const CLASS_PERK_THRESHOLD = {
   thor: 0.55, kratos: 0.55, ninja: 0.55, paladin: 0.55,
   gunner: 0.55, archer: 0.55, berserker: 0.55, pugilist: 0.55, summoner: 0.55,
-  reaper: 0.08,
+  reaper: 0.35,
 };
 
 const WEAPON_DESCS = {
   random:  { title: 'Random Weapon',  what: 'Picks a random weapon each game — embrace the chaos.',                                                         ability: null,                                                              super: null,                                                               how:  'Adapt to whatever you get each round.' },
   sword:   { title: 'Sword',          what: 'Fast, balanced melee weapon with good range.',                                                     ability: 'Q — Blade Storm: 4 crescent arcs burst in all directions (24 dmg). No movement — pure coverage.',  super: 'E — Air Slash: 3 crescent arcs fan outward in sequence.',          how:  'Base = single forward swing. Q = omnidirectional burst. E = sequential forward fan.' },
   hammer:  { title: 'Hammer',         what: 'Slow but devastating. Huge knockback on every hit.',                                               ability: 'Q — Ground Shockwave: jump and slam — a shockwave TRAVELS horizontally from your feet (28 dmg, launches up).', super: 'E — Mjolnir: a sweeping swing that has to connect; it hooks them on the hammer head, swings them round twice and throws them under a lightning strike (42 dmg).',  how:  'Base = direct swing. Q = traveling ground wave. E = get close, then catch them with the swing.' },
-  gun:     { title: 'Gun',            what: 'Ranged weapon. Each bullet deals 5–8 damage. Fires splash rounds.',                                            ability: 'Q — Rapid Fire: 5-shot burst.',                                   super: 'E — Bullet Storm: 14 rapid shots (9–12 dmg each).',               how:  'Keep your distance. Use Rapid Fire to pressure from afar.' },
+  gun:     { title: 'Gun',            what: 'Ranged weapon. Each bullet deals 17–20 damage. Fires splash rounds.',                                            ability: 'Q — Rapid Fire: 5-shot burst.',                                   super: 'E — Bullet Storm: 14 rapid shots (9–12 dmg each).',               how:  'Keep your distance. Use Rapid Fire to pressure from afar.' },
   axe:     { title: 'Axe',            what: 'Balanced melee with solid damage, good knockback, and splash hits.',                               ability: 'Q — Rising Cleave: a short dash that has to land. On a hit the axe comes up under them and throws them into the air, then swings round flat as they fall and sends them away (22 dmg).', super: 'E — Axe Throw: hurl your axe across the arena (38 dmg, large radius); it curves back.', how: 'Rising Cleave is a confirm — dash in from close. Axe Throw punishes enemies at any distance.' },
   spear:   { title: 'Spear',          what: 'Longest melee reach in the game. Consistent damage.',                                              ability: 'Q — Ground Spike: slam spear down, AoE upward launch for 20 dmg.', super: 'E — Lance Charge: charge with the spear couched; if the point lands they are carried on it and flicked off into the air (28 dmg).',     how:  'Poke from range. Use Ground Spike when enemies rush you.' },
-  bow:     { title: 'Bow', what: 'Long-range arc weapon. Arrows deal 12–20 damage and arc slightly over distance.', ability: 'Q — Triple Shot: fires 3 arrows in a fan spread.',       super: 'E — Power Arrow: giant arrow for 60 dmg with high knockback.',    how:  'Stay back and poke. Triple Shot punishes clustered enemies.' },
+  bow:     { title: 'Bow', what: 'Long-range arc weapon. Arrows deal 21–29 damage and arc slightly over distance.', ability: 'Q — Triple Shot: fires 3 arrows in a fan spread.',       super: 'E — Power Arrow: giant arrow for 60 dmg with high knockback.',    how:  'Stay back and poke. Triple Shot punishes clustered enemies.' },
   shield:  { title: 'Shield', what: 'Defensive melee weapon. High knockback.', ability: 'Q — Shield Bash: rush behind the shield; whoever it meets is pinned to it, driven back and shoved away stunned (12 dmg).',              super: 'E — Fortress Charge: a long rush that carries whoever it meets on the shield face, then a rising bash launches them (32 dmg).', how: 'Block with S key to absorb bullets. Bash enemies away.' },
   scythe:       { title: 'Scythe',         what: 'Wide-arc melee with splash damage. Heals on hit.',               ability: 'Q — Scythe Toss: hurl the blade forward (22 dmg out / 14 dmg return). No lifesteal.', super: 'E — Soul Reap: the blade hooks someone up to 160px away and reels them in; three reaping turns drink from them and the last tears them upward (42 dmg, heals up to 20).', how: 'Base heals on melee contact. Q is a ranged blade — throw it and bait the return. E is the lifesteal finisher.' },
   fryingpan:    { title: 'Frying Pan',     what: 'Slow but punishing melee. Solid knockback and AoE ground pound.',          ability: 'Q — Ground Pound: AoE shockwave from feet — launches ALL nearby enemies straight up.', super: 'E — Grand Slam: BONK them on the head, wind up like a golfer, and send them straight up (45 dmg).', how: 'Ground Pound clears crowds upward. Grand Slam sends one target flying for a ceiling combo.' },
   broomstick:   { title: 'Broomstick',     what: 'Long-reach melee. Low damage but pushes enemies away.',               ability: 'Q — Broom Ride: rocket through the air on the broom — 16 dmg aerial body-check to anyone in your path.', super: 'E — Tornado Spin: spin push that hits all directions.',           how:  'Base = ground poke. Q = aerial flying ram. E = stationary spin push.' },
   combat: { title: 'Combat',         what: 'Fast alternating punches and kicks. Up-close brawler.',                ability: 'Q — Roundhouse: spinning kick that hits every enemy close on both sides (14 dmg) and knocks them away.', super: 'E — Combo Strike: dash in — the dash MUST connect. On a hit, uppercut (20 dmg), then aim the finishing kick with ←/→ and press attack to launch them (34 dmg).', how:  'Roundhouse clears space when you get surrounded. Combo Strike whiffs if you fire it from range — confirm it up close, then aim the kick at the nearest edge.' },
-  peashooter:   { title: 'Pea Shooter',    what: 'Rapid-fire ranged weapon. Very low damage per pea (2-3). High fire rate.',        ability: 'Q — Pea Storm: 10 rapid shots.',                               super: 'E — Cluster Bomb: large pea detonates into 10 radial peas (8-12 dmg each).', how: 'Whittle with shots. Cluster Bomb punishes enemies in tight spots.' },
-  slingshot:    { title: 'Slingshot',      what: 'Ranged weapon with arc trajectory. Moderate damage (10-14). Slow fire rate.',     ability: 'Q — Mortar Stone: steep upward arc falls DOWN from above (65px splash, 28 dmg).', super: 'E — Gravity Stone: slow boulder; detonates with a 220px gravity pull for 52 dmg.', how: 'Mortar Stone bypasses shields by dropping from above. Gravity Stone pulls victims into it.' },
-  paperairplane: { title: 'Paper Airplane',  what: 'Very slow curving projectile. Low damage (9-13) but unpredictable arc.',          ability: 'Q — Barrage: 5 airplanes at staggered angles.',                   super: 'E — Origami Swarm: 8 homing planes that chase and track enemies.',    how:  'Confuse enemies with the arc. Swarm corners enemies with nowhere to run.' },
+  peashooter:   { title: 'Pea Shooter',    what: 'Rapid-fire ranged weapon. Low damage per pea (8-9). High fire rate.',        ability: 'Q — Pea Storm: 10 rapid shots.',                               super: 'E — Cluster Bomb: large pea detonates into 10 radial peas (8-12 dmg each).', how: 'Whittle with shots. Cluster Bomb punishes enemies in tight spots.' },
+  slingshot:    { title: 'Slingshot',      what: 'Ranged weapon with arc trajectory. Solid damage (23-27). Slow fire rate.',     ability: 'Q — Mortar Stone: steep upward arc falls DOWN from above (65px splash, 28 dmg).', super: 'E — Gravity Stone: slow boulder; detonates with a 220px gravity pull for 52 dmg.', how: 'Mortar Stone bypasses shields by dropping from above. Gravity Stone pulls victims into it.' },
+  paperairplane: { title: 'Paper Airplane',  what: 'Very slow curving projectile. Low damage (8-11) but unpredictable arc.',          ability: 'Q — Barrage: 5 airplanes at staggered angles.',                   super: 'E — Origami Swarm: 8 homing planes that chase and track enemies.',    how:  'Confuse enemies with the arc. Swarm corners enemies with nowhere to run.' },
   flail:         { title: 'Flail',           what: 'Heavy melee with a swinging chain ball.',                              ability: 'Q — Chain Yank: fire ball forward (26 dmg), returns for 16 dmg.',  super: 'E — Orbit Storm: ball orbits at high speed, 12 dmg per contact.',    how:  'Commit hard or miss hard. Stay close during the return to land both hits.' },
-  whip:          { title: 'Whip',            what: 'Longest melee reach, with a sweet spot. The tip of the lash hits for 20 and opens a bleed; up close it only chips for 15. Swings alternate overhead crack / floor sweep.', ability: 'Q — Lasso: throw the loop up to 280px; whoever it lands on is reeled in hand over hand and cracked point-blank (24 dmg + deep bleed, stun 22) and HOOKED — for 1.5s every lash on them counts as a tip crack.', super: 'E — Serpent\'s Coil: three extending lashes out to 430px, 13 dmg each + bleed; the third one launches everything it touches.', how:  'Fight at the very edge of your range. Q hooks a target so your chip hits become crits. E is a long-range barrage, not a pull.' },
-  boomerang:     { title: 'Boomerang',       what: 'Ranged weapon. Normal throw: 11-15 dmg. Q/E have returning throws.',             ability: 'Q — Orbit Guard: boomerang circles you as a spinning shield, hitting nearby enemies, then flies at the nearest enemy and returns.',  super: 'E — Boomerang Blitz: 4-way 360° burst — forward, backward, and two arcing up. All return.', how: 'Use Orbit Guard defensively when enemies rush. Blitz covers all directions at once.' },
+  whip:          { title: 'Whip',            what: 'Longest melee reach, with a sweet spot. The tip of the lash hits hardest and opens a bleed; up close it only chips. Swings alternate overhead crack / floor sweep.', ability: 'Q — Lasso: throw the loop up to 280px; whoever it lands on is reeled in hand over hand and cracked point-blank (24 dmg + deep bleed, stun 22) and HOOKED — for 1.5s every lash on them counts as a tip crack.', super: 'E — Serpent\'s Coil: three extending lashes out to 430px, 13 dmg each + bleed; the third one launches everything it touches.', how:  'Fight at the very edge of your range. Q hooks a target so your chip hits become crits. E is a long-range barrage, not a pull.' },
+  boomerang:     { title: 'Boomerang',       what: 'Ranged weapon. Normal throw: 16-20 dmg. Q/E have returning throws.',             ability: 'Q — Orbit Guard: boomerang circles you as a spinning shield, hitting nearby enemies, then flies at the nearest enemy and returns.',  super: 'E — Boomerang Blitz: 4-way 360° burst — forward, backward, and two arcing up. All return.', how: 'Use Orbit Guard defensively when enemies rush. Blitz covers all directions at once.' },
   katana:        { title: 'Katana',          what: 'Fast precise melee weapon.',                                           ability: 'Q — Iaijutsu: hand on the hilt, then a draw so fast it passes through them — the cut lands when the blade is sheathed. Standing still = 28 dmg; moving = 22 dmg and a longer draw.', super: 'E — Shadow Step: vanish and reappear behind the nearest enemy (≤450px) — three cuts and a final draw-through (38 dmg).', how:  'Q rewards patience — stand still for burst damage. E repositions you for the kill.' },
-  flamethrower:  { title: 'Flamethrower',    what: 'Continuous flame stream (3s tank). Short range. 3-4 dmg per tick, full damage up close.',                ability: 'Q — Napalm Spit: fireball with 75px splash for 24 dmg. Pushes you back.', super: 'E — Backdraft: reverse launch + 40 dmg AoE burst in front.',    how:  'Suppress with rapid fire. Backdraft punishes enemies who rush you.' },
+  flamethrower:  { title: 'Flamethrower',    what: 'Continuous flame stream (4.5s tank). Short range. 13-15 dmg per tick, full damage up close.',                ability: 'Q — Napalm Spit: fireball with 75px splash for 24 dmg. Pushes you back.', super: 'E — Backdraft: reverse launch + 40 dmg AoE burst in front.',    how:  'Suppress with rapid fire. Backdraft punishes enemies who rush you.' },
   electricstaff: { title: 'Electric Staff',  what: 'Melee that chain-zaps nearby enemies on every hit.',                  ability: 'Q — Shock Bolt: fire a fast electric orb (13 dmg); impact leaves a crackling ground zone.', super: 'E — Thunderstrike: call 4 lightning bolts from the sky targeting the enemy (20 dmg each).', how:  'Base attack chain-damages groups automatically. Shock Bolt zones the ground. Thunderstrike from any range.' },
   bomb:          { title: 'Bomb',            what: 'Lobbed bombs (13-16 dmg) that roll along the floor and burst on contact or when the fuse runs out. Passive — Chain Reaction: a blast sets off every other bomb it reaches.', ability: 'Q — Remote Detonation: tap to throw a sticky bomb that clings to floors, walls or enemies (each one stuck to an enemy slows them 5%). Up to 6 at once; a 7th sets off your oldest. HOLD Q to detonate them all.', super: 'E — Giga Bomb: one huge slow bomb — 3s fuse, 200px blast, 45 dmg, massive knockback. Sets off every sticky it reaches.', how: 'Your own blasts never hurt you but they do push you — use them to bomb-jump. Lay stickies, then drop the Giga Bomb on them.' },
   fragment:      { title: 'Fragment',        what: 'The fragment style Axiom taught you. HOLD attack to charge a blast around you (7 dmg tapped, up to 20 at full). The charge pulls enemies in, and the blast barely pushes them: it holds them in front of you for Barrage. Past half-charge you slow down, and it goes off by itself at full.', ability: 'Q — Fragment Barrage: four fragment-driven punches, each throwing a shockwave with a little knockback, ending in a Fragment Laser from your centre (38 dmg max in total).', super: 'E — Fragment Overdrive (8s, recasting adds 8s, up to 24s in one run): +30% damage, 30% less damage taken, cooldowns recover 60% faster, +25% speed, a third air jump, a stronger shield, and every parry explodes.', how: 'Charge to drag them in, release, then Barrage straight away. Overdrive turns every other tool up.' },
-  knives:        { title: 'Throwing Knives', what: 'Six knives (8-10 dmg each). Thrown knives stick where they land — walk over one to pick it back up. With none left you slash with your last blade.', ability: 'Q — Recall: every knife on the map flies back to you, cutting anything in its path.', super: 'E — Fan of Steel: throw all six in a spread, then Recall them instantly.', how: 'Throw past your opponent on purpose, then Recall through them.' },
-  glassblade:    { title: 'Glass Blade',     what: 'The hardest-hitting fast blade (20 dmg). Passive — Fragile: every hit you take cracks it (-15% dmg per crack). At 3 cracks it shatters into shards and reforms after 2s.', ability: 'Q — Shatterstep: dash forward and break the blade on purpose, firing its shards ahead of you.', super: 'E — Mirrorwall: a glass wall that reflects projectiles and bursts into shards when an enemy touches it.', how: 'Hit first and cleanly. Shatter it yourself before a fight you cannot win breaks it for you.' },
-  anchor:        { title: 'Anchor',          what: 'Slow, heavy overhead swings. Passive — Moored: while grounded and mid-swing you take no knockback.', ability: 'Q — Drop Anchor: throw the anchor; it embeds where it lands. Press Q again to haul an enemy it hooked, or to pull yourself to it.', super: 'E — Keelhaul: swing the anchor in a wide circle that drags everyone in, then slam.', how: 'Trade hits while planted. You cannot swing while the anchor is out.' },
-  crossbow:      { title: 'Crossbow',        what: 'Slow, heavy bolts (17-20 dmg). A bolt that drives its target into a wall, or into the floor from above, pins them briefly.', ability: 'Q — Tripwire: fire two bolts that stretch a wire along the ground. The first enemy to cross it is tripped.', super: 'E — Siege Bolt: a bolt that pierces everything in its path (34 dmg each) and pins the last thing it hits.', how: 'Fight near walls. Lay a Tripwire where they have to walk.' },
+  knives:        { title: 'Throwing Knives', what: 'Six knives (12-14 dmg each). Thrown knives stick where they land — walk over one to pick it back up. With none left you slash with your last blade.', ability: 'Q — Recall: every knife on the map flies back to you, cutting anything in its path.', super: 'E — Fan of Steel: throw all six in a spread, then Recall them instantly.', how: 'Throw past your opponent on purpose, then Recall through them.' },
+  glassblade:    { title: 'Glass Blade',     what: 'The fastest blade in the game (24 dmg, swings quicker than fists). Passive — Fragile: every hit you take cracks it (max 3, -10% dmg each); every 2 hits you land mend one crack. At 3 cracks it shatters into a jagged stub — 60% damage, 70% reach, same speed — and reforms whole after 1.5s.', ability: 'Q — Shatterstep: dash forward and break the blade on purpose, firing its shards ahead of you.', super: 'E — Mirrorwall: a glass wall that reflects projectiles and bursts into shards when an enemy touches it.', how: 'Hit first and keep hitting: landed swings mend the blade, taken hits break it. A stub still bites, so keep swinging through the shatter.' },
+  anchor:        { title: 'Anchor',          what: 'Slow, heavy overhead swings. Passive — Moored: while grounded and mid-swing you take no knockback. While the anchor is thrown, your basic attack becomes a fist punch.', ability: 'Q — Drop Anchor: throw the anchor; it embeds where it lands. Press Q again to haul an enemy it hooked, or to pull yourself to it.', super: 'E — Keelhaul: swing the anchor in a wide circle that drags everyone in, then slam.', how: 'Trade hits while planted. With the anchor out you fight with your fists, so throw it to set up a haul, then punch.' },
+  crossbow:      { title: 'Crossbow',        what: 'Slow, heavy bolts (19-23 dmg). A bolt that drives its target into a wall, or into the floor from above, pins them briefly.', ability: 'Q — Tripwire: fire two bolts that stretch a wire along the ground. The first enemy to cross it is tripped.', super: 'E — Siege Bolt: a bolt that pierces everything in its path (34 dmg each) and pins the last thing it hits.', how: 'Fight near walls. Lay a Tripwire where they have to walk.' },
 };
 
 const CLASS_DESCS = {
@@ -1058,7 +1058,7 @@ const CLASS_DESCS = {
   berserker: { title: 'Berserker', what: 'Any-weapon brawler. Strong and quick.',                                                             perk: 'Blood Frenzy (≤55% HP, once per life): 3 seconds of +35% damage and +35% movement speed.',                           how:  'Play aggressively — the frenzy kicks in at half health and turns the second half of the fight.' },
   pugilist:  { title: 'Pugilist',  what: 'Combat brawler. Fast and durable. Suggested weapon: Combat.',                                       perk: 'Surge Strike (≤55% HP, once per life): auto-triggers Combo Strike — free, no super meter cost.',                     how:  'Stay in their face and Roundhouse out of crowds. Surge Strike swings the fight back at half health.' },
   ronin:     { title: 'Ronin',     what: 'Fast katana specialist. Suggested weapon: Katana.',                                                 perk: 'Death Step (passive): an Iaijutsu kill resets your attack and ability cooldowns and grants +30 super meter.',         how:  'Land the Iaijutsu kill and chain the resets for momentum.' },
-  reaper:    { title: 'Reaper',    what: 'Scythe specialist. Balanced pace. Suggested weapon: Scythe.',                                       perk: 'Revive (≤8% HP, once per life): instantly restore 40% HP with a moment of super armor.',                          how:  'Fight aggressively — the perk is your safety net. After it fires, one more good hit ends you.' },
+  reaper:    { title: 'Reaper',    what: 'Scythe specialist. Balanced pace. Suggested weapon: Scythe.',                                       perk: 'Second Wind (≤35% HP, once per life): instantly heal 32% of max HP with a moment of super armor.',                          how:  'Fight aggressively — the perk is your safety net. After it fires, you are on your own.' },
   summoner:  { title: 'Summoner',  what: 'Any weapon. A fragile familiar fights beside you — it arrives at once and returns every 15s (max 1). It chips and distracts — it cannot launch.', perk: 'Desperate Bond (≤55% HP, once per life): immediately spawn the familiar if absent and empower it for 10s (+70% damage).', how:  'Use the familiar to split attention, not to out-damage. Killing it buys your enemy 10s of relief, so protect it.' },
   demolitionist: { title: 'Demolitionist', what: 'Bomb specialist. Suggested weapon: Bomb.', perk: 'Demolition (passive): your bomb blasts are 20% wider, and your own blasts launch you straight up instead of flinging you, so bomb-jumps land where you aim.', how: 'Bomb-jump over pressure and rain stickies from above.' },
   warden:    { title: 'Warden',    what: 'Heavily armoured and slow. Suggested weapon: Anchor.', perk: 'Bulwark (passive): every third hit you take deals half damage.', how: 'Take the trade. Count the hits — the third one is yours.' },

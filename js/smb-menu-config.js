@@ -343,7 +343,7 @@ function _getLoadingInfo() {
   };
   // Fight Ladder: the card names the rung and the opponent you are about to face.
   const ld = gameMode === '2p' ? window._ladderNext : null;
-  if (ld) return { title: `RUNG ${ld.rung + 1}`, subtitle: String(ld.name).toUpperCase(), scene: 'versus' };
+  if (ld) return { title: ld.cardTitle || `RUNG ${ld.rung + 1}`, subtitle: String(ld.name).toUpperCase(), scene: 'versus' };
   switch (gameMode) {
     case 'boss':
       return { title: 'BOSS FIGHT', subtitle: 'IT HAS BEEN WAITING', scene: 'boss' };
@@ -360,7 +360,6 @@ function _getLoadingInfo() {
     case 'training':
       return { title: 'TRAINING',   subtitle: 'NO STAKES. NO MERCY EITHER', scene: 'training' };
     case 'online':
-    case 'storyonline':
       return { title: 'ONLINE MATCH', subtitle: 'SOMEONE ELSE IS AT THE OTHER END', scene: 'online' };
     default:
       return { title: 'VERSUS',     subtitle: 'SETTLE IT', scene: 'versus' };

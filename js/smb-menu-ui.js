@@ -164,7 +164,7 @@ function _enterConfigView(mode) {
       '2p': '1v1', 'boss': 'Boss Fight', 'trueform': 'Cosmic Axiom',
       'training': 'Training', 'minigames': 'Minigames', 'online': 'Online',
       'battleroyale': 'Battle Royale',
-      'sovereign': 'Sovereign Ω', 'adaptive': 'Adaptive AI', 'storyonline': 'Story Online',
+      'sovereign': 'Sovereign Ω', 'adaptive': 'Adaptive AI',
     };
     modeLabel.textContent = _names[mode] || mode.toUpperCase();
   }

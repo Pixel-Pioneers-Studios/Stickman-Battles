@@ -3,10 +3,6 @@
 // Depends on: smb-globals.js, smb-story-registry.js (and preceding story-engine splits)
 
 (function _story2Init() {
-  if (_story2.storyComplete || (typeof storyOnline !== 'undefined' && storyOnline)) {
-    const soCard = document.getElementById('modeStoryOnline');
-    if (soCard) soCard.style.display = '';
-  }
   // Restore hidden power level from completed chapter count so returning
   // players don't lose their accumulated scaling on page reload.
   _storyRecomputePowerLevel();

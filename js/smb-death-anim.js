@@ -432,6 +432,7 @@ const DeathAnim = {
     try {
       const vr = new VerletRagdoll(f);
       vr.floorY = rec.floorY;
+      if (typeof Corpse !== 'undefined') Corpse.dress(vr, f);
       // The constructor lays the rig out standing. Left alone the corpse lands on
       // its feet in a crouch — the animation's fold would be thrown away at the
       // exact moment physics takes over. Rotate the whole rig by the angle the

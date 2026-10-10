@@ -492,13 +492,13 @@ function processInput() {
         p.canDoubleJump = false;
         spawnParticles(p.cx(), p.cy(), p.color,  8);
         spawnParticles(p.cx(), p.cy(), '#ffffff', 5);
-        SoundManager.jump();
+        SoundManager.doubleJump();
       } else if (p._wxExtraJumps > 0 && !p._noDoubleJump) {
         // Fragment Overdrive: third jump, refilled on landing by smb-weapons-ext.js
         p.vy = dblPower;
         p._wxExtraJumps--;
         spawnParticles(p.cx(), p.cy(), '#8fd8ff', 10);
-        SoundManager.jump();
+        SoundManager.doubleJump();
       }
     }
     // --- S / ArrowDown = shield (degrades per consecutive deployment; re-press required after break) ---
@@ -542,6 +542,7 @@ function processInput() {
       if (shieldRaise(p)) {
         p.shielding       = true;
         p.shieldHoldTimer = 1;
+        if (SoundManager.shieldUp) SoundManager.shieldUp();
       }
     } else if (sHeld && p.shielding) {
       // Continuing to hold an active shield
@@ -569,3 +570,152 @@ function processInput() {
     }
   });
 }
+
+// ============================================================
+// GAMEPAD — standard-mapping pads drive the same code paths as the keyboard and
+// the mobile touch pads: synthetic keydown/keyup on the player's bound keys.
+//   Pad 1 -> first local human; pad 2 -> second local human (local 2P only).
+//   Stick/D-pad L/R = move, stick/D-pad up or A = jump, stick/D-pad down or
+//   LB/RB/LT/RT = shield, X = attack, Y = ability (Q), B = super (E).
+//   Start = Esc (pause/back). Outside a live match (menus, pause overlay) the
+//   D-pad/stick moves a focus ring over visible buttons and A clicks it; during a
+//   story narrative scene A advances it (Enter).
+// Only keys the pad itself pressed are released by the pad, so it never fights
+// the keyboard. Runs on its own rAF loop so menus work too.
+// ============================================================
+const _GP_ON = 0.35, _GP_OFF = 0.25;
+const _GP_P2_KEYS = { left: 'j', right: 'l', jump: 'i', attack: 'u', shield: 'k', ability: 'o', super: '[' };
+const _GP_P1_KEYS = { left: 'a', right: 'd', jump: 'w', attack: ' ', shield: 's', ability: 'q', super: 'e' };
+const _gpHeld = [{}, {}];        // per pad: action -> key we sent keydown for
+const _gpAct  = [{}, {}];        // per pad: action -> latched on/off (hysteresis)
+const _gpPrev = [{}, {}];        // per pad: button index -> was pressed (menu edges)
+let _gpFocusEl = null, _gpNavNext = 0, _gpNavDir = '';
+
+function _gpSend(type, key) {
+  try { document.dispatchEvent(new KeyboardEvent(type, { key, bubbles: true, cancelable: true })); } catch (e) {}
+}
+function _gpReleaseAll(i) {
+  const h = _gpHeld[i];
+  for (const a in h) { _gpSend('keyup', h[a]); delete h[a]; }
+  _gpAct[i] = {};
+}
+function _gpReleaseEverything() { _gpReleaseAll(0); _gpReleaseAll(1); }
+
+// Controls table for pad i, or null when that pad has no local human to drive.
+function _gpControlsFor(i) {
+  const locals = (typeof players !== 'undefined' ? players : []).filter(p =>
+    p && !p.isAI && !p.isRemote && !p.isBoss && p.controls && p.controls.left);
+  const p = locals[i];
+  if (p) return p.controls;
+  if (i === 0 && !locals.length) return _GP_P1_KEYS;
+  return null;
+}
+
+function _gpLatch(i, name, val) {   // val in [-1..1] magnitude toward the action; hysteresis
+  const on = _gpAct[i][name];
+  const r = on ? val > _GP_OFF : val > _GP_ON;
+  _gpAct[i][name] = r;
+  return r;
+}
+
+function _gpFocusables() {
+  const out = [];
+  document.querySelectorAll('button, [onclick], a[href], [role="button"], select, input[type="checkbox"]').forEach(el => {
+    if (el.disabled || el.closest('#mobileControls')) return;
+    const r = el.getBoundingClientRect();
+    if (r.width < 8 || r.height < 8 || r.bottom < 0 || r.top > innerHeight || r.right < 0 || r.left > innerWidth) return;
+    const cs = getComputedStyle(el);
+    if (cs.visibility === 'hidden' || cs.display === 'none' || cs.pointerEvents === 'none') return;
+    const top = document.elementFromPoint(Math.min(innerWidth - 1, Math.max(0, r.left + r.width / 2)), Math.min(innerHeight - 1, Math.max(0, r.top + r.height / 2)));
+    if (!top || !(el === top || el.contains(top) || top.contains(el))) return;   // covered by an overlay
+    out.push({ el, cx: r.left + r.width / 2, cy: r.top + r.height / 2 });
+  });
+  return out;
+}
+function _gpSetFocus(el) {
+  if (_gpFocusEl && _gpFocusEl.style) { _gpFocusEl.style.outline = _gpFocusEl._gpOutline || ''; _gpFocusEl.style.outlineOffset = _gpFocusEl._gpOffset || ''; }
+  _gpFocusEl = el;
+  if (el) {
+    el._gpOutline = el.style.outline; el._gpOffset = el.style.outlineOffset;
+    el.style.outline = '3px solid #00e5ff'; el.style.outlineOffset = '2px';
+    try { el.scrollIntoView({ block: 'nearest', inline: 'nearest' }); } catch (e) {}
+  }
+}
+function _gpNavigate(dx, dy) {
+  const list = _gpFocusables();
+  if (!list.length) return;
+  const cur = list.find(c => c.el === _gpFocusEl);
+  if (!cur) { list.sort((a, b) => (a.cy - b.cy) || (a.cx - b.cx)); _gpSetFocus(list[0].el); return; }
+  let best = null, bestS = Infinity;
+  for (const c of list) {
+    if (c === cur) continue;
+    const mx = (c.cx - cur.cx) * dx + (c.cy - cur.cy) * dy;       // along the pressed direction
+    if (mx <= 4) continue;
+    const ox = Math.abs((c.cx - cur.cx) * dy) + Math.abs((c.cy - cur.cy) * dx);
+    const s = mx + ox * 2;
+    if (s < bestS) { bestS = s; best = c; }
+  }
+  if (best) _gpSetFocus(best.el);
+}
+
+function _gpMenuFrame(pad, i, now) {
+  const b = n => !!(pad.buttons[n] && pad.buttons[n].pressed);
+  const ax = pad.axes[0] || 0, ay = pad.axes[1] || 0;
+  let dir = '';
+  if (b(14) || ax < -0.6) dir = 'l'; else if (b(15) || ax > 0.6) dir = 'r';
+  else if (b(12) || ay < -0.6) dir = 'u'; else if (b(13) || ay > 0.6) dir = 'd';
+  if (dir && i === 0) {
+    if (dir !== _gpNavDir) { _gpNavDir = dir; _gpNavNext = now + 380; _gpNavigate(dir === 'r' ? 1 : dir === 'l' ? -1 : 0, dir === 'd' ? 1 : dir === 'u' ? -1 : 0); }
+    else if (now >= _gpNavNext) { _gpNavNext = now + 140; _gpNavigate(dir === 'r' ? 1 : dir === 'l' ? -1 : 0, dir === 'd' ? 1 : dir === 'u' ? -1 : 0); }
+  } else if (!dir && i === 0) _gpNavDir = '';
+  const edge = n => { const p = b(n), was = _gpPrev[i][n]; _gpPrev[i][n] = p; return p && !was; };
+  if (edge(0)) {
+    if (window._storySceneHold) { _gpSend('keydown', 'Enter'); _gpSend('keyup', 'Enter'); }
+    else if (_gpFocusEl && document.contains(_gpFocusEl)) { try { _gpFocusEl.click(); } catch (e) {} }
+  }
+}
+
+function _gpPoll(now) {
+  requestAnimationFrame(_gpPoll);
+  let pads = [];
+  try { pads = Array.from(navigator.getGamepads ? navigator.getGamepads() : []).filter(g => g && g.connected && g.buttons && g.buttons.length >= 10); } catch (e) {}
+  const ae = document.activeElement;
+  const typing = ae && (ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA' || ae.isContentEditable);
+  const live = typeof gameRunning !== 'undefined' && gameRunning && !paused && !window._storySceneHold;
+  if (!pads.length || document.hidden || !document.hasFocus()) { _gpReleaseEverything(); if (_gpFocusEl) _gpSetFocus(null); return; }
+  for (let i = 0; i < 2; i++) {
+    const pad = pads[i];
+    if (!pad) { _gpReleaseAll(i); continue; }
+    const b = n => !!(pad.buttons[n] && pad.buttons[n].pressed);
+    const ax = pad.axes[0] || 0, ay = pad.axes[1] || 0;
+    const active = pad.buttons.some(x => x.pressed) || Math.abs(ax) > _GP_ON || Math.abs(ay) > _GP_ON;
+    if (active) lastInputDevice = 'gamepad';
+    // Start = Esc (pause / back), both in and out of a match
+    const st = b(9), stWas = _gpPrev[i][9]; _gpPrev[i][9] = st;
+    if (i === 0 && st && !stWas && !typing) { _gpSend('keydown', 'Escape'); _gpSend('keyup', 'Escape'); }
+    if (typing) { _gpReleaseAll(i); continue; }
+    const ctl = live ? _gpControlsFor(i) : null;
+    if (!ctl) {
+      _gpReleaseAll(i);
+      if (!live) _gpMenuFrame(pad, i, now);
+      continue;
+    }
+    if (_gpFocusEl) _gpSetFocus(null);
+    const want = {
+      left:   _gpLatch(i, 'left',  b(14) ? 1 : -ax),
+      right:  _gpLatch(i, 'right', b(15) ? 1 : ax),
+      jump:   b(0) || b(12) || _gpLatch(i, 'jump', -ay),
+      shield: b(4) || b(5) || b(6) || b(7) || b(13) || _gpLatch(i, 'shield', ay),
+      attack: b(2), ability: b(3), super: b(1),
+    };
+    if (want.left && want.right) want.left = want.right = false;
+    for (const a in want) {
+      const held = _gpHeld[i][a];
+      if (want[a] && !held && ctl[a]) { _gpHeld[i][a] = ctl[a]; _gpSend('keydown', ctl[a]); }
+      else if (!want[a] && held) { _gpSend('keyup', held); delete _gpHeld[i][a]; }
+    }
+  }
+}
+window.addEventListener('gamepaddisconnected', _gpReleaseEverything);
+window.addEventListener('blur', _gpReleaseEverything);
+requestAnimationFrame(_gpPoll);

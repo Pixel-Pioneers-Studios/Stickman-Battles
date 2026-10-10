@@ -27,6 +27,11 @@
  * ppo.js + pool.js: tools/brain/torch_ppo.py, set up per torch_client.js. Same
  * objective and checkpoint format (tools/brain/torchparity.js checks the math).
  * Adam's moments start fresh on every launch either way.
+ *
+ * --gru[=128] (needs --torch) gives both nets a memory: a GRU that carries what it
+ * has seen of this opponent through the whole match (ppo.js addGru, torch_ppo.py).
+ * It is added to the checkpoint once, wired in at zero strength so play does not
+ * change until training uses it; a checkpoint that has one keeps it without the flag.
  */
 const fs = require('fs'), path = require('path'), http = require('http');
 const { MLP, Adam } = require('./ppo');
@@ -60,6 +65,7 @@ const SNAPS   = path.join(DIR, 'snapshots');
 const CFG = {
   gamma: 0.99, lambda: 0.95, clip: 0.2, epochs: 4, mb: 2048,
   entCoef: 0.01, maxGrad: 0.5, targetKl: 0.03, lr: 3e-4,
+  seqLen: 128,                      // decisions per training piece with --gru (6.4 s of match)
   hidden: [128, 128],
   noveltyStart: 0.15, noveltyIters: 150,
 };
@@ -260,6 +266,12 @@ function withHunters(opps) {
     if (fs.existsSync(logp)) fs.renameSync(logp, logp.replace('.jsonl', `-${Date.now()}.jsonl`));
     log('fresh start: random network');
   }
+  if (args.gru && !pi.gru) {
+    const Hg = parseInt(args.gru, 10) || 128;
+    pi.addGru(Hg); vf.addGru(Hg);
+    log(`added a ${Hg}-unit memory to both nets`);
+  }
+  if (pi.gru && !args.torch) { console.error('[brain] this checkpoint has a memory (GRU); it only trains with --torch'); process.exit(1); }
   let gpool = null, piOpt = null, vfOpt = null, torch = null;
   if (args.torch) {
     const { TorchPPO } = require('./torch_client');
@@ -411,7 +423,7 @@ function withHunters(opps) {
     const perMin = k => (tot[k] / Math.max(1, tot.frames) * 3600).toFixed(1);
     const opps = Object.entries(byOpp).map(([k, b]) => `${k} ${b.w}/${b.n}`).join(' ');
     log(`it ${state.iter} [${stageName} ${(curWin * 100).toFixed(0)}%] R/ep ${entry.meanRewardPerEp.toFixed(2)} ent ${u.ent.toFixed(2)} kl ${u.kl.toFixed(3)} | ` +
-        `hit/swing ${(tot.swingHits / Math.max(1, tot.swings) * 100).toFixed(0)}% dj/min ${perMin('doubleJumps')} blk/min ${perMin('blocks')} abiHit ${tot.abilityHits} supHit ${tot.superHits} | ${opps} | roll ${(tRoll / 1000).toFixed(1)}s upd ${(tUpd / 1000).toFixed(1)}s`);
+        (u.lpErr !== undefined ? `lpErr ${u.lpErr.toExponential(1)} ` : '') + `hit/swing ${(tot.swingHits / Math.max(1, tot.swings) * 100).toFixed(0)}% dj/min ${perMin('doubleJumps')} blk/min ${perMin('blocks')} abiHit ${tot.abilityHits} supHit ${tot.superHits} | ${opps} | roll ${(tRoll / 1000).toFixed(1)}s upd ${(tUpd / 1000).toFixed(1)}s`);
     for (const w of workers) if (w.errors.length) { log(`worker ${w.id} page errors:`, w.errors.slice(0, 3)); w.errors.length = 0; }
   }
 

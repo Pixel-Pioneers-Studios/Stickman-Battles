@@ -10,12 +10,16 @@
  */
 const fs = require('fs'), path = require('path'), { spawn } = require('child_process');
 
+const { GRU_KEYS } = require('./ppo');
 const PY = path.join(__dirname, '.venv', 'bin', 'python');
 
 function flatOf(net) {
-  let n = 0; for (let l = 0; l < net.L; l++) n += net.W[l].length + net.b[l].length;
+  // The layers, then the memory block if the net has one (Wi, Wh, bi, bh, M).
+  const parts = []; for (let l = 0; l < net.L; l++) parts.push(net.W[l], net.b[l]);
+  if (net.gru) for (const k of GRU_KEYS) parts.push(net.gru[k]);
+  let n = 0; for (const p of parts) n += p.length;
   const out = new Float32Array(n); let o = 0;
-  for (let l = 0; l < net.L; l++) { out.set(net.W[l], o); o += net.W[l].length; out.set(net.b[l], o); o += net.b[l].length; }
+  for (const p of parts) { out.set(p, o); o += p.length; }
   return out;
 }
 function loadFlat(net, f) {
@@ -24,6 +28,7 @@ function loadFlat(net, f) {
     net.W[l].set(f.subarray(o, o + net.W[l].length)); o += net.W[l].length;
     net.b[l].set(f.subarray(o, o + net.b[l].length)); o += net.b[l].length;
   }
+  if (net.gru) for (const k of GRU_KEYS) { net.gru[k].set(f.subarray(o, o + net.gru[k].length)); o += net.gru[k].length; }
   if (o !== f.length) throw new Error(`torch weights ${f.length} != net params ${o}`);
 }
 
@@ -69,7 +74,7 @@ class TorchPPO {
     });
   }
   async init(pi, vf, cfg, threads, seed) {
-    const { head } = await this.call({ type: 'init', piSizes: pi.sizes, vfSizes: vf.sizes, cfg, threads, seed },
+    const { head } = await this.call({ type: 'init', piSizes: pi.sizes, vfSizes: vf.sizes, gru: pi.gru ? pi.gru.H : 0, cfg, threads, seed },
       [['pi', flatOf(pi)], ['vf', flatOf(vf)]]);
     return head;
   }

@@ -1,0 +1,2700 @@
+{
+ "LABEL": "all-s5-bots",
+ "MODE": "weapons",
+ "BRAIN": "fighter",
+ "MATCHES": 6,
+ "PATCH": {},
+ "ents": [
+  "sword",
+  "hammer",
+  "gun",
+  "axe",
+  "spear",
+  "bow",
+  "shield",
+  "scythe",
+  "fryingpan",
+  "broomstick",
+  "combat",
+  "peashooter",
+  "slingshot",
+  "paperairplane",
+  "flail",
+  "whip",
+  "boomerang",
+  "katana",
+  "flamethrower",
+  "electricstaff",
+  "bomb",
+  "knives",
+  "glassblade",
+  "anchor",
+  "crossbow"
+ ],
+ "st": {
+  "sword": {
+   "w": 106,
+   "l": 38,
+   "d": 0,
+   "n": 144,
+   "dFor": 67400,
+   "dAg": 56652,
+   "f": 314701
+  },
+  "hammer": {
+   "w": 99,
+   "l": 45,
+   "d": 0,
+   "n": 144,
+   "dFor": 64643,
+   "dAg": 54583,
+   "f": 295406
+  },
+  "gun": {
+   "w": 63,
+   "l": 81,
+   "d": 0,
+   "n": 144,
+   "dFor": 57376,
+   "dAg": 58907,
+   "f": 305749
+  },
+  "axe": {
+   "w": 101,
+   "l": 43,
+   "d": 0,
+   "n": 144,
+   "dFor": 65346,
+   "dAg": 51493,
+   "f": 340387
+  },
+  "spear": {
+   "w": 87,
+   "l": 57,
+   "d": 0,
+   "n": 144,
+   "dFor": 62987,
+   "dAg": 59199,
+   "f": 325539
+  },
+  "bow": {
+   "w": 82,
+   "l": 62,
+   "d": 0,
+   "n": 144,
+   "dFor": 60691,
+   "dAg": 56130,
+   "f": 287308
+  },
+  "shield": {
+   "w": 69,
+   "l": 75,
+   "d": 0,
+   "n": 144,
+   "dFor": 57702,
+   "dAg": 61411,
+   "f": 283326
+  },
+  "scythe": {
+   "w": 95,
+   "l": 49,
+   "d": 0,
+   "n": 144,
+   "dFor": 63392,
+   "dAg": 60695,
+   "f": 326530
+  },
+  "fryingpan": {
+   "w": 81,
+   "l": 63,
+   "d": 0,
+   "n": 144,
+   "dFor": 59143,
+   "dAg": 56169,
+   "f": 282632
+  },
+  "broomstick": {
+   "w": 103,
+   "l": 41,
+   "d": 0,
+   "n": 144,
+   "dFor": 67312,
+   "dAg": 56948,
+   "f": 343214
+  },
+  "combat": {
+   "w": 76,
+   "l": 68,
+   "d": 0,
+   "n": 144,
+   "dFor": 60095,
+   "dAg": 59058,
+   "f": 286912
+  },
+  "peashooter": {
+   "w": 90,
+   "l": 54,
+   "d": 0,
+   "n": 144,
+   "dFor": 62978,
+   "dAg": 51939,
+   "f": 313060
+  },
+  "slingshot": {
+   "w": 42,
+   "l": 102,
+   "d": 0,
+   "n": 144,
+   "dFor": 51574,
+   "dAg": 62022,
+   "f": 305425
+  },
+  "paperairplane": {
+   "w": 32,
+   "l": 112,
+   "d": 0,
+   "n": 144,
+   "dFor": 49780,
+   "dAg": 66537,
+   "f": 348460
+  },
+  "flail": {
+   "w": 84,
+   "l": 60,
+   "d": 0,
+   "n": 144,
+   "dFor": 60693,
+   "dAg": 54896,
+   "f": 294851
+  },
+  "whip": {
+   "w": 62,
+   "l": 82,
+   "d": 0,
+   "n": 144,
+   "dFor": 59653,
+   "dAg": 60142,
+   "f": 323796
+  },
+  "boomerang": {
+   "w": 62,
+   "l": 82,
+   "d": 0,
+   "n": 144,
+   "dFor": 56699,
+   "dAg": 58103,
+   "f": 334951
+  },
+  "katana": {
+   "w": 27,
+   "l": 117,
+   "d": 0,
+   "n": 144,
+   "dFor": 45559,
+   "dAg": 69324,
+   "f": 316436
+  },
+  "flamethrower": {
+   "w": 49,
+   "l": 95,
+   "d": 0,
+   "n": 144,
+   "dFor": 53699,
+   "dAg": 60265,
+   "f": 314180
+  },
+  "electricstaff": {
+   "w": 86,
+   "l": 58,
+   "d": 0,
+   "n": 144,
+   "dFor": 64014,
+   "dAg": 62484,
+   "f": 334666
+  },
+  "bomb": {
+   "w": 20,
+   "l": 124,
+   "d": 0,
+   "n": 144,
+   "dFor": 42218,
+   "dAg": 64308,
+   "f": 302785
+  },
+  "knives": {
+   "w": 44,
+   "l": 100,
+   "d": 0,
+   "n": 144,
+   "dFor": 56287,
+   "dAg": 62535,
+   "f": 273854
+  },
+  "glassblade": {
+   "w": 98,
+   "l": 46,
+   "d": 0,
+   "n": 144,
+   "dFor": 65926,
+   "dAg": 53303,
+   "f": 256993
+  },
+  "anchor": {
+   "w": 59,
+   "l": 85,
+   "d": 0,
+   "n": 144,
+   "dFor": 58889,
+   "dAg": 64441,
+   "f": 310411
+  },
+  "crossbow": {
+   "w": 83,
+   "l": 61,
+   "d": 0,
+   "n": 144,
+   "dFor": 63280,
+   "dAg": 55792,
+   "f": 300514
+  }
+ },
+ "mir": {
+  "sword": {
+   "a": 1,
+   "b": 5,
+   "d": 0
+  },
+  "hammer": {
+   "a": 3,
+   "b": 3,
+   "d": 0
+  },
+  "gun": {
+   "a": 4,
+   "b": 2,
+   "d": 0
+  },
+  "axe": {
+   "a": 2,
+   "b": 4,
+   "d": 0
+  },
+  "spear": {
+   "a": 3,
+   "b": 3,
+   "d": 0
+  },
+  "bow": {
+   "a": 4,
+   "b": 2,
+   "d": 0
+  },
+  "shield": {
+   "a": 5,
+   "b": 1,
+   "d": 0
+  },
+  "scythe": {
+   "a": 4,
+   "b": 2,
+   "d": 0
+  },
+  "fryingpan": {
+   "a": 4,
+   "b": 2,
+   "d": 0
+  },
+  "broomstick": {
+   "a": 1,
+   "b": 5,
+   "d": 0
+  },
+  "combat": {
+   "a": 2,
+   "b": 4,
+   "d": 0
+  },
+  "peashooter": {
+   "a": 5,
+   "b": 1,
+   "d": 0
+  },
+  "slingshot": {
+   "a": 3,
+   "b": 3,
+   "d": 0
+  },
+  "paperairplane": {
+   "a": 0,
+   "b": 6,
+   "d": 0
+  },
+  "flail": {
+   "a": 2,
+   "b": 4,
+   "d": 0
+  },
+  "whip": {
+   "a": 5,
+   "b": 1,
+   "d": 0
+  },
+  "boomerang": {
+   "a": 1,
+   "b": 5,
+   "d": 0
+  },
+  "katana": {
+   "a": 4,
+   "b": 2,
+   "d": 0
+  },
+  "flamethrower": {
+   "a": 1,
+   "b": 5,
+   "d": 0
+  },
+  "electricstaff": {
+   "a": 4,
+   "b": 2,
+   "d": 0
+  },
+  "bomb": {
+   "a": 4,
+   "b": 2,
+   "d": 0
+  },
+  "knives": {
+   "a": 2,
+   "b": 4,
+   "d": 0
+  },
+  "glassblade": {
+   "a": 3,
+   "b": 3,
+   "d": 0
+  },
+  "anchor": {
+   "a": 1,
+   "b": 5,
+   "d": 0
+  },
+  "crossbow": {
+   "a": 3,
+   "b": 3,
+   "d": 0
+  }
+ },
+ "cell": {
+  "sword|spear": {
+   "aw": 4,
+   "bw": 2,
+   "d": 0
+  },
+  "sword|fryingpan": {
+   "aw": 3,
+   "bw": 3,
+   "d": 0
+  },
+  "sword|slingshot": {
+   "aw": 6,
+   "bw": 0,
+   "d": 0
+  },
+  "sword|boomerang": {
+   "aw": 5,
+   "bw": 1,
+   "d": 0
+  },
+  "sword|bomb": {
+   "aw": 6,
+   "bw": 0,
+   "d": 0
+  },
+  "sword|crossbow": {
+   "aw": 5,
+   "bw": 1,
+   "d": 0
+  },
+  "hammer|spear": {
+   "aw": 3,
+   "bw": 3,
+   "d": 0
+  },
+  "hammer|fryingpan": {
+   "aw": 6,
+   "bw": 0,
+   "d": 0
+  },
+  "hammer|slingshot": {
+   "aw": 5,
+   "bw": 1,
+   "d": 0
+  },
+  "hammer|boomerang": {
+   "aw": 1,
+   "bw": 5,
+   "d": 0
+  },
+  "hammer|bomb": {
+   "aw": 6,
+   "bw": 0,
+   "d": 0
+  },
+  "hammer|crossbow": {
+   "aw": 4,
+   "bw": 2,
+   "d": 0
+  },
+  "gun|bow": {
+   "aw": 4,
+   "bw": 2,
+   "d": 0
+  },
+  "gun|broomstick": {
+   "aw": 0,
+   "bw": 6,
+   "d": 0
+  },
+  "gun|paperairplane": {
+   "aw": 6,
+   "bw": 0,
+   "d": 0
+  },
+  "gun|katana": {
+   "aw": 4,
+   "bw": 2,
+   "d": 0
+  },
+  "gun|knives": {
+   "aw": 4,
+   "bw": 2,
+   "d": 0
+  },
+  "axe|scythe": {
+   "aw": 1,
+   "bw": 5,
+   "d": 0
+  },
+  "axe|peashooter": {
+   "aw": 4,
+   "bw": 2,
+   "d": 0
+  },
+  "axe|whip": {
+   "aw": 5,
+   "bw": 1,
+   "d": 0
+  },
+  "axe|electricstaff": {
+   "aw": 2,
+   "bw": 4,
+   "d": 0
+  },
+  "axe|anchor": {
+   "aw": 6,
+   "bw": 0,
+   "d": 0
+  },
+  "spear|shield": {
+   "aw": 3,
+   "bw": 3,
+   "d": 0
+  },
+  "spear|combat": {
+   "aw": 5,
+   "bw": 1,
+   "d": 0
+  },
+  "spear|flail": {
+   "aw": 3,
+   "bw": 3,
+   "d": 0
+  },
+  "spear|flamethrower": {
+   "aw": 2,
+   "bw": 4,
+   "d": 0
+  },
+  "spear|glassblade": {
+   "aw": 4,
+   "bw": 2,
+   "d": 0
+  },
+  "bow|shield": {
+   "aw": 3,
+   "bw": 3,
+   "d": 0
+  },
+  "bow|combat": {
+   "aw": 3,
+   "bw": 3,
+   "d": 0
+  },
+  "bow|flail": {
+   "aw": 4,
+   "bw": 2,
+   "d": 0
+  },
+  "bow|flamethrower": {
+   "aw": 6,
+   "bw": 0,
+   "d": 0
+  },
+  "bow|glassblade": {
+   "aw": 1,
+   "bw": 5,
+   "d": 0
+  },
+  "shield|scythe": {
+   "aw": 1,
+   "bw": 5,
+   "d": 0
+  },
+  "shield|peashooter": {
+   "aw": 4,
+   "bw": 2,
+   "d": 0
+  },
+  "shield|whip": {
+   "aw": 6,
+   "bw": 0,
+   "d": 0
+  },
+  "shield|electricstaff": {
+   "aw": 3,
+   "bw": 3,
+   "d": 0
+  },
+  "shield|anchor": {
+   "aw": 3,
+   "bw": 3,
+   "d": 0
+  },
+  "scythe|broomstick": {
+   "aw": 4,
+   "bw": 2,
+   "d": 0
+  },
+  "scythe|paperairplane": {
+   "aw": 5,
+   "bw": 1,
+   "d": 0
+  },
+  "scythe|katana": {
+   "aw": 6,
+   "bw": 0,
+   "d": 0
+  },
+  "scythe|knives": {
+   "aw": 4,
+   "bw": 2,
+   "d": 0
+  },
+  "fryingpan|slingshot": {
+   "aw": 5,
+   "bw": 1,
+   "d": 0
+  },
+  "fryingpan|boomerang": {
+   "aw": 0,
+   "bw": 6,
+   "d": 0
+  },
+  "fryingpan|bomb": {
+   "aw": 6,
+   "bw": 0,
+   "d": 0
+  },
+  "fryingpan|crossbow": {
+   "aw": 1,
+   "bw": 5,
+   "d": 0
+  },
+  "broomstick|slingshot": {
+   "aw": 6,
+   "bw": 0,
+   "d": 0
+  },
+  "broomstick|boomerang": {
+   "aw": 4,
+   "bw": 2,
+   "d": 0
+  },
+  "broomstick|bomb": {
+   "aw": 6,
+   "bw": 0,
+   "d": 0
+  },
+  "broomstick|crossbow": {
+   "aw": 2,
+   "bw": 4,
+   "d": 0
+  },
+  "combat|paperairplane": {
+   "aw": 6,
+   "bw": 0,
+   "d": 0
+  },
+  "combat|katana": {
+   "aw": 5,
+   "bw": 1,
+   "d": 0
+  },
+  "combat|knives": {
+   "aw": 6,
+   "bw": 0,
+   "d": 0
+  },
+  "peashooter|whip": {
+   "aw": 3,
+   "bw": 3,
+   "d": 0
+  },
+  "peashooter|electricstaff": {
+   "aw": 3,
+   "bw": 3,
+   "d": 0
+  },
+  "peashooter|anchor": {
+   "aw": 1,
+   "bw": 5,
+   "d": 0
+  },
+  "slingshot|flail": {
+   "aw": 6,
+   "bw": 0,
+   "d": 0
+  },
+  "slingshot|flamethrower": {
+   "aw": 4,
+   "bw": 2,
+   "d": 0
+  },
+  "slingshot|glassblade": {
+   "aw": 0,
+   "bw": 6,
+   "d": 0
+  },
+  "paperairplane|flail": {
+   "aw": 3,
+   "bw": 3,
+   "d": 0
+  },
+  "paperairplane|flamethrower": {
+   "aw": 4,
+   "bw": 2,
+   "d": 0
+  },
+  "paperairplane|glassblade": {
+   "aw": 0,
+   "bw": 6,
+   "d": 0
+  },
+  "flail|whip": {
+   "aw": 6,
+   "bw": 0,
+   "d": 0
+  },
+  "flail|electricstaff": {
+   "aw": 6,
+   "bw": 0,
+   "d": 0
+  },
+  "flail|anchor": {
+   "aw": 4,
+   "bw": 2,
+   "d": 0
+  },
+  "whip|katana": {
+   "aw": 5,
+   "bw": 1,
+   "d": 0
+  },
+  "whip|knives": {
+   "aw": 5,
+   "bw": 1,
+   "d": 0
+  },
+  "boomerang|bomb": {
+   "aw": 3,
+   "bw": 3,
+   "d": 0
+  },
+  "boomerang|crossbow": {
+   "aw": 1,
+   "bw": 5,
+   "d": 0
+  },
+  "katana|bomb": {
+   "aw": 4,
+   "bw": 2,
+   "d": 0
+  },
+  "katana|crossbow": {
+   "aw": 0,
+   "bw": 6,
+   "d": 0
+  },
+  "flamethrower|knives": {
+   "aw": 0,
+   "bw": 6,
+   "d": 0
+  },
+  "electricstaff|anchor": {
+   "aw": 5,
+   "bw": 1,
+   "d": 0
+  },
+  "bomb|glassblade": {
+   "aw": 0,
+   "bw": 6,
+   "d": 0
+  },
+  "knives|glassblade": {
+   "aw": 1,
+   "bw": 5,
+   "d": 0
+  },
+  "glassblade|anchor": {
+   "aw": 4,
+   "bw": 2,
+   "d": 0
+  },
+  "sword|hammer": {
+   "aw": 1,
+   "bw": 5,
+   "d": 0
+  },
+  "sword|bow": {
+   "aw": 6,
+   "bw": 0,
+   "d": 0
+  },
+  "sword|broomstick": {
+   "aw": 2,
+   "bw": 4,
+   "d": 0
+  },
+  "sword|paperairplane": {
+   "aw": 6,
+   "bw": 0,
+   "d": 0
+  },
+  "sword|katana": {
+   "aw": 6,
+   "bw": 0,
+   "d": 0
+  },
+  "sword|knives": {
+   "aw": 6,
+   "bw": 0,
+   "d": 0
+  },
+  "hammer|bow": {
+   "aw": 4,
+   "bw": 2,
+   "d": 0
+  },
+  "hammer|broomstick": {
+   "aw": 5,
+   "bw": 1,
+   "d": 0
+  },
+  "hammer|paperairplane": {
+   "aw": 6,
+   "bw": 0,
+   "d": 0
+  },
+  "hammer|katana": {
+   "aw": 6,
+   "bw": 0,
+   "d": 0
+  },
+  "hammer|knives": {
+   "aw": 5,
+   "bw": 1,
+   "d": 0
+  },
+  "gun|shield": {
+   "aw": 0,
+   "bw": 6,
+   "d": 0
+  },
+  "gun|combat": {
+   "aw": 1,
+   "bw": 5,
+   "d": 0
+  },
+  "gun|flail": {
+   "aw": 5,
+   "bw": 1,
+   "d": 0
+  },
+  "gun|flamethrower": {
+   "aw": 6,
+   "bw": 0,
+   "d": 0
+  },
+  "gun|glassblade": {
+   "aw": 0,
+   "bw": 6,
+   "d": 0
+  },
+  "axe|spear": {
+   "aw": 6,
+   "bw": 0,
+   "d": 0
+  },
+  "axe|fryingpan": {
+   "aw": 6,
+   "bw": 0,
+   "d": 0
+  },
+  "axe|slingshot": {
+   "aw": 6,
+   "bw": 0,
+   "d": 0
+  },
+  "axe|boomerang": {
+   "aw": 3,
+   "bw": 3,
+   "d": 0
+  },
+  "axe|bomb": {
+   "aw": 6,
+   "bw": 0,
+   "d": 0
+  },
+  "axe|crossbow": {
+   "aw": 3,
+   "bw": 3,
+   "d": 0
+  },
+  "spear|scythe": {
+   "aw": 2,
+   "bw": 4,
+   "d": 0
+  },
+  "spear|peashooter": {
+   "aw": 5,
+   "bw": 1,
+   "d": 0
+  },
+  "spear|whip": {
+   "aw": 4,
+   "bw": 2,
+   "d": 0
+  },
+  "spear|electricstaff": {
+   "aw": 3,
+   "bw": 3,
+   "d": 0
+  },
+  "spear|anchor": {
+   "aw": 4,
+   "bw": 2,
+   "d": 0
+  },
+  "bow|scythe": {
+   "aw": 3,
+   "bw": 3,
+   "d": 0
+  },
+  "bow|peashooter": {
+   "aw": 0,
+   "bw": 6,
+   "d": 0
+  },
+  "bow|whip": {
+   "aw": 2,
+   "bw": 4,
+   "d": 0
+  },
+  "bow|electricstaff": {
+   "aw": 3,
+   "bw": 3,
+   "d": 0
+  },
+  "bow|anchor": {
+   "aw": 3,
+   "bw": 3,
+   "d": 0
+  },
+  "shield|fryingpan": {
+   "aw": 1,
+   "bw": 5,
+   "d": 0
+  },
+  "shield|slingshot": {
+   "aw": 5,
+   "bw": 1,
+   "d": 0
+  },
+  "shield|boomerang": {
+   "aw": 2,
+   "bw": 4,
+   "d": 0
+  },
+  "shield|bomb": {
+   "aw": 6,
+   "bw": 0,
+   "d": 0
+  },
+  "shield|crossbow": {
+   "aw": 0,
+   "bw": 6,
+   "d": 0
+  },
+  "scythe|combat": {
+   "aw": 6,
+   "bw": 0,
+   "d": 0
+  },
+  "scythe|flail": {
+   "aw": 1,
+   "bw": 5,
+   "d": 0
+  },
+  "scythe|flamethrower": {
+   "aw": 3,
+   "bw": 3,
+   "d": 0
+  },
+  "scythe|glassblade": {
+   "aw": 3,
+   "bw": 3,
+   "d": 0
+  },
+  "fryingpan|broomstick": {
+   "aw": 1,
+   "bw": 5,
+   "d": 0
+  },
+  "fryingpan|paperairplane": {
+   "aw": 4,
+   "bw": 2,
+   "d": 0
+  },
+  "fryingpan|katana": {
+   "aw": 6,
+   "bw": 0,
+   "d": 0
+  },
+  "fryingpan|knives": {
+   "aw": 4,
+   "bw": 2,
+   "d": 0
+  },
+  "broomstick|paperairplane": {
+   "aw": 6,
+   "bw": 0,
+   "d": 0
+  },
+  "broomstick|katana": {
+   "aw": 6,
+   "bw": 0,
+   "d": 0
+  },
+  "broomstick|knives": {
+   "aw": 6,
+   "bw": 0,
+   "d": 0
+  },
+  "combat|flail": {
+   "aw": 0,
+   "bw": 6,
+   "d": 0
+  },
+  "combat|flamethrower": {
+   "aw": 5,
+   "bw": 1,
+   "d": 0
+  },
+  "combat|glassblade": {
+   "aw": 0,
+   "bw": 6,
+   "d": 0
+  },
+  "peashooter|slingshot": {
+   "aw": 6,
+   "bw": 0,
+   "d": 0
+  },
+  "peashooter|boomerang": {
+   "aw": 6,
+   "bw": 0,
+   "d": 0
+  },
+  "peashooter|bomb": {
+   "aw": 6,
+   "bw": 0,
+   "d": 0
+  },
+  "peashooter|crossbow": {
+   "aw": 6,
+   "bw": 0,
+   "d": 0
+  },
+  "slingshot|whip": {
+   "aw": 0,
+   "bw": 6,
+   "d": 0
+  },
+  "slingshot|electricstaff": {
+   "aw": 1,
+   "bw": 5,
+   "d": 0
+  },
+  "slingshot|anchor": {
+   "aw": 4,
+   "bw": 2,
+   "d": 0
+  },
+  "paperairplane|whip": {
+   "aw": 0,
+   "bw": 6,
+   "d": 0
+  },
+  "paperairplane|electricstaff": {
+   "aw": 0,
+   "bw": 6,
+   "d": 0
+  },
+  "paperairplane|anchor": {
+   "aw": 3,
+   "bw": 3,
+   "d": 0
+  },
+  "flail|boomerang": {
+   "aw": 0,
+   "bw": 6,
+   "d": 0
+  },
+  "flail|bomb": {
+   "aw": 6,
+   "bw": 0,
+   "d": 0
+  },
+  "flail|crossbow": {
+   "aw": 1,
+   "bw": 5,
+   "d": 0
+  },
+  "whip|flamethrower": {
+   "aw": 4,
+   "bw": 2,
+   "d": 0
+  },
+  "whip|glassblade": {
+   "aw": 0,
+   "bw": 6,
+   "d": 0
+  },
+  "boomerang|katana": {
+   "aw": 6,
+   "bw": 0,
+   "d": 0
+  },
+  "boomerang|knives": {
+   "aw": 0,
+   "bw": 6,
+   "d": 0
+  },
+  "katana|knives": {
+   "aw": 2,
+   "bw": 4,
+   "d": 0
+  },
+  "flamethrower|glassblade": {
+   "aw": 0,
+   "bw": 6,
+   "d": 0
+  },
+  "electricstaff|bomb": {
+   "aw": 6,
+   "bw": 0,
+   "d": 0
+  },
+  "electricstaff|crossbow": {
+   "aw": 2,
+   "bw": 4,
+   "d": 0
+  },
+  "bomb|anchor": {
+   "aw": 0,
+   "bw": 6,
+   "d": 0
+  },
+  "knives|anchor": {
+   "aw": 0,
+   "bw": 6,
+   "d": 0
+  },
+  "glassblade|crossbow": {
+   "aw": 0,
+   "bw": 6,
+   "d": 0
+  },
+  "sword|gun": {
+   "aw": 6,
+   "bw": 0,
+   "d": 0
+  },
+  "sword|shield": {
+   "aw": 4,
+   "bw": 2,
+   "d": 0
+  },
+  "sword|combat": {
+   "aw": 6,
+   "bw": 0,
+   "d": 0
+  },
+  "sword|flail": {
+   "aw": 5,
+   "bw": 1,
+   "d": 0
+  },
+  "sword|flamethrower": {
+   "aw": 5,
+   "bw": 1,
+   "d": 0
+  },
+  "sword|glassblade": {
+   "aw": 6,
+   "bw": 0,
+   "d": 0
+  },
+  "hammer|gun": {
+   "aw": 5,
+   "bw": 1,
+   "d": 0
+  },
+  "hammer|shield": {
+   "aw": 6,
+   "bw": 0,
+   "d": 0
+  },
+  "hammer|combat": {
+   "aw": 5,
+   "bw": 1,
+   "d": 0
+  },
+  "hammer|flail": {
+   "aw": 2,
+   "bw": 4,
+   "d": 0
+  },
+  "hammer|flamethrower": {
+   "aw": 1,
+   "bw": 5,
+   "d": 0
+  },
+  "hammer|glassblade": {
+   "aw": 3,
+   "bw": 3,
+   "d": 0
+  },
+  "gun|axe": {
+   "aw": 0,
+   "bw": 6,
+   "d": 0
+  },
+  "gun|scythe": {
+   "aw": 1,
+   "bw": 5,
+   "d": 0
+  },
+  "gun|peashooter": {
+   "aw": 3,
+   "bw": 3,
+   "d": 0
+  },
+  "gun|whip": {
+   "aw": 0,
+   "bw": 6,
+   "d": 0
+  },
+  "gun|electricstaff": {
+   "aw": 0,
+   "bw": 6,
+   "d": 0
+  },
+  "gun|anchor": {
+   "aw": 4,
+   "bw": 2,
+   "d": 0
+  },
+  "axe|bow": {
+   "aw": 2,
+   "bw": 4,
+   "d": 0
+  },
+  "axe|broomstick": {
+   "aw": 1,
+   "bw": 5,
+   "d": 0
+  },
+  "axe|paperairplane": {
+   "aw": 6,
+   "bw": 0,
+   "d": 0
+  },
+  "axe|katana": {
+   "aw": 6,
+   "bw": 0,
+   "d": 0
+  },
+  "axe|knives": {
+   "aw": 5,
+   "bw": 1,
+   "d": 0
+  },
+  "spear|fryingpan": {
+   "aw": 1,
+   "bw": 5,
+   "d": 0
+  },
+  "spear|slingshot": {
+   "aw": 5,
+   "bw": 1,
+   "d": 0
+  },
+  "spear|boomerang": {
+   "aw": 2,
+   "bw": 4,
+   "d": 0
+  },
+  "spear|bomb": {
+   "aw": 6,
+   "bw": 0,
+   "d": 0
+  },
+  "spear|crossbow": {
+   "aw": 1,
+   "bw": 5,
+   "d": 0
+  },
+  "bow|fryingpan": {
+   "aw": 2,
+   "bw": 4,
+   "d": 0
+  },
+  "bow|slingshot": {
+   "aw": 6,
+   "bw": 0,
+   "d": 0
+  },
+  "bow|boomerang": {
+   "aw": 6,
+   "bw": 0,
+   "d": 0
+  },
+  "bow|bomb": {
+   "aw": 6,
+   "bw": 0,
+   "d": 0
+  },
+  "bow|crossbow": {
+   "aw": 5,
+   "bw": 1,
+   "d": 0
+  },
+  "shield|broomstick": {
+   "aw": 2,
+   "bw": 4,
+   "d": 0
+  },
+  "shield|paperairplane": {
+   "aw": 6,
+   "bw": 0,
+   "d": 0
+  },
+  "shield|katana": {
+   "aw": 5,
+   "bw": 1,
+   "d": 0
+  },
+  "shield|knives": {
+   "aw": 6,
+   "bw": 0,
+   "d": 0
+  },
+  "scythe|peashooter": {
+   "aw": 2,
+   "bw": 4,
+   "d": 0
+  },
+  "scythe|whip": {
+   "aw": 5,
+   "bw": 1,
+   "d": 0
+  },
+  "scythe|electricstaff": {
+   "aw": 4,
+   "bw": 2,
+   "d": 0
+  },
+  "scythe|anchor": {
+   "aw": 5,
+   "bw": 1,
+   "d": 0
+  },
+  "fryingpan|combat": {
+   "aw": 6,
+   "bw": 0,
+   "d": 0
+  },
+  "fryingpan|flail": {
+   "aw": 3,
+   "bw": 3,
+   "d": 0
+  },
+  "fryingpan|flamethrower": {
+   "aw": 0,
+   "bw": 6,
+   "d": 0
+  },
+  "fryingpan|glassblade": {
+   "aw": 3,
+   "bw": 3,
+   "d": 0
+  },
+  "broomstick|combat": {
+   "aw": 4,
+   "bw": 2,
+   "d": 0
+  },
+  "broomstick|flail": {
+   "aw": 0,
+   "bw": 6,
+   "d": 0
+  },
+  "broomstick|flamethrower": {
+   "aw": 6,
+   "bw": 0,
+   "d": 0
+  },
+  "broomstick|glassblade": {
+   "aw": 4,
+   "bw": 2,
+   "d": 0
+  },
+  "combat|peashooter": {
+   "aw": 6,
+   "bw": 0,
+   "d": 0
+  },
+  "combat|whip": {
+   "aw": 6,
+   "bw": 0,
+   "d": 0
+  },
+  "combat|electricstaff": {
+   "aw": 3,
+   "bw": 3,
+   "d": 0
+  },
+  "combat|anchor": {
+   "aw": 4,
+   "bw": 2,
+   "d": 0
+  },
+  "peashooter|paperairplane": {
+   "aw": 6,
+   "bw": 0,
+   "d": 0
+  },
+  "peashooter|katana": {
+   "aw": 6,
+   "bw": 0,
+   "d": 0
+  },
+  "peashooter|knives": {
+   "aw": 6,
+   "bw": 0,
+   "d": 0
+  },
+  "slingshot|boomerang": {
+   "aw": 6,
+   "bw": 0,
+   "d": 0
+  },
+  "slingshot|bomb": {
+   "aw": 4,
+   "bw": 2,
+   "d": 0
+  },
+  "slingshot|crossbow": {
+   "aw": 1,
+   "bw": 5,
+   "d": 0
+  },
+  "paperairplane|boomerang": {
+   "aw": 6,
+   "bw": 0,
+   "d": 0
+  },
+  "paperairplane|bomb": {
+   "aw": 6,
+   "bw": 0,
+   "d": 0
+  },
+  "paperairplane|crossbow": {
+   "aw": 4,
+   "bw": 2,
+   "d": 0
+  },
+  "flail|katana": {
+   "aw": 6,
+   "bw": 0,
+   "d": 0
+  },
+  "flail|knives": {
+   "aw": 5,
+   "bw": 1,
+   "d": 0
+  },
+  "whip|electricstaff": {
+   "aw": 0,
+   "bw": 6,
+   "d": 0
+  },
+  "whip|anchor": {
+   "aw": 0,
+   "bw": 6,
+   "d": 0
+  },
+  "boomerang|flamethrower": {
+   "aw": 3,
+   "bw": 3,
+   "d": 0
+  },
+  "boomerang|glassblade": {
+   "aw": 3,
+   "bw": 3,
+   "d": 0
+  },
+  "katana|flamethrower": {
+   "aw": 1,
+   "bw": 5,
+   "d": 0
+  },
+  "katana|glassblade": {
+   "aw": 0,
+   "bw": 6,
+   "d": 0
+  },
+  "flamethrower|electricstaff": {
+   "aw": 1,
+   "bw": 5,
+   "d": 0
+  },
+  "flamethrower|anchor": {
+   "aw": 4,
+   "bw": 2,
+   "d": 0
+  },
+  "electricstaff|knives": {
+   "aw": 6,
+   "bw": 0,
+   "d": 0
+  },
+  "bomb|crossbow": {
+   "aw": 2,
+   "bw": 4,
+   "d": 0
+  },
+  "knives|crossbow": {
+   "aw": 2,
+   "bw": 4,
+   "d": 0
+  },
+  "sword|axe": {
+   "aw": 1,
+   "bw": 5,
+   "d": 0
+  },
+  "sword|scythe": {
+   "aw": 2,
+   "bw": 4,
+   "d": 0
+  },
+  "sword|peashooter": {
+   "aw": 5,
+   "bw": 1,
+   "d": 0
+  },
+  "sword|whip": {
+   "aw": 3,
+   "bw": 3,
+   "d": 0
+  },
+  "sword|electricstaff": {
+   "aw": 2,
+   "bw": 4,
+   "d": 0
+  },
+  "sword|anchor": {
+   "aw": 5,
+   "bw": 1,
+   "d": 0
+  },
+  "hammer|axe": {
+   "aw": 3,
+   "bw": 3,
+   "d": 0
+  },
+  "hammer|scythe": {
+   "aw": 2,
+   "bw": 4,
+   "d": 0
+  },
+  "hammer|peashooter": {
+   "aw": 1,
+   "bw": 5,
+   "d": 0
+  },
+  "hammer|whip": {
+   "aw": 6,
+   "bw": 0,
+   "d": 0
+  },
+  "hammer|electricstaff": {
+   "aw": 5,
+   "bw": 1,
+   "d": 0
+  },
+  "hammer|anchor": {
+   "aw": 4,
+   "bw": 2,
+   "d": 0
+  },
+  "gun|spear": {
+   "aw": 1,
+   "bw": 5,
+   "d": 0
+  },
+  "gun|fryingpan": {
+   "aw": 1,
+   "bw": 5,
+   "d": 0
+  },
+  "gun|slingshot": {
+   "aw": 6,
+   "bw": 0,
+   "d": 0
+  },
+  "gun|boomerang": {
+   "aw": 6,
+   "bw": 0,
+   "d": 0
+  },
+  "gun|bomb": {
+   "aw": 4,
+   "bw": 2,
+   "d": 0
+  },
+  "gun|crossbow": {
+   "aw": 6,
+   "bw": 0,
+   "d": 0
+  },
+  "axe|shield": {
+   "aw": 6,
+   "bw": 0,
+   "d": 0
+  },
+  "axe|combat": {
+   "aw": 4,
+   "bw": 2,
+   "d": 0
+  },
+  "axe|flail": {
+   "aw": 2,
+   "bw": 4,
+   "d": 0
+  },
+  "axe|flamethrower": {
+   "aw": 6,
+   "bw": 0,
+   "d": 0
+  },
+  "axe|glassblade": {
+   "aw": 1,
+   "bw": 5,
+   "d": 0
+  },
+  "spear|bow": {
+   "aw": 6,
+   "bw": 0,
+   "d": 0
+  },
+  "spear|broomstick": {
+   "aw": 5,
+   "bw": 1,
+   "d": 0
+  },
+  "spear|paperairplane": {
+   "aw": 5,
+   "bw": 1,
+   "d": 0
+  },
+  "spear|katana": {
+   "aw": 6,
+   "bw": 0,
+   "d": 0
+  },
+  "spear|knives": {
+   "aw": 5,
+   "bw": 1,
+   "d": 0
+  },
+  "bow|broomstick": {
+   "aw": 3,
+   "bw": 3,
+   "d": 0
+  },
+  "bow|paperairplane": {
+   "aw": 6,
+   "bw": 0,
+   "d": 0
+  },
+  "bow|katana": {
+   "aw": 6,
+   "bw": 0,
+   "d": 0
+  },
+  "bow|knives": {
+   "aw": 6,
+   "bw": 0,
+   "d": 0
+  },
+  "shield|combat": {
+   "aw": 2,
+   "bw": 4,
+   "d": 0
+  },
+  "shield|flail": {
+   "aw": 0,
+   "bw": 6,
+   "d": 0
+  },
+  "shield|flamethrower": {
+   "aw": 1,
+   "bw": 5,
+   "d": 0
+  },
+  "shield|glassblade": {
+   "aw": 2,
+   "bw": 4,
+   "d": 0
+  },
+  "scythe|fryingpan": {
+   "aw": 4,
+   "bw": 2,
+   "d": 0
+  },
+  "scythe|slingshot": {
+   "aw": 3,
+   "bw": 3,
+   "d": 0
+  },
+  "scythe|boomerang": {
+   "aw": 2,
+   "bw": 4,
+   "d": 0
+  },
+  "scythe|bomb": {
+   "aw": 5,
+   "bw": 1,
+   "d": 0
+  },
+  "scythe|crossbow": {
+   "aw": 3,
+   "bw": 3,
+   "d": 0
+  },
+  "fryingpan|peashooter": {
+   "aw": 2,
+   "bw": 4,
+   "d": 0
+  },
+  "fryingpan|whip": {
+   "aw": 6,
+   "bw": 0,
+   "d": 0
+  },
+  "fryingpan|electricstaff": {
+   "aw": 4,
+   "bw": 2,
+   "d": 0
+  },
+  "fryingpan|anchor": {
+   "aw": 6,
+   "bw": 0,
+   "d": 0
+  },
+  "broomstick|peashooter": {
+   "aw": 6,
+   "bw": 0,
+   "d": 0
+  },
+  "broomstick|whip": {
+   "aw": 5,
+   "bw": 1,
+   "d": 0
+  },
+  "broomstick|electricstaff": {
+   "aw": 6,
+   "bw": 0,
+   "d": 0
+  },
+  "broomstick|anchor": {
+   "aw": 5,
+   "bw": 1,
+   "d": 0
+  },
+  "combat|slingshot": {
+   "aw": 5,
+   "bw": 1,
+   "d": 0
+  },
+  "combat|boomerang": {
+   "aw": 2,
+   "bw": 4,
+   "d": 0
+  },
+  "combat|bomb": {
+   "aw": 6,
+   "bw": 0,
+   "d": 0
+  },
+  "combat|crossbow": {
+   "aw": 4,
+   "bw": 2,
+   "d": 0
+  },
+  "peashooter|flail": {
+   "aw": 6,
+   "bw": 0,
+   "d": 0
+  },
+  "peashooter|flamethrower": {
+   "aw": 6,
+   "bw": 0,
+   "d": 0
+  },
+  "peashooter|glassblade": {
+   "aw": 1,
+   "bw": 5,
+   "d": 0
+  },
+  "slingshot|paperairplane": {
+   "aw": 5,
+   "bw": 1,
+   "d": 0
+  },
+  "slingshot|katana": {
+   "aw": 2,
+   "bw": 4,
+   "d": 0
+  },
+  "slingshot|knives": {
+   "aw": 1,
+   "bw": 5,
+   "d": 0
+  },
+  "paperairplane|katana": {
+   "aw": 0,
+   "bw": 6,
+   "d": 0
+  },
+  "paperairplane|knives": {
+   "aw": 1,
+   "bw": 5,
+   "d": 0
+  },
+  "flail|flamethrower": {
+   "aw": 1,
+   "bw": 5,
+   "d": 0
+  },
+  "flail|glassblade": {
+   "aw": 5,
+   "bw": 1,
+   "d": 0
+  },
+  "whip|boomerang": {
+   "aw": 6,
+   "bw": 0,
+   "d": 0
+  },
+  "whip|bomb": {
+   "aw": 6,
+   "bw": 0,
+   "d": 0
+  },
+  "whip|crossbow": {
+   "aw": 3,
+   "bw": 3,
+   "d": 0
+  },
+  "boomerang|electricstaff": {
+   "aw": 2,
+   "bw": 4,
+   "d": 0
+  },
+  "boomerang|anchor": {
+   "aw": 5,
+   "bw": 1,
+   "d": 0
+  },
+  "katana|electricstaff": {
+   "aw": 0,
+   "bw": 6,
+   "d": 0
+  },
+  "katana|anchor": {
+   "aw": 5,
+   "bw": 1,
+   "d": 0
+  },
+  "flamethrower|bomb": {
+   "aw": 0,
+   "bw": 6,
+   "d": 0
+  },
+  "flamethrower|crossbow": {
+   "aw": 0,
+   "bw": 6,
+   "d": 0
+  },
+  "electricstaff|glassblade": {
+   "aw": 1,
+   "bw": 5,
+   "d": 0
+  },
+  "bomb|knives": {
+   "aw": 2,
+   "bw": 4,
+   "d": 0
+  },
+  "anchor|crossbow": {
+   "aw": 5,
+   "bw": 1,
+   "d": 0
+  }
+ },
+ "bugs": {
+  "nonFinite": {},
+  "offArena": {},
+  "stall": {},
+  "timeout": {},
+  "err": {}
+ },
+ "rmse": 17.06695239922848,
+ "src": {
+  "sword": {
+   "dmg": [
+    35764,
+    18808,
+    18537
+   ],
+   "hits": [
+    2923,
+    944,
+    1060
+   ],
+   "casts": [
+    4925,
+    1116,
+    522
+   ],
+   "gap": 478929.29005001765,
+   "near": 3446,
+   "combo": {
+    "open": 2036,
+    "len": [
+     0,
+     2036,
+     1327,
+     841,
+     383,
+     340
+    ],
+    "dmg": 73109,
+    "max": 118
+   }
+  },
+  "spear": {
+   "dmg": [
+    39976,
+    16155,
+    11748
+   ],
+   "hits": [
+    2911,
+    969,
+    705
+   ],
+   "casts": [
+    4767,
+    1071,
+    514
+   ],
+   "gap": 459460.3894243889,
+   "near": 3265,
+   "combo": {
+    "open": 2277,
+    "len": [
+     0,
+     2277,
+     1331,
+     713,
+     160,
+     104
+    ],
+    "dmg": 67879,
+    "max": 117
+   }
+  },
+  "fryingpan": {
+   "dmg": [
+    40560,
+    6854,
+    16680
+   ],
+   "hits": [
+    2007,
+    341,
+    527
+   ],
+   "casts": [
+    4193,
+    359,
+    403
+   ],
+   "gap": 461286.1964989195,
+   "near": 2522,
+   "combo": {
+    "open": 1475,
+    "len": [
+     0,
+     1475,
+     895,
+     410,
+     81,
+     14
+    ],
+    "dmg": 64094,
+    "max": 140
+   }
+  },
+  "slingshot": {
+   "dmg": [
+    38148,
+    13762,
+    4647
+   ],
+   "hits": [
+    1845,
+    614,
+    104
+   ],
+   "casts": [
+    5494,
+    925,
+    132
+   ],
+   "gap": 1231110.1038394119,
+   "near": 1591,
+   "combo": {
+    "open": 1821,
+    "len": [
+     0,
+     1821,
+     518,
+     163,
+     46,
+     15
+    ],
+    "dmg": 56557,
+    "max": 117
+   }
+  },
+  "boomerang": {
+   "dmg": [
+    45031,
+    7959,
+    8666
+   ],
+   "hits": [
+    2300,
+    416,
+    263
+   ],
+   "casts": [
+    4865,
+    1436,
+    511
+   ],
+   "gap": 1194846.0957551836,
+   "near": 975,
+   "combo": {
+    "open": 2036,
+    "len": [
+     0,
+     2036,
+     647,
+     224,
+     61,
+     11
+    ],
+    "dmg": 61656,
+    "max": 102
+   }
+  },
+  "bomb": {
+   "dmg": [
+    23285,
+    20545,
+    3626
+   ],
+   "hits": [
+    1363,
+    1694,
+    123
+   ],
+   "casts": [
+    4585,
+    2874,
+    415
+   ],
+   "gap": 1108222.1571215272,
+   "near": 1242,
+   "combo": {
+    "open": 2476,
+    "len": [
+     0,
+     2476,
+     488,
+     161,
+     44,
+     11
+    ],
+    "dmg": 47456,
+    "max": 88
+   }
+  },
+  "crossbow": {
+   "dmg": [
+    52221,
+    5075,
+    11185
+   ],
+   "hits": [
+    2864,
+    200,
+    409
+   ],
+   "casts": [
+    4561,
+    607,
+    487
+   ],
+   "gap": 1092205.3553490783,
+   "near": 1070,
+   "combo": {
+    "open": 2815,
+    "len": [
+     0,
+     2815,
+     476,
+     158,
+     19,
+     5
+    ],
+    "dmg": 68481,
+    "max": 98
+   }
+  },
+  "hammer": {
+   "dmg": [
+    37461,
+    14058,
+    18172
+   ],
+   "hits": [
+    1607,
+    719,
+    1029
+   ],
+   "casts": [
+    3581,
+    935,
+    465
+   ],
+   "gap": 403345.2920449686,
+   "near": 2146,
+   "combo": {
+    "open": 2032,
+    "len": [
+     0,
+     2032,
+     724,
+     293,
+     136,
+     170
+    ],
+    "dmg": 69691,
+    "max": 140
+   }
+  },
+  "bow": {
+   "dmg": [
+    22501,
+    29143,
+    14560
+   ],
+   "hits": [
+    1120,
+    1539,
+    706
+   ],
+   "casts": [
+    4115,
+    1168,
+    455
+   ],
+   "gap": 966136.769747915,
+   "near": 1110,
+   "combo": {
+    "open": 1785,
+    "len": [
+     0,
+     1785,
+     811,
+     413,
+     197,
+     159
+    ],
+    "dmg": 66204,
+    "max": 150
+   }
+  },
+  "gun": {
+   "dmg": [
+    34961,
+    15294,
+    13084
+   ],
+   "hits": [
+    2659,
+    1211,
+    1765
+   ],
+   "casts": [
+    7177,
+    981,
+    500
+   ],
+   "gap": 1891707.0622895358,
+   "near": 1851,
+   "combo": {
+    "open": 1932,
+    "len": [
+     0,
+     1932,
+     1133,
+     783,
+     540,
+     1247
+    ],
+    "dmg": 63339,
+    "max": 164
+   }
+  },
+  "broomstick": {
+   "dmg": [
+    41734,
+    17419,
+    14001
+   ],
+   "hits": [
+    4094,
+    1294,
+    463
+   ],
+   "casts": [
+    5921,
+    1802,
+    542
+   ],
+   "gap": 586032.0633460584,
+   "near": 4214,
+   "combo": {
+    "open": 2248,
+    "len": [
+     0,
+     2248,
+     1655,
+     1156,
+     472,
+     320
+    ],
+    "dmg": 73154,
+    "max": 113
+   }
+  },
+  "paperairplane": {
+   "dmg": [
+    25221,
+    25484,
+    4600
+   ],
+   "hits": [
+    2504,
+    2951,
+    275
+   ],
+   "casts": [
+    4617,
+    1701,
+    472
+   ],
+   "gap": 1059928.4242678094,
+   "near": 1226,
+   "combo": {
+    "open": 2410,
+    "len": [
+     0,
+     2410,
+     1295,
+     860,
+     539,
+     626
+    ],
+    "dmg": 55305,
+    "max": 150
+   }
+  },
+  "katana": {
+   "dmg": [
+    38514,
+    1589,
+    10855
+   ],
+   "hits": [
+    3236,
+    61,
+    1280
+   ],
+   "casts": [
+    5015,
+    64,
+    464
+   ],
+   "gap": 488463.3013210532,
+   "near": 3454,
+   "combo": {
+    "open": 2130,
+    "len": [
+     0,
+     2130,
+     1140,
+     810,
+     190,
+     307
+    ],
+    "dmg": 50958,
+    "max": 89
+   }
+  },
+  "knives": {
+   "dmg": [
+    51797,
+    3427,
+    6462
+   ],
+   "hits": [
+    5592,
+    414,
+    593
+   ],
+   "casts": [
+    9111,
+    609,
+    467
+   ],
+   "gap": 2181900.809057243,
+   "near": 2392,
+   "combo": {
+    "open": 1976,
+    "len": [
+     0,
+     1976,
+     1305,
+     946,
+     696,
+     1676
+    ],
+    "dmg": 61686,
+    "max": 192
+   }
+  },
+  "axe": {
+   "dmg": [
+    37196,
+    23962,
+    9481
+   ],
+   "hits": [
+    2098,
+    2412,
+    303
+   ],
+   "casts": [
+    4098,
+    1626,
+    441
+   ],
+   "gap": 386753.59515167406,
+   "near": 2728,
+   "combo": {
+    "open": 2694,
+    "len": [
+     0,
+     2694,
+     979,
+     687,
+     330,
+     123
+    ],
+    "dmg": 70639,
+    "max": 113
+   }
+  },
+  "scythe": {
+   "dmg": [
+    35785,
+    18561,
+    14710
+   ],
+   "hits": [
+    2695,
+    959,
+    1420
+   ],
+   "casts": [
+    5376,
+    1315,
+    493
+   ],
+   "gap": 535578.2121812337,
+   "near": 3727,
+   "combo": {
+    "open": 2266,
+    "len": [
+     0,
+     2266,
+     1172,
+     738,
+     302,
+     596
+    ],
+    "dmg": 69056,
+    "max": 136
+   }
+  },
+  "peashooter": {
+   "dmg": [
+    21991,
+    40283,
+    5682
+   ],
+   "hits": [
+    4009,
+    4880,
+    560
+   ],
+   "casts": [
+    8938,
+    1420,
+    428
+   ],
+   "gap": 2686828.915075845,
+   "near": 2198,
+   "combo": {
+    "open": 2244,
+    "len": [
+     0,
+     2244,
+     1579,
+     1254,
+     1026,
+     3346
+    ],
+    "dmg": 67956,
+    "max": 193
+   }
+  },
+  "whip": {
+   "dmg": [
+    38084,
+    16873,
+    10436
+   ],
+   "hits": [
+    8292,
+    2759,
+    1676
+   ],
+   "casts": [
+    4462,
+    1164,
+    447
+   ],
+   "gap": 423685.6218512192,
+   "near": 3266,
+   "combo": {
+    "open": 1767,
+    "len": [
+     0,
+     1767,
+     1371,
+     1219,
+     1059,
+     7311
+    ],
+    "dmg": 65393,
+    "max": 225
+   }
+  },
+  "electricstaff": {
+   "dmg": [
+    38413,
+    18284,
+    13014
+   ],
+   "hits": [
+    3358,
+    1580,
+    841
+   ],
+   "casts": [
+    4765,
+    1588,
+    530
+   ],
+   "gap": 453340.40374527755,
+   "near": 3454,
+   "combo": {
+    "open": 2343,
+    "len": [
+     0,
+     2343,
+     1512,
+     975,
+     476,
+     473
+    ],
+    "dmg": 69711,
+    "max": 129
+   }
+  },
+  "anchor": {
+   "dmg": [
+    26826,
+    19340,
+    11743
+   ],
+   "hits": [
+    1156,
+    1486,
+    1134
+   ],
+   "casts": [
+    3101,
+    1893,
+    405
+   ],
+   "gap": 240338.4723813238,
+   "near": 2749,
+   "combo": {
+    "open": 1619,
+    "len": [
+     0,
+     1619,
+     938,
+     573,
+     300,
+     346
+    ],
+    "dmg": 57909,
+    "max": 164
+   }
+  },
+  "combat": {
+   "dmg": [
+    38556,
+    17430,
+    15826
+   ],
+   "hits": [
+    2219,
+    839,
+    759
+   ],
+   "casts": [
+    4440,
+    1026,
+    527
+   ],
+   "gap": 269975.16863808426,
+   "near": 4287,
+   "combo": {
+    "open": 1658,
+    "len": [
+     0,
+     1658,
+     1029,
+     595,
+     277,
+     258
+    ],
+    "dmg": 71812,
+    "max": 160
+   }
+  },
+  "shield": {
+   "dmg": [
+    45990,
+    8138,
+    8938
+   ],
+   "hits": [
+    2609,
+    421,
+    683
+   ],
+   "casts": [
+    4358,
+    518,
+    490
+   ],
+   "gap": 348758.30990578956,
+   "near": 4163,
+   "combo": {
+    "open": 1717,
+    "len": [
+     0,
+     1717,
+     1090,
+     519,
+     228,
+     159
+    ],
+    "dmg": 63066,
+    "max": 140
+   }
+  },
+  "flail": {
+   "dmg": [
+    43755,
+    15735,
+    6353
+   ],
+   "hits": [
+    2107,
+    725,
+    236
+   ],
+   "casts": [
+    4125,
+    885,
+    300
+   ],
+   "gap": 463150.0278209801,
+   "near": 2571,
+   "combo": {
+    "open": 1681,
+    "len": [
+     0,
+     1681,
+     896,
+     360,
+     98,
+     33
+    ],
+    "dmg": 65843,
+    "max": 150
+   }
+  },
+  "flamethrower": {
+   "dmg": [
+    34045,
+    19384,
+    5113
+   ],
+   "hits": [
+    3556,
+    1082,
+    140
+   ],
+   "casts": [
+    12940,
+    1451,
+    192
+   ],
+   "gap": 1710498.128319483,
+   "near": 5348,
+   "combo": {
+    "open": 1980,
+    "len": [
+     0,
+     1980,
+     996,
+     640,
+     420,
+     742
+    ],
+    "dmg": 58542,
+    "max": 132
+   }
+  },
+  "glassblade": {
+   "dmg": [
+    50194,
+    17421,
+    3402
+   ],
+   "hits": [
+    3275,
+    1987,
+    155
+   ],
+   "casts": [
+    4681,
+    1182,
+    381
+   ],
+   "gap": 306339.1098164807,
+   "near": 4680,
+   "combo": {
+    "open": 1802,
+    "len": [
+     0,
+     1802,
+     1426,
+     981,
+     556,
+     652
+    ],
+    "dmg": 71017,
+    "max": 150
+   }
+  }
+ }
+}

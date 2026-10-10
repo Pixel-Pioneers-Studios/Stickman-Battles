@@ -41,6 +41,25 @@ const MP_CLASS_FALLBACK = {
 const MP_GAP_FAR = 300;   // walk-in / ranged spacing, px between centers
 const MP_GAP_NEAR = 150;  // melee Q / E spacing
 
+// Moves the default spacing leaves out of reach, keyed weaponKey:step.
+// gap is px between centers. The reasons, per move:
+//   short radius    spear Q (spikes at +-44), fists Q (95), frying pan Q / E (150, measured mid-hop),
+//                   flail E (75px orbit)
+//   needs contact   glass blade E (the wall bursts when touched), crossbow Q (wire spans 30..230 ahead)
+//   drops short     slingshot E (the boulder sinks below a far target and sails past)
+//   second input    bomb Q (stickies only go off on a held Q)
+const MP_STAGE = {
+  'spear:q':      { gap: 60 },
+  'combat:q':     { gap: 70 },
+  'fryingpan:q':  { gap: 90 },
+  'fryingpan:e':  { gap: 90 },
+  'flail:e':      { gap: 80 },
+  'glassblade:e': { gap: 50 },
+  'crossbow:q':   { gap: 140 },
+  'slingshot:e':  { gap: 130 },
+  'bomb:q':       { gap: 150, detonate: 30 },
+};
+
 let _mp = null;           // active preview state, or null
 let _mpKeyHooked = false;
 
@@ -404,7 +423,8 @@ function updateMovePreview() {
     if (!_mpIdle(p, d) && _mp.pt < 240) return;
     if (d.invincible > 0 && _mp.pt < 240) return;
     const near = st.id !== 'basic' && st.id !== 'perk' && melee;
-    _mpPlace(p, d, near ? MP_GAP_NEAR : (melee || st.id === 'basic' ? MP_GAP_FAR : _mpRangedGap(p)));
+    const stage = MP_STAGE[p.weaponKey + ':' + st.id];
+    _mpPlace(p, d, stage ? stage.gap : near ? MP_GAP_NEAR : (melee || st.id === 'basic' ? MP_GAP_FAR : _mpRangedGap(p)));
     p.cooldown = 0; p.attackEndlag = 0;
     if (st.id === 'q') p.abilityCooldown = 0;
     if (st.id === 'e') { p._domainSuperCount = 0; p.superMeter = 100; p.superReady = true; }
@@ -452,13 +472,16 @@ function updateMovePreview() {
   }
 
   if (_mp.ph === 'settle') {
+    const stage = MP_STAGE[p.weaponKey + ':' + st.id];
+    if (stage && stage.detonate === _mp.pt && typeof _wxDetonateStickies === 'function') _wxDetonateStickies(p);
     const done = _mp.pt > 40 && _mpIdle(p, d) && (projectiles.length === 0 || _mp.pt > 240);
     if (done || _mp.pt > 720) { _mp.ph = 'hold'; _mp.pt = 0; }
     return;
   }
 
   if (_mp.ph === 'hold') {
-    if (_mp.pt > 60) _mpNext();
+    // Long enough to read the caption: about 27 characters a second, 1.5s to 5s.
+    if (_mp.pt > Math.max(90, Math.min(300, String(st.body || '').length * 2.2))) _mpNext();
   }
 }
 

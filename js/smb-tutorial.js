@@ -246,6 +246,8 @@ function maybeStartFirstRun() {
   if (typeof onlineMode !== 'undefined' && onlineMode) return;
   if (gameMode === 'online') return;
   if (typeof NetworkManager !== 'undefined' && NetworkManager.connected) return;
+  // Arrived through a lobby invite link: friends first, the tutorial next launch.
+  if (window._pubInvitePending || (typeof PubHub !== 'undefined' && PubHub.active)) return;
   startTutorial();
 }
 

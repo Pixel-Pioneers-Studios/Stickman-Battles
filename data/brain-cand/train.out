@@ -1,0 +1,24 @@
+[brain] server :8120, launching 3 workers
+[brain] FATAL TimeoutError: Navigation timeout of 90000 ms exceeded
+    at new Deferred (file:///Users/aarushgupta/Developer/Personal/Stickman-Battles/node_modules/puppeteer-core/lib/puppeteer/util/Deferred.js:57:34)
+    at Deferred.create (file:///Users/aarushgupta/Developer/Personal/Stickman-Battles/node_modules/puppeteer-core/lib/puppeteer/util/Deferred.js:18:16)
+    at new LifecycleWatcher (file:///Users/aarushgupta/Developer/Personal/Stickman-Battles/node_modules/puppeteer-core/lib/puppeteer/cdp/LifecycleWatcher.js:70:46)
+    at CdpFrame.goto (file:///Users/aarushgupta/Developer/Personal/Stickman-Battles/node_modules/puppeteer-core/lib/puppeteer/cdp/Frame.js:150:29)
+    at CdpFrame.<anonymous> (file:///Users/aarushgupta/Developer/Personal/Stickman-Battles/node_modules/puppeteer-core/lib/puppeteer/util/decorators.js:101:27)
+    at CdpPage.goto (file:///Users/aarushgupta/Developer/Personal/Stickman-Battles/node_modules/puppeteer-core/lib/puppeteer/api/Page.js:576:43)
+    at setupWorker (/Users/aarushgupta/Developer/Personal/Stickman-Battles/tools/brain/train.js:130:14)
+    at async launchWorker (/Users/aarushgupta/Developer/Personal/Stickman-Battles/tools/brain/train.js:116:16)
+    at async Promise.all (index 1)
+    at async /Users/aarushgupta/Developer/Personal/Stickman-Battles/tools/brain/train.js:237:19
+[brain] server :8120, launching 3 workers
+[brain] FATAL TimeoutError: Navigation timeout of 90000 ms exceeded
+    at new Deferred (file:///Users/aarushgupta/Developer/Personal/Stickman-Battles/node_modules/puppeteer-core/lib/puppeteer/util/Deferred.js:57:34)
+    at Deferred.create (file:///Users/aarushgupta/Developer/Personal/Stickman-Battles/node_modules/puppeteer-core/lib/puppeteer/util/Deferred.js:18:16)
+    at new LifecycleWatcher (file:///Users/aarushgupta/Developer/Personal/Stickman-Battles/node_modules/puppeteer-core/lib/puppeteer/cdp/LifecycleWatcher.js:70:46)
+    at CdpFrame.goto (file:///Users/aarushgupta/Developer/Personal/Stickman-Battles/node_modules/puppeteer-core/lib/puppeteer/cdp/Frame.js:150:29)
+    at CdpFrame.<anonymous> (file:///Users/aarushgupta/Developer/Personal/Stickman-Battles/node_modules/puppeteer-core/lib/puppeteer/util/decorators.js:101:27)
+    at CdpPage.goto (file:///Users/aarushgupta/Developer/Personal/Stickman-Battles/node_modules/puppeteer-core/lib/puppeteer/api/Page.js:576:43)
+    at setupWorker (/Users/aarushgupta/Developer/Personal/Stickman-Battles/tools/brain/train.js:130:14)
+    at async launchWorker (/Users/aarushgupta/Developer/Personal/Stickman-Battles/tools/brain/train.js:116:16)
+    at async Promise.all (index 2)
+    at async /Users/aarushgupta/Developer/Personal/Stickman-Battles/tools/brain/train.js:237:19

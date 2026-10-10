@@ -432,11 +432,6 @@ input, textarea, [contenteditable] {
   background: rgba(140,70,0,0.38);
   box-shadow: 0 0 36px rgba(255,150,50,0.65), inset 0 0 12px rgba(200,100,0,0.10);
 }
-.mode-card[data-mode="storyonline"].active {
-  border-color: #ffdd66;
-  background: rgba(120,90,0,0.38);
-  box-shadow: 0 0 36px rgba(255,220,80,0.65), inset 0 0 12px rgba(200,160,0,0.10);
-}
 
 /* Hover colors for modes missing them */
 .mode-card[data-mode="online"]:hover     { border-color: rgba(0,238,255,0.45); }
@@ -444,7 +439,6 @@ input, textarea, [contenteditable] {
 .mode-card[data-mode="trueform"]:hover   { border-color: rgba(200,150,255,0.45); }
 .mode-card[data-mode="sovereign"]:hover  { border-color: rgba(255,68,34,0.45); }
 .mode-card[data-mode="completerandom"]:hover { border-color: rgba(255,153,68,0.45); }
-.mode-card[data-mode="storyonline"]:hover { border-color: rgba(255,220,100,0.45); }
 
 .mode-icon { font-size: 1.6rem; margin-bottom: 5px; }
 .mode-name { font-weight: 900; font-size: 0.88rem; letter-spacing: 1px; margin-bottom: 3px; color: #f0f4ff; }
@@ -5395,6 +5389,8 @@ input[type="color"]::-webkit-color-swatch { border: none; border-radius: 6px; }
 
 /* ── Injected lobby section (LobbyManager) ───────────────── */
 #lobbySection { display: flex; flex-direction: column; gap: 6px; }
+.online-lobby-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.online-lobby-row .online-input { flex: 1 1 110px; min-width: 100px; text-transform: uppercase; }
 #lobbyStatus {
   font-family: var(--font-ui);
   font-size: 0.72rem;

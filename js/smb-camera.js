@@ -365,9 +365,9 @@ function updateCamera() {
 
   // ── Online: track only local player ──────────────────────
   // Public Server hub too: ten players on a 3600-wide city can never share one
-  // frame, so follow your own fighter (players[0]). Soccer keeps the normal
-  // camera — the whole pitch fits on screen.
-  const _pubHubCam = window._pubHubActive && gameMode === '2p' && players[0];
+  // frame, so follow your own fighter (players[0]). Rounds on a single-screen
+  // arena (sports, Infection, King of the Hill) keep the normal camera.
+  const _pubHubCam = window._pubFollowCam && gameMode === '2p' && players[0];
   if (_pubHubCam || (gameMode === 'online' && typeof localPlayerSlot !== 'undefined' && players[localPlayerSlot])) {
     const lp = _pubHubCam ? players[0] : players[localPlayerSlot];
     const PAD = 180;
@@ -376,6 +376,18 @@ function updateCamera() {
     camZoomTarget = Math.max(0.5, Math.min(1.4, Math.min(GAME_W / (bbMaxX - bbMinX), GAME_H / (bbMaxY - bbMinY))));
     camXTarget = (bbMinX + bbMaxX) / 2;
     camYTarget = (bbMinY + bbMaxY) / 2;
+    camZoomCur += (camZoomTarget - camZoomCur) * lerp.zoom;
+    camXCur    += (camXTarget - camXCur) * lerp.pos;
+    camYCur    += (camYTarget - camYCur) * lerp.pos;
+    return;
+  }
+
+  // ── Private lobby waiting room: the whole room, always ───────
+  // Every game pad has to stay on screen wherever the players are standing.
+  if (window._pubRoomCam && gameMode === '2p') {
+    camZoomTarget = 1.0;
+    camXTarget = GAME_W / 2;
+    camYTarget = GAME_H / 2;
     camZoomCur += (camZoomTarget - camZoomCur) * lerp.zoom;
     camXCur    += (camXTarget - camXCur) * lerp.pos;
     camYCur    += (camYTarget - camYCur) * lerp.pos;
@@ -681,7 +693,7 @@ function updateCamera() {
     // them alternately was the 600-1100 unit ping-pong on long maps.
     const _fsHumans = activePlayers.filter(p => !p.isAI && !p.isBoss);
     const _fsSubjects = (_camFarSubject && _camFarSubject.health > 0) ? [_camFarSubject]
-      : (window._pubHubActive && gameMode === '2p' && players[0] && players[0].health > 0)
+      : (window._pubFollowCam && gameMode === '2p' && players[0] && players[0].health > 0)
       ? [players[0]]
       : (gameMode === 'online' && typeof localPlayerSlot !== 'undefined' && players[localPlayerSlot] && players[localPlayerSlot].health > 0)
       ? [players[localPlayerSlot]]

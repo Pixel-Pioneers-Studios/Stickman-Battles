@@ -143,7 +143,7 @@ function spawnBullet(user, speed, color, overrideDmg = null) {
   if (typeof gameMode !== 'undefined' && gameMode === 'sovereign') return null;
   // Arena-level no-ranged flag (e.g. story sovereign arena)
   if (typeof currentArena !== 'undefined' && currentArena && currentArena.isNoRanged) return null;
-  SoundManager.shoot();
+  SoundManager.shoot(user && user.weaponKey);
   const _nearest = [user.target, ...players, ...minions, ...trainingDummies].filter(Boolean).find(t => t !== user && t.health > 0) || null;
   const _distToT = _nearest ? Math.abs(_nearest.cx() - user.cx()) : 999;
   const _pointBlankT = !user.isBoss ? Math.max(0, 1 - clamp((_distToT - 48) / 72, 0, 1)) : 0;

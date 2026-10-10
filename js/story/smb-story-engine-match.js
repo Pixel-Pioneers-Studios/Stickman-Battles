@@ -433,9 +433,6 @@ function _completeStory2() {
   } else {
     storyOnline = true;
   }
-  // Show Story Online mode card
-  const soCard = document.getElementById('modeStoryOnline');
-  if (soCard) soCard.style.display = '';
   _saveStory2();
 }
 
@@ -466,9 +463,6 @@ function _showStory2Victory(ch) {
       const _piece = ch.armor[Math.floor(Math.random() * ch.armor.length)];
       const _pieceNames = { helmet: 'Helmet', chestplate: 'Chestplate', leggings: 'Leggings' };
       html += `<div style="color:#9ab8e8;font-size:0.76rem;margin-top:3px;">🛡️ Armor Blueprint: ${_pieceNames[_piece] || _piece}</div>`;
-    }
-    if (_story2.storyComplete) {
-      html += `<div style="color:#ffaaff;font-size:0.76rem;margin-top:5px;font-style:italic;">🌐⚔️ Story Online mode unlocked!</div>`;
     }
     if (ch.isSovereignFight && sovereignBeaten) {
       html += `<div style="color:#cc44ff;font-size:0.82rem;margin-top:8px;font-weight:800;letter-spacing:1px;text-shadow:0 0 10px #cc44ff;">⚡ NEURAL AI MODES UNLOCKED</div>`;
@@ -577,4 +571,3 @@ function storyVictoryBackToMenu() {
   setTimeout(openStoryMenu, 300);
 }
 
-// ── Init: show Story Online card if already complete ─────────────────────────

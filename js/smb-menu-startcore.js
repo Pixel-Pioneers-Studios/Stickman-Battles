@@ -183,6 +183,8 @@ function _startGameCore() {
   let w2 = _p2Resolved.weaponKey;
   if (useStarterKit) w1 = 'sword';
   if (ladderDef) w2 = ladderDef.weapon;
+  // Weekly Challenge stages fix the player's kit too (smb-weekly.js).
+  if (ladderDef && ladderDef.p1Weapon && WEAPONS[ladderDef.p1Weapon]) w1 = ladderDef.p1Weapon;
   // Story mode: HARD enforce no ranged weapons for human players at game start
   if (storyModeActive) {
     const _isMeleeOnly = (key) => typeof WEAPONS !== 'undefined' && WEAPONS[key] && WEAPONS[key].type === 'ranged';
@@ -216,6 +218,7 @@ function _startGameCore() {
   let _p2ResolvedClass = _p2Resolved.classKey;
   if (useStarterKit) _p1ResolvedClass = 'warrior';
   if (ladderDef) _p2ResolvedClass = ladderDef.cls;
+  if (ladderDef && ladderDef.p1Class && CLASSES[ladderDef.p1Class]) _p1ResolvedClass = ladderDef.p1Class;
 
   // ── TROLL CLASS BAR (boss fights) ───────────────────────────────────────
   // Knight is a joke class with deliberately absurd stats — a 30-damage
@@ -910,6 +913,9 @@ function _startGameCore() {
   if (p2 && ladderDef) {
     p2.name  = ladderDef.name.toUpperCase();
     p2.lives = p2._maxLives = ladderDef.lives;
+    if (ladderDef.p1Lives) p1.lives = p1._maxLives = ladderDef.p1Lives;
+    if (ladderDef.p1HpMul && ladderDef.p1HpMul !== 1) { p1.maxHealth = Math.round(p1.maxHealth * ladderDef.p1HpMul); p1.health = p1.maxHealth; }
+    if (ladderDef.p2HpMul && ladderDef.p2HpMul !== 1) { p2.maxHealth = Math.round(p2.maxHealth * ladderDef.p2HpMul); p2.health = p2.maxHealth; }
   }
   if (p2) document.getElementById('p2HudName').textContent = p2.name;
   document.getElementById('killFeed').innerHTML = '';

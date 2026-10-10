@@ -24,8 +24,9 @@
  * A rejected candidate is thrown away; the next phase starts again from shipped.
  *
  * Usage: node tools/brain/league.js [--hours=8.5] [--main=2.5] [--hunt=3] [--workers=3]
- *        [--gate-eps=200] [--margin=5] [--tol=6] [--no-gate] [--torch] [--threads=N]
- *        --torch / --threads are passed to every train.js phase (PyTorch update, see train.js)
+ *        [--gate-eps=200] [--margin=5] [--tol=6] [--no-gate] [--torch] [--threads=N] [--gru[=128]] [--main-only]
+ *        --main-only stops after the first main phase and its gate (one long candidate run, no new hunter)
+ *        --torch / --threads / --gru are passed to every train.js phase (PyTorch update, see train.js)
  * Log:   data/brain-league/league.log  (phase lines + eval headlines + gate verdicts)
  */
 const fs = require('fs'), path = require('path'), { spawn } = require('child_process');
@@ -36,7 +37,8 @@ const args = Object.fromEntries(process.argv.slice(2).map(a => {
 const ROOT = path.resolve(__dirname, '..', '..');
 const HOURS = parseFloat(args.hours) || 8.5, MAIN_H = parseFloat(args.main) || 2.5, HUNT_H = parseFloat(args.hunt) || 3;
 const WORKERS = String(parseInt(args.workers, 10) || 3);
-const TRAIN_EXTRA = [...(args.torch ? ['--torch'] : []), ...(args.threads ? [`--threads=${args.threads}`] : [])];
+const TRAIN_EXTRA = [...(args.torch ? ['--torch'] : []), ...(args.threads ? [`--threads=${args.threads}`] : []),
+  ...(args.gru ? [args.gru === true ? '--gru' : `--gru=${args.gru}`] : [])];
 const MIN_PHASE_H = 0.75;
 const GATE = !args['no-gate'], GATE_EPS = parseInt(args['gate-eps'], 10) || 200;
 const MARGIN = args.margin !== undefined ? parseFloat(args.margin) : 5, TOL = args.tol !== undefined ? parseFloat(args.tol) : 6;
@@ -160,6 +162,7 @@ const iterOf = p => { try { return JSON.parse(fs.readFileSync(path.join(ROOT, p)
         say(`gate REJECT: shipped stays ${iterOf('data/brain/latest.json')}`);
       }
       phase = 'hunt';
+      if (args['main-only']) break;
     } else {
       const n = Math.max(...hunters.map(d => parseInt(d.slice(17), 10) || 1)) + 1;
       const rel = `data/brain-hunter${n}`, dir = path.join(ROOT, rel);
