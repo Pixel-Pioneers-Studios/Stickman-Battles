@@ -85,6 +85,9 @@ let mapPerkState = {};  // runtime state per arena
 function initMapPerks(key) {
   mapItems    = [];
   mapPerkState = {};
+  // Public Server lobbies: perks are rolled and simulated per browser, so every
+  // player would see different pickups and a different beast. None in lobbies.
+  if (window._pubHubActive) return;
   if (key === 'ruins') {
     const def = MAP_PERK_DEFS.ruins;
     for (const pos of def.items) {
@@ -150,7 +153,7 @@ function initMapPerks(key) {
 
 // Helper used by both the random forest encounter logic and the Director.
 function spawnForestBeastNow() {
-  if (!currentArena || forestBeast || forestBeastCooldown > 0) return;
+  if (!currentArena || forestBeast || forestBeastCooldown > 0 || window._pubHubActive) return;
   const pls = currentArena.platforms;
   if (!pls || pls.length === 0) return;
   const pl  = pls[Math.floor(Math.random() * pls.length)];
@@ -196,6 +199,7 @@ function spawnYetiNow() {
 
 function updateMapPerks() {
   if (!currentArena || !gameRunning) return;
+  if (window._pubHubActive) return;
 
 
   // ---- RUINS: Artifact pickups (also The Circuit — see arenaRunsPerk) ----

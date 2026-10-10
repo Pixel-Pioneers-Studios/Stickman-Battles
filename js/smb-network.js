@@ -363,6 +363,21 @@ const NetworkManager = (() => {
         }
         break;
 
+      case 'projState': {
+        // Owner's projectile snapshot. The host trusts the connection's slot; a guest
+        // trusts the slot the host stamped when relaying.
+        const _ps = _isHost ? fromSlot : msg.slot;
+        if (!Array.isArray(msg.p) || msg.p.length > 16 || !Number.isInteger(_ps) || _ps === _localSlot) break;
+        if (typeof NetProj !== 'undefined' && typeof players !== 'undefined' && players[_ps] && players[_ps].isRemote) {
+          NetProj.apply('n' + _ps, players[_ps], msg.p);
+        }
+        if (_isHost) {
+          const relay = { type: 'projState', slot: fromSlot, p: msg.p };
+          for (const c of _connections) { if (c !== fromConn && c.open) c.send(relay); }
+        }
+        break;
+      }
+
       case 'clientHello': {
         const merged = _setSlotMeta(fromSlot, {
           peerId: fromConn && fromConn.peer ? fromConn.peer : (_slotMeta[fromSlot] && _slotMeta[fromSlot].peerId) || null,
@@ -401,8 +416,10 @@ const NetworkManager = (() => {
         if (!Number.isInteger(msg.targetSlot) || !Number.isFinite(_hDmg) || !Number.isFinite(_hKb)) return;
         if (typeof dealDamage === 'function' && players[msg.targetSlot]) {
           const attacker = players[msg.attackerSlot] || players[0];
-          dealDamage(attacker, players[msg.targetSlot],
-            Math.max(0, Math.min(80, _hDmg)), Math.max(0, Math.min(26, _hKb)));
+          const _cDmg = Math.max(0, Math.min(80, _hDmg)), _cKb = Math.max(0, Math.min(26, _hKb));
+          _netInboundHit = { dmg: _cDmg, kb: _cKb };
+          try { dealDamage(attacker, players[msg.targetSlot], _cDmg, _cKb); }
+          finally { _netInboundHit = null; }
         }
         if (_isHost) {
           const relay = Object.assign({}, msg);
@@ -527,12 +544,18 @@ const NetworkManager = (() => {
 
   function _handleGameEvent(msg, fromSlot) {
     const isHostOrigin = fromSlot === 0;
-    if (!isHostOrigin && msg.event !== 'chat') {
+    if (!isHostOrigin && msg.event !== 'chat' && msg.event !== 'ninjaSlow') {
       return false;
     }
 
     if (msg.event === 'chat') {
       _appendChatMsg(msg.sender || 'P?', msg.text || '');
+    } else if (msg.event === 'ninjaSlow') {
+      // Remote ninja's time dilation is live; the domain loop expires it if pings stop.
+      const _rp = typeof players !== 'undefined' ? players[fromSlot] : null;
+      if (_rp && _rp.isRemote && _rp.charClass === 'ninja' && typeof frameCount !== 'undefined') {
+        (window._netNinjaSlowUntil = window._netNinjaSlowUntil || {})[fromSlot] = frameCount + 40;
+      }
     } else if (msg.event === 'modeChange') {
       if (!_isHost && typeof selectMode === 'function') selectMode(msg.mode);
     } else if (msg.event === 'achievement') {
@@ -765,7 +788,7 @@ const NetworkManager = (() => {
     _slotConnections = {};
     _slotMeta = {};
     _remoteStates = {};
-    _stateBuffers = {};
+    _stateBuffers = {}; if (typeof NetProj !== "undefined") NetProj.clear();
     _forcedCloseSlots = {};
     _latencies = {};
     _pingTimers = {};
@@ -1056,6 +1079,19 @@ const NetworkManager = (() => {
       _sendTimer = 0;
       sendState();
     }
+    sendProjectiles();
+  }
+
+  // Owner -> everyone: compact snapshot of my live projectiles (see NetProj). Sent on
+  // spawn and every NetProj.EVERY frames; hit authority is unchanged (hitEvent).
+  function sendProjectiles() {
+    if (!_connected || typeof NetProj === 'undefined') return;
+    const p = (typeof players !== 'undefined') && players[_localSlot];
+    const list = p && NetProj.collect(p);
+    if (!list) return;
+    const msg = { type: 'projState', slot: _localSlot, p: list };
+    if (_isHost) _broadcast(msg);
+    else if (_connections[0] && _connections[0].open) _connections[0].send(msg);
   }
 
   // Public room advertisement via localStorage

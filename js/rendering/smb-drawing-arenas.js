@@ -1341,6 +1341,33 @@ function drawLava() {
 // what a night skyline needs around it: a moon and its glow, a dim far band of
 // towers behind, rooftop clutter — water tanks, AC units, antennas with warning
 // lamps — on the near band, a couple of aircraft, and haze at street level.
+// ── Static background layer cache ─────────────────────────────────────────
+// Paints a layer that never animates (towers, windows, panels) ONCE into an
+// offscreen canvas and blits it each frame. paint(c) receives the context to
+// draw on (shadow the global `ctx` inside it). Cache key: layer key + arena +
+// a caller `sig` (data identity) + the current canvas scale bucket, so a resize
+// or zoom change re-renders. Set window._noBgCache = true to bypass (A/B, debug).
+// Falls back to painting live when the layer would be oversized.
+const _bgLayerCache = new Map();
+function _bgStaticLayer(key, sig, x, y, w, h, paint) {
+  if (window._noBgCache) { paint(ctx); return; }
+  const t = ctx.getTransform();
+  const sb = Math.min(3, Math.max(0.25, Math.ceil(Math.hypot(t.a, t.b) * 16) / 16));  // ~1:1 with the screen so the blit is a plain copy
+  const pw = Math.ceil(w * sb), ph = Math.ceil(h * sb);
+  if (!(pw > 0 && ph > 0) || pw * ph > 6e6) { paint(ctx); return; }
+  const k = key + '|' + (typeof currentArenaKey !== 'undefined' ? currentArenaKey : '');
+  let e = _bgLayerCache.get(k);
+  if (!e || e.sig !== sig || e.sb !== sb || e.x !== x || e.y !== y || e.w !== w || e.h !== h) {
+    if (!e) { e = { c: document.createElement('canvas') }; _bgLayerCache.set(k, e); }
+    e.c.width = pw; e.c.height = ph;
+    const o = e.c.getContext('2d');
+    o.scale(sb, sb); o.translate(-x, -y);
+    paint(o);
+    e.sig = sig; e.sb = sb; e.x = x; e.y = y; e.w = w; e.h = h;
+  }
+  ctx.drawImage(e.c, x, y, w, h);
+}
+
 function _cityBg() {
   if (_cityBg._c) return _cityBg._c;
   const rnd = (a, b) => a + Math.random() * (b - a);
@@ -1384,20 +1411,23 @@ function drawCityBuildings() {
   }
   ctx.globalAlpha = 1;
 
-  // ── Moon ─────────────────────────────────────────────────────────────────
-  const mX = 178, mY = 82;
-  const mg = ctx.createRadialGradient(mX, mY, 6, mX, mY, 140);
-  mg.addColorStop(0,   'rgba(190,206,244,0.32)');
-  mg.addColorStop(0.3, 'rgba(140,160,214,0.10)');
-  mg.addColorStop(1,   'rgba(110,130,190,0)');
-  ctx.fillStyle = mg;
-  ctx.fillRect(mX - 150, mY - 150, 300, 300);
-  ctx.fillStyle = '#dfe6fb';
-  ctx.beginPath(); ctx.arc(mX, mY, 26, 0, Math.PI * 2); ctx.fill();
-  ctx.fillStyle = 'rgba(158,168,206,0.45)';
-  ctx.beginPath(); ctx.arc(mX - 8, mY - 6, 6, 0, Math.PI * 2); ctx.fill();
-  ctx.beginPath(); ctx.arc(mX + 7, mY + 5, 4.5, 0, Math.PI * 2); ctx.fill();
-  ctx.beginPath(); ctx.arc(mX + 1, mY - 13, 3, 0, Math.PI * 2); ctx.fill();
+  // ── Moon (static: cached) ────────────────────────────────────────────────
+  _bgStaticLayer('city-moon', 0, 20, -70, 320, 310, (ctx) => {
+    const mX = 178, mY = 82;
+    const mg = ctx.createRadialGradient(mX, mY, 6, mX, mY, 140);
+    mg.addColorStop(0,   'rgba(190,206,244,0.32)');
+    mg.addColorStop(0.3, 'rgba(140,160,214,0.10)');
+    mg.addColorStop(1,   'rgba(110,130,190,0)');
+    ctx.fillStyle = mg;
+    ctx.fillRect(mX - 150, mY - 150, 300, 300);
+    ctx.fillStyle = '#dfe6fb';
+    ctx.beginPath(); ctx.arc(mX, mY, 26, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = 'rgba(158,168,206,0.45)';
+    ctx.beginPath(); ctx.arc(mX - 8, mY - 6, 6, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(mX + 7, mY + 5, 4.5, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(mX + 1, mY - 13, 3, 0, Math.PI * 2); ctx.fill();
+
+  });
 
   // ── Aircraft crossing high up ────────────────────────────────────────────
   for (const pl of bg.planes) {
@@ -1410,70 +1440,94 @@ function drawCityBuildings() {
     ctx.fillRect(px - (pl.spd > 0 ? 16 : 0), pl.y - 0.5, 16, 1);
   }
 
-  // ── Far band of towers ───────────────────────────────────────────────────
+  // ── Far band of towers (static: cached, parallax applied at blit) ────────
   ctx.save();
   ctx.translate(-camOff * 0.04, 0);
-  for (const b of bg.far) {
-    const top = GAME_H - b.h;
-    ctx.fillStyle = 'rgba(16,18,32,0.9)';
-    ctx.fillRect(b.x, top, b.w, b.h);
-    const cols = Math.max(2, Math.floor(b.w / 10));
-    const rows = Math.max(3, Math.floor(b.h / 16));
-    for (let r = 0; r < rows; r++) {
-      for (let c = 0; c < cols; c++) {
-        if (!b.lit[(r * cols + c) % b.lit.length]) continue;
-        ctx.fillStyle = 'rgba(190,205,255,0.14)';
-        ctx.fillRect(b.x + 3 + c * 10, top + 5 + r * 16, 4, 6);
+  _bgStaticLayer('city-far', bg.far, -60, GAME_H - 320, 1120, 320, (ctx) => {
+    for (const b of bg.far) {
+      const top = GAME_H - b.h;
+      ctx.fillStyle = 'rgba(16,18,32,0.9)';
+      ctx.fillRect(b.x, top, b.w, b.h);
+      const cols = Math.max(2, Math.floor(b.w / 10));
+      const rows = Math.max(3, Math.floor(b.h / 16));
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+          if (!b.lit[(r * cols + c) % b.lit.length]) continue;
+          ctx.fillStyle = 'rgba(190,205,255,0.14)';
+          ctx.fillRect(b.x + 3 + c * 10, top + 5 + r * 16, 4, 6);
+        }
       }
     }
-  }
+  });
   ctx.restore();
 
   // ── Near band (bgBuildings) with rooftop clutter ─────────────────────────
+  // Static pass (cached): towers, windows, clutter. Live pass: antenna lamps and
+  // neon flicker. Draw order between the two only differs where a tower overlaps
+  // a neighbour's parapet line.
+  let _nx0 = Infinity, _nx1 = -Infinity, _nh = 0;
+  for (const b of bgBuildings) { _nx0 = Math.min(_nx0, b.x); _nx1 = Math.max(_nx1, b.x + b.w); _nh = Math.max(_nh, b.h); }
+  if (_nx1 > _nx0) {
+    const _rx = Math.floor(_nx0) - 8, _rw = Math.ceil(_nx1 - _nx0) + 16;
+    const _ry = Math.floor(GAME_H - _nh - 80), _rh = GAME_H - _ry + 4;
+    _bgStaticLayer('city-near', bgBuildings, _rx, _ry, _rw, _rh, (ctx) => {
+      let ri = 0;
+      for (const b of bgBuildings) {
+        const shade = 14 + Math.floor(b.h / 20);
+        const top = GAME_H - b.h;
+        ctx.fillStyle = `rgb(${shade},${shade},${shade + 12})`;
+        ctx.fillRect(b.x, top, b.w, b.h);
+        // Lit face down one edge so the towers aren't flat slabs
+        ctx.fillStyle = 'rgba(255,255,255,0.035)';
+        ctx.fillRect(b.x, top, Math.min(8, b.w * 0.16), b.h);
+        for (const w of b.wins) {
+          ctx.fillStyle = w.on ? 'rgba(255,245,160,0.65)' : 'rgba(40,40,60,0.5)';
+          ctx.fillRect(w.x, w.y, 7, 9);
+        }
+        // Rooftop clutter — two items per building, taken off a fixed list
+        for (let k = 0; k < 2; k++) {
+          const it = bg.roof[(ri * 2 + k) % bg.roof.length];
+          const ix = b.x + 8 + it.u * Math.max(4, b.w - 20);
+          ctx.fillStyle = `rgb(${shade + 6},${shade + 6},${shade + 18})`;
+          if (it.kind === 0) {                         // water tank on legs
+            const tw = 13 * it.s, th = 15 * it.s;
+            ctx.fillRect(ix - tw * 0.5, top - th - 5, tw, th);
+            ctx.beginPath();
+            ctx.moveTo(ix - tw * 0.5, top - th - 5);
+            ctx.lineTo(ix, top - th - 11);
+            ctx.lineTo(ix + tw * 0.5, top - th - 5);
+            ctx.closePath();
+            ctx.fill();
+            ctx.fillRect(ix - tw * 0.4, top - 5, 2, 5);
+            ctx.fillRect(ix + tw * 0.4 - 2, top - 5, 2, 5);
+          } else if (it.kind === 1) {                  // AC unit
+            ctx.fillRect(ix - 9 * it.s, top - 8 * it.s, 18 * it.s, 8 * it.s);
+            ctx.fillStyle = `rgb(${shade + 14},${shade + 14},${shade + 26})`;
+            ctx.fillRect(ix - 6 * it.s, top - 10 * it.s, 12 * it.s, 2 * it.s);
+          } else {                                     // antenna mast (lamp is live)
+            const mh = 26 * it.s;
+            ctx.fillRect(ix - 1, top - mh, 2, mh);
+            ctx.fillRect(ix - 5, top - mh * 0.6, 10, 1.5);
+            ctx.fillRect(ix - 3.5, top - mh * 0.85, 7, 1.5);
+          }
+        }
+        ri++;
+      }
+    });
+  }
   let ri = 0;
   for (const b of bgBuildings) {
-    const shade = 14 + Math.floor(b.h / 20);
     const top = GAME_H - b.h;
-    ctx.fillStyle = `rgb(${shade},${shade},${shade + 12})`;
-    ctx.fillRect(b.x, top, b.w, b.h);
-    // Lit face down one edge so the towers aren't flat slabs
-    ctx.fillStyle = 'rgba(255,255,255,0.035)';
-    ctx.fillRect(b.x, top, Math.min(8, b.w * 0.16), b.h);
-    for (const w of b.wins) {
-      ctx.fillStyle = w.on ? 'rgba(255,245,160,0.65)' : 'rgba(40,40,60,0.5)';
-      ctx.fillRect(w.x, w.y, 7, 9);
-    }
-    // Rooftop clutter — two items per building, taken off a fixed list
     for (let k = 0; k < 2; k++) {
       const it = bg.roof[(ri * 2 + k) % bg.roof.length];
+      if (it.kind !== 2) continue;
       const ix = b.x + 8 + it.u * Math.max(4, b.w - 20);
-      ctx.fillStyle = `rgb(${shade + 6},${shade + 6},${shade + 18})`;
-      if (it.kind === 0) {                         // water tank on legs
-        const tw = 13 * it.s, th = 15 * it.s;
-        ctx.fillRect(ix - tw * 0.5, top - th - 5, tw, th);
-        ctx.beginPath();
-        ctx.moveTo(ix - tw * 0.5, top - th - 5);
-        ctx.lineTo(ix, top - th - 11);
-        ctx.lineTo(ix + tw * 0.5, top - th - 5);
-        ctx.closePath();
-        ctx.fill();
-        ctx.fillRect(ix - tw * 0.4, top - 5, 2, 5);
-        ctx.fillRect(ix + tw * 0.4 - 2, top - 5, 2, 5);
-      } else if (it.kind === 1) {                  // AC unit
-        ctx.fillRect(ix - 9 * it.s, top - 8 * it.s, 18 * it.s, 8 * it.s);
-        ctx.fillStyle = `rgb(${shade + 14},${shade + 14},${shade + 26})`;
-        ctx.fillRect(ix - 6 * it.s, top - 10 * it.s, 12 * it.s, 2 * it.s);
-      } else {                                     // antenna mast + warning lamp
-        const mh = 26 * it.s;
-        ctx.fillRect(ix - 1, top - mh, 2, mh);
-        ctx.fillRect(ix - 5, top - mh * 0.6, 10, 1.5);
-        ctx.fillRect(ix - 3.5, top - mh * 0.85, 7, 1.5);
-        const blip = 0.25 + Math.abs(Math.sin(f * 0.05 + it.blink)) * 0.75;
-        ctx.fillStyle = `rgba(255,70,60,${blip})`;
-        ctx.shadowColor = '#ff4638'; ctx.shadowBlur = 7;
-        ctx.beginPath(); ctx.arc(ix, top - mh, 2, 0, Math.PI * 2); ctx.fill();
-        ctx.shadowBlur = 0;
-      }
+      const mh = 26 * it.s;
+      const blip = 0.25 + Math.abs(Math.sin(f * 0.05 + it.blink)) * 0.75;
+      ctx.fillStyle = `rgba(255,70,60,${blip})`;
+      ctx.shadowColor = '#ff4638'; ctx.shadowBlur = 7;
+      ctx.beginPath(); ctx.arc(ix, top - mh, 2, 0, Math.PI * 2); ctx.fill();
+      ctx.shadowBlur = 0;
     }
     ri++;
     // Neon sign flicker on the taller buildings (kept)
@@ -2744,6 +2798,9 @@ function drawStoryVoidFog() {
   // below went NaN and createLinearGradient threw, taking the whole game loop
   // down through the error boundary.
   if (gameMode === 'battleroyale') return;
+  // Worlds whose below-floor space is a visible hazard (a lava field) opt out: the
+  // fog would paint the melt black.
+  if (currentArena.noVoidFog) return;
 
   // Find floor top: prefer isFloor-tagged platform, fall back to lowest platform
   let floorTopY = currentArena.deathY - 60;
@@ -3478,6 +3535,13 @@ function checkDeaths() {
   }
 }
 
+function _feedName(e) {
+  const n = e && (e.name || e.displayName || e.label);
+  if (n && n !== '?') return String(n);
+  const t = e && (e.charClass || e.enemyType || e.type || (e.constructor && e.constructor.name));
+  return t && t !== 'Object' ? String(t).replace(/[_-]+/g, ' ').toUpperCase() : 'ENEMY';
+}
+
 function addKillFeed(loser) {
   // Credit whoever landed the last hit. Story enemies live in minions[], so
   // "the other entry in players[]" found nobody there and printed "?".
@@ -3488,7 +3552,9 @@ function addKillFeed(loser) {
   const feed = document.getElementById('killFeed');
   const msg  = document.createElement('div');
   msg.className   = 'kill-msg';
-  msg.textContent = killer ? `${killer.name} KO'd ${loser.name}!` : `${loser.name} was KO'd!`;
+  // Unnamed attackers (story enemies, creatures) fall back to display name / type / class.
+  const _kn = killer ? _feedName(killer) : '';
+  msg.textContent = killer ? `${_kn} KO'd ${_feedName(loser)}!` : `${_feedName(loser)} was KO'd!`;
   msg.style.color = killer ? killer.color : '#fff';
   feed.prepend(msg);
   setTimeout(() => msg.remove(), 3200);
@@ -3529,7 +3595,12 @@ function endGame() {
   const bossEntity   = players.find(p => p.isBoss);
   const bossDefeated = isBossModeEnd && bossEntity && bossEntity.health <= 0;
   // In two-enemy story mode, multiple bots may still be alive — the winner is the surviving human
-  const _aliveHuman = alive.find(p => !p.isAI && !p.isBoss);
+  // F7 possession flips the human's fighter to isAI=true while the human still owns the slot,
+  // so "human" must mean human-OWNED, not !isAI (otherwise a possessed win scores as a loss).
+  const _isHumanOwned = p => !!p && (!p.isAI || (typeof SovereignControl !== 'undefined' && SovereignControl.active && SovereignControl._host === p));
+  const _aliveHuman = alive.find(p => _isHumanOwned(p) && !p.isBoss);
+  // God fight lives in minions[], so when every human is out, God (not a DRAW) took the match.
+  const _godFoe = (gameMode === 'god' && Array.isArray(minions)) ? minions.find(m => m && m.isGod && m.health > 0) : null;
   // Story ally in match: the ally surviving alongside the player must not block the win check
   const _allyInMatch = players.some(p => p.isStoryAlly);
   // If nobody is alive and it's not a boss fight, use first-death tracking to pick a winner.
@@ -3552,6 +3623,7 @@ function endGame() {
                : ((storyTwoEnemies || _allyInMatch) && _aliveHuman) ? _aliveHuman
                : alive.length === 1                        ? alive[0]
                : (alive.length === 0 && isBossModeEnd)     ? bossEntity
+               : (alive.length === 0 && _godFoe)           ? _godFoe
                : _tiebreakWinner                           ? _tiebreakWinner
                : null;
 
@@ -3709,7 +3781,7 @@ function endGame() {
   document.getElementById('gameOverOverlay').style.display = 'flex';
   // Boss Rush gauntlet: show "Next Boss" button when player wins
   if (typeof _updateBossRushNextBtn === 'function') {
-    const _playerWon = bossDefeated || !!(winner && !winner.isAI && !winner.isBoss);
+    const _playerWon = bossDefeated || !!(winner && _isHumanOwned(winner) && !winner.isBoss);
     _updateBossRushNextBtn(_playerWon);
   }
 
@@ -3718,13 +3790,13 @@ function endGame() {
     const isBossModeEnd2 = gameMode === 'boss' || gameMode === 'trueform';
     const playerWon = isBossModeEnd2
       ? bossDefeated
-      : !!(winner && !winner.isAI);
+      : !!(winner && _isHumanOwned(winner) && !winner.isBoss && !winner.isGod);
     storyOnMatchEnd(playerWon);
   }
 
   // Multiverse mode: report result so EncounterManager can advance
   if (gameMode === 'multiverse' && typeof multiverseOnMatchEnd === 'function') {
-    const playerWon = !!(winner && !winner.isAI);
+    const playerWon = !!(winner && _isHumanOwned(winner));
     multiverseOnMatchEnd(playerWon);
   }
 
@@ -4044,7 +4116,10 @@ function updateHUD() {
   const hudP2   = _trainingTarget !== null
     ? _trainingTarget
     : ((gameMode === 'boss' && bossPlayerCount === 2) ? nonBoss[1] : (boss || nonBoss[1]));
-  const hudPlayers = [hudP1, hudP2];
+  // Online guest: players[1] is the local fighter, so swap the panels to keep
+  // "P1" on the left meaning "me" on both clients.
+  const _hudSwap = onlineMode && !boss && hudP1 && hudP1.isRemote && hudP2 && !hudP2.isRemote;
+  const hudPlayers = _hudSwap ? [hudP2, hudP1] : [hudP1, hudP2];
 
   // Hide the p2 HUD panel whenever there is no second entity to display.
   // Story mode also hides it: those levels are one continuous map with several
@@ -4098,7 +4173,10 @@ function updateHUD() {
         _hudSet(lEl, 'html', full + empty);
       }
     }
-    if (nEl) _hudSet(nEl, 'color', _readableNameColor(p.color));
+    if (nEl) {
+      _hudSet(nEl, 'color', _readableNameColor(p.color));
+      if (_hudSwap && nEl.textContent !== p.name) nEl.textContent = p.name;
+    }
     const superTrack = sEl && sEl.parentElement;
     if (superTrack) _hudSet(superTrack, 'display', (storyModeActive && p._storyNoSuper) ? 'none' : '');
     if (sEl) {
@@ -4210,6 +4288,8 @@ function drawEntityOverlays(scX, scY, camX, camY) {
 
   for (const ent of all) {
     if (ent.backstageHiding) continue;
+    // God draws its own scaled purple/gold bar (God.draw); skip the default one so there aren't two.
+    if (ent.isGod && (ent._phase === 2 || ent._consoleSummoned)) continue;
     // Trial of Sense: a floating nameplate over an invisible body is a marker,
     // and a marker is the wallhack the reveal sweep exists to not be.
     if (ent._trialInvisible && ent.health > 0) continue;
@@ -4705,14 +4785,6 @@ function _drawPlayerPreview(pid, frame) {
   pc.scale(0.8, 0.8);
   pc.translate(-cx, -(baseY + 14));
 
-  pc.strokeStyle = color;
-  pc.fillStyle   = color;
-  pc.lineWidth   = 3.5;
-  pc.lineCap     = 'round';
-  pc.lineJoin    = 'round';
-  pc.shadowColor = auraColor;
-  pc.shadowBlur  = 8;
-
   const headR    = 10;
   const headCY   = baseY - 48;
   const neckY    = headCY + headR + 1;
@@ -4731,54 +4803,43 @@ function _drawPlayerPreview(pid, frame) {
   const lEx   = cx + Math.cos(lAng) * armLen;
   const lEy   = shouldY + Math.sin(lAng) * armLen;
 
-  // Head
-  pc.beginPath();
-  pc.arc(cx, headCY, headR, 0, Math.PI * 2);
-  pc.fill();
-
-  // Eyes
-  pc.fillStyle = '#fff';
-  pc.beginPath();
-  pc.arc(cx + 4, headCY - 2, 2.8, 0, Math.PI * 2);
-  pc.fill();
-  pc.fillStyle = '#111';
-  pc.beginPath();
-  pc.arc(cx + 5, headCY - 2, 1.5, 0, Math.PI * 2);
-  pc.fill();
-
-  // Smile
-  pc.strokeStyle = 'rgba(0,0,0,0.5)';
-  pc.lineWidth   = 1.4;
-  pc.beginPath();
-  pc.arc(cx + 4, headCY + 3, 3, 0, Math.PI, true);
-  pc.stroke();
-
-  // Reset stroke for body/limbs
-  pc.strokeStyle = color;
-  pc.lineWidth   = 3.5;
-
-  // Body
-  pc.beginPath();
-  pc.moveTo(cx, neckY);
-  pc.lineTo(cx, hipY);
-  pc.stroke();
-
-  // Arms (2-segment with elbows)
+  // Same model as in a match: FigureSkin geometry and paint (black body, outline
+  // in the fighter's colour, dark eyes), so the preview matches the fighter.
   const _lj = (ax, ay, bx, by, ox, oy) => [(ax+bx)*0.5 + ox, (ay+by)*0.5 + oy];
   const [rElbX, rElbY] = _lj(cx, shouldY, rEx, rEy, 4, -2);
   const [lElbX, lElbY] = _lj(cx, shouldY, lEx, lEy, 4, -2);
-  pc.beginPath(); pc.moveTo(cx, shouldY); pc.lineTo(rElbX, rElbY); pc.lineTo(rEx, rEy); pc.stroke();
-  pc.beginPath(); pc.moveTo(cx, shouldY); pc.lineTo(lElbX, lElbY); pc.lineTo(lEx, lEy); pc.stroke();
-
-  // Legs
   const rFootX = cx + Math.cos(Math.PI * 0.62) * legLen;
   const rFootY = hipY + Math.sin(Math.PI * 0.62) * legLen;
   const lFootX = cx + Math.cos(Math.PI * 0.38) * legLen;
   const lFootY = hipY + Math.sin(Math.PI * 0.38) * legLen;
   const [rKnX, rKnY] = _lj(cx, hipY, rFootX, rFootY, 4, 0);
   const [lKnX, lKnY] = _lj(cx, hipY, lFootX, lFootY, 4, 0);
-  pc.beginPath(); pc.moveTo(cx, hipY); pc.lineTo(rKnX, rKnY); pc.lineTo(rFootX, rFootY); pc.stroke();
-  pc.beginPath(); pc.moveTo(cx, hipY); pc.lineTo(lKnX, lKnY); pc.lineTo(lFootX, lFootY); pc.stroke();
+
+  if (typeof FigureSkin !== 'undefined') {
+    const LW = FIG_LINE_W, f = 1, off = -1.6;
+    const pal  = FigureSkin.pal(color);
+    const near = FigureSkin.begin();
+    const far  = FigureSkin.begin();
+    FigureSkin.segment(near, [{ x: cx, y: headCY + headR * 0.55 }, { x: cx, y: shouldY - 1 }], [LW * 0.55, LW * 0.92]);
+    FigureSkin.head(near, cx, headCY, headR, f);
+    FigureSkin.segment(far, [{ x: cx + off, y: shouldY }, { x: lElbX + off, y: lElbY }, { x: lEx + off, y: lEy }],
+      [LW * 1.02, LW * 0.82, LW * 0.62]);
+    FigureSkin.hand(far, lEx + off, lEy, lAng, f, 0.85);
+    FigureSkin.segment(near, [{ x: cx, y: shouldY }, { x: cx, y: (shouldY + hipY) * 0.5 }, { x: cx, y: hipY }],
+      [LW * 1.85, LW * 1.45, LW * 1.30]);
+    FigureSkin.segment(near, [{ x: cx, y: shouldY }, { x: rElbX, y: rElbY }, { x: rEx, y: rEy }],
+      [LW * 1.15, LW * 0.92, LW * 0.70], true);
+    FigureSkin.hand(near, rEx, rEy, rAng, f, 1);
+    FigureSkin.segment(far, [{ x: cx + off, y: hipY }, { x: lKnX + off, y: lKnY }, { x: lFootX + off, y: lFootY }],
+      [LW * 1.16, LW * 0.90, LW * 0.68]);
+    FigureSkin.foot(far, lFootX + off, lFootY + 1.2, Math.PI * 0.38, f);
+    FigureSkin.segment(near, [{ x: cx, y: hipY }, { x: rKnX, y: rKnY }, { x: rFootX, y: rFootY }],
+      [LW * 1.30, LW * 1.00, LW * 0.76], true);
+    FigureSkin.foot(near, rFootX, rFootY + 1.2, Math.PI * 0.62, f);
+    FigureSkin.paint(far, pal, true, pc);
+    FigureSkin.paint(near, pal, false, pc);
+    FigureSkin.face(pal, cx, headCY, headR, f, { lookX: 0.6, lookY: 0.2 }, pc);
+  }
 
   // Equipped weapon in the right hand, painted by the real in-match drawWeapon()
   // so the preview can never drift from what the fighter carries in a fight.

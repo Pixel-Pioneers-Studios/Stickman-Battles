@@ -78,10 +78,14 @@
       // Uplink console and Veran kneeling at it
       ctx.fillStyle = '#2e2850'; ctx.fillRect(MAST - 150, G - 50, 70, 50);
       ctx.fillStyle = 'rgba(120,255,220,0.5)'; ctx.fillRect(MAST - 144, G - 46, 58, 20);
+      // Painted Veran only when the escort isn't running — otherwise the real
+      // one walks here with you (escortGoalX in the chapter def).
+      if (!(typeof escortActive !== 'undefined' && escortActive)) {
       const vx = MAST - 60;
       ctx.strokeStyle = '#4488dd'; ctx.lineWidth = 3;
       ctx.beginPath(); ctx.arc(vx, G - 44, 8, 0, Math.PI * 2); ctx.moveTo(vx, G - 36); ctx.lineTo(vx + 2, G - 16); ctx.lineTo(vx + 14, G - 12); ctx.lineTo(vx + 14, G);
       ctx.moveTo(vx + 2, G - 16); ctx.lineTo(vx - 10, G); ctx.moveTo(vx, G - 30); ctx.lineTo(vx - 20, G - 34); ctx.stroke();
+      }
       ctx.fillStyle = 'rgba(10,8,24,0.75)'; ctx.fillRect(MAST - 110, G - 220, 220, 46);
       ctx.fillStyle = '#2a6050'; ctx.fillRect(MAST - 96, G - 194, 192, 10);
       ctx.fillStyle = '#88ffcc'; ctx.fillRect(MAST - 96, G - 194, 192 * p, 10);

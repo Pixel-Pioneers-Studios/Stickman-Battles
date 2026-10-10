@@ -199,6 +199,8 @@ STORY_CHAPTER_REGISTRY.push(
     armor: ['helmet', 'chestplate'],
     playerLives: 3,
     arena: 'lava',
+    walkFight: true, worldLength: 6000, style: 'lava',
+    objectX: 5800, objectName: 'Relay Station',
     tokenReward: 45, blueprintDrop: null,
     postText: 'The relay station is ahead. The lava closes behind you. There\'s no going back.',
   },

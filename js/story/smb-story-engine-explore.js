@@ -425,6 +425,14 @@ function _storyScaleEnemyUnit(unit, chapterId, opts = {}) {
       unit.aiDiff = _STORY_AI_RANK[Math.min(3, _STORY_AI_RANK.indexOf(diff.ai) + (elite ? 1 : 0))];
     }
   }
+  // A branch chapter's playable beat (see _playChapterBeat) is a beat, not a full
+  // chapter fight: `beatScale` (0..1) trims its enemies' health and damage.
+  const _bs = (typeof _activeStory2Chapter !== 'undefined' && _activeStory2Chapter) ? _activeStory2Chapter.beatScale : 0;
+  if (_bs > 0 && _bs < 1 && !unit.isBoss) {
+    unit.maxHealth = Math.max(1, Math.round(unit.maxHealth * _bs));
+    unit.health    = unit.maxHealth;
+    unit.dmgMult   = unit.dmgMult * Math.max(0.5, _bs);
+  }
   return unit;
 }
 
@@ -586,7 +594,7 @@ function _launchExplorationChapter(ch) {
     platColor:     ch.platColor   || (_level && _level.platColor)   || (_theme && _theme.platColor)   || '#445566',
     platEdge:      ch.platEdge    || (_theme && _theme.platEdge)    || null,
     themeKey:      (_theme && ch.arena) || null,
-    storyLevel:    _level ? ch.id : null,
+    storyLevel:    _level ? ((typeof storyLevelId === 'function') ? storyLevelId(ch) : ch.id) : null,
     // Region: each member chapter with an authored map draws its own segment.
     storyRegion:   (_region && typeof STORY_LEVELS !== 'undefined')
       ? _region.chapters.map((cid, i) => ({ id: cid, off: i * _region.segLen, len: _region.segLen })).filter(sg => STORY_LEVELS[sg.id])
@@ -610,6 +618,9 @@ function _launchExplorationChapter(ch) {
     exploreStyle:  ch.style || 'city',
     platforms:     plats,
   };
+  // Authored hazard rules (e.g. a lava crossing): damage-bearing arena props that
+  // the theme inheritance above deliberately does not carry over.
+  if (_level && _level.exploreProps) Object.assign(ARENAS[arenaKey], _level.exploreProps);
   if (_earth) {
     // Underground layer: no void beneath earth worlds — bedrock seals the world,
     // the death plane sits far below as a failsafe, and the camera may pan down
@@ -647,8 +658,12 @@ function _launchExplorationChapter(ch) {
   exploreGoalBlockReason = '';
   window._exploreForceSpawnAll = false;
   if (typeof _storyResetLevelWin === 'function') _storyResetLevelWin();
+  if (typeof storySidequestsReset === 'function') storySidequestsReset();
   exploreCheckpoints = [];
   exploreCheckpointIdx = -1;
+  // Authored spawn: a map whose raised ledges would win pickSafeSpawn (and may hang
+  // over a hazard) names the x the player should start on.
+  if (_level && _level.startX != null) exploreStartX = _level.startX;
   if (_region) {
     // One duel checkpoint per segment, each carrying its own chapter's opponent.
     // Checkpoints behind the launched chapter's segment start pre-hit so walking
@@ -675,7 +690,10 @@ function _launchExplorationChapter(ch) {
   } else {
     // Duel (walk→fight) chapters always get exactly ONE checkpoint — it hosts the
     // chapter's authored duel; more would replay the same opponent per checkpoint.
-    const checkpointCount = (ch.walkFight === true || ch.exploreMode === 'duel') ? 1
+    // noCheckpointFights: a branch chapter's playable beat (see _playChapterBeat) has no
+    // generic arena-lock waves; its authored enemies are the whole encounter.
+    const checkpointCount = ch.noCheckpointFights ? 0
+      : (ch.walkFight === true || ch.exploreMode === 'duel') ? 1
       : (ch.worldLength >= 5200 ? 2 : 1);
     for (let i = 1; i <= checkpointCount; i++) {
       exploreCheckpoints.push({ x: Math.floor((worldLen * i) / (checkpointCount + 1)), hit: false });
@@ -823,6 +841,21 @@ function _launchExplorationChapter(ch) {
           key: _key,
         });
       });
+      // Authored extras (level.loot): off-path chests behind a jump, and richer
+      // ones watched by an OPTIONAL elite (isChestGuardian — exempt from the
+      // clear gate, leashed to its post). Keyed ':x<id>' so the c0/c1 star keys
+      // are untouched.
+      const _lvLoot = (typeof STORY_LEVELS !== 'undefined' && STORY_LEVELS[seg.cid] && typeof STORY_LEVELS[seg.cid].loot === 'function')
+        ? STORY_LEVELS[seg.cid].loot(seg.len) : [];
+      (_lvLoot || []).forEach(d => {
+        const _gs = (d.guards || []).map(g => Object.assign({}, g, { x: seg.off + g.x }));
+        _loot.push({
+          x: seg.off + d.x, y: d.y, type: 'chest', tier: d.tier || 'minor', icon: '🧰',
+          underground: false, guards: _gs, guarded: _gs.length > 0, _guardSpawned: false,
+          contents: d.contents || (d.tier === 'elite' ? { tokens: 40, exp: 45, heal: 100 } : { tokens: 15, exp: 18 }),
+          key: seg.cid + ':x' + d.id,
+        });
+      });
       _loot.forEach(it => {
         it.collected = !!_story2.lootTaken[it.key];
         explorePickups.push(it);
@@ -900,9 +933,14 @@ function _launchExplorationChapter(ch) {
   if (typeof selectLives === 'function') selectLives(ch.playerLives || 3);
   infiniteMode = false;
 
+  // A stale escort from an earlier level must not follow the player in here.
+  if (typeof escortCleanup === 'function') escortCleanup();
+  if (typeof escortArm === 'function') escortArm(ch.escortNPC ? ch : null);
   startGame();
   setTimeout(() => {
     if (players[0]) _applySkillTreeToPlayer(players[0]);
+    // Optional side objectives (smb-story-sidequests.js) — need the arena and the player
+    if (typeof storySidequestsArm === 'function') storySidequestsArm(ch);
     // Initialise special explore modes after players[] is populated
     if (_exploreMode === 'stealth'  && typeof initStealthMode  === 'function') initStealthMode(ch);
     if (_exploreMode === 'escape'   && typeof initEscapeMode   === 'function') initEscapeMode(ch);

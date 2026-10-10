@@ -1,0 +1,7 @@
+[league 2026-10-10T15:07:36.002Z] start: 8 h, main iter 9334, backup data/brain/pre-league-1791644855990, hunters data/brain-hunter,data/brain-hunter2,data/brain-hunter3
+[league 2026-10-10T15:07:36.271Z] MAIN (candidate data/brain-cand) from shipped iter 9334 vs data/brain-hunter,data/brain-hunter2,data/brain-hunter3 for 7.90 h
+[league 2026-10-10T15:09:38.911Z] train.js exited 1; retrying in 60 s
+[league 2026-10-10T15:13:32.176Z] train.js exited 1; giving up on this phase
+[league 2026-10-10T15:13:41.380Z] SIGINT: stopping current phase
+[league 2026-10-10T15:14:32.209Z] candidate done at iter 9334
+[league 2026-10-10T15:14:32.221Z] end: main iter 9334, gate 0 shipped / 0 rejected, hunters data/brain-hunter,data/brain-hunter2,data/brain-hunter3

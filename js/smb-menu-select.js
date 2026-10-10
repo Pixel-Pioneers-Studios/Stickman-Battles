@@ -91,6 +91,21 @@ function _buildSelCardGrid(gridId, selectId, cardData, pid, type) {
       `<span class="sel-card-icon">${iconSvg}</span>` +
       `<span class="sel-card-name">${name}</span>` +
       `<span class="sel-card-tag">${info.tag}</span>`;
+    // Move preview (smb-move-preview.js): a small play button on every stock
+    // weapon / class card. stopPropagation keeps the click from selecting the card.
+    if (typeof mpCanPreview === 'function' && mpCanPreview(type, val)) {
+      const pv = document.createElement('button');
+      pv.type = 'button';
+      pv.className = 'sel-card-preview';
+      pv.title = 'Watch a preview';
+      pv.setAttribute('aria-label', 'Watch a preview of ' + name);
+      pv.innerHTML = '<svg viewBox="0 0 10 10" width="9" height="9" aria-hidden="true"><path d="M2.5 1.5 L8 5 L2.5 8.5 Z" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linejoin="round"/></svg>';
+      pv.addEventListener('click', ev => {
+        ev.stopPropagation();
+        if (typeof startMovePreview === 'function') startMovePreview(type, val);
+      });
+      card.appendChild(pv);
+    }
     card.addEventListener('click', () => {
       sel.value = val;
       _syncSelCards(gridId, val);
@@ -419,7 +434,7 @@ function switchArena(newKey) {
   // Clear arena-specific NPCs and items — they belong to their home arena
   if (typeof forestBeast !== 'undefined') { forestBeast = null; forestBeastCooldown = 600; }
   if (typeof yeti        !== 'undefined') { yeti        = null; yetiCooldown        = 600; }
-  if (typeof mapItems    !== 'undefined') mapItems = [];
+  // mapItems is cleared and re-seeded by initMapPerks() above; do not wipe it here.
   // Assign safe spawn positions for ALL players on the new map.
   // Alive players are repositioned immediately.
   // Dead players only get spawnX/spawnY updated so their pending respawn()

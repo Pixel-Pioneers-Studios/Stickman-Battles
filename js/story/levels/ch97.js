@@ -20,10 +20,18 @@
   const MIRRORS = [-320, -220, -120, 120, 220, 320];
   const CRACKS = [1800, 4680];
 
+  // Optional loot (see _slStashPlats / level.loot in smb-story-levels.js): a hidden cache
+  // one jump off the route, and a better one held by an OPTIONAL elite.
+  const STASH = [
+    { id: 'a', x: 2050, y: 250, w: 140, steps: [[1980, 345, 90]] },
+    { id: 'b', x: 4270, y: 250, w: 190, steps: [[4200, 345, 90]], gx: 60, guard: { name: 'Court Shade', weaponKey: 'spear', classKey: 'warrior', health: 165, color: '#6a6a8a' } },
+  ];
+
   function layout() {
     const P = [];
     for (const [x, y, w] of CLIMB) _slLedge(P, x, y, w);
     _slLedge(P, RING - 340, 360, 100); _slLedge(P, RING + 240, 360, 100);
+    _slStashPlats(P, STASH);
     return P;
   }
 
@@ -90,10 +98,12 @@
     if (ph === 'back') { ctx.fillStyle = 'rgba(5,5,8,0.75)'; ctx.fillRect(v.x - 20, G - 20, v.w + 40, 20); }
   }
 
+  function loot() { return _slStashLoot(STASH); }
+
   STORY_LEVELS[97] = {
     sky: ['#030305', '#07070b', '#0c0c12'],
     groundColor: '#0e0e13',
     platColor: '#121218',
-    layout, backdrop, back, surface,
+    layout, loot, backdrop, back, surface,
   };
 })();

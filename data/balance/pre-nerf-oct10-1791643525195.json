@@ -1,0 +1,1060 @@
+{
+ "LABEL": "pre-nerf-oct10",
+ "MODE": "weapons",
+ "BRAIN": "sovereign",
+ "MATCHES": 8,
+ "PATCH": {},
+ "ents": [
+  "sword",
+  "hammer",
+  "axe",
+  "spear",
+  "shield",
+  "scythe",
+  "fryingpan",
+  "broomstick",
+  "combat",
+  "flail",
+  "whip",
+  "katana",
+  "electricstaff",
+  "glassblade",
+  "anchor"
+ ],
+ "st": {
+  "sword": {
+   "w": 79,
+   "l": 33,
+   "d": 0,
+   "n": 112,
+   "dFor": 50732,
+   "dAg": 44982,
+   "f": 193931
+  },
+  "hammer": {
+   "w": 45,
+   "l": 67,
+   "d": 0,
+   "n": 112,
+   "dFor": 46565,
+   "dAg": 49037,
+   "f": 207685
+  },
+  "axe": {
+   "w": 69,
+   "l": 43,
+   "d": 0,
+   "n": 112,
+   "dFor": 49205,
+   "dAg": 44859,
+   "f": 161300
+  },
+  "spear": {
+   "w": 70,
+   "l": 42,
+   "d": 0,
+   "n": 112,
+   "dFor": 50813,
+   "dAg": 46641,
+   "f": 157451
+  },
+  "shield": {
+   "w": 44,
+   "l": 68,
+   "d": 0,
+   "n": 112,
+   "dFor": 46823,
+   "dAg": 50261,
+   "f": 200200
+  },
+  "scythe": {
+   "w": 54,
+   "l": 58,
+   "d": 0,
+   "n": 112,
+   "dFor": 49037,
+   "dAg": 47801,
+   "f": 206984
+  },
+  "fryingpan": {
+   "w": 45,
+   "l": 67,
+   "d": 0,
+   "n": 112,
+   "dFor": 45243,
+   "dAg": 49579,
+   "f": 206371
+  },
+  "broomstick": {
+   "w": 73,
+   "l": 39,
+   "d": 0,
+   "n": 112,
+   "dFor": 51742,
+   "dAg": 46453,
+   "f": 222602
+  },
+  "combat": {
+   "w": 30,
+   "l": 82,
+   "d": 0,
+   "n": 112,
+   "dFor": 44154,
+   "dAg": 51481,
+   "f": 147535
+  },
+  "flail": {
+   "w": 44,
+   "l": 68,
+   "d": 0,
+   "n": 112,
+   "dFor": 45538,
+   "dAg": 49855,
+   "f": 212935
+  },
+  "whip": {
+   "w": 70,
+   "l": 42,
+   "d": 0,
+   "n": 112,
+   "dFor": 52170,
+   "dAg": 48302,
+   "f": 244689
+  },
+  "katana": {
+   "w": 57,
+   "l": 55,
+   "d": 0,
+   "n": 112,
+   "dFor": 50289,
+   "dAg": 51029,
+   "f": 225442
+  },
+  "electricstaff": {
+   "w": 75,
+   "l": 37,
+   "d": 0,
+   "n": 112,
+   "dFor": 51264,
+   "dAg": 47111,
+   "f": 161695
+  },
+  "glassblade": {
+   "w": 39,
+   "l": 73,
+   "d": 0,
+   "n": 112,
+   "dFor": 47915,
+   "dAg": 50412,
+   "f": 140203
+  },
+  "anchor": {
+   "w": 46,
+   "l": 66,
+   "d": 0,
+   "n": 112,
+   "dFor": 46479,
+   "dAg": 50166,
+   "f": 195353
+  }
+ },
+ "mir": {
+  "sword": {
+   "a": 3,
+   "b": 5,
+   "d": 0
+  },
+  "hammer": {
+   "a": 2,
+   "b": 6,
+   "d": 0
+  },
+  "axe": {
+   "a": 3,
+   "b": 5,
+   "d": 0
+  },
+  "spear": {
+   "a": 7,
+   "b": 1,
+   "d": 0
+  },
+  "shield": {
+   "a": 4,
+   "b": 4,
+   "d": 0
+  },
+  "scythe": {
+   "a": 2,
+   "b": 6,
+   "d": 0
+  },
+  "fryingpan": {
+   "a": 5,
+   "b": 3,
+   "d": 0
+  },
+  "broomstick": {
+   "a": 2,
+   "b": 6,
+   "d": 0
+  },
+  "combat": {
+   "a": 4,
+   "b": 4,
+   "d": 0
+  },
+  "flail": {
+   "a": 3,
+   "b": 5,
+   "d": 0
+  },
+  "whip": {
+   "a": 4,
+   "b": 4,
+   "d": 0
+  },
+  "katana": {
+   "a": 3,
+   "b": 5,
+   "d": 0
+  },
+  "electricstaff": {
+   "a": 4,
+   "b": 4,
+   "d": 0
+  },
+  "glassblade": {
+   "a": 5,
+   "b": 3,
+   "d": 0
+  },
+  "anchor": {
+   "a": 6,
+   "b": 2,
+   "d": 0
+  }
+ },
+ "cell": {
+  "sword|shield": {
+   "aw": 5,
+   "bw": 3,
+   "d": 0
+  },
+  "sword|combat": {
+   "aw": 7,
+   "bw": 1,
+   "d": 0
+  },
+  "sword|electricstaff": {
+   "aw": 2,
+   "bw": 6,
+   "d": 0
+  },
+  "hammer|axe": {
+   "aw": 2,
+   "bw": 6,
+   "d": 0
+  },
+  "hammer|fryingpan": {
+   "aw": 5,
+   "bw": 3,
+   "d": 0
+  },
+  "hammer|whip": {
+   "aw": 4,
+   "bw": 4,
+   "d": 0
+  },
+  "hammer|anchor": {
+   "aw": 4,
+   "bw": 4,
+   "d": 0
+  },
+  "axe|scythe": {
+   "aw": 7,
+   "bw": 1,
+   "d": 0
+  },
+  "axe|flail": {
+   "aw": 5,
+   "bw": 3,
+   "d": 0
+  },
+  "axe|glassblade": {
+   "aw": 7,
+   "bw": 1,
+   "d": 0
+  },
+  "spear|scythe": {
+   "aw": 5,
+   "bw": 3,
+   "d": 0
+  },
+  "spear|flail": {
+   "aw": 7,
+   "bw": 1,
+   "d": 0
+  },
+  "spear|glassblade": {
+   "aw": 8,
+   "bw": 0,
+   "d": 0
+  },
+  "shield|fryingpan": {
+   "aw": 4,
+   "bw": 4,
+   "d": 0
+  },
+  "shield|whip": {
+   "aw": 1,
+   "bw": 7,
+   "d": 0
+  },
+  "shield|anchor": {
+   "aw": 3,
+   "bw": 5,
+   "d": 0
+  },
+  "scythe|combat": {
+   "aw": 8,
+   "bw": 0,
+   "d": 0
+  },
+  "scythe|electricstaff": {
+   "aw": 3,
+   "bw": 5,
+   "d": 0
+  },
+  "fryingpan|broomstick": {
+   "aw": 3,
+   "bw": 5,
+   "d": 0
+  },
+  "fryingpan|katana": {
+   "aw": 3,
+   "bw": 5,
+   "d": 0
+  },
+  "broomstick|katana": {
+   "aw": 3,
+   "bw": 5,
+   "d": 0
+  },
+  "combat|electricstaff": {
+   "aw": 0,
+   "bw": 8,
+   "d": 0
+  },
+  "flail|whip": {
+   "aw": 2,
+   "bw": 6,
+   "d": 0
+  },
+  "flail|anchor": {
+   "aw": 6,
+   "bw": 2,
+   "d": 0
+  },
+  "whip|glassblade": {
+   "aw": 4,
+   "bw": 4,
+   "d": 0
+  },
+  "katana|glassblade": {
+   "aw": 3,
+   "bw": 5,
+   "d": 0
+  },
+  "electricstaff|anchor": {
+   "aw": 7,
+   "bw": 1,
+   "d": 0
+  },
+  "sword|hammer": {
+   "aw": 7,
+   "bw": 1,
+   "d": 0
+  },
+  "sword|scythe": {
+   "aw": 6,
+   "bw": 2,
+   "d": 0
+  },
+  "sword|flail": {
+   "aw": 8,
+   "bw": 0,
+   "d": 0
+  },
+  "sword|glassblade": {
+   "aw": 5,
+   "bw": 3,
+   "d": 0
+  },
+  "hammer|spear": {
+   "aw": 1,
+   "bw": 7,
+   "d": 0
+  },
+  "hammer|broomstick": {
+   "aw": 4,
+   "bw": 4,
+   "d": 0
+  },
+  "hammer|katana": {
+   "aw": 5,
+   "bw": 3,
+   "d": 0
+  },
+  "axe|fryingpan": {
+   "aw": 7,
+   "bw": 1,
+   "d": 0
+  },
+  "axe|whip": {
+   "aw": 1,
+   "bw": 7,
+   "d": 0
+  },
+  "axe|anchor": {
+   "aw": 4,
+   "bw": 4,
+   "d": 0
+  },
+  "spear|fryingpan": {
+   "aw": 5,
+   "bw": 3,
+   "d": 0
+  },
+  "spear|whip": {
+   "aw": 2,
+   "bw": 6,
+   "d": 0
+  },
+  "spear|anchor": {
+   "aw": 5,
+   "bw": 3,
+   "d": 0
+  },
+  "shield|broomstick": {
+   "aw": 2,
+   "bw": 6,
+   "d": 0
+  },
+  "shield|katana": {
+   "aw": 2,
+   "bw": 6,
+   "d": 0
+  },
+  "scythe|flail": {
+   "aw": 5,
+   "bw": 3,
+   "d": 0
+  },
+  "scythe|glassblade": {
+   "aw": 5,
+   "bw": 3,
+   "d": 0
+  },
+  "fryingpan|combat": {
+   "aw": 3,
+   "bw": 5,
+   "d": 0
+  },
+  "fryingpan|electricstaff": {
+   "aw": 6,
+   "bw": 2,
+   "d": 0
+  },
+  "broomstick|combat": {
+   "aw": 6,
+   "bw": 2,
+   "d": 0
+  },
+  "broomstick|electricstaff": {
+   "aw": 5,
+   "bw": 3,
+   "d": 0
+  },
+  "combat|flail": {
+   "aw": 5,
+   "bw": 3,
+   "d": 0
+  },
+  "combat|glassblade": {
+   "aw": 4,
+   "bw": 4,
+   "d": 0
+  },
+  "flail|katana": {
+   "aw": 3,
+   "bw": 5,
+   "d": 0
+  },
+  "whip|anchor": {
+   "aw": 6,
+   "bw": 2,
+   "d": 0
+  },
+  "katana|anchor": {
+   "aw": 2,
+   "bw": 6,
+   "d": 0
+  },
+  "sword|axe": {
+   "aw": 5,
+   "bw": 3,
+   "d": 0
+  },
+  "sword|fryingpan": {
+   "aw": 7,
+   "bw": 1,
+   "d": 0
+  },
+  "sword|whip": {
+   "aw": 5,
+   "bw": 3,
+   "d": 0
+  },
+  "sword|anchor": {
+   "aw": 7,
+   "bw": 1,
+   "d": 0
+  },
+  "hammer|shield": {
+   "aw": 3,
+   "bw": 5,
+   "d": 0
+  },
+  "hammer|combat": {
+   "aw": 5,
+   "bw": 3,
+   "d": 0
+  },
+  "hammer|electricstaff": {
+   "aw": 2,
+   "bw": 6,
+   "d": 0
+  },
+  "axe|spear": {
+   "aw": 3,
+   "bw": 5,
+   "d": 0
+  },
+  "axe|broomstick": {
+   "aw": 4,
+   "bw": 4,
+   "d": 0
+  },
+  "axe|katana": {
+   "aw": 5,
+   "bw": 3,
+   "d": 0
+  },
+  "spear|broomstick": {
+   "aw": 4,
+   "bw": 4,
+   "d": 0
+  },
+  "spear|katana": {
+   "aw": 5,
+   "bw": 3,
+   "d": 0
+  },
+  "shield|combat": {
+   "aw": 6,
+   "bw": 2,
+   "d": 0
+  },
+  "shield|electricstaff": {
+   "aw": 3,
+   "bw": 5,
+   "d": 0
+  },
+  "scythe|fryingpan": {
+   "aw": 4,
+   "bw": 4,
+   "d": 0
+  },
+  "scythe|whip": {
+   "aw": 1,
+   "bw": 7,
+   "d": 0
+  },
+  "scythe|anchor": {
+   "aw": 7,
+   "bw": 1,
+   "d": 0
+  },
+  "fryingpan|flail": {
+   "aw": 3,
+   "bw": 5,
+   "d": 0
+  },
+  "fryingpan|glassblade": {
+   "aw": 6,
+   "bw": 2,
+   "d": 0
+  },
+  "broomstick|flail": {
+   "aw": 6,
+   "bw": 2,
+   "d": 0
+  },
+  "broomstick|glassblade": {
+   "aw": 8,
+   "bw": 0,
+   "d": 0
+  },
+  "combat|whip": {
+   "aw": 3,
+   "bw": 5,
+   "d": 0
+  },
+  "combat|anchor": {
+   "aw": 3,
+   "bw": 5,
+   "d": 0
+  },
+  "flail|electricstaff": {
+   "aw": 4,
+   "bw": 4,
+   "d": 0
+  },
+  "whip|katana": {
+   "aw": 2,
+   "bw": 6,
+   "d": 0
+  },
+  "glassblade|anchor": {
+   "aw": 3,
+   "bw": 5,
+   "d": 0
+  },
+  "sword|spear": {
+   "aw": 6,
+   "bw": 2,
+   "d": 0
+  },
+  "sword|broomstick": {
+   "aw": 2,
+   "bw": 6,
+   "d": 0
+  },
+  "sword|katana": {
+   "aw": 7,
+   "bw": 1,
+   "d": 0
+  },
+  "hammer|scythe": {
+   "aw": 4,
+   "bw": 4,
+   "d": 0
+  },
+  "hammer|flail": {
+   "aw": 2,
+   "bw": 6,
+   "d": 0
+  },
+  "hammer|glassblade": {
+   "aw": 3,
+   "bw": 5,
+   "d": 0
+  },
+  "axe|shield": {
+   "aw": 7,
+   "bw": 1,
+   "d": 0
+  },
+  "axe|combat": {
+   "aw": 7,
+   "bw": 1,
+   "d": 0
+  },
+  "axe|electricstaff": {
+   "aw": 3,
+   "bw": 5,
+   "d": 0
+  },
+  "spear|shield": {
+   "aw": 6,
+   "bw": 2,
+   "d": 0
+  },
+  "spear|combat": {
+   "aw": 7,
+   "bw": 1,
+   "d": 0
+  },
+  "spear|electricstaff": {
+   "aw": 2,
+   "bw": 6,
+   "d": 0
+  },
+  "shield|scythe": {
+   "aw": 3,
+   "bw": 5,
+   "d": 0
+  },
+  "shield|flail": {
+   "aw": 5,
+   "bw": 3,
+   "d": 0
+  },
+  "shield|glassblade": {
+   "aw": 4,
+   "bw": 4,
+   "d": 0
+  },
+  "scythe|broomstick": {
+   "aw": 2,
+   "bw": 6,
+   "d": 0
+  },
+  "scythe|katana": {
+   "aw": 4,
+   "bw": 4,
+   "d": 0
+  },
+  "fryingpan|whip": {
+   "aw": 1,
+   "bw": 7,
+   "d": 0
+  },
+  "fryingpan|anchor": {
+   "aw": 4,
+   "bw": 4,
+   "d": 0
+  },
+  "broomstick|whip": {
+   "aw": 5,
+   "bw": 3,
+   "d": 0
+  },
+  "broomstick|anchor": {
+   "aw": 5,
+   "bw": 3,
+   "d": 0
+  },
+  "combat|katana": {
+   "aw": 0,
+   "bw": 8,
+   "d": 0
+  },
+  "flail|glassblade": {
+   "aw": 3,
+   "bw": 5,
+   "d": 0
+  },
+  "whip|electricstaff": {
+   "aw": 3,
+   "bw": 5,
+   "d": 0
+  },
+  "katana|electricstaff": {
+   "aw": 3,
+   "bw": 5,
+   "d": 0
+  },
+  "electricstaff|glassblade": {
+   "aw": 8,
+   "bw": 0,
+   "d": 0
+  }
+ },
+ "bugs": {
+  "nonFinite": {},
+  "offArena": {},
+  "stall": {},
+  "timeout": {},
+  "err": {}
+ },
+ "rmse": 13.323231717618686,
+ "src": {
+  "sword": {
+   "dmg": [
+    32462,
+    12866,
+    12339
+   ],
+   "hits": [
+    1457,
+    380,
+    434
+   ],
+   "casts": [
+    2119,
+    643,
+    351
+   ],
+   "gap": 117684.6023350036,
+   "near": 2067
+  },
+  "shield": {
+   "dmg": [
+    31825,
+    11633,
+    10658
+   ],
+   "hits": [
+    1340,
+    405,
+    474
+   ],
+   "casts": [
+    2074,
+    799,
+    353
+   ],
+   "gap": 100805.58141638989,
+   "near": 2058
+  },
+  "combat": {
+   "dmg": [
+    35761,
+    11860,
+    9965
+   ],
+   "hits": [
+    1439,
+    508,
+    318
+   ],
+   "casts": [
+    2540,
+    884,
+    245
+   ],
+   "gap": 97809.1414141217,
+   "near": 2532
+  },
+  "electricstaff": {
+   "dmg": [
+    40619,
+    10209,
+    7911
+   ],
+   "hits": [
+    1502,
+    499,
+    298
+   ],
+   "casts": [
+    2453,
+    770,
+    318
+   ],
+   "gap": 177906.7411343013,
+   "near": 2239
+  },
+  "axe": {
+   "dmg": [
+    33133,
+    14313,
+    8288
+   ],
+   "hits": [
+    1039,
+    864,
+    184
+   ],
+   "casts": [
+    1833,
+    773,
+    297
+   ],
+   "gap": 128616.9865431298,
+   "near": 1738
+  },
+  "hammer": {
+   "dmg": [
+    28375,
+    17218,
+    7336
+   ],
+   "hits": [
+    929,
+    526,
+    260
+   ],
+   "casts": [
+    1691,
+    724,
+    354
+   ],
+   "gap": 88988.29662099274,
+   "near": 1625
+  },
+  "fryingpan": {
+   "dmg": [
+    29570,
+    15287,
+    6953
+   ],
+   "hits": [
+    1059,
+    421,
+    190
+   ],
+   "casts": [
+    1842,
+    722,
+    359
+   ],
+   "gap": 84404.48091456972,
+   "near": 1789
+  },
+  "whip": {
+   "dmg": [
+    33305,
+    13037,
+    12897
+   ],
+   "hits": [
+    3892,
+    1270,
+    1392
+   ],
+   "casts": [
+    2428,
+    652,
+    357
+   ],
+   "gap": 180915.73999239714,
+   "near": 1868
+  },
+  "anchor": {
+   "dmg": [
+    27934,
+    11237,
+    8247
+   ],
+   "hits": [
+    661,
+    702,
+    478
+   ],
+   "casts": [
+    1428,
+    993,
+    300
+   ],
+   "gap": 76265.80604567866,
+   "near": 1395
+  },
+  "scythe": {
+   "dmg": [
+    30565,
+    16624,
+    8591
+   ],
+   "hits": [
+    1348,
+    524,
+    473
+   ],
+   "casts": [
+    2172,
+    803,
+    364
+   ],
+   "gap": 139105.87201532326,
+   "near": 2043
+  },
+  "flail": {
+   "dmg": [
+    24933,
+    18073,
+    9043
+   ],
+   "hits": [
+    982,
+    514,
+    216
+   ],
+   "casts": [
+    1707,
+    788,
+    391
+   ],
+   "gap": 97407.70220176363,
+   "near": 1664
+  },
+  "glassblade": {
+   "dmg": [
+    42689,
+    7908,
+    4379
+   ],
+   "hits": [
+    1718,
+    817,
+    136
+   ],
+   "casts": [
+    2466,
+    640,
+    290
+   ],
+   "gap": 120565.31072634821,
+   "near": 2466
+  },
+  "spear": {
+   "dmg": [
+    30927,
+    18760,
+    7665
+   ],
+   "hits": [
+    1260,
+    643,
+    331
+   ],
+   "casts": [
+    2261,
+    840,
+    315
+   ],
+   "gap": 166045.40957523073,
+   "near": 1620
+  },
+  "broomstick": {
+   "dmg": [
+    29292,
+    17242,
+    11781
+   ],
+   "hits": [
+    1574,
+    735,
+    248
+   ],
+   "casts": [
+    2468,
+    1056,
+    368
+   ],
+   "gap": 185321.647556496,
+   "near": 2223
+  },
+  "katana": {
+   "dmg": [
+    28273,
+    14254,
+    14919
+   ],
+   "hits": [
+    1566,
+    420,
+    1051
+   ],
+   "casts": [
+    2309,
+    782,
+    353
+   ],
+   "gap": 157988.63094630174,
+   "near": 2137
+  }
+ }
+}

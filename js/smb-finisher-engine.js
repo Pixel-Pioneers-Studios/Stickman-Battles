@@ -341,6 +341,9 @@ function triggerFinisher(attacker, target) {
     }
   }
 
+  if (typeof corpseStampFinisher === 'function') corpseStampFinisher(attacker, target, def);
+  if (typeof SoundManager !== 'undefined' && SoundManager.ko) SoundManager.ko();
+
   const _fin = {
     attacker,
     target,

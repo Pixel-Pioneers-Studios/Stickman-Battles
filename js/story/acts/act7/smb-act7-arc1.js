@@ -23,7 +23,9 @@ STORY_CHAPTER_REGISTRY.push(
       '"Perception first," he said, pulling you up off the ground.',
       '"The strength is a side effect. Watch the fight at the speed',
       'the fragment watches it, and you will stop needing the strength."',
-      '',
+    ],
+    // Narration after the beat; staged from the same scene spec (see _playBranchAfterNarrative).
+    afterNarrative: [
       'By the fourth day you took a round off him.',
       'He seemed genuinely pleased.',
       '',
@@ -46,6 +48,20 @@ STORY_CHAPTER_REGISTRY.push(
       'The man you saved.',
       'The same man.',
     ],
+    // Playable beat (see _playChapterBeat in smb-story-engine-flow.js): the sparring itself: win a round off him.
+    beat: {
+      arena: 'void',
+      opponentName: 'Axiom', opponentSuffix: '— sparring, diminished', opponentColor: '#bb99cc',
+      weaponKey: 'sword', classKey: 'warrior', aiDiff: 'medium',
+      preText: 'Eleven times he has put you on the ground. Take a round.',
+      fightScript: [
+        { frame: 30,  text: 'Eleven times he has put you on the ground. Twelve is not on the table.', color: '#ccaaee', timer: 260 },
+        { frame: 380, text: 'He is not faster. He has more of the second to work with. Find the gap inside it.', color: '#bb99cc', timer: 280 },
+        { frame: 800, text: 'There. A round.', color: '#ffffff', timer: 200 },
+      ],
+      beatScale: 0.6,
+      playerLives: 3,
+    },
     branchPrompt: 'The hooded figure. Veran\'s death. Confirmed from his own mouth, days into a road you\'re walking together. What do you do?',
     choices: [
       {
@@ -104,7 +120,9 @@ STORY_CHAPTER_REGISTRY.push(
       'Deliberately, with full knowledge of what it was.',
       'The architecture here had never collapsed',
       'because it had been made by someone who understood load.',
-      '',
+    ],
+    // Narration after the beat; staged from the same scene spec (see _playBranchAfterNarrative).
+    afterNarrative: [
       'Something noticed you had arrived.',
       '',
       'You, it acknowledged. The watched variable.',
@@ -130,6 +148,23 @@ STORY_CHAPTER_REGISTRY.push(
       '',
       '"And the trail leads exactly where I am least welcome."',
     ],
+    // Playable beat (see _playChapterBeat in smb-story-engine-flow.js): walking into the braced domain; the constructs only stand where you are about to step.
+    beat: {
+      type: 'exploration', exploreMode: 'traversal',
+      arena: 'god_domain', style: 'void', worldLength: 3600,
+      objectName: 'The Inner Gate',
+      preText: 'The domain does not attack. Walk in.',
+      spawnEnemies: [
+        { wx: 1300, name: 'Domain Construct', weaponKey: 'sword', classKey: 'warrior', aiDiff: 'medium', color: '#ddcc88', isWeak: true },
+        { wx: 2300, name: 'Domain Construct', weaponKey: 'spear', classKey: 'warrior', aiDiff: 'medium', color: '#ccbb77', isWeak: true },
+      ],
+      fightScript: [
+        { frame: 30,  text: 'The quiet here is not rest. It is load, evenly carried.', color: '#eedd99', timer: 280 },
+        { frame: 380, text: 'Every arch you pass tightens a fraction. Nothing is hostile. Everything is braced.', color: '#ddcc88', timer: 280 },
+        { frame: 760, text: 'The constructs do not charge. They stand where you are about to step.', color: '#ccbb77', timer: 270 },
+      ],
+      playerLives: 3,
+    },
     branchPrompt: 'God chose permanently never to engage. Sovereign\'s trail leads the one being it might refuse straight to its center. What do you understand?',
     choices: [
       {

@@ -432,11 +432,6 @@ input, textarea, [contenteditable] {
   background: rgba(140,70,0,0.38);
   box-shadow: 0 0 36px rgba(255,150,50,0.65), inset 0 0 12px rgba(200,100,0,0.10);
 }
-.mode-card[data-mode="storyonline"].active {
-  border-color: #ffdd66;
-  background: rgba(120,90,0,0.38);
-  box-shadow: 0 0 36px rgba(255,220,80,0.65), inset 0 0 12px rgba(200,160,0,0.10);
-}
 
 /* Hover colors for modes missing them */
 .mode-card[data-mode="online"]:hover     { border-color: rgba(0,238,255,0.45); }
@@ -444,7 +439,6 @@ input, textarea, [contenteditable] {
 .mode-card[data-mode="trueform"]:hover   { border-color: rgba(200,150,255,0.45); }
 .mode-card[data-mode="sovereign"]:hover  { border-color: rgba(255,68,34,0.45); }
 .mode-card[data-mode="completerandom"]:hover { border-color: rgba(255,153,68,0.45); }
-.mode-card[data-mode="storyonline"]:hover { border-color: rgba(255,220,100,0.45); }
 
 .mode-icon { font-size: 1.6rem; margin-bottom: 5px; }
 .mode-name { font-weight: 900; font-size: 0.88rem; letter-spacing: 1px; margin-bottom: 3px; color: #f0f4ff; }
@@ -740,6 +734,62 @@ input, textarea, [contenteditable] {
   font-size: 0.55rem;
   color: var(--muted);
   line-height: 1;
+}
+
+/* Move preview: a small play button in the card's top-right corner. */
+.sel-card { position: relative; }
+.sel-card-preview {
+  position: absolute;
+  top: 3px; right: 3px;
+  width: 18px; height: 18px;
+  padding: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(8,10,18,0.55);
+  border: 1px solid rgba(255,255,255,0.18);
+  border-radius: 50%;
+  color: var(--muted);
+  cursor: pointer;
+  opacity: 0.7;
+  transition: opacity 0.15s, color 0.15s, border-color 0.15s;
+}
+.sel-card-preview svg { display: block; margin-left: 1px; }
+.sel-card-preview:hover, .sel-card-preview:focus-visible { opacity: 1; color: var(--text); border-color: rgba(255,255,255,0.5); }
+.sel-card.card-barred .sel-card-preview { display: none; }
+
+/* Move preview overlay (smb-move-preview.js): bottom strip under the fight. */
+#mpOverlay {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 60;
+  padding: 8px 16px calc(8px + env(safe-area-inset-bottom, 0px));
+  background: rgba(8,10,18,0.82);
+  border-top: 1px solid rgba(255,255,255,0.14);
+  color: var(--text);
+  display: flex; flex-direction: column; gap: 6px;
+  font-family: inherit;
+}
+#mpOverlay .mp-top { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 14px; }
+#mpOverlay .mp-kind { font-size: 0.6rem; letter-spacing: 1.6px; color: var(--muted); font-weight: 700; }
+#mpOverlay .mp-name { font-size: 0.95rem; font-weight: 800; letter-spacing: 0.3px; }
+#mpOverlay .mp-steps { display: flex; gap: 4px; flex: 1; min-width: 0; flex-wrap: wrap; }
+#mpOverlay .mp-step {
+  font-size: 0.66rem; font-weight: 700; letter-spacing: 0.6px; padding: 2px 9px;
+  border: 1px solid rgba(255,255,255,0.14); border-radius: 3px; color: var(--muted);
+}
+#mpOverlay .mp-step.on { color: var(--text); border-color: rgba(255,255,255,0.6); background: rgba(255,255,255,0.08); }
+#mpOverlay .mp-btns { display: flex; gap: 6px; }
+#mpOverlay .mp-btn {
+  background: transparent; color: var(--text); font-size: 0.72rem; font-weight: 700; letter-spacing: 0.5px;
+  padding: 4px 14px; border: 1px solid rgba(255,255,255,0.3); border-radius: 4px; cursor: pointer;
+}
+#mpOverlay .mp-btn:hover { border-color: rgba(255,255,255,0.7); background: rgba(255,255,255,0.08); }
+#mpOverlay .mp-cap { min-height: 3.1em; }
+#mpOverlay .mp-cap-title { font-size: 0.74rem; font-weight: 800; letter-spacing: 1px; color: var(--muted); text-transform: uppercase; }
+#mpOverlay .mp-cap-body { font-size: 1.02rem; line-height: 1.35; margin-top: 2px; }
+/* Nobody is driving P1 with a pad during a preview. */
+body.mp-active #mobileControls, body.mp-active #mc-pause { display: none !important; }
+@media (max-width: 600px) {
+  #mpOverlay { padding: 6px 12px calc(6px + env(safe-area-inset-bottom, 0px)); }
+  #mpOverlay .mp-cap-body { font-size: 0.86rem; }
+  #mpOverlay .mp-steps { order: 5; flex-basis: 100%; }
 }
 
 /* ============================================================
@@ -1579,6 +1629,15 @@ button:focus-visible, select:focus-visible, input:focus-visible,
     font-size: 13px;
     margin-top: 6px;
   }
+  /* Small HUD/pause buttons keep their look; an invisible pseudo-element grows
+     the tap area to >=44x44 CSS px without overlapping neighbours. */
+  #hudMenuBtn, #hudFullscreenBtn, #mc-pause { position: relative; }
+  #hudMenuBtn::after, #hudFullscreenBtn::after, #mc-pause::after {
+    content: ''; position: absolute; left: 0; right: 0; top: 0; bottom: 0;
+  }
+  #hudMenuBtn::after { top: -13px; }
+  #hudFullscreenBtn::after { left: -14px; right: -14px; bottom: -34px; }
+  #mc-pause::after { top: -14px; bottom: -14px; }
 }
 
 /* In-game fullscreen button (HUD center, below Menu) */
@@ -5330,6 +5389,8 @@ input[type="color"]::-webkit-color-swatch { border: none; border-radius: 6px; }
 
 /* ── Injected lobby section (LobbyManager) ───────────────── */
 #lobbySection { display: flex; flex-direction: column; gap: 6px; }
+.online-lobby-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.online-lobby-row .online-input { flex: 1 1 110px; min-width: 100px; text-transform: uppercase; }
 #lobbyStatus {
   font-family: var(--font-ui);
   font-size: 0.72rem;
@@ -6228,3 +6289,58 @@ input[type="color"] {
 .path-card.path-loadout:hover { border-color: rgba(255, 210, 122, 0.60); }
 .path-card.path-loadout .path-card-title { color: #ffd27a; }
 .path-card.path-loadout .path-card-desc  { color: #8a7040; }
+
+/* ─── Home hub on short frames (CrazyGames 918x470, laptops at 720) ─────────
+   The hub rebuild came after the max-height tiers above, which only know the
+   old path-card home. At 918x470 the logo art and the hero card pushed the
+   four mode tiles below the fold of a no-scroll menu. These rules compress the
+   hub (not the fighters' art) so every tile is visible without scrolling.
+   Width is gated so portrait phones keep their own stacked layout. */
+@media (max-height: 760px) and (min-width: 761px) {
+  #menu.menu-home { padding-top: 8px; padding-bottom: 8px; }
+  #menuHomeContent { gap: 0; }
+  #menuHomeContent .home-char-stage { height: clamp(24px, 17vh, 130px); }
+  #menuHomeContent .hub-bar { margin-bottom: 8px; padding: 4px 4px 8px; }
+  #menuHomeContent .hub-main { gap: 10px; }
+  #menuHomeContent .hub-resume { min-height: 0; padding: 14px 18px 14px; gap: 8px; }
+  #menuHomeContent .hub-resume h3 { font-size: 1.2rem; }
+  #menuHomeContent .hub-proglab { margin-bottom: 8px; }
+  #menuHomeContent .hub-side { gap: 10px; }
+  #menuHomeContent .hub-quick { padding: 10px 16px; }
+  #menuHomeContent .hub-tiles { margin-top: 10px; gap: 10px; }
+  #menuHomeContent .hub-tile { min-height: 0; padding: 10px 12px; }
+}
+@media (max-height: 560px) and (min-width: 761px) {
+  #menu.menu-home { padding-top: 4px; padding-bottom: 4px; }
+  #menuHomeContent .home-char-stage { height: clamp(24px, 12vh, 64px); }
+  #menuHomeContent .game-title { font-size: 1.2rem; letter-spacing: 2px; margin-top: 6px; }
+  #menuHomeContent .hub-bar { margin-bottom: 6px; padding: 2px 4px 6px; }
+  #menuHomeContent .hub-avatar { width: 28px; height: 28px; }
+  #menuHomeContent .hub-main { gap: 8px; }
+  #menuHomeContent .hub-resume { padding: 12px 16px 12px; gap: 8px; }
+  #menuHomeContent .hub-resume h3 { font-size: 1.05rem; margin-bottom: 2px; }
+  #menuHomeContent .hub-where { font-size: 0.74rem; line-height: 1.35; }
+  #menuHomeContent .hub-kicker { margin-bottom: 3px; }
+  #menuHomeContent .hub-proglab { margin-bottom: 6px; }
+  #menuHomeContent .hub-resume .b-primary { padding: 8px 22px; }
+  #menuHomeContent .hub-side { gap: 8px; }
+  #menuHomeContent .hub-quick { padding: 9px 14px; }
+  #menuHomeContent .hub-tiles { margin-top: 8px; gap: 8px; }
+  #menuHomeContent .hub-tile { padding: 10px 12px; }
+}
+
+/* ─── HUD text on small desktop frames ──────────────────────────────────────
+   At the portal's 918x470 the corner HUD text was 7.5 to 11px: the health
+   readout and the SUPER/Q/S labels were close to unreadable. Larger type, same
+   panels (they stay compact corner cards, no scrim). Phones keep their own
+   sizes from the max-width rules above. */
+@media (min-width: 801px) {
+  #hud .hud-name   { font-size: 0.82rem; }
+  #hud .hud-weapon { font-size: 0.64rem; }
+  #hud .health-bar-wrap { height: 15px; }
+  #hud .hp-text    { font-size: 10px; right: 6px; }
+  #hud .super-label { font-size: 0.62rem; min-width: 38px; }
+  #hud .cd-label   { font-size: 0.7rem; }
+  #hud .super-bar-track, #hud .cd-bar-track { height: 6px; }
+  #hud .life-pip   { width: 8px; height: 8px; }
+}

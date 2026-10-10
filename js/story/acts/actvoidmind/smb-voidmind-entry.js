@@ -26,7 +26,9 @@ STORY_CHAPTER_REGISTRY.push(
       '',
       'The fragment was still for the first time in the story.',
       'As if it had recognized where it was.',
-      '',
+    ],
+    // Narration after the beat; staged from the same scene spec (see _playBranchAfterNarrative).
+    afterNarrative: [
       'You became aware of something.',
       '',
       'Not a presence.',
@@ -50,6 +52,20 @@ STORY_CHAPTER_REGISTRY.push(
       '',
       'Something begins.',
     ],
+    // Playable beat (see _playChapterBeat in smb-story-engine-flow.js): the descent into the quiet; nothing is hunting you yet.
+    beat: {
+      type: 'exploration', exploreMode: 'traversal',
+      arena: 'void', style: 'void', worldLength: 3000,
+      objectName: 'The Floor Beneath the Floor',
+      preText: 'The fragment is still. Keep walking.',
+      spawnEnemies: [],
+      fightScript: [
+        { frame: 30,  text: 'No wind. No signal. No collector node to route you back.', color: '#8877aa', timer: 280 },
+        { frame: 360, text: 'The fragment has stopped pulsing. It is not asleep. It is listening.', color: '#9988bb', timer: 280 },
+        { frame: 700, text: 'Everything you carry is quiet. This part you walk alone.', color: '#7766aa', timer: 260 },
+      ],
+      playerLives: 3,
+    },
     branchPrompt: 'The Substrate. Below all dimensions. Something has been waiting here since the fracture system existed — and now the fracture system is gone.',
     choices: [
       {

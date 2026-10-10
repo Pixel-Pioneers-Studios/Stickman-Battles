@@ -34,12 +34,20 @@
     return NAMES[i];
   }
 
+  // Optional loot (see _slStashPlats / level.loot in smb-story-levels.js): a hidden cache
+  // one jump off the route, and a better one held by an OPTIONAL elite.
+  const STASH = [
+    { id: 'a', x: 2000, y: 250, w: 140, steps: [[1930, 345, 90]] },
+    { id: 'b', x: 4490, y: 250, w: 190, steps: [[4420, 345, 90]], gx: 60, guard: { name: 'Veteran Champion', weaponKey: 'sword', classKey: 'warrior', health: 170, color: '#9a5a30' } },
+  ];
+
   function layout() {
     const P = [];
     _slLedge(P, WAGON.x, WAGON.bed, WAGON.w); _slLedge(P, WAGON.x + 20, WAGON.roof, WAGON.w - 40);
     _slLedge(P, TOWER.x, TOWER.y, TOWER.w); _slLedge(P, ...CRATES);
     _slLedge(P, ...DRUMS);
     for (const L of [POST, INNER]) for (const [x, y, w] of L) _slLedge(P, x, y, w);
+    _slStashPlats(P, STASH);
     return P;
   }
 
@@ -135,10 +143,12 @@
 
   function surface(v, a, ph) { _slSurfaces(v, a, ph, [{ x0: -200, x1: 6200, kind: 'mud', face: 'soil' }]); }
 
+  function loot() { return _slStashLoot(STASH); }
+
   STORY_LEVELS[87] = {
     sky: ['#1a0e08', '#3a1e10', '#6a3a1c'],
     groundColor: '#2e2016',
     platColor: '#5a3e26',
-    layout, backdrop, back, surface,
+    layout, loot, backdrop, back, surface,
   };
 })();

@@ -164,7 +164,7 @@ function _enterConfigView(mode) {
       '2p': '1v1', 'boss': 'Boss Fight', 'trueform': 'Cosmic Axiom',
       'training': 'Training', 'minigames': 'Minigames', 'online': 'Online',
       'battleroyale': 'Battle Royale',
-      'sovereign': 'Sovereign Ω', 'adaptive': 'Adaptive AI', 'storyonline': 'Story Online',
+      'sovereign': 'Sovereign Ω', 'adaptive': 'Adaptive AI',
     };
     modeLabel.textContent = _names[mode] || mode.toUpperCase();
   }
@@ -229,16 +229,21 @@ function _applyRefightLocks() {
     _setRefightCardLock(id, !_locks[id]);
   });
   _setRefightCardLock('refight-gauntlet', !_allUnlocked);
+
+  // Locked cards are hidden outright (their names spoil the story), so the
+  // panel starts empty and fills in as bosses are beaten.
+  var _anyUnlocked = Object.keys(_locks).some(function(id) { return _locks[id]; });
+  var _empty = document.getElementById('refightEmpty');
+  if (_empty) _empty.style.display = _anyUnlocked ? 'none' : '';
 }
 
 function _setRefightCardLock(id, locked) {
   var el = document.getElementById(id);
   if (!el) return;
+  // Hidden, not greyed out: a locked card would still show the boss's name.
+  el.style.display = locked ? 'none' : '';
   if (locked) {
-    el.classList.add('refight-locked');
-    el.onclick = function() {
-      if (typeof showToast === 'function') showToast(' Complete this fight in Story Mode first.');
-    };
+    el.onclick = null;
   } else {
     el.classList.remove('refight-locked');
     var _modeMap = {
@@ -584,6 +589,7 @@ function renderStore() {
   const grid = document.getElementById('storeGrid');
   if (!grid) return;
   grid.innerHTML = '';
+  if (typeof AdManager !== 'undefined' && AdManager.mountStoreOffer) AdManager.mountStoreOffer(grid);
   COSMETIC_CATALOG.forEach(item => {
     const owned = isCosmeticUnlocked(item.id);
     const card  = document.createElement('div');

@@ -51,6 +51,19 @@ STORY_CHAPTER_REGISTRY.push(
       'Both accounts use the same facts.',
       'The difference is what was underneath them.',
     ],
+    // Playable beat (see _playChapterBeat in smb-story-engine-flow.js): the Third Architect, as the second account tells it.
+    beat: {
+      arena: 'void', levelId: 181,
+      opponentName: 'The Third Architect', opponentSuffix: '— the second account', opponentColor: '#88aacc',
+      weaponKey: 'spear', classKey: 'warrior', aiDiff: 'medium',
+      preText: 'Same facts. A different reason underneath them.',
+      fightScript: [
+        { frame: 40,  text: 'It fights the way he argues: cleanly, with the cost already counted.', color: '#8877aa', timer: 290 },
+        { frame: 420, text: 'Fifty-two dimensions. It says the number the way he said it, and you cannot tell which reason is underneath.', color: '#9988bb', timer: 300 },
+      ],
+      beatScale: 0.6,
+      playerLives: 5,
+    },
     branchPrompt: '"They said it was for the Preserved. The calculation was the justification, not the reason. They didn\'t believe in the mission. The fifty-two were the cover story."',
     choices: [
       {
@@ -114,6 +127,19 @@ STORY_CHAPTER_REGISTRY.push(
       '',
       'There was no one in there to make a second choice.',
     ],
+    // Playable beat (see _playChapterBeat in smb-story-engine-flow.js): the Herald, pattern or person; you cannot tell from the outside.
+    beat: {
+      arena: 'void', levelId: 181,
+      opponentName: 'The Herald', opponentSuffix: '— what the extraction left running', opponentColor: '#9a9aaa',
+      weaponKey: 'axe', classKey: 'berserker', aiDiff: 'medium',
+      preText: 'It fights seriously. Whether anyone is fighting is the question.',
+      fightScript: [
+        { frame: 40,  text: 'It moves like the Herald. It may only be the moving.', color: '#8877aa', timer: 280 },
+        { frame: 420, text: 'No hesitation. No choice in it. Or a choice so clean you cannot see the seam.', color: '#9988bb', timer: 290 },
+      ],
+      beatScale: 0.6,
+      playerLives: 5,
+    },
     branchPrompt: '"There was nothing left to choose. Behavioral residue doesn\'t hope. The combat was the last echo running. The dissolution wasn\'t chosen. It was what happens when the last pattern runs out."',
     choices: [
       {
@@ -182,6 +208,21 @@ STORY_CHAPTER_REGISTRY.push(
       'A pattern can be named.',
       'A name is not proof of the person who owned it.',
     ],
+    // Playable beat (see _playChapterBeat in smb-story-engine-flow.js): two of the three names, still at each other after five thousand years.
+    beat: {
+      arena: 'void', levelId: 181,
+      opponentName: 'Null', opponentSuffix: '— a name, and what is left of it', opponentColor: '#664477',
+      weaponKey: 'sword', classKey: 'ninja', aiDiff: 'medium',
+      twoEnemies: true,
+      secondEnemy: { name: 'Seraph', weaponKey: 'spear', classKey: 'warrior', aiDiff: 'medium', color: '#ccaa66' },
+      preText: 'They came for each other long before they came for you.',
+      fightScript: [
+        { frame: 40,  text: 'Two of the three. They keep their names and their quarrel. You are only standing between them.', color: '#8877aa', timer: 300 },
+        { frame: 440, text: 'A pattern that remembers conflict fights whoever is nearest. You are nearest.', color: '#9988bb', timer: 290 },
+      ],
+      beatScale: 0.6,
+      playerLives: 5,
+    },
     branchPrompt: '"They kept their names and nothing else. The void took everything. The war between them is pattern-conflict — systems that remember being in tension. It isn\'t evidence of anyone still being there."',
     choices: [
       {

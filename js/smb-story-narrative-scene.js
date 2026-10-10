@@ -1466,7 +1466,8 @@
   // ── Beat spec helper ──────────────────────────────────────────────────────────
   function _getBeatSpec() {
     if (!_spec || !_spec.beats) return null;
-    return _spec.beats[_beatIdx] || _spec.beats[_spec.beats.length-1] || null;
+    var _bi = _beatIdx + ((_chapter && _chapter._sceneBeatOffset) || 0);
+    return _spec.beats[_bi] || _spec.beats[_spec.beats.length-1] || null;
   }
 
   // ── Effect dispatcher ─────────────────────────────────────────────────────────
@@ -2108,6 +2109,9 @@
   }
 
   window.showNarrativeScene = showNarrativeScene;
+  // How many scene beats a line array parses into (lets a chapter's second half of
+  // narration continue the first half's staging; see _playBranchAfterNarrative).
+  window._storyBeatCount = function (lines) { return _parseBeats(lines || []).length; };
   // Dev hook: lets the figure rig be rendered in isolation (a contact sheet of
   // every state) without running a scene. Nothing in the game calls it.
   window._sceneDrawFigure = _drawFigure;

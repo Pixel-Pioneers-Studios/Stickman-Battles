@@ -18,10 +18,18 @@
                  [3660, 350, 100], [3790, 270, 110], [5050, 340, 110], [5180, 260, 110]];
   const HATCHES = [1800, 4680];
 
+  // Optional loot (see _slStashPlats / level.loot in smb-story-levels.js): a hidden cache
+  // one jump off the route, and a better one held by an OPTIONAL elite.
+  const STASH = [
+    { id: 'a', x: 2060, y: 250, w: 140, steps: [[1990, 345, 90]] },
+    { id: 'b', x: 4220, y: 250, w: 190, steps: [[4150, 345, 90]], gx: 60, guard: { name: 'Architecture Sentry', weaponKey: 'sword', classKey: 'warrior', health: 170, color: '#9a8ac8' } },
+  ];
+
   function layout() {
     const P = [];
     for (const [x, y, w] of CLIMB) _slLedge(P, x, y, w);
     _slLedge(P, CHAMBER - 340, 360, 100); _slLedge(P, CHAMBER + 240, 360, 100);
+    _slStashPlats(P, STASH);
     return P;
   }
 
@@ -68,10 +76,12 @@
     if (ph === 'back' && _slVisible(v, CHAMBER - 200, CHAMBER + 200)) for (const sx of [CHAMBER - 90, CHAMBER + 90]) { ctx.strokeStyle = 'rgba(120,100,200,0.7)'; ctx.lineWidth = 2; ctx.strokeRect(sx - 24, G - 14, 48, 10); }
   }
 
+  function loot() { return _slStashLoot(STASH); }
+
   STORY_LEVELS[129] = {
     sky: ['#080012', '#180030', '#2a1048'],
     groundColor: '#1a1030',
     platColor: '#b8b4c8',
-    layout, backdrop, back, surface,
+    layout, loot, backdrop, back, surface,
   };
 })();

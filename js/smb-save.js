@@ -766,9 +766,13 @@ function applyRewardDeltaLocally(reward) {
       setAccountFlag(['chapter'], chapterValue);
       setAccountFlag(['story', 'chapter'], chapterValue);
       setAccountFlag(['storyProgress', 'chapter'], chapterValue);
+      // chapterValue is the next-chapter pointer; the chapters actually beaten are
+      // currentChapter .. chapterValue-1, so mark those (not the unplayed next one).
+      const beaten = [];
+      for (let c = currentChapter; c < chapterValue; c++) beaten.push(c);
       const defeated = activeSave && activeSave.story && Array.isArray(activeSave.story.defeated)
-        ? Array.from(new Set(activeSave.story.defeated.concat([chapterValue]))).sort(function(a, b) { return Number(a) - Number(b); })
-        : [chapterValue];
+        ? Array.from(new Set(activeSave.story.defeated.concat(beaten))).sort(function(a, b) { return Number(a) - Number(b); })
+        : beaten;
       setAccountFlag(['story', 'defeated'], defeated);
     }
     if (typeof refreshCoinDisplay === 'function') refreshCoinDisplay();

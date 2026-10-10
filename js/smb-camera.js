@@ -207,18 +207,42 @@ function _updateCamMode() {
 const CAM_TRACK_RADIUS_X = 1700;
 const CAM_TRACK_RADIUS_Y = 1100;
 
+// FAR CAMERA: past CAM_FAR_SEP between the followed human and another fighter,
+// that fighter leaves the shot (zooming out to hold 1500+px makes everyone a speck)
+// and shows as an edge arrow with a distance readout instead (drawEdgeIndicators).
+// Hysteresis: dropped past CAM_FAR_SEP, rejoins under CAM_FAR_REJOIN, so a pair
+// hovering at the threshold can't flip the zoom every frame. Two humans: the first
+// is followed. `_camFarSubject` is that human while far-mode is active, so the
+// failsafe below rescues only them (rescuing both is the old ping-pong).
+const CAM_FAR_SEP    = 1400;
+const CAM_FAR_REJOIN = 1250;
+var _camFarSubject = null;
+
 function _camTrackedSet(activePlayers) {
+  _camFarSubject = null;
   if (!activePlayers.length) return activePlayers;
-  const humans = activePlayers.filter(p => !p.isAI && !p.isBoss && !p._brOnPlane);
+  let humans = activePlayers.filter(p => !p.isAI && !p.isBoss && !p._brOnPlane);
   if (!humans.length) return activePlayers.filter(p => !p._brOnPlane);
+  if (humans.length > 1) {
+    const h0 = humans[0];
+    const far = humans.slice(1).filter(h => {
+      const d = Math.abs(h.cx() - h0.cx());
+      const was = !!h._camFar;
+      h._camFar = was ? d > CAM_FAR_REJOIN : d > CAM_FAR_SEP;
+      return h._camFar;
+    });
+    if (far.length) { humans = humans.filter(h => !far.includes(h)); _camFarSubject = h0; }
+  }
   let hx = 0, hy = 0;
   for (const h of humans) { hx += h.cx(); hy += h.cy(); }
   hx /= humans.length; hy /= humans.length;
   const others = activePlayers.filter(p => {
     if (!p.isAI && !p.isBoss) return false;          // already in `humans`
     if (p._brOnPlane) return false;
-    return Math.abs(p.cx() - hx) <= CAM_TRACK_RADIUS_X
-        && Math.abs(p.cy() - hy) <= CAM_TRACK_RADIUS_Y;
+    const dx = Math.abs(p.cx() - hx);
+    const lim = p._camFar ? CAM_FAR_REJOIN : CAM_FAR_SEP;
+    p._camFar = dx > lim;
+    return !p._camFar && Math.abs(p.cy() - hy) <= CAM_TRACK_RADIUS_Y;
   });
   return humans.concat(others);
 }
@@ -341,9 +365,9 @@ function updateCamera() {
 
   // ── Online: track only local player ──────────────────────
   // Public Server hub too: ten players on a 3600-wide city can never share one
-  // frame, so follow your own fighter (players[0]). Soccer keeps the normal
-  // camera — the whole pitch fits on screen.
-  const _pubHubCam = window._pubHubActive && gameMode === '2p' && players[0];
+  // frame, so follow your own fighter (players[0]). Rounds on a single-screen
+  // arena (sports, Infection, King of the Hill) keep the normal camera.
+  const _pubHubCam = window._pubFollowCam && gameMode === '2p' && players[0];
   if (_pubHubCam || (gameMode === 'online' && typeof localPlayerSlot !== 'undefined' && players[localPlayerSlot])) {
     const lp = _pubHubCam ? players[0] : players[localPlayerSlot];
     const PAD = 180;
@@ -352,6 +376,18 @@ function updateCamera() {
     camZoomTarget = Math.max(0.5, Math.min(1.4, Math.min(GAME_W / (bbMaxX - bbMinX), GAME_H / (bbMaxY - bbMinY))));
     camXTarget = (bbMinX + bbMaxX) / 2;
     camYTarget = (bbMinY + bbMaxY) / 2;
+    camZoomCur += (camZoomTarget - camZoomCur) * lerp.zoom;
+    camXCur    += (camXTarget - camXCur) * lerp.pos;
+    camYCur    += (camYTarget - camYCur) * lerp.pos;
+    return;
+  }
+
+  // ── Private lobby waiting room: the whole room, always ───────
+  // Every game pad has to stay on screen wherever the players are standing.
+  if (window._pubRoomCam && gameMode === '2p') {
+    camZoomTarget = 1.0;
+    camXTarget = GAME_W / 2;
+    camYTarget = GAME_H / 2;
     camZoomCur += (camZoomTarget - camZoomCur) * lerp.zoom;
     camXCur    += (camXTarget - camXCur) * lerp.pos;
     camYCur    += (camYTarget - camYCur) * lerp.pos;
@@ -656,7 +692,8 @@ function updateCamera() {
     // because the framing deliberately abandoned the second player, and rescuing
     // them alternately was the 600-1100 unit ping-pong on long maps.
     const _fsHumans = activePlayers.filter(p => !p.isAI && !p.isBoss);
-    const _fsSubjects = (window._pubHubActive && gameMode === '2p' && players[0] && players[0].health > 0)
+    const _fsSubjects = (_camFarSubject && _camFarSubject.health > 0) ? [_camFarSubject]
+      : (window._pubFollowCam && gameMode === '2p' && players[0] && players[0].health > 0)
       ? [players[0]]
       : (gameMode === 'online' && typeof localPlayerSlot !== 'undefined' && players[localPlayerSlot] && players[localPlayerSlot].health > 0)
       ? [players[localPlayerSlot]]

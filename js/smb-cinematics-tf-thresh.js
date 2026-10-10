@@ -12,6 +12,7 @@ function _makeTFEntryCinematic(tf) {
   return cinScript({
     duration: 4.8,
     label: { text: '— TRUE POWER —', color: '#ffffff' },
+    perf: (typeof CinPerf !== 'undefined') ? CinPerf.SCENES.tfEntry : null,
 
     slowMo: [[0, 1.0], [0.2, 0.35], [0.55, 0.05], [2.6, 0.08], [3.8, 0.18], [4.8, 1.0]],
 
@@ -141,6 +142,7 @@ function _makeTFReality50Cinematic(tf) {
   return cinScript({
     duration: 4.7,
     label: { text: '— REALITY BENDS —', color: '#8844ff' },
+    perf: (typeof CinPerf !== 'undefined') ? CinPerf.SCENES.tfReality : null,
 
     slowMo: [[0, 1.0], [0.25, 0.30], [0.55, 0.06], [2.6, 0.08], [3.8, 0.16], [4.7, 1.0]],
 
@@ -219,6 +221,7 @@ function _makeTFDesp15Cinematic(tf) {
   return cinScript({
     duration: 5.1,
     label: { text: '— WE FALL TOGETHER —', color: '#ff0044' },
+    perf: (typeof CinPerf !== 'undefined') ? CinPerf.SCENES.tfDesp : null,
 
     // Extreme slow-mo throughout, brief normal-speed flash on impact
     slowMo: [[0, 1.0], [0.2, 0.25], [0.45, 0.03], [2.1, 0.05], [3.8, 0.08], [5.1, 1.0]],

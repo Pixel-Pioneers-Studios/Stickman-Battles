@@ -1107,7 +1107,8 @@ function _consoleExec(raw) {
   if (cmd === 'SOV RESET' || cmd === 'SOVEREIGN RESET') { if (typeof resetSovereignMK2 === 'function') resetSovereignMK2(); return; }
   if (cmd === 'BRAIN' || cmd === 'BRAIN ON' || cmd === 'BRAIN OFF') {
     if (typeof Brain === 'undefined') { _consoleErr('Brain not loaded.'); return; }
-    if (cmd === 'BRAIN OFF') { Brain.release(); _consolePrint('Brain released P2.', '#44ff88'); return; }
+    if (cmd === 'BRAIN OFF') { Brain.release(); if (Brain.setSovereignDrive) Brain.setSovereignDrive(false); _consolePrint('Brain released P2; Sovereign uses the cascade (BRAIN ON to restore).', '#44ff88'); return; }
+    if (cmd === 'BRAIN ON' && Brain.setSovereignDrive) Brain.setSovereignDrive(true);
     if (!gameRunning || !players[1]) { _consoleErr('Start a 1v1 match first.'); return; }
     Brain.takeOver(players[1], players[0])
       .then(it => it >= 0 ? _consolePrint('Brain (iteration ' + it + ') now controls P2.', '#44ff88') : _consoleErr('Brain: bad checkpoint.'))

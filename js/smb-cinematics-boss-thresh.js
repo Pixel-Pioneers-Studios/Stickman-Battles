@@ -12,6 +12,7 @@ function _makeBossWarning75Cinematic(boss) {
   return cinScript({
     duration: 3.2,
     label:    { text: '— I MADE THIS WORLD —', color: '#aa44ff' },
+    perf: (typeof CinPerf !== 'undefined') ? CinPerf.SCENES.boss75 : null,
 
     slowMo: [[0, 1.0], [0.35, 0.06], [2.8, 0.06], [3.2, 1.0]],
 
@@ -91,6 +92,7 @@ function _makeBossRage40Cinematic(boss) {
   return cinScript({
     duration: 4.2,
     label: { text: '— ENOUGH. —', color: '#ff0044' },
+    perf: (typeof CinPerf !== 'undefined') ? CinPerf.SCENES.boss40 : null,
 
     slowMo: [[0, 1.0], [0.4, 0.05], [0.45, 0.05], [1.1, 0.50], [1.7, 0.05], [3.8, 0.06], [4.2, 1.0]],
 
@@ -198,15 +200,18 @@ function _makeBossRage40Cinematic(boss) {
 
       // Collect afterimage positions during the teleport + throw phase
       if (b && t > 0.4 && t < 1.5) {
-        _trailBoss.push({ wx: b.cx(), wy: b.y + (b.h || 60), color: b.color || '#cc00ee' });
+        _trailBoss.push({ wx: b.cx(), wy: b.y + (b.h || 60), color: b.color || '#cc00ee', ent: b });
         if (_trailBoss.length > 7) _trailBoss.shift();
       }
       if (tgt && t > 0.42 && t < 1.25) {
-        _trailTarget.push({ wx: tgt.cx(), wy: tgt.y + (tgt.h || 60), color: tgt.color || '#ffffff' });
+        _trailTarget.push({ wx: tgt.cx(), wy: tgt.y + (tgt.h || 60), color: tgt.color || '#ffffff', ent: tgt });
         if (_trailTarget.length > 7) _trailTarget.shift();
         _panelActive = true;
       }
 
+      // Stop the trails once their window closes; a stale buffer left standing
+      // on a stationary fighter reads as a second figure.
+      if (t > 1.5) { _trailBoss.length = 0; _trailTarget.length = 0; }
       // Afterimage trails
       if (_trailBoss.length > 1)   AniFX.afterimage(ctx, _trailBoss,   { tint: '#ff0066', alpha: 0.32 });
       if (_trailTarget.length > 1) AniFX.afterimage(ctx, _trailTarget, { alpha: 0.25 });
@@ -249,6 +254,7 @@ function _makeBossDesp10Cinematic(boss) {
   return cinScript({
     duration: 3.5,
     label: { text: '— IMPOSSIBLE —', color: '#ff8800' },
+    perf: (typeof CinPerf !== 'undefined') ? CinPerf.SCENES.boss10 : null,
 
     slowMo: [[0, 1.0], [0.3, 0.05], [3.1, 0.05], [3.5, 1.0]],
 

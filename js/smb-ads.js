@@ -101,6 +101,14 @@ const AdManager = (function () {
     return prov === 'placeholder';
   }
 
+  // Stricter than canShowRewarded: a real portal ad SDK is initialised. The
+  // player-facing "watch an ad for X" buttons use this, so they stay hidden on
+  // itch.io / github.io / local where only the dev placeholder could run.
+  function rewardedReady() {
+    return _provider() === 'cg' && typeof cgSdk !== 'undefined' &&
+      typeof cgSdk.adReady === 'function' && cgSdk.adReady();
+  }
+
   function rewarded(onReward, onSkip) {
     const ok = function () { if (onReward) { try { onReward(); } catch (e) {} } };
     const no = function () { if (onSkip) { try { onSkip(); } catch (e) {} } };
@@ -150,6 +158,53 @@ const AdManager = (function () {
     };
   }
 
+  // ── Store: watch an ad for coins (about one match's worth), with a cooldown ──
+  const STORE_AD_COINS = 15;
+  const STORE_AD_COOLDOWN_MS = 180000;
+  const _STORE_AD_KEY = 'smb_store_ad_last';
+  function _storeAdLeft() {
+    let last = 0;
+    try { last = +localStorage.getItem(_STORE_AD_KEY) || 0; } catch (e) {}
+    return Math.max(0, last + STORE_AD_COOLDOWN_MS - Date.now());
+  }
+  function _storeAdLabel(btn) {
+    const left = _storeAdLeft();
+    btn.disabled = left > 0;
+    btn.textContent = left > 0
+      ? '▶ Next ad reward in ' + Math.floor(left / 60000) + ':' + String(Math.ceil(left % 60000 / 1000) % 60).padStart(2, '0')
+      : '▶ Watch an ad for ' + STORE_AD_COINS + ' coins';
+    return left;
+  }
+  // Called from renderStore(); adds the button above `grid` when an ad is available.
+  function mountStoreOffer(grid) {
+    const old = document.getElementById('storeAdRow');
+    if (old) old.remove();
+    if (!grid || !rewardedReady() ||
+        (typeof onlineMode !== 'undefined' && onlineMode)) return;
+    const row = document.createElement('div');
+    row.id = 'storeAdRow';
+    row.style.cssText = 'margin:0 0 12px;text-align:center;';
+    const btn = document.createElement('button');
+    btn.id = 'storeAdBtn';
+    btn.className = 'btn ad-reward-btn';
+    row.appendChild(btn);
+    grid.parentNode.insertBefore(row, grid);
+    _storeAdLabel(btn);
+    const iv = setInterval(function () {
+      if (!document.body.contains(btn)) { clearInterval(iv); return; }
+      if (!_showing) _storeAdLabel(btn);
+    }, 1000);
+    btn.onclick = function () {
+      if (_storeAdLeft() > 0) return;
+      btn.disabled = true;
+      rewarded(function () {
+        try { localStorage.setItem(_STORE_AD_KEY, String(Date.now())); } catch (e) {}
+        _grantCoins(STORE_AD_COINS, 'store' + Date.now());
+        if (typeof renderStore === 'function') renderStore();
+      }, function () { _storeAdLabel(btn); });
+    };
+  }
+
   function _grantCoins(coins, matchKey) {
     if (window.SupabaseBridge && typeof SupabaseBridge.claimMatchRewards === 'function') {
       void SupabaseBridge.claimMatchRewards({
@@ -165,7 +220,7 @@ const AdManager = (function () {
   window.addEventListener('DOMContentLoaded', refreshBanners);
   if (document.readyState !== 'loading') setTimeout(refreshBanners, 0);
 
-  return { interstitial, rewarded, canShowRewarded, refreshBanners, offerMatchCoins, provider: _provider };
+  return { interstitial, rewarded, canShowRewarded, rewardedReady, mountStoreOffer, refreshBanners, offerMatchCoins, provider: _provider };
 }());
 
 window.AdManager = AdManager;

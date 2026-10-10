@@ -49,6 +49,9 @@ find images -maxdepth 1 -type f -exec cp {} "$STAGE/images/" \;
 # Without it he ships with a blank slate. The rest of data/ is lab output.
 mkdir -p "$STAGE/data"
 cp data/sov-artifact.json "$STAGE/data/"
+# The Brain: Sovereign's default driver. Missing/failed fetch falls back to the cascade.
+mkdir -p "$STAGE/data/brain"
+cp data/brain/latest.json "$STAGE/data/brain/"
 
 # Strip anything that is not a runtime asset.
 find "$STAGE" \( -name '.DS_Store' -o -name '*.smbreplay' -o -name '*.md' \) -delete

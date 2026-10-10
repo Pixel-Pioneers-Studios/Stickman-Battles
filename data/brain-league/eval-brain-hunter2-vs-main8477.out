@@ -1,0 +1,41 @@
+Hunter iteration 11686 vs target iteration 8477, 100 matches per arm, seed 1, both top choice
+
+  mirror  win 67%  stocks taken/lost 202/122
+  hunter  win 44%  stocks taken/lost 178/196   (one standard error ~5 pts)
+
+  per minute of match, sorted by how far the hunter moved from the mirror
+  stat               mirror    hunter
+  dmgTakenEarly        25.9      50.7
+  dmgTaken            166.7     299.3
+  deaths                0.9       1.9
+  clashes               0.1       0.5
+  hitsTaken            21.6      34.3
+  abilityHits           2.1       1.2
+  abilities            15.7      10.2
+  dmgDealtEarly        35.4      50.4
+  blocks                8.0      11.3
+  shieldThreat          7.9      11.0
+  djCalm               29.2      21.2
+  parries               2.2       3.2
+  doubleJumps          31.8      24.0
+  strings               5.9       7.7
+  supers                1.6       2.1
+  walkFrames          704.1     878.6
+  jumpsThreat           2.2       2.9
+  guardBreaks           3.8       3.0
+  swingHits             9.9      12.1
+  dmgDealt            223.6     261.2
+  stuns                 3.2       3.8
+  superHits             1.1       1.3
+  kills                 1.5       1.7
+  clashWins             0.0       0.1
+  swings               28.3      26.1
+  shieldRaises         75.5      81.7
+  threatFrames        213.9     229.3
+  jumpsCalm            31.4      30.0
+  shieldCalm           67.6      70.7
+  fastFalls            28.2      29.4
+  djThreat              2.7       2.8
+  jumps                33.6      32.8
+  calmFrames         3386.1    3370.7
+  domains               0.0       0.0

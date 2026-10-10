@@ -181,6 +181,21 @@ function story2OnMatchEnd(playerWon) {
   const ch = _activeStory2Chapter;
   if (!ch || !storyModeActive) return false; // not a story2 fight
 
+  // Playable beat on a branch chapter (_playChapterBeat): a win hands control back to
+  // the branch flow instead of completing the chapter here. A loss falls through to the
+  // normal retry screen, which re-enters the real chapter by id.
+  if (ch._beatDone && playerWon) {
+    const _beatCb = ch._beatDone;
+    ch._beatDone = null;
+    storyGauntletState = null; storyPendingPhaseConfig = null; storyPhaseIndicator = null;
+    storyFightSubtitle = null;
+    const _goOv = document.getElementById('gameOverOverlay');
+    if (_goOv) _goOv.style.display = 'none';
+    _activeStory2Chapter = ch._beatParent || ch;
+    try { _beatCb(); } catch (e) { console.error('[beat] continuation failed', e); }
+    return true;
+  }
+
   // Flush any unshown early fight-script entries (frame ≤ 90) so they always display
   if (storyFightScript && storyFightScriptIdx < storyFightScript.length) {
     const earlyEntry = storyFightScript.slice(storyFightScriptIdx).find(e => e.frame <= 90);
@@ -222,6 +237,7 @@ function story2OnMatchEnd(playerWon) {
   }
 
   // Award tokens + blueprint
+  if (window._storyAdUsedCh === ch.id) window._storyAdUsedCh = null; // chapter cleared: ad continue available again
   storyGauntletState = null;
   storyPendingPhaseConfig = null;
   storyPhaseIndicator = null;
@@ -417,9 +433,6 @@ function _completeStory2() {
   } else {
     storyOnline = true;
   }
-  // Show Story Online mode card
-  const soCard = document.getElementById('modeStoryOnline');
-  if (soCard) soCard.style.display = '';
   _saveStory2();
 }
 
@@ -450,9 +463,6 @@ function _showStory2Victory(ch) {
       const _piece = ch.armor[Math.floor(Math.random() * ch.armor.length)];
       const _pieceNames = { helmet: 'Helmet', chestplate: 'Chestplate', leggings: 'Leggings' };
       html += `<div style="color:#9ab8e8;font-size:0.76rem;margin-top:3px;">🛡️ Armor Blueprint: ${_pieceNames[_piece] || _piece}</div>`;
-    }
-    if (_story2.storyComplete) {
-      html += `<div style="color:#ffaaff;font-size:0.76rem;margin-top:5px;font-style:italic;">🌐⚔️ Story Online mode unlocked!</div>`;
     }
     if (ch.isSovereignFight && sovereignBeaten) {
       html += `<div style="color:#cc44ff;font-size:0.82rem;margin-top:8px;font-weight:800;letter-spacing:1px;text-shadow:0 0 10px #cc44ff;">⚡ NEURAL AI MODES UNLOCKED</div>`;
@@ -561,4 +571,3 @@ function storyVictoryBackToMenu() {
   setTimeout(openStoryMenu, 300);
 }
 
-// ── Init: show Story Online card if already complete ─────────────────────────

@@ -59,6 +59,20 @@ Key behaviors:
 - Shield use: blocks on `SHIELD_CD` cooldown (not spammable)
 - Input buffer: `_pendingAction` queues one deferred action per tick
 
+**Bot tactics** — `botTacticsFrame()` in `js/smb-bot-tactics.js` (every frame)
+
+Runs on top of `updateAI()` for plain `Fighter` bots at medium difficulty and up, while the bot is level with its target and within 380px. Easy bots, story enemies, Battle Royale bots and Public Server lobby bots keep the tick brain alone (`BOT_TACTICS.story` / `.br` switch the first two on; a fighter with a numeric `_botIQ` is always owned).
+
+- Spacing: holds the distance where its weapon reaches and the target's does not; when outranged it guard-steps in (shield raised for the 8-frame parry window), baits a swing, or rushes
+- Follow-ups: continues a landed hit with the second swing, then finishes with E or Q if the move lands before the stun ends; a jumping swing reopens the two-swing chain
+- Moves: `BOT_MOVES` holds the distance band and time-to-hit of every Q and E, measured by `tools/bot-move-ranges.js`. `botTacVeto()` also blocks the tick brain's random casts when the move cannot connect or would carry the bot off the stage. Re-run the tool after changing an ability or move scene
+- Supers: thrown soon after the meter fills, on a throw that can land
+- Ranged: fires the frame the weapon is ready, keeps a per-weapon distance band, hops over the target when cornered
+- Projectiles: jumps or guards a shot only after it has been in the air for the bot's reaction time
+- Difficulty: `BOT_TACTICS.skill`, `.think` (frames between decisions) and `.hesitate` (pause before an open swing)
+
+The tick brain's own timers (`_wanderTimer` and friends) are set in frames but counted in ticks, so a 45-frame wander lasted 11 seconds and melee bots almost never reached the code that casts Q or E. The tactics layer caps them for the bots it owns; easy and story bots still have the long timers.
+
 **Boss AI** — `Boss.updateAI()` (every 15 frames)
 
 - Phase-scaled aggression: Phase 3 ≈ 2× attack frequency

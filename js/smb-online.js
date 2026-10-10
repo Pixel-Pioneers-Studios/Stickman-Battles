@@ -398,6 +398,18 @@ function lobbyLeave() {
   LobbyManager.leaveLobby();
 }
 
+// Private Public-Server lobbies (smb-public-hub.js): open one, or join by code.
+function lobbyCreatePrivate() {
+  if (window.PubHub) PubHub.createPrivate();
+}
+
+function lobbyJoinCode() {
+  const inp = document.getElementById('lobbyCodeInput');
+  const code = inp ? inp.value.toUpperCase().replace(/[^A-Z0-9]/g, '') : '';
+  if (code.length < 4) { _lobbyToast('Enter the lobby code your friend sent you', true); return; }
+  if (window.PubHub) PubHub.join({ code });
+}
+
 window.LobbyManager = LobbyManager;
 
 // ── Inject lobby section into #onlinePanel ────────────────────────────────────
@@ -414,14 +426,23 @@ function _lobbyInjectUI() {
   const sec = document.createElement('div');
   sec.id = 'lobbySection';
   sec.innerHTML = [
-    '<div class="online-browser-head">',
-      '<span class="online-label">Open rooms</span>',
-      '<button class="online-chip-btn online-chip-quiet" ',
-        'onclick="_lobbyRefreshList();_lobbyUiRefresh()">Refresh</button>',
-    '</div>',
     '<button id="lobbyBtnPublic" onclick="LobbyManager.joinPublicLobby()">',
       '&#127760; Join the Public Server',
     '</button>',
+    '<div class="online-lobby-row">',
+      '<button id="lobbyBtnPrivate" class="btn online-btn-go" onclick="lobbyCreatePrivate()">Play with friends</button>',
+      '<input id="lobbyCodeInput" class="online-input" type="text" placeholder="LOBBY CODE" maxlength="8" autocomplete="off" ',
+        'onkeydown="if(event.key===\'Enter\')lobbyJoinCode()">',
+      '<button class="btn" onclick="lobbyJoinCode()">Join</button>',
+      '<button class="btn" onclick="if(window.FriendsManager)FriendsManager.open()">Friends</button>',
+    '</div>',
+    '<p class="online-note">Lobbies hold up to 10 players. <b>Play with friends</b> drops you into your own waiting room with a link to share. ',
+      'Friends arrive in the room, everyone stands on the game they want, and you start it: Soccer, Basketball, Infection, King of the Hill, Loadout Scramble or co-op Horde Defense.</p>',
+    '<div class="online-browser-head">',
+      '<span class="online-label">Open duel rooms</span>',
+      '<button class="online-chip-btn online-chip-quiet" ',
+        'onclick="_lobbyRefreshList();_lobbyUiRefresh()">Refresh</button>',
+    '</div>',
     '<div id="lobbyStatus" style="display:none;"></div>',
     '<div id="lobbyRoster" class="online-roster" style="display:none;"></div>',
   ].join('');

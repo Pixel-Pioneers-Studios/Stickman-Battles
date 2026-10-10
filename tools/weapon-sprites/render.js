@@ -5,12 +5,15 @@
 const fs = require('fs');
 const path = require('path');
 const puppeteer = require('puppeteer');
-// --grim selects the grounded style (defs-grim.js); --out <dir> redirects output
+// --grim selects the grounded style (defs-grim.js), --ornate the ornate one
+// (defs-ornate.js); --out <dir> redirects output
 // so a style can be rendered for comparison without clobbering the shipped art.
 const ARGV = process.argv.slice(2);
 const GRIM = ARGV.includes('--grim');
-const DEFS = GRIM ? require('./defs-grim') : require('./defs');
-const { AXIS } = GRIM ? require('./parts-grim') : require('./parts');
+// --ornate is the shipped style: the axe/scythe look carried to every weapon.
+const ORNATE = ARGV.includes('--ornate');
+const DEFS = ORNATE ? require('./defs-ornate') : GRIM ? require('./defs-grim') : require('./defs');
+const { AXIS } = ORNATE ? require('./parts-ornate') : GRIM ? require('./parts-grim') : require('./parts');
 
 const BOX_W = 512, BOX_H = 220, SS = 4;   // supersample factor
 const OUT_W = +(process.env.SPRITE_W || 128); // final sprite width, matches axe/scythe; SPRITE_W for hi-res store art

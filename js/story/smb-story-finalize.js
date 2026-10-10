@@ -10,6 +10,9 @@ STORY_CHAPTER_REGISTRY.forEach((ch, i) => {
 // Step 2: Expose backward-compatible alias (engine refs use this name)
 const STORY_CHAPTERS2 = STORY_CHAPTER_REGISTRY;
 
+// Initial _story2 loaded before the registry existed; normalise its defeated keys to ch.id now.
+try { if (typeof _story2 !== 'undefined' && _migrateStory2DefeatedKeys(_story2)) _saveStory2(); } catch (e) { /* non-fatal */ }
+
 // Step 3: Promote noFight chapters to exploration chapters (sets noFight=false, type='exploration')
 //         Must run before expansion. Epilogues are explicitly skipped and remain unchanged.
 _promotePassiveStoryChapters();

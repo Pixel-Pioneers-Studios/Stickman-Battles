@@ -2009,7 +2009,7 @@ function _brCreditElimination(attacker, target) {
   if (typeof unlockAchievement !== 'function') return;
   if (brPlayerKills >= 10) unlockAchievement('br_kills_10');
   if (brPlayerKills >= 25) unlockAchievement('br_kills_25');
-  if (brPlayerKills >= 50) unlockAchievement('br_kills_50');
+  if (brPlayerKills >= 35) unlockAchievement('br_kills_50');
 }
 
 function _brTrackPlayerFeats() {
@@ -2446,8 +2446,8 @@ function _brDormantWar() {
   var active = 0;
   for (var c = 0; c < sleepers.length; c++) if (sleepers[c]._brFoe) active++;
   // 12 left ~25 alive at five minutes; with the ~8 minute match the player
-  // needs more of the field still standing when they get there (Half the Field
-  // is 50 player kills, and off-screen kills count for nobody).
+  // needs more of the field still standing when they get there (Monster
+  // is 35 player kills, and off-screen kills count for nobody).
   var budget = Math.ceil(brAlive / 18) * 2 - active;   // counted in fighters, two per fight
   if (budget <= 0) return;
   sleepers.sort(function (p, q) { return p.x - q.x; });

@@ -2,6 +2,20 @@
 
 Compositions are written as code and exported as MIDI; the sound design and mix happen in a DAW (BandLab, free, in the browser).
 
+## Bundled soundtrack
+
+`render-soundtrack.js` renders the four original, fully arranged game loops in
+`audio/music/`. Each has multiple sections and exceeds 45 seconds:
+
+- Boss Threshold — 32 bars at 144 BPM
+- Battle Royale — 32 bars at 150 BPM
+- Story Embers — 24 bars at 102 BPM
+- Arena Neon — 32 bars at 142 BPM
+
+Run `node tools/music/render-soundtrack.js` before encoding the WAV renders to
+MP3 for shipping. The compositions are deterministic and hand-authored; the
+renderer performs synthesis only.
+
 | Script | Output | What it is |
 |---|---|---|
 | `compose-fight.js` | `out/fight-loop.mid` | Quick Fight loop. D minor, 140 BPM, 48 bars (~82s). |

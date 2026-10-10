@@ -111,9 +111,6 @@ function _cheatUnlockAll() {
 
     if (typeof _saveStory2 === 'function') _saveStory2();
     if (typeof _updateStoryCloseBtn === 'function') _updateStoryCloseBtn();
-    // Reveal story online card if present
-    const soCard = document.getElementById('modeStoryOnline');
-    if (soCard) soCard.style.display = '';
   }
 
   // Persist immediately so a page reload doesn't lose the unlocks

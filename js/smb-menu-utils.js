@@ -82,12 +82,6 @@ function refreshMenuFromAccount() {
   const sovCard = document.getElementById('modeSovereign');
   if (sovCard) sovCard.style.display = (typeof sovereignBeaten !== 'undefined' && sovereignBeaten) ? '' : 'none';
 
-  const soCard = document.getElementById('modeStoryOnline');
-  if (soCard) soCard.style.display = (
-    (typeof storyOnline !== 'undefined' && storyOnline) ||
-    (typeof _story2 !== 'undefined' && _story2 && _story2.storyComplete)
-  ) ? '' : 'none';
-
   const brCard = document.getElementById('modeBossRush');
   if (brCard) brCard.style.display = (typeof bossRushUnlocked !== 'undefined' && bossRushUnlocked) ? '' : 'none';
 
@@ -202,6 +196,10 @@ function drawStageBoundary(scX, scY, camCX, camCY) {
   let nearL = Infinity, nearR = Infinity;
   for (const p of players) {
     if (!p || p.health <= 0 || p.isAI) continue;   // warn the human, not the bot
+    // Standing on any platform (side rooftop, collapsed-slab arena, etc.) is not a
+    // ring-out threat even if cx is past the union of isFloor segments; without
+    // this the red band + lip line stayed lit permanently (AA Broken Branch).
+    if (p.onGround) continue;
     // Only when the edge is a live threat: already past the lip, or knocked
     // toward it. Proximity alone lit the band whenever someone stood on a
     // side platform above a short floor, which read as a stray red line.
@@ -247,6 +245,9 @@ function drawEdgeIndicators(scX, scY, camCX, camCY) {
   const MARGIN = 40; // px from screen edge before indicator shows
   const ARROW  = 14; // arrow half-size
   const allP   = [...players, ...minions].filter(p => p.health > 0 && !p.isBoss);
+  // Distance readout is measured from the fighter the camera follows.
+  const _ref = (gameMode === 'online' && typeof localPlayerSlot !== 'undefined' && players[localPlayerSlot])
+    ? players[localPlayerSlot] : players[0];
   for (const p of allP) {
     // Convert game coords to screen coords
     const sx = (p.cx() - camCX) * scX + canvas.width  / 2;
@@ -256,7 +257,16 @@ function drawEdgeIndicators(scX, scY, camCX, camCY) {
     if (onScreen) continue;
     // Clamp indicator to screen edge with margin
     const ix = Math.max(MARGIN, Math.min(canvas.width  - MARGIN, sx));
-    const iy = Math.max(MARGIN, Math.min(canvas.height - MARGIN, sy));
+    let iy = Math.max(MARGIN, Math.min(canvas.height - MARGIN, sy));
+    // Keep clear of the explore minimap / sidequest tracker (smb-drawing-hud.js,
+    // smb-story-sidequests.js): an arrow that would land on one slides below it.
+    if (gameMode === 'exploration' && Array.isArray(window._hudAvoid)) {
+      for (const r of window._hudAvoid) {
+        if (ix > r.x - ARROW && ix < r.x + r.w + ARROW && iy > r.y - ARROW && iy < r.y + r.h + ARROW) {
+          iy = Math.min(canvas.height - MARGIN, r.y + r.h + ARROW + 18);
+        }
+      }
+    }
     const angle = Math.atan2(sy - iy, sx - ix);
     ctx.save();
     ctx.translate(ix, iy);
@@ -280,6 +290,11 @@ function drawEdgeIndicators(scX, scY, camCX, camCY) {
     ctx.shadowColor = '#000';
     ctx.shadowBlur  = 4;
     ctx.fillText(p.name || '?', 0, ARROW + 12);
+    if (_ref && _ref !== p && _ref.health > 0) {
+      const _dist = Math.round(Math.hypot(p.cx() - _ref.cx(), p.cy() - _ref.cy()));
+      ctx.font = 'bold 10px Arial';
+      ctx.fillText(_dist + ' px', 0, ARROW + 23);
+    }
     ctx.restore();
   }
 }

@@ -35,7 +35,10 @@ let _ladderBotRef  = null;  // the opponent, pinned at match start
 let _ladderInit    = false; // opponent configured for this match
 let _ladderOver    = false; // the deciding KO has landed
 let _ladderWon     = false;
+let _ladderFirstRun = false; // the running match is the first-run fight
 let _ladderShownAt = 0;     // result card open time, for the input guard
+let _ladderWeekly  = false; // the running match is a Weekly Challenge stage (smb-weekly.js)
+let _ladderT0      = 0;     // fight start, for the weekly run clock
 
 /** Rungs beaten so far, 0 to LADDER_RUNGS.length. */
 function getLadderCleared() {
@@ -77,11 +80,13 @@ function ladderBot() {
 
 /**
  * Start a ladder match. `opts.firstRun` locks P1 to the starter loadout (sword,
- * Warrior); later rungs use the player's own 1v1 picks.
+ * Warrior); later rungs use the player's own 1v1 picks. `opts.def` replaces the
+ * rung's opponent with a custom one (Weekly Challenge stages, `opts.weekly`).
  */
 function startLadderRung(rung, opts) {
   rung = Math.max(0, Math.min(LADDER_RUNGS.length - 1, rung | 0));
-  const def = LADDER_RUNGS[rung];
+  const def = (opts && opts.def) || LADDER_RUNGS[rung];
+  _ladderWeekly = !!(opts && opts.weekly);
   _hideLadderResult();
   const sm = document.getElementById('storyModal');
   if (sm) sm.style.display = 'none';
@@ -101,13 +106,17 @@ function startLadderRung(rung, opts) {
   _ladderInit   = false;
   _ladderOver   = false;
   _ladderWon    = false;
+  _ladderFirstRun = !!(opts && opts.firstRun);
 
   window._ladderNext = Object.assign({ rung, firstRun: !!(opts && opts.firstRun) }, def);
   if (typeof startGame === 'function') startGame();
 }
 
-/** Menu entry: fight the highest rung unlocked. */
-function ladderFightNext() { startLadderRung(getLadderProgress()); }
+/** Menu entry: fight the highest rung unlocked, or the Weekly Challenge once the ladder is beaten. */
+function ladderFightNext() {
+  if (typeof WeeklyChallenge !== 'undefined' && WeeklyChallenge.unlocked()) { WeeklyChallenge.fight(); return; }
+  startLadderRung(getLadderProgress());
+}
 
 /** Per-frame tick. Safe to call every frame in every mode. */
 function updateLadder() {
@@ -119,6 +128,24 @@ function updateLadder() {
   // Name and lives are set at spawn by _startGameCore; this only pins the opponent.
   _ladderBotRef = players[1];
   _ladderInit = true;
+  _ladderT0 = performance.now();
+  if (_ladderFirstRun) _ladderStageFirstRun(players[0], players[1]);
+}
+
+/**
+ * First-run only: start both fighters on the arena floor, close together, so the
+ * opening seconds are a fight rather than a walk across a randomised layout.
+ * Placement only: no stats, health or AI state change.
+ */
+function _ladderStageFirstRun(p1, p2) {
+  const plats = (typeof currentArena !== 'undefined' && currentArena && currentArena.platforms) || [];
+  const fl = plats.find(q => q && q.isFloor);
+  if (!fl || !p1 || !p2) return;
+  const cx = fl.x + fl.w / 2;
+  p1.x = cx - 140 - p1.w / 2; p1.y = fl.y - p1.h; p1.vx = 0; p1.vy = 0; p1.facing = 1;
+  p2.x = cx + 140 - p2.w / 2; p2.y = fl.y - p2.h; p2.vx = 0; p2.vy = 0; p2.facing = -1;
+  p1.spawnX = p1.x; p1.spawnY = fl.y;
+  p2.spawnX = p2.x; p2.spawnY = fl.y;
 }
 
 /**
@@ -150,20 +177,35 @@ function _ladderFinish() {
 
   if (typeof tutorialActive !== 'undefined' && tutorialActive && typeof endTutorial === 'function') endTutorial(true);
 
-  const coins = won ? ladderReward(rung) : 3;
+  // Weekly Challenge stages keep their own progress and write their own card.
+  const weekly = (_ladderWeekly && typeof WeeklyChallenge !== 'undefined')
+    ? WeeklyChallenge.onResult(won, performance.now() - _ladderT0) : null;
+  const coins = weekly ? weekly.coins : (won ? ladderReward(rung) : 3);
   if (typeof awardCoins === 'function') awardCoins(coins);
-  if (won) _setLadderProgress(rung + 1);
+  if (won && !weekly) _setLadderProgress(rung + 1);
   if (typeof saveGame === 'function') saveGame();
   if (typeof AdManager !== 'undefined') AdManager.interstitial();
 
-  _showLadderResult(won, rung, coins);
+  _showLadderResult(won, rung, coins, weekly);
 }
 
 // ── Result card ──────────────────────────────────────────────────────────────
 
-function _showLadderResult(won, rung, coins) {
+function _showLadderResult(won, rung, coins, weekly) {
   const el = document.getElementById('ladderResult');
   if (!el) { if (typeof backToMenu === 'function') backToMenu(); return; }
+  if (weekly) {
+    const set = (id, text) => { const n = document.getElementById(id); if (n) n.textContent = text; return n; };
+    const h = set('ladderResultHead', weekly.head);
+    if (h) h.style.color = won ? 'var(--ember)' : 'var(--ui-muted)';
+    set('ladderResultSub', weekly.sub);
+    set('ladderResultNext', weekly.next);
+    const g = set('ladderResultGo', weekly.go);
+    if (g) g.dataset.weekly = '1';
+    el.style.display = 'flex';
+    _ladderShownAt = performance.now();
+    return;
+  }
   const last = rung >= LADDER_RUNGS.length - 1;
   const nextRung = won ? Math.min(rung + 1, LADDER_RUNGS.length - 1) : rung;
   const next = LADDER_RUNGS[nextRung];
@@ -185,6 +227,7 @@ function _showLadderResult(won, rung, coins) {
   if (go) {
     go.textContent = won ? (last ? 'Rematch' : 'Next Fight') : 'Retry';
     go.dataset.rung = String(nextRung);
+    go.dataset.weekly = '';
   }
   el.style.display = 'flex';
   _ladderShownAt = performance.now();
@@ -203,6 +246,7 @@ function _ladderResultOpen() {
 /** "Next Fight" / "Retry" on the result card. */
 function ladderContinue() {
   const go = document.getElementById('ladderResultGo');
+  if (go && go.dataset.weekly === '1' && typeof WeeklyChallenge !== 'undefined') { WeeklyChallenge.fight(); return; }
   const rung = go && go.dataset.rung ? Number(go.dataset.rung) : getLadderProgress();
   startLadderRung(rung);
 }
@@ -229,11 +273,13 @@ window.addEventListener('keydown', function (e) {
 function refreshLadderCard() {
   const titleEl = document.getElementById('hubLadderTitle');
   if (!titleEl) return;
+  // A beaten ladder has nothing left to show: the card becomes the Weekly Challenge.
+  if (typeof WeeklyChallenge !== 'undefined' && WeeklyChallenge.unlocked()) { WeeklyChallenge.refreshCard(); return; }
   const n = getLadderProgress();
   const def = LADDER_RUNGS[n];
   titleEl.textContent = `Rung ${n + 1}: ${def.name}`;
   const whereEl = document.getElementById('hubLadderWhere');
-  if (whereEl) whereEl.textContent = `${LADDER_DIFF_LABEL[def.diff] || def.diff} bot, ${_ladderWeaponName(def.weapon)}. Win to climb; every rung pays coins.`;
+  if (whereEl) whereEl.textContent = `${LADDER_DIFF_LABEL[def.diff] || def.diff} bot, ${_ladderWeaponName(def.weapon)}. Win to climb; clear all ten to unlock the Weekly Challenge.`;
   const cleared = getLadderCleared();
   const barEl = document.getElementById('hubLadderBar');
   if (barEl) barEl.style.width = Math.round((cleared / LADDER_RUNGS.length) * 100) + '%';

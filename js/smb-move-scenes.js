@@ -34,6 +34,7 @@ const MS_DEFS = {};                 // 'axe:q' -> scene definition
 const MS_BREAK_IFRAMES  = 40;       // victim's invulnerability after a break
 const MS_BREAK_STAGGER  = 28;       // performer's stun after being broken out of
 const MS_LEDGE_SOFTEN   = 280;      // an ability launch this close to a ledge is softened
+const MS_REGRAB_LOCKOUT = 15;       // frames a released victim cannot be held by another move scene
 const MS_SPAN_MARGIN    = 14;       // bodies stay this far inside the stage span
 const MS_BLEND_OUT      = 8;        // frames to ease from a scene's last pose into the normal one
 const MS_KILL_TAIL      = 90;       // a kill this long after a scene ends is still the move's (its projectiles)
@@ -294,6 +295,7 @@ const MS_PROTO = {
   },
   lock(t) {
     if (!this.canLock(t) || t.health <= 0) return false;
+    if ((typeof frameCount !== 'undefined' ? frameCount : 0) < (t._msRegrabAt || 0)) return false;
     t._msLock = this;
     if (!this.victims.includes(t)) this.victims.push(t);
     const b = this.body(t);
@@ -363,6 +365,7 @@ const MS_PROTO = {
     t._movePose = null;
     this.bodies.delete(t);
     if (t.health <= 0) return;
+    t._msRegrabAt = (typeof frameCount !== 'undefined' ? frameCount : 0) + MS_REGRAB_LOCKOUT;
     let lvx = this.f * (vx || 0);
     let lvy = vy || 0;
     if (this.kind === 'q' && lvx !== 0 && !this.span.open) {

@@ -1,0 +1,22 @@
+[league 2026-10-08T04:53:01.585Z] start: 8.5 h, main iter 7584, backup data/brain/pre-league-1791435181583, hunters data/brain-hunter,data/brain-hunter2
+[league 2026-10-08T04:53:01.588Z] MAIN vs data/brain-hunter,data/brain-hunter2 for 2.50 h
+[league 2026-10-08T07:23:15.075Z] main done at iter 8477
+[league 2026-10-08T07:23:47.742Z] eval brain-hunter2-vs-main8477 (exit 0):   mirror  win 67%  stocks taken/lost 202/122 |   hunter  win 44%  stocks taken/lost 178/196   (one standard error ~5 pts) |   swingHits             9.9      12.1 |   clashWins             0.0       0.1
+[league 2026-10-08T07:23:47.744Z] HUNT data/brain-hunter3 vs frozen main iter 8477 for 3.00 h
+[league 2026-10-08T10:24:42.281Z] eval hunter3-vs-target (exit 0):   mirror  win 67%  stocks taken/lost 202/122 |   hunter  win 75%  stocks taken/lost 239/126   (one standard error ~5 pts) |   swingHits             9.9      12.9 |   swings               28.3      33.2
+[league 2026-10-08T10:24:42.282Z] MAIN vs data/brain-hunter,data/brain-hunter2,data/brain-hunter3 for 2.50 h
+[league 2026-10-08T12:54:54.995Z] main done at iter 9334
+[league 2026-10-08T12:55:40.685Z] eval brain-hunter3-vs-main9334 (exit 0):   mirror  win 52%  stocks taken/lost 169/169 |   hunter  win 59%  stocks taken/lost 183/157   (one standard error ~5 pts) |   clashWins             0.0       0.1 |   swings               29.0      25.3
+[league 2026-10-08T12:55:40.686Z] end: main iter 9334, hunters data/brain-hunter,data/brain-hunter2,data/brain-hunter3
+[league 2026-10-10T14:51:52.477Z] start: 8 h, main iter 9334, backup data/brain/pre-league-1791643912475, hunters data/brain-hunter,data/brain-hunter2,data/brain-hunter3
+[league 2026-10-10T14:51:52.509Z] MAIN (candidate data/brain-cand) from shipped iter 9334 vs data/brain-hunter,data/brain-hunter2,data/brain-hunter3 for 7.90 h
+[league 2026-10-10T15:04:48.137Z] SIGINT: stopping current phase
+[league 2026-10-10T15:04:57.589Z] candidate done at iter 9337
+[league 2026-10-10T15:04:57.595Z] end: main iter 9334, gate 0 shipped / 0 rejected, hunters data/brain-hunter,data/brain-hunter2,data/brain-hunter3
+[league 2026-10-10T15:07:36.002Z] start: 8 h, main iter 9334, backup data/brain/pre-league-1791644855990, hunters data/brain-hunter,data/brain-hunter2,data/brain-hunter3
+[league 2026-10-10T15:07:36.271Z] MAIN (candidate data/brain-cand) from shipped iter 9334 vs data/brain-hunter,data/brain-hunter2,data/brain-hunter3 for 7.90 h
+[league 2026-10-10T15:09:38.911Z] train.js exited 1; retrying in 60 s
+[league 2026-10-10T15:13:32.176Z] train.js exited 1; giving up on this phase
+[league 2026-10-10T15:13:41.380Z] SIGINT: stopping current phase
+[league 2026-10-10T15:14:32.209Z] candidate done at iter 9334
+[league 2026-10-10T15:14:32.221Z] end: main iter 9334, gate 0 shipped / 0 rejected, hunters data/brain-hunter,data/brain-hunter2,data/brain-hunter3

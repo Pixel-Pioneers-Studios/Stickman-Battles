@@ -106,7 +106,7 @@ const StoryMap = (() => {
     const cur = (typeof sagaClampChapter === 'function') ? sagaClampChapter(_story2.chapter) : _story2.chapter;
     const arc = _arcFor(i);
     const arcUnlocked = arc && typeof _isArcUnlocked === 'function' ? _isArcUnlocked(arc) : true;
-    const done    = _story2.defeated.includes(i);
+    const done    = _story2.defeated.includes(STORY_CHAPTERS2[i] ? STORY_CHAPTERS2[i].id : i); // keyed by ch.id
     const current = i === cur;
     const locked  = !arcUnlocked || i > cur;
     return { done, current, locked };
@@ -342,6 +342,10 @@ const StoryMap = (() => {
     if (loc && !(s.locked && (ch.isBossFight || ch.isTrueFormFight))) bits.push(loc);
     if (!ch.noFight) bits.push(lives === 1 ? '1 life' : lives + ' lives');
     if (!s.done && ch.tokenReward) bits.push('+' + ch.tokenReward + ' coins');
+    if (!s.locked && typeof storySidequestProgress === 'function') {
+      const sq = storySidequestProgress(i);
+      if (sq.total) bits.push('Optional ' + sq.got + '/' + sq.total);
+    }
     bits.push(s.done ? (star ? '★ 100%' : 'Cleared') : s.locked ? 'Locked' : s.current ? 'Next up' : 'Open');
     infoEl.innerHTML =
       `<div class="smi-main"><div class="smi-title">Chapter ${i + 1}: ${_stopTitle(i)}</div>` +
@@ -475,6 +479,10 @@ const StoryMap = (() => {
         ctx.beginPath();
         ctx.moveTo(x, my + 7 * scale); ctx.lineTo(x - 6 * scale, my - 3 * scale); ctx.lineTo(x + 6 * scale, my - 3 * scale);
         ctx.closePath(); ctx.fill();
+        ctx.textAlign = 'center';
+        ctx.font = `700 ${Math.round(10.5 * scale)}px 'Rajdhani', 'Segoe UI', sans-serif`;
+        ctx.fillStyle = '#ffb347';
+        ctx.fillText('YOU ARE HERE', x, my - 8 * scale);
       }
       ctx.textAlign = 'center';
       ctx.font = `${selected ? 700 : 600} ${Math.round(16 * scale)}px 'Rajdhani', 'Segoe UI', sans-serif`;
@@ -495,6 +503,67 @@ const StoryMap = (() => {
     });
 
     ctx.textAlign = 'left';
+    _drawOverview(ctx, cw, ch);
+    ctx.restore();
+  }
+
+  // Progress overview, pinned to the top of the star chart: chapters cleared, worlds
+  // reached, where the story stands now, and one segment per world (filled by how
+  // much of it is cleared, the current world marked). Segments jump to their world.
+  function _drawOverview(ctx, cw, ch) {
+    if (!worlds.length) return;
+    const u = Math.max(0.8, Math.min(cw / 1000, 1.6));
+    let done = 0, total = 0, reached = 0, curCh = -1;
+    worlds.forEach(w => {
+      done += w.done; total += w.total; if (w.known) reached++;
+      if (w.current) { const i = w.chapters.find(c => _chState(c).current); if (i !== undefined) curCh = i; }
+    });
+    const x0 = 22 * u, x1 = cw - 22 * u, y0 = 12 * u;
+    const bh = 5 * u, ph = 56 * u;
+    ctx.save();
+    ctx.fillStyle = 'rgba(6,8,16,0.66)';
+    ctx.beginPath(); ctx.roundRect(x0 - 10 * u, y0 - 6 * u, x1 - x0 + 20 * u, ph, 5 * u); ctx.fill();
+    ctx.strokeStyle = 'rgba(160,172,205,0.18)'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.roundRect(x0 - 10 * u, y0 - 6 * u, x1 - x0 + 20 * u, ph, 5 * u); ctx.stroke();
+    ctx.textBaseline = 'alphabetic';
+    ctx.font = `700 ${Math.round(12 * u)}px 'Rajdhani', 'Segoe UI', sans-serif`;
+    ctx.textAlign = 'left';
+    ctx.fillStyle = 'rgba(170,182,212,0.75)';
+    ctx.fillText('STORY PROGRESS', x0, y0 + 8 * u);
+    const lw = ctx.measureText('STORY PROGRESS  ').width;
+    ctx.font = `600 ${Math.round(12 * u)}px 'Rajdhani', 'Segoe UI', sans-serif`;
+    ctx.fillStyle = '#e4e9f6';
+    ctx.fillText(`${done} / ${total} chapters cleared  ·  ${reached} of ${worlds.length} worlds reached`, x0 + lw, y0 + 8 * u);
+    ctx.textAlign = 'right';
+    const here = curCh >= 0 ? `Now: Chapter ${curCh + 1}, ${STORY_CHAPTERS2[curCh].title}` : 'Every chapter cleared';
+    ctx.fillStyle = '#ffb347';
+    ctx.fillText(here, x1, y0 + 8 * u);
+    // One segment per world
+    const gap = 2 * u, n = worlds.length;
+    const sw = (x1 - x0 - gap * (n - 1)) / n, by = y0 + 17 * u;
+    worlds.forEach((w, k) => {
+      const x = x0 + k * (sw + gap);
+      ctx.fillStyle = 'rgba(160,172,205,0.14)';
+      ctx.fillRect(x, by, sw, bh);
+      if (w.known && w.total) {
+        ctx.fillStyle = w.def.accent;
+        ctx.globalAlpha = 0.85;
+        ctx.fillRect(x, by, sw * (w.done / w.total), bh);
+        ctx.globalAlpha = 1;
+      }
+      if (k === sel) { ctx.strokeStyle = 'rgba(255,255,255,0.7)'; ctx.lineWidth = 1; ctx.strokeRect(x - 0.5, by - 1.5, sw + 1, bh + 3); }
+      if (w.current) {
+        ctx.fillStyle = '#ffb347';
+        const cx = x + sw / 2;
+        ctx.beginPath(); ctx.moveTo(cx, by + bh + 2 * u); ctx.lineTo(cx - 4 * u, by + bh + 9 * u); ctx.lineTo(cx + 4 * u, by + bh + 9 * u); ctx.closePath(); ctx.fill();
+      }
+      if (mode === 'galaxy') {
+        hits.push({ x: x + sw / 2, y: by + bh / 2, r: Math.max(sw / 2 + gap, 5 * u), act: () => {
+          if (!w.known) return;
+          if (sel !== k) { sel = k; _info(); }
+        } });
+      }
+    });
     ctx.restore();
   }
 

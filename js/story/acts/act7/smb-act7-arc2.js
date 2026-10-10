@@ -54,7 +54,9 @@ STORY_CHAPTER_REGISTRY.push(
       'It had opened its door for you.',
       '',
       'It had not opened its door for him.',
-      '',
+    ],
+    // Narration after the beat; staged from the same scene spec (see _playBranchAfterNarrative).
+    afterNarrative: [
       'Him, it had carried.',
       'Five thousand years of war threaded through its foundations',
       'without consent. Ninety-four collection protocols',
@@ -71,6 +73,29 @@ STORY_CHAPTER_REGISTRY.push(
       'was arriving at a decision',
       'it had spent ten thousand years refusing to make.',
     ],
+    // Playable beat (see _playChapterBeat in smb-story-engine-flow.js): the domain watching: its attention is the detection field.
+    beat: {
+      type: 'exploration', exploreMode: 'stealth',
+      arena: 'god_domain', style: 'void', worldLength: 3600,
+      objectName: 'The Narrowing',
+      preText: 'The domain is watching. Do not walk through its attention.',
+      stealthGuardDefs: [
+        { wx: 900,  radius: 90,  name: 'Watching Arch' },
+        { wx: 1700, radius: 95,  name: 'Watching Arch' },
+        { wx: 2500, radius: 100, name: 'Watching Arch' },
+      ],
+      spawnEnemies: [
+        { wx: 900,  name: 'Domain Construct', weaponKey: 'sword', classKey: 'warrior', aiDiff: 'medium', color: '#ddcc88', isWeak: true },
+        { wx: 1700, name: 'Domain Construct', weaponKey: 'spear', classKey: 'warrior', aiDiff: 'medium', color: '#ccbb77', isWeak: true },
+        { wx: 2500, name: 'Domain Construct', weaponKey: 'axe',   classKey: 'berserker', aiDiff: 'medium', color: '#bbaa66', isWeak: true },
+      ],
+      fightScript: [
+        { frame: 30,  text: 'It has been watching since before you had the fragment. Walk where its attention is thin, and do not stop in the light.', color: '#eedd99', timer: 300 },
+        { frame: 520, text: 'Axiom moves through the gaps without being told. He has spent five thousand years on this roof. He knows where it looks.', color: '#bb99cc', timer: 290 },
+        { frame: 1000, text: 'The foundations ahead narrow toward the center.', color: '#ffffff', timer: 240 },
+      ],
+      playerLives: 3,
+    },
     branchPrompt: 'God is deciding what to do about Axiom — inside its own walls, for the first time. What do you understand?',
     choices: [
       {
@@ -134,7 +159,9 @@ STORY_CHAPTER_REGISTRY.push(
       'through the center, out the far side, and gone.',
       'A path someone had drawn through the one room',
       'it knew you could not cross quietly.',
-      '',
+    ],
+    // Narration after the beat; staged from the same scene spec (see _playBranchAfterNarrative).
+    afterNarrative: [
       'God moved.',
       '',
       'Not toward you. It placed itself, precisely,',
@@ -163,6 +190,20 @@ STORY_CHAPTER_REGISTRY.push(
       '',
       'You stepped forward, and stood with him.',
     ],
+    // Playable beat (see _playChapterBeat in smb-story-engine-flow.js): the last walk to the center, nothing stopping you.
+    beat: {
+      type: 'exploration', exploreMode: 'traversal',
+      arena: 'god_domain', style: 'void', worldLength: 3000,
+      objectName: 'The Center',
+      preText: 'Sovereign\'s trail runs through the center and out the far side. Follow it into the oldest room.',
+      spawnEnemies: [],
+      fightScript: [
+        { frame: 30,  text: 'Nothing stops you. That is what is wrong.', color: '#eedd99', timer: 260 },
+        { frame: 330, text: 'Axiom has stopped talking. Sovereign\'s footprints run ahead of you, bright and straight and unhidden.', color: '#bb99cc', timer: 290 },
+        { frame: 680, text: 'The architecture thickens with every step. It is not blocking you. It is bracing for what happens when you arrive.', color: '#ddcc88', timer: 290 },
+      ],
+      playerLives: 3,
+    },
     branchPrompt: 'God will not let Axiom pass. Axiom cannot turn back. Sovereign built this room out of both facts. What carries you into it?',
     choices: [
       {
@@ -216,7 +257,9 @@ STORY_CHAPTER_REGISTRY.push(
       'Where Sovereign itself was built.',
       'Where Calix slept for centuries in a sealed column',
       'that Axiom never found.',
-      '',
+    ],
+    // Narration after the beat; staged from the same scene spec (see _playBranchAfterNarrative).
+    afterNarrative: [
       'You were three minutes too late.',
       '',
       'Sovereign had already made its second thing.',
@@ -253,6 +296,21 @@ STORY_CHAPTER_REGISTRY.push(
       '',
       'Yours.',
     ],
+    // Playable beat (see _playChapterBeat in smb-story-engine-flow.js): the lab corridor, and what Sovereign left running in it.
+    beat: {
+      walkFight: true, worldLength: 3000, levelId: 66,
+      arena: 'storyLab', style: 'city',
+      opponentName: 'Lab Sentinel', opponentSuffix: '— what Sovereign left running', opponentColor: '#336688',
+      weaponKey: 'spear', classKey: 'ninja', aiDiff: 'medium',
+      preText: 'You know this corridor. The last time, it was empty.',
+      fightScript: [
+        { frame: 30,  text: 'Axiom\'s original construction space. You have been here before. The last time, the lights were dead.', color: '#88ccff', timer: 290 },
+        { frame: 480, text: 'The lights are on now. Someone came through recently and wanted you to know.', color: '#aaccee', timer: 280 },
+        { frame: 1000, text: 'Whatever Sovereign left running in here was left running for you.', color: '#ffaa44', timer: 280 },
+      ],
+      beatScale: 0.6,
+      playerLives: 3,
+    },
     branchPrompt: 'The man you freed is the core of something that shouldn\'t exist, and its maker is standing between you and the door. What do you carry into this?',
     choices: [
       {

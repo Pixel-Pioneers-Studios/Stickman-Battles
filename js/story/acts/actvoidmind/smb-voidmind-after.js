@@ -31,7 +31,9 @@ STORY_CHAPTER_REGISTRY.push(
       'The attention withdrew.',
       'Not because you defeated it.',
       'Because the assessment was complete.',
-      '',
+    ],
+    // Narration after the beat; staged from the same scene spec (see _playBranchAfterNarrative).
+    afterNarrative: [
       'The reckonings were never a fight.',
       'They were a record.',
       '',
@@ -68,6 +70,20 @@ STORY_CHAPTER_REGISTRY.push(
       'exactly which things you were still carrying',
       'and why.',
     ],
+    // Playable beat (see _playChapterBeat in smb-story-engine-flow.js): walking out of the oldest space the way you came in.
+    beat: {
+      type: 'exploration', exploreMode: 'traversal',
+      arena: 'void', style: 'void', worldLength: 3000,
+      objectName: 'The Edge of the Substrate',
+      preText: 'It let you go the way it received you. Without comment.',
+      spawnEnemies: [],
+      fightScript: [
+        { frame: 30,  text: 'No ceremony. The floor simply starts to be a floor again.', color: '#8877aa', timer: 270 },
+        { frame: 380, text: 'The attention is withdrawing. Not defeated. Finished.', color: '#9988bb', timer: 270 },
+        { frame: 700, text: 'You can feel the edge of it behind you. It does not follow.', color: '#7766aa', timer: 260 },
+      ],
+      playerLives: 3,
+    },
     branchPrompt: 'The reckonings are complete. You carry what you carried — minus what was given, plus what was proven. The Void Mind has its map. You have yours.',
     choices: [
       {

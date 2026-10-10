@@ -27,3 +27,8 @@ tools/tour/tour-frames/
 CLAUDE.md
 docs/README_ANALYSIS.md
 dist/
+
+# ── Brain trainer ────────────────────────────────────────────────────────────
+# PyTorch venv for tools/brain/torch_ppo.py (see tools/brain/torch_client.js).
+tools/brain/.venv/
+__pycache__/

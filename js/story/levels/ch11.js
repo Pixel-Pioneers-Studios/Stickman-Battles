@@ -47,7 +47,7 @@
     });
   }
 
-  function back(v) {
+  function back(v, a) {
     // ── The bank: cooled lava rock, slag heaps, the station's outer wall
     if (_slVisible(v, -200, GATE + 60)) {
       ctx.fillStyle = '#2a1e1a';
@@ -123,7 +123,7 @@
       ctx.strokeStyle = 'rgba(150,220,255,0.6)'; ctx.lineWidth = 1.5;
       ctx.beginPath(); ctx.moveTo(R.x, R.y - 24); ctx.lineTo(R.x + R.w, R.y - 24); ctx.stroke();
       for (let k = R.x; k <= R.x + R.w; k += 20) { ctx.beginPath(); ctx.moveTo(k, R.y); ctx.lineTo(k, R.y - 24); ctx.stroke(); }
-      const d = _slPlat(currentArena, 'disc');
+      const d = _slPlat(a, 'disc');
       if (d) {
         ctx.save(); ctx.globalCompositeOperation = 'lighter';
         ctx.fillStyle = 'rgba(150,230,255,0.25)'; ctx.beginPath(); ctx.ellipse(d.x + d.w / 2, d.y + 4, d.w * 0.7, 10, 0, 0, Math.PI * 2); ctx.fill();

@@ -1290,3 +1290,350 @@ mfDefine('crossbow:e', {
   },
   exit: [1, 0],
 });
+
+// ═════════════════════════════════════════════════════════════════════════════
+// NULL BLADE
+// ═════════════════════════════════════════════════════════════════════════════
+// Counter Step carried through: one step past them, and the cut arrives late.
+mfDefine('nullblade:q', {
+  name: 'NULL STEP', color: '#ff4422', len: 92,
+  me: [
+    { t: 0,  ...MF_COILED },
+    { t: 18, e: 'lin', ...MF_COILED, drop: 9 },
+    { t: 24, e: 'snap', r: -0.35, rl: 1.15, w: -0.55, l: 2.5, lean: 15, drop: 7, fr: 19, fl: -13, trail: true },
+    { t: 52, e: 'lin', r: -0.35, rl: 1.15, w: -0.55, l: 2.5, lean: 13, drop: 6, fr: 19, fl: -13 },
+    { t: 64, e: 'io', r: 1.9, w: 2.3, l: 1.4, lean: 0, drop: 0, fr: 7, fl: -7 },
+    { t: 92, e: 'lin', r: 1.9, w: 2.3, l: 1.4, lean: 0, drop: 0, fr: 7, fl: -7 },
+  ],
+  tick(s) {
+    if (s.at(0)) s.vpose('reel');
+    mfClose(s, 44, 0, 16);
+    if (s.at(19)) s.vars.px = s.vx + 58;
+    s.go('m', s.vars.px, 0, 19, 24, 'snap');
+    if (s.at(22)) {
+      s.streak(s.qx() - s.f * 70, s.qy() - 4, s.qx() + s.f * 70, s.qy() - 10, '#ff6a4a', 30, 4);
+      s.sfx('swing'); s.vpose('frozen'); s.shake(6);
+    }
+    if (s.at(54)) {
+      s.vpose('spread');
+      s.kill({ color: '#ff4422', flash: '#ffb0a0', ring: 130, sfx: 'hitSlash' });
+      s.streak(s.qx() - s.f * 90, s.qy() - 2, s.qx() + s.f * 90, s.qy() - 12, '#ffffff', 14, 8);
+    }
+    s.fly('v', -2.4, -3.2, 0.24, 54);
+    if (s.t > 54) s.vrot = (s.t - 54) * 0.07;
+    s.camMid(s.t < 22 ? 1.3 : s.t < 54 ? 1.6 : 1.4);
+  },
+  exit: [-4, -2],
+});
+
+// Three cuts, each one lifting them, and the last brings the eclipse down.
+mfDefine('nullblade:e', {
+  name: 'RED ECLIPSE', color: '#ff4422', len: 100,
+  me: [
+    { t: 0,  ...MS_STAND },
+    { t: 10, e: 'out', ...MF_COILED },
+    { t: 16, e: 'snap', ...MF_RAISED, trail: true },
+    { t: 26, e: 'out', ...MF_COILED },
+    { t: 32, e: 'snap', ...MF_RAISED, trail: true },
+    { t: 46, e: 'out', ...MF_CHOPUP },
+    { t: 58, e: 'lin', ...MF_CHOPUP },
+    { t: 62, e: 'snap', ...MF_CROUCH, trail: true },
+    { t: 100, e: 'io', ...MS_STAND },
+  ],
+  tick(s) {
+    if (s.at(0)) s.vpose('reel');
+    mfClose(s, 46, 0, 12);
+    for (const at of [16, 32]) {
+      if (!s.at(at)) continue;
+      s.slash(10, -8, 62, MS_PI * 0.7, -MS_PI * 0.45, { ry: 30, color: '#ff6a4a', w: 11, life: 12 });
+      s.star(s.qx(), s.qy(), false, '#ff6a4a'); s.sfx('hitSlash'); s.shake(8); s.vpose('lift');
+    }
+    s.go('v', null, -40, 16, 26, 'out');
+    s.go('v', null, -84, 32, 46, 'out');
+    if (s.in(46, 62)) s.vpose('hang');
+    if (s.at(62)) {
+      s.vpose('spread');
+      s.slash(8, -30, 96, -MS_PI * 0.6, MS_PI * 0.55, { ry: 60, color: '#ffffff', w: 16, life: 16 });
+      s.kill({ color: '#ff4422', flash: '#ff8a70', a: 0.36, ring: 170, sfx: 'hitSlash' });
+    }
+    s.go('v', null, s.vfloor, 62, 70, 'in');
+    if (s.at(70)) { s.shake(16); s.ring(s.qx(), s.gy, 120, '#ff6a4a', 18); s.sfx('landHard'); s.vpose('slump'); }
+    s.cam(s.t < 46 ? 1.35 : 1.5, (s.ax() + s.qx()) / 2, s.qy() - 6);
+  },
+  draw(s, ctx) {
+    // The eclipse: a dark disc with a red rim behind them at the top of the lift.
+    if (s.t < 40 || s.t > 74) return;
+    const k = s.t < 62 ? s.u(40, 58, 'out') : 1 - s.u(62, 74);
+    ctx.save();
+    ctx.globalAlpha = 0.85 * k;
+    ctx.fillStyle = '#0a0406';
+    ctx.beginPath(); ctx.arc(s.qx(), s.qy() - 4, 46 * k, 0, MS_TAU); ctx.fill();
+    ctx.strokeStyle = '#ff4422'; ctx.lineWidth = 3; ctx.shadowColor = '#ff4422'; ctx.shadowBlur = 18;
+    ctx.stroke();
+    ctx.restore();
+  },
+  exit: [0, 0],
+});
+
+// ═════════════════════════════════════════════════════════════════════════════
+// VOID BLADE
+// ═════════════════════════════════════════════════════════════════════════════
+// Void Slash, both cuts landing at once: an X that stays in the air after them.
+mfDefine('voidblade:q', {
+  name: 'VOID CROSS', color: '#b060ff', len: 90,
+  me: [
+    { t: 0,  ...MF_CHOPUP },
+    { t: 16, e: 'lin', ...MF_CHOPUP },
+    { t: 20, e: 'snap', r: 0.85, w: 1.10, l: 2.3, lean: 14, drop: 9, fr: 19, fl: -12, trail: true },
+    { t: 26, e: 'out', ...MF_COILED },
+    { t: 30, e: 'snap', r: -0.75, w: -1.00, l: 2.4, lean: 13, drop: 7, fr: 19, fl: -12, trail: true },
+    { t: 60, e: 'lin', r: -0.75, w: -1.00, l: 2.4, lean: 12, drop: 6, fr: 19, fl: -12 },
+    { t: 90, e: 'io', ...MS_STAND },
+  ],
+  tick(s) {
+    if (s.at(0)) s.vpose('brace');
+    mfClose(s, 46, 0, 14);
+    if (s.at(20)) { s.streak(s.qx() - 44, s.qy() - 44, s.qx() + 44, s.qy() + 40, '#d0a8ff', 46, 5); s.sfx('hitSlash'); s.shake(8); s.vpose('reel'); }
+    if (s.at(30)) { s.streak(s.qx() + 44, s.qy() - 44, s.qx() - 44, s.qy() + 40, '#d0a8ff', 36, 5); s.sfx('hitSlash'); s.shake(10); s.vpose('frozen'); }
+    if (s.at(56)) {
+      s.vpose('spread'); s.invert(4);
+      s.kill({ color: '#b060ff', flash: '#e0c8ff', ring: 150, sfx: 'heavyHit' });
+    }
+    s.fly('v', 3.2, -4.2, 0.26, 56);
+    if (s.t > 56) s.vrot = -(s.t - 56) * 0.09;
+    s.camMid(s.t < 30 ? 1.35 : s.t < 56 ? 1.65 : 1.35);
+  },
+  exit: [5, -3],
+});
+
+// They are drawn up off the floor into a closing ring, and the ring shuts.
+mfDefine('voidblade:e', {
+  name: 'EVENT HORIZON', color: '#b060ff', len: 104,
+  me: [
+    { t: 0,  ...MS_STAND },
+    { t: 14, e: 'out', r: -0.2, rl: 1.2, w: -0.2, l: 1.5, lean: 6, drop: 4, fr: 12, fl: -10 },
+    { t: 58, e: 'lin', r: -0.35, rl: 1.2, w: -0.35, l: 1.5, lean: 4, drop: 4, fr: 12, fl: -10 },
+    { t: 64, e: 'snap', r: 1.3, w: 1.6, l: 1.5, lean: 10, drop: 9, fr: 14, fl: -12, trail: true },
+    { t: 104, e: 'io', ...MS_STAND },
+  ],
+  tick(s) {
+    if (s.at(0)) s.vpose('reel');
+    if (s.at(14)) s.vpose('hang');
+    s.go('v', null, -70, 14, 50, 'io');
+    if (s.in(14, 62)) { s.vrot = Math.sin(s.t * 0.2) * 0.25; if (s.t % 3 === 0) s.parts(s.qx() + (Math.random() - 0.5) * 120, s.qy() + (Math.random() - 0.5) * 120, '#b060ff', 1); }
+    if (s.at(64)) {
+      s.vrot = 0; s.vpose('spread'); s.invert(6);
+      s.kill({ color: '#b060ff', flash: '#1a0830', a: 0.5, hold: 12, ring: 240, sfx: 'explosion' });
+    }
+    s.go('v', null, s.vfloor, 66, 82, 'in');
+    if (s.at(82)) { s.shake(12); s.sfx('landHard'); s.vpose('slump'); }
+    s.cam(s.t < 64 ? 1.3 + s.u(14, 64) * 0.4 : 1.4, s.qx(), s.qy());
+  },
+  draw(s, ctx) {
+    if (s.t < 14 || s.t > 66) return;
+    const k = s.u(14, 64, 'in');
+    ctx.save();
+    ctx.strokeStyle = '#d0a8ff'; ctx.shadowColor = '#b060ff'; ctx.shadowBlur = 20;
+    for (let i = 0; i < 3; i++) {
+      ctx.globalAlpha = 0.3 + 0.5 * k;
+      ctx.lineWidth = 2 + k * 3;
+      ctx.beginPath(); ctx.ellipse(s.qx(), s.qy(), (150 - i * 26) * (1 - k) + 14, ((150 - i * 26) * (1 - k) + 14) * 0.7, s.t * 0.05 + i, 0, MS_TAU); ctx.stroke();
+    }
+    ctx.globalAlpha = 0.6 * k; ctx.fillStyle = '#0c0418';
+    ctx.beginPath(); ctx.arc(s.qx(), s.qy(), 20 + 24 * k, 0, MS_TAU); ctx.fill();
+    ctx.restore();
+  },
+  exit: [0, 0],
+});
+
+// ═════════════════════════════════════════════════════════════════════════════
+// SHOCK RIFLE
+// ═════════════════════════════════════════════════════════════════════════════
+// Three rounds lock them rigid, and the charge they are carrying goes to ground.
+mfDefine('shockrifle:q', {
+  name: 'CHAIN LIGHTNING', color: '#00ddff', len: 94,
+  me: [
+    { t: 0,  ...MS_AIM },
+    { t: 46, e: 'lin', ...MS_AIM, lean: 4, drop: 4 },
+    { t: 60, e: 'io', r: -1.1, rl: 0.9, w: -1.5, l: 1.3, lean: -2, drop: 1, fr: 9, fl: -9 },
+    { t: 94, e: 'lin', r: -1.15, rl: 0.9, w: -1.55, l: 1.3, lean: -2, drop: 0, fr: 9, fl: -9 },
+  ],
+  poseMod(s, p) {
+    for (const at of [20, 28, 36]) if (s.t >= at && s.t < at + 4) { const k = 1 - (s.t - at) / 4; p.r -= k * 0.25; p.w -= k * 0.4; p.lean -= k * 5; }
+    return p;
+  },
+  tick(s) {
+    if (s.at(0)) s.vpose('brace');
+    for (const at of [20, 28, 36]) {
+      if (!s.at(at)) continue;
+      const m = mfMuzzle(s);
+      s.streak(m.x, m.y, s.qx(), s.qy() - 8 + (at - 28), '#b8f4ff', 9, 4);
+      s.star(s.qx(), s.qy(), false, '#00ddff'); s.sfx('shootZap'); s.shake(7); s.vpose('frozen');
+    }
+    if (s.in(20, 56)) s.vrot = (Math.random() - 0.5) * 0.16;
+    if (s.at(56)) {
+      s.vrot = 0; s.vpose('arch');
+      s.bolt(s.qx(), s.qy());
+      s.kill({ color: '#00ddff', flash: '#d8fbff', a: 0.42, ring: 170, sfx: 'hitZap' });
+    }
+    s.fly('v', 1.6, -4.6, 0.3, 56);
+    mfShotCam(s, 18, 1.5);
+  },
+  exit: [2, -2],
+});
+
+// The cell is emptied into one beam.
+mfDefine('shockrifle:e', {
+  name: 'OVERCHARGE', color: '#00ddff', len: 100,
+  me: [
+    { t: 0,  ...MS_KNEEL },
+    { t: 44, e: 'lin', ...MS_KNEEL },
+    { t: 48, e: 'snap', ...MS_KNEEL, r: -0.3, w: -0.4, lean: -12 },
+    { t: 72, e: 'lin', ...MS_KNEEL, r: -0.1, w: -0.15, lean: -6 },
+    { t: 100, e: 'io', ...MS_STAND },
+  ],
+  tick(s) {
+    if (s.at(0)) s.vpose('brace');
+    if (s.every(6, 6, 42)) { const m = mfMuzzle(s); s.parts(m.x, m.y, '#b8f4ff', 3); }
+    if (s.at(30)) s.vpose('reel');
+    if (s.at(46)) {
+      const m = mfMuzzle(s);
+      s.streak(m.x, m.y, s.qx() + s.f * 400, s.qy() - 4, '#ffffff', 22, 16);
+      s.streak(m.x, m.y, s.qx() + s.f * 400, s.qy() - 4, '#00ddff', 30, 30);
+      s.vpose('spread'); s.mx -= 8;
+      s.kill({ color: '#00ddff', flash: '#d8fbff', a: 0.5, hold: 11, ring: 200, sfx: 'shootZap' });
+      s.sfx('explosion');
+    }
+    s.fly('v', 7, -3.4, 0.2, 46);
+    if (s.t > 46) s.vrot = -(s.t - 46) * 0.12;
+    if (s.t < 44) s.cam(1.5 + s.u(0, 44) * 0.2, s.ax() + s.f * 40, s.ay() - 6); else s.camMid(1.15);
+  },
+  draw(s, ctx) {
+    if (s.t >= 46) return;
+    const m = mfMuzzle(s), k = s.u(4, 46, 'in');
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    const g = ctx.createRadialGradient(m.x, m.y, 1, m.x, m.y, 6 + k * 26);
+    g.addColorStop(0, 'rgba(255,255,255,0.95)'); g.addColorStop(0.4, `rgba(0,221,255,${0.7 * k})`); g.addColorStop(1, 'rgba(0,120,255,0)');
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.arc(m.x, m.y, 6 + k * 26, 0, MS_TAU); ctx.fill();
+    ctx.restore();
+  },
+  exit: [9, -3],
+});
+
+// ═════════════════════════════════════════════════════════════════════════════
+// LANTERN
+// ═════════════════════════════════════════════════════════════════════════════
+// Reveal Sweep deals no damage, so only the super can end a fight: the shutter
+// comes all the way open.
+mfDefine('lantern:e', {
+  name: 'LAST LIGHT', color: '#ffcc66', len: 98,
+  me: [
+    { t: 0,  ...MS_STAND },
+    { t: 16, e: 'out', r: -1.45, rl: 1.15, w: 1.57, l: 1.2, lean: -3, drop: 3, fr: 9, fl: -9 },
+    { t: 70, e: 'lin', r: -1.50, rl: 1.18, w: 1.57, l: 1.2, lean: -4, drop: 2, fr: 9, fl: -9 },
+    { t: 98, e: 'io', ...MS_STAND },
+  ],
+  tick(s) {
+    if (s.at(0)) s.vpose('reel');
+    if (s.at(16)) s.vpose('brace');
+    if (s.every(4, 18, 50)) s.parts(s.qx(), s.qy() - 10, '#ffe6a8', 2);
+    if (s.at(36)) s.vpose('kneel');
+    if (s.at(52)) {
+      s.vpose('slump');
+      s.kill({ color: '#ffcc66', flash: '#fff4d0', a: 0.55, hold: 12, ring: 260, sfx: 'stingImpact' });
+      s.ring(s.ax(), s.ay() - 40, 340, '#ffffff', 26);
+    }
+    s.cam(s.t < 52 ? 1.3 + s.u(0, 52) * 0.25 : 1.3, (s.ax() + s.qx()) / 2, s.ay() - 24);
+  },
+  draw(s, ctx) {
+    if (s.t < 14 || s.t > 80) return;
+    const k = s.t < 52 ? s.u(14, 52, 'in') : 1 - s.u(52, 80);
+    const x = s.ax() + s.f * 4, y = s.ay() - 52;
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    const g = ctx.createRadialGradient(x, y, 2, x, y, 30 + k * 240);
+    g.addColorStop(0, `rgba(255,250,220,${0.9 * k})`); g.addColorStop(0.3, `rgba(255,204,102,${0.45 * k})`); g.addColorStop(1, 'rgba(255,170,60,0)');
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.arc(x, y, 30 + k * 240, 0, MS_TAU); ctx.fill();
+    ctx.restore();
+  },
+  exit: [0, 0],
+});
+
+// ═════════════════════════════════════════════════════════════════════════════
+// GAUNTLET
+// ═════════════════════════════════════════════════════════════════════════════
+// Void Slam with someone under it: up off the floor, then through it.
+mfDefine('gauntlet:q', {
+  name: 'VOID SLAM', color: '#b060ff', len: 98,
+  me: [
+    { t: 0,  ...MS_STAND },
+    { t: 12, e: 'out', r: 2.2, rl: 0.8, w: 2.2, l: 0.4, lean: 8, drop: 14, fr: 14, fl: -14 },
+    { t: 18, e: 'snap', r: -1.5, rl: 1.2, w: -1.5, l: 1.4, lean: -4, drop: 0, fr: 9, fl: -9 },
+    { t: 40, e: 'out', r: -1.75, rl: 1.1, w: -1.75, l: -1.45, ll: 1.1, lean: -8, ...MF_AIRUP },
+    { t: 50, e: 'lin', r: -1.80, rl: 1.1, w: -1.80, l: -1.50, ll: 1.1, lean: -9, ...MF_AIRUP },
+    { t: 56, e: 'snap', r: 1.45, rl: 1.1, w: 1.45, l: 1.70, ll: 1.1, lean: 14, drop: 17, fr: 16, fl: -16 },
+    { t: 80, e: 'lin', r: 1.45, rl: 1.1, w: 1.45, l: 1.70, ll: 1.1, lean: 14, drop: 17, fr: 16, fl: -16 },
+    { t: 98, e: 'io', ...MS_STAND },
+  ],
+  tick(s) {
+    if (s.at(0)) s.vpose('reel');
+    mfClose(s, 34, 0, 12);
+    if (s.at(18)) { s.star(s.qx(), s.qy(), false, '#d0a8ff'); s.sfx('heavyHit'); s.shake(12); s.vpose('lift'); }
+    s.go('v', null, -96, 18, 44, 'out');
+    s.go('m', null, -100, 26, 46, 'out');
+    if (s.at(44)) s.vpose('hang');
+    s.go('m', null, 0, 50, 56, 'in');
+    s.go('v', null, s.vfloor, 50, 56, 'in');
+    if (s.at(56)) {
+      s.vpose('slump'); s.vars.boom = s.t;
+      s.kill({ color: '#b060ff', flash: '#e0c8ff', a: 0.42, hold: 11, ring: 230, shake: 34, sfx: 'landHard' });
+      s.ring(s.qx(), s.gy, 320, '#ffffff', 26);
+    }
+    s.cam(s.t < 50 ? 1.3 : 1.5, (s.ax() + s.qx()) / 2, (s.ay() + s.qy()) / 2 - 6);
+  },
+  draw(s, ctx) {
+    if (s.vars.boom) mfCracks(ctx, s, s.qx(), 1 - (s.t - s.vars.boom) / 40, '#d0a8ff', 130);
+  },
+  exit: [0, 0],
+});
+
+// One punch, all the way back, and they leave.
+mfDefine('gauntlet:e', {
+  name: 'SINGULARITY', color: '#b060ff', len: 90,
+  me: [
+    { t: 0,  ...MS_STAND },
+    { t: 26, e: 'io',  r: 2.80, rl: 0.75, w: 2.80, l: 0.2, lean: -12, drop: 10, fr: 12, fl: -16 },
+    { t: 34, e: 'hold', r: 2.85, rl: 0.75, w: 2.85, l: 0.2, lean: -13, drop: 10, fr: 12, fl: -16 },
+    { t: 38, e: 'snap', r: 0.02, rl: 1.3, w: 0.02, l: 2.7, lean: 18, drop: 6, fr: 22, fl: -12 },
+    { t: 70, e: 'lin', r: 0.02, rl: 1.3, w: 0.02, l: 2.7, lean: 16, drop: 6, fr: 22, fl: -12 },
+    { t: 90, e: 'io', ...MS_STAND },
+  ],
+  tick(s) {
+    if (s.at(0)) s.vpose('brace');
+    mfClose(s, 36, 0, 14);
+    if (s.every(3, 10, 36)) s.parts(s.ax() - s.f * 18, s.ay() - 10, '#b060ff', 2);
+    if (s.at(37)) {
+      s.vpose('fold');
+      s.kill({ color: '#b060ff', flash: '#ffffff', a: 0.5, hold: 13, ring: 190, shake: 30, sfx: 'heavyHit' });
+      s.invert(5);
+    }
+    s.fly('v', 13, -2.4, 0.12, 38);
+    if (s.t > 38) { s.vrot = (s.t - 38) * 0.2; if (s.t % 3 === 0) s.ring(s.qx(), s.qy(), 40, '#d0a8ff', 10); }
+    if (s.t < 38) s.camMid(1.35 + s.u(0, 38) * 0.35); else s.cam(1.1, s.ax() + s.f * 120, s.ay() - 10);
+  },
+  exit: [14, -3],
+});
+
+// A weapon with no generic finisher of its own ends an ordinary kill with its
+// super's. The Knight Gauntlets take the Knight's.
+for (const _k of ['voidblade', 'shockrifle', 'lantern', 'gauntlet']) {
+  if (typeof WEAPON_FINISHERS !== 'undefined' && !WEAPON_FINISHERS[_k]) WEAPON_FINISHERS[_k] = MOVE_FINISHERS[_k + ':e'];
+}
+if (typeof WEAPON_FINISHERS !== 'undefined' && typeof CLASS_FINISHERS !== 'undefined') {
+  if (!WEAPON_FINISHERS.mkgauntlet) WEAPON_FINISHERS.mkgauntlet = CLASS_FINISHERS.megaknight;
+  // Written for Sovereign (reached through _finisherKey); any other bearer of the blade gets it too.
+  if (!WEAPON_FINISHERS.nullblade) WEAPON_FINISHERS.nullblade = CLASS_FINISHERS.nullblade;
+}

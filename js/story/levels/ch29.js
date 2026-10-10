@@ -16,11 +16,19 @@
   const RING_LEDGES = [[2380, G - 90, 140], [2300, G - 190, 140], [2400, G - 290, 160], [3480, G - 90, 140], [3560, G - 190, 140], [3440, G - 290, 160]];
   const ENTRY = [[600, G - 70, 120], [1500, G - 110, 160], [1680, G - 210, 120], [4600, G - 100, 160], [4800, G - 200, 140]];
 
+  // Optional loot (see _slStashPlats / level.loot in smb-story-levels.js): a hidden cache
+  // one jump off the route, and a better one held by an OPTIONAL elite.
+  const STASH = [
+    { id: 'a', x: 1020, y: 250, w: 140, steps: [[950, 345, 90]] },
+    { id: 'b', x: 5320, y: 250, w: 190, steps: [[5250, 345, 90]], gx: 60, guard: { name: 'Crucible Warden', weaponKey: 'hammer', classKey: 'thor', health: 180, color: '#c8501a' } },
+  ];
+
   function layout() {
     const P = [];
     for (const [x, y, w] of RING_LEDGES) _slLedge(P, x, y, w);
     for (const [x, y, w] of ENTRY) _slLedge(P, x, y, w);
     _slLedge(P, PIT - 80, G - 40, 160);           // the dais
+    _slStashPlats(P, STASH);
     return P;
   }
 
@@ -94,10 +102,12 @@
   ];
   function surface(v, a, ph) { _slSurfaces(v, a, ph, ZONES); }
 
+  function loot() { return _slStashLoot(STASH); }
+
   STORY_LEVELS[29] = {
     sky: ['#140200', '#3a0a02'],
     groundColor: '#1a0604',
     platColor: '#3a1a10',
-    layout, backdrop, back, surface,
+    layout, loot, backdrop, back, surface,
   };
 })();

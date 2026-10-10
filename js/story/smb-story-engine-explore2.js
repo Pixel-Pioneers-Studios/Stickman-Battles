@@ -195,6 +195,8 @@ function _spawnSurvivalWave(ss, p1) {
 // stealth run unwinnable.
 function _storyPressureScripted() {
   if (exploreArenaLock) return true;
+  // Branch-chapter beats (see _playChapterBeat) carry their own authored encounters.
+  if (typeof _activeStory2Chapter !== 'undefined' && _activeStory2Chapter && _activeStory2Chapter.noPressure) return true;
   if (typeof stealthModeActive !== 'undefined' && stealthModeActive &&
       typeof stealthAlarmed !== 'undefined' && stealthAlarmed) return true;
   if (typeof escapeModeActive  !== 'undefined' && escapeModeActive)  return true;
@@ -317,6 +319,7 @@ function updateExploration() {
   if (typeof updatePuzzleMode   === 'function' && puzzleModeActive)   updatePuzzleMode();
 
   updateExplorePickups(p1);
+  if (typeof updateSidequests === 'function') updateSidequests(p1);
   _updatePendingLevelWin();
   // Keep the sealed-exit banner honest — it appears as the player nears the exit
   // and clears the frame the last requirement is met, wherever they are standing.
@@ -459,7 +462,8 @@ function updateExploration() {
     const _doneCh = _activeStory2Chapter;
     const _nextCh = (_doneCh && typeof STORY_CHAPTERS2 !== 'undefined')
       ? STORY_CHAPTERS2[_doneCh.id + 1] : null;
-    const _nextWalkable = _nextCh && (_nextCh.walkFight === true || _nextCh.type === 'exploration');
+    // A branch chapter's beat (_playChapterBeat) always hands back to its own flow.
+    const _nextWalkable = !(_doneCh && _doneCh._beatDone) && _nextCh && (_nextCh.walkFight === true || _nextCh.type === 'exploration');
     if (_nextWalkable && typeof _regionCompleteChapter === 'function' && typeof _beginChapter2 === 'function') {
       _regionCompleteChapter(_doneCh.id);
       storyFightSubtitle = { text: `✨ ${exploreGoalName} found — entering ${_nextCh.title || 'the next area'}…`, timer: 110, maxTimer: 110, color: '#ffffaa' };
@@ -725,7 +729,13 @@ function _updateChestPickup(it, p1) {
     it._guardSpawned = true;
     it.guards.forEach((g, gi) => {
       const wk = _CACHE_GUARD_WEAPONS[Math.floor(_exploreKeyRand(it.key, 7 + gi) * _CACHE_GUARD_WEAPONS.length)];
-      _exploreSpawnEnemy({
+      // g.elite = an authored optional elite (level.loot): full-strength, tougher AI.
+      _exploreSpawnEnemy(g.elite ? {
+        wx: g.x, exactX: g.x - 17, exactY: g.floorY - 86,
+        name: g.name || 'Cache Warden', weaponKey: g.weaponKey || wk, classKey: g.classKey || 'warrior',
+        aiDiff: 'hard', color: g.color || '#b8862a', health: g.health || 150, isElite: true,
+        isChestGuardian: true, chestKey: it.key, postX: g.x,
+      } : {
         wx: g.x, exactX: g.x - 17, exactY: g.floorY - 86,
         name: it.underground ? 'Tunnel Scavenger' : 'Cache Scavenger',
         weaponKey: wk, classKey: 'warrior', aiDiff: 'easy',
@@ -734,7 +744,7 @@ function _updateChestPickup(it, p1) {
       }, p1);
     });
     storyFightSubtitle = {
-      text: it.guards.length > 1 ? '⚠ Scavengers are picking over this cache.' : '⚠ A scavenger guards this cache.',
+      text: it.guards.some(g => g.elite) ? '⚠ An elite guards this cache. Optional.' : it.guards.length > 1 ? '⚠ Scavengers are picking over this cache.' : '⚠ A scavenger guards this cache.',
       timer: 170, maxTimer: 170, color: '#ffaa44'
     };
   }
@@ -864,6 +874,7 @@ function _exploreSpawnEnemy(def, p1) {
   m.weapon    = (typeof WEAPONS !== 'undefined' && WEAPONS[m.weaponKey]) || m.weapon;
   m.aiDiff    = def.aiDiff || 'medium';
   m.name     = def.name || 'Enemy';
+  m._storyFoe = true;   // lets BOT_TACTICS.story own this Minion
   m.lives    = 1;
   m.health   = def.health || (isGuard ? 120 : 80);
   m.maxHealth= def.health || (isGuard ? 120 : 80);
@@ -877,6 +888,7 @@ function _exploreSpawnEnemy(def, p1) {
     m._aiHoldUntil = frameCount + 180; // 3s grace to register the lock before they engage
   }
   if (def.isSidePortalEnemy) m.isSidePortalEnemy = true;
+  if (def.isOptionalEnemy) m.isOptionalEnemy = true;   // sidequest foes never gate the exit
   if (def.isChestGuardian) {
     m.isChestGuardian = true; m._chestKey = def.chestKey;
     if (def.postX != null) { m._guardPostX = def.postX; m._guardPostY = (def.exactY != null ? def.exactY + 86 : my + 84); }

@@ -62,11 +62,76 @@ const SERVER_CONFIG = {
 // ============================================================
 const CHANGELOG = [
   {
+    version: '4.6.0',
+    title: 'PLAY WITH FRIENDS',
+    date: '2026-10-10',
+    flavor: 'Private lobbies you open with a link, a weekly gauntlet to race your friends through, bots that finally fight back, and a rebalanced, redrawn and re-recorded arsenal.',
+    isLatest: true,
+    changes: [
+      // ── Online ────────────────────────────────────────────────────────────
+      { cat: 'Network', text: 'Play with friends: opening a private lobby drops you into a waiting room, and friends who use your link or code arrive in it. Stand on a game\'s pad to pick it; the host starts the round, and if the host leaves another player takes over' },
+      { cat: 'Network', text: 'New lobby rounds: Basketball, Loadout Scramble (a new weapon and class every life, first to 10 KOs), Infection, King of the Hill and co-op Horde Defense. Rounds end on a podium and pay coins' },
+      { cat: 'Network', text: 'Friends: swap friend codes or add people from your lobby, see who is online and invite them to your game. Friends cannot message each other; chat stays inside a match' },
+      { cat: 'Network', text: 'Quick emotes in lobbies: number keys 1 to 6, or the buttons in the corner' },
+
+      // ── Modes & menus ─────────────────────────────────────────────────────
+      { cat: 'Mode',    text: 'Weekly Challenge: clearing the Fight Ladder unlocks a three-fight gauntlet that changes every Monday. Everyone gets the same kit, opponents and twist, the run is timed, and friends see your best time' },
+      { cat: 'UI',       text: 'Move previews: every weapon and class card has a preview button. A short scripted training match shows the basic chain, the ability, the super and the class perk with captions, then puts you back on the loadout screen' },
+      { cat: 'UI',       text: 'Gamepads work. Stick or D-pad to move, A to jump, X to attack, Y for the ability, B for the super, any shoulder button to shield, Start to pause. The stick also moves through menus. A second pad drives player two in local matches' },
+      { cat: 'UI',       text: 'The first fight starts sooner (first hit at about 4 seconds, was 20), the menu fits small portal frames, and HUD text is larger' },
+      { cat: 'UI',       text: 'When fighters are more than 1400px apart the camera follows you instead of zooming out to fit everyone, and the edge arrows show how far away the others are' },
+
+      // ── Bots ──────────────────────────────────────────────────────────────
+      { cat: 'AI',       text: 'Bots at Medium and above now decide every frame. They hold the distance their weapon wins at, follow a landed hit with a second swing and then an ability or super, throw a super soon after the meter fills, and jump or guard a shot they have had time to see' },
+      { cat: 'AI',       text: 'The old bots counted their timers wrong: a pause meant to last under a second lasted eleven, and a melee bot in range almost never reached the code that uses an ability or super. Easy bots still play the old way' },
+      { cat: 'AI',       text: 'Bots holding a ranged weapon keep their distance and fire as soon as the weapon is ready, instead of walking into melee range' },
+      { cat: 'AI',       text: 'Story enemies and Battle Royale bots use the new tactics too. Public Server lobby bots do not' },
+      { cat: 'AI',       text: 'The Sovereign is played by a neural network that learned by fighting copies of itself', spoilerLevel: 3 },
+
+      // ── Balance ───────────────────────────────────────────────────────────
+      { cat: 'Balance',  text: 'Weapon pass, measured with the same AI on both sides. Heavy weapons hit harder: Hammer 26 (was 20), Flail 24 (was 17), Anchor 28 (was 22), Frying Pan 22 (was 18). Fast weapons give a little back: Sword 14, Axe 19, Spear 15, Electric Staff 16, Whip 11, and Axe and Whip swing slower' },
+      { cat: 'Balance',  text: 'Ranged weapons were well behind melee and are all stronger. Gun bullets deal 17 to 20 with a 12-round clip, Slingshot stones 23 to 27 and fire faster, peas 8 to 9, Throwing Knives 12 to 14, Bow and Boomerang hold four shots and reload sooner, and the Flamethrower reaches further with a bigger tank. The point-blank damage penalty is 22% (was 34%). Ranged still trails melee on small arenas' },
+      { cat: 'Balance',  text: 'Combat (fists) 20 damage (was 16) with a longer step into each punch, and Roundhouse hits harder' },
+      { cat: 'Weapon',   text: 'Glass Blade is the fastest-swinging weapon in the game, quicker than fists. Fragile is reworked: each crack costs 10% damage (was 15%), every two swings you land mend one crack, and a shattered blade leaves a stub with 60% damage and 70% reach for 1.5 seconds instead of a near-useless hilt' },
+      { cat: 'Weapon',   text: 'Anchor: while the anchor is thrown your basic attack is a punch. You used to be unable to swing at all' },
+      { cat: 'Class',    text: 'Reaper\'s perk is now Second Wind: at 35% health, once per life, heal 32% of your maximum. The old revive waited for 8% health and was skipped by the killing blow almost half the time' },
+      { cat: 'Class',    text: 'Class weapon affinity applies to melee weapons as well as ranged ones' },
+      { cat: 'Combat',   text: 'A hit outside a combo string only stuns on a counter-hit or when it deals 25 damage or more. It used to be a dice roll' },
+      { cat: 'Combat',   text: 'Landing an ability or super clears SWITCH IT UP, so you can swing again after it. One that misses does not' },
+      { cat: 'Combat',   text: 'A guard-break locks your shield until its cooldown ends. You could raise it again straight away' },
+
+      // ── Look & sound ──────────────────────────────────────────────────────
+      { cat: 'Visual',   text: 'Twenty-three weapons are redrawn in the style of the Axe and Scythe: inked outlines, one strong colour each, wrapped grips and shaped pommels. Reach is unchanged' },
+      { cat: 'Visual',   text: 'A body keeps the fighter\'s own look and shows what killed it: cut apart by a blade finisher, charred by fire, flattened by a hammer. An ordinary kill leaves a lighter mark' },
+      { cat: 'Cinematic', text: 'The five weapons that had no move scenes or finishers have them now', spoilerLevel: 2 },
+      { cat: 'Cinematic', text: 'Boss cutscenes are acted by the same figures that fight, with one consistent look per character' },
+      { cat: 'Audio',    text: 'Recorded sound effects replace the synthesised beeps: different swings for light and heavy weapons, different shots for guns, bows, throwing weapons and flame, and new sounds for parries, hard landings, double jumps, respawns and finishers' },
+      { cat: 'Audio',    text: 'A soundtrack ships with the game: separate tracks for arena fights, story, Battle Royale and bosses. Portals that blocked the old streamed music were silent' },
+
+      // ── Story ─────────────────────────────────────────────────────────────
+      { cat: 'Story',    text: 'Levels have a minimap (M), and the star chart shows your progress and where you are' },
+      { cat: 'Story',    text: 'Optional sidequests in eight chapters pay coins and experience and never block the exit. Eleven chapters hide chests, some of them guarded by an elite' },
+      { cat: 'Story',    text: 'An early chapter is rebuilt as one continuous 6000px lava crossing' },
+      { cat: 'Story',    text: 'Twenty late chapters that were text only now have something to play: walks, scavenging, stealth, defence, a puzzle and duels', spoilerAct: 4 },
+      { cat: 'Story',    text: 'Escort missions are rewritten, and one mid-story chapter gains an escort of its own' },
+      { cat: 'Story',    text: 'On CrazyGames, a story defeat offers one continue per attempt for watching an ad' },
+      { cat: 'Boss',     text: 'The final secret boss has a new fight that moves through four locations', spoilerLevel: 3 },
+
+      // ── Fixes ─────────────────────────────────────────────────────────────
+      { cat: 'Fix',      text: 'Online: damage scaling was applied on both the attacker\'s and the victim\'s side, so some hits were scaled twice. Guests see themselves as P1 on the HUD, and projectiles show for everyone in the match' },
+      { cat: 'Fix',      text: 'Map pickups no longer disappear when the arena changes mid-match' },
+      { cat: 'Fix',      text: 'Battle Royale: the order fighters updated in gave one side of a mirror fight an edge. It is a coin flip each frame now' },
+      { cat: 'Fix',      text: 'Reset Progress beats an older cloud save. The cloud copy used to bring the old progress back' },
+      { cat: 'Fix',      text: 'The kill feed never shows "?" for a name, and the stage-edge warning no longer lights while you are standing on the ground' },
+      { cat: 'Fix',      text: 'God fight: it ends as GOD WINS instead of a draw, shows one health bar, and no longer freezes when every target is invulnerable', spoilerLevel: 2 },
+    ],
+  },
+  {
     version: '4.5.0',
     title: 'EVERY MOVE A SCENE',
     date: '2026-10-04',
     flavor: 'Abilities and supers play out like short fight scenes, every one of them has a finisher, and Battle Royale finally lets you finish someone without stopping the match.',
-    isLatest: true,
+    isLatest: false,
     changes: [
       { cat: 'Combat',  text: 'Every ability (Q) and super (E) is now a short scripted scene: the move carries you and your target through its own choreography and nothing outside can interrupt it. A held target with a full super meter can press super to break out' },
       { cat: 'Combat',  text: 'Scenes never carry anyone off a ledge. An ability\'s final launch is softened near the edge; a super\'s is not, because a super is a kill move' },
@@ -314,8 +379,8 @@ const CHANGELOG = [
       { cat: 'Visual', text: 'Both new Convictions have their own entry cinematic, sky atmosphere and hazard art — the warrior plants a ring of swords as the duel ring snaps shut, the summoner inscribes the sigil while six familiars converge out of the dark' },
       { cat: 'Mode',   text: 'Conviction damage rebalanced across every class — the domains were killing a full health bar in a couple of unlucky seconds. Single-hit damage is down roughly 40-50% on lightning, logs, arrows, holy beams, void rocks, bullets, blades, fists, pendulums and pulses; the archer\'s giant arrow is still the heaviest hit in any domain but no longer takes half a health bar in one shot' },
       { cat: 'Mode',   text: 'Convictions can no longer land several hazards on you in the same instant — a target now takes domain damage at most four times a second. Standing in a bullet wall, the three holy beams, or the void rocks while the vortex drags you through them is still fatal, it just gives you frames to react instead of deleting you' },
-      { cat: 'Mode',   text: 'Lightning and holy beams warn for longer before they land, and the Blades of Chaos sweep a little slower, so all three can actually be read and jumped' },
-      { cat: 'Fix',    text: 'Warpath Domain logs were spawning in a band that sat entirely above a standing fighter, so they flew harmlessly overhead almost every time. They now cross at body height and are a real hazard again at their new lower damage' },
+      { cat: 'Mode',   text: 'Lightning and holy beams warn for longer before they land, and the ember-chain sweep a little slower, so all three can actually be read and jumped' },
+      { cat: 'Fix',    text: 'Ashen Warpath logs were spawning in a band that sat entirely above a standing fighter, so they flew harmlessly overhead almost every time. They now cross at body height and are a real hazard again at their new lower damage' },
     ],
   },
   {
@@ -641,7 +706,7 @@ const CHANGELOG = [
     isLatest: false,
     changes: [
       { cat: 'Mode',    text: 'Added Conviction — once you activate your super 5 times in a match, your class unleashes its personal Conviction: a 25-second environmental takeover that floods the arena with class-specific hazards; each class has a unique named conviction with its own atmosphere, hazard type, and owner buff' },
-      { cat: 'Mode',    text: 'Conviction roster — Torren: Storm Realm (relentless lightning strikes, speed boost); Varek: Spartan War Domain (debris barrages, power boost); Ninja: Shadow Realm (reworked in 3.9.1 — time dilation); Gunner: Arsenal Domain (bullet storm); Archer: Verdant Hunt (arrow curtain); Paladin: Holy Sanctuary (holy beams, passive heal); Berserker: Blood Arena (speed + power + lifesteal, no environmental hazard — pure stats); further convictions are unlocked through progression' },
+      { cat: 'Mode',    text: 'Conviction roster — Torren: Storm Realm (relentless lightning strikes, speed boost); Varek: Ashen Warpath (debris barrages, power boost); Ninja: Shadow Realm (reworked in 3.9.1 — time dilation); Gunner: Siege Line (bullet storm); Archer: Verdant Hunt (arrow curtain); Paladin: Holy Sanctuary (holy beams, passive heal); Berserker: Blood Arena (speed + power + lifesteal, no environmental hazard — pure stats); further convictions are unlocked through progression' },
       { cat: 'Mode',    text: 'Conviction entry plays a full cinematic sequence: world darkens, the class name card slams onto screen, a Dutch camera tilt locks in, and the arena atmosphere shifts to match the conviction\'s color and sky; sudden death is suppressed for the full duration' },
       { cat: 'Arena',   text: 'Added Training Grounds — a clean symmetry-balanced stage with 8 platforms across 4 height tiers; designed for combo drills, jump practice, and aerial/edge-guard training; only accessible in Training mode' },
       { cat: 'Visual',  text: 'Added cinematic speed lines — radial and directional burst effects used during finishers, Conviction entry, and heavy cinematic hits; cone, spread, count, and length are fully configurable' },
@@ -1217,7 +1282,7 @@ let _publicRoomCheckTimer = 0;
 // ============================================================
 // VERSION
 // ============================================================
-const GAME_VERSION = '4.5.0';  // bump this when releasing; must match CHANGELOG[0].version
+const GAME_VERSION = '4.6.0';  // bump this when releasing; must match CHANGELOG[0].version
 console.log('[VERSION CHECK]', GAME_VERSION);
 
 // DEBUG / DEVELOPER STATE

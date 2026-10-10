@@ -67,41 +67,6 @@ function _smbDrawFighterPolish(fighter) {
     ctx.stroke();
   }
 
-  const headR = typeof FIG_HEAD_R === 'number' ? FIG_HEAD_R : 8;
-  const headX = cx + facing * 0.5;
-  const headY = fighter.y + headR + 1;
-
-  // Generic fighter language: a soft cloth headband and one loose tail. This
-  // deliberately avoids chest cores, visors, armor plates, horns, and orbiting
-  // tech/magic cues that made the old overlay read as a robot.
-  ctx.globalAlpha = 0.72;
-  ctx.strokeStyle = accent;
-  ctx.lineWidth = 1.35;
-  ctx.lineCap = 'round';
-  ctx.beginPath();
-  ctx.moveTo(headX - facing * headR * 0.82, headY - 1.5);
-  ctx.quadraticCurveTo(headX, headY - 3.1, headX + facing * headR * 0.82, headY - 1.5);
-  ctx.stroke();
-  ctx.globalAlpha = 0.48;
-  ctx.lineWidth = 1.0;
-  ctx.beginPath();
-  ctx.moveTo(headX - facing * headR * 0.62, headY + 2.2);
-  ctx.quadraticCurveTo(headX - facing * 11, headY + 6, headX - facing * (16 + pulse * 2), headY + 3);
-  ctx.stroke();
-
-  // Small hand/ankle wraps keep the silhouette human and athletic without
-  // adding hard-surface geometry. They are only decorative and inside the
-  // existing hitbox footprint.
-  ctx.globalAlpha = 0.34;
-  ctx.lineWidth = 0.9;
-  for (const side of [-1, 1]) {
-    const wrapX = cx + side * fighter.w * 0.22;
-    ctx.beginPath();
-    ctx.moveTo(wrapX - 2, torsoY + 7);
-    ctx.lineTo(wrapX + 2, torsoY + 9);
-    ctx.stroke();
-  }
-
   // Motion ribbon: only during active movement/attack, so the model stays clean
   // at rest and movement reads with a little more authored energy.
   const speed = Math.abs(fighter.vx || 0);

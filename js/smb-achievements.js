@@ -47,7 +47,7 @@ const ACHIEVEMENTS = [
   { id: 'br_victory',          cat: 'br',    tier: 'gold',   icon: 'medal',         title: 'Last One Standing',    desc: 'Win a Battle Royale',                               hint: 'Outlast all 99 other fighters in one match' },
   { id: 'br_kills_10',         cat: 'br',    tier: 'bronze', icon: 'target',        title: 'Ten Down',             desc: 'Get 10 eliminations in one Battle Royale',          hint: 'Only final blows count' },
   { id: 'br_kills_25',         cat: 'br',    tier: 'silver', icon: 'crosshair',     title: 'Rampage',              desc: 'Get 25 eliminations in one Battle Royale',          hint: 'A quarter of the field, in one match' },
-  { id: 'br_kills_50',         cat: 'br',    tier: 'gold',   icon: 'skull',         title: 'Half the Field',       desc: 'Get 50 eliminations in one Battle Royale',          hint: 'Half the field. One match. Yes, really' },
+  { id: 'br_kills_50',         cat: 'br',    tier: 'gold',   icon: 'skull',         title: 'Monster',              desc: 'Get 35 eliminations in one Battle Royale',          hint: 'Thirty-five in one match. Yes, really' },
   { id: 'br_cartographer',     cat: 'br',    tier: 'silver', icon: 'compass',       title: 'Cartographer',         desc: 'Visit every zone in one Battle Royale',             hint: 'All fifteen zones, including Cloud Kingdom and Volcano Depths, which you can only reach through rifts' },
   { id: 'br_scavenger',        cat: 'br',    tier: 'bronze', icon: 'crate',         title: 'Scavenger',            desc: 'Open 20 crates in one Battle Royale',               hint: 'You have to break the crates yourself' },
   // Bosses

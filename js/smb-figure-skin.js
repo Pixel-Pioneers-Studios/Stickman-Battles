@@ -281,6 +281,10 @@ const FigureSkin = (function () {
     _bound(b, x, y, 8);
   }
 
+  // paint() and face() draw to the game canvas unless handed another 2D
+  // context (the menu's fighter previews pass their own).
+  function _mainCtx() { return ctx; }
+
   // ── The single paint ──────────────────────────────────────────────────────
 
   /**
@@ -289,9 +293,11 @@ const FigureSkin = (function () {
    * @param b    builder from begin()
    * @param p    palette from pal()
    * @param far  true for the back-side limbs: shadowed, weaker outline
+   * @param alpha  whole-form opacity (a fading corpse); default 1
    */
-  function paint(b, p, far) {
+  function paint(b, p, far, g, alpha) {
     if (!b.parts.length) return;
+    const ctx = g || _mainCtx();
     ctx.save();
     ctx.lineJoin = 'round';
     ctx.lineCap  = 'round';
@@ -302,11 +308,12 @@ const FigureSkin = (function () {
     // The far-side limb is a shadowed part of the same fighter, not a ghost.
     // Keeping it nearly opaque prevents legs from disappearing into arena art
     // at store-cover scale and preserves a readable silhouette in-game.
-    ctx.globalAlpha = far ? 0.86 : 0.94;
+    const _A = alpha === undefined ? 1 : alpha;
+    ctx.globalAlpha = (far ? 0.86 : 0.94) * _A;
     ctx.strokeStyle = p.accent;
     ctx.lineWidth   = far ? 1.35 : 1.85;
     ctx.stroke(b.p);
-    ctx.globalAlpha = 1;
+    ctx.globalAlpha = _A;
 
     // 2 — A restrained, mostly-flat fill. The fighters are graphic stickmen,
     //     not hard-surface robots: one readable color per silhouette keeps the
@@ -338,12 +345,14 @@ const FigureSkin = (function () {
    * Expression is carried by eye openness and brow angle, the two things a face
    * actually uses, rather than by recolouring or by drawing a mouth.
    */
-  function face(p, x, y, r, f, o) {
+  function face(p, x, y, r, f, o, g) {
+    const ctx = g || _mainCtx();
     o = o || {};
     const expr  = o.expr || 'neutral';
     const blink = Math.max(0, Math.min(1, o.blink || 0));
     const hurt  = !!o.hurt;
     const hard  = !!o.attacking || expr === 'intense';
+    const _A    = o.alpha === undefined ? 1 : o.alpha;
 
     let open = 0.80;                               // composed, not a wide stare
     if (hurt)                                      open = 0.42;
@@ -361,7 +370,7 @@ const FigureSkin = (function () {
     if (quality() >= 2) {
       // A small, dark socket gives the face depth without making a bright band
       // across the head. The old bright smudge read as a visor at small sizes.
-      ctx.globalAlpha = 0.18;
+      ctx.globalAlpha = 0.18 * _A;
       ctx.fillStyle = p.eye;
       ctx.beginPath();
       ctx.ellipse(x + f * r * 0.28, eyeY - r * 0.22, r * 0.60, r * 0.28, f * 0.12, 0, Math.PI * 2);
@@ -371,18 +380,18 @@ const FigureSkin = (function () {
     if (open > 0.06) {
       // Dark eyes with tiny catchlights read as eyes instead of glowing slots.
       ctx.fillStyle = p.eye;
-      ctx.globalAlpha = 0.92;
+      ctx.globalAlpha = 0.92 * _A;
       ctx.beginPath();
       ctx.ellipse(nearX + lx, eyeY + ly, r * 0.20, r * 0.185 * open, f * -0.26, 0, Math.PI * 2);
       ctx.fill();
-      ctx.globalAlpha = 0.68;                      // far eye: 3/4 view falloff
+      ctx.globalAlpha = 0.68 * _A;                      // far eye: 3/4 view falloff
       ctx.beginPath();
       ctx.ellipse(farX + lx * 0.85, eyeY + ly, r * 0.135, r * 0.135 * open, f * -0.26, 0, Math.PI * 2);
       ctx.fill();
 
       if (open > 0.45 && quality() >= 2) {
         // The catchlight is what says "eye" rather than "hole".
-        ctx.globalAlpha = 0.70;
+        ctx.globalAlpha = 0.70 * _A;
         ctx.fillStyle = '#ffffff';
         ctx.beginPath();
         ctx.ellipse(nearX + lx + f * r * 0.06, eyeY + ly - r * 0.06,
@@ -390,7 +399,7 @@ const FigureSkin = (function () {
         ctx.fill();
       }
     } else {
-      ctx.globalAlpha = 0.72;                      // shut: a lid line, not a gap
+      ctx.globalAlpha = 0.72 * _A;                      // shut: a lid line, not a gap
       ctx.strokeStyle = p.accent;
       ctx.lineCap = 'round';
       ctx.lineWidth = r * 0.10;
@@ -406,7 +415,7 @@ const FigureSkin = (function () {
     // A mouth only when the face is doing something, and always an open shape.
     // A drawn line curves into a smiley or a frown, and neither belongs here.
     if (hurt || o.attacking) {
-      ctx.globalAlpha = 0.55;
+      ctx.globalAlpha = 0.55 * _A;
       ctx.fillStyle = p.eye;
       ctx.beginPath();
       ctx.ellipse(x + f * r * 0.40, y + r * 0.58,

@@ -188,6 +188,56 @@ function _drawQTEPrompts(ctx, cw, ch) {
   }
 }
 
+// Input-device-aware prompt icon (canvas primitives). Returns false if the key has no glyph.
+function _drawQTEGlyph(ctx, key, x, y, device, color) {
+  const dirs = { a: [-1, 0], d: [1, 0], w: [0, -1], s: [0, 1] };
+  const caps = { a: 'A', d: 'D', w: 'W', s: 'S', ' ': 'SPC', q: 'Q', e: 'E' };
+  const tri = (cx, cy, dx, dy, r) => {
+    ctx.beginPath();
+    ctx.moveTo(cx + dx * r, cy + dy * r);
+    ctx.lineTo(cx - dx * r * 0.6 - dy * r * 0.9, cy - dy * r * 0.6 + dx * r * 0.9);
+    ctx.lineTo(cx - dx * r * 0.6 + dy * r * 0.9, cy - dy * r * 0.6 - dx * r * 0.9);
+    ctx.closePath(); ctx.fill();
+  };
+  const pill = (cx, cy, w, h, rad) => {
+    ctx.beginPath();
+    ctx.moveTo(cx - w / 2 + rad, cy - h / 2); ctx.arcTo(cx + w / 2, cy - h / 2, cx + w / 2, cy + h / 2, rad);
+    ctx.arcTo(cx + w / 2, cy + h / 2, cx - w / 2, cy + h / 2, rad); ctx.arcTo(cx - w / 2, cy + h / 2, cx - w / 2, cy - h / 2, rad);
+    ctx.arcTo(cx - w / 2, cy - h / 2, cx + w / 2, cy - h / 2, rad); ctx.closePath();
+  };
+  if (!caps[key]) return false;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  const dir = dirs[key];
+  if (device === 'gamepad') {
+    if (dir) {   // D-pad cross, pressed arm lit
+      const arm = (dx, dy) => { pill(x + dx * 11, y + dy * 11, dx ? 14 : 12, dy ? 14 : 12, 3); ctx.fill(); };
+      ctx.fillStyle = 'rgba(255,255,255,0.28)'; arm(1, 0); arm(-1, 0); arm(0, 1); arm(0, -1); arm(0, 0);
+      ctx.fillStyle = color; arm(dir[0], dir[1]);
+    } else {     // face button: X / Y / B
+      const f = { ' ': ['X', '#4aa8ff'], q: ['Y', '#ffd23a'], e: ['B', '#ff5a5a'] }[key];
+      ctx.fillStyle = f[1]; ctx.beginPath(); ctx.arc(x, y, 15, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#0a0a14'; ctx.font = 'bold 18px Arial'; ctx.fillText(f[0], x, y + 1);
+    }
+  } else if (device === 'touch') {
+    const col = { ' ': '#ff5050', q: '#8c64ff', e: '#ffc800', s: '#00dc78' }[key] || '#00c8ff';
+    ctx.fillStyle = 'rgba(0,0,0,0.55)'; ctx.strokeStyle = col; ctx.lineWidth = 2.5;
+    if (dir && key !== 'w' && key !== 's') pill(x, y, 30, 30, 7); else { ctx.beginPath(); ctx.arc(x, y, 16, 0, Math.PI * 2); }
+    ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#fff';
+    if (dir && key !== 's') tri(x, y, dir[0], dir[1], 8);
+    else { ctx.font = 'bold 10px Arial'; ctx.fillText(key === ' ' ? 'ATK' : key === 'q' ? 'Q' : key === 'e' ? 'SUP' : 'SHD', x, y + 1); }
+  } else {       // keyboard keycap
+    const w = key === ' ' ? 40 : 28;
+    ctx.fillStyle = 'rgba(20,20,40,0.85)'; ctx.strokeStyle = color; ctx.lineWidth = 2;
+    pill(x, y - 3, w, 28, 5); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = color; ctx.font = `bold ${key === ' ' ? 12 : 17}px "Segoe UI", Arial, sans-serif`;
+    ctx.fillText(caps[key], x, y - 3);
+    ctx.font = 'bold 9px Arial'; ctx.fillStyle = color; ctx.globalAlpha *= 0.8;
+    ctx.fillText(({ a: 'LEFT', d: 'RIGHT', w: 'UP', s: 'DOWN', ' ': 'ATTACK', q: 'ABILITY', e: 'SUPER' })[key], x, y + 19);
+  }
+  return true;
+}
+
 function _drawPromptBubble(ctx, prompt, state, now) {
   const { x, y, timer, maxTimer, displayLabel, isMirrored } = prompt;
 
@@ -255,7 +305,7 @@ function _drawPromptBubble(ctx, prompt, state, now) {
   ctx.font        = `bold ${displayLabel.length > 2 ? 11 : 20}px "Segoe UI", Arial, sans-serif`;
   ctx.textAlign   = 'center';
   ctx.textBaseline= 'middle';
-  ctx.fillText(displayLabel, x, y);
+  if (!_drawQTEGlyph(ctx, prompt.displayKey, x, y, pollInputDevice(), textColor)) ctx.fillText(displayLabel, x, y);
 
   // "MIRRORED" badge for phase 2+ mirrored prompts
   if (isMirrored && state === 'active') {

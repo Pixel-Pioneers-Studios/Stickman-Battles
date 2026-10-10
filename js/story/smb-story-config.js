@@ -803,45 +803,6 @@ function _storyBuildPhases(ch) {
     isElite: true,
   });
 
-  // ── PROTOTYPE: GoW-style multi-enemy "rounds of fighters" ────────────────
-  // A small allowlist of crowd-themed chapters gets a curated wave sequence
-  // instead of collapsing to a single duel. If this feels good, widen the set.
-  // The Last Army (47), Rogue Faction (52), Architecture Soldiers (127).
-  //
-  // CRITICAL: gate on `_origId`, which is present ONLY on launch-time chapters
-  // (set by _phaseToChapter). During _expandStoryChaptersInPlace the source
-  // chapter has no _origId, so this stays single-phase there — returning >1
-  // phase at expansion would split the chapter into multiple STORY_CHAPTERS2
-  // entries and desync every downstream id + save. Waves are launch-only.
-  const PROTOTYPE_WAVE_CHAPTERS = new Set([47, 52, 129]);
-  if (ch._origId !== undefined && PROTOTYPE_WAVE_CHAPTERS.has(ch._origId)) {
-    const lives = ch.playerLives || 3;
-    const arena = ch.arena || 'homeAlley';
-    ch.phases = [
-      {
-        type: 'arena_lock', label: 'Wave 1 — First Line', arena, playerLives: lives,
-        opponents: [
-          supportEnemy,
-          _storyCloneEnemyDef(supportEnemy, { name: `${baseEnemy.name} Grunt`, color: '#667788' }),
-        ],
-      },
-      {
-        type: 'elite_wave', label: 'Wave 2 — Heavies', arena, playerLives: lives,
-        opponents: [
-          eliteEnemy,
-          _storyCloneEnemyDef(supportEnemy, { name: `${baseEnemy.name} Skirmisher`, weaponKey: 'spear', classKey: 'ninja', color: '#8855cc' }),
-        ],
-      },
-      {
-        type: 'mini_boss', label: ch.opponentName || 'Commander', finalChapter: true, arena, playerLives: lives,
-        opponents: [
-          _storyCloneEnemyDef(baseEnemy, { name: ch.opponentName || `${baseEnemy.name} Commander`, aiDiff: eliteAI, isElite: true }),
-        ],
-      },
-    ];
-    return ch.phases; // skip the finale collapse — keep all three rounds
-  }
-
   if (ch.type === 'exploration') {
     const worldLen = Math.max(5600, ch.worldLength || 5600);
     ch.phases = [
@@ -1057,7 +1018,7 @@ function restoreStoryDataFromSave(data) {
 
 // ============================================================
 // STORY MODE v2 — Chapter Progression, Tokens, Blueprints,
-//                 Ability Store, Story Online unlock
+//                 Ability Store
 // ============================================================
 
 // ============================================================
@@ -1336,6 +1297,27 @@ function _migrateStory2TrialChapters(p) {
   return true;
 }
 
+// `defeated` is keyed by chapter id (ch.id). Older saves/writers used the array
+// index; resolve any entry that is not a known id through STORY_CHAPTERS2[idx].id
+// so no progress is lost. Returns true if the list changed. Safe before the
+// registry exists (STORY_CHAPTERS2 is defined in smb-story-finalize.js).
+function _migrateStory2DefeatedKeys(p) {
+  if (!p || !Array.isArray(p.defeated) || typeof STORY_CHAPTERS2 === 'undefined' || !STORY_CHAPTERS2.length) return false;
+  const ids = new Set(STORY_CHAPTERS2.map(c => c && c.id));
+  const out = [], seen = new Set();
+  for (const v of p.defeated) {
+    const n = Number(v);
+    if (!Number.isInteger(n) || n < 0) continue;
+    const id = ids.has(n) ? n : (STORY_CHAPTERS2[n] ? STORY_CHAPTERS2[n].id : null);
+    if (id === null || seen.has(id)) continue;
+    seen.add(id); out.push(id);
+  }
+  out.sort((a, b) => a - b);
+  const changed = out.length !== p.defeated.length || out.some((v, i) => v !== p.defeated[i]);
+  if (changed) p.defeated = out;
+  return changed;
+}
+
 function _normalizeStory2Progress(data) {
   const base = _defaultStory2Progress();
   if (!data || typeof data !== 'object') return base;
@@ -1380,6 +1362,7 @@ function _normalizeStory2Progress(data) {
       _seen[i] = 1;
       return true;
     });
+    _migrateStory2DefeatedKeys(out); // legacy index-keyed entries -> ch.id (no-op until the registry exists)
   }
   if (typeof data.storyComplete === 'boolean') out.storyComplete = data.storyComplete;
   if (data.runState && typeof data.runState === 'object') out.runState = Object.assign({}, base.runState, data.runState);
@@ -1864,6 +1847,10 @@ function _showStory2RetryScreen(ch) {
   // Read the death NOW: the fighters still exist; by the next frame they may not.
   const _death = _storyBuildDeathReport(ch);
   const _canResume = !!(_story2.cpResume && _story2.cpResume.chId === ch.id && !storyPhaseIndicator);
+  // Ad-gated continue: once per chapter attempt, only when a real ad SDK is live.
+  const _adOk = window._storyAdUsedCh !== ch.id && typeof AdManager !== 'undefined' &&
+    AdManager.rewardedReady && AdManager.rewardedReady();
+  const _fellPhase = storyGauntletState ? storyGauntletState.index : 0;
   requestAnimationFrame(() => {
     // Hide default game-over overlay content and inject custom retry screen
     const ov = document.getElementById('gameOverOverlay');
@@ -1900,6 +1887,11 @@ function _showStory2RetryScreen(ch) {
         <button id="_retryChapterBtn" style="padding:10px 0;background:${_canResume ? 'rgba(40,80,180,0.55)' : 'linear-gradient(135deg,#1a5acc,#2277ee)'};border:none;border-radius:9px;color:#fff;font-weight:700;font-size:0.88rem;cursor:pointer;width:100%;">
           ↺ ${_canResume ? 'Restart' : 'Retry'} ${storyPhaseIndicator ? 'Phase' : 'Chapter'}
         </button>
+        ${_adOk ? `
+          <button id="_retryAdBtn" class="ad-reward-btn" style="padding:10px 0;background:rgba(255,200,60,0.12);border:1px solid rgba(255,200,60,0.45);border-radius:9px;color:#ffd34d;font-weight:700;font-size:0.88rem;cursor:pointer;width:100%;">
+            ▶ Watch ad to continue
+          </button>
+        ` : ''}
         ${_death.action === 'skills' ? `
           <button id="_retrySkillsBtn" style="padding:10px 0;background:linear-gradient(135deg,#1f7a44,#2fa05c);border:none;border-radius:9px;color:#fff;font-weight:700;font-size:0.88rem;cursor:pointer;width:100%;">
             🌟 Open Skill Tree
@@ -1928,6 +1920,24 @@ function _showStory2RetryScreen(ch) {
       storyModeActive = false;
       if (typeof backToMenu === 'function') backToMenu();
       setTimeout(() => _beginChapter2(ch.id), 350);
+    };
+
+    const adBtn = retryDiv.querySelector('#_retryAdBtn');
+    if (adBtn) adBtn.onclick = () => {
+      adBtn.disabled = true;
+      AdManager.rewarded(() => {
+        window._storyAdUsedCh = ch.id;
+        ov.style.display = 'none';
+        if (btnRow) btnRow.style.display = '';
+        storyModeActive = false;
+        if (typeof backToMenu === 'function') backToMenu();
+        // Full HP: clear carried health, resume the phase / rest checkpoint we fell in.
+        if (_story2.runState) _story2.runState.healthPct = 1;
+        _story2.health = null;
+        window._storyAdResume = { chId: ch.id, index: _fellPhase };
+        if (_canResume) window._storyResumeCpFor = ch.id;
+        setTimeout(() => _beginChapter2(ch.id), 350);
+      }, () => { adBtn.disabled = false; });
     };
 
     const cpBtn = retryDiv.querySelector('#_retryCheckpointBtn');
@@ -1960,6 +1970,7 @@ function _showStory2RetryScreen(ch) {
     };
 
     retryDiv.querySelector('#_retryMenuBtn').onclick = () => {
+      if (window._storyAdUsedCh === ch.id) window._storyAdUsedCh = null;
       ov.style.display = 'none';
       if (btnRow) btnRow.style.display = '';
       storyVictoryBackToMenu();

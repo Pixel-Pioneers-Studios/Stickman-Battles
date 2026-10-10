@@ -30,6 +30,13 @@
   const TOWER    = { x: 5420, w: 120 };
   const TOWER_YS = [G - 120, G - 220, G - 320, G - 420];
 
+  // Optional loot (see _slStashPlats / level.loot in smb-story-levels.js): a hidden cache
+  // one jump off the route, and a better one held by an OPTIONAL elite.
+  const STASH = [
+    { id: 'a', x: 4320, y: 250, w: 140, steps: [[4250, 345, 90]] },
+    { id: 'b', x: 1920, y: 250, w: 170, steps: [[1830, 345, 90]], gx: 60, guard: { name: 'Rift Stalker', weaponKey: 'axe', classKey: 'warrior', health: 160, color: '#7a5a9a' } },
+  ];
+
   function layout() {
     const P = [];
     _slLedge(P, VAN.x + 10, G - 40, VAN.w - 20);
@@ -48,6 +55,7 @@
     _slLedge(P, TRUCK.x, TRUCK.y, TRUCK.w);
     _slLedge(P, BUS.x, BUS.y, BUS.w);
     for (const y of TOWER_YS) _slLedge(P, TOWER.x, y, TOWER.w);
+    _slStashPlats(P, STASH);
     return P;
   }
 
@@ -293,10 +301,12 @@
     }
   }
 
+  function loot() { return _slStashLoot(STASH); }
+
   STORY_LEVELS[2] = {
     sky: ['#6a6688', '#c8b2b6'],
     groundColor: '#3a3029',
     platColor: '#4a4038',
-    layout, backdrop, back, surface,
+    layout, loot, backdrop, back, surface,
   };
 })();

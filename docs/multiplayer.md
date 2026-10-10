@@ -135,7 +135,7 @@ Features:
 - **Authority model:** Host-authoritative. Host validates all damage. Guests display predictions.
 - **No server-side validation:** The relay server is dumb — it only forwards PeerJS signals. No anti-cheat.
 - **Slot 0 = host = P1:** Host always plays as Player 1. This is hardcoded in lobby flow.
-- **State packet size:** Kept small intentionally (no full physics history). Projectile positions are NOT synced — each client simulates them independently from the spawn event.
+- **State packet size:** Kept small intentionally (no full physics history). Projectiles are owner-authoritative: the owner sends `projState` snapshots (id/x/y/vx/vy, on spawn and every 6 frames when they drift) and receivers draw visual-only ghosts that ease onto each snapshot (`NetProj` in smb-particles-core.js). Ghosts never deal damage; hits still arrive as `hitEvent` (pre-target damage, victim applies its own defence and shield).
 - **Large maps and online:** `worldWidth: 3600` arenas require tighter camera clamping; the camera system handles this but extra latency makes fast-moving projectiles more prone to desync.
 
 ---

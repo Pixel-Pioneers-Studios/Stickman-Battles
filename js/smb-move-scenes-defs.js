@@ -1496,3 +1496,121 @@ msDefine('crossbow:e', msCast({
   ],
   onFire(sc) { sc.flash('#ffe0b0', 0.12, 5); sc.dash(-6); },
 }));
+
+// ═════════════════════════════════════════════════════════════════════════════
+// ENEMY AND TRIAL WEAPONS (Null Blade, Void Blade, Shock Rifle, Lantern, Gauntlet)
+// ═════════════════════════════════════════════════════════════════════════════
+// Bosses never run scenes, so the Gauntlet's only play when a fighter carries
+// it. The Knight Gauntlets' Q and E belong to the Knight class code and Bomb Q
+// is an input mechanic; neither has a scene.
+//
+// The dashes keep their own velocity (free): the ability sets it and the scene
+// only poses the body through it.
+const MS_SWORD_E_KEYS = [
+  { t: 0,  ...MS_STAND },
+  { t: 3,  e: 'out',  r: -2.30, w: -2.45, l: 0.6, lean: -4, drop: 5, fr: 12, fl: -11, trail: true },
+  { t: 6,  e: 'snap', r: 0.95, w: 1.20, l: 2.2, lean: 9, drop: 7, fr: 15, fl: -11 },
+  { t: 11, e: 'out',  r: 1.05, w: 1.35, l: 2.2, lean: 9, drop: 7, fr: 15, fl: -11, trail: true },
+  { t: 15, e: 'snap', r: -1.05, w: -1.30, l: 1.2, lean: -2, drop: 3, fr: 12, fl: -12 },
+  { t: 20, e: 'out',  r: -2.90, w: -3.00, l: 0.4, lean: -6, drop: 6, fr: 13, fl: -13, trail: true },
+  { t: 25, e: 'snap', r: 0.08, rl: 1.15, w: 0.02, l: 2.6, lean: 14, drop: 6, fr: 19, fl: -12 },
+  { t: 40, e: 'io',   ...MS_STAND },
+];
+// Q — Counter Step: blade drawn back along the hip, one step through them.
+msDefine('nullblade:q', msCast({
+  color: '#ff4422', len: 26, fireAt: 6, free: true,
+  keys: [
+    { t: 0,  ...MS_STAND },
+    { t: 5,  e: 'out',  r: 2.60, w: 2.95, l: 0.3, lean: 10, drop: 9, fr: 15, fl: -14 },
+    { t: 6,  e: 'hold', r: 2.65, w: 3.00, l: 0.3, lean: 11, drop: 9, fr: 15, fl: -14, trail: true },
+    { t: 11, e: 'snap', r: -0.35, rl: 1.15, w: -0.55, l: 2.5, lean: 15, drop: 7, fr: 19, fl: -13 },
+    { t: 26, e: 'io',   ...MS_STAND },
+  ],
+  onFire(sc) { sc.slash(8, -8, 58, MS_PI * 0.85, -MS_PI * 0.25, { ry: 22, color: '#ff6a4a', w: 10, life: 12 }); sc.sfx('swing'); },
+}));
+msDefine('nullblade:e', msCast({
+  color: '#ff4422', len: 40, fireAt: 4, endlag: 4, keys: MS_SWORD_E_KEYS,
+  onFire(sc) { sc.sfx('swing'); },
+  tick(sc) { if (sc.at(14) || sc.at(24)) sc.sfx('swing'); },
+}));
+// Q — Void Slash: a low lunge, two cuts crossing as it lands.
+msDefine('voidblade:q', msCast({
+  color: '#b060ff', len: 28, fireAt: 5, free: true,
+  keys: [
+    { t: 0,  ...MS_STAND },
+    { t: 5,  e: 'out',  r: -2.50, w: -2.75, l: 0.5, lean: 8, drop: 11, fr: 16, fl: -14, trail: true },
+    { t: 9,  e: 'snap', r: 0.85, w: 1.10, l: 2.3, lean: 14, drop: 9, fr: 19, fl: -12 },
+    { t: 13, e: 'out',  r: 2.50, w: 2.80, l: 0.4, lean: 10, drop: 9, fr: 18, fl: -12, trail: true },
+    { t: 17, e: 'snap', r: -0.75, w: -1.00, l: 2.4, lean: 13, drop: 7, fr: 19, fl: -12 },
+    { t: 28, e: 'io',   ...MS_STAND },
+  ],
+  onFire(sc) { sc.slash(10, -6, 54, -MS_PI * 0.7, MS_PI * 0.35, { ry: 24, color: '#d0a8ff', w: 9, life: 12 }); sc.sfx('swing'); },
+  tick(sc) { if (sc.at(15)) { sc.slash(10, -6, 54, MS_PI * 0.7, -MS_PI * 0.35, { ry: 24, color: '#d0a8ff', w: 9, life: 12 }); sc.sfx('swing'); } },
+}));
+msDefine('voidblade:e', msCast({
+  color: '#b060ff', len: 40, fireAt: 4, endlag: 4, keys: MS_SWORD_E_KEYS,
+  onFire(sc) { sc.sfx('swing'); },
+  tick(sc) { if (sc.at(14) || sc.at(24)) sc.sfx('swing'); },
+}));
+// Q — Chain Lightning: shouldered, three rounds walking the muzzle up.
+msDefine('shockrifle:q', msCast({
+  color: '#00ddff', len: 26, fireAt: 5,
+  keys: [
+    { t: 0, ...MS_STAND },
+    { t: 5, e: 'snap', ...MS_AIM },
+    { t: 18, e: 'lin', ...MS_AIM },
+    { t: 26, e: 'io', ...MS_STAND },
+  ],
+  poseMod: msRecoil(4, 0.2, 5, 16),
+  onFire(sc) { sc.flash('#b8f4ff', 0.10, 4); },
+}));
+msDefine('shockrifle:e', msCast({
+  color: '#00ddff', len: 44, fireAt: 8, endlag: 4,
+  keys: [
+    { t: 0, ...MS_STAND },
+    { t: 8, e: 'out', ...MS_KNEEL },
+    { t: 34, e: 'lin', ...MS_KNEEL },
+    { t: 44, e: 'io', ...MS_STAND },
+  ],
+  poseMod: msRecoil(5, 0.24, 8, 32),
+  onFire(sc) { sc.flash('#b8f4ff', 0.16, 6); sc.shake(8); },
+}));
+// Q — Reveal Sweep: the lantern goes up overhead and the light goes out from it.
+msDefine('lantern:q', msCast({
+  color: '#ffcc66', len: 34, fireAt: 12,
+  keys: [
+    { t: 0,  ...MS_STAND },
+    { t: 10, e: 'out', r: -1.45, rl: 1.15, w: 1.57, l: 1.2, lean: -3, drop: 3, fr: 9, fl: -9 },
+    { t: 24, e: 'lin', r: -1.50, rl: 1.18, w: 1.57, l: 1.2, lean: -4, drop: 2, fr: 9, fl: -9 },
+    { t: 34, e: 'io',  ...MS_STAND },
+  ],
+  onFire(sc) { sc.ring(sc.user.cx(), sc.user.y - 8, 120, '#ffe6a8', 22); sc.flash('#fff0c8', 0.10, 8); },
+}));
+msDefine('lantern:e', msCast({
+  color: '#ffcc66', len: 40, fireAt: 4, endlag: 4, keys: MS_SWORD_E_KEYS,
+  onFire(sc) { sc.sfx('swing'); },
+  tick(sc) { if (sc.at(14) || sc.at(24)) sc.sfx('swing'); },
+}));
+// Q — Void Slam: both fists overhead, then the floor.
+msDefine('gauntlet:q', msCast({
+  color: '#b060ff', len: 34, fireAt: 14,
+  keys: [
+    { t: 0,  ...MS_STAND },
+    { t: 10, e: 'out',  r: -1.75, rl: 1.1, w: -1.75, l: -1.45, ll: 1.1, lean: -8, drop: 4, fr: 10, fl: -10 },
+    { t: 12, e: 'hold', r: -1.80, rl: 1.1, w: -1.80, l: -1.50, ll: 1.1, lean: -9, drop: 3, fr: 10, fl: -10 },
+    { t: 15, e: 'snap', r: 1.45, rl: 1.1, w: 1.45, l: 1.70, ll: 1.1, lean: 14, drop: 17, fr: 16, fl: -16 },
+    { t: 24, e: 'lin',  r: 1.45, rl: 1.1, w: 1.45, l: 1.70, ll: 1.1, lean: 14, drop: 17, fr: 16, fl: -16 },
+    { t: 34, e: 'io',   ...MS_STAND },
+  ],
+  onFire(sc) { sc.shake(14); sc.flash('#d0a8ff', 0.14, 6); sc.sfx('heavyHit'); },
+}));
+msDefine('gauntlet:e', msCast({
+  color: '#b060ff', len: 30, fireAt: 12,
+  keys: [
+    { t: 0,  ...MS_STAND },
+    { t: 10, e: 'out',  r: 2.70, rl: 0.8, w: 2.70, l: 0.2, lean: -10, drop: 8, fr: 12, fl: -14 },
+    { t: 13, e: 'snap', r: 0.02, rl: 1.25, w: 0.02, l: 2.6, lean: 16, drop: 6, fr: 20, fl: -12 },
+    { t: 30, e: 'io',   ...MS_STAND },
+  ],
+  onFire(sc) { sc.shake(10); sc.sfx('swing'); },
+}));

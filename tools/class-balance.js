@@ -45,6 +45,7 @@ const FRAMES  = parseInt(args.frames, 10)   || 18000;
 const PORT    = parseInt(args.port, 10)    || 8121;
 // --brain=sovereign puts SovereignMK2 on BOTH sides (see build()).
 const BRAIN   = String(args.brain || 'fighter');
+const ONLY    = args.only ? String(args.only).split(',') : null;
 const ROOT    = path.resolve(__dirname, '..');
 const MIME = { '.html':'text/html','.js':'text/javascript','.css':'text/css','.json':'application/json','.png':'image/png','.svg':'image/svg+xml' };
 
@@ -197,6 +198,7 @@ window.BalanceSim = (function () {
     // paper barrage, super cleanups). The sim runs far faster than real time,
     // so on the wall clock those fired after the match was already decided.
     // For the match they run on sim frames at 60fps instead.
+    if (typeof _combatTimers !== 'undefined') _combatTimers.length = 0;
     const _rto = window.setTimeout, _timers = [];
     window.setTimeout = (fn, ms) => { if (typeof fn === 'function') _timers.push({ at: frames + Math.max(1, Math.ceil((ms || 0) / 16.67)), fn }); return 0; };
     try {
@@ -207,6 +209,9 @@ window.BalanceSim = (function () {
         const tf = _timers.splice(ti, 1)[0].fn;
         try { tf(); } catch (e) { if (!err) err = 'timer:' + e.message; }
       }
+      // combatAfter() replaced setTimeout in combat code (Thor's storm, gun and
+      // pea bursts); gameLoop ticks it every frame, so the sim has to as well.
+      try { if (typeof tickCombatTimers === 'function') tickCombatTimers(); } catch (e) { if (!err) err = 'ctimer:' + e.message; }
       frames = fr + 1;
       A.target = B; B.target = A;
       // Update order is ALTERNATED every frame. It is not cosmetic: with a fixed
@@ -288,7 +293,49 @@ window.BalanceSim = (function () {
              timeout: frames >= MAX_FRAMES };
   }
 
-  return { runMatch, weaponFor };
+  // One move against a passive target dist px away on open flat ground.
+  // move: 'swing' | 'q' | 'e'. Used by tools/bot-move-ranges.js to measure where
+  // each ability and super actually connects.
+  function drill(weapon, move, dist, frames) {
+    _env('wide');
+    const A = build('none', 300, '#00d4ff', 'hard', 1, weapon, 'fighter');
+    const B = build('none', 300 + dist, '#ff4444', 'hard', 1, 'sword', 'fighter');
+    A.isAI = B.isAI = false; A.controls = B.controls = {};
+    B.maxHealth = B.health = 5000;
+    A.target = B; A.facing = 1; B.facing = -1;
+    players.length = 0; players.push(A, B);
+    if (typeof _combatTimers !== 'undefined') _combatTimers.length = 0;
+    const _rto = window.setTimeout, _timers = [];
+    let fr = 0, first = -1, free = -1, dmg = 0, err = null;
+    window.setTimeout = (fn, ms) => { if (typeof fn === 'function') _timers.push({ at: fr + Math.max(1, Math.ceil((ms || 0) / 16.67)), fn }); return 0; };
+    const x0 = 300;
+    try {
+      for (fr = 0; fr < 30 + frames; fr++) {
+        hitStopFrames = 0; slowMotion = 1; aiTick = fr; frameCount = fr + 100000;
+        for (let ti = _timers.length - 1; ti >= 0; ti--) if (_timers[ti].at <= fr) { try { _timers.splice(ti, 1)[0].fn(); } catch (e) { err = e.message; } }
+        try { tickCombatTimers(); } catch (e) {}
+        if (fr === 30) {
+          A.x = x0 - A.w / 2; B.x = x0 + dist - B.w / 2; A.vx = B.vx = 0; A.facing = 1;
+          if (move === 'e') { A.superMeter = 100; A.superReady = true; A.useSuper(B); }
+          else if (move === 'q') A.ability(B);
+          else A.attack(B);
+        }
+        const h0 = B.health;
+        try { A.update(); B.update(); MoveScene.update(); DomainManager.update();
+          projectiles.forEach(pr => pr.update()); projectiles = projectiles.filter(pr => pr.active);
+          minions.forEach(mn => { if (mn.health > 0) mn.update(); }); minions = minions.filter(mn => mn.health > 0);
+        } catch (e) { err = err || e.message; }
+        if (B.health < h0) { dmg += h0 - B.health; if (first < 0) first = fr - 30; }
+        if (fr > 30 && free < 0 && !MoveScene.isBusy(A) && !(A.attackTimer > 0) && !(A.attackEndlag > 0)) free = fr - 30;
+      }
+    } finally { window.setTimeout = _rto; }
+    const out = { dmg: Math.round(dmg), first, free, dx: Math.round(A.cx() - x0), err };
+    if (typeof MoveScene !== 'undefined' && MoveScene.reset) MoveScene.reset();
+    players.length = 0; gameRunning = false;
+    return out;
+  }
+
+  return { runMatch, weaponFor, drill };
 })();
 `;
 
@@ -309,6 +356,11 @@ window.BalanceSim = (function () {
   await sleep(2500);
   await page.evaluate(() => { try { if (typeof backToHome === 'function') backToHome(); } catch (e) {} });
   await page.addScriptTag({ content: SIM_SRC });
+  // --kite='{"fire":0.5}' overrides fields of Fighter._kiteCfg (ranged bot kiting) for this run.
+  if (args.kite) await page.evaluate(c => {
+    Fighter.prototype._aiRangedBand.call({ weapon: {}, aiDiff: 'hard' });
+    Object.assign(Fighter._kiteCfg, c);
+  }, JSON.parse(args.kite));
 
   // --no-abilities: ablate every weapon Q. Basic-attack stats and abilities are
   // two separate balance surfaces and the sweep cannot tell them apart; running
@@ -382,7 +434,11 @@ window.BalanceSim = (function () {
 
   const pairs = [];
   for (let i = 0; i < classes.length; i++)
-    for (let j = i + 1; j < classes.length; j++) pairs.push([classes[i], classes[j]]);
+    for (let j = i + 1; j < classes.length; j++) {
+      // --only=a,b restricts the round robin to pairings that include one of these entrants.
+      if (ONLY && !ONLY.includes(classes[i]) && !ONLY.includes(classes[j])) continue;
+      pairs.push([classes[i], classes[j]]);
+    }
   log(`${pairs.length} pairings x ${MATCHES} matches = ${pairs.length * MATCHES} matches (arena=${ARENA}, ${STOCKS} stocks, diff=${DIFF}, cap ${FRAMES}f)`);
 
   const t0 = Date.now();
@@ -469,7 +525,7 @@ window.BalanceSim = (function () {
   console.log(`\n  ${rows.length} matches, ${to} hit the frame cap (${(100 * to / rows.length).toFixed(0)}%)` +
               (to / rows.length > 0.15 ? '  <-- HIGH: a capped match has no winner and dilutes every rate' : ''));
   if (er.length) console.log(`  ${er.length} matches logged a fighter error, first: ${er[0].err}`);
-  const outPath = path.join(ROOT, 'tools', `class-balance-results-${MODE}-${ARENA}.json`);
+  const outPath = path.join(ROOT, 'tools', `class-balance-results-${MODE}-${ARENA}${args.tag ? '-' + args.tag : ''}.json`);
   fs.writeFileSync(outPath, JSON.stringify({ meta: { MODE, HOLD, MATCHES, STOCKS, ARENA, DIFF, when: new Date().toISOString() }, stat, cell, weapons }, null, 1));
   console.log(`\nwrote ${path.relative(ROOT, outPath)}  |  page errors: ${errs.length}`);
   if (errs.length) console.log('  ' + [...new Set(errs)].slice(0, 4).join('\n  '));

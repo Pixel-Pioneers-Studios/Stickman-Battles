@@ -106,6 +106,7 @@ var cgSdk = (function () {
 
     if (s.game && typeof s.game.addJoinRoomListener === 'function') {
       s.game.addJoinRoomListener(function (params) {
+        if (params && params.lobby && window.PubHub) { PubHub.join({ code: String(params.lobby) }); return; }
         var roomCode = params && (params.roomName || params.roomId || params.code);
         if (!roomCode) return;
         var inp = document.getElementById('onlineRoomCode');
@@ -117,8 +118,11 @@ var cgSdk = (function () {
 
     // If opened via an invite link or as instant multiplayer, auto-navigate to online mode
     var inviteCode = null;
+    var lobbyCode = null;
     try {
       var params = s.game && (s.game.inviteParams || s.game.inviteLinkParams);
+      lobbyCode = params && params.lobby;
+      if (!lobbyCode && s.game && typeof s.game.getInviteParam === 'function') lobbyCode = s.game.getInviteParam('lobby');
       var roomName = params && (params.roomName || params.roomId || params.code);
       if (!roomName && s.game && typeof s.game.getInviteParam === 'function') {
         roomName = s.game.getInviteParam('roomName');
@@ -131,7 +135,9 @@ var cgSdk = (function () {
       isInstant = !!(s.game && (s.game.isInstantMultiplayer || s.game.isInstantJoin));
     } catch (e) {}
 
-    if (inviteCode || isInstant) {
+    if (lobbyCode) {
+      setTimeout(function () { if (window.PubHub) PubHub.join({ code: String(lobbyCode) }); }, 1200);
+    } else if (inviteCode || isInstant) {
       setTimeout(function () {
         if (typeof selectMode === 'function') selectMode('online');
         if (inviteCode) {
@@ -186,6 +192,14 @@ var cgSdk = (function () {
       } catch (e) {}
     },
     isAudioMuted: function () { return !!window._cgAudioMuted; },
+
+    // Portal invite link for a Public Server lobby (smb-public-hub.js). Returns
+    // a URL (or a promise of one), or null when the portal offers none.
+    lobbyInviteLink: function (code) {
+      var s = sdk();
+      if (!s || !s.game || typeof s.game.inviteLink !== 'function') return null;
+      try { return s.game.inviteLink({ lobby: String(code || '') }); } catch (e) { return null; }
+    },
 
     // Called after host room is created — shows the Invite Friends button.
     showInviteBtn: function () {
@@ -257,6 +271,12 @@ var cgSdk = (function () {
           adError:    settle
         });
       } catch (e) { settle(); }
+    },
+
+    // True only when the portal SDK is initialised and can serve ads (never on itch/local).
+    adReady: function () {
+      var s = sdk();
+      return !!(s && s.ad && typeof s.ad.requestAd === 'function');
     },
 
     // Rewarded ad — call from an explicit player-initiated button only.

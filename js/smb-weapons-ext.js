@@ -360,7 +360,6 @@ function _wxUpdateBombs(user) {
 // FRAGMENT
 // ═════════════════════════════════════════════════════════════════════════════
 const WX_FRAG_MAX_CHARGE = 90;
-const WX_FRAG_BLAST_HOLD = 18;   // long enough to press Q and have the first punch land
 const WX_FRAG_PULL_MIN   = 30;   // stop pulling at arm's length, never through the user
 const WX_FRAG_YANK_TO    = 42;   // where the blast leaves its target: inside Barrage's first punch (62)
 
@@ -380,6 +379,12 @@ function _wxReleaseBlast(user) {
   // The blast is a set-up, not a launcher: no knockback, and it yanks what it
   // hits to arm's length and holds it there, inside Barrage's first punch.
   let held = false;
+  // Register as a basic attack BEFORE the hits land, so dealDamage treats the
+  // blast as a combo-string hit (string stun / launch rules) like any swing.
+  user._attackStartFrame = _wxFrame();
+  if (typeof CLASH_TIER_ATTACK !== 'undefined') user._attackKindTier = CLASH_TIER_ATTACK;
+  user.attackDuration = 7;
+  user.attackTimer = 7;
   for (const t of _wxHostiles(user)) {
     if (Math.hypot(t.cx() - cx, t.cy() - cy) >= r + 12 || !_wxHit(user, t, dmg, 0) || t.shielding) continue;
     held = true;
@@ -387,7 +392,7 @@ function _wxReleaseBlast(user) {
     // Ground friction (0.78) carries vx about 3.5x its value before it dies out.
     if (gap > WX_FRAG_YANK_TO && !t.isBoss && !t.isTrueForm)
       t.vx = (cx > t.cx() ? 1 : -1) * Math.min(12, (gap - WX_FRAG_YANK_TO) / 3.5);
-    if (!((t._stunGuardUntil || -1) >= _wxFrame())) t.stunTimer = Math.max(t.stunTimer || 0, WX_FRAG_BLAST_HOLD);
+    // The hold is the combo string's own stun (dealDamage); no extra fixed hold.
   }
   _wxAddFx({ kind: 'fragblast', x: cx, y: cy, r, max: 14 });
   if (settings.particles) {
@@ -618,7 +623,7 @@ function wxIsFragmentUnlocked() {
   if (typeof _story2 !== 'undefined' && _story2 && Array.isArray(_story2.defeated) &&
       typeof STORY_CHAPTERS2 !== 'undefined') {
     for (const id of _story2.defeated) {
-      const ch = STORY_CHAPTERS2[id];
+      const ch = STORY_CHAPTERS2.find(c => c && c.id === id) || STORY_CHAPTERS2[id];
       if (ch && ch.unlocksFragment) return true;
     }
   }
@@ -784,8 +789,12 @@ function _wxUpdateKnives(user) {
 // ═════════════════════════════════════════════════════════════════════════════
 // GLASS BLADE
 // ═════════════════════════════════════════════════════════════════════════════
+// Fragile: a hit that gets through cracks the blade (max 3, -10% damage each); two landed
+// basic hits mend one crack. Third crack (or Shatterstep) leaves a jagged stub: 60% damage,
+// same swing speed, 70% reach, for WX_GLASS_STUB frames, then it reforms whole.
+const WX_GLASS_STUB = 90, WX_GLASS_STUB_REACH = 0.7, WX_GLASS_MEND_HITS = 2;
 function _wxGlass(user) {
-  if (!user._wxGlass) user._wxGlass = { cracks: 0, broken: 0, hp: user.health };
+  if (!user._wxGlass) user._wxGlass = { cracks: 0, broken: 0, hp: user.health, landed: 0 };
   return user._wxGlass;
 }
 
@@ -806,6 +815,7 @@ function _wxShatter(user, reformFrames) {
   const g = _wxGlass(user);
   g.broken = reformFrames;
   g.cracks = 0;
+  g.landed = 0;
   _wxAddFx({ kind: 'shatter', x: user.cx() + user.facing * 24, y: user.cy(), max: 14 });
   spawnParticles(user.cx() + user.facing * 24, user.cy(), '#d8f6ff', 16);
   if (typeof SoundManager !== 'undefined' && SoundManager.clang) SoundManager.clang();
@@ -818,7 +828,7 @@ function wxShatterstep(user) {
   _wxNoSwingHit(user);
   if (g.broken > 0) return;
   _wxShards(user, 5, 0.6, 13, 7, 21, true);
-  _wxShatter(user, 150);
+  _wxShatter(user, WX_GLASS_STUB);
 }
 
 function wxMirrorwall(user) {
@@ -850,12 +860,21 @@ function _wxUpdateGlass(user) {
     const g = _wxGlass(user);
     // Every hit that got through the guard cracks the blade.
     if (user.health < g.hp - 0.5 && g.broken <= 0) {
-      g.cracks++;
+      g.cracks = Math.min(3, g.cracks + 1);
+      g.landed = 0;
       spawnParticles(user.cx() + user.facing * 24, user.cy(), '#d8f6ff', 5);
-      if (g.cracks >= 3) { _wxShards(user, 6, 0, 9, 6, 18, false); _wxShatter(user, 240); }
+      if (g.cracks >= 3) { _wxShards(user, 6, 0, 9, 6, 18, false); _wxShatter(user, WX_GLASS_STUB); }
     }
     g.hp = user.health;
-    if (g.broken > 0 && --g.broken === 0) spawnParticles(user.cx() + user.facing * 24, user.cy(), '#ffffff', 10);
+    if (g.broken > 0 && --g.broken === 0) {
+      g.cracks = 0; g.landed = 0;
+      spawnParticles(user.cx() + user.facing * 24, user.cy(), '#ffffff', 10);
+      _wxAddFx({ kind: 'glint', x: user.cx() + user.facing * 34, y: user.cy(), max: 16 });
+    }
+    // The stub reaches 70% as far; Fighter reads _wxReachMult in the melee hit geometry.
+    user._wxReachMult = g.broken > 0 ? WX_GLASS_STUB_REACH : 1;
+  } else if (user._wxReachMult && user._wxReachMult !== 1) {
+    user._wxReachMult = 1;
   }
   if (user._wxShards && user._wxShards.length) {
     const hostiles = _wxHostiles(user);
@@ -903,9 +922,38 @@ function _wxUpdateGlass(user) {
 // ═════════════════════════════════════════════════════════════════════════════
 // ANCHOR
 // ═════════════════════════════════════════════════════════════════════════════
-// No swinging while the anchor is out; returning true lets the ordinary swing run.
+// While the anchor is out the basic attack is a fist punch. The fighter temporarily wields a
+// 'combat' (fists) weapon object, so duration, reach, damage, knockback, endlag, swing pose and
+// drawing all come from the ordinary fist path (and Moored, which keys on weaponKey 'anchor',
+// does not apply). The hybrid keeps the anchor's Q/E, so Haul/Keelhaul still work mid-punch.
+// Restored by _wxUpdatePunch once the swing and its endlag trigger have run.
 function wxAnchorAttackGate(user, _target) {
-  return !user._wxAnchor;
+  if (!user._wxAnchor) return true;
+  const fists = (typeof WEAPONS !== 'undefined') ? WEAPONS.combat : null;
+  if (!fists || user.weaponKey !== 'anchor') return true;
+  if (!user._wxPunch) {
+    const aw = user.weapon, h = Object.create(fists);
+    h.ability = aw.ability; h.superMove = aw.superMove; h.abilityName = aw.abilityName;
+    h.abilityCooldown = aw.abilityCooldown; h.superDmgMult = aw.superDmgMult; h.abilityDmgMult = aw.abilityDmgMult;
+    h.customAttack = undefined;
+    user._wxPunch = { weapon: aw, hybrid: h, zero: false };
+    // Fighter.attack already armed the combo limiter with the anchor's cooldown.
+    if (user._basicChainReadyAt && aw.cooldown) user._basicChainReadyAt -= (aw.cooldown - fists.cooldown);
+    user.weapon = h; user.weaponKey = 'combat';
+  }
+  user._wxPunch.zero = false;
+  return true;
+}
+
+function _wxUpdatePunch(user) {
+  const pu = user._wxPunch;
+  if (!pu) return;
+  if (user.weapon !== pu.hybrid || user.weaponKey !== 'combat') { user._wxPunch = null; return; } // class/weapon changed under us
+  if (user.attackTimer > 0) { pu.zero = false; return; }
+  // The swing-end endlag is computed later in Fighter.update on the frame attackTimer reaches 0,
+  // so hold the fist weapon one more frame before handing the anchor back.
+  if (!pu.zero) { pu.zero = true; return; }
+  user.weapon = pu.weapon; user.weaponKey = 'anchor'; user._wxPunch = null;
 }
 
 function wxDropAnchor(user) {
@@ -1125,7 +1173,9 @@ function wxResetFighter(f) {
   f._wxCharge = null; f._wxBarrage = null;
   f._wxOverdrive = 0; f._wxOverdriveUp = 0; f._wxExtraJumps = 0; f._wxParryBurst = false;
   f._wxKnives = []; f._wxKnivesHeld = WX_KNIVES; f._wxFanRecallAt = 0;
-  f._wxGlass = null; f._wxShards = []; f._wxMirror = null;
+  f._wxGlass = null; f._wxReachMult = 1; f._wxShards = []; f._wxMirror = null;
+  if (f._wxPunch && f.weapon === f._wxPunch.hybrid) { f.weapon = f._wxPunch.weapon; f.weaponKey = 'anchor'; }
+  f._wxPunch = null;
   f._wxAnchor = null; f._wxKeel = null;
   f._wxBolts = []; f._wxWire = null; f._wxPinned = 0; f._wxPinCheck = null;
   f._wxMoveMult = 0; f._wxWardenHits = 0;
@@ -1143,6 +1193,7 @@ function wxUpdateFighter(f) {
   _wxUpdateOverdrive(f);
   _wxUpdateKnives(f);
   _wxUpdateGlass(f);
+  _wxUpdatePunch(f);
   _wxUpdateAnchor(f);
   _wxUpdateCrossbow(f);
   // A crossbow hit pins the target if its knockback carries it into a wall.
@@ -1159,7 +1210,14 @@ function wxDamageMods(attacker, target, dmg) {
     if (attacker._wxOverdrive > 0) d *= 1.3;
     if (attacker.weaponKey === 'glassblade' && !_wxInHit && attacker._wxGlass) {
       const g = attacker._wxGlass;
-      d *= g.broken > 0 ? 0.3 : (1 - 0.15 * g.cracks);
+      d *= g.broken > 0 ? 0.6 : (1 - 0.10 * g.cracks);
+      // A basic swing that connected mends the blade: every WX_GLASS_MEND_HITS hits, one crack.
+      const basic = typeof CLASH_TIER_ATTACK === 'undefined' || attacker._attackKindTier === CLASH_TIER_ATTACK;
+      if (basic && !attacker.superActive && g.broken <= 0 && g.cracks > 0 && ++g.landed >= WX_GLASS_MEND_HITS) {
+        g.landed = 0; g.cracks--;
+        _wxAddFx({ kind: 'glint', x: attacker.cx() + attacker.facing * (14 + 8 * g.cracks), y: attacker.cy() - 2, max: 14 });
+        spawnParticles(attacker.cx() + attacker.facing * 30, attacker.cy(), '#ffffff', 4);
+      }
     }
   }
   if (target) {
@@ -1219,6 +1277,15 @@ function _wxDrawFx() {
       ctx.fillRect(Math.min(fx.x, x1), fx.y - h, Math.abs(x1 - fx.x), h * 2);
       ctx.fillStyle = '#ffffff';
       ctx.fillRect(Math.min(fx.x, x1), fx.y - h * 0.18, Math.abs(x1 - fx.x), h * 0.36);
+    } else if (fx.kind === 'glint') {
+      ctx.globalAlpha = a;
+      ctx.shadowColor = '#ffffff'; ctx.shadowBlur = 8;
+      ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 1.4;
+      const r = 3 + 8 * Math.sin(Math.PI * Math.min(1, p * 1.2));
+      ctx.beginPath();
+      ctx.moveTo(fx.x - r, fx.y); ctx.lineTo(fx.x + r, fx.y);
+      ctx.moveTo(fx.x, fx.y - r); ctx.lineTo(fx.x, fx.y + r);
+      ctx.stroke();
     } else if (fx.kind === 'shatter') {
       ctx.globalAlpha = a;
       ctx.strokeStyle = '#e8fbff'; ctx.lineWidth = 1.4;
@@ -1468,8 +1535,12 @@ function wxDrawWeaponArt(f, k, attacking) {
     ctx.fillStyle = '#2d2a28'; ctx.beginPath(); ctx.roundRect(-4, -2.4, 13, 4.8, 1); ctx.fill();
     ctx.fillStyle = '#9aa3ad'; ctx.beginPath(); ctx.roundRect(9, -6.5, 4, 13, 1.2); ctx.fill();
     if (g && g.broken > 0) {
-      ctx.fillStyle = 'rgba(210,245,255,0.7)';
-      ctx.beginPath(); ctx.moveTo(13, -2.4); ctx.lineTo(18, -1); ctx.lineTo(16, 0.5); ctx.lineTo(19, 2); ctx.lineTo(13, 2.4); ctx.closePath(); ctx.fill();
+      // Jagged stub: ~65% of the blade's length, broken-off tip, matches the 70% hit reach.
+      ctx.fillStyle = 'rgba(210,245,255,0.8)';
+      ctx.beginPath(); ctx.moveTo(13, -3); ctx.lineTo(27, -1.9); ctx.lineTo(30, -0.6); ctx.lineTo(28, 0.4); ctx.lineTo(33, 1.2); ctx.lineTo(29, 2.2);
+      ctx.lineTo(13, 3); ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = 'rgba(255,255,255,0.9)'; ctx.lineWidth = 0.6;
+      ctx.beginPath(); ctx.moveTo(13, -3); ctx.lineTo(27, -1.9); ctx.lineTo(30, -0.6); ctx.lineTo(28, 0.4); ctx.lineTo(33, 1.2); ctx.stroke();
       return;
     }
     const bg = ctx.createLinearGradient(0, -3, 0, 3);

@@ -19,7 +19,7 @@ const DOMAIN_DEFS = {
     announce:   'The sky tears open — lightning reigns!',
   },
   kratos: {
-    name:       'Warpath Domain',
+    name:       'Ashen Warpath',
     color:      '#ff5500',
     bgTint:     'rgba(70,15,0,0.52)',
     spawnEvery: 34,           // logs roll in constantly
@@ -38,7 +38,7 @@ const DOMAIN_DEFS = {
     announce:   'The shadows drag at your limbs — only one moves free!',
   },
   gunner: {
-    name:       'Arsenal Domain',
+    name:       'Siege Line',
     color:      '#ff9900',
     bgTint:     'rgba(35,15,0,0.48)',
     spawnEvery: 26,
@@ -454,7 +454,7 @@ const DomainManager = (() => {
       });
     }
 
-    // Varek → Blades of Chaos: fire chains whipping across the arena
+    // Varek → Ember Chains: fire chains whipping across the arena
     if (domain.defKey === 'kratos') {
       domain.hazards.push({
         type:       'blades_of_chaos',
@@ -3594,6 +3594,22 @@ const DomainManager = (() => {
       // Slow starts at the first launcher strike of the entry, before the domain exists
       if (r.fighter.charClass === 'ninja' && r.animData && r.animData.slowStarted &&
           r.fighter.health > 0) _slowSources.push(r.fighter);
+    }
+    // Online: each client only runs its own ninja's domain, so the owner pings
+    // the slow over gameEvent and the other client re-creates the source here.
+    if (typeof onlineMode !== 'undefined' && onlineMode && typeof frameCount !== 'undefined') {
+      const _me = players[onlineLocalSlot];
+      if (frameCount % 15 === 0 && _me && _slowSources.indexOf(_me) !== -1 &&
+          typeof NetworkManager !== 'undefined' && NetworkManager.sendGameEvent) {
+        NetworkManager.sendGameEvent('ninjaSlow', {});
+      }
+      const _ns = window._netNinjaSlowUntil;
+      if (_ns) {
+        for (const k in _ns) {
+          const _rp = players[+k];
+          if (_rp && _rp.isRemote && _rp.health > 0 && _ns[k] > frameCount) _slowSources.push(_rp);
+        }
+      }
     }
     for (const src of _slowSources) {
       const _sf = DOMAIN_DEFS.ninja.slowFactor || 0.5;
