@@ -1,7 +1,10 @@
-[league 2026-10-10T15:07:36.002Z] start: 8 h, main iter 9334, backup data/brain/pre-league-1791644855990, hunters data/brain-hunter,data/brain-hunter2,data/brain-hunter3
-[league 2026-10-10T15:07:36.271Z] MAIN (candidate data/brain-cand) from shipped iter 9334 vs data/brain-hunter,data/brain-hunter2,data/brain-hunter3 for 7.90 h
-[league 2026-10-10T15:09:38.911Z] train.js exited 1; retrying in 60 s
-[league 2026-10-10T15:13:32.176Z] train.js exited 1; giving up on this phase
-[league 2026-10-10T15:13:41.380Z] SIGINT: stopping current phase
-[league 2026-10-10T15:14:32.209Z] candidate done at iter 9334
-[league 2026-10-10T15:14:32.221Z] end: main iter 9334, gate 0 shipped / 0 rejected, hunters data/brain-hunter,data/brain-hunter2,data/brain-hunter3
+[league 2026-10-11T07:31:59.960Z] start: 8 h, main iter 9334, backup data/brain/pre-league-1791703919957, hunters data/brain-hunter,data/brain-hunter2,data/brain-hunter3,data/brain-hunter4
+[league 2026-10-11T07:31:59.999Z] MAIN (candidate data/brain-cand) from shipped iter 9334 vs data/brain-hunter,data/brain-hunter2,data/brain-hunter3,data/brain-hunter4 for 7.90 h
+[league 2026-10-11T15:26:11.469Z] candidate done at iter 12756
+[league 2026-10-11T15:27:38.823Z] gate: cand 12756 vs shipped 9334: 61% vs mirror 55% = +6.0 (need +5)
+[league 2026-10-11T15:29:03.036Z] gate: brain-hunter wins 27% vs cand, 28% vs shipped (tol +6)
+[league 2026-10-11T15:30:27.154Z] gate: brain-hunter2 wins 38% vs cand, 50% vs shipped (tol +6)
+[league 2026-10-11T15:31:44.953Z] gate: brain-hunter3 wins 40% vs cand, 52% vs shipped (tol +6)
+[league 2026-10-11T15:33:35.866Z] gate: brain-hunter4 wins 60% vs cand, 75% vs shipped (tol +6)
+[league 2026-10-11T15:33:35.932Z] gate PASS: shipped 9334 -> 12756
+[league 2026-10-11T15:33:35.934Z] end: main iter 12756, gate 1 shipped / 0 rejected, hunters data/brain-hunter,data/brain-hunter2,data/brain-hunter3,data/brain-hunter4

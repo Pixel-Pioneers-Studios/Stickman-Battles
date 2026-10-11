@@ -136,7 +136,17 @@ var cgSdk = (function () {
     } catch (e) {}
 
     if (lobbyCode) {
-      setTimeout(function () { if (window.PubHub) PubHub.join({ code: String(lobbyCode) }); }, 1200);
+      window._pubInvitePending = true;   // smb-tutorial.js: do not start the first-run fight
+      setTimeout(function () {
+        if (!window.PubHub) return;
+        // The SDK can resolve after the first-run fight has already begun.
+        if (typeof tutorialActive !== 'undefined' && tutorialActive) {
+          if (typeof endTutorial === 'function') endTutorial(false);
+          if (typeof gameRunning !== 'undefined' && gameRunning && typeof backToMenu === 'function') backToMenu();
+        }
+        ['storyModal', 'prologueOverlay'].forEach(function (id) { var el = document.getElementById(id); if (el) el.style.display = 'none'; });
+        PubHub.join({ code: String(lobbyCode) });
+      }, 1200);
     } else if (inviteCode || isInstant) {
       setTimeout(function () {
         if (typeof selectMode === 'function') selectMode('online');

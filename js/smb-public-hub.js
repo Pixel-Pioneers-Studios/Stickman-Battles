@@ -504,7 +504,13 @@ const PubHub = (() => {
     const el = document.getElementById('onlineChat');
     if (!el) return;
     el.style.top = inLobby ? 'auto' : '60px';
-    el.style.bottom = inLobby ? '16px' : 'auto';
+    // Touch: the movement buttons own the bottom-left corner.
+    const mc = document.getElementById('mobileControls');
+    const touch = (mc && mc.classList.contains('active')) ||
+      (window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
+    el.style.bottom = inLobby ? (touch ? '100px' : '16px') : 'auto';
+    const log = document.getElementById('chatMessages');
+    if (log) log.style.height = (inLobby && touch) ? '46px' : '120px';
   }
 
   function _applyTeams() {
@@ -1199,6 +1205,7 @@ const PubHub = (() => {
       #pubEmotes{position:fixed;right:14px;bottom:14px;z-index:60;display:flex;gap:6px}
       #pubEmotes button{min-width:38px;height:34px;padding:0 6px;border-radius:9px;border:1px solid rgba(120,160,255,.3);
         background:rgba(8,10,24,.78);color:#dfe6ff;font:700 14px Rajdhani,"Apple Color Emoji","Segoe UI Emoji",sans-serif;cursor:pointer}
+      #mobileControls.active ~ #pubEmotes{bottom:182px}
       #pubEmotes button:hover{border-color:#ffd166}
       #pubEmotes button small{display:block;font:600 9px Rajdhani,sans-serif;opacity:.5;line-height:1}
     `;

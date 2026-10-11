@@ -762,7 +762,7 @@ const WEAPONS = {
   crossbow: {
     // THE MARKSMAN: one slow, heavy bolt at a time that pins what it drives into a wall.
     // Identity: every shot is a read; position the target against a surface first.
-    name: 'Crossbow', damage: 0, range: 700, cooldown: 62, endlag: 8,
+    name: 'Crossbow', damage: 0, range: 700, cooldown: 72, endlag: 8,
     damageFunc: () => 19 + Math.floor(Math.random() * 5),
     bulletSpeed: 17, kb: 9, abilityCooldown: 240, abilityDmgMult: 3.5, type: 'ranged', weaponType: 'ranged', color: '#6b4a2b',
     abilityName: 'Tripwire',

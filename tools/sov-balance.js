@@ -44,6 +44,8 @@ const PATCH   = args.patch ? JSON.parse(args.patch) : {};
 const WPATCH  = args.wpatch ? JSON.parse(args.wpatch) : {};
 // --all: every pickable weapon, ranged included (default is melee only).
 const ALL     = !!args.all;
+// --arena: flat (900px box, default), wide (2400px) or ledge. Ranged results swing with room.
+const ARENA   = String(args.arena || 'flat');
 const BASEPORT = parseInt(args.port, 10) || 8700;
 const LABEL   = String(args.label || `${MODE}-${BRAIN}`);
 const log = (...a) => console.log('[bal]', ...a);
@@ -88,7 +90,7 @@ async function worker() {
   await page.evaluate(() => { try { if (typeof backToHome === 'function') backToHome(); } catch (e) {} });
   await page.addScriptTag({ content: SIM });
 
-  const res = await page.evaluate((MODE, MATCHES, STOCKS, FRAMES, BRAIN, HOLD_C, HOLD_W, PATCH, WPATCH, shard, of, args_all) => {
+  const res = await page.evaluate((MODE, MATCHES, STOCKS, FRAMES, BRAIN, HOLD_C, HOLD_W, PATCH, WPATCH, shard, of, args_all, ARENA) => {
     // Apply candidate stats in-page only.
     for (const k of Object.keys(WPATCH)) if (WEAPONS[k]) Object.assign(WEAPONS[k], WPATCH[k]);
     const tbl = MODE === 'classes' ? CLASSES : WEAPONS;
@@ -162,7 +164,7 @@ async function worker() {
       for (let m = 0; m < MATCHES; m++) {
         const A = asM(a), B = asM(b);
         const r = BalanceSim.runMatch(A.k, B.k, (Math.random() * 1e9) | 0,
-          { stocks: STOCKS, arena: 'flat', diff: 'hard', maxFrames: FRAMES, swap: m % 2 === 1,
+          { stocks: STOCKS, arena: ARENA, diff: 'hard', maxFrames: FRAMES, swap: m % 2 === 1,
             wA: A.w, wB: B.w, brain: BRAIN,
             brainA: MODE === 'threat' ? 'sovereign' : undefined,
             brainB: MODE === 'threat' ? 'fighter' : undefined });
@@ -171,7 +173,7 @@ async function worker() {
       }
     });
     return { ents, out, src };
-  }, MODE, MATCHES, STOCKS, FRAMES, BRAIN, HOLD_C, HOLD_W, PATCH, WPATCH, shard, of, ALL);
+  }, MODE, MATCHES, STOCKS, FRAMES, BRAIN, HOLD_C, HOLD_W, PATCH, WPATCH, shard, of, ALL, ARENA);
   res.pageErrors = [...new Set(errs)].slice(0, 5);
   process.stdout.write('RESULT ' + JSON.stringify(res) + '\n');
   await browser.close(); server.close();
@@ -185,7 +187,7 @@ async function main() {
   const parts = await Promise.all(Array.from({ length: JOBS }, (_, i) => new Promise(resolve => {
     const argv = [__filename, '--worker', `--shard=${i}`, `--of=${JOBS}`, `--wport=${BASEPORT + i}`,
       `--mode=${MODE}`, `--matches=${MATCHES}`, `--stocks=${STOCKS}`, `--frames=${FRAMES}`,
-      `--brain=${BRAIN}`, ...(ALL ? ['--all'] : []), `--holdclass=${HOLD_C}`, `--hold=${HOLD_W}`, `--patch=${JSON.stringify(PATCH)}`, `--wpatch=${JSON.stringify(WPATCH)}`];
+      `--brain=${BRAIN}`, `--arena=${ARENA}`, ...(ALL ? ['--all'] : []), `--holdclass=${HOLD_C}`, `--hold=${HOLD_W}`, `--patch=${JSON.stringify(PATCH)}`, `--wpatch=${JSON.stringify(WPATCH)}`];
     const p = spawn('node', argv, { cwd: ROOT, stdio: ['ignore', 'pipe', 'pipe'] });
     let buf = '', tail = '';
     p.stdout.on('data', d => { buf += d; });
@@ -293,7 +295,7 @@ async function main() {
 
   const dir = path.join(ROOT, 'data', 'balance'); fs.mkdirSync(dir, { recursive: true });
   const file = path.join(dir, `${LABEL.replace(/[^\w.+-]/g, '_')}-${Date.now()}.json`);
-  fs.writeFileSync(file, JSON.stringify({ LABEL, MODE, BRAIN, MATCHES, PATCH, ents, st, mir, cell, bugs, rmse, src }, null, 1));
+  fs.writeFileSync(file, JSON.stringify({ LABEL, MODE, BRAIN, ARENA, MATCHES, PATCH, ents, st, mir, cell, bugs, rmse, src }, null, 1));
   log('wrote ' + path.relative(ROOT, file));
 }
 

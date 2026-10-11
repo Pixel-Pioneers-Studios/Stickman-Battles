@@ -1,1 +1,3 @@
 [waiter Sat Oct 10 11:14:31 EDT 2026] waiting for a free machine
+[queued by story sweep Sat Oct 10 19:11:26 EDT 2026] starting league --hours=8 --torch --gru
+[waiter Sun Oct 11 03:31:59 EDT 2026] machine free (load 2); launching
